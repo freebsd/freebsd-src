@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.60.2.2 1999/03/10 02:51:25 jkh Exp $
+ * $Id: index.c,v 1.60.2.3 1999/04/06 08:27:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -55,8 +55,10 @@ struct ListPtrs
 };
 typedef struct ListPtrs* ListPtrsPtr;
 
-static int	index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended);
 static void	index_recorddeps(Boolean add, PkgNodePtr root, IndexEntryPtr ie);
+
+/* Shared between index_initialize() and the various clients of it */
+PkgNode Top, Plist;
 
 /* Smarter strdup */
 inline char *
@@ -409,7 +411,7 @@ index_search(PkgNodePtr top, char *str, PkgNodePtr *tp)
 	    continue;
 
 	/* If tp == NULL, we're looking for an exact package match */
-	if (!tp && !strncmp(p->name, str, strlen(str)))
+	if (!tp && !strcmp(p->name, str))
 	    return p;
 
 	/* If tp, we're looking for both a package and a pointer to the place it's in */
@@ -624,11 +626,11 @@ index_extract(Device *dev, PkgNodePtr top, PkgNodePtr plist)
     int status = DITEM_SUCCESS;
 
     for (tmp = plist->kids; tmp && tmp->name; tmp = tmp->next)
-	status = index_extract_one(dev, top, tmp, FALSE);
+	status |= index_extract_one(dev, top, tmp, FALSE);
     return status;
 }
 
-static int
+int
 index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
 {
     int status = DITEM_SUCCESS;
@@ -702,4 +704,50 @@ index_recorddeps(Boolean add, PkgNodePtr root, IndexEntryPtr ie)
       else
 	 todo = NULL;
    }
+}
+
+static Boolean index_initted;
+
+/* Read and initialize global index */
+int
+index_initialize(char *path)
+{
+    FILE *fp;
+
+    if (!index_initted) {
+	/* Got any media? */
+	if (!mediaVerify())
+	    return DITEM_FAILURE;
+
+	/* Does it move when you kick it? */
+	if (!mediaDevice->init(mediaDevice))
+	    return DITEM_FAILURE;
+
+	msgNotify("Attempting to fetch %s file from selected media.", path);
+	fp = mediaDevice->get(mediaDevice, path, TRUE);
+	if (!fp) {
+	    dialog_clear_norefresh();
+	    msgConfirm("Unable to get packages/INDEX file from selected media.\n"
+		       "This may be because the packages collection is not available at\n"
+		       "on the distribution media you've chosen (most likely an FTP site\n"
+		       "without the packages collection mirrored).  Please verify media\n"
+		       "(or path to media) and try again.  If your local site does not\n"
+		       "carry the packages collection, then we recommend either a CD\n"
+		       "distribution or the master distribution on ftp.freebsd.org.");
+	    mediaDevice->shutdown(mediaDevice);
+	    return DITEM_FAILURE | DITEM_RESTORE;
+	}
+	msgNotify("Located INDEX, now reading package data from it...");
+	index_init(&Top, &Plist);
+	if (index_read(fp, &Top)) {
+	    msgConfirm("I/O or format error on packages/INDEX file.\n"
+		       "Please verify media (or path to media) and try again.");
+	    fclose(fp);
+	    return DITEM_FAILURE | DITEM_RESTORE;
+	}
+	fclose(fp);
+	index_sort(&Top);
+	index_initted = TRUE;
+    }
+    return DITEM_SUCCESS | DITEM_RESTORE;
 }
