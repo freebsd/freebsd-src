@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsm_subs.h	8.1 (Berkeley) 6/16/93
- * $Id: nfsm_subs.h,v 1.2 1994/08/02 07:52:20 davidg Exp $
+ * $Id: nfsm_subs.h,v 1.3 1994/08/21 06:50:10 paul Exp $
  */
 
 #ifndef _NFS_NFSM_SUBS_H_
@@ -95,11 +95,14 @@ extern struct mbuf *nfsm_reqh();
 		if (t1 >= (s)) { \
 			(a) = (c)(dpos); \
 			dpos += (s); \
-		} else if (error = nfsm_disct(&md, &dpos, (s), t1, &cp2)) { \
-			m_freem(mrep); \
-			goto nfsmout; \
 		} else { \
-			(a) = (c)cp2; \
+			error = nfsm_disct(&md, &dpos, (s), t1, &cp2); \
+			if (error) { \
+				m_freem(mrep); \
+				goto nfsmout; \
+			} else { \
+				(a) = (c)cp2; \
+			} \
 		} }
 
 #define nfsm_fhtom(v) \
@@ -113,7 +116,8 @@ extern struct mbuf *nfsm_reqh();
 #define nfsm_mtofh(d,v) \
 		{ struct nfsnode *np; nfsv2fh_t *fhp; \
 		nfsm_dissect(fhp,nfsv2fh_t *,NFSX_FH); \
-		if (error = nfs_nget((d)->v_mount, fhp, &np)) { \
+		error = nfs_nget((d)->v_mount, fhp, &np); \
+		if (error) { \
 			m_freem(mrep); \
 			goto nfsmout; \
 		} \
@@ -123,7 +127,8 @@ extern struct mbuf *nfsm_reqh();
 
 #define	nfsm_loadattr(v,a) \
 		{ struct vnode *tvp = (v); \
-		if (error = nfs_loadattrcache(&tvp, &md, &dpos, (a))) { \
+		error = nfs_loadattrcache(&tvp, &md, &dpos, (a)); \
+		if (error) { \
 			m_freem(mrep); \
 			goto nfsmout; \
 		} \
@@ -152,7 +157,8 @@ extern struct mbuf *nfsm_reqh();
 		}
 
 #define nfsm_uiotom(p,s) \
-		if (error = nfsm_uiotombuf((p),&mb,(s),&bpos)) { \
+		error = nfsm_uiotombuf((p),&mb,(s),&bpos); \
+		if (error) { \
 			m_freem(mreq); \
 			goto nfsmout; \
 		}
@@ -166,8 +172,9 @@ extern struct mbuf *nfsm_reqh();
 #define nfsm_rndup(a)	(((a)+3)&(~0x3))
 
 #define	nfsm_request(v, t, p, c)	\
-		if (error = nfs_request((v), mreq, (t), (p), \
-		   (c), &mrep, &md, &dpos)) \
+		error = nfs_request((v), mreq, (t), (p), \
+		   (c), &mrep, &md, &dpos); \
+		if (error) \
 			goto nfsmout
 
 #define	nfsm_strtom(a,s,m) \
@@ -182,9 +189,12 @@ extern struct mbuf *nfsm_reqh();
 			*tl++ = txdr_unsigned(s); \
 			*(tl+((t2>>2)-2)) = 0; \
 			bcopy((caddr_t)(a), (caddr_t)tl, (s)); \
-		} else if (error = nfsm_strtmbuf(&mb, &bpos, (a), (s))) { \
-			m_freem(mreq); \
-			goto nfsmout; \
+		} else { \
+			error = nfsm_strtmbuf(&mb, &bpos, (a), (s)); \
+			if (error) { \
+				m_freem(mreq); \
+				goto nfsmout; \
+			} \
 		}
 
 #define	nfsm_srvdone \
@@ -210,9 +220,12 @@ extern struct mbuf *nfsm_reqh();
 		t1 = mtod(md, caddr_t)+md->m_len-dpos; \
 		if (t1 >= (s)) { \
 			dpos += (s); \
-		} else if (error = nfs_adv(&md, &dpos, (s), t1)) { \
-			m_freem(mrep); \
-			goto nfsmout; \
+		} else { \
+			error = nfs_adv(&md, &dpos, (s), t1); \
+			if (error) { \
+				m_freem(mrep); \
+				goto nfsmout; \
+			} \
 		}
 
 #define nfsm_srvmtofh(f) \

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_vfsops.c,v 1.3 1994/08/20 16:03:19 davidg Exp $
+ * $Id: nfs_vfsops.c,v 1.4 1994/09/21 03:47:22 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -49,6 +49,7 @@
 #include <sys/buf.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
+#include <sys/socketvar.h>
 #include <sys/systm.h>
 
 #include <net/if.h>
@@ -122,7 +123,8 @@ nfs_statfs(mp, sbp, p)
 
 	nmp = VFSTONFS(mp);
 	isnq = (nmp->nm_flag & NFSMNT_NQNFS);
-	if (error = nfs_nget(mp, &nmp->nm_fh, &np))
+	error = nfs_nget(mp, &nmp->nm_fh, &np);
+	if (error)
 		return (error);
 	vp = NFSTOV(np);
 	nfsstats.rpccnt[NFSPROC_STATFS]++;
@@ -201,9 +203,11 @@ nfs_mountroot()
 	 * Do enough of ifconfig(8) so that the critical net interface can
 	 * talk to the server.
 	 */
-	if (error = socreate(nd->myif.ifra_addr.sa_family, &so, SOCK_DGRAM, 0))
+	error = socreate(nd->myif.ifra_addr.sa_family, &so, SOCK_DGRAM, 0);
+	if (error)
 		panic("nfs_mountroot: socreate: %d", error);
-	if (error = ifioctl(so, SIOCAIFADDR, (caddr_t)&nd->myif, p))
+	error = ifioctl(so, SIOCAIFADDR, (caddr_t)&nd->myif, p);
+	if (error)
 		panic("nfs_mountroot: SIOCAIFADDR: %d", error);
 	soclose(so);
 
@@ -217,10 +221,11 @@ nfs_mountroot()
 		sin = mask;
 		sin.sin_family = AF_INET;
 		sin.sin_len = sizeof(sin);
-		if (error = rtrequest(RTM_ADD, (struct sockaddr *)&sin,
+		error = rtrequest(RTM_ADD, (struct sockaddr *)&sin,
 		    (struct sockaddr *)&nd->mygateway,
 		    (struct sockaddr *)&mask,
-		    RTF_UP | RTF_GATEWAY, (struct rtentry **)0))
+		    RTF_UP | RTF_GATEWAY, (struct rtentry **)0);
+		if (error)
 			panic("nfs_mountroot: RTM_ADD: %d", error);
 	}
 
@@ -307,7 +312,8 @@ nfs_mountdiskless(path, which, mountflag, sin, args, vpp)
 	bcopy((caddr_t)sin, mtod(m, caddr_t), sin->sin_len);
 	m->m_len = sin->sin_len;
 	nfsargs_ntoh(args);
-	if (error = mountnfs(args, mp, m, which, path, vpp))
+	error = mountnfs(args, mp, m, which, path, vpp);
+	if (error)
 		panic("nfs_mountroot: mount %s on %s: %d", path, which, error);
 
 	return (mp);
@@ -361,19 +367,23 @@ nfs_mount(mp, path, data, ndp, p)
 	u_int len;
 	nfsv2fh_t nfh;
 
-	if (error = copyin(data, (caddr_t)&args, sizeof (struct nfs_args)))
+	error = copyin(data, (caddr_t)&args, sizeof (struct nfs_args));
+	if (error)
 		return (error);
-	if (error = copyin((caddr_t)args.fh, (caddr_t)&nfh, sizeof (nfsv2fh_t)))
+	error = copyin((caddr_t)args.fh, (caddr_t)&nfh, sizeof (nfsv2fh_t));
+	if (error)
 		return (error);
-	if (error = copyinstr(path, pth, MNAMELEN-1, &len))
+	error = copyinstr(path, pth, MNAMELEN-1, &len);
+	if (error)
 		return (error);
 	bzero(&pth[len], MNAMELEN - len);
-	if (error = copyinstr(args.hostname, hst, MNAMELEN-1, &len))
+	error = copyinstr(args.hostname, hst, MNAMELEN-1, &len);
+	if (error)
 		return (error);
 	bzero(&hst[len], MNAMELEN - len);
 	/* sockargs() call must be after above copyin() calls */
-	if (error = sockargs(&nam, (caddr_t)args.addr,
-		args.addrlen, MT_SONAME))
+	error = sockargs(&nam, (caddr_t)args.addr, args.addrlen, MT_SONAME);
+	if (error)
 		return (error);
 	args.fh = &nfh;
 	error = mountnfs(&args, mp, nam, pth, hst, &vp);
@@ -515,7 +525,8 @@ mountnfs(argp, mp, nam, pth, hst, vpp)
 	 * this problem, because one can identify root inodes by their
 	 * number == ROOTINO (2).
 	 */
-	if (error = nfs_nget(mp, &nmp->nm_fh, &np))
+	error = nfs_nget(mp, &nmp->nm_fh, &np);
+	if (error)
 		goto bad;
 	*vpp = NFSTOV(np);
 
@@ -562,7 +573,8 @@ nfs_unmount(mp, mntflags, p)
 	 * the remote root.  See comment in mountnfs().  The VFS unmount()
 	 * has done vput on this vnode, otherwise we would get deadlock!
 	 */
-	if (error = nfs_nget(mp, &nmp->nm_fh, &np))
+	error = nfs_nget(mp, &nmp->nm_fh, &np);
+	if (error)
 		return(error);
 	vp = NFSTOV(np);
 	if (vp->v_usecount > 2) {
@@ -576,7 +588,8 @@ nfs_unmount(mp, mntflags, p)
 	nmp->nm_flag |= NFSMNT_DISMINPROG;
 	while (nmp->nm_inprog != NULLVP)
 		(void) tsleep((caddr_t)&lbolt, PSOCK, "nfsdism", 0);
-	if (error = vflush(mp, vp, flags)) {
+	error = vflush(mp, vp, flags);
+	if (error) {
 		vput(vp);
 		nmp->nm_flag &= ~NFSMNT_DISMINPROG;
 		return (error);
@@ -617,7 +630,8 @@ nfs_root(mp, vpp)
 	int error;
 
 	nmp = VFSTONFS(mp);
-	if (error = nfs_nget(mp, &nmp->nm_fh, &np))
+	error = nfs_nget(mp, &nmp->nm_fh, &np);
+	if (error)
 		return (error);
 	vp = NFSTOV(np);
 	vp->v_type = VDIR;
@@ -659,7 +673,8 @@ loop:
 			continue;
 		if (vget(vp, 1))
 			goto loop;
-		if (error = VOP_FSYNC(vp, cred, waitfor, p))
+		error = VOP_FSYNC(vp, cred, waitfor, p);
+		if (error)
 			allerror = error;
 		vput(vp);
 	}
