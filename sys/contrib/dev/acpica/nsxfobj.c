@@ -2,7 +2,7 @@
  *
  * Module Name: nsxfobj - Public interfaces to the ACPI subsystem
  *                         ACPI Object oriented interfaces
- *              $Revision: 87 $
+ *              $Revision: 88 $
  *
  ******************************************************************************/
 
@@ -263,12 +263,12 @@ AcpiEvaluateObject (
 
         if (!Pathname)
         {
-            DEBUG_PRINTP (ACPI_ERROR, ("Both Handle and Pathname are NULL\n"));
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Both Handle and Pathname are NULL\n"));
         }
 
         else
         {
-            DEBUG_PRINTP (ACPI_ERROR, ("Handle is NULL and Pathname is relative\n"));
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Handle is NULL and Pathname is relative\n"));
         }
 
         Status = AE_BAD_PARAMETER;
@@ -354,8 +354,8 @@ AcpiEvaluateObject (
                          * but return the buffer size needed
                          */
 
-                        DEBUG_PRINTP (ACPI_INFO,
-                            ("Needed buffer size %X, received %X\n",
+                        ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+                            "Needed buffer size %X, received %X\n",
                             BufferSpaceNeeded, UserBufferLength));
 
                         ReturnBuffer->Length = BufferSpaceNeeded;

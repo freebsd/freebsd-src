@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acmacros.h - C macros for the entire subsystem.
- *       $Revision: 80 $
+ *       $Revision: 86 $
  *
  *****************************************************************************/
 
@@ -173,20 +173,39 @@
 #define ACPI_VALID_ADDRESS(a)           ((a).Hi | (a).Lo)
 
 #else
+#ifdef ACPI_NO_INTEGER64_SUPPORT
 /*
- * Full 64-bit address on 32-bit and 64-bit platforms
+ * ACPI_INTEGER is 32-bits, no 64-bit support on this platform
+ */
+#ifndef LODWORD
+#define LODWORD(l)                      ((UINT32)(l))
+#endif
+
+#ifndef HIDWORD
+#define HIDWORD(l)                      (0)
+#endif
+
+#define ACPI_GET_ADDRESS(a)             (a)
+#define ACPI_STORE_ADDRESS(a,b)         ((a)=(b))
+#define ACPI_VALID_ADDRESS(a)           (a)
+
+#else
+
+/*
+ * Full 64-bit address/integer on both 32-bit and 64-bit platforms
  */
 #ifndef LODWORD
 #define LODWORD(l)                      ((UINT32)(UINT64)(l))
 #endif
 
 #ifndef HIDWORD
-#define HIDWORD(l)                      ((UINT32)((((UINT64)(l)) >> 32) & 0xFFFFFFFF))
+#define HIDWORD(l)                      ((UINT32)(((*(UINT64_STRUCT *)(&l))).Hi))
 #endif
 
 #define ACPI_GET_ADDRESS(a)             (a)
 #define ACPI_STORE_ADDRESS(a,b)         ((a)=(b))
 #define ACPI_VALID_ADDRESS(a)           (a)
+#endif
 #endif
 
  /*
@@ -442,31 +461,31 @@
 #ifdef ACPI_DEBUG
 
 #define REPORT_INFO(fp)                 {_ReportInfo(_THIS_MODULE,__LINE__,_COMPONENT); \
-                                            DebugPrintRaw PARAM_LIST(fp);}
+                                            AcpiOsPrintf PARAM_LIST(fp);}
 #define REPORT_ERROR(fp)                {_ReportError(_THIS_MODULE,__LINE__,_COMPONENT); \
-                                            DebugPrintRaw PARAM_LIST(fp);}
+                                            AcpiOsPrintf PARAM_LIST(fp);}
 #define REPORT_WARNING(fp)              {_ReportWarning(_THIS_MODULE,__LINE__,_COMPONENT); \
-                                            DebugPrintRaw PARAM_LIST(fp);}
+                                            AcpiOsPrintf PARAM_LIST(fp);}
 
 #else
 
 #define REPORT_INFO(fp)                 {_ReportInfo("ACPI",__LINE__,_COMPONENT); \
-                                            DebugPrintRaw PARAM_LIST(fp);}
+                                            AcpiOsPrintf PARAM_LIST(fp);}
 #define REPORT_ERROR(fp)                {_ReportError("ACPI",__LINE__,_COMPONENT); \
-                                            DebugPrintRaw PARAM_LIST(fp);}
+                                            AcpiOsPrintf PARAM_LIST(fp);}
 #define REPORT_WARNING(fp)              {_ReportWarning("ACPI",__LINE__,_COMPONENT); \
-                                            DebugPrintRaw PARAM_LIST(fp);}
+                                            AcpiOsPrintf PARAM_LIST(fp);}
 
 #endif
 
 /* Error reporting.  These versions pass thru the module and line# */
 
 #define _REPORT_INFO(a,b,c,fp)          {_ReportInfo(a,b,c); \
-                                            DebugPrintRaw PARAM_LIST(fp);}
+                                            AcpiOsPrintf PARAM_LIST(fp);}
 #define _REPORT_ERROR(a,b,c,fp)         {_ReportError(a,b,c); \
-                                            DebugPrintRaw PARAM_LIST(fp);}
+                                            AcpiOsPrintf PARAM_LIST(fp);}
 #define _REPORT_WARNING(a,b,c,fp)       {_ReportWarning(a,b,c); \
-                                            DebugPrintRaw PARAM_LIST(fp);}
+                                            AcpiOsPrintf PARAM_LIST(fp);}
 
 /* Buffer dump macros */
 
@@ -548,24 +567,11 @@
  * Print iff:
  *    1) Debug print for the current component is enabled
  *    2) Debug error level or trace level for the print statement is enabled
- *
  */
 
-#define TEST_DEBUG_SWITCH(lvl)          if (((lvl) & AcpiDbgLevel) && (_COMPONENT & AcpiDbgLayer))
+#define ACPI_DEBUG_PRINT(pl)            AcpiUtDebugPrint PARAM_LIST(pl)
+#define ACPI_DEBUG_PRINT_RAW(pl)        AcpiUtDebugPrintRaw PARAM_LIST(pl)
 
-#define DEBUG_PRINT(lvl,fp)             TEST_DEBUG_SWITCH(lvl) {\
-                                            DebugPrintPrefix (_THIS_MODULE,__LINE__);\
-                                            DebugPrintRaw PARAM_LIST(fp);\
-                                            BREAK_ON_ERROR(lvl);}
-
-#define DEBUG_PRINTP(lvl,fp)            TEST_DEBUG_SWITCH(lvl) {\
-                                            DebugPrintPrefix (_THIS_MODULE,__LINE__);\
-                                            DebugPrintRaw ("%s: ",_ProcName);\
-                                            DebugPrintRaw PARAM_LIST(fp);\
-                                            BREAK_ON_ERROR(lvl);}
-
-#define DEBUG_PRINT_RAW(lvl,fp)         TEST_DEBUG_SWITCH(lvl) {\
-                                            DebugPrintRaw PARAM_LIST(fp);}
 
 #else
 /*
@@ -595,9 +601,8 @@
 #define DUMP_TABLES(a,b)
 #define DUMP_PATHNAME(a,b,c,d)
 #define DUMP_RESOURCE_LIST(a)
-#define DEBUG_PRINT(l,f)
-#define DEBUG_PRINTP(l,f)
-#define DEBUG_PRINT_RAW(l,f)
+#define ACPI_DEBUG_PRINT(pl)
+#define ACPI_DEBUG_PRINT_RAW(pl)
 #define BREAK_MSG(a)
 
 #define return_VOID                     return
@@ -658,13 +663,8 @@
 #define ACPI_MEM_ALLOCATE(a)            AcpiOsAllocate(a)
 #define ACPI_MEM_CALLOCATE(a)           AcpiOsCallocate(a)
 #define ACPI_MEM_FREE(a)                AcpiOsFree(a)
+#define ACPI_MEM_TRACKING(a)
 
-
-#define DECREMENT_OBJECT_METRICS(a)
-#define INCREMENT_OBJECT_METRICS(a)
-#define INITIALIZE_ALLOCATION_METRICS()
-#define DECREMENT_NAME_TABLE_METRICS(a)
-#define INCREMENT_NAME_TABLE_METRICS(a)
 
 #else
 
@@ -673,54 +673,8 @@
 #define ACPI_MEM_ALLOCATE(a)            AcpiUtAllocate(a,_COMPONENT,_THIS_MODULE,__LINE__)
 #define ACPI_MEM_CALLOCATE(a)           AcpiUtCallocate(a, _COMPONENT,_THIS_MODULE,__LINE__)
 #define ACPI_MEM_FREE(a)                AcpiUtFree(a,_COMPONENT,_THIS_MODULE,__LINE__)
+#define ACPI_MEM_TRACKING(a)            a
 
-#define INITIALIZE_ALLOCATION_METRICS() \
-    AcpiGbl_CurrentObjectCount = 0; \
-    AcpiGbl_CurrentObjectSize = 0; \
-    AcpiGbl_RunningObjectCount = 0; \
-    AcpiGbl_RunningObjectSize = 0; \
-    AcpiGbl_MaxConcurrentObjectCount = 0; \
-    AcpiGbl_MaxConcurrentObjectSize = 0; \
-    AcpiGbl_CurrentAllocSize = 0; \
-    AcpiGbl_CurrentAllocCount = 0; \
-    AcpiGbl_RunningAllocSize = 0; \
-    AcpiGbl_RunningAllocCount = 0; \
-    AcpiGbl_MaxConcurrentAllocSize = 0; \
-    AcpiGbl_MaxConcurrentAllocCount = 0; \
-    AcpiGbl_CurrentNodeCount = 0; \
-    AcpiGbl_CurrentNodeSize = 0; \
-    AcpiGbl_MaxConcurrentNodeCount = 0
-
-
-#define DECREMENT_OBJECT_METRICS(a) \
-    AcpiGbl_CurrentObjectCount--; \
-    AcpiGbl_CurrentObjectSize -= a
-
-#define INCREMENT_OBJECT_METRICS(a) \
-    AcpiGbl_CurrentObjectCount++; \
-    AcpiGbl_RunningObjectCount++; \
-    if (AcpiGbl_MaxConcurrentObjectCount < AcpiGbl_CurrentObjectCount) \
-    { \
-        AcpiGbl_MaxConcurrentObjectCount = AcpiGbl_CurrentObjectCount; \
-    } \
-    AcpiGbl_RunningObjectSize += a; \
-    AcpiGbl_CurrentObjectSize += a; \
-    if (AcpiGbl_MaxConcurrentObjectSize < AcpiGbl_CurrentObjectSize) \
-    { \
-        AcpiGbl_MaxConcurrentObjectSize = AcpiGbl_CurrentObjectSize; \
-    }
-
-#define DECREMENT_NAME_TABLE_METRICS(a) \
-    AcpiGbl_CurrentNodeCount--; \
-    AcpiGbl_CurrentNodeSize -= (a)
-
-#define INCREMENT_NAME_TABLE_METRICS(a) \
-    AcpiGbl_CurrentNodeCount++; \
-    AcpiGbl_CurrentNodeSize+= (a); \
-    if (AcpiGbl_MaxConcurrentNodeCount < AcpiGbl_CurrentNodeCount) \
-    { \
-        AcpiGbl_MaxConcurrentNodeCount = AcpiGbl_CurrentNodeCount; \
-    }
 #endif /* ACPI_DBG_TRACK_ALLOCATIONS */
 
 

@@ -2,7 +2,7 @@
  *
  * Module Name: evxfregn - External Interfaces, ACPI Operation Regions and
  *                         Address Spaces.
- *              $Revision: 34 $
+ *              $Revision: 35 $
  *
  *****************************************************************************/
 
@@ -278,8 +278,8 @@ AcpiInstallAddressSpaceHandler (
 
     else
     {
-        DEBUG_PRINTP (TRACE_OPREGION,
-            ("Creating object on Device %p while installing handler\n", Node));
+        ACPI_DEBUG_PRINT ((ACPI_DB_OPREGION,
+            "Creating object on Device %p while installing handler\n", Node));
 
         /* ObjDesc does not exist, create one */
 
@@ -314,8 +314,8 @@ AcpiInstallAddressSpaceHandler (
         }
     }
 
-    DEBUG_PRINTP (TRACE_OPREGION,
-        ("Installing address handler for region %s(%X) on Device %p(%p)\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_OPREGION,
+        "Installing address handler for region %s(%X) on Device %p(%p)\n",
         AcpiUtGetRegionName (SpaceId), SpaceId, Node, ObjDesc));
 
     /*
@@ -462,8 +462,8 @@ AcpiRemoveAddressSpaceHandler (
             /*
              *  Got it, first dereference this in the Regions
              */
-            DEBUG_PRINTP (TRACE_OPREGION,
-                ("Removing address handler %p(%p) for region %s on Device %p(%p)\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_OPREGION,
+                "Removing address handler %p(%p) for region %s on Device %p(%p)\n",
                 HandlerObj, Handler, AcpiUtGetRegionName (SpaceId),
                 Node, ObjDesc));
 
@@ -516,8 +516,8 @@ AcpiRemoveAddressSpaceHandler (
     /*
      *  The handler does not exist
      */
-    DEBUG_PRINTP (TRACE_OPREGION,
-        ("Unable to remove address handler %p for %s(%X), DevNode %p, obj %p\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_OPREGION,
+        "Unable to remove address handler %p for %s(%X), DevNode %p, obj %p\n",
         Handler, AcpiUtGetRegionName (SpaceId), SpaceId, Node, ObjDesc));
 
     Status = AE_NOT_EXIST;

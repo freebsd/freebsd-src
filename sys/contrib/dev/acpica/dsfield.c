@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsfield - Dispatcher field routines
- *              $Revision: 41 $
+ *              $Revision: 43 $
  *
  *****************************************************************************/
 
@@ -310,13 +310,13 @@ AcpiDsCreateBankField (
     /* Third arg is the BankValue */
 
     Arg = Arg->Next;
-    BankValue = Arg->Value.Integer;
+    BankValue = Arg->Value.Integer32;
 
 
     /* Next arg is the field flags */
 
     Arg = Arg->Next;
-    FieldFlags = (UINT8) Arg->Value.Integer;
+    FieldFlags = Arg->Value.Integer8;
 
     /* Each remaining arg is a Named Field */
 
@@ -503,7 +503,7 @@ AcpiDsCreateIndexField (
 
         default:
 
-            DEBUG_PRINTP (ACPI_ERROR, ("Invalid opcode in field list: %X\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Invalid opcode in field list: %X\n",
                 Arg->Opcode));
             Status = AE_AML_ERROR;
             break;

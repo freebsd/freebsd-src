@@ -3,7 +3,7 @@
  *
  * Module Name: exstoren - AML Interpreter object store support,
  *                        Store to Node (namespace object)
- *              $Revision: 38 $
+ *              $Revision: 39 $
  *
  *****************************************************************************/
 
@@ -206,8 +206,8 @@ AcpiExResolveObject (
                 /*
                  * Conversion successful but still not a valid type
                  */
-                DEBUG_PRINTP (ACPI_ERROR,
-                    ("Cannot assign type %s to %s (must be type Int/Str/Buf)\n",
+                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+                    "Cannot assign type %s to %s (must be type Int/Str/Buf)\n",
                     AcpiUtGetTypeName ((*SourceDescPtr)->Common.Type),
                     AcpiUtGetTypeName (TargetType)));
                 Status = AE_AML_OPERAND_TYPE;
@@ -221,7 +221,7 @@ AcpiExResolveObject (
         /*
          * Aliases are resolved by AcpiExPrepOperands
          */
-        DEBUG_PRINTP (ACPI_WARN, ("Store into Alias - should never happen\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_WARN, "Store into Alias - should never happen\n"));
         Status = AE_AML_INTERNAL;
         break;
 
@@ -338,7 +338,7 @@ AcpiExStoreObject (
         /*
          * All other types come here.
          */
-        DEBUG_PRINTP (ACPI_WARN, ("Store into type %s not implemented\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_WARN, "Store into type %s not implemented\n",
             AcpiUtGetTypeName (TargetType)));
 
         Status = AE_NOT_IMPLEMENTED;

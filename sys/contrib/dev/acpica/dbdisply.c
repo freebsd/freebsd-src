@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbdisply - debug display commands
- *              $Revision: 46 $
+ *              $Revision: 47 $
  *
  ******************************************************************************/
 
@@ -412,10 +412,14 @@ AcpiDbDecodeInternalObject (
     switch (ObjDesc->Common.Type)
     {
     case ACPI_TYPE_INTEGER:
-        AcpiOsPrintf (" %.8X", ObjDesc->Integer.Value);
+
+        AcpiOsPrintf (" %.8X%.8X", HIDWORD (ObjDesc->Integer.Value), 
+                                   LODWORD (ObjDesc->Integer.Value));
         break;
 
+
     case ACPI_TYPE_STRING:
+
         AcpiOsPrintf ("(%d) \"%.24s",
                 ObjDesc->String.Length, ObjDesc->String.Pointer);
 
@@ -429,7 +433,9 @@ AcpiDbDecodeInternalObject (
         }
         break;
 
+
     case ACPI_TYPE_BUFFER:
+
         AcpiOsPrintf ("(%d)", ObjDesc->Buffer.Length);
         for (i = 0; (i < 8) && (i < ObjDesc->Buffer.Length); i++)
         {
@@ -510,15 +516,15 @@ AcpiDbDisplayInternalObject (
             switch (ObjDesc->Reference.Opcode)
             {
             case AML_ZERO_OP:
-                AcpiOsPrintf ("[Const]     Number %.8X", 0);
+                AcpiOsPrintf ("[Const]     Zero (0) [Null Target]", 0);
                 break;
 
             case AML_ONES_OP:
-                AcpiOsPrintf ("[Const]     Number %.8X", ACPI_UINT32_MAX);
+                AcpiOsPrintf ("[Const]     Ones (0xFFFFFFFFFFFFFFFF) [No Limit]");
                 break;
 
             case AML_ONE_OP:
-                AcpiOsPrintf ("[Const]     Number %.8X", 1);
+                AcpiOsPrintf ("[Const]     One (1)");
                 break;
 
             case AML_LOCAL_OP:

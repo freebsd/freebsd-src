@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: aclocal.h - Internal data types used across the ACPI subsystem
- *       $Revision: 124 $
+ *       $Revision: 127 $
  *
  *****************************************************************************/
 
@@ -379,6 +379,7 @@ typedef struct acpi_namestring_info
 /* Status bits. */
 
 #define ACPI_STATUS_PMTIMER             0x0001
+#define ACPI_STATUS_BUSMASTER           0x0010
 #define ACPI_STATUS_GLOBAL              0x0020
 #define ACPI_STATUS_POWER_BUTTON        0x0100
 #define ACPI_STATUS_SLEEP_BUTTON        0x0200
@@ -648,7 +649,11 @@ typedef struct acpi_opcode_info
 
 typedef union acpi_parse_val
 {
-    UINT32                  Integer;        /* integer constant */
+    ACPI_INTEGER            Integer;        /* integer constant (Up to 64 bits) */
+    UINT64_STRUCT           Integer64;      /* Structure overlay for 2 32-bit Dwords */
+    UINT32                  Integer32;      /* integer constant, 32 bits only */
+    UINT16                  Integer16;      /* integer constant, 16 bits only */
+    UINT8                   Integer8;       /* integer constant, 8 bits only */
     UINT32                  Size;           /* bytelist or field size */
     NATIVE_CHAR             *String;        /* NULL terminated string */
     UINT8                   *Buffer;        /* buffer or string */
@@ -908,11 +913,19 @@ typedef struct acpi_parse_state
 
 typedef struct
 {
-    NATIVE_CHAR             Buffer[ACPI_DEVICE_ID_LENGTH];
+    char            Buffer[ACPI_DEVICE_ID_LENGTH];
 
 } ACPI_DEVICE_ID;
 
 
+
+/*****************************************************************************
+ *
+ * Miscellaneous
+ *
+ ****************************************************************************/
+
+#define ASCII_ZERO                      0x30
 
 /*****************************************************************************
  *
@@ -942,25 +955,71 @@ typedef struct dbmethodinfo
 
 /* Entry for a memory allocation (debug only) */
 
-#ifdef ACPI_DEBUG
 
 #define MEM_MALLOC                      0
 #define MEM_CALLOC                      1
 #define MAX_MODULE_NAME                 16
 
-typedef struct AcpiAllocationInfo
-{
-    struct AcpiAllocationInfo   *Previous;
-    struct AcpiAllocationInfo   *Next;
-    void                        *Address;
-    UINT32                      Size;
-    UINT32                      Component;
-    UINT32                      Line;
-    NATIVE_CHAR                 Module[MAX_MODULE_NAME];
+#define ACPI_COMMON_DEBUG_MEM_HEADER \
+    struct AcpiDebugMemBlock    *Previous; \
+    struct AcpiDebugMemBlock    *Next; \
+    UINT32                      Size; \
+    UINT32                      Component; \
+    UINT32                      Line; \
+    NATIVE_CHAR                 Module[MAX_MODULE_NAME]; \
     UINT8                       AllocType;
 
-} ACPI_ALLOCATION_INFO;
 
+typedef struct
+{
+    ACPI_COMMON_DEBUG_MEM_HEADER
+
+} ACPI_DEBUG_MEM_HEADER;
+
+typedef struct AcpiDebugMemBlock
+{
+    ACPI_COMMON_DEBUG_MEM_HEADER
+    UINT64                      UserSpace;
+
+} ACPI_DEBUG_MEM_BLOCK;
+
+
+
+#define ACPI_MEM_LIST_GLOBAL            0
+#define ACPI_MEM_LIST_NSNODE            1
+
+#define ACPI_MEM_LIST_FIRST_CACHE_LIST  2
+#define ACPI_MEM_LIST_STATE             2
+#define ACPI_MEM_LIST_PSNODE            3
+#define ACPI_MEM_LIST_PSNODE_EXT        4
+#define ACPI_MEM_LIST_OPERAND           5
+#define ACPI_MEM_LIST_WALK              6
+#define ACPI_MEM_LIST_MAX               6
+#define ACPI_NUM_MEM_LISTS              7
+
+
+typedef struct
+{
+    void                        *ListHead;
+    UINT16                      LinkOffset;
+    UINT16                      MaxCacheDepth;
+    UINT16                      CacheDepth;
+    UINT16                      ObjectSize;
+
+#ifdef ACPI_DBG_TRACK_ALLOCATIONS
+
+    /* Statistics for debug memory tracking only */
+
+    UINT32                      TotalAllocated;
+    UINT32                      TotalFreed;
+    UINT32                      CurrentTotalSize;
+    UINT32                      CacheRequests;
+    UINT32                      CacheHits;
+    char                        *ListName;
 #endif
+
+} ACPI_MEMORY_LIST;
+
+
 
 #endif /* __ACLOCAL_H__ */

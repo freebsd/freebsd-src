@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbinstal - ACPI table installation and removal
- *              $Revision: 40 $
+ *              $Revision: 41 $
  *
  *****************************************************************************/
 
@@ -170,7 +170,7 @@ AcpiTbInstallTable (
 
     Status = AcpiTbInitTableDescriptor (TableInfo->Type, TableInfo);
 
-    DEBUG_PRINTP (ACPI_INFO, ("%s located at %p\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "%s located at %p\n",
         AcpiGbl_AcpiTableData[TableInfo->Type].Name, TableInfo->Pointer));
 
     AcpiUtReleaseMutex (ACPI_MTX_TABLES);
@@ -241,7 +241,7 @@ AcpiTbRecognizeTable (
             TableType       = i;
             Status          = AcpiGbl_AcpiTableData[i].Status;
 
-            DEBUG_PRINTP (ACPI_INFO, ("Found %4.4s\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Found %4.4s\n",
                 AcpiGbl_AcpiTableData[i].Signature));
             break;
         }
@@ -273,8 +273,8 @@ AcpiTbRecognizeTable (
 
     if (Status == AE_SUPPORT)
     {
-        DEBUG_PRINTP (ACPI_INFO,
-            ("Unsupported table %s (Type %X) was found and discarded\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+            "Unsupported table %s (Type %X) was found and discarded\n",
             AcpiGbl_AcpiTableData[TableType].Name, TableType));
     }
 
