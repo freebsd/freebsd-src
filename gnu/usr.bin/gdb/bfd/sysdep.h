@@ -30,11 +30,12 @@
 #ifdef __bsdi__
 /* This seems to be the right thing for BSDI.  */
 #define	HOST_STACK_END_ADDR		USRSTACK
-#define HOST_DATA_START_ADDR ((bfd_vma)u.u_kproc.kp_eproc.e_vm.vm_daddr)
 #else
 /* This seems to be the right thing for 386BSD release 0.1.  */
 #define	HOST_STACK_END_ADDR		(USRSTACK - MAXSSIZ)
 #endif
+
+#define HOST_DATA_START_ADDR ((bfd_vma)u.u_kproc.kp_eproc.e_vm.vm_daddr)
 
 #define TRAD_UNIX_CORE_FILE_FAILING_SIGNAL(core_bfd) \
   ((core_bfd)->tdata.trad_core_data->u.u_sig)
