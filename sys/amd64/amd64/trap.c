@@ -212,7 +212,8 @@ trap(frame)
 			printf(
 			    "pid %ld (%s): trap %d with interrupts disabled\n",
 			    (long)curproc->p_pid, curproc->p_comm, type);
-		else if (type != T_BPTFLT && type != T_TRCTRAP) {
+		else if (type != T_BPTFLT && type != T_TRCTRAP &&
+			 frame.tf_eip != (int)cpu_switch_load_gs) {
 			/*
 			 * XXX not quite right, since this may be for a
 			 * multiple fault in user mode.
@@ -224,8 +225,7 @@ trap(frame)
 			 * and we shouldn't enable interrupts while holding a
 			 * spin lock.
 			 */
-			if (type != T_PAGEFLT && PCPU_GET(spinlocks) == NULL &&
-			    frame.tf_eip != (int)cpu_switch_load_gs)
+			if (type != T_PAGEFLT && PCPU_GET(spinlocks) == NULL)
 				enable_intr();
 		}
 	}
@@ -481,9 +481,6 @@ trap(frame)
 			 */
 			if (frame.tf_eip == (int)cpu_switch_load_gs) {
 				PCPU_GET(curpcb)->pcb_gs = 0;
-				printf(
-				 "Process %d has bad %%gs, reset to zero\n",
-				 p->p_pid);
 #if 0				
 				PROC_LOCK(p);
 				psignal(p, SIGBUS);
