@@ -351,7 +351,7 @@ kseq_load_highest(void)
 			cpu = i;
 		}
 	}
-	if (load)
+	if (load > 1)
 		return (KSEQ_CPU(cpu));
 
 	return (NULL);
