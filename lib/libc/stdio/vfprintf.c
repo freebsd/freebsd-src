@@ -71,21 +71,21 @@ static const char rcsid[] =
 #define	FLOATING_POINT
 
 union arg {
-    int			intarg;
-    unsigned int	uintarg;
-    long		longarg;
-    unsigned long	ulongarg;
-    quad_t		quadarg;
-    u_quad_t		uquadarg;
-    void		*pvoidarg;
-    char		*pchararg;
-    short		*pshortarg;
-    int			*pintarg;
-    long		*plongarg;
-    quad_t		*pquadarg;
+	int	intarg;
+	u_int	uintarg;
+	long	longarg;
+	u_long	ulongarg;
+	quad_t	quadarg;
+	u_quad_t uquadarg;
+	void	*pvoidarg;
+	char	*pchararg;
+	short	*pshortarg;
+	int	*pintarg;
+	long	*plongarg;
+	quad_t	*pquadarg;
 #ifdef FLOATING_POINT
-    double		doublearg;
-    long double		longdoublearg;
+	double	doublearg;
+	long double longdoublearg;
 #endif
 };
 
@@ -931,7 +931,7 @@ error:
  * It will be replaces with a malloc-ed one if it overflows.
  */ 
 static void
-__find_arguments (const char *fmt0, va_list ap, union arg  **argtable)
+__find_arguments (const char *fmt0, va_list ap, union arg **argtable)
 {
 	char *fmt;		/* format string */
 	int ch;			/* character from fmt */
