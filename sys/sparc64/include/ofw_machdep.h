@@ -32,7 +32,6 @@
 
 int  OF_decode_addr(phandle_t, int *, bus_addr_t *);
 void OF_getetheraddr(device_t, u_char *);
-int  OF_getetheraddr2(device_t, u_char *);
 void cpu_shutdown(void *);
 void openfirmware_exit(void *);
 

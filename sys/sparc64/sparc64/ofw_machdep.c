@@ -51,24 +51,24 @@
 void
 OF_getetheraddr(device_t dev, u_char *addr)
 {
+	char buf[sizeof("true")];
 	phandle_t node;
 	struct idprom idp;
+
+	if ((node = OF_finddevice("/options")) > 0 &&
+	    OF_getprop(node, "local-mac-address?", buf, sizeof(buf)) > 0) {
+		buf[sizeof(buf) - 1] = '\0';
+		if (strcmp(buf, "true") == 0 &&
+		    (node = ofw_bus_get_node(dev)) > 0 &&
+		    OF_getprop(node, "local-mac-address", addr,
+		    ETHER_ADDR_LEN) == ETHER_ADDR_LEN)
+			return;
+	}
 
 	node = OF_peer(0);
 	if (node <= 0 || OF_getprop(node, "idprom", &idp, sizeof(idp)) == -1)
 		panic("Could not determine the machine ethernet address");
 	bcopy(&idp.id_ether, addr, ETHER_ADDR_LEN);
-}
-
-int
-OF_getetheraddr2(device_t dev, u_char *addr)
-{
-	phandle_t node;
-
-	node = ofw_bus_get_node(dev);
-	if (node <= 0)
-	       return (-1);
-	return (OF_getprop(node, "local-mac-address", addr, ETHER_ADDR_LEN));
 }
 
 int
