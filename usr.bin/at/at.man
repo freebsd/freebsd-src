@@ -10,36 +10,29 @@
 .Nd queue, examine or delete jobs for later execution
 .Sh SYNOPSIS
 .Nm at
-.Op Fl V
 .Op Fl q Ar queue
 .Op Fl f Ar file
 .Op Fl mldbv
 .Ar time
 .Nm at
-.Op Fl V
 .Op Fl q Ar queue
 .Op Fl f Ar file
 .Op Fl mldbv
 .Fl t Ar [[CC]YY]MMDDhhmm[.SS]
 .Nm at
-.Op Fl V
 .Fl c Ar job Op Ar job ...
 .Nm at
-.Op Fl V
 .Fl r Ar job Op Ar job ...
 .Pp
 .Nm atq
-.Op Fl V
 .Op Fl q Ar queue
 .Op Fl v
 .Pp
 .Nm atrm
-.Op Fl V
 .Ar job
 .Op Ar job ...
 .Pp
 .Nm batch
-.Op Fl V
 .Op Fl q Ar queue
 .Op Fl f Ar file
 .Op Fl mv
@@ -75,18 +68,18 @@ or
 .Ar HH:MM
 to run a job at a specific time of day.
 (If that time is already past, the next day is assumed.)
-You may also specify
+As an alternative, the following keywords may be specified:
 .Em midnight ,
 .Em noon ,
 or
 .Em teatime
 (4pm)
-and you can have a time-of-day suffixed with
+and time-of-day may be suffixed with
 .Em AM
 or
 .Em PM
 for running in the morning or the evening.
-You can also say what day the job will be run,
+The day on which the job is to be run may also be specified
 by giving a date in the form
 .Ar \%month-name day
 with an optional
@@ -100,7 +93,7 @@ or giving a date of the forms
 .Ar MMDDYY .
 The specification of a date must follow the specification of
 the time of day.
-You can also give times like
+Time can also be specified as:
 .Op Em now
 .Em + Ar count \%time-units ,
 where the time-units can be
@@ -111,18 +104,18 @@ where the time-units can be
 .Em months
 or
 .Em years
-and you can tell
+and
 .Nm
-to run the job today by suffixing the time with
+may be told to run the job today by suffixing the time with
 .Em today
 and to run the job tomorrow by suffixing the time with
 .Em tomorrow .
 .Pp
-For example, to run a job at 4pm three days from now, you would do
+For example, to run a job at 4pm three days from now, use
 .Nm at Ar 4pm + 3 days ,
-to run a job at 10:00am on July 31, you would do
+to run a job at 10:00am on July 31, use
 .Nm at Ar 10am Jul 31
-and to run a job at 1am tomorrow, you would do
+and to run a job at 1am tomorrow, use
 .Nm at Ar 1am tomorrow .
 .Pp
 The
@@ -191,8 +184,6 @@ If neither exists, only the superuser is allowed use of
 This is the default configuration.
 .Sh OPTIONS
 .Bl -tag -width indent
-.It Fl V
-Print the version number to standard error.
 .It Fl q Ar queue
 Use the specified queue.
 A queue designation consists of a single letter; valid queue designations
@@ -317,9 +308,9 @@ and
 .Nm batch
 as presently implemented are not suitable when users are competing for
 resources.
-If this is the case for your site, you might want to consider another
-batch system, such as
-.Em nqs .
+If this is the case, another batch system such as
+.Em nqs 
+may be more suitable.
 .Pp
 Specifying a date past 2038 may not work on some systems.
 .Sh AUTHORS
