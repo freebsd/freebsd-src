@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.3 1993/10/08 01:19:35 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.4 1994/05/25 18:00:02 asami Exp $";
 #endif
 
 /*
@@ -100,8 +100,8 @@ pkg_do(char *pkg)
     }
     if (chdir(home) == FAIL)
 	barf("Toto!  This doesn't look like Kansas anymore!");
-    delete_package(FALSE, &Plist);
-    if (!Fake && vsystem("%s -r %s", REMOVE_CMD, LogDir)) {
+    if (!Fake && delete_package(FALSE, &Plist) != FAIL &&
+      vsystem("%s -r %s", REMOVE_CMD, LogDir)) {
 	whinge("Couldn't remove log entry in %s, de-install failed.", LogDir);
 	return 1;
     }
