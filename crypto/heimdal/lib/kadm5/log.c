@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: log.c,v 1.13 1999/12/04 19:50:35 assar Exp $");
+RCSID("$Id: log.c,v 1.18 2000/07/24 04:32:17 assar Exp $");
 
 /*
  * A log record consists of:
@@ -49,8 +49,8 @@ RCSID("$Id: log.c,v 1.13 1999/12/04 19:50:35 assar Exp $");
  */
 
 kadm5_ret_t
-kadm5_log_get_version (int fd,
-		       u_int32_t *ver)
+kadm5_log_get_version_fd (int fd,
+			  u_int32_t *ver)
 {
     int ret;
     krb5_storage *sp;
@@ -73,6 +73,21 @@ kadm5_log_get_version (int fd,
 }
 
 kadm5_ret_t
+kadm5_log_get_version (kadm5_server_context *context, u_int32_t *ver)
+{
+    return kadm5_log_get_version_fd (context->log_context.log_fd, ver);
+}
+
+kadm5_ret_t
+kadm5_log_set_version (kadm5_server_context *context, u_int32_t vno)
+{
+    kadm5_log_context *log_context = &context->log_context;
+
+    log_context->version = vno;
+    return 0;
+}
+
+kadm5_ret_t
 kadm5_log_init (kadm5_server_context *context)
 {
     int fd;
@@ -89,13 +104,37 @@ kadm5_log_init (kadm5_server_context *context)
 	return errno;
     }
 
-    ret = kadm5_log_get_version (fd, &log_context->version);
+    ret = kadm5_log_get_version_fd (fd, &log_context->version);
     if (ret)
 	return ret;
 
     log_context->log_fd  = fd;
     return 0;
 }
+
+kadm5_ret_t
+kadm5_log_reinit (kadm5_server_context *context)
+{
+    int fd;
+    kadm5_log_context *log_context = &context->log_context;
+
+    if (log_context->log_fd != -1) {
+	close (log_context->log_fd);
+	log_context->log_fd = -1;
+    }
+    fd = open (log_context->log_file, O_RDWR | O_CREAT | O_TRUNC, 0600);
+    if (fd < 0)
+	return errno;
+    if (flock (fd, LOCK_EX) < 0) {
+	close (fd);
+	return errno;
+    }
+
+    log_context->version = 0;
+    log_context->log_fd  = fd;
+    return 0;
+}
+
 
 kadm5_ret_t
 kadm5_log_end (kadm5_server_context *context)
@@ -483,14 +522,22 @@ kadm5_log_replay_modify (kadm5_server_context *context,
     if (ret)
 	return ret;
     if (mask & KADM5_PRINC_EXPIRE_TIME) {
-	if (ent.valid_end == NULL)
-	    ent.valid_end = malloc(sizeof(*ent.valid_end));
-	*ent.valid_end = *log_ent.valid_end;
+	if (log_ent.valid_end == NULL) {
+	    ent.valid_end = NULL;
+	} else {
+	    if (ent.valid_end == NULL)
+		ent.valid_end = malloc(sizeof(*ent.valid_end));
+	    *ent.valid_end = *log_ent.valid_end;
+	}
     }
     if (mask & KADM5_PW_EXPIRATION) {
-	if (ent.pw_end == NULL)
-	    ent.pw_end = malloc(sizeof(*ent.pw_end));
-	*ent.pw_end = *log_ent.pw_end;
+	if (log_ent.pw_end == NULL) {
+	    ent.pw_end = NULL;
+	} else {
+	    if (ent.pw_end == NULL)
+		ent.pw_end = malloc(sizeof(*ent.pw_end));
+	    *ent.pw_end = *log_ent.pw_end;
+	}
     }
     if (mask & KADM5_LAST_PWD_CHANGE) {
 	abort ();		/* XXX */
@@ -499,9 +546,13 @@ kadm5_log_replay_modify (kadm5_server_context *context,
 	ent.flags = log_ent.flags;
     }
     if (mask & KADM5_MAX_LIFE) {
-	if (ent.max_life == NULL)
-	    ent.max_life = malloc (sizeof(*ent.max_life));
-	*ent.max_life = *log_ent.max_life;
+	if (log_ent.max_life == NULL) {
+	    ent.max_life = NULL;
+	} else {
+	    if (ent.max_life == NULL)
+		ent.max_life = malloc (sizeof(*ent.max_life));
+	    *ent.max_life = *log_ent.max_life;
+	}
     }
     if ((mask & KADM5_MOD_TIME) && (mask & KADM5_MOD_NAME)) {
 	if (ent.modified_by == NULL) {
@@ -526,9 +577,13 @@ kadm5_log_replay_modify (kadm5_server_context *context,
 	abort ();		/* XXX */
     }
     if (mask & KADM5_MAX_RLIFE) {
-	if (ent.max_renew == NULL)
-	    ent.max_renew = malloc (sizeof(*ent.max_renew));
-	*ent.max_renew = *log_ent.max_renew;
+	if (log_ent.max_renew == NULL) {
+	    ent.max_renew = NULL;
+	} else {
+	    if (ent.max_renew == NULL)
+		ent.max_renew = malloc (sizeof(*ent.max_renew));
+	    *ent.max_renew = *log_ent.max_renew;
+	}
     }
     if (mask & KADM5_LAST_SUCCESS) {
 	abort ();		/* XXX */
@@ -560,6 +615,51 @@ kadm5_log_replay_modify (kadm5_server_context *context,
     hdb_free_entry (context->context, &ent);
     hdb_free_entry (context->context, &log_ent);
     return ret;
+}
+
+/*
+ * Add a `nop' operation to the log.
+ */
+
+kadm5_ret_t
+kadm5_log_nop (kadm5_server_context *context)
+{
+    krb5_storage *sp;
+    kadm5_ret_t ret;
+    kadm5_log_context *log_context = &context->log_context;
+
+    sp = krb5_storage_emem();
+    ret = kadm5_log_preamble (context, sp, kadm_nop);
+    if (ret) {
+	krb5_storage_free (sp);
+	return ret;
+    }
+    krb5_store_int32 (sp, 0);
+    krb5_store_int32 (sp, 0);
+    ret = kadm5_log_postamble (log_context, sp);
+    if (ret) {
+	krb5_storage_free (sp);
+	return ret;
+    }
+    ret = kadm5_log_flush (log_context, sp);
+    krb5_storage_free (sp);
+    if (ret)
+	return ret;
+    ret = kadm5_log_end (context);
+    return ret;
+}
+
+/*
+ * Read a `nop' log operation from `sp' and apply it.
+ */
+
+kadm5_ret_t
+kadm5_log_replay_nop (kadm5_server_context *context,
+		      u_int32_t ver,
+		      u_int32_t len,
+		      krb5_storage *sp)
+{
+    return 0;
 }
 
 /*
@@ -660,7 +760,46 @@ kadm5_log_replay (kadm5_server_context *context,
 	return kadm5_log_replay_rename (context, ver, len, sp);
     case kadm_modify :
 	return kadm5_log_replay_modify (context, ver, len, sp);
+    case kadm_nop :
+	return kadm5_log_replay_nop (context, ver, len, sp);
     default :
 	return KADM5_FAILURE;
     }
+}
+
+/*
+ * truncate the log - i.e. create an empty file with just (nop vno + 2)
+ */
+
+kadm5_ret_t
+kadm5_log_truncate (kadm5_server_context *server_context)
+{
+    kadm5_ret_t ret;
+    u_int32_t vno;
+
+    ret = kadm5_log_init (server_context);
+    if (ret)
+	return ret;
+
+    ret = kadm5_log_get_version (server_context, &vno);
+    if (ret)
+	return ret;
+
+    ret = kadm5_log_reinit (server_context);
+    if (ret)
+	return ret;
+
+    ret = kadm5_log_set_version (server_context, vno + 1);
+    if (ret)
+	return ret;
+
+    ret = kadm5_log_nop (server_context);
+    if (ret)
+	return ret;
+
+    ret = kadm5_log_end (server_context);
+    if (ret)
+	return ret;
+    return 0;
+
 }

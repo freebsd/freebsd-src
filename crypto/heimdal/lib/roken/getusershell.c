@@ -35,12 +35,13 @@
 #include <config.h>
 #endif
 
-RCSID("$Id: getusershell.c,v 1.8 1997/04/20 06:18:03 assar Exp $");
+RCSID("$Id: getusershell.c,v 1.10 2000/05/22 09:11:59 joda Exp $");
 
 #ifndef HAVE_GETUSERSHELL
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #ifdef HAVE_PATHS_H
 #include <paths.h>
 #endif
@@ -52,6 +53,14 @@ RCSID("$Id: getusershell.c,v 1.8 1997/04/20 06:18:03 assar Exp $");
 #endif
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
+#endif
+
+#ifdef HAVE_USERSEC_H
+struct aud_rec;
+#include <usersec.h>
+#endif
+#ifdef HAVE_USERCONF_H
+#include <userconf.h>
 #endif
 
 #ifndef _PATH_SHELLS
@@ -81,80 +90,102 @@ static char **initshells (void);
 char *
 getusershell()
 {
-	char *ret;
+    char *ret;
 
-	if (curshell == NULL)
-		curshell = initshells();
-	ret = *curshell;
-	if (ret != NULL)
-		curshell++;
-	return (ret);
+    if (curshell == NULL)
+	curshell = initshells();
+    ret = *curshell;
+    if (ret != NULL)
+	curshell++;
+    return (ret);
 }
 
 void
 endusershell()
 {
-	
-	if (shells != NULL)
-		free(shells);
-	shells = NULL;
-	if (strings != NULL)
-		free(strings);
-	strings = NULL;
-	curshell = NULL;
+    if (shells != NULL)
+	free(shells);
+    shells = NULL;
+    if (strings != NULL)
+	free(strings);
+    strings = NULL;
+    curshell = NULL;
 }
 
 void
 setusershell()
 {
-
-	curshell = initshells();
+    curshell = initshells();
 }
 
 static char **
 initshells()
 {
-	char **sp, *cp;
-	FILE *fp;
-	struct stat statb;
+    char **sp, *cp;
+#ifdef HAVE_GETCONFATTR
+    char *tmp;
+    int nsh;
+#else
+    FILE *fp;
+#endif
+    struct stat statb;
 
-	if (shells != NULL)
-		free(shells);
+    free(shells);
+    shells = NULL;
+    free(strings);
+    strings = NULL;
+#ifdef HAVE_GETCONFATTR
+    if(getconfattr(SC_SYS_LOGIN, SC_SHELLS, &tmp, SEC_LIST) != 0)
+	return okshells;
+
+    for(cp = tmp, nsh = 0; *cp; cp += strlen(cp) + 1, nsh++);
+
+    shells = calloc(nsh + 1, sizeof(*shells));
+    if(shells == NULL)
+	return okshells;
+
+    strings = malloc(cp - tmp);
+    if(strings == NULL) {
+	free(shells);
 	shells = NULL;
-	if (strings != NULL)
-		free(strings);
-	strings = NULL;
-	if ((fp = fopen(_PATH_SHELLS, "r")) == NULL)
-		return (okshells);
-	if (fstat(fileno(fp), &statb) == -1) {
-		fclose(fp);
-		return (okshells);
-	}
-	if ((strings = malloc((u_int)statb.st_size)) == NULL) {
-		fclose(fp);
-		return (okshells);
-	}
-	shells = calloc((unsigned)statb.st_size / 3, sizeof (char *));
-	if (shells == NULL) {
-		fclose(fp);
-		free(strings);
-		strings = NULL;
-		return (okshells);
-	}
-	sp = shells;
-	cp = strings;
-	while (fgets(cp, MaxPathLen + 1, fp) != NULL) {
-		while (*cp != '#' && *cp != '/' && *cp != '\0')
-			cp++;
-		if (*cp == '#' || *cp == '\0')
-			continue;
-		*sp++ = cp;
-		while (!isspace(*cp) && *cp != '#' && *cp != '\0')
-			cp++;
-		*cp++ = '\0';
-	}
-	*sp = NULL;
+	return okshells;
+    }
+    memcpy(strings, tmp, cp - tmp);
+    for(sp = shells, cp = strings; *cp; cp += strlen(cp) + 1, sp++)
+	*sp = cp;
+#else
+    if ((fp = fopen(_PATH_SHELLS, "r")) == NULL)
+	return (okshells);
+    if (fstat(fileno(fp), &statb) == -1) {
 	fclose(fp);
-	return (shells);
+	return (okshells);
+    }
+    if ((strings = malloc((u_int)statb.st_size)) == NULL) {
+	fclose(fp);
+	return (okshells);
+    }
+    shells = calloc((unsigned)statb.st_size / 3, sizeof (char *));
+    if (shells == NULL) {
+	fclose(fp);
+	free(strings);
+	strings = NULL;
+	return (okshells);
+    }
+    sp = shells;
+    cp = strings;
+    while (fgets(cp, MaxPathLen + 1, fp) != NULL) {
+	while (*cp != '#' && *cp != '/' && *cp != '\0')
+	    cp++;
+	if (*cp == '#' || *cp == '\0')
+	    continue;
+	*sp++ = cp;
+	while (!isspace(*cp) && *cp != '#' && *cp != '\0')
+	    cp++;
+	*cp++ = '\0';
+    }
+    fclose(fp);
+#endif
+    *sp = NULL;
+    return (shells);
 }
 #endif /* HAVE_GETUSERSHELL */

@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.13 2000/01/06 15:11:43 assar Exp $
+# $Id: Makefile.am,v 1.14 2000/11/15 22:51:07 assar Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -41,6 +41,6 @@ LDADD = \
 	$(LIB_gssapi) \
 	$(LIB_krb5) \
 	$(LIB_krb4) \
-	$(top_builddir)/lib/des/libdes.la \
+	$(LIB_des) \
 	$(LIB_roken) \
 	$(LIB_readline)

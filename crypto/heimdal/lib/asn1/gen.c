@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,18 +33,24 @@
 
 #include "gen_locl.h"
 
-RCSID("$Id: gen.c,v 1.41 1999/12/02 17:05:02 joda Exp $");
+RCSID("$Id: gen.c,v 1.44 2000/06/19 15:17:52 joda Exp $");
 
 FILE *headerfile, *codefile, *logfile;
 
 #define STEM "asn1"
 
-static char *orig_filename;
+static const char *orig_filename;
 static char header[1024];
 static char headerbase[1024] = STEM;
 
+const char *
+filename (void)
+{
+    return orig_filename;
+}
+
 void
-init_generate (char *filename, char *base)
+init_generate (const char *filename, const char *base)
 {
     orig_filename = filename;
     if(base)
@@ -91,7 +97,7 @@ init_generate (char *filename, char *base)
 }
 
 void
-close_generate ()
+close_generate (void)
 {
     fprintf (headerfile, "#endif /* __%s_h__ */\n", headerbase);
 
@@ -125,6 +131,10 @@ define_asn1 (int level, Type *t)
     case TInteger:
 	space(level);
 	fprintf (headerfile, "INTEGER");
+	break;
+    case TUInteger:
+	space(level);
+	fprintf (headerfile, "UNSIGNED INTEGER");
 	break;
     case TOctetString:
 	space(level);
@@ -217,7 +227,21 @@ define_type (int level, char *name, Type *t, int typedefp)
 	break;
     case TInteger:
 	space(level);
-	fprintf (headerfile, "int %s;\n", name);
+        if(t->members == NULL) {
+            fprintf (headerfile, "int %s;\n", name);
+        } else {
+            Member *m;
+            int tag = -1;
+            fprintf (headerfile, "enum %s {\n", typedefp ? name : "");
+	    for (m = t->members; m && m->val != tag; m = m->next) {
+                if(tag == -1)
+                    tag = m->val;
+                space (level + 1);
+                fprintf(headerfile, "%s = %d%s\n", m->gen_name, m->val, 
+                        m->next->val == tag ? "" : ",");
+            }
+            fprintf (headerfile, "} %s;\n", name);
+        }
 	break;
     case TUInteger:
 	space(level);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kadmin_locl.h"
 
-RCSID("$Id: mod.c,v 1.7 1999/12/02 17:04:58 joda Exp $");
+RCSID("$Id: mod.c,v 1.10 2000/07/11 14:34:56 joda Exp $");
 
 static int parse_args (krb5_context context, kadm5_principal_ent_t ent,
 		       int argc, char **argv, int *optind, char *name,
@@ -49,6 +49,7 @@ parse_args(krb5_context context, kadm5_principal_ent_t ent,
     char *max_rlife_str = NULL;
     char *expiration_str = NULL;
     char *pw_expiration_str = NULL;
+    int new_kvno = -1;
     int ret, i;
 
     struct getargs args[] = {
@@ -62,6 +63,8 @@ parse_args(krb5_context context, kadm5_principal_ent_t ent,
 	 NULL, "Expiration time", "time"},
 	{"pw-expiration-time",  0,	arg_string, 
 	 NULL, "Password expiration time", "time"},
+	{"kvno",  0,	arg_integer, 
+	 NULL, "Key version number", "number"},
     };
 
     i = 0;
@@ -70,6 +73,7 @@ parse_args(krb5_context context, kadm5_principal_ent_t ent,
     args[i++].value = &max_rlife_str;
     args[i++].value = &expiration_str;
     args[i++].value = &pw_expiration_str;
+    args[i++].value = &new_kvno;
 
     *optind = 0; /* XXX */
 
@@ -86,6 +90,11 @@ parse_args(krb5_context context, kadm5_principal_ent_t ent,
 		    expiration_str, pw_expiration_str, attr_str);
     if (ret)
 	return ret;
+
+    if(new_kvno != -1) {
+	ent->kvno = new_kvno;
+	*mask |= KADM5_KVNO;
+    }
     return 0;
 }
 
@@ -122,13 +131,12 @@ mod_entry(int argc, char **argv)
 				  KADM5_MAX_LIFE | KADM5_MAX_RLIFE |
 				  KADM5_PRINC_EXPIRE_TIME |
 				  KADM5_PW_EXPIRATION);
+	krb5_free_principal (context, princ_ent);
 	if (ret) {
 	    printf ("no such principal: %s\n", argv[0]);
-	    krb5_free_principal (context, princ_ent);
 	    return 0;
 	}
 	edit_entry(&princ, &mask, NULL, 0);
-
     } else {
 	princ.principal = princ_ent;
     }
@@ -136,8 +144,6 @@ mod_entry(int argc, char **argv)
     ret = kadm5_modify_principal(kadm_handle, &princ, mask);
     if(ret)
 	krb5_warn(context, ret, "kadm5_modify_principal");
-    if(princ_ent)
-	krb5_free_principal(context, princ_ent);
     kadm5_free_principal_ent(kadm_handle, &princ);
     return 0;
 }

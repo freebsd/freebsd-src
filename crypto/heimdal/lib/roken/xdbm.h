@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: xdbm.h,v 1.8 2000/02/06 05:03:27 assar Exp $ */
+/* $Id: xdbm.h,v 1.12 2000/08/16 03:57:21 assar Exp $ */
 
 /* Generic *dbm include file */
 
@@ -43,12 +43,16 @@
 #include <db.h>
 #endif
 
+#ifndef DBM_INSERT
 #if defined(HAVE_NDBM_H)
 #include <ndbm.h>
+#elif defined(HAVE_GDBM_NDBM_H)
+#include <gdbm/ndbm.h>
 #elif defined(HAVE_DBM_H)
 #include <dbm.h>
 #elif defined(HAVE_RPCSVC_DBM_H)
 #include <rpcsvc/dbm.h>
+#endif
 #endif
 
 /* Macros to convert ndbm names to dbm names.
@@ -58,7 +62,7 @@
  * Instead, all routines call "dbm_next" instead.
  */
 
-#ifndef NDBM
+#if !defined(NDBM) && !defined(HAVE_DB_H)
 typedef char DBM;
 
 #define dbm_open(file, flags, mode) ((dbminit(file) == 0)?"":((char *)0))

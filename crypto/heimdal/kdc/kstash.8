@@ -1,27 +1,59 @@
-.\" $Id: kstash.8,v 1.2 2000/01/08 10:57:31 assar Exp $
+.\" $Id: kstash.8,v 1.3 2000/09/01 16:37:52 joda Exp $
 .\"
-.Dd Aug 27, 1997
+.Dd September  1, 2000
 .Dt KSTASH 8
 .Os HEIMDAL
 .Sh NAME
 .Nm kstash
 .Nd
-Store the KDC master password in a file
+store the KDC master password in a file
 .Sh SYNOPSIS
 .Nm
-.Op Fl k Ar file
-.Op Fl -key-file= Ns Ar file
+.Oo Fl e Ar string \*(Ba Xo
+.Fl -enctype= Ns Ar string Oc
+.Xc
+.Oo Fl k Ar file \*(Ba Xo
+.Fl -key-file= Ns Ar file Oc
+.Xc
+.Op Fl -convert-file
+.Op Fl -master-key-fd= Ns Ar fd
+.Op Fl h | Fl -help
+.Op Fl -version
 .Sh DESCRIPTION
 .Nm
-allows you to the master password and store in a file that will be read
-by the KDC.
+reads the Kerberos master key and stores it in a file that will be
+used by the KDC.
 .Pp
-Options supported:
+Supported options:
 .Bl -tag -width Ds
-.It Fl k Ar file
-.It Fl -key-file= Ns Ar file
-Specify what file the master key is stored in.  The default is
-.Pa m-key .
+.It Xo
+.Fl e Ar string Ns ,
+.Fl -enctype= Ns Ar string
+.Xc
+the encryption type to use, defaults to DES3-CBC-SHA1
+.It Xo
+.Fl k Ar file Ns ,
+.Fl -key-file= Ns Ar file
+.Xc
+the name of the master key file
+.It Xo
+.Fl -convert-file
+.Xc
+don't ask for a new master key, just read an old master key file, and
+writes it back in the new keyfile format
+.It Xo
+.Fl -master-key-fd= Ns Ar fd
+.Xc
+filedescriptor to read passphrase from, if not specified the
+passphrase will be read from the terminal
 .El
+.\".Sh ENVIRONMENT
+.\".Sh FILES
+.\".Sh EXAMPLES
+.\".Sh DIAGNOSTICS
 .Sh SEE ALSO
 .Xr kdc 8
+.\".Sh STANDARDS
+.\".Sh HISTORY
+.\".Sh AUTHORS
+.\".Sh BUGS

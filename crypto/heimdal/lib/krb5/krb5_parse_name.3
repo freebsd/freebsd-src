@@ -1,20 +1,16 @@
 .\" Copyright (c) 1997 Kungliga Tekniska Högskolan
-.\" $Id: krb5_parse_name.3,v 1.1 1997/08/14 00:03:17 joda Exp $
+.\" $Id: krb5_parse_name.3,v 1.2 2001/01/26 22:43:22 assar Exp $
 .Dd August 8, 1997
 .Dt KRB5_PARSE_NAME 3
 .Os HEIMDAL
 .Sh NAME
 .Nm krb5_parse_name
 .Nd String to principal conversion
-
 .Sh SYNOPSIS
 .Fd #include <krb5.h>
-
 .Ft krb5_error_code
 .Fn krb5_parse_name "krb5_context context" "const char *name" "krb5_principal *principal"
-
 .Sh DESCRIPTION
-
 .Fn krb5_parse_name
 converts a string representation of a princpal name to
 .Nm krb5_principal .

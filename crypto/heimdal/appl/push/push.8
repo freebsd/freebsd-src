@@ -1,4 +1,4 @@
-.\" $Id: push.8,v 1.4 1999/12/05 13:00:56 assar Exp $
+.\" $Id: push.8,v 1.8 2001/01/11 16:16:28 assar Exp $
 .\"
 .Dd May 31, 1998
 .Dt PUSH 8
@@ -16,10 +16,11 @@ fetch mail via POP
 .Op Fl l | -leave
 .Op Fl -from
 .Op Fl c | -count
-.Op Fl -header
+.Op Fl -headers= Ns Ar headers
 .Oo Fl p Ar port-spec  \*(Ba Xo
-.Fl -port= Ns Ar port-spec Oc
+.Fl -port= Ns Ar port-spec
 .Xc
+.Oc
 .Ar po-box
 .Pa filename
 .Sh DESCRIPTION
@@ -39,7 +40,7 @@ can have any of the following formats:
 .It Ql hostname
 .It Ql po:username
 .El
-
+.Pp
 If no username is specified,
 .Nm
 assumes that it's the same as on the local machine; 
@@ -47,7 +48,7 @@ assumes that it's the same as on the local machine;
 defaults to the value of the
 .Ev MAILHOST
 environment variable.
-
+.Pp
 Supported options:
 .Bl -tag -width Ds
 .It Xo
@@ -80,9 +81,9 @@ behave like from.
 .Xc
 first print how many messages and bytes there are.
 .It Xo
-.Fl -header
+.Fl -headers= Ns Ar headers
 .Xc
-which header from should print.
+a list of comma-separated headers that should get printed.
 .It Xo
 .Fl p Ar port-spec Ns ,
 .Fl -port= Ns Ar port-spec
@@ -92,11 +93,10 @@ use this port instead of the default
 or
 .Ql 1109 .
 .El
-
+.Pp
 The default is to first try Kerberos 5 authentication and then, if
 that fails, Kerberos 4.
 .Sh ENVIRONMENT
-
 .Bl -tag -width Ds
 .It Ev MAILHOST
 points to the post office, if no other hostname is specified.
@@ -106,7 +106,7 @@ points to the post office, if no other hostname is specified.
 .Bd -literal -offset indent
 $ push cornfield:roosta ~/.gnus-crash-box
 .Ed
-
+.Pp
 tries to fetch mail for the user
 .Ar roosta
 from the post office at
@@ -117,7 +117,7 @@ and stores the mail in
 .Bd -literal -offset indent
 $ push --from -5 havregryn
 .Ed
-
+.Pp
 tries to fetch 
 .Nm From: 
 lines for current user at post office
@@ -127,7 +127,8 @@ using Kerberos 5.
 .Sh SEE ALSO
 .Xr movemail 8 ,
 .Xr popper 8 ,
-.Xr from 1
+.Xr from 1 ,
+.Xr pfrom 1
 .\".Sh STANDARDS
 .Sh HISTORY
 .Nm

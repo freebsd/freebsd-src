@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,14 +33,14 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: afslog.c,v 1.11 1999/07/04 23:50:39 assar Exp $");
+RCSID("$Id: afslog.c,v 1.14 2001/01/25 12:44:46 assar Exp $");
 #endif
 #include <ctype.h>
 #include <krb5.h>
 #include <kafs.h>
 #include <roken.h>
 #include <getarg.h>
-
+#include <err.h>
 
 static int help_flag;
 static int version_flag;
@@ -54,8 +54,8 @@ static int unlog_flag;
 static int verbose;
 
 struct getargs args[] = {
-    { "cell",	'c', arg_strings, &cells, "cell to get tokens for", "cell" },
-    { "file",	'p', arg_strings, &files, "file to get tokens for", "path" },
+    { "cell",	'c', arg_strings, &cells, "cells to get tokens for", "cells" },
+    { "file",	'p', arg_strings, &files, "files to get tokens for", "paths" },
     { "realm",	'k', arg_string, &realm, "realm for afs cell", "realm" },
     { "unlog",	'u', arg_flag, &unlog_flag, "remove tokens" },
 #if 0
@@ -190,7 +190,9 @@ main(int argc, char **argv)
 	exit(0);
     }
 
-    krb5_init_context(&context);
+    ret = krb5_init_context(&context);
+    if (ret)
+	errx (1, "krb5_init_context failed: %d", ret);
     if(!k_hasafs())
 	krb5_errx(context, 1, 
 		  "AFS doesn't seem to be present on this machine");

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: hdb.h,v 1.26 1999/12/02 17:05:05 joda Exp $ */
+/* $Id: hdb.h,v 1.31 2000/07/08 16:03:37 joda Exp $ */
 
 #ifndef __HDB_H__
 #define __HDB_H__
@@ -46,12 +46,17 @@ enum hdb_lockop{ HDB_RLOCK, HDB_WLOCK };
 #define HDB_F_DECRYPT	1 /* decrypt keys */
 #define HDB_F_REPLACE	2 /* replace entry */
 
+/* key usage for master key */
+#define HDB_KU_MKEY	0x484442
+
+typedef struct hdb_master_key_data *hdb_master_key;
+
 typedef struct HDB{
     void *db;
+    void *dbc;
     char *name;
     int master_key_set;
-    krb5_data master_key;
-    int master_key_version;
+    hdb_master_key master_key;
     int openp;
 
     krb5_error_code (*open)(krb5_context, struct HDB*, int, mode_t);
