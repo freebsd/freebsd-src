@@ -111,6 +111,7 @@ crypto/des/des_enc.c		optional	crypto
 crypto/des/des_enc.c		optional	ipsec ipsec_esp
 crypto/des/des_enc.c		optional	netsmbcrypto
 crypto/des/des_setkey.c		optional	netsmbcrypto
+dev/arcmsr/arcmsr.c		optional	arcmsr pci
 dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	vga
 dev/fb/splash.c			optional	splash

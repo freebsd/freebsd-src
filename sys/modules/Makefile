@@ -21,6 +21,7 @@ SUBDIR=	${_3dfx} \
 	${_aout} \
 	${_apm} \
 	${_ar} \
+	${_arcmsr} \
 	${_arcnet} \
 	${_arl} \
 	${_asr} \
@@ -339,6 +340,7 @@ _aac=		aac
 _acpi=		acpi
 _ahb=		ahb
 _arl=		arl
+_arcmsr=	arcmsr
 _asr=		asr
 _bios=		bios
 _cardbus=	cardbus
@@ -382,6 +384,7 @@ _sppp=		sppp
 
 .if ${MACHINE_ARCH} == "amd64"
 _agp=		agp
+_arcmsr=	arcmsr
 _drm=		drm
 _io=		io
 _ndis=		ndis
