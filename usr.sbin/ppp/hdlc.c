@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.27 1998/01/10 01:55:10 brian Exp $
+ * $Id: hdlc.c,v 1.28 1998/01/21 02:15:15 brian Exp $
  *
  *	TODO:
  */
@@ -56,9 +56,9 @@ static struct hdlcstat {
   int unknownproto;
 }        HdlcStat;
 
-static int ifOutPackets;
-static int ifOutOctets;
-static int ifOutLQRs;
+static u_int32_t ifOutPackets;
+static u_int32_t ifOutOctets;
+static u_int32_t ifOutLQRs;
 
 static struct protostat {
   u_short number;
@@ -216,8 +216,17 @@ HdlcOutput(int pri, u_short proto, struct mbuf * bp)
     lqr->PeerInDiscards = HisLqrSave.SaveInDiscards;
     lqr->PeerInErrors = HisLqrSave.SaveInErrors;
     lqr->PeerInOctets = HisLqrSave.SaveInOctets;
-    lqr->PeerOutLQRs = ++ifOutLQRs;
-    LqrDump("LqrOutput", lqr);
+    if (HisLqrData.LastOutLQRs == ifOutLQRs) {
+      /*
+       * only increment if it's the first time or we've got a reply
+       * from the last one
+       */
+      lqr->PeerOutLQRs = ++ifOutLQRs;
+      LqrDump("LqrOutput", lqr);
+    } else {
+      lqr->PeerOutLQRs = ifOutLQRs;
+      LqrDump("LqrOutput (again)", lqr);
+    }
     LqrChangeOrder(lqr, (struct lqrdata *) (MBUF_CTOP(bp)));
   }
   if (!DEV_IS_SYNC) {
