@@ -224,6 +224,7 @@ slot_fill(struct ksegrp *kg)
 	}
 }
 
+#ifdef	SCHED_4BSD
 /*
  * Remove a thread from its KSEGRP's run queue.
  * This in turn may remove it from a KSE if it was already assigned
@@ -273,6 +274,7 @@ remrunqueue(struct thread *td)
 		/* slot_fill(kg); */ /* will replace it with another */
 	}
 }
+#endif
 
 /*
  * Change the priority of a thread that is on the run queue.
