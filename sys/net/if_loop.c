@@ -102,8 +102,8 @@ int		loioctl(struct ifnet *, u_long, caddr_t);
 static void	lortrequest(int, struct rtentry *, struct rt_addrinfo *);
 int		looutput(struct ifnet *ifp, struct mbuf *m,
 		    struct sockaddr *dst, struct rtentry *rt);
-int		lo_clone_create(struct if_clone *, int);
-void		lo_clone_destroy(struct ifnet *);
+static int	lo_clone_create(struct if_clone *, int);
+static void	lo_clone_destroy(struct ifnet *);
 
 struct ifnet *loif = NULL;			/* Used externally */
 
@@ -115,7 +115,7 @@ static LIST_HEAD(lo_list, lo_softc) lo_list;
 struct if_clone lo_cloner = IF_CLONE_INITIALIZER(LONAME,
     lo_clone_create, lo_clone_destroy, 1, IF_MAXUNIT);
 
-void
+static void
 lo_clone_destroy(ifp)
 	struct ifnet *ifp;
 {
@@ -134,7 +134,7 @@ lo_clone_destroy(ifp)
 	free(sc, M_LO);
 }
 
-int
+static int
 lo_clone_create(ifc, unit)
 	struct if_clone *ifc;
 	int unit;

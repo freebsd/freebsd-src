@@ -95,8 +95,8 @@ struct pfsync_softc pfsyncif;
 #endif
 
 #ifdef __FreeBSD__
-void	pfsync_clone_destroy(struct ifnet *);
-int	pfsync_clone_create(struct if_clone *, int);
+static void	pfsync_clone_destroy(struct ifnet *);
+static int	pfsync_clone_create(struct if_clone *, int);
 #else
 void	pfsyncattach(int);
 #endif
@@ -120,7 +120,7 @@ static LIST_HEAD(pfsync_list, pfsync_softc) pfsync_list;
 struct if_clone pfsync_cloner = IF_CLONE_INITIALIZER(PFSYNCNAME,
 	pfsync_clone_create, pfsync_clone_destroy, 1, IF_MAXUNIT);
 
-void
+static void
 pfsync_clone_destroy(struct ifnet *ifp)
 {
         struct pfsync_softc *sc;
@@ -141,7 +141,7 @@ pfsync_clone_destroy(struct ifnet *ifp)
         free(sc, M_PFSYNC);
 }
 
-int
+static int
 pfsync_clone_create(struct if_clone *ifc, int unit)
 {
 	struct pfsync_softc *sc;
