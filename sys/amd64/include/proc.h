@@ -59,9 +59,9 @@ struct mdproc {
 
 #ifdef	_KERNEL
 
-void 	set_user_ldt __P((struct mdproc *));
-struct 	proc_ldt *user_ldt_alloc __P((struct mdproc *, int));
-void 	user_ldt_free __P((struct thread *));
+void 	set_user_ldt(struct mdproc *);
+struct 	proc_ldt *user_ldt_alloc(struct mdproc *, int);
+void 	user_ldt_free(struct thread *);
 
 #endif	/* _KERNEL */
 

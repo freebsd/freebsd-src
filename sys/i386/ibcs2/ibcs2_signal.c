@@ -50,12 +50,12 @@
 #define ibcs2_sigismember(s, n)	(*(s) & ibcs2_sigmask(n))
 #define ibcs2_sigaddset(s, n)	(*(s) |= ibcs2_sigmask(n))
 
-static void ibcs2_to_bsd_sigset    __P((const ibcs2_sigset_t *, sigset_t *));
-static void bsd_to_ibcs2_sigset    __P((const sigset_t *, ibcs2_sigset_t *));
-static void ibcs2_to_bsd_sigaction __P((struct ibcs2_sigaction *,
-					struct sigaction *));
-static void bsd_to_ibcs2_sigaction __P((struct sigaction *,
-					struct ibcs2_sigaction *));
+static void ibcs2_to_bsd_sigset(const ibcs2_sigset_t *, sigset_t *);
+static void bsd_to_ibcs2_sigset(const sigset_t *, ibcs2_sigset_t *);
+static void ibcs2_to_bsd_sigaction(struct ibcs2_sigaction *,
+					struct sigaction *);
+static void bsd_to_ibcs2_sigaction(struct sigaction *,
+					struct ibcs2_sigaction *);
 
 int bsd_to_ibcs2_sig[IBCS2_SIGTBLSZ] = {
 	IBCS2_SIGHUP,		/* 1 */

@@ -65,6 +65,6 @@
 #endif
 #endif
 
-/*void svr4_setregs __P((struct thread *, struct exec_package *, u_long));*/
+/*void svr4_setregs(struct thread *, struct exec_package *, u_long);*/
 
 #endif /* !_SVR4_EXEC_H_ */

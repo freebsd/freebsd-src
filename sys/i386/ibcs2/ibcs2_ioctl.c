@@ -50,10 +50,10 @@
 #include <i386/ibcs2/ibcs2_util.h>
 #include <i386/ibcs2/ibcs2_ioctl.h>
 
-static void stios2btios __P((struct ibcs2_termios *, struct termios *));
-static void btios2stios __P((struct termios *, struct ibcs2_termios *));
-static void stios2stio  __P((struct ibcs2_termios *, struct ibcs2_termio *));
-static void stio2stios  __P((struct ibcs2_termio *, struct ibcs2_termios *));
+static void stios2btios(struct ibcs2_termios *, struct termios *);
+static void btios2stios(struct termios *, struct ibcs2_termios *);
+static void stios2stio(struct ibcs2_termios *, struct ibcs2_termio *);
+static void stio2stios(struct ibcs2_termio *, struct ibcs2_termios *);
 
 
 int

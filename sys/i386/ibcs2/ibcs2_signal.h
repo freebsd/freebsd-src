@@ -83,7 +83,7 @@
 #define IBCS2_SIGCALL(x)	((x) & ~IBCS2_SIGNO_MASK)
 
 typedef long	ibcs2_sigset_t;
-typedef void	(*ibcs2_sig_t) __P((int));
+typedef void	(*ibcs2_sig_t)(int);
 
 struct ibcs2_sigaction {
 	ibcs2_sig_t	isa_handler;

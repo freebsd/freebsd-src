@@ -112,7 +112,7 @@ in_pseudo(u_int sum, u_int b, u_int c)
 }
 
 #else
-u_int in_cksum_hdr __P((const struct ip *));
+u_int in_cksum_hdr(const struct ip *);
 #define	in_cksum_update(ip) \
 	do { \
 		int __tmpsum; \
