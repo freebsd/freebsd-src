@@ -85,7 +85,7 @@ Boston, MA 02111-1307, USA.  */
    the final CPP_PREDEFINES value.  */
 
 #define FBSD_CPP_PREDEFINES \
-  "-D__FreeBSD__=5 -D__FreeBSD_cc_version=500003 -Dunix -D__KPRINTF_ATTRIBUTE__ -Asystem=unix -Asystem=bsd -Asystem=FreeBSD"
+  "-D__FreeBSD__=5 -D__FreeBSD_cc_version=500004 -Dunix -D__KPRINTF_ATTRIBUTE__ -Asystem=unix -Asystem=bsd -Asystem=FreeBSD"
 #endif	/* ! FREEBSD_NATIVE */
 
 
