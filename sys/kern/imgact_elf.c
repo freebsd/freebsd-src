@@ -216,8 +216,10 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
 				      VM_PROT_ALL,
 				      MAP_COPY_NEEDED | MAP_COPY_ON_WRITE);
 		vm_map_unlock(&vmspace->vm_map);
-		if (rv != KERN_SUCCESS)
+		if (rv != KERN_SUCCESS) {
+			vm_object_deallocate(object);
 			return EINVAL;
+		}
 
 		/* prefault the page tables */
 		pmap_object_init_pt(&vmspace->vm_pmap,
