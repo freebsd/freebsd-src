@@ -1,0 +1,71 @@
+#
+# PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
+# --------------------         -----   ----------------------
+# CURRENT PATCH LEVEL:         3       00160
+# --------------------         -----   ----------------------
+#
+# 17 Feb 93	Julian Elischer		Added files for scsi
+# 10 Mar 93	Rodney W. Grimes	Added files for lpt and lpa
+# 25 Mar 93	Sean Eric Fagan		Added microtime.s routine
+# 08 Apr 93	Rodney W. Grimes	Cleaned up the tabs, sorted file names
+#					Added ix, speaker, dcfclock
+# 23 Apr 93	Holger Veit		Added codrv
+# 26 May 93	Rodney W. Grimes	Rename of Bruce Evans com driver to sio
+#		Gene Stark		Add xten power controler driver (tw)
+#		David Greenman		Add ethernet driver (SMC/WD/3COM) (ed)
+#		Rick Macklem		Add bus mouse driver (mse)
+#
+i386/i386/autoconf.c		standard		device-driver
+i386/i386/cons.c		standard
+i386/i386/db_disasm.c		optional	ddb
+i386/i386/db_interface.c	optional	ddb
+i386/i386/db_trace.c		optional	ddb
+i386/i386/in_cksum.c		optional	inet
+i386/i386/machdep.c		standard		config-dependent
+i386/i386/math_emulate.c	standard
+i386/i386/mem.c			standard
+i386/i386/microtime.s		standard
+i386/i386/ns_cksum.c		optional	ns
+i386/i386/pmap.c		standard
+i386/i386/sys_machdep.c		standard
+i386/i386/trap.c		standard
+i386/i386/vm_machdep.c		standard
+i386/isa/aha1542.c		optional	aha	device-driver
+i386/isa/aha1742.c		optional	ahb	device-driver
+i386/isa/as.c			optional	as	device-driver
+i386/isa/bt742a.c		optional	bt	device-driver
+i386/isa/clock.c		standard
+i386/isa/codrv/co_cons.c	optional	co	device-driver
+i386/isa/codrv/co_kbd.c		optional	co	device-driver
+i386/isa/codrv/co_vga.c		optional	co	device-driver
+i386/isa/codrv/co_codrv1.c	optional	co	device-driver
+i386/isa/codrv/co_vty.c		optional	vty
+i386/isa/codrv/co_pc3.c		optional	vtemul
+i386/isa/codrv/co_mini.c	optional	vtemul
+i386/isa/com.c			optional	com	device-driver
+i386/isa/dcfclk.c		optional	dcfclk	device-driver
+i386/isa/fd.c			optional	fd	device-driver
+i386/isa/if_ec.c		optional	ec	device-driver
+i386/isa/if_ed.c		optional	ed	device-driver
+i386/isa/if_is.c		optional	is	device-driver
+i386/isa/if_ix.c		optional	ix	device-driver
+i386/isa/if_ne.c		optional	ne	device-driver
+i386/isa/if_we.c		optional	we	device-driver
+i386/isa/isa.c			optional	isa	device-driver
+i386/isa/lpa.c			optional	lpa	device-driver
+i386/isa/lpt.c			optional	lpt	device-driver
+i386/isa/mse.c			optional	mse	device-driver
+i386/isa/npx.c			optional	npx	device-driver
+i386/isa/pccons.c		optional	pc	device-driver
+i386/isa/sio.c			optional	sio	device-driver
+i386/isa/spkr.c			optional	speaker
+i386/isa/tw.c			optional	tw	device-driver
+i386/isa/ultra14f.c		optional	uha	device-driver
+i386/isa/wd.c			optional	wd	device-driver
+i386/isa/wt.c			optional	wt	device-driver
+scsi/cd.c			optional	cd
+scsi/ch.c			optional	ch
+scsi/scsiconf.c			optional	scbus
+scsi/sd.c			optional	sd
+scsi/st.c			optional	st
+

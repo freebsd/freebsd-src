@@ -1,0 +1,182 @@
+ *
+ * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
+ * --------------------         -----   ----------------------
+ * CURRENT PATCH LEVEL:         1       00098
+ * --------------------         -----   ----------------------
+ *
+ * 16 Feb 93	Julian Elischer		ADDED for SCSI system
+This release consists of the following files 
+(relative to the base of the kernel tree)
+
+
+MAKEDEV
+
+scsi
+scsi/README
+scsi/scsiconf.h
+scsi/scsiconf.c
+scsi/scsi_all.h
+
+scsi/scsi_disk.h
+scsi/sd.c
+
+scsi/scsi_tape.h
+scsi/st.c
+
+sys/chio.h
+scsi/scsi_changer.h
+scsi/ch.c
+
+sys/cdio.h
+scsi/scsi_cd.h
+scsi/cd.c
+
+i386/conf/SCSITEST
+i386/isa/aha1542.c
+
+README.AHA1742
+i386/conf/AHBTEST
+i386/isa/aha1742.c
+
+i386/conf/UHATEST
+i386/isa/ultra14f.c
+
+i386/conf/BTTEST
+i386/isa/bt742a.c
+
+
+
+----------------------------------------------------------------
+This scsi system is designed to allow the re-use of top end drivers
+such as disk and tape drivers, with different scsi adapters.
+
+As of writing this document, There are top end drivers working for:
+----------------------------------------------------------------
+generic scsi disk
+generic scsi tape
+cd-rom  (plays music under the xcplayer (?) program)
+AEG Character recognition devices *
+Calera Character recognition devices *
+Kodak IL900 scanner *
+Exabyte tape changer device.
+----------------------------------------------------------------
+
+
+There are also working bottom end drivers for:
+----------------------------------------------------------------
+adaptec 1542 (and 1742 in 1542 mode)
+bustec 742a
+adaptec 174x 
+Ultrastore 14f				
+----------------------------------------------------------------
+
+
+Work is proceeding on the following bottom end drivers:
+----------------------------------------------------------------
+Future Domain (1680)**			hosler@tfs.com & me
+Future Domain (8  bit)****		rpr@oce.nl
+WD7000**				terry@icarus.weber.edu
+seagate st01/st02****			overby@aspen.cray.com ?
+----------------------------------------------------------------
+* drivers not made public (proprietary.. proof that the concept works though)
+** driver not yet released but working.
+*** just a dream so far.
+**** some amount more than just a dream so far.
+
+
+################## Using the scsi system ##################
+------------minor numbers---------------
+This scsi system does not allocate minor numbers to devices depending
+on their SCSI IDs is any way. A devices minor number is dependant
+on the order in which it was found.
+e.g. the first tape found will become st0 (minor number 0)
+	the second found will become st1 (minor number 16)
+	the third will become st2 (minor 32) 
+	etc.
+
+These devices could be on the same scsi bus or different scsi busses.
+That would not change their minor numbers.
+
+It is possible to run two different TYPES of scsi adapters at the 
+same time and have st0 on one and st1 on another. (for example)
+
+There is a scheme supported in which scsi devices can be 'wired in' even
+if they are not present or powered on at probe time. (see scsiconf.c)
+
+--------------getting started------------
+It should be possible to use the /dev entries for as0 as if they were 
+/dev entries for sd0 and the old as bootblocks should
+continue to work if you are using an adaptec 1542b.
+
+--------------making devices------------
+A changed version of /dev/MAKEDEV is supplied that
+can be used to make devices sd[01234] and st[01234]
+
+e.g. 
+cd /dev
+sh MAKEDEV sd0 sd1 sd2 st0 st1 cd0
+
+
+The tape devices are as follows:
+rst0	basic raw device, will rewind on close
+nrst0	will not rewind on close
+erst0	will rewind and EJECTon close
+nerst0  will not rewind and WILL eject (some devices may rewind anyhow)
+
+------------future enhancements--------------
+Some people have indicated that they would like to have the SCSI ID
+encoded into the minor number in some way, and
+this may be supported at some timein the future, using
+minor numbers greater than 128. (or maybe a different major number)
+
+I will also be writing (probably) a generic scsi-error
+handling routine that will be table driven, so that the routine can
+be removed from each individual driver. With enough care,
+two similar devices with different error codes (quite common) could run
+the same driver but use different error tables.
+
+--------------file layout-------------------
+Originally I had all scsi definitions in one file: scsi.h
+I have since moved definitions of commands so that all
+definitions needed for a particular type of device are
+found together in the include file of that name.
+This approximatly follows the layout of their definition 
+in the SCSI-2 spec. 
+As such they are:
+
+scsi_all.h  		general commands for all devices --- CHAPTER 7
+scsi-disk.h  		commands relevant to disk        --- CHAPTER 8
+scsi-tape.h  		commands for scsi tapes          --- CHAPTER 9
+scsi-cd.h    		commands for cd-roms (and audio) --- CHAPTER 13
+scsi-changer.h    	commands medium changer devices  --- CHAPTER 16
+
+---------ioctl definitions-------------
+User accessable structures (e.g. ioctl definitions) have been
+placed in sys/cdio and sys/chio (based after sys/mtio for
+the ioctls for mag tapes (including st).
+
+-----------cd-rom-----------------
+The cd rom driver ha been tested by a number of people and
+grefen@wilbur.zdv.uni-mainz.de has completed the audio play
+functions.
+He tells me he has some Public Domain package that
+allows an control of the cd player from an Xwindow
+but I don't have it.
+
+-------------media changer---------------
+Once again courtesy of grefen@wilbur.zdv.uni-mainz.de.
+I have not tested this but he assures me it's ready for testing.
+If anyone has an exabyte tape changer or similar, 
+contact the author for information regarding the control interface
+and program.
+
+-----------booting from an AHA-174x---------
+For some reason I have not yet worked out,
+the BIOS-based bootblocks I have posted will not boot
+from the aha1742 in extended mode. (it can't be serious
+because the MACH version works) This is in fact not a 
+problem because the aha1742 driver will force the board into extended
+mode during probe, so it can be left in standard mode during the boot.
+During the next reboot, the bios will place it back in standard mode
+ready for the NEXT boot.
+

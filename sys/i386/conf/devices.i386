@@ -1,0 +1,18 @@
+# This file tells what major numbers the various possible swap devices have.
+#
+# PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
+# --------------------         -----   ----------------------
+# CURRENT PATCH LEVEL:         1       00097
+# --------------------         -----   ----------------------
+#
+# 17 Feb 93	Julian Elischer		Add devices for new scsi disks
+# 10 Mar 93	Rodney W. Grimes	Add more devices, st and cd
+#
+wd	0
+dk	1
+fd	2
+wt	3
+sd	4
+as	4
+st	5
+cd	6
