@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: kern_time.c,v 1.21 1997/02/22 09:39:13 peter Exp $
  */
 
 #include <sys/param.h>
@@ -267,8 +267,7 @@ getitimer(p, uap, retval)
 			if (timercmp(&aitv.it_value, &time, <))
 				timerclear(&aitv.it_value);
 			else
-				timevalsub(&aitv.it_value,
-				    (struct timeval *)&time);
+				timevalsub(&aitv.it_value, &time);
 	} else
 		aitv = p->p_stats->p_timer[uap->which];
 	splx(s);
@@ -310,7 +309,7 @@ setitimer(p, uap, retval)
 	if (uap->which == ITIMER_REAL) {
 		untimeout(realitexpire, (caddr_t)p);
 		if (timerisset(&aitv.it_value)) {
-			timevaladd(&aitv.it_value, (struct timeval *)&time);
+			timevaladd(&aitv.it_value, &time);
 			timeout(realitexpire, (caddr_t)p, hzto(&aitv.it_value));
 		}
 		p->p_realtimer = aitv;

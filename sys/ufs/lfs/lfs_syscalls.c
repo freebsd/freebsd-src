@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_syscalls.c	8.5 (Berkeley) 4/20/94
- * $Id$
+ * $Id: lfs_syscalls.c,v 1.17 1997/02/22 09:47:24 peter Exp $
  */
 
 #include <sys/param.h>
@@ -432,7 +432,7 @@ lfs_segwait(p, uap, retval)
 		if (itimerfix(&atv))
 			return (EINVAL);
 		s = splclock();
-		timevaladd(&atv, (struct timeval *)&time);
+		timevaladd(&atv, &time);
 		timeout = hzto(&atv);
 		splx(s);
 	} else
