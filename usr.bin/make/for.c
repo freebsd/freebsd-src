@@ -249,34 +249,6 @@ For_Eval(char *line)
 
 /*-
  *-----------------------------------------------------------------------
- * ForExec --
- *	Expand the for loop for this index and push it in the Makefile
- *
- * Results:
- *	None.
- *
- * Side Effects:
- *	None.
- *
- *-----------------------------------------------------------------------
- */
-static int
-ForExec(void *namep, void *argp)
-{
-	char	*name = namep;
-	For	*arg = argp;
-
-	Var_Set(arg->var, name, VAR_GLOBAL);
-	DEBUGF(FOR, ("--- %s = %s\n", arg->var, name));
-	Parse_FromString(Var_Subst(arg->var, (char *)Buf_GetAll(arg->buf, NULL),
-	    VAR_GLOBAL, FALSE), arg->lineno);
-	Var_Delete(arg->var, VAR_GLOBAL);
-
-	return (0);
-}
-
-/*-
- *-----------------------------------------------------------------------
  * For_Run --
  *	Run the for loop, immitating the actions of an include file
  *
@@ -284,31 +256,44 @@ ForExec(void *namep, void *argp)
  *	None.
  *
  * Side Effects:
- *	None.
+ *	The values of the variables forLst, forVar and forBuf are freed.
  *
  *-----------------------------------------------------------------------
  */
 void
 For_Run(int lineno)
 {
-	For arg;
+	Lst		values;	/* list of values for the variable */
+	char		*var;	/* the variable's name */
+	Buffer		*buf;	/* the contents of the for loop */
+	const char	*val;	/* current value of loop variable */
+	LstNode		*ln;
 
 	if (forVar == NULL || forBuf == NULL)
 		return;
-	arg.var = forVar;
-	arg.buf = forBuf;
 
-	/* move the forLst to the arg to get it free for nested for's */
-	Lst_Init(&arg.lst);
-	Lst_Concat(&arg.lst, &forLst, LST_CONCLINK);
+	/* copy the global variables to have them free for embedded fors */
+	var = forVar;
+	buf = forBuf;
+	Lst_Init(&values);
+	Lst_Concat(&values, &forLst, LST_CONCLINK);
 
-	arg.lineno = lineno;
 	forVar = NULL;
 	forBuf = NULL;
 
-	Lst_ForEach(&arg.lst, ForExec, &arg);
+	LST_FOREACH(ln, &values) {
+		val = Lst_Datum(ln);
+		Var_Set(var, val, VAR_GLOBAL);
 
-	free(arg.var);
-	Lst_Destroy(&arg.lst, free);
-	Buf_Destroy(arg.buf, TRUE);
+		DEBUGF(FOR, ("--- %s = %s\n", var, val));
+		Parse_FromString(Var_Subst(var,
+		    (char *)Buf_GetAll(buf, NULL),
+		    VAR_GLOBAL, FALSE), lineno);
+
+		Var_Delete(var, VAR_GLOBAL);
+	}
+
+	free(var);
+	Lst_Destroy(&values, free);
+	Buf_Destroy(buf, TRUE);
 }
