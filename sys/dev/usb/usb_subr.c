@@ -1045,8 +1045,19 @@ usbd_new_device(device_ptr_t parent, usbd_bus_handle bus, int depth,
 	up->device = dev;
 
 	/* Set the address.  Do this early; some devices need that. */
-	err = usbd_set_address(dev, addr);
+	/* Try a few times in case the device is slow (i.e. outside specs.) */
 	DPRINTFN(5,("usbd_new_device: setting device address=%d\n", addr));
+	for (i = 0; i < 15; i++) {
+		err = usbd_set_address(dev, addr);
+		if (!err)
+			break;
+		usbd_delay_ms(dev, 200);
+		if ((i & 3) == 3) {
+			DPRINTFN(-1,("usb_new_device: set address %d "
+			    "failed - trying a port reset\n", addr));
+			usbd_reset_port(up->parent, port, &ps);
+		}
+	}
 	if (err) {
 		DPRINTFN(-1,("usb_new_device: set address %d failed\n", addr));
 		err = USBD_SET_ADDR_FAILED;
@@ -1059,16 +1070,8 @@ usbd_new_device(device_ptr_t parent, usbd_bus_handle bus, int depth,
 	bus->devices[addr] = dev;
 
 	dd = &dev->ddesc;
-	/* Try a few times in case the device is slow (i.e. outside specs.) */
-	for (i = 0; i < 15; i++) {
-		/* Get the first 8 bytes of the device descriptor. */
-		err = usbd_get_desc(dev, UDESC_DEVICE, 0, USB_MAX_IPACKET, dd);
-		if (!err)
-			break;
-		usbd_delay_ms(dev, 200);
-		if ((i & 3) == 3)
-			usbd_reset_port(up->parent, port, &ps);
-	}
+	/* Get the first 8 bytes of the device descriptor. */
+	err = usbd_get_desc(dev, UDESC_DEVICE, 0, USB_MAX_IPACKET, dd);
 	if (err) {
 		DPRINTFN(-1, ("usbd_new_device: addr=%d, getting first desc "
 			      "failed\n", addr));
