@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: bootinfo.h,v 1.2 1998/07/05 12:13:18 dfr Exp $ */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
  * All rights reserved.
@@ -53,7 +53,10 @@ struct bootinfo_v1 {
 	int	(*cngetc) __P((void));	/* 160: console getc pointer	*/
 	void	(*cnputc) __P((int));	/* 168: console putc pointer	*/
 	void	(*cnpollc) __P((int));	/* 176: console pollc pointer	*/
-	u_long	pad[9];			/* 184: rsvd for future use	*/
+	u_long	pad[6];			/* 184: rsvd for future use	*/
+	char	*envp;			/* 232:	start of environment	*/
+	u_long	kernend;		/* 240: end of kernel		*/
+	u_long	modbase;		/* 248: FreeBSD module base	*/
 					/* 256: total size		*/
 };
 
@@ -70,6 +73,9 @@ struct bootinfo_v1 {
 struct bootinfo_kernel {
 	u_long	ssym;			/* start of syms */
 	u_long	esym;			/* end of syms */
+	u_long	modptr;			/* FreeBSD module pointer */
+	u_long	kernend;		/* "end of kernel" from boot code */
+	char	*envp;			/* "end of kernel" from boot code */
 	u_long	hwrpb_phys;		/* hwrpb physical address */
 	u_long	hwrpb_size;		/* size of hwrpb data */
 	char	boot_flags[64];		/* boot flags */

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.14 1998/09/17 09:35:31 dfr Exp $
+ *	$Id: machdep.c,v 1.15 1998/10/06 08:40:18 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -109,6 +109,7 @@
 #include <sys/exec.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
+#include <sys/linker.h>
 #include <net/netisr.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -542,6 +543,8 @@ alpha_init(pfn, ptb, bim, bip, biv)
 
 			bootinfo.ssym = v1p->ssym;
 			bootinfo.esym = v1p->esym;
+			bootinfo.kernend = v1p->kernend;
+			bootinfo.modptr = v1p->modptr;
 			/* hwrpb may not be provided by boot block in v1 */
 			if (v1p->hwrpb != NULL) {
 				bootinfo.hwrpb_phys =
@@ -695,6 +698,11 @@ alpha_init(pfn, ptb, bim, bip, biv)
 #else
 	kernend = (vm_offset_t)round_page(_end);
 #endif
+	/* But if the bootstrap tells us otherwise, believe it! */
+	if (bootinfo.kernend)
+		kernend = (vm_offset_t)round_page(kernend);
+	preload_metadata = bootinfo.modptr;
+	kern_envp = bootinfo.envp;
 
 	kernstartpfn = atop(ALPHA_K0SEG_TO_PHYS(kernstart));
 	kernendpfn = atop(ALPHA_K0SEG_TO_PHYS(kernend));

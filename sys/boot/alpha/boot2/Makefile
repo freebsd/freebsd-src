@@ -15,7 +15,7 @@ SRCS+=		main.c conf.c
 .include	<${.CURDIR}/../../common/Makefile.inc>
 CFLAGS+=	-mno-fp-regs
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}
-CFLAGS+=	-I${.OBJDIR}
+CFLAGS+=	-I${.CURDIR}/../../.. -I.
 
 CLEANFILES+=	vers.c vers.o gensetdefs.o gensetdefs setdef0.o setdef1.o \
 		setdefs.h start.o
@@ -50,6 +50,11 @@ setdef0.o: setdefs.h
 
 setdef1.o: setdefs.h
 
+machine:
+	ln -sf ${.CURDIR}/../../../alpha/include machine
+
+CLEANFILES+=	machine
+
 .include <bsd.prog.mk>
 
 setdefs.h: gensetdefs ${OBJS}
@@ -62,3 +67,4 @@ gensetdefs: gensetdefs.o
 gensetdefs.o: gensetdefs.c
 	${CC} -c $<
 
+beforedepend ${OBJS}: machine
