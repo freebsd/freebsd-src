@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)getmntopts.3	8.1 (Berkeley) 3/27/94
+.\"	@(#)getmntopts.3	8.3 (Berkeley) 3/30/95
 .\"
-.Dd March 27, 1994
+.Dd March 30, 1995
 .Dt GETMNTOPTS 3
 .Os BSD 4.4
 .Sh NAME
@@ -40,7 +40,7 @@
 .Sh SYNOPSIS
 .Fd #include <mntopts.h>
 .Ft void
-.Fn getmntopts "char *options" "struct mntopt *mopts" "int *flagp"
+.Fn getmntopts "char *options" "struct mntopt *mopts" "int *flagp" "int *altflagp"
 .Sh DESCRIPTION
 The
 .Nm getmntopts
@@ -54,10 +54,15 @@ is broken down into a sequence of comma separated tokens.
 Each token is looked up in the table described by
 .Dv mopts
 and the bits in
-the word referenced by
+the word referenced by either
 .Dv flagp
+or
+.Dv altflagp
+(depending on the
+.Dv m_altloc
+field of the option's table entry)
 are updated.
-The flag word is not initialized by
+The flag words are not initialized by
 .Nm getmntopt .
 The table,
 .Dv mopts ,
@@ -67,6 +72,7 @@ struct mntopt {
 	char *m_option;		/* option name */
 	int m_inverse;		/* is this a negative option, eg "dev" */
 	int m_flag;		/* bit to set, eg MNT_RDONLY */
+	int m_altloc;		/* non-zero to use altflagp rather than flagp */
 };
 .Ed
 .Pp
@@ -100,6 +106,11 @@ by the letters
 The
 .Dv m_inverse
 flag causes these two operations to be reversed.
+.It Fa m_altloc
+the bit should be set or cleared in
+.Dv altflagp
+rather than
+.Dv flagp .
 .El
 .Pp
 Each of the user visible
@@ -143,16 +154,21 @@ struct mntopt mopts[] = {
 };
 
 	...
-	mntflags = 0;
+	mntflags = mntaltflags = 0;
 	...
-	getmntopts(options, mopts, &mntflags)
+	getmntopts(options, mopts, &mntflags, &mntaltflags);
 	...
 .Ed
 .Sh DIAGNOSTICS
-The
+If the external integer variable
+.Dv getmnt_silent
+is non-zero then the
 .Nm getmntopts
 function displays an error message and exits if an
 unrecognized option is encountered.
+By default
+.Dv getmnt_silent
+is zero.
 .Sh SEE ALSO
 .Xr err 3 ,
 .Xr mount 8
