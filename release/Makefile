@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.498 1999/07/19 10:06:15 jkh Exp $
+#	$Id: Makefile,v 1.499 1999/07/20 05:00:00 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -58,7 +58,7 @@ DOCPORTS=	textproc/docproj
 DISTFILES?=	${.CURDIR}/../../ports/distfiles
 
 DIST_DOCS= ABOUT.TXT ERRATA.TXT LAYOUT.TXT README.TXT HARDWARE.TXT \
-           RELNOTES.TXT TROUBLE.TXT UPGRADE.TXT
+           RELNOTES.TXT TROUBLE.TXT UPGRADE.TXT INSTALL.TXT
 
 # Things which without too much trouble can be considered variables
 # BIN_DISTS are special in that they get full /etc installation sets.
