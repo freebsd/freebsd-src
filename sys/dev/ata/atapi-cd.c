@@ -94,7 +94,7 @@ static int acd_send_cue(struct acd_softc *, struct cdr_cuesheet *);
 static int acd_report_key(struct acd_softc *, struct dvd_authinfo *);
 static int acd_send_key(struct acd_softc *, struct dvd_authinfo *);
 static int acd_read_structure(struct acd_softc *, struct dvd_struct *);
-static int acd_eject(struct acd_softc *, int);
+static int acd_tray(struct acd_softc *, int);
 static int acd_blank(struct acd_softc *, int);
 static int acd_prevent_allow(struct acd_softc *, int);
 static int acd_start_stop(struct acd_softc *, int);
@@ -651,13 +651,13 @@ acd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	    error = EBUSY;
 	    break;
 	}
-	error = acd_eject(cdp, 0);
+	error = acd_tray(cdp, 0);
 	break;
 
     case CDIOCCLOSE:
 	if (count_dev(dev) > 1)
 	    break;
-	error = acd_eject(cdp, 1);
+	error = acd_tray(cdp, 1);
 	break;
 
     case CDIOREADTOCHEADER:
@@ -1879,28 +1879,27 @@ acd_read_structure(struct acd_softc *cdp, struct dvd_struct *s)
 }
 
 static int 
-acd_eject(struct acd_softc *cdp, int close)
+acd_tray(struct acd_softc *cdp, int close)
 {
-    int error;
+    int error = ENODEV;
 
-    if ((error = acd_start_stop(cdp, 0)) == EBUSY) {
-	if (!close)
-	    return 0;
-	if ((error = acd_start_stop(cdp, 3)))
-	    return error;
-	acd_read_toc(cdp);
-	acd_prevent_allow(cdp, 1);
-	cdp->flags |= F_LOCKED;
-	return 0;
+    if (cdp->cap.mechanism & MST_EJECT) {
+	if (close) {
+	    if (!(error = acd_start_stop(cdp, 3))) {
+		acd_read_toc(cdp);
+		acd_prevent_allow(cdp, 1);
+		cdp->flags |= F_LOCKED;
+	    }
+	}
+	else {
+	    acd_start_stop(cdp, 0);
+	    acd_prevent_allow(cdp, 0);
+	    cdp->flags &= ~F_LOCKED;
+	    cdp->device->flags |= ATA_D_MEDIA_CHANGED;
+	    error = acd_start_stop(cdp, 2);
+	}
     }
-    if (error)
-	return error;
-    if (close)
-	return 0;
-    acd_prevent_allow(cdp, 0);
-    cdp->flags &= ~F_LOCKED;
-    cdp->device->flags |= ATA_D_MEDIA_CHANGED;
-    return acd_start_stop(cdp, 2);
+    return error;
 }
 
 static int
