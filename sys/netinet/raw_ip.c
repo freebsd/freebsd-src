@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.49 1997/09/14 03:10:40 peter Exp $
+ *	$Id: raw_ip.c,v 1.50 1997/12/18 09:13:39 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -93,6 +93,7 @@ rip_init()
 	 * over the place for hashbase == NULL.
 	 */
 	ripcbinfo.hashbase = hashinit(1, M_PCB, &ripcbinfo.hashmask);
+	ripcbinfo.porthashbase = hashinit(1, M_PCB, &ripcbinfo.porthashmask);
 }
 
 static struct	sockaddr_in ripsrc = { sizeof(ripsrc), AF_INET };

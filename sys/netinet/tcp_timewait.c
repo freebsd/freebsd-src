@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.40 1997/12/19 03:36:14 julian Exp $
+ *	$Id: tcp_subr.c,v 1.41 1998/01/25 04:23:32 eivind Exp $
  */
 
 #include "opt_compat.h"
@@ -87,11 +87,10 @@ static void	tcp_cleartaocache __P((void));
 static void	tcp_notify __P((struct inpcb *, int));
 
 /*
- * Target size of TCP PCB hash table. Will be rounded down to a prime
- * number.
+ * Target size of TCP PCB hash tables. Must be a power of two.
  */
 #ifndef TCBHASHSIZE
-#define TCBHASHSIZE	128
+#define TCBHASHSIZE	512
 #endif
 
 /*
@@ -107,6 +106,7 @@ tcp_init()
 	LIST_INIT(&tcb);
 	tcbinfo.listhead = &tcb;
 	tcbinfo.hashbase = hashinit(TCBHASHSIZE, M_PCB, &tcbinfo.hashmask);
+	tcbinfo.porthashbase = hashinit(TCBHASHSIZE, M_PCB, &tcbinfo.porthashmask);
 	if (max_protohdr < sizeof(struct tcpiphdr))
 		max_protohdr = sizeof(struct tcpiphdr);
 	if (max_linkhdr + sizeof(struct tcpiphdr) > MHLEN)
@@ -417,8 +417,8 @@ tcp_close(tp)
 	}
 	if (tp->t_template)
 		(void) m_free(dtom(tp->t_template));
+	inp->inp_ppcb = NULL;
 	free(tp, M_PCB);
-	inp->inp_ppcb = 0;
 	soisdisconnected(so);
 	in_pcbdetach(inp);
 	tcpstat.tcps_closed++;
