@@ -55,7 +55,9 @@ static const char rcsid[] =
 
 #include "less.h"
 
-int horiz_off = NO_HORIZ_OFF;   /* # characters scrolled off left of screen */
+/* NOTE!:   if (wraplines) assert (horiz_off == 0)   */
+int horiz_off = 0;  /* # characters scrolled off left of screen */
+int wraplines = 1;  /* wrap lines around screen, yes or no */
 
 extern int squeeze;
 extern int sigs;
@@ -103,7 +105,7 @@ forw_line(curr_pos)
 		/*
 		 * Append the char to the line and get the next char.
 		 * The pappend() will throw away any unimportant chars
-		 * (ie. not underlines or bolds) as per horiz_off.
+		 * (ie. not underlines or bolds) as per wraplines.
 		 *
 		 * XXX line.c needs to be rewritten...
 		 */
@@ -114,7 +116,7 @@ forw_line(curr_pos)
 			 * is too long to print in the screen width.
 			 * End the line here.
 			 */
-			if (horiz_off != NO_HORIZ_OFF) {
+			if (!wraplines) {
 				/* Throw away left-over characters on line */
 				c = ch_forw_get();
 				while (c != '\n' && c != EOI)
@@ -247,7 +249,7 @@ back_line(curr_pos)
 			break;
 		if (pappend(c))
 		{
-			if (horiz_off == NO_HORIZ_OFF) {
+			if (wraplines) {
 				/*
 				 * Got a full printable line, but we haven't
 				 * reached our curr_pos yet.  Discard the line

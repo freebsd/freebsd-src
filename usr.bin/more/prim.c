@@ -313,7 +313,7 @@ prepaint(pos)
 	off_t pos;
 {
 	hit_eof = 0;
-	forw(sc_height-1, pos, 0);
+	forw(sc_height - 1, pos, 0);
 	screen_trashed = 0;
 }
 
@@ -581,26 +581,18 @@ gomark(c)
 		new_horiz_off = marks[c-'a'].horiz_off;
 	}
 
-	/* Try to be nice about changing the horizontal scroll */
-	if (!(horiz_off == NO_HORIZ_OFF && new_horiz_off <= sc_width)) {
+	/* Try to be nice about changing the horizontal scroll and wrapping */
+	if (new_horiz_off > sc_width / 3 + horiz_off) {
 		/*
-		 * We're going to have to change the horiz_off, even if
-		 * it's currently set to NO_HORIZ_OFF: if we don't change
-		 * horiz_off the bookmarked location won't show on the screen.
+		 * We should change horiz_off: if we don't change horiz_off
+		 * the bookmarked location won't be readily visible.
 		 */
-		if (horiz_off != new_horiz_off) {
-			/* We'll need to repaint(), too... */
-			horiz_off = new_horiz_off;
-			prepaint(pos);
-		} else {
-			/* No need to repaint. */
-			jump_loc(pos);
-		}
+		horiz_off = new_horiz_off;
+		prepaint(pos);
 	} else {
 		/*
-		 * The user doesn't want horizontal scrolling, and we can
-		 * fortunately honour the bookmark request without doing
-		 * any horizontal scrolling.
+		 * We can honour the bookmark request without doing any
+		 * horizontal scrolling.
 		 */
 		jump_loc(pos);
 	}

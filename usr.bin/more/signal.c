@@ -65,7 +65,6 @@ extern int sc_width, sc_height;
 extern int screen_trashed;
 extern int lnloop;
 extern int linenums;
-extern int scroll;
 extern volatile int reading;
 
 #ifdef SIGTSTP
@@ -181,7 +180,8 @@ psignals()
 		get_term();
 		if (sc_width != old_width || sc_height != old_height)
 		{
-			scroll = (sc_height + 1) / 2;
+			(void) setvari("_sc_width", (long) sc_width);
+			(void) setvari("_sc_height", (long) sc_height - 1);
 			screen_trashed = 1;
 		}
 	}
