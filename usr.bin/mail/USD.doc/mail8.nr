@@ -58,7 +58,7 @@ A collection of messages.  Often used in the phrase,
 .q "Have you read your mail?"
 .ip "\fImailbox\fP"
 The place where your mail is stored, typically in the directory
-/usr/spool/mail.
+/var/mail.
 .ip "\fImessage\fP"
 A single letter from someone, initially stored in your
 .i mailbox .

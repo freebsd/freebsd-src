@@ -74,7 +74,7 @@ mail instead of your own.  Unwitting others often neglect to protect
 their mailboxes, but discretion is advised. Essentially,
 .b "\-u user"
 is a shorthand way of doing
-.b "\-f /usr/spool/mail/user".
+.b "\-f /var/mail/user".
 .ip "\-v"
 Use the
 .b \-v
