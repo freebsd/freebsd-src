@@ -3145,30 +3145,6 @@ or a range of ports the same size as the other ranges.
 This option is useful if you wish to run things like Internet phone on
 machines behind your gateway, but is limited in that connections to only
 one interior machine per source machine and target port are possible.
-.It nat pptp Op Ar addr
-This tells
-.Nm
-to translate any
-.Em G Ns No eneral
-.Em R Ns No outing
-.Em E Ns No encapsulated
-.Pq Dv IPPROTO_GRE
-packets using
-.Ar addr
-rather than the local interface address.
-This allows the uses of the
-.Em P Ns No oint
-to
-.Em P Ns No oint
-.Em T Ns No unneling
-.Em P Ns No rotocol
-on a machine on the internal network.
-.Pp
-If
-.Ar addr
-is not specified,
-.Dv PPTP
-address translation is disabled.
 .It "nat proxy cmd" Ar arg Ns No ...
 This command tells
 .Nm
