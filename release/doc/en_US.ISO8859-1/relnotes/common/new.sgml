@@ -548,6 +548,15 @@
 
       <para>The &man.umass.4; driver now supports the missing
 	ATAPI MMC commands and handles the timeout properly.  &merged;</para>
+
+      <para>The &man.vinum.8; volume manager, has been updated to use
+        GEOM, the 5.x disk framework.  A gvinum userland tool has been
+        added.</para>
+
+      <para arch="sparc64">The &man.esp.4; device driver has been
+        ported from NetBSD to support the sbus SCSI card in Sun Ultra
+        1e and 2 machines.</para>
+
     </sect3>
 
     <sect3 id="fs">
@@ -849,8 +858,8 @@
     <para><application>Binutils</application> have been updated to
       a 23 May 2004 snapshot from the FSF 2.15 branch.</para>
 
-    <para><application>CVS</application> has been updated from
-      version 1.11.10 to version 1.11.15.</para>
+    <para><application>CVS</application> has been updated to version
+      1.11.17.</para>
 
     <para><application>gdtoa</application> (a library that performs
       conversions of numbers between binary and decimal form) has been
