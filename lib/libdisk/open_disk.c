@@ -263,6 +263,8 @@ Int_Open_Disk(const char *name, char *conftxt)
 			; /* nothing */
 		else if (!strcmp(t, "APPLE"))
 			i = Add_Chunk(d, off, len, n, apple, 0, 0, sn);
+		else if (strstr(t, "VINUM") != NULL)
+			; /* nothing */
 		else {
 			printf("BARF %d\n", __LINE__);
 			exit(0);
