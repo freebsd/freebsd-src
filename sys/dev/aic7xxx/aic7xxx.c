@@ -1,7 +1,7 @@
 /*
  * Core routines and tables shareable across OS platforms.
  *
- * Copyright (c) 1994, 1995, 1996, 1997, 1998, 1999, 2000 Justin T. Gibbs.
+ * Copyright (c) 1994-2001 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1378,6 +1378,7 @@ ahc_alloc_tstate(struct ahc_softc *ahc, u_int scsi_id, char channel)
 	return (tstate);
 }
 
+#ifdef AHC_TARGET_MODE
 /*
  * Free per target mode instance (ID we respond to as a target)
  * transfer negotiation data structures.
@@ -1401,6 +1402,7 @@ ahc_free_tstate(struct ahc_softc *ahc, u_int scsi_id, char channel, int force)
 		free(tstate, M_DEVBUF);
 	ahc->enabled_targets[scsi_id] = NULL;
 }
+#endif
 
 /*
  * Called when we have an active connection to a target on the bus,

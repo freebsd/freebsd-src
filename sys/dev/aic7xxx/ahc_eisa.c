@@ -2,7 +2,7 @@
  * FreeBSD, EISA product support functions
  * 
  *
- * Copyright (c) 1994, 1995, 1996, 1997, 1998, 2000 Justin T. Gibbs.
+ * Copyright (c) 1994-1998, 2000, 2001 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
