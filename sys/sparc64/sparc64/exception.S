@@ -67,6 +67,9 @@
 
 #include "assym.s"
 
+#define	TSB_KERNEL_MASK	0x0
+#define	TSB_KERNEL	0x0
+
 	.register %g2,#ignore
 	.register %g3,#ignore
 	.register %g6,#ignore
@@ -1360,15 +1363,22 @@ END(intr_enqueue)
 	srlx	%g6, TAR_VPN_SHIFT, %g6
 
 	/*
-	 * Find the index into the kernel tsb.
+	 * Find the index into the kernel tsb.  The tsb mask gets patched at
+	 * startup.
 	 */
-	set	TSB_KERNEL_MASK, %g4
+	.globl	tl1_immu_miss_load_tsb_mask
+tl1_immu_miss_load_tsb_mask:
+	sethi	%hi(TSB_KERNEL_MASK), %g4
+	or	%g4, %lo(TSB_KERNEL_MASK), %g4
 	and	%g6, %g4, %g3
 
 	/*
-	 * Compute the tte address.
+	 * Compute the tte address.  The address of the kernel tsb gets
+	 * patched at startup.
 	 */
-	ldxa	[%g0 + AA_IMMU_TSB] %asi, %g4
+	.globl	tl1_immu_miss_load_tsb
+tl1_immu_miss_load_tsb:
+	sethi	%hi(TSB_KERNEL), %g4
 	sllx	%g3, TTE_SHIFT, %g3
 	add	%g3, %g4, %g3
 
@@ -1449,16 +1459,23 @@ END(tl1_immu_miss_trap)
 	 EMPTY
 
 	/*
-	 * Find the index into the kernel tsb.
+	 * Find the index into the kernel tsb.  The tsb mask gets patched at
+	 * startup.
 	 */
-	 set	TSB_KERNEL_MASK, %g4
+	.globl	tl1_dmmu_miss_load_tsb_mask
+tl1_dmmu_miss_load_tsb_mask:
+	sethi	%hi(TSB_KERNEL_MASK), %g4
+	or	%g4, %lo(TSB_KERNEL_MASK), %g4
 	srlx	%g6, TAR_VPN_SHIFT, %g6
 	and	%g6, %g4, %g3
 
 	/*
-	 * Compute the tte address.
+	 * Compute the tte address.  The address of the kernel tsb gets
+	 * patched at startup.
 	 */
-	ldxa	[%g0 + AA_DMMU_TSB] %asi, %g4
+	.globl	tl1_dmmu_miss_load_tsb
+tl1_dmmu_miss_load_tsb:
+	sethi	%hi(TSB_KERNEL), %g4
 	sllx	%g3, TTE_SHIFT, %g3
 	add	%g3, %g4, %g3
 
@@ -1606,16 +1623,23 @@ END(tl1_dmmu_miss_user)
 	 mov	%g6, %g2
 
 	/*
-	 * Find the index into the kernel tsb.
+	 * Find the index into the kernel tsb.  The tsb mask gets patched at
+	 * startup.
 	 */
-	set	TSB_KERNEL_MASK, %g4
+	.globl	tl1_dmmu_prot_load_tsb_mask
+tl1_dmmu_prot_load_tsb_mask:
+	sethi	%hi(TSB_KERNEL_MASK), %g4
+	or	%g4, %lo(TSB_KERNEL_MASK), %g4
 	srlx	%g6, TAR_VPN_SHIFT, %g6
 	and	%g6, %g4, %g5
 
 	/*
-	 * Compute the tte address.
+	 * Compute the tte address.  The address of the kernel tsb gets
+	 * patched at startup.
 	 */
-	ldxa	[%g0 + AA_DMMU_TSB] %asi, %g4
+	.globl	tl1_dmmu_prot_load_tsb
+tl1_dmmu_prot_load_tsb:
+	sethi	%hi(TSB_KERNEL), %g4
 	sllx	%g5, TTE_SHIFT, %g5
 	add	%g4, %g5, %g3
 
