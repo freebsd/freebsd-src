@@ -769,7 +769,7 @@ static int pcib_attach(device_t dev)
 }
 
 static int
-pcib_read_ivar(device_t dev, device_t child, int which, u_long *result)
+pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
 	if (which == PCIB_IVAR_HOSE) {
 		/*
