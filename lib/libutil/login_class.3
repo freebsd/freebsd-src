@@ -17,7 +17,7 @@
 .\" 5. Modifications may be freely made to this file providing the above
 .\"    conditions are met.
 .\"
-.\" $Id: login_class.3,v 1.4 1997/02/22 15:08:20 peter Exp $
+.\" $Id: login_class.3,v 1.5 1997/04/13 14:12:48 bde Exp $
 .\"
 .Dd December 28, 1996
 .Os FreeBSD
@@ -49,7 +49,7 @@ accounting settings for users on logging into the system and when
 selecting an appropriate set of environment and resource settings
 for system daemons based on login classes.
 These functions may only be called if the current process is
-running with root priviledges.
+running with root privileges.
 If the LOGIN_SETLOGIN flag is used this function calls
 .Xr setlogin 2 ,
 and due care must be taken as detailed in the manpage for that
@@ -171,7 +171,7 @@ be useful in isolation.
 .Fn setclasscontext
 and
 .Fn setusercontext
-return -1 if an error occured, or 0 on success.
+return -1 if an error occurred, or 0 on success.
 If an error occurs when attempting to set the user, login, group
 or resources, a message is reported to
 .Xr syslog 3 ,
