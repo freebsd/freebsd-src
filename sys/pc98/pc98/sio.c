@@ -976,6 +976,7 @@ sio_pccard_detach(dev)
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, com->ioportres);
 	if (com->tp && (com->tp->t_state & TS_ISOPEN)) {
 		device_printf(dev, "still open, forcing close\n");
+		(*linesw[com->tp->t_line].l_close)(com->tp, 0);
 		com->tp->t_gen++;
 		ttyclose(com->tp);
 		ttwakeup(com->tp);
@@ -998,7 +999,9 @@ struct pci_ids {
 
 static struct pci_ids pci_ids[] = {
 	{ 0x100812b9, "3COM PCI FaxModem", 0x10 },
-	{ 0x048011c1, "ActionTec 56k FAX PCI Modem", 0x14 },
+	{ 0x048011c1, "Lucent kermit based PCI Modem", 0x14 },
+	{ 0x0000151f, "SmartLink 5634PCV SurfRider", 0x10 },
+	/* { 0xXXXXXXXX, "Xircom Cardbus modem", 0x10 }, */
 	{ 0x00000000, NULL, 0 }
 };
 
@@ -4634,6 +4637,7 @@ DRIVER_MODULE(sio, pccard, sio_pccard_driver, sio_devclass, 0, 0);
 #endif
 #if NPCI > 0
 DRIVER_MODULE(sio, pci, sio_pci_driver, sio_devclass, 0, 0);
+DRIVER_MODULE(sio, cardbus, sio_pci_driver, sio_devclass, 0, 0);
 #endif
 
 #ifdef PC98
