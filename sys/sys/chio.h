@@ -1,5 +1,7 @@
 /*
  * 16 Feb 93	Julian Elischer		ADDED for SCSI system
+ *
+ *	$Id$
  */
 
 /* This is a "convertet" mtio.h from 386BSD 

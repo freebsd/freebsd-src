@@ -12,22 +12,10 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00098
- * --------------------         -----   ----------------------
- *
- * 16 Feb 93	Julian Elischer		ADDED for SCSI system
- * 1.15 is the last verion to support MACH and OSF/1
- */
-/* $Revision: 1.9 $ */
-
-/*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  * major changes by Julian Elischer (julian@jules.dialix.oz.au) May 1993
  *
- *	$Id: st.c,v 1.9 1993/09/20 06:27:06 rgrimes Exp $
+ *	$Id: st.c,v 1.10 1993/10/11 04:53:23 rgrimes Exp $
  */
 
 
