@@ -41,6 +41,7 @@ B<openssl> B<req>
 [B<-nameopt>]
 [B<-batch>]
 [B<-verbose>]
+[B<-engine id>]
 
 =head1 DESCRIPTION
 
@@ -244,6 +245,13 @@ non-interactive mode.
 
 print extra details about the operations being performed.
 
+=item B<-engine id>
+
+specifying an engine (by it's unique B<id> string) will cause B<req>
+to attempt to obtain a functional reference to the specified engine,
+thus initialising it if needed. The engine will then be set as the default
+for all available algorithms.
+
 =back
 
 =head1 CONFIGURATION FILE FORMAT
@@ -406,7 +414,7 @@ be input by calling it "1.organizationName".
 The actual permitted field names are any object identifier short or
 long names. These are compiled into OpenSSL and include the usual
 values such as commonName, countryName, localityName, organizationName,
-organizationUnitName, stateOrPrivinceName. Additionally emailAddress
+organizationUnitName, stateOrProvinceName. Additionally emailAddress
 is include as well as name, surname, givenName initials and dnQualifier.
 
 Additional object identifiers can be defined with the B<oid_file> or
