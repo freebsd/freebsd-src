@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.170 1998/04/24 17:13:33 bde Exp $
+#	$Id: Makefile,v 1.171 1998/04/25 14:32:22 andreas Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -134,8 +134,8 @@ CLEANDIR=	cleandir
 .endif
 .endif
 
-SUP?=		sup
-SUPFLAGS?=	-v
+SUP?=		cvsup
+SUPFLAGS?=	-g -L 2 -P -
 
 #
 # While building tools for bootstrapping, we don't need to waste time on
@@ -364,7 +364,7 @@ reinstall:
 update:
 .if defined(SUP_UPDATE)
 	@echo "--------------------------------------------------------------"
-	@echo "Running sup"
+	@echo "Running ${SUP}"
 	@echo "--------------------------------------------------------------"
 	@${SUP} ${SUPFLAGS} ${SUPFILE}
 .if defined(SUPFILE1)
