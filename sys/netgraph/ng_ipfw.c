@@ -229,7 +229,13 @@ ng_ipfw_rcvdata(hook_p hook, item_p item)
 	switch (ngit->dir) {
 	case NG_IPFW_OUT:
 	    {
-		struct ip *ip = mtod(m, struct ip *);
+		struct ip *ip;
+
+		if (m->m_len < sizeof (struct ip) &&
+			(m = m_pullup(m, sizeof (struct ip))) == NULL)
+				return(EINVAL);
+
+		ip = mtod(m, struct ip *);
 
 		ip->ip_len = ntohs(ip->ip_len);
 		ip->ip_off = ntohs(ip->ip_off);
