@@ -1,4 +1,4 @@
-#	$Id: options,v 1.123 1999/01/23 17:07:49 nsouch Exp $
+#	$Id: options,v 1.124 1999/01/25 03:51:50 peter Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -241,8 +241,6 @@ DPT_RESET_HBA		opt_dpt.h
 # with 'make CC="cc -DDEBUG'.
 CLUSTERDEBUG		opt_debug_cluster.h
 DEBUG_1284		opt_ppb_1284.h
-PERIPH_1284		opt_ppb_1284.h
-DONTPROBE_1284		opt_ppb_1284.h
 VP0_DEBUG		opt_vpo.h
 NLPT_DEBUG		opt_nlpt.h
 PLIP_DEBUG		opt_plip.h
@@ -253,6 +251,12 @@ NETATALKDEBUG		opt_atalk.h
 NULLFS_DIAGNOSTIC	opt_debug_nullfs.h
 SI_DEBUG		opt_debug_si.h
 
+# ppbus related options
+PERIPH_1284		opt_ppb_1284.h
+DONTPROBE_1284		opt_ppb_1284.h
+
+# smbus related options
+ENABLE_ALART		opt_intpm.h
 
 # These cause changes all over the kernel
 DEBUG			opt_global.h
