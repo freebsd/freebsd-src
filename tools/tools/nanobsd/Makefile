@@ -150,7 +150,7 @@ _.md:	_.cs
 		${SC} \
 		${DATASLICE} \
 		${WD} ${.OBJDIR}/_.i \
-		${CFGMASTER}
+		${CFGMASTER} \
 		> _.md.tmp 2>&1
 	mv _.mtree.tmp _.mtree
 	mv _.md.tmp _.md
