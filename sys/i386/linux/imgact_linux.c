@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_linux.c,v 1.11 1996/03/10 23:25:17 peter Exp $
+ *	$Id: imgact_linux.c,v 1.12 1996/03/12 06:20:16 peter Exp $
  */
 
 #include <sys/param.h>
@@ -61,8 +61,10 @@ exec_linux_imgact(imgp)
 {
     struct exec *a_out = (struct exec *) imgp->image_header;
     struct vmspace *vmspace = imgp->proc->p_vmspace;
-    unsigned long vmaddr, virtual_offset, file_offset;
-    unsigned long buffer, bss_size;
+    vm_offset_t vmaddr;
+    unsigned long virtual_offset, file_offset;
+    vm_offset_t buffer;
+    unsigned long bss_size;
     int error;
 
     if (((a_out->a_magic >> 16) & 0xff) != 0x64)
