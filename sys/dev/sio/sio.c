@@ -408,7 +408,9 @@ static	volatile speed_t	gdbdefaultrate = CONSPEED;
 #endif
 static	u_int	com_events;	/* input chars + weighted output completions */
 static	Port_t	siocniobase;
+#ifndef __alpha__
 static	int	siocnunit;
+#endif
 static	Port_t	siogdbiobase;
 static	int	siogdbunit = -1;
 static	bool_t	sio_registered;
@@ -2938,13 +2940,22 @@ struct siocnstate {
 	u_char	mcr;
 };
 
+#ifndef __alpha__
 static speed_t siocngetspeed __P((Port_t, struct speedtab *));
+#endif
 static void siocnclose	__P((struct siocnstate *sp, Port_t iobase));
 static void siocnopen	__P((struct siocnstate *sp, Port_t iobase, int speed));
 static void siocntxwait	__P((Port_t iobase));
 
+#ifdef __alpha__
+int siocnattach __P((int port, int speed));
+int siogdbattach __P((int port, int speed));
+int siogdbgetc __P((void));
+void siogdbputc __P((int c));
+#else
 static cn_probe_t siocnprobe;
 static cn_init_t siocninit;
+#endif
 static cn_checkc_t siocncheckc;
 static cn_getc_t siocngetc;
 static cn_putc_t siocnputc;
@@ -2975,6 +2986,8 @@ siocntxwait(iobase)
 	       != (LSR_TSRE | LSR_TXRDY) && --timo != 0)
 		;
 }
+
+#ifndef __alpha__
 
 /*
  * Read the serial port specified and try to figure out what speed
@@ -3011,6 +3024,8 @@ siocngetspeed(iobase, table)
 
 	return (0);	/* didn't match anything sane */
 }
+
+#endif
 
 static void
 siocnopen(sp, iobase, speed)
@@ -3078,6 +3093,8 @@ siocnclose(sp, iobase)
 	outb(iobase + com_mcr, sp->mcr | MCR_DTR | MCR_RTS);
 	outb(iobase + com_ier, sp->ier);
 }
+
+#ifndef __alpha__
 
 static void
 siocnprobe(cp)
@@ -3189,6 +3206,15 @@ siocnprobe(cp)
 #endif
 }
 
+static void
+siocninit(cp)
+	struct consdev	*cp;
+{
+	comconsole = DEV_TO_UNIT(cp->cn_dev);
+}
+
+#endif
+
 #ifdef __alpha__
 
 CONS_DRIVER(sio, NULL, NULL, NULL, siocngetc, siocncheckc, siocnputc, NULL);
@@ -3280,13 +3306,6 @@ siogdbattach(port, speed)
 }
 
 #endif
-
-static void
-siocninit(cp)
-	struct consdev	*cp;
-{
-	comconsole = DEV_TO_UNIT(cp->cn_dev);
-}
 
 static int
 siocncheckc(dev)
