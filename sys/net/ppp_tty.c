@@ -70,7 +70,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: ppp_tty.c,v 1.35 1998/05/01 16:40:21 bde Exp $ */
+/* $Id: ppp_tty.c,v 1.36 1998/06/07 17:12:07 dfr Exp $ */
 
 #include "ppp.h"
 #if NPPP > 0
@@ -651,8 +651,10 @@ pppasyncstart(sc)
 		 */
 		if (len) {
 		    s = spltty();
-		    if (putc(PPP_ESCAPE, &tp->t_outq))
+		    if (putc(PPP_ESCAPE, &tp->t_outq)) {
+			splx(s);
 			break;
+		    }
 		    if (putc(*start ^ PPP_TRANS, &tp->t_outq)) {
 			(void) unputc(&tp->t_outq);
 			splx(s);
