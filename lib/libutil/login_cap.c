@@ -171,9 +171,10 @@ login_close(login_cap_t * lc)
  * login_getclassbyname() get the login class by its name.
  * If the name given is NULL or empty, the default class
  * LOGIN_DEFCLASS (ie. "default") is fetched. If the
- * 'dir' argument contains a non-NULL non-empty string,
- * then the file _FILE_LOGIN_CONF is picked up from that
- * directory instead of the system login database.
+ * 'pwd' argument is non-NULL and contains an non-NULL
+ * dir entry, then the file _FILE_LOGIN_CONF is picked
+ * up from that directory and used before the system
+ * login database.
  * Return a filled-out login_cap_t structure, including
  * class name, and the capability record buffer.
  */
