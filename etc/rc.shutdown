@@ -52,6 +52,18 @@ elif [ -r /etc/rc.conf ]; then
 	. /etc/rc.conf
 fi
 
+# reverse_list list
+#	print the list in reverse order
+#
+reverse_list()
+{
+	_revlist=
+	for _revfile in $*; do
+		_revlist="$_revfile${script_name_sep}$_revlist"
+	done
+	echo $_revlist
+}
+
 # Write some entropy so the rebooting /dev/random can reseed
 #
 case ${entropy_file} in
@@ -109,13 +121,13 @@ case ${local_startup} in
 	for dir in ${local_startup}; do
 		if [ -d "${dir}" ]; then
 			for script in ${dir}/*.sh; do
-				slist="${script}${script_name_sep}${slist}"
+				slist="${slist}${script_name_sep}${script}"
 			done
 		fi
 	done
 	script_save_sep="$IFS"
 	IFS="${script_name_sep}"
-	for script in ${slist}; do
+	for script in `reverse_list ${slist}`; do
 		if [ -x "${script}" ]; then
 			(set -T
 			trap 'exit 1' 2
