@@ -125,6 +125,8 @@ fpuinit(void)
 	ldmxcsr(mxcsr);
 	fxsave(&fpu_cleanstate);
 	start_emulating();
+	bzero(fpu_cleanstate.sv_fp, sizeof(fpu_cleanstate.sv_fp));
+	bzero(fpu_cleanstate.sv_xmm, sizeof(fpu_cleanstate.sv_xmm));
 	fpu_cleanstate_ready = 1;
 	intr_restore(savecrit);
 }
@@ -384,7 +386,6 @@ fpudna()
 {
 	struct pcb *pcb;
 	register_t s;
-	u_short control;
 
 	if (PCPU_GET(fpcurthread) == curthread) {
 		printf("fpudna: fpcurthread == curthread %d times\n",
@@ -409,13 +410,10 @@ fpudna()
 
 	if ((pcb->pcb_flags & PCB_FPUINITDONE) == 0) {
 		/*
-		 * This is the first time this thread has used the FPU or
-		 * the PCB doesn't contain a clean FPU state.  Explicitly
-		 * initialize the FPU and load the default control word.
+		 * This is the first time this thread has used the FPU,
+		 * explicitly load sanitized registers.
 		 */
-		fninit();
-		control = __INITIAL_FPUCW__;
-		fldcw(&control);
+		fxrstor(&fpu_cleanstate);
 		pcb->pcb_flags |= PCB_FPUINITDONE;
 	} else
 		fxrstor(&pcb->pcb_save);
