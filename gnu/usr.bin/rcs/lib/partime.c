@@ -1,642 +1,701 @@
-/*
- * PARTIME		parse date/time string into a TM structure
- *
- * Returns:
- *	0 if parsing failed
- *	else time values in specified TM structure and zone (unspecified values
- *		set to TMNULL)
- * Notes:
- *	This code is quasi-public; it may be used freely in like software.
- *	It is not to be sold, nor used in licensed software without
- *	permission of the author.
- *	For everyone's benefit, please report bugs and improvements!
- * 	Copyright 1980 by Ken Harrenstien, SRI International.
- *	(ARPANET: KLH @ SRI)
- */
+/* Parse a string, yielding a struct partime that describes it.  */
 
-/* Hacknotes:
- *	If parsing changed so that no backup needed, could perhaps modify
- *		to use a FILE input stream.  Need terminator, though.
- *	Perhaps should return 0 on success, else a non-zero error val?
- */
+/* Copyright 1993, 1994, 1995 Paul Eggert
+   Distributed under license by the Free Software Foundation, Inc.
 
-/* $Log: partime.c,v $
- * Revision 1.1.1.1  1993/06/18  04:22:13  jkh
- * Updated GNU utilities
- *
- * Revision 5.6  1991/08/19  03:13:55  eggert
- * Update timezones.
- *
- * Revision 5.5  1991/04/21  11:58:18  eggert
- * Don't put , just before } in initializer.
- *
- * Revision 5.4  1990/10/04  06:30:15  eggert
- * Remove date vs time heuristics that fail between 2000 and 2400.
- * Check for overflow when lexing an integer.
- * Parse 'Jan 10 LT' as 'Jan 10, LT', not 'Jan, 10 LT'.
- *
- * Revision 5.3  1990/09/24  18:56:31  eggert
- * Update timezones.
- *
- * Revision 5.2  1990/09/04  08:02:16  eggert
- * Don't parse two-digit years, because it won't work after 1999/12/31.
- * Don't permit 'Aug Aug'.
- *
- * Revision 5.1  1990/08/29  07:13:49  eggert
- * Be able to parse our own date format.  Don't assume year<10000.
- *
- * Revision 5.0  1990/08/22  08:12:40  eggert
- * Switch to GMT and fix the bugs exposed thereby.  Update timezones.
- * Ansify and Posixate.  Fix peekahead and int-size bugs.
- *
- * Revision 1.4  89/05/01  14:48:46  narten
- * fixed #ifdef DEBUG construct
- *
- * Revision 1.3  88/08/28  14:53:40  eggert
- * Remove unportable "#endif XXX"s.
- *
- * Revision 1.2  87/03/27  14:21:53  jenkins
- * Port to suns
- *
- * Revision 1.1  82/05/06  11:38:26  wft
- * Initial revision
- *
- */
+This file is part of RCS.
 
-#include "rcsbase.h"
+RCS is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
-libId(partId, "$Id: partime.c,v 1.1.1.1 1993/06/18 04:22:13 jkh Exp $")
+RCS is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-#define given(v) (0 <= (v))
-#define TMNULL (-1) /* Items not given are given this value */
-#define TZ_OFFSET (24*60) /* TMNULL  <  zone_offset - TZ_OFFSET */
+You should have received a copy of the GNU General Public License
+along with RCS; see the file COPYING.
+If not, write to the Free Software Foundation,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
-struct tmwent {
-	char const *went;
-	short wval;
-	char wflgs;
-	char wtype;
-};
-	/* wflgs */
-#define TWTIME 02	/* Word is a time value (absence implies date) */
-#define TWDST  04	/* Word is a DST-type timezone */
-	/* wtype */
-#define TM_MON	1	/* month name */
-#define TM_WDAY	2	/* weekday name */
-#define TM_ZON	3	/* time zone name */
-#define TM_LT	4	/* local time */
-#define TM_DST	5	/* daylight savings time */
-#define TM_12	6	/* AM, PM, NOON, or MIDNIGHT */
-	/* wval (for wtype==TM_12) */
-#define T12_AM 1
-#define T12_PM 2
-#define T12_NOON 12
-#define T12_MIDNIGHT 0
+Report problems and direct all questions to:
 
-static struct tmwent const tmwords [] = {
-	{"january",      0, 0, TM_MON},
-	{"february",     1, 0, TM_MON},
-	{"march",        2, 0, TM_MON},
-	{"april",        3, 0, TM_MON},
-	{"may",          4, 0, TM_MON},
-	{"june",         5, 0, TM_MON},
-	{"july",         6, 0, TM_MON},
-	{"august",       7, 0, TM_MON},
-	{"september",    8, 0, TM_MON},
-	{"october",      9, 0, TM_MON},
-	{"november",     10, 0, TM_MON},
-	{"december",     11, 0, TM_MON},
+    rcs-bugs@cs.purdue.edu
 
-	{"sunday",       0, 0, TM_WDAY},
-	{"monday",       1, 0, TM_WDAY},
-	{"tuesday",      2, 0, TM_WDAY},
-	{"wednesday",    3, 0, TM_WDAY},
-	{"thursday",     4, 0, TM_WDAY},
-	{"friday",       5, 0, TM_WDAY},
-	{"saturday",     6, 0, TM_WDAY},
+*/
 
-	{"gmt",          0*60, TWTIME, TM_ZON},   /* Greenwich */
-	{"utc",          0*60, TWTIME, TM_ZON},
-	{"ut",           0*60, TWTIME, TM_ZON},
-	{"cut",		 0*60, TWTIME, TM_ZON},
-
-	{"nzst",        -12*60, TWTIME, TM_ZON},  /* New Zealand */
-	{"jst",         -9*60, TWTIME, TM_ZON},   /* Japan */
-	{"kst",         -9*60, TWTIME, TM_ZON},   /* Korea */
-	{"ist",         -5*60-30, TWTIME, TM_ZON},/* India */
-	{"eet",         -2*60, TWTIME, TM_ZON},   /* Eastern Europe */
-	{"cet",         -1*60, TWTIME, TM_ZON},   /* Central Europe */
-	{"met",         -1*60, TWTIME, TM_ZON},   /* Middle Europe */
-	{"wet",          0*60, TWTIME, TM_ZON},   /* Western Europe */
-	{"nst",          3*60+30, TWTIME, TM_ZON},/* Newfoundland */
-	{"ast",          4*60, TWTIME, TM_ZON},   /* Atlantic */
-	{"est",          5*60, TWTIME, TM_ZON},   /* Eastern */
-	{"cst",          6*60, TWTIME, TM_ZON},   /* Central */
-	{"mst",          7*60, TWTIME, TM_ZON},   /* Mountain */
-	{"pst",          8*60, TWTIME, TM_ZON},   /* Pacific */
-	{"akst",         9*60, TWTIME, TM_ZON},   /* Alaska */
-	{"hast",         10*60, TWTIME, TM_ZON},  /* Hawaii-Aleutian */
-	{"hst",          10*60, TWTIME, TM_ZON},  /* Hawaii */
-	{"sst",          11*60, TWTIME, TM_ZON},  /* Samoa */
-
-	{"nzdt",        -12*60, TWTIME+TWDST, TM_ZON},    /* New Zealand */
-	{"kdt",         -9*60, TWTIME+TWDST, TM_ZON},     /* Korea */
-	{"bst",          0*60, TWTIME+TWDST, TM_ZON},     /* Britain */
-	{"ndt",		 3*60+30, TWTIME+TWDST, TM_ZON},  /* Newfoundland */
-	{"adt",          4*60, TWTIME+TWDST, TM_ZON},     /* Atlantic */
-	{"edt",          5*60, TWTIME+TWDST, TM_ZON},     /* Eastern */
-	{"cdt",          6*60, TWTIME+TWDST, TM_ZON},     /* Central */
-	{"mdt",          7*60, TWTIME+TWDST, TM_ZON},     /* Mountain */
-	{"pdt",          8*60, TWTIME+TWDST, TM_ZON},     /* Pacific */
-	{"akdt",         9*60, TWTIME+TWDST, TM_ZON},     /* Alaska */
-	{"hadt",         10*60, TWTIME+TWDST, TM_ZON},    /* Hawaii-Aleutian */
-
-#if 0
-	/*
-	 * The following names are duplicates or are not well attested.
-	 * A standard is needed.
-	 */
-	{"east",        -10*60, TWTIME, TM_ZON},  /* Eastern Australia */
-	{"cast",        -9*60-30, TWTIME, TM_ZON},/* Central Australia */
-	{"cst",         -8*60, TWTIME, TM_ZON},   /* China */
-	{"hkt",         -8*60, TWTIME, TM_ZON},   /* Hong Kong */
-	{"sst",         -8*60, TWTIME, TM_ZON},   /* Singapore */
-	{"wast",        -8*60, TWTIME, TM_ZON},   /* Western Australia */
-	{"?",		-6*60-30, TWTIME, TM_ZON},/* Burma */
-	{"?",           -4*60-30, TWTIME, TM_ZON},/* Afghanistan */
-	{"it",          -3*60-30, TWTIME, TM_ZON},/* Iran */
-	{"ist",         -2*60, TWTIME, TM_ZON},   /* Israel */
-	{"mez",		-1*60, TWTIME, TM_ZON},   /* Mittel-Europaeische Zeit */
-	{"ast",          1*60, TWTIME, TM_ZON},   /* Azores */
-	{"fst",          2*60, TWTIME, TM_ZON},   /* Fernando de Noronha */
-	{"bst",          3*60, TWTIME, TM_ZON},   /* Brazil */
-	{"wst",          4*60, TWTIME, TM_ZON},   /* Western Brazil */
-	{"ast",          5*60, TWTIME, TM_ZON},   /* Acre Brazil */
-	{"?",            9*60+30, TWTIME, TM_ZON},/* Marquesas */
-	{"?",		 12*60, TWTIME, TM_ZON},  /* Kwajalein */
-
-	{"eadt",        -10*60, TWTIME+TWDST, TM_ZON},    /* Eastern Australia */
-	{"cadt",        -9*60-30, TWTIME+TWDST, TM_ZON},  /* Central Australia */
-	{"cdt",         -8*60, TWTIME+TWDST, TM_ZON},     /* China */
-	{"wadt",        -8*60, TWTIME+TWDST, TM_ZON},     /* Western Australia */
-	{"idt",         -2*60, TWTIME+TWDST, TM_ZON},     /* Israel */
-	{"eest",        -2*60, TWTIME+TWDST, TM_ZON},     /* Eastern Europe */
-	{"cest",        -1*60, TWTIME+TWDST, TM_ZON},     /* Central Europe */
-	{"mest",        -1*60, TWTIME+TWDST, TM_ZON},     /* Middle Europe */
-	{"mesz",	-1*60, TWTIME+TWDST, TM_ZON},	  /* Mittel-Europaeische Sommerzeit */
-	{"west",         0*60, TWTIME+TWDST, TM_ZON},     /* Western Europe */
-	{"adt",          1*60, TWTIME+TWDST, TM_ZON},	  /* Azores */
-	{"fdt",          2*60, TWTIME+TWDST, TM_ZON},     /* Fernando de Noronha */
-	{"edt",          3*60, TWTIME+TWDST, TM_ZON},     /* Eastern Brazil */
-	{"wdt",          4*60, TWTIME+TWDST, TM_ZON},     /* Western Brazil */
-	{"adt",          5*60, TWTIME+TWDST, TM_ZON},     /* Acre Brazil */
+#if has_conf_h
+#	include "conf.h"
+#else
+#	ifdef __STDC__
+#		define P(x) x
+#	else
+#		define const
+#		define P(x) ()
+#	endif
+#	include <limits.h>
+#	include <time.h>
 #endif
 
-	{"lt",           0, TWTIME, TM_LT},       /* local time */
-	{"dst",          1*60, TWTIME, TM_DST},      /* daylight savings time */
-	{"ddst",         2*60, TWTIME, TM_DST},      /* double dst */
+#include <ctype.h>
+#undef isdigit
+#define isdigit(c) (((unsigned)(c)-'0') <= 9) /* faster than stock */
 
-	{"am",           T12_AM,	TWTIME, TM_12},
-	{"pm",           T12_PM,	TWTIME, TM_12},
-	{"noon",         T12_NOON,	TWTIME, TM_12},
-	{"midnight",     T12_MIDNIGHT,	TWTIME, TM_12},
+#include "partime.h"
 
-	{0, 0, 0, 0}	/* Zero entry to terminate searches */
+char const partimeId[]
+  = "$Id: partime.c,v 5.13 1995/06/16 06:19:24 eggert Exp $";
+
+
+/* Lookup tables for names of months, weekdays, time zones.  */
+
+#define NAME_LENGTH_MAXIMUM 4
+
+struct name_val {
+	char name[NAME_LENGTH_MAXIMUM];
+	int val;
 };
 
-struct token {
-	char const *tcp;/* pointer to string */
-	int tcnt;	/* # chars */
-	char tbrk;	/* "break" char */
-	char tbrkl;	/* last break char */
-	char tflg;	/* 0 = alpha, 1 = numeric */
-	union {         /* Resulting value; */
-		int tnum;/* either a #, or */
-		struct tmwent const *ttmw;/* a ptr to a tmwent.  */
-	} tval;
+
+static char const *parse_decimal P((char const*,int,int,int,int,int*,int*));
+static char const *parse_fixed P((char const*,int,int*));
+static char const *parse_pattern_letter P((char const*,int,struct partime*));
+static char const *parse_prefix P((char const*,struct partime*,int*));
+static char const *parse_ranged P((char const*,int,int,int,int*));
+static int lookup P((char const*,struct name_val const[]));
+static int merge_partime P((struct partime*, struct partime const*));
+static void undefine P((struct partime*));
+
+
+static struct name_val const month_names[] = {
+	{"jan",0}, {"feb",1}, {"mar",2}, {"apr",3}, {"may",4}, {"jun",5},
+	{"jul",6}, {"aug",7}, {"sep",8}, {"oct",9}, {"nov",10}, {"dec",11},
+	{"", TM_UNDEFINED}
 };
 
-static struct tmwent const*ptmatchstr P((char const*,int,struct tmwent const*));
-static int pt12hack P((struct tm *,int));
-static int ptitoken P((struct token *));
-static int ptstash P((int *,int));
-static int pttoken P((struct token *));
+static struct name_val const weekday_names[] = {
+	{"sun",0}, {"mon",1}, {"tue",2}, {"wed",3}, {"thu",4}, {"fri",5}, {"sat",6},
+	{"", TM_UNDEFINED}
+};
+
+#define hr60nonnegative(t)  ((t)/100 * 60  +  (t)%100)
+#define hr60(t)  ((t)<0 ? -hr60nonnegative(-(t)) : hr60nonnegative(t))
+#define zs(t,s)  {s, hr60(t)}
+#define zd(t,s,d)  zs(t, s),  zs((t)+100, d)
+
+static struct name_val const zone_names[] = {
+	zs(-1000, "hst"),		/* Hawaii */
+	zd(-1000,"hast","hadt"),/* Hawaii-Aleutian */
+	zd(- 900,"akst","akdt"),/* Alaska */
+	zd(- 800, "pst", "pdt"),/* Pacific */
+	zd(- 700, "mst", "mdt"),/* Mountain */
+	zd(- 600, "cst", "cdt"),/* Central */
+	zd(- 500, "est", "edt"),/* Eastern */
+	zd(- 400, "ast", "adt"),/* Atlantic */
+	zd(- 330, "nst", "ndt"),/* Newfoundland */
+	zs(  000, "utc"),		/* Coordinated Universal */
+	zs(  000, "cut"),		/* " */
+	zs(  000,  "ut"),		/* Universal */
+	zs(  000,   "z"),		/* Zulu (required by ISO 8601) */
+	zd(  000, "gmt", "bst"),/* Greenwich Mean, British Summer */
+	zs(  000, "wet"),		/* Western Europe */
+	zs(  100, "met"),		/* Middle Europe */
+	zs(  100, "cet"),		/* Central Europe */
+	zs(  200, "eet"),		/* Eastern Europe */
+	zs(  530, "ist"),		/* India */
+	zd(  900, "jst", "jdt"),/* Japan */
+	zd(  900, "kst", "kdt"),/* Korea */
+	zd( 1200,"nzst","nzdt"),/* New Zealand */
+	{ "lt", 1 },
+#if 0
+	/* The following names are duplicates or are not well attested.  */
+	zs(-1100, "sst"),		/* Samoa */
+	zs(-1000, "tht"),		/* Tahiti */
+	zs(- 930, "mqt"),		/* Marquesas */
+	zs(- 900, "gbt"),		/* Gambier */
+	zd(- 900, "yst", "ydt"),/* Yukon - name is no longer used */
+	zs(- 830, "pit"),		/* Pitcairn */
+	zd(- 500, "cst", "cdt"),/* Cuba */
+	zd(- 500, "ast", "adt"),/* Acre */
+	zd(- 400, "wst", "wdt"),/* Western Brazil */
+	zd(- 400, "ast", "adt"),/* Andes */
+	zd(- 400, "cst", "cdt"),/* Chile */
+	zs(- 300, "wgt"),		/* Western Greenland */
+	zd(- 300, "est", "edt"),/* Eastern South America */
+	zs(- 300, "mgt"),		/* Middle Greenland */
+	zd(- 200, "fst", "fdt"),/* Fernando de Noronha */
+	zs(- 100, "egt"),		/* Eastern Greenland */
+	zs(- 100, "aat"),		/* Atlantic Africa */
+	zs(- 100, "act"),		/* Azores and Canaries */
+	zs(  000, "wat"),		/* West Africa */
+	zs(  100, "cat"),		/* Central Africa */
+	zd(  100, "mez","mesz"),/* Mittel-Europaeische Zeit */
+	zs(  200, "sat"),		/* South Africa */
+	zd(  200, "ist", "idt"),/* Israel */
+	zs(  300, "eat"),		/* East Africa */
+	zd(  300, "ast", "adt"),/* Arabia */
+	zd(  300, "msk", "msd"),/* Moscow */
+	zd(  330, "ist", "idt"),/* Iran */
+	zs(  400, "gst"),		/* Gulf */
+	zs(  400, "smt"),		/* Seychelles & Mascarene */
+	zd(  400, "esk", "esd"),/* Yekaterinburg */
+	zd(  400, "bsk", "bsd"),/* Baku */
+	zs(  430, "aft"),		/* Afghanistan */
+	zd(  500, "osk", "osd"),/* Omsk */
+	zs(  500, "pkt"),		/* Pakistan */
+	zd(  500, "tsk", "tsd"),/* Tashkent */
+	zs(  545, "npt"),		/* Nepal */
+	zs(  600, "bgt"),		/* Bangladesh */
+	zd(  600, "nsk", "nsd"),/* Novosibirsk */
+	zs(  630, "bmt"),		/* Burma */
+	zs(  630, "cct"),		/* Cocos */
+	zs(  700, "ict"),		/* Indochina */
+	zs(  700, "jvt"),		/* Java */
+	zd(  700, "isk", "isd"),/* Irkutsk */
+	zs(  800, "hkt"),		/* Hong Kong */
+	zs(  800, "pst"),		/* Philippines */
+	zs(  800, "sgt"),		/* Singapore */
+	zd(  800, "cst", "cdt"),/* China */
+	zd(  800, "ust", "udt"),/* Ulan Bator */
+	zd(  800, "wst", "wst"),/* Western Australia */
+	zd(  800, "ysk", "ysd"),/* Yakutsk */
+	zs(  900, "blt"),		/* Belau */
+	zs(  900, "mlt"),		/* Moluccas */
+	zd(  900, "vsk", "vsd"),/* Vladivostok */
+	zd(  930, "cst", "cst"),/* Central Australia */
+	zs( 1000, "gst"),		/* Guam */
+	zd( 1000, "gsk", "gsd"),/* Magadan */
+	zd( 1000, "est", "est"),/* Eastern Australia */
+	zd( 1100,"lhst","lhst"),/* Lord Howe */
+	zd( 1100, "psk", "psd"),/* Petropavlovsk-Kamchatski */
+	zs( 1100,"ncst"),		/* New Caledonia */
+	zs( 1130,"nrft"),		/* Norfolk */
+	zd( 1200, "ask", "asd"),/* Anadyr */
+	zs( 1245,"nz-chat"),	/* Chatham */
+	zs( 1300, "tgt"),		/* Tongatapu */
+#endif
+	{"", -1}
+};
 
 	static int
-goodzone(t, offset, am)
-	register struct token const *t;
-	int offset;
-	int *am;
+lookup (s, table)
+	char const *s;
+	struct name_val const table[];
+/* Look for a prefix of S in TABLE, returning val for first matching entry.  */
 {
-	register int m;
-	if (
-		t->tflg  &&
-		t->tcnt == 4+offset  &&
-		(m = t->tval.tnum) <= 2400  &&
-		isdigit(t->tcp[offset]) &&
-		(m%=100) < 60
-	) {
-		m += t->tval.tnum/100 * 60;
-		if (t->tcp[offset-1]=='+')
-			m = -m;
-		*am = m;
-		return 1;
+	int j;
+	char buf[NAME_LENGTH_MAXIMUM];
+
+	for (j = 0;  j < NAME_LENGTH_MAXIMUM;  j++) {
+		unsigned char c = *s++;
+		buf[j] = isupper (c) ? tolower (c) : c;
+		if (!isalpha (c))
+			break;
+	}
+	for (;  table[0].name[0];  table++)
+		for (j = 0;  buf[j] == table[0].name[j];  )
+			if (++j == NAME_LENGTH_MAXIMUM  ||  !table[0].name[j])
+				goto done;
+  done:
+	return table[0].val;
+}
+
+
+	static void
+undefine (t) struct partime *t;
+/* Set *T to ``undefined'' values.  */
+{
+	t->tm.tm_sec = t->tm.tm_min = t->tm.tm_hour = t->tm.tm_mday = t->tm.tm_mon
+		= t->tm.tm_year = t->tm.tm_wday = t->tm.tm_yday
+		= t->ymodulus = t->yweek
+		= TM_UNDEFINED;
+	t->zone = TM_UNDEFINED_ZONE;
+}
+
+/*
+* Array of patterns to look for in a date string.
+* Order is important: we look for the first matching pattern
+* whose values do not contradict values that we already know about.
+* See `parse_pattern_letter' below for the meaning of the pattern codes.
+*/
+static char const * const patterns[] = {
+	/*
+	* These traditional patterns must come first,
+	* to prevent an ISO 8601 format from misinterpreting their prefixes.
+	*/
+	"E_n_y", "x", /* RFC 822 */
+	"E_n", "n_E", "n", "t:m:s_A", "t:m_A", "t_A", /* traditional */
+	"y/N/D$", /* traditional RCS */
+
+	/* ISO 8601:1988 formats, generalized a bit.  */
+	"y-N-D$", "4ND$", "Y-N$",
+	"RND$", "-R=N$", "-R$", "--N=D$", "N=DT",
+	"--N$", "---D$", "DT",
+	"Y-d$", "4d$", "R=d$", "-d$", "dT",
+	"y-W-X", "yWX", "y=W",
+	"-r-W-X", "r-W-XT", "-rWX", "rWXT", "-W=X", "W=XT", "-W",
+	"-w-X", "w-XT", "---X$", "XT", "4$",
+	"T",
+	"h:m:s$", "hms$", "h:m$", "hm$", "h$", "-m:s$", "-ms$", "-m$", "--s$",
+	"Y", "Z",
+
+	0
+};
+
+	static char const *
+parse_prefix (str, t, pi) char const *str; struct partime *t; int *pi;
+/*
+* Parse an initial prefix of STR, setting *T accordingly.
+* Return the first character after the prefix, or 0 if it couldn't be parsed.
+* Start with pattern *PI; if success, set *PI to the next pattern to try.
+* Set *PI to -1 if we know there are no more patterns to try;
+* if *PI is initially negative, give up immediately.
+*/
+{
+	int i = *pi;
+	char const *pat;
+	unsigned char c;
+
+	if (i < 0)
+		return 0;
+
+	/* Remove initial noise.  */
+	while (!isalnum (c = *str)  &&  c != '-'  &&  c != '+') {
+		if (!c) {
+			undefine (t);
+			*pi = -1;
+			return str;
+		}
+		str++;
+	}
+
+	/* Try a pattern until one succeeds.  */
+	while ((pat = patterns[i++]) != 0) {
+		char const *s = str;
+		undefine (t);
+		do {
+			if (!(c = *pat++)) {
+				*pi = i;
+				return s;
+			}
+		} while ((s = parse_pattern_letter (s, c, t)) != 0);
+	}
+
+	return 0;
+}
+
+	static char const *
+parse_fixed (s, digits, res) char const *s; int digits, *res;
+/*
+* Parse an initial prefix of S of length DIGITS; it must be a number.
+* Store the parsed number into *RES.
+* Return the first character after the prefix, or 0 if it couldn't be parsed.
+*/
+{
+	int n = 0;
+	char const *lim = s + digits;
+	while (s < lim) {
+		unsigned d = *s++ - '0';
+		if (9 < d)
+			return 0;
+		n = 10*n + d;
+	}
+	*res = n;
+	return s;
+}
+
+	static char const *
+parse_ranged (s, digits, lo, hi, res) char const *s; int digits, lo, hi, *res;
+/*
+* Parse an initial prefix of S of length DIGITS;
+* it must be a number in the range LO through HI.
+* Store the parsed number into *RES.
+* Return the first character after the prefix, or 0 if it couldn't be parsed.
+*/
+{
+	s = parse_fixed (s, digits, res);
+	return  s && lo<=*res && *res<=hi  ?  s  :  0;
+}
+
+	static char const *
+parse_decimal (s, digits, lo, hi, resolution, res, fres)
+	char const *s;
+	int digits, lo, hi, resolution, *res, *fres;
+/*
+* Parse an initial prefix of S of length DIGITS;
+* it must be a number in the range LO through HI
+* and it may be followed by a fraction that is to be computed using RESOLUTION.
+* Store the parsed number into *RES; store the fraction times RESOLUTION,
+* rounded to the nearest integer, into *FRES.
+* Return the first character after the prefix, or 0 if it couldn't be parsed.
+*/
+{
+	s = parse_fixed (s, digits, res);
+	if (s && lo<=*res && *res<=hi) {
+		int f = 0;
+		if ((s[0]==',' || s[0]=='.')  &&  isdigit ((unsigned char) s[1])) {
+			char const *s1 = ++s;
+			int num10 = 0, denom10 = 10, product;
+			while (isdigit ((unsigned char) *++s))
+				denom10 *= 10;
+			s = parse_fixed (s1, s - s1, &num10);
+			product = num10*resolution;
+			f = (product + (denom10>>1)) / denom10;
+			f -= f & (product%denom10 == denom10>>1); /* round to even */
+			if (f < 0  ||  product/resolution != num10)
+				return 0; /* overflow */
+		}
+		*fres = f;
+		return s;
 	}
 	return 0;
 }
 
-    int
-partime(astr, atm, zone)
-char const *astr;
-register struct tm *atm;
-int *zone;
+	char *
+parzone (s, zone) char const *s; long *zone;
+/*
+* Parse an initial prefix of S; it must denote a time zone.
+* Set *ZONE to the number of seconds east of GMT,
+* or to TM_LOCAL_ZONE if it is the local time zone.
+* Return the first character after the prefix, or 0 if it couldn't be parsed.
+*/
 {
-    register int i;
-    struct token btoken, atoken;
-    int zone_offset; /* minutes west of GMT, plus TZ_OFFSET */
-    register char const *cp;
-    register char ch;
-    int ord, midnoon;
-    int *atmfield, dst, m;
-    int got1 = 0;
+	char sign;
+	int hh, mm, ss;
+	int minutesEastOfUTC;
+	long offset, z;
 
-    atm->tm_sec = TMNULL;
-    atm->tm_min = TMNULL;
-    atm->tm_hour = TMNULL;
-    atm->tm_mday = TMNULL;
-    atm->tm_mon = TMNULL;
-    atm->tm_year = TMNULL;
-    atm->tm_wday = TMNULL;
-    atm->tm_yday = TMNULL;
-    midnoon = TMNULL;		/* and our own temp stuff */
-    zone_offset = TMNULL;
-    dst = TMNULL;
-    btoken.tcnt = btoken.tbrk = 0;
-    btoken.tcp = astr;
+	/*
+	* The formats are LT, n, n DST, nDST, no, o
+	* where n is a time zone name
+	* and o is a time zone offset of the form [-+]hh[:mm[:ss]].
+	*/
+	switch (*s) {
+		case '-': case '+':
+			z = 0;
+			break;
 
-    for (;; got1=1) {
-	if (!ptitoken(&btoken))				/* Get a token */
-	  {     if(btoken.tval.tnum) return(0);         /* Read error? */
-		if (given(midnoon))			/* EOF, wrap up */
-			if (!pt12hack(atm, midnoon))
+		default:
+			minutesEastOfUTC = lookup (s, zone_names);
+			if (minutesEastOfUTC == -1)
 				return 0;
-		if (!given(atm->tm_min))
-			atm->tm_min = 0;
-		*zone  =
-				(given(zone_offset) ? zone_offset-TZ_OFFSET : 0)
-			-	(given(dst) ? dst : 0);
-		return got1;
-	  }
-	if(btoken.tflg == 0)		/* Alpha? */
-	  {     i = btoken.tval.ttmw->wval;
-		switch (btoken.tval.ttmw->wtype) {
-		  default:
-			return 0;
-		  case TM_MON:
-			atmfield = &atm->tm_mon;
-			break;
-		  case TM_WDAY:
-			atmfield = &atm->tm_wday;
-			break;
-		  case TM_DST:
-			atmfield = &dst;
-			break;
-		  case TM_LT:
-			if (ptstash(&dst, 0))
-				return 0;
-			i = 48*60; /* local time magic number -- see maketime() */
-			/* fall into */
-		  case TM_ZON:
-			i += TZ_OFFSET;
-			if (btoken.tval.ttmw->wflgs & TWDST)
-				if (ptstash(&dst, 60))
-					return 0;
-			/* Peek ahead for offset immediately afterwards. */
+
+			/* Don't bother to check rest of spelling.  */
+			while (isalpha ((unsigned char) *s))
+				s++;
+
+			/* Don't modify LT.  */
+			if (minutesEastOfUTC == 1) {
+				*zone = TM_LOCAL_ZONE;
+				return (char *) s;
+			}
+
+			z = minutesEastOfUTC * 60L;
+
+			/* Look for trailing " DST".  */
 			if (
-			    (btoken.tbrk=='-' || btoken.tbrk=='+') &&
-			    (atoken=btoken, ++atoken.tcnt, ptitoken(&atoken)) &&
-			    goodzone(&atoken, 0, &m)
+				(s[-1]=='T' || s[-1]=='t') &&
+				(s[-2]=='S' || s[-2]=='s') &&
+				(s[-3]=='D' || s[-3]=='t')
+			)
+				goto trailing_dst;
+			while (isspace ((unsigned char) *s))
+				s++;
+			if (
+				(s[0]=='D' || s[0]=='d') &&
+				(s[1]=='S' || s[1]=='s') &&
+				(s[2]=='T' || s[2]=='t')
 			) {
-				i += m;
-				btoken = atoken;
+				s += 3;
+			  trailing_dst:
+				*zone = z + 60*60;
+				return (char *) s;
 			}
-			atmfield = &zone_offset;
-			break;
-		  case TM_12:
-			atmfield = &midnoon;
-		}
-		if (ptstash(atmfield, i))
-			return(0);		/* ERR: val already set */
-		continue;
-	  }
 
-	/* Token is number.  Lots of hairy heuristics. */
-	if (!isdigit(*btoken.tcp)) {
-		if (!goodzone(&btoken, 1, &m))
-			return 0;
-		zone_offset = TZ_OFFSET + m;
-		continue;
+			switch (*s) {
+				case '-': case '+': break;
+				default: return (char *) s;
+			}
 	}
+	sign = *s++;
 
-	i = btoken.tval.tnum;   /* Value now known to be valid; get it. */
-	if (btoken.tcnt == 3)	/*  3 digits = HMM   */
-	  {
-hhmm4:		if (ptstash(&atm->tm_min, i%100))
-			return(0);		/* ERR: min conflict */
-		i /= 100;
-hh2:            if (ptstash(&atm->tm_hour, i))
-			return(0);		/* ERR: hour conflict */
-		continue;
-	  }
-
-	if (4 < btoken.tcnt)
-		goto year4; /* far in the future */
-	if(btoken.tcnt == 4)	/* 4 digits = YEAR or HHMM */
-	  {	if (given(atm->tm_year)) goto hhmm4;	/* Already got yr? */
-		if (given(atm->tm_hour)) goto year4;	/* Already got hr? */
-		if(btoken.tbrk == ':')			/* HHMM:SS ? */
-			if ( ptstash(&atm->tm_hour, i/100)
-			  || ptstash(&atm->tm_min, i%100))
-				return(0);		/* ERR: hr/min clash */
-			else goto coltm2;		/* Go handle SS */
-		if(btoken.tbrk != ',' && btoken.tbrk != '/'
-		  && (atoken=btoken, ptitoken(&atoken))	/* Peek */
-		  && ( atoken.tflg
-		     ? !isdigit(*atoken.tcp)
-		     : atoken.tval.ttmw->wflgs & TWTIME)) /* HHMM-ZON */
-			goto hhmm4;
-		goto year4;			/* Give up, assume year. */
-	  }
-
-	/* From this point on, assume tcnt == 1 or 2 */
-	/* 2 digits = MM, DD, or HH (MM and SS caught at coltime) */
-	if(btoken.tbrk == ':')		/* HH:MM[:SS] */
-		goto coltime;		/*  must be part of time. */
-	if (31 < i)
+	if (!(s = parse_ranged (s, 2, 0, 23, &hh)))
 		return 0;
-
-	/* Check for numerical-format date */
-	for (cp = "/-."; ch = *cp++;)
-	  {	ord = (ch == '.' ? 0 : 1);	/* n/m = D/M or M/D */
-		if(btoken.tbrk == ch)			/* "NN-" */
-		  {	if(btoken.tbrkl != ch)
-			  {
-				atoken = btoken;
-				atoken.tcnt++;
-				if (ptitoken(&atoken)
-				  && atoken.tflg == 0
-				  && atoken.tval.ttmw->wtype == TM_MON)
-					goto dd2;
-				if(ord)goto mm2; else goto dd2; /* "NN-" */
-			  }				/* "-NN-" */
-			if (!given(atm->tm_mday)
-			  && given(atm->tm_year))	/* If "YYYY-NN-" */
-				goto mm2;		/* then always MM */
-			if(ord)goto dd2; else goto mm2;
-		  }
-		if(btoken.tbrkl == ch			/* "-NN" */
-		  && given(ord ? atm->tm_mon : atm->tm_mday))
-			if (!given(ord ? atm->tm_mday : atm->tm_mon)) /* MM/DD */
-				if(ord)goto dd2; else goto mm2;
-	  }
-
-	/* Now reduced to choice between HH and DD */
-	if (given(atm->tm_hour)) goto dd2;	/* Have hour? Assume day. */
-	if (given(atm->tm_mday)) goto hh2;	/* Have day? Assume hour. */
-	if (given(atm->tm_mon)) goto dd2;	/* Have month? Assume day. */
-	if(i > 24) goto dd2;			/* Impossible HH means DD */
-	atoken = btoken;
-	if (!ptitoken(&atoken))			/* Read ahead! */
-		if(atoken.tval.tnum) return(0); /* ERR: bad token */
-		else goto dd2;			/* EOF, assume day. */
-	if ( atoken.tflg
-	   ? !isdigit(*atoken.tcp)
-	   : atoken.tval.ttmw->wflgs & TWTIME)
-		/* If next token is a time spec, assume hour */
-		goto hh2;		/* e.g. "3 PM", "11-EDT"  */
-
-dd2:	if (ptstash(&atm->tm_mday, i))	/* Store day (1 based) */
-		return(0);
-	continue;
-
-mm2:	if (ptstash(&atm->tm_mon, i-1))	/* Store month (make zero based) */
-		return(0);
-	continue;
-
-year4:	if ((i-=1900) < 0  ||  ptstash(&atm->tm_year, i)) /* Store year-1900 */
-		return(0);		/* ERR: year conflict */
-	continue;
-
-	/* Hack HH:MM[[:]SS] */
-coltime:
-	if (ptstash(&atm->tm_hour, i)) return 0;
-	if (!ptitoken(&btoken))
-		return(!btoken.tval.tnum);
-	if(!btoken.tflg) return(0);	/* ERR: HH:<alpha> */
-	if(btoken.tcnt == 4)		/* MMSS */
-		if (ptstash(&atm->tm_min, btoken.tval.tnum/100)
-		  || ptstash(&atm->tm_sec, btoken.tval.tnum%100))
-			return(0);
-		else continue;
-	if(btoken.tcnt != 2
-	  || ptstash(&atm->tm_min, btoken.tval.tnum))
-		return(0);		/* ERR: MM bad */
-	if (btoken.tbrk != ':') continue;	/* Seconds follow? */
-coltm2:	if (!ptitoken(&btoken))
-		return(!btoken.tval.tnum);
-	if(!btoken.tflg || btoken.tcnt != 2	/* Verify SS */
-	  || ptstash(&atm->tm_sec, btoken.tval.tnum))
-		return(0);		/* ERR: SS bad */
-    }
-}
-
-/* Store date/time value, return 0 if successful.
- * Fail if entry is already set.
- */
-	static int
-ptstash(adr,val)
-int *adr;
-int val;
-{	register int *a;
-	if (given(*(a=adr)))
-		return 1;
-	*a = val;
-	return(0);
-}
-
-/* This subroutine is invoked for AM, PM, NOON and MIDNIGHT when wrapping up
- * just prior to returning from partime.
- */
-	static int
-pt12hack(tm, aval)
-register struct tm *tm;
-register int aval;
-{	register int h = tm->tm_hour;
-	switch (aval) {
-	  case T12_AM:
-	  case T12_PM:
-		if (h > 12)
+	mm = ss = 0;
+	if (*s == ':')
+		s++;
+	if (isdigit ((unsigned char) *s)) {
+		if (!(s = parse_ranged (s, 2, 0, 59, &mm)))
 			return 0;
-		if (h == 12)
-			tm->tm_hour = 0;
-		if (aval == T12_PM)
-			tm->tm_hour += 12;
-		break;
-	  default:
-		if (0 < tm->tm_min  ||  0 < tm->tm_sec)
-			return 0;
-		if (!given(h) || h==12)
-			tm->tm_hour = aval;
-		else if (aval==T12_MIDNIGHT  &&  (h==0 || h==24))
-			return 0;
-	}
-	return 1;
-}
-
-/* Get a token and identify it to some degree.
- * Returns 0 on failure; token.tval will be 0 for normal EOF, otherwise
- * hit error of some sort
- */
-
-	static int
-ptitoken(tkp)
-register struct token *tkp;
-{
-	register char const *cp;
-	register int i, j, k;
-
-	if (!pttoken(tkp))
-#ifdef DEBUG
-	    {
-		VOID printf("EOF\n");
-		return(0);
-	    }
-#else
-		return(0);
-#endif
-	cp = tkp->tcp;
-
-#ifdef DEBUG
-	VOID printf("Token: \"%.*s\" ", tkp->tcnt, cp);
-#endif
-
-	if (tkp->tflg) {
-		i = tkp->tcnt;
-		if (*cp == '+' || *cp == '-') {
-			cp++;
-			i--;
-		}
-		while (0 <= --i) {
-			j = tkp->tval.tnum*10;
-			k = j + (*cp++ - '0');
-			if (j/10 != tkp->tval.tnum  ||  k < j) {
-				/* arithmetic overflow */
-				tkp->tval.tnum = 1;
+		if (*s==':' && s[-3]==':' && isdigit ((unsigned char) s[1])) {
+			if (!(s = parse_ranged (s + 1, 2, 0, 59, &ss)))
 				return 0;
-			}
-			tkp->tval.tnum = k;
 		}
-	} else if (!(tkp->tval.ttmw  =  ptmatchstr(cp, tkp->tcnt, tmwords)))
-	  {
-#ifdef DEBUG
-		VOID printf("Not found!\n");
-#endif
-		tkp->tval.tnum = 1;
+	}
+	if (isdigit ((unsigned char) *s))
 		return 0;
-	  }
-
-#ifdef DEBUG
-	if(tkp->tflg)
-		VOID printf("Val: %d.\n",tkp->tval.tnum);
-	else VOID printf("Found: \"%s\", val: %d, type %d\n",
-		tkp->tval.ttmw->went,tkp->tval.ttmw->wval,tkp->tval.ttmw->wtype);
-#endif
-
-	return(1);
+	offset = (hh*60 + mm)*60L + ss;
+	*zone = z + (sign=='-' ? -offset : offset);
+	/*
+	* ?? Are fractions allowed here?
+	* If so, they're not implemented.
+	*/
+	return (char *) s;
 }
 
-/* Read token from input string into token structure */
-	static int
-pttoken(tkp)
-register struct token *tkp;
+	static char const *
+parse_pattern_letter (s, c, t) char const *s; int c; struct partime *t;
+/*
+* Parse an initial prefix of S, matching the pattern whose code is C.
+* Set *T accordingly.
+* Return the first character after the prefix, or 0 if it couldn't be parsed.
+*/
 {
-	register char const *cp;
-	register int c;
-	char const *astr;
-
-	tkp->tcp = astr = cp = tkp->tcp + tkp->tcnt;
-	tkp->tbrkl = tkp->tbrk;		/* Set "last break" */
-	tkp->tcnt = tkp->tbrk = tkp->tflg = 0;
-	tkp->tval.tnum = 0;
-
-	while(c = *cp++)
-	  {	switch(c)
-		  {	case ' ': case '\t':	/* Flush all whitespace */
-			case '\r': case '\n':
-			case '\v': case '\f':
-				if (!tkp->tcnt) {	/* If no token yet */
-					tkp->tcp = cp;	/* ignore the brk */
-					continue;	/* and go on. */
-				}
-				/* fall into */
-			case '(': case ')':	/* Perhaps any non-alphanum */
-			case '-': case ',':	/* shd qualify as break? */
-			case '+':
-			case '/': case ':': case '.':	/* Break chars */
-				if(tkp->tcnt == 0)	/* If no token yet */
-				  {	tkp->tcp = cp;	/* ignore the brk */
-					tkp->tbrkl = c;
-				  	continue;	/* and go on. */
-				  }
-				tkp->tbrk = c;
-				return(tkp->tcnt);
-		  }
-		if (!tkp->tcnt++) {		/* If first char of token, */
-			if (isdigit(c)) {
-				tkp->tflg = 1;
-				if (astr<cp-2 && (cp[-2]=='-'||cp[-2]=='+')) {
-					/* timezone is break+sign+digit */
-					tkp->tcp--;
-					tkp->tcnt++;
-				}
-			}
-		} else if ((isdigit(c)!=0) != tkp->tflg) { /* else check type */
-			tkp->tbrk = c;
-			return --tkp->tcnt;	/* Wrong type, back up */
-		}
-	  }
-	return(tkp->tcnt);		/* When hit EOF */
-}
-
-
-	static struct tmwent const *
-ptmatchstr(astr,cnt,astruc)
-	char const *astr;
-	int cnt;
-	struct tmwent const *astruc;
-{
-	register char const *cp, *mp;
-	register int c;
-	struct tmwent const *lastptr;
-	int i;
-
-	lastptr = 0;
-	for(;mp = astruc->went; astruc += 1)
-	  {	cp = astr;
-		for(i = cnt; i > 0; i--)
-		  {
-			switch (*cp++ - (c = *mp++))
-			  {	case 0: continue;	/* Exact match */
-				case 'A'-'a':
-				    if (ctab[c] == Letter)
-					continue;
-			  }
+	switch (c) {
+		case '$': /* The next character must be a non-digit.  */
+			if (isdigit ((unsigned char) *s))
+				return 0;
 			break;
-		  }
-		if(i==0)
-			if (!*mp) return astruc;	/* Exact match */
-			else if(lastptr) return(0);	/* Ambiguous */
-			else lastptr = astruc;		/* 1st ambig */
-	  }
-	return lastptr;
+
+		case '-': case '/': case ':':
+			/* These characters stand for themselves.  */
+			if (*s++ != c)
+				return 0;
+			break;
+
+		case '4': /* 4-digit year */
+			s = parse_fixed (s, 4, &t->tm.tm_year);
+			break;
+
+		case '=': /* optional '-' */
+			s  +=  *s == '-';
+			break;
+
+		case 'A': /* AM or PM */
+			/*
+			* This matches the regular expression [AaPp][Mm]?.
+			* It must not be followed by a letter or digit;
+			* otherwise it would match prefixes of strings like "PST".
+			*/
+			switch (*s++) {
+				case 'A': case 'a':
+					if (t->tm.tm_hour == 12)
+						t->tm.tm_hour = 0;
+					break;
+
+				case 'P': case 'p':
+					if (t->tm.tm_hour != 12)
+						t->tm.tm_hour += 12;
+					break;
+
+				default: return 0;
+			}
+			switch (*s) {
+				case 'M': case 'm': s++; break;
+			}
+			if (isalnum (*s))
+				return 0;
+			break;
+
+		case 'D': /* day of month [01-31] */
+			s = parse_ranged (s, 2, 1, 31, &t->tm.tm_mday);
+			break;
+
+		case 'd': /* day of year [001-366] */
+			s = parse_ranged (s, 3, 1, 366, &t->tm.tm_yday);
+			t->tm.tm_yday--;
+			break;
+
+		case 'E': /* extended day of month [1-9, 01-31] */
+			s = parse_ranged (s, (
+				isdigit ((unsigned char) s[0]) &&
+				isdigit ((unsigned char) s[1])
+			) + 1, 1, 31, &t->tm.tm_mday);
+			break;
+
+		case 'h': /* hour [00-23 followed by optional fraction] */
+			{
+				int frac;
+				s = parse_decimal (s, 2, 0, 23, 60*60, &t->tm.tm_hour, &frac);
+				t->tm.tm_min = frac / 60;
+				t->tm.tm_sec = frac % 60;
+			}
+			break;
+
+		case 'm': /* minute [00-59 followed by optional fraction] */
+			s = parse_decimal (s, 2, 0, 59, 60, &t->tm.tm_min, &t->tm.tm_sec);
+			break;
+
+		case 'n': /* month name [e.g. "Jan"] */
+			if (!TM_DEFINED (t->tm.tm_mon = lookup (s, month_names)))
+				return 0;
+			/* Don't bother to check rest of spelling.  */
+			while (isalpha ((unsigned char) *s))
+				s++;
+			break;
+
+		case 'N': /* month [01-12] */
+			s = parse_ranged (s, 2, 1, 12, &t->tm.tm_mon);
+			t->tm.tm_mon--;
+			break;
+
+		case 'r': /* year % 10 (remainder in origin-0 decade) [0-9] */
+			s = parse_fixed (s, 1, &t->tm.tm_year);
+			t->ymodulus = 10;
+			break;
+
+		case_R:
+		case 'R': /* year % 100 (remainder in origin-0 century) [00-99] */
+			s = parse_fixed (s, 2, &t->tm.tm_year);
+			t->ymodulus = 100;
+			break;
+
+		case 's': /* second [00-60 followed by optional fraction] */
+			{
+				int frac;
+				s = parse_decimal (s, 2, 0, 60, 1, &t->tm.tm_sec, &frac);
+				t->tm.tm_sec += frac;
+			}
+			break;
+
+		case 'T': /* 'T' or 't' */
+			switch (*s++) {
+				case 'T': case 't': break;
+				default: return 0;
+			}
+			break;
+
+		case 't': /* traditional hour [1-9 or 01-12] */
+			s = parse_ranged (s, (
+				isdigit ((unsigned char) s[0]) && isdigit ((unsigned char) s[1])
+			) + 1, 1, 12, &t->tm.tm_hour);
+			break;
+
+		case 'w': /* 'W' or 'w' only (stands for current week) */
+			switch (*s++) {
+				case 'W': case 'w': break;
+				default: return 0;
+			}
+			break;
+
+		case 'W': /* 'W' or 'w', followed by a week of year [00-53] */
+			switch (*s++) {
+				case 'W': case 'w': break;
+				default: return 0;
+			}
+			s = parse_ranged (s, 2, 0, 53, &t->yweek);
+			break;
+
+		case 'X': /* weekday (1=Mon ... 7=Sun) [1-7] */
+			s = parse_ranged (s, 1, 1, 7, &t->tm.tm_wday);
+			t->tm.tm_wday--;
+			break;
+
+		case 'x': /* weekday name [e.g. "Sun"] */
+			if (!TM_DEFINED (t->tm.tm_wday = lookup (s, weekday_names)))
+				return 0;
+			/* Don't bother to check rest of spelling.  */
+			while (isalpha ((unsigned char) *s))
+				s++;
+			break;
+
+		case 'y': /* either R or Y */
+			if (
+				isdigit ((unsigned char) s[0]) &&
+				isdigit ((unsigned char) s[1]) &&
+				!isdigit ((unsigned char) s[2])
+			)
+				goto case_R;
+			/* fall into */
+		case 'Y': /* year in full [4 or more digits] */
+			{
+				int len = 0;
+				while (isdigit ((unsigned char) s[len]))
+					len++;
+				if (len < 4)
+					return 0;
+				s = parse_fixed (s, len, &t->tm.tm_year);
+			}
+			break;
+
+		case 'Z': /* time zone */
+			s = parzone (s, &t->zone);
+			break;
+
+		case '_': /* possibly empty sequence of non-alphanumerics */
+			while (!isalnum (*s)  &&  *s)
+				s++;
+			break;
+
+		default: /* bad pattern */
+			return 0;
+	}
+	return s;
+}
+
+	static int
+merge_partime (t, u) struct partime *t; struct partime const *u;
+/*
+* If there is no conflict, merge into *T the additional information in *U
+* and return 0.  Otherwise do nothing and return -1.
+*/
+{
+#	define conflict(a,b) ((a) != (b)  &&  TM_DEFINED (a)  &&  TM_DEFINED (b))
+	if (
+		conflict (t->tm.tm_sec, u->tm.tm_sec) ||
+		conflict (t->tm.tm_min, u->tm.tm_min) ||
+		conflict (t->tm.tm_hour, u->tm.tm_hour) ||
+		conflict (t->tm.tm_mday, u->tm.tm_mday) ||
+		conflict (t->tm.tm_mon, u->tm.tm_mon) ||
+		conflict (t->tm.tm_year, u->tm.tm_year) ||
+		conflict (t->tm.tm_wday, u->tm.tm_yday) ||
+		conflict (t->ymodulus, u->ymodulus) ||
+		conflict (t->yweek, u->yweek) ||
+		(
+			t->zone != u->zone &&
+			t->zone != TM_UNDEFINED_ZONE &&
+			u->zone != TM_UNDEFINED_ZONE
+		)
+	)
+		return -1;
+#	undef conflict
+#	define merge_(a,b) if (TM_DEFINED (b)) (a) = (b);
+	merge_ (t->tm.tm_sec, u->tm.tm_sec)
+	merge_ (t->tm.tm_min, u->tm.tm_min)
+	merge_ (t->tm.tm_hour, u->tm.tm_hour)
+	merge_ (t->tm.tm_mday, u->tm.tm_mday)
+	merge_ (t->tm.tm_mon, u->tm.tm_mon)
+	merge_ (t->tm.tm_year, u->tm.tm_year)
+	merge_ (t->tm.tm_wday, u->tm.tm_yday)
+	merge_ (t->ymodulus, u->ymodulus)
+	merge_ (t->yweek, u->yweek)
+#	undef merge_
+	if (u->zone != TM_UNDEFINED_ZONE) t->zone = u->zone;
+	return 0;
+}
+
+	char *
+partime (s, t) char const *s; struct partime *t;
+/*
+* Parse a date/time prefix of S, putting the parsed result into *T.
+* Return the first character after the prefix.
+* The prefix may contain no useful information;
+* in that case, *T will contain only undefined values.
+*/
+{
+	struct partime p;
+
+	undefine (t);
+	while (*s) {
+		int i = 0;
+		char const *s1;
+		do {
+			if (!(s1 = parse_prefix (s, &p, &i)))
+				return (char *) s;
+		} while (merge_partime (t, &p) != 0);
+		s = s1;
+	}
+	return (char *) s;
 }

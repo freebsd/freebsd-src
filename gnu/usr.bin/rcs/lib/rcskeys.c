@@ -1,9 +1,7 @@
-/*
- *                     RCS keyword table and match operation
- */
+/* RCS keyword table and match operation */
 
-/* Copyright (C) 1982, 1988, 1989 Walter Tichy
-   Copyright 1990, 1991 by Paul Eggert
+/* Copyright 1982, 1988, 1989 Walter Tichy
+   Copyright 1990, 1991, 1992, 1993, 1995 Paul Eggert
    Distributed under license by the Free Software Foundation, Inc.
 
 This file is part of RCS.
@@ -19,8 +17,9 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with RCS; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+along with RCS; see the file COPYING.
+If not, write to the Free Software Foundation,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 Report problems and direct all questions to:
 
@@ -28,25 +27,13 @@ Report problems and direct all questions to:
 
 */
 
-
-
-/* $Log: rcskeys.c,v $
- * Revision 1.4  1994/06/22  00:51:42  rgrimes
- * Fix serious off by one error for FreeBSD keyword, this has been driving
- * me nuts as it was on by default and that is NOT what I wanted.
+/*
+ * $Log: rcskeys.c,v $
+ * Revision 5.4  1995/06/16 06:19:24  eggert
+ * Update FSF address.
  *
- * Revision 1.3  1994/05/15  22:15:14  rgrimes
- * To truely have the OLD behavior of RCS by default make the expansion
- * of $FreeBSD$ false by default.  This should keep them out
- * of the pre 2.x repository. (Or at least make them useless in it).
- *
- * Revision 1.2  1994/05/14  07:00:23  rgrimes
- * Add new option -K from David Dawes that allows you to turn on and off
- * specific keyword substitution during a rcs co command.
- * Add the new keyword FreeBSD that is IDENTICAL in operation to $Id: rcskeys.c,v 1.4 1994/06/22 00:51:42 rgrimes Exp $.
- *
- * Revision 1.1.1.1  1993/06/18  04:22:12  jkh
- * Updated GNU utilities
+ * Revision 5.3  1993/11/03 17:42:27  eggert
+ * Add Name keyword.
  *
  * Revision 5.2  1991/08/19  03:13:55  eggert
  * Say `T const' instead of `const T'; it's less confusing for pointer types.
@@ -77,26 +64,17 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(keysId, "$Id: rcskeys.c,v 1.4 1994/06/22 00:51:42 rgrimes Exp $")
+libId(keysId, "$Id: rcskeys.c,v 5.4 1995/06/16 06:19:24 eggert Exp $")
 
 
 char const *const Keyword[] = {
     /* This must be in the same order as rcsbase.h's enum markers type. */
-	nil,
+	0,
 	AUTHOR, DATE, HEADER, IDH,
-	LOCKER, LOG, RCSFILE, REVISION, SOURCE, STATE,
-	FREEBSD
+	LOCKER, LOG, NAME, RCSFILE, REVISION, SOURCE, STATE
 };
 
 
-/* Expand all keywords by default */
-
-static int ExpandKeyword[] = {
-	nil,
-	true, true, true, true,
-	true, true, true, true, true, true,
-	false
-};
 
 	enum markers
 trymatch(string)
@@ -109,8 +87,6 @@ trymatch(string)
         register int j;
 	register char const *p, *s;
 	for (j = sizeof(Keyword)/sizeof(*Keyword);  (--j);  ) {
-		if (!ExpandKeyword[j])
-			continue;
 		/* try next keyword */
 		p = Keyword[j];
 		s = string;
@@ -126,37 +102,5 @@ trymatch(string)
 		}
         }
         return(Nomatch);
-}
-
-
-setIncExc(arg)
-	char *arg;
-/* Sets up the ExpandKeyword table according to command-line flags */
-{
-	char *key;
-	int include = 0, j;
-
-	arg += 2;
-	switch (*arg++) {
-	    case 'e':
-		include = false;
-		break;
-	    case 'i':
-		include = true;
-		break;
-	    default:
-		return(false);
-	}
-	if (include)
-		for (j = sizeof(Keyword)/sizeof(*Keyword);  (--j);  )
-			ExpandKeyword[j] = false;
-	key = strtok(arg, ",");
-	while (key) {
-		for (j = sizeof(Keyword)/sizeof(*Keyword);  (--j);  )
-			if (!strcmp(key, Keyword[j]))
-				ExpandKeyword[j] = include;
-		key = strtok(NULL, ",");
-	}
-	return(true);
 }
 

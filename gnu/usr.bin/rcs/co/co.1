@@ -2,9 +2,10 @@
 .ds Rv \\$3
 .ds Dt \\$4
 ..
-.Id $Id: co.1,v 1.1.1.1 1993/06/18 04:22:11 jkh Exp $
-.ds g \&\s-1UTC\s0
+.Id $Id: co.1,v 5.13 1995/06/01 16:23:43 eggert Exp $
+.ds i \&\s-1ISO\s0
 .ds r \&\s-1RCS\s0
+.ds u \&\s-1UTC\s0
 .if n .ds - \%--
 .if t .ds - \(em
 .TH CO 1 \*(Dt GNU
@@ -23,12 +24,12 @@ all others denote working files.
 Names are paired as explained in
 .BR ci (1).
 .PP
-Revisions of an \*r file may be checked out locked or unlocked.  Locking a
+Revisions of an \*r file can be checked out locked or unlocked.  Locking a
 revision prevents overlapping updates.  A revision checked out for reading or
 processing (e.g., compiling) need not be locked.  A revision checked out
 for editing and later checkin must normally be locked.  Checkout with locking
 fails if the revision to be checked out is currently locked by another user.
-(A lock may be broken with
+(A lock can be broken with
 .BR rcs "(1).)\ \&"
 Checkout with locking also requires the caller to be on the access list of
 the \*r file, unless he is the owner of the
@@ -51,7 +52,7 @@ on the default branch (normally the trunk, see the
 .B \-b
 option of
 .BR rcs (1)).
-A revision or branch number may be attached
+A revision or branch number can be attached
 to any of the options
 .BR \-f ,
 .BR \-I ,
@@ -73,7 +74,7 @@ retrieve from a single branch, the
 .I selected
 branch,
 which is either specified by one of
-.BR \-f,
+.BR \-f ,
 \&.\|.\|.,
 .BR \-u ,
 or the default branch.
@@ -88,7 +89,7 @@ always performs keyword substitution (see below).
 .TP
 .BR \-r [\f2rev\fP]
 retrieves the latest revision whose number is less than or equal to
-.I rev.
+.IR rev .
 If
 .I rev
 indicates a branch rather than a revision,
@@ -108,7 +109,16 @@ is
 .B co
 determines the revision number from keyword values in the working file.
 Otherwise, a revision is composed of one or more numeric or symbolic fields
-separated by periods.  The numeric equivalent of a symbolic field
+separated by periods.
+If
+.I rev
+begins with a period,
+then the default branch (normally the trunk) is prepended to it.
+If
+.I rev
+is a branch number followed by a period,
+then the latest revision on that branch is used.
+The numeric equivalent of a symbolic field
 is specified with the
 .B \-n
 option of the commands
@@ -141,14 +151,6 @@ See also
 .SM "FILE MODES"
 below.
 .TP
-.B \-K\f2keywordlist\fP
-Exclude or include keyword expansion when checking out a file.
-By default all keywords are expanded, you can turn individual
-keywords off with
-.BR \-K\f2eKeyword\fP
-or on with
-.BR \-K\f2iKeyword\fP .
-.TP
 .B \-kkv
 Generate keyword strings using the default form, e.g.\&
 .B "$\&Revision: \*(Rv $"
@@ -174,7 +176,7 @@ Like
 except that a locker's name is always inserted
 if the given revision is currently locked.
 .TP
-.BR \-kk
+.B \-kk
 Generate only keyword names in keyword strings; omit their values.
 See
 .SM "KEYWORD SUBSTITUTION"
@@ -184,11 +186,17 @@ For example, for the
 keyword, generate the string
 .B $\&Revision$
 instead of
-.BR "$\&Revision: \*(Rv $".
+.BR "$\&Revision: \*(Rv $" .
 This option is useful to ignore differences due to keyword substitution
 when comparing different revisions of a file.
+Log messages are inserted after
+.B $\&Log$
+keywords even if
+.B \-kk
+is specified,
+since this tends to be more useful when merging changes.
 .TP
-.BR \-ko
+.B \-ko
 Generate the old keyword string,
 present in the working file just before it was checked in.
 For example, for the
@@ -198,18 +206,33 @@ keyword, generate the string
 instead of
 .B "$\&Revision: \*(Rv $"
 if that is how the string appeared when the file was checked in.
-This can be useful for binary file formats
+This can be useful for file formats
 that cannot tolerate any changes to substrings
 that happen to take the form of keyword strings.
 .TP
-.BR \-kv
+.B \-kb
+Generate a binary image of the old keyword string.
+This acts like
+.BR \-ko ,
+except it performs all working file input and output in binary mode.
+This makes little difference on Posix and Unix hosts,
+but on DOS-like hosts one should use
+.B "rcs\ \-i\ \-kb"
+to initialize an \*r file intended to be used for binary files.
+Also, on all hosts,
+.BR rcsmerge (1)
+normally refuses to merge files when
+.B \-kb
+is in effect.
+.TP
+.B \-kv
 Generate only keyword values for keyword strings.
 For example, for the
 .B Revision
 keyword, generate the string
 .B \*(Rv
 instead of
-.BR "$\&Revision: \*(Rv $".
+.BR "$\&Revision: \*(Rv $" .
 This can help generate files in programming languages where it is hard to
 strip keyword delimiters like
 .B "$\&Revision:\ $"
@@ -241,8 +264,8 @@ even if the standard input is not a terminal.
 .BI \-d date
 retrieves the latest revision on the selected branch whose checkin date/time is
 less than or equal to
-.I date.
-The date and time may be given in free format.
+.IR date .
+The date and time can be given in free format.
 The time zone
 .B LT
 stands for local time;
@@ -251,38 +274,43 @@ For example, the following
 .IR date s
 are equivalent
 if local time is January 11, 1990, 8pm Pacific Standard Time,
-eight hours west of Coordinated Universal Time (\*g):
+eight hours west of Coordinated Universal Time (\*u):
 .RS
 .LP
 .RS
 .nf
 .ta \w'\f3Thu, 11 Jan 1990 20:00:00 \-0800\fP  'u
-.ne 9
+.ne 10
 \f38:00 pm lt\fP
-\f34:00 AM, Jan. 12, 1990\fP	note: default is \*g
-\f31990/01/12 04:00:00\fP	\*r date format
+\f34:00 AM, Jan. 12, 1990\fP	default is \*u
+\f31990-01-12 04:00:00+00\fP	\*i 8601 (\*u)
+\f31990-01-11 20:00:00\-08\fP	\*i 8601 (local time)
+\f31990/01/12 04:00:00\fP	traditional \*r format
 \f3Thu Jan 11 20:00:00 1990 LT\fP	output of \f3ctime\fP(3) + \f3LT\fP
 \f3Thu Jan 11 20:00:00 PST 1990\fP	output of \f3date\fP(1)
 \f3Fri Jan 12 04:00:00 GMT 1990\fP
-\f3Thu, 11 Jan 1990 20:00:00 \-0800\fP
-\f3Fri-JST, 1990, 1pm Jan 12\fP
-\f312-January-1990, 04:00-WET\fP
+\f3Thu, 11 Jan 1990 20:00:00 \-0800\fP	Internet RFC 822
+\f312-January-1990, 04:00 WET\fP
 .ta 4n +4n +4n +4n
 .fi
 .RE
 .LP
-Most fields in the date and time may be defaulted.
-The default time zone is \*g.
+Most fields in the date and time can be defaulted.
+The default time zone is normally \*u, but this can be overridden by the
+.B \-z
+option.
 The other defaults are determined in the order year, month, day,
 hour, minute, and second (most to least significant).  At least one of these
 fields must be provided.  For omitted fields that are of higher significance
 than the highest provided field, the time zone's current values are assumed.
 For all other omitted fields,
 the lowest possible values are assumed.
-For example, the date
+For example, without
+.BR \-z ,
+the date
 .B "20, 10:30"
 defaults to
-10:30:00 \*g of the 20th of the \*g time zone's current month and year.
+10:30:00 \*u of the 20th of the \*u time zone's current month and year.
 The date/time must be quoted if it contains spaces.
 .RE
 .TP
@@ -294,12 +322,22 @@ Use this option with care; it can confuse
 .TP
 .BI \-s state
 retrieves the latest revision on the selected branch whose state is set to
-.I state.
+.IR state .
+.TP
+.B \-T
+Preserve the modification time on the \*r file
+even if the \*r file changes because a lock is added or removed.
+This option can suppress extensive recompilation caused by a
+.BR make (1)
+dependency of some other copy of the working file on the \*r file.
+Use this option with care; it can suppress recompilation even when it is needed,
+i.e. when the change of lock
+would mean a change to keyword strings in the other working file.
 .TP
 .BR \-w [\f2login\fP]
 retrieves the latest revision on the selected branch which was checked in
 by the user with login name
-.I login.
+.IR login .
 If the argument
 .I login
 is
@@ -307,7 +345,7 @@ omitted, the caller's login is assumed.
 .TP
 .BI \-j joinlist
 generates a new revision which is the join of the revisions on
-.I joinlist.
+.IR joinlist .
 This option is largely obsoleted by
 .BR rcsmerge (1)
 but is retained for backwards compatibility.
@@ -327,7 +365,7 @@ For the initial such pair,
 .I rev1
 denotes the revision selected
 by the above options
-.BR \-f,
+.BR \-f ,
 \&.\|.\|.,
 .BR \-w .
 For all other pairs,
@@ -343,13 +381,13 @@ joins revisions
 and
 .I rev3
 with respect to
-.I rev2.
+.IR rev2 .
 This means that all changes that transform
 .I rev2
 into
 .I rev1
 are applied to a copy of
-.I rev3.
+.IR rev3 .
 This is particularly useful if
 .I rev1
 and
@@ -380,7 +418,7 @@ reports overlaps as described in
 .PP
 For the initial pair,
 .I rev2
-may be omitted.  The default is the common
+can be omitted.  The default is the common
 ancestor.
 If any of the arguments indicate branches, the latest revisions
 on those branches are assumed.
@@ -389,22 +427,28 @@ The options
 and
 .B \-u
 lock or unlock
-.I rev1.
+.IR rev1 .
 .RE
+.TP
+.BI \-V
+Print \*r's version number.
 .TP
 .BI \-V n
 Emulate \*r version
 .I n,
 where
 .I n
-may be
+can be
 .BR 3 ,
 .BR 4 ,
 or
 .BR 5 .
-This may be useful when interchanging \*r files with others who are
+This can be useful when interchanging \*r files with others who are
 running older versions of \*r.
 To see which version of \*r your correspondents are running, have them invoke
+.BR "rcs \-V" ;
+this works with newer versions of \*r.
+If it doesn't work, have them invoke
 .B rlog
 on an \*r file;
 if none of the first few lines of output contain the string
@@ -412,15 +456,14 @@ if none of the first few lines of output contain the string
 it is version 3;
 if the dates' years have just two digits, it is version 4;
 otherwise, it is version 5.
-An \*r file generated while emulating version 3 will lose its default branch.
-An \*r revision generated while emulating version 4 or earlier will have
-a timestamp that is off by up to 13 hours.
-A revision extracted while emulating version 4 or earlier will contain
-dates of the form
+An \*r file generated while emulating version 3 loses its default branch.
+An \*r revision generated while emulating version 4 or earlier has
+a time stamp that is off by up to 13 hours.
+A revision extracted while emulating version 4 or earlier contains
+abbreviated dates of the form
 .IB yy / mm / dd
-instead of
-.IB yyyy / mm / dd
-and may also contain different white space in the substitution for
+and can also contain different white space and line prefixes
+in the substitution for
 .BR $\&Log$ .
 .TP
 .BI \-x "suffixes"
@@ -430,6 +473,46 @@ to characterize \*r files.
 See
 .BR ci (1)
 for details.
+.TP
+.BI \-z zone
+specifies the date output format in keyword substitution,
+and specifies the default time zone for
+.I date
+in the
+.BI \-d date
+option.
+The
+.I zone
+should be empty, a numeric \*u offset, or the special string
+.B LT
+for local time.
+The default is an empty
+.IR zone ,
+which uses the traditional \*r format of \*u without any time zone indication
+and with slashes separating the parts of the date;
+otherwise, times are output in \*i 8601 format with time zone indication.
+For example, if local time is January 11, 1990, 8pm Pacific Standard Time,
+eight hours west of \*u,
+then the time is output as follows:
+.RS
+.LP
+.RS
+.nf
+.ta \w'\f3\-z+05:30\fP  'u +\w'\f31990-01-11 09:30:00+05:30\fP  'u
+.ne 4
+\f2option\fP	\f2time output\fP
+\f3\-z\fP	\f31990/01/12 04:00:00\fP	\f2(default)\fP
+\f3\-zLT\fP	\f31990-01-11 20:00:00\-08\fP
+\f3\-z+05:30\fP	\f31990-01-12 09:30:00+05:30\fP
+.ta 4n +4n +4n +4n
+.fi
+.RE
+.LP
+The
+.B \-z
+option does not affect dates stored in \*r files,
+which are always \*u.
+.RE
 .SH "KEYWORD SUBSTITUTION"
 Strings of the form
 .BI $ keyword $
@@ -444,7 +527,7 @@ where
 and
 .I value
 are pairs listed below.
-Keywords may be embedded in literal strings
+Keywords can be embedded in literal strings
 or comments to identify a revision.
 .PP
 Initially, the user enters strings of the form
@@ -467,12 +550,18 @@ Keywords and their corresponding values:
 The login name of the user who checked in the revision.
 .TP
 .B $\&Date$
-The date and time (\*g) the revision was checked in.
+The date and time the revision was checked in.
+With
+.BI \-z zone
+a numeric time zone offset is appended; otherwise, the date is \*u.
 .TP
 .B $\&Header$
 A standard header containing the full pathname of the \*r file, the
-revision number, the date (\*g), the author, the state,
+revision number, the date and time, the author, the state,
 and the locker (if locked).
+With
+.BI \-z zone
+a numeric time zone offset is appended to the date; otherwise, the date is \*u.
 .TP
 .B $\&Id$
 Same as
@@ -485,7 +574,10 @@ The login name of the user who locked the revision (empty if not locked).
 .B $\&Log$
 The log message supplied during checkin, preceded by a header
 containing the \*r filename, the revision number, the author, and the date
-(\*g).
+and time.
+With
+.BI \-z zone
+a numeric time zone offset is appended; otherwise, the date is \*u.
 Existing log messages are
 .I not
 replaced.
@@ -493,6 +585,58 @@ Instead, the new log message is inserted after
 .BR $\&Log: .\|.\|. $ .
 This is useful for
 accumulating a complete change log in a source file.
+.RS
+.LP
+Each inserted line is prefixed by the string that prefixes the
+.B $\&Log$
+line.  For example, if the
+.B $\&Log$
+line is
+.RB \*(lq "//\ $\&Log: tan.cc\ $" \*(rq,
+\*r prefixes each line of the log with
+.RB \*(lq "//\ " \*(rq.
+This is useful for languages with comments that go to the end of the line.
+The convention for other languages is to use a
+.RB \*(lq " \(** " \(rq
+prefix inside a multiline comment.
+For example, the initial log comment of a C program
+conventionally is of the following form:
+.RS
+.LP
+.nf
+.ft 3
+.ne 3
+/\(**
+.in +\w'/'u
+\(** $\&Log$
+\(**/
+.in
+.ft
+.fi
+.RE
+.LP
+For backwards compatibility with older versions of \*r, if the log prefix is
+.B /\(**
+or
+.B (\(**
+surrounded by optional white space, inserted log lines contain a space
+instead of
+.B /
+or
+.BR ( ;
+however, this usage is obsolescent and should not be relied on.
+.RE
+.TP
+.B $\&Name$
+The symbolic name used to check out the revision, if any.
+For example,
+.B "co\ \-rJoe"
+generates
+.BR "$\&Name:\ Joe\ $" .
+Plain
+.B co
+generates just
+.BR "$\&Name:\ \ $" .
 .TP
 .B $\&RCSfile$
 The name of the \*r file without a path.
@@ -510,6 +654,22 @@ option of
 .BR rcs (1)
 or
 .BR ci (1).
+.PP
+The following characters in keyword values are represented by escape sequences
+to keep keyword strings well-formed.
+.LP
+.RS
+.nf
+.ne 6
+.ta \w'newline  'u
+\f2char	escape sequence\fP
+tab	\f3\et\fP
+newline	\f3\en\fP
+space	\f3\e040
+$	\e044
+\e	\e\e\fP
+.fi
+.RE
 .SH "FILE MODES"
 The working file inherits the read and execute permissions from the \*r
 file.  In addition, the owner write permission is turned on, unless
@@ -531,7 +691,10 @@ is given, the working file is deleted without asking.
 .B co
 accesses files much as
 .BR ci (1)
-does, except that it does not need to read the working file.
+does, except that it does not need to read the working file
+unless a revision number of
+.B $
+is specified.
 .SH ENVIRONMENT
 .TP
 .B \s-1RCSINIT\s0
@@ -547,14 +710,14 @@ The exit status is zero if and only if all operations were successful.
 .SH IDENTIFICATION
 Author: Walter F. Tichy.
 .br
-Revision Number: \*(Rv; Release Date: \*(Dt.
+Manual Page Revision: \*(Rv; Release Date: \*(Dt.
 .br
-Copyright \(co 1982, 1988, 1989 by Walter F. Tichy.
+Copyright \(co 1982, 1988, 1989 Walter F. Tichy.
 .br
-Copyright \(co 1990, 1991 by Paul Eggert.
+Copyright \(co 1990, 1991, 1992, 1993, 1994, 1995 Paul Eggert.
 .SH "SEE ALSO"
-ci(1), ctime(3), date(1), ident(1), make(1),
-rcs(1), rcsdiff(1), rcsintro(1), rcsmerge(1), rlog(1),
+rcsintro(1), ci(1), ctime(3), date(1), ident(1), make(1),
+rcs(1), rcsclean(1), rcsdiff(1), rcsmerge(1), rlog(1),
 rcsfile(5)
 .br
 Walter F. Tichy,
@@ -570,8 +733,4 @@ by writing them differently.  In nroff and troff, this is done by embedding the
 null-character
 .B \e&
 into the keyword.
-.SH BUGS
-The
-.B \-d
-option sometimes gets confused, and accepts no date before 1970.
 .br
