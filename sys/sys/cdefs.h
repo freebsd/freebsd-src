@@ -53,7 +53,7 @@
  */
 #ifdef __GNUC__
 #define	__GNUC_PREREQ__(ma, mi)	\
-        ((__GNUC__ > (ma)) || (__GNUC__ == (ma) && __GNUC_MINOR__ >= (mi)))
+	(__GNUC__ > (ma) || __GNUC__ == (ma) && __GNUC_MINOR__ >= (mi))
 #else
 #define	__GNUC_PREREQ__(ma, mi)	0
 #endif
