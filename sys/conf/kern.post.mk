@@ -74,6 +74,9 @@ assym.s: $S/kern/genassym.sh genassym.o
 	NM=${NM} OBJFORMAT=elf sh $S/kern/genassym.sh genassym.o > ${.TARGET}
 
 genassym.o: $S/$M/$M/genassym.c
+.if defined(EXTRA_GENASSYM)
+	${EXTRA_GENASSYM}
+.endif
 	${CC} -c ${CFLAGS} $S/$M/$M/genassym.c
 
 ${SYSTEM_OBJS} genassym.o vers.o: opt_global.h
