@@ -33,7 +33,6 @@ KVA_PAGES		opt_global.h
 
 CLK_CALIBRATION_LOOP		opt_clock.h
 CLK_USE_I8254_CALIBRATION	opt_clock.h
-CLK_USE_TSC_CALIBRATION		opt_clock.h
 TIMER_FREQ			opt_clock.h
 
 CPU_BLUELIGHTNING_3X		opt_cpu.h
