@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: module.c,v 1.6 1998/10/09 23:12:34 peter Exp $
+ *	$Id: module.c,v 1.7 1999/01/11 06:41:31 msmith Exp $
  */
 
 /*
@@ -256,6 +256,7 @@ mod_loadobj(char *type, char *name)
 	    break;
 	if (got < 0) {				/* error */
 	    sprintf(command_errbuf, "error reading '%s': %s", name, strerror(errno));
+	    free(name);
 	    return(CMD_ERROR);
 	}
 	laddr += got;
@@ -263,7 +264,7 @@ mod_loadobj(char *type, char *name)
     
     /* Looks OK so far; create & populate control structure */
     mp = malloc(sizeof(struct loaded_module));
-    mp->m_name = strdup(name);
+    mp->m_name = name;
     mp->m_type = strdup(type);
     mp->m_args = NULL;
     mp->m_metadata = NULL;
@@ -442,8 +443,11 @@ mod_searchfile(char *name)
     struct stat		sb;
 
     /* Don't look for nothing */
-    if ((name == NULL) || (*name == 0))
+    if (name == NULL)
 	return(name);
+
+    if (*name == 0)
+	return(strdup(name));
 
     /*
      * See if there's a device on the front, or a directory name.
@@ -452,7 +456,7 @@ mod_searchfile(char *name)
     if ((cp != name) || (strchr(name, '/') != NULL)) {
 	/* Qualified, so just see if it exists */
 	if (stat(name, &sb) == 0)
-	    return(name);
+	    return(strdup(name));
 	return(NULL);
     }
     
