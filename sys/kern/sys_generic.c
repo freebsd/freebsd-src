@@ -694,8 +694,10 @@ select(p, uap)
 		}
 		getmicrouptime(&rtv);
 		timevaladd(&atv, &rtv);
-	} else
+	} else {
 		atv.tv_sec = 0;
+		atv.tv_usec = 0;
+	}
 	timo = 0;
 retry:
 	ncoll = nselcoll;
@@ -827,8 +829,10 @@ poll(p, uap)
 		}
 		getmicrouptime(&rtv);
 		timevaladd(&atv, &rtv);
-	} else
+	} else {
 		atv.tv_sec = 0;
+		atv.tv_usec = 0;
+	}
 	timo = 0;
 retry:
 	ncoll = nselcoll;
