@@ -397,7 +397,7 @@ VarAdd (name, val, ctxt)
     (void) Lst_AtFront (ctxt->context, (void *)v);
     (void) Lst_AtEnd (allVars, (void *) v);
     if (DEBUG(VAR)) {
-	printf("%s:%s = %s\n", ctxt->name, name, val);
+	fprintf(stderr, "%s:%s = %s\n", ctxt->name, name, val);
     }
 }
 
@@ -447,7 +447,7 @@ Var_Delete(name, ctxt)
     LstNode 	  ln;
 
     if (DEBUG(VAR)) {
-	printf("%s:delete %s\n", ctxt->name, name);
+	fprintf(stderr, "%s:delete %s\n", ctxt->name, name);
     }
     ln = Lst_Find(ctxt->context, (void *)name, VarCmp);
     if (ln != NULL) {
@@ -504,7 +504,7 @@ Var_Set (name, val, ctxt)
 	Buf_AddBytes(v->val, strlen(val), (Byte *)val);
 
 	if (DEBUG(VAR)) {
-	    printf("%s:%s = %s\n", ctxt->name, name, val);
+	    fprintf(stderr, "%s:%s = %s\n", ctxt->name, name, val);
 	}
     }
     /*
@@ -557,7 +557,7 @@ Var_Append (name, val, ctxt)
 	Buf_AddBytes(v->val, strlen(val), (Byte *)val);
 
 	if (DEBUG(VAR)) {
-	    printf("%s:%s = %s\n", ctxt->name, name,
+	    fprintf(stderr, "%s:%s = %s\n", ctxt->name, name,
 		   (char *) Buf_GetAll(v->val, (int *)NULL));
 	}
 
@@ -1781,7 +1781,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 	    char	termc;	    /* Character which terminated scan */
 
 	    if (DEBUG(VAR)) {
-		printf("Applying :%c to \"%s\"\n", *tstr, str);
+		fprintf(stderr, "Applying :%c to \"%s\"\n", *tstr, str);
 	    }
 	    switch (*tstr) {
 	        case 'U':
@@ -2252,7 +2252,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		}
 	    }
 	    if (DEBUG(VAR)) {
-		printf("Result is \"%s\"\n", newStr);
+		fprintf(stderr, "Result is \"%s\"\n", newStr);
 	    }
 
 	    if (*freePtr) {
