@@ -115,6 +115,7 @@ static	d_ioctl_t	pcioctl;
 static	d_devtotty_t	pcdevtotty;
 static	d_mmap_t	pcmmap;
 
+#define CDEV_MAJOR 12
 static	struct cdevsw	pcdevsw = {
 	pcopen,		pcclose,	pcread,		pcwrite,
 	pcioctl,	nullstop,	noreset,	pcdevtotty,
@@ -326,7 +327,11 @@ pcattach(struct isa_device *dev)
 		pcvt_is_console? DC_IDLE: DC_BUSY;
 	vt_registerdev(dev, (char *)vga_string(vga_type));
 
-	register_cdev("vt", &pcdevsw);
+	{
+	dev_t dev = makedev(CDEV_MAJOR, 0);
+
+	cdevsw_add(&dev, &pcdevsw, NULL);
+	}
 #endif /* PCVT_FREEBSD > 205 */
 
 #if PCVT_NETBSD > 9
@@ -1107,15 +1112,14 @@ pccnprobe(struct consdev *cp)
 	 * Take control if we are the highest priority enabled display device.
 	 */
 	dvp = find_display();
-	maj = getmajorbyname("vt");
-	if (dvp->id_driver != &vtdriver || maj < 0) {
+	if (dvp != NULL && dvp->id_driver != &vtdriver) {
 		cp->cn_pri = CN_DEAD;
 		return;
 	}
 
 	/* initialize required fields */
 
-	cp->cn_dev = makedev(maj, 0);
+	cp->cn_dev = makedev(CDEV_MAJOR, 0);
 	cp->cn_pri = CN_INTERNAL;
 
 #if !PCVT_NETBSD

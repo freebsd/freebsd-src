@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.3 (Berkeley) 1/21/94
- * $Id: conf.h,v 1.27 1995/12/10 15:55:34 bde Exp $
+ * $Id: conf.h,v 1.28 1995/12/13 15:13:44 julian Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -202,13 +202,10 @@ l_write_t	l_nowrite;
 int	bdevsw_add __P((dev_t *descrip,struct bdevsw *new,struct bdevsw **old));
 int	cdevsw_add __P((dev_t *descrip,struct cdevsw *new,struct cdevsw **old));
 dev_t	chrtoblk __P((dev_t dev));
-int	getmajorbyname __P((const char *name));
 int	isdisk __P((dev_t dev, int type));
 int	iskmemdev __P((dev_t dev));
 int	iszerodev __P((dev_t dev));
-int	register_cdev __P((const char *name, const struct cdevsw *cdp));
 void	setconf __P((void));
-int	unregister_cdev __P((const char *name, const struct cdevsw *cdp));
 #endif /* KERNEL */
 
 #include <machine/conf.h>
