@@ -164,8 +164,6 @@ mount(p, uap)
 			vput(vp);
 			return (EOPNOTSUPP);	/* Needs translation */
 		}
-		mp->mnt_flag |= SCARG(uap, flags) &
-		    (MNT_RELOAD | MNT_FORCE | MNT_UPDATE | MNT_SNAPSHOT);
 		/*
 		 * Only root, or the user that did the original mount is
 		 * permitted to update it.
@@ -179,6 +177,18 @@ mount(p, uap)
 			vput(vp);
 			return (EBUSY);
 		}
+		simple_lock(&vp->v_interlock);
+		if ((vp->v_flag & VMOUNT) != 0 ||
+		    vp->v_mountedhere != NULL) {
+			simple_unlock(&vp->v_interlock);
+			vfs_unbusy(mp, p);
+			vput(vp);
+			return (EBUSY);
+		}
+		vp->v_flag |= VMOUNT;
+		simple_unlock(&vp->v_interlock);
+		mp->mnt_flag |= SCARG(uap, flags) &
+		    (MNT_RELOAD | MNT_FORCE | MNT_UPDATE | MNT_SNAPSHOT);
 		VOP_UNLOCK(vp, 0, p);
 		goto update;
 	}
@@ -192,8 +202,10 @@ mount(p, uap)
 		vput(vp);
 		return (error);
 	}
-	if ((error = vinvalbuf(vp, V_SAVE, p->p_ucred, p, 0, 0)) != 0)
+	if ((error = vinvalbuf(vp, V_SAVE, p->p_ucred, p, 0, 0)) != 0) {
+		vput(vp);
 		return (error);
+	}
 	if (vp->v_type != VDIR) {
 		vput(vp);
 		return (ENOTDIR);
@@ -300,7 +312,6 @@ update:
 	 */
 	error = VFS_MOUNT(mp, SCARG(uap, path), SCARG(uap, data), &nd, p);
 	if (mp->mnt_flag & MNT_UPDATE) {
-		vrele(vp);
 		if (mp->mnt_kern_flag & MNTK_WANTRDWR)
 			mp->mnt_flag &= ~MNT_RDONLY;
 		mp->mnt_flag &=~
@@ -319,6 +330,10 @@ update:
 			mp->mnt_syncer = NULL;
 		}
 		vfs_unbusy(mp, p);
+		simple_lock(&vp->v_interlock);
+		vp->v_flag &= ~VMOUNT;
+		simple_unlock(&vp->v_interlock);
+		vrele(vp);
 		return (error);
 	}
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
