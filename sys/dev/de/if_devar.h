@@ -31,39 +31,12 @@
 #if !defined(_DEVAR_H)
 #define _DEVAR_H
 
-#if defined(__NetBSD__)
-
-#include "rnd.h"
-#if NRND > 0
-#include <sys/rnd.h>
-#endif
-
-#if NetBSD >= 199803
-#define	TULIP_BUS_DMA		1
-/* #define	TULIP_BUS_DMA_NORX	1 */
-/* #define	TULIP_BUS_DMA_NOTX	1 */
-#endif
-
-typedef bus_addr_t tulip_csrptr_t;
-
-#define TULIP_CSR_READ(sc, csr) \
-    bus_space_read_4((sc)->tulip_bustag, (sc)->tulip_bushandle, (sc)->tulip_csrs.csr)
-#define TULIP_CSR_WRITE(sc, csr, val) \
-    bus_space_write_4((sc)->tulip_bustag, (sc)->tulip_bushandle, (sc)->tulip_csrs.csr, (val))
-
-#define TULIP_CSR_READBYTE(sc, csr) \
-    bus_space_read_1((sc)->tulip_bustag, (sc)->tulip_bushandle, (sc)->tulip_csrs.csr)
-#define TULIP_CSR_WRITEBYTE(sc, csr, val) \
-    bus_space_write_1((sc)->tulip_bustag, (sc)->tulip_bushandle, (sc)->tulip_csrs.csr, (val))
-#endif /* __NetBSD__ */
-
 #ifdef TULIP_IOMAPPED
 #define	TULIP_EISA_CSRSIZE	16
 #define	TULIP_EISA_CSROFFSET	0
 #define	TULIP_PCI_CSRSIZE	8
 #define	TULIP_PCI_CSROFFSET	0
 
-#if !defined(__NetBSD__)
 #if defined(__FreeBSD__)
 typedef pci_port_t tulip_csrptr_t;
 #else
@@ -75,14 +48,12 @@ typedef u_int16_t tulip_csrptr_t;
 
 #define	TULIP_CSR_READBYTE(sc, csr)		(inb((sc)->tulip_csrs.csr))
 #define	TULIP_CSR_WRITEBYTE(sc, csr, val)	outb((sc)->tulip_csrs.csr, val)
-#endif /* __NetBSD__ */
 
 #else /* TULIP_IOMAPPED */
 
 #define	TULIP_PCI_CSRSIZE	8
 #define	TULIP_PCI_CSROFFSET	0
 
-#if !defined(__NetBSD__)
 #if defined (__FreeBSD__) && defined(__alpha__)
 
 typedef u_int32_t tulip_csrptr_t;
@@ -106,7 +77,6 @@ typedef volatile u_int32_t *tulip_csrptr_t;
 #define	TULIP_CSR_WRITE(sc, csr, val)	((void)(*(sc)->tulip_csrs.csr = (val)))
 
 #endif /* __FreeBSD__ && __alpha__ */
-#endif /* __NetBSD__ */
 
 #endif /* TULIP_IOMAPPED */
 
@@ -489,16 +459,6 @@ typedef struct {
  *
  */
 struct _tulip_softc_t {
-#if defined(__NetBSD__)
-    struct device tulip_dev;		/* base device */
-    void *tulip_ih;			/* intrrupt vectoring */
-    void *tulip_ats;			/* shutdown hook */
-    bus_space_tag_t tulip_bustag;
-    bus_space_handle_t tulip_bushandle;	/* CSR region handle */
-    pci_chipset_tag_t tulip_pc;
-    struct ethercom tulip_ec;
-    u_int8_t tulip_enaddr[ETHER_ADDR_LEN];
-#endif
 #if !defined(tulip_ifmedia) && defined(IFM_ETHER)
     struct ifmedia tulip_ifmedia;
 #endif
@@ -516,9 +476,7 @@ struct _tulip_softc_t {
     unsigned tulip_rxmaps_free;
 #endif
 #endif
-#if !defined(__NetBSD__)
     struct arpcom tulip_ac;
-#endif
     tulip_regfile_t tulip_csrs;
     u_int32_t tulip_flags;
 #define	TULIP_WANTSETUP		0x00000001
@@ -682,19 +640,12 @@ struct _tulip_softc_t {
     u_int32_t tulip_setupdata[192/sizeof(u_int32_t)];
     char tulip_boardid[16];		/* buffer for board ID */
     u_int8_t tulip_rombuf[128];
-#if defined(__NetBSD__)
-    struct device *tulip_pci_busno;	/* needed for multiport boards */
-#else
     u_int8_t tulip_pci_busno;		/* needed for multiport boards */
-#endif
     u_int8_t tulip_pci_devno;		/* needed for multiport boards */
     u_int8_t tulip_connidx;
     tulip_srom_connection_t tulip_conntype;
     tulip_desc_t *tulip_rxdescs;
     tulip_desc_t *tulip_txdescs;
-#if defined(__NetBSD__) && NRND > 0
-    rndsource_element_t    tulip_rndsource;
-#endif
 };
 
 #if defined(IFM_ETHER)
@@ -961,35 +912,6 @@ NETISR_SET(NETISR_DE, tulip_softintr);
 #define	TULIP_BURSTSIZE(unit)		pci_max_burst_len
 #define	loudprintf			if (bootverbose) printf
 #endif
-
-#if defined(__NetBSD__)
-typedef void ifnet_ret_t;
-typedef u_long ioctl_cmd_t;
-extern struct cfattach de_ca;
-extern struct cfdriver de_cd;
-#define	TULIP_UNIT_TO_SOFTC(unit)	((tulip_softc_t *) de_cd.cd_devs[unit])
-#define TULIP_IFP_TO_SOFTC(ifp)         ((tulip_softc_t *)((ifp)->if_softc))
-#define	tulip_unit			tulip_dev.dv_unit
-#define	tulip_xname			tulip_if.if_xname
-#define	TULIP_RAISESPL()		splnet()
-#define	TULIP_RAISESOFTSPL()		splsoftnet()
-#define	TULIP_RESTORESPL(s)		splx(s)
-#define	tulip_if			tulip_ec.ec_if
-#define	tulip_enaddr			tulip_enaddr
-#define	tulip_multicnt			tulip_ec.ec_multicnt
-#define	TULIP_ETHERCOM(sc)		(&(sc)->tulip_ec)
-#define	TULIP_ARP_IFINIT(sc, ifa)	arp_ifinit(&(sc)->tulip_if, (ifa))
-#define	TULIP_ETHER_IFATTACH(sc)	ether_ifattach(&(sc)->tulip_if, (sc)->tulip_enaddr)
-#define	loudprintf			printf
-#define	TULIP_PRINTF_FMT		"%s"
-#define	TULIP_PRINTF_ARGS		sc->tulip_xname
-#if !defined(TULIP_BUS_DMA) || defined(TULIP_BUS_DMA_NORX) || defined(TULIP_BUS_DMA_NOTX)
-#if defined(__alpha__)
-/* XXX XXX NEED REAL DMA MAPPING SUPPORT XXX XXX */
-#define TULIP_KVATOPHYS(sc, va)		alpha_XXX_dmamap((vm_offset_t)(va))
-#endif
-#endif
-#endif	/* __NetBSD__ */
 
 #ifndef TULIP_PRINTF_FMT
 #define	TULIP_PRINTF_FMT		"%s%d"
