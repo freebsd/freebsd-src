@@ -105,6 +105,9 @@ static struct cdevsw amrd_cdevsw = {
 		/* dump */	nodump,
 		/* psize */ 	nopsize,
 		/* flags */	D_DISK,
+#if __FreeBSD_version < 500000
+		/* bmaj */	-1
+#endif
 };
 
 static devclass_t	amrd_devclass;
