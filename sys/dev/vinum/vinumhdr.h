@@ -36,7 +36,7 @@
 
 /* Header files used by all modules */
 /*
- * $Id: vinumhdr.h,v 1.15 1999/10/12 09:40:35 grog Exp grog $
+ * $Id: vinumhdr.h,v 1.18 2001/01/04 00:14:14 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -86,7 +86,8 @@ caddr_t MMalloc (int size, char *, int);
 void FFree (void *mem, char *, int);
 #define LOCKDRIVE(d) lockdrive (d, __FILE__, __LINE__)
 #else
-#define Malloc(x)  malloc((x), M_DEVBUF, intr_nesting_level == 0? M_WAITOK: M_NOWAIT)
+#define Malloc(x)  malloc((x), M_DEVBUF, \
+	PCPU_GET(intr_nesting_level) == 0? M_WAITOK: M_NOWAIT)
 #define Free(x)    free((x), M_DEVBUF)
 #define LOCKDRIVE(d) lockdrive (d)
 #endif
