@@ -84,7 +84,7 @@ INCSLINKS+=	posix4/$i ${INCLUDEDIR}/$i
 
 copies:
 .for i in ${LDIRS} ${LSYMSUBDIRS} machine
-	if [ -h ${DESTDIR}/usr/include/$i ]; then \
+	if [ -L ${DESTDIR}/usr/include/$i ]; then \
 		rm -f ${DESTDIR}/usr/include/$i; \
 	fi
 .endfor

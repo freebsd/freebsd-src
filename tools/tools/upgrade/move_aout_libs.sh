@@ -88,7 +88,7 @@ move_if_aout ( )
 	do
 		# Don't touch symbolic links yet. It's not clear how
 		# they should be handled.
-		if test -h $file; then
+		if test -L $file; then
 		else
 			# Check that this is a normal file.
 			if test -f $file; then

@@ -262,7 +262,7 @@ beforeinstall: ${SHARED} etc-examples
 
 copies:
 .for i in ${LDIRS}
-	if [ -h ${DESTDIR}${BINDIR}/$i ]; then \
+	if [ -L ${DESTDIR}${BINDIR}/$i ]; then \
 		rm -f ${DESTDIR}${BINDIR}/$i; \
 	fi
 .endfor
