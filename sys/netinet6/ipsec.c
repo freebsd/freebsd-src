@@ -110,6 +110,8 @@ int ipsec_debug = 1;
 int ipsec_debug = 0;
 #endif
 
+NET_NEEDS_GIANT("ipsec");
+
 struct ipsecstat ipsecstat;
 int ip4_ah_cleartos = 1;
 int ip4_ah_offsetmask = 0;	/* maybe IP_DF? */
