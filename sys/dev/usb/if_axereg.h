@@ -128,7 +128,6 @@ struct axe_chain {
 	usbd_xfer_handle	axe_xfer;
 	char			*axe_buf;
 	struct mbuf		*axe_mbuf;
-	int			axe_accum;
 	int			axe_idx;
 };
 
