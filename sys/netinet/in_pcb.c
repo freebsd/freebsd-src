@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.35 1997/10/28 15:58:42 bde Exp $
+ *	$Id: in_pcb.c,v 1.36 1997/12/23 01:40:40 alex Exp $
  */
 
 #include <sys/param.h>
@@ -470,20 +470,23 @@ in_setsockaddr(so, nam)
 	register struct inpcb *inp;
 	register struct sockaddr_in *sin;
 
+	MALLOC(sin, struct sockaddr_in *, sizeof *sin, M_SONAME, M_WAITOK);
+	bzero(sin, sizeof *sin);
+	sin->sin_family = AF_INET;
+	sin->sin_len = sizeof(*sin);
+
 	s = splnet();
 	inp = sotoinpcb(so);
 	if (!inp) {
 		splx(s);
+		free(sin, M_SONAME);
 		return EINVAL;
 	}
-	MALLOC(sin, struct sockaddr_in *, sizeof *sin, M_SONAME, M_WAITOK);
-	*nam = (struct sockaddr *)sin;
-	bzero(sin, sizeof *sin);
-	sin->sin_family = AF_INET;
-	sin->sin_len = sizeof(*sin);
 	sin->sin_port = inp->inp_lport;
 	sin->sin_addr = inp->inp_laddr;
 	splx(s);
+
+	*nam = (struct sockaddr *)sin;
 	return 0;
 }
 
@@ -496,20 +499,23 @@ in_setpeeraddr(so, nam)
 	struct inpcb *inp;
 	register struct sockaddr_in *sin;
 
+	MALLOC(sin, struct sockaddr_in *, sizeof *sin, M_SONAME, M_WAITOK);
+	bzero((caddr_t)sin, sizeof (*sin));
+	sin->sin_family = AF_INET;
+	sin->sin_len = sizeof(*sin);
+
 	s = splnet();
 	inp = sotoinpcb(so);
 	if (!inp) {
 		splx(s);
+		free(sin, M_SONAME);
 		return EINVAL;
 	}
-	MALLOC(sin, struct sockaddr_in *, sizeof *sin, M_SONAME, M_WAITOK);
-	*nam = (struct sockaddr *)sin;
-	bzero((caddr_t)sin, sizeof (*sin));
-	sin->sin_family = AF_INET;
-	sin->sin_len = sizeof(*sin);
 	sin->sin_port = inp->inp_fport;
 	sin->sin_addr = inp->inp_faddr;
 	splx(s);
+
+	*nam = (struct sockaddr *)sin;
 	return 0;
 }
 
