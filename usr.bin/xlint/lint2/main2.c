@@ -35,6 +35,7 @@
 #if defined(__RCSID) && !defined(lint)
 __RCSID("$NetBSD: main2.c,v 1.5 2001/11/21 19:14:26 wiz Exp $");
 #endif
+__FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -67,7 +68,7 @@ int	sflag;
 int	tflag;
 
 /*
- * If a complaint stems from a included file, print the name of the included
+ * If a complaint stems from an included file, print the name of the included
  * file instead of the name spezified at the command line followed by '?'
  */
 int	Hflag;

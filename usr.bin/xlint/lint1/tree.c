@@ -263,7 +263,7 @@ getcnode(type_t *tp, val_t *v)
 }
 
 /*
- * Create a node for a integer constant.
+ * Create a node for an integer constant.
  */
 static tnode_t *
 getinode(tspec_t t, int64_t q)
@@ -2026,7 +2026,7 @@ cvtcon(op_t op, int arg, type_t *tp, val_t *nv, val_t *v)
 			 * the bits was set in a signed type.
 			 * Loss of significant bits means that it is not
 			 * possible, also not with necessary casts, to convert
-			 * back to the original type. A example for a
+			 * back to the original type. An example for a
 			 * necessary cast is:
 			 *	char c;	int	i; c = 128;
 			 *	i = c;			** yields -128 **
@@ -2079,7 +2079,7 @@ cvtcon(op_t op, int arg, type_t *tp, val_t *nv, val_t *v)
 
 /*
  * Called if incompatible types were detected.
- * Prints a appropriate warning.
+ * Prints an appropriate warning.
  */
 static void
 incompat(op_t op, tspec_t lt, tspec_t rt)
@@ -3448,7 +3448,7 @@ chkmisc(tnode_t *tn, int vctx, int tctx, int eqwarn, int fcall, int rvdisc,
 		if (ln->tn_op == NAME && (reached || rchflg)) {
 			sc = ln->tn_sym->s_scl;
 			/*
-			 * Look if there was a asm statement in one of the
+			 * Look if there was an asm statement in one of the
 			 * compound statements we are in. If not, we don't
 			 * print a warning.
 			 */

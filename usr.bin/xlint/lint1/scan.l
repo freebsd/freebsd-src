@@ -262,7 +262,7 @@ symt_t	symtyp;
 
 /*
  * All keywords are written to the symbol table. This saves us looking
- * in a extra table for each name we found.
+ * in an extra table for each name we found.
  */
 void
 initscan(void)
