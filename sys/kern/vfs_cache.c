@@ -626,7 +626,6 @@ vfs_cache_lookup(ap)
 	} */ *ap;
 {
 	struct vnode *dvp, *vp;
-	int lockparent;
 	int error;
 	struct vnode **vpp = ap->a_vpp;
 	struct componentname *cnp = ap->a_cnp;
@@ -637,7 +636,6 @@ vfs_cache_lookup(ap)
 
 	*vpp = NULL;
 	dvp = ap->a_dvp;
-	lockparent = flags & LOCKPARENT;
 
 	if (dvp->v_type != VDIR)
 		return (ENOTDIR);
