@@ -521,6 +521,16 @@ in the following sections.
 \-fverbose\-asm
 .ad b
 .hy 1
+.SH FreeBSD SPECIFIC OPTIONS
+.TP
+.BI "\-pthread"
+Link a user-threaded process against libc_r instead of libc. Objects linked
+into user-threaded processes should be compiled with -D_THREADSAFE.
+.TP
+.BI "\-kthread"
+Link a kernel-threaded process against libpthread in addition to libc.
+Objects linked into kernel-threaded processes should be compiled with
+-D_THREADSAFE.
 .SH OVERALL OPTIONS
 .TP
 .BI "\-x " "language"
