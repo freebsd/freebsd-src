@@ -1,8 +1,8 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 4/17/94
-#	$Id: Makefile.inc,v 1.5 1996/05/29 01:00:00 wosch Exp $
+#	$Id: Makefile.inc,v 1.9 1997/05/03 03:50:03 jb Exp $
 
 # stdio sources
-.PATH: ${.CURDIR}/stdio
+.PATH: ${.CURDIR}/../libc/stdio
 
 SRCS+=	asprintf.c clrerr.c fclose.c fdopen.c feof.c ferror.c fflush.c \
 	fgetc.c fgetln.c fgetpos.c fgets.c fileno.c findfp.c flags.c fopen.c \
@@ -15,6 +15,8 @@ SRCS+=	asprintf.c clrerr.c fclose.c fdopen.c feof.c ferror.c fflush.c \
 	vfprintf.c vfscanf.c vprintf.c vscanf.c vsnprintf.c vsprintf.c \
 	vsscanf.c wbuf.c wsetup.c
 
+# Only build man pages with libc.
+.if ${LIB} == "c"
 MAN3+=	stdio/fclose.3 stdio/ferror.3 stdio/fflush.3 stdio/fgetln.3 \
 	stdio/fgets.3 stdio/fopen.3 stdio/fputs.3 stdio/fread.3 stdio/fseek.3 \
 	stdio/funopen.3 stdio/getc.3 stdio/mktemp.3 stdio/printf.3 \
@@ -39,3 +41,4 @@ MLINKS+=scanf.3 fscanf.3 scanf.3 sscanf.3 scanf.3 vfscanf.3 scanf.3 vscanf.3 \
 	scanf.3 vsscanf.3
 MLINKS+=setbuf.3 setbuffer.3 setbuf.3 setlinebuf.3 setbuf.3 setvbuf.3
 MLINKS+=tmpnam.3 tempnam.3 tmpnam.3 tmpfile.3
+.endif
