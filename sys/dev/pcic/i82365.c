@@ -45,10 +45,9 @@
 
 #include <machine/clock.h>
 
-#include <sys/proc.h>
 #include <sys/wait.h>
+#include <sys/unistd.h>
 #include <sys/kthread.h>
-#include <vm/vm.h>
 
 /* We shouldn't need to include the following, but sadly we do for now */
 /* XXX */
@@ -486,7 +485,7 @@ pcic_create_event_thread(void *arg)
 	}
 
 	if (kthread_create(pcic_event_thread, h, &h->event_thread,
-	    "%s,%s", device_get_name(h->sc->dev), cs)) {
+	    RFTHREAD, "%s,%s", device_get_name(h->sc->dev), cs)) {
 		device_printf(h->sc->dev,
 		    "cannot create event thread for sock 0x%02x\n", h->sock);
 		panic("pcic_create_event_thread");
