@@ -85,6 +85,9 @@ and reading new connections on listening sockets, has been added.
 
 The ata(4) driver now has experimental support for ATA100 controllers.
 
+AlphaServer 1200 ("Tincup") has been tested and works OK. Currently it does
+not want to boot from CD or floppy but a transplanted disk that was
+installed on another Alpha works well. [MERGED]
 
 1.2. SECURITY FIXES
 -------------------
