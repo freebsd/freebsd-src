@@ -21,6 +21,7 @@
 
 /* ADD_FILES changes made by Ross Biro biro@yggdrasil.com 2/23/95 */
 
+#include <sys/types.h>
 #include <stdio.h>
 
 /* This symbol is used to indicate that we do not have things like
@@ -42,7 +43,6 @@
 #endif
 
 #include <string.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 
 #ifdef linux
