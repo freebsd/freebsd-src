@@ -91,7 +91,7 @@ int	__pw_match_entry(const char *, size_t, enum nss_lookup_type,
 	    const char *, uid_t);
 int	__pw_parse_entry(char *, size_t, struct passwd *, int, int *errnop);
 
-static	int	 pwd_init(struct passwd *, char *, size_t);
+static	void	 pwd_init(struct passwd *);
 
 union key {
 	const char	*name;
@@ -268,10 +268,9 @@ getpwent_r(struct passwd *pwd, char *buffer, size_t bufsize,
 	};
 	int	rv, ret_errno;
 
+	pwd_init(pwd);
+	ret_errno = 0;
 	*result = NULL;
-	ret_errno = pwd_init(pwd, buffer, bufsize);
-	if (ret_errno != 0)
-		return (ret_errno);
 	rv = _nsdispatch(result, dtab, NSDB_PASSWD, "getpwent_r", defaultsrc,
 	    pwd, buffer, bufsize, &ret_errno);
 	if (rv == NS_SUCCESS)
@@ -298,10 +297,9 @@ getpwnam_r(const char *name, struct passwd *pwd, char *buffer, size_t bufsize,
 	};
 	int	rv, ret_errno;
 
+	pwd_init(pwd);
+	ret_errno = 0;
 	*result = NULL;
-	ret_errno = pwd_init(pwd, buffer, bufsize);
-	if (ret_errno != 0)
-		return (ret_errno);
 	rv = _nsdispatch(result, dtab, NSDB_PASSWD, "getpwnam_r", defaultsrc,
 	    name, pwd, buffer, bufsize, &ret_errno);
 	if (rv == NS_SUCCESS)
@@ -328,10 +326,9 @@ getpwuid_r(uid_t uid, struct passwd *pwd, char *buffer, size_t bufsize,
 	};
 	int	rv, ret_errno;
 
+	pwd_init(pwd);
+	ret_errno = 0;
 	*result = NULL;
-	ret_errno = pwd_init(pwd, buffer, bufsize);
-	if (ret_errno != 0)
-		return (ret_errno);
 	rv = _nsdispatch(result, dtab, NSDB_PASSWD, "getpwuid_r", defaultsrc,
 	    uid, pwd, buffer, bufsize, &ret_errno);
 	if (rv == NS_SUCCESS)
@@ -341,23 +338,20 @@ getpwuid_r(uid_t uid, struct passwd *pwd, char *buffer, size_t bufsize,
 }
 
 
-static int
-pwd_init(struct passwd *pwd, char *buffer, size_t bufsize)
+static void
+pwd_init(struct passwd *pwd)
 {
+	static char nul[] = "";
 
-	if (bufsize < 1)
-		return (ERANGE);
-	buffer[0] = '\0';
 	memset(pwd, 0, sizeof(*pwd));
 	pwd->pw_uid = (uid_t)-1;  /* Considered least likely to lead to */
 	pwd->pw_gid = (gid_t)-1;  /* a security issue.                  */
-	pwd->pw_name = buffer;
-	pwd->pw_passwd = buffer;
-	pwd->pw_class = buffer;
-	pwd->pw_gecos = buffer;
-	pwd->pw_dir = buffer;
-	pwd->pw_shell = buffer;
-	return (0);
+	pwd->pw_name = nul;
+	pwd->pw_passwd = nul;
+	pwd->pw_class = nul;
+	pwd->pw_gecos = nul;
+	pwd->pw_dir = nul;
+	pwd->pw_shell = nul;
 }
 
 
