@@ -777,8 +777,9 @@ const static int reg_to_framereg[32] = {
 
 #define	unaligned_store(storage, ptrf, mod)				\
 	if ((regptr = ptrf(p, reg)) == NULL)				\
-		break;							\
-	(storage) = mod (*regptr);					\
+		(storage) = 0;						\
+	else								\
+		(storage) = mod (*regptr);				\
 	if (copyout(&(storage), (caddr_t)va, sizeof (storage)) == 0)	\
 		signal = 0;						\
 	else								\
