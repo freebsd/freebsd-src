@@ -3219,11 +3219,12 @@ kanji_end:
 	case 0x09:  /* non-destructive tab */
 	    mark_for_update(scp, scp->cursor_pos);
 	    scp->cursor_pos += (8 - scp->xpos % 8u);
-	    mark_for_update(scp, scp->cursor_pos);
 	    if ((scp->xpos += (8 - scp->xpos % 8u)) >= scp->xsize) {
 	        scp->xpos = 0;
 	        scp->ypos++;
+		scp->cursor_pos = scp->xsize * scp->ypos;
 	    }
+	    mark_for_update(scp, scp->cursor_pos);
 	    break;
 
 	case 0x0a:  /* newline, same pos */
