@@ -31,19 +31,46 @@
 
 use strict;
 
-my @BRANCHES	= qw(CURRENT);
-my @TARGETS	= qw(world generic lint);
-my @OPTIONS	= qw(--update --verbose);
-my %ARCHES	= (
-    'alpha'	=> [ 'alpha' ],
-    'i386'	=> [ 'i386', 'pc98' ],
-    'ia64'	=> [ 'ia64' ],
-    'sparc64'	=> [ 'sparc64' ],
+my %CONFIGS	= (
+    # Global settings
+    'global' => {
+	'TBDIR'		=> '/home/des/tinderbox',
+	'OPTIONS'	=> [ '--update', '--verbose' ],
+	'EMAIL'		=> 'developers,%%ARCH%%',
+    },
+    # 5-CURRENT tinderbox
+    'cueball' => {
+	'COMMENT'	=> "-CURRENT tinderbox",
+	'BRANCHES'	=> [ 'CURRENT' ],
+	'TARGETS'	=> [ 'world', 'generic' ],
+	'ARCHES'	=> {
+	    'alpha'	=> [ 'alpha' ],
+	    'i386'	=> [ 'i386', 'pc98' ],
+	    'ia64'	=> [ 'ia64' ],
+	    'sparc64'	=> [ 'sparc64' ],
+	},
+    },
+    # 4-STABLE tinderbox
+    'triangle' => {
+	'COMMENT'	=> "-STABLE tinderbox",
+	'BRANCHES'	=> [ 'RELENG_4' ],
+	'TARGETS'	=> [ 'world', 'generic' ],
+	'ARCHES'	=> {
+	    'alpha'	=> [ 'alpha' ],
+	    'i386'	=> [ 'i386', 'pc98' ],
+	},
+    },
+    # Test setup
+    '9ball' => {
+	'BRANCHES'	=> [ 'CURRENT' ],
+	'TARGETS'	=> [ 'world', 'generic' ],
+	'ARCHES'	=> {
+	    'i386'	=> [ 'i386' ],
+	},
+	'EMAIL'		=> 'des@ofug.org',
+    },
 );
-my $HOST	= 'cueball.rtp.freebsd.org';
-my $USER	= 'des';
-my $TBDIR	= "/home/$USER/tinderbox";
-my $EMAIL	= 'src-developers@freebsd.org';
+my %CONFIG = ();
 
 sub report($$$) {
     my $recipient = shift;
@@ -56,6 +83,8 @@ sub report($$$) {
 	print(STDERR "Subject: $subject\n\n");
 	print(STDERR "[failed to send report by email]\n\n");
 	print(STDERR $message);
+    } else {
+	print(STDERR "mailed report to $recipient\n");
     }
 }
 
@@ -65,14 +94,14 @@ sub tinderbox($$$$) {
     my $arch = shift;
     my $machine = shift;
 
-    my $logfile = "$TBDIR/tinderbox-$branch-$arch-$machine.log";
+    my $logfile = "$CONFIG{'TBDIR'}/tinderbox-$branch-$arch-$machine.log";
 
-    my @args = ($tinderbox, @OPTIONS);
+    my @args = ($tinderbox, @{$CONFIG{'OPTIONS'}});
     push(@args, "--branch=$branch");
     push(@args, "--arch=$arch");
     push(@args, "--machine=$machine");
     push(@args, "--logfile=$logfile");
-    push(@args, @TARGETS);
+    push(@args, @{$CONFIG{'TARGETS'}});
 
     print(STDERR join(' ', @args), "\n");
     rename($logfile, "$logfile.old");
@@ -87,34 +116,30 @@ sub tinderbox($$$$) {
 	    while (<LOGFILE>) {
 		if (m/^TB \*\*\*/) {
 		    if (@accumulate && $error) {
-			if (@accumulate > 20) {
-			    $messages .= "[...]\n";
-			    while (@accumulate > 20) {
-				shift(@accumulate);
-			    }
-			}
 			$messages .= join('', @accumulate);
 		    }
 		    $messages .= $_;
 		    @accumulate = ();
 		    $error = 0;
-		} elsif (m/\bStop\b/) {
-		    push(@accumulate, $_);
-		    $error = 1;
-		} else {
-		    push(@accumulate, $_);
+		    next;
 		}
+		if (m/\bStop\b/) {
+		    $error = 1;
+		}
+		if (@accumulate > 20) {
+		    shift(@accumulate);
+		    $accumulate[0] = "[...]";
+		}
+		push(@accumulate, $_);
 	    }
 	    if (@accumulate && $error) {
-		if (@accumulate > 20) {
-		    $messages .= "[...]\n";
-		    while (@accumulate > 20) {
-			shift(@accumulate);
-		    }
-		}
 		$messages .= join('', @accumulate);
 	    }
-	    report($EMAIL,
+	    my $recipient = $CONFIG{'EMAIL'};
+	    $recipient =~ s/\%\%branch\%\%/$branch/gi;
+	    $recipient =~ s/\%\%arch\%\%/$arch/gi;
+	    $recipient =~ s/\%\%machine\%\%/$machine/gi;
+	    report($recipient,
 		"$branch tinderbox failure on $arch/$machine",
 		$messages);
 	} else {
@@ -123,15 +148,30 @@ sub tinderbox($$$$) {
     }
 }
 
-MAIN:{
-    $ENV{"PATH"} = "";
+sub usage() {
 
-    my $host = lc(`/bin/hostname`);
-    chomp($host);
-    if ($host ne $HOST || $ENV{'USER'} ne $USER) {
-	die("don't run this script without configuring it first!\n");
+    print(STDERR "usage: tbmaster config\n");
+    print(STDERR "recognized configs:");
+    foreach my $config (sort(keys(%CONFIGS))) {
+	print(STDERR " $config")
+	    unless ($config eq 'global');
+    }
+    exit(1);
+}
+
+MAIN:{
+    usage()
+	unless (@ARGV == 1);
+    my $config = lc($ARGV[0]);
+    usage()
+	unless (exists($CONFIG{$config}) && $config ne 'global');
+    %CONFIG = %{$CONFIGS{$config}};
+    foreach my $key (keys(%{$CONFIGS{'global'}})) {
+	$CONFIG{$key} = $CONFIGS{'global'}->{$key}
+	    unless (exists($CONFIG{$key}));
     }
 
+    $ENV{"PATH"} = "";
     my $tinderbox = $0;
     if ($tinderbox =~ m|(.*/)tbmaster(.*)$|) {
 	$tinderbox = "${1}tinderbox${2}";
@@ -140,9 +180,9 @@ MAIN:{
 	die("where is the tinderbox script?\n");
     }
 
-    foreach my $branch (sort(@BRANCHES)) {
-	foreach my $arch (sort(keys(%ARCHES))) {
-	    foreach my $machine (sort(@{$ARCHES{$arch}})) {
+    foreach my $branch (sort(@{$CONFIG{'BRANCHES'}})) {
+	foreach my $arch (sort(keys(%{$CONFIG{'ARCHES'}}))) {
+	    foreach my $machine (sort(@{$CONFIG{'ARCHES'}->{$arch}})) {
 		tinderbox($tinderbox, $branch, $arch, $machine);
 	    }
 	}
