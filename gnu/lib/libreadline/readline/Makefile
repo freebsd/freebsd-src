@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.30 1998/04/28 07:16:24 ache Exp $
+#       $Id: Makefile,v 1.1 1999/05/28 04:26:15 ache Exp $
 
 SUBDIR= doc
 
@@ -15,5 +15,4 @@ SRCS=     readline.c vi_mode.c funmap.c keymaps.c parens.c search.c \
 DPADD+= $(LIBTERMCAP)
 LDADD+= -ltermcap
 
-.include "../Makefile.inc"
 .include <bsd.lib.mk>
