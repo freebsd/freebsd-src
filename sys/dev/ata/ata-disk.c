@@ -29,6 +29,8 @@
  */
 
 #include "apm.h"
+#include "opt_global.h"
+#include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -87,8 +89,8 @@ static int8_t ad_version(u_int16_t);
 static void ad_drvinit(void);
 
 /* internal vars */
-static int32_t adnlun = 0;			/* number of config'd drives */
 static struct intr_config_hook *ad_attach_hook;
+MALLOC_DEFINE(M_AD, "AD driver", "ATA disk driver");
 
 /* defines */
 #define	AD_MAX_RETRIES	5
@@ -96,33 +98,35 @@ static struct intr_config_hook *ad_attach_hook;
 static __inline int
 apiomode(struct ata_params *ap)
 {
-	if ((ap->atavalid & 2) == 2) {
-		if ((ap->apiomodes & 2) == 2) return 4;
-		if ((ap->apiomodes & 1) == 1) return 3;
-	}	
-	return -1; 
+    if (ap->atavalid & 2) {
+	if (ap->apiomodes & 2) return 4;
+	if (ap->apiomodes & 1) return 3;
+    }	
+    return -1; 
 } 
 
 static __inline int
 wdmamode(struct ata_params *ap)
 {
-	if ((ap->atavalid & 2) == 2) {
-		if ((ap->wdmamodes & 4) == 4) return 2;
-		if ((ap->wdmamodes & 2) == 2) return 1;
-		if ((ap->wdmamodes & 1) == 1) return 0;
-	}
-	return -1;
+    if (ap->atavalid & 2) {
+	if (ap->wdmamodes & 4) return 2;
+	if (ap->wdmamodes & 2) return 1;
+	if (ap->wdmamodes & 1) return 0;
+    }
+    return -1;
 }
 
 static __inline int
 udmamode(struct ata_params *ap)
 {
-	if ((ap->atavalid & 4) == 4) {
-		if ((ap->udmamodes & 4) == 4) return 2;
-		if ((ap->udmamodes & 2) == 2) return 1;
-		if ((ap->udmamodes & 1) == 1) return 0;
-	}
-	return -1;
+    if (ap->atavalid & 4) {
+	if (ap->udmamodes & 0x10 && ap->cblid) return 4;
+	if (ap->udmamodes & 0x08 && ap->cblid) return 3;
+	if (ap->udmamodes & 0x04) return 2;
+	if (ap->udmamodes & 0x02) return 1;
+	if (ap->udmamodes & 0x01) return 0;
+    }
+    return -1;
 }
 
 static void
@@ -133,6 +137,7 @@ ad_attach(void *notused)
     int8_t model_buf[40+1];
     int8_t revision_buf[8+1];
     dev_t dev1;
+    static int32_t adnlun = 0;
 
     /* now, run through atadevices and look for ATA disks */
     for (ctlr=0; ctlr<MAXATA; ctlr++) {
@@ -144,16 +149,16 @@ ad_attach(void *notused)
 		adnlun = dev + ctlr * 2;   
 #endif
 		if (!(adp = malloc(sizeof(struct ad_softc), 
-				   M_DEVBUF, M_NOWAIT))) {
+				   M_AD, M_NOWAIT))) {
 		    printf("ad%d: failed to allocate driver storage\n", adnlun);
 		    continue;
 		}
 		bzero(adp, sizeof(struct ad_softc));
 		adp->controller = atadevices[ctlr];
 		adp->unit = (dev == 0) ? ATA_MASTER : ATA_SLAVE;
-		adp->lun = adnlun;
+		adp->lun = adnlun++;
 		if (ad_getparam(adp)) {
-		    free(adp, M_DEVBUF);
+		    free(adp, M_AD);
 		    continue;
 		}
 		adp->cylinders = adp->ata_parm->cylinders;
@@ -174,7 +179,7 @@ ad_attach(void *notused)
 		secsperint = min(adp->ata_parm->nsecperint, 16);
 		if (!ata_command(adp->controller, adp->unit, ATA_C_SET_MULTI,
 				 0, 0, 0, secsperint, 0, ATA_WAIT_INTR) &&
-		    ata_wait(adp->controller, adp->unit, ATA_S_DRDY) >= 0)
+		    ata_wait(adp->controller, adp->unit, ATA_S_READY) >= 0)
 		    adp->transfersize *= secsperint;
 
 		/* use DMA if drive & controller supports it */
@@ -224,12 +229,14 @@ ad_attach(void *notused)
 		dev1 = disk_create(adp->lun, &adp->disk, 0, &ad_cdevsw, 
 				   &addisk_cdevsw);
 		dev1->si_drv1 = adp;
+		dev1->si_iosize_max = 256 * DEV_BSIZE;
+
 		dev1 = disk_create(adp->lun, &adp->disk, 0, &fakewd_cdevsw,
 				   &fakewddisk_cdevsw);
 		dev1->si_drv1 = adp;
+		dev1->si_iosize_max = 256 * DEV_BSIZE;
 
 		bufq_init(&adp->queue);
-		adnlun++;
 	    }
 	}
     }
@@ -248,11 +255,11 @@ ad_getparam(struct ad_softc *adp)
     ata_command(adp->controller, adp->unit, ATA_C_ATA_IDENTIFY,
 		0, 0, 0, 0, 0, ATA_WAIT_INTR);
     if (ata_wait(adp->controller, adp->unit,
-		 ATA_S_DRDY | ATA_S_DSC | ATA_S_DRQ))
+		 ATA_S_READY | ATA_S_DSC | ATA_S_DRQ))
 	return -1;
     insw(adp->controller->ioaddr + ATA_DATA, buffer, 
 	 sizeof(buffer)/sizeof(int16_t));
-    ata_parm = malloc(sizeof(struct ata_params), M_DEVBUF, M_NOWAIT);
+    ata_parm = malloc(sizeof(struct ata_params), M_AD, M_NOWAIT);
     if (!ata_parm) 
 	return -1; 
     bcopy(buffer, ata_parm, sizeof(struct ata_params));
@@ -270,11 +277,6 @@ adopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     struct ad_softc *adp = dev->si_drv1;
     struct disklabel *dl;
 
-#ifdef AD_DEBUG
-    printf("adopen: lun=%d adnlun=%d\n", adp->lun, adnlun);
-#endif
-
-    dev->si_iosize_max = 256 * DEV_BSIZE;
     dl = &adp->disk.d_label;
     bzero(dl, sizeof *dl);
     dl->d_secsize = DEV_BSIZE;
@@ -284,7 +286,6 @@ adopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     dl->d_secpercyl = adp->sectors * adp->heads;
     dl->d_secperunit = adp->total_secs;
     ad_sleep(adp, "adop2");
-
     return 0;
 }
 
@@ -356,7 +357,7 @@ addump(dev_t dev)
 	addr += PAGE_SIZE;
     }
 
-    if (ata_wait(adp->controller, adp->unit, ATA_S_DRDY | ATA_S_DSC) < 0)
+    if (ata_wait(adp->controller, adp->unit, ATA_S_READY | ATA_S_DSC) < 0)
 	printf("ad_dump: timeout waiting for final ready\n");
 
     return 0;
@@ -374,7 +375,7 @@ ad_start(struct ad_softc *adp)
     if (!bp)
 	return;
 
-    if (!(request = malloc(sizeof(struct ad_request), M_DEVBUF, M_NOWAIT))) {
+    if (!(request = malloc(sizeof(struct ad_request), M_AD, M_NOWAIT))) {
 	printf("ad_start: out of memory\n");
 	return;
     }
@@ -466,7 +467,7 @@ ad_transfer(struct ad_request *request)
    
     /* if this is a DMA transaction start it, return and wait for interrupt */
     if (request->flags & AR_F_DMA_USED) {
-	ata_dmastart(adp->controller, adp->unit);
+	ata_dmastart(adp->controller);
 #ifdef AD_DEBUG
 	printf("ad_transfer: return waiting for DMA interrupt\n");
 #endif
@@ -486,12 +487,12 @@ ad_transfer(struct ad_request *request)
 
     /* ready to write PIO data ? */
     if (ata_wait(adp->controller, adp->unit, 
-		 ATA_S_DRDY | ATA_S_DSC | ATA_S_DRQ) < 0) {
+		 ATA_S_READY | ATA_S_DSC | ATA_S_DRQ) < 0) {
 	printf("ad_transfer: timeout waiting for DRQ");
     }				    
     
     /* output the data */
-#if 0
+#ifdef ATA_16BIT_ONLY
     outsw(adp->controller->ioaddr + ATA_DATA,
 	  (void *)((uintptr_t)request->data + request->donecount),
 	  request->currentsize / sizeof(int16_t));
@@ -514,7 +515,7 @@ ad_interrupt(struct ad_request *request)
 
     /* finish DMA transfer */
     if (request->flags & AR_F_DMA_USED)
-	dma_stat = ata_dmadone(adp->controller, adp->unit);
+	dma_stat = ata_dmadone(adp->controller);
 
     /* get drive status */
     if (ata_wait(adp->controller, adp->unit, 0) < 0)
@@ -537,18 +538,18 @@ oops:
 	((request->flags & (AR_F_READ | AR_F_ERROR)) == AR_F_READ)) {
 
 	/* ready to receive data? */
-	if ((adp->controller->status & (ATA_S_DRDY | ATA_S_DSC | ATA_S_DRQ))
-	    != (ATA_S_DRDY | ATA_S_DSC | ATA_S_DRQ))
+	if ((adp->controller->status & (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ))
+	    != (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ))
 	    printf("ad_interrupt: read interrupt arrived early");
 
 	if (ata_wait(adp->controller, adp->unit,
-		     ATA_S_DRDY | ATA_S_DSC | ATA_S_DRQ) != 0){
+		     ATA_S_READY | ATA_S_DSC | ATA_S_DRQ) != 0){
 	    printf("ad_interrupt: read error detected late");
 	    goto oops;	 
 	}
 
 	/* data ready, read in */
-#if 0
+#ifdef ATA_16BIT_ONLY 
 	insw(adp->controller->ioaddr + ATA_DATA,
 	     (void *)((uintptr_t)request->data + request->donecount), 
 	     request->currentsize / sizeof(int16_t));
@@ -592,12 +593,23 @@ oops:
     /* disarm timeout for this transfer */
     untimeout((timeout_t *)ad_timeout, request, request->timeout_handle);
 
-    free(request, M_DEVBUF);
+    free(request, M_AD);
     ad_start(adp);
 #ifdef AD_DEBUG
     printf("ad_interrupt: completed\n");
 #endif
     return ATA_OP_FINISHED;
+}
+
+void
+ad_reinit(struct ad_softc *adp)
+{
+    /* reinit disk parameters */
+    ata_command(adp->controller, adp->unit, ATA_C_SET_MULTI, 0, 0, 0,
+		adp->transfersize / DEV_BSIZE, 0, ATA_IMMEDIATE);
+    ata_wait(adp->controller, adp->unit, ATA_S_READY);
+    ata_dmainit(adp->controller, adp->unit, apiomode(adp->ata_parm),
+		wdmamode(adp->ata_parm), udmamode(adp->ata_parm));
 }
 
 static void
@@ -610,7 +622,7 @@ ad_timeout(struct ad_request *request)
 	   (adp->unit == ATA_MASTER) ? "master" : "slave");
 
     if (request->flags & AR_F_DMA_USED)
-	ata_dmadone(adp->controller, adp->unit);
+	ata_dmadone(adp->controller);
 
     if (request->retries < AD_MAX_RETRIES) {
 	/* reinject this request */
@@ -623,20 +635,9 @@ ad_timeout(struct ad_request *request)
 	request->bp->b_flags |= B_ERROR;
 	devstat_end_transaction_buf(&adp->stats, request->bp);
 	biodone(request->bp);
-	free(request, M_DEVBUF);
+	free(request, M_AD);
     }
     ata_reinit(adp->controller);
-}
-
-void
-ad_reinit(struct ad_softc *adp)
-{
-    /* reinit disk parameters */
-    ata_command(adp->controller, adp->unit, ATA_C_SET_MULTI, 0, 0, 0,
-		adp->transfersize / DEV_BSIZE, 0, ATA_IMMEDIATE);
-    ata_wait(adp->controller, adp->unit, ATA_S_DRDY);
-    ata_dmainit(adp->controller, adp->unit, apiomode(adp->ata_parm),
-		wdmamode(adp->ata_parm), udmamode(adp->ata_parm));
 }
 
 static void

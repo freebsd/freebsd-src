@@ -113,12 +113,21 @@ struct ata_params {
     int16_t	erasetime;
     int16_t	enherasetime;
     int16_t	apmlevel;
-    int16_t	reserved92[34];
-    int16_t	rmvcap;
-    int16_t	securelevel;
+    int16_t	masterpasswdrev;
+    u_int16_t	masterhwres:8;
+    u_int16_t	slavehwres:5;
+    u_int16_t	cblid:1;
+    u_int16_t	reserved93_1415:2;
+    int16_t	reserved94[32];
+    int16_t	rmvstat;
+    int16_t	securstat;
+    int16_t	reserved129[30];
+    int16_t	cfapwrmode;
+    int16_t	reserved161[84];
+    int16_t	integrity;
 };
 
-/* Structure describing an ATA disk */
+/* structure describing an ATA disk */
 struct ad_softc {  
     struct ata_softc		*controller;	/* ptr to parent ctrl */
     struct ata_params		*ata_parm;	/* ata device params */

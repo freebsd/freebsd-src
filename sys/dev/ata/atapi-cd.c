@@ -72,9 +72,6 @@ static struct cdevsw acd_cdevsw = {
 	/* bmaj */	31
 };
 
-/* misc defines */
-#define NUNIT	16			/* max # of devices */
-
 /* prototypes */
 int32_t acdattach(struct atapi_softc *);
 static struct acd_softc *acd_init_lun(struct atapi_softc *, int32_t, struct devstat *);
@@ -82,7 +79,7 @@ static void acd_describe(struct acd_softc *);
 static void lba2msf(int32_t, u_int8_t *, u_int8_t *, u_int8_t *);
 static int32_t msf2lba(u_int8_t, u_int8_t, u_int8_t);
 static void acd_start(struct acd_softc *);
-static void acd_done(struct atapi_request *);
+static int32_t acd_done(struct atapi_request *);
 static int32_t acd_read_toc(struct acd_softc *);
 static int32_t acd_setchan(struct acd_softc *, u_int8_t, u_int8_t, u_int8_t, u_int8_t);
 static void acd_select_slot(struct acd_softc *);
@@ -101,7 +98,7 @@ static int32_t acd_mode_select(struct acd_softc *, void *, int32_t);
 static int32_t acd_set_speed(struct acd_softc *cdp, int32_t);
 
 /* internal vars */
-static int32_t acdnlun = 0;		/* number of configured drives */
+MALLOC_DEFINE(M_ACD, "ACD driver", "ATAPI CD driver buffers");
 
 int
 acdattach(struct atapi_softc *atp)
@@ -109,16 +106,13 @@ acdattach(struct atapi_softc *atp)
     struct acd_softc *cdp;
     struct changer *chp;
     int32_t error, count;
-    static int once;
+    static int32_t acd_cdev_done = 0, acdnlun = 0;
 
-    if (!once) {
+    if (!acd_cdev_done) {
 	cdevsw_add(&acd_cdevsw);
-	once++;
+	acd_cdev_done++;
     }
-    if (acdnlun >= NUNIT) {
-	printf("acd: too many units\n");
-	return -1;
-    }
+
     if ((cdp = acd_init_lun(atp, acdnlun, NULL)) == NULL) {
 	printf("acd: out of memory\n");
 	return -1;
@@ -131,7 +125,7 @@ acdattach(struct atapi_softc *atp)
 	    break;
     }
     if (error) {
-	free(cdp, M_TEMP);
+	free(cdp, M_ACD);
 	return -1;
     }
     cdp->cap.max_read_speed = ntohs(cdp->cap.max_read_speed);
@@ -149,14 +143,14 @@ acdattach(struct atapi_softc *atp)
 			   sizeof(struct changer)>>8, sizeof(struct changer),
 			   0, 0, 0, 0, 0, 0 };
 
-	chp = malloc(sizeof(struct changer), M_TEMP, M_NOWAIT);
+	chp = malloc(sizeof(struct changer), M_ACD, M_NOWAIT);
 	if (chp == NULL) {
 	    printf("acd: out of memory\n");
 	    return 0;
 	}
 	bzero(chp, sizeof(struct changer));
-	error = atapi_immed_cmd(cdp->atp, ccb, chp, sizeof(struct changer),
-				A_READ, 60);
+	error = atapi_queue_cmd(cdp->atp, ccb, chp, sizeof(struct changer),
+				A_READ, 60, NULL, NULL, NULL);
 #ifdef ACD_DEBUG
 	printf("error=%02x curr=%02x slots=%d len=%d\n",
 	       error, chp->current_slot, chp->slots, htons(chp->table_length));
@@ -168,7 +162,7 @@ acdattach(struct atapi_softc *atp)
 	    int8_t string[16];
 
 	    chp->table_length = htons(chp->table_length);
-	    for (count = 0; count < chp->slots && acdnlun < NUNIT; count++) {
+	    for (count = 0; count < chp->slots; count++) {
 		if (count > 0) {
 		    tmpcdp = acd_init_lun(atp, acdnlun, cdp->stats);
 		    if (!tmpcdp) {
@@ -181,10 +175,6 @@ acdattach(struct atapi_softc *atp)
 		printf("acd%d: changer slot %d %s\n", acdnlun, count,
 		       (chp->slot[count].present ? "CD present" : "empty"));
 		acdnlun++;
-	    }
-	    if (acdnlun >= NUNIT) {
-		printf("acd: too many units\n");
-		return 0;
 	    }
 	    sprintf(string, "acd%d-", cdp->lun);
 	    devstat_add_entry(cdp->stats, string, tmpcdp->lun, DEV_BSIZE,
@@ -209,7 +199,7 @@ acd_init_lun(struct atapi_softc *atp, int32_t lun, struct devstat *stats)
     struct acd_softc *acd;
     dev_t dev;
 
-    if (!(acd = malloc(sizeof(struct acd_softc), M_TEMP, M_NOWAIT)))
+    if (!(acd = malloc(sizeof(struct acd_softc), M_ACD, M_NOWAIT)))
 	return NULL;
     bzero(acd, sizeof(struct acd_softc));
     bufq_init(&acd->buf_queue);
@@ -223,7 +213,7 @@ acd_init_lun(struct atapi_softc *atp, int32_t lun, struct devstat *stats)
     acd->atp->flags |= ATAPI_F_MEDIA_CHANGED;
     if (stats == NULL) {
 	if (!(acd->stats = malloc(sizeof(struct devstat), 
-					 M_TEMP, M_NOWAIT)))
+					 M_ACD, M_NOWAIT)))
 	    return NULL;
 	bzero(acd->stats, sizeof(struct devstat));
     }
@@ -232,15 +222,19 @@ acd_init_lun(struct atapi_softc *atp, int32_t lun, struct devstat *stats)
     dev = make_dev(&acd_cdevsw, dkmakeminor(lun, 0, 0),
 		   UID_ROOT, GID_OPERATOR, 0644, "racd%da", lun);
     dev->si_drv1 = acd;
+    dev->si_iosize_max = 252 * DEV_BSIZE;
     dev = make_dev(&acd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
 		   UID_ROOT, GID_OPERATOR, 0644, "racd%dc", lun);
     dev->si_drv1 = acd;
+    dev->si_iosize_max = 252 * DEV_BSIZE;
     dev = make_dev(&acd_cdevsw, dkmakeminor(lun, 0, 0),
 		   UID_ROOT, GID_OPERATOR, 0644, "acd%da", lun);
     dev->si_drv1 = acd;
+    dev->si_iosize_max = 252 * DEV_BSIZE;
     dev = make_dev(&acd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
 		   UID_ROOT, GID_OPERATOR, 0644, "acd%dc", lun);
     dev->si_drv1 = acd;
+    dev->si_iosize_max = 252 * DEV_BSIZE;
     return acd;
 }
 
@@ -434,7 +428,6 @@ acdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     }
 
     dev->si_bsize_phys = 2048; /* XXX SOS */
-    dev->si_iosize_max = 254 * DEV_BSIZE;
     if (!(cdp->flags & F_BOPEN) && !cdp->refcnt) {
 	acd_prevent_allow(cdp, 1);
 	cdp->flags |= F_LOCKED;
@@ -525,7 +518,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	error = suser(p);
 	if (error)
 	    break;
-	error = atapi_error(cdp->atp, atapi_test_ready(cdp->atp));
+	error = atapi_test_ready(cdp->atp);
 	break;
 
     case CDIOCEJECT:
@@ -665,9 +658,9 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 		break;
 	    }
 
-	    if ((error = atapi_immed_cmd(cdp->atp, ccb, &cdp->subchan, 
-					 sizeof(cdp->subchan), A_READ, 10))) {
-		error = atapi_error(cdp->atp, error);
+	    if ((error = atapi_queue_cmd(cdp->atp, ccb, &cdp->subchan, 
+					 sizeof(cdp->subchan), A_READ, 10,
+					 NULL, NULL, NULL))) {
 		break;
 	    }
 	    abslba = cdp->subchan.abslba;
@@ -702,8 +695,8 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 			       args->end_m, args->end_s, args->end_f,
 			       0, 0, 0, 0, 0, 0, 0 };
 
-	    error = atapi_error(cdp->atp,
-				atapi_immed_cmd(cdp->atp, ccb, NULL, 0, 0, 10));
+	    error = atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 10,
+				    NULL, NULL, NULL);
 	    break;
 	}
 
@@ -716,8 +709,8 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 				args->len>>8, args->len,
 				0, 0, 0, 0, 0, 0 };
 
-	    error = atapi_error(cdp->atp,
-				atapi_immed_cmd(cdp->atp, ccb, NULL, 0, 0, 10));
+	    error = atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 10,
+				    NULL, NULL, NULL);
 	    break;
 	}
 
@@ -757,8 +750,8 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	    ccb[8] = len>>8;
 	    ccb[9] = len;
 
-	    error = atapi_error(cdp->atp,
-				atapi_immed_cmd(cdp->atp, ccb, NULL, 0, 0, 10));
+	    error = atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 10,
+				    NULL, NULL, NULL);
 	    break;
 	}
 
@@ -793,8 +786,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 #ifndef CD_BUFFER_BLOCKS
 #define CD_BUFFER_BLOCKS 13
 #endif
-	    if (!(buffer = malloc(CD_BUFFER_BLOCKS * 2352,
-				  M_TEMP,M_NOWAIT))) {
+	    if (!(buffer = malloc(CD_BUFFER_BLOCKS * 2352, M_ACD, M_NOWAIT))){
 		error = ENOMEM;
 		break;
 	    }
@@ -825,7 +817,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 		frames -= blocks;
 		lba += blocks;
 	    }
-	    free(buffer, M_TEMP);
+	    free(buffer, M_ACD);
 	    if (args->address_format == CD_LBA_FORMAT)
 		args->address.lba = lba;
 	    else if (args->address_format == CD_MSF_FORMAT)
@@ -1095,28 +1087,15 @@ acd_start(struct acd_softc *cdp)
 		    (bp->b_flags&B_READ)?A_READ : 0, 30, acd_done, cdp, bp);
 }
 
-static void 
+static int32_t 
 acd_done(struct atapi_request *request)
 {
     struct buf *bp = request->bp;
     struct acd_softc *cdp = request->driver;
     int32_t error = request->result;
     
-    if ((error & ATAPI_SK_MASK) == ATAPI_SK_UNIT_ATTENTION) {
-	struct toc buf = cdp->toc;
-
-	acd_read_toc(cdp);
-	if (bcmp(&buf, &cdp->toc, sizeof(struct toc)))
-	    cdp->atp->flags |= ATAPI_F_MEDIA_CHANGED;  
-	else {
-	    error = atapi_immed_cmd(cdp->atp, request->ccb, request->data,
-				    request->bytecount, request->flags, 30);
-	    if (cdp->flags & F_LOCKED)
-		acd_prevent_allow(cdp, 1);
-	}
-    }
     if (error) {
-	bp->b_error = atapi_error(request->device, error);
+	bp->b_error = error;
 	bp->b_flags |= B_ERROR;
     }	
     else {
@@ -1127,12 +1106,13 @@ acd_done(struct atapi_request *request)
     devstat_end_transaction_buf(cdp->stats, bp);
     biodone(bp);
     acd_start(cdp);
+    return 0;
 }
 
 static int32_t 
 acd_read_toc(struct acd_softc *cdp)
 {
-    int32_t error, ntracks, len;
+    int32_t ntracks, len;
     int8_t ccb[16];
 
     bzero(&cdp->toc, sizeof(cdp->toc));
@@ -1141,15 +1121,9 @@ acd_read_toc(struct acd_softc *cdp)
 
     acd_select_slot(cdp);
 
-    error = atapi_test_ready(cdp->atp);
-    if ((error & ATAPI_SK_MASK) == ATAPI_SK_UNIT_ATTENTION) {
+    atapi_test_ready(cdp->atp);
+    if (cdp->atp->flags & ATAPI_F_MEDIA_CHANGED)
 	cdp->flags &= ~(F_WRITTEN | F_TRACK_PREP | F_TRACK_PREPED);
-	cdp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
-	error = atapi_test_ready(cdp->atp);
-    }
-
-    if (error)
-	return atapi_error(cdp->atp, error);
 
     cdp->atp->flags &= ~ATAPI_F_MEDIA_CHANGED;
 
@@ -1157,7 +1131,8 @@ acd_read_toc(struct acd_softc *cdp)
     ccb[0] = ATAPI_READ_TOC;
     ccb[7] = len>>8;
     ccb[8] = len;
-    if (atapi_immed_cmd(cdp->atp, ccb, &cdp->toc, len, A_READ, 30)) {
+    if (atapi_queue_cmd(cdp->atp, ccb, &cdp->toc, len, A_READ, 30,
+			NULL, NULL, NULL)) {
 	bzero(&cdp->toc, sizeof(cdp->toc));
 	return 0;
     }
@@ -1172,7 +1147,8 @@ acd_read_toc(struct acd_softc *cdp)
     ccb[0] = ATAPI_READ_TOC;
     ccb[7] = len>>8;
     ccb[8] = len;
-    if (atapi_immed_cmd(cdp->atp, ccb, &cdp->toc, len, A_READ, 30)) {
+    if (atapi_queue_cmd(cdp->atp, ccb, &cdp->toc, len, A_READ, 30,
+			NULL, NULL, NULL)) {
 	bzero(&cdp->toc, sizeof(cdp->toc));
 	return 0;
     }
@@ -1181,8 +1157,8 @@ acd_read_toc(struct acd_softc *cdp)
 
     bzero(ccb, sizeof(ccb));
     ccb[0] = ATAPI_READ_CAPACITY;
-    if (atapi_immed_cmd(cdp->atp, ccb, &cdp->info, sizeof(cdp->info), 
-			A_READ, 30))
+    if (atapi_queue_cmd(cdp->atp, ccb, &cdp->info, sizeof(cdp->info), 
+			A_READ, 30, NULL, NULL, NULL))
 	bzero(&cdp->info, sizeof(cdp->info));
 
     cdp->info.volsize = ntohl(cdp->info.volsize);
@@ -1240,7 +1216,7 @@ acd_select_slot(struct acd_softc *cdp)
     ccb[1] = 0x01;
     ccb[4] = 2;
     ccb[8] = cdp->changer_info->current_slot;
-    atapi_immed_cmd(cdp->atp, ccb, NULL, 0, 0, 10);
+    atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 10, NULL, NULL, NULL);
     atapi_wait_ready(cdp->atp, 30);
 
     /* load the wanted slot */
@@ -1248,7 +1224,7 @@ acd_select_slot(struct acd_softc *cdp)
     ccb[1] = 0x01;
     ccb[4] = 3;
     ccb[8] = cdp->slot;
-    atapi_immed_cmd(cdp->atp, ccb, NULL, 0, 0, 10);
+    atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 10, NULL, NULL, NULL);
     atapi_wait_ready(cdp->atp, 30);
 
     cdp->changer_info->current_slot = cdp->slot;
@@ -1272,10 +1248,10 @@ acd_close_disk(struct acd_softc *cdp)
 		       0, 0, 0, 0, 0, 0, 0, 0 };
     int32_t error;
 
-    error = atapi_immed_cmd(cdp->atp, ccb, NULL, 0, 0, 10);
+    error = atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 10, NULL, NULL, NULL);
     if (error)
-	return atapi_error(cdp->atp, error);
-    return atapi_error(cdp->atp, atapi_wait_ready(cdp->atp, 10*60));
+	return error;
+    return atapi_wait_ready(cdp->atp, 10*60);
 }
 
 static int32_t
@@ -1366,19 +1342,19 @@ acd_close_track(struct acd_softc *cdp)
 			0, 0, 0, 0, 0, 0, 0, 0 };
     int32_t error;
 
-    error = atapi_immed_cmd(cdp->atp, ccb1, NULL, 0, 0, 10);
+    error = atapi_queue_cmd(cdp->atp, ccb1, NULL, 0, 0, 10, NULL, NULL, NULL);
     if (error)
-	return atapi_error(cdp->atp, error);
+	return error;
 
-    error = atapi_error(cdp->atp, atapi_wait_ready(cdp->atp, 5*60));
+    error = atapi_wait_ready(cdp->atp, 5*60);
     if (error)
-	return atapi_error(cdp->atp, error);
+	return error;
 
-    error = atapi_immed_cmd(cdp->atp, ccb2, NULL, 0, 0, 10);
+    error = atapi_queue_cmd(cdp->atp, ccb2, NULL, 0, 0, 10, NULL, NULL, NULL);
     if (error)
-	return atapi_error(cdp->atp, error);
+	return error;
 
-    return atapi_error(cdp->atp, atapi_wait_ready(cdp->atp, 5*60));
+    return atapi_wait_ready(cdp->atp, 5*60);
 }
 
 static int32_t
@@ -1392,9 +1368,9 @@ acd_read_track_info(struct acd_softc *cdp,
 		     0, 0, 0, 0, 0, 0, 0 };
     int32_t error;
 
-    if ((error = atapi_immed_cmd(cdp->atp, ccb, info, sizeof(*info), 
-				 A_READ, 30)))
-	return atapi_error(cdp->atp, error);
+    if ((error = atapi_queue_cmd(cdp->atp, ccb, info, sizeof(*info), 
+				 A_READ, 30, NULL, NULL, NULL)))
+	return error;
     info->track_start_addr = ntohl(info->track_start_addr);
     info->next_writeable_addr = ntohl(info->next_writeable_addr);
     info->free_blocks = ntohl(info->free_blocks);
@@ -1437,10 +1413,10 @@ acd_blank(struct acd_softc *cdp)
 		       0, 0, 0, 0, 0, 0, 0, 0 };
     int32_t error;
 
-    error = atapi_immed_cmd(cdp->atp, ccb, NULL, 0, 0, 60*60);
+    error = atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 60*60, NULL, NULL, NULL);
     cdp->flags &= ~(F_WRITTEN|F_TRACK_PREP|F_TRACK_PREPED);
     cdp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
-    return atapi_error(cdp->atp, error);
+    return error;
 }
 
 static int32_t
@@ -1449,7 +1425,7 @@ acd_prevent_allow(struct acd_softc *cdp, int32_t lock)
     int8_t ccb[16] = { ATAPI_PREVENT_ALLOW, 0, 0, 0, lock,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    return atapi_error(cdp->atp, atapi_immed_cmd(cdp->atp, ccb, NULL, 0, 0,30));
+    return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL, NULL);
 }
 
 static int32_t
@@ -1458,7 +1434,7 @@ acd_start_stop(struct acd_softc *cdp, int32_t start)
     int8_t ccb[16] = { ATAPI_START_STOP, 0, 0, 0, start,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    return atapi_error(cdp->atp, atapi_immed_cmd(cdp->atp, ccb, NULL, 0, 0,30));
+    return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL, NULL);
 }
 
 static int32_t
@@ -1467,7 +1443,7 @@ acd_pause_resume(struct acd_softc *cdp, int32_t pause)
     int8_t ccb[16] = { ATAPI_PAUSE, 0, 0, 0, 0, 0, 0, 0, pause,
 		       0, 0, 0, 0, 0, 0, 0 };
 
-    return atapi_error(cdp->atp, atapi_immed_cmd(cdp->atp, ccb, NULL, 0, 0,30));
+    return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL, NULL);
 }
 
 static int32_t
@@ -1478,11 +1454,12 @@ acd_mode_sense(struct acd_softc *cdp, u_int8_t page,
 		       pagesize>>8, pagesize, 0, 0, 0, 0, 0, 0, 0 };
     int32_t error;
 
-    error = atapi_immed_cmd(cdp->atp, ccb, pagebuf, pagesize, A_READ, 10);
+    error = atapi_queue_cmd(cdp->atp, ccb, pagebuf, pagesize, A_READ, 10, 
+			    NULL, NULL, NULL);
 #ifdef ACD_DEBUG
     atapi_dump("acd: mode sense ", pagebuf, pagesize);
 #endif
-    return atapi_error(cdp->atp, error);
+    return error;
 }
 
 static int32_t
@@ -1495,8 +1472,8 @@ acd_mode_select(struct acd_softc *cdp, void *pagebuf, int32_t pagesize)
     printf("acd: modeselect pagesize=%d\n", pagesize);
     atapi_dump("acd: mode select ", pagebuf, pagesize);
 #endif
-    return atapi_error(cdp->atp, atapi_immed_cmd(cdp->atp, ccb,
-						 pagebuf, pagesize, 0, 30));
+    return atapi_queue_cmd(cdp->atp, ccb, pagebuf, pagesize, 0, 30, 
+			   NULL, NULL, NULL);
 }
 
 static int32_t
@@ -1505,6 +1482,5 @@ acd_set_speed(struct acd_softc *cdp, int32_t speed)
     int8_t ccb[16] = { ATAPI_SET_SPEED, 0, 0xff, 0xff, speed>>8, speed, 
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    return atapi_error(cdp->atp, atapi_immed_cmd(cdp->atp, ccb, NULL, 0, 0,30));
+    return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL, NULL);
 }
-

@@ -46,7 +46,7 @@ struct afd_header {
 #define MFD_FMT_ERROR		0x72
 
     u_int8_t	reserved0	:7;
-    u_int8_t	wp		:1;	/* write protect */
+    u_int8_t	wp		:1;		/* write protect */
     u_int8_t	unused[4];
 };
 
@@ -56,17 +56,17 @@ struct afd_cappage {
 #define ATAPI_REWRITEABLE_CAP_PAGE	  0x05
 
     u_int8_t	reserved1_6	:1;
-    u_int8_t	ps		:1;	/* page save supported */
-    u_int8_t	page_length;		/* page length */
-    u_int16_t	transfer_rate;		/* in kilobits per second */
-    u_int8_t	heads;			/* number of heads */
-    u_int8_t	sectors;		/* number of sectors per track */
-    u_int16_t	sector_size;		/* number of bytes per sector */
-    u_int16_t	cylinders;		/* number of cylinders */
+    u_int8_t	ps		:1;		/* page save supported */
+    u_int8_t	page_length;			/* page length */
+    u_int16_t	transfer_rate;			/* in kilobits per second */
+    u_int8_t	heads;				/* number of heads */
+    u_int8_t	sectors;			/* number of sectors pr track */
+    u_int16_t	sector_size;			/* number of bytes per sector */
+    u_int16_t	cylinders;			/* number of cylinders */
     u_int8_t	reserved10[10];
-    u_int8_t	motor_delay;		/* motor off delay */
+    u_int8_t	motor_delay;			/* motor off delay */
     u_int8_t	reserved21[7];
-    u_int16_t	rpm;			/* rotations per minute */
+    u_int16_t	rpm;				/* rotations per minute */
     u_int8_t	reserved30[2];
 };
 

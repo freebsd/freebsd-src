@@ -31,6 +31,8 @@
 /* ATA register defines */
 #define ATA_DATA			0x00	/* data register */
 #define ATA_ERROR			0x01	/* (R) error register */
+#define		ATA_E_ABORT		0x04	/* command aborted */
+
 #define ATA_FEATURE			0x01	/* (W) feature register */
 #define		ATA_F_DMA		0x01	/* enable DMA */
 #define		ATA_F_OVL		0x02	/* enable overlap */
@@ -70,11 +72,11 @@
 #define		ATA_S_CORR		0x04	/* data corrected */
 #define		ATA_S_DRQ		0x08	/* data request */
 #define		ATA_S_DSC		0x10	/* drive seek completed */
-#define		ATA_S_SERV		0x10	/* drive needs service */
+#define		ATA_S_SERVICE		0x10	/* drive needs service */
 #define		ATA_S_DWF		0x20	/* drive write fault */
-#define		ATA_S_DMRD		0x20	/* DMA ready */
-#define		ATA_S_DRDY		0x40	/* drive ready */
-#define		ATA_S_BSY		0x80	/* busy */
+#define		ATA_S_DMA		0x20	/* DMA ready */
+#define		ATA_S_READY		0x40	/* drive ready */
+#define		ATA_S_BUSY		0x80	/* busy */
 
 #define ATA_ALTPORT			0x206	/* alternate Status register */
 #define		ATA_A_IDS		0x02	/* disable interrupts */
@@ -104,6 +106,7 @@
 #define ATA_BMSTAT_MASK			0x07
 #define ATA_BMSTAT_DMA_MASTER		0x20
 #define ATA_BMSTAT_DMA_SLAVE		0x40
+#define ATA_BMSTAT_DMA_SIMPLEX		0x80
 
 #define ATA_BMDTP_PORT			0x04
 
@@ -116,6 +119,7 @@ struct ata_dmaentry {
 /* ATA device DMA access modes */
 #define ATA_WDMA2			0x22
 #define ATA_UDMA2			0x42
+#define ATA_UDMA3			0x43
 #define ATA_UDMA4			0x44
 
 /* structure describing an ATA device */
@@ -130,12 +134,14 @@ struct ata_softc {
     struct ata_dmaentry		*dmatab[2];	/* DMA transfer tables */
     int32_t 			mode[2];	/* transfer mode for devices */
 #define		ATA_MODE_PIO		0x00
-#define		ATA_MODE_DMA		0x01
-#define		ATA_MODE_UDMA33		0x02
-#define		ATA_MODE_UDMA66		0x04
+#define		ATA_MODE_WDMA2		0x01
+#define		ATA_MODE_UDMA2		0x02
+#define		ATA_MODE_UDMA3		0x04
+#define		ATA_MODE_UDMA4		0x08
 
     int32_t			flags;		/* controller flags */
-#define		ATA_ATAPI_DMA_RO	0x01
+#define		ATA_DMA_ACTIVE		0x01
+#define		ATA_ATAPI_DMA_RO	0x02
 
     int32_t			devices;	/* what is present */
 #define		ATA_ATA_MASTER		0x01
@@ -152,6 +158,7 @@ struct ata_softc {
 #define		ATA_IGNORE_INTR		0x2
 #define		ATA_ACTIVE_ATA		0x3
 #define		ATA_ACTIVE_ATAPI	0x4
+#define		ATA_REINITING		0x5
 
     TAILQ_HEAD(, ad_request)	ata_queue;	/* head of ATA queue */
     TAILQ_HEAD(, atapi_request) atapi_queue;	/* head of ATAPI queue */
@@ -162,9 +169,9 @@ struct ata_softc {
 
 };
 
-#define MAXATA	8
-
+/* array to hold all ata softc's */
 extern struct ata_softc *atadevices[];
+#define MAXATA	16
  
 /* public prototypes */
 void ata_start(struct ata_softc *);
@@ -174,9 +181,9 @@ int32_t ata_wait(struct ata_softc *, int32_t, u_int8_t);
 int32_t ata_command(struct ata_softc *, int32_t, u_int32_t, u_int32_t, u_int32_t, u_int32_t, u_int32_t, u_int32_t, int32_t);
 int32_t ata_dmainit(struct ata_softc *, int32_t, int32_t, int32_t, int32_t);
 int32_t ata_dmasetup(struct ata_softc *, int32_t, int8_t *, int32_t, int32_t);
-void ata_dmastart(struct ata_softc *, int32_t);
-int32_t ata_dmastatus(struct ata_softc *, int32_t);
-int32_t ata_dmadone(struct ata_softc *, int32_t);
+void ata_dmastart(struct ata_softc *);
+int32_t ata_dmastatus(struct ata_softc *);
+int32_t ata_dmadone(struct ata_softc *);
 int8_t *ata_mode2str(int32_t);
 void bswap(int8_t *, int32_t);
 void btrim(int8_t *, int32_t);
