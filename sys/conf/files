@@ -460,6 +460,11 @@ dev/iicbus/iicsmb.c	optional iicsmb					\
 dev/iir/iir.c		optional iir
 dev/iir/iir_ctrl.c	optional iir
 dev/iir/iir_pci.c	optional iir pci
+dev/ips/ips.c		optional ips
+dev/ips/ips_pci.c	optional ips pci
+dev/ips/ips_disk.c	optional ips
+dev/ips/ips_commands.c	optional ips
+dev/ips/ips_ioctl.c	optional ips
 dev/isp/isp.c		optional isp
 dev/isp/isp_freebsd.c	optional isp
 dev/isp/isp_target.c	optional isp
