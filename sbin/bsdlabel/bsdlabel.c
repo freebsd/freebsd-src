@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)disklabel.c	8.2 (Berkeley) 1/7/94";
 /* from static char sccsid[] = "@(#)disklabel.c	1.2 (Symmetric) 11/28/85"; */
 #endif
 static const char rcsid[] =
-	"$Id: disklabel.c,v 1.21 1998/08/23 07:32:37 bde Exp $";
+	"$Id: disklabel.c,v 1.22 1998/10/17 09:56:32 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -226,7 +226,7 @@ main(argc, argv)
 
 	dkname = argv[0];
 	if (dkname[0] != '/') {
-		(void)sprintf(np, "%sr%s%c", _PATH_DEV, dkname, RAW_PART);
+		(void)sprintf(np, "%sr%s%c", _PATH_DEV, dkname, 'a' + RAW_PART);
 		specname = np;
 		np += strlen(specname) + 1;
 	} else
