@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.206 1999/08/17 14:59:05 brian Exp $
+ * $Id: command.c,v 1.207 1999/08/17 17:22:44 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -41,7 +41,7 @@
 #include <termios.h>
 #include <unistd.h>
 
-#ifndef NOALIAS
+#ifndef NONAT
 #ifdef __FreeBSD__
 #include <alias.h>
 #else
@@ -62,7 +62,7 @@
 #include "lqr.h"
 #include "hdlc.h"
 #include "ipcp.h"
-#ifndef NOALIAS
+#ifndef NONAT
 #include "alias_cmd.h"
 #endif
 #include "systems.h"
@@ -144,7 +144,7 @@
 #define NEG_VJCOMP	53
 
 const char Version[] = "2.23";
-const char VersionDate[] = "$Date: 1999/08/17 14:59:05 $";
+const char VersionDate[] = "$Date: 1999/08/17 17:22:44 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -163,7 +163,7 @@ static int IfaceAddCommand(struct cmdargs const *);
 static int IfaceDeleteCommand(struct cmdargs const *);
 static int IfaceClearCommand(struct cmdargs const *);
 static int SetProcTitle(struct cmdargs const *);
-#ifndef NOALIAS
+#ifndef NONAT
 static int AliasEnable(struct cmdargs const *);
 static int AliasOption(struct cmdargs const *);
 #endif
@@ -546,37 +546,37 @@ FgShellCommand(struct cmdargs const *arg)
   return ShellCommand(arg, 0);
 }
 
-#ifndef NOALIAS
+#ifndef NONAT
 static struct cmdtab const AliasCommands[] =
 {
-  {"addr", NULL, alias_RedirectAddr, LOCAL_AUTH,
-   "static address translation", "alias addr [addr_local addr_alias]"},
+  {"addr", NULL, nat_RedirectAddr, LOCAL_AUTH,
+   "static address translation", "nat addr [addr_local addr_alias]"},
   {"deny_incoming", NULL, AliasOption, LOCAL_AUTH,
-   "stop incoming connections", "alias deny_incoming [yes|no]",
+   "stop incoming connections", "nat deny_incoming yes|no",
    (const void *) PKT_ALIAS_DENY_INCOMING},
   {"enable", NULL, AliasEnable, LOCAL_AUTH,
-   "enable IP aliasing", "alias enable [yes|no]"},
+   "enable NAT", "nat enable yes|no"},
   {"log", NULL, AliasOption, LOCAL_AUTH,
-   "log aliasing link creation", "alias log [yes|no]",
+   "log NAT link creation", "nat log yes|no",
    (const void *) PKT_ALIAS_LOG},
-  {"port", NULL, alias_RedirectPort, LOCAL_AUTH, "port redirection",
-   "alias port proto localaddr:port[-port] aliasport[-aliasport]"},
-  {"pptp", NULL, alias_Pptp, LOCAL_AUTH,
-   "Set the PPTP address", "alias pptp IP"},
-  {"proxy", NULL, alias_ProxyRule, LOCAL_AUTH,
-   "proxy control", "alias proxy server host[:port] ..."},
+  {"port", NULL, nat_RedirectPort, LOCAL_AUTH, "port redirection",
+   "nat port proto localaddr:port[-port] aliasport[-aliasport]"},
+  {"pptp", NULL, nat_Pptp, LOCAL_AUTH,
+   "Set the PPTP address", "nat pptp IP"},
+  {"proxy", NULL, nat_ProxyRule, LOCAL_AUTH,
+   "proxy control", "nat proxy server host[:port] ..."},
   {"same_ports", NULL, AliasOption, LOCAL_AUTH,
-   "try to leave port numbers unchanged", "alias same_ports [yes|no]",
+   "try to leave port numbers unchanged", "nat same_ports yes|no",
    (const void *) PKT_ALIAS_SAME_PORTS},
   {"unregistered_only", NULL, AliasOption, LOCAL_AUTH,
-   "alias unregistered (private) IP address space only",
-   "alias unregistered_only [yes|no]",
+   "translate unregistered (private) IP address space only",
+   "nat unregistered_only yes|no",
    (const void *) PKT_ALIAS_UNREGISTERED_ONLY},
   {"use_sockets", NULL, AliasOption, LOCAL_AUTH,
-   "allocate host sockets", "alias use_sockets [yes|no]",
+   "allocate host sockets", "nat use_sockets yes|no",
    (const void *) PKT_ALIAS_USE_SOCKETS},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
-   "Display this message", "alias help|? [command]", AliasCommands},
+   "Display this message", "nat help|? [command]", AliasCommands},
   {NULL, NULL, NULL},
 };
 #endif
@@ -609,7 +609,7 @@ static struct cmdtab const IfaceCommands[] =
   {"show", NULL, iface_Show, LOCAL_AUTH,
    "Show iface address(es)", "iface show"},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
-   "Display this message", "alias help|? [command]", IfaceCommands},
+   "Display this message", "nat help|? [command]", IfaceCommands},
   {NULL, NULL, NULL},
 };
 
@@ -620,10 +620,6 @@ static struct cmdtab const Commands[] = {
   "add route", "add dest mask gateway", NULL},
   {NULL, "add!", AddCommand, LOCAL_AUTH,
   "add or change route", "add! dest mask gateway", (void *)1},
-#ifndef NOALIAS
-  {"alias", NULL, RunListCommand, LOCAL_AUTH,
-  "alias control", "alias option [yes|no]", AliasCommands},
-#endif
   {"allow", "auth", RunListCommand, LOCAL_AUTH,
   "Allow ppp access", "allow users|modes ....", AllowCommands},
   {"bg", "!bg", BgShellCommand, LOCAL_AUTH,
@@ -655,6 +651,10 @@ static struct cmdtab const Commands[] = {
   "Link specific commands", "link name command ..."},
   {"load", NULL, LoadCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Load settings", "load [system ...]"},
+#ifndef NONAT
+  {"nat", "alias", RunListCommand, LOCAL_AUTH,
+  "NAT control", "nat option yes|no", AliasCommands},
+#endif
   {"open", NULL, OpenCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Open an FSM", "open! [lcp|ccp|ipcp]", (void *)1},
   {"passwd", NULL, PasswdCommand, LOCAL_NO_AUTH,
@@ -2015,20 +2015,20 @@ DeleteCommand(struct cmdargs const *arg)
   return 0;
 }
 
-#ifndef NOALIAS
+#ifndef NONAT
 static int
 AliasEnable(struct cmdargs const *arg)
 {
   if (arg->argc == arg->argn+1) {
     if (strcasecmp(arg->argv[arg->argn], "yes") == 0) {
-      if (!arg->bundle->AliasEnabled) {
+      if (!arg->bundle->NatEnabled) {
         if (arg->bundle->ncp.ipcp.fsm.state == ST_OPENED)
           PacketAliasSetAddress(arg->bundle->ncp.ipcp.my_ip);
-        arg->bundle->AliasEnabled = 1;
+        arg->bundle->NatEnabled = 1;
       }
       return 0;
     } else if (strcasecmp(arg->argv[arg->argn], "no") == 0) {
-      arg->bundle->AliasEnabled = 0;
+      arg->bundle->NatEnabled = 0;
       arg->bundle->cfg.opt &= ~OPT_IFACEALIAS;
       /* Don't iface_Clear() - there may be manually configured addresses */
       return 0;
@@ -2046,22 +2046,22 @@ AliasOption(struct cmdargs const *arg)
 
   if (arg->argc == arg->argn+1) {
     if (strcasecmp(arg->argv[arg->argn], "yes") == 0) {
-      if (arg->bundle->AliasEnabled) {
+      if (arg->bundle->NatEnabled) {
 	PacketAliasSetMode(param, param);
 	return 0;
       }
-      log_Printf(LogWARN, "alias not enabled\n");
+      log_Printf(LogWARN, "nat not enabled\n");
     } else if (strcmp(arg->argv[arg->argn], "no") == 0) {
-      if (arg->bundle->AliasEnabled) {
+      if (arg->bundle->NatEnabled) {
 	PacketAliasSetMode(0, param);
 	return 0;
       }
-      log_Printf(LogWARN, "alias not enabled\n");
+      log_Printf(LogWARN, "nat not enabled\n");
     }
   }
   return -1;
 }
-#endif /* #ifndef NOALIAS */
+#endif /* #ifndef NONAT */
 
 static int
 LinkCommand(struct cmdargs const *arg)
@@ -2196,9 +2196,9 @@ IfaceAliasOptSet(struct cmdargs const *arg)
   int result = OptSet(arg);
 
   if (result == 0)
-    if (Enabled(arg->bundle, OPT_IFACEALIAS) && !arg->bundle->AliasEnabled) {
+    if (Enabled(arg->bundle, OPT_IFACEALIAS) && !arg->bundle->NatEnabled) {
       arg->bundle->cfg.opt = save;
-      log_Printf(LogWARN, "Cannot enable iface-alias without IP aliasing\n");
+      log_Printf(LogWARN, "Cannot enable iface-alias without NAT\n");
       result = 2;
     }
 
