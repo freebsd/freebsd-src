@@ -41,7 +41,9 @@ static char sccsid[] = "@(#)usleep.c	8.1 (Berkeley) 6/4/93";
 #ifdef  _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
-#else
+#endif
+
+#if !defined(_THREAD_SAFE) && !defined(USE_NANOSLEEP)
 #define	TICK	10000		/* system clock resolution in microseconds */
 #define	USPS	1000000		/* number of microseconds in a second */
 
@@ -49,6 +51,12 @@ static char sccsid[] = "@(#)usleep.c	8.1 (Berkeley) 6/4/93";
 	vec.sv_handler = a; vec.sv_mask = vec.sv_onstack = 0
 
 static int ringring;
+
+static void
+sleephandler()
+{
+	ringring = 1;
+}
 #endif
 
 
@@ -57,13 +65,13 @@ usleep(useconds)
 	unsigned int useconds;
 {
 #ifdef _THREAD_SAFE
-    struct timespec time_to_sleep;
+	struct timespec time_to_sleep;
 
-    if (useconds) {
-        time_to_sleep.tv_nsec = (useconds % 1000000) * 1000;
-        time_to_sleep.tv_sec = useconds / 1000000;
-        nanosleep(&time_to_sleep,NULL);
-    }
+	if (useconds) {
+		time_to_sleep.tv_nsec = (useconds % 1000000) * 1000;
+		time_to_sleep.tv_sec = useconds / 1000000;
+		nanosleep(&time_to_sleep, NULL);
+	}
 #else
 	register struct itimerval *itp;
 	struct itimerval itv, oitv;
@@ -106,11 +114,3 @@ usleep(useconds)
 	(void) setitimer(ITIMER_REAL, &oitv, (struct itimerval *)0);
 #endif
 }
-
-#ifndef  _THREAD_SAFE
-static void
-sleephandler()
-{
-	ringring = 1;
-}
-#endif
