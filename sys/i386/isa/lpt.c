@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.9 1994/02/22 09:05:13 rgrimes Exp $
+ *	$Id: lpt.c,v 1.10 1994/04/06 16:42:33 csgr Exp $
  */
 
 /*
@@ -614,6 +614,7 @@ lptioctl(dev_t dev, int cmd, caddr_t data, int flag)
 	int	error = 0;
         struct	lpt_softc *sc;
         u_int	unit = LPTUNIT(minor(dev));
+	u_char	old_sc_irq;	/* old printer IRQ status */
 
         sc = lpt_sc + unit;
 
@@ -625,14 +626,20 @@ lptioctl(dev_t dev, int cmd, caddr_t data, int flag)
 			 * If the IRQ status is changed,
 			 * this will only be visible on the
 			 * next open.
+			 * 
+			 * If interrupt status changes,
+			 * this gets syslog'd.
 			 */
+			old_sc_irq = sc->sc_irq;
 			if(*(int*)data == 0)
 				sc->sc_irq &= (~LP_ENABLE_IRQ);
 			else
 				sc->sc_irq |= LP_ENABLE_IRQ;
-			log(LOG_NOTICE, "lpt%c switched to %s mode\n",
-				(char)unit+'0', (sc->sc_irq & LP_ENABLE_IRQ)?
-				"interrupt-driven":"polled");
+			if (old_sc_irq != sc->sc_irq ) 
+				log(LOG_NOTICE, "lpt%c switched to %s mode\n",
+					(char)unit+'0', 
+					(sc->sc_irq & LP_ENABLE_IRQ)?
+					"interrupt-driven":"polled");
 		} else /* polled port */
 			error = EOPNOTSUPP;
 		break;	
