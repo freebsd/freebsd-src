@@ -984,8 +984,11 @@ fprintlog(f, flags, msg)
 	v++;
 
 	if (msg) {
-		/* XXX should check for NULL return */
 		wmsg = strdup(msg); /* XXX iov_base needs a `const' sibling. */
+		if (wmsg == NULL) {
+			logerror("strdup");
+			exit(1);
+		}
 		v->iov_base = wmsg;
 		v->iov_len = strlen(msg);
 	} else if (f->f_prevcount > 1) {
@@ -1386,11 +1389,17 @@ init(signo)
 	/* open the configuration file */
 	if ((cf = fopen(ConfFile, "r")) == NULL) {
 		dprintf("cannot open %s\n", ConfFile);
-		/* XXX should check for NULL return */
 		*nextp = (struct filed *)calloc(1, sizeof(*f));
+		if (*nextp == NULL) {
+			logerror("calloc");
+			exit(1);
+		}
 		cfline("*.ERR\t/dev/console", *nextp, "*", "*");
-		/* XXX should check for NULL return */
 		(*nextp)->f_next = (struct filed *)calloc(1, sizeof(*f));
+		if ((*nextp)->f_next == NULL) {
+			logerror("calloc");
+			exit(1);
+		}
 		cfline("*.PANIC\t*", (*nextp)->f_next, "*", "*");
 		Initialized = 1;
 		return;
@@ -1453,8 +1462,11 @@ init(signo)
 		for (p = strchr(cline, '\0'); isspace(*--p);)
 			continue;
 		*++p = '\0';
-		/* XXX should check for NULL return */
 		f = (struct filed *)calloc(1, sizeof(*f));
+		if (f == NULL) {
+			logerror("calloc");
+			exit(1);
+		}
 		*nextp = f;
 		nextp = &f->f_next;
 		cfline(cline, f, prog, host);
@@ -1547,8 +1559,11 @@ cfline(line, f, prog, host)
 	if (host) {
 		int hl, dl;
 
-		/* XXX should check for NULL return */
 		f->f_host = strdup(host);
+		if (f->f_host == NULL) {
+			logerror("strdup");
+			exit(1);
+		}
 		hl = strlen(f->f_host);
 		if (f->f_host[hl-1] == '.')
 			f->f_host[--hl] = '\0';
@@ -1561,9 +1576,13 @@ cfline(line, f, prog, host)
 	/* save program name if any */
 	if (prog && *prog == '*')
 		prog = NULL;
-	if (prog)
-		/* XXX should check for NULL return */
+	if (prog) {
 		f->f_program = strdup(prog);
+		if (f->f_program == NULL) {
+			logerror("strdup");
+			exit(1);
+		}
+	}
 
 	/* scan through the list of selectors */
 	for (p = line; *p && *p != '\t' && *p != ' ';) {
@@ -2040,9 +2059,8 @@ allowaddr(s)
 	if ((AllowedPeers = realloc(AllowedPeers,
 				    ++NumAllowed * sizeof(struct allowedpeer)))
 	    == NULL) {
-		/* XXX should use err()... consistency! */
-		fprintf(stderr, "Out of memory!\n");
-		exit(EX_OSERR);
+		logerror("realloc");
+		exit(1);
 	}
 	memcpy(&AllowedPeers[NumAllowed - 1], &ap, sizeof(struct allowedpeer));
 	return 0;
@@ -2199,6 +2217,10 @@ p_open(prog, pid)
 		argv[1] = strdup("-c");
 		argv[2] = strdup(prog);
 		argv[3] = NULL;
+		if (argv[0] == NULL || argv[1] == NULL || argv[2] == NULL) {
+			logerror("strdup");
+			exit(1);
+		}
 
 		alarm(0);
 		(void)setsid();	/* Avoid catching SIGHUPs. */
@@ -2269,8 +2291,7 @@ deadq_enter(pid, name)
 
 	p = malloc(sizeof(struct deadq_entry));
 	if (p == NULL) {
-		errno = 0; /* XXX why?  isn't ENOMEM good enough? */
-		logerror("panic: out of virtual memory!");
+		logerror("malloc");
 		exit(1);
 	}
 
