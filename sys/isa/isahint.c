@@ -87,30 +87,28 @@ isahint_identify(driver_t *driver, device_t parent)
 {
 	int i;
 	static char buf[] = "isaXXX";
+	const char *dname;
+	int dunit;
 
 	/*
 	 * Add all devices configured to be attached to parent.
 	 */
 	sprintf(buf, "isa%d", device_get_unit(parent));
-	i = -1;
-	while ((i = resource_query_string(i, "at", buf)) != -1) {
-		if (strcmp(resource_query_name(i), "atkbd") == 0)
+	i = 0;
+	while ((resource_find_match(&i, &dname, &dunit, "at", buf)) == 0) {
+		if (strcmp(dname, "atkbd") == 0)
 			continue;	/* old GENERIC kludge */
-		isahint_add_device(parent,
-				   resource_query_name(i),
-				   resource_query_unit(i));
+		isahint_add_device(parent, dname, dunit);
 	}
 
 	/*
 	 * and isa?
 	 */
-	i = -1;
-	while ((i = resource_query_string(i, "at", "isa")) != -1) {
-		if (strcmp(resource_query_name(i), "atkbd") == 0)
+	i = 0;
+	while ((resource_find_match(&i, &dname, &dunit, "at", "isa")) == 0) {
+		if (strcmp(dname, "atkbd") == 0)
 			continue;	/* old GENERIC kludge */
-		isahint_add_device(parent,
-				   resource_query_name(i),
-				   resource_query_unit(i));
+		isahint_add_device(parent, dname, dunit);
 	}
 }
 

@@ -303,10 +303,10 @@ camperiphnextunit(struct periph_driver *p_drv, u_int newunit, int wired,
 		  path_id_t pathid, target_id_t target, lun_id_t lun)
 {
 	struct	cam_periph *periph;
-	char	*periph_name, *strval;
+	char	*periph_name;
 	int	s;
-	int	i, val, dunit;
-	const char *dname;
+	int	i, val, dunit, r;
+	const char *dname, *strval;
 
 	s = splsoftcam();
 	periph_name = p_drv->driver_name;
@@ -337,10 +337,12 @@ camperiphnextunit(struct periph_driver *p_drv, u_int newunit, int wired,
 		 * device, but do match entries like "da 4 target 5"
 		 * or even "da 4 scbus 1". 
 		 */
-		i = -1;
-		while ((i = resource_locate(i, periph_name)) != -1) {
-			dname = resource_query_name(i);
-			dunit = resource_query_unit(i);
+		i = 0;
+		dname = periph_name;
+		for (;;) {
+			r = resource_find_dev(&i, dname, &dunit, NULL, NULL);
+			if (r != 0)
+				break;
 			/* if no "target" and no specific scbus, skip */
 			if (resource_int_value(dname, dunit, "target", &val) &&
 			    (resource_string_value(dname, dunit, "at",&strval)||
@@ -349,7 +351,7 @@ camperiphnextunit(struct periph_driver *p_drv, u_int newunit, int wired,
 			if (newunit == dunit)
 				break;
 		}
-		if (i == -1)
+		if (r != 0)
 			break;
 	}
 	splx(s);
@@ -362,18 +364,17 @@ camperiphunit(struct periph_driver *p_drv, path_id_t pathid,
 {
 	u_int	unit;
 	int	hit, i, val, dunit;
-	const char *dname;
-	char	pathbuf[32], *strval, *periph_name;
+	const char *dname, *strval;
+	char	pathbuf[32], *periph_name;
 
 	unit = 0;
 	hit = 0;
 
 	periph_name = p_drv->driver_name;
 	snprintf(pathbuf, sizeof(pathbuf), "scbus%d", pathid);
-	i = -1;
-	while ((i = resource_locate(i, periph_name)) != -1) {
-		dname = resource_query_name(i);
-		dunit = resource_query_unit(i);
+	i = 0;
+	dname = periph_name;
+	while ((resource_find_dev(&i, dname, &dunit, NULL, NULL)) == 0) {
 		if (resource_string_value(dname, dunit, "at", &strval) == 0) {
 			if (strcmp(strval, pathbuf) != 0)
 				continue;

@@ -169,11 +169,11 @@ static int
 atkbdc_attach(device_t dev)
 {
 	atkbdc_softc_t	*sc;
-	int		unit;
+	int		unit, dunit;
 	int		error;
 	int		rid;
 	int		i;
-	const char	*name;
+	const char	*name, *dname;
 
 	unit = device_get_unit(dev);
 	sc = *(atkbdc_softc_t **)device_get_softc(dev);
@@ -215,19 +215,17 @@ atkbdc_attach(device_t dev)
 	 * Add all devices configured to be attached to atkbdc0.
 	 */
 	name = device_get_nameunit(dev);
-	i = -1;
-	while ((i = resource_query_string(i, "at", name)) != -1)
-		atkbdc_add_device(dev, resource_query_name(i),
-				  resource_query_unit(i));
+	i = 0;
+	while ((resource_find_match(&i, &dname, &dunit, "at", name)) == 0)
+		atkbdc_add_device(dev, dname, dunit);
 
 	/*
 	 * and atkbdc?
 	 */
 	name = device_get_name(dev);
-	i = -1;
-	while ((i = resource_query_string(i, "at", name)) != -1)
-		atkbdc_add_device(dev, resource_query_name(i),
-				  resource_query_unit(i));
+	i = 0;
+	while ((resource_find_match(&i, &dname, &dunit, "at", name)) == 0)
+		atkbdc_add_device(dev, dname, dunit);
 
 	bus_generic_attach(dev);
 

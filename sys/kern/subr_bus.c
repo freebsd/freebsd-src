@@ -91,9 +91,7 @@ void print_devclass_list(void);
 #define print_devclass_list()		/* nop */
 #endif
 
-extern char static_hints[];
-extern int hintmode;
-static int hints_loaded = 0;
+extern char static_hints[];		/* by config for now */
 
 TAILQ_HEAD(,device)	bus_data_devices;
 static int bus_data_generation = 1;
@@ -1108,471 +1106,10 @@ device_set_unit(device_t dev, int unit)
 
 /*======================================*/
 /*
- * Access functions for device resources.
- */
-
-/* Runtime version */
-static struct config_device *devtab;
-static int devtab_count = 0;
-
-static int
-resource_new_name(const char *name, int unit)
-{
-	struct config_device *new;
-
-	new = malloc((devtab_count + 1) * sizeof(*new), M_TEMP, M_NOWAIT);
-	if (new == NULL)
-		return (-1);
-	if (devtab && devtab_count > 0)
-		bcopy(devtab, new, devtab_count * sizeof(*new));
-	bzero(&new[devtab_count], sizeof(*new));
-	new[devtab_count].name = malloc(strlen(name) + 1, M_TEMP, M_NOWAIT);
-	if (new[devtab_count].name == NULL) {
-		free(new, M_TEMP);
-		return (-1);
-	}
-	strcpy(new[devtab_count].name, name);
-	new[devtab_count].unit = unit;
-	new[devtab_count].resource_count = 0;
-	new[devtab_count].resources = NULL;
-	devtab = new;
-	return (devtab_count++);
-}
-
-static int
-resource_new_resname(int j, const char *resname, resource_type type)
-{
-	struct config_resource *new;
-	int i;
-
-	i = devtab[j].resource_count;
-	new = malloc((i + 1) * sizeof(*new), M_TEMP, M_NOWAIT);
-	if (new == NULL)
-		return (-1);
-	if (devtab[j].resources && i > 0)
-		bcopy(devtab[j].resources, new, i * sizeof(*new));
-	bzero(&new[i], sizeof(*new));
-	new[i].name = malloc(strlen(resname) + 1, M_TEMP, M_NOWAIT);
-	if (new[i].name == NULL) {
-		free(new, M_TEMP);
-		return (-1);
-	}
-	strcpy(new[i].name, resname);
-	new[i].type = type;
-	if (devtab[j].resources)
-		free(devtab[j].resources, M_TEMP);
-	devtab[j].resources = new;
-	devtab[j].resource_count = i + 1;
-	return (i);
-}
-
-static int
-resource_match_string(int i, const char *resname, const char *value)
-{
-	int j;
-	struct config_resource *res;
-
-	for (j = 0, res = devtab[i].resources;
-	     j < devtab[i].resource_count; j++, res++)
-		if (!strcmp(res->name, resname)
-		    && res->type == RES_STRING
-		    && !strcmp(res->u.stringval, value))
-			return (j);
-	return (-1);
-}
-
-static int
-resource_find_hard(char *cp, const char *name, int unit,
-    const char *resname, struct config_resource **result)
-{
-	char match[256];
-	int matchlen;
-	char *op;
-	long val;
-
-	snprintf(match, sizeof(match), "hint.%s.%d.%s=", name, unit, resname);
-	matchlen = strlen(match);
-	while (cp) {
-		if (strncmp(match, cp, matchlen) == 0)
-			break;
-		while (*cp != '\0')
-			cp++;
-		cp++;
-		if (*cp == '\0') {
-			cp = NULL;
-			break;
-		}
-	}
-	if (cp)
-		cp += matchlen;		/* skip over name and '=' */
-	else
-		return (ENOENT);
-	val = strtoul(cp, &op, 0);
-	if (*cp != '\0' && *op == '\0') {
-		(*result)->type = RES_INT;
-		(*result)->u.intval = val;
-	} else {
-		(*result)->type = RES_STRING;
-		(*result)->u.stringval = cp;
-	}
-	return (0);
-}
-
-static int
-resource_find(const char *name, int unit, const char *resname,
-    struct config_resource **result)
-{
-	int i, j;
-	struct config_resource *res;
-
-	if (!hints_loaded) {
-		/* First specific, then generic. Dynamic over static. */
-		i = resource_find_hard(kern_envp, name, unit, resname, result);
-		if (i == 0)
-			return (0);
-		i = resource_find_hard(static_hints, name, unit, resname,
-		    result);
-		if (i == 0)
-			return (0);
-		i = resource_find_hard(kern_envp, name, -1, resname, result);
-		if (i == 0)
-			return (0);
-		i = resource_find_hard(static_hints, name, -1, resname, result);
-		return (i);
-	}
-
-	/*
-	 * First check specific instances, then generic.
-	 */
-	for (i = 0; i < devtab_count; i++) {
-		if (devtab[i].unit < 0)
-			continue;
-		if (!strcmp(devtab[i].name, name) && devtab[i].unit == unit) {
-			res = devtab[i].resources;
-			for (j = 0; j < devtab[i].resource_count; j++, res++)
-				if (!strcmp(res->name, resname)) {
-					*result = res;
-					return (0);
-				}
-		}
-	}
-	for (i = 0; i < devtab_count; i++) {
-		if (devtab[i].unit >= 0)
-			continue;
-		if (!strcmp(devtab[i].name, name)) {
-			res = devtab[i].resources;
-			for (j = 0; j < devtab[i].resource_count; j++, res++)
-				if (!strcmp(res->name, resname)) {
-					*result = res;
-					return (0);
-				}
-		}
-	}
-	return (ENOENT);
-}
-
-int
-resource_int_value(const char *name, int unit, const char *resname, int *result)
-{
-	struct config_resource tmpres;
-	struct config_resource *res;
-	int error;
-
-	res = &tmpres;
-	if ((error = resource_find(name, unit, resname, &res)) != 0)
-		return (error);
-	if (res->type != RES_INT)
-		return (EFTYPE);
-	*result = res->u.intval;
-	return (0);
-}
-
-int
-resource_long_value(const char *name, int unit, const char *resname,
-    long *result)
-{
-	struct config_resource tmpres;
-	struct config_resource *res;
-	int error;
-
-	res = &tmpres;
-	if ((error = resource_find(name, unit, resname, &res)) != 0)
-		return (error);
-	if (res->type != RES_LONG)
-		return (EFTYPE);
-	*result = res->u.longval;
-	return (0);
-}
-
-int
-resource_string_value(const char *name, int unit, const char *resname,
-    char **result)
-{
-	struct config_resource tmpres;
-	struct config_resource *res;
-	int error;
-
-	res = &tmpres;
-	if ((error = resource_find(name, unit, resname, &res)) != 0)
-		return (error);
-	if (res->type != RES_STRING)
-		return (EFTYPE);
-	*result = res->u.stringval;
-	return (0);
-}
-
-int
-resource_query_string(int i, const char *resname, const char *value)
-{
-	if (i < 0)
-		i = 0;
-	else
-		i = i + 1;
-	for (; i < devtab_count; i++)
-		if (resource_match_string(i, resname, value) >= 0)
-			return (i);
-	return (-1);
-}
-
-int
-resource_locate(int i, const char *resname)
-{
-	if (i < 0)
-		i = 0;
-	else
-		i = i + 1;
-	for (; i < devtab_count; i++)
-		if (!strcmp(devtab[i].name, resname))
-			return (i);
-	return (-1);
-}
-
-int
-resource_count(void)
-{
-	return (devtab_count);
-}
-
-char *
-resource_query_name(int i)
-{
-	return (devtab[i].name);
-}
-
-int
-resource_query_unit(int i)
-{
-	return (devtab[i].unit);
-}
-
-static int
-resource_create(const char *name, int unit, const char *resname,
-    resource_type type, struct config_resource **result)
-{
-	int i, j;
-	struct config_resource *res = NULL;
-
-	for (i = 0; i < devtab_count; i++) {
-		if (!strcmp(devtab[i].name, name) && devtab[i].unit == unit) {
-			res = devtab[i].resources;
-			break;
-		}
-	}
-	if (res == NULL) {
-		i = resource_new_name(name, unit);
-		if (i < 0)
-			return (ENOMEM);
-		res = devtab[i].resources;
-	}
-	for (j = 0; j < devtab[i].resource_count; j++, res++) {
-		if (!strcmp(res->name, resname)) {
-			*result = res;
-			return (0);
-		}
-	}
-	j = resource_new_resname(i, resname, type);
-	if (j < 0)
-		return (ENOMEM);
-	res = &devtab[i].resources[j];
-	*result = res;
-	return (0);
-}
-
-int
-resource_set_int(const char *name, int unit, const char *resname, int value)
-{
-	int error;
-	struct config_resource *res;
-
-	error = resource_create(name, unit, resname, RES_INT, &res);
-	if (error)
-		return (error);
-	if (res->type != RES_INT)
-		return (EFTYPE);
-	res->u.intval = value;
-	return (0);
-}
-
-int
-resource_set_long(const char *name, int unit, const char *resname, long value)
-{
-	int error;
-	struct config_resource *res;
-
-	error = resource_create(name, unit, resname, RES_LONG, &res);
-	if (error)
-		return (error);
-	if (res->type != RES_LONG)
-		return (EFTYPE);
-	res->u.longval = value;
-	return (0);
-}
-
-int
-resource_set_string(const char *name, int unit, const char *resname,
-    const char *value)
-{
-	int error;
-	struct config_resource *res;
-
-	error = resource_create(name, unit, resname, RES_STRING, &res);
-	if (error)
-		return (error);
-	if (res->type != RES_STRING)
-		return (EFTYPE);
-	if (res->u.stringval)
-		free(res->u.stringval, M_TEMP);
-	res->u.stringval = malloc(strlen(value) + 1, M_TEMP, M_NOWAIT);
-	if (res->u.stringval == NULL)
-		return (ENOMEM);
-	strcpy(res->u.stringval, value);
-	return (0);
-}
-
-/*
- * We use the identify routine to get the hints for all the other devices.
- * Strings that are all digits or begin with 0x are integers.
- *
- * hint.aha.0.bus_speedup=1
- * hint.aha.1.irq=10
- * hint.wl.0.netid=PLUG
- * hint.wl.1.netid=XYZZY
- */
-static void
-hint_load(char *cp)
-{
-	char	*ep, *op, *walker;
-	int	len;
-	int	val;
-	char	name[20];
-	int	unit;
-	char	resname[255];
-
-	for (ep = cp; *ep != '=' && *ep != '\0'; ep++)
-		continue;
-	len = ep - cp;
-	if (*ep == '=')
-		ep++;
-	walker = cp;
-	walker += 5;
-	op = walker;
-	while (*walker && *walker != '.')
-		walker++;
-	if (*walker != '.')
-		return;
-	if (walker - op > sizeof(name))
-		return;
-	strncpy(name, op, walker - op);
-	name[walker - op] = '\0';
-	walker++;
-	op = walker;
-	while (*walker && *walker != '.')
-		walker++;
-	if (*walker != '.')
-		return;
-	unit = strtoul(op, &walker, 0);
-	if (*walker != '.')
-		return;
-	walker++;
-	op = walker;
-	while (*walker && *walker != '=')
-		walker++;
-	if (*walker != '=')
-		return;
-	if (walker - op > sizeof(resname))
-		return;
-	strncpy(resname, op, walker - op);
-	resname[walker - op] = '\0';
-	walker++;
-	if (walker != ep)
-		return;
-	if (bootverbose)
-		printf("Setting %s %d %s to ", name, unit, resname);
-	val = strtoul(ep, &op, 0);
-	if (*ep != '\0' && *op == '\0') {
-		resource_set_int(name, unit, resname, val);
-		if (bootverbose)
-			printf("%d (int)\n", val);
-	} else {
-		resource_set_string(name, unit, resname, ep);
-		if (bootverbose)
-			printf("%s (string)\n", ep);
-	}
-}
-
-
-static void
-hints_load(void *dummy __unused)
-{
-	char	*cp;
-
-	if (hintmode == 2) {		/* default hints only */
-		cp = kern_envp;
-		while (cp) {
-			if (strncmp(cp, "hint.", 5) == 0) {
-				/* ok, we found a hint, ignore these defaults */
-				hintmode = 0;
-				break;
-			}
-			while (*cp != '\0')
-				cp++;
-			cp++;
-			if (*cp == '\0')
-				break;
-		}
-	}
-	if (hintmode != 0) {
-		cp = static_hints;
-		while (cp) {
-			if (strncmp(cp, "hint.", 5) == 0)
-				hint_load(cp);
-			while (*cp != '\0')
-				cp++;
-			cp++;
-			if (*cp == '\0')
-				break;
-		}
-	}
-	cp = kern_envp;
-	while (cp) {
-		if (strncmp(cp, "hint.", 5) == 0)
-			hint_load(cp);
-		while (*cp != '\0')
-			cp++;
-		cp++;
-		if (*cp == '\0')
-			break;
-	}
-	hints_loaded++;
-}
-SYSINIT(cfghints, SI_SUB_KMEM, SI_ORDER_ANY + 60, hints_load, 0)
-
-/*======================================*/
-/*
  * Some useful method implementations to make life easier for bus drivers.
  */
 
-	void
+void
 resource_list_init(struct resource_list *rl)
 {
 	SLIST_INIT(rl);
@@ -2590,4 +2127,276 @@ void
 bus_data_generation_update(void)
 {
 	bus_data_generation++;
+}
+
+/*======================================*/
+/*
+ * Access functions for device resources.
+ */
+
+/*
+ * Evil wildcarding resource string lookup.
+ * This walks the supplied env string table and returns a match.
+ * The start point can be remembered for incremental searches.
+ */
+static int
+res_find(const char *cp, int *line, int *startln,
+    const char *name, int *unit, const char *resname, const char *value,
+    const char **ret_name, int *ret_namelen, int *ret_unit,
+    const char **ret_resname, int *ret_resnamelen, const char **ret_value)
+{
+	int n = 0, hit;
+	char r_name[32];
+	int r_unit;
+	char r_resname[32];
+	char r_value[128];
+	const char *s;
+	char *p;
+
+	while (cp) {
+		hit = 1;
+		(*line)++;
+		if (strncmp(cp, "hint.", 5) != 0)
+			hit = 0;
+		else
+			n = sscanf(cp, "hint.%32[^.].%d.%32[^=]=%128s",
+			    r_name, &r_unit, r_resname, r_value);
+		if (hit && n != 4) {
+			printf("CONFIG: invalid hint '%s'\n", cp);
+			/* XXX: abuse bogus index() declaration */
+			p = index(cp, 'h');
+			*p = 'H';
+			hit = 0;
+		}
+		if (hit && startln && *startln >= 0 && *line < *startln)
+			hit = 0;
+		if (hit && name && strcmp(name, r_name) != 0)
+			hit = 0;
+		if (hit && unit && *unit != r_unit)
+			hit = 0;
+		if (hit && resname && strcmp(resname, r_resname) != 0)
+			hit = 0;
+		if (hit && value && strcmp(value, r_value) != 0)
+			hit = 0;
+		if (hit)
+			break;
+		while (*cp != '\0')
+			cp++;
+		cp++;
+		if (*cp == '\0') {
+			cp = NULL;
+			break;
+		}
+	}
+	if (cp == NULL)
+		return ENOENT;
+
+	s = cp;
+	/* This is a bit of a hack, but at least is reentrant */
+	/* Note that it returns some !unterminated! strings. */
+	s = index(s, '.') + 1;		/* start of device */
+	if (ret_name)
+		*ret_name = s;
+	s = index(s, '.') + 1;		/* start of unit */
+	if (ret_namelen)
+		*ret_namelen = s - *ret_name - 1; /* device length */
+	if (ret_unit)
+		*ret_unit = r_unit;
+	s = index(s, '.') + 1;		/* start of resname */
+	if (ret_resname)
+		*ret_resname = s;
+	s = index(s, '=') + 1;		/* start of value */
+	if (ret_resnamelen)
+		*ret_resnamelen = s - *ret_resname - 1; /* value len */
+	if (ret_value)
+		*ret_value = s;
+	if (startln)			/* line number for anchor */
+		*startln = *line + 1;
+	return 0;
+}
+
+/*
+ * Search all the data sources for matches to our query.  We look for
+ * dynamic hints first as overrides for static or fallback hints.
+ */
+static int
+resource_find(int *line, int *startln,
+    const char *name, int *unit, const char *resname, const char *value,
+    const char **ret_name, int *ret_namelen, int *ret_unit,
+    const char **ret_resname, int *ret_resnamelen, const char **ret_value)
+{
+	int i;
+	int un;
+
+	*line = 0;
+
+	/* Search for exact unit matches first */
+	i = res_find(kern_envp, line, startln, name, unit, resname, value,
+	    ret_name, ret_namelen, ret_unit, ret_resname, ret_resnamelen,
+	    ret_value);
+	if (i == 0)
+		return 0;
+	i = res_find(static_hints, line, startln, name, unit, resname, value,
+	    ret_name, ret_namelen, ret_unit, ret_resname, ret_resnamelen,
+	    ret_value);
+	if (i == 0)
+		return 0;
+	if (unit == NULL)
+		return ENOENT;
+	/* If we are still here, search for wildcard matches */
+	un = -1;
+	i = res_find(kern_envp, line, startln, name, &un, resname, value,
+	    ret_name, ret_namelen, ret_unit, ret_resname, ret_resnamelen,
+	    ret_value);
+	if (i == 0)
+		return 0;
+	un = -1;
+	i = res_find(static_hints, line, startln, name, &un, resname, value,
+	    ret_name, ret_namelen, ret_unit, ret_resname, ret_resnamelen,
+	    ret_value);
+	if (i == 0)
+		return 0;
+	return ENOENT;
+}
+
+int
+resource_int_value(const char *name, int unit, const char *resname, int *result)
+{
+	int error;
+	const char *str;
+	char *op;
+	unsigned long val;
+	int line;
+
+	line = 0;
+	error = resource_find(&line, NULL, name, &unit, resname, NULL,
+	    NULL, NULL, NULL, NULL, NULL, &str);
+	if (error)
+		return error;
+	if (*str == '\0') 
+		return EFTYPE;
+	val = strtoul(str, &op, 0);
+	if (*op != '\0') 
+		return EFTYPE;
+	*result = val;
+	return 0;
+}
+
+int
+resource_long_value(const char *name, int unit, const char *resname,
+    long *result)
+{
+	int error;
+	const char *str;
+	char *op;
+	unsigned long val;
+	int line;
+
+	line = 0;
+	error = resource_find(&line, NULL, name, &unit, resname, NULL,
+	    NULL, NULL, NULL, NULL, NULL, &str);
+	if (error)
+		return error;
+	if (*str == '\0') 
+		return EFTYPE;
+	val = strtoul(str, &op, 0);
+	if (*op != '\0') 
+		return EFTYPE;
+	*result = val;
+	return 0;
+}
+
+int
+resource_string_value(const char *name, int unit, const char *resname,
+    const char **result)
+{
+	int error;
+	const char *str;
+	int line;
+
+	line = 0;
+	error = resource_find(&line, NULL, name, &unit, resname, NULL,
+	    NULL, NULL, NULL, NULL, NULL, &str);
+	if (error)
+		return error;
+	*result = str;
+	return 0;
+}
+
+/*
+ * This is a bit nasty, but allows us to not modify the env strings.
+ */
+static const char *
+resource_string_copy(const char *s, int len)
+{
+	static char stringbuf[256];
+	static int offset = 0;
+	const char *ret;
+
+	if (len == 0)
+		len = strlen(s);
+	if (len > 255)
+		return NULL;
+	if ((offset + len + 1) > 255)
+		offset = 0;
+	bcopy(s, &stringbuf[offset], len);
+	stringbuf[offset + len] = '\0';
+	ret = &stringbuf[offset];
+	offset += len + 1;
+	return ret;
+}
+
+/*
+ * err = resource_find_at(&anchor, &name, &unit, resname, value)
+ * Iteratively fetch a list of devices wired "at" something
+ * res and value are restrictions.  eg: "at", "scbus0".
+ * For practical purposes, res = required, value = optional.
+ * *name and *unit are set.
+ * set *anchor to zero before starting.
+ */
+int
+resource_find_match(int *anchor, const char **name, int *unit,
+    const char *resname, const char *value)
+{
+	const char *found_name;
+	int found_namelen;
+	int found_unit;
+	int ret;
+	int newln;
+
+	newln = *anchor;
+	ret = resource_find(anchor, &newln, NULL, NULL, resname, value,
+	    &found_name, &found_namelen, &found_unit, NULL, NULL, NULL);
+	if (ret == 0) {
+		*name = resource_string_copy(found_name, found_namelen);
+		*unit = found_unit;
+	}
+	*anchor = newln;
+	return ret;
+}
+
+
+/*
+ * err = resource_find_dev(&anchor, name, &unit, res, value);
+ * Iterate through a list of devices, returning their unit numbers.
+ * res and value are optional restrictions.  eg: "at", "scbus0".
+ * *unit is set to the value.
+ * set *anchor to zero before starting.
+ */
+int
+resource_find_dev(int *anchor, const char *name, int *unit,
+    const char *resname, const char *value)
+{
+	int found_unit;
+	int newln;
+	int ret;
+
+	newln = *anchor;
+	ret = resource_find(anchor, &newln, name, NULL, resname, value,
+	    NULL, NULL, &found_unit, NULL, NULL, NULL);
+	if (ret == 0) {
+		*unit = found_unit;
+	}
+	*anchor = newln;
+	return ret;
 }

@@ -4346,7 +4346,7 @@ xptnextfreepathid(void)
 {
 	struct cam_eb *bus;
 	path_id_t pathid;
-	char *strval;
+	const char *strval;
 
 	pathid = 0;
 	bus = TAILQ_FIRST(&xpt_busses);
@@ -4377,16 +4377,16 @@ xptpathid(const char *sim_name, int sim_unit, int sim_bus)
 	path_id_t pathid;
 	int i, dunit, val;
 	char buf[32];
+	const char *dname;
 
 	pathid = CAM_XPT_PATH_ID;
 	snprintf(buf, sizeof(buf), "%s%d", sim_name, sim_unit);
-	i = -1;
-	while ((i = resource_query_string(i, "at", buf)) != -1) {
-		if (strcmp(resource_query_name(i), "scbus")) {
+	i = 0;
+	while ((resource_find_match(&i, &dname, &dunit, "at", buf)) == 0) {
+		if (strcmp(dname, "scbus")) {
 			/* Avoid a bit of foot shooting. */
 			continue;
 		}
-		dunit = resource_query_unit(i);
 		if (dunit < 0)		/* unwired?! */
 			continue;
 		if (resource_int_value("scbus", dunit, "bus", &val) == 0) {

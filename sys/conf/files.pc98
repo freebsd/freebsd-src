@@ -372,7 +372,7 @@ netsmb/smb_usr.c		optional	netsmb
 pc98/apm/apm.c			optional	apm
 pc98/apm/apm_bioscall.s		optional	apm
 pc98/i386/machdep.c		standard
-pc98/i386/userconfig.c		optional	userconfig
+#pc98/i386/userconfig.c		optional	userconfig
 pc98/pc98/atapi.c		optional	wdc
 pc98/pc98/clock.c		standard
 pc98/pc98/diskslice_machdep.c	standard
