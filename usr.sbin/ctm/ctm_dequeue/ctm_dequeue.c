@@ -26,15 +26,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ctm_dequeue.c,v 1.4 1996/09/07 19:46:29 peter Exp $
+ *	$Id: ctm_dequeue.c,v 1.6 1996/11/27 13:06:51 mckay Exp $
  */
 
-/* 
- * Change this if you want to alter how many files it sends out by
- * default
+/*
+ * ctm_dequeue:  Dequeue queued delta pieces and mail them.
+ *
+ * The pieces have already been packaged up as mail messages by ctm_smail,
+ * and will be simply passed to sendmail in alphabetical order.
  */
-
-#define DEFAULT_NUM 2
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,16 +43,18 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <fts.h>
-#include <sys/mman.h>
+#include <limits.h>
 #include <errno.h>
 #include <paths.h>
 #include "error.h"
 #include "options.h"
 
+#define DEFAULT_NUM	1	/* Default number of pieces mailed per run. */
+
 int fts_sort(const FTSENT **, const FTSENT **);
-FILE *open_sendmail(void);
-int close_sendmail(FILE *fp);
+int run_sendmail(int ifd);
 
 int
 main(int argc, char **argv)
@@ -60,18 +62,19 @@ main(int argc, char **argv)
     char *log_file = NULL;
     char *queue_dir = NULL;
     char *list[2];
-    char *buffer, *filename;
-    int num_to_send = DEFAULT_NUM, piece, fp, len;
+    int num_to_send = DEFAULT_NUM, chunk;
+    int fd;
     FTS *fts;
     FTSENT *ftsent;
-    FILE *sfp;
+    int piece, npieces;
+    char filename[PATH_MAX];
 
     err_prog_name(argv[0]);
 
     OPTIONS("[-l log] [-n num] queuedir")
 	NUMBER('n', num_to_send)
 	STRING('l', log_file)
-    ENDOPTS;
+    ENDOPTS
 
     if (argc != 2)
 	usage();
@@ -83,157 +86,124 @@ main(int argc, char **argv)
     list[0] = queue_dir;
     list[1] = NULL;
 
-    fts = fts_open(list, FTS_PHYSICAL, fts_sort);
+    fts = fts_open(list, FTS_PHYSICAL|FTS_COMFOLLOW, fts_sort);
     if (fts == NULL)
     {
 	err("fts failed on `%s'", queue_dir);
 	exit(1);
     }
 
-    (void) fts_read(fts);
-
-    ftsent = fts_children(fts, 0);
-    if (ftsent == NULL)
+    ftsent = fts_read(fts);
+    if (ftsent == NULL || ftsent->fts_info != FTS_D)
     {
-	if (errno) {
-	    err("ftschildren failed");
-	    exit(1);
-	} else
-	    exit(0);
-    }
-
-    /* assumption :-( */
-    len = strlen(queue_dir) + 40;
-    filename = malloc(len);
-    if (filename == NULL)
-    {
-	err("malloc failed");
+	err("not a directory: %s", queue_dir);
 	exit(1);
     }
 
-    for (piece = 0; piece < num_to_send ; piece++)
+    ftsent = fts_children(fts, 0);
+    if (ftsent == NULL && errno)
     {
-	/* Skip non-files and files we should ignore (ones starting with `.') */
+	err("*ftschildren failed");
+	exit(1);
+    }
 
-#define ISFILE ((ftsent->fts_info & FTS_F) == FTS_F)
-#define IGNORE (ftsent->fts_name[0] == '.')
-#define HASNEXT (ftsent->fts_link != NULL)
+    for (chunk = 1; ftsent != NULL; ftsent = ftsent->fts_link)
+    {
+	/*
+	 * Skip non-files and ctm_smail tmp files (ones starting with `.')
+	 */
+	if (ftsent->fts_info != FTS_F || ftsent->fts_name[0] == '.')
+	    continue;
 
-	while(((!ISFILE) || (IGNORE)) && (HASNEXT))
-	    ftsent = ftsent->fts_link;
-
-	if ((!ISFILE) || (IGNORE))
+	sprintf(filename, "%s/%s", queue_dir, ftsent->fts_name);
+	fd = open(filename, O_RDONLY);
+	if (fd < 0)
 	{
-	    err("No more chunks to mail");
-	    exit(0);
-	}
-
-#undef ISFILE
-#undef IGNORE
-#undef HASNEXT
-
-	if (snprintf(filename, len, "%s/%s", queue_dir, ftsent->fts_name) > len)
-	    err("snprintf(filename) longer than buffer");
-
-	fp = open(filename, O_RDONLY, 0);
-	if (fp <  0)
-	{
-	    err("open(`%s') failed, errno = %d", filename, errno);
+	    err("*open: %s", filename);
 	    exit(1);
 	}
 
-	buffer = mmap(0, ftsent->fts_statp->st_size, PROT_READ, MAP_PRIVATE, fp, 0);
-	if (((int) buffer) <= 0)
-	{
-	    err("mmap failed, errno = %d", errno);
+	if (run_sendmail(fd))
 	    exit(1);
-	}
 
-	sfp = open_sendmail();	    
-	if (sfp == NULL)
-	    exit(1);
+	close(fd);
 	
-	if (fwrite(buffer, ftsent->fts_statp->st_size, 1, sfp) < 1)
-	{
-	    err("fwrite failed: errno = %d", errno);
-	    close_sendmail(sfp);
-	    exit(1);
-	}
-
-	if (!close_sendmail(sfp))
-	    exit(1);
-
-	munmap(buffer, ftsent->fts_statp->st_size);
-	close(fp);
-
 	if (unlink(filename) < 0)
 	{
-	    err("unlink of `%s' failed", filename);
+	    err("*unlink: %s", filename);
 	    exit(1);
 	}
 	
-	err("sent file `%s'", ftsent->fts_name);
+	/*
+	 * Deduce the delta, piece number, and number of pieces from
+	 * the name of the file in the queue.  Ideally, we should be
+	 * able to get the mail alias name too.
+	 *
+	 * NOTE: This depends intimately on the queue name used in ctm_smail.
+	 */
+	npieces = atoi(&ftsent->fts_name[ftsent->fts_namelen-3]);
+	piece = atoi(&ftsent->fts_name[ftsent->fts_namelen-7]);
+	err("%.*s %d/%d sent", ftsent->fts_namelen-8, ftsent->fts_name,
+		piece, npieces);
 
-	if (ftsent->fts_link != NULL)
-	    ftsent = ftsent->fts_link;
-	else
+	if (chunk++ == num_to_send)
 	    break;
     }
 
-    err("exiting normally");
+    fts_close(fts);
+
     return(0);
 }
 
 int
 fts_sort(const FTSENT ** a, const FTSENT ** b)
 {
-	int a_info, b_info;
+    if ((*a)->fts_info != FTS_F)
+	return(0);
+    if ((*a)->fts_info != FTS_F)
+	return(0);
 
-	a_info = (*a)->fts_info;
-	if (a_info == FTS_ERR)
-		return (0);
-	b_info = (*b)->fts_info;
-	if (b_info == FTS_ERR)
-		return (0);
-
-	return (strcmp((*a)->fts_name, (*b)->fts_name));
+    return (strcmp((*a)->fts_name, (*b)->fts_name));
 }
 
 /*
- * Start a pipe to sendmail.  Sendmail will decode the destination
- * from the message contents.
- */
-FILE *
-open_sendmail()
-{
-    FILE *fp;
-    char buf[100];
-    
-    sprintf(buf, "%s -odq -t", _PATH_SENDMAIL);
-    if ((fp = popen(buf, "w")) == NULL)
-	err("cannot start sendmail");
-    return fp;
-}
-
-
-/*
- * Close a pipe to sendmail.  Sendmail will then do its bit.
- * Return 1 on success, 0 on failure.
+ * Run sendmail with the given file descriptor as standard input.
+ * Sendmail will decode the destination from the message contents.
+ * Returns 0 on success, 1 on failure.
  */
 int
-close_sendmail(FILE *fp)
+run_sendmail(int ifd)
 {
+    pid_t child, pid;
     int status;
-    
-    fflush(fp);
-    if (ferror(fp))
+
+    switch (child = fork())
     {
-	err("error writing to sendmail");
-	return 0;
+    case -1:
+	err("*fork");
+	return(1);
+
+    case 0:	/* Child */
+	dup2(ifd, 0);
+	execl(_PATH_SENDMAIL, _PATH_SENDMAIL, "-odq", "-t", NULL);
+	err("*exec: %s", _PATH_SENDMAIL);
+	_exit(1);
+
+    default:	/* Parent */
+	while ((pid = wait(&status)) != child)
+	{
+	    if (pid == -1 && errno != EINTR)
+	    {
+		err("*wait");
+		return(1);
+	    }
+	}
+	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
+	{
+	    err("sendmail failed");
+	    return(1);
+	}
     }
-    
-    if ((status = pclose(fp)) != 0)
-	err("sendmail failed with status %d", status);
-    
-    return (status == 0);
+
+    return(0);
 }
