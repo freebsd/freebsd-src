@@ -24,9 +24,9 @@ static char rcsid[] = "$FreeBSD$";
 #include "math_private.h"
 
 #ifdef __STDC__
-	double logb(double x)
+	double __generic_logb(double x)
 #else
-	double logb(x)
+	double __generic_logb(x)
 	double x;
 #endif
 {

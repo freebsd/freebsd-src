@@ -48,9 +48,9 @@ static char rcsid[] = "$FreeBSD$";
 #include "math_private.h"
 
 #ifdef __STDC__
-	double tan(double x)
+	double __generic_tan(double x)
 #else
-	double tan(x)
+	double __generic_tan(x)
 	double x;
 #endif
 {
