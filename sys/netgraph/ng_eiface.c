@@ -584,6 +584,12 @@ ng_eiface_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 		return (ENETDOWN);
 	}
 
+	if (m->m_len < ETHER_HDR_LEN) {
+		m = m_pullup(m, ETHER_HDR_LEN);
+		if (m == NULL)
+			return (EINVAL);
+	}
+
 	/* Note receiving interface */
 	m->m_pkthdr.rcvif = ifp;
 
