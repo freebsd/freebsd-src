@@ -237,7 +237,7 @@ mb_free_ext(struct mbuf *m)
 				 */
 				if (m->m_ext.ext_type == EXT_PACKET) {
 					uma_zfree(zone_pack, m);
-					break;
+					return;
 				} else if (m->m_ext.ext_type == EXT_CLUSTER) {
 					uma_zfree(zone_clust, m->m_ext.ext_buf);
 					m->m_ext.ext_buf = NULL;
@@ -246,13 +246,14 @@ mb_free_ext(struct mbuf *m)
 					    m->m_ext.ext_args);
 					if (m->m_ext.ext_type != EXT_EXTREF)
 						free(m->m_ext.ref_cnt, M_MBUF);
+					m->m_ext.ext_buf = NULL;
 				}
-				uma_zfree(zone_mbuf, m);
 			}
 			/* Decrement (and potentially free) done, safely. */
 			break;
 		}
 	} while (1);
+	uma_zfree(zone_mbuf, m);
 }
 
 /*
