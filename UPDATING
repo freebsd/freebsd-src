@@ -19,7 +19,7 @@ prior to 4.0 Release.
 
 20000706:
 	Binutils were updated.  In order to build a kernel after this
-	date, you must follow the updating proceedure for building
+	date, you must follow the updating procedure for building
 	kernels exactly as presented here.  You may be able to get away
 	with doing it the old way, but if it breaks, make sure that you've
 	tried the "To build a kernel" section with a fresh /usr/obj
