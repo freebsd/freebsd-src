@@ -796,17 +796,13 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
  *	This routine may not block.
  */
 static vm_page_t
-vm_page_select_cache(vm_object_t object, vm_pindex_t pindex)
+vm_page_select_cache(vm_pindex_t color)
 {
 	vm_page_t m;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	while (TRUE) {
-		m = vm_pageq_find(
-		    PQ_CACHE,
-		    (pindex + object->pg_color) & PQ_L2_MASK,
-		    FALSE
-		);
+		m = vm_pageq_find(PQ_CACHE, color & PQ_L2_MASK, FALSE);
 		if (m && ((m->flags & (PG_BUSY|PG_UNMANAGED)) || m->busy ||
 			       m->hold_count || m->wire_count)) {
 			vm_page_deactivate(m);
@@ -825,15 +821,11 @@ vm_page_select_cache(vm_object_t object, vm_pindex_t pindex)
  *	This routine may not block.
  */
 static __inline vm_page_t
-vm_page_select_free(vm_object_t object, vm_pindex_t pindex, boolean_t prefer_zero)
+vm_page_select_free(vm_pindex_t color, boolean_t prefer_zero)
 {
 	vm_page_t m;
 
-	m = vm_pageq_find(
-		PQ_FREE,
-		(pindex + object->pg_color) & PQ_L2_MASK,
-		prefer_zero
-	);
+	m = vm_pageq_find(PQ_FREE, color & PQ_L2_MASK, prefer_zero);
 	return (m);
 }
 
@@ -859,14 +851,26 @@ vm_page_t
 vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 {
 	vm_page_t m = NULL;
+	vm_pindex_t color;
 	int page_req, s;
 
 	GIANT_REQUIRED;
 
-	KASSERT(!vm_page_lookup(object, pindex),
-		("vm_page_alloc: page already allocated"));
+#ifdef INVARIANTS
+	if ((req & VM_ALLOC_NOOBJ) == 0) {
+		KASSERT(object != NULL,
+		    ("vm_page_alloc: NULL object."));
+		KASSERT(!vm_page_lookup(object, pindex),
+		    ("vm_page_alloc: page already allocated"));
+	}
+#endif
 
 	page_req = req & VM_ALLOC_CLASS_MASK;
+
+	if ((req & VM_ALLOC_NOOBJ) == 0)
+		color = pindex + object->pg_color;
+	else
+		color = pindex;
 
 	/*
 	 * The pager is allowed to eat deeper into the free page list.
@@ -883,8 +887,8 @@ loop:
 		 * Allocate from the free queue if there are plenty of pages
 		 * in it.
 		 */
-		m = vm_page_select_free(object, pindex,
-					(req & VM_ALLOC_ZERO) != 0);
+		m = vm_page_select_free(color, (req & VM_ALLOC_ZERO) != 0);
+					
 	} else if (
 	    (page_req == VM_ALLOC_SYSTEM && 
 	     cnt.v_cache_count == 0 && 
@@ -894,7 +898,7 @@ loop:
 		/*
 		 * Interrupt or system, dig deeper into the free list.
 		 */
-		m = vm_page_select_free(object, pindex, FALSE);
+		m = vm_page_select_free(color, FALSE);
 	} else if (page_req != VM_ALLOC_INTERRUPT) {
 		mtx_unlock_spin(&vm_page_queue_free_mtx);
 		/*
@@ -903,7 +907,7 @@ loop:
 		 * cnt.v_*_free_min counters are replenished.
 		 */
 		vm_page_lock_queues();
-		if ((m = vm_page_select_cache(object, pindex)) == NULL) {
+		if ((m = vm_page_select_cache(color)) == NULL) {
 			vm_page_unlock_queues();
 			splx(s);
 #if defined(DIAGNOSTIC)
@@ -973,7 +977,8 @@ loop:
 	 * could cause us to block allocating memory).  We cannot block 
 	 * anywhere.
 	 */
-	vm_page_insert(m, object, pindex);
+	if ((req & VM_ALLOC_NOOBJ) == 0)
+		vm_page_insert(m, object, pindex);
 
 	/*
 	 * Don't wakeup too often - wakeup the pageout daemon when
