@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.14.4.8 1996/06/17 00:03:55 alex Exp $
+ *	$Id: ip_fw.c,v 1.14.4.9 1996/06/25 03:16:41 alex Exp $
  */
 
 /*
@@ -731,11 +731,13 @@ ip_fw_init(void)
 
 #ifdef ACTUALLY_LKM_NOT_KERNEL
 
+#include <sys/conf.h>
 #include <sys/exec.h>
 #include <sys/sysent.h>
 #include <sys/lkm.h>
 
-MOD_MISC(ipfw);
+static int (*old_chk_ptr)(struct mbuf *, struct ip *, struct ifnet *, int dir);
+static int (*old_ctl_ptr)(int, struct mbuf **);
 
 static int
 ipfw_load(struct lkm_table *lkmtp, int cmd)
@@ -770,9 +772,11 @@ ipfw_unload(struct lkm_table *lkmtp, int cmd)
 	return 0;
 }
 
+MOD_MISC("ipfw_mod")
+
 int
 ipfw_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
-	DISPATCH(lkmtp, cmd, ver, ipfw_load, ipfw_unload, lkm_nullcmd);
+	DISPATCH(lkmtp, cmd, ver, ipfw_load, ipfw_unload, nosys);
 }
 #endif
