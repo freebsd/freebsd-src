@@ -1,0 +1,224 @@
+.de Id
+.ds Rv \\$3
+.ds Dt \\$4
+..
+.Id $Id: rcsfile.5,v 5.1 1991/08/19 03:13:55 eggert Exp $
+.ds r \s-1RCS\s0
+.if n .ds - \%--
+.if t .ds - \(em
+.TH RCSFILE 5 \*(Dt GNU
+.SH NAME
+rcsfile \- format of RCS file
+.SH DESCRIPTION
+An \*r file's
+contents are described by the grammar
+below.
+.PP
+The text is free format: space, backspace, tab, newline, vertical
+tab, form feed, and carriage return (collectively,
+.IR "white space")
+have no significance except in strings.
+However, an \*r file must end in a newline character.
+.PP
+Strings are enclosed by
+.BR @ .
+If a string contains a
+.BR @ ,
+it must be doubled;
+otherwise, strings may contain arbitrary binary data.
+.PP
+The meta syntax uses the following conventions: `|' (bar) separates
+alternatives; `{' and `}' enclose optional phrases; `{' and `}*' enclose
+phrases that may be repeated zero or more times;
+`{' and '}+' enclose phrases that must appear at least once and may be
+repeated;
+Terminal symbols are in
+.BR boldface ;
+nonterminal symbols are in
+.IR italics .
+.LP
+.nr x \w'\f3branches\fP'
+.nr y \w'{ \f3comment\fP'
+.if \nx<\ny .nr x \ny
+.nr y \w'\f3{ branch\fP'
+.if \nx<\ny .nr x \ny
+.ta \w'\f2deltatext\fP  'u +\w'::=  'u +\nxu+\w'  'u
+.fc ~
+.nf
+\f2rcstext\fP	::=	\f2admin\fP {\f2delta\fP}* \f2desc\fP {\f2deltatext\fP}*
+.LP
+\f2admin\fP	::=	\f3head\fP	{\f2num\fP}\f3;\fP
+		{ \f3branch\fP	{\f2num\fP}\f3;\fP }
+		\f3access\fP	{\f2id\fP}*\f3;\fP
+		\f3symbols\fP	{\f2id\fP \f3:\fP \f2num\fP}*\f3;\fP
+		\f3locks\fP	{\f2id\fP \f3:\fP \f2num\fP}*\f3;\fP  {\f3strict  ;\fP}
+		{ \f3comment\fP	{\f2string\fP}\f3;\fP }
+		{ \f3expand\fP	{\f2string\fP}\f3;\fP }
+		{ \f2newphrase\fP }*
+.LP
+\f2delta\fP	::=	\f2num\fP
+		\f3date\fP	\f2num\fP\f3;\fP
+		\f3author\fP	\f2id\fP\f3;\fP
+		\f3state\fP	{\f2id\fP}\f3;\fP
+		\f3branches\fP	{\f2num\fP}*\f3;\fP
+		\f3next\fP	{\f2num\fP}\f3;\fP
+		{ \f2newphrase\fP }*
+.LP
+\f2desc\fP	::=	\f3desc\fP	\f2string\fP
+.LP
+\f2deltatext\fP	::=	\f2num\fP
+		\f3log\fP	\f2string\fP
+		{ \f2newphrase\fP }*
+		\f3text\fP	\f2string\fP
+.LP
+\f2num\fP	::=	{\f2digit\fP{\f3.\fP}}+
+.LP
+\f2digit\fP	::=	\f30\fP | \f31\fP | .\|.\|. | \f39\fP
+.LP
+\f2id\fP	::=	\f2letter\fP{\f2idchar\fP}*
+.LP
+\f2letter\fP	::=	any letter
+.LP
+\f2idchar\fP	::=	any visible graphic character except \f2special\fP
+.LP
+\f2special\fP	::=	\f3$\fP | \f3,\fP | \f3.\fP | \f3:\fP | \f3;\fP | \f3@\fP
+.LP
+\f2string\fP	::=	\f3@\fP{any character, with \f3@\fP doubled}*\f3@\fP
+.LP
+\f2newphrase\fP	::=	\f2id\fP \f2word\fP* \f3;\fP
+.LP
+\f2word\fP	::=	\f2id\fP | \f2num\fP | \f2string\fP | \f3:\fP
+.fi
+.PP
+Identifiers are case sensitive.  Keywords are in lower case only.
+The sets of keywords and identifiers may overlap.
+In most environments RCS uses the ISO 8859/1 encoding:
+letters are octal codes 101\-132, 141\-172, 300\-326, 330\-366 and 370-377,
+visible graphic characters are codes 041\-176 and 240\-377,
+and white space characters are codes 010\-015 and 040.
+.PP
+The
+.I newphrase
+productions in the grammar are reserved for future extensions
+to the format of \*r files.
+No
+.I newphrase
+will begin with any keyword already in use.
+.PP
+The
+.I delta
+nodes form a tree.  All nodes whose numbers
+consist of a single pair
+(e.g., 2.3, 2.1, 1.3, etc.)
+are on the trunk, and are linked through the
+.B next
+field in order of decreasing numbers.
+The
+.B head
+field in the
+.I admin
+node points to the head of that sequence (i.e., contains
+the highest pair).
+The
+.B branch
+node in the admin node indicates the default
+branch (or revision) for most \*r operations.
+If empty, the default
+branch is the highest branch on the trunk.
+.PP
+All
+.I delta
+nodes whose numbers consist of
+.RI 2 n
+fields
+.RI ( n >=2)
+(e.g., 3.1.1.1, 2.1.2.2, etc.)
+are linked as follows.
+All nodes whose first
+.RI 2 n \-1
+number fields are identical are linked through the
+.B next
+field in order of increasing numbers.
+For each such sequence,
+the
+.I delta
+node whose number is identical to the first
+.RI 2 n \-2
+number fields of the deltas on that sequence is called the branchpoint.
+The
+.B branches
+field of a node contains a list of the
+numbers of the first nodes of all sequences for which it is a branchpoint.
+This list is ordered in increasing numbers.
+.LP
+.nf
+.vs 12
+.ne 38
+Example:
+.if t .in +0.5i
+.cs 1 20
+.eo
+
+                           Head
+                             |
+                             |
+                             v                        / \
+                         ---------                   /   \
+   / \          / \      |       |      / \         /     \
+  /   \        /   \     |  2.1  |     /   \       /       \
+ /     \      /     \    |       |    /     \     /         \
+/1.2.1.3\    /1.3.1.1\   |       |   /1.2.2.2\   /1.2.2.1.1.1\
+---------    ---------   ---------   ---------   -------------
+    ^            ^           |           ^             ^
+    |            |           |           |             |
+    |            |           v           |             |
+   / \           |       ---------      / \            |
+  /   \          |       \  1.3  /     /   \           |
+ /     \         ---------\     /     /     \-----------
+/1.2.1.1\                  \   /     /1.2.2.1\
+---------                   \ /      ---------
+    ^                        |           ^
+    |                        |           |
+    |                        v           |
+    |                    ---------       |
+    |                    \  1.2  /       |
+    ----------------------\     /---------
+                           \   /
+                            \ /
+                             |
+                             |
+                             v
+                         ---------
+                         \  1.1  /
+                          \     /
+                           \   /
+                            \ /
+
+.ec
+.if t .in
+.cs 1
+.ce
+Fig. 1: A revision tree
+.vs
+.fi
+.PP
+.SH IDENTIFICATION
+.de VL
+\\$2
+..
+Author: Walter F. Tichy,
+Purdue University, West Lafayette, IN, 47907.
+.br
+Revision Number: \*(Rv; Release Date: \*(Dt.
+.br
+Copyright \(co 1982, 1988, 1989 by Walter F. Tichy.
+.br
+Copyright \(co 1990, 1991 by Paul Eggert.
+.SH SEE ALSO
+ci(1), co(1), ident(1), rcs(1), rcsdiff(1), rcsmerge(1), rlog(1),
+.br
+Walter F. Tichy,
+\*r\*-A System for Version Control,
+.I "Software\*-Practice & Experience"
+.BR 15 ,
+7 (July 1985), 637-654.

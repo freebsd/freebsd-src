@@ -1,0 +1,569 @@
+.de Id
+.ds Rv \\$3
+.ds Dt \\$4
+..
+.Id $Id: co.1,v 5.7 1991/08/19 03:13:55 eggert Exp $
+.ds g \&\s-1UTC\s0
+.ds r \&\s-1RCS\s0
+.if n .ds - \%--
+.if t .ds - \(em
+.TH CO 1 \*(Dt GNU
+.SH NAME
+co \- check out RCS revisions
+.SH SYNOPSIS
+.B co
+.RI [ options ] " file " .\|.\|.
+.SH DESCRIPTION
+.B co
+retrieves a revision from each \*r file and stores it into
+the corresponding working file.
+.PP
+Pathnames matching an \*r suffix denote \*r files;
+all others denote working files.
+Names are paired as explained in
+.BR ci (1).
+.PP
+Revisions of an \*r file may be checked out locked or unlocked.  Locking a
+revision prevents overlapping updates.  A revision checked out for reading or
+processing (e.g., compiling) need not be locked.  A revision checked out
+for editing and later checkin must normally be locked.  Checkout with locking
+fails if the revision to be checked out is currently locked by another user.
+(A lock may be broken with
+.BR rcs "(1).)\ \&"
+Checkout with locking also requires the caller to be on the access list of
+the \*r file, unless he is the owner of the
+file or the superuser, or the access list is empty.
+Checkout without locking is not subject to accesslist restrictions, and is
+not affected by the presence of locks.
+.PP
+A revision is selected by options for revision or branch number,
+checkin date/time, author, or state.
+When the selection options
+are applied in combination,
+.B co
+retrieves the latest revision
+that satisfies all of them.
+If none of the selection options
+is specified,
+.B co
+retrieves the latest revision
+on the default branch (normally the trunk, see the
+.B \-b
+option of
+.BR rcs (1)).
+A revision or branch number may be attached
+to any of the options
+.BR \-f ,
+.BR \-I ,
+.BR \-l ,
+.BR \-M ,
+.BR \-p ,
+.BR \-q ,
+.BR \-r ,
+or
+.BR \-u .
+The options
+.B \-d
+(date),
+.B \-s
+(state), and
+.B \-w
+(author)
+retrieve from a single branch, the
+.I selected
+branch,
+which is either specified by one of
+.BR \-f,
+\&.\|.\|.,
+.BR \-u ,
+or the default branch.
+.PP
+A
+.B co
+command applied to an \*r
+file with no revisions creates a zero-length working file.
+.B co
+always performs keyword substitution (see below).
+.SH OPTIONS
+.TP
+.BR \-r [\f2rev\fP]
+retrieves the latest revision whose number is less than or equal to
+.I rev.
+If
+.I rev
+indicates a branch rather than a revision,
+the latest revision on that branch is retrieved.
+If
+.I rev
+is omitted, the latest revision on the default branch
+(see the
+.B \-b
+option of
+.BR rcs (1))
+is retrieved.
+If
+.I rev
+is
+.BR $ ,
+.B co
+determines the revision number from keyword values in the working file.
+Otherwise, a revision is composed of one or more numeric or symbolic fields
+separated by periods.  The numeric equivalent of a symbolic field
+is specified with the
+.B \-n
+option of the commands
+.BR ci (1)
+and
+.BR rcs (1).
+.TP
+.BR \-l [\f2rev\fP]
+same as
+.BR \-r ,
+except that it also locks the retrieved revision for
+the caller.
+.TP
+.BR \-u [\f2rev\fP]
+same as
+.BR \-r ,
+except that it unlocks the retrieved revision if it was
+locked by the caller.  If
+.I rev
+is omitted,
+.B \-u
+retrieves the revision locked by the caller, if there is one; otherwise,
+it retrieves the latest revision on the default branch.
+.TP
+.BR \-f [\f2rev\fP]
+forces the overwriting of the working file;
+useful in connection with
+.BR \-q .
+See also
+.SM "FILE MODES"
+below.
+.TP
+.B \-kkv
+Generate keyword strings using the default form, e.g.\&
+.B "$\&Revision: \*(Rv $"
+for the
+.B Revision
+keyword.
+A locker's name is inserted in the value of the
+.BR Header ,
+.BR Id ,
+and
+.B Locker
+keyword strings
+only as a file is being locked,
+i.e. by
+.B "ci\ \-l"
+and
+.BR "co\ \-l".
+This is the default.
+.TP
+.B \-kkvl
+Like
+.BR \-kkv ,
+except that a locker's name is always inserted
+if the given revision is currently locked.
+.TP
+.BR \-kk
+Generate only keyword names in keyword strings; omit their values.
+See
+.SM "KEYWORD SUBSTITUTION"
+below.
+For example, for the
+.B Revision
+keyword, generate the string
+.B $\&Revision$
+instead of
+.BR "$\&Revision: \*(Rv $".
+This option is useful to ignore differences due to keyword substitution
+when comparing different revisions of a file.
+.TP
+.BR \-ko
+Generate the old keyword string,
+present in the working file just before it was checked in.
+For example, for the
+.B Revision
+keyword, generate the string
+.B "$\&Revision: 1.1 $"
+instead of
+.B "$\&Revision: \*(Rv $"
+if that is how the string appeared when the file was checked in.
+This can be useful for binary file formats
+that cannot tolerate any changes to substrings
+that happen to take the form of keyword strings.
+.TP
+.BR \-kv
+Generate only keyword values for keyword strings.
+For example, for the
+.B Revision
+keyword, generate the string
+.B \*(Rv
+instead of
+.BR "$\&Revision: \*(Rv $".
+This can help generate files in programming languages where it is hard to
+strip keyword delimiters like
+.B "$\&Revision:\ $"
+from a string.
+However, further keyword substitution cannot be performed once the
+keyword names are removed, so this option should be used with care.
+Because of this danger of losing keywords,
+this option cannot be combined with
+.BR \-l ,
+and the owner write permission of the working file is turned off;
+to edit the file later, check it out again without
+.BR \-kv .
+.TP
+.BR \-p [\f2rev\fP]
+prints the retrieved revision on the standard output rather than storing it
+in the working file.
+This option is useful when
+.B co
+is part of a pipe.
+.TP
+.BR \-q [\f2rev\fP]
+quiet mode; diagnostics are not printed.
+.TP
+.BR \-I [\f2rev\fP]
+interactive mode;
+the user is prompted and questioned
+even if the standard input is not a terminal.
+.TP
+.BI \-d date
+retrieves the latest revision on the selected branch whose checkin date/time is
+less than or equal to
+.I date.
+The date and time may be given in free format.
+The time zone
+.B LT
+stands for local time;
+other common time zone names are understood.
+For example, the following
+.IR date s
+are equivalent
+if local time is January 11, 1990, 8pm Pacific Standard Time,
+eight hours west of Coordinated Universal Time (\*g):
+.RS
+.LP
+.RS
+.nf
+.ta \w'\f3Thu, 11 Jan 1990 20:00:00 \-0800\fP  'u
+.ne 9
+\f38:00 pm lt\fP
+\f34:00 AM, Jan. 12, 1990\fP	note: default is \*g
+\f31990/01/12 04:00:00\fP	\*r date format
+\f3Thu Jan 11 20:00:00 1990 LT\fP	output of \f3ctime\fP(3) + \f3LT\fP
+\f3Thu Jan 11 20:00:00 PST 1990\fP	output of \f3date\fP(1)
+\f3Fri Jan 12 04:00:00 GMT 1990\fP
+\f3Thu, 11 Jan 1990 20:00:00 \-0800\fP
+\f3Fri-JST, 1990, 1pm Jan 12\fP
+\f312-January-1990, 04:00-WET\fP
+.ta 4n +4n +4n +4n
+.fi
+.RE
+.LP
+Most fields in the date and time may be defaulted.
+The default time zone is \*g.
+The other defaults are determined in the order year, month, day,
+hour, minute, and second (most to least significant).  At least one of these
+fields must be provided.  For omitted fields that are of higher significance
+than the highest provided field, the time zone's current values are assumed.
+For all other omitted fields,
+the lowest possible values are assumed.
+For example, the date
+.B "20, 10:30"
+defaults to
+10:30:00 \*g of the 20th of the \*g time zone's current month and year.
+The date/time must be quoted if it contains spaces.
+.RE
+.TP
+.BR \-M [\f2rev\fP]
+Set the modification time on the new working file
+to be the date of the retrieved revision.
+Use this option with care; it can confuse
+.BR make (1).
+.TP
+.BI \-s state
+retrieves the latest revision on the selected branch whose state is set to
+.I state.
+.TP
+.BR \-w [\f2login\fP]
+retrieves the latest revision on the selected branch which was checked in
+by the user with login name
+.I login.
+If the argument
+.I login
+is
+omitted, the caller's login is assumed.
+.TP
+.BI \-j joinlist
+generates a new revision which is the join of the revisions on
+.I joinlist.
+This option is largely obsoleted by
+.BR rcsmerge (1)
+but is retained for backwards compatibility.
+.RS
+.PP
+The
+.I joinlist
+is a comma-separated list of pairs of the form
+.IB rev2 : rev3,
+where
+.I rev2
+and
+.I rev3
+are (symbolic or numeric)
+revision numbers.
+For the initial such pair,
+.I rev1
+denotes the revision selected
+by the above options
+.BR \-f,
+\&.\|.\|.,
+.BR \-w .
+For all other pairs,
+.I rev1
+denotes the revision generated by the previous pair.
+(Thus, the output
+of one join becomes the input to the next.)
+.PP
+For each pair,
+.B co
+joins revisions
+.I rev1
+and
+.I rev3
+with respect to
+.I rev2.
+This means that all changes that transform
+.I rev2
+into
+.I rev1
+are applied to a copy of
+.I rev3.
+This is particularly useful if
+.I rev1
+and
+.I rev3
+are the ends of two branches that have
+.I rev2
+as a common ancestor.  If
+.IR rev1 < rev2 < rev3
+on the same branch,
+joining generates a new revision which is like
+.I rev3,
+but with all changes that lead from
+.I rev1
+to
+.I rev2
+undone.
+If changes from
+.I rev2
+to
+.I rev1
+overlap with changes from
+.I rev2
+to
+.I rev3,
+.B co
+reports overlaps as described in
+.BR merge (1).
+.PP
+For the initial pair,
+.I rev2
+may be omitted.  The default is the common
+ancestor.
+If any of the arguments indicate branches, the latest revisions
+on those branches are assumed.
+The options
+.B \-l
+and
+.B \-u
+lock or unlock
+.I rev1.
+.RE
+.TP
+.BI \-V n
+Emulate \*r version
+.I n,
+where
+.I n
+may be
+.BR 3 ,
+.BR 4 ,
+or
+.BR 5 .
+This may be useful when interchanging \*r files with others who are
+running older versions of \*r.
+To see which version of \*r your correspondents are running, have them invoke
+.B rlog
+on an \*r file;
+if none of the first few lines of output contain the string
+.B branch:
+it is version 3;
+if the dates' years have just two digits, it is version 4;
+otherwise, it is version 5.
+An \*r file generated while emulating version 3 will lose its default branch.
+An \*r revision generated while emulating version 4 or earlier will have
+a timestamp that is off by up to 13 hours.
+A revision extracted while emulating version 4 or earlier will contain
+dates of the form
+.IB yy / mm / dd
+instead of
+.IB yyyy / mm / dd
+and may also contain different white space in the substitution for
+.BR $\&Log$ .
+.TP
+.BI \-x "suffixes"
+Use
+.I suffixes
+to characterize \*r files.
+See
+.BR ci (1)
+for details.
+.SH "KEYWORD SUBSTITUTION"
+Strings of the form
+.BI $ keyword $
+and
+.BI $ keyword : .\|.\|. $
+embedded in
+the text are replaced
+with strings of the form
+.BI $ keyword : value $
+where
+.I keyword
+and
+.I value
+are pairs listed below.
+Keywords may be embedded in literal strings
+or comments to identify a revision.
+.PP
+Initially, the user enters strings of the form
+.BI $ keyword $ .
+On checkout,
+.B co
+replaces these strings with strings of the form
+.BI $ keyword : value $ .
+If a revision containing strings of the latter form
+is checked back in, the value fields will be replaced during the next
+checkout.
+Thus, the keyword values are automatically updated on checkout.
+This automatic substitution can be modified by the
+.B \-k
+options.
+.PP
+Keywords and their corresponding values:
+.TP
+.B $\&Author$
+The login name of the user who checked in the revision.
+.TP
+.B $\&Date$
+The date and time (\*g) the revision was checked in.
+.TP
+.B $\&Header$
+A standard header containing the full pathname of the \*r file, the
+revision number, the date (\*g), the author, the state,
+and the locker (if locked).
+.TP
+.B $\&Id$
+Same as
+.BR $\&Header$ ,
+except that the \*r filename is without a path.
+.TP
+.B $\&Locker$
+The login name of the user who locked the revision (empty if not locked).
+.TP
+.B $\&Log$
+The log message supplied during checkin, preceded by a header
+containing the \*r filename, the revision number, the author, and the date
+(\*g).
+Existing log messages are
+.I not
+replaced.
+Instead, the new log message is inserted after
+.BR $\&Log: .\|.\|. $ .
+This is useful for
+accumulating a complete change log in a source file.
+.TP
+.B $\&RCSfile$
+The name of the \*r file without a path.
+.TP
+.B $\&Revision$
+The revision number assigned to the revision.
+.TP
+.B $\&Source$
+The full pathname of the \*r file.
+.TP
+.B $\&State$
+The state assigned to the revision with the
+.B \-s
+option of
+.BR rcs (1)
+or
+.BR ci (1).
+.SH "FILE MODES"
+The working file inherits the read and execute permissions from the \*r
+file.  In addition, the owner write permission is turned on, unless
+.B \-kv
+is set or the file
+is checked out unlocked and locking is set to strict (see
+.BR rcs (1)).
+.PP
+If a file with the name of the working file exists already and has write
+permission,
+.B co
+aborts the checkout,
+asking beforehand if possible.
+If the existing working file is
+not writable or
+.B \-f
+is given, the working file is deleted without asking.
+.SH FILES
+.B co
+accesses files much as
+.BR ci (1)
+does, except that it does not need to read the working file.
+.SH ENVIRONMENT
+.TP
+.B \s-1RCSINIT\s0
+options prepended to the argument list, separated by spaces.
+See
+.BR ci (1)
+for details.
+.SH DIAGNOSTICS
+The \*r pathname, the working pathname,
+and the revision number retrieved are
+written to the diagnostic output.
+The exit status is zero if and only if all operations were successful.
+.SH IDENTIFICATION
+Author: Walter F. Tichy.
+.br
+Revision Number: \*(Rv; Release Date: \*(Dt.
+.br
+Copyright \(co 1982, 1988, 1989 by Walter F. Tichy.
+.br
+Copyright \(co 1990, 1991 by Paul Eggert.
+.SH "SEE ALSO"
+ci(1), ctime(3), date(1), ident(1), make(1),
+rcs(1), rcsdiff(1), rcsintro(1), rcsmerge(1), rlog(1),
+rcsfile(5)
+.br
+Walter F. Tichy,
+\*r\*-A System for Version Control,
+.I "Software\*-Practice & Experience"
+.BR 15 ,
+7 (July 1985), 637-654.
+.SH LIMITS
+Links to the \*r and working files are not preserved.
+.PP
+There is no way to selectively suppress the expansion of keywords, except
+by writing them differently.  In nroff and troff, this is done by embedding the
+null-character
+.B \e&
+into the keyword.
+.SH BUGS
+The
+.B \-d
+option sometimes gets confused, and accepts no date before 1970.
+.br
