@@ -42,7 +42,7 @@ get_dash_string(char **str)
     char *s = *str;
 
     if (*s == '-')
-	*str = copy_string(s + 1);
+	*str = copy_string_plus_newline(s + 1);
     else
 	*str = fileGetContents(s);
     return *str;
@@ -53,6 +53,27 @@ char *
 copy_string(const char *str)
 {
     return (str ? strdup(str) : NULL);
+}
+
+/* Rather Obvious but adds a trailing \n newline */
+char *
+copy_string_plus_newline(const char *str)
+{
+    if (str == NULL) {
+	return (NULL);
+    } else  {
+	char *copy;
+	size_t line_length;
+
+	line_length = strlen(str) + 2;
+	if ((copy = malloc(line_length)) == NULL)
+		return (NULL);
+	memcpy(copy, str, line_length - 2);
+	copy[line_length - 2] = '\n';	/* Adds trailing \n */
+	copy[line_length - 1] = '\0';
+
+	return (copy);
+   }
 }
 
 /* Return TRUE if 'str' ends in suffix 'suff' */
