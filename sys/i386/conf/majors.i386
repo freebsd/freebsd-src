@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.58 1998/12/29 00:04:48 jkh Exp $
+$Id: majors.i386,v 1.59 1999/01/03 16:48:02 n_hibma Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -156,5 +156,6 @@ chrdev	name		comments
 109	id		Intelligent Disk [Array] (md@doc.ic.ac.uk)
 110	ses		SCSI Environmental Services driver (mjacob@feral.com)
 111	ums		USB Mouse (nick.hibma@jrc.it)
+112	kbd		keyboard
 200	??		entries from 200-255 are reserved for local use
 255	??		entries from 200-255 are reserved for local use
