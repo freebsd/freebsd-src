@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.121 1995/12/26 13:57:56 bde Exp $
+#	$Id: files.i386,v 1.122 1995/12/29 15:28:46 bde Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/aic7xxx_asm.c"			   \
@@ -9,10 +9,10 @@ aic7xxx_asm			optional	ahc	device-driver	   \
 	no-obj no-implicit-rule						   \
 	clean		"aic7xxx_asm"
 aic7xxx_seq.h			optional	ahc	device-driver	   \
-	dependency	"$S/dev/aic7xxx/aic7xxx.seq aic7xxx_asm"	   \
-	compile-with	"./aic7xxx_asm -o $@ $S/dev/aic7xxx/aic7xxx.seq"  \
+	compile-with	"./aic7xxx_asm -o $@ $S/dev/aic7xxx/aic7xxx.seq"   \
 	no-obj no-implicit-rule before-depend				   \
-	clean		"aic7xxx_seq.h"
+	clean		"aic7xxx_seq.h"					   \
+	dependency	"$S/dev/aic7xxx/aic7xxx_reg.h $S/dev/aic7xxx/aic7xxx.seq aic7xxx_asm"
 i386/scsi/93cx6.c		optional	ahc	device-driver
 i386/apm/apm.c			optional	apm	device-driver
 i386/apm/apm_setup.s		optional	apm
@@ -192,7 +192,7 @@ i386/linux/linux_socket.c	optional	linux
 i386/linux/linux_stats.c	optional	linux
 i386/linux/linux_sysent.c	optional	linux
 i386/scsi/aic7xxx.c		optional	ahc	device-driver	   \
-	dependency	"aic7xxx_seq.h"
+	dependency	"$S/dev/aic7xxx/aic7xxx_reg.h aic7xxx_seq.h"
 i386/scsi/bt.c			optional	bt	device-driver
 libkern/divdi3.c		standard
 libkern/inet_ntoa.c		standard
