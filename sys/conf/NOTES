@@ -1574,7 +1574,7 @@ device		xrpu0
 # The `ahb' device provides support for the Adaptec 174X adapter.
 #
 # The `ahc' device provides support for the Adaptec 274X and 284X
-# adapters.  The 284X, although a VLB card responds to EISA probes.
+# adapters.  The 284X, although a VLB card, responds to EISA probes.
 #
 # fea: DEC DEFEA EISA FDDI adapter
 #
