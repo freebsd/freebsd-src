@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aha.c,v 1.1 1998/09/15 07:39:52 gibbs Exp $
+ *      $Id: aha.c,v 1.2 1998/09/16 03:27:12 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -1139,8 +1139,8 @@ ahadone(struct aha_softc *aha, struct aha_ccb *bccb, aha_mbi_comp_code_t comp_co
 	csio = &bccb->ccb->csio;
 
 	if ((bccb->flags & BCCB_ACTIVE) == 0) {
-		printf("%s: ahadone - Attempt to free non-active BCCB 0x%x\n",
-		       aha_name(aha), (intptr_t)bccb);
+		printf("%s: ahadone - Attempt to free non-active BCCB %p\n",
+		       aha_name(aha), (void *)bccb);
 		return;
 	}
 
@@ -1679,14 +1679,14 @@ ahatimeout(void *arg)
 	ccb = bccb->ccb;
 	aha = (struct aha_softc *)ccb->ccb_h.ccb_aha_ptr;
 	xpt_print_path(ccb->ccb_h.path);
-	printf("CCB 0x%x - timed out\n", (intptr_t)bccb);
+	printf("CCB %p - timed out\n", (void *)bccb);
 
 	s = splcam();
 
 	if ((bccb->flags & BCCB_ACTIVE) == 0) {
 		xpt_print_path(ccb->ccb_h.path);
-		printf("CCB 0x%x - timed out CCB already completed\n",
-		       (intptr_t)bccb);
+		printf("CCB %p - timed out CCB already completed\n",
+		       (void *)bccb);
 		splx(s);
 		return;
 	}

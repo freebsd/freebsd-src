@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahb.c,v 1.1 1998/09/15 07:10:00 gibbs Exp $
+ *	$Id: ahb.c,v 1.2 1998/09/16 03:27:07 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -1259,14 +1259,14 @@ ahbtimeout(void *arg)
 	ccb = ecb->ccb;
 	ahb = (struct ahb_softc *)ccb->ccb_h.ccb_ahb_ptr;
 	xpt_print_path(ccb->ccb_h.path);
-	printf("ECB 0x%x - timed out\n", (intptr_t)ecb);
+	printf("ECB %p - timed out\n", (void *)ecb);
 
 	s = splcam();
 
 	if ((ecb->state & ECB_ACTIVE) == 0) {
 		xpt_print_path(ccb->ccb_h.path);
-		printf("ECB 0x%x - timed out ECB already completed\n",
-		       (intptr_t)ecb);
+		printf("ECB %p - timed out ECB already completed\n",
+		       (void *)ecb);
 		splx(s);
 		return;
 	}
