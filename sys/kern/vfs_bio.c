@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.72 1995/12/02 17:10:47 bde Exp $
+ * $Id: vfs_bio.c,v 1.73 1995/12/02 18:58:44 bde Exp $
  */
 
 /*
@@ -37,6 +37,7 @@
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <vm/vm.h>
@@ -1354,6 +1355,20 @@ vfs_update()
 		sync(curproc, NULL, NULL);
 	}
 }
+
+static int
+sysctl_kern_updateinterval SYSCTL_HANDLER_ARGS
+{
+	int error = sysctl_handle_int(oidp,
+		oidp->oid_arg1, oidp->oid_arg2, req);
+	if (!error)
+		wakeup(&vfs_update_wakeup);
+	return error;
+}
+
+SYSCTL_PROC(_kern, KERN_UPDATEINTERVAL, update, CTLTYPE_INT|CTLFLAG_RW,
+	&vfs_update_interval, 0, sysctl_kern_updateinterval, "I", "");
+
 
 /*
  * This routine is called in lieu of iodone in the case of

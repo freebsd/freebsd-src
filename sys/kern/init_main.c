@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.32 1995/11/28 07:29:59 bde Exp $
+ * $Id: init_main.c,v 1.33 1995/12/02 17:10:29 bde Exp $
  */
 
 #include <sys/param.h>
@@ -47,6 +47,7 @@
 #include <sys/errno.h>
 #include <sys/exec.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #ifdef GPROF
 #include <sys/gmon.h>
 #endif
@@ -96,7 +97,11 @@ extern	struct user *proc0paddr;
 
 struct	vnode *rootvp;
 int	boothowto;
+
 struct	timeval boottime;
+SYSCTL_STRUCT(_kern, KERN_BOOTTIME, boottime,
+	CTLFLAG_RW, &boottime, timeval, "");
+
 struct	timeval runtime;
 
 /*
