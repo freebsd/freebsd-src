@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.25.4.3 1996/02/22 19:22:30 peter Exp $
+ * $Id: kern_sysctl.c,v 1.25.4.4 1996/05/30 01:24:41 davidg Exp $
  */
 
 /*
@@ -178,6 +178,11 @@ char kernelname[MAXPATHLEN] = "/kernel";	/* XXX bloat */
 extern int vfs_update_wakeup;
 extern int vfs_update_interval;
 extern int osreldate;
+extern int exec_ps_strings;
+extern int exec_usrstack;
+extern int somaxconn;
+extern u_long sb_max;
+extern u_long sb_efficiency;
 
 /*
  * kernel related system variables.
@@ -192,7 +197,7 @@ kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 	size_t newlen;
 	struct proc *p;
 {
-	int error, level, inthostid;
+	int error, level, inthostid, intsb_max, intsb_efficiency;
 	dev_t ndumpdev;
 
 	/* all sysctl names at this level are terminal */
@@ -305,6 +310,22 @@ kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 			error = setdumpdev(ndumpdev);
 		}
 		return error;
+	case KERN_SOMAXCONN:
+		return(sysctl_int(oldp, oldlenp, newp, newlen, &somaxconn));
+	case KERN_MAXSOCKBUF:
+		intsb_max = sb_max;  /* XXX assumes sizeof long <= sizeof int */
+		error = sysctl_int(oldp, oldlenp, newp, newlen, &intsb_max);
+		sb_max = intsb_max;
+		return (error);
+	case KERN_PS_STRINGS:
+		return(sysctl_int(oldp, oldlenp, newp, newlen, &exec_ps_strings));
+	case KERN_USRSTACK:
+		return(sysctl_int(oldp, oldlenp, newp, newlen, &exec_usrstack));
+	case KERN_SOCKBUF_WASTE:
+		intsb_efficiency = sb_efficiency;  /* XXX assumes sizeof long <= sizeof int */
+		error = sysctl_int(oldp, oldlenp, newp, newlen, &intsb_efficiency);
+		sb_efficiency = intsb_efficiency;
+		return (error);
 	default:
 		return (EOPNOTSUPP);
 	}
