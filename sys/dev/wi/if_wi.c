@@ -1838,6 +1838,7 @@ wi_get_cfg(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ifreq *ifr = (struct ifreq *)data;
 	struct wi_req wreq;
 	struct wi_scan_res *res;
+	size_t reslen;
 	int len, n, error, mif, val, off, i;
 
 	error = copyin(ifr->ifr_data, &wreq, sizeof(wreq));
@@ -1964,11 +1965,16 @@ wi_get_cfg(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 		n = sc->sc_naps;
-		off = sc->sc_firmware_type != WI_LUCENT ?
-			sizeof(struct wi_scan_p2_hdr) : 0;
-		if (len < off + sizeof(struct wi_scan_res) * n)
-			n = (len - off) / sizeof(struct wi_scan_res);
-		len = off + sizeof(struct wi_scan_res) * n;
+		if (sc->sc_firmware_type == WI_LUCENT) {
+			off = 0;
+			reslen = WI_WAVELAN_RES_SIZE;
+		} else {
+			off = sizeof(struct wi_scan_p2_hdr);
+			reslen = WI_PRISM2_RES_SIZE;
+		}
+		if (len < off + reslen * n)
+			n = (len - off) / reslen;
+		len = off + reslen * n;
 		if (off != 0) {
 			struct wi_scan_p2_hdr *p2 = (struct wi_scan_p2_hdr *)wreq.wi_val;
 			/*
@@ -1982,7 +1988,7 @@ wi_get_cfg(struct ifnet *ifp, u_long cmd, caddr_t data)
 			p2->wi_rsvd = 0;
 			p2->wi_reason = n;	/* XXX */
 		}
-		for (i = 0; i < n; i++) {
+		for (i = 0; i < n; i++, off += reslen) {
 			const struct wi_apinfo *ap = &sc->sc_aps[i];
 
 			res = (struct wi_scan_res *)((char *)wreq.wi_val + off);
@@ -2001,9 +2007,7 @@ wi_get_cfg(struct ifnet *ifp, u_long cmd, caddr_t data)
 					sizeof(res->wi_srates));
 				res->wi_rate = ap->rate;
 				res->wi_rsvd = 0;
-				off += WI_PRISM2_RES_SIZE;
-			} else
-				off += WI_WAVELAN_RES_SIZE;
+			}
 		}
 		break;
 
