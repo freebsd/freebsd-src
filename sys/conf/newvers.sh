@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)newvers.sh	8.1 (Berkeley) 4/20/94
-#	$Id: newvers.sh,v 1.26.2.3 1996/11/14 12:53:15 phk Exp $
+#	$Id: newvers.sh,v 1.26.2.4 1996/11/15 08:44:24 jkh Exp $
 
 TYPE="FreeBSD"
 REVISION="2.2"
@@ -73,7 +73,7 @@ COPYRIGHT="$COPYRIGHT
 
 "
 
-LC_TIME=; export LC_TIME
+LC_TIME=C; export LC_TIME
 if [ ! -r version ]
 then
 	echo 0 > version

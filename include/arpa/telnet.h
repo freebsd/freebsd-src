@@ -66,7 +66,8 @@
 char *telcmds[] = {
 	"EOF", "SUSP", "ABORT", "EOR",
 	"SE", "NOP", "DMARK", "BRK", "IP", "AO", "AYT", "EC",
-	"EL", "GA", "SB", "WILL", "WONT", "DO", "DONT", "IAC", 0,
+	"EL", "GA", "SB", "WILL", "WONT", "DO", "DONT", "IAC",
+	0
 };
 #else
 extern char *telcmds[];
@@ -135,7 +136,7 @@ char *telopts[NTELOPTS+1] = {
 	"3270 REGIME", "X.3 PAD", "NAWS", "TSPEED", "LFLOW",
 	"LINEMODE", "XDISPLOC", "OLD-ENVIRON", "AUTHENTICATION",
 	"ENCRYPT", "NEW-ENVIRON",
-	0,
+	0
 };
 #define	TELOPT_FIRST	TELOPT_BINARY
 #define	TELOPT_LAST	TELOPT_NEW_ENVIRON
@@ -196,16 +197,33 @@ char *telopts[NTELOPTS+1] = {
 #define	SLC_XOFF	16
 #define	SLC_FORW1	17
 #define	SLC_FORW2	18
+#define SLC_MCL         19
+#define SLC_MCR         20
+#define SLC_MCWL        21
+#define SLC_MCWR        22
+#define SLC_MCBOL       23
+#define SLC_MCEOL       24
+#define SLC_INSRT       25
+#define SLC_OVER        26
+#define SLC_ECR         27
+#define SLC_EWR         28
+#define SLC_EBOL        29
+#define SLC_EEOL        30
 
-#define	NSLC		18
+#define	NSLC		30
 
 /*
- * For backwards compatibility, we define SLC_NAMES to be the
+ * For backwards compatability, we define SLC_NAMES to be the
  * list of names if SLC_NAMES is not defined.
  */
-#define	SLC_NAMELIST	"0", "SYNCH", "BRK", "IP", "AO", "AYT", "EOR", \
-			"ABORT", "EOF", "SUSP", "EC", "EL", "EW", "RP", \
-			"LNEXT", "XON", "XOFF", "FORW1", "FORW2", 0,
+#define	SLC_NAMELIST	"0", "SYNCH", "BRK", "IP", "AO", "AYT", "EOR",	\
+			"ABORT", "EOF", "SUSP", "EC", "EL", "EW", "RP",	\
+			"LNEXT", "XON", "XOFF", "FORW1", "FORW2",	\
+			"MCL", "MCR", "MCWL", "MCWR", "MCBOL",		\
+			"MCEOL", "INSRT", "OVER", "ECR", "EWR",		\
+			"EBOL", "EEOL",					\
+			0
+
 #ifdef	SLC_NAMES
 char *slc_names[] = {
 	SLC_NAMELIST
@@ -268,7 +286,8 @@ extern char *slc_names[];
 
 #ifdef	AUTH_NAMES
 char *authtype_names[] = {
-	"NULL", "KERBEROS_V4", "KERBEROS_V5", "SPX", "MINK", 0,
+	"NULL", "KERBEROS_V4", "KERBEROS_V5", "SPX", "MINK",
+	0
 };
 #else
 extern char *authtype_names[];
@@ -300,10 +319,11 @@ extern char *authtype_names[];
 char *encrypt_names[] = {
 	"IS", "SUPPORT", "REPLY", "START", "END",
 	"REQUEST-START", "REQUEST-END", "ENC-KEYID", "DEC-KEYID",
-	0,
+	0
 };
 char *enctype_names[] = {
-	"ANY", "DES_CFB64",  "DES_OFB64",  0,
+	"ANY", "DES_CFB64",  "DES_OFB64",
+	0
 };
 #else
 extern char *encrypt_names[];

@@ -487,7 +487,7 @@ sb16_dsp_init (long mem_start, struct address_info *hw_config)
   sprintf (sb16_dsp_operations.name, "SoundBlaster 16 %d.%d", sbc_major, sbc_minor);
 
 #if defined(__FreeBSD__)
-  printk ("sbxvo0: <%s>", sb16_dsp_operations.name);
+  printk ("sbxvi0: <%s>", sb16_dsp_operations.name);
 #else
   printk (" <%s>", sb16_dsp_operations.name);
 #endif
