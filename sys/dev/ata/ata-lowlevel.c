@@ -532,7 +532,7 @@ ata_generic_reset(struct ata_channel *ch)
     ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
     DELAY(10);
     ostat0 = ATA_IDX_INB(ch, ATA_STATUS);
-    if ((ostat0 & 0xf8) != 0xf8 && ostat0 != 0xa5 && ostat0 != 0x7f) {
+    if ((ostat0 & 0xf8) != 0xf8 && ostat0 != 0xa5) {
 	stat0 = ATA_S_BUSY;
 	mask |= 0x01;
     }
@@ -543,7 +543,7 @@ ata_generic_reset(struct ata_channel *ch)
 
     /* in some setups we dont want to test for a slave */
     if (!(ch->flags & ATA_NO_SLAVE)) {
-	if ((ostat1 & 0xf8) != 0xf8 && ostat1 != 0xa5 && ostat1 != 0x7f) {
+	if ((ostat1 & 0xf8) != 0xf8 && ostat1 != 0xa5) {
 	    stat1 = ATA_S_BUSY;
 	    mask |= 0x02;
 	}
@@ -637,15 +637,10 @@ ata_generic_reset(struct ata_channel *ch)
 	DELAY(100000);
     }	
 
-    if (stat0 & ATA_S_BUSY)
-	mask &= ~0x01;
-    if (stat1 & ATA_S_BUSY)
-	mask &= ~0x02;
-
     if (bootverbose)
 	ata_printf(ch, -1,
-		   "reset tp2 mask=%02x stat0=%02x stat1=%02x devices=0x%b\n",
-		   mask, stat0, stat1, ch->devices,
+		   "reset tp2 stat0=%02x stat1=%02x devices=0x%b\n",
+		   stat0, stat1, ch->devices,
 		   "\20\4ATAPI_SLAVE\3ATAPI_MASTER\2ATA_SLAVE\1ATA_MASTER");
 }
 
