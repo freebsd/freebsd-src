@@ -226,7 +226,7 @@ g_bsd_lesum(struct disklabel *dl, u_char *p)
 }
 
 static int
-g_bsd_i386(struct g_consumer *cp, int secsize, struct disklabel *dl)
+g_bsd_i386(struct g_slicer *gsp, struct g_consumer *cp, int secsize, struct disklabel *dl)
 {
 	int error;
 	u_char *buf;
@@ -242,11 +242,12 @@ g_bsd_i386(struct g_consumer *cp, int secsize, struct disklabel *dl)
 	else
 		error = ENOENT;
 	g_free(buf);
+	gsp->frontstuff = 16 * secsize;
 	return(error);
 }
 
 static int
-g_bsd_alpha(struct g_consumer *cp, int secsize, struct disklabel *dl)
+g_bsd_alpha(struct g_slicer *gsp, struct g_consumer *cp, int secsize, struct disklabel *dl)
 {
 	int error;
 	u_char *buf;
@@ -262,6 +263,7 @@ g_bsd_alpha(struct g_consumer *cp, int secsize, struct disklabel *dl)
 	else
 		error = ENOENT;
 	g_free(buf);
+	gsp->frontstuff = 16 * secsize;
 	return(error);
 }
 
@@ -320,6 +322,7 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	u_int fwsectors, fwheads;
 	off_t mediasize;
 	struct partition *ppp, *ppr;
+	struct g_slicer *gsp;
 
 	g_trace(G_T_TOPOLOGY, "bsd_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
@@ -329,31 +332,29 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	gp = g_slice_new(mp, 8, pp, &cp, &ms, sizeof *ms, g_bsd_start);
 	if (gp == NULL)
 		return (NULL);
+	gsp = gp->softc;
 	g_topology_unlock();
 	gp->dumpconf = g_bsd_dumpconf;
 	npart = 0;
 	while (1) {	/* a trick to allow us to use break */
-		j = sizeof i;
-		error = g_io_getattr("MBR::type", cp, &j, &i);
+		error = g_getattr("MBR::type", cp, &i);
 		if (!error && i != 165 && flags == G_TF_NORMAL)
 			break;
-		j = sizeof secsize;
-		error = g_io_getattr("GEOM::sectorsize", cp, &j, &secsize);
+		error = g_getattr("GEOM::sectorsize", cp, &secsize);
 		if (error) {
 			secsize = 512;
 			printf("g_bsd_taste: error %d Sectors are %d bytes\n",
 			    error, secsize);
 		}
-		j = sizeof mediasize;
-		error = g_io_getattr("GEOM::mediasize", cp, &j, &mediasize);
+		error = g_getattr("GEOM::mediasize", cp, &mediasize);
 		if (error) {
 			mediasize = 0;
 			printf("g_error %d Mediasize is %lld bytes\n",
 			    error, (long long)mediasize);
 		}
-		error = g_bsd_i386(cp, secsize, &ms->ondisk);
+		error = g_bsd_i386(gsp, cp, secsize, &ms->ondisk);
 		if (error)
-			error = g_bsd_alpha(cp, secsize, &ms->ondisk);
+			error = g_bsd_alpha(gsp, cp, secsize, &ms->ondisk);
 		if (error)
 			break;
 		dl = &ms->ondisk;

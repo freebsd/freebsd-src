@@ -146,6 +146,8 @@ g_disk_start(struct bio *bp)
 		else if (g_haveattr_off_t(bp, "GEOM::mediasize",
 		    dp->d_label.d_secsize * (off_t)dp->d_label.d_secperunit))
 			break;
+		else if (g_haveattr_off_t(bp, "GEOM::frontstuff", 0))
+			break;
 		else if (!strcmp(bp->bio_attribute, "GEOM::ioctl") &&
 		    bp->bio_length == sizeof *gio) {
 			gio = (struct g_ioctl *)bp->bio_data;

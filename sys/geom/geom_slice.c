@@ -129,17 +129,18 @@ g_slice_start(struct bio *bp)
 	struct g_slicer *gsp;
 	struct g_slice *gsl;
 	int index;
+	off_t t;
 
 	pp = bp->bio_to;
 	gp = pp->geom;
 	gsp = gp->softc;
 	cp = LIST_FIRST(&gp->consumer);
 	index = pp->index;
+	gsl = &gsp->slices[index];
 	switch(bp->bio_cmd) {
 	case BIO_READ:
 	case BIO_WRITE:
 	case BIO_DELETE:
-		gsl = &gsp->slices[index];
 		if (bp->bio_offset > gsl->length) {
 			bp->bio_error = EINVAL; /* XXX: EWHAT ? */
 			g_io_deliver(bp);
@@ -154,11 +155,24 @@ g_slice_start(struct bio *bp)
 		return;
 	case BIO_GETATTR:
 	case BIO_SETATTR:
+		/* Give the real method a chance to override */
+		if (gsp->start(bp))
+			return;
 		if (g_haveattr_off_t(bp, "GEOM::mediasize",
 		    gsp->slices[index].length))
 			return;
-		if (gsp->start(bp))
+		if (!strcmp("GEOM::frontstuff", bp->bio_attribute)) {
+			t = gsp->cfrontstuff;
+			if (gsp->frontstuff > t)
+				t = gsp->frontstuff;
+			t -= gsl->offset;
+			if (t < 0)
+				t = 0;
+			if (t > gsl->length)
+				t = gsl->length;
+			g_haveattr_off_t(bp, "GEOM::frontstuff", t);
 			return;
+		}
 		bp2 = g_clone_bio(bp);
 		bp2->bio_done = g_std_done;
 		g_io_request(bp2, cp);
@@ -178,6 +192,10 @@ g_slice_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_cons
 
 	gsp = gp->softc;
 	mp = gsp->softc;
+	if (gp != NULL) {
+		sbuf_printf(sb, "%s<frontstuff>%llu</frontstuff>\n",
+		    indent, (unsigned long long)gsp->frontstuff);
+	}
 	if (pp != NULL) {
 		sbuf_printf(sb, "%s<index>%u</index>\n", indent, pp->index);
 		sbuf_printf(sb, "%s<length>%llu</length>\n",
@@ -224,7 +242,7 @@ g_slice_new(struct g_class *mp, int slices, struct g_provider *pp, struct g_cons
 	struct g_slicer *gsp;
 	struct g_consumer *cp;
 	void **vp;
-	int error;
+	int error, i;
 
 	g_topology_assert();
 	vp = (void **)extrap;
@@ -248,6 +266,11 @@ g_slice_new(struct g_class *mp, int slices, struct g_provider *pp, struct g_cons
 		g_destroy_geom(gp);
 		return (NULL);
 	}
+	/* Find out if there are any magic bytes on the consumer */
+	i = sizeof gsp->cfrontstuff;
+	error = g_io_getattr("GEOM::frontstuff", cp, &i, &gsp->cfrontstuff);
+	if (error)
+		gsp->cfrontstuff = 0;
 	*vp = gsp->softc;
 	*cpp = cp;
 	return (gp);
