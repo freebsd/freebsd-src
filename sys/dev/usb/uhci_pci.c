@@ -93,8 +93,13 @@ static const char *uhci_device_generic	= "UHCI (generic) USB controller";
 static int
 uhci_pci_suspend(device_t self)
 {
+	uhci_softc_t *sc = device_get_softc(self);
+	int err;
 
-	bus_generic_suspend(self);
+	err = bus_generic_suspend(self);
+	if (err)
+		return err;
+	uhci_power(PWR_SUSPEND, sc);
 
 	return 0;
 }
@@ -102,11 +107,9 @@ uhci_pci_suspend(device_t self)
 static int
 uhci_pci_resume(device_t self)
 {
-#if 0
 	uhci_softc_t *sc = device_get_softc(self);
 
-	uhci_reset(sc);
-#endif
+	uhci_power(PWR_RESUME, sc);
 	bus_generic_resume(self);
 
 	return 0;
