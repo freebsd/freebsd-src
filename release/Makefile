@@ -219,6 +219,9 @@ EXTRAS= ftp.1
 .else
 EXTRAS= cdrom.1 ftp.1
 .endif
+.if defined(MAKE_ISOS)
+EXTRAS+= iso.1
+.endif
 
 .if !defined(NODOC)
 DOCREL= doc.1 doc.2
@@ -335,6 +338,9 @@ rerelease release:
 .endif
 .if defined(NOPORTS)
 	echo "export NOPORTS=${NOPORTS}"	>> ${CHROOTDIR}/mk
+.endif
+.if defined(MAKE_ISOS)
+	echo "export MAKE_ISOS=${MAKE_ISOS}"	>> ${CHROOTDIR}/mk
 .endif
 .if defined(DOMINIMALDOCPORTS)
 	echo "export DOMINIMALDOCPORTS=${DOMINIMALDOCPORTS}" >> ${CHROOTDIR}/mk
@@ -761,6 +767,9 @@ cdrom.1:
 	@ln -f ${CD_DISC2}/boot/cdboot ${CD_DISC1}/boot
 	@ln -f ${CD_DISC1}/boot/loader.rc ${CD_DISC2}/boot
 	@ln -f ${CD_DISC1}/kernel ${CD_DISC2}/kernel
+.elif ${MACHINE_ARCH} == "i386"
+	@mkdir -p ${CD_DISC2}/floppies
+	@cp ${CD_DISC1}/floppies/boot.flp ${CD_DISC2}/floppies
 .endif
 .if !defined(NOPORTS)
 	@-rm -rf /usr/ports/distfiles/*
@@ -770,6 +779,20 @@ cdrom.1:
 	  && (cd ${CD_DISC1}/ports; md5 * > CHECKSUM.MD5)
 .endif
 	touch cdrom.1
+
+iso.1:
+	@if [ -x ${.CURDIR}/${MACHINE_ARCH}/mkisoimages.sh ]; then \
+		echo "Creating ISO images..."; \
+		${.CURDIR}/${MACHINE_ARCH}/mkisoimages.sh -b fbsd_miniboot \
+		  ${CD}/miniboot.iso ${CD_DISC1}; \
+		${.CURDIR}/${MACHINE_ARCH}/mkisoimages.sh -b fbsd_livefs \
+		  ${CD}/disc2.iso ${CD_DISC2}; \
+		if [ "x${CD_EXTRA_BITS}" != "x" ]; then \
+			${.CURDIR}/${MACHINE_ARCH}/mkisoimages.sh -b fbsd_boot \
+			  ${CD}/disc1.iso ${CD_DISC1} ${CD_EXTRA_BITS}; \
+		fi \
+	fi
+	touch iso.1
 
 #
 # --==## Documentation Project files such as the Handbook and FAQ ##==--
