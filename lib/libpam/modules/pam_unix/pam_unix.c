@@ -61,7 +61,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
 		return retval;
 	if ((pwd = getpwnam(user)) != NULL) {
 		encrypted = crypt(password, pwd->pw_passwd);
-		if (password[0] == '\0' && pwd->pw_passwd != '\0')
+		if (password[0] == '\0' && pwd->pw_passwd[0] != '\0')
 			encrypted = ":";
 
 		retval = strcmp(encrypted, pwd->pw_passwd) == 0 ?
