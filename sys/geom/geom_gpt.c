@@ -113,7 +113,7 @@ g_gpt_start(struct bio *bp)
 }
 
 static void
-g_gpt_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp,
+g_gpt_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
     struct g_consumer *cp, struct g_provider *pp)
 {
 	struct g_slicer *gsp = gp->softc;
