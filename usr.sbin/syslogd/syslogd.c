@@ -89,6 +89,7 @@ static const char rcsid[] =
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/syslimits.h>
+#include <sys/types.h>
 
 #include <netinet/in.h>
 #include <netdb.h>
@@ -98,6 +99,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libutil.h>
 #include <limits.h>
 #include <paths.h>
 #include <signal.h>
@@ -261,7 +263,6 @@ static int	Debug;		/* debug flag */
 static int	resolve = 1;	/* resolve hostname */
 static char	LocalHostName[MAXHOSTNAMELEN];	/* our hostname */
 static char	*LocalDomain;	/* our local domain name */
-static int	LocalDomainLen;	/* length of LocalDomain */
 static int	*finet;		/* Internet datagram socket */
 static int	fklog = -1;	/* /dev/klog */
 static int	Initialized;	/* set when we have initialized ourselves */
@@ -1279,9 +1280,7 @@ cvthname(struct sockaddr *f)
 	hl = strlen(hname);
 	if (hl > 0 && hname[hl-1] == '.')
 		hname[--hl] = '\0';
-	if (hl > LocalDomainLen && hname[hl-LocalDomainLen] == '.' &&
-	    strcasecmp(hname + hl - LocalDomainLen + 1, LocalDomain) == 0)
-		hname[hl-LocalDomainLen] = '\0';
+	trimdomain(hname, hl);
 	return (hname);
 }
 
@@ -1379,7 +1378,6 @@ init(int signo)
 	} else {
 		LocalDomain = "";
 	}
-	LocalDomainLen = strlen(LocalDomain);
 
 	/*
 	 *  Close all open log files.
@@ -1590,11 +1588,7 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 		hl = strlen(f->f_host);
 		if (hl > 0 && f->f_host[hl-1] == '.')
 			f->f_host[--hl] = '\0';
-		if (hl > LocalDomainLen &&
-		    f->f_host[hl-LocalDomainLen] == '.' &&
-		    strcasecmp(f->f_host + hl - LocalDomainLen + 1,
-			LocalDomain) == 0)
-			f->f_host[hl-LocalDomainLen] = '\0';
+		trimdomain(f->f_host, hl);
 	}
 
 	/* save program name if any */
