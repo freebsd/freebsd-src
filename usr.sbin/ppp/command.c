@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.67 1997/07/14 01:41:26 brian Exp $
+ * $Id: command.c,v 1.68 1997/08/17 20:45:45 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -73,7 +73,9 @@ int randinit;
 static int ShowCommand(), TerminalCommand(), QuitCommand();
 static int CloseCommand(), DialCommand(), DownCommand();
 static int SetCommand(), AddCommand(), DeleteCommand();
-static int ShellCommand();
+static int BgShellCommand(struct cmdtab *, int, char **);
+static int FgShellCommand(struct cmdtab *, int, char **);
+static int ShellCommand(struct cmdtab *, int, char **, int);
 
 static int
 HelpCommand(list, argc, argv, plist)
@@ -183,10 +185,21 @@ char **argv;
 }
 
 static int
-ShellCommand(cmdlist, argc, argv)
-struct cmdtab *cmdlist;
-int argc;
-char **argv;
+BgShellCommand(struct cmdtab *cmdlist, int argc, char **argv)
+{
+  if (argc == 0)
+    return -1;
+  return ShellCommand(cmdlist, argc, argv, 1);
+}
+
+static int
+FgShellCommand(struct cmdtab *cmdlist, int argc, char **argv)
+{
+  return ShellCommand(cmdlist, argc, argv, 0);
+}
+
+static int
+ShellCommand(struct cmdtab *cmdlist, int argc, char **argv, int bg)
 {
   const char *shell;
   pid_t shpid;
@@ -210,11 +223,16 @@ char **argv;
   }
 #endif
 
-  if(argc == 0 && !(mode & MODE_INTER)) {
-    LogPrintf(LogWARN, "Can only start an interactive shell in"
-	      " interactive mode\n");
-    return 1;
-  }
+  if(argc == 0)
+    if (!(mode & MODE_INTER)) {
+      LogPrintf(LogWARN, "Can only start an interactive shell in"
+	        " interactive mode\n");
+      return 1;
+    } else if (bg) {
+      LogPrintf(LogWARN, "Can only start an interactive shell in"
+	        " the foreground mode\n");
+      return 1;
+    }
 
   if((shell = getenv("SHELL")) == 0)
     shell = _PATH_BSHELL;
@@ -266,6 +284,14 @@ char **argv;
            argv[i] = strdup(IfDevName);
          else if (strcasecmp(argv[i], "MYADDR") == 0)
            argv[i] = strdup(inet_ntoa(IpcpInfo.want_ipaddr));
+       if (bg) {
+         pid_t p;
+         p = getpid();
+         if (daemon(1,1) == -1) {
+           LogPrintf(LogERROR, "%d: daemon: %s", p, strerror(errno));
+           exit(1);
+         }
+       }
        (void)execvp(argv[0], argv);
      }
      else
@@ -292,6 +318,8 @@ struct cmdtab const Commands[] = {
   	"accept option request",	"accept option .."},
   { "add",     NULL,	AddCommand,	LOCAL_AUTH,
 	"add route",			"add dest mask gateway"},
+  { "bg",   "!bg",      BgShellCommand,   LOCAL_AUTH,
+	"Run a command in the background",  "[!]bg command"},
   { "close",   NULL,    CloseCommand,	LOCAL_AUTH,
 	"Close connection",		"close"},
   { "delete",  NULL,    DeleteCommand,	LOCAL_AUTH,
@@ -314,7 +342,7 @@ struct cmdtab const Commands[] = {
   	"Save settings", "save"},
   { "set",     "setup", SetCommand,	LOCAL_AUTH,
   	"Set parameters",  "set[up] var value"},
-  { "shell",   "!",     ShellCommand,   LOCAL_AUTH,
+  { "shell",   "!",     FgShellCommand,   LOCAL_AUTH,
 	"Run a subshell",  "shell|! [sh command]"},
   { "show",    NULL,    ShowCommand,	LOCAL_AUTH,
   	"Show status and statictics", "show var"},
