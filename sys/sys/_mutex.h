@@ -38,8 +38,6 @@ struct mtx {
 	struct lock_object	mtx_object;	/* Common lock properties. */
 	volatile uintptr_t	mtx_lock;	/* Owner and flags. */
 	volatile u_int		mtx_recurse;	/* Number of recursive holds. */
-	TAILQ_HEAD(, thread)	mtx_blocked;	/* Threads blocked on us. */
-	LIST_ENTRY(mtx)		mtx_contested;	/* Next contested mtx. */
 
 #ifdef MUTEX_PROFILING
 	/*

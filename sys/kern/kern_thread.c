@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/sx.h>
 #include <sys/tty.h>
+#include <sys/turnstile.h>
 #include <sys/user.h>
 #include <sys/jail.h>
 #include <sys/kse.h>
@@ -190,6 +191,7 @@ thread_init(void *mem, int size)
 	vm_thread_new(td, 0);
 	mtx_unlock(&Giant);
 	cpu_thread_setup(td);
+	td->td_turnstile = turnstile_alloc();
 	td->td_sched = (struct td_sched *)&td[1];
 }
 
@@ -202,6 +204,7 @@ thread_fini(void *mem, int size)
 	struct thread	*td;
 
 	td = (struct thread *)mem;
+	turnstile_free(td->td_turnstile);
 	vm_thread_dispose(td);
 }
 

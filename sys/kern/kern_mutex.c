@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
+#include <sys/turnstile.h>
 #include <sys/vmmeter.h>
 
 #include <machine/atomic.h>
@@ -89,122 +90,6 @@ struct lock_class lock_class_mtx_spin = {
  */
 struct mtx sched_lock;
 struct mtx Giant;
-
-/*
- * Prototypes for non-exported routines.
- */
-static void	propagate_priority(struct thread *);
-
-static void
-propagate_priority(struct thread *td)
-{
-	int pri = td->td_priority;
-	struct mtx *m = td->td_blocked;
-
-	mtx_assert(&sched_lock, MA_OWNED);
-	for (;;) {
-		struct thread *td1;
-
-		td = mtx_owner(m);
-
-		if (td == NULL) {
-			/*
-			 * This really isn't quite right. Really
-			 * ought to bump priority of thread that
-			 * next acquires the mutex.
-			 */
-			MPASS(m->mtx_lock == MTX_CONTESTED);
-			return;
-		}
-
-		MPASS(td->td_proc != NULL);
-		MPASS(td->td_proc->p_magic == P_MAGIC);
-		KASSERT(!TD_IS_SLEEPING(td), (
-		    "sleeping thread (pid %d) owns a mutex",
-		    td->td_proc->p_pid));
-		if (td->td_priority <= pri) /* lower is higher priority */
-			return;
-
-
-		/*
-		 * If lock holder is actually running, just bump priority.
-		 */
-		if (TD_IS_RUNNING(td)) {
-			td->td_priority = pri;
-			return;
-		}
-
-#ifndef SMP
-		/*
-		 * For UP, we check to see if td is curthread (this shouldn't
-		 * ever happen however as it would mean we are in a deadlock.)
-		 */
-		KASSERT(td != curthread, ("Deadlock detected"));
-#endif
-
-		/*
-		 * If on run queue move to new run queue, and quit.
-		 * XXXKSE this gets a lot more complicated under threads
-		 * but try anyhow.
-		 */
-		if (TD_ON_RUNQ(td)) {
-			MPASS(td->td_blocked == NULL);
-			sched_prio(td, pri);
-			return;
-		}
-		/*
-		 * Adjust for any other cases.
-		 */
-		td->td_priority = pri;
-
-		/*
-		 * If we aren't blocked on a mutex, we should be.
-		 */
-		KASSERT(TD_ON_LOCK(td), (
-		    "process %d(%s):%d holds %s but isn't blocked on a mutex\n",
-		    td->td_proc->p_pid, td->td_proc->p_comm, td->td_state,
-		    m->mtx_object.lo_name));
-
-		/*
-		 * Pick up the mutex that td is blocked on.
-		 */
-		m = td->td_blocked;
-		MPASS(m != NULL);
-
-		/*
-		 * Check if the thread needs to be moved up on
-		 * the blocked chain
-		 */
-		if (td == TAILQ_FIRST(&m->mtx_blocked)) {
-			continue;
-		}
-
-		td1 = TAILQ_PREV(td, threadqueue, td_lockq);
-		if (td1->td_priority <= pri) {
-			continue;
-		}
-
-		/*
-		 * Remove thread from blocked chain and determine where
-		 * it should be moved up to.  Since we know that td1 has
-		 * a lower priority than td, we know that at least one
-		 * thread in the chain has a lower priority and that
-		 * td1 will thus not be NULL after the loop.
-		 */
-		TAILQ_REMOVE(&m->mtx_blocked, td, td_lockq);
-		TAILQ_FOREACH(td1, &m->mtx_blocked, td_lockq) {
-			MPASS(td1->td_proc->p_magic == P_MAGIC);
-			if (td1->td_priority > pri)
-				break;
-		}
-
-		MPASS(td1 != NULL);
-		TAILQ_INSERT_BEFORE(td1, td, td_lockq);
-		CTR4(KTR_LOCK,
-		    "propagate_priority: p %p moved before %p on [%p] %s",
-		    td, td1, m, m->mtx_object.lo_name);
-	}
-}
 
 #ifdef MUTEX_PROFILING
 SYSCTL_NODE(_debug, OID_AUTO, mutex, CTLFLAG_RD, NULL, "mutex debugging");
@@ -484,8 +369,8 @@ _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
 void
 _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 {
+	struct turnstile *ts;
 	struct thread *td = curthread;
-	struct thread *td1;
 #if defined(SMP) && defined(ADAPTIVE_MUTEXES)
 	struct thread *owner;
 #endif
@@ -509,15 +394,15 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 
 	while (!_obtain_lock(m, td)) {
 
-		mtx_lock_spin(&sched_lock);
+		ts = turnstile_lookup(&m->mtx_object);
 		v = m->mtx_lock;
 
 		/*
 		 * Check if the lock has been released while spinning for
-		 * the sched_lock.
+		 * the turnstile chain lock.
 		 */
 		if (v == MTX_UNOWNED) {
-			mtx_unlock_spin(&sched_lock);
+			turnstile_release(&m->mtx_object);
 #ifdef __i386__
 			ia32_pause();
 #endif
@@ -531,14 +416,9 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		 * necessary.
 		 */
 		if (v == MTX_CONTESTED) {
-			td1 = TAILQ_FIRST(&m->mtx_blocked);
-			MPASS(td1 != NULL);
+			MPASS(ts != NULL);
 			m->mtx_lock = (uintptr_t)td | MTX_CONTESTED;
-			LIST_INSERT_HEAD(&td->td_contested, m, mtx_contested);
-
-			if (td1->td_priority < td->td_priority)
-				td->td_priority = td1->td_priority;
-			mtx_unlock_spin(&sched_lock);
+			turnstile_claim(ts);
 			return;
 		}
 
@@ -550,7 +430,7 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		if ((v & MTX_CONTESTED) == 0 &&
 		    !atomic_cmpset_ptr(&m->mtx_lock, (void *)v,
 			(void *)(v | MTX_CONTESTED))) {
-			mtx_unlock_spin(&sched_lock);
+			turnstile_release(&m->mtx_object);
 #ifdef __i386__
 			ia32_pause();
 #endif
@@ -564,7 +444,7 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		 */
 		owner = (struct thread *)(v & MTX_FLAGMASK);
 		if (m != &Giant && TD_IS_RUNNING(owner)) {
-			mtx_unlock_spin(&sched_lock);
+			turnstile_release(&m->mtx_object);
 			while (mtx_owner(m) == owner && TD_IS_RUNNING(owner)) {
 #ifdef __i386__
 				ia32_pause();
@@ -579,42 +459,6 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		 */
 		mtx_assert(m, MA_NOTOWNED);
 
-#ifdef notyet
-		/*
-		 * If we're borrowing an interrupted thread's VM context, we
-		 * must clean up before going to sleep.
-		 */
-		if (td->td_ithd != NULL) {
-			struct ithd *it = td->td_ithd;
-
-			if (it->it_interrupted) {
-				if (LOCK_LOG_TEST(&m->mtx_object, opts))
-					CTR2(KTR_LOCK,
-				    "_mtx_lock_sleep: %p interrupted %p",
-					    it, it->it_interrupted);
-				intr_thd_fixup(it);
-			}
-		}
-#endif
-
-		/*
-		 * Put us on the list of threads blocked on this mutex
-		 * and add this mutex to the owning thread's list of
-		 * contested mutexes if needed.
-		 */
-		if (TAILQ_EMPTY(&m->mtx_blocked)) {
-			td1 = mtx_owner(m);
-			LIST_INSERT_HEAD(&td1->td_contested, m, mtx_contested);
-			TAILQ_INSERT_TAIL(&m->mtx_blocked, td, td_lockq);
-		} else {
-			TAILQ_FOREACH(td1, &m->mtx_blocked, td_lockq)
-				if (td1->td_priority > td->td_priority)
-					break;
-			if (td1)
-				TAILQ_INSERT_BEFORE(td1, td, td_lockq);
-			else
-				TAILQ_INSERT_TAIL(&m->mtx_blocked, td, td_lockq);
-		}
 #ifdef KTR
 		if (!cont_logged) {
 			CTR6(KTR_CONTENTION,
@@ -627,27 +471,9 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 #endif
 
 		/*
-		 * Save who we're blocked on.
+		 * Block on the turnstile.
 		 */
-		td->td_blocked = m;
-		td->td_lockname = m->mtx_object.lo_name;
-		TD_SET_LOCK(td);
-		propagate_priority(td);
-
-		if (LOCK_LOG_TEST(&m->mtx_object, opts))
-			CTR3(KTR_LOCK,
-			    "_mtx_lock_sleep: p %p blocked on [%p] %s", td, m,
-			    m->mtx_object.lo_name);
-
-		td->td_proc->p_stats->p_ru.ru_nvcsw++;
-		mi_switch();
-
-		if (LOCK_LOG_TEST(&m->mtx_object, opts))
-			CTR3(KTR_LOCK,
-			  "_mtx_lock_sleep: p %p free from blocked on [%p] %s",
-			  td, m, m->mtx_object.lo_name);
-
-		mtx_unlock_spin(&sched_lock);
+		turnstile_wait(ts, &m->mtx_object, mtx_owner(m));
 	}
 
 #ifdef KTR
@@ -724,11 +550,8 @@ _mtx_lock_spin(struct mtx *m, int opts, const char *file, int line)
 void
 _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 {
+	struct turnstile *ts;
 	struct thread *td, *td1;
-	struct mtx *m1;
-	int pri;
-
-	td = curthread;
 
 	if (mtx_recursed(m)) {
 		if (--(m->mtx_recurse) == 0)
@@ -738,57 +561,47 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 		return;
 	}
 
-	mtx_lock_spin(&sched_lock);
+	ts = turnstile_lookup(&m->mtx_object);
 	if (LOCK_LOG_TEST(&m->mtx_object, opts))
 		CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p contested", m);
 
-	td1 = TAILQ_FIRST(&m->mtx_blocked);
 #if defined(SMP) && defined(ADAPTIVE_MUTEXES)
-	if (td1 == NULL) {
+	if (ts == NULL) {
 		_release_lock_quick(m);
 		if (LOCK_LOG_TEST(&m->mtx_object, opts))
 			CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p no sleepers", m);
-		mtx_unlock_spin(&sched_lock);
+		turnstile_release(&m->mtx_object);
 		return;
 	}
+#else
+	MPASS(ts != NULL);
 #endif
-	MPASS(td->td_proc->p_magic == P_MAGIC);
-	MPASS(td1->td_proc->p_magic == P_MAGIC);
-
-	TAILQ_REMOVE(&m->mtx_blocked, td1, td_lockq);
-
-	LIST_REMOVE(m, mtx_contested);
-	if (TAILQ_EMPTY(&m->mtx_blocked)) {
+	/* XXX */
+	td1 = turnstile_head(ts);
+	if (turnstile_signal(ts)) {
 		_release_lock_quick(m);
 		if (LOCK_LOG_TEST(&m->mtx_object, opts))
 			CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p not held", m);
-	} else
+	} else {
 		m->mtx_lock = MTX_CONTESTED;
-
-	pri = PRI_MAX;
-	LIST_FOREACH(m1, &td->td_contested, mtx_contested) {
-		int cp = TAILQ_FIRST(&m1->mtx_blocked)->td_priority;
-		if (cp < pri)
-			pri = cp;
+		if (LOCK_LOG_TEST(&m->mtx_object, opts))
+			CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p still contested",
+			    m);
 	}
+	turnstile_unpend(ts);
 
-	if (pri > td->td_base_pri)
-		pri = td->td_base_pri;
-	td->td_priority = pri;
-
-	if (LOCK_LOG_TEST(&m->mtx_object, opts))
-		CTR2(KTR_LOCK, "_mtx_unlock_sleep: %p contested setrunqueue %p",
-		    m, td1);
-
-	td1->td_blocked = NULL;
-	TD_CLR_LOCK(td1);
-	if (!TD_CAN_RUN(td1)) {
-		mtx_unlock_spin(&sched_lock);
+	/*
+	 * XXX: This is just a hack until preemption is done.  However,
+	 * once preemption is done we need to either wrap the
+	 * turnstile_signal() and release of the actual lock in an
+	 * extra critical section or change the preemption code to
+	 * always just set a flag and never do instant-preempts.
+	 */
+	td = curthread;
+	if (td->td_critnest > 0 || td1->td_priority >= td->td_priority)
 		return;
-	}
-	setrunqueue(td1);
-
-	if (td->td_critnest == 1 && td1->td_priority < pri) {
+	mtx_lock_spin(&sched_lock);
+	if (!TD_IS_RUNNING(td1)) {
 #ifdef notyet
 		if (td->td_ithd != NULL) {
 			struct ithd *it = td->td_ithd;
@@ -813,7 +626,6 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 			CTR2(KTR_LOCK, "_mtx_unlock_sleep: %p resuming lock=%p",
 			    m, (void *)m->mtx_lock);
 	}
-
 	mtx_unlock_spin(&sched_lock);
 
 	return;
@@ -948,7 +760,6 @@ mtx_init(struct mtx *m, const char *name, const char *type, int opts)
 		lock->lo_flags |= LO_DUPOK;
 
 	m->mtx_lock = MTX_UNOWNED;
-	TAILQ_INIT(&m->mtx_blocked);
 
 	LOCK_LOG_INIT(lock, opts);
 
@@ -991,6 +802,9 @@ mutex_init(void)
 
 	/* Setup thread0 so that mutexes work. */
 	LIST_INIT(&thread0.td_contested);
+
+	/* Setup turnstiles so that sleep mutexes work. */
+	init_turnstiles();
 
 	/*
 	 * Initialize mutexes.
