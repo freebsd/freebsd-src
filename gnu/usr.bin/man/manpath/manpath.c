@@ -12,6 +12,8 @@
  * Department of Chemical Engineering
  * The University of Texas at Austin
  * Austin, Texas  78712
+ *
+ * $FreeBSD$
  */
 
 #define MANPATH_MAIN
@@ -53,6 +55,8 @@ extern int fflush ();
 
 char *prognam;
 int debug;
+int locale;
+char *man_locales;
 
 /*
  * Examine user's PATH and print a reasonable MANPATH.
@@ -74,12 +78,15 @@ main(argc, argv)
 
   prognam = mkprogname (argv[0]);
 
-  while ((c = getopt (argc, argv, "dhq?")) != EOF)
+  while ((c = getopt (argc, argv, "dhLq?")) != EOF)
     {
       switch (c)
 	{
 	case 'd':
 	  debug++;
+	  break;
+	case 'L':
+	  locale++;
 	  break;
 	case 'q':
 	  quiet = 0;
@@ -103,7 +110,7 @@ main(argc, argv)
 void
 usage ()
 {
-  fprintf (stderr, "usage: %s [-q]\n", prognam);
+  fprintf (stderr, "usage: %s [-dLq]\n", prognam);
   exit (1);
 }
 #endif /* MAIN */
@@ -139,6 +146,20 @@ manpath (perrs)
 
   if (get_dirlist ())
       gripe_reading_mp_config (config_file);
+
+  if (locale)
+    {
+      if ((manpathlist = getenv ("MANLOCALES")) != NULL)
+	/*
+	 * This must be it.
+	 */
+	{
+	  if (perrs)
+	    fprintf (stderr, "(Warning: MANLOCALES environment variable set)\n");
+	  return strdup (manpathlist);
+	}
+      return (man_locales ? man_locales : "");
+    }
 
   if ((manpathlist = getenv ("MANPATH")) != NULL)
     /*
@@ -257,6 +278,37 @@ get_dirlist ()
 	  if (debug)
 	    fprintf (stderr, "found manpath map %s --> %s\n",
 		     dlp->bin, dlp->mandir);
+	}
+      else if (!strncmp ("MANLOCALES", bp, 10))
+	{
+	  if ((p = strchr (bp, ' ')) == NULL &&
+	      (p = strchr (bp, '\t')) == NULL) {
+	    fclose(config);
+	    return -1;
+	  }
+
+	  bp = p;
+
+	  while (*bp && *bp != '\n' && (*bp == ' ' || *bp == '\t'))
+	    bp++;
+
+	  for (p = bp; *p && *p != '\n'; p++)
+		;
+	  do {
+		*p-- = '\0';
+	  } while (p >= bp && (*p == ' ' || *p == '\t'));
+
+	  if (man_locales != NULL)
+		free (man_locales);
+
+	  if ((man_locales = strdup (bp)) == NULL) {
+		fclose(config);
+		return -1;
+	  }
+
+	  if (debug)
+	    fprintf (stderr, "found man locales: %s\n",
+			     man_locales);
 	}
       else
 	{
