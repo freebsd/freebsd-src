@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, label, CTLFLAG_RW, 0, "GEOM_LABEL stuff");
 u_int g_label_debug = 0;
+TUNABLE_INT("kern.geom.label.debug", &g_label_debug);
 SYSCTL_UINT(_kern_geom_label, OID_AUTO, debug, CTLFLAG_RW, &g_label_debug, 0,
     "Debug level");
 
