@@ -663,7 +663,7 @@ cpu	EV4</programlisting>
 	    <para>21164A EV56 Alpha CPU at 433, 500 or 600MHz</para>
 	  </listitem>
 	  <listitem>
-	    <para>21174 Core Logic (<quote>Pyxis</quote>) chip set</para>
+	    <para>21174 core logic (<quote>Pyxis</quote>) chip</para>
 	  </listitem>
 	  <listitem>
 	    <para>on-board Bcache / L3 cache: 0, 2 or 4 Mbytes (uses a
@@ -1005,7 +1005,8 @@ cpu	EV4</programlisting>
   	  <para>21164PC [only on PC164SX]</para>
         </listitem>
         <listitem>
-          <para>21174 (Alcor) chip set</para>
+          <para>21174 (Pyxis) chip [164LX, 164SX]</para>
+          <para>21171 (Alcor) chip set [EB164, PC164]</para>
         </listitem>
         <listitem>
           <para>Bcache / L3 cache:  EB164 uses special cache-SIMMs</para>
@@ -1147,7 +1148,7 @@ cpu             EV5</programlisting>
             <para>21064 or 21064A CPU at speeds of 166 up to 333 MHz</para>
         </listitem>
         <listitem>
-          <para>DECchip 21071-AA core logic chip-set</para>
+          <para>DECchip 21071-AA core logic chip set</para>
         </listitem>
         <listitem>
           <para>Bcache / L2 cache: 512 Kbytes (200 and 400 series) 
@@ -1263,7 +1264,7 @@ cpu	EV4</programlisting>
   	500 MHz (AS500) or at 266, 300 or 333 MHz (AS600)</para>
         </listitem>
         <listitem>
-          <para>21171 or 21172 (Alcor) core logic chip-set</para>
+          <para>21171 (Alcor) or 21172 (Alcor2) core logic chip set</para>
         </listitem>
         <listitem><para>Cache:</para>
           <itemizedlist>
@@ -1717,7 +1718,7 @@ cpu	EV5</programlisting>
 	  JEDEC standard, registered ECC SDRAM DIMMs</para>
 	</listitem>
 	<listitem>
-          <para>21271 Core Logic chip-set (<quote>Tsunami</quote>)</para>
+          <para>21271 core logic chip set (<quote>Tsunami</quote>)</para>
 	</listitem>
 	<listitem>
           <para>1 on-board 21143 Ethernet controller</para>
@@ -1872,8 +1873,7 @@ cpu	EV5</programlisting>
 	      </itemizedlist>
 	  </listitem>
 	  <listitem>
-	    <para>21271 Core Logic chip-set
-	    (<quote>Tsunami</quote>)</para>
+	    <para>21271 core logic chip set (<quote>Tsunami</quote>)</para>
 	  </listitem>
 	  <listitem>
 	    <para>embedded Adaptec ? Wide Ultra SCSI</para>
@@ -1978,7 +1978,7 @@ cpu	EV5</programlisting>
 	    ECC, 16 DIMM slots, max. 4GB</para>
 	  </listitem>
 	  <listitem>
-	    <para>21272 Core Logic chip-set (<quote>Tsunami</quote>)</para>
+	    <para>21272 core logic chip set (<quote>Tsunami</quote>)</para>
 	  </listitem>
 	  <listitem>
 	    <para>embedded Adaptec AIC7890/91 Wide Ultra SCSI</para>
