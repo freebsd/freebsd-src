@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_file.c,v 1.17 1997/12/16 18:49:23 eivind Exp $
+ *  $Id: linux_file.c,v 1.18 1998/01/05 01:05:15 jmb Exp $
  */
 
 #include "opt_compat.h"
@@ -795,8 +795,8 @@ linux_truncate(struct proc *p, struct linux_truncate_args *args)
 	CHECKALTEXIST(p, &sg, args->path);
 
 #ifdef DEBUG
-        printf("Linux-emul(%d): truncate(%s)\n", 
-	    p->p_pid, args->path);
+        printf("Linux-emul(%d): truncate(%s, %ld)\n", 
+	    p->p_pid, args->path, args->length);
 #endif
 	bsd.path = args->path;
 	bsd.length = args->length;
