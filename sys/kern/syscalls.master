@@ -443,8 +443,8 @@
 308	STD	BSD	{ int kldstat(int fileid, struct kld_file_stat* stat); }
 309	STD	BSD	{ int kldfirstmod(int fileid); }
 310	STD	BSD	{ int getsid(pid_t pid); }
-311	UNIMPL	NOHIDE	setresuid
-312	UNIMPL	NOHIDE	setresgid
+311	STD	BSD	{ int setresuid(uid_t ruid, uid_t euid, uid_t suid); }
+312	STD	BSD	{ int setresgid(gid_t rgid, gid_t egid, gid_t sgid); }
 313	OBSOL	NOHIDE	signanosleep
 314     STD     BSD     { int aio_return(struct aiocb *aiocbp); }
 315     STD     BSD     { int aio_suspend(struct aiocb * const * aiocbp, int nent, const struct timespec *timeout); }
@@ -498,3 +498,5 @@
 357	STD	BSD	{ int extattr_get_file(char *path, char *attrname, struct iovec *iovp, u_int iovcnt); }
 358	STD	BSD	{ int extattr_delete_file(char *path, char *attrname); }
 359	STD	BSD	{ int aio_waitcomplete(struct aiocb **aiocbp, struct timespec *timeout); }
+360	STD	BSD	{ int getresuid(uid_t *ruid, uid_t *euid, uid_t *suid); }
+361	STD	BSD	{ int getresgid(gid_t *rgid, gid_t *egid, gid_t *sgid); }
