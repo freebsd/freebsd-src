@@ -26,3 +26,24 @@ JADEFLAGS+=	-iinclude.historic
 .else
 JADEFLAGS+=	-ino.include.historic
 .endif
+
+#
+# Automatic device list generation:
+#
+.if exists(${RELN_ROOT}/../man4)
+MAN4DIR?=	${RELN_ROOT}/../man4
+.elif exists(${RELN_ROOT}/../../man4)
+MAN4DIR?=	${RELN_ROOT}/../../man4
+.else
+MAN4DIR?=	${RELN_ROOT}/../../share/man/man4
+.endif
+MAN4PAGES?=	${MAN4DIR}/*.4 ${MAN4DIR}/man4.*/*.4
+ARCHLIST?=	${RELN_ROOT}/share/misc/dev.archlist.txt
+DEV-AUTODIR=	${RELN_ROOT:S/${.CURDIR}/${.OBJDIR}/}/share/sgml
+CLEANFILES+=	${DEV-AUTODIR}/dev-auto.sgml ${DEV-AUTODIR}/catalog-auto
+
+# Dependency that the article makefiles can use to pull in
+# dev-auto.sgml.
+${DEV-AUTODIR}/catalog-auto ${DEV-AUTODIR}/dev-auto.sgml: ${MAN4PAGES} \
+	${ARCHLIST} ${RELN_ROOT}/share/misc/man2hwnotes.pl
+	cd ${RELN_ROOT}/share/sgml && make dev-auto.sgml
