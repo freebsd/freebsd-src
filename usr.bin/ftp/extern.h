@@ -1,5 +1,5 @@
-/*	$Id$ */
-/*	$NetBSD: extern.h,v 1.15 1997/04/14 09:09:17 lukem Exp $	*/
+/*	$Id$	*/
+/*	$NetBSD: extern.h,v 1.17.2.1 1997/11/18 00:59:50 mellon Exp $	*/
 
 /*-
  * Copyright (c) 1994 The Regents of the University of California.
@@ -42,7 +42,6 @@ void    abort_remote __P((FILE *));
 void    abortpt __P((int));
 void    abortrecv __P((int));
 void    abortsend __P((int));
-void    aborthttp __P((int));
 void	account __P((int, char **));
 void	alarmtimer __P((int));
 int	another __P((int *, char ***, const char *));
@@ -112,7 +111,7 @@ void	quit __P((int, char **));
 void	quote __P((int, char **));
 void	quote1 __P((const char *, int, char **));
 void    recvrequest __P((const char *, const char *, const char *,
-	    const char *, int));
+	    const char *, int, int));
 void	reget __P((int, char **));
 char   *remglob __P((char **, int, char **));
 off_t	remotesize __P((const char *, int));
@@ -134,6 +133,7 @@ void	setdebug __P((int, char **));
 void	setedit __P((int, char **));
 void	setform __P((int, char **));
 void	setftmode __P((int, char **));
+void	setgate __P((int, char **));
 void	setglob __P((int, char **));
 void	sethash __P((int, char **));
 void	setnmap __P((int, char **));
@@ -163,17 +163,12 @@ int	togglevar __P((int, char **, int *, const char *));
 void	usage __P((void));
 void	user __P((int, char **));
 
-
-extern jmp_buf	abortprox;
-extern int	abrtflag;
 extern struct	cmd cmdtab[];
 extern FILE    *cout;
 extern int	data;
 extern char    *home;
-extern jmp_buf	jabort;
 extern int	proxy;
 extern char	reply_string[];
-extern off_t	restart_point;
 extern int	NCMDS;
 
 extern char *__progname;		/* from crt0.o */

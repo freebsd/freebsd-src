@@ -1,5 +1,5 @@
-/*	$Id: complete.c,v 1.2 1997/06/27 09:30:04 ache Exp $ */
-/*	$NetBSD: complete.c,v 1.8 1997/05/24 16:34:30 lukem Exp $	*/
+/*	$Id$	*/
+/*	$NetBSD: complete.c,v 1.11 1997/09/13 09:05:53 lukem Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -27,8 +27,8 @@
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
@@ -38,8 +38,11 @@
  */
 
 #ifndef SMALL
+
+#include <sys/cdefs.h>
 #ifndef lint
-static char rcsid[] = "$Id: complete.c,v 1.2 1997/06/27 09:30:04 ache Exp $";
+__RCSID("$Id$");
+__RCSID_SOURCE("$NetBSD: complete.c,v 1.11 1997/09/13 09:05:53 lukem Exp $");
 #endif /* not lint */
 
 /*
@@ -81,7 +84,8 @@ complete_ambiguous(word, list, words)
 {
 	char insertstr[MAXPATHLEN];
 	char *lastmatch;
-	int i, j, matchlen, wordlen;
+	int i, j;
+	size_t matchlen, wordlen;
 
 	wordlen = strlen(word);
 	if (words->sl_cur == 0)
@@ -135,7 +139,7 @@ complete_command(word, list)
 {
 	struct cmd *c;
 	StringList *words;
-	int wordlen;
+	size_t wordlen;
 	unsigned char rv;
 
 	words = sl_init();
@@ -302,7 +306,8 @@ complete(el, ch)
 
 	struct cmd *c;
 	const LineInfo *lf;
-	int len, celems, dolist;
+	int celems, dolist;
+	size_t len;
 
 	lf = el_line(el);
 	len = lf->lastchar - lf->buffer;
@@ -364,4 +369,5 @@ complete(el, ch)
 
 	return (CC_ERROR);
 }
-#endif
+
+#endif /* !SMALL */

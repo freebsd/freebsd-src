@@ -1,5 +1,5 @@
-/*	$Id: ftp_var.h,v 1.4 1997/06/25 08:56:41 msmith Exp $ */
-/*	$NetBSD: ftp_var.h,v 1.16 1997/04/14 09:09:23 lukem Exp $	*/
+/*	$Id$	*/
+/*	$NetBSD: ftp_var.h,v 1.20.2.1 1997/11/18 01:01:37 mellon Exp $	*/
 
 /*
  * Copyright (c) 1985, 1989, 1993, 1994
@@ -55,8 +55,14 @@
 
 #define STALLTIME	5	/* # of seconds of no xfer before "stalling" */
 
-#define	FTP_PORT	21	/* default if getservbyname("ftp/tcp") fails */
-#define	HTTP_PORT	80	/* default if getservbyname("http/tcp") fails */
+#define	FTP_PORT	21	/* default if ! getservbyname("ftp/tcp") */
+#define	HTTP_PORT	80	/* default if ! getservbyname("http/tcp") */
+#ifndef	GATE_PORT
+#define	GATE_PORT	21	/* default if ! getservbyname("ftpgate/tcp") */
+#endif
+#ifndef	GATE_SERVER
+#define	GATE_SERVER	""	/* default server */
+#endif
 
 #define PAGER		"more"	/* default pager if $PAGER isn't set */
 
@@ -78,6 +84,8 @@ int	doglob;			/* glob local file names */
 int	autologin;		/* establish user account on connection */
 int	proxy;			/* proxy server connection active */
 int	proxflag;		/* proxy connection exists */
+int	gatemode;		/* use gate-ftp */
+char   *gateserver;		/* server to use for gate-ftp */
 int	sunique;		/* store files on server with unique name */
 int	runique;		/* store local files with unique name */
 int	mcase;			/* map upper to lower case for mget names */
@@ -89,8 +97,8 @@ int	code;			/* return/reply code for ftp command */
 int	crflag;			/* if 1, strip car. rets. on ascii gets */
 char	pasv[64];		/* passive port for proxy data connection */
 int	passivemode;		/* passive mode enabled */
-int	restricted_data_ports;	/* restrict data port range */
-char	*altarg;		/* argv[1] with no shell-like preprocessing  */
+int	restricted_data_ports;	/* enable quarantine FTP area */
+char   *altarg;			/* argv[1] with no shell-like preprocessing  */
 char	ntin[17];		/* input translation table */
 char	ntout[17];		/* output translation table */
 char	mapin[MAXPATHLEN];	/* input map template */
@@ -109,25 +117,29 @@ int	bytesize;		/* local byte size in binary */
 int	anonftp;		/* automatic anonymous login */
 int	dirchange;		/* remote directory changed by cd command */
 int	ttywidth;		/* width of tty */
+char   *tmpdir;			/* temporary directory */
 
 #ifndef SMALL
 int	  editing;		/* command line editing enabled */
 EditLine *el;			/* editline(3) status structure */
 History  *hist;			/* editline(3) history structure */
 char	 *cursor_pos;		/* cursor position we're looking for */
-int	  cursor_argc;		/* location of cursor in margv */
-int	  cursor_argo;		/* offset of cursor in margv[cursor_argc] */
+size_t	  cursor_argc;		/* location of cursor in margv */
+size_t	  cursor_argo;		/* offset of cursor in margv[cursor_argc] */
 #endif /* !SMALL */
 
 off_t	bytes;			/* current # of bytes read */
 off_t	filesize;		/* size of file being transferred */
 char   *direction;		/* direction transfer is occurring */
+off_t	restart_point;		/* offset to restart transfer */
 
-char	*hostname;		/* name of host connected to */
+char   *hostname;		/* name of host connected to */
 int	unix_server;		/* server is unix, can use binary for ascii */
 int	unix_proxy;		/* proxy is unix, can use binary for ascii */
-int	ftpport;		/* port number to use for ftp connections */
-int	httpport;		/* port number to use for http connections */
+
+u_int16_t	ftpport;	/* port number to use for ftp connections */
+u_int16_t	httpport;	/* port number to use for http connections */
+u_int16_t	gateport;	/* port number to use for gateftp connections */
 
 jmp_buf	toplevel;		/* non-local goto stuff for cmd scanner */
 
