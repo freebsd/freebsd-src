@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2003 Jake Burkholder.
- * Copyright (c) 2004 Joerg Wunsch.
+ * Copyright (c) 2004,2005 Joerg Wunsch.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -541,6 +541,7 @@ parse_label(struct sun_disklabel *sl, const char *file)
 	char tag[32];
 	char buf[128];
 	char text[128];
+	char volname[SUN_VOLNAME_LEN + 1];
 	struct sun_disklabel sl1;
 	char *bp;
 	const char *what;
@@ -629,6 +630,33 @@ parse_label(struct sun_disklabel *sl, const char *file)
 			snprintf(sl1.sl_text, sizeof(sl1.sl_text),
 			    "%s cyl %u alt %u hd %u sec %u",
 			    text, cyl, alt, hd, sec);
+			continue;
+		}
+		if (strncmp(bp, "volume name:", strlen("volume name:")) == 0) {
+			wantvtoc = 1; /* Volume name requires VTOC. */
+			bp += strlen("volume name:");
+#if SUN_VOLNAME_LEN != 8
+# error "scanf field width does not match SUN_VOLNAME_LEN"
+#endif
+			/*
+			 * We set the field length to one more than
+			 * SUN_VOLNAME_LEN to allow detecting an
+			 * overflow.
+			 */
+			memset(volname, 0, sizeof volname);
+			rv = sscanf(bp, " %9[^\n]", volname);
+			if (rv != 1) {
+				/* Clear the volume name. */
+				memset(sl1.sl_vtoc_volname, 0,
+				    SUN_VOLNAME_LEN);
+			} else {
+				memcpy(sl1.sl_vtoc_volname, volname,
+				    SUN_VOLNAME_LEN);
+				if (volname[SUN_VOLNAME_LEN] != '\0')
+					warnx(
+"%s, line %d: volume name longer than %d characters, truncating",
+					    file, line + 1, SUN_VOLNAME_LEN);
+			}
 			continue;
 		}
 		if (strlen(bp) < 2 || bp[1] != ':') {
@@ -742,9 +770,11 @@ parse_offset(struct sun_disklabel *sl, int part, char *offset)
 static void
 print_label(struct sun_disklabel *sl, const char *disk, FILE *out)
 {
-	int i;
+	int i, j;
 	int havevtoc;
 	uintmax_t secpercyl;
+	/* Long enough to hex-encode each character. */
+	char volname[4 * SUN_VOLNAME_LEN + 1];
 
 	havevtoc = sl->sl_vtoc_sane == SUN_VTOC_SANE;
 	secpercyl = sl->sl_nsectors * sl->sl_ntracks;
@@ -763,11 +793,25 @@ print_label(struct sun_disklabel *sl, const char *disk, FILE *out)
 		    "# max sectors/unit (including alt cylinders): %ju\n",
 		    (uintmax_t)mediasize / sectorsize);
 	fprintf(out,
-"sectors/unit: %ju\n"
+"sectors/unit: %ju\n",
+	    secpercyl * sl->sl_ncylinders);
+	if (havevtoc && sl->sl_vtoc_volname[0] != '\0') {
+		for (i = j = 0; i < SUN_VOLNAME_LEN; i++) {
+			if (sl->sl_vtoc_volname[i] == '\0')
+				break;
+			if (isprint(sl->sl_vtoc_volname[i]))
+				volname[j++] = sl->sl_vtoc_volname[i];
+			else
+				j += sprintf(volname + j, "\\x%02X",
+				    sl->sl_vtoc_volname[i]);
+		}
+		volname[j] = '\0';
+		fprintf(out, "volume name: %s\n", volname);
+	}
+	fprintf(out,
 "\n"
 "%d partitions:\n"
 "#\n",
-	    secpercyl * sl->sl_ncylinders,
 	    SUN_NPART);
 	if (!hflag) {
 		fprintf(out, "# Size is in %s.", cflag? "cylinders": "sectors");
