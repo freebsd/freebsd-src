@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id$
+#	$Id: rc.network,v 1.1.2.1 1997/04/26 22:39:34 jkh Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -109,10 +109,6 @@ network_pass2() {
     fi
 
     if [ "X${ntpdate_enable}" = X"YES" -o "X${xntpd_enable}" = X"YES" ]; then
-	    if [ "X${tickadj_enable}" = X"YES" ]; then
-		    echo -n ' tickadj';	tickadj ${tickadj_flags--Aq}
-	    fi
-
 	    if [ "X${ntpdate_enable}" = X"YES" ]; then
 		    echo -n ' ntpdate';	ntpdate ${ntpdate_flags} >/dev/null 2>&1
 	    fi
