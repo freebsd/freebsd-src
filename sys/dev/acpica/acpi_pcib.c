@@ -98,8 +98,7 @@ prt_attach_devices(ACPI_PCI_ROUTING_TABLE *entry, void *arg)
 
     /* Lookup the associated handle and device. */
     pcib = (device_t)arg;
-    if (ACPI_FAILURE(AcpiGetHandle(acpi_get_handle(pcib), entry->Source,
-	&handle)))
+    if (ACPI_FAILURE(AcpiGetHandle(ACPI_ROOT_OBJECT, entry->Source, &handle)))
 	return;
     child = acpi_get_device(handle);
     if (child == NULL)
