@@ -66,7 +66,7 @@ rwindow_load(struct thread *td, struct trapframe *tf, int n)
 		usp = rw.rw_in[6];
 	}
 	CTR1(KTR_TRAP, "rwindow_load: error=%d", error);
-	return (error);
+	return (error == 0 ? 0 : SIGILL);
 }
 
 int
@@ -104,5 +104,5 @@ rwindow_save(struct thread *td)
 	CTR1(KTR_TRAP, "rwindow_save: error=%d", error);
 	if (error == 0)
 		pcb->pcb_nsaved = 0;
-	return (error);
+	return (error == 0 ? 0 : SIGILL);
 }

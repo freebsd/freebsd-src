@@ -85,6 +85,8 @@
 #define	T_RSTRWP_VIRT			50
 #define	T_KSTACK_FAULT			51
 
+#define	T_MAX				(T_KSTACK_FAULT + 1)
+
 #define	T_KERNEL			64
 
 #ifndef LOCORE
