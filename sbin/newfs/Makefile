@@ -6,9 +6,7 @@ SRCS=	getmntopts.c newfs.c mkfs.c
 MAN=	newfs.8
 
 MOUNT=	${.CURDIR}/../mount
-CFLAGS+=-DFSIRAND -I${MOUNT} ${BDECFLAGS}
+CFLAGS+=-DFSIRAND -I${MOUNT}
 .PATH:	${MOUNT}
-
-LINKS=	${BINDIR}/newfs
 
 .include <bsd.prog.mk>
