@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: iicbb.c,v 1.1 1998/10/31 11:31:07 nsouch Exp $
  *
  */
 
@@ -127,14 +127,14 @@ iicbb_print_child(device_t bus, device_t dev)
 	u_char oldaddr;
 
 	/* retrieve the interface I2C address */
-	error = IICBB_RESET(bus, IIC_FASTEST, 0, &oldaddr);
+	error = IICBB_RESET(device_get_parent(bus), IIC_FASTEST, 0, &oldaddr);
 	if (error == IIC_ENOADDR) {
 		printf(" on %s%d master-only", device_get_name(bus),
 			device_get_unit(bus));
 
 	} else {
 		/* restore the address */
-		IICBB_RESET(bus, IIC_FASTEST, oldaddr, NULL);
+		IICBB_RESET(device_get_parent(bus), IIC_FASTEST, oldaddr, NULL);
 
 		printf(" on %s%d addr 0x%x", device_get_name(bus),
 			device_get_unit(bus), oldaddr & 0xff);
