@@ -100,11 +100,15 @@ src-all
 ports-all
 
 # These are the individual collections that make up "ports-all".  If you
-# use these, be sure to comment out "ports-all" above.
+# use these, be sure to comment out "ports-all" above and always include
+# "ports-base" if you use any of the other individual collections below.
+# Your ports may not build correctly without an up-to-date "ports-base".
+#
+#ports-base
+#
 #ports-archivers
 #ports-astro
 #ports-audio
-#ports-base
 #ports-benchmarks
 #ports-biology
 #ports-cad
@@ -116,12 +120,14 @@ ports-all
 #ports-devel
 #ports-editors
 #ports-emulators
+#ports-finance
 #ports-french
 #ports-ftp
 #ports-games
 #ports-german
 #ports-graphics
 #ports-hebrew
+#ports-hungarian
 #ports-irc
 #ports-japanese
 #ports-java
@@ -131,10 +137,12 @@ ports-all
 #ports-math
 #ports-mbone
 #ports-misc
+#ports-multimedia
 #ports-net
 #ports-news
 #ports-palm
 #ports-picobsd
+#ports-portuguese
 #ports-print
 #ports-russian
 #ports-science
