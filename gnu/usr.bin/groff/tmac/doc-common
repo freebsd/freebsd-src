@@ -227,6 +227,7 @@
 .	if "\\$2"2.0"    .ds oS FreeBSD 2.0
 .	if "\\$2"2.0.5"  .ds oS FreeBSD 2.0.5
 .	if "\\$2"2.1"    .ds oS FreeBSD 2.1
+.	if "\\$2"2.1.5"  .ds oS FreeBSD 2.1.5
 .	if "\\$2"2.2"    .ds oS FreeBSD 2.2
 .\}
 .if "\\*(oS"Null" .ds oS \0\\$1
