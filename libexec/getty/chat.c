@@ -477,45 +477,34 @@ getty_chat(scrstr, timeout, debug)
 			syslog(LOG_DEBUG, "getty_chat script='%s'", scrstr);
 
                 if ((script = read_chat(&scrstr)) != NULL) {
-                        struct termios tsave_in, tsave_out;
+                        int i = r = 0;
+			int off = 0;
+                        sig_t old_alarm;
+                        struct termios tneed;
 
-                        if (tcgetattr(STDIN_FILENO, &tsave_in) == -1 ||
-			    tcgetattr(STDOUT_FILENO, &tsave_out) == -1) {
-		  		syslog(LOG_ERR, "tcgetattr() failed in chat: %m");
-		  		r = 2;
-                        } else {
-                        	int i = r = 0;
-				int off = 0;
-                        	sig_t old_alarm;
-                        	struct termios tneed;
+                        /*
+			 * We need to be in raw mode for all this
+			 * Rely on caller...
+                         */
 
-                        	/* We need to be in raw mode for all this
-                        	 */
-                        	tneed = tsave_in;
-                        	cfmakeraw(&tneed);
-				tcsetattr(STDIN_FILENO, TCSANOW, &tneed);
-				tcsetattr(STDOUT_FILENO, TCSANOW, &tneed);
+                        old_alarm = signal(SIGALRM, chat_alrm);
+                        chat_unalarm(); /* Force blocking mode at start */
 
-                        	old_alarm = signal(SIGALRM, chat_alrm);
-                        	chat_unalarm(); /* Force blocking mode at start */
+			/*
+			 * This is the send/expect loop
+			 */
+                        while (r == 0 && script[i] != NULL)
+				if ((r = chat_expect(script[i++])) == 0 && script[i] != NULL)
+					r = chat_send(script[i++]);
 
-				/*
-				 * This is the send/expect loop
-				 */
-                        	while (r == 0 && script[i] != NULL)
-					if ((r = chat_expect(script[i++])) == 0 && script[i] != NULL)
-						r = chat_send(script[i++]);
+                        signal(SIGALRM, old_alarm);
+                        free(script);
+                        free(scrstr);
 
-                        	signal(SIGALRM, old_alarm);
-                        	free(script);
-                        	free(scrstr);
-
-                        	/* Restore flags & previous termios settings
-                        	 */
-                        	ioctl(STDIN_FILENO, FIONBIO, &off);
-                        	tcsetattr(STDIN_FILENO, TCSANOW, &tsave_in);
-                        	tcsetattr(STDOUT_FILENO, TCSANOW, &tsave_out);
-                        }
+			/*
+			 * Ensure stdin is in blocking mode
+			 */
+                        ioctl(STDIN_FILENO, FIONBIO, &off);
                 }
 
                 if (chat_debug & CHATDEBUG_MISC)
