@@ -198,9 +198,6 @@ struct pgfree {
 #define INIT_MMAP()
 #endif
 
-/* Set when initialization has been done */
-static unsigned malloc_started;
-
 /* Number of free pages we cache */
 static unsigned malloc_cache = 16;
 
@@ -491,9 +488,6 @@ malloc_init(void)
 
     malloc_ninfo = malloc_pagesize / sizeof *page_dir;
 
-    /* Been here, done that */
-    malloc_started++;
-
     /* Recalculate the cache size in bytes, and make sure it's nonzero */
 
     if (!malloc_cache)
@@ -729,9 +723,6 @@ imalloc(size_t size)
 {
     void *result;
 
-    if (!malloc_started)
-	malloc_init();
-
     if (suicide)
 	abort();
 
@@ -763,11 +754,6 @@ irealloc(void *ptr, size_t size)
 
     if (suicide)
 	abort();
-
-    if (!malloc_started) {
-	wrtwarning("malloc() has never been called\n");
-	return (NULL);
-    }
 
     index = ptr2index(ptr);
 
@@ -1061,11 +1047,6 @@ ifree(void *ptr)
     if (ptr == NULL)
 	return;
 
-    if (!malloc_started) {
-	wrtwarning("malloc() has never been called\n");
-	return;
-    }
-
     /* If we're already sinking, don't make matters any worse. */
     if (suicide)
 	return;
@@ -1097,6 +1078,7 @@ pubrealloc(void *ptr, size_t size, const char *func)
     void *r;
     int err = 0;
     static int malloc_active; /* Recusion flag for public interface. */
+    static unsigned malloc_started; /* Set when initialization has been done */
 
     /*
      * If a thread is inside our code with a functional lock held, and then
@@ -1115,6 +1097,18 @@ pubrealloc(void *ptr, size_t size, const char *func)
 	return (NULL);
     } 
     malloc_active = 1;
+
+    if (!malloc_started) {
+        if (ptr != NULL) {
+	    wrtwarning("malloc() has never been called\n");
+	    malloc_active = 0;
+            _MALLOC_UNLOCK();
+	    errno = EDOOFUS;
+	    return (NULL);
+	}
+	malloc_init();
+	malloc_started = 1;
+    }
    
     if (ptr == ZEROSIZEPTR)
 	ptr = NULL;
