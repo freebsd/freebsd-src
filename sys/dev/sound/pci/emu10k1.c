@@ -44,7 +44,6 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define	EMUPAGESIZE	4096	/* don't change */
 #define	EMUMAXPAGES	(WAVEOUT_MAXBUFSIZE * NUM_G / EMUPAGESIZE)
 #define	EMU10K1_PCI_ID	0x00021102	/* 1102 => Creative Labs Vendor ID */
-#define	EMU10K1_DELL_PCI_ID	0x00061102
 #define	EMU10K2_PCI_ID	0x00041102	
 #define	EMU_DEFAULT_BUFSZ	4096
 #define EMU_MAX_CHANS	8
@@ -1884,10 +1883,6 @@ emu_pci_probe(device_t dev)
 		s = "Creative EMU10K1";
 		break;
 
- 	case EMU10K1_DELL_PCI_ID:
- 		s = "Creative EMU10K1 (Dell)";
- 		break;
-
 	case EMU10K2_PCI_ID:
 		if (pci_get_revid(dev) == 0x04)
 			s = "Creative Audigy 2 (EMU10K2)";
@@ -2050,10 +2045,6 @@ emujoy_pci_probe(device_t dev)
 	switch (pci_get_devid(dev)) {
 	case 0x70021102:
 		s = "Creative EMU10K1 Joystick";
-		device_quiet(dev);
-		break;
-	case 0x70041102:
-		s = "Creative EMU10K1 Joystick (Dell)";
 		device_quiet(dev);
 		break;
 	case 0x70031102:
