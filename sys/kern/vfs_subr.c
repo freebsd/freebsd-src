@@ -990,14 +990,14 @@ getnewvnode(tag, mp, vops, vpp)
 	vp->v_tag = tag;
 	vp->v_op = vops;
 	lockinit(&vp->v_lock, PVFS, "vnlock", VLKTIMEOUT, LK_NOPAUSE);
-#ifdef MAC
-	mac_init_vnode(vp);
-#endif
 	*vpp = vp;
 	vp->v_usecount = 1;
 	vp->v_data = 0;
 	vp->v_cachedid = -1;
 	VI_UNLOCK(vp);
+#ifdef MAC
+	mac_init_vnode(vp);
+#endif
 	insmntque(vp, mp);
 
 	return (0);
