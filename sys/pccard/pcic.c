@@ -864,13 +864,6 @@ pcic_setup_intr(device_t dev, device_t child, struct resource *irq,
 	struct pccard_devinfo *devi = device_get_ivars(child);
 	int err;
 
-#if __FreeBSD_version >= 500000
-	if (sc->csc_route == pcic_iw_pci && (flags & INTR_FAST))
-#else
-	if (sc->csc_route == pcic_iw_pci && (flags & INTR_TYPE_FAST))
-#endif
-		return (EINVAL);
-
 	if (((1 << rman_get_start(irq)) & PCIC_INT_MASK_ALLOWED) == 0) {
 		device_printf(dev, "Hardware does not support irq %ld.\n",
 		    rman_get_start(irq));

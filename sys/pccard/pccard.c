@@ -44,6 +44,7 @@
 #include <sys/uio.h>
 #include <sys/poll.h>
 #include <sys/bus.h>
+#include <sys/proc.h>
 #include <machine/bus.h>
 
 #include <pccard/cardinfo.h>
@@ -210,8 +211,19 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 	device_t pccarddev;
 	int err, irq = 0;
 	device_t child;
+	device_t *devs;
+	int count;
 
 	pccarddev = slt->dev;
+	err = device_get_children(pccarddev, &devs, &count);
+	if (err != 0)
+		return (err);
+	free(devs, M_TEMP);
+	if (count) {
+		device_printf(pccarddev,
+		    "Can not attach more than one child.\n");
+		return (EIO);
+	}
 	irq = ffs(desc->irqmask) - 1;
 	MALLOC(devi, struct pccard_devinfo *, sizeof(*devi), M_DEVBUF,
 	    M_WAITOK | M_ZERO);
