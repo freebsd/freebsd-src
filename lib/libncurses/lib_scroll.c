@@ -88,10 +88,6 @@ chtype	blank = ' ';
     if (win->_maxx == columns && win->_regtop == 0 && win->_regbottom == lines) {
 
 		wrefresh(win);
-		if (back_color_erase) {
-			T(("back_color_erase, turning attributes off"));
-			vidattr(curscr->_attrs = A_NORMAL);
-		}
 		/* at the moment this relies on scroll_reverse and scroll_forward
 		   or parm_rindex and parm_index.
 		   we should add idl support as an alternative */
