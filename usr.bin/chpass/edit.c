@@ -174,7 +174,7 @@ verify(pw)
 	struct stat sb;
 	FILE *fp;
 	int len;
-	char buf[LINE_MAX];
+	static char buf[LINE_MAX];
 
 	if (!(fp = fopen(tempname, "r")))
 		pw_error(tempname, 1, 1);
@@ -232,6 +232,9 @@ bad:					(void)fclose(fp);
 		err(1, NULL);
 	(void)sprintf(pw->pw_gecos = p, "%s,%s,%s,%s", list[E_NAME].save,
 	    list[E_LOCATE].save, list[E_BPHONE].save, list[E_HPHONE].save);
+
+	while ((len = strlen(pw->pw_gecos)) && pw->pw_gecos[len - 1] == ',')
+		pw->pw_gecos[len - 1] = '\0';
 
 	if (snprintf(buf, sizeof(buf),
 	    "%s:%s:%d:%d:%s:%ld:%ld:%s:%s:%s",
