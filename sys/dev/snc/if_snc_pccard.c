@@ -82,13 +82,7 @@ DRIVER_MODULE(snc, pccard, snc_pccard_driver, snc_devclass, 0, 0);
 MODULE_DEPEND(snc, ether, 1, 1, 1);
 
 /*
- *      snc_pccard_detach - unload the driver and clear the table.
- *      XXX TODO:
- *      This is usually called when the card is ejected, but
- *      can be caused by a modunload of a controller driver.
- *      The idea is to reset the driver's view of the device
- *      and ensure that any driver entry points such as
- *      read and write do not hang.
+ *      snc_pccard_detach - detach this instance from the device.
  */
 static int
 snc_pccard_detach(device_t dev)
@@ -110,9 +104,7 @@ snc_pccard_detach(device_t dev)
 }
 
 /* 
- * Probe framework for pccards.  Replicates the standard framework,
- * minus the pccard driver registration and ignores the ether address
- * supplied (from the CIS), relying on the probe to find it instead.
+ * Probe the pccard.
  */
 static int
 snc_pccard_probe(device_t dev)
