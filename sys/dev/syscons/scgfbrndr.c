@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_syscons.h"
 #include "opt_gfb.h"
+#include "opt_creator.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -128,8 +129,8 @@ gfb_border(scr_stat *scp, int color)
 static void
 gfb_draw(scr_stat *scp, int from, int count, int flip)
 {
-	char c;
-	char a;
+	int c;
+	int a;
 	int i, n;
 	video_adapter_t *adp;
 
@@ -181,7 +182,7 @@ gfb_draw(scr_stat *scp, int from, int count, int flip)
 				c = sc_vtb_getc(&scp->vtb, from);
 				a = sc_vtb_geta(&scp->vtb, from) >> 8;
 				(*vidsw[scp->sc->adapter]->putc)(adp, from, c,
-				    a);
+				    (a >> 4) | ((a & 0xf) << 4));
 			}
 		else {
 			(*vidsw[scp->sc->adapter]->puts)(adp, from,
@@ -207,13 +208,14 @@ gfb_cursor_shape(scr_stat *scp, int base, int height, int blink)
 
 static int pxlblinkrate = 0;
 
-#if 0
+#ifdef DEV_CREATOR
 static void
 gfb_cursor(scr_stat *scp, int at, int blink, int on, int flip)
 {
 	video_adapter_t *adp;
+	int a, c;
 
-	if (scp->cursor_height <= 0)	/* the text cursor is disabled */
+	if (scp->curs_attr.height <= 0)	/* the text cursor is disabled */
 		return;
 
 	adp = scp->sc->adp;
@@ -234,11 +236,16 @@ gfb_cursor(scr_stat *scp, int at, int blink, int on, int flip)
 		scp->status &= ~VR_CURSOR_BLINK;
 		if(on) {
 			scp->status |= VR_CURSOR_ON;
-			scp->cursor_saveunder_char = sc_vtb_getc(&scp->scr, at);
-			scp->cursor_saveunder_attr = sc_vtb_geta(&scp->scr, at);
+			(*vidsw[scp->sc->adapter]->putc)(scp->sc->adp,
+			    scp->cursor_oldpos,
+			    sc_vtb_getc(&scp->vtb, scp->cursor_oldpos),
+			    sc_vtb_geta(&scp->vtb, scp->cursor_oldpos) >> 8);
+			a = sc_vtb_geta(&scp->vtb, at) >> 8;
+			c = sc_vtb_getc(&scp->vtb, at);
 			(*vidsw[scp->sc->adapter]->putc)(scp->sc->adp, at,
-			    scp->cursor_saveunder_char,
-			    scp->cursor_saveunder_attr);
+			    c, (a >> 4) | ((a & 0xf) << 4));
+			scp->cursor_saveunder_attr = a;
+			scp->cursor_saveunder_char = c;
 		} else {
 			if (scp->status & VR_CURSOR_ON)
 				(*vidsw[scp->sc->adapter]->putc)(scp->sc->adp,
@@ -248,8 +255,7 @@ gfb_cursor(scr_stat *scp, int at, int blink, int on, int flip)
 		}
 	}
 }
-#endif
-
+#else
 static void 
 gfb_cursor(scr_stat *scp, int at, int blink, int on, int flip)
 {
@@ -286,6 +292,7 @@ gfb_cursor(scr_stat *scp, int at, int blink, int on, int flip)
 	else
 		scp->status &= ~VR_CURSOR_BLINK;
 }
+#endif
 
 static void
 gfb_blink(scr_stat *scp, int at, int flip)
