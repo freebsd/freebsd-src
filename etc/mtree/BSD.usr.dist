@@ -67,6 +67,8 @@
         doc
             IPv6
             ..
+            atm
+            ..
             bind
                 html
                 ..
