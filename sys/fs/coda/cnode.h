@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/cfs/cnode.h,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $ 
- *  $Id: $
+ *  $Id: cnode.h,v 1.2 1998/09/02 19:09:53 rvb Exp $
  * 
  */
 
@@ -47,6 +47,9 @@
 /* 
  * HISTORY
  * $Log: cnode.h,v $
+ * Revision 1.2  1998/09/02 19:09:53  rvb
+ * Pass2 complete
+ *
  * Revision 1.1.1.1  1998/08/29 21:14:52  rvb
  * Very Preliminary Coda
  *
@@ -69,7 +72,7 @@
  * First version that works on FreeBSD 2.2.5
  * 
  * Revision 1.5  98/01/23  11:53:51  rvb
- * Bring RVB_CFS1_1 to HEAD
+ * Bring RVB_CODA1_1 to HEAD
  * 
  * Revision 1.4.2.5  98/01/23  11:21:14  rvb
  * Sync with 2.2.5
@@ -103,7 +106,7 @@
  * Added support for Coda MiniCache and raw inode calls (final commit)
  *
  * Revision 1.1.2.1  1995/12/20 01:57:53  bnoble
- * Added CFS-specific files
+ * Added CODA-specific files
  *
  * Revision 3.1.1.1  1995/03/04  19:08:23  bnoble
  * Branch for NetBSD port revisions
@@ -152,7 +155,7 @@
 #include <sys/lock.h>
 #include <machine/clock.h>
 
-MALLOC_DECLARE(M_CFS);
+MALLOC_DECLARE(M_CODA);
 
 /*
  * tmp below since we need struct queue
@@ -161,41 +164,41 @@ MALLOC_DECLARE(M_CFS);
 
 /*
  * Cnode lookup stuff.
- * NOTE: CFS_CACHESIZE must be a power of 2 for cfshash to work!
+ * NOTE: CODA_CACHESIZE must be a power of 2 for cfshash to work!
  */
-#define CFS_CACHESIZE 512
+#define CODA_CACHESIZE 512
 
-#define CFS_ALLOC(ptr, cast, size)                                        \
+#define CODA_ALLOC(ptr, cast, size)                                        \
 do {                                                                      \
-    ptr = (cast)malloc((unsigned long) size, M_CFS, M_WAITOK);            \
+    ptr = (cast)malloc((unsigned long) size, M_CODA, M_WAITOK);            \
     if (ptr == 0) {                                                       \
 	panic("kernel malloc returns 0 at %s:%d\n", __FILE__, __LINE__);  \
     }                                                                     \
 } while (0)
 
-#define CFS_FREE(ptr, size)  free((ptr), M_CFS)
+#define CODA_FREE(ptr, size)  free((ptr), M_CODA)
 
 /*
  * global cache state control
  */
-extern int cfsnc_use;
+extern int coda_nc_use;
 
 /*
  * Used to select debugging statements throughout the cfs code.
  */
-extern int cfsdebug;
-extern int cfsnc_debug;
-extern int cfs_printf_delay;
-extern int cfs_vnop_print_entry;
-extern int cfs_psdev_print_entry;
-extern int cfs_vfsop_print_entry;
+extern int codadebug;
+extern int coda_nc_debug;
+extern int coda_printf_delay;
+extern int coda_vnop_print_entry;
+extern int coda_psdev_print_entry;
+extern int coda_vfsop_print_entry;
 
-#define CFSDBGMSK(N)            (1 << N)
-#define CFSDEBUG(N, STMT)       { if (cfsdebug & CFSDBGMSK(N)) { STMT } }
+#define CODADBGMSK(N)            (1 << N)
+#define CODADEBUG(N, STMT)       { if (codadebug & CODADBGMSK(N)) { STMT } }
 #define myprintf(args)          \
 do {                            \
-    if (cfs_printf_delay)       \
-	DELAY(cfs_printf_delay);\
+    if (coda_printf_delay)       \
+	DELAY(coda_printf_delay);\
     printf args ;               \
 } while (0)
 
@@ -240,42 +243,42 @@ struct vcomm {
 #define MARK_VC_CLOSED(vcp) (vcp)->vc_requests.forw = NULL;
 #define MARK_VC_OPEN(vcp)    /* MT */
 
-struct cfs_clstat {
+struct coda_clstat {
 	int	ncalls;			/* client requests */
 	int	nbadcalls;		/* upcall failures */
-	int	reqs[CFS_NCALLS];	/* count of each request */
+	int	reqs[CODA_NCALLS];	/* count of each request */
 };
-extern struct cfs_clstat cfs_clstat;
+extern struct coda_clstat coda_clstat;
 
 /*
- * CFS structure to hold mount/file system information
+ * CODA structure to hold mount/file system information
  */
-struct cfs_mntinfo {
+struct coda_mntinfo {
     struct vnode	*mi_rootvp;
     struct mount	*mi_vfsp;
     struct vcomm	 mi_vcomm;
 };
-extern struct cfs_mntinfo cfs_mnttbl[]; /* indexed by minor device number */
+extern struct coda_mntinfo coda_mnttbl[]; /* indexed by minor device number */
 
 /*
  * vfs pointer to mount info
  */
-#define vftomi(vfsp)    ((struct cfs_mntinfo *)(vfsp->mnt_data))
-#define	CFS_MOUNTED(vfsp)   (vftomi((vfsp)) != (struct cfs_mntinfo *)0)
+#define vftomi(vfsp)    ((struct coda_mntinfo *)(vfsp->mnt_data))
+#define	CODA_MOUNTED(vfsp)   (vftomi((vfsp)) != (struct coda_mntinfo *)0)
 
 /*
  * vnode pointer to mount info
  */
-#define vtomi(vp)       ((struct cfs_mntinfo *)(vp->v_mount->mnt_data))
+#define vtomi(vp)       ((struct coda_mntinfo *)(vp->v_mount->mnt_data))
 
 /*
  * Used for identifying usage of "Control" object
  */
-extern struct vnode *cfs_ctlvp;
-#define	IS_CTL_VP(vp)		((vp) == cfs_ctlvp)
-#define	IS_CTL_NAME(vp, name, l)((l == CFS_CONTROLLEN) \
+extern struct vnode *coda_ctlvp;
+#define	IS_CTL_VP(vp)		((vp) == coda_ctlvp)
+#define	IS_CTL_NAME(vp, name, l)((l == CODA_CONTROLLEN) \
  				 && ((vp) == vtomi((vp))->mi_rootvp)    \
-				 && strncmp(name, CFS_CONTROL, l) == 0)
+				 && strncmp(name, CODA_CONTROL, l) == 0)
 
 /* 
  * An enum to tell us whether something that will remove a reference
@@ -287,22 +290,22 @@ enum dc_status {
 };
 
 /* cfs_psdev.h */
-int cfscall(struct cfs_mntinfo *mntinfo, int inSize, int *outSize, caddr_t buffer);
+int coda_call(struct coda_mntinfo *mntinfo, int inSize, int *outSize, caddr_t buffer);
 
 /* cfs_subr.h */
 int  handleDownCall(int opcode, union outputArgs *out);
-void cfs_unmounting(struct mount *whoIam);
-int  cfs_vmflush(struct cnode *cp);
+void coda_unmounting(struct mount *whoIam);
+int  coda_vmflush(struct cnode *cp);
 
 /* cfs_vnodeops.h */
-struct cnode *makecfsnode(ViceFid *fid, struct mount *vfsp, short type);
-int cfs_vnodeopstats_init(void);
+struct cnode *make_coda_node(ViceFid *fid, struct mount *vfsp, short type);
+int coda_vnodeopstats_init(void);
 
-/* cfs_vfsops.h */
+/* coda_vfsops.h */
 struct mount *devtomp(dev_t dev);
 
 /* sigh */
-#define CFS_RDWR ((u_long) 31)
+#define CODA_RDWR ((u_long) 31)
 
 #endif	/* _CNODE_H_ */
 
