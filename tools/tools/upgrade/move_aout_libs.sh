@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-#	$Id: move_aout_libs.sh,v 1.3 1999/01/26 04:13:03 jkh Exp $
+#	$Id: move_aout_libs.sh,v 1.4 1999/02/01 12:45:03 jkh Exp $
 # 
 # Search for a.out libraries and move them to an aout subdirectory of
 # the elf library directory.
@@ -96,7 +96,7 @@ move_if_aout ( )
 				filemagic=`file $file`
 
 				# Check if the file is an a.out library
-				if test "$filemagic" = "$file: $aoutmagic"; then
+				if expr "$filemagic" : ".*$aoutmagic"; then
 					# Move the a.out library
 					move_file
 				fi
@@ -127,7 +127,7 @@ do
 	files=`ls $dir/*.so.*.* 2> /dev/null`
 
 	# a.out shared libraries look like this:
-	aoutmagic="FreeBSD/i386 compact demand paged shared library not stripped"
+	aoutmagic="FreeBSD/i386 compact demand paged shared library"
 
 	# Move each a.out shared library:
 	move_if_aout
