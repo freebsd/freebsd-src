@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.81 1997/08/05 01:32:52 dyson Exp $
+ * $Id: vm_map.c,v 1.82 1997/08/05 22:07:27 dyson Exp $
  */
 
 /*
@@ -174,13 +174,13 @@ void
 vm_map_startup()
 {
 	mapzone = &mapzone_store;
-	_zbootinit(mapzone, "MAP", sizeof (struct vm_map),
+	zbootinit(mapzone, "MAP", sizeof (struct vm_map),
 		map_init, MAX_KMAP);
 	kmapentzone = &kmapentzone_store;
-	_zbootinit(kmapentzone, "KMAP ENTRY", sizeof (struct vm_map_entry),
+	zbootinit(kmapentzone, "KMAP ENTRY", sizeof (struct vm_map_entry),
 		kmap_entry_init, MAX_KMAPENT);
 	mapentzone = &mapentzone_store;
-	_zbootinit(mapentzone, "MAP ENTRY", sizeof (struct vm_map_entry),
+	zbootinit(mapentzone, "MAP ENTRY", sizeof (struct vm_map_entry),
 		map_entry_init, MAX_MAPENT);
 }
 
@@ -207,12 +207,12 @@ vmspace_alloc(min, max, pageable)
 
 void
 vm_init2(void) {
-	_zinit(kmapentzone, &kmapentobj,
+	zinitna(kmapentzone, &kmapentobj,
 		NULL, 0, 4096, ZONE_INTERRUPT, 4);
-	_zinit(mapentzone, &mapentobj,
-		NULL, 0, 0, ZONE_WAIT, 4);
-	_zinit(mapzone, &mapobj,
-		NULL, 0, 0, ZONE_WAIT, 4);
+	zinitna(mapentzone, &mapentobj,
+		NULL, 0, 0, 0, 4);
+	zinitna(mapzone, &mapobj,
+		NULL, 0, 0, 0, 4);
 }
 
 void
