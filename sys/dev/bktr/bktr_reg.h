@@ -67,15 +67,6 @@ struct bt848_registers {
 # define BT848_IFORM_X_XT1		(0x02<<3)
 # define BT848_IFORM_X_XT0		(0x01<<3)
 # define BT848_IFORM_X_RSVD		(0x00<<3)
-#define BT848_IFORM_FORMAT		(0x7<<0)
-# define BT848_IFORM_F_RSVD		(0x7)
-# define BT848_IFORM_F_SECAM		(0x6)
-# define BT848_IFORM_F_PALN		(0x5)
-# define BT848_IFORM_F_PALM		(0x4)
-# define BT848_IFORM_F_PALBDGHI		(0x3)
-# define BT848_IFORM_F_NTSCJ		(0x2)
-# define BT848_IFORM_F_NTSCM		(0x1)
-# define BT848_IFORM_F_AUTO		(0x0)
     BTBYTE (tdec);		/* 8, 9,a,b */
     BTBYTE (e_crop);		/* c, d,e,f */
     BTBYTE (e_vdelay_lo);	/* 10, 11,12,13 */
