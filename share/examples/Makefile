@@ -44,4 +44,4 @@ etc-examples:
 SUBDIR=	smbfs
 .endif
 
-.include <bsd.prog.mk>
+.include <bsd.subdir.mk>
