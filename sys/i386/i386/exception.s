@@ -168,11 +168,11 @@ IDTVEC(fpu)
 	pushl	%ds
 	pushl	%es			/* now stack frame is a trap frame */
 	pushl	%fs
-	movl	$KDSEL,%eax
-	movl	%ax,%ds
-	movl	%ax,%es
+	mov	$KDSEL,%ax
+	mov	%ax,%ds
+	mov	%ax,%es
 	MOVL_KPSEL_EAX
-	movl	%ax,%fs
+	mov	%ax,%fs
 	FAKE_MCOUNT(13*4(%esp))
 
 #ifdef SMP
@@ -219,11 +219,11 @@ _alltraps:
 	pushl	%es
 	pushl	%fs
 alltraps_with_regs_pushed:
-	movl	$KDSEL,%eax
-	movl	%ax,%ds
-	movl	%ax,%es
+	mov	$KDSEL,%ax
+	mov	%ax,%ds
+	mov	%ax,%es
 	MOVL_KPSEL_EAX
-	movl	%ax,%fs
+	mov	%ax,%fs
 	FAKE_MCOUNT(13*4(%esp))
 calltrap:
 	FAKE_MCOUNT(_btrap)		/* init "from" _btrap -> calltrap */
@@ -265,11 +265,11 @@ IDTVEC(syscall)
 	pushl	%ds
 	pushl	%es
 	pushl	%fs
-	movl	$KDSEL,%eax		/* switch to kernel segments */
-	movl	%ax,%ds
-	movl	%ax,%es
+	mov	$KDSEL,%ax		/* switch to kernel segments */
+	mov	%ax,%ds
+	mov	%ax,%es
 	MOVL_KPSEL_EAX
-	movl	%ax,%fs
+	mov	%ax,%fs
 	movl	TF_ERR(%esp),%eax	/* copy saved eflags to final spot */
 	movl	%eax,TF_EFLAGS(%esp)
 	movl	$7,TF_ERR(%esp) 	/* sizeof "lcall 7,0" */
@@ -305,11 +305,11 @@ IDTVEC(int0x80_syscall)
 	pushl	%ds
 	pushl	%es
 	pushl	%fs
-	movl	$KDSEL,%eax		/* switch to kernel segments */
-	movl	%ax,%ds
-	movl	%ax,%es
+	mov	$KDSEL,%ax		/* switch to kernel segments */
+	mov	%ax,%ds
+	mov	%ax,%es
 	MOVL_KPSEL_EAX
-	movl	%ax,%fs
+	mov	%ax,%fs
 	movl	$2,TF_ERR(%esp)		/* sizeof "int 0x80" */
 	FAKE_MCOUNT(13*4(%esp))
 	MPLOCKED incl _cnt+V_SYSCALL
@@ -348,7 +348,7 @@ ENTRY(fork_trampoline)
 	 * initproc has its own fork handler, but it does return.
 	 */
 	pushl	%ebx			/* arg1 */
-	call	%esi			/* function */
+	call	*%esi			/* function */
 	addl	$4,%esp
 	/* cut from syscall */
 

@@ -169,7 +169,7 @@ jtab:
 	.text
 	SUPERALIGN_TEXT
 5:
-	jmp	jtab(,%ecx,4)
+	jmp	*jtab(,%ecx,4)
 
 	SUPERALIGN_TEXT
 do3:
@@ -303,7 +303,7 @@ fpureg_i586_bzero_loop:
 	ret
 
 i586_bz3:
-	fstpl	%st(0)
+	fstp	%st(0)
 	lmsw	%ax
 	movb	$0xfe,kernel_fpu_lock
 	ret
@@ -1513,14 +1513,14 @@ ENTRY(lgdt)
 1:
 	/* reload "stale" selectors */
 	movl	$KDSEL,%eax
-	movl	%ax,%ds
-	movl	%ax,%es
-	movl	%ax,%gs
-	movl	%ax,%ss
+	mov	%ax,%ds
+	mov	%ax,%es
+	mov	%ax,%gs
+	mov	%ax,%ss
 #ifdef SMP
 	movl	$KPSEL,%eax
 #endif
-	movl	%ax,%fs
+	mov	%ax,%fs
 
 	/* reload code selector by turning return into intersegmental return */
 	movl	(%esp),%eax
