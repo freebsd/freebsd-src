@@ -625,6 +625,13 @@ if set to
 .Xr fsck 8
 will be run with the -y flag if the initial preen
 of the filesystems fails.
+.It Va background_fsck
+.Pq Vt bool
+if set to
+.Ar YES ,
+the system will attempt to run
+.Xr fsck 8
+in the background where possible.
 .It Va syslogd_enable
 .Pq Vt bool
 If set to

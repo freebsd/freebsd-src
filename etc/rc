@@ -184,9 +184,14 @@ swapon -a
 case ${bootmode} in
 autoboot)
 	echo 'Automatic boot in progress...'
-#	To restore old fsck behavior use:
-#	fsck -p
-	fsck -F -p
+	case ${background_fsck} in
+	[Yy][Ee][Ss])
+		fsck -F -p
+		;;
+	*)
+		fsck -p
+		;;
+	esac
 	case $? in
 	0)
 		;;
@@ -810,9 +815,13 @@ case ${kern_securelevel_enable} in
 	;;
 esac
 
-# Start background fsck checks
-echo 'Starting background filesystem checks'
-nice -4 fsck -B -p 2>&1 | logger -p daemon.notice &
+# Start background fsck checks if necessary
+case ${background_fsck} in
+[Yy][Ee][Ss])
+	echo 'Starting background filesystem checks'
+	nice -4 fsck -B -p 2>&1 | logger -p daemon.notice &
+	;;
+esac
 
 echo ''
 
