@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.72 1995/09/19 08:33:42 jkh Exp $
+#	$Id: rc,v 1.73 1995/09/19 10:19:39 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -248,8 +248,8 @@ then
 fi
 
 # Recover vi editor files.
-virecovery=/var/tmp/vi.recover/recover.*
-if [ "$virecovery" != "/var/tmp/vi.recover/recover.*" ]; then
+virecovery='echo /var/tmp/vi.recover/recover.*'
+if [ "$virecovery" != '/var/tmp/vi.recover/recover.*' ]; then
 	echo 'Recovering vi editor sessions'
 	for i in $virecovery; do
 		sendmail -t < $i
