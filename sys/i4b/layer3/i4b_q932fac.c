@@ -27,9 +27,11 @@
  *	i4b_q932fac.c - Q932 facility handling
  *	--------------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: i4b_q932fac.c,v 1.8 1999/12/13 21:25:27 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:34:02 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 22:05:51 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -41,11 +43,13 @@
 #if NI4BQ931 > 0
 
 #include <sys/param.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+
+#if defined(__FreeBSD__)
 #include <sys/ioccom.h>
 #else
 #include <sys/ioctl.h>
 #endif
+
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>

@@ -37,55 +37,33 @@
  *	isic - I4B Siemens ISDN Chipset Driver for Teles S0/16 and clones
  *	=================================================================
  *
- * $FreeBSD$ 
+ *	$Id: i4b_tel_s016.c,v 1.3 1999/12/13 21:25:26 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:28:38 1999]
+ * $FreeBSD$
  *
- *	-hm	clean up
- *	-hm	checked with a Creatix ISDN-S0 (PCB version: mp 130.1)
- *	-hm	more cleanup
- *      -hm     NetBSD patches from Martin
- *	-hm	converting asm -> C
+ *      last edit-date: [Mon Dec 13 22:02:47 1999]
  *
  *---------------------------------------------------------------------------*/
 
-#if defined(__FreeBSD__)
 #include "isic.h"
 #include "opt_i4b.h"
-#else
-#define	NISIC 1
-#endif
+
 #if NISIC > 0 && defined(TEL_S0_16)
 
 #include <sys/param.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <sys/ioccom.h>
-#else
-#include <sys/ioctl.h>
-#endif
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
+#include <sys/socket.h>
 
-#ifdef __FreeBSD__
 #include <machine/clock.h>
 #include <machine/md_var.h>
-#include <i386/isa/isa_device.h>
-#else
-#include <machine/bus.h>
-#include <sys/device.h>
-#endif
 
-#include <sys/socket.h>
 #include <net/if.h>
 
-#ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
-#else
-#include <i4b/i4b_debug.h>
-#include <i4b/i4b_ioctl.h>
-#endif
 
 #include <i4b/layer1/i4b_l1.h>
 #include <i4b/layer1/i4b_isac.h>
@@ -95,66 +73,36 @@
 #include <i4b/include/i4b_l1l2.h>
 #include <i4b/include/i4b_mbuf.h>
 
-static u_char intr_no[] = { 1, 1, 0, 2, 4, 6, 1, 1, 1, 0, 8, 10, 12, 1, 1, 14 };
+#define TELES_S016_MEMSIZE 0x1000
 
-#ifndef __FreeBSD__
-static u_int8_t tels016_read_reg __P((struct isic_softc *sc, int what, bus_size_t offs));
-static void tels016_write_reg __P((struct isic_softc *sc, int what, bus_size_t offs, u_int8_t data));
-static void tels016_read_fifo __P((struct isic_softc *sc, int what, void *buf, size_t size));
-static void tels016_write_fifo __P((struct isic_softc *sc, int what, const void *data, size_t size));
-#endif
+static u_char intr_no[] = { 1, 1, 0, 2, 4, 6, 1, 1, 1, 0, 8, 10, 12, 1, 1, 14 };
+static const bus_size_t offset[] = { 0x100, 0x180, 0x1c0 };
 
 /*---------------------------------------------------------------------------*
  *	Teles S0/16 write register routine
  *---------------------------------------------------------------------------*/
-#ifdef __FreeBSD__
-
 static void
-tels016_write_reg(u_char *base, u_int i, u_int v)
+tels016_write_reg(struct l1_softc *sc, int what, bus_size_t offs, u_int8_t data)
 {
-	if(i & 0x01)
-		i |= 0x200;
-	base[i] = v;
-}
-
-#else
-
-static const bus_size_t offset[] = { 0x100, 0x180, 0x1c0 };
-
-static void
-tels016_write_reg(struct isic_softc *sc,	int what, bus_size_t offs, u_int8_t data)
-{
-	bus_space_tag_t t = sc->sc_maps[1].t;
-	bus_space_handle_t h = sc->sc_maps[1].h;
+	bus_space_tag_t    t = rman_get_bustag(sc->sc_resources.mem);
+	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.mem);
 
 	offs += offset[what];
+
 	if (offs & 0x01)
 		offs |= 0x200;
 
 	bus_space_write_1(t, h, offs, data);
 }
-#endif
 
 /*---------------------------------------------------------------------------*
  *	Teles S0/16 read register routine
  *---------------------------------------------------------------------------*/
-#ifdef __FreeBSD__
-
-static u_char
-tels016_read_reg(u_char *base, u_int i)
-{
-	if(i & 0x1)
-		i |= 0x200;
-	return(base[i]);
-}
-
-#else
-
 static u_int8_t
-tels016_read_reg(struct isic_softc *sc,	int what, bus_size_t offs)
+tels016_read_reg(struct l1_softc *sc,	int what, bus_size_t offs)
 {
-	bus_space_tag_t t = sc->sc_maps[1].t;
-	bus_space_handle_t h = sc->sc_maps[1].h;
+	bus_space_tag_t    t = rman_get_bustag(sc->sc_resources.mem);
+	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.mem);
 
 	offs += offset[what];
 
@@ -163,72 +111,75 @@ tels016_read_reg(struct isic_softc *sc,	int what, bus_size_t offs)
 
 	return bus_space_read_1(t, h, offs);
 }
-#endif
 
 /*---------------------------------------------------------------------------*
- *	Teles S0/16 fifo read/write routines
+ *	Teles S0/16 fifo write routine
  *---------------------------------------------------------------------------*/
-#ifdef __FreeBSD__
-
-static void		
-tels016_memcpyb(void *to, const void *from, size_t len)
-{
-	for(;len > 0; len--)
-		*((unsigned char *)to)++ = *((unsigned char *)from)++;
-}
-
-#else
-
 static void
-tels016_write_fifo(struct isic_softc *sc, int what, const void *data, size_t size)
+tels016_write_fifo(struct l1_softc *sc, int what, void *data, size_t size)
 {
-	bus_space_tag_t t = sc->sc_maps[1].t;
-	bus_space_handle_t h = sc->sc_maps[1].h;
+	bus_space_tag_t    t = rman_get_bustag(sc->sc_resources.mem);
+	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.mem);
 	bus_space_write_region_1(t, h, offset[what], data, size);
 }
 
+/*---------------------------------------------------------------------------*
+ *	Teles S0/16 fifo read routine
+ *---------------------------------------------------------------------------*/
 static void
-tels016_read_fifo(struct isic_softc *sc, int what, void *buf, size_t size)
+tels016_read_fifo(struct l1_softc *sc, int what, void *buf, size_t size)
 {
-	bus_space_tag_t t = sc->sc_maps[1].t;
-	bus_space_handle_t h = sc->sc_maps[1].h;
+	bus_space_tag_t    t = rman_get_bustag(sc->sc_resources.mem);
+	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.mem);
 	bus_space_read_region_1(t, h, offset[what], buf, size);
 }
-#endif
 
 /*---------------------------------------------------------------------------*
  *	isic_probe_s016 - probe for Teles S0/16 and compatibles
  *---------------------------------------------------------------------------*/
-#ifdef __FreeBSD__
 int
-isic_probe_s016(struct isa_device *dev)
+isic_probe_s016(device_t dev)
 {
-	struct isic_softc *sc = &isic_sc[dev->id_unit];
-	u_char byte;
+	size_t unit = device_get_unit(dev);	/* get unit */
+	struct l1_softc *sc = 0;		/* softc */
+	void *ih = 0;				/* dummy */
+	u_int8_t b0,b1,b2;			/* for signature */
+	bus_space_tag_t    t;			/* bus things */
+	bus_space_handle_t h;
 
 	/* check max unit range */
-	
-	if(dev->id_unit >= ISIC_MAXUNIT)
+
+	if(unit >= ISIC_MAXUNIT)
 	{
 		printf("isic%d: Error, unit %d >= ISIC_MAXUNIT for Teles S0/16!\n",
-				dev->id_unit, dev->id_unit);
-		return(0);	
-	}	
-	sc->sc_unit = dev->id_unit;
-
-	/* check IRQ validity */
-
-	if((intr_no[ffs(dev->id_irq) - 1]) == 1)
-	{
-		printf("isic%d: Error, invalid IRQ [%d] specified for Teles S0/16!\n",
-			dev->id_unit, ffs(dev->id_irq)-1);
-		return(0);
+				unit, unit);
+		return(ENXIO);	
 	}
-	sc->sc_irq = dev->id_irq;
 
-	/* check if we got an iobase */
+	sc = &l1_sc[unit];			/* get pointer to softc */
 
-	switch(dev->id_iobase)
+	sc->sc_unit = unit;			/* set unit */
+
+	sc->sc_flags = FLAG_TELES_S0_16;	/* set flags */
+
+	/* see if an io base was supplied */
+
+	if(!(sc->sc_resources.io_base[0] =
+			bus_alloc_resource(dev, SYS_RES_IOPORT,
+	                                   &sc->sc_resources.io_rid[0],
+	                                   0ul, ~0ul, 1, RF_ACTIVE)))
+	{
+		printf("isic%d: Could not allocate i/o port for Teles S0/16.\n", unit);
+		return(ENXIO);
+	}
+
+	sc->sc_port = rman_get_start(sc->sc_resources.io_base[0]);
+
+	/*
+	 * check if the provided io port is valid
+	 */
+
+	switch(sc->sc_port)
 	{
 		case 0xd80:
 		case 0xe80:
@@ -237,15 +188,34 @@ isic_probe_s016(struct isa_device *dev)
 
 		default:
 			printf("isic%d: Error, invalid iobase 0x%x specified for Teles S0/16!\n",
-				dev->id_unit, dev->id_iobase);
-			return(0);
+				unit, sc->sc_port);
+			isic_detach_common(dev);
+			return(ENXIO);
 			break;
 	}
-	sc->sc_port = dev->id_iobase;
-	
-	/* check if valid memory addr */
 
-	switch((unsigned int)kvtop(dev->id_maddr))
+	/* allocate memory resource */
+
+	if(!(sc->sc_resources.mem =
+			bus_alloc_resource(dev, SYS_RES_MEMORY,
+					&sc->sc_resources.mem_rid,
+					0ul, ~0ul, TELES_S016_MEMSIZE,
+					RF_ACTIVE)))
+	{
+		printf("isic%d: Could not allocate memory for Teles S0/16.\n", unit);
+		isic_detach_common(dev);
+		return(ENXIO);
+	}
+
+	/* 
+	 * get virtual addr.
+	 */
+	sc->sc_vmem_addr = rman_get_virtual(sc->sc_resources.mem);
+
+	/*
+	 * check for valid adresses
+	 */
+	switch(kvtop(sc->sc_vmem_addr))
 	{
 		case 0xc0000:
 		case 0xc2000:
@@ -266,112 +236,17 @@ isic_probe_s016(struct isa_device *dev)
 			break;
 
 		default:
-			printf("isic%d: Error, invalid mem addr 0x%lx for Teles S0/16!\n",
-				dev->id_unit, kvtop(dev->id_maddr));
-			return(0);
+			printf("isic%d: Error, invalid memory address 0x%lx for Teles S0/16!\n",
+				unit, kvtop(sc->sc_vmem_addr));
+			isic_detach_common(dev);
+			return(ENXIO);
 			break;
 	}		
-	sc->sc_vmem_addr = (caddr_t) dev->id_maddr;
-	dev->id_msize = 0x1000;
 	
-	/* check card signature */
-
-	if((byte = inb(sc->sc_port)) != 0x51)
-	{
-		printf("isic%d: Error, signature 1 0x%x != 0x51 for Teles S0/16!\n",
-			dev->id_unit, byte);
-		return(0);
-	}
-	
-	if((byte = inb(sc->sc_port + 1)) != 0x93)
-	{
-		printf("isic%d: Error, signature 2 0x%x != 0x93 for Teles S0/16!\n",
-			dev->id_unit, byte);
-		return(0);
-	}
-	
-	byte = inb(sc->sc_port + 2);
-
-	if((byte != 0x1e) && (byte != 0x1f))
-	{
-		printf("isic%d: Error, signature 3 0x%x != 0x1e or 0x1f for Teles S0/16!\n",
-			dev->id_unit, byte);
-		return(0);
-	}
-
-	/* setup access routines */
+	/* setup ISAC access routines */
 
 	sc->clearirq = NULL;
-	sc->readreg = tels016_read_reg;
-	sc->writereg = tels016_write_reg;
 
-	sc->readfifo = tels016_memcpyb;
-	sc->writefifo = tels016_memcpyb;
-
-	/* setup card type */
-	
-	sc->sc_cardtyp= CARD_TYPEP_16;
-
-	/* setup IOM bus type */
-	
-	sc->sc_bustyp = BUS_TYPE_IOM1;
-
-	sc->sc_ipac = 0;
-	sc->sc_bfifolen = HSCX_FIFO_LEN;
-	
-	/* setup ISAC base addr */
-	
-	ISAC_BASE = (caddr_t) ((dev->id_maddr) + 0x100);
-
-	/* setup HSCX base addr */
-	
-	HSCX_A_BASE = (caddr_t) ((dev->id_maddr) + 0x180);
-	HSCX_B_BASE = (caddr_t) ((dev->id_maddr) + 0x1c0);
-
-	return (1);
-}
-
-#else
-
-int
-isic_probe_s016(struct isic_attach_args *ia)
-{
-	bus_space_tag_t t = ia->ia_maps[0].t;
-	bus_space_handle_t h = ia->ia_maps[0].h;
-	u_int8_t b0, b1, b2;
-
-	b0 = bus_space_read_1(t, h, 0);
-	b1 = bus_space_read_1(t, h, 1);
-	b2 = bus_space_read_1(t, h, 2);
-
-	if (b0 == 0x51 && b1 == 0x93 && (b2 == 0x1e || b2 == 0x1f))
-		return 1;
-
-	return 0;
-}
-#endif
-
-/*---------------------------------------------------------------------------*
- *	isic_attach_s016 - attach Teles S0/16 and compatibles
- *---------------------------------------------------------------------------*/
-int
-#ifdef __FreeBSD__
-isic_attach_s016(struct isa_device *dev)
-#else
-isic_attach_s016(struct isic_softc *sc)
-#endif
-{
-
-#ifdef __FreeBSD__
-	struct isic_softc *sc = &isic_sc[dev->id_unit];
-#endif
-
-	u_long irq;
-
-#ifndef __FreeBSD__
-	/* setup access routines */
-
-	sc->clearirq = NULL;
 	sc->readreg = tels016_read_reg;
 	sc->writereg = tels016_write_reg;
 
@@ -379,8 +254,7 @@ isic_attach_s016(struct isic_softc *sc)
 	sc->writefifo = tels016_write_fifo;
 
 	/* setup card type */
-	
-	sc->sc_cardtyp= CARD_TYPEP_16;
+	sc->sc_cardtyp = CARD_TYPEP_16;
 
 	/* setup IOM bus type */
 	
@@ -389,67 +263,123 @@ isic_attach_s016(struct isic_softc *sc)
 	sc->sc_ipac = 0;
 	sc->sc_bfifolen = HSCX_FIFO_LEN;
 
-#endif
+	/* setup ISAC base addr, though we don't really need it */
+	
+	ISAC_BASE = (caddr_t)((sc->sc_vmem_addr) + 0x100);
 
-#ifdef __FreeBSD__
-	if((irq = intr_no[ffs(dev->id_irq) - 1]) == 1)
+	/* setup HSCX base addr */
+	
+	HSCX_A_BASE = (caddr_t)((sc->sc_vmem_addr) + 0x180);
+	HSCX_B_BASE = (caddr_t)((sc->sc_vmem_addr) + 0x1c0);
+
+	t = rman_get_bustag(sc->sc_resources.io_base[0]);
+	h = rman_get_bushandle(sc->sc_resources.io_base[0]);
+
+	/* get signature bytes */
+	b0 = bus_space_read_1(t, h, 0);
+	b1 = bus_space_read_1(t, h, 1);
+	b2 = bus_space_read_1(t, h, 2);
+
+	/* check signature bytes */
+	if(b0 != 0x51)
 	{
-		printf("isic%d: Attach error, invalid IRQ [%d] specified for Teles S0/16!\n",
-			dev->id_unit, ffs(dev->id_irq)-1);
-		return(0);
+		printf("isic%d: Error, signature 1 0x%x != 0x51 for Teles S0/16!\n",
+			unit, b0);
+		isic_detach_common(dev);
+		return(ENXIO);
 	}
-#else
+	
+	if(b1 != 0x93)
+	{
+		printf("isic%d: Error, signature 2 0x%x != 0x93 for Teles S0/16!\n",
+			unit, b1);
+		isic_detach_common(dev);
+		return(ENXIO);
+	}
+	
+	if((b2 != 0x1e) && (b2 != 0x1f))
+	{
+		printf("isic%d: Error, signature 3 0x%x != 0x1e or 0x1f for Teles S0/16!\n",
+			unit, b2);
+		isic_detach_common(dev);
+		return(ENXIO);
+	}
+
+	/* get our irq */
+
+	if(!(sc->sc_resources.irq =
+			bus_alloc_resource(dev, SYS_RES_IRQ,
+						&sc->sc_resources.irq_rid,
+						0ul, ~0ul, 1, RF_ACTIVE)))
+	{
+		printf("isic%d: Could not allocate irq for Teles S0/16.\n", unit);
+		isic_detach_common(dev);
+		return ENXIO;
+	}
+
+	/* register interupt routine */
+
+	bus_setup_intr(dev, sc->sc_resources.irq,
+			INTR_TYPE_NET,
+			(void(*)(void *))(isicintr),
+			sc, &ih);
+
+	/* get the irq number */
+	
+	sc->sc_irq = rman_get_start(sc->sc_resources.irq);
+
+	/* check IRQ validity */
+
+	if((intr_no[sc->sc_irq]) == 1)
+	{
+		printf("isic%d: Error, invalid IRQ [%d] specified for Teles S0/16!\n",
+			unit, sc->sc_irq);
+		isic_detach_common(dev);
+		return(ENXIO);
+	}
+	
+	return (0);
+}
+
+/*---------------------------------------------------------------------------*
+ *	isic_attach_s016 - attach Teles S0/16 and compatibles
+ *---------------------------------------------------------------------------*/
+int
+isic_attach_s016(device_t dev)
+{
+	struct l1_softc *sc = &l1_sc[device_get_unit(dev)];
+	u_long irq;
+
+	bus_space_tag_t    ta = rman_get_bustag(sc->sc_resources.mem);
+	bus_space_handle_t ha = rman_get_bushandle(sc->sc_resources.mem);
+	bus_space_tag_t    tb = rman_get_bustag(sc->sc_resources.io_base[0]);
+	bus_space_handle_t hb = rman_get_bushandle(sc->sc_resources.io_base[0]);
+
+	/* is this right for FreeBSD or off by one ? */
 	irq = intr_no[sc->sc_irq];
-#endif
 
 	/* configure IRQ */
 
-#ifdef __FreeBSD__
 	irq |= ((u_long) sc->sc_vmem_addr) >> 9;
 
 	DELAY(SEC_DELAY / 10);
-	outb(sc->sc_port + 4, irq);
+	bus_space_write_1(tb, hb, 4, irq);
 
 	DELAY(SEC_DELAY / 10);
-	outb(sc->sc_port + 4, irq | 0x01);
+	bus_space_write_1(tb, hb, 4, irq | 0x01);
 
 	DELAY(SEC_DELAY / 5);
 
 	/* set card bit off */
 
-	sc->sc_vmem_addr[0x80] = 0;
+	bus_space_write_1(ta, ha, 0x80, 0);
 	DELAY(SEC_DELAY / 5);
 
 	/* set card bit on */
 	
-	sc->sc_vmem_addr[0x80] = 1;
+	bus_space_write_1(ta, ha, 0x80, 1);
 	DELAY(SEC_DELAY / 5);
 
-#else
-
-	irq |= ((sc->sc_maddr >> 9) & 0x000000f0);
-
-	DELAY(SEC_DELAY / 10);
-	bus_space_write_1(sc->sc_maps[0].t, sc->sc_maps[0].h, 4, irq);
-
-	DELAY(SEC_DELAY / 10);
-	bus_space_write_1(sc->sc_maps[0].t, sc->sc_maps[0].h, 4, irq | 0x01);
-
-	DELAY(SEC_DELAY / 5);
-
-	/* set card bit off */
-
-	bus_space_write_1(sc->sc_maps[1].t, sc->sc_maps[1].h, 0x80, 0);
-	DELAY(SEC_DELAY / 5);
-
-	/* set card bit on */
-	
-	bus_space_write_1(sc->sc_maps[1].t, sc->sc_maps[1].h, 0x80, 1);
-	DELAY(SEC_DELAY / 5);
-#endif
-
-	return (1);
+	return 0;
 }
-
 #endif /* ISIC > 0 */
-

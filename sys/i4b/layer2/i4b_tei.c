@@ -27,9 +27,11 @@
  *	i4b_tei.c - tei handling procedures
  *	-----------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: i4b_tei.c,v 1.17 1999/12/13 21:25:27 hm Exp $ 
  *
- *      last edit-date: [Fri May 28 16:14:14 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 22:04:24 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -41,11 +43,13 @@
 #if NI4BQ921 > 0
 
 #include <sys/param.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+
+#if defined(__FreeBSD__)
 #include <sys/ioccom.h>
 #else
 #include <sys/ioctl.h>
 #endif
+
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/syslog.h>
@@ -61,7 +65,7 @@
 #include <i4b/i4b_ioctl.h>
 #endif
 
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined(__FreeBSD__)
 #include <machine/random.h>
 #endif
 
@@ -289,7 +293,7 @@ void
 i4b_make_rand_ri(l2_softc_t *l2sc)
 {
 
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined(__FreeBSD__)
 
 	u_short val;
 	read_random((char *)&val, sizeof(val));

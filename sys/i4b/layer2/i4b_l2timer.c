@@ -27,9 +27,11 @@
  *	i4b_l2timer.c - layer 2 timer handling
  *	--------------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: i4b_l2timer.c,v 1.17 1999/12/13 21:25:27 hm Exp $ 
  *
- *      last edit-date: [Wed Apr 21 09:17:58 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 22:03:56 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -41,7 +43,8 @@
 #if NI4BQ921 > 0
 
 #include <sys/param.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+
+#if defined(__FreeBSD__)
 #include <sys/ioccom.h>
 #else
 #include <sys/ioctl.h>
@@ -91,7 +94,7 @@ i4b_T200_start(l2_softc_t *l2sc)
 	DBGL2(L2_T_MSG, "i4b_T200_start", ("unit %d\n", l2sc->unit));
 	l2sc->T200 = TIMER_ACTIVE;
 
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+#if defined(__FreeBSD__)
 	l2sc->T200_callout = timeout((TIMEOUT_FUNC_T)i4b_T200_timeout, (void *)l2sc, T200DEF);
 #else
 	timeout((TIMEOUT_FUNC_T)i4b_T200_timeout, (void *)l2sc, T200DEF);
@@ -108,7 +111,7 @@ i4b_T200_stop(l2_softc_t *l2sc)
 	CRIT_BEG;
 	if(l2sc->T200 != TIMER_IDLE)
 	{
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+#if defined(__FreeBSD__)
 		untimeout((TIMEOUT_FUNC_T)i4b_T200_timeout, (void *)l2sc, l2sc->T200_callout);
 #else
 		untimeout((TIMEOUT_FUNC_T)i4b_T200_timeout, (void *)l2sc);
@@ -129,7 +132,7 @@ i4b_T200_restart(l2_softc_t *l2sc)
 	CRIT_BEG;
 	if(l2sc->T200 != TIMER_IDLE)
 	{
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+#if defined(__FreeBSD__)
 		untimeout((TIMEOUT_FUNC_T)i4b_T200_timeout, (void *)l2sc, l2sc->T200_callout);
 #else
 		untimeout((TIMEOUT_FUNC_T)i4b_T200_timeout, (void *)l2sc);
@@ -140,7 +143,7 @@ i4b_T200_restart(l2_softc_t *l2sc)
 		l2sc->T200 = TIMER_ACTIVE;
 	}
 
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+#if defined(__FreeBSD__)
 	l2sc->T200_callout = timeout((TIMEOUT_FUNC_T)i4b_T200_timeout, (void *)l2sc, T200DEF);
 #else
 	timeout((TIMEOUT_FUNC_T)i4b_T200_timeout, (void *)l2sc, T200DEF);
@@ -176,7 +179,7 @@ i4b_T202_start(l2_softc_t *l2sc)
 	l2sc->N202 = N202DEF;	
 	l2sc->T202 = TIMER_ACTIVE;
 
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+#if defined(__FreeBSD__)
 	l2sc->T202_callout = timeout((TIMEOUT_FUNC_T)i4b_T202_timeout, (void *)l2sc, T202DEF);
 #else
 	timeout((TIMEOUT_FUNC_T)i4b_T202_timeout, (void *)l2sc, T202DEF);
@@ -193,7 +196,7 @@ i4b_T202_stop(l2_softc_t *l2sc)
 	CRIT_BEG;
 	if(l2sc->T202 != TIMER_IDLE)
 	{
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+#if defined(__FreeBSD__)
 		untimeout((TIMEOUT_FUNC_T)i4b_T202_timeout, (void *)l2sc, l2sc->T202_callout);
 #else
 		untimeout((TIMEOUT_FUNC_T)i4b_T202_timeout, (void *)l2sc);
@@ -229,7 +232,7 @@ i4b_T203_start(l2_softc_t *l2sc)
 	DBGL2(L2_T_MSG, "i4b_T203_start", ("unit %d\n", l2sc->unit));
 	l2sc->T203 = TIMER_ACTIVE;
 
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+#if defined(__FreeBSD__)
 	l2sc->T203_callout = timeout((TIMEOUT_FUNC_T)i4b_T203_timeout, (void *)l2sc, T203DEF);
 #else
 	timeout((TIMEOUT_FUNC_T)i4b_T203_timeout, (void *)l2sc, T203DEF);
@@ -248,7 +251,7 @@ i4b_T203_stop(l2_softc_t *l2sc)
 	CRIT_BEG;
 	if(l2sc->T203 != TIMER_IDLE)
 	{
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+#if defined(__FreeBSD__)
 		untimeout((TIMEOUT_FUNC_T)i4b_T203_timeout, (void *)l2sc, l2sc->T203_callout);
 #else
 		untimeout((TIMEOUT_FUNC_T)i4b_T203_timeout, (void *)l2sc);
@@ -272,7 +275,7 @@ i4b_T203_restart(l2_softc_t *l2sc)
 
 	if(l2sc->T203 != TIMER_IDLE)
 	{
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+#if defined(__FreeBSD__)
 		untimeout((TIMEOUT_FUNC_T)i4b_T203_timeout, (void *)l2sc, l2sc->T203_callout);
 #else
 		untimeout((TIMEOUT_FUNC_T)i4b_T203_timeout, (void *)l2sc);
@@ -283,7 +286,7 @@ i4b_T203_restart(l2_softc_t *l2sc)
 		l2sc->T203 = TIMER_ACTIVE;
 	}
 	
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+#if defined(__FreeBSD__)
 	l2sc->T203_callout = timeout((TIMEOUT_FUNC_T)i4b_T203_timeout, (void *)l2sc, T203DEF);
 #else
 	timeout((TIMEOUT_FUNC_T)i4b_T203_timeout, (void *)l2sc, T203DEF);

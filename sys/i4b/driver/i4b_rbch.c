@@ -27,9 +27,11 @@
  *	i4b_rbch.c - device driver for raw B channel data
  *	---------------------------------------------------
  *
+ *	$Id: i4b_rbch.c,v 1.48 1999/12/13 21:25:24 hm Exp $
+ *
  * $FreeBSD$
  *
- *	last edit-date: [Fri Jul  9 09:37:02 1999]
+ *	last edit-date: [Mon Dec 13 21:39:15 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -54,6 +56,18 @@ extern cc_t ttydefchars;
 #define termioschars(t) memcpy((t)->c_cc, &ttydefchars, sizeof((t)->c_cc))
 #endif
 
+#ifdef __FreeBSD__
+
+#if defined(__FreeBSD__) && __FreeBSD__ == 3
+#include "opt_devfs.h"
+#endif
+
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif
+
+#endif /* __FreeBSD__ */
+
 #ifdef __NetBSD__
 #include <sys/filio.h>
 #define bootverbose 0
@@ -74,7 +88,6 @@ extern cc_t ttydefchars;
 #include <i4b/include/i4b_l3l4.h>
 
 #include <i4b/layer4/i4b_l4.h>
-/* initialized by L4 */
 
 #ifdef __bsdi__
 #include <sys/device.h>
@@ -90,15 +103,20 @@ int bootverbose = 0;
 #include <sys/ioctl.h>
 #endif
 
-#if (defined(__FreeBSD_version) && __FreeBSD_version >= 300001)
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <sys/filio.h>
 #endif
-
 
 static drvr_link_t rbch_drvr_linktab[NI4BRBCH];
 static isdn_link_t *isdn_linktab[NI4BRBCH];
 
+#define I4BRBCHACCT		1 	/* enable accounting messages */
+#define	I4BRBCHACCTINTVL	2	/* accounting msg interval in secs */
+
 static struct rbch_softc {
+
+	int sc_unit;			/* unit number 		*/
+
 	int sc_devstate;		/* state of driver	*/
 #define ST_IDLE		0x00
 #define ST_CONNECTED	0x01
@@ -109,13 +127,31 @@ static struct rbch_softc {
 
 	int sc_bprot;			/* B-ch protocol used	*/
 
-	call_desc_t *cd;	/* Call Descriptor */
+	call_desc_t *sc_cd;		/* Call Descriptor */
+
 	struct termios it_in;
 
 	struct ifqueue sc_hdlcq;	/* hdlc read queue	*/
 #define I4BRBCHMAXQLEN	10
 
 	struct selinfo selp;		/* select / poll	*/
+
+#if defined(__FreeBSD__) && __FreeBSD__ == 3
+#ifdef DEVFS
+	void *devfs_token;		/* device filesystem	*/
+#endif	
+#endif
+
+#if I4BRBCHACCT
+#if defined(__FreeBSD__)
+	struct callout_handle sc_callout;
+#endif	
+	int		sc_iinb;	/* isdn driver # of inbytes	*/
+	int		sc_ioutb;	/* isdn driver # of outbytes	*/
+	int		sc_linb;	/* last # of bytes rx'd		*/
+	int		sc_loutb;	/* last # of bytes tx'd 	*/
+	int		sc_fn;		/* flag, first null acct	*/
+#endif	
 } rbch_softc[NI4BRBCH];
 
 static void rbch_rx_data_rdy(int unit);
@@ -143,11 +179,7 @@ PDEVSTATIC int i4brbchselect __P((dev_t dev, int rw, struct proc *p));
 
 #if BSD > 199306 && defined(__FreeBSD__)
 #define PDEVSTATIC	static
-#if !defined(__FreeBSD_version) || __FreeBSD_version < 300003
-#define IOCTL_CMD_T	int
-#else
 #define IOCTL_CMD_T	u_long
-#endif
 
 PDEVSTATIC d_open_t i4brbchopen;
 PDEVSTATIC d_close_t i4brbchclose;
@@ -165,22 +197,22 @@ PDEVSTATIC d_select_t i4brbchselect;
 
 #define CDEV_MAJOR 57
 
-#if defined (__FreeBSD_version) && __FreeBSD_version >= 400006
+#if defined(__FreeBSD__) && __FreeBSD__ >= 4
 static struct cdevsw i4brbch_cdevsw = {
-	/* open */	i4brbchopen,
-	/* close */	i4brbchclose,
-	/* read */	i4brbchread,
-	/* write */	i4brbchwrite,
-	/* ioctl */	i4brbchioctl,
-	/* poll */	POLLFIELD,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"i4brbch",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
-	/* bmaj */	-1
+	/* open */      i4brbchopen,
+	/* close */     i4brbchclose,
+	/* read */      i4brbchread,
+	/* write */     i4brbchwrite,
+	/* ioctl */     i4brbchioctl,
+	/* poll */      POLLFIELD,
+	/* mmap */      nommap,
+	/* strategy */  nostrategy,
+	/* name */      "i4brbch",
+	/* maj */       CDEV_MAJOR,
+	/* dump */      nodump,
+	/* psize */     nopsize,
+	/* flags */     0,
+	/* bmaj */      -1
 };
 #else
 static struct cdevsw i4brbch_cdevsw = {
@@ -203,7 +235,7 @@ PSEUDO_SET(i4brbchattach, i4b_rbch);
 static void
 i4brbchinit(void *unused)
 {
-#if defined (__FreeBSD_version) && __FreeBSD_version >= 400006
+#if defined(__FreeBSD__) && __FreeBSD__ >= 4
 	cdevsw_add(&i4brbch_cdevsw);
 #else
 	dev_t dev = makedev(CDEV_MAJOR, 0);
@@ -263,8 +295,29 @@ i4brbchattach()
 	
 	for(i=0; i < NI4BRBCH; i++)
 	{
+#if defined(__FreeBSD__)
+#if __FreeBSD__ == 3
+
+#ifdef DEVFS
+		rbch_softc[i].devfs_token =
+			devfs_add_devswf(&i4brbch_cdevsw, i, DV_CHR,
+				     UID_ROOT, GID_WHEEL, 0600,
+				     "i4brbch%d", i);
+#endif
+
+#else
 		make_dev(&i4brbch_cdevsw, i,
 			UID_ROOT, GID_WHEEL, 0600, "i4brbch%d", i);
+#endif
+#endif
+
+#if I4BRBCHACCT
+#if defined(__FreeBSD__)
+		callout_handle_init(&rbch_softc[i].sc_callout);
+#endif
+		rbch_softc[i].sc_fn = 1;
+#endif
+		rbch_softc[i].sc_unit = i;
 		rbch_softc[i].sc_devstate = ST_IDLE;
 		rbch_softc[i].sc_hdlcq.ifq_maxlen = I4BRBCHMAXQLEN;
 		rbch_softc[i].it_in.c_ispeed = rbch_softc[i].it_in.c_ospeed = 64000;
@@ -287,7 +340,9 @@ i4brbchopen(dev_t dev, int flag, int fmt, struct proc *p)
 	if(rbch_softc[unit].sc_devstate & ST_ISOPEN)
 		return(EBUSY);
 
+#if 0
 	rbch_clrq(unit);
+#endif
 	
 	rbch_softc[unit].sc_devstate |= ST_ISOPEN;		
 
@@ -303,16 +358,16 @@ PDEVSTATIC int
 i4brbchclose(dev_t dev, int flag, int fmt, struct proc *p)
 {
 	int unit = minor(dev);
-
-	if (rbch_softc[unit].cd) {
+	struct rbch_softc *sc = &rbch_softc[unit];
+	
+	if(sc->sc_devstate & ST_CONNECTED)
 		i4b_l4_drvrdisc(BDRV_RBCH, unit);
-		rbch_softc[unit].cd = NULL;
-	}
-	rbch_softc[unit].sc_devstate &= ~ST_ISOPEN;		
+
+	sc->sc_devstate &= ~ST_ISOPEN;		
 
 	rbch_clrq(unit);
 	
-	DBGL4(L4_RBCHDBG, "i4brbclose", ("unit %d, close\n", unit));
+	DBGL4(L4_RBCHDBG, "i4brbclose", ("unit %d, closed\n", unit));
 	
 	return(0);
 }
@@ -324,32 +379,37 @@ PDEVSTATIC int
 i4brbchread(dev_t dev, struct uio *uio, int ioflag)
 {
 	struct mbuf *m;
-	int s;
 	int error = 0;
 	int unit = minor(dev);
 	struct ifqueue *iqp;
+	struct rbch_softc *sc = &rbch_softc[unit];
+
+	CRIT_VAR;
 	
 	DBGL4(L4_RBCHDBG, "i4brbchread", ("unit %d, enter read\n", unit));
 	
-	if(!(rbch_softc[unit].sc_devstate & ST_ISOPEN))
+	if(!(sc->sc_devstate & ST_ISOPEN))
 	{
 		DBGL4(L4_RBCHDBG, "i4brbchread", ("unit %d, read while not open\n", unit));
 		return(EIO);
 	}
 
-	if((rbch_softc[unit].sc_devstate & ST_NOBLOCK)) {
-		if(!(rbch_softc[unit].sc_devstate & ST_CONNECTED))
+	if((sc->sc_devstate & ST_NOBLOCK))
+	{
+		if(!(sc->sc_devstate & ST_CONNECTED))
 			return(EWOULDBLOCK);
 
-		if(rbch_softc[unit].sc_bprot == BPROT_RHDLC)
-			iqp = &rbch_softc[unit].sc_hdlcq;
+		if(sc->sc_bprot == BPROT_RHDLC)
+			iqp = &sc->sc_hdlcq;
 		else
 			iqp = isdn_linktab[unit]->rx_queue;	
 
-		if(IF_QEMPTY(iqp) && (rbch_softc[unit].sc_devstate & ST_ISOPEN))
+		if(IF_QEMPTY(iqp) && (sc->sc_devstate & ST_ISOPEN))
 			return(EWOULDBLOCK);
-	} else {
-		while(!(rbch_softc[unit].sc_devstate & ST_CONNECTED))
+	}
+	else
+	{
+		while(!(sc->sc_devstate & ST_CONNECTED))
 		{
 			DBGL4(L4_RBCHDBG, "i4brbchread", ("unit %d, wait read init\n", unit));
 		
@@ -362,16 +422,16 @@ i4brbchread(dev_t dev, struct uio *uio, int ioflag)
 			}
 		}
 
-		if(rbch_softc[unit].sc_bprot == BPROT_RHDLC)
-			iqp = &rbch_softc[unit].sc_hdlcq;
+		if(sc->sc_bprot == BPROT_RHDLC)
+			iqp = &sc->sc_hdlcq;
 		else
 			iqp = isdn_linktab[unit]->rx_queue;	
 
-		while(IF_QEMPTY(iqp) && (rbch_softc[unit].sc_devstate & ST_ISOPEN))
+		while(IF_QEMPTY(iqp) && (sc->sc_devstate & ST_ISOPEN))
 		{
-			s = splimp();
-			rbch_softc[unit].sc_devstate |= ST_RDWAITDATA;
-			splx(s);
+			CRIT_BEG;
+			sc->sc_devstate |= ST_RDWAITDATA;
+			CRIT_END;
 		
 			DBGL4(L4_RBCHDBG, "i4brbchread", ("unit %d, wait read data\n", unit));
 		
@@ -380,13 +440,13 @@ i4brbchread(dev_t dev, struct uio *uio, int ioflag)
 					   "rrbch", 0 )) != 0)
 			{
 				DBGL4(L4_RBCHDBG, "i4brbchread", ("unit %d, error %d tsleep read\n", unit, error));
-				rbch_softc[unit].sc_devstate &= ~ST_RDWAITDATA;
+				sc->sc_devstate &= ~ST_RDWAITDATA;
 				return(error);
 			}
 		}
 	}
 
-	s = splimp();
+	CRIT_BEG;
 
 	IF_DEQUEUE(iqp, m);
 
@@ -405,7 +465,7 @@ i4brbchread(dev_t dev, struct uio *uio, int ioflag)
 	if(m)
 		i4b_Bfreembuf(m);
 
-	splx(s);
+	CRIT_END;
 
 	return(error);
 }
@@ -417,25 +477,30 @@ PDEVSTATIC int
 i4brbchwrite(dev_t dev, struct uio * uio, int ioflag)
 {
 	struct mbuf *m;
-	int s;
 	int error = 0;
 	int unit = minor(dev);
+	struct rbch_softc *sc = &rbch_softc[unit];
 
+	CRIT_VAR;
+	
 	DBGL4(L4_RBCHDBG, "i4brbchwrite", ("unit %d, write\n", unit));	
 
-	if(!(rbch_softc[unit].sc_devstate & ST_ISOPEN))
+	if(!(sc->sc_devstate & ST_ISOPEN))
 	{
 		DBGL4(L4_RBCHDBG, "i4brbchwrite", ("unit %d, write while not open\n", unit));
 		return(EIO);
 	}
 
-	if((rbch_softc[unit].sc_devstate & ST_NOBLOCK)) {
-		if(!(rbch_softc[unit].sc_devstate & ST_CONNECTED))
+	if((sc->sc_devstate & ST_NOBLOCK))
+	{
+		if(!(sc->sc_devstate & ST_CONNECTED))
 			return(EWOULDBLOCK);
-		if(IF_QFULL(isdn_linktab[unit]->tx_queue) && (rbch_softc[unit].sc_devstate & ST_ISOPEN))
+		if(IF_QFULL(isdn_linktab[unit]->tx_queue) && (sc->sc_devstate & ST_ISOPEN))
 			return(EWOULDBLOCK);
-	} else {
-		while(!(rbch_softc[unit].sc_devstate & ST_CONNECTED))
+	}
+	else
+	{
+		while(!(sc->sc_devstate & ST_CONNECTED))
 		{
 			DBGL4(L4_RBCHDBG, "i4brbchwrite", ("unit %d, write wait init\n", unit));
 		
@@ -444,48 +509,55 @@ i4brbchwrite(dev_t dev, struct uio * uio, int ioflag)
 						   "wrrbch", 0 );
 			if(error == ERESTART)
 				return (ERESTART);
-			else if(error == EINTR) {
-				printf("\n ========= i4brbchwrite, EINTR during wait init ======== \n");
+			else if(error == EINTR)
+			{
+				DBGL4(L4_RBCHDBG, "i4brbchwrite", ("unit %d, EINTR during wait init\n", unit));
 				return(EINTR);
-			} else if(error) {
+			}
+			else if(error)
+			{
 				DBGL4(L4_RBCHDBG, "i4brbchwrite", ("unit %d, error %d tsleep init\n", unit, error));
 				return(error);
 			}
-/*XXX*/			tsleep((caddr_t) &rbch_softc[unit], TTIPRI | PCATCH, "xrbch", (hz*1));
+			tsleep((caddr_t) &rbch_softc[unit], TTIPRI | PCATCH, "xrbch", (hz*1));
 		}
 
-		while(IF_QFULL(isdn_linktab[unit]->tx_queue) && (rbch_softc[unit].sc_devstate & ST_ISOPEN))
+		while(IF_QFULL(isdn_linktab[unit]->tx_queue) && (sc->sc_devstate & ST_ISOPEN))
 		{
-			s = splimp();
-			rbch_softc[unit].sc_devstate |= ST_WRWAITEMPTY;
-			splx(s);
+			CRIT_BEG;
+			sc->sc_devstate |= ST_WRWAITEMPTY;
+			CRIT_END;
 
 			DBGL4(L4_RBCHDBG, "i4brbchwrite", ("unit %d, write queue full\n", unit));
 		
 			if ((error = tsleep((caddr_t) &isdn_linktab[unit]->tx_queue,
 					    TTIPRI | PCATCH,
 					    "wrbch", 0)) != 0) {
-				rbch_softc[unit].sc_devstate &= ~ST_WRWAITEMPTY;			
-				if(error == ERESTART) {
+				sc->sc_devstate &= ~ST_WRWAITEMPTY;
+				if(error == ERESTART)
+				{
 					return(ERESTART);
-				} else if(error == EINTR) {
-					printf("\n ========= i4brbchwrite, EINTR during wait write ======== \n");
+				}
+				else if(error == EINTR)
+				{
+					DBGL4(L4_RBCHDBG, "i4brbchwrite", ("unit %d, EINTR during wait write\n", unit));
 					return(error);
-				} else if(error) {
-					DBGL4(L4_RBCHDBG, "i4brbchwrite",
-					      ("unit %d, error %d tsleep write\n", unit, error));
+				}
+				else if(error)
+				{
+					DBGL4(L4_RBCHDBG, "i4brbchwrite", ("unit %d, error %d tsleep write\n", unit, error));
 					return(error);
 				}
 			}
 		}
 	}
 
-	s = splimp();
+	CRIT_BEG;
 
-	if(!(rbch_softc[unit].sc_devstate & ST_ISOPEN))
+	if(!(sc->sc_devstate & ST_ISOPEN))
 	{
 		DBGL4(L4_RBCHDBG, "i4brbchwrite", ("unit %d, not open anymore\n", unit));
-		splx(s);
+		CRIT_END;
 		return(EIO);
 	}
 
@@ -509,7 +581,7 @@ i4brbchwrite(dev_t dev, struct uio * uio, int ioflag)
 		(*isdn_linktab[unit]->bch_tx_start)(isdn_linktab[unit]->unit, isdn_linktab[unit]->channel);
 	}
 
-	splx(s);
+	CRIT_END;
 	
 	return(error);
 }
@@ -518,11 +590,12 @@ i4brbchwrite(dev_t dev, struct uio * uio, int ioflag)
  *	rbch device ioctl handlibg
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
-i4brbchioctl(dev_t dev, IOCTL_CMD_T cmd, caddr_t data, int flag, struct proc* p)
+i4brbchioctl(dev_t dev, IOCTL_CMD_T cmd, caddr_t data, int flag, struct proc *p)
 {
 	int error = 0;
 	int unit = minor(dev);
-
+	struct rbch_softc *sc = &rbch_softc[unit];
+	
 	switch(cmd)
 	{
 		case FIOASYNC:	/* Set async mode */
@@ -540,17 +613,17 @@ i4brbchioctl(dev_t dev, IOCTL_CMD_T cmd, caddr_t data, int flag, struct proc* p)
 			if (*(int *)data)
 			{
 				DBGL4(L4_RBCHDBG, "i4brbchioctl", ("unit %d, setting non-blocking mode\n", unit));
-				rbch_softc[unit].sc_devstate |= ST_NOBLOCK;
+				sc->sc_devstate |= ST_NOBLOCK;
 			}
 			else
 			{
 				DBGL4(L4_RBCHDBG, "i4brbchioctl", ("unit %d, clearing non-blocking mode\n", unit));
-				rbch_softc[unit].sc_devstate &= ~ST_NOBLOCK;
+				sc->sc_devstate &= ~ST_NOBLOCK;
 			}
 			break;
 
 		case TIOCCDTR:	/* Clear DTR */
-			if(rbch_softc[unit].sc_devstate & ST_CONNECTED)
+			if(sc->sc_devstate & ST_CONNECTED)
 			{
 				DBGL4(L4_RBCHDBG, "i4brbchioctl", ("unit %d, disconnecting for DTR down\n", unit));
 				i4b_l4_drvrdisc(BDRV_RBCH, unit);
@@ -581,12 +654,12 @@ i4brbchioctl(dev_t dev, IOCTL_CMD_T cmd, caddr_t data, int flag, struct proc* p)
 			break;
 
 		case TIOCGETA:	/* Get termios struct */
-			*(struct termios *)data = rbch_softc[unit].it_in;
+			*(struct termios *)data = sc->it_in;
 			break;
 
 		case TIOCMGET:
 			*(int *)data = TIOCM_LE|TIOCM_DTR|TIOCM_RTS|TIOCM_CTS|TIOCM_DSR;
-			if (rbch_softc[unit].sc_devstate & ST_CONNECTED)
+			if (sc->sc_devstate & ST_CONNECTED)
 				*(int *)data |= TIOCM_CD;
 			break;
 
@@ -621,12 +694,13 @@ i4brbchpoll(dev_t dev, int events, struct proc *p)
 	int revents = 0;	/* Events we found */
 	int s;
 	int unit = minor(dev);
-
+	struct rbch_softc *sc = &rbch_softc[unit];
+	
 	/* We can't check for anything but IN or OUT */
 
 	s = splhigh();
 
-	if(!(rbch_softc[unit].sc_devstate & ST_ISOPEN))
+	if(!(sc->sc_devstate & ST_ISOPEN))
 	{
 		splx(s);
 		return(POLLNVAL);
@@ -638,7 +712,7 @@ i4brbchpoll(dev_t dev, int events, struct proc *p)
 	 */
 	 
 	if((events & (POLLOUT|POLLWRNORM)) &&
-	   (rbch_softc[unit].sc_devstate & ST_CONNECTED) &&
+	   (sc->sc_devstate & ST_CONNECTED) &&
 	   !IF_QFULL(isdn_linktab[unit]->tx_queue))
 	{
 		revents |= (events & (POLLOUT|POLLWRNORM));
@@ -647,12 +721,12 @@ i4brbchpoll(dev_t dev, int events, struct proc *p)
 	/* ... while reads are OK if we have any data */
 
 	if((events & (POLLIN|POLLRDNORM)) &&
-	   (rbch_softc[unit].sc_devstate & ST_CONNECTED))
+	   (sc->sc_devstate & ST_CONNECTED))
 	{
 		struct ifqueue *iqp;
 
-		if(rbch_softc[unit].sc_bprot == BPROT_RHDLC)
-			iqp = &rbch_softc[unit].sc_hdlcq;
+		if(sc->sc_bprot == BPROT_RHDLC)
+			iqp = &sc->sc_hdlcq;
 		else
 			iqp = isdn_linktab[unit]->rx_queue;	
 
@@ -661,7 +735,7 @@ i4brbchpoll(dev_t dev, int events, struct proc *p)
 	}
 		
 	if(revents == 0)
-		selrecord(p, &rbch_softc[unit].selp);
+		selrecord(p, &sc->selp);
 
 	splx(s);
 	return(revents);
@@ -676,26 +750,27 @@ PDEVSTATIC int
 i4brbchselect(dev_t dev, int rw, struct proc *p)
 {
 	int unit = minor(dev);
+	struct rbch_softc *sc = &rbch_softc[unit];
         int s;
 
 	s = splhigh();
 
-	if(!(rbch_softc[unit].sc_devstate & ST_ISOPEN))
+	if(!(sc->sc_devstate & ST_ISOPEN))
 	{
 		splx(s);
 		DBGL4(L4_RBCHDBG, "i4brbchselect", ("unit %d, not open anymore\n", unit));
 		return(1);
 	}
 	
-	if(rbch_softc[unit].sc_devstate & ST_CONNECTED)
+	if(sc->sc_devstate & ST_CONNECTED)
 	{
 		struct ifqueue *iqp;
 
 		switch(rw)
 		{
 			case FREAD:
-				if(rbch_softc[unit].sc_bprot == BPROT_RHDLC)
-					iqp = &rbch_softc[unit].sc_hdlcq;
+				if(sc->sc_bprot == BPROT_RHDLC)
+					iqp = &sc->sc_hdlcq;
 				else
 					iqp = isdn_linktab[unit]->rx_queue;	
 
@@ -719,12 +794,54 @@ i4brbchselect(dev_t dev, int rw, struct proc *p)
 				return 0;
 		}
 	}
-	selrecord(p, &rbch_softc[unit].selp);
+	selrecord(p, &sc->selp);
 	splx(s);
 	return(0);
 }
 
 #endif /* OS_USES_POLL */
+
+#if I4BRBCHACCT
+/*---------------------------------------------------------------------------*
+ *	watchdog routine
+ *---------------------------------------------------------------------------*/
+static void
+rbch_timeout(struct rbch_softc *sc)
+{
+	bchan_statistics_t bs;
+	int unit = sc->sc_unit;
+
+	/* get # of bytes in and out from the HSCX driver */ 
+	
+	(*isdn_linktab[unit]->bch_stat)
+		(isdn_linktab[unit]->unit, isdn_linktab[unit]->channel, &bs);
+
+	sc->sc_ioutb += bs.outbytes;
+	sc->sc_iinb += bs.inbytes;
+	
+	if((sc->sc_iinb != sc->sc_linb) || (sc->sc_ioutb != sc->sc_loutb) || sc->sc_fn) 
+	{
+		int ri = (sc->sc_iinb - sc->sc_linb)/I4BRBCHACCTINTVL;
+		int ro = (sc->sc_ioutb - sc->sc_loutb)/I4BRBCHACCTINTVL;
+
+		if((sc->sc_iinb == sc->sc_linb) && (sc->sc_ioutb == sc->sc_loutb))
+			sc->sc_fn = 0;
+		else
+			sc->sc_fn = 1;
+			
+		sc->sc_linb = sc->sc_iinb;
+		sc->sc_loutb = sc->sc_ioutb;
+
+		i4b_l4_accounting(BDRV_RBCH, unit, ACCT_DURING,
+			 sc->sc_ioutb, sc->sc_iinb, ro, ri, sc->sc_ioutb, sc->sc_iinb);
+ 	}
+#if defined(__FreeBSD__)
+	sc->sc_callout =
+#endif	
+		timeout((TIMEOUT_FUNC_T)rbch_timeout,
+			(void *)sc, I4BRBCHACCTINTVL*hz);
+}
+#endif /* I4BRBCHACCT */
 
 /*===========================================================================*
  *			ISDN INTERFACE ROUTINES
@@ -737,15 +854,31 @@ static void
 rbch_connect(int unit, void *cdp)
 {
 	call_desc_t *cd = (call_desc_t *)cdp;
+	struct rbch_softc *sc = &rbch_softc[unit];
 
-	rbch_softc[unit].sc_bprot = cd->bprot;
-		
-	if(!(rbch_softc[unit].sc_devstate & ST_CONNECTED))
+	sc->sc_bprot = cd->bprot;
+
+#if I4BRBCHACCT
+	if(sc->sc_bprot == BPROT_RHDLC)
+	{	
+		sc->sc_iinb = 0;
+		sc->sc_ioutb = 0;
+		sc->sc_linb = 0;
+		sc->sc_loutb = 0;
+
+#if defined(__FreeBSD__)
+		sc->sc_callout =
+#endif
+			timeout((TIMEOUT_FUNC_T)rbch_timeout,
+				(void *)sc, I4BRBCHACCTINTVL*hz);
+	}
+#endif		
+	if(!(sc->sc_devstate & ST_CONNECTED))
 	{
 		DBGL4(L4_RBCHDBG, "rbch_connect", ("unit %d, wakeup\n", unit));
-		rbch_softc[unit].sc_devstate |= ST_CONNECTED;
-		rbch_softc[unit].cd = cdp;
-		wakeup((caddr_t) &rbch_softc[unit]);
+		sc->sc_devstate |= ST_CONNECTED;
+		sc->sc_cd = cdp;
+		wakeup((caddr_t)sc);
 	}
 }
 
@@ -755,11 +888,39 @@ rbch_connect(int unit, void *cdp)
 static void
 rbch_disconnect(int unit, void *cdp)
 {
-	/* call_desc_t *cd = (call_desc_t *)cdp; */
+	call_desc_t *cd = (call_desc_t *)cdp;
+	struct rbch_softc *sc = &rbch_softc[unit];
 
-	DBGL4(L4_RBCHDBG, "rbch_disconnect", ("unit %d, deinit\n", unit));
-	rbch_softc[unit].sc_devstate &= ~ST_CONNECTED;
-	rbch_softc[unit].cd = NULL;
+	CRIT_VAR;
+	
+        if(cd != sc->sc_cd)
+	{
+		DBGL4(L4_RBCHDBG, "rbch_disconnect", ("rbch%d: channel %d not active\n",
+			cd->driver_unit, cd->channelid));
+		return;
+	}
+
+	CRIT_BEG;
+	
+	DBGL4(L4_RBCHDBG, "rbch_disconnect", ("unit %d, disconnect\n", unit));
+
+	sc->sc_devstate &= ~ST_CONNECTED;
+
+	sc->sc_cd = NULL;
+	
+#if I4BRBCHACCT
+	i4b_l4_accounting(BDRV_RBCH, unit, ACCT_FINAL,
+		 sc->sc_ioutb, sc->sc_iinb, 0, 0, sc->sc_ioutb, sc->sc_iinb);
+
+#if defined(__FreeBSD__)
+	untimeout((TIMEOUT_FUNC_T)rbch_timeout,
+		(void *)sc, sc->sc_callout);
+#else
+	untimeout((TIMEOUT_FUNC_T)rbch_timeout,	(void *)sc);
+#endif
+
+#endif		
+	CRIT_END;
 }
 	
 /*---------------------------------------------------------------------------*
@@ -847,8 +1008,8 @@ rbch_tx_queue_empty(int unit)
 static void
 rbch_activity(int unit, int rxtx)
 {
-	if (rbch_softc[unit].cd)
-		rbch_softc[unit].cd->last_active_time = SECOND;
+	if (rbch_softc[unit].sc_cd)
+		rbch_softc[unit].sc_cd->last_active_time = SECOND;
 	selwakeup(&rbch_softc[unit].selp);
 }
 
@@ -858,14 +1019,15 @@ rbch_activity(int unit, int rxtx)
 static void
 rbch_clrq(int unit)
 {
-	int x;
 	struct mbuf *m;
-
+	CRIT_VAR;
+	
 	for(;;)
 	{
-		x = splimp();
+		CRIT_BEG;
 		IF_DEQUEUE(&rbch_softc[unit].sc_hdlcq, m);
-		splx(x);
+		CRIT_END;
+		
 		if(m)
 			m_freem(m);
 		else

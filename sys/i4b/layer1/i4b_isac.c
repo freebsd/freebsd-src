@@ -27,55 +27,35 @@
  *	i4b_isac.c - i4b siemens isdn chipset driver ISAC handler
  *	---------------------------------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: i4b_isac.c,v 1.2 1999/12/13 21:25:26 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:27:09 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 22:01:05 1999]
  *
  *---------------------------------------------------------------------------*/
 
-#ifdef __FreeBSD__
 #include "isic.h"
-#else
-#define NISIC	1	/* non-FreeBSD handles this via config(8) */
-#endif
+
 #if NISIC > 0
 
-#ifdef __FreeBSD__
 #include "opt_i4b.h"
-#endif
+
 #include <sys/param.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <sys/ioccom.h>
-#else
-#include <sys/ioctl.h>
-#endif
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
-#include <machine/stdarg.h>
-
-#ifdef __FreeBSD__
-#include <machine/clock.h>
-#include <i386/isa/isa_device.h>
-#else
-#ifndef __bsdi__
-#include <machine/bus.h>
-#endif
-#include <sys/device.h>
-#endif
-
 #include <sys/socket.h>
+
+#include <machine/stdarg.h>
+#include <machine/clock.h>
+
 #include <net/if.h>
 
-#ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_trace.h>
-#else
-#include <i4b/i4b_debug.h>
-#include <i4b/i4b_ioctl.h>
-#include <i4b/i4b_trace.h>
-#endif
 
 #include <i4b/layer1/i4b_l1.h>
 #include <i4b/layer1/i4b_isac.h>
@@ -85,14 +65,14 @@
 #include <i4b/include/i4b_l1l2.h>
 #include <i4b/include/i4b_mbuf.h>
 
-static u_char isic_isac_exir_hdlr(register struct isic_softc *sc, u_char exir);
-static void isic_isac_ind_hdlr(register struct isic_softc *sc, int ind);
+static u_char isic_isac_exir_hdlr(register struct l1_softc *sc, u_char exir);
+static void isic_isac_ind_hdlr(register struct l1_softc *sc, int ind);
 
 /*---------------------------------------------------------------------------*
  *	ISAC interrupt service routine
  *---------------------------------------------------------------------------*/
 void
-isic_isac_irq(struct isic_softc *sc, int ista)
+isic_isac_irq(struct l1_softc *sc, int ista)
 {
 	register u_char c = 0;
 	DBGL1(L1_F_MSG, "isic_isac_irq", ("unit %d: ista = 0x%02x\n", sc->sc_unit, ista));
@@ -185,10 +165,15 @@ isic_isac_irq(struct isic_softc *sc, int ista)
 
 			c |= ISAC_CMDR_RMC;
 
-			if(sc->sc_enabled)
+			if(sc->sc_enabled &&
+			   (ctrl_desc[sc->sc_unit].protocol != PROTOCOL_D64S))
+			{
 				PH_Data_Ind(sc->sc_unit, sc->sc_ibuf);
+			}
 			else
-				i4b_Dfreembuf(sc->sc_ibuf);			
+			{
+				i4b_Dfreembuf(sc->sc_ibuf);
+			}
 		}
 		else
 		{
@@ -319,7 +304,7 @@ isic_isac_irq(struct isic_softc *sc, int ista)
  *	ISAC L1 Extended IRQ handler
  *---------------------------------------------------------------------------*/
 static u_char
-isic_isac_exir_hdlr(register struct isic_softc *sc, u_char exir)
+isic_isac_exir_hdlr(register struct l1_softc *sc, u_char exir)
 {
 	u_char c = 0;
 	
@@ -380,7 +365,7 @@ isic_isac_exir_hdlr(register struct isic_softc *sc, u_char exir)
  *	ISAC L1 Indication handler
  *---------------------------------------------------------------------------*/
 static void
-isic_isac_ind_hdlr(register struct isic_softc *sc, int ind)
+isic_isac_ind_hdlr(register struct l1_softc *sc, int ind)
 {
 	register int event;
 	
@@ -467,7 +452,7 @@ isic_isac_ind_hdlr(register struct isic_softc *sc, int ind)
  *	execute a layer 1 command
  *---------------------------------------------------------------------------*/	
 void
-isic_isac_l1_cmd(struct isic_softc *sc, int command)
+isic_isac_l1_cmd(struct l1_softc *sc, int command)
 {
 	u_char cmd;
 
@@ -541,7 +526,7 @@ isic_isac_l1_cmd(struct isic_softc *sc, int command)
  *	L1 ISAC initialization
  *---------------------------------------------------------------------------*/
 int
-isic_isac_init(struct isic_softc *sc)
+isic_isac_init(struct l1_softc *sc)
 {
 	ISAC_IMASK = 0xff;		/* disable all irqs */
 

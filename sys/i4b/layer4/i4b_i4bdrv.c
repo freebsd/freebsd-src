@@ -27,9 +27,11 @@
  *	i4b_i4bdrv.c - i4b userland interface driver
  *	--------------------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: i4b_i4bdrv.c,v 1.52 1999/12/13 21:25:28 hm Exp $ 
  *
- *      last edit-date: [Tue Jun  8 19:48:16 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 22:06:11 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -51,7 +53,7 @@
 
 #include <sys/param.h>
 
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+#if defined(__FreeBSD__)
 #include <sys/ioccom.h>
 #include <sys/malloc.h>
 #include <sys/uio.h>
@@ -68,6 +70,18 @@
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <net/if.h>
+
+#ifdef __FreeBSD__
+
+#if defined(__FreeBSD__) && __FreeBSD__ == 3
+#include "opt_devfs.h"
+#endif
+
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif
+
+#endif /* __FreeBSD__*/
 
 #ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
@@ -95,6 +109,12 @@ static struct ifqueue i4b_rdqueue;
 static int openflag = 0;
 static int selflag = 0;
 static int readflag = 0;
+
+#if defined(__FreeBSD__) && __FreeBSD__ == 3
+#ifdef DEVFS
+static void *devfs_token;
+#endif
+#endif
 
 #ifndef __FreeBSD__
 
@@ -137,22 +157,22 @@ PDEVSTATIC	d_select_t	i4bselect;
 
 #define CDEV_MAJOR 60
 
-#if defined (__FreeBSD_version) && __FreeBSD_version >= 400006
+#if defined(__FreeBSD__) && __FreeBSD__ >= 4
 static struct cdevsw i4b_cdevsw = {
-	/* open */	i4bopen,
-	/* close */	i4bclose,
-	/* read */	i4bread,
-	/* write */	nowrite,
-	/* ioctl */	i4bioctl,
-	/* poll */	POLLFIELD,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"i4b",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
-	/* bmaj */	-1
+	/* open */      i4bopen,
+	/* close */     i4bclose,
+	/* read */      i4bread,
+	/* write */     nowrite,
+	/* ioctl */     i4bioctl,
+	/* poll */      POLLFIELD,
+	/* mmap */      nommap,
+	/* strategy */  nostrategy,
+	/* name */      "i4b",
+	/* maj */       CDEV_MAJOR,
+	/* dump */      nodump,
+	/* psize */     nopsize,
+	/* flags */     0,
+	/* bmaj */      -1
 };
 #else
 static struct cdevsw i4b_cdevsw = {
@@ -168,7 +188,7 @@ PSEUDO_SET(i4battach, i4b_i4bdrv);
 static void
 i4b_drvinit(void *unused)
 {
-#if defined (__FreeBSD_version) && __FreeBSD_version >= 400006
+#if defined(__FreeBSD__) && __FreeBSD__ >= 4
 	cdevsw_add(&i4b_cdevsw);
 #else
 	static int i4b_devsw_installed = 0;
@@ -231,7 +251,20 @@ i4battach()
 	printf("i4b: ISDN call control device attached\n");
 #endif
 	i4b_rdqueue.ifq_maxlen = IFQ_MAXLEN;
+
+#if defined(__FreeBSD__)
+#if __FreeBSD__ == 3
+
+#ifdef DEVFS
+	devfs_token = devfs_add_devswf(&i4b_cdevsw, 0, DV_CHR,
+				       UID_ROOT, GID_WHEEL, 0600,
+				       "i4b");
+#endif
+
+#else
 	make_dev(&i4b_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "i4b");
+#endif
+#endif
 }
 
 /*---------------------------------------------------------------------------*
@@ -332,7 +365,7 @@ i4bioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 		case I4B_CDID_REQ:
 		{
-			msg_cdid_req_t *mir;			
+			msg_cdid_req_t *mir;
 			mir = (msg_cdid_req_t *)data;
 			cd = reserve_cd();
 			mir->cdid = cd->cdid;
@@ -350,6 +383,16 @@ i4bioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			{
 				DBGL4(L4_ERR, "i4bioctl", ("I4B_CONNECT_REQ ioctl, cdid not found!\n")); 
 				error = EINVAL;
+				break;
+			}
+
+			/* prevent dialling on leased lines */
+			if(ctrl_desc[mcr->controller].protocol == PROTOCOL_D64S)
+			{
+				SET_CAUSE_TYPE(cd->cause_in, CAUSET_I4B);
+				SET_CAUSE_VAL(cd->cause_in, CAUSE_I4B_LLDIAL);
+				i4b_l4_disconnect_ind(cd);
+				freecd_by_cd(cd);
 				break;
 			}
 
@@ -681,6 +724,19 @@ i4bioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			mvr->version = VERSION;
 			mvr->release = REL;
 			mvr->step = STEP;			
+			break;
+		}
+
+		/* set D-channel protocol for a controller */
+		
+		case I4B_PROT_IND:
+		{
+			msg_prot_ind_t *mpi;
+			
+			mpi = (msg_prot_ind_t *)data;
+
+			ctrl_desc[mpi->controller].protocol = mpi->protocol;
+			
 			break;
 		}
 		

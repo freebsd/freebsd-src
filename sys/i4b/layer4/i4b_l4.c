@@ -27,9 +27,11 @@
  *	i4b_l4.c - kernel interface to userland
  *	-----------------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: i4b_l4.c,v 1.45 1999/12/13 21:25:28 hm Exp $ 
  *
- *      last edit-date: [Thu Apr  8 17:31:52 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 22:06:17 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -47,7 +49,7 @@
 #if NI4B > 0
 
 #include <sys/param.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined(__FreeBSD__)
 #include <sys/ioccom.h>
 #else
 #include <sys/ioctl.h>
@@ -76,6 +78,10 @@
 #include <i4b/include/i4b_mbuf.h>
 #include <i4b/layer3/i4b_l3.h>
 #include <i4b/layer4/i4b_l4.h>
+
+#if !defined(__FreeBSD__) && !defined(__NetBSD__)
+#define memcpy(dst, src, len)	bcopy((src), (dst), (len))
+#endif
 
 unsigned int i4b_l4_debug = L4_DEBUG_DEFAULT;
 
@@ -109,7 +115,7 @@ i4b_l4_pdeact(int controller, int numactive)
 			
 			if(cd->timeout_active)
 			{
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined(__FreeBSD__)
 				untimeout((TIMEOUT_FUNC_T)i4b_idle_check,(void *)cd, cd->idle_timeout_handle);	
 #else
 				untimeout((TIMEOUT_FUNC_T)i4b_idle_check,(void *)cd);	
@@ -549,6 +555,31 @@ i4b_l4_proceeding_ind(call_desc_t *cd)
 		mp->header.cdid = cd->cdid;
 		mp->controller = cd->controller;
 		mp->channel = cd->channelid;
+		i4bputqueue(m);
+	}
+}
+
+/*---------------------------------------------------------------------------*
+ *    send MSG_PACKET_IND message to userland
+ *---------------------------------------------------------------------------*/
+void
+i4b_l4_packet_ind(int driver, int driver_unit, int dir, struct mbuf *pkt)
+{
+	struct mbuf *m;
+	int len = pkt->m_pkthdr.len;
+	unsigned char *ip = pkt->m_data;
+
+	if((m = i4b_Dgetmbuf(sizeof(msg_packet_ind_t))) != NULL)
+	{
+		msg_packet_ind_t *mp = (msg_packet_ind_t *)m->m_data;
+
+		mp->header.type = MSG_PACKET_IND;
+		mp->header.cdid = -1;
+		mp->driver = driver;
+		mp->driver_unit = driver_unit;
+		mp->direction = dir;
+		memcpy(mp->pktdata, ip,
+			len <MAX_PACKET_LOG ? len : MAX_PACKET_LOG);
 		i4bputqueue(m);
 	}
 }

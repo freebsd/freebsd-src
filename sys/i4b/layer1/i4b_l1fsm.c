@@ -27,52 +27,32 @@
  *	i4b_l1fsm.c - isdn4bsd layer 1 I.430 state machine
  *	--------------------------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: i4b_l1fsm.c,v 1.2 1999/12/13 21:25:26 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:28:26 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 22:02:16 1999]
  *
  *---------------------------------------------------------------------------*/
 
-#if defined(__FreeBSD__) || defined(__bsdi__)
 #include "isic.h"
-#else
-#define NISIC 1
-#endif
 
 #if NISIC > 0
 
 #include <sys/param.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <sys/ioccom.h>
-#else
-#include <sys/ioctl.h>
-#endif
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
+#include <sys/socket.h>
 
 #include <machine/stdarg.h>
-
-#ifdef __FreeBSD__
 #include <machine/clock.h>
-#include <i386/isa/isa_device.h>
-#else
-#ifndef __bsdi__
-#include <machine/bus.h>
-#endif
-#include <sys/device.h>
-#endif
 
-#include <sys/socket.h>
 #include <net/if.h>
 
-#ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
-#else
-#include <i4b/i4b_debug.h>
-#include <i4b/i4b_ioctl.h>
-#endif
 
 #include <i4b/layer1/i4b_l1.h>
 #include <i4b/layer1/i4b_isac.h>
@@ -110,27 +90,27 @@ static char *event_text[N_EVENTS] = {
 
 /* Function prototypes */
 
-static void timer3_expired (struct isic_softc *sc);
-static void T3_start (struct isic_softc *sc);
-static void T3_stop (struct isic_softc *sc);
-static void F_T3ex (struct isic_softc *sc);
-static void timer4_expired (struct isic_softc *sc);
-static void T4_start (struct isic_softc *sc);
-static void T4_stop (struct isic_softc *sc);
-static void F_AI8 (struct isic_softc *sc);
-static void F_AI10 (struct isic_softc *sc);
-static void F_I01 (struct isic_softc *sc);
-static void F_I02 (struct isic_softc *sc);
-static void F_I03 (struct isic_softc *sc);
-static void F_I2 (struct isic_softc *sc);
-static void F_ill (struct isic_softc *sc);
-static void F_NULL (struct isic_softc *sc);
+static void timer3_expired (struct l1_softc *sc);
+static void T3_start (struct l1_softc *sc);
+static void T3_stop (struct l1_softc *sc);
+static void F_T3ex (struct l1_softc *sc);
+static void timer4_expired (struct l1_softc *sc);
+static void T4_start (struct l1_softc *sc);
+static void T4_stop (struct l1_softc *sc);
+static void F_AI8 (struct l1_softc *sc);
+static void F_AI10 (struct l1_softc *sc);
+static void F_I01 (struct l1_softc *sc);
+static void F_I02 (struct l1_softc *sc);
+static void F_I03 (struct l1_softc *sc);
+static void F_I2 (struct l1_softc *sc);
+static void F_ill (struct l1_softc *sc);
+static void F_NULL (struct l1_softc *sc);
 
 /*---------------------------------------------------------------------------*
  *	I.430 Timer T3 expire function
  *---------------------------------------------------------------------------*/	
 static void
-timer3_expired(struct isic_softc *sc)
+timer3_expired(struct l1_softc *sc)
 {
 	if(sc->sc_I430T3)
 	{
@@ -180,23 +160,18 @@ timer3_expired(struct isic_softc *sc)
  *	I.430 Timer T3 start
  *---------------------------------------------------------------------------*/	
 static void
-T3_start(struct isic_softc *sc)
+T3_start(struct l1_softc *sc)
 {
 	DBGL1(L1_T_MSG, "T3_start", ("state = %s\n", isic_printstate(sc)));
 	sc->sc_I430T3 = 1;
-
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
-	sc->sc_T3_callout = timeout((TIMEOUT_FUNC_T)timer3_expired,(struct isic_softc *)sc, 2*hz);
-#else
-	timeout((TIMEOUT_FUNC_T)timer3_expired,(struct isic_softc *)sc, 2*hz);
-#endif
+	sc->sc_T3_callout = timeout((TIMEOUT_FUNC_T)timer3_expired,(struct l1_softc *)sc, 2*hz);
 }
 
 /*---------------------------------------------------------------------------*
  *	I.430 Timer T3 stop
  *---------------------------------------------------------------------------*/	
 static void
-T3_stop(struct isic_softc *sc)
+T3_stop(struct l1_softc *sc)
 {
 	DBGL1(L1_T_MSG, "T3_stop", ("state = %s\n", isic_printstate(sc)));
 
@@ -205,11 +180,7 @@ T3_stop(struct isic_softc *sc)
 	if(sc->sc_I430T3)
 	{
 		sc->sc_I430T3 = 0;
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
-		untimeout((TIMEOUT_FUNC_T)timer3_expired,(struct isic_softc *)sc, sc->sc_T3_callout);
-#else
-		untimeout((TIMEOUT_FUNC_T)timer3_expired,(struct isic_softc *)sc);
-#endif
+		untimeout((TIMEOUT_FUNC_T)timer3_expired,(struct l1_softc *)sc, sc->sc_T3_callout);
 	}
 }
 
@@ -217,21 +188,22 @@ T3_stop(struct isic_softc *sc)
  *	I.430 Timer T3 expiry
  *---------------------------------------------------------------------------*/	
 static void
-F_T3ex(struct isic_softc *sc)
+F_T3ex(struct l1_softc *sc)
 {
 	DBGL1(L1_F_MSG, "F_T3ex", ("FSM function F_T3ex executing\n"));
-	PH_Deact_Ind(sc->sc_unit);
+	if(ctrl_desc[sc->sc_unit].protocol != PROTOCOL_D64S)
+		PH_Deact_Ind(sc->sc_unit);
 }
 
 /*---------------------------------------------------------------------------*
  *	Timer T4 expire function
  *---------------------------------------------------------------------------*/	
 static void
-timer4_expired(struct isic_softc *sc)
+timer4_expired(struct l1_softc *sc)
 {
 	if(sc->sc_I430T4)
 	{
-		DBGL1(L1_T_ERR, "timer4_expired", ("state = %s\n", isic_printstate(sc)));
+		DBGL1(L1_T_MSG, "timer4_expired", ("state = %s\n", isic_printstate(sc)));
 		sc->sc_I430T4 = 0;
 		MPH_Status_Ind(sc->sc_unit, STI_PDEACT, 0);
 	}
@@ -245,34 +217,25 @@ timer4_expired(struct isic_softc *sc)
  *	Timer T4 start
  *---------------------------------------------------------------------------*/	
 static void
-T4_start(struct isic_softc *sc)
+T4_start(struct l1_softc *sc)
 {
 	DBGL1(L1_T_MSG, "T4_start", ("state = %s\n", isic_printstate(sc)));
 	sc->sc_I430T4 = 1;
-
-#if defined(__FreeBSD__) && __FreeBSD__ >=3
-	sc->sc_T4_callout = timeout((TIMEOUT_FUNC_T)timer4_expired,(struct isic_softc *)sc, hz);
-#else
-	timeout((TIMEOUT_FUNC_T)timer4_expired,(struct isic_softc *)sc, hz);
-#endif
+	sc->sc_T4_callout = timeout((TIMEOUT_FUNC_T)timer4_expired,(struct l1_softc *)sc, hz);
 }
 
 /*---------------------------------------------------------------------------*
  *	Timer T4 stop
  *---------------------------------------------------------------------------*/	
 static void
-T4_stop(struct isic_softc *sc)
+T4_stop(struct l1_softc *sc)
 {
 	DBGL1(L1_T_MSG, "T4_stop", ("state = %s\n", isic_printstate(sc)));
 
 	if(sc->sc_I430T4)
 	{
 		sc->sc_I430T4 = 0;
-#if defined(__FreeBSD__) && __FreeBSD__ >=3
-		untimeout((TIMEOUT_FUNC_T)timer4_expired,(struct isic_softc *)sc, sc->sc_T4_callout);
-#else
-		untimeout((TIMEOUT_FUNC_T)timer4_expired,(struct isic_softc *)sc);
-#endif
+		untimeout((TIMEOUT_FUNC_T)timer4_expired,(struct l1_softc *)sc, sc->sc_T4_callout);
 	}
 }
 
@@ -280,13 +243,14 @@ T4_stop(struct isic_softc *sc)
  *	FSM function: received AI8
  *---------------------------------------------------------------------------*/	
 static void
-F_AI8(struct isic_softc *sc)
+F_AI8(struct l1_softc *sc)
 {
 	T4_stop(sc);
 
 	DBGL1(L1_F_MSG, "F_AI8", ("FSM function F_AI8 executing\n"));
 
-	PH_Act_Ind(sc->sc_unit);
+	if(ctrl_desc[sc->sc_unit].protocol != PROTOCOL_D64S)
+		PH_Act_Ind(sc->sc_unit);
 
 	T3_stop(sc);
 
@@ -308,13 +272,14 @@ F_AI8(struct isic_softc *sc)
  *	FSM function: received AI10
  *---------------------------------------------------------------------------*/	
 static void
-F_AI10(struct isic_softc *sc)
+F_AI10(struct l1_softc *sc)
 {
 	T4_stop(sc);
 	
 	DBGL1(L1_F_MSG, "F_AI10", ("FSM function F_AI10 executing\n"));
 
-	PH_Act_Ind(sc->sc_unit);
+	if(ctrl_desc[sc->sc_unit].protocol != PROTOCOL_D64S)
+		PH_Act_Ind(sc->sc_unit);
 
 	T3_stop(sc);
 
@@ -336,7 +301,7 @@ F_AI10(struct isic_softc *sc)
  *	FSM function: received INFO 0 in states F3 .. F5
  *---------------------------------------------------------------------------*/	
 static void
-F_I01(struct isic_softc *sc)
+F_I01(struct l1_softc *sc)
 {
 	DBGL1(L1_F_MSG, "F_I01", ("FSM function F_I01 executing\n"));
 
@@ -358,11 +323,12 @@ F_I01(struct isic_softc *sc)
  *	FSM function: received INFO 0 in state F6
  *---------------------------------------------------------------------------*/	
 static void
-F_I02(struct isic_softc *sc)
+F_I02(struct l1_softc *sc)
 {
 	DBGL1(L1_F_MSG, "F_I02", ("FSM function F_I02 executing\n"));
 
-	PH_Deact_Ind(sc->sc_unit);
+	if(ctrl_desc[sc->sc_unit].protocol != PROTOCOL_D64S)
+		PH_Deact_Ind(sc->sc_unit);
 
 	if(sc->sc_trace & TRACE_I)
 	{
@@ -382,11 +348,12 @@ F_I02(struct isic_softc *sc)
  *	FSM function: received INFO 0 in state F7 or F8
  *---------------------------------------------------------------------------*/	
 static void
-F_I03(struct isic_softc *sc)
+F_I03(struct l1_softc *sc)
 {
 	DBGL1(L1_F_MSG, "F_I03", ("FSM function F_I03 executing\n"));
 
-	PH_Deact_Ind(sc->sc_unit);
+	if(ctrl_desc[sc->sc_unit].protocol != PROTOCOL_D64S)
+		PH_Deact_Ind(sc->sc_unit);
 
 	T4_start(sc);
 	
@@ -408,7 +375,7 @@ F_I03(struct isic_softc *sc)
  *	FSM function: activate request
  *---------------------------------------------------------------------------*/	
 static void
-F_AR(struct isic_softc *sc)
+F_AR(struct l1_softc *sc)
 {
 	DBGL1(L1_F_MSG, "F_AR", ("FSM function F_AR executing\n"));
 
@@ -434,7 +401,7 @@ F_AR(struct isic_softc *sc)
  *	FSM function: received INFO2
  *---------------------------------------------------------------------------*/	
 static void
-F_I2(struct isic_softc *sc)
+F_I2(struct l1_softc *sc)
 {
 	DBGL1(L1_F_MSG, "F_I2", ("FSM function F_I2 executing\n"));
 
@@ -457,7 +424,7 @@ F_I2(struct isic_softc *sc)
  *	illegal state default action
  *---------------------------------------------------------------------------*/	
 static void
-F_ill(struct isic_softc *sc)
+F_ill(struct l1_softc *sc)
 {
 	DBGL1(L1_F_ERR, "F_ill", ("FSM function F_ill executing\n"));
 }
@@ -466,7 +433,7 @@ F_ill(struct isic_softc *sc)
  *	No action
  *---------------------------------------------------------------------------*/	
 static void
-F_NULL(struct isic_softc *sc)
+F_NULL(struct l1_softc *sc)
 {
 	DBGL1(L1_F_MSG, "F_NULL", ("FSM function F_NULL executing\n"));
 }
@@ -476,7 +443,7 @@ F_NULL(struct isic_softc *sc)
  *	layer 1 state transition table
  *---------------------------------------------------------------------------*/	
 struct isic_state_tab {
-	void (*func) (struct isic_softc *sc);	/* function to execute */
+	void (*func) (struct l1_softc *sc);	/* function to execute */
 	int newstate;				/* next state */
 } isic_state_tab[N_EVENTS][N_STATES] = {
 
@@ -500,7 +467,7 @@ struct isic_state_tab {
  *	event handler
  *---------------------------------------------------------------------------*/	
 void
-isic_next_state(struct isic_softc *sc, int event)
+isic_next_state(struct l1_softc *sc, int event)
 {
 	int currstate, newstate;
 
@@ -539,7 +506,7 @@ isic_next_state(struct isic_softc *sc, int event)
  *	return pointer to current state description
  *---------------------------------------------------------------------------*/	
 char *
-isic_printstate(struct isic_softc *sc)
+isic_printstate(struct l1_softc *sc)
 {
 	return((char *) state_text[sc->sc_I430state]);
 }

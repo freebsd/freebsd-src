@@ -27,55 +27,32 @@
  *	i4b_isic.c - global isic stuff
  *	==============================
  *
- * $FreeBSD$ 
+ *	$Id: i4b_isic.c,v 1.3 1999/12/13 21:25:26 hm Exp $ 
  *
- *      last edit-date: [Mon Jul 26 10:59:56 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 22:01:33 1999]
  *
  *---------------------------------------------------------------------------*/
 
-#ifdef __FreeBSD__
 #include "isic.h"
 #include "opt_i4b.h"
-#else
-#define NISIC	1
-#endif
+
 #if NISIC > 0
 
 #include <sys/param.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <sys/ioccom.h>
-#else
-#include <sys/ioctl.h>
-#endif
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <net/if.h>
 
-#ifdef __FreeBSD__
 #include <machine/clock.h>
-#include <i386/isa/isa_device.h>
-#else
-#include <sys/device.h>
-#if defined(__NetBSD__) && defined(amiga)
-#include <machine/bus.h>
-#else
-#ifndef __bsdi__
-#include <dev/isa/isavar.h>
-#endif
-#endif
-#endif
 
-#ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_trace.h>
-#else
-#include <i4b/i4b_debug.h>
-#include <i4b/i4b_ioctl.h>
-#include <i4b/i4b_trace.h>
-#endif
 
 #include <i4b/layer1/i4b_l1.h>
 #include <i4b/layer1/i4b_ipac.h>
@@ -89,80 +66,30 @@
 void isic_settrace(int unit, int val);
 int isic_gettrace(int unit);
 
-#ifdef __bsdi__
-static int isicmatch(struct device *parent, struct cfdata *cf, void *aux);
-static void isicattach(struct device *parent, struct device *self, void *aux);
-struct cfdriver isiccd =
-	{ NULL, "isic", isicmatch, isicattach, DV_IFNET,
-	  sizeof(struct isic_softc) };
+static char *ISACversion[] = {
+	"2085 Version A1/A2 or 2086/2186 Version 1.1",
+	"2085 Version B1",
+	"2085 Version B2",
+	"2085 Version V2.3 (B3)",
+	"Unknown Version"
+};
 
-int isa_isicmatch(struct device *parent, struct cfdata *cf, struct isa_attach_args *);
-int isapnp_isicmatch(struct device *parent, struct cfdata *cf, struct isa_attach_args *);
-int isa_isicattach(struct device *parent, struct device *self, struct isa_attach_args *ia);
-
-static int
-isicmatch(struct device *parent, struct cfdata *cf, void *aux)
-{
-	struct isa_attach_args *ia = (struct isa_attach_args *) aux;
-	if (ia->ia_bustype == BUS_PCMCIA) {
-		ia->ia_irq = IRQNONE;
-		/* return 1;	Not yet */
-		return 0;	/* for now */
-	}
-	if (ia->ia_bustype == BUS_PNP) {
-		return isapnp_isicmatch(parent, cf, ia);
-	}
-	return isa_isicmatch(parent, cf, ia);
-}
-
-static void
-isicattach(struct device *parent, struct device *self, void *aux)
-{
-	struct isa_attach_args *ia = (struct isa_attach_args *) aux;
-	struct isic_softc *sc = (struct isic_softc *)self;
-
-	sc->sc_flags = sc->sc_dev.dv_flags;
-	isa_isicattach(parent, self, ia);
-	isa_establish(&sc->sc_id, &sc->sc_dev);
-	sc->sc_ih.ih_fun = isicintr;
-	sc->sc_ih.ih_arg = (void *)sc;
-	intr_establish(ia->ia_irq, &sc->sc_ih, DV_NET);
-	/* Could add a shutdown hook here... */
-}
-#endif
-
-#ifdef __FreeBSD__
-void isicintr_sc(struct isic_softc *sc);
-#if !(defined(__FreeBSD_version)) || (defined(__FreeBSD_version) && __FreeBSD_version >= 300006)
-void isicintr(int unit);
-#endif
-#else
-/* XXX - hack, going away soon! */
-struct isic_softc *isic_sc[ISIC_MAXUNIT];
-#endif
+static char *HSCXversion[] = {
+	"82525 Version A1",
+	"Unknown (0x01)",
+	"82525 Version A2",
+	"Unknown (0x03)",
+	"82525 Version A3",
+	"82525 or 21525 Version 2.1",
+	"Unknown Version"
+};
 
 /*---------------------------------------------------------------------------*
  *	isic - device driver interrupt routine
  *---------------------------------------------------------------------------*/
-#ifdef __FreeBSD__
-
 void
-isicintr_sc(struct isic_softc *sc)
+isicintr(struct l1_softc *sc)
 {
-	isicintr(sc->sc_unit);
-}
-
-void
-isicintr(int unit)
-{
-	register struct isic_softc *sc = &isic_sc[unit];
-#else
-int
-isicintr(void *arg)
-{
-	struct isic_softc *sc = arg;
-#endif
-	
 	if(sc->sc_ipac == 0)	/* HSCX/ISAC interupt routine */
 	{
 		u_char was_hscx_irq = 0;
@@ -210,22 +137,6 @@ isicintr(void *arg)
 			}
 		}
 
-#ifdef NOTDEF
-
-#if !defined(amiga) && !defined(atari) /* XXX should be: #if INTS_ARE_SHARED */
-#ifdef ELSA_QS1ISA
-		if(sc->sc_cardtyp != CARD_TYPEP_ELSAQS1ISA)
-		{
-#endif		
-			if((was_hscx_irq == 0) && (was_isac_irq == 0))
-				DBGL1(L1_ERROR, "isicintr", ("WARNING: unit %d, No IRQ from HSCX/ISAC!\n", sc->sc_unit));
-#ifdef ELSA_QS1ISA
-		}
-#endif	
-#endif /* !AMIGA && !ATARI */
-
-#endif /* NOTDEF */
-			
 		HSCX_WRITE(0, H_MASK, 0xff);
 		ISAC_WRITE(I_MASK, 0xff);
 		HSCX_WRITE(1, H_MASK, 0xff);
@@ -233,8 +144,7 @@ isicintr(void *arg)
 #ifdef ELSA_QS1ISA
 		DELAY(80);
 		
-		if(sc->sc_cardtyp == CARD_TYPEP_ELSAQS1ISA)
-		if (sc->clearirq)
+		if((sc->sc_cardtyp == CARD_TYPEP_ELSAQS1ISA) && (sc->clearirq))
 		{
 			sc->clearirq(sc);
 		}
@@ -245,9 +155,6 @@ isicintr(void *arg)
 		HSCX_WRITE(0, H_MASK, HSCX_A_IMASK);
 		ISAC_WRITE(I_MASK, ISAC_IMASK);
 		HSCX_WRITE(1, H_MASK, HSCX_B_IMASK);
-#ifndef __FreeBSD__
-		return(was_hscx_irq || was_isac_irq);
-#endif
 	}
 	else	/* IPAC interrupt routine */
 	{
@@ -295,17 +202,10 @@ isicintr(void *arg)
 			if(!ipac_irq_stat)
 				break;
 		}
-#ifdef NOTDEF
-		if(was_ipac_irq == 0)
-			DBGL1(L1_ERROR, "isicintr", ("WARNING: unit %d, No IRQ from IPAC!\n", sc->sc_unit));
-#endif
+
 		IPAC_WRITE(IPAC_MASK, 0xff);
 		DELAY(50);
 		IPAC_WRITE(IPAC_MASK, 0xc0);
-
-#ifndef __FreeBSD__
-		return(was_ipac_irq);
-#endif
 	}		
 }
 
@@ -315,11 +215,7 @@ isicintr(void *arg)
 void
 isic_settrace(int unit, int val)
 {
-#ifdef __FreeBSD__
-	struct isic_softc *sc = &isic_sc[unit];
-#else
-	struct isic_softc *sc = isic_find_sc(unit);
-#endif
+	struct l1_softc *sc = &l1_sc[unit];
 	sc->sc_trace = val;
 }
 
@@ -329,19 +225,15 @@ isic_settrace(int unit, int val)
 int
 isic_gettrace(int unit)
 {
-#ifdef __FreeBSD__
-	struct isic_softc *sc = &isic_sc[unit];
-#else
-	struct isic_softc *sc = isic_find_sc(unit);
-#endif
+	struct l1_softc *sc = &l1_sc[unit];
 	return(sc->sc_trace);
 }
 
 /*---------------------------------------------------------------------------*
- *	isic_recovery - try to recover from irq lockup
+ *	isic_recover - try to recover from irq lockup
  *---------------------------------------------------------------------------*/
 void
-isic_recover(struct isic_softc *sc)
+isic_recover(struct l1_softc *sc)
 {
 	u_char byte;
 	
@@ -394,6 +286,231 @@ isic_recover(struct isic_softc *sc)
 	ISAC_WRITE(I_MASK, 0xff);	
 	DELAY(100);
 	ISAC_WRITE(I_MASK, ISAC_IMASK);
+}
+
+/*---------------------------------------------------------------------------*
+ *	isic_attach_common - common attach routine for all busses
+ *---------------------------------------------------------------------------*/
+int
+isic_attach_common(device_t dev)
+{
+	int ret;
+	char *drvid = NULL;
+	int unit = device_get_unit(dev);
+	struct l1_softc *sc = &l1_sc[unit];
+	
+	sc->sc_unit = unit;
+	
+	sc->sc_isac_version = 0;
+	sc->sc_hscx_version = 0;
+
+	if(sc->sc_ipac)
+	{
+		ret = IPAC_READ(IPAC_ID);
+	
+		switch(ret)
+		{
+			case 0x01: 
+				break;
+	
+			default:
+				printf("isic%d: Error, IPAC version %d unknown!\n",
+					unit, ret);
+				return ENXIO;
+				break;
+
+		}
+	}
+	else
+	{
+		sc->sc_isac_version = ((ISAC_READ(I_RBCH)) >> 5) & 0x03;
+	
+		switch(sc->sc_isac_version)
+		{
+			case ISAC_VA:
+			case ISAC_VB1:
+			case ISAC_VB2:
+			case ISAC_VB3:
+				break;
+	
+			default:
+				printf("isic%d: Error, ISAC version %d unknown!\n",
+					unit, sc->sc_isac_version);
+				return ENXIO;
+				break;
+		}
+
+		sc->sc_hscx_version = HSCX_READ(0, H_VSTR) & 0xf;
+
+		switch(sc->sc_hscx_version)
+		{
+			case HSCX_VA1:
+			case HSCX_VA2:
+			case HSCX_VA3:
+			case HSCX_V21:
+				break;
+				
+			default:
+				printf("isic%d: Error, HSCX version %d unknown!\n",
+					unit, sc->sc_hscx_version);
+				return ENXIO;
+				break;
+		}
+	}
+	
+	isic_isac_init(sc);		/* ISAC setup */
+
+	/* HSCX setup */
+
+	isic_bchannel_setup(sc->sc_unit, HSCX_CH_A, BPROT_NONE, 0);
+	
+	isic_bchannel_setup(sc->sc_unit, HSCX_CH_B, BPROT_NONE, 0);
+
+	isic_init_linktab(sc);		/* setup linktab */
+
+	sc->sc_trace = TRACE_OFF;	/* set trace level */
+
+	sc->sc_state = ISAC_IDLE;	/* set state */
+
+	sc->sc_ibuf = NULL;		/* input buffering */
+	sc->sc_ib = NULL;
+	sc->sc_ilen = 0;
+
+	sc->sc_obuf = NULL;		/* output buffering */
+	sc->sc_op = NULL;
+	sc->sc_ol = 0;
+	sc->sc_freeflag = 0;
+
+	sc->sc_obuf2 = NULL;		/* second output buffer */
+	sc->sc_freeflag2 = 0;
+
+	/* timer setup */
+	
+	callout_handle_init(&sc->sc_T3_callout);
+	callout_handle_init(&sc->sc_T4_callout);	
+	
+	/* init higher protocol layers */
+	
+	MPH_Status_Ind(sc->sc_unit, STI_ATTACH, sc->sc_cardtyp);
+	
+	/* announce manufacturer and card type for ISA cards */
+	
+	switch(sc->sc_flags)
+	{
+		case FLAG_TELES_S0_8:
+			drvid = "Teles S0/8 (or compatible)";
+			break;
+
+		case FLAG_TELES_S0_16:
+			drvid = "Teles S0/16 (or compatible)";
+			break;
+
+		case FLAG_TELES_S0_163:
+			drvid = "Teles S0/16.3";
+			break;
+
+		case FLAG_AVM_A1:
+			drvid = "AVM A1 or Fritz!Card Classic";
+			break;
+
+		case FLAG_AVM_A1_PCMCIA:
+			drvid = "AVM Fritz!Card PCMCIA";
+			break;
+
+		case FLAG_USR_ISDN_TA_INT:
+			drvid = "USRobotics Sportster ISDN TA intern";
+			break;
+
+		case FLAG_ITK_IX1:
+			drvid = "ITK ix1 micro";
+			break;
+
+		case FLAG_ELSA_PCC16:
+			drvid = "ELSA MicroLink ISDN/PCC-16";
+			break;
+
+		default:
+			drvid = NULL;	/* pnp/pci cards announce themselves */
+			break;
+	}
+
+	if(drvid)
+		printf("isic%d: %s\n", unit, drvid);
+	
+	if(bootverbose)
+	{
+		/* announce chip versions */
+		
+		if(sc->sc_ipac)
+		{
+			printf("isic%d: IPAC PSB2115 Version 1.1\n", unit);
+		}
+		else
+		{
+			printf("isic%d: ISAC %s (IOM-%c)\n",
+				unit,
+				ISACversion[sc->sc_isac_version],
+				sc->sc_bustyp == BUS_TYPE_IOM1 ? '1' : '2');
+
+			printf("isic%d: HSCX %s\n",
+				unit,
+				HSCXversion[sc->sc_hscx_version]);
+		}
+	}
+	return 0;
+}
+
+/*---------------------------------------------------------------------------*
+ *	isic_detach_common - common detach routine for all busses
+ *---------------------------------------------------------------------------*/
+void
+isic_detach_common(device_t dev)
+{
+	struct l1_softc *sc = &l1_sc[device_get_unit(dev)];
+	int i;
+
+	sc->sc_flags = 0;
+
+	/* free interrupt resources */
+	
+	if(sc->sc_resources.irq)
+	{
+		/* tear down interupt handler */
+		bus_teardown_intr(dev, sc->sc_resources.irq,
+					(void(*)(void *))isicintr);
+
+		/* free irq */
+		bus_release_resource(dev, SYS_RES_IRQ,
+					sc->sc_resources.irq_rid,
+					sc->sc_resources.irq);
+		sc->sc_resources.irq_rid = 0;
+		sc->sc_resources.irq = 0;
+	}
+
+	/* free memory resource */
+	
+	if(sc->sc_resources.mem)
+	{
+		bus_release_resource(dev,SYS_RES_MEMORY,
+					sc->sc_resources.mem_rid,
+					sc->sc_resources.mem);
+		sc->sc_resources.mem_rid = 0;
+		sc->sc_resources.mem = 0;
+	}
+
+	/* free iobases */
+
+	for(i=0; i < INFO_IO_BASES ; i++)
+	{
+		if(sc->sc_resources.io_base[i])
+		{
+			bus_release_resource(dev, SYS_RES_IOPORT,
+						sc->sc_resources.io_rid[i],
+						sc->sc_resources.io_base[i]);
+			sc->sc_resources.io_rid[i] = 0;
+			sc->sc_resources.io_base[i] = 0;			
+		}
+	}
 }
 
 #endif /* NISIC > 0 */
