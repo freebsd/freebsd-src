@@ -52,8 +52,14 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>
-#define _WANT_UCRED	/* make ucred.h give us 'struct ucred' */
+#define	_WANT_UCRED	/* make ucred.h give us 'struct ucred' */
 #include <sys/ucred.h>
+#include <sys/queue.h>
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
+#include <sys/_task.h>
+#define	_WANT_PRISON	/* make jail.h give us 'struct prison' */
+#include <sys/jail.h>
 #include <sys/user.h>
 #include <sys/proc.h>
 #include <sys/exec.h>
@@ -105,6 +111,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 	struct sigacts sigacts;
 	struct pstats pstats;
 	struct ucred ucred;
+	struct prison pr;
 	struct thread mtd;
 	/*struct kse mke;*/
 	struct ksegrp mkg;
@@ -159,6 +166,15 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 			bcopy(ucred.cr_groups, kp->ki_groups,
 			    NGROUPS * sizeof(gid_t));
 			kp->ki_uid = ucred.cr_uid;
+			if (ucred.cr_prison != NULL) {
+				if (KREAD(kd, (u_long)ucred.cr_prison, &pr)) {
+					_kvm_err(kd, kd->program,
+					    "can't read prison at %x",
+					    ucred.cr_prison);
+					return (-1);
+				}
+				kp->ki_jid = pr.pr_id;
+			}
 		}
 
 		switch(what & ~KERN_PROC_INC_THREAD) {
