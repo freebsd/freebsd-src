@@ -78,6 +78,7 @@ typedef	struct	nat	{
 	struct	in_addr	nat_oip;	/* other ip */
 	U_QUAD_T	nat_pkts;
 	U_QUAD_T	nat_bytes;
+	u_int	nat_drop[2];
 	u_short	nat_oport;		/* other port */
 	u_short	nat_inport;
 	u_short	nat_outport;

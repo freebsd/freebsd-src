@@ -294,7 +294,7 @@ int dlen;
 		ip->ip_len = slen;
 		ip->ip_src = swip;
 	}
-	return APR_INC(inc);
+	return inc;
 }
 
 
@@ -577,7 +577,7 @@ int dlen;
 	wptr = f->ftps_wptr;
 
 	if (!isdigit(*rptr) || !isdigit(*(rptr + 1)) || !isdigit(*(rptr + 2)))
-		return inc;
+		return 0;
 	if (ftp->ftp_passok == FTPXY_GO) {
 		if (!strncmp(rptr, "227 ", 4))
 			inc = ippr_ftp_pasv(fin, ip, nat, f, dlen);
@@ -717,6 +717,10 @@ size_t len;
 }
 
 
+/*
+ * rv == 0 for outbound processing,
+ * rv == 1 for inbound processing.
+ */
 int ippr_ftp_process(fin, ip, nat, ftp, rv)
 fr_info_t *fin;
 ip_t *ip;
@@ -724,15 +728,16 @@ nat_t *nat;
 ftpinfo_t *ftp;
 int rv;
 {
-	int mlen, len, off, inc, i, sel;
+	int mlen, len, off, inc, i, sel, sel2, ok, ackoff, seqoff;
+	u_32_t thseq, thack;
 	char *rptr, *wptr;
+	ap_session_t *aps;
 	ftpside_t *f, *t;
 	tcphdr_t *tcp;
 	mb_t *m;
 
 	tcp = (tcphdr_t *)fin->fin_dp;
 	off = fin->fin_hlen + (tcp->th_off << 2);
-
 #if	SOLARIS && defined(_KERNEL)
 	m = fin->fin_qfm;
 #else
@@ -750,46 +755,149 @@ int rv;
 #endif
 	mlen -= off;
 
+	aps = nat->nat_aps;
 	t = &ftp->ftp_side[1 - rv];
 	f = &ftp->ftp_side[rv];
-	if (!mlen) {
-		if (!t->ftps_seq ||
-		    (int)ntohl(tcp->th_ack) - (int)t->ftps_seq > 0)
-			t->ftps_seq = ntohl(tcp->th_ack);
-		f->ftps_len = 0;
-		return 0;
-	}
+	thseq = ntohl(tcp->th_seq);
+	thack = ntohl(tcp->th_ack);
 
-	rptr = f->ftps_rptr;
-	wptr = f->ftps_wptr;
-
-	i = 0;
-	sel = nat->nat_aps->aps_sel[1 - rv];
-	if (rv) {
-		if (nat->nat_aps->aps_ackmin[sel] < ntohl(tcp->th_seq))
-			i = nat->nat_aps->aps_ackoff[sel];
+	sel = aps->aps_sel[1 - rv];
+	sel2 = aps->aps_sel[rv];
+	if (rv == 0) {
+		seqoff = aps->aps_seqoff[sel];
+		if (aps->aps_seqmin[sel] > seqoff + thseq)
+			seqoff = aps->aps_seqoff[!sel];
+		ackoff = aps->aps_ackoff[sel2];
+		if (aps->aps_ackmin[sel2] > ackoff + thack)
+			ackoff = aps->aps_ackoff[!sel2];
 	} else {
-		if (nat->nat_aps->aps_seqmin[sel] < ntohl(tcp->th_seq))
-			i = nat->nat_aps->aps_seqoff[sel];
+#if PROXY_DEBUG
+		printf("seqoff %d thseq %x ackmin %x\n", seqoff, thseq,
+			aps->aps_ackmin[sel]);
+#endif
+		seqoff = aps->aps_ackoff[sel];
+		if (aps->aps_ackmin[sel] > seqoff + thseq)
+			seqoff = aps->aps_ackoff[!sel];
+
+#if PROXY_DEBUG
+		printf("ackoff %d thack %x seqmin %x\n", ackoff, thack,
+			aps->aps_seqmin[sel2]);
+#endif
+		ackoff = aps->aps_seqoff[sel2];
+		if (ackoff > 0) {
+			if (aps->aps_seqmin[sel2] > ackoff + thack)
+				ackoff = aps->aps_seqoff[!sel2];
+		} else {
+			if (aps->aps_seqmin[sel2] > thack)
+				ackoff = aps->aps_seqoff[!sel2];
+		}
 	}
+#if PROXY_DEBUG
+	printf("%s: %x seq %x/%d ack %x/%d len %d\n", rv ? "IN" : "OUT",
+		tcp->th_flags, thseq, seqoff, thack, ackoff, mlen);
+	printf("sel %d seqmin %x/%x offset %d/%d\n", sel,
+		aps->aps_seqmin[sel], aps->aps_seqmin[sel2],
+		aps->aps_seqoff[sel], aps->aps_seqoff[sel2]);
+	printf("sel %d ackmin %x/%x offset %d/%d\n", sel2,
+		aps->aps_ackmin[sel], aps->aps_ackmin[sel2],
+		aps->aps_ackoff[sel], aps->aps_ackoff[sel2]);
+#endif
+
 	/*
 	 * XXX - Ideally, this packet should get dropped because we now know
 	 * that it is out of order (and there is no real danger in doing so
 	 * apart from causing packets to go through here ordered).
 	 */
-	if (f->ftps_len + f->ftps_seq == ntohl(tcp->th_seq))
-		f->ftps_seq = ntohl(tcp->th_seq);
+#if PROXY_DEBUG
+	printf("rv %d t:seq[0] %x seq[1] %x %d/%d\n",
+		rv, t->ftps_seq[0], t->ftps_seq[1], seqoff, ackoff);
+#endif
+
+	ok = 0;
+	if (t->ftps_seq[0] == 0)
+		t->ftps_seq[0] = thack, ok = 1;
 	else {
-		inc = ntohl(tcp->th_seq) - f->ftps_seq;
-		if (inc < 0)
-			inc = -inc;
-		if (i < 0)
-			i = -i;
-		if (inc > i) {
-			return APR_ERR(1);
+		if (ackoff == 0) {
+			if (t->ftps_seq[0] == thack)
+				ok = 1;
+			else if (t->ftps_seq[1] == thack) {
+				t->ftps_seq[0] = thack;
+				ok = 1;
+			}
+		} else {
+			if (t->ftps_seq[0] + ackoff == thack)
+				ok = 1;
+			else if (t->ftps_seq[0] == thack + ackoff)
+				ok = 1;
+			else if (t->ftps_seq[1] + ackoff == thack) {
+				t->ftps_seq[0] = thack - ackoff;
+				ok = 1;
+			} else if (t->ftps_seq[1] == thack + ackoff) {
+				t->ftps_seq[0] = thack - ackoff;
+				ok = 1;
+			}
 		}
 	}
+
+#if PROXY_DEBUG
+	if (!ok)
+		printf("not  ok\n");
+#endif
+
+	if (!mlen) {
+		if (t->ftps_seq[0] + ackoff != thack)
+			return APR_ERR(1);
+
+#if PROXY_DEBUG
+	printf("f:seq[0] %x seq[1] %x\n", f->ftps_seq[0], f->ftps_seq[1]);
+#endif
+		if (tcp->th_flags & TH_FIN) {
+			if (thseq + seqoff == f->ftps_seq[0] + 1 ||
+			    f->ftps_seq[0] + seqoff + 1 == thseq ||
+			    thseq + seqoff == f->ftps_seq[0] ||
+			    thseq == f->ftps_seq[0] + seqoff)
+				;
+			else {
+#if PROXY_DEBUG
+				printf("FIN: thseq %x seqoff %d ftps_seq %x\n",
+					thseq, seqoff, f->ftps_seq[0]);
+#endif
+				return APR_ERR(1);
+			}
+		}
+		f->ftps_len = 0;
+		return 0;
+	}
+
+	ok = 0;
+	if (thseq == f->ftps_seq[0] || thseq == f->ftps_seq[1])
+		ok = 1;
+	/*
+	 * Retransmitted data packet.
+	 */
+	else if (thseq + mlen == f->ftps_seq[0] ||
+		 thseq + mlen == f->ftps_seq[1])
+		ok = 1;
+	if (ok == 0) {
+		inc = thseq - f->ftps_seq[0];
+#if PROXY_DEBUG
+		printf("inc %d sel %d rv %d\n", inc, sel, rv);
+		printf("th_seq %x ftps_seq %x/%x\n", thseq, f->ftps_seq[0],
+			f->ftps_seq[1]);
+		printf("ackmin %x ackoff %d\n", aps->aps_ackmin[sel],
+			aps->aps_ackoff[sel]);
+		printf("seqmin %x seqoff %d\n", aps->aps_seqmin[sel],
+			aps->aps_seqoff[sel]);
+#endif
+
+		return APR_ERR(1);
+	}
+
 	inc = 0;
+	rptr = f->ftps_rptr;
+	wptr = f->ftps_wptr;
+	f->ftps_seq[0] = thseq;
+	f->ftps_seq[1] = f->ftps_seq[0] + mlen;
 	f->ftps_len = mlen;
 
 	while (mlen > 0) {
@@ -833,6 +941,7 @@ int rv;
 		 * ftp proxy for this connection.
 		 */
 		if ((f->ftps_cmds == 0) && (f->ftps_junk == 1)) {
+			/* f->ftps_seq[1] += inc; */
 			return APR_ERR(2);
 		}
 
@@ -873,7 +982,24 @@ int rv;
 		}
 	}
 
-	t->ftps_seq = ntohl(tcp->th_ack);
+	/* f->ftps_seq[1] += inc; */
+	if (tcp->th_flags & TH_FIN)
+		f->ftps_seq[1]++;
+#ifndef	_KERNEL
+	mlen = mbuflen(m);
+#else
+# if	SOLARIS
+	mlen = msgdsize(m);
+# else
+	mlen = mbufchainlen(m);
+# endif
+#endif
+	off = fin->fin_hlen + (tcp->th_off << 2);
+	mlen -= off;
+#if PROXY_DEBUG
+	printf("ftps_seq[1] = %x inc %d len %d\n", f->ftps_seq[1], inc, mlen);
+#endif
+
 	f->ftps_rptr = rptr;
 	f->ftps_wptr = wptr;
 	return APR_INC(inc);
