@@ -143,7 +143,7 @@ sig_daemon(void *arg /* Unused */)
 	struct kse *curkse;
 	struct pthread *curthread = _get_curthread();
 
-	DBG_MSG("signal daemon started");
+	DBG_MSG("signal daemon started\n");
 	
 	curthread->name = strdup("signal thread");
 	crit = _kse_critical_enter();
