@@ -53,9 +53,71 @@ static void em_lower_ee_clk(struct em_hw *hw, uint32_t *eecd);
 static void em_shift_out_ee_bits(struct em_hw *hw, uint16_t data, uint16_t count);
 static uint16_t em_shift_in_ee_bits(struct em_hw *hw);
 static void em_setup_eeprom(struct em_hw *hw);
+static void em_clock_eeprom(struct em_hw *hw);
+static void em_cleanup_eeprom(struct em_hw *hw);
 static void em_standby_eeprom(struct em_hw *hw);
 static int32_t em_id_led_init(struct em_hw * hw);
 
+
+
+
+/******************************************************************************
+ * Set the mac type member in the hw struct.
+ * 
+ * hw - Struct containing variables accessed by shared code
+ *****************************************************************************/
+int32_t
+em_set_mac_type(struct em_hw *hw)
+{
+    DEBUGFUNC("em_set_mac_type");
+
+    switch (hw->device_id) {
+    case E1000_DEV_ID_82542:
+        switch (hw->revision_id) {
+        case E1000_82542_2_0_REV_ID:
+            hw->mac_type = em_82542_rev2_0;
+            break;
+        case E1000_82542_2_1_REV_ID:
+            hw->mac_type = em_82542_rev2_1;
+            break;
+        default:
+            /* Invalid 82542 revision ID */
+            return -E1000_ERR_MAC_TYPE;
+        }
+        break;
+    case E1000_DEV_ID_82543GC_FIBER:
+    case E1000_DEV_ID_82543GC_COPPER:
+        hw->mac_type = em_82543;
+        break;
+    case E1000_DEV_ID_82544EI_COPPER:
+    case E1000_DEV_ID_82544EI_FIBER:
+    case E1000_DEV_ID_82544GC_COPPER:
+    case E1000_DEV_ID_82544GC_LOM:
+        hw->mac_type = em_82544;
+        break;
+    case E1000_DEV_ID_82540EM:
+    case E1000_DEV_ID_82540EM_LOM:
+    case E1000_DEV_ID_82540EP:
+    case E1000_DEV_ID_82540EP_LOM:
+    case E1000_DEV_ID_82540EP_LP:
+        hw->mac_type = em_82540;
+        break;
+    case E1000_DEV_ID_82545EM_COPPER:
+    case E1000_DEV_ID_82545EM_FIBER:
+        hw->mac_type = em_82545;
+        break;
+    case E1000_DEV_ID_82546EB_COPPER:
+    case E1000_DEV_ID_82546EB_FIBER:
+        hw->mac_type = em_82546;
+        break;
+    default:
+        /* Should never have loaded on this device */
+        return -E1000_ERR_MAC_TYPE;
+    }
+
+
+    return E1000_SUCCESS;
+}
 /******************************************************************************
  * Reset the transmit and receive units; mask and clear all interrupts.
  *
@@ -68,17 +130,13 @@ em_reset_hw(struct em_hw *hw)
     uint32_t ctrl_ext;
     uint32_t icr;
     uint32_t manc;
-    uint16_t pci_cmd_word;
 
     DEBUGFUNC("em_reset_hw");
     
     /* For 82542 (rev 2.0), disable MWI before issuing a device reset */
     if(hw->mac_type == em_82542_rev2_0) {
-        if(hw->pci_cmd_word & CMD_MEM_WRT_INVALIDATE) {
-            DEBUGOUT("Disabling MWI on 82542 rev 2.0\n");
-            pci_cmd_word = hw->pci_cmd_word & ~CMD_MEM_WRT_INVALIDATE;
-            em_write_pci_cfg(hw, PCI_COMMAND_REGISTER, &pci_cmd_word);
-        }
+        DEBUGOUT("Disabling MWI on 82542 rev 2.0\n");
+        em_pci_clear_mwi(hw);
     }
 
     /* Clear interrupt mask to stop board from generating interrupts */
@@ -91,6 +149,7 @@ em_reset_hw(struct em_hw *hw)
      */
     E1000_WRITE_REG(hw, RCTL, 0);
     E1000_WRITE_REG(hw, TCTL, E1000_TCTL_PSP);
+    E1000_WRITE_FLUSH(hw);
 
     /* The tbi_compatibility_on Flag must be cleared when Rctl is cleared. */
     hw->tbi_compatibility_on = FALSE;
@@ -120,6 +179,7 @@ em_reset_hw(struct em_hw *hw)
         ctrl_ext = E1000_READ_REG(hw, CTRL_EXT);
         ctrl_ext |= E1000_CTRL_EXT_EE_RST;
         E1000_WRITE_REG(hw, CTRL_EXT, ctrl_ext);
+        E1000_WRITE_FLUSH(hw);
         /* Wait for EEPROM reload */
         msec_delay(2);
     } else {
@@ -141,7 +201,7 @@ em_reset_hw(struct em_hw *hw)
     /* If MWI was previously enabled, reenable it. */
     if(hw->mac_type == em_82542_rev2_0) {
         if(hw->pci_cmd_word & CMD_MEM_WRT_INVALIDATE)
-            em_write_pci_cfg(hw, PCI_COMMAND_REGISTER, &hw->pci_cmd_word);
+            em_pci_set_mwi(hw);
     }
 }
 
@@ -162,7 +222,6 @@ em_init_hw(struct em_hw *hw)
     uint32_t ctrl, status;
     uint32_t i;
     int32_t ret_val;
-    uint16_t pci_cmd_word;
     uint16_t pcix_cmd_word;
     uint16_t pcix_stat_hi_word;
     uint16_t cmd_mmrbc;
@@ -205,12 +264,10 @@ em_init_hw(struct em_hw *hw)
 
     /* For 82542 (rev 2.0), disable MWI and put the receiver into reset */
     if(hw->mac_type == em_82542_rev2_0) {
-        if(hw->pci_cmd_word & CMD_MEM_WRT_INVALIDATE) {
-            DEBUGOUT("Disabling MWI on 82542 rev 2.0\n");
-            pci_cmd_word = hw->pci_cmd_word & ~CMD_MEM_WRT_INVALIDATE;
-            em_write_pci_cfg(hw, PCI_COMMAND_REGISTER, &pci_cmd_word);
-        }
+        DEBUGOUT("Disabling MWI on 82542 rev 2.0\n");
+        em_pci_clear_mwi(hw);
         E1000_WRITE_REG(hw, RCTL, E1000_RCTL_RST);
+        E1000_WRITE_FLUSH(hw);
         msec_delay(5);
     }
 
@@ -222,9 +279,10 @@ em_init_hw(struct em_hw *hw)
     /* For 82542 (rev 2.0), take the receiver out of reset and enable MWI */
     if(hw->mac_type == em_82542_rev2_0) {
         E1000_WRITE_REG(hw, RCTL, 0);
+        E1000_WRITE_FLUSH(hw);
         msec_delay(1);
         if(hw->pci_cmd_word & CMD_MEM_WRT_INVALIDATE)
-            em_write_pci_cfg(hw, PCI_COMMAND_REGISTER, &hw->pci_cmd_word);
+            em_pci_set_mwi(hw);
     }
 
     /* Zero out the Multicast HASH table */
@@ -249,6 +307,8 @@ em_init_hw(struct em_hw *hw)
             PCIX_COMMAND_MMRBC_SHIFT;
         stat_mmrbc = (pcix_stat_hi_word & PCIX_STATUS_HI_MMRBC_MASK) >>
             PCIX_STATUS_HI_MMRBC_SHIFT;
+        if(stat_mmrbc == PCIX_STATUS_HI_MMRBC_4K)
+            stat_mmrbc = PCIX_STATUS_HI_MMRBC_2K;
         if(cmd_mmrbc > stat_mmrbc) {
             pcix_cmd_word &= ~PCIX_COMMAND_MMRBC_MASK;
             pcix_cmd_word |= stat_mmrbc << PCIX_COMMAND_MMRBC_SHIFT;
@@ -258,6 +318,13 @@ em_init_hw(struct em_hw *hw)
 
     /* Call a subroutine to configure the link and setup flow control. */
     ret_val = em_setup_link(hw);
+
+    /* Set the transmit descriptor write-back policy */
+    if(hw->mac_type > em_82544) {
+        ctrl = E1000_READ_REG(hw, TXDCTL);
+        ctrl = (ctrl & ~E1000_TXDCTL_WTHRESH) | E1000_TXDCTL_FULL_TX_DESC_WB;
+        E1000_WRITE_REG(hw, TXDCTL, ctrl);
+    }
 
     /* Clear all of the statistics registers (clear on read).  It is
      * important that we do this after we have tried to establish link
@@ -384,7 +451,6 @@ em_setup_link(struct em_hw *hw)
  * Sets up link for a fiber based adapter
  *
  * hw - Struct containing variables accessed by shared code
- * ctrl - Current value of the device control register
  *
  * Manipulates Physical Coding Sublayer functions in order to configure
  * link. Assumes the hardware has been previously reset and the transmitter
@@ -470,6 +536,7 @@ em_setup_fiber_link(struct em_hw *hw)
 
     E1000_WRITE_REG(hw, TXCW, txcw);
     E1000_WRITE_REG(hw, CTRL, ctrl);
+    E1000_WRITE_FLUSH(hw);
 
     hw->txcw = txcw;
     msec_delay(1);
@@ -514,7 +581,6 @@ em_setup_fiber_link(struct em_hw *hw)
 * Detects which PHY is present and the speed and duplex
 *
 * hw - Struct containing variables accessed by shared code
-* ctrl - current value of the device control register
 ******************************************************************************/
 static int32_t 
 em_setup_copper_link(struct em_hw *hw)
@@ -603,14 +669,17 @@ em_setup_copper_link(struct em_hw *hw)
         return -E1000_ERR_PHY;
     }
     phy_data |= M88E1000_EPSCR_TX_CLK_25;
-    /* Configure Master and Slave downshift values */
-    phy_data &= ~(M88E1000_EPSCR_MASTER_DOWNSHIFT_MASK |
-                  M88E1000_EPSCR_SLAVE_DOWNSHIFT_MASK);
-    phy_data |= (M88E1000_EPSCR_MASTER_DOWNSHIFT_1X |
-                 M88E1000_EPSCR_SLAVE_DOWNSHIFT_1X);
-    if(em_write_phy_reg(hw, M88E1000_EXT_PHY_SPEC_CTRL, phy_data) < 0) {
-        DEBUGOUT("PHY Write Error\n");
-        return -E1000_ERR_PHY;
+
+    if (hw->phy_revision < M88E1011_I_REV_4) {
+        /* Configure Master and Slave downshift values */
+        phy_data &= ~(M88E1000_EPSCR_MASTER_DOWNSHIFT_MASK |
+                      M88E1000_EPSCR_SLAVE_DOWNSHIFT_MASK);
+        phy_data |= (M88E1000_EPSCR_MASTER_DOWNSHIFT_1X |
+                     M88E1000_EPSCR_SLAVE_DOWNSHIFT_1X);
+        if(em_write_phy_reg(hw, M88E1000_EXT_PHY_SPEC_CTRL, phy_data) < 0) {
+            DEBUGOUT("PHY Write Error\n");
+            return -E1000_ERR_PHY;
+        }
     }
 
     /* SW Reset the PHY so all changes take effect */
@@ -956,7 +1025,6 @@ em_phy_force_speed_duplex(struct em_hw *hw)
     /* Write the configured values back to the Device Control Reg. */
     E1000_WRITE_REG(hw, CTRL, ctrl);
 
-    /* Write the MII Control Register with the new PHY configuration. */
     if(em_read_phy_reg(hw, M88E1000_PHY_SPEC_CTRL, &phy_data) < 0) {
         DEBUGOUT("PHY Read Error\n");
         return -E1000_ERR_PHY;
@@ -971,9 +1039,11 @@ em_phy_force_speed_duplex(struct em_hw *hw)
         return -E1000_ERR_PHY;
     }
     DEBUGOUT1("M88E1000 PSCR: %x \n", phy_data);
-    
+
     /* Need to reset the PHY or these changes will be ignored */
     mii_ctrl_reg |= MII_CR_RESET;
+
+    /* Write back the modified PHY MII control register. */
     if(em_write_phy_reg(hw, PHY_CTRL, mii_ctrl_reg) < 0) {
         DEBUGOUT("PHY Write Error\n");
         return -E1000_ERR_PHY;
@@ -1083,6 +1153,7 @@ em_config_collision_dist(struct em_hw *hw)
     tctl |= E1000_COLLISION_DISTANCE << E1000_COLD_SHIFT;
 
     E1000_WRITE_REG(hw, TCTL, tctl);
+    E1000_WRITE_FLUSH(hw);
 }
 
 /******************************************************************************
@@ -1680,6 +1751,7 @@ em_raise_mdi_clk(struct em_hw *hw,
      * bit), and then delay 2 microseconds.
      */
     E1000_WRITE_REG(hw, CTRL, (*ctrl | E1000_CTRL_MDC));
+    E1000_WRITE_FLUSH(hw);
     usec_delay(2);
 }
 
@@ -1697,6 +1769,7 @@ em_lower_mdi_clk(struct em_hw *hw,
      * bit), and then delay 2 microseconds.
      */
     E1000_WRITE_REG(hw, CTRL, (*ctrl & ~E1000_CTRL_MDC));
+    E1000_WRITE_FLUSH(hw);
     usec_delay(2);
 }
 
@@ -1739,6 +1812,7 @@ em_shift_out_mdi_bits(struct em_hw *hw,
         else ctrl &= ~E1000_CTRL_MDIO;
 
         E1000_WRITE_REG(hw, CTRL, ctrl);
+        E1000_WRITE_FLUSH(hw);
 
         usec_delay(2);
 
@@ -1747,9 +1821,6 @@ em_shift_out_mdi_bits(struct em_hw *hw,
 
         mask = mask >> 1;
     }
-
-    /* Clear the data bit just before leaving this routine. */
-    ctrl &= ~E1000_CTRL_MDIO;
 }
 
 /******************************************************************************
@@ -1780,6 +1851,7 @@ em_shift_in_mdi_bits(struct em_hw *hw)
     ctrl &= ~E1000_CTRL_MDIO;
 
     E1000_WRITE_REG(hw, CTRL, ctrl);
+    E1000_WRITE_FLUSH(hw);
 
     /* Raise and Lower the clock before reading in the data. This accounts for
      * the turnaround bits. The first clock occurred when we clocked out the
@@ -1799,9 +1871,6 @@ em_shift_in_mdi_bits(struct em_hw *hw)
 
     em_raise_mdi_clk(hw, &ctrl);
     em_lower_mdi_clk(hw, &ctrl);
-
-    /* Clear the MDIO bit just before leaving this routine. */
-    ctrl &= ~E1000_CTRL_MDIO;
 
     return data;
 }
@@ -1976,8 +2045,10 @@ em_phy_hw_reset(struct em_hw *hw)
          */
         ctrl = E1000_READ_REG(hw, CTRL);
         E1000_WRITE_REG(hw, CTRL, ctrl | E1000_CTRL_PHY_RST);
+        E1000_WRITE_FLUSH(hw);
         msec_delay(10);
         E1000_WRITE_REG(hw, CTRL, ctrl);
+        E1000_WRITE_FLUSH(hw);
     } else {
         /* Read the Extended Device Control Register, assert the PHY_RESET_DIR
          * bit to put the PHY into reset. Then, take it out of reset.
@@ -1986,9 +2057,11 @@ em_phy_hw_reset(struct em_hw *hw)
         ctrl_ext |= E1000_CTRL_EXT_SDP4_DIR;
         ctrl_ext &= ~E1000_CTRL_EXT_SDP4_DATA;
         E1000_WRITE_REG(hw, CTRL_EXT, ctrl_ext);
+        E1000_WRITE_FLUSH(hw);
         msec_delay(10);
         ctrl_ext |= E1000_CTRL_EXT_SDP4_DATA;
         E1000_WRITE_REG(hw, CTRL_EXT, ctrl_ext);
+        E1000_WRITE_FLUSH(hw);
     }
     usec_delay(150);
 }
@@ -2045,7 +2118,8 @@ em_detect_gig_phy(struct em_hw *hw)
         return -E1000_ERR_PHY;
     }
     hw->phy_id |= (uint32_t) (phy_id_low & PHY_REVISION_MASK);
-    
+    hw->phy_revision = (uint32_t) phy_id_low & ~PHY_REVISION_MASK;
+
     switch(hw->mac_type) {
     case em_82543:
         if(hw->phy_id == M88E1000_E_PHY_ID) match = TRUE;
@@ -2176,6 +2250,8 @@ em_validate_mdi_setting(struct em_hw *hw)
     return 0;
 }
 
+
+
 /******************************************************************************
  * Raises the EEPROM's clock input.
  *
@@ -2187,10 +2263,11 @@ em_raise_ee_clk(struct em_hw *hw,
                    uint32_t *eecd)
 {
     /* Raise the clock input to the EEPROM (by setting the SK bit), and then
-     * wait 50 microseconds.
+     * wait <delay> microseconds.
      */
     *eecd = *eecd | E1000_EECD_SK;
     E1000_WRITE_REG(hw, EECD, *eecd);
+    E1000_WRITE_FLUSH(hw);
     usec_delay(50);
 }
 
@@ -2209,6 +2286,7 @@ em_lower_ee_clk(struct em_hw *hw,
      */
     *eecd = *eecd & ~E1000_EECD_SK;
     E1000_WRITE_REG(hw, EECD, *eecd);
+    E1000_WRITE_FLUSH(hw);
     usec_delay(50);
 }
 
@@ -2246,6 +2324,7 @@ em_shift_out_ee_bits(struct em_hw *hw,
             eecd |= E1000_EECD_DI;
 
         E1000_WRITE_REG(hw, EECD, eecd);
+        E1000_WRITE_FLUSH(hw);
 
         usec_delay(50);
 
@@ -2273,11 +2352,11 @@ em_shift_in_ee_bits(struct em_hw *hw)
     uint32_t i;
     uint16_t data;
 
-    /* In order to read a register from the EEPROM, we need to shift 16 bits 
-     * in from the EEPROM. Bits are "shifted in" by raising the clock input to
-     * the EEPROM (setting the SK bit), and then reading the value of the "DO"
-     * bit.  During this "shifting in" process the "DI" bit should always be 
-     * clear..
+    /* In order to read a register from the EEPROM, we need to shift 'count'
+     * bits in from the EEPROM. Bits are "shifted in" by raising the clock
+     * input to the EEPROM (setting the SK bit), and then reading the value of
+     * the "DO" bit.  During this "shifting in" process the "DI" bit should
+     * always be clear.
      */
 
     eecd = E1000_READ_REG(hw, EECD);
@@ -2340,21 +2419,25 @@ em_standby_eeprom(struct em_hw *hw)
     /* Deselct EEPROM */
     eecd &= ~(E1000_EECD_CS | E1000_EECD_SK);
     E1000_WRITE_REG(hw, EECD, eecd);
+    E1000_WRITE_FLUSH(hw);
     usec_delay(50);
 
     /* Clock high */
     eecd |= E1000_EECD_SK;
     E1000_WRITE_REG(hw, EECD, eecd);
+    E1000_WRITE_FLUSH(hw);
     usec_delay(50);
 
     /* Select EEPROM */
     eecd |= E1000_EECD_CS;
     E1000_WRITE_REG(hw, EECD, eecd);
+    E1000_WRITE_FLUSH(hw);
     usec_delay(50);
 
     /* Clock low */
     eecd &= ~E1000_EECD_SK;
     E1000_WRITE_REG(hw, EECD, eecd);
+    E1000_WRITE_FLUSH(hw);
     usec_delay(50);
 }
 
@@ -2373,11 +2456,13 @@ em_clock_eeprom(struct em_hw *hw)
     /* Rising edge of clock */
     eecd |= E1000_EECD_SK;
     E1000_WRITE_REG(hw, EECD, eecd);
+    E1000_WRITE_FLUSH(hw);
     usec_delay(50);
 
     /* Falling edge of clock */
     eecd &= ~E1000_EECD_SK;
     E1000_WRITE_REG(hw, EECD, eecd);
+    E1000_WRITE_FLUSH(hw);
     usec_delay(50);
 }
 
@@ -3076,6 +3161,9 @@ em_setup_led(struct em_hw *hw)
         ledctl |= (E1000_LEDCTL_MODE_LED_OFF << E1000_LEDCTL_LED0_MODE_SHIFT);
         E1000_WRITE_REG(hw, LEDCTL, ledctl);
         break;
+    case E1000_DEV_ID_82540EP:
+    case E1000_DEV_ID_82540EP_LOM:
+    case E1000_DEV_ID_82540EP_LP:
     case E1000_DEV_ID_82540EM:
     case E1000_DEV_ID_82540EM_LOM:
     case E1000_DEV_ID_82545EM_COPPER:
@@ -3109,6 +3197,9 @@ em_cleanup_led(struct em_hw *hw)
     case E1000_DEV_ID_82544GC_LOM:
         /* No cleanup necessary */
         break;
+    case E1000_DEV_ID_82540EP:
+    case E1000_DEV_ID_82540EP_LOM:
+    case E1000_DEV_ID_82540EP_LP:
     case E1000_DEV_ID_82540EM:
     case E1000_DEV_ID_82540EM_LOM:
     case E1000_DEV_ID_82545EM_COPPER:
@@ -3159,6 +3250,9 @@ em_led_on(struct em_hw *hw)
         ctrl |= E1000_CTRL_SWDPIO0;
         E1000_WRITE_REG(hw, CTRL, ctrl);
         break;
+    case E1000_DEV_ID_82540EP:
+    case E1000_DEV_ID_82540EP_LOM:
+    case E1000_DEV_ID_82540EP_LP:
     case E1000_DEV_ID_82540EM:
     case E1000_DEV_ID_82540EM_LOM:
     case E1000_DEV_ID_82545EM_COPPER:
@@ -3206,6 +3300,9 @@ em_led_off(struct em_hw *hw)
         ctrl |= E1000_CTRL_SWDPIO0;
         E1000_WRITE_REG(hw, CTRL, ctrl);
         break;
+    case E1000_DEV_ID_82540EP:
+    case E1000_DEV_ID_82540EP_LOM:
+    case E1000_DEV_ID_82540EP_LP:
     case E1000_DEV_ID_82540EM:
     case E1000_DEV_ID_82540EM_LOM:
     case E1000_DEV_ID_82545EM_COPPER:
