@@ -266,7 +266,7 @@ pap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 #ifndef NORADIUS
       if (*bundle->radius.cfg.file) {
         if (!radius_Authenticate(&bundle->radius, authp, authp->in.name,
-                                 key, strlen(key), NULL, 0, NULL, 0))
+                                 key, strlen(key), NULL, 0))
           pap_Failure(authp);
       } else
 #endif

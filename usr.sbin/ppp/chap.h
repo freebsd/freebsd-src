@@ -63,6 +63,13 @@ struct chap {
 #define auth2chap(a) \
   ((struct chap *)((char *)a - (int)&((struct chap *)0)->auth))
 
+struct MSCHAPv2_resp {		/* rfc2759 */
+  char PeerChallenge[16];
+  char Reserved[8];
+  char NTResponse[24];
+  char Flags;
+};
+
 extern void chap_Init(struct chap *, struct physical *);
 extern void chap_ReInit(struct chap *);
 extern struct mbuf *chap_Input(struct bundle *, struct link *, struct mbuf *);
