@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_param.h,v 1.4 1995/01/09 16:05:57 davidg Exp $
+ * $Id: vm_param.h,v 1.5 1995/12/10 02:34:29 bde Exp $
  */
 
 /*
@@ -116,7 +116,9 @@ extern int page_shift;
 #define VM_V_CACHE_MIN		7	/* cnt.v_cache_max */
 #define VM_V_CACHE_MAX		8	/* cnt.v_cache_min */
 #define VM_V_PAGEOUT_FREE_MIN	9	/* cnt.v_pageout_free_min */
-#define	VM_MAXID		10	/* number of valid vm ids */
+#define	VM_PAGEOUT_ALGORITHM	10	/* pageout algorithm */
+#define VM_SWAPPING_ENABLED	11	/* swapping enabled */
+#define	VM_MAXID		12	/* number of valid vm ids */
 
 #define CTL_VM_NAMES { \
 	{ 0, 0 }, \
@@ -129,6 +131,8 @@ extern int page_shift;
 	{ "v_cache_min", CTLTYPE_INT }, \
 	{ "v_cache_max", CTLTYPE_INT }, \
 	{ "v_pageout_free_min", CTLTYPE_INT}, \
+	{ "pageout_algorithm", CTLTYPE_INT}, \
+	{ "swapping_enabled", CTLTYPE_INT},\
 }
 
 /*
