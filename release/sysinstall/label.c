@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.63.2.11 1997/09/20 06:24:29 jkh Exp $
+ * $Id: label.c,v 1.63.2.12 1997/10/12 16:22:24 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -130,17 +130,11 @@ diskLabelEditor(dialogMenuItem *self)
 	return DITEM_FAILURE;
     }
     else if (cnt) {
-	int j;
-
 	/* Some are already selected */
-	for (j = 0; j < cnt; j++) {
-	    if (devs[j]->enabled) {
-		if (variable_get(VAR_NONINTERACTIVE))
-		    i |= diskLabelNonInteractive(devs[j]);
-		else
-		    i |= diskLabel(devs[j]);
-	    }
-	}
+	if (variable_get(VAR_NONINTERACTIVE))
+	    i |= diskLabelNonInteractive(devs[0]);
+	else
+	    i |= diskLabel(devs[0]);
     }
     else {
 	/* No disks are selected, fall-back case now */
