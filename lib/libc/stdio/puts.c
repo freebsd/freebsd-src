@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 #include "fvwrite.h"
 #include "libc_private.h"
+#include "local.h"
 
 /*
  * Write the given string to stdout, appending a newline.
@@ -67,6 +68,7 @@ puts(s)
 	uio.uio_iov = &iov[0];
 	uio.uio_iovcnt = 2;
 	FLOCKFILE(stdout);
+	ORIENT(stdout, -1);
 	retval = __sfvwrite(stdout, &uio) ? EOF : '\n';
 	FUNLOCKFILE(stdout);
 	return (retval);
