@@ -33,7 +33,7 @@
  * 
  *	@(#)ipx_ip.c
  *
- * $Id: ipx_ip.c,v 1.3 1995/10/31 23:36:31 julian Exp $
+ * $Id: ipx_ip.c,v 1.4 1995/11/04 09:02:58 julian Exp $
  */
 
 /*
@@ -228,13 +228,13 @@ bad:
 
 /* ARGSUSED */
 int
-ipxipoutput(ifn_en, m, dst, rt)
-	struct ifnet *ifn_en;
+ipxipoutput(ifp, m, dst, rt)
+	struct ifnet *ifp;
 	register struct mbuf *m;
 	struct sockaddr *dst;
 	struct rtentry *rt;
 {
-	register struct ifnet_en *ifn = (struct ifnet_en *)ifn_en;
+	register struct ifnet_en *ifn = (struct ifnet_en *)ifp;
 	register struct ip *ip;
 	register struct route *ro = &(ifn->ifen_route);
 	register int len = 0;
