@@ -118,6 +118,14 @@
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:17.procfs.asc">FreeBSD-SA-04:17.procfs</ulink>.
       </para>
 
+    <para>Two buffer overflows in the TELNET client program have been
+      corrected.  They could have allowed a malicious TELNET server or
+      an active network attacker to cause &man.telnet.1; to execute
+      arbitrary code with the privileges of the user running it.
+      More information can be found in security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:01.telnet.asc">FreeBSD-SA-05:01.telnet</ulink>.
+      </para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -511,6 +519,10 @@
       (the National Internet Development Agency of Korea),
       which holds details of IP address allocations within
       Korea.</para>
+
+    <para>A bug, which caused the last line of configuration files such as &man.hosts.5;,
+      &man.services.5;, and so on to be ignored if it did not end in a newline character,
+      has been fixed.</para>
 
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
