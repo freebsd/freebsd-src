@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: in_rmx.c,v 1.20 1995/12/02 19:37:56 bde Exp $
+ * $Id: in_rmx.c,v 1.21 1995/12/05 17:45:45 wollman Exp $
  */
 
 /*
@@ -70,7 +70,6 @@
 #endif
 
 extern int	in_inithead __P((void **head, int off));
-extern void	in_rtqdrain __P((void));
 
 #define RTPRF_OURS		RTF_PROTO3	/* set on routes we manage */
 
@@ -304,8 +303,7 @@ in_rtqtimo(void *rock)
 	timeout(in_rtqtimo, rock, hzto(&atv));
 }
 
-#ifdef never_used
-static void
+void
 in_rtqdrain(void)
 {
 	struct radix_node_head *rnh = rt_tables[AF_INET];
@@ -320,7 +318,6 @@ in_rtqdrain(void)
 	rnh->rnh_walktree(rnh, in_rtqkill, &arg);
 	splx(s);
 }
-#endif
 
 /*
  * Initialize our routing tree.
