@@ -15,8 +15,8 @@ SRCS=     readline.c vi_mode.c funmap.c keymaps.c parens.c search.c \
 INSTALLED_HEADERS= readline.h chardefs.h keymaps.h history.h tilde.h \
 		   rlstdc.h rlconf.h
 
-DPADD+= $(LIBTERMCAP)
-LDADD+= -ltermcap
+DPADD=	${LIBNCURSES}
+LDADD=	-lncurses
 
 INCSDIR=${INCLUDEDIR}/readline
 

@@ -8,8 +8,8 @@ SHLIB_MINOR=	0
 OSRCS=	chared.c common.c el.c emacs.c fcns.c help.c hist.c key.c map.c \
 	parse.c prompt.c read.c refresh.c search.c sig.c term.c tty.c vi.c
 
-DPADD=	${LIBTERMCAP}
-LDADD=	-ltermcap
+DPADD=	${LIBNCURSES}
+LDADD=	-lncurses
 
 MAN=	editline.3 editrc.5
 
