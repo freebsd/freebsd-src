@@ -22,7 +22,7 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: spppcontrol.1,v 1.1.1.1 1997/10/11 11:30:30 joerg Exp $
+.\" $Id: spppcontrol.1,v 1.2 1998/03/19 07:46:04 charnier Exp $
 .\"
 .Dd October 11, 1997
 .Os
@@ -31,7 +31,7 @@
 .Nm spppcontrol
 .Nd display or set parameters for an sppp interface
 .Sh SYNOPSIS
-.Nm
+.Nm spppcontrol
 .Op Fl v
 .Ar ifname
 .Op Ar parameter Ns Op \&= Ns Ar value
@@ -110,10 +110,10 @@ or
 In the latter case, the use of an authentication protocol will be
 turned off for the named interface.  This has the side-effect of
 clearing the other authentication-related parameters for this
-interface as well (i. e., system name and authentication secret will
+interface as well (i.e. system name and authentication secret will
 be forgotten).
 .It Ar myauthproto Ns \&= Ns Em protoname
-Same as above, but only for my end of the link.  I. e., this is the
+Same as above, but only for my end of the link. I.e. this is the
 protocol when remote is authenticator, and I am the peer required to
 authenticate.
 .It Ar hisauthproto Ns \&= Ns Em protoname
@@ -128,7 +128,7 @@ authenticate himself (in connection with his secret).
 .It Ar myauthsecret Ns \&= Ns Em secret
 Set my secret (key, password) for use in the authentication phase.
 For CHAP, this will be used to compute the response hash value, based
-on remote's challenge.  For PAP, it will be transmitted as plaintext
+on remote's challenge.  For PAP, it will be transmitted as plain text
 together with the system name.  Don't forget to quote the secrets from
 the shell if they contain shell metacharacters (or white space).
 .It Ar myauthkey Ns \&= Ns Em secret
@@ -174,7 +174,7 @@ bppp0:	phase=dead
 .Pp
 Display the settings for bppp0.  The interface is currently in
 .Em dead
-phase, i. e. the LCP layer is down, and no traffic is possible.  Both
+phase, i.e. the LCP layer is down, and no traffic is possible.  Both
 ends of the connection use the CHAP protocol, my end tells remote the
 system name
 .Ql uriah ,
