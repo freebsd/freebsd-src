@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.15 1998/05/15 06:42:37 jb Exp $
+# $Id: Makefile,v 1.16 1998/08/30 01:57:55 jb Exp $
 #
 
 LIB=	mp
@@ -22,6 +22,13 @@ CFLAGS+=	-I${GMPDIR}/mpn/x86 -I${GMPDIR}/mpz -DBERKELEY_MP
 
 MPN_SRC_ASM=	add_n.S addmul_1.S lshift.S mul_1.S rshift.S sub_n.S submul_1.S
 
+.elif ${MACHINE_ARCH} == "mipsel" || ${MACHINE_ARCH} == "mipseb"
+.PATH:		${GMPDIR} ${GMPDIR}/mpn ${GMPDIR}/mpn/mips3 ${GMPDIR}/mpn/generic \
+		${GMPDIR}/mpbsd
+
+CFLAGS+=	-I${GMPDIR}/mpn/mips3 -I${GMPDIR}/mpz -DBERKELEY_MP
+
+MPN_SRC_ASM=	add_n.s addmul_1.s lshift.s mul_1.s rshift.s sub_n.s submul_1.s
 .elif ${MACHINE_ARCH} == "m68k"
 .PATH:		${GMPDIR} ${GMPDIR}/mpn ${GMPDIR}/mpn/m68k ${GMPDIR}/mpn/generic \
 		${GMPDIR}/mpbsd

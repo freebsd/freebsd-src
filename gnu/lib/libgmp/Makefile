@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.18 1998/05/24 21:51:50 eivind Exp $
+# $Id: Makefile,v 1.19 1998/08/30 01:56:58 jb Exp $
 #
 
 LIB=	gmp
@@ -22,6 +22,13 @@ MPN_SRC_ASM=	add_n.s addmul_1.s lshift.s mul_1.s rshift.s sub_n.s submul_1.s udi
 CFLAGS+=	-I${GMPDIR}/mpn/x86
 
 MPN_SRC_ASM=	add_n.S addmul_1.S lshift.S mul_1.S rshift.S sub_n.S submul_1.S
+
+.elif ${MACHINE_ARCH} == "mipsel" || ${MACHINE_ARCH} == "mipseb"
+.PATH:		${GMPDIR}/mpn/mips3 ${GMPDIR}/mpn/generic
+
+CFLAGS+=	-I${GMPDIR}/mpn/mips3
+
+MPN_SRC_ASM=	add_n.s addmul_1.s lshift.s mul_1.s rshift.s sub_n.s submul_1.s
 
 .elif ${MACHINE_ARCH} == "m68k"
 .PATH:		${GMPDIR}/mpn/m68k ${GMPDIR}/mpn/generic
