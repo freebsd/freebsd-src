@@ -37,12 +37,9 @@ __FBSDID("$FreeBSD$");
 	.register	%g2, #ignore
 	.register	%g3, #ignore
 
-#define	IPI_WAIT(r1, r2, r3, r4) \
+#define	IPI_DONE(r1, r2, r3, r4) \
 	lduw	[PCPU(CPUMASK)], r4 ;  \
-	ATOMIC_CLEAR_INT(r1, r2, r3, r4) ; \
-9:	lduw	[r1], r2 ; \
-	brnz,a,pn r2, 9b ; \
-	 nop
+	ATOMIC_CLEAR_INT(r1, r2, r3, r4)
 
 /*
  * Invalidate a physical page in the data cache.  For UltraSPARC I and II.
@@ -80,7 +77,7 @@ ENTRY(tl_ipi_spitfire_dcache_page_inval)
 2:	brgz,pt	%g2, 1b
 	 sub	%g2, %g4, %g2
 
-	IPI_WAIT(%g5, %g1, %g2, %g3)
+	IPI_DONE(%g5, %g1, %g2, %g3)
 	retry
 END(tl_ipi_spitfire_dcache_page_inval)
 
@@ -121,7 +118,7 @@ ENTRY(tl_ipi_spitfire_icache_page_inval)
 2:	brgz,pt	%g2, 1b
 	 sub	%g2, %g4, %g2
 
-	IPI_WAIT(%g5, %g1, %g2, %g3)
+	IPI_DONE(%g5, %g1, %g2, %g3)
 	retry
 END(tl_ipi_spitfire_icache_page_inval)
 
@@ -153,7 +150,7 @@ ENTRY(tl_ipi_cheetah_dcache_page_inval)
 	blt,a,pt %xcc, 1b
 	 nop
 
-	IPI_WAIT(%g5, %g1, %g2, %g3)
+	IPI_DONE(%g5, %g1, %g2, %g3)
 	retry
 END(tl_ipi_cheetah_dcache_page_inval)
 
@@ -208,7 +205,7 @@ ENTRY(tl_ipi_tlb_page_demap)
 	stxa	%g0, [%g2] ASI_IMMU_DEMAP
 	membar	#Sync
 
-	IPI_WAIT(%g5, %g1, %g2, %g3)
+	IPI_DONE(%g5, %g1, %g2, %g3)
 	retry
 END(tl_ipi_tlb_page_demap)
 
@@ -251,7 +248,7 @@ ENTRY(tl_ipi_tlb_range_demap)
 	blt,a,pt %xcc, 1b
 	 nop
 
-	IPI_WAIT(%g5, %g1, %g2, %g3)
+	IPI_DONE(%g5, %g1, %g2, %g3)
 	retry
 END(tl_ipi_tlb_range_demap)
 
@@ -274,6 +271,6 @@ ENTRY(tl_ipi_tlb_context_demap)
 	stxa	%g0, [%g1] ASI_IMMU_DEMAP
 	membar	#Sync
 
-	IPI_WAIT(%g5, %g1, %g2, %g3)
+	IPI_DONE(%g5, %g1, %g2, %g3)
 	retry
 END(tl_ipi_tlb_context_demap)
