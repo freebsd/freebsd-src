@@ -38,6 +38,7 @@
 #define _SYS_SOCKETVAR_H_
 
 #include <sys/queue.h>			/* for TAILQ macros */
+#include <sys/sx.h>			/* SX locks */
 #include <sys/selinfo.h>		/* for struct selinfo */
 
 /*
@@ -52,6 +53,7 @@ struct accept_filter;
 
 struct socket {
 	struct	vm_zone *so_zone;	/* zone we were allocated from */
+	int	so_count;		/* reference count */
 	short	so_type;		/* generic type, see socket.h */
 	short	so_options;		/* from socket call, see socket.h */
 	short	so_linger;		/* time to linger while closing */
@@ -244,6 +246,28 @@ struct xsocket {
 	} \
 }
 
+/*
+ * soref()/sorele() ref-count the socket structure.  Note that you must
+ * still explicitly close the socket, but the last ref count will free
+ * the structure.
+ */
+
+#define soref(so)	do {			\
+				++so->so_count; \
+			} while (0)
+
+#define sorele(so)	do {				\
+				if (so->so_count <= 0)	\
+					panic("sorele");\
+				if (--so->so_count == 0)\
+					sofree(so);	\
+			} while (0)
+
+#define sotryfree(so)	do {				\
+				if (so->so_count == 0)	\
+					sofree(so);	\
+			} while(0)
+
 #define	sorwakeup(so)	do { \
 			  if (sb_notify(&(so)->so_rcv)) \
 			    sowakeup((so), &(so)->so_rcv); \
@@ -360,7 +384,6 @@ int	soconnect __P((struct socket *so, struct sockaddr *nam, struct thread *td));
 int	soconnect2 __P((struct socket *so1, struct socket *so2));
 int	socreate __P((int dom, struct socket **aso, int type, int proto,
 	    struct thread *td));
-void	sodealloc __P((struct socket *so));
 int	sodisconnect __P((struct socket *so));
 void	sofree __P((struct socket *so));
 int	sogetopt __P((struct socket *so, struct sockopt *sopt));

@@ -426,7 +426,7 @@ ipx_usr_abort(so)
 	s = splnet();
 	ipx_pcbdetach(ipxp);
 	splx(s);
-	sofree(so);
+	sotryfree(so);
 	soisdisconnected(so);
 	return (0);
 }

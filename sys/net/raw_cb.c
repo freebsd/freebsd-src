@@ -97,7 +97,7 @@ raw_detach(rp)
 	struct socket *so = rp->rcb_socket;
 
 	so->so_pcb = 0;
-	sofree(so);
+	sotryfree(so);
 	LIST_REMOVE(rp, list);
 #ifdef notdef
 	if (rp->rcb_laddr)
