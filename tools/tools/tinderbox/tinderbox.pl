@@ -269,7 +269,7 @@ Report bugs to <des\@freebsd.org>.
 MAIN:{
     # Clear environment and set timezone
     %ENV = (
-	'TZ'		=> "GMT",
+	'TZ'		=> "UTC",
 	'PATH'		=> "/usr/bin:/usr/sbin:/bin:/sbin",
     );
     tzset();
@@ -434,7 +434,7 @@ MAIN:{
 
     # Prepare environment for make(1);
     %ENV = (
-	'TZ'			=> "GMT",
+	'TZ'			=> "UTC",
 	'PATH'			=> "/usr/bin:/usr/sbin:/bin:/sbin",
 
 	'__MAKE_CONF'		=> "/dev/null",

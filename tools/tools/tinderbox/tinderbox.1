@@ -76,7 +76,7 @@ using the
 option, when checking out sources.
 As a special case, the value
 .Dq today
-corresponds to midnight GMT the day the run starts.
+corresponds to midnight UTC the day the run starts.
 The default is to use the top of whichever branch was specified.
 .It Fl j Ar NUM , Fl -jobs Ns = Ns Ar NUM
 The maximum number of paralell jobs, as specified to
@@ -218,7 +218,7 @@ The following variables are set for all builds:
 .It PATH
 .Va /usr/bin:/usr/sbin:/bin:/sbin
 .It TZ
-.Va GMT
+.Va UTC
 .It __MAKE_CONF
 .Va /dev/null
 .It CFLAGS
