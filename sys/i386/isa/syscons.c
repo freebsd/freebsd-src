@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.182.2.19 1997/06/24 12:34:32 yokota Exp $
+ *  $Id: syscons.c,v 1.182.2.20 1997/06/29 15:13:44 yokota Exp $
  */
 
 #include "sc.h"
@@ -627,7 +627,8 @@ scclose(dev_t dev, int flag, int mode, struct proc *p)
 	}
 	else {
 	    free(scp->scr_buf, M_DEVBUF);
-	    free(scp->history, M_DEVBUF);
+	    if (scp->history != NULL)
+		free(scp->history, M_DEVBUF);
 	    free(scp, M_DEVBUF);
 	    console[minor(dev)] = NULL;
 	}
@@ -807,7 +808,8 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
     case CONS_HISTORY:  	/* set history size */
 	if (*data) {
-	    free(scp->history, M_DEVBUF);
+	    if (scp->history != NULL)
+		free(scp->history, M_DEVBUF);
 	    scp->history_size = *(int*)data;
 	    if (scp->history_size < scp->ysize)
 		scp->history = NULL;
@@ -2998,7 +3000,8 @@ next_code:
 				       (cur_console->xsize*i),
 				       cur_console->xsize * sizeof(u_short));
 				ptr += cur_console->xsize;
-				if (ptr + cur_console->xsize >
+				if (cur_console->history &&
+				    ptr + cur_console->xsize >
 				    cur_console->history +
 				    cur_console->history_size)
 				    ptr = cur_console->history;
