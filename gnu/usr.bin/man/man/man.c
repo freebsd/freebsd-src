@@ -20,6 +20,9 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <errno.h>
+#ifdef __FreeBSD__
+#include <locale.h>
+#endif
 #include <string.h>
 #include <sys/file.h>
 #include <signal.h>
@@ -133,6 +136,9 @@ main (argc, argv)
   prognam = mkprogname (argv[0]);
 
   unsetenv("IFS");
+#ifdef __FreeBSD__
+  (void) setlocale(LC_ALL, "");
+#endif
   man_getopt (argc, argv);
 
   if (optind == argc)
