@@ -177,14 +177,14 @@ struct xvnode {
 		struct {
 			udev_t	xvu_dev;	/* device, if VDIR/VREG/VLNK */
 			ino_t	xvu_ino;	/* id, if VDIR/VREG/VLNK */
-		};
+		} xv_uns;
 	} xv_un;
 };
 #define xv_socket	xv_un.xvu_socket
 #define xv_fifo		xv_un.xvu_fifo
 #define xv_rdev		xv_un.xvu_rdev
-#define xv_dev		xv_un.xvu_dev
-#define xv_ino		xv_un.xvu_ino
+#define xv_dev		xv_un.xv_uns.xvu_dev
+#define xv_ino		xv_un.xv_uns.xvu_ino
 
 #define	VN_POLLEVENT(vp, events)				\
 	do {							\
