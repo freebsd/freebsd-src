@@ -1408,6 +1408,7 @@ fill_ring:
 	ctx->filled = filled;
 
 done:
+	return;
 }
 
 
@@ -1758,6 +1759,7 @@ itjc_attach(device_t dev)
 		/* FALL TRHU */
 
 	case 0:
+		break;
 	}
 
 	itjc_scp[unit] = NULL;
