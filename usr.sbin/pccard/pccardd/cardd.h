@@ -121,6 +121,9 @@ struct slot {
 	struct card_config *config;	/* Current configuration */
 	struct cis_config *card_config;
 	char    devname[16];
+	u_int	manufacturer;
+	u_int	product;
+	u_int	prodext;
 	unsigned char eaddr[6];		/* If any */
 	struct allocblk io;		/* I/O block spec */
 	struct allocblk mem;		/* Memory block spec */
