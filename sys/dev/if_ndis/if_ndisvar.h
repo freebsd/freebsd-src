@@ -91,6 +91,8 @@ struct ndis_softc {
 	struct resource		*ndis_res_cm;	/* common mem (pccard) */
 	int			ndis_rescnt;
 	struct mtx		ndis_mtx;
+	struct mtx		ndis_intrmtx;
+	struct task		ndis_intrtask;
 	device_t		ndis_dev;
 	int			ndis_unit;
 	ndis_miniport_block	ndis_block;

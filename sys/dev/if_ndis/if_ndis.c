@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -105,6 +106,7 @@ static __stdcall void ndis_linksts	(ndis_handle,
 static __stdcall void ndis_linksts_done	(ndis_handle);
 
 static void ndis_intr		(void *);
+static void ndis_intrtask	(void *, int);
 static void ndis_tick		(void *);
 static void ndis_start		(struct ifnet *);
 static int ndis_ioctl		(struct ifnet *, u_long, caddr_t);
@@ -326,6 +328,10 @@ ndis_attach(dev)
 		device_printf(dev, "couldn't set up irq\n");
 		goto fail;
 	}
+
+	mtx_init(&sc->ndis_intrmtx, device_get_nameunit(dev), "ndisisrlock",
+	    MTX_DEF | MTX_RECURSE);
+	TASK_INIT(&sc->ndis_intrtask, 0, ndis_intrtask, sc);
 
 	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
@@ -656,6 +662,7 @@ ndis_detach(dev)
 
 	sysctl_ctx_free(&sc->ndis_ctx);
 
+	mtx_destroy(&sc->ndis_intrmtx);
 	mtx_destroy(&sc->ndis_mtx);
 
 	return(0);
@@ -823,6 +830,25 @@ ndis_linksts_done(adapter)
 }
 
 static void
+ndis_intrtask(arg, pending)
+	void			*arg;
+	int			pending;
+{
+	struct ndis_softc	*sc;
+	struct ifnet		*ifp;
+
+	sc = arg;
+	ifp = &sc->arpcom.ac_if;
+
+	ndis_intrhand(sc);
+
+	if (ifp->if_snd.ifq_head != NULL)
+		ndis_start(ifp);
+
+	return;
+}
+
+static void
 ndis_intr(arg)
 	void			*arg;
 {
@@ -837,13 +863,12 @@ ndis_intr(arg)
 	if (!(ifp->if_flags & IFF_UP))
 		return;
 
+	mtx_lock(&sc->ndis_intrmtx);
 	ndis_isr(sc, &is_our_intr, &call_isr);
+	mtx_unlock(&sc->ndis_intrmtx);
 
 	if (is_our_intr || call_isr)
-		ndis_intrhand(sc);
-
-	if (ifp->if_snd.ifq_head != NULL)
-		ndis_start(ifp);
+		taskqueue_enqueue(taskqueue_swi, &sc->ndis_intrtask);
 
 	return;
 }

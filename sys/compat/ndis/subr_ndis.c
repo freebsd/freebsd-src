@@ -1894,7 +1894,7 @@ ndis_register_intr(intr, adapter, ivec, ilevel, reqisr, shared, imode)
 	uint8_t			shared;
 	ndis_interrupt_mode	imode;
 {
-	
+	intr->ni_block = adapter;
 	return(NDIS_STATUS_SUCCESS);
 }	
 
@@ -2124,13 +2124,20 @@ ndis_sync_with_intr(intr, syncfunc, syncctx)
 	void			*syncfunc;
 	void			*syncctx;
 {
+	struct ndis_softc	*sc;
 	__stdcall uint8_t (*sync)(void *);
+	uint8_t			rval;
 
 	if (syncfunc == NULL || syncctx == NULL)
 		return(0);
 
+	sc = (struct ndis_softc *)intr->ni_block->nmb_ifp;
 	sync = syncfunc;
-	return(sync(syncctx));
+	mtx_lock(&sc->ndis_intrmtx);
+	rval = sync(syncctx);
+	mtx_unlock(&sc->ndis_intrmtx);
+
+	return(rval);
 }
 
 /*
