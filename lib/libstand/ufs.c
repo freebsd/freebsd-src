@@ -113,6 +113,39 @@ static int	search_directory(char *, struct open_file *, ino_t *);
 static void	ffs_oldfscompat(struct fs *);
 #endif
 
+static void    *buffers4 = 0;
+static void    *buffers8 = 0;
+
+static void *
+getbuf(size_t size)
+{
+    void *p = 0;
+    if (size == 8192 && buffers8) {
+	p = buffers8;
+	buffers8 = *(void **) p;
+    }
+    if (size == 4096 && buffers4) {
+	p = buffers4;
+	buffers4 = *(void **) p;
+    }
+    if (!p)
+	p = malloc(size);
+    return p;
+}
+
+static void
+relbuf(void *p, size_t size)
+{
+    if (size == 8192) {
+	*(void**) p = buffers8;
+	buffers8 = p;
+    } else if (size == 4096) {
+	*(void**) p = buffers4;
+	buffers8 = p;
+    } else
+	free(p);
+}
+
 /*
  * Read a new inode into a file structure.
  */
@@ -130,7 +163,7 @@ read_inode(inumber, f)
 	/*
 	 * Read inode and save it.
 	 */
-	buf = malloc(fs->fs_bsize);
+	buf = getbuf(fs->fs_bsize);
 	twiddle();
 	rc = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
 		fsbtodb(fs, ino_to_fsba(fs, inumber)), fs->fs_bsize,
@@ -160,7 +193,7 @@ read_inode(inumber, f)
 		fp->f_buf_blkno = -1;
 	}
 out:
-	free(buf);
+	relbuf(buf, fs->fs_bsize);
 	return (rc);	 
 }
 
@@ -240,7 +273,7 @@ block_map(f, file_block, disk_block_p)
 		if (fp->f_blkno[level] != ind_block_num) {
 			if (fp->f_blk[level] == (char *)0)
 				fp->f_blk[level] =
-					malloc(fs->fs_bsize);
+					getbuf(fs->fs_bsize);
 			twiddle();
 			rc = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
 				fsbtodb(fp->f_fs, ind_block_num),
@@ -298,7 +331,7 @@ buf_read_file(f, buf_p, size_p)
 			return (rc);
 
 		if (fp->f_buf == (char *)0)
-			fp->f_buf = malloc(fs->fs_bsize);
+			fp->f_buf = getbuf(fs->fs_bsize);
 
 		if (disk_block == 0) {
 			bzero(fp->f_buf, block_size);
@@ -409,7 +442,7 @@ ufs_open(upath, f)
 	f->f_fsdata = (void *)fp;
 
 	/* allocate space and read super block */
-	fs = malloc(SBSIZE);
+	fs = getbuf(SBSIZE);
 	fp->f_fs = fs;
 	twiddle();
 	rc = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
@@ -530,7 +563,7 @@ ufs_open(upath, f)
 				register struct fs *fs = fp->f_fs;
 
 				if (!buf)
-					buf = malloc(fs->fs_bsize);
+					buf = getbuf(fs->fs_bsize);
 				rc = block_map(f, (daddr_t)0, &disk_block);
 				if (rc)
 					goto out;
@@ -566,12 +599,12 @@ ufs_open(upath, f)
 	rc = 0;
 out:
 	if (buf)
-		free(buf);
+		relbuf(buf, fs->fs_bsize);
 	if (path)
 		free(path);
 	if (rc) {
 		if (fp->f_buf)
-			free(fp->f_buf);
+			relbuf(fp->f_buf, fs->fs_bsize);
 		free(fp->f_fs);
 		free(fp);
 	}
@@ -583,6 +616,7 @@ ufs_close(f)
 	struct open_file *f;
 {
 	register struct file *fp = (struct file *)f->f_fsdata;
+	struct fs *fs = fp->f_fs;
 	int level;
 
 	f->f_fsdata = (void *)0;
@@ -591,11 +625,11 @@ ufs_close(f)
 
 	for (level = 0; level < NIADDR; level++) {
 		if (fp->f_blk[level])
-			free(fp->f_blk[level]);
+			relbuf(fp->f_blk[level], fs->fs_bsize);
 	}
 	if (fp->f_buf)
-		free(fp->f_buf);
-	free(fp->f_fs);
+		relbuf(fp->f_buf, fs->fs_bsize);
+	relbuf(fp->f_fs, SBSIZE);
 	free(fp);
 	return (0);
 }
