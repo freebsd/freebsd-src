@@ -579,6 +579,7 @@ if_detach(struct ifnet *ifp)
 	 * Remove address from ifindex_table[] and maybe decrement if_index.
 	 * Clean up all addresses.
 	 */
+	ifnet_byindex(ifp->if_index) = NULL;
 	ifaddr_byindex(ifp->if_index) = NULL;
 	destroy_dev(ifdev_byindex(ifp->if_index));
 	ifdev_byindex(ifp->if_index) = NULL;
