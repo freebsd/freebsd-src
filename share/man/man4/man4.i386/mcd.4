@@ -32,9 +32,7 @@
 .Nm mcd
 .Nd Mitsumi CD-ROM driver
 .Sh SYNOPSIS
-.sp
 .Cd "device mcd0 at isa? port 0x300 bio irq 10 vector mcdintr"
-.sp
 .Sh DESCRIPTION
 The
 .Nm mcd
@@ -66,7 +64,7 @@ driver also responds to special CD-ROM
 commands. These commands
 control the CD-ROM player's audio features.
 The commands are:
-.sp
+.Pp
 .Bl -tag -width CDIOCREADSUBCHANNEL -compact -offset indent
 .It CDIOCREADSUBCHANNEL
 get sub-channel information on current status of disc playing

@@ -38,7 +38,7 @@
 .Nd a device driver for a handy scanner
 .Sh SYNOPSIS
 .Fd #include <machine/gsc.h>
-.sp
+.Pp
 .Cd Minor number bits: Ar uu d g p ...
 .Bl -tag -width "uu " -compact -offset indent
 .It Ar uu
@@ -60,7 +60,7 @@ vs. portable
 .Em pnm
 output
 .El
-.sp
+.Pp
 .Sh DESCRIPTION
 The
 .Nm gsc
@@ -164,8 +164,9 @@ width
 Values which are not reported in the above table will cause the ioctl
 call to fail with 
 .Xr errno 2
-set to EINVAL.
-.sp
+set to
+.Er EINVAL .
+.Pp
 As you can see, there are width values > 1696. This does, however, not
 mean that you can obtain scanned lines longer than the width of your
 scanner or by higher resolutions. Actually, the resolution is selected
