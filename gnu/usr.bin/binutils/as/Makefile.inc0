@@ -15,7 +15,7 @@ SRCS+=	app.c as.c atof-generic.c atof-ieee.c bignum-copy.c \
 	subsegs.c symbols.c write.c depend.c ehopt.c
 # DEO: why not used?
 #SRCS+=	itbl-ops.c
-.if (${TARGET_ARCH} == "alpha")
+.if (${TARGET_ARCH} == "alpha" || ${TARGET_ARCH} == "sparc64")
 WARNS=	0
 .else
 WARNS=	2
