@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.55 1997/03/29 11:06:37 phk Exp $
+ *	$Id: apm.c,v 1.56 1997/03/30 09:08:00 phk Exp $
  */
 
 #include <sys/param.h>
@@ -223,6 +223,19 @@ apm_display(int newstate)
 	return 0;
 }
 
+/*
+ * Turn off the entire system.
+ */
+void
+apm_display(void)
+{
+	u_long eax, ebx, ecx;
+
+	eax = (APM_BIOS << 8) | APM_SETPWSTATE;
+	ebx = PMDV_ALLDEV;
+	ecx = PMST_OFF;
+	apm_int(&eax, &ebx, &ecx);
+}
 
 /* APM Battery low handler */
 static void
