@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.85 1999/06/29 05:59:43 peter Exp $
+ * $Id: vfs_cluster.c,v 1.86 1999/07/04 00:31:17 mckusick Exp $
  */
 
 #include "opt_debug_cluster.h"
@@ -150,21 +150,12 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 				}
 
 				/*
-				 * Set another read-ahead mark so we know to check
-				 * again.
+				 * Set another read-ahead mark so we know 
+				 * to check again.
 				 */
 				if (((i % racluster) == (racluster - 1)) ||
 					(i == (maxra - 1)))
 					tbp->b_flags |= B_RAM;
-
-#if 0
-				if ((tbp->b_usecount < 1) &&
-					BUF_REFCNT(tbp) == 0 &&
-					(tbp->b_qindex == QUEUE_LRU)) {
-					TAILQ_REMOVE(&bufqueues[QUEUE_LRU], tbp, b_freelist);
-					TAILQ_INSERT_TAIL(&bufqueues[QUEUE_LRU], tbp, b_freelist);
-				}
-#endif
 			}
 			splx(s);
 			if (i >= maxra) {
@@ -586,7 +577,7 @@ cluster_write(bp, filesize)
 			if (((u_quad_t) bp->b_offset + lblocksize) != filesize ||
 			    lbn != vp->v_lastw + 1 || vp->v_clen <= cursize) {
 				if (!async)
-					cluster_wbuild(vp, lblocksize,
+					cluster_wbuild_wb(vp, lblocksize,
 						vp->v_cstart, cursize);
 			} else {
 				struct buf **bpp, **endbp;

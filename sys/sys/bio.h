@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.74 1999/06/29 05:59:47 peter Exp $
+ * $Id: buf.h,v 1.75 1999/07/04 00:25:32 mckusick Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -100,7 +100,7 @@ struct buf {
 	TAILQ_ENTRY(buf) b_act;		/* Device driver queue when active. *new* */
 	long	b_flags;		/* B_* flags. */
 	unsigned short b_qindex;	/* buffer queue index */
-	unsigned char b_usecount;	/* buffer use count */
+	unsigned char b_unused1;	/* unused field */
 	unsigned char b_xflags;		/* extra flags */
 	struct lock b_lock;		/* Buffer lock */
 	int	b_error;		/* Errno value. */
@@ -410,18 +410,6 @@ bufq_first(struct buf_queue_head *head)
 
 #endif /* KERNEL */
 
-
-/*
- * number of buffer hash entries
- */
-#define BUFHSZ 512
-
-/*
- * buffer hash table calculation, originally by David Greenman
- */
-#define BUFHASH(vnp, bn)        \
-	(&bufhashtbl[(((uintptr_t)(vnp) >> 7)+(int)(bn)) % BUFHSZ])
-
 /*
  * Definitions for the buffer free lists.
  */
@@ -458,7 +446,9 @@ extern TAILQ_HEAD(bqueues, buf) bufqueues[BUFFER_QUEUES];
 
 struct uio;
 
+vm_offset_t bufhashinit __P((vm_offset_t));
 void	bufinit __P((void));
+void	bwillwrite __P((void));
 void	bremfree __P((struct buf *));
 int	bread __P((struct vnode *, daddr_t, int,
 	    struct ucred *, struct buf **));

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.46 1999/07/05 08:52:40 msmith Exp $
+ *	$Id: machdep.c,v 1.47 1999/07/06 17:48:16 peter Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -354,7 +354,7 @@ again:
 
 	valloc(swbuf, struct buf, nswbuf);
 	valloc(buf, struct buf, nbuf);
-
+	v = bufhashinit(v);
 
 	/*
 	 * End of first pass, size has been calculated so allocate memory
