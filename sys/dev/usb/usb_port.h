@@ -184,7 +184,7 @@ __CONCAT(dname,_attach)(device_t self)
 
 #define USB_ATTACH_SETUP \
 	sc->sc_dev = self; \
-	usbd_device_set_desc(self, devinfo)
+	device_set_desc_copy(self, devinfo);
 
 #define USB_GET_SC_OPEN(dname, unit, sc) \
 	struct __CONCAT(dname,_softc) *sc = \
