@@ -121,7 +121,7 @@ print_chunks(Disk *d, int u)
 	     "DISK Geometry:\t%lu cyls/%lu heads/%lu sectors = %lu sectors (%luMB)",
 	     d->bios_cyl, d->bios_hd, d->bios_sect,
 	     d->bios_cyl * d->bios_hd * d->bios_sect,
-	     d->bios_cyl * d->bios_hd * d->bios_sect * 512 / 1024 / 1024);
+	     d->bios_cyl * d->bios_hd * d->bios_sect / (1024/512) / 1024);
     mvprintw(3, 0, "%6s %10s(%s) %10s %8s %6s %10s %8s %8s",
 	     "Offset", "Size", szstr, "End", "Name", "PType", "Desc",
 	     "Subtype", "Flags");
@@ -132,10 +132,10 @@ print_chunks(Disk *d, int u)
 	    sz = chunk_info[i]->size;
 	    break;
 	case UNIT_KILO:
-	    sz = chunk_info[i]->size * 512 / 1024;
+	    sz = chunk_info[i]->size / (1024/512);
 	    break;
 	case UNIT_MEG:
-	    sz = chunk_info[i]->size * 512 / 1024 / 1024;
+	    sz = chunk_info[i]->size / (1024/512) / 1024;
 	    break;
 	}
 	if (i == current_chunk)
