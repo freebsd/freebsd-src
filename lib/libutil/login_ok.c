@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
  */
 
 int
-login_strinlist(char **list, char const *str, int flags)
+login_strinlist(const char **list, char const *str, int flags)
 {
     int rc = 0;
 
@@ -68,7 +68,7 @@ login_strinlist(char **list, char const *str, int flags)
  */
 
 int
-login_str2inlist(char **ttlst, const char *str1, const char *str2, int flags)
+login_str2inlist(const char **ttlst, const char *str1, const char *str2, int flags)
 {
     int	    rc = 0;
 
@@ -93,7 +93,7 @@ login_timelist(login_cap_t *lc, char const *cap, int *ltno,
 {
     int			j = 0;
     struct login_time	*lt = NULL;
-    char		**tl;
+    const char		**tl;
 
     if ((tl = login_getcaplist(lc, cap, NULL)) != NULL) {
 
@@ -133,7 +133,7 @@ login_ttyok(login_cap_t *lc, const char *tty, const char *allowcap,
     if (lc != NULL && tty != NULL && *tty != '\0') {
 	struct ttyent	*te;
 	char		*grp;
-	char		**ttl;
+	const char	**ttl;
 
 	te = getttynam(tty);  /* Need group name */
 	grp = te ? te->ty_group : NULL;
@@ -181,7 +181,7 @@ login_hostok(login_cap_t *lc, const char *host, const char *ip,
 
     if (lc != NULL &&
 	((host != NULL && *host != '\0') || (ip != NULL && *ip != '\0'))) {
-	char	**hl;
+	const char **hl;
 
 	hl = login_getcaplist(lc, allowcap, NULL);
 	if (hl != NULL && !login_str2inlist(hl, host, ip, FNM_CASEFOLD))

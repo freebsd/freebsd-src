@@ -54,8 +54,7 @@ static char sccsid[] = "@(#)logout.c	8.1 (Berkeley) 6/4/93";
 typedef struct utmp UTMP;
 
 int
-logout(line)
-	const char *line;
+logout(const char *line)
 {
 	int fd;
 	UTMP ut;

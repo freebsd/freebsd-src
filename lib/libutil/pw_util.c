@@ -80,6 +80,7 @@ static char passwd_dir[PATH_MAX];
 static char tempname[PATH_MAX];
 static int initialized;
 
+#if 0
 void
 pw_cont(int sig)
 {
@@ -87,6 +88,7 @@ pw_cont(int sig)
 	if (editpid != -1)
 		kill(editpid, sig);
 }
+#endif
 
 /*
  * Initialize statics and set limits, signals & umask to try to avoid
@@ -102,7 +104,7 @@ pw_init(const char *dir, const char *master)
 	if (dir == NULL) {
 		strcpy(passwd_dir, _PATH_ETC);
 	} else {
-		if (strlen(dir) >= sizeof passwd_dir) {
+		if (strlen(dir) >= sizeof(passwd_dir)) {
 			errno = ENAMETOOLONG;
 			return (-1);
 		}
@@ -112,13 +114,13 @@ pw_init(const char *dir, const char *master)
 	if (master == NULL) {
 		if (dir == NULL) {
 			strcpy(masterpasswd, _PATH_MASTERPASSWD);
-		} else if (snprintf(masterpasswd, sizeof masterpasswd, "%s/%s",
-		    passwd_dir, _MASTERPASSWD) > sizeof masterpasswd) {
+		} else if (snprintf(masterpasswd, sizeof(masterpasswd), "%s/%s",
+		    passwd_dir, _MASTERPASSWD) > (int)sizeof(masterpasswd)) {
 			errno = ENAMETOOLONG;
 			return (-1);
 		}
 	} else {
-		if (strlen(master) >= sizeof masterpasswd) {
+		if (strlen(master) >= sizeof(masterpasswd)) {
 			errno = ENAMETOOLONG;
 			return (-1);
 		}
@@ -216,7 +218,7 @@ int
 pw_tmp(int mfd)
 {
 	char buf[8192];
-	ssize_t nr, nw;
+	ssize_t nr;
 	const char *p;
 	int tfd;
 
@@ -226,16 +228,16 @@ pw_tmp(int mfd)
 		++p;
 	else
 		p = masterpasswd;
-	if (snprintf(tempname, sizeof tempname, "%.*spw.XXXXXX",
-		(int)(p - masterpasswd), masterpasswd) >= sizeof tempname) {
+	if (snprintf(tempname, sizeof(tempname), "%.*spw.XXXXXX",
+		(int)(p - masterpasswd), masterpasswd) >= (int)sizeof(tempname)) {
 		errno = ENAMETOOLONG;
 		return (-1);
 	}
 	if ((tfd = mkstemp(tempname)) == -1)
 		return (-1);
 	if (mfd != -1) {
-		while ((nr = read(mfd, buf, sizeof buf)) > 0)
-			if ((nw = write(tfd, buf, nr)) != nr)
+		while ((nr = read(mfd, buf, sizeof(buf))) > 0)
+			if (write(tfd, buf, (size_t)nr) != nr)
 				break;
 		if (nr != 0) {
 			unlink(tempname);
@@ -269,6 +271,7 @@ pw_mkdb(const char *user)
 			execl(_PATH_PWD_MKDB, "pwd_mkdb", "-p",
 			    "-d", passwd_dir, "-u", user, tempname, NULL);
 		_exit(1);
+		/* NOTREACHED */
 	default:
 		/* parent */
 		break;
@@ -381,7 +384,7 @@ pw_fini(void)
  * Compares two struct pwds.
  */
 int
-pw_equal(struct passwd *pw1, struct passwd *pw2)
+pw_equal(const struct passwd *pw1, const struct passwd *pw2)
 {
 	return (strcmp(pw1->pw_name, pw2->pw_name) == 0 &&
 	    pw1->pw_uid == pw2->pw_uid &&
@@ -398,7 +401,7 @@ pw_equal(struct passwd *pw1, struct passwd *pw2)
  * Make a passwd line out of a struct passwd.
  */
 char *
-pw_make(struct passwd *pw)
+pw_make(const struct passwd *pw)
 {
 	char *line;
 
@@ -414,12 +417,12 @@ pw_make(struct passwd *pw)
  * a single record on the way.
  */
 int
-pw_copy(int ffd, int tfd, struct passwd *pw, struct passwd *old_pw)
+pw_copy(int ffd, int tfd, const struct passwd *pw, struct passwd *old_pw)
 {
 	char buf[8192], *end, *line, *p, *q, *r, t;
 	struct passwd *fpw;
-	ssize_t len;
-	int eof;
+	size_t len;
+	int eof, readlen;
 
 	if ((line = pw_make(pw)) == NULL)
 		return (-1);
@@ -437,7 +440,7 @@ pw_copy(int ffd, int tfd, struct passwd *pw, struct passwd *old_pw)
 		if (q >= end) {
 			if (eof)
 				break;
-			if (q - p >= sizeof buf) {
+			if ((size_t)(q - p) >= sizeof(buf)) {
 				warnx("passwd line too long");
 				errno = EINVAL; /* hack */
 				goto err;
@@ -448,14 +451,16 @@ pw_copy(int ffd, int tfd, struct passwd *pw, struct passwd *old_pw)
 			} else {
 				p = q = end = buf;
 			}
-			len = read(ffd, end, sizeof buf - (end - buf));
-			if (len == -1)
+			readlen = read(ffd, end, sizeof(buf) - (end - buf));
+			if (readlen == -1)
 				goto err;
+			else
+				len = (size_t)readlen;
 			if (len == 0 && p == buf)
 				break;
 			end += len;
 			len = end - buf;
-			if (len < sizeof buf) {
+			if (len < (ssize_t)sizeof(buf)) {
 				eof = 1;
 				if (len > 0 && buf[len - 1] != '\n')
 					++len, *end++ = '\n';
@@ -497,7 +502,7 @@ pw_copy(int ffd, int tfd, struct passwd *pw, struct passwd *old_pw)
 
 		/* it is, replace it */
 		len = strlen(line);
-		if (write(tfd, line, len) != len)
+		if (write(tfd, line, len) != (int)len)
 			goto err;
 
 		/* we're done, just copy the rest over */
@@ -505,10 +510,12 @@ pw_copy(int ffd, int tfd, struct passwd *pw, struct passwd *old_pw)
 			if (write(tfd, q, end - q) != end - q)
 				goto err;
 			q = buf;
-			len = read(ffd, buf, sizeof buf);
-			if (len == 0)
+			readlen = read(ffd, buf, sizeof(buf));
+			if (readlen == 0)
 				break;
-			if (len == -1)
+			else
+				len = (size_t)readlen;
+			if (readlen == -1)
 				goto err;
 			end = buf + len;
 		}
@@ -517,7 +524,7 @@ pw_copy(int ffd, int tfd, struct passwd *pw, struct passwd *old_pw)
 
 	/* if we got here, we have a new entry */
 	len = strlen(line);
-	if (write(tfd, line, len) != len ||
+	if ((size_t)write(tfd, line, len) != len ||
 	    write(tfd, "\n", 1) != 1)
 		goto err;
  done:
@@ -542,22 +549,22 @@ pw_tempname(void)
  * Duplicate a struct passwd.
  */
 struct passwd *
-pw_dup(struct passwd *pw)
+pw_dup(const struct passwd *pw)
 {
 	struct passwd *npw;
-	size_t len;
+	ssize_t len;
 
-	len = sizeof *npw +
+	len = sizeof(*npw) +
 	    (pw->pw_name ? strlen(pw->pw_name) + 1 : 0) +
 	    (pw->pw_passwd ? strlen(pw->pw_passwd) + 1 : 0) +
 	    (pw->pw_class ? strlen(pw->pw_class) + 1 : 0) +
 	    (pw->pw_gecos ? strlen(pw->pw_gecos) + 1 : 0) +
 	    (pw->pw_dir ? strlen(pw->pw_dir) + 1 : 0) +
 	    (pw->pw_shell ? strlen(pw->pw_shell) + 1 : 0);
-	if ((npw = malloc(len)) == NULL)
+	if ((npw = malloc((size_t)len)) == NULL)
 		return (NULL);
-	memcpy(npw, pw, sizeof *npw);
-	len = sizeof *npw;
+	memcpy(npw, pw, sizeof(*npw));
+	len = sizeof(*npw);
 	if (pw->pw_name) {
 		npw->pw_name = ((char *)npw) + len;
 		len += sprintf(npw->pw_name, "%s", pw->pw_name) + 1;

@@ -47,9 +47,7 @@ static int isescaped(const char *, const char *, int);
  *	that starts in *sp, is escaped by the escape character esc.
  */
 static int
-isescaped(sp, p, esc)
-	const char *sp, *p;
-	int esc;
+isescaped(const char *sp, const char *p, int esc)
 {
 	const char     *cp;
 	size_t		ne;
@@ -78,12 +76,7 @@ isescaped(sp, p, esc)
  *	the comment char.
  */
 char *
-fparseln(fp, size, lineno, str, flags)
-	FILE		*fp;
-	size_t		*size;
-	size_t		*lineno;
-	const char	 str[3];
-	int		 flags;
+fparseln(FILE *fp, size_t *size, size_t *lineno, const char str[3], int flags)
 {
 	static const char dstr[3] = { '\\', '\\', '#' };
 
@@ -199,12 +192,8 @@ fparseln(fp, size, lineno, str, flags)
 
 #ifdef TEST
 
-int main(int, char **);
-
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
 	char   *ptr;
 	size_t	size, line;

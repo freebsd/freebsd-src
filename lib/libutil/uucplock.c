@@ -67,7 +67,7 @@ static pid_t get_pid (int fd,int *err);
  */
 
 int
-uu_lock(const char *ttyname)
+uu_lock(const char *tty_name)
 {
 	int fd, tmpfd, i;
 	pid_t pid, pid_old;
@@ -79,7 +79,7 @@ uu_lock(const char *ttyname)
 	(void)snprintf(lcktmpname, sizeof(lcktmpname), _PATH_UUCPLOCK LOCKTMP,
 			pid);
 	(void)snprintf(lckname, sizeof(lckname), _PATH_UUCPLOCK LOCKFMT,
-			ttyname);
+			tty_name);
 	if ((tmpfd = creat(lcktmpname, 0664)) < 0)
 		GORET(0, UU_LOCK_CREAT_ERR);
 
@@ -129,19 +129,19 @@ ret0:
 }
 
 int
-uu_lock_txfr(const char *ttyname, pid_t pid)
+uu_lock_txfr(const char *tty_name, pid_t pid)
 {
 	int fd, err;
 	char lckname[sizeof(_PATH_UUCPLOCK) + MAXNAMLEN];
 
-	snprintf(lckname, sizeof(lckname), _PATH_UUCPLOCK LOCKFMT, ttyname);
+	snprintf(lckname, sizeof(lckname), _PATH_UUCPLOCK LOCKFMT, tty_name);
 
 	if ((fd = open(lckname, O_RDWR)) < 0)
 		return UU_LOCK_OWNER_ERR;
 	if (get_pid(fd, &err) != getpid())
 		err = UU_LOCK_OWNER_ERR;
 	else {
-        	lseek(fd, 0, SEEK_SET);
+        	lseek(fd, (off_t)0, SEEK_SET);
 		err = put_pid(fd, pid) ? 0 : UU_LOCK_WRITE_ERR;
 	}
 	close(fd);
@@ -150,11 +150,11 @@ uu_lock_txfr(const char *ttyname, pid_t pid)
 }
 
 int
-uu_unlock(const char *ttyname)
+uu_unlock(const char *tty_name)
 {
 	char tbuf[sizeof(_PATH_UUCPLOCK) + MAXNAMLEN];
 
-	(void)snprintf(tbuf, sizeof(tbuf), _PATH_UUCPLOCK LOCKFMT, ttyname);
+	(void)snprintf(tbuf, sizeof(tbuf), _PATH_UUCPLOCK LOCKFMT, tty_name);
 	return unlink(tbuf);
 }
 
@@ -162,7 +162,7 @@ const char *
 uu_lockerr(int uu_lockresult)
 {
 	static char errbuf[128];
-	char *fmt;
+	const char *fmt;
 
 	switch (uu_lockresult) {
 		case UU_LOCK_INUSE:
@@ -206,7 +206,7 @@ put_pid(int fd, pid_t pid)
 	int len;
 
 	len = sprintf (buf, "%10d\n", (int)pid);
-	return write (fd, buf, len) == len;
+	return write (fd, buf, (size_t)len) == len;
 }
 
 static pid_t
@@ -219,7 +219,7 @@ get_pid(int fd, int *err)
 	bytes_read = read (fd, buf, sizeof (buf) - 1);
 	if (bytes_read > 0) {
 		buf[bytes_read] = '\0';
-		pid = strtol (buf, (char **) NULL, 10);
+		pid = (pid_t)strtol (buf, (char **) NULL, 10);
 	} else {
 		pid = -1;
 		*err = bytes_read ? errno : EINVAL;

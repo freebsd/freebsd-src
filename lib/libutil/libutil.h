@@ -39,8 +39,6 @@
 #ifndef _LIBUTIL_H_
 #define	_LIBUTIL_H_
 
-#include <sys/cdefs.h>
-
 #define PROPERTY_MAX_NAME	64
 #define PROPERTY_MAX_VALUE	512
 
@@ -87,13 +85,13 @@ char   *fparseln(FILE *, size_t *, size_t *, const char[3], int);
 #endif
 
 #ifdef _PWD_H_
-int	pw_copy(int _ffd, int _tfd, struct passwd *_pw, struct passwd *_old_pw);
-struct passwd *pw_dup(struct passwd *_pw);
+int	pw_copy(int _ffd, int _tfd, const struct passwd *_pw, struct passwd *_old_pw);
+struct passwd *pw_dup(const struct passwd *_pw);
 int	pw_edit(int _notsetuid);
-int	pw_equal(struct passwd *_pw1, struct passwd *_pw2);
+int	pw_equal(const struct passwd *_pw1, const struct passwd *_pw2);
 void	pw_fini(void);
 int	pw_init(const char *_dir, const char *_master);
-char	*pw_make(struct passwd *_pw);
+char	*pw_make(const struct passwd *_pw);
 int	pw_mkdb(const char *_user);
 int	pw_lock(void);
 struct passwd *pw_scan(const char *_line, int _flags);
