@@ -148,6 +148,15 @@ SYSCTL_INT(_hw_ath, OID_AUTO, dwell, CTLFLAG_RW, &ath_dwelltime,
 static	int ath_calinterval = 30;		/* calibrate every 30 secs */
 SYSCTL_INT(_hw_ath, OID_AUTO, calibrate, CTLFLAG_RW, &ath_calinterval,
 	    0, "chip calibration interval (secs)");
+static	int ath_outdoor = AH_TRUE;		/* outdoor operation */
+SYSCTL_INT(_hw_ath, OID_AUTO, outdoor, CTLFLAG_RD, &ath_outdoor,
+	    0, "enable/disable outdoor operation");
+static	int ath_countrycode = CTRY_DEFAULT;	/* country code */
+SYSCTL_INT(_hw_ath, OID_AUTO, countrycode, CTLFLAG_RD, &ath_countrycode,
+	    0, "country code");
+static	int ath_regdomain = 0;			/* regulatory domain */
+SYSCTL_INT(_hw_ath, OID_AUTO, regdomain, CTLFLAG_RD, &ath_regdomain,
+	    0, "regulatory domain");
 
 static	int ath_bmisshack = 1;
 SYSCTL_INT(_hw_ath, OID_AUTO, bmisshack, CTLFLAG_RW, &ath_bmisshack,
@@ -198,12 +207,18 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	/*
 	 * Collect the channel list using the default country
 	 * code and including outdoor channels.  The 802.11 layer
-	 * is resposible for filtering this list to a set of
-	 * channels that it considers ok to use.
+	 * is resposible for filtering this list based on settings
+	 * like the phy mode.
 	 */
-	error = ath_getchannels(sc, CTRY_DEFAULT, AH_TRUE);
+	error = ath_getchannels(sc, ath_countrycode, ath_outdoor);
 	if (error != 0)
 		goto bad;
+	/*
+	 * Copy these back; they are set as a side effect
+	 * of constructing the channel list.
+	 */
+	ath_regdomain = ath_hal_getregdomain(ah);
+	ath_countrycode = ath_hal_getcountrycode(ah);
 
 	/*
 	 * Setup rate tables for all potential media types.
@@ -2291,9 +2306,8 @@ ath_getchannels(struct ath_softc *sc, u_int cc, HAL_BOOL outdoor)
 		if_printf(ifp, "unable to allocate channel table\n");
 		return ENOMEM;
 	}
-	/* XXX where does the country code, et. al. come from? */
 	if (!ath_hal_init_channels(ah, chans, IEEE80211_CHAN_MAX, &nchan,
-	    CTRY_DEFAULT, HAL_MODE_ALL, AH_TRUE)) {
+	    cc, HAL_MODE_ALL, outdoor)) {
 		if_printf(ifp, "unable to collect channel list from hal\n");
 		free(chans, M_TEMP);
 		return EINVAL;
