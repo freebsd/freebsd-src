@@ -559,6 +559,7 @@ f_fstype(plan, entry)
 	}
 }
 
+#if !defined(__NetBSD__)
 PLAN *
 c_fstype(arg)
 	char *arg;
@@ -598,6 +599,7 @@ c_fstype(arg)
 	errx(1, "%s: unknown file type", arg);
 	/* NOTREACHED */
 }
+#endif
 
 /*
  * -group gname functions --
