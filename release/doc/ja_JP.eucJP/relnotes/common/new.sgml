@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.269
+    Original revision: 1.271
 -->
 
 <articleinfo>
@@ -408,6 +408,12 @@
       以前よりも大きなディスク容量が必要とされるようになりました.
       &merged;</para>
 
+    <para>カーネルのダンプデバイスは, 変更可能なローダ変数
+      <varname>dumpdev</varname> で設定できるようになりました.
+      その結果, カーネル初期化の遅い段階 (システムがシングルユーザモードに
+      入る前) のパニックからも, クラッシュダンプを取れるようになりました.
+    </para>
+
     <sect3>
       <title>プロセッサ・マザーボードの対応状況</title>
 
@@ -544,6 +550,11 @@
         &man.ancontrol.8; にオプション
         <option>-M</option> を指定することで有効になります.
         &merged;</para>
+
+      <para>&man.an.4; ドライバは Cisco LEAP に対応し,
+	<quote>Home</quote> WEP キーも使えるようになりました.
+	Linux Aironet ユーティリティはエミュレーションでサポートされます.
+      </para>
 
       <para arch="i386">ARCNET token-based ネットワークへの
 	サポートが追加されました.</para>
@@ -1051,6 +1062,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para>ida ディスクドライバがクラッシュダンプに対応しました.
         &merged;</para>
+
+      <para arch="i386">iir ドライバが Intel Integrated RAID コントローラ
+	に対応しました.  古い ICP Vortex コントローラにも対応しています.
+      </para>
 
       <para arch="alpha">&man.isp.4; が対応している
         SCSI カードに接続されている特定の CDROM
@@ -2797,6 +2812,11 @@ hw.pcic.irq="0"</programlisting>
     <para>&man.units.1; に対していくつかの更新とバグ修正が加えられました.
       &merged;</para>
 
+    <para>&man.uudecode.1; に出力ファイルを指定する <option>-o</option>
+      オプションが追加されました.
+      標準出力に出力する <option>-p</option> オプションは
+      推奨されなくなりました.</para>
+
     <para>&man.vidcontrol.1; に新しいオプション <option>-g</option>
       が追加されました.  これは
       <literal>VESA_800x600</literal> ラスタテキストモードにおいて,
@@ -2914,7 +2934,7 @@ hw.pcic.irq="0"</programlisting>
         &merged;</para>
 
       <para><application>Binutils</application> が
-	FSF 2.11 ブランチの 2001/10/31 版スナップショットに
+	FSF 2.12 ブランチの 2002/01/27 版スナップショットに
 	更新されました.</para>
 
       <para><application>bzip2</application> バージョン 1.0.1 が import されました.
@@ -3049,6 +3069,9 @@ hw.pcic.irq="0"</programlisting>
 	この機能を統合しているため) これは必ずしも必要というわけでは
 	ありませんが, <application>xinetd</application> のような
 	&man.inetd.8; を置き換えるアプリケーションには有用です.</para>
+
+      <para><application>top</application> がバージョン 3.5b12
+	に更新されました.</para>
 
       <para>&man.traceroute.8; は,
         デフォルトの最大 TTL 値を
@@ -3218,7 +3241,7 @@ hw.pcic.irq="0"</programlisting>
         <title>OpenSSL</title>
 
 	<para><application>OpenSSL</application> がバージョン
-          0.9.6b に更新されました.</para>
+          0.9.6c に更新されました.</para>
 
 	<para><application>OpenSSL</application>
           がマシン依存のアセンブラ最適化に対応しました.
