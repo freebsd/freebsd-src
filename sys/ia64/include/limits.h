@@ -36,7 +36,7 @@
  *	@(#)limits.h	8.3 (Berkeley) 1/4/94
  */
 
-#ifndef	_MACHINE_LIMITS_H_
+#ifndef _MACHINE_LIMITS_H_
 #define	_MACHINE_LIMITS_H_
 
 #if __GNUC__
