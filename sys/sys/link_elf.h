@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: link.h,v 1.14 1997/08/02 04:56:43 jdp Exp $
+ *	$Id: link.h,v 1.15 1997/11/22 03:34:39 brian Exp $
  */
 
 /*
@@ -182,15 +182,6 @@ struct ld_entry {
 	void	(*dlexit) __P((void));			/* HAS_DLEXIT */
 	void	*(*dlsym3) __P((void *, const char *, void *)); /* HAS_DLSYM3 */
 };
-
-/*
- * dl*() prototypes.
- */
-extern void	*dlopen __P((const char *, int));
-extern int	dlclose __P((void *));
-extern void	*dlsym __P((void *, const char *));
-extern const char *dlerror __P((void));
-
 
 /*
  * This is the structure pointed at by the __DYNAMIC symbol if an
