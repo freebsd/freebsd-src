@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.6 1996/01/30 20:04:24 phk Exp $
+ * $Id: ccp.c,v 1.7 1996/05/11 20:48:14 phk Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -227,9 +227,9 @@ int mode;
     type = *cp;
     length = cp[1];
     if (type <= TY_BSD)
-      sprintf(tbuff, " %s[%d] ", cftypes[type], length);
+      snprintf(tbuff, sizeof(tbuff), " %s[%d] ", cftypes[type], length);
     else
-      sprintf(tbuff, " ");
+      snprintf(tbuff, sizeof(tbuff), " ");
 
     LogPrintf(LOG_LCP_BIT, "%s\n", tbuff);
 
