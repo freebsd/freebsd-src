@@ -121,7 +121,7 @@ struct vm_page {
 	u_int cow;			/* page cow mapping count */
 	short hold_count;		/* page hold count */
 	u_char	act_count;		/* page usage count */
-	u_char	busy;			/* page busy count */
+	u_char	busy;			/* page busy count (O) */
 	/* NOTE that these must support one bit per DEV_BSIZE in a page!!! */
 	/* so, on normal X86 kernels, they must be at least 8 bits wide */
 #if PAGE_SIZE == 4096
