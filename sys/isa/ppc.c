@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppc.c,v 1.18 1999/02/14 12:03:35 nsouch Exp $
+ *	$Id: ppc.c,v 1.19 1999/02/14 17:09:59 nsouch Exp $
  *
  */
 #include "ppc.h"
@@ -1724,8 +1724,8 @@ ppcprobe(struct isa_device *dvp)
 	/*
 	 * XXX Try and detect if interrupts are working
 	 */
-	if (!(dvp->id_flags & 0x20))
-		ppc->ppc_irq = dvp->id_irq;
+	if (!(dvp->id_flags & 0x20) && dvp->id_irq)
+		ppc->ppc_irq = ffs(dvp->id_irq) - 1;
 
 	ppc->ppc_dmachan = dvp->id_drq;
 
