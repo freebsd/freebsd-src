@@ -245,6 +245,11 @@ the packet has been received from
 .Pq Vt struct ifnet Va *rcvif ,
 and the total packet length
 .Pq Vt int Va len .
+Optionally, it may also contain an attached list of packet tags
+.Pq Vt "struct m_tag" .
+See
+.Xr mbuf_tags 9
+for details.
 Fields used in offloading checksum calculation to the hardware are kept in
 .Va m_pkthdr
 as well.
@@ -1048,7 +1053,8 @@ should be tested with this feature.
 .Sh RETURN VALUES
 See above.
 .Sh SEE ALSO
-.Xr ifnet 9
+.Xr ifnet 9 ,
+.Xr mbuf_tags 9
 .Sh HISTORY
 .\" Please correct me if I'm wrong
 .Vt Mbufs
