@@ -6,6 +6,7 @@ CLEANFILES+= ${LOCALES:S/$/.out/g}
 LOCALES=	cs_CZ.ISO_8859-2 \
 		de_DE.DIS_8859-15 \
 		de_DE.ISO_8859-1 \
+		el_GR.ISO_8859-7 \
 		es_ES.DIS_8859-15 \
 		es_ES.ISO_8859-1 \
 		is_IS.DIS_8859-15 \
@@ -49,6 +50,7 @@ all: ${LOCALES:S/$/.out/g}
 cs_CZ.ISO_8859-2.out:	map.ISO_8859-2
 de_DE.DIS_8859-15.out:  map.DIS_8859-15
 de_DE.ISO_8859-1.out:   map.ISO_8859-1
+el_GR.ISO_8859-7.out:   map.ISO_8859-7
 es_ES.DIS_8859-15.out:  map.DIS_8859-15
 es_ES.ISO_8859-1.out:   map.ISO_8859-1
 is_IS.DIS_8859-15.out:  map.DIS_8859-15
