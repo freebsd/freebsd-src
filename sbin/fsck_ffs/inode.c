@@ -235,7 +235,7 @@ chkrange(blk, cnt)
 {
 	register int c;
 
-	if ((unsigned)(blk + cnt) > maxfsblock)
+	if (blk < 0 || blk >= maxfsblock || cnt < 0 || cnt > maxfsblock - blk)
 		return (1);
 	c = dtog(&sblock, blk);
 	if (blk < cgdmin(&sblock, c)) {
