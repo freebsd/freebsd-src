@@ -195,7 +195,7 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 		(mp)->mtx_recurse--;					\
 	else								\
 		_release_lock_quick((mp));				\
-	critical_exit();					\
+	critical_exit();						\
 } while (0)
 #endif
 
