@@ -64,18 +64,20 @@ network_pass1() {
 	[Yy][Ee][Ss])
 		if [ -r "${ipfilter_rules}" ]; then
 			echo -n ' ipfilter';
-			${ipfilter_program:-ipf -Fa -f} "${ipfilter_rules}" ${ipfilter_flags}
+			${ipfilter_program:-/sbin/ipf -Fa -f} \
+			    "${ipfilter_rules}" ${ipfilter_flags}
 			case "${ipmon_enable}" in
 			[Yy][Ee][Ss])
 				echo -n ' ipmon'
-				${ipmon_program:-ipmon} ${ipmon_flags}
+				${ipmon_program:-/sbin/ipmon} ${ipmon_flags}
 				;;
 			esac
 			case "${ipnat_enable}" in
 			[Yy][Ee][Ss])
 				if [ -r "${ipnat_rules}" ]; then
 					echo -n ' ipnat';
-					${ipnat_program:-ipnat -CF -f} "${ipnat_rules}" ${ipnat_flags}
+				eval ${ipnat_program:-/sbin/ipnat -CF -f} \
+					"${ipnat_rules}" ${ipnat_flags}
 				else
 					echo -n ' NO IPNAT RULES'
 				fi
