@@ -1767,11 +1767,11 @@ ip_fw_ctl(struct sockopt *sopt)
 	struct ip_fw frwl, *bp , *buf;
 
 	/*
-	 * Disallow sets in really-really secure mode, but still allow
+	 * Disallow modifications in really-really secure mode, but still allow
 	 * the logging counters to be reset.
 	 */
-	if (sopt->sopt_dir == SOPT_SET && securelevel >= 3 &&
-	    sopt->sopt_name != IP_FW_RESETLOG)
+	if (securelevel >= 3 && (sopt->sopt_name == IP_FW_ADD ||
+	    (sopt->sopt_dir == SOPT_SET && sopt->sopt_name != IP_FW_RESETLOG)))
 			return (EPERM);
 	error = 0;
 
