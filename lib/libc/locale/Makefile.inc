@@ -1,8 +1,8 @@
 #	from @(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile.inc,v 1.10 1997/10/15 16:15:34 bde Exp $
+#	$Id: Makefile.inc,v 1.11 1997/10/21 08:41:07 bde Exp $
 
 # locale sources
-.PATH: ${.CURDIR}/../libc/${MACHINE}/locale ${.CURDIR}/../libc/locale
+.PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/locale ${.CURDIR}/../libc/locale
 
 SRCS+=	ansi.c collate.c collcmp.c ctype.c euc.c frune.c isctype.c lconv.c \
 	localeconv.c mbrune.c mskanji.c nomacros.c none.c rune.c runetype.c \
