@@ -81,7 +81,6 @@ static LIST_HEAD(,atapi_xpt_softc) all_buses = LIST_HEAD_INITIALIZER(all_buses);
 
 /* CAM XPT methods */
 static void atapi_action(struct cam_sim *, union ccb *);
-static void atapi_action1(struct cam_sim *, union ccb *);
 static void atapi_poll(struct cam_sim *);
 static void atapi_async(void *, u_int32_t, struct cam_path *, void *);
 static void atapi_async1(void *, u_int32_t, struct cam_path *, void *);
@@ -202,15 +201,6 @@ setup_async_cb(struct atapi_xpt_softc *scp, uint32_t events)
 static void 
 atapi_action(struct cam_sim *sim, union ccb *ccb)
 {
-    int s = splcam();
-
-    atapi_action1(sim, ccb);
-    splx(s);
-}
-
-static void 
-atapi_action1(struct cam_sim *sim, union ccb *ccb)
-{
     struct atapi_xpt_softc *softc = (struct atapi_xpt_softc*)cam_sim_softc(sim);
     struct ccb_hdr *ccb_h = &ccb->ccb_h;
     struct atapi_hcb *hcb = NULL;
@@ -229,11 +219,11 @@ atapi_action1(struct cam_sim *sim, union ccb *ccb)
 	cpi->hba_eng_cnt = 0;
 	bzero(cpi->vuhba_flags, sizeof(cpi->vuhba_flags));
 	cpi->max_target = 1;
-	cpi->max_lun = 7;
+	cpi->max_lun = 0;
 	cpi->async_flags = 0;
 	cpi->hpath_id = 0;
 	cpi->initiator_id = 7;
-	strncpy(cpi->sim_vid, "ATAPI-SIM", sizeof(cpi->sim_vid));
+	strncpy(cpi->sim_vid, "FreeBSD", sizeof(cpi->sim_vid));
 	strncpy(cpi->hba_vid, "ATAPI", sizeof(cpi->hba_vid));
 	strncpy(cpi->dev_name, cam_sim_name(sim), sizeof cpi->dev_name);
 	cpi->unit_number = cam_sim_unit(sim);
@@ -310,7 +300,7 @@ atapi_action1(struct cam_sim *sim, union ccb *ccb)
 	cts->flags &= ~(CCB_TRANS_DISC_ENB | CCB_TRANS_TAG_ENB);
 	cts->sync_period = 0;
 	cts->sync_offset = 0;
-	cts->bus_width = 8;
+	cts->bus_width = 16;
 	ccb->ccb_h.status = CAM_REQ_CMP;
 	xpt_done(ccb);
 	return;
