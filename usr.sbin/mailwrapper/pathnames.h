@@ -32,3 +32,4 @@
  */
 
 #define _PATH_MAILERCONF	"/etc/mail/mailer.conf"
+#define _PATH_DEFAULTMTA	"/usr/libexec/sendmail/sendmail"
