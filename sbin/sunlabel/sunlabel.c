@@ -805,9 +805,9 @@ print_label(struct sun_disklabel *sl, const char *disk, FILE *out)
 		if (hflag) {
 			fprintf(out, "  %c: %10s",
 				'a' + i,
-				make_h_number(sl->sl_part[i].sdkp_nsectors * 512));
+				make_h_number((uintmax_t)sl->sl_part[i].sdkp_nsectors * 512));
 			fprintf(out, " %10s",
-				make_h_number(sl->sl_part[i].sdkp_cyloffset *
+				make_h_number((uintmax_t)sl->sl_part[i].sdkp_cyloffset *
 					      512 * secpercyl));
 		} else {
 			fprintf(out, "  %c: %10ju %10u",
