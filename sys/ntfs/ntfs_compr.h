@@ -29,5 +29,5 @@
 #define NTFS_COMPBLOCK_SIZE	0x1000
 #define NTFS_COMPUNIT_CL	16
 
-int	ntfs_uncompblock(u_int8_t *, const u_int8_t *);
-int	ntfs_uncompunit(struct ntfsmount *, u_int8_t *, const u_int8_t *);
+int	ntfs_uncompblock(u_int8_t *, u_int8_t *);
+int	ntfs_uncompunit(struct ntfsmount *, u_int8_t *, u_int8_t *);

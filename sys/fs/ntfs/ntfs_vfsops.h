@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998, 1999 Semen Ustimenko
+ * Copyright (c) 1998, 1999 Semen Ustimenko (semenu@FreeBSD.org)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,9 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs_extern.h,v 1.3 1999/01/28 03:56:06 semen Exp $
+ *	$Id: ntfs_vfsops.h,v 1.1 1999/02/02 01:54:54 semen Exp $
  */
+#define VG_DONTLOAD	0x0001	/* Tells ntfs_vgetex to do not call */
+				/* ntfs_loadnode on ntnode, even if */
+				/* ntnode not loaded */
 
-struct sockaddr;
-int ntfs_fget(struct ntfsmount *, struct ntnode *, int, char *, struct fnode **);
-void ntfs_frele(struct fnode *);
+int ntfs_vgetex(struct mount *, ino_t, u_int32_t, char *, u_long, u_long,
+		struct proc *, struct vnode **);
