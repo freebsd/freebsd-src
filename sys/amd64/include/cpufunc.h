@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.87 1999/05/09 23:30:01 peter Exp $
+ *	$Id: cpufunc.h,v 1.88 1999/07/23 23:45:19 alc Exp $
  */
 
 /*
@@ -84,6 +84,9 @@ enable_intr(void)
 
 #define	HAVE_INLINE_FFS
 
+#if __GNUC__ == 2 && __GNUC_MINOR__ > 8
+#define ffs(mask) __builtin_ffs(mask)
+#else
 static __inline int
 ffs(int mask)
 {
@@ -102,6 +105,7 @@ ffs(int mask)
 			 : "=r" (result) : "0" (mask));
 	return (result);
 }
+#endif
 
 #define	HAVE_INLINE_FLS
 
