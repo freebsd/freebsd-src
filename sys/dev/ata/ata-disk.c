@@ -205,26 +205,26 @@ ad_attach(void *notused)
 
 		if (bootverbose)
 		    printf("ad%d: piomode=%d dmamode=%d udmamode=%d\n",
-		           adnlun, apiomode(adp->ata_parm),
+		           adp->lun, apiomode(adp->ata_parm),
 		           wdmamode(adp->ata_parm), udmamode(adp->ata_parm));
 
 		printf("ad%d: <%s/%s> ATA-%c disk at ata%d as %s\n", 
-		       adnlun, model_buf, revision_buf,
+		       adp->lun, model_buf, revision_buf,
 		       ad_version(adp->ata_parm->versmajor), ctlr,
 		       (adp->unit == ATA_MASTER) ? "master" : "slave ");
 
 		printf("ad%d: %luMB (%u sectors), "
 		       "%u cyls, %u heads, %u S/T, %u B/S\n",
-		       adnlun, adp->total_secs / ((1024L * 1024L) / DEV_BSIZE),
+		       adp->lun, adp->total_secs / ((1024L * 1024L)/DEV_BSIZE),
 		       adp->total_secs, adp->cylinders, adp->heads,
 		       adp->sectors, DEV_BSIZE);
 
 		printf("ad%d: %d secs/int, %d depth queue, %s\n", 
-		       adnlun, adp->transfersize / DEV_BSIZE, adp->num_tags,
+		       adp->lun, adp->transfersize / DEV_BSIZE, adp->num_tags,
 		       ata_mode2str(adp->controller->mode[
 				    (adp->unit == ATA_MASTER) ? 0 : 1]));
 
-		devstat_add_entry(&adp->stats, "ad", adnlun, DEV_BSIZE,
+		devstat_add_entry(&adp->stats, "ad", adp->lun, DEV_BSIZE,
 				  DEVSTAT_NO_ORDERED_TAGS,
 				  DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_IDE,
 				  0x180);
@@ -237,6 +237,7 @@ ad_attach(void *notused)
 		dev1->si_drv1 = adp;
 
 		bufq_init(&adp->queue);
+		adnlun++;
 	    }
 	}
     }
