@@ -189,7 +189,8 @@ vnfindvn(dev_t dev)
 		bzero(vn, sizeof *vn);
 		vn->sc_unit = unit;
 		dev->si_drv1 = vn;
-		make_dev(&vn_cdevsw, 0, 
+		make_dev(&vn_cdevsw,
+		    dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART),
 		    UID_ROOT, GID_OPERATOR, 0640, "vn%d", unit);
 		SLIST_INSERT_HEAD(&vn_list, vn, sc_list);
 	}
