@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bios.c,v 1.7 1997/10/21 07:40:22 msmith Exp $
+ *      $Id: bios.c,v 1.8 1997/11/07 08:52:26 phk Exp $
  */
 
 /*
@@ -83,7 +83,7 @@ bios32_init(void *junk)
 	    ck += cv[i];
 	}
 	/* If checksum is OK, enable use of the entrypoint */
-	if (ck == 0) {
+	if ((ck == 0) && (sdh->entry < (BIOS_START + BIOS_SIZE))) {
 	    bios32_SDCI = (caddr_t)BIOS_PADDRTOVADDR(sdh->entry);
 	    if (bootverbose) {
 		printf("Found BIOS32 Service Directory header at %p\n", sdh);
