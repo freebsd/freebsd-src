@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/mii/miidevs,v 1.4.2.6 2001/06/18 18:49:13 wpaul Exp 
+ *	FreeBSD: src/sys/dev/mii/miidevs,v 1.4.2.7 2001/10/01 18:31:08 wpaul Exp 
  */
 /*$NetBSD: miidevs,v 1.6 1999/05/14 11:37:30 drochner Exp $*/
 
@@ -118,6 +118,10 @@
 #define	MII_STR_BROADCOM_3c905Cphy	"3c905C 10/100 internal PHY"
 #define	MII_MODEL_xxBROADCOM_BCM5400	0x0004
 #define	MII_STR_xxBROADCOM_BCM5400	"Broadcom 1000baseTX PHY"
+#define	MII_MODEL_xxBROADCOM_BCM5401	0x0005
+#define	MII_STR_xxBROADCOM_BCM5401	"BCM5401 10/100/1000baseTX PHY"
+#define	MII_MODEL_xxBROADCOM_BCM5411	0x0007
+#define	MII_STR_xxBROADCOM_BCM5411	"BCM5411 10/100/1000baseTX PHY"
 
 /* Davicom Semiconductor PHYs */
 #define	MII_MODEL_xxDAVICOM_DM9101	0x0000
