@@ -385,6 +385,7 @@ static DEV_INFO device_info[] = {
 
 {"plip",	"Parallel Port IP link",		FLG_FIXED,	CLS_NETWORK},
 {"aue",		"ADMtek AN986 USB ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
+{"cue",		"CATC USB ethernet adapter",		FLG_FIXED,	CLS_NETWORK},
 {"kue",		"Kawasaki LSI USB ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
 {"cs",          "IBM EtherJet, CS89x0-based Ethernet adapters",0,	CLS_NETWORK},
 #ifdef PC98
@@ -2638,7 +2639,7 @@ static int lineno;
 
 #if NEISA > 0
 
-#include <i386/eisa/eisaconf.h>
+#include <dev/eisa/eisaconf.h>
 
 static int set_num_eisa_slots(CmdParm *);
 
