@@ -28,13 +28,41 @@
 #ifndef	_POWERPC_OPENPICVAR_H_
 #define	_POWERPC_OPENPICVAR_H_
 
+#define OPENPIC_DEVSTR	"OpenPIC Interrupt Controller"
+
+#define OPENPIC_IRQMAX	256	/* h/w allows more */
+
 struct openpic_softc {
-	vm_offset_t	sc_base;
 	char		*sc_version;
 	u_int		sc_ncpu;
 	u_int		sc_nirq;
 	int             sc_psim;
 	struct		rman sc_rman;
+	bus_space_tag_t sc_bt;
+	bus_space_handle_t sc_bh;
+	u_int		sc_hwprobed;
+	u_int		sc_early_done;
+	device_t	sc_altdev;
+	u_char		sc_irqrsv[OPENPIC_IRQMAX]; /* pre-h/w reservation */
 };
+
+/*
+ * Bus-independent attach i/f
+ */
+int		openpic_early_attach(device_t);
+int		openpic_attach(device_t);
+
+/*
+ * PIC interface.
+ */
+struct resource	*openpic_allocate_intr(device_t, device_t, int *,
+			    u_long, u_int);
+int		openpic_setup_intr(device_t, device_t,
+			    struct resource *, int, driver_intr_t, void *,
+			    void **);
+int		openpic_teardown_intr(device_t, device_t,
+			    struct resource *, void *);
+int		openpic_release_intr(device_t dev, device_t, int,
+			    struct resource *res);
 
 #endif /* _POWERPC_OPENPICVAR_H_ */
