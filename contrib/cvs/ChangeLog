@@ -1,3 +1,409 @@
+2001-04-26  Derek Price  <dprice@collab.net>
+
+	* cvs.spec.in: Don't include %{_infodir}/dir.
+	(krb5): Remove krb5-config from dependencies.
+
+	* cvs.spec: Regenerated.
+
+2001-04-25  Derek Price  <dprice@collab.net>
+
+	* configure.in: Update version to 1.11.1.
+
+	* Makefile.in: Regenerated with AM 1.4e as of today at 18:10 -0400
+	(EDT).
+	* aclocal.m4: Ditto.
+	* configure: Ditto.
+
+2001-04-25  Derek Price  <dprice@collab.net>
+
+	* NEWS: Correct punctuation.
+
+2001-04-25  Larry Jones  <larry.jones@sdr.com>
+
+	* depcomp (aix, sgi): Correct previous fixes.
+
+2001-04-24  Larry Jones  <larry.jones@sdr.com>
+
+	* depcomp (sgi): Remove stray HP-UX code.
+
+2001-04-18  Derek Price  <dprice@collab.net>
+
+	* noautoconf.sh: New shell script to touch Makefile.in files and
+	prevent unecessary AUtomake rebuilds after updates.
+	* NEWS: Note this new scipt.
+
+2001-04-16  Larry Jones  <larry.jones@sdr.com>
+
+	* depcomp (aix): Remove stray HP-UX code.
+
+2001-04-12  Larry Jones  <larry.jones@sdr.com>
+
+	* mkinstalldirs: Newer version from Automake.
+
+2001-04-12  Larry Jones  <larry.jones@sdr.com>
+
+	* depcomp: Newer version from Automake.
+
+2001-04-04  Larry Jones  <larry.jones@sdr.com>
+
+	* depcomp: Don't count on $? being set in then or else clauses.
+
+2001-03-30  Larry Jones  <larry.jones@sdr.com>
+
+	* NEWS: Note new rlog and rannotate commands.
+
+2001-03-14  Derek Price  <derek.price@openavenue.com>
+
+	* configure.in (AC_CHECK_FUNCS): Look for gettimeofday.
+
+	* config.h.in: Regenerated:
+	* configure: Ditto.
+	* stamp-h1.in: Ditto.
+
+2001-03-14  Derek Price  <derek.price@openavenue.com>
+
+	New version of Automake (1.4e).  With luck it works with the quirky BSD
+	Make.
+
+	* aclocal.m4: Regenerated.
+	* configure: Ditto.
+	* Makefile.in: Ditto.
+	* stamp-h1.in: Ditto.
+
+2001-02-28  Derek Price  <derek.price@openavenue.com>
+
+	* acinclude.m4 (ACX_WITH_GSSAPI): Move the -L linker option back into
+	LIBS where it should be.  LDFLAGS is a user variable.
+
+	* aclocal.m4: Regenerated.
+	* configure: Regenerated.
+
+2001-02-23  Derek Price  <derek.price@openavenue.com>
+
+	* configure.in: Comment definition of PR_PROGRAM.
+
+	* configure: Regenerated.
+	
+2001-02-22  Derek Price  <derek.price@openavenue.com>
+	    Pavel Roskin  <proski@gnu.org>
+
+	* configure.in: Define PR_PROGRAM if `pr' has been found.
+
+	* config.h.in: Regenerated.
+	* configure: Regenerated.
+
+2001-02-20  Derek Price  <derek.price@openavenue.com>
+
+	* acconfig.h (HAVE_GSSAPI): Removed.  Entries in acconfig.h aren't
+	necesary when the full functionality of AC_DEFINE is used.
+	(HAVE_GSS_C_NT_HOSTBASED_SERVICE): Ditto.
+	* acinclude.m4 (ACX_WITH_GSSAPI): New file with GSSAPI configure code.
+	* configure.in: Use ACX_WITH_GSSAPI instead of writing GSSAPI code in
+	place.
+
+	* aclocal.m4: Regenerated.
+	* config.h.in: Regenerated.
+	* configure: Regenerated.
+
+2001-02-15  Derek Price  <derek.price@openavenue.com>
+
+	* configure: Regenerated without beta automake macros.
+
+2001-02-14  Derek Price  <derek.price@openavenue.com>
+
+	* configure.in (AC_CHECK_FUNCS): Alphebetize & reorganize.  Add
+	cascading search for nanosleep, usleep, & select, in that order.
+	* config.h.in: Regenerated.
+	* configure: Regenerated.
+	* cvsnt.mak: List xtime.h & xselect.h dependancies.
+
+2001-02-14  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvsnt.dsp: Remove references to rtag.c & rtag.obj.
+	* cvsnt.mak: Ditto.
+
+2001-02-13  Derek Price  <derek.price@openavenue.com>
+
+	* TODO: Add note about merging rdiff & diff.
+
+2001-02-13  Derek Price  <derek.price@openavenue.com>
+
+	* TODO: Add note about cvs_temp_file.
+
+2001-02-07  Derek Price  <derek.price@openavenue.com>
+
+	* cvs.spec.in (build): Remove the info 'dir' file so it doesn't get
+	installed accidentally.
+	(post): Install info files _into_ system dir file
+	(preun): uninstall info files from dir file
+	* cvs.spec: regenerated
+
+2001-01-31  Derek Price  <derek.price@openavenue.com>
+
+	* TODO: Add a note about 'cvs add' w/o write access
+
+2001-01-29  Derek Price  <derek.price@openavenue.com>
+
+	* NEWS: Rewrite the comment on the new ~/.cvspass functionality
+	* TODO: Add a note about testing login/logout
+
+2001-01-29  Derek Price  <derek.price@openavenue.com>
+
+	* configure.in: Rewrite args to AC_TRY_COMMAND in a form that is
+	acceptable to both Autoconf 1.13 and the new 1.49 beta.
+
+	* configure: regenerated
+ 
+2001-01-29  Larry Jones  <larry.jones@sdrc.com>
+
+	* configure.in: Check for syslog.h.
+	* configure, config.h.in: Regenerated.
+
+2001-01-17  Derek Price  <derek.price@openavenue.com>
+
+	* configure.in: add machinery to check for the BSD VPATH bug
+	and check for texi2dvi.
+	* doc/Makefile.am: use the machinery
+	* diff/Makefile.in: changes to support 'make dist' from a build dir
+	* emx/Makefile.in: changes to support 'make dist' from a build dir
+	* os2/Makefile.in: changes to support 'make dist' from a build dir
+	* zlib/Makefile.in: changes to support 'make dist' from a build dir
+
+	* Makefile.in: regenerated
+	* aclocal.m4: regenerated
+	* configure: regenerated
+	* contrib/Makefile.in: regenerated
+	* doc/Makefile.in: regenerated
+	* lib/Makefile.in: regenerated
+	* man/Makefile.in: regenerated
+	* src/Makefile.in: regenerated
+	* tools/Makefile.in: regenerated
+	* vms/Makefile.in: regenerated
+	* windows-NT/Makefile.in: regenerated
+	* windows-NT/SCC/Makefile.in: regenerated
+
+2001-01-10  Derek Price  <derek.price@openavenue.com>
+	    Rex Jolliff  <Rex_Jolliff@notes.ymp.gov>
+
+	* NEWS (new since 1.11): Add comment about VMS wildcards
+
+2001-01-05  Derek Price  <derek.price@openavenue.com>
+
+	* configure.in (AC_OUTPUT): Move some script targets here
+	* contrib/Makefile.am (EXTRA_DIST, SUFFIXES, .pl:, .csh:): Move some
+	script targets to configure.in
+	* src/Makefile.am (cvsbug, cvsbug_EXTRA_DIST, EXTRA_DIST): move cvsbug
+	target to configure.in
+
+	* aclocal.m4: Regenerated due to change in Automake installation
+
+	* Makefile.in: Regenerated
+	* configure: ditto
+	* contrib/Makefile.in: ditto
+	* doc/Makefile.in: ditto
+	* lib/Makefile.in: ditto
+	* man/Makefile.in: ditto
+	* src/Makefile.in: ditto
+	* tools/Makefile.in: ditto
+	* vms/Makefile.in: ditto
+	* windows-NT/Makefile.in: ditto
+	* windows-NT/SCC/Makefile.in: ditto
+
+	* cvs.spec: updated timestamp
+	* stamp-h1.in: ditto
+	* doc/CVSvn.texi: ditto
+	* src/stamp-h2.in: ditto
+	* src/version.c: ditto
+
+	* contrib/clmerge.in: Rename from clmerge.pl
+	* contrib/cln_hist.in: Rename from cln_hist.pl
+	* contrib/commit_prep.in: Rename from commit_prep.pl
+	* contrib/cvs_acls.in: Rename from cvs_acls.pl
+	* contrib/log.in: Rename from log.pl
+	* contrib/log_accum.in: Rename from log_accum.pl
+	* contrib/mfpipe.in: Rename from mfpipe.pl
+	* contrib/rcslock.in: Rename from rcslock.pl
+	* contrib/sccs2rcs.in: Rename from scc2rcs.csh
+	* src/cvsbug.in: Rename from cvsbug.sh
+
+	* contrib/clmerge.pl: Rename to clmerge.in
+	* contrib/cln_hist.pl: Rename to cln_hist.in
+	* contrib/commit_prep.pl: Rename to commit_prep.in
+	* contrib/cvs_acls.pl: Rename to cvs_acls.in
+	* contrib/log.pl: Rename to log.in
+	* contrib/log_accum.pl: Rename to log_accum.in
+	* contrib/mfpipe.pl: Rename to mfpipe.in
+	* contrib/rcslock.pl: Rename to rcslock.in
+	* contrib/sccs2rcs.csh: Rename to sccs2rcs.in
+	* src/cvsbug.sh: Rename to cvsbug.in
+
+2001-01-03  Derek Price  <derek.price@openavenue.com>
+
+	* Makefile.am (remotecheck): depend on 'all'
+	* Makefile.in: regenerated
+
+2001-01-03  Derek Price  <derek.price@openavenue.com>
+
+	* Makefile.in (DEP_FILES): Regenerated with new version of Automake
+	(DEP_FILES_conditional patch for BSD make compatibility)
+	* contrib/Makefile.in: ditto
+	* doc/Makefile.in: ditto
+	* lib/Makefile.in: ditto
+	* man/Makefile.in: ditto
+	* src/Makefile.in: ditto
+	* tools/Makefile.in: ditto
+	* vms/Makefile.in: ditto
+	* windows-NT/Makefile.in: ditto
+	* windows-NT/SCC/Makefile.in: ditto
+
+2000-12-28  Derek Price  <derek.price@openavenue.com>
+
+	* INSTALL (BUILDING FROM SOURCES): Added a couple more platforms to the
+	build and test list.
+	(Building ... under Unix): Added note about BSD make and
+	--disable-dependency-tracking
+	(Building ... under Windows ...): Added note about using MSVC++ 6.0
+	(Building [on] other platforms): Added note about wincvs.org and
+	cvsnt.org.  Added more complete note about BSD make and
+	--disable-dependency-tracking than the above
+
+2000-12-27  Derek Price  <derek.price@openavenue.com>
+
+	* NEWS: Fix comments about the changes to ~/.cvspass
+
+2000-12-26  Derek Price  <derek.price@openavenue.com>
+
+	* Makefile.am (EXTRA_DIST): Add cvs.spec.in
+	(cvs.spec): new target
+	* Makefile.in: Regenerated
+	* aclocal.m4: update timestamp
+	* configure: Regenerated
+	* configure.in (AC_OUTPUT): Remove cvs.spec, doc/CVSvn.texi,
+	& src/version.c
+	* stamp-h1.in: update timestamp
+	* contrib/Makefile.in: ditto
+	* lib/Makefile.in: ditto
+	* man/Makefile.in: ditto
+	* tools/Makefile.in: ditto
+	* vms/Makefile.in: ditto
+	* windows-NT/Makefile.in: ditto
+	* windows-NT/SCC/Makefile.in: ditto
+
+2000-12-22  Derek Price  <derek.price@openavenue.com>
+
+	* configure.in (AC_OUTPUT): Stretched
+	* configure: Regenerated
+
+2000-12-22  Derek Price  <derek.price@openavenue.com>
+
+	* aclocal.m4: Regenerated due to Automake update
+
+2000-12-22  Derek Price  <derek.price@openavenue.com>
+
+	* Makefile.in: Regenerated
+	* aclocal.m4: Regenerated due to a change to AM_PROG_ETAGS
+	* configure: Regenerated
+
+2000-12-21  Derek Price  <derek.price@openavenue.com>
+
+	* .cvsignore: removed newly unused files, added new stamp file,
+	and alphabetized.
+	* AUTHORS: Added this file to please Automake.  Apparently, its
+	presence is mandated by the GNU coding standards.
+	* Makefile.am: New file needed by Automake
+	* Makefile.in: Regenerated
+	* NEWS: Add a comment about the Automake conversion
+	* aclocal.m4: Added this file for Automake
+	* config.h.in: Regenerated
+	* configure: Regenerated
+	* configure.in: Some changes to support Automake and support for
+	missing roff & ps2pdf programs.
+	* cvs.spec: Regenerated
+	* cvs.spec.in: New file leveraging Automake support
+	* depcomp: New Automake file
+	* install-sh: Newer version from Automake
+	* missing: New Automake file
+	* mkinstalldirs: Newer version from Automake
+	* stamp-h.in: Remove unused file
+	* stamp-h1.in: New Automake generated stamp file
+
+2000-11-30  Derek Price  <derek.price@openavenue.com>
+	    Stephen Kennedy  <Stephen.Kennedy@havok.com>
+
+	* cvs.spec (krb5): Require krb5-devel for a build of the krb5 target
+
+2000-11-29  Derek Price  <derek.price@openavenue.com>
+	    Stephen Kennedy  <Stephen.Kennedy@havok.com>
+
+	* cvs.spec (build, post, preun): remove an old, commented out
+	line and replace hardcoded paths with _infodir and _bindir as
+	appropriate
+	(files): replace file list with more generic and succinct one
+
+2000-11-15  Derek Price  <derek.price@openavenue.com>
+
+	* TODO (198): added note about deprecating cvs_temp_name
+	* configure.in (AC_CHECK_FUNCS): added mkstemp to support
+	new cvs_temp_file function.
+	* config.h.in: regenerated
+	* configure: regenerated
+
+2000-11-08  Larry Jones  <larry.jones@sdrc.com>
+ 
+	* configure.in: Check for getgroups function.
+	* configure, config.h.in: Regenerated.
+
+2000-11-07  Larry Jones  <larry.jones@sdrc.com>
+
+	* Makefile.in (FLAGS_TO_PASS): Add INSTALL, INSTALL_DATA, and
+	INSTALL_PROGRAM.
+	(Reported by Christian Brechbuehler <christian@arsdigita.com>.)
+
+2000-11-03  Derek Price  <derek.price@openavenue.com>
+
+	* cvs.spec (build): pass in --without-gssapi when configuring the main
+	package so that the Kerberized version of CVS doesn't get built when
+	the user happens to have Kerberos installed in the default location.
+
+2000-10-31  Derek Price  <derek.price@openavenue.com>
+
+	* NEWS: Mention zlib was updated to 1.1.3.
+
+2000-10-30  Derek Price  <derek.price@openavenue.com>
+
+	* cvs.spec: Fixed trapping for gssapi so that the RPM can be built
+	on a machine without Kerberos.  Should now build standard RPM on a
+	machine without Kerberos and the standard RPM + the Kerberos RPM on
+	a machine with the Kerberos devel libraries.
+
+2000-10-26  Larry Jones  <larry.jones@sdrc.com>
+
+	* configure.in: Get path to pr for diff.
+	(Patch submitted by Urs Thuermann <urs@isnogud.escape.de>.)
+	* configure: Regenerated.
+
+2000-10-18  Derek Price  <derek.price@openavenue.com>
+
+	* .cvsignore: Added .fname & .version, two temporary files used in spec
+	file creation.
+	* Makefile.in (distclean-local): clean .fname & .version
+	* cvs.spec: Replaced with a new version based on RedHat 6.2's spec file
+	for cvs 1.10.7.  Edited heavily to include a krb5 subpackage for the
+	gssapi binary and fixed RedHat's info and man file placement.
+
+2000-10-17  Derek Price  <derek.price@openavenue.com>
+
+	* NEWS: added a comment about the new CVSROOT format for pserver.
+
+2000-10-17  Derek Price  <derek.price@openavenue.com>
+
+	* NEWS: added a comment about the new format of ~/.cvspass
+
+2000-10-09  Derek Price  <derek.price@openavenue.com>
+
+	* cvsnt.mak: Some minor changes to allow CVS to compile correctly
+	under NT and Visual C++ 6.0.
+
 2000-09-07  Larry Jones  <larry.jones@sdrc.com>
 
 	* Makefile.in: Use @bindir@, @libdir@, @infodir@, and @mandir@

@@ -322,6 +322,8 @@ time_stamp_server (file, vers_ts, entdata)
 	    cp = ctime (&sb.st_mtime);
 
 	cp[24] = 0;
+	/* Fix non-standard format.  */
+	if (cp[8] == '0') cp[8] = ' ';
 	(void) strcpy (vers_ts->ts_user, cp);
     }
 }
@@ -365,6 +367,8 @@ time_stamp (file)
 	    cp = ctime(&sb.st_mtime);
 
 	cp[24] = 0;
+	/* Fix non-standard format.  */
+	if (cp[8] == '0') cp[8] = ' ';
 	(void) strcpy (ts, cp);
     }
 
