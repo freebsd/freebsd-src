@@ -798,7 +798,8 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		args->end_track = cdp->toc.hdr.ending_track + 1;
 	    t1 = args->start_track - cdp->toc.hdr.starting_track;
 	    t2 = args->end_track - cdp->toc.hdr.starting_track;
-	    if (t1 < 0 || t2 < 0) {
+	    if (t1 < 0 || t2 < 0 ||
+		t1 > (cdp->toc.hdr.ending_track-cdp->toc.hdr.starting_track)) {
 		error = EINVAL;
 		break;
 	    }
