@@ -663,7 +663,7 @@ lib-tools:
 # are visible:
 #
 # csu must be built before all shared libaries for ELF.
-# libcom_err must be built before libss.
+# libcom_err must be built before libss and libkrb.
 # libcrypt must be built before libkrb and libskey.
 # libdes must be built before libpam.
 # libkrb must be built before libpam.
