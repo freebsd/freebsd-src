@@ -31,7 +31,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <sys/stat.h>
 #include <fcntl.h>
 #include "gdbcore.h"
-#include "regex.h"
+#include "gnuregex.h"
 #include "symfile.h"
 #include "objfiles.h"
 #include "annotate.h"
