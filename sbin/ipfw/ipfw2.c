@@ -449,6 +449,56 @@ match_value(struct _s_x *p, int value)
 }
 
 /*
+ * _substrcmp takes two strings and returns 1 if they do not match,
+ * and 0 if they match exactly or the first string is a sub-string
+ * of the second.  A warning is printed to stderr in the case that the
+ * first string is a sub-string of the second.
+ *
+ * This function will be removed in the future through the usual
+ * deprecation process.
+ */
+static int
+_substrcmp(const char *str1, const char* str2)
+{
+	
+	if (strncmp(str1, str2, strlen(str1)) != 0)
+		return 1;
+
+	if (strlen(str1) != strlen(str2))
+		warnx("DEPRECATED: '%s' matched '%s' as a sub-string",
+		    str1, str2);
+	return 0;
+}
+
+/*
+ * _substrcmp2 takes three strings and returns 1 if the first two do not match,
+ * and 0 if they match exactly or the second string is a sub-string
+ * of the first.  A warning is printed to stderr in the case that the
+ * first string does not match the third.
+ *
+ * This function exists to warn about the bizzare construction
+ * strncmp(str, "by", 2) which is used to allow people to use a shotcut
+ * for "bytes".  The problem is that in addition to accepting "by",
+ * "byt", "byte", and "bytes", it also excepts "by_rabid_dogs" and any
+ * other string beginning with "by".
+ *
+ * This function will be removed in the future through the usual
+ * deprecation process.
+ */
+static int
+_substrcmp2(const char *str1, const char* str2, const char* str3)
+{
+	
+	if (strncmp(str1, str2, strlen(str2)) != 0)
+		return 1;
+
+	if (strcmp(str1, str3) != 0)
+		warnx("DEPRECATED: '%s' matched '%s'",
+		    str1, str3);
+	return 0;
+}
+
+/*
  * prints one port, symbolic or numeric
  */
 static void
@@ -1760,7 +1810,7 @@ sets_handler(int ac, char *av[])
 
 	if (!ac)
 		errx(EX_USAGE, "set needs command");
-	if (!strncmp(*av, "show", strlen(*av)) ) {
+	if (_substrcmp(*av, "show") == 0) {
 		void *data;
 		char const *msg;
 
@@ -1784,7 +1834,7 @@ sets_handler(int ac, char *av[])
 				msg = "";
 			}
 		printf("\n");
-	} else if (!strncmp(*av, "swap", strlen(*av))) {
+	} else if (_substrcmp(*av, "swap") == 0) {
 		ac--; av++;
 		if (ac != 2)
 			errx(EX_USAGE, "set swap needs 2 set numbers\n");
@@ -1796,14 +1846,14 @@ sets_handler(int ac, char *av[])
 			errx(EX_DATAERR, "invalid set number %s\n", av[1]);
 		masks[0] = (4 << 24) | (new_set << 16) | (rulenum);
 		i = do_cmd(IP_FW_DEL, masks, sizeof(uint32_t));
-	} else if (!strncmp(*av, "move", strlen(*av))) {
+	} else if (_substrcmp(*av, "move") == 0) {
 		ac--; av++;
-		if (ac && !strncmp(*av, "rule", strlen(*av))) {
+		if (ac && _substrcmp(*av, "rule") == 0) {
 			cmd = 2;
 			ac--; av++;
 		} else
 			cmd = 3;
-		if (ac != 3 || strncmp(av[1], "to", strlen(*av)))
+		if (ac != 3 || _substrcmp(av[1], "to") != 0)
 			errx(EX_USAGE, "syntax: set move [rule] X to Y\n");
 		rulenum = atoi(av[0]);
 		new_set = atoi(av[2]);
@@ -1814,9 +1864,9 @@ sets_handler(int ac, char *av[])
 			errx(EX_DATAERR, "invalid dest. set %s\n", av[1]);
 		masks[0] = (cmd << 24) | (new_set << 16) | (rulenum);
 		i = do_cmd(IP_FW_DEL, masks, sizeof(uint32_t));
-	} else if (!strncmp(*av, "disable", strlen(*av)) ||
-		   !strncmp(*av, "enable",  strlen(*av)) ) {
-		int which = !strncmp(*av, "enable",  strlen(*av)) ? 1 : 0;
+	} else if (_substrcmp(*av, "disable") == 0 ||
+		   _substrcmp(*av, "enable") == 0 ) {
+		int which = _substrcmp(*av, "enable") == 0 ? 1 : 0;
 
 		ac--; av++;
 		masks[0] = masks[1] = 0;
@@ -1828,9 +1878,9 @@ sets_handler(int ac, char *av[])
 					errx(EX_DATAERR,
 					    "invalid set number %d\n", i);
 				masks[which] |= (1<<i);
-			} else if (!strncmp(*av, "disable", strlen(*av)))
+			} else if (_substrcmp(*av, "disable") == 0)
 				which = 0;
-			else if (!strncmp(*av, "enable", strlen(*av)))
+			else if (_substrcmp(*av, "enable") == 0)
 				which = 1;
 			else
 				errx(EX_DATAERR,
@@ -1856,22 +1906,22 @@ sysctl_handler(int ac, char *av[], int which)
 
 	if (ac == 0) {
 		warnx("missing keyword to enable/disable\n");
-	} else if (strncmp(*av, "firewall", strlen(*av)) == 0) {
+	} else if (_substrcmp(*av, "firewall") == 0) {
 		sysctlbyname("net.inet.ip.fw.enable", NULL, 0,
 		    &which, sizeof(which));
-	} else if (strncmp(*av, "one_pass", strlen(*av)) == 0) {
+	} else if (_substrcmp(*av, "one_pass") == 0) {
 		sysctlbyname("net.inet.ip.fw.one_pass", NULL, 0,
 		    &which, sizeof(which));
-	} else if (strncmp(*av, "debug", strlen(*av)) == 0) {
+	} else if (_substrcmp(*av, "debug") == 0) {
 		sysctlbyname("net.inet.ip.fw.debug", NULL, 0,
 		    &which, sizeof(which));
-	} else if (strncmp(*av, "verbose", strlen(*av)) == 0) {
+	} else if (_substrcmp(*av, "verbose") == 0) {
 		sysctlbyname("net.inet.ip.fw.verbose", NULL, 0,
 		    &which, sizeof(which));
-	} else if (strncmp(*av, "dyn_keepalive", strlen(*av)) == 0) {
+	} else if (_substrcmp(*av, "dyn_keepalive") == 0) {
 		sysctlbyname("net.inet.ip.fw.dyn_keepalive", NULL, 0,
 		    &which, sizeof(which));
-	} else if (strncmp(*av, "altq", strlen(*av)) == 0) {
+	} else if (_substrcmp(*av, "altq") == 0) {
 		altq_set_enabled(which);
 	} else {
 		warnx("unrecognize enable/disable keyword: %s\n", *av);
@@ -2122,15 +2172,15 @@ fill_ip(ipfw_insn_ip *cmd, char *av)
 
 	cmd->o.len &= ~F_LEN_MASK;	/* zero len */
 
-	if (!strncmp(av, "any", strlen(av)))
+	if (_substrcmp(av, "any") == 0)
 		return;
 
-	if (!strncmp(av, "me", strlen(av))) {
+	if (_substrcmp(av, "me") == 0) {
 		cmd->o.len |= F_INSN_SIZE(ipfw_insn);
 		return;
 	}
 
-	if (!strncmp(av, "table(", 6)) {
+	if (strncmp(av, "table(", 6) == 0) {
 		char *p = strchr(av + 6, ',');
 
 		if (p)
@@ -2341,7 +2391,7 @@ delete(int ac, char *av[])
 
 	av++; ac--;
 	NEED1("missing rule specification");
-	if (ac > 0 && !strncmp(*av, "set", strlen(*av))) {
+	if (ac > 0 && _substrcmp(*av, "set") == 0) {
 		do_set = 1;	/* delete set */
 		ac--; av++;
 	}
@@ -2389,7 +2439,7 @@ fill_iface(ipfw_insn_if *cmd, char *arg)
 	cmd->o.len |= F_INSN_SIZE(ipfw_insn_if);
 
 	/* Parse the interface or address */
-	if (!strcmp(arg, "any"))
+	if (strcmp(arg, "any") == 0)
 		cmd->o.len = 0;		/* effectively ignore this command */
 	else if (!isdigit(*arg)) {
 		strlcpy(cmd->name, arg, sizeof(cmd->name));
@@ -2446,7 +2496,8 @@ config_pipe(int ac, char **av)
 			if (*end == 'K' || *end == 'k') {
 				p.fs.flags_fs |= DN_QSIZE_IS_BYTES;
 				p.fs.qsize *= 1024;
-			} else if (*end == 'B' || !strncmp(end, "by", 2)) {
+			} else if (*end == 'B' ||
+			    _substrcmp2(end, "by", "bytes") == 0) {
 				p.fs.flags_fs |= DN_QSIZE_IS_BYTES;
 			}
 			ac--; av++;
@@ -2603,7 +2654,8 @@ end_mask:
 				end++;
 				p.bandwidth *= 1000000;
 			    }
-			    if (*end == 'B' || !strncmp(end, "by", 2))
+			    if (*end == 'B' ||
+			        _substrcmp2(end, "by", "bytes") == 0)
 				p.bandwidth *= 8;
 			    if (p.bandwidth < 0)
 				errx(EX_DATAERR, "bandwidth too large");
@@ -2736,7 +2788,7 @@ get_mac_addr_mask(char *p, uint8_t *addr, uint8_t *mask)
 
 	for (i=0; i<6; i++)
 		addr[i] = mask[i] = 0;
-	if (!strcmp(p, "any"))
+	if (strcmp(p, "any") == 0)
 		return;
 
 	for (i=0; *p && i<6;i++, p++) {
@@ -2857,7 +2909,7 @@ add_proto(ipfw_insn *cmd, char *av)
 	struct protoent *pe;
 	u_char proto = 0;
 
-	if (!strncmp(av, "all", strlen(av)))
+	if (_substrcmp(av, "all") == 0)
 		; /* same as "ip" */
 	else if ((proto = atoi(av)) > 0)
 		; /* all done! */
@@ -2907,7 +2959,7 @@ add_dstip(ipfw_insn *cmd, char *av)
 static ipfw_insn *
 add_ports(ipfw_insn *cmd, char *av, u_char proto, int opcode)
 {
-	if (!strncmp(av, "any", strlen(av))) {
+	if (_substrcmp(av, "any") == 0) {
 		return NULL;
 	} else if (fill_newports((ipfw_insn_u16 *)cmd, av, proto)) {
 		/* XXX todo: check that we have a protocol with ports */
@@ -2979,7 +3031,7 @@ add(int ac, char *av[])
 	}
 
 	/* [set N]	-- set number (0..RESVD_SET), optional */
-	if (ac > 1 && !strncmp(*av, "set", strlen(*av))) {
+	if (ac > 1 && _substrcmp(*av, "set") == 0) {
 		int set = strtoul(av[1], NULL, 10);
 		if (set < 0 || set > RESVD_SET)
 			errx(EX_DATAERR, "illegal set %s", av[1]);
@@ -2988,7 +3040,7 @@ add(int ac, char *av[])
 	}
 
 	/* [prob D]	-- match probability, optional */
-	if (ac > 1 && !strncmp(*av, "prob", strlen(*av))) {
+	if (ac > 1 && _substrcmp(*av, "prob") == 0) {
 		match_prob = strtod(av[1], NULL);
 
 		if (match_prob <= 0 || match_prob > 1)
@@ -3132,7 +3184,7 @@ add(int ac, char *av[])
 			have_log = (ipfw_insn *)c;
 			cmd->len = F_INSN_SIZE(ipfw_insn_log);
 			cmd->opcode = O_LOG;
-			if (ac && !strncmp(*av, "logamount", strlen(*av))) {
+			if (ac && _substrcmp(*av, "logamount") == 0) {
 				ac--; av++;
 				NEED1("logamount requires argument");
 				l = atoi(*av);
@@ -3193,8 +3245,8 @@ add(int ac, char *av[])
 #define	CLOSE_PAR						\
 	if (open_par) {						\
 		if (ac && (					\
-		    !strncmp(*av, ")", strlen(*av)) ||		\
-		    !strncmp(*av, "}", strlen(*av)) )) {	\
+		    strcmp(*av, ")") == 0 ||			\
+		    strcmp(*av, "}") == 0)) {			\
 			prev = NULL;				\
 			open_par = 0;				\
 			ac--; av++;				\
@@ -3203,7 +3255,7 @@ add(int ac, char *av[])
 	}
 
 #define NOT_BLOCK						\
-	if (ac && !strncmp(*av, "not", strlen(*av))) {		\
+	if (ac && _substrcmp(*av, "not") == 0) {		\
 		if (cmd->len & F_NOT)				\
 			errx(EX_USAGE, "double \"not\" not allowed\n"); \
 		cmd->len |= F_NOT;				\
@@ -3211,7 +3263,7 @@ add(int ac, char *av[])
 	}
 
 #define OR_BLOCK(target)					\
-	if (ac && !strncmp(*av, "or", strlen(*av))) {		\
+	if (ac && _substrcmp(*av, "or") == 0) {		\
 		if (prev == NULL || open_par == 0)		\
 			errx(EX_DATAERR, "invalid OR block");	\
 		prev->len |= F_OR;				\
@@ -3230,8 +3282,8 @@ add(int ac, char *av[])
 	 */
 	NOT_BLOCK;
 	NEED1("missing protocol");
-	if (!strncmp(*av, "MAC", strlen(*av)) ||
-	    !strncmp(*av, "mac", strlen(*av))) {
+	if (_substrcmp(*av, "MAC") == 0 ||
+	    _substrcmp(*av, "mac") == 0) {
 		ac--; av++;	/* the "MAC" keyword */
 		add_mac(cmd, ac, av); /* exits in case of errors */
 		cmd = next_cmd(cmd);
@@ -3269,7 +3321,7 @@ add(int ac, char *av[])
 	/*
 	 * "from", mandatory
 	 */
-	if (!ac || strncmp(*av, "from", strlen(*av)))
+	if (!ac || _substrcmp(*av, "from") != 0)
 		errx(EX_USAGE, "missing ``from''");
 	ac--; av++;
 
@@ -3293,7 +3345,7 @@ add(int ac, char *av[])
 	 */
 	NOT_BLOCK;	/* optional "not" */
 	if (ac) {
-		if (!strncmp(*av, "any", strlen(*av)) ||
+		if (_substrcmp(*av, "any") == 0 ||
 		    add_ports(cmd, *av, proto, O_IP_SRCPORT)) {
 			ac--; av++;
 			if (F_LEN(cmd) != 0)
@@ -3304,7 +3356,7 @@ add(int ac, char *av[])
 	/*
 	 * "to", mandatory
 	 */
-	if (!ac || strncmp(*av, "to", strlen(*av)))
+	if (!ac || _substrcmp(*av, "to") != 0)
 		errx(EX_USAGE, "missing ``to''");
 	av++; ac--;
 
@@ -3328,7 +3380,7 @@ add(int ac, char *av[])
 	 */
 	NOT_BLOCK;	/* optional "not" */
 	if (ac) {
-		if (!strncmp(*av, "any", strlen(*av)) ||
+		if (_substrcmp(*av, "any") == 0 ||
 		    add_ports(cmd, *av, proto, O_IP_DSTPORT)) {
 			ac--; av++;
 			if (F_LEN(cmd) != 0)
@@ -3665,7 +3717,7 @@ read_options:
 
 		case TOK_SRCPORT:
 			NEED1("missing source port");
-			if (!strncmp(*av, "any", strlen(*av)) ||
+			if (_substrcmp(*av, "any") == 0 ||
 			    add_ports(cmd, *av, proto, O_IP_SRCPORT)) {
 				ac--; av++;
 			} else
@@ -3674,7 +3726,7 @@ read_options:
 
 		case TOK_DSTPORT:
 			NEED1("missing destination port");
-			if (!strncmp(*av, "any", strlen(*av)) ||
+			if (_substrcmp(*av, "any") == 0 ||
 			    add_ports(cmd, *av, proto, O_IP_DSTPORT)) {
 				ac--; av++;
 			} else
@@ -3920,8 +3972,8 @@ table_handler(int ac, char *av[])
 	} else
 		errx(EX_USAGE, "table number required");
 	NEED1("table needs command");
-	if (strncmp(*av, "add", strlen(*av)) == 0 ||
-	    strncmp(*av, "delete", strlen(*av)) == 0) {
+	if (_substrcmp(*av, "add") == 0 ||
+	    _substrcmp(*av, "delete") == 0) {
 		do_add = **av == 'a';
 		ac--; av++;
 		if (!ac)
@@ -3945,10 +3997,10 @@ table_handler(int ac, char *av[])
 		    &ent, sizeof(ent)) < 0)
 			err(EX_OSERR, "setsockopt(IP_FW_TABLE_%s)",
 			    do_add ? "ADD" : "DEL");
-	} else if (strncmp(*av, "flush", strlen(*av)) == 0) {
+	} else if (_substrcmp(*av, "flush") == 0) {
 		if (do_cmd(IP_FW_TABLE_FLUSH, &ent.tbl, sizeof(ent.tbl)) < 0)
 			err(EX_OSERR, "setsockopt(IP_FW_TABLE_FLUSH)");
-	} else if (strncmp(*av, "list", strlen(*av)) == 0) {
+	} else if (_substrcmp(*av, "list") == 0) {
 		a = ent.tbl;
 		l = sizeof(a);
 		if (do_cmd(IP_FW_TABLE_GETSIZE, &a, (uintptr_t)&l) < 0)
@@ -4160,9 +4212,9 @@ ipfw_main(int oldac, char **oldav)
 	 * optional: pipe or queue
 	 */
 	do_pipe = 0;
-	if (!strncmp(*av, "pipe", strlen(*av)))
+	if (_substrcmp(*av, "pipe") == 0)
 		do_pipe = 1;
-	else if (!strncmp(*av, "queue", strlen(*av)))
+	else if (_substrcmp(*av, "queue") == 0)
 		do_pipe = 2;
 	if (do_pipe) {
 		ac--;
@@ -4182,30 +4234,30 @@ ipfw_main(int oldac, char **oldav)
 		av[1] = p;
 	}
 
-	if (!strncmp(*av, "add", strlen(*av)))
+	if (_substrcmp(*av, "add") == 0)
 		add(ac, av);
-	else if (do_pipe && !strncmp(*av, "config", strlen(*av)))
+	else if (do_pipe && _substrcmp(*av, "config") == 0)
 		config_pipe(ac, av);
-	else if (!strncmp(*av, "delete", strlen(*av)))
+	else if (_substrcmp(*av, "delete") == 0)
 		delete(ac, av);
-	else if (!strncmp(*av, "flush", strlen(*av)))
+	else if (_substrcmp(*av, "flush") == 0)
 		flush(do_force);
-	else if (!strncmp(*av, "zero", strlen(*av)))
+	else if (_substrcmp(*av, "zero") == 0)
 		zero(ac, av, IP_FW_ZERO);
-	else if (!strncmp(*av, "resetlog", strlen(*av)))
+	else if (_substrcmp(*av, "resetlog") == 0)
 		zero(ac, av, IP_FW_RESETLOG);
-	else if (!strncmp(*av, "print", strlen(*av)) ||
-	         !strncmp(*av, "list", strlen(*av)))
+	else if (_substrcmp(*av, "print") == 0 ||
+	         _substrcmp(*av, "list") == 0)
 		list(ac, av, do_acct);
-	else if (!strncmp(*av, "set", strlen(*av)))
+	else if (_substrcmp(*av, "set") == 0)
 		sets_handler(ac, av);
-	else if (!strncmp(*av, "table", strlen(*av)))
+	else if (_substrcmp(*av, "table") == 0)
 		table_handler(ac, av);
-	else if (!strncmp(*av, "enable", strlen(*av)))
+	else if (_substrcmp(*av, "enable") == 0)
 		sysctl_handler(ac, av, 1);
-	else if (!strncmp(*av, "disable", strlen(*av)))
+	else if (_substrcmp(*av, "disable") == 0)
 		sysctl_handler(ac, av, 0);
-	else if (!strncmp(*av, "show", strlen(*av)))
+	else if (_substrcmp(*av, "show") == 0)
 		list(ac, av, 1 /* show counters */);
 	else
 		errx(EX_USAGE, "bad command `%s'", *av);
