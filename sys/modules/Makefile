@@ -10,7 +10,7 @@ SUBDIR=	aha al ax ccd cd9660 coda dm fdesc fxp if_disc if_ppp if_sl if_tun \
 .if ${MACHINE_ARCH} == "i386"
 SUBDIR+=amr bktr coff fpu gnufpu ibcs2 linux mlx ncp nwfs splash streams \
 	svr4 syscons vesa vinum
-SUBDIR+=ugen uhid ukbd ulpt ums umodem umass
+SUBDIR+=ugen uhid ukbd ulpt ums umass
 .endif
 
 .include <bsd.subdir.mk>
