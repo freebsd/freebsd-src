@@ -297,16 +297,6 @@ cpu_sched_exit(td)
 }
 
 /*
- * Force reset the processor by invalidating the entire address space!
- */
-void
-cpu_reset()
-{
-
-	cpu_boot(0);
-}
-
-/*
  * Software interrupt handler for queued VM system processing.
  */   
 void  
