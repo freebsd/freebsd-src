@@ -88,7 +88,7 @@ g_bsd_modify(struct g_geom *gp, u_char *label)
 	struct g_consumer *cp;
 	struct g_bsd_softc *ms;
 	u_int secsize, u;
-	off_t mediasize, rawoffset, o;
+	off_t rawoffset, o;
 	struct disklabel dl;
 	MD5_CTX md5sum;
 
@@ -104,20 +104,6 @@ g_bsd_modify(struct g_geom *gp, u_char *label)
 	/* Get dimensions of our device. */
 	cp = LIST_FIRST(&gp->consumer);
 	secsize = cp->provider->sectorsize;
-	mediasize = cp->provider->mediasize;
-
-#ifdef notyet
-	/*
-	 * Indications are that the d_secperunit is not correctly
-	 * initialized in many cases, and since we don't need it
-	 * for anything, we dont strictly need this test.
-	 * Preemptive action to avoid confusing people in disklabel(8)
-	 * may be in order.
-	 */
-	/* The label cannot claim a larger size than the media. */
-	if ((off_t)dl.d_secperunit * dl.d_secsize > mediasize)
-		return (EINVAL);
-#endif
 
 	/* ... or a smaller sector size. */
 	if (dl.d_secsize < secsize) {
@@ -294,8 +280,6 @@ g_bsd_ioctl(void *arg, int flag)
 {
 	struct bio *bp;
 	struct g_geom *gp;
-	struct g_slicer *gsp;
-	struct g_bsd_softc *ms;
 	struct g_ioctl *gio;
 	u_char *label;
 	int error;
@@ -308,8 +292,6 @@ g_bsd_ioctl(void *arg, int flag)
 	}
 
 	gp = bp->bio_to->geom;
-	gsp = gp->softc;
-	ms = gsp->softc;
 	gio = (struct g_ioctl *)bp->bio_data;
 
 	label = g_malloc(LABELSIZE, M_WAITOK);
@@ -342,7 +324,6 @@ g_bsd_diocbsdbb(dev_t dev, u_long cmd __unused, caddr_t data, int fflag __unused
 	struct g_consumer *cp;
 	u_char *buf;
 	void *p;
-	u_int secsize;
 	int error, i;
 	uint64_t sum;
 
@@ -362,7 +343,6 @@ g_bsd_diocbsdbb(dev_t dev, u_long cmd __unused, caddr_t data, int fflag __unused
 		error = g_bsd_modify(gp, buf + ms->labeloffset);
 		if (!error) {
 			cp = LIST_FIRST(&gp->consumer);
-			secsize = cp->provider->sectorsize;
 			if (ms->labeloffset == ALPHA_LABEL_OFFSET) {
 				sum = 0;
 				for (i = 0; i < 63; i++)
@@ -694,13 +674,12 @@ static int
 g_bsd_config(struct gctl_req *req, struct g_geom *gp, const char *verb)
 {
 	u_char *label;
-	int error, i;
+	int error;
 	struct h0h0 h0h0;
 	struct g_slicer *gsp;
 	struct g_consumer *cp;
 	struct g_bsd_softc *ms;
 
-	i = 0;
 	g_topology_assert();
 	cp = LIST_FIRST(&gp->consumer);
 	gsp = gp->softc;
