@@ -9,7 +9,10 @@ CFLAGS+=	-elf -Wall \
 		-I${.CURDIR}/../common \
 		-I${.CURDIR}/../../libc/include
 LDFLAGS+=	-elf
-NOLIB=		true
+NOMAN=		true
+NOPIC=		true
+NOPROFILE=	true
+INTERNALLIB=	true
 
 
 all: ${OBJS} ${SOBJS}
