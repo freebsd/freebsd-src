@@ -78,6 +78,9 @@ SUBDIR=	apply \
 	lastcomm \
 	ldd \
 	leave \
+	less \
+	lessecho \
+	lesskey \
 	lex \
 	limits \
 	locate \
@@ -100,7 +103,6 @@ SUBDIR=	apply \
 	mklocale \
 	mkstr \
 	mktemp \
-	more \
 	msgs \
 	mt \
 	ncal \
