@@ -501,7 +501,7 @@ udf_unmount(struct mount *mp, int mntflags, struct thread *td)
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
 
-	if ((error = vflush(mp, 0, flags)))
+	if ((error = vflush(mp, 0, flags, td)))
 		return (error);
 
 	if (udfmp->im_flags & UDFMNT_KICONV && udf_iconv) {
@@ -532,7 +532,7 @@ udf_unmount(struct mount *mp, int mntflags, struct thread *td)
 }
 
 static int
-udf_root(struct mount *mp, struct vnode **vpp)
+udf_root(struct mount *mp, struct vnode **vpp, struct thread *td)
 {
 	struct udf_mnt *udfmp;
 	struct vnode *vp;

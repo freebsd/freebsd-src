@@ -201,7 +201,8 @@ int		 pfs_mount	(struct pfs_info *pi, struct mount *mp,
 				 struct nameidata *ndp, struct thread *td);
 int		 pfs_unmount	(struct mount *mp, int mntflags,
 				 struct thread *td);
-int		 pfs_root	(struct mount *mp, struct vnode **vpp);
+int		 pfs_root	(struct mount *mp, struct vnode **vpp,
+				 struct thread *td);
 int		 pfs_statfs	(struct mount *mp, struct statfs *sbp,
 				 struct thread *td);
 int		 pfs_init	(struct pfs_info *pi, struct vfsconf *vfc);

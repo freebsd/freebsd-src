@@ -829,7 +829,7 @@ ext2_flushfiles(mp, flags, td)
 {
 	int error;
 
-	error = vflush(mp, 0, flags);
+	error = vflush(mp, 0, flags, td);
 	return (error);
 }
 
@@ -1215,9 +1215,10 @@ printf("\nupdating superblock, waitfor=%s\n", waitfor == MNT_WAIT ? "yes":"no");
  * Return the root of a filesystem.
  */
 static int
-ext2_root(mp, vpp)
+ext2_root(mp, vpp, td)
 	struct mount *mp;
 	struct vnode **vpp;
+	struct thread *td;
 {
 	struct vnode *nvp;
 	int error;

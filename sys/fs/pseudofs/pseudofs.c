@@ -295,7 +295,7 @@ pfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 
 	/* XXX do stuff with pi... */
 
-	error = vflush(mp, 0, (mntflags & MNT_FORCE) ?  FORCECLOSE : 0);
+	error = vflush(mp, 0, (mntflags & MNT_FORCE) ?  FORCECLOSE : 0, td);
 	return (error);
 }
 
@@ -303,7 +303,7 @@ pfs_unmount(struct mount *mp, int mntflags, struct thread *td)
  * Return a root vnode
  */
 int
-pfs_root(struct mount *mp, struct vnode **vpp)
+pfs_root(struct mount *mp, struct vnode **vpp, struct thread *td)
 {
 	struct pfs_info *pi;
 

@@ -554,7 +554,7 @@ cd9660_unmount(mp, mntflags, td)
 	if (mntinvalbuf(mp))
 		return EBUSY;
 #endif
-	if ((error = vflush(mp, 0, flags)))
+	if ((error = vflush(mp, 0, flags, td)))
 		return (error);
 
 	isomp = VFSTOISOFS(mp);
@@ -578,9 +578,10 @@ cd9660_unmount(mp, mntflags, td)
  * Return root of a filesystem
  */
 static int
-cd9660_root(mp, vpp)
+cd9660_root(mp, vpp, td)
 	struct mount *mp;
 	struct vnode **vpp;
+	struct thread *td;
 {
 	struct iso_mnt *imp = VFSTOISOFS(mp);
 	struct iso_directory_record *dp =

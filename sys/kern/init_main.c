@@ -553,7 +553,7 @@ start_init(void *dummy)
 	vfs_mountroot();
 
 	/* Get the vnode for '/'.  Set p->p_fd->fd_cdir to reference it. */
-	if (VFS_ROOT(TAILQ_FIRST(&mountlist), &rootvnode))
+	if (VFS_ROOT(TAILQ_FIRST(&mountlist), &rootvnode, td))
 		panic("cannot find root vnode");
 	FILEDESC_LOCK(p->p_fd);
 	p->p_fd->fd_cdir = rootvnode;

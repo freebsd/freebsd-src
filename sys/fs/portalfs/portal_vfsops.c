@@ -170,7 +170,7 @@ portal_unmount(mp, mntflags, td)
 		return (EBUSY);
 #endif
 	/* There is 1 extra root vnode reference (pm_root). */
-	error = vflush(mp, 1, flags);
+	error = vflush(mp, 1, flags, td);
 	if (error)
 		return (error);
 
@@ -194,9 +194,10 @@ portal_unmount(mp, mntflags, td)
 }
 
 static int
-portal_root(mp, vpp)
+portal_root(mp, vpp, td)
 	struct mount *mp;
 	struct vnode **vpp;
+	struct thread *td;
 {
 	struct thread *td = curthread;	/* XXX */
 	struct vnode *vp;
