@@ -6,12 +6,11 @@
 SUBDIR= colldef dict examples man me misc mk monetdef \
 	msgdef numericdef skel syscons tabset termcap timedef zoneinfo
 
-
 .if ${MACHINE_ARCH} != "sparc64"
 SUBDIR+= mklocale
 .endif
 
-.if !defined(NO_SHAREDOCS)
+.if !defined(NO_SHAREDOCS) && ${MACHINE_ARCH} != "ia64"
 SUBDIR+= doc
 .endif
 
