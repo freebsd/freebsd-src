@@ -128,7 +128,7 @@ main(int argc, char **argv)
 	extern char *optarg;
 	extern int optind;
 	char buf[_POSIX2_LINE_MAX], *mstr, **pargv, *p, *q;
-	const char *execf, *coref, *swapf;
+	const char *execf, *coref;
 	int debug_opt;
 	int i, ch, bestidx, rv, criteria, drop_privs;
 	size_t jsz;
@@ -171,7 +171,7 @@ main(int argc, char **argv)
 	criteria = 0;
 	debug_opt = 0;
 	drop_privs = 0;
-	execf = coref = swapf = _PATH_DEVNULL;
+	execf = coref = _PATH_DEVNULL;
 
 	while ((ch = getopt(argc, argv, "DG:M:N:P:U:d:fg:lns:t:u:vx")) != -1)
 		switch (ch) {
@@ -263,7 +263,7 @@ main(int argc, char **argv)
 	/*
 	 * Retrieve the list of running processes from the kernel.
 	 */
-	kd = kvm_openfiles(execf, coref, swapf, O_RDONLY, buf);
+	kd = kvm_openfiles(execf, coref, NULL, O_RDONLY, buf);
 	if (kd == NULL)
 		errx(STATUS_ERROR, "kvm_openfiles(): %s", buf);
 
