@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.13.2.2 1997/05/01 00:13:56 pst Exp $
+#	$Id: Makefile,v 1.13.2.3 1997/05/01 00:27:48 pst Exp $
 
 PROG = gdb
 
@@ -30,10 +30,9 @@ XSRCS = annotate.c blockframe.c breakpoint.c buildsym.c c-lang.c \
 	scm-valprint.c f-typeprint.c f-valprint.c nlmread.c \
 	callback.c
 XSRCS+= i386-dis.c dis-buf.c disassemble.c
+SRCS+=	init.c ${XSRCS}
 
 CLEANFILES+= init.c
-
-SRCS+=	${.OBJDIR}/init.c ${XSRCS}
 
 CFLAGS+= -I$(.CURDIR) -I${DESTDIR}/usr/include/readline -I$(.CURDIR)/../bfd
 # use phkmalloc
@@ -82,8 +81,8 @@ DPADD+=   ${.CURDIR}/../libiberty/libiberty.a
 # of the functions might change, so this files needs to depend on all the
 # object files that will be linked into gdb.
 
-${.OBJDIR}/init.c: ${XSRCS}
-	@echo Making init.c
+init.c: ${XSRCS}
+	@echo Making ${.TARGET}
 	@rm -f init.c-tmp
 	@echo '/* Do not modify this file.  */' >init.c-tmp
 	@echo '/* It is created automatically by the Makefile.  */'>>init.c-tmp
@@ -112,7 +111,7 @@ ${.OBJDIR}/init.c: ${XSRCS}
 	  esac ; \
 	done
 	@echo '}' >>init.c-tmp
-	@mv init.c-tmp init.c
+	@mv init.c-tmp ${.TARGET}
 
 .PRECIOUS: init.c
 
