@@ -72,6 +72,12 @@ Otherwise, depending on the options specified,
 .Nm
 will set the date and time or print it in a user-defined way.
 .Pp
+The
+.Nm
+utility displays the date and time read from the kernel clock.
+When used to set the date and time,
+both the kernel clock and the CMOS clock are updated.
+.Pp
 Only the superuser may set the date,
 and if the system securelevel (see
 .Xr securelevel 8 )
