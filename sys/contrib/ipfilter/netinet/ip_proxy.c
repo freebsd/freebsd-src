@@ -8,7 +8,7 @@
 # define	_KERNEL
 #endif
 
-#ifdef __sgi
+#if defined(__sgi) && (IRIX > 602)
 # include <sys/ptimers.h>
 #endif
 #include <sys/errno.h>
@@ -312,7 +312,7 @@ nat_t *nat;
 			sum = fr_tcpsum(*(mb_t **)fin->fin_mp, ip, tcp);
 #endif
 			if (sum != tcp->th_sum) {
-#if PROXY_DEBUG
+#if PROXY_DEBUG || (!defined(_KERNEL) && !defined(KERNEL))
 				printf("proxy tcp checksum failure\n");
 #endif
 				frstats[fin->fin_out].fr_tcpbad++;
@@ -320,8 +320,8 @@ nat_t *nat;
 			}
 
 			/*
-			 * Don't both the proxy with these...or in fact, should
-			 * we free up proxy stuff when seen?
+			 * Don't bother the proxy with these...or in fact,
+			 * should we free up proxy stuff when seen?
 			 */
 			if ((tcp->th_flags & TH_RST) != 0)
 				return 0;
@@ -339,13 +339,13 @@ nat_t *nat;
 
 		rv = APR_EXIT(err);
 		if (rv == 1) {
-#if PROXY_DEBUG
+#if PROXY_DEBUG || (!defined(_KERNEL) && !defined(KERNEL))
 			printf("proxy says bad packet received\n");
 #endif
 			return -1;
 		}
 		if (rv == 2) {
-#if PROXY_DEBUG
+#if PROXY_DEBUG || (!defined(_KERNEL) && !defined(KERNEL))
 			printf("proxy says free app proxy data\n");
 #endif
 			appr_free(apr);
@@ -421,7 +421,7 @@ ap_session_t *aps;
 	apr = aps->aps_apr;
 	if ((apr != NULL) && (apr->apr_del != NULL))
 		(*apr->apr_del)(aps);
- 
+
 	if ((aps->aps_data != NULL) && (aps->aps_psiz != 0))
 		KFREES(aps->aps_data, aps->aps_psiz);
 	KFREE(aps);
@@ -465,7 +465,7 @@ int inc;
 				sel, !sel, seq1, aps->aps_seqmin[!sel]);
 #endif
 			sel = aps->aps_sel[out] = !sel;
-}
+		}
 
 		if (aps->aps_seqoff[sel]) {
 			seq2 = aps->aps_seqmin[sel] - aps->aps_seqoff[sel];
@@ -500,7 +500,7 @@ int inc;
 				sel, !sel, seq1, aps->aps_ackmin[!sel]);
 #endif
 			sel = aps->aps_sel[1 - out] = !sel;
-}
+		}
 
 		if (aps->aps_ackoff[sel] && (seq1 > aps->aps_ackmin[sel])) {
 			seq2 = aps->aps_ackoff[sel];
@@ -519,7 +519,7 @@ int inc;
 				sel, !sel, seq1, aps->aps_ackmin[!sel]);
 #endif
 			sel = aps->aps_sel[out] = !sel;
-}
+		}
 
 		if (aps->aps_ackoff[sel]) {
 			seq2 = aps->aps_ackmin[sel] - aps->aps_ackoff[sel];
@@ -554,7 +554,7 @@ int inc;
 				sel, !sel, seq1, aps->aps_seqmin[!sel]);
 #endif
 			sel = aps->aps_sel[1 - out] = !sel;
-}
+		}
 
 		if (aps->aps_seqoff[sel] != 0) {
 #if PROXY_DEBUG
