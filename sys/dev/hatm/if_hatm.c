@@ -215,7 +215,7 @@ hatm_alloc_dmamem(struct hatm_softc *sc, const char *what, struct dmamem *mem)
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 	    NULL, NULL, mem->size, 1,
 	    BUS_SPACE_MAXSIZE_32BIT, BUS_DMA_ALLOCNOW,
-	    busdma_lock_mutex, &Giant, &mem->tag);
+	    NULL, NULL, &mem->tag);
 	if (error) {
 		if_printf(&sc->ifatm.ifnet, "DMA tag create (%s)\n", what);
 		return (error);
@@ -231,7 +231,7 @@ hatm_alloc_dmamem(struct hatm_softc *sc, const char *what, struct dmamem *mem)
 	}
 
 	error = bus_dmamap_load(mem->tag, mem->map, mem->base, mem->size,
-	    dmaload_helper, &mem->paddr, 0);
+	    dmaload_helper, &mem->paddr, BUS_DMA_NOWAIT);
 	if (error) {
 		if_printf(&sc->ifatm.ifnet, "DMA map load (%s): %d\n",
 		    what, error);
@@ -1714,7 +1714,7 @@ hatm_attach(device_t dev)
 	    NULL, NULL,
 	    BUS_SPACE_MAXSIZE_32BIT, 1,
 	    BUS_SPACE_MAXSIZE_32BIT, 0,
-	    busdma_lock_mutex, &Giant, &sc->parent_tag)) {
+	    NULL, NULL, &sc->parent_tag)) {
 		device_printf(dev, "could not allocate DMA tag\n");
 		error = ENOMEM;
 		goto failed;
@@ -1725,7 +1725,7 @@ hatm_attach(device_t dev)
 	    NULL, NULL,
 	    MBUF_ALLOC_SIZE, 1,
 	    MBUF_ALLOC_SIZE, 0,
-	    busdma_lock_mutex, &Giant, &sc->mbuf_tag)) {
+	    NULL, NULL, &sc->mbuf_tag)) {
 		device_printf(dev, "could not allocate mbuf DMA tag\n");
 		error = ENOMEM;
 		goto failed;
@@ -1741,7 +1741,7 @@ hatm_attach(device_t dev)
 	if (bus_dma_tag_create(NULL, 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    HE_MAX_PDU, 3 * HE_CONFIG_MAX_TPD_PER_PACKET, HE_MAX_PDU, 0,
-	    busdma_lock_mutex, &Giant, &sc->tx_tag)) {
+	    NULL, NULL, &sc->tx_tag)) {
 		device_printf(dev, "could not allocate TX tag\n");
 		error = ENOMEM;
 		goto failed;
@@ -2143,9 +2143,17 @@ hatm_initialize(struct hatm_softc *sc)
 
 	WRITE4(sc, HE_REGO_TXAAL5_PROTO, 0);
 
-	WRITE4(sc, HE_REGO_RHCONFIG,
-	    HE_REGM_RHCONFIG_PHYENB |
-	    ((sc->he622 ? 0x41 : 0x31) << HE_REGS_RHCONFIG_PTMR_PRE));
+	if (sc->rbp_s1.size != 0) {
+		WRITE4(sc, HE_REGO_RHCONFIG,
+		    HE_REGM_RHCONFIG_PHYENB |
+		    ((sc->he622 ? 0x41 : 0x31) << HE_REGS_RHCONFIG_PTMR_PRE) |
+		    (1 << HE_REGS_RHCONFIG_OAM_GID));
+	} else {
+		WRITE4(sc, HE_REGO_RHCONFIG,
+		    HE_REGM_RHCONFIG_PHYENB |
+		    ((sc->he622 ? 0x41 : 0x31) << HE_REGS_RHCONFIG_PTMR_PRE) |
+		    (0 << HE_REGS_RHCONFIG_OAM_GID));
+	}
 	BARRIER_W(sc);
 
 	hatm_init_cm(sc);
