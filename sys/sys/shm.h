@@ -1,4 +1,4 @@
-/* $Id: shm.h,v 1.2 1994/09/17 13:24:29 davidg Exp $ */
+/* $Id: shm.h,v 1.4 1995/07/08 16:36:30 joerg Exp $ */
 /*	$NetBSD: shm.h,v 1.15 1994/06/29 06:45:17 cgd Exp $	*/
 
 /*
@@ -44,6 +44,12 @@
 #define SHM_RDONLY  010000  /* Attach read-only (else read-write) */
 #define SHM_RND     020000  /* Round attach address to SHMLBA */
 #define SHMLBA      CLBYTES /* Segment low boundry address multiple */
+
+/* "official" access mode definitions; somewhat braindead since you have
+   to specify (SHM_* >> 3) for group and (SHM_* >> 6) for world permissions */
+#define SHM_R       (IPC_R)
+#define SHM_W       (IPC_W)
+
 
 struct shmid_ds {
 	struct ipc_perm shm_perm;	/* operation permission structure */
