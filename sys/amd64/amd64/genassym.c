@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.67 1999/05/11 16:04:39 luoqi Exp $
+ *	$Id: genassym.c,v 1.68 1999/05/12 21:30:49 luoqi Exp $
  */
 
 #include "opt_vm86.h"
@@ -203,6 +203,7 @@ main()
 	printf("#define\tGD_SWITCHTICKS %#x\n", OS(globaldata, gd_switchticks));
 #ifdef VM86
 	printf("#define\tGD_COMMON_TSSD %#x\n", OS(globaldata, gd_common_tssd));
+	printf("#define\tGD_TSS_GDT %#x\n", OS(globaldata, gd_tss_gdt));
 #endif
 #ifdef USER_LDT
 	printf("#define\tGD_CURRENTLDT %#x\n", OS(globaldata, gd_currentldt));

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86bios.s,v 1.11 1999/05/11 16:04:40 luoqi Exp $
+ *	$Id: vm86bios.s,v 1.12 1999/05/12 21:30:51 luoqi Exp $
  */
 
 #include "opt_vm86.h"
@@ -98,8 +98,7 @@ ENTRY(vm86_bioscall)
 	pushl	%eax			/* save curpcb */
 	movl	%edx,_curpcb		/* set curpcb to vm86pcb */
 
-	movl	$GPROC0_SEL,%esi
-	leal	_gdt(,%esi,8),%ebx	/* entry in GDT */
+	movl	_tss_gdt,%ebx		/* entry in GDT */
 	movl	0(%ebx),%eax
 	movl	%eax,SCR_TSS0(%edx)	/* save first word */
 	movl	4(%ebx),%eax
@@ -111,7 +110,7 @@ ENTRY(vm86_bioscall)
 	movl	%eax,0(%ebx)
 	movl	4(%edi),%eax
 	movl	%eax,4(%ebx)
-	shll	$3,%esi			/* GSEL(entry, SEL_KPL) */
+	movl	$GPROC0_SEL*8,%esi	/* GSEL(entry, SEL_KPL) */
 	ltr	%si
 
 	movl	%cr3,%eax
@@ -176,13 +175,12 @@ ENTRY(vm86_biosret)
 
 	movl	$0,_in_vm86call		/* reset trapflag */
 
-	movl	$GPROC0_SEL,%esi
-	leal	_gdt(,%esi,8),%ebx	/* entry in GDT */
+	movl	_tss_gdt,%ebx		/* entry in GDT */
 	movl	SCR_TSS0(%edx),%eax
 	movl	%eax,0(%ebx)		/* restore first word */
 	movl	SCR_TSS1(%edx),%eax
 	movl	%eax,4(%ebx)		/* restore second word */
-	shll	$3,%esi			/* GSEL(entry, SEL_KPL) */
+	movl	$GPROC0_SEL*8,%esi	/* GSEL(entry, SEL_KPL) */
 	ltr	%si
 	
 	popl	_curpcb			/* restore curpcb/curproc */

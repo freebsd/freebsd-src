@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.33 1999/05/06 09:44:52 bde Exp $
+ * $Id: asnames.h,v 1.34 1999/05/09 19:01:47 peter Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -400,6 +400,7 @@
 #define	_ss_eflags			FS(ss_eflags)
 #define _switchticks			FS(switchticks)
 #define _switchtime			FS(switchtime)
+#define _tss_gdt			FS(tss_gdt)
 #define	_idlestack			FS(idlestack)
 #define	_idlestack_top			FS(idlestack_top)
 

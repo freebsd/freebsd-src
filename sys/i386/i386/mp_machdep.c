@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.99 1999/04/30 22:09:40 msmith Exp $
+ *	$Id: mp_machdep.c,v 1.100 1999/05/08 17:48:22 peter Exp $
  */
 
 #include "opt_smp.h"
@@ -483,7 +483,8 @@ init_secondary(void)
 	common_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL);
 	common_tss.tss_ioopt = (sizeof common_tss) << 16;
 #ifdef VM86
-	common_tssd = gdt[myid * NGDT + GPROC0_SEL].sd;
+	tss_gdt = &gdt[myid * NGDT + GPROC0_SEL].sd;
+	common_tssd = *tss_gdt;
 #endif
 	ltr(gsel_tss);
 
