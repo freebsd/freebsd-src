@@ -1555,9 +1555,19 @@ retrieve(cmd, name)
 		return;
 	}
 	byte_count = -1;
-	if (cmd == 0 && (fstat(fileno(fin), &st) < 0 || !S_ISREG(st.st_mode))) {
-		reply(550, "%s: not a plain file.", name);
-		goto done;
+	if (cmd == 0) {
+		if (fstat(fileno(fin), &st) < 0) {
+			perror_reply(550, name);
+			goto done;
+		}
+		if (!S_ISREG(st.st_mode)) {
+			if (guest) {
+				reply(550, "%s: not a plain file.", name);
+				goto done;
+			}
+			st.st_size = -1;
+			/* st.st_blksize is set for all descriptor types */
+		}
 	}
 	if (restart_point) {
 		if (type == TYPE_A) {
