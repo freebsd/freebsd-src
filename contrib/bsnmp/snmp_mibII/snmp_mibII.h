@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_mibII/snmp_mibII.h,v 1.15 2004/08/06 08:47:06 brandt Exp $
+ * $Begemot: bsnmp/snmp_mibII/snmp_mibII.h,v 1.16 2005/02/25 16:04:43 brandt_h Exp $
  *
  * Implementation of the interfaces and IP groups of MIB-II.
  */
@@ -76,6 +76,9 @@ struct mibif {
 	mibif_notify_f	xnotify;
 	void		*xnotify_data;
 	const struct lmodule *xnotify_mod;
+
+	/* to be set by ifType specific modules. This is ifSpecific. */
+	struct asn_oid	spec_oid;
 };
 
 /*

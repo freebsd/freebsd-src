@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/lib/snmpagent.c,v 1.18 2004/08/06 08:46:55 brandt Exp $
+ * $Begemot: bsnmp/lib/snmpagent.c,v 1.19 2004/08/19 17:09:09 brandt Exp $
  *
  * SNMP Agent functions
  */
@@ -339,6 +339,11 @@ do_getnext(struct context *context, const struct snmp_value *inb,
 		/* object has no data - try next */
 		if (++tp == tree + tree_size)
 			break;
+
+		if (TR(GETNEXT))
+			snmp_debug("getnext: no data - avancing to %s",
+			    asn_oid2str(&tp->oid));
+
 		outb->var = tp->oid;
 	}
 

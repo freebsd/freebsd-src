@@ -26,7 +26,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Begemot: bsnmp/snmpd/bsnmpd.1,v 1.4 2004/08/06 08:47:10 brandt Exp $
+.\" $Begemot: bsnmp/snmpd/bsnmpd.1,v 1.6 2005/02/25 11:56:01 brandt_h Exp $
 .\"
 .Dd August 15, 2002
 .Dt SNMPD 1
@@ -47,7 +47,7 @@
 The
 .Nm
 daemon servers the internet SNMP (Simple Network Managment Protocol).
-It is intended to server only the absolute basic MIBs and implement all other
+It is intended to serve only the absolute basic MIBs and implement all other
 MIBs through loadable modules. In this way the
 .Nm
 can be used in unexpected ways.
@@ -84,7 +84,7 @@ value. The value can be specified in the usual C-syntax for numbers.
 This option specifies a colon separated list of directories to search for
 configuration include files. The default is
 .Pa /etc:/usr/etc/:/usr/local/etc .
-These paths are only searched for include specified within <> parantheses.
+These paths are only searched for include specified within <> parentheses.
 .It Fl l Ar prefix
 The
 .Ar prefix
@@ -112,7 +112,7 @@ MIB variable assignments
 .El
 .Pp
 If a line is too long it can be continued on the next line by ending it with
-a backslash. Empty lines and lines who's first non-blank character is a
+a backslash. Empty lines and lines in which the first non-blank character is a
 .Dq #
 sign are ignored.
 .Pp
@@ -123,7 +123,7 @@ in a single SET PDU. Any failure during the initial configuration read causes
 to exit. A failure during the configuration read caused by a module load
 causes the loading of the module to fail.
 .Pp
-The configuration is red during initialisation of
+The configuration is read during initialisation of
 .Nm ,
 when a module is loaded and when
 .Nm
@@ -177,7 +177,7 @@ include directive that takes one of two forms:
 .Pp
 The first form causes the file to be searched in the current directory, the
 second form causes the file to be searched in the directories specified in
-the system include path. Nesting depths is only restricted by available
+the system include path. Nesting depth is only restricted by available
 memory.
 .Ss MIB VARIABLE ASSIGNMENTS
 A MIB variable is assigned with the syntax
@@ -189,10 +189,10 @@ oid [ suboids ] = value
 is the name of the variable to be set. Only the last component of the entire
 name is used here. If the variable is a scalar, the index (.0) is automatically
 appended and need not to be specified. If the variable is a table column,
-the index (
-.Va suboids )
+the index
+.Pq Va suboids
 must be specified. The index consist of elements each seperated from the
-previous one by a dot. Elements may be either numbers, strings or hostnames 
+previous one by a dot. Elements may be either numbers, strings or hostnames
 enclosed in [] brackets. If the element is a number it is appended
 to the current oid. If the element is a string, its length and the
 .Tn ASCII
