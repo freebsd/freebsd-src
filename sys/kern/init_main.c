@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.114 1999/04/28 01:04:25 luoqi Exp $
+ * $Id: init_main.c,v 1.115 1999/04/28 11:36:50 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -353,10 +353,6 @@ proc0_init(dummy)
 	register struct filedesc0	*fdp;
 	register unsigned i;
 
-	/*
-	 * Initialize the current process pointer (curproc) before
-	 * any possible traps/probes to simplify trap processing.
-	 */
 	p = &proc0;
 
 	/*
@@ -474,9 +470,10 @@ proc0_init(dummy)
 	(void)chgproccnt(0, 1);
 
 	/*
-	 * Initialize the procfs flags (to 0, of course)
+	 * Initialize the current process pointer (curproc) before
+	 * any possible traps/probes to simplify trap processing.
 	 */
-	p->p_stops = p->p_stype = p->p_step = 0;
+	SET_CURPROC(p);
 
 }
 SYSINIT(p0init, SI_SUB_INTRINSIC, SI_ORDER_FIRST, proc0_init, NULL)
