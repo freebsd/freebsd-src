@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: yppush.8,v 1.1 1995/02/05 21:48:04 wpaul Exp $
+.\"	$Id: ypbind.8,v 1.1 1995/04/09 21:59:06 wpaul Exp $
 .\"
 .Dd April 9, 1995
 .Dt YPBIND 8
@@ -48,9 +48,8 @@ is the process that maintains NIS binding information. At startup,
 it searches for an NIS server responsible for serving the system's
 default domain (as set by the
 .Xr domainname 1
-command) using network broadcasts. Initially,
-.Nm ypbind
-will broadcast every five seconds. Once it receives a reply,
+command) using network broadcasts.
+Once it receives a reply,
 it will store the address of the server and other
 information in a special file located in
 .Pa /var/yp/binding .
@@ -63,9 +62,8 @@ After a binding has been established,
 .Nm ypbind
 will send DOMAIN_NONACK requests to the NIS server at one minute
 intervals. If it fails to receive a reply to one of these requests
-within twenty seconds,
 .Nm ypbind
-assumes that the server is no longer running and resumes its five second
+assumes that the server is no longer running and resumes its network
 broadcasts until another binding is established.
 .Nm ypbind
 will also log warning messages using the syslog(3) facility each time
@@ -90,7 +88,7 @@ flag causes
 .Nm ypbind
 to accept YPBINDPROC_SETDOM requests from any host. This option should only
 be used for diagnostic purposes and only for limited periods since allowing
-arbitrary users to reset the binsing of an NIS client poses a severe
+arbitrary users to reset the binding of an NIS client poses a severe
 security risk.
 .It Fl ypsetme
 This is similar to the
@@ -105,6 +103,17 @@ flag causes
 to run in secure mode: it will refuse to bind to any NIS server
 that is not running as root (i.e. that is not using privileged
 TCP ports).
+.Sh NOTES
+.Nm ypbind
+will not make continuous attempts to keep secondary domains bound.
+If a server for a second dary domain fails to respond to a ping,
+.Nm ypbind
+will broadcast for a new server only once before giving up. If a
+client program attempts to reference the unbound domain, ypbind will
+try broadcasting again. By contrast,
+.Nm ypbind
+will automatically maintain a binding for the default domain whether
+client programs reference it ot not.
 .Sh FILES
 .Bl -tag -width Pa -compact
 .It Pa /var/yp/binding/[domainname].[version]
