@@ -416,6 +416,22 @@ static __inline int __sputc(int _c, FILE *_p) {
 #define	__sclearerr(p)	((void)((p)->_flags &= ~(__SERR|__SEOF)))
 #define	__sfileno(p)	((p)->_file)
 
+extern int __isthreaded;
+
+#define	feof(p)		(!__isthreaded ? __sfeof(p) : feof(p))
+#define	ferror(p)	(!__isthreaded ? __sferror(p) : ferror(p))
+#define	clearerr(p)	(!__isthreaded ? __sclearerr(p) : clearerr(p))
+
+#if __POSIX_VISIBLE
+#define	fileno(p)	(!__isthreaded ? __sfileno(p) : fileno(p))
+#endif
+
+#define	getc(fp)	(!__isthreaded ? __sgetc(fp) : getc(fp))
+#define	putc(x, fp)	(!__isthreaded ? __sputc(x, fp) : putc(x, fp))
+
+#define	getchar()	getc(stdin)
+#define	putchar(x)	putc(x, stdout)
+
 #if __BSD_VISIBLE
 /*
  * See ISO/IEC 9945-1 ANSI/IEEE Std 1003.1 Second Edition 1996-07-12

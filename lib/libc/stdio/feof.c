@@ -45,12 +45,8 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 #include "libc_private.h"
 
-/*
- * feof has traditionally been a macro in <stdio.h>.  That is no
- * longer true because it needs to be thread-safe.
- *
- * #undef feof
- */
+#undef feof
+
 int
 feof(FILE *fp)
 {
