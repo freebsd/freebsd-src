@@ -98,13 +98,6 @@ SYSCTL_INT(_kern, KERN_LOGSIGEXIT, logsigexit, CTLFLAG_RW,
     "Log processes quitting on abnormal signals to syslog(3)");
 
 /*
- * Can process p, with pcred pc, send the signal sig to process q?
- */
-#define CANSIGNAL(p, q, sig) \
-	(!p_can(p, q, P_CAN_KILL, NULL) || \
-	((sig) == SIGCONT && (q)->p_session == (p)->p_session))
-
-/*
  * Policy -- Can real uid ruid with ucred uc send a signal to process q?
  */
 #define CANSIGIO(ruid, uc, q) \
@@ -910,7 +903,7 @@ killpg1(cp, sig, pgid, all)
 			 * XXX: this locking needs work.. specifically the
 			 * session checks..
 			 */
-			if (!CANSIGNAL(cp, p, sig))
+			if (p_cansignal(cp, p, sig))
 				continue;
 			nfound++;
 			if (sig) {
@@ -945,7 +938,7 @@ killpg1(cp, sig, pgid, all)
 			}
 			mtx_unlock_spin(&sched_lock);
 			/* XXX: locking b0rked */
-			if (!CANSIGNAL(cp, p, sig))
+			if (p_cansignal(cp, p, sig))
 				continue;
 			nfound++;
 			if (sig) {
@@ -979,7 +972,7 @@ kill(cp, uap)
 		if ((p = pfind(uap->pid)) == NULL)
 			return (ESRCH);
 		/* XXX: locking b0rked */
-		if (!CANSIGNAL(cp, p, uap->signum))
+		if (p_cansignal(cp, p, uap->signum))
 			return (EPERM);
 		if (uap->signum) {
 			PROC_LOCK(p);

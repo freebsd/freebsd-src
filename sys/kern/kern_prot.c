@@ -1024,48 +1024,90 @@ p_cansee(struct proc *p1, struct proc *p2, int *privused)
 	return (u_cansee(p1->p_ucred, p2->p_ucred));
 }
 
-static int
-p_cankill(struct proc *p1, struct proc *p2, int *privused)
+/*
+ * Can process p1 send the signal signum to process p2?
+ */
+int
+p_cansignal(struct proc *p1, struct proc *p2, int signum)
 {
-	int error;
-
-	if (privused != NULL)
-		*privused = 0;
-
+	int	error;
+	
 	if (p1 == p2)
 		return (0);
 
+	/*
+	 * Jail semantics limit the scope of signalling to p2 in the same
+	 * jail as p1, if p1 is in jail.
+	 */
 	if ((error = prison_check(p1->p_ucred, p2->p_ucred)))
 		return (error);
 
-	if (p1->p_cred->p_ruid == p2->p_cred->p_ruid)
-		return (0);
-	if (p1->p_ucred->cr_uid == p2->p_cred->p_ruid)
-		return (0);
 	/*
-	 * XXX should a process be able to affect another process
-	 * acting as the same uid (i.e., a userland nfsd or the like?)
+	 * UNIX signalling semantics require that processes in the same
+	 * session always be able to deliver SIGCONT to one another,
+	 * overriding the remaining protections.
 	 */
-	if (p1->p_cred->p_ruid == p2->p_ucred->cr_uid)
-		return (0);
-	if (p1->p_ucred->cr_uid == p2->p_ucred->cr_uid)
+	if (signum == SIGCONT && p1->p_session == p2->p_session)
 		return (0);
 
-	if (!suser_xxx(0, p1, PRISON_ROOT)) {
-		if (privused != NULL)
-			*privused = 1;
-		return (0);
+	/*
+	 * UNIX uid semantics depend on the status of the P_SUGID
+	 * bit on the target process.  If the bit is set, then more
+	 * restricted signal sets are permitted.
+	 */
+	if (p2->p_flag & P_SUGID) {
+		switch (signum) {
+		case 0:
+		case SIGKILL:
+		case SIGINT:
+		case SIGTERM:
+		case SIGSTOP:
+		case SIGTTIN:
+		case SIGTTOU:
+		case SIGTSTP:
+		case SIGHUP:
+		case SIGUSR1:
+		case SIGUSR2:
+			/*
+			 * Restricted rules allow a broadish scope of uid
+			 * uid overlap.
+			 * XXX: Maybe too broad.
+			 */
+			if (p1->p_cred->p_ruid != p2->p_cred->p_ruid &&
+			    p1->p_ucred->cr_uid != p2->p_cred->p_ruid &&
+			    p1->p_cred->p_ruid != p2->p_ucred->cr_uid &&
+			    p1->p_ucred->cr_uid != p2->p_ucred->cr_uid) {
+				/* Not permitted, try privilege. */
+				error = suser_xxx(NULL, p1, PRISON_ROOT);
+				if (error)
+					return (error);
+			}
+			break;
+		default:
+			/* Not permitted, try privilege. */
+			error = suser_xxx(NULL, p1, PRISON_ROOT);
+			if (error)
+				return (error);
+		}
+	} else {
+		/*
+		 * Normal rules allow a broad scope of uid overlap.
+		 * XXX: Maybe too broad.
+		 */
+		if (p1->p_cred->p_ruid != p2->p_cred->p_ruid &&
+		    p1->p_cred->p_ruid != p2->p_cred->p_svuid &&
+		    p1->p_ucred->cr_uid != p2->p_cred->p_ruid &&
+		    p1->p_ucred->cr_uid != p2->p_cred->p_svuid &&
+		    p1->p_cred->p_ruid != p2->p_ucred->cr_uid &&
+		    p1->p_ucred->cr_uid != p2->p_ucred->cr_uid) {
+			/* Not permitted, try privilege. */
+			error = suser_xxx(NULL, p1, PRISON_ROOT);
+			if (error)
+				return (error);
+		}
 	}
 
-#ifdef CAPABILITIES
-	if (!cap_check_xxx(0, p1, CAP_KILL, PRISON_ROOT)) {
-		if (privused != NULL)
-			*privused = 1;
-		return (0);
-	}
-#endif
-
-	return (EPERM);
+        return (0);
 }
 
 static int
@@ -1155,9 +1197,6 @@ p_can(struct proc *p1, struct proc *p2, int operation,
 	case P_CAN_SEE:
 		return (p_cansee(p1, p2, privused));
   
-	case P_CAN_KILL:
-		return (p_cankill(p1, p2, privused));
- 
 	case P_CAN_SCHED:
 		return (p_cansched(p1, p2, privused));
 
