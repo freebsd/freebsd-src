@@ -380,6 +380,7 @@ kern/inflate.c		optional gzip
 kern/init_main.c	standard
 kern/init_sysent.c	standard
 kern/kern_acct.c	standard
+kern/kern_accf.c	standard
 kern/kern_acl.c		standard
 kern/kern_cap.c		standard
 kern/kern_clock.c	standard
@@ -690,6 +691,8 @@ netgraph/ng_tee.c	optional netgraph_tee
 netgraph/ng_tty.c	optional netgraph_tty
 netgraph/ng_vjc.c	optional netgraph_vjc
 net/slcompress.c	optional netgraph_vjc
+netinet/accf_data.c		optional accept_filter_data
+netinet/accf_http.c		optional accept_filter_http
 netinet/fil.c		optional ipfilter inet
 netinet/if_atm.c	optional atm
 netinet/if_ether.c	optional ether
