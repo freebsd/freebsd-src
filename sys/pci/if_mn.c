@@ -200,7 +200,8 @@ static struct ng_type mntypestruct = {
 	ngmn_connect,
 	ngmn_rcvdata,
 	ngmn_rcvdata,
-	ngmn_disconnect
+	ngmn_disconnect,
+	NULL
 };
 
 static MALLOC_DEFINE(M_MN, "mn", "Mx driver related");
