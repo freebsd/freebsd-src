@@ -2,7 +2,7 @@
   The FreeBSD Documentation Project
   The FreeBSD German Documentation Project
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/early-adopter/article.sgml,v 1.6 2002/11/09 17:59:31 ue Exp $
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/early-adopter/article.sgml,v 1.7 2002/11/10 10:47:52 ue Exp $
   basiert auf: 1.5
 -->
 
@@ -26,7 +26,7 @@
 %release;
 ]>
 
-<article>
+<article lang="de">
   <articleinfo>
     <title>Hinweise f&uuml;r die ersten Anwender von &os; 5.0-RELEASE</title>
 
