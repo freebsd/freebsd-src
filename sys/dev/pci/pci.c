@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.39 1995/12/16 00:27:46 bde Exp $
+**  $Id: pci.c,v 1.40 1996/01/19 19:01:19 se Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -1149,38 +1149,23 @@ static void
 pci_int (int irq)
 {
 	struct pci_int_desc * p;
-	int c, s;
-#ifdef PCI_EDGE_INT
-	int i, n;
-#endif
+	int s;
+
 	if (irq<0 || irq >= PCI_MAX_IRQ) {
 		printf ("pci_int: irq %d out of range, ignored\n", irq);
 		return;
 	};
-
-#ifdef PCI_EDGE_INT
-	for (i=0; i<1000; i++) {
-		n = 0;
-#endif
-		for (p = pci_int_desc[irq]; p!=NULL; p=p->pcid_next) {
-			s = splq (*p->pcid_maskptr);
-			c= (*p->pcid_handler) (p->pcid_argument);
-			p-> pcid_tally += c;
-			splx (s);
-#ifdef PCI_EDGE_INT
-			n += c;
-#endif
+	for (p = pci_int_desc[irq]; p!=NULL; p=p->pcid_next) {
+		s = splq (*p->pcid_maskptr);
+		(*p->pcid_handler) (p->pcid_argument);
+		p-> pcid_tally++;
+		splx (s);
 #if 0
-			if (c && p->pcid_tally<20)
+		if (p->pcid_tally<20)
 			printf ("PCI_INT: irq=%d h=%p cpl o=%x n=%x val=%d\n",
-					irq, p->pcid_handler, s, cpl, c);
+				irq, p->pcid_handler, s, cpl, c);
 #endif
-		};
-#ifdef PCI_EDGE_INT
-		if (!n) return;
 	};
-	printf ("pci_int(%d): permanent interrupt request.\n", irq);
-#endif
 }
 #endif
 

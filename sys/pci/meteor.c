@@ -127,7 +127,7 @@
 #include <machine/ioctl_meteor.h>
 
 
-static int meteor_intr __P((void *arg));
+static void meteor_intr __P((void *arg));
 
 /* 
  * Allocate enough memory for:
@@ -548,7 +548,7 @@ met_probe (pcici_t tag, pcidi_t type)
 	/* interrupt handling routine 
 	   complete meteor_read() if using interrupts
 	*/
-static int
+static void
 meteor_intr(void *arg)
 {
 	meteor_reg_t	*mtr	   = (meteor_reg_t *) arg;
@@ -737,7 +737,6 @@ meteor_intr(void *arg)
 	}
 
 	*stat |=  0x7;		/* clear interrupt status */
-	return(1);
 }
 
 static void
