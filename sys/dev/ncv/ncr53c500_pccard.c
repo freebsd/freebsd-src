@@ -88,7 +88,7 @@ static const struct ncv_product {
 	{ PCMCIA_CARD(QLOGIC, PC05, 0), 0x84d00000 }, 
 #define FLAGS_REX5572 0x84d00000
 	{ PCMCIA_CARD(RATOC, REX5572, 0), FLAGS_REX5572 }, 
-	{ PCMCIA_CARD(RATOC, REX_R280, 0), 0x84d00000 }, 
+	{ PCMCIA_CARD(RATOC, REX9530, 0), 0x84d00000 }, 
 	{ { NULL }, 0 }
 };
 
