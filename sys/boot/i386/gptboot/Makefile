@@ -36,7 +36,7 @@ CFLAGS=	-Os \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings
 
-LDFLAGS=-nostdlib -static -N --gc-sections
+LDFLAGS=-static -N --gc-sections
 
 # Pick up ../Makefile.inc early.
 .include <bsd.init.mk>
