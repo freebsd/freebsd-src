@@ -2,6 +2,8 @@
 
 MODULES		 =
 MODULES		+= pam_deny
+MODULES		+= pam_echo
+MODULES		+= pam_exec
 MODULES		+= pam_ftp
 MODULES		+= pam_ftpusers
 .if defined(MAKE_KERBEROS4) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
