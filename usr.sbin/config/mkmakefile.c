@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkmakefile.c,v 1.29 1998/05/02 01:57:39 kato Exp $";
+	"$Id: mkmakefile.c,v 1.30 1998/06/09 14:02:07 dfr Exp $";
 #endif /* not lint */
 
 /*
@@ -253,7 +253,10 @@ makefile()
 			if (versreq != CONFIGVERS) {
 				fprintf(stderr, "WARNING: version of config(8) does not match kernel!\n");
 				fprintf(stderr, "config version = %d, ", CONFIGVERS);
-				fprintf(stderr, "version required = %d\n", versreq);
+				fprintf(stderr, "version required = %d\n\n", versreq);
+				fprintf(stderr, "Make sure that /usr/src/usr.sbin/config is in sync\n");
+				fprintf(stderr, "with your /usr/src/sys and install a new config binary\n");
+				fprintf(stderr, "before trying this again.\n\n");
 			}
 		} else
 			fprintf(stderr,
