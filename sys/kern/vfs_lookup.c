@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_lookup.c	8.4 (Berkeley) 2/16/94
- * $Id: vfs_lookup.c,v 1.24 1998/02/04 22:32:40 eivind Exp $
+ * $Id: vfs_lookup.c,v 1.25 1998/02/06 12:13:30 eivind Exp $
  */
 
 #include "opt_ktrace.h"
@@ -132,8 +132,8 @@ namei(ndp)
 	/*
 	 * Get starting point for the translation.
 	 */
-	if ((ndp->ni_rootdir = fdp->fd_rdir) == NULL)
-		ndp->ni_rootdir = rootvnode;
+	ndp->ni_rootdir = fdp->fd_rdir;
+
 	dp = fdp->fd_cdir;
 	VREF(dp);
 	for (;;) {
