@@ -83,7 +83,9 @@ interface.
 .Pp
 When a driver is registered with the system (by the
 .Dv DRIVER_MODULE
-macro), it is added to the list of drivers contained in the devclass
+macro, see
+.Xr DRIVER_MODULE 9 ) ,
+it is added to the list of drivers contained in the devclass
 of its parent bus type.  For instance all PCI drivers would be
 contained in the devclass named "pci" and all ISA drivers would be
 in the devclass named "isa".
@@ -96,6 +98,7 @@ can optionally call extra initialisation code in the driver by
 specifying an extra module event handler and argument as the last two
 arguments.
 .Sh SEE ALSO
+.Xr DRIVER_MODULE 9 ,
 .Xr devclass 9 ,
 .Xr device 9
 .Sh AUTHORS
