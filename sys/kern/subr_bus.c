@@ -1,4 +1,4 @@
-/*-
+/*
  * Copyright (c) 1997,1998 Doug Rabson
  * All rights reserved.
  *
@@ -981,6 +981,18 @@ device_get_softc(device_t dev)
     return dev->softc;
 }
 
+void
+device_set_softc(device_t dev, void *softc)
+{
+    if (dev->softc && !(dev->flags & DF_EXTERNALSOFTC))
+	free(dev->softc, M_BUS);
+    dev->softc = softc;
+    if (dev->softc)
+        dev->flags |= DF_EXTERNALSOFTC;
+    else
+        dev->flags &= ~DF_EXTERNALSOFTC;
+}
+
 void *
 device_get_ivars(device_t dev)
 {
@@ -1102,7 +1114,7 @@ device_set_driver(device_t dev, driver_t *driver)
     if (dev->driver == driver)
 	return 0;
 
-    if (dev->softc) {
+    if (dev->softc && !(dev->flags & DF_EXTERNALSOFTC)) {
 	free(dev->softc, M_BUS);
 	dev->softc = NULL;
     }
@@ -1110,13 +1122,15 @@ device_set_driver(device_t dev, driver_t *driver)
     dev->driver = driver;
     if (driver) {
 	dev->ops = driver->ops;
-	dev->softc = malloc(driver->softc, M_BUS, M_NOWAIT);
-	if (!dev->softc) {
-	    dev->ops = &null_ops;
-	    dev->driver = NULL;
-	    return ENOMEM;
+	if (!(dev->flags & DF_EXTERNALSOFTC)) {
+	    dev->softc = malloc(driver->softc, M_BUS, M_NOWAIT);
+	    if (!dev->softc) {
+		dev->ops = &null_ops;
+		dev->driver = NULL;
+		return ENOMEM;
+	    }
+	    bzero(dev->softc, driver->softc);
 	}
-	bzero(dev->softc, driver->softc);
     }
     return 0;
 }
