@@ -64,7 +64,7 @@
  *       3.  dpt_handle_timeouts   potentially inserts into the queue
  */
 
-#ident "$Id: dpt_scsi.c,v 1.2 1998/02/10 17:36:44 eivind Exp $"
+#ident "$Id: dpt_scsi.c,v 1.3 1998/02/20 13:11:45 bde Exp $"
 #define _DPT_C_
 
 #include "opt_dpt.h"
@@ -3098,7 +3098,7 @@ static INLINE_Q void
 dpt_Qpush_free(dpt_softc_t * dpt, dpt_ccb_t * ccb)
 {
 #ifdef DPT_FREELIST_IS_STACK
-	TAILQ_INSERT_HEAD(&dpt->free_ccbs, ccb, links)
+	TAILQ_INSERT_HEAD(&dpt->free_ccbs, ccb, links);
 #else
 	TAILQ_INSERT_TAIL(&dpt->free_ccbs, ccb, links);
 #endif
