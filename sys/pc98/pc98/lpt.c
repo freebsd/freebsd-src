@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.2 1996/07/23 07:46:24 asami Exp $
+ *	$Id: lpt.c,v 1.3 1996/08/31 15:06:59 asami Exp $
  */
 
 /*
@@ -126,7 +126,7 @@
 
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
-#include <pc98/pc98/pc98_device.h>
+#include <i386/isa/isa_device.h>
 #include <pc98/pc98/lptreg.h>
 #else /* !PC98 */
 #include <i386/isa/isa.h>
@@ -321,15 +321,9 @@ static struct cdevsw lpt_cdevsw =
 
 static struct kern_devconf kdc_lpt[NLPT] = { {
 	0, 0, 0,		/* filled in by dev_attach */
-#ifdef PC98
-	"lpt", 0, { MDDT_PC98, 0, "tty" },
-	pc98_generic_externalize, 0, 0, PC98_EXTERNALLEN,
-	&kdc_nec0,		/* parent */
-#else
 	"lpt", 0, { MDDT_ISA, 0, "tty" },
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
-#endif
 	0,			/* parentdata */
 	DC_UNCONFIGURED,	/* state */
 	"Parallel printer adapter",
@@ -342,11 +336,7 @@ lpt_registerdev(struct isa_device *id)
 	if(id->id_unit)
 		kdc_lpt[id->id_unit] = kdc_lpt[0];
 	kdc_lpt[id->id_unit].kdc_unit = id->id_unit;
-#ifdef PC98
-	kdc_lpt[id->id_unit].kdc_pc98 = id;
-#else
 	kdc_lpt[id->id_unit].kdc_isa = id;
-#endif
 	dev_attach(&kdc_lpt[id->id_unit]);
 }
 

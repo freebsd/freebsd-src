@@ -42,11 +42,10 @@
 #include <sys/kernel.h>
 #include <machine/clock.h>
 #endif
+#include <i386/isa/isa_device.h>
 #ifdef PC98
-#include <pc98/pc98/pc98_device.h>
 #include <pc98/pc98/pcic.h>
 #else
-#include <i386/isa/isa_device.h>
 #include <i386/isa/pcic.h>
 #endif
 

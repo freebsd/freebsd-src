@@ -337,7 +337,7 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
-/* $Id: matcd.c,v 1.2 1996/07/30 18:56:16 asami Exp $ */
+/* $Id: matcd.c,v 1.3 1996/08/31 15:07:38 asami Exp $ */
 
 /*---------------------------------------------------------------------------
 	Include declarations
@@ -493,15 +493,9 @@ struct matcd_read2 {
 
 static struct kern_devconf kdc_matcd[TOTALDRIVES] = { {
 	0,0,0,				/*Filled in by dev_attach*/
-#ifdef PC98
-	"matcdc",0,{MDDT_PC98,0,"bio"},
-	pc98_generic_externalize,0,0,PC98_EXTERNALLEN,
-	&kdc_nec0,			/*<12>Parent*/
-#else
 	"matcdc",0,{MDDT_ISA,0,"bio"},
 	isa_generic_externalize,0,0,ISA_EXTERNALLEN,
 	&kdc_isa0,			/*<12>Parent*/
-#endif
 	0,				/*<12>Parent Data*/
 	DC_IDLE,			/*<12>Status*/
 	"Matsushita CD-ROM Controller"	/*<12>This is the description*/
@@ -1360,11 +1354,7 @@ static inline void matcd_register(struct isa_device *id)
 		kdc_matcd[id->id_unit]=kdc_matcd[0];
 	}
 	kdc_matcd[id->id_unit].kdc_unit=id->id_unit;
-#ifdef PC98
-	kdc_matcd[id->id_unit].kdc_pc98=id;
-#else
 	kdc_matcd[id->id_unit].kdc_isa=id;
-#endif
 	dev_attach(&kdc_matcd[id->id_unit]);
 	return;
 }

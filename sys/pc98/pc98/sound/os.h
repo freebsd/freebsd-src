@@ -30,11 +30,7 @@
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
-#ifdef PC98
-#include <pc98/pc98/pc98_device.h>
-#else
 #include <i386/isa/isa_device.h>
-#endif
 #include <machine/cpufunc.h>
 #include <sys/signalvar.h>
 

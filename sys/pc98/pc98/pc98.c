@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.2 1996/07/23 07:46:28 asami Exp $
+ *	$Id: pc98.c,v 1.3 1996/08/31 15:07:05 asami Exp $
  */
 
 /*
@@ -42,7 +42,7 @@
  *
  * 92/08/18  Frank P. MacLachlan (fpm@crash.cts.com):
  * Fixed uninitialized variable problem and added code to deal
- * with DMA page boundaries in pc98_dmarangecheck().  Fixed word
+ * with DMA page boundaries in isa_dmarangecheck().  Fixed word
  * mode DMA count compution and reorganized DMA setup code in
  * isa_dmastart()
  */
@@ -50,7 +50,7 @@
 /*
  * modified for PC9801 by A.Kojima F.Ukai M.Ishii 
  *			Kyoto University Microcomputer Club (KMC)
- *	$Id: pc98.c,v 1.2 1996/07/23 07:46:28 asami Exp $
+ *	$Id: pc98.c,v 1.3 1994/03/17 23:24:40 kakefuda Exp $
  */
 
 #include "opt_auto_eoi.h"
@@ -67,13 +67,12 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
+#include <i386/isa/isa_device.h>
 #ifdef PC98
-#include <pc98/pc98/pc98_device.h>
 #include <pc98/pc98/pc98.h>
 #include <pc98/pc98/icu.h>
 #include <pc98/pc98/ic/i8237.h>
 #else
-#include <i386/isa/isa_device.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/icu.h>
 #include <i386/isa/ic/i8237.h>
@@ -115,7 +114,7 @@ void ddb_outb __P((unsigned int addr, unsigned char dt));
 extern struct kern_devconf kdc_cpu0;
 
 #ifdef PC98
-struct kern_devconf kdc_nec0 = {
+struct kern_devconf kdc_isa0 = {
 	0, 0, 0,		/* filled in by dev_attach */
 	"nec", 0, { MDDT_BUS, 0 },
 	0, 0, 0, BUS_EXTERNALLEN,
@@ -165,7 +164,7 @@ static void conflict __P((struct isa_device *dvp, struct isa_device *tmpdvp,
 			  char const *format));
 static int haveseen __P((struct isa_device *dvp, struct isa_device *tmpdvp,
 			 u_int checkbits));
-static int pc98_dmarangecheck __P((caddr_t va, u_int length, int chan));
+static int isa_dmarangecheck __P((caddr_t va, u_int length, int chan));
 static inthand2_t pc98_strayintr;
 #else
 static void config_isadev __P((struct isa_device *isdp, u_int *mp));
@@ -281,29 +280,29 @@ haveseen(dvp, tmpdvp, checkbits)
  * conflicts with the current device.
  */
 int
-haveseen_pc98dev(dvp, checkbits)
+haveseen_isadev(dvp, checkbits)
 	struct isa_device *dvp;
 	u_int	checkbits;
 {
 	struct isa_device *tmpdvp;
 	int	status = 0;
 
-	for (tmpdvp = pc98_devtab_tty; tmpdvp->id_driver; tmpdvp++) {
+	for (tmpdvp = isa_devtab_tty; tmpdvp->id_driver; tmpdvp++) {
 		status |= haveseen(dvp, tmpdvp, checkbits);
 		if (status)
 			return status;
 	}
-	for (tmpdvp = pc98_devtab_bio; tmpdvp->id_driver; tmpdvp++) {
+	for (tmpdvp = isa_devtab_bio; tmpdvp->id_driver; tmpdvp++) {
 		status |= haveseen(dvp, tmpdvp, checkbits);
 		if (status)
 			return status;
 	}
-	for (tmpdvp = pc98_devtab_net; tmpdvp->id_driver; tmpdvp++) {
+	for (tmpdvp = isa_devtab_net; tmpdvp->id_driver; tmpdvp++) {
 		status |= haveseen(dvp, tmpdvp, checkbits);
 		if (status)
 			return status;
 	}
-	for (tmpdvp = pc98_devtab_null; tmpdvp->id_driver; tmpdvp++) {
+	for (tmpdvp = isa_devtab_null; tmpdvp->id_driver; tmpdvp++) {
 		status |= haveseen(dvp, tmpdvp, checkbits);
 		if (status)
 			return status;
@@ -315,38 +314,38 @@ haveseen_pc98dev(dvp, checkbits)
  * Configure all PC98 devices
  */
 void
-pc98_configure() {
+isa_configure() {
 	struct isa_device *dvp;
 
-	dev_attach(&kdc_nec0);
+	dev_attach(&kdc_isa0);
 
 	splhigh();
 	printf("Probing for devices on the PC98 bus:\n");
 	/* First probe all the sensitive probes */
-	for (dvp = pc98_devtab_tty; dvp->id_driver; dvp++)
+	for (dvp = isa_devtab_tty; dvp->id_driver; dvp++)
 		if (dvp->id_driver->sensitive_hw)
 			config_pc98dev(dvp, &tty_imask);
-	for (dvp = pc98_devtab_bio; dvp->id_driver; dvp++)
+	for (dvp = isa_devtab_bio; dvp->id_driver; dvp++)
 		if (dvp->id_driver->sensitive_hw)
 			config_pc98dev(dvp, &bio_imask);
-	for (dvp = pc98_devtab_net; dvp->id_driver; dvp++)
+	for (dvp = isa_devtab_net; dvp->id_driver; dvp++)
 		if (dvp->id_driver->sensitive_hw)
 			config_pc98dev(dvp, &net_imask);
-	for (dvp = pc98_devtab_null; dvp->id_driver; dvp++)
+	for (dvp = isa_devtab_null; dvp->id_driver; dvp++)
 		if (dvp->id_driver->sensitive_hw)
 			config_pc98dev(dvp, (u_int *)NULL);
 
 	/* Then all the bad ones */
-	for (dvp = pc98_devtab_tty; dvp->id_driver; dvp++)
+	for (dvp = isa_devtab_tty; dvp->id_driver; dvp++)
 		if (!dvp->id_driver->sensitive_hw)
 			config_pc98dev(dvp, &tty_imask);
-	for (dvp = pc98_devtab_bio; dvp->id_driver; dvp++)
+	for (dvp = isa_devtab_bio; dvp->id_driver; dvp++)
 		if (!dvp->id_driver->sensitive_hw)
 			config_pc98dev(dvp, &bio_imask);
-	for (dvp = pc98_devtab_net; dvp->id_driver; dvp++)
+	for (dvp = isa_devtab_net; dvp->id_driver; dvp++)
 		if (!dvp->id_driver->sensitive_hw)
 			config_pc98dev(dvp, &net_imask);
-	for (dvp = pc98_devtab_null; dvp->id_driver; dvp++)
+	for (dvp = isa_devtab_null; dvp->id_driver; dvp++)
 		if (!dvp->id_driver->sensitive_hw)
 			config_pc98dev(dvp, (u_int *)NULL);
 
@@ -384,13 +383,13 @@ pc98_configure() {
 	 * unregister_intr() will have to adjust the masks for _all_
 	 * interrupts and for tty_imask, etc.
 	 */
-	for (dvp = pc98_devtab_tty; dvp->id_driver; dvp++)
+	for (dvp = isa_devtab_tty; dvp->id_driver; dvp++)
 		register_imask(dvp, tty_imask);
-	for (dvp = pc98_devtab_bio; dvp->id_driver; dvp++)
+	for (dvp = isa_devtab_bio; dvp->id_driver; dvp++)
 		register_imask(dvp, bio_imask);
-	for (dvp = pc98_devtab_net; dvp->id_driver; dvp++)
+	for (dvp = isa_devtab_net; dvp->id_driver; dvp++)
 		register_imask(dvp, net_imask);
-	for (dvp = pc98_devtab_null; dvp->id_driver; dvp++)
+	for (dvp = isa_devtab_null; dvp->id_driver; dvp++)
 		register_imask(dvp, SWI_CLOCK_MASK);
 	spl0();
 }
@@ -409,7 +408,7 @@ config_pc98dev(isdp, mp)
 }
  
 void
-reconfig_pc98dev(isdp, mp)
+reconfig_isadev(isdp, mp)
 	struct isa_device *isdp;
 	u_int *mp;
 {
@@ -433,7 +432,7 @@ config_pc98dev_c(isdp, mp, reconfig)
 		return;
 	}
 	checkbits = CC_DRQ | CC_IOADDR | CC_MEMADDR;
-	if (!reconfig && haveseen_pc98dev(isdp, checkbits))
+	if (!reconfig && haveseen_isadev(isdp, checkbits))
 		return;
 	if (!reconfig && isdp->id_maddr) {
 		isdp->id_maddr -= 0xa0000; /* XXX should be a define */
@@ -501,7 +500,7 @@ config_pc98dev_c(isdp, mp, reconfig)
 			 * a check for IRQs in the next group of checks.
 			 */
 			checkbits |= CC_IRQ;
-			if (haveseen_pc98dev(isdp, checkbits))
+			if (haveseen_isadev(isdp, checkbits))
 				return;
 			isdp->id_alive = id_alive;
 		}
@@ -546,7 +545,7 @@ config_pc98dev_c(isdp, mp, reconfig)
  * hw.devconf interface.
  */
 int
-pc98_externalize(struct isa_device *id, struct sysctl_req *req)
+isa_externalize(struct isa_device *id, struct sysctl_req *req)
 {
 	return (SYSCTL_OUT(req, id, sizeof *id));
 }
@@ -557,7 +556,7 @@ pc98_externalize(struct isa_device *id, struct sysctl_req *req)
  * what the `internalize' routine is supposed to do.
  */
 int
-pc98_internalize(struct isa_device *id, struct sysctl_req *req)
+isa_internalize(struct isa_device *id, struct sysctl_req *req)
 {
 	struct isa_device myid;
 	int rv;
@@ -573,9 +572,9 @@ pc98_internalize(struct isa_device *id, struct sysctl_req *req)
 }
 
 int
-pc98_generic_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
+isa_generic_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
 {
-	return pc98_externalize(kdc->kdc_pc98, req);
+	return isa_externalize(kdc->kdc_isa, req);
 }
 
 /*
@@ -583,7 +582,7 @@ pc98_generic_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
  * during configuration of kernel, setup interrupt control unit
  */
 void
-pc98_defaultirq() 
+isa_defaultirq() 
 {
 	int i;
 
@@ -666,7 +665,7 @@ static short dmapageport[8] =
  * Setup a DMA channel's bounce buffer.
  */
 void
-pc98_dmainit(chan, bouncebufsize)
+isa_dmainit(chan, bouncebufsize)
 	int chan;
 	u_int bouncebufsize;
 {
@@ -674,10 +673,10 @@ pc98_dmainit(chan, bouncebufsize)
 
 #ifdef DIAGNOSTIC
 	if (chan & ~VALID_DMA_MASK)
-		panic("pc98_dmainit: channel out of range");
+		panic("isa_dmainit: channel out of range");
 
 	if (dma_bouncebuf[chan] != NULL)
-		panic("pc98_dmainit: impossible request"); 
+		panic("isa_dmainit: impossible request"); 
 #endif
 
 	dma_bouncebufsize[chan] = bouncebufsize;
@@ -685,7 +684,7 @@ pc98_dmainit(chan, bouncebufsize)
 	/* Try malloc() first.  It works better if it works. */
 	buf = malloc(bouncebufsize, M_DEVBUF, M_NOWAIT);
 	if (buf != NULL) {
-		if (pc98_dmarangecheck(buf, bouncebufsize, chan) == 0) {
+		if (isa_dmarangecheck(buf, bouncebufsize, chan) == 0) {
 			dma_bouncebuf[chan] = buf;
 			return;
 		}
@@ -694,7 +693,7 @@ pc98_dmainit(chan, bouncebufsize)
 	buf = contigmalloc(bouncebufsize, M_DEVBUF, M_NOWAIT, 0ul, 0xfffffful,
 			   1ul, chan & 4 ? 0x20000ul : 0x10000ul);
 	if (buf == NULL)
-		printf("pc98_dmainit(%d, %d) failed\n", chan, bouncebufsize);
+		printf("isa_dmainit(%d, %d) failed\n", chan, bouncebufsize);
 	else
 		dma_bouncebuf[chan] = buf;
 }
@@ -704,16 +703,16 @@ pc98_dmainit(chan, bouncebufsize)
  * in open() or during it's initialization.
  */
 int
-pc98_dma_acquire(chan)
+isa_dma_acquire(chan)
 	int chan;
 {
 #ifdef DIAGNOSTIC
 	if (chan & ~VALID_DMA_MASK)
-		panic("pc98_dma_acquire: channel out of range");
+		panic("isa_dma_acquire: channel out of range");
 #endif
 
 	if (dma_inuse & (1 << chan)) {
-		printf("pc98_dma_acquire: channel %d already in use\n", chan);
+		printf("isa_dma_acquire: channel %d already in use\n", chan);
 		return (EBUSY);
 	}
 	dma_inuse |= (1 << chan);
@@ -726,15 +725,15 @@ pc98_dma_acquire(chan)
  * during close() or during it's shutdown.
  */
 void
-pc98_dma_release(chan)
+isa_dma_release(chan)
 	int chan;
 {
 #ifdef DIAGNOSTIC
 	if (chan & ~VALID_DMA_MASK)
-		panic("pc98_dma_release: channel out of range");
+		panic("isa_dma_release: channel out of range");
 
 	if (dma_inuse & (1 << chan) == 0)
-		printf("pc98_dma_release: channel %d not in use\n", chan);
+		printf("isa_dma_release: channel %d not in use\n", chan);
 #endif
 
 	if (dma_busy & (1 << chan)) {
@@ -752,15 +751,15 @@ pc98_dma_release(chan)
 
 #ifndef PC98
 /*
- * pc98_dmacascade(): program 8237 DMA controller channel to accept
+ * isa_dmacascade(): program 8237 DMA controller channel to accept
  * external dma control by a board.
  */
-void pc98_dmacascade(chan)
+void isa_dmacascade(chan)
 	int chan;
 {
 #ifdef DIAGNOSTIC
 	if (chan & ~VALID_DMA_MASK)
-		panic("pc98_dmacascade: channel out of range");
+		panic("isa_dmacascade: channel out of range");
 #endif
 
 	/* set dma channel mode, and set dma channel mode */
@@ -775,10 +774,10 @@ void pc98_dmacascade(chan)
 #endif
 
 /*
- * pc98_dmastart(): program 8237 DMA controller channel, avoid page alignment
+ * isa_dmastart(): program 8237 DMA controller channel, avoid page alignment
  * problems by using a bounce buffer.
  */
-void pc98_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
+void isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 {
 	vm_offset_t phys;
 	int modeport, waport, mskport;
@@ -787,25 +786,25 @@ void pc98_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 
 #ifdef DIAGNOSTIC
 	if (chan & ~VALID_DMA_MASK)
-		panic("pc98_dmastart: channel out of range");
+		panic("isa_dmastart: channel out of range");
 
 	if ((chan < 4 && nbytes > (1<<16))
 	    || (chan >= 4 && (nbytes > (1<<17) || (u_int)addr & 1)))
-		panic("pc98_dmastart: impossible request");
+		panic("isa_dmastart: impossible request");
 
 	if (dma_inuse & (1 << chan) == 0)
-		printf("pc98_dmastart: channel %d not acquired\n", chan);
+		printf("isa_dmastart: channel %d not acquired\n", chan);
 #endif
 
 	if (dma_busy & (1 << chan))
-		printf("pc98_dmastart: channel %d busy\n", chan);
+		printf("isa_dmastart: channel %d busy\n", chan);
 
 	dma_busy |= (1 << chan);
 
-	if (pc98_dmarangecheck(addr, nbytes, chan)) {
+	if (isa_dmarangecheck(addr, nbytes, chan)) {
 		if (dma_bouncebuf[chan] == NULL
 		    || dma_bouncebufsize[chan] < nbytes)
-			panic("pc98_dmastart: bad bounce buffer"); 
+			panic("isa_dmastart: bad bounce buffer"); 
 		dma_bounced |= (1 << chan);
 		newaddr = dma_bouncebuf[chan];
 
@@ -861,7 +860,7 @@ void pc98_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 	splx(s);	/* mask off */
 }
 
-void pc98_dmadone(int flags, caddr_t addr, int nbytes, int chan)
+void isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
 {
 #if defined(CYRIX_486DLC) || defined(IBM_486SLC)
 	if (flags & B_READ) {
@@ -872,10 +871,10 @@ void pc98_dmadone(int flags, caddr_t addr, int nbytes, int chan)
 
 #ifdef DIAGNOSTIC
 	if (chan & ~VALID_DMA_MASK)
-		panic("pc98_dmadone: channel out of range");
+		panic("isa_dmadone: channel out of range");
 
 	if (dma_inuse & (1 << chan) == 0)
-		printf("pc98_dmadone: channel %d not acquired\n", chan);
+		printf("isa_dmadone: channel %d not acquired\n", chan);
 #endif
 
 #if 0
@@ -885,7 +884,7 @@ void pc98_dmadone(int flags, caddr_t addr, int nbytes, int chan)
 	 * leave this in, drivers that do this will print this continuously.
 	 */
 	if (dma_busy & (1 << chan) == 0)
-		printf("pc98_dmadone: channel %d not busy\n", chan);
+		printf("isa_dmadone: channel %d not busy\n", chan);
 #endif
 
 	if (dma_bounced & (1 << chan)) {
@@ -906,7 +905,7 @@ void pc98_dmadone(int flags, caddr_t addr, int nbytes, int chan)
  */
 
 int
-pc98_dmarangecheck(caddr_t va, u_int length, int chan) {
+isa_dmarangecheck(caddr_t va, u_int length, int chan) {
 	vm_offset_t phys, priorpage = 0, endva;
 	u_int dma_pgmsk = (chan & 4) ?  ~(128*1024-1) : ~(64*1024-1);
 
@@ -919,7 +918,7 @@ pc98_dmarangecheck(caddr_t va, u_int length, int chan) {
 #define PC98RAM_END	RAM_END
 #endif
 		if (phys == 0)
-			panic("pc98_dmacheck: no physical page present");
+			panic("isa_dmacheck: no physical page present");
 		if (phys >= PC98RAM_END)
 			return (1);
 		if (priorpage) {
@@ -950,7 +949,7 @@ pc98_dmarangecheck(caddr_t va, u_int length, int chan) {
  * return true to panic system, false to ignore.
  */
 int
-pc98_nmi(cd) 
+isa_nmi(cd) 
 	int cd;
 {
 #ifdef PC98
@@ -1028,31 +1027,25 @@ pc98_strayintr(d)
 struct isa_device *
 find_display()
 {
-#ifdef PC98
-	struct isa_device *dvp;
-
-	for (dvp = pc98_devtab_tty; dvp->id_driver != NULL; dvp++)
-#else
 	struct isa_device *dvp;
 
 	for (dvp = isa_devtab_tty; dvp->id_driver != NULL; dvp++)
-#endif
 		if (dvp->id_driver->sensitive_hw && dvp->id_enabled)
 			return (dvp);
 	return (NULL);
 }
 
 /*
- * find an PC98 device in a given pc98_devtab_* table, given
+ * find an PC98 device in a given isa_devtab_* table, given
  * the table to search, the expected id_driver entry, and the unit number.
  *
- * this function is defined in pc98_device.h, and this location is debatable;
+ * this function is defined in isa_device.h, and this location is debatable;
  * i put it there because it's useless w/o, and directly operates on
  * the other stuff in that file.
  *
  */
 
-struct isa_device *find_pc98dev(table, driverp, unit)
+struct isa_device *find_isadev(table, driverp, unit)
      struct isa_device *table;
      struct isa_driver *driverp;
      int unit;
@@ -1074,7 +1067,7 @@ struct isa_device *find_pc98dev(table, driverp, unit)
  * Return nonzero if a (masked) irq is pending for a given device.
  */
 int
-pc98_irq_pending(dvp)
+isa_irq_pending(dvp)
 	struct isa_device *dvp;
 {
 	unsigned id_irq;

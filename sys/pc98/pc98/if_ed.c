@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.3 1996/08/30 10:42:59 asami Exp $
+ *	$Id: if_ed.c,v 1.4 1996/08/31 15:06:47 asami Exp $
  */
 
 /*
@@ -100,11 +100,10 @@
 #include <machine/clock.h>
 #include <machine/md_var.h>
 
+#include <i386/isa/isa_device.h>
 #ifdef PC98
-#include <pc98/pc98/pc98_device.h>
 #include <pc98/pc98/icu.h>
 #else
-#include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
 #endif
 #include <i386/isa/if_edreg.h>
@@ -399,15 +398,9 @@ static unsigned short ed_hpp_intr_mask[] = {
 
 static struct kern_devconf kdc_ed_template = {
 	0, 0, 0,		/* filled in by dev_attach */
-#ifdef PC98
-	"ed", 0, { MDDT_PC98, 0, "net" },
-	pc98_generic_externalize, 0, 0, PC98_EXTERNALLEN,
-	&kdc_nec0,		/* parent */
-#else
 	"ed", 0, { MDDT_ISA, 0, "net" },
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
-#endif
 	0,			/* parentdata */
 	DC_UNCONFIGURED,	/* state */
 	"",			/* description */

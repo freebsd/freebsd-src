@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.1.1.1 1996/06/14 10:04:40 asami Exp $
+ *	$Id: autoconf.c,v 1.2 1996/08/30 10:42:51 asami Exp $
  */
 
 /*
@@ -67,7 +67,7 @@
 #include "nec.h"
 #include "epson.h"
 #if NNEC > 0 || NEPSON > 0
-#include <pc98/pc98/pc98_device.h>
+#include <i386/isa/isa_device.h>
 #endif
 #else	/* !PC98 */
 #include "isa.h"
@@ -192,7 +192,7 @@ configure(dummy)
 #endif
 #ifdef PC98
 #if NNEC > 0 || NEPSON > 0
-	pc98_configure();
+	isa_configure();
 #endif
 #else /* IBM-PC */
 #if NEISA > 0

@@ -17,7 +17,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ft.c - QIC-40/80 floppy tape driver
- *  $Id: ft.c,v 1.2 1996/07/23 07:46:13 asami Exp $
+ *  $Id: ft.c,v 1.3 1996/08/31 15:06:44 asami Exp $
  *
  *  01/19/95 ++sg
  *  Cleaned up recalibrate/seek code at attach time for FreeBSD 2.x.
@@ -82,13 +82,12 @@
 
 #include <machine/clock.h>
 
+#include <i386/isa/isa_device.h>
 #ifdef PC98
-#include <pc98/pc98/pc98_device.h>
 #include <pc98/pc98/fdreg.h>
 #include <pc98/pc98/fdc.h>
 #include <pc98/pc98/ftreg.h>
 #else
-#include <i386/isa/isa_device.h>
 #include <i386/isa/fdreg.h>
 #include <i386/isa/fdc.h>
 #include <i386/isa/rtc.h>
@@ -1184,11 +1183,7 @@ restate:
 
      case 1:	/* Start DMA */
 	/* Tape is now moving and in position-- start DMA now! */
-#ifdef PC98
-	pc98_dmastart(B_READ, ft->xptr, QCV_BLKSIZE, 2);
-#else
 	isa_dmastart(B_READ, ft->xptr, QCV_BLKSIZE, 2);
-#endif
 	out_fdc(fdcu, 0x66);				/* read */
 #ifdef PC98
 	out_fdc(fdcu, 3);
@@ -1208,11 +1203,7 @@ restate:
      case 2:	/* DMA completed */
 	/* Transfer complete, get status */
 	for (i = 0; i < 7; i++) rddta[i] = in_fdc(fdcu);
-#ifdef PC98
-	pc98_dmadone(B_READ, ft->xptr, QCV_BLKSIZE, 2);
-#else
 	isa_dmadone(B_READ, ft->xptr, QCV_BLKSIZE, 2);
-#endif
 
 #if FTDBGALL
 	/* Compute where the controller thinks we are */
@@ -1317,11 +1308,7 @@ restate:
 
      case 1:	/* Start DMA */
 	/* Tape is now moving and in position-- start DMA now! */
-#ifdef PC98
-	pc98_dmastart(B_WRITE, ft->xptr, QCV_BLKSIZE, 2);
-#else
 	isa_dmastart(B_WRITE, ft->xptr, QCV_BLKSIZE, 2);
-#endif
 	out_fdc(fdcu, 0x45);				/* write */
 #ifdef PC98
 	out_fdc(fdcu, 3);
@@ -1341,11 +1328,7 @@ restate:
      case 2:	/* DMA completed */
 	/* Transfer complete, get status */
 	for (i = 0; i < 7; i++) rddta[i] = in_fdc(fdcu);
-#ifdef PC98
-	pc98_dmadone(B_WRITE, ft->xptr, QCV_BLKSIZE, 2);
-#else
 	isa_dmadone(B_WRITE, ft->xptr, QCV_BLKSIZE, 2);
-#endif
 
 #if FTDBGALL
 	/* Compute where the controller thinks we are */

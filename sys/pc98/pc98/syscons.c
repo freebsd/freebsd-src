@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.3 1996/08/30 10:43:09 asami Exp $
+ *  $Id: syscons.c,v 1.4 1996/08/31 15:07:23 asami Exp $
  */
 
 #include "sc.h"
@@ -68,7 +68,7 @@
 #ifdef PC98
 #define KANJI
 #include <pc98/pc98/pc98.h>
-#include <pc98/pc98/pc98_device.h>
+#include <i386/isa/isa_device.h>
 #include <pc98/pc98/timerreg.h>
 #include <pc98/pc98/kbdtables.h>
 #include <pc98/pc98/syscons.h>
@@ -459,15 +459,9 @@ gotack:
 
 static struct kern_devconf kdc_sc[NSC] = {
     0, 0, 0,        		/* filled in by dev_attach */
-#ifdef PC98
-    "sc", 0, { MDDT_PC98, 0, "tty" },
-    pc98_generic_externalize, 0, 0, PC98_EXTERNALLEN,
-    &kdc_nec0,		/* parent */
-#else
     "sc", 0, { MDDT_ISA, 0, "tty" },
     isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
     &kdc_isa0,      		/* parent */
-#endif
     0,          		/* parentdata */
     DC_BUSY,        		/* the console is almost always busy */
     "Graphics console",
@@ -480,11 +474,7 @@ sc_registerdev(struct isa_device *id)
     if(id->id_unit)
 	kdc_sc[id->id_unit] = kdc_sc[0];
     kdc_sc[id->id_unit].kdc_unit = id->id_unit;
-#ifdef PC98
-    kdc_sc[id->id_unit].kdc_pc98 = id;
-#else
     kdc_sc[id->id_unit].kdc_isa = id;
-#endif
     dev_attach(&kdc_sc[id->id_unit]);
 }
 
