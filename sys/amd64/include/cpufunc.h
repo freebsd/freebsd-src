@@ -437,7 +437,7 @@ static __inline u_int
 rfs(void)
 {
 	u_int sel;
-	__asm __volatile("movl %%fs,%0" : "=r" (sel));
+	__asm __volatile("movl %%fs,%0" : "=rm" (sel));
 	return (sel);
 }
 
@@ -445,20 +445,20 @@ static __inline u_int
 rgs(void)
 {
 	u_int sel;
-	__asm __volatile("movl %%gs,%0" : "=r" (sel));
+	__asm __volatile("movl %%gs,%0" : "=rm" (sel));
 	return (sel);
 }
 
 static __inline void
 load_fs(u_int sel)
 {
-	__asm __volatile("movl %0,%%fs" : : "r" (sel));
+	__asm __volatile("movl %0,%%fs" : : "rm" (sel));
 }
 
 static __inline void
 load_gs(u_int sel)
 {
-	__asm __volatile("movl %0,%%gs" : : "r" (sel));
+	__asm __volatile("movl %0,%%gs" : : "rm" (sel));
 }
 
 #else /* !__GNUC__ */
