@@ -1,6 +1,6 @@
-<!-- $Id: contrib.sgml,v 1.48 1997/04/10 06:06:22 hanai Exp $ -->
+<!-- $Id: contrib.sgml,v 1.49 1997/04/25 07:24:02 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.237 -->
+<!-- Original revision: 1.240 -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
      in sync with the list of FreeBSD Developers -->
@@ -49,9 +49,10 @@
       <itemize>
 	<item>&a.mbarkah;
 	<item>&a.stb;
-	<item>&a.jb;
+        <item>&a.jb;
         <item>&a.torstenb;
 	<item>&a.danny;
+	<item>&a.kjc;
         <item>&a.gclarkii;
 	<item>&a.cracauer;
         <item>&a.adam;
@@ -69,6 +70,7 @@
 	<item>&a.scrappy;
         <item>&a.tg;
         <item>&a.graichen;
+	<item>&a.jgreco;
         <item>&a.rgrimes;
 	<item>&a.jmg;
 	<item>&a.jhay;
@@ -84,6 +86,7 @@
 	<item>&a.imp;
         <item>&a.smace;
 	<item>&a.mckay;
+	<item>&a.tedm;
         <item>&a.amurai;
         <item>&a.markm;
 	<item>&a.max;
@@ -196,7 +199,7 @@
 	  <item>Andrey Zakhvatov &lt;andy@cgu.chel.su&gt;
 	  <item>Andy Whitcroft &lt;andy@sarc.city.ac.uk&gt;
 	  <item>Anthony Yee-Hang Chan &lt;yeehang@netcom.com&gt;
-          <item>Brent J. Nordquist &lt;bjn@visi.com&gt;
+	  <item>Brent J. Nordquist &lt;bjn@visi.com&gt;
 	  <item>Bernd Rosauer &lt;br@schiele-ct.de&gt;
 	  <item>Bill Kish &lt;kish@osf.org&gt;
 	  <item>&a.wlloyd
@@ -222,7 +225,7 @@
 	  <item>Craig Struble &lt;cstruble@vt.edu&gt;
 	  <item>Cristian Ferretti &lt;cfs@riemann.mat.puc.cl&gt;
 	  <item>Curt Mayer &lt;curt@toad.com&gt;
-          <item>Dan Cross &lt;tenser@spitfire.ecsel.psu.edu&gt;
+	  <item>Dan Cross &lt;tenser@spitfire.ecsel.psu.edu&gt;
 	  <item>Daniel Baker &lt;dbaker@crash.ops.neosoft.com&gt;
 	  <item>Daniel M. Eischen &lt;deischen@iworks.InterWorks.org&gt;
 	  <item>Danny J. Zerkel &lt;dzerkel@feephi.phofarm.com&gt;
@@ -255,12 +258,13 @@
 	  <item>Hidekazu Kuroki &lt;hidekazu@cs.titech.ac.jp&gt;
 	  <item>Hidetoshi Shimokawa &lt;simokawa@sat.t.u-tokyo.ac.jp&gt;
 	  <item>Holger Veit &lt;Holger.Veit@gmd.de&gt;
-          <item>Hung-Chi Chu &lt;hcchu@r350.ee.ntu.edu.tw&gt;
+	  <item>Hung-Chi Chu &lt;hcchu@r350.ee.ntu.edu.tw&gt;
 	  <item>Igor Vinokurov &lt;igor@zynaps.ru&gt;
 	  <item>Ikuo Nakagawa &lt;ikuo@isl.intec.co.jp&gt;
 	  <item>IMAMURA Tomoaki &lt;tomoak-i@is.aist-nara.ac.jp&gt;
 	  <item>Ishii Masahiro &lt;?&gt;
-          <item>Itsuro Saito &lt;saito@miv.t.u-tokyo.ac.jp&gt;
+	  <item>Itsuro Saito &lt;saito@miv.t.u-tokyo.ac.jp&gt;
+	  <item>J. David Lowe &lt;lowe@saturn5.com&gt;
 	  <item>J.T. Conklin &lt;jtc@cygnus.com&gt;
 	  <item>James Clark &lt;jjc@jclark.com&gt;
 	  <item>James da Silva &lt;jds@cs.umd.edu&gt; et al
@@ -272,7 +276,7 @@
 	  <item>Jim Lowe &lt;james@cs.uwm.edu&gt;
 	  <item>Jim Wilson &lt;wilson@moria.cygnus.com&gt;
           <item>Johann Tonsing &lt;jtonsing@mikom.csir.co.za&gt;
-          <item>Joel Sutton &lt;suttonj@interconnect.com.au&gt;
+	  <item>Joel Sutton &lt;suttonj@interconnect.com.au&gt;
 	  <item>John Capo &lt;jc@irbs.com&gt;
           <item>John Perry &lt;perry@vishnu.alias.net&gt;
 	  <item>Juergen Lock &lt;nox@jelal.hb.north.de&gt;
@@ -280,8 +284,8 @@
 	  <item>Julian Assange &lt;proff@suburbia.net&gt;
 	  <item>Julian Jenkins &lt;kaveman@magna.com.au&gt;
 	  <item>Julian Stacey &lt;jhs@freebsd.org&gt;
-          <item>Jun-ichiro Itoh &lt;itojun@csl.sony.co.jp&gt;
-          <item>Justin M. Seger &lt;jseger@scds.ziplink.net&gt;
+	  <item>Jun-ichiro Itoh &lt;itojun@csl.sony.co.jp&gt;
+	  <item>Justin M. Seger &lt;jseger@scds.ziplink.net&gt;
 	  <item>Kazuhiko Kiriyama &lt;kiri@kiri.toba-cmt.ac.jp&gt;
 	  <item>Kazutaka YOKOTA &lt;yokota@zodiac.mech.utsunomiya-u.ac.jp&gt;
 	  <item>Keith Bostic &lt;bostic@bostic.com&gt;
@@ -289,18 +293,18 @@
 	  <item>Kenneth Monville &lt;desmo@bandwidth.org&gt;
 	  <item>Kent Vander Velden &lt;graphix@iastate.edu&gt;
 	  <item>Kirk McKusick &lt;mckusick@mckusick.com&gt;
-          <item>Kiroh HARADA &lt;kiroh@kh.rim.or.jp&gt;
+	  <item>Kiroh HARADA &lt;kiroh@kh.rim.or.jp&gt;
 	  <item>Koichi Sato &lt;copan@ppp.fastnet.or.jp&gt;
 	  <item>Kostya Lukin &lt;lukin@okbmei.msk.su&gt;
 	  <item>Kurt Olsen &lt;kurto@tiny.mcs.usu.edu&gt;
 	  <item>Lars Koeller &lt;Lars_Koeller@odie.physik2.uni-rostock.de&gt;
 	  <item>Lucas James &lt;Lucas.James@ldjpc.apana.org.au&gt;
 	  <item>Luigi Rizzo &lt;luigi@iet.unipi.it&gt;
-          <item>Makoto Matsushita &lt;matusita@ics.es.osaka-u.ac.jp&gt;
+	  <item>Makoto Matsushita &lt;matusita@ics.es.osaka-u.ac.jp&gt;
 	  <item>Manu Iyengar &lt;iyengar@grunthos.pscwa.psca.com&gt;
 	  <item>Marc Frajola &lt;marc@dev.com&gt;
 	  <item>Marc Ramirez &lt;mrami@mramirez.sy.yale.edu&gt;
-          <item>Marc Slemko &lt;marcs@znep.com&gt;
+	  <item>Marc Slemko &lt;marcs@znep.com&gt;
 	  <item>Marc van Kempen &lt;wmbfmk@urc.tue.nl&gt;
 	  <item>Mark Huizer &lt;xaa@stack.nl&gt;
 	  <item>Mark J. Taylor &lt;mtaylor@cybernet.com&gt;
@@ -312,7 +316,7 @@
 	  <item>Matt Bartley &lt;mbartley@lear35.cytex.com&gt;
 	  <item>Matt Thomas &lt;thomas@lkg.dec.com&gt;
 	  <item>Matt White &lt;mwhite+@CMU.EDU&gt;
-          <item>Matthew Hunt &lt;mph@pobox.com&gt;
+	  <item>Matthew Hunt &lt;mph@pobox.com&gt;
 	  <item>Matthew N. Dodd &lt;winter@jurai.net&gt;
 	  <item>Matthew Stein &lt;matt@bdd.net&gt;
 	  <item>Michael Butschky &lt;butsch@computi.erols.com&gt;
@@ -326,23 +330,25 @@
 	  <item>MITA Yoshio &lt;mita@jp.FreeBSD.ORG&gt;
 	  <item>MOROHOSHI Akihiko &lt;moro@race.u-tokyo.ac.jp&gt;
 	  <item>Naoki Hamada &lt;nao@tom-yam.or.jp&gt;
+	  <item>Narvi &lt;narvi@haldjas.folklore.ee&gt;
 	  <item>NIIMI Satoshi &lt;sa2c@and.or.jp&gt;
 	  <item>Nick Sayer &lt;nsayer@quack.kfu.com&gt;
 	  <item>Nisha Talagala &lt;nisha@cs.berkeley.edu&gt;
 	  <item>Nobuhiro Yasutomi &lt;nobu@psrc.isac.co.jp&gt;
 	  <item>Nobuyuki Koganemaru &lt;kogane@kces.koganemaru.co.jp&gt;
 	  <item>Noritaka Ishizumi &lt;graphite@taurus.bekkoame.or.jp&gt;
+	  <item>Oliver Laumann &lt;net@informatik.uni-bremen.de&gt;
 	  <item>Oliver Oberdorf &lt;oly@world.std.com&gt;
-          <item>Oliver Laumann &lt;net@informatik.uni-bremen.de&gt;
 	  <item>Paul Fox &lt;pgf@foxharp.boston.ma.us&gt;
 	  <item>Paul Kranenburg &lt;pk@cs.few.eur.nl&gt;
 	  <item>Paul Mackerras &lt;paulus@cs.anu.edu.au&gt;
 	  <item>Paulo Menezes &lt;paulo@isr.uc.pt&gt;
 	  <item>Pedro Giffuni &lt;pgiffuni@fps.biblos.unal.edu.co&gt;
-          <item>Pedro A M Vazquez &lt;vazquez@IQM.Unicamp.BR&gt;
+	  <item>Pedro A M Vazquez &lt;vazquez@IQM.Unicamp.BR&gt;
 	  <item>Peter Stubbs &lt;PETERS@staidan.qld.edu.au&gt;
 	  <item>Philippe Charnier &lt;charnier@lirmm.fr&gt;
 	  <item>R. Kym Horsell &lt;?&gt;
+	  <item>Ralf S. Engelschall &lt;rse@engelschall.com&gt;
 	  <item>Randall Hopper &lt;rhh@stealth.ct.picker.com&gt;
 	  <item>Richard Stallman &lt;rms@gnu.ai.mit.edu&gt;
 	  <item>Richard Wiwatowski &lt;rjwiwat@adelaide.on.neti&gt;
