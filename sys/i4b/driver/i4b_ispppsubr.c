@@ -486,9 +486,10 @@ isppp_input(struct ifnet *ifp, struct mbuf *m)
 			    SPP_FMT "input packet is too small, %d bytes\n",
 			    SPP_ARGS(ifp), m->m_pkthdr.len);
 	  drop:
+		m_freem (m);
+	  drop2:
 		++ifp->if_ierrors;
 		++ifp->if_iqdrops;
-		m_freem (m);
 		return;
 	}
 
@@ -554,26 +555,35 @@ isppp_input(struct ifnet *ifp, struct mbuf *m)
 #ifdef SPPP_VJ
 		case PPP_VJ_COMP:
 			if (sp->state[IDX_IPCP] == STATE_OPENED) {
-				int len;
+				u_char *iphdr;
+				int hlen, vjlen;
 
-				if ((len = sl_uncompress_tcp(
-				   (u_char **)&m->m_data, m->m_len,
-				   TYPE_COMPRESSED_TCP, &sp->pp_comp)) <= 0)
+				if ((vjlen = sl_uncompress_tcp_core(m->m_data,
+				   m->m_len, m->m_len, TYPE_COMPRESSED_TCP,
+				   &sp->pp_comp, &iphdr, &hlen)) <= 0)
 					goto drop;
-				m->m_len = m->m_pkthdr.len = len;
+
+				m_adj(m, vjlen);
+
+				M_PREPEND(m, hlen, M_DONTWAIT);
+				if (m == NULL)
+					goto drop2;
+				bcopy(iphdr, mtod(m, u_char *), hlen);
+
 				schednetisr (NETISR_IP);
 				inq = &ipintrq;
 			}
 			break;
 		case PPP_VJ_UCOMP:
 			if (sp->state[IDX_IPCP] == STATE_OPENED) {
-				int len;
+				u_char *iphdr;
+				int hlen, vjlen;
 
-				if ((len = sl_uncompress_tcp(
-				   (u_char **)&m->m_data, m->m_len,
-				   TYPE_UNCOMPRESSED_TCP, &sp->pp_comp)) <= 0)
+				if ((vjlen = sl_uncompress_tcp_core(m->m_data,
+				   m->m_len, m->m_len, TYPE_COMPRESSED_TCP,
+				   &sp->pp_comp, &iphdr, &hlen)) <= 0)
 					goto drop;
-				m->m_len = m->m_pkthdr.len = len;
+
 				schednetisr (NETISR_IP);
 				inq = &ipintrq;
 			}
