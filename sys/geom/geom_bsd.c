@@ -33,8 +33,11 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
+ *
+ * This is the method for dealing with BSD disklabels.  It has been
+ * extensively (by my standards at least) commented, in the vain hope that
+ * it will server as the source in future copy&paste operations.
  */
-
 
 #include <sys/param.h>
 #ifndef _KERNEL
@@ -60,11 +63,25 @@
 
 #define BSD_CLASS_NAME "BSD"
 
+/*
+ * Our private data about one instance.  All the rest is handled by the
+ * slice code and stored in the its softc, so this is just the stuff
+ * specific to BSD disklabels.
+ */
 struct g_bsd_softc {
 	off_t	labeloffset;
+	off_t	rawoffset;
 	struct disklabel ondisk;
 	struct disklabel inram;
 };
+
+/*
+ * The next 4 functions isolate us from how the compiler lays out and pads
+ * "struct disklabel".  We treat what we read from disk as a bytestream and
+ * explicitly convert it into a struct disklabel.  This makes us compiler-
+ * endianes- and wordsize- agnostic.
+ * For now we only have little-endian formats to deal with.
+ */
 
 static void
 g_bsd_ledec_partition(u_char *ptr, struct partition *d)
@@ -181,28 +198,203 @@ g_bsd_leenc_disklabel(u_char *ptr, struct disklabel *d)
 
 #endif
 
+/*
+ * For reasons which were valid and just in their days, FreeBSD/i386 uses
+ * absolute disk-addresses in disklabels.  The way it works is that the
+ * p_offset field of all partitions have the first sector number of the
+ * disk slice added to them.  This was hidden kernel-magic, userland did
+ * not see these offsets.  These two functions subtract and add them
+ * while converting from the "ondisk" to the "inram" labels and vice
+ * versa.
+ */
 static void
 ondisk2inram(struct g_bsd_softc *sc)
 {
 	struct partition *ppp;
-	unsigned offset;
+	struct disklabel *dl;
 	int i;
 
 	sc->inram = sc->ondisk;
-	offset = sc->inram.d_partitions[RAW_PART].p_offset;
-	for (i = 0; i < 8; i++) {
-		ppp = &sc->inram.d_partitions[i];
-		if (ppp->p_offset >= offset)
-			ppp->p_offset -= offset;
+	dl= &sc->inram;
+
+	/* Basic sanity-check needed to avoid mistakes */
+	if (dl->d_magic != DISKMAGIC || dl->d_magic2 != DISKMAGIC)
+		return;
+	if (dl->d_npartitions > MAXPARTITIONS)
+		return;
+
+	sc->rawoffset = dl->d_partitions[RAW_PART].p_offset;
+	for (i = 0; i < dl->d_npartitions; i++) {
+		ppp = &dl->d_partitions[i];
+		if (ppp->p_size != 0 && ppp->p_offset < sc->rawoffset)
+			sc->rawoffset = 0;
 	}
-	sc->inram.d_checksum = 0;
-	sc->inram.d_checksum = dkcksum(&sc->inram);
+	if (sc->rawoffset > 0) {
+
+		if (dl->d_partitions[RAW_PART].p_size +
+		    sc->rawoffset == dl->d_secperunit) {
+		}
+		for (i = 0; i < dl->d_npartitions; i++) {
+			ppp = &dl->d_partitions[i];
+			ppp->p_offset -= sc->rawoffset;
+		}
+	}
+	dl->d_checksum = 0;
+	dl->d_checksum = dkcksum(&sc->inram);
+}
+
+static void
+inram2ondisk(struct g_bsd_softc *sc)
+{
+	struct partition *ppp;
+	int i;
+
+	sc->ondisk = sc->inram;
+	if (sc->rawoffset != 0) {
+		for (i = 0; i < sc->inram.d_npartitions; i++) {
+			ppp = &sc->ondisk.d_partitions[i];
+			ppp->p_offset += sc->rawoffset;
+		}
+	}
+	sc->ondisk.d_checksum = 0;
+	sc->ondisk.d_checksum = dkcksum(&sc->ondisk);
 }
 
 /*
- * It is rather fortunate that this checksum only covers up to the
- * actual end of actual data, otherwise the pointer-screwup in
- * alpha architectures would have been much harder to handle.
+ * Check that this looks like a valid disklabel, but be prepared
+ * to get any kind of junk.  The checksum must be checked only
+ * after this function returns success to prevent a bogus d_npartitions
+ * value from tripping us up.
+ */
+static int
+g_bsd_checklabel(struct disklabel *dl)
+{
+	struct partition *ppp;
+	int i;
+
+	if (dl->d_magic != DISKMAGIC || dl->d_magic2 != DISKMAGIC)
+		return(EINVAL);
+	/*
+	 * If the label specifies more partitions than we can handle
+	 * we have to reject it:  If people updated the label they would
+	 * trash it, and that would break the checksum.
+	 */
+	if (dl->d_npartitions > MAXPARTITIONS)
+		return(EINVAL);
+
+	for (i = 0; i < dl->d_npartitions; i++) {
+		ppp = &dl->d_partitions[i];
+		/* Cannot extend past unit */
+		if (ppp->p_size != 0 &&
+		     ppp->p_offset + ppp->p_size > dl->d_secperunit) {
+			return(EINVAL);
+		}
+	}
+	return(0);
+}
+
+/*
+ * Modify our slicer to match proposed disklabel, if possible.
+ * First carry out all the simple checks, then lock topology
+ * and check that no open providers are affected negatively
+ * then carry out all the changes.
+ *
+ * NB: Returns with topology held only if successful return.
+ */
+static int
+g_bsd_modify(struct g_geom *gp, struct disklabel *dl)
+{
+	int i, error;
+	struct partition *ppp;
+	struct g_slicer *gsp;
+	struct g_consumer *cp;
+	u_int secsize;
+	off_t mediasize;
+
+	/* Basic check that this is indeed a disklabel */
+	error = g_bsd_checklabel(dl);
+	if (error)
+		return(error);
+
+	/* Make sure the checksum is OK */
+	if (dkcksum(dl) != 0)
+		return(EINVAL);
+
+	/* Get dimensions of our device */
+	cp = LIST_FIRST(&gp->consumer);
+	error = g_getattr("GEOM::sectorsize", cp, &secsize);
+	if (error)
+		return(error);
+	error = g_getattr("GEOM::mediasize", cp, &mediasize);
+	if (error)
+		return(error);
+
+#ifdef nolonger
+	/*
+	 * The raw-partition must start at zero.  We do not check that the
+	 * size == mediasize because this is overly restrictive.  We have
+	 * already tested in g_bsd_checklabel() that it is not longer.
+	 * XXX: RAW_PART is archaic anyway, and we should drop it.
+	 */
+	if (dl->d_partitions[RAW_PART].p_offset != 0)
+		return (EINVAL);
+#endif
+
+#ifdef notyet
+	/* 
+	 * Indications are that the d_secperunit is not correctly
+	 * initialized in many cases, and since we don't need it
+	 * for anything, we dont strictly need this test.
+	 * Preemptive action to avoid confusing people in disklabel(8)
+	 * may be in order.
+	 */
+	/* The label cannot claim a larger size than the media */
+	if ((off_t)dl->d_secperunit * dl->d_secsize > mediasize)
+		return (EINVAL);
+#endif
+
+
+	/* ... or a smaller sector size */
+	if (dl->d_secsize < secsize)
+		return (EINVAL);
+
+	/* ... or a non-multiple sector size */
+	if (dl->d_secsize % secsize != 0)
+		return (EINVAL);
+
+	g_topology_lock();
+
+	/* Don't munge open parititions */
+	gsp = gp->softc;
+	for (i = 0; i < dl->d_npartitions; i++) {
+		ppp = &dl->d_partitions[i];
+
+		error = g_slice_config(gp, i, G_SLICE_CONFIG_CHECK,
+		    (off_t)ppp->p_offset * dl->d_secsize,
+		    (off_t)ppp->p_size * dl->d_secsize,
+		    "%s%c", gp->name, 'a' + i);
+		if (error) {
+			g_topology_unlock();
+			return (error);
+		}
+	}
+
+
+	/* Look good, go for it... */
+	for (i = 0; i < gsp->nslice; i++) {
+		ppp = &dl->d_partitions[i];
+		g_slice_config(gp, i, G_SLICE_CONFIG_SET,
+		    (off_t)ppp->p_offset * dl->d_secsize,
+		    (off_t)ppp->p_size * dl->d_secsize,
+		    "%s%c", gp->name, 'a' + i);
+	}
+	return (0);
+}
+
+/*
+ * Calculate a disklabel checksum for a little-endian byte-stream.
+ * We need access to the decoded disklabel because the checksum only
+ * covers the partition data for the first d_npartitions.
  */
 static int
 g_bsd_lesum(struct disklabel *dl, u_char *p)
@@ -219,6 +411,13 @@ g_bsd_lesum(struct disklabel *dl, u_char *p)
 	return (sum);
 }
 
+/*
+ * This is an internal helper function, called multiple times from the taste
+ * function to try to locate a disklabel on the disk.  More civilized formats
+ * will not need this, as there is only one possible place on disk to look
+ * for the magic spot.
+ */
+
 static int
 g_bsd_try(struct g_slicer *gsp, struct g_consumer *cp, int secsize, struct g_bsd_softc *ms, off_t offset)
 {
@@ -227,25 +426,99 @@ g_bsd_try(struct g_slicer *gsp, struct g_consumer *cp, int secsize, struct g_bsd
 	struct disklabel *dl;
 	off_t secoff;
 
-	dl = &ms->ondisk;
+	/*
+	 * We need to read entire aligned sectors, and we assume that the
+	 * disklabel does not span sectors, so one sector is enough.
+	 */
+	error = 0;
 	secoff = offset % secsize;
 	buf = g_read_data(cp, offset - secoff, secsize, &error);
 	if (buf == NULL || error != 0)
 		return(ENOENT);
+
+	/* Decode into our native format */
+	dl = &ms->ondisk;
 	g_bsd_ledec_disklabel(buf + secoff, dl);
-	if (dl->d_magic == DISKMAGIC &&
-	    dl->d_magic2 == DISKMAGIC &&
-	    g_bsd_lesum(dl, buf + secoff) == 0) 
-		error = 0;
-	else
+
+	ondisk2inram(ms);
+
+	dl = &ms->inram;
+	/* Does it look like a label at all ? */
+	if (g_bsd_checklabel(dl))
 		error = ENOENT;
+	/* ... and does the raw data have a good checksum ? */
+	if (error == 0 && g_bsd_lesum(dl, buf + secoff) != 0) 
+		error = ENOENT;
+
+	/* Remember to free the buffer g_read_data() gave us */
 	g_free(buf);
+
+	/* If we had a label, record it properly */
 	if (error == 0) {
-		gsp->frontstuff = 16 * secsize;
+		gsp->frontstuff = 16 * secsize;	/* XXX */
 		ms->labeloffset = offset;
 	}
 	return(error);
 }
+
+/*
+ * Implement certain ioctls to modify disklabels with.  This function
+ * is called by the event handler thread with topology locked as result
+ * of the g_call_me() in g_bsd_start().  It is not necessary to keep
+ * topology locked all the time but make sure to return with topology
+ * locked as well.
+ */
+
+static void
+g_bsd_ioctl(void *arg)
+{
+	struct bio *bp;
+	struct g_geom *gp;
+	struct g_slicer *gsp;
+	struct g_bsd_softc *ms;
+	struct disklabel *dl;
+	struct g_ioctl *gio;
+
+	/* We don't need topology for now */
+	g_topology_unlock();
+
+	/* Get hold of the interesting bits from the bio */
+	bp = arg;
+	gp = bp->bio_to->geom;
+	gsp = gp->softc;
+	ms = gsp->softc;
+	gio = (struct g_ioctl *)bp->bio_data;
+
+	/* The disklabel to set is the ioctl argument */
+	dl = gio->data;
+
+	/* Validate and modify our slice instance to match */
+	bp->bio_error = g_bsd_modify(gp, dl);	/* picks up topology lock */
+	if (bp->bio_error != 0) {
+		g_topology_lock();
+		g_io_deliver(bp);
+		return;
+	}
+	/* Update our copy of the disklabel */
+	ms->inram = *dl;
+	inram2ondisk(ms);
+
+	/* XXX: DIOCWDINFO write to disk */
+
+	/* return the request */
+	g_io_deliver(bp);
+}
+
+/*-
+ * This start routine is only called for non-trivial requests, all the
+ * trivial ones are handled autonomously by the slice code.
+ * For requests we handle here, we must call the g_io_deliver() on the
+ * bio, and return non-zero to indicate to the slice code that we did so.
+ * This code executes in the "DOWN" I/O path, this means:
+ *    * No sleeping.
+ *    * Don't grab the topology lock.
+ *    * Don't call biowait, g_getattr(), g_setattr() or g_read_data()
+ */
 
 static int
 g_bsd_start(struct bio *bp)
@@ -254,26 +527,55 @@ g_bsd_start(struct bio *bp)
 	struct g_bsd_softc *ms;
 	struct g_slicer *gsp;
 	struct g_ioctl *gio;
+	int error;
 
 	gp = bp->bio_to->geom;
 	gsp = gp->softc;
 	ms = gsp->softc;
+
+	/* We only handle ioctl(2) requests of the right format. */
 	if (strcmp(bp->bio_attribute, "GEOM::ioctl"))
 		return(0);
 	else if (bp->bio_length != sizeof *gio)
 		return(0);
+
+	/* Get hold of the ioctl parameters */
 	gio = (struct g_ioctl *)bp->bio_data;
-	if (gio->cmd == DIOCGDINFO) {
+
+	switch(gio->cmd) {
+	case DIOCGDINFO:
+		/* Return a copy of the disklabel to userland */
 		bcopy(&ms->inram, gio->data, sizeof ms->inram);
 		bp->bio_error = 0;
 		g_io_deliver(bp);
 		return (1);
+	case DIOCSDINFO:
+	case DIOCWDINFO:
+		/*
+		 * These we cannot do without the topology lock and some
+		 * some I/O requests.  Ask the event-handler to schedule
+		 * us in a less restricted environment.
+		 */
+		error = g_call_me(g_bsd_ioctl, bp);
+		if (error)
+			g_io_fail(bp, error);
+		/*
+		 * We must return non-zero to indicate that we will deal
+		 * with this bio, even though we have not done so yet.
+		 */
+		return (1);
+	default:
+		return (0);
 	}
-	return (0);
 }
 
+/*
+ * Dump configuration information in XML format.
+ * Notice that the function is called once for the geom and once for each
+ * consumer and provider.  We let g_slice_dumpconf() do most of the work.
+ */
 static void
-g_bsd_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_consumer *cp __unused, struct g_provider *pp)
+g_bsd_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_consumer *cp, struct g_provider *pp)
 {
 	struct g_bsd_softc *ms;
 	struct g_slicer *gsp;
@@ -287,125 +589,143 @@ g_bsd_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_consum
 	g_slice_dumpconf(sb, indent, gp, cp, pp);
 }
 
+/*
+ * The taste function is called from the event-handler, with the topology
+ * lock already held and a provider to examine.  The flags are unused.
+ *
+ * If flags == G_TF_NORMAL, the idea is to take a bite of the provider and
+ * if we find valid, consistent magic on it, build a geom on it.
+ * any magic bits which indicate that we should automatically put a BSD
+ * geom on it.
+ *
+ * There may be cases where the operator would like to put a BSD-geom on
+ * providers which do not meet all of the requirements.  This can be done
+ * by instead passing the G_TF_INSIST flag, which will override these
+ * checks.
+ *
+ * The final flags value is G_TF_TRANSPARENT, which instructs the method
+ * to put a geom on top of the provider and configure it to be as transparent
+ * as possible.  This is not really relevant to the BSD method and therefore
+ * not implemented here.
+ */
+
 static struct g_geom *
 g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
-	struct g_provider *pp2;
-	int error, i, j, npart;
+	int error, i;
 	struct g_bsd_softc *ms;
 	struct disklabel *dl;
 	u_int secsize;
-	u_int fwsectors, fwheads;
-	off_t mediasize;
-	struct partition *ppp, *ppr;
 	struct g_slicer *gsp;
 
 	g_trace(G_T_TOPOLOGY, "bsd_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
+
+	/* We don't implement transparent inserts */
+	if (flags == G_TF_TRANSPARENT)
+		return (NULL);
+
+	/*
+	 * The BSD-method will not automatically configure itself recursively
+	 * Note that it is legal to examine the class-name of our provider,
+	 * nothing else should ever be examined inside the provider.
+	 */
 	if (flags == G_TF_NORMAL &&
 	    !strcmp(pp->geom->class->name, BSD_CLASS_NAME))
 		return (NULL);
-	gp = g_slice_new(mp, 8, pp, &cp, &ms, sizeof *ms, g_bsd_start);
+
+	/*
+	 * BSD labels are a subclass of the general "slicing" topology so
+	 * a lot of the work can be done by the common "slice" code.
+	 * Create a geom with space for MAXPARTITIONS providers, one consumer
+	 * and a softc structure for us.  Specify the provider to attach
+	 * the consumer to and our "start" routine for special requests.
+	 * The provider is opened with mode (1,0,0) so we can do reads
+	 * from it.
+	 */
+	gp = g_slice_new(mp, MAXPARTITIONS, pp, &cp, &ms,
+	     sizeof *ms, g_bsd_start);
 	if (gp == NULL)
 		return (NULL);
-	gsp = gp->softc;
+
+	/*
+	 * Now that we have attached to and opened our provider, we do
+	 * not need the topology lock until we change the topology again
+	 * next time.
+	 */
 	g_topology_unlock();
+
+	/*
+	 * Fill in the optional details, in our case we have a dumpconf
+	 * routine which the "slice" code should call at the right time
+	 */
 	gp->dumpconf = g_bsd_dumpconf;
-	npart = 0;
-	while (1) {	/* a trick to allow us to use break */
+
+	/* Get the geom_slicer softc from the geom */
+	gsp = gp->softc;
+	
+	/*
+	 * The do...while loop here allows us to have multiple escapes
+	 * using a simple "break".  This improves code clarity without
+	 * ending up in deep nesting and without using goto or come from.
+	 */
+	do {
+		/*
+		 * If the provider is an MBR we will only auto attach
+		 * to type 165 slices in the G_TF_NORMAL case.  We will
+		 * attach to any other type (BSD was handles above)
+		 */
 		error = g_getattr("MBR::type", cp, &i);
 		if (!error && i != 165 && flags == G_TF_NORMAL)
 			break;
+
+		/* Get sector size, we need it to read data. */
 		error = g_getattr("GEOM::sectorsize", cp, &secsize);
-		if (error) {
-			secsize = 512;
-			printf("g_bsd_taste: error %d Sectors are %d bytes\n",
-			    error, secsize);
-		}
-		error = g_getattr("GEOM::mediasize", cp, &mediasize);
-		if (error) {
-			mediasize = 0;
-			printf("g_error %d Mediasize is %lld bytes\n",
-			    error, (long long)mediasize);
-		}
+		if (error || secsize < 512)
+			break;
+
+		/* First look for a label at the start of the second sector */
 		error = g_bsd_try(gsp, cp, secsize, ms, secsize);
+
+		/* Next, loot for it 64 bytes into the first sector */
 		if (error)
 			error = g_bsd_try(gsp, cp, secsize, ms, 64);
+
+		/* If we didn't find a label, punt */
 		if (error)
 			break;
-		dl = &ms->ondisk;
-		if (bootverbose)
-			g_hexdump(dl, sizeof(*dl));
-		if (dl->d_secsize < secsize)
-			break;
-		if (dl->d_secsize > secsize)
-			secsize = dl->d_secsize;
-		ppr = &dl->d_partitions[2];
-		for (i = 0; i < 8; i++) {
-			ppp = &dl->d_partitions[i];
-			if (ppp->p_size == 0)
-				continue;
-			npart++;
-			g_topology_lock();
-			pp2 = g_slice_addslice(gp, i,
-			    ((off_t)(ppp->p_offset - ppr->p_offset)) << 9ULL,
-			    ((off_t)ppp->p_size) << 9ULL,
-			    "%s%c", pp->name, 'a' + i);
+
+		/*
+		 * Proccess the found disklabel, and modify our "slice"
+		 * instance to match it, if possible.
+		 */
+		dl = &ms->inram;
+		error = g_bsd_modify(gp, dl);	/* picks up topology lock */
+		if (!error)
 			g_topology_unlock();
-			g_error_provider(pp2, 0);
-		}
-		ondisk2inram(ms);
 		break;
-	}
-	if (npart == 0 && (
-	    (flags == G_TF_INSIST && mediasize != 0) ||
-	    (flags == G_TF_TRANSPARENT))) {
-		dl = &ms->ondisk;
-		bzero(dl, sizeof *dl);
-		dl->d_magic = DISKMAGIC;
-		dl->d_magic2 = DISKMAGIC;
-		ppp = &dl->d_partitions[RAW_PART];
-		ppp->p_offset = 0;
-		ppp->p_size = mediasize / secsize;
-		dl->d_npartitions = MAXPARTITIONS;
-		dl->d_interleave = 1;
-		dl->d_secsize = secsize;
-		dl->d_rpm = 3600;
-		j = sizeof fwsectors;
-		error = g_io_getattr("GEOM::fwsectors", cp, &j, &fwsectors);
-		if (error)
-			dl->d_nsectors = 32;
-		else
-			dl->d_nsectors = fwsectors;
-		error = g_io_getattr("GEOM::fwheads", cp, &j, &fwheads);
-		if (error)
-			dl->d_ntracks = 64;
-		else
-			dl->d_ntracks = fwheads;
-		dl->d_secpercyl = dl->d_nsectors * dl->d_ntracks;
-		dl->d_ncylinders = ppp->p_size / dl->d_secpercyl;
-		dl->d_secperunit = ppp->p_size;
-		dl->d_checksum = 0;
-		dl->d_checksum = dkcksum(dl);
-		ms->inram = ms->ondisk;
-		g_topology_lock();
-		pp2 = g_slice_addslice(gp, RAW_PART,
-		    0, mediasize, "%s%c", pp->name, 'a' + RAW_PART);
-		g_topology_unlock();
-		g_error_provider(pp2, 0);
-		npart = 1;
-	}
+	} while (0);
+
+	/* Success of failure, we can close our provider now */
 	g_topology_lock();
 	error = g_access_rel(cp, -1, 0, 0);
-	if (npart > 0)
+
+	/* If we have configured any providers, return the new geom. */
+	if (gsp->nprovider > 0)
 		return (gp);
+	/*
+	 * ...else push the "self-destruct" button, by spoiling our own
+	 * consumer.  This triggers a call to g_std_spoiled which will
+	 * dismantle what was setup.
+	 */
 	g_std_spoiled(cp);
 	return (NULL);
 }
 
-static struct g_class g_bsd_class	= {
+/* Finally, register with GEOM infrastructure.  */
+static struct g_class g_bsd_class = {
 	BSD_CLASS_NAME,
 	g_bsd_taste,
 	NULL,
