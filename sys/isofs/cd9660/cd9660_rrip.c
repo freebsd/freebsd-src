@@ -113,8 +113,8 @@ cd9660_rrip_slink(p,ana)
 	ISO_RRIP_SLINK	*p;
 	ISO_RRIP_ANALYZE *ana;
 {
-	register ISO_RRIP_SLINK_COMPONENT *pcomp;
-	register ISO_RRIP_SLINK_COMPONENT *pcompe;
+	ISO_RRIP_SLINK_COMPONENT *pcomp;
+	ISO_RRIP_SLINK_COMPONENT *pcompe;
 	int len, wlen, cont;
 	char *outbuf, *inbuf;
 
@@ -337,7 +337,7 @@ cd9660_rrip_tstamp(p,ana)
 	ISO_RRIP_ANALYZE *ana;
 {
 	u_char *ptime;
-	
+
 	ptime = p->time;
 
 	/* Check a format of time stamp (7bytes/17bytes) */
@@ -351,7 +351,7 @@ cd9660_rrip_tstamp(p,ana)
 			ptime += 7;
 		} else
 			bzero(&ana->inop->inode.iso_mtime,sizeof(struct timespec));
-		
+
 		if (*p->flags&ISO_SUSP_TSTAMP_ACCESS) {
 			cd9660_tstamp_conv7(ptime,&ana->inop->inode.iso_atime,
 					    ISO_FTYPE_RRIP);
@@ -374,7 +374,7 @@ cd9660_rrip_tstamp(p,ana)
 			ptime += 17;
 		} else
 			bzero(&ana->inop->inode.iso_mtime,sizeof(struct timespec));
-		
+
 		if (*p->flags&ISO_SUSP_TSTAMP_ACCESS) {
 			cd9660_tstamp_conv17(ptime,&ana->inop->inode.iso_atime);
 			ptime += 17;
@@ -408,10 +408,10 @@ cd9660_rrip_device(p,ana)
 	ISO_RRIP_ANALYZE *ana;
 {
 	u_int high, low;
-	
+
 	high = isonum_733(p->dev_t_high);
 	low  = isonum_733(p->dev_t_low);
-	
+
 	if (high == 0)
 		ana->inop->inode.iso_rdev = makedev(umajor(low), uminor(low));
 	else
@@ -483,9 +483,9 @@ cd9660_rrip_loop(isodir,ana,table)
 	ISO_RRIP_ANALYZE *ana;
 	RRIP_TABLE *table;
 {
-	register RRIP_TABLE *ptable;
-	register ISO_SUSP_HEADER *phead;
-	register ISO_SUSP_HEADER *pend;
+	RRIP_TABLE *ptable;
+	ISO_SUSP_HEADER *phead;
+	ISO_SUSP_HEADER *pend;
 	struct buf *bp = NULL;
 	char *pwhead;
 	u_short c;
@@ -541,7 +541,7 @@ cd9660_rrip_loop(isodir,ana,table)
 			 */
 			phead = (ISO_SUSP_HEADER *)((char *)phead + isonum_711(phead->length));
 		}
-		
+
 		if (ana->fields && ana->iso_ce_len) {
 			if (ana->iso_ce_blk >= ana->imp->volume_space_size
 			    || ana->iso_ce_off + ana->iso_ce_len > ana->imp->logical_block_size
@@ -601,7 +601,7 @@ cd9660_rrip_analyze(isodir,inop,imp)
 	return cd9660_rrip_loop(isodir,&analyze,rrip_table_analyze);
 }
 
-/* 
+/*
  * Get Alternate Name.
  */
 static RRIP_TABLE rrip_table_getname[] = {
@@ -648,7 +648,7 @@ cd9660_rrip_getname(isodir,outbuf,outlen,inump,imp)
 	return cd9660_rrip_loop(isodir,&analyze,tab);
 }
 
-/* 
+/*
  * Get Symbolic Link.
  */
 static RRIP_TABLE rrip_table_getsymname[] = {

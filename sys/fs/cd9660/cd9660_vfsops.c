@@ -179,7 +179,7 @@ iso_mountroot(mp, td)
  */
 static int
 cd9660_mount(mp, path, data, ndp, td)
-	register struct mount *mp;
+	struct mount *mp;
 	char *path;
 	caddr_t data;
 	struct nameidata *ndp;
@@ -224,14 +224,14 @@ cd9660_mount(mp, path, data, ndp, td)
 		return (error);
 	}
 
-	/*       
+	/*
 	 * Verify that user has necessary permissions on the device,
 	 * or has superuser abilities
 	 */
 	accessmode = VREAD;
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	error = VOP_ACCESS(devvp, accessmode, td->td_ucred, td);
-	if (error) 
+	if (error)
 		error = suser(td);
 	if (error) {
 		vput(devvp);
@@ -264,12 +264,12 @@ cd9660_mount(mp, path, data, ndp, td)
  */
 static int
 iso_mountfs(devvp, mp, td, argp)
-	register struct vnode *devvp;
+	struct vnode *devvp;
 	struct mount *mp;
 	struct thread *td;
 	struct iso_args *argp;
 {
-	register struct iso_mnt *isomp = (struct iso_mnt *)0;
+	struct iso_mnt *isomp = (struct iso_mnt *)0;
 	struct buf *bp = NULL;
 	struct buf *pribp = NULL, *supbp = NULL;
 	struct cdev *dev = devvp->v_rdev;
@@ -327,7 +327,7 @@ iso_mountfs(devvp, mp, td, argp)
 		if ((error = bread(devvp, iso_blknum * btodb(iso_bsize),
 				  iso_bsize, NOCRED, &bp)) != 0)
 			goto out;
-		
+
 		vdp = (struct iso_volume_descriptor *)bp->b_data;
 		if (bcmp (vdp->id, ISO_STANDARD_ID, sizeof vdp->id) != 0) {
 			if (bcmp (vdp->id_sierra, ISO_SIERRA_ID,
@@ -452,9 +452,9 @@ iso_mountfs(devvp, mp, td, argp)
 				  (isomp->im_bshift - DEV_BSHIFT),
 				  isomp->logical_block_size, NOCRED, &bp)) != 0)
 		    goto out;
-		
+
 		rootp = (struct iso_directory_record *)bp->b_data;
-		
+
 		if ((isomp->rr_skip = cd9660_rrip_offset(rootp,isomp)) < 0) {
 		    argp->flags	 |= ISOFSMNT_NORRIP;
 		} else {
@@ -544,7 +544,7 @@ cd9660_unmount(mp, mntflags, td)
 	int mntflags;
 	struct thread *td;
 {
-	register struct iso_mnt *isomp;
+	struct iso_mnt *isomp;
 	int error, flags = 0;
 
 	if (mntflags & MNT_FORCE)
@@ -586,7 +586,7 @@ cd9660_root(mp, vpp)
 	struct iso_directory_record *dp =
 	    (struct iso_directory_record *)imp->root;
 	ino_t ino = isodirino(dp, imp);
-	
+
 	/*
 	 * With RRIP we must use the `.' entry of the root directory.
 	 * Simply tell vget, that it's a relocated directory.
@@ -601,10 +601,10 @@ cd9660_root(mp, vpp)
 static int
 cd9660_statfs(mp, sbp, td)
 	struct mount *mp;
-	register struct statfs *sbp;
+	struct statfs *sbp;
 	struct thread *td;
 {
-	register struct iso_mnt *isomp;
+	struct iso_mnt *isomp;
 
 	isomp = VFSTOISOFS(mp);
 
@@ -643,20 +643,20 @@ struct ifid {
 /* ARGSUSED */
 static int
 cd9660_fhtovp(mp, fhp, vpp)
-	register struct mount *mp;
+	struct mount *mp;
 	struct fid *fhp;
 	struct vnode **vpp;
 {
 	struct ifid *ifhp = (struct ifid *)fhp;
-	register struct iso_node *ip;
+	struct iso_node *ip;
 	struct vnode *nvp;
 	int error;
-	
+
 #ifdef	ISOFS_DBG
 	printf("fhtovp: ino %d, start %ld\n",
 	       ifhp->ifid_ino, ifhp->ifid_start);
 #endif
-	
+
 	if ((error = VFS_VGET(mp, ifhp->ifid_ino, LK_EXCLUSIVE, &nvp)) != 0) {
 		*vpp = NULLVP;
 		return (error);
@@ -731,7 +731,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 
 	/*
 	 * Check to be sure that it did not show up. We have to put it
-	 * on the hash chain as the cleanup from vput expects to find 
+	 * on the hash chain as the cleanup from vput expects to find
 	 * it there.
 	 */
 	if ((error = cd9660_ihashget(dev, ino, flags, vpp)) != 0 ||
@@ -758,7 +758,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 			printf("fhtovp: lbn exceed volume space %d\n", lbn);
 			return (ESTALE);
 		}
-	
+
 		off = blkoff(imp, ino);
 		if (off + ISO_DIRECTORY_RECORD_SIZE > imp->logical_block_size) {
 			vput(vp);
@@ -766,7 +766,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 			       off + ISO_DIRECTORY_RECORD_SIZE);
 			return (ESTALE);
 		}
-	
+
 		error = bread(imp->im_devvp,
 			      lbn << (imp->im_bshift - DEV_BSHIFT),
 			      imp->logical_block_size, NOCRED, &bp);
@@ -788,7 +788,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 			       isonum_711(isodir->length));
 			return (ESTALE);
 		}
-	
+
 #if 0
 		if (isonum_733(isodir->extent) +
 		    isonum_711(isodir->ext_attr_length) != ifhp->ifid_start) {
@@ -825,7 +825,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 	ip->iso_extent = isonum_733(isodir->extent);
 	ip->i_size = isonum_733(isodir->size);
 	ip->iso_start = isonum_711(isodir->ext_attr_length) + ip->iso_extent;
-	
+
 	/*
 	 * Setup time stamp, attribute
 	 */
@@ -873,14 +873,14 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 	default:
 		break;
 	}
-	
+
 	if (ip->iso_extent == imp->root_extent)
 		vp->v_vflag |= VV_ROOT;
 
 	/*
 	 * XXX need generation number?
 	 */
-	
+
 	*vpp = vp;
 	return (0);
 }
@@ -894,8 +894,8 @@ cd9660_vptofh(vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;
 {
-	register struct iso_node *ip = VTOI(vp);
-	register struct ifid *ifhp;
+	struct iso_node *ip = VTOI(vp);
+	struct ifid *ifhp;
 
 	ifhp = (struct ifid *)fhp;
 	ifhp->ifid_len = sizeof(struct ifid);
