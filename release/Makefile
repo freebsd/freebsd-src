@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.49 1996/06/09 09:35:01 jkh Exp $
+#	$Id: Makefile,v 1.193.2.50 1996/06/11 10:00:46 jkh Exp $
 #
 # How to roll a release:
 #
@@ -454,6 +454,9 @@ doTARBALL:
 		${ZIPNSPLIT} ${RD}/dists/${TD}/$$tn. && \
 		mkdir -p ${TD} && sh ${.CURDIR}/info.sh \
 		${RD}/dists/${TD}/$$tn > ${RD}/dists/${TD}/$$tn.inf && \
+		if [ -f ${.CURDIR}/scripts/$${TD}-install.sh ]; then \
+		  cp -p ${.CURDIR}/scripts/$${TD}-install.sh ${RD}/dists/${TD}/install.sh; \
+		fi && \
 		  if [ "${SD}" != "/usr/src" ]; then \
 			mtree -c -i -p ${SD}/${ARG} \
 			  -k gname,md5digest,mode,nlink,uname,size,link,type \
