@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_dblookup.c,v 1.9 1996/05/01 02:33:52 wpaul Exp $
+ *	$Id: yp_dblookup.c,v 1.13 1996/06/04 04:08:21 wpaul Exp $
  *
  */
 #include <stdio.h>
@@ -47,7 +47,7 @@
 #include "yp_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_dblookup.c,v 1.9 1996/05/01 02:33:52 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_dblookup.c,v 1.13 1996/06/04 04:08:21 wpaul Exp $";
 #endif
 
 int ypdb_debug = 0;
@@ -57,7 +57,7 @@ int yp_errno = YP_TRUE;
 HASHINFO openinfo = {
 	4096,		/* bsize */
 	32,		/* ffactor */
-	512,		/* nelem */
+	256,		/* nelem */
 	2048 * 512, 	/* cachesize */
 	NULL,		/* hash */
 	0,		/* lorder */
@@ -93,7 +93,7 @@ void yp_init_dbs()
  * Zorch a single entry in the dbent table and release
  * all its resources.
  */
-static __inline void yp_flush(i)
+static void yp_flush(i)
 	register int i;
 {
 	(void)(dbs[i]->dbp->close)(dbs[i]->dbp);
@@ -128,7 +128,7 @@ void yp_flush_all()
  * a new entry when all our slots are already filled, we have to kick
  * out the entry in the last slot to make room.
  */
-static __inline void yp_add_db(dbp, name, size)
+static void yp_add_db(dbp, name, size)
 	DB *dbp;
 	char *name;
 	int size;
@@ -190,7 +190,7 @@ static __inline void yp_add_db(dbp, name, size)
  *   array so that it will be easier to find if another request for
  *   the same database comes in later.
  */
-static __inline DB *yp_find_db(name, key, size)
+static DB *yp_find_db(name, key, size)
 	char *name;
 	char *key;
 	int size;
@@ -202,12 +202,11 @@ static __inline DB *yp_find_db(name, key, size)
 		if (dbs[i]->name != NULL && !strcmp(dbs[i]->name, name)) {
 			if (size) {
 				if (size != dbs[i]->size ||
-					strncmp(dbs[i]->key, key, size))
+				   strncmp(dbs[i]->key, key, size))
 					continue;
 			} else {
-				if (dbs[i]->size) {
+				if (dbs[i]->size)
 					continue;
-				}
 			}
 			if (i > 0) {
 				tmp = dbs[i];
@@ -218,6 +217,7 @@ static __inline DB *yp_find_db(name, key, size)
 			return(dbs[0]->dbp);
 		}
 	}
+
 	return(NULL);
 }
 
@@ -235,6 +235,9 @@ DB *yp_open_db_cache(domain, map, key, size)
 {
 	DB *dbp = NULL;
 	char buf[MAXPATHLEN + 2];
+/*
+	snprintf(buf, sizeof(buf), "%s/%s", domain, map);
+*/
 
 	strcpy(buf, domain);
 	strcat(buf, "/");
@@ -451,17 +454,22 @@ int yp_next_record(dbp,key,data,all,allow)
 			  key->size, key->data);
 
 	if (!all) {
-#ifndef DB_CACHE
-		if (key->size != lkey.size ||
-			strncmp(key->data, lkey.data, key->size)) {
-#else
-		if (!dbs[0]->size) {
+#ifdef DB_CACHE
+		if (!dbs[0]->key) {
 #endif
 			(dbp->seq)(dbp,&lkey,&ldata,R_FIRST);
 			while(strncmp((char *)key->data,lkey.data,
 				(int)key->size) || key->size != lkey.size)
-				(dbp->seq)(dbp,&lkey,&ldata,R_NEXT);
+				if ((dbp->seq)(dbp,&lkey,&ldata,R_NEXT)) {
+#ifdef DB_CACHE
+					dbs[0]->size = 0;
+#endif
+					return(YP_NOKEY);
+				}
+
+#ifdef DB_CACHE					
 		}
+#endif
 	}
 
 	if ((dbp->seq)(dbp,key,data,R_NEXT)) {

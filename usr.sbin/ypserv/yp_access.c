@@ -52,7 +52,7 @@
 #endif
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_access.c,v 1.7 1996/04/28 04:38:47 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_access.c,v 1.2 1996/05/01 02:39:54 wpaul Exp $";
 #endif
 
 extern int debug;
@@ -218,9 +218,17 @@ int yp_access(map, rqstp)
 	struct securenet *tmp;
 #endif
 	char *yp_procedure = NULL;
+	char procbuf[50];
 
-	yp_procedure = rqstp->rq_prog == YPPASSWDPROG ? "yppasswdprog_update" :
-			yp_procs[rqstp->rq_proc + (12 * (rqstp->rq_vers - 1))];
+	if (rqstp->rq_prog != YPPASSWDPROG && rqstp->rq_prog != YPPROG) {
+		snprintf(procbuf, sizeof(procbuf), "#%lu/#%lu", rqstp->rq_prog,
+								rqstp->rq_proc);
+		yp_procedure = (char *)&procbuf;
+	} else {
+		yp_procedure = rqstp->rq_prog == YPPASSWDPROG ?
+		"yppasswdprog_update" :
+		yp_procs[rqstp->rq_proc + (12 * (rqstp->rq_vers - 1))];
+	}
 
 	rqhost = svc_getcaller(rqstp->rq_xprt);
 
