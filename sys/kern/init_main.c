@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.120 1999/05/09 19:01:44 peter Exp $
+ * $Id: init_main.c,v 1.121 1999/05/09 20:42:45 peter Exp $
  */
 
 #include "opt_devfs.h"
@@ -583,7 +583,7 @@ static char init_path[MAXPATHLEN] =
 #ifdef	INIT_PATH
     __XSTRING(INIT_PATH);
 #else
-    "/sbin/init;/sbin/oinit;/sbin/init.bak;/stand/sysinstall";
+    "/sbin/init:/sbin/oinit:/sbin/init.bak:/stand/sysinstall";
 #endif
 SYSCTL_STRING(_kern, OID_AUTO, init_path, CTLFLAG_RD, init_path, 0, "");
 
@@ -619,11 +619,11 @@ start_init(p)
 	}
 	
 	for (path = init_path; *path != '\0'; path = next) {
-		while (*path == ';')
+		while (*path == ':')
 			path++;
 		if (*path == '\0')
 			break;
-		for (next = path; *next != '\0' && *next != ';'; next++)
+		for (next = path; *next != '\0' && *next != ':'; next++)
 			/* nothing */ ;
 		if (bootverbose)
 			printf("start_init: trying %.*s\n", (int)(next - path),
