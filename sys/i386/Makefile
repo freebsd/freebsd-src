@@ -14,7 +14,7 @@ all:
 	@echo "make links or tags only"
 
 # Directories in which to place i386 tags links
-DI386=	apm conf eisa i386 ibcs2 include isa linux
+DI386=	apm conf i386 ibcs2 include isa linux
 
 links::
 	-for i in ${COMMDIR1}; do \
@@ -24,7 +24,7 @@ links::
 	-for i in ${DI386}; do \
 	    (cd $$i && { rm -f tags; ln -s ../tags tags; }) done
 
-SI386=	${SYS}/i386/apm/*.[ch] ${SYS}/i386/eisa/*.[ch] \
+SI386=	${SYS}/i386/apm/*.[ch] \
 	${SYS}/i386/i386/*.[ch] ${SYS}/i386/ibcs2/*.[ch] \
 	${SYS}/i386/include/*.[ch] ${SYS}/i386/isa/*.[ch] \
 	${SYS}/i386/linux/*.[ch]
