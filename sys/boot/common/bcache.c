@@ -60,6 +60,7 @@ static bitstr_t		*bcache_miss;
 static int		bcache_nblks;
 static int		bcache_blksize;
 static int		bcache_hits, bcache_misses, bcache_ops, bcache_bypasses;
+static int		bcache_flushes;
 static int		bcache_bcount;
 
 static void	bcache_insert(caddr_t buf, daddr_t blkno);
@@ -71,8 +72,6 @@ static int	bcache_lookup(caddr_t buf, daddr_t blkno);
 int
 bcache_init(int nblks, size_t bsize)
 {
-    int		i;
-
     /* discard any old contents */
     if (bcache_data != NULL) {
 	free(bcache_data);
@@ -97,13 +96,24 @@ bcache_init(int nblks, size_t bsize)
 	return(ENOMEM);
     }
 
-    /* Invalidate the cache */
+    return(0);
+}
+
+/*
+ * Flush the cache
+ */
+void
+bcache_flush()
+{
+    int		i;
+
+    bcache_flushes++;
+
+    /* Flush the cache */
     for (i = 0; i < bcache_nblks; i++) {
 	bcache_ctl[i].bc_count = -1;
 	bcache_ctl[i].bc_blkno = -1;
     }
-
-    return(0);
 }
 
 /* 
@@ -115,8 +125,9 @@ bcache_init(int nblks, size_t bsize)
  * directly to the disk.  XXX tune this.
  */
 int
-bcache_strategy(void *devdata, int rw, daddr_t blk, size_t size, void *buf, size_t *rsize)
+bcache_strategy(void *devdata, int unit, int rw, daddr_t blk, size_t size, void *buf, size_t *rsize)
 {
+    static int			bcache_unit = -1;
     struct bcache_devdata	*dd = (struct bcache_devdata *)devdata;
     int				nblk, p_size;
     daddr_t			p_blk;
@@ -124,7 +135,12 @@ bcache_strategy(void *devdata, int rw, daddr_t blk, size_t size, void *buf, size
     int				i, j, result;
 
     bcache_ops++;
-    
+
+    if(bcache_unit != unit) {
+	bcache_flush();
+	bcache_unit = unit;
+    }
+
     /* bypass large requests, or when the cache is inactive */
     if ((bcache_data == NULL) || ((size * 2 / bcache_blksize) > bcache_nblks)) {
 	DEBUG("bypass %d from %d", size / bcache_blksize, blk);
@@ -256,7 +272,7 @@ command_bcache(int argc, char *argv[])
 	if (((i + 1) % 4) == 0)
 	    printf("\n");
     }
-    printf("\n%d ops  %d bypasses  %d hits  %d misses\n", bcache_ops, bcache_bypasses, bcache_hits, bcache_misses);
+    printf("\n%d ops  %d bypasses  %d hits  %d misses  %d flushes\n", bcache_ops, bcache_bypasses, bcache_hits, bcache_misses, bcache_flushes);
     return(CMD_OK);
 }
 
