@@ -171,6 +171,7 @@ static int _pam_auth_unix(	pam_handle_t *pamh,
 
 	pw = getpwnam ( name );
 
+#ifndef __FreeBSD__
 	/* For NIS+, root cannot get password for lesser user */
 	if (pw) {
 	    uid_t save_euid, save_uid;
@@ -182,6 +183,7 @@ static int _pam_auth_unix(	pam_handle_t *pamh,
 		setreuid (save_uid,save_euid);
 	    }
 	}
+#endif
 
 	if ( pw && (!pw->pw_passwd || pw->pw_passwd[0] == '\0') &&
 	     !(flags & PAM_DISALLOW_NULL_AUTHTOK)) {
