@@ -1073,6 +1073,10 @@ documented_lang_options[] =
   { "-Wlong-long","" },
   { "-Wno-long-long", "Do not warn about using 'long long' when -pedantic" },
   { "-Wmain", "Warn about suspicious declarations of main" },
+  { "-Wframe-size-<N>", 
+      "Warn if frame uses greater than <N> bytes." },
+  { "-Wlarglist-size-<N>", 
+      "Warn if function argument list uses greater than <N> bytes." },
   { "-Wno-main", "" },
   { "-Wmissing-braces",
     "Warn about possibly missing braces around initialisers" },
@@ -1226,6 +1230,18 @@ int warn_return_type;
    due to a misaligned access).  */
 
 int warn_cast_align;
+
+/* Nonzero means warn if a frame is larger that N bytes.  The value 
+   of N is warn_frame_size. */
+
+int warn_frame_size_flag = 0;
+int warn_frame_size;
+
+/* Nonzero means warn if a function call pushes more than N bytes 
+   onto the stack.  The value of N is warn_arglist_size. */
+
+int warn_arglist_size_flag = 0;
+int warn_arglist_size;
 
 /* Nonzero means warn about any identifiers that match in the first N
    characters.  The value N is in `id_clash_len'.  */
@@ -4379,6 +4395,11 @@ rest_of_compilation (decl)
 	print_rtl_graph_with_bb (dump_base_name, ".stack", insns);
     }
 #endif
+
+ if (warn_frame_size_flag)
+   if (get_frame_size () > warn_frame_size)
+     warning ("%d byte frame exceeds user specified limit (%d bytes)",
+ 	       get_frame_size (), warn_frame_size);
 
   /* Now turn the rtl into assembler code.  */
 

@@ -2293,6 +2293,14 @@ expand_call (exp, target, ignore)
 
   /* All arguments and registers used for the call must be set up by now!  */
 
+  if (warn_arglist_size_flag)
+    if (unadjusted_args_size > warn_arglist_size)
+      {
+	warning ("%d byte arglist in function call", unadjusted_args_size);
+	warning ("exceeds user specified limit (%d bytes)",
+		 warn_arglist_size);
+      }
+
   /* Generate the actual call instruction.  */
   emit_call_1 (funexp, fndecl, funtype, unadjusted_args_size,
 	       args_size.constant, struct_value_size,
