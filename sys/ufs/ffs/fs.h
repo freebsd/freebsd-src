@@ -486,7 +486,7 @@ struct cg {
  * Turn filesystem block numbers into disk block addresses.
  * This maps filesystem blocks to device size blocks.
  */
-#define fsbtodb(fs, b)	((b) << (fs)->fs_fsbtodb)
+#define	fsbtodb(fs, b)	((daddr_t)(b) << (fs)->fs_fsbtodb)
 #define	dbtofsb(fs, b)	((b) >> (fs)->fs_fsbtodb)
 
 /*
