@@ -31,7 +31,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: rup.1,v 1.2 1994/11/18 21:37:40 ats Exp $
+.\"	$Id: rup.1,v 1.3 1996/01/30 13:50:33 mpp Exp $
 .\"
 .Dd June 7, 1993
 .Dt RUP 1
@@ -40,10 +40,10 @@
 .Nm rup 
 .Nd remote status display
 .Sh SYNOPSIS
-.Nm rup
+.Nm
 .Op Ar host ...
 .Sh DESCRIPTION
-.Nm rup
+.Nm Rup
 displays a summary of the current system status of a particular
 .Em host 
 or all hosts on the local network.
@@ -57,7 +57,7 @@ The
 .Xr rpc.rstatd 8
 daemon must be running on the remote host for this command to
 work.
-.Nm rup
+.Nm Rup
 uses an RPC protocol defined in /usr/include/rpcsvc/rstat.x.
 .Sh EXAMPLE
 .Bd -unfilled -offset indent -compact
@@ -86,7 +86,7 @@ and cannot accommodate any RPC-based services.  The host may be down.
 .Xr rpc.rstatd 8
 .Sh HISTORY
 The
-.Nm rup
+.Nm
 command
 appeared in
 .Em Sun-OS .
