@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.7 1997/05/03 17:42:01 fsmp Exp $
+ *	$Id: mp_machdep.c,v 1.8 1997/05/05 22:56:27 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -898,10 +898,14 @@ get_isa_apic_mask(u_int isaMASK)
 	if (isairq == 0) {
 		return 0;
 	}
+	--isairq;
 
-	apicpin = get_isa_apic_irq(isairq - 1);
+	apicpin = get_isa_apic_irq( isairq );
 	if (apicpin == -1) {
-		return 0;
+		apicpin = get_eisa_apic_irq( isairq );
+		if (apicpin == -1) {
+			return 0;
+		}
 	}
 
 	return (1 << apicpin);
