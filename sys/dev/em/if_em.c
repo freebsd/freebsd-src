@@ -1839,7 +1839,6 @@ em_setup_interface(device_t dev, struct adapter * adapter)
 	ifp = &adapter->interface_data.ac_if;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_output = ether_output;
 	ifp->if_baudrate = 1000000000;
 	ifp->if_init =  em_init;
 	ifp->if_softc = adapter;

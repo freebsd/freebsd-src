@@ -509,7 +509,6 @@ ray_attach(device_t dev)
 	ifp->if_hdrlen = sizeof(struct ieee80211_frame) + 
 	    sizeof(struct ether_header);
 	ifp->if_baudrate = 1000000; /* Is this baud or bps ;-) */
-	ifp->if_output = ether_output;
 	ifp->if_start = ray_tx;
 	ifp->if_ioctl = ray_ioctl;
 	ifp->if_watchdog = ray_watchdog;

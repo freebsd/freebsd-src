@@ -253,7 +253,6 @@ gem_attach(sc)
 	ifp->if_ioctl = gem_ioctl;
 	ifp->if_watchdog = gem_watchdog;
 	ifp->if_init = gem_init;
-	ifp->if_output = ether_output;
 	ifp->if_snd.ifq_maxlen = GEM_TXQUEUELEN;
 	/*
 	 * Walk along the list of attached MII devices and

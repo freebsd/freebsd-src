@@ -274,7 +274,6 @@ hme_config(struct hme_softc *sc)
 	ifp->if_start = hme_start;
 	ifp->if_ioctl = hme_ioctl;
 	ifp->if_init = hme_init;
-	ifp->if_output = ether_output;
 	ifp->if_watchdog = hme_watchdog;
 	ifp->if_snd.ifq_maxlen = HME_NTXQ;
 
