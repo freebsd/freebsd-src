@@ -107,17 +107,8 @@ struct ukbd_data {
 
 typedef struct ukbd_softc {
 	bdevice		sc_dev;		/* base device */
-	usbd_interface_handle sc_iface;	/* interface */
-
-	short		sc_flags;
-#define	UKBD_ATTACHED	(1 << 0)
-	keyboard_t	*sc_kbd;
-#ifdef KBD_INSTALL_CDEV
-	genkbd_softc_t	sc_gensc;
-#endif
 } ukbd_softc_t;
 
-#define	UKBDUNIT(dev)	(minor(dev))
 #define	UKBD_CHUNK	128	/* chunk size for read */
 #define	UKBD_BSIZE	1020	/* buffer size */
 
@@ -126,24 +117,6 @@ typedef void usbd_disco_t(void *);
 
 static usbd_intr_t	ukbd_intr;
 static usbd_disco_t	ukbd_disconnect;
-static int		ukbd_remove_kbd(struct ukbd_softc *sc);
-
-#ifdef KBD_INSTALL_CDEV
-
-static d_open_t		ukbdopen;
-static d_close_t	ukbdclose;
-static d_read_t		ukbdread;
-static d_ioctl_t	ukbdioctl;
-static d_poll_t		ukbdpoll;
-
-static struct  cdevsw ukbd_cdevsw = {
-	ukbdopen,	ukbdclose,	ukbdread,	nowrite,
-	ukbdioctl,	nostop,		nullreset,	nodevtotty,
-	ukbdpoll,	nommap,		NULL,		DRIVER_NAME,
-	NULL,		-1,
-};
-
-#endif /* KBD_INSTALL_CDEV */
 
 USB_DECLARE_DRIVER(ukbd);
 
@@ -152,7 +125,7 @@ USB_MATCH(ukbd)
 	USB_MATCH_START(ukbd, uaa);
 
 	keyboard_switch_t *sw;
-	void *arg[4];
+	void *arg[3];
 	int unit = device_get_unit(device);
 
 	sw = kbd_get_switch(DRIVER_NAME);
@@ -162,7 +135,6 @@ USB_MATCH(ukbd)
 	arg[0] = (void *)uaa;
 	arg[1] = (void *)ukbd_intr;
 	arg[2] = (void *)ukbd_disconnect;
-	arg[3] = (void *)device;
 	if ((*sw->probe)(unit, (void *)arg, 0))
 		return (UMATCH_NONE);
 
@@ -177,14 +149,14 @@ USB_ATTACH(ukbd)
 	char devinfo[1024];
 
 	keyboard_switch_t *sw;
-	void *arg[4];
+	keyboard_t *kbd;
+	void *arg[3];
 	int unit = device_get_unit(self);
 
 	sw = kbd_get_switch(DRIVER_NAME);
 	if (sw == NULL)
 		USB_ATTACH_ERROR_RETURN;
 
-	sc->sc_iface = iface;
 	id = usbd_get_interface_descriptor(iface);
 	usbd_devinfo(uaa->device, 0, devinfo);
 	USB_ATTACH_SETUP;
@@ -194,21 +166,19 @@ USB_ATTACH(ukbd)
 	arg[0] = (void *)uaa;
 	arg[1] = (void *)ukbd_intr;
 	arg[2] = (void *)ukbd_disconnect;
-	arg[3] = (void *)self;
-	sc->sc_kbd = NULL;
+	kbd = NULL;
 	if ((*sw->probe)(unit, (void *)arg, 0))
 		USB_ATTACH_ERROR_RETURN;
-	if ((*sw->init)(unit, &sc->sc_kbd, (void *)arg, 0))
+	if ((*sw->init)(unit, &kbd, (void *)arg, 0))
 		USB_ATTACH_ERROR_RETURN;
-	(*sw->enable)(sc->sc_kbd);
+	(*sw->enable)(kbd);
 
 #ifdef KBD_INSTALL_CDEV
-	if (kbd_attach(makedev(0, unit), sc->sc_kbd, &ukbd_cdevsw))
+	if (kbd_attach(kbd))
 		USB_ATTACH_ERROR_RETURN;
 #endif
 	if (bootverbose)
-		(*sw->diag)(sc->sc_kbd, bootverbose);
-	sc->sc_flags |= UKBD_ATTACHED;
+		(*sw->diag)(kbd, bootverbose);
 
 	USB_ATTACH_SUCCESS_RETURN;
 }
@@ -216,15 +186,24 @@ USB_ATTACH(ukbd)
 int
 ukbd_detach(device_t self)
 {
-	struct ukbd_softc *sc = device_get_softc(self);
+	keyboard_t *kbd;
 	const char *devinfo = device_get_desc(self);
 	int error;
 
-	error = ukbd_remove_kbd(sc);
+	kbd = kbd_get_keyboard(kbd_find_keyboard(DRIVER_NAME,
+						 device_get_unit(self)));
+	if (kbd == NULL) {
+		DPRINTF(("%s: keyboard not attached!?\n", USBDEVNAME(self)));
+		return ENXIO;
+	}
+#ifdef KBD_INSTALL_CDEV
+	error = kbd_detach(kbd);
 	if (error)
 		return error;
-
-	sc->sc_flags &= ~UKBD_ATTACHED;
+#endif
+	error = (*kbdsw[kbd->kb_index]->term)(kbd);
+	if (error)
+		return error;
 
 	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
 
@@ -239,78 +218,11 @@ ukbd_detach(device_t self)
 static void
 ukbd_disconnect(void *p)
 {
-	device_t self = (device_t)p;
-	struct ukbd_softc *sc = device_get_softc(self);
+	keyboard_t *kbd = (keyboard_t *)p;
 
-	DPRINTF(("ukbd_disconnect: sc:%p\n", sc));
-	(*kbdsw[sc->sc_kbd->kb_index]->disable)(sc->sc_kbd);
+	DPRINTF(("ukbd_disconnect: kbd:%p\n", kbd));
+	(*kbdsw[kbd->kb_index]->disable)(kbd);
 }
-
-static int
-ukbd_remove_kbd(struct ukbd_softc *sc)
-{
-	int error;
-
-#ifdef KBD_INSTALL_CDEV
-	error = kbd_detach(makedev(0, sc->sc_kbd->kb_unit), sc->sc_kbd,
-			   &ukbd_cdevsw);
-	if (error)
-		return error;
-#endif
-	error = (*kbdsw[sc->sc_kbd->kb_index]->term)(sc->sc_kbd);
-	if (error)
-		return error;
-	sc->sc_kbd = NULL;
-
-	return 0;
-}
-
-/* cdev driver functions */
-
-#ifdef KBD_INSTALL_CDEV
-
-static int
-ukbdopen(dev_t dev, int flag, int mode, struct proc *p)
-{
-	USB_GET_SC_OPEN(ukbd, UKBDUNIT(dev), sc);
-
-	/* FIXME: set the initial input mode (K_XLATE?) and lock state? */
-	return genkbdopen(&sc->sc_gensc, sc->sc_kbd, flag, mode, p);
-}
-
-static int
-ukbdclose(dev_t dev, int flag, int mode, struct proc *p)
-{
-	USB_GET_SC(ukbd, UKBDUNIT(dev),sc);
-
-	return genkbdclose(&sc->sc_gensc, sc->sc_kbd, flag, mode, p);
-}
-
-static int
-ukbdread(dev_t dev, struct uio *uio, int flag)
-{
-	USB_GET_SC(ukbd, UKBDUNIT(dev),sc);
-	
-	return genkbdread(&sc->sc_gensc, sc->sc_kbd, uio, flag);
-}
-
-static int
-ukbdioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
-{
-	USB_GET_SC(ukbd, UKBDUNIT(dev),sc);
-	
-	return genkbdioctl(&sc->sc_gensc, sc->sc_kbd, cmd, arg, flag, p);
-}
-
-static int
-ukbdpoll(dev_t dev, int event, struct proc *p)
-{
-	USB_GET_SC(ukbd, UKBDUNIT(dev),sc);
-
-	return genkbdpoll(&sc->sc_gensc, sc->sc_kbd, event, p);
-}
-
-#endif /* KBD_INSTALL_CDEV */
 
 void
 ukbd_intr(usbd_request_handle reqh, usbd_private_handle addr, usbd_status status)
@@ -534,7 +446,7 @@ ukbd_configure(int flags)
 	keyboard_t *kbd;
 	device_t device;
 	struct usb_attach_arg *uaa;
-	void *arg[4];
+	void *arg[3];
 
 	device = devclass_get_device(ukbd_devclass, UKBD_DEFAULT);
 	if (device == NULL)
@@ -547,7 +459,6 @@ ukbd_configure(int flags)
 	arg[0] = (void *)uaa;
 	arg[1] = (void *)ukbd_intr;
 	arg[2] = (void *)ukbd_disconnect;
-	arg[3] = (void *)device;
 	kbd = NULL;
 	if (ukbd_probe(UKBD_DEFAULT, arg, flags))
 		return 0;
@@ -678,7 +589,7 @@ ukbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 			return ENXIO;
 		if (ukbd_enable_intr(kbd, TRUE, (usbd_intr_t *)data[1]) == 0) {
 			usbd_set_disco(state->ks_intrpipe,
-				       (usbd_disco_t *)data[2], data[3]);
+				       (usbd_disco_t *)data[2], (void *)kbd);
 			ukbd_timeout((void *)kbd);
 		}
 		KBD_CONFIG_DONE(kbd);

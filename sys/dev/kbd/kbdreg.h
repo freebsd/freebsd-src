@@ -34,6 +34,7 @@ typedef struct keyboard keyboard_t;
 struct keymap;
 struct accentmap;
 struct fkeytab;
+struct cdevsw;
 
 /* call back funcion */
 typedef int		kbd_callback_func_t(keyboard_t *kbd, int event,
@@ -199,33 +200,8 @@ int			kbd_configure(int flags);
 #ifdef KBD_INSTALL_CDEV
 
 /* virtual keyboard cdev driver functions */
-
-int			kbd_attach(dev_t dev, keyboard_t *kbd,
-				   struct cdevsw *sw);
-int			kbd_detach(dev_t dev, keyboard_t *kbd,
-				   struct cdevsw *sw);
-
-/* generic keyboard cdev driver functions */
-
-typedef struct genkbd_softc {
-	int		gkb_flags;	/* flag/status bits */
-#define KB_ASLEEP	(1 << 0)
-	struct clist	gkb_q;		/* input queue */
-	struct selinfo	gkb_rsel;
-} genkbd_softc_t;
-
-int	genkbdopen(genkbd_softc_t *sc, keyboard_t *kbd, int flag, int mode,
-		   struct proc *p);
-int	genkbdclose(genkbd_softc_t *sc, keyboard_t *kbd, int flag, int mode,
-		    struct proc *p);
-int	genkbdread(genkbd_softc_t *sc, keyboard_t *kbd, struct uio *uio,
-		   int flag);
-int	genkbdwrite(genkbd_softc_t *sc, keyboard_t *kbd, struct uio *uio,
-		    int flag);
-int	genkbdioctl(genkbd_softc_t *sc, keyboard_t *kbd, u_long cmd,
-		    caddr_t arg, int flag, struct proc *p);
-int	genkbdpoll(genkbd_softc_t *sc, keyboard_t *kbd, int event,
-		   struct proc *p);
+int			kbd_attach(keyboard_t *kbd);
+int			kbd_detach(keyboard_t *kbd);
 
 #endif /* KBD_INSTALL_CDEV */
 

@@ -66,11 +66,6 @@
 #include <sys/bus.h>
 #include <isa/isareg.h>
 
-extern devclass_t atkbd_devclass;
-
-#define ATKBD_SOFTC(unit)		\
-	((atkbd_softc_t *)devclass_get_softc(atkbd_devclass, unit))
-
 #else /* __i386__ */
 
 #include <i386/isa/isa.h>
@@ -78,53 +73,9 @@ extern devclass_t atkbd_devclass;
 
 extern struct isa_driver 	atkbddriver;	/* XXX: a kludge; see below */
 
-static atkbd_softc_t		*atkbd_softc[NATKBD];
-
-#define ATKBD_SOFTC(unit)		\
-	(((unit) >= NATKBD) ? NULL : atkbd_softc[(unit)])
-
 #endif /* __i386__ */
 
 static timeout_t	atkbd_timeout;
-
-#ifdef KBD_INSTALL_CDEV
-
-static d_open_t		atkbdopen;
-static d_close_t	atkbdclose;
-static d_read_t		atkbdread;
-static d_ioctl_t	atkbdioctl;
-static d_poll_t		atkbdpoll;
-
-static struct  cdevsw atkbd_cdevsw = {
-	atkbdopen,	atkbdclose,	atkbdread,	nowrite,
-	atkbdioctl,	nostop,		nullreset,	nodevtotty,
-	atkbdpoll,	nommap,		NULL,		ATKBD_DRIVER_NAME,
-	NULL,		-1,
-};
-
-#endif /* KBD_INSTALL_CDEV */
-
-#ifdef __i386__
-
-atkbd_softc_t
-*atkbd_get_softc(int unit)
-{
-	atkbd_softc_t *sc;
-
-	if (unit >= sizeof(atkbd_softc)/sizeof(atkbd_softc[0]))
-		return NULL;
-	sc = atkbd_softc[unit];
-	if (sc == NULL) {
-		sc = atkbd_softc[unit]
-		   = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT);
-		if (sc == NULL)
-			return NULL;
-		bzero(sc, sizeof(*sc));
-	}
-	return sc;
-}
-
-#endif /* __i386__ */
 
 int
 atkbd_probe_unit(int unit, int port, int irq, int flags)
@@ -146,14 +97,11 @@ atkbd_probe_unit(int unit, int port, int irq, int flags)
 }
 
 int
-atkbd_attach_unit(int unit, atkbd_softc_t *sc, int port, int irq, int flags)
+atkbd_attach_unit(int unit, keyboard_t **kbd, int port, int irq, int flags)
 {
 	keyboard_switch_t *sw;
 	int args[2];
 	int error;
-
-	if (sc->flags & ATKBD_ATTACHED)
-		return 0;
 
 	sw = kbd_get_switch(ATKBD_DRIVER_NAME);
 	if (sw == NULL)
@@ -162,19 +110,18 @@ atkbd_attach_unit(int unit, atkbd_softc_t *sc, int port, int irq, int flags)
 	/* reset, initialize and enable the device */
 	args[0] = port;
 	args[1] = irq;
-	sc->kbd = NULL;
+	*kbd = NULL;
 	error = (*sw->probe)(unit, args, flags);
 	if (error)
 		return error;
-	error = (*sw->init)(unit, &sc->kbd, args, flags);
+	error = (*sw->init)(unit, kbd, args, flags);
 	if (error)
 		return error;
-	(*sw->enable)(sc->kbd);
+	(*sw->enable)(*kbd);
 
 #ifdef KBD_INSTALL_CDEV
 	/* attach a virtual keyboard cdev */
-	error = kbd_attach(makedev(0, ATKBD_MKMINOR(unit)), sc->kbd,
-			   &atkbd_cdevsw);
+	error = kbd_attach(*kbd);
 	if (error)
 		return error;
 #endif
@@ -183,12 +130,10 @@ atkbd_attach_unit(int unit, atkbd_softc_t *sc, int port, int irq, int flags)
 	 * This is a kludge to compensate for lost keyboard interrupts.
 	 * A similar code used to be in syscons. See below. XXX
 	 */
-	atkbd_timeout(sc->kbd);
+	atkbd_timeout(*kbd);
 
 	if (bootverbose)
-		(*sw->diag)(sc->kbd, bootverbose);
-
-	sc->flags |= ATKBD_ATTACHED;
+		(*sw->diag)(*kbd, bootverbose);
 	return 0;
 }
 
@@ -230,60 +175,6 @@ atkbd_timeout(void *arg)
 
 /* cdev driver functions */
 
-#ifdef KBD_INSTALL_CDEV
-
-static int
-atkbdopen(dev_t dev, int flag, int mode, struct proc *p)
-{
-	atkbd_softc_t *sc;
-
-	sc = ATKBD_SOFTC(ATKBD_UNIT(dev));
-	if (sc == NULL)
-		return ENXIO;
-	if (mode & (FWRITE | O_CREAT | O_APPEND | O_TRUNC))
-		return ENODEV;
-
-	/* FIXME: set the initial input mode (K_XLATE?) and lock state? */
-	return genkbdopen(&sc->gensc, sc->kbd, flag, mode, p);
-}
-
-static int
-atkbdclose(dev_t dev, int flag, int mode, struct proc *p)
-{
-	atkbd_softc_t *sc;
-
-	sc = ATKBD_SOFTC(ATKBD_UNIT(dev));
-	return genkbdclose(&sc->gensc, sc->kbd, flag, mode, p);
-}
-
-static int
-atkbdread(dev_t dev, struct uio *uio, int flag)
-{
-	atkbd_softc_t *sc;
-
-	sc = ATKBD_SOFTC(ATKBD_UNIT(dev));
-	return genkbdread(&sc->gensc, sc->kbd, uio, flag);
-}
-
-static int
-atkbdioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
-{
-	atkbd_softc_t *sc;
-
-	sc = ATKBD_SOFTC(ATKBD_UNIT(dev));
-	return genkbdioctl(&sc->gensc, sc->kbd, cmd, arg, flag, p);
-}
-
-static int
-atkbdpoll(dev_t dev, int event, struct proc *p)
-{
-	atkbd_softc_t *sc;
-
-	sc = ATKBD_SOFTC(ATKBD_UNIT(dev));
-	return genkbdpoll(&sc->gensc, sc->kbd, event, p);
-}
-
-#endif /* KBD_INSTALL_CDEV */
 
 /* LOW-LEVEL */
 
