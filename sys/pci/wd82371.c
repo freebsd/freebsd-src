@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: wd82371.c,v 1.1 1996/01/28 22:15:47 wollman Exp $
  */
 
 #include "pci.h"
@@ -190,7 +190,7 @@ piix_dmasetup(void *xcp, char *vaddr, u_long count, int dir)
 	 * Deal with transfers that don't start on a page
 	 * boundary.
 	 */
-	pgresid = (u_long)vaddr & ~NBPG;
+	pgresid = (u_long)vaddr % NBPG;
 	if (pgresid) {
 		prd[i].prd_base = vtophys(vaddr);
 		if (count >= (NBPG - pgresid))
