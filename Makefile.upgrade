@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.upgrade,v 1.7 1998/10/17 05:40:45 peter Exp $
+#	$Id: Makefile.upgrade,v 1.8 1999/01/07 06:30:14 peter Exp $
 #
 # This makefile contains rules for preforming upgrades that are outside
 # the scope of the normal build world process.
@@ -206,11 +206,17 @@ ${MAKEOBJDIRPREFIX}/do_aout_kernel :
 .if	exists(${.CURDIR}/sys/compile/GENERICupgrade)
 	@rm -rf ${.CURDIR}/sys/compile/GENERICupgrade
 .endif
+.if	!exists(${.CURDIR}/sys/${MACHINE}/conf/GENERICupgrade)
+	-cp ${.CURDIR}/sys/${MACHINE}/conf/GENERIC \
+		${.CURDIR}/sys/${MACHINE}/conf/GENERICupgrade
+.endif
 	@cd ${.CURDIR}/sys/${MACHINE}/conf; config GENERICupgrade
 	@-cd ${.CURDIR}/sys/compile/GENERICupgrade; \
-		OBJFORMAT=aout make depend && make all
+		OBJFORMAT=aout make KERNFORMAT=aout depend && \
+		OBJFORMAT=aout make KERNFORMAT=aout all
 	@cd ${.CURDIR}/sys/compile/GENERICupgrade; \
-		OBJFORMAT=aout make depend && make all
+		OBJFORMAT=aout make KERNFORMAT=aout depend && \
+		OBJFORMAT=aout make KERNFORMAT=aout all
 .endif
 	@touch ${MAKEOBJDIRPREFIX}/do_aout_kernel
 
