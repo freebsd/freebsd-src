@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.42 1997/10/29 01:19:41 brian Exp $
+ * $Id: lcp.c,v 1.43 1997/11/08 00:28:07 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -501,7 +501,7 @@ LcpDecodeConfig(u_char * cp, int plen, int mode_type)
 	    memcpy(ackp, cp, length);
 	    ackp += length;
 #ifdef HAVE_DES
-            VarMSChap = cp[4] = 0x80;
+            VarMSChap = cp[4] == 0x80;
 #endif
 	  } else if (Acceptable(ConfPap)) {
 	    *nakp++ = *cp;
