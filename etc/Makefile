@@ -26,8 +26,8 @@ BIN1=   amd.map apmd.conf auth.conf \
 
 .if exists(${.CURDIR}/../crypto) && !defined(NO_OPENSSH)
 SSH=	${.CURDIR}/../crypto/openssh/ssh_config \
-	${.CURDIR}/../crypto/openssh/sshd_config
-BIN1+=	primes
+	${.CURDIR}/../crypto/openssh/sshd_config \
+	primes
 .endif
 
 .if exists(${.CURDIR}/../crypto) && !defined(NO_OPENSSL)
