@@ -23,14 +23,16 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: sleep.9,v 1.9 1997/04/11 17:49:56 bde Exp $
+.\" $Id: sleep.9,v 1.10 1998/01/16 18:12:57 bde Exp $
 .\" "
-.Dd April 3, 1996
+.Dd December 17, 1998
 .Os
 .Dt SLEEP 9
 .Sh NAME
 .Nm sleep ,
 .Nm tsleep ,
+.Nm asleep ,
+.Nm await ,
 .Nm wakeup
 .Nd wait for events
 .Sh SYNOPSIS
@@ -39,6 +41,10 @@
 .Fd #include <sys/proc.h>
 .Ft int
 .Fn tsleep "void *ident" "int priority" "const char *wmesg" "int timo"
+.Ft int
+.Fn asleep "void *ident" "int priority" "const char *wmesg" "int timo"
+.Ft int
+.Fn await "int priority" "int timo"
 .Ft void
 .Fn wakeup "void *ident"
 .Ft void
@@ -106,6 +112,90 @@ is returned if the system call should be interrupted by the signal
 is the traditional form.  It doesn't let you specify a timeout nor a
 .Ar wmesg ,
 hence its use is deprecated.
+.Pp
+.Nm Asleep
+implements the new asynchronous sleep function.  It takes the same arguments
+as
+.Fn tsleep
+and places the process on the appropriate wait queue, but
+.Fn asleep
+leaves the process runnable and returns immediately.  The caller is then
+expected to, at some point in the future, call
+.Fn await
+to actually wait for the previously queued wait condition.
+If
+.Fn asleep
+is called several times, only the most recent call is effective.
+.Fn asleep
+may be called with an
+.Ar ident
+value of NULL
+to remove any previously queued condition.  
+.Pp
+.Nm Await
+implements the new asynchronous wait function.  If you 
+.Fn asleep
+on an identifier,
+.Fn await
+will actually block the process until someone calls 
+.Fn wakeup
+on that identifier.  If someone calls 
+.Fn wakeup
+after you
+.Fn asleep
+but before you 
+.Fn await
+then the 
+.Fn await
+call is effectively a NOP.
+If
+.Fn await
+is called multiple times without an intervening
+.Fn asleep
+the 
+.Fn await
+is effective a NOP, but will call 
+.Fn mswitch
+for safety.  The
+.Fn await
+function allows you to override the priority and timeout values to be used.
+If the value -1 is specified for an argument, the value is taken from the
+previous
+.Fn asleep
+call.  If you pass -1 for the priority you must be prepared to catch signal
+conditions if the prior call to
+.Fn asleep
+specified it in its priority.  If you pass -1 for the timeout you must be
+prepared to catch a timeout condition if the prior call to 
+.Fn asleep
+specified a timeout.  When you use -1, you should generally not make 
+assumptions as to the arguments used by the prior
+.Fn asleep
+call.
+.Pp
+The
+.Fn asleep
+and
+.Fn await
+functions are used by the kernel code for various purposes but the main one is
+to allow complex interlocking code to 'backout' of a temporary resource failure
+(such as lack of memory or trying to access a block that is not in the buffer
+cache) in order to release major locks prior to blocking, and to then retry 
+the call that failed on wakeup.  This involves subroutines deep in the kernel
+calling
+.Fn asleep
+and returning a temporary failure, then popping back up through a number
+of call levels before calling
+.Fn await ,
+then retrying.    The kernel might also use these functions to avoid using 
+spinlocks in a check-condition interlock.  That is, in case the case where
+the kernel wishes to check the condition of something and then block on it.
+To avoid the race between the check and the blocking, the kernel can first
+check the condition, then call
+.Fn asleep ,
+then check the condition a second time before calling
+.Fn await .
+The overlap makes the race condition impossible.
 .Sh RETURN VALUES
 See above.
 .Sh SEE ALSO
