@@ -1,29 +1,37 @@
 #
 # GENERICAH -- Generic machine with WD/AHx family disks
 #
-#	$Id: GENERICAH,v 1.32 1994/05/19 10:55:32 jkh Exp $
+#	$Id: GENERICAH,v 1.35 1994/07/28 05:53:43 davidg Exp $
 #
 
 machine		"i386"
 cpu		"I386_CPU"
 cpu		"I486_CPU"
 ident		GENERICAH
-timezone	8 dst
 maxusers	10
+
 options		MATH_EMULATE		#Support for x87 emulation
 options		INET			#InterNETworking
+#options		GATEWAY			#Host is a Gateway (forwards packets)
+options		MULTICAST		#IP Multicasting support
+options		MROUTING		#IP Multicast Routing
 options		FFS			#Berkeley Fast File System
+options		LFS			#Log File System
+options		MFS			#Memory File System
+options		NFS			#Network File System
+options		PROCFS			#Process File System
 options		KERNFS			#Kernel File System
 options		FDESC			#File Descriptor File System
-options		MFS			#Memory File System
+options		PORTAL			#Portal File System
+options		UNION			#Union File System
+options		NULLFS			#NULL File System
+options		UMAPFS			#UID Map File System
 options		"CD9660"		#CD ISO9660 File System
-options		NFS			#Network File System
+options		FIFO			#Support for FIFO files
 options		"COMPAT_43"		#Compatible with BSD 4.3
-options		"TCP_COMPAT_42"		#TCP/IP compatible with 4.2
-options		XSERVER			#Xserver
+#options		"TCP_COMPAT_42"		#TCP/IP compatible with 4.2
 options		UCONSOLE		#X Console support
 options		"FAT_CURSOR"		#block cursor in syscons or pccons
-#options	GATEWAY			#Host is a Gateway (forwards packets)
 options		"SCSI_DELAY=15"		#Be pessimistic about Joe SCSI device
 options		"NCONS=4"		#4 virtual consoles
 options		"STAR_SAVER"		#syscons "stars" screen saver
