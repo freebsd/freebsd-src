@@ -143,6 +143,6 @@ struct __sFILEX {
  * orientation. If o < 0, the stream has byte-orientation.
  */
 #define	ORIENT(fp, o)	do {				\
-	if ((fp)->_extra != NULL && (fp)->_extra->orientation == 0)		\
+	if ((fp)->_extra->orientation == 0)		\
 		(fp)->_extra->orientation = (o);	\
 } while (0)
