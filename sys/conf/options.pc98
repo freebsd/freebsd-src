@@ -18,7 +18,6 @@ AUTO_EOI_2		opt_auto_eoi.h
 I586_PMC_GUPROF		opt_i586_guprof.h
 COMPAT_OLDISA
 BROKEN_KEYBOARD_RESET	opt_reset.h
-KSTACK_PAGES
 
 # Options for emulators.  These should only be used at config time, so
 # they are handled like options for static filesystems
