@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.1 (Berkeley) 7/19/93
-# $Id$
+# $Id: Makefile,v 1.16 1997/02/22 19:55:57 peter Exp $
 
 PROG=	login
 MAN1=	login.1
@@ -15,8 +15,14 @@ CFLAGS+=-DSKEY -DLOGIN_ACCESS -DLOGALL -DLOGIN_CAP $(LC_AUTH)
 CFLAGS+=-DKLOGIN_PARANOID
 .endif
 
-DPADD=	${LIBUTIL} ${LIBSKEY} ${LIBMD} ${LIBCRYPT}
-LDADD=	-lutil -lskey -lmd -lcrypt
+DPADD=	${LIBUTIL} ${LIBSKEY} ${LIBCRYPT}
+LDADD=	-lutil -lskey -lcrypt
+
+# have to provide libmd.a for libskey.so to use.
+.if ${BINFORMAT} != elf
+DPADD+=	${LIBMD}
+LDADD+=	lmd
+.endif
 
 .if exists(${DESTDIR}/usr/lib/libkrb.a) && defined(MAKE_EBONES) && !defined(LC_AUTH)
 CFLAGS+=-DKERBEROS
