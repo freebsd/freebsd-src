@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.41 1995/05/30 08:13:20 rgrimes Exp $
+ *      $Id: cd.c,v 1.42 1995/10/21 23:13:06 phk Exp $
  */
 
 #define SPLCD splbio
@@ -195,11 +195,11 @@ cdattach(struct scsi_link *sc_link)
 	 */
 	cd_get_parms(unit, SCSI_NOSLEEP | SCSI_NOMASK);
 	if (dp->disksize) {
-		printf("cd present.[%ld x %ld byte records]",
+		printf("cd present [%ld x %ld byte records]",
 		    cd->params.disksize,
 		    cd->params.blksize);
 	} else {
-		printf("can't get the size\n");
+		printf("can't get the size");
 	}
 
 	cd->flags |= CDINIT;
