@@ -167,8 +167,7 @@ struct ng_fec_private {
 typedef struct ng_fec_private *priv_p;
 
 /* Interface methods */
-static void	ng_fec_input(struct ifnet *, struct mbuf **,
-			struct ether_header *);
+static void	ng_fec_input(struct ifnet *, struct mbuf **);
 static void	ng_fec_start(struct ifnet *ifp);
 static int	ng_fec_choose_port(struct ng_fec_bundle *b,
 			struct mbuf *m, struct ifnet **ifp);
@@ -189,8 +188,7 @@ static void	ng_fec_print_ioctl(struct ifnet *ifp, int cmd, caddr_t data);
 #endif
 
 /* ng_ether_input_p - see sys/netgraph/ng_ether.c */
-extern void (*ng_ether_input_p)(struct ifnet *ifp, struct mbuf **mp,
-			struct ether_header *eh);
+extern void (*ng_ether_input_p)(struct ifnet *ifp, struct mbuf **mp);
 
 /* Netgraph methods */
 static ng_constructor_t	ng_fec_constructor;
@@ -717,8 +715,7 @@ ng_fec_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
  * coming from us.
  */
 static void 
-ng_fec_input(struct ifnet *ifp, struct mbuf **m0,
-		struct ether_header *eh)
+ng_fec_input(struct ifnet *ifp, struct mbuf **m0)
 {
 	struct ng_node		*node;
 	struct ng_fec_private	*priv;
@@ -728,7 +725,7 @@ ng_fec_input(struct ifnet *ifp, struct mbuf **m0,
 	struct ng_fec_portlist	*p;
 
 	/* Sanity check */
-	if (ifp == NULL || m0 == NULL || eh == NULL)
+	if (ifp == NULL || m0 == NULL)
 		return;
 
 	node = IFP2NG(ifp);
@@ -757,15 +754,8 @@ ng_fec_input(struct ifnet *ifp, struct mbuf **m0,
 	bifp->if_ibytes += m->m_pkthdr.len + sizeof(struct ether_header);
 
         /* Check for a BPF tap */
-	if (bifp->if_bpf != NULL) {
-		struct m_hdr mh;
-
-		/* This kludge is OK; BPF treats the "mbuf" as read-only */
-		mh.mh_next = m;
-		mh.mh_data = (char *)eh;
-		mh.mh_len = ETHER_HDR_LEN;
-		BPF_MTAP(bifp, (struct mbuf *)&mh);
-	}
+	if (bifp->if_bpf != NULL)
+		BPF_MTAP(bifp, m);
 
 	return;
 }
