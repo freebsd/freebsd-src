@@ -583,6 +583,8 @@ extern int	 inet6_rthdr_lasthop __P((struct cmsghdr *, u_int));
 extern int	 inet6_rthdr_segments __P((const struct cmsghdr *));
 extern struct	 in6_addr *inet6_rthdr_getaddr __P((struct cmsghdr *, int));
 extern int	 inet6_rthdr_getflags __P((const struct cmsghdr *, int));
+extern int	 inet6_rthdr_reverse __P((const struct cmsghdr *,
+					  struct cmsghdr *));
 __END_DECLS
 
 #endif /* !_NETINET6_IN6_H_ */
