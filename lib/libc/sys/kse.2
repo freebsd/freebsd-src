@@ -51,7 +51,7 @@
 .Ft int
 .Fn kse_exit void
 .Ft int
-.Fn kse_release void
+.Fn kse_release "struct timespec *timeout"
 .Ft int
 .Fn kse_wakeup "struct kse_mailbox *mbx"
 .Ft int
@@ -280,7 +280,7 @@ the KSE assigned to the currently running thread when it is not needed,
 e.g., when there are more available KSEs than runnable user threads.
 The thread converts to an upcall but does not get scheduled until
 there is a new reason to do so, e.g., a previously
-blocked thread becomes runnable.
+blocked thread becomes runnable, or the timeout expires.
 If successful,
 .Fn kse_release
 does not return to the caller.
