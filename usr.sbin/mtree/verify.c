@@ -173,7 +173,7 @@ miss(p, tail)
 		}
 
 		create = 0;
-		if (!(p->flags & F_VISIT) && uflag)
+		if (!(p->flags & F_VISIT) && uflag) {
 			if (!(p->flags & (F_UID | F_UNAME)))
 			    (void)printf(" (directory not created: user not specified)");
 			else if (!(p->flags & (F_GID | F_GNAME)))
@@ -187,7 +187,7 @@ miss(p, tail)
 				create = 1;
 				(void)printf(" (created)");
 			}
-
+		}
 		if (!(p->flags & F_VISIT))
 			(void)putchar('\n');
 

@@ -320,22 +320,24 @@ statd(t, parent, puid, pgid, pmode)
 			(void)printf("/set type=dir");
 		else
 			(void)printf("/set type=file");
-		if (keys & F_UNAME)
+		if (keys & F_UNAME) {
 			if ((pw = getpwuid(saveuid)) != NULL)
 				(void)printf(" uname=%s", pw->pw_name);
 			else
 				errx(1,
 				"line %d: could not get uname for uid=%u",
 				lineno, saveuid);
+		}
 		if (keys & F_UID)
 			(void)printf(" uid=%lu", (u_long)saveuid);
-		if (keys & F_GNAME)
+		if (keys & F_GNAME) {
 			if ((gr = getgrgid(savegid)) != NULL)
 				(void)printf(" gname=%s", gr->gr_name);
 			else
 				errx(1,
 				"line %d: could not get gname for gid=%u",
 				lineno, savegid);
+		}
 		if (keys & F_GID)
 			(void)printf(" gid=%lu", (u_long)savegid);
 		if (keys & F_MODE)
