@@ -235,6 +235,10 @@ find_execute(plan, paths)
 			continue;
 		}
 	}
+	/* Finish any pending -exec ... {} + functions. */
+	for (p = plan; p != NULL; p = p->next)
+		if (p->execute == f_exec && p->flags & F_EXECPLUS)
+			(p->execute)(p, NULL);
 	if (errno)
 		err(1, "fts_read");
 	return (rval);
