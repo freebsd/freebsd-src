@@ -2324,6 +2324,12 @@
       <filename>pam_securetty</filename>,
       <filename>pam_wheel</filename>.</para>
 
+      <para><application>lukemftp</application> has replaced the &os;
+      &man.ftp.1; program.  Among its new features are more automation
+      methods, better standards compliance, transfer rate throttling,
+      and a customizable command-line prompt.  Some environment
+      variables and command-line arguments have changed.</para>
+
       <para><application>ncurses</application> has been updated to
       5.2-20010512.</para>
 
