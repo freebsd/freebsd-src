@@ -1,5 +1,5 @@
-/*	$NetBSD: uhub.c,v 1.13 1998/12/30 18:06:25 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	$NetBSD: uhub.c,v 1.14 1999/01/08 11:58:25 augustss Exp $	*/
+/*	FreeBSD $Id: uhub.c,v 1.5 1999/01/07 23:31:34 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -477,7 +477,9 @@ uhub_disconnect(up)
 	up->device = 0;
 	/* XXX free */
 #if defined(__FreeBSD__)
-	device_delete_child(device_get_parent(((struct softc *)dev->softc)->sc_dev), ((struct softc *)dev->softc)->sc_dev);
+	device_delete_child(
+		device_get_parent(((struct softc *)dev->softc)->sc_dev),
+		((struct softc *)dev->softc)->sc_dev);
 #endif
 }
 

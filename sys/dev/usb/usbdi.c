@@ -1,5 +1,5 @@
-/*	$NetBSD: usbdi.c,v 1.19 1999/01/03 01:00:56 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	$NetBSD: usbdi.c,v 1.20 1999/01/08 11:58:26 augustss Exp $	*/
+/*	FreeBSD $Id: usbdi.c,v 1.7 1999/01/07 23:31:42 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -226,55 +226,6 @@ usbd_do_transfer(reqh)
 	reqh->done = 0;
 	return (pipe->methods->transfer(reqh));
 }
-
-#if 0
-static usbd_status
-usbd_do_transfer(reqh)
-	usbd_request_handle reqh;
-{
-	usbd_pipe_handle pipe = reqh->pipe;
-
-	DPRINTFN(10,("usbd_do_transfer: reqh=%p\n", reqh));
-	reqh->done = 0;
-	s = splusb();
-	if (pipe->state == USBD_PIPE_IDLE ||
-	    (iface && iface->state == USBD_INTERFACE_IDLE)) {
-		splx(s);
-		return (USBD_IS_IDLE);
-	}
-	SIMPLEQ_INSERT_TAIL(&pipe->queue, reqh, next);
-	if (pipe->state == USBD_PIPE_ACTIVE &&
-	    (!iface || iface->state == USBD_INTERFACE_ACTIVE)) {
-		r = usbd_start(pipe);
-	} else
-		r = USBD_NOT_STARTED;
-	splx(s);
-	return (r);
-}
-
-static usbd_status
-usbd_start(pipe)
-	usbd_pipe_handle pipe;
-{
-	usbd_request_handle reqh;
-
-	DPRINTFN(5, ("usbd_start: pipe=%p, running=%d\n", 
-		     pipe, pipe->running));
-	if (pipe->running)
-		return (USBD_IN_PROGRESS);
-	reqh = SIMPLEQ_FIRST(&pipe->queue);
-	if (!reqh) {
-		/* XXX */
-		printf("usbd_start: pipe empty!\n");
-		pipe->running = 0;
-		return (USBD_XXX);
-	}
-	SIMPLEQ_REMOVE_HEAD(&pipe->queue, reqh, next);
-	pipe->running = 1;
-	pipe->curreqh = reqh;
-	return (pipe->methods->transfer(reqh));
-}
-#endif
 
 usbd_request_handle 
 usbd_alloc_request()
@@ -707,13 +658,15 @@ usbd_interface_count(dev, count)
 	return (USBD_NORMAL_COMPLETION);
 }
 
-#if defined(__NetBSD__)
+#if 0
 u_int8_t 
 usbd_bus_count()
 {
 	return (usb_bus_count());
 }
+#endif
 
+#if defined(__NetBSD__)
 usbd_status 
 usbd_get_bus_handle(index, bus)
 	u_int8_t index;
@@ -934,6 +887,7 @@ usbd_ar_pipe(pipe)
 {
 	usbd_request_handle reqh;
 
+#if 0
 	for (;;) {
 		reqh = SIMPLEQ_FIRST(&pipe->queue);
 		if (reqh == 0)
@@ -943,6 +897,12 @@ usbd_ar_pipe(pipe)
 		if (reqh->callback)
 			reqh->callback(reqh, reqh->priv, reqh->status);
 	}
+#else
+	while ((reqh = SIMPLEQ_FIRST(&pipe->queue))) {
+		pipe->methods->abort(reqh);
+		SIMPLEQ_REMOVE_HEAD(&pipe->queue, reqh, next);
+	}
+#endif
 	return (USBD_NORMAL_COMPLETION);
 }
 
@@ -1319,14 +1279,13 @@ usbd_device_set_desc(device_t device, char *devinfo)
 	device_set_desc(device, desc);
 }
 
-/* 
- * A static buffer is a loss if this routine is used from an interrupt,
- * but it's not fatal.
- */
 char *
 usbd_devname(bdevice *bdev)
 {
 	static char buf[20];
+	/* XXX a static buffer is not exactly a good idea, but the only
+	 * thing that goes wrong is the string that is being printed
+	 */
 
 	sprintf(buf, "%s%d", device_get_name(*bdev), device_get_unit(*bdev));
 	return (buf);

@@ -1,5 +1,5 @@
-/*	$NetBSD: usb.c,v 1.10 1999/01/03 01:00:56 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	$NetBSD: usb.c,v 1.11 1999/01/08 11:58:25 augustss Exp $	*/
+/*	FreeBSD $Id: usb.c,v 1.5 1999/01/07 23:31:37 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -337,7 +337,7 @@ usbpoll(dev, events, p)
 	return (revents);
 }
 
-#if defined(__NetBSD__)
+#if 0
 int
 usb_bus_count()
 {
@@ -348,7 +348,9 @@ usb_bus_count()
 			n++;
 	return (n);
 }
+#endif
 
+#if defined(__NetBSD__)
 usbd_status
 usb_get_bus_handle(n, h)
 	int n;
@@ -402,7 +404,6 @@ usb_needs_explore(bus)
 int
 usb_detach(device_t self)
 {
-	struct usb_softc *sc = device_get_softc(self);
 	char *devinfo = (char *) device_get_desc(self);
 
 	if (devinfo) {
