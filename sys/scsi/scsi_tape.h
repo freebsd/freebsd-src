@@ -21,7 +21,7 @@
 /*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_tape.h,v 1.12 1995/04/29 21:30:26 joerg Exp $
+ *	$Id: scsi_tape.h,v 1.14 1995/11/30 07:43:46 pst Exp $
  */
 #ifndef	SCSI_SCSI_TAPE_H
 #define SCSI_SCSI_TAPE_H 1
@@ -307,6 +307,7 @@ struct	tape_pages
 #define QIC_1320	0x12
 #define DDS		0x13
 #define DAT_1		0x13
+#define QIC_3080	0x29
 #endif /* NEW_SCSICONF */
 
 #endif /*SCSI_SCSI_TAPE_H*/
