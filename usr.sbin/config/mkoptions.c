@@ -56,14 +56,7 @@ static	struct users {
 	int	u_default;
 	int	u_min;
 	int	u_max;
-} users[] = {
-	{ 8, 2, 512 },			/* MACHINE_I386 */
-	{ 8, 2, 512 },			/* MACHINE_PC98 */
-	{ 8, 2, 512 },			/* MACHINE_ALPHA */
-	{ 8, 2, 512 },			/* MACHINE_IA64 */
-	{ 8, 2, 512 },			/* MACHINE_POWERPC */
-};
-#define	NUSERS	(sizeof (users) / sizeof (users[0]))
+} users= { 8, 2, 512 };
 
 static char *lower(char *);
 static void read_options(void);
@@ -77,7 +70,6 @@ options(void)
 	struct cputype *cp;
 	struct opt_list *ol;
 	struct opt *op;
-	struct users *up;
 
 	/* Fake the cpu types as options. */
 	for (cp = cputype; cp != NULL; cp = cp->cpu_next) {
@@ -88,20 +80,14 @@ options(void)
 		opt = op;
 	}	
 
-	/* Initialize `maxusers'. */
-	if ((unsigned)machine > NUSERS) {
-		printf("maxusers config info isn't present, using i386\n");
-		up = &users[MACHINE_I386 - 1];
-	} else
-		up = &users[machine - 1];
 	if (maxusers == 0) {
-		printf("maxusers not specified; %d assumed\n", up->u_default);
-		maxusers = up->u_default;
-	} else if (maxusers < up->u_min) {
-		printf("minimum of %d maxusers assumed\n", up->u_min);
-		maxusers = up->u_min;
-	} else if (maxusers > up->u_max)
-		printf("warning: maxusers > %d (%d)\n", up->u_max, maxusers);
+		printf("maxusers not specified; %d assumed\n", users.u_default);
+		maxusers = users.u_default;
+	} else if (maxusers < users.u_min) {
+		printf("minimum of %d maxusers assumed\n", users.u_min);
+		maxusers = users.u_min;
+	} else if (maxusers > users.u_max)
+		printf("warning: maxusers > %d (%d)\n", users.u_max, maxusers);
 
 	/* Fake MAXUSERS as an option. */
 	op = (struct opt *)malloc(sizeof(*op));
