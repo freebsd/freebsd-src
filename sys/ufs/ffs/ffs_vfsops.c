@@ -666,7 +666,7 @@ ffs_mountfs(devvp, mp, p, malloctype)
 #ifdef FFS_EXTATTR
 	ufs_extattr_uepm_init(&ump->um_extattr);
 #endif
-	devvp->v_specmountpoint = mp;
+	devvp->v_rdev->si_mountpoint = mp;
 	ffs_oldfscompat(fs);
 
 	/*
@@ -719,7 +719,7 @@ ffs_mountfs(devvp, mp, p, malloctype)
 #endif
 	return (0);
 out:
-	devvp->v_specmountpoint = NULL;
+	devvp->v_rdev->si_mountpoint = NULL;
 	if (bp)
 		brelse(bp);
 	(void)VOP_CLOSE(devvp, ronly ? FREAD : FREAD|FWRITE, cred, p);
@@ -803,7 +803,7 @@ ffs_unmount(mp, mntflags, p)
 			return (error);
 		}
 	}
-	ump->um_devvp->v_specmountpoint = NULL;
+	ump->um_devvp->v_rdev->si_mountpoint = NULL;
 
 	vinvalbuf(ump->um_devvp, V_SAVE, NOCRED, p, 0, 0);
 	error = VOP_CLOSE(ump->um_devvp, fs->fs_ronly ? FREAD : FREAD|FWRITE,

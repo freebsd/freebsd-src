@@ -173,15 +173,15 @@ spec_open(ap)
 		/*
 		 * Never allow opens for write if the device is mounted R/W
 		 */
-		if (vp->v_specmountpoint != NULL &&
-		    !(vp->v_specmountpoint->mnt_flag & MNT_RDONLY))
+		if (vp->v_rdev->si_mountpoint != NULL &&
+		    !(vp->v_rdev->si_mountpoint->mnt_flag & MNT_RDONLY))
 				return (EBUSY);
 
 		/*
 		 * When running in secure mode, do not allow opens
 		 * for writing if the device is mounted
 		 */
-		if (securelevel >= 1 && vp->v_specmountpoint != NULL)
+		if (securelevel >= 1 && vfs_mountedon(vp))
 			return (EPERM);
 
 		/*
@@ -435,7 +435,7 @@ spec_strategy(ap)
 	 * Collect statistics on synchronous and asynchronous read
 	 * and write counts for disks that have associated filesystems.
 	 */
-	if (vn_isdisk(vp, NULL) && (mp = vp->v_specmountpoint) != NULL) {
+	if (vn_isdisk(vp, NULL) && (mp = vp->v_rdev->si_mountpoint) != NULL) {
 		if (bp->b_iocmd == BIO_WRITE) {
 			if (bp->b_lock.lk_lockholder == LK_KERNPROC)
 				mp->mnt_stat.f_asyncwrites++;
@@ -656,7 +656,7 @@ spec_getpages(ap)
 	 * the device.  i.e. it's usually '/dev'.  We need the physical block
 	 * size for the device itself.
 	 *
-	 * We can't use v_specmountpoint because it only exists when the
+	 * We can't use v_rdev->si_mountpoint because it only exists when the
 	 * block device is mounted.  However, we can use v_rdev.
 	 */
 

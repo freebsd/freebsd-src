@@ -605,7 +605,7 @@ ntfs_mountfs(devvp, mp, argsp, p)
 #endif
 	mp->mnt_maxsymlinklen = 0;
 	mp->mnt_flag |= MNT_LOCAL;
-	devvp->v_specmountpoint = mp;
+	devvp->v_rdev->si_mountpoint = mp;
 	return (0);
 
 out1:
@@ -616,7 +616,7 @@ out1:
 		dprintf(("ntfs_mountfs: vflush failed\n"));
 
 out:
-	devvp->v_specmountpoint = NULL;
+	devvp->v_rdev->si_mountpoint = NULL;
 	if (bp)
 		brelse(bp);
 
@@ -685,7 +685,7 @@ ntfs_unmount(
 	 * field is NULL and touching it causes null pointer derefercence.
 	 */
 	if (ntmp->ntm_devvp->v_type != VBAD)
-		ntmp->ntm_devvp->v_specmountpoint = NULL;
+		ntmp->ntm_devvp->v_rdev->si_mountpoint = NULL;
 
 	vinvalbuf(ntmp->ntm_devvp, V_SAVE, NOCRED, p, 0, 0);
 

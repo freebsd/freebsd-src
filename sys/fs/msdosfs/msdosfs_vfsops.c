@@ -725,7 +725,7 @@ mountmsdosfs(devvp, mp, p, argp)
 	mp->mnt_stat.f_fsid.val[0] = dev2udev(dev);
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 	mp->mnt_flag |= MNT_LOCAL;
-	devvp->v_specmountpoint = mp;
+	devvp->v_rdev->si_mountpoint = mp;
 
 	return 0;
 
@@ -761,7 +761,7 @@ msdosfs_unmount(mp, mntflags, p)
 	if (error)
 		return error;
 	pmp = VFSTOMSDOSFS(mp);
-	pmp->pm_devvp->v_specmountpoint = NULL;
+	pmp->pm_devvp->v_rdev->si_mountpoint = NULL;
 #ifdef MSDOSFS_DEBUG
 	{
 		struct vnode *vp = pmp->pm_devvp;
