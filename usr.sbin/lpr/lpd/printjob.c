@@ -133,7 +133,8 @@ static void	 opentty(const struct printer *_pp);
 static void	 openrem(const struct printer *pp);
 static int	 print(struct printer *_pp, int _format, char *_file);
 static int	 printit(struct printer *_pp, char *_file);
-static void	 pstatus(const struct printer *_pp, const char *_msg, ...);
+static void	 pstatus(const struct printer *_pp, const char *_msg, ...)
+		    __printflike(2, 3);
 static char	 response(const struct printer *_pp);
 static void	 scan_out(struct printer *_pp, int _scfd, char *_scsp, 
 		    int _dlm);
@@ -1605,7 +1606,7 @@ opennet(const struct printer *pp)
 		}
 		sleep(i);
 	}
-	pstatus(pp, "sending to %s port %d", ep, port);
+	pstatus(pp, "sending to %s port %lu", ep, port);
 }
 
 /*
