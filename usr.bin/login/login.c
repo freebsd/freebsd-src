@@ -31,19 +31,13 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-static char copyright[] =
-"@(#) Copyright (c) 1980, 1987, 1988, 1991, 1993, 1994\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
+static const char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 /*
  * login [ name ]
@@ -51,8 +45,8 @@ static const char rcsid[] =
  * login -f name	(for pre-authenticated login: datakit, xterm, etc.)
  */
 
-#include <sys/param.h>
 #include <sys/copyright.h>
+#include <sys/param.h>
 #include <sys/file.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
