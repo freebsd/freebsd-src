@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.49.2.24 1998/05/11 00:50:12 jkh Exp $
+ * $Id: devices.c,v 1.49.2.25 1998/06/29 09:28:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -201,7 +201,7 @@ deviceGetAll(void)
     char buffer[INTERFACE_MAX * sizeof(struct ifreq)];
     char **names;
 
-    msgNotify("Probing devices, please wait...");
+    msgNotify("Probing devices, please wait (this can take awhile)...");
     /* First go for the network interfaces.  Stolen shamelessly from ifconfig! */
     ifc.ifc_len = sizeof(buffer);
     ifc.ifc_buf = buffer;

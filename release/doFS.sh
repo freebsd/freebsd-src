@@ -1,7 +1,9 @@
 :
 #set -ex
 
-VNDEVICE=vn0
+if [ "x$VNDEVICE" = "x" ] ; then
+	VNDEVICE=vn0
+fi
 export BLOCKSIZE=512
 
 RD=$1 ; shift

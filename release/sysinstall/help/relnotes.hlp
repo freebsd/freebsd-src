@@ -1,82 +1,19 @@
 ================================================================
                          RELEASE NOTES
-              FreeBSD 2.2.6-STABLE [SNAPSHOT] VERSION
+              FreeBSD 2.2-STABLE [SNAPSHOT] VERSION
 ================================================================
 
-What's new since 2.2.5
+What's new since 2.2.6
 ----------------------
 
 Kernel features:
 
-o Added support for SMC EtherPower II 10/100 Fast Ethernet card
-  (aka SMC9432TX based on SMC83c170 EPIC chip).
+o DPT SCSI RAID controller supported by default.
 
-o Added support for DPT SCSI RAID controllers (see LINT).
-
-o New Plug and Play (PnP) support that allows you to (re)configure
-  PnP devices.  Also support modems being detected by the PnP
-  part and automatically attached.
-
-o Alternate sound driver (/sys/i386/isa/snd) from Luigi Rizzo;
-  it does not yet support MIDI (for that, use the old sound
-  driver) but it does have much better support for PNP sound
-  cards and is much easier to configure (only one device).
-  See /sys/i386/conf/LINT for more info.
-
-o Better Linux emulation (applications like RealVideo 5.0 for
-  Linux now work).
-
-o Added support for ATAPI floppy drives (LS-120)
-
-o The psm, mse and sysmouse drivers are improved to provide
-  better mouse support.  moused(8) has been modified to support
-  various mice with a ``wheel''.  It also automatically
-  recognizes mice which support the PnP COM device standard so
-  that the user is no longer required to supply a mouse protocol
-  type on the command line. 
-
-o The Specialix multiport serial driver has had a facelift in
-  an attempt to support the newer module types and host cards.
-  It should support ISA, EISA and PCI now.  Thanks to Nick Sayer
-  of Specialix for providing patches for integration.
+o MSDOS FAT32 (Win95 long filename) support.
 
 Userland features:
 
-o popen() library call now uses and offers bidirectional pipes.
-
-o Added support for parallel makes in /usr/src (-j<n> works
-  now with   world target, particularly useful with SMP
-  machines).
-
-o tcpdump(1) utility enhanced
-
-o Support for ldconfig -R (remove) added.
-
-o Various bugfixes and enhancements to pthread support.
-
-o calendar(1) program brought more up-to-date.
-
-o KerberosIV updated to latest version.
-
-o Various curses(3) bugs fixed.
-
-o Various IEEE754 conformance changes to libm(3).
-
-o Much cleanup and general improvements to the documentation.
-
-o Various improvements to the NIS code.
-
-
 Security issues:
 
-o Fixed /dev/io and mmap security holes.
 
-o Better protection against "LAND attacks"
-
-o Various buffer overruns detected and extra checks added.
-
-o Pentium "F00F bug" is detected and a work-around installed to
-  prevent hangs.
-
-o srandomdev() support merged from -current and utilities updated
-  to use it.

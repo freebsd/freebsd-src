@@ -1,6 +1,4 @@
-#	$Id: Makefile,v 1.246.2.88 1998/07/03 14:29:09 jkh Exp $
-#
-#	$Id: Makefile,v 1.246.2.88 1998/07/03 14:29:09 jkh Exp $
+#	$Id$
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -14,10 +12,25 @@
 # otherwise the target 'release.8' and possibly others will fail.
 #
 # Set these, release builder!
+#
+# Fixed version:
 #BUILDNAME=2.2-RELEASE
+#
+# Automatic SNAP versioning:
+DATE != date +%Y%m%d
+BASE = 2.2.6
+BUILDNAME?=${BASE}-${DATE}-SNAP
+#
 #CHROOTDIR=/junk/release
 # If this is a RELEASE, then set
 #RELEASETAG=RELENG_2_2
+
+# If you are using a local CVS repository with components stored in 
+# non-standard modules, override these on the make commandline or
+# in the environment.
+RELEASESRCMODULE?=	src
+RELEASEDOCMODULE?=	doc
+RELEASEPORTSMODULE?=	ports
 
 # Uncomment this to disable the doc.1 target.  It is also an ERROR
 # to set NOPORTS and not set NODOC since docs depend on ports.
@@ -60,6 +73,8 @@ BOOTMFSSIZE=		1440
 MFSINODE=		15000
 FIXITINODE=		6000
 BOOTINODE=		100000
+
+VNDEVICE?=		vn0
 
 # Things which may get you into trouble if you change them
 MTREEFILES=		${.CURDIR}/../etc/mtree
@@ -113,7 +128,10 @@ rerelease release:
 .endif
 .if make(release)
 .if exists(${CHROOTDIR})
-	chflags -R noschg ${CHROOTDIR}/.
+# The first command will fail on a handful of files that have their schg
+# flags set.  But it greatly speeds up the next two commands.
+	-rm -rf ${CHROOTDIR}
+	-chflags -R noschg ${CHROOTDIR}/.
 	-rm -rf ${CHROOTDIR}
 .endif
 	-mkdir -p ${CHROOTDIR}
@@ -126,19 +144,19 @@ rerelease release:
 	done
 .if !defined(RELEASETAG)
 	cd ${CHROOTDIR}/usr && rm -rf src && \
-		cvs -d ${CVSROOT} co -P src
+		cvs -d ${CVSROOT} co -P ${RELEASESRCMODULE}
 .else
 	cd ${CHROOTDIR}/usr && rm -rf src && \
-		cvs -d ${CVSROOT} co -P -r ${RELEASETAG} src
+		cvs -d ${CVSROOT} co -P -r ${RELEASETAG} ${RELEASESRCMODULE}
 .endif
 .if defined(LOCAL_PATCHES) && exists(${LOCAL_PATCHES})
 	cd ${CHROOTDIR}/usr/src && patch --silent < ${LOCAL_PATCHES}
 .endif
 .if !defined(NOPORTS)
-	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -d ${CVSROOT} co -P ports && cd ports && make readmes PORTSDIR=${CHROOTDIR}/usr/ports
+	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -d ${CVSROOT} co -P ${RELEASEPORTSMODULE} && cd ports && make readmes PORTSDIR=${CHROOTDIR}/usr/ports
 .endif
 .if !defined(NODOC)
-	cd ${CHROOTDIR}/usr && rm -rf doc && cvs -d ${CVSROOT} co -P doc
+	cd ${CHROOTDIR}/usr && rm -rf doc && cvs -d ${CVSROOT} co -P ${RELEASEDOCMODULE}
 	cd ${CHROOTDIR}/usr/ports && for i in ${DOCPORTS}; do \
 	  (cd $$i; make fetch MASTER_SITE_OVERRIDE=file:/usr/ports/distfiles/ \
 	    DISTDIR=${CHROOTDIR}/usr/ports/distfiles ); \
@@ -174,6 +192,7 @@ rerelease release:
 	echo "export CFLAGS='-O2 -pipe'"	>> ${CHROOTDIR}/mk
 	echo "export DISTRIBUTIONS=\"${DISTRIBUTIONS}\"" >> ${CHROOTDIR}/mk
 	echo "export BUILDNAME=${BUILDNAME}"	>> ${CHROOTDIR}/mk
+	echo "export VNDEVICE=${VNDEVICE}"	>> ${CHROOTDIR}/mk
 .if defined(RELEASETAG)
 	echo "export RELEASETAG=${RELEASETAG}"	>> ${CHROOTDIR}/mk
 .endif
@@ -659,12 +678,12 @@ doMFSKERN:
 .if defined(BOOT_CONFIG)
 	@echo "${BOOT_CONFIG}" >${RD}/boot.${FSIMAGE}/boot.config
 .endif
-	@vnconfig /dev/vn0 fs-image.${FSIMAGE}
+	@vnconfig /dev/${VNDEVICE} fs-image.${FSIMAGE}
 	@mkdir -p /tmp/mnt_xx
-	@mount /dev/vn0 /tmp/mnt_xx
+	@mount /dev/${VNDEVICE} /tmp/mnt_xx
 	./dumpnlist ${RD}/boot.${FSIMAGE}/kernel > /tmp/mnt_xx/stand/symbols
 	@umount /tmp/mnt_xx
-	@vnconfig -u /dev/vn0
+	@vnconfig -u /dev/${VNDEVICE}
 	@rmdir /tmp/mnt_xx
 	./write_mfs_in_kernel ${RD}/boot.${FSIMAGE}/kernel \
 		fs-image.${FSIMAGE}
