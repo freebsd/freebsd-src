@@ -622,7 +622,7 @@ _pw_breakout_yp(struct passwd *pw, char *res, int resultlen, int master)
 	if ((s = strsep(&result, ":")) == NULL) return 0; /* password */
 	if(!(pw->pw_fields & _PWF_PASSWD)) {
 		/* SunOS passwd.adjunct hack */
-		if (master == YP_HAVE_ADJUNCT && !strstr(s, "##")) {
+		if (master == YP_HAVE_ADJUNCT && strstr(s, "##") != NULL) {
 			char *realpw;
 			realpw = _get_adjunct_pw(pw->pw_name);
 			if (realpw == NULL)
