@@ -51,6 +51,7 @@ static const char rcsid[] =
 #include <vm/vm.h>
 
 #include <err.h>
+#include <langinfo.h>
 #include <locale.h>
 #include <math.h>
 #include <nlist.h>
@@ -354,12 +355,16 @@ started(k, ve)
 	time_t then;
 	struct tm *tp;
 	char buf[100];
+	static int  use_ampm = -1;
 
 	v = ve->var;
 	if (!k->ki_valid) {
 		(void)printf("%-*s", v->width, "-");
 		return;
 	}
+
+	if (use_ampm < 0)
+		use_ampm = (*nl_langinfo(T_FMT_AMPM) != '\0');
 
 	then = k->ki_p->ki_start.tv_sec;
 	tp = localtime(&then);
