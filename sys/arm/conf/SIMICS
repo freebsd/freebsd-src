@@ -82,6 +82,7 @@ options 	DDB			#Enable the kernel debugger
 #options 	SMP			# Symmetric MultiProcessor Kernel
 #options 	APIC_IO			# Symmetric (APIC) I/O
 
+device		mem			# Memory and kernel memory devices
 device md
 # Floppy drives
 
