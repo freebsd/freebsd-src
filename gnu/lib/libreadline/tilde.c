@@ -316,7 +316,7 @@ main (argc, argv)
       printf ("~expand: ");
       fflush (stdout);
 
-      if (!gets (line))
+      if (!fgets(line, 512, stdin))
 	strcpy (line, "done");
 
       if ((strcmp (line, "done") == 0) ||

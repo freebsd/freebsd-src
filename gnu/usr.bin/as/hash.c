@@ -123,7 +123,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: hash.c,v 1.2 1993/11/03 00:51:44 paul Exp $";
+static char rcsid[] = "$Id: hash.c,v 1.3 1995/05/30 04:46:18 rgrimes Exp $";
 #endif
 
 #include <stdio.h>
@@ -837,7 +837,7 @@ main()
 	for (;;)
 	    {
 		    printf("hash_test command: ");
-		    gets(answer);
+		    fgets(answer, 100, stdin);
 		    command = answer[0];
 		    if (isupper(command)) command = tolower(command);	/* ecch! */
 		    switch (command)
@@ -929,7 +929,7 @@ char * description;
 	char * malloc();
 
 	printf("   %s : ",description);
-	gets(answer);
+	fgets(answer, 100, stdin);
 	/* will one day clean up answer here */
 	retval = malloc(strlen(answer)+1);
 	if (!retval)
@@ -967,7 +967,7 @@ whattable()			/* determine number: what hash table to use */
 	for (;;)
 	    {
 		    printf("   what hash table (%d:%d) ?  ",0,TABLES-1);
-		    gets(answer);
+		    fgets(answer, 100, stdin);
 		    sscanf(answer,"%d",&number);
 		    if (number >= 0 && number<TABLES)
 			{
