@@ -244,6 +244,6 @@ error(num)
 {
 
 	DEBUG2("rmtd: E %d (%s)\n", num, strerror(num));
-	(void)sprintf(resp, "E%d\n%s\n", num, strerror(num));
+	(void)snprintf(resp, sizeof(resp), "E%d\n%s\n", num, strerror(num));
 	(void)write(1, resp, strlen(resp));
 }
