@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.42 1996/06/08 10:18:12 peter Exp $
+ *	$Id: si.c,v 1.43 1996/06/12 05:03:50 gpalmer Exp $
  */
 
 #ifndef lint
@@ -231,7 +231,7 @@ static int si_default_cflag =	TTYDEF_CFLAG;
 #ifdef POLL
 static int si_pollrate;			/* in addition to irq */
 
-SYSCTL_INT(_machdep, OID_AUTO, si_pollrate, CTLFLAG_RD, &si_pollrate, 0, "");
+SYSCTL_INT(_machdep, OID_AUTO, si_pollrate, CTLFLAG_RW, &si_pollrate, 0, "");
 		 
 static int init_finished = 0;
 static void si_poll __P((void *));
