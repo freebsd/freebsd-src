@@ -1,6 +1,10 @@
+/*
+ * $Id$
+ */
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <fcntl.h>
 #include <string.h>
 #include <sys/ioctl.h>
 
@@ -10,19 +14,11 @@
 
 int	nocards;
 
-int
-dumpcis_main(int argc, char **argv)
-{
-int	node;
-
-	for (node = 0; node < 8; node++)
-	    scan(node);
-	printf("%d slots found\n", nocards);
-}
+void
 scan(slot)
 int slot;
 {
-int	fd, i;
+int	fd;
 char	name[64];
 struct cis *cp;
 struct slotstate st;
@@ -45,6 +41,8 @@ struct slotstate st;
 			}
 		}
 }
+
+void
 dump(p, sz)
 unsigned char *p;
 int	sz;
@@ -76,4 +74,15 @@ void *p;
 		exit(1);
 		}
 	return(p);
+}
+
+int
+dumpcis_main(int argc, char **argv)
+{
+int	node;
+
+	for (node = 0; node < 8; node++)
+	    scan(node);
+	printf("%d slots found\n", nocards);
+	return 0;
 }
