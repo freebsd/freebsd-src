@@ -90,7 +90,7 @@
 #include <dev/lnc/if_lncvar.h>
 #include <dev/lnc/if_lncreg.h>
 
-struct lnc_softc lnc_softc[NLNC];
+lnc_softc_t lnc_softc[NLNC];
 
 static char const * const nic_ident[] = {
 	"Unknown",
@@ -115,22 +115,22 @@ static char const * const ic_ident[] = {
 	"PCnet-Home",
 };
 
-static void lnc_setladrf __P((struct lnc_softc *sc));
-static void lnc_stop __P((struct lnc_softc *sc));
-static void lnc_reset __P((struct lnc_softc *sc));
-static void lnc_free_mbufs __P((struct lnc_softc *sc));
-static __inline int alloc_mbuf_cluster __P((struct lnc_softc *sc,
+static void lnc_setladrf __P((lnc_softc_t *sc));
+static void lnc_stop __P((lnc_softc_t *sc));
+static void lnc_reset __P((lnc_softc_t *sc));
+static void lnc_free_mbufs __P((lnc_softc_t *sc));
+static __inline int alloc_mbuf_cluster __P((lnc_softc_t *sc,
 					    struct host_ring_entry *desc));
-static __inline struct mbuf *chain_mbufs __P((struct lnc_softc *sc,
+static __inline struct mbuf *chain_mbufs __P((lnc_softc_t *sc,
 					      int start_of_packet,
 					      int pkt_len));
-static __inline struct mbuf *mbuf_packet __P((struct lnc_softc *sc,
+static __inline struct mbuf *mbuf_packet __P((lnc_softc_t *sc,
 					      int start_of_packet,
 					      int pkt_len));
-static __inline void lnc_rint __P((struct lnc_softc *sc));
-static __inline void lnc_tint __P((struct lnc_softc *sc));
+static __inline void lnc_rint __P((lnc_softc_t *sc));
+static __inline void lnc_tint __P((lnc_softc_t *sc));
 extern int lnc_probe __P((struct isa_device *isa_dev));
-int lnc_attach_sc __P((struct lnc_softc *sc, int unit));
+int lnc_attach_sc __P((lnc_softc_t *sc, int unit));
 extern int lnc_attach __P((struct isa_device *isa_dev));
 static void lnc_init __P((void *));
 static __inline int mbuf_to_buffer __P((struct mbuf *m, char *buffer));
@@ -139,23 +139,23 @@ static void lnc_start __P((struct ifnet *ifp));
 static int lnc_ioctl __P((struct ifnet *ifp, u_long command, caddr_t data));
 static void lnc_watchdog __P((struct ifnet *ifp));
 #ifdef DEBUG
-void lnc_dump_state __P((struct lnc_softc *sc));
+void lnc_dump_state __P((lnc_softc_t *sc));
 void mbuf_dump_chain __P((struct mbuf *m));
 #endif
 
-void lncintr_sc __P((struct lnc_softc *sc));
+void lncintr_sc __P((lnc_softc_t *sc));
 
 struct isa_driver lncdriver = {lnc_probe, lnc_attach, "lnc"};
 
 static __inline void
-write_bcr(struct lnc_softc *sc, u_short port, u_short val)
+write_bcr(lnc_softc_t *sc, u_short port, u_short val)
 {
 	outw(sc->rap, port);
 	outw(sc->bdp, val);
 }
 
 static __inline u_short
-read_bcr(struct lnc_softc *sc, u_short port)
+read_bcr(lnc_softc_t *sc, u_short port)
 {
 	outw(sc->rap, port);
 	return (inw(sc->bdp));
@@ -183,7 +183,7 @@ ether_crc(const u_char *ether_addr)
  * Set up the logical address filter for multicast packets
  */
 static __inline void
-lnc_setladrf(struct lnc_softc *sc)
+lnc_setladrf(lnc_softc_t *sc)
 {
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	struct ifmultiaddr *ifma;
@@ -216,19 +216,19 @@ lnc_setladrf(struct lnc_softc *sc)
 }
 
 static void
-lnc_stop(struct lnc_softc *sc)
+lnc_stop(lnc_softc_t *sc)
 {
 	write_csr(sc, CSR0, STOP);
 }
 
 static void
-lnc_reset(struct lnc_softc *sc)
+lnc_reset(lnc_softc_t *sc)
 {
 	lnc_init(sc);
 }
 
 static void
-lnc_free_mbufs(struct lnc_softc *sc)
+lnc_free_mbufs(lnc_softc_t *sc)
 {
 	int i;
 
@@ -250,7 +250,7 @@ lnc_free_mbufs(struct lnc_softc *sc)
 }
 
 static __inline int
-alloc_mbuf_cluster(struct lnc_softc *sc, struct host_ring_entry *desc)
+alloc_mbuf_cluster(lnc_softc_t *sc, struct host_ring_entry *desc)
 {
 	register struct mds *md = desc->md;
 	struct mbuf *m=0;
@@ -283,7 +283,7 @@ alloc_mbuf_cluster(struct lnc_softc *sc, struct host_ring_entry *desc)
 }
 
 static __inline struct mbuf *
-chain_mbufs(struct lnc_softc *sc, int start_of_packet, int pkt_len)
+chain_mbufs(lnc_softc_t *sc, int start_of_packet, int pkt_len)
 {
 	struct mbuf *head, *m;
 	struct host_ring_entry *desc;
@@ -317,7 +317,7 @@ chain_mbufs(struct lnc_softc *sc, int start_of_packet, int pkt_len)
 }
 
 static __inline struct mbuf *
-mbuf_packet(struct lnc_softc *sc, int start_of_packet, int pkt_len)
+mbuf_packet(lnc_softc_t *sc, int start_of_packet, int pkt_len)
 {
 
 	struct host_ring_entry *start;
@@ -392,7 +392,7 @@ mbuf_packet(struct lnc_softc *sc, int start_of_packet, int pkt_len)
 
 
 static __inline void
-lnc_rint(struct lnc_softc *sc)
+lnc_rint(lnc_softc_t *sc)
 {
 	struct host_ring_entry *next, *start;
 	int start_of_packet;
@@ -567,7 +567,7 @@ lnc_rint(struct lnc_softc *sc)
 }
 
 static __inline void
-lnc_tint(struct lnc_softc *sc)
+lnc_tint(lnc_softc_t *sc)
 {
 	struct host_ring_entry *next, *start;
 	int start_of_packet;
@@ -807,7 +807,7 @@ lnc_tint(struct lnc_softc *sc)
 }
 
 int
-lnc_attach_sc(struct lnc_softc *sc, int unit)
+lnc_attach_sc(lnc_softc_t *sc, int unit)
 {
 	int lnc_mem_size;
 
@@ -911,7 +911,7 @@ static void
 lnc_init(xsc)
 	void *xsc;
 {
-	struct lnc_softc *sc = xsc;
+	lnc_softc_t *sc = xsc;
 	int s, i;
 	char *lnc_mem;
 
@@ -1106,7 +1106,7 @@ lnc_init(xsc)
  */
 
 void
-lncintr_sc(struct lnc_softc *sc)
+lncintr_sc(lnc_softc_t *sc)
 {
 	int unit = sc->arpcom.ac_if.if_unit;
 	u_short csr0;
@@ -1217,7 +1217,7 @@ static void
 lnc_start(struct ifnet *ifp)
 {
 
-	struct lnc_softc *sc = ifp->if_softc;
+	lnc_softc_t *sc = ifp->if_softc;
 	struct host_ring_entry *desc;
 	int tmp;
 	int end_of_packet;
@@ -1373,7 +1373,7 @@ static int
 lnc_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 {
 
-	struct lnc_softc *sc = ifp->if_softc;
+	lnc_softc_t *sc = ifp->if_softc;
 	int s, error = 0;
 
 	s = splimp();
@@ -1451,7 +1451,7 @@ lnc_watchdog(struct ifnet *ifp)
 
 #ifdef DEBUG
 void
-lnc_dump_state(struct lnc_softc *sc)
+lnc_dump_state(lnc_softc_t *sc)
 {
 	int             i;
 
