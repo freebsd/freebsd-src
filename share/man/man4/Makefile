@@ -112,6 +112,7 @@ MAN=	aac.4 \
 	ng_ether.4 \
 	ng_frame_relay.4 \
 	ng_hole.4 \
+	ng_hub.4 \
 	ng_iface.4 \
 	ng_ksocket.4 \
 	ng_l2tp.4 \
