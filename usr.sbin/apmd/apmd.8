@@ -38,6 +38,7 @@
 .Nm
 .Op Fl d
 .Op Fl f file
+.Op Fl s
 .Op Fl v
 .Sh DESCRIPTION
 The
@@ -73,6 +74,13 @@ Specifies a different configuration file
 .Ar file
 to be used in place of the default
 .Pa /etc/apmd.conf .
+.It Fl s
+Causes
+.Nm
+to simulate a POWERSTATECHANGE event when a power state change is detected
+(AC_POWER_STATE) but the bios of the laptop doesn't report it.
+This enables you to do things like dimming the LCD backlight when you unplug
+the power cord.
 .It Fl v
 Verbose mode.
 .El
