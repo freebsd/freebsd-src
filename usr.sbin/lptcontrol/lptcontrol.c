@@ -30,7 +30,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: lptcontrol.c,v 1.6 1997/09/25 06:36:29 charnier Exp $";
+	"$Id: lptcontrol.c,v 1.7 1999/01/10 12:04:56 nsouch Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -49,7 +49,7 @@ static const char rcsid[] =
 
 
 #define PATH_LPCTL	_PATH_DEV "lpctl"
-#define DEFAULT_UNIT	"0"
+#define DEFAULT_DEVICE	"/dev/lpt0"
 #define IRQ_INVALID	-1
 #define DO_POLL		0
 #define USE_IRQ		1
@@ -58,7 +58,7 @@ static const char rcsid[] =
 
 static void usage()
 {
-	fprintf(stderr, "usage: lptcontrol -i | -p | -s | -e [-u <unit no.>]\n");
+	fprintf(stderr, "usage: lptcontrol -i | -p | -s | -e [-d device]\n");
 	exit(1);
 }
 
@@ -73,40 +73,25 @@ static void set_interrupt_status(int irq_status, const char * file)
 	close(fd);
 }
 
-static char * dev_file(char unit_no)
-{
-	static char	devname[_POSIX_PATH_MAX+1];
-	int		len;
-
-	strncpy(devname, PATH_LPCTL, _POSIX_PATH_MAX);
-	devname[len = strlen(devname)] = unit_no;
-	devname[++len] = '\0';
-
-	return(devname);
-}
-
 int main (int argc, char * argv[])
 {
 	int		opt;
 	int		irq_status = IRQ_INVALID;
-	char		* unit = DEFAULT_UNIT;
+	char		*device = DEFAULT_DEVICE;
 
-	while((opt = getopt(argc, argv, "ipesu:")) != -1)
+	while((opt = getopt(argc, argv, "ipesd:")) != -1)
 		switch(opt) {
 		case 'i': irq_status = USE_IRQ; break;
 		case 'p': irq_status = DO_POLL; break;
 		case 'e': irq_status = USE_EXT_MODE; break;
 		case 's': irq_status = USE_STD_MODE; break;
-		case 'u': unit = optarg;
-			  if(!isdigit(*unit))
-				usage();
-			  break;
+		case 'd': device = optarg; break;
 		default : usage();
 		}
 	if(irq_status == IRQ_INVALID)
 		usage();
 
-	set_interrupt_status(irq_status, dev_file(*unit));
+	set_interrupt_status(irq_status, device);
 
 	exit(0);
 }
