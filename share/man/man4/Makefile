@@ -195,6 +195,7 @@ MAN=	aac.4 \
 	tun.4 \
 	twe.4 \
 	txp.4 \
+	uaudio.4 \
 	ubsec.4 \
 	ucom.4 \
 	udp.4 \

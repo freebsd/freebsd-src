@@ -1,6 +1,4 @@
-/*	$FreeBSD$ */
-
-/*
+/*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -37,6 +35,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * USB Open Host Controller driver.
  *
@@ -47,7 +48,6 @@
  * PCI probes and OHCI specific code. This was done to facilitate the
  * sharing of code between *BSD's
  */
-
 
 #include "opt_bus.h"
 
@@ -77,6 +77,7 @@
 #define PCI_OHCI_VENDORID_APPLE		0x106b
 #define PCI_OHCI_VENDORID_CMDTECH	0x1095
 #define PCI_OHCI_VENDORID_NEC		0x1033
+#define PCI_OHCI_VENDORID_NVIDIA	0x12D2
 #define PCI_OHCI_VENDORID_OPTI		0x1045
 #define PCI_OHCI_VENDORID_SIS		0x1039
 
@@ -94,6 +95,9 @@ static const char *ohci_device_firelink = "OPTi 82C861 (FireLink) USB controller
 
 #define PCI_OHCI_DEVICEID_NEC		0x00351033
 static const char *ohci_device_nec = "NEC uPD 9210 USB controller";
+
+#define PCI_OHCI_DEVICEID_NFORCE3	0x00d710de
+static const char *ohci_device_nforce3 = "nVidia nForce3 USB Controller";
 
 #define PCI_OHCI_DEVICEID_USB0670	0x06701095
 static const char *ohci_device_usb0670 = "CMD Tech 670 (USB0670) USB controller";
@@ -135,6 +139,8 @@ ohci_pci_match(device_t self)
 		return (ohci_device_firelink);
 	case PCI_OHCI_DEVICEID_NEC:
 		return (ohci_device_nec);
+	case PCI_OHCI_DEVICEID_NFORCE3:
+		return (ohci_device_nforce3);
 	case PCI_OHCI_DEVICEID_SIS5571:
 		return (ohci_device_sis5571);
 	case PCI_OHCI_DEVICEID_KEYLARGO:
@@ -172,6 +178,8 @@ ohci_pci_attach(device_t self)
 
 	/* XXX where does it say so in the spec? */
 	sc->sc_bus.usbrev = USBREV_1_0;
+
+	pci_enable_busmaster(self);
 
 	rid = PCI_CBMEM;
 	sc->io_res = bus_alloc_resource(self, SYS_RES_MEMORY, &rid,
@@ -216,6 +224,9 @@ ohci_pci_attach(device_t self)
 		break;
 	case PCI_OHCI_VENDORID_NEC:
 		sprintf(sc->sc_vendor, "NEC");
+		break;
+	case PCI_OHCI_VENDORID_NVIDIA:
+		sprintf(sc->sc_vendor, "nVidia");
 		break;
 	case PCI_OHCI_VENDORID_OPTI:
 		sprintf(sc->sc_vendor, "OPTi");

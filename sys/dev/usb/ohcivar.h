@@ -1,4 +1,4 @@
-/*	$NetBSD: ohcivar.h,v 1.18 2000/01/18 20:11:00 augustss Exp $	*/
+/*	$NetBSD: ohcivar.h,v 1.30 2001/12/31 12:20:35 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -44,7 +44,7 @@ typedef struct ohci_soft_ed {
 	ohci_physaddr_t physaddr;
 } ohci_soft_ed_t;
 #define OHCI_SED_SIZE ((sizeof (struct ohci_soft_ed) + OHCI_ED_ALIGN - 1) / OHCI_ED_ALIGN * OHCI_ED_ALIGN)
-#define OHCI_SED_CHUNK 128
+#define OHCI_SED_CHUNK	(PAGE_SIZE / OHCI_SED_SIZE)
 
 typedef struct ohci_soft_td {
 	ohci_td_t td;
@@ -60,15 +60,24 @@ typedef struct ohci_soft_td {
 #define OHCI_TD_HANDLED	0x0004		/* signal process_done has seen it */
 } ohci_soft_td_t;
 #define OHCI_STD_SIZE ((sizeof (struct ohci_soft_td) + OHCI_TD_ALIGN - 1) / OHCI_TD_ALIGN * OHCI_TD_ALIGN)
-#define OHCI_STD_CHUNK 128
+#define OHCI_STD_CHUNK (PAGE_SIZE / OHCI_STD_SIZE)
 
 typedef struct ohci_soft_itd {
 	ohci_itd_t itd;
 	struct ohci_soft_itd *nextitd; /* mirrors nexttd in ITD */
+	struct ohci_soft_itd *dnext; /* next in done list */
 	ohci_physaddr_t physaddr;
+	LIST_ENTRY(ohci_soft_itd) hnext;
+	usbd_xfer_handle xfer;
+	u_int16_t flags;
+#define	OHCI_ITD_ACTIVE	0x0010		/* Hardware op in progress */
+#define	OHCI_ITD_INTFIN	0x0020		/* Hw completion interrupt seen.*/
+#ifdef DIAGNOSTIC
+	char isdone;
+#endif
 } ohci_soft_itd_t;
 #define OHCI_SITD_SIZE ((sizeof (struct ohci_soft_itd) + OHCI_ITD_ALIGN - 1) / OHCI_ITD_ALIGN * OHCI_ITD_ALIGN)
-#define OHCI_SITD_CHUNK 64
+#define OHCI_SITD_CHUNK (PAGE_SIZE / OHCI_SITD_SIZE)
 
 #define OHCI_NO_EDS (2*OHCI_NO_INTRS-1)
 
@@ -78,6 +87,7 @@ typedef struct ohci_softc {
 	struct usbd_bus sc_bus;		/* base device */
 	bus_space_tag_t iot;
 	bus_space_handle_t ioh;
+	bus_size_t sc_size;
 
 #if defined(__FreeBSD__)
 	void *ih;
@@ -97,11 +107,16 @@ typedef struct ohci_softc {
 	ohci_soft_ed_t *sc_ctrl_head;
 	ohci_soft_ed_t *sc_bulk_head;
 
-	LIST_HEAD(, ohci_soft_td) sc_hash_tds[OHCI_HASH_SIZE];
+	LIST_HEAD(, ohci_soft_td)  sc_hash_tds[OHCI_HASH_SIZE];
+	LIST_HEAD(, ohci_soft_itd) sc_hash_itds[OHCI_HASH_SIZE];
 
 	int sc_noport;
 	u_int8_t sc_addr;		/* device address */
 	u_int8_t sc_conf;		/* device configuration */
+
+#ifdef USB_USE_SOFTINTR
+	char sc_softwake;
+#endif /* USB_USE_SOFTINTR */
 
 	ohci_soft_ed_t *sc_freeeds;
 	ohci_soft_td_t *sc_freetds;
@@ -111,16 +126,36 @@ typedef struct ohci_softc {
 
 	usbd_xfer_handle sc_intrxfer;
 
+	ohci_soft_itd_t *sc_sidone;
+	ohci_soft_td_t  *sc_sdone;
+
 	char sc_vendor[16];
 	int sc_id_vendor;
 
-#if defined(__NetBSD__)
-	void *sc_powerhook;
+#if defined(__NetBSD__) || defined(__OpenBSD__)
+	void *sc_powerhook;		/* cookie from power hook */
 	void *sc_shutdownhook;		/* cookie from shutdown hook */
 #endif
+	u_int32_t sc_control;		/* Preserved during suspend/standby */
+	u_int32_t sc_intre;
+
+	u_int sc_overrun_cnt;
+	struct timeval sc_overrun_ntc;
+
+	usb_callout_t sc_tmo_rhsc;
 
 	device_ptr_t sc_child;
+	char sc_dying;
 } ohci_softc_t;
+
+struct ohci_xfer {
+	struct usbd_xfer xfer;
+	struct usb_task	abort_task;
+	u_int32_t ohci_xfer_flags;
+};
+#define OHCI_ISOC_DIRTY  0x01
+
+#define OXFER(xfer) ((struct ohci_xfer *)(xfer))
 
 usbd_status	ohci_init(ohci_softc_t *);
 int		ohci_intr(void *);

@@ -1,4 +1,4 @@
-/*	$NetBSD: ohcireg.h,v 1.11 2000/01/16 10:35:24 augustss Exp $	*/
+/*	$NetBSD: ohcireg.h,v 1.17 2000/04/01 09:27:35 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 
@@ -110,6 +110,9 @@
 #define  OHCI_GET_NDP(s)	((s) & 0xff)
 #define  OHCI_PSM		0x0100     /* Power Switching Mode */
 #define  OHCI_NPS		0x0200	   /* No Power Switching */
+#define  OHCI_DT		0x0400     /* Device Type */
+#define  OHCI_OCPM		0x0800     /* Overcurrent Protection Mode */
+#define  OHCI_NOCP		0x1000     /* No Overcurrent Protection */
 #define  OHCI_GET_POTPGT(s)	((s) >> 24)
 #define OHCI_RH_DESCRIPTOR_B	0x4c
 #define OHCI_RH_STATUS		0x50
@@ -143,6 +146,7 @@ struct ohci_hcca {
 
 #define OHCI_PAGE_SIZE 0x1000
 #define OHCI_PAGE(x) ((x) &~ 0xfff)
+#define OHCI_PAGE_OFFSET(x) ((x) & 0xfff)
 #define OHCI_PAGE_MASK(x) ((x) & 0xfff)
 
 typedef struct {
@@ -164,7 +168,6 @@ typedef struct {
 #define OHCI_ED_SET_MAXP(s)	((s) << 16)
 #define OHCI_ED_MAXPMASK	(0x7ff << 16)
 	ohci_physaddr_t	ed_tailp;
-#define OHCI_TAILMASK		0xfffffffc
 	ohci_physaddr_t	ed_headp;
 #define OHCI_HALTED		0x00000001
 #define OHCI_TOGGLECARRY	0x00000002
@@ -184,9 +187,11 @@ typedef struct {
 #define OHCI_TD_GET_DI(x)	(((x) >> 21) & 7)	/* Delay Interrupt */
 #define OHCI_TD_SET_DI(x)	((x) << 21)
 #define  OHCI_TD_NOINTR		0x00e00000
+#define  OHCI_TD_INTR_MASK	0x00e00000
 #define OHCI_TD_TOGGLE_CARRY	0x00000000
 #define OHCI_TD_TOGGLE_0	0x02000000
 #define OHCI_TD_TOGGLE_1	0x03000000
+#define OHCI_TD_TOGGLE_MASK	0x03000000
 #define OHCI_TD_GET_EC(x)	(((x) >> 26) & 3)	/* Error Count */
 #define OHCI_TD_GET_CC(x)	((x) >> 28)		/* Condition Code */
 #define  OHCI_TD_NOCC		0xf0000000
@@ -210,19 +215,18 @@ typedef struct {
 #define OHCI_ITD_GET_CC(x)	((x) >> 28)		/* Condition Code */
 #define  OHCI_ITD_NOCC		0xf0000000
 	ohci_physaddr_t	itd_bp0;			/* Buffer Page 0 */
-#define OHCI_ITD_OFFSET_MASK	0x00000fff
-#define OHCI_ITD_PAGE_MASK	(~OHCI_ITD_OFFSET_MASK)
 	ohci_physaddr_t	itd_nextitd;			/* Next ITD */
 	ohci_physaddr_t	itd_be;				/* Buffer End */
 	u_int16_t	itd_offset[OHCI_ITD_NOFFSET];	/* Buffer offsets */
 #define itd_pswn itd_offset				/* Packet Status Word*/
 #define OHCI_ITD_PAGE_SELECT	0x00001000
+#define OHCI_ITD_MK_OFFS(len)	(0xe000 | ((len) & 0x1fff))
 #define OHCI_ITD_PSW_LENGTH(x)	((x) & 0xfff)		/* Transfer length */
 #define OHCI_ITD_PSW_GET_CC(x)	((x) >> 12)		/* Condition Code */
 } ohci_itd_t;
 /* #define OHCI_ITD_SIZE 32 */
 #define OHCI_ITD_ALIGN 32
-	
+
 
 #define OHCI_CC_NO_ERROR		0
 #define OHCI_CC_CRC			1
@@ -237,5 +241,9 @@ typedef struct {
 #define OHCI_CC_BUFFER_OVERRUN		12
 #define OHCI_CC_BUFFER_UNDERRUN		13
 #define OHCI_CC_NOT_ACCESSED		15
+
+/* Some delay needed when changing certain registers. */
+#define OHCI_ENABLE_POWER_DELAY	5
+#define OHCI_READ_DESC_DELAY	5
 
 #endif /* _DEV_PCI_OHCIREG_H_ */

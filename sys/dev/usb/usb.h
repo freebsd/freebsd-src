@@ -1,4 +1,4 @@
-/*	$NetBSD: usb.h,v 1.38 1999/10/20 21:02:39 augustss Exp $	*/
+/*	$NetBSD: usb.h,v 1.69 2002/09/22 23:20:50 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -47,26 +47,17 @@
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/ioctl.h>
+#endif
 
 #if defined(_KERNEL)
 #include <dev/usb/usb_port.h>
 #endif /* _KERNEL */
 
-#elif defined(__FreeBSD__)
-#if defined(_KERNEL)
-#include <sys/malloc.h>
-
-MALLOC_DECLARE(M_USB);
-MALLOC_DECLARE(M_USBDEV);
-MALLOC_DECLARE(M_USBHC);
-
-#include <dev/usb/usb_port.h>
-#endif /* _KERNEL */
-#endif /* __FreeBSD__ */
-
-/* these three defines are used by usbd to autoload the usb kld */
-#define USB_KLD		"usb"
+/* These two defines are used by usbd to autoload the usb kld */
+#define USB_KLD		"usb"		/* name of usb module */
 #define USB_UHUB	"usb/uhub"	/* root hub */
+
+#define USB_STACK_VERSION 2
 
 #define USB_MAX_DEVICES 128
 #define USB_START_ADDR 0
@@ -336,7 +327,7 @@ typedef struct {
     (((desc)->DeviceRemovable[(i)/8] >> ((i) % 8)) & 1)
 	/* deprecated */ uByte		PortPowerCtrlMask[1];
 } UPACKED usb_hub_descriptor_t;
-#define USB_HUB_DESCRIPTOR_SIZE 8 /* includes deprecated PortPowerCtrlMask */
+#define USB_HUB_DESCRIPTOR_SIZE 9 /* includes deprecated PortPowerCtrlMask */
 
 typedef struct {
 	uByte		bLength;
@@ -512,18 +503,20 @@ typedef struct {
 #if 0
 /* These are the values from the spec. */
 #define USB_PORT_RESET_DELAY	10  /* ms */
-#define USB_PORT_RESET_SETTLE	10  /* ms */
+#define USB_PORT_ROOT_RESET_DELAY 50  /* ms */
+#define USB_PORT_RESET_RECOVERY	10  /* ms */
 #define USB_PORT_POWERUP_DELAY	100 /* ms */
 #define USB_SET_ADDRESS_SETTLE	2   /* ms */
-#define USB_RESUME_TIME		(20*5)  /* ms */
+#define USB_RESUME_DELAY	(20*5)  /* ms */
 #define USB_RESUME_WAIT		10  /* ms */
 #define USB_RESUME_RECOVERY	10  /* ms */
 #define USB_EXTRA_POWER_UP_TIME	0   /* ms */
 #else
 /* Allow for marginal (i.e. non-conforming) devices. */
 #define USB_PORT_RESET_DELAY	50  /* ms */
-#define USB_PORT_RESET_RECOVERY	50  /* ms */
-#define USB_PORT_POWERUP_DELAY	200 /* ms */
+#define USB_PORT_ROOT_RESET_DELAY 250  /* ms */
+#define USB_PORT_RESET_RECOVERY	250  /* ms */
+#define USB_PORT_POWERUP_DELAY	300 /* ms */
 #define USB_SET_ADDRESS_SETTLE	10  /* ms */
 #define USB_RESUME_DELAY	(50*5)  /* ms */
 #define USB_RESUME_WAIT		50  /* ms */
@@ -615,7 +608,10 @@ struct usb_device_info {
 	u_int8_t	udi_subclass;
 	u_int8_t	udi_protocol;
 	u_int8_t	udi_config;
-	u_int8_t	udi_lowspeed;
+	u_int8_t	udi_speed;
+#define USB_SPEED_LOW  1
+#define USB_SPEED_FULL 2
+#define USB_SPEED_HIGH 3
 	int		udi_power;	/* power consumption in mA, 0 if selfpowered */
 	int		udi_nports;
 	char		udi_devnames[USB_MAX_DEVNAMES][USB_MAX_DEVNAMELEN];

@@ -1,17 +1,18 @@
 /*	$NetBSD: uvisor.c,v 1.9 2001/01/23 14:04:14 augustss Exp $	*/
 /*      $FreeBSD$	*/
 
-/* This version of uvisor is heavily based upon the version in NetBSD
- * but is missing the following patches:
- *
- * 1.10	needed?		connect a ucom to each of the uvisor ports
- * 1.11	needed		ucom has an "info" attach message - use it
- * 1.12 not needed	rcsids
- * 1.13 already merged	extra arg to usbd_do_request_flags
- * 1.14 already merged	sony and palm support
- * 1.15 already merged	sony clie
- * 1.16 already merged	trailing whites
+/* Also already merged from NetBSD:
+ *	$NetBSD: uvisor.c,v 1.12 2001/11/13 06:24:57 lukem Exp $
+ *	$NetBSD: uvisor.c,v 1.13 2002/02/11 15:11:49 augustss Exp $
+ *	$NetBSD: uvisor.c,v 1.14 2002/02/27 23:00:03 augustss Exp $
+ *	$NetBSD: uvisor.c,v 1.15 2002/06/16 15:01:31 augustss Exp $
+ *	$NetBSD: uvisor.c,v 1.16 2002/07/11 21:14:36 augustss Exp $
+ *	$NetBSD: uvisor.c,v 1.17 2002/08/13 11:38:15 augustss Exp $
+ *	$NetBSD: uvisor.c,v 1.18 2003/02/05 00:50:14 augustss Exp $
+ *	$NetBSD: uvisor.c,v 1.19 2003/02/07 18:12:37 augustss Exp $
+ *	$NetBSD: uvisor.c,v 1.20 2003/04/11 01:30:10 simonb Exp $
  */
+
 
 /*
  * Copyright (c) 2000 The NetBSD Foundation, Inc.
@@ -228,7 +229,7 @@ static const struct uvisor_type uvisor_devs[] = {
 USB_MATCH(uvisor)
 {
 	USB_MATCH_START(uvisor, uaa);
-	
+
 	if (uaa->iface != NULL)
 		return (UMATCH_NONE);
 
@@ -302,7 +303,7 @@ USB_ATTACH(uvisor)
 			       ": %s\n", devname, usbd_errstr(err));
 			goto bad;
 		}
-		
+
 		addr = ed->bEndpointAddress;
 		dir = UE_GET_DIR(ed->bEndpointAddress);
 		attr = ed->bmAttributes & UE_XFERTYPE;
@@ -325,7 +326,7 @@ USB_ATTACH(uvisor)
 		       USBDEVNAME(ucom->sc_dev));
 		goto bad;
 	}
-	
+
 	ucom->sc_parent = sc;
 	ucom->sc_portno = UCOM_UNK_PORTNO;
 	/* bulkin, bulkout set above */
@@ -341,6 +342,9 @@ USB_ATTACH(uvisor)
 		       usbd_errstr(err));
 		goto bad;
 	}
+
+	usbd_add_drv_event(USB_EVENT_DRIVER_ATTACH, ucom->sc_udev,
+			   USBDEV(ucom->sc_dev));
 
 	DPRINTF(("uvisor: in=0x%x out=0x%x\n", ucom->sc_bulkin_no, ucom->sc_bulkout_no));
 	ucom_attach(&sc->sc_ucom);
@@ -386,6 +390,9 @@ USB_DETACH(uvisor)
 	sc->sc_ucom.sc_dying = 1;
 	rv = ucom_detach(&sc->sc_ucom);
 
+	usbd_add_drv_event(USB_EVENT_DRIVER_DETACH, sc->sc_ucom.sc_udev,
+			   USBDEV(sc->sc_ucom.sc_dev));
+
 	return (rv);
 }
 
@@ -406,7 +413,8 @@ uvisor_init(struct uvisor_softc *sc)
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, UVISOR_CONNECTION_INFO_SIZE);
 	err = usbd_do_request_flags(sc->sc_ucom.sc_udev, &req, &coninfo,
-				    USBD_SHORT_XFER_OK, &actlen);
+				    USBD_SHORT_XFER_OK, &actlen,
+				    USBD_DEFAULT_TIMEOUT);
 	if (err)
 		return (err);
 
@@ -433,7 +441,7 @@ uvisor_init(struct uvisor_softc *sc)
 				break;
 			default:
 				string = "unknown";
-				break;	
+				break;
 			}
 			printf("%s: port %d, is for %s\n",
 			    USBDEVNAME(sc->sc_ucom.sc_dev), coninfo.connections[i].port,
@@ -494,5 +502,6 @@ uvisor_close(void *addr, int portno)
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, UVISOR_CONNECTION_INFO_SIZE);
 	(void)usbd_do_request_flags(sc->sc_ucom.sc_udev, &req, &coninfo,
-				    USBD_SHORT_XFER_OK, &actlen);
+				    USBD_SHORT_XFER_OK, &actlen,
+				    USBD_DEFAULT_TIMEOUT);
 }

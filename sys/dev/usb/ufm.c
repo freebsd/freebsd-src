@@ -28,7 +28,9 @@
  * its contributors.
  */
 
-/* $FreeBSD$ */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -87,15 +89,20 @@ d_open_t  ufmopen;
 d_close_t ufmclose;
 d_ioctl_t ufmioctl;
 
+#if __FreeBSD_version >= 500000
+#define UFM_CDEV_MAJOR	MAJOR_AUTO
+#else
 #define UFM_CDEV_MAJOR	200
+#endif
 
 Static struct cdevsw ufm_cdevsw = {
-	ufmopen,	ufmclose,	noread,		nowrite,
- 	ufmioctl,	nopoll,		nommap,		nostrategy,
- 	"ufm",		UFM_CDEV_MAJOR,	nodump,		nopsize,
- 	0,
-#if (__FreeBSD__ < 5)
- 	-1
+	.d_open =	ufmopen,
+	.d_close =	ufmclose,
+	.d_ioctl =	ufmioctl,
+	.d_name =	"ufm",
+	.d_maj =	UFM_CDEV_MAJOR,
+#if (__FreeBSD_version < 500014)
+ 	.d_bmaj =	-1
 #endif
 };
 #endif  /*defined(__FreeBSD__)*/
@@ -156,7 +163,7 @@ USB_ATTACH(ufm)
 	usbd_status r;
 	char * ermsg = "<none>";
 
-	DPRINTFN(10,("ufm_attach: sc=%p\n", sc));	
+	DPRINTFN(10,("ufm_attach: sc=%p\n", sc));
 	usbd_devinfo(uaa->device, 0, devinfo);
 	USB_ATTACH_SETUP;
 	printf("%s: %s\n", USBDEVNAME(sc->sc_dev), devinfo);
@@ -177,12 +184,12 @@ USB_ATTACH(ufm)
 	r = usbd_interface_count(udev, &niface);
 	if (r) {
 		ermsg = "iface";
-		goto nobulk;  
+		goto nobulk;
 	}
 	r = usbd_device2interface_handle(udev, 0, &iface);
 	if (r) {
 		ermsg = "iface";
-		goto nobulk;  
+		goto nobulk;
 	}
 	sc->sc_iface = iface;
 #endif
@@ -190,7 +197,7 @@ USB_ATTACH(ufm)
 	sc->sc_refcnt = 0;
 
 	r = usbd_endpoint_count(iface, &epcount);
-	if (r != USBD_NORMAL_COMPLETION) { 
+	if (r != USBD_NORMAL_COMPLETION) {
 		ermsg = "endpoints";
 		goto nobulk;
 	}
@@ -230,7 +237,7 @@ ufmopen(dev_t dev, int flag, int mode, usb_proc_ptr td)
 	int unit = UFMUNIT(dev);
 	USB_GET_SC_OPEN(ufm, unit, sc);
 
-	DPRINTFN(5, ("ufmopen: flag=%d, mode=%d, unit=%d\n", 
+	DPRINTFN(5, ("ufmopen: flag=%d, mode=%d, unit=%d\n",
 		     flag, mode, unit));
 
 	if (sc->sc_opened)
@@ -254,7 +261,7 @@ ufmclose(dev_t dev, int flag, int mode, usb_proc_ptr td)
 	DPRINTFN(5, ("ufmclose: flag=%d, mode=%d, unit=%d\n", flag, mode, unit));
 	sc->sc_opened = 0;
 	sc->sc_refcnt = 0;
-	return 0;	
+	return 0;
 }
 
 static int
@@ -271,7 +278,8 @@ ufm_do_req(struct ufm_softc *sc, u_int8_t reqtype, u_int8_t request,
 	USETW(req.wValue, value);
 	USETW(req.wIndex, index);
 	USETW(req.wLength, len);
-	err = usbd_do_request_flags(sc->sc_udev, &req, retbuf, 0, NULL);
+	err = usbd_do_request_flags(sc->sc_udev, &req, retbuf, 0, NULL,
+	    USBD_DEFAULT_TIMEOUT);
 	splx(s);
 	if (err) {
 		printf("usbd_do_request_flags returned %#x\n", err);
@@ -291,7 +299,7 @@ ufm_set_freq(struct ufm_softc *sc, caddr_t addr)
 	 * that the radio wants.  This frequency is 10.7MHz above
 	 * the actual frequency.  We then need to convert to
 	 * units of 12.5kHz.  We add one to the IFM to make rounding
-	 * easier. 
+	 * easier.
 	 */
 	sc->sc_freq = freq;
 	freq = (freq + 10700001) / 12500;
@@ -300,7 +308,7 @@ ufm_set_freq(struct ufm_softc *sc, caddr_t addr)
 	    freq, 1, &ret) != 0)
 		return (EIO);
 	/* Not sure what this does */
-	if (ufm_do_req(sc, UT_READ_VENDOR_DEVICE, FM_CMD0, 0x96, 0xb7, 1, 
+	if (ufm_do_req(sc, UT_READ_VENDOR_DEVICE, FM_CMD0, 0x96, 0xb7, 1,
 	    &ret) != 0)
 		return (EIO);
 	return (0);
@@ -318,8 +326,8 @@ static int
 ufm_start(struct ufm_softc *sc, caddr_t addr)
 {
 	u_int8_t ret;
-	
-	if (ufm_do_req(sc, UT_READ_VENDOR_DEVICE, FM_CMD0, 0x00, 0xc7, 
+
+	if (ufm_do_req(sc, UT_READ_VENDOR_DEVICE, FM_CMD0, 0x00, 0xc7,
 	    1, &ret))
 		return (EIO);
 	if (ufm_do_req(sc, UT_READ_VENDOR_DEVICE, FM_CMD2, 0x01, 0x00,
@@ -334,7 +342,7 @@ static int
 ufm_stop(struct ufm_softc *sc, caddr_t addr)
 {
 	u_int8_t ret;
-	
+
 	if (ufm_do_req(sc, UT_READ_VENDOR_DEVICE, FM_CMD0, 0x16, 0x1C,
 	    1, &ret))
 		return (EIO);
@@ -348,7 +356,7 @@ static int
 ufm_get_stat(struct ufm_softc *sc, caddr_t addr)
 {
 	u_int8_t ret;
-	
+
 	/*
 	 * Note, there's a 240ms settle time before the status
 	 * will be valid, so tsleep that amount.  hz/4 is a good
@@ -361,7 +369,7 @@ ufm_get_stat(struct ufm_softc *sc, caddr_t addr)
 	    1, &ret))
 		return (EIO);
 	*(int *)addr = ret;
-	
+
 	return (0);
 }
 
@@ -463,7 +471,7 @@ USB_DETACH(ufm)
 #if defined(__FreeBSD__)
 Static int
 ufm_detach(device_t self)
-{       
+{
 	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
 	return 0;
 }

@@ -1,5 +1,4 @@
 .\" $NetBSD: uhidev.4,v 1.2 2001/12/29 03:06:41 augustss Exp $
-.\" $FreeBSD$
 .\"
 .\" Copyright (c) 2001 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -35,6 +34,8 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
+.\" $FreeBSD$
+.\"
 .Dd December 27, 2001
 .Dt UHIDEV 4
 .Os
@@ -49,15 +50,17 @@
 .Sh DESCRIPTION
 The
 .Nm
-driver handles all Human Interface Devices.  Each HID device
+driver handles all Human Interface Devices.
+Each HID device
 can have several components, e.g., a keyboard and a mouse.
 These components use different report identifiers (a byte) to
-distinguish which one data is coming from.  The
+distinguish which one data is coming from.
+The
 .Nm
 driver has other drivers attached that handle particular
 kinds of devices and
 .Nm
-only dispatches data to them based on the report id.
+only dispatches data to them based on the report ID.
 .Sh SEE ALSO
 .Xr uhid 4 ,
 .Xr ukbd 4 ,

@@ -67,20 +67,14 @@ The following line in the kernel configuration file adds the
 driver to the kernel:
 .Dl device urio
 .Pp
-The following commands create the device node in the
-.Pa /dev
-directory:
-.Dl cd /dev
-.Dl sh MAKEDEV urio0
-.Pp
-Finally, to download a song over the
+To download a song over the
 .Tn USB
 connection into the Rio500 using the
 .Xr rio_add_song 1
 utility (see the
 .Sx SEE ALSO
 section):
-.Dl rio_add_song /usr/local/MP3/TraceyChapman/02-Fast-Car.mp3
+.Dl rio_add_song /usr/local/MP3/TracyChapman/02-Fast-Car.mp3
 .Sh SEE ALSO
 .Xr ohci 4 ,
 .Xr uhci 4 ,

@@ -32,6 +32,7 @@
 #define RUE_INTR_PIPE		1	/* Use INTR PIPE */
 
 #define RUE_CONFIG_NO		1
+#define RUE_IFACE_IDX		0
 
 #define RUE_ENDPT_RX		0x0
 #define RUE_ENDPT_TX		0x1
@@ -222,7 +223,27 @@ struct rue_softc {
 	int			rue_if_flags;
 	struct rue_cdata	rue_cdata;
 	struct callout_handle	rue_stat_ch;
+#if __FreeBSD_version >= 500000
+	struct mtx		rue_mtx;
+#endif
 	char			rue_dying;
+	struct timeval		rue_rx_notice;
 };
+
+#if defined(__FreeBSD__)
+#define GET_MII(sc)	(device_get_softc((sc)->rue_miibus))
+#elif defined(__NetBSD__)
+#define GET_MII(sc)	(&(sc)->rue_mii)
+#elif defined(__OpenBSD__)
+#define GET_MII(sc)	(&(sc)->rue_mii)
+#endif
+
+#if 0
+#define RUE_LOCK(_sc)		mtx_lock(&(_sc)->rue_mtx)
+#define RUE_UNLOCK(_sc)		mtx_unlock(&(_sc)->rue_mtx)
+#else
+#define RUE_LOCK(_sc)
+#define RUE_UNLOCK(_sc)
+#endif
 
 #endif /* _IF_RUEREG_H_ */

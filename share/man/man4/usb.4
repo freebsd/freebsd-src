@@ -104,31 +104,31 @@ A device may operate in different configurations.
 Depending on the
 configuration, the device may present different sets of endpoints
 and interfaces.
-.Pp
-Each device located on a hub has several
-.Xr config 8
-locators:
-.Bl -tag -compact -width xxxxxx
-.It Cd port
-this is the number of the port on the closest upstream hub.
-.It Cd configuration
-this is the configuration the device must be in for this driver to attach.
-This locator does not set the configuration; it is iterated by the bus
-enumeration.
-.It Cd interface
-this is the interface number within a device that an interface driver
-attaches to.
-.It Cd vendor
-this is the 16 bit vendor id of the device.
-.It Cd product
-this is the 16 bit product id of the device.
-.It Cd release
-this is the 16 bit release (revision) number of the device.
-.El
-The first locator can be used to pin down a particular device
-according to its physical position in the device tree.
-The last three locators can be used to pin down a particular
-device according to what device it actually is.
+.\" .Pp
+.\" Each device located on a hub has several
+.\" .Xr config 8
+.\" locators:
+.\" .Bl -tag -compact -width xxxxxx
+.\" .It Cd port
+.\" this is the number of the port on the closest upstream hub.
+.\" .It Cd configuration
+.\" this is the configuration the device must be in for this driver to attach.
+.\" This locator does not set the configuration; it is iterated by the bus
+.\" enumeration.
+.\" .It Cd interface
+.\" this is the interface number within a device that an interface driver
+.\" attaches to.
+.\" .It Cd vendor
+.\" this is the 16 bit vendor id of the device.
+.\" .It Cd product
+.\" this is the 16 bit product id of the device.
+.\" .It Cd release
+.\" this is the 16 bit release (revision) number of the device.
+.\" .El
+.\" The first locator can be used to pin down a particular device
+.\" according to its physical position in the device tree.
+.\" The last three locators can be used to pin down a particular
+.\" device according to what device it actually is.
 .Pp
 The bus enumeration of the
 .Tn USB
@@ -154,8 +154,6 @@ Use the following to get access to the
 .Tn USB
 specific structures and defines.
 .Pp
-.In dev/usb/usb.h
-.Pp
 The
 .Pa /dev/usb Ns Ar N
 can be opened and a few operations can be performed on it.
@@ -178,42 +176,47 @@ This is the only way that new devices are found on the bus.
 This command can be used to retrieve some information about a device
 on the bus.
 The
-.Va addr
+.Va udi_addr
 field should be filled before the call and the other fields will
 be filled by information about the device on that address.
 Should no such device exist, an error is reported.
 .Bd -literal
+#define USB_MAX_DEVNAMES 4
+#define USB_MAX_DEVNAMELEN 16
 struct usb_device_info {
-        u_int8_t        bus;
-        u_int8_t        addr;
-        usb_event_cookie_t cookie;
-        char            product[USB_MAX_STRING_LEN];
-        char            vendor[USB_MAX_STRING_LEN];
-        char            release[8];
-        u_int16_t       productNo;
-        u_int16_t       vendorNo;
-        u_int16_t       releaseNo;
-        u_int8_t        class;
-        u_int8_t        subclass;
-        u_int8_t        protocol;
-        u_int8_t        config;
-        u_int8_t        lowspeed;
-        int             power;
-        int             nports;
-        char            devnames[USB_MAX_DEVNAMES][USB_MAX_DEVNAMELEN];
-        u_int8_t        ports[16];
-#define USB_PORT_ENABLED      0xff
-#define USB_PORT_SUSPENDED    0xfe
-#define USB_PORT_POWERED      0xfd
-#define USB_PORT_DISABLED     0xfc
+	u_int8_t	udi_bus;
+	u_int8_t	udi_addr;	/* device address */
+	usb_event_cookie_t udi_cookie;
+	char		udi_product[USB_MAX_STRING_LEN];
+	char		udi_vendor[USB_MAX_STRING_LEN];
+	char		udi_release[8];
+	u_int16_t	udi_productNo;
+	u_int16_t	udi_vendorNo;
+	u_int16_t	udi_releaseNo;
+	u_int8_t	udi_class;
+	u_int8_t	udi_subclass;
+	u_int8_t	udi_protocol;
+	u_int8_t	udi_config;
+	u_int8_t	udi_speed;
+#define USB_SPEED_LOW  1
+#define USB_SPEED_FULL 2
+#define USB_SPEED_HIGH 3
+	int		udi_power;/* power consumption in mA, 0 if selfpowered */
+	int		udi_nports;
+	char		udi_devnames[USB_MAX_DEVNAMES][USB_MAX_DEVNAMELEN];
+	u_int8_t	udi_ports[16];/* hub only: addresses of devices on ports */
+#define USB_PORT_ENABLED 0xff
+#define USB_PORT_SUSPENDED 0xfe
+#define USB_PORT_POWERED 0xfd
+#define USB_PORT_DISABLED 0xfc
 };
 .Ed
 .Pp
-.Va bus
+.Va udi_bus
 and
-.Va addr
+.Va udi_addr
 contain the topological information for the device.
-.Va devnames
+.Va udi_devnames
 contains the device names of the connected drivers.
 For example, the
 third
@@ -221,30 +224,34 @@ third
 Zip drive connected will be
 .Li umass2 .
 The
-.Va product , vendor
+.Va udi_product , udi_vendor
 and
-.Va release
+.Va udi_release
 fields contain self-explanatory descriptions of the device.
-.Va productNo , vendorNo , releaseNo , class , subclass
+.Va udi_productNo , udi_vendorNo , udi_releaseNo , udi_class , udi_subclass
 and
-.Va protocol
+.Va udi_protocol
 contain the corresponding values from the device descriptors.
 The
-.Va config
+.Va udi_config
 field shows the current configuration of the device.
 .Pp
-.Va lowspeed
-indicates whether the device is a full speed (0) or low speed (1)
-device.
+.Va udi_peed
+indicates whether the device is at low speed
+.Pq Dv USB_SPEED_LOW ,
+full speed
+.Pq Dv USB_SPEED_FULL
+or high speed
+.Pq Dv USB_SPEED_HIGH .
 The
-.Va power
+.Va udi_power
 field shows the power consumption in milli-amps drawn at 5 volts,
 or zero if the device is self powered.
 .Pp
 If the device is a hub, the
-.Va nports
+.Va udi_nports
 field is non-zero, and the
-.Va ports
+.Va udi_ports
 field contains the addresses of the connected devices.
 If no device is connected to a port, one of the
 .Dv USB_PORT_*
@@ -253,12 +260,12 @@ values indicates its status.
 This command retrieves statistics about the controller.
 .Bd -literal
 struct usb_device_stats {
-        u_long  requests[4];
+        u_long  uds_requests[4];
 };
 .Ed
 .Pp
 The
-.Va requests
+.Va udi_requests
 field is indexed by the transfer kind, i.e.\&
 .Dv UE_* ,
 and indicates how many transfers of each kind that has been completed
@@ -272,7 +279,7 @@ can destroy the bus integrity.
 .El
 .Pp
 The include file
-.Aq Pa dev/usb/usb.h
+.In dev/usb/usb.h
 contains definitions for the types used by the various
 .Xr ioctl 2
 calls.
@@ -289,7 +296,7 @@ and
 macros to handle byte order and alignment properly.
 .Pp
 The include file
-.Aq Pa dev/usb/usbhid.h
+.In dev/usb/usbhid.h
 similarly contains the definitions for
 Human Interface Devices
 .Pq Tn HID .
@@ -337,6 +344,15 @@ The possible events are attach/detach of a host controller,
 a device, or a device driver.
 The union contains information
 pertinent to the different types of events.
+Macros,
+.Fn USB_EVENT_IS_ATTACH "ue_type"
+and
+.Fn USB_EVENT_IS_DETACH "ue_type"
+can be used to determine if an event was an
+.Dq attach
+or a
+.Dq detach
+request.
 .Pp
 The
 .Va ue_bus
@@ -350,7 +366,7 @@ record contains information about the device in a device event event.
 .Pp
 The
 .Va ue_cookie
-is an opaque value that uniquely determines which which
+is an opaque value that uniquely determines which
 device a device driver has been attached to (i.e., it equals
 the cookie value in the device that the driver attached to).
 .Pp
@@ -373,7 +389,7 @@ The
 .Tn USB
 specifications can be found at:
 .Pp
-.D1 Pa http://www.usb.org/developers/docs.html
+.D1 Pa http://www.usb.org/developers/docs/
 .Pp
 .Xr aue 4 ,
 .Xr cue 4 ,
@@ -388,8 +404,10 @@ specifications can be found at:
 .Xr ulpt 4 ,
 .Xr umass 4 ,
 .Xr ums 4 ,
+.Xr uplcom 4 ,
 .Xr urio 4 ,
 .Xr uscanner 4 ,
+.Xr uvscom 4 ,
 .Xr usbd 8 ,
 .Xr usbdevs 8
 .Sh HISTORY

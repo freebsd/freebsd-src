@@ -1,5 +1,12 @@
-/*	$NetBSD: usbdi.c,v 1.60 2000/01/19 00:23:58 augustss Exp $	*/
-/*	$FreeBSD$	*/
+/*	$NetBSD: usbdi.c,v 1.101 2002/06/01 23:51:04 lukem Exp $	*/
+
+/* Also already have from NetBSD:
+ *	$NetBSD: usbdi.c,v 1.102 2002/07/11 21:14:35 augustss Exp $
+ *	$NetBSD: usbdi.c,v 1.103 2002/09/27 15:37:38 provos Exp $
+ */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -77,11 +84,12 @@ extern int usbdebug;
 #endif
 
 Static usbd_status usbd_ar_pipe(usbd_pipe_handle pipe);
-Static void usbd_do_request_async_cb 
-    (usbd_xfer_handle, usbd_private_handle, usbd_status);
+Static void usbd_do_request_async_cb
+	(usbd_xfer_handle, usbd_private_handle, usbd_status);
 Static void usbd_start_next(usbd_pipe_handle pipe);
 Static usbd_status usbd_open_pipe_ival
-    (usbd_interface_handle, u_int8_t, u_int8_t, usbd_pipe_handle *, int);
+	(usbd_interface_handle, u_int8_t, u_int8_t, usbd_pipe_handle *, int);
+Static int usbd_xfer_isread(usbd_xfer_handle xfer);
 
 Static int usbd_nbuses = 0;
 
@@ -97,10 +105,8 @@ usbd_finish(void)
 	--usbd_nbuses;
 }
 
-Static __inline int usbd_xfer_isread(usbd_xfer_handle xfer);
-Static __inline int
-usbd_xfer_isread(xfer)
-	usbd_xfer_handle xfer;
+static __inline int
+usbd_xfer_isread(usbd_xfer_handle xfer)
 {
 	if (xfer->rqflags & URQ_REQUEST)
 		return (xfer->request.bmRequestType & UT_READ);
@@ -111,7 +117,40 @@ usbd_xfer_isread(xfer)
 
 #ifdef USB_DEBUG
 void
-usbd_dump_queue(usbd_pipe_handle);
+usbd_dump_iface(struct usbd_interface *iface)
+{
+	printf("usbd_dump_iface: iface=%p\n", iface);
+	if (iface == NULL)
+		return;
+	printf(" device=%p idesc=%p index=%d altindex=%d priv=%p\n",
+	       iface->device, iface->idesc, iface->index, iface->altindex,
+	       iface->priv);
+}
+
+void
+usbd_dump_device(struct usbd_device *dev)
+{
+	printf("usbd_dump_device: dev=%p\n", dev);
+	if (dev == NULL)
+		return;
+	printf(" bus=%p default_pipe=%p\n", dev->bus, dev->default_pipe);
+	printf(" address=%d config=%d depth=%d speed=%d self_powered=%d "
+	       "power=%d langid=%d\n",
+	       dev->address, dev->config, dev->depth, dev->speed,
+	       dev->self_powered, dev->power, dev->langid);
+}
+
+void
+usbd_dump_endpoint(struct usbd_endpoint *endp)
+{
+	printf("usbd_dump_endpoint: endp=%p\n", endp);
+	if (endp == NULL)
+		return;
+	printf(" edesc=%p refcnt=%d\n", endp->edesc, endp->refcnt);
+	if (endp->edesc)
+		printf(" bEndpointAddress=0x%02x\n",
+		       endp->edesc->bEndpointAddress);
+}
 
 void
 usbd_dump_queue(usbd_pipe_handle pipe)
@@ -119,26 +158,39 @@ usbd_dump_queue(usbd_pipe_handle pipe)
 	usbd_xfer_handle xfer;
 
 	printf("usbd_dump_queue: pipe=%p\n", pipe);
-	for (xfer = SIMPLEQ_FIRST(&pipe->queue);
-	     xfer;
-	     xfer = SIMPLEQ_NEXT(xfer, next)) {
+	SIMPLEQ_FOREACH(xfer, &pipe->queue, next) {
 		printf("  xfer=%p\n", xfer);
 	}
 }
+
+void
+usbd_dump_pipe(usbd_pipe_handle pipe)
+{
+	printf("usbd_dump_pipe: pipe=%p\n", pipe);
+	if (pipe == NULL)
+		return;
+	usbd_dump_iface(pipe->iface);
+	usbd_dump_device(pipe->device);
+	usbd_dump_endpoint(pipe->endpoint);
+	printf(" (usbd_dump_pipe:)\n refcnt=%d running=%d aborting=%d\n",
+	       pipe->refcnt, pipe->running, pipe->aborting);
+	printf(" intrxfer=%p, repeat=%d, interval=%d\n",
+	       pipe->intrxfer, pipe->repeat, pipe->interval);
+}
 #endif
 
-usbd_status 
+usbd_status
 usbd_open_pipe(usbd_interface_handle iface, u_int8_t address,
 	       u_int8_t flags, usbd_pipe_handle *pipe)
-{ 
-	return (usbd_open_pipe_ival(iface, address, flags, pipe, 
+{
+	return (usbd_open_pipe_ival(iface, address, flags, pipe,
 				    USBD_DEFAULT_INTERVAL));
 }
 
-usbd_status 
+usbd_status
 usbd_open_pipe_ival(usbd_interface_handle iface, u_int8_t address,
 		    u_int8_t flags, usbd_pipe_handle *pipe, int ival)
-{ 
+{
 	usbd_pipe_handle p;
 	struct usbd_endpoint *ep;
 	usbd_status err;
@@ -166,7 +218,7 @@ usbd_open_pipe_ival(usbd_interface_handle iface, u_int8_t address,
 	return (USBD_NORMAL_COMPLETION);
 }
 
-usbd_status 
+usbd_status
 usbd_open_pipe_intr(usbd_interface_handle iface, u_int8_t address,
 		    u_int8_t flags, usbd_pipe_handle *pipe,
 		    usbd_private_handle priv, void *buffer, u_int32_t len,
@@ -179,7 +231,7 @@ usbd_open_pipe_intr(usbd_interface_handle iface, u_int8_t address,
 	DPRINTFN(3,("usbd_open_pipe_intr: address=0x%x flags=0x%x len=%d\n",
 		    address, flags, len));
 
-	err = usbd_open_pipe_ival(iface, address, USBD_EXCLUSIVE_USE, 
+	err = usbd_open_pipe_ival(iface, address, USBD_EXCLUSIVE_USE,
 				  &ipipe, ival);
 	if (err)
 		return (err);
@@ -219,7 +271,7 @@ usbd_close_pipe(usbd_pipe_handle pipe)
 
 	if (--pipe->refcnt != 0)
 		return (USBD_NORMAL_COMPLETION);
-	if (SIMPLEQ_FIRST(&pipe->queue) != 0)
+	if (! SIMPLEQ_EMPTY(&pipe->queue))
 		return (USBD_PENDING_REQUESTS);
 	LIST_REMOVE(pipe, next);
 	pipe->endpoint->refcnt--;
@@ -247,6 +299,9 @@ usbd_transfer(usbd_xfer_handle xfer)
 #endif
 	xfer->done = 0;
 
+	if (pipe->aborting)
+		return (USBD_CANCELLED);
+
 	size = xfer->length;
 	/* If there is no buffer, allocate one. */
 	if (!(xfer->rqflags & URQ_DEV_DMABUF) && size != 0) {
@@ -263,7 +318,7 @@ usbd_transfer(usbd_xfer_handle xfer)
 	}
 
 	/* Copy data if going out. */
-	if (!(xfer->flags & USBD_NO_COPY) && size != 0 && 
+	if (!(xfer->flags & USBD_NO_COPY) && size != 0 &&
 	    !usbd_xfer_isread(xfer))
 		memcpy(KERNADDR(dmap, 0), xfer->buffer, size);
 
@@ -288,23 +343,8 @@ usbd_transfer(usbd_xfer_handle xfer)
 	s = splusb();
 	if (!xfer->done) {
 		if (pipe->device->bus->use_polling)
-			panic("usbd_transfer: not done\n");
-		/* XXX Temporary hack XXX */
-		if (xfer->flags & USBD_NO_TSLEEP) {
-			int i;
-			usbd_bus_handle bus = pipe->device->bus;
-			int to = xfer->timeout * 1000;
-			for (i = 0; i < to; i += 10) {
-				delay(10);
-				bus->methods->do_poll(bus);
-				if (xfer->done)
-					break;
-			}
-			if (!xfer->done)
-				pipe->methods->abort(xfer);
-		} else
-		/* XXX End hack XXX */
-			tsleep(xfer, PRIBIO, "usbsyn", 0);
+			panic("usbd_transfer: not done");
+		tsleep(xfer, PRIBIO, "usbsyn", 0);
 	}
 	splx(s);
 	return (xfer->status);
@@ -324,9 +364,13 @@ usbd_alloc_buffer(usbd_xfer_handle xfer, u_int32_t size)
 	struct usbd_bus *bus = xfer->device->bus;
 	usbd_status err;
 
+#ifdef DIAGNOSTIC
+	if (xfer->rqflags & (URQ_DEV_DMABUF | URQ_AUTO_DMABUF))
+		printf("usbd_alloc_buffer: xfer already has a buffer\n");
+#endif
 	err = bus->methods->allocm(bus, &xfer->dmabuf, size);
 	if (err)
-		return (0);
+		return (NULL);
 	xfer->rqflags |= URQ_DEV_DMABUF;
 	return (KERNADDR(&xfer->dmabuf, 0));
 }
@@ -352,7 +396,7 @@ usbd_get_buffer(usbd_xfer_handle xfer)
 	return (KERNADDR(&xfer->dmabuf, 0));
 }
 
-usbd_xfer_handle 
+usbd_xfer_handle
 usbd_alloc_xfer(usbd_device_handle dev)
 {
 	usbd_xfer_handle xfer;
@@ -361,16 +405,23 @@ usbd_alloc_xfer(usbd_device_handle dev)
 	if (xfer == NULL)
 		return (NULL);
 	xfer->device = dev;
+	usb_callout_init(xfer->timeout_handle);
 	DPRINTFN(5,("usbd_alloc_xfer() = %p\n", xfer));
 	return (xfer);
 }
 
-usbd_status 
+usbd_status
 usbd_free_xfer(usbd_xfer_handle xfer)
 {
 	DPRINTFN(5,("usbd_free_xfer: %p\n", xfer));
 	if (xfer->rqflags & (URQ_DEV_DMABUF | URQ_AUTO_DMABUF))
 		usbd_free_buffer(xfer);
+#if defined(__NetBSD__) && defined(DIAGNOSTIC)
+	if (callout_pending(&xfer->timeout_handle)) {
+		callout_stop(&xfer->timeout_handle);
+		printf("usbd_free_xfer: timout_handle pending");
+	}
+#endif
 	xfer->device->bus->methods->freex(xfer->device->bus, xfer);
 	return (USBD_NORMAL_COMPLETION);
 }
@@ -486,7 +537,7 @@ usbd_interface2endpoint_descriptor(usbd_interface_handle iface, u_int8_t index)
 	return (iface->endpoints[index].edesc);
 }
 
-usbd_status 
+usbd_status
 usbd_abort_pipe(usbd_pipe_handle pipe)
 {
 	usbd_status err;
@@ -503,8 +554,8 @@ usbd_abort_pipe(usbd_pipe_handle pipe)
 	splx(s);
 	return (err);
 }
-	
-usbd_status 
+
+usbd_status
 usbd_clear_endpoint_stall(usbd_pipe_handle pipe)
 {
 	usbd_device_handle dev = pipe->device;
@@ -513,8 +564,8 @@ usbd_clear_endpoint_stall(usbd_pipe_handle pipe)
 
 	DPRINTFN(8, ("usbd_clear_endpoint_stall\n"));
 
-	/* 
-	 * Clearing en endpoint stall resets the enpoint toggle, so
+	/*
+	 * Clearing en endpoint stall resets the endpoint toggle, so
 	 * do the same to the HC toggle.
 	 */
 	pipe->methods->cleartoggle(pipe);
@@ -535,7 +586,7 @@ XXX should we do this?
 	return (err);
 }
 
-usbd_status 
+usbd_status
 usbd_clear_endpoint_stall_async(usbd_pipe_handle pipe)
 {
 	usbd_device_handle dev = pipe->device;
@@ -559,15 +610,20 @@ usbd_clear_endpoint_toggle(usbd_pipe_handle pipe)
 	pipe->methods->cleartoggle(pipe);
 }
 
-
-usbd_status 
+usbd_status
 usbd_endpoint_count(usbd_interface_handle iface, u_int8_t *count)
 {
+#ifdef DIAGNOSTIC
+	if (iface == NULL || iface->idesc == NULL) {
+		printf("usbd_endpoint_count: NULL pointer\n");
+		return (USBD_INVAL);
+	}
+#endif
 	*count = iface->idesc->bNumEndpoints;
 	return (USBD_NORMAL_COMPLETION);
 }
 
-usbd_status 
+usbd_status
 usbd_interface_count(usbd_device_handle dev, u_int8_t *count)
 {
 	if (dev->cdesc == NULL)
@@ -576,15 +632,14 @@ usbd_interface_count(usbd_device_handle dev, u_int8_t *count)
 	return (USBD_NORMAL_COMPLETION);
 }
 
-usbd_status 
+void
 usbd_interface2device_handle(usbd_interface_handle iface,
 			     usbd_device_handle *dev)
 {
 	*dev = iface->device;
-	return (USBD_NORMAL_COMPLETION);
 }
 
-usbd_status 
+usbd_status
 usbd_device2interface_handle(usbd_device_handle dev,
 			     u_int8_t ifaceno, usbd_interface_handle *iface)
 {
@@ -608,18 +663,26 @@ usbd_set_interface(usbd_interface_handle iface, int altidx)
 {
 	usb_device_request_t req;
 	usbd_status err;
+	void *endpoints;
 
 	if (LIST_FIRST(&iface->pipes) != 0)
 		return (USBD_IN_USE);
 
-	if (iface->endpoints)
-		free(iface->endpoints, M_USB);
-	iface->endpoints = 0;
-	iface->idesc = 0;
-
+	endpoints = iface->endpoints;
 	err = usbd_fill_iface_data(iface->device, iface->index, altidx);
 	if (err)
 		return (err);
+
+	/* new setting works, we can free old endpoints */
+	if (endpoints != NULL)
+		free(endpoints, M_USB);
+
+#ifdef DIAGNOSTIC
+	if (iface->idesc == NULL) {
+		printf("usbd_set_interface: NULL pointer\n");
+		return (USBD_INVAL);
+	}
+#endif
 
 	req.bmRequestType = UT_WRITE_INTERFACE;
 	req.bRequest = UR_SET_INTERFACE;
@@ -639,7 +702,7 @@ usbd_get_no_alts(usb_config_descriptor_t *cdesc, int ifaceno)
 
 	for (n = 0; p < end; p += d->bLength) {
 		d = (usb_interface_descriptor_t *)p;
-		if (p + d->bLength <= end && 
+		if (p + d->bLength <= end &&
 		    d->bDescriptorType == UDESC_INTERFACE &&
 		    d->bInterfaceNumber == ifaceno)
 			n++;
@@ -682,13 +745,15 @@ usbd_ar_pipe(usbd_pipe_handle pipe)
 		usbd_dump_queue(pipe);
 #endif
 	pipe->repeat = 0;
+	pipe->aborting = 1;
 	while ((xfer = SIMPLEQ_FIRST(&pipe->queue)) != NULL) {
-		DPRINTFN(2,("usbd_ar_pipe: pipe=%p xfer=%p (methods=%p)\n", 
+		DPRINTFN(2,("usbd_ar_pipe: pipe=%p xfer=%p (methods=%p)\n",
 			    pipe, xfer, pipe->methods));
 		/* Make the HC abort it (and invoke the callback). */
 		pipe->methods->abort(xfer);
 		/* XXX only for non-0 usbd_clear_endpoint_stall(pipe); */
 	}
+	pipe->aborting = 0;
 	return (USBD_NORMAL_COMPLETION);
 }
 
@@ -705,6 +770,13 @@ usb_transfer_complete(usbd_xfer_handle xfer)
 
 	DPRINTFN(5, ("usb_transfer_complete: pipe=%p xfer=%p status=%d "
 		     "actlen=%d\n", pipe, xfer, xfer->status, xfer->actlen));
+#ifdef DIAGNOSTIC
+	if (xfer->busy_free != XFER_ONQU) {
+		printf("usb_transfer_complete: xfer=%p not busy 0x%08x\n",
+		       xfer, xfer->busy_free);
+		return;
+	}
+#endif
 
 #ifdef DIAGNOSTIC
 	if (pipe == NULL) {
@@ -738,18 +810,18 @@ usb_transfer_complete(usbd_xfer_handle xfer)
 		}
 	}
 
-	if (pipe->methods->done != NULL)
-		pipe->methods->done(xfer);
-
 	if (!repeat) {
 		/* Remove request from queue. */
 #ifdef DIAGNOSTIC
 		if (xfer != SIMPLEQ_FIRST(&pipe->queue))
 			printf("usb_transfer_complete: bad dequeue %p != %p\n",
 			       xfer, SIMPLEQ_FIRST(&pipe->queue));
+		xfer->busy_free = XFER_BUSY;
 #endif
-		SIMPLEQ_REMOVE_HEAD(&pipe->queue, xfer, next);
+		SIMPLEQ_REMOVE_HEAD(&pipe->queue, next);
 	}
+	DPRINTFN(5,("usb_transfer_complete: repeat=%d new head=%p\n",
+		    repeat, SIMPLEQ_FIRST(&pipe->queue)));
 
 	/* Count completed transfers. */
 	++pipe->device->bus->stats.uds_requests
@@ -766,14 +838,23 @@ usb_transfer_complete(usbd_xfer_handle xfer)
 	if (xfer->callback)
 		xfer->callback(xfer, xfer->priv, xfer->status);
 
+#ifdef DIAGNOSTIC
+	if (pipe->methods->done != NULL)
+		pipe->methods->done(xfer);
+	else
+		printf("usb_transfer_complete: pipe->methods->done == NULL\n");
+#else
+	pipe->methods->done(xfer);
+#endif
+
 	if ((xfer->flags & USBD_SYNCHRONOUS) && !polling)
 		wakeup(xfer);
 
 	if (!repeat) {
 		/* XXX should we stop the queue on all errors? */
-		if ((xfer->status == USBD_CANCELLED
-		     || xfer->status == USBD_TIMEOUT)
-		    && pipe->iface != NULL)		/* not control pipe */
+		if ((xfer->status == USBD_CANCELLED ||
+		     xfer->status == USBD_TIMEOUT) &&
+		    pipe->iface != NULL)		/* not control pipe */
 			pipe->running = 0;
 		else
 			usbd_start_next(pipe);
@@ -787,8 +868,16 @@ usb_insert_transfer(usbd_xfer_handle xfer)
 	usbd_status err;
 	int s;
 
-	DPRINTFN(5,("usb_insert_transfer: pipe=%p running=%d timeout=%d\n", 
+	DPRINTFN(5,("usb_insert_transfer: pipe=%p running=%d timeout=%d\n",
 		    pipe, pipe->running, xfer->timeout));
+#ifdef DIAGNOSTIC
+	if (xfer->busy_free != XFER_BUSY) {
+		printf("usb_insert_transfer: xfer=%p not busy 0x%08x\n",
+		       xfer, xfer->busy_free);
+		return (USBD_INVAL);
+	}
+	xfer->busy_free = XFER_ONQU;
+#endif
 	s = splusb();
 	SIMPLEQ_INSERT_TAIL(&pipe->queue, xfer, next);
 	if (pipe->running)
@@ -839,19 +928,29 @@ usbd_start_next(usbd_pipe_handle pipe)
 usbd_status
 usbd_do_request(usbd_device_handle dev, usb_device_request_t *req, void *data)
 {
-	return (usbd_do_request_flags(dev, req, data, 0, 0));
+	return (usbd_do_request_flags(dev, req, data, 0, 0,
+				      USBD_DEFAULT_TIMEOUT));
 }
 
 usbd_status
-usbd_do_request_flags(usbd_device_handle dev,
-	usb_device_request_t *req, void *data, u_int16_t flags, int *actlen)
+usbd_do_request_flags(usbd_device_handle dev, usb_device_request_t *req,
+		      void *data, u_int16_t flags, int *actlen, u_int32_t timo)
+{
+	return (usbd_do_request_flags_pipe(dev, dev->default_pipe, req,
+					   data, flags, actlen, timo));
+}
+
+usbd_status
+usbd_do_request_flags_pipe(usbd_device_handle dev, usbd_pipe_handle pipe,
+	usb_device_request_t *req, void *data, u_int16_t flags, int *actlen,
+	u_int32_t timeout)
 {
 	usbd_xfer_handle xfer;
 	usbd_status err;
 
 #ifdef DIAGNOSTIC
 #if defined(__i386__) && defined(__FreeBSD__)
-	KASSERT(intr_nesting_level == 0,
+	KASSERT(curthread->td_intr_nesting_level == 0,
 	       	("usbd_do_request: in interrupt context"));
 #endif
 	if (dev->bus->intr_context) {
@@ -863,8 +962,9 @@ usbd_do_request_flags(usbd_device_handle dev,
 	xfer = usbd_alloc_xfer(dev);
 	if (xfer == NULL)
 		return (USBD_NOMEM);
-	usbd_setup_default_xfer(xfer, dev, 0, USBD_DEFAULT_TIMEOUT, req,
-				   data, UGETW(req->wLength), flags, 0);
+	usbd_setup_default_xfer(xfer, dev, 0, timeout, req,
+				data, UGETW(req->wLength), flags, 0);
+	xfer->pipe = pipe;
 	err = usbd_sync_transfer(xfer);
 #if defined(USB_DEBUG) || defined(DIAGNOSTIC)
 	if (xfer->actlen > xfer->length)
@@ -872,14 +972,14 @@ usbd_do_request_flags(usbd_device_handle dev,
 			 "%02x val=%d index=%d rlen=%d length=%d actlen=%d\n",
 			 dev->address, xfer->request.bmRequestType,
 			 xfer->request.bRequest, UGETW(xfer->request.wValue),
-			 UGETW(xfer->request.wIndex), 
-			 UGETW(xfer->request.wLength), 
+			 UGETW(xfer->request.wIndex),
+			 UGETW(xfer->request.wLength),
 			 xfer->length, xfer->actlen));
 #endif
 	if (actlen != NULL)
 		*actlen = xfer->actlen;
 	if (err == USBD_STALLED) {
-		/* 
+		/*
 		 * The control endpoint has stalled.  Control endpoints
 		 * should not halt, but some may do so anyway so clear
 		 * any halt condition.
@@ -929,11 +1029,11 @@ usbd_do_request_async_cb(usbd_xfer_handle xfer, usbd_private_handle priv,
 	if (xfer->actlen > xfer->length)
 		DPRINTF(("usbd_do_request: overrun addr=%d type=0x%02x req=0x"
 			 "%02x val=%d index=%d rlen=%d length=%d actlen=%d\n",
-			 xfer->pipe->device->address, 
+			 xfer->pipe->device->address,
 			 xfer->request.bmRequestType,
 			 xfer->request.bRequest, UGETW(xfer->request.wValue),
-			 UGETW(xfer->request.wIndex), 
-			 UGETW(xfer->request.wLength), 
+			 UGETW(xfer->request.wIndex),
+			 UGETW(xfer->request.wLength),
 			 xfer->length, xfer->actlen));
 #endif
 	usbd_free_xfer(xfer);
@@ -963,9 +1063,15 @@ usbd_do_request_async(usbd_device_handle dev, usb_device_request_t *req,
 	return (USBD_NORMAL_COMPLETION);
 }
 
-struct usbd_quirks *
+const struct usbd_quirks *
 usbd_get_quirks(usbd_device_handle dev)
 {
+#ifdef DIAGNOSTIC
+	if (dev == NULL) {
+		printf("usbd_get_quirks: dev == NULL\n");
+		return 0;
+	}
+#endif
 	return (dev->quirks);
 }
 
@@ -981,12 +1087,15 @@ usbd_dopoll(usbd_interface_handle iface)
 }
 
 void
-usbd_set_polling(usbd_interface_handle iface, int on)
+usbd_set_polling(usbd_device_handle dev, int on)
 {
 	if (on)
-		iface->device->bus->use_polling++;
+		dev->bus->use_polling++;
 	else
-		iface->device->bus->use_polling--;
+		dev->bus->use_polling--;
+	/* When polling we need to make sure there is nothing pending to do. */
+	if (dev->bus->use_polling)
+		dev->bus->methods->soft_intr(dev->bus);
 }
 
 
@@ -1005,6 +1114,23 @@ usbd_get_endpoint_descriptor(usbd_interface_handle iface, u_int8_t address)
 }
 
 /*
+ * usbd_ratecheck() can limit the number of error messages that occurs.
+ * When a device is unplugged it may take up to 0.25s for the hub driver
+ * to notice it.  If the driver continuosly tries to do I/O operations
+ * this can generate a large number of messages.
+ */
+int
+usbd_ratecheck(struct timeval *last)
+{
+#if 0
+	static struct timeval errinterval = { 0, 250000 }; /* 0.25 s*/
+
+	return (ratecheck(last, &errinterval));
+#endif
+	return (1);
+}
+
+/*
  * Search for a vendor/product pair in an array.  The item size is
  * given as an argument.
  */
@@ -1013,7 +1139,9 @@ usb_match_device(const struct usb_devno *tbl, u_int nentries, u_int sz,
 		 u_int16_t vendor, u_int16_t product)
 {
 	while (nentries-- > 0) {
-		if (tbl->ud_vendor == vendor && tbl->ud_product == product)
+		u_int16_t tproduct = tbl->ud_product;
+		if (tbl->ud_vendor == vendor &&
+		    (tproduct == product || tproduct == USB_PRODUCT_ANY))
 			return (tbl);
 		tbl = (const struct usb_devno *)((const char *)tbl + sz);
 	}
@@ -1025,7 +1153,7 @@ int
 usbd_driver_load(module_t mod, int what, void *arg)
 {
 	/* XXX should implement something like a function that removes all generic devices */
- 
+
  	return (0);
 }
 

@@ -1,10 +1,10 @@
-#       $FreeBSD$ 
+# $FreeBSD$ 
 
-MAINTAINER	 = n_hibma@freebsd.org
+MAINTAINER=	n_hibma@freebsd.org
 
-.PATH:  	 ${.CURDIR}/../../dev/usb
-KMOD		 = ugen
-SRCS		 = bus_if.h device_if.h vnode_if.h opt_usb.h ugen.c
-NOMAN		 =
+.PATH: ${.CURDIR}/../../dev/usb
+
+KMOD=	ugen
+SRCS=	bus_if.h device_if.h vnode_if.h opt_usb.h ugen.c
 
 .include <bsd.kmod.mk>

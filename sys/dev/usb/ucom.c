@@ -1,5 +1,4 @@
-/*	$NetBSD: ucom.c,v 1.39 2001/08/16 22:31:24 augustss Exp $	*/
-/*	$FreeBSD$	*/
+/*	$NetBSD: ucom.c,v 1.40 2001/11/13 06:24:54 lukem Exp $	*/
 
 /*-
  * Copyright (c) 2001-2002, Shunsuke Akiyama <akiyama@jp.FreeBSD.org>.
@@ -26,6 +25,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Copyright (c) 1998, 2000 The NetBSD Foundation, Inc.
@@ -128,23 +130,19 @@ Static d_ioctl_t ucomioctl;
 #define UCOM_CDEV_MAJOR  138
 
 static struct cdevsw ucom_cdevsw = {
-	/* open */      ucomopen,
-	/* close */     ucomclose,
-	/* read */      ucomread,
-	/* write */     ucomwrite,
-	/* ioctl */     ucomioctl,
-	/* poll */      ttypoll,
-	/* mmap */      nommap,
-	/* strategy */  nostrategy,
-	/* name */      "ucom",
-	/* maj */       UCOM_CDEV_MAJOR,
-	/* dump */      nodump,
-	/* psize */     nopsize,
-	/* flags */     D_TTY | D_KQFILTER,
+	.d_open =	ucomopen,
+	.d_close =	ucomclose,
+	.d_read =	ucomread,
+	.d_write =	ucomwrite,
+	.d_ioctl =	ucomioctl,
+	.d_poll =	ttypoll,
+	.d_name =	"ucom",
+	.d_maj =	UCOM_CDEV_MAJOR,
+	.d_flags =	D_TTY,
 #if __FreeBSD_version < 500014
-	/* bmaj */	-1,
+	.d_bmaj =	-1,
 #endif
-	/* kqfilter */	ttykqfilter,
+	.d_kqfilter =	ttykqfilter,
 };
 
 Static void ucom_cleanup(struct ucom_softc *);
@@ -344,7 +342,7 @@ ucomopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 				     &sc->sc_bulkin_pipe);
 		if (err) {
 			printf("%s: open bulk in error (addr %d): %s\n",
-			       USBDEVNAME(sc->sc_dev), sc->sc_bulkin_no, 
+			       USBDEVNAME(sc->sc_dev), sc->sc_bulkin_no,
 			       usbd_errstr(err));
 			error = EIO;
 			goto fail_0;
@@ -741,7 +739,7 @@ ucom_dtr(struct ucom_softc *sc, int onoff)
 
 	if (sc->sc_callback->ucom_set == NULL)
 		return;
-	sc->sc_callback->ucom_set(sc->sc_parent, sc->sc_portno, 
+	sc->sc_callback->ucom_set(sc->sc_parent, sc->sc_portno,
 				  UCOM_SET_DTR, onoff);
 }
 
@@ -752,7 +750,7 @@ ucom_rts(struct ucom_softc *sc, int onoff)
 
 	if (sc->sc_callback->ucom_set == NULL)
 		return;
-	sc->sc_callback->ucom_set(sc->sc_parent, sc->sc_portno, 
+	sc->sc_callback->ucom_set(sc->sc_parent, sc->sc_portno,
 				  UCOM_SET_RTS, onoff);
 }
 
@@ -926,7 +924,7 @@ ucomstart(struct tty *tp)
 		memcpy(sc->sc_obuf, data, cnt);
 
 	DPRINTF(("ucomstart: %d chars\n", cnt));
-	usbd_setup_xfer(sc->sc_oxfer, sc->sc_bulkout_pipe, 
+	usbd_setup_xfer(sc->sc_oxfer, sc->sc_bulkout_pipe,
 			(usbd_private_handle)sc, sc->sc_obuf, cnt,
 			USBD_NO_COPY, USBD_NO_TIMEOUT, ucomwritecb);
 	/* What can we do on error? */
@@ -1032,8 +1030,8 @@ ucomstartread(struct ucom_softc *sc)
 	if (sc->sc_bulkin_pipe == NULL)
 		return (USBD_NORMAL_COMPLETION);
 
-	usbd_setup_xfer(sc->sc_ixfer, sc->sc_bulkin_pipe, 
-			(usbd_private_handle)sc, 
+	usbd_setup_xfer(sc->sc_ixfer, sc->sc_bulkin_pipe,
+			(usbd_private_handle)sc,
 			sc->sc_ibuf, sc->sc_ibufsize,
 			USBD_SHORT_XFER_OK | USBD_NO_COPY,
 			USBD_NO_TIMEOUT, ucomreadcb);

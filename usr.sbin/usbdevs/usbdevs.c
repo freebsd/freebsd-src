@@ -64,7 +64,7 @@ int main(int, char **);
 void
 usage()
 {
-	fprintf(stderr, "Usage: %s [-a addr] [-d] [-f dev] [-v]\n",
+	fprintf(stderr, "usage: %s [-a addr] [-d] [-f dev] [-v]\n",
 	    getprogname());
 	exit(1);
 }
@@ -88,8 +88,12 @@ usbdev(int f, int a, int rec)
 	printf("addr %d: ", a);
 	done[a] = 1;
 	if (verbose) {
-		if (di.udi_lowspeed)
-			printf("low speed, ");
+		switch (di.udi_speed) {
+		case USB_SPEED_LOW:  printf("low speed, "); break;
+		case USB_SPEED_FULL: printf("full speed, "); break;
+		case USB_SPEED_HIGH: printf("high speed, "); break;
+		default: break;
+		}
 		if (di.udi_power)
 			printf("power %d mA, ", di.udi_power);
 		else

@@ -104,9 +104,12 @@ and
 should be used.
 All I/O operations on a bulk endpoint are unbuffered.
 .Pp
-The interrupt transfer mode can only be in.
-To perform input from an interrupt endpoint
+The interrupt transfer mode can be in or out depending on the
+endpoint.
+To perform I/O on an interrupt endpoint
 .Xr read 2
+and
+.Xr write 2
 should be used.
 A moderate amount of buffering is done
 by the driver.
@@ -142,27 +145,27 @@ is the sole open endpoint.
 Get the alternative setting number for the interface with the given
 index.
 The
-.Va config_index
+.Va uai_config_index
 is ignored in this call.
 .Bd -literal
 struct usb_alt_interface {
-	int	config_index;
-	int	interface_index;
-	int	alt_no;
+	int	uai_config_index;
+	int	uai_interface_index;
+	int	uai_alt_no;
 };
 .Ed
 .It Dv USB_SET_ALTINTERFACE Pq Vt "struct usb_alt_interface"
 Set the alternative setting to the given number in the interface with the
 given index.
 The
-.Va config_index
+.Va uai_config_index
 is ignored in this call.
 .Pp
 This operation can only be performed when no endpoints for the interface
 are open.
 .It Dv USB_GET_NO_ALT Pq Vt "struct usb_alt_interface"
 Return the number of different alternate settings in the
-.Va alt_no
+.Va uai_alt_no
 field.
 .It Dv USB_GET_DEVICE_DESC Pq Vt usb_device_descriptor_t
 Return the device descriptor.
@@ -172,8 +175,8 @@ For convenience the current configuration can be specified by
 .Dv USB_CURRENT_CONFIG_INDEX .
 .Bd -literal
 struct usb_config_desc {
-	int	config_index;
-	usb_config_descriptor_t desc;
+	int	ucd_config_index;
+	usb_config_descriptor_t ucd_desc;
 };
 .Ed
 .It Dv USB_GET_INTERFACE_DESC Pq Vt "struct usb_interface_desc"
@@ -183,10 +186,10 @@ For convenience the current alternative can be specified by
 .Dv USB_CURRENT_ALT_INDEX .
 .Bd -literal
 struct usb_interface_desc {
-	int	config_index;
-	int	interface_index;
-	int	alt_index;
-	usb_interface_descriptor_t desc;
+	int	uid_config_index;
+	int	uid_interface_index;
+	int	uid_alt_index;
+	usb_interface_descriptor_t uid_desc;
 };
 .Ed
 .It Dv USB_GET_ENDPOINT_DESC Pq Vt "struct usb_endpoint_desc"
@@ -195,26 +198,26 @@ configuration index, interface index, alternative index, and
 endpoint index.
 .Bd -literal
 struct usb_endpoint_desc {
-	int	config_index;
-	int	interface_index;
-	int	alt_index;
-	int	endpoint_index;
-	usb_endpoint_descriptor_t desc;
+	int	ued_config_index;
+	int	ued_interface_index;
+	int	ued_alt_index;
+	int	ued_endpoint_index;
+	usb_endpoint_descriptor_t ued_desc;
 };
 .Ed
 .It Dv USB_GET_FULL_DESC Pq Vt "struct usb_full_desc"
 Return all the descriptors for the given configuration.
 .Bd -literal
 struct usb_full_desc {
-	int	config_index;
-	u_int	size;
-	u_char	*data;
+	int	ufd_config_index;
+	u_int	ufd_size;
+	u_char	*ufd_data;
 };
 .Ed
 The
-.Va data
+.Va ufd_data
 field should point to a memory area of the size given in the
-.Va size
+.Va ufd_size
 field.
 The proper size can be determined by first issuing a
 .Dv USB_GET_CONFIG_DESC
@@ -226,34 +229,34 @@ Get a string descriptor for the given language ID and
 string index.
 .Bd -literal
 struct usb_string_desc {
-	int	string_index;
-	int	language_id;
-	usb_string_descriptor_t desc;
+	int	usd_string_index;
+	int	usd_language_id;
+	usb_string_descriptor_t usd_desc;
 };
 .Ed
 .It Dv USB_DO_REQUEST Pq Vt "struct usb_ctl_request"
 Send a USB request to the device on the control endpoint.
 Any data sent to/from the device is located at
-.Va data .
+.Va ucr_data .
 The size of the transferred data is determined from the
-.Va request .
+.Va ucr_request .
 The
-.Va addr
+.Va ucr_addr
 field is ignored in this call.
 The
-.Va flags
+.Va ucr_flags
 field can be used to flag that the request is allowed to
 be shorter than the requested size, and the
-.Va actlen
+.Va ucr_actlen
 will contain the actual size on completion.
 .Bd -literal
 struct usb_ctl_request {
-	int	addr;
-	usb_device_request_t request;
-	void	*data;
-	int	flags;
+	int	ucr_addr;
+	usb_device_request_t ucr_request;
+	void	*ucr_data;
+	int	ucr_flags;
 #define USBD_SHORT_XFER_OK	0x04	/* allow short reads */
-	int	actlen;		/* actual length transferred */
+	int	ucr_actlen;		/* actual length transferred */
 };
 .Ed
 This is a dangerous operation in that it can perform arbitrary operations

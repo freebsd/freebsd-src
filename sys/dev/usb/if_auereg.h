@@ -46,20 +46,11 @@
  * the RX case, the data includes an optional RX status word.
  */
 
-#define AUE_VENDORID_ADMTEK	0x07A6
-#define AUE_DEVICEID_PEGASUS	0x0986
-
-#define AUE_VENDORID_BILLIONTON	0x08DD
-#define AUE_DEVICEID_USB100	0x0986
-
-#define AUE_VENDORID_MELCO	0x0411
-#define AUE_DEVICEID_LUATX	0x0001
-
-
 #define AUE_UR_READREG		0xF0
 #define AUE_UR_WRITEREG		0xF1
 
 #define AUE_CONFIG_NO		1
+#define AUE_IFACE_IDX		0
 
 /*
  * Note that while the ADMtek technically has four
@@ -205,15 +196,6 @@ struct aue_rxpkt {
 #define AUE_RXSTAT_DRIBBLE	0x10
 #define AUE_RXSTAT_MASK		0x1E
 
-struct aue_type {
-	u_int16_t		aue_vid;
-	u_int16_t		aue_did;
-	u_int16_t		aue_flags;
-#define LSYS	0x0001			/* use Linksys reset */
-#define PNA	0x0002			/* has Home PNA */
-#define PII	0x0004			/* Pegasus II chip */
-};
-
 #define AUE_TX_LIST_CNT		1
 #define AUE_RX_LIST_CNT		1
 
@@ -240,23 +222,43 @@ struct aue_cdata {
 #define AUE_INC(x, y)		(x) = (x + 1) % y
 
 struct aue_softc {
+#if defined(__FreeBSD__)
+#define GET_MII(sc) (device_get_softc((sc)->aue_miibus))
+#elif defined(__NetBSD__)
+#define GET_MII(sc) (&(sc)->aue_mii)
+#elif defined(__OpenBSD__)
+#define GET_MII(sc) (&(sc)->aue_mii)
+#endif
 	struct arpcom		arpcom;
 	device_t		aue_miibus;
 	usbd_device_handle	aue_udev;
 	usbd_interface_handle	aue_iface;
-	struct aue_type		*aue_info;
+	u_int16_t		aue_vendor;
+	u_int16_t		aue_product;
 	int			aue_ed[AUE_ENDPT_MAX];
 	usbd_pipe_handle	aue_ep[AUE_ENDPT_MAX];
 	int			aue_unit;
 	u_int8_t		aue_link;
-	u_int8_t		aue_gone;
 	int			aue_if_flags;
 	struct aue_cdata	aue_cdata;
 	struct callout_handle	aue_stat_ch;
+#if __FreeBSD_version >= 500000
+	struct mtx		aue_mtx;
+#endif
+	u_int16_t		aue_flags;
+	char			aue_dying;
+	struct timeval		aue_rx_notice;
 };
 
+#if 0
+#define	AUE_LOCK(_sc)		mtx_lock(&(_sc)->aue_mtx)
+#define	AUE_UNLOCK(_sc)		mtx_unlock(&(_sc)->aue_mtx)
+#else
+#define	AUE_LOCK(_sc)
+#define	AUE_UNLOCK(_sc)
+#endif
+
 #define AUE_TIMEOUT		1000
-#define ETHER_ALIGN		2
 #define AUE_BUFSZ		1536
 #define AUE_MIN_FRAMELEN	60
 #define AUE_INTR_INTERVAL	100 /* ms */
