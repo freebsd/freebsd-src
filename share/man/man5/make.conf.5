@@ -352,6 +352,14 @@ port(s).
 .Pq Vt bool
 Set this if you wish to use the k5su utility.  Otherwise, it will be
 installed without the set-user-ID bit set.
+.It Va ENABLE_SUID_NEWGRP
+.Pq Vt bool
+Set this to install
+.Xr newgrp 1
+with the set-user-ID bit set.
+Otherwise,
+.Xr newgrp 1
+will not be able to change users' groups.
 .It Va MODULES_WITH_WORLD
 .Pq Vt bool
 Set to build modules with the system instead of the kernel.
