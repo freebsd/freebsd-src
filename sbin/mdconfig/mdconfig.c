@@ -178,6 +178,8 @@ main(int argc, char **argv)
 			mdio.md_mediasize = (off_t)strtoumax(optarg, &p, 0);
 			if (p == NULL || *p == '\0')
 				mdio.md_mediasize *= DEV_BSIZE;
+			else if (*p == 'b' || *p == 'B')
+				; /* do nothing */
 			else if (*p == 'k' || *p == 'K')
 				mdio.md_mediasize <<= 10;
 			else if (*p == 'm' || *p == 'M')
