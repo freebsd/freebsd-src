@@ -363,6 +363,7 @@ vendor ACCTON		0x083a	Accton Technology
 vendor DIAMOND		0x0841	Diamond
 vendor NETGEAR		0x0846	BayNETGEAR
 vendor ACTIVEWIRE	0x0854	ActiveWire
+vendor BBELECTRONICS	0x0856	B&B Electronics
 vendor PORTGEAR		0x085a	PortGear
 vendor SYSTEMTALKS	0x086e	System TALKS, Inc.
 vendor METRICOM		0x0870	Metricom
@@ -582,6 +583,9 @@ product ATMEL AT76C505A		0x7614	AT76c505a Wireless adapter
 
 /* Avision products */
 product AVISION 1200U		0x0268	1200U scanner
+
+/* B&B Electronics products */
+product BBELECTRONICS USOTL4	0xAC01	uLinks Isolated RS-422/485 to USB adapter
 
 /* Belkin products */
 /*product BELKIN F5U111		0x????	F5U111 Ethernet adapter*/
