@@ -41,8 +41,15 @@ driver provides support for the
 .Tn Arcnet
 .Tn ISA
 network adapters.
+.Pp
+This driver also has quirks preset in the
+.Xr device.hints 5
+file for card detection.
 .Sh HARDWARE
-This driver supports the following card models:
+The
+.Nm
+driver supports the following
+card models:
 .Pp
 .Bl -bullet -compact
 .It
@@ -52,12 +59,6 @@ SMC90c56
 .It
 SMC90c66 in '56 compatibility mode.
 .El
-.Pp
-The
-.Nm
-driver also has quirks preset in the
-.Xr device.hints 5
-file for card detection.
 .Sh IMPLEMENTATION NOTES
 When the
 .Va NOARP
