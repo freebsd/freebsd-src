@@ -50,6 +50,7 @@ struct sockaddr;
 struct socket;
 struct sadb_msg;
 struct sadb_x_policy;
+union sockaddr_union;
 
 extern struct secpolicy *key_allocsp(u_int16_t, struct secpolicyindex *,
 	u_int);
@@ -77,6 +78,15 @@ extern int key_checktunnelsanity(struct secasvar *, u_int, caddr_t, caddr_t);
 extern void key_sa_recordxfer(struct secasvar *, struct mbuf *);
 extern void key_sa_routechange(struct sockaddr *);
 extern void key_sa_stir_iv(struct secasvar *);
+
+/* to keep compatibility with FAST_IPSEC */
+#define	KEY_ALLOCSA(dst, proto, spi)	\
+	key_allocsa(((struct sockaddr *)(dst))->sa_family,\
+		    (caddr_t)&(((struct sockaddr_in *)(dst))->sin_addr),\
+		    (caddr_t)&(((struct sockaddr_in *)(dst))->sin_addr),\
+		    proto, spi)
+#define	KEY_FREESAV(psav)					\
+	key_freesav(*psav)
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_SECA);
