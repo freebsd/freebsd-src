@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.63.2.9 1997/09/16 10:12:53 jkh Exp $
+ * $Id: label.c,v 1.63.2.10 1997/09/20 02:49:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -79,9 +79,6 @@ static int here;
 
 /*** with this value we try to track the most recently added label ***/
 static int label_focus = 0, pslice_focus = 0;
-
-static int ChunkPartStartRow;
-static WINDOW *ChunkWin;
 
 static int diskLabel(char *str);
 static int diskLabelNonInteractive(char *str);
@@ -188,7 +185,6 @@ record_label_chunks(Device **devs)
     struct chunk *c1, *c2;
     Disk *d;
 
-    ChunkPartStartRow = CHUNK_SLICE_START_ROW + 3;
     j = p = 0;
     /* First buzz through and pick up the FreeBSD slices */
     for (i = 0; devs[i]; i++) {
@@ -204,7 +200,6 @@ record_label_chunks(Device **devs)
 		label_chunk_info[j].type = PART_SLICE;
 		label_chunk_info[j].c = c1;
 		++j;
-		++ChunkPartStartRow;
 	    }
 	}
     }
@@ -239,12 +234,6 @@ record_label_chunks(Device **devs)
     if (here >= j) {
 	here = j  ? j - 1 : 0;
     }
-    if (ChunkWin) {
-	wclear(ChunkWin);
-	wrefresh(ChunkWin);
-    }
-    else
-	ChunkWin = newwin(CHUNK_ROW_MAX - ChunkPartStartRow, 76, ChunkPartStartRow, 0);
 }
 
 /* A new partition entry */
@@ -386,6 +375,8 @@ print_label_chunks(void)
     int  i, j, srow, prow, pcol;
     int  sz;
     char clrmsg[80];
+    int ChunkPartStartRow;
+    WINDOW *ChunkWin;
 
     /********************************************************/
     /*** These values are for controling screen resources ***/
@@ -399,6 +390,23 @@ print_label_chunks(void)
     attrset(A_REVERSE);
     mvaddstr(0, 25, "FreeBSD Disklabel Editor");
     attrset(A_NORMAL);
+
+    /*** Count the number of parition slices ***/
+    pslice_count = 0;
+    for (i = 0; label_chunk_info[i].c ; i++) {
+        if (label_chunk_info[i].type == PART_SLICE)
+            ++pslice_count;
+    }
+    pslice_max = pslice_count;
+  
+    /*** 4 line max for partition slices ***/
+    if (pslice_max > PSLICE_SHOWABLE) {
+        pslice_max = PSLICE_SHOWABLE;
+    }
+    ChunkPartStartRow = CHUNK_SLICE_START_ROW + 3 + pslice_max;
+    
+    /*** View partition slices modulo pslice_max ***/
+    label_max = TOTAL_AVAIL_LINES - pslice_max;
 
     for (i = 0; i < 2; i++) {
 	mvaddstr(ChunkPartStartRow - 2, PART_PART_COL + (i * PART_OFF), "Part");
@@ -421,25 +429,15 @@ print_label_chunks(void)
     label_focus_found = 0;
     pslice_focus_found = 0;
    
-    /*** Count the number of parition slices ***/
-    pslice_count = 0;
-    for (i = 0; label_chunk_info[i].c ; i++) {
-        if (label_chunk_info[i].type == PART_SLICE)
-            ++pslice_count;
-    }
-    pslice_max = pslice_count;
-   
-    /*** 4 line max for partition slices ***/
-    if (pslice_max > PSLICE_SHOWABLE)
-        pslice_max = PSLICE_SHOWABLE;
-   
-    /*** View partition slices modulo pslice_max ***/
-    label_max = TOTAL_AVAIL_LINES - pslice_max;
-   
     label_count = 0;
     pslice_count = 0;
     mvprintw(CHUNK_SLICE_START_ROW - 1, 0, "          ");
     mvprintw(CHUNK_SLICE_START_ROW + pslice_max, 0, "          ");
+
+    ChunkWin = newwin(CHUNK_ROW_MAX - ChunkPartStartRow, 76, ChunkPartStartRow, 0);
+
+    wclear(ChunkWin);
+    /*** wrefresh(ChunkWin); ***/
 
     for (i = 0; label_chunk_info[i].c; i++) {
 	/* Is it a slice entry displayed at the top? */
@@ -477,7 +475,7 @@ print_label_chunks(void)
 	    attrset(A_NORMAL);
 	    clrtoeol();
 	    move(0, 0);
-	    refresh();
+	    /*** refresh(); ***/
             ++pslice_count;
 	}
 	/* Otherwise it's a DOS, swap or filesystem entry in the Chunk window */
@@ -534,10 +532,12 @@ print_label_chunks(void)
 	    memcpy(onestr + PART_SIZE_COL, num, strlen(num));
 	    memcpy(onestr + PART_NEWFS_COL, newfs, strlen(newfs));
 	    onestr[PART_NEWFS_COL + strlen(newfs)] = '\0';
+            if (i == label_focus) {
+                label_focus_found = -1;
+                wattrset(ChunkWin, A_BOLD);
+            }
 	    if (i == here)
 		wattrset(ChunkWin, ATTR_SELECTED);
-            if (i == label_focus)
-                label_focus_found = -1;
 
             /*** lazy man's way of padding this string ***/
             while (strlen( onestr ) < 37)
@@ -545,7 +545,6 @@ print_label_chunks(void)
 
 	    mvwaddstr(ChunkWin, prow, pcol, onestr);
 	    wattrset(ChunkWin, A_NORMAL);
-	    /*** wrefresh(ChunkWin); ***/
 	    move(0, 0);
 	    ++prow;
             ++label_count;
@@ -561,17 +560,16 @@ print_label_chunks(void)
         clrtoeol();
         ++pslice_count;
     }
-    if (ChunkWin) {
-        while (label_count < (2 * (label_max - 1))) {
-	    mvwaddstr(ChunkWin, prow++, pcol, clrmsg);
-	    ++label_count;
-	    if (prow == (label_max - 1)) {
-		prow = 0;
-		pcol = PART_OFF;
-	    }
-        }
-        wrefresh(ChunkWin);
+    while (label_count < (2 * (label_max - 1))) {
+        mvwaddstr(ChunkWin, prow++, pcol, clrmsg);
+	++label_count;
+	if (prow == (label_max - 1)) {
+	    prow = 0;
+	    pcol = PART_OFF;
+	}
     }
+    refresh();
+    wrefresh(ChunkWin);
 }
 
 static void
@@ -590,8 +588,9 @@ print_command_summary(void)
 static void
 clear_wins(void)
 {
+    extern void print_label_chunks();
     clear();
-    wclear(ChunkWin);
+    print_label_chunks();
 }
 
 static int
@@ -603,10 +602,10 @@ diskLabel(char *str)
     PartInfo *p, *oldp;
     PartType type;
     Device **devs;
-    int override_focus_adjust = 0;
 
     label_focus = 0;
     pslice_focus = 0;
+    here = 0;
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs) {
 	msgConfirm("No disks found!");
@@ -899,7 +898,6 @@ diskLabel(char *str)
                     for (i = 0; label_chunk_info[i].c; ++i) {
                     	if (label_chunk_info[i].c == tmp) {
 			    label_focus = i;
-			    override_focus_adjust = -1;
 			    break;
 			}
 		    }
@@ -1067,12 +1065,10 @@ diskLabel(char *str)
 	    msg = _msg;
 	    break;
 	}
-	if (!override_focus_adjust) {
-            if (label_chunk_info[here].type == PART_SLICE)
-                pslice_focus = here;
-            else
-                label_focus = here;
-	}
+        if (label_chunk_info[here].type == PART_SLICE)
+            pslice_focus = here;
+        else
+            label_focus = here;
     }
     return DITEM_SUCCESS | DITEM_RESTORE;
 }
