@@ -251,7 +251,7 @@ vx_pci_attach(
     ifp->if_unit = unit;
     ifp->if_name = "vx";
     ifp->if_mtu = ETHERMTU;
-    ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS;
+    ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX /*| IFF_NOTRAILERS*/;
     ifp->if_init = vxinit;
     ifp->if_output = ether_output;
     ifp->if_start = vxstart;
