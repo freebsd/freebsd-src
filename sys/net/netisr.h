@@ -61,6 +61,7 @@
 #define	NETISR_PPP	27		/* PPP soft interrupt */
 #define	NETISR_IPV6	28		/* same as AF_INET6 */
 #define	NETISR_NATM	29		/* same as AF_NATM */
+#define	NETISR_ATM	30		/* same as AF_ATM */
 #define	NETISR_NETGRAPH	31		/* same as AF_NETGRAPH */
 
 
