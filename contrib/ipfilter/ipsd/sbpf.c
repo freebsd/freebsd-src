@@ -1,8 +1,9 @@
 /*
- * (C)opyright October 1995 Darren Reed. (from tcplog)
+ * (C)opyright 1995-1997 Darren Reed. (from tcplog)
  *
- *   This software may be freely distributed as long as it is not altered
- * in any way and that this messagge always accompanies it.
+ * Redistribution and use in source and binary forms are permitted
+ * provided that this notice is preserved and due credit is given
+ * to the original author and the contributors.
  *
  */
 #include <stdio.h>

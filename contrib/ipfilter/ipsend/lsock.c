@@ -1,14 +1,13 @@
 /*
- * lsock.c (C) 1995 Darren Reed
+ * lsock.c (C) 1995-1997 Darren Reed
  *
- * The author provides this program as-is, with no gaurantee for its
- * suitability for any specific purpose.  The author takes no responsibility
- * for the misuse/abuse of this program and provides it for the sole purpose
- * of testing packet filter policies.  This file maybe distributed freely
- * providing it is not modified and that this notice remains in tact.
+ * Redistribution and use in source and binary forms are permitted
+ * provided that this notice is preserved and due credit is given
+ * to the original author and the contributors.
  */
-#if !defined(lint) && defined(LIBC_SCCS)
-static	char	sccsid[] = "@(#)lsock.c	1.2 1/11/96 (C)1995 Darren Reed";
+#if !defined(lint)
+static const char sccsid[] = "@(#)lsock.c	1.2 1/11/96 (C)1995 Darren Reed";
+static const char rcsid[] = "@(#)$Id: lsock.c,v 2.0.2.7 1997/09/28 07:13:32 darrenr Exp $";
 #endif
 #include <stdio.h>
 #include <unistd.h>
@@ -45,7 +44,7 @@ static	char	sccsid[] = "@(#)lsock.c	1.2 1/11/96 (C)1995 Darren Reed";
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <net/if.h>
-#if LINUX < 0103
+#if LINUX < 0200
 #include <net/inet/sock.h>
 #endif
 #include "ipsend.h"
@@ -188,12 +187,11 @@ struct	tcpiphdr *ti;
 	return i->u.socket_i.data;
 }
 
-int	do_socket(dev, mtu, ti, gwip, flags)
+int	do_socket(dev, mtu, ti, gwip)
 char	*dev;
 int	mtu;
 struct	tcpiphdr *ti;
 struct	in_addr	gwip;
-int	flags;
 {
 	struct	sockaddr_in	rsin, lsin;
 	struct	sock	*s, sk;
@@ -227,7 +225,7 @@ int	flags;
 	(void) getsockname(fd, (struct sockaddr *)&lsin, &len);
 	ti->ti_sport = lsin.sin_port;
 	printf("sport %d\n", ntohs(lsin.sin_port));
-	nfd = initdevice(dev, ntohs(lsin.sin_port));
+	nfd = initdevice(dev, ntohs(lsin.sin_port), 0);
 
 	if (!(s = find_tcp(fd, ti)))
 		return -1;
@@ -247,8 +245,9 @@ int	flags;
 	ti->ti_win = sk.window;
 	ti->ti_seq = sk.sent_seq - 1;
 	ti->ti_ack = sk.rcv_ack_seq;
+	ti->ti_flags = TH_SYN;
 
-	if (send_tcp(nfd, mtu, ti, gwip, TH_SYN) == -1)
+	if (send_tcp(nfd, mtu, (ip_t *)ti, gwip) == -1)
 		return -1;
 	(void)write(fd, "Hello World\n", 12);
 	sleep(2);

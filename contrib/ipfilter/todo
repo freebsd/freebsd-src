@@ -2,6 +2,7 @@
   fr_checkstate() - suspect this is not possible.
 
 * see if the Solaris2 and dynamic plumb/unplumb problem is solvable
+done ?
 
 time permitting:
 
@@ -12,15 +13,13 @@ time permitting:
 * modular application proxying
 on the way
 
-* invesitgate making logging better
-
-done ?
-* add reverse nat (similar to rdr) to map addresses going in both directions
-  (this might just be some changes to rdr).  In 1:1 relationships maybe make
-  it an option.
-
-* keep fragment information for NAT/state entries automatically.
-done
+* keep fragment information for state entries automatically.
+done for NAT
 
 * support traceroute through the firewall
+  (i.e. fix up ICMP errors coming back for NAT)
+done
 
+* allow multiple ip addresses in a source route list for ipsend
+
+* complete Linux port to implement all the IP Filter features

@@ -1,12 +1,9 @@
 /*
- * (C)opyright October 1992 Darren Reed. (from tcplog)
+ * (C)opyright 1992-1997 Darren Reed. (from tcplog)
  *
- *   This software may be freely distributed as long as it is not altered
- * in any way and that this messagge always accompanies it.
- *
- *   The author of this software makes no garuntee about the
- * performance of this package or its suitability to fulfill any purpose.
- *
+ * Redistribution and use in source and binary forms are permitted
+ * provided that this notice is preserved and due credit is given
+ * to the original author and the contributors.
  */
 
 #include <stdio.h>
@@ -30,8 +27,9 @@
 #include <netinet/tcp.h>
 #include "ipsend.h"
 
-#if !defined(lint) && defined(LIBC_SCCS)
-static	char	sccsid[] = "@(#)slinux.c	1.2 8/25/95";
+#if !defined(lint)
+static const char sccsid[] = "@(#)slinux.c	1.2 8/25/95";
+static const char rcsid[] = "@(#)$Id: slinux.c,v 2.0.2.6 1997/09/28 07:13:35 darrenr Exp $";
 #endif
 
 #define	CHUNKSIZE	8192
@@ -46,9 +44,9 @@ static	int	timeout;
 static	char	*eth_dev = NULL;
 
 
-int	initdevice(dev, sport, tout)
+int	initdevice(dev, sport, spare)
 char	*dev;
-int	sport, tout;
+int	sport, spare;
 {
 	int fd;
 

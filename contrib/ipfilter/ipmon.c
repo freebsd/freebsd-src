@@ -1,16 +1,21 @@
 /*
- * (C)opyright 1993-1996 by Darren Reed.
+ * Copyright (C) 1993-1997 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  */
+#if !defined(lint)
+static const char sccsid[] = "@(#)ipmon.c	1.21 6/5/96 (C)1993-1997 Darren Reed";
+static const char rcsid[] = "@(#)$Id: ipmon.c,v 2.0.2.29.2.3 1997/11/12 10:57:25 darrenr Exp $";
+#endif
 
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <sys/types.h>
 #if !defined(__SVR4) && !defined(__svr4__)
 #include <strings.h>
 #include <sys/dir.h>
@@ -18,10 +23,10 @@
 #include <sys/filio.h>
 #include <sys/byteorder.h>
 #endif
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/param.h>
 #include <sys/file.h>
+#include <sys/time.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <sys/socket.h>
@@ -36,26 +41,31 @@
 #include <resolv.h>
 
 #include <sys/uio.h>
-#include <sys/protosw.h>
-#include <sys/user.h>
+#ifndef linux
+# include <sys/protosw.h>
+# include <sys/user.h>
+# include <netinet/ip_var.h>
+#endif
 
-#include <netinet/ip_var.h>
 #include <netinet/tcp.h>
-#include <netinet/tcpip.h>
 #include <netinet/ip_icmp.h>
 
 #include <ctype.h>
 #include <syslog.h>
 
-#include "ip_compat.h"
-#include "ip_fil.h"
-#include "ip_proxy.h"
-#include "ip_nat.h"
-#include "ip_state.h"
+#include "netinet/ip_compat.h"
+#include <netinet/tcpip.h>
+#include "netinet/ip_fil.h"
+#include "netinet/ip_proxy.h"
+#include "netinet/ip_nat.h"
+#include "netinet/ip_state.h"
 
-#if !defined(lint) && defined(LIBC_SCCS)
-static	char	sccsid[] = "@(#)ipmon.c	1.21 6/5/96 (C)1993-1996 Darren Reed";
-static	char	rcsid[] = "$Id: ipmon.c,v 2.0.2.9 1997/04/30 13:54:10 darrenr Exp $";
+
+#if	defined(sun) && !defined(SOLARIS2)
+#define	STRERROR(x)	sys_errlist[x]
+extern	char	*sys_errlist[];
+#else
+#define	STRERROR(x)	strerror(x)
 #endif
 
 
@@ -78,23 +88,16 @@ struct	flags	tcpfl[] = {
 static	char	line[2048];
 static	int	opts = 0;
 static	void	usage __P((char *));
+static	void	flushlogs __P((char *, FILE *));
+static	void	print_log __P((int, FILE *, char *, int));
 static	void	print_ipflog __P((FILE *, char *, int));
 static	void	print_natlog __P((FILE *, char *, int));
 static	void	print_statelog __P((FILE *, char *, int));
 static	void	dumphex __P((FILE *, u_char *, int));
-static	void	printiplci __P((struct ipl_ci *));
-static	void	resynclog __P((int, struct ipl_ci *, FILE *));
-static	int	read_ipflog __P((int, int *, char *, int, FILE *));
-static	int	read_natlog __P((int, int *, char *, int, FILE *));
-static	int	read_statelog __P((int, int *, char *, int, FILE *));
+static	int	read_log __P((int, int *, char *, int, FILE *));
 char	*hostname __P((int, struct in_addr));
 char	*portname __P((int, char *, u_short));
 int	main __P((int, char *[]));
-
-static	int	(*readfunc[3]) __P((int, int *, char *, int, FILE *)) =
-		{ read_ipflog, read_natlog, read_statelog };
-static	void	(*printfunc[3]) __P((FILE *, char *, int)) =
-		{ print_ipflog, print_natlog, print_statelog };
 
 
 #define	OPT_SYSLOG	0x001
@@ -111,211 +114,20 @@ static	void	(*printfunc[3]) __P((FILE *, char *, int)) =
 #define	LOGFAC	LOG_LOCAL0
 #endif
 
-static void printiplci(icp)
-struct ipl_ci *icp;
-{
-	printf("sec %ld usec %ld hlen %d plen %d\n", icp->sec, icp->usec,
-		icp->hlen, icp->plen);
-}
 
-
-void resynclog(fd, iplcp, log)
-int fd;
-struct ipl_ci *iplcp;
-FILE *log;
-{
-	time_t	now;
-	char	*s = NULL;
-	int	len, nr = 0;
-
-	do {
-		if (s) {
-			s = (char *)&iplcp->sec;
-			if (opts & OPT_SYSLOG) {
-				syslog(LOG_INFO, "Sync bytes:");
-				syslog(LOG_INFO, " %02x %02x %02x %02x",
-					*s, *(s+1), *(s+2), *(s+3));
-				syslog(LOG_INFO, " %02x %02x %02x %02x\n",
-					*(s+4), *(s+5), *(s+6), *(s+7));
-			} else {
-				fprintf(log, "Sync bytes:");
-				fprintf(log, " %02x %02x %02x %02x",
-					*s, *(s+1), *(s+2), *(s+3));
-				fprintf(log, " %02x %02x %02x %02x\n",
-					*(s+4), *(s+5), *(s+6), *(s+7));
-			}
-		}
-		do {
-			s = (char *)&iplcp->sec;
-			len = sizeof(iplcp->sec);
-			while (len) {
-				switch ((nr = read(fd, s, len)))
-				{
-				case -1:
-				case 0:
-					return;
-				default :
-					s += nr;
-					len -= nr;
-					now = time(NULL);
-					break;
-				}
-			}
-		} while ((now < iplcp->sec) ||
-			 ((iplcp->sec - now) > (86400*5)));
-
-		len = sizeof(iplcp->usec);
-		while (len) {
-			switch ((nr = read(fd, s, len)))
-			{
-			case -1:
-			case 0:
-				return;
-			default :
-				s += nr;
-				len -= nr;
-				break;
-			}
-		}
-	} while (iplcp->usec > 1000000);
-
-	len = sizeof(*iplcp) - sizeof(iplcp->sec) - sizeof(iplcp->usec);
-	while (len) {
-		switch ((nr = read(fd, s, len)))
-		{
-		case -1:
-		case 0:
-			return;
-		default :
-			s += nr;
-			len -= nr;
-			break;
-		}
-	}
-}
-
-
-static int read_natlog(fd, lenp, buf, bufsize, log)
+static int read_log(fd, lenp, buf, bufsize, log)
 int fd, bufsize, *lenp;
 char *buf;
 FILE *log;
 {
-	int	len, avail = 0, want = sizeof(struct natlog);
+	int	nr;
 
-	*lenp = 0;
-
-	if (ioctl(fd, FIONREAD, &avail) == -1) {
-		perror("ioctl(FIONREAD");
-		return 1;
-	}
-
-	if (avail < want)
+	nr = read(fd, buf, bufsize);
+	if (!nr)
 		return 2;
-
-	while (want) {
-		len = read(fd, buf, want);
-		if (len > 0)
-			want -= len;
-		else
-			break;
-	}
-
-	if (!want) {
-		*lenp = sizeof(struct natlog);
-		return 0;
-	}
-	return !len ? 2 : -1;
-}
-
-
-static int read_statelog(fd, lenp, buf, bufsize, log)
-int fd, bufsize, *lenp;
-char *buf;
-FILE *log;
-{
-	int	len, avail = 0, want = sizeof(struct ipslog);
-
-	*lenp = 0;
-
-	if (ioctl(fd, FIONREAD, &avail) == -1) {
-		perror("ioctl(FIONREAD");
-		return 1;
-	}
-
-	if (avail < want)
-		return 2;
-
-	while (want) {
-		len = read(fd, buf, want);
-		if (len > 0)
-			want -= len;
-		else
-			break;
-	}
-
-	if (!want) {
-		*lenp = sizeof(struct ipslog);
-		return 0;
-	}
-	return !len ? 2 : -1;
-}
-
-
-static int read_ipflog(fd, lenp, buf, bufsize, log)
-int fd, bufsize, *lenp;
-char *buf;
-FILE *log;
-{
-	struct	ipl_ci	*icp = (struct ipl_ci *)buf;
-	time_t	now;
-	char	*s;
-	int	len, n = bufsize, tr = sizeof(struct ipl_ci), nr;
-
-	if (bufsize < tr)
-		return 1;
-	for (s = buf; (n > 0) && (tr > 0); s += nr, n -= nr) {
-		nr = read(fd, s, tr);
-		if (nr > 0)
-			tr -= nr;
-		else
-			return -1;
-	}
-
-	now = time(NULL);
-	if ((icp->hlen > 92) || (now < icp->sec) ||
-	    ((now - icp->sec) > (86400*5))) {
-		if (opts & OPT_SYSLOG)
-			syslog(LOG_INFO, "Out of sync! (1,%lx)\n", now);
-		else
-			fprintf(log, "Out of sync! (1,%lx)\n", now);
-		dumphex(log, buf, sizeof(struct ipl_ci));
-		resynclog(fd, icp, log);
-	}
-
-
-	len = (int)((u_int)icp->plen);
-	if (len > 128 || len < 0) {
-		if (opts & OPT_SYSLOG)
-			syslog(LOG_INFO, "Out of sync! (2,%d)\n", len);
-		else
-			fprintf(log, "Out of sync! (2,%d)\n", len);
-		dumphex(log, buf, sizeof(struct ipl_ci));
-		resynclog(fd, icp, log);
-	}
-
-
-	tr = icp->hlen + icp->plen;
-	if (n < tr)
-		return 1;
-
-	for (; (n > 0) && (tr > 0); s += nr, n-= nr) {
-		nr = read(fd, s, tr);
-		if (nr > 0)
-			tr -= nr;
-		else
-			return -1;
-	}
-	*lenp = s - buf;
+	if ((nr < 0) && (errno != EINTR))
+		return -1;
+	*lenp = nr;
 	return 0;
 }
 
@@ -366,15 +178,18 @@ int	len;
 		if (j && !(j & 0xf)) {
 			*t++ = '\n';
 			*t = '\0';
-			fputs(line, stdout);
+			if (!(opts & OPT_SYSLOG))
+				fputs(line, stdout);
+			else
+				syslog(LOG_INFO, "%s", line);
 			t = (u_char *)line;
 			*t = '\0';
 		}
-		sprintf(t, "%02x", *s & 0xff);
+		sprintf((char *)t, "%02x", *s & 0xff);
 		t += 2;
 		if (!((j + 1) & 0xf)) {
 			s -= 15;
-			sprintf(t, "        ");
+			sprintf((char *)t, "        ");
 			t += 8;
 			for (k = 16; k; k--, s++)
 				*t++ = (isprint(*s) ? *s : '.');
@@ -391,7 +206,7 @@ int	len;
 			*t++ = ' ';
 			*t++ = ' ';
 		}
-		sprintf(t, "       ");
+		sprintf((char *)t, "       ");
 		t += 7;
 		s -= j & 0xf;
 		for (k = j & 0xf; k; k--, s++)
@@ -399,31 +214,35 @@ int	len;
 		*t++ = '\n';
 		*t = '\0';
 	}
-	fputs(line, stdout);
-	fflush(stdout);
+	if (!(opts & OPT_SYSLOG)) {
+		fputs(line, stdout);
+		fflush(stdout);
+	} else
+		syslog(LOG_INFO, "%s", line);
 }
-
 
 static	void	print_natlog(log, buf, blen)
 FILE	*log;
 char	*buf;
 int	blen;
 {
-	struct	natlog	*nl = (struct natlog *)buf;
+	struct	natlog	*nl;
+	iplog_t	*ipl = (iplog_t *)buf;
 	char	*t = line;
 	struct	tm	*tm;
 	int	res;
 
+	nl = (struct natlog *)((char *)ipl + sizeof(*ipl));
 	res = (opts & OPT_RESOLVE) ? 1 : 0;
-	tm = localtime((time_t *)&nl->nl_tv.tv_sec);
+	tm = localtime((time_t *)&ipl->ipl_sec);
 	if (!(opts & OPT_SYSLOG)) {
 		(void) sprintf(t, "%2d/%02d/%4d ",
 			tm->tm_mday, tm->tm_mon + 1, tm->tm_year + 1900);
 		t += strlen(t);
 	}
 	(void) sprintf(t, "%02d:%02d:%02d.%-.6ld @%hd ",
-		tm->tm_hour, tm->tm_min, tm->tm_sec, nl->nl_tv.tv_usec,
-		nl->nl_rule);
+		tm->tm_hour, tm->tm_min, tm->tm_sec, ipl->ipl_usec,
+		nl->nl_rule+1);
 	t += strlen(t);
 
 	if (nl->nl_type == NL_NEWMAP)
@@ -469,21 +288,23 @@ FILE	*log;
 char	*buf;
 int	blen;
 {
-	struct	ipslog *sl = (struct ipslog *)buf;
+	struct	ipslog *sl;
+	iplog_t	*ipl = (iplog_t *)buf;
 	struct	protoent *pr;
 	char	*t = line, *proto, pname[6];
 	struct	tm	*tm;
 	int	res;
 
+	sl = (struct ipslog *)((char *)ipl + sizeof(*ipl));
 	res = (opts & OPT_RESOLVE) ? 1 : 0;
-	tm = localtime((time_t *)&sl->isl_tv.tv_sec);
+	tm = localtime((time_t *)&ipl->ipl_sec);
 	if (!(opts & OPT_SYSLOG)) {
 		(void) sprintf(t, "%2d/%02d/%4d ",
 			tm->tm_mday, tm->tm_mon + 1, tm->tm_year + 1900);
 		t += strlen(t);
 	}
 	(void) sprintf(t, "%02d:%02d:%02d.%-.6ld ",
-		tm->tm_hour, tm->tm_min, tm->tm_sec, sl->isl_tv.tv_usec);
+		tm->tm_hour, tm->tm_min, tm->tm_sec, ipl->ipl_usec);
 	t += strlen(t);
 
 	if (sl->isl_type == ISL_NEW)
@@ -535,6 +356,40 @@ int	blen;
 }
 
 
+static	void	print_log(logtype, log, buf, blen)
+FILE	*log;
+char	*buf;
+int	logtype, blen;
+{
+	iplog_t	*ipl;
+	int psize;
+
+	while (blen > 0) {
+		ipl = (iplog_t *)buf;
+		if (ipl->ipl_magic != IPL_MAGIC) {
+			/* invalid data or out of sync */
+			return;
+		}
+		psize = ipl->ipl_dsize;
+		switch (logtype)
+		{
+		case IPL_LOGIPF :
+			print_ipflog(log, buf, psize);
+			break;
+		case IPL_LOGNAT :
+			print_natlog(log, buf, psize);
+			break;
+		case IPL_LOGSTATE :
+			print_statelog(log, buf, psize);
+			break;
+		}
+
+		blen -= psize;
+		buf += psize;
+	}
+}
+
+
 static	void	print_ipflog(log, buf, blen)
 FILE	*log;
 char	*buf;
@@ -543,44 +398,54 @@ int	blen;
 	struct	protoent *pr;
 	struct	tcphdr	*tp;
 	struct	icmp	*ic;
-	struct	ip	*ipc;
 	struct	tm	*tm;
 	char	c[3], pname[8], *t, *proto;
 	u_short	hl, p;
-	int	i, lvl, res;
-#if !SOLARIS && !(defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199603))
-	int	len;
-#endif
-	struct	ip	*ip;
-	struct	ipl_ci	*lp;
+	int	i, lvl, res, len;
+	ip_t	*ipc, *ip;
+	iplog_t	*ipl;
+	ipflog_t *ipf;
 
-	lp = (struct ipl_ci *)buf;
-	ip = (struct ip *)(buf + sizeof(*lp));
+	ipl = (iplog_t *)buf;
+	ipf = (ipflog_t *)((char *)buf + sizeof(*ipl));
+	ip = (ip_t *)((char *)ipf + sizeof(*ipf));
 	res = (opts & OPT_RESOLVE) ? 1 : 0;
 	t = line;
 	*t = '\0';
 	hl = (ip->ip_hl << 2);
 	p = (u_short)ip->ip_p;
-	tm = localtime((time_t *)&lp->sec);
+	tm = localtime((time_t *)&ipl->ipl_sec);
+#ifdef	linux
+	ip->ip_len = ntohs(ip->ip_len);
+#endif
+
 	if (!(opts & OPT_SYSLOG)) {
 		(void) sprintf(t, "%2d/%02d/%4d ",
 			tm->tm_mday, tm->tm_mon + 1, tm->tm_year + 1900);
 		t += strlen(t);
 	}
-#if SOLARIS || (defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199603))
-	(void) sprintf(t, "%02d:%02d:%02d.%-.6ld %.*s @%hd ",
-		tm->tm_hour, tm->tm_min, tm->tm_sec, lp->usec,
-		(int)sizeof(lp->ifname), lp->ifname, lp->rule);
+	(void) sprintf(t, "%02d:%02d:%02d.%-.6ld ", tm->tm_hour, tm->tm_min,
+		tm->tm_sec, ipl->ipl_usec);
+	t += strlen(t);
+	if (ipl->ipl_count > 1) {
+		(void) sprintf(t, "%dx ", ipl->ipl_count);
+		t += strlen(t);
+	}
+#if (SOLARIS || \
+	(defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199603)) || \
+	(defined(OpenBSD) && (OpenBSD >= 199603))) || defined(linux)
+	len = (int)sizeof(ipf->fl_ifname);
+	(void) sprintf(t, "%*.*s", len, len, ipf->fl_ifname);
 #else
 	for (len = 0; len < 3; len++)
-		if (!lp->ifname[len])
+		if (!ipf->fl_ifname[len])
 			break;
-	if (lp->ifname[len])
+	if (ipf->fl_ifname[len])
 		len++;
-	(void) sprintf(t, "%02d:%02d:%02d.%-.6ld %*.*s%ld @%hd ",
-		tm->tm_hour, tm->tm_min, tm->tm_sec, lp->usec,
-		len, len, lp->ifname, lp->unit, lp->rule);
+	(void) sprintf(t, "%*.*s%u", len, len, ipf->fl_ifname, ipf->fl_unit);
 #endif
+	t += strlen(t);
+	(void) sprintf(t, " @%hu:%hu ", ipf->fl_group, ipf->fl_rule + 1);
 	pr = getprotobynumber((int)p);
 	if (!pr) {
 		proto = pname;
@@ -588,22 +453,22 @@ int	blen;
 	} else
 		proto = pr->p_name;
 
- 	if (lp->flags & (FI_SHORT << 20)) {
+ 	if (ipf->fl_flags & FF_SHORT) {
 		c[0] = 'S';
 		lvl = LOG_ERR;
-	} else if (lp->flags & FR_PASS) {
-		if (lp->flags & FR_LOGP)
+	} else if (ipf->fl_flags & FR_PASS) {
+		if (ipf->fl_flags & FR_LOGP)
 			c[0] = 'p';
 		else
 			c[0] = 'P';
 		lvl = LOG_NOTICE;
-	} else if (lp->flags & FR_BLOCK) {
-		if (lp->flags & FR_LOGB)
+	} else if (ipf->fl_flags & FR_BLOCK) {
+		if (ipf->fl_flags & FR_LOGB)
 			c[0] = 'b';
 		else
 			c[0] = 'B';
 		lvl = LOG_WARNING;
-	} else if (lp->flags & FF_LOGNOMATCH) {
+	} else if (ipf->fl_flags & FF_LOGNOMATCH) {
 		c[0] = 'n';
 		lvl = LOG_NOTICE;
 	} else {
@@ -617,7 +482,7 @@ int	blen;
 
 	if ((p == IPPROTO_TCP || p == IPPROTO_UDP) && !(ip->ip_off & 0x1fff)) {
 		tp = (struct tcphdr *)((char *)ip + hl);
-		if (!(lp->flags & (FI_SHORT << 16))) {
+		if (!(ipf->fl_flags & (FI_SHORT << 16))) {
 			(void) sprintf(t, "%s,%s -> ",
 				hostname(res, ip->ip_src),
 				portname(res, proto, tp->th_sport));
@@ -654,7 +519,7 @@ int	blen;
 		t += strlen(t);
 		(void) sprintf(t, "%s PR icmp len %hu (%hu) icmp %d/%d",
 			hostname(res, ip->ip_dst), hl,
-			ip->ip_len, ic->icmp_type, ic->icmp_code);
+			ntohs(ip->ip_len), ic->icmp_type, ic->icmp_code);
 		if (ic->icmp_type == ICMP_UNREACH ||
 		    ic->icmp_type == ICMP_SOURCEQUENCH ||
 		    ic->icmp_type == ICMP_PARAMPROB ||
@@ -695,12 +560,12 @@ int	blen;
 	}
 	t += strlen(t);
 
-	if (lp->flags & FR_KEEPSTATE) {
+	if (ipf->fl_flags & FR_KEEPSTATE) {
 		(void) strcpy(t, " K-S");
 		t += strlen(t);
 	}
 
-	if (lp->flags & FR_KEEPFRAG) {
+	if (ipf->fl_flags & FR_KEEPFRAG) {
 		(void) strcpy(t, " K-F");
 		t += strlen(t);
 	}
@@ -712,13 +577,13 @@ int	blen;
 	else
 		(void) fprintf(log, "%s", line);
 	if (opts & OPT_HEXHDR)
-		dumphex(log, buf, sizeof(struct ipl_ci));
+		dumphex(log, (u_char *)buf, sizeof(iplog_t));
 	if (opts & OPT_HEXBODY)
-		dumphex(log, (u_char *)ip, lp->plen + lp->hlen);
+		dumphex(log, (u_char *)ip, ipf->fl_plen + ipf->fl_hlen);
 }
 
 
-void static usage(prog)
+static void usage(prog)
 char *prog;
 {
 	fprintf(stderr, "%s: [-NFhstvxX] [-f <logfile>]\n", prog);
@@ -726,15 +591,14 @@ char *prog;
 }
 
 
-void flushlogs(file, log)
+static void flushlogs(file, log)
 char *file;
 FILE *log;
 {
 	int	fd, flushed = 0;
 
 	if ((fd = open(file, O_RDWR)) == -1) {
-		(void) fprintf(stderr, "%s: ", file);
-		perror("open");
+		(void) fprintf(stderr, "%s: open: %s", file, STRERROR(errno));
 		exit(-1);
 	}
 
@@ -750,7 +614,7 @@ FILE *log;
 		if (opts & OPT_SYSLOG)
 			syslog(LOG_INFO, "%d bytes flushed from log\n",
 				flushed);
-		else
+		else if (log != stdout)
 			fprintf(log, "%d bytes flushed from log\n", flushed);
 	}
 }
@@ -760,14 +624,19 @@ int main(argc, argv)
 int argc;
 char *argv[];
 {
-	struct	stat	stat;
-	FILE	*log = NULL;
-	int	fd[3] = {-1, -1, -1}, flushed = 0, doread, n, i, nfd = 1;
-	int	tr, nr, regular;
-	int	fdt[3] = {IPL_LOGIPF, IPL_LOGNAT, IPL_LOGSTATE};
-	char	buf[512], c, *iplfile = IPL_NAME;
+	struct	stat	sb;
+	FILE	*log = stdout;
+	int	fd[3], doread, n, i, nfd = 1;
+	int	tr, nr, regular, c;
+	int	fdt[3];
+	char	buf[512], *iplfile = IPL_NAME;
 	extern	int	optind;
 	extern	char	*optarg;
+
+	fd[0] = fd[1] = fd[2] = -1;
+ 	fdt[0] = IPL_LOGIPF;
+	fdt[1] = IPL_LOGNAT;
+	fdt[2] = IPL_LOGSTATE;
 
 	while ((c = getopt(argc, argv, "?af:FhnNsStvxX")) != -1)
 		switch (c)
@@ -794,8 +663,7 @@ char *argv[];
 		case 'N' :
 			opts |= OPT_NAT;
 			fdt[0] = IPL_LOGNAT;
-			readfunc[0] = read_natlog;
-			printfunc[0] = print_natlog;
+			iplfile = IPL_NAT;
 			break;
 		case 's' :
 			openlog(argv[0], LOG_NDELAY|LOG_PID, LOGFAC);
@@ -804,8 +672,7 @@ char *argv[];
 		case 'S' :
 			opts |= OPT_STATE;
 			fdt[0] = IPL_LOGSTATE;
-			readfunc[0] = read_statelog;
-			printfunc[0] = print_statelog;
+			iplfile = IPL_STATE;
 			break;
 		case 't' :
 			opts |= OPT_TAIL;
@@ -826,36 +693,42 @@ char *argv[];
 		}
 
 	if ((fd[0] == -1) && (fd[0] = open(iplfile, O_RDONLY)) == -1) {
-		(void) fprintf(stderr, "%s: ", iplfile);
-		perror("open");
+		(void) fprintf(stderr, "%s: open: %s", iplfile,
+			STRERROR(errno));
 		exit(-1);
 	}
 
 	if ((opts & OPT_ALL)) {
 		if ((fd[1] = open(IPL_NAT, O_RDONLY)) == -1) {
-			(void) fprintf(stderr, "%s: ", IPL_NAT);
-			perror("open");
+			(void) fprintf(stderr, "%s: open: %s", IPL_NAT,
+				STRERROR(errno));
 			exit(-1);
 		}
 		if ((fd[2] = open(IPL_STATE, O_RDONLY)) == -1) {
-			(void) fprintf(stderr, "%s: ", IPL_STATE);
-			perror("open");
+			(void) fprintf(stderr, "%s: open: %s", IPL_STATE,
+				STRERROR(errno));
 			exit(-1);
 		}
 	}
 
 	if (!(opts & OPT_SYSLOG)) {
 		log = argv[optind] ? fopen(argv[optind], "a") : stdout;
+		if (log == NULL) {
+			
+			(void) fprintf(stderr, "%s: fopen: %s", argv[optind],
+				STRERROR(errno));
+			exit(-1);
+		}
 		setvbuf(log, NULL, _IONBF, 0);
 	}
 
-	if (fstat(fd[0], &stat) == -1) {
-		fprintf(stderr, "%s :", iplfile);
-		perror("fstat");
+	if (stat(iplfile, &sb) == -1) {
+		(void) fprintf(stderr, "%s: stat: %s", iplfile,
+			STRERROR(errno));
 		exit(-1);
 	}
 
-	regular = !S_ISCHR(stat.st_mode);
+	regular = !S_ISCHR(sb.st_mode);
 
 	for (doread = 1; doread; ) {
 		nr = 0;
@@ -868,16 +741,15 @@ char *argv[];
 					exit(-1);
 				}
 			} else {
-				tr = (lseek(fd[i], 0, SEEK_CUR) <
-				      stat.st_size);
+				tr = (lseek(fd[i], 0, SEEK_CUR) < sb.st_size);
 				if (!tr && !(opts & OPT_TAIL))
 					doread = 0;
 			}
-			if (!tr)
+			if (!tr && nfd != 1)
 				continue;
 			nr += tr;
 
-			tr = (*readfunc[i])(fd[i], &n, buf, sizeof(buf), log);
+			tr = read_log(fd[i], &n, buf, sizeof(buf), log);
 			switch (tr)
 			{
 			case -1 :
@@ -898,14 +770,14 @@ char *argv[];
 				break;
 			case 0 :
 				if (n > 0) {
-					(*printfunc[i])(log, buf, n);
+					print_log(fdt[i], log, buf, n);
 					if (!(opts & OPT_SYSLOG))
 						fflush(log);
 				}
 				break;
 			}
 		}
-		if (!nr && regular && (opts & OPT_TAIL))
+		if (!nr && ((opts & OPT_TAIL) || !regular))
 			sleep(1);
 	}
 	exit(0);

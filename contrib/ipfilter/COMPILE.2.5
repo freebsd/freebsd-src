@@ -6,6 +6,10 @@ In file included from /usr/local/lib/gcc-lib/sparc-sun-solaris2.3/2.6.3/include/
                  from ../ip_nat.c:15:
 /usr/include/sys/psw.h:19: #error Kernel include of psw.h
 
-Remove (comment out) the line in
-/usr/local/lib/gcc-lib/sparc-sun-solaris2.3/2.6.3include/sys/user.h
-which includes psw.h
+That means that you have a version of gcc build under on older release
+of Solaris 2.x
+
+You need to reinstall gcc after each Solaris upgrade; gcc creates its own
+set of modified system include files which are only valid for the exact
+release on which gcc was build.
+

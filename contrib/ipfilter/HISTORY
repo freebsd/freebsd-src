@@ -5,6 +5,182 @@
 # Thanks to Craig Bishop of connect.com.au and Sun Microsystems for the
 # loan of a machine to work on a Solaris 2.x port of this software.
 #
+3.2.1	12/11/97 - Released
+
+port to BSD/OS 3.0
+
+port to Linux 2.0.31
+
+patches to make "map a/m -> 0/0" work with ftp proxying properly - Marc Boucher
+
+add "ipf -F s" and "ipf -F S" to flush state table entries.
+
+announce if logging is on or off when ip filter initializes.
+
+"ipf -F a" doesn't flush groups properly for Solaris.
+
+3.2		30/10/97 - Released
+
+ipnat doesn't successfully remove proxy mappings with "-rf" -
+Alexander Romanyu
+
+use K&R C function style for solaris kernel code
+
+use m_adj() to decrease packet size in ftp proxy
+
+use mbufchainlen rather than msgdsize,
+IRIX update - Marc Boucher
+
+fix NetBSD modunload bug (pfil_add_hook done twice)
+
+patches for OpenBSD 2.1 - Craig Bevins <craigb@bitcom.net.au>
+
+3.2beta10	24/10/97 - Released
+
+fix fragment table entries allocated for NAT.
+
+fix tcp checksum calculations over mbuf/mblk boundaries
+
+fix panic for blen < 0 in ftp kernel proxy - marc boucher
+
+fix flushing of rules which have been grouped.
+
+3.2beta9	20/10/97 - Released
+
+some nit picking on solaris2 with SUNWspro - Michael Lyle <mrl@rpnet.net>
+
+ftp kernel proxy patches from Marc Boucher
+
+3.2beta8	13/10/97 - Released
+
+add support for passing ICMP errors back through NAT.
+
+IRIX port update - Marc Boucher
+
+calculate correct MIN size of packet to log for UDP - Marc Boucher
+
+need htons(ETHERTYPE_x) on little endian BSD boxes - Dave Huang
+
+copyright header fixups
+
+3.2beta7	23/09/97 - Released
+
+fickup problems introduced by prior merges & changes.
+
+3.2beta6	23/09/97 - Released
+
+patch for spin-reading race condition - Marc Boucher.
+
+IRIX port by Marc Boucher.
+
+compatibility updates for Linux to ipsend
+
+3.2beta5	13/09/97 - Released
+
+patches from Bernd Ernesti for NetBSD integration (mostly prototyping and
+compiler warning things)
+
+ipf -y will resync IP#'s allocated with 0/32 in NAT to match interface if it
+changes.
+
+update manual pages and other documentation updates.
+
+3.2beta4	27/8/97 - Released
+
+enable setting IP and TCP options for iplang/
+
+Solaris2 patches from Marc Boucher.
+
+add groups for filter rules.
+
+3.2beta3	21/8/97 - Released
+
+patches for Solaris2 (interface panic solution ?): fix FIONREAD and
+replacing q_qinfo points - Marc Boucher <marc@CAM.ORG>
+
+change ipsend/* and ipsd/* copyright notices to be the same as ip filter's
+
+patch for SYN-ACK skew testing fix from Eric V. Smith <EricSmith@windsor.com>
+
+3.2beta2	6/8/97 - Released
+
+make it load on Solaris 2.3
+
+rewrote logging to remove solaris errors, introduced checking to see if the
+same packet is logged successively.
+
+fix filter cache to work when there are no rules loaded.
+
+add "raw" option to ipresend to send entire ethernet frames.
+
+nat list corruption bug - NetBSD - Klaus Klein
+
+3.2beta1	5/7/97 - Released
+
+patches from Jason Thorpe fixing: UNSIGNED_CHAR lossage, off_t being 64bits
+lossage, and other NetBSD bits.
+
+NetBSD 1.2G update.
+
+fixup fwtk patches and add protocol field for SIOCGNATL.
+
+rdr bugs reported by Alexander Romanyu (alexr@aix.krid.crimea.ua), with
+fixes:
+* rdr matched all packets of a given protocol (ignored ports).
+* severe bug in nat_delete which caused system crash/freeze.
+
+change Makefile so that CC isn't passed on for FreeBSD/NetBSD (will use
+the default CC - cc, not gcc)
+
+3.2alpha9	16/6/97 - Released
+
+added "skip" keyword.
+
+implement preauthentication of packets, as outlined by Guido.
+
+Make it compile as cleanly as possible with -Wall & general code cleanup
+
+getopt returns int, not char. Bernd Ernesti
+
+3.2alpha8	13/6/97 - Released
+
+code added to support "auth" rules which require a user program to allow them
+through.  First revision and much of the code came from Guido.
+
+hex output from ipmon doesn't goto syslog when recovering from out of sync
+error.  Luke Mewburn (lukem@connect.com.au)
+
+fix solaris2.6 lookup of destination ire's.
+
+ipnat doesn't throw away unused bits (after masking), causing it to
+behave incorrectly. Carson Gaspar
+
+NAT code doesn't include inteface name when matching - Alexey Mavrin
+<lha@elco.spb.ru>
+
+replace old SunOS tcpip.h with new tcpip.h (from 4.4BSD) - Jason Thorpe.
+
+update install procedures to include ip_proxy.c
+
+mask out unused bits in NAT/RDR rules.
+
+use a generic type (u_32_t) for 32bit variables, rather than rely on
+u_long being such - Jason Thorpe.
+
+create a local "netinet" directory and include from ~netinet/*" rather than
+just "*" to make keeping the code working on ports easier.
+
+add an m_copydata and m_copyback for SunOS4 (based on 4.4BSD-Lite versions)
+
+documentation updates.
+
+NetBSD update from Jason Thorpe <thorpej@netbsd.org>
+
+allow RST's through with a matching SEQ # and 0 ACK.  Guido Van Rooij
+
+ipmon uses excessive amounts of CPU on Solaris2 - Reinhard Bertram
+<Reinhard.Bertram@KOM.th-darmstadt.de>
+
 3.2alpha7	25/5/97 - Released
 
 add strlen for pre-2.2 kernels - Doug Kite <dkite@websgi.icomnet.com>
