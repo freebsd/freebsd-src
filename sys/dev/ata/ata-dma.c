@@ -226,6 +226,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	break;
 
     case 0x05711106:	/* VIA Apollo 82c586 / 82c686 */
+	via_status(scp);
 	devno = (scp->unit << 1) + ((device == ATA_MASTER) ? 0 : 1);
 	if (udmamode >= 2 && pci_read_config(scp->dev, 0x0d, 1) >= 0x20) {
 	    int8_t byte = pci_read_config(scp->dev, 0x53 - devno, 1);
@@ -242,6 +243,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 			   (error) ? "failed" : "success");
 		if (!error) {
 		    scp->mode[(device == ATA_MASTER) ? 0 : 1] = ATA_MODE_UDMA4;
+		    via_status(scp);
 		    return 0;
 		}
 	    }
@@ -253,34 +255,14 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		       (error) ? "failed" : "success");
 	    if (!error) {
 		scp->mode[(device == ATA_MASTER) ? 0 : 1] = ATA_MODE_UDMA2;
+		via_status(scp);
 		return 0;
 	    }
 	    pci_write_config(scp->dev, 0x53 - devno, byte, 1);
 	}
 	if (wdmamode >= 2 && apiomode >= 4) {
-	    int8_t byte;
-
-	    /* set prefetch, postwrite */
-	    byte = pci_read_config(scp->dev, 0x41, 1);
-	    pci_write_config(scp->dev, 0x41, byte | 0xf0, 1);
-	    
-	    /* set fifo configuration half'n'half */
-	    byte = pci_read_config(scp->dev, 0x43, 1);
-	    pci_write_config(scp->dev, 0x43, (byte & 0x90) | 0x2a, 1);
-	   
-	    /* set status register read retry */
-	    byte = pci_read_config(scp->dev, 0x44, 1);
-	    pci_write_config(scp->dev, 0x44, byte | 0x08, 1);
-	    
-	    /* set DMA read & end-of-sector fifo flush */
-	    byte = pci_read_config(scp->dev, 0x46, 1);
-	    pci_write_config(scp->dev, 0x46, (byte & 0x0c) | 0xf0, 1);
-
 	    /* set WDMA2 mode timing */
 	    pci_write_config(scp->dev, 0x4b - devno, 0x31 , 1);
-
-	    /* set sector size */
-	    pci_write_config(scp->dev, scp->unit ? 0x68 : 0x60, DEV_BSIZE, 2);
 
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
@@ -290,9 +272,11 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		       (error) ? "failed" : "success");
 	    if (!error) {
 		scp->mode[(device == ATA_MASTER) ? 0 : 1] = ATA_MODE_WDMA2;
+		via_status(scp);
 		return 0;
 	    }
 	}
+	via_status(scp);
 	/* we could set PIO mode timings, but we assume the BIOS did that */
 	break;
 
@@ -608,3 +592,4 @@ ata_dmastatus(struct ata_softc *scp)
 }
 
 #endif /* NPCI > 0 */
+#include <dev/ata/ata-status.c>
