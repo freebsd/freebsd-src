@@ -13,16 +13,13 @@
 # A PARTICULAR PURPOSE.
 # $FreeBSD$
 
-PROG=	traceroute6
+.PATH:	${.CURDIR}/../../contrib/tcpdump
 
-BINOWN=	root
-BINGRP=	bin
-BINMODE=4555
+PROG=	ndp
+SRCS=	ndp.c gmt2local.c
+MAN8=	ndp.8
 
-CFLAGS+=-DINET6 -DIPSEC
-DPADD=	${LIBIPSEC}
-LDADD=	-lipsec
-
-MAN8=	traceroute6.8
+CFLAGS+=-DINET6
+CFLAGS+=-I. -I${.CURDIR} -I${.CURDIR}/../../contrib/tcpdump
 
 .include <bsd.prog.mk>

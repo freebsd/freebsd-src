@@ -21,7 +21,8 @@ SUBDIR=	${_csu} libcom_err ${_libm} libmd ${_libcrypt} \
 	libncurses libradius libskey libtacplus \
 	${_compat} libalias libatm ${_libbind} libc ${_libc_r} libcalendar \
 	libcam libcompat libdevstat libdisk libedit libfetch libform \
-	libftpio libgnumalloc ${_libio} libipx libkvm libmenu ${_libncp} \
+	libftpio libgnumalloc ${_libio} libipsec libipx libkvm libmenu \
+	${_libncp} \
 	libnetgraph libopie libpam libpanel libpcap libresolv librpcsvc libss \
 	libstand ${_libtelnet} libutil ${_libvgl} libwrap libxpg4 liby libz
 
