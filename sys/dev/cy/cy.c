@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.80 1998/12/17 19:23:09 bde Exp $
+ *	$Id: cy.c,v 1.81 1998/12/19 16:28:57 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -37,7 +37,6 @@
 
 /*
  * TODO:
- * Fix overflows when closing line.
  * Atomic COR change.
  * Consoles.
  */
@@ -745,45 +744,25 @@ open_top:
 		tp->t_ififosize = 2 * RS_IBUFSIZE;
 		tp->t_ispeedwat = (speed_t)-1;
 		tp->t_ospeedwat = (speed_t)-1;
-#if 0
-		(void)commctl(com, TIOCM_DTR | TIOCM_RTS, DMSET);
-		com->poll = com->no_irq;
-		com->poll_output = com->loses_outints;
-#endif
-		++com->wopeners;
-
-		/* reset this channel */
-		cd1400_channel_cmd(com, CD1400_CCR_CMDRESET);
-
-		/*
-		 * Resetting disables the transmitter and receiver as well as
-		 * flushing the fifos so some of our cached state becomes
-		 * invalid.  The documentation suggests that all registers
-		 * for the current channel are reset to defaults, but
-		 * apparently none are.  We wouldn't want DTR cleared.
-		 */
-		com->channel_control = 0;
 
 		/* Encode per-board unit in LIVR for access in intr routines. */
 		cd_setreg(com, CD1400_LIVR,
 			  (unit & CD1400_xIVR_CHAN) << CD1400_xIVR_CHAN_SHIFT);
 
-		/*
-		 * raise dtr and generally set things up correctly.  this
-		 * has the side-effect of selecting the appropriate cd1400
-		 * channel, to help us with subsequent channel control stuff
-		 */
+		(void)commctl(com, TIOCM_DTR | TIOCM_RTS, DMSET);
+#if 0
+		com->poll = com->no_irq;
+		com->poll_output = com->loses_outints;
+#endif
+		++com->wopeners;
 		error = comparam(tp, &tp->t_termios);
 		--com->wopeners;
 		if (error != 0)
 			goto out;
-		/*
-		 * XXX we should goto open_top if comparam() slept.
-		 */
 #if 0
 		if (com->hasfifo) {
 			/*
-			 * (Re)enable and drain fifos.
+			 * (Re)enable and flush fifos.
 			 *
 			 * Certain SMC chips cause problems if the fifos
 			 * are enabled while input is ready.  Turn off the
@@ -815,8 +794,15 @@ open_top:
 				       | IER_EMSC);
 		enable_intr();
 #else /* !0 */
-		/* XXX raise RTS too */
-		(void)commctl(com, TIOCM_DTR | TIOCM_RTS, DMSET);
+		/*
+		 * Flush fifos.  This requires a full channel reset which
+		 * also disables the transmitter and receiver.  Recover
+		 * from this.
+		 */
+		cd1400_channel_cmd(com,
+				   CD1400_CCR_CMDRESET | CD1400_CCR_CHANRESET);
+		cd1400_channel_cmd(com, com->channel_control);
+
 		disable_intr();
 		com->prev_modem_status = com->last_modem_status
 		    = cd_getreg(com, CD1400_MSVR2);
