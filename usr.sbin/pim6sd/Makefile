@@ -34,6 +34,7 @@ SRCS+=	y.tab.h
 y.tab.h: cfparse.y
 CLEANFILES+= lex.yy.c y.tab.h y.tab.c
 CFLAGS+= -g
+CFLAGS+=-I. -I${.CURDIR}
 CFLAGS+=-DINET6 -DPIM -DIOCTL_OK_ON_RAW_SOCKET -I${.OBJDIR}
 CFLAGS+=-DHAVE_STDARG_H
 DPADD=	${LIBY} ${LIBL}
