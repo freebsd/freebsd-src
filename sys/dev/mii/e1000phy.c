@@ -1,7 +1,4 @@
 /*
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
  * Principal Author: Parag Patel
  * Copyright (c) 2001
  * All rights reserved.
@@ -31,6 +28,9 @@ __FBSDID("$FreeBSD$");
  * Additonal Copyright (c) 2001 by Traakan Software under same licence.
  * Secondary Author: Matthew Jacob
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * driver for the Marvell 88E1000 series external 1000/100/10-BT PHY.
