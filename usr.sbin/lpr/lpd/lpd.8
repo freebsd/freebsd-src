@@ -40,7 +40,7 @@
 .Nd line printer spooler daemon
 .Sh SYNOPSIS
 .Nm
-.Op Fl cdlpw46
+.Op Fl cdlpW46
 .Op Ar port#
 .Sh DESCRIPTION
 .Nm Lpd
@@ -99,13 +99,13 @@ This means that
 will not accept any connections from any remote
 hosts, although it will still accept print requests
 from all local users.
-.It Fl w
+.It Fl W
 By default, the
 .Nm
 daemon will only accept connections which originate
 from a reserved-port (<1024) on the remote host.
 The
-.Fl w
+.Fl W
 flag causes
 .Nm
 to accept connections coming from any port.
