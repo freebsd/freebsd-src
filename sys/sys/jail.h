@@ -26,6 +26,7 @@ int jail(struct jail *);
 
 #else /* _KERNEL */
 
+#include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 
