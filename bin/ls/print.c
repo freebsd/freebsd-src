@@ -141,7 +141,7 @@ printscol(DISPLAY *dp)
 /*
  * print name in current style
  */
-static int
+int
 printname(const char *name)
 {
 	if (f_octal || f_octal_escape)
