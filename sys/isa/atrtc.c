@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.81 1997/04/26 11:45:51 peter Exp $
+ *	$Id: clock.c,v 1.82 1997/05/04 14:25:00 peter Exp $
  */
 
 /*
@@ -102,12 +102,14 @@ int	adjkerntz;		/* local offset	from GMT in seconds */
 int	disable_rtc_set;	/* disable resettodr() if != 0 */
 u_int	idelayed;
 #if defined(I586_CPU) || defined(I686_CPU)
-#if !defined(SMP)
+#ifndef SMP
 u_int	i586_ctr_bias;
 u_int	i586_ctr_comultiplier;
-u_int	i586_ctr_multiplier;
 #endif
 u_int	i586_ctr_freq;
+#ifndef SMP
+u_int	i586_ctr_multiplier;
+#endif
 #endif
 int	statclock_disable;
 u_int	stat_imask = SWI_CLOCK_MASK;
