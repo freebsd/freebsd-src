@@ -119,7 +119,8 @@ main(int argc, char *argv[])
 	}
 
 	if (kflag) {
-		fd = open("/boot/nextboot.conf", O_WRONLY | O_CREAT, 0444);
+		fd = open("/boot/nextboot.conf", O_WRONLY | O_CREAT | O_TRUNC,
+		    0444);
 		if (fd > -1) {
 			(void)write(fd, "nextboot_enable=\"YES\"\n", 22);
 			(void)write(fd, "kernel=\"", 8L);
