@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.118 1998/06/07 17:12:40 dfr Exp $
+**  $Id: ncr.c,v 1.119 1998/07/11 07:45:52 bde Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -497,15 +497,18 @@ struct	usrcmd {
 **---------------------------------------
 */
 
+/* Type of the kernel variable `ticks'.  XXX should be declared with the var. */
+typedef int ticks_t;
+
 struct tstamp {
-	int	start;
-	int	end;
-	int	select;
-	int	command;
-	int	data;
-	int	status;
-	int	disconnect;
-	int	reselect;
+	ticks_t	start;
+	ticks_t	end;
+	ticks_t	select;
+	ticks_t	command;
+	ticks_t	data;
+	ticks_t	status;
+	ticks_t	disconnect;
+	ticks_t	reselect;
 };
 
 /*
@@ -949,7 +952,7 @@ struct ccb {
 	**	It's set to time of start + allowed number of seconds.
 	*/
 
-	u_long		tlimit;
+	time_t		tlimit;
 
 	/*
 	**	All ccbs of one hostadapter are chained.
@@ -1110,10 +1113,10 @@ struct ncb {
 	/*
 	**	Timeout handler
 	*/
-	u_long		heartbeat;
+	time_t		heartbeat;
 	u_short		ticks;
 	u_short		latetime;
-	u_long		lasttime;
+	time_t		lasttime;
 	struct		callout_handle timeout_ch;
 
 	/*-----------------------------------------------
@@ -1123,7 +1126,7 @@ struct ncb {
 	**	register dump
 	*/
 	struct ncr_reg	regdump;
-	struct timeval	regtime;
+	time_t		regtime;
 
 	/*
 	**	Profiling data
@@ -1342,7 +1345,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.118 1998/06/07 17:12:40 dfr Exp $\n";
+	"\n$Id: ncr.c,v 1.119 1998/07/11 07:45:52 bde Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -1709,7 +1712,7 @@ static	struct script script0 = {
 	/*
 	**      Set a time stamp for this selection
 	*/
-	SCR_COPY (sizeof (struct timeval)),
+	SCR_COPY (sizeof ticks),
 		KVAR (KVAR_TICKS),
 		NADDR (header.stamp.select),
 	/*
@@ -1891,7 +1894,7 @@ static	struct script script0 = {
 	/*
 	**	... set a timestamp ...
 	*/
-	SCR_COPY (sizeof (struct timeval)),
+	SCR_COPY (sizeof ticks),
 		KVAR (KVAR_TICKS),
 		NADDR (header.stamp.command),
 	/*
@@ -1913,7 +1916,7 @@ static	struct script script0 = {
 	/*
 	**	set the timestamp.
 	*/
-	SCR_COPY (sizeof (struct timeval)),
+	SCR_COPY (sizeof ticks),
 		KVAR (KVAR_TICKS),
 		NADDR (header.stamp.status),
 	/*
@@ -2218,7 +2221,7 @@ static	struct script script0 = {
 	**	Set a time stamp,
 	**	and count the disconnects.
 	*/
-	SCR_COPY (sizeof (struct timeval)),
+	SCR_COPY (sizeof ticks),
 		KVAR (KVAR_TICKS),
 		NADDR (header.stamp.disconnect),
 	SCR_COPY (4),
@@ -2461,7 +2464,7 @@ static	struct script script0 = {
 **
 **	SCR_JUMP ^ IFFALSE (WHEN (SCR_DATA_IN)),
 **		PADDR (no_data),
-**	SCR_COPY (sizeof (struct timeval)),
+**	SCR_COPY (sizeof ticks),
 **		KVAR (KVAR_TICKS),
 **		NADDR (header.stamp.data),
 **	SCR_MOVE_TBL ^ SCR_DATA_IN,
@@ -2488,7 +2491,7 @@ static	struct script script0 = {
 **
 **	SCR_JUMP ^ IFFALSE (WHEN (SCR_DATA_OUT)),
 **		PADDR (no_data),
-**	SCR_COPY (sizeof (struct timeval)),
+**	SCR_COPY (sizeof ticks),
 **		KVAR (KVAR_TICKS),
 **		NADDR (header.stamp.data),
 **	SCR_MOVE_TBL ^ SCR_DATA_OUT,
@@ -3057,7 +3060,7 @@ void ncr_script_fill (struct script * scr, struct scripth * scrh)
 
 	*p++ =SCR_JUMP ^ IFFALSE (WHEN (SCR_DATA_IN));
 	*p++ =PADDR (no_data);
-	*p++ =SCR_COPY (sizeof (struct timeval));
+	*p++ =SCR_COPY (sizeof ticks);
 	*p++ =(ncrcmd) KVAR (KVAR_TICKS);
 	*p++ =NADDR (header.stamp.data);
 	*p++ =SCR_MOVE_TBL ^ SCR_DATA_IN;
@@ -3081,7 +3084,7 @@ void ncr_script_fill (struct script * scr, struct scripth * scrh)
 
 	*p++ =SCR_JUMP ^ IFFALSE (WHEN (SCR_DATA_OUT));
 	*p++ =PADDR (no_data);
-	*p++ =SCR_COPY (sizeof (struct timeval));
+	*p++ =SCR_COPY (sizeof ticks);
 	*p++ =(ncrcmd) KVAR (KVAR_TICKS);
 	*p++ =NADDR (header.stamp.data);
 	*p++ =SCR_MOVE_TBL ^ SCR_DATA_OUT;
@@ -5443,8 +5446,8 @@ static void ncr_usercmd (ncb_p np)
 static void ncr_timeout (void *arg)
 {
 	ncb_p	np = arg;
-	u_long	thistime = time_second;
-	u_long	step  = np->ticks;
+	time_t	thistime = time_second;
+	ticks_t	step  = np->ticks;
 	u_long	count = 0;
 	long signed   t;
 	ccb_p cp;
@@ -5760,9 +5763,9 @@ void ncr_exception (ncb_p np)
 	**========================================
 	*/
 
-	if (time_second - np->regtime.tv_sec>10) {
+	if (time_second - np->regtime > 10) {
 		int i;
-		getmicrotime(&np->regtime);
+		np->regtime = time_second;
 		for (i=0; i<sizeof(np->regdump); i++)
 			((char*)&np->regdump)[i] = INB_OFF(i);
 		np->regdump.nc_dstat = dstat;
