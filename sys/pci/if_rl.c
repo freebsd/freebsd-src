@@ -1359,6 +1359,8 @@ rl_txeof(sc)
 	 * frames that have been uploaded.
 	 */
 	do {
+		if (RL_LAST_TXMBUF(sc) == NULL)
+			break;
 		txstat = CSR_READ_4(sc, RL_LAST_TXSTAT(sc));
 		if (!(txstat & (RL_TXSTAT_TX_OK|
 		    RL_TXSTAT_TX_UNDERRUN|RL_TXSTAT_TXABRT)))
@@ -1366,12 +1368,10 @@ rl_txeof(sc)
 
 		ifp->if_collisions += (txstat & RL_TXSTAT_COLLCNT) >> 24;
 
-		if (RL_LAST_TXMBUF(sc) != NULL) {
-			bus_dmamap_unload(sc->rl_tag, RL_LAST_DMAMAP(sc));
-			bus_dmamap_destroy(sc->rl_tag, RL_LAST_DMAMAP(sc));
-			m_freem(RL_LAST_TXMBUF(sc));
-			RL_LAST_TXMBUF(sc) = NULL;
-		}
+		bus_dmamap_unload(sc->rl_tag, RL_LAST_DMAMAP(sc));
+		bus_dmamap_destroy(sc->rl_tag, RL_LAST_DMAMAP(sc));
+		m_freem(RL_LAST_TXMBUF(sc));
+		RL_LAST_TXMBUF(sc) = NULL;
 		if (txstat & RL_TXSTAT_TX_OK)
 			ifp->if_opackets++;
 		else {
@@ -1396,8 +1396,10 @@ rl_txeof(sc)
 		ifp->if_flags &= ~IFF_OACTIVE;
 	} while (sc->rl_cdata.last_tx != sc->rl_cdata.cur_tx);
 
-	ifp->if_timer =
-	    (sc->rl_cdata.last_tx == sc->rl_cdata.cur_tx) ? 0 : 5;
+	if (RL_LAST_TXMBUF(sc) == NULL)
+		ifp->if_timer = 0;
+	else if (ifp->if_timer == 0)
+		ifp->if_timer = 5;
 
 	return;
 }
