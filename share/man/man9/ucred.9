@@ -27,32 +27,78 @@
 .\" $FreeBSD$
 .\"
 .Dd July 9, 2001
-.Dt UMAJOR 9
+.Dt UCRED 9
 .Os
 .Sh NAME
-.Nm umajor
-.Nd "returns the major number from the raw device number"
+.Nm ucred ,
+.Nm crget ,
+.Nm crhold ,
+.Nm crfree ,
+.Nm crcopy ,
+.Nm crdup
+.Nd "functions related to user credentials"
 .Sh SYNOPSIS
-.In sys/systm.h
-.Ft int
-.Fn umajor "udev_t dev"
+.In sys/param.h
+.In sys/ucred.h
+.Ft "struct ucred *"
+.Fn crget void
+.Ft void
+.Fn crhold "struct ucred *cr"
+.Ft void
+.Fn crfree "struct ucred *cr"
+.Ft "struct ucred *"
+.Fn crcopy "struct ucred *cr"
+.Ft "struct ucred *"
+.Fn crdup "struct ucred *cr"
 .Sh DESCRIPTION
 The
-.Fn umajor
-function returns the major device number form the given raw device
-number.
+.Nm
+family of functions is used to manage user credential structures
+.Pq Vt "struct ucred"
+within the kernel.
 .Pp
-Its argument is:
-.Bl -tag -width ".Fa dev"
-.It Fa dev
-The device number whose major ID should be calculated and returned.
-.El
+The
+.Fn crget
+function allocates memory
+for a new structure, sets its reference count to 1, and
+initializes its lock.
+.Pp
+The
+.Fn crhold
+function increases the reference count on the credential.
+.Pp
+The
+.Fn crfree
+function decreases the reference count on the credential.
+If the count drops to 0, the storage for the structure is freed.
+.Pp
+The
+.Fn crcopy
+function calls
+.Fn crdup
+to create a new structure, and copies the old credentials,
+if the reference count is greater than 1;
+otherwise, the original is returned.
+.Pp
+The
+.Fn crdup
+function allocates memory for a new structure,
+copies the contents of the original structure
+into it, references the
+.Va cr_uidinfo
+and
+.Va cr_ruidinfo
+fields, sets the reference count
+to 1, and then returns the new structure.
 .Sh RETURN VALUES
-An integer greater than or equal to zero.
+The functions that return values all return a pointer to a
+.Vt ucred
+structure.
+In the case of
+.Fn crcopy ,
+the return value may be the same structure you passed to it.
 .Sh SEE ALSO
-.Xr major 9 ,
-.Xr minor 9 ,
-.Xr uminor 9
+.Xr uihold 9
 .Sh AUTHORS
 This man page was written by
-.An Chad David .
+.An Chad David Aq davidc@acns.ab.ca .

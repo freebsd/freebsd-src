@@ -35,17 +35,19 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	device_enable.9 device_find_child.9 device_get_children.9 \
 	device_get_devclass.9 device_get_driver.9 device_get_ivars.9 \
 	device_get_softc.9 device_get_state.9 device_get_unit.9 \
+	device_ids.9 \
 	device_probe_and_attach.9 device_quiet.9 device_set_desc.9 \
 	device_set_flags.9 devstat.9 devsw.9 devtoname.9 driver.9 \
 	extattr.9 \
 	fetch.9 \
 	get_cyclecounter.9 \
+	groupmember.9 \
 	ifnet.9 inittodr.9 intro.9 ithread.9 \
 	kernacc.9 kobj.9 kthread.9 ktr.9 \
 	lockcount.9 lockdestroy.9 lockmgr.9 lockmgr_printinfo.9 \
 	lockstatus.9 \
-	major.9 make_dev.9 malloc.9 mbchain.9 mbuf.9 mdchain.9 \
-	mi_switch.9 microseq.9 microtime.9 microuptime.9 minor.9 \
+	make_dev.9 malloc.9 mbchain.9 mbuf.9 mdchain.9 \
+	mi_switch.9 microseq.9 microtime.9 microuptime.9 \
 	module.9 mutex.9 \
 	namei.9 \
 	panic.9 pfil.9 physio.9 posix4.9 printf.9 psignal.9 \
@@ -54,7 +56,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	sbuf.9 scheduler.9 sleep.9 sleepqueue.9 spl.9 store.9 \
 	style.9 suser.9 swi.9 sx.9 sysctl_add_oid.9 sysctl_ctx_init.9 \
 	taskqueue.9 time.9 timeout.9 tvtohz.9 \
-	uio.9 umajor.9 uminor.9 \
+	ucred.9 uidinfo.9 uio.9 \
 	vcount.9 vfs_busy.9 vfs_mount.9 vfs_unbusy.9 vget.9 \
 	vinvalbuf.9 vn_isdisk.9 vnode.9 vput.9 vref.9 vrele.9 \
 	vslock.9 \
@@ -101,6 +103,8 @@ MLINKS+=condvar.9 cv_waitq_empty.9
 MLINKS+=condvar.9 cv_wmesg.9
 MLINKS+=copy.9 copyin.9 copy.9 copyinstr.9 copy.9 copyout.9 copy.9 copystr.9
 MLINKS+=critical_enter.9 critical_exit.9
+MLINKS+=device_ids.9 major.9 device_ids.9 minor.9
+MLINKS+=device_ids.9 umajor.9 device_ids.9 uminor.9
 MLINKS+=devstat.9 devicestat.9 devstat.9 devstat_add_entry.9 
 MLINKS+=devstat.9 devstat_remove_entry.9 devstat.9 devstat_start_transaction.9
 MLINKS+=devstat.9 devstat_end_transaction.9
@@ -156,6 +160,8 @@ MLINKS+=time.9 boottime.9 time.9 mono_time.9 time.9 runtime.9
 MLINKS+=timeout.9 untimeout.9
 MLINKS+=timeout.9 callout_handle_init.9 timeout.9 callout_init.9
 MLINKS+=timeout.9 callout_stop.9 timeout.9 callout_reset.9
+MLINKS+=uidinfo.9 uihashinit.9 uidinfo.9 uifind.9
+MLINKS+=uidinfo.9 uihold.9 uidinfo.9 uifree.9
 MLINKS+=uio.9 uiomove.9
 MLINKS+=vref.9 VREF.9
 MLINKS+=vslock.9 vsunlock.9
@@ -178,6 +184,8 @@ MLINKS+=BUS_SETUP_INTR.9 bus_setup_intr.9
 MLINKS+=BUS_SETUP_INTR.9 BUS_TEARDOWN_INTR.9
 MLINKS+=BUS_SETUP_INTR.9 bus_teardown_intr.9
 MLINKS+=bus_generic_read_ivar.9 bus_generic_write_ivar.9
+MLINKS+=ucred.9 crget.9 ucred.9 crhold.9 ucred.9 crfree.9
+MLINKS+=ucred.9 crcopy.9 ucred.9 crdup.9
 
 MLINKS+=mbchain.9 mb_init.9
 MLINKS+=mbchain.9 mb_initm.9
