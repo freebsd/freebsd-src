@@ -363,6 +363,10 @@ trying values of
 can lead to upwards of a 20% underutilization of the link
 as well as reducing the algorithm's ability to adapt to changing
 situations and should only be done as a last resort.
+.It tcp.rfc3042
+Enable the Limited Transmit algorithm as described in RFC 3042.  It
+helps avoid timeouts on lossy links.  This is a standards track RFC
+and is off by default.
 .El
 .Sh ERRORS
 A socket operation may fail with one of the following errors returned:
