@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)clnt_tcp.c 1.37 87/10/05 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)clnt_tcp.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: clnt_tcp.c,v 1.5 1995/12/07 12:50:53 bde Exp $";
+static char *rcsid = "$Id: clnt_tcp.c,v 1.6 1996/06/10 00:49:16 jraynard Exp $";
 #endif
 
 /*
@@ -63,10 +63,6 @@ static char *rcsid = "$Id: clnt_tcp.c,v 1.5 1995/12/07 12:50:53 bde Exp $";
 #include <rpc/pmap_clnt.h>
 
 #define MCALL_MSG_SIZE 24
-
-int bindresvport(int sd, struct sockaddr_in *);
-int _rpc_dtablesize(void);
-bool_t xdr_opaque_auth(XDR *, struct opaque_auth *);
 
 static int	readtcp();
 static int	writetcp();
@@ -126,6 +122,10 @@ clnttcp_create(raddr, prog, vers, sockp, sendsz, recvsz)
 	register struct ct_data *ct = NULL;
 	struct timeval now;
 	struct rpc_msg call_msg;
+	static u_int32_t disrupt;
+
+	if (disrupt == 0)
+		disrupt = (u_int32_t)(long)raddr;
 
 	h  = (CLIENT *)mem_alloc(sizeof(*h));
 	if (h == NULL) {
@@ -166,7 +166,8 @@ clnttcp_create(raddr, prog, vers, sockp, sendsz, recvsz)
 		    sizeof(*raddr)) < 0)) {
 			rpc_createerr.cf_stat = RPC_SYSTEMERROR;
 			rpc_createerr.cf_error.re_errno = errno;
-			(void)close(*sockp);
+			if (*sockp != -1)
+				(void)close(*sockp);
 			goto fooy;
 		}
 		ct->ct_closeit = TRUE;
@@ -186,7 +187,7 @@ clnttcp_create(raddr, prog, vers, sockp, sendsz, recvsz)
 	 * Initialize call message
 	 */
 	(void)gettimeofday(&now, (struct timezone *)0);
-	call_msg.rm_xid = getpid() ^ now.tv_sec ^ now.tv_usec;
+	call_msg.rm_xid = (++disrupt) ^ getpid() ^ now.tv_sec ^ now.tv_usec;
 	call_msg.rm_direction = CALL;
 	call_msg.rm_call.cb_rpcvers = RPC_MSG_VERSION;
 	call_msg.rm_call.cb_prog = prog;
@@ -242,7 +243,7 @@ clnttcp_call(h, proc, xdr_args, args_ptr, xdr_results, results_ptr, timeout)
 	register XDR *xdrs = &(ct->ct_xdrs);
 	struct rpc_msg reply_msg;
 	u_long x_id;
-	u_long *msg_x_id = (u_long *)(ct->ct_mcall);	/* yuk */
+	u_int32_t *msg_x_id = (u_int32_t *)(ct->ct_mcall);	/* yuk */
 	register bool_t shipnow;
 	int refreshes = 2;
 
@@ -406,35 +407,54 @@ readtcp(ct, buf, len)
 	caddr_t buf;
 	register int len;
 {
-#ifdef FD_SETSIZE
-	fd_set mask;
-	fd_set readfds;
-
-	if (len == 0)
-		return (0);
-	FD_ZERO(&mask);
-	FD_SET(ct->ct_sock, &mask);
-#else
-	register int mask = 1 << (ct->ct_sock);
-	int readfds;
+	fd_set *fds, readfds;
+	struct timeval start, after, duration, delta, tmp, tv;
+	int r, save_errno;
 
 	if (len == 0)
 		return (0);
 
-#endif /* def FD_SETSIZE */
+	if (ct->ct_sock + 1 > FD_SETSIZE) {
+		int bytes = howmany(ct->ct_sock + 1, NFDBITS) * sizeof(fd_mask);
+		fds = (fd_set *)malloc(bytes);
+		if (fds == NULL)
+			return (-1);
+		memset(fds, 0, bytes);
+	} else {
+		fds = &readfds;
+		FD_ZERO(fds);
+	}
+
+	gettimeofday(&start, NULL);
+	delta = ct->ct_wait;
 	while (TRUE) {
-		readfds = mask;
-		switch (select(_rpc_dtablesize(), &readfds, (fd_set *)NULL,
-			       (fd_set *)NULL, &(ct->ct_wait))) {
+		/* XXX we know the other bits are still clear */
+		FD_SET(ct->ct_sock, fds);
+		tv = delta;	/* in case select writes back */
+		r = select(ct->ct_sock+1, fds, NULL, NULL, &tv);
+		save_errno = errno;
+
+		gettimeofday(&after, NULL);
+		timersub(&start, &after, &duration);
+		timersub(&delta, &duration, &tmp);
+		delta = tmp;
+		if (delta.tv_sec < 0 || !timerisset(&delta))
+			r = 0;
+
+		switch (r) {
 		case 0:
+			if (fds != &readfds)
+				free(fds);
 			ct->ct_error.re_status = RPC_TIMEDOUT;
 			return (-1);
 
 		case -1:
 			if (errno == EINTR)
 				continue;
+			if (fds != &readfds)
+				free(fds);
 			ct->ct_error.re_status = RPC_CANTRECV;
-			ct->ct_error.re_errno = errno;
+			ct->ct_error.re_errno = save_errno;
 			return (-1);
 		}
 		break;
