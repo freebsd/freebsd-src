@@ -75,6 +75,7 @@
 #include <fcntl.h>
 #include <paths.h>
 #include <string.h>
+#include <sys/types.h>
 #include <sys/ioccom.h>
 
 #define CDEV_IOCTL1     _IOR('C', 1, u_int)
