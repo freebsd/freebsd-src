@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.23 1996/08/30 18:33:31 ache Exp $
+#       $Id: Makefile,v 1.8 1997/01/05 16:19:35 ache Exp $
 
 SRCDIR= ${.CURDIR}/../../../../contrib/libreadline/doc
 
@@ -10,9 +10,9 @@ hist.info: hstech.texinfo hsuser.texinfo
 rlman.info: rltech.texinfo rluser.texinfo
 
 history.info: hist.info
-	ln $> $@
+	ln -f $> $@
 
 readline.info: rlman.info
-	ln $> $@
+	ln -f $> $@
 
 .include <bsd.info.mk>
