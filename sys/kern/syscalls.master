@@ -540,7 +540,7 @@
 		    int flags); }
 379	MSTD	{ int kse_exit(void); }
 380	MSTD	{ int kse_wakeup(struct kse_mailbox *mbx); }
-381	STD	{ int kse_create(struct kse_mailbox *mbx, \
+381	MSTD	{ int kse_create(struct kse_mailbox *mbx, \
 		    int newgroup); }
 382	MSTD	{ int kse_thr_interrupt(struct kse_thr_mailbox *tmbx, int cmd, \
 		    long data); }

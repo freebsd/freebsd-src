@@ -137,7 +137,6 @@ exit1(struct thread *td, int rv)
 	/*
 	 * MUST abort all other threads before proceeding past here.
 	 */
-	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	if (p->p_flag & P_SA || p->p_numthreads > 1) {
 		/*
@@ -160,9 +159,8 @@ exit1(struct thread *td, int rv)
 		 * from userret().  thread_exit() will unsuspend us
 		 * when the last other thread exits.
 		 */
-		if (thread_single(SINGLE_EXIT)) {
+		if (thread_single(SINGLE_EXIT))
 			panic ("Exit: Single threading fouled up");
-		}
 		/*
 		 * All other activity in this process is now stopped.
 		 * Remove excess KSEs and KSEGRPS. XXXKSE (when we have them)
@@ -172,7 +170,6 @@ exit1(struct thread *td, int rv)
 		p->p_flag &= ~P_SA;
 		thread_single_end();	/* Don't need this any more. */
 	}
-	mtx_unlock(&Giant);
 	/*
 	 * With this state set:
 	 * Any thread entering the kernel from userspace will thread_exit()
@@ -716,7 +713,6 @@ loop:
 			/*
 			 * do any thread-system specific cleanups
 			 */
-			mtx_lock(&Giant);
 			thread_wait(p);
 
 			/*
@@ -724,6 +720,7 @@ loop:
 			 * to free anything that cpu_exit couldn't
 			 * release while still running in process context.
 			 */
+			mtx_lock(&Giant);
 			vm_waitproc(p);
 			mtx_unlock(&Giant);
 #ifdef MAC
