@@ -181,7 +181,6 @@ runq_add(struct runq *rq, struct kse *ke)
 	struct rqhead *rqh;
 	int pri;
 
-	struct ksegrp *kg = ke->ke_ksegrp;
 #ifdef INVARIANTS
 	struct proc *p = ke->ke_proc;
 #endif
@@ -192,12 +191,12 @@ runq_add(struct runq *rq, struct kse *ke)
 	    p, p->p_comm));
 	KASSERT(runq_find(rq, ke) == 0,
 	    ("runq_add: proc %p (%s) already in run queue", ke, p->p_comm));
-	pri = kg->kg_pri.pri_level / RQ_PPQ;
+	pri = ke->ke_thread->td_priority / RQ_PPQ;
 	ke->ke_rqindex = pri;
 	runq_setbit(rq, pri);
 	rqh = &rq->rq_queues[pri];
 	CTR4(KTR_RUNQ, "runq_add: p=%p pri=%d %d rqh=%p",
-	    ke->ke_proc, kg->kg_pri.pri_level, pri, rqh);
+	    ke->ke_proc, ke->ke_thread->td_priority, pri, rqh);
 	TAILQ_INSERT_TAIL(rqh, ke, ke_procq);
 	ke->ke_flags |= KEF_ONRUNQ;
 }
@@ -279,9 +278,6 @@ runq_init(struct runq *rq)
 void
 runq_remove(struct runq *rq, struct kse *ke)
 {
-#ifdef KTR
-	struct ksegrp *kg = ke->ke_ksegrp;
-#endif
 	struct rqhead *rqh;
 	int pri;
 
@@ -291,7 +287,7 @@ runq_remove(struct runq *rq, struct kse *ke)
 	pri = ke->ke_rqindex;
 	rqh = &rq->rq_queues[pri];
 	CTR4(KTR_RUNQ, "runq_remove: p=%p pri=%d %d rqh=%p",
-	    ke, kg->kg_pri.pri_level, pri, rqh);
+	    ke, ke->ke_thread->td_priority, pri, rqh);
 	KASSERT(ke != NULL, ("runq_remove: no proc on busy queue"));
 	TAILQ_REMOVE(rqh, ke, ke_procq);
 	if (TAILQ_EMPTY(rqh)) {

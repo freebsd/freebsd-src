@@ -100,7 +100,7 @@ getscheduler(register_t *ret, struct ksched *ksched, struct thread *td)
 	int e = 0;
 
 	mtx_lock_spin(&sched_lock);
-	pri_to_rtp(&td->td_ksegrp->kg_pri, &rtp);
+	pri_to_rtp(td->td_ksegrp, &rtp);
 	mtx_unlock_spin(&sched_lock);
 	switch (rtp.type)
 	{
@@ -145,7 +145,7 @@ int ksched_getparam(register_t *ret, struct ksched *ksched,
 	struct rtprio rtp;
 
 	mtx_lock_spin(&sched_lock);
-	pri_to_rtp(&td->td_ksegrp->kg_pri, &rtp);
+	pri_to_rtp(td->td_ksegrp, &rtp);
 	mtx_unlock_spin(&sched_lock);
 	if (RTP_PRIO_IS_REALTIME(rtp.type))
 		param->sched_priority = rtpprio_to_p4prio(rtp.prio);
@@ -165,6 +165,7 @@ int ksched_setscheduler(register_t *ret, struct ksched *ksched,
 {
 	int e = 0;
 	struct rtprio rtp;
+	struct ksegrp *kg = td->td_ksegrp;
 
 	switch(policy)
 	{
@@ -179,7 +180,7 @@ int ksched_setscheduler(register_t *ret, struct ksched *ksched,
 				? RTP_PRIO_FIFO : RTP_PRIO_REALTIME;
 
 			mtx_lock_spin(&sched_lock);
-			rtp_to_pri(&rtp, &td->td_ksegrp->kg_pri);
+			rtp_to_pri(&rtp, kg);
 			td->td_last_kse->ke_flags |= KEF_NEEDRESCHED; /* XXXKSE */
 			mtx_unlock_spin(&sched_lock);
 		}
@@ -194,7 +195,7 @@ int ksched_setscheduler(register_t *ret, struct ksched *ksched,
 			rtp.type = RTP_PRIO_NORMAL;
 			rtp.prio = p4prio_to_rtpprio(param->sched_priority);
 			mtx_lock_spin(&sched_lock);
-			rtp_to_pri(&rtp, &td->td_ksegrp->kg_pri);
+			rtp_to_pri(&rtp, kg);
 
 			/* XXX Simply revert to whatever we had for last
 			 *     normal scheduler priorities.

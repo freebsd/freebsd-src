@@ -326,10 +326,10 @@ proc0_init(void *dummy __unused)
 	p->p_sflag = PS_INMEM;
 	p->p_stat = SRUN;
 	p->p_ksegrp.kg_nice = NZERO;
-	p->p_ksegrp.kg_pri.pri_class = PRI_TIMESHARE;
-	p->p_ksegrp.kg_pri.pri_level = PVM;
-	p->p_ksegrp.kg_pri.pri_native = PUSER;
-	p->p_ksegrp.kg_pri.pri_user = PUSER;
+ 	kg->kg_pri_class = PRI_TIMESHARE;
+ 	kg->kg_user_pri = PUSER;
+ 	td->td_priority = PVM;
+ 	td->td_base_pri = PUSER;
 
 	p->p_peers = 0;
 	p->p_leader = p;
