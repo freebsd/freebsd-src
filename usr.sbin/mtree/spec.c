@@ -220,11 +220,11 @@ set(t, ip)
 				err("%s", strerror(errno));
 			break;
 		case F_TIME:
-			ip->st_mtimespec.ts_sec = strtoul(val, &ep, 10);
+			ip->st_mtimespec.tv_sec = strtoul(val, &ep, 10);
 			if (*ep != '.')
 				err("invalid time %s", val);
 			val = ep + 1;
-			ip->st_mtimespec.ts_nsec = strtoul(val, &ep, 10);
+			ip->st_mtimespec.tv_nsec = strtoul(val, &ep, 10);
 			if (*ep)
 				err("invalid time %s", val);
 			break;
