@@ -40,47 +40,48 @@ struct afd_header {
 #define MFD_HD_144		0x24
 #define MFD_UHD			0x31
 
-#define MFD_UNKNOWN    		0x00
-#define MFD_NO_DISC    	 	0x70
-#define MFD_DOOR_OPEN  	 	0x71
-#define MFD_FMT_ERROR  	 	0x72
+#define MFD_UNKNOWN		0x00
+#define MFD_NO_DISC		0x70
+#define MFD_DOOR_OPEN		0x71
+#define MFD_FMT_ERROR		0x72
 
-    u_int8_t	reserved0       :7;
-    u_int8_t	wp              :1;     /* write protect */
+    u_int8_t	reserved0	:7;
+    u_int8_t	wp		:1;	/* write protect */
     u_int8_t	unused[4];
 };
 
 /* ATAPI Rewriteable drive Capabilities and Mechanical Status Page */
-#define ATAPI_REWRITEABLE_CAP_PAGE        0x05
-
 struct afd_cappage {
-    u_int8_t	page_code       :6;
-    u_int8_t	reserved1_6     :1;
-    u_int8_t	ps              :1;     /* page save supported */
-    u_int8_t	page_length;            /* page length */
-    u_int16_t	transfer_rate;          /* in kilobits per second */
-    u_int8_t	heads;         		/* number of heads */
+    u_int8_t	page_code	:6;
+#define ATAPI_REWRITEABLE_CAP_PAGE	  0x05
+
+    u_int8_t	reserved1_6	:1;
+    u_int8_t	ps		:1;	/* page save supported */
+    u_int8_t	page_length;		/* page length */
+    u_int16_t	transfer_rate;		/* in kilobits per second */
+    u_int8_t	heads;			/* number of heads */
     u_int8_t	sectors;		/* number of sectors per track */
-    u_int16_t	sector_size;            /* number of bytes per sector */
-    u_int16_t	cylinders;              /* number of cylinders */
+    u_int16_t	sector_size;		/* number of bytes per sector */
+    u_int16_t	cylinders;		/* number of cylinders */
     u_int8_t	reserved10[10];
-    u_int8_t	motor_delay;            /* motor off delay */
+    u_int8_t	motor_delay;		/* motor off delay */
     u_int8_t	reserved21[7];
-    u_int16_t	rpm;                    /* rotations per minute */
+    u_int16_t	rpm;			/* rotations per minute */
     u_int8_t	reserved30[2];
 };
 
-
 struct afd_softc {
-	struct atapi_softc 	*atp;		/* controller structure */
-	int32_t			lun;		/* logical device unit */
-	int32_t			flags;		/* device state flags */
-	int32_t			refcnt;		/* the number of raw opens */
-	int32_t			transfersize;	/* max size of each transfer */
-	struct buf_queue_head 	buf_queue;	/* queue of i/o requests */
-	struct afd_header 	header;		/* capabilities page info */
-	struct afd_cappage 	cap;		/* capabilities page info */
-	struct diskslices 	*slices;	/* virtual drives */
-	struct devstat		stats;
+    struct atapi_softc		*atp;		/* controller structure */
+    int32_t			lun;		/* logical device unit */
+    int32_t			flags;		/* device state flags */
+#define 	F_OPEN			0x0001	/* the device is opened */
+
+    int32_t			refcnt;		/* the number of raw opens */
+    int32_t			transfersize;	/* max size of each transfer */
+    struct buf_queue_head	buf_queue;	/* queue of i/o requests */
+    struct afd_header		header;		/* capabilities page info */
+    struct afd_cappage		cap;		/* capabilities page info */
+    struct disk			disk;		/* virtual drives */
+    struct devstat		stats;
 };
 
