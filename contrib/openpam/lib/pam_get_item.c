@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_get_item.c#10 $
+ * $P4: //depot/projects/openpam/lib/pam_get_item.c#11 $
  */
 
 #include <sys/param.h>
@@ -66,6 +66,7 @@ pam_get_item(pam_handle_t *pamh,
 	case PAM_CONV:
 	case PAM_USER_PROMPT:
 	case PAM_AUTHTOK_PROMPT:
+	case PAM_OLDAUTHTOK_PROMPT:
 		*item = pamh->item[item_type];
 		return (PAM_SUCCESS);
 	default:
@@ -112,6 +113,9 @@ pam_get_item(pam_handle_t *pamh,
  *	=PAM_AUTHTOK_PROMPT:
  *		The prompt to use when asking the applicant for an
  *		authentication token.
+ *	=PAM_OLDAUTHTOK_PROMPT:
+ *		The prompt to use when asking the applicant for an
+ *		expired authentication token prior to changing it.
  *
  * See =pam_start for a description of =struct pam_conv.
  *
