@@ -63,6 +63,12 @@ rpcbind : 192.0.2.32/255.255.255.224 : allow
 rpcbind : 192.0.2.96/255.255.255.224 : allow
 rpcbind : ALL : deny
 
+# NIS master server. Only local nets should have access
+ypserv : localhost : allow
+ypserv : .unsafe.my.net.example.com : deny
+ypserv : .my.net.example.com : allow
+ypserv : ALL : deny
+
 # Provide a small amount of protection for ftpd
 ftpd : localhost : allow
 ftpd : .nice.guy.example.com : allow
