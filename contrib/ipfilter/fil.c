@@ -10,6 +10,10 @@ static const char sccsid[] = "@(#)fil.c	1.36 6/5/96 (C) 1993-1996 Darren Reed";
 static const char rcsid[] = "@(#)$Id: fil.c,v 2.3.2.16 2000/01/27 08:49:37 darrenr Exp $";
 #endif
 
+#if defined(_KERNEL) && defined(__FreeBSD_version) && \
+    (__FreeBSD_version >= 400019)
+# define CSUM_DELAY_DATA
+#endif
 #include <sys/errno.h>
 #include <sys/types.h>
 #include <sys/param.h>
