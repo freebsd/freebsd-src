@@ -428,7 +428,7 @@ sendit:
 	/*
 	 * Check with the firewall...
 	 */
-	if (ip_fw_chk_ptr) {
+	if (fw_enable && ip_fw_chk_ptr) {
 		struct sockaddr_in *old = dst;
 
 		off = (*ip_fw_chk_ptr)(&ip,

@@ -161,6 +161,7 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, stealth, CTLFLAG_RW,
 /* Firewall hooks */
 ip_fw_chk_t *ip_fw_chk_ptr;
 ip_fw_ctl_t *ip_fw_ctl_ptr;
+int fw_enable = 1 ;
 
 #ifdef DUMMYNET
 ip_dn_ctl_t *ip_dn_ctl_ptr;
@@ -397,7 +398,7 @@ iphack:
 	}
 #endif
 #ifdef COMPAT_IPFW
-	if (ip_fw_chk_ptr) {
+	if (fw_enable && ip_fw_chk_ptr) {
 #ifdef IPFIREWALL_FORWARD
 		/*
 		 * If we've been forwarded from the output side, then
