@@ -752,7 +752,7 @@ g_mirror_done(struct bio *bp)
 	struct g_mirror_softc *sc;
 
 	sc = bp->bio_from->geom->softc;
-	bp->bio_flags = BIO_FLAG1; 
+	bp->bio_cflags |= G_MIRROR_BIO_FLAG_REGULAR; 
 	mtx_lock(&sc->sc_queue_mtx);
 	bioq_disksort(&sc->sc_queue, bp);
 	wakeup(sc);
@@ -853,7 +853,7 @@ g_mirror_sync_done(struct bio *bp)
 
 	G_MIRROR_LOGREQ(3, bp, "Synchronization request delivered.");
 	sc = bp->bio_from->geom->softc;
-	bp->bio_flags = BIO_FLAG2; 
+	bp->bio_cflags |= G_MIRROR_BIO_FLAG_SYNC;
 	mtx_lock(&sc->sc_queue_mtx);
 	bioq_disksort(&sc->sc_queue, bp);
 	wakeup(sc);
@@ -914,7 +914,7 @@ g_mirror_sync_one(struct g_mirror_disk *disk)
 	bp->bio_offset = disk->d_sync.ds_offset;
 	bp->bio_length = MIN(sc->sc_sync.ds_block,
 	    sc->sc_mediasize - bp->bio_offset);
-	bp->bio_flags = 0;
+	bp->bio_cflags = 0;
 	bp->bio_done = g_mirror_sync_done;
 	bp->bio_data = uma_zalloc(sc->sc_sync.ds_zone, M_NOWAIT | M_ZERO);
 	if (bp->bio_data == NULL) {
@@ -961,7 +961,7 @@ g_mirror_sync_request(struct bio *bp)
 			return;
 		}
 		bp->bio_cmd = BIO_WRITE;
-		bp->bio_flags = 0;
+		bp->bio_cflags = 0;
 		G_MIRROR_LOGREQ(3, bp, "Synchronization request finished.");
 		cp = disk->d_consumer;
 		KASSERT(cp->acr == 0 && cp->acw == 1 && cp->ace == 1,
@@ -1423,9 +1423,9 @@ end:
 		bioq_remove(&sc->sc_queue, bp);
 		mtx_unlock(&sc->sc_queue_mtx);
 
-		if ((bp->bio_flags & BIO_FLAG1) != 0) {
+		if ((bp->bio_cflags & G_MIRROR_BIO_FLAG_REGULAR) != 0) {
 			g_mirror_regular_request(bp);
-		} else if ((bp->bio_flags & BIO_FLAG2) != 0) {
+		} else if ((bp->bio_cflags & G_MIRROR_BIO_FLAG_SYNC) != 0) {
 			u_int timeout, sps;
 
 			g_mirror_sync_request(bp);
