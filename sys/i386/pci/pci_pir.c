@@ -525,8 +525,9 @@ pci_pir_route_interrupt(int bus, int device, int func, int pin)
 		BUS_CONFIG_INTR(pir_device, pci_link->pl_irq,
 		    INTR_TRIGGER_LEVEL, INTR_POLARITY_LOW);
 	}
-	printf("$PIR: %d:%d INT%c routed to irq %d\n", bus, device,
-	    pin - 1 + 'A', pci_link->pl_irq);
+	if (bootverbose)
+		printf("$PIR: %d:%d INT%c routed to irq %d\n", bus, device,
+		    pin - 1 + 'A', pci_link->pl_irq);
 	return (pci_link->pl_irq);
 }
 
