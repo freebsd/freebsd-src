@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 23, 2002
+.Dd December 14, 2004
 .Dt FIREWIRE 4
 .Os
 .Sh NAME
@@ -75,7 +75,7 @@ e.g., node ID, cycle master, isochronous resource manager and bus
 manager, are dynamically assigned, after bus reset is initiated.
 On the
 .Nm
-bus, every device is identified by a EUI 64 address.
+bus, every device is identified by an EUI 64 address.
 .Sh FILES
 .Bl -tag -compact
 .It Pa /dev/fw0.0
@@ -83,9 +83,11 @@ bus, every device is identified by a EUI 64 address.
 .El
 .Sh SEE ALSO
 .Xr fwe 4 ,
+.Xr fwip 4 ,
 .Xr fwohci 4 ,
 .Xr pci 4 ,
 .Xr sbp 4 ,
+.Xr eui64 5 ,
 .Xr fwcontrol 8 ,
 .Xr kldload 8 ,
 .Xr sysctl 8
