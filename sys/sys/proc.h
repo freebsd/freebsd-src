@@ -380,8 +380,8 @@ struct thread {
 
 /*
  * Traps for young players:
- * The main thread flag that controls whether a thread acts as a threaded
- * or unthreaded thread is the TDF_UNBOUND flag.
+ * The main thread variable that controls whether a thread acts as a threaded
+ * or unthreaded thread is the td_bound counter (0 == unbound).
  * UPCALLS run with the UNBOUND flags clear, after they are first scheduled.
  * i.e. they bind themselves to whatever thread thay are first scheduled with.
  * You may see BOUND threads in KSE processes but you should never see
@@ -475,7 +475,7 @@ struct ksegrp {
 	u_char		kg_pri_class;	/* (j) Scheduling class. */
 	u_char		kg_user_pri;	/* (j) User pri from estcpu and nice. */
 	char		kg_nice;	/* (j?/k?) Process "nice" value. */
-/*	struct rtprio	kg_rtprio; */	/* (j) Realtime priority. */
+	struct kse_thr_mailbox *kg_completed; /* (c) completed thread mboxes */
 #define	kg_endcopy kg_numthreads
 	int		kg_numthreads;	/* Num threads in total */
 	int		kg_idle_kses;	/* num KSEs idle */
