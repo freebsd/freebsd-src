@@ -33,15 +33,18 @@ static char *rcsid = "$OpenBSD: strlcpy.c,v 1.4 1999/05/01 18:56:41 millert Exp 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <string.h>
+#include "un-namespace.h"
 
+__weak_reference(_strlcpy, strlcpy);
 /*
  * Copy src to string dst of size siz.  At most siz-1 characters
  * will be copied.  Always NUL terminates (unless siz == 0).
  * Returns strlen(src); if retval >= siz, truncation occurred.
  */
-size_t strlcpy(dst, src, siz)
+size_t _strlcpy(dst, src, siz)
 	char *dst;
 	const char *src;
 	size_t siz;

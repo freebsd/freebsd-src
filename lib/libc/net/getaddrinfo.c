@@ -853,7 +853,7 @@ get_canonname(pai, ai, str)
 		ai->ai_canonname = (char *)malloc(strlen(str) + 1);
 		if (ai->ai_canonname == NULL)
 			return EAI_MEMORY;
-		strlcpy(ai->ai_canonname, str, strlen(str) + 1);
+		_strlcpy(ai->ai_canonname, str, strlen(str) + 1);
 	}
 	return 0;
 }
@@ -1305,7 +1305,7 @@ getanswer(answer, anslen, qname, qtype, pai)
 				had_error++;
 				continue;
 			}
-			strlcpy(bp, tbuf, ep - bp);
+			_strlcpy(bp, tbuf, ep - bp);
 			canonname = bp;
 			bp += n;
 			continue;
