@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.27 1997/04/07 09:27:21 peter Exp $
+ *	$Id: param.h,v 1.3 1997/07/23 18:35:57 smp Exp smp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -140,7 +140,7 @@
  * of these locks while a process is sleeping.
  */
 struct simplelock {
-	int	lock_data;
+	int	lock_data __attribute__ ((aligned (4)));
 };
 
 #if !defined(SIMPLELOCK_DEBUG) && NCPUS > 1

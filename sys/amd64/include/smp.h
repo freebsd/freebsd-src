@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.14 1997/07/23 05:41:55 smp Exp smp $
+ * $Id: smp.h,v 1.15 1997/07/23 20:16:11 smp Exp smp $
  *
  */
 
@@ -65,6 +65,7 @@ extern volatile u_int		started_cpus;
 extern u_int			vec[];
 extern u_int			Xintr8254;
 extern u_int			mask8254;
+extern struct simple_lock	imen_lock;
 
 /* functions in apic_ipl.s */
 void	vec8254			__P((void));
@@ -73,8 +74,8 @@ void	INTRDIS			__P((u_int));
 void	apic_eoi		__P((void));
 u_int	io_apic_read		__P((int, int));
 void	io_apic_write		__P((int, int, u_int));
-void	write_io_apic_mask24	__P((int, u_int));
 
+/* also in apic_ipl.s, experimental versions of simple_lock(), etc. */
 #include <machine/param.h>
 void	s_lock_init		__P((struct simplelock *));
 void	s_lock			__P((__volatile struct simplelock *));
