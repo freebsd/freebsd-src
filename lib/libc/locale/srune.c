@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002, 2003 Tim J. Robbins.
+ * Copyright (c) 2003 Tim J. Robbins
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,40 +27,68 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <errno.h>
 #include <limits.h>
 #include <rune.h>
-#include <stdlib.h>
 #include <wchar.h>
 
-extern size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict);
-
-size_t
-wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
+/*
+ * Emulate the deprecated 4.4BSD sgetrune() function in terms of
+ * the ISO C mbrtowc() function.
+ */
+rune_t
+__emulated_sgetrune(const char *string, size_t n, const char **result)
 {
+	wchar_t wc;
+	size_t nconv;
 
-	return (__wcrtomb(s, wc, ps));
+	/*
+	 * Pass a NULL conversion state to mbrtowc() since multibyte
+	 * conversion states are not supported.
+	 */
+	nconv = mbrtowc(&wc, string, n, NULL);
+	if (nconv == (size_t)-2) {
+		if (result != NULL)
+			*result = string;
+		return (_INVALID_RUNE);
+	}
+	if (nconv == (size_t)-1) {
+		if (result != NULL)
+			*result = string + 1;
+		return (_INVALID_RUNE);
+	}
+	if (nconv == 0)
+		nconv = 1;
+	if (result != NULL)
+		*result = string + nconv;
+	return ((rune_t)wc);
 }
 
 /*
- * Emulate the ISO C wcrtomb() function in terms of the deprecated
- * 4.4BSD sputrune() function.
+ * Emulate the deprecated 4.4BSD sputrune() function in terms of
+ * the ISO C wcrtomb() function.
  */
-size_t
-__emulated_wcrtomb(char * __restrict s, wchar_t wc,
-    mbstate_t * __restrict ps __unused)
+int
+__emulated_sputrune(rune_t rune, char *string, size_t n, char **result)
 {
-	char *e;
 	char buf[MB_LEN_MAX];
+	size_t nconv;
 
-	if (s == NULL) {
-		s = buf;
-		wc = L'\0';
+	nconv = wcrtomb(buf, (wchar_t)rune, NULL);
+	if (nconv == (size_t)-1) {
+		if (result != NULL)
+			*result = NULL;
+		return (0);
 	}
-	sputrune(wc, s, MB_CUR_MAX, &e);
-	if (e == NULL) {
-		errno = EILSEQ;
-		return ((size_t)-1);
+	if (string == NULL) {
+		if (result != NULL)
+			*result = (char *)0 + nconv;
+	} else if (n >= nconv) {
+		memcpy(string, buf, nconv);
+		if (result != NULL)
+			*result = string + nconv;
+	} else {
+		if (result != NULL)
+			*result = NULL;
 	}
-	return ((size_t)(e - s));
+	return (nconv);
 }

@@ -42,15 +42,24 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <rune.h>
+#include <wchar.h>
 
-extern rune_t	_none_sgetrune(const char *, size_t, char const **);
-extern int	_none_sputrune(rune_t, char *, size_t, char **);
+extern size_t	_none_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
+		    mbstate_t * __restrict);
+extern size_t	_none_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
+extern size_t	__emulated_mbrtowc(wchar_t * __restrict,
+		    const char * __restrict, size_t,
+		    mbstate_t * __restrict ps);
+extern size_t	__emulated_wcrtomb(char * __restrict, wchar_t,
+		    mbstate_t * __restrict ps);
+extern rune_t	__emulated_sgetrune(const char *, size_t, const char **);
+extern int	__emulated_sputrune(rune_t, char *, size_t, char **);
 
 _RuneLocale _DefaultRuneLocale = {
     _RUNE_MAGIC_1,
     "NONE",
-    _none_sgetrune,
-    _none_sputrune,
+    __emulated_sgetrune,
+    __emulated_sputrune,
     0xFFFD,
 
     {	/*00*/	_CTYPE_C,
@@ -253,4 +262,7 @@ _RuneLocale _DefaultRuneLocale = {
 _RuneLocale *_CurrentRuneLocale = &_DefaultRuneLocale;
 
 int __mb_cur_max = 1;
-
+size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict, size_t,
+    mbstate_t * __restrict) = _none_mbrtowc;
+size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict) =
+    _none_wcrtomb;
