@@ -162,6 +162,7 @@ legacy_attach(device_t dev)
 			}
 	}
 
+#ifndef PC98
 	/*
 	 * If we didn't see EISA or ISA on a pci bridge, create some
 	 * connection points now so they show up "on motherboard".
@@ -172,6 +173,7 @@ legacy_attach(device_t dev)
 			panic("legacy_attach eisa");
 		device_probe_and_attach(child);
 	}
+#endif
 #ifdef DEV_MCA
 	if (MCA_system && !devclass_get_device(devclass_find("mca"), 0)) {
         	child = BUS_ADD_CHILD(dev, 0, "mca", 0);
