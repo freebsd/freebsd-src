@@ -45,6 +45,7 @@
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/file.h>
+#include <sys/filedesc.h>
 #include <sys/proc.h>
 #include <sys/sysent.h>
 #include <sys/errno.h>
