@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.82 1998/12/19 02:58:29 msmith Exp $
+**  $Id: pcisupport.c,v 1.83 1998/12/19 08:35:30 julian Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -246,8 +246,6 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("Intel 82424ZX (Saturn) cache DRAM controller");
 	case 0x04828086:
 		return ("Intel 82375EB PCI-EISA bridge");
-	case 0x04961039:
-		return ("SiS 85c496");
 	case 0x04a38086:
 		rev = (unsigned) pci_conf_read (tag, PCI_CLASS_REG) & 0xff;
 		if (rev == 16 || rev == 17)
@@ -266,12 +264,6 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("Intel 82437MX mobile PCI cache memory controller");
 	case 0x12508086:
 		return ("Intel 82439");
-	case 0x04061039:
-		return ("SiS 85c501");
-	case 0x00081039:
-		return ("SiS 85c503");
-	case 0x06011039:
-		return ("SiS 85c601");
 	case 0x70008086:
 		return ("Intel 82371SB PCI to ISA bridge");
 	case 0x70308086:
@@ -307,6 +299,16 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("DEC 21050 PCI-PCI bridge");
 	case 0x124b8086:
 		return ("Intel 82380FB mobile PCI to PCI bridge");
+	/* SiS -- vendor 0x1039 */
+	case 0x04961039:
+		return ("SiS 85c496");
+	case 0x04061039:
+		return ("SiS 85c501");
+	case 0x00081039:
+		return ("SiS 85c503");
+	case 0x06011039:
+		return ("SiS 85c601");
+	
 	/* VLSI -- vendor 0x1004 */
 	case 0x00051004:
 		return ("VLSI 82C592 Host to PCI bridge");
@@ -340,6 +342,32 @@ chipset_probe (pcici_t tag, pcidi_t type)
 	/* XXX need info on the MVP3 -- any takers? */
 	case 0x30401106:
 		return("VIA 82C586B ACPI interface");
+	/* XXX New info added-in */
+        case 0x05711106:
+		return("VIA 82C586B IDE controller");
+	case 0x30381106:
+		return("VIA 82C586B USB controller");
+	/* XXX Here is MVP3, I got the datasheet but NO M/B to test it  */
+	/* totally. Please let me know if anything wrong.            -F */
+	case 0x05981106:
+		return("VIA 82C598MVP (Apollo MVP3) host bridge");
+	case 0x85981106:
+		return("VIA 82C598MVP (Apollo MVP3) PCI-PCI bridge");
+
+	/* AcerLabs -- vendor 0x10b9 */
+	/* Funny : The datasheet told me vendor id is "10b8",sub-vendor */
+	/* id is '10b9" but the register always shows "10b9". -Foxfair  */
+	case 0x154110b9:
+		return("AcerLabs M1541 (Aladdin-V) PCI host bridge");
+	case 0x153310b9:
+		return("AcerLabs M1533 portable PCI-ISA bridge");
+	case 0x154310b9:
+		return("AcerLabs M1543 desktop PCI-ISA bridge");
+	case 0x524710b9:
+		return("AcerLabs M5247 PCI-PCI(AGP Supported) bridge");
+	case 0x524310b9:/* 5243 seems like 5247, need more info to divide*/
+		return("AcerLabs M5243 PCI-PCI bridge");
+
 
 	/* NEC -- vendor 0x1033 */
 	case 0x00011033:
