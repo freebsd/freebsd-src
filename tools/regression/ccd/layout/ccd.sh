@@ -22,7 +22,7 @@ mdconfig -a -t malloc -s $3 -u 92
 mdconfig -a -t malloc -s $4 -u 93
 
 ccdconfig -v ccd3 $5 $6 /dev/md90 /dev/md91 /dev/md92 /dev/md93
-./a > /dev/ccd3c
+./a > /dev/ccd3
 
 md5 < /dev/md90
 md5 < /dev/md91
