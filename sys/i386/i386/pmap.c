@@ -582,7 +582,7 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 	if (smp_started) {
 		if (!(read_eflags() & PSL_I))
 			panic("%s: interrupts disabled", __func__);
-		mtx_lock_spin(&smp_rv_mtx);
+		mtx_lock_spin(&smp_ipi_mtx);
 	} else
 		critical_enter();
 	/*
@@ -603,7 +603,7 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 			smp_masked_invlpg(pmap->pm_active & other_cpus, va);
 	}
 	if (smp_started)
-		mtx_unlock_spin(&smp_rv_mtx);
+		mtx_unlock_spin(&smp_ipi_mtx);
 	else
 		critical_exit();
 }
@@ -618,7 +618,7 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	if (smp_started) {
 		if (!(read_eflags() & PSL_I))
 			panic("%s: interrupts disabled", __func__);
-		mtx_lock_spin(&smp_rv_mtx);
+		mtx_lock_spin(&smp_ipi_mtx);
 	} else
 		critical_enter();
 	/*
@@ -642,7 +642,7 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			    sva, eva);
 	}
 	if (smp_started)
-		mtx_unlock_spin(&smp_rv_mtx);
+		mtx_unlock_spin(&smp_ipi_mtx);
 	else
 		critical_exit();
 }
@@ -656,7 +656,7 @@ pmap_invalidate_all(pmap_t pmap)
 	if (smp_started) {
 		if (!(read_eflags() & PSL_I))
 			panic("%s: interrupts disabled", __func__);
-		mtx_lock_spin(&smp_rv_mtx);
+		mtx_lock_spin(&smp_ipi_mtx);
 	} else
 		critical_enter();
 	/*
@@ -677,7 +677,7 @@ pmap_invalidate_all(pmap_t pmap)
 			smp_masked_invltlb(pmap->pm_active & other_cpus);
 	}
 	if (smp_started)
-		mtx_unlock_spin(&smp_rv_mtx);
+		mtx_unlock_spin(&smp_ipi_mtx);
 	else
 		critical_exit();
 }
@@ -1297,7 +1297,7 @@ pmap_lazyfix(pmap_t pmap)
 	while ((mask = pmap->pm_active) != 0) {
 		spins = 50000000;
 		mask = mask & -mask;	/* Find least significant set bit */
-		mtx_lock_spin(&smp_rv_mtx);
+		mtx_lock_spin(&smp_ipi_mtx);
 #ifdef PAE
 		lazyptd = vtophys(pmap->pm_pdpt);
 #else
@@ -1317,7 +1317,7 @@ pmap_lazyfix(pmap_t pmap)
 					break;
 			}
 		}
-		mtx_unlock_spin(&smp_rv_mtx);
+		mtx_unlock_spin(&smp_ipi_mtx);
 		if (spins == 0)
 			printf("pmap_lazyfix: spun for 50000000\n");
 	}
