@@ -63,7 +63,7 @@
 /*
  * Efficiency- get rid of SBus code && tests unless we need them.
  */
-#if	defined(__sparcv9__ ) || defined(__sparc__)
+#if	_MACHINE_ARCH == sparc64
 #define	ISP_SBUS_SUPPORTED	1
 #else
 #define	ISP_SBUS_SUPPORTED	0
@@ -117,6 +117,10 @@ struct isposinfo {
 	struct mtx		lock;
 	struct cv		kthread_cv;
 	struct proc		*kproc;
+	bus_dma_tag_t		cdmat;
+	bus_dmamap_t		cdmap;
+#define	isp_cdmat		isp_osinfo.cdmat
+#define	isp_cdmap		isp_osinfo.cdmap
 #ifdef	ISP_TARGET_MODE
 #define	TM_WANTED		0x80
 #define	TM_BUSY			0x40
@@ -173,14 +177,21 @@ struct isposinfo {
 
 #define	MAXISPREQUEST(isp)	256
 
-#if	defined(__alpha__)
-#define	MEMORYBARRIER(isp, type, offset, size)	alpha_mb()
-#elif	defined(__ia64__)
-#define	MEMORYBARRIER(isp, type, offset, size)	\
-	do { ia64_mf(); ia64_mf_a(); } while (0)
-#else
-#define	MEMORYBARRIER(isp, type, offset, size)
-#endif
+#define	MEMORYBARRIER(isp, type, offset, size)			\
+switch (type) {							\
+case SYNC_SFORDEV:						\
+case SYNC_REQUEST:						\
+	bus_dmamap_sync(isp->isp_cdmat, isp->isp_cdmap, 	\
+	   BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);		\
+	break;							\
+case SYNC_SFORCPU:						\
+case SYNC_RESULT:						\
+	bus_dmamap_sync(isp->isp_cdmat, isp->isp_cdmap,		\
+	   BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);	\
+	break;							\
+default:							\
+	break;							\
+}
 
 #define	MBOX_ACQUIRE(isp)
 #define	MBOX_WAIT_COMPLETE		isp_mbox_wait_complete
