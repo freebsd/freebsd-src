@@ -149,6 +149,12 @@
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpi_ecreg.h>
 
+/*
+ * Hooks for the ACPI CA debugging infrastructure
+ */
+#define _COMPONENT	EMBEDDED_CONTROLLER
+MODULE_NAME("EC")
+
 struct acpi_ec_softc {
     device_t		ec_dev;
     ACPI_HANDLE		ec_handle;
@@ -246,9 +252,11 @@ DRIVER_MODULE(acpi_ec, acpi, acpi_ec_driver, acpi_ec_devclass, 0, 0);
 static void
 acpi_ec_identify(driver_t driver, device_t bus)
 {
-    ACPI_STATUS	Status;
+    FUNCTION_TRACE(__FUNCTION__);
 
     /* XXX implement - need an ACPI 2.0 system to test this */
+
+    return_VOID;
 }
 
 /*
@@ -258,7 +266,9 @@ acpi_ec_identify(driver_t driver, device_t bus)
 static int
 acpi_ec_probe(device_t dev)
 {
+
     if ((acpi_get_type(dev) == ACPI_TYPE_DEVICE) &&
+	!acpi_disabled("ec") &&
 	acpi_MatchHid(dev, "PNP0C09")) {
 
 	/*
@@ -280,6 +290,8 @@ acpi_ec_attach(device_t dev)
     ACPI_STATUS			Status;
     struct acpi_object_list	*args;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     /*
      * Fetch/initialise softc
      */
@@ -299,7 +311,7 @@ acpi_ec_attach(device_t dev)
     if ((sc->ec_data_res = bus_alloc_resource(sc->ec_dev, SYS_RES_IOPORT, &sc->ec_data_rid,
 					      0, ~0, 1, RF_ACTIVE)) == NULL) {
 	device_printf(dev, "can't allocate data port\n");
-	return(ENXIO);
+	return_VALUE(ENXIO);
     }
     sc->ec_data_tag = rman_get_bustag(sc->ec_data_res);
     sc->ec_data_handle = rman_get_bushandle(sc->ec_data_res);
@@ -308,7 +320,7 @@ acpi_ec_attach(device_t dev)
     if ((sc->ec_csr_res = bus_alloc_resource(sc->ec_dev, SYS_RES_IOPORT, &sc->ec_csr_rid,
 					     0, ~0, 1, RF_ACTIVE)) == NULL) {
 	device_printf(dev, "can't allocate command/status port\n");
-	return(ENXIO);
+	return_VALUE(ENXIO);
     }
     sc->ec_csr_tag = rman_get_bustag(sc->ec_csr_res);
     sc->ec_csr_handle = rman_get_bushandle(sc->ec_csr_res);
@@ -318,7 +330,7 @@ acpi_ec_attach(device_t dev)
      */
     if ((Status = AcpiOsCreateSemaphore(1, 1, &sc->ec_semaphore)) != AE_OK) {
 	device_printf(dev, "can't create semaphore - %s\n", acpi_strerror(Status));
-	return(ENXIO);
+	return_VALUE(ENXIO);
     }
 
     /*
@@ -328,15 +340,15 @@ acpi_ec_attach(device_t dev)
      * status (SCI).
      */
     if ((bufp = acpi_AllocBuffer(16)) == NULL)
-	return(ENOMEM);
+	return_VALUE(ENOMEM);
     if ((Status = AcpiEvaluateObject(sc->ec_handle, "_GPE", NULL, bufp)) != AE_OK) {
 	device_printf(dev, "can't evaluate _GPE method - %s\n", acpi_strerror(Status));
-	return(ENXIO);
+	return_VALUE(ENXIO);
     }
     param = (UINT32 *)bufp->Pointer;
     if (param[0] != ACPI_TYPE_NUMBER) {
 	device_printf(dev, "_GPE method returned bad result\n");
-	return(ENXIO);
+	return_VALUE(ENXIO);
     }
     sc->ec_gpebit = param[1];
     AcpiOsFree(bufp);
@@ -352,7 +364,7 @@ acpi_ec_attach(device_t dev)
     if ((Status = AcpiInstallGpeHandler(sc->ec_gpebit, ACPI_EVENT_LEVEL_TRIGGERED | ACPI_EVENT_EDGE_TRIGGERED, 
 					EcGpeHandler, sc)) != AE_OK) {
 	device_printf(dev, "can't install GPE handler - %s\n", acpi_strerror(Status));
-	return(ENXIO);
+	return_VALUE(ENXIO);
     }
 
     /* 
@@ -361,14 +373,14 @@ acpi_ec_attach(device_t dev)
     if ((Status = AcpiInstallAddressSpaceHandler(sc->ec_handle, ADDRESS_SPACE_EC, 
 						 &EcSpaceHandler, &EcSpaceSetup, sc)) != AE_OK) {
 	device_printf(dev, "can't install address space handler - %s\n", acpi_strerror(Status));
-	return(ENXIO);
+	return_VALUE(ENXIO);
     }
 
     /*
      * Evaluate _REG to indicate that the region is now available.
      */
     if ((args = acpi_AllocObjectList(2)) == NULL)
-	return(ENOMEM);
+	return_VALUE(ENOMEM);
     args->object[0].Type = ACPI_TYPE_NUMBER;
     args->object[0].Number.Value = ADDRESS_SPACE_EC;
     args->object[1].Type = ACPI_TYPE_NUMBER;
@@ -381,10 +393,10 @@ acpi_ec_attach(device_t dev)
      */
     if ((Status != AE_OK) && (Status != AE_NOT_FOUND)) {
 	device_printf(dev, "can't evaluate _REG method - %s\n", acpi_strerror(Status));
-	return(ENXIO);
+	return_VALUE(ENXIO);
     }
 
-    return(0);
+    return_VALUE(0);
 }
 
 static void
@@ -394,6 +406,8 @@ EcGpeHandler(void *Context)
     UINT8			Data;
     ACPI_STATUS			Status;
     char			qxx[5];
+
+    FUNCTION_TRACE(__FUNCTION__);
 
     for (;;) {
 
@@ -434,6 +448,7 @@ EcGpeHandler(void *Context)
 			  qxx, acpi_strerror(Status));
 	}
     }
+    return_VOID;
 }
 
 static ACPI_STATUS
@@ -455,8 +470,10 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width, UIN
     ACPI_STATUS			Status = AE_OK;
     EC_REQUEST			EcRequest;
 
+    FUNCTION_TRACE_U32(__FUNCTION__, Address);
+
     if ((Address > 0xFF) || (width != 8) || (Value == NULL) || (Context == NULL))
-        return(AE_BAD_PARAMETER);
+        return_ACPI_STATUS(AE_BAD_PARAMETER);
 
     switch (Function) {
     case ADDRESS_SPACE_READ:
@@ -473,7 +490,7 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width, UIN
 
     default:
 	device_printf(sc->ec_dev, "invalid Address Space function %d\n", Function);
-        return(AE_BAD_PARAMETER);
+        return_ACPI_STATUS(AE_BAD_PARAMETER);
     }
 
     /*
@@ -482,7 +499,7 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width, UIN
     if ((Status = EcTransaction(sc, &EcRequest)) == AE_OK)
         (*Value) = (UINT32)EcRequest.Data;
 
-    return(Status);
+    return_ACPI_STATUS(Status);
 }
 
 static ACPI_STATUS

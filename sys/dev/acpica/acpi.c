@@ -52,6 +52,12 @@
 MALLOC_DEFINE(M_ACPIDEV, "acpidev", "ACPI devices");
 
 /*
+ * Hooks for the ACPI CA debugging infrastructure
+ */
+#define _COMPONENT	BUS_MANAGER
+MODULE_NAME("ACPI")
+
+/*
  * Character device 
  */
 
@@ -159,6 +165,8 @@ acpi_identify(driver_t *driver, device_t parent)
     char			*debugpoint = getenv("debug.acpi.debugger");
 #endif
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     if(!cold){
 	    printf("Don't load this driver from userland!!\n");
 	    return ;
@@ -168,7 +176,7 @@ acpi_identify(driver_t *driver, device_t parent)
      * Make sure we're not being doubly invoked.
      */
     if (device_find_child(parent, "acpi", 0) != NULL)
-	return;
+	return_VOID;
     
 #ifdef ACPI_DEBUG
     acpi_set_debugging();
@@ -183,7 +191,7 @@ acpi_identify(driver_t *driver, device_t parent)
 #endif
     if ((error = AcpiInitializeSubsystem()) != AE_OK) {
 	printf("ACPI: initialisation failed: %s\n", acpi_strerror(error));
-	return;
+	return_VOID;
     }
 #ifdef ENABLE_DEBUGGER
     if (debugpoint && !strcmp(debugpoint, "tables"))
@@ -192,7 +200,7 @@ acpi_identify(driver_t *driver, device_t parent)
     if (((error = AcpiFindRootPointer(&rsdp)) != AE_OK) ||
 	((error = AcpiLoadTables(rsdp)) != AE_OK)) {
 	printf("ACPI: table load failed: %s\n", acpi_strerror(error));
-	return;
+	return_VOID;
     }
     
     /*
@@ -200,7 +208,7 @@ acpi_identify(driver_t *driver, device_t parent)
      */
     if ((child = BUS_ADD_CHILD(parent, 0, "acpi", 0)) == NULL) {
 	    device_printf(parent, "ACPI: could not attach\n");
-	    return;
+	    return_VOID;
     }
 }
 
@@ -214,14 +222,16 @@ acpi_probe(device_t dev)
     char		buf[20];
     int			error;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     if ((error = AcpiGetTableHeader(ACPI_TABLE_XSDT, 1, &th)) != AE_OK) {
 	device_printf(dev, "couldn't get XSDT header: %s\n", acpi_strerror(error));
-	return(ENXIO);
+	return_VALUE(ENXIO);
     }
     sprintf(buf, "%.6s %.8s", th.OemId, th.OemTableId);
     device_set_desc_copy(dev, buf);
 
-    return(0);
+    return_VALUE(0);
 }
 
 static int
@@ -233,6 +243,7 @@ acpi_attach(device_t dev)
     char		*debugpoint = getenv("debug.acpi.debugger");
 #endif
 
+    FUNCTION_TRACE(__FUNCTION__);
 
     sc = device_get_softc(dev);
     bzero(sc, sizeof(*sc));
@@ -251,21 +262,21 @@ acpi_attach(device_t dev)
 						ACPI_DEFAULT_HANDLER,
 						NULL, NULL)) != AE_OK) {
 	device_printf(dev, "could not initialise SystemMemory handler: %s\n", acpi_strerror(error));
-	return(ENXIO);
+	return_VALUE(ENXIO);
     }
     if ((error = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
 						ADDRESS_SPACE_SYSTEM_IO,
 						ACPI_DEFAULT_HANDLER,
 						NULL, NULL)) != AE_OK) {
 	device_printf(dev, "could not initialise SystemIO handler: %s\n", acpi_strerror(error));
-	return(ENXIO);
+	return_VALUE(ENXIO);
     }
     if ((error = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
 						ADDRESS_SPACE_PCI_CONFIG,
 						ACPI_DEFAULT_HANDLER,
 						NULL, NULL)) != AE_OK) {
 	device_printf(dev, "could not initialise PciConfig handler: %s\n", acpi_strerror(error));
-	return(ENXIO);
+	return_VALUE(ENXIO);
     }
 
     /*
@@ -283,7 +294,7 @@ acpi_attach(device_t dev)
 #endif
     if ((error = AcpiEnableSubsystem(ACPI_NO_DEVICE_INIT | ACPI_NO_OBJECT_INIT)) != AE_OK) {
 	device_printf(dev, "could not enable ACPI: %s\n", acpi_strerror(error));
-	return(ENXIO);
+	return_VALUE(ENXIO);
     }
 
     /*
@@ -315,7 +326,8 @@ acpi_attach(device_t dev)
     if (debugpoint && !strcmp(debugpoint, "probe"))
 	acpi_EnterDebugger();
 #endif
-    acpi_probe_children(dev);
+    if (!acpi_disabled("bus"))
+	acpi_probe_children(dev);
 
     /*
      * Register our shutdown handlers
@@ -346,7 +358,7 @@ acpi_attach(device_t dev)
     if (debugpoint && !strcmp(debugpoint, "running"))
 	acpi_EnterDebugger();
 #endif
-    return(0);
+    return_VALUE(0);
 }
 
 /*
@@ -547,9 +559,12 @@ acpi_probe_children(device_t bus)
     static char		*scopes[] = {"\\_TZ_", "\\_SI", "\\_SB_", NULL};
     int			i;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     /*
      * Create any static children by calling device identify methods.
      */
+    DEBUG_PRINT(TRACE_OBJECTS, ("device identify routines\n"));
     bus_generic_probe(bus);
 
     /*
@@ -561,6 +576,7 @@ acpi_probe_children(device_t bus)
      * present. (This assumes that we don't want to create/remove devices as they
      * appear, which might be smarter.)
      */
+    DEBUG_PRINT(TRACE_OBJECTS, ("namespace scan\n"));
     for (i = 0; scopes[i] != NULL; i++)
 	if ((AcpiGetHandle(ACPI_ROOT_OBJECT, scopes[i], &parent)) == AE_OK)
 	    AcpiWalkNamespace(ACPI_TYPE_ANY, parent, 100, acpi_probe_child, bus, NULL);
@@ -568,13 +584,17 @@ acpi_probe_children(device_t bus)
     /*
      * Scan all of the child devices we have created and let them probe/attach.
      */
+    DEBUG_PRINT(TRACE_OBJECTS, ("first bus_generic_attach\n"));
     bus_generic_attach(bus);
 
     /*
      * Some of these children may have attached others as part of their attach
      * process (eg. the root PCI bus driver), so rescan.
      */
+    DEBUG_PRINT(TRACE_OBJECTS, ("second bus_generic_attach\n"));
     bus_generic_attach(bus);
+
+    return_VOID;
 }
 
 /*
@@ -587,28 +607,41 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
     ACPI_OBJECT_TYPE	type;
     device_t		child, bus = (device_t)context;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
+    /*
+     * Skip this device if we think we'll have trouble with it.
+     */
+    if (acpi_avoid(handle))
+	return_ACPI_STATUS(AE_OK);
+
     if (AcpiGetType(handle, &type) == AE_OK) {
 	switch(type) {
 	case ACPI_TYPE_DEVICE:
 	case ACPI_TYPE_PROCESSOR:
 	case ACPI_TYPE_THERMAL:
 	case ACPI_TYPE_POWER:
+	    if (acpi_disabled("children"))
+		break;
 	    /* 
 	     * Create a placeholder device for this node.  Sort the placeholder
 	     * so that the probe/attach passes will run breadth-first.
 	     */
+	    DEBUG_PRINT(TRACE_OBJECTS, ("scanning '%s'\n", acpi_name(handle)))
 	    child = BUS_ADD_CHILD(bus, level * 10, NULL, -1);
 	    acpi_set_handle(child, handle);
+	    DEBUG_EXEC(device_probe_and_attach(child));
+	    break;
 	}
     }
-    return(AE_OK);
+    return_ACPI_STATUS(AE_OK);
 }
 
 static void
 acpi_shutdown_pre_sync(void *arg, int howto)
 {
     /*
-     * disable all of ACPI events before soft off, otherwise the system
+     * Disable all ACPI events before soft off, otherwise the system
      * will be turned on again on some laptops.
      *
      * XXX this should probably be restricted to masking some events just
@@ -643,7 +676,7 @@ acpi_MatchHid(device_t dev, char *hid)
     ACPI_HANDLE		h;
     ACPI_DEVICE_INFO	devinfo;
     ACPI_STATUS		error;
-    
+
     if (hid == NULL)
 	return(FALSE);
     if ((h = acpi_get_handle(dev)) == NULL)
@@ -699,6 +732,8 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 {
     ACPI_STATUS	status = AE_OK;
 
+    FUNCTION_TRACE_U32(__FUNCTION__, state);
+
     switch (state) {
     case ACPI_STATE_S0:	/* XXX only for testing */
 	status = AcpiSetSystemSleepState((UINT8)state);
@@ -720,7 +755,7 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	     *     current bus interface does not provide for this.
 	     */
 	    DEVICE_RESUME(root_bus);
-	    return(AE_ERROR);
+	    return_ACPI_STATUS(AE_ERROR);
 	}
 	sc->acpi_sstate = state;
 	status = AcpiSetSystemSleepState((UINT8)state);
@@ -743,7 +778,7 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	status = AE_BAD_PARAMETER;
 	break;
     }
-    return(status);
+    return_ACPI_STATUS(status);
 }
 
 /*
@@ -755,6 +790,8 @@ acpi_Enable(struct acpi_softc *sc)
     ACPI_STATUS	status;
     u_int32_t	flags;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     flags = ACPI_NO_ADDRESS_SPACE_INIT | ACPI_NO_HARDWARE_INIT |
             ACPI_NO_DEVICE_INIT | ACPI_NO_OBJECT_INIT;
     if (!sc->acpi_enabled) {
@@ -764,13 +801,15 @@ acpi_Enable(struct acpi_softc *sc)
     }
     if (status == AE_OK)
 	sc->acpi_enabled = 1;
-    return(status);
+    return_ACPI_STATUS(status);
 }
 
 ACPI_STATUS
 acpi_Disable(struct acpi_softc *sc)
 {
     ACPI_STATUS	status;
+
+    FUNCTION_TRACE(__FUNCTION__);
 
     if (sc->acpi_enabled) {
 	status = AcpiDisable();
@@ -779,7 +818,7 @@ acpi_Disable(struct acpi_softc *sc)
     }
     if (status == AE_OK)
 	sc->acpi_enabled = 0;
-    return(status);
+    return_ACPI_STATUS(status);
 }
 
 /*
@@ -836,18 +875,21 @@ acpi_EvaluateNumber(ACPI_HANDLE handle, char *path, int *number)
 static void
 acpi_system_eventhandler_sleep(void *arg, int state)
 {
-    if (state < ACPI_STATE_S0 || state > ACPI_STATE_S5) {
-	return;
-    }
+    FUNCTION_TRACE_U32(__FUNCTION__, state);
 
-    acpi_SetSleepState((struct acpi_softc *)arg, state);
+    if (state >= ACPI_STATE_S0 && state <= ACPI_STATE_S5)
+	acpi_SetSleepState((struct acpi_softc *)arg, state);
+    return_VOID;
 }
-
 
 static void
 acpi_system_eventhandler_wakeup(void *arg, int state)
 {
+    FUNCTION_TRACE_U32(__FUNCTION__, state);
+
     /* Well, what to do? :-) */
+
+    return_VOID;
 }
 
 /* 
@@ -858,8 +900,11 @@ acpi_eventhandler_power_button_for_sleep(void *context)
 {
     struct acpi_softc	*sc = (struct acpi_softc *)context;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     EVENTHANDLER_INVOKE(acpi_sleep_event, sc->acpi_power_button_sx);
-    return(INTERRUPT_HANDLED);
+
+    return_VALUE(INTERRUPT_HANDLED);
 }
 
 UINT32
@@ -867,8 +912,11 @@ acpi_eventhandler_power_button_for_wakeup(void *context)
 {
     struct acpi_softc	*sc = (struct acpi_softc *)context;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     EVENTHANDLER_INVOKE(acpi_wakeup_event, sc->acpi_power_button_sx);
-    return(INTERRUPT_HANDLED);
+
+    return_VALUE(INTERRUPT_HANDLED);
 }
 
 UINT32
@@ -876,8 +924,11 @@ acpi_eventhandler_sleep_button_for_sleep(void *context)
 {
     struct acpi_softc	*sc = (struct acpi_softc *)context;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     EVENTHANDLER_INVOKE(acpi_sleep_event, sc->acpi_sleep_button_sx);
-    return(INTERRUPT_HANDLED);
+
+    return_VALUE(INTERRUPT_HANDLED);
 }
 
 UINT32
@@ -885,8 +936,11 @@ acpi_eventhandler_sleep_button_for_wakeup(void *context)
 {
     struct acpi_softc	*sc = (struct acpi_softc *)context;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     EVENTHANDLER_INVOKE(acpi_wakeup_event, sc->acpi_sleep_button_sx);
-    return(INTERRUPT_HANDLED);
+
+    return_VALUE(INTERRUPT_HANDLED);
 }
 
 /*
@@ -949,7 +1003,39 @@ acpi_avoid(ACPI_HANDLE handle)
 	while ((cp[len] != 0) && !isspace(cp[len]))
 	    len++;
 	if (!strncmp(cp, np, len)) {
-	    printf("avoiding '%s'\n", np);
+	    DEBUG_PRINT(TRACE_OBJECTS, ("avoiding '%s'\n", np));
+	    return(1);
+	}
+	cp += len;
+    }
+    return(0);
+}
+
+/*
+ * Debugging/bug-avoidance.  Disable ACPI subsystem components.
+ */
+int
+acpi_disabled(char *subsys)
+{
+    char	*cp;
+    int		len;
+
+    if ((cp = getenv("debug.acpi.disable")) == NULL)
+	return(0);
+    if (!strcmp(cp, "all"))
+	return(1);
+
+    /* scan the disable list checking for a match */
+    for (;;) {
+	while ((*cp != 0) && isspace(*cp))
+	    cp++;
+	if (*cp == 0)
+	    break;
+	len = 0;
+	while ((cp[len] != 0) && !isspace(cp[len]))
+	    len++;
+	if (!strncmp(cp, subsys, len)) {
+	    DEBUG_PRINT(TRACE_OBJECTS, ("disabled '%s'\n", subsys));
 	    return(1);
 	}
 	cp += len;
@@ -960,42 +1046,107 @@ acpi_avoid(ACPI_HANDLE handle)
 /*
  * Control interface.
  *
- * XXX this is provided as a temporary measure for
- *     backwards compatibility for now.  A better
- *     interface will probably use sysctl or similar.
+ * We multiplex ioctls for all participating ACPI devices here.  Individual 
+ * drivers wanting to be accessible via /dev/acpi should use the register/deregister
+ * interface to make their handlers visible.
  */
+struct acpi_ioctl_hook
+{
+    TAILQ_ENTRY(acpi_ioctl_hook)	link;
+    u_long				cmd;
+    int					(* fn)(u_long cmd, caddr_t addr, void *arg);
+    void				*arg;
+};
+
+static TAILQ_HEAD(,acpi_ioctl_hook)	acpi_ioctl_hooks;
+static int				acpi_ioctl_hooks_initted;
+
+/*
+ * Register an ioctl handler.
+ */
+int
+acpi_register_ioctl(u_long cmd, int (* fn)(u_long cmd, caddr_t addr, void *arg), void *arg)
+{
+    struct acpi_ioctl_hook	*hp;
+
+    if ((hp = malloc(sizeof(*hp), M_ACPIDEV, M_NOWAIT)) == NULL)
+	return(ENOMEM);
+    hp->cmd = cmd;
+    hp->fn = fn;
+    hp->arg = arg;
+    if (acpi_ioctl_hooks_initted == 0) {
+	TAILQ_INIT(&acpi_ioctl_hooks);
+	acpi_ioctl_hooks_initted = 1;
+    }
+    TAILQ_INSERT_TAIL(&acpi_ioctl_hooks, hp, link);
+    return(0);
+}
+
+/*
+ * Deregister an ioctl handler.
+ */
+void	
+acpi_deregister_ioctl(u_long cmd, int (* fn)(u_long cmd, caddr_t addr, void *arg))
+{
+    struct acpi_ioctl_hook	*hp;
+
+    TAILQ_FOREACH(hp, &acpi_ioctl_hooks, link)
+	if ((hp->cmd == cmd) && (hp->fn == fn))
+	    break;
+
+    if (hp != NULL) {
+	TAILQ_REMOVE(&acpi_ioctl_hooks, hp, link);
+	free(hp, M_ACPIDEV);
+    }
+}
+
 static int
-acpiopen(dev_t dev, int flag, int fmt, struct proc * p)
+acpiopen(dev_t dev, int flag, int fmt, struct proc *p)
 {
     return(0);
 }
 
 static int
-acpiclose(dev_t dev, int flag, int fmt, struct proc * p)
+acpiclose(dev_t dev, int flag, int fmt, struct proc *p)
 {
     return(0);
 }
 
 static int
-acpiioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc * p)
+acpiioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 {
-    int		error, state;
-    struct acpi_softc	*sc;
+    struct acpi_softc		*sc;
+    struct acpi_ioctl_hook	*hp;
+    int				error, xerror, state;
 
     error = state = 0;
     sc = dev->si_drv1;
 
+    /*
+     * Scan the list of registered ioctls, looking for handlers.
+     */
+    if (acpi_ioctl_hooks_initted) {
+	TAILQ_FOREACH(hp, &acpi_ioctl_hooks, link) {
+	    if (hp->cmd == cmd) {
+		xerror = hp->fn(cmd, addr, hp->arg);
+		if (xerror != 0)
+		    error = xerror;
+	    }
+	}
+    }
+
+    /*
+     * Core system ioctls.
+     */
     switch (cmd) {
     case ACPIIO_ENABLE:
-	if (ACPI_FAILURE(acpi_Enable(sc))) {
+	if (ACPI_FAILURE(acpi_Enable(sc)))
 	    error = ENXIO;
-	}
 	break;
 
     case ACPIIO_DISABLE:
-	if (ACPI_FAILURE(acpi_Disable(sc))) {
+	if (ACPI_FAILURE(acpi_Disable(sc)))
 	    error = ENXIO;
-	}
 	break;
 
     case ACPIIO_SETSLPSTATE:
@@ -1009,18 +1160,25 @@ acpiioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc * p)
 	} else {
 	    error = EINVAL;
 	}
-
 	break;
 
     default:
-	error = EINVAL;
+	if (error == 0)
+	    error = EINVAL;
 	break;
     }
-
     return(error);
 }
 
 #ifdef ACPI_DEBUG
+/*
+ * Support for parsing debug options from the kernel environment.
+ *
+ * Bits may be set in the AcpiDbgLayer and AcpiDbgLevel debug registers
+ * by specifying the names of the bits in the debug.acpi.layer and
+ * debug.acpi.level environment variables.  Bits may be unset by 
+ * prefixing the bit name with !.
+ */
 struct debugtag
 {
     char	*name;
@@ -1093,6 +1251,7 @@ acpi_parse_debug(char *cp, struct debugtag *tag, UINT32 *flag)
 {
     char	*ep;
     int		i, l;
+    int		set;
 
     while (*cp) {
 	if (isspace(*cp)) {
@@ -1102,10 +1261,22 @@ acpi_parse_debug(char *cp, struct debugtag *tag, UINT32 *flag)
 	ep = cp;
 	while (*ep && !isspace(*ep))
 	    ep++;
+	if (*cp == '!') {
+	    set = 0;
+	    cp++;
+	    if (cp == ep)
+		continue;
+	} else {
+	    set = 1;
+	}
 	l = ep - cp;
 	for (i = 0; tag[i].name != NULL; i++) {
 	    if (!strncmp(cp, tag[i].name, l)) {
-		*flag |= tag[i].value;
+		if (set) {
+		    *flag |= tag[i].value;
+		} else {
+		    *flag &= ~tag[i].value;
+		}
 		printf("ACPI_DEBUG: set '%s'\n", tag[i].name);
 	    }
 	}
@@ -1117,10 +1288,14 @@ static void
 acpi_set_debugging(void)
 {
     char	*cp;
-    
+
+    AcpiDbgLayer = 0;
+    AcpiDbgLevel = 0;
     if ((cp = getenv("debug.acpi.layer")) != NULL)
 	acpi_parse_debug(cp, &dbg_layer[0], &AcpiDbgLayer);
     if ((cp = getenv("debug.acpi.level")) != NULL)
 	acpi_parse_debug(cp, &dbg_level[0], &AcpiDbgLevel);
+
+    printf("ACPI debug layer 0x%x  debug level 0x%x\n", AcpiDbgLayer, AcpiDbgLevel);
 }
 #endif

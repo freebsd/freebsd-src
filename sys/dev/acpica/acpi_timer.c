@@ -36,6 +36,12 @@
 
 #include <dev/acpica/acpivar.h>
 
+/*
+ * Hooks for the ACPI CA debugging infrastructure
+ */
+#define _COMPONENT	SYSTEM_CONTROL
+MODULE_NAME("TIMER")
+
 #define ACPITIMER_MAGIC 0x524d4954	/* "TIMR" */
 
 struct acpi_timer_softc {
@@ -73,28 +79,35 @@ acpi_timer_identify(driver_t *driver, device_t parent)
     device_t			dev;
     char			desc[40];
 
+    FUNCTION_TRACE(__FUNCTION__);
+
+    if (acpi_disabled("timer"))
+	return_VOID;
+
     buf.Pointer = &fadt;
     buf.Length = sizeof(fadt);
     if ((status = AcpiGetTable(ACPI_TABLE_FADT, 1, &buf)) != AE_OK) {
 	device_printf(parent, "can't locate FADT - %s\n", acpi_strerror(status));
-	return;
+	return_VOID;
     }
     if (buf.Length != sizeof(fadt)) {
 	device_printf(parent, "invalid FADT\n");
-	return;
+	return_VOID;
     }
 
     if ((dev = BUS_ADD_CHILD(parent, 0, "acpi_timer", 0)) == NULL) {
 	device_printf(parent, "could not add acpi_timer0\n");
-	return;
+	return_VOID;
     }
     if (acpi_set_magic(dev, ACPITIMER_MAGIC)) {
 	device_printf(dev, "could not set magic\n");
-	return;
+	return_VOID;
     }
 
     sprintf(desc, "%d-bit timer at 3.579545MHz", fadt.TmrValExt ? 32 : 24);
     device_set_desc_copy(dev, desc);
+
+    return_VOID;
 }
 
 static int
@@ -110,8 +123,10 @@ acpi_timer_attach(device_t dev)
 {
     struct acpi_timer_softc		*sc;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     sc = device_get_softc(dev);
     sc->tm_dev = dev;
 
-    return(0);
+    return_VALUE(0);
 }

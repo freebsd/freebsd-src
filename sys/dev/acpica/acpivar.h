@@ -216,6 +216,7 @@ acpi_device_get_parent_softc(device_t child)
     return(device_get_softc(parent));
 }
 
-extern char		*acpi_name(ACPI_HANDLE handle);
-extern int		acpi_avoid(ACPI_HANDLE handle);
+extern char	*acpi_name(ACPI_HANDLE handle);
+extern int	acpi_avoid(ACPI_HANDLE handle);
+extern int	acpi_disabled(char *subsys);
 

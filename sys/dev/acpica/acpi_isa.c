@@ -43,6 +43,12 @@
 
 #include <dev/acpica/acpivar.h>
 
+/*
+ * Hooks for the ACPI CA debugging infrastructure
+ */
+#define _COMPONENT	BUS_MANAGER
+MODULE_NAME("ISA")
+
 #define PNP_HEXTONUM(c) ((c) >= 'a'		\
 			 ? (c) - 'a' + 10	\
 			 : ((c) >= 'A'		\
@@ -136,10 +142,18 @@ acpi_isa_identify(driver_t *driver, device_t bus)
     ACPI_HANDLE		parent;
     ACPI_STATUS		status;
 
-    /*If this driver is loaded from userland ,just ignore*/
-    if(!cold){
-	    return;
-    }
+    FUNCTION_TRACE(__FUNCTION__);
+
+    if (acpi_disabled("isa"))
+	return_VOID;
+
+    /*
+     * If this driver is loaded from userland, we can assume that
+     * the ISA bus has already been detected, and we should not
+     * interfere.
+     */
+    if (!cold)
+	return_VOID;
 
     /*
      * Look for the _SB_ scope, which will contain all the devices
@@ -147,13 +161,13 @@ acpi_isa_identify(driver_t *driver, device_t bus)
      */
     if ((status = AcpiGetHandle(ACPI_ROOT_OBJECT, "\\_SB_", &parent)) != AE_OK) {
 	device_printf(bus, "no ACPI _SB_ scope - %s\n", acpi_strerror(status));
-	return;
+	return_VOID;
     }
 
-    if ((status = AcpiWalkNamespace(ACPI_TYPE_DEVICE, parent, 100, acpi_isa_identify_child, bus, NULL)) != AE_OK) {
+    if ((status = AcpiWalkNamespace(ACPI_TYPE_DEVICE, parent, 100, acpi_isa_identify_child, bus, NULL)) != AE_OK)
 	device_printf(bus, "AcpiWalkNamespace on _SB_ failed - %s\n", acpi_strerror(status));
-	return;
-    }
+
+    return_VOID;
 }
 
 /*
@@ -174,17 +188,25 @@ acpi_isa_identify_child(ACPI_HANDLE handle, UINT32 level, void *context, void **
     device_t		child, bus = (device_t)context;
     u_int32_t		devid;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     /*
-     * Try to get information about the device
+     * Skip this node if it's on the 'avoid' list.
+     */
+    if (acpi_avoid(handle))
+	return_ACPI_STATUS(AE_OK);
+
+    /*
+     * Try to get information about the device.
      */
     if (AcpiGetObjectInfo(handle, &devinfo) != AE_OK)
-	return(AE_OK);
+	return_ACPI_STATUS(AE_OK);
 
     /*
      * Reformat the _HID value into 32 bits.
      */
     if (!(devinfo.Valid & ACPI_VALID_HID))
-	return(AE_OK);
+	return_ACPI_STATUS(AE_OK);
 
     /*
      * XXX Try to avoid passing stuff to ISA that it just isn't interested
@@ -195,7 +217,7 @@ acpi_isa_identify_child(ACPI_HANDLE handle, UINT32 level, void *context, void **
      *     this is very difficult.  Maybe we need a device_configure method?
      */
     if (!(strncmp(devinfo.HardwareId, "PNP0C", 5)))
-	return(AE_OK);
+	return_ACPI_STATUS(AE_OK);
 
     devid = PNP_EISAID(devinfo.HardwareId);
 
@@ -210,7 +232,7 @@ acpi_isa_identify_child(ACPI_HANDLE handle, UINT32 level, void *context, void **
      *     point as well.
      */
     if (acpi_GetIntoBuffer(handle, AcpiGetCurrentResources, &buf) != AE_OK)
-	return(AE_OK);
+	return_ACPI_STATUS(AE_OK);
 
     /*
      * Add the device and parse our resources
@@ -225,10 +247,12 @@ acpi_isa_identify_child(ACPI_HANDLE handle, UINT32 level, void *context, void **
     if (!device_get_desc(child))
 	device_set_desc_copy(child, devinfo.HardwareId);
 
+    DEBUG_PRINT(TRACE_OBJECTS, ("added ISA PnP info for %s\n", acpi_name(handle)));
+
     /*
      * XXX Parse configuration data and _CID list to find compatible IDs
      */
-    return(AE_OK);
+    return_ACPI_STATUS(AE_OK);
 }
 
 static void
@@ -236,10 +260,14 @@ acpi_isa_set_init(device_t dev, void **context)
 {
     struct acpi_isa_context	*cp;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     cp = malloc(sizeof(*cp), M_DEVBUF, M_NOWAIT);
     bzero(cp, sizeof(*cp));
     cp->ai_nconfigs = 1;
     *context = cp;
+
+    return_VOID;
 }
 
 static void
@@ -250,8 +278,10 @@ acpi_isa_set_done(device_t dev, void *context)
     device_t			parent;
     int				i, j;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     if (cp == NULL)
-	return;
+	return_VOID;
     parent = device_get_parent(dev);
     
     /* simple config without dependants */
@@ -268,7 +298,7 @@ acpi_isa_set_done(device_t dev, void *context)
 	    if (config->ic_nmem == ISA_NMEM) {
 		device_printf(parent, "too many memory ranges\n");
 		free(configs, M_DEVBUF);
-		return;
+		return_VOID;
 	    }
 	    config->ic_mem[config->ic_nmem] = configs[0].ic_mem[j];
 	    config->ic_nmem++;
@@ -277,7 +307,7 @@ acpi_isa_set_done(device_t dev, void *context)
 	    if (config->ic_nport == ISA_NPORT) {
 		device_printf(parent, "too many port ranges\n");
 		free(configs, M_DEVBUF);
-		return;
+		return_VOID;
 	    }
 	    config->ic_port[config->ic_nport] = configs[0].ic_port[j];
 	    config->ic_nport++;
@@ -286,7 +316,7 @@ acpi_isa_set_done(device_t dev, void *context)
 	    if (config->ic_nirq == ISA_NIRQ) {
 		device_printf(parent, "too many irq ranges\n");
 		free(configs, M_DEVBUF);
-		return;
+		return_VOID;
 	    }
 	    config->ic_irqmask[config->ic_nirq] = configs[0].ic_irqmask[j];
 	    config->ic_nirq++;
@@ -295,7 +325,7 @@ acpi_isa_set_done(device_t dev, void *context)
 	    if (config->ic_ndrq == ISA_NDRQ) {
 		device_printf(parent, "too many drq ranges\n");
 		free(configs, M_DEVBUF);
-		return;
+		return_VOID;
 	    }
 	    config->ic_drqmask[config->ic_ndrq] = configs[0].ic_drqmask[j];
 	    config->ic_ndrq++;
@@ -305,6 +335,8 @@ acpi_isa_set_done(device_t dev, void *context)
 
 done:
     free(cp, M_DEVBUF);
+
+    return_VOID;
 }
 
 static void
