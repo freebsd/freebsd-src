@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)dumpfs.c	8.5 (Berkeley) 4/29/95";
 #endif
 static const char rcsid[] =
-	"$Id: dumpfs.c,v 1.10 1998/06/15 07:00:01 charnier Exp $";
+	"$Id: dumpfs.c,v 1.11 1999/06/27 10:05:14 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -172,6 +172,17 @@ dumpfs(name)
 	    afs.fs_csaddr, afs.fs_cssize, afs.fs_csshift, afs.fs_csmask);
 	printf("cgrotor\t%d\tfmod\t%d\tronly\t%d\tclean\t%d\n",
 	    afs.fs_cgrotor, afs.fs_fmod, afs.fs_ronly, afs.fs_clean);
+	printf("flags\t");
+	if (afs.fs_flags == 0)
+		printf("none");
+	if (afs.fs_flags & FS_UNCLEAN)
+			printf("unclean ");
+	if (afs.fs_flags & FS_DOSOFTDEP)
+			printf("soft-updates ");
+	if ((afs.fs_flags & ~(FS_UNCLEAN | FS_DOSOFTDEP)) != 0)
+			printf("unknown flags (%#x)", 
+			    afs.fs_flags & ~(FS_UNCLEAN | FS_DOSOFTDEP));
+	putchar('\n');
 	if (afs.fs_cpc != 0)
 		printf("blocks available in each of %d rotational positions",
 		     afs.fs_nrpos);
