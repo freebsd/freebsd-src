@@ -33,6 +33,7 @@ static const char rcsid[] =
 
 #include <ctype.h>
 #include <err.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -57,10 +58,11 @@ struct 	vid_info info;
 static void
 usage()
 {
-	fprintf(stderr, "%s\n%s\n%s\n",
+	fprintf(stderr, "%s\n%s\n%s\n%s\n",
 "usage: vidcontrol [-r fg bg] [-b color] [-c appearance] [-d] [-l scrmap]",
-"                  [-i adapter | mode] [-L] [-m on|off] [-f size file]",
-"                  [-s number] [-t N|off] [-x] [mode] [fgcol [bgcol]] [show]");
+"                  [-i adapter | mode] [-L] [-M char] [-m on|off]",
+"                  [-f size file] [-s number] [-t N|off] [-x] [mode]",
+"                  [fgcol [bgcol]] [show]");
 	exit(1);
 }
 
@@ -390,6 +392,22 @@ set_border_color(char *arg)
 }
 
 void
+set_mouse_char(char *arg)
+{
+	struct mouse_info mouse;
+	long l;
+
+	l = strtol(arg, NULL, 0);
+	if ((l < 0) || (l > UCHAR_MAX)) {
+		warnx("argument to -M must be 0 through %d", UCHAR_MAX);
+		return;
+	}
+	mouse.operation = MOUSE_MOUSECHAR;
+	mouse.u.mouse_char = (int)l;
+	ioctl(0, CONS_MOUSECTL, &mouse);
+}
+
+void
 set_mouse(char *arg)
 {
 	struct mouse_info mouse;
@@ -529,7 +547,7 @@ main(int argc, char **argv)
 	info.size = sizeof(info);
 	if (ioctl(0, CONS_GETINFO, &info) < 0)
 		err(1, "must be on a virtual console");
-	while((opt = getopt(argc, argv, "b:c:df:i:l:Lm:r:s:t:x")) != -1)
+	while((opt = getopt(argc, argv, "b:c:df:i:l:LM:m:r:s:t:x")) != -1)
 		switch(opt) {
 			case 'b':
 				set_border_color(optarg);
@@ -552,6 +570,9 @@ main(int argc, char **argv)
 				break;
 			case 'L':
 				load_default_scrnmap();
+				break;
+			case 'M':
+				set_mouse_char(optarg);
 				break;
 			case 'm':
 				set_mouse(optarg);

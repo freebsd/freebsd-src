@@ -161,6 +161,7 @@ struct mouse_event {
 #define MOUSE_ACTION		0x07
 #define MOUSE_MOTION_EVENT	0x08
 #define MOUSE_BUTTON_EVENT	0x09
+#define MOUSE_MOUSECHAR		0x0a
 
 struct mouse_info {
 	int	operation;
@@ -168,6 +169,7 @@ struct mouse_info {
 		struct mouse_data data;
 		struct mouse_mode mode;
 		struct mouse_event event;
+		int mouse_char;
 	}u;
 };
 
