@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 1989, 1990 William F. Jolitz.
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  *
@@ -264,15 +265,103 @@ ENTRY(fork_trampoline)
  */
 #include "i386/isa/vector.s"
 
-/*
- * Include what was once icu-dependent code.
- * XXX it should be merged into this file (also move the definition of
- * imen to vector.s or isa.c).
- * Before including it, set up a normal asm environment so that vector.s
- * doesn't have to know that stuff is included after it.
- */
 	.data
 	ALIGN_DATA
+
+/*
+ * void doreti(struct trapframe)
+ *
+ * Handle return from interrupts, traps and syscalls.
+ */
 	.text
 	SUPERALIGN_TEXT
-#include "i386/isa/ipl.s"
+	.type	doreti,@function
+doreti:
+	FAKE_MCOUNT(bintr)		/* init "from" bintr -> doreti */
+doreti_next:
+	/*
+	 * Check if ASTs can be handled now.  PSL_VM must be checked first
+	 * since segment registers only have an RPL in non-VM86 mode.
+	 */
+	testl	$PSL_VM,TF_EFLAGS(%esp)	/* are we in vm86 mode? */
+	jz	doreti_notvm86
+	cmpl	$1,in_vm86call		/* are we in a vm86 call? */
+	jne	doreti_ast		/* can handle ASTs now if not */
+  	jmp	doreti_exit
+
+doreti_notvm86:
+	testb	$SEL_RPL_MASK,TF_CS(%esp)  /* are we in user mode? */
+	jz	doreti_exit		/* can't handle ASTs now if not */
+
+doreti_ast:
+	/*
+	 * Check for ASTs atomically with returning.  Disabling CPU
+	 * interrupts provides sufficient locking evein the SMP case,
+	 * since we will be informed of any new ASTs by an IPI.
+	 */
+	cli
+	movl	PCPU(CURTHREAD),%eax
+	movl	TD_KSE(%eax), %eax
+	testl	$KEF_ASTPENDING | KEF_NEEDRESCHED,KE_FLAGS(%eax)
+	je	doreti_exit
+	sti
+	pushl	%esp			/* pass a pointer to the trapframe */
+	call	ast
+	add	$4,%esp
+	jmp	doreti_ast
+
+	/*
+	 * doreti_exit:	pop registers, iret.
+	 *
+	 *	The segment register pop is a special case, since it may
+	 *	fault if (for example) a sigreturn specifies bad segment
+	 *	registers.  The fault is handled in trap.c.
+	 */
+doreti_exit:
+	MEXITCOUNT
+
+	.globl	doreti_popl_fs
+doreti_popl_fs:
+	popl	%fs
+	.globl	doreti_popl_es
+doreti_popl_es:
+	popl	%es
+	.globl	doreti_popl_ds
+doreti_popl_ds:
+	popl	%ds
+	popal
+	addl	$8,%esp
+	.globl	doreti_iret
+doreti_iret:
+	iret
+
+  	/*
+	 * doreti_iret_fault and friends.  Alternative return code for
+	 * the case where we get a fault in the doreti_exit code
+	 * above.  trap() (i386/i386/trap.c) catches this specific
+	 * case, sends the process a signal and continues in the
+	 * corresponding place in the code below.
+	 */
+	ALIGN_TEXT
+	.globl	doreti_iret_fault
+doreti_iret_fault:
+	subl	$8,%esp
+	pushal
+	pushl	%ds
+	.globl	doreti_popl_ds_fault
+doreti_popl_ds_fault:
+	pushl	%es
+	.globl	doreti_popl_es_fault
+doreti_popl_es_fault:
+	pushl	%fs
+	.globl	doreti_popl_fs_fault
+doreti_popl_fs_fault:
+	movl	$0,TF_ERR(%esp)	/* XXX should be the error code */
+	movl	$T_PROTFLT,TF_TRAPNO(%esp)
+	jmp	alltraps_with_regs_pushed
+
+#ifdef APIC_IO
+#include "i386/isa/apic_ipl.s"
+#else
+#include "i386/isa/icu_ipl.s"
+#endif /* APIC_IO */
