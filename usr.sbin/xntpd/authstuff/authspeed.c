@@ -65,12 +65,12 @@ char *argv[];
 	int loops;
 	int i;
 	int errflg = 0;
-	extern int optind;
-	extern char *optarg;
+	extern int ntp_optind;
+	extern char *ntp_optarg;
 
 	progname = argv[0];
 	loops = DEFLOOPS;
-	while ((c = getopt_l(argc, argv, "cdmn:")) != EOF)
+	while ((c = ntp_getopt(argc, argv, "cdmn:")) != EOF)
 		switch (c) {
 		case 'c':
 			totalcost++;
@@ -82,11 +82,11 @@ char *argv[];
 			domd5 = 16;	/* offset into list of keys */
 			break;
 		case 'n':
-			loops = atoi(optarg);
+			loops = atoi(ntp_optarg);
 			if (loops <= 0) {
 				(void) fprintf(stderr, 
 			"%s: %s is unlikely to be a useful number of loops\n",
-				    progname, optarg);
+					       progname, ntp_optarg);
 				errflg++;
 			}
 			break;
@@ -94,7 +94,7 @@ char *argv[];
 			errflg++;
 			break;
 		}
-	if (errflg || optind == argc) {
+	if (errflg || ntp_optind == argc) {
 		(void) fprintf(stderr,
 		    "usage: %s [-d] [-n loops] [ -c ] auth.samplekeys\n",
 		    progname);
@@ -108,7 +108,7 @@ char *argv[];
 	printf(" based authentication.\n");
 
 	init_auth();
-	authreadkeys(argv[optind]);
+	authreadkeys(argv[ntp_optind]);
 	for (i = 0; i < 16; i++) {
 		if (!auth_havekey(i + domd5)) {
 			errflg++;

@@ -34,11 +34,11 @@ char *argv[];
 {
 	int c;
 	int errflg = 0;
-	extern int optind;
-	extern char *optarg;
+	extern int ntp_optind;
+	extern char *ntp_optarg;
 
 	progname = argv[0];
-	while ((c = getopt_l(argc, argv, "d")) != EOF)
+	while ((c = ntp_getopt(argc, argv, "d")) != EOF)
 		switch (c) {
 		case 'd':
 			++debug;
@@ -188,7 +188,7 @@ doit()
 	int ind0, ind1, ind2, ind3;
 	int quadbits;
 
-	bzero((char *)bits, sizeof bits);
+	memset((char *)bits, 0, sizeof bits);
 
 	/*
 	 * Do the rounds for the IPL table.  We save the results of

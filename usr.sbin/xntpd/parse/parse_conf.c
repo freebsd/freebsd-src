@@ -1,8 +1,8 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS))
 /*
- * /src/NTP/REPOSITORY/v3/parse/parse_conf.c,v 3.11 1993/11/01 20:00:24 kardel Exp
+ * /src/NTP/REPOSITORY/v3/parse/parse_conf.c,v 3.13 1994/01/25 19:05:23 kardel Exp
  *  
- * parse_conf.c,v 3.11 1993/11/01 20:00:24 kardel Exp
+ * parse_conf.c,v 3.13 1994/01/25 19:05:23 kardel Exp
  *
  * Parser configuration module for reference clocks
  *
@@ -12,7 +12,7 @@
  * a struct timeval.
  * when STREAM is not defined NTP time stamps will be used.
  *
- * Copyright (c) 1992,1993
+ * Copyright (c) 1992,1993,1994
  * Frank Kardel Friedrich-Alexander Universitaet Erlangen-Nuernberg
  *                                    
  * This program is distributed in the hope that it will be useful,
@@ -81,6 +81,12 @@ unsigned short nformats = sizeof(clockformats) / sizeof(clockformats[0]) - 1;
  * History:
  *
  * parse_conf.c,v
+ * Revision 3.13  1994/01/25  19:05:23  kardel
+ * 94/01/23 reconcilation
+ *
+ * Revision 3.12  1994/01/23  17:22:02  kardel
+ * 1994 reconcilation
+ *
  * Revision 3.11  1993/11/01  20:00:24  kardel
  * parse Solaris support (initial version)
  *

@@ -81,7 +81,8 @@ void msyslog(va_alist)
 			n += strlen(err);
 		}
 	}
-	*n++ = '\n';
+	if (!syslogit)
+	  *n++ = '\n';
 	*n = '\0';
 
 	vsprintf(buf, nfmt, ap);

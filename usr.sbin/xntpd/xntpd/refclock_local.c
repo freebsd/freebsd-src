@@ -100,8 +100,8 @@ local_init()
 	/*
 	 * Just zero the data arrays
 	 */
-	bzero((char *)lclunits, sizeof lclunits);
-	bzero((char *)unitinuse, sizeof unitinuse);
+	memset((char *)lclunits, 0, sizeof lclunits);
+	memset((char *)unitinuse, 0, sizeof unitinuse);
 }
 
 
@@ -148,7 +148,7 @@ local_start(unit, peer)
 			lcl = (struct lclunit *)emalloc(sizeof(struct lclunit));
 		}
 	}
-	bzero((char *)lcl, sizeof(struct lclunit));
+	memset((char *)lcl, 0, sizeof(struct lclunit));
 	lclunits[unit] = lcl;
 
 	/*
@@ -166,7 +166,7 @@ local_start(unit, peer)
 	peer->rootdispersion = LCLROOTDISPERSION;
 	peer->stratum = (u_char)unit;
 	if (unit <= 1)
-		bcopy(LCLREFID, (char *)&peer->refid, 4);
+		memmove((char *)&peer->refid, LCLREFID, 4);
 	else
 		peer->refid = htonl(LCLHSREFID);
 	unitinuse[unit] = 1;

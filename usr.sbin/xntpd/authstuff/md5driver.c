@@ -25,9 +25,9 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <time.h>
-#ifdef	__bsdi__
+#ifdef	SYS_BSDI
 #include <sys/time.h>
-#endif	/* __bsdi__ */
+#endif	/* SYS_BSDI */
 #include "md5.h"
 
 #define	MD5

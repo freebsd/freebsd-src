@@ -34,7 +34,7 @@ SOURCE=	ntp_config.c ntp_control.c ntp_io.c ntp_leap.c \
 	refclock_wwvb.c refclock_goes.c refclock_mx4200.c \
 	refclock_parse.c refclock_as2201.c refclock_omega.c \
 	refclock_tpro.c refclock_leitch.c refclock_irig.c \
-	refclock_msfees.c ntp_intres.c ntp_filegen.c
+	refclock_msfees.c refclock_gpstm.c ntp_intres.c ntp_filegen.c
 
 OBJS=	ntp_config.o ntp_control.o ntp_io.o ntp_leap.o \
 	ntp_loopfilter.o ntp_monitor.o ntp_peer.o ntp_proto.o \
@@ -44,7 +44,7 @@ OBJS=	ntp_config.o ntp_control.o ntp_io.o ntp_leap.o \
 	refclock_wwvb.o refclock_goes.o refclock_mx4200.o \
 	refclock_parse.o refclock_as2201.o refclock_omega.o \
 	refclock_tpro.o refclock_leitch.o refclock_irig.o \
-	refclock_msfees.o ntp_intres.o ntp_filegen.o
+	refclock_msfees.o refclock_gpstm.o ntp_intres.o ntp_filegen.o
 
 all:	$(PROGRAM)
 
@@ -135,4 +135,7 @@ refclock_irig.o:	refclock_irig.c
 	$(CC) $(COPTS) $(DEFS) $(DEFS_LOCAL) $(CLOCKDEFS) $(INCL) -c $*.c
 
 refclock_msfees.o:	refclock_msfees.c
+	$(CC) $(COPTS) $(DEFS) $(DEFS_LOCAL) $(CLOCKDEFS) $(INCL) -c $*.c
+
+refclock_gpstm.o:	refclock_gpstm.c
 	$(CC) $(COPTS) $(DEFS) $(DEFS_LOCAL) $(CLOCKDEFS) $(INCL) -c $*.c

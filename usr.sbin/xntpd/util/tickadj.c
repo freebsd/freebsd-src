@@ -61,9 +61,6 @@ static	char *	getoffsets	P((char *, unsigned long *, unsigned long *, unsigned l
 static	int	openfile	P((char *, int));
 static	void	writevar	P((int, unsigned long, int));
 static	void	readvar		P((int, unsigned long, int *));
-#ifndef NTP_POSIX_SOURCE
-extern	int	getopt		P((int, char **, char *));
-#endif
 
 /*
  * main - parse arguments and handle options
@@ -75,8 +72,8 @@ char *argv[];
 {
 	int c;
 	int errflg = 0;
-	extern int optind;
-	extern char *optarg;
+	extern int ntp_optind;
+	extern char *ntp_optarg;
 	unsigned long tickadj_offset;
 	unsigned long tick_offset;
 	unsigned long dosync_offset;
@@ -94,7 +91,7 @@ char *argv[];
 	void writevar();
 
 	progname = argv[0];
-	while ((c = getopt(argc, argv, "a:Adkqpst:")) != EOF)
+	while ((c = ntp_getopt(argc, argv, "a:Adkqpst:")) != EOF)
 		switch (c) {
 		case 'd':
 			++debug;
@@ -109,11 +106,11 @@ char *argv[];
 			quiet = 1;
 			break;
 		case 'a':
-			writetickadj = atoi(optarg);
+			writetickadj = atoi(ntp_optarg);
 			if (writetickadj <= 0) {
 				(void) fprintf(stderr,
 				    "%s: unlikely value for tickadj: %s\n",
-				    progname, optarg);
+				    progname, ntp_optarg);
 				errflg++;
 			}
 			break;
@@ -124,11 +121,11 @@ char *argv[];
 			unsetdosync = 1;
 			break;
 		case 't':
-			writetick = atoi(optarg);
+			writetick = atoi(ntp_optarg);
 			if (writetick <= 0) {
 				(void) fprintf(stderr,
 				    "%s: unlikely value for tick: %s\n",
-				    progname, optarg);
+				    progname, ntp_optarg);
 				errflg++;
 			}
 			break;
@@ -136,7 +133,7 @@ char *argv[];
 			errflg++;
 			break;
 		}
-	if (errflg || optind != argc) {
+	if (errflg || ntp_optind != argc) {
 		(void) fprintf(stderr,
 		    "usage: %s [-Aqsp] [-a newadj] [-t newtick]\n", progname);
 		exit(2);
@@ -154,25 +151,25 @@ char *argv[];
 	if (setnoprintf && (noprintf_offset == 0)) {
 		(void) fprintf(stderr, 
 			       "No noprintf kernal variable\n");
-		exit(1);
+		errflg++;
 	}
 
 	if (unsetdosync && (dosync_offset == 0)) {
 		(void) fprintf(stderr, 
 			       "No dosynctodr kernal variable\n");
-		exit(1);
+		errflg++;
 	}
 	
 	if (writeopttickadj && (tickadj_offset == 0)) {
 		(void) fprintf(stderr, 
 			       "No tickadj kernal variable\n");
-		exit(1);
+		errflg++;
 	}
 
 	if (writetick && (tick_offset == 0)) {
 		(void) fprintf(stderr, 
 			       "No tick kernal variable\n");
-		exit(1);
+		errflg++;
 	}
 	
 
@@ -234,7 +231,7 @@ char *argv[];
 	
 	if (writetickadj == 0 && !writeopttickadj &&
 	    !unsetdosync && writetick == 0 && !setnoprintf)
-		exit(0);
+		exit(errflg ? 1 : 0);
 
 	if (writetickadj == 0 && writeopttickadj)
 		writetickadj = recommend_tickadj;
@@ -283,7 +280,7 @@ char *argv[];
 			(void) fprintf(stderr, "done!\n");
 	}
 	(void) close(fd);
-	exit(0);
+	exit(errflg ? 1 : 0);
 }
 
 /*

@@ -1,6 +1,6 @@
 /******************************************************************************
  *                                                                            *
- * Copyright (c) David L. Mills 1992, 1993                                    *
+ * Copyright (c) David L. Mills 1992, 1993, 1994                             *
  *                                                                            *
  * Permission to use, copy, modify, and distribute this software and its      *
  * documentation for any purpose and without fee is hereby granted, provided  *
@@ -53,4 +53,6 @@
  * 	support)
  * Karl Berry <karl@owl.HQ.ileaf.com> (syslog to file option)
  * Torsten Duwe <duwe@immd4.informatik.uni-erlangen.de> (Linux Port)
- */
+ * Paul A Vixie <vixie@vix.com> (TrueTime GPS driver)
+ * Jim Jagielski <jim@jagubox.gsfc.nasa.gov> (A/UX port)
+*/

@@ -1,12 +1,12 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS)) && defined(CLOCK_SCHMID)
 /*
- * /src/NTP/REPOSITORY/v3/parse/clk_schmid.c,v 3.8 1993/11/01 20:00:18 kardel Exp
+ * /src/NTP/REPOSITORY/v3/parse/clk_schmid.c,v 3.10 1994/01/25 19:05:15 kardel Exp
  *  
- * clk_schmid.c,v 3.8 1993/11/01 20:00:18 kardel Exp
+ * clk_schmid.c,v 3.10 1994/01/25 19:05:15 kardel Exp
  *
  * Schmid clock support
  *
- * Copyright (c) 1992,1993
+ * Copyright (c) 1992,1993,1994
  * Frank Kardel Friedrich-Alexander Universitaet Erlangen-Nuernberg
  *                                    
  * This program is distributed in the hope that it will be useful,
@@ -168,6 +168,12 @@ cvt_schmid(buffer, size, format, clock)
  * History:
  *
  * clk_schmid.c,v
+ * Revision 3.10  1994/01/25  19:05:15  kardel
+ * 94/01/23 reconcilation
+ *
+ * Revision 3.9  1994/01/23  17:21:56  kardel
+ * 1994 reconcilation
+ *
  * Revision 3.8  1993/11/01  20:00:18  kardel
  * parse Solaris support (initial version)
  *

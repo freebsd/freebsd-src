@@ -7,7 +7,7 @@ this distribution. To make these programs:
 (0) Make sure that you have all necessary tools for building executables.
     These tools include cc/gcc, make, awk, sed, tr, sh, grep, egrep and
     a few others. Not all of these tools exist in the standard distribution
-    of todays Unix versions (Compilers are likely to be an extra product).
+    of todays UNIX versions (compilers are likely to be an extra product).
     For a successful build all of these tools should be accessible via the
     current path.
 
@@ -26,7 +26,7 @@ this distribution. To make these programs:
     To set up for a radio clock, type "make refconf" and answer the questions
     about PLL, PPS and radio clock type.
     If this is the first use of the ref clock, don't forget to make suitable
-    files in /dev/
+    files in /dev/.
 
     For custom tailored configuration copying Config.local.dist to Config.local
     and editing Config.local to suit the local needs is neccessary (at most
@@ -130,20 +130,25 @@ the meal. The converse is not always true.
 	Convex	Convex OS 10.1	?	?
 	SGI	IRIX 4.0.5F	gcc	no REFCLOCK		(pb 93/11/10)
 	AIX	3.2		?	?
-	A/UX	2.0.1, 3.0.x	?	?
+	A/UX	2.0.1, 3.x.x	gcc	LOCAL_CLOCK		(jmj (94/01/26 see hints)
 	RS6000	AIX 3.2		gcc	no REFCLOCK
 	MX500	Sinix-m V5.40	cc	PARSE REFCLOCK
 	S2000	Sequent PTX 1.4 cc	LOCAL_CLOCK		(kd 93/11/10)
 	S2000	Sequent PTX 1.4 gcc	LOCAL_CLOCK		(kd 93/11/10)
 	PC	FreeBSD		gcc	LOCAL_CLOCK		see "build problems"
 	PC	NetBSD?		gcc	LOCAL_CLOCK possibly	see "build problems"
-	PC	BSDI?		gcc	LOCAL_CLOCK possibly	see "build problems"
+	PC	BSD/386 1.0	gcc	LOCAL_CLOCK possibly	see "build problems"
 	PC	Linux (pl14)	gcc	LOCAL_CLOCK		(dw 93/10/30)
+	PC	Dell SVR4 v2.2	gcc	?			(tl 93/12/30)
+	NCR3445	NCR SVR4	cc	LOCAL_CLOCK		(tm 93/11/29)
 
 	pb: Piete Brooks
 	kd: Frank Kardel
 	dw: Torsten Duwe (duwe@informatik.uni-erlangen.de)
 	dm: David Mills (mills@udel.edu)
+	tl: Tony Lill <ajlill@tlill.hookup.net>
+	tm: Tom Moore <Tom.Moore@DaytonOH.NCR.COM>
+	jmj: Jim Jagielski <jim@jagubox.gsfc.nasa.gov>
 
 Build Problems (and workaround):
 
@@ -152,7 +157,7 @@ of "make" and "sh" and "awk" features in different implementations.
 If you have problems other tha the one listed below please check for
 usualy things like the latest sh compatible pd shell in your own
 environment. Things like this are known to hinder compilation if
-they ate not fully compatible with sh or are buggy.
+they are not fully compatible with sh or are buggy.
 
 Current build problem on (Mac) NetBSD, possibly BSDI and 386BSD:
 	pmake (e. g. NetBSD on MAC, possible other BNR2+pmake systems)
@@ -170,9 +175,17 @@ Current build problem on (Mac) NetBSD, possibly BSDI and 386BSD:
 		by failure to build with the message:
 		"don't know how to make make".
 
+		On BSD/386 the solution is to get GNU make and run build as:
+			% gnumake MAKE=gnumake
+		Note that BSD/386 1.0's "sed" goes into an infinite loop if
+		you try to make the "refconf" target -- so edit Config.local
+		by hand if you have a reference clock.  (BSD/386 1.1 will fix
+		this "sed" bug.)
+
+		The NetBSD people claim that this problem goes away
+		when you compile make with POSIX compilation options.
+
 The known sh and some make pecularities have already been taken care of.
-The pmake (in the BNR2 branches) problem seems to be real at the time of this
-writing. If you know a portable(!) fix we'd like to hear from you.
 
 Usually the vendor should fix these bugs in vital utilities.
 We try to circumvent these bugs in a hopefully portable way.

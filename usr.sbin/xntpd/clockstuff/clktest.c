@@ -105,8 +105,8 @@ char *argv[];
 	int fd;
 	struct sgttyb ttyb;
 	struct itimerval itimer;
-	extern int optind;
-	extern char *optarg;
+	extern int ntp_optind;
+	extern char *ntp_optarg;
 	int alarming();
 	int ioready();
 
@@ -114,13 +114,13 @@ char *argv[];
 #ifdef STREAM
 	magic[0] = 0;
 #endif
-	while ((c = getopt_l(argc, argv, "a:b:c:dfs:t:")) != EOF)
+	while ((c = ntp_getopt(argc, argv, "a:b:c:dfs:t:")) != EOF)
 		switch (c) {
 #ifdef CLKLDISC
 		case 'a':
 #endif
 		case 'c':
-			if (!atouint(optarg, &tmp)) {
+			if (!atouint(ntp_optarg, &tmp)) {
 				(void) fprintf(stderr,
 				    "%s: argument for -%c must be integer\n",
 				    progname, c);
@@ -139,7 +139,7 @@ char *argv[];
 #endif
 			break;
 		case 'b':
-			if (!atouint(optarg, &tmp)) {
+			if (!atouint(ntp_optarg, &tmp)) {
 				errflg++;
 				break;
 			}
@@ -163,14 +163,14 @@ char *argv[];
 			ttflags |= CRMOD;
 			break;
 		case 's':
-			cmdlen = strlen(optarg);
+			cmdlen = strlen(ntp_optarg);
 			if (cmdlen == 0)
 				errflg++;
 			else
-				cmd = optarg;
+				cmd = ntp_optarg;
 			break;
 		case 't':
-			if (!atouint(optarg, &tmp))
+			if (!atouint(ntp_optarg, &tmp))
 				errflg++;
 			else {
 				timeout.tv_sec = (long)tmp;
@@ -181,7 +181,7 @@ char *argv[];
 			errflg++;
 			break;
 		}
-	if (errflg || optind+1 != argc) {
+	if (errflg || ntp_optind+1 != argc) {
 		(void) fprintf(stderr,
 #ifdef CLKLDISC
 "usage: %s [-b bps] [-c magic1] [-a magic2] [-f] [-s cmd] [-t timeo]  tty_device\n",
@@ -199,12 +199,12 @@ char *argv[];
 #endif
 
 	if (docmd)
-		fd = open(argv[optind], O_RDWR, 0777);
+		fd = open(argv[ntp_optind], O_RDWR, 0777);
 	else
-		fd = open(argv[optind], O_RDONLY, 0777);
+		fd = open(argv[ntp_optind], O_RDONLY, 0777);
 	if (fd == -1) {
 		(void) fprintf(stderr, "%s: open(%s): ", progname,
-		    argv[optind]);
+			       argv[ntp_optind]);
 		perror("");
 		exit(1);
 	}

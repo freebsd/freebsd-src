@@ -1,5 +1,5 @@
 /*
- * ntp_filegen.h,v 3.6 1993/09/01 21:51:24 kardel Exp
+ * ntp_filegen.h,v 3.7 1994/01/25 19:04:16 kardel Exp
  *
  * definitions for NTP file generations support
  *

@@ -32,7 +32,7 @@ EXECS=		ntptime jitter timetrim kern byteorder longsize precision
 all:	$(PROGRAM)
 
 tickadj: $(TKOBJS)
-	$(CC) $(COPTS) -o $@ $(TKOBJS) $(DAEMONLIBS) $(RESLIB) $(COMPAT)
+	$(CC) $(COPTS) -o $@ $(TKOBJS) $(LIB) $(DAEMONLIBS) $(RESLIB) $(COMPAT)
 
 ntptime: $(NTOBJS)
 	$(CC) $(COPTS) -o $@ $(NTOBJS) $(LIB)

@@ -32,7 +32,7 @@ dolfptoa(fpi, fpv, neg, ndec, msec)
 	/*
 	 * Zero the character buffer
 	 */
-	bzero((char *) cbuf, sizeof(cbuf));
+	memset((char *) cbuf, 0, sizeof(cbuf));
 
 	/*
 	 * Work on the integral part.  This is biased by what I know
