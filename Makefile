@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.33 1995/01/11 11:52:50 jkh Exp $
+#	$Id: Makefile,v 1.34 1995/01/13 21:00:05 wollman Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -233,6 +233,11 @@ lib-tools:
 	cd ${.CURDIR}/usr.bin/ranlib && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/nm && \
+		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/usr.bin/compile_et && \
+		${MAKE} depend all install ${CLEANDIR} ${OBJDIR} && \
+		rm -f /usr/sbin/compile_et
+	cd ${.CURDIR}/usr.bin/mk_cmds && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 
 libraries:
