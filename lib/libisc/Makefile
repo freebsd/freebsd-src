@@ -9,15 +9,19 @@ SHLIB_MINOR=	0
 .PATH:		${BIND_DIR}/lib/isc
 SRCS=		assertions.c ev_connects.c ev_files.c ev_streams.c \
 		ev_timers.c ev_waits.c eventlib.c heap.c tree.c \
-		logging.c memcluster.c bitncmp.c
+		logging.c memcluster.c bitncmp.c ctl_clnt.c ctl_p.c \
+		ctl_srvr.c movefile.c
 
 # contrib/bind/include/* must not override any real system includes
 CFLAGS+=	-I${BIND_DIR}/port/freebsd/include -I${BIND_DIR}/include
 CFLAGS+=	-Wall -Wmissing-prototypes
 
 INCS=		${BIND_DIR}/include/isc/assertions.h \
+		${BIND_DIR}/include/isc/ctl.h \
+		${BIND_DIR}/include/isc/dst.h \
 		${BIND_DIR}/include/isc/eventlib.h \
 		${BIND_DIR}/include/isc/heap.h \
+		${BIND_DIR}/include/isc/irpmarshall.h \
 		${BIND_DIR}/include/isc/logging.h \
 		${BIND_DIR}/include/isc/memcluster.h \
 		${BIND_DIR}/include/isc/misc.h \
