@@ -98,6 +98,8 @@ static struct _word {
     { "mediaSetCPIOVerbosity",	mediaSetCPIOVerbosity	},
     { "mediaGetType",		mediaGetType		},
     { "packageAdd",		package_add		},
+    { "system",			(int (*)(char *))system	},
+    { "systemInteractive",	systemExecute		},
     { "tcpInstallDevice",	tcpInstallDevice	},
     { NULL, NULL },
 };
