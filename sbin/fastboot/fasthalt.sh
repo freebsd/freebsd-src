@@ -35,4 +35,4 @@
 #
 
 cp /dev/null /fastboot
-/sbin/halt $*
+exec /sbin/halt $*

@@ -3,5 +3,6 @@
 PROG=	umount
 DPADD=	${LIBRPC}
 LDADD=	-lrpc
+MAN8=	umount.8
 
 .include <bsd.prog.mk>

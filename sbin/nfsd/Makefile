@@ -2,7 +2,7 @@
 
 PROG=	nfsd
 CFLAGS+=-DNFS
-MAN8=	nfsd.0
+MAN8=	nfsd.8
 DPADD=	${LIBRPC}
 LDADD=	-lrpc
 

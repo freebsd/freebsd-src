@@ -2,7 +2,7 @@
 
 PROG=	mount_nfs
 SRCS=	mount_nfs.c getmntopts.c
-MAN8=	mount_nfs.0
+MAN8=	mount_nfs.8
 
 MOUNT=	${.CURDIR}/../mount
 CFLAGS+= -DNFS -I${MOUNT}
