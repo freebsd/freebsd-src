@@ -137,16 +137,6 @@ def_lock_release(void *lock)
     }
 }
 
-#if __i386__
-/*
- * Import a  crude exclusive lock implementation for i386 processors.
- * This file will be removed once i386 support is deprecated in favor
- * of i486+.
- */
-#include "i386/lockdflt.c"
-
-#endif
-
 static int
 def_thread_set_flag(int mask)
 {
@@ -249,15 +239,6 @@ lockdflt_init()
 	    rtld_locks[i].mask   = (1 << i);
 	    rtld_locks[i].handle = NULL;
     }
-
-#if __i386__
-    if (!cpu_supports_cmpxchg()) {
-	/* It's a cruddy old 80386. */
-	deflockinfo.rlock_acquire = lock80386_acquire;
-	deflockinfo.wlock_acquire = lock80386_acquire;
-	deflockinfo.lock_release  = lock80386_release;
-    }
-#endif
 
     memcpy(&lockinfo, &deflockinfo, sizeof(lockinfo));
     _rtld_thread_init(NULL);
