@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: loran.c,v 1.12 1998/12/04 22:54:46 archie Exp $
+ * $Id: loran.c,v 1.13 1998/12/07 21:58:22 archie Exp $
  *
  * This device-driver helps the userland controlprogram for a LORAN-C
  * receiver avoid monopolizing the CPU.
@@ -50,7 +50,9 @@ struct datapoint {
 	TAILQ_ENTRY(datapoint)	list;
 	u_char			status;
 	int			vco;
+	int			bounce;
 	pid_t			pid;
+	struct timespec		when;
 
 	int			priority;
 	dphead_t		*home;
@@ -215,8 +217,6 @@ static u_int vco_want;
 static u_int64_t vco_when;
 static int64_t vco_error;
 
-static int	lorantc_magic;
-
 /**********************************************************************/
 
 static	int		loranprobe (struct isa_device *dvp);
@@ -279,8 +279,9 @@ loranattach(struct isa_device *isdp)
 
 	printf("loran0: LORAN-C Receiver\n");
 
-	vco_should = vco_is = VCO;
-	LOAD_DAC(DACA, vco_is >> VCO_SHIFT);
+	vco_should = VCO;
+	vco_is = vco_should >> VCO_SHIFT;
+	LOAD_DAC(DACA, vco_is);
 	 
 	init_tgc();
 
@@ -365,7 +366,7 @@ loranenqueue(struct datapoint *dp)
 {
 	struct datapoint *dpp, *dpn;
 
-	while(1) {
+	while(dp) {
 		/*
 		 * The first two elements on "working" are sacred,
 		 * they're already partly setup in hardware, so the
@@ -428,13 +429,24 @@ loranenqueue(struct datapoint *dp)
 			dp->scheduled += dp->fri;
 		}
 
-		/*
-		 * If anything was bumped, put it back as best we can
-		 */
-		if (TAILQ_EMPTY(&holding))
-			break;
-		dp = TAILQ_FIRST(&holding);
-		TAILQ_REMOVE(&holding, dp, list);
+		do {
+			/*
+			 * If anything was bumped, put it back as best we can
+			 */
+			if (TAILQ_EMPTY(&holding)) {
+				dp = 0;
+				break;
+			}
+			dp = TAILQ_FIRST(&holding);
+			TAILQ_REMOVE(&holding, dp, list);
+			if (dp->home) {
+				if (!--dp->bounce) {
+					TAILQ_INSERT_TAIL(dp->home, dp, list);
+					wakeup((caddr_t)dp->home);
+					dp = 0;
+				}
+			}
+		} while (!dp);
 	}
 }
 
@@ -489,6 +501,7 @@ loranintr(int unit)
 	this = TAILQ_FIRST(&working);
 	TAILQ_REMOVE(&working, this, list);
 
+	nanotime(&this->when);
 	this->ssig = inb(ADC);
 
 	par &= ~(ENG | IEN);
@@ -509,6 +522,7 @@ loranintr(int unit)
 	outb(ADC, ADC_S);
 
 	this->epoch = ticker;
+	this->vco = vco_is;
 
 	if (this->home) {
 		TAILQ_INSERT_TAIL(this->home, this, list);
@@ -595,8 +609,7 @@ loran_get_timecount(struct timecounter *tc)
 	ef = read_eflags();
 	disable_intr();
 
-	if (!lorantc_magic)
-		outb(TGC, TG_SAVE + 0x10);	/* save counter #5 */
+	outb(TGC, TG_SAVE + 0x10);	/* save counter #5 */
 	outb(TGC, TG_LOADDP +0x15);	/* hold counter #5 */
 	count = inb(TGD);
 	count |= inb(TGD) << 8;
