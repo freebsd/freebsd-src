@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.75 1997/11/09 13:18:51 brian Exp $
+.\" $Id: ppp.8,v 1.76 1997/11/09 17:51:26 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -525,10 +525,15 @@ Currently,
 may also be used to talk interactively.
 
 .Pp
-Each
+In order to achieve this, you must use the
+.Dq set server
+command as described below.  It is possible to retrospectively make a running
 .Nm
-daemon has an associated port number which is computed as "3000 +
-tunnel_device_number".
+program listen on a diagnostic port by configuring
+.Pa /etc/ppp/ppp.secret ,
+and sending it a
+.Dv USR1
+signal.
 
 In
 .Fl auto
@@ -637,10 +642,18 @@ To terminate the program, type
 .Pp
 A simple
 .Dq quit
-command will terminate the telnet connection but not the program itself.
+command will terminate the
+.Xr pppctl 8
+or
+.Xr telnet 1
+connection but not the
+.Nm
+program itself.
 You must use
 .Dq quit all
-to terminate the program as well.
+to terminate
+.Nm
+as well.
 
 .Sh RECEIVING INCOMING PPP CONNECTIONS (Method 1)
 
@@ -698,17 +711,17 @@ exec /usr/sbin/ppp -direct
 (You can specify a label name for further control.)
 
 .Pp
-Direct mode (
-.Fl direct
-) lets
+Direct mode
+.Pq Fl direct
+lets
 .Nm
 work with stdin and stdout.  You can also use
 .Xr pppctl 8
 or
 .Xr telnet 1
-to connect to port 3000 plus the current tunnel device number to get
-command mode control in the same manner as client-side
-.Nm.
+to connect to a configured diagnostic port, in the same manner as with
+client-side
+.Nm ppp .
 
 .It
 Optional support for Microsoft's IPCP Name Server and NetBIOS
@@ -1467,8 +1480,14 @@ to exit.
 This signal, when not in interactive mode, tells
 .Nm
 to close any existing server socket and open an Internet socket using
-the default rules for choosing a port number - that is, using port
-3000 plus the current tunnel device number.
+port 3000 plus the current tunnel device number.  This can only be
+achieved if a suitable local password is specified in
+.Pa /etc/ppp/ppp.secret .
+
+.It USR2
+This signal, tells
+.Nm
+to close any existing server socket.
 
 .El
 
@@ -1477,7 +1496,11 @@ the default rules for choosing a port number - that is, using port
 This section lists the available commands and their effect.  They are
 usable either from an interactive
 .Nm
-session, from a configuration file or from a telnet session.
+session, from a configuration file or from a
+.Xr pppctl 8
+or
+.Xr telnet 1
+session.
 
 .Bl -tag -width 20
 .It accept|deny|enable|disable option....
@@ -1949,27 +1972,40 @@ The default value is zero, where
 .Nm
 doesn't time out in the stopped state.
 
-.It set server|socket TcpPort|LocalName|none [mask]
-Normally, when not in interactive mode,
+.It set server|socket TcpPort|LocalName|none [password] [mask]
+This command tells
 .Nm
-listens to a TCP socket for incoming command connections.  The
-default socket number is calculated as 3000 plus the number of the
-tunnel device that
+to listen on the given socket or
+.Sq diagnostic port
+for incoming command connections.  This is not possible if
 .Nm
-opened.  So, for example, if
+is in interactive mode.  The word
+.Ar none
+instructs
 .Nm
-opened tun2, socket 3002 would be used.
+to close any existing socket.  If you wish to specify a unix domain
+socket,
+.Ar LocalName
+must be specified as an absolute file name, otherwise it is assumed
+to be the name or number of a TCP port.  You may specify the octal umask that
+should be used with unix domain sockets as a four character octal number
+beginning with
+.Sq 0 .
+Refer to
+.Xr umask 2
+for umask details.  Refer to
+.Xr services 5
+for details of how to translate TCP port names.
+
 .Pp
-Using this command, you can specify your own port number, a
-local domain socket (specified as an absolute file name), or
-you can tell
-.Nm
-not to accept any command connections.  If a local domain socket
-is specified, you may also specify an octal mask that should be
-set before creating the socket.  See also the use of
-the
-.Dv USR1
-signal.
+You may also specify the password that must be used by the client when
+connecting to this socket.  If the password is not specified here,
+.Pa /etc/ppp/ppp.secret
+is searched for a machine name that's the same as your local host name
+without any domain suffix.  Refer to
+.Xr hostname 1
+for further details.  If a password is specified as the empty string,
+no password is required.
 
 .Pp
 When using
@@ -1979,7 +2015,7 @@ with a server socket, the
 command is the preferred mechanism of communications.  Currently,
 .Xr telnet 1
 can also be used, but link encryption may be implemented in the future, so
-.Xr telnet 8
+.Xr telnet 1
 should not be relied upon.
 
 .It set speed value
@@ -2184,7 +2220,11 @@ argument is given,
 .Nm
 will exit, closing the connection.  A simple
 .Dq quit
-issued from a telnet session will not close the current connection.
+issued from a
+.Xr pppctl 8
+or
+.Xr telnet 1
+session will not close the current connection.
 
 .It help|? [command]
 Show a list of available commands.  If
@@ -2287,6 +2327,7 @@ Get port number if port number is using service name.
 .Xr crontab 5 ,
 .Xr ftp 1 ,
 .Xr getty 8 ,
+.Xr hostname 1 ,
 .Xr inetd 8 ,
 .Xr init 8 ,
 .Xr login 1 ,
@@ -2299,7 +2340,6 @@ Get port number if port number is using service name.
 .Xr syslogd 8 ,
 .Xr tcpdump 1 ,
 .Xr telnet 1 ,
-.Xr telnet 8 ,
 .Xr traceroute 8 ,
 .Xr uucplock 3 ,
 .Xr uucplock 8
