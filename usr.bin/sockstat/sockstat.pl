@@ -40,7 +40,7 @@ format STDOUT =
 $user,   $cmd,    $pid, $fd, $proto,$laddr,               $faddr
 .
 
-open NETSTAT, "netstat -Aan |" or die "'netstat' failed: $!";
+open NETSTAT, "/usr/bin/netstat -Aan |" or die "'netstat' failed: $!";
 <NETSTAT>; <NETSTAT>;
 
 while (<NETSTAT>) {
@@ -51,7 +51,7 @@ while (<NETSTAT>) {
 
 close NETSTAT;
 
-open FSTAT, "fstat |" or die "'fstat' failed: $!\n";
+open FSTAT, "/usr/bin/fstat |" or die "'fstat' failed: $!\n";
 
 while (<FSTAT>) {
     ($user, $cmd, $pid, $fd, $inet, $type, $proto, $sock) = split;
