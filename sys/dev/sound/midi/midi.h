@@ -308,6 +308,6 @@ int midi_sync(mididev_info *);
  */
 
 #define MIDI_DEV_MIDIN	2	/* Raw midi access */
-#define MIDI_DEV_STATUS	11	/* /dev/midistat */
+#define MIDI_DEV_STATUS	15	/* /dev/midistat */
 
 #endif	/* _MIDI_H_ */
