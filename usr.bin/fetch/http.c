@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.12 1997/09/28 11:25:59 cracauer Exp $
+ *	$Id: http.c,v 1.13 1997/10/31 23:33:44 ache Exp $
  */
 
 #include <sys/types.h>
@@ -139,7 +139,7 @@ http_parse(struct fetch_state *fs, const char *u)
 	port = 0;
 
 	if (p[0] != '/' || p[1] != '/') {
-		warnx("`%s': malformed `http' URL", u);
+		warnx("`%s': malformed `http' URL", uri);
 		return EX_USAGE;
 	}
 
@@ -157,7 +157,7 @@ http_parse(struct fetch_state *fs, const char *u)
 	else
 		q = slash;
 	if (q == 0) {
-		warnx("`%s': malformed `http' URL", u);
+		warnx("`%s': malformed `http' URL", uri);
 		return EX_USAGE;
 	}
 	hostname = alloca(q - p + 1);
@@ -173,7 +173,7 @@ http_parse(struct fetch_state *fs, const char *u)
 		ul = strtoul(colon + 1, &ep, 10);
 		if (ep != slash || ep == colon + 1 || errno != 0
 		    || ul < 1 || ul > 65534) {
-			warn("`%s': invalid port in URL", u);
+			warn("`%s': invalid port in URL", uri);
 			return EX_USAGE;
 		}
 
