@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 13, 1997
+.Dd November 28, 2001
 .Os
 .Dt PERIODIC 8
 .Sh NAME
@@ -233,6 +233,15 @@ The
 .Nm
 program first appeared in
 .Fx 3.0 .
+.Sh BUGS
+Since one specifies information about a directory using shell
+variables containing the string,
+.Va <basedir> ,
+.Va <basedir>
+must only contain characters that are valid within a
+.Xr sh 1
+variable name, alphanumerics and underscores, and the first character
+may not be numeric.
 .Sh AUTHORS
 .An Paul Traina Aq pst@FreeBSD.org
 .An Brian Somers Aq brian@Awfulhak.org
