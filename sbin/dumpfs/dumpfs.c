@@ -130,6 +130,7 @@ dumpfs(const char *name)
 {
 	time_t fstime;
 	int64_t fssize;
+	int32_t fsflags;
 	int i;
 
 	switch (disk.d_ufs) {
@@ -211,21 +212,30 @@ dumpfs(const char *name)
 	printf("cgrotor\t%d\tfmod\t%d\tronly\t%d\tclean\t%d\n",
 	    afs.fs_cgrotor, afs.fs_fmod, afs.fs_ronly, afs.fs_clean);
 	printf("flags\t");
-	if (afs.fs_flags == 0)
+	if (afs.fs_old_flags & FS_FLAGS_UPDATED)
+		fsflags = afs.fs_flags;
+	else
+		fsflags = afs.fs_old_flags;
+	if (fsflags == 0)
 		printf("none");
-	if (afs.fs_flags & FS_UNCLEAN)
-			printf("unclean ");
-	if (afs.fs_flags & FS_DOSOFTDEP)
-			printf("soft-updates ");
-	if (afs.fs_flags & FS_NEEDSFSCK)
-			printf("needs fsck run ");
-	if (afs.fs_flags & FS_INDEXDIRS)
-			printf("indexed directories ");
-	if ((afs.fs_flags &
-	    ~(FS_UNCLEAN | FS_DOSOFTDEP | FS_NEEDSFSCK | FS_INDEXDIRS)) != 0)
-			printf("unknown flags (%#x)", afs.fs_flags &
-			    ~(FS_UNCLEAN | FS_DOSOFTDEP |
-			      FS_NEEDSFSCK | FS_INDEXDIRS));
+	if (fsflags & FS_UNCLEAN)
+		printf("unclean ");
+	if (fsflags & FS_DOSOFTDEP)
+		printf("soft-updates ");
+	if (fsflags & FS_NEEDSFSCK)
+		printf("needs fsck run ");
+	if (fsflags & FS_INDEXDIRS)
+		printf("indexed directories ");
+	if (fsflags & FS_ACLS)
+		printf("acls ");
+	if (fsflags & FS_MULTILABEL)
+		printf("multilabel ");
+	if (fsflags & FS_FLAGS_UPDATED)
+		printf("fs_flags expanded ");
+	fsflags &= ~(FS_UNCLEAN | FS_DOSOFTDEP | FS_NEEDSFSCK | FS_INDEXDIRS |
+		     FS_ACLS | FS_MULTILABEL | FS_FLAGS_UPDATED);
+	if (fsflags != 0)
+		printf("unknown flags (%#x)", fsflags);
 	putchar('\n');
 	printf("\ncs[].cs_(nbfree,ndir,nifree,nffree):\n\t");
 	afs.fs_csp = calloc(1, afs.fs_cssize);
