@@ -1,8 +1,7 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/intro.sgml,v 1.5 2003/01/13 20:30:48 ue Exp $
-  $Id: intro.sgml,v 1.5 2002/03/10 15:37:15 ue Exp $
-  basiert auf: 1.5
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/intro.sgml,v 1.6 2003/05/24 21:35:15 ue Exp $
+  basiert auf: 1.6
 -->
 
 <sect1 id="intro">
@@ -23,4 +22,9 @@
       f&uuml;r andere Plattformen gedacht sind, werden in vielen
       Punkten von diesem Dokument abweichen.</para>
   </note>
+
+  <para arch="ia64">Weitergehende Informationen &uuml;ber &os;/&arch;
+    finden Sie auf den Webseiten des <ulink
+    url="http://www.FreeBSD.org/platforms/ia64/index.html">&os;/&arch;
+    Project</ulink>.</para>
 </sect1>

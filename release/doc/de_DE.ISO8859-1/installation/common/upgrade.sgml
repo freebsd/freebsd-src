@@ -1,7 +1,7 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/upgrade.sgml,v 1.8 2002/12/07 20:14:03 ue Exp $
-  basiert auf: 1.10
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/upgrade.sgml,v 1.10 2003/05/24 19:11:45 ue Exp $
+  basiert auf: 1.11
 
 	This section contains the contents of the old UPGRADE.TXT
 	file.
@@ -146,7 +146,7 @@
       <para>Die zur neuen Version geh&ouml;renden Versionen dieser
         Dateien werden im Verzeichnis
         <filename>/etc/upgrade/</filename> abgelegt.  Sie sollten
-        einen Blick auf diese Dateien werfen und ggfs. die Neuerungen
+        einen Blick auf diese Dateien werfen und gegebenenfalls die Neuerungen
         in das bestehende System einarbeiten.  Allerdings gibt es
         viele Wechselwirkungen zwischen den einzelnen Dateien; daher
         empfehlen wir Ihnen, alle lokalen Anpassungen in die neuen
