@@ -4,12 +4,12 @@ Distribution format
 
 A typical FreeBSD distribution directory looks something like this:
 
-ABOUT.TXT       bin             dict            manpages        tools
-HARDWARE.TXT    compat1x        des             doc             packages
-INSTALL.TXT     compat20        floppies        ports
-README.TXT      compat21        games           proflibs
-RELNOTES.TXT    info            src
-LAYOUT.TXT      XF86332
+ABOUT.TXT       bin             compat3x        games           proflibs
+HARDWARE.TXT    compat1x        info		src             tools
+INSTALL.TXT     compat20        dict            manpages        packages
+README.TXT      compat21        des             doc
+RELNOTES.TXT    compat22        floppies        ports
+XF86333
 
 If you want to do a CDROM, FTP or NFS installation from this
 distribution directory, all you need to do is make a 1.44Mb floppy
@@ -33,10 +33,10 @@ thorough description of each item in more detail:
    itself and are split into smaller files for easy packing onto floppies
    (should that be necessary).
 
-4. The compat1x, compat20 and compat21 directories contain distributions
-   for compatibility with older releases and are distributed as single
-   gzip'd tar files - they can be installed during release time or later
-   by running their `install.sh' scripts.
+4. The compat1x, compat20, compat21, compat22, and compat3x directories
+   contain distributions for compatibility with older releases and are
+   distributed as single gzip'd tar files - they can be installed during
+   release time or later by running their `install.sh' scripts.
 
 5. The floppies subdirectory also contains the floppy installation images
    and the floppies/README.TXT file should be read for further
