@@ -89,7 +89,9 @@ and so on.  The real work is done by the
 .Fn setrunelocale
 function.
 .It Dv LC_MESSAGES
-Set a locale for message catalogs.
+Set a locale for message catalogs, see
+.Xr catopen 3
+function.
 .It Dv LC_MONETARY
 Set a locale for formatting monetary values;
 this affects the
@@ -289,6 +291,7 @@ and the category
 .Xr rune 3 ,
 .Xr strcoll 3 ,
 .Xr strxfrm 3 ,
+.Xr catopen 3 ,
 .Xr euc 4 ,
 .Xr utf2 4
 .Sh STANDARDS
