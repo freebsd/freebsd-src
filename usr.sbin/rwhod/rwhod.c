@@ -264,7 +264,8 @@ main(int argc, char *argv[])
 	}
 	for (;;) {
 		struct whod wd;
-		int cc, whod, len = sizeof(from);
+		socklen_t len = sizeof(from);
+		int cc, whod;
 		time_t t;
 
 		cc = recvfrom(s, (char *)&wd, sizeof(struct whod), 0,

@@ -256,9 +256,8 @@ conn_server(struct tac_handle *h)
 		struct timeval tv;
 		int nfds;
 		struct sockaddr peer;
-		int peerlen;
+		socklen_t errlen, peerlen;
 		int err;
-		int errlen;
 
 		/* Wait for the connection to complete. */
 		FD_ZERO(&wfds);
