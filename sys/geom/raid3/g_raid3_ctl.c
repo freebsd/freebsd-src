@@ -93,7 +93,8 @@ g_raid3_ctl_configure(struct gctl_req *req, struct g_class *mp)
 	struct g_raid3_softc *sc;
 	struct g_raid3_disk *disk;
 	const char *name;
-	int *nargs, *autosync, *noautosync, do_sync = 0;
+	int *nargs, do_sync = 0;
+	int *autosync, *noautosync, *round_robin, *noround_robin;
 	u_int n;
 
 	g_topology_assert();
@@ -122,13 +123,29 @@ g_raid3_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No '%s' argument.", "noautosync");
 		return;
 	}
-	if (!*autosync && !*noautosync) {
-		gctl_error(req, "Nothing has changed.");
-		return;
-	}
 	if (*autosync && *noautosync) {
 		gctl_error(req, "'%s' and '%s' specified.", "autosync",
 		    "noautosync");
+		return;
+	}
+	round_robin = gctl_get_paraml(req, "round_robin", sizeof(*round_robin));
+	if (round_robin == NULL) {
+		gctl_error(req, "No '%s' argument.", "round_robin");
+		return;
+	}
+	noround_robin = gctl_get_paraml(req, "noround_robin",
+	    sizeof(*noround_robin));
+	if (noround_robin == NULL) {
+		gctl_error(req, "No '%s' argument.", "noround_robin");
+		return;
+	}
+	if (*round_robin && *noround_robin) {
+		gctl_error(req, "'%s' and '%s' specified.", "round_robin",
+		    "noround_robin");
+		return;
+	}
+	if (!*autosync && !*noautosync && !*round_robin && !*noround_robin) {
+		gctl_error(req, "Nothing has changed.");
 		return;
 	}
 	if ((sc->sc_flags & G_RAID3_DEVICE_FLAG_NOAUTOSYNC) != 0) {
@@ -139,6 +156,13 @@ g_raid3_ctl_configure(struct gctl_req *req, struct g_class *mp)
 	} else {
 		if (*noautosync)
 			sc->sc_flags |= G_RAID3_DEVICE_FLAG_NOAUTOSYNC;
+	}
+	if ((sc->sc_flags & G_RAID3_DEVICE_FLAG_ROUND_ROBIN) != 0) {
+		if (*noround_robin)
+			sc->sc_flags &= ~G_RAID3_DEVICE_FLAG_ROUND_ROBIN;
+	} else {
+		if (*round_robin)
+			sc->sc_flags |= G_RAID3_DEVICE_FLAG_ROUND_ROBIN;
 	}
 	for (n = 0; n < sc->sc_ndisks; n++) {
 		disk = &sc->sc_disks[n];

@@ -58,6 +58,8 @@ struct g_command class_commands[] = {
 		{ 'd', "dynamic", NULL, G_TYPE_NONE },
 		{ 'h', "hardcode", NULL, G_TYPE_NONE },
 		{ 'n', "noautosync", NULL, G_TYPE_NONE },
+		{ 'r', "round_robin", NULL, G_TYPE_NONE },
+		{ 'R', "noround_robin", NULL, G_TYPE_NONE },
 		G_OPT_SENTINEL
 	    }
 	},
@@ -73,6 +75,7 @@ struct g_command class_commands[] = {
 	    {
 		{ 'h', "hardcode", NULL, G_TYPE_NONE },
 		{ 'n', "noautosync", NULL, G_TYPE_NONE },
+		{ 'r', "round_robin", NULL, G_TYPE_NONE },
 		G_OPT_SENTINEL
 	    }
 	},
@@ -99,10 +102,10 @@ void
 usage(const char *comm)
 {
 	fprintf(stderr,
-	    "usage: %s label [-hnv] name prov prov prov [prov [...]]\n"
+	    "usage: %s label [-hnrv] name prov prov prov [prov [...]]\n"
 	    "       %s clear [-v] prov [prov [...]]\n"
 	    "       %s dump prov [prov [...]]\n"
-	    "       %s configure [-adhnv] name\n"
+	    "       %s configure [-adhnrRv] name\n"
 	    "       %s rebuild [-v] name prov\n"
 	    "       %s insert [-hv] <-n number> name prov\n"
 	    "       %s remove [-v] <-n number> name\n"
@@ -141,7 +144,8 @@ raid3_label(struct gctl_req *req)
 	u_char sector[512];
 	const char *str;
 	char param[16];
-	int *hardcode, *nargs, *noautosync, error, i;
+	int *hardcode, *nargs, *noautosync, *round_robin;
+	int error, i;
 	unsigned sectorsize;
 	off_t mediasize;
 
@@ -184,6 +188,13 @@ raid3_label(struct gctl_req *req)
 	}
 	if (*noautosync)
 		md.md_mflags |= G_RAID3_DEVICE_FLAG_NOAUTOSYNC;
+	round_robin = gctl_get_paraml(req, "round_robin", sizeof(*round_robin));
+	if (round_robin == NULL) {
+		gctl_error(req, "No '%s' argument.", "round_robin");
+		return;
+	}
+	if (*round_robin)
+		md.md_mflags |= G_RAID3_DEVICE_FLAG_ROUND_ROBIN;
 	hardcode = gctl_get_paraml(req, "hardcode", sizeof(*hardcode));
 	if (hardcode == NULL) {
 		gctl_error(req, "No '%s' argument.", "hardcode");
