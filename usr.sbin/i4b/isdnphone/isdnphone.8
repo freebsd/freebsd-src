@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1999, 2001 Hellmuth Michaelis. All rights reserved.
+.\" Copyright (c) 1999, 2002 Hellmuth Michaelis. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -24,10 +24,10 @@
 .\"
 .\" $FreeBSD$
 .\"
-.\"	last edit-date: [Thu Oct 18 13:36:52 2001]
+.\"	last edit-date: [Tue Aug 27 16:42:12 2002]
 .\"
 .\"
-.Dd October 18, 2001
+.Dd August 27, 2002
 .Dt ISDNPHONE 8
 .Os
 .Sh NAME
@@ -40,6 +40,8 @@
 .Op Fl k Ar string
 .Op Fl n Ar number
 .Op Fl u Ar unit
+.Op Fl v
+.Op Fl w
 .Sh DESCRIPTION
 The
 .Nm
@@ -64,6 +66,10 @@ Send the specified string using the keypad facility information element.
 Dial the specified number on the selected interface.
 .It Fl u
 Set the unit number to specify the interface used.
+.It Fl v
+Enable verbose result messages for dialling (-n and -w)
+.It Fl w
+After dialling (using the -n option), wait for the first result message.
 .El
 .Sh FILES
 .Bl -tag -width indent -compact
