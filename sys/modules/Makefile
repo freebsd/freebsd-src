@@ -264,8 +264,8 @@ _syscons=	syscons
 .endif
 
 .if ${MACHINE_ARCH} != "powerpc"
-_uart=	uart
-_vpo=	vpo
+_uart=		uart
+_vpo=		vpo
 .endif
 
 .if defined(ALL_MODULES)
