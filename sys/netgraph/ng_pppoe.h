@@ -126,6 +126,7 @@ struct ngpppoe_sts {
 
 #define PPPOE_TIMEOUT_LIMIT 64
 #define PPPOE_OFFER_TIMEOUT 16
+#define PPPOE_INITIAL_TIMEOUT 2
 
 /* Codes to identify message types */
 #define PADI_CODE	0x09
