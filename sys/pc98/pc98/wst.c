@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: wst.c,v 1.17 1999/04/28 10:53:06 dt Exp $
+ *	$Id: wst.c,v 1.18 1999/05/02 21:46:31 peter Exp $
  */
 
 #include "wdc.h"
@@ -744,7 +744,8 @@ wst_erase(struct wst *t)
     int error;
     struct atapires result;
 
-    if (error = wst_rewind(t))
+    error = wst_rewind(t);
+    if (error)
         return error;
     result = atapi_request_wait(t->ata, t->unit, 
 			        ATAPI_TAPE_ERASE, 3, 0, 0, 0,

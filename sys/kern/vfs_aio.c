@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.45 1999/04/04 21:41:16 dt Exp $
+ * $Id: vfs_aio.c,v 1.46 1999/04/28 01:04:28 luoqi Exp $
  */
 
 /*
@@ -890,7 +890,8 @@ aio_newproc()
 	struct proc *p, *np;
 
 	p = &proc0;
-	if (error = fork1(p, RFPROC|RFMEM|RFNOWAIT))
+	error = fork1(p, RFPROC|RFMEM|RFNOWAIT);
+	if (error)
 		return error;
 	np = pfind(p->p_retval[0]);
 	cpu_set_fork_handler(np, aio_daemon, curproc);

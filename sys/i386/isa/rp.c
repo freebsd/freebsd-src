@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rp.c,v 1.23 1999/04/24 20:26:12 billf Exp $
+ *	$Id: rp.c,v 1.24 1999/04/27 11:15:12 phk Exp $
  */
 
 /* 
@@ -1555,10 +1555,9 @@ rpwrite(dev, uio, flag)
 	tp = rp->rp_tty;
 	while(rp->rp_disable_writes) {
 		rp->rp_waiting = 1;
-		if(error = ttysleep(tp, (caddr_t)rp, TTOPRI|PCATCH,
-					"rp_write", 0)) {
+		error = ttysleep(tp, (caddr_t)rp, TTOPRI|PCATCH, "rp_write", 0);
+		if (error)
 			return(error);
-		}
 	}
 
 	error = (*linesw[tp->t_line].l_write)(tp, uio, flag);
@@ -1661,7 +1660,7 @@ rpioctl(dev, cmd, data, flag, p)
 		dt->c_lflag = (tp->t_lflag & lt->c_lflag)
 				| (dt->c_lflag & ~lt->c_lflag);
 		for(cc = 0; cc < NCCS; ++cc)
-			if(lt->c_cc[cc] = tp->t_cc[cc])
+			if((lt->c_cc[cc] = tp->t_cc[cc]) != 0)
 				dt->c_cc[cc] = tp->t_cc[cc];
 		if(lt->c_ispeed != 0)
 			dt->c_ispeed = tp->t_ispeed;
