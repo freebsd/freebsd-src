@@ -105,7 +105,7 @@ sub validate {
 
 sub valmess {
     local($disposition,$this) = @_;
-    $file = $cwd . '/' . $file unless $file =~ m|^/|;
+    $file = $cwd . '/' . $file unless $file =~ m|^/|s;
     if ($this =~ /^(!?)-(\w)\s+\$file\s*$/) {
 	$neg = $1;
 	$tmp = $2;

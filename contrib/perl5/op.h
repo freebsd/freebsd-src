@@ -1,6 +1,6 @@
 /*    op.h
  *
- *    Copyright (c) 1991-1999, Larry Wall
+ *    Copyright (c) 1991-2000, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -38,7 +38,7 @@ typedef U32 PADOFFSET;
 #define BASEOP				\
     OP*		op_next;		\
     OP*		op_sibling;		\
-    OP*		(CPERLscope(*op_ppaddr))_((ARGSproto));		\
+    OP*		(CPERLscope(*op_ppaddr))(pTHX);		\
     PADOFFSET	op_targ;		\
     OPCODE	op_type;		\
     U16		op_seq;			\
@@ -51,6 +51,20 @@ typedef U32 PADOFFSET;
 	 ((op)->op_flags & OPf_WANT) == OPf_WANT_SCALAR ? G_SCALAR : \
 	 ((op)->op_flags & OPf_WANT) == OPf_WANT_LIST   ? G_ARRAY   : \
 	 dfl)
+
+/*
+=for apidoc Amn|U32|GIMME_V
+The XSUB-writer's equivalent to Perl's C<wantarray>.  Returns C<G_VOID>,
+C<G_SCALAR> or C<G_ARRAY> for void, scalar or array context,
+respectively.
+
+=for apidoc Amn|U32|GIMME
+A backward-compatible version of C<GIMME_V> which can only return
+C<G_SCALAR> or C<G_ARRAY>; in a void context, it returns C<G_SCALAR>.
+Deprecated.  Use C<GIMME_V> instead.
+
+=cut
+*/
 
 #define GIMME_V		OP_GIMME(PL_op, block_gimme())
 
@@ -77,12 +91,15 @@ typedef U32 PADOFFSET;
 				/*  On flipflop, we saw ... instead of .. */
 				/*  On UNOPs, saw bare parens, e.g. eof(). */
 				/*  On OP_ENTERSUB || OP_NULL, saw a "do". */
+				/*  On OP_EXISTS, treat av as av, not avhv.  */
 				/*  On OP_(ENTER|LEAVE)EVAL, don't clear $@ */
 				/*  On OP_ENTERITER, loop var is per-thread */
+                                /*  On pushre, re is /\s+/ imp. by split " " */
 
 /* old names; don't use in new code, but don't break them, either */
 #define OPf_LIST	OPf_WANT_LIST
 #define OPf_KNOW	OPf_WANT
+
 #define GIMME \
 	  (PL_op->op_flags & OPf_WANT					\
 	   ? ((PL_op->op_flags & OPf_WANT) == OPf_WANT_LIST		\
@@ -90,11 +107,18 @@ typedef U32 PADOFFSET;
 	      : G_SCALAR)						\
 	   : dowantarray())
 
+/* NOTE: OP_NEXTSTATE, OP_DBSTATE, and OP_SETSTATE (i.e. COPs) carry lower
+ * bits of PL_hints in op_private */
+
 /* Private for lvalues */
-#define OPpLVAL_INTRO	128	/* Lvalue must be localized */
+#define OPpLVAL_INTRO	128	/* Lvalue must be localized or lvalue sub */
+
+/* Private for OP_LEAVE, OP_LEAVESUB, OP_LEAVESUBLV and OP_LEAVEWRITE */
+#define OPpREFCOUNTED		64	/* op_targ carries a refcount */
 
 /* Private for OP_AASSIGN */
 #define OPpASSIGN_COMMON	64	/* Left & right have syms in common. */
+#define OPpASSIGN_HASH		32	/* Assigning to possible pseudohash. */
 
 /* Private for OP_SASSIGN */
 #define OPpASSIGN_BACKWARDS	64	/* Left & right switched. */
@@ -103,30 +127,52 @@ typedef U32 PADOFFSET;
 #define OPpRUNTIME		64	/* Pattern coming in on the stack */
 
 /* Private for OP_TRANS */
-#define OPpTRANS_COUNTONLY	8
-#define OPpTRANS_SQUASH		16
-#define OPpTRANS_DELETE		32
-#define OPpTRANS_COMPLEMENT	64
+#define OPpTRANS_FROM_UTF	1
+#define OPpTRANS_TO_UTF		2
+#define OPpTRANS_IDENTICAL	4
+	/* When CU or UC, means straight latin-1 to utf-8 or vice versa */
+	/* Otherwise, IDENTICAL means the right side is the same as the left */
+#define OPpTRANS_SQUASH		8
+#define OPpTRANS_DELETE		16
+#define OPpTRANS_COMPLEMENT	32
+#define OPpTRANS_GROWS		64
 
 /* Private for OP_REPEAT */
 #define OPpREPEAT_DOLIST	64	/* List replication. */
 
-/* Private for OP_ENTERSUB, OP_RV2?V, OP_?ELEM */
+/* Private for OP_LEAVELOOP */
+#define OPpLOOP_CONTINUE	64	/* a continue block is present */
+
+/* Private for OP_RV2?V, OP_?ELEM */
 #define OPpDEREF		(32|64)	/* Want ref to something: */
 #define OPpDEREF_AV		32	/*   Want ref to AV. */
 #define OPpDEREF_HV		64	/*   Want ref to HV. */
 #define OPpDEREF_SV		(32|64)	/*   Want ref to SV. */
   /* OP_ENTERSUB only */
 #define OPpENTERSUB_DB		16	/* Debug subroutine. */
+#define OPpENTERSUB_HASTARG	32	/* Called from OP tree. */
+  /* OP_RV2CV only */
 #define OPpENTERSUB_AMPER	8	/* Used & form to call. */
+#define OPpENTERSUB_NOPAREN	128	/* bare sub call (without parens) */
+#define OPpENTERSUB_INARGS	4	/* Lval used as arg to a sub. */
+  /* OP_GV only */
+#define OPpEARLY_CV		32	/* foo() called before sub foo was parsed */
   /* OP_?ELEM only */
 #define OPpLVAL_DEFER		16	/* Defer creation of array/hash elem */
-  /* for OP_RV2?V, lower bits carry hints */
+  /* OP_RV2?V, OP_GVSV only */
+#define OPpOUR_INTRO		16	/* Defer creation of array/hash elem */
+  /* for OP_RV2?V, lower bits carry hints (currently only HINT_STRICT_REFS) */
+
+/* Private for OPs with TARGLEX */
+  /* (lower bits may carry MAXARG) */
+#define OPpTARGET_MY		16	/* Target is PADMY. */
 
 /* Private for OP_CONST */
+#define	OPpCONST_STRICT		8	/* bearword subject to strict 'subs' */
 #define OPpCONST_ENTERED	16	/* Has been entered as symbol. */
 #define OPpCONST_ARYBASE	32	/* Was a $[ translated to constant. */
 #define OPpCONST_BARE		64	/* Was a bare word (filehandle?). */
+#define OPpCONST_WARNING	128	/* Was a $^W translated to constant. */
 
 /* Private for OP_FLIP/FLOP */
 #define OPpFLIP_LINENUM		64	/* Range arg potentially a line num. */
@@ -137,11 +183,28 @@ typedef U32 PADOFFSET;
 /* Private for OP_DELETE */
 #define OPpSLICE		64	/* Operating on a list of keys */
 
-/* Private for OP_SORT, OP_PRTF, OP_SPRINTF, string cmp'n, and case changers */
+/* Private for OP_EXISTS */
+#define OPpEXISTS_SUB		64	/* Checking for &sub, not {} or [].  */
+
+/* Private for OP_SORT, OP_PRTF, OP_SPRINTF, OP_FTTEXT, OP_FTBINARY, */
+/*             string comparisons, and case changers. */
 #define OPpLOCALE		64	/* Use locale */
 
+/* Private for OP_SORT */
+#define OPpSORT_NUMERIC		1	/* Optimized away { $a <=> $b } */
+#define OPpSORT_INTEGER		2	/* Ditto while under "use integer" */
+#define OPpSORT_REVERSE		4	/* Descending sort */
 /* Private for OP_THREADSV */
 #define OPpDONE_SVREF		64	/* Been through newSVREF once */
+
+/* Private for OP_OPEN and OP_BACKTICK */
+#define OPpOPEN_IN_RAW		16	/* binmode(F,":raw") on input fh */
+#define OPpOPEN_IN_CRLF		32	/* binmode(F,":crlf") on input fh */
+#define OPpOPEN_OUT_RAW		64	/* binmode(F,":raw") on output fh */
+#define OPpOPEN_OUT_CRLF	128	/* binmode(F,":crlf") on output fh */
+
+/* Private for OP_EXIT */
+#define OPpEXIT_VMSISH		128	/* exit(0) vs. exit(1) vmsish mode*/
 
 struct op {
     BASEOP
@@ -162,13 +225,6 @@ struct logop {
     BASEOP
     OP *	op_first;
     OP *	op_other;
-};
-
-struct condop {
-    BASEOP
-    OP *	op_first;
-    OP *	op_true;
-    OP *	op_false;
 };
 
 struct listop {
@@ -194,6 +250,7 @@ struct pmop {
 
 #define PMdf_USED	0x01		/* pm has been used once already */
 #define PMdf_TAINTED	0x02		/* pm compiled from tainted pattern */
+#define PMdf_UTF8	0x04		/* pm compiled from utf8 data */
 
 #define PMf_RETAINT	0x0001		/* taint $1 etc. if target tainted */
 #define PMf_ONCE	0x0002		/* use pattern only once per reset */
@@ -220,9 +277,9 @@ struct svop {
     SV *	op_sv;
 };
 
-struct gvop {
+struct padop {
     BASEOP
-    GV *	op_gv;
+    PADOFFSET	op_padix;
 };
 
 struct pvop {
@@ -240,46 +297,77 @@ struct loop {
     OP *	op_lastop;
 };
 
-#define cUNOP ((UNOP*)PL_op)
-#define cBINOP ((BINOP*)PL_op)
-#define cLISTOP ((LISTOP*)PL_op)
-#define cLOGOP ((LOGOP*)PL_op)
-#define cCONDOP ((CONDOP*)PL_op)
-#define cPMOP ((PMOP*)PL_op)
-#define cSVOP ((SVOP*)PL_op)
-#define cGVOP ((GVOP*)PL_op)
-#define cPVOP ((PVOP*)PL_op)
-#define cCOP ((COP*)PL_op)
-#define cLOOP ((LOOP*)PL_op)
+#define cUNOPx(o)	((UNOP*)o)
+#define cBINOPx(o)	((BINOP*)o)
+#define cLISTOPx(o)	((LISTOP*)o)
+#define cLOGOPx(o)	((LOGOP*)o)
+#define cPMOPx(o)	((PMOP*)o)
+#define cSVOPx(o)	((SVOP*)o)
+#define cPADOPx(o)	((PADOP*)o)
+#define cPVOPx(o)	((PVOP*)o)
+#define cCOPx(o)	((COP*)o)
+#define cLOOPx(o)	((LOOP*)o)
 
-#define cUNOPo ((UNOP*)o)
-#define cBINOPo ((BINOP*)o)
-#define cLISTOPo ((LISTOP*)o)
-#define cLOGOPo ((LOGOP*)o)
-#define cCONDOPo ((CONDOP*)o)
-#define cPMOPo ((PMOP*)o)
-#define cSVOPo ((SVOP*)o)
-#define cGVOPo ((GVOP*)o)
-#define cPVOPo ((PVOP*)o)
-#define cCVOPo ((CVOP*)o)
-#define cCOPo ((COP*)o)
-#define cLOOPo ((LOOP*)o)
+#define cUNOP		cUNOPx(PL_op)
+#define cBINOP		cBINOPx(PL_op)
+#define cLISTOP		cLISTOPx(PL_op)
+#define cLOGOP		cLOGOPx(PL_op)
+#define cPMOP		cPMOPx(PL_op)
+#define cSVOP		cSVOPx(PL_op)
+#define cPADOP		cPADOPx(PL_op)
+#define cPVOP		cPVOPx(PL_op)
+#define cCOP		cCOPx(PL_op)
+#define cLOOP		cLOOPx(PL_op)
 
-#define kUNOP ((UNOP*)kid)
-#define kBINOP ((BINOP*)kid)
-#define kLISTOP ((LISTOP*)kid)
-#define kLOGOP ((LOGOP*)kid)
-#define kCONDOP ((CONDOP*)kid)
-#define kPMOP ((PMOP*)kid)
-#define kSVOP ((SVOP*)kid)
-#define kGVOP ((GVOP*)kid)
-#define kPVOP ((PVOP*)kid)
-#define kCOP ((COP*)kid)
-#define kLOOP ((LOOP*)kid)
+#define cUNOPo		cUNOPx(o)
+#define cBINOPo		cBINOPx(o)
+#define cLISTOPo	cLISTOPx(o)
+#define cLOGOPo		cLOGOPx(o)
+#define cPMOPo		cPMOPx(o)
+#define cSVOPo		cSVOPx(o)
+#define cPADOPo		cPADOPx(o)
+#define cPVOPo		cPVOPx(o)
+#define cCOPo		cCOPx(o)
+#define cLOOPo		cLOOPx(o)
+
+#define kUNOP		cUNOPx(kid)
+#define kBINOP		cBINOPx(kid)
+#define kLISTOP		cLISTOPx(kid)
+#define kLOGOP		cLOGOPx(kid)
+#define kPMOP		cPMOPx(kid)
+#define kSVOP		cSVOPx(kid)
+#define kPADOP		cPADOPx(kid)
+#define kPVOP		cPVOPx(kid)
+#define kCOP		cCOPx(kid)
+#define kLOOP		cLOOPx(kid)
+
+
+#ifdef USE_ITHREADS
+#  define	cGVOPx_gv(o)	((GV*)PL_curpad[cPADOPx(o)->op_padix])
+#  define	IS_PADGV(v)	(v && SvTYPE(v) == SVt_PVGV && GvIN_PAD(v))
+#  define	IS_PADCONST(v)	(v && SvREADONLY(v))
+#  define	cSVOPx_sv(v)	(cSVOPx(v)->op_sv \
+				 ? cSVOPx(v)->op_sv : PL_curpad[(v)->op_targ])
+#  define	cSVOPx_svp(v)	(cSVOPx(v)->op_sv \
+				 ? &cSVOPx(v)->op_sv : &PL_curpad[(v)->op_targ])
+#else
+#  define	cGVOPx_gv(o)	((GV*)cSVOPx(o)->op_sv)
+#  define	IS_PADGV(v)	FALSE
+#  define	IS_PADCONST(v)	FALSE
+#  define	cSVOPx_sv(v)	(cSVOPx(v)->op_sv)
+#  define	cSVOPx_svp(v)	(&cSVOPx(v)->op_sv)
+#endif
+
+#define	cGVOP_gv		cGVOPx_gv(PL_op)
+#define	cGVOPo_gv		cGVOPx_gv(o)
+#define	kGVOP_gv		cGVOPx_gv(kid)
+#define cSVOP_sv		cSVOPx_sv(PL_op)
+#define cSVOPo_sv		cSVOPx_sv(o)
+#define kSVOP_sv		cSVOPx_sv(kid)
 
 #define Nullop Null(OP*)
 
-/* Lowest byte of opargs */
+/* Lowest byte of PL_opargs */
 #define OA_MARK 1
 #define OA_FOLDCONST 2
 #define OA_RETSCALAR 4
@@ -288,29 +376,31 @@ struct loop {
 #define OA_OTHERINT 32
 #define OA_DANGEROUS 64
 #define OA_DEFGV 128
+#define OA_TARGLEX 256
 
 /* The next 4 bits encode op class information */
-#define OA_CLASS_MASK (15 << 8)
+#define OCSHIFT 9
 
-#define OA_BASEOP (0 << 8)
-#define OA_UNOP (1 << 8)
-#define OA_BINOP (2 << 8)
-#define OA_LOGOP (3 << 8)
-#define OA_CONDOP (4 << 8)
-#define OA_LISTOP (5 << 8)
-#define OA_PMOP (6 << 8)
-#define OA_SVOP (7 << 8)
-#define OA_GVOP (8 << 8)
-#define OA_PVOP (9 << 8)
-#define OA_LOOP (10 << 8)
-#define OA_COP (11 << 8)
-#define OA_BASEOP_OR_UNOP (12 << 8)
-#define OA_FILESTATOP (13 << 8)
-#define OA_LOOPEXOP (14 << 8)
+#define OA_CLASS_MASK (15 << OCSHIFT)
 
-#define OASHIFT 12
+#define OA_BASEOP (0 << OCSHIFT)
+#define OA_UNOP (1 << OCSHIFT)
+#define OA_BINOP (2 << OCSHIFT)
+#define OA_LOGOP (3 << OCSHIFT)
+#define OA_LISTOP (4 << OCSHIFT)
+#define OA_PMOP (5 << OCSHIFT)
+#define OA_SVOP (6 << OCSHIFT)
+#define OA_PADOP (7 << OCSHIFT)
+#define OA_PVOP_OR_SVOP (8 << OCSHIFT)
+#define OA_LOOP (9 << OCSHIFT)
+#define OA_COP (10 << OCSHIFT)
+#define OA_BASEOP_OR_UNOP (11 << OCSHIFT)
+#define OA_FILESTATOP (12 << OCSHIFT)
+#define OA_LOOPEXOP (13 << OCSHIFT)
 
-/* Remaining nybbles of opargs */
+#define OASHIFT 13
+
+/* Remaining nybbles of PL_opargs */
 #define OA_SCALAR 1
 #define OA_LIST 2
 #define OA_AVREF 3
@@ -320,3 +410,25 @@ struct loop {
 #define OA_SCALARREF 7
 #define OA_OPTIONAL 8
 
+#ifdef USE_ITHREADS
+#  define OP_REFCNT_INIT		MUTEX_INIT(&PL_op_mutex)
+#  define OP_REFCNT_LOCK		MUTEX_LOCK(&PL_op_mutex)
+#  define OP_REFCNT_UNLOCK		MUTEX_UNLOCK(&PL_op_mutex)
+#  define OP_REFCNT_TERM		MUTEX_DESTROY(&PL_op_mutex)
+#  define OpREFCNT_set(o,n)		((o)->op_targ = (n))
+#  define OpREFCNT_inc(o)		((o) ? (++(o)->op_targ, (o)) : Nullop)
+#  define OpREFCNT_dec(o)		(--(o)->op_targ)
+#else
+#  define OP_REFCNT_INIT		NOOP
+#  define OP_REFCNT_LOCK		NOOP
+#  define OP_REFCNT_UNLOCK		NOOP
+#  define OP_REFCNT_TERM		NOOP
+#  define OpREFCNT_set(o,n)		NOOP
+#  define OpREFCNT_inc(o)		(o)
+#  define OpREFCNT_dec(o)		0
+#endif
+
+/* flags used by Perl_load_module() */
+#define PERL_LOADMOD_DENY		0x1
+#define PERL_LOADMOD_NOIMPORT		0x2
+#define PERL_LOADMOD_IMPORT_OPS		0x4

@@ -2,10 +2,10 @@
 
 print "1..16\n";
 
-BEGIN { @INC = '../lib' }
+BEGIN { unshift @INC, '../lib' }
 use English;
 use Config;
-my $threads = $Config{'usethreads'} || 0;
+my $threads = $Config{'use5005threads'} || 0;
 
 print $PID == $$ ? "ok 1\n" : "not ok 1\n";
 

@@ -1,7 +1,7 @@
 package Socket;
 
-use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-$VERSION = "1.7";
+our($VERSION, @ISA, @EXPORT, @EXPORT_OK, %EXPORT_TAGS);
+$VERSION = "1.72";
 
 =head1 NAME
 
@@ -160,10 +160,11 @@ have AF_UNIX in the right place.
 =cut
 
 use Carp;
+use warnings::register;
 
 require Exporter;
-require DynaLoader;
-@ISA = qw(Exporter DynaLoader);
+use XSLoader ();
+@ISA = qw(Exporter);
 @EXPORT = qw(
 	inet_aton inet_ntoa pack_sockaddr_in unpack_sockaddr_in
 	pack_sockaddr_un unpack_sockaddr_un
@@ -193,6 +194,8 @@ require DynaLoader;
 	AF_UNIX
 	AF_UNSPEC
 	AF_X25
+	IOV_MAX
+	MSG_BCAST
 	MSG_CTLFLAGS
 	MSG_CTLIGNORE
 	MSG_CTRUNC
@@ -203,6 +206,7 @@ require DynaLoader;
 	MSG_ERRQUEUE
 	MSG_FIN
 	MSG_MAXIOVLEN
+	MSG_MCAST
 	MSG_NOSIGNAL
 	MSG_OOB
 	MSG_PEEK
@@ -241,6 +245,9 @@ require DynaLoader;
 	SCM_CREDS
 	SCM_RIGHTS
 	SCM_TIMESTAMP
+	SHUT_RD
+	SHUT_RDWR
+	SHUT_WR
 	SOCK_DGRAM
 	SOCK_RAW
 	SOCK_RDM
@@ -266,9 +273,17 @@ require DynaLoader;
 	SO_SNDTIMEO
 	SO_TYPE
 	SO_USELOOPBACK
+	UIO_MAXIOV
 );
 
-@EXPORT_OK = qw(CR LF CRLF $CR $LF $CRLF);
+@EXPORT_OK = qw(CR LF CRLF $CR $LF $CRLF
+
+	       IPPROTO_TCP
+	       TCP_KEEPALIVE
+	       TCP_MAXRT
+	       TCP_MAXSEG
+	       TCP_NODELAY
+	       TCP_STDURG);
 
 %EXPORT_TAGS = (
     crlf    => [qw(CR LF CRLF $CR $LF $CRLF)],
@@ -288,7 +303,8 @@ BEGIN {
 sub sockaddr_in {
     if (@_ == 6 && !wantarray) { # perl5.001m compat; use this && die
 	my($af, $port, @quad) = @_;
-	carp "6-ARG sockaddr_in call is deprecated" if $^W;
+	warnings::warn "6-ARG sockaddr_in call is deprecated" 
+	    if warnings::enabled();
 	pack_sockaddr_in($port, inet_aton(join('.', @quad)));
     } elsif (wantarray) {
 	croak "usage:   (port,iaddr) = sockaddr_in(sin_sv)" unless @_ == 1;
@@ -309,6 +325,115 @@ sub sockaddr_un {
     }
 }
 
+sub INADDR_ANY 		();
+sub INADDR_BROADCAST	();
+sub INADDR_LOOPBACK	();
+sub INADDR_LOOPBACK	();
+
+sub AF_802		();
+sub AF_APPLETALK	();
+sub AF_CCITT		();
+sub AF_CHAOS		();
+sub AF_DATAKIT		();
+sub AF_DECnet		();
+sub AF_DLI		();
+sub AF_ECMA		();
+sub AF_GOSIP		();
+sub AF_HYLINK		();
+sub AF_IMPLINK		();
+sub AF_INET		();
+sub AF_LAT		();
+sub AF_MAX		();
+sub AF_NBS		();
+sub AF_NIT		();
+sub AF_NS		();
+sub AF_OSI		();
+sub AF_OSINET		();
+sub AF_PUP		();
+sub AF_SNA		();
+sub AF_UNIX		();
+sub AF_UNSPEC		();
+sub AF_X25		();
+sub IOV_MAX		();
+sub MSG_BCAST		();
+sub MSG_CTLFLAGS	();
+sub MSG_CTLIGNORE	();
+sub MSG_CTRUNC		();
+sub MSG_DONTROUTE	();
+sub MSG_DONTWAIT	();
+sub MSG_EOF		();
+sub MSG_EOR		();
+sub MSG_ERRQUEUE	();
+sub MSG_FIN		();
+sub MSG_MAXIOVLEN	();
+sub MSG_MCAST		();
+sub MSG_NOSIGNAL	();
+sub MSG_OOB		();
+sub MSG_PEEK		();
+sub MSG_PROXY		();
+sub MSG_RST		();
+sub MSG_SYN		();
+sub MSG_TRUNC		();
+sub MSG_URG		();
+sub MSG_WAITALL		();
+sub PF_802		();
+sub PF_APPLETALK	();
+sub PF_CCITT		();
+sub PF_CHAOS		();
+sub PF_DATAKIT		();
+sub PF_DECnet		();
+sub PF_DLI		();
+sub PF_ECMA		();
+sub PF_GOSIP		();
+sub PF_HYLINK		();
+sub PF_IMPLINK		();
+sub PF_INET		();
+sub PF_LAT		();
+sub PF_MAX		();
+sub PF_NBS		();
+sub PF_NIT		();
+sub PF_NS		();
+sub PF_OSI		();
+sub PF_OSINET		();
+sub PF_PUP		();
+sub PF_SNA		();
+sub PF_UNIX		();
+sub PF_UNSPEC		();
+sub PF_X25		();
+sub SCM_CONNECT		();
+sub SCM_CREDENTIALS	();
+sub SCM_CREDS		();
+sub SCM_RIGHTS		();
+sub SCM_TIMESTAMP	();
+sub SHUT_RD		();
+sub SHUT_RDWR		();
+sub SHUT_WR		();
+sub SOCK_DGRAM		();
+sub SOCK_RAW		();
+sub SOCK_RDM		();
+sub SOCK_SEQPACKET	();
+sub SOCK_STREAM		();
+sub SOL_SOCKET		();
+sub SOMAXCONN		();
+sub SO_ACCEPTCONN	();
+sub SO_BROADCAST	();
+sub SO_DEBUG		();
+sub SO_DONTLINGER	();
+sub SO_DONTROUTE	();
+sub SO_ERROR		();
+sub SO_KEEPALIVE	();
+sub SO_LINGER		();
+sub SO_OOBINLINE	();
+sub SO_RCVBUF		();
+sub SO_RCVLOWAT		();
+sub SO_RCVTIMEO		();
+sub SO_REUSEADDR	();
+sub SO_SNDBUF		();
+sub SO_SNDLOWAT		();
+sub SO_SNDTIMEO		();
+sub SO_TYPE		();
+sub SO_USELOOPBACK	();
+sub UIO_MAXIOV		();
 
 sub AUTOLOAD {
     my($constname);
@@ -318,10 +443,10 @@ sub AUTOLOAD {
 	my ($pack,$file,$line) = caller;
 	croak "Your vendor has not defined Socket macro $constname, used";
     }
-    eval "sub $AUTOLOAD { $val }";
+    eval "sub $AUTOLOAD () { $val }";
     goto &$AUTOLOAD;
 }
 
-bootstrap Socket $VERSION;
+XSLoader::load 'Socket', $VERSION;
 
 1;

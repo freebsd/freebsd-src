@@ -37,10 +37,10 @@ If the argument passed to it contains one of the substrings
 "VMS", "MSDOS", "MacOS", "AmigaOS" or "MSWin32", the file specification 
 syntax of that operating system is used in future calls to 
 fileparse(), basename(), and dirname().  If it contains none of
-these substrings, UNIX syntax is used.  This pattern matching is
+these substrings, Unix syntax is used.  This pattern matching is
 case-insensitive.  If you've selected VMS syntax, and the file
 specification you pass to one of these routines contains a "/",
-they assume you are using UNIX emulation and apply the UNIX syntax
+they assume you are using Unix emulation and apply the Unix syntax
 rules instead, for that function call only.
 
 If the argument passed to it contains one of the substrings "VMS",
@@ -73,7 +73,7 @@ file as the input file specification.
 
 =head1 EXAMPLES
 
-Using UNIX file syntax:
+Using Unix file syntax:
 
     ($base,$path,$type) = fileparse('/virgil/aeneid/draft.book7',
 				    '\.book\d+');
@@ -102,7 +102,7 @@ would yield
 The basename() routine returns the first element of the list produced
 by calling fileparse() with the same arguments, except that it always
 quotes metacharacters in the given suffixes.  It is provided for
-programmer compatibility with the UNIX shell command basename(1).
+programmer compatibility with the Unix shell command basename(1).
 
 =item C<dirname>
 
@@ -111,8 +111,8 @@ specification.  When using VMS or MacOS syntax, this is identical to the
 second element of the list produced by calling fileparse() with the same
 input file specification.  (Under VMS, if there is no directory information
 in the input file specification, then the current default device and
-directory are returned.)  When using UNIX or MSDOS syntax, the return
-value conforms to the behavior of the UNIX shell command dirname(1).  This
+directory are returned.)  When using Unix or MSDOS syntax, the return
+value conforms to the behavior of the Unix shell command dirname(1).  This
 is usually the same as the behavior of fileparse(), but differs in some
 cases.  For example, for the input file specification F<lib/>, fileparse()
 considers the directory name to be F<lib/>, while dirname() considers the
@@ -124,12 +124,22 @@ directory name to be F<.>).
 
 
 ## use strict;
-use re 'taint';
+# A bit of juggling to insure that C<use re 'taint';> always works, since
+# File::Basename is used during the Perl build, when the re extension may
+# not be available.
+BEGIN {
+  unless (eval { require re; })
+    { eval ' sub re::import { $^H |= 0x00100000; } ' }
+  import re 'taint';
+}
 
+
+
+use 5.005_64;
+our(@ISA, @EXPORT, $VERSION, $Fileparse_fstype, $Fileparse_igncase);
 require Exporter;
 @ISA = qw(Exporter);
 @EXPORT = qw(fileparse fileparse_set_fstype basename dirname);
-use vars qw($VERSION $Fileparse_fstype $Fileparse_igncase);
 $VERSION = "2.6";
 
 
@@ -162,23 +172,23 @@ sub fileparse {
   if ($fstype =~ /^VMS/i) {
     if ($fullname =~ m#/#) { $fstype = '' }  # We're doing Unix emulation
     else {
-      ($dirpath,$basename) = ($fullname =~ /^(.*[:>\]])?(.*)/);
+      ($dirpath,$basename) = ($fullname =~ /^(.*[:>\]])?(.*)/s);
       $dirpath ||= '';  # should always be defined
     }
   }
   if ($fstype =~ /^MS(DOS|Win32)/i) {
-    ($dirpath,$basename) = ($fullname =~ /^((?:.*[:\\\/])?)(.*)/);
-    $dirpath .= '.\\' unless $dirpath =~ /[\\\/]$/;
+    ($dirpath,$basename) = ($fullname =~ /^((?:.*[:\\\/])?)(.*)/s);
+    $dirpath .= '.\\' unless $dirpath =~ /[\\\/]\z/;
   }
-  elsif ($fstype =~ /^MacOS/i) {
-    ($dirpath,$basename) = ($fullname =~ /^(.*:)?(.*)/);
+  elsif ($fstype =~ /^MacOS/si) {
+    ($dirpath,$basename) = ($fullname =~ /^(.*:)?(.*)/s);
   }
   elsif ($fstype =~ /^AmigaOS/i) {
-    ($dirpath,$basename) = ($fullname =~ /(.*[:\/])?(.*)/);
+    ($dirpath,$basename) = ($fullname =~ /(.*[:\/])?(.*)/s);
     $dirpath = './' unless $dirpath;
   }
   elsif ($fstype !~ /^VMS/i) {  # default to Unix
-    ($dirpath,$basename) = ($fullname =~ m#^(.*/)?(.*)#);
+    ($dirpath,$basename) = ($fullname =~ m#^(.*/)?(.*)#s);
     if ($^O eq 'VMS' and $fullname =~ m:/[^/]+/000000/?:) {
       # dev:[000000] is top of VMS tree, similar to Unix '/'
       ($basename,$dirpath) = ('',$fullname);
@@ -190,7 +200,7 @@ sub fileparse {
     $tail = '';
     foreach $suffix (@suffices) {
       my $pat = ($igncase ? '(?i)' : '') . "($suffix)\$";
-      if ($basename =~ s/$pat//) {
+      if ($basename =~ s/$pat//s) {
         $taint .= substr($suffix,0,0);
         $tail = $1 . $tail;
       }
@@ -228,30 +238,30 @@ sub dirname {
     }
     if ($fstype =~ /MacOS/i) { return $dirname }
     elsif ($fstype =~ /MSDOS/i) { 
-        $dirname =~ s/([^:])[\\\/]*$/$1/;
+        $dirname =~ s/([^:])[\\\/]*\z/$1/;
         unless( length($basename) ) {
 	    ($basename,$dirname) = fileparse $dirname;
-	    $dirname =~ s/([^:])[\\\/]*$/$1/;
+	    $dirname =~ s/([^:])[\\\/]*\z/$1/;
 	}
     }
     elsif ($fstype =~ /MSWin32/i) { 
-        $dirname =~ s/([^:])[\\\/]*$/$1/;
+        $dirname =~ s/([^:])[\\\/]*\z/$1/;
         unless( length($basename) ) {
 	    ($basename,$dirname) = fileparse $dirname;
-	    $dirname =~ s/([^:])[\\\/]*$/$1/;
+	    $dirname =~ s/([^:])[\\\/]*\z/$1/;
 	}
     }
     elsif ($fstype =~ /AmigaOS/i) {
-        if ( $dirname =~ /:$/) { return $dirname }
+        if ( $dirname =~ /:\z/) { return $dirname }
         chop $dirname;
-        $dirname =~ s#[^:/]+$## unless length($basename);
+        $dirname =~ s#[^:/]+\z## unless length($basename);
     }
     else { 
-        $dirname =~ s:(.)/*$:$1:;
+        $dirname =~ s:(.)/*\z:$1:s;
         unless( length($basename) ) {
 	    local($File::Basename::Fileparse_fstype) = $fstype;
 	    ($basename,$dirname) = fileparse $dirname;
-	    $dirname =~ s:(.)/*$:$1:;
+	    $dirname =~ s:(.)/*\z:$1:s;
 	}
     }
 

@@ -27,6 +27,15 @@ EXPECT
 # strict vars - no error
 use strict 'vars' ;
 use vars qw( $freddy) ;
+BEGIN { *freddy = \$joe::shmoe; }
+$freddy = 2 ;
+EXPECT
+
+########
+
+# strict vars - no error
+use strict 'vars' ;
+use vars qw( $freddy) ;
 local $abc::joe ;
 my $fred ;
 my $b = \$fred ;
@@ -132,6 +141,40 @@ Compilation failed in require at - line 2.
 BEGIN failed--compilation aborted at - line 2.
 ########
 
+--FILE-- abc.pm
+package Burp;
+use strict;
+$a = 1;$f = 1;$k = 1; # just to get beyond the limit...
+$b = 1;$g = 1;$l = 1;
+$c = 1;$h = 1;$m = 1;
+$d = 1;$i = 1;$n = 1;
+$e = 1;$j = 1;$o = 1;
+$p = 0b12;
+--FILE-- 
+# known scalar leak
+BEGIN { $ENV{PERL_DESTRUCT_LEVEL} = 0 unless $ENV{PERL_DESTRUCT_LEVEL} > 3; }
+use abc;
+EXPECT
+Global symbol "$f" requires explicit package name at abc.pm line 3.
+Global symbol "$k" requires explicit package name at abc.pm line 3.
+Global symbol "$g" requires explicit package name at abc.pm line 4.
+Global symbol "$l" requires explicit package name at abc.pm line 4.
+Global symbol "$c" requires explicit package name at abc.pm line 5.
+Global symbol "$h" requires explicit package name at abc.pm line 5.
+Global symbol "$m" requires explicit package name at abc.pm line 5.
+Global symbol "$d" requires explicit package name at abc.pm line 6.
+Global symbol "$i" requires explicit package name at abc.pm line 6.
+Global symbol "$n" requires explicit package name at abc.pm line 6.
+Global symbol "$e" requires explicit package name at abc.pm line 7.
+Global symbol "$j" requires explicit package name at abc.pm line 7.
+Global symbol "$o" requires explicit package name at abc.pm line 7.
+Global symbol "$p" requires explicit package name at abc.pm line 8.
+Illegal binary digit '2' at abc.pm line 8, at end of line
+abc.pm has too many errors.
+Compilation failed in require at - line 3.
+BEGIN failed--compilation aborted at - line 3.
+########
+
 # Check scope of pragma with eval
 no strict ;
 eval {
@@ -165,6 +208,7 @@ print STDERR $@;
 $joe = 1 ;
 EXPECT
 Global symbol "$joe" requires explicit package name at - line 5.
+Global symbol "$joe" requires explicit package name at - line 8.
 Execution of - aborted due to compilation errors.
 ########
 
@@ -221,3 +265,135 @@ $joe = 1 ;
 EXPECT
 Global symbol "$joe" requires explicit package name at - line 8.
 Execution of - aborted due to compilation errors.
+########
+
+# Check if multiple evals produce same errors
+use strict 'vars';
+my $ret = eval q{ print $x; };
+print $@;
+print "ok 1\n" unless defined $ret;
+$ret = eval q{ print $x; };
+print $@;
+print "ok 2\n" unless defined $ret;
+EXPECT
+Global symbol "$x" requires explicit package name at (eval 1) line 1.
+ok 1
+Global symbol "$x" requires explicit package name at (eval 2) line 1.
+ok 2
+########
+
+# strict vars with outer our - no error
+use strict 'vars' ;
+our $freddy;
+local $abc::joe ;
+my $fred ;
+my $b = \$fred ;
+$Fred::ABC = 1 ;
+$freddy = 2 ;
+EXPECT
+
+########
+
+# strict vars with inner our - no error
+use strict 'vars' ;
+sub foo {
+    our $fred;
+    $fred;
+}
+EXPECT
+
+########
+
+# strict vars with outer our, inner use - no error
+use strict 'vars' ;
+our $fred;
+sub foo {
+    $fred;
+}
+EXPECT
+
+########
+
+# strict vars with nested our - no error
+use strict 'vars' ;
+our $fred;
+sub foo {
+    our $fred;
+    $fred;
+}
+$fred ;
+EXPECT
+
+########
+
+# strict vars with elapsed our - error
+use strict 'vars' ;
+sub foo {
+    our $fred;
+    $fred;
+}
+$fred ;
+EXPECT
+Variable "$fred" is not imported at - line 8.
+Global symbol "$fred" requires explicit package name at - line 8.
+Execution of - aborted due to compilation errors.
+########
+
+# nested our with local - no error
+$fred = 1;
+use strict 'vars';
+{
+    local our $fred = 2;
+    print $fred,"\n";
+}
+print our $fred,"\n";
+EXPECT
+2
+1
+########
+
+# "nailed" our declaration visibility across package boundaries
+use strict 'vars';
+our $foo;
+$foo = 20;
+package Foo;
+print $foo, "\n";
+EXPECT
+20
+########
+
+# multiple our declarations in same scope, different packages, no warning
+use strict 'vars';
+use warnings;
+our $foo;
+${foo} = 10;
+package Foo;
+our $foo = 20;
+print $foo, "\n";
+EXPECT
+20
+########
+
+# multiple our declarations in same scope, same package, warning
+use strict 'vars';
+use warnings;
+our $foo;
+${foo} = 10;
+our $foo;
+EXPECT
+"our" variable $foo masks earlier declaration in same scope at - line 7.
+########
+
+# multiple our declarations in same scope, same package, warning
+use strict 'vars';
+use warnings;
+our $foo;
+{
+    our $foo;
+    package Foo;
+    our $foo;
+}
+EXPECT
+"our" variable $foo redeclared at - line 7.
+	(Did you mean "local" instead of "our"?)
+Name "Foo::foo" used only once: possible typo at - line 9.

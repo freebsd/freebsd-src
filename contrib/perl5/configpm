@@ -17,17 +17,33 @@ my $glossary = $ARGV[1] || 'Porting/Glossary';
 
 
 open CONFIG, ">$config_pm" or die "Can't open $config_pm: $!\n";
-$myver = $];
+$myver = sprintf "v%vd", $^V;
 
-print CONFIG <<"ENDOFBEG";
+print CONFIG <<'ENDOFBEG_NOQ', <<"ENDOFBEG";
 package Config;
 use Exporter ();
-\@ISA = (Exporter);
-\@EXPORT = qw(%Config);
-\@EXPORT_OK = qw(myconfig config_sh config_vars);
+@EXPORT = qw(%Config);
+@EXPORT_OK = qw(myconfig config_sh config_vars);
 
-\$] == $myver
-  or die "Perl lib version ($myver) doesn't match executable version (\$])";
+# Define our own import method to avoid pulling in the full Exporter:
+sub import {
+  my $pkg = shift;
+  @_ = @EXPORT unless @_;
+  my @func = grep {$_ ne '%Config'} @_;
+  local $Exporter::ExportLevel = 1;
+  Exporter::import('Config', @func) if @func;
+  return if @func == @_;
+  my $callpkg = caller(0);
+  *{"$callpkg\::Config"} = \%Config;
+}
+
+ENDOFBEG_NOQ
+die "Perl lib version ($myver) doesn't match executable version (\$])"
+    unless \$^V;
+
+\$^V eq $myver
+  or die "Perl lib version ($myver) doesn't match executable version (" .
+    (sprintf "v%vd",\$^V) . ")";
 
 # This file was created by configpm when Perl was built. Any changes
 # made to this file will be lost the next time perl is built.
@@ -44,8 +60,21 @@ $in_v = 0;
 
 while (<>) {
     next if m:^#!/bin/sh:;
-    # Catch CONFIG=true and PATCHLEVEL=n line from Configure.
+    # Catch CONFIGDOTSH=true and PERL_VERSION=n line from Configure.
     s/^(\w+)=(true|\d+)\s*$/$1='$2'\n/;
+    my ($k,$v) = ($1,$2);
+    # grandfather PATCHLEVEL and SUBVERSION and CONFIG
+    if ($k) {
+	if ($k eq 'PERL_VERSION') {
+	    push @v_others, "PATCHLEVEL='$v'\n";
+	}
+	elsif ($k eq 'PERL_SUBVERSION') {
+	    push @v_others, "SUBVERSION='$v'\n";
+	}
+	elsif ($k eq 'CONFIGDOTSH') {
+	    push @v_others, "CONFIG='$v'\n";
+	}
+    }
     # We can delimit things in config.sh with either ' or ". 
     unless ($in_v or m/^(\w+)=(['"])(.*\n)/){
 	push(@non_v, "#$_"); # not a name='value' line
@@ -68,11 +97,11 @@ print CONFIG "\n",
     join("", @v_fast, sort @v_others),
     "!END!\n\n";
 
-# copy config summary format from the myconfig script
+# copy config summary format from the myconfig.SH script
 
 print CONFIG "my \$summary = <<'!END!';\n";
 
-open(MYCONFIG,"<myconfig") || die "open myconfig failed: $!";
+open(MYCONFIG,"<myconfig.SH") || die "open myconfig.SH failed: $!";
 1 while defined($_ = <MYCONFIG>) && !/^Summary of/;
 do { print CONFIG $_ } until !defined($_ = <MYCONFIG>) || /^\s*$/;
 close(MYCONFIG);
@@ -401,11 +430,11 @@ require $config_pm;
 import Config;
 
 die "$0: $config_pm not valid"
-	unless $Config{'CONFIG'} eq 'true';
+	unless $Config{'CONFIGDOTSH'} eq 'true';
 
 die "$0: error processing $config_pm"
 	if defined($Config{'an impossible name'})
-	or $Config{'CONFIG'} ne 'true' # test cache
+	or $Config{'CONFIGDOTSH'} ne 'true' # test cache
 	;
 
 die "$0: error processing $config_pm"

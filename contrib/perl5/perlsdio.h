@@ -55,11 +55,17 @@
 #define PerlIO_clearerr(f)		clearerr(f)
 #define PerlIO_flush(f)			Fflush(f)
 #define PerlIO_tell(f)			ftell(f)
+#if defined(USE_64_BIT_STDIO) && defined(HAS_FTELLO) && !defined(USE_FTELL64)
+#define ftell ftello
+#endif
 #if defined(VMS) && !defined(__DECC)
    /* Old VAXC RTL doesn't reset EOF on seek; Perl folk seem to expect this */
 #  define PerlIO_seek(f,o,w)	(((f) && (*f) && ((*f)->_flag &= ~_IOEOF)),fseek(f,o,w))
 #else
 #  define PerlIO_seek(f,o,w)		fseek(f,o,w)
+#endif
+#if defined(USE_64_BIT_STDIO) && defined(HAS_FSEEKO) && !defined(USE_FSEEK64)
+#define fseek fseeko
 #endif
 #ifdef HAS_FGETPOS
 #define PerlIO_getpos(f,p)		fgetpos(f,p)

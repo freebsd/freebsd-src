@@ -11,8 +11,7 @@ char *progname;
 extern void oops();
 
 int
-main(argc, argv)
-char **argv;
+main(int argc, char **argv)
 {
 	int n;
 	char *p;
@@ -23,6 +22,9 @@ char **argv;
 
 	if (p = argv[1]) {
 		name = (char *) malloc((n = strlen(p)) + 5);
+		if (!name)
+		    oops("cannot get memory");
+
 		strcpy(name, p);
 		strcpy(name + n, ".pag");
 
@@ -37,8 +39,8 @@ char **argv;
 	return 0;
 }
 
-sdump(pagf)
-int pagf;
+void
+sdump(int pagf)
 {
 	register b;
 	register n = 0;
@@ -67,8 +69,8 @@ int pagf;
 		oops("read failed: block %d", n);
 }
 
-pagestat(pag)
-char *pag;
+int
+pagestat(char *pag)
 {
 	register n;
 	register free;

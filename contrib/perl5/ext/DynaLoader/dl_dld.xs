@@ -48,12 +48,12 @@ static AV *dl_resolve_using   = Nullav;
 static AV *dl_require_symbols = Nullav;
 
 static void
-dl_private_init()
+dl_private_init(pTHX)
 {
     int dlderr;
-    dl_generic_private_init();
-    dl_resolve_using   = perl_get_av("DynaLoader::dl_resolve_using",   0x4);
-    dl_require_symbols = perl_get_av("DynaLoader::dl_require_symbols", 0x4);
+    dl_generic_private_init(aTHX);
+    dl_resolve_using   = get_av("DynaLoader::dl_resolve_using", GV_ADDMULTI);
+    dl_require_symbols = get_av("DynaLoader::dl_require_symbols", GV_ADDMULTI);
 #ifdef __linux__
     dlderr = dld_init("/proc/self/exe");
     if (dlderr) {
@@ -61,8 +61,8 @@ dl_private_init()
         dlderr = dld_init(dld_find_executable(PL_origargv[0]));
         if (dlderr) {
             char *msg = dld_strerror(dlderr);
-            SaveError("dld_init(%s) failed: %s", PL_origargv[0], msg);
-            DLDEBUG(1,PerlIO_printf(PerlIO_stderr(), "%s", LastError));
+            SaveError(aTHX_ "dld_init(%s) failed: %s", PL_origargv[0], msg);
+            DLDEBUG(1,PerlIO_printf(Perl_debug_log, "%s", LastError));
         }
 #ifdef __linux__
     }
@@ -85,40 +85,40 @@ dl_load_file(filename, flags=0)
     GV *gv;
     CODE:
     RETVAL = filename;
-    DLDEBUG(1,PerlIO_printf(PerlIO_stderr(), "dl_load_file(%s,%x):\n", filename,flags));
+    DLDEBUG(1,PerlIO_printf(Perl_debug_log, "dl_load_file(%s,%x):\n", filename,flags));
     if (flags & 0x01)
-	croak("Can't make loaded symbols global on this platform while loading %s",filename);
+	Perl_croak(aTHX_ "Can't make loaded symbols global on this platform while loading %s",filename);
     max = AvFILL(dl_require_symbols);
     for (x = 0; x <= max; x++) {
 	char *sym = SvPVX(*av_fetch(dl_require_symbols, x, 0));
-	DLDEBUG(1,PerlIO_printf(PerlIO_stderr(), "dld_create_ref(%s)\n", sym));
+	DLDEBUG(1,PerlIO_printf(Perl_debug_log, "dld_create_ref(%s)\n", sym));
 	if (dlderr = dld_create_reference(sym)) {
-	    SaveError("dld_create_reference(%s): %s", sym,
+	    SaveError(aTHX_ "dld_create_reference(%s): %s", sym,
 		      dld_strerror(dlderr));
 	    goto haverror;
 	}
     }
 
-    DLDEBUG(1,PerlIO_printf(PerlIO_stderr(), "dld_link(%s)\n", filename));
+    DLDEBUG(1,PerlIO_printf(Perl_debug_log, "dld_link(%s)\n", filename));
     if (dlderr = dld_link(filename)) {
-	SaveError("dld_link(%s): %s", filename, dld_strerror(dlderr));
+	SaveError(aTHX_ "dld_link(%s): %s", filename, dld_strerror(dlderr));
 	goto haverror;
     }
 
     max = AvFILL(dl_resolve_using);
     for (x = 0; x <= max; x++) {
 	char *sym = SvPVX(*av_fetch(dl_resolve_using, x, 0));
-	DLDEBUG(1,PerlIO_printf(PerlIO_stderr(), "dld_link(%s)\n", sym));
+	DLDEBUG(1,PerlIO_printf(Perl_debug_log, "dld_link(%s)\n", sym));
 	if (dlderr = dld_link(sym)) {
-	    SaveError("dld_link(%s): %s", sym, dld_strerror(dlderr));
+	    SaveError(aTHX_ "dld_link(%s): %s", sym, dld_strerror(dlderr));
 	    goto haverror;
 	}
     }
-    DLDEBUG(2,PerlIO_printf(PerlIO_stderr(), "libref=%s\n", RETVAL));
+    DLDEBUG(2,PerlIO_printf(Perl_debug_log, "libref=%s\n", RETVAL));
 haverror:
     ST(0) = sv_newmortal() ;
     if (dlderr == 0)
-	sv_setiv(ST(0), (IV)RETVAL);
+	sv_setiv(ST(0), PTR2IV(RETVAL));
 
 
 void *
@@ -126,16 +126,16 @@ dl_find_symbol(libhandle, symbolname)
     void *	libhandle
     char *	symbolname
     CODE:
-    DLDEBUG(2,PerlIO_printf(PerlIO_stderr(), "dl_find_symbol(handle=%x, symbol=%s)\n",
+    DLDEBUG(2,PerlIO_printf(Perl_debug_log, "dl_find_symbol(handle=%x, symbol=%s)\n",
 	    libhandle, symbolname));
     RETVAL = (void *)dld_get_func(symbolname);
     /* if RETVAL==NULL we should try looking for a non-function symbol */
-    DLDEBUG(2,PerlIO_printf(PerlIO_stderr(), "  symbolref = %x\n", RETVAL));
+    DLDEBUG(2,PerlIO_printf(Perl_debug_log, "  symbolref = %x\n", RETVAL));
     ST(0) = sv_newmortal() ;
     if (RETVAL == NULL)
-	SaveError("dl_find_symbol: Unable to find '%s' symbol", symbolname) ;
+	SaveError(aTHX_ "dl_find_symbol: Unable to find '%s' symbol", symbolname) ;
     else
-	sv_setiv(ST(0), (IV)RETVAL);
+	sv_setiv(ST(0), PTR2IV(RETVAL));
 
 
 void
@@ -160,9 +160,11 @@ dl_install_xsub(perl_name, symref, filename="$Package")
     void *	symref 
     char *	filename
     CODE:
-    DLDEBUG(2,PerlIO_printf(PerlIO_stderr(), "dl_install_xsub(name=%s, symref=%x)\n",
+    DLDEBUG(2,PerlIO_printf(Perl_debug_log, "dl_install_xsub(name=%s, symref=%x)\n",
 	    perl_name, symref));
-    ST(0)=sv_2mortal(newRV((SV*)newXS(perl_name, (void(*)())symref, filename)));
+    ST(0) = sv_2mortal(newRV((SV*)newXS(perl_name,
+					(void(*)(pTHX_ CV *))symref,
+					filename)));
 
 
 char *

@@ -51,7 +51,7 @@ sub xsinit {
     my($file, $std, $mods) = @_;
     my($fh,@mods,%seen);
     $file ||= "perlxsi.c";
-    my $xsinit_proto = is_perl_object() ? "CPERLarg" : "void";
+    my $xsinit_proto = "pTHXo";
 
     if (@_) {
        @mods = @$mods if $mods;
@@ -75,7 +75,7 @@ sub xsinit {
     @mods = grep(!$seen{$_}++, @mods);
 
     print $fh &xsi_header();
-    print $fh "EXTERN_C void xs_init _(($xsinit_proto));\n\n";     
+    print $fh "EXTERN_C void xs_init ($xsinit_proto);\n\n";     
     print $fh &xsi_protos(@mods);
 
     print $fh "\nEXTERN_C void\nxs_init($xsinit_proto)\n{\n";
@@ -120,14 +120,13 @@ EOF
 sub xsi_protos {
     my(@exts) = @_;
     my(@retval,%seen);
-    my $boot_proto = is_perl_object() ? 
-	"CV* cv _CPERLarg" : "CV* cv";
+    my $boot_proto = "pTHXo_ CV* cv";
     foreach $_ (@exts){
         my($pname) = canon('/', $_);
         my($mname, $cname);
         ($mname = $pname) =~ s!/!::!g;
         ($cname = $pname) =~ s!/!__!g;
-	my($ccode) = "EXTERN_C void boot_${cname} _(($boot_proto));\n";
+	my($ccode) = "EXTERN_C void boot_${cname} ($boot_proto);\n";
 	next if $seen{$ccode}++;
         push(@retval, $ccode);
     }
@@ -333,7 +332,7 @@ B<[@modules]> is an array ref, same as additional arguments mentioned above.
 
 
 This will generate code with an B<xs_init> function that glues the perl B<Socket::bootstrap> function 
-to the C B<boot_Socket> function and writes it to a file named "xsinit.c".
+to the C B<boot_Socket> function and writes it to a file named F<xsinit.c>.
 
 Note that B<DynaLoader> is a special case where it must call B<boot_DynaLoader> directly.
 
@@ -379,7 +378,7 @@ we should find B<auto/Socket/Socket.a>
 When looking for B<DBD::Oracle> relative to a search path,
 we should find B<auto/DBD/Oracle/Oracle.a>
 
-Keep in mind, you can always supply B</my/own/path/ModuleName.a>
+Keep in mind that you can always supply B</my/own/path/ModuleName.a>
 as an additional linker argument.
 
 B<-->  E<lt>list of linker argsE<gt>
@@ -393,7 +392,7 @@ When invoked with parameters the following are accepted and optional:
 
 C<ldopts($std,[@modules],[@link_args],$path)>
 
-Where,
+Where:
 
 B<$std> is boolean, equivalent to the B<-std> option.  
 

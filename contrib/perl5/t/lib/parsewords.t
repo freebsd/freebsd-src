@@ -2,9 +2,10 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib';
+    unshift @INC, '../lib';
 }
 
+use warnings;
 use Text::ParseWords;
 
 print "1..18\n";
@@ -17,15 +18,15 @@ print "ok 2\n";
 print "not " if $words[2] ne 'zoo';
 print "ok 3\n";
 
-# Gonna get some undefined things back
-local($^W) = 0;
+{
+  # Gonna get some undefined things back
+  no warnings 'uninitialized' ;
 
-# Test quotewords() with other parameters and null last field
-@words = quotewords(':+', 1, 'foo:::"bar:foo":zoo zoo:');
-print "not " unless join(";", @words) eq qq(foo;"bar:foo";zoo zoo;);
-print "ok 4\n";
-
-$^W = 1;
+  # Test quotewords() with other parameters and null last field
+  @words = quotewords(':+', 1, 'foo:::"bar:foo":zoo zoo:');
+  print "not " unless join(";", @words) eq qq(foo;"bar:foo";zoo zoo;);
+  print "ok 4\n";
+}
 
 # Test $keep eq 'delimiters' and last field zero
 @words = quotewords('\s+', 'delimiters', '4 3 2 1 0');
@@ -71,29 +72,30 @@ print "ok 11\n";
 print "not " if (@words);
 print "ok 12\n";
 
-# Gonna get some more undefined things back
-$^W = 0;
+{
+  # Gonna get some more undefined things back
+  no warnings 'uninitialized' ;
 
-@words = nested_quotewords('s+', 0, $string);
-print "not " if (@words);
-print "ok 13\n";
+  @words = nested_quotewords('s+', 0, $string);
+  print "not " if (@words);
+  print "ok 13\n";
 
-# Now test empty fields
-$result = join('|', parse_line(':', 0, 'foo::0:"":::'));
-print "not " unless ($result eq 'foo||0||||');
-print "ok 14\n";
+  # Now test empty fields
+  $result = join('|', parse_line(':', 0, 'foo::0:"":::'));
+  print "not " unless ($result eq 'foo||0||||');
+  print "ok 14\n";
 
-# Test for 0 in quotes without $keep
-$result = join('|', parse_line(':', 0, ':"0":'));
-print "not " unless ($result eq '|0|');
-print "ok 15\n";
+  # Test for 0 in quotes without $keep
+  $result = join('|', parse_line(':', 0, ':"0":'));
+  print "not " unless ($result eq '|0|');
+  print "ok 15\n";
 
-# Test for \001 in quoted string
-$result = join('|', parse_line(':', 0, ':"' . "\001" . '":'));
-print "not " unless ($result eq "|\1|");
-print "ok 16\n";
+  # Test for \001 in quoted string
+  $result = join('|', parse_line(':', 0, ':"' . "\001" . '":'));
+  print "not " unless ($result eq "|\1|");
+  print "ok 16\n";
 
-$^W = 1;
+}
 
 # Now test perlish single quote behavior
 $Text::ParseWords::PERL_SINGLE_QUOTE = 1;

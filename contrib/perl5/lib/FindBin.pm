@@ -82,7 +82,7 @@ use File::Spec;
 %EXPORT_TAGS = (ALL => [qw($Bin $Script $RealBin $RealScript $Dir $RealDir)]);
 @ISA = qw(Exporter);
 
-$VERSION = $VERSION = "1.42";
+$VERSION = "1.42";
 
 BEGIN
 {
@@ -102,7 +102,7 @@ BEGIN
 
    if ($^O eq 'VMS')
     {
-     ($Bin,$Script) = VMS::Filespec::rmsexpand($0) =~ /(.*\])(.*)/;
+     ($Bin,$Script) = VMS::Filespec::rmsexpand($0) =~ /(.*\])(.*)/s;
      ($RealBin,$RealScript) = ($Bin,$Script);
     }
    else

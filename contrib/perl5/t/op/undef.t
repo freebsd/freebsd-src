@@ -1,6 +1,11 @@
 #!./perl
 
-print "1..23\n";
+BEGIN {
+    chdir 't' if -d 't';
+    unshift @INC, '../lib';
+}
+
+print "1..27\n";
 
 print defined($a) ? "not ok 1\n" : "ok 1\n";
 
@@ -59,3 +64,18 @@ print $@ =~ /^Modification of a read/ ? "ok 22\n" : "not ok 22\n";
 eval { $1 = undef };
 print $@ =~ /^Modification of a read/ ? "ok 23\n" : "not ok 23\n";
 
+{
+    require Tie::Hash;
+    tie my %foo, 'Tie::StdHash';
+    print defined %foo ? "ok 24\n" : "not ok 24\n";
+    %foo = ( a => 1 );
+    print defined %foo ? "ok 25\n" : "not ok 25\n";
+}
+
+{
+    require Tie::Array;
+    tie my @foo, 'Tie::StdArray';
+    print defined @foo ? "ok 26\n" : "not ok 26\n";
+    @foo = ( a => 1 );
+    print defined @foo ? "ok 27\n" : "not ok 27\n";
+}

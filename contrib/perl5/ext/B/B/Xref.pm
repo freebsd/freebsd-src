@@ -85,11 +85,10 @@ Malcolm Beattie, mbeattie@sable.ox.ac.uk.
 =cut
 
 use strict;
-use B qw(peekop class comppadlist main_start svref_2object walksymtable);
-
-# Constants (should probably be elsewhere)
-sub OPpLVAL_INTRO () { 128 }
-sub SVf_POK () { 0x40000 }
+use Config;
+use B qw(peekop class comppadlist main_start svref_2object walksymtable
+         OPpLVAL_INTRO SVf_POK
+        );
 
 sub UNKNOWN { ["?", "?", "?"] }
 
@@ -135,16 +134,27 @@ sub process {
 
 sub load_pad {
     my $padlist = shift;
-    my ($namelistav, @namelist, $ix);
+    my ($namelistav, $vallistav, @namelist, $ix);
     @pad = ();
     return if class($padlist) eq "SPECIAL";
-    ($namelistav) = $padlist->ARRAY;
+    ($namelistav,$vallistav) = $padlist->ARRAY;
     @namelist = $namelistav->ARRAY;
     for ($ix = 1; $ix < @namelist; $ix++) {
 	my $namesv = $namelist[$ix];
 	next if class($namesv) eq "SPECIAL";
-	my ($type, $name) = $namesv->PV =~ /^(.)(.*)$/;
+	my ($type, $name) = $namesv->PV =~ /^(.)([^\0]*)(\0.*)?$/;
 	$pad[$ix] = ["(lexical)", $type, $name];
+    }
+    if ($Config{useithreads}) {
+	my (@vallist);
+	@vallist = $vallistav->ARRAY;
+	for ($ix = 1; $ix < @vallist; $ix++) {
+	    my $valsv = $vallist[$ix];
+	    next unless class($valsv) eq "GV";
+	    # these pad GVs don't have corresponding names, so same @pad
+	    # array can be used without collisions
+	    $pad[$ix] = [$valsv->STASH->NAME, "*", $valsv->NAME];
+	}
     }
 }
 
@@ -155,28 +165,24 @@ sub xref {
 	last if $done{$$op}++;
 	warn sprintf("top = [%s, %s, %s]\n", @$top) if $debug_top;
 	warn peekop($op), "\n" if $debug_op;
-	my $ppname = $op->ppaddr;
-	if ($ppname =~ /^pp_(or|and|mapwhile|grepwhile)$/) {
+	my $opname = $op->name;
+	if ($opname =~ /^(or|and|mapwhile|grepwhile|range|cond_expr)$/) {
 	    xref($op->other);
-	} elsif ($ppname eq "pp_match" || $ppname eq "pp_subst") {
+	} elsif ($opname eq "match" || $opname eq "subst") {
 	    xref($op->pmreplstart);
-	} elsif ($ppname eq "pp_substcont") {
+	} elsif ($opname eq "substcont") {
 	    xref($op->other->pmreplstart);
 	    $op = $op->other;
 	    redo;
-	} elsif ($ppname eq "pp_cond_expr") {
-	    # pp_cond_expr never returns op_next
-	    xref($op->true);
-	    $op = $op->false;
-	    redo;
-	} elsif ($ppname eq "pp_enterloop") {
+	} elsif ($opname eq "enterloop") {
 	    xref($op->redoop);
 	    xref($op->nextop);
 	    xref($op->lastop);
-	} elsif ($ppname eq "pp_subst") {
+	} elsif ($opname eq "subst") {
 	    xref($op->pmreplstart);
 	} else {
 	    no strict 'refs';
+	    my $ppname = "pp_$opname";
 	    &$ppname($op) if defined(&$ppname);
 	}
     }
@@ -207,7 +213,7 @@ sub xref_main {
 
 sub pp_nextstate {
     my $op = shift;
-    $file = $op->filegv->SV->PV;
+    $file = $op->file;
     $line = $op->line;
     $top = UNKNOWN;
 }
@@ -235,23 +241,45 @@ sub pp_rv2gv { deref($top, "*"); }
 
 sub pp_gvsv {
     my $op = shift;
-    my $gv = $op->gv;
-    $top = [$gv->STASH->NAME, '$', $gv->NAME];
+    my $gv;
+    if ($Config{useithreads}) {
+	$top = $pad[$op->padix];
+	$top = UNKNOWN unless $top;
+	$top->[1] = '$';
+    }
+    else {
+	$gv = $op->gv;
+	$top = [$gv->STASH->NAME, '$', $gv->NAME];
+    }
     process($top, $op->private & OPpLVAL_INTRO ? "intro" : "used");
 }
 
 sub pp_gv {
     my $op = shift;
-    my $gv = $op->gv;
-    $top = [$gv->STASH->NAME, "*", $gv->NAME];
+    my $gv;
+    if ($Config{useithreads}) {
+	$top = $pad[$op->padix];
+	$top = UNKNOWN unless $top;
+	$top->[1] = '*';
+    }
+    else {
+	$gv = $op->gv;
+	$top = [$gv->STASH->NAME, "*", $gv->NAME];
+    }
     process($top, $op->private & OPpLVAL_INTRO ? "intro" : "used");
 }
 
 sub pp_const {
     my $op = shift;
     my $sv = $op->sv;
-    $top = ["?", "",
-	    (class($sv) ne "SPECIAL" && $sv->FLAGS & SVf_POK) ? $sv->PV : "?"];
+    # constant could be in the pad (under useithreads)
+    if ($$sv) {
+	$top = ["?", "",
+		(class($sv) ne "SPECIAL" && $sv->FLAGS & SVf_POK) ? $sv->PV : "?"];
+    }
+    else {
+	$top = $pad[$op->targ];
+    }
 }
 
 sub pp_method {
@@ -278,7 +306,7 @@ sub B::GV::xref {
     my $cv = $gv->CV;
     if ($$cv) {
 	#return if $done{$$cv}++;
-	$file = $gv->FILEGV->SV->PV;
+	$file = $gv->FILE;
 	$line = $gv->LINE;
 	process([$gv->STASH->NAME, "&", $gv->NAME], "subdef");
 	push(@todo, $cv);
@@ -286,7 +314,7 @@ sub B::GV::xref {
     my $form = $gv->FORM;
     if ($$form) {
 	return if $done{$$form}++;
-	$file = $gv->FILEGV->SV->PV;
+	$file = $gv->FILE;
 	$line = $gv->LINE;
 	process([$gv->STASH->NAME, "", $gv->NAME], "formdef");
     }
@@ -296,7 +324,7 @@ sub xref_definitions {
     my ($pack, %exclude);
     return if $nodefs;
     $subname = "(definitions)";
-    foreach $pack (qw(B O AutoLoader DynaLoader Config DB VMS
+    foreach $pack (qw(B O AutoLoader DynaLoader XSLoader Config DB VMS
 		      strict vars FileHandle Exporter Carp)) {
         $exclude{$pack."::"} = 1;
     }

@@ -1,20 +1,20 @@
 # IO::Pipe.pm
 #
-# Copyright (c) 1996 Graham Barr <Graham.Barr@tiuk.ti.com>. All rights
-# reserved. This program is free software; you can redistribute it and/or
+# Copyright (c) 1996-8 Graham Barr <gbarr@pobox.com>. All rights reserved.
+# This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl itself.
 
 package IO::Pipe;
 
-require 5.000;
+require 5.005_64;
 
 use IO::Handle;
 use strict;
-use vars qw($VERSION);
+our($VERSION);
 use Carp;
 use Symbol;
 
-$VERSION = "1.0902";
+$VERSION = "1.121";
 
 sub new {
     my $type = shift;
@@ -65,7 +65,7 @@ sub _doit {
         }
         bless $io, "IO::Handle";
         $io->fdopen($fh, $mode);
-        $fh->close;
+	$fh->close;
 
         if ($do_spawn) {
           $pid = eval { system 1, @_ }; # 1 == P_NOWAIT
@@ -88,8 +88,12 @@ sub _doit {
 }
 
 sub reader {
-    @_ >= 1 or croak 'usage: $pipe->reader()';
+    @_ >= 1 or croak 'usage: $pipe->reader( [SUB_COMMAND_ARGS] )';
     my $me = shift;
+
+    return undef
+	unless(ref($me) || ref($me = $me->new));
+
     my $fh  = ${*$me}[0];
     my $pid = $me->_doit(0, $fh, @_)
         if(@_);
@@ -97,6 +101,8 @@ sub reader {
     close ${*$me}[1];
     bless $me, ref($fh);
     *$me = *$fh;          # Alias self to handle
+    $me->fdopen($fh->fileno,"r")
+	unless defined($me->fileno);
     bless $fh;                  # Really wan't un-bless here
     ${*$me}{'io_pipe_pid'} = $pid
         if defined $pid;
@@ -105,8 +111,12 @@ sub reader {
 }
 
 sub writer {
-    @_ >= 1 or croak 'usage: $pipe->writer()';
+    @_ >= 1 or croak 'usage: $pipe->writer( [SUB_COMMAND_ARGS] )';
     my $me = shift;
+
+    return undef
+	unless(ref($me) || ref($me = $me->new));
+
     my $fh  = ${*$me}[1];
     my $pid = $me->_doit(1, $fh, @_)
         if(@_);
@@ -114,6 +124,8 @@ sub writer {
     close ${*$me}[0];
     bless $me, ref($fh);
     *$me = *$fh;          # Alias self to handle
+    $me->fdopen($fh->fileno,"w")
+	unless defined($me->fileno);
     bless $fh;                  # Really wan't un-bless here
     ${*$me}{'io_pipe_pid'} = $pid
         if defined $pid;
@@ -123,7 +135,7 @@ sub writer {
 
 package IO::Pipe::End;
 
-use vars qw(@ISA);
+our(@ISA);
 
 @ISA = qw(IO::Handle);
 
@@ -143,7 +155,7 @@ __END__
 
 =head1 NAME
 
-IO::pipe - supply object methods for pipes
+IO::Pipe - supply object methods for pipes
 
 =head1 SYNOPSIS
 
@@ -228,12 +240,13 @@ L<IO::Handle>
 
 =head1 AUTHOR
 
-Graham Barr <bodg@tiuk.ti.com>
+Graham Barr. Currently maintained by the Perl Porters.  Please report all
+bugs to <perl5-porters@perl.org>.
 
 =head1 COPYRIGHT
 
-Copyright (c) 1996 Graham Barr. All rights reserved. This program is free
-software; you can redistribute it and/or modify it under the same terms
-as Perl itself.
+Copyright (c) 1996-8 Graham Barr <gbarr@pobox.com>. All rights reserved.
+This program is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself.
 
 =cut

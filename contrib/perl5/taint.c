@@ -5,20 +5,23 @@
  */
 
 #include "EXTERN.h"
+#define PERL_IN_TAINT_C
 #include "perl.h"
 
 void
-taint_proper(const char *f, char *s)
+Perl_taint_proper(pTHX_ const char *f, const char *s)
 {
     dTHR;	/* just for taint */
     char *ug;
 
+#ifdef HAS_SETEUID
     DEBUG_u(PerlIO_printf(Perl_debug_log,
-            "%s %d %d %d\n", s, PL_tainted, PL_uid, PL_euid));
+            "%s %d %"Uid_t_f" %"Uid_t_f"\n", s, PL_tainted, PL_uid, PL_euid));
+#endif
 
     if (PL_tainted) {
 	if (!f)
-	    f = no_security;
+	    f = PL_no_security;
 	if (PL_euid != PL_uid)
 	    ug = " while running setuid";
 	else if (PL_egid != PL_gid)
@@ -26,14 +29,14 @@ taint_proper(const char *f, char *s)
 	else
 	    ug = " while running with -T switch";
 	if (!PL_unsafe)
-	    croak(f, s, ug);
-	else if (PL_dowarn)
-	    warn(f, s, ug);
+	    Perl_croak(aTHX_ f, s, ug);
+	else if (ckWARN(WARN_TAINT))
+	    Perl_warner(aTHX_ WARN_TAINT, f, s, ug);
     }
 }
 
 void
-taint_env(void)
+Perl_taint_env(pTHX)
 {
     SV** svp;
     MAGIC* mg;
@@ -46,7 +49,7 @@ taint_env(void)
 	NULL
     };
 
-    if(!PL_envgv)
+    if (!PL_envgv)
 	return;
 
 #ifdef VMS

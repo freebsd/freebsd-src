@@ -49,7 +49,7 @@ these classes with methods that are specific to file handles.
 
 =over 4
 
-=item new ([ ARGS ] )
+=item new ( FILENAME [,MODE [,PERMS]] )
 
 Creates a C<IO::File>.  If it receives any parameters, they are passed to
 the method C<open>; if the open fails, the object is destroyed.  Otherwise,
@@ -72,20 +72,21 @@ Otherwise, it is returned to the caller.
 =item open( FILENAME [,MODE [,PERMS]] )
 
 C<open> accepts one, two or three parameters.  With one parameter,
-it is just a front end for the built-in C<open> function.  With two
+it is just a front end for the built-in C<open> function.  With two or three
 parameters, the first parameter is a filename that may include
 whitespace or other special characters, and the second parameter is
 the open mode, optionally followed by a file permission value.
 
 If C<IO::File::open> receives a Perl mode string ("E<gt>", "+E<lt>", etc.)
-or a POSIX fopen() mode string ("w", "r+", etc.), it uses the basic
-Perl C<open> operator.
+or a ANSI C fopen() mode string ("w", "r+", etc.), it uses the basic
+Perl C<open> operator (but protects any special characters).
 
 If C<IO::File::open> is given a numeric mode, it passes that mode
 and the optional permissions value to the Perl C<sysopen> operator.
-For convenience, C<IO::File::import> tries to import the O_XXX
-constants from the Fcntl module.  If dynamic loading is not available,
-this may fail, but the rest of IO::File will still work.
+The permissions default to 0666.
+
+For convenience, C<IO::File> exports the O_XXX constants from the
+Fcntl module, if this module is available.
 
 =back
 
@@ -98,24 +99,24 @@ L<IO::Seekable>
 
 =head1 HISTORY
 
-Derived from FileHandle.pm by Graham Barr E<lt>F<bodg@tiuk.ti.com>E<gt>.
+Derived from FileHandle.pm by Graham Barr E<lt>F<gbarr@pobox.com>E<gt>.
 
 =cut
 
-require 5.000;
+require 5.005_64;
 use strict;
-use vars qw($VERSION @EXPORT @EXPORT_OK $AUTOLOAD @ISA);
+our($VERSION, @EXPORT, @EXPORT_OK, @ISA);
 use Carp;
 use Symbol;
 use SelectSaver;
 use IO::Seekable;
+use File::Spec;
 
 require Exporter;
-require DynaLoader;
 
-@ISA = qw(IO::Handle IO::Seekable Exporter DynaLoader);
+@ISA = qw(IO::Handle IO::Seekable Exporter);
 
-$VERSION = "1.06021";
+$VERSION = "1.08";
 
 @EXPORT = @IO::Seekable::EXPORT;
 
@@ -126,7 +127,6 @@ eval {
     Fcntl->import(@O);  # first we import what we want to export
     push(@EXPORT, @O);
 };
-
 
 ################################################
 ## Constructor
@@ -158,7 +158,9 @@ sub open {
 	    defined $perms or $perms = 0666;
 	    return sysopen($fh, $file, $mode, $perms);
 	}
-	$file = './' . $file if $file =~ m{\A[^\\/\w]};
+	if (! File::Spec->file_name_is_absolute($file)) {
+            $file = File::Spec->catfile(File::Spec->curdir(),$file);
+        }
 	$file = IO::Handle::_open_mode_string($mode) . " $file\0";
     }
     open($fh, $file);

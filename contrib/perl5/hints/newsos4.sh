@@ -6,11 +6,10 @@ echo
 echo 'Compiling Tips:'
 echo 'When you have found that ld complains "multiple defined" error'
 echo 'on linking /lib/libdbm.a, do following instructions.'
-echo '    cd /tmp                                (working on /tmp)'
 echo '    cp /lib/libdbm.a dbm.o                 (copy current libdbm.a)'
 echo '    ar cr libdbm.a dbm.o                   (make archive)'
 echo '    mv /lib/libdbm.a /lib/libdbm.a.backup  (backup original library)'
-echo '    cp /tmp/libdbm.a /lib                  (copy newer one)'
+echo '    cp libdbm.a /lib                       (copy newer one)'
 echo '    ranlib /lib/libdbm.a                   (ranlib for later use)'
 echo
 

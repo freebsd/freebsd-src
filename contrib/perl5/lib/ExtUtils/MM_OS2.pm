@@ -25,13 +25,13 @@ sub dlsyms {
 $self->{BASEEXT}.def: Makefile.PL
 ",
      '	$(PERL) "-I$(PERL_ARCHLIB)" "-I$(PERL_LIB)" -e \'use ExtUtils::Mksymlists; \\
-     Mksymlists("NAME" => "', $self->{NAME},
-     '", "DLBASE" => "',$self->{DLBASE},
-     '", "DL_FUNCS" => ',neatvalue($funcs),
+     Mksymlists("NAME" => "$(NAME)", "DLBASE" => "$(DLBASE)", ',
+     '"VERSION" => "$(VERSION)", "DISTNAME" => "$(DISTNAME)", ',
+     '"INSTALLDIRS" => "$(INSTALLDIRS)", ',
+     '"DL_FUNCS" => ',neatvalue($funcs),
      ', "FUNCLIST" => ',neatvalue($funclist),
      ', "IMPORTS" => ',neatvalue($imports),
-     ', "VERSION" => "',$self->{VERSION},
-     '", "DL_VARS" => ', neatvalue($vars), ');\'
+     ', "DL_VARS" => ', neatvalue($vars), ');\'
 ');
     }
     if (%{$self->{IMPORTS}}) {

@@ -1,5 +1,7 @@
 package overload;
 
+$overload::hint_bits = 0x20000;
+
 sub nil {}
 
 sub OVERLOAD {
@@ -87,7 +89,7 @@ sub AddrRef {
 }
 
 sub StrVal {
-  (OverloadedStringify($_[0])) ?
+  (OverloadedStringify($_[0]) or ref($_[0]) eq 'Regexp') ?
     (AddrRef(shift)) :
     "$_[0]";
 }
@@ -113,21 +115,23 @@ sub mycan {				# Real can would leave stubs.
 
 %ops = ( with_assign	  => "+ - * / % ** << >> x .",
 	 assign		  => "+= -= *= /= %= **= <<= >>= x= .=",
-	 str_comparison	  => "< <= >  >= == !=",
+	 num_comparison	  => "< <= >  >= == !=",
 	 '3way_comparison'=> "<=> cmp",
-	 num_comparison	  => "lt le gt ge eq ne",
+	 str_comparison	  => "lt le gt ge eq ne",
 	 binary		  => "& | ^",
 	 unary		  => "neg ! ~",
 	 mutators	  => '++ --',
 	 func		  => "atan2 cos sin exp abs log sqrt",
 	 conversion	  => 'bool "" 0+',
+	 iterators	  => '<>',
+	 dereferencing	  => '${} @{} %{} &{} *{}',
 	 special	  => 'nomethod fallback =');
 
 sub constant {
   # Arguments: what, sub
   while (@_) {
     $^H{$_[0]} = $_[1];
-    $^H |= $constants{$_[0]} | 0x20000;
+    $^H |= $constants{$_[0]} | $overload::hint_bits;
     shift, shift;
   }
 }
@@ -355,11 +359,28 @@ for "E<lt>" or "E<lt>=E<gt>" combined with either unary minus or subtraction.
 
     "bool", "\"\"", "0+",
 
-If one or two of these operations are unavailable, the remaining ones can
+If one or two of these operations are not overloaded, the remaining ones can
 be used instead.  C<bool> is used in the flow control operators
 (like C<while>) and for the ternary "C<?:>" operation.  These functions can
 return any arbitrary Perl value.  If the corresponding operation for this value
 is overloaded too, that operation will be called again with this value.
+
+=item * I<Iteration>
+
+    "<>"
+
+If not overloaded, the argument will be converted to a filehandle or
+glob (which may require a stringification).  The same overloading
+happens both for the I<read-filehandle> syntax C<E<lt>$varE<gt>> and
+I<globbing> syntax C<E<lt>${var}E<gt>>.
+
+=item * I<Dereferencing>
+
+    '${}', '@{}', '%{}', '&{}', '*{}'.
+
+If not overloaded, the argument will be dereferenced I<as is>, thus
+should be of correct type.  These functions should return a reference
+of correct type, or another object with overloaded dereferencing.
 
 =item * I<Special>
 
@@ -377,14 +398,16 @@ A computer-readable form of the above table is available in the hash
 
  with_assign	  => '+ - * / % ** << >> x .',
  assign		  => '+= -= *= /= %= **= <<= >>= x= .=',
- str_comparison	  => '< <= > >= == !=',
+ num_comparison	  => '< <= > >= == !=',
  '3way_comparison'=> '<=> cmp',
- num_comparison	  => 'lt le gt ge eq ne',
+ str_comparison	  => 'lt le gt ge eq ne',
  binary		  => '& | ^',
  unary		  => 'neg ! ~',
  mutators	  => '++ --',
  func		  => 'atan2 cos sin exp abs log sqrt',
  conversion	  => 'bool "" 0+',
+ iterators	  => '<>',
+ dereferencing	  => '${} @{} %{} &{} *{}',
  special	  => 'nomethod fallback ='
 
 =head2 Inheritance and overloading
@@ -581,6 +604,14 @@ C<E<lt>=E<gt>> or C<cmp>:
 
     <, >, <=, >=, ==, != 	in terms of <=>
     lt, gt, le, ge, eq, ne 	in terms of cmp
+
+=item I<Iterator>
+
+    <>				in terms of builtin operations
+
+=item I<Dereferencing>
+
+    ${} @{} %{} &{} *{}		in terms of builtin operations
 
 =item I<Copy operator>
 
@@ -844,6 +875,134 @@ numeric value.)  This prints:
   seven=vii, seven=7, eight=8
   seven contains `i'
 
+=head2 Two-face references
+
+Suppose you want to create an object which is accessible as both an
+array reference, and a hash reference, similar to the builtin
+L<array-accessible-as-a-hash|perlref/"Pseudo-hashes: Using an array as
+a hash"> builtin Perl type.  Let us make it better than the builtin
+type, there will be no restriction that you cannot use the index 0 of
+your array.
+
+  package two_refs;
+  use overload '%{}' => \&gethash, '@{}' => sub { $ {shift()} };
+  sub new { 
+    my $p = shift; 
+    bless \ [@_], $p;
+  }
+  sub gethash {
+    my %h;
+    my $self = shift;
+    tie %h, ref $self, $self;
+    \%h;
+  }
+
+  sub TIEHASH { my $p = shift; bless \ shift, $p }
+  my %fields;
+  my $i = 0;
+  $fields{$_} = $i++ foreach qw{zero one two three};
+  sub STORE { 
+    my $self = ${shift()};
+    my $key = $fields{shift()};
+    defined $key or die "Out of band access";
+    $$self->[$key] = shift;
+  }
+  sub FETCH { 
+    my $self = ${shift()};
+    my $key = $fields{shift()};
+    defined $key or die "Out of band access";
+    $$self->[$key];
+  }
+
+Now one can access an object using both the array and hash syntax:
+
+  my $bar = new two_refs 3,4,5,6;
+  $bar->[2] = 11;
+  $bar->{two} == 11 or die 'bad hash fetch';
+
+Note several important features of this example.  First of all, the
+I<actual> type of $bar is a scalar reference, and we do not overload
+the scalar dereference.  Thus we can get the I<actual> non-overloaded
+contents of $bar by just using C<$$bar> (what we do in functions which
+overload dereference).  Similarly, the object returned by the
+TIEHASH() method is a scalar reference.
+
+Second, we create a new tied hash each time the hash syntax is used.
+This allows us not to worry about a possibility of a reference loop,
+would would lead to a memory leak.
+
+Both these problems can be cured.  Say, if we want to overload hash
+dereference on a reference to an object which is I<implemented> as a
+hash itself, the only problem one has to circumvent is how to access
+this I<actual> hash (as opposed to the I<virtual> exhibited by
+overloaded dereference operator).  Here is one possible fetching routine:
+
+  sub access_hash {
+    my ($self, $key) = (shift, shift);
+    my $class = ref $self;
+    bless $self, 'overload::dummy'; # Disable overloading of %{} 
+    my $out = $self->{$key};
+    bless $self, $class;	# Restore overloading
+    $out;
+  }
+
+To move creation of the tied hash on each access, one may an extra
+level of indirection which allows a non-circular structure of references:
+
+  package two_refs1;
+  use overload '%{}' => sub { ${shift()}->[1] },
+               '@{}' => sub { ${shift()}->[0] };
+  sub new { 
+    my $p = shift; 
+    my $a = [@_];
+    my %h;
+    tie %h, $p, $a;
+    bless \ [$a, \%h], $p;
+  }
+  sub gethash {
+    my %h;
+    my $self = shift;
+    tie %h, ref $self, $self;
+    \%h;
+  }
+
+  sub TIEHASH { my $p = shift; bless \ shift, $p }
+  my %fields;
+  my $i = 0;
+  $fields{$_} = $i++ foreach qw{zero one two three};
+  sub STORE { 
+    my $a = ${shift()};
+    my $key = $fields{shift()};
+    defined $key or die "Out of band access";
+    $a->[$key] = shift;
+  }
+  sub FETCH { 
+    my $a = ${shift()};
+    my $key = $fields{shift()};
+    defined $key or die "Out of band access";
+    $a->[$key];
+  }
+
+Now if $baz is overloaded like this, then C<$bar> is a reference to a
+reference to the intermediate array, which keeps a reference to an
+actual array, and the access hash.  The tie()ing object for the access
+hash is also a reference to a reference to the actual array, so 
+
+=over
+
+=item *
+
+There are no loops of references.
+
+=item *
+
+Both "objects" which are blessed into the class C<two_refs1> are
+references to a reference to an array, thus references to a I<scalar>.
+Thus the accessor expression C<$$foo-E<gt>[$ind]> involves no
+overloaded operations.
+
+=back
+
 =head2 Symbolic calculator
 
 Put this in F<symbolic.pm> in your Perl library directory:
@@ -872,7 +1031,7 @@ circumscribed octagon using the above package:
   my $iter = 1;			# 2**($iter+2) = 8
   my $side = new symbolic 1;
   my $cnt = $iter;
-  
+
   while ($cnt--) {
     $side = (sqrt(1 + $side**2) - 1)/$side;
   }
@@ -997,7 +1156,7 @@ Use this module like this:
   my $iter = new symbolic 2;	# 16-gon
   my $side = new symbolic 1;
   my $cnt = $iter;
-  
+
   while ($cnt) {
     $cnt = $cnt - 1;		# Mutator `--' not implemented
     $side = (sqrt(1 + $side**2) - 1)/$side;

@@ -5,7 +5,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib' if -d '../lib';
+    unshift @INC, '../lib' if -d '../lib';
 }
 
 BEGIN {$| = 1; print "1..31\n"; }
@@ -25,15 +25,16 @@ sub test {
 }
 
 # Set up a CGI environment
-$ENV{REQUEST_METHOD}='GET';
-$ENV{QUERY_STRING}  ='game=chess&game=checkers&weather=dull';
-$ENV{PATH_INFO}     ='/somewhere/else';
-$ENV{PATH_TRANSLATED} ='/usr/local/somewhere/else';
-$ENV{SCRIPT_NAME}   ='/cgi-bin/foo.cgi';
+$ENV{REQUEST_METHOD}  = 'GET';
+$ENV{QUERY_STRING}    = 'game=chess&game=checkers&weather=dull';
+$ENV{PATH_INFO}       = '/somewhere/else';
+$ENV{PATH_TRANSLATED} = '/usr/local/somewhere/else';
+$ENV{SCRIPT_NAME}     = '/cgi-bin/foo.cgi';
 $ENV{SERVER_PROTOCOL} = 'HTTP/1.0';
-$ENV{SERVER_PORT} = 8080;
-$ENV{SERVER_NAME} = 'the.good.ship.lollypop.com';
-$ENV{HTTP_LOVE} = 'true';
+$ENV{SERVER_PORT}     = 8080;
+$ENV{SERVER_NAME}     = 'the.good.ship.lollypop.com';
+$ENV{REQUEST_URI}     = "$ENV{SCRIPT_NAME}$ENV{PATH_INFO}?$ENV{QUERY_STRING}";
+$ENV{HTTP_LOVE}       = 'true';
 
 $q = new CGI;
 test(2,$q,"CGI::new()");

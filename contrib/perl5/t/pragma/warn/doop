@@ -1,0 +1,6 @@
+# doop.c
+use utf8 ;
+$_ = "\x80  \xff" ;
+chop ;
+EXPECT
+########

@@ -1,13 +1,3 @@
-######################################################################
-#
-# IMPORTANT: before you run 'make', you need to enter one of these two
-# lines (depending on your shell):
-#	 DYLD_LIBRARY_PATH=`pwd`; export DYLD_LIBRARY_PATH
-# or
-#	setenv DYLD_LIBRARY_PATH `pwd`
-#
-######################################################################
-
 # Posix support has been removed from NextStep 
 #
 useposix='undef'
@@ -16,9 +6,9 @@ libpth='/lib /usr/lib /usr/local/lib'
 libswanted=' '
 libc='/NextLibrary/Frameworks/System.framework/System'
 
-ldflags='-dynamic -prebind'
-lddlflags='-dynamic -bundle -undefined suppress'
-ccflags='-dynamic -fno-common -DUSE_NEXT_CTYPE -DUSE_PERL_SBRK -DHIDEMYMALLOC'
+ldflags="$ldflags -dynamic -prebind"
+lddlflags="$lddlflags -dynamic -bundle -undefined suppress"
+ccflags="$ccflags -dynamic -fno-common -DUSE_NEXT_CTYPE -DUSE_PERL_SBRK"
 cccdlflags='none'
 ld='cc'
 #optimize='-g -O'
@@ -106,3 +96,7 @@ clocktype='int'
 # running ranlib.  The '5' is an empirical number that's "long enough."
 # (Thanks to Andreas Koenig <k@franz.ww.tu-berlin.de>)
 ranlib='sleep 5; /bin/ranlib' 
+
+case "$ldlibpthname" in
+'') ldlibpthname=DYLD_LIBRARY_PATH ;;
+esac

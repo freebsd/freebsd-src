@@ -4,7 +4,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib';
+    unshift @INC, '../lib';
 }
 
 use Config;
@@ -14,28 +14,45 @@ print "1..58\n";
 $Is_MSWin32 = $^O eq 'MSWin32';
 $Is_Dos = $^O eq 'dos';
 $Is_Dosish = $Is_Dos || $^O eq 'os2' || $Is_MSWin32;
+$Is_Cygwin = $^O eq 'cygwin';
 chop($cwd = ($Is_MSWin32 ? `cd` : `pwd`));
 
-$DEV = `ls -l /dev` unless $Is_Dosish;
+$DEV = `ls -l /dev` unless $Is_Dosish or $Is_Cygwin;
 
 unlink "Op.stat.tmp";
-open(FOO, ">Op.stat.tmp");
+if (open(FOO, ">Op.stat.tmp")) {
+  # hack to make Apollo update link count:
+  $junk = `ls Op.stat.tmp` unless ($Is_MSWin32 || $Is_Dos);
 
-# hack to make Apollo update link count:
-$junk = `ls Op.stat.tmp` unless ($Is_MSWin32 || $Is_Dos);
+  ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,
+   $blksize,$blocks) = stat(FOO);
+  if ($nlink == 1) {
+    print "ok 1\n";
+  }
+  else {
+    print "# res=$res, nlink=$nlink.\nnot ok 1\n";
+  }
+  if ($Is_MSWin32 or $Is_Cygwin || ($mtime && $mtime == $ctime)) {
+    print "ok 2\n";
+  }
+  else {
+    print "# |$mtime| vs |$ctime|\nnot ok 2\n";
+  }
 
-($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,
-    $blksize,$blocks) = stat(FOO);
-if ($nlink == 1) {print "ok 1\n";} else {print "not ok 1\n";}
-if ($Is_MSWin32 || ($mtime && $mtime == $ctime)) {print "ok 2\n";}
-else {print "# |$mtime| vs |$ctime|\nnot ok 2\n";}
+  my $funky_FAT_timestamps = $Is_Cygwin;
 
-print FOO "Now is the time for all good men to come to.\n";
-close(FOO);
+  sleep 3 if $funky_FAT_timestamps;
 
-sleep 2;
+  print FOO "Now is the time for all good men to come to.\n";
+  close(FOO);
 
-if ($Is_Dosish) { unlink "Op.stat.tmp2" }
+  sleep 2 unless $funky_FAT_timestamps;
+
+} else {
+  print "# open failed: $!\nnot ok 1\nnot ok 2\n";
+}
+
+if ($Is_Dosish) { unlink "Op.stat.tmp2"}
 else {
     `rm -f Op.stat.tmp2;ln Op.stat.tmp Op.stat.tmp2; chmod 644 Op.stat.tmp`;
 }
@@ -50,7 +67,8 @@ elsif ($nlink == 2)
 else {print "# \$nlink is |$nlink|\nnot ok 3\n";}
 
 if (   $Is_Dosish
-	|| ($cwd =~ m#^/tmp# and $mtime && $mtime==$ctime) # Solaris tmpfs bug
+        # Solaris tmpfs bug
+	|| ($cwd =~ m#^/tmp# and $mtime && $mtime==$ctime && $^O eq 'solaris')
 	|| $cwd =~ m#/afs/#
 	|| $^O eq 'amigaos') {
     print "ok 4 # skipped: different semantic of mtime/ctime\n";
@@ -65,7 +83,7 @@ else {
 }
 print "#4	:$mtime: should != :$ctime:\n";
 
-unlink "Op.stat.tmp";
+unlink "Op.stat.tmp" or print "# unlink failed: $!\n";
 if ($Is_MSWin32) {  open F, '>Op.stat.tmp' and close F }
 else             { `touch Op.stat.tmp` }
 
@@ -76,7 +94,7 @@ $Is_MSWin32 ? `cmd /c echo hi > Op.stat.tmp` : `echo hi >Op.stat.tmp`;
 if (! -z 'Op.stat.tmp') {print "ok 7\n";} else {print "not ok 7\n";}
 if (-s 'Op.stat.tmp') {print "ok 8\n";} else {print "not ok 8\n";}
 
-unlink 'Op.stat.tmp';
+unlink 'Op.stat.tmp' or print "# unlink failed: $!\n";
 $olduid = $>;		# can't test -r if uid == 0
 $Is_MSWin32 ? `cmd /c echo hi > Op.stat.tmp` : `echo hi >Op.stat.tmp`;
 chmod 0,'Op.stat.tmp';
@@ -93,6 +111,9 @@ foreach ((12,13,14,15,16,17)) {
     print "ok $_\n";		#deleted tests
 }
 
+# in ms windows, Op.stat.tmp inherits owner uid from directory
+# not sure about os/2, but chown is harmless anyway
+eval { chown $>,'Op.stat.tmp'; 1 } or print "# $@" ;
 chmod 0700,'Op.stat.tmp';
 if (-r 'Op.stat.tmp') {print "ok 18\n";} else {print "not ok 18\n";}
 if (-w 'Op.stat.tmp') {print "ok 19\n";} else {print "not ok 19\n";}
@@ -149,7 +170,7 @@ else
     {print "not ok 33\n";}
 if (! -b '.') {print "ok 34\n";} else {print "not ok 34\n";}
 
-if ($^O eq 'amigaos' or $Is_Dosish) {
+if ($^O eq 'mpeix' or $^O eq 'amigaos' or $Is_Dosish or $Is_Cygwin) {
   print "ok 35 # skipped: no -u\n"; goto tty_test;
 }
 
@@ -184,14 +205,23 @@ unless($ENV{PERL_SKIP_TTY_TEST}) {
 	print "ok 37\n";
     }
     else {
-	unless (open(tty,"/dev/tty")) {
-	    print STDERR "Can't open /dev/tty--run t/TEST outside of make.\n";
+	my $TTY = "/dev/tty";
+
+	$TTY = "/dev/ttyp0" if $^O eq 'rhapsody';
+
+	if (defined $TTY) {
+	    unless (open(TTY, $TTY)) {
+		print STDERR "Can't open $TTY--run t/TEST outside of make.\n";
+	    }
+	    if (-t TTY) {print "ok 36\n";} else {print "not ok 36\n";}
+	    if (-c TTY) {print "ok 37\n";} else {print "not ok 37\n";}
+	    close(TTY);
+	} else { # if some platform completely undefines $TTY
+	    print "ok 36 # skipped\n";
+	    print "ok 37 # skipped\n";
 	}
-	if (-t tty) {print "ok 36\n";} else {print "not ok 36\n";}
-	if (-c tty) {print "ok 37\n";} else {print "not ok 37\n";}
-	close(tty);
     }
-    if (! -t tty) {print "ok 38\n";} else {print "not ok 38\n";}
+    if (! -t TTY) {print "ok 38\n";} else {print "not ok 38\n";}
     if (-t)       {print "ok 39\n";} else {print "not ok 39\n";}
 }
 else {
@@ -249,4 +279,4 @@ $_ = 'Op.stat.tmp';
 if (-f) {print "ok 57\n";} else {print "not ok 57\n";}
 if (-f()) {print "ok 58\n";} else {print "not ok 58\n";}
 
-unlink 'Op.stat.tmp';
+unlink 'Op.stat.tmp' or print "# unlink failed: $!\n";

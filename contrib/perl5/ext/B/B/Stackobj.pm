@@ -5,34 +5,35 @@
 #      You may distribute under the terms of either the GNU General Public
 #      License or the Artistic License, as specified in the README file.
 #
-package B::Stackobj;
+package B::Stackobj;  
 use Exporter ();
 @ISA = qw(Exporter);
-@EXPORT_OK = qw(set_callback T_UNKNOWN T_DOUBLE T_INT
+@EXPORT_OK = qw(set_callback T_UNKNOWN T_DOUBLE T_INT VALID_UNSIGNED
 		VALID_INT VALID_DOUBLE VALID_SV REGISTER TEMPORARY);
 %EXPORT_TAGS = (types => [qw(T_UNKNOWN T_DOUBLE T_INT)],
 		flags => [qw(VALID_INT VALID_DOUBLE VALID_SV
-			     REGISTER TEMPORARY)]);
+			     VALID_UNSIGNED REGISTER TEMPORARY)]);
 
 use Carp qw(confess);
 use strict;
-use B qw(class);
-
-# Perl internal constants that I should probably define elsewhere.
-sub SVf_IOK () { 0x10000 }
-sub SVf_NOK () { 0x20000 }
+use B qw(class SVf_IOK SVf_NOK SVf_IVisUV);
 
 # Types
 sub T_UNKNOWN () { 0 }
 sub T_DOUBLE ()  { 1 }
 sub T_INT ()     { 2 }
+sub T_SPECIAL () { 3 }
 
 # Flags
 sub VALID_INT ()	{ 0x01 }
-sub VALID_DOUBLE ()	{ 0x02 }
-sub VALID_SV ()		{ 0x04 }
-sub REGISTER ()		{ 0x08 } # no implicit write-back when calling subs
-sub TEMPORARY ()	{ 0x10 } # no implicit write-back needed at all
+sub VALID_UNSIGNED ()	{ 0x02 }
+sub VALID_DOUBLE ()	{ 0x04 }
+sub VALID_SV ()		{ 0x08 }
+sub REGISTER ()		{ 0x10 } # no implicit write-back when calling subs
+sub TEMPORARY ()	{ 0x20 } # no implicit write-back needed at all
+sub SAVE_INT () 	{ 0x40 } #if int part needs to be saved at all
+sub SAVE_DOUBLE () 	{ 0x80 } #if double part needs to be saved at all
+
 
 #
 # Callback for runtime code generation
@@ -47,7 +48,7 @@ sub runtime { &$runtime_callback(@_) }
 
 sub write_back { confess "stack object does not implement write_back" }
 
-sub invalidate { shift->{flags} &= ~(VALID_INT | VALID_DOUBLE) }
+sub invalidate { shift->{flags} &= ~(VALID_INT |VALID_UNSIGNED | VALID_DOUBLE) }
 
 sub as_sv {
     my $obj = shift;
@@ -62,7 +63,7 @@ sub as_int {
     my $obj = shift;
     if (!($obj->{flags} & VALID_INT)) {
 	$obj->load_int;
-	$obj->{flags} |= VALID_INT;
+	$obj->{flags} |= VALID_INT|SAVE_INT;
     }
     return $obj->{iv};
 }
@@ -71,7 +72,7 @@ sub as_double {
     my $obj = shift;
     if (!($obj->{flags} & VALID_DOUBLE)) {
 	$obj->load_double;
-	$obj->{flags} |= VALID_DOUBLE;
+	$obj->{flags} |= VALID_DOUBLE|SAVE_DOUBLE;
     }
     return $obj->{nv};
 }
@@ -79,6 +80,17 @@ sub as_double {
 sub as_numeric {
     my $obj = shift;
     return $obj->{type} == T_INT ? $obj->as_int : $obj->as_double;
+}
+
+sub as_bool {
+	my $obj=shift;
+	if ($obj->{flags} & VALID_INT ){
+		return $obj->{iv}; 
+	}
+	if ($obj->{flags} & VALID_DOUBLE ){
+		return $obj->{nv}; 
+	}
+	return sprintf("(SvTRUE(%s))", $obj->as_sv) ;
 }
 
 #
@@ -126,17 +138,18 @@ sub minipeek {
 # set_numeric and set_sv are only invoked on legal lvalues.
 #
 sub set_int {
-    my ($obj, $expr) = @_;
+    my ($obj, $expr,$unsigned) = @_;
     runtime("$obj->{iv} = $expr;");
     $obj->{flags} &= ~(VALID_SV | VALID_DOUBLE);
-    $obj->{flags} |= VALID_INT;
+    $obj->{flags} |= VALID_INT|SAVE_INT;
+    $obj->{flags} |= VALID_UNSIGNED if $unsigned; 
 }
 
 sub set_double {
     my ($obj, $expr) = @_;
     runtime("$obj->{nv} = $expr;");
     $obj->{flags} &= ~(VALID_SV | VALID_INT);
-    $obj->{flags} |= VALID_DOUBLE;
+    $obj->{flags} |= VALID_DOUBLE|SAVE_DOUBLE;
 }
 
 sub set_numeric {
@@ -162,6 +175,8 @@ sub set_sv {
 @B::Stackobj::Padsv::ISA = 'B::Stackobj';
 sub B::Stackobj::Padsv::new {
     my ($class, $type, $extra_flags, $ix, $iname, $dname) = @_;
+    $extra_flags |= SAVE_INT if $extra_flags & VALID_INT;
+    $extra_flags |= SAVE_DOUBLE if $extra_flags & VALID_DOUBLE;
     bless {
 	type => $type,
 	flags => VALID_SV | $extra_flags,
@@ -178,14 +193,23 @@ sub B::Stackobj::Padsv::load_int {
     } else {
 	runtime("$obj->{iv} = SvIV($obj->{sv});");
     }
-    $obj->{flags} |= VALID_INT;
+    $obj->{flags} |= VALID_INT|SAVE_INT;
 }
 
 sub B::Stackobj::Padsv::load_double {
     my $obj = shift;
     $obj->write_back;
     runtime("$obj->{nv} = SvNV($obj->{sv});");
-    $obj->{flags} |= VALID_DOUBLE;
+    $obj->{flags} |= VALID_DOUBLE|SAVE_DOUBLE;
+}
+sub B::Stackobj::Padsv::save_int {
+    my $obj = shift;
+    return $obj->{flags} & SAVE_INT;
+}
+
+sub B::Stackobj::Padsv::save_double {
+    my $obj = shift;
+    return $obj->{flags} & SAVE_DOUBLE;
 }
 
 sub B::Stackobj::Padsv::write_back {
@@ -193,7 +217,11 @@ sub B::Stackobj::Padsv::write_back {
     my $flags = $obj->{flags};
     return if $flags & VALID_SV;
     if ($flags & VALID_INT) {
-	runtime("sv_setiv($obj->{sv}, $obj->{iv});");
+        if ($flags & VALID_UNSIGNED ){
+            runtime("sv_setuv($obj->{sv}, $obj->{iv});");
+        }else{
+            runtime("sv_setiv($obj->{sv}, $obj->{iv});");
+        }     
     } elsif ($flags & VALID_DOUBLE) {
 	runtime("sv_setnv($obj->{sv}, $obj->{nv});");
     } else {
@@ -213,17 +241,26 @@ sub B::Stackobj::Const::new {
 	flags => 0,
 	sv => $sv    # holds the SV object until write_back happens
     }, $class;
-    my $svflags = $sv->FLAGS;
-    if ($svflags & SVf_IOK) {
-	$obj->{flags} = VALID_INT|VALID_DOUBLE;
-	$obj->{type} = T_INT;
-	$obj->{nv} = $obj->{iv} = $sv->IV;
-    } elsif ($svflags & SVf_NOK) {
-	$obj->{flags} = VALID_INT|VALID_DOUBLE;
-	$obj->{type} = T_DOUBLE;
-	$obj->{iv} = $obj->{nv} = $sv->NV;
-    } else {
-	$obj->{type} = T_UNKNOWN;
+    if ( ref($sv) eq  "B::SPECIAL" ){
+	$obj->{type}= T_SPECIAL;	
+    }else{
+    	my $svflags = $sv->FLAGS;
+    	if ($svflags & SVf_IOK) {
+		$obj->{flags} = VALID_INT|VALID_DOUBLE;
+		$obj->{type} = T_INT;
+                if ($svflags & SVf_IVisUV){
+                    $obj->{flags} |= VALID_UNSIGNED;
+                    $obj->{nv} = $obj->{iv} = $sv->UVX;
+                }else{
+                    $obj->{nv} = $obj->{iv} = $sv->IV;
+                }
+    	} elsif ($svflags & SVf_NOK) {
+		$obj->{flags} = VALID_INT|VALID_DOUBLE;
+		$obj->{type} = T_DOUBLE;
+		$obj->{iv} = $obj->{nv} = $sv->NV;
+    	} else {
+		$obj->{type} = T_UNKNOWN;
+    	}
     }
     return $obj;
 }
@@ -238,13 +275,21 @@ sub B::Stackobj::Const::write_back {
 
 sub B::Stackobj::Const::load_int {
     my $obj = shift;
-    $obj->{iv} = int($obj->{sv}->PV);
+    if (ref($obj->{sv}) eq "B::RV"){
+       $obj->{iv} = int($obj->{sv}->RV->PV);
+    }else{
+       $obj->{iv} = int($obj->{sv}->PV);
+    }
     $obj->{flags} |= VALID_INT;
 }
 
 sub B::Stackobj::Const::load_double {
     my $obj = shift;
-    $obj->{nv} = $obj->{sv}->PV + 0.0;
+    if (ref($obj->{sv}) eq "B::RV"){
+        $obj->{nv} = $obj->{sv}->RV->PV + 0.0;
+    }else{
+        $obj->{nv} = $obj->{sv}->PV + 0.0;
+    }
     $obj->{flags} |= VALID_DOUBLE;
 }
 

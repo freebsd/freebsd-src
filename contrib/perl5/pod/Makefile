@@ -1,4 +1,5 @@
-CONVERTERS = pod2html pod2latex pod2man pod2text checkpods
+CONVERTERS = pod2html pod2latex pod2man pod2text checkpods \
+		pod2usage podchecker podselect
 
 HTMLROOT = /	# Change this to fix cross-references in HTML
 POD2HTML = pod2html \
@@ -17,6 +18,7 @@ POD = \
 	perl.pod	\
 	perldelta.pod	\
 	perl5004delta.pod	\
+	perl5005delta.pod	\
 	perldata.pod	\
 	perlsyn.pod	\
 	perlop.pod	\
@@ -29,19 +31,25 @@ POD = \
 	perlmod.pod	\
 	perlmodlib.pod	\
 	perlmodinstall.pod	\
+	perlfork.pod	\
 	perlform.pod	\
 	perllocale.pod	\
 	perlref.pod	\
 	perlreftut.pod	\
 	perldsc.pod	\
 	perllol.pod	\
+	perlboot.pod	\
 	perltoot.pod	\
+	perltootc.pod	\
 	perlobj.pod	\
 	perltie.pod	\
 	perlbot.pod	\
 	perlipc.pod	\
 	perlthrtut.pod	\
+	perldbmfilter.pod	\
+	perldebguts.pod	\
 	perldebug.pod	\
+	perlnumber.pod	\
 	perldiag.pod	\
 	perlsec.pod	\
 	perltrap.pod	\
@@ -55,6 +63,11 @@ POD = \
 	perlxstut.pod	\
 	perlguts.pod	\
 	perlcall.pod	\
+	perlcompile.pod	\
+	perltodo.pod	\
+	perlapi.pod	\
+	perlintern.pod	\
+	perlhack.pod	\
 	perlhist.pod	\
 	perlfaq.pod	\
 	perlfaq1.pod	\
@@ -72,6 +85,7 @@ MAN = \
 	perl.man	\
 	perldelta.man	\
 	perl5004delta.man	\
+	perl5005delta.man	\
 	perldata.man	\
 	perlsyn.man	\
 	perlop.man	\
@@ -84,19 +98,25 @@ MAN = \
 	perlmod.man	\
 	perlmodlib.man	\
 	perlmodinstall.man	\
+	perlfork.man	\
 	perlform.man	\
 	perllocale.man	\
 	perlref.man	\
 	perlreftut.man	\
 	perldsc.man	\
 	perllol.man	\
+	perlboot.man	\
 	perltoot.man	\
+	perltootc.man	\
 	perlobj.man	\
 	perltie.man	\
 	perlbot.man	\
 	perlipc.man	\
 	perlthrtut.man	\
+	perldbmfilter.man	\
+	perldebguts.man	\
 	perldebug.man	\
+	perlnumber.man	\
 	perldiag.man	\
 	perlsec.man	\
 	perltrap.man	\
@@ -110,6 +130,11 @@ MAN = \
 	perlxstut.man	\
 	perlguts.man	\
 	perlcall.man	\
+	perlcompile.man	\
+	perltodo.man	\
+	perlapi.man	\
+	perlintern.man	\
+	perlhack.man	\
 	perlhist.man	\
 	perlfaq.man	\
 	perlfaq1.man	\
@@ -127,6 +152,7 @@ HTML = \
 	perl.html	\
 	perldelta.html	\
 	perl5004delta.html	\
+	perl5005delta.html	\
 	perldata.html	\
 	perlsyn.html	\
 	perlop.html	\
@@ -139,19 +165,25 @@ HTML = \
 	perlmod.html	\
 	perlmodlib.html	\
 	perlmodinstall.html	\
+	perlfork.html	\
 	perlform.html	\
 	perllocale.html	\
 	perlref.html	\
 	perlreftut.html	\
 	perldsc.html	\
 	perllol.html	\
+	perlboot.html	\
 	perltoot.html	\
+	perltootc.html	\
 	perlobj.html	\
 	perltie.html	\
 	perlbot.html	\
 	perlipc.html	\
 	perlthrtut.html	\
+	perldbmfilter.html	\
+	perldebguts.html	\
 	perldebug.html	\
+	perlnumber.html	\
 	perldiag.html	\
 	perlsec.html	\
 	perltrap.html	\
@@ -165,6 +197,11 @@ HTML = \
 	perlxstut.html	\
 	perlguts.html	\
 	perlcall.html	\
+	perlcompile.html	\
+	perltodo.html	\
+	perlapi.html	\
+	perlintern.html	\
+	perlhack.html	\
 	perlhist.html	\
 	perlfaq.html	\
 	perlfaq1.html	\
@@ -182,6 +219,7 @@ TEX = \
 	perl.tex	\
 	perldelta.tex	\
 	perl5004delta.tex	\
+	perl5005delta.tex	\
 	perldata.tex	\
 	perlsyn.tex	\
 	perlop.tex	\
@@ -194,20 +232,25 @@ TEX = \
 	perlmod.tex	\
 	perlmodlib.tex	\
 	perlmodinstall.tex	\
+	perlfork.tex	\
 	perlform.tex	\
 	perllocale.tex	\
 	perlref.tex	\
 	perlreftut.tex	\
-	perlopentut.tex	\
 	perldsc.tex	\
 	perllol.tex	\
+	perlboot.tex	\
 	perltoot.tex	\
+	perltootc.tex	\
 	perlobj.tex	\
 	perltie.tex	\
 	perlbot.tex	\
 	perlipc.tex	\
 	perlthrtut.tex	\
+	perldbmfilter.tex	\
+	perldebguts.tex	\
 	perldebug.tex	\
+	perlnumber.tex	\
 	perldiag.tex	\
 	perlsec.tex	\
 	perltrap.tex	\
@@ -221,6 +264,11 @@ TEX = \
 	perlxstut.tex	\
 	perlguts.tex	\
 	perlcall.tex	\
+	perlcompile.tex	\
+	perltodo.tex	\
+	perlapi.tex	\
+	perlintern.tex	\
+	perlhack.tex	\
 	perlhist.tex	\
 	perlfaq.tex	\
 	perlfaq1.tex	\
@@ -300,6 +348,15 @@ pod2text:	pod2text.PL ../lib/Config.pm
 
 checkpods:	checkpods.PL ../lib/Config.pm
 	$(PERL) -I ../lib checkpods.PL
+
+pod2usage:	pod2usage.PL ../lib/Config.pm
+	$(PERL) -I ../lib pod2usage.PL
+
+podchecker:	podchecker.PL ../lib/Config.pm
+	$(PERL) -I ../lib podchecker.PL
+
+podselect:	podselect.PL ../lib/Config.pm
+	$(PERL) -I ../lib podselect.PL
 
 compile: all
 	$(REALPERL) -I../lib ../utils/perlcc -regex 's/$$/.exe/' pod2latex pod2man pod2text checkpods -prog -verbose dcf -log ../compilelog;

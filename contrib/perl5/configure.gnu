@@ -111,6 +111,14 @@ case "$ccflags" in
 '') ;;
 *) opts="$opts -Dccflags='$ccflags'";;
 esac
+case "$LDFLAGS" in
+'') ;;
+*) ldflags="$ldflags $LDFLAGS";;
+esac
+case "$ldflags" in
+'') ;;
+*) opts="$opts -Dldflags='$ldflags'";;
+esac
 
 # Don't use -s if they want verbose mode
 case "$verbose" in

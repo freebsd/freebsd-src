@@ -1,6 +1,6 @@
 #!./perl
 
-print "1..65\n";
+print "1..66\n";
 
 #
 # @foo, @bar, and @ary are also used from tie-stdarray after tie-ing them
@@ -211,3 +211,8 @@ my $t = 63;
 sub reify { $_[1] = ++$t; print "@_\n"; }
 reify('ok');
 reify('ok');
+
+# qw() is no more a runtime split, it's compiletime.
+print "not " unless qw(foo bar snorfle)[2] eq 'snorfle';
+print "ok 66\n";
+

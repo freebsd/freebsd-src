@@ -1,18 +1,9 @@
 package File::Spec::Mac;
 
-use Exporter ();
-use Config;
 use strict;
-use File::Spec;
-use vars qw(@ISA $VERSION $Is_Mac);
-
-$VERSION = '1.0';
-
+use vars qw(@ISA);
+require File::Spec::Unix;
 @ISA = qw(File::Spec::Unix);
-$Is_Mac = $^O eq 'MacOS';
-
-Exporter::import('File::Spec', '$Verbose');
-
 
 =head1 NAME
 
@@ -20,7 +11,7 @@ File::Spec::Mac - File::Spec for MacOS
 
 =head1 SYNOPSIS
 
-C<require File::Spec::Mac;>
+ require File::Spec::Mac; # Done internally by File::Spec if needed
 
 =head1 DESCRIPTION
 
@@ -37,8 +28,8 @@ On MacOS, there's nothing to be done.  Returns what it's given.
 =cut
 
 sub canonpath {
-    my($self,$path) = @_;
-    $path;
+    my ($self,$path) = @_;
+    return $path;
 }
 
 =item catdir
@@ -84,20 +75,17 @@ aren't done here. This routine will treat this as absolute.
 
 =cut
 
-# ';
-
 sub catdir {
     shift;
     my @args = @_;
-	$args[0] =~ s/:$//;
-	my $result = shift @args;
-	for (@args) {
-		s/:$//;
-		s/^://;
-		$result .= ":$_";
+    my $result = shift @args;
+    $result =~ s/:\z//;
+    foreach (@args) {
+	s/:\z//;
+	s/^://s;
+	$result .= ":$_";
     }
-    $result .= ":";
-	$result;
+    return "$result:";
 }
 
 =item catfile
@@ -118,50 +106,69 @@ give the same answer, as one might expect.
 =cut
 
 sub catfile {
-    my $self = shift @_;
+    my $self = shift;
     my $file = pop @_;
     return $file unless @_;
     my $dir = $self->catdir(@_);
-	$file =~ s/^://;
+    $file =~ s/^://s;
     return $dir.$file;
 }
 
 =item curdir
 
-Returns a string representing of the current directory.
+Returns a string representing the current directory.
 
 =cut
 
 sub curdir {
-    return ":" ;
+    return ":";
+}
+
+=item devnull
+
+Returns a string representing the null device.
+
+=cut
+
+sub devnull {
+    return "Dev:Null";
 }
 
 =item rootdir
 
 Returns a string representing the root directory.  Under MacPerl,
 returns the name of the startup volume, since that's the closest in
-concept, although other volumes aren't rooted there.  On any other
-platform returns '', since there's no common way to indicate "root
-directory" across all Macs.
+concept, although other volumes aren't rooted there.
 
 =cut
 
 sub rootdir {
 #
-#  There's no real root directory on MacOS.  If you're using MacPerl,
-#  the name of the startup volume is returned, since that's the closest in
-#  concept.  On other platforms, simply return '', because nothing better
-#  can be done.
+#  There's no real root directory on MacOS.  The name of the startup
+#  volume is returned, since that's the closest in concept.
 #
-	if($Is_Mac) {
-        require Mac::Files;
-		my $system =  Mac::Files::FindFolder(&Mac::Files::kOnSystemDisk,
-		        &Mac::Files::kSystemFolderType);
-		$system =~ s/:.*$/:/;
-		return $system;
-	} else {
-		return '';
-    }
+    require Mac::Files;
+    my $system =  Mac::Files::FindFolder(&Mac::Files::kOnSystemDisk,
+					 &Mac::Files::kSystemFolderType);
+    $system =~ s/:.*\z/:/s;
+    return $system;
+}
+
+=item tmpdir
+
+Returns a string representation of the first existing directory
+from the following list or '' if none exist:
+
+    $ENV{TMPDIR}
+
+=cut
+
+my $tmpdir;
+sub tmpdir {
+    return $tmpdir if defined $tmpdir;
+    $tmpdir = $ENV{TMPDIR} if -d $ENV{TMPDIR};
+    $tmpdir = '' unless defined $tmpdir;
+    return $tmpdir;
 }
 
 =item updir
@@ -185,11 +192,11 @@ distinguish unambiguously.
 =cut
 
 sub file_name_is_absolute {
-    my($self,$file) = @_;
-	if ($file =~ /:/) {
-		return ($file !~ m/^:/);
-	} else {
-		return (! -e ":$file");
+    my ($self,$file) = @_;
+    if ($file =~ /:/) {
+	return ($file !~ m/^:/s);
+    } else {
+	return (! -e ":$file");
     }
 }
 
@@ -207,15 +214,177 @@ sub path {
 #  The concept is meaningless under the MacPerl application.
 #  Under MPW, it has a meaning.
 #
-    my($self) = @_;
-	my @path;
-	if(exists $ENV{Commands}) {
-		@path = split /,/,$ENV{Commands};
-	} else {
-	    @path = ();
-	}
-    @path;
+    return unless exists $ENV{Commands};
+    return split(/,/, $ENV{Commands});
 }
+
+=item splitpath
+
+=cut
+
+sub splitpath {
+    my ($self,$path, $nofile) = @_;
+
+    my ($volume,$directory,$file) = ('','','');
+
+    if ( $nofile ) {
+        ( $volume, $directory ) = $path =~ m@((?:[^:]+(?::|\z))?)(.*)@s;
+    }
+    else {
+        $path =~ 
+            m@^( (?: [^:]+: )? ) 
+                ( (?: .*: )? )
+                ( .* )
+             @xs;
+        $volume    = $1;
+        $directory = $2;
+        $file      = $3;
+    }
+
+    # Make sure non-empty volumes and directories end in ':'
+    $volume    .= ':' if $volume    =~ m@[^:]\z@ ;
+    $directory .= ':' if $directory =~ m@[^:]\z@ ;
+    return ($volume,$directory,$file);
+}
+
+
+=item splitdir
+
+=cut
+
+sub splitdir {
+    my ($self,$directories) = @_ ;
+    #
+    # split() likes to forget about trailing null fields, so here we
+    # check to be sure that there will not be any before handling the
+    # simple case.
+    #
+    if ( $directories !~ m@:\z@ ) {
+        return split( m@:@, $directories );
+    }
+    else {
+        #
+        # since there was a trailing separator, add a file name to the end, 
+        # then do the split, then replace it with ''.
+        #
+        my( @directories )= split( m@:@, "${directories}dummy" ) ;
+        $directories[ $#directories ]= '' ;
+        return @directories ;
+    }
+}
+
+
+=item catpath
+
+=cut
+
+sub catpath {
+    my $self = shift ;
+
+    my $result = shift ;
+    $result =~ s@^([^/])@/$1@s ;
+
+    my $segment ;
+    for $segment ( @_ ) {
+        if ( $result =~ m@[^/]\z@ && $segment =~ m@^[^/]@s ) {
+            $result .= "/$segment" ;
+        }
+        elsif ( $result =~ m@/\z@ && $segment =~ m@^/@s ) {
+            $result  =~ s@/+\z@/@;
+            $segment =~ s@^/+@@s;
+            $result  .= "$segment" ;
+        }
+        else {
+            $result  .= $segment ;
+        }
+    }
+
+    return $result ;
+}
+
+=item abs2rel
+
+=cut
+
+sub abs2rel {
+    my($self,$path,$base) = @_;
+
+    # Clean up $path
+    if ( ! $self->file_name_is_absolute( $path ) ) {
+        $path = $self->rel2abs( $path ) ;
+    }
+
+    # Figure out the effective $base and clean it up.
+    if ( !defined( $base ) || $base eq '' ) {
+        $base = cwd() ;
+    }
+    elsif ( ! $self->file_name_is_absolute( $base ) ) {
+        $base = $self->rel2abs( $base ) ;
+    }
+
+    # Now, remove all leading components that are the same
+    my @pathchunks = $self->splitdir( $path );
+    my @basechunks = $self->splitdir( $base );
+
+    while (@pathchunks && @basechunks && $pathchunks[0] eq $basechunks[0]) {
+        shift @pathchunks ;
+        shift @basechunks ;
+    }
+
+    $path = join( ':', @pathchunks );
+
+    # @basechunks now contains the number of directories to climb out of.
+    $base = ':' x @basechunks ;
+
+    return "$base:$path" ;
+}
+
+=item rel2abs
+
+Converts a relative path to an absolute path. 
+
+    $abs_path = File::Spec->rel2abs( $destination ) ;
+    $abs_path = File::Spec->rel2abs( $destination, $base ) ;
+
+If $base is not present or '', then L<cwd()> is used. If $base is relative, 
+then it is converted to absolute form using L</rel2abs()>. This means that it
+is taken to be relative to L<cwd()>.
+
+On systems with the concept of a volume, this assumes that both paths 
+are on the $base volume, and ignores the $destination volume. 
+
+On systems that have a grammar that indicates filenames, this ignores the 
+$base filename as well. Otherwise all path components are assumed to be
+directories.
+
+If $path is absolute, it is cleaned up and returned using L</canonpath()>.
+
+Based on code written by Shigio Yamaguchi.
+
+No checks against the filesystem are made. 
+
+=cut
+
+sub rel2abs($;$;) {
+    my ($self,$path,$base ) = @_;
+
+    if ( ! $self->file_name_is_absolute( $path ) ) {
+        if ( !defined( $base ) || $base eq '' ) {
+            $base = cwd() ;
+        }
+        elsif ( ! $self->file_name_is_absolute( $base ) ) {
+            $base = $self->rel2abs( $base ) ;
+        }
+        else {
+            $base = $self->canonpath( $base ) ;
+        }
+
+        $path = $self->canonpath("$base$path") ;
+    }
+
+    return $path ;
+}
+
 
 =back
 
@@ -226,5 +395,3 @@ L<File::Spec>
 =cut
 
 1;
-__END__
-

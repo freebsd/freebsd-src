@@ -8,13 +8,14 @@ require 5.002;
 # if Carp hasn't been loaded in earlier compile time. :-(
 # We'll let those bugs get found on the development track.
 require Carp if $] < 5.00450;
+use warnings::register();
 
 sub import {
     my $callpack = caller;
     my ($pack, @imports, $sym, $ch) = @_;
     foreach $sym (@imports) {
         ($ch, $sym) = unpack('a1a*', $sym);
-	if ($sym =~ tr/A-Za-Z_0-9//c) {
+	if ($sym =~ tr/A-Za-z_0-9//c) {
 	    # time for a more-detailed check-up
 	    if ($sym =~ /::/) {
 		require Carp;
@@ -22,9 +23,8 @@ sub import {
 	    } elsif ($sym =~ /^\w+[[{].*[]}]$/) {
 		require Carp;
 		Carp::croak("Can't declare individual elements of hash or array");
-	    } elsif ($^W and length($sym) == 1 and $sym !~ tr/a-zA-Z//) {
-		require Carp;
-		Carp::carp("No need to declare built-in vars");
+	    } elsif (warnings::enabled() and length($sym) == 1 and $sym !~ tr/a-zA-Z//) {
+		warnings::warn("No need to declare built-in vars");
 	    }
 	}
         *{"${callpack}::$sym"} =
@@ -45,13 +45,17 @@ __END__
 
 =head1 NAME
 
-vars - Perl pragma to predeclare global variable names
+vars - Perl pragma to predeclare global variable names (obsolete)
 
 =head1 SYNOPSIS
 
     use vars qw($frob @mung %seen);
 
 =head1 DESCRIPTION
+
+NOTE: The functionality provided by this pragma has been superseded
+by C<our> declarations, available in Perl v5.6.0 or later.  See
+L<perlfunc/our>.
 
 This will predeclare all the variables whose names are 
 in the list, allowing you to use them under "use strict", and

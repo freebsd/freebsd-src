@@ -1,0 +1,31 @@
+  perly.y	AOK
+
+  dep() => deprecate("\"do\" to call subroutines") 
+  Use of "do" to call subroutines is deprecated
+
+	sub fred {} do fred()
+	sub fred {} do fred(1)
+	sub fred {} $a = "fred" ; do $a()
+	sub fred {} $a = "fred" ; do $a(1)
+
+
+__END__
+# perly.y
+use warnings 'deprecated' ;
+sub fred {} 
+do fred() ;
+do fred(1) ;
+$a = "fred" ; 
+do $a() ;
+do $a(1) ;
+no warnings 'deprecated' ;
+do fred() ;
+do fred(1) ;
+$a = "fred" ; 
+do $a() ;
+do $a(1) ;
+EXPECT
+Use of "do" to call subroutines is deprecated at - line 4.
+Use of "do" to call subroutines is deprecated at - line 5.
+Use of "do" to call subroutines is deprecated at - line 7.
+Use of "do" to call subroutines is deprecated at - line 8.

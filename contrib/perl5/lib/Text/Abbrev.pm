@@ -1,5 +1,5 @@
 package Text::Abbrev;
-require 5.000;
+require 5.005;		# Probably works on earlier versions too.
 require Exporter;
 
 =head1 NAME
@@ -15,7 +15,7 @@ abbrev - create an abbreviation table from a list
 =head1 DESCRIPTION
 
 Stores all unambiguous truncations of each element of LIST
-as keys key in the associative array referenced to by C<$hashref>.
+as keys in the associative array referenced by C<$hashref>.
 The values are the original list elements.
 
 =head1 EXAMPLE
@@ -34,54 +34,48 @@ The values are the original list elements.
 @EXPORT = qw(abbrev);
 
 # Usage:
-#	&abbrev(*foo,LIST);
+#	abbrev \%foo, LIST;
 #	...
 #	$long = $foo{$short};
 
 sub abbrev {
-    my (%domain);
-    my ($name, $ref, $glob);
+    my ($word, $hashref, $glob, %table, $returnvoid);
 
     if (ref($_[0])) {           # hash reference preferably
-      $ref = shift;
-    } elsif ($_[0] =~ /^\*/) {  # looks like a glob (deprecated)
-      $glob = shift;
-    } 
-    my @cmp = @_;
+      $hashref = shift;
+      $returnvoid = 1;
+    } elsif (ref \$_[0] eq 'GLOB') {  # is actually a glob (deprecated)
+      $hashref = \%{shift()};
+      $returnvoid = 1;
+    }
+    %{$hashref} = ();
 
-    foreach $name (@_) {
-	my @extra = split(//,$name);
-	my $abbrev = shift(@extra);
-	my $len = 1;
-        my $cmp;
-	WORD: foreach $cmp (@cmp) {
-	    next if $cmp eq $name;
-	    while (substr($cmp,0,$len) eq $abbrev) {
-                last WORD unless @extra;
-                $abbrev .= shift(@extra);
-		++$len;
+    WORD: foreach $word (@_) {
+        for (my $len = (length $word) - 1; $len > 0; --$len) {
+	    my $abbrev = substr($word,0,$len);
+	    my $seen = ++$table{$abbrev};
+	    if ($seen == 1) {	    # We're the first word so far to have
+	    			    # this abbreviation.
+	        $hashref->{$abbrev} = $word;
+	    } elsif ($seen == 2) {  # We're the second word to have this
+	    			    # abbreviation, so we can't use it.
+	        delete $hashref->{$abbrev};
+	    } else {		    # We're the third word to have this
+	    			    # abbreviation, so skip to the next word.
+	        next WORD;
 	    }
 	}
-	$domain{$abbrev} = $name;
-	while (@extra) {
-	    $abbrev .= shift(@extra);
-	    $domain{$abbrev} = $name;
-	}
     }
-    if ($ref) {
-      %$ref = %domain;
-      return;
-    } elsif ($glob) {           # old style
-      local (*hash) = $glob;
-      %hash = %domain;
-      return;
+    # Non-abbreviations always get entered, even if they aren't unique
+    foreach $word (@_) {
+        $hashref->{$word} = $word;
     }
+    return if $returnvoid;
     if (wantarray) {
-      %domain;
+      %{$hashref};
     } else {
-      \%domain;
+      $hashref;
     }
 }
 
 1;
-

@@ -11,15 +11,17 @@ chop $pat if $pat =~ /\|$/;
 
 # grep
 while (<>) {
-    if (/^(.*?)\b($pat)\b(.*)$/o) {
-        my $head = "$1#$2#";
-        $_ = $3;
-        while (/^(.*?)\b($pat)\b(.*)$/o) {
-            $head .= "$1#$2#";
-            $_ = $3;
-        }
-	print "$ARGV\:$.\:$head$_\n";
-    }
+    print "$ARGV\:$.\:$_" if s/\b($pat)\b/#$1#/og;
+# this variant might useful if the transformation is more complicated
+#    if (/^(.*?)\b($pat)\b(.*)$/o) {
+#        my $head = "$1#$2#";
+#        $_ = $3;
+#        while (/^(.*?)\b($pat)\b(.*)$/o) {
+#            $head .= "$1#$2#";
+#            $_ = $3;
+#        }
+#	print "$ARGV\:$.\:$head$_\n";
+#    }
 }
 continue {
     close ARGV if eof;
@@ -238,7 +240,6 @@ osname
 pad_reset_pending
 padix
 padix_floor
-parsehook
 patchlevel
 patleave
 pending_ident

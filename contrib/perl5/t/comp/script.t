@@ -6,7 +6,6 @@ print "1..3\n";
 
 $PERL = ($^O eq 'MSWin32') ? '.\perl' : './perl';
 $x = `$PERL -le "print 'ok';"`;
-if ($x =~ /DCL-W-NOCOMD/) { $x = `\$ mcr sys\$disk:[]perl. -e "print ""ok\n""";`; }
 
 if ($x eq "ok\n") {print "ok 1\n";} else {print "not ok 1\n";}
 
@@ -15,12 +14,10 @@ print try 'print "ok\n";'; print try "\n";
 close try;
 
 $x = `$PERL Comp.script`;
-if ($x =~ /DCL-W-NOCOMD/) { $x = `\$ mcr sys\$disk:[]perl. Comp.script`; }
 
 if ($x eq "ok\n") {print "ok 2\n";} else {print "not ok 2\n";}
 
 $x = `$PERL <Comp.script`;
-if ($x =~ /DCL-W-NOCOMD/) { $x = `\$ mcr sys\$disk:[]perl. <Comp.script`; }
 
 if ($x eq "ok\n") {print "ok 3\n";} else {print "not ok 3\n";}
 

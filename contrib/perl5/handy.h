@@ -1,6 +1,6 @@
 /*    handy.h
  *
- *    Copyright (c) 1991-1999, Larry Wall
+ *    Copyright (c) 1991-2000, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -19,6 +19,17 @@
 #endif
 
 #define Null(type) ((type)NULL)
+
+/*
+=for apidoc AmU||Nullch
+Null character pointer.
+
+=for apidoc AmU||Nullsv
+Null SV pointer.
+
+=cut
+*/
+
 #define Nullch Null(char*)
 #define Nullfp Null(PerlIO*)
 #define Nullsv Null(SV*)
@@ -37,24 +48,24 @@
    just figure out all the headers such a test needs.
    Andy Dougherty	August 1996
 */
-/* bool is built-in for g++-2.6.3, which might be used for an extension.
-   If the extension includes <_G_config.h> before this file then
-   _G_HAVE_BOOL will be properly set.  If, however, the extension includes
-   this file first, then you will have to manually set -DHAS_BOOL in 
-   your command line to avoid a conflict.
+/* bool is built-in for g++-2.6.3 and later, which might be used 
+   for extensions.  <_G_config.h> defines _G_HAVE_BOOL, but we can't
+   be sure _G_config.h will be included before this file.  _G_config.h
+   also defines _G_HAVE_BOOL for both gcc and g++, but only g++ 
+   actually has bool.  Hence, _G_HAVE_BOOL is pretty useless for us.
+   g++ can be identified by __GNUG__.
+   Andy Dougherty	February 2000
 */
-#ifdef _G_HAVE_BOOL
-# if _G_HAVE_BOOL
+#ifdef __GNUG__ 	/* GNU g++ has bool built-in */
 #  ifndef HAS_BOOL
-#   define HAS_BOOL 1
+#    define HAS_BOOL 1
 #  endif
-# endif
 #endif
 
 /* The NeXT dynamic loader headers will not build with the bool macro
    So declare them now to clear confusion.
 */
-#ifdef NeXT
+#if defined(NeXT) || defined(__NeXT__)
 # undef FALSE
 # undef TRUE
   typedef enum bool { FALSE = 0, TRUE = 1 } bool;
@@ -62,7 +73,7 @@
 # ifndef HAS_BOOL
 #  define HAS_BOOL 1
 # endif /* !HAS_BOOL */
-#endif /* NeXT */
+#endif /* NeXT || __NeXT__ */
 
 #ifndef HAS_BOOL
 # if defined(UTS) || defined(VMS)
@@ -70,6 +81,7 @@
 # else
 #  define bool char
 # endif
+# define HAS_BOOL 1
 #endif
 
 /* XXX A note on the perl source internal type system.  The
@@ -91,6 +103,7 @@
 
    For dealing with issues that may arise from various 32/64-bit 
    systems, we will ask Configure to check out 
+
    	SHORTSIZE == sizeof(short)
    	INTSIZE == sizeof(int)
    	LONGSIZE == sizeof(long)
@@ -98,41 +111,72 @@
    	PTRSIZE == sizeof(void *)
 	DOUBLESIZE == sizeof(double)
 	LONG_DOUBLESIZE == sizeof(long double) (if HAS_LONG_DOUBLE).
-    Most of these are currently unused, but they are mentioned here so
-    metaconfig will include the appropriate tests in Configure and
-    we can then start to consider how best to deal with long long
-    variables.
-   Andy Dougherty	April 1998
+
 */
 
-typedef char		I8;
-typedef unsigned char	U8;
+typedef I8TYPE I8;
+typedef U8TYPE U8;
+typedef I16TYPE I16;
+typedef U16TYPE U16;
+typedef I32TYPE I32;
+typedef U32TYPE U32;
+#ifdef PERL_CORE
+#   ifdef HAS_QUAD
+#       if QUADKIND == QUAD_IS_INT64_T
+#           include <sys/types.h>
+#           ifdef I_INTTYPES /* e.g. Linux has int64_t without <inttypes.h> */
+#               include <inttypes.h>
+#           endif
+#       endif
+typedef I64TYPE I64;
+typedef U64TYPE U64;
+#   endif
+#endif /* PERL_CORE */
+
+/* Mention I8SIZE, U8SIZE, I16SIZE, U16SIZE, I32SIZE, U32SIZE,
+   I64SIZE, and U64SIZE here so that metaconfig pulls them in. */
+
+#if defined(UINT8_MAX) && defined(INT16_MAX) && defined(INT32_MAX)
+
+/* I8_MAX and I8_MIN constants are not defined, as I8 is an ambiguous type.
+   Please search CHAR_MAX in perl.h for further details. */
+#define U8_MAX UINT8_MAX
+#define U8_MIN UINT8_MIN
+
+#define I16_MAX INT16_MAX
+#define I16_MIN INT16_MIN
+#define U16_MAX UINT16_MAX
+#define U16_MIN UINT16_MIN
+
+#define I32_MAX INT32_MAX
+#define I32_MIN INT32_MIN
+#define U32_MAX UINT32_MAX
+#define U32_MIN UINT32_MIN
+
+#else
+
 /* I8_MAX and I8_MIN constants are not defined, as I8 is an ambiguous type.
    Please search CHAR_MAX in perl.h for further details. */
 #define U8_MAX PERL_UCHAR_MAX
 #define U8_MIN PERL_UCHAR_MIN
 
-typedef short		I16;
-typedef unsigned short	U16;
 #define I16_MAX PERL_SHORT_MAX
 #define I16_MIN PERL_SHORT_MIN
 #define U16_MAX PERL_USHORT_MAX
 #define U16_MIN PERL_USHORT_MIN
 
 #if LONGSIZE > 4
-  typedef int		I32;
-  typedef unsigned int	U32;
 # define I32_MAX PERL_INT_MAX
 # define I32_MIN PERL_INT_MIN
 # define U32_MAX PERL_UINT_MAX
 # define U32_MIN PERL_UINT_MIN
 #else
-  typedef long		I32;
-  typedef unsigned long	U32;
 # define I32_MAX PERL_LONG_MAX
 # define I32_MIN PERL_LONG_MIN
 # define U32_MAX PERL_ULONG_MAX
 # define U32_MIN PERL_ULONG_MIN
+#endif
+
 #endif
 
 #define BIT_DIGITS(N)   (((N)*146)/485 + 1)  /* log2(10) =~ 146/485 */
@@ -140,6 +184,43 @@ typedef unsigned short	U16;
 #define TYPE_CHARS(T)   (TYPE_DIGITS(T) + 2) /* sign, NUL */
 
 #define Ctl(ch) ((ch) & 037)
+
+/*
+=for apidoc Am|bool|strNE|char* s1|char* s2
+Test two strings to see if they are different.  Returns true or
+false.
+
+=for apidoc Am|bool|strEQ|char* s1|char* s2
+Test two strings to see if they are equal.  Returns true or false.
+
+=for apidoc Am|bool|strLT|char* s1|char* s2
+Test two strings to see if the first, C<s1>, is less than the second,
+C<s2>.  Returns true or false.
+
+=for apidoc Am|bool|strLE|char* s1|char* s2
+Test two strings to see if the first, C<s1>, is less than or equal to the
+second, C<s2>.  Returns true or false.
+
+=for apidoc Am|bool|strGT|char* s1|char* s2
+Test two strings to see if the first, C<s1>, is greater than the second,
+C<s2>.  Returns true or false.
+
+=for apidoc Am|bool|strGE|char* s1|char* s2
+Test two strings to see if the first, C<s1>, is greater than or equal to
+the second, C<s2>.  Returns true or false.
+
+=for apidoc Am|bool|strnNE|char* s1|char* s2|STRLEN len
+Test two strings to see if they are different.  The C<len> parameter
+indicates the number of bytes to compare.  Returns true or false. (A
+wrapper for C<strncmp>).
+
+=for apidoc Am|bool|strnEQ|char* s1|char* s2|STRLEN len
+Test two strings to see if they are equal.  The C<len> parameter indicates
+the number of bytes to compare.  Returns true or false. (A wrapper for
+C<strncmp>).
+
+=cut
+*/
 
 #define strNE(s1,s2) (strcmp(s1,s2))
 #define strEQ(s1,s2) (!strcmp(s1,s2))
@@ -177,6 +258,39 @@ typedef unsigned short	U16;
 #  endif
 #endif
 
+/*
+=for apidoc Am|bool|isALNUM|char ch
+Returns a boolean indicating whether the C C<char> is an ascii alphanumeric
+character or digit.
+
+=for apidoc Am|bool|isALPHA|char ch
+Returns a boolean indicating whether the C C<char> is an ascii alphabetic
+character.
+
+=for apidoc Am|bool|isSPACE|char ch
+Returns a boolean indicating whether the C C<char> is whitespace.
+
+=for apidoc Am|bool|isDIGIT|char ch
+Returns a boolean indicating whether the C C<char> is an ascii
+digit.
+
+=for apidoc Am|bool|isUPPER|char ch
+Returns a boolean indicating whether the C C<char> is an uppercase
+character.
+
+=for apidoc Am|bool|isLOWER|char ch
+Returns a boolean indicating whether the C C<char> is a lowercase
+character.
+
+=for apidoc Am|char|toUPPER|char ch
+Converts the specified character to uppercase.
+
+=for apidoc Am|char|toLOWER|char ch
+Converts the specified character to lowercase.
+
+=cut
+*/
+
 #define isALNUM(c)	(isALPHA(c) || isDIGIT(c) || (c) == '_')
 #define isIDFIRST(c)	(isALPHA(c) || (c) == '_')
 #define isALPHA(c)	(isUPPER(c) || isLOWER(c))
@@ -187,13 +301,25 @@ typedef unsigned short	U16;
     /* In EBCDIC we do not do locales: therefore() isupper() is fine. */
 #   define isUPPER(c)	isupper(c)
 #   define isLOWER(c)	islower(c)
+#   define isALNUMC(c)	isalnum(c)
+#   define isASCII(c)	isascii(c)
+#   define isCNTRL(c)	iscntrl(c)
+#   define isGRAPH(c)	isgraph(c)
 #   define isPRINT(c)	isprint(c)
+#   define isPUNCT(c)	ispunct(c)
+#   define isXDIGIT(c)	isxdigit(c)
 #   define toUPPER(c)	toupper(c)
 #   define toLOWER(c)	tolower(c)
 #else
 #   define isUPPER(c)	((c) >= 'A' && (c) <= 'Z')
 #   define isLOWER(c)	((c) >= 'a' && (c) <= 'z')
+#   define isALNUMC(c)	(isALPHA(c) || isDIGIT(c))
+#   define isASCII(c)	((c) <= 127)
+#   define isCNTRL(c)	((c) < ' ')
+#   define isGRAPH(c)	(isALNUM(c) || isPUNCT(c))
 #   define isPRINT(c)	(((c) > 32 && (c) < 127) || isSPACE(c))
+#   define isPUNCT(c)	(((c) >= 33 && (c) <= 47) || ((c) >= 58 && (c) <= 64)  || ((c) >= 91 && (c) <= 96) || ((c) >= 123 && (c) <= 126))
+#   define isXDIGIT(c)  (isdigit(c) || ((c) >= 'a' && (c) <= 'f') || ((c) >= 'A' && (c) <= 'F'))
 #   define toUPPER(c)	(isLOWER(c) ? (c) - ('a' - 'A') : (c))
 #   define toLOWER(c)	(isUPPER(c) ? (c) + ('a' - 'A') : (c))
 #endif
@@ -201,8 +327,7 @@ typedef unsigned short	U16;
 #ifdef USE_NEXT_CTYPE
 
 #  define isALNUM_LC(c) \
-	(NXIsAlpha((unsigned int)(c)) || NXIsDigit((unsigned int)(c)) || \
-	 (char)(c) == '_')
+	(NXIsAlNum((unsigned int)(c)) || (char)(c) == '_')
 #  define isIDFIRST_LC(c) \
 	(NXIsAlpha((unsigned int)(c)) || (char)(c) == '_')
 #  define isALPHA_LC(c)		NXIsAlpha((unsigned int)(c))
@@ -210,45 +335,123 @@ typedef unsigned short	U16;
 #  define isDIGIT_LC(c)		NXIsDigit((unsigned int)(c))
 #  define isUPPER_LC(c)		NXIsUpper((unsigned int)(c))
 #  define isLOWER_LC(c)		NXIsLower((unsigned int)(c))
+#  define isALNUMC_LC(c)	NXIsAlNum((unsigned int)(c))
+#  define isCNTRL_LC(c)		NXIsCntrl((unsigned int)(c))
+#  define isGRAPH_LC(c)		NXIsGraph((unsigned int)(c))
 #  define isPRINT_LC(c)		NXIsPrint((unsigned int)(c))
+#  define isPUNCT_LC(c)		NXIsPunct((unsigned int)(c))
 #  define toUPPER_LC(c)		NXToUpper((unsigned int)(c))
 #  define toLOWER_LC(c)		NXToLower((unsigned int)(c))
 
 #else /* !USE_NEXT_CTYPE */
+
 #  if defined(CTYPE256) || (!defined(isascii) && !defined(HAS_ISASCII))
 
-#    define isALNUM_LC(c) \
-	(isalpha((unsigned char)(c)) || \
-	 isdigit((unsigned char)(c)) || (char)(c) == '_')
+#    define isALNUM_LC(c)   (isalnum((unsigned char)(c)) || (char)(c) == '_')
 #    define isIDFIRST_LC(c) (isalpha((unsigned char)(c)) || (char)(c) == '_')
 #    define isALPHA_LC(c)	isalpha((unsigned char)(c))
 #    define isSPACE_LC(c)	isspace((unsigned char)(c))
 #    define isDIGIT_LC(c)	isdigit((unsigned char)(c))
 #    define isUPPER_LC(c)	isupper((unsigned char)(c))
 #    define isLOWER_LC(c)	islower((unsigned char)(c))
+#    define isALNUMC_LC(c)	isalnum((unsigned char)(c))
+#    define isCNTRL_LC(c)	iscntrl((unsigned char)(c))
+#    define isGRAPH_LC(c)	isgraph((unsigned char)(c))
 #    define isPRINT_LC(c)	isprint((unsigned char)(c))
+#    define isPUNCT_LC(c)	ispunct((unsigned char)(c))
 #    define toUPPER_LC(c)	toupper((unsigned char)(c))
 #    define toLOWER_LC(c)	tolower((unsigned char)(c))
 
 #  else
 
-#    define isALNUM_LC(c) \
-	(isascii(c) && (isalpha(c) || isdigit(c) || (c) == '_'))
+#    define isALNUM_LC(c) 	(isascii(c) && (isalnum(c) || (c) == '_'))
 #    define isIDFIRST_LC(c)	(isascii(c) && (isalpha(c) || (c) == '_'))
 #    define isALPHA_LC(c)	(isascii(c) && isalpha(c))
 #    define isSPACE_LC(c)	(isascii(c) && isspace(c))
 #    define isDIGIT_LC(c)	(isascii(c) && isdigit(c))
 #    define isUPPER_LC(c)	(isascii(c) && isupper(c))
 #    define isLOWER_LC(c)	(isascii(c) && islower(c))
+#    define isALNUMC_LC(c)	(isascii(c) && isalnum(c))
+#    define isCNTRL_LC(c)	(isascii(c) && iscntrl(c))
+#    define isGRAPH_LC(c)	(isascii(c) && isgraph(c))
 #    define isPRINT_LC(c)	(isascii(c) && isprint(c))
+#    define isPUNCT_LC(c)	(isascii(c) && ispunct(c))
 #    define toUPPER_LC(c)	toupper(c)
 #    define toLOWER_LC(c)	tolower(c)
 
 #  endif
 #endif /* USE_NEXT_CTYPE */
 
+#define isALNUM_uni(c)		is_uni_alnum(c)
+#define isIDFIRST_uni(c)	is_uni_idfirst(c)
+#define isALPHA_uni(c)		is_uni_alpha(c)
+#define isSPACE_uni(c)		is_uni_space(c)
+#define isDIGIT_uni(c)		is_uni_digit(c)
+#define isUPPER_uni(c)		is_uni_upper(c)
+#define isLOWER_uni(c)		is_uni_lower(c)
+#define isALNUMC_uni(c)		is_uni_alnumc(c)
+#define isASCII_uni(c)		is_uni_ascii(c)
+#define isCNTRL_uni(c)		is_uni_cntrl(c)
+#define isGRAPH_uni(c)		is_uni_graph(c)
+#define isPRINT_uni(c)		is_uni_print(c)
+#define isPUNCT_uni(c)		is_uni_punct(c)
+#define isXDIGIT_uni(c)		is_uni_xdigit(c)
+#define toUPPER_uni(c)		to_uni_upper(c)
+#define toTITLE_uni(c)		to_uni_title(c)
+#define toLOWER_uni(c)		to_uni_lower(c)
+
+#define isALNUM_LC_uni(c)	(c < 256 ? isALNUM_LC(c) : is_uni_alnum_lc(c))
+#define isIDFIRST_LC_uni(c)	(c < 256 ? isIDFIRST_LC(c) : is_uni_idfirst_lc(c))
+#define isALPHA_LC_uni(c)	(c < 256 ? isALPHA_LC(c) : is_uni_alpha_lc(c))
+#define isSPACE_LC_uni(c)	(c < 256 ? isSPACE_LC(c) : is_uni_space_lc(c))
+#define isDIGIT_LC_uni(c)	(c < 256 ? isDIGIT_LC(c) : is_uni_digit_lc(c))
+#define isUPPER_LC_uni(c)	(c < 256 ? isUPPER_LC(c) : is_uni_upper_lc(c))
+#define isLOWER_LC_uni(c)	(c < 256 ? isLOWER_LC(c) : is_uni_lower_lc(c))
+#define isALNUMC_LC_uni(c)	(c < 256 ? isALNUMC_LC(c) : is_uni_alnumc_lc(c))
+#define isCNTRL_LC_uni(c)	(c < 256 ? isCNTRL_LC(c) : is_uni_cntrl_lc(c))
+#define isGRAPH_LC_uni(c)	(c < 256 ? isGRAPH_LC(c) : is_uni_graph_lc(c))
+#define isPRINT_LC_uni(c)	(c < 256 ? isPRINT_LC(c) : is_uni_print_lc(c))
+#define isPUNCT_LC_uni(c)	(c < 256 ? isPUNCT_LC(c) : is_uni_punct_lc(c))
+#define toUPPER_LC_uni(c)	(c < 256 ? toUPPER_LC(c) : to_uni_upper_lc(c))
+#define toTITLE_LC_uni(c)	(c < 256 ? toUPPER_LC(c) : to_uni_title_lc(c))
+#define toLOWER_LC_uni(c)	(c < 256 ? toLOWER_LC(c) : to_uni_lower_lc(c))
+
+#define isALNUM_utf8(p)		is_utf8_alnum(p)
+#define isIDFIRST_utf8(p)	is_utf8_idfirst(p)
+#define isALPHA_utf8(p)		is_utf8_alpha(p)
+#define isSPACE_utf8(p)		is_utf8_space(p)
+#define isDIGIT_utf8(p)		is_utf8_digit(p)
+#define isUPPER_utf8(p)		is_utf8_upper(p)
+#define isLOWER_utf8(p)		is_utf8_lower(p)
+#define isALNUMC_utf8(p)	is_utf8_alnumc(p)
+#define isASCII_utf8(p)		is_utf8_ascii(p)
+#define isCNTRL_utf8(p)		is_utf8_cntrl(p)
+#define isGRAPH_utf8(p)		is_utf8_graph(p)
+#define isPRINT_utf8(p)		is_utf8_print(p)
+#define isPUNCT_utf8(p)		is_utf8_punct(p)
+#define isXDIGIT_utf8(p)	is_utf8_xdigit(p)
+#define toUPPER_utf8(p)		to_utf8_upper(p)
+#define toTITLE_utf8(p)		to_utf8_title(p)
+#define toLOWER_utf8(p)		to_utf8_lower(p)
+
+#define isALNUM_LC_utf8(p)	isALNUM_LC_uni(utf8_to_uv(p, 0))
+#define isIDFIRST_LC_utf8(p)	isIDFIRST_LC_uni(utf8_to_uv(p, 0))
+#define isALPHA_LC_utf8(p)	isALPHA_LC_uni(utf8_to_uv(p, 0))
+#define isSPACE_LC_utf8(p)	isSPACE_LC_uni(utf8_to_uv(p, 0))
+#define isDIGIT_LC_utf8(p)	isDIGIT_LC_uni(utf8_to_uv(p, 0))
+#define isUPPER_LC_utf8(p)	isUPPER_LC_uni(utf8_to_uv(p, 0))
+#define isLOWER_LC_utf8(p)	isLOWER_LC_uni(utf8_to_uv(p, 0))
+#define isALNUMC_LC_utf8(p)	isALNUMC_LC_uni(utf8_to_uv(p, 0))
+#define isCNTRL_LC_utf8(p)	isCNTRL_LC_uni(utf8_to_uv(p, 0))
+#define isGRAPH_LC_utf8(p)	isGRAPH_LC_uni(utf8_to_uv(p, 0))
+#define isPRINT_LC_utf8(p)	isPRINT_LC_uni(utf8_to_uv(p, 0))
+#define isPUNCT_LC_utf8(p)	isPUNCT_LC_uni(utf8_to_uv(p, 0))
+#define toUPPER_LC_utf8(p)	toUPPER_LC_uni(utf8_to_uv(p, 0))
+#define toTITLE_LC_utf8(p)	toTITLE_LC_uni(utf8_to_uv(p, 0))
+#define toLOWER_LC_utf8(p)	toLOWER_LC_uni(utf8_to_uv(p, 0))
+
 #ifdef EBCDIC
-EXT int ebcdic_control _((int));
+EXT int ebcdic_control (int);
 #  define toCTRL(c)	ebcdic_control(c)
 #else
   /* This conversion works both ways, strangely enough. */
@@ -264,16 +467,66 @@ typedef U16 line_t;
 #endif
 
 
-/* This looks obsolete (IZ):
-
+/* 
    XXX LEAKTEST doesn't really work in perl5.  There are direct calls to
    safemalloc() in the source, so LEAKTEST won't pick them up.
+   (The main "offenders" are extensions.)
    Further, if you try LEAKTEST, you'll also end up calling
    Safefree, which might call safexfree() on some things that weren't
    malloced with safexmalloc.  The correct "fix" to this, if anyone
    is interested, is to ensure that all calls go through the New and
    Renew macros.
 	--Andy Dougherty		August 1996
+*/
+
+/*
+=for apidoc Am|SV*|NEWSV|int id|STRLEN len
+Creates a new SV.  A non-zero C<len> parameter indicates the number of
+bytes of preallocated string space the SV should have.  An extra byte for a
+tailing NUL is also reserved.  (SvPOK is not set for the SV even if string
+space is allocated.)  The reference count for the new SV is set to 1. 
+C<id> is an integer id between 0 and 1299 (used to identify leaks).
+
+=for apidoc Am|void|New|int id|void* ptr|int nitems|type
+The XSUB-writer's interface to the C C<malloc> function.
+
+=for apidoc Am|void|Newc|int id|void* ptr|int nitems|type|cast
+The XSUB-writer's interface to the C C<malloc> function, with
+cast.
+
+=for apidoc Am|void|Newz|int id|void* ptr|int nitems|type
+The XSUB-writer's interface to the C C<malloc> function.  The allocated
+memory is zeroed with C<memzero>.
+
+=for apidoc Am|void|Renew|void* ptr|int nitems|type
+The XSUB-writer's interface to the C C<realloc> function.
+
+=for apidoc Am|void|Renewc|void* ptr|int nitems|type|cast
+The XSUB-writer's interface to the C C<realloc> function, with
+cast.
+
+=for apidoc Am|void|Safefree|void* src|void* dest|int nitems|type
+The XSUB-writer's interface to the C C<free> function.
+
+=for apidoc Am|void|Move|void* src|void* dest|int nitems|type
+The XSUB-writer's interface to the C C<memmove> function.  The C<src> is the
+source, C<dest> is the destination, C<nitems> is the number of items, and C<type> is
+the type.  Can do overlapping moves.  See also C<Copy>.
+
+=for apidoc Am|void|Copy|void* src|void* dest|int nitems|type
+The XSUB-writer's interface to the C C<memcpy> function.  The C<src> is the
+source, C<dest> is the destination, C<nitems> is the number of items, and C<type> is
+the type.  May fail on overlapping copies.  See also C<Move>.
+
+=for apidoc Am|void|Zero|void* dest|int nitems|type
+
+The XSUB-writer's interface to the C C<memzero> function.  The C<dest> is the
+destination, C<nitems> is the number of items, and C<type> is the type.
+
+=for apidoc Am|void|StructCopy|type src|type dest|type
+This is an architecture-independant macro to copy one structure to another.
+
+=cut
 */
 
 #ifndef lint

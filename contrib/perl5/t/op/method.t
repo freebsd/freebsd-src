@@ -4,7 +4,7 @@
 # test method calls and autoloading.
 #
 
-print "1..26\n";
+print "1..49\n";
 
 @A::ISA = 'B';
 @B::ISA = 'C';
@@ -18,6 +18,35 @@ sub test {
   # print "not " unless shift eq shift;
   print "ok ", ++$cnt, "\n"
 }
+
+# First, some basic checks of method-calling syntax:
+$obj = bless [], "Pack";
+sub Pack::method { shift; join(",", "method", @_) }
+$mname = "method";
+
+test(Pack->method("a","b","c"), "method,a,b,c");
+test(Pack->$mname("a","b","c"), "method,a,b,c");
+test(method Pack ("a","b","c"), "method,a,b,c");
+test((method Pack "a","b","c"), "method,a,b,c");
+
+test(Pack->method(), "method");
+test(Pack->$mname(), "method");
+test(method Pack (), "method");
+test(Pack->method, "method");
+test(Pack->$mname, "method");
+test(method Pack, "method");
+
+test($obj->method("a","b","c"), "method,a,b,c");
+test($obj->$mname("a","b","c"), "method,a,b,c");
+test((method $obj ("a","b","c")), "method,a,b,c");
+test((method $obj "a","b","c"), "method,a,b,c");
+
+test($obj->method(), "method");
+test($obj->$mname(), "method");
+test((method $obj ()), "method");
+test($obj->method, "method");
+test($obj->$mname, "method");
+test(method $obj, "method");
 
 test( A->d, "C::d");		# Update hash table;
 
@@ -126,3 +155,15 @@ test(A->eee(), "new B: In A::eee, 4");	# Which sticks
 
 # this test added due to bug discovery
 test(defined(@{"unknown_package::ISA"}) ? "defined" : "undefined", "undefined");
+
+# test that failed subroutine calls don't affect method calls
+{
+    package A1;
+    sub foo { "foo" }
+    package A2;
+    @ISA = 'A1';
+    package main;
+    test(A2->foo(), "foo");
+    test(do { eval 'A2::foo()'; $@ ? 1 : 0}, 1);
+    test(A2->foo(), "foo");
+}

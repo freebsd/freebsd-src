@@ -155,19 +155,19 @@ IPC::Semaphore - SysV Semaphore IPC object class
 
     use IPC::SysV qw(IPC_PRIVATE S_IRWXU IPC_CREAT);
     use IPC::Semaphore;
-    
+
     $sem = new IPC::Semaphore(IPC_PRIVATE, 10, S_IRWXU | IPC_CREAT);
-    
+
     $sem->setall( (0) x 10);
-    
+
     @sem = $sem->getall;
-    
+
     $ncnt = $sem->getncnt;
-    
+
     $zcnt = $sem->getzcnt;
-    
+
     $ds = $sem->stat;
-    
+
     $sem->remove;
 
 =head1 DESCRIPTION

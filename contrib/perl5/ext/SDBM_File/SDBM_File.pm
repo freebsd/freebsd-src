@@ -1,16 +1,14 @@
 package SDBM_File;
 
 use strict;
-use vars qw($VERSION @ISA);
 
 require Tie::Hash;
-require DynaLoader;
+use XSLoader ();
 
-@ISA = qw(Tie::Hash DynaLoader);
+our @ISA = qw(Tie::Hash);
+our $VERSION = "1.02" ;
 
-$VERSION = "1.00" ;
-
-bootstrap SDBM_File $VERSION;
+XSLoader::load 'SDBM_File', $VERSION;
 
 1;
 
@@ -30,6 +28,6 @@ SDBM_File - Tied access to sdbm files
 
 =head1 DESCRIPTION
 
-See L<perlfunc/tie>
+See L<perlfunc/tie>, L<perldbmfilter>
 
 =cut

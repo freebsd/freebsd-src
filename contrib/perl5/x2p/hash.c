@@ -89,9 +89,7 @@ hstore(register HASH *tb, char *key, STR *val)
 
 #ifdef NOTUSED
 bool
-hdelete(tb,key)
-register HASH *tb;
-char *key;
+hdelete(register HASH *tb, char *key)
 {
     register char *s;
     register int i;
@@ -178,8 +176,7 @@ hnew(void)
 }
 
 #ifdef NOTUSED
-hshow(tb)
-register HASH *tb;
+hshow(register HASH *tb)
 {
     fprintf(stderr,"%5d %4d (%2d%%)\n",
 	tb->tbl_max+1,

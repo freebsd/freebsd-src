@@ -1,10 +1,8 @@
 #!./perl
 
-# $RCSfile: term.t,v $$Revision: 4.1 $$Date: 92/08/07 18:27:24 $
-
 # tests that aren't important enough for base.term
 
-print "1..22\n";
+print "1..23\n";
 
 $x = "\\n";
 print "#1\t:$x: eq " . ':\n:' . "\n";
@@ -68,3 +66,7 @@ if (ref($a) eq 'HASH') {print "ok 21\n";} else {print "not ok 21\n";}
 $a = "+{ \$a=>'foo'}";
 $a = eval $a;
 if (ref($a) eq 'HASH') {print "ok 22\n";} else {print "not ok 22\n";}
+
+$a = "{ 0x01 => 'foo'}->{0x01}";
+$a = eval $a;
+if ($a eq 'foo') {print "ok 23\n";} else {print "not ok 23\n";}

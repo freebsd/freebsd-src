@@ -203,6 +203,9 @@ fatal(char *pat,...)
     exit(1);
 }
 
+#if defined(__APPLE_CC__)
+__private_extern__	/* warn() conflicts with libc */
+#endif
 void
 warn(char *pat,...)
 {

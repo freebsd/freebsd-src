@@ -9,7 +9,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib' if -d '../lib';
+    unshift @INC, '../lib' if -d '../lib';
 }
 
 use strict;
@@ -18,6 +18,17 @@ use Config;
 # We do not want the whole taint.t to fail
 # just because Errno possibly failing.
 eval { require Errno; import Errno };
+
+BEGIN {
+  if ($^O eq 'VMS' && !defined($Config{d_setenv})) {
+      $ENV{PATH} = $ENV{PATH};
+      $ENV{TERM} = $ENV{TERM} ne ''? $ENV{TERM} : 'dummy';
+  }
+  if ($Config{d_shm} || $Config{d_msg}) {
+     require IPC::SysV;
+     IPC::SysV->import(qw(IPC_PRIVATE IPC_RMID IPC_CREAT S_IRWXU));
+  }
+}
 
 my $Is_VMS = $^O eq 'VMS';
 my $Is_MSWin32 = $^O eq 'MSWin32';
@@ -33,9 +44,9 @@ if ($Is_VMS) {
     }
     eval <<EndOfCleanup;
 	END {
-	    \$ENV{PATH} = '';
+	    \$ENV{PATH} = '' if $Config{d_setenv};
 	    warn "# Note: logical name 'PATH' may have been deleted\n";
-	    @ENV{keys %old} = values %old;
+	    \@ENV{keys %old} = values %old;
 	}
 EndOfCleanup
 }
@@ -87,7 +98,7 @@ print PROG 'print "@ARGV\n"', "\n";
 close PROG;
 my $echo = "$Invoke_Perl $ECHO";
 
-print "1..149\n";
+print "1..151\n";
 
 # First, let's make sure that Perl is checking the dangerous
 # environment variables. Maybe they aren't set yet, so we'll
@@ -130,7 +141,7 @@ print "1..149\n";
     }
     else {
 	$tmp = (grep { defined and -d and (stat _)[2] & 2 }
-		     qw(/tmp /var/tmp /usr/tmp /sys$scratch),
+		     qw(sys$scratch /tmp /var/tmp /usr/tmp),
 		     @ENV{qw(TMP TEMP)})[0]
 	    or print "# can't find world-writeable directory to test PATH\n";
     }
@@ -247,7 +258,8 @@ print "1..149\n";
 
 # Globs should be forbidden, except under VMS,
 #   which doesn't spawn an external program.
-if ($Is_VMS) {
+if (1  # built-in glob
+    or $Is_VMS) {
     for (35..36) { print "ok $_\n"; }
 }
 else {
@@ -383,10 +395,10 @@ else {
 	for (76..79) { print "ok $_ # Skipped: open('|') is not available\n" }
     }
     else {
-	test 76, eval { open FOO, "| $foo" } eq '', 'popen to';
+	test 76, eval { open FOO, "| x$foo" } eq '', 'popen to';
 	test 77, $@ =~ /^Insecure dependency/, $@;
 
-	test 78, eval { open FOO, "$foo |" } eq '', 'popen from';
+	test 78, eval { open FOO, "x$foo |" } eq '', 'popen from';
 	test 79, $@ =~ /^Insecure dependency/, $@;
     }
 
@@ -539,14 +551,14 @@ else {
 	my @getpwent = getpwent();
 	die "getpwent: $!\n" unless (@getpwent);
 	test 142,(    not tainted $getpwent[0]
-	          and not tainted $getpwent[1]
+	          and     tainted $getpwent[1]
 	          and not tainted $getpwent[2]
 	          and not tainted $getpwent[3]
 	          and not tainted $getpwent[4]
 	          and not tainted $getpwent[5]
-	          and     tainted $getpwent[6] # gecos
+	          and     tainted $getpwent[6]		# ge?cos
 	          and not tainted $getpwent[7]
-		  and not tainted $getpwent[8]);
+		  and     tainted $getpwent[8]);	# shell
 	endpwent();
     } else {
 	for (142) { print "ok $_ # Skipped: getpwent() is not available\n" }
@@ -597,3 +609,74 @@ else {
     $why =~ s/e/'-'.$$/ge;
     test 149,     tainted $why;
 }
+
+# test shmread
+{
+    if ($Config{d_shm}) {
+	no strict 'subs';
+	my $sent = "foobar";
+	my $rcvd;
+	my $size = 2000;
+	my $id = shmget(IPC_PRIVATE, $size, S_IRWXU) ||
+	    warn "# shmget failed: $!\n";
+	if (defined $id) {
+	    if (shmwrite($id, $sent, 0, 60)) {
+		if (shmread($id, $rcvd, 0, 60)) {
+		    substr($rcvd, index($rcvd, "\0")) = '';
+		} else {
+		    warn "# shmread failed: $!\n";
+		}
+	    } else {
+		warn "# shmwrite failed: $!\n";
+	    }
+	    shmctl($id, IPC_RMID, 0) || warn "# shmctl failed: $!\n";
+	} else {
+	    warn "# shmget failed: $!\n";
+	}
+
+	if ($rcvd eq $sent) {
+	    test 150, tainted $rcvd;
+	} else {
+	    print "ok 150 # Skipped: SysV shared memory operation failed\n";
+	}
+    } else {
+	print "ok 150 # Skipped: SysV shared memory is not available\n";
+    }
+}
+
+# test msgrcv
+{
+    if ($Config{d_msg}) {
+	no strict 'subs';
+	my $id = msgget(IPC_PRIVATE, IPC_CREAT | S_IRWXU);
+
+	my $sent      = "message";
+	my $type_sent = 1234;
+	my $rcvd;
+	my $type_rcvd;
+
+	if (defined $id) {
+	    if (msgsnd($id, pack("l! a*", $type_sent, $sent), 0)) {
+		if (msgrcv($id, $rcvd, 60, 0, 0)) {
+		    ($type_rcvd, $rcvd) = unpack("l! a*", $rcvd);
+		} else {
+		    warn "# msgrcv failed\n";
+		}
+	    } else {
+		warn "# msgsnd failed\n";
+	    }
+	    msgctl($id, IPC_RMID, 0) || warn "# msgctl failed: $!\n";
+	} else {
+	    warn "# msgget failed\n";
+	}
+
+	if ($rcvd eq $sent && $type_sent == $type_rcvd) {
+	    test 151, tainted $rcvd;
+	} else {
+	    print "ok 151 # Skipped: SysV message queue operation failed\n";
+	}
+    } else {
+	print "ok 151 # Skipped: SysV message queues are not available\n";
+    }
+}
+

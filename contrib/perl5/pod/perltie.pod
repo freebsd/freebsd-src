@@ -184,11 +184,13 @@ methods: TIEARRAY, FETCH, STORE, FETCHSIZE, STORESIZE and perhaps DESTROY.
 
 FETCHSIZE and STORESIZE are used to provide C<$#array> and
 equivalent C<scalar(@array)> access.
-    
-The methods POP, PUSH, SHIFT, UNSHIFT, SPLICE are required if the perl
-operator with the corresponding (but lowercase) name is to operate on the
-tied array. The B<Tie::Array> class can be used as a base class to implement
-these in terms of the basic five methods above.  
+
+The methods POP, PUSH, SHIFT, UNSHIFT, SPLICE, DELETE, and EXISTS are
+required if the perl operator with the corresponding (but lowercase) name
+is to operate on the tied array. The B<Tie::Array> class can be used as a
+base class to implement the first five of these in terms of the basic
+methods above.  The default implementations of DELETE and EXISTS in
+B<Tie::Array> simply C<croak>.
 
 In addition EXTEND will be called when perl would have pre-extended 
 allocation in a real array.
@@ -621,7 +623,9 @@ This is partially implemented now.
 
 A class implementing a tied filehandle should define the following
 methods: TIEHANDLE, at least one of PRINT, PRINTF, WRITE, READLINE, GETC,
-READ, and possibly CLOSE and DESTROY.
+READ, and possibly CLOSE and DESTROY.  The class can also provide: BINMODE, 
+OPEN, EOF, FILENO, SEEK, TELL - if the corresponding perl operators are
+used on the handle.
 
 It is especially useful when perl is embedded in some other program,
 where output to STDOUT and STDERR may have to be redirected in some
@@ -739,6 +743,7 @@ a scalar.
     package Remember;
 
     use strict;
+    use warnings;
     use IO::File;
 
     sub TIESCALAR {
@@ -832,7 +837,7 @@ destructor (DESTROY) is called, which is normal for objects that have
 no more valid references; and thus the file is closed.
 
 In the second example, however, we have stored another reference to
-the tied object in C<$x>.  That means that when untie() gets called
+the tied object in $x.  That means that when untie() gets called
 there will still be a valid reference to the object in existence, so
 the destructor is not called at that time, and thus the file is not
 closed.  The reason there is no output is because the file buffers
@@ -841,7 +846,8 @@ have not been flushed to disk.
 Now that you know what the problem is, what can you do to avoid it?
 Well, the good old C<-w> flag will spot any instances where you call
 untie() and there are still valid references to the tied object.  If
-the second script above is run with the C<-w> flag, Perl prints this
+the second script above this near the top C<use warnings 'untie'>
+or was run with the C<-w> flag, Perl prints this
 warning message:
 
     untie attempted while 1 inner references still exist

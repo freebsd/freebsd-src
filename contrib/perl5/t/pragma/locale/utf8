@@ -1,0 +1,10 @@
+$locales .= <<EOF;
+Català Catalan:ca:es:1 15
+Français French:fr:be ca ch fr lu:1 15
+Gáidhlig Gaelic:gd:gb uk:1 14 15
+Føroyskt Faroese:fo:fo:1 15
+Íslensku Icelandic:is:is:1 15
+Sámi Lappish:::4 6 13
+Português Portuguese:po:po br:1 15
+Espanõl Spanish:es:ar bo cl co cr do ec es gt hn mx ni pa pe py sv uy ve:1 15
+EOF

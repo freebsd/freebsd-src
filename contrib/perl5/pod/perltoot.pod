@@ -111,8 +111,8 @@ by up-casing the hash keys:
         PEERS => [ "Norbert", "Rhys", "Phineas"],
     };
 
-And so you could get at C<$rec-E<gt>{NAME}> to find "Jason", or
-C<@{ $rec-E<gt>{PEERS} }> to get at "Norbert", "Rhys", and "Phineas".
+And so you could get at C<< $rec->{NAME} >> to find "Jason", or
+C<< @{ $rec->{PEERS} } >> to get at "Norbert", "Rhys", and "Phineas".
 (Have you ever noticed how many 23-year-old programmers seem to
 be named "Jason" these days? :-)
 
@@ -329,7 +329,7 @@ do more than fetch or set one particular field.
     sub exclaim {
         my $self = shift;
         return sprintf "Hi, I'm %s, age %d, working with %s",
-            $self->{NAME}, $self->{AGE}, join(", ", $self->{PEERS});
+            $self->{NAME}, $self->{AGE}, join(", ", @{$self->{PEERS}});
     }
 
 Or maybe even one like this:
@@ -542,7 +542,7 @@ and DESTROY methods as follows:
     }
 
 What happens if a derived class (which we'll call Employee) inherits
-methods from this Person base class?  Then C<Employee-E<gt>debug()>, when called
+methods from this Person base class?  Then C<< Employee->debug() >>, when called
 as a class method, manipulates $Person::Debugging not $Employee::Debugging.
 
 =head2 Class Destructors
@@ -816,7 +816,7 @@ What do we mean by the Person::new() function -- isn't that actually
 a method?  Well, in principle, yes.  A method is just a function that
 expects as its first argument a class name (package) or object
 (blessed reference).   Person::new() is the function that both the
-C<Person-E<gt>new()> method and the C<Employee-E<gt>new()> method end
+C<< Person->new() >> method and the C<< Employee->new() >> method end
 up calling.  Understand that while a method call looks a lot like a
 function call, they aren't really quite the same, and if you treat them
 as the same, you'll very soon be left with nothing but broken programs.
@@ -1124,8 +1124,7 @@ it happens when you say
 If you wanted to add version checking to your Person class explained
 above, just add this to Person.pm:
 
-    use vars qw($VERSION);
-    $VERSION = '1.1';
+    our $VERSION = '1.1';
 
 and then in Employee.pm could you can say
 
@@ -1363,7 +1362,7 @@ constructor will look like when taking this approach:
 
     package Person;
     use Carp;
-    use vars qw($AUTOLOAD);  # it's a package global
+    our $AUTOLOAD;  # it's a package global
 
     my %fields = (
 	name        => undef,
@@ -1433,8 +1432,7 @@ Here's how to be careful:
     package Employee;
     use Person;
     use strict;
-    use vars qw(@ISA);
-    @ISA = qw(Person);
+    our @ISA = qw(Person);
 
     my %fields = (
 	id          => undef,
@@ -1560,16 +1558,15 @@ Here's the whole implementation:
 
     BEGIN {
 	use Exporter   ();
-	use vars       qw(@EXPORT @EXPORT_OK %EXPORT_TAGS);
-	@EXPORT      = qw(gethostbyname gethostbyaddr gethost);
-	@EXPORT_OK   = qw(
-			   $h_name         @h_aliases
-			   $h_addrtype     $h_length
-			   @h_addr_list    $h_addr
-		       );
-	%EXPORT_TAGS = ( FIELDS => [ @EXPORT_OK, @EXPORT ] );
+	our @EXPORT      = qw(gethostbyname gethostbyaddr gethost);
+	our @EXPORT_OK   = qw(
+			       $h_name         @h_aliases
+			       $h_addrtype     $h_length
+			       @h_addr_list    $h_addr
+			   );
+	our %EXPORT_TAGS = ( FIELDS => [ @EXPORT_OK, @EXPORT ] );
     }
-    use vars      @EXPORT_OK;
+    our @EXPORT_OK;
 
     # Class::Struct forbids use of @ISA
     sub import { goto &Exporter::import }
@@ -1661,7 +1658,7 @@ update value fields in the hash.  Convenient, eh?
     }
 
     use Alias qw(attr);
-    use vars qw($NAME $AGE $PEERS);
+    our ($NAME, $AGE, $PEERS);
 
     sub name {
 	my $self = attr shift;
@@ -1692,7 +1689,7 @@ update value fields in the hash.  Convenient, eh?
         return ++$AGE;
     }
 
-The need for the C<use vars> declaration is because what Alias does
+The need for the C<our> declaration is because what Alias does
 is play with package globals with the same name as the fields.  To use
 globals while C<use strict> is in effect, you have to predeclare them.
 These package variables are localized to the block enclosing the attr()

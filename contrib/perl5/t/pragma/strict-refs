@@ -196,6 +196,7 @@ ${"Fred"} ;
 require "./abc";
 EXPECT
 Can't use string ("Fred") as a SCALAR ref while "strict refs" in use at ./abc line 2.
+Compilation failed in require at - line 2.
 ########
 
 --FILE-- abc.pm
@@ -207,6 +208,7 @@ my $a = ${"Fred"} ;
 use abc;
 EXPECT
 Can't use string ("Fred") as a SCALAR ref while "strict refs" in use at abc.pm line 2.
+Compilation failed in require at - line 2.
 BEGIN failed--compilation aborted at - line 2.
 ########
 

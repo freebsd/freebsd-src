@@ -1,17 +1,19 @@
 package Test::Harness;
 
-BEGIN {require 5.002;}
+use 5.005_64;
 use Exporter;
 use Benchmark;
 use Config;
 use FileHandle;
 use strict;
 
-use vars qw($VERSION $verbose $switches $have_devel_corestack $curtest
-	    @ISA @EXPORT @EXPORT_OK);
+our($VERSION, $verbose, $switches, $have_devel_corestack, $curtest,
+    @ISA, @EXPORT, @EXPORT_OK);
 $have_devel_corestack = 0;
 
-$VERSION = "1.1602";
+$VERSION = "1.1604";
+
+$ENV{HARNESS_ACTIVE} = 1;
 
 # Some experimental versions of OS/2 build have broken $?
 my $ignore_exitcode = $ENV{HARNESS_IGNORE_EXITCODE};
@@ -62,26 +64,46 @@ sub runtests {
 
     # pass -I flags to children
     my $old5lib = $ENV{PERL5LIB};
-    local($ENV{'PERL5LIB'}) = join($Config{path_sep}, @INC);
 
-    if ($^O eq 'VMS') { $switches =~ s/-(\S*[A-Z]\S*)/"-$1"/g }
+    # VMS has a 255-byte limit on the length of %ENV entries, so
+    # toss the ones that involve perl_root, the install location
+    # for VMS
+    my $new5lib;
+    if ($^O eq 'VMS') {
+	$new5lib = join($Config{path_sep}, grep {!/perl_root/i;} @INC);
+	$switches =~ s/-(\S*[A-Z]\S*)/"-$1"/g;
+    }
+    else {
+        $new5lib = join($Config{path_sep}, @INC);
+    }
+
+    local($ENV{'PERL5LIB'}) = $new5lib;
 
     my @dir_files = globdir $files_in_dir if defined $files_in_dir;
     my $t_start = new Benchmark;
     while ($test = shift(@tests)) {
 	$te = $test;
 	chop($te);
-	if ($^O eq 'VMS') { $te =~ s/^.*\.t\./[.t./; }
-	print "$te" . '.' x (20 - length($te));
+	if ($^O eq 'VMS') { $te =~ s/^.*\.t\./[.t./s; }
+	my $blank = (' ' x 77);
+	my $leader = "$te" . '.' x (20 - length($te));
+	my $ml = "";
+	$ml = "\r$blank\r$leader"
+	    if -t STDOUT and not $ENV{HARNESS_NOTTY} and not $verbose;
+	print $leader;
 	my $fh = new FileHandle;
 	$fh->open($test) or print "can't open $test. $!\n";
 	my $first = <$fh>;
 	my $s = $switches;
-	$s .= q[ "-T"] if $first =~ /^#!.*\bperl.*-\w*T/;
+	$s .= " $ENV{'HARNESS_PERL_SWITCHES'}"
+	    if exists $ENV{'HARNESS_PERL_SWITCHES'};
+	$s .= join " ", q[ "-T"], map {qq["-I$_"]} @INC
+	    if $first =~ /^#!.*\bperl.*-\w*T/;
 	$fh->close or print "can't close $test. $!\n";
-	my $cmd = ($ENV{'COMPILE_TEST'})? 
-"./perl -I../lib ../utils/perlcc $test -run -verbose dcf -log ./compilelog |" 
-															:  "$^X $s $test|";
+	my $cmd = ($ENV{'HARNESS_COMPILE_TEST'})
+		? "./perl -I../lib ../utils/perlcc $test "
+		  . "-run 2>> ./compilelog |" 
+		: "$^X $s $test|";
 	$cmd = "MCR $cmd" if $^O eq 'VMS';
 	$fh->open($cmd) or print "can't run $test. $!\n";
 	$ok = $next = $max = 0;
@@ -89,6 +111,7 @@ sub runtests {
 	my %todo = ();
         my $bonus = 0;
 	my $skipped = 0;
+	my $skip_reason;
 	while (<$fh>) {
 	    if( $verbose ){
 		print $_;
@@ -99,26 +122,39 @@ sub runtests {
 		$totmax += $max;
 		$files++;
 		$next = 1;
-	    } elsif (/^1\.\.([0-9]+)/) {
+	    } elsif (/^1\.\.([0-9]+)(\s*\#\s*[Ss]kip\S*(?>\s+)(.+))?/) {
 		$max = $1;
 		$totmax += $max;
 		$files++;
 		$next = 1;
+		$skip_reason = $3 if not $max and defined $3;
 	    } elsif ($max && /^(not\s+)?ok\b/) {
 		my $this = $next;
 		if (/^not ok\s*(\d*)/){
 		    $this = $1 if $1 > 0;
+		    print "${ml}NOK $this" if $ml;
 		    if (!$todo{$this}) {
 			push @failed, $this;
 		    } else {
 			$ok++;
 			$totok++;
 		    }
-		} elsif (/^ok\s*(\d*)(\s*\#\s*[Ss]kip)?/) {
+		} elsif (/^ok\s*(\d*)(\s*\#\s*[Ss]kip\S*(?:(?>\s+)(.+))?)?/) {
 		    $this = $1 if $1 > 0;
+		    print "${ml}ok $this/$max" if $ml;
 		    $ok++;
 		    $totok++;
 		    $skipped++ if defined $2;
+		    my $reason;
+		    $reason = 'unknown reason' if defined $2;
+		    $reason = $3 if defined $3;
+		    if (defined $reason and defined $skip_reason) {
+		      # print "was: '$skip_reason' new '$reason'\n";
+		      $skip_reason = 'various reasons'
+			if $skip_reason ne $reason;
+		    } elsif (defined $reason) {
+		      $skip_reason = $reason;
+		    }
 		    $bonus++, $totbonus++ if $todo{$this};
 		}
 		if ($this > $next) {
@@ -141,7 +177,7 @@ sub runtests {
 		       : $wstatus >> 8);
 	if ($wstatus) {
 	    my ($failed, $canon, $percent) = ('??', '??');
-	    printf "dubious\n\tTest returned status $estatus (wstat %d, 0x%x)\n",
+	    printf "${ml}dubious\n\tTest returned status $estatus (wstat %d, 0x%x)\n",
 		    $wstatus,$wstatus;
 	    print "\t\t(VMS status is $estatus)\n" if $^O eq 'VMS';
 	    if (corestatus($wstatus)) { # until we have a wait module
@@ -173,16 +209,18 @@ sub runtests {
 	} elsif ($ok == $max && $next == $max+1) {
 	    if ($max and $skipped + $bonus) {
 		my @msg;
-		push(@msg, "$skipped/$max subtest".($skipped>1?'s':'')." skipped")
+		push(@msg, "$skipped/$max skipped: $skip_reason")
 		    if $skipped;
-		push(@msg, "$bonus subtest".($bonus>1?'s':'').
-		     " unexpectedly succeeded")
+		push(@msg, "$bonus/$max unexpectedly succeeded")
 		    if $bonus;
-		print "ok, ".join(', ', @msg)."\n";
+		print "${ml}ok, ".join(', ', @msg)."\n";
 	    } elsif ($max) {
-		print "ok\n";
+		print "${ml}ok\n";
+	    } elsif (defined $skip_reason) {
+		print "skipped: $skip_reason\n";
+		$tests_skipped++;
 	    } else {
-		print "skipping test on this platform\n";
+		print "skipped test on this platform\n";
 		$tests_skipped++;
 	    }
 	    $good++;
@@ -243,14 +281,17 @@ sub runtests {
 	       " UNEXPECTEDLY SUCCEEDED)")
 	if $totbonus;
     if ($tests_skipped) {
-	$bonusmsg .= ", $tests_skipped test" . ($tests_skipped != 1 ? 's' : '') .
-			' skipped';
+	$bonusmsg .= ", $tests_skipped test" . ($tests_skipped != 1 ? 's' : '');
+	if ($subtests_skipped) {
+	    $bonusmsg .= " and $subtests_skipped subtest"
+			 . ($subtests_skipped != 1 ? 's' : '');
+	}
+	$bonusmsg .= ' skipped';
     }
-    if ($subtests_skipped) {
-	$bonusmsg .= ($tests_skipped ? ', plus ' : ', '). 
-			"$subtests_skipped subtest"
-			. ($subtests_skipped != 1 ? 's' : '') .
-			" skipped";
+    elsif ($subtests_skipped) {
+	$bonusmsg .= ", $subtests_skipped subtest"
+	             . ($subtests_skipped != 1 ? 's' : '')
+		     . " skipped";
     }
     if ($bad == 0 && $totmax) {
 	print "All tests successful$bonusmsg.\n";
@@ -274,7 +315,7 @@ sub runtests {
 	    die "Failed $bad/$total test scripts, $pct% okay.$subpct\n";
 	}
     }
-    printf("Files=%d,  Tests=%d, %s\n", $files, $totmax, timestr($t_total, 'nop'));
+    printf("Files=%d, Tests=%d, %s\n", $files, $totmax, timestr($t_total, 'nop'));
 
     return ($bad == 0 && $totmax) ;
 }
@@ -408,6 +449,12 @@ variations in spacing and case) after C<ok> or C<ok NUMBER>, it is
 counted as a skipped test.  If the whole testscript succeeds, the
 count of skipped tests is included in the generated output.
 
+C<Test::Harness> reports the text after C< # Skip(whatever)> as a
+reason for skipping.  Similarly, one can include a similar explanation
+in a C<1..0> line emitted if the test is skipped completely:
+
+  1..0 # Skipped: no leverage found
+
 =head1 EXPORT
 
 C<&runtests> is exported by Test::Harness per default.
@@ -445,6 +492,15 @@ above messages.
 Setting C<HARNESS_IGNORE_EXITCODE> makes harness ignore the exit status
 of child processes.
 
+Setting C<HARNESS_NOTTY> to a true value forces it to behave as though
+STDOUT were not a console.  You may need to set this if you don't want
+harness to output more frequent progress messages using carriage returns.
+Some consoles may not handle carriage returns properly (which results
+in a somewhat messy output).
+
+Setting C<HARNESS_COMPILE_TEST> to a true value will make harness attempt
+to compile the test using C<perlcc> before running it.
+
 If C<HARNESS_FILELEAK_IN_DIR> is set to the name of a directory, harness
 will check after each test whether new files appeared in that directory,
 and report them as
@@ -454,6 +510,15 @@ and report them as
 If relative, directory name is with respect to the current directory at
 the moment runtests() was called.  Putting absolute path into 
 C<HARNESS_FILELEAK_IN_DIR> may give more predicatable results.
+
+The value of C<HARNESS_PERL_SWITCHES> will be prepended to the
+switches used to invoke perl on each test.  For example, setting
+C<HARNESS_PERL_SWITCHES> to "-W" will run all tests with all
+warnings enabled.
+
+Harness sets C<HARNESS_ACTIVE> before executing the individual tests.
+This allows the tests to determine if they are being executed through the
+harness or by any other means.
 
 =head1 SEE ALSO
 

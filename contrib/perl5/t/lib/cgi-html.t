@@ -5,18 +5,20 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib' if -d '../lib';
+    unshift @INC, '../lib' if -d '../lib';
+    require Config; import Config;
 }
 
 BEGIN {$| = 1; print "1..20\n"; }
-BEGIN {$eol = $^O eq 'VMS' ? "\n" : "\cM\cJ";
-       $eol = "\r\n" if $^O eq 'os390'; }
 END {print "not ok 1\n" unless $loaded;}
 use CGI (':standard','-no_debug','*h3','start_table');
 $loaded = 1;
 print "ok 1\n";
 
 ######################### End of black magic.
+
+my $Is_EBCDIC = $Config{'ebcdic'} eq 'define';
+my $crlf = $CGI::CRLF;
 
 # util
 sub test {
@@ -38,10 +40,11 @@ test(7,h1({-align=>'CENTER'},['fred','agnes']) eq
     local($") = '-'; 
     test(8,h1('fred','agnes','maura') eq '<H1>fred-agnes-maura</H1>',"open/close tag \$\" interpolation");
 }
-test(9,header() eq "Content-Type: text/html${eol}${eol}","header()");
-test(10,header(-type=>'image/gif') eq "Content-Type: image/gif${eol}${eol}","header()");
-test(11,header(-type=>'image/gif',-status=>'500 Sucks') eq "Status: 500 Sucks${eol}Content-Type: image/gif${eol}${eol}","header()");
-test(12,header(-nph=>1) eq "HTTP/1.0 200 OK${eol}Content-Type: text/html${eol}${eol}","header()");
+
+test(9,header() eq "Content-Type: text/html$crlf$crlf","header()");
+test(10,header(-type=>'image/gif') eq "Content-Type: image/gif$crlf$crlf","header()");
+test(11,header(-type=>'image/gif',-status=>'500 Sucks') eq "Status: 500 Sucks${crlf}Content-Type: image/gif$crlf$crlf","header()");
+test(12,header(-nph=>1) eq "HTTP/1.0 200 OK${crlf}Content-Type: text/html$crlf$crlf","header()");
 test(13,start_html() ."\n" eq <<END,"start_html()");
 <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
 <HTML><HEAD><TITLE>Untitled Document</TITLE>
@@ -62,8 +65,11 @@ END
     ;
 test(16,($cookie=cookie(-name=>'fred',-value=>['chocolate','chip'],-path=>'/')) eq 
      'fred=chocolate&chip; path=/',"cookie()");
-test(17,header(-Cookie=>$cookie) =~ m!^Set-Cookie: fred=chocolate&chip\; path=/${eol}Date:.*${eol}Content-Type: text/html${eol}${eol}!s,
+test(17,header(-Cookie=>$cookie) =~ m!^Set-Cookie: fred=chocolate&chip\; path=/${crlf}Date:.*${crlf}Content-Type: text/html$crlf$crlf!s,
      "header(-cookie)");
 test(18,start_h3 eq '<H3>');
 test(19,end_h3 eq '</H3>');
 test(20,start_table({-border=>undef}) eq '<TABLE BORDER>');
+
+
+

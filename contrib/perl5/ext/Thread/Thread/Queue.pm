@@ -67,15 +67,13 @@ sub new {
     return bless [@_], $class;
 }
 
-sub dequeue {
-    use attrs qw(locked method);
+sub dequeue : locked : method {
     my $q = shift;
     cond_wait $q until @$q;
     return shift @$q;
 }
 
-sub dequeue_nb {
-  use attrs qw(locked method);
+sub dequeue_nb : locked : method {
   my $q = shift;
   if (@$q) {
     return shift @$q;
@@ -84,14 +82,12 @@ sub dequeue_nb {
   }
 }
 
-sub enqueue {
-    use attrs qw(locked method);
+sub enqueue : locked : method {
     my $q = shift;
     push(@$q, @_) and cond_broadcast $q;
 }
 
-sub pending {
-  use attrs qw(locked method);
+sub pending : locked : method {
   my $q = shift;
   return scalar(@$q);
 }

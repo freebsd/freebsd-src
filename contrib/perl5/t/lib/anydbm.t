@@ -4,13 +4,16 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib';
+    unshift @INC, '../lib';
 }
 require AnyDBM_File;
 #If Fcntl is not available, try 0x202 or 0x102 for O_RDWR|O_CREAT
 use Fcntl;
 
 print "1..12\n";
+
+$Is_Dosish = ($^O eq 'amigaos' || $^O eq 'MSWin32' or $^O eq 'dos' or
+	      $^O eq 'os2' or $^O eq 'mint');
 
 unlink <Op_dbmx*>;
 
@@ -22,7 +25,7 @@ $Dfile = "Op_dbmx.pag";
 if (! -e $Dfile) {
 	($Dfile) = <Op_dbmx*>;
 }
-if ($^O eq 'amigaos' || $^O eq 'os2' || $^O eq 'MSWin32' || $^O eq 'dos') {
+if ($Is_Dosish) {
     print "ok 2 # Skipped: different file permission semantics\n";
 }
 else {
@@ -115,7 +118,30 @@ print ($size > 0 ? "ok 9\n" : "not ok 9\n");
 print join(':',200..400) eq join(':',@foo) ? "ok 10\n" : "not ok 10\n";
 
 print ($h{'foo'} eq '' ? "ok 11\n" : "not ok 11\n");
-print ($h{''} eq 'bar' ? "ok 12\n" : "not ok 12\n");
+if ($h{''} eq 'bar') {
+   print "ok 12\n" ;
+}
+else {
+   if ($AnyDBM_File::ISA[0] eq 'DB_File' && $DB_File::db_ver >= 2.004010) {
+     ($major, $minor, $patch) = ($DB_File::db_ver =~ /^(\d+)\.(\d\d\d)(\d\d\d)/) ;
+     $major =~ s/^0+// ;
+     $minor =~ s/^0+// ;
+     $patch =~ s/^0+// ;
+     $compact = "$major.$minor.$patch" ;
+     #
+     # anydbm.t test 12 will fail when AnyDBM_File uses the combination of
+     # DB_File and Berkeley DB 2.4.10 (or greater). 
+     # You are using DB_File $DB_File::VERSION and Berkeley DB $compact
+     #
+     # Berkeley DB 2 from version 2.4.10 onwards does not allow null keys.
+     # This feature will be reenabled in a future version of Berkeley DB.
+     #
+     print "ok 12 # skipped: db v$compact, no null key support\n" ;
+   }
+   else {
+     print "not ok 12\n" ;
+   }
+}
 
 untie %h;
 if ($^O eq 'VMS') {

@@ -42,12 +42,14 @@ INST_STATIC = libsdbm$(LIB_EXT)
 }
 
 sub MY::top_targets {
+    my $noecho = shift->{NOECHO};
+    
     my $r = '
 all :: static
-	$(NOECHO) $(NOOP)
+	' . $noecho . '$(NOOP)
 
 config ::
-	$(NOECHO) $(NOOP)
+	' . $noecho . '$(NOOP)
 
 lint:
 	lint -abchx $(LIBSRCS)
@@ -58,7 +60,7 @@ lint:
 # variables into the environment so $(MYEXTLIB) is set in here to this
 # value which can not be built.
 sdbm/libsdbm.a:
-	$(NOECHO) $(NOOP)
+	' . $noecho . '$(NOOP)
 ' unless $^O eq 'VMS';
 
     return $r;
