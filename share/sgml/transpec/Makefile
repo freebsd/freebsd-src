@@ -1,8 +1,7 @@
-#	$Id$
+#	$Id: Makefile,v 1.4 1997/02/22 13:56:25 peter Exp $
 
 FILES=	roff.cmap roff.sdata linuxdoc-roff.ts
 FILES+= html.cmap html.sdata linuxdoc-html.ts
-FILES+= latex.cmap latex.sdata linuxdoc-latex.ts
 FILES+=	docbook-html.ts
 FILES+= transpec.dtd
 NOOBJ=	noobj
