@@ -36,11 +36,50 @@ and a character-special device
 interface.
 .Pp
 The network interfaces are named
-.Sy tap Ns Ar 0 ,
-.Sy tap Ns Ar 1 ,
-etc, as many as were made by
-.Xr MAKEDEV 8 .
-Each one supports the usual Ethernet network-interface
+.Dq Li tap0 ,
+.Dq Li tap1 ,
+etc., one for each control device that has been opened.
+These Ethernet network interfaces persist until
+.Pa if_tap.ko
+module is unloaded (if
+.Nm
+is built into your kernel, the network interfaces can not be removed).
+.Pp
+On older systems without
+.Xr devfs 5
+support,
+.Xr MAKEDEV 8
+should be used to create the initial control devices and the task
+of locating an unused device is left up to the opener (a
+.Nm
+device is usually obtained by attempting to open
+.Pa /dev/tap0 ,
+and if that fails
+.Pa /dev/tap1
+etc., until an
+.Va errno
+of
+.Er EBUSY
+is not received).
+.Pp
+On systems with
+.Xr devfs 5
+support,
+.Nm
+permits opens on the special control device
+.Pa /dev/tap .
+When this device is opened,
+.Nm
+will return a handle for the lowest unused
+.Nm
+device (use
+.Xr devname 3
+to determine which).
+Control devices (once successfully opened) persist until
+.Pa if_tap.ko
+is unloaded in the same way that network interfaces persist (see above).
+.Pp
+Each interface supports the usual Ethernet network interface
 .Xr ioctl 2 Ns s ,
 such as
 .Dv SIOCSIFADDR
@@ -199,7 +238,7 @@ to select between
 and
 .Nm vmnet
 devices. VMnet minor numbers begin at
-.Va 0x10000
+.Va 0x800000
 +
 .Va N .
 Where

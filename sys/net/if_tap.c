@@ -54,6 +54,9 @@
 #include <sys/ttycom.h>
 #include <sys/uio.h>
 #include <sys/vnode.h>
+#include <machine/bus.h>	/* XXX: Shouldn't really be required! */
+#include <sys/rman.h>
+#include <sys/queue.h>
 
 #include <net/bpf.h>
 #include <net/ethernet.h>
@@ -73,7 +76,9 @@
 
 #define TAP		"tap"
 #define VMNET		"vmnet"
-#define VMNET_DEV_MASK	0x00010000
+#define TAPMAXUNIT	0x7fff
+#define VMNET_DEV_MASK	0x00800000
+		/*	0x007f00ff	*/
 
 /* module */
 static int 		tapmodevent	__P((module_t, int, void *));
@@ -111,9 +116,12 @@ static struct cdevsw	tap_cdevsw = {
 	/* flags */	0,
 };
 
-static int		taprefcnt = 0;		/* module ref. counter   */
-static int		taplastunit = -1;	/* max. open unit number */
-static int		tapdebug = 0;		/* debug flag            */
+static int			tapdebug = 0;        /* debug flag   */
+static SLIST_HEAD(, tap_softc)	taphead;             /* first device */
+static udev_t			tapbasedev = NOUDEV; /* base device  */
+static struct rman		tapdevunits[2];      /* device units */
+#define		tapunits	tapdevunits
+#define		vmnetunits	(tapdevunits + 1)
 
 MALLOC_DECLARE(M_TAP);
 MALLOC_DEFINE(M_TAP, CDEV_NAME, "Ethernet tunnel interface");
@@ -131,61 +139,100 @@ tapmodevent(mod, type, data)
 	int		 type;
 	void		*data;
 {
-	static int		attached = 0;
-	static eventhandler_tag	eh_tag = NULL;
+	static eventhandler_tag	 eh_tag = NULL;
+	struct tap_softc	*tp = NULL;
+	struct ifnet		*ifp = NULL;
+	int			 error, s;
 
 	switch (type) {
 	case MOD_LOAD:
-		if (attached)
-			return (EEXIST);
+		/* initialize resources */
+		tapunits->rm_type = RMAN_ARRAY;
+		tapunits->rm_descr = "open tap units";
+		vmnetunits->rm_type = RMAN_ARRAY;
+		vmnetunits->rm_descr = "open vmnet units";
+
+		error = rman_init(tapunits);
+		if (error != 0)
+			goto bail;
+
+		error = rman_init(vmnetunits);
+		if (error != 0)
+			goto bail1;
+
+		error = rman_manage_region(tapunits, 0, TAPMAXUNIT);
+		if (error != 0)
+			goto bail2;
+
+		error = rman_manage_region(vmnetunits, 0, TAPMAXUNIT);
+		if (error != 0)
+			goto bail2;
+
+		/* intitialize device */
+
+		SLIST_INIT(&taphead);
 
 		eh_tag = EVENTHANDLER_REGISTER(dev_clone, tapclone, 0, 1000);
-		cdevsw_add(&tap_cdevsw);
-		attached = 1;
-	break;
-
-	case MOD_UNLOAD: {
-		int	unit;
-
-		if (taprefcnt > 0)
-			return (EBUSY);
-
-		EVENTHANDLER_DEREGISTER(dev_clone, eh_tag);
-		cdevsw_remove(&tap_cdevsw);
-
-		unit = 0;
-		while (unit <= taplastunit) {
-			int		 s;
-			struct ifnet	*ifp = NULL;
-
-			s = splimp();
-			TAILQ_FOREACH(ifp, &ifnet, if_link)
-				if ((strcmp(ifp->if_name, TAP) == 0) ||
-				    (strcmp(ifp->if_name, VMNET) == 0))
-					if (ifp->if_unit == unit)
-						break;
-			splx(s);
-
-			if (ifp != NULL) {
-				struct tap_softc	*tp = ifp->if_softc;
-
-				TAPDEBUG("detaching %s%d. minor = %#x, " \
-					"taplastunit = %d\n",
-					ifp->if_name, unit, minor(tp->tap_dev),
-					taplastunit);
-
-				s = splimp();
-				ether_ifdetach(ifp, 1);
-				splx(s);
-				destroy_dev(tp->tap_dev);
-				FREE(tp, M_TAP);
-			}
-			else
-				unit ++;
+		if (eh_tag == NULL) {
+			error = ENOMEM;
+			goto bail2;
 		}
 
-		attached = 0;
-	} break;
+		if (!devfs_present) {
+			error = cdevsw_add(&tap_cdevsw);
+			if (error != 0) {
+				EVENTHANDLER_DEREGISTER(dev_clone, eh_tag);
+				goto bail2;
+			}
+		}
+
+		return (0);
+bail2:
+		rman_fini(vmnetunits);
+bail1:
+		rman_fini(tapunits);
+bail:
+		return (error);
+
+	case MOD_UNLOAD:
+		SLIST_FOREACH(tp, &taphead, tap_next)
+			if (tp->tap_unit != NULL)
+				return (EBUSY);
+
+		EVENTHANDLER_DEREGISTER(dev_clone, eh_tag);
+
+		error = rman_fini(tapunits);
+		KASSERT((error == 0), ("Could not fini tap units"));
+		error = rman_fini(vmnetunits);
+		KASSERT((error == 0), ("Could not fini vmnet units"));
+
+		while ((tp = SLIST_FIRST(&taphead)) != NULL) {
+			SLIST_REMOVE_HEAD(&taphead, tap_next);
+
+			ifp = &tp->tap_if;
+
+			TAPDEBUG("detaching %s%d\n", ifp->if_name,ifp->if_unit);
+
+			KASSERT(!(tp->tap_flags & TAP_OPEN), 
+				("%s%d flags is out of sync", ifp->if_name, 
+				ifp->if_unit));
+
+			/* XXX makedev check? nah.. not right now :) */
+
+			s = splimp();
+			ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+			splx(s);
+
+			FREE(tp, M_TAP);
+		}
+
+ 		if (tapbasedev != NOUDEV)
+			destroy_dev(udev2dev(tapbasedev, 0));
+
+                if (!devfs_present)
+                        cdevsw_remove(&tap_cdevsw);
+
+		break;
 
 	default:
 		return (EOPNOTSUPP);
@@ -207,26 +254,66 @@ tapclone(arg, name, namelen, dev)
 	int	 namelen;
 	dev_t	*dev;
 {
-	int	 unit, minor;
-	char	*device_name = NULL;
+	int		 unit, minor = 0 /* XXX avoid warning */ , error;
+	char		*device_name = name;
+	struct resource	*r = NULL;
 
 	if (*dev != NODEV)
 		return;
 
-	device_name = TAP;
-	if (dev_stdclone(name, NULL, device_name, &unit) != 1) {
-		device_name = VMNET;
-
-		if (dev_stdclone(name, NULL, device_name, &unit) != 1)
-			return;
-
-		minor = unit2minor(unit |  VMNET_DEV_MASK);
-	}
-	else
+	if (strcmp(device_name, TAP) == 0) {
+		/* get first free tap unit */
+		r = rman_reserve_resource(tapunits, 0, TAPMAXUNIT, 1, 
+			RF_ALLOCATED | RF_ACTIVE, NULL);
+		unit = rman_get_start(r);
 		minor = unit2minor(unit);
+	}
+	else if (strcmp(device_name, VMNET) == 0) {
+		/* get first free vmnet unit */
+		r = rman_reserve_resource(vmnetunits, 0, TAPMAXUNIT, 1, 
+			RF_ALLOCATED | RF_ACTIVE, NULL);
+		unit = rman_get_start(r);
+		minor = unit2minor(unit) | VMNET_DEV_MASK;
+	}
+
+	if (r != NULL) { /* need cloning */
+		TAPDEBUG("%s%d is available. minor = %#x\n",
+			device_name, unit, minor);
+
+		error = rman_release_resource(r);
+		KASSERT((error == 0), ("Could not release tap/vmnet unit"));
+
+		/* check if device for the unit has been created */
+		*dev = makedev(CDEV_MAJOR, minor);
+		if ((*dev)->si_flags & SI_NAMED) {
+			TAPDEBUG("%s%d device exists. minor = %#x\n", 
+				device_name, unit, minor);
+			return; /* device has been created */
+		}
+	} else { /* try to match name/unit, first try tap then vmnet */
+		device_name = TAP;
+		if (dev_stdclone(name, NULL, device_name, &unit) != 1) {
+			device_name = VMNET;
+
+			if (dev_stdclone(name, NULL, device_name, &unit) != 1)
+				return;
+
+			minor = unit2minor(unit) | VMNET_DEV_MASK;
+		} else
+			minor = unit2minor(unit);
+	}
+
+	TAPDEBUG("make_dev(%s%d). minor = %#x\n", device_name, unit, minor);
 
 	*dev = make_dev(&tap_cdevsw, minor, UID_ROOT, GID_WHEEL, 0600, "%s%d",
 			device_name, unit);
+
+	if (tapbasedev == NOUDEV)
+		tapbasedev = (*dev)->si_udev;
+	else {
+		(*dev)->si_flags |= SI_CHEAPCLONE;
+		dev_depends(udev2dev(tapbasedev, 0), *dev);
+	}
 } /* tapclone */
 
 
@@ -247,21 +334,22 @@ tapcreate(dev)
 
 	/* allocate driver storage and create device */
 	MALLOC(tp, struct tap_softc *, sizeof(*tp), M_TAP, M_WAITOK | M_ZERO);
+	SLIST_INSERT_HEAD(&taphead, tp, tap_next);
+
+	unit = dev2unit(dev) & TAPMAXUNIT;
 
 	/* select device: tap or vmnet */
 	if (minor(dev) & VMNET_DEV_MASK) {
 		name = VMNET;
-		unit = dev2unit(dev) & 0xff;
 		tp->tap_flags |= TAP_VMNET;
-	}
-	else {
+	} else
 		name = TAP;
-		unit = dev2unit(dev);
-	}
 
-	tp->tap_dev = make_dev(&tap_cdevsw, minor(dev), UID_ROOT, GID_WHEEL, 
+	TAPDEBUG("tapcreate(%s%d). minor = %#x\n", name, unit, minor(dev));
+
+	if (!(dev->si_flags & SI_NAMED))
+		dev = make_dev(&tap_cdevsw, minor(dev), UID_ROOT, GID_WHEEL, 
 						0600, "%s%d", name, unit);
-	tp->tap_dev->si_drv1 = dev->si_drv1 = tp;
 
 	/* generate fake MAC address: 00 bd xx xx xx unit_no */
 	macaddr_hi = htons(0x00bd);
@@ -272,11 +360,7 @@ tapcreate(dev)
 	/* fill the rest and attach interface */	
 	ifp = &tp->tap_if;
 	ifp->if_softc = tp;
-
 	ifp->if_unit = unit;
-	if (unit > taplastunit)
-		taplastunit = unit;
-
 	ifp->if_name = name;
 	ifp->if_init = tapifinit;
 	ifp->if_output = ether_output;
@@ -286,14 +370,16 @@ tapcreate(dev)
 	ifp->if_flags = (IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST);
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 
+	dev->si_drv1 = tp;
+
 	s = splimp();
-	ether_ifattach(ifp, 1);
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 	splx(s);
 
 	tp->tap_flags |= TAP_INITED;
 
-	TAPDEBUG("interface %s%d created. minor = %#x\n",
-			ifp->if_name, ifp->if_unit, minor(tp->tap_dev));
+	TAPDEBUG("interface %s%d is created. minor = %#x\n", 
+		ifp->if_name, ifp->if_unit, minor(dev));
 } /* tapcreate */
 
 
@@ -310,10 +396,25 @@ tapopen(dev, flag, mode, p)
 	struct proc	*p;
 {
 	struct tap_softc	*tp = NULL;
-	int			 error;
+	int			 unit, error;
+	struct resource		*r = NULL;
 
 	if ((error = suser(p)) != 0)
 		return (error);
+
+	unit = dev2unit(dev) & TAPMAXUNIT;
+
+	if (minor(dev) & VMNET_DEV_MASK)
+		r = rman_reserve_resource(vmnetunits, unit, unit, 1, 
+			RF_ALLOCATED | RF_ACTIVE, NULL);
+	else
+		r = rman_reserve_resource(tapunits, unit, unit, 1, 
+			RF_ALLOCATED | RF_ACTIVE, NULL);
+
+	if (r == NULL)
+		return (EBUSY);
+
+	dev->si_flags &= ~SI_CHEAPCLONE;
 
 	tp = dev->si_drv1;
 	if (tp == NULL) {
@@ -321,18 +422,17 @@ tapopen(dev, flag, mode, p)
 		tp = dev->si_drv1;
 	}
 
-	if (tp->tap_flags & TAP_OPEN)
-		return (EBUSY);
+	KASSERT(!(tp->tap_flags & TAP_OPEN), 
+		("%s%d flags is out of sync", tp->tap_if.if_name, unit));
 
 	bcopy(tp->arpcom.ac_enaddr, tp->ether_addr, sizeof(tp->ether_addr));
 
+	tp->tap_unit = r;
 	tp->tap_pid = p->p_pid;
 	tp->tap_flags |= TAP_OPEN;
-	taprefcnt ++;
 
-	TAPDEBUG("%s%d is open. minor = %#x, refcnt = %d, taplastunit = %d\n",
-		tp->tap_if.if_name, tp->tap_if.if_unit,
-		minor(tp->tap_dev), taprefcnt, taplastunit);
+	TAPDEBUG("%s%d is open. minor = %#x\n", 
+		tp->tap_if.if_name, unit, minor(dev));
 
 	return (0);
 } /* tapopen */
@@ -350,20 +450,15 @@ tapclose(dev, foo, bar, p)
 	int		 bar;
 	struct proc	*p;
 {
-	int			 s;
+	int			 s, error;
 	struct tap_softc	*tp = dev->si_drv1;
 	struct ifnet		*ifp = &tp->tap_if;
-	struct mbuf		*m = NULL;
+
+	KASSERT((tp->tap_unit != NULL), 
+		("%s%d is not open", ifp->if_name, ifp->if_unit));
 
 	/* junk all pending output */
-
-	s = splimp();
-	do {
-		IF_DEQUEUE(&ifp->if_snd, m);
-		if (m != NULL)
-			m_freem(m);
-	} while (m != NULL);
-	splx(s);
+	IF_DRAIN(&ifp->if_snd);
 
 	/*
 	 * do not bring the interface down, and do not anything with
@@ -401,18 +496,13 @@ tapclose(dev, foo, bar, p)
 
 	tp->tap_flags &= ~TAP_OPEN;
 	tp->tap_pid = 0;
+	error = rman_release_resource(tp->tap_unit);
+	KASSERT((error == 0), 
+		("%s%d could not release unit", ifp->if_name, ifp->if_unit)); 
+	tp->tap_unit = NULL;
 
-	taprefcnt --;
-	if (taprefcnt < 0) {
-		taprefcnt = 0;
-		printf("%s%d minor = %#x, refcnt = %d is out of sync. " \
-			"set refcnt to 0\n", ifp->if_name, ifp->if_unit, 
-			minor(tp->tap_dev), taprefcnt);
-	}
-
-	TAPDEBUG("%s%d is closed. minor = %#x, refcnt = %d, taplastunit = %d\n",
-			ifp->if_name, ifp->if_unit, minor(tp->tap_dev),
-			taprefcnt, taplastunit);
+	TAPDEBUG("%s%d is closed. minor = %#x\n", 
+		ifp->if_name, ifp->if_unit, minor(dev));
 
 	return (0);
 } /* tapclose */
@@ -430,8 +520,7 @@ tapifinit(xtp)
 	struct tap_softc	*tp = (struct tap_softc *)xtp;
 	struct ifnet		*ifp = &tp->tap_if;
 
-	TAPDEBUG("initializing %s%d, minor = %#x\n",
-			ifp->if_name, ifp->if_unit, minor(tp->tap_dev));
+	TAPDEBUG("initializing %s%d\n", ifp->if_name, ifp->if_unit);
 
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
@@ -468,7 +557,7 @@ tapifioctl(ifp, cmd, data)
 		case SIOCSIFFLAGS: /* XXX -- just like vmnet does */
 		case SIOCADDMULTI:
 		case SIOCDELMULTI:
-		break;
+			break;
 
 		case SIOCGIFSTATUS:
 			s = splimp();
@@ -479,7 +568,7 @@ tapifioctl(ifp, cmd, data)
 					sizeof(ifs->ascii) - dummy,
 					"\tOpened by PID %d\n", tp->tap_pid);
 			splx(s);
-		break;
+			break;
 
 		default:
 			return (EINVAL);
@@ -501,8 +590,7 @@ tapifstart(ifp)
 	struct tap_softc	*tp = ifp->if_softc;
 	int			 s;
 
-	TAPDEBUG("%s%d starting, minor = %#x\n", 
-			ifp->if_name, ifp->if_unit, minor(tp->tap_dev));
+	TAPDEBUG("%s%d starting\n", ifp->if_name, ifp->if_unit);
 
 	/*
 	 * do not junk pending output if we are in VMnet mode.
@@ -513,9 +601,8 @@ tapifstart(ifp)
 	    ((tp->tap_flags & TAP_READY) != TAP_READY)) {
 		struct mbuf	*m = NULL;
 
-		TAPDEBUG("%s%d not ready. minor = %#x, tap_flags = 0x%x\n",
-			ifp->if_name, ifp->if_unit,
-			minor(tp->tap_dev), tp->tap_flags);
+		TAPDEBUG("%s%d not ready, tap_flags = 0x%x\n", ifp->if_name, 
+			ifp->if_unit, tp->tap_flags);
 
 		s = splimp();
 		do {
@@ -567,6 +654,7 @@ tapioctl(dev, cmd, data, flag, p)
 	struct ifnet		*ifp = &tp->tap_if;
  	struct tapinfo		*tapp = NULL;
 	int			 s;
+	short			 f;
 
 	switch (cmd) {
  		case TAPSIFINFO:
@@ -576,25 +664,25 @@ tapioctl(dev, cmd, data, flag, p)
  			ifp->if_type = tapp->type;
  			ifp->if_baudrate = tapp->baudrate;
 			splx(s);
- 		break;
+ 			break;
 
 	 	case TAPGIFINFO:
  			tapp = (struct tapinfo *)data;
  			tapp->mtu = ifp->if_mtu;
  			tapp->type = ifp->if_type;
  			tapp->baudrate = ifp->if_baudrate;
- 		break;
+ 			break;
 
 		case TAPSDEBUG:
 			tapdebug = *(int *)data;
-		break;
+			break;
 
 		case TAPGDEBUG:
 			*(int *)data = tapdebug;
-		break;
+			break;
 
 		case FIONBIO:
-		break;
+			break;
 
 		case FIOASYNC:
 			s = splimp();
@@ -603,7 +691,7 @@ tapioctl(dev, cmd, data, flag, p)
 			else
 				tp->tap_flags &= ~TAP_ASYNC;
 			splx(s);
-		break;
+			break;
 
 		case FIONREAD:
 			s = splimp();
@@ -612,11 +700,10 @@ tapioctl(dev, cmd, data, flag, p)
 
 				for(*(int *)data = 0;mb != NULL;mb = mb->m_next)
 					*(int *)data += mb->m_len;
-			} 
-			else
+			} else
 				*(int *)data = 0;
 			splx(s);
-		break;
+			break;
 
 		case FIOSETOWN:
 			return (fsetown(*(int *)data, &tp->tap_sigio));
@@ -638,11 +725,10 @@ tapioctl(dev, cmd, data, flag, p)
 
 		case SIOCGIFFLAGS:	/* get ifnet flags */
 			bcopy(&ifp->if_flags, data, sizeof(ifp->if_flags));
-		break;
+			break;
 
-		case VMIO_SIOCSIFFLAGS: { /* VMware/VMnet SIOCSIFFLAGS */
-			short	f = *(short *)data;
-
+		case VMIO_SIOCSIFFLAGS: /* VMware/VMnet SIOCSIFFLAGS */
+			f = *(short *)data;
 			f &= 0x0fff;
 			f &= ~IFF_CANTCHANGE;
 			f |= IFF_UP;
@@ -650,16 +736,16 @@ tapioctl(dev, cmd, data, flag, p)
 			s = splimp();
 			ifp->if_flags = f | (ifp->if_flags & IFF_CANTCHANGE);
 			splx(s);
-		} break;
+			break;
 
 		case OSIOCGIFADDR:	/* get MAC address of the remote side */
 		case SIOCGIFADDR:
 			bcopy(tp->ether_addr, data, sizeof(tp->ether_addr));
-		break;
+			break;
 
 		case SIOCSIFADDR:	/* set MAC address of the remote side */
 			bcopy(data, tp->ether_addr, sizeof(tp->ether_addr));
-		break;
+			break;
 
 		default:
 			return (ENOTTY);
@@ -685,13 +771,12 @@ tapread(dev, uio, flag)
 	struct mbuf		*m = NULL, *m0 = NULL;
 	int			 error = 0, len, s;
 
-	TAPDEBUG("%s%d reading, minor = %#x\n",
-			ifp->if_name, ifp->if_unit, minor(tp->tap_dev));
+	TAPDEBUG("%s%d reading, minor = %#x\n", 
+		ifp->if_name, ifp->if_unit, minor(dev));
 
 	if ((tp->tap_flags & TAP_READY) != TAP_READY) {
 		TAPDEBUG("%s%d not ready. minor = %#x, tap_flags = 0x%x\n",
-				ifp->if_name, ifp->if_unit, 
-				minor(tp->tap_dev), tp->tap_flags);
+			ifp->if_name, ifp->if_unit, minor(dev), tp->tap_flags);
 
 		return (EHOSTDOWN);
 	}
@@ -731,8 +816,8 @@ tapread(dev, uio, flag)
 	}
 
 	if (m0 != NULL) {
-		TAPDEBUG("%s%d dropping mbuf, minor = %#x\n",
-				ifp->if_name, ifp->if_unit, minor(tp->tap_dev));
+		TAPDEBUG("%s%d dropping mbuf, minor = %#x\n", ifp->if_name, 
+			ifp->if_unit, minor(dev));
 		m_freem(m0);
 	}
 
@@ -757,16 +842,15 @@ tapwrite(dev, uio, flag)
 	struct ether_header	*eh = NULL;
 	int		 	 error = 0, tlen, mlen;
 
-	TAPDEBUG("%s%d writting, minor = %#x\n",
-				ifp->if_name, ifp->if_unit, minor(tp->tap_dev));
+	TAPDEBUG("%s%d writting, minor = %#x\n", 
+		ifp->if_name, ifp->if_unit, minor(dev));
 
 	if (uio->uio_resid == 0)
 		return (0);
 
 	if ((uio->uio_resid < 0) || (uio->uio_resid > TAPMRU)) {
 		TAPDEBUG("%s%d invalid packet len = %d, minor = %#x\n",
-				ifp->if_name, ifp->if_unit, 
-				uio->uio_resid, minor(tp->tap_dev));
+			ifp->if_name, ifp->if_unit, uio->uio_resid, minor(dev));
 
 		return (EIO);
 	}
@@ -836,21 +920,20 @@ tappoll(dev, events, p)
 	struct ifnet		*ifp = &tp->tap_if;
 	int		 	 s, revents = 0;
 
-	TAPDEBUG("%s%d polling, minor = %#x\n",
-				ifp->if_name, ifp->if_unit, minor(tp->tap_dev));
+	TAPDEBUG("%s%d polling, minor = %#x\n", 
+		ifp->if_name, ifp->if_unit, minor(dev));
 
 	s = splimp();
 	if (events & (POLLIN | POLLRDNORM)) {
 		if (ifp->if_snd.ifq_len > 0) {
 			TAPDEBUG("%s%d have data in queue. len = %d, " \
 				"minor = %#x\n", ifp->if_name, ifp->if_unit,
-				ifp->if_snd.ifq_len, minor(tp->tap_dev));
+				ifp->if_snd.ifq_len, minor(dev));
 
 			revents |= (events & (POLLIN | POLLRDNORM));
-		} 
-		else {
+		} else {
 			TAPDEBUG("%s%d waiting for data, minor = %#x\n",
-				ifp->if_name, ifp->if_unit, minor(tp->tap_dev));
+				ifp->if_name, ifp->if_unit, minor(dev));
 
 			selrecord(p, &tp->tap_rsel);
 		}
