@@ -900,6 +900,9 @@ vm_wait()
  *	Block until free pages are available for allocation
  *	- Called only in vm_fault so that processes page faulting
  *	  can be easily tracked.
+ *	- Sleeps at a lower priority than vm_wait() so that vm_wait()ing
+ *	  processes will be able to grab memory first.  Do not change
+ *	  this balance without careful testing first.
  */
 
 void
