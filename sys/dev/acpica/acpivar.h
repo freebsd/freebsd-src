@@ -59,6 +59,7 @@ struct acpi_softc {
     int			acpi_standby_sx;
     int			acpi_suspend_sx;
 
+    int			acpi_sleep_delay;
     int			acpi_s4bios;
 
     int			acpi_verbose;
