@@ -46,6 +46,10 @@
 .Fl a
 .Nm arp
 .Fl d Ar hostname
+.Op Ar proxy
+.Nm arp
+.Fl d
+.Fl a
 .Nm arp
 .Fl s Ar hostname ether_addr
 .Op Ar temp
@@ -72,7 +76,7 @@ using Internet dot notation.
 Available options:
 .Bl -tag -width Ds
 .It Fl a
-The program displays all of the current
+The program displays or deletes all of the current
 .Tn ARP
 entries.
 .It Fl d
@@ -80,7 +84,9 @@ A super-user may delete an entry for the host called
 .Ar hostname
 with the
 .Fl d
-flag.
+flag. May be combined with the
+.Fl a
+flag to delete all entries.
 .It Fl n
 Show network addresses as numbers (normally
 .Nm
