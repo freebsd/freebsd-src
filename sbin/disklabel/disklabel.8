@@ -235,7 +235,9 @@ itself must be provided as the canonical name, i.e. not as a full
 path name.
 .Pp
 For most harddisks, a label based on percentages for most partitions (and
-one partition with a size of '*') will produce a reasonable configuration.
+one partition with a size of
+.Ql * )
+will produce a reasonable configuration.
 .Pp
 PC-based systems have special requirements in order for the BIOS to properly
 recognize a
@@ -569,7 +571,9 @@ specifies that the drive can perform bad sector remapping.
 .It Nm sectors/unit
 describes the total size of the disk.  This value must be correct.
 .It Nm the partition table
-This is the UNIX partition table, not the Microsoft partition table described in
+This is the
+.Ux
+partition table, not the Microsoft partition table described in
 .Xr fdisk 8 .
 .El
 .Pp
@@ -578,28 +582,35 @@ information:
 .Bl -hang -width 10n
 .It identifier
 The partition identifier is a single letter in the range
-.Nm a
+.Dq a
 to
-.Nm h .
+.Dq h .
 By convention, partition
-.Nm c
+.Dq c
 is reserved to describe the entire disk.
 .It size
 is the size of the partition in sectors,
-.Nm K
+.Cm K
 (kilobytes - 1024),
-.Nm M
+.Cm M
 (megabytes - 1024*1024),
-.Nm G
+.Cm G
 (gigabytes - 1024*1024*1024),
-.Nm %
+.Cm %
 (percentage of free space AFTER removing any fixed-size partitions other
 than partition
-.Nm c
-), or * (all remaining free space AFTER fixed-size and percentage
+.Dq c) ,
+or
+.Cm *
+(all remaining free space AFTER fixed-size and percentage
 partitions).  For partition
-.Nm c ,
-a size of * indicates the entire disk.  Lowercase versions of K, M, and G
+.Dq c ,
+a size of
+.Cm *
+indicates the entire disk.  Lowercase versions of
+.Cm K , M ,
+and
+.Cm G
 are allowed.
 Size and type should be specifed without any spaces between them.
 .Pp
@@ -607,38 +618,41 @@ Example: 2097152, 1g, 1024m and 1048576k are all the same size
 (assuming 512-byte sectors).
 .It offset
 is the offset of the start of the partition from the beginning of the
-drive in sectors, or * to have
+drive in sectors, or
+.Cm *
+to have
 .Nm
 calculate the correct offset to use (the end of the previous partition plus
 one, ignoring partition
-.Nm c .
+.Dq c .
 For partition
-.Nm c ,
-* will be interpreted as an offset of 0.
+.Dq c ,
+.Cm *
+will be interpreted as an offset of 0.
 .It fstype
 describes the purpose of the partition.  The example shows most normal usages.
 For UFS file systems, use type
-.Nm 4.2BSD .
+.Cm 4.2BSD .
 Other common types are
-.Nm unused
+.Cm unused
 and
-.Nm swap .
+.Cm swap .
 See
 .Pa /usr/include/sys/disklabel.h 
 for a complete list.
 .It fsize
 For
-.Nm 4.2BSD
+.Cm 4.2BSD
 and LFS file systems only, the fragment size.  Defaults to 8192 for
 partitions smaller than 1 GB, 16384 for partitions 1GB or larger.
 .It bsize
 For
-.Nm 4.2BSD
+.Cm 4.2BSD
 and LFS file systems only, the block size.  Defaults to 1024 for
 partitions smaller than 1 GB, 4096 for partitions 1GB or larger.
 .It bps/cpg
 For
-.Nm 4.2BSD
+.Cm 4.2BSD
 file systems, the number of cylinders in a cylinder group.  For LFS file
 systems, the segment shift value.  Defaults to 16 for
 partitions smaller than 1 GB, 64 for partitions 1GB or larger.
@@ -719,7 +733,11 @@ Display what the label would be for
 using the partition layout in
 .Pa label_layout .
 This is useful for determining how much space would be alloted for various
-partitions with a labelling scheme using %-based or * partition sizes.
+partitions with a labelling scheme using
+.Cm % Ns -based
+or
+.Cm *
+partition sizes.
 .Pp
 .Dl disklabel -B da0s1
 .Pp
@@ -758,7 +776,11 @@ commands are optional, but may be necessary for some BIOSes to properly
 recognize the disk.
 .Pp
 This is an example disklabel that uses some of the new partition size types
-such as %, M, G, and *, which could be used as a source file for
+such as
+.Cm % , M , G ,
+and
+.Cm * ,
+which could be used as a source file for
 .Pp
 .Dl disklabel -R ad0s1c new_label_file
 .Bd -literal -offset 4n
@@ -853,8 +875,8 @@ starts at absolute block 0 on the disk.
 .Pp
 .Nm
 does not perform all possible error checking.  Warning *is* given if partitions
-overlap; if an absolute offset doesn't match the expected offset; if the
-.Nm c
-partition doesn't start at 0 or doesn't cover the entire slice; if a
+overlap; if an absolute offset does not match the expected offset; if the
+.Dq c
+partition does not start at 0 or does not cover the entire slice; if a
 partition runs past the end of the device; and a number of other errors; but
 no warning is given if space remains unused.
