@@ -80,10 +80,10 @@ atapi_attach(struct ata_softc *scp, int32_t device)
     atp->controller = scp;
     atp->unit = device;
     if (bootverbose) 
-	printf("ata%d-%s: piomode=%d dmamode=%d udmamode=%d dmaflag=%d\n",
-	       scp->lun, (device == ATA_MASTER) ? "master" : "slave",
-	       ata_pmode(ATP_PARAM), ata_wmode(ATP_PARAM),
-	       ata_umode(ATP_PARAM), ATP_PARAM->dmaflag);
+	ata_printf(scp, device, 
+		   "piomode=%d dmamode=%d udmamode=%d dmaflag=%d\n",
+		   ata_pmode(ATP_PARAM), ata_wmode(ATP_PARAM),
+		   ata_umode(ATP_PARAM), ATP_PARAM->dmaflag);
 
 #ifdef ATA_ENABLE_ATAPI_DMA
     if (!(ATP_PARAM->drqtype == ATAPI_DRQT_INTR)) {
@@ -105,26 +105,26 @@ atapi_attach(struct ata_softc *scp, int32_t device)
 #if NATAPICD > 0
     case ATAPI_TYPE_CDROM:
 	if (acdattach(atp))
-		goto notfound;
+	    goto notfound;
 	break; 
 #endif
 #if NATAPIFD > 0
     case ATAPI_TYPE_DIRECT:
 	if (afdattach(atp))
-		goto notfound;
+	    goto notfound;
 	break; 
 #endif
 #if NATAPIST > 0
     case ATAPI_TYPE_TAPE:
 	if (astattach(atp))
-		goto notfound;
+	    goto notfound;
 	break; 
 #endif
 notfound:
     default:
-	printf("ata%d-%s: <%.40s/%.8s> %s device - NO DRIVER!\n", scp->lun, 
-	       (device == ATA_MASTER) ? "master" : "slave", ATP_PARAM->model,
-	       ATP_PARAM->revision, atapi_type(ATP_PARAM->device_type));
+	ata_printf(scp, device, "<%.40s/%.8s> %s device - NO DRIVER!\n",
+		   ATP_PARAM->model, ATP_PARAM->revision, 
+		   atapi_type(ATP_PARAM->device_type));
 	free(atp, M_ATAPI);
 	atp = NULL;
     }
@@ -157,12 +157,13 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data,
 	request->driver = driver;
     }
 
-    /* append onto controller queue and try to start controller */
     s = splbio();
 
     /* if not using callbacks, prepare to sleep for this request */
     if (!callback)
 	asleep((caddr_t)request, PRIBIO, "atprq", 0);
+
+    /* append onto controller queue and try to start controller */
     TAILQ_INSERT_TAIL(&atp->controller->atapi_queue, request, chain);
     if (atp->controller->active == ATA_IDLE)
 	ata_start(atp->controller);
@@ -262,7 +263,7 @@ atapi_interrupt(struct atapi_request *request)
 {
     struct atapi_softc *atp = request->device;
     int8_t **buffer = (int8_t **)&request->data;
-    int32_t length, reason, dma_stat = 0;
+    int32_t reason, dma_stat = 0;
 
     if (request->ccb[0] == ATAPI_REQUEST_SENSE)
 	*buffer = (int8_t *)&request->sense;
@@ -305,51 +306,52 @@ atapi_interrupt(struct atapi_request *request)
 	    request->result = 0;
 	    request->bytecount = 0;
 	}
-	goto op_finished;
     }
+    else {
+	int32_t length = inb(atp->controller->ioaddr + ATA_CYL_LSB) |
+			 inb(atp->controller->ioaddr + ATA_CYL_MSB) << 8;
 
-    length = inb(atp->controller->ioaddr + ATA_CYL_LSB);
-    length |= inb(atp->controller->ioaddr + ATA_CYL_MSB) << 8;
-
-    switch (reason) {
-    case ATAPI_P_WRITE:
-	if (request->flags & A_READ) {
-	    request->result = inb(atp->controller->ioaddr + ATA_ERROR);
-	    printf("%s: %s trying to write on read buffer\n",
-		   atp->devname, atapi_cmd2str(atp->cmd));
-	    goto op_finished;
-	}
-	atapi_write(request, length);
-	return ATA_OP_CONTINUES;
-	
-    case ATAPI_P_READ:
-	if (!(request->flags & A_READ)) {
-	    request->result = inb(atp->controller->ioaddr + ATA_ERROR);
-	    printf("%s: %s trying to read on write buffer\n",
-		   atp->devname, atapi_cmd2str(atp->cmd));
-	    goto op_finished;
-	}
-	atapi_read(request, length);
-	return ATA_OP_CONTINUES;
-
-    case ATAPI_P_DONEDRQ:
-	printf("%s: %s DONEDRQ\n", atp->devname, atapi_cmd2str(atp->cmd));
-	if (request->flags & A_READ)
-	    atapi_read(request, length);
-	else
+	switch (reason) {
+	case ATAPI_P_WRITE:
+	    if (request->flags & A_READ) {
+		request->result = inb(atp->controller->ioaddr + ATA_ERROR);
+		printf("%s: %s trying to write on read buffer\n",
+		       atp->devname, atapi_cmd2str(atp->cmd));
+		break;
+	    }
 	    atapi_write(request, length);
-	/* FALLTHROUGH */
+	    return ATA_OP_CONTINUES;
+	
+	case ATAPI_P_READ:
+	    if (!(request->flags & A_READ)) {
+		request->result = inb(atp->controller->ioaddr + ATA_ERROR);
+		printf("%s: %s trying to read on write buffer\n",
+		       atp->devname, atapi_cmd2str(atp->cmd));
+		break;
+	    }
+	    atapi_read(request, length);
+	    return ATA_OP_CONTINUES;
 
-    case ATAPI_P_ABORT:
-    case ATAPI_P_DONE:
-	if (atp->controller->status & (ATA_S_ERROR | ATA_S_DWF))
-	    request->result = inb(atp->controller->ioaddr + ATA_ERROR);
-	else 
-	    if (request->ccb[0] != ATAPI_REQUEST_SENSE)
-		request->result = 0;
-	goto op_finished;
-    default:
-	printf("%s: unknown transfer phase %d\n", atp->devname, reason);
+	case ATAPI_P_DONEDRQ:
+	    printf("%s: %s DONEDRQ\n", atp->devname, atapi_cmd2str(atp->cmd));
+	    if (request->flags & A_READ)
+		atapi_read(request, length);
+	    else
+		atapi_write(request, length);
+	    /* FALLTHROUGH */
+
+	    case ATAPI_P_ABORT:
+	    case ATAPI_P_DONE:
+	    if (atp->controller->status & (ATA_S_ERROR | ATA_S_DWF))
+		request->result = inb(atp->controller->ioaddr + ATA_ERROR);
+	    else 
+		if (request->ccb[0] != ATAPI_REQUEST_SENSE)
+		    request->result = 0;
+	    break;
+
+	default:
+	    printf("%s: unknown transfer phase %d\n", atp->devname, reason);
+	}
     }
 
 op_finished:
@@ -522,6 +524,7 @@ static void
 atapi_timeout(struct atapi_request *request)
 {
     struct atapi_softc *atp = request->device;
+    int32_t s = splbio();
 
     atp->controller->running = NULL;
     printf("%s: atapi_timeout: cmd=%s - resetting\n", 
@@ -539,6 +542,7 @@ atapi_timeout(struct atapi_request *request)
 	wakeup((caddr_t)request);
     } 
     ata_reinit(atp->controller);
+    splx(s);
 }
 
 static int8_t *
