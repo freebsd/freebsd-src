@@ -343,7 +343,7 @@ whichMouse(dialogMenuItem *self)
     if (!strcmp(self->prompt, "COM4"))
 	return !strcmp(buf, "/dev/cuaa3");
     if (!strcmp(self->prompt, "BusMouse"))
-	return !strcmp(buf, "/dev/msg0");
+	return !strcmp(buf, "/dev/mse0");
     if (!strcmp(self->prompt, "PS/2"))
 	return !strcmp(buf, "/dev/psm0");
     return FALSE;

@@ -385,6 +385,15 @@ configNTP(dialogMenuItem *self)
 }
 
 int
+configUsers(dialogMenuItem *self)
+{
+    dialog_clear_norefresh();
+    dmenuOpenSimple(&MenuUsermgmt, FALSE); 
+    dialog_clear();
+    return DITEM_SUCCESS | DITEM_RESTORE;
+}
+
+int
 configXFree86(dialogMenuItem *self)
 {
     if (file_executable("/usr/X11R6/bin/XF86Setup")) {
