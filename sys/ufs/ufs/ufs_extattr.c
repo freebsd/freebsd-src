@@ -277,17 +277,15 @@ ufs_extattr_lookup(struct vnode *start_dvp, int lockparent, char *dirname,
 		 * Error condition, may have to release the lock on the parent
 		 * if ufs_lookup() didn't.
 		 */
-		if (!(cnp.cn_flags & PDIRUNLOCK) &&
-		    (lockparent == UE_GETDIR_LOCKPARENT_DONT))
+		if (lockparent == UE_GETDIR_LOCKPARENT_DONT)
 			VOP_UNLOCK(start_dvp, 0, td);
 
 		/*
 		 * Check that ufs_lookup() didn't release the lock when we
 		 * didn't want it to.
 		 */
-		if ((cnp.cn_flags & PDIRUNLOCK) &&
-		    (lockparent == UE_GETDIR_LOCKPARENT))
-			panic("ufs_extattr_lookup: lockparent but PDIRUNLOCK");
+		if (lockparent == UE_GETDIR_LOCKPARENT)
+			ASSERT_VOP_LOCKED(start_dvp, "ufs_extattr_lookup");
 
 		return (error);
 	}
@@ -296,14 +294,11 @@ ufs_extattr_lookup(struct vnode *start_dvp, int lockparent, char *dirname,
 		panic("ufs_extattr_lookup: target_vp == start_dvp");
 */
 
-	if (target_vp != start_dvp &&
-	    !(cnp.cn_flags & PDIRUNLOCK) &&
-	    (lockparent == UE_GETDIR_LOCKPARENT_DONT))
-		panic("ufs_extattr_lookup: !lockparent but !PDIRUNLOCK");
+	if (target_vp != start_dvp && lockparent == UE_GETDIR_LOCKPARENT_DONT)
+		VOP_UNLOCK(start_dvp, 0, td);
 
-	if ((cnp.cn_flags & PDIRUNLOCK) &&
-	    (lockparent == UE_GETDIR_LOCKPARENT))
-		panic("ufs_extattr_lookup: lockparent but PDIRUNLOCK");
+	if (lockparent == UE_GETDIR_LOCKPARENT)
+		ASSERT_VOP_LOCKED(start_dvp, "ufs_extattr_lookup");
 
 	/* printf("ufs_extattr_lookup: success\n"); */
 	*vp = target_vp;
