@@ -197,8 +197,6 @@ g_dev_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 	else
 		error = g_access(cp, r, w, e);
 	g_topology_unlock();
-	if (!error)
-		dev->si_bsize_phys = cp->provider->sectorsize;
 	return(error);
 }
 
