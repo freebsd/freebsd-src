@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.118 1997/10/04 09:01:19 jkh Exp $
+ * $Id: dist.c,v 1.119 1997/10/12 12:11:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -125,8 +125,8 @@ static Distribution SrcDistTable[] = {
 static Distribution XF86DistTable[] = {
 { "XF86331",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_FONTS,	XF86FontDistTable },
 { "XF86331",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_SERVER,	XF86ServerDistTable },
-{ "XF86-xc",	"/usr/X11R6/src",	&XF86Dists,	DIST_XF86_SRC,		NULL		},
-{ "XF86-co",	"/usr/X11R6/src",	&XF86Dists,	DIST_XF86_CSRC,		NULL		},
+{ "X331src-1",	"/usr/X11R6/src",	&XF86Dists,	DIST_XF86_SRC,		NULL		},
+{ "X331contrib", "/usr/X11R6/src",	&XF86Dists,	DIST_XF86_CSRC,		NULL		},
 { "X331bin",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_BIN,		NULL		},
 { "X331cfg",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_CFG,		NULL		},
 { "X331doc",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_DOC,		NULL		},
@@ -188,6 +188,32 @@ static Distribution XF86FontDistTable[] = {
 static int	distMaybeSetDES(dialogMenuItem *self);
 static int	distMaybeSetPorts(dialogMenuItem *self);
 
+
+static void
+distVerifyFlags(void)
+{
+    if (SrcDists)
+	Dists |= DIST_SRC;
+    if (DESDists) {
+	if (DESDists & DIST_DES_KERBEROS)
+	    DESDists |= DIST_DES_DES;
+	Dists |= DIST_DES;
+    }
+#ifndef USE_XIG_ENVIRONMENT
+    if (XF86Dists & DIST_XF86_SET)
+	XF86ServerDists |= DIST_XF86_SERVER_VGA16;
+    if (XF86ServerDists)
+	XF86Dists |= DIST_XF86_SERVER;
+    if (XF86FontDists)
+	XF86Dists |= DIST_XF86_FONTS;
+    if (XF86Dists)
+	Dists |= (DIST_XF86 | DIST_COMPAT21);
+#endif
+    if (isDebug())
+	msgDebug("Dist Masks: Dists: %0x, DES: %0x, Srcs: %0x\nXServer: %0x, XFonts: %0x, XDists: %0x\n",
+		 Dists, DESDists, SrcDists, XF86ServerDists, XF86FontDists, XF86Dists);
+}
+
 int
 distReset(dialogMenuItem *self)
 {
@@ -228,22 +254,28 @@ distConfig(dialogMenuItem *self)
     if ((cp = variable_get(VAR_DIST_XFONTS)) != NULL)
 	XF86FontDists = atoi(cp);
 #endif
-
+    distVerifyFlags();
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
 int
 distSetDeveloper(dialogMenuItem *self)
 {
+    int i;
+
     distReset(NULL);
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_ALL;
-    return distMaybeSetDES(self) | distMaybeSetPorts(self);
+    i = distMaybeSetDES(self) | distMaybeSetPorts(self);
+    distVerifyFlags();
+    return i;
 }
 
 int
 distSetXDeveloper(dialogMenuItem *self)
 {
+    int i;
+
     distReset(NULL);
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_ALL;
@@ -254,29 +286,41 @@ distSetXDeveloper(dialogMenuItem *self)
     XF86ServerDists = DIST_XF86_SERVER_SVGA | DIST_XF86_SERVER_VGA16;
     XF86FontDists = DIST_XF86_FONTS_MISC;
 #endif
-    return distSetXF86(NULL) | distMaybeSetDES(self) | distMaybeSetPorts(self);
+    i = distSetXF86(NULL) | distMaybeSetDES(self) | distMaybeSetPorts(self);
+    distVerifyFlags();
+    return i;
 }
 
 int
 distSetKernDeveloper(dialogMenuItem *self)
 {
+    int i;
+
     distReset(NULL);
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_SYS;
-    return distMaybeSetDES(self) | distMaybeSetPorts(self);
+    i = distMaybeSetDES(self) | distMaybeSetPorts(self);
+    distVerifyFlags();
+    return i;
 }
 
 int
 distSetUser(dialogMenuItem *self)
 {
+    int i;
+
     distReset(NULL);
     Dists = _DIST_USER;
-    return distMaybeSetDES(self) | distMaybeSetPorts(self);
+    i = distMaybeSetDES(self) | distMaybeSetPorts(self);
+    distVerifyFlags();
+    return i;
 }
 
 int
 distSetXUser(dialogMenuItem *self)
 {
+    int i;
+
     distReset(NULL);
     Dists = _DIST_USER;
 #ifdef USE_XIG_ENVIRONMENT
@@ -286,7 +330,9 @@ distSetXUser(dialogMenuItem *self)
     XF86Dists = DIST_XF86_BIN | DIST_COMPAT21 | DIST_XF86_SET | DIST_XF86_CFG | DIST_XF86_LIB | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
     XF86FontDists = DIST_XF86_FONTS_MISC;
 #endif
-    return distSetXF86(NULL) | distMaybeSetDES(self) | distMaybeSetPorts(self);
+    i = distSetXF86(NULL) | distMaybeSetDES(self) | distMaybeSetPorts(self);
+    distVerifyFlags();
+    return i;
 }
 
 int
@@ -300,6 +346,8 @@ distSetMinimum(dialogMenuItem *self)
 int
 distSetEverything(dialogMenuItem *self)
 {
+    int i;
+
     Dists = DIST_ALL;
     SrcDists = DIST_SRC_ALL;
 #ifdef USE_XIG_ENVIRONMENT
@@ -309,24 +357,21 @@ distSetEverything(dialogMenuItem *self)
     XF86ServerDists = DIST_XF86_SERVER_ALL;
     XF86FontDists = DIST_XF86_FONTS_ALL;
 #endif
-    return distMaybeSetDES(self) | distMaybeSetPorts(self);
+    i = distMaybeSetDES(self) | distMaybeSetPorts(self);
+    distVerifyFlags();
+    return i;
 }
 
 int
 distSetDES(dialogMenuItem *self)
 {
-    int i = DITEM_SUCCESS;
+    int i;
  
-    if (dmenuOpenSimple(&MenuDESDistributions, FALSE)) {
-	if (DESDists) {
-	    if (DESDists & DIST_DES_KERBEROS)
-		DESDists |= DIST_DES_DES;
-	    Dists |= DIST_DES;
-	    msgDebug("SetDES Masks: DES: %0x, Dists: %0x\n", DESDists, Dists);
-	}
-    }
-    else
+    if (!dmenuOpenSimple(&MenuDESDistributions, FALSE))
 	i = DITEM_FAILURE;
+    else
+	i = DITEM_SUCCESS;
+    distVerifyFlags();
     return i | DITEM_RESTORE;
 }
 
@@ -347,17 +392,10 @@ distMaybeSetDES(dialogMenuItem *self)
 		  "DES distribution from the U.S. server then switch your media type to\n"
 		  "point to an international FTP server, using the Custom installation\n"
 		  "option to select and extract the DES distribution in a second pass.")) {
-	if (dmenuOpenSimple(&MenuDESDistributions, FALSE)) {
-	    if (DESDists) {
-		if (DESDists & DIST_DES_KERBEROS)
-		    DESDists |= DIST_DES_DES;
-		Dists |= DIST_DES;
-		msgDebug("SetDES Masks: DES: %0x, Dists: %0x\n", DESDists, Dists);
-	    }
-	}
-	else
+	if (!dmenuOpenSimple(&MenuDESDistributions, FALSE))
 	    i = DITEM_FAILURE;
     }
+    distVerifyFlags();
     return i | DITEM_RESTORE;
 }
 
@@ -401,6 +439,7 @@ distSetByName(Distribution *dist, char *name)
 	    }
 	}
     }
+    distVerifyFlags();
     return status;
 }
 
@@ -426,22 +465,20 @@ distSetCustom(dialogMenuItem *self)
 	    msgDebug("distSetCustom: Warning, no such release \"%s\"\n", cp);
 	cp = cp2;
     }
+    distVerifyFlags();
     return DITEM_SUCCESS;
 }
     
 int
 distSetSrc(dialogMenuItem *self)
 {
-    int i = DITEM_SUCCESS;
+    int i;
 
-    if (dmenuOpenSimple(&MenuSrcDistributions, FALSE)) {
-	if (SrcDists) {
-	    Dists |= DIST_SRC;
-	    msgDebug("SetSrc Masks: Srcs: %0x, Dists: %0x\n", SrcDists, Dists);
-	}
-    }
-    else
+    if (!dmenuOpenSimple(&MenuSrcDistributions, FALSE))
 	i = DITEM_FAILURE;
+    else
+	i = DITEM_SUCCESS;
+    distVerifyFlags();
     return i | DITEM_RESTORE;
 }
 
@@ -453,20 +490,10 @@ distSetXF86(dialogMenuItem *self)
 #ifdef USE_XIG_ENVIRONMENT
     Dists |= (DIST_XIG_SERVER | DIST_COMPAT21);
 #else
-    if (dmenuOpenSimple(&MenuXF86Select, FALSE)) {
-	if (XF86ServerDists)
-	    XF86Dists |= DIST_XF86_SERVER;
-	if (XF86FontDists)
-	    XF86Dists |= DIST_XF86_FONTS;
-	if (XF86Dists)
-	    Dists |= (DIST_XF86 | DIST_COMPAT21);
-	if (isDebug())
-	    msgDebug("SetXF86 Masks: Server: %0x, Fonts: %0x, XDists: %0x, Dists: %0x\n",
-		     XF86ServerDists, XF86FontDists, XF86Dists, Dists);
-    }
-    else
+    if (!dmenuOpenSimple(&MenuXF86Select, FALSE))
 	i = DITEM_FAILURE;
 #endif
+    distVerifyFlags();
     return i | DITEM_RESTORE;
 }
 
