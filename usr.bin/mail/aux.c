@@ -488,7 +488,7 @@ skin(name)
 				lastsp = 0;
 				break;
 			}
-			/* Fall into . . . */
+			/* FALLTHROUGH */
 
 		default:
 			if (lastsp) {

@@ -507,7 +507,7 @@ i4brbchioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 				i4b_l4_dialoutnumber(BDRV_RBCH, unit, l, (char *)data);
 				break;
 			}
-			/* fall through to SDTR */
+			/* FALLTHROUGH to SDTR */
 		}
 
 		case TIOCSDTR:	/* Set DTR */

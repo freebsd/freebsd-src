@@ -272,7 +272,7 @@ willoption(int option)
 	    case TELOPT_BINARY:
 	    case TELOPT_SGA:
 		settimer(modenegotiated);
-		/* FALL THROUGH */
+		/* FALLTHROUGH */
 	    case TELOPT_STATUS:
 		new_state_ok = 1;
 		break;
@@ -322,7 +322,7 @@ wontoption(int option)
 	    case TELOPT_SGA:
 		if (!kludgelinemode)
 		    break;
-		/* FALL THROUGH */
+		/* FALLTHROUGH */
 #endif
 	    case TELOPT_ECHO:
 		settimer(modenegotiated);
@@ -1293,7 +1293,7 @@ env_opt(unsigned char *buf, int len)
 					old_env_var = OLD_ENV_VAR;
 					old_env_value = OLD_ENV_VALUE;
 				}
-				/* FALL THROUGH */
+				/* FALLTHROUGH */
 # endif
 			case OLD_ENV_VALUE:
 				/*
@@ -1301,7 +1301,7 @@ env_opt(unsigned char *buf, int len)
 				 * still recognize it, just in case it is an
 				 * old server that has VAR & VALUE mixed up...
 				 */
-				/* FALL THROUGH */
+				/* FALLTHROUGH */
 #else
 			case NEW_ENV_VAR:
 #endif
@@ -1314,7 +1314,7 @@ env_opt(unsigned char *buf, int len)
 				break;
 			case ENV_ESC:
 				i++;
-				/*FALL THROUGH*/
+				/*FALLTHROUGH*/
 			default:
 				if (epc)
 					*epc++ = buf[i];
@@ -1519,7 +1519,7 @@ telrcv(void)
 		TTYADD(c);
 		break;
 	    }
-	    /* Else, fall through */
+	    /* FALLTHROUGH */
 
 	case TS_DATA:
 	    if (c == IAC) {

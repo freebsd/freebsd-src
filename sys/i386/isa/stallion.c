@@ -2676,7 +2676,7 @@ static int stl_initeio(stlbrd_t *brdp)
 	switch (status & EIO_IDBITMASK) {
 	case EIO_8PORTM:
 		brdp->clk = EIO_CLK8M;
-		/* fall thru */
+		/* FALLTHROUGH */
 	case EIO_8PORTRS:
 	case EIO_8PORTDI:
 		brdp->nrports = 8;

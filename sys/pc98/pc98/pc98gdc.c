@@ -1306,7 +1306,7 @@ gdc_blank_display(video_adapter_t *adp, int mode)
 	outb(0x09a2, 0x80 | 0x40);		/* V/H-SYNC mask */
 	if (inb(0x09a2) == (0x80 | 0x40))
 	    standby = 1;
-	/* FALL THROUGH */
+	/* FALLTHROUGH */
 
     case V_DISPLAY_BLANK:
 	if (epson_machine_id == 0x20) {

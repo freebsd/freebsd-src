@@ -134,7 +134,7 @@ main(argc, argv)
 
 	default:
 		warnx("trouble reading termcap");
-		/* fall through to ... */
+		/* FALLTHROUGH */
 
 	case 0:
 		/* No such terminal type - assume dumb */
