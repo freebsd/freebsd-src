@@ -31,9 +31,14 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fdc.h,v 1.3 1994/09/17 16:56:07 davidg Exp $
+ *	$Id: fdc.h,v 1.4 1994/10/10 01:12:26 phk Exp $
  *
  */
+
+enum fdc_type
+{
+	FDC_NE765, FDC_I82077, FDC_NE72065, FDC_UNKNOWN = -1
+};
 
 
 /***********************************************************************\
@@ -48,13 +53,16 @@ struct fdc_data
 #define FDC_ATTACHED	0x01
 #define FDC_HASFTAPE	0x02
 #define FDC_TAPE_BUSY	0x04
+#define FDC_STAT_VALID	0x08
 	struct	fd_data *fd;
 	int	fdu;		/* the active drive	*/
 	int	state;
 	int	retry;
 	int	fdout;		/* mirror of the w/o digital output reg */
 	u_long	status[7];	/* copy of the registers */
-	struct buf head;	/* Head of buf chain      */
+	enum	fdc_type fdct;	/* chip version of FDC */
+	int	fdc_errs;	/* number of logged errors */
+	struct buf head;	/* Head of buf chain	  */
 };
 
 /***********************************************************************\
@@ -70,6 +78,7 @@ typedef int	fdcu_t;
 typedef int	fdsu_t;
 typedef	struct fd_data *fd_p;
 typedef struct fdc_data *fdc_p;
+typedef enum fdc_type fdc_t;
 
-#define FDUNIT(s)       (((s)>>6)&03)
-#define FDTYPE(s)       ((s)&077)
+#define FDUNIT(s)	(((s)>>6)&03)
+#define FDTYPE(s)	((s)&077)

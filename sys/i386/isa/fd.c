@@ -5,11 +5,12 @@
  * This code is derived from software contributed to Berkeley by
  * Don Ahn.
  *
- * Portions Copyright (c) 1993, 1994 by
+ * Portions Copyright (c) 1993, 1994, 1995 by
  *  jc@irbs.UUCP (John Capo)
  *  vak@zebub.msk.su (Serge Vakulenko)
  *  ache@astral.msk.su (Andrew A. Chernov)
  *  joerg_wunsch@uriah.sax.de (Joerg Wunsch)
+ *  dufault@hda.com (Peter Dufault)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -40,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.45 1994/11/30 12:04:28 jkh Exp $
+ *	$Id: fd.c,v 1.46 1994/12/04 20:22:19 joerg Exp $
  *
  */
 
@@ -76,6 +77,7 @@
 #include <i386/isa/fdreg.h>
 #include <i386/isa/fdc.h>
 #include <i386/isa/rtc.h>
+#include <machine/stdarg.h>
 #if NFT > 0
 #include <sys/ftape.h>
 #include <i386/isa/ftreg.h>
@@ -164,6 +166,11 @@ fd_goaway(struct kern_devconf *kdc, int force)
  */
 #define id_physid id_scsiid
 
+/* error returns for fd_cmd() */
+#define FD_FAILED -1
+#define FD_NOT_VALID -2
+#define FDC_ERRMAX	100	/* do not log more */
+
 #define NUMTYPES 14
 #define NUMDENS  (NUMTYPES - 6)
 
@@ -228,6 +235,7 @@ struct fd_data {
 #define	FD_MOTOR_WAIT	0x08	/* motor coming up	*/
 	int	skip;
 	int	hddrv;
+#define FD_NO_TRACK -2
 	int	track;		/* where we think the head is */
 	int	options;	/* user configurable options, see ioctl_fd.h */
 	int	dkunit;		/* disk stats unit number */
@@ -341,6 +349,136 @@ fdc_externalize(struct proc *p, struct kern_devconf *kdc, void *userp, size_t le
 	return isa_externalize(fdcdevs[kdc->kdc_unit], userp, &len);
 }
 
+static int
+fdc_err(fdcu_t fdcu, const char *s)
+{
+	fdc_data[fdcu].fdc_errs++;
+	if(fdc_data[fdcu].fdc_errs < FDC_ERRMAX)
+		printf("fdc%d: %s: ", fdcu, s);
+	else if(fdc_data[fdcu].fdc_errs == FDC_ERRMAX)
+		printf("fdc%d: too many errors, not logging any more\n",
+		       fdcu);
+	
+	return FD_FAILED;
+}
+
+/*
+ * fd_cmd: Send a command to the chip.  Takes a varargs with this structure:
+ * Unit number,
+ * # of output bytes, output bytes as ints ...,
+ * # of input bytes, input bytes as ints ... 
+ */
+
+int
+fd_cmd(fdcu_t fdcu, int n_out, ...)
+{
+	u_char cmd;
+	int n_in;
+	int n;
+	va_list ap;
+
+	va_start(ap, n_out);
+	cmd = (u_char)(va_arg(ap, int));
+	va_end(ap);
+	va_start(ap, n_out);
+	for (n = 0; n < n_out; n++)
+	{
+		if (out_fdc(fdcu, va_arg(ap, int)) < 0)
+		{
+			char msg[50];
+			sprintf(msg,
+				"cmd %x failed at out byte %d of %d\n",
+				cmd, n + 1, n_out);
+			return fdc_err(fdcu, msg);
+		}
+	}
+	n_in = va_arg(ap, int);
+	for (n = 0; n < n_in; n++)
+	{
+		int *ptr = va_arg(ap, int *);
+		if (fd_in(fdcu, ptr) < 0)
+		{
+			char msg[50];
+			sprintf(msg,
+				"cmd %02x failed at in byte %d of %d\n",
+				cmd, n + 1, n_in);
+			return fdc_err(fdcu, msg);
+		}
+	}
+
+	return 0;
+}
+
+int
+fd_sense_drive_status(fdc_p fdc, int *st3p)
+{
+	int st3;
+
+	if (fd_cmd(fdc->fdcu, 2, NE7CMD_SENSED, fdc->fdu, 1, &st3))
+	{
+		return fdc_err(fdc->fdcu, "Sense Drive Status failed.\n");
+	}
+	if (st3p)
+		*st3p = st3;
+
+	return 0;
+}
+
+int
+fd_sense_int(fdc_p fdc, int *st0p, int *cylp)
+{
+	int st0, cyl;
+
+	int ret = fd_cmd(fdc->fdcu, 1, NE7CMD_SENSEI, 1, &st0);
+
+	if (ret)
+	{
+		(void)fdc_err(fdc->fdcu,
+			      "sense intr err reading stat reg 0\n");
+		return ret;
+	}
+
+	if (st0p)
+		*st0p = st0;
+
+	if ((st0 & NE7_ST0_IC) == NE7_ST0_IC_IV)
+	{
+		/*
+		 * There doesn't seem to have been an interrupt.
+		 */
+		return FD_NOT_VALID;
+	}
+
+	if (fd_in(fdc->fdcu, &cyl) < 0)
+	{
+		return fdc_err(fdc->fdcu, "can't get cyl num\n");
+	}
+
+	if (cylp)
+		*cylp = cyl;
+
+	return 0;
+}
+
+
+int
+fd_read_status(fdc_p fdc, int fdsu)
+{
+	int i, ret;
+	for (i = 0; i < 7; i++)
+	{
+		if ((ret = fd_in(fdc->fdcu, fdc->status + i)))
+			break;
+	}
+
+	if (ret == 0)
+		fdc->flags |= FDC_STAT_VALID;
+	else
+		fdc->flags &= ~FDC_STAT_VALID;
+
+	return ret;
+}
+
 /****************************************************************************/
 /*                      autoconfiguration stuff                             */
 /****************************************************************************/
@@ -348,12 +486,12 @@ struct	isa_driver fdcdriver = {
 	fdprobe, fdattach, "fdc",
 };
 
+
 /*
  * probe for existance of controller
  */
 static int
-fdprobe(dev)
-	struct isa_device *dev;
+fdprobe(struct isa_device *dev)
 {
 	fdcu_t	fdcu = dev->id_unit;
 	if(fdc_data[fdcu].flags & FDC_ATTACHED)
@@ -371,12 +509,12 @@ fdprobe(dev)
 	outb(dev->id_iobase+FDOUT, FDO_FRST);
 
 	/* see if it can handle a command */
-	if (out_fdc(fdcu, NE7CMD_SPECIFY) < 0)
+	if (fd_cmd(fdcu,
+		   3, NE7CMD_SPECIFY, NE7_SPEC_1(3, 240), NE7_SPEC_2(2, 0),
+		   0))
 	{
 		return(0);
 	}
-	out_fdc(fdcu, NE7_SPEC_1(3, 240));
-	out_fdc(fdcu, NE7_SPEC_2(2, 0));
 	return (IO_FDCSIZE);
 }
 
@@ -384,16 +522,16 @@ fdprobe(dev)
  * wire controller into system, look for floppy units
  */
 static int
-fdattach(dev)
-	struct isa_device *dev;
+fdattach(struct isa_device *dev)
 {
 	unsigned fdt;
 	fdu_t	fdu;
 	fdcu_t	fdcu = dev->id_unit;
 	fdc_p	fdc = fdc_data + fdcu;
 	fd_p	fd;
-	int	fdsu, st0, i;
+	int	fdsu, st0, st3, i;
 	struct isa_device *fdup;
+	int ic_type = 0;
 
 	fdc_registerdev(dev);
 
@@ -403,7 +541,7 @@ fdattach(dev)
 	fdc->state = DEVIDLE;
 	/* reset controller, turn motor off, clear fdout mirror reg */
 	outb(fdc->baseport + FDOUT, ((fdc->fdout = 0)));
-	printf("fdc%d:", fdcu);
+	printf("fdc%d: ", fdcu);
 
 	/* check for each floppy drive */
 	for (fdup = isa_biotab_fdc; fdup->id_driver != 0; fdup++) {
@@ -414,7 +552,7 @@ fdattach(dev)
 		if (fdu >= (NFD+NFT))
 			continue;
 		fdsu = fdup->id_physid;
-				/* look up what bios thinks we have */
+		/* look up what bios thinks we have */
 		switch (fdu) {
 			case 0: fdt = (rtcin(RTC_FDISKETTE) & 0xf0);
 				break;
@@ -445,18 +583,51 @@ fdattach(dev)
 		/* select it */
 		set_motor(fdcu, fdsu, TURNON);
 		DELAY(1000000);	/* 1 sec */
-		out_fdc(fdcu, NE7CMD_SENSED);
-		out_fdc(fdcu, fdsu);
-		if(in_fdc(fdcu) & NE7_ST3_T0) {
-			/* if at track 0, first seek inwards */
-			out_fdc(fdcu, NE7CMD_SEEK); /* seek some steps... */
-			out_fdc(fdcu, fdsu);
-			out_fdc(fdcu, 10);
-			DELAY(300000); /* ...wait a moment... */
-			out_fdc(fdcu, NE7CMD_SENSEI); /* make ctrlr happy */
-			(void)in_fdc(fdcu);
-			(void)in_fdc(fdcu);
+
+		if (ic_type == 0 &&
+		    fd_cmd(fdcu, 1, NE7CMD_VERSION, 1, &ic_type) == 0)
+		{
+			ic_type = (u_char)ic_type;
+			switch( ic_type ) {
+			case 0x80:
+				printf("(NEC 765)");
+				fdc->fdct = FDC_NE765;
+				break;
+			case 0x81:
+				printf("(Intel 82077)");
+				fdc->fdct = FDC_I82077;
+				break;
+			case 0x90:
+				printf("(NEC 72065B)");
+				fdc->fdct = FDC_NE72065;
+				break;
+			default:
+				printf("(unknown IC type %02x)", ic_type);
+				fdc->fdct = FDC_UNKNOWN;
+				break;
+			}
 		}
+		if ((fd_cmd(fdcu, 2, NE7CMD_SENSED, fdsu, 1, &st3) == 0) &&
+		    (st3 & NE7_ST3_T0)) {
+			/* if at track 0, first seek inwards */
+			/* seek some steps: */
+			(void)fd_cmd(fdcu, 3, NE7CMD_SEEK, fdsu, 10, 0);
+			DELAY(300000); /* ...wait a moment... */
+			(void)fd_sense_int(fdc, 0, 0); /* make ctrlr happy */
+		}
+
+		/* If we're at track 0 first seek inwards. */
+		if ((fd_sense_drive_status(fdc, &st3) == 0) &&
+		    (st3 & NE7_ST3_T0)) {
+			/* Seek some steps... */
+			if (fd_cmd(fdcu, 3, NE7CMD_SEEK, fdsu, 10, 0) == 0) {
+				/* ...wait a moment... */
+				DELAY(300000);
+				/* make ctrlr happy: */
+				(void)fd_sense_int(fdc, 0, 0);
+			}
+		}
+
 		for(i = 0; i < 2; i++) {
 			/*
 			 * we must recalibrate twice, just in case the
@@ -464,18 +635,16 @@ fdattach(dev)
 			 * FDCs still barf when attempting to recalibrate
 			 * more than 77 steps
 			 */
-			out_fdc(fdcu, NE7CMD_RECAL); /* go back to 0 */
-			out_fdc(fdcu, fdsu);
-			/* a second being enough for full stroke seek */
-			DELAY(i == 0? 1000000: 300000);
+			/* go back to 0: */
+			if (fd_cmd(fdcu, 2, NE7CMD_RECAL, fdsu, 0) == 0) {
+				/* a second being enough for full stroke seek*/
+				DELAY(i == 0? 1000000: 300000);
 
-			/* anything responding? */
-			out_fdc(fdcu, NE7CMD_SENSEI);
-			st0 = in_fdc(fdcu);
-			(void)in_fdc(fdcu);
-
-			if ((st0 & NE7_ST0_EC) == 0)
-				break; /* already probed succesfully */
+				/* anything responding? */
+				if (fd_sense_int(fdc, &st0, 0) == 0 &&
+				(st0 & NE7_ST0_EC) == 0)
+					break; /* already probed succesfully */
+			}
 		}
 		
 		set_motor(fdcu, fdsu, TURNOFF);
@@ -483,7 +652,7 @@ fdattach(dev)
 		if (st0 & NE7_ST0_EC) /* no track 0 -> no drive present */
 			continue;
 
-		fd->track = -2;
+		fd->track = FD_NO_TRACK;
 		fd->fdc = fdc;
 		fd->fdsu = fdsu;
 		fd->options = 0;
@@ -530,8 +699,7 @@ fdattach(dev)
 }
 
 int
-fdsize(dev)
-	dev_t	dev;
+fdsize(dev_t dev)
 {
 	return(0);
 }
@@ -541,10 +709,7 @@ fdsize(dev)
 /*		remember to not deselect the drive we're working on         */
 /****************************************************************************/
 static void
-set_motor(fdcu, fdsu, turnon)
-	fdcu_t fdcu;
-	int fdsu;
-	int turnon;
+set_motor(fdcu_t fdcu, int fdsu, int turnon)
 {
 	int fdout = fdc_data[fdcu].fdout;
 	int needspecify = 0;
@@ -572,13 +737,14 @@ set_motor(fdcu, fdsu, turnon)
 
 	if(needspecify) {
 		/*
+		 * XXX
 		 * special case: since we have just woken up the FDC
 		 * from its sleep, we silently assume the command will
 		 * be accepted, and do not test for a timeout
 		 */
-		out_fdc(fdcu, NE7CMD_SPECIFY);
-		out_fdc(fdcu, NE7_SPEC_1(3, 240));
-		out_fdc(fdcu, NE7_SPEC_2(2, 0));
+		(void)fd_cmd(fdcu, 3, NE7CMD_SPECIFY,
+			     NE7_SPEC_1(3, 240), NE7_SPEC_2(2, 0),
+			     0);
 	}
 }
 
@@ -614,8 +780,7 @@ fd_motor_on(void *arg1)
 }
 
 static void
-fd_turnon(fdu) 
-	fdu_t fdu;
+fd_turnon(fdu_t fdu) 
 {
 	fd_p fd = fd_data + fdu;
 	if(!(fd->flags & FD_MOTOR))
@@ -627,8 +792,7 @@ fd_turnon(fdu)
 }
 
 static void
-fdc_reset(fdc)
-	fdc_p fdc;
+fdc_reset(fdc_p fdc)
 {
 	fdcu_t fdcu = fdc->fdcu;
 	
@@ -643,26 +807,26 @@ fdc_reset(fdc)
 	outb(fdc->baseport + FDOUT, fdc->fdout);
 	TRACE1("[0x%x->FDOUT]", fdc->fdout);
 
-	/* after a reset, silently believe the FDC will accept commands */
-	out_fdc(fdcu, NE7CMD_SPECIFY);
-	out_fdc(fdcu, NE7_SPEC_1(3, 240));
-	out_fdc(fdcu, NE7_SPEC_2(2, 0));
+	/* XXX after a reset, silently believe the FDC will accept commands */
+	(void)fd_cmd(fdcu, 3, NE7CMD_SPECIFY,
+		     NE7_SPEC_1(3, 240), NE7_SPEC_2(2, 0),
+		     0);
 }
 
 /****************************************************************************/
 /*                             fdc in/out                                   */
 /****************************************************************************/
 int
-in_fdc(fdcu)
-	fdcu_t fdcu;
+in_fdc(fdcu_t fdcu)
 {
 	int baseport = fdc_data[fdcu].baseport;
 	int i, j = 100000;
 	while ((i = inb(baseport+FDSTS) & (NE7_DIO|NE7_RQM))
 		!= (NE7_DIO|NE7_RQM) && j-- > 0)
-		if (i == NE7_RQM) return -1;
+		if (i == NE7_RQM)
+			return fdc_err(fdcu, "ready for output in input");
 	if (j <= 0)
-		return(-1);
+		return fdc_err(fdcu, "input ready timeout");
 #ifdef	DEBUG
 	i = inb(baseport+FDDATA);
 	TRACE1("[FDDATA->0x%x]", (unsigned char)i);
@@ -672,10 +836,35 @@ in_fdc(fdcu)
 #endif
 }
 
+/*
+ * fd_in: Like in_fdc, but allows you to see if it worked.
+ */
 int
-out_fdc(fdcu, x)
-	fdcu_t fdcu;
-	int x;
+fd_in(fdcu_t fdcu, int *ptr)
+{
+	int baseport = fdc_data[fdcu].baseport;
+	int i, j = 100000;
+	while ((i = inb(baseport+FDSTS) & (NE7_DIO|NE7_RQM))
+		!= (NE7_DIO|NE7_RQM) && j-- > 0)
+		if (i == NE7_RQM)
+			return fdc_err(fdcu, "ready for output in input");
+	if (j <= 0)
+		return fdc_err(fdcu, "input ready timeout");
+#ifdef	DEBUG
+	i = inb(baseport+FDDATA);
+	TRACE1("[FDDATA->0x%x]", (unsigned char)i);
+	*ptr = i;
+	return 0;
+#else
+	i = inb(baseport+FDDATA);
+	if (ptr)
+		*ptr = i;
+	return 0;
+#endif
+}
+
+int
+out_fdc(fdcu_t fdcu, int x)
 {
 	int baseport = fdc_data[fdcu].baseport;
 	int i;
@@ -683,12 +872,12 @@ out_fdc(fdcu, x)
 	/* Check that the direction bit is set */
 	i = 100000;
 	while ((inb(baseport+FDSTS) & NE7_DIO) && i-- > 0);
-	if (i <= 0) return (-1);	/* Floppy timed out */
+	if (i <= 0) return fdc_err(fdcu, "direction bit not set");
 
 	/* Check that the floppy controller is ready for a command */
 	i = 100000;
 	while ((inb(baseport+FDSTS) & NE7_RQM) == 0 && i-- > 0);
-	if (i <= 0) return (-1);	/* Floppy timed out */
+	if (i <= 0) return fdc_err(fdcu, "output ready timeout");
 
 	/* Send the command and return */
 	outb(baseport+FDDATA, x);
@@ -700,9 +889,7 @@ out_fdc(fdcu, x)
 /*                           fdopen/fdclose                                 */
 /****************************************************************************/
 int
-Fdopen(dev, flags)
-	dev_t	dev;
-	int	flags;
+Fdopen(dev_t dev, int flags)
 {
  	fdu_t fdu = FDUNIT(minor(dev));
 	int type = FDTYPE(minor(dev));
@@ -777,16 +964,23 @@ Fdopen(dev, flags)
 	set_motor(fdc->fdcu, fd_data[fdu].fdsu, TURNON);
 
 	if (flags & FWRITE) {
-			/* Check to make sure the diskette */
-			/* is writable */
-		out_fdc(fdc->fdcu, NE7CMD_SENSED);
-		out_fdc(fdc->fdcu, fdu);
-		st3 = in_fdc(fdc->fdcu);
-		if(st3 & NE7_ST3_WP)  {
-			printf("fd%d: write protected\n", fdu);
-			set_motor(fdc->fdcu, fd_data[fdu].fdsu, TURNOFF);
-			return(EPERM);
+		/*
+		 * Check to make sure the diskette is writable:
+		 */
+		int err = 0;
+
+		if (fd_sense_drive_status(fdc, &st3) != 0)
+			err = EIO;
+		else if ( (st3 & NE7_ST3_WP) )
+		{
+			printf("fd%d: drive is write protected.\n", fdu);
+			err = ENXIO;
 		}
+
+		if (err) {
+			set_motor(fdc->fdcu, fd_data[fdu].fdsu, TURNOFF);
+			return err;
+  		}
 	}
 
 	set_motor(fdc->fdcu, fd_data[fdu].fdsu, TURNOFF);
@@ -798,9 +992,7 @@ Fdopen(dev, flags)
 }
 
 int
-fdclose(dev, flags)
-	dev_t dev;
-	int flags;
+fdclose(dev_t dev, int flags)
 {
  	fdu_t fdu = FDUNIT(minor(dev));
 
@@ -853,7 +1045,8 @@ fdstrategy(struct buf *bp)
 #endif
 	if (!(bp->b_flags & B_FORMAT)) {
 		if ((fdu >= NFD) || (bp->b_blkno < 0)) {
-			printf("fdstrat: fdu = %d, blkno = %lu, bcount = %ld\n",
+			printf(
+		"fdstrat: fd%d: bad request blkno = %lu, bcount = %ld\n",
 			       fdu, (u_long)bp->b_blkno, bp->b_bcount);
 			bp->b_error = EINVAL;
 			bp->b_flags |= B_ERROR;
@@ -903,8 +1096,7 @@ bad:
 * will pick up our work when the present work completes		*
 \***************************************************************/
 static void
-fdstart(fdcu)
-	fdcu_t fdcu;
+fdstart(fdcu_t fdcu)
 {
 	int s;
 
@@ -1005,9 +1197,7 @@ fdintr(fdcu_t fdcu)
 * if it returns a non zero value, it should be called again immediatly	*
 \***********************************************************************/
 static int
-fdstate(fdcu, fdc)
-	fdcu_t fdcu;
-	fdc_p fdc;
+fdstate(fdcu_t fdcu, fdc_p fdc)
 {
 	int read, format, head, sec = 0, i = 0, sectrac, st0, cyl, st3;
 	unsigned long blknum;
@@ -1092,7 +1282,9 @@ fdstate(fdcu, fdc)
 			fdc->state = SEEKCOMPLETE;
 			break;
 		}
-		if(out_fdc(fdcu, NE7CMD_SEEK) < 0) /* Seek function */
+		if (fd_cmd(fdcu, 3, NE7CMD_SEEK,
+			   fd->fdsu, bp->b_cylin * fd->ft->steptrac,
+			   0))
 		{
 			/*
 			 * seek command not accepted, looks like
@@ -1101,9 +1293,7 @@ fdstate(fdcu, fdc)
 			fdc->retry = 6;	/* try a reset */
 			return(retrier(fdcu));
 		}
-		out_fdc(fdcu, fd->fdsu);	/* Drive number */
-		out_fdc(fdcu, bp->b_cylin * fd->ft->steptrac);
-		fd->track = -2;
+		fd->track = FD_NO_TRACK;
 		fdc->state = SEEKWAIT;
 		return(0);	/* will return later */
 	case SEEKWAIT:
@@ -1113,37 +1303,63 @@ fdstate(fdcu, fdc)
 		return(0);	/* will return later */
 	case SEEKCOMPLETE : /* SEEK DONE, START DMA */
 		/* Make sure seek really happened*/
-		if(fd->track == -2)
+		if(fd->track == FD_NO_TRACK)
 		{
 			int descyl = bp->b_cylin * fd->ft->steptrac;
 			do {
-				out_fdc(fdcu, NE7CMD_SENSEI);
-				st0 = in_fdc(fdcu);
-				cyl = in_fdc(fdcu);
 				/*
-				 * if this was a "ready changed" interrupt,
-				 * fetch status again (can happen after
-				 * enabling controller from reset state)
+				 * This might be a "ready changed" interrupt,
+				 * which cannot really happen since the
+				 * RDY pin is hardwired to + 5 volts.  This
+				 * generally indicates a "bouncing" intr
+				 * line, so do one of the following:
+				 *
+				 * When running on an enhanced FDC that is
+				 * known to not go stuck after responding
+				 * with INVALID, fetch all interrupt states
+				 * until seeing either an INVALID or a
+				 * real interrupt condition.
+				 *
+				 * When running on a dumb old NE765, give
+				 * up immediately.  The controller will
+				 * provide up to four dummy RC interrupt
+				 * conditions right after reset (for the
+				 * corresponding four drives), so this is
+				 * our only chance to get notice that it
+				 * was not the FDC that caused the interrupt.
 				 */
+				if (fd_sense_int(fdc, &st0, &cyl)
+				    == FD_NOT_VALID)
+					return 0;
+				if(fdc->fdct == FDC_NE765
+				   && (st0 & NE7_ST0_IC) == NE7_ST0_IC_RC)
+					return 0; /* hope for a real intr */
 			} while ((st0 & NE7_ST0_IC) == NE7_ST0_IC_RC);
+
 			if (0 == descyl)
 			{
+				int failed = 0;
 				/*
 				 * seek to cyl 0 requested; make sure we are
 				 * really there
 				 */
-				out_fdc(fdcu, NE7CMD_SENSED);
-				out_fdc(fdcu, fdu);
-				st3 = in_fdc(fdcu);
+				if (fd_sense_drive_status(fdc, &st3))
+					failed = 1;
 				if ((st3 & NE7_ST3_T0) == 0) {
 					printf(
 		"fd%d: Seek to cyl 0, but not really there (ST3 = %b)\n",
 					       fdu, st3, NE7_ST3BITS);
+					failed = 1;
+				}
+
+				if (failed)
+				{
 					if(fdc->retry < 3)
 						fdc->retry = 3;
 					return(retrier(fdcu));
 				}
 			}
+
 			if (cyl != descyl)
 			{
 				printf(
@@ -1170,14 +1386,12 @@ fdstate(fdcu, fdc)
 		if(format || !read)
 		{
 			/* make sure the drive is writable */
-			if(out_fdc(fdcu, NE7CMD_SENSED) < 0)
+			if(fd_sense_drive_status(fdc, &st3) != 0)
 			{
 				/* stuck controller? */
 				fdc->retry = 6;	/* reset the beast */
 				return(retrier(fdcu));
 			}
-			out_fdc(fdcu, fdu);
-			st3 = in_fdc(fdcu);
 			if(st3 & NE7_ST3_WP)
 			{
 				/*
@@ -1202,48 +1416,56 @@ fdstate(fdcu, fdc)
 		if(format)
 		{
 			/* formatting */
-			if(out_fdc(fdcu, NE7CMD_FORMAT) < 0)
+			if(fd_cmd(fdcu, 6, 
+				  NE7CMD_FORMAT,
+				  head << 2 | fdu,
+				  finfo->fd_formb_secshift,
+				  finfo->fd_formb_nsecs,
+				  finfo->fd_formb_gaplen,
+				  finfo->fd_formb_fillbyte,
+				  0))
 			{
 				/* controller fell over */
 				fdc->retry = 6;
 				return(retrier(fdcu));
 			}
-			out_fdc(fdcu, head << 2 | fdu);
-			out_fdc(fdcu, finfo->fd_formb_secshift);
-			out_fdc(fdcu, finfo->fd_formb_nsecs);
-			out_fdc(fdcu, finfo->fd_formb_gaplen);
-			out_fdc(fdcu, finfo->fd_formb_fillbyte);
 		}			
 		else
 		{
-			if ((read && out_fdc(fdcu, NE7CMD_READ) < 0)
-			    || (!read /* i.e., write */
-				&& out_fdc(fdcu, NE7CMD_WRITE) < 0))
+			if (fd_cmd(fdcu, 9,
+				   (read ? NE7CMD_READ : NE7CMD_WRITE),
+				   head << 2 | fdu,  /* head & unit */
+				   fd->track,        /* track */
+				   head,
+				   sec,              /* sector + 1 */
+				   fd->ft->secsize,  /* sector size */
+				   sectrac,          /* sectors/track */
+				   fd->ft->gap,      /* gap size */
+				   fd->ft->datalen,  /* data length */
+				   0))
 			{
 				/* the beast is sleeping again */
 				fdc->retry = 6;
 				return(retrier(fdcu));
 			}
-			out_fdc(fdcu, head << 2 | fdu);  /* head & unit */
-			out_fdc(fdcu, fd->track);        /* track */
-			out_fdc(fdcu, head);
-			out_fdc(fdcu, sec);              /* sector XXX +1? */
-			out_fdc(fdcu, fd->ft->secsize);  /* sector size */
-			out_fdc(fdcu, sectrac);          /* sectors/track */
-			out_fdc(fdcu, fd->ft->gap);      /* gap size */
-			out_fdc(fdcu, fd->ft->datalen);  /* data length */
 		}
 		fdc->state = IOCOMPLETE;
 		timeout(fd_timeout, (caddr_t)fdcu, hz);
 		return(0);	/* will return later */
 	case IOCOMPLETE: /* IO DONE, post-analyze */
 		untimeout(fd_timeout, (caddr_t)fdcu);
-		for(i=0;i<7;i++)
+
+		if (fd_read_status(fdc, fd->fdsu))
 		{
-			fdc->status[i] = in_fdc(fdcu);
-		}
+			if (fdc->retry < 6)
+				fdc->retry = 6;	/* force a reset */
+			return retrier(fdcu);
+  		}
+
 		fdc->state = IOTIMEDOUT;
+
 		/* FALLTHROUGH */
+
 	case IOTIMEDOUT:
 		isa_dmadone(bp->b_flags, bp->b_un.b_addr+fd->skip,
 			    format ? bp->b_bcount : fdblk, fdc->dmachan);
@@ -1299,13 +1521,14 @@ fdstate(fdcu, fdc)
 		fdc->state = STARTRECAL;
 		break;
 	case STARTRECAL:
-		if(out_fdc(fdcu, NE7CMD_RECAL) < 0) /* Recalibrate Function */
+		if(fd_cmd(fdcu,
+			  2, NE7CMD_RECAL, fdu,
+			  0)) /* Recalibrate Function */
 		{
 			/* arrgl */
 			fdc->retry = 6;
 			return(retrier(fdcu));
 		}
-		out_fdc(fdcu, fdu);
 		fdc->state = RECALWAIT;
 		return(0);	/* will return later */
 	case RECALWAIT:
@@ -1315,14 +1538,14 @@ fdstate(fdcu, fdc)
 		return(0);	/* will return later */
 	case RECALCOMPLETE:
 		do {
-			out_fdc(fdcu, NE7CMD_SENSEI);
-			st0 = in_fdc(fdcu);
-			cyl = in_fdc(fdcu);
 			/*
-			 * if this was a "ready changed" interrupt,
-			 * fetch status again (can happen after
-			 * enabling controller from reset state)
+			 * See SEEKCOMPLETE for a comment on this:
 			 */
+			if (fd_sense_int(fdc, &st0, &cyl) == FD_NOT_VALID)
+				return 0;
+			if(fdc->fdct == FDC_NE765
+			   && (st0 & NE7_ST0_IC) == NE7_ST0_IC_RC)
+				return 0; /* hope for a real intr */
 		} while ((st0 & NE7_ST0_IC) == NE7_ST0_IC_RC);
 		if ((st0 & NE7_ST0_IC) != NE7_ST0_IC_NT || cyl != 0)
 		{
@@ -1357,22 +1580,15 @@ fdstate(fdcu, fdc)
 		fdc->state = STARTRECAL;
 		return(1);	/* will return immediatly */
 	default:
-		printf("Unexpected FD int->");
-		if(out_fdc(fdcu, NE7CMD_SENSEI) < 0)
+		printf("fdc%d: Unexpected FD int->", fdcu);
+		if (fd_sense_int(fdc, &st0, &cyl) != 0)
 		{
 			printf("[controller is dead now]\n");
 			return(0);
 		}
-		st0 = in_fdc(fdcu);
-		cyl = in_fdc(fdcu);
 		printf("ST0 = %x, PCN = %x\n", st0, cyl);
-		out_fdc(fdcu, NE7CMD_READID); 
-		out_fdc(fdcu, fd->fdsu);
-		for(i=0;i<7;i++) {
-			fdc->status[i] = in_fdc(fdcu);
-		}
-		if(fdc->status[0] != -1)
-			printf("intr status :%lx %lx %lx %lx %lx %lx %lx\n",
+		if (fd_read_status(fdc, fd->fdsu) == 0)
+			printf("FDC status :%lx %lx %lx %lx %lx %lx %lx\n",
 			       fdc->status[0],
 			       fdc->status[1],
 			       fdc->status[2],
@@ -1381,7 +1597,7 @@ fdstate(fdcu, fdc)
 			       fdc->status[5],
 			       fdc->status[6] );
 		else
-			printf("FDC timed out\n");
+			printf("No status available\n");
 		return(0);
 	}
 	return(1); /* Come back immediatly to new state */
@@ -1423,11 +1639,18 @@ retrier(fdcu)
 				fdc->fd->skip / DEV_BSIZE,
 				(struct disklabel *)NULL);
 			bp->b_dev = sav_b_dev;
-			printf(" (ST0 %b ", fdc->status[0], NE7_ST0BITS);
-			printf(" ST1 %b ", fdc->status[1], NE7_ST1BITS);
-			printf(" ST2 %b ", fdc->status[2], NE7_ST2BITS);
-			printf("cyl %ld hd %ld sec %ld)\n",
-			       fdc->status[3], fdc->status[4], fdc->status[5]);
+			if (fdc->flags & FDC_STAT_VALID)
+			{
+				printf(
+			" (ST0 %b ST1 %b ST2 %b cyl %ld hd %ld sec %ld)\n",
+				       fdc->status[0], NE7_ST0BITS,
+				       fdc->status[1], NE7_ST1BITS,
+				       fdc->status[2], NE7_ST2BITS,
+				       fdc->status[3], fdc->status[4],
+				       fdc->status[5]);
+			}
+			else
+				printf(" (No status)\n");
 		}
 		bp->b_flags |= B_ERROR;
 		bp->b_error = EIO;
