@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-SUBDIR=	fdisk \
+SUBDIR=	cxconfig \
+	fdisk \
 	nextboot
-#NOTYET: cxconfig
 
 .include <bsd.subdir.mk>
