@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl.h,v 1.14 1998/08/11 15:08:12 bde Exp $
+ *	$Id: ipl.h,v 1.15 1998/08/11 19:21:17 bde Exp $
  */
 
 #ifndef _MACHINE_IPL_H_
@@ -53,7 +53,6 @@
 #define	SWI_CAMBIO	(NHWI + 3)
 #define	SWI_VM		(NHWI + 4)
 #define	SWI_CLOCK	30
-#define	SWI_AST		31
 #define	NSWI		(32 - NHWI)
 
 /*
@@ -65,15 +64,14 @@
 #define	SWI_CAMBIO_PENDING	(1 << SWI_CAMBIO)
 #define	SWI_VM_PENDING		(1 << SWI_VM)
 #define	SWI_CLOCK_PENDING	(1 << SWI_CLOCK)
-#define	SWI_AST_PENDING		(1 << SWI_AST)
 
 /*
  * Corresponding interrupt-disable masks for cpl.  The ordering is now by
  * inclusion (where each mask is considered as a set of bits). Everything
- * except SWI_AST_MASK includes SWI_CLOCK_MASK so that softclock() doesn't
+ * includes SWI_CLOCK_MASK so that softclock() doesn't
  * run while other swi handlers are running and timeout routines can call
- * swi handlers.  Everything includes SWI_AST_MASK so that AST's are masked
- * until just before return to user mode.  SWI_TTY_MASK includes SWI_NET_MASK
+ * swi handlers.
+ * SWI_TTY_MASK includes SWI_NET_MASK
  * in case tty interrupts are processed at splsofttty() for a tty that is in
  * SLIP or PPP line discipline (this is weaker than merging net_imask with
  * tty_imask in isa.c - splimp() must mask hard and soft tty interrupts, but
@@ -84,8 +82,7 @@
 #define	SWI_CAMBIO_MASK	(SWI_CAMBIO_PENDING | SWI_CLOCK_MASK)
 #define	SWI_NET_MASK	(SWI_NET_PENDING | SWI_CLOCK_MASK)
 #define	SWI_VM_MASK	(SWI_VM_PENDING | SWI_CLOCK_MASK)
-#define	SWI_CLOCK_MASK	(SWI_CLOCK_PENDING | SWI_AST_MASK)
-#define	SWI_AST_MASK	SWI_AST_PENDING
+#define	SWI_CLOCK_MASK	SWI_CLOCK_PENDING
 #define	SWI_MASK	(~HWI_MASK)
 
 #ifndef	LOCORE

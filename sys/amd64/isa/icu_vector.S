@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: icu_vector.s,v 1.11 1999/04/28 01:04:13 luoqi Exp $
+ *	$Id: icu_vector.s,v 1.12 1999/05/28 14:08:59 bde Exp $
  */
 
 /*
@@ -211,7 +211,7 @@ _ihandlers:			/* addresses of interrupt handlers */
 	.long	_swi_null, swi_net, _swi_null, _swi_null
 	.long	_swi_vm, _swi_null, _swi_null, _swi_null
 	.long	_swi_null, _swi_null, _swi_null, _swi_null
-	.long	_swi_null, _swi_null, _softclock, swi_ast
+	.long	_swi_null, _swi_null, _softclock, _swi_null
 
 imasks:				/* masks for interrupt handlers */
 	.space	NHWI*4		/* padding; HWI masks are elsewhere */
@@ -219,6 +219,6 @@ imasks:				/* masks for interrupt handlers */
 	.long	SWI_TTY_MASK, SWI_NET_MASK, SWI_CAMNET_MASK, SWI_CAMBIO_MASK
 	.long	SWI_VM_MASK, 0, 0, 0
 	.long	0, 0, 0, 0
-	.long	0, 0, SWI_CLOCK_MASK, SWI_AST_MASK
+	.long	0, 0, SWI_CLOCK_MASK, 0
 
 	.text
