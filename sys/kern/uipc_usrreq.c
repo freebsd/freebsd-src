@@ -280,6 +280,8 @@ uipc_rcvd(struct socket *so, int flags)
 		if (unp->unp_conn == NULL)
 			break;
 		so2 = unp->unp_conn->unp_socket;
+		SOCKBUF_LOCK(&so2->so_snd);
+		SOCKBUF_LOCK(&so->so_rcv);
 		/*
 		 * Adjust backpressure on sender
 		 * and wakeup any waiting to write.
@@ -291,6 +293,8 @@ uipc_rcvd(struct socket *so, int flags)
 		(void)chgsbsize(so2->so_cred->cr_uidinfo, &so2->so_snd.sb_hiwat,
 		    newhiwat, RLIM_INFINITY);
 		unp->unp_cc = so->so_rcv.sb_cc;
+		SOCKBUF_UNLOCK(&so->so_rcv);
+		SOCKBUF_UNLOCK(&so2->so_snd);
 		sowwakeup(so2);
 		break;
 
