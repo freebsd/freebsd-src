@@ -80,20 +80,20 @@ linux_sysctl(struct thread *td, struct linux_sysctl_args *args)
 	struct l___sysctl_args la;
 	l_int *mib;
 	int error, i;
-	caddr_t sg;
 
 	error = copyin((caddr_t)args->args, &la, sizeof(la));
 	if (error)
 		return (error);
 
-	if (la.nlen == 0 || la.nlen > LINUX_CTL_MAXNAME)
+	if (la.nlen <= 0 || la.nlen > LINUX_CTL_MAXNAME)
 		return (ENOTDIR);
 
-	sg = stackgap_init();
-	mib = stackgap_alloc(&sg, la.nlen * sizeof(l_int));
+	mib = malloc(la.nlen * sizeof(l_int), M_TEMP, M_WAITOK);
 	error = copyin(la.name, mib, la.nlen * sizeof(l_int));
-	if (error)
+	if (error) {
+		free(mib, M_TEMP);
 		return (error);
+	}
 
 	switch (mib[0]) {
 	case LINUX_CTL_KERN:
@@ -102,7 +102,9 @@ linux_sysctl(struct thread *td, struct linux_sysctl_args *args)
 
 		switch (mib[1]) {
 		case LINUX_KERN_VERSION:
-			return (handle_string(&la, version));
+			error = handle_string(&la, version);
+			free(mib, M_TEMP);
+			return (error);
 		default:
 			break;
 		}
@@ -116,5 +118,6 @@ linux_sysctl(struct thread *td, struct linux_sysctl_args *args)
 		printf("%c%d", (i) ? ',' : '{', mib[i]);
 	printf("}\n");
 
+	free(mib, M_TEMP);
 	return (ENOTDIR);
 }

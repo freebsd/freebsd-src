@@ -94,20 +94,19 @@ linux_newstat(struct thread *td, struct linux_newstat_args *args)
 {
 	struct stat buf;
 	struct nameidata nd;
+	char *path;
 	int error;
-	caddr_t sg;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, args->path);
+	LCONVPATHEXIST(td, args->path, &path);
 
 #ifdef DEBUG
 	if (ldebug(newstat))
-		printf(ARGS(newstat, "%s, *"), args->path);
+		printf(ARGS(newstat, "%s, *"), path);
 #endif
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    args->path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_SYSSPACE, path, td);
 	error = namei(&nd);
+	LFREEPATH(path);
 	if (error)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -126,19 +125,19 @@ linux_newlstat(struct thread *td, struct linux_newlstat_args *args)
 	int error;
 	struct stat sb;
 	struct nameidata nd;
-	caddr_t sg;
+	char *path;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, args->path);
+	LCONVPATHEXIST(td, args->path, &path);
 
 #ifdef DEBUG
 	if (ldebug(newlstat))
-		printf(ARGS(newlstat, "%s, *"), args->path);
+		printf(ARGS(newlstat, "%s, *"), path);
 #endif
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    args->path, td);
+	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ, UIO_SYSSPACE, path,
+	    td);
 	error = namei(&nd);
+	LFREEPATH(path);
 	if (error)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF); 
@@ -231,19 +230,19 @@ linux_statfs(struct thread *td, struct linux_statfs_args *args)
 	struct statfs *bsd_statfs;
 	struct nameidata nd;
 	struct l_statfs linux_statfs;
+	char *path;
 	int error;
-	caddr_t sg;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, args->path);
+	LCONVPATHEXIST(td, args->path, &path);
 
 #ifdef DEBUG
 	if (ldebug(statfs))
-		printf(ARGS(statfs, "%s, *"), args->path);
+		printf(ARGS(statfs, "%s, *"), path);
 #endif
 	ndp = &nd;
-	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args->path, curthread);
+	NDINIT(ndp, LOOKUP, FOLLOW, UIO_SYSSPACE, path, td);
 	error = namei(ndp);
+	LFREEPATH(path);
 	if (error)
 		return error;
 	NDFREE(ndp, NDF_ONLY_PNBUF);
@@ -416,19 +415,19 @@ linux_stat64(struct thread *td, struct linux_stat64_args *args)
 	struct stat buf;
 	struct nameidata nd;
 	int error;
-	caddr_t sg;
+	char *filename;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, args->filename);
+	LCONVPATHEXIST(td, args->filename, &filename);
 
 #ifdef DEBUG
 	if (ldebug(stat64))
-		printf(ARGS(stat64, "%s, *"), args->filename);
+		printf(ARGS(stat64, "%s, *"), filename);
 #endif
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    args->filename, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_SYSSPACE, filename,
+	    td);
 	error = namei(&nd);
+	LFREEPATH(filename);
 	if (error)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -447,19 +446,19 @@ linux_lstat64(struct thread *td, struct linux_lstat64_args *args)
 	int error;
 	struct stat sb;
 	struct nameidata nd;
-	caddr_t sg;
+	char *filename;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, args->filename);
+	LCONVPATHEXIST(td, args->filename, &filename);
 
 #ifdef DEBUG
 	if (ldebug(lstat64))
 		printf(ARGS(lstat64, "%s, *"), args->filename);
 #endif
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
-	    args->filename, td);
+	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ, UIO_SYSSPACE, filename,
+	    td);
 	error = namei(&nd);
+	LFREEPATH(filename);
 	if (error)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF); 
