@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.94 1999/07/29 01:49:12 msmith Exp $
+ *	$Id: apm.c,v 1.95 1999/07/29 18:15:33 iwasaki Exp $
  */
 
 #include "opt_devfs.h"
@@ -1130,12 +1130,6 @@ apmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		if (apm_display(newstate))
 			error = ENXIO;
 		break;
-#if 0
-	case APMIO_BIOS:
-		if (apm_bios_call((struct apm_bios_arg*)addr) == 0)
-			((struct apm_bios_arg*)addr)->eax &= 0xff;
-		break;
-#endif
 	default:
 		error = EINVAL;
 		break;
