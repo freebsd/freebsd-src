@@ -197,11 +197,6 @@ typedef struct drm_buf_entry {
 	drm_freelist_t	  freelist;
 } drm_buf_entry_t;
 
-typedef struct drm_hw_lock {
-	__volatile__ unsigned int lock;
-	char			  padding[60]; /* Pad to cache line */
-} drm_hw_lock_t;
-
 typedef TAILQ_HEAD(drm_file_list, drm_file) drm_file_list_t;
 struct drm_file {
 	TAILQ_ENTRY(drm_file) link;

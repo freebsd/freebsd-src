@@ -78,6 +78,8 @@
 #include <sys/mutex.h>
 #endif
 
+#include "dev/drm/drm_linux_list.h"
+
 #if __FreeBSD_version >= 400006
 #define __REALLY_HAVE_AGP	__HAVE_AGP
 #endif
@@ -309,6 +311,11 @@ for ( ret = 0 ; !ret && !(condition) ; ) {		\
 /* The macros conflicted in the MALLOC_DEFINE */
 MALLOC_DECLARE(malloctype);
 #undef malloctype
+
+#if __FreeBSD_version < 502109
+#define bus_alloc_resource_any(dev, type, rid, flags) \
+	bus_alloc_resource(dev, type, rid, 0ul, ~0ul, 1, flags)
+#endif
 
 #if __FreeBSD_version >= 480000
 #define cpu_to_le32(x) htole32(x)
