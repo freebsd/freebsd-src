@@ -42,7 +42,7 @@ extern int  _ppc32_setcontext(mcontext_t *, intptr_t, intptr_t *);
 extern int  _ppc32_getcontext(mcontext_t *);
 
 #define	KSE_STACKSIZE		16384
-#define	DTV_OFFSET		offsetof(struct tcb, tcb.tcb_tp.tp_dtv)
+#define	DTV_OFFSET		offsetof(struct tcb, tcb_tp.tp_tdv)
 
 #define	THR_GETCONTEXT(ucp)	_ppc32_getcontext(&(ucp)->uc_mcontext)
 #define	THR_SETCONTEXT(ucp)	_ppc32_setcontext(&(ucp)->uc_mcontext, 0, NULL)
@@ -93,7 +93,7 @@ register uint8_t *_tpr __asm("%r2");
 /*
  * The kcb and tcb constructors.
  */
-struct tcb	*_tcb_ctor(struct pthread *);
+struct tcb	*_tcb_ctor(struct pthread *, int);
 void		_tcb_dtor(struct tcb *);
 struct kcb	*_kcb_ctor(struct kse *kse);
 void		_kcb_dtor(struct kcb *);
