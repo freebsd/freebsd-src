@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ospf.c,v 1.29 2000/09/29 04:58:45 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ospf.c,v 1.31 2001/06/28 04:34:51 fenner Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -403,8 +403,9 @@ ospf_decode_v2(register const struct ospfhdr *op,
 			printf(" bdr %s",
 			    ipaddr_string(&op->ospf_hello.hello_bdr));
 		if (vflag) {
-			printf(" nbrs");
 			ap = op->ospf_hello.hello_neighbor;
+			if ((u_char *)ap < dataend)
+				printf(" nbrs");
 			while ((u_char *)ap < dataend) {
 				TCHECK(*ap);
 				printf(" %s", ipaddr_string(ap));
@@ -509,12 +510,6 @@ ospf_print(register const u_char *bp, register u_int length,
 
 	op = (struct ospfhdr *)bp;
 	ip = (struct ip *)bp2;
-	/* Print the source and destination address  */
-#if 0
-	(void) printf("%s > %s:",
-	    ipaddr_string(&ip->ip_src),
-	    ipaddr_string(&ip->ip_dst));
-#endif
 
         /* XXX Before we do anything else, strip off the MD5 trailer */
         TCHECK(op->ospf_authtype);
@@ -527,7 +522,7 @@ ospf_print(register const u_char *bp, register u_int length,
 	/* value.  If it's not valid, say so and return */
 	TCHECK(op->ospf_type);
 	cp = tok2str(type2str, "type%d", op->ospf_type);
-	printf(" OSPFv%d-%s %d:", op->ospf_version, cp, length);
+	printf("OSPFv%d-%s %d:", op->ospf_version, cp, length);
 	if (*cp == 't')
 		return;
 

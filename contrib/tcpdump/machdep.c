@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/machdep.c,v 1.6 2000/01/17 06:24:23 itojun Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/machdep.c,v 1.7 2001/06/27 05:42:04 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -32,7 +32,16 @@ static const char rcsid[] =
 #ifdef __osf__
 #include <sys/sysinfo.h>
 #include <sys/proc.h>
-#endif
+
+#if !defined(HAVE_SNPRINTF)
+#ifndef HAVE___ATTRIBUTE__
+#define __attribute__(x)
+#endif /* HAVE___ATTRIBUTE__ */
+
+int snprintf(char *, size_t, const char *, ...)
+     __attribute__((format(printf, 3, 4)));
+#endif /* !defined(HAVE_SNPRINTF) */
+#endif /* __osf__ */
 
 #include "machdep.h"
 
