@@ -1205,10 +1205,9 @@ pci_probe_nomatch(device_t dev, device_t child)
 	dinfo = device_get_ivars(child);
 	cfg = &dinfo->cfg;
 	desc = pci_ata_match(child);
-	if (!desc)
-		desc = pci_usb_match(child);
-	if (!desc)
-		desc = "unknown card";
+	if (!desc) desc = pci_usb_match(child);
+	if (!desc) desc = pci_vga_match(child);
+	if (!desc) desc = "unknown card";
 	device_printf(dev, desc);
 	printf(" (vendor=0x%04x, dev=0x%04x) at %d.%d",
 		cfg->vendor,
