@@ -515,6 +515,7 @@ ext2_vfree(pvp, ino, mode)
 {
 	register struct ext2_sb_info *fs;
 	register struct inode *pip;
+	register mode_t save_i_mode;
 
 	pip = VTOI(pvp);
 	fs = pip->i_e2fs;
@@ -531,10 +532,10 @@ ext2_vfree(pvp, ino, mode)
 	   really like to know what the rationale behind this
 	   'set i_mode to zero to denote an unused inode' is
 	 */
-	mode = pip->i_mode;
-	pip->i_mode = mode;	
-	ext2_free_inode(pip);	
+	save_i_mode = pip->i_mode;
 	pip->i_mode = mode;
+	ext2_free_inode(pip);	
+	pip->i_mode = save_i_mode;
 	return (0);
 }
 
