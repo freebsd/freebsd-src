@@ -174,9 +174,10 @@ The value for _SC_STREAM_MAX is a minimum maximum, and required to be
 the same as ANSI C's FOPEN_MAX, so the returned value is a ridiculously
 small and misleading number.
 .Sh STANDARDS
-The
+Except for the fact that values returned by
 .Fn sysconf
-function conforms to
+may change over the lifetime of the calling process,
+this function conforms to
 .St -p1003.1-88 .
 .Sh HISTORY
 The
