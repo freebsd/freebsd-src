@@ -32,6 +32,7 @@
  *
  * $FreeBSD$
  *
+ *      last edit-date: [Mon May 29 15:22:52 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -167,7 +168,7 @@ ifpi2_isacsx_irq(struct l1_softc *sc, int ista)
 		if(sc->sc_ilen <= (MAX_DFRAME_LEN - rest))
 		{
 			ISAC_RDFIFO(sc->sc_ib, rest);
-			 /* the  last byte contains status, strip it */
+			/* the last byte is status - strip it */
 			sc->sc_ilen += rest - 1;
 			
 			sc->sc_ibuf->m_pkthdr.len =
