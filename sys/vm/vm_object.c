@@ -508,8 +508,8 @@ vm_object_deallocate(vm_object_t object)
 						goto doterm;
 					}
 					object = robject;
-	/* XXX */			VM_OBJECT_UNLOCK(object);
 					vm_object_collapse(object);
+					VM_OBJECT_UNLOCK(object);
 					continue;
 				}
 				VM_OBJECT_UNLOCK(robject);
@@ -1495,7 +1495,7 @@ vm_object_qcollapse(vm_object_t object)
 void
 vm_object_collapse(vm_object_t object)
 {
-	GIANT_REQUIRED;
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	
 	while (TRUE) {
 		vm_object_t backing_object;
@@ -1505,9 +1505,6 @@ vm_object_collapse(vm_object_t object)
 		 *
 		 * The object exists and the backing object exists.
 		 */
-		if (object == NULL)
-			break;
-
 		if ((backing_object = object->backing_object) == NULL)
 			break;
 
@@ -1536,7 +1533,7 @@ vm_object_collapse(vm_object_t object)
 			VM_OBJECT_UNLOCK(backing_object);
 			break;
 		}
-
+/* XXX */	VM_OBJECT_UNLOCK(object);
 		/*
 		 * We know that we can either collapse the backing object (if
 		 * the parent is the only reference to it) or (perhaps) have
@@ -1645,6 +1642,7 @@ vm_object_collapse(vm_object_t object)
 			 */
 			if (vm_object_backing_scan(object, OBSC_TEST_ALL_SHADOWED) == 0) {
 				VM_OBJECT_UNLOCK(backing_object);
+/* XXX */			VM_OBJECT_LOCK(object);
 				break;
 			}
 
@@ -1687,6 +1685,7 @@ vm_object_collapse(vm_object_t object)
 		/*
 		 * Try again with this object's new backing object.
 		 */
+/* XXX */	VM_OBJECT_LOCK(object);
 	}
 }
 
@@ -1801,9 +1800,7 @@ vm_object_coalesce(vm_object_t prev_object, vm_pindex_t prev_pindex,
 	/*
 	 * Try to collapse the object first
 	 */
-	VM_OBJECT_UNLOCK(prev_object);
 	vm_object_collapse(prev_object);
-	VM_OBJECT_LOCK(prev_object);
 
 	/*
 	 * Can't coalesce if: . more than one reference . paged out . shadows
