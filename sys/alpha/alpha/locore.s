@@ -147,34 +147,26 @@
 	 * be executing on their private idle stack.
 	 */
 	NESTED(smp_init_secondary_glue, 1, 0, ra, 0, 0)
-	mov	pv, globalp
-	
-	ldiq	a0, ALPHA_PSL_IPL_HIGH		/* disable all interrupts */
-	call_pal PAL_OSF1_swpipl
-	
+
 	br	pv, 1f
 1:	LDGP(pv)
 
-	mov	gp, a0
-	call_pal PAL_OSF1_wrkgp		/* clobbers a0, t0, t8-t11 */
-	
-	ldiq	a0, -2				/* TBIA */
-	call_pal PAL_OSF1_tbi
-	call_pal PAL_imb
+	call_pal PAL_rdunique			/* initialise globalp */	
+	mov	v0, globalp
 
 	ldq	a0, GD_IDLEPCBPHYS(globalp)	/* switch to idle ctx */
 	call_pal PAL_OSF1_swpctx
-	
-	CALL(smp_init_secondary)		/* initialise the rest */
 
-	/*
-	 * After initialising, we start idling for real.
-         * We have the kernel lock at this point.
-	 */
-	CALL(cpu_switch)			/* never returns */
+	/* Load KGP with current GP. */
+	or	gp,zero,a0
+	call_pal PAL_OSF1_wrkgp		/* clobbers a0, t0, t8-t11 */
+
+	CALL(smp_init_secondary)		/* never returns */
+
+	/* NOTREACHED */
 
 	call_pal PAL_halt
-		
+
 	END(smp_init_secondary_glue)
 #endif
 		
