@@ -2304,6 +2304,7 @@ ENTRY(tl0_trap)
 
 	sub	PCB_REG, SPOFF + CCFSZ + TF_SIZEOF, %sp
 
+	stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
 	stx	%o3, [%sp + SPOFF + CCFSZ + TF_TAR]
 	stx	%o4, [%sp + SPOFF + CCFSZ + TF_SFAR]
 	stw	%o5, [%sp + SPOFF + CCFSZ + TF_SFSR]
@@ -2344,8 +2345,6 @@ ENTRY(tl0_trap)
 	stx	%i6, [%sp + SPOFF + CCFSZ + TF_O6]
 	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
 
-.Ltl0_trap_reenter:
-	stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
 	call	trap
 	 add	%sp, CCFSZ + SPOFF, %o0
 	b,a	%xcc, tl0_ret
@@ -2542,21 +2541,6 @@ ENTRY(tl0_intr)
 END(tl0_intr)
 
 ENTRY(tl0_ret)
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl0_ret: check ast td=%p (%s) pil=%#lx sflag=%#x"
-	    , %g1, %g2, %g3, 7, 8, 9)
-	ldx	[PCPU(CURTHREAD)], %g2
-	stx	%g2, [%g1 + KTR_PARM1]
-	ldx	[%g2 + TD_PROC], %g2
-	add	%g2, P_COMM, %g3
-	stx	%g3, [%g1 + KTR_PARM2]
-	rdpr	%pil, %g3
-	stx	%g3, [%g1 + KTR_PARM3]
-	lduw	[%g2 + P_SFLAG], %g3
-	stx	%g3, [%g1 + KTR_PARM4]
-9:
-#endif
-
 	/*
 	 * Check for pending asts atomically with returning.  We must raise
 	 * the pil before checking, and if no asts are found the pil must
@@ -2564,17 +2548,17 @@ ENTRY(tl0_ret)
 	 * caused by interrupts occuring after the test.  If the pil is lowered,
 	 * as it is when we call ast, the check must be re-executed.
 	 */
-1:	wrpr	%g0, PIL_TICK, %pil
+	wrpr	%g0, PIL_TICK, %pil
 	ldx	[PCPU(CURTHREAD)], %l0
 	ldx	[%l0 + TD_KSE], %l1
 	lduw	[%l1 + KE_FLAGS], %l2
 	and	%l2, KEF_ASTPENDING | KEF_NEEDRESCHED, %l2
-	brz,a,pt %l2, 2f
+	brz,a,pt %l2, 1f
 	 nop
 	wrpr	%g0, 0, %pil
 	call	ast
 	 add	%sp, CCFSZ + SPOFF, %o0
-	ba,a	%xcc, 1b
+	ba,a	%xcc, tl0_ret
 	 nop
 
 	/*
@@ -2585,12 +2569,18 @@ ENTRY(tl0_ret)
 	 * spilled to the pcb, they will not be copied out and the stack will
 	 * be inconsistent.
 	 */
-2:	ldx	[PCB_REG + PCB_NSAVED], %l1
+1:	ldx	[PCB_REG + PCB_NSAVED], %l1
+	brz,a,pt %l1, 2f
+	 nop
+	wrpr	%g0, 0, %pil
 	mov	T_SPILL, %o0
-	brnz,a,pn %l1, .Ltl0_trap_reenter
-	 wrpr	%g0, 0, %pil
+	stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
+	call	trap
+	 add	%sp, SPOFF + CCFSZ, %o0
+	ba,a	%xcc, tl0_ret
+	 nop
 
-	ldx	[%sp + SPOFF + CCFSZ + TF_O0], %i0
+2:	ldx	[%sp + SPOFF + CCFSZ + TF_O0], %i0
 	ldx	[%sp + SPOFF + CCFSZ + TF_O1], %i1
 	ldx	[%sp + SPOFF + CCFSZ + TF_O2], %i2
 	ldx	[%sp + SPOFF + CCFSZ + TF_O3], %i3
@@ -2686,8 +2676,12 @@ tl0_ret_fill_end:
 	mov	%o0, PCB_REG
 	mov	%o1, PCPU_REG
 	wrpr	%g0, PSTATE_KERNEL, %pstate
-	b	%xcc, .Ltl0_trap_reenter
-	 mov	T_FILL_RET, %o0
+	mov	T_FILL_RET, %o0
+	stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
+	call	trap
+	 add	%sp, SPOFF + CCFSZ, %o0
+	ba,a	%xcc, tl0_ret
+	 nop
 END(tl0_ret)
 
 /*
