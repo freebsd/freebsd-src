@@ -9,7 +9,12 @@
 # under the terms and conditions stated by the XFree86 Project, Inc.
 # copyright, which should also be in the file COPYRIGHT in this distribution.
 #
-# $Id: extract_xf86311.sh,v 1.3 1995/02/02 14:30:36 jkh Exp $
+# $Id: extract_xf86311.sh,v 1.4 1995/02/10 04:53:01 jkh Exp $
+
+PATH=/usr/X11R6/bin:/usr/X386/bin:.:$PATH
+
+X11PREFIX=	/usr/X11R6
+XRELEASE=	"XFree86 3.1.1"
 
 # Handle the return value from a dialog, doing some pre-processing
 # so that each client doesn't have to.
@@ -32,16 +37,16 @@ do_selected_install()
 {
 	for xx in ${SELECTIONS}; do
 	   DIST=`eval echo \`echo $xx\``
-	   dialog --infobox "Installing XFree86 3.1.1 component: ${DIST}" -1 -1
+	   dialog --infobox "Installing ${XRELEASE} component: ${DIST}" -1 -1
 	   tar --unlink -zxpf ${DIST}.tgz -C /usr
 	done
 }
 
 do_configure()
 {
-	if [ -f /usr/X11R6/bin/xf86config ]; then
+	if [ -f ${X11PREFIX}/bin/xf86config ]; then
 		dialog --clear
-		/usr/X11R6/bin/xf86config
+		${X11PREFIX}/bin/xf86config
 		dialog --clear
 	else
 		dialog --msgbox "You must first install the X311bin component" -1 -1
@@ -50,10 +55,10 @@ do_configure()
 
 do_select_menu()
 {
-dialog --title "Please select components from XFree86 3.1.1" --checklist \
-"Please check off each desired component of the XFree86 distribution\n\
-for subsequent unpacking on your system.  Most people will typically need\n\
-only one server, with the most reasonable choices already set for you by\n\
+dialog --title "Please select components from ${XRELEASE}" --checklist \
+"Please check off each desired component of ${XRELEASE} for subsequent\n\
+unpacking on your system.  Most people will typically need only one\n\
+server, and the most reasonable choices have already been set for you by\n\
 default.  When everything looks good, select OK to continue.\n\n\
 Server notation: 4 bit = 16 color, 8 bit = 256 color,\n\
 16 bit = 16k colors, 24 bit = true color." \
@@ -75,8 +80,8 @@ Server notation: 4 bit = 16 color, 8 bit = 256 color,\n\
 "X311VG16" "VGA and Super-VGA cards - 4 bit" ON \
 "X311W32" "ET4000/W32, /W32i and /W32p cards - 8 bit" OFF \
 "X311nest" "A nested server running as a client." OFF \
-"X311doc" "READMEs and XFree86 specific man pages" ON \
-"X311man" "man pages except XFree86 specific ones in docs" OFF \
+"X311doc" "READMEs and ${XRELEASE} specific man pages" ON \
+"X311man" "man pages except ${XRELEASE} specific ones in docs" OFF \
 "X311f100" "100dpi fonts" OFF \
 "X311fscl" "Speedo and Type1 fonts" OFF \
 "X311fnon" "Japanese, Chinese and other non-english fonts" OFF \
@@ -92,19 +97,18 @@ Server notation: 4 bit = 16 color, 8 bit = 256 color,\n\
 
 INSTALLING=yes
 while [ "${INSTALLING}" = "yes" ]; do
-dialog --title "XFree86 3.1.1 Installation" --menu \
-"Welcome to the XFree86 3.1.1 installation menu for FreeBSD 2.x\n\n \
-Please chose one of the following options.  It is also \n\
-recommended that choices be followed in order on this menu,\n\
-XFree86 3.1.1 having a pleasantly linear setup and configuration." \
+dialog --title "${XRELEASE} Installation" --menu \
+"Welcome to the ${XRELEASE} installation menu for FreeBSD 2.x\n\n \
+Please chose one of the following options.  It is also\n\
+recommended that choices be followed in order on this menu," \
 -1 -1 7 \
   "COPYRIGHT" "Read the XFree86 Project, Inc.'s copyright notice" \
-  "README" "General README file on XFree86 - recommended" \
-  "FreeBSD" "XFree86 information specific to FreeBSD" \
-  "Install" "Install selected components of XFree86" \
-  "Configure" "Configure a newly installed XFree86" \
-  "startx" "Try to run startx and bring X up all the way" \
-  "Exit" "Exit the XFree86 installation." \
+  "README" "General README file on ${XRELEASE} - recommended" \
+  "FreeBSD" "General information specific to FreeBSD" \
+  "Install" "Install selected components of ${XRELEASE}" \
+  "Configure" "Configure XFree86 server for your card/monitor" \
+  "startx" "Try to run startx and bring things up all the way" \
+  "Exit" "Exit the installation." \
       2> ${TMP}/menu.tmp.$$
 	RETVAL=$?
 	ANSWER=`cat ${TMP}/menu.tmp.$$`
@@ -112,15 +116,15 @@ XFree86 3.1.1 having a pleasantly linear setup and configuration." \
 	if ! handle_rval ${RETVAL}; then continue; fi
    case ${ANSWER} in
    COPYRIGHT) dialog --title "COPYRIGHT NOTICE" --textbox COPYRIGHT 20 78 ;;
-   README) dialog --title "README" --textbox README 20 78 ;;
+   README) dialog --title "${XRELEASE} README" --textbox README 20 78 ;;
    FreeBSD) dialog --title "XFree86 and FreeBSD" --textbox README.FreeBSD 20 78 ;;
    Install) do_select_menu; do_selected_install ;;
    Configure) do_configure ;;
    startx)
-	if [ -x /usr/X11R6/bin/startx ]; then
-		/usr/X11R6/bin/startx
+	if [ -x ${X11PREFIX}/bin/startx ]; then
+		${X11PREFIX}/bin/startx
 	else
-		dialog --title "Error" --msgbox "You must first install XFree86." -1 -1
+		dialog --title "Error" --msgbox "You must first install ${XRELEASE}." -1 -1
 	fi
 	;;
    Exit) INSTALLING=no ;;
