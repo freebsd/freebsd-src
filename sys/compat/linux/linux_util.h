@@ -76,15 +76,13 @@ stackgap_alloc(sgp, sz)
 
 extern const char linux_emul_path[];
 
-int linux_emul_find __P((struct thread *, caddr_t *, const char *, char *,
-			char **, int));
+int linux_emul_find __P((struct thread *, caddr_t *, char *, char **, int));
 
 #define CHECKALT(p, sgp, path, i) 					\
 	do {								\
 		int _error;						\
 									\
-		_error = linux_emul_find(p, sgp, linux_emul_path, path,	\
-		    &path, i);						\
+		_error = linux_emul_find(p, sgp, path, &path, i);	\
 		if (_error == EFAULT)					\
 			return (_error);				\
 	} while (0)
