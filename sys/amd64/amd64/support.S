@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2003 Peter Wemm.
  * Copyright (c) 1993 The Regents of the University of California.
  * All rights reserved.
  *

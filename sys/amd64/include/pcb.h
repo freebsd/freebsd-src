@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2003 Peter Wemm.
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  *
@@ -37,8 +38,8 @@
  * $FreeBSD$
  */
 
-#ifndef _I386_PCB_H_
-#define _I386_PCB_H_
+#ifndef _AMD64_PCB_H_
+#define _AMD64_PCB_H_
 
 /*
  * AMD64 process control block
@@ -76,4 +77,4 @@ struct pcb {
 void	savectx(struct pcb *);
 #endif
 
-#endif /* _I386_PCB_H_ */
+#endif /* _AMD64_PCB_H_ */
