@@ -27,7 +27,7 @@ WCS2=	fpevent fppwcs fppwcs_dual hdcwcs load_diags start_fpp wcs wcs_dual
 # Special top level files for FreeBSD
 COPYRIGHT=	COPYRIGHT
 FREEBSD=	CONTRIB.386BSD CONTRIB.FreeBSD
-FREEBSD+=	MIRROR.SITES RELNOTES.FreeBSD SUPPORT.TXT
+FREEBSD+=	MIRROR.SITES PERSONAL.ACKS RELNOTES.FreeBSD SUPPORT.TXT
 FREEBSD+=	${COPYRIGHT}
 #
 # Floppy drive name and files for building FreeBSD Floppies
@@ -77,9 +77,10 @@ CRYPT_LIB=	lib/libcrypt
 CRYPT_SRCS=	bin/ed bin/rcp
 CRYPT_SRCS+=	libexec/ftpd libexec/makekey libexec/rexecd libexec/rlogind
 CRYPT_SRCS+=	libexec/rshd libexec/telnetd libexec/uucpd
+CRYPT_SRCS+=	sbin/init.bsdi
 CRYPT_SRCS+=	usr.bin/bdes usr.bin/lock usr.bin/login usr.bin/passwd
 CRYPT_SRCS+=	usr.bin/rlogin usr.bin/rsh usr.bin/su usr.bin/telnet
-CRYPT_DIRS=	bin usr usr/bin usr/lib usr/libexec 
+CRYPT_DIRS=	bin sbin usr usr/bin usr/lib usr/libexec 
 
 all clean cleandir depend etc install lint:
 
@@ -156,8 +157,9 @@ distribution: distrib-dirs
 	(cd ../usr.sbin/sendmail/src; \
 	    ${MAKE} install; \
 	 cd ../cf/cf; \
-	    ${MAKE} tcpproto.cf; \
-	    install -o root -g wheel -m 644 tcpproto.cf \
+	    ${MAKE} obj; \
+	    ${MAKE} freefall.cf; \
+	    install -o root -g wheel -m 644 freefall.cf \
 	        ${DESTDIR}/etc/sendmail.cf)
 	(cd ../; \
 	    install -c -o root -g wheel -m 444 ${FREEBSD} ${DESTDIR}/)
@@ -199,7 +201,8 @@ kcopy-floppy:
 	(cd ${MOUNT}/dev; \
 	    sh ${DESTDIR}/dev/MAKEDEV std; \
 	    rm -rf fd; \
-	    sh ${DESTDIR}/dev/MAKEDEV fd0 wd0 sd0 sd1)
+	    sh ${DESTDIR}/dev/MAKEDEV fd0 wd0 sd0 sd1; \
+	    rm -rf fd0?* rfd0?*;)
 	(cd ${DESTDIR}/; \
 	    ls ${KC_FILES} | cpio -pdamuv ${MOUNT})
 	install -c -o root -g wheel -m 755 etc.i386/kc.profile \
@@ -243,7 +246,7 @@ filesystem-floppy:
 	    sh ${DESTDIR}/dev/MAKEDEV std; \
 	    rm -rf fd; \
 	    sh ${DESTDIR}/dev/MAKEDEV fd0 fd1 wd0 sd0 sd1; \
-	    rm -f rfd1[b-z] fd1[b-z])
+	    rm -f fd0?* fd1?* rfd0?* rfd1?*)
 	(cd ${DESTDIR}/; \
 	    ls ${FILESYSTEM_FILES} | cpio -pdamuv ${MOUNT})
 	install -c -o root -g wheel -m 755 etc.i386/inst1.profile \
@@ -452,7 +455,7 @@ distrib-dirs:
 floppies: kcopy-ah-floppy kcopy-bt-floppy filesystem-floppy \
 	  cpio-floppy
 
-release: release-dirs distribution kcopy-kernels floppies \
+release: release-dirs distribution kcopy-kernels \
 	 bin-tarball des-tarball
 	
 release-dirs:
