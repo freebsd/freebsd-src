@@ -133,16 +133,9 @@ p4tcc_perf_sysctl(SYSCTL_HANDLER_ARGS)
 static void
 p4tcc_power_profile(void *arg)
 {
-	int state;
 	u_int new;
 
-	state = power_profile_get_state();
-	if (state != POWER_PROFILE_PERFORMANCE &&
-	    state != POWER_PROFILE_ECONOMY) {
-		return;
-	}
-
-	switch (state) {
+	switch (power_profile_get_state()) {
 	case POWER_PROFILE_PERFORMANCE:
 		new = p4tcc_performance;
 		break;
@@ -150,8 +143,7 @@ p4tcc_power_profile(void *arg)
 		new = p4tcc_economy;
 		break;
 	default:
-		new = p4tcc_getperf();
-		break;
+		return;
 	}
 
 	if (p4tcc_getperf() != new) {
@@ -192,8 +184,8 @@ static void
 setup_p4tcc(void *dummy __unused)
 {
 	int nsteps, i;
-        static char p4tcc_levels[(3 * TCC_LEVELS) + 1];
-        char buf[4 + 1];
+	static char p4tcc_levels[(3 * TCC_LEVELS) + 1];
+	char buf[4 + 1];
 
 	if ((cpu_feature & (CPUID_ACPI | CPUID_TM)) !=
 	    (CPUID_ACPI | CPUID_TM))
