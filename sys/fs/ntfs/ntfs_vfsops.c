@@ -488,7 +488,7 @@ ntfs_unmount(
 	/* Check if only system vnodes are rest */
 	for(i=0;i<NTFS_SYSNODESNUM;i++)
 		 if((ntmp->ntm_sysvn[i]) && 
-		    (ntmp->ntm_sysvn[i]->v_usecount > 1)) return (EBUSY);
+		    (vrefcnt(ntmp->ntm_sysvn[i]) > 1)) return (EBUSY);
 
 	/* Dereference all system vnodes */
 	for(i=0;i<NTFS_SYSNODESNUM;i++)
