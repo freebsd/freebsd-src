@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	ccdconfig
-WARNS?=	3
+WARNS?=	6
 MAN=	ccdconfig.8
 
 DPADD=	${LIBGEOM}
