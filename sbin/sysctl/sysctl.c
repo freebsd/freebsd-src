@@ -214,7 +214,8 @@ parse(char *string)
 		if ((kind & CTLTYPE) == CTLTYPE_INT ||
 		    (kind & CTLTYPE) == CTLTYPE_UINT ||
 		    (kind & CTLTYPE) == CTLTYPE_LONG ||
-		    (kind & CTLTYPE) == CTLTYPE_ULONG) {
+		    (kind & CTLTYPE) == CTLTYPE_ULONG ||
+		    (kind & CTLTYPE) == CTLTYPE_QUAD) {
 			if (strlen(newval) == 0)
 				errx(1, "empty numeric value");
 		}
