@@ -76,7 +76,6 @@ static void	ed_pccard_dlink_mii_reset(struct ed_softc *sc);
 static u_int	ed_pccard_dlink_mii_readbits(struct ed_softc *sc, int nbits);
 static void	ed_pccard_dlink_mii_writebits(struct ed_softc *sc, u_int val,
     int nbits);
-static int	linksys;
 
 /*
  *      ed_pccard_detach - unload the driver and clear the table.
@@ -519,11 +518,8 @@ ed_pccard_probe(device_t dev)
 	goto end2;
 
 end:
-	if (ED_FLAGS_GETTYPE(flags) & ED_FLAGS_LINKSYS) {
-		linksys = ed_pccard_Linksys(dev);
-	} else {
-		linksys = 0;
-	}
+	if (ED_FLAGS_GETTYPE(flags) & ED_FLAGS_LINKSYS)
+		ed_pccard_Linksys(dev);
 end2:
 	if (error == 0)
 		error = ed_alloc_irq(dev, 0, 0);
@@ -556,7 +552,7 @@ ed_pccard_attach(device_t dev)
 		return (error);
 	}	      
 
-	if (linksys == 0) {
+	if (sc->vendor != ED_VENDOR_LINKSYS) {
 		pccard_get_ether(dev, ether_addr);
 		for (i = 0, sum = 0; i < ETHER_ADDR_LEN; i++)
 			sum |= ether_addr[i];
