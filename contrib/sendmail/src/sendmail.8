@@ -1,4 +1,4 @@
-.\" Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+.\" Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
 .\"      All rights reserved.
 .\" Copyright (c) 1983, 1997 Eric P. Allman.  All rights reserved.
 .\" Copyright (c) 1988, 1991, 1993
@@ -9,11 +9,11 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"     $Id: sendmail.8,v 8.36.8.3 2000/12/14 23:08:15 gshapiro Exp $
+.\"     $Id: sendmail.8,v 8.49 2001/03/23 22:10:00 ca Exp $
 .\"
 .\" $FreeBSD$
 .\"
-.TH SENDMAIL 8 "$Date: 2000/12/14 23:08:15 $"
+.TH SENDMAIL 8 "$Date: 2001/03/23 22:10:00 $"
 .SH NAME
 sendmail
 \- an electronic mail transport agent
@@ -69,6 +69,14 @@ and `group' includes `john' in the expansion,
 then the letter will also be delivered to `john'.
 .SS Parameters
 .TP
+.B \-Ac
+Use submit.cf even if the operation mode does not indicate
+an initial mail submission.
+.TP
+.B \-Am
+Use sendmail.cf even if the operation mode indicates
+an initial mail submission.
+.TP
 .BI \-B type
 Set the body type to
 .IR type .
@@ -115,7 +123,11 @@ Initialize the alias database.
 Deliver mail in the usual way (default).
 .TP
 .B \-bp
-Print a listing of the queue.
+Print a listing of the queue(s).
+.TP
+.B \-bP
+Print number of entries in the queue(s);
+only available with shared memory support.
 .TP
 .B \-bs
 Use the 
@@ -239,7 +251,7 @@ This can be a simple protocol name such as ``UUCP''
 or a protocol and hostname, such as ``UUCP:ucbvax''.
 .TP
 \fB\-q\fR[\fItime\fR] 
-Processed saved messages in the queue at given intervals.  
+Process saved messages in the queue at given intervals.  
 If
 .I time
 is omitted, process the queue once.
@@ -249,7 +261,7 @@ with
 `s' 
 being seconds, 
 `m' 
-being minutes, 
+being minutes (default), 
 `h' 
 being hours, 
 `d' 
@@ -262,28 +274,50 @@ For example,
 or 
 `\-q90m' 
 would both set the timeout to one hour thirty minutes.
-If
-.I time
-is specified,
+By default,
 .B sendmail
-will run in the background.  
+will run in the background.
 This option can be used safely with
 .BR \-bd .
 .TP
-.BI \-qI substr
-Limit processed jobs to those containing
-.I substr
-as a substring of the queue id.
+\fB\-qp\fR[\fItime\fR] 
+Similar to \fB\-q\fItime\fR,
+except that instead of periodically forking a child to process the queue,
+sendmail forks a single persistent child for each queue
+that alternates between processing the queue and sleeping.
+The sleep time is given as the argument; it defaults to 1 second.
+The process will always sleep at least 5 seconds if the queue was
+empty in the previous queue run.
 .TP
-.BI \-qR substr
-Limit processed jobs to those containing
-.I substr
-as a substring of one of the recipients.
+\fB\-q\fRf
+Process saved messages in the queue once and do not fork(),
+but run in the foreground.
 .TP
-.BI \-qS substr
+\fB\-q\fRG name
+Process jobs in queue group called
+.I name
+only.
+.TP
+\fB\-q\fR[\fI!\fR]I substr
 Limit processed jobs to those containing
 .I substr
-as a substring of the sender.
+as a substring of the queue id or not when
+.I !
+is specified.
+.TP
+\fB\-q\fR[\fI!\fR]R substr
+Limit processed jobs to those containing
+.I substr
+as a substring of one of the recipients or not when
+.I !
+is specified.
+.TP
+\fB\-q\fR[\fI!\fR]S substr
+Limit processed jobs to those containing
+.I substr
+as a substring of the sender or not when
+.I !
+is specified.
 .TP
 .BI "\-R " return
 Set the amount of the message to be returned 
@@ -306,18 +340,6 @@ flag.
 Read message for recipients.  
 To:, Cc:, and Bcc: lines will be scanned for recipient addresses.  
 The Bcc: line will be deleted before transmission.
-.TP
-.B \-U
-Initial (user) submission.  This should
-.I always
-be set when called from a user agent such as
-.B Mail
-or
-.B exmh
-and
-.I never
-be set when called by a network delivery agent such as
-.BR rmail .
 .TP
 .BI "\-V " envid
 Set the original envelope id.  
