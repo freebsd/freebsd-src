@@ -1374,7 +1374,7 @@ ppc_elf_suffix (str_p, exp_p)
     MAP ("plt@h",	(int) BFD_RELOC_HI16_PLTOFF),
     MAP ("plt@ha",	(int) BFD_RELOC_HI16_S_PLTOFF),
     MAP ("sdarel",	(int) BFD_RELOC_GPREL16),
-    MAP ("sectoff",	(int) BFD_RELOC_32_BASEREL),
+    MAP ("sectoff",	(int) BFD_RELOC_16_BASEREL),
     MAP ("sectoff@l",	(int) BFD_RELOC_LO16_BASEREL),
     MAP ("sectoff@h",	(int) BFD_RELOC_HI16_BASEREL),
     MAP ("sectoff@ha",	(int) BFD_RELOC_HI16_S_BASEREL),
@@ -1683,7 +1683,7 @@ ppc_elf_validate_fix (fixp, seg)
 	  && fixp->fx_r_type != BFD_RELOC_HI16_GOTOFF
 	  && fixp->fx_r_type != BFD_RELOC_LO16_GOTOFF
 	  && fixp->fx_r_type != BFD_RELOC_HI16_S_GOTOFF
-	  && fixp->fx_r_type != BFD_RELOC_32_BASEREL
+	  && fixp->fx_r_type != BFD_RELOC_16_BASEREL
 	  && fixp->fx_r_type != BFD_RELOC_LO16_BASEREL
 	  && fixp->fx_r_type != BFD_RELOC_HI16_BASEREL
 	  && fixp->fx_r_type != BFD_RELOC_HI16_S_BASEREL
@@ -2236,7 +2236,7 @@ md_assemble (str)
 		case BFD_RELOC_LO16_PLTOFF:
 		  reloc = BFD_RELOC_PPC64_PLT16_LO_DS;
 		  break;
-		case BFD_RELOC_32_BASEREL:
+		case BFD_RELOC_16_BASEREL:
 		  reloc = BFD_RELOC_PPC64_SECTOFF_DS;
 		  break;
 		case BFD_RELOC_LO16_BASEREL:
@@ -5280,7 +5280,6 @@ md_apply_fix3 (fixP, valP, seg)
 
 	case BFD_RELOC_RVA:
 	case BFD_RELOC_32_PCREL:
-	case BFD_RELOC_32_BASEREL:
 	case BFD_RELOC_PPC_EMB_NADDR32:
 	  md_number_to_chars (fixP->fx_frag->fr_literal + fixP->fx_where,
 			      value, 4);
@@ -5305,6 +5304,7 @@ md_apply_fix3 (fixP, valP, seg)
 	case BFD_RELOC_LO16_GOTOFF:
 	case BFD_RELOC_HI16_GOTOFF:
 	case BFD_RELOC_HI16_S_GOTOFF:
+	case BFD_RELOC_16_BASEREL:
 	case BFD_RELOC_LO16_BASEREL:
 	case BFD_RELOC_HI16_BASEREL:
 	case BFD_RELOC_HI16_S_BASEREL:

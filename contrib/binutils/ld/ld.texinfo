@@ -2277,7 +2277,7 @@ A couple of linker script commands deal with object file formats.
 @cindex output file format in linker script
 The @code{OUTPUT_FORMAT} command names the BFD format to use for the
 output file (@pxref{BFD}).  Using @code{OUTPUT_FORMAT(@var{bfdname})} is
-exactly like using @samp{-oformat @var{bfdname}} on the command line
+exactly like using @samp{--oformat @var{bfdname}} on the command line
 (@pxref{Options,,Command Line Options}).  If both are used, the command
 line option takes precedence.
 

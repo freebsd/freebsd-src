@@ -10,7 +10,7 @@ completeness.
 @subsubsection @code{bfd_write_bigendian_4byte_int}
 @strong{Synopsis}
 @example
-void bfd_write_bigendian_4byte_int (bfd *, unsigned int);
+boolean bfd_write_bigendian_4byte_int (bfd *, unsigned int);
 @end example
 @strong{Description}@*
 Write a 4 byte integer @var{i} to the output BFD @var{abfd}, in big

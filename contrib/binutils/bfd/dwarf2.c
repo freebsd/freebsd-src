@@ -42,7 +42,7 @@ struct line_head
 {
   bfd_vma total_length;
   unsigned short version;
-  unsigned int prologue_length;
+  bfd_vma prologue_length;
   unsigned char minimum_instruction_length;
   unsigned char default_is_stmt;
   int line_base;
@@ -225,7 +225,7 @@ static bfd_vma read_address PARAMS ((struct comp_unit *, char *));
 static struct abbrev_info *lookup_abbrev
   PARAMS ((unsigned int, struct abbrev_info **));
 static struct abbrev_info **read_abbrevs
-  PARAMS ((bfd *, unsigned int, struct dwarf2_debug *));
+  PARAMS ((bfd *, bfd_vma, struct dwarf2_debug *));
 static char *read_attribute
   PARAMS ((struct attribute *, struct attr_abbrev *,
 	   struct comp_unit *, char *));
@@ -396,8 +396,8 @@ read_indirect_string (unit, buf, bytes_read_ptr)
 
   if (offset >= stash->dwarf_str_size)
     {
-      (*_bfd_error_handler) (_("Dwarf Error: DW_FORM_strp offset (%u) greater than or equal to .debug_str size (%u)."),
-			     offset, stash->dwarf_str_size);
+      (*_bfd_error_handler) (_("Dwarf Error: DW_FORM_strp offset (%lu) greater than or equal to .debug_str size (%lu)."),
+			     (unsigned long) offset, stash->dwarf_str_size);
       bfd_set_error (bfd_error_bad_value);
       return NULL;
     }
@@ -523,7 +523,7 @@ lookup_abbrev (number,abbrevs)
 static struct abbrev_info**
 read_abbrevs (abfd, offset, stash)
      bfd * abfd;
-     unsigned int offset;
+     bfd_vma offset;
      struct dwarf2_debug *stash;
 {
   struct abbrev_info **abbrevs;
@@ -557,8 +557,8 @@ read_abbrevs (abfd, offset, stash)
 
   if (offset >= stash->dwarf_abbrev_size)
     {
-      (*_bfd_error_handler) (_("Dwarf Error: Abbrev offset (%u) greater than or equal to .debug_abbrev size (%u)."),
-			     offset, stash->dwarf_abbrev_size);
+      (*_bfd_error_handler) (_("Dwarf Error: Abbrev offset (%lu) greater than or equal to .debug_abbrev size (%lu)."),
+			     (unsigned long) offset, stash->dwarf_abbrev_size);
       bfd_set_error (bfd_error_bad_value);
       return 0;
     }
@@ -754,7 +754,7 @@ read_attribute_value (attr, form, unit, info_ptr)
       info_ptr = read_attribute_value (attr, form, unit, info_ptr);
       break;
     default:
-      (*_bfd_error_handler) (_("Dwarf Error: Invalid or unhandled FORM value: %d."),
+      (*_bfd_error_handler) (_("Dwarf Error: Invalid or unhandled FORM value: %u."),
 			     form);
       bfd_set_error (bfd_error_bad_value);
     }
@@ -958,7 +958,7 @@ decode_line_info (unit, stash)
      below.  */
   if (unit->line_offset >= stash->dwarf_line_size)
     {
-      (*_bfd_error_handler) (_("Dwarf Error: Line offset (%u) greater than or equal to .debug_line size (%u)."),
+      (*_bfd_error_handler) (_("Dwarf Error: Line offset (%lu) greater than or equal to .debug_line size (%lu)."),
 			     unit->line_offset, stash->dwarf_line_size);
       bfd_set_error (bfd_error_bad_value);
       return 0;
@@ -1345,7 +1345,7 @@ scan_unit_for_functions (unit)
       abbrev = lookup_abbrev (abbrev_number,unit->abbrevs);
       if (! abbrev)
 	{
-	  (*_bfd_error_handler) (_("Dwarf Error: Could not find abbrev number %d."),
+	  (*_bfd_error_handler) (_("Dwarf Error: Could not find abbrev number %u."),
 			     abbrev_number);
 	  bfd_set_error (bfd_error_bad_value);
 	  return false;
@@ -1486,9 +1486,9 @@ parse_comp_unit (abfd, stash, unit_length, offset_size)
      unsigned int offset_size;
 {
   struct comp_unit* unit;
-  unsigned short version;
-  unsigned int abbrev_offset = 0;
-  unsigned char addr_size;
+  unsigned int version;
+  bfd_vma abbrev_offset = 0;
+  unsigned int addr_size;
   struct abbrev_info** abbrevs;
   unsigned int abbrev_number, bytes_read, i;
   struct abbrev_info *abbrev;
@@ -1517,7 +1517,7 @@ parse_comp_unit (abfd, stash, unit_length, offset_size)
 
   if (version != 2)
     {
-      (*_bfd_error_handler) (_("Dwarf Error: found dwarf version '%hu', this reader only handles version 2 information."), version);
+      (*_bfd_error_handler) (_("Dwarf Error: found dwarf version '%u', this reader only handles version 2 information."), version);
       bfd_set_error (bfd_error_bad_value);
       return 0;
     }
@@ -1526,7 +1526,7 @@ parse_comp_unit (abfd, stash, unit_length, offset_size)
     {
       (*_bfd_error_handler) (_("Dwarf Error: found address size '%u', this reader can not handle sizes greater than '%u'."),
 			 addr_size,
-			 sizeof (bfd_vma));
+			 (unsigned int) sizeof (bfd_vma));
       bfd_set_error (bfd_error_bad_value);
       return 0;
     }
@@ -1547,7 +1547,7 @@ parse_comp_unit (abfd, stash, unit_length, offset_size)
   info_ptr += bytes_read;
   if (! abbrev_number)
     {
-      (*_bfd_error_handler) (_("Dwarf Error: Bad abbrev number: %d."),
+      (*_bfd_error_handler) (_("Dwarf Error: Bad abbrev number: %u."),
 			 abbrev_number);
       bfd_set_error (bfd_error_bad_value);
       return 0;
@@ -1556,7 +1556,7 @@ parse_comp_unit (abfd, stash, unit_length, offset_size)
   abbrev = lookup_abbrev (abbrev_number, abbrevs);
   if (! abbrev)
     {
-      (*_bfd_error_handler) (_("Dwarf Error: Could not find abbrev number %d."),
+      (*_bfd_error_handler) (_("Dwarf Error: Could not find abbrev number %u."),
 			 abbrev_number);
       bfd_set_error (bfd_error_bad_value);
       return 0;

@@ -1231,6 +1231,9 @@ static const template i386_optab[] = {
 {"cmpunordpd",2, 0x660fc2,  3, CpuSSE2, FP|Modrm|ImmExt,{ RegXMM|LLongMem, RegXMM, 0 } },
 {"cmpunordsd",2, 0xf20fc2,  3, CpuSSE2, FP|Modrm|ImmExt,{ RegXMM|LongMem, RegXMM, 0 } },
 {"cmppd",     3, 0x660fc2,  X, CpuSSE2, FP|Modrm,	{ Imm8, RegXMM|LLongMem, RegXMM } },
+/* Intel mode string compare.  */
+{"cmpsd",     0, 0xa7,      X, 0, NoSuf|Size32|IsString, { 0, 0, 0} },
+{"cmpsd",     2, 0xa7,      X, 0, NoSuf|Size32|IsString, { AnyMem, AnyMem|EsSeg, 0} },
 {"cmpsd",     3, 0xf20fc2,  X, CpuSSE2, FP|Modrm,	{ Imm8, RegXMM|LongMem, RegXMM } },
 {"comisd",    2, 0x660f2f,  X, CpuSSE2, FP|Modrm,	{ RegXMM|LongMem, RegXMM, 0 } },
 {"cvtpi2pd",  2, 0x660f2a,  X, CpuSSE2, FP|Modrm,	{ RegMMX|LLongMem, RegXMM, 0 } },
@@ -1249,6 +1252,9 @@ static const template i386_optab[] = {
 {"movlpd",    2, 0x660f13,  X, CpuSSE2, FP|Modrm,	{ RegXMM, LLongMem, 0 } },
 {"movmskpd",  2, 0x660f50,  X, CpuSSE2, lq_Suf|IgnoreSize|Modrm, { RegXMM|InvMem, Reg32|Reg64, 0 } },
 {"movntpd",   2, 0x660f2b,  X, CpuSSE2, FP|Modrm, 	{ RegXMM, LLongMem, 0 } },
+/* Intel mode string move.  */
+{"movsd",     0, 0xa5,      X, 0, NoSuf|Size32|IsString, { 0, 0, 0} },
+{"movsd",     2, 0xa5,      X, 0, NoSuf|Size32|IsString, { AnyMem, AnyMem|EsSeg, 0} },
 {"movsd",     2, 0xf20f10,  X, CpuSSE2, FP|Modrm,	{ RegXMM|LongMem, RegXMM, 0 } },
 {"movsd",     2, 0xf20f11,  X, CpuSSE2, FP|Modrm,	{ RegXMM, RegXMM|LongMem, 0 } },
 {"movupd",    2, 0x660f10,  X, CpuSSE2, FP|Modrm,	{ RegXMM|LLongMem, RegXMM, 0 } },
