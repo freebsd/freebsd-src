@@ -28,9 +28,6 @@
  * $FreeBSD$
  */
 
-#include "pci.h"
-#include "pcm.h"
-
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 #include <dev/sound/pci/neomagic.h>
