@@ -120,7 +120,7 @@ msdosfs_filestat(vp, fsp)
 	fsp->mode |= denode.de_Attributes & ATTR_DIRECTORY ? S_IFDIR : S_IFREG;
 
 	fsp->size = denode.de_FileSize;
-	fsp->rdev = denode.de_dev;
+	fsp->rdev = 0;
 
 	/*
 	 * XXX -
