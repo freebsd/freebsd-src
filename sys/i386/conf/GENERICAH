@@ -1,7 +1,7 @@
 #
 # GENERICAH -- Generic machine with WD/AHx family disks
 #
-#	$Id$
+#	$Id: GENERICAH,v 1.4 1993/08/21 23:46:41 rgrimes Exp $
 #
 
 machine		"i386"
@@ -9,6 +9,7 @@ cpu		"i386"
 ident		GENERICAH
 timezone	8 dst
 maxusers	10
+maxfdescs	2048			#Max file descriptors per process
 options		INET			#InterNETworking
 options		ISOFS			#ISO File System
 options		NFS			#Network File System
