@@ -30,6 +30,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************
+ * $FreeBSD$
  */
 
 /*
@@ -1908,7 +1909,7 @@ SRBdone(struct amd_softc *amd, struct amd_srb *pSRB)
 		} else {
 			pcsio->scsi_status = SCSI_STATUS_CHECK_COND;
 		}
-		pccb->ccb_h.status = CAM_AUTOSNS_VALID;
+		pccb->ccb_h.status = CAM_AUTOSNS_VALID|CAM_SCSI_STATUS_ERROR;
 		goto ckc_e;
 	}
 	if (status) {
