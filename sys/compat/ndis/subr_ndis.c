@@ -188,15 +188,6 @@ __stdcall static uint32_t NdisGetCacheFillSize(void);
 __stdcall static uint32_t NdisMGetDmaAlignment(ndis_handle);
 __stdcall static ndis_status NdisMInitializeScatterGatherDma(ndis_handle,
 	uint8_t, uint32_t);
-__stdcall static void NdisAllocatePacketPool(ndis_status *,
-	ndis_handle *, uint32_t, uint32_t);
-__stdcall static void NdisAllocatePacketPoolEx(ndis_status *,
-	ndis_handle *, uint32_t, uint32_t, uint32_t);
-__stdcall static uint32_t NdisPacketPoolUsage(ndis_handle);
-__stdcall static void NdisFreePacketPool(ndis_handle);
-__stdcall static void NdisAllocatePacket(ndis_status *,
-	ndis_packet **, ndis_handle);
-__stdcall static void NdisFreePacket(ndis_packet *);
 __stdcall static void NdisUnchainBufferAtFront(ndis_packet *, ndis_buffer **);
 __stdcall static void NdisUnchainBufferAtBack(ndis_packet *, ndis_buffer **);
 __stdcall static void NdisAllocateBufferPool(ndis_status *,
@@ -306,13 +297,31 @@ __stdcall static void dummy(void);
 int
 ndis_libinit()
 {
+	image_patch_table	*patch;
+
 	strcpy(ndis_filepath, "/compat/ndis");
+
+	patch = ndis_functbl;
+	while (patch->ipt_func != NULL) {
+		windrv_wrap((funcptr)patch->ipt_func,
+		    (funcptr *)&patch->ipt_wrap);
+		patch++;
+	}
+
 	return(0);
 }
 
 int
 ndis_libfini()
 {
+	image_patch_table	*patch;
+
+	patch = ndis_functbl;
+	while (patch->ipt_func != NULL) {
+		windrv_unwrap(patch->ipt_wrap);
+		patch++;
+	}
+
 	return(0);
 }
 
@@ -460,6 +469,7 @@ NdisAllocateMemoryWithTag(vaddr, len, tag)
 {
 	void			*mem;
 
+
 	mem = ExAllocatePoolWithTag(NonPagedPool, len, tag);
 	if (mem == NULL)
 		return(NDIS_STATUS_RESOURCES);
@@ -528,6 +538,7 @@ NdisOpenConfiguration(status, cfg, wrapctx)
 	ndis_handle		*cfg;
 	ndis_handle		wrapctx;
 {
+
 	*cfg = wrapctx;
 	*status = NDIS_STATUS_SUCCESS;
 
@@ -676,7 +687,6 @@ NdisReadConfiguration(status, parm, cfg, key, type)
 	}
 
 	ndis_unicode_to_ascii(key->us_buf, key->us_len, &keystr);
-
 	*parm = &block->nmb_replyparm;
 	bzero((char *)&block->nmb_replyparm, sizeof(ndis_config_parm));
 	unicode = (uint16_t *)&block->nmb_dummybuf;
@@ -960,11 +970,14 @@ NdisWriteErrorLogEntry(ndis_handle adapter, ndis_error_code code,
 	uint16_t		flags;
 	char			msgbuf[ERRMSGLEN];
 	device_t		dev;
+	driver_object		*drv;
 
 	block = (ndis_miniport_block *)adapter;
 	dev = block->nmb_physdeviceobj->do_devext;
+	drv = block->nmb_physdeviceobj->do_drvobj;
 
-	error = pe_get_message(block->nmb_img, code, &str, &i, &flags);
+	error = pe_get_message((vm_offset_t)drv->dro_driverstart,
+	    code, &str, &i, &flags);
 	if (error == 0 && flags & MESSAGE_RESOURCE_UNICODE) {
 		ustr = msgbuf;
 		ndis_unicode_to_ascii((uint16_t *)str,
@@ -1194,6 +1207,7 @@ NdisMQueryAdapterResources(status, adapter, list, buflen)
 
 	bcopy((char *)block->nmb_rlist, (char *)list, rsclen);
 	*status = NDIS_STATUS_SUCCESS;
+
 	return;
 }
 
@@ -1381,11 +1395,11 @@ NdisMAllocateSharedMemory(adapter, len, cached, vaddr, paddr)
 	 * At least one device/driver combination (Linksys Instant
 	 * Wireless PCI Card V2.7, Broadcom 802.11b) seems to have
 	 * problems with performing DMA operations with physical
-	 * that lie above the 1GB mark. I don't know if this is a
-	 * hardware limitation or if the addresses are being truncated
-	 * within the driver, but this seems to be the only way to
-	 * make these cards work reliably in systems with more than
-	 * 1GB of physical memory.
+	 * addresses that lie above the 1GB mark. I don't know if this
+	 * is a hardware limitation or if the addresses are being
+	 * truncated within the driver, but this seems to be the only
+	 * way to make these cards work reliably in systems with more
+	 * than 1GB of physical memory.
 	 */
 
 	error = bus_dma_tag_create(sc->ndis_parent_tag, 64,
@@ -1452,7 +1466,7 @@ ndis_asyncmem_complete(arg)
 	donefunc = sc->ndis_chars->nmc_allocate_complete_func;
 	NdisMAllocateSharedMemory(w->na_adapter, w->na_len,
 	    w->na_cached, &vaddr, &paddr);
-	donefunc(w->na_adapter, vaddr, &paddr, w->na_len, w->na_ctx);
+	MSCALL5(donefunc, w->na_adapter, vaddr, &paddr, w->na_len, w->na_ctx);
 
 	free(arg, M_DEVBUF);
 
@@ -1626,7 +1640,7 @@ NdisMInitializeScatterGatherDma(adapter, is64, maxphysmap)
 	return(NDIS_STATUS_SUCCESS);
 }
 
-__stdcall static void
+__stdcall void
 NdisAllocatePacketPool(status, pool, descnum, protrsvdlen)
 	ndis_status		*status;
 	ndis_handle		*pool;
@@ -1636,7 +1650,7 @@ NdisAllocatePacketPool(status, pool, descnum, protrsvdlen)
 	ndis_packet		*cur;
 	int			i;
 
-	*pool = malloc(sizeof(ndis_packet) *
+	*pool = malloc((sizeof(ndis_packet) + protrsvdlen) *
 	    ((descnum + NDIS_POOL_EXTRA) + 1),
 	    M_DEVBUF, M_NOWAIT|M_ZERO);
 
@@ -1657,7 +1671,7 @@ NdisAllocatePacketPool(status, pool, descnum, protrsvdlen)
 	return;
 }
 
-__stdcall static void
+__stdcall void
 NdisAllocatePacketPoolEx(status, pool, descnum, oflowdescnum, protrsvdlen)
 	ndis_status		*status;
 	ndis_handle		*pool;
@@ -1669,7 +1683,7 @@ NdisAllocatePacketPoolEx(status, pool, descnum, oflowdescnum, protrsvdlen)
 	    descnum + oflowdescnum, protrsvdlen));
 }
 
-__stdcall static uint32_t
+__stdcall uint32_t
 NdisPacketPoolUsage(pool)
 	ndis_handle		pool;
 {
@@ -1680,7 +1694,7 @@ NdisPacketPoolUsage(pool)
 	return(head->np_private.npp_count);
 }
 
-__stdcall static void
+__stdcall void
 NdisFreePacketPool(pool)
 	ndis_handle		pool;
 {
@@ -1702,7 +1716,7 @@ NdisFreePacketPool(pool)
 	return;
 }
 
-__stdcall static void
+__stdcall void
 NdisAllocatePacket(status, packet, pool)
 	ndis_status		*status;
 	ndis_packet		**packet;
@@ -1747,7 +1761,8 @@ NdisAllocatePacket(status, packet, pool)
 	/*
 	 * We must initialize the packet flags correctly in order
 	 * for the NDIS_SET_PACKET_MEDIA_SPECIFIC_INFO() and
-	 * NDIS_GET_PACKET_MEDIA_SPECIFIC_INFO() to work correctly.
+	 * NDIS_GET_PACKET_MEDIA_SPECIFIC_INFO() macros to work
+         * correctly.
 	 */
 	pkt->np_private.npp_ndispktflags = NDIS_PACKET_ALLOCATED_BY_NDIS;
 
@@ -1755,10 +1770,11 @@ NdisAllocatePacket(status, packet, pool)
 
 	head->np_private.npp_count++;
 	*status = NDIS_STATUS_SUCCESS;
+
 	return;
 }
 
-__stdcall static void
+__stdcall void
 NdisFreePacket(packet)
 	ndis_packet		*packet;
 {
@@ -1842,12 +1858,16 @@ NdisUnchainBufferAtBack(packet, buf)
 }
 
 /*
- * The NDIS "buffer" manipulation functions are somewhat misnamed.
- * They don't really allocate buffers: they allocate buffer mappings.
- * The idea is you reserve a chunk of DMA-able memory using
- * NdisMAllocateSharedMemory() and then use NdisAllocateBuffer()
- * to obtain the virtual address of the DMA-able region.
- * NdisAllocateBufferPool() is analagous to bus_dma_tag_create().
+ * The NDIS "buffer" is really an MDL (memory descriptor list)
+ * which is used to describe a buffer in a way that allows it
+ * to mapped into different contexts. We have to be careful how
+ * we handle them: in some versions of Windows, the NdisFreeBuffer()
+ * routine is an actual function in the NDIS API, but in others
+ * it's just a macro wrapper around IoFreeMdl(). There's really
+ * no way to use the 'descnum' parameter to count how many
+ * "buffers" are allocated since in order to use IoFreeMdl() to
+ * dispose of a buffer, we have to use IoAllocateMdl() to allocate
+ * them, and IoAllocateMdl() just grabs them out of the heap.
  */
 
 __stdcall static void
@@ -1856,27 +1876,13 @@ NdisAllocateBufferPool(status, pool, descnum)
 	ndis_handle		*pool;
 	uint32_t		descnum;
 {
-	ndis_buffer		*cur;
-	int			i;
+	/*
+	 * The only thing we can really do here is verify that descnum
+	 * is a reasonable value, but I really don't know what to check
+	 * it against.
+	 */
 
-	*pool = malloc(sizeof(ndis_buffer) *
-	    ((descnum + NDIS_POOL_EXTRA) + 1),
-	    M_DEVBUF, M_NOWAIT|M_ZERO);
-
-	if (*pool == NULL) {
-		*status = NDIS_STATUS_RESOURCES;
-		return;
-	}
-
-	cur = (ndis_buffer *)*pool;
-	cur->mdl_flags = 0x1; /* mark the head of the list */
-	MmGetMdlByteCount(cur) = 0; /* init usage count */
-	MmGetMdlByteOffset(cur) = 0; /* init deletetion flag */
-	for (i = 0; i < (descnum + NDIS_POOL_EXTRA); i++) {
-		cur->mdl_next = cur + 1;
-		cur++;
-	}
-
+	*pool = NonPagedPool;
 	*status = NDIS_STATUS_SUCCESS;
 	return;
 }
@@ -1885,26 +1891,9 @@ __stdcall static void
 NdisFreeBufferPool(pool)
 	ndis_handle		pool;
 {
-	ndis_buffer		*head;
-
-	head = pool;
-
-	/* Mark this pool as 'going away.' */
-
-	MmGetMdlByteOffset(head) = 1;
-
-	/* If there are no buffers loaned out, destroy the pool. */
-	if (MmGetMdlByteCount(head) == 0)
-		free(pool, M_DEVBUF);
-	else
-		printf("NDIS: buggy driver deleting active buffer pool!\n");
-
 	return;
 }
 
-/*
- * This maps to a bus_dmamap_create() and bus_dmamap_load().
- */
 __stdcall static void
 NdisAllocateBuffer(status, buffer, pool, vaddr, len)
 	ndis_status		*status;
@@ -1913,45 +1902,17 @@ NdisAllocateBuffer(status, buffer, pool, vaddr, len)
 	void			*vaddr;
 	uint32_t		len;
 {
-	ndis_buffer		*head, *buf;
+	ndis_buffer		*buf;
 
-	head = (ndis_buffer *)pool;
-	if (head->mdl_flags != 0x1) {
-		*status = NDIS_STATUS_FAILURE;
-		return;
-	}
-
-	/*
-	 * If this pool is marked as 'going away' don't allocate any
-	 * more buffers out of it.
-	 */
-
-	if (MmGetMdlByteOffset(head)) {
-		*status = NDIS_STATUS_FAILURE;
-		return;
-	}
-
-	buf = head->mdl_next;
-
+	buf = IoAllocateMdl(vaddr, len, FALSE, FALSE, NULL);
 	if (buf == NULL) {
 		*status = NDIS_STATUS_RESOURCES;
 		return;
 	}
 
-	head->mdl_next = buf->mdl_next;
-
-	/* Save pointer to the pool. */
-	buf->mdl_process = head;
-
-	MmInitializeMdl(buf, vaddr, len);
-
 	*buffer = buf;
-
-	/* Increment count of busy buffers. */
-
-	MmGetMdlByteCount(head)++;
-
 	*status = NDIS_STATUS_SUCCESS;
+
 	return;
 }
 
@@ -1959,31 +1920,7 @@ __stdcall static void
 NdisFreeBuffer(buf)
 	ndis_buffer		*buf;
 {
-	ndis_buffer		*head;
-
-	if (buf == NULL || buf->mdl_process == NULL)
-		return;
-
-	head = buf->mdl_process;
-
-	if (head->mdl_flags != 0x1)
-		return;
-
-	buf->mdl_next = head->mdl_next;
-	head->mdl_next = buf;
-
-	/* Decrement count of busy buffers. */
-
-	MmGetMdlByteCount(head)--;
-
-	/*
-	 * If the pool has been marked for deletion and there are
-	 * no more buffers outstanding, nuke the pool.
-	 */
-
-	if (MmGetMdlByteOffset(head) && MmGetMdlByteCount(head) == 0)
-		free(head, M_DEVBUF);
-
+	IoFreeMdl(buf);
 	return;
 }
 
@@ -2193,6 +2130,8 @@ NdisMRegisterInterrupt(intr, adapter, ivec, ilevel, reqisr, shared, imode)
 	intr->ni_isrreq = reqisr;
 	intr->ni_shared = shared;
 	block->nmb_interrupt = intr;
+
+	KeInitializeSpinLock(&intr->ni_dpccountlock);
 
 	return(NDIS_STATUS_SUCCESS);
 }	
@@ -2423,18 +2362,17 @@ NdisMSynchronizeWithInterrupt(intr, syncfunc, syncctx)
 	void			*syncfunc;
 	void			*syncctx;
 {
-	struct ndis_softc	*sc;
 	__stdcall uint8_t (*sync)(void *);
 	uint8_t			rval;
+	uint8_t			irql;
 
 	if (syncfunc == NULL || syncctx == NULL)
 		return(0);
 
-	sc = device_get_softc(intr->ni_block->nmb_physdeviceobj->do_devext);
 	sync = syncfunc;
-	mtx_lock(&sc->ndis_intrmtx);
-	rval = sync(syncctx);
-	mtx_unlock(&sc->ndis_intrmtx);
+	KeAcquireSpinLock(&intr->ni_dpccountlock, &irql);
+	rval = MSCALL1(sync, syncctx);
+	KeReleaseSpinLock(&intr->ni_dpccountlock, irql);
 
 	return(rval);
 }
@@ -2901,7 +2839,7 @@ NdisMIndicateStatusComplete(adapter)
 	block = (ndis_miniport_block *)adapter;
 	statusdonefunc = block->nmb_statusdone_func;
 
-	statusdonefunc(adapter);
+	MSCALL1(statusdonefunc, adapter);
 	return;
 }
 
@@ -2918,7 +2856,7 @@ NdisMIndicateStatus(adapter, status, sbuf, slen)
 	block = (ndis_miniport_block *)adapter;
 	statusfunc = block->nmb_status_func;
 
-	statusfunc(adapter, status, sbuf, slen);
+	MSCALL4(statusfunc, adapter, status, sbuf, slen);
 	return;
 }
 
@@ -2931,7 +2869,7 @@ ndis_workfunc(ctx)
 
 	work = ctx;
 	workfunc = work->nwi_func;
-	workfunc(work, work->nwi_ctx);
+	MSCALL2(workfunc, work, work->nwi_ctx);
 	return;
 }
 
@@ -3230,9 +3168,9 @@ image_patch_table ndis_functbl[] = {
 	 * in this table.
 	 */
 
-	{ NULL, (FUNC)dummy },
+	{ NULL, (FUNC)dummy, NULL },
 
 	/* End of list. */
 
-	{ NULL, NULL },
+	{ NULL, NULL, NULL }
 };

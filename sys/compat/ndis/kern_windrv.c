@@ -182,9 +182,9 @@ windrv_unload(mod, img, len)
 	e = drv->dro_driverext->dre_usrext.nle_flink;
 	while (e != &drv->dro_driverext->dre_usrext) {
 		c = e->nle_flink;
-		REMOVE_LIST_HEAD((&drv->dro_driverext->dre_usrext));
+		REMOVE_LIST_ENTRY(e);
 		ExFreePool(c);
-		e = e->nle_flink;
+		e = c;
 	}
 
 	/* Free the driver extension */
@@ -294,7 +294,7 @@ windrv_load(mod, img, len)
 
 	/* Now call the DriverEntry() function. */
 
-	status = entry(dobj, &dobj->dro_drivername);
+	status = MSCALL2(entry, dobj, &dobj->dro_drivername);
 
 	if (status != STATUS_SUCCESS) {
 		free(dobj->dro_drivername.us_buf, M_DEVBUF);
@@ -412,5 +412,59 @@ windrv_bus_attach(drv, name)
 	STAILQ_INSERT_HEAD(&drvdb_head, new, link);
 	mtx_unlock(&drvdb_mtx);
 
+	return(0);
+}
+
+#ifdef __amd64__
+
+extern void	x86_64_wrap(void);
+extern void	x86_64_wrap_call(void);
+extern void	x86_64_wrap_end(void);
+
+#endif /* __amd64__ */
+
+int
+windrv_wrap(func, wrap)
+	funcptr			func;
+	funcptr			*wrap;
+{
+#ifdef __amd64__
+	funcptr			p;
+	vm_offset_t		*calladdr;
+	vm_offset_t		wrapstart, wrapend, wrapcall;
+
+	wrapstart = (vm_offset_t)&x86_64_wrap;
+	wrapend = (vm_offset_t)&x86_64_wrap_end;
+	wrapcall = (vm_offset_t)&x86_64_wrap_call;
+
+	/* Allocate a new wrapper instance. */
+
+	p = malloc((wrapend - wrapstart), M_DEVBUF, M_NOWAIT);
+	if (p == NULL)
+		return(ENOMEM);
+
+	/* Copy over the code. */
+
+	bcopy((char *)wrapstart, p, (wrapend - wrapstart));
+
+	/* Insert the function address into the new wrapper instance. */
+
+	calladdr = (uint64_t *)((char *)p + (wrapcall - wrapstart) + 2);
+	*calladdr = (vm_offset_t)func;
+
+	*wrap = p;
+#else /* __amd64__ */
+	*wrap = func;
+#endif /* __amd64__ */
+	return(0);
+}
+
+int
+windrv_unwrap(func)
+	funcptr			func;
+{
+#ifdef __amd64__
+	free(func, M_DEVBUF);
+#endif /* __amd64__ */
 	return(0);
 }

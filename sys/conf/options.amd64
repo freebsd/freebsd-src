@@ -17,7 +17,7 @@ COMPAT_IA32		opt_compat.h
 COMPAT_LINUX32		opt_compat.h
 #COMPAT_SVR4		opt_dontuse.h
 #DEBUG_SVR4		opt_svr4.h
-#NDISAPI		opt_dontuse.h
+NDISAPI			opt_dontuse.h
 
 CLK_CALIBRATION_LOOP		opt_clock.h
 CLK_USE_I8254_CALIBRATION	opt_clock.h
