@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: init_smp.c,v 1.4 1997/07/12 22:33:18 smp Exp smp $
+ * $Id: init_smp.c,v 1.5 1997/07/14 20:49:14 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -169,15 +169,6 @@ void
 secondary_main()
 {
 	u_int   temp;
-
-#if 0 /** defined(TEST_LOPRIO) */
-	/* set the Task Priority Register to catch INTs */
-	temp = lapic.tpr;
-	temp &= ~APIC_TPR_PRIO;	/* clear priority field */
-	temp |= 0x10;		/* allow INT arbitration */
-	lapic.tpr = temp;
- printf(">>> secondary_main(), CPU%d TPR: 0x%08x\n", cpuid, temp);
-#endif	/* TEST_LOPRIO */
 
 	get_mplock();
 
