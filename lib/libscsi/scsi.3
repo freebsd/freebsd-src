@@ -82,14 +82,18 @@ Block) to perform the desired command.  These functions assist in
 building up the CDB, submitting it to the SCSI subsystem, and decoding
 the result.
 .Pp
+Look at the
+.Xr scsi 8
+command before using the library directly - simple programs are
+best implemented as scripts using that facility.
+.Pp
 To provide for security,
-not all devices accept the SCIOCCOMAND ioctl.  For tape
-drives, only the control device accepts it.  For disk drives, only
-the RAWPART partition (partition d in 2.0) accepts it.  Any device
-that comes on line as an UNKNOWN device will accept the ioctl, and
-the "super scsi"
+not all devices accept the SCIOCCOMAND ioctl.  It is accepted by the
+control device for tape drives, partition D for disk drives, partition C
+for CD ROM drives, and any "unknown" device.
+The "super scsi"
 .Xr ssc 4
-device also accepts it.
+device also accepts the ioctl.
 .Pp
 Most of the SCSI library functions build up and manipulate the
 .Ar scsireq
@@ -115,7 +119,6 @@ typedef struct	scsireq {
 } scsireq_t;
 .Ed
 .Pp
-The function
 .Fn scsireq_new
 allocates a new
 .Ar scsireq
@@ -166,30 +169,34 @@ indicates a data in phase (a transfer into the user buffer at
 indicates a data out phase (a transfer out of the user buffer).
 .Pp
 .Fr fmt
-is an ASCII CDB format specifier used to build up the SCSI CDB.
+is a CDB format specifier used to build up the SCSI CDB.
 This text string is made up of a list of field specifiers.  Field
 specifiers specify the value for each CDB field (including indicating
 that the value be taken from the next argument in the
 variable argument list), the width
-of the field in bits or bytes, and an optional name.
-The optional name is the final part of a field specifier and
-is in curly braces.  A valid example is:
+of the field in bits or bytes, and an optional name.  White space is
+ignored, and the pound sign ('#') introduces a comment that ends at the
+end of the current line.
+.Pp
+The optional name is the first part of a field specifier and
+is in curly braces.  The text in curly braces in this example are
+the names:
 .Bd -literal -offset indent
-.Fr "v:b1 {PS} 0:b1 {Reserved} v:b6 {Page Code}"
+.Fr "{PS} v:b1 {Reserved} 0:b1 {Page Code} v:b6 # Mode select page"
 .Ed
+.Pp
 This field specifier has two one bit fields and one six bit field.
 The second one bit field is the constant value 0 and the first
 one bit field and the six bit field are taken from the variable
 argument list.
 Multi byte fields are swapped into the SCSI byte order in the
-CDB and
-white space is ignored.
+CDB and white space is ignored.
 .Pp
 When the field is a hex value or the letter v, (e.g.,
 .Fr "1A"
 or
 .Fr "v" )
-a single byte value
+then a single byte value
 is copied to the next unused byte of the CDB.
 When the letter
 .Fr v
@@ -203,17 +210,17 @@ followed by a field width specifier (e.g.,
 .Fr 3:b4 ,
 .Fr 3:i3 ,
 .FR v:i3 )
-is used to specify a field of a given bit or byte width.
+specifies a field of a given bit or byte width.
 Either the constant value or (for the V specifier) the next integer value from
 the variable argument list is copied to the next unused
-bits or bytes of the CDB.  A decimal number or the letter
+bits or bytes of the CDB.
+.Pp
+A decimal number or the letter
 .Fr b
-followed by a decimal
-number as the field width indicates a bit field of that width.
-These bit fields are packed as tightly as possible beginning with the
+followed by a decimal number field width indicates a bit field of that width.
+The bit fields are packed as tightly as possible beginning with the
 high bit (so that it reads the same as the SCSI spec), and a new byte of
-the CDB is
-started whenever the byte fills completely or when an
+the CDB is started whenever a byte fills completely or when an
 .Fr i
 field is encountered.
 .Pp
@@ -223,49 +230,50 @@ followed by either
 1, 2, 3 or 4 indicates a 1, 2, 3 or 4 byte integral value that must
 be swapped into SCSI byte order (MSB first).
 .Pp
-For the v field specifier
-the next integer argument is taken from the variable argument
+For the
+.Fr v
+field specifier the next integer argument is taken from the variable argument
 list and that value is used swapped into SCSI byte order.
 .Pp
 .Fn scsireq_decode
 is used to decode information from the data in phase of the SCSI
 transfer.
+.Pp
 The decoding is similar to
 the command specifier processing of
-.Fn scsireq_build,
+.Fn scsireq_build
 except that the data is extracted from the data pointed to by
 .Fr scsireq->databuf.
-The stdarg list must be pointers to integers instead of integer
+The stdarg list should be pointers to integers instead of integer
 values.
-.Pp
-In addition, a seek field type and a suppression field modifier are added.
+A seek field type and a suppression modifier are added.
 The
 .Fr *
-suppression modifier to a field (e.g.,
+suppression modifier (e.g.,
 .Fr *i3
 or
 .Fr *b4 )
-suppresses the assignment from that field and can be used to skip
-over bytes or bits in the data, without copying them to a dummy variable
-in the arg list.
+suppresses assignment from the field and can be used to skip
+over bytes or bits in the data, without having to copy
+them to a dummy variable in the arg list.
 .Pp
-A seek field type
+The seek field type
 .Fr s
-is provided.  This ``seeks'' to an absolute position in the data (
+permits you to skip over data.
+This seeks to an absolute position (
 .Fr s3 )
 or a relative position (
 .Fr s+3 )
-in the data, based on whether or not the seek value has a '+' sign.
-The value can also be
+in the data, based on whether or not the presence of the '+' sign.
+The seek value can be specified as
 .Fr v
- and the next integer value will be taken from the arg list
-and used as the seek value.
+and the next integer value from the argument list will be
+used as the seek value.
 .Pp
 .Fn scsireq_buff_decode
-decodes an arbitrary data buffer identically to the method
-used by the
-.Fn scsireq_decode
-function.
+decodes an arbitrary data buffer using the method
+described above in
+.Fn scsireq_decode .
 .Pp
 .Fn scsireq_encode
 encodes the data phase section of the structure.  The encoding is
@@ -285,10 +293,6 @@ or not, and so on.
 .Fn scsi_open
 checks environment variables and initializes the library for
 consistent library use and then calls the regular open system call.
-.Pp
-.Fn scsi_debug and
-.Fn scsi_debug_output
-are used for debugging.
 .Pp
 .Fn scsi_debug
 prints the results of a scsireq_enter function to the specified stdio
@@ -311,11 +315,12 @@ and
 return the same pointer as the one passed in.
 .Pp
 The functions
-.Fn scsireq_buff_decode ,
+.Fn scsireq_buff_decode and
 .Fn scsireq_decode
-and
+return the number of assignments performed.
+.Pp
 .Fn scsireq_encode
-return the number of fields processed.
+returns the number of fields processed.
 .Pp
 The function
 .Fn scsireq_enter
