@@ -21,9 +21,12 @@
 /*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_tape.h,v 1.8 93/08/31 21:40:16 julian Exp Locker: julian $
+ *	$Id: scsi_tape.h,v 1.6 1993/09/05 15:42:20 rgrimes Exp $
  */
 
+
+#ifndef _SCSI_SCSI_TAPE_H_
+#define _SCSI_SCSI_TAPE_H_ 1
 
 
 /*
@@ -200,3 +203,4 @@ struct	blk_desc_cipher
 #define DAT-1		0x13
 
 
+#endif /* _SCSI_SCSI_TAPE_H_ */
