@@ -35,12 +35,17 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)vprintf.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+		"$Id$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
 
-int vprintf(fmt, ap)
+int
+vprintf(fmt, ap)
 	char const *fmt;
 	_BSD_VA_LIST_ ap;
 {
