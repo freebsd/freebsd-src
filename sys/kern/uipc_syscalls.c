@@ -290,7 +290,19 @@ accept1(p, uap, compat)
 	nfp->f_ops = &socketops;
 	nfp->f_type = DTYPE_SOCKET;
 	sa = 0;
-	(void) soaccept(so, &sa);
+	error = soaccept(so, &sa);
+	if (error) {
+		/*
+		 * return a namelen of zero for older code which might
+	 	 * ignore the return value from accept.
+		 */	
+		if (uap->name != NULL) {
+			namelen = 0;
+			(void) copyout((caddr_t)&namelen,
+			    (caddr_t)uap->anamelen, sizeof(*uap->anamelen));
+		}
+		goto noconnection;
+	}
 	if (sa == NULL) {
 		namelen = 0;
 		if (uap->name)
@@ -314,6 +326,7 @@ gotnoname:
 			error = copyout((caddr_t)&namelen,
 			    (caddr_t)uap->anamelen, sizeof (*uap->anamelen));
 	}
+noconnection:
 	if (sa)
 		FREE(sa, M_SONAME);
 
