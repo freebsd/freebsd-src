@@ -137,7 +137,6 @@ struct macio_quirk_entry {
 static struct macio_quirk_entry macio_quirks[] = {
 	{ "interrupt-controller",	MACIO_QUIRK_IGNORE },
 	{ "escc-legacy",		MACIO_QUIRK_IGNORE },
-	{ "gpio",			MACIO_QUIRK_IGNORE },
 	{ "timer",			MACIO_QUIRK_IGNORE },
 	{ "escc",			MACIO_QUIRK_CHILD_HAS_INTR },
         { NULL,				0 }
