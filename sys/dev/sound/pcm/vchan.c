@@ -95,6 +95,8 @@ feed_vchan_s16(struct pcm_feeder *f, struct pcm_channel *c, u_int8_t *b, u_int32
 	SLIST_FOREACH(cce, &c->children, link) {
 		ch = cce->channel;
 		if (ch->flags & CHN_F_TRIGGERED) {
+			if (ch->flags & CHN_F_MAPPED)
+				sndbuf_acquire(ch->bufsoft, NULL, sndbuf_getfree(ch->bufsoft));
 			cnt = FEEDER_FEED(ch->feeder, ch, (u_int8_t *)tmp, count, ch->bufsoft);
 			vchan_mix_s16(dst, tmp, cnt / 2);
 		}
