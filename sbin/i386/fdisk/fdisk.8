@@ -57,6 +57,8 @@ is given.
 .It Fl b Ar bootcode
 Get the boot code from the file
 .Ar bootcode .
+Default is
+.Pa /boot/mbr .
 .It Fl B
 Reinitialize the boot code contained in sector 0 of the disk.  Ignored
 if
@@ -413,6 +415,7 @@ a       1
 The default boot code
 .El
 .Sh SEE ALSO
+.Xr boot0cfg 8 ,
 .Xr disklabel 8
 .Sh BUGS
 The default boot code will not necessarily handle all partition types
