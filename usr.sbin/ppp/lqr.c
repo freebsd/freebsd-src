@@ -118,7 +118,7 @@ lqr_RecvEcho(struct fsm *fp, struct mbuf *bp)
       log_Printf(LogWARN, "lqr_RecvEcho: Got sig 0x%08lx, not 0x%08lx !\n",
                 (u_long)lqr.signature, (u_long)SIGNATURE);
   } else
-    log_Printf(LogWARN, "lqr_RecvEcho: Got packet size %d, expecting %ld !\n",
+    log_Printf(LogWARN, "lqr_RecvEcho: Got packet size %zd, expecting %ld !\n",
               m_length(bp), (long)sizeof(struct echolqr));
   return bp;
 }

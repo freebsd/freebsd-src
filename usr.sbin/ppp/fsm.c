@@ -1055,7 +1055,7 @@ fsm_Input(struct fsm *fp, struct mbuf *bp)
   bp = mbuf_Read(bp, &lh, sizeof lh);
 
   if (ntohs(lh.length) > len) {
-    log_Printf(LogWARN, "%s: Oops: Got %u bytes but %d byte payload "
+    log_Printf(LogWARN, "%s: Oops: Got %zu bytes but %d byte payload "
                "- dropped\n", fp->link->name, len, (int)ntohs(lh.length));
     m_freem(bp);
     return;

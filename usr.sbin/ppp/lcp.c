@@ -456,7 +456,8 @@ LcpSendConfigReq(struct fsm *fp)
 
       if (sz > sizeof o->data - 1) {
         sz = sizeof o->data - 1;
-        log_Printf(LogWARN, "Truncating E164 data to %u octets (oops!)\n", sz);
+        log_Printf(LogWARN, "Truncating E164 data to %zu octets (oops!)\n",
+	    sz);
       }
       *o->data = CALLBACK_E164;
       memcpy(o->data + 1, lcp->want_callback.msg, sz);
@@ -1068,17 +1069,20 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
           log_Printf(LogLCP, "%s Auth\n", request);
           break;
         case CALLBACK_DIALSTRING:
-          log_Printf(LogLCP, "%s Dialstring %.*s\n", request, sz,
+		log_Printf(LogLCP, "%s Dialstring %.*s\n", request, (int)sz,
                      opt->data + 1);
           break;
         case CALLBACK_LOCATION:
-          log_Printf(LogLCP, "%s Location %.*s\n", request, sz, opt->data + 1);
+		log_Printf(LogLCP, "%s Location %.*s\n", request, (int)sz,
+		    opt->data + 1);
           break;
         case CALLBACK_E164:
-          log_Printf(LogLCP, "%s E.164 (%.*s)\n", request, sz, opt->data + 1);
+		log_Printf(LogLCP, "%s E.164 (%.*s)\n", request, (int)sz,
+		    opt->data + 1);
           break;
         case CALLBACK_NAME:
-          log_Printf(LogLCP, "%s Name %.*s\n", request, sz, opt->data + 1);
+		log_Printf(LogLCP, "%s Name %.*s\n", request, (int)sz,
+		    opt->data + 1);
           break;
         case CALLBACK_CBCP:
           log_Printf(LogLCP, "%s CBCP\n", request);
@@ -1104,7 +1108,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
           lcp->his_callback.opmask = CALLBACK_BIT(op);
           if (sz > sizeof lcp->his_callback.msg - 1) {
             sz = sizeof lcp->his_callback.msg - 1;
-            log_Printf(LogWARN, "Truncating option arg to %u octets\n", sz);
+            log_Printf(LogWARN, "Truncating option arg to %zu octets\n", sz);
           }
           memcpy(lcp->his_callback.msg, opt->data + 1, sz);
           lcp->his_callback.msg[sz] = '\0';
