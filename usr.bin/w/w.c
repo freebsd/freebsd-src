@@ -217,11 +217,11 @@ main(argc, argv)
 		pr_header(&now, nusers);
 		if (wcmd == 0)
 			exit (0);
-	}
 
 #define HEADER	"USER    TTY FROM              LOGIN@  IDLE WHAT\n"
 #define WUSED	(sizeof (HEADER) - sizeof ("WHAT\n"))
-	(void)printf(HEADER);
+		(void)printf(HEADER);
+	}
 
 	if ((kp = kvm_getprocs(kd, KERN_PROC_ALL, 0, &nentries)) == NULL)
 		err(1, "%s", kvm_geterr(kd));
