@@ -237,22 +237,3 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 	ahc->platform_data->regs = regs;
 	return (0);
 }
-
-int
-ahc_pci_map_int(struct ahc_softc *ahc)
-{
-	int zero;
-
-	zero = 0;
-	ahc->platform_data->irq =
-	    bus_alloc_resource_any(ahc->dev_softc, SYS_RES_IRQ, &zero,
-				   RF_ACTIVE | RF_SHAREABLE);
-	if (ahc->platform_data->irq == NULL) {
-		device_printf(ahc->dev_softc,
-			      "bus_alloc_resource() failed to allocate IRQ\n");
-		return (ENOMEM);
-	}
-	ahc->platform_data->irq_res_type = SYS_RES_IRQ;
-	return (ahc_map_int(ahc));
-}
-

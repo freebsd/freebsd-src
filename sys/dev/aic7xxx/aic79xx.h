@@ -667,12 +667,15 @@ struct scb_data {
 	 */
 	struct	scb *scbindex[AHD_SCB_MAX];
 
+	u_int		 recovery_scbs;	/* Transactions currently in recovery */
+
 	/*
 	 * "Bus" addresses of our data structures.
 	 */
 	bus_dma_tag_t	 hscb_dmat;	/* dmat for our hardware SCB array */
 	bus_dma_tag_t	 sg_dmat;	/* dmat for our sg segments */
 	bus_dma_tag_t	 sense_dmat;	/* dmat for our sense buffers */
+
 	SLIST_HEAD(, map_node) hscb_maps;
 	SLIST_HEAD(, map_node) sg_maps;
 	SLIST_HEAD(, map_node) sense_maps;
@@ -1067,6 +1070,8 @@ struct ahd_completion
 	uint8_t		sg_status;
 	uint8_t		valid_tag;
 };
+
+#define AIC_SCB_DATA(softc) (&(softc)->scb_data)
 
 struct ahd_softc {
 	bus_space_tag_t           tags[2];

@@ -8351,9 +8351,14 @@ ahd_handle_scsi_status(struct ahd_softc *ahd, struct scb *scb)
 		ahd_queue_scb(ahd, scb);
 		/*
 		 * Ensure we have enough time to actually
-		 * retrieve the sense.
+		 * retrieve the sense, but only schedule
+		 * the timer if we are not in recovery or
+		 * this is a recovery SCB that is allowed
+		 * to have an active timer.
 		 */
-		aic_scb_timer_reset(scb, 5 * 1000000);
+		if (ahd->scb_data.recovery_scbs == 0
+		 || (scb->flags & SCB_RECOVERY_SCB) != 0)
+			aic_scb_timer_reset(scb, 5 * 1000000);
 		break;
 	}
 	case SCSI_STATUS_OK:
@@ -9441,15 +9446,6 @@ bus_reset:
 			 * In either case (selection or reselection),
 			 * we will now issue a target reset to the
 			 * timed-out device.
-			 *
-			 * Set the MK_MESSAGE control bit indicating
-			 * that we desire to send a message.  We
-			 * also set the disconnected flag since
-			 * in the paging case there is no guarantee
-			 * that our SCB control byte matches the
-			 * version on the card.  We don't want the
-			 * sequencer to abort the command thinking
-			 * an unsolicited reselection occurred.
 			 */
 			scb->flags |= SCB_DEVICE_RESET;
 			scb->hscb->cdb_len = 0;

@@ -263,40 +263,31 @@ ahd_done(struct ahd_softc *ahd, struct scb *scb)
 	}
 #endif
 
-	/*
-	 * If the recovery SCB completes, we have to be
-	 * out of our timeout.
-	 */
 	if ((scb->flags & SCB_RECOVERY_SCB) != 0) {
 		struct	scb *list_scb;
 
-		/*
-		 * We were able to complete the command successfully,
-		 * so reinstate the timeouts for all other pending
-		 * commands.
-		 */
-		LIST_FOREACH(list_scb, &ahd->pending_scbs, pending_links) {
-			union ccb *ccb;
-			uint64_t time;
-
-			ccb = list_scb->io_ctx;
-			if (ccb->ccb_h.timeout == CAM_TIME_INFINITY)
-				continue;
-
-			time = ccb->ccb_h.timeout;
-			time *= hz;
-			time /= 1000;
-			ccb->ccb_h.timeout_ch = 
-			    timeout(ahd_platform_timeout, list_scb, time);
-		}
+		ahd->scb_data.recovery_scbs--;
 
 		if (aic_get_transaction_status(scb) == CAM_BDR_SENT
 		 || aic_get_transaction_status(scb) == CAM_REQ_ABORTED)
 			aic_set_transaction_status(scb, CAM_CMD_TIMEOUT);
 
-		ahd_print_path(ahd, scb);
-		printf("no longer in timeout, status = %x\n",
-		       ccb->ccb_h.status);
+		if (ahd->scb_data.recovery_scbs == 0) {
+			/*
+			 * All recovery actions have completed successfully,
+			 * so reinstate the timeouts for all other pending
+			 * commands.
+			 */
+			LIST_FOREACH(list_scb,
+				     &ahd->pending_scbs, pending_links) {
+
+				aic_scb_timer_reset(scb, aic_get_timeout(scb));
+			}
+
+			ahd_print_path(ahd, scb);
+			printf("no longer in timeout, status = %x\n",
+			       ccb->ccb_h.status);
+		}
 	}
 
 	/* Don't clobber any existing error state */
@@ -1123,18 +1114,7 @@ ahd_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 
-	if (ccb->ccb_h.timeout != CAM_TIME_INFINITY) {
-		uint64_t time;
-
-		if (ccb->ccb_h.timeout == CAM_TIME_DEFAULT)
-			ccb->ccb_h.timeout = 5 * 1000;
-
-		time = ccb->ccb_h.timeout;
-		time *= hz;
-		time /= 1000;
-		ccb->ccb_h.timeout_ch =
-		    timeout(ahd_platform_timeout, (caddr_t)scb, time);
-	}
+	aic_scb_timer_start(scb);
 
 	if ((scb->flags & SCB_TARGET_IMMEDIATE) != 0) {
 		/* Define a mapping from our tag to the SCB. */
