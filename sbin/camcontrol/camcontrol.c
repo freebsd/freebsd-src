@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: camcontrol.c,v 1.3 1998/10/03 19:15:53 ken Exp $
+ *	$Id: camcontrol.c,v 1.4 1998/10/13 16:23:26 ken Exp $
  */
 
 #include <sys/ioctl.h>
@@ -450,10 +450,17 @@ scsistart(struct cam_device *device, int startstop, int loadeject,
 
 	ccb = cam_getccb(device);
 
+	/*
+	 * If we're stopping, send an ordered tag so the drive in question
+	 * will finish any previously queued writes before stopping.  If
+	 * the device isn't capable of tagged queueing, or if tagged
+	 * queueing is turned off, the tag action is a no-op.
+	 */
 	scsi_start_stop(&ccb->csio,
 			/* retries */ retry_count,
 			/* cbfcnp */ NULL,
-			/* tag_action */ MSG_SIMPLE_Q_TAG,
+			/* tag_action */ startstop ? MSG_SIMPLE_Q_TAG :
+						     MSG_ORDERED_Q_TAG,
 			/* start/stop */ startstop,
 			/* load_eject */ loadeject,
 			/* immediate */ 0,
