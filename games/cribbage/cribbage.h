@@ -63,7 +63,7 @@ extern	BOOLEAN		playing;		/* currently playing game */
 
 extern  char		expl[];			/* string for explanation */
 
-void	 addmsg(const char *, ...);
+void	 addmsg(const char *, ...) __printflike(1, 2);
 int	 adjust(CARD [], CARD);
 int	 anymove(CARD [], int, int);
 int	 anysumto(CARD [], int, int, int);
@@ -91,7 +91,7 @@ int	 isone(CARD, CARD [], int);
 void	 makeboard(void);
 void	 makedeck(CARD []);
 void	 makeknown(CARD [], int);
-void	 msg(const char *, ...);
+void	 msg(const char *, ...) __printflike(1, 2);
 int	 msgcard(CARD, BOOLEAN);
 int	 msgcrd(CARD, BOOLEAN, char *, BOOLEAN);
 int	 number(int, int, char *);
