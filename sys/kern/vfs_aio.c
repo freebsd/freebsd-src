@@ -1297,6 +1297,7 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 	struct kevent kev;
 	struct kqueue *kq;
 	struct file *kq_fp;
+	struct sockbuf *sb;
 
 	aiocbe = uma_zalloc(aiocb_zone, M_WAITOK);
 	aiocbe->inputcharge = 0;
@@ -1451,29 +1452,28 @@ no_kqueue:
 		 * If it is not ready for io, then queue the aiocbe on the
 		 * socket, and set the flags so we get a call when sbnotify()
 		 * happens.
+		 *
+		 * Note if opcode is neither LIO_WRITE nor LIO_READ we lock
+		 * and unlock the snd sockbuf for no reason.
 		 */
 		so = fp->f_data;
+		sb = (opcode == LIO_READ) ? &so->so_rcv : &so->so_snd;
+		SOCKBUF_LOCK(sb);
 		s = splnet();
 		if (((opcode == LIO_READ) && (!soreadable(so))) || ((opcode ==
 		    LIO_WRITE) && (!sowriteable(so)))) {
 			TAILQ_INSERT_TAIL(&so->so_aiojobq, aiocbe, list);
 			TAILQ_INSERT_TAIL(&ki->kaio_sockqueue, aiocbe, plist);
-			if (opcode == LIO_READ) {
-				SOCKBUF_LOCK(&so->so_rcv);
-				so->so_rcv.sb_flags |= SB_AIO;
-				SOCKBUF_UNLOCK(&so->so_rcv);
-			} else {
-				SOCKBUF_LOCK(&so->so_snd);
-				so->so_snd.sb_flags |= SB_AIO;
-				SOCKBUF_UNLOCK(&so->so_snd);
-			}
+			sb->sb_flags |= SB_AIO;
 			aiocbe->jobstate = JOBST_JOBQGLOBAL; /* XXX */
 			ki->kaio_queue_count++;
 			num_queue_count++;
+			SOCKBUF_UNLOCK(sb);
 			splx(s);
 			error = 0;
 			goto done;
 		}
+		SOCKBUF_UNLOCK(sb);
 		splx(s);
 	}
 
