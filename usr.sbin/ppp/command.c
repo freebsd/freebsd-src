@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.185 1999/03/03 23:00:39 brian Exp $
+ * $Id: command.c,v 1.186 1999/03/04 17:42:15 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -141,7 +141,7 @@
 #define NEG_DNS		52
 
 const char Version[] = "2.11";
-const char VersionDate[] = "$Date: 1999/03/03 23:00:39 $";
+const char VersionDate[] = "$Date: 1999/03/04 17:42:15 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -554,6 +554,8 @@ static struct cmdtab const AliasCommands[] =
    (const void *) PKT_ALIAS_LOG},
   {"port", NULL, alias_RedirectPort, LOCAL_AUTH,
    "port redirection", "alias port [proto addr_local:port_local  port_alias]"},
+  {"proxy", NULL, alias_ProxyRule, LOCAL_AUTH,
+   "proxy control", "alias proxy server host[:port] ..."},
   {"same_ports", NULL, AliasOption, LOCAL_AUTH,
    "try to leave port numbers unchanged", "alias same_ports [yes|no]",
    (const void *) PKT_ALIAS_SAME_PORTS},

@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.154 1999/03/04 17:42:15 brian Exp $
+.\" $Id: ppp.8,v 1.155 1999/03/07 11:54:42 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -2648,6 +2648,22 @@ The
 .Fl alias
 command line flag is synonymous with
 .Dq alias enable yes .
+.It alias addr Op Ar addr_local addr_alias
+This command allows data for
+.Ar addr_alias
+to be redirected to
+.Ar addr_local .
+It is useful if you own a small number of real IP numbers that
+you wish to map to specific machines behind your gateway.
+.It alias deny_incoming [yes|no]
+If set to yes, this command will refuse all incoming connections
+by dropping the packets in much the same way as a firewall would.
+.It alias help|?
+This command gives a summary of available alias commands.
+.It alias log [yes|no]
+This option causes various aliasing statistics and information to
+be logged to the file
+.Pa /var/log/alias.log .
 .It alias port Op Ar proto targetIP:targetPORT [aliasIP:]aliasPORT
 This command allows us to redirect connections arriving at
 .Ar aliasPORT
@@ -2665,22 +2681,15 @@ or
 and only connections of the given protocol
 are matched.  This option is useful if you wish to run things like
 Internet phone on the machines behind your gateway.
-.It alias addr Op Ar addr_local addr_alias
-This command allows data for
-.Ar addr_alias
-to be redirected to
-.Ar addr_local .
-It is useful if you own a small number of real IP numbers that
-you wish to map to specific machines behind your gateway.
-.It alias deny_incoming [yes|no]
-If set to yes, this command will refuse all incoming connections
-by dropping the packets in much the same way as a firewall would.
-.It alias help|?
-This command gives a summary of available alias commands.
-.It alias log [yes|no]
-This option causes various aliasing statistics and information to
-be logged to the file
-.Pa /var/log/alias.log .
+.It "alias proxy cmd" Ar arg Ns No ...
+This command tells
+.Nm
+to proxy certain connections, redirecting them to a given server.  Refer
+to the description of
+.Fn PacketAliasProxyRule
+in
+.Xr libalias 3
+for details of the available commands.
 .It alias same_ports [yes|no]
 When enabled, this command will tell the alias library attempt to
 avoid changing the port number on outgoing packets.  This is useful
@@ -4241,11 +4250,13 @@ This socket is used to pass links between different instances of
 .Xr login 1 ,
 .Xr tcpdump 1 ,
 .Xr telnet 1 ,
+.Xr libalias 3 ,
 .Xr syslog 3 ,
 .Xr uucplock 3 ,
 .Xr crontab 5 ,
 .Xr group 5 ,
 .Xr passwd 5 ,
+.Xr radius.conf 5 ,
 .Xr resolv.conf 5 ,
 .Xr syslog.conf 5 ,
 .Xr adduser 8 ,
@@ -4257,7 +4268,6 @@ This socket is used to pass links between different instances of
 .Xr ping 8 ,
 .Xr pppctl 8 ,
 .Xr pppd 8 ,
-.Xr radius.conf 5 ,
 .Xr route 8 ,
 .Xr syslogd 8 ,
 .Xr traceroute 8 ,
