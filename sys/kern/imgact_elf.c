@@ -179,8 +179,8 @@ __elfN(map_partial)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	 * Create the page if it doesn't exist yet. Ignore errors.
 	 */
 	vm_map_lock(map);
-	vm_map_insert(map, NULL, 0, trunc_page(start), round_page(end),
-		      max, max, 0);
+	vm_map_insert(map, NULL, 0, trunc_page(start), round_page(end), max,
+	    max, 0);
 	vm_map_unlock(map);
 
 	/*
@@ -222,17 +222,16 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	int rv;
 
 	if (start != trunc_page(start)) {
-		rv = __elfN(map_partial)(map, object, offset,
-				       start, round_page(start), prot, max);
+		rv = __elfN(map_partial)(map, object, offset, start,
+		    round_page(start), prot, max);
 		if (rv)
 			return (rv);
 		offset += round_page(start) - start;
 		start = round_page(start);
 	}
 	if (end != round_page(end)) {
-		rv = __elfN(map_partial)(map, object,
-				       offset + trunc_page(end) - start,
-				       trunc_page(end), end, prot, max);
+		rv = __elfN(map_partial)(map, object, offset +
+		    trunc_page(end) - start, trunc_page(end), end, prot, max);
 		if (rv)
 			return (rv);
 		end = trunc_page(end);
@@ -247,9 +246,8 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 			 * The mapping is not page aligned. This means we have
 			 * to copy the data. Sigh.
 			 */
-			rv = vm_map_find(map, 0, 0,
-					 &start, end - start,
-					 FALSE, prot, max, 0);
+			rv = vm_map_find(map, 0, 0, &start, end - start,
+			    FALSE, prot, max, 0);
 			if (rv)
 				return (rv);
 			while (start < end) {
@@ -273,9 +271,9 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 				if (sz > PAGE_SIZE)
 					sz = PAGE_SIZE;
 				error = copyout((caddr_t)data_buf + off,
-						(caddr_t)start, sz);
+				    (caddr_t)start, sz);
 				vm_map_remove(exec_map, data_buf,
-					      data_buf + 2 * PAGE_SIZE);
+				    data_buf + 2 * PAGE_SIZE);
 				if (error) {
 					return (KERN_FAILURE);
 				}
@@ -285,7 +283,7 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		} else {
 			vm_map_lock(map);
 			rv = vm_map_insert(map, object, offset, start, end,
-					    prot, max, cow);
+			    prot, max, cow);
 			vm_map_unlock(map);
 		}
 		return (rv);
@@ -378,9 +376,8 @@ __elfN(load_section)(struct proc *p, struct vmspace *vmspace,
 
 	/* This had damn well better be true! */
 	if (map_len != 0) {
-		rv = __elfN(map_insert)(&vmspace->vm_map, NULL, 0,
-			map_addr, map_addr + map_len,
-			VM_PROT_ALL, VM_PROT_ALL, 0);
+		rv = __elfN(map_insert)(&vmspace->vm_map, NULL, 0, map_addr,
+		    map_addr + map_len, VM_PROT_ALL, VM_PROT_ALL, 0);
 		if (rv != KERN_SUCCESS) {
 			return (EINVAL);
 		}
@@ -404,10 +401,10 @@ __elfN(load_section)(struct proc *p, struct vmspace *vmspace,
 		}
 
 		/* send the page fragment to user space */
-		off = trunc_page_ps(offset + filsz, pagesize)
-			- trunc_page(offset + filsz);
+		off = trunc_page_ps(offset + filsz, pagesize) -
+		    trunc_page(offset + filsz);
 		error = copyout((caddr_t)data_buf + off, (caddr_t)map_addr,
-			copy_len);
+		    copy_len);
 		vm_map_remove(exec_map, data_buf, data_buf + PAGE_SIZE);
 		if (error) {
 			return (error);
@@ -545,14 +542,11 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 			if (phdr[i].p_flags & PF_R)
   				prot |= VM_PROT_READ;
 
-			if ((error = __elfN(load_section)
-			     (p, vmspace, nd->ni_vp,
-			      imgp->object,
-			      phdr[i].p_offset,
-			      (caddr_t)(uintptr_t)phdr[i].p_vaddr +
-			      rbase,
-			      phdr[i].p_memsz,
-			      phdr[i].p_filesz, prot, pagesize)) != 0)
+			if ((error = __elfN(load_section)(p, vmspace,
+			    nd->ni_vp, imgp->object, phdr[i].p_offset,
+			    (caddr_t)(uintptr_t)phdr[i].p_vaddr + rbase,
+			    phdr[i].p_memsz, phdr[i].p_filesz, prot,
+			    pagesize)) != 0)
 				goto fail;
 			/*
 			 * Establish the base address if this is the
@@ -572,7 +566,7 @@ fail:
 		exec_unmap_first_page(imgp);
 	if (imgp->image_header)
 		kmem_free_wakeup(exec_map, (vm_offset_t)imgp->image_header,
-			PAGE_SIZE);
+		    PAGE_SIZE);
 	if (imgp->object)
 		vm_object_deallocate(imgp->object);
 
@@ -688,14 +682,11 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 				prot |= VM_PROT_EXECUTE;
 #endif
 
-			if ((error = __elfN(load_section)
-			     (imgp->proc,
-			      vmspace, imgp->vp,
-			      imgp->object,
-			      phdr[i].p_offset,
-			      (caddr_t)(uintptr_t)phdr[i].p_vaddr,
-			      phdr[i].p_memsz,
-			      phdr[i].p_filesz, prot, pagesize)) != 0)
+			if ((error = __elfN(load_section)(imgp->proc, vmspace,
+			    imgp->vp, imgp->object, phdr[i].p_offset,
+			    (caddr_t)(uintptr_t)phdr[i].p_vaddr,
+			    phdr[i].p_memsz, phdr[i].p_filesz, prot,
+			    pagesize)) != 0)
   				goto fail;
 
 			/*
@@ -704,17 +695,16 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			 * We only handle one each of those yet XXX
 			 */
 			if (hdr->e_entry >= phdr[i].p_vaddr &&
-			hdr->e_entry < (phdr[i].p_vaddr + phdr[i].p_memsz)) {
+			    hdr->e_entry < (phdr[i].p_vaddr +
+			    phdr[i].p_memsz)) {
   				text_addr = trunc_page(phdr[i].p_vaddr);
   				text_size = round_page(phdr[i].p_memsz +
-						       phdr[i].p_vaddr -
-						       text_addr);
+				    phdr[i].p_vaddr - text_addr);
 				entry = (u_long)hdr->e_entry;
 			} else {
   				data_addr = trunc_page(phdr[i].p_vaddr);
   				data_size = round_page(phdr[i].p_memsz +
-						       phdr[i].p_vaddr -
-						       data_addr);
+				    phdr[i].p_vaddr - data_addr);
 			}
 			break;
 	  	case PT_INTERP:	/* Path to interpreter */
@@ -809,11 +799,9 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		snprintf(path, MAXPATHLEN, "%s%s",
 			 brand_info->emul_path, interp);
 		if ((error = __elfN(load_file)(imgp->proc, path, &addr,
-					       &imgp->entry_addr,
-					       pagesize)) != 0) {
-			if ((error = __elfN(load_file)
-			     (imgp->proc, interp, &addr,
-			      &imgp->entry_addr, pagesize)) != 0) {
+		    &imgp->entry_addr, pagesize)) != 0) {
+			if ((error = __elfN(load_file)(imgp->proc, interp,
+			    &addr, &imgp->entry_addr, pagesize)) != 0) {
 				uprintf("ELF interpreter %s not found\n",
 				    path);
 				free(path, M_TEMP);
