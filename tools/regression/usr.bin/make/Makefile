@@ -50,6 +50,9 @@ all:
 	@echo "Running test double_quotes"
 	@${MAKE} double_quotes || ${MAKE} failure
 	@echo "PASS: Test double_quotes detected no regression."
+	@echo "Running test double_quotes2"
+	@! ${MAKE} double_quotes2 >/dev/null 2>&1 && true || ${MAKE} failure
+	@echo "PASS: Test double_quotes2 detected no regression."
 
 .if make(double)
 # Doubly-defined targets.  make(1) will warn, but use the "right" one.  If it
@@ -122,6 +125,11 @@ double_quotes:
 .if ${VALUE:S/$//} != ${VALUE}
 .error "" reduced to "
 .endif
+.endif
+
+.if make(double_quotes2)
+double_quotes2:
+	@cat /dev/null ""
 .endif
 
 failure:
