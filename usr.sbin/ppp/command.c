@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.101 1997/11/12 18:47:28 brian Exp $
+ * $Id: command.c,v 1.102 1997/11/13 14:43:14 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -781,27 +781,12 @@ TerminalCommand(struct cmdtab const * list, int argc, char **argv)
 static int
 QuitCommand(struct cmdtab const * list, int argc, char **argv)
 {
-  FILE *oVarTerm;
-
-  if (mode & MODE_INTER)
-    Cleanup(EX_NORMAL);
-  else if (argc > 0 && !strcasecmp(*argv, "all") &&
-           (VarLocalAuth & LOCAL_AUTH)) {
-    oVarTerm = VarTerm;
-    VarTerm = 0;
-    if (oVarTerm && oVarTerm != stdout)
-      fclose(oVarTerm);
-    close(netfd);
-    netfd = -1;
-    Cleanup(EX_NORMAL);
-  } else if (VarTerm) {
-    LogPrintf(LogPHASE, "Client connection closed.\n");
-    oVarTerm = VarTerm;
-    VarTerm = 0;
-    if (oVarTerm && oVarTerm != stdout)
-      fclose(oVarTerm);
-    close(netfd);
-    netfd = -1;
+  if (VarTerm) {
+    DropClient();
+    if (mode & MODE_INTER)
+      Cleanup(EX_NORMAL);
+    else if (argc > 0 && !strcasecmp(*argv, "all") && VarLocalAuth&LOCAL_AUTH)
+      Cleanup(EX_NORMAL);
   }
 
   return 0;

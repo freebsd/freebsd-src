@@ -1,5 +1,5 @@
 /*
- * $Id: defs.c,v 1.2 1997/11/11 22:58:10 brian Exp $
+ * $Id: defs.c,v 1.3 1997/11/17 00:42:38 brian Exp $
  */
 
 #include <sys/param.h>
@@ -68,4 +68,20 @@ GetShortHost()
     *p = '\0';
 
   return 1;
+}
+
+void
+DropClient()
+{
+  FILE *oVarTerm;
+
+  if (VarTerm && !(mode & MODE_INTER)) {
+    oVarTerm = VarTerm;
+    VarTerm = 0;
+    if (oVarTerm)
+      fclose(oVarTerm);
+    close(netfd);
+    netfd = -1;
+    LogPrintf(LogPHASE, "Client connection closed.\n");
+  }
 }

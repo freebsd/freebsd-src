@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.25 1997/11/11 22:58:10 brian Exp $
+ * $Id: defs.h,v 1.26 1997/11/17 00:42:39 brian Exp $
  *
  *	TODO:
  */
@@ -91,3 +91,4 @@ extern void SetLabel(const char *);
 extern const char *GetLabel(void);
 extern void randinit(void);
 extern int GetShortHost(void);
+extern void DropClient(void);
