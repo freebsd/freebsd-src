@@ -86,7 +86,7 @@ tsb_get_bucket(pmap_t pm, u_int level, vm_offset_t va, int allocate)
 		tsb_page_fault(pm, level, trunc_page((u_long)bucket), stp);
 	} else {
 		tlb_store_slot(TLB_DTLB, trunc_page((u_long)bucket),
-		    stp->st_tte, tsb_tlb_slot(1));
+		    TLB_CTX_KERNEL, stp->st_tte, tsb_tlb_slot(1));
 	}
 	return (bucket);
 }
@@ -97,24 +97,34 @@ tsb_miss(pmap_t pm, u_int type, struct mmuframe *mf)
 	struct stte *stp;
 	struct tte tte;
 	vm_offset_t va;
+	u_long ctx;
 
 	va = TLB_TAR_VA(mf->mf_tar);
+	ctx = TLB_TAR_CTX(mf->mf_tar);
 	if ((stp = tsb_stte_lookup(pm, va)) == NULL)
 		return (EFAULT);
 	switch (type) {
+	case T_IMMU_MISS:
+		if ((stp->st_tte.tte_data & TD_EXEC) == 0)
+			return (EFAULT);
+		stp->st_tte.tte_data |= TD_REF;
+		tlb_store(TLB_DTLB | TLB_ITLB, va, ctx, stp->st_tte);
+		break;
+	case T_DMMU_MISS:
 	case T_DMMU_MISS | T_KERNEL:
 		stp->st_tte.tte_data |= TD_REF;
 		tte = stp->st_tte;
 		if ((tte.tte_data & TD_MOD) == 0)
 			tte.tte_data &= ~TD_W;
-		tlb_store(TLB_DTLB, va, tte);
+		tlb_store(TLB_DTLB, va, ctx, tte);
 		break;
+	case T_DMMU_PROT:
 	case T_DMMU_PROT | T_KERNEL:
 		if ((stp->st_tte.tte_data & TD_W) == 0)
 			return (EFAULT);
-		tlb_page_demap(TLB_DTLB, TLB_CTX_KERNEL, va);
+		tlb_page_demap(TLB_DTLB, ctx, va);
 		stp->st_tte.tte_data |= TD_MOD;
-		tlb_store(TLB_DTLB, va, stp->st_tte);
+		tlb_store(TLB_DTLB, va, ctx, stp->st_tte);
 		break;
 	default:
 		return (EFAULT);
@@ -146,7 +156,8 @@ tsb_page_fault(pmap_t pm, int level, vm_offset_t va, struct stte *stp)
 
 	tte = tsb_page_alloc(pm, va);
 	stp->st_tte = tte;
-	tlb_store_slot(TLB_DTLB, va, stp->st_tte, tsb_tlb_slot(level));
+	tlb_store_slot(TLB_DTLB, va, TLB_CTX_KERNEL, stp->st_tte,
+	    tsb_tlb_slot(level));
 	tsb_page_init((void *)va, level);
 }
 
