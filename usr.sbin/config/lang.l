@@ -55,8 +55,7 @@ struct kt {
 #if MACHINE_I386
 	{ "bio",	BIO },
 	{ "bus",	BUS },
-	{ "cam",	CAM},
-	{ "ha",		HA},
+	{ "cam",	CAM },
 	{ "conflicts",	CONFLICTS },
 #endif
 	{ "config",	CONFIG },
@@ -74,6 +73,9 @@ struct kt {
 #endif
 	{ "dumps",	DUMPS },
 	{ "flags",	FLAGS },
+#if MACHINE_I386
+	{ "ha",		HA },
+#endif
 	{ "ident",	IDENT },
 	{ "interleave",	INTERLEAVE },
 #if MACHINE_I386
