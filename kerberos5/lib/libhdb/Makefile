@@ -6,8 +6,8 @@ INCS=	\
 	hdb-private.h	\
 	hdb-protos.h	\
 	hdb.h		\
-	hdb_asn1.h	\
-	hdb_err.h
+	${.OBJDIR}/hdb_asn1.h	\
+	${.OBJDIR}/hdb_err.h
 
 SRCS=	\
 	common.c			\
