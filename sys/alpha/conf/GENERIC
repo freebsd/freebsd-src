@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.9 1998/10/13 21:38:46 jkh Exp $
+#	$Id: GENERIC,v 1.10 1998/10/14 00:42:02 jkh Exp $
 
 machine		"alpha"
 cpu		"EV4"
@@ -32,7 +32,7 @@ options		INET			#InterNETworking
 options		FFS			#Berkeley Fast Filesystem
 options		NFS			#Network Filesystem
 options		MFS			#Memory Filesystem
-options		MFS_ROOT		#Memory Filesystem as rootfs
+#options		MFS_ROOT		#Memory Filesystem as rootfs
 options		MSDOSFS			#MSDOS Filesystem
 options		"CD9660"		#ISO 9660 Filesystem
 options		"CD9660_ROOT"		#CD-ROM usable as root device
