@@ -63,7 +63,7 @@ typedef unsigned  _G_uint64_t;
 #define _G_NO_EXTERN_TEMPLATES
 #endif
 #define _G_HAVE_ATEXIT 1
-#define _G_HAVE_SYS_RESOURCE 0
+#define _G_HAVE_SYS_RESOURCE 1
 #define _G_HAVE_SYS_SOCKET 1
 #define _G_HAVE_SYS_WAIT 1
 #define _G_HAVE_UNISTD 1
