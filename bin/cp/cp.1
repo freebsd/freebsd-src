@@ -47,16 +47,14 @@
 .Fl R
 .Op Fl H | Fl L | Fl P
 .Oc
-.Op Fl f | i
-.Op Fl p
+.Op Fl fip
 .Ar source_file target_file
 .Nm cp
 .Oo
 .Fl R
 .Op Fl H | Fl L | Fl P
 .Oc
-.Op Fl f | i
-.Op Fl p
+.Op Fl fip
 .Ar source_file ... target_directory
 .Sh DESCRIPTION
 In the first synopsis form, the
@@ -107,25 +105,18 @@ For each existing destination pathname, remove it and
 create a new file, without prompting for confirmation
 regardless of its permissions.
 (The
-.Fl f
-option overrides any previous
 .Fl i
-options.)
+option is ignored if the
+.Fl f
+option is specified.)
 .It Fl i
 Causes
 .Nm cp
 to write a prompt to the standard error output before copying a file
 that would overwrite an existing file.
 If the response from the standard input begins with the character
-.Sq Li y 
-or
-.Sq Li Y ,
+.Sq Li y ,
 the file copy is attempted.
-(The
-.Fl i
-option overrides any previous
-.Fl f
-options.)
 .It Fl p
 Causes
 .Nm cp
