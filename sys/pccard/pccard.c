@@ -68,8 +68,6 @@ static void		disable_slot(struct slot *);
 static void		disable_slot_to(struct slot *);
 static void		power_off_slot(void *);
 
-static struct slot	*pccard_slots[MAXSLOT];	/* slot entries */
-
 /*
  *	The driver interface for read/write uses a block
  *	of memory in the ISA I/O memory space allocated via
@@ -172,31 +170,26 @@ disable_slot_to(struct slot *slt)
 }
 
 /*
- *	pccard_alloc_slot - Called from controller probe
- *	routine, this function allocates a new PC-CARD slot
- *	and initialises the data structures using the data provided.
- *	It returns the allocated structure to the probe routine
- *	to allow the controller specific data to be initialised.
+ *	pccard_init_slot - Initialize the slot controller and attach various
+ * things to it.  We also make the device for it.  We create the device that
+ * will be exported to devfs.
  */
 struct slot *
-pccard_alloc_slot(struct slot_ctrl *ctrl)
+pccard_init_slot(device_t dev, struct slot_ctrl *ctrl)
 {
-	struct slot *slt;
-	int slotno;
+	int		slotno;
+	struct slot	*slt;
 
-	for (slotno = 0; slotno < MAXSLOT; slotno++)
-		if (pccard_slots[slotno] == 0)
-			break;
-	if (slotno == MAXSLOT)
-		return(0);
-
-	MALLOC(slt, struct slot *, sizeof(*slt), M_DEVBUF, M_WAITOK | M_ZERO);
-	make_dev(&crd_cdevsw, slotno, 0, 0, 0600, "card%d", slotno);
+	slt = PCCARD_DEVICE2SOFTC(dev);
+	slotno = device_get_unit(dev);
+	slt->dev = dev;
+	slt->d = make_dev(&crd_cdevsw, slotno, 0, 0, 0600, "card%d", slotno);
+	slt->d->si_drv1 = slt;
 	slt->ctrl = ctrl;
 	slt->slotnum = slotno;
-	pccard_slots[slotno] = slt;
 	callout_handle_init(&slt->insert_ch);
 	callout_handle_init(&slt->poff_ch);
+
 	return(slt);
 }
 
@@ -326,12 +319,9 @@ pccard_event(struct slot *slt, enum card_event event)
 static	int
 crdopen(dev_t dev, int oflags, int devtype, struct proc *p)
 {
-	struct slot *slt;
+	struct slot *slt = PCCARD_DEV2SOFTC(dev);
 
-	if (minor(dev) >= MAXSLOT)
-		return(ENXIO);
-	slt = pccard_slots[minor(dev)];
-	if (slt == 0)
+	if (slt == NULL)
 		return(ENXIO);
 	if (slt->rwmem == 0)
 		slt->rwmem = MDF_ATTR;
@@ -355,7 +345,7 @@ crdclose(dev_t dev, int fflag, int devtype, struct proc *p)
 static	int
 crdread(dev_t dev, struct uio *uio, int ioflag)
 {
-	struct slot *slt = pccard_slots[minor(dev)];
+	struct slot *slt = PCCARD_DEV2SOFTC(dev);
 	struct mem_desc *mp, oldmap;
 	unsigned char *p;
 	unsigned int offs;
@@ -401,7 +391,7 @@ crdread(dev_t dev, struct uio *uio, int ioflag)
 static	int
 crdwrite(dev_t dev, struct uio *uio, int ioflag)
 {
-	struct slot *slt = pccard_slots[minor(dev)];
+	struct slot *slt = PCCARD_DEV2SOFTC(dev);
 	struct mem_desc *mp, oldmap;
 	unsigned char *p;
 	unsigned int offs;
@@ -489,7 +479,7 @@ crdioctl_sresource(dev_t dev, caddr_t data)
 static	int
 crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 {
-	struct slot *slt = pccard_slots[minor(dev)];
+	struct slot *slt = PCCARD_DEV2SOFTC(dev);
 	struct mem_desc *mp;
 	struct io_desc *ip;
 	device_t pcicdev;
@@ -662,9 +652,9 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 static	int
 crdpoll(dev_t dev, int events, struct proc *p)
 {
-	int s;
-	struct slot *slt = pccard_slots[minor(dev)];
-	int revents = 0;
+	int	revents = 0;
+	int	s;
+	struct slot *slt = PCCARD_DEV2SOFTC(dev);
 
 	if (events & (POLLIN | POLLRDNORM))
 		revents |= events & (POLLIN | POLLRDNORM);
@@ -687,19 +677,13 @@ crdpoll(dev_t dev, int events, struct proc *p)
 	return (revents);
 }
 
-static struct slot *
-pccard_dev2slot(device_t dev)
-{
-	return pccard_slots[device_get_unit(dev)];
-}
-
 /*
  *	APM hooks for suspending and resuming.
  */
 int
 pccard_suspend(device_t dev)
 {
-	struct slot *slt = pccard_dev2slot(dev);
+	struct slot *slt = PCCARD_DEVICE2SOFTC(dev);
 
 	/* This code stolen from pccard_event:card_removed */
 	if (slt->state == filled) {
@@ -722,7 +706,7 @@ pccard_suspend(device_t dev)
 int
 pccard_resume(device_t dev)
 {
-	struct slot *slt = pccard_dev2slot(dev);
+	struct slot *slt = PCCARD_DEVICE2SOFTC(dev);
 
 	if (pcic_resume_reset)
 		slt->ctrl->resume(slt);
