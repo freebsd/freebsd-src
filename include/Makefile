@@ -44,7 +44,7 @@ LSUBDIRS=	cam/scsi dev/an dev/bktr dev/firewire dev/ic dev/iicbus \
 	netgraph/atm netgraph/netflow \
 	security/mac_biba security/mac_bsdextended security/mac_lomac \
 	security/mac_mls security/mac_partition \
-	ufs/ffs ufs/ufs fs/autofs
+	ufs/ffs ufs/ufs
 
 .if !defined(NO_BLUETOOTH)
 LSUBSUBDIRS=	netgraph/bluetooth/include
