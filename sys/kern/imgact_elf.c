@@ -736,6 +736,17 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			    sv->sv_pagesize)) != 0)
   				goto fail;
 
+			/*
+			 * If this segment contains the program headers,
+			 * remember their virtual address for the AT_PHDR
+			 * aux entry. Static binaries don't usually include
+			 * a PT_PHDR entry.
+			 */
+			if (phdr[i].p_offset == 0 &&
+			    hdr->e_phoff + hdr->e_phnum * hdr->e_phentsize
+				<= phdr[i].p_filesz)
+				proghdr = phdr[i].p_vaddr + hdr->e_phoff;
+
 			seg_addr = trunc_page(phdr[i].p_vaddr);
 			seg_size = round_page(phdr[i].p_memsz +
 			    phdr[i].p_vaddr - seg_addr);
