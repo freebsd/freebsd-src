@@ -1,0 +1,2 @@
+#!/bin/sh
+`echo "$1" | awk '{ if ( '"$2"' ) { print ":"; } else { print "false"; } exit; }'`;

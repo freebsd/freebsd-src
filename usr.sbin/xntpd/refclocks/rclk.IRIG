@@ -1,0 +1,24 @@
+#!/bin/sh -
+CMD="$1"
+shift;
+
+. refclocks/setup
+
+if check "$DEFS" '$0 ~ /SYS_SUNOS4/'; then
+  case "$CMD" in
+    info)
+	echo "	IRIG		- IRIG-B timecode timecode using the audio codec"
+	;;
+    check)
+	if check "$RCONFIG" '$0 ~ /IRIG/'; then
+	  echo "IRIG		- IRIG-B timecode timecode using the audio codec"
+	fi
+	;;
+    config)
+	if check "$REFCONF" '$0 ~ /IRIG/' ||
+	   ( [ ! "$REFCONF" ] && query "Include IRIG-B timecode timecode using the audio codec (IRIG)" n); then
+	  echo "-DIRIG" >> $RCONFIG
+	fi
+	;;
+  esac
+fi

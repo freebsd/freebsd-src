@@ -1,0 +1,38 @@
+#!/bin/sh -
+CMD="$1"
+shift;
+
+. refclocks/setup
+
+case "$CMD" in
+  info)
+	echo "	WWVB		- Spectracom 8170 or Netclock/2 WWVB receiver"
+	;;
+  check)
+	if check "$RCONFIG" '$0 ~ /WWVB/'; then
+	  echo "WWVB		- Spectracom 8170 or Netclock/2 WWVB receiver"
+	fi
+	;;
+  config)
+	if check "$REFCONF" '$0 ~ /WWVB/' ||
+	   ( [ ! "$REFCONF" ] && query "Include Spectracom 8170 or Netclock/2 WWVB receiver (WWVB)" n); then
+	  _WWV=0
+	  if check "$PPSFEATURES" '$0 ~ /CLK/'; then
+	    if check "$REFCONF" '$0 ~ /WWVBCLK/' ||
+	       ( [ ! "$REFCONF" ] && query "	Support PPS via clk" y); then
+		echo " -DWWVBCLK" >> $RCONFIG
+		_WWV=1
+	    fi
+	  fi
+	  if check "$PPSFEATURES" '$0 ~ /CD/'; then
+	    if [ "$PPSOK" -eq 1 ] &&
+	       (check "$REFCONF" '$0 ~ /WWVBPPS/' ||
+		( [ ! "$REFCONF" ] && query "	Use WWVB for PPS" n)); then
+	      echo " -DWWVBPPS" >> $RCONFIG
+	    fi
+	  else
+	    [ "$_WWV" -eq 0 ] && echo "-DWWVB" >> $RCONFIG
+	  fi
+	fi
+	;;
+esac

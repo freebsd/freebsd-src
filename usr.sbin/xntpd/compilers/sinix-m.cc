@@ -1,0 +1,1 @@
+COMPILER= /usr/ucb/cc

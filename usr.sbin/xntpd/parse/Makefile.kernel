@@ -1,0 +1,71 @@
+#
+# very simple makefile (SunOS!)
+#
+# Possible defines:
+# DEBUG_DCF:	include debug code (STREAMS mechanism and parsing)
+# DEBUG_CD:	include signal propagation to sun4c LED (sun4c only)
+#
+# Possible defines (parsestreams variants only):
+# KERNEL:	must define
+# VDDRV:	loadable driver support - recommended
+# KARCH:	must define at make call for correct kernel module
+#               (currently only needed for parsestreams variants)
+#
+KARCH=
+DEFS=-DSTREAM -DKERNEL -DVDDRV -D$(KARCH)
+MICROTIME=../ppsclock/sys/$(KARCH)/microtime.s
+
+all:
+	@if [ -f /kernel/unix ]; then \
+	  $(MAKE) $(MFLAGS) MFLAGS="$(MFLAGS)" KARCH="`(arch -k) 2>/dev/null || uname -a | awk '{ print $5 }'`" -f Makefile.kernel parse; \
+	 else \
+	  $(MAKE) $(MFLAGS) MFLAGS="$(MFLAGS)" KARCH="`(arch -k) 2>/dev/null || uname -a | awk '{ print $5 }'`" -f Makefile.kernel parsestreams.o; \
+	 fi
+
+parse: parsesolaris.c libparse_kernel.a ../lib/libntp.a
+	@echo "--- WARNING: SunOS5 support is fresh and hardly tested"
+	@echo "---          This code could lead to kernel panics more"
+	@echo "---          easily than other streams modules"
+	$(CC) -c -I../include -D_KERNEL parsesolaris.c
+	ld -r -o parse parsesolaris.o libparse_kernel.a ../lib/libntp.a
+	@echo "--- Install 'parse' in /kernel/strmod for automatic loading"
+
+mparsestreams.o: parsestreams.c microtime.o ../lib/libntp.a libparse_kernel.a ../include/parse.h ../include/sys/parsestreams.h
+	cc -c -DMICROTIME $(DEFS) -I../include parsestreams.c
+	ld -r -o $@ parsestreams.o ../lib/libntp.a libparse_kernel.a \
+		    microtime.o
+	rm -f parsestreams.o
+	@echo "--- You may load mparsestreams.o via 'modload mparsestreams.o' into the kernel"
+
+parsestreams.o: parsestreams.c ../lib/libntp.a libparse_kernel.a ../include/parse.h ../include/sys/parsestreams.h
+	cc -c $(DEFS) -I../include parsestreams.c
+	ld -r -o $@ $@ ../lib/libntp.a libparse_kernel.a
+	@echo "--- You may load parsestreams.o via 'modload parsestreams.o' into the kernel"
+
+microtime.o: $(MICROTIME) assym.s
+	cc -E -I. $(MICROTIME) | sed -e '/\.global _uniqtime/d' > $@.i
+	as -o $@ $@.i
+	rm -f $@.i assym.s
+
+assym.s: genassym
+	./genassym > $@
+
+genassym: ../ppsclock/sys/genassym/genassym.c
+	cc -o $@ $?
+
+libparse_kernel.a:
+	$(MAKE) $(MFLAGS) MFLAGS="$(MFLAGS)" libparse_kernel.a
+
+../lib/libntp.a:
+	cd ../lib && $(MAKE) $(MFLAGS) MFLAGS="$(MFLAGS)"
+
+lint: parsestreams.c ../include/parse.h ../include/sys/parsestreams.h ../lib/llib-llibntp.ln
+	lint -u -I../include $(DEFS) parsestreams.c ../lib/llib-llibntp.ln
+
+../lib/llib-llibntp.ln:
+	cd ../lib && make lintlib
+
+clean:
+	rm -f *.o genassym assym.s parsestreams
+
+distclean: clean
