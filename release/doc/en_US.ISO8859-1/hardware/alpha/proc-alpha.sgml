@@ -1085,7 +1085,7 @@ cpu	EV4</programlisting>
       IDE interface is quite slow, a Promise card gives a 3-4 times 
       speed improvement.</para>
 
-      <para>On PC164 the SRM sometimes seems to loose its variable settings. 
+      <para>On PC164 the SRM sometimes seems to lose its variable settings.
       <quote>For PC164, current superstition says that, to avoid losing settings,
       you want to first downgrade to SRM 4.x and then upgrade to 5.x.</quote>
       One sample error that was observed was:</para>
