@@ -175,12 +175,12 @@ main(argc, argv)
 	sprintf(tag, "portal:%d", getpid());
 	args.pa_config = tag;
 
-	error = getvfsbyname("portal", &vfc);
-	if (error && vfsisloadable("portal")) {
-		if (vfsload("portal"))
-			err(EX_OSERR, "vfsload(portal)");
+	error = getvfsbyname("portalfs", &vfc);
+	if (error && vfsisloadable("portalfs")) {
+		if (vfsload("portalfs"))
+			err(EX_OSERR, "vfsload(portalfs)");
 		endvfsent();
-		error = getvfsbyname("portal", &vfc);
+		error = getvfsbyname("portalfs", &vfc);
 	}
 	if (error)
 		errx(EX_OSERR, "portal filesystem is not available");

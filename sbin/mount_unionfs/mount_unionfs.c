@@ -119,12 +119,12 @@ main(argc, argv)
 
 	args.target = target;
 
-	error = getvfsbyname("union", &vfc);
-	if (error && vfsisloadable("union")) {
-		if (vfsload("union"))
-			err(EX_OSERR, "vfsload(union)");
+	error = getvfsbyname("unionfs", &vfc);
+	if (error && vfsisloadable("unionfs")) {
+		if (vfsload("unionfs"))
+			err(EX_OSERR, "vfsload(unionfs)");
 		endvfsent();	/* flush cache */
-		error = getvfsbyname("union", &vfc);
+		error = getvfsbyname("unionfs", &vfc);
 	}
 	if (error)
 		errx(EX_OSERR, "union filesystem is not available");
