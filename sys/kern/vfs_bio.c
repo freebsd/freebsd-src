@@ -81,7 +81,7 @@ static void vfs_vmio_release(struct buf *bp);
 static void vfs_backgroundwritedone(struct buf *bp);
 static int vfs_bio_clcheck(struct vnode *vp, int size,
 		daddr_t lblkno, daddr_t blkno);
-static int flushbufqueues(void);
+static int flushbufqueues(int flushdeps);
 static void buf_daemon(void);
 void bremfreel(struct buf * bp);
 
@@ -994,7 +994,6 @@ bdwrite(struct buf * bp)
 				panic("bdwrite: found ourselves");
 			VI_UNLOCK(vp);
 			if (nbp->b_flags & B_CLUSTEROK) {
-				BUF_UNLOCK(nbp);
 				vfs_bio_awrite(nbp);
 			} else {
 				bremfree(nbp);
@@ -1672,13 +1671,13 @@ vfs_bio_awrite(struct buf * bp)
 		 * this is a possible cluster write
 		 */
 		if (ncl != 1) {
+			BUF_UNLOCK(bp);
 			nwritten = cluster_wbuild(vp, size, lblkno - j, ncl);
 			splx(s);
 			return nwritten;
 		}
 	}
 
-	BUF_LOCK(bp, LK_EXCLUSIVE, NULL);
 	bremfree(bp);
 	bp->b_flags |= B_ASYNC;
 
@@ -2051,8 +2050,15 @@ buf_daemon()
 		 * normally would so they can run in parallel with our drain.
 		 */
 		while (numdirtybuffers > lodirtybuffers) {
-			if (flushbufqueues() == 0)
+			if (flushbufqueues(0) == 0) {
+				/*
+				 * Could not find any buffers without rollback
+				 * dependencies, so just write the first one
+				 * in the hopes of eventually making progress.
+				 */
+				flushbufqueues(1);
 				break;
+			}
 			waitrunningbufspace();
 			numdirtywakeup((lodirtybuffers + hidirtybuffers) / 2);
 		}
@@ -2098,33 +2104,47 @@ int flushwithdeps = 0;
 SYSCTL_INT(_vfs, OID_AUTO, flushwithdeps, CTLFLAG_RW, &flushwithdeps,
     0, "Number of buffers flushed with dependecies that require rollbacks");
 static int
-flushbufqueues(void)
+flushbufqueues(int flushdeps)
 {
 	struct thread *td = curthread;
 	struct vnode *vp;
 	struct buf *bp;
+	int hasdeps;
 
 	mtx_lock(&bqlock);
 	TAILQ_FOREACH(bp, &bufqueues[QUEUE_DIRTY], b_freelist) {
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) != 0)
+			continue;
 		KASSERT((bp->b_flags & B_DELWRI),
 		    ("unexpected clean buffer %p", bp));
-		if ((bp->b_xflags & BX_BKGRDINPROG) != 0)
+		if ((bp->b_xflags & BX_BKGRDINPROG) != 0) {
+			BUF_UNLOCK(bp);
 			continue;
+		}
 		if (bp->b_flags & B_INVAL) {
-			if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) != 0)
-				panic("flushbufqueues: locked buf");
 			bremfreel(bp);
 			mtx_unlock(&bqlock);
 			brelse(bp);
 			return (1);
 		}
-		if (LIST_FIRST(&bp->b_dep) != NULL && buf_countdeps(bp, 0))
-			continue;
+
+		if (LIST_FIRST(&bp->b_dep) != NULL && buf_countdeps(bp, 0)) {
+			if (flushdeps == 0) {
+				BUF_UNLOCK(bp);
+				continue;
+			}
+			hasdeps = 1;
+		} else
+			hasdeps = 0;
 		/*
 		 * We must hold the lock on a vnode before writing
 		 * one of its buffers. Otherwise we may confuse, or
 		 * in the case of a snapshot vnode, deadlock the
 		 * system.
+		 *
+		 * The lock order here is the reverse of the normal
+		 * of vnode followed by buf lock.  This is ok because
+		 * the NOWAIT will prevent deadlock.
 		 */
 		if ((vp = bp->b_vp) == NULL ||
 		    vn_lock(vp, LK_EXCLUSIVE | LK_NOWAIT, td) == 0) {
@@ -2132,42 +2152,10 @@ flushbufqueues(void)
 			vfs_bio_awrite(bp);
 			if (vp != NULL)
 				VOP_UNLOCK(vp, 0, td);
+			flushwithdeps += hasdeps;
 			return (1);
 		}
-	}
-	/*
-	 * Could not find any buffers without rollback dependencies,
-	 * so just write the first one in the hopes of eventually
-	 * making progress.
-	 */
-	TAILQ_FOREACH(bp, &bufqueues[QUEUE_DIRTY], b_freelist) {
-		KASSERT((bp->b_flags & B_DELWRI),
-		    ("unexpected clean buffer %p", bp));
-		if ((bp->b_xflags & BX_BKGRDINPROG) != 0)
-			continue;
-		if (bp->b_flags & B_INVAL) {
-			if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) != 0)
-				panic("flushbufqueues: locked buf");
-			bremfreel(bp);
-			mtx_unlock(&bqlock);
-			brelse(bp);
-			return (1);
-		}
-		/*
-		 * We must hold the lock on a vnode before writing
-		 * one of its buffers. Otherwise we may confuse, or
-		 * in the case of a snapshot vnode, deadlock the
-		 * system.
-		 */
-		if ((vp = bp->b_vp) == NULL ||
-		    vn_lock(vp, LK_EXCLUSIVE | LK_NOWAIT, td) == 0) {
-			mtx_unlock(&bqlock);
-			vfs_bio_awrite(bp);
-			if (vp != NULL)
-				VOP_UNLOCK(vp, 0, td);
-			flushwithdeps += 1;
-			return (0);
-		}
+		BUF_UNLOCK(bp);
 	}
 	mtx_unlock(&bqlock);
 	return (0);
