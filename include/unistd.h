@@ -335,6 +335,7 @@ int	 execlp(const char *, const char *, ...);
 int	 execv(const char *, char * const *);
 int	 execve(const char *, char * const *, char * const *);
 int	 execvp(const char *, char * const *);
+int	 execvP(const char *, const char *, char * const *);
 pid_t	 fork(void);
 long	 fpathconf(int, int);
 char	*getcwd(char *, size_t);
