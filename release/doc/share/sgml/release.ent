@@ -29,21 +29,21 @@
 <!ENTITY release.branch "5-STABLE">
 
 <!-- The URL for obtaining this version of FreeBSD. -->
-<!ENTITY release.url "http://snapshots.jp.FreeBSD.org/">
+<!ENTITY release.url "ftp://ftp.FreeBSD.org/">
 
 <!-- The type of release (usually this will be either "snapshot"
      or "release" -->
-<!ENTITY release.type "snapshot">
-<!ENTITY % release.type.snapshot "INCLUDE">
-<!ENTITY % release.type.release "IGNORE">
+<!ENTITY release.type "release">
+<!ENTITY % release.type.snapshot "IGNORE">
+<!ENTITY % release.type.release "INCLUDE">
 
 <!-- The manpaths for man page references -->
 <!ENTITY release.man.url "http://www.FreeBSD.org/cgi/man.cgi">
 <!ENTITY release.manpath.xfree86       "4.4.0">
 <!ENTITY release.manpath.xorg          "6.7.0">
-<!ENTITY release.manpath.netbsd        "1.6.1">
+<!ENTITY release.manpath.netbsd        "1.6.2">
 <!ENTITY release.manpath.freebsd-ports "Ports">
-<!ENTITY release.manpath.freebsd       "5.3-stable">
+<!ENTITY release.manpath.freebsd       "5.3-RELEASE">
 
 <!-- Text constants which probably don't need to be changed.-->
 
