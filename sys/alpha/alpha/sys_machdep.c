@@ -209,7 +209,7 @@ alpha_get_uac(struct thread *td, char *args)
 	pp = p->p_pptr;
 	if (pp != NULL) {
 		PROC_LOCK(pp);
-		uac = p->p_md.md_uac;
+		uac = pp->p_md.md_uac;
 		PROC_UNLOCK(pp);
 		PROC_UNLOCK(p);
 		error = copyout(&uac, args, sizeof(uac));
