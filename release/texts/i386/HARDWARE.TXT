@@ -694,5 +694,7 @@ Genius and Mustek hand scanners.
 
 Floppy tape drives (some rather old models only, driver rather stale)
 
+Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA network adapters and
+workalikes (NCR WaveLAN/IEEE 802.11, Cabletron RoamAbout)
 
 FreeBSD currently does NOT support IBM's microchannel (MCA) bus.
