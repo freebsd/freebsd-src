@@ -132,6 +132,25 @@ struct an_sigcache {
 };
 #endif
 
+/*
+ * The card provides an 8-bit signal strength value (RSSI), which can
+ * be converted to a dBm power value (or a percent) using a table in
+ * the card's firmware (when available).  The tables are slightly
+ * different in individual cards, even of the same model.  If the
+ * table is not available, the mapping can be approximated by dBm =
+ * RSSI - 100.  This approximation can be seen by plotting a few
+ * tables, and also matches some info on the Intersil web site (I
+ * think they make the RF front end for the cards.  However, the linux
+ * driver uses the approximation dBm = RSSI/2 - 95.  I think that is
+ * just wrong. 
+ */
+
+struct an_rssi_entry {
+	u_int8_t	an_rss_pct;
+	u_int8_t	an_rss_dbm;
+};
+
+
 struct an_ltv_key {
 	u_int16_t	an_len;
 	u_int16_t	an_type;
@@ -335,6 +354,7 @@ struct an_ltv_genconfig {
 #define AN_RXMODE_80211_MONITOR_ANYBSS		0x0004
 #define AN_RXMODE_LAN_MONITOR_CURBSS		0x0005
 #define AN_RXMODE_NO_8023_HEADER		0x0100
+#define AN_RXMODE_NORMALIZED_RSSI		0x0200
 
 #define AN_RATE_1MBPS				0x0002
 #define AN_RATE_2MBPS				0x0004
@@ -503,6 +523,16 @@ struct an_ltv_radioinfo {
 	/* ??? */
 };
 
+/* 
+ * RSSI map.  If available in the card's firmware, this can be used to
+ * convert the 8-bit RSSI values from the card into dBm.
+ */
+struct an_ltv_rssi_map {
+	u_int16_t		an_len;
+	u_int16_t		an_type;
+	struct an_rssi_entry	an_entries[256];
+};
+
 /*
  * Status (read only). Note: the manual claims this RID is 108 bytes
  * long (0x6A is the last datum, which is 2 bytes long) however when
@@ -520,7 +550,7 @@ struct an_ltv_status {
 	u_int8_t		an_macaddr[6];		/* 0x02 */
 	u_int16_t		an_opmode;		/* 0x08 */
 	u_int16_t		an_errcode;		/* 0x0A */
-	u_int16_t		an_cur_signal_strength;	/* 0x0C */
+	u_int16_t		an_signal_quality;	/* 0x0C */
 	u_int16_t		an_ssidlen;		/* 0x0E */
 	u_int8_t		an_ssid[32];		/* 0x10 */
 	u_int8_t		an_ap_name[16];		/* 0x30 */
@@ -541,12 +571,15 @@ struct an_ltv_status {
 	u_int16_t		an_cur_signal_quality;	/* 0x6C */
 	u_int16_t		an_current_tx_rate;	/* 0x6E */
 	u_int16_t		an_ap_device;		/* 0x70 */
-	u_int16_t		an_normalized_rssi;	/* 0x72 */
+	u_int16_t		an_normalized_strength;	/* 0x72 */
 	u_int16_t		an_short_pre_in_use;	/* 0x74 */
 	u_int8_t		an_ap_ip_addr[4];	/* 0x76 */
-	u_int16_t		an_max_noise_prev_sec;	/* 0x7A */
-	u_int16_t		an_avg_noise_prev_min;	/* 0x7C */
-	u_int16_t		an_max_noise_prev_min;	/* 0x7E */
+	u_int8_t		an_noise_prev_sec_pc;   /* 0x7A */
+	u_int8_t		an_noise_prev_sec_db;   /* 0x7B */
+	u_int8_t		an_avg_noise_prev_min_pc;       /* 0x7C */
+	u_int8_t		an_avg_noise_prev_min_db;       /* 0x7D */
+	u_int8_t		an_max_noise_prev_min_pc;       /* 0x7E */
+	u_int8_t		an_max_noise_prev_min_db;       /* 0x7F */
 	u_int16_t		an_spare[5];
 };
 
@@ -592,7 +625,7 @@ struct an_rxframe {
 	u_int16_t		an_seq_ctl;		/* 0x2A */
 	u_int8_t		an_addr4[6];		/* 0x2C */
 	u_int8_t		an_gaplen;		/* 0x32 */
-} __attribute__((packed));
+} __attribute__ ((packed));
 
 
 /* Do not modify this unless you are modifying LEAP itself */
@@ -643,6 +676,7 @@ struct an_ltv_leap_password {
 #define AN_RID_CAPABILITIES	0xFF00	/* PC 4500/4800 capabilities */
 #define AN_RID_AP_INFO		0xFF01	/* Access point info */
 #define AN_RID_RADIO_INFO	0xFF02	/* Radio info */
+#define AN_RID_RSSI_MAP         0xFF04  /* RSSI <-> dBm table */
 #define AN_RID_STATUS		0xFF50	/* Current status info */
 #define AN_RID_BEACONS_HST	0xFF51
 #define AN_RID_BUSY_HST		0xFF52
