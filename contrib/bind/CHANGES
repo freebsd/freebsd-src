@@ -1,4 +1,16 @@
-$Id: CHANGES,v 8.53 1997/06/01 20:34:25 vixie Exp vixie $
+$Id: CHANGES,v 8.56 1998/04/07 04:59:42 vixie Exp $
+
+	--- 4.9.7-T1A released ---
+
+808. [security]	A number of routines did insufficient bounds checking which
+		could cause crashes by reading from an invalid memory
+		location. (From BIND-8).
+
+807. [bug]	The server sometimes leaked the flushset (ns_resp.c).
+		(From BIND-8).
+
+806. [bug]	add_related_additional() leaked memory if the name
+		was already in the related array.  (From BIND-8).
 
 	--- 4.9.6 released ---
 

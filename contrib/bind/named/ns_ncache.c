@@ -21,6 +21,13 @@
 
 #ifdef NCACHE
 
+#define BOUNDS_CHECK(ptr, count) \
+	do { \
+		if ((ptr) + (count) > eom) { \
+			return; \
+		} \
+	} while (0)
+
 void
 cache_n_resp(msg, msglen)
 	u_char *msg;
@@ -28,7 +35,7 @@ cache_n_resp(msg, msglen)
 {
 	register struct databuf *dp;
 	HEADER *hp;
-	u_char *cp;
+	u_char *cp, *eom, *rdatap;
 	char dname[MAXDNAME];
 	int n;
 	int type, class;
@@ -36,19 +43,22 @@ cache_n_resp(msg, msglen)
 	int Vcode;
 #endif
 	int flags;
+	u_int dlen;
 
 	nameserIncr(from_addr.sin_addr, nssRcvdNXD);
 
 	hp = (HEADER *)msg;
 	cp = msg+HFIXEDSZ;
+	eom = msg + msglen;
   
-	n = dn_expand(msg, msg + msglen, cp, dname, sizeof dname);
+	n = dn_expand(msg, eom, cp, dname, sizeof dname);
 	if (n < 0) {
 		dprintf(1, (ddt, "Query expand name failed:cache_n_resp\n"));
 		hp->rcode = FORMERR;
 		return;
 	}
 	cp += n;
+	BOUNDS_CHECK(cp, 2 * INT16SZ);
 	GETSHORT(type, cp);
 	GETSHORT(class, cp);
 	dprintf(1, (ddt,
@@ -76,13 +86,14 @@ cache_n_resp(msg, msglen)
 		if (hp->rcode == NXDOMAIN)
 			type = T_SOA;
 
-		/* store ther SOA record */
-		n = dn_skipname(tp, msg + msglen);
+		/* store their SOA record */
+		n = dn_skipname(tp, eom);
 		if (n < 0) {
 			dprintf(3, (ddt, "ncache: form error\n"));
 			return;
 		}
 		tp += n;
+		BOUNDS_CHECK(tp, 3 * INT16SZ + INT32SZ);
 		GETSHORT(atype, tp);		/* type */
 		if (atype != T_SOA) {
 			dprintf(3, (ddt,
@@ -91,10 +102,12 @@ cache_n_resp(msg, msglen)
 		}
 		tp += INT16SZ;		/* class */
 		GETLONG(ttl, tp);	/* ttl */
-		tp += INT16SZ;		/* dlen */
+		GETSHORT(dlen, tp);	/* dlen */
+		BOUNDS_CHECK(tp, dlen);
+		rdatap = tp;
 
 		/* origin */
-		n = dn_expand(msg, msg + msglen, tp, (char*)data, len);
+		n = dn_expand(msg, eom, tp, (char*)data, len);
 		if (n < 0) {
 			dprintf(3, (ddt, "ncache: form error 2\n"));
 			return;
@@ -113,10 +126,17 @@ cache_n_resp(msg, msglen)
 		n = strlen((char*)cp1) + 1;
 		cp1 += n;
 		len -= n;
-		bcopy(tp, cp1, n = 5 * INT32SZ);
+		n = 5 * INT32SZ;
+		BOUNDS_CHECK(tp, n);
+		bcopy(tp, cp1, n);
 		/* serial, refresh, retry, expire, min */
 		cp1 += n;
 		len -= n;
+		tp += n;
+		if (tp != rdatap + dlen) {
+			dprintf(3, (ddt, "ncache: form error 2\n"));
+			return;
+		}
 		/* store the zone of the soa record */
 		n = dn_expand(msg, msg + msglen, cp, (char*)cp1, len);
 		if (n < 0) {
