@@ -1304,8 +1304,20 @@ ParseRestModifier(VarParser *vp, char startc, Buffer *buf, Boolean *freeResult)
 	}
 
 	if ((vp->ctxt == VAR_CMD) || (vp->ctxt == VAR_GLOBAL)) {
-		size_t  consumed = vp->ptr - vp->input + 1;
+		size_t  consumed;
+		/*
+		 * Still need to get to the end of the variable
+		 * specification, so kludge up a Var structure for the
+		 * modifications
+		 */
+		v = VarCreate(vname, NULL, VAR_JUNK);
+		value = ParseModifier(vp, startc, v, freeResult);
+		if (*freeResult) {
+			free(value);
+		}
+		VarDestroy(v, TRUE);
 
+		consumed = vp->ptr - vp->input + 1;
 		/*
 		 * If substituting a local variable in a non-local context,
 		 * assume it's for dynamic source stuff. We have to handle
@@ -1341,6 +1353,9 @@ ParseRestModifier(VarParser *vp, char startc, Buffer *buf, Boolean *freeResult)
 				return (value);
 			}
 		}
+
+		*freeResult = FALSE;
+		return (vp->err ? var_Error : varNoError);
 	} else {
 		/*
 		 * Check for D and F forms of local variables since we're in
@@ -1360,22 +1375,22 @@ ParseRestModifier(VarParser *vp, char startc, Buffer *buf, Boolean *freeResult)
 				return (value);
 			}
 		}
-	}
 
-	/*
-	 * Still need to get to the end of the variable
-	 * specification, so kludge up a Var structure for the
-	 * modifications
-	 */
-	v = VarCreate(vname, NULL, VAR_JUNK);
-	value = ParseModifier(vp, startc, v, freeResult);
-	if (*freeResult) {
-		free(value);
-	}
-	VarDestroy(v, TRUE);
+		/*
+		 * Still need to get to the end of the variable
+		 * specification, so kludge up a Var structure for the
+		 * modifications
+		 */
+		v = VarCreate(vname, NULL, VAR_JUNK);
+		value = ParseModifier(vp, startc, v, freeResult);
+		if (*freeResult) {
+			free(value);
+		}
+		VarDestroy(v, TRUE);
 
-	*freeResult = FALSE;
-	return (vp->err ? var_Error : varNoError);
+		*freeResult = FALSE;
+		return (vp->err ? var_Error : varNoError);
+	}
 }
 
 static char *
