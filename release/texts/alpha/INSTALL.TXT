@@ -16,7 +16,8 @@
 +=====================================================================+
 
 Author:         Jordan K. Hubbard
-Last updated:   Sun Jul 23 13:23:54 PDT 2000
+Last updated:   Fri Dec 22 12:59:18 PST 2000
+By:		Wilko Bulte
 
 0.0     Quick Start
 ---     -----------
@@ -56,6 +57,9 @@ to share a disk with another operating system at this time. This disk
 will need to be attached to a SCSI controller which is supported by
 the SRM firmware or an IDE disk assuming the SRM in your machine
 supports booting from IDE disks.
+
+Your root filesystem MUST be the first partition (partition a) on the
+disk to be bootable.
 
 You will need the SRM console firmware for your platform. In some
 cases, it is possible to switch between AlphaBIOS (or ARC) firmware
