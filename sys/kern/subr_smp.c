@@ -83,48 +83,6 @@ int smp_cpus = 1;	/* how many cpu's running */
 SYSCTL_INT(_kern_smp, OID_AUTO, cpus, CTLFLAG_RD, &smp_cpus, 0,
     "Number of CPUs online");
 
-#if !__sparc64__ && !__powerpc__
-static void	cpu_identify(driver_t *driver, device_t parent);
-static device_t	cpu_add_child(device_t bus, int order, const char *name,
-			int unit);
-
-static device_method_t cpu_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_identify,	cpu_identify),
-	DEVMETHOD(device_probe,		bus_generic_probe),
-	DEVMETHOD(device_attach,	bus_generic_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
-
-	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_add_child,	cpu_add_child),
-	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
-#ifdef notyet
-	DEVMETHOD(bus_set_resource,	bus_generic_set_resource),
-	DEVMETHOD(bus_get_resource,	bus_generic_get_resource),
-	DEVMETHOD(bus_delete_resource,	bus_generic_delete_resource),
-#endif
-
-	{ 0, 0 }
-};
-
-static driver_t cpu_driver = {
-	"cpu",
-	cpu_methods,
-	1,		/* no softc */
-};
-static devclass_t cpu_devclass;
-DRIVER_MODULE(cpu, nexus, cpu_driver, cpu_devclass, 0, 0);
-#endif
-
 #ifdef SMP
 /* Enable forwarding of a signal to a process running on a different CPU */
 static int forward_signal_enabled = 1;
@@ -416,31 +374,3 @@ smp_rendezvous(void (* setup_func)(void *),
 		teardown_func(arg);
 }
 #endif /* SMP */
-
-#if !__sparc64__ && !__powerpc__
-static void
-cpu_identify(driver_t *driver, device_t parent)
-{
-	struct pcpu *pc;
-	int i;
-
-	/* Protect against multiple scans of the bus. */
-	if (!cold || device_find_child(parent, "cpu", 0) != NULL)
-		return;
-
-	for (i = 0; i <= mp_maxid; i++)
-		if (!CPU_ABSENT(i)) {
-			pc = pcpu_find(i);
-			KASSERT(pc != NULL, ("pcpu_find failed"));
-			pc->pc_device = BUS_ADD_CHILD(parent, 0, "cpu", i);
-			if (pc->pc_device == NULL)
-				panic("failed adding cpu child");
-		}
-}
-
-static device_t
-cpu_add_child(device_t bus, int order, const char *name, int unit)
-{
-	return (device_add_child_ordered(bus, order, name, unit));
-}
-#endif
