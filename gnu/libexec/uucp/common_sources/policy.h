@@ -63,9 +63,9 @@
    HAVE_SYSV_TERMIO -- Use the System V termio routines
    HAVE_POSIX_TERMIOS -- Use the POSIX termios routines
    */
-#define HAVE_BSD_TTY 1
+#define HAVE_BSD_TTY 0
 #define HAVE_SYSV_TERMIO 0
-#define HAVE_POSIX_TERMIOS 0
+#define HAVE_POSIX_TERMIOS 1
 
 /* This code tries to guess which terminal driver to use if you did
    not make a choice above.  It is in this file to make it easy to
