@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.18 1996/03/11 15:13:07 davidg Exp $
+ *	$Id: rtsock.c,v 1.19 1996/05/08 04:28:54 gpalmer Exp $
  */
 
 #include <sys/param.h>
@@ -261,8 +261,8 @@ route_output(m, so)
 			break;
 
 		case RTM_CHANGE:
-			if (gate && rt_setgate(rt, rt_key(rt), gate))
-				senderr(EDQUOT);
+			if (gate && (error = rt_setgate(rt, rt_key(rt), gate)))
+				senderr(error);
 
 			/*
 			 * If they tried to change things but didn't specify
