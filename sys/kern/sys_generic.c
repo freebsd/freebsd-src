@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.1 1994/10/13 12:13:00 sos Exp sos $
+ * $Id: sys_generic.c,v 1.9 1994/10/13 21:01:47 sos Exp $
  */
 
 #include <sys/param.h>
@@ -412,9 +412,9 @@ ioctl(p, uap, retval)
 	if (size + IBCS2_RETVAL_SIZE > sizeof (stkbuf)) {
 		memp = (caddr_t)malloc((u_long)size + IBCS2_RETVAL_SIZE,
 				       M_IOCTLOPS, M_WAITOK);
-		data = memp;
+		data = memp + IBCS2_RETVAL_SIZE;
 	} else
-		data = stkbuf;
+		data = stkbuf + IBCS2_RETVAL_SIZE;
 	*(int *)(data - IBCS2_RETVAL_SIZE) = IBCS2_MAGIC_IN;
 	*(int *)(data - (IBCS2_RETVAL_SIZE - sizeof(int))) = 0;
 	*(int *)(data - (IBCS2_RETVAL_SIZE - 2*sizeof(int))) = 0;
