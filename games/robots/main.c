@@ -56,10 +56,6 @@ char	**av;
 	extern int	Max_per_uid;
 	void quit();
 
-	/* revoke */
-	setegid(getgid());
-	setgid(getgid());
-
 	show_only = FALSE;
 	if (ac > 1) {
 		bad_arg = FALSE;
