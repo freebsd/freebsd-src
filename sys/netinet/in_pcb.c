@@ -505,7 +505,7 @@ in_pcbconnect(inp, nam, td)
 	cred = inp->inp_socket->so_cred;
 	if (inp->inp_laddr.s_addr == INADDR_ANY && jailed(cred)) {
 		bzero(&sa, sizeof (sa));
-		sa.sin_addr.s_addr = htonl(cred->cr_prison->pr_ip);
+		sa.sin_addr.s_addr = htonl(prison_getip(cred));
 		sa.sin_len=sizeof (sa);
 		sa.sin_family = AF_INET;
 		error = in_pcbbind(inp, (struct sockaddr *)&sa, td);
@@ -1032,7 +1032,7 @@ prison_xinpcb(struct proc *p, struct inpcb *inp)
 {
 	if (!jailed(p->p_ucred))
 		return (0);
-	if (ntohl(inp->inp_laddr.s_addr) == p->p_ucred->cr_prison->pr_ip)
+	if (ntohl(inp->inp_laddr.s_addr) == prison_getip(p->p_ucred))
 		return (0);
 	return (1);
 }

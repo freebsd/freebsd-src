@@ -35,6 +35,8 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/jail.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 
 #include <machine/../linux/linux.h>
 #include <compat/linux/linux_mib.h>
@@ -56,7 +58,7 @@ linux_sysctl_osname(SYSCTL_HANDLER_ARGS)
 	char osname[LINUX_MAX_UTSNAME];
 	int error;
 
-	strcpy(osname, linux_get_osname(req->td->td_proc));
+	linux_get_osname(req->td->td_proc, osname);
 	error = sysctl_handle_string(oidp, osname, LINUX_MAX_UTSNAME, req);
 	if (error || req->newptr == NULL)
 		return (error);
@@ -77,7 +79,7 @@ linux_sysctl_osrelease(SYSCTL_HANDLER_ARGS)
 	char osrelease[LINUX_MAX_UTSNAME];
 	int error;
 
-	strcpy(osrelease, linux_get_osrelease(req->td->td_proc));
+	linux_get_osrelease(req->td->td_proc, osrelease);
 	error = sysctl_handle_string(oidp, osrelease, LINUX_MAX_UTSNAME, req);
 	if (error || req->newptr == NULL)
 		return (error);
@@ -111,8 +113,11 @@ SYSCTL_PROC(_compat_linux, OID_AUTO, oss_version,
 	    0, 0, linux_sysctl_oss_version, "I",
 	    "Linux OSS version");
 
+/*
+ * Returns holding the prison mutex if return non-NULL.
+ */
 static struct linux_prison *
-get_prison(struct proc *p)
+linux_get_prison(struct proc *p)
 {
 	register struct prison *pr;
 	register struct linux_prison *lpr;
@@ -122,30 +127,58 @@ get_prison(struct proc *p)
 
 	pr = p->p_ucred->cr_prison;
 
+	/*
+	 * Rather than hold the prison mutex during allocation, check to
+	 * see if we need to allocate while holding the mutex, release it,
+	 * allocate, then once we've allocated the memory, check again to
+	 * see if it's still needed, and set if appropriate.  If it's not,
+	 * we release the mutex again to FREE(), and grab it again so as
+	 * to release holding the lock.
+	 */
+	mtx_lock(&pr->pr_mtx);
 	if (pr->pr_linux == NULL) {
+		mtx_unlock(&pr->pr_mtx);
 		MALLOC(lpr, struct linux_prison *, sizeof *lpr,
 		    M_PRISON, M_WAITOK|M_ZERO);
-		pr->pr_linux = lpr;
+		mtx_lock(&pr->pr_mtx);
+		if (pr->pr_linux == NULL) {
+			pr->pr_linux = lpr;
+		} else {
+			mtx_unlock(&pr->pr_mtx);
+			FREE(lpr, M_PRISON);
+			mtx_lock(&pr->pr_mtx);
+		}
 	}
 
 	return (pr->pr_linux);
 }
 
-char *
-linux_get_osname(p)
+void
+linux_get_osname(p, dst)
 	struct proc *p;
+	char *dst;
 {
 	register struct prison *pr;
 	register struct linux_prison *lpr;
 
-	pr = p->p_ucred->cr_prison;
-	if (pr != NULL && pr->pr_linux != NULL) {
-		lpr = pr->pr_linux;
-		if (lpr->pr_osname[0])
-			return (lpr->pr_osname);
+	if (p->p_ucred->cr_prison == NULL) {
+		bcopy(linux_osname, dst, LINUX_MAX_UTSNAME);
+		return;
 	}
 
-	return (linux_osname);
+	pr = p->p_ucred->cr_prison;
+
+	mtx_lock(&pr->pr_mtx);
+	if (pr->pr_linux != NULL) {
+		lpr = (struct linux_prison *)pr->pr_linux;
+		if (lpr->pr_osname[0]) {
+			bcopy(lpr->pr_osname, dst, LINUX_MAX_UTSNAME);
+			mtx_unlock(&pr->pr_mtx);
+			return;
+		}
+	}
+	mtx_unlock(&pr->pr_mtx);
+	bcopy(linux_osname, dst, LINUX_MAX_UTSNAME);
 }
 
 int
@@ -155,30 +188,43 @@ linux_set_osname(p, osname)
 {
 	register struct linux_prison *lpr;
 
-	lpr = get_prison(p);
-	if (lpr != NULL)
+	lpr = linux_get_prison(p);
+	if (lpr != NULL) {
 		strcpy(lpr->pr_osname, osname);
-	else
+		mtx_unlock(&p->p_ucred->cr_prison->pr_mtx);
+	} else {
 		strcpy(linux_osname, osname);
+	}
 
 	return (0);
 }
 
-char *
-linux_get_osrelease(p)
+void
+linux_get_osrelease(p, dst)
 	struct proc *p;
+	char *dst;
 {
 	register struct prison *pr;
-	register struct linux_prison *lpr;
+	struct linux_prison *lpr;
 
-	pr = p->p_ucred->cr_prison;
-	if (pr != NULL && pr->pr_linux != NULL) {
-		lpr = pr->pr_linux;
-		if (lpr->pr_osrelease[0])
-			return (lpr->pr_osrelease);
+	if (p->p_ucred->cr_prison == NULL) {
+		bcopy(linux_osrelease, dst, LINUX_MAX_UTSNAME);
+		return;
 	}
 
-	return (linux_osrelease);
+	pr = p->p_ucred->cr_prison;
+
+	mtx_lock(&pr->pr_mtx);
+	if (pr->pr_linux != NULL) {
+		lpr = (struct linux_prison *) pr->pr_linux;
+		if (lpr->pr_osrelease[0]) {
+			bcopy(lpr->pr_osrelease, dst, LINUX_MAX_UTSNAME);
+			mtx_unlock(&pr->pr_mtx);
+			return;
+		}
+	}
+	mtx_unlock(&pr->pr_mtx);
+	bcopy(linux_osrelease, dst, LINUX_MAX_UTSNAME);
 }
 
 int
@@ -188,11 +234,13 @@ linux_set_osrelease(p, osrelease)
 {
 	register struct linux_prison *lpr;
 
-	lpr = get_prison(p);
-	if (lpr != NULL)
+	lpr = linux_get_prison(p);
+	if (lpr != NULL) {
 		strcpy(lpr->pr_osrelease, osrelease);
-	else
+		mtx_unlock(&p->p_ucred->cr_prison->pr_mtx);
+	} else {
 		strcpy(linux_osrelease, osrelease);
+	}
 
 	return (0);
 }
@@ -203,15 +251,27 @@ linux_get_oss_version(p)
 {
 	register struct prison *pr;
 	register struct linux_prison *lpr;
+	int version;
+
+	if (p->p_ucred->cr_prison == NULL)
+		return (linux_oss_version);
 
 	pr = p->p_ucred->cr_prison;
-	if (pr != NULL && pr->pr_linux != NULL) {
-		lpr = pr->pr_linux;
-		if (lpr->pr_oss_version)
-			return (lpr->pr_oss_version);
-	}
 
-	return (linux_oss_version);
+	mtx_lock(&pr->pr_mtx);
+	if (pr->pr_linux != NULL) {
+		lpr = (struct linux_prison *) pr->pr_linux;
+		if (lpr->pr_oss_version) {
+			version = lpr->pr_oss_version;
+		} else {
+			version = linux_oss_version;
+		}
+	} else {
+		version = linux_oss_version;
+	}
+	mtx_unlock(&pr->pr_mtx);
+
+	return (version);
 }
 
 int
@@ -221,11 +281,13 @@ linux_set_oss_version(p, oss_version)
 {
 	register struct linux_prison *lpr;
 
-	lpr = get_prison(p);
-	if (lpr != NULL)
+	lpr = linux_get_prison(p);
+	if (lpr != NULL) {
 		lpr->pr_oss_version = oss_version;
-	else
+		mtx_unlock(&p->p_ucred->cr_prison->pr_mtx);
+	} else {
 		linux_oss_version = oss_version;
+	}
 
 	return (0);
 }
