@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.95 1996/08/04 20:13:08 phk Exp $
+ * $Id: vfs_bio.c,v 1.96 1996/08/21 21:55:18 dyson Exp $
  */
 
 /*
@@ -313,7 +313,7 @@ bwrite(struct buf * bp)
 		curproc->p_stats->p_ru.ru_oublock++;
 	VOP_STRATEGY(bp);
 
-	if ((oldflags & B_ASYNC) == 0) {
+	if ((bp->b_flags & B_ASYNC) == 0) {
 		int rtval = biowait(bp);
 
 		if (oldflags & B_DELWRI) {
@@ -396,6 +396,21 @@ bawrite(struct buf * bp)
 {
 	bp->b_flags |= B_ASYNC;
 	(void) VOP_BWRITE(bp);
+}
+
+/*
+ * Ordered write.
+ * Start output on a buffer, but only wait for it to complete if the
+ * output device cannot guarantee ordering in some other way.  Devices
+ * that can perform asyncronous ordered writes will set the B_ASYNC
+ * flag in their strategy routine.
+ * The buffer is released when the output completes.
+ */
+int
+bowrite(struct buf * bp)
+{
+	bp->b_flags |= B_ORDERED;
+	return (VOP_BWRITE(bp));
 }
 
 /*
