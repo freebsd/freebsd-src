@@ -58,6 +58,8 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/ipl.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/time.h>
 #include <sys/timetc.h>
@@ -73,10 +75,8 @@
 #endif
 #include <machine/cputypes.h>
 #include <machine/frame.h>
-#include <machine/ipl.h>
 #include <machine/limits.h>
 #include <machine/md_var.h>
-#include <machine/mutex.h>
 #include <machine/psl.h>
 #ifdef APIC_IO
 #include <machine/segments.h>
@@ -154,7 +154,7 @@ int	timer0_max_count;
 u_int	tsc_freq;
 int	tsc_is_broken;
 int	wall_cmos_clock;	/* wall CMOS clock assumed if != 0 */
-struct	mtx clock_lock;
+MUTEX_DECLARE(,clock_lock);
 
 static	int	beeping = 0;
 static	const u_char daysinmonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
