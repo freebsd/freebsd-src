@@ -500,7 +500,6 @@ loop:
 		if (lowervp != un->un_lowervp) {
 			union_newlower(un, lowervp);
 			if (cnp && (lowervp != NULLVP)) {
-				un->un_hash = cnp->cn_hash;
 				un->un_path = malloc(cnp->cn_namelen+1,
 						M_TEMP, M_WAITOK);
 				bcopy(cnp->cn_nameptr, un->un_path,
@@ -584,12 +583,10 @@ loop:
 	un->un_openl = 0;
 
 	if (cnp && (lowervp != NULLVP)) {
-		un->un_hash = cnp->cn_hash;
 		un->un_path = malloc(cnp->cn_namelen+1, M_TEMP, M_WAITOK);
 		bcopy(cnp->cn_nameptr, un->un_path, cnp->cn_namelen);
 		un->un_path[cnp->cn_namelen] = '\0';
 	} else {
-		un->un_hash = 0;
 		un->un_path = 0;
 		un->un_dirvp = NULL;
 	}
@@ -865,7 +862,6 @@ union_relookup(um, dvp, vpp, cnp, cn, path, pathlen)
 	else
 		cn->cn_cred = um->um_cred;
 	cn->cn_nameptr = cn->cn_pnbuf;
-	cn->cn_hash = cnp->cn_hash;
 	cn->cn_consume = cnp->cn_consume;
 
 	VREF(dvp);
@@ -1045,7 +1041,6 @@ union_vn_create(vpp, un, p)
 	cn.cn_proc = p;
 	cn.cn_cred = p->p_ucred;
 	cn.cn_nameptr = cn.cn_pnbuf;
-	cn.cn_hash = un->un_hash;
 	cn.cn_consume = 0;
 
 	/*

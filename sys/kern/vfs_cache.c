@@ -45,7 +45,25 @@
 #include <sys/vnode.h>
 #include <sys/namei.h>
 #include <sys/malloc.h>
+#include <sys/sysproto.h>
+#include <sys/proc.h>
+#include <sys/filedesc.h>
 
+/*
+ * This structure describes the elements in the cache of recent
+ * names looked up by namei.
+ */
+
+struct	namecache {
+	LIST_ENTRY(namecache) nc_hash;	/* hash chain */
+	LIST_ENTRY(namecache) nc_src;	/* source vnode list */
+	TAILQ_ENTRY(namecache) nc_dst;	/* destination vnode list */
+	struct	vnode *nc_dvp;		/* vnode of parent of name */
+	struct	vnode *nc_vp;		/* vnode the name refers to */
+	u_char	nc_flag;		/* flag bits */
+	u_char	nc_nlen;		/* length of name */
+	char	nc_name[0];		/* segment name */
+};
 
 /*
  * Name caching works as follows:
@@ -67,8 +85,8 @@
 /*
  * Structures associated with name cacheing.
  */
-#define NCHHASH(dvp, cnp) \
-	(&nchashtbl[((dvp)->v_id + (cnp)->cn_hash) & nchash])
+#define NCHHASH(dvp, hash) \
+	(&nchashtbl[((dvp)->v_id + (hash)) & nchash])
 static LIST_HEAD(nchashhead, namecache) *nchashtbl;	/* Hash Table */
 static TAILQ_HEAD(, namecache) ncneg;	/* Hash Table */
 static u_long	nchash;			/* size of hash table */
@@ -108,6 +126,8 @@ static u_long numneghits; STATNODE(CTLFLAG_RD, numneghits, &numneghits);
 
 static void cache_zap __P((struct namecache *ncp));
 
+MALLOC_DEFINE(M_VFSCACHE, "vfscache", "VFS name cache entries");
+
 /*
  * Flags in namecache.nc_flag
  */
@@ -131,7 +151,7 @@ cache_zap(ncp)
 		numneg--;
 	}
 	numcache--;
-	free(ncp, M_CACHE);
+	free(ncp, M_VFSCACHE);
 }
 
 /*
@@ -155,7 +175,10 @@ cache_lookup(dvp, vpp, cnp)
 	struct vnode **vpp;
 	struct componentname *cnp;
 {
-	register struct namecache *ncp;
+	struct namecache *ncp;
+	u_long hash;
+	u_char *cp;
+	int len;
 
 	if (!doingcache) {
 		cnp->cn_flags &= ~MAKEENTRY;
@@ -182,7 +205,11 @@ cache_lookup(dvp, vpp, cnp)
 		}
 	}
 
-	LIST_FOREACH(ncp, (NCHHASH(dvp, cnp)), nc_hash) {
+	hash = 0;
+	len = cnp->cn_namelen;
+	for (cp = cnp->cn_nameptr; len; len--, cp++)
+		hash += *cp;
+	LIST_FOREACH(ncp, (NCHHASH(dvp, hash)), nc_hash) {
 		numchecks++;
 		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
 		    !bcmp(ncp->nc_name, cnp->cn_nameptr, ncp->nc_nlen))
@@ -246,8 +273,11 @@ cache_enter(dvp, vp, cnp)
 	struct vnode *vp;
 	struct componentname *cnp;
 {
-	register struct namecache *ncp;
-	register struct nchashhead *ncpp;
+	struct namecache *ncp;
+	struct nchashhead *ncpp;
+	u_long hash;
+	u_char *cp, *dp;
+	int len;
 
 	if (!doingcache)
 		return;
@@ -269,7 +299,7 @@ cache_enter(dvp, vp, cnp)
 	}
 	 
 	ncp = (struct namecache *)
-		malloc(sizeof *ncp + cnp->cn_namelen, M_CACHE, M_WAITOK);
+		malloc(sizeof *ncp + cnp->cn_namelen, M_VFSCACHE, M_WAITOK);
 	bzero((char *)ncp, sizeof *ncp);
 	numcache++;
 	if (!vp) {
@@ -288,9 +318,12 @@ cache_enter(dvp, vp, cnp)
 	 */
 	ncp->nc_vp = vp;
 	ncp->nc_dvp = dvp;
-	ncp->nc_nlen = cnp->cn_namelen;
-	bcopy(cnp->cn_nameptr, ncp->nc_name, ncp->nc_nlen);
-	ncpp = NCHHASH(dvp, cnp);
+	len = ncp->nc_nlen = cnp->cn_namelen;
+	hash = 0;
+	dp = ncp->nc_name;
+	for (cp = cnp->cn_nameptr; len; len--, cp++, dp++)
+		hash += (*dp = *cp);
+	ncpp = NCHHASH(dvp, hash);
 	LIST_INSERT_HEAD(ncpp, ncp, nc_hash);
 	if (LIST_EMPTY(&dvp->v_cache_src))
 		vhold(dvp);
@@ -300,7 +333,7 @@ cache_enter(dvp, vp, cnp)
 	} else {
 		TAILQ_INSERT_TAIL(&ncneg, ncp, nc_dst);
 	}
-	if (numneg*ncnegfactor > numcache) {
+	if (numneg * ncnegfactor > numcache) {
 		ncp = TAILQ_FIRST(&ncneg);
 		cache_zap(ncp);
 	}
@@ -314,7 +347,7 @@ nchinit()
 {
 
 	TAILQ_INIT(&ncneg);
-	nchashtbl = hashinit(desiredvnodes*2, M_CACHE, &nchash);
+	nchashtbl = hashinit(desiredvnodes*2, M_VFSCACHE, &nchash);
 }
 
 /*
@@ -456,3 +489,99 @@ vfs_cache_lookup(ap)
 		return (error);
 	return (VOP_CACHEDLOOKUP(ap->a_dvp, ap->a_vpp, ap->a_cnp));
 }
+
+
+#ifndef _SYS_SYSPROTO_H_
+struct  __getcwd_args {
+	u_char	*buf;
+	u_int	buflen;
+};
+#endif
+
+#define STATNODE(mode, name, var) \
+	SYSCTL_INT(_vfs_cache, OID_AUTO, name, mode, var, 0, "");
+
+static int disablecwd;
+SYSCTL_INT(_debug, OID_AUTO, disablecwd, CTLFLAG_RW, &disablecwd, 0, "");
+
+static u_long numcwdcalls; STATNODE(CTLFLAG_RD, numcwdcalls, &numcwdcalls);
+static u_long numcwdfail1; STATNODE(CTLFLAG_RD, numcwdfail1, &numcwdfail1);
+static u_long numcwdfail2; STATNODE(CTLFLAG_RD, numcwdfail2, &numcwdfail2);
+static u_long numcwdfail3; STATNODE(CTLFLAG_RD, numcwdfail3, &numcwdfail3);
+static u_long numcwdfail4; STATNODE(CTLFLAG_RD, numcwdfail4, &numcwdfail4);
+static u_long numcwdfound; STATNODE(CTLFLAG_RD, numcwdfound, &numcwdfound);
+int
+__getcwd(p, uap)
+	struct proc *p;
+	struct __getcwd_args *uap;
+{
+	char *bp, *buf;
+	int error, i, slash_prefixed;
+	struct filedesc *fdp;
+	struct namecache *ncp;
+	struct vnode *vp;
+
+	numcwdcalls++;
+	if (disablecwd)
+		return (ENODEV);
+	if (uap->buflen < 2)
+		return (EINVAL);
+	if (uap->buflen > MAXPATHLEN)
+		uap->buflen = MAXPATHLEN;
+	buf = bp = malloc(uap->buflen, M_TEMP, M_WAITOK);
+	bp += uap->buflen - 1;
+	*bp = '\0';
+	fdp = p->p_fd;
+	slash_prefixed = 0;
+	for (vp = fdp->fd_cdir; vp != fdp->fd_rdir && vp != rootvnode;) {
+		if (vp->v_flag & VROOT) {
+			vp = vp->v_mount->mnt_vnodecovered;
+			continue;
+		}
+		if (vp->v_dd->v_id != vp->v_ddid) {
+			numcwdfail1++;
+			free(buf, M_TEMP);
+			return (ENOTDIR);
+		}
+		ncp = TAILQ_FIRST(&vp->v_cache_dst);
+		if (!ncp) {
+			numcwdfail2++;
+			free(buf, M_TEMP);
+			return (ENOENT);
+		}
+		if (ncp->nc_dvp != vp->v_dd) {
+			numcwdfail3++;
+			free(buf, M_TEMP);
+			return (EBADF);
+		}
+		for (i = ncp->nc_nlen - 1; i >= 0; i--) {
+			if (bp == buf) {
+				numcwdfail4++;
+				free(buf, M_TEMP);
+				return (ENOMEM);
+			}
+			*--bp = ncp->nc_name[i];
+		}
+		if (bp == buf) {
+			numcwdfail4++;
+			free(buf, M_TEMP);
+			return (ENOMEM);
+		}
+		*--bp = '/';
+		slash_prefixed = 1;
+		vp = vp->v_dd;
+	}
+	if (!slash_prefixed) {
+		if (bp == buf) {
+			numcwdfail4++;
+			free(buf, M_TEMP);
+			return (ENOMEM);
+		}
+		*--bp = '/';
+	}
+	numcwdfound++;
+	error = copyout(bp, uap->buf, strlen(bp) + 1);
+	free(buf, M_TEMP);
+	return (error);
+}
+
