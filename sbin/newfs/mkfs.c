@@ -92,7 +92,6 @@ static union {
 
 static struct dinode zino[MAXBSIZE / sizeof(struct dinode)];
 
-static int fsi, fso;
 static int randinit;
 static daddr_t alloc(int size, int mode);
 static long calcipg(long lcpg, long bpcg, off_t *usedbp);
@@ -110,7 +109,7 @@ static void wtfs(daddr_t, int, char *);
 static void wtfsflush(void);
 
 void
-mkfs(struct partition *pp, char *fsys, int fi, int fo)
+mkfs(struct partition *pp, char *fsys)
 {
 	long i, mincpc, mincpg, inospercg;
 	long cylno, j, lwarn = 0;
@@ -130,8 +129,6 @@ mkfs(struct partition *pp, char *fsys, int fi, int fo)
 		randinit = 1;
 		srandomdev();
 	}
-	fsi = fi;
-	fso = fo;
 	sblock.fs_inodefmt = FS_44INODEFMT;
 	sblock.fs_maxsymlinklen = MAXSYMLINKLEN;
 	if (Uflag)
@@ -372,10 +369,8 @@ mkfs(struct partition *pp, char *fsys, int fi, int fo)
 		printf("cylinder groups must have at least %ld cylinders\n",
 			mincpg);
 		exit(25);
-	} else if (sblock.fs_cpg != cpg) {
-		if (!cpgflg)
-			printf("Warning: ");
-		else if (!mapcramped && !inodecramped)
+	} else if (cpgflg && sblock.fs_cpg != cpg) {
+		if (!mapcramped && !inodecramped)
 			exit(26);
 		if (mapcramped && inodecramped)
 			printf("Block size and bytes per inode restrict");
@@ -562,10 +557,12 @@ mkfs(struct partition *pp, char *fsys, int fi, int fo)
 	 * Update information about this partion in pack
 	 * label, to that it may be updated on disk.
 	 */
-	pp->p_fstype = FS_BSDFFS;
-	pp->p_fsize = sblock.fs_fsize;
-	pp->p_frag = sblock.fs_frag;
-	pp->p_cpg = sblock.fs_cpg;
+	if (pp != NULL) {
+		pp->p_fstype = FS_BSDFFS;
+		pp->p_fsize = sblock.fs_fsize;
+		pp->p_frag = sblock.fs_frag;
+		pp->p_cpg = sblock.fs_cpg;
+	}
 }
 
 /*
@@ -918,11 +915,11 @@ rdfs(daddr_t bno, int size, char *bf)
 	int n;
 
 	wtfsflush();
-	if (lseek(fsi, (off_t)bno * sectorsize, 0) < 0) {
+	if (lseek(fso, (off_t)bno * sectorsize, 0) < 0) {
 		printf("seek error: %ld\n", (long)bno);
 		err(33, "rdfs");
 	}
-	n = read(fsi, bf, size);
+	n = read(fso, bf, size);
 	if (n != size) {
 		printf("read error: %ld\n", (long)bno);
 		err(34, "rdfs");
