@@ -289,63 +289,6 @@ static const char *fstypenames[] = {
 #define	D_RAMDISK	0x08		/* disk emulator */
 #define	D_CHAIN		0x10		/* can do back-back transfers */
 
-/* DOS partition table -- located in boot block */
-
-#if defined(PC98) && !defined(PC98_ATCOMPAT)
-#define	DOSBBSECTOR	0	/* DOS boot block relative sector number */
-#define	DOSPARTOFF	0
-#define	NDOSPART	16
-#define	DOSPTYP_386BSD	0x94	/* 386BSD partition type */
-
-struct dos_partition {
-    	unsigned char	dp_mid;
-#define	DOSMID_386BSD		(0x14|0x80) /* 386bsd|bootable */
-	unsigned char	dp_sid;
-#define	DOSSID_386BSD		(0x44|0x80) /* 386bsd|active */	
-	unsigned char	dp_dum1;
-	unsigned char	dp_dum2;
-	unsigned char	dp_ipl_sct;
-	unsigned char	dp_ipl_head;
-	unsigned short	dp_ipl_cyl;
-	unsigned char	dp_ssect;	/* starting sector */
-	unsigned char	dp_shd;		/* starting head */
-	unsigned short	dp_scyl;	/* starting cylinder */
-	unsigned char	dp_esect;	/* end sector */
-	unsigned char	dp_ehd;		/* end head */
-	unsigned short	dp_ecyl;	/* end cylinder */
-	unsigned char	dp_name[16];
-};
-
-#else /* IBMPC */
-#define	DOSBBSECTOR	0	/* DOS boot block relative sector number */
-#define	DOSPARTOFF	446
-#define	NDOSPART	4
-#define	DOSPTYP_386BSD	0xa5	/* 386BSD partition type */
-#define	DOSPTYP_LINSWP	0x82	/* Linux swap partition */
-#define	DOSPTYP_LINUX	0x83	/* Linux partition */
-#define	DOSPTYP_EXT	5	/* DOS extended partition */
-#define	DOSPTYP_EXTLBA	15	/* DOS extended partition */
-
-struct dos_partition {
-	unsigned char	dp_flag;	/* bootstrap flags */
-	unsigned char	dp_shd;		/* starting head */
-	unsigned char	dp_ssect;	/* starting sector */
-	unsigned char	dp_scyl;	/* starting cylinder */
-	unsigned char	dp_typ;		/* partition type */
-	unsigned char	dp_ehd;		/* end head */
-	unsigned char	dp_esect;	/* end sector */
-	unsigned char	dp_ecyl;	/* end cylinder */
-	u_int32_t	dp_start;	/* absolute starting sector number */
-	u_int32_t	dp_size;	/* partition size in sectors */
-};
-#ifdef CTASSERT
-CTASSERT(sizeof (struct dos_partition) == 16);
-#endif
-#endif
-
-#define	DPSECT(s) ((s) & 0x3f)		/* isolate relevant bits of sector */
-#define	DPCYL(c, s) ((c) + (((s) & 0xc0)<<2)) /* and those that are cylinder */
-
 /*
  * Disklabel-specific ioctls.
  *
