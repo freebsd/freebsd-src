@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.3 1995/06/04 07:31:55 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.4 1995/06/05 06:37:28 jkh Exp $
 
 Table of Contents
 -----------------
@@ -336,5 +336,14 @@ A: Not all of the companies that sell the Matsushita/Panasonic CR-562
    at this time are those that are 100% compatible with the Creative
    Labs (SoundBlaster) host interface.  See matcd.4 documentation for a
    list of host adapters that are known to work.
+
+
+Q: I'm trying to install from a tape drive but all I get is something like:
+	st0(aha0:1:0) NOT READY csi 40,0,0,0
+   on the screen.  Help!
+
+A: There's a limitation in the current sysinstall that the tape MUST
+   be in the drive while sysinstall is started or it won't be detected.
+   Try again with the tape in the drive the whole time.
 
 [ Please add more hardware tips to this Q&A section! ]
