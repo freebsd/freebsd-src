@@ -77,6 +77,9 @@
 #include <dev/usb/uhcireg.h>
 #include <dev/usb/uhcivar.h>
 
+/* Use bandwidth reclamation for control transfers. Some devices choke on it. */
+/*#define UHCI_CTL_LOOP */
+
 #if defined(__FreeBSD__)
 #include <machine/clock.h>
 
@@ -910,8 +913,12 @@ uhci_free_intr_info(uhci_intr_info_t *ii)
  */
 void
 uhci_add_loop(uhci_softc_t *sc) {
+#ifdef UHCI_DEBUG
+	if (uhcinoloop)
+		return;
+#endif
 	if (++sc->sc_loops == 1) {
-		DPRINTFN(10,("uhci_start_loop: add\n"));
+		DPRINTFN(5,("uhci_start_loop: add\n"));
 		/* Note, we don't loop back the soft pointer. */
 		sc->sc_last_qh->qh.qh_hlink = 
 		    htole32(sc->sc_hctl_start->physaddr | UHCI_PTR_QH);
@@ -920,6 +927,10 @@ uhci_add_loop(uhci_softc_t *sc) {
 
 void
 uhci_rem_loop(uhci_softc_t *sc) {
+#ifdef UHCI_DEBUG
+	if (uhcinoloop)
+		return;
+#endif
 	if (--sc->sc_loops == 0) {
 		DPRINTFN(5,("uhci_end_loop: remove\n"));
 		sc->sc_last_qh->qh.qh_hlink = htole32(UHCI_PTR_T);
@@ -941,7 +952,9 @@ uhci_add_hs_ctrl(uhci_softc_t *sc, uhci_soft_qh_t *sqh)
 	eqh->hlink       = sqh;
 	eqh->qh.qh_hlink = htole32(sqh->physaddr | UHCI_PTR_QH);
 	sc->sc_hctl_end = sqh;
+#ifdef UHCI_CTL_LOOP
 	uhci_add_loop(sc);
+#endif
 }
 
 /* Remove high speed control QH, called at splusb(). */
@@ -953,7 +966,9 @@ uhci_remove_hs_ctrl(uhci_softc_t *sc, uhci_soft_qh_t *sqh)
 	SPLUSBCHECK;
 
 	DPRINTFN(10, ("uhci_remove_hs_ctrl: sqh=%p\n", sqh));
+#ifdef UHCI_CTL_LOOP
 	uhci_rem_loop(sc);
+#endif
 	/*
 	 * The T bit should be set in the elink of the QH so that the HC
 	 * doesn't follow the pointer.  This condition may fail if the
