@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.428 1998/11/08 20:47:57 jkh Exp $
+#	$Id: Makefile,v 1.429 1998/11/11 08:46:52 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -676,7 +676,7 @@ doKERNEL:
 doMFSKERN:
 	@rm -f ${RD}/kernels/BOOTMFS.${FSIMAGE}
 	@cd ${.CURDIR}/../sys/${MACHINE_ARCH}/conf && \
-	  sh ${.CURDIR}/scripts/dokern.sh ${_MFSKERN-NO} < GENERIC > BOOTMFS
+	  sh ${.CURDIR}/scripts/dokern.sh ${_MFSKERN} < GENERIC > BOOTMFS
 .if ${MACHINE_ARCH} == "i386"
 	@echo "options  INTRO_USERCONFIG" >> ${.CURDIR}/../sys/i386/conf/BOOTMFS
 .endif
