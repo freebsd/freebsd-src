@@ -129,7 +129,7 @@ __sfp()
 				goto found;
 	}
 	THREAD_UNLOCK();	/* don't hold lock while malloc()ing. */
-	if ((g == moreglue(NDYNAMIC)) == NULL)
+	if ((g = moreglue(NDYNAMIC)) == NULL)
 		return (NULL);
 	THREAD_LOCK();		/* reacquire the lock */
 	SET_GLUE_PTR(lastglue->next, g); /* atomically append glue to list */
