@@ -12,7 +12,7 @@ DEVFILES=	$(FONTFILES)
 .include "../Makefile.inc"
 
 DESC:	DESC.in
-	cat ${DISTDIR}/DESC.in >DESC
+	cat ${DIST_DIR}/DESC.in >DESC
 	test -z '${DVIPRINT}' || echo print '${DVIPRINT}' >>DESC
 
 .include "../Makefile.dev"

@@ -16,7 +16,7 @@ CLEANFILES+=	DESC ${PSFILES}
 
 DESC: DESC.in
 	-rm -f DESC
-	cat ${DISTDIR}/DESC.in >DESC
+	cat ${DIST_DIR}/DESC.in >DESC
 	echo broken ${BROKEN_SPOOLER_FLAGS} >>DESC
 	if test "${PAGE}" = A4; then \
 	  echo "paperlength 841890" >>DESC; \
@@ -27,14 +27,14 @@ DESC: DESC.in
 
 ${PSFILES}:
 	-rm -f $@
-	sed -f ${DISTDIR}/psstrip.sed $? >$@
+	sed -f ${DIST_DIR}/psstrip.sed $? >$@
 
 fonts: DESC
-	${MAKE} -f ${DISTDIR}/generate/Makefile \
-	  srcdir=${DISTDIR}/generate DESC=${DISTDIR}/DESC.in
+	${MAKE} -f ${DIST_DIR}/generate/Makefile \
+	  srcdir=${DIST_DIR}/generate DESC=${DIST_DIR}/DESC.in
 
-prologue:	${DISTDIR}/prologue.ps
-zapfdr.pfa:	${DISTDIR}/zapfdr.ps
-symbolsl.pfa:	${DISTDIR}/symbolsl.ps
+prologue:	${DIST_DIR}/prologue.ps
+zapfdr.pfa:	${DIST_DIR}/zapfdr.ps
+symbolsl.pfa:	${DIST_DIR}/symbolsl.ps
 
 .include "../Makefile.dev"
