@@ -13,7 +13,7 @@
  * all derivative works or modified versions.
  *
  * From: Version 1.9, Mon Oct  9 20:27:42 MSK 1995
- * $Id: wcd.c,v 1.60 1998/10/30 10:57:09 luigi Exp $
+ * $Id: wcd.c,v 1.61 1998/12/13 23:30:15 steve Exp $
  */
 
 #include "wdc.h"
@@ -692,6 +692,7 @@ static void wcd_error (struct wcd *t, struct atapires result)
 		if (result.error & ~AER_SKEY) {
 			/* Audio disc. */
 			printf ("wcd%d: cannot read audio disc\n", t->lun);
+			t->flags &= ~F_LOCKED;
 			return;
 		}
 		/* Tray open. */
