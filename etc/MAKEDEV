@@ -108,7 +108,7 @@
 #	pci	PCI configuration-space access from user mode
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #
-#	$Id: MAKEDEV,v 1.172 1998/09/16 00:10:26 ken Exp $
+#	$Id: MAKEDEV,v 1.173 1998/10/02 22:33:52 obrien Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -755,8 +755,12 @@ vty*)
 	;;
 
 bpf*)
-	unit=`expr $i : 'bpf\(.*\)'`
-	mknod bpf$unit c 23 $unit
+	nbpf=`expr $i : 'bpf\(.*\)$'`
+	unit=0
+	while [ $unit -le $nbpf ]; do
+		mknod bpf$unit c 23 $unit
+		unit=`expr $unit + 1`
+	done
 	;;
 
 speaker)
