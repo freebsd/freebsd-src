@@ -162,11 +162,11 @@ Rule	Denver	1965	1966	-	Apr	lastSun	2:00	1:00	D
 Rule	Denver	1965	1966	-	Oct	lastSun	2:00	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Denver	-6:59:56 -	LMT	1883 Nov 18 12:00
-			-7:00	US	E%sT	1920
-			-7:00	Denver	E%sT	1942
-			-7:00	US	E%sT	1946
-			-7:00	Denver	E%sT	1967
-			-7:00	US	E%sT
+			-7:00	US	M%sT	1920
+			-7:00	Denver	M%sT	1942
+			-7:00	US	M%sT	1946
+			-7:00	Denver	M%sT	1967
+			-7:00	US	M%sT
 # ZONE-DESCR America Denver United_States Mountain time (except Arizona)
 
 # US Pacific time, represented by Los Angeles
