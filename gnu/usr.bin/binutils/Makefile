@@ -10,8 +10,7 @@ SUBDIR=		libiberty libbfd libopcodes libbinutils \
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 .if (${TARGET_ARCH} == "alpha" \
-  || ${TARGET_ARCH} == "i386" \
-  || ${TARGET_ARCH} == "sparc64") \
+  || ${TARGET_ARCH} == "i386" ) \
     && !defined(NO_GDB)
 SUBDIR+=	gdb gdbreplay
 .endif
