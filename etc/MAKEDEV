@@ -1030,11 +1030,6 @@ lpt*)
 	mknod lpctl$unit c 16 `unit2minor \`expr $unit + 128\``
 	;;
 
-tw*)
-	unit=`expr $i : 'tw\(.*\)'`
-	mknod tw$unit c 19 `unit2minor $unit` root:operator
-	;;
-
 # Use this to create virtual consoles for syscons, pcvt or codrv
 # ttyv0-b
 # use as MAKEDEV vtyNN to create NN entries
@@ -1645,6 +1640,11 @@ agpgart)
 twe*)
 	unit=`expr $i : 'twe\(.*\)'`
 	mknod twe$unit c 146 `unit2minor $unit`
+	;;
+
+tw*)
+	unit=`expr $i : 'tw\(.*\)'`
+	mknod tw$unit c 19 `unit2minor $unit` root:operator
 	;;
 
 local)
