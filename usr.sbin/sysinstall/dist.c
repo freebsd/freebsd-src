@@ -444,6 +444,29 @@ distSetByName(Distribution *dist, char *name)
     return status;
 }
 
+static Boolean
+distUnsetByName(Distribution *dist, char *name)
+{
+    int i, status = FALSE;
+    
+    /* Loop through current set */
+    for (i = 0; dist[i].my_name; i++) {
+	/* This is shorthand for "dist currently disabled" */
+	if (!dist[i].my_dir)
+	    continue;
+	if (!strcmp(dist[i].my_name, name)) {
+	    *(dist[i].my_mask) &= ~(dist[i].my_bit);
+	    status = TRUE;
+	}
+	if (dist[i].my_dist) {
+	    if (distUnsetByName(dist[i].my_dist, name)) {
+		status = TRUE;
+	    }
+	}
+    }
+    return status;
+}
+
 /* Just for the dispatch stuff */
 int
 distSetCustom(dialogMenuItem *self)
@@ -470,6 +493,31 @@ distSetCustom(dialogMenuItem *self)
     return DITEM_SUCCESS;
 }
     
+/* Just for the dispatch stuff */
+int
+distUnsetCustom(dialogMenuItem *self)
+{
+    char *cp, *cp2, *tmp;
+
+    if (!(tmp = variable_get(VAR_DISTS))) {
+	msgDebug("distUnsetCustom() called without %s variable set.\n", VAR_DISTS);
+	return DITEM_FAILURE;
+    }
+
+    cp = alloca(strlen(tmp) + 1);
+    if (!cp)
+	msgFatal("Couldn't alloca() %d bytes!\n", strlen(tmp) + 1);
+    strcpy(cp, tmp);
+    while (cp) {
+	if ((cp2 = index(cp, ' ')) != NULL)
+	    *(cp2++) = '\0';
+	if (!distUnsetByName(DistTable, cp))
+	    msgDebug("distUnsetCustom: Warning, no such release \"%s\"\n", cp);
+	cp = cp2;
+    }
+    return DITEM_SUCCESS;
+}
+
 int
 distSetSrc(dialogMenuItem *self)
 {
