@@ -1214,7 +1214,8 @@ gotIndex:
 	/* Done */
 	*buflen = blen;
 done:
-	FREE(foff, M_NETGRAPH);
+	if (foff != NULL)
+		FREE(foff, M_NETGRAPH);
 	return (error);
 }
 
