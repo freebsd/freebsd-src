@@ -182,6 +182,15 @@ typedef struct {
 #define	ASYNC_PDB_CHANGED		0x8014
 #define	ASYNC_CHANGE_NOTIFY		0x8015
 
+/* for ISP2200 only */
+#define	ASYNC_PTPMODE			0x8030
+#define	ASYNC_CONNMODE			0x8036
+#define		ISP_CONN_LOOP		1
+#define		ISP_CONN_PTP		2
+#define		ISP_CONN_BADLIP		3
+#define		ISP_CONN_FATAL		4
+#define		ISP_CONN_LOOPBACK	5
+
 /*
  * Command Structure Definitions
  */
@@ -493,6 +502,20 @@ typedef struct isp_icb {
 #define	ICBOPT_FULL_LOGIN	0x2000
 #define	ICBOPT_USE_PORTNAME	0x4000
 #define	ICBOPT_EXTENDED		0x8000
+
+#define	ICBXOPT_CLASS2_ACK0	0x0200
+#define	ICBXOPT_CLASS2		0x0100
+#define	ICBXOPT_LOOP_ONLY	(0 << 4)
+#define	ICBXOPT_PTP_ONLY	(1 << 4)
+#define	ICBXOPT_LOOP_2_PTP	(2 << 4)
+#define	ICBXOPT_PTP_2_LOOP	(3 << 4)
+
+#define	ICBXOPT_RIO_OFF		0
+#define	ICBXOPT_RIO_16BIT	1
+#define	ICBXOPT_RIO_32BIT	2
+#define	ICBXOPT_RIO_16BIT_DELAY	3
+#define	ICBXOPT_RIO_32BIT_DELAY	4
+
 
 
 #define	ICB_MIN_FRMLEN		256
