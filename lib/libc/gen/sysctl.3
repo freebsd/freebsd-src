@@ -76,7 +76,8 @@ The information is copied into the buffer specified by
 The size of the buffer is given by the location specified by
 .Fa oldlenp
 before the call,
-and that location gives the amount of data copied after a successful call.
+and that location gives the amount of data copied after a successful call
+and after a call that returns with the error code ENOMEM.
 If the amount of data available is greater
 than the size of the buffer supplied,
 the call supplies as much data as fits in the buffer provided
