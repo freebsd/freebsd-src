@@ -1781,7 +1781,6 @@ send_data(FILE *instr, FILE *outstr, off_t blksize, off_t filesize, int isreg)
 {
 	int c, filefd, netfd;
 	char *buf;
-	size_t len;
 	off_t cnt;
 
 	transflag++;
@@ -1824,17 +1823,16 @@ send_data(FILE *instr, FILE *outstr, off_t blksize, off_t filesize, int isreg)
 			off_t offset;
 			int err;
 
-			len = filesize;
 			err = cnt = offset = 0;
 
-			while (err != -1 && cnt < filesize) {
-				err = sendfile(filefd, netfd, offset, len,
+			while (err != -1 && filesize > 0) {
+				err = sendfile(filefd, netfd, offset, 0,
 					(struct sf_hdtr *) NULL, &cnt, 0);
 				if (recvurg)
 					goto got_oob;
 				byte_count += cnt;
 				offset += cnt;
-				len -= cnt;
+				filesize -= cnt;
 
 				if (err == -1) {
 					if (!cnt)
