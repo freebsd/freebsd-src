@@ -15,13 +15,15 @@
 #define  y_procstate	1
 #define  x_brkdn	15
 #define  y_brkdn	1
-#define  x_mem		8
+#define  x_mem		5
 #define  y_mem		3
-#define  y_message	4
+#define  x_swap		6
+#define  y_swap		4
+#define  y_message	5
 #define  x_header	0
-#define  y_header	5
+#define  y_header	6
 #define  x_idlecursor	0
-#define  y_idlecursor	4
-#define  y_procs	6
+#define  y_idlecursor	5
+#define  y_procs	7
 
 #define  y_cpustates	2
