@@ -1107,7 +1107,7 @@ ata_promise_ident(device_t dev)
     if ((idx->cfg2 & PRTX4) && pci_get_class(GRANDPARENT(dev))==PCIC_BRIDGE &&
 	!BUS_READ_IVAR(device_get_parent(GRANDPARENT(dev)),
 		       GRANDPARENT(dev), PCI_IVAR_DEVID, &devid) &&
-	devid == ATA_DEC_21150) {
+	((devid == ATA_DEC_21150) || (devid == ATA_DEC_21150_1))) {
 	static long start = 0, end = 0;
 
 	if (pci_get_slot(dev) == 1) {
