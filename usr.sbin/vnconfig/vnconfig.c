@@ -101,7 +101,6 @@ char *configfile;
 
 int config __P((struct vndisk *));
 void getoptions __P((struct vndisk *, char *));
-char *rawdevice __P((char *));
 void readconfig __P((int));
 static void usage __P((void));
 static int getsize(const char *arg);
@@ -314,8 +313,11 @@ config(vnp)
 		}
 	}
 
-	rdev = rawdevice(dev);
+	rdev = dev;
+	(void)asprintf(&rdev, "%s.ctl", dev);
 	f = fopen(rdev, "rw");
+	if (f == NULL) 
+		f = fopen(dev, "rw");
 	if (f == NULL) {
 		warn("%s", dev);
 		return(1);
@@ -553,28 +555,6 @@ getoptions(vnp, fstr)
 		strcpy(vnp->oarg, oarg);
 	} else
 		vnp->oarg = NULL;
-}
-
-char *
-rawdevice(dev)
-	char *dev;
-{
-	register char *rawbuf, *dp, *ep;
-	struct stat sb;
-	int len;
-
-	len = strlen(dev);
-	rawbuf = malloc(len + 2);
-	strcpy(rawbuf, dev);
-	if (stat(rawbuf, &sb) != 0 || !S_ISCHR(sb.st_mode)) {
-		dp = rindex(rawbuf, '/');
-		if (dp) {
-			for (ep = &rawbuf[len]; ep > dp; --ep)
-				*(ep+1) = *ep;
-			*++ep = 'r';
-		}
-	}
-	return (rawbuf);
 }
 
 static void
