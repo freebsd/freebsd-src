@@ -229,28 +229,48 @@ void
 _mtx_lock_flags(struct mtx *m, int opts, const char *file, int line)
 {
 
-	__mtx_lock_flags(m, opts, file, line);
+	MPASS(curthread != NULL);
+	KASSERT((opts & MTX_NOSWITCH) == 0,
+	    ("MTX_NOSWITCH used at %s:%d", file, line));
+	_get_sleep_lock(m, curthread, opts, file, line);
+	LOCK_LOG_LOCK("LOCK", &m->mtx_object, opts, m->mtx_recurse, file,
+	    line);
+	WITNESS_LOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
 }
 
 void
 _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 {
 
-	__mtx_unlock_flags(m, opts, file, line);
+	MPASS(curthread != NULL);
+	mtx_assert((m), MA_OWNED);
+ 	WITNESS_UNLOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
+	LOCK_LOG_LOCK("UNLOCK", &m->mtx_object, opts, m->mtx_recurse, file,
+	    line);
+	_rel_sleep_lock(m, curthread, opts, file, line);
 }
 
 void
 _mtx_lock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 {
 
-	__mtx_lock_spin_flags(m, opts, file, line);
+	MPASS(curthread != NULL);
+	_get_spin_lock(m, curthread, opts, file, line);
+	LOCK_LOG_LOCK("LOCK", &m->mtx_object, opts, m->mtx_recurse, file,
+	    line);
+	WITNESS_LOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
 }
 
 void
 _mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 {
 
-	__mtx_unlock_spin_flags(m, opts, file, line);
+	MPASS(curthread != NULL);
+	mtx_assert((m), MA_OWNED);
+ 	WITNESS_UNLOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
+	LOCK_LOG_LOCK("UNLOCK", &m->mtx_object, opts, m->mtx_recurse, file,
+	    line);
+	_rel_spin_lock(m);
 }
 
 /*
