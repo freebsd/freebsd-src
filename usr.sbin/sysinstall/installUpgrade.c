@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.16 1995/11/06 08:28:06 jkh Exp $
+ * $Id: installUpgrade.c,v 1.17 1995/11/08 07:09:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -72,6 +72,18 @@ doByHand(HitList *h)
 	       "this).", h->name);
 }
 
+static void
+yellSysconfig(HitList *h)
+{
+    dialog_clear();
+    msgConfirm("/etc/sysconfig is one of those files that this upgrade procedure just isn't\n"
+	       "smart enough to deal with right now.  Unfortunately, your system\n"
+	       "will also come up with a very different \"personality\" than it had\n"
+	       "before if you do not merge at LEAST the hostname and ifconfig lines\n"
+	       "from the old one!  This is very important, so please do this merge\n"
+	       "even if you do no others before the system is allowed to reboot.");
+}
+
 /* These are the only meaningful files I know about */
 static HitList etc_files [] = {
    { JUST_COPY,		"Xaccel.ini",		TRUE, NULL },
@@ -132,7 +144,7 @@ static HitList etc_files [] = {
    { JUST_COPY,		"skeykeys",		TRUE, NULL },
    { JUST_COPY,		"spwd.db",		TRUE, NULL },
    { JUST_COPY,		"supfile",		TRUE, NULL },
-   { CALL_HANDLER,	"sysconfig",		FALSE, doByHand },
+   { CALL_HANDLER,	"sysconfig",		FALSE, yellSysconfig },
    { JUST_COPY,		"syslog.conf",		TRUE, NULL },
    { JUST_COPY,		"termcap",		TRUE, NULL },
    { JUST_COPY,		"ttys",			TRUE, NULL },
