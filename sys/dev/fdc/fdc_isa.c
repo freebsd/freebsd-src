@@ -74,25 +74,21 @@ fdc_isa_probe(device_t dev)
 	if (error == ENXIO)
 		return ENXIO;
 	if (error == 0)
-		fdc->flags |= FDC_ISPNP;
+		fdc->flags = FDC_ISPNP;
 
 	/* Attempt to allocate our resources for the duration of the probe */
 	error = fdc_alloc_resources(fdc);
 	if (error)
 		goto out;
 
-	/* First - lets reset the floppy controller */
-	fdout_wr(fdc, 0);
-	DELAY(100);
-	fdout_wr(fdc, FDO_FRST);
-
-	/* see if it can handle a command */
-	if (fd_cmd(fdc, 3, NE7CMD_SPECIFY, NE7_SPEC_1(3, 240), 
-		   NE7_SPEC_2(2, 0), 0)) {
-		error = ENXIO;
-		goto out;
+	/* Check that the controller is working. */
+	if ((fdc->flags & FDC_ISPNP) == 0) {
+		error = fdc_initial_reset(fdc);
+		if (error)
+			goto out;
 	}
 
+	/* Try to determine a more specific device type. */
 	if (fd_cmd(fdc, 1, NE7CMD_VERSION, 1, &ic_type) == 0) {
 		ic_type = (u_char)ic_type;
 		switch (ic_type) {
@@ -130,6 +126,7 @@ static device_method_t fdc_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	fdc_print_child),
 	DEVMETHOD(bus_read_ivar,	fdc_read_ivar),
+	DEVMETHOD(bus_write_ivar,       fdc_write_ivar),
 	/* Our children never use any other bus interface methods. */
 
 	{ 0, 0 }
