@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.100 1996/07/01 22:04:18 jkh Exp $ -->
+<!-- $Id: contrib.sgml,v 1.101 1996/07/02 08:42:03 gclarkii Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -167,6 +167,7 @@
 	  <item>Andrew McRae &lt;amcrae@cisco.com&gt;
 	  <item>Andrew Moore &lt;alm@FreeBSD.org&gt;
 	  <item>Andrew V. Stesin &lt;stesin@elvisti.kiev.ua&gt;
+	  <item>Andrey Zakhvatov &lt;andy@cgu.chel.su&gt;
 	  <item>Anthony Yee-Hang Chan &lt;yeehang@netcom.com&gt;
 	  <item>Bernd Rosauer &lt;br@netland.inka.de&gt;
 	  <item>Bob Wilcox &lt;bob@obiwan.uucp&gt;
@@ -190,6 +191,7 @@
 	  <item>Daniel Baker &lt;dbaker@crash.ops.neosoft.com&gt;
 	  <item>Daniel M. Eischen &lt;deischen@iworks.InterWorks.org&gt;
 	  <item>Danny J. Zerkel &lt;dzerkel@feephi.phofarm.com&gt;
+	  <item>Dave Bodenstab &lt;imdave@synet.net&gt;
 	  <item>Dave Burgess &lt;burgess@hrd769.brooks.af.mil&gt;
 	  <item>Dave Chapeskie &lt;dchapes@zeus.leitch.com&gt;
 	  <item>Dave Rivers &lt;rivers@ponds.uucp&gt;
