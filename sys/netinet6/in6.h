@@ -357,13 +357,6 @@ extern const struct in6_addr in6addr_linklocal_allrouters;
 	 (__IPV6_ADDR_MC_SCOPE(a) == __IPV6_ADDR_SCOPE_GLOBAL))
 #endif
 
-/*
- * Wildcard Socket
- */
-#if 0	/*pre-RFC2553*/
-#define IN6_IS_ADDR_ANY(a)	IN6_IS_ADDR_UNSPECIFIED(a)
-#endif
-
 #ifdef _KERNEL	/*nonstandard*/
 /*
  * KAME Scope
