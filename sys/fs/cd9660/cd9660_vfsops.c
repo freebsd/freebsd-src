@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.40 1998/06/07 17:11:29 dfr Exp $
+ * $Id: cd9660_vfsops.c,v 1.41 1998/07/04 22:30:21 julian Exp $
  */
 
 #include <sys/param.h>
@@ -199,6 +199,7 @@ cd9660_mount(mp, path, data, ndp, p)
 	struct iso_args args;
 	size_t size;
 	int error;
+	mode_t accessmode;
 	struct iso_mnt *imp = 0;
 
 #ifndef VFS_LKM /* mount root makes no sense to an LKM */
@@ -244,6 +245,23 @@ cd9660_mount(mp, path, data, ndp, p)
 		vrele(devvp);
 		return ENXIO;
 	}
+
+	/*       
+	 * If mount by non-root, then verify that user has necessary
+	 * permissions on the device.
+	 */
+	if (p->p_ucred->cr_uid != 0) {
+		accessmode = VREAD;
+		if ((mp->mnt_flag & MNT_RDONLY) == 0)
+			accessmode |= VWRITE;
+		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
+		if (error = VOP_ACCESS(devvp, accessmode, p->p_ucred, p)) {
+			vput(devvp);
+			return (error);
+		}
+		VOP_UNLOCK(devvp, 0, p);
+	}
+
 	if ((mp->mnt_flag & MNT_UPDATE) == 0) {
 		if (bdevsw[major(devvp->v_rdev)]->d_flags & D_NOCLUSTERR)
 			mp->mnt_flag |= MNT_NOCLUSTERR;
