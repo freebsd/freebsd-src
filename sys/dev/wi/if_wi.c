@@ -2153,9 +2153,8 @@ wi_cmd(struct wi_softc *sc, int cmd, int val0, int val1, int val2)
 
 	/* wait for the busy bit to clear */
 	for (i = 500; i > 0; i--) {	/* 5s */
-		if (!(CSR_READ_2(sc, WI_COMMAND) & WI_CMD_BUSY)) {
+		if (!(CSR_READ_2(sc, WI_COMMAND) & WI_CMD_BUSY))
 			break;
-		}
 		DELAY(10*1000);	/* 10 m sec */
 	}
 	if (i == 0) {
@@ -2171,7 +2170,7 @@ wi_cmd(struct wi_softc *sc, int cmd, int val0, int val1, int val2)
 
 	if (cmd == WI_CMD_INI) {
 		/* XXX: should sleep here. */
-		DELAY(100*1000);
+		DELAY(100*1000);		/* 100ms delay for init */
 	}
 	for (i = 0; i < WI_TIMEOUT; i++) {
 		/*
@@ -2183,10 +2182,6 @@ wi_cmd(struct wi_softc *sc, int cmd, int val0, int val1, int val2)
 			/* Ack the event and read result code. */
 			s = CSR_READ_2(sc, WI_STATUS);
 			CSR_WRITE_2(sc, WI_EVENT_ACK, WI_EV_CMD);
-#ifdef foo
-			if ((s & WI_CMD_CODE_MASK) != (cmd & WI_CMD_CODE_MASK))
-				return(EIO);
-#endif
 			if (s & WI_STAT_CMD_RESULT) {
 				count--;
 				return(EIO);
