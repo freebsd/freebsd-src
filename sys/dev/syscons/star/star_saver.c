@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: star_saver.c,v 1.6 1995/11/14 07:35:06 bde Exp $
+ *	$Id: star_saver.c,v 1.7 1995/11/29 20:10:33 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -35,7 +35,10 @@
 #include <sys/sysent.h>
 #include <sys/lkm.h>
 #include <sys/errno.h>
-#include <saver.h>
+
+#include <machine/md_var.h>
+
+#include "saver.h"
 
 MOD_MISC(star_saver);
 
