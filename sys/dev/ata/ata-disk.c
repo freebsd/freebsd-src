@@ -158,14 +158,13 @@ ad_attach(void *notused)
 		    free(adp, M_AD);
 		    continue;
 		}
-		adp->cylinders = adp->ata_parm->cylinders;
 		adp->heads = adp->ata_parm->heads;
 		adp->sectors = adp->ata_parm->sectors;
-		adp->total_secs = adp->cylinders * adp->heads * adp->sectors;	
-		if (adp->cylinders == 16383 && 
+		adp->total_secs = 
+		    adp->ata_parm->cylinders * adp->heads * adp->sectors;	
+		if (adp->ata_parm->cylinders == 16383 && 
 		    adp->total_secs < adp->ata_parm->lbasize) {
 		    adp->total_secs = adp->ata_parm->lbasize;
-		    adp->cylinders = adp->total_secs/(adp->heads*adp->sectors);
 		}
 		if (adp->ata_parm->atavalid & ATA_FLAG_54_58 &&
 		    adp->ata_parm->lbasize)
@@ -220,8 +219,9 @@ ad_attach(void *notused)
 		printf("ad%d: %luMB (%u sectors), "
 		       "%u cyls, %u heads, %u S/T, %u B/S\n",
 		       adp->lun, adp->total_secs / ((1024L * 1024L)/DEV_BSIZE),
-		       adp->total_secs, adp->cylinders, adp->heads,
-		       adp->sectors, DEV_BSIZE);
+		       adp->total_secs, 
+		       adp->total_secs / (adp->heads * adp->sectors),
+		       adp->heads, adp->sectors, DEV_BSIZE);
 
 		printf("ad%d: %d secs/int, %d depth queue, %s\n", 
 		       adp->lun, adp->transfersize / DEV_BSIZE, adp->num_tags,
@@ -289,7 +289,7 @@ adopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     dl->d_secsize = DEV_BSIZE;
     dl->d_nsectors = adp->sectors;
     dl->d_ntracks = adp->heads;
-    dl->d_ncylinders = adp->cylinders;
+    dl->d_ncylinders = adp->total_secs / (adp->heads * adp->sectors);
     dl->d_secpercyl = adp->sectors * adp->heads;
     dl->d_secperunit = adp->total_secs;
     return 0;
