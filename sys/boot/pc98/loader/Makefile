@@ -2,8 +2,6 @@
 
 BASE=		loader
 PROG=		${BASE}
-MAN5=		../../forth/loader.conf.5
-MAN8=		../../i386/loader/loader.8 ../../forth/loader.4th.8
 #NOMAN=
 STRIP=
 NEWVERSWHAT=	"bootstrap loader" pc98
