@@ -36,6 +36,44 @@
 #define VERSION "0.4"
 #define MAX_LEN 2048
 
+/* 
+ * Attribute names
+ */
+#define screen_attr                   attributes[0]
+#define shadow_attr                   attributes[1]
+#define dialog_attr                   attributes[2]
+#define title_attr                    attributes[3]
+#define border_attr                   attributes[4]
+#define button_active_attr            attributes[5]
+#define button_inactive_attr          attributes[6]
+#define button_key_active_attr        attributes[7]
+#define button_key_inactive_attr      attributes[8]
+#define button_label_active_attr      attributes[9]
+#define button_label_inactive_attr    attributes[10]
+#define inputbox_attr                 attributes[11]
+#define inputbox_border_attr          attributes[12]
+#define searchbox_attr                attributes[13]
+#define searchbox_title_attr          attributes[14]
+#define searchbox_border_attr         attributes[15]
+#define position_indicator_attr       attributes[16]
+#define menubox_attr                  attributes[17]
+#define menubox_border_attr           attributes[18]
+#define item_attr                     attributes[19]
+#define item_selected_attr            attributes[20]
+#define tag_attr                      attributes[21]
+#define tag_selected_attr             attributes[22]
+#define tag_key_attr                  attributes[23]
+#define tag_key_selected_attr         attributes[24]
+#define check_attr                    attributes[25]
+#define check_selected_attr           attributes[26]
+#define uarrow_attr                   attributes[27]
+#define darrow_attr                   attributes[28]
+
+/* number of attributes */
+#define ATTRIBUTE_COUNT               29
+
+extern chtype attributes[];
+
 #ifdef HAVE_NCURSES
 extern bool use_shadow;
 void draw_shadow(WINDOW *win, int y, int x, int height, int width);
