@@ -21,15 +21,13 @@ OUT_OBJ=	${GCC_ARCH}
 target=		${TARGET_ARCH}-unknown-freebsd
 
 # These architectures are Cygnus's default for enabling Haifa.
-.if ${GCC_ARCH} == "alpha" || ${GCC_ARCH} == "sparc"
+.if ${GCC_ARCH} == "alpha" || ${GCC_ARCH} == "sparc" || ${GCC_ARCH} == "sparc64"
 USE_EGCS_HAIFA=	1
 .endif
 
 version!=	sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/' < ${GCCDIR}/version.c
 
 CFLAGS+=	-DFREEBSD_NATIVE -DIN_GCC -DHAVE_CONFIG_H
-CFLAGS+=	-DDEFAULT_TARGET_VERSION=\"$(version)\"
-CFLAGS+=	-DDEFAULT_TARGET_MACHINE=\"$(target)\"
 CFLAGS+=	-DPREFIX=\"${TOOLS_PREFIX}/usr\"
 .if defined(LONG_TYPE_SIZE)
 CFLAGS+=	-DLONG_TYPE_SIZE=${LONG_TYPE_SIZE}
