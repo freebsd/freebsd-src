@@ -41,7 +41,7 @@ struct pcic_slot {
 	void *argp;
 };
 
-enum pcic_irq_type { isa_parallel, pci_parallel, isa_serial };
+enum pcic_irq_type { isa_parallel = 1, isa_serial, pci_parallel, pci_serial };
 
 struct pcic_softc 
 {
