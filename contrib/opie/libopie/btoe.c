@@ -3,7 +3,7 @@
           64 bit OTP.
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -16,6 +16,7 @@ License Agreement applies to this software.
 
 	History:
 
+        Modified by cmetz for OPIE 2.4. Use struct opie_otpkey for binary arg. 
         Modified by cmetz for OPIE 2.2. Use FUNCTION declaration et al.
               Remove unnecessary address futzing with Wp in opiebtoe.
               Changed unsigned long to UINT4 for Alpha.
@@ -2088,13 +2089,13 @@ static char Wp[2048][4] =
 };
 
 /* Encode 8 bytes in 'c' as a string of English words. */
-char *opiebtoe FUNCTION((engout, c), char *engout AND char *c)
+char *opiebtoe FUNCTION((engout, c), char *engout AND struct opie_otpkey *c)
 {
-  char cp[9];	/* add in room for the parity 2 bits */
+  char cp[sizeof(struct opie_otpkey) + 1];	/* add in room for the parity 2 bits */
   int p, i;
 
   engout[0] = '\0';
-  memcpy(cp, c, 8);
+  memcpy(cp, c, sizeof(struct opie_otpkey));
   /* compute parity */
   for (p = 0, i = 0; i < 64; i += 2)
     p += extract(cp, i, 2);
@@ -2120,7 +2121,7 @@ char *opiebtoe FUNCTION((engout, c), char *engout AND char *c)
  *        -1 badly formed in put ie > 4 char word
  *        -2 words OK but parity is wrong
  */
-int opieetob FUNCTION((out, e), char *out AND char *e)
+int opieetob FUNCTION((out, e), struct opie_otpkey *out AND char *e)
 {
   char *word, *c, *input, b[9];
   int i, p, v, l, low, high, rval = -1;
@@ -2137,7 +2138,7 @@ int opieetob FUNCTION((out, e), char *out AND char *e)
   strncpy(input, e, i);
   input[i] = 0;
   memset(b, 0, sizeof(b));
-  memset(out, 0, 8);
+  memset(out, 0, sizeof(struct opie_otpkey));
 
   for (i = 0, p = 0, word = c = input; i < 6; i++, p += 11) {
     while (*c && !isalpha(*c)) c++;
@@ -2187,7 +2188,7 @@ int opieetob FUNCTION((out, e), char *out AND char *e)
     goto opiebtoeret;
   }
 
-  memcpy(out, b, 8);
+  memcpy(out, b, sizeof(struct opie_otpkey));
 
   rval = 1;
 

@@ -1,7 +1,7 @@
 /* opiesu.c: main body of code for the su(1m) program
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -14,6 +14,8 @@ License Agreement applies to this software.
 
 	History:
 
+	Modified by cmetz for OPIE 2.4. Check euid on startup. Use
+		opiestrncpy().
 	Modified by cmetz for OPIE 2.32. Set up TERM and PATH correctly.
 	Modified by cmetz for OPIE 2.31. Fix sulog(). Replaced Getlogin() with
 		currentuser. Fixed fencepost error in month printed by sulog().
@@ -302,6 +304,7 @@ again:
     argv++;
   }
 
+
   {
   struct passwd *pwd;
   char *p = getlogin();
@@ -314,14 +317,12 @@ again:
 #endif /* HAVE_SULOG */
     exit(1);
   }
-  strncpy(buf, pwd->pw_name, sizeof(buf)-1);
-  buf[sizeof(buf)-1] = 0;
+  opiestrncpy(buf, pwd->pw_name, sizeof(buf));
 
   if (!p)
     p = "unknown";
 
-  strncpy(currentuser, p, 31);
-  currentuser[31] = 0;
+  opiestrncpy(currentuser, p, 31);
 
   if (p && *p && strcmp(currentuser, buf)) {
     strcat(currentuser, "(");
@@ -337,6 +338,15 @@ again:
     fprintf(stderr, "Unknown user: %s\n", user);
     exit(1);
   }
+
+  if (geteuid()) {
+    syslog(LOG_CRIT, "'%s' failed for %s on %s: not running with superuser priveleges", argvbuf, currentuser, ttyname(2));
+#if HAVE_SULOG
+    sulog(0, NULL);
+#endif /* HAVE_SULOG */
+    fprintf(stderr, "You do not have permission to su %s\n", user);
+    exit(1);
+  };
 
 /* Implement the BSD "wheel group" su restriction. */
 #if DOWHEEL
