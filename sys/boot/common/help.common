@@ -311,6 +311,18 @@
 		this option provides a hint as to the actual size of
 		system memory (which will be tested before use).
 
+	set hw.{acpi,pci}.host_start_mem=<value>
+
+		Sets the lowest address that the pci code will assign
+		when it doesn't have other information about the address
+		to assign (like from a pci bridge).  This is only useful
+		in older systems without a pci bridge.  Also, it only
+		impacts devices that the BIOS doesn't assign to, typically
+		CardBus bridges.  The default <value> is 0x80000000, but
+		some systems need values like 0xf0000000, 0xfc000000 or
+		0xfe000000 may be suitable for older systems (the older
+		the system, the higher the number typically should be).
+
 	set hw.pci.enable_io_modes=<value>
 
 		Enable PCI resources which are left off by some BIOSes
