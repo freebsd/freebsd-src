@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.38 1996/03/02 17:14:09 peter Exp $
+ * $Id: vm_mmap.c,v 1.39 1996/03/12 02:27:20 dyson Exp $
  */
 
 /*
@@ -754,11 +754,12 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 		return (type == OBJT_DEVICE ? EINVAL : ENOMEM);
 
 	/*
-	 * default to MAP_SHARED on a device mapping
+	 * Force device mappings to be shared.
 	 */
-	if ((type == OBJT_DEVICE) &&
-		(flags & (MAP_SHARED|MAP_COPY|MAP_PRIVATE)) == 0)
+	if (type == OBJT_DEVICE) {
+		flags &= ~(MAP_PRIVATE|MAP_COPY);
 		flags |= MAP_SHARED;
+	}
 
 	object2 = NULL;
 	docow = 0;
