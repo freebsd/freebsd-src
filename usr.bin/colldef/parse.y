@@ -58,7 +58,7 @@ u_char __collate_substitute_table[UCHAR_MAX + 1][STR_LEN];
 struct __collate_st_char_pri __collate_char_pri_table[UCHAR_MAX + 1];
 struct __collate_st_chain_pri *__collate_chain_pri_table;
 
-int chain_index;
+int chain_index = 0;
 int prim_pri = 1, sec_pri = 1;
 #ifdef COLLATE_DEBUG
 int debug;
@@ -122,11 +122,15 @@ order : ORDER order_list {
 		     sizeof(__collate_chain_pri_table[0]));
 	chain_index++;
 
+#ifdef COLLATE_DEBUG
+	if (debug)
+		collate_print_tables();
+#endif
 	if ((fp = fopen(out_file, "w")) == NULL)
 		err(EX_UNAVAILABLE, "can't open destination file %s",
 		    out_file);
 
-	strcpy(__collate_version, COLLATE_VERSION1_1);
+	strcpy(__collate_version, COLLATE_VERSION1_2);
 	if (fwrite(__collate_version, sizeof(__collate_version), 1, fp) != 1)
 		err(EX_IOERR,
 		"IO error writting collate version to destination file %s",
@@ -141,11 +145,23 @@ order : ORDER order_list {
 		err(EX_IOERR,
 		"IO error writting substitute table to destination file %s",
 		    out_file);
+	for (ch = 0; ch < UCHAR_MAX + 1; ch++) {
+		__collate_char_pri_table[ch].prim =
+		    htonl(__collate_char_pri_table[ch].prim);
+		__collate_char_pri_table[ch].sec =
+		    htonl(__collate_char_pri_table[ch].sec);
+	}
 	if (fwrite(__collate_char_pri_table,
 		   sizeof(__collate_char_pri_table), 1, fp) != 1)
 		err(EX_IOERR,
 		"IO error writting char table to destination file %s",
 		    out_file);
+	for (ch = 0; ch < chain_index; ch++) {
+		__collate_chain_pri_table[ch].prim =
+		    htonl(__collate_chain_pri_table[ch].prim);
+		__collate_chain_pri_table[ch].sec =
+		    htonl(__collate_chain_pri_table[ch].sec);
+	}
 	if (fwrite(__collate_chain_pri_table,
 		   sizeof(*__collate_chain_pri_table), chain_index, fp) !=
 		   (size_t)chain_index)
@@ -155,10 +171,6 @@ order : ORDER order_list {
 	if (fclose(fp) != 0)
 		err(EX_IOERR, "IO error closing destination file %s",
 		    out_file);
-#ifdef COLLATE_DEBUG
-	if (debug)
-		collate_print_tables();
-#endif
 	exit(EX_OK);
 }
 ;
@@ -351,7 +363,6 @@ static void
 collate_print_tables(void)
 {
 	int i;
-	struct __collate_st_chain_pri *p2;
 
 	printf("Substitute table:\n");
 	for (i = 0; i < UCHAR_MAX + 1; i++)
@@ -359,8 +370,11 @@ collate_print_tables(void)
 		printf("\t'%c' --> \"%s\"\n", i,
 		       __collate_substitute_table[i]);
 	printf("Chain priority table:\n");
-	for (p2 = __collate_chain_pri_table; p2->str[0] != '\0'; p2++)
-		printf("\t\"%s\" : %d %d\n", p2->str, p2->prim, p2->sec);
+	for (i = 0; i < chain_index - 1; i++)
+		printf("\t\"%s\" : %d %d\n",
+		    __collate_chain_pri_table[i].str,
+		    __collate_chain_pri_table[i].prim,
+		    __collate_chain_pri_table[i].sec);
 	printf("Char priority table:\n");
 	for (i = 0; i < UCHAR_MAX + 1; i++)
 		printf("\t'%c' : %d %d\n", i, __collate_char_pri_table[i].prim,
