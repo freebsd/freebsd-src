@@ -8,6 +8,7 @@
 #ifndef _SYS_SYSPROTO_H_
 #define	_SYS_SYSPROTO_H_
 
+#include <sys/aio.h>
 #include <sys/signal.h>
 
 struct	nosys_args {
@@ -786,6 +787,48 @@ struct	signanosleep_args {
 	struct timespec * rmtp;
 	sigset_t * mask;
 };
+struct	aio_return_args {
+	struct aiocb * aiocbp;
+};
+struct	aio_suspend_args {
+	struct aiocb *const * aiocbp;
+	int nent;
+	const struct timespec * timeout;
+};
+struct	aio_cancel_args {
+	int fd;
+	struct aiocb * aiocbp;
+};
+struct	aio_error_args {
+	struct aiocb * aiocbp;
+};
+struct	aio_read_args {
+	struct aiocb * aiocbp;
+};
+struct	aio_write_args {
+	struct aiocb * aiocbp;
+};
+struct	lio_listio_args {
+	int mode;
+	struct aiocb *const * acb_list;
+	int nent;
+	struct sigevent * sig;
+};
+struct	yield_args {
+	int dummy;
+};
+struct	thr_sleep_args {
+	const struct timespec * timeout;
+};
+struct	thr_wakeup_args {
+	pid_t pid;
+};
+struct	mlockall_args {
+	int how;
+};
+struct	munlockall_args {
+	int dummy;
+};
 int	nosys __P((struct proc *, struct nosys_args *, int []));
 void	exit __P((struct proc *, struct rexit_args *, int [])) __dead2;
 int	fork __P((struct proc *, struct fork_args *, int []));
@@ -973,6 +1016,18 @@ int	kldnext __P((struct proc *, struct kldnext_args *, int []));
 int	kldstat __P((struct proc *, struct kldstat_args *, int []));
 int	kldfirstmod __P((struct proc *, struct kldfirstmod_args *, int []));
 int	signanosleep __P((struct proc *, struct signanosleep_args *, int []));
+int	aio_return __P((struct proc *, struct aio_return_args *, int []));
+int	aio_suspend __P((struct proc *, struct aio_suspend_args *, int []));
+int	aio_cancel __P((struct proc *, struct aio_cancel_args *, int []));
+int	aio_error __P((struct proc *, struct aio_error_args *, int []));
+int	aio_read __P((struct proc *, struct aio_read_args *, int []));
+int	aio_write __P((struct proc *, struct aio_write_args *, int []));
+int	lio_listio __P((struct proc *, struct lio_listio_args *, int []));
+int	yield __P((struct proc *, struct yield_args *, int []));
+int	thr_sleep __P((struct proc *, struct thr_sleep_args *, int []));
+int	thr_wakeup __P((struct proc *, struct thr_wakeup_args *, int []));
+int	mlockall __P((struct proc *, struct mlockall_args *, int []));
+int	munlockall __P((struct proc *, struct munlockall_args *, int []));
 
 #ifdef COMPAT_43
 

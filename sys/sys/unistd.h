@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)unistd.h	8.2 (Berkeley) 1/7/94
- * $Id$
+ * $Id: unistd.h,v 1.13 1997/02/22 09:46:21 peter Exp $
  */
 
 #ifndef _SYS_UNISTD_H_
@@ -138,7 +138,9 @@
 #define RFCNAMEG	(1<<10) /* UNIMPL zero plan9 `name space' */
 #define RFCENVG		(1<<11) /* UNIMPL zero plan9 `env space' */
 #define RFCFDG		(1<<12) /* zero fd table */
+#define RFTHREAD	(1<<13)	/* enable kernel thread support */
 #define RFPPWAIT	(1<<31) /* parent sleeps until child exits (vfork) */
+
 #endif /* !_POSIX_SOURCE */
 
 #endif /* !_SYS_UNISTD_H_ */
