@@ -11,8 +11,7 @@ CFLAGS+=	-I${KRB5DIR}/include \
 		-I${ASN1OBJDIR} \
 		-I${.OBJDIR}
 NOMAN=		true
-.if defined(MAKE_KERBEROS4) && \
-	(${MAKE_KERBEROS4} == "YES" || ${MAKE_KERBEROS4} == "yes")
+.if defined(MAKE_KERBEROS4)
 _krb4libs=	-L${KAFS5OBJDIR} -lkafs -lkrb -lkafs5
 _krb4deps=	${LIBKAFS5} ${LIBKRB} ${LIBKAFS}
 .endif
