@@ -20,7 +20,7 @@
  *
  * Login period parsing and comparison functions.
  *
- *	$Id$
+ *	$Id: login_times.c,v 1.1 1997/01/04 16:50:08 davidn Exp $
  */
 
 #include <stdio.h>
@@ -29,6 +29,7 @@
 #include <time.h>
 #include <ctype.h>
 
+#include <sys/types.h>
 #include <login_cap.h>
 
 static struct
