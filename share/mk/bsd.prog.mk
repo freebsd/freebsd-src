@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.55 1997/08/30 23:23:17 peter Exp $
+#	$Id: bsd.prog.mk,v 1.56 1997/09/05 09:09:56 peter Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -60,7 +60,7 @@ all: objwarn ${PROG} all-man _SUBDIR
 
 .if !target(clean)
 clean: _SUBDIR
-	rm -f a.out Errs errs mklog ${PROG} ${OBJS} ${CLEANFILES} 
+	rm -f ${PROG} ${OBJS} ${CLEANFILES} 
 .if defined(CLEANDIRS) && !empty(CLEANDIRS)
 	rm -rf ${CLEANDIRS}
 .endif
@@ -72,7 +72,7 @@ _EXTRADEPEND:
 	echo ${PROG}: `${CC} -Wl,-f ${CFLAGS} ${LDFLAGS} ${LDDESTDIR} \
 	    ${LDADD:S/^/-Wl,/}` >> ${DEPENDFILE}
 .else
-.if defined(DPADD) && ${DPADD} != ""
+.if defined(DPADD) && !empty(DPADD)
 	echo ${PROG}: ${DPADD} >> ${DEPENDFILE}
 .endif
 .endif
@@ -149,7 +149,7 @@ maninstall:
 all-man:
 .endif
 
-.if ${BINFORMAT} != aout
+.if ${BINFORMAT} != aout || make(checkdpadd)
 .include <bsd.libnames.mk>
 .endif
 
