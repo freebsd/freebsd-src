@@ -23,4 +23,8 @@ INCS+=		nl_types.h
 SRCS=		dummy.c
 .endif
 
+.if defined(CROSS_BUILD_TESTING)
+SUBDIR=		cross-build
+.endif
+
 .include <bsd.lib.mk>

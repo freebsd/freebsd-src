@@ -127,12 +127,12 @@ BUILD_ARCH!=	sysctl -n hw.machine_arch
 .error To cross-build, set TARGET_ARCH.
 .endif
 .endif
-.if ${MACHINE} == ${TARGET}
+.if ${MACHINE} == ${TARGET} && !defined(CROSS_BUILD_TESTING)
 OBJTREE=	${MAKEOBJDIRPREFIX}
 .else
 OBJTREE=	${MAKEOBJDIRPREFIX}/${TARGET}
 .endif
-WORLDTMP=	${OBJTREE}${.CURDIR}/${MACHINE_ARCH}
+WORLDTMP=	${OBJTREE}${.CURDIR}/tmp
 # /usr/games added for fortune which depend on strfile
 BPATH=		${WORLDTMP}/legacy/usr/sbin:${WORLDTMP}/legacy/usr/bin:${WORLDTMP}/legacy/usr/games
 XPATH=		${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin:${WORLDTMP}/usr/games
