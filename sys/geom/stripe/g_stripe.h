@@ -76,7 +76,7 @@ struct g_stripe_softc {
 struct g_stripe_metadata {
 	char		md_magic[16];	/* Magic value. */
 	uint32_t	md_version;	/* Version number. */
-	char		md_name[16];	/* Concat name. */
+	char		md_name[16];	/* Stripe name. */
 	uint32_t	md_id;		/* Unique ID. */
 	uint16_t	md_no;		/* Disk number. */
 	uint16_t	md_all;		/* Number of all disks. */
