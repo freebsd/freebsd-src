@@ -92,9 +92,9 @@ linprocfs_domeminfo(curp, p, pfs, uio)
 	unsigned long memfree;		/* free memory in bytes */
 	unsigned long memshared;	/* shared memory ??? */
 	unsigned long buffers, cached;	/* buffer / cache memory ??? */
-	unsigned long swaptotal;	/* total swap space in bytes */
-	unsigned long swapused;		/* used swap space in bytes */
-	unsigned long swapfree;		/* free swap space in bytes */
+	unsigned long long swaptotal;	/* total swap space in bytes */
+	unsigned long long swapused;		/* used swap space in bytes */
+	unsigned long long swapfree;		/* free swap space in bytes */
 	vm_object_t object;
 
 	if (uio->uio_rw != UIO_READ)
@@ -117,8 +117,8 @@ linprocfs_domeminfo(curp, p, pfs, uio)
 		swaptotal = 0;
 		swapfree = 0;
 	} else {
-		swaptotal = swapblist->bl_blocks * 1024; /* XXX why 1024? */
-		swapfree = swapblist->bl_root->u.bmu_avail * PAGE_SIZE;
+		swaptotal = (unsigned long long) swapblist->bl_blocks * 1024ULL; /* XXX why 1024? */
+		swapfree = (unsigned long long) swapblist->bl_root->u.bmu_avail * PAGE_SIZE;
 	}
 	swapused = swaptotal - swapfree;
 	memshared = 0;
@@ -142,14 +142,14 @@ linprocfs_domeminfo(curp, p, pfs, uio)
 	ps += sprintf(ps,
 		"        total:    used:    free:  shared: buffers:  cached:\n"
 		"Mem:  %lu %lu %lu %lu %lu %lu\n"
-		"Swap: %lu %lu %lu\n"
+		"Swap: %llu %llu %llu\n"
 		"MemTotal: %9lu kB\n"
 		"MemFree:  %9lu kB\n"
 		"MemShared:%9lu kB\n"
 		"Buffers:  %9lu kB\n"
 		"Cached:   %9lu kB\n"
-		"SwapTotal:%9lu kB\n"
-		"SwapFree: %9lu kB\n",
+		"SwapTotal:%9llu kB\n"
+		"SwapFree: %9llu kB\n",
 		memtotal, memused, memfree, memshared, buffers, cached,
 		swaptotal, swapused, swapfree,
 		B2K(memtotal), B2K(memfree),
