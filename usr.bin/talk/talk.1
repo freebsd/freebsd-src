@@ -38,7 +38,7 @@
 .Nm talk
 .Nd talk to another user
 .Sh SYNOPSIS
-.Nm talk
+.Nm
 .Ar person
 .Op Ar ttyname
 .Sh DESCRIPTION
@@ -71,7 +71,7 @@ is of the form
 .El
 .Pp
 When first called,
-.Nm talk
+.Nm
 sends the message
 .Bd -literal -offset indent -compact
 Message from TalkDaemon@his_machine...
@@ -92,7 +92,7 @@ in separate windows.  Typing control-L
 will cause the screen to
 be reprinted, while your erase, kill, and word kill characters will
 behave normally.  To exit, just type your interrupt character;
-.Nm talk
+.Nm
 then moves the cursor to the bottom of the screen and restores the
 terminal to its previous state.
 .Pp
