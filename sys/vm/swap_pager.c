@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.24 1995/01/24 10:12:12 davidg Exp $
+ * $Id: swap_pager.c,v 1.25 1995/02/02 09:08:00 davidg Exp $
  */
 
 /*
@@ -283,7 +283,7 @@ swap_pager_alloc(handle, size, prot, offset)
 		 */
 		object = vm_object_allocate(size);
 		vm_object_enter(object, pager);
-		vm_object_setpager(object, pager, 0, FALSE);
+		object->pager = pager;
 	} else {
 		swp->sw_flags = 0;
 		TAILQ_INSERT_TAIL(&swap_pager_un_list, pager, pg_list);
@@ -1523,8 +1523,10 @@ swap_pager_output(swp, m, count, flags, rtvals)
 				 * during the pageout process, we activate it.
 				 */
 				if ((m[i]->flags & PG_ACTIVE) == 0 &&
-				    ((m[i]->flags & PG_WANTED) || pmap_is_referenced(VM_PAGE_TO_PHYS(m[i]))))
+				    ((m[i]->flags & (PG_WANTED|PG_REFERENCED)) ||
+				    pmap_is_referenced(VM_PAGE_TO_PHYS(m[i])))) {
 					vm_page_activate(m[i]);
+				}
 			}
 		}
 	} else {
