@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	piano
-MAN6=	piano.6
 DPADD=	${LIBCURSES}
 LDADD=	-lcurses
 

@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	rain
-MAN6=	rain.6
 DPADD=	${LIBCURSES}
 LDADD=	-lcurses
 

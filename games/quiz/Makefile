@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
+# $FreeBSD$
 
 PROG=	quiz
-MAN6=	quiz.6
 SRCS=	quiz.c rxp.c
 CATS=	africa america areas arith asia babies bard chinese collectives \
 	ed elements europe flowers greek inca index latin locomotive \
