@@ -268,7 +268,13 @@ hacks. The low end Multia has a soldered-in CPU.
 Graphics: 
 It comes with a TGA based graphics on-board. Which is not suitable for
 console use according to reports I have received. Which means you will
-either have to run it on a serial console.
+have to run it using a serial console.
+
+Floppy:
+Although the Multia SRM supports booting from floppy this is problematic. 
+Typical errors look like "*** Soft Error - Error #10 - FDC: Data overrun or
+underrun". The best available workaround to install FreeBSD is to boot from
+CDROM.
 
 Hot:
 Multias are somewhat notorious for dying of heat strokes. The very compact
