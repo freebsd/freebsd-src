@@ -26,6 +26,8 @@
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
+ *
+ * $FreeBSD$
  */
 #if !defined(lint) && defined(SCCSIDS)
 static char sccsid[] = "@(#)publickey.c 1.10 91/03/11 Copyr 1986 Sun Micro";
@@ -97,11 +99,11 @@ getpublicandprivatekey(key, ret)
 	char *mval;
 
 	fd = fopen(PKFILE, "r");
-	if (fd == (FILE *) 0)
+	if (fd == NULL)
 		return (0);
 	for (;;) {
-		res = fgets(buf, 1024, fd);
-		if (res == 0) {
+		res = fgets(buf, sizeof(buf), fd);
+		if (res == NULL) {
 			fclose(fd);
 			return (0);
 		}
@@ -140,13 +142,15 @@ getpublicandprivatekey(key, ret)
 			continue;
 #endif /* YP */
 		} else {
-			mkey = strtok(buf, "\t ");
+			mkey = strsep(&res, "\t ");
 			if (mkey == NULL) {
 				fprintf(stderr,
 				"Bad record in %s -- %s", PKFILE, buf);
 				continue;
 			}
-			mval = strtok((char *)NULL, " \t#\n");
+			do {
+				mval = strsep(&res, " \t#\n");
+			} while (mval != NULL && !*mval);
 			if (mval == NULL) {
 				fprintf(stderr,
 			"Bad record in %s val problem - %s", PKFILE, buf);
