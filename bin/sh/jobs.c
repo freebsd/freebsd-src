@@ -978,7 +978,7 @@ dowait(int block, struct job *job)
 					out1str(" (core dumped)");
 				out1c('\n');
 			} else
-				showjob(thisjob, pid, 0, 1);
+				showjob(thisjob, pid, 0, 0);
 		}
 	} else {
 		TRACE(("Not printing status, rootshell=%d, job=0x%x\n", rootshell, job));
