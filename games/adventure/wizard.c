@@ -57,8 +57,7 @@ static const char rcsid[] =
 static int wizard (void);
 
 void
-datime(d,t)
-int *d,*t;
+datime(int *d, int *t)
 {       struct tm *tptr;
 	time_t tvec;
 
@@ -78,14 +77,14 @@ int *d,*t;
 char magic[6];
 
 void
-poof()
+poof(void)
 {
 	strcpy(magic, DECR('d','w','a','r','f'));
 	latncy = 45;
 }
 
 int
-Start()
+Start(void)
 {       int d,t,delay;
 
 	datime(&d,&t);
@@ -111,7 +110,7 @@ Start()
 }
 
 static int
-wizard()                /* not as complex as advent/10 (for now)        */
+wizard(void)            /* not as complex as advent/10 (for now)        */
 {
 	char *word,*x;
 	if (!yesm(16,0,7)) return(FALSE);
@@ -126,7 +125,7 @@ wizard()                /* not as complex as advent/10 (for now)        */
 }
 
 void
-ciao()
+ciao(void)
 {       char *c;
 	char fname[80];
 
@@ -148,8 +147,7 @@ ciao()
 
 
 int
-ran(range)
-int range;
+ran(int range)
 {
 	int i;
 

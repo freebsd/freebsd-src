@@ -60,15 +60,16 @@ int setbit[16] = {1,2,4,010,020,040,0100,0200,0400,01000,02000,04000,
 static void linkdata (void);
 
 void
-init()                                  /* everything for 1st time run  */
+init(void)                              /* everything for 1st time run  */
 {
 	rdata();                        /* read data from orig. file    */
 	linkdata();
 	poof();
 }
 
-char *decr(a,b,c,d,e)
-const unsigned char a,b,c,d,e;
+char *
+decr(const unsigned char a, const unsigned char b, const unsigned char c,
+     const unsigned char d, const unsigned char e)
 {
 	static char buf[6];
 
@@ -82,7 +83,7 @@ const unsigned char a,b,c,d,e;
 }
 
 static void
-linkdata()                              /*  secondary data manipulation */
+linkdata(void)                          /*  secondary data manipulation */
 {       int i,j;
 
 	/*      array linkages          */
@@ -204,8 +205,7 @@ linkdata()                              /*  secondary data manipulation */
 
 
 void
-trapdel(sig)                            /* come here if he hits a del   */
-int sig;
+trapdel(int sig)                        /* come here if he hits a del   */
 {	
 	sig = 0;
 	delhit = 1;			/* main checks, treats as QUIT  */
@@ -214,7 +214,7 @@ int sig;
 
 
 void
-startup()
+startup(void)
 {
 	demo=Start();
 	srandomdev();

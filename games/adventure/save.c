@@ -121,9 +121,10 @@ struct savestruct save_array[] =
 	{NULL,   0}
 };
 
+/* Two passes on data: first to get checksum, second */
+/* to output the data using checksum to start random #s */
 int
-save(outfile)   /* Two passes on data: first to get checksum, second */
-const char *outfile;  /* to output the data using checksum to start random #s */
+save(const char *outfile)
 {
 	FILE *out;
 	struct savestruct *p;
@@ -156,8 +157,7 @@ const char *outfile;  /* to output the data using checksum to start random #s */
 }
 
 int
-restore(infile)
-const char *infile;
+restore(const char *infile)
 {
 	FILE *in;
 	struct savestruct *p;
