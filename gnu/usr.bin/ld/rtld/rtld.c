@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.8 1993/12/04 00:53:16 jkh Exp $
+ *	$Id: rtld.c,v 1.9 1993/12/09 17:45:43 jkh Exp $
  */
 
 #include <machine/vmparam.h>
@@ -933,7 +933,7 @@ int	*usehints;
 
 	if (!HINTS_VALID || !(*usehints)) {
 		*usehints = 0;
-		return (char *)findshlib(name, &major, &minor);
+		return (char *)findshlib(name, &major, &minor, 0);
 	}
 
 	if (ld_path != NULL) {
@@ -955,7 +955,7 @@ int	*usehints;
 
 	/* No hints available for name */
 	*usehints = 0;
-	return (char *)findshlib(name, &major, &minor);
+	return (char *)findshlib(name, &major, &minor, 0);
 }
 
 static int
