@@ -421,8 +421,8 @@ spec_fsync(ap)
 	struct vnode *vp = ap->a_vp;
 	struct buf *bp;
 	struct buf *nbp;
-	int s;
-	int maxretry = 10000;	/* large, arbitrarily chosen */
+	int s, error = 0;
+	int maxretry = 100;	/* large, arbitrarily chosen */
 
 	if (!vn_isdisk(vp, NULL))
 		return (0);
@@ -435,6 +435,7 @@ loop1:
 	s = splbio();
         TAILQ_FOREACH(bp, &vp->v_dirtyblkhd, b_vnbufs) {
                 bp->b_flags &= ~B_SCANNED;
+		bp->b_error = 0;
 	}
 	splx(s);
 
@@ -481,16 +482,25 @@ loop2:
 			    PRIBIO + 1, "spfsyn", 0);
 		}
 		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
-			if (--maxretry != 0) {
+			/*
+			 * If we are unable to write any of these buffers
+			 * then we fail now rather than trying endlessly
+			 * to write them out.
+			 */
+			TAILQ_FOREACH(bp, &vp->v_dirtyblkhd, b_vnbufs)
+				if ((error = bp->b_error) == 0)
+					continue;
+			if (error == 0 && --maxretry >= 0) {
 				splx(s);
 				goto loop1;
 			}
 			vprint("spec_fsync: giving up on dirty", vp);
+			error = EAGAIN;
 		}
 	}
 	VI_UNLOCK(vp);
 	splx(s);
-	return (0);
+	return (error);
 }
 
 /*
