@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.17 1995/12/02 18:58:46 bde Exp $
+ * $Id: kern_descrip.c,v 1.18 1995/12/04 16:48:24 phk Exp $
  */
 
 #include <sys/param.h>
@@ -57,6 +57,8 @@
 #include <sys/malloc.h>
 #include <sys/unistd.h>
 #include <sys/resourcevar.h>
+
+#include <vm/vm.h>
 
 #ifdef JREMOD
 #include <sys/conf.h>
