@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.72 1998/04/06 06:52:41 phk Exp $
+ *	$Id: tcp_input.c,v 1.73 1998/04/17 22:36:59 des Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -82,7 +82,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_in_vain, CTLFLAG_RW,
 	&log_in_vain, 0, "");
 
 int tcp_delack_enabled = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, delack_enabled, CTLFLAG_RW, 
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, delayed_ack, CTLFLAG_RW, 
 	&tcp_delack_enabled, 0, "");
 
 u_long	tcp_now;
