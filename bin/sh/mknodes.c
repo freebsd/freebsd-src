@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mknodes.c,v 1.2 1994/09/24 02:57:55 davidg Exp $
+ *	$Id: mknodes.c,v 1.3 1996/09/01 10:20:51 peter Exp $
  */
 
 #ifndef lint
@@ -119,7 +119,7 @@ main(argc, argv)
 	char **argv;
 {
 	if (argc != 3)
-		error("usage: mknodes file\n");
+		error("usage: mknodes file");
 	if ((infp = fopen(argv[1], "r")) == NULL)
 		error("Can't open %s", argv[1]);
 	while (readline()) {
