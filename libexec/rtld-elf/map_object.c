@@ -309,6 +309,7 @@ obj_free(Obj_Entry *obj)
 	STAILQ_REMOVE_HEAD(&obj->dagmembers, link);
 	free(elm);
     }
+    free(obj->origin_path);
     free(obj->priv);
     free(obj);
 }

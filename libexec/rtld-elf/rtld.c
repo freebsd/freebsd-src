@@ -602,6 +602,7 @@ digest_dynamic(Obj_Entry *obj, int early)
 	    break;
 
 	case DT_RPATH:
+	case DT_RUNPATH:	/* XXX: process separately */
 	    /*
 	     * We have to wait until later to process this, because we
 	     * might not have gotten the address of the string table yet.
@@ -626,6 +627,22 @@ digest_dynamic(Obj_Entry *obj, int early)
 	    if (!early)
 		dbg("Filling in DT_DEBUG entry");
 	    ((Elf_Dyn*)dynp)->d_un.d_ptr = (Elf_Addr) &r_debug;
+	    break;
+
+	case DT_FLAGS:
+		if (dynp->d_un.d_val & DF_ORIGIN) {
+		    obj->origin_path = xmalloc(PATH_MAX);
+		    if (rtld_dirname(obj->path, obj->origin_path) == -1)
+			die();
+		}
+		if (dynp->d_un.d_val & DF_SYMBOLIC)
+		    obj->symbolic = true;
+		if (dynp->d_un.d_val & DF_TEXTREL)
+		    obj->textrel = true;
+		if (dynp->d_un.d_val & DF_BIND_NOW)
+		    obj->bind_now = true;
+		if (dynp->d_un.d_val & DF_STATIC_TLS)
+		    ;
 	    break;
 
 	default:
@@ -1401,7 +1418,7 @@ relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj)
 	if (reloc_plt(obj) == -1)
 	    return -1;
 	/* Relocate the jump slots if we are doing immediate binding. */
-	if (bind_now)
+	if (obj->bind_now || bind_now)
 	    if (reloc_jmpslots(obj) == -1)
 		return -1;
 
