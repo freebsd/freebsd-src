@@ -1,6 +1,7 @@
 -------------------------------------------------------------------------------
 Recent versions of 3.0-current have the bktr driver built in.  Older versions
-of 3.0 and all versions of 2.2 need to have the driver files installed by hand:
+of 3.0 and all versions of 2.2 previous to 2.2.5 need to have the driver
+files installed by hand:
 
 cp ioctl_bt848.h /sys/i386/include/
 cp brktree_reg.h brooktree848.c /sys/pci/
