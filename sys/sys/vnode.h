@@ -64,7 +64,7 @@ enum vtype	{ VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO, VBAD };
 enum vtagtype	{
 	VT_NON, VT_UFS, VT_NFS, VT_MFS, VT_PC, VT_LFS, VT_LOFS, VT_FDESC,
 	VT_PORTAL, VT_NULL, VT_UMAP, VT_KERNFS, VT_PROCFS, VT_AFS, VT_ISOFS,
-	VT_UNION, VT_MSDOSFS, VT_DEVFS, VT_TFS, VT_VFS, VT_CODA, VT_NTFS,
+	VT_UNION, VT_MSDOSFS, VT_TFS, VT_VFS, VT_CODA, VT_NTFS,
 	VT_HPFS, VT_NWFS, VT_SMBFS
 };
 
@@ -428,8 +428,7 @@ struct vop_generic_args {
 				 || (vp)->v_tag == VT_NFS	\
 				 || (vp)->v_tag == VT_LFS	\
 				 || (vp)->v_tag == VT_ISOFS	\
-				 || (vp)->v_tag == VT_MSDOSFS	\
-				 || (vp)->v_tag == VT_DEVFS)
+				 || (vp)->v_tag == VT_MSDOSFS)
 
 #define ASSERT_VOP_LOCKED(vp, str)					\
 do {									\

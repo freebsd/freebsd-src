@@ -30,7 +30,7 @@
 .Sh NAME
 .Nm make_dev ,
 .Nm destroy_dev
-.Nd "Create or destroy dev_t and devfs registration for a new device"
+.Nd "Create or destroy dev_t for a new device"
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/conf.h>
@@ -43,8 +43,8 @@ The
 .Fn make_dev
 function creates a
 .Fa dev_t
-structure for a new device.  If DEVFS is available, it is also notified of
-the presence of the new device.  The device will be owned by
+structure for a new device.
+The device will be owned by
 .Va uid ,
 with the group ownership as
 .Va gid ,

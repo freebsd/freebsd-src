@@ -603,12 +603,6 @@ if [ -r /etc/rc.syscons ]; then
 	. /etc/rc.syscons
 fi
 
-# Run rc.devfs if readable to customize devfs
-#
-if [ -r /etc/rc.devfs ]; then
-	sh /etc/rc.devfs
-fi
-
 echo -n 'Additional ABI support:'
 
 # Start the Linux binary compatibility if requested.

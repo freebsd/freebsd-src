@@ -61,18 +61,6 @@
 #include <sys/proc.h>
 #include <sys/tty.h>
 
-#ifdef __FreeBSD__
-
-#if defined(__FreeBSD__) && __FreeBSD__ == 3
-#include "opt_devfs.h"
-#endif
-
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
-
-#endif /* __FreeBSD__ */
-
 #ifdef __bsdi__
 #include <sys/device.h>
 #endif
@@ -136,13 +124,6 @@ typedef struct {
 #define ST_WRWAITEMPTY	0x08		/* userland write waiting */
 
 	struct selinfo		selp;		/* select / poll */
-
-#if defined(__FreeBSD__) && __FreeBSD__ == 3
-#ifdef DEVFS
-        void                    *devfs_token;   /* token for DEVFS */
-#endif
-#endif
-
 } tel_sc_t;
 
 static tel_sc_t tel_sc[NI4BTEL][NOFUNCS];
@@ -316,17 +297,6 @@ i4btelattach()
 			tel_sc[i][j].result = 0;
 
 #if defined(__FreeBSD__)
-#if __FreeBSD__ == 3
-
-#ifdef DEVFS
-
-/* XXX */  		tel_sc[i][j].devfs_token
-		  		= devfs_add_devswf(&i4btel_cdevsw, i, DV_CHR,
-				     UID_ROOT, GID_WHEEL, 0600,
-				     "i4btel%d", i);
-#endif
-
-#else
 			switch(j)
 			{
 				case FUNCTEL:	/* normal i4btel device */
@@ -341,7 +311,6 @@ i4btelattach()
 						0600, "i4bteld%d", i);
 					break;
 			}
-#endif
 #endif
 		}
 		tel_init_linktab(i);		

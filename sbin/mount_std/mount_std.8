@@ -41,7 +41,6 @@
 .Os FreeBSD
 .Sh NAME
 .Nm mount_std ,
-.Nm mount_devfs ,
 .Nm mount_fdesc ,
 .Nm mount_kernfs ,
 .Nm mount_linprocfs ,
@@ -59,7 +58,6 @@ command is a generic mechanism for attaching ``standard'' filesystems to
 the filesystem.  The
 .Nm
 command currently supports the following filesystems:
-.Nm devfs ,
 .Nm fdesc ,
 .Nm kernfs ,
 .Nm linprocfs
@@ -120,7 +118,6 @@ command.
 .Pp
 Refer to the following manual pages for detailed information
 on these file system:
-.Xr devfs 5 ,
 .Xr fdesc 5 ,
 .Xr kernfs 5 ,
 .Xr linprocfs 5
@@ -144,7 +141,6 @@ loadable module for it was found.
 .Xr mount 2 ,
 .Xr unmount 2 ,
 .Xr getvfsbyname 3 ,
-.Xr devfs 5 ,
 .Xr fdesc 5 ,
 .Xr fstab 5 ,
 .Xr kernfs 5 ,
@@ -167,10 +163,6 @@ and
 .Dq procfs
 filesystem types first appeared in
 .Fx 2.0 ;
-the
-.Dq devfs
-filesystem type first appeared in
-.Fx 2.2 ;
 the
 .Dq linprocfs
 filesystem type first appeared in

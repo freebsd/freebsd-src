@@ -134,8 +134,6 @@ enum { AUTOBOOT, FASTBOOT } runcom_mode = AUTOBOOT;
 int Reboot = FALSE;
 int howto = RB_AUTOBOOT;
 
-int devfs;
-
 void transition __P((state_t));
 state_t requested_transition = runcom;
 
@@ -264,11 +262,8 @@ invalid:
 	 * This code assumes that we always get arguments through flags,
 	 * never through bits set in some random machine register.
 	 */
-	while ((c = getopt(argc, argv, "dsf")) != -1)
+	while ((c = getopt(argc, argv, "sf")) != -1)
 		switch (c) {
-		case 'd':
-			devfs = 1;
-			break;
 		case 's':
 			requested_transition = single_user;
 			break;
@@ -282,10 +277,6 @@ invalid:
 
 	if (optind != argc)
 		warning("ignoring excess arguments");
-
-	if (devfs) {
-		mount("devfs", _PATH_DEV, MNT_NOEXEC|MNT_RDONLY, 0);
-	}
 
 	/*
 	 * We catch or block signals rather than ignore them,

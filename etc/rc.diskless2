@@ -76,12 +76,7 @@ if [ ! -h /tmp ]; then
 	mount_md ${tmpsize:=20480} /tmp 2
 fi
 
-if sysctl vfs.devfs.generation > /dev/null 2>&1 ; then
-	# we have DEVFS, no worries...
-	true
-else
-	# extract a list of device entries, then copy them to a writable fs
-	(cd /; find -x dev | cpio -o -H newc) > /tmp/dev.tmp
-	mount_md 4096 /dev 3 512
-	(cd /; cpio -i -H newc -d < /tmp/dev.tmp)
-fi
+# extract a list of device entries, then copy them to a writable fs
+(cd /; find -x dev | cpio -o -H newc) > /tmp/dev.tmp
+mount_md 4096 /dev 3 512
+(cd /; cpio -i -H newc -d < /tmp/dev.tmp)
