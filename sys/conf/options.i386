@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.71 1998/02/03 22:08:59 bde Exp $
+#	$Id: options.i386,v 1.72 1998/02/11 16:22:30 yokota Exp $
 
 BOUNCEPAGES		opt_bounce.h
 DISABLE_PSE
@@ -118,3 +118,5 @@ PCVT_SCANSET		opt_pcvt.h
 PCVT_SCREENSAVER	opt_pcvt.h
 PCVT_USEKBDSEC		opt_pcvt.h
 PCVT_VT220KEYB		opt_pcvt.h
+
+LPT_DEBUG		opt_lpt.h
