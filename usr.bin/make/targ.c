@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 1989 by Berkeley Softworks
@@ -80,11 +80,18 @@ __FBSDID("$FreeBSD$");
  *	    	  	    	print something for suffixes, too, but...
  */
 
-#include	  <stdio.h>
-#include	  <time.h>
-#include	  "make.h"
-#include	  "hash.h"
-#include	  "dir.h"
+#include <stdio.h>
+#include <string.h>
+
+#include "dir.h"
+#include "globals.h"
+#include "GNode.h"
+#include "hash.h"
+#include "make.h"
+#include "suff.h"
+#include "targ.h"
+#include "util.h"
+#include "var.h"
 
 /* the list of all targets found so far */
 static Lst allTargets = Lst_Initializer(allTargets);

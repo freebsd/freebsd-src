@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 1989 by Berkeley Softworks
@@ -73,10 +73,19 @@ __FBSDID("$FreeBSD$");
  *				and perform the .USE actions if so.
  */
 
-#include    "make.h"
-#include    "hash.h"
-#include    "dir.h"
-#include    "job.h"
+#include <stdlib.h>
+
+#include "arch.h"
+#include "config.h"
+#include "dir.h"
+#include "globals.h"
+#include "GNode.h"
+#include "job.h"
+#include "make.h"
+#include "suff.h"
+#include "targ.h"
+#include "util.h"
+#include "var.h"
 
 /* The current fringe of the graph. These are nodes which await examination
  * by MakeOODate. It is added to by Make_Update and subtracted from by

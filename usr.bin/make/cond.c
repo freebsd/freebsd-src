@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 1988, 1989 by Adam de Boor
@@ -51,12 +51,21 @@ __FBSDID("$FreeBSD$");
  *
  */
 
-#include    <ctype.h>
-#include    <math.h>
-#include    "make.h"
-#include    "hash.h"
-#include    "dir.h"
-#include    "buf.h"
+#include <ctype.h>
+#include <string.h>
+#include <stdlib.h>
+
+#include "cond.h"
+#include "dir.h"
+#include "globals.h"
+#include "GNode.h"
+#include "make.h"
+#include "parse.h"
+#include "sprite.h"
+#include "str.h"
+#include "targ.h"
+#include "util.h"
+#include "var.h"
 
 /*
  * The parsing of conditional expressions is based on this grammar:

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2002 Juli Mallett.
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -42,13 +42,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include    <ctype.h>
-#include    <sys/types.h>
-#include    <regex.h>
-#include    <stdlib.h>
-#include    "make.h"
-#include    "buf.h"
-#include    "var.h"
+#include <ctype.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "buf.h"
+#include "config.h"
+#include "str.h"
+#include "util.h"
+#include "var.h"
 
 /*-
  *-----------------------------------------------------------------------

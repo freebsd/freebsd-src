@@ -46,7 +46,10 @@ __FBSDID("$FreeBSD$");
  *	Insert a new datum before an old one
  */
 
+#include <stdio.h>
+
 #include "make.h"
+#include "util.h"
 #include "lst.h"
 
 /*-

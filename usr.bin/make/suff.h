@@ -1,6 +1,11 @@
 /*-
- * Copyright (c) 1990, 1993
+ * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1989 by Berkeley Softworks
+ * All rights reserved.
+ *
+ * This code is derived from software contributed to Berkeley by
+ * Adam de Boor.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,7 +15,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -26,27 +35,26 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)pathnames.h	8.2 (Berkeley) 4/28/95
  * $FreeBSD$
  */
 
-#ifndef pathnames_h_235b888a
-#define	pathnames_h_235b888a
+#ifndef suff_h_2d5a821c
+#define	suff_h_2d5a821c
 
-#ifndef _PATH_OBJDIR
-#define	_PATH_OBJDIR		"obj"
-#endif /* ! _PATH_OBJDIR */
-#ifndef _PATH_OBJDIRPREFIX
-#define	_PATH_OBJDIRPREFIX	"/usr/obj"
-#endif /* ! _PATH_OBJDIRPREFIX */
-#ifndef _PATH_DEFSHELLDIR
-#define	_PATH_DEFSHELLDIR	"/bin"
-#endif /* ! _PATH_DEFSHELLDIR */
-#ifndef _PATH_DEFSYSMK
-#define	_PATH_DEFSYSMK		"sys.mk"
-#endif /* ! _PATH_DEFSYSMK */
-#ifndef _PATH_DEFSYSPATH
-#define	_PATH_DEFSYSPATH	"/usr/share/mk"
-#endif /* ! _PATH_DEFSYSPATH */
+struct GNode;
 
-#endif /* pathnames_h_235b888a */
+void Suff_ClearSuffixes(void);
+Boolean Suff_IsTransform(char *);
+struct GNode *Suff_AddTransform(char *);
+int Suff_EndTransform(void *, void *);
+void Suff_AddSuffix(char *);
+Lst *Suff_GetPath(char *);
+void Suff_DoPaths(void);
+void Suff_AddInclude(char *);
+void Suff_AddLib(char *);
+void Suff_FindDeps(struct GNode *);
+void Suff_SetNull(char *);
+void Suff_Init(void);
+void Suff_PrintAll(void);
+
+#endif /* suff_h_2d5a821c */

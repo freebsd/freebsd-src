@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 1988, 1989 by Adam de Boor
@@ -49,10 +49,14 @@ __FBSDID("$FreeBSD$");
  * 	table.  Hash tables grow automatically as the amount of
  * 	information increases.
  */
+
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
-#include "sprite.h"
-#include "make.h"
+
 #include "hash.h"
+#include "sprite.h"
+#include "util.h"
 
 /*
  * Forward references to local procedures that are used before they're

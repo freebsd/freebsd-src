@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 1989 by Berkeley Softworks
@@ -87,19 +87,26 @@ __FBSDID("$FreeBSD$");
  *	Arch_Init 	    	Initialize this module.
  */
 
-#include    <sys/types.h>
-#include    <sys/stat.h>
-#include    <sys/time.h>
-#include    <sys/param.h>
-#include    <ctype.h>
-#include    <ar.h>
-#include    <utime.h>
-#include    <stdio.h>
-#include    <stdlib.h>
-#include    "make.h"
-#include    "hash.h"
-#include    "dir.h"
-#include    "config.h"
+#include <sys/param.h>
+#include <sys/types.h>
+#include <ar.h>
+#include <ctype.h>
+#include <regex.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <utime.h>
+
+#include "arch.h"
+#include "config.h"
+#include "dir.h"
+#include "globals.h"
+#include "GNode.h"
+#include "hash.h"
+#include "make.h"
+#include "targ.h"
+#include "util.h"
+#include "var.h"
 
 /* Lst of archives we've already examined */
 static Lst archives = Lst_Initializer(archives);
@@ -142,7 +149,7 @@ ReturnStatus
 Arch_ParseArchive(char **linePtr, Lst *nodeLst, GNode *ctxt)
 {
     char            *cp;	    /* Pointer into line */
-    GNode	    *gn;     	    /* New node */
+    GNode	    *gn;	    /* New node */
     char	    *libName;  	    /* Library-part of specification */
     char	    *memName;  	    /* Member-part of specification */
     char	    *nameBuf;	    /* temporary place for node name */
@@ -983,7 +990,7 @@ int
 Arch_MemMTime(GNode *gn)
 {
     LstNode 	  *ln;
-    GNode   	  *pgn;
+    GNode	  *pgn;
     char    	  *nameStart,
 		  *nameEnd;
 

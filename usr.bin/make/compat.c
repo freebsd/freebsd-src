@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 1988, 1989 by Adam de Boor
@@ -55,18 +55,27 @@ __FBSDID("$FreeBSD$");
  *	    	  	    thems as need creatin'
  */
 
-#include    <stdio.h>
-#include    <sys/types.h>
-#include    <sys/stat.h>
-#include    <sys/wait.h>
-#include    <ctype.h>
-#include    <errno.h>
-#include    <signal.h>
-#include    <unistd.h>
-#include    "make.h"
-#include    "hash.h"
-#include    "dir.h"
-#include    "job.h"
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <ctype.h>
+#include <errno.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#include "compat.h"
+#include "config.h"
+#include "dir.h"
+#include "globals.h"
+#include "GNode.h"
+#include "job.h"
+#include "make.h"
+#include "str.h"
+#include "suff.h"
+#include "targ.h"
+#include "util.h"
+#include "var.h"
 
 /*
  * The following array is used to make a fast determination of which
@@ -586,7 +595,7 @@ CompatMake(void *gnp, void *pgnp)
 	     * To force things that depend on FRC to be made, so we have to
 	     * check for gn->children being empty as well...
 	     */
-	    if (!Lst_IsEmpty(&gn->commands) || Lst_IsEmpty(gn->children)) {
+	    if (!Lst_IsEmpty(&gn->commands) || Lst_IsEmpty(&gn->children)) {
 		gn->mtime = now;
 	    }
 #else

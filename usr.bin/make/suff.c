@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 1989 by Berkeley Softworks
@@ -90,10 +90,22 @@ __FBSDID("$FreeBSD$");
  *	    	  	    	if the target had no implicit sources.
  */
 
-#include    	  <stdio.h>
-#include	  "make.h"
-#include	  "hash.h"
-#include	  "dir.h"
+#include <string.h>
+#include <stdlib.h>
+
+#include "arch.h"
+#include "config.h"
+#include "dir.h"
+#include "globals.h"
+#include "GNode.h"
+#include "lst.h"
+#include "make.h"
+#include "parse.h"
+#include "str.h"
+#include "suff.h"
+#include "targ.h"
+#include "util.h"
+#include "var.h"
 
 /* Lst of suffixes */
 static Lst sufflist = Lst_Initializer(sufflist);

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 1989 by Berkeley Softworks
@@ -81,16 +81,30 @@ __FBSDID("$FreeBSD$");
  *	Parse_MainName	    	    Returns a Lst of the main target to create.
  */
 
-#include <stdarg.h>
 #include <ctype.h>
+#include <stdarg.h>
+#include <string.h>
+#include <stdlib.h>
 #include <err.h>
-#include <stdio.h>
-#include "make.h"
-#include "hash.h"
-#include "dir.h"
-#include "job.h"
+
+#include "arch.h"
 #include "buf.h"
+#include "cond.h"
+#include "config.h"
+#include "dir.h"
+#include "for.h"
+#include "globals.h"
+#include "GNode.h"
+#include "job.h"
+#include "make.h"
+#include "nonints.h"
+#include "parse.h"
 #include "pathnames.h"
+#include "str.h"
+#include "suff.h"
+#include "targ.h"
+#include "util.h"
+#include "var.h"
 
 /*
  * These values are returned by ParseEOF to tell Parse_File whether to
