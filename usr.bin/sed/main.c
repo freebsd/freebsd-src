@@ -116,9 +116,7 @@ static int inplace_edit(char **);
 static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int c, fflag;
 	char *temp_arg;
@@ -183,7 +181,7 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n",
 		"usage: sed script [-Ean] [-i extension] [file ...]",
@@ -196,10 +194,7 @@ usage()
  * together.  Empty strings and files are ignored.
  */
 char *
-cu_fgets(buf, n, more)
-	char *buf;
-	int n;
-	int *more;
+cu_fgets(char *buf, int n, int *more)
 {
 	static enum {ST_EOF, ST_FILE, ST_STRING} state = ST_EOF;
 	static FILE *f;		/* Current open file */
@@ -295,9 +290,7 @@ again:
  * Set len to the length of the line.
  */
 int
-mf_fgets(sp, spflag)
-	SPACE *sp;
-	enum e_spflag spflag;
+mf_fgets(SPACE *sp, enum e_spflag spflag)
 {
 	size_t len;
 	char *p;
@@ -373,9 +366,7 @@ mf_fgets(sp, spflag)
  * Add a compilation unit to the linked list
  */
 static void
-add_compunit(type, s)
-	enum e_cut type;
-	char *s;
+add_compunit(enum e_cut type, char *s)
 {
 	struct s_compunit *cu;
 
@@ -392,8 +383,7 @@ add_compunit(type, s)
  * Add a file to the linked list
  */
 static void
-add_file(s)
-	char *s;
+add_file(char *s)
 {
 	struct s_flist *fp;
 
@@ -409,8 +399,7 @@ add_file(s)
  * Modify a pointer to a filename for inplace editing and reopen stdout
  */
 static int
-inplace_edit(filename)
-	char **filename;
+inplace_edit(char **filename)
 {
 	struct stat orig;
 	char backup[MAXPATHLEN];
