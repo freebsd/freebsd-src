@@ -1,4 +1,4 @@
-.\"	$NetBSD: stat.1,v 1.4 2002/05/09 17:52:03 atatat Exp $
+.\"	$NetBSD: stat.1,v 1.5 2002/07/08 18:48:42 atatat Exp $
 .\"
 .\" Copyright (c) 2002 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -40,7 +40,8 @@
 .Dt STAT 1
 .Os
 .Sh NAME
-.Nm stat
+.Nm stat ,
+.Nm readlink
 .Nd display file status
 .Sh SYNOPSIS
 .Nm
@@ -48,11 +49,15 @@
 .Oo
 .Fl f Ar format |
 .Fl l |
+.Fl q |
 .Fl r |
 .Fl s |
 .Fl x
 .Oc
 .Op Fl t Ar timefmt
+.Op Ar
+.Nm readlink
+.Op Fl n
 .Op Ar
 .Sh DESCRIPTION
 The
@@ -64,6 +69,13 @@ all directories listed in the path name leading to the file must be
 searchable.  If no argument is given,
 .Nm
 displays information about the file descriptor for standard input.
+.Pp
+When invoked as
+.Nm readlink ,
+only the target of the symbolic link is printed.  If the given argument
+is not a symbolic link,
+.Nm readlink
+will print nothing and exit with an error.
 .Pp
 The information displayed is obtained by calling
 .Xr lstat 2
@@ -102,6 +114,9 @@ for a description of valid formats.
 Display output in
 .Ic ls Fl lT
 format.
+.It Fl q
+Suppress failure messages from
+.Xr stat 2 .
 .It Fl r
 Display raw information.  That is, for all the fields in the stat-structure,
 display the raw, numerical value (for example, times in seconds since the
