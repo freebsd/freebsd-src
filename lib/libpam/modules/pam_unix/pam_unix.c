@@ -668,15 +668,14 @@ yp_passwd(const char *user, const char *pass)
 		syslog(LOG_ERR, "cannot set password cipher");
 	login_close(lc);
 	/* Salt suitable for anything */
-	srandomdev();
 	gettimeofday(&tv, 0);
-	to64(&salt[0], random(), 3);
-	to64(&salt[3], tv.tv_usec, 3);
-	to64(&salt[6], tv.tv_sec, 2);
-	to64(&salt[8], random(), 5);
-	to64(&salt[13], random(), 5);
-	to64(&salt[17], random(), 5);
-	to64(&salt[22], random(), 5);
+	to64(&salt[0], (tv.tv_sec ^ random()) * tv.tv_usec, 3);
+	to64(&salt[3], (getpid() ^ random()) * tv.tv_usec, 2);
+	to64(&salt[5], (getppid() ^ random()) * tv.tv_usec, 3);
+	to64(&salt[8], (getuid() ^ random()) * tv.tv_usec, 5);
+	to64(&salt[13], (getgid() ^ random()) * tv.tv_usec, 5);
+	to64(&salt[17], random() * tv.tv_usec, 5);
+	to64(&salt[22], random() * tv.tv_usec, 5);
 	salt[27] = '\0';
 
 	if (suser_override)
