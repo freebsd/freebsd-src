@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.227.2.24 1997/07/10 02:30:28 asami Exp $
+# $Id: bsd.port.mk,v 1.227.2.25 1997/07/17 17:53:43 markm Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -792,7 +792,11 @@ all: build
 .endif
 
 .if !defined(DEPENDS_TARGET)
+.if make(reinstall)
+DEPENDS_TARGET=	reinstall
+.else
 DEPENDS_TARGET=	install
+.endif
 .endif
 
 ################################################################
@@ -1114,7 +1118,13 @@ _PORT_USE: .USE
 .if make(real-install)
 .if !defined(NO_MTREE)
 	@if [ `id -u` = 0 ]; then \
-		${MTREE_CMD} ${MTREE_ARGS} ${PREFIX}/; \
+		if [ ! -f ${MTREE_FILE} ]; then \
+			${ECHO_MSG} "Error: mtree file \"${MTREE_FILE}\" is missing."; \
+			${ECHO_MSG} "Copy it from a suitable location (e.g., /usr/src/etc/mtree) and try again."; \
+			exit 1; \
+		else \
+			${MTREE_CMD} ${MTREE_ARGS} ${PREFIX}/; \
+		fi; \
 	else \
 		${ECHO_MSG} "Warning: not superuser, can't run mtree."; \
 		${ECHO_MSG} "Become root and try again to ensure correct permissions."; \
@@ -1253,7 +1263,7 @@ checkpatch:
 .if !target(reinstall)
 reinstall:
 	@${RM} -f ${INSTALL_COOKIE} ${PACKAGE_COOKIE}
-	@${MAKE} install
+	@DEPENDS_TARGET=${DEPENDS_TARGET} ${MAKE} install
 .endif
 
 ################################################################
