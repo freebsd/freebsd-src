@@ -480,6 +480,7 @@ UKBD_DEBUG		opt_usb.h
 ULPT_DEBUG		opt_usb.h
 UMASS_DEBUG		opt_usb.h
 UMS_DEBUG		opt_usb.h
+UVSCOM_DEFAULT_OPKTSIZE	opt_uvscom.h
 
 # Vinum options
 VINUMDEBUG		opt_vinum.h
