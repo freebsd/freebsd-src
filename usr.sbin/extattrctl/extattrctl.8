@@ -40,7 +40,7 @@
 .Ar path
 .Nm extattrctl
 .Cm initattr
-.Op Fl o
+.Op Fl f
 .Op Fl p Ar path
 .Ar attrsize
 .Ar attrfile
@@ -76,7 +76,7 @@ Stop extended attribute support on the file system named using
 Extended attribute support must previously have been started.
 .It Xo
 .Cm initattr
-.Op Fl o
+.Op Fl f
 .Op Fl p Ar path
 .Ar attrsize attrfile
 .Xc
@@ -87,7 +87,7 @@ as well as the file where the attribute will be stored, using
 .Ar attrfile .
 .Pp
 The
-.Fl o
+.Fl f
 argument may be used to indicate that it is alright to overwrite an
 existing attribute backing file; otherwise, if the target file exists,
 an error will be returned.
