@@ -612,7 +612,7 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 	/*
 	 * Try to run the syscall without Giant if the syscall is MP safe.
 	 */
-	if ((callp->sys_narg & SYS_MPSAFE) == 0)
+	if ((callp->sy_narg & SYF_MPSAFE) == 0)
 		mtx_lock(&Giant);
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSCALL))
