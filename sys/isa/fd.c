@@ -568,6 +568,9 @@ fd_read_status(fdc_p fdc, int fdsu)
 /*                      autoconfiguration stuff                             */
 /****************************************************************************/
 
+/*
+ * fdc controller section.
+ */
 static int
 fdc_probe(device_t dev)
 {
@@ -760,6 +763,34 @@ fdc_print_child(device_t me, device_t child)
 	return (retval);
 }
 
+static device_method_t fdc_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		fdc_probe),
+	DEVMETHOD(device_attach,	fdc_attach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
+
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,	fdc_print_child),
+	/* Our children never use any other bus interface methods. */
+
+	{ 0, 0 }
+};
+
+static driver_t fdc_driver = {
+	"fdc",
+	fdc_methods,
+	sizeof(struct fdc_data)
+};
+
+DRIVER_MODULE(fdc, isa, fdc_driver, fdc_devclass, 0, 0);
+
+/******************************************************************/
+/*
+ * devices attached to the controller section.  
+ */
 static int
 fd_probe(device_t dev)
 {
@@ -931,6 +962,28 @@ fd_attach(device_t dev)
 			  DEVSTAT_PRIORITY_FD);
 	return (0);
 }
+
+static device_method_t fd_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		fd_probe),
+	DEVMETHOD(device_attach,	fd_attach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend), /* XXX */
+	DEVMETHOD(device_resume,	bus_generic_resume), /* XXX */
+
+	{ 0, 0 }
+};
+
+static driver_t fd_driver = {
+	"fd",
+	fd_methods,
+	sizeof(struct fd_data)
+};
+
+DEV_DRIVER_MODULE(fd, fdc, fd_driver, fd_devclass, fd_cdevsw, 0, 0);
+
+/******************************************************************/
 
 #ifdef FDC_YE
 /*
@@ -2243,50 +2296,6 @@ fdioctl(dev, cmd, addr, flag, p)
 	}
 	return (error);
 }
-
-static device_method_t fdc_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		fdc_probe),
-	DEVMETHOD(device_attach,	fdc_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
-
-	/* Bus interface */
-	DEVMETHOD(bus_print_child,	fdc_print_child),
-	/* Our children never use any other bus interface methods. */
-
-	{ 0, 0 }
-};
-
-static driver_t fdc_driver = {
-	"fdc",
-	fdc_methods,
-	sizeof(struct fdc_data)
-};
-
-DRIVER_MODULE(fdc, isa, fdc_driver, fdc_devclass, 0, 0);
-
-static device_method_t fd_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		fd_probe),
-	DEVMETHOD(device_attach,	fd_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend), /* XXX */
-	DEVMETHOD(device_resume,	bus_generic_resume), /* XXX */
-
-	{ 0, 0 }
-};
-
-static driver_t fd_driver = {
-	"fd",
-	fd_methods,
-	sizeof(struct fd_data)
-};
-
-DEV_DRIVER_MODULE(fd, fdc, fd_driver, fd_devclass, fd_cdevsw, 0, 0);
 
 #endif /* NFDC > 0 */
 
