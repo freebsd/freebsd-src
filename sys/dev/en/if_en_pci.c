@@ -45,10 +45,6 @@
  * thanks to Matt Thomas for figuring out FreeBSD vs NetBSD vs etc.. diffs.
  */
 
-#ifndef COMPAT_OLDPCI
-#error "The en device requires the old pci compatibility shims"
-#endif
-
 #include "en.h"
 
 #include <sys/param.h>
@@ -69,6 +65,10 @@
 
 #include <dev/en/midwayreg.h>
 #include <dev/en/midwayvar.h>
+
+#ifndef COMPAT_OLDPCI
+#error "The en device requires the old pci compatibility shims"
+#endif
 
 
 /*
