@@ -951,7 +951,9 @@ wi_start(struct ifnet *ifp)
 			bpf_mtap(ic->ic_rawbpf, m0);
 #endif
 		frmhdr.wi_tx_ctl = htole16(WI_ENC_TX_802_11|WI_TXCNTL_TX_EX);
-		if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+		/* XXX check key for SWCRYPT instead of using operating mode */
+		if (ic->ic_opmode == IEEE80211_M_HOSTAP &&
+		    (wh->i_fc[1] & IEEE80211_FC1_WEP)) {
 			struct ieee80211_key *k;
 
 			k = ieee80211_crypto_encap(ic, ni, m0);
@@ -960,8 +962,7 @@ wi_start(struct ifnet *ifp)
 					ieee80211_free_node(ni);
 				continue;
 			}
-			if (k->wk_flags & IEEE80211_KEY_SWCRYPT)
-				frmhdr.wi_tx_ctl |= htole16(WI_TXCNTL_NOCRYPT);
+			frmhdr.wi_tx_ctl |= htole16(WI_TXCNTL_NOCRYPT);
 		}
 #if NBPFILTER > 0
 		if (sc->sc_drvbpf) {
@@ -1493,6 +1494,17 @@ wi_rx_intr(struct wi_softc *sc)
 
 	CSR_WRITE_2(sc, WI_EVENT_ACK, WI_EV_RX);
 
+	wh = mtod(m, struct ieee80211_frame *);
+	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+		/*
+		 * WEP is decrypted by hardware and the IV
+		 * is stripped.  Clear WEP bit so we don't
+		 * try to process it in ieee80211_input.
+		 * XXX fix for TKIP, et. al.
+		 */
+		wh->i_fc[1] &= ~IEEE80211_FC1_WEP;
+	}
+
 #if NBPFILTER > 0
 	if (sc->sc_drvbpf) {
 		/* XXX replace divide by table */
@@ -1502,11 +1514,11 @@ wi_rx_intr(struct wi_softc *sc)
 		sc->sc_rx_th.wr_flags = 0;
 		if (frmhdr.wi_status & WI_STAT_PCF)
 			sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_CFP;
+		/* XXX IEEE80211_RADIOTAP_F_WEP */
 		bpf_mtap2(sc->sc_drvbpf,
 			&sc->sc_rx_th, sc->sc_rx_th_len, m);
 	}
 #endif
-	wh = mtod(m, struct ieee80211_frame *);
 
 	/* synchronize driver's BSSID with firmware's BSSID */
 	dir = wh->i_fc[1] & IEEE80211_FC1_DIR_MASK;
@@ -2718,6 +2730,18 @@ wi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 			if (ic->ic_flags & IEEE80211_F_PRIVACY)
 				ni->ni_capinfo |= IEEE80211_CAPINFO_PRIVACY;
 		} else {
+			/*
+			 * XXX hack; unceremoniously clear 
+			 * IEEE80211_F_DROPUNENC when operating with
+			 * wep enabled so we don't drop unencoded frames
+			 * at the 802.11 layer.  This is necessary because
+			 * we must strip the WEP bit from the 802.11 header
+			 * before passing frames to ieee80211_input because
+			 * the card has already stripped the WEP crypto 
+			 * header from the packet.
+			 */
+			if (ic->ic_flags & IEEE80211_F_PRIVACY)
+				ic->ic_flags &= ~IEEE80211_F_DROPUNENC;
 			/* XXX check return value */
 			buflen = sizeof(ssid);
 			wi_read_rid(sc, WI_RID_CURRENT_SSID, &ssid, &buflen);
