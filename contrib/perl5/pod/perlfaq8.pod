@@ -1,6 +1,6 @@
 =head1 NAME
 
-perlfaq8 - System Interaction ($Revision: 1.26 $, $Date: 1998/08/05 12:20:28 $)
+perlfaq8 - System Interaction ($Revision: 1.1.1.2 $, $Date: 1999/05/02 14:27:54 $)
 
 =head1 DESCRIPTION
 
@@ -325,7 +325,6 @@ go bump in the night, finally came up with this:
 	}
     }
 
-
 =head2 How do I decode encrypted password files?
 
 You spend lots and lots of money on dedicated hardware, but this is
@@ -452,9 +451,9 @@ http://www.perl.com/CPAN/doc/misc/ancient/tutorial/eg/itimers.pl .
 In general, you may not be able to.  The Time::HiRes module (available
 from CPAN) provides this functionality for some systems.
 
-In general, you may not be able to.  But if your system supports both the
-syscall() function in Perl as well as a system call like gettimeofday(2),
-then you may be able to do something like this:
+If your system supports both the syscall() function in Perl as well as
+a system call like gettimeofday(2), then you may be able to do
+something like this:
 
     require 'sys/syscall.ph';
 
@@ -462,7 +461,7 @@ then you may be able to do something like this:
 
     $done = $start = pack($TIMEVAL_T, ());
 
-    syscall( &SYS_gettimeofday, $start, 0)) != -1
+    syscall( &SYS_gettimeofday, $start, 0) != -1
                or die "gettimeofday: $!";
 
        ##########################
@@ -674,19 +673,26 @@ there, and the old standard error shows up on the old standard out.
 
 =head2 Why doesn't open() return an error when a pipe open fails?
 
-It does, but probably not how you expect it to.  On systems that
-follow the standard fork()/exec() paradigm (such as Unix), it works like
-this: open() causes a fork().  In the parent, open() returns with the
-process ID of the child.  The child exec()s the command to be piped
-to/from.  The parent can't know whether the exec() was successful or
-not - all it can return is whether the fork() succeeded or not.  To
-find out if the command succeeded, you have to catch SIGCHLD and
-wait() to get the exit status.  You should also catch SIGPIPE if
-you're writing to the child -- you may not have found out the exec()
+Because the pipe open takes place in two steps: first Perl calls
+fork() to start a new process, then this new process calls exec() to
+run the program you really wanted to open.  The first step reports
+success or failure to your process, so open() can only tell you
+whether the fork() succeeded or not.
+
+To find out if the exec() step succeeded, you have to catch SIGCHLD
+and wait() to get the exit status.  You should also catch SIGPIPE if
+you're writing to the child--you may not have found out the exec()
 failed by the time you write.  This is documented in L<perlipc>.
 
+In some cases, even this won't work.  If the second argument to a
+piped open() contains shell metacharacters, perl fork()s, then exec()s
+a shell to decode the metacharacters and eventually run the desired
+program.  Now when you call wait(), you only learn whether or not the
+I<shell> could be successfully started.  Best to avoid shell
+metacharacters.
+
 On systems that follow the spawn() paradigm, open() I<might> do what
-you expect - unless perl uses a shell to start your command. In this
+you expect--unless perl uses a shell to start your command. In this
 case the fork()/exec() description still applies.
 
 =head2 What's wrong with using backticks in a void context?
@@ -869,7 +875,7 @@ module for other solutions.
 
 =item *
 
-Open /dev/tty and use the the TIOCNOTTY ioctl on it.  See L<tty(4)>
+Open /dev/tty and use the TIOCNOTTY ioctl on it.  See L<tty(4)>
 for details.  Or better yet, you can just use the POSIX::setsid()
 function, so you don't have to worry about process groups.
 
@@ -890,6 +896,9 @@ Background yourself like this:
 
 =back
 
+The Proc::Daemon module, available from CPAN, provides a function to
+perform these actions for you.
+
 =head2 How do I make my program run with sh and csh?
 
 See the F<eg/nih> script (part of the perl source distribution).
@@ -908,7 +917,7 @@ the current process group of your controlling terminal as follows:
 
     use POSIX qw/getpgrp tcgetpgrp/;
     open(TTY, "/dev/tty") or die $!;
-    $tpgrp = tcgetpgrp(TTY);
+    $tpgrp = tcgetpgrp(fileno(*TTY));
     $pgrp = getpgrp();
     if ($tpgrp == $pgrp) {
         print "foreground\n";
@@ -1034,6 +1043,13 @@ scripts that use the modules/libraries (see L<perlrun>) or say
 
     use lib '/u/mydir/perl';
 
+This is almost the same as:
+
+    BEGIN {
+	unshift(@INC, '/u/mydir/perl');
+    }
+
+except that the lib module checks for machine-dependent subdirectories.
 See Perl's L<lib> for more information.
 
 =head2 How do I add the directory my program lives in to the module/library search path?
@@ -1048,7 +1064,7 @@ Here are the suggested ways of modifying your include path:
 
     the PERLLIB environment variable
     the PERL5LIB environment variable
-    the perl -Idir commpand line flag
+    the perl -Idir command line flag
     the use lib pragma, as in
         use lib "$ENV{HOME}/myown_perllib";
 
@@ -1056,14 +1072,20 @@ The latter is particularly useful because it knows about machine
 dependent architectures.  The lib.pm pragmatic module was first
 included with the 5.002 release of Perl.
 
+=head2 What is socket.ph and where do I get it?
+
+It's a perl4-style file defining values for system networking
+constants.  Sometimes it is built using h2ph when Perl is installed,
+but other times it is not.  Modern programs C<use Socket;> instead.
+
 =head1 AUTHOR AND COPYRIGHT
 
-Copyright (c) 1997, 1998 Tom Christiansen and Nathan Torkington.
+Copyright (c) 1997-1999 Tom Christiansen and Nathan Torkington.
 All rights reserved.
 
 When included as part of the Standard Version of Perl, or as part of
 its complete documentation whether printed or otherwise, this work
-may be distributed only under the terms of Perl's Artistic License.
+may be distributed only under the terms of Perl's Artistic Licence.
 Any distribution of this file or derivatives thereof I<outside>
 of that package require that special arrangements be made with
 copyright holder.
@@ -1073,3 +1095,4 @@ are hereby placed into the public domain.  You are permitted and
 encouraged to use this code in your own programs for fun
 or for profit as you see fit.  A simple comment in the code giving
 credit would be courteous but is not required.
+

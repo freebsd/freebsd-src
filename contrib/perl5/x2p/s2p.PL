@@ -37,9 +37,12 @@ $Config{startperl}
 
 print OUT <<'!NO!SUBS!';
 
-# $RCSfile: s2p.SH,v $$Revision: 4.1 $$Date: 92/08/07 18:29:23 $
+# $RCSfile: s2p.PL,v $$Revision: 1.1.1.2 $$Date: 1999/05/02 14:33:09 $
 #
-# $Log:	s2p.SH,v $
+# $Log: s2p.PL,v $
+# Revision 1.1.1.2  1999/05/02 14:33:09  markm
+# Maintenance releace 3 of perl5.005. Includes support for threads.
+#
 
 =head1 NAME
 
@@ -671,7 +674,7 @@ EOT
 	}
 
 	if (/^H/) {
-	    $_ = '$hold .= "\n"; $hold .= $_;';
+	    $_ = '$hold .= "\n", $hold .= $_;';
 	    next;
 	}
 
@@ -681,7 +684,7 @@ EOT
 	}
 
 	if (/^G/) {
-	    $_ = '$_ .= "\n"; $_ .= $hold;';
+	    $_ = '$_ .= "\n", $_ .= $hold;';
 	    next;
 	}
 

@@ -2,17 +2,17 @@
 
 package Getopt::Long;
 
-# RCS Status      : $Id: GetoptLong.pl,v 2.18 1998-06-14 15:02:19+02 jv Exp $
+# RCS Status      : $Id: Long.pm,v 1.1.1.2 1999/05/02 14:26:07 markm Exp $
 # Author          : Johan Vromans
 # Created On      : Tue Sep 11 15:00:12 1990
 # Last Modified By: Johan Vromans
-# Last Modified On: Sun Jun 14 13:17:22 1998
-# Update Count    : 705
+# Last Modified On: Fri Jan  8 14:48:43 1999
+# Update Count    : 707
 # Status          : Released
 
 ################ Copyright ################
 
-# This program is Copyright 1990,1998 by Johan Vromans.
+# This program is Copyright 1990,1999 by Johan Vromans.
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
 # as published by the Free Software Foundation; either version 2
@@ -35,7 +35,7 @@ BEGIN {
     require 5.004;
     use Exporter ();
     use vars     qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-    $VERSION     = "2.17";
+    $VERSION     = "2.19";
 
     @ISA         = qw(Exporter);
     @EXPORT      = qw(&GetOptions $REQUIRE_ORDER $PERMUTE $RETURN_IN_ORDER);
@@ -108,7 +108,7 @@ __END__
 
 ################ AutoLoading subroutines ################
 
-# RCS Status      : $Id: GetoptLongAl.pl,v 2.20 1998-06-14 15:02:19+02 jv Exp $
+# RCS Status      : $Id: Long.pm,v 1.1.1.2 1999/05/02 14:26:07 markm Exp $
 # Author          : Johan Vromans
 # Created On      : Fri Mar 27 11:50:30 1998
 # Last Modified By: Johan Vromans
@@ -137,7 +137,7 @@ sub GetOptions {
     print STDERR ("GetOpt::Long $Getopt::Long::VERSION ",
 		  "called from package \"$pkg\".",
 		  "\n  ",
-		  'GetOptionsAl $Revision: 2.20 $ ',
+		  'GetOptionsAl $Revision: 1.1.1.2 $ ',
 		  "\n  ",
 		  "ARGV: (@ARGV)",
 		  "\n  ",
@@ -547,6 +547,7 @@ sub FindOption ($$$$$$$) {
 
 	# If bundling == 2, long options can override bundles.
 	if ( $bundling == 2 and
+	     defined ($rest) and
 	     defined ($type = $opctl->{$tryopt.$rest}) ) {
 	    print STDERR ("=> $starter$tryopt rebundled to ",
 			  "$starter$tryopt$rest\n") if $debug;
@@ -1363,7 +1364,7 @@ Johan Vromans E<lt>jvromans@squirrel.nlE<gt>
 
 =head1 COPYRIGHT AND DISCLAIMER
 
-This program is Copyright 1990,1998 by Johan Vromans.
+This program is Copyright 1990,1999 by Johan Vromans.
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
 as published by the Free Software Foundation; either version 2

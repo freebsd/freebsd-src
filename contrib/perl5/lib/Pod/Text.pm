@@ -52,6 +52,8 @@ require Exporter;
 use vars qw($VERSION);
 $VERSION = "1.0203";
 
+use locale;	# make \w work right in non-ASCII lands
+
 $termcap=0;
 
 $opt_alt_format = 0;
@@ -273,14 +275,14 @@ sub prepare_for_output {
 		    my $paratag = $_;
 		    $_ = <IN>;
 		    if (/^=/) {  # tricked!
-			local($indent) = $indent[$#index - 1] || $DEF_INDENT;
+			local($indent) = $indent[$#indent - 1] || $DEF_INDENT;
 			output($paratag);
 			redo POD_DIRECTIVE;
 		    }
 		    &prepare_for_output;
 		    IP_output($paratag, $_);
 		} else {
-		    local($indent) = $indent[$#index - 1] || $DEF_INDENT;
+		    local($indent) = $indent[$#indent - 1] || $DEF_INDENT;
 		    output($_, 0);
 		}
 	    }
@@ -368,7 +370,7 @@ sub fill {
 
 sub IP_output {
     local($tag, $_) = @_;
-    local($tag_indent) = $indent[$#index - 1] || $DEF_INDENT;
+    local($tag_indent) = $indent[$#indent - 1] || $DEF_INDENT;
     $tag_cols = $SCREEN - $tag_indent;
     $cols = $SCREEN - $indent;
     $tag =~ s/\s*$//;

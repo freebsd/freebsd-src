@@ -167,13 +167,6 @@ overload - Package for overloading perl operations
     ...
     $strval = overload::StrVal $b;
 
-=head1 CAVEAT SCRIPTOR
-
-Overloading of operators is a subject not to be taken lightly.
-Neither its precise implementation, syntax, nor semantics are
-100% endorsed by Larry Wall.  So any of these may be changed 
-at some point in the future.
-
 =head1 DESCRIPTION
 
 =head2 Declaration of overloaded functions
@@ -274,7 +267,7 @@ value of their arguments, and may leave it as is.  The result is going
 to be assigned to the value in the left-hand-side if different from
 this value.
 
-This allows for the same method to be used as averloaded C<+=> and
+This allows for the same method to be used as overloaded C<+=> and
 C<+>.  Note that this is I<allowed>, but not recommended, since by the
 semantic of L<"Fallback"> Perl will call the method for C<+> anyway,
 if C<+=> is not overloaded.
@@ -283,7 +276,7 @@ if C<+=> is not overloaded.
 
 B<Warning.>  Due to the presense of assignment versions of operations,
 routines which may be called in assignment context may create 
-self-referencial structures.  Currently Perl will not free self-referential 
+self-referential structures.  Currently Perl will not free self-referential 
 structures until cycles are C<explicitly> broken.  You may get problems
 when traversing your structures too.
 
@@ -537,7 +530,7 @@ C<'='> was overloaded with C<\&clone>.
 
 =back
 
-Same behaviour is triggered by C<$b = $a++>, which is consider a synonim for
+Same behaviour is triggered by C<$b = $a++>, which is consider a synonym for
 C<$b = $a; ++$a>.
 
 =head1 MAGIC AUTOGENERATION
@@ -748,7 +741,7 @@ There is no size penalty for data if overload is not used. The only
 size penalty if overload is used in some package is that I<all> the
 packages acquire a magic during the next C<bless>ing into the
 package. This magic is three-words-long for packages without
-overloading, and carries the cache tabel if the package is overloaded.
+overloading, and carries the cache table if the package is overloaded.
 
 Copying (C<$a=$b>) is shallow; however, a one-level-deep copying is 
 carried out before any operation that can imply an assignment to the
@@ -760,8 +753,8 @@ to be changed are constant (but this is not enforced).
 
 =head1 Metaphor clash
 
-One may wonder why the semantic of overloaded C<=> is so counterintuive.
-If it I<looks> counterintuive to you, you are subject to a metaphor 
+One may wonder why the semantic of overloaded C<=> is so counter intuitive.
+If it I<looks> counter intuitive to you, you are subject to a metaphor 
 clash.  
 
 Here is a Perl object metaphor:
@@ -868,7 +861,7 @@ Put this in F<symbolic.pm> in your Perl library directory:
 This module is very unusual as overloaded modules go: it does not
 provide any usual overloaded operators, instead it provides the L<Last
 Resort> operator C<nomethod>.  In this example the corresponding
-subroutine returns an object which encupsulates operations done over
+subroutine returns an object which encapsulates operations done over
 the objects: C<new symbolic 3> contains C<['n', 3]>, C<2 + new
 symbolic 3> contains C<['+', 2, ['n', 3]]>.
 
@@ -955,7 +948,7 @@ compare an object to 0.  In fact, it is easier to write a numeric
 conversion routine.
 
 Here is the text of F<symbolic.pm> with such a routine added (and
-slightly modifed str()):
+slightly modified str()):
 
   package symbolic;		# Primitive symbolic calculator
   use overload
@@ -994,7 +987,7 @@ slightly modifed str()):
   }
 
 All the work of numeric conversion is done in %subr and num().  Of
-course, %subr is not complete, it contains only operators used in teh
+course, %subr is not complete, it contains only operators used in the
 example below.  Here is the extra-credit question: why do we need an
 explicit recursion in num()?  (Answer is at the end of this section.)
 
@@ -1024,7 +1017,7 @@ mutator methods (C<++>, C<-=> and so on), does not do deep copying
 (not required without mutators!), and implements only those arithmetic
 operations which are used in the example.
 
-To implement most arithmetic operattions is easy, one should just use
+To implement most arithmetic operations is easy, one should just use
 the tables of operations, and change the code which fills %subr to
 
   my %subr = ( 'n' => sub {$_[0]} );
@@ -1102,8 +1095,8 @@ the argument of num().
 If you wonder why defaults for conversion are different for str() and
 num(), note how easy it was to write the symbolic calculator.  This
 simplicity is due to an appropriate choice of defaults.  One extra
-note: due to teh explicit recursion num() is more fragile than sym():
-we need to explicitly check for the type of $a and $b.  If componets
+note: due to the explicit recursion num() is more fragile than sym():
+we need to explicitly check for the type of $a and $b.  If components
 $a and $b happen to be of some related type, this may lead to problems.
 
 =head2 I<Really> symbolic calculator

@@ -267,7 +267,8 @@ static SV *
 cchar(SV *sv)
 {
     SV *sstr = newSVpv("'", 0);
-    char *s = SvPV(sv, PL_na);
+    STRLEN n_a;
+    char *s = SvPV(sv, n_a);
 
     if (*s == '\'')
 	sv_catpv(sstr, "\\'");
@@ -437,12 +438,16 @@ BOOT:
     INIT_SPECIALSV_LIST;
 
 #define B_main_cv()	PL_main_cv
+#define B_init_av()	PL_initav
 #define B_main_root()	PL_main_root
 #define B_main_start()	PL_main_start
 #define B_comppadlist()	(PL_main_cv ? CvPADLIST(PL_main_cv) : CvPADLIST(PL_compcv))
 #define B_sv_undef()	&PL_sv_undef
 #define B_sv_yes()	&PL_sv_yes
 #define B_sv_no()	&PL_sv_no
+
+B::AV
+B_init_av()
 
 B::CV
 B_main_cv()
@@ -1163,6 +1168,13 @@ CvXSUBANY(cv)
 	B::CV	cv
     CODE:
 	ST(0) = sv_2mortal(newSViv(CvXSUBANY(cv).any_iv));
+
+MODULE = B    PACKAGE = B::CV
+
+U8
+CvFLAGS(cv)
+      B::CV   cv
+
 
 MODULE = B	PACKAGE = B::HV		PREFIX = Hv
 

@@ -1,10 +1,10 @@
 # DB_File.pm -- Perl 5 interface to Berkeley DB 
 #
-# written by Paul Marquess (pmarquess@bfsec.bt.co.uk)
-# last modified 16th May 1998
-# version 1.60
+# written by Paul Marquess (Paul.Marquess@btinternet.com)
+# last modified 6th March 1999
+# version 1.65
 #
-#     Copyright (c) 1995-8 Paul Marquess. All rights reserved.
+#     Copyright (c) 1995-9 Paul Marquess. All rights reserved.
 #     This program is free software; you can redistribute it and/or
 #     modify it under the same terms as Perl itself.
 
@@ -145,7 +145,7 @@ use vars qw($VERSION @ISA @EXPORT $AUTOLOAD $DB_BTREE $DB_HASH $DB_RECNO $db_ver
 use Carp;
 
 
-$VERSION = "1.60" ;
+$VERSION = "1.65" ;
 
 #typedef enum { DB_BTREE, DB_HASH, DB_RECNO } DBTYPE;
 $DB_BTREE = new DB_File::BTREEINFO ;
@@ -300,6 +300,40 @@ sub STORESIZE
     }
 }
  
+sub find_dup
+{
+    croak "Usage: \$db->find_dup(key,value)\n"
+        unless @_ == 3 ;
+ 
+    my $db        = shift ;
+    my ($origkey, $value_wanted) = @_ ;
+    my ($key, $value) = ($origkey, 0);
+    my ($status) = 0 ;
+
+    for ($status = $db->seq($key, $value, R_CURSOR() ) ;
+         $status == 0 ;
+         $status = $db->seq($key, $value, R_NEXT() ) ) {
+
+        return 0 if $key eq $origkey and $value eq $value_wanted ;
+    }
+
+    return $status ;
+}
+
+sub del_dup
+{
+    croak "Usage: \$db->del_dup(key,value)\n"
+        unless @_ == 3 ;
+ 
+    my $db        = shift ;
+    my ($key, $value) = @_ ;
+    my ($status) = $db->find_dup($key, $value) ;
+    return $status if $status != 0 ;
+
+    $status = $db->del($key, R_CURSOR() ) ;
+    return $status ;
+}
+
 sub get_dup
 {
     croak "Usage: \$db->get_dup(key [,flag])\n"
@@ -364,6 +398,8 @@ DB_File - Perl5 access to Berkeley DB version 1.x
  $count = $X->get_dup($key) ;
  @list  = $X->get_dup($key) ;
  %list  = $X->get_dup($key, 1) ;
+ $status = $X->find_dup($key, $value) ;
+ $status = $X->del_dup($key, $value) ;
 
  # RECNO only
  $a = $X->length;
@@ -443,11 +479,11 @@ is considered stable enough for real work.
 B<Note:> The database file format has changed in Berkeley DB version 2.
 If you cannot recreate your databases, you must dump any existing
 databases with the C<db_dump185> utility that comes with Berkeley DB.
-Once you have upgraded DB_File to use Berkeley DB version 2, your
+Once you have rebuilt DB_File to use Berkeley DB version 2, your
 databases can be recreated using C<db_load>. Refer to the Berkeley DB
 documentation for further details.
 
-Please read L<COPYRIGHT> before using version 2.x of Berkeley DB with
+Please read L<"COPYRIGHT"> before using version 2.x of Berkeley DB with
 DB_File.
 
 =head2 Interface to Berkeley DB
@@ -837,9 +873,12 @@ that prints:
 This time we have got all the key/value pairs, including the multiple
 values associated with the key C<Wall>.
 
+To make life easier when dealing with duplicate keys, B<DB_File> comes with 
+a few utility methods.
+
 =head2 The get_dup() Method
 
-B<DB_File> comes with a utility method, called C<get_dup>, to assist in
+The C<get_dup> method assists in
 reading duplicate values from BTREE databases. The method can take the
 following forms:
 
@@ -887,6 +926,79 @@ and it will print:
     Wall =>	[Brick Brick Larry]
     Smith =>	[John]
     Dog =>	[]
+
+=head2 The find_dup() Method
+
+    $status = $X->find_dup($key, $value) ;
+
+This method checks for the existance of a specific key/value pair. If the
+pair exists, the cursor is left pointing to the pair and the method 
+returns 0. Otherwise the method returns a non-zero value.
+
+Assuming the database from the previous example:
+
+    use strict ;
+    use DB_File ;
+ 
+    use vars qw($filename $x %h $found) ;
+
+    my $filename = "tree" ;
+ 
+    # Enable duplicate records
+    $DB_BTREE->{'flags'} = R_DUP ;
+ 
+    $x = tie %h, "DB_File", $filename, O_RDWR|O_CREAT, 0640, $DB_BTREE 
+	or die "Cannot open $filename: $!\n";
+
+    $found = ( $x->find_dup("Wall", "Larry") == 0 ? "" : "not") ; 
+    print "Larry Wall is $found there\n" ;
+    
+    $found = ( $x->find_dup("Wall", "Harry") == 0 ? "" : "not") ; 
+    print "Harry Wall is $found there\n" ;
+    
+    undef $x ;
+    untie %h ;
+
+prints this
+
+    Larry Wall is there
+    Harry Wall is not there
+
+
+=head2 The del_dup() Method
+
+    $status = $X->del_dup($key, $value) ;
+
+This method deletes a specific key/value pair. It returns
+0 if they exist and have been deleted successfully.
+Otherwise the method returns a non-zero value.
+
+Again assuming the existance of the C<tree> database
+
+    use strict ;
+    use DB_File ;
+ 
+    use vars qw($filename $x %h $found) ;
+
+    my $filename = "tree" ;
+ 
+    # Enable duplicate records
+    $DB_BTREE->{'flags'} = R_DUP ;
+ 
+    $x = tie %h, "DB_File", $filename, O_RDWR|O_CREAT, 0640, $DB_BTREE 
+	or die "Cannot open $filename: $!\n";
+
+    $x->del_dup("Wall", "Larry") ;
+
+    $found = ( $x->find_dup("Wall", "Larry") == 0 ? "" : "not") ; 
+    print "Larry Wall is $found there\n" ;
+    
+    undef $x ;
+    untie %h ;
+
+prints this
+
+    Larry Wall is not there
 
 =head2 Matching Partial Keys 
 
@@ -970,7 +1082,7 @@ Here is the output:
 DB_RECNO provides an interface to flat text files. Both variable and
 fixed length records are supported.
 
-In order to make RECNO more compatible with Perl the array offset for
+In order to make RECNO more compatible with Perl, the array offset for
 all RECNO arrays begins at 0 rather than 1 as in Berkeley DB.
 
 As with normal Perl arrays, a RECNO array can be accessed using
@@ -999,7 +1111,7 @@ error will be fixed in the next release of Berkeley DB.
 
 That clarifies the situation with regards Berkeley DB itself. What
 about B<DB_File>? Well, the behavior defined in the quote above is
-quite useful, so B<DB_File> conforms it.
+quite useful, so B<DB_File> conforms to it.
 
 That means that you can specify other options (e.g. cachesize) and
 still have bval default to C<"\n"> for variable length records, and
@@ -1007,7 +1119,9 @@ space for fixed length records.
 
 =head2 A Simple Example
 
-Here is a simple example that uses RECNO.
+Here is a simple example that uses RECNO (if you are using a version 
+of Perl earlier than 5.004_57 this example won't work -- see 
+L<Extra RECNO Methods> for a workaround).
 
     use strict ;
     use DB_File ;
@@ -1021,6 +1135,18 @@ Here is a simple example that uses RECNO.
     $h[1] = "blue" ;
     $h[2] = "yellow" ;
 
+    push @h, "green", "black" ;
+
+    my $elements = scalar @h ;
+    print "The array contains $elements entries\n" ;
+
+    my $last = pop @h ;
+    print "popped $last\n" ;
+
+    unshift @h, "white" ;
+    my $first = shift @h ;
+    print "shifted $first\n" ;
+
     # Check for existence of a key
     print "Element 1 Exists with value $h[1]\n" if $h[1] ;
 
@@ -1032,17 +1158,19 @@ Here is a simple example that uses RECNO.
 
 Here is the output from the script:
 
-
+    The array contains 5 entries
+    popped black
+    unshifted white
     Element 1 Exists with value blue
-    The last element is yellow
-    The 2nd last element is blue
+    The last element is green
+    The 2nd last element is yellow
 
-=head2 Extra Methods
+=head2 Extra RECNO Methods
 
 If you are using a version of Perl earlier than 5.004_57, the tied
-array interface is quite limited. The example script above will work,
-but you won't be able to use C<push>, C<pop>, C<shift>, C<unshift>
-etc. with the tied array.
+array interface is quite limited. In the example script above
+C<push>, C<pop>, C<shift>, C<unshift>
+or determining the array length will not work with a tied array.
 
 To make the interface more useful for older versions of Perl, a number
 of methods are supplied with B<DB_File> to simulate the missing array
@@ -1657,7 +1785,7 @@ compile properly on IRIX 5.3.
 
 =head1 COPYRIGHT
 
-Copyright (c) 1995-8 Paul Marquess. All rights reserved. This program
+Copyright (c) 1995-9 Paul Marquess. All rights reserved. This program
 is free software; you can redistribute it and/or modify it under the
 same terms as Perl itself.
 
@@ -1688,7 +1816,7 @@ L<perl(1)>, L<dbopen(3)>, L<hash(3)>, L<recno(3)>, L<btree(3)>
 =head1 AUTHOR
 
 The DB_File interface was written by Paul Marquess
-E<lt>pmarquess@bfsec.bt.co.ukE<gt>.
+E<lt>Paul.Marquess@btinternet.comE<gt>.
 Questions about the DB system itself may be addressed to
 E<lt>db@sleepycat.com<gt>.
 

@@ -141,7 +141,7 @@
 #define MIN_BUC_POW2 (sizeof(void*) > 4 ? 3 : 2) /* Allow for 4-byte arena. */
 #define MIN_BUCKET (MIN_BUC_POW2 * BUCKETS_PER_POW2)
 
-#if !(defined(I286) || defined(atarist))
+#if !(defined(I286) || defined(atarist) || defined(__MINT__))
 	/* take 2k unless the block is bigger than that */
 #  define LOG_OF_MIN_ARENA 11
 #else
@@ -247,7 +247,7 @@
 #define u_short unsigned short
 
 /* 286 and atarist like big chunks, which gives too much overhead. */
-#if (defined(RCHECK) || defined(I286) || defined(atarist)) && defined(PACK_MALLOC)
+#if (defined(RCHECK) || defined(I286) || defined(atarist) || defined(__MINT__)) && defined(PACK_MALLOC)
 #  undef PACK_MALLOC
 #endif 
 
@@ -570,12 +570,19 @@ static char bucket_of[] =
 #    define BIG_SIZE (1<<16)		/* 64K */
 #  endif 
 
+#ifdef MUTEX_INIT_CALLS_MALLOC
+#  undef      MUTEX_LOCK
+#  define MUTEX_LOCK(m)       STMT_START { if (*m) mutex_lock(*m); } STMT_END
+#  undef      MUTEX_UNLOCK
+#  define MUTEX_UNLOCK(m)     STMT_START { if (*m) mutex_unlock(*m); } STMT_END
+#endif
+
 static char *emergency_buffer;
 static MEM_SIZE emergency_buffer_size;
+static Malloc_t emergency_sbrk(MEM_SIZE size);
 
 static Malloc_t
-emergency_sbrk(size)
-    MEM_SIZE size;
+emergency_sbrk(MEM_SIZE size)
 {
     MEM_SIZE rsize = (((size - 1)>>LOG_OF_MIN_ARENA) + 1)<<LOG_OF_MIN_ARENA;
 
@@ -599,6 +606,7 @@ emergency_sbrk(size)
 	SV *sv;
 	char *pv;
 	int have = 0;
+	STRLEN n_a;
 
 	if (emergency_buffer_size) {
 	    add_to_chain(emergency_buffer, emergency_buffer_size, 0);
@@ -614,7 +622,7 @@ emergency_sbrk(size)
 	    return (char *)-1;		/* Now die die die... */
 	}
 	/* Got it, now detach SvPV: */
-	pv = SvPV(sv, PL_na);
+	pv = SvPV(sv, n_a);
 	/* Check alignment: */
 	if (((UV)(pv - sizeof(union overhead))) & ((1<<LOG_OF_MIN_ARENA) - 1)) {
 	    PerlIO_puts(PerlIO_stderr(),"Bad alignment of $^M!\n");
@@ -670,6 +678,7 @@ static  u_int start_slack;
 static	u_int goodsbrk;
 
 #ifdef DEBUGGING
+#undef ASSERT
 #define	ASSERT(p,diag)   if (!(p)) botch(diag,STRINGIFY(p));  else
 static void
 botch(char *diag, char *s)
@@ -944,7 +953,7 @@ getpages(int needed, int *nblksp, int bucket)
 	/* Second, check alignment. */
 	slack = 0;
 
-#ifndef atarist /* on the atari we dont have to worry about this */
+#if !defined(atarist) && !defined(__MINT__) /* on the atari we dont have to worry about this */
 #  ifndef I286 	/* The sbrk(0) call on the I286 always returns the next segment */
 
 	/* CHUNK_SHIFT is 1 for PACK_MALLOC, 0 otherwise. */
@@ -954,7 +963,7 @@ getpages(int needed, int *nblksp, int bucket)
 	    add += slack;
 	}
 #  endif
-#endif /* atarist */
+#endif /* !atarist && !MINT */
 		
 	if (add) {
 	    DEBUG_m(PerlIO_printf(Perl_debug_log, 
@@ -1254,7 +1263,7 @@ free(void *mp)
  * is extern so the caller can modify it).  If that fails we just copy
  * however many bytes was given to realloc() and hope it's not huge.
  */
-int reall_srchlen = 4;	/* 4 should be plenty, -1 =>'s whole list */
+int reall_srchlen = 4;  /* 4 should be plenty, -1 =>'s whole list */
 
 Malloc_t
 realloc(void *mp, size_t nbytes)
@@ -1572,11 +1581,7 @@ dump_mstats(char *s)
 
 #ifdef USE_PERL_SBRK
 
-#   ifdef NeXT
-#      define PERL_SBRK_VIA_MALLOC
-#   endif
-
-#   ifdef __MACHTEN_PPC__
+#   if defined(__MACHTEN_PPC__) || defined(__NeXT__)
 #      define PERL_SBRK_VIA_MALLOC
 /*
  * MachTen's malloc() returns a buffer aligned on a two-byte boundary.
@@ -1619,8 +1624,7 @@ static long Perl_sbrk_oldsize;
 #   define PERLSBRK_64_K (1<<16)
 
 Malloc_t
-Perl_sbrk(size)
-int size;
+Perl_sbrk(int size)
 {
     IV got;
     int small, reqsize;

@@ -16,7 +16,7 @@ BEGIN {
 
 use strict;
 
-print "1..82\n";
+print "1..87\n";
 
 my $i = 1;
 
@@ -413,3 +413,13 @@ sub X::foo4 ($);
 *X::foo4 = sub ($) {'ok'};
 print "not " unless X->foo4 eq 'ok';
 print "ok ", $i++, "\n";
+
+# test if the (*) prototype allows barewords, constants, scalar expressions,
+# globs and globrefs (just as CORE::open() does), all under stricture
+sub star (*&) { &{$_[1]} }
+my $star = 'FOO';
+star FOO, sub { print "ok $i\n" if $_[0] eq 'FOO' }; $i++;
+star "FOO", sub { print "ok $i\n" if $_[0] eq 'FOO' }; $i++;
+star $star, sub { print "ok $i\n" if $_[0] eq 'FOO' }; $i++;
+star *FOO, sub { print "ok $i\n" if $_[0] eq \*FOO }; $i++;
+star \*FOO, sub { print "ok $i\n" if $_[0] eq \*FOO }; $i++;

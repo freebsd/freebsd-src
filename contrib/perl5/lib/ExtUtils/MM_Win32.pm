@@ -33,6 +33,7 @@ $BORLAND = 1 if $Config{'cc'} =~ /^bcc/i;
 $GCC     = 1 if $Config{'cc'} =~ /^gcc/i;
 $DMAKE = 1 if $Config{'make'} =~ /^dmake/i;
 $NMAKE = 1 if $Config{'make'} =~ /^nmake/i;
+$PERLMAKE = 1 if $Config{'make'} =~ /^pmake/i;
 $OBJ   = 1 if $Config{'ccflags'} =~ /PERL_OBJECT/i;
 
 sub dlsyms {
@@ -40,6 +41,7 @@ sub dlsyms {
 
     my($funcs) = $attribs{DL_FUNCS} || $self->{DL_FUNCS} || {};
     my($vars)  = $attribs{DL_VARS} || $self->{DL_VARS} || [];
+    my($funclist) = $attribs{FUNCLIST} || $self->{FUNCLIST} || [];
     my($imports)  = $attribs{IMPORTS} || $self->{IMPORTS} || {};
     my(@m);
     (my $boot = $self->{NAME}) =~ s/:/_/g;
@@ -52,6 +54,7 @@ $self->{BASEEXT}.def: Makefile.PL
      -e "Mksymlists('NAME' => '!, $self->{NAME},
      q!', 'DLBASE' => '!,$self->{DLBASE},
      q!', 'DL_FUNCS' => !,neatvalue($funcs),
+     q!, 'FUNCLIST' => !,neatvalue($funclist),
      q!, 'IMPORTS' => !,neatvalue($imports),
      q!, 'DL_VARS' => !, neatvalue($vars), q!);"
 !);
@@ -445,11 +448,18 @@ $(INST_DYNAMIC): $(OBJECT) $(MYEXTLIB) $(BOOTSTRAP) $(INST_ARCHAUTODIR)\.exists 
 	$(LD) -o $@ -Wl,--base-file -Wl,dll.base $(LDDLFLAGS) }.$ldfrom.q{ $(OTHERLDFLAGS) $(MYEXTLIB) $(PERL_ARCHIVE) $(LDLOADLIBS) dll.exp
 	dlltool --def $(EXPORT_LIST) --base-file dll.base --output-exp dll.exp
 	$(LD) -o $@ $(LDDLFLAGS) }.$ldfrom.q{ $(OTHERLDFLAGS) $(MYEXTLIB) $(PERL_ARCHIVE) $(LDLOADLIBS) dll.exp });
-    } else {
-      push(@m, $BORLAND ?
-       q{	$(LD) $(LDDLFLAGS) $(OTHERLDFLAGS) }.$ldfrom.q{,$@,,$(PERL_ARCHIVE:s,/,\,) $(LDLOADLIBS:s,/,\,) $(MYEXTLIB:s,/,\,),$(EXPORT_LIST:s,/,\,),$(RESFILES)} :
-       q{	$(LD) -out:$@ $(LDDLFLAGS) }.$ldfrom.q{ $(OTHERLDFLAGS) $(MYEXTLIB) $(PERL_ARCHIVE) $(LDLOADLIBS) -def:$(EXPORT_LIST)}
-	);
+    } elsif ($BORLAND) {
+      push(@m,
+       q{	$(LD) $(LDDLFLAGS) $(OTHERLDFLAGS) }.$ldfrom.q{,$@,,}
+       .($DMAKE ? q{$(PERL_ARCHIVE:s,/,\,) $(LDLOADLIBS:s,/,\,) }
+		 .q{$(MYEXTLIB:s,/,\,),$(EXPORT_LIST:s,/,\,)}
+		: q{$(subst /,\,$(PERL_ARCHIVE)) $(subst /,\,$(LDLOADLIBS)) }
+		 .q{$(subst /,\,$(MYEXTLIB)),$(subst /,\,$(EXPORT_LIST))})
+       .q{,$(RESFILES)});
+    } else {	# VC
+      push(@m,
+       q{	$(LD) -out:$@ $(LDDLFLAGS) }.$ldfrom.q{ $(OTHERLDFLAGS) }
+      .q{$(MYEXTLIB) $(PERL_ARCHIVE) $(LDLOADLIBS) -def:$(EXPORT_LIST)});
     }
     push @m, '
 	$(CHMOD) 755 $@
@@ -463,7 +473,7 @@ sub perl_archive
 {
     my ($self) = @_;
     if($OBJ) {
-        if ($self->{CAPI} eq 'TRUE') {
+        if ($self->{CAPI}) {
             return '$(PERL_INC)\perlCAPI$(LIB_EXT)';
         }
     }
@@ -524,10 +534,11 @@ sub pm_to_blib {
 pm_to_blib: $(TO_INST_PM)
 	}.$self->{NOECHO}.q{$(PERL) "-I$(INST_ARCHLIB)" "-I$(INST_LIB)" \
 	"-I$(PERL_ARCHLIB)" "-I$(PERL_LIB)" -MExtUtils::Install \
-        -e "pm_to_blib(qw[ }.
-	($NMAKE ? '<<pmfiles.dat'
-		: '$(mktmp,pmfiles.dat $(PM_TO_BLIB:s,\\,\\\\,)\n)').
-	q{ ],'}.$autodir.q{')"
+        -e "pm_to_blib(}.
+	($NMAKE ? 'qw[ <<pmfiles.dat ],'
+	        : $DMAKE ? 'qw[ $(mktmp,pmfiles.dat $(PM_TO_BLIB:s,\\,\\\\,)\n) ],'
+			 : '{ qw[$(PM_TO_BLIB)] },'
+	 ).q{'}.$autodir.q{')"
 	}. ($NMAKE ? q{
 $(PM_TO_BLIB)
 <<

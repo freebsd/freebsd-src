@@ -432,7 +432,7 @@ anonhash	anonymous hash		ck_fun		ms@	L
 
 splice		splice			ck_fun		m@	A S? S? L
 push		push			ck_fun		imst@	A L
-pop		pop			ck_shift	si%	A
+pop		pop			ck_shift	s%	A
 shift		shift			ck_shift	s%	A
 unshift		unshift			ck_fun		imst@	A L
 sort		sort			ck_sort		m@	C? L
@@ -470,7 +470,7 @@ reset		reset			ck_fun		is%	S?
 lineseq		line sequence		ck_null		@	
 nextstate	next statement		ck_null		s;	
 dbstate		debug next statement	ck_null		s;	
-unstack		unstack			ck_null		s0
+unstack		iteration finalizer	ck_null		s0
 enter		block entry		ck_null		0	
 leave		block exit		ck_null		@	
 scope		block			ck_null		@	
@@ -519,7 +519,7 @@ print		print			ck_listiob	ims@	F? L
 sysopen		sysopen			ck_fun		s@	F S S S?
 sysseek		sysseek			ck_fun		s@	F S S
 sysread		sysread			ck_fun		imst@	F R S S?
-syswrite	syswrite		ck_fun		imst@	F S S S?
+syswrite	syswrite		ck_fun		imst@	F S S? S?
 
 send		send			ck_fun		imst@	F S S S?
 recv		recv			ck_fun		imst@	F R S S

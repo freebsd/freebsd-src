@@ -15,6 +15,14 @@ English - use nice English (or awk) names for ugly punctuation variables
 
 =head1 DESCRIPTION
 
+You should I<not> use this module in programs intended to be portable
+among Perl versions, programs that must perform regular expression
+matching operations efficiently, or libraries intended for use with
+such programs.  In a sense, this module is deprecated.  The reasons
+for this have to do with implementation details of the Perl
+interpreter which are too thorny to go into here.  Perhaps someday
+they will be fixed to make "C<use English>" more practical.
+
 This module provides aliases for the built-in variables whose
 names no one seems to like to read.  Variables with side-effects
 which get triggered just by accessing them (like $0) will still 
@@ -160,6 +168,7 @@ sub import {
 
 	*PERL_VERSION				= *]	;
 	*ACCUMULATOR				= *^A	;
+	*COMPILING				= *^C	;
 	*DEBUGGING				= *^D	;
 	*SYSTEM_FD_MAX				= *^F	;
 	*INPLACE_EDIT				= *^I	;

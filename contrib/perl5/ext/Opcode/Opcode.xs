@@ -400,7 +400,8 @@ PPCODE:
 	}
 	else if (SvPOK(bitspec) && SvCUR(bitspec) == opset_len) {
 	    int b, j;
-	    char *bitmap = SvPV(bitspec,PL_na);
+	    STRLEN n_a;
+	    char *bitmap = SvPV(bitspec,n_a);
 	    myopcode = 0;
 	    for (b=0; b < opset_len; b++) {
 		U16 bits = bitmap[b];

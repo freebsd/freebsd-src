@@ -315,3 +315,23 @@ main|-|9|main::__ANON__
 In DIE
 main|-|10|(eval)
 main|-|10|main::foo
+########
+package TEST;
+ 
+sub TIEARRAY {
+  return bless [qw(foo fee fie foe)], $_[0];
+}
+sub FETCH {
+  my ($s,$i) = @_;
+  if ($i) {
+    goto bbb;
+  }
+bbb:
+  return $s->[$i];
+}
+ 
+package main;
+tie my @bar, 'TEST';
+print join('|', @bar[0..3]), "\n"; 
+EXPECT
+foo|fee|fie|foe

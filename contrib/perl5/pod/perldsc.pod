@@ -690,7 +690,7 @@ many different sorts:
 
      print $rec->{TEXT};
 
-     print $rec->{LIST}[0];
+     print $rec->{SEQUENCE}[0];
      $last = pop @ { $rec->{SEQUENCE} };
 
      print $rec->{LOOKUP}{"key"};

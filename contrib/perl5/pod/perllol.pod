@@ -34,7 +34,7 @@ but rather just a reference to it, you could do something more like this:
     $ref_to_LoL = [
 	[ "fred", "barney", "pebbles", "bambam", "dino", ],
 	[ "homer", "bart", "marge", "maggie", ],
-	[ "george", "jane", "alroy", "judy", ],
+	[ "george", "jane", "elroy", "judy", ],
     ];
 
     print $ref_to_LoL->[2][2];

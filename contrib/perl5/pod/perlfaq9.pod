@@ -1,6 +1,6 @@
 =head1 NAME
 
-perlfaq9 - Networking ($Revision: 1.20 $, $Date: 1998/06/22 18:31:09 $)
+perlfaq9 - Networking ($Revision: 1.1.1.2 $, $Date: 1999/05/02 14:27:55 $)
 
 =head1 DESCRIPTION
 
@@ -20,7 +20,7 @@ may not be so well received.
 The useful FAQs and related documents are:
 
     CGI FAQ
-        http://www.webthing.com/page.cgi/cgifaq
+        http://www.webthing.com/tutorials/cgifaq.html
 
     Web FAQ
         http://www.boutell.com/faq/
@@ -77,8 +77,7 @@ stamp prepended.
 =head2 How do I remove HTML from a string?
 
 The most correct way (albeit not the fastest) is to use HTML::Parse
-from CPAN (part of the libwww-perl distribution, which is a must-have
-module for all web hackers).
+from CPAN (part of the HTML-Tree package on CPAN).
 
 Many folks attempt a simple-minded regular expression approach, like
 C<s/E<lt>.*?E<gt>//g>, but that fails in many cases because the tags
@@ -172,6 +171,7 @@ do this.  They work through proxies, and don't require lynx:
     getprint "http://www.sn.no/libwww-perl/";
 
     # or print ASCII from HTML from a URL
+    # also need HTML-Tree package from CPAN
     use LWP::Simple;
     use HTML::Parse;
     use HTML::FormatText;
@@ -213,7 +213,7 @@ Here's an example of decoding:
     $string =~ s/%([a-fA-F0-9]{2})/chr(hex($1))/ge;
 
 Encoding is a bit harder, because you can't just blindly change
-all the non-alphanumunder character (C<\W>) into their hex escapes.
+all the non-alphanumeric characters (C<\W>) into their hex escapes.
 It's important that characters with special meaning like C</> and C<?>
 I<not> be translated.  Probably the easiest way to get this right is
 to avoid reinventing the wheel and just use the URI::Escape module,
@@ -303,7 +303,7 @@ In short, they're bad hacks.  Resist them at all costs.  Please do not be
 tempted to reinvent the wheel.  Instead, use the CGI.pm or CGI_Lite.pm
 (available from CPAN), or if you're trapped in the module-free land
 of perl1 .. perl4, you might look into cgi-lib.pl (available from
-http://www.bio.cam.ac.uk/web/form.html).
+http://cgi-lib.stanford.edu/cgi-lib/ ).
 
 Make sure you know whether to use a GET or a POST in your form.
 GETs should only be used for something that doesn't update the server.
@@ -411,7 +411,8 @@ Use the C<sendmail> program directly:
     To: Final Destination <you\@otherhost>
     Subject: A relevant subject line
 
-    Body of the message goes here, in as many lines as you like.
+    Body of the message goes here after the blank line
+    in as many lines as you like.
     EOF
     close(SENDMAIL)     or warn "sendmail didn't close nicely";
 
@@ -442,9 +443,8 @@ include queueing, MX records, and security.
 
 =head2 How do I read mail?
 
-Use the Mail::Folder module from CPAN
-(part of the MailFolder package) or the Mail::Internet module from
-CPAN (also part of the MailTools package).
+Use the Mail::Folder module from CPAN (part of the MailFolder package) or
+the Mail::Internet module from CPAN (also part of the MailTools package).
 
    # sending mail
     use Mail::Internet;
@@ -504,7 +504,7 @@ give you the hostname after which you can find out the IP address
     use Socket;
     use Sys::Hostname;
     my $host = hostname();
-    my $addr = inet_ntoa(scalar(gethostbyname($name)) || 'localhost');
+    my $addr = inet_ntoa(scalar gethostbyname($host || 'localhost'));
 
 Probably the simplest way to learn your DNS domain name is to grok
 it out of /etc/resolv.conf, at least under Unix.  Of course, this
@@ -531,16 +531,17 @@ available from CPAN) is more complex but can put as well as fetch.
 
 A DCE::RPC module is being developed (but is not yet available), and
 will be released as part of the DCE-Perl package (available from
-CPAN).  No ONC::RPC module is known.
+CPAN).  The rpcgen suite, available from CPAN/authors/id/JAKE/, is
+an RPC stub generator and includes an RPC::ONC module.
 
 =head1 AUTHOR AND COPYRIGHT
 
-Copyright (c) 1997, 1998 Tom Christiansen and Nathan Torkington.
+Copyright (c) 1997-1999 Tom Christiansen and Nathan Torkington.
 All rights reserved.
 
 When included as part of the Standard Version of Perl, or as part of
 its complete documentation whether printed or otherwise, this work
-may be distributed only under the terms of Perl's Artistic License.
+may be distributed only under the terms of Perl's Artistic Licence.
 Any distribution of this file or derivatives thereof I<outside>
 of that package require that special arrangements be made with
 copyright holder.
@@ -550,3 +551,4 @@ are hereby placed into the public domain.  You are permitted and
 encouraged to use this code in your own programs for fun
 or for profit as you see fit.  A simple comment in the code giving
 credit would be courteous but is not required.
+

@@ -1,6 +1,6 @@
 /*    mg.c
  *
- *    Copyright (c) 1991-1997, Larry Wall
+ *    Copyright (c) 1991-1999, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -248,7 +248,9 @@ mg_copy(SV *sv, SV *nsv, char *key, I32 klen)
     MAGIC* mg;
     for (mg = SvMAGIC(sv); mg; mg = mg->mg_moremagic) {
 	if (isUPPER(mg->mg_type)) {
-	    sv_magic(nsv, mg->mg_obj, toLOWER(mg->mg_type), key, klen);
+	    sv_magic(nsv,
+		     mg->mg_type == 'P' ? SvTIED_obj(sv, mg) : mg->mg_obj,
+		     toLOWER(mg->mg_type), key, klen);
 	    count++;
 	}
     }
@@ -339,8 +341,10 @@ magic_len(SV *sv, MAGIC *mg)
 	return (STRLEN)PL_orslen;
     }
     magic_get(sv,mg);
-    if (!SvPOK(sv) && SvNIOK(sv))
-	sv_2pv(sv, &PL_na);
+    if (!SvPOK(sv) && SvNIOK(sv)) {
+	STRLEN n_a;
+	sv_2pv(sv, &n_a);
+    }
     if (SvPOK(sv))
 	return SvCUR(sv);
     return 0;
@@ -359,6 +363,9 @@ magic_get(SV *sv, MAGIC *mg)
     switch (*mg->mg_ptr) {
     case '\001':		/* ^A */
 	sv_setsv(sv, PL_bodytarget);
+	break;
+    case '\003':		/* ^C */
+	sv_setiv(sv, (IV)PL_minus_c);
 	break;
     case '\004':		/* ^D */
 	sv_setiv(sv, (IV)(PL_debug & 32767));
@@ -382,8 +389,11 @@ magic_get(SV *sv, MAGIC *mg)
 	    sv_setnv(sv, (double)errno);
 	    sv_setpv(sv, errno ? Strerror(errno) : "");
 	} else {
-	    if (errno != errno_isOS2)
-		Perl_rc = _syserrno();
+	    if (errno != errno_isOS2) {
+		int tmp = _syserrno();
+		if (tmp)	/* 2nd call to _syserrno() makes it 0 */
+		    Perl_rc = tmp;
+	    }
 	    sv_setnv(sv, (double)Perl_rc);
 	    sv_setpv(sv, os2error(Perl_rc));
 	}
@@ -716,7 +726,8 @@ magic_setenv(SV *sv, MAGIC *mg)
 int
 magic_clearenv(SV *sv, MAGIC *mg)
 {
-    my_setenv(MgPV(mg,PL_na),Nullch);
+    STRLEN n_a;
+    my_setenv(MgPV(mg,n_a),Nullch);
     return 0;
 }
 
@@ -729,12 +740,13 @@ magic_set_all_env(SV *sv, MAGIC *mg)
     dTHR;
     if (PL_localizing) {
 	HE* entry;
+	STRLEN n_a;
 	magic_clear_all_env(sv,mg);
 	hv_iterinit((HV*)sv);
 	while (entry = hv_iternext((HV*)sv)) {
 	    I32 keylen;
 	    my_setenv(hv_iterkey(entry, &keylen),
-		      SvPV(hv_iterval((HV*)sv, entry), PL_na));
+		      SvPV(hv_iterval((HV*)sv, entry), n_a));
 	}
     }
 #endif
@@ -757,7 +769,7 @@ magic_clear_all_env(SV *sv, MAGIC *mg)
 	    *end = '\0';
 	    my_setenv(cur,Nullch);
 	    *end = '=';
-	    cur += strlen(end+1)+1;
+	    cur = end + strlen(end+1)+2;
 	}
 	else if ((len = strlen(cur)))
 	    cur += len+1;
@@ -782,8 +794,9 @@ int
 magic_getsig(SV *sv, MAGIC *mg)
 {
     I32 i;
+    STRLEN n_a;
     /* Are we fetching a signal entry? */
-    i = whichsig(MgPV(mg,PL_na));
+    i = whichsig(MgPV(mg,n_a));
     if (i) {
     	if(psig_ptr[i])
     	    sv_setsv(sv,psig_ptr[i]);
@@ -805,8 +818,9 @@ int
 magic_clearsig(SV *sv, MAGIC *mg)
 {
     I32 i;
+    STRLEN n_a;
     /* Are we clearing a signal entry? */
-    i = whichsig(MgPV(mg,PL_na));
+    i = whichsig(MgPV(mg,n_a));
     if (i) {
     	if(psig_ptr[i]) {
     	    SvREFCNT_dec(psig_ptr[i]);
@@ -827,8 +841,9 @@ magic_setsig(SV *sv, MAGIC *mg)
     register char *s;
     I32 i;
     SV** svp;
+    STRLEN n_a;
 
-    s = MgPV(mg,PL_na);
+    s = MgPV(mg,n_a);
     if (*s == '_') {
 	if (strEQ(s,"__DIE__"))
 	    svp = &PL_diehook;
@@ -865,7 +880,7 @@ magic_setsig(SV *sv, MAGIC *mg)
 	    *svp = SvREFCNT_inc(sv);
 	return 0;
     }
-    s = SvPV_force(sv,PL_na);
+    s = SvPV_force(sv,n_a);
     if (strEQ(s,"IGNORE")) {
 	if (i)
 	    (void)rsignal(i, SIG_IGN);
@@ -922,7 +937,7 @@ magic_getnkeys(SV *sv, MAGIC *mg)
 
     if (hv) {
 	(void) hv_iterinit(hv);
-	if (!SvRMAGICAL(hv) || !mg_find((SV*)hv,'P'))
+	if (! SvTIED_mg((SV*)hv, 'P'))
 	    i = HvKEYS(hv);
 	else {
 	    /*SUPPRESS 560*/
@@ -947,13 +962,13 @@ magic_setnkeys(SV *sv, MAGIC *mg)
 
 /* caller is responsible for stack switching/cleanup */
 STATIC int
-magic_methcall(MAGIC *mg, char *meth, I32 flags, int n, SV *val)
+magic_methcall(SV *sv, MAGIC *mg, char *meth, I32 flags, int n, SV *val)
 {
     dSP;
 
     PUSHMARK(SP);
     EXTEND(SP, n);
-    PUSHs(mg->mg_obj);
+    PUSHs(SvTIED_obj(sv, mg));
     if (n > 1) { 
 	if (mg->mg_ptr) {
 	    if (mg->mg_len >= 0)
@@ -982,7 +997,7 @@ magic_methpack(SV *sv, MAGIC *mg, char *meth)
     SAVETMPS;
     PUSHSTACKi(PERLSI_MAGIC);
 
-    if (magic_methcall(mg, meth, G_SCALAR, 2, NULL)) {
+    if (magic_methcall(sv, mg, meth, G_SCALAR, 2, NULL)) {
 	sv_setsv(sv, *PL_stack_sp--);
     }
 
@@ -1007,7 +1022,7 @@ magic_setpack(SV *sv, MAGIC *mg)
     dSP;
     ENTER;
     PUSHSTACKi(PERLSI_MAGIC);
-    magic_methcall(mg, "STORE", G_SCALAR|G_DISCARD, 3, sv);
+    magic_methcall(sv, mg, "STORE", G_SCALAR|G_DISCARD, 3, sv);
     POPSTACK;
     LEAVE;
     return 0;
@@ -1029,7 +1044,7 @@ magic_sizepack(SV *sv, MAGIC *mg)
     ENTER;
     SAVETMPS;
     PUSHSTACKi(PERLSI_MAGIC);
-    if (magic_methcall(mg, "FETCHSIZE", G_SCALAR, 2, NULL)) {
+    if (magic_methcall(sv, mg, "FETCHSIZE", G_SCALAR, 2, NULL)) {
 	sv = *PL_stack_sp--;
 	retval = (U32) SvIV(sv)-1;
     }
@@ -1046,7 +1061,7 @@ int magic_wipepack(SV *sv, MAGIC *mg)
     ENTER;
     PUSHSTACKi(PERLSI_MAGIC);
     PUSHMARK(SP);
-    XPUSHs(mg->mg_obj);
+    XPUSHs(SvTIED_obj(sv, mg));
     PUTBACK;
     perl_call_method("CLEAR", G_SCALAR|G_DISCARD);
     POPSTACK;
@@ -1065,7 +1080,7 @@ magic_nextpack(SV *sv, MAGIC *mg, SV *key)
     PUSHSTACKi(PERLSI_MAGIC);
     PUSHMARK(SP);
     EXTEND(SP, 2);
-    PUSHs(mg->mg_obj);
+    PUSHs(SvTIED_obj(sv, mg));
     if (SvOK(key))
 	PUSHs(key);
     PUTBACK;
@@ -1093,11 +1108,12 @@ magic_setdbline(SV *sv, MAGIC *mg)
     I32 i;
     GV* gv;
     SV** svp;
+    STRLEN n_a;
 
     gv = PL_DBline;
     i = SvTRUE(sv);
     svp = av_fetch(GvAV(gv),
-		     atoi(MgPV(mg,PL_na)), FALSE);
+		     atoi(MgPV(mg,n_a)), FALSE);
     if (svp && SvIOKp(*svp) && (o = (OP*)SvSTASH(*svp)))
 	o->op_private = i;
     else
@@ -1193,10 +1209,11 @@ magic_setglob(SV *sv, MAGIC *mg)
 {
     register char *s;
     GV* gv;
+    STRLEN n_a;
 
     if (!SvOK(sv))
 	return 0;
-    s = SvPV(sv, PL_na);
+    s = SvPV(sv, n_a);
     if (*s == '*' && s[1])
 	s++;
     gv = gv_fetchpv(s,TRUE, SVt_PVGV);
@@ -1406,8 +1423,10 @@ vivify_defelem(SV *sv)
 	    if (svp)
 		value = *svp;
 	}
-	if (!value || value == &PL_sv_undef)
-	    croak(no_helem, SvPV(mg->mg_obj, PL_na));
+	if (!value || value == &PL_sv_undef) {
+	    STRLEN n_a;
+	    croak(no_helem, SvPV(mg->mg_obj, n_a));
+	}
     }
     else {
 	AV* av = (AV*)LvTARG(sv);
@@ -1498,6 +1517,9 @@ magic_set(SV *sv, MAGIC *mg)
     case '\001':	/* ^A */
 	sv_setsv(PL_bodytarget, sv);
 	break;
+    case '\003':	/* ^C */
+	PL_minus_c = SvIOK(sv) ? SvIVX(sv) : sv_2iv(sv);
+	break;
     case '\004':	/* ^D */
 	PL_debug = (SvIOK(sv) ? SvIVX(sv) : sv_2iv(sv)) | 0x80000000;
 	DEBUG_x(dump_all());
@@ -1524,7 +1546,7 @@ magic_set(SV *sv, MAGIC *mg)
 	if (PL_inplace)
 	    Safefree(PL_inplace);
 	if (SvOK(sv))
-	    PL_inplace = savepv(SvPV(sv,PL_na));
+	    PL_inplace = savepv(SvPV(sv,len));
 	else
 	    PL_inplace = Nullch;
 	break;
@@ -1532,7 +1554,7 @@ magic_set(SV *sv, MAGIC *mg)
 	if (PL_osname)
 	    Safefree(PL_osname);
 	if (SvOK(sv))
-	    PL_osname = savepv(SvPV(sv,PL_na));
+	    PL_osname = savepv(SvPV(sv,len));
 	else
 	    PL_osname = Nullch;
 	break;
@@ -1559,12 +1581,12 @@ magic_set(SV *sv, MAGIC *mg)
 	break;
     case '^':
 	Safefree(IoTOP_NAME(GvIOp(PL_defoutgv)));
-	IoTOP_NAME(GvIOp(PL_defoutgv)) = s = savepv(SvPV(sv,PL_na));
+	IoTOP_NAME(GvIOp(PL_defoutgv)) = s = savepv(SvPV(sv,len));
 	IoTOP_GV(GvIOp(PL_defoutgv)) = gv_fetchpv(s,TRUE, SVt_PVIO);
 	break;
     case '~':
 	Safefree(IoFMT_NAME(GvIOp(PL_defoutgv)));
-	IoFMT_NAME(GvIOp(PL_defoutgv)) = s = savepv(SvPV(sv,PL_na));
+	IoFMT_NAME(GvIOp(PL_defoutgv)) = s = savepv(SvPV(sv,len));
 	IoFMT_GV(GvIOp(PL_defoutgv)) = gv_fetchpv(s,TRUE, SVt_PVIO);
 	break;
     case '=':
@@ -1621,7 +1643,7 @@ magic_set(SV *sv, MAGIC *mg)
     case '#':
 	if (PL_ofmt)
 	    Safefree(PL_ofmt);
-	PL_ofmt = savepv(SvPV(sv,PL_na));
+	PL_ofmt = savepv(SvPV(sv,len));
 	break;
     case '[':
 	PL_compiling.cop_arybase = SvIOK(sv) ? SvIVX(sv) : sv_2iv(sv);
@@ -1729,7 +1751,7 @@ magic_set(SV *sv, MAGIC *mg)
     case ')':
 #ifdef HAS_SETGROUPS
 	{
-	    char *p = SvPV(sv, PL_na);
+	    char *p = SvPV(sv, len);
 	    Groups_t gary[NGROUPS];
 
 	    SET_NUMERIC_STANDARD();
@@ -1777,7 +1799,7 @@ magic_set(SV *sv, MAGIC *mg)
 	PL_tainting |= (PL_uid && (PL_euid != PL_uid || PL_egid != PL_gid));
 	break;
     case ':':
-	PL_chopset = SvPV_force(sv,PL_na);
+	PL_chopset = SvPV_force(sv,len);
 	break;
     case '0':
 	if (!PL_origalen) {
@@ -1790,7 +1812,10 @@ magic_set(SV *sv, MAGIC *mg)
 		    || PL_origargv[i] == s + 2
 #endif 
 		   )
-		    s += strlen(++s);	/* this one is ok too */
+		{
+		    ++s;
+		    s += strlen(s);	/* this one is ok too */
+		}
 		else
 		    break;
 	    }
@@ -1803,8 +1828,10 @@ magic_set(SV *sv, MAGIC *mg)
 		my_setenv("NoNe  SuCh", Nullch);
 					    /* force copy of environment */
 		for (i = 0; PL_origenviron[i]; i++)
-		    if (PL_origenviron[i] == s + 1)
-			s += strlen(++s);
+		    if (PL_origenviron[i] == s + 1) {
+			++s;
+			s += strlen(s);
+		    }
 		    else
 			break;
 	    }
@@ -1851,7 +1878,6 @@ magic_mutexfree(SV *sv, MAGIC *mg)
 	croak("panic: magic_mutexfree");
     MUTEX_DESTROY(MgMUTEXP(mg));
     COND_DESTROY(MgCONDP(mg));
-    SvREFCNT_dec(sv);
     return 0;
 }
 #endif /* USE_THREADS */

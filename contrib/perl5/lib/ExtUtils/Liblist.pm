@@ -2,7 +2,7 @@ package ExtUtils::Liblist;
 use vars qw($VERSION);
 # Broken out of MakeMaker from version 4.11
 
-$VERSION = substr q$Revision: 1.1.1.1 $, 10;
+$VERSION = substr q$Revision: 1.3 $, 10;
 
 use Config;
 use Cwd 'cwd';
@@ -225,6 +225,9 @@ sub _win32_ext {
     my $search		= 1;
     my($fullname, $thislib, $thispth);
 
+    # add "$Config{installarchlib}/CORE" to default search path
+    push @libpath, "$Config{installarchlib}/CORE";
+
     foreach (Text::ParseWords::quotewords('\s+', 0, $potential_libs)){
 
 	$thislib = $_;
@@ -240,8 +243,8 @@ sub _win32_ext {
 
 	# if searching is disabled, do compiler-specific translations
 	unless ($search) {
-	    s/^-L/-libpath:/ if $VC;
 	    s/^-l(.+)$/$1.lib/ unless $GC;
+	    s/^-L/-libpath:/ if $VC;
 	    push(@extralibs, $_);
 	    $found++;
 	    next;
@@ -575,7 +578,7 @@ Unix-OS/2 version in several respects:
 =item *
 
 Input library and path specifications are accepted with or without the
-C<-l> and C<-L> prefices used by Unix linkers.  If neither prefix is
+C<-l> and C<-L> prefixes used by Unix linkers.  If neither prefix is
 present, a token is considered a directory to search if it is in fact
 a directory, and a library to search for otherwise.  Authors who wish
 their extensions to be portable to Unix or OS/2 should use the Unix
@@ -586,7 +589,7 @@ prefixes, since the Unix-OS/2 version of ext() requires them.
 Wherever possible, shareable images are preferred to object libraries,
 and object libraries to plain object files.  In accordance with VMS
 naming conventions, ext() looks for files named I<lib>shr and I<lib>rtl;
-it also looks for I<lib>lib and libI<lib> to accomodate Unix conventions
+it also looks for I<lib>lib and libI<lib> to accommodate Unix conventions
 used in some ported software.
 
 =item *
@@ -625,14 +628,15 @@ Unix-OS/2 version in several respects:
 If C<$potential_libs> is empty, the return value will be empty.
 Otherwise, the libraries specified by C<$Config{libs}> (see Config.pm)
 will be appended to the list of C<$potential_libs>.  The libraries
-will be searched for in the directories specified in C<$potential_libs>
-as well as in C<$Config{libpth}>. For each library that is found,  a
-space-separated list of fully qualified library pathnames is generated.
+will be searched for in the directories specified in C<$potential_libs>,
+C<$Config{libpth}>, and in C<$Config{installarchlib}/CORE>.
+For each library that is found,  a space-separated list of fully qualified
+library pathnames is generated.
 
 =item *
 
 Input library and path specifications are accepted with or without the
-C<-l> and C<-L> prefices used by Unix linkers.
+C<-l> and C<-L> prefixes used by Unix linkers.
 
 An entry of the form C<-La:\foo> specifies the C<a:\foo> directory to look
 for the libraries that follow.

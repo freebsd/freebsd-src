@@ -1,6 +1,6 @@
 /*    pp_hot.c
  *
- *    Copyright (c) 1991-1997, Larry Wall
+ *    Copyright (c) 1991-1999, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -304,12 +304,13 @@ PP(pp_print)
     IO *io;
     register PerlIO *fp;
     MAGIC *mg;
+    STRLEN n_a;
 
     if (PL_op->op_flags & OPf_STACKED)
 	gv = (GV*)*++MARK;
     else
 	gv = PL_defoutgv;
-    if (SvRMAGICAL(gv) && (mg = mg_find((SV*)gv, 'q'))) {
+    if (mg = SvTIED_mg((SV*)gv, 'q')) {
 	if (MARK == ORIGMARK) {
 	    /* If using default handle then we need to make space to 
 	     * pass object as 1st arg, so move other args up ...
@@ -320,7 +321,7 @@ PP(pp_print)
 	    ++SP;
 	}
 	PUSHMARK(MARK - 1);
-	*MARK = mg->mg_obj;
+	*MARK = SvTIED_obj((SV*)gv, mg);
 	PUTBACK;
 	ENTER;
 	perl_call_method("PRINT", G_SCALAR);
@@ -335,7 +336,7 @@ PP(pp_print)
 	if (PL_dowarn) {
 	    SV* sv = sv_newmortal();
             gv_fullname3(sv, gv, Nullch);
-            warn("Filehandle %s never opened", SvPV(sv,PL_na));
+            warn("Filehandle %s never opened", SvPV(sv,n_a));
         }
 
 	SETERRNO(EBADF,RMS$_IFI);
@@ -346,9 +347,9 @@ PP(pp_print)
 	    SV* sv = sv_newmortal();
             gv_fullname3(sv, gv, Nullch);
 	    if (IoIFP(io))
-		warn("Filehandle %s opened only for input", SvPV(sv,PL_na));
+		warn("Filehandle %s opened only for input", SvPV(sv,n_a));
 	    else
-		warn("print on closed filehandle %s", SvPV(sv,PL_na));
+		warn("print on closed filehandle %s", SvPV(sv,n_a));
 	}
 	SETERRNO(EBADF,IoIFP(io)?RMS$_FAC:RMS$_IFI);
 	goto just_say_no;
@@ -425,6 +426,7 @@ PP(pp_rv2av)
 	    
 	    if (SvTYPE(sv) != SVt_PVGV) {
 		char *sym;
+		STRLEN n_a;
 
 		if (SvGMAGICAL(sv)) {
 		    mg_get(sv);
@@ -441,7 +443,7 @@ PP(pp_rv2av)
 			RETURN;
 		    RETPUSHUNDEF;
 		}
-		sym = SvPV(sv,PL_na);
+		sym = SvPV(sv,n_a);
 		if (PL_op->op_private & HINT_STRICT_REFS)
 		    DIE(no_symref, sym, "an ARRAY");
 		gv = (GV*)gv_fetchpv(sym, TRUE, SVt_PVAV);
@@ -509,6 +511,7 @@ PP(pp_rv2hv)
 	    
 	    if (SvTYPE(sv) != SVt_PVGV) {
 		char *sym;
+		STRLEN n_a;
 
 		if (SvGMAGICAL(sv)) {
 		    mg_get(sv);
@@ -527,7 +530,7 @@ PP(pp_rv2hv)
 		    }
 		    RETSETUNDEF;
 		}
-		sym = SvPV(sv,PL_na);
+		sym = SvPV(sv,n_a);
 		if (PL_op->op_private & HINT_STRICT_REFS)
 		    DIE(no_symref, sym, "a HASH");
 		gv = (GV*)gv_fetchpv(sym, TRUE, SVt_PVHV);
@@ -859,9 +862,9 @@ PP(pp_match)
 	    }
 	}
     }
-    safebase = (((gimme == G_ARRAY) || global || !rx->nparens)
-		&& !PL_sawampersand);
-    safebase = safebase ? 0  : REXEC_COPY_STR ;
+    safebase = ((gimme != G_ARRAY && !global && rx->nparens)
+		|| SvTEMP(TARG) || PL_sawampersand)
+		? REXEC_COPY_STR : 0;
     if (pm->op_pmflags & (PMf_MULTILINE|PMf_SINGLELINE)) {
 	SAVEINT(PL_multiline);
 	PL_multiline = pm->op_pmflags & PMf_MULTILINE;
@@ -1048,9 +1051,9 @@ do_readline(void)
     I32 gimme = GIMME_V;
     MAGIC *mg;
 
-    if (SvRMAGICAL(PL_last_in_gv) && (mg = mg_find((SV*)PL_last_in_gv, 'q'))) {
+    if (mg = SvTIED_mg((SV*)PL_last_in_gv, 'q')) {
 	PUSHMARK(SP);
-	XPUSHs(mg->mg_obj);
+	XPUSHs(SvTIED_obj((SV*)PL_last_in_gv, mg));
 	PUTBACK;
 	ENTER;
 	perl_call_method("READLINE", gimme);
@@ -1239,8 +1242,18 @@ do_readline(void)
 	sv = sv_2mortal(NEWSV(57, 80));
 	offset = 0;
     }
+
+/* flip-flop EOF state for a snarfed empty file */
+#define SNARF_EOF(gimme,rs,io,sv) \
+    ((gimme != G_SCALAR || SvCUR(sv)					\
+      || (IoFLAGS(io) & IOf_NOLINE) || IoLINES(io) || !RsSNARF(rs))	\
+	? ((IoFLAGS(io) &= ~IOf_NOLINE), TRUE)				\
+	: ((IoFLAGS(io) |= IOf_NOLINE), FALSE))
+
     for (;;) {
-	if (!sv_gets(sv, fp, offset)) {
+	if (!sv_gets(sv, fp, offset)
+	    && (type == OP_GLOB || SNARF_EOF(gimme, PL_rs, io, sv)))
+	{
 	    PerlIO_clearerr(fp);
 	    if (IoFLAGS(io) & IOf_ARGV) {
 		fp = nextargv(PL_last_in_gv);
@@ -1250,8 +1263,11 @@ do_readline(void)
 		IoFLAGS(io) |= IOf_START;
 	    }
 	    else if (type == OP_GLOB) {
-		if (!do_close(PL_last_in_gv, FALSE))
-		    warn("internal error: glob failed");
+		if (!do_close(PL_last_in_gv, FALSE)) {
+		    warn("glob failed (child exited with status %d%s)",
+			 STATUS_CURRENT >> 8,
+			 (STATUS_CURRENT & 0x80) ? ", core dumped" : "");
+		}
 	    }
 	    if (gimme == G_SCALAR) {
 		(void)SvOK_off(TARG);
@@ -1354,8 +1370,10 @@ PP(pp_helem)
 	if (!svp || *svp == &PL_sv_undef) {
 	    SV* lv;
 	    SV* key2;
-	    if (!defer)
-		DIE(no_helem, SvPV(keysv, PL_na));
+	    if (!defer) {
+		STRLEN n_a;
+		DIE(no_helem, SvPV(keysv, n_a));
+	    }
 	    lv = sv_newmortal();
 	    sv_upgrade(lv, SVt_PVLV);
 	    LvTYPE(lv) = 'y';
@@ -1453,7 +1471,7 @@ PP(pp_iter)
 
     EXTEND(SP, 1);
     cx = &cxstack[cxstack_ix];
-    if (cx->cx_type != CXt_LOOP)
+    if (CxTYPE(cx) != CXt_LOOP)
 	DIE("panic: pp_iter");
 
     av = cx->blk_loop.iterary;
@@ -1614,7 +1632,8 @@ PP(pp_subst)
 		  && SvTYPE(rx->check_substr) == SVt_PVBM
 		  && SvVALID(rx->check_substr)) 
 		? TARG : Nullsv);
-    safebase = (!rx->nparens && !PL_sawampersand) ? 0 : REXEC_COPY_STR;
+    safebase = (rx->nparens || SvTEMP(TARG) || PL_sawampersand)
+		? REXEC_COPY_STR : 0;
     if (pm->op_pmflags & (PMf_MULTILINE|PMf_SINGLELINE)) {
 	SAVEINT(PL_multiline);
 	PL_multiline = pm->op_pmflags & PMf_MULTILINE;
@@ -1980,6 +1999,7 @@ PP(pp_entersub)
     default:
 	if (!SvROK(sv)) {
 	    char *sym;
+	    STRLEN n_a;
 
 	    if (sv == &PL_sv_yes) {		/* unfound import, ignore */
 		if (hasargs)
@@ -1991,7 +2011,7 @@ PP(pp_entersub)
 		sym = SvPOKp(sv) ? SvPVX(sv) : Nullch;
 	    }
 	    else
-		sym = SvPV(sv, PL_na);
+		sym = SvPV(sv, n_a);
 	    if (!sym)
 		DIE(no_usym, "a subroutine");
 	    if (PL_op->op_private & HINT_STRICT_REFS)
@@ -2094,7 +2114,6 @@ PP(pp_entersub)
 	    DEBUG_S(PerlIO_printf(PerlIO_stderr(), "%p: pp_entersub lock %p\n",
 				  thr, sv);)
 	    MUTEX_UNLOCK(MgMUTEXP(mg));
-	    SvREFCNT_inc(sv);	/* Keep alive until magic_mutexfree */
 	    save_destructor(unlock_condpair, sv);
 	}
 	MUTEX_LOCK(CvMUTEXP(cv));
@@ -2129,8 +2148,7 @@ PP(pp_entersub)
      	 * (3) instead of (2) so we'd have to clone. Would the fact
      	 * that we released the mutex more quickly make up for this?
      	 */
-	if (PL_threadnum &&
-	    (svp = hv_fetch(thr->cvcache, (char *)cv, sizeof(cv), FALSE)))
+	if ((svp = hv_fetch(thr->cvcache, (char *)cv, sizeof(cv), FALSE)))
 	{
 	    /* We already have a clone to use */
 	    MUTEX_UNLOCK(CvMUTEXP(cv));
@@ -2257,12 +2275,14 @@ PP(pp_entersub)
 	PUSHBLOCK(cx, CXt_SUB, MARK);
 	PUSHSUB(cx);
 	CvDEPTH(cv)++;
+	/* XXX This would be a natural place to set C<PL_compcv = cv> so
+	 * that eval'' ops within this sub know the correct lexical space.
+	 * Owing the speed considerations, we choose to search for the cv
+	 * in doeval() instead.
+	 */
 	if (CvDEPTH(cv) < 2)
 	    (void)SvREFCNT_inc(cv);
 	else {	/* save temporaries on recursion? */
-	    if (CvDEPTH(cv) == 100 && PL_dowarn 
-		  && !(PERLDB_SUB && cv == GvCV(PL_DBsub)))
-		sub_crush_depth(cv);
 	    if (CvDEPTH(cv) > AvFILLp(padlist)) {
 		AV *av;
 		AV *newpad = newAV();
@@ -2362,6 +2382,13 @@ PP(pp_entersub)
 		MARK++;
 	    }
 	}
+	/* warning must come *after* we fully set up the context
+	 * stuff so that __WARN__ handlers can safely dounwind()
+	 * if they want to
+	 */
+	if (CvDEPTH(cv) == 100 && PL_dowarn
+	    && !(PERLDB_SUB && cv == GvCV(PL_DBsub)))
+	    sub_crush_depth(cv);
 #if 0
 	DEBUG_S(PerlIO_printf(PerlIO_stderr(),
 			      "%p entersub returning %p\n", thr, CvSTART(cv)));
@@ -2474,7 +2501,7 @@ PP(pp_method)
 	}
     }
 
-    name = SvPV(TOPs, PL_na);
+    name = SvPV(TOPs, packlen);
     sv = *(PL_stack_base + TOPMARK + 1);
     
     if (SvGMAGICAL(sv))

@@ -129,3 +129,13 @@ ranlib='sleep 5; /bin/ranlib'
 # This is true whether we're on an HPPA machine or cross-compiling
 # for one.
 pp_cflags='optimize=""'
+
+# The SysV IPC is optional (ftp://ftp.nluug.nl/pub/comp/next/SysVIPC/)
+# Gerben_Wierda@RnA.nl
+if [ -f /usr/local/lib/libIPC.a ]; then
+  libswanted="$libswanted IPC"
+  # As of Sep 1998 d_msg wasn't supported in that library,
+  # only d_sem and d_shm, but Configure should be able to
+  # figure that out. --jhi
+  # Note also the next3 ext/IPC/SysV hints file.
+fi

@@ -31,7 +31,7 @@ my %tests = (
 	15 => [ 255,   1],
 	16 => [ 255, 256],
 	# see if implicit close preserves $?
-	17 => [  42,  42, '{ local *F; open F, q[TEST]; close F } die;'],
+	17 => [  0,  512, '{ local *F; open F, q[TEST]; close F } die;'],
 );
 
 my $max = keys %tests;
@@ -46,8 +46,8 @@ foreach my $test (1 .. $max) {
 	 ? system qq($perl -e "\$! = $bang; \$? = $query; $code" 2> nul)
 	 : system qq($perl -e '\$! = $bang; \$? = $query; $code' 2> /dev/null));
 
-    printf "# 0x%04x  0x%04x  0x%04x\nnot ", $exit, $bang, $query
-	unless $exit == (($bang || ($query >> 8) || 255) << 8);
+    printf "# 0x%04x  0x%04x  0x%04x\n", $exit, $bang, $query;
+    print "not " unless $exit == (($bang || ($query >> 8) || 255) << 8);
     print "ok $test\n";
 }
     

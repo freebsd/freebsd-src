@@ -1,6 +1,6 @@
 /*    pp.c
  *
- *    Copyright (c) 1991-1997, Larry Wall
+ *    Copyright (c) 1991-1999, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -105,9 +105,9 @@ typedef unsigned UBW;
 static void doencodes _((SV* sv, char* s, I32 len));
 static SV* refto _((SV* sv));
 static U32 seed _((void));
+static bool srand_called = FALSE;
 #endif
 
-static bool srand_called = FALSE;
 
 /* variations on pp_null */
 
@@ -224,6 +224,7 @@ PP(pp_rv2gv)
     else {
 	if (SvTYPE(sv) != SVt_PVGV) {
 	    char *sym;
+	    STRLEN n_a;
 
 	    if (SvGMAGICAL(sv)) {
 		mg_get(sv);
@@ -238,7 +239,7 @@ PP(pp_rv2gv)
 		    warn(warn_uninit);
 		RETSETUNDEF;
 	    }
-	    sym = SvPV(sv, PL_na);
+	    sym = SvPV(sv, n_a);
 	    if (PL_op->op_private & HINT_STRICT_REFS)
 		DIE(no_symref, sym, "a symbol");
 	    sv = (SV*)gv_fetchpv(sym, TRUE, SVt_PVGV);
@@ -267,6 +268,7 @@ PP(pp_rv2sv)
     else {
 	GV *gv = (GV*)sv;
 	char *sym;
+	STRLEN n_a;
 
 	if (SvTYPE(gv) != SVt_PVGV) {
 	    if (SvGMAGICAL(sv)) {
@@ -282,7 +284,7 @@ PP(pp_rv2sv)
 		    warn(warn_uninit);
 		RETSETUNDEF;
 	    }
-	    sym = SvPV(sv, PL_na);
+	    sym = SvPV(sv, n_a);
 	    if (PL_op->op_private & HINT_STRICT_REFS)
 		DIE(no_symref, sym, "a SCALAR");
 	    gv = (GV*)gv_fetchpv(sym, TRUE, SVt_PV);
@@ -533,9 +535,10 @@ PP(pp_gelem)
     SV *tmpRef;
     char *elem;
     djSP;
+    STRLEN n_a;
 
     sv = POPs;
-    elem = SvPV(sv, PL_na);
+    elem = SvPV(sv, n_a);
     gv = (GV*)POPs;
     tmpRef = Nullsv;
     sv = Nullsv;
@@ -716,11 +719,11 @@ PP(pp_defined)
 	RETPUSHNO;
     switch (SvTYPE(sv)) {
     case SVt_PVAV:
-	if (AvMAX(sv) >= 0 || SvGMAGICAL(sv))
+	if (AvMAX(sv) >= 0 || SvGMAGICAL(sv) || (SvRMAGICAL(sv) && mg_find(sv,'P')))
 	    RETPUSHYES;
 	break;
     case SVt_PVHV:
-	if (HvARRAY(sv) || SvGMAGICAL(sv))
+	if (HvARRAY(sv) || SvGMAGICAL(sv) || (SvRMAGICAL(sv) && mg_find(sv,'P')))
 	    RETPUSHYES;
 	break;
     case SVt_PVCV:
@@ -751,8 +754,11 @@ PP(pp_undef)
 	RETPUSHUNDEF;
 
     if (SvTHINKFIRST(sv)) {
-	if (SvREADONLY(sv))
-	    RETPUSHUNDEF;
+	if (SvREADONLY(sv)) {
+	    dTHR;
+	    if (PL_curcop != &PL_compiling)
+		croak(no_modify);
+	}
 	if (SvROK(sv))
 	    sv_unref(sv);
     }
@@ -1634,21 +1640,50 @@ seed(void)
 #define   SEED_C5	26107
 
     dTHR;
+#ifndef PERL_NO_DEV_RANDOM
+    int fd;
+#endif
     U32 u;
 #ifdef VMS
 #  include <starlet.h>
     /* when[] = (low 32 bits, high 32 bits) of time since epoch
      * in 100-ns units, typically incremented ever 10 ms.        */
     unsigned int when[2];
+#else
+#  ifdef HAS_GETTIMEOFDAY
+    struct timeval when;
+#  else
+    Time_t when;
+#  endif
+#endif
+
+/* This test is an escape hatch, this symbol isn't set by Configure. */
+#ifndef PERL_NO_DEV_RANDOM
+#ifndef PERL_RANDOM_DEVICE
+   /* /dev/random isn't used by default because reads from it will block
+    * if there isn't enough entropy available.  You can compile with
+    * PERL_RANDOM_DEVICE to it if you'd prefer Perl to block until there
+    * is enough real entropy to fill the seed. */
+#  define PERL_RANDOM_DEVICE "/dev/urandom"
+#endif
+    fd = PerlLIO_open(PERL_RANDOM_DEVICE, 0);
+    if (fd != -1) {
+    	if (PerlLIO_read(fd, &u, sizeof u) != sizeof u)
+	    u = 0;
+	PerlLIO_close(fd);
+	if (u)
+	    return u;
+    }
+#endif
+
+#ifdef VMS
     _ckvmssts(sys$gettim(when));
     u = (U32)SEED_C1 * when[0] + (U32)SEED_C2 * when[1];
 #else
 #  ifdef HAS_GETTIMEOFDAY
-    struct timeval when;
     gettimeofday(&when,(struct timezone *) 0);
     u = (U32)SEED_C1 * when.tv_sec + (U32)SEED_C2 * when.tv_usec;
 #  else
-    Time_t when;
     (void)time(&when);
     u = (U32)SEED_C1 * when;
 #  endif
@@ -1760,8 +1795,9 @@ PP(pp_hex)
     djSP; dTARGET;
     char *tmps;
     I32 argtype;
+    STRLEN n_a;
 
-    tmps = POPp;
+    tmps = POPpx;
     XPUSHu(scan_hex(tmps, 99, &argtype));
     RETURN;
 }
@@ -1772,8 +1808,9 @@ PP(pp_oct)
     UV value;
     I32 argtype;
     char *tmps;
+    STRLEN n_a;
 
-    tmps = POPp;
+    tmps = POPpx;
     while (*tmps && isSPACE(*tmps))
 	tmps++;
     if (*tmps == '0')
@@ -1866,7 +1903,8 @@ PP(pp_substr)
 	if (lvalue) {			/* it's an lvalue! */
 	    if (!SvGMAGICAL(sv)) {
 		if (SvROK(sv)) {
-		    SvPV_force(sv,PL_na);
+		    STRLEN n_a;
+		    SvPV_force(sv,n_a);
 		    if (PL_dowarn)
 			warn("Attempt to use reference as lvalue in substr");
 		}
@@ -2067,13 +2105,14 @@ PP(pp_ord)
     djSP; dTARGET;
     I32 value;
     char *tmps;
+    STRLEN n_a;
 
 #ifndef I286
-    tmps = POPp;
+    tmps = POPpx;
     value = (I32) (*tmps & 255);
 #else
     I32 anum;
-    tmps = POPp;
+    tmps = POPpx;
     anum = (I32) *tmps;
     value = (I32) (anum & 255);
 #endif
@@ -2100,12 +2139,13 @@ PP(pp_chr)
 PP(pp_crypt)
 {
     djSP; dTARGET; dPOPTOPssrl;
+    STRLEN n_a;
 #ifdef HAS_CRYPT
-    char *tmps = SvPV(left, PL_na);
+    char *tmps = SvPV(left, n_a);
 #ifdef FCRYPT
-    sv_setpv(TARG, fcrypt(tmps, SvPV(right, PL_na)));
+    sv_setpv(TARG, fcrypt(tmps, SvPV(right, n_a)));
 #else
-    sv_setpv(TARG, PerlProc_crypt(tmps, SvPV(right, PL_na)));
+    sv_setpv(TARG, PerlProc_crypt(tmps, SvPV(right, n_a)));
 #endif
 #else
     DIE(
@@ -2120,6 +2160,7 @@ PP(pp_ucfirst)
     djSP;
     SV *sv = TOPs;
     register char *s;
+    STRLEN n_a;
 
     if (!SvPADTMP(sv)) {
 	dTARGET;
@@ -2127,7 +2168,7 @@ PP(pp_ucfirst)
 	sv = TARG;
 	SETs(sv);
     }
-    s = SvPV_force(sv, PL_na);
+    s = SvPV_force(sv, n_a);
     if (*s) {
 	if (PL_op->op_private & OPpLOCALE) {
 	    TAINT;
@@ -2146,6 +2187,7 @@ PP(pp_lcfirst)
     djSP;
     SV *sv = TOPs;
     register char *s;
+    STRLEN n_a;
 
     if (!SvPADTMP(sv)) {
 	dTARGET;
@@ -2153,7 +2195,7 @@ PP(pp_lcfirst)
 	sv = TARG;
 	SETs(sv);
     }
-    s = SvPV_force(sv, PL_na);
+    s = SvPV_force(sv, n_a);
     if (*s) {
 	if (PL_op->op_private & OPpLOCALE) {
 	    TAINT;
@@ -2428,8 +2470,10 @@ PP(pp_hslice)
 		svp = avhv_fetch_ent((AV*)hv, keysv, lval, 0);
 	    }
 	    if (lval) {
-		if (!svp || *svp == &PL_sv_undef)
-		    DIE(no_helem, SvPV(keysv, PL_na));
+		if (!svp || *svp == &PL_sv_undef) {
+		    STRLEN n_a;
+		    DIE(no_helem, SvPV(keysv, n_a));
+		}
 		if (PL_op->op_private & OPpLVAL_INTRO)
 		    save_helem(hv, keysv, svp);
 	    }
@@ -2561,8 +2605,8 @@ PP(pp_splice)
     SV **tmparyval = 0;
     MAGIC *mg;
 
-    if (SvRMAGICAL(ary) && (mg = mg_find((SV*)ary,'P'))) {
-	*MARK-- = mg->mg_obj;
+    if (mg = SvTIED_mg((SV*)ary, 'P')) {
+	*MARK-- = SvTIED_obj((SV*)ary, mg);
 	PUSHMARK(MARK);
 	PUTBACK;
 	ENTER;
@@ -2759,8 +2803,8 @@ PP(pp_push)
     register SV *sv = &PL_sv_undef;
     MAGIC *mg;
 
-    if (SvRMAGICAL(ary) && (mg = mg_find((SV*)ary,'P'))) {
-	*MARK-- = mg->mg_obj;
+    if (mg = SvTIED_mg((SV*)ary, 'P')) {
+	*MARK-- = SvTIED_obj((SV*)ary, mg);
 	PUSHMARK(MARK);
 	PUTBACK;
 	ENTER;
@@ -2815,8 +2859,8 @@ PP(pp_unshift)
     register I32 i = 0;
     MAGIC *mg;
 
-    if (SvRMAGICAL(ary) && (mg = mg_find((SV*)ary,'P'))) {
-	*MARK-- = mg->mg_obj;
+    if (mg = SvTIED_mg((SV*)ary, 'P')) {
+	*MARK-- = SvTIED_obj((SV*)ary, mg);
 	PUSHMARK(MARK);
 	PUTBACK;
 	ENTER;
@@ -2910,7 +2954,9 @@ mul128(SV *sv, U8 m)
 
 static const char uuemap[] =
     "`!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_";
+#ifndef PERL_OBJECT
 static char uudmap[256];        /* Initialised on first use */
+#endif
 #if 'I' == 73 && 'J' == 74
 /* On an ASCII/ISO kind of system */
 #define ISUUCHAR(ch)    ((ch) >= ' ' && (ch) < 'a')
@@ -2959,13 +3005,15 @@ PP(pp_unpack)
     I32 checksum = 0;
     register U32 culong;
     double cdouble;
+#ifndef PERL_OBJECT
     static char* bitcount = 0;
+#endif
     int commas = 0;
 
     if (gimme != G_ARRAY) {		/* arrange to do first one only */
 	/*SUPPRESS 530*/
 	for (patend = pat; !isALPHA(*patend) || *patend == 'x'; patend++) ;
-	if (strchr("aAbBhHP", *patend) || *pat == '%') {
+	if (strchr("aAZbBhHP", *patend) || *pat == '%') {
 	    patend++;
 	    while (isDIGIT(*patend) || *patend == '*')
 		patend++;
@@ -3023,6 +3071,7 @@ PP(pp_unpack)
 	    s += len;
 	    break;
 	case 'A':
+	case 'Z':
 	case 'a':
 	    if (len > strend - s)
 		len = strend - s;
@@ -3031,12 +3080,19 @@ PP(pp_unpack)
 	    sv = NEWSV(35, len);
 	    sv_setpvn(sv, s, len);
 	    s += len;
-	    if (datumtype == 'A') {
+	    if (datumtype == 'A' || datumtype == 'Z') {
 		aptr = s;	/* borrow register */
-		s = SvPVX(sv) + len - 1;
-		while (s >= SvPVX(sv) && (!*s || isSPACE(*s)))
-		    s--;
-		*++s = '\0';
+		if (datumtype == 'Z') {	/* 'Z' strips stuff after first null */
+		    s = SvPVX(sv);
+		    while (*s)
+			s++;
+		}
+		else {		/* 'A' strips both nulls and spaces */
+		    s = SvPVX(sv) + len - 1;
+		    while (s >= SvPVX(sv) && (!*s || isSPACE(*s)))
+			s--;
+		    *++s = '\0';
+		}
 		SvCUR_set(sv, s - SvPVX(sv));
 		s = aptr;	/* unborrow register */
 	    }
@@ -3195,6 +3251,10 @@ PP(pp_unpack)
 	    if (checksum) {
 		while (len-- > 0) {
 		    COPY16(s, &ashort);
+#if SHORTSIZE > SIZE16
+		    if (ashort > 32767)
+			ashort -= 65536;
+#endif
 		    s += SIZE16;
 		    culong += ashort;
 		}
@@ -3204,6 +3264,10 @@ PP(pp_unpack)
 		EXTEND_MORTAL(len);
 		while (len-- > 0) {
 		    COPY16(s, &ashort);
+#if SHORTSIZE > SIZE16
+		    if (ashort > 32767)
+			ashort -= 65536;
+#endif
 		    s += SIZE16;
 		    sv = NEWSV(38, 0);
 		    sv_setiv(sv, (IV)ashort);
@@ -3306,6 +3370,17 @@ PP(pp_unpack)
 		    Copy(s, &auint, 1, unsigned int);
 		    s += sizeof(unsigned int);
 		    sv = NEWSV(41, 0);
+#ifdef __osf__
+                    /* Without the dummy below unpack("I", pack("I",0xFFFFFFFF))
+                     * returns 1.84467440737096e+19 instead of 0xFFFFFFFF for
+		     * DEC C V5.8-009 on Digital UNIX V4.0 (Rev. 1091) (aka V4.0D)
+		     * with optimization turned on.
+		     * (DEC C V5.2-040 on Digital UNIX V4.0 (Rev. 564) (aka V4.0B)
+		     * does not have this problem even with -O4)
+		     */
+                    (auint) ?
+		        sv_setuv(sv, (UV)auint) :
+#endif
 		    sv_setuv(sv, (UV)auint);
 		    PUSHs(sv_2mortal(sv));
 		}
@@ -3318,6 +3393,10 @@ PP(pp_unpack)
 	    if (checksum) {
 		while (len-- > 0) {
 		    COPY32(s, &along);
+#if LONGSIZE > SIZE32
+		    if (along > 2147483647)
+			along -= 4294967296;
+#endif
 		    s += SIZE32;
 		    if (checksum > 32)
 			cdouble += (double)along;
@@ -3330,6 +3409,10 @@ PP(pp_unpack)
 		EXTEND_MORTAL(len);
 		while (len-- > 0) {
 		    COPY32(s, &along);
+#if LONGSIZE > SIZE32
+		    if (along > 2147483647)
+			along -= 4294967296;
+#endif
 		    s += SIZE32;
 		    sv = NEWSV(42, 0);
 		    sv_setiv(sv, (IV)along);
@@ -3419,6 +3502,7 @@ PP(pp_unpack)
 		    }
 		    else if (++bytes >= sizeof(UV)) {	/* promote to string */
 			char *t;
+			STRLEN n_a;
 
 			sv = newSVpvf("%.*Vu", (int)TYPE_DIGITS(UV), auv);
 			while (s < strend) {
@@ -3428,7 +3512,7 @@ PP(pp_unpack)
 				break;
 			    }
 			}
-			t = SvPV(sv, PL_na);
+			t = SvPV(sv, n_a);
 			while (*t == '0')
 			    t++;
 			sv_chop(sv, t);
@@ -3574,7 +3658,7 @@ PP(pp_unpack)
 		char hunk[4];
 
 		hunk[3] = '\0';
-		len = (*s++ - ' ') & 077;
+		len = uudmap[*s++] & 077;
 		while (len > 0) {
 		    if (s < strend && ISUUCHAR(*s))
 			a = uudmap[*s++] & 077;
@@ -3676,8 +3760,9 @@ doencodes(register SV *sv, register char *s, register I32 len)
 STATIC SV      *
 is_an_int(char *s, STRLEN l)
 {
+  STRLEN          n_a;
   SV             *result = newSVpv("", l);
-  char           *result_c = SvPV(result, PL_na);	/* convenience */
+  char           *result_c = SvPV(result, n_a);	/* convenience */
   char           *out = result_c;
   bool            skip = 1;
   bool            ignore = 0;
@@ -3833,6 +3918,7 @@ PP(pp_pack)
 	    sv_catpvn(cat, null10, len);
 	    break;
 	case 'A':
+	case 'Z':
 	case 'a':
 	    fromstr = NEXTFROM;
 	    aptr = SvPV(fromstr, fromlen);
@@ -4172,6 +4258,7 @@ PP(pp_pack)
 		if (fromstr == &PL_sv_undef)
 		    aptr = NULL;
 		else {
+		    STRLEN n_a;
 		    /* XXX better yet, could spirit away the string to
 		     * a safe spot and hang on to it until the result
 		     * of pack() (and all copies of the result) are
@@ -4180,9 +4267,9 @@ PP(pp_pack)
 		    if (PL_dowarn && (SvTEMP(fromstr) || SvPADTMP(fromstr)))
 			warn("Attempt to pack pointer to temporary value");
 		    if (SvPOK(fromstr) || SvNIOK(fromstr))
-			aptr = SvPV(fromstr,PL_na);
+			aptr = SvPV(fromstr,n_a);
 		    else
-			aptr = SvPV_force(fromstr,PL_na);
+			aptr = SvPV_force(fromstr,n_a);
 		}
 		sv_catpvn(cat, (char*)&aptr, sizeof(char*));
 	    }
@@ -4271,9 +4358,9 @@ PP(pp_split)
 	av_extend(ary,0);
 	av_clear(ary);
 	SPAGAIN;
-	if (SvRMAGICAL(ary) && (mg = mg_find((SV *) ary, 'P'))) {
+	if (mg = SvTIED_mg((SV*)ary, 'P')) {
 	    PUSHMARK(SP);
-	    XPUSHs(mg->mg_obj);
+	    XPUSHs(SvTIED_obj((SV*)ary, mg));
 	}
 	else {
 	    if (!AvREAL(ary)) {
@@ -4522,7 +4609,6 @@ PP(pp_lock)
 	DEBUG_S(PerlIO_printf(PerlIO_stderr(), "0x%lx: pp_lock lock 0x%lx\n",
 			      (unsigned long)thr, (unsigned long)sv);)
 	MUTEX_UNLOCK(MgMUTEXP(mg));
-	SvREFCNT_inc(sv);	/* keep alive until magic_mutexfree */
 	save_destructor(unlock_condpair, sv);
     }
 #endif /* USE_THREADS */

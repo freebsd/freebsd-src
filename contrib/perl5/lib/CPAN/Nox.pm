@@ -1,7 +1,10 @@
+package CPAN::Nox;
+
 BEGIN{$CPAN::Suppress_readline=1 unless defined $CPAN::term;}
 
 use CPAN;
 
+$VERSION = "1.00";
 $CPAN::META->has_inst('MD5','no');
 $CPAN::META->has_inst('LWP','no');
 $CPAN::META->has_inst('Compress::Zlib','no');

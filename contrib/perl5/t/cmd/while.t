@@ -1,8 +1,8 @@
 #!./perl
 
-# $RCSfile: while.t,v $$Revision: 4.1 $$Date: 92/08/07 18:27:15 $
+# $RCSfile: while.t,v $$Revision: 1.1.1.2 $$Date: 1999/05/02 14:29:15 $
 
-print "1..10\n";
+print "1..15\n";
 
 open (tmp,'>Cmd_while.tmp') || die "Can't create Cmd_while.tmp.";
 print tmp "tvi925\n";
@@ -108,4 +108,23 @@ $i = 9;
 {
     $i++;
 }
+print "ok $i\n";
+
+# Check curpm is reset when jumping out of a scope
+'abc' =~ /b/;
+WHILE:
+while (1) {
+  $i++;
+  print "#$`,$&,$',\nnot " unless $` . $& . $' eq "abc";
+  print "ok $i\n";
+  {                             # Localize changes to $` and friends
+    'end' =~ /end/;
+    redo WHILE if $i == 11;
+    next WHILE if $i == 12;
+    # 13 do a normal loop
+    last WHILE if $i == 14;
+  }
+}
+$i++;
+print "not " unless $` . $& . $' eq "abc";
 print "ok $i\n";

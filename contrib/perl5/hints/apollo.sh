@@ -1,13 +1,17 @@
 # Info from Johann Klasek <jk@auto.tuwien.ac.at>
 # Merged by Andy Dougherty  <doughera@lafcol.lafayette.edu>
-# Last revised	Fri Jun  2 11:21:27 EDT 1995
+# Last revised	Tue Mar 16 19:12:22 EET 1999 by
+# Jarkko Hietaniemi <jhi@iki.fi>
 
 # uname -a looks like
 # DomainOS newton 10.4.1 bsd4.3 425t
 
 # We want to use both BSD includes and some of the features from the
 # /sys5 includes.
-ccflags="$ccflags -A cpu,mathchip -I/usr/include -I/sys5/usr/include"
+ccflags="$ccflags -A cpu,mathchip -I`pwd`/apollo -I/usr/include -I/sys5/usr/include"
+
+# When Apollo runs a script with "#!", it sets argv[0] to the script name.
+toke_cflags='ccflags="$ccflags -DARG_ZERO_IS_SCRIPT"'
 
 # These adjustments are necessary (why?) to compile malloc.c.
 freetype='void'

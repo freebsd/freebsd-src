@@ -4,7 +4,7 @@ WriteMakefile(
     NAME => 'DynaLoader',
     LINKTYPE	=> 'static',
     DEFINE	=> '-DPERL_CORE -DLIBC="$(LIBC)"',
-    MAN3PODS 	=> ' ', 	# Pods will be built by installman.
+    MAN3PODS 	=> {}, 	# Pods will be built by installman.
     SKIP	=> [qw(dynamic dynamic_lib dynamic_bs)],
     XSPROTOARG => '-noprototypes', 		# XXX remove later?
     VERSION_FROM => 'DynaLoader_pm.PL',

@@ -114,7 +114,7 @@ public:
     virtual int		Printf(PerlIO*, int &err, const char *,...) = 0;
     virtual int		Vprintf(PerlIO*, int &err, const char *, va_list) = 0;
     virtual long	Tell(PerlIO*, int &err) = 0;
-    virtual int		Seek(PerlIO*, off_t, int, int &err) = 0;
+    virtual int		Seek(PerlIO*, Off_t, int, int &err) = 0;
     virtual void	Rewind(PerlIO*, int &err) = 0;
     virtual PerlIO *	Tmpfile(int &err) = 0;
     virtual int		Getpos(PerlIO*, Fpos_t *, int &err) = 0;
@@ -322,10 +322,10 @@ extern int	PerlIO_sprintf		_((char *, int, const char *,...))
 extern int	PerlIO_vprintf		_((PerlIO *, const char *, va_list));
 #endif
 #ifndef PerlIO_tell
-extern long	PerlIO_tell		_((PerlIO *));
+extern Off_t	PerlIO_tell		_((PerlIO *));
 #endif
 #ifndef PerlIO_seek
-extern int	PerlIO_seek		_((PerlIO *,off_t,int));
+extern int	PerlIO_seek		_((PerlIO *, Off_t, int));
 #endif
 #ifndef PerlIO_rewind
 extern void	PerlIO_rewind		_((PerlIO *));
@@ -907,6 +907,7 @@ public:
 #define PerlSock_inet_addr(c)		inet_addr(c)
 #define PerlSock_inet_ntoa(i)		inet_ntoa(i)
 #define PerlSock_listen(s, b)		listen(s, b)
+#define PerlSock_recv(s, b, l, f)	recv(s, b, l, f)
 #define PerlSock_recvfrom(s, b, l, f, from, fromlen)			\
 	recvfrom(s, b, l, f, from, fromlen)
 #define PerlSock_select(n, r, w, e, t)	select(n, r, w, e, t)

@@ -15,11 +15,10 @@ require 5.004;
 # listing the modifications you have made.
 
 # The most recent version and complete docs are available at:
-#   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
-#   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
+#   http://stein.cshl.org/WWW/software/CGI/
 
-$CGI::revision = '$Id: CGI.pm,v 1.32 1998/05/28 21:55:43 lstein Exp lstein $';
-$CGI::VERSION='2.42';
+$CGI::revision = '$Id: CGI.pm,v 1.1.1.2 1999/05/02 14:23:52 markm Exp $';
+$CGI::VERSION='2.46';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -58,6 +57,12 @@ sub initialize_globals {
 
     # Change this to 1 to disable uploads entirely:
     $DISABLE_UPLOADS = 0;
+
+    # Change this to 1 to suppress redundant HTTP headers
+    $HEADERS_ONCE = 0;
+
+    # separate the name=value pairs by semicolons rather than ampersands
+    $USE_PARAM_SEMICOLONS = 0;
 
     # Other globals that you shouldn't worry about.
     undef $Q;
@@ -116,8 +121,9 @@ $SL = {
 $IIS++ if defined($ENV{'SERVER_SOFTWARE'}) && $ENV{'SERVER_SOFTWARE'}=~/IIS/;
 
 # Turn on special checking for Doug MacEachern's modperl
-if (defined($ENV{'GATEWAY_INTERFACE'}) && 
-    ($MOD_PERL = $ENV{'GATEWAY_INTERFACE'} =~ /^CGI-Perl\//)) 
+if (exists $ENV{'GATEWAY_INTERFACE'} 
+    && 
+    ($MOD_PERL = $ENV{'GATEWAY_INTERFACE'} =~ /^CGI-Perl/))
 {
     $| = 1;
     require Apache;
@@ -151,20 +157,21 @@ if ($needs_binmode) {
 			   tt u i b blockquote pre img a address cite samp dfn html head
 			   base body Link nextid title meta kbd start_html end_html
 			   input Select option comment/],
-		':html3'=>[qw/div table caption th td TR Tr sup sub strike applet Param 
+		':html3'=>[qw/div table caption th td TR Tr sup Sub strike applet Param 
 			   embed basefont style span layer ilayer font frameset frame script small big/],
 		':netscape'=>[qw/blink fontsize center/],
 		':form'=>[qw/textfield textarea filefield password_field hidden checkbox checkbox_group 
 			  submit reset defaults radio_group popup_menu button autoEscape
 			  scrolling_list image_button start_form end_form startform endform
-			  start_multipart_form isindex tmpFileName uploadInfo URL_ENCODED MULTIPART/],
-		':cgi'=>[qw/param path_info path_translated url self_url script_name cookie dump
-			 raw_cookie request_method query_string accept user_agent remote_host 
+			  start_multipart_form end_multipart_form isindex tmpFileName uploadInfo URL_ENCODED MULTIPART/],
+		':cgi'=>[qw/param path_info path_translated url self_url script_name cookie Dump
+			 raw_cookie request_method query_string Accept user_agent remote_host 
 			 remote_addr referer server_name server_software server_port server_protocol
 			 virtual_host remote_ident auth_type http use_named_parameters 
 			 save_parameters restore_parameters param_fetch
 			 remote_user user_name header redirect import_names put Delete Delete_all url_param/],
 		':ssl' => [qw/https/],
+		':imagemap' => [qw/Area Map/],
 		':cgi-lib' => [qw/ReadParse PrintHeader HtmlTop HtmlBot SplitParam/],
 		':html' => [qw/:html2 :html3 :netscape/],
 		':standard' => [qw/:html2 :html3 :form :cgi/],
@@ -206,6 +213,7 @@ sub compile {
 
 sub expand_tags {
     my($tag) = @_;
+    return ("start_$1","end_$1") if $tag=~/^(?:\*|start_|end_)(.+)/;
     my(@r);
     return ($tag) unless $EXPORT_TAGS{$tag};
     foreach (@{$EXPORT_TAGS{$tag}}) {
@@ -273,7 +281,7 @@ sub param {
 	$name = $p[0];
     }
 
-    return () unless defined($name) && $self->{$name};
+    return unless defined($name) && $self->{$name};
     return wantarray ? @{$self->{$name}} : $self->{$name}->[0];
 }
 
@@ -315,6 +323,7 @@ sub self_or_CGI {
 sub init {
     my($self,$initializer) = @_;
     my($query_string,$meth,$content_length,$fh,@lines) = ('','','','');
+    local($/) = "\n";
 
     # if we get called more than once, we want to initialize
     # ourselves from the original query (which may be gone
@@ -341,7 +350,7 @@ sub init {
 	  && $ENV{'CONTENT_TYPE'}=~m|^multipart/form-data|
 	  && !defined($initializer)
 	  ) {
-	  my($boundary) = $ENV{'CONTENT_TYPE'} =~ /boundary=\"?([^\";]+)\"?/;
+	  my($boundary) = $ENV{'CONTENT_TYPE'} =~ /boundary=\"?([^\";,]+)\"?/;
 	  $self->read_multipart($boundary,$content_length);
 	  last METHOD;
       } 
@@ -496,7 +505,7 @@ sub save_request {
 
 sub parse_params {
     my($self,$tosplit) = @_;
-    my(@pairs) = split('&',$tosplit);
+    my(@pairs) = split(/[&;]/,$tosplit);
     my($param,$value);
     foreach (@pairs) {
 	($param,$value) = split('=',$_,2);
@@ -526,11 +535,9 @@ sub binmode {
 }
 
 sub _make_tag_func {
-    my $tagname = shift;
-    return qq{
+    my ($self,$tagname) = @_;
+    my $func = qq#
 	sub $tagname { 
-	    # handle various cases in which we're called
-	    # most of this bizarre stuff is to avoid -w errors
 	    shift if \$_[0] && 
 		(!ref(\$_[0]) && \$_[0] eq \$CGI::DefaultClass) ||
 		    (ref(\$_[0]) &&
@@ -542,12 +549,20 @@ sub _make_tag_func {
 		my(\@attr) = make_attributes( '',shift() );
 		\$attr = " \@attr" if \@attr;
 	    }
+	#;
+    if ($tagname=~/start_(\w+)/i) {
+	$func .= qq! return "<\U$1\E\$attr>";} !;
+    } elsif ($tagname=~/end_(\w+)/i) {
+	$func .= qq! return "<\U/$1\E>"; } !;
+    } else {
+	$func .= qq#
 	    my(\$tag,\$untag) = ("\U<$tagname\E\$attr>","\U</$tagname>\E");
 	    return \$tag unless \@_;
 	    my \@result = map { "\$tag\$_\$untag" } (ref(\$_[0]) eq 'ARRAY') ? \@{\$_[0]} : "\@_";
 	    return "\@result";
-         }
-}
+            }#;
+    }
+return $func;
 }
 
 sub AUTOLOAD {
@@ -619,12 +634,13 @@ sub _compile {
 
        $code = "sub $AUTOLOAD { }" if (!$code and $func_name eq 'DESTROY');
        if (!$code) {
+	   (my $base = $func_name) =~ s/^(start_|end_)//i;
 	   if ($EXPORT{':any'} || 
 	       $EXPORT{'-any'} ||
-	       $EXPORT{$func_name} || 
+	       $EXPORT{$base} || 
 	       (%EXPORT_OK || grep(++$EXPORT_OK{$_},&expand_tags(':html')))
-	           && $EXPORT_OK{$func_name}) {
-	       $code = _make_tag_func($func_name);
+	           && $EXPORT_OK{$base}) {
+	       $code = $CGI::DefaultClass->_make_tag_func($func_name);
 	   }
        }
        die "Undefined subroutine $AUTOLOAD\n" unless $code;
@@ -644,14 +660,15 @@ sub _setup_symbols {
     my $self = shift;
     my $compile = 0;
     foreach (@_) {
-	$NPH++, next if /^[:-]nph$/;
-	$NO_DEBUG++, next if /^[:-]no_?[Dd]ebug$/;
-	$PRIVATE_TEMPFILES++, next if /^[:-]private_tempfiles$/;
-	$EXPORT{$_}++, next if /^[:-]any$/;
-	$compile++, next if /^[:-]compile$/;
+	$HEADERS_ONCE++,         next if /^[:-]unique_headers$/;
+	$NPH++,                  next if /^[:-]nph$/;
+	$NO_DEBUG++,             next if /^[:-]no_?[Dd]ebug$/;
+	$USE_PARAM_SEMICOLONS++, next if /^[:-]newstyle_urls$/;
+	$PRIVATE_TEMPFILES++,    next if /^[:-]private_tempfiles$/;
+	$EXPORT{$_}++,           next if /^[:-]any$/;
+	$compile++,              next if /^[:-]compile$/;
 	
-	# This is probably extremely evil code -- to be deleted
-	# some day.
+	# This is probably extremely evil code -- to be deleted some day.
 	if (/^[-]autoload$/) {
 	    my($pkg) = caller(1);
 	    *{"${pkg}::AUTOLOAD"} = sub { 
@@ -978,7 +995,7 @@ sub url_param {
     unless (exists($self->{'.url_param'})) {
 	$self->{'.url_param'}={}; # empty hash
 	if ($ENV{QUERY_STRING} =~ /=/) {
-	    my(@pairs) = split('&',$ENV{QUERY_STRING});
+	    my(@pairs) = split(/[&;]/,$ENV{QUERY_STRING});
 	    my($param,$value);
 	    foreach (@pairs) {
 		($param,$value) = split('=',$_,2);
@@ -1043,6 +1060,7 @@ sub save {
     $filehandle = to_filehandle($filehandle);
     my($param);
     local($,) = '';  # set print field separator back to a sane value
+    local($\) = '';  # set output line separator to a sane value
     foreach $param ($self->param) {
 	my($escaped_param) = escape($param);
 	my($value);
@@ -1141,18 +1159,21 @@ sub header {
     my($self,@p) = self_or_default(@_);
     my(@header);
 
+    return undef if $self->{'.header_printed'}++ and $HEADERS_ONCE;
+
     my($type,$status,$cookie,$target,$expires,$nph,@other) = 
-	$self->rearrange([TYPE,STATUS,[COOKIE,COOKIES],TARGET,EXPIRES,NPH],@p);
+	$self->rearrange([['TYPE','CONTENT_TYPE','CONTENT-TYPE'],
+			  STATUS,[COOKIE,COOKIES],TARGET,EXPIRES,NPH],@p);
 
     $nph ||= $NPH;
     # rearrange() was designed for the HTML portion, so we
     # need to fix it up a little.
     foreach (@other) {
-	next unless my($header,$value) = /([^\s=]+)=\"?([^\"]+)\"?/;
+        next unless my($header,$value) = /([^\s=]+)=\"?(.+?)\"?$/;
 	($_ = $header) =~ s/^(\w)(.*)/$1 . lc ($2) . ": $value"/e;
     }
 
-    $type = $type || 'text/html';
+    $type ||= 'text/html' unless defined($type);
 
     # Maybe future compatibility.  Maybe not.
     my $protocol = $ENV{SERVER_PROTOCOL} || 'HTTP/1.0';
@@ -1164,7 +1185,8 @@ sub header {
     if ($cookie) {
 	my(@cookie) = ref($cookie) && ref($cookie) eq 'ARRAY' ? @{$cookie} : $cookie;
 	foreach (@cookie) {
-	    push(@header,"Set-Cookie: " . (UNIVERSAL::isa($_,'CGI::Cookie') ? $_->as_string : $_));
+            my $cs = UNIVERSAL::isa($_,'CGI::Cookie') ? $_->as_string : $_;
+	    push(@header,"Set-Cookie: $cs") if $cs ne '';
 	}
     }
     # if the user indicates an expiration time, then we need
@@ -1175,7 +1197,7 @@ sub header {
     push(@header,"Date: " . expires(0,'http')) if $expires || $cookie;
     push(@header,"Pragma: no-cache") if $self->cache();
     push(@header,@other);
-    push(@header,"Content-Type: $type");
+    push(@header,"Content-Type: $type") if $type ne '';
 
     my $header = join($CRLF,@header)."${CRLF}${CRLF}";
     if ($MOD_PERL and not $nph) {
@@ -1221,6 +1243,7 @@ sub redirect {
 	 '-nph'=>$nph);
     unshift(@o,'-Target'=>$target) if $target;
     unshift(@o,'-Cookie'=>$cookie) if $cookie;
+    unshift(@o,'-Type'=>'');
     return $self->header(@o);
 }
 END_OF_FUNC
@@ -1407,6 +1430,11 @@ sub start_form {
 }
 END_OF_FUNC
 
+'end_multipart_form' => <<'END_OF_FUNC',
+sub end_multipart_form {
+    &endform;
+}
+END_OF_FUNC
 
 #### Method: start_multipart_form
 # synonym for startform
@@ -1459,8 +1487,11 @@ sub _textfield {
     $name = defined($name) ? $self->escapeHTML($name) : '';
     my($s) = defined($size) ? qq/ SIZE=$size/ : '';
     my($m) = defined($maxlength) ? qq/ MAXLENGTH=$maxlength/ : '';
-    my($other) = @other ? " @other" : '';    
-    return qq/<INPUT TYPE="$tag" NAME="$name" VALUE="$current"$s$m$other>/;
+    my($other) = @other ? " @other" : '';
+    # this entered at cristy's request to fix problems with file upload fields
+    # and WebTV -- not sure it won't break stuff
+    my($value) = $current ne '' ? qq(VALUE="$current") : '';
+    return qq/<INPUT TYPE="$tag" NAME="$name" $value$s$m$other>/;
 }
 END_OF_FUNC
 
@@ -1787,12 +1818,17 @@ END_OF_FUNC
 sub unescapeHTML {
     my $string = ref($_[0]) ? $_[1] : $_[0];
     return undef unless defined($string);
-    $string=~s/&amp;/&/ig;
-    $string=~s/&quot;/\"/ig;
-    $string=~s/&gt;/>/ig;
-    $string=~s/&lt;/</ig;
-    $string=~s/&#(\d+);/chr($1)/eg; 
-    $string=~s/&#[xX]([0-9a-fA-F]);/chr(hex($1))/eg; 
+    # thanks to Randal Schwartz for the correct solution to this one
+    $string=~ s[&(.*?);]{
+	local $_ = $1;
+	/^amp$/i	? "&" :
+	/^quot$/i	? '"' :
+        /^gt$/i		? ">" :
+	/^lt$/i		? "<" :
+	/^#(\d+)$/	? chr($1) :
+	/^#x([0-9a-f]+)$/i ? chr(hex($1)) :
+	$_
+	}gex;
     return $string;
 }
 END_OF_FUNC
@@ -1867,13 +1903,12 @@ sub radio_group {
     } else {
 	$checked = $default;
     }
-    # If no check array is specified, check the first by default
-    $checked = $values->[0] unless defined($checked) && $checked ne '';
-    $name=$self->escapeHTML($name);
-
     my(@elements,@values);
-
     @values = $self->_set_values_and_labels($values,\$labels,$name);
+
+    # If no check array is specified, check the first by default
+    $checked = $values[0] unless defined($checked) && $checked ne '';
+    $name=$self->escapeHTML($name);
 
     my($other) = @other ? " @other" : '';
     foreach (@values) {
@@ -2321,7 +2356,7 @@ sub query_string {
 	    push(@pairs,"$eparam=$value");
 	}
     }
-    return join("&",@pairs);
+    return join($USE_PARAM_SEMICOLONS ? ';' : '&',@pairs);
 }
 END_OF_FUNC
 
@@ -2337,8 +2372,8 @@ END_OF_FUNC
 # declares a quantitative score for it.
 # This handles MIME type globs correctly.
 ####
-'accept' => <<'END_OF_FUNC',
-sub accept {
+'Accept' => <<'END_OF_FUNC',
+sub Accept {
     my($self,$search) = self_or_CGI(@_);
     my(%prefs,$type,$pref,$pat);
     
@@ -2758,6 +2793,7 @@ sub read_multipart {
 	  chmod 0600,$tmp;    # only the owner can tamper with it
 
 	  my ($data);
+	  local($\) = '';
 	  while (defined($data = $buffer->read)) {
 	      print $filehandle $data;
 	  }
@@ -2841,10 +2877,18 @@ $AUTOLOADED_ROUTINES=<<'END_OF_AUTOLOAD';
 'asString' => <<'END_OF_FUNC',
 sub asString {
     my $self = shift;
-    my $i = $$self;
-    $i=~ s/^\*(\w+::)+//; # get rid of package name
+    # get rid of package name
+    (my $i = $$self) =~ s/^\*(\w+::)+//; 
     $i =~ s/\\(.)/$1/g;
     return $i;
+# BEGIN DEAD CODE
+# This was an extremely clever patch that allowed "use strict refs".
+# Unfortunately it relied on another bug that caused leaky file descriptors.
+# The underlying bug has been fixed, so this no longer works.  However
+# "strict refs" still works for some reason.
+#    my $self = shift;
+#    return ${*{$self}{SCALAR}};
+# END DEAD CODE
 }
 END_OF_FUNC
 
@@ -2861,11 +2905,12 @@ sub new {
     my($pack,$name,$file,$delete) = @_;
     require Fcntl unless defined &Fcntl::O_RDWR;
     ++$FH;
-    *{$FH} = quotemeta($name);
-    sysopen($FH,$file,Fcntl::O_RDWR()|Fcntl::O_CREAT()|Fcntl::O_EXCL()) 
+    my $ref = \*{'Fh::' . quotemeta($name)}; 
+    sysopen($ref,$file,Fcntl::O_RDWR()|Fcntl::O_CREAT()|Fcntl::O_EXCL()) 
 	|| die "CGI open of $file: $!\n";
     unlink($file) if $delete;
-    return bless \*{$FH},$pack;
+    delete $Fh::{$FH};
+    return bless $ref,$pack;
 }
 END_OF_FUNC
 
@@ -2883,10 +2928,10 @@ END_OF_AUTOLOAD
 package MultipartBuffer;
 
 # how many bytes to read at a time.  We use
-# a 5K buffer by default.
-$INITIAL_FILLUNIT = 1024 * 5;
-$TIMEOUT = 10*60;       # 10 minute timeout
-$SPIN_LOOP_MAX = 1000;  # bug fix for some Netscape servers
+# a 4K buffer by default.
+$INITIAL_FILLUNIT = 1024 * 4;
+$TIMEOUT = 240*60;       # 4 hour timeout for big files
+$SPIN_LOOP_MAX = 2000;  # bug fix for some Netscape servers
 $CRLF=$CGI::CRLF;
 
 #reuse the autoload function
@@ -2930,8 +2975,8 @@ sub new {
 	# characters "--" PLUS the Boundary string
 
 	# BUG: IE 3.01 on the Macintosh uses just the boundary -- not
-	# the two extra spaces.  We do a special case here on the user-agent!!!!
-	$boundary = "--$boundary" unless CGI::user_agent('MSIE 3\.0[12];  Mac');
+	# the two extra hyphens.  We do a special case here on the user-agent!!!!
+	$boundary = "--$boundary" unless CGI::user_agent('MSIE 3\.0[12];  ?Mac');
 
     } else { # otherwise we find it ourselves
 	my($old);
@@ -3088,6 +3133,7 @@ sub fillBuffer {
 							 \$self->{BUFFER},
 							 $bytesToRead,
 							 $bufferLength);
+    $self->{BUFFER} = '' unless defined $self->{BUFFER};
 
     # An apparent bug in the Apache server causes the read()
     # to return zero bytes repeatedly without blocking if the
@@ -3129,7 +3175,7 @@ $MAC = $CGI::OS eq 'MACINTOSH';
 my ($vol) = $MAC ? MacPerl::Volumes() =~ /:(.*)/ : "";
 unless ($TMPDIRECTORY) {
     @TEMP=("${SL}usr${SL}tmp","${SL}var${SL}tmp",
-	   "${SL}tmp","${SL}temp","${vol}${SL}Temporary Items",
+	   "C:${SL}temp","${SL}tmp","${SL}temp","${vol}${SL}Temporary Items",
 	   "${SL}WWW_ROOT");
     foreach (@TEMP) {
 	do {$TMPDIRECTORY = $_; last} if -d $_ && -w _;
@@ -3273,10 +3319,10 @@ the CGI script, and because each object's parameter list is
 independent of the others, this allows you to save the state of the
 script and restore it later.
 
-For example, using the object oriented style, here is now you create
+For example, using the object oriented style, here is how you create
 a simple "Hello World" HTML page:
 
-   #!/usr/local/bin/pelr
+   #!/usr/local/bin/perl
    use CGI;                             # load CGI routines
    $q = new CGI;                        # create new CGI object
    print $q->header,                    # create the HTTP header
@@ -3294,7 +3340,7 @@ The main differences are that we now need to import a set of functions
 into our name space (usually the "standard" functions), and we don't
 need to create the CGI object.
 
-   #!/usr/local/bin/pelr
+   #!/usr/local/bin/perl
    use CGI qw/:standard/;           # load standard CGI routines
    print header,                    # create the HTTP header
          start_html('hello world'), # start the HTML
@@ -3319,7 +3365,7 @@ acceptable.  In fact, only the first argument needs to begin with a
 dash.  If a dash is present in the first argument, CGI.pm assumes
 dashes for the subsequent ones.
 
-You don't have to use the hyphen at allif you don't want to.  After
+You don't have to use the hyphen at all if you don't want to.  After
 creating a CGI object, call the B<use_named_parameters()> method with
 a nonzero value.  This will tell CGI.pm that you intend to use named
 parameters exclusively:
@@ -3667,7 +3713,7 @@ methods, and then use them directly:
    $zipcode = param('zipcode');
 
 More frequently, you'll import common sets of functions by referring
-to the gropus by name.  All function sets are preceded with a ":"
+to the groups by name.  All function sets are preceded with a ":"
 character as in ":html3" (for tags defined in the HTML 3 standard).
 
 Here is a list of the function sets you can import:
@@ -3719,7 +3765,7 @@ provide for the rapidly-evolving HTML "standard."  For example, say
 Microsoft comes out with a new tag called <GRADIENT> (which causes the
 user's desktop to be flooded with a rotating gradient fill until his
 machine reboots).  You don't need to wait for a new version of CGI.pm
-to start using it immeidately:
+to start using it immediately:
 
    use CGI qw/:standard :html3 gradient/;
    print gradient({-start=>'red',-end=>'blue'});
@@ -3799,7 +3845,7 @@ This causes the indicated autoloaded methods to be compiled up front,
 rather than deferred to later.  This is useful for scripts that run
 for an extended period of time under FastCGI or mod_perl, and for
 those destined to be crunched by Malcom Beattie's Perl compiler.  Use
-it in conjunction with the methods or method familes you plan to use.
+it in conjunction with the methods or method families you plan to use.
 
    use CGI qw(-compile :standard :html3);
 
@@ -3818,6 +3864,17 @@ This makes CGI.pm produce a header appropriate for an NPH (no
 parsed header) script.  You may need to do other things as well
 to tell the server that the script is NPH.  See the discussion
 of NPH scripts below.
+
+=item -newstyle_urls
+
+Separate the name=value pairs in CGI parameter query strings with
+semicolons rather than ampersands.  For example:
+
+   ?name=fred;age=24;favorite_color=3
+
+Semicolon-delimited query strings are always accepted, but will not be
+emitted by self_url() and query_string() unless the -newstyle_urls
+pragma is specified.
 
 =item -autoload
 
@@ -3859,7 +3916,51 @@ upload, even if it is confidential information. On Unix systems,
 the -private_tempfiles pragma will cause the temporary file to be unlinked as soon
 as it is opened and before any data is written into it,
 eliminating the risk of eavesdropping.
-n
+
+=back
+
+=head2 SPECIAL FORMS FOR IMPORTING HTML-TAG FUNCTIONS
+
+Many of the methods generate HTML tags.  As described below, tag
+functions automatically generate both the opening and closing tags.
+For example:
+
+  print h1('Level 1 Header');
+
+produces
+
+  <H1>Level 1 Header</H1>
+
+There will be some times when you want to produce the start and end
+tags yourself.  In this case, you can use the form start_I<tag_name>
+and end_I<tag_name>, as in:
+
+  print start_h1,'Level 1 Header',end_h1;
+
+With a few exceptions (described below), start_I<tag_name> and
+end_I<tag_name> functions are not generated automatically when you
+I<use CGI>.  However, you can specify the tags you want to generate
+I<start/end> functions for by putting an asterisk in front of their
+name, or, alternatively, requesting either "start_I<tag_name>" or
+"end_I<tag_name>" in the import list.
+
+Example:
+
+  use CGI qw/:standard *table start_ul/;
+
+In this example, the following functions are generated in addition to
+the standard ones:
+
+=over 4
+
+=item 1. start_table() (generates a <TABLE> tag)
+
+=item 2. end_table() (generates a </TABLE> tag)
+
+=item 3. start_ul() (generates a <UL> tag)
+
+=item 4. end_ul() (generates a </UL> tag)
+
 =back
 
 =head1 GENERATING DYNAMIC DOCUMENTS
@@ -4247,6 +4348,25 @@ as a synonym.
 
 =back
 
+=head2 MIXING POST AND URL PARAMETERS
+
+   $color = $query-&gt;url_param('color');
+
+It is possible for a script to receive CGI parameters in the URL as
+well as in the fill-out form by creating a form that POSTs to a URL
+containing a query string (a "?" mark followed by arguments).  The
+B<param()> method will always return the contents of the POSTed
+fill-out form, ignoring the URL's query string.  To retrieve URL
+parameters, call the B<url_param()> method.  Use it in the same way as
+B<param()>.  The main difference is that it allows you to read the
+parameters, but not set them.
+
+
+Under no circumstances will the contents of the URL query string
+interfere with similarly-named CGI parameters in POSTed forms.  If you
+try to mix a URL query string with a form submitted with the GET
+method, the results will not be what you expect.
+
 =head1 CREATING STANDARD HTML ELEMENTS:
 
 CGI.pm defines general HTML shortcut methods for most, if not all of
@@ -4325,7 +4445,7 @@ that points to an undef string:
 
 Prior to CGI.pm version 2.41, providing an empty ('') string as an
 attribute argument was the same as providing undef.  However, this has
-changed in order to accomodate those who want to create tags of the form 
+changed in order to accommodate those who want to create tags of the form 
 <IMG ALT="">.  The difference is shown in these two pieces of code:
   
    CODE                   RESULT
@@ -4410,10 +4530,20 @@ begin with initial caps:
     Tr
     Link
     Delete
+    Accept
+    Sub
 
 In addition, start_html(), end_html(), start_form(), end_form(),
 start_multipart_form() and all the fill-out form tags are special.
 See their respective sections.
+
+=head2 PRETTY-PRINTING HTML
+
+By default, all the HTML produced by these functions comes out as one
+long line without carriage returns or indentation. This is yuck, but
+it does reduce the size of the documents by 10-20%.  To get
+pretty-printed output, please use L<CGI::Pretty>, a subclass
+contributed by Brian Paulsen.
 
 =head1 CREATING FILL-OUT FORMS:
 
@@ -4469,7 +4599,7 @@ default is to process the query with the current script.
 
     print $query->startform(-method=>$method,
 			    -action=>$action,
-			    -encoding=>$encoding);
+			    -enctype=>$encoding);
       <... various form stuff ...>
     print $query->endform;
 
@@ -4484,11 +4614,11 @@ action and form encoding that you specify.  The defaults are:
 	
     method: POST
     action: this script
-    encoding: application/x-www-form-urlencoded
+    enctype: application/x-www-form-urlencoded
 
 endform() returns the closing </FORM> tag.  
 
-Startform()'s encoding method tells the browser how to package the various
+Startform()'s enctype argument tells the browser how to package the various
 fields of the form before sending the form to the server.  Two
 values are possible:
 
@@ -4671,12 +4801,11 @@ The first parameter is the required name for the field (-name).
 The optional second parameter is the starting value for the field contents
 to be used as the default file name (-default).
 
-The beta2 version of Netscape 2.0 currently doesn't pay any attention
-to this field, and so the starting value will always be blank.  Worse,
-the field loses its "sticky" behavior and forgets its previous
-contents.  The starting value field is called for in the HTML
-specification, however, and possibly later versions of Netscape will
-honor it.
+For security reasons, browsers don't pay any attention to this field,
+and so the starting value will always be blank.  Worse, the field
+loses its "sticky" behavior and forgets its previous contents.  The
+starting value field is called for in the HTML specification, however,
+and possibly some browser will eventually provide support for it.
 
 =item 3.
 
@@ -5093,7 +5222,7 @@ To include row and column headings in the returned table, you
 can use the B<-rowheader> and B<-colheader> parameters.  Both
 of these accept a pointer to an array of headings to use.
 The headings are just decorative.  They don't reorganize the
-interpetation of the radio buttons -- they're still a single named
+interpretation of the radio buttons -- they're still a single named
 unit.
 
 =back
@@ -5156,6 +5285,9 @@ parameter.  See checkbox_group() for further details.
 reset() creates the "reset" button.  Note that it restores the
 form to its value from the last time the script was called, 
 NOT necessarily to the defaults.
+
+Note that this conflicts with the Perl reset() built-in.  Use
+CORE::reset() to get the original reset function.
 
 =head2 CREATING A DEFAULT BUTTON
 
@@ -5263,11 +5395,12 @@ pointed to by the B<-onClick> parameter will be executed.  On
 non-Netscape browsers this form element will probably not even
 display.
 
-=head1 NETSCAPE COOKIES
+=head1 HTTP COOKIES
 
-Netscape browsers versions 1.1 and higher support a so-called
-"cookie" designed to help maintain state within a browser session.
-CGI.pm has several methods that support cookies.
+Netscape browsers versions 1.1 and higher, and all versions of
+Internet Explorer, support a so-called "cookie" designed to help
+maintain state within a browser session.  CGI.pm has several methods
+that support cookies.
 
 A cookie is a name=value pair much like the named parameters in a CGI
 query string.  CGI scripts create one or more cookies and send
@@ -5285,15 +5418,15 @@ optional attributes:
 This is a time/date string (in a special GMT format) that indicates
 when a cookie expires.  The cookie will be saved and returned to your
 script until this expiration date is reached if the user exits
-Netscape and restarts it.  If an expiration date isn't specified, the cookie
-will remain active until the user quits Netscape.
+the browser and restarts it.  If an expiration date isn't specified, the cookie
+will remain active until the user quits the browser.
 
 =item 2. a domain
 
 This is a partial or complete domain name for which the cookie is 
 valid.  The browser will return the cookie to any host that matches
 the partial domain name.  For example, if you specify a domain name
-of ".capricorn.com", then Netscape will return the cookie to
+of ".capricorn.com", then the browser will return the cookie to
 Web servers running on any of the machines "www.capricorn.com", 
 "www2.capricorn.com", "feckless.capricorn.com", etc.  Domain names
 must contain at least two periods to prevent attempts to match
@@ -5318,7 +5451,7 @@ script if the CGI request is occurring on a secure channel, such as SSL.
 
 =back
 
-The interface to Netscape cookies is the B<cookie()> method:
+The interface to HTTP cookies is the B<cookie()> method:
 
     $cookie = $query->cookie(-name=>'sessionID',
 			     -value=>'xyzzy',
@@ -5335,7 +5468,7 @@ B<cookie()> creates a new cookie.  Its parameters include:
 =item B<-name>
 
 The name of the cookie (required).  This can be any string at all.
-Although Netscape limits its cookie names to non-whitespace
+Although browsers limit their cookie names to non-whitespace
 alphanumeric characters, CGI.pm removes this restriction by escaping
 and unescaping cookies behind the scenes.
 
@@ -5406,19 +5539,11 @@ simple to turn a CGI parameter into a cookie, and vice-versa:
 See the B<cookie.cgi> example script for some ideas on how to use
 cookies effectively.
 
-B<NOTE:> There appear to be some (undocumented) restrictions on
-Netscape cookies.  In Netscape 2.01, at least, I haven't been able to
-set more than three cookies at a time.  There may also be limits on
-the length of cookies.  If you need to store a lot of information,
-it's probably better to create a unique session ID, store it in a
-cookie, and use the session ID to locate an external file/database
-saved on the server's side of the connection.
+=head1 WORKING WITH FRAMES
 
-=head1 WORKING WITH NETSCAPE FRAMES
-
-It's possible for CGI.pm scripts to write into several browser
-panels and windows using Netscape's frame mechanism.  
-There are three techniques for defining new frames programmatically:
+It's possible for CGI.pm scripts to write into several browser panels
+and windows using the HTML 4 frame mechanism.  There are three
+techniques for defining new frames programmatically:
 
 =over 4
 
@@ -5441,12 +5566,12 @@ You may provide a B<-target> parameter to the header() method:
    
     print $q->header(-target=>'ResultsWindow');
 
-This will tell Netscape to load the output of your script into the
-frame named "ResultsWindow".  If a frame of that name doesn't
-already exist, Netscape will pop up a new window and load your
-script's document into that.  There are a number of magic names
-that you can use for targets.  See the frame documents on Netscape's
-home pages for details.
+This will tell the browser to load the output of your script into the
+frame named "ResultsWindow".  If a frame of that name doesn't already
+exist, the browser will pop up a new window and load your script's
+document into that.  There are a number of magic names that you can
+use for targets.  See the frame documents on Netscape's home pages for
+details.
 
 =item 3. Specify the destination for the document in the <FORM> tag
 
@@ -5591,13 +5716,8 @@ Produces something that looks like:
 	</UL>
     </UL>
 
-You can pass a value of 'true' to dump() in order to get it to
-print the results out as plain text, suitable for incorporating
-into a <PRE> section.
-
-As a shortcut, as of version 1.56 you can interpolate the entire CGI
-object into a string and it will be replaced with the a nice HTML dump
-shown above:
+As a shortcut, you can interpolate the entire CGI object into a string
+and it will be replaced with the a nice HTML dump shown above:
 
     $query=new CGI;
     print "<H2>Current Values</H2> $query\n";
@@ -5609,24 +5729,25 @@ through this interface.  The methods are as follows:
 
 =over 4
 
-=item B<accept()>
+=item B<Accept()>
 
-Return a list of MIME types that the remote browser
-accepts. If you give this method a single argument
-corresponding to a MIME type, as in
-$query->accept('text/html'), it will return a
-floating point value corresponding to the browser's
-preference for this type from 0.0 (don't want) to 1.0.
-Glob types (e.g. text/*) in the browser's accept list
-are handled correctly.
+Return a list of MIME types that the remote browser accepts. If you
+give this method a single argument corresponding to a MIME type, as in
+$query->Accept('text/html'), it will return a floating point value
+corresponding to the browser's preference for this type from 0.0
+(don't want) to 1.0.  Glob types (e.g. text/*) in the browser's accept
+list are handled correctly.
+
+Note that the capitalization changed between version 2.43 and 2.44 in
+order to avoid conflict with Perl's accept() function.
 
 =item B<raw_cookie()>
 
 Returns the HTTP_COOKIE variable, an HTTP extension implemented by
-Netscape browsers version 1.1 and higher.  Cookies have a special
-format, and this method call just returns the raw form (?cookie
-dough).  See cookie() for ways of setting and retrieving cooked
-cookies.
+Netscape browsers version 1.1 and higher, and all versions of Internet
+Explorer.  Cookies have a special format, and this method call just
+returns the raw form (?cookie dough).  See cookie() for ways of
+setting and retrieving cooked cookies.
 
 Called with no parameters, raw_cookie() returns the packed cookie
 structure.  You can separate it into individual cookies by splitting
@@ -5708,10 +5829,9 @@ verification, if this script is protected.
 
 =item B<user_name ()>
 
-Attempt to obtain the remote user's name, using a variety
-of different techniques.  This only works with older browsers
-such as Mosaic.  Netscape does not reliably report the user
-name!
+Attempt to obtain the remote user's name, using a variety of different
+techniques.  This only works with older browsers such as Mosaic.
+Newer browsers do not report the user name for privacy reasons!
 
 =item B<request_method()>
 
@@ -5935,14 +6055,17 @@ of CGI.pm without rewriting your old scripts from scratch.
 
 =head1 AUTHOR INFORMATION
 
-Copyright 1995-1997, Lincoln D. Stein.  All rights reserved.  It may
-be used and modified freely, but I do request that this copyright
-notice remain attached to the file.  You may modify this module as you
-wish, but if you redistribute a modified version, please attach a note
-listing the modifications you have made.
+Copyright 1995-1998, Lincoln D. Stein.  All rights reserved.  
 
-Address bug reports and comments to:
-lstein@genome.wi.mit.edu
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
+Address bug reports and comments to: lstein@cshl.org.  When sending
+bug reports, please provide the version of CGI.pm, the version of
+Perl, the name and version of your Web server, and the name and
+version of the operating system you are using.  If the problem is even
+remotely browser dependent, please provide information about the
+affected browers as well.
 
 =head1 CREDITS
 
@@ -5962,7 +6085,7 @@ Thanks very much to:
 
 =item Joergen Haegg (jh@axis.se)
 
-=item Laurent Delfosse (delfosse@csgrad1.cs.wvu.edu)
+=item Laurent Delfosse (delfosse@delfosse.com)
 
 =item Richard Resnick (applepi1@aol.com)
 
@@ -6054,7 +6177,7 @@ for suggestions and bug fixes.
 				  -rows=>10,
 				  -columns=>50);
  
-	   print "<P>",$query->reset;
+	   print "<P>",$query->Reset;
 	   print $query->submit('Action','Shout');
 	   print $query->submit('Action','Scream');
 	   print $query->endform;
@@ -6095,8 +6218,8 @@ warnings when programs are run with the B<-w> switch.
 =head1 SEE ALSO
 
 L<CGI::Carp>, L<URI::URL>, L<CGI::Request>, L<CGI::MiniSvr>,
-L<CGI::Base>, L<CGI::Form>, L<CGI::Apache>, L<CGI::Switch>,
-L<CGI::Push>, L<CGI::Fast>
+L<CGI::Base>, L<CGI::Form>, L<CGI::Push>, L<CGI::Fast>,
+L<CGI::Pretty>
 
 =cut
 

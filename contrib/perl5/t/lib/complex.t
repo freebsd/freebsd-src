@@ -14,7 +14,7 @@ BEGIN {
 
 use Math::Complex;
 
-$VERSION = sprintf("%s", q$Id: complex.t,v 1.8 1998/02/05 16:03:39 jhi Exp $ =~ /(\d+\.d+)/);
+my $VERSION = sprintf("%s", q$Id: complex.t,v 1.1.1.2 1999/05/02 14:29:56 markm Exp $ =~ /(\d+\.d+)/);
 
 my ($args, $op, $target, $test, $test_set, $try, $val, $zvalue, @set, @val);
 
@@ -172,20 +172,6 @@ test_loz(
 	 'atanh(-1)',
 	 'acoth(-1)',
 	);
-
-# test the 0**0
-
-sub test_ztz {
-    $test++;
-
-    push(@script, <<'EOT');
-eval 'cplx(0)**cplx(0)';
-print 'not ' unless ($@ =~ /zero raised to the zeroth/);
-EOT
-    push(@script, qq(print "ok $test\\n";\n));
-}
-
-test_ztz;
 
 # test the bad roots
 
@@ -387,6 +373,7 @@ __END__
 (1,0):(2,3):(1,0)
 (2,3):(0,0):(1,0)
 (2,3):(1,0):(2,3)
+(0,0):(0,0):(1,0)
 
 &Re
 (3,4):3
@@ -876,4 +863,3 @@ __END__
 ( 2,-3):(  0.14694666622553,  0.23182380450040)
 
 # eof
-

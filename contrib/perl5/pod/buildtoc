@@ -6,10 +6,10 @@ sub output ($);
 
 @pods = qw(
 	   perl perlfaq perlfaq1 perlfaq2 perlfaq3 perlfaq4 perlfaq5
-	   perlfaq6 perlfaq7 perlfaq8 perlfaq9 perldelta perldata
-	   perlsyn perlop perlre perlrun perlfunc perlvar perlsub
+	   perlfaq6 perlfaq7 perlfaq8 perlfaq9 perldelta perldata perlopentut
+	   perlsyn perlop perlre perlreftut perlrun perlfunc perlvar perlsub
 	   perlmod perlmodlib perlmodinstall perlform perllocale perlref perldsc
-	   perllol perltoot perlobj perltie perlbot perlipc perldebug
+	   perllol perltoot perlobj perltie perlthrtut perlbot perlipc perldebug
 	   perldiag perlsec perltrap perlport perlstyle perlpod perlbook
 	   perlembed perlapio perlxs perlxstut perlguts perlcall
 	   perlhist
