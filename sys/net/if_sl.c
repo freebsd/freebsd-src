@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.36 1996/02/06 18:51:14 wollman Exp $
+ * $Id: if_sl.c,v 1.37 1996/04/07 17:39:09 bde Exp $
  */
 
 /*
@@ -561,7 +561,8 @@ slstart(tp)
 			} while (m1 = m1->m_next);
 		}
 #endif
-		if ((ip = mtod(m, struct ip *))->ip_p == IPPROTO_TCP) {
+		if ((ip = mtod(m, struct ip *))->ip_v == IPVERSION) &&
+		    (ip = mtod(m, struct ip *))->ip_p == IPPROTO_TCP) {
 			if (sc->sc_if.if_flags & SC_COMPRESS)
 				*mtod(m, u_char *) |= sl_compress_tcp(m, ip,
 				    &sc->sc_comp, 1);
