@@ -84,7 +84,7 @@ esac
 
 for manpage
 do
-	if grep -hi $grepopt -- "$manpage" $mandir; then :
+	if grep -Ehi $grepopt -- "$manpage" $mandir; then :
 	else
         	echo "$manpage: nothing appropriate"
 	fi
