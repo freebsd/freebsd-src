@@ -59,6 +59,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <glob.h>
 #include <libutil.h>
+#include <limits.h>
 #include <md5.h>
 #include <netdb.h>
 #include <pwd.h>
@@ -109,7 +110,10 @@ extern int epsvall;
 %}
 
 %union {
-	int	i;
+	struct {
+		off_t	o;
+		int	i;
+	} u;
 	char   *s;
 }
 
@@ -134,11 +138,11 @@ extern int epsvall;
 	LEXERR
 
 %token	<s> STRING
-%token	<i> NUMBER
+%token	<u> NUMBER
 
-%type	<i> check_login octal_number byte_size
-%type	<i> check_login_ro check_login_epsv
-%type	<i> struct_code mode_code type_code form_code
+%type	<u.i> check_login octal_number byte_size
+%type	<u.i> check_login_ro check_login_epsv
+%type	<u.i> struct_code mode_code type_code form_code
 %type	<s> pathstring pathname password username
 %type	<s> ALL
 
@@ -335,7 +339,7 @@ cmd
 		{
 			if ($2) {
 				int pf;
-				switch ($4) {
+				switch ($4.i) {
 				case 1:
 					pf = PF_INET;
 					break;
@@ -663,12 +667,12 @@ cmd
 	| SITE SP check_login IDLE SP NUMBER CRLF
 		{
 			if ($3) {
-				if ($6 < 30 || $6 > maxtimeout) {
+				if ($6.i < 30 || $6.i > maxtimeout) {
 					reply(501,
 					    "Maximum IDLE time must be between 30 and %d seconds",
 					    maxtimeout);
 				} else {
-					timeout = $6;
+					timeout = $6.i;
 					(void) alarm((unsigned) timeout);
 					reply(200,
 					    "Maximum IDLE time set to %d seconds",
@@ -772,14 +776,14 @@ rcmd
 				free($4);
 			}
 		}
-	| REST check_login SP byte_size CRLF
+	| REST check_login SP NUMBER CRLF
 		{
 			if ($2) {
 				if (fromname)
 					free(fromname);
 				fromname = (char *) 0;
-				restart_point = $4;  /* XXX $4 is only "int" */
-				reply(350, "Restarting at %qd. %s",
+				restart_point = $4.o;
+				reply(350, "Restarting at %llu. %s",
 				    restart_point,
 				    "Send STORE or RETRIEVE to initiate transfer.");
 			}
@@ -800,6 +804,9 @@ password
 
 byte_size
 	: NUMBER
+		{
+			$$ = $1.i;
+		}
 	;
 
 host_port
@@ -811,9 +818,9 @@ host_port
 			data_dest.su_len = sizeof(struct sockaddr_in);
 			data_dest.su_family = AF_INET;
 			p = (char *)&data_dest.su_sin.sin_port;
-			p[0] = $9; p[1] = $11;
+			p[0] = $9.i; p[1] = $11.i;
 			a = (char *)&data_dest.su_sin.sin_addr;
-			a[0] = $1; a[1] = $3; a[2] = $5; a[3] = $7;
+			a[0] = $1.i; a[1] = $3.i; a[2] = $5.i; a[3] = $7.i;
 		}
 	;
 
@@ -831,18 +838,18 @@ host_long_port
 			data_dest.su_len = sizeof(struct sockaddr_in6);
 			data_dest.su_family = AF_INET6;
 			p = (char *)&data_dest.su_port;
-			p[0] = $39; p[1] = $41;
+			p[0] = $39.i; p[1] = $41.i;
 			a = (char *)&data_dest.su_sin6.sin6_addr;
-			 a[0] =  $5;  a[1] =  $7;  a[2] =  $9;  a[3] = $11;
-			 a[4] = $13;  a[5] = $15;  a[6] = $17;  a[7] = $19;
-			 a[8] = $21;  a[9] = $23; a[10] = $25; a[11] = $27;
-			a[12] = $29; a[13] = $31; a[14] = $33; a[15] = $35;
+			a[0] = $5.i; a[1] = $7.i; a[2] = $9.i; a[3] = $11.i;
+			a[4] = $13.i; a[5] = $15.i; a[6] = $17.i; a[7] = $19.i;
+			a[8] = $21.i; a[9] = $23.i; a[10] = $25.i; a[11] = $27.i;
+			a[12] = $29.i; a[13] = $31.i; a[14] = $33.i; a[15] = $35.i;
 			if (his_addr.su_family == AF_INET6) {
 				/* XXX more sanity checks! */
 				data_dest.su_sin6.sin6_scope_id =
 					his_addr.su_sin6.sin6_scope_id;
 			}
-			if ($1 != 6 || $3 != 16 || $37 != 2)
+			if ($1.i != 6 || $3.i != 16 || $37.i != 2)
 				memset(&data_dest, 0, sizeof(data_dest));
 		}
 	| NUMBER COMMA NUMBER COMMA NUMBER COMMA NUMBER COMMA
@@ -855,10 +862,10 @@ host_long_port
 			data_dest.su_sin.sin_len = sizeof(struct sockaddr_in);
 			data_dest.su_family = AF_INET;
 			p = (char *)&data_dest.su_port;
-			p[0] = $15; p[1] = $17;
+			p[0] = $15.i; p[1] = $17.i;
 			a = (char *)&data_dest.su_sin.sin_addr;
-			a[0] =  $5;  a[1] =  $7;  a[2] =  $9;  a[3] = $11;
-			if ($1 != 4 || $3 != 4 || $13 != 2)
+			a[0] =  $5.i; a[1] = $7.i; a[2] = $9.i; a[3] = $11.i;
+			if ($1.i != 4 || $3.i != 4 || $13.i != 2)
 				memset(&data_dest, 0, sizeof(data_dest));
 		}
 	;
@@ -997,7 +1004,7 @@ octal_number
 			 * Convert a number that was read as decimal number
 			 * to what it would be if it had been read as octal.
 			 */
-			dec = $1;
+			dec = $1.i;
 			multby = 1;
 			ret = 0;
 			while (dec) {
@@ -1368,7 +1375,7 @@ yylex(void)
 					;
 				c = cbuf[cpos];
 				cbuf[cpos] = '\0';
-				yylval.i = atoi(cp);
+				yylval.u.i = atoi(cp);
 				cbuf[cpos] = c;
 				state = STR1;
 				return (NUMBER);
@@ -1383,7 +1390,8 @@ yylex(void)
 					;
 				c = cbuf[cpos];
 				cbuf[cpos] = '\0';
-				yylval.i = atoi(cp);
+				yylval.u.i = atoi(cp);
+				yylval.u.o = strtoull(cp, (char **)NULL, 10);
 				cbuf[cpos] = c;
 				return (NUMBER);
 			}
