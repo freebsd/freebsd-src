@@ -45,17 +45,17 @@
  * All rights reserved.
  *
  * Author: Chris G. Demetriou
- * 
+ *
  * Permission to use, copy, modify and distribute this software and
  * its documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
- * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS" 
- * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND 
+ *
+ * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
+ * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND
  * FOR ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
  *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
@@ -275,7 +275,7 @@ sf_buf_alloc(struct vm_page *m)
 		sf_buf_alloc_want--;
 
 		/*
-		 * If we got a signal, don't risk going back to sleep. 
+		 * If we got a signal, don't risk going back to sleep.
 		 */
 		if (error)
 			break;
@@ -324,10 +324,10 @@ sf_buf_free(void *addr, void *args)
 
 /*
  * Software interrupt handler for queued VM system processing.
- */   
-void  
-swi_vm(void *dummy) 
-{     
+ */
+void
+swi_vm(void *dummy)
+{
 #if 0 /* XXX: Don't have busdma stuff yet */
 	if (busdma_swi_pending != 0)
 		busdma_swi();
@@ -358,18 +358,24 @@ is_physical_memory(addr)
  * KSE functions
  */
 void
-cpu_thread_exit(struct thread *td)     
+cpu_thread_exit(struct thread *td)
 {
 }
 
 void
-cpu_thread_clean(struct thread *td)     
+cpu_thread_clean(struct thread *td)
 {
 }
 
 void
 cpu_thread_setup(struct thread *td)
 {
+	struct pcb *pcb;
+
+	pcb = (struct pcb *)((td->td_kstack + KSTACK_PAGES * PAGE_SIZE -
+	    sizeof(struct pcb)) & ~0x2fU);
+	td->td_pcb = pcb;
+	td->td_frame = (struct trapframe *)pcb - 1;
 }
 
 void
@@ -385,9 +391,51 @@ cpu_thread_swapout(struct thread *td)
 void
 cpu_set_upcall(struct thread *td, struct thread *td0)
 {
+	struct pcb *pcb2;
+	struct trapframe *tf;
+	struct callframe *cf;
+
+	pcb2 = td->td_pcb;
+
+	/* Copy the upcall pcb */
+	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
+
+	/* Create a stack for the new thread */
+	tf = td->td_frame;
+	bcopy(td0->td_frame, tf, sizeof(struct trapframe));
+	tf->fixreg[FIRSTARG] = 0;
+	tf->fixreg[FIRSTARG + 1] = 0;
+	tf->cr &= ~0x10000000;
+
+	/* Set registers for trampoline to user mode. */
+	cf = (struct callframe *)tf - 1;
+	cf->cf_func = (register_t)fork_return;
+	cf->cf_arg0 = (register_t)td;
+	cf->cf_arg1 = (register_t)tf;
+
+	pcb2->pcb_sp = (register_t)cf;
+	pcb2->pcb_lr = (register_t)fork_trampoline;
+	pcb2->pcb_usr = kernel_pmap->pm_sr[USER_SR];
 }
 
 void
 cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
 {
+        struct trapframe *tf;
+        uint32_t sp;
+
+	tf = td->td_frame;
+	/* align stack and alloc space for frame ptr and saved LR */
+        sp = ((uint32_t)ku->ku_stack.ss_sp + ku->ku_stack.ss_size
+		- 2*sizeof(u_int32_t)) & ~0x1f;
+	bzero(tf, sizeof(struct trapframe));
+
+	tf->fixreg[1] = (register_t)sp;
+        tf->fixreg[3] = (register_t)ku->ku_mailbox;
+        tf->srr0 = (register_t)ku->ku_func;
+        tf->srr1 = PSL_MBO | PSL_USERSET | PSL_FE_DFLT;
+        td->td_pcb->pcb_flags = 0;
+
+        td->td_retval[0] = (register_t)ku->ku_func;
+        td->td_retval[1] = 0;
 }
