@@ -1625,11 +1625,10 @@ COMMON ITEMS:
 	<make sure you have good level 0 dumps>
 	<maybe fix /etc/fstab>				[7]
 	make buildworld
-	make buildkernel KERNCONF=YOUR_KERNEL_HERE
-	make installkernel KERNCONF=YOUR_KERNEL_HERE
+	make kernel KERNCONF=YOUR_KERNEL_HERE
 							[1]
 	<reboot in single user>				[3]
-	/etc/rc.d/preseedrandom				[10]
+	src/etc/rc.d/preseedrandom			[10]
 	mergemaster -p					[5]
 	make installworld
 	mergemaster					[4]
@@ -1650,15 +1649,15 @@ COMMON ITEMS:
 	<mount current's root partition on directory ${CURRENT_ROOT}>
 	make installworld DESTDIR=${CURRENT_ROOT}
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE
-	cp /usr/src/sys/${ARCH}/conf/GENERIC.hints \
+	cp src/sys/${ARCH}/conf/GENERIC.hints \
 		${CURRENT_ROOT}/boot/device.hints	# as needed
 	make installkernel KERNCONF=YOUR_KERNEL_HERE DESTDIR=${CURRENT_ROOT}
-	cd /usr/src/etc; make distribution DESTDIR=${CURRENT_ROOT} # if newfs'd
+	cd src/etc; make distribution DESTDIR=${CURRENT_ROOT} # if newfs'd
 	cp /etc/fstab ${CURRENT_ROOT}/etc/fstab 		   # if newfs'd
 	<edit ${CURRENT_ROOT}/etc/fstab to mount "/" from the correct partition>
 	<reboot into current>
 	<do a "native" rebuild/install as described in the previous section>
-	<maybe install compatibility libraries from /usr/src/lib/compat>
+	<maybe install compatibility libraries from src/lib/compat>
  	<reboot>
 
 
@@ -1679,10 +1678,10 @@ COMMON ITEMS:
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE	[8]
 	cp sys/${MACHINE}/conf/GENERIC.hints /boot/device.hints [2]
 	make installkernel KERNCONF=YOUR_KERNEL_HERE
-	cd sys/boot ; make STRIP="" install			[6]
+	cd sys/boot ; make STRIP="" install		[6]
 							[1]
 	<reboot in single user>				[3]
-	/usr/src/etc/rc.d/preseedrandom				[10]
+	src/etc/rc.d/preseedrandom			[10]
 	mergemaster -p					[5]
 	rm -rf /usr/include/g++
 	make installworld
@@ -1713,7 +1712,7 @@ COMMON ITEMS:
 		fsck -p
 		mount -u /
 		mount -a
-		cd /usr/src
+		cd src
 		adjkerntz -i		# if CMOS is wall time
 	Also, when doing a major release upgrade, it is required that
 	you boot into single user mode to do the installworld.
@@ -1765,7 +1764,7 @@ COMMON ITEMS:
 	using your existing software for a while.
 
 	[10] In order to create temporary files, /dev/random must be
-	initialized by feeding data into it.  /usr/src/etc/rc.d/preseedrandom
+	initialized by feeding data into it.  src/etc/rc.d/preseedrandom
 	takes care of this.
 FORMAT:
 
