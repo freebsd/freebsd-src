@@ -1,11 +1,11 @@
-<!-- $Id: relnotes.sgml,v 1.4.2.4 1995/11/07 18:24:45 jfieber Exp $ -->
+<!-- $Id: relnotes.sgml,v 1.7 1995/11/20 01:10:28 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
 <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'>
 <linuxdoc><book><chapt>foo
 -->
-      <sect><heading>About this release<label id="relnotes"></heading>
+      <sect><heading>About the current release<label id="relnotes"></heading>
 
 	<p>FreeBSD is a freely available, full source 4.4 BSD
 	  Lite based release for Intel i386/i486/Pentium (or

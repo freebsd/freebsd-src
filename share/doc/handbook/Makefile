@@ -1,9 +1,9 @@
-# $Id: Makefile,v 1.5 1995/10/07 04:31:10 jfieber Exp $
+# $Id: Makefile,v 1.6 1995/10/14 21:49:43 jfieber Exp $
 
 SRCS= authors.sgml basics.sgml bibliography.sgml boothelp.sgml
 SRCS+= booting.sgml contrib.sgml crypt.sgml ctm.sgml current.sgml dialup.sgml
 SRCS+= diskless.sgml dma.sgml eresources.sgml esdi.sgml 
-SRCS+= firewalls.sgml glossary.sgml
+SRCS+= firewalls.sgml glossary.sgml goals.sgml
 SRCS+= handbook.sgml history.sgml hw.sgml install.sgml kerberos.sgml
 SRCS+= kernelconfig.sgml kerneldebug.sgml memoryuse.sgml
 SRCS+= mirrors.sgml nfs.sgml nutshell.sgml 

@@ -1,4 +1,4 @@
-<!-- $Id: handbook.sgml,v 1.35 1995/11/25 20:00:46 jkh Exp $ -->
+<!-- $Id: handbook.sgml,v 1.36 1995/12/04 13:39:30 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
@@ -49,8 +49,20 @@ Web server">.
     <part><heading>Basics</heading>
 
     <chapt><heading>Introduction</heading>
+      <p>FreeBSD is a 4.4 BSD Lite based operating system for Intel
+      architecture (x86) based PCs.  For an overview of FreeBSD, see
+      <ref id="nutshell" name="FreeBSD in a nutshell">.  For a
+      history of the project, read <ref id="history"
+      name="a brief history of FreeBSD">.  To see a description of the
+      latest release, read <ref id="relnotes"
+      name="about the current release">.  If you're interested
+      in contributing something to the FreeBSD project (code, equipment,
+      sacks of unmarked bills), please see about <ref id="submitters"
+      name="contributing to FreeBSD">.
+
       &nutshell;
       &history;
+      &goals;
       &relnotes;
 
     &install;
@@ -59,7 +71,6 @@ Web server">.
     <chapt><heading>Installing applications</heading>
       <sect><heading>* Installing packages</heading>
         &ports;
-        &porting;
 
 <!-- ************************************************************ -->	      
 
@@ -124,8 +135,8 @@ Web server">.
       &ctm; 
       &sup;
     &kerneldebug;
-    &submitters;
     &troubleshooting;
+    &submitters;
 
 
 <!-- ************************************************************ -->	      
