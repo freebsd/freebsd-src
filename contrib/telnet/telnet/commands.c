@@ -2299,6 +2299,9 @@ tn(int argc, char *argv[])
     } else if (*portp == '-') {
       portp++;
       telnetport = 1;
+    } else if (*portp == '+') {
+      portp++;
+      telnetport = -1;
     } else
       telnetport = 0;
 
