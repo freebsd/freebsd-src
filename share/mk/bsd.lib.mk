@@ -242,6 +242,7 @@ _libinstall:
 .endif
 .endif !defined(INTERNALLIB)
 
+.include <bsd.nls.mk>
 .include <bsd.files.mk>
 .include <bsd.incs.mk>
 .include <bsd.links.mk>
