@@ -983,12 +983,16 @@ getaddr(which, s, hpp)
 		switch (which) {
 		case RTA_DST:
 			forcenet++;
-			/* bzero(su, sizeof(*su)); *//* for readability */
+#if 0
+			bzero(su, sizeof(*su));	/* for readability */
+#endif
 			(void) getaddr(RTA_NETMASK, s, 0);
 			break;
+#if 0
 		case RTA_NETMASK:
 		case RTA_GENMASK:
-			/* bzero(su, sizeof(*su)); *//* for readability */
+			bzero(su, sizeof(*su));	/* for readability */
+#endif
 		}
 		return (0);
 	}
