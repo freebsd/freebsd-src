@@ -187,10 +187,7 @@ int ksched_setscheduler(register_t *ret, struct ksched *ksched,
 					td->td_kse->ke_flags |= KEF_NEEDRESCHED;
 				} else if (TD_ON_RUNQ(td)) {
 					if (td->td_priority > kg->kg_user_pri) {
-						remrunqueue(td);
-						td->td_priority =
-						    kg->kg_user_pri;
-						setrunqueue(td);
+						sched_prio(td, kg->kg_user_pri);
 					}
 				}
 			}
@@ -220,10 +217,7 @@ int ksched_setscheduler(register_t *ret, struct ksched *ksched,
 					td->td_kse->ke_flags |= KEF_NEEDRESCHED;
 				} else if (TD_ON_RUNQ(td)) {
 					if (td->td_priority > kg->kg_user_pri) {
-						remrunqueue(td);
-						td->td_priority =
-						    kg->kg_user_pri;
-						setrunqueue(td);
+						sched_prio(td, kg->kg_user_pri);
 					}
 				}
 				
