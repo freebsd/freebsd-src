@@ -1828,24 +1828,27 @@ isp_cam_async(void *cbarg, u_int32_t code, struct cam_path *path, void *arg)
 			int tgt;
 
 			tgt = xpt_path_target_id(path);
-			ISP_LOCK(isp);
-			sdp += cam_sim_bus(sim);
-			nflags = sdp->isp_devparam[tgt].nvrm_flags;
+			if (tgt >= 0) {
+				sdp += cam_sim_bus(sim);
+				ISP_LOCK(isp);
+				nflags = sdp->isp_devparam[tgt].nvrm_flags;
 #ifndef	ISP_TARGET_MODE
-			nflags &= DPARM_SAFE_DFLT;
-			if (isp->isp_loaded_fw) {
-				nflags |= DPARM_NARROW | DPARM_ASYNC;
-			}
+				nflags &= DPARM_SAFE_DFLT;
+				if (isp->isp_loaded_fw) {
+					nflags |= DPARM_NARROW | DPARM_ASYNC;
+				}
 #else
-			nflags = DPARM_DEFAULT;
+				nflags = DPARM_DEFAULT;
 #endif
-			oflags = sdp->isp_devparam[tgt].goal_flags;
-			sdp->isp_devparam[tgt].goal_flags = nflags;
-			sdp->isp_devparam[tgt].dev_update = 1;
-			isp->isp_update |= (1 << cam_sim_bus(sim));
-			(void) isp_control(isp, ISPCTL_UPDATE_PARAMS, NULL);
-			sdp->isp_devparam[tgt].goal_flags = oflags;
-			ISP_UNLOCK(isp);
+				oflags = sdp->isp_devparam[tgt].goal_flags;
+				sdp->isp_devparam[tgt].goal_flags = nflags;
+				sdp->isp_devparam[tgt].dev_update = 1;
+				isp->isp_update |= (1 << cam_sim_bus(sim));
+				(void) isp_control(isp,
+				    ISPCTL_UPDATE_PARAMS, NULL);
+				sdp->isp_devparam[tgt].goal_flags = oflags;
+				ISP_UNLOCK(isp);
+			}
 		}
 		break;
 	default:
