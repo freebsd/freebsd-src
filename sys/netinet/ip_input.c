@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.68 1997/10/28 15:58:47 bde Exp $
+ * $Id: ip_input.c,v 1.69 1997/10/28 18:55:21 guido Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -53,6 +53,7 @@
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/route.h>
 #include <net/netisr.h>
@@ -1443,14 +1444,35 @@ ip_savecontrol(inp, mp, ip, m)
 	}
 #endif
 	if (inp->inp_flags & INP_RECVIF) {
-		struct sockaddr_dl sdl;
+		struct ifnet *ifp;
+		struct sdlbuf {
+			struct sockaddr_dl sdl;
+			u_char	pad[32];
+		} sdlbuf;
+		struct sockaddr_dl *sdp;
+		struct sockaddr_dl *sdl2 = &sdlbuf.sdl;
 
-		sdl.sdl_len = offsetof(struct sockaddr_dl, sdl_data[0]);
-		sdl.sdl_family = AF_LINK;
-		sdl.sdl_index = m->m_pkthdr.rcvif ?
-			m->m_pkthdr.rcvif->if_index : 0;
-		sdl.sdl_nlen = sdl.sdl_alen = sdl.sdl_slen = 0;
-		*mp = sbcreatecontrol((caddr_t) &sdl, sdl.sdl_len,
+		if (((ifp = m->m_pkthdr.rcvif)) 
+		&& ( ifp->if_index && (ifp->if_index <= if_index))) {
+			sdp = (struct sockaddr_dl *)(ifnet_addrs
+					[ifp->if_index - 1]->ifa_addr);
+			/*
+			 * Change our mind and don't try copy.
+			 */
+			if ((sdp->sdl_family != AF_LINK)
+			|| (sdp->sdl_len > sizeof(sdlbuf))) {
+				goto makedummy;
+			}
+			bcopy(sdp, sdl2, sdp->sdl_len);
+		} else {
+makedummy:	
+			sdl2->sdl_len
+				= offsetof(struct sockaddr_dl, sdl_data[0]);
+			sdl2->sdl_family = AF_LINK;
+			sdl2->sdl_index = 0;
+			sdl2->sdl_nlen = sdl2->sdl_alen = sdl2->sdl_slen = 0;
+		}
+		*mp = sbcreatecontrol((caddr_t) sdl2, sdl2->sdl_len,
 			IP_RECVIF, IPPROTO_IP);
 		if (*mp)
 			mp = &(*mp)->m_next;
