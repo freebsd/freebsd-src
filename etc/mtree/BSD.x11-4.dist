@@ -12,6 +12,10 @@
         ..
     ..
     include
+        DPS
+        ..
+        GL
+        ..
         X11
             ICE
             ..
@@ -30,9 +34,13 @@
             extensions
             ..
             fonts
+                codeconv
+                ..
             ..
             pixmaps
             ..
+        ..
+        bitmaps
         ..
     ..
     info
@@ -52,6 +60,10 @@
             config
             ..
             doc
+                PostScript
+                ..
+                html
+                ..
             ..
             etc
             ..
@@ -60,6 +72,8 @@
                 ..
                 75dpi
                 ..
+                CID
+                ..
                 PEX
                 ..
                 Speedo
@@ -67,6 +81,16 @@
                 Type1
                 ..
                 cyrillic
+                ..
+                encodings
+                    large
+                    ..
+                ..
+                latin2
+                    100dpi
+                    ..
+                    75dpi
+                    ..
                 ..
                 local
                 ..
@@ -80,7 +104,17 @@
             locale
                 C
                 ..
+                armscii-8
+                ..
+                en_US.UTF-8
+                ..
                 en_US.utf
+                ..
+                georgian-academy
+                ..
+                georgian-ps
+                ..
+                ibm-cp1133
                 ..
                 iso8859-1
                 ..
@@ -100,6 +134,12 @@
                 ..
                 iso8859-9
                 ..
+                iso8859-10
+                ..
+                iso8859-14
+                ..
+                iso8859-15
+                ..
                 ja
                 ..
                 ja.JIS
@@ -110,9 +150,17 @@
                 ..
                 koi8-r
                 ..
+                koi8-u
+                ..
+                mulelao-1
+                ..
                 tbl_data
                 ..
                 th_TH.TACTIS
+                ..
+                vi_VN.tcvn
+                ..
+                vi_VN.viscii
                 ..
                 zh
                 ..
@@ -136,6 +184,8 @@
             x11perfcomp
             ..
             xdm
+                pixmaps
+                ..
             ..
             xinit
             ..
@@ -173,12 +223,22 @@
                     ..
                     fujitsu
                     ..
+                    hp
+                    ..
+                    macintosh
+                    ..
                     nec
+                    ..
+                    sgi
                     ..
                     sony
                     ..
                     sun
                     ..
+                    xfree68
+                    ..
+                ..
+                types
                 ..
             ..
             xserver
@@ -189,6 +249,20 @@
         aout
         ..
         modules
+            codeconv
+            ..
+            dri
+            ..
+            drivers
+            ..
+            extensions
+            ..
+            fonts
+            ..
+            freebsd
+            ..
+            input
+            ..
         ..
     ..
     libexec
