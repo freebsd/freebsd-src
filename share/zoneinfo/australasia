@@ -1,4 +1,4 @@
-# @(#)australasia	7.25
+# @(#)australasia	7.27
 # This file also includes Pacific islands.
 
 # Notes are at the end of this file
@@ -8,7 +8,6 @@
 # Australia
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Aus	1895	only	-	Jan	 1	0:00	0	-
 # Shanks gives 1917 Jan 1 0:01; go with Whitman (and guess 2:00).
 Rule	Aus	1916	only	-	Oct	 1	2:00	1:00	-
 Rule	Aus	1917	only	-	Mar	25	2:00	0	-
@@ -208,10 +207,6 @@ Zone Pacific/Johnston	-10:00	-	HST
 # uninhabited
 
 # Kiribati
-# From Paul Eggert (1996-01-22):
-# Today's _Wall Street Journal_ (page 1) reports that Kiribati
-# ``declared it the same day throught the country as of Jan. 1, 1995''
-# as part of the competition to be first into the 21st century.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Tarawa	 11:32:04 -	LMT	1901		# Bairiki
 			 12:00	-	NZST
@@ -246,8 +241,7 @@ Zone Pacific/Yap	9:12:32	-	LMT	1901		# Colonia
 			9:00	-	PLT	1969 Oct
 			10:00	-	GST
 Zone Pacific/Truk	10:07:08 -	LMT	1901
-			10:00	-	GST	1978 Oct
-			11:00	-	NCST
+			10:00	-	GST
 Zone Pacific/Ponape	10:32:52 -	LMT	1901		# Kolonia
 			11:00	-	NCST
 Zone Pacific/Kosrae	10:51:56 -	LMT	1901
@@ -264,7 +258,6 @@ Zone	Pacific/Nauru	11:07:40 -	LMT	1921 Jan 15	# Uaobe
 
 # New Caledonia
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	NC	1912	only	-	Jan	13	0:00	0	S
 Rule	NC	1977	1978	-	Dec	Sun>=1	0:00	1:00	D
 Rule	NC	1978	1979	-	Feb	27	0:00	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -277,7 +270,6 @@ Zone	Pacific/Noumea	11:05:48 -	LMT	1912 Jan 13
 # New Zealand
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	NZ	1868	only	-	Jan	1	0:00	0	S
 # Shanks gives 1927 Nov 6 - 1928 Mar 4, 1928 Oct 14 - 1929 Mar 17,
 # 1929 Oct 13 - 1930 Mar 16; go with Whitman.
 Rule	NZ	1927	only	-	Nov	26	2:00	0:30	HD
@@ -368,10 +360,6 @@ Zone	Pacific/Fakaofo	-11:24:56 -	LMT	1901
 			-10:00	-	THT
 
 # Tonga
-# From Paul Eggert (1996-01-22):
-# Today's _Wall Street Journal_ (page 1) reports that ``Tonga has been plotting
-# to sneak ahead of [New Zealanders] by introducing daylight-saving time.''
-# But since Kiribati has moved the Date Line it's not clear what Tonga will do.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Tongatapu	12:19:20 -	LMT	1901
 			12:20	-	TMT	1968 Oct
@@ -384,7 +372,6 @@ Zone Pacific/Funafuti	11:56:52 -	LMT	1901
 
 # Vanuatu
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Vanuatu	1912	only	-	Jan	13	0:00	0	S
 Rule	Vanuatu	1983	only	-	Sep	25	0:00	1:00	D
 Rule	Vanuatu	1984	1991	-	Mar	Sun>=23	0:00	0	S
 Rule	Vanuatu	1984	only	-	Oct	23	0:00	1:00	D
@@ -840,6 +827,13 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 
 # Johnston data is from usno1995.
 
+# Kiribati
+
+# From Paul Eggert (1996-01-22):
+# Today's _Wall Street Journal_ (page 1) reports that Kiribati
+# ``declared it the same day throught the country as of Jan. 1, 1995''
+# as part of the competition to be first into the 21st century.
+
 # Kwajalein
 
 # In comp.risks 14.87 (26 August 1993), Peter Neumann writes:
@@ -855,9 +849,25 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # (now called the Marianas) kept American date for quite some time.
 # Ignore this for now, as we have no hard data.  See also Asia/Manila.
 
+# Micronesia
+
+# Alan Eugene Davis <adavis@kuentos.guam.net> writes (1996-03-16),
+# ``I am certain, having lived there for the past decade, that "Truk"
+# (now properly known as Chuuk) ... is in the time zone GMT+10.''
+#
+# Shanks writes that Truk switched from GMT+10 to GMT+11 on 1978-10-01;
+# ignore this for now.
+
 # Samoa
 
 # Howse writes that in 1879 the King of Samoa decided to change
 # ``the date in his kingdom from the Antipodean to the American system,
 # ordaining -- by a masterpiece of diplomatic flattery -- that
 # the Fourth of July should be celebrated twice in that year.''
+
+# Tonga
+
+# From Paul Eggert (1996-01-22):
+# Today's _Wall Street Journal_ (p 1) reports that ``Tonga has been plotting
+# to sneak ahead of [New Zealanders] by introducing daylight-saving time.''
+# Since Kiribati has moved the Date Line it's not clear what Tonga will do.
