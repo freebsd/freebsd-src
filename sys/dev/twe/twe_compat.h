@@ -171,8 +171,8 @@ typedef struct bio_queue_head		twe_bioq;
 # define TWE_BIO_HAS_ERROR(bp)		((bp)->bio_flags & BIO_ERROR)
 # define TWE_BIO_RESID(bp)		(bp)->bio_resid
 # define TWE_BIO_DONE(bp)		biodone(bp)
-# define TWE_BIO_STATS_START(bp)	devstat_start_transaction(&((struct twed_softc *)TWE_BIO_SOFTC(bp))->twed_stats)
-# define TWE_BIO_STATS_END(bp)		devstat_end_transaction_bio(&((struct twed_softc *)TWE_BIO_SOFTC(bp))->twed_stats, bp)
+# define TWE_BIO_STATS_START(bp)
+# define TWE_BIO_STATS_END(bp)
 #endif
 
 #endif /* FreeBSD */

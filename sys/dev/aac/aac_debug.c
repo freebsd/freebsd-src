@@ -40,7 +40,6 @@
 
 #include <dev/aac/aac_compat.h>
 #include <sys/bus.h>
-#include <sys/devicestat.h>
 #include <sys/disk.h>
 
 #include <machine/resource.h>

@@ -74,6 +74,5 @@ struct afd_softc {
     struct bio_queue_head	queue;		/* queue of i/o requests */
     struct afd_cappage		cap;		/* capabilities page info */
     struct disk			disk;		/* virtual drives */
-    struct devstat		stats;
 };
 

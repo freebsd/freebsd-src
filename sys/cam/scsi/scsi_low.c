@@ -75,7 +75,6 @@
 #else
 #include <machine/clock.h>
 #endif
-#include <sys/devicestat.h>
 #endif	/* __FreeBSD__ */
 
 #include <sys/buf.h>

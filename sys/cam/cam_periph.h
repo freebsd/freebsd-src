@@ -35,6 +35,8 @@
 
 #ifdef _KERNEL
 
+struct devstat;
+
 extern struct cam_periph *xpt_periph;
 
 extern struct periph_driver **periph_drivers;

@@ -41,7 +41,6 @@
 #include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
-#include <sys/devicestat.h>
 #include <sys/cons.h>
 
 #include <machine/md_var.h>

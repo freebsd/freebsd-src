@@ -31,10 +31,12 @@ typedef	int	disk_ioctl_t(struct disk *, u_long cmd, void *data,
 		/* NB: disk_ioctl_t SHALL be cast'able to d_ioctl_t */
 
 struct g_geom;
+struct devstat;
 
 struct disk {
 	/* Fields which are private to geom_disk */
 	struct g_geom		*d_geom;
+	struct devstat		*d_devstat;
 
 	/* Shared fields */
 	u_int			d_flags;

@@ -118,7 +118,6 @@
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_da.h>
 
-#include <sys/devicestat.h>
 #include <cam/cam_periph.h>
 
 #ifdef USB_DEBUG

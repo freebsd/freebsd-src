@@ -253,7 +253,6 @@ struct amrd_softc
     struct amr_softc	*amrd_controller;
     struct amr_logdrive	*amrd_drive;
     struct disk		amrd_disk;
-    struct devstat	amrd_stats;
     int			amrd_unit;
 };
 

@@ -43,7 +43,6 @@
 
 #include <dev/vinum/vinumhdr.h>
 #include <sys/sysproto.h>				    /* for sync(2) */
-#include <sys/devicestat.h>
 #ifdef VINUMDEBUG
 #include <sys/reboot.h>
 int debug = 0;

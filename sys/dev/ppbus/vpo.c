@@ -31,8 +31,6 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
-#include <sys/devicestat.h>	/* for struct devstat */
-
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>

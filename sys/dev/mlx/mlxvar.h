@@ -228,7 +228,6 @@ struct mlxd_softc
     struct mlx_softc	*mlxd_controller;
     struct mlx_sysdrive	*mlxd_drive;
     struct disk		mlxd_disk;
-    struct devstat	mlxd_stats;
     int			mlxd_unit;
     int			mlxd_flags;
 #define MLXD_OPEN	(1<<0)		/* drive is open (can't shut down) */

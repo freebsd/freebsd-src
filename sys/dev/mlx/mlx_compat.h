@@ -71,7 +71,7 @@ typedef struct bio_queue_head		mlx_bioq;
 # define MLX_BIO_HAS_ERROR(bp)		((bp)->bio_flags & BIO_ERROR)
 # define MLX_BIO_RESID(bp)		(bp)->bio_resid
 # define MLX_BIO_DONE(bp)		biodone(bp)	/* XXX nice to integrate bio_finish here */
-# define MLX_BIO_STATS_START(bp)	devstat_start_transaction(&((struct mlxd_softc *)MLX_BIO_SOFTC(bp))->mlxd_stats)
-# define MLX_BIO_STATS_END(bp)		devstat_end_transaction_bio(&((struct mlxd_softc *)MLX_BIO_SOFTC(bp))->mlxd_stats, bp)
+# define MLX_BIO_STATS_START(bp)
+# define MLX_BIO_STATS_END(bp)
 #endif
 
