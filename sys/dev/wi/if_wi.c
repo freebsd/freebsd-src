@@ -2390,7 +2390,7 @@ wi_cmd(struct wi_softc *sc, int cmd, int val0, int val1, int val2)
 	count++;
 
 	/* wait for the busy bit to clear */
-	for (i = 500; i > 0; i--) {	/* 500ms */
+	for (i = 5000; i > 0; i--) {	/* 5000ms */
 		if (!(CSR_READ_2(sc, WI_COMMAND) & WI_CMD_BUSY))
 			break;
 		DELAY(1*1000);	/* 1ms */
