@@ -755,12 +755,6 @@ mode0_probe(PROBE_ARGS)
 	if (id == 0x19648086) {
 		PROBE_RETURN ("Adaptec Mode0 PM2865/2400A/3200S/3400S");
 	}
-#if 0	/* this would match any generic i960 -- mjs */
-	/* This is an i960RP (typically also on Motherboards) */
-	if (id == 0x19608086) {
-		PROBE_RETURN ("Adaptec Mode0 PM2554/PM1554/PM2654");
-	}
-#endif
 	PROBE_RETURN (NULL);
 } /* mode0_probe */
 
@@ -928,21 +922,6 @@ ASR_failActiveCommands (
 {
 	struct ccb_hdr			       * ccb;
 	int					 s;
-
-#if 0 /* Currently handled by callers, unnecessary paranoia currently */
-      /* Left in for historical perspective. */
-	defAlignLong(I2O_EXEC_LCT_NOTIFY_MESSAGE,Message);
-	PI2O_EXEC_LCT_NOTIFY_MESSAGE		 Message_Ptr;
-
-	/* Send a blind LCT command to wait for the enableSys to complete */
-	Message_Ptr = (PI2O_EXEC_LCT_NOTIFY_MESSAGE)ASR_fillMessage(Message,
-	  sizeof(I2O_EXEC_LCT_NOTIFY_MESSAGE) - sizeof(I2O_SG_ELEMENT));
-	I2O_MESSAGE_FRAME_setFunction(&(Message_Ptr->StdMessageFrame),
-	  I2O_EXEC_LCT_NOTIFY);
-	I2O_EXEC_LCT_NOTIFY_MESSAGE_setClassIdentifier(Message_Ptr,
-	  I2O_CLASS_MATCH_ANYCLASS);
-	(void)ASR_queue_c(sc, (PI2O_MESSAGE_FRAME)Message_Ptr);
-#endif
 
 	s = splcam();
 	/*
@@ -1406,21 +1385,8 @@ ASR_reset(
 		 * good thing. In a production system, however, one may wish
 		 * to instead take the card off-line ...
 		 */
-#if 0 && (defined(HA_OFF_LINE))
-			/*
-			 * Take adapter off-line.
-			 */
-			printf ("asr%d: Taking adapter off-line\n",
-			  sc->ha_path[0]
-			    ? cam_sim_unit(xpt_path_sim(sc->ha_path[0]))
-			    : 0);
-			sc->ha_in_reset = HA_OFF_LINE;
-			splx (s);
-			return (ENXIO);
-#else
-			/* Wait Forever */
-			while (ASR_resetIOP (sc->ha_Virt, sc->ha_Fvirt) == 0);
-#endif
+		/* Wait Forever */
+		while (ASR_resetIOP (sc->ha_Virt, sc->ha_Fvirt) == 0);
 	}
 	retVal = ASR_init (sc);
 	splx (s);
@@ -3941,61 +3907,6 @@ asr_ioctl(
 		Info.extendedMemSize = j;
 		Info.flags |= SI_MemorySizeValid;
 
-#if (defined(THIS_IS_BROKEN))
-		/* If There Is 1 or 2 Drives Found, Set Up Drive Parameters */
-		if (Info.numDrives > 0) {
-			/*
-			 *	Get The Pointer From Int 41 For The First
-			 *	Drive Parameters
-			 */
-			j = ((unsigned)(*((unsigned short *)ptok(0x104+2))) << 4)
-			   + (unsigned)(*((unsigned short *)ptok(0x104+0)));
-			/*
-			 * It appears that SmartROM's Int41/Int46 pointers
-			 * use memory that gets stepped on by the kernel
-			 * loading. We no longer have access to this
-			 * geometry information but try anyways (!?)
-			 */
-			Info.drives[0].cylinders = *((unsigned char *)ptok(j));
-			++j;
-			Info.drives[0].cylinders += ((int)*((unsigned char *)
-			    ptok(j))) << 8;
-			++j;
-			Info.drives[0].heads = *((unsigned char *)ptok(j));
-			j += 12;
-			Info.drives[0].sectors = *((unsigned char *)ptok(j));
-			Info.flags |= SI_DriveParamsValid;
-			if ((Info.drives[0].cylinders == 0)
-			 || (Info.drives[0].heads == 0)
-			 || (Info.drives[0].sectors == 0)) {
-				Info.flags &= ~SI_DriveParamsValid;
-			}
-			if (Info.numDrives > 1) {
-				/*
-				 *	Get The Pointer From Int 46 For The
-				 *	Second Drive Parameters
-				 */
-				j = ((unsigned)(*((unsigned short *)ptok(0x118+2))) << 4)
-				   + (unsigned)(*((unsigned short *)ptok(0x118+0)));
-				Info.drives[1].cylinders = *((unsigned char *)
-				    ptok(j));
-				++j;
-				Info.drives[1].cylinders += ((int)
-				    *((unsigned char *)ptok(j))) << 8;
-				++j;
-				Info.drives[1].heads = *((unsigned char *)
-				    ptok(j));
-				j += 12;
-				Info.drives[1].sectors = *((unsigned char *)
-				    ptok(j));
-				if ((Info.drives[1].cylinders == 0)
-				 || (Info.drives[1].heads == 0)
-				 || (Info.drives[1].sectors == 0)) {
-					Info.flags &= ~SI_DriveParamsValid;
-				}
-			}
-		}
-#endif
 		/* Copy Out The Info Structure To The User */
 		if (cmd & 0xFFFF0000) {
 			bcopy (&Info, data, sizeof(Info));
