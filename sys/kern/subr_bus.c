@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.3 1998/07/12 16:20:52 dfr Exp $
+ *	$Id: subr_bus.c,v 1.4 1998/07/22 08:35:52 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -706,7 +706,7 @@ device_probe_and_attach(device_t dev)
 	    if (!error)
 		dev->state = DS_ATTACHED;
 	    else {
-		printf("device_probe_and_attach: %s%n attach returned %d\n",
+		printf("device_probe_and_attach: %s%d attach returned %d\n",
 		       dev->driver->name, dev->unit, error);
 		device_set_driver(dev, NULL);
 		dev->state = DS_NOTPRESENT;
