@@ -179,9 +179,9 @@ bi_load64(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
     /* pad to a page boundary */
     addr = roundup(addr, PAGE_SIZE);
 
-    kfp = file_findfile(NULL, "elf64 kernel");
+    kfp = file_findfile(NULL, "elf kernel");
     if (kfp == NULL)
-      kfp = file_findfile(NULL, "elf32 kernel");
+      kfp = file_findfile(NULL, "elf64 kernel");
     if (kfp == NULL)
 	panic("can't find kernel file");
     kernend = 0;	/* fill it in later */
