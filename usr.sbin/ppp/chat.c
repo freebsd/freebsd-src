@@ -34,7 +34,7 @@
 #include <sys/time.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <signal.h>
+#include "sig.h"
 #include <sys/wait.h>
 #include "timeout.h"
 #include "vars.h"
@@ -402,16 +402,16 @@ char *command, *out;
   pipe(fids);
   pid = fork();
   if (pid == 0) {
-    signal(SIGINT, SIG_DFL);
-    signal(SIGQUIT, SIG_DFL);
-    signal(SIGTERM, SIG_DFL);
-    signal(SIGHUP, SIG_DFL);
+    pending_signal(SIGINT, SIG_DFL);
+    pending_signal(SIGQUIT, SIG_DFL);
+    pending_signal(SIGTERM, SIG_DFL);
+    pending_signal(SIGHUP, SIG_DFL);
     close(fids[0]);
     dup2(fids[1], 1);
     close(fids[1]);
     nb = open("/dev/tty", O_RDWR);
     dup2(nb, 0);
-LogPrintf(LOG_CHAT_BIT, "exec: %s\n", command);
+    LogPrintf(LOG_CHAT_BIT, "exec: %s\n", command);
     /* switch back to original privileges */
     if (setgid(getgid()) < 0) {
       LogPrintf(LOG_CHAT_BIT, "setgid: %s\n", strerror(errno));
