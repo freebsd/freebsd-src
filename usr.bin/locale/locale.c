@@ -52,11 +52,13 @@
 #include <unistd.h>
 
 /* Local prototypes */
-void	usage(void);
 void	init_locales_list(void);
 void	list_locales(void);
+char	*kwval_lconv(int);
+int	kwval_lookup(char *, char **, int *, int *);
 void	showdetails(char *);
 void	showlocale(void);
+void	usage(void);
 
 /* Global variables */
 static StringList *locales = NULL;
@@ -68,11 +70,11 @@ int	prt_keywords = 0;
 int	more_params = 0;
 
 struct _lcinfo {
-	char	*name;
-	int	id;
+	const char	*name;
+	int		id;
 } lcinfo [] = {
-	{ "LC_CTYPE",		LC_CTYPE }, 
-	{ "LC_COLLATE",		LC_COLLATE }, 
+	{ "LC_CTYPE",		LC_CTYPE },
+	{ "LC_COLLATE",		LC_COLLATE },
 	{ "LC_TIME",		LC_TIME },
 	{ "LC_NUMERIC",		LC_NUMERIC },
 	{ "LC_MONETARY",	LC_MONETARY },
@@ -100,10 +102,10 @@ struct _lcinfo {
 #define KW_N_SIGN_POSN 		(KW_ZERO+16)
 
 struct _kwinfo {
-	char	*name;
-	int	isstr;		/* true - string, false - number */
-	int	catid;		/* LC_* */
-	int	value_ref;
+	const char	*name;
+	int		isstr;		/* true - string, false - number */
+	int		catid;		/* LC_* */
+	int		value_ref;
 } kwinfo [] = {
 	{ "charmap",		1, LC_CTYPE,	CODESET },	/* hack */
 
@@ -277,7 +279,7 @@ usage(void)
 void
 list_locales(void)
 {
-	int i;
+	size_t i;
 
 	init_locales_list();
 	for (i = 0; i < locales->sl_cur; i++) {
@@ -305,7 +307,7 @@ init_locales_list(void)
 {
 	DIR *dirp;
 	struct dirent *dp;
-	char *dirname;
+	const char *dirname;
 
 	/* why call this function twice ? */
 	if (locales != NULL)
@@ -354,8 +356,8 @@ init_locales_list(void)
 void
 showlocale(void)
 {
-	int	i;
-	char	*lang, *vval, *eval;
+	size_t	i;
+	const char *lang, *vval, *eval;
 
 	setlocale(LC_ALL, "");
 
@@ -364,6 +366,7 @@ showlocale(void)
 		lang = "";
 	}
 	printf("LANG=%s\n", lang);
+	/* XXX: if LANG is null, then set it to "C" to get implied values? */
 
 	for (i = 0; i < NLCINFO; i++) {
 		vval = setlocale(lcinfo[i].id, NULL);
@@ -397,9 +400,11 @@ showlocale(void)
 char *
 kwval_lconv(int id)
 {
-	struct lconv *lc = localeconv();
-	char *rval = NULL;
+	struct lconv *lc;
+	char *rval;
 
+	rval = NULL;
+	lc = localeconv();
 	switch (id) {
 		case KW_GROUPING:
 			rval = lc->grouping;
@@ -461,9 +466,10 @@ kwval_lconv(int id)
 int
 kwval_lookup(char *kwname, char **kwval, int *cat, int *isstr)
 {
-	int rval = 0;
-	int i;
+	int	rval;
+	size_t	i;
 
+	rval = 0;
 	for (i = 0; i < NKWINFO; i++) {
 		if (strcasecmp(kwname, kwinfo[i].name) == 0) {
 			rval = 1;
@@ -488,8 +494,10 @@ kwval_lookup(char *kwname, char **kwval, int *cat, int *isstr)
 void
 showdetails(char *kw)
 {
-	char	*kwval, *tmps;
-	int	isstr, cat, tmp;
+	int	isstr, cat, tmpval;
+	size_t	i;
+	char	*kwval;
+	const char *tmps;
 
 	if (kwval_lookup(kw, &kwval, &cat, &isstr) == 0) {
 		/*
@@ -501,10 +509,11 @@ showdetails(char *kw)
 
 	if (prt_categories) {
 		tmps = NULL;
-		for (tmp = 0; tmp < NLCINFO; tmp++) {
-			if (lcinfo[tmp].id == cat)
-				tmps = lcinfo[tmp].name;
-		}
+		for (i = 0; i < NLCINFO; i++)
+			if (lcinfo[i].id == cat) {
+				tmps = lcinfo[i].name;
+				break;
+			}
 		if (tmps == NULL)
 			tmps = "UNKNOWN";
 		printf("%s\n", tmps);
@@ -514,8 +523,8 @@ showdetails(char *kw)
 		if (isstr) {
 			printf("%s=\"%s\"\n", kw, kwval);
 		} else {
-			tmp = (char) *kwval;
-			printf("%s=%d\n", kw, tmp);
+			tmpval = (char) *kwval;
+			printf("%s=%d\n", kw, tmpval);
 		}
 	}
 
@@ -523,8 +532,8 @@ showdetails(char *kw)
 		if (isstr) {
 			printf("%s\n", kwval);
 		} else {
-			tmp = (char) *kwval;
-			printf("%d\n", tmp);
+			tmpval = (char) *kwval;
+			printf("%d\n", tmpval);
 		}
 	}
 }
