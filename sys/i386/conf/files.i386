@@ -48,10 +48,10 @@ trlld.o				optional	oltr			\
 contrib/dev/oltr/trlldbm.c	optional	oltr
 contrib/dev/oltr/trlldhm.c	optional	oltr
 contrib/dev/oltr/trlldmac.c	optional	oltr
-dev/ata/ata-all.c		optional	ata
+dev/ata/ata-all.c		optional	ata atadisk atapicd atapifd atapist
+dev/ata/ata-dma.c		optional	ata atadisk atapicd atapifd atapist
+dev/ata/atapi-all.c		optional	atapicd atapifd atapist
 dev/ata/ata-disk.c		optional	atadisk
-dev/ata/ata-dma.c		optional	ata
-dev/ata/atapi-all.c		optional	ata
 dev/ata/atapi-cd.c		optional	atapicd
 dev/ata/atapi-fd.c		optional	atapifd
 dev/ata/atapi-tape.c		optional	atapist
