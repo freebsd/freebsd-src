@@ -478,7 +478,6 @@ ether_demux(ifp, eh, m)
 {
 	struct ifqueue *inq;
 	u_short ether_type;
-	int s;
 #if defined(NETATALK)
 	register struct llc *l;
 #endif
