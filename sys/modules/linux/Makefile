@@ -28,7 +28,7 @@ linux_locore.o: linux_locore.s linux_assym.h
 	    ${.IMPSRC} -o ${.TARGET}
 
 linux_genassym.o: linux_genassym.c linux.h @ machine
-	${CC} -c ${CFLAGS} ${.IMPSRC}
+	${CC} -c ${CFLAGS:N-fno-common} ${.IMPSRC}
 
 opt_compat.h:
 	echo "#define COMPAT_43 1" > opt_compat.h

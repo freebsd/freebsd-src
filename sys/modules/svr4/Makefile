@@ -24,7 +24,7 @@ svr4_locore.o: svr4_locore.s svr4_assym.h
 		${.IMPSRC} -o ${.TARGET}
 
 svr4_genassym.o: svr4_genassym.c svr4.h @ machine
-	${CC} -c ${CFLAGS} ${.IMPSRC}
+	${CC} -c ${CFLAGS:N-fno-common} ${.IMPSRC}
 
 opt_compat.h:
 	echo "#define COMPAT_43 1" > opt_compat.h
