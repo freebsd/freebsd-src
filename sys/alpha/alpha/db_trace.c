@@ -99,7 +99,7 @@ static struct special_symbol {
 	{ (uintptr_t)&XentSys,		"syscall" },
 	{ (uintptr_t)&XentUna,		"unaligned access fault" },
 	{ (uintptr_t)&XentRestart,	"console restart" },
-	{ NULL }
+	{ 0, NULL }
 };
 
 
@@ -180,7 +180,7 @@ sym_is_trapsymbol(uintptr_t v)
 {
 	int i;
 
-	for (i = 0; special_symbols[i].ss_val != NULL; ++i)
+	for (i = 0; special_symbols[i].ss_val != 0; ++i)
 		if (v == special_symbols[i].ss_val)
 			return 1;
 	return 0;
@@ -339,7 +339,7 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 		if (sym_is_trapsymbol(symval)) {
 			tf = (struct trapframe *)frame;
 
-			for (i = 0; special_symbols[i].ss_val != NULL; ++i)
+			for (i = 0; special_symbols[i].ss_val != 0; ++i)
 				if (symval == special_symbols[i].ss_val)
 					db_printf("--- %s",
 					    special_symbols[i].ss_note);

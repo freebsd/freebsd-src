@@ -640,7 +640,7 @@ in6_selectroute(dstsock, opts, mopts, ro, retifp, retrt, clone)
 				rtalloc((struct route *)ro);
 			} else {
 				ro->ro_rt = rtalloc1(&((struct route *)ro)
-						     ->ro_dst, NULL, 0UL);
+						     ->ro_dst, 0, 0UL);
 				if (ro->ro_rt)
 					RT_UNLOCK(ro->ro_rt);
 			}

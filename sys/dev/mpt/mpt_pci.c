@@ -474,7 +474,7 @@ mpt_dma_mem_alloc(mpt_softc_t *mpt)
 	device_t dev = mpt->dev;
 
 	/* Check if we alreay have allocated the reply memory */
-	if (mpt->reply_phys != NULL) {
+	if (mpt->reply_phys != 0) {
 		return 0;
 	}
 

@@ -136,9 +136,9 @@ pcigfb_attach(device_t dev)
 		adp->va_mem_base = (vm_offset_t)rman_get_virtual(sc->res);
 		adp->va_mem_size = rman_get_end(sc->res) -
 		    rman_get_start(sc->res);
-		adp->va_io_base = NULL;
+		adp->va_io_base = 0;
 		adp->va_io_size = 0;
-		adp->va_crtc_addr = NULL;
+		adp->va_crtc_addr = 0;
 		gfb_device_softcs[sc->model][unit] = sc;
 		sc->gfbc = (struct gfb_conf *)malloc(sizeof(struct gfb_conf),
 		    M_DEVBUF, M_NOWAIT);

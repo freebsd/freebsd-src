@@ -463,7 +463,7 @@ passin:
 	if (!ipstealth) {
 #endif
 	if (ip->ip_ttl <= IPTTLDEC) {
-		icmp_error(m, ICMP_TIMXCEED, ICMP_TIMXCEED_INTRANS, NULL, NULL);
+		icmp_error(m, ICMP_TIMXCEED, ICMP_TIMXCEED_INTRANS, 0, NULL);
 		return 1;
 	}
 
@@ -503,7 +503,7 @@ passin:
 	} else {
 		ipstat.ips_noroute++;
 		ipstat.ips_cantforward++;
-		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, NULL, NULL);
+		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, NULL);
 		if (ro.ro_rt)
 			RTFREE(ro.ro_rt);
 		return 1;
@@ -707,8 +707,7 @@ droptoours:	/* Used for DIVERT */
 		} else {
 			ipstat.ips_noroute++;
 			ipstat.ips_cantforward++;
-			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST,
-				NULL, NULL);
+			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, NULL);
 			if (ro.ro_rt)
 				RTFREE(ro.ro_rt);
 			return 1;
@@ -750,7 +749,7 @@ droptoours:	/* Used for DIVERT */
 		 */
 		if (ip->ip_off & IP_DF) {
 			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_NEEDFRAG,
-				NULL, ifp);
+				0, ifp);
 			ipstat.ips_cantfrag++;
 			RTFREE(ro.ro_rt);
 			return 1;
