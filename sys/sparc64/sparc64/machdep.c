@@ -132,6 +132,11 @@ static struct timecounter tick_tc;
 
 char sparc64_model[32];
 
+static int cpu_use_vis = 1;
+
+cpu_block_copy_t *cpu_block_copy;
+cpu_block_zero_t *cpu_block_zero;
+
 static timecounter_get_t tick_get_timecount;
 void sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3,
 		  ofw_vec_t *vec);
@@ -279,6 +284,15 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	    sizeof(tlb_itlb_entries));
 
 	cache_init(child);
+
+	getenv_int("machdep.use_vis", &cpu_use_vis);
+	if (cpu_use_vis) {
+		cpu_block_copy = spitfire_block_copy;
+		cpu_block_zero = spitfire_block_zero;
+	} else {
+		cpu_block_copy = bcopy;
+		cpu_block_zero = bzero;
+	}
 
 #ifdef DDB
 	kdb_init();
