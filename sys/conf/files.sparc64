@@ -38,8 +38,10 @@ geom/geom_bsd.c			standard
 geom/geom_bsd_enc.c		standard
 geom/geom_sunlabel.c		standard
 geom/geom_sunlabel_enc.c	standard
-libkern/ffs.c			standard
 kern/syscalls.c			optional	ktr
+libkern/ffsl.c			standard
+libkern/fls.c			standard
+libkern/flsl.c			standard
 sparc64/central/central.c	optional	central
 sparc64/creator/creator_upa.c	optional	creator sc
 sparc64/ebus/ebus.c		optional	ebus
