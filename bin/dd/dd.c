@@ -52,6 +52,7 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/conf.h>
+#include <sys/disklabel.h>
 #include <sys/filio.h>
 
 #include <ctype.h>
@@ -218,8 +219,14 @@ getfdtype(io)
 		} else {
 			if (type & D_TAPE)
 				io->flags |= ISTAPE;
-			else if (type & (D_DISK | D_MEM))
+			else if (type & (D_DISK | D_MEM)) {
+				if (type & D_DISK) {
+					const int one = 1;
+
+					(void)ioctl(io->fd, DIOCWLABEL, &one);
+				}
 				io->flags |= ISSEEK;
+			}
 			if (S_ISCHR(sb.st_mode) && (type & D_TAPE) == 0)
 				io->flags |= ISCHR;
 		}
