@@ -41,9 +41,10 @@
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for host-to-host cables that contain at least two
-bulk pipes (one for each direction), for example the EzLink cable and
-the NetChip 1080 chip.
+driver provides support for host-to-host cables
+that contain at least two bulk pipes (one for each direction),
+for example
+the EzLink cable and the NetChip 1080 chip.
 .Pp
 .\" XXX	The description of how to add netgraph to the kernel
 .\"	is out of place here.  It should be limited to the
@@ -52,7 +53,8 @@ the NetChip 1080 chip.
 .\"	clueless.  Working on it -- sheldonh
 It requires
 .Xr netgraph 4
-to be avalable. This can be done either by adding
+to be avalable.
+This can be done either by adding
 .Cd "options NETGRAPH"
 to your kernel configuration file, or alternatively loading
 .Xr netgraph 4
@@ -81,13 +83,14 @@ driver.
 .Dl ngctl mkpeer udbp0: iface data inet
 .Dl ifconfig ng0 10.0.0.1 10.0.0.2
 .Pp
-Create a new network interface node and connect its inet hook to the data
-hook of the
+Create a new network interface node
+and connect its inet hook to the data hook of the
 .Nm
 node.
 .Xr ifconfig 8
 configures the resulting network interface ng0 with a local
-IP address of 10.0.0.1 and a remote IP address of 10.0.0.2. On the remote host, the two
+IP address of 10.0.0.1 and a remote IP address of 10.0.0.2.
+On the remote host, the two
 IP addresses should of course be reversed.
 .Pp
 .Sh SEE ALSO
