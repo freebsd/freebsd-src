@@ -36,7 +36,7 @@
  *
  */
 
-/* $Id: v.c,v 1.24 1999/01/17 02:53:38 grog Exp grog $ */
+/* $Id: v.c,v 1.25 1999/03/21 01:18:23 grog Exp grog $ */
 
 #include <ctype.h>
 #include <errno.h>
@@ -45,6 +45,7 @@
 #include <libutil.h>
 #include <netdb.h>
 #include <setjmp.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -115,27 +116,53 @@ char *token[MAXARGS];					    /* pointers to individual tokens */
 int tokens;						    /* number of tokens */
 
 int 
-main(int argc, char *argv[])
+main(int argc, char *argv[], char *envp[])
 {
-#define VINUMMOD "vinum"
-#define WRONGMOD "Vinum"				    /* don't want this one */
-
+#if __FreeBSD__ >= 3
     if (modfind(WRONGMOD) >= 0) {			    /* wrong module loaded, */
-	fprintf(stderr, "Wrong module loaded: %s.  Please start %s.\n", WRONGMOD, WRONGMOD);
+	fprintf(stderr, "Wrong module loaded: %s.  Starting %s.\n", VINUMMOD, WRONGMOD);
+	argv[0] = WRONGMOD;
+	execve(argv[0], argv, envp);
 	exit(1);
     }
     if (modfind(VINUMMOD) < 0) {
 	/* need to load the vinum module */
 	if (kldload(VINUMMOD) < 0 || modfind(VINUMMOD) < 0) {
-	    perror("vinum kernel module not available");
+	    perror(VINUMMOD ": Kernel module not available");
 	    return 1;
 	}
     }
+#endif
 
-    superdev = open(VINUM_SUPERDEV_NAME, O_RDWR);	    /* open it */
-
+    superdev = open(VINUM_SUPERDEV_NAME, O_RDWR);	    /* open vinum superdevice */
     if (superdev < 0) {					    /* no go */
-	if (errno == ENOENT)				    /* we don't have our node, */
+	if (errno == ENODEV) {				    /* not configured, */
+	    superdev = open(VINUM_WRONGSUPERDEV_NAME, O_RDWR); /* do we have a debug mismatch? */
+	    if (superdev >= 0) {			    /* yup! */
+#if VINUMDEBUG
+		fprintf(stderr,
+		    "This program is compiled with debug support, but the kernel module does\n"
+		    "not have debug support.  This program must be matched with the kernel\n"
+		    "module.  Please alter /usr/src/sbin/" VINUMMOD "/Makefile and remove\n"
+		    "the option -DVINUMDEBUG from the CFLAGS definition, or alternatively\n"
+		    "edit /usr/src/sys/modules/" VINUMMOD "/Makefile and add the option\n"
+		    "-DVINUMDEBUG to the CFLAGS definition.  Then rebuild the component\n"
+		    "of your choice with 'make clean all install'.  If you rebuild the kernel\n"
+		    "module, you must stop " VINUMMOD " and restart it\n");
+#else
+		fprintf(stderr,
+		    "This program is compiled without debug support, but the kernel module\n"
+		    "includes debug support.  This program must be matched with the kernel\n"
+		    "module.  Please alter /usr/src/sbin/" VINUMMOD "/Makefile and add\n"
+		    "the option -DVINUMDEBUG to the CFLAGS definition, or alternatively\n"
+		    "edit /usr/src/sys/modules/" VINUMMOD "/Makefile and remove the option\n"
+		    "-DVINUMDEBUG from the CFLAGS definition.  Then rebuild the component\n"
+		    "of your choice with 'make clean all install'.  If you rebuild the kernel\n"
+		    "module, you must stop " VINUMMOD " and restart it\n");
+#endif
+		return 1;
+	    }
+	} else if (errno == ENOENT)			    /* we don't have our node, */
 	    make_devices();				    /* create them first */
 	if (superdev < 0) {
 	    perror("Can't open " VINUM_SUPERDEV_NAME);
@@ -153,10 +180,12 @@ main(int argc, char *argv[])
     } else {
 	for (;;) {					    /* ugh */
 	    char *c;
+	    int childstatus;				    /* from wait4 */
 
 	    setjmp(command_fail);			    /* come back here on catastrophic failure */
 
-	    c = readline("vinum -> ");			    /* get an input */
+	    while (wait4(-1, &childstatus, WNOHANG, NULL) > 0);	/* wait for all dead children */
+	    c = readline(VINUMMOD " -> ");		    /* get an input */
 	    if (c == NULL) {				    /* EOF or error */
 		if (ferror(stdin)) {
 		    fprintf(stderr, "Can't read input: %s (%d)\n", strerror(errno), errno);
@@ -220,6 +249,7 @@ struct funkey {
 	FUNKEY(rename),
 	FUNKEY(replace),
 	FUNKEY(printconfig),
+	FUNKEY(saveconfig),
 	FUNKEY(start),
 	FUNKEY(stop),
 	FUNKEY(makedev),
@@ -376,6 +406,13 @@ make_devices(void)
 
     char filename[PATH_MAX];				    /* for forming file names */
 
+    if (access("/dev", W_OK) < 0) {			    /* can't access /dev to write? */
+	if (errno == EROFS)				    /* because it's read-only, */
+	    fprintf(stderr, VINUMMOD ": /dev is mounted read-only, not rebuilding " VINUM_DIR "\n");
+	else
+	    perror(VINUMMOD ": Can't write to /dev");
+	return;
+    }
     if (superdev >= 0)					    /* super device open */
 	close(superdev);
 
@@ -393,7 +430,17 @@ make_devices(void)
 	    VINUM_SUPERDEV) < 0)
 	fprintf(stderr, "Can't create %s: %s\n", VINUM_SUPERDEV_NAME, strerror(errno));
 
+    if (mknod(VINUM_WRONGSUPERDEV_NAME,
+	    S_IRWXU | S_IFBLK,				    /* block device, user only */
+	    VINUM_WRONGSUPERDEV) < 0)
+	fprintf(stderr, "Can't create %s: %s\n", VINUM_WRONGSUPERDEV_NAME, strerror(errno));
+
     superdev = open(VINUM_SUPERDEV_NAME, O_RDWR);	    /* open the super device */
+
+    if (mknod(VINUM_DAEMON_DEV_NAME,			    /* daemon super device */
+	    S_IRWXU | S_IFBLK,				    /* block device, user only */
+	    VINUM_DAEMON_DEV) < 0)
+	fprintf(stderr, "Can't create %s: %s\n", VINUM_DAEMON_DEV_NAME, strerror(errno));
 
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
 	perror("Can't get vinum config");
@@ -510,7 +557,8 @@ vinum_makedev(int argc, char *argv[], char *arg0[])
     make_devices();
 }
 
-/* Find the object "name".  Return object type at type,
+/*
+ * Find the object "name".  Return object type at type,
  * and the index as the return value.
  * If not found, return -1 and invalid_object.
  */
@@ -585,7 +633,7 @@ continue_revive(int sdno)
 	struct _ioctl_reply reply;
 	struct vinum_ioctl_msg *message = (struct vinum_ioctl_msg *) &reply;
 
-	openlog("vinum", LOG_CONS | LOG_PERROR | LOG_PID, LOG_KERN);
+	openlog(VINUMMOD, LOG_CONS | LOG_PERROR | LOG_PID, LOG_KERN);
 	syslog(LOG_INFO | LOG_KERN, "reviving %s", sd.name);
 
 	for (reply.error = EAGAIN; reply.error == EAGAIN;) {
@@ -611,11 +659,13 @@ continue_revive(int sdno)
 	printf("Reviving %s in the background\n", sd.name);
 }
 
-/* Check if the daemon is running,
+/*
+ * Check if the daemon is running,
  * start it if it isn't.  The check itself
  * could take a while, so we do it as a separate
  * process, which will become the daemon if one isn't
- * running already */
+ * running already
+ */
 void 
 start_daemon(void)
 {
@@ -626,12 +676,27 @@ start_daemon(void)
     pid = (int) fork();
 
     if (pid == 0) {					    /* We're the child, do the work */
+	/*
+	 * We have a problem when stopping the subsystem:
+	 * The only way to know that we're idle is when
+	 * all open superdevs close.  But we want the
+	 * daemon to clean up for us, and since we can't
+	 * count the opens, we need to have the main device
+	 * closed when we stop.  We solve this conundrum
+	 * by getting the daemon to open a separate device.
+	 */
+	close(superdev);				    /* this is the wrong device */
+	superdev = open(VINUM_DAEMON_DEV_NAME, O_RDWR);	    /* open deamon superdevice */
+	if (superdev < 0) {
+	    perror("Can't open " VINUM_DAEMON_DEV_NAME);
+	    exit(1);
+	}
 	error = daemon(0, 0);				    /* this will fork again, but who's counting? */
 	if (error != 0) {
 	    fprintf(stderr, "Can't start daemon: %s (%d)\n", strerror(errno), errno);
 	    exit(1);
 	}
-	setproctitle("Vinum daemon");			    /* show what we're doing */
+	setproctitle(VINUMMOD " daemon");		    /* show what we're doing */
 	status = ioctl(superdev, VINUM_FINDDAEMON, NULL);
 	if (status != 0) {				    /* no daemon, */
 	    ioctl(superdev, VINUM_DAEMON, &verbose);	    /* we should hang here */

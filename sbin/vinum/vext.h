@@ -35,7 +35,7 @@
  *
  */
 
-/* $Id: vext.h,v 1.10 1999/01/12 04:31:45 grog Exp grog $ */
+/* $Id: vext.h,v 1.11 1999/03/02 04:10:00 grog Exp grog $ */
 
 #define MAXARGS 64					    /* maximum number of args on a line */
 #define PLEXINITSIZE 61440				    /* this is what the system does somewhere */
@@ -45,6 +45,14 @@ enum {
     MEGABYTE = 1048576,
     GIGABYTE = 1073741824
 };
+
+#if RAID5
+#define VINUMMOD "Vinum"
+#define WRONGMOD "vinum"				    /* don't want this one */
+#else
+#define VINUMMOD "vinum"
+#define WRONGMOD "Vinum"				    /* don't want this one */
+#endif
 
 /* Prototype declarations */
 void parseline(int c, char *args[]);			    /* parse a line with c parameters at args */
@@ -81,6 +89,7 @@ void vinum_rename(int argc, char *argv[], char *argv0[]);
 void vinum_rename_2(char *, char *);
 void vinum_replace(int argc, char *argv[], char *argv0[]);
 void vinum_printconfig(int argc, char *argv[], char *argv0[]);
+void vinum_saveconfig(int argc, char *argv[], char *argv0[]);
 void vinum_label(int argc, char *argv[], char *arg0[]);
 void vinum_ld(int argc, char *argv[], char *arg0[]);
 void vinum_ls(int argc, char *argv[], char *arg0[]);

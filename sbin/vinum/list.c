@@ -35,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: list.c,v 1.17 1999/01/17 02:58:44 grog Exp grog $
+ * $Id: list.c,v 1.18 1999/03/10 09:26:46 grog Exp grog $
  */
 
 #include <ctype.h>
@@ -84,14 +84,17 @@ vinum_list(int argc, char *argv[], char *argv0[])
     int i;
     enum objecttype type;
 
+    if (stats & (!verbose))				    /* just summary stats, */
+	printf("Object\t\t  Reads\t\tBytes\tAverage\tRecover\t Writes\t\tBytes\tAverage\t  Mblock  Mstripe\n\n");
     if (argc == 0)
 	listconfig();					    /* list everything */
-    else
+    else {
 	for (i = 0; i < argc; i++) {
 	    object = find_object(argv[i], &type);	    /* look for it */
 	    if (vinum_li(object, type))
 		fprintf(stderr, "Can't find object: %s\n", argv[i]);
 	}
+    }
 }
 
 /* List an object */
@@ -175,25 +178,46 @@ vinum_ldi(int driveno, int recurse)
 		    printf("\t\t%9qd\t%9ld\n", freelist.offset, freelist.sectors);
 		}
 	    }
-	} else
-	    printf("D %-21s State: %s\tDevice %s\n",
+	} else if (!stats) {
+	    printf("D %-21s State: %s\tDevice %s\tAvail: %qd/%qd MB",
 		drive.label.name,
 		drive_state(drive.state),
-		drive.devicename);
+		drive.devicename,
+		drive.sectors_available * DEV_BSIZE / MEGABYTE,
+		(drive.label.drive_size / MEGABYTE));
+	    if (drive.label.drive_size == 0)
+		printf("\n");				    /* can't print percentages */
+	    else
+		printf(" (%d%%)\n",
+		    (int) ((drive.sectors_available * 100 * DEV_BSIZE) / drive.label.drive_size));
+	}
 	if (stats) {
-	    printf("\t\tReads:  \t%16qd\n\t\tBytes read:\t%16qd (%s)\n",
-		drive.reads,
-		drive.bytes_read,
-		roughlength(drive.bytes_read, 1));
-	    if (drive.reads != 0)
-		printf("\t\tAverage read:\t%16qd bytes\n", drive.bytes_read / drive.reads);
-	    printf("\t\tWrites: \t%16qd\n\t\tBytes written:\t%16qd (%s)\n",
-		drive.writes,
-		drive.bytes_written,
-		roughlength(drive.bytes_written, 1));
-	    if (drive.writes != 0)
-		printf("\t\tAverage write:\t%16qd bytes\n",
-		    drive.bytes_written / drive.writes);
+	    if (verbose || Verbose) {
+		printf("\t\tReads:  \t%16qd\n\t\tBytes read:\t%16qd (%s)\n",
+		    drive.reads,
+		    drive.bytes_read,
+		    roughlength(drive.bytes_read, 1));
+		if (drive.reads != 0)
+		    printf("\t\tAverage read:\t%16qd bytes\n", drive.bytes_read / drive.reads);
+		printf("\t\tWrites: \t%16qd\n\t\tBytes written:\t%16qd (%s)\n",
+		    drive.writes,
+		    drive.bytes_written,
+		    roughlength(drive.bytes_written, 1));
+		if (drive.writes != 0)
+		    printf("\t\tAverage write:\t%16qd bytes\n",
+			drive.bytes_written / drive.writes);
+	    } else {					    /* non-verbose stats */
+		printf("%-15s\t%7qd\t%15qd\t", drive.label.name, drive.reads, drive.bytes_read);
+		if (drive.reads != 0)
+		    printf("%7qd\t\t", drive.bytes_read / drive.reads);
+		else
+		    printf("\t\t");
+		printf("%7qd\t%15qd\t", drive.writes, drive.bytes_written);
+		if (drive.writes != 0)
+		    printf("%7qd\n", drive.bytes_written / drive.writes);
+		else
+		    printf("\n");
+	    }
 	}
     }
 }
@@ -230,12 +254,12 @@ vinum_lvi(int volno, int recurse)
     if (vol.state != volume_unallocated) {
 	if (verbose) {
 	    printf("Volume %s:\tSize: %qd bytes (%qd MB)\n"
-		"\t\tState: %s\n\t\tOpen by PID: %d\n\t\tFlags: %s%s\n",
+		"\t\tState: %s\n\t\tFlags: %s%s%s\n",
 		vol.name,
 		((long long) vol.size) * DEV_BSIZE,
 		((long long) vol.size) * DEV_BSIZE / MEGABYTE,
 		volume_state(vol.state),
-		vol.pid,
+		vol.flags & VF_OPEN ? "open " : "",
 		(vol.flags & VF_WRITETHROUGH ? "writethrough " : ""),
 		(vol.flags & VF_RAW ? "raw" : ""));
 	    printf("\t\t%d plexes\n\t\tRead policy: ", vol.plexes);
@@ -245,28 +269,42 @@ vinum_lvi(int volno, int recurse)
 		get_plex_info(&plex, vol.plex[vol.preferred_plex]);
 		printf("plex %d (%s)\n", vol.preferred_plex, plex.name);
 	    }
-	} else						    /* brief */
+	} else if (!stats)				    /* brief */
 	    printf("V %-21s State: %s\tPlexes: %7d\tSize: %s\n",
 		vol.name,
 		volume_state(vol.state),
 		vol.plexes,
 		roughlength(vol.size << DEV_BSHIFT, 0));
 	if (stats) {
-	    printf("\t\tReads:  \t%16qd\n\t\tRecovered:\t%16qd\n\t\tBytes read:\t%16qd (%s)\n",
-		vol.reads,
-		vol.recovered_reads,
-		vol.bytes_read,
-		roughlength(vol.bytes_read, 1));
-	    if (vol.reads != 0)
-		printf("\t\tAverage read:\t%16qd bytes\n", vol.bytes_read / vol.reads);
-	    printf("\t\tWrites: \t%16qd\n\t\tBytes written:\t%16qd (%s)\n",
-		vol.writes,
-		vol.bytes_written,
-		roughlength(vol.bytes_written, 1));
-	    if (vol.writes != 0)
-		printf("\t\tAverage write:\t%16qd bytes\n",
-		    vol.bytes_written / vol.writes);
-	    printf("\t\tActive requests:\t%8d\n", vol.active);
+	    if (verbose || Verbose) {
+		printf("\t\tReads:  \t%16qd\n\t\tRecovered:\t%16qd\n\t\tBytes read:\t%16qd (%s)\n",
+		    vol.reads,
+		    vol.recovered_reads,
+		    vol.bytes_read,
+		    roughlength(vol.bytes_read, 1));
+		if (vol.reads != 0)
+		    printf("\t\tAverage read:\t%16qd bytes\n", vol.bytes_read / vol.reads);
+		printf("\t\tWrites: \t%16qd\n\t\tBytes written:\t%16qd (%s)\n",
+		    vol.writes,
+		    vol.bytes_written,
+		    roughlength(vol.bytes_written, 1));
+		if (vol.writes != 0)
+		    printf("\t\tAverage write:\t%16qd bytes\n",
+			vol.bytes_written / vol.writes);
+		printf("\t\tActive requests:\t%8d\n", vol.active);
+	    } else {					    /* brief stats listing */
+		printf("%-15s\t%7qd\t%15qd\t", vol.name, vol.reads, vol.bytes_read);
+		if (vol.reads != 0)
+		    printf("%7qd\t", vol.bytes_read / vol.reads);
+		else
+		    printf("\t");
+		printf("%7qd\t", vol.recovered_reads);
+		printf("%7qd\t%15qd\t", vol.writes, vol.bytes_written);
+		if (vol.writes != 0)
+		    printf("%7qd\n", vol.bytes_written / vol.writes);
+		else
+		    printf("\n");
+	    }
 	}
 	if (vol.plexes > 0) {
 	    int plexno;
@@ -350,7 +388,7 @@ vinum_lpi(int plexno, int recurse)
 		get_volume_info(&vol, plex.volno);
 		printf("\t\tPart of volume %s\n", vol.name);
 	    }
-	} else {
+	} else if (!stats) {
 	    char *org = "";				    /* organization */
 
 	    switch (plex.organization) {
@@ -375,28 +413,42 @@ vinum_lpi(int plexno, int recurse)
 		roughlength(plex.length << DEV_BSHIFT, 0));
 	}
 	if (stats) {
-	    printf("\t\tReads:  \t%16qd\n\t\tBytes read:\t%16qd (%s)\n",
-		plex.reads,
-		plex.bytes_read,
-		roughlength(plex.bytes_read, 1));
-	    if (plex.reads != 0)
-		printf("\t\tAverage read:\t%16qd bytes\n", plex.bytes_read / plex.reads);
-	    printf("\t\tWrites: \t%16qd\n\t\tBytes written:\t%16qd (%s)\n",
-		plex.writes,
-		plex.bytes_written,
-		roughlength(plex.bytes_written, 1));
-	    if (plex.writes != 0)
-		printf("\t\tAverage write:\t%16qd bytes\n",
-		    plex.bytes_written / plex.writes);
-	    if (((plex.reads + plex.writes) > 0)
-		&& ((plex.organization == plex_striped)
-		    || (plex.organization == plex_raid5)))
-		printf("\t\tMultiblock:\t%16qd (%d%%)\n"
-		    "\t\tMultistripe:\t%16qd (%d%%)\n",
-		    plex.multiblock,
-		    (int) (plex.multiblock * 100 / (plex.reads + plex.writes)),
-		    plex.multistripe,
-		    (int) (plex.multistripe * 100 / (plex.reads + plex.writes)));
+	    if (verbose || Verbose) {
+		printf("\t\tReads:  \t%16qd\n\t\tBytes read:\t%16qd (%s)\n",
+		    plex.reads,
+		    plex.bytes_read,
+		    roughlength(plex.bytes_read, 1));
+		if (plex.reads != 0)
+		    printf("\t\tAverage read:\t%16qd bytes\n", plex.bytes_read / plex.reads);
+		printf("\t\tWrites: \t%16qd\n\t\tBytes written:\t%16qd (%s)\n",
+		    plex.writes,
+		    plex.bytes_written,
+		    roughlength(plex.bytes_written, 1));
+		if (plex.writes != 0)
+		    printf("\t\tAverage write:\t%16qd bytes\n",
+			plex.bytes_written / plex.writes);
+		if (((plex.reads + plex.writes) > 0)
+		    && ((plex.organization == plex_striped)
+			|| (plex.organization == plex_raid5)))
+		    printf("\t\tMultiblock:\t%16qd (%d%%)\n"
+			"\t\tMultistripe:\t%16qd (%d%%)\n",
+			plex.multiblock,
+			(int) (plex.multiblock * 100 / (plex.reads + plex.writes)),
+			plex.multistripe,
+			(int) (plex.multistripe * 100 / (plex.reads + plex.writes)));
+	    } else {
+		printf("%-15s\t%7qd\t%15qd\t", plex.name, plex.reads, plex.bytes_read);
+		if (plex.reads != 0)
+		    printf("%7qd\t\t", plex.bytes_read / plex.reads);
+		else
+		    printf("\t\t");
+		printf("%7qd\t%15qd\t", plex.writes, plex.bytes_written);
+		if (plex.writes != 0)
+		    printf("%7qd\t", plex.bytes_written / plex.writes);
+		else
+		    printf("\t");
+		printf("%7qd\t%7qd\n", plex.multiblock, plex.multistripe);
+	    }
 	}
 	if (plex.subdisks > 0) {
 	    int sdno;
@@ -476,7 +528,7 @@ vinum_lsi(int sdno, int recurse)
 		    roughlength(sd.revive_blocksize, 0),
 		    sd.revive_interval);
 	    }
-	} else {
+	} else if (!stats) {				    /* brief listing, no stats */
 	    printf("S %-21s State: %s\tPO: %s ",
 		sd.name,
 		sd_state(sd.state),
@@ -485,19 +537,32 @@ vinum_lsi(int sdno, int recurse)
 		roughlength(sd.sectors << DEV_BSHIFT, 0));
 	}
 	if (stats) {
-	    printf("\t\tReads:  \t%16qd\n\t\tBytes read:\t%16qd (%s)\n",
-		sd.reads,
-		sd.bytes_read,
-		roughlength(sd.bytes_read, 1));
-	    if (sd.reads != 0)
-		printf("\t\tAverage read:\t%16qd bytes\n", sd.bytes_read / sd.reads);
-	    printf("\t\tWrites: \t%16qd\n\t\tBytes written:\t%16qd (%s)\n",
-		sd.writes,
-		sd.bytes_written,
-		roughlength(sd.bytes_written, 1));
-	    if (sd.writes != 0)
-		printf("\t\tAverage write:\t%16qd bytes\n",
-		    sd.bytes_written / sd.writes);
+	    if (verbose || Verbose) {
+		printf("\t\tReads:  \t%16qd\n\t\tBytes read:\t%16qd (%s)\n",
+		    sd.reads,
+		    sd.bytes_read,
+		    roughlength(sd.bytes_read, 1));
+		if (sd.reads != 0)
+		    printf("\t\tAverage read:\t%16qd bytes\n", sd.bytes_read / sd.reads);
+		printf("\t\tWrites: \t%16qd\n\t\tBytes written:\t%16qd (%s)\n",
+		    sd.writes,
+		    sd.bytes_written,
+		    roughlength(sd.bytes_written, 1));
+		if (sd.writes != 0)
+		    printf("\t\tAverage write:\t%16qd bytes\n",
+			sd.bytes_written / sd.writes);
+	    } else {
+		printf("%-15s\t%7qd\t%15qd\t", sd.name, sd.reads, sd.bytes_read);
+		if (sd.reads != 0)
+		    printf("%7qd\t\t", sd.bytes_read / sd.reads);
+		else
+		    printf("\t\t");
+		printf("%7qd\t%15qd\t", sd.writes, sd.bytes_written);
+		if (sd.writes != 0)
+		    printf("%7qd\n", sd.bytes_written / sd.writes);
+		else
+		    printf("\n");
+	    }
 	}
 	if (Verbose) {
 	    get_drive_info(&drive, sd.driveno);
@@ -555,11 +620,13 @@ listconfig()
 	perror("Can't get vinum config");
 	return;
     }
-    printf("Configuration summary\n\n");
-    printf("Drives:\t\t%d (%d configured)\n", vinum_conf.drives_used, vinum_conf.drives_allocated);
-    printf("Volumes:\t%d (%d configured)\n", vinum_conf.volumes_used, vinum_conf.volumes_allocated);
-    printf("Plexes:\t\t%d (%d configured)\n", vinum_conf.plexes_used, vinum_conf.plexes_allocated);
-    printf("Subdisks:\t%d (%d configured)\n\n", vinum_conf.subdisks_used, vinum_conf.subdisks_allocated);
+    if (verbose || (!stats)) {
+	printf("Configuration summary\n\n");
+	printf("Drives:\t\t%d (%d configured)\n", vinum_conf.drives_used, vinum_conf.drives_allocated);
+	printf("Volumes:\t%d (%d configured)\n", vinum_conf.volumes_used, vinum_conf.volumes_allocated);
+	printf("Plexes:\t\t%d (%d configured)\n", vinum_conf.plexes_used, vinum_conf.plexes_allocated);
+	printf("Subdisks:\t%d (%d configured)\n\n", vinum_conf.subdisks_used, vinum_conf.subdisks_allocated);
+    }
     vinum_ld(0, NULL, NULL);
     printf("\n");
     vinum_lv(0, NULL, NULL);
@@ -597,7 +664,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
 	perror("Can't get vinum config");
 	return;
     }
-    printf("Flags: 0x%x\t%d opens\n", vinum_conf.flags, vinum_conf.opencount);
+    printf("Flags: 0x%x\n", vinum_conf.flags);
     if (ioctl(superdev, VINUM_MEMINFO, &meminfo) < 0) {
 	perror("Can't get information");
 	return;
@@ -727,7 +794,6 @@ vinum_printconfig(int argc, char *argv[], char *argv0[])
     struct utsname uname_s;
     time_t now;
     int i;
-    int j;
     struct volume vol;
     struct plex plex;
     struct sd sd;
@@ -735,6 +801,10 @@ vinum_printconfig(int argc, char *argv[], char *argv0[])
 
     if (argc != 1) {
 	fprintf(stderr, "Usage: \tprintconfig <outfile>\n");
+	return;
+    }
+    if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
+	perror("Can't get vinum config");
 	return;
     }
     of = fopen(argv[0], "w");
@@ -764,21 +834,20 @@ vinum_printconfig(int argc, char *argv[], char *argv0[])
 	if (vol.state != volume_unallocated) {
 	    if (vol.preferred_plex >= 0)		    /* preferences, */
 		fprintf(of,
-		    "volume %s readpol prefer %s",
+		    "volume %s readpol prefer %s\n",
 		    vol.name,
 		    vinum_conf.plex[vol.preferred_plex].name);
 	    else					    /* default round-robin */
-		fprintf(of, "volume %s", vol.name);
+		fprintf(of, "volume %s\n", vol.name);
 	}
     }
 
     /* Then the plex configuration */
     for (i = 0; i < vinum_conf.plexes_used; i++) {
-	get_volume_info(&vol, i);
+	get_plex_info(&plex, i);
 	if (plex.state != plex_unallocated) {
-	    fprintf(of, "plex name %s state %s org %s ",
+	    fprintf(of, "plex name %s org %s ",
 		plex.name,
-		plex_state(plex.state),
 		plex_org(plex.organization));
 	    if ((plex.organization == plex_striped)
 		|| (plex.organization == plex_raid5)) {
@@ -787,10 +856,6 @@ vinum_printconfig(int argc, char *argv[], char *argv0[])
 	    if (plex.volno >= 0) {			    /* we have a volume */
 		get_volume_info(&vol, plex.volno);
 		fprintf(of, "vol %s ", vol.name);
-	    }
-	    for (j = 0; j < plex.subdisks; j++) {
-		get_plex_sd_info(&sd, i, j);
-		fprintf(of, " sd %s", sd.name);
 	    }
 	    fprintf(of, "\n");
 	}
