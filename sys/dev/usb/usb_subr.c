@@ -804,11 +804,11 @@ usbd_probe_and_attach(device_ptr_t parent, usbd_device_handle dev,
 	 */
 	device_t bdev;
 	bdev = device_add_child(parent, NULL, -1);
-	device_set_ivars(bdev, &uaa);
 	if (!bdev) {
 	    printf("%s: Device creation failed\n", USBDEVNAME(dev->bus->bdev));
 	    return (USBD_INVAL);
 	}
+	device_set_ivars(bdev, &uaa);
 	device_quiet(bdev);
 #endif
 
@@ -890,12 +890,12 @@ usbd_probe_and_attach(device_ptr_t parent, usbd_device_handle dev,
 #if defined(__FreeBSD__)
 				/* create another child for the next iface */
 				bdev = device_add_child(parent, NULL, -1);
-				device_set_ivars(bdev, &uaa);
 				if (!bdev) {
 					printf("%s: Device creation failed\n",
 					USBDEVNAME(dev->bus->bdev));
 					return (USBD_NORMAL_COMPLETION);
 				}
+				device_set_ivars(bdev, &uaa);
 				device_quiet(bdev);
 #endif
 			}
