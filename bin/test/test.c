@@ -12,7 +12,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: test.c,v 1.25 1999/08/20 16:19:26 green Exp $";
+	"$Id: test.c,v 1.26 1999/08/22 22:32:41 green Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -170,11 +170,7 @@ main(argc, argv)
 		argv[argc] = NULL;
 	}
 
-	/*
-	 * We need to set our real user and group so that when we call
-	 * access(2), it actually reflects our effective credentials,
-	 * not the real credentials it wants to use.
-	 */
+	/* XXX work around the absence of an eaccess(2) syscall */
 	(void)setgid(getegid());
 	(void)setuid(geteuid());
 
@@ -336,10 +332,7 @@ filstat(nm, mode)
 	case FILWR:
 		return access(nm, W_OK) == 0;
 	case FILEX:
-		/*
-		 * We cannot simply use access(2) for this specific case
-		 * since it can always return false positives for root.
-		 */
+		/* XXX work around access(2) false positives for superuser */
 		if (access(nm, X_OK) != 0)
 			return 0;
 		if (S_ISDIR(s.st_mode) || getuid() != 0)
