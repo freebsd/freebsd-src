@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/modules/pam_unix/pam_unix.c#2 $
+ * $P4: //depot/projects/openpam/modules/pam_unix/pam_unix.c#3 $
  */
 
 #include <sys/param.h>
@@ -43,6 +43,7 @@
 #include <unistd.h>
 
 #include <security/pam_modules.h>
+#include <security/pam_appl.h>
 
 #ifndef _OPENPAM
 static char password_prompt[] = "Password:";

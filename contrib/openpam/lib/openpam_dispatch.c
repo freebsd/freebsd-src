@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_dispatch.c#17 $
+ * $P4: //depot/projects/openpam/lib/openpam_dispatch.c#18 $
  */
 
 #include <sys/param.h>
@@ -60,13 +60,18 @@ openpam_dispatch(pam_handle_t *pamh,
 	pam_chain_t *chain;
 	int err, fail, r;
 
+	ENTER();
 	if (pamh == NULL)
-		return (PAM_SYSTEM_ERR);
+		RETURNC(PAM_SYSTEM_ERR);
 
 	/* prevent recursion */
 	if (pamh->current != NULL) {
-		openpam_log(PAM_LOG_ERROR, "indirect recursion");
-		return (PAM_ABORT);
+		openpam_log(PAM_LOG_ERROR,
+		    "%s() called while %s::%s() is in progress",
+		    _pam_func_name[primitive],
+		    pamh->current->module->path,
+		    _pam_sm_func_name[pamh->primitive]);
+		RETURNC(PAM_ABORT);
 	}
 
 	/* pick a chain */
@@ -86,7 +91,7 @@ openpam_dispatch(pam_handle_t *pamh,
 		chain = pamh->chains[PAM_PASSWORD];
 		break;
 	default:
-		return (PAM_SYSTEM_ERR);
+		RETURNC(PAM_SYSTEM_ERR);
 	}
 
 	/* execute */
@@ -98,6 +103,7 @@ openpam_dispatch(pam_handle_t *pamh,
 			    chain->module->path, _pam_sm_func_name[primitive]);
 			continue;
 		} else {
+			pamh->primitive = primitive;
 			pamh->current = chain;
 			r = (chain->module->func[primitive])(pamh, flags,
 			    chain->optc, (const char **)chain->optv);
@@ -153,8 +159,7 @@ openpam_dispatch(pam_handle_t *pamh,
 
 	if (!fail && err != PAM_NEW_AUTHTOK_REQD)
 		err = PAM_SUCCESS;
-	openpam_log(PAM_LOG_DEBUG, "returning: %s", pam_strerror(pamh, err));
-	return (err);
+	RETURNC(err);
 }
 
 #if !defined(OPENPAM_RELAX_CHECKS)
