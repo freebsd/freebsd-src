@@ -39,7 +39,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_sigmask=_pthread_sigmask
+__weak_reference(_pthread_sigmask, pthread_sigmask);
 
 int
 _pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)

@@ -38,7 +38,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	sigwait=_sigwait
+__weak_reference(_sigwait, sigwait);
 
 int
 _sigwait(const sigset_t *set, int *sig)

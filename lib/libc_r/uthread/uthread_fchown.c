@@ -37,7 +37,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	fchown=_fchown
+__weak_reference(_fchown, fchown);
 
 int
 _fchown(int fd, uid_t owner, gid_t group)

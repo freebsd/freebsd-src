@@ -34,7 +34,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	keven=_kevent
+__weak_reference(_kevent, kevent);
 
 int 
 _kevent(int kq, const struct kevent *changelist, int nchanges,

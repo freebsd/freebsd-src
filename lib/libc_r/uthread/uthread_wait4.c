@@ -38,7 +38,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	wait4=_wait4
+__weak_reference(_wait4, wait4);
 
 pid_t
 _wait4(pid_t pid, int *istat, int options, struct rusage * rusage)

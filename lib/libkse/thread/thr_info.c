@@ -46,7 +46,7 @@
 
 static void	dump_thread(int fd, pthread_t pthread, int long_version);
 
-#pragma weak	pthread_set_name_np=_pthread_set_name_np
+__weak_reference(_pthread_set_name_np, pthread_set_name_np);
 
 struct s_thread_info {
 	enum pthread_state state;

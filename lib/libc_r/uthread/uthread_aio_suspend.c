@@ -33,7 +33,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	aio_suspend=_aio_suspend
+__weak_reference(_aio_suspend, aio_suspend);
 
 int
 _aio_suspend(const struct aiocb * const iocbs[], int niocb, const struct

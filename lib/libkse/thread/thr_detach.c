@@ -35,7 +35,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_detach=_pthread_detach
+__weak_reference(_pthread_detach, pthread_detach);
 
 int
 _pthread_detach(pthread_t pthread)

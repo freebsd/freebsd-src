@@ -40,7 +40,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	read=__read
+__weak_reference(__read, read);
 
 ssize_t
 _read(int fd, void *buf, size_t nbytes)

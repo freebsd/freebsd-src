@@ -40,7 +40,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	open=_open
+__weak_reference(_open, open);
 
 int
 _open(const char *path, int flags,...)

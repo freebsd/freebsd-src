@@ -8,10 +8,10 @@
 
 static void	finish_cancellation(void *arg);
 
-#pragma weak	pthread_cancel=_pthread_cancel
-#pragma weak	pthread_setcancelstate=_pthread_setcancelstate
-#pragma weak	pthread_setcanceltype=_pthread_setcanceltype
-#pragma weak	pthread_testcancel=_pthread_testcancel
+__weak_reference(_pthread_cancel, pthread_cancel);
+__weak_reference(_pthread_setcancelstate, pthread_setcancelstate);
+__weak_reference(_pthread_setcanceltype, pthread_setcanceltype);
+__weak_reference(_pthread_testcancel, pthread_testcancel);
 
 int
 _pthread_cancel(pthread_t pthread)

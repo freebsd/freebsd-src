@@ -36,7 +36,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	getsockname=_getsockname
+__weak_reference(_getsockname, getsockname);
 
 int
 _getsockname(int s, struct sockaddr * name, socklen_t *namelen)

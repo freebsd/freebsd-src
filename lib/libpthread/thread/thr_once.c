@@ -34,7 +34,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_once=_pthread_once
+__weak_reference(_pthread_once, pthread_once);
 
 int
 _pthread_once(pthread_once_t * once_control, void (*init_routine) (void))

@@ -42,9 +42,9 @@
 /* Prototypes: */
 static inline int	check_stack(pthread_t thread, void *stackp);
 
-#pragma weak	siglongjmp=_thread_siglongjmp
-#pragma weak	longjmp=_thread_longjmp
-#pragma weak	_longjmp=__thread_longjmp
+__weak_reference(_thread_siglongjmp, siglongjmp);
+__weak_reference(_thread_longjmp, longjmp);
+__weak_reference(__thread_longjmp, _longjmp);
 
 void
 _thread_siglongjmp(sigjmp_buf env, int savemask)

@@ -37,7 +37,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	fcntl=__fcntl
+__weak_reference(__fcntl, fcntl);
 
 int
 _fcntl(int fd, int cmd,...)

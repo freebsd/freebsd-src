@@ -35,7 +35,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_attr_getscope=_pthread_attr_getscope
+__weak_reference(_pthread_attr_getscope, pthread_attr_getscope);
 
 int
 _pthread_attr_getscope(const pthread_attr_t *attr, int *contentionscope)

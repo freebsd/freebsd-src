@@ -32,7 +32,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	wait=_wait
+__weak_reference(_wait, wait);
 
 pid_t
 _wait(int *istat)

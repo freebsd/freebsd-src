@@ -36,7 +36,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	sigsuspend=__sigsuspend
+__weak_reference(__sigsuspend, sigsuspend);
 
 int
 _sigsuspend(const sigset_t * set)

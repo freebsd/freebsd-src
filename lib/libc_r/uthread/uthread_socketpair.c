@@ -39,7 +39,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	socketpair=_socketpair
+__weak_reference(_socketpair, socketpair);
 
 int
 _socketpair(int af, int type, int protocol, int pair[2])

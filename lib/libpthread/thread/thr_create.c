@@ -63,7 +63,7 @@ int _thread_CTX_JB_value		= CTX_JB;
 int _thread_CTX_SJB_value		= CTX_SJB;
 int _thread_CTX_UC_value		= CTX_UC;
 
-#pragma weak	pthread_create=_pthread_create
+__weak_reference(_pthread_create, pthread_create);
 
 int
 _pthread_create(pthread_t * thread, const pthread_attr_t * attr,

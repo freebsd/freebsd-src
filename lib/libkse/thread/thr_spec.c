@@ -41,10 +41,10 @@
 /* Static variables: */
 static	struct pthread_key key_table[PTHREAD_KEYS_MAX];
 
-#pragma weak	pthread_key_create=_pthread_key_create
-#pragma weak	pthread_key_delete=_pthread_key_delete
-#pragma weak	pthread_getspecific=_pthread_getspecific
-#pragma weak	pthread_setspecific=_pthread_setspecific
+__weak_reference(_pthread_key_create, pthread_key_create);
+__weak_reference(_pthread_key_delete, pthread_key_delete);
+__weak_reference(_pthread_getspecific, pthread_getspecific);
+__weak_reference(_pthread_setspecific, pthread_setspecific);
 
 
 int

@@ -31,7 +31,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak __acl_delete_fd=___acl_delete_fd
+__weak_reference(___acl_delete_fd, __acl_delete_fd);
 
 int
 ___acl_delete_fd(int fd, acl_type_t tp)

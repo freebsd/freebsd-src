@@ -37,10 +37,10 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak pthread_mutexattr_getprioceiling=_pthread_mutexattr_getprioceiling
-#pragma weak pthread_mutexattr_setprioceiling=_pthread_mutexattr_setprioceiling
-#pragma weak pthread_mutex_getprioceiling=_pthread_mutex_getprioceiling
-#pragma weak pthread_mutex_setprioceiling=_pthread_mutex_setprioceiling
+__weak_reference(_pthread_mutexattr_getprioceiling, pthread_mutexattr_getprioceiling);
+__weak_reference(_pthread_mutexattr_setprioceiling, pthread_mutexattr_setprioceiling);
+__weak_reference(_pthread_mutex_getprioceiling, pthread_mutex_getprioceiling);
+__weak_reference(_pthread_mutex_setprioceiling, pthread_mutex_setprioceiling);
 
 int
 _pthread_mutexattr_getprioceiling(pthread_mutexattr_t *mattr, int *prioceiling)

@@ -33,7 +33,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	creat=___creat
+__weak_reference(___creat, creat);
 
 int
 ___creat(const char *path, mode_t mode)

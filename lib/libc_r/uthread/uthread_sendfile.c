@@ -37,7 +37,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	sendfile=_sendfile
+__weak_reference(_sendfile, sendfile);
 
 int
 _sendfile(int fd, int s, off_t offset, size_t nbytes, struct sf_hdtr *hdtr,
