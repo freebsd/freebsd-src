@@ -38,6 +38,18 @@
 // Define if gthr-default.h exists (meaning that threading support is enabled).
 #undef HAVE_GTHR_DEFAULT
 
+// Define if drand48 exists.
+#undef HAVE_DRAND48
+
+// Define if getpagesize exists.
+#undef HAVE_GETPAGESIZE
+
+// Define if setenv exists.
+#undef HAVE_SETENV
+
+// Define if sigsetjmp exists.
+#undef HAVE_SIGSETJMP
+
 // Define if mbstate_t exists in wchar.h.
 #undef HAVE_MBSTATE_T
 
@@ -100,6 +112,15 @@
 
 // Define if the compiler/host combination has __builtin_sqrtl
 #undef HAVE___BUILTIN_SQRTL
+
+// Define if poll is available in <poll.h>.
+#undef HAVE_POLL
+
+// Define if S_ISREG (Posix) is available in <sys/stat.h>.
+#undef HAVE_S_ISREG
+
+// Define if S_IFREG is available in <sys/stat.h>.
+#undef HAVE_S_IFREG
 
 // Define if LC_MESSAGES is available in <locale.h>.
 #undef HAVE_LC_MESSAGES
@@ -731,6 +752,12 @@
 /* Define if you have the <string.h> header file.  */
 #undef HAVE_STRING_H
 
+/* Define if you have the <sys/filio.h> header file.  */
+#undef HAVE_SYS_FILIO_H
+
+/* Define if you have the <sys/ioctl.h> header file.  */
+#undef HAVE_SYS_IOCTL_H
+
 /* Define if you have the <sys/isa_defs.h> header file.  */
 #undef HAVE_SYS_ISA_DEFS_H
 
@@ -742,6 +769,9 @@
 
 /* Define if you have the <sys/stat.h> header file.  */
 #undef HAVE_SYS_STAT_H
+
+/* Define if you have the <sys/time.h> header file.  */
+#undef HAVE_SYS_TIME_H
 
 /* Define if you have the <sys/types.h> header file.  */
 #undef HAVE_SYS_TYPES_H
