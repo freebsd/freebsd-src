@@ -218,23 +218,15 @@ void
 pfsyncstart(struct ifnet *ifp)
 {
 	struct mbuf *m;
-#if defined(__FreeBSD__) && defined(ALTQ)
-	struct ifaltq *ifq;
-#else
-	struct ifqueue *ifq;
-#endif
 	int s;
 
-#ifdef __FreeBSD__
-	ifq = &ifp->if_snd;
-#endif
 	for (;;) {
 		s = splimp();
 #ifdef __FreeBSD__
-		IF_LOCK(ifq);
-		_IF_DROP(ifq);
-		_IF_DEQUEUE(ifq, m);
-		IF_UNLOCK(ifq);
+		IF_LOCK(&ifp->if_snd);
+		_IF_DROP(&ifp->if_snd);
+		_IF_DEQUEUE(&ifp->if_snd, m);
+		IF_UNLOCK(&ifp->if_snd);
 #else
 		IF_DROP(&ifp->if_snd);
 		IF_DEQUEUE(&ifp->if_snd, m);
