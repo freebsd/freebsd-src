@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
-.\"	$Id: hier.7,v 1.16 1998/12/21 05:57:57 jkoshy Exp $
+.\"	$Id: hier.7,v 1.17 1999/02/15 00:56:38 jkh Exp $
 .\"
 .Dd June 5, 1993
 .Dt HIER 7
@@ -62,10 +62,18 @@ see
 system configuration files and scripts 
 .Pp
 .Bl -tag -width "disklabels/" -compact
+.It Li defaults/
+default system configuration files;
+see
+.Xr rc 8
 .It Li gnats/
 gnats configuration files;
 see
 .Xr send-pr 1
+.It Li isdn/
+isdn4bsd configuration files;
+see
+.Xr isdnd 8
 .It Li kerberosIV/ 
 configuration files for the kerberos version IV;
 see
@@ -74,6 +82,8 @@ see
 local timezone information;
 see
 .Xr ctime 3
+.It Li mail/
+spam-filtering information
 .It Li mtree/ 
 mtree configuration files;
 see
@@ -82,6 +92,11 @@ see
 named configuration files;
 see
 .Xr named 8
+.It Li periodic/
+scripts that are run daily, weekly, and monthly, via
+.Xr cron 8 ;
+see
+.Xr periodic 8
 .It Li ppp/
 .Xr ppp 8 
 ppp configuration files;
@@ -111,7 +126,7 @@ process file system;
 see
 .Xr procfs 5 ,
 .Xr mount_procfs 8
-.It Li /root
+.It Li /root/
 root's HOME directory
 .It Li /sbin/
 system programs and administration utilities
@@ -143,9 +158,9 @@ GNU C++ include files
 .It Li std
 GNU C++ libstdc++ include files
 .El
-.It Li isofs
+.It Li isofs/
 .Bl -tag -width "kerberosIV/" -compact
-.It Li cd9660
+.It Li cd9660/
 iso9660 filesystem
 .El
 .It Li kerberosIV/
@@ -158,24 +173,12 @@ machine specific C include files
 MS-DOS file system
 .It Li net/
 misc network C include files
-.\" .It Li netimp/
-.\" C include files for IMP protocols;
-.\" see
-.\" .Xr imp 4
 .It Li netatalk/
 Appletalk protocol
 .It Li netinet/
 C include files for Internet standard protocols;
 see
 .Xr inet 4
-.\" .It Li netiso/
-.\" C include files for ISO standard protocols;
-.\" see
-.\" .Xr iso 4
-.\" .It Li netns/
-.\" C include files for XNS standard protocols;
-.\" see
-.\" .Xr \&ns 4
 .It Li netipx/
 IPX/SPX protocol stacks
 .It Li netkey/
@@ -185,7 +188,7 @@ Xerox NS protocols
 .It Li nfs/
 C include files for NFS (Network File System)
 .It Li objc/
-???
+Objective C include files
 .It Li pccard/
 PC-CARD controllers
 .It Li protocols/
@@ -204,16 +207,16 @@ see
 libss ???
 .It Li sys/
 system C include files (kernel data structures)
-.It Li tcl/
-Tcl language;
-see
-Xr Tcl n
-.Bl -tag -width "kerberosIV/" -compact
-.It Li generic/
-???
-.It Li unix/
-???
-.El
+.\" .It Li tcl/
+.\" Tcl language;
+.\" see
+.\" .Xr Tcl n
+.\" .Bl -tag -width "kerberosIV/" -compact
+.\" .It Li generic/
+.\" ???
+.\" .It Li unix/
+.\" ???
+.\" .El
 .It Li ufs/
 C include files for UFS (The U-word File System)
 .Bl -tag -width "kerberosIV/" -compact
@@ -240,7 +243,7 @@ see
 archive libraries
 .Bl -tag -width Fl -compact
 .It Li compat/
-shared libraries for compatibly
+shared libraries for compatibility
 .El
 .Pp
 .It Li libdata/
@@ -252,6 +255,13 @@ misc. utility data files
 various prebuilt lint libraries;
 see 
 .Xr lint 1
+.It Li perl/
+.Bl -tag -width Fl -compact
+.It Li 5.00503/
+contains Perl modules for Perl version 5.00503;
+see
+.Xr perl 1
+.El
 .It Li stallion/
 holding the download firmware images
 .It Li tcl
@@ -378,7 +388,7 @@ misc system-wide ascii text files
 .It Li fonts/
 ???
 .It Li pcvtfonts/
-???;
+pcvt fonts;
 see
 .Xr pcvt 4
 .It Li pkg_manage/
@@ -450,9 +460,7 @@ src for kerberos version IV
 src for files in /usr/lib
 .It Li libexec/
 src for files in /usr/libexec
-.It Li local/
-src for files in /usr/local
-.It Li release
+.It Li release/
 Files required to produce a
 .Tn FreeBSD 
 release
@@ -472,6 +480,20 @@ src for files in /usr/sbin
 .Pp
 .It Li X11R6/
 X11R6 distribution executables, libraries, etc (optional).
+.Bl -tag -width "include/" -compact
+.It Li bin/
+X11R6 binaries (servers, utilities, local packages/ports).
+.It Li etc/
+X11R6 configuration files and scripts.
+.It Li include/
+X11R6 include files.
+.It Li lib/
+X11R6 libraries.
+.It Li man/
+X11R6 manual pages.
+.It Li share/
+architecture independant files.
+.El
 .El
 .It Li /var/
 multi-purpose log, temporary, transient, and spool files
