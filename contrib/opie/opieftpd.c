@@ -633,7 +633,7 @@ VOIDRET pass FUNCTION((passwd), char *passwd)
 #if DOTITLE
     snprintf(proctitle, sizeof(proctitle), "%s: anonymous/%s", remotehost,
 	passwd);
-    setproctitle(proctitle);
+    setproctitle("%s", proctitle);
 #endif	/* DOTITLE */
     syslog(LOG_NOTICE, "ANONYMOUS FTP login from %s with ID %s",
             remotehost, passwd);
@@ -644,7 +644,7 @@ VOIDRET pass FUNCTION((passwd), char *passwd)
 
 #if DOTITLE
     snprintf(proctitle, sizeof(proctitle), "%s: %s", remotehost, pw->pw_name);
-    setproctitle(proctitle);
+    setproctitle("%s", proctitle);
 #endif	/* DOTITLE */
     syslog(LOG_INFO, "FTP login from %s with user name %s", remotehost, pw->pw_name);
   }
@@ -1262,7 +1262,7 @@ static VOIDRET dolog FUNCTION((sin), struct sockaddr_in *sin)
   remotehost[sizeof(remotehost) - 1] = '\0';
 #if DOTITLE
   snprintf(proctitle, sizeof(proctitle), "%s: connected", remotehost);
-  setproctitle(proctitle);
+  setproctitle("%s", proctitle);
 #endif	/* DOTITLE */
 
   t = time((time_t *) 0);
