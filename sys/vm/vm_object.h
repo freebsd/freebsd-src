@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.56 1999/06/20 21:47:01 alc Exp $
+ * $Id: vm_object.h,v 1.57 1999/07/10 18:29:18 alc Exp $
  */
 
 /*
@@ -102,7 +102,6 @@ struct vm_object {
 	int resident_page_count;	/* number of resident pages */
 	struct vm_object *backing_object; /* object that I'm a shadow of */
 	vm_ooffset_t backing_object_offset;/* Offset in backing object */
-	vm_offset_t last_read;		/* last read in object -- detect seq behavior */
 	TAILQ_ENTRY(vm_object) pager_object_list; /* list of all objects of this pager type */
 	void *handle;
 	union {
