@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*	$NetBSD: htons.S,v 1.1 1996/04/17 22:36:54 cgd Exp $	*/
 
 /*
@@ -27,6 +26,9 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  */
+
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 #define	ALIAS	htons
 #define	NAME	__htons

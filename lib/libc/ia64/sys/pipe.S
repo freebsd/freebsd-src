@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*	$NetBSD: pipe.S,v 1.1 1995/02/10 17:50:35 cgd Exp $	*/
 
 /*
@@ -27,6 +26,9 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  */
+
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 #include "SYS.h"
 

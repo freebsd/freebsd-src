@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 .file "__modsi3.s"
 
 //  
@@ -27,6 +26,9 @@
 // problem reports or change requests be submitted to it directly at
 // http://developer.intel.com/opensource.
 //
+
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 .section .text
 

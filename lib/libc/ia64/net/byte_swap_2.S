@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*	$NetBSD: byte_swap_2.S,v 1.2 1996/10/17 03:08:08 cgd Exp $	*/
 
 /*
@@ -29,6 +28,7 @@
  */
 
 #include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 #if !defined(ALIAS) || !defined(NAME)
 #error ALIAS or NAME not defined
