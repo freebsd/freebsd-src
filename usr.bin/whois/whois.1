@@ -32,7 +32,7 @@
 .\"     From: @(#)whois.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd September 4, 2001
+.Dd December 15, 2001
 .Dt WHOIS 1
 .Os
 .Sh NAME
@@ -165,9 +165,8 @@ Do a quick lookup.
 This means that
 .Nm
 will not attempt to lookup the name in the authoritative whois
-server (if one is listed) nor will it contact InterNic if a lookup
-fails.
-This flag has no effect when combined with any other flag.
+server (if one is listed).
+This option has no effect when combined with any other options.
 .It Fl r
 Use the R\(aaeseaux IP Europ\(aaeens
 .Pq Tn RIPE
@@ -195,22 +194,8 @@ It contains network names and addresses for the IPv6 network.
 .Pp
 The operands specified to
 .Nm
-are concatenated together (separated by white-space) and presented to
-the
-.Nm
-server.
-.Pp
-The default action, unless directed otherwise with a special
-.Ar name ,
-is to do a very broad search, looking for matches to
-.Ar name
-in all types of records and most fields (name, nicknames, hostname, net
-address, etc.) in the database.
-For more information as to what
-.Ar name
-operands have special meaning, and how to guide the search, use
-the special name
-.Dq Li help .
+are treated independently and may be used
+as queries on different whois servers.
 .Sh EXAMPLES
 Most types of data, such as domain names and
 .Tn IP
@@ -221,7 +206,7 @@ without any options, and
 will choose the correct whois server to query.
 Some exceptions, where
 .Nm
-will not be able to handled data correctly, are detailed below.
+will not be able to handle data correctly, are detailed below.
 .Pp
 To obtain contact information about an
 administrator located in the Russian
