@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include "extern.h"
 
-static void rulespec_infp(FILE *fp, int cmd, devfs_rsnum rsnum);
+static void rulespec_infp(FILE *fp, unsigned long reqest, devfs_rsnum rsnum);
 static void rulespec_instr(struct devfs_rule *dr, const char *str,
     devfs_rsnum rsnum);
 static void rulespec_intok(struct devfs_rule *dr, int ac, char **av,
@@ -268,7 +268,7 @@ ruleset_main(int ac, char **av)
  * can call call ioctl() for each of them.
  */
 static void
-rulespec_infp(FILE *fp, int cmd, devfs_rsnum rsnum)
+rulespec_infp(FILE *fp, unsigned long request, devfs_rsnum rsnum)
 {
 	struct devfs_rule dr;
 	char *line;
@@ -277,7 +277,7 @@ rulespec_infp(FILE *fp, int cmd, devfs_rsnum rsnum)
 	assert(fp == stdin);	/* XXX: De-hardcode "stdin" from error msg. */
 	while (efgetln(fp, &line)) {
 		rulespec_instr(&dr, line, rsnum);
-		rv = ioctl(mpfd, cmd, &dr);
+		rv = ioctl(mpfd, request, &dr);
 		if (rv == -1)
 			err(1, "ioctl");
 		free(line);	/* efgetln() always malloc()s. */
