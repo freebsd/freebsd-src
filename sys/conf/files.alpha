@@ -170,6 +170,7 @@ alpha/tlsb/tlsbcpu.c		optional	dec_kn8ae
 alpha/tlsb/tlsbmem.c		optional	dec_kn8ae
 alpha/tlsb/zs_tlsb.c		optional	dec_kn8ae
 compat/linux/linux_file.c	optional	compat_linux
+compat/linux/linux_getcwd.c	optional	compat_linux
 compat/linux/linux_ioctl.c	optional	compat_linux
 compat/linux/linux_ipc.c	optional	compat_linux
 compat/linux/linux_mib.c	optional	compat_linux

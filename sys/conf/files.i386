@@ -57,6 +57,7 @@ trlld.o				optional	oltr			\
 	no-implicit-rule
 #
 compat/linux/linux_file.c	optional	compat_linux
+compat/linux/linux_getcwd.c	optional	compat_linux
 compat/linux/linux_ioctl.c	optional	compat_linux
 compat/linux/linux_ipc.c	optional	compat_linux
 compat/linux/linux_mib.c	optional	compat_linux
