@@ -97,19 +97,21 @@ The currently supported commands in
 are:
 .Pp
 .Bd -literal -offset indent -compact
-connect    Connects two nodes
+config     get or set configuration of node at <path>
+connect    Connects hook <peerhook> of the node at <relpath> to <hook>
 debug      Get/set debugging verbosity level
-help       Show command summary or get help on a command
+dot        Produce a GraphViz (.dot) of the entire netgraph.
+help       Show command summary or get more help on a specific command
 list       Show information about all nodes
-mkpeer     Create and connect a new node to an existing node
-msg        Send an ASCII formatted message to a node
-name       Assign a name to a node
+mkpeer     Create and connect a new node to the node at "path"
+msg        Send a netgraph control message to the node at "path"
+name       Assign name <name> to the node at <path>
 read       Read and execute commands from a file
-rmhook     Disconnect a node's hook
-show       Show information about a node
-shutdown   Shutdown a node
-status     Get human readable status from a node
-types      Show all installed node types
+rmhook     Disconnect hook "hook" of the node at "path"
+show       Show information about the node at <path>
+shutdown   Shutdown the node at <path>
+status     Get human readable status information from the node at <path>
+types      Show information about all installed node types
 write      Send a data packet down the hook named by "hook".
 quit       Exit program
 .Ed
@@ -131,7 +133,7 @@ commands, their usage and aliases, and a brief description.
 .Sh HISTORY
 The
 .Nm netgraph
-system was designed and first implemented at Whistle Communications, Inc. in
+system was designed and first implemented at Whistle Communications, Inc.\& in
 a version of
 .Fx 2.2
 customized for the Whistle InterJet.

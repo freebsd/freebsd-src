@@ -62,6 +62,7 @@ static const struct ngcmd *const cmds[] = {
 	&config_cmd,
 	&connect_cmd,
 	&debug_cmd,
+	&dot_cmd,
 	&help_cmd,
 	&list_cmd,
 	&mkpeer_cmd,
@@ -406,7 +407,7 @@ HelpCmd(int ac, char **av)
 	default:
 		/* Show help on a specific command */
 		if ((cmd = FindCommand(av[1])) != NULL) {
-			printf("Usage:    %s\n", cmd->cmd);
+			printf("usage:    %s\n", cmd->cmd);
 			if (cmd->aliases[0] != NULL) {
 				int a = 0;
 
@@ -502,6 +503,7 @@ Usage(const char *msg)
 {
 	if (msg)
 		warnx("%s", msg);
-	errx(EX_USAGE, "usage: ngctl [-d] [-f file] [-n name] [command ...]");
+	fprintf(stderr,
+		"usage: ngctl [-d] [-f file] [-n name] [command ...]\n");
+	exit(EX_USAGE);
 }
-

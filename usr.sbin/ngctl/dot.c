@@ -109,30 +109,30 @@ DotCmd(int ac, char **av)
 	fprintf(f, "\tedge [ weight = 1.0 ];\n");
 	fprintf(f, "\tnode [ shape = record, fontsize = 12 ] {\n");
 	for (i = 0; i < nlist->numnames; i++)
-		fprintf(f, "\t\t\"%jx\" [ label = \"{%s:|{%s|[%jx]:}}\" ];\n",
-		    (uintmax_t)nlist->nodeinfo[i].id,
+		fprintf(f, "\t\t\"%lx\" [ label = \"{%s:|{%s|[%lx]:}}\" ];\n",
+		    (u_long)nlist->nodeinfo[i].id,
 		    nlist->nodeinfo[i].name[0] != '\0' ?
 		    nlist->nodeinfo[i].name : UNNAMED,
-		    nlist->nodeinfo[i].type, (uintmax_t)nlist->nodeinfo[i].id);
+		    nlist->nodeinfo[i].type, (u_long)nlist->nodeinfo[i].id);
 	fprintf(f, "\t};\n");
 
 	fprintf(f, "\tsubgraph cluster_disconnected {\n");
 	fprintf(f, "\t\tbgcolor = pink;\n");
 	for (i = 0; i < nlist->numnames; i++)
 		if (nlist->nodeinfo[i].hooks == 0)
-			fprintf(f, "\t\t\"%jx\";\n",
-			    (uintmax_t)nlist->nodeinfo[i].id);
+			fprintf(f, "\t\t\"%lx\";\n",
+			    (u_long)nlist->nodeinfo[i].id);
 	fprintf(f, "\t};\n");
 
 	for (i = 0; i < nlist->numnames; i++) {
 		struct ng_mesg *hlresp;
 		struct hooklist *hlist;
 		struct nodeinfo *ninfo;
-		char path[NG_PATHSIZ];
+		char path[NG_PATHLEN + 1];
 		u_int j;
 
-		(void)snprintf(path, sizeof(path), "[%jx]:",
-		    (uintmax_t)nlist->nodeinfo[i].id);
+		(void)snprintf(path, sizeof(path), "[%lx]:",
+		    (u_long)nlist->nodeinfo[i].id);
 
 		/* Get node info and hook list */
 		if (NgSendMsg(csock, path, NGM_GENERIC_COOKIE, NGM_LISTHOOKS,
@@ -156,16 +156,16 @@ DotCmd(int ac, char **av)
 
 		fprintf(f, "\tnode [ shape = octagon, fontsize = 10 ] {\n");
 		for (j = 0; j < ninfo->hooks; j++)
-			fprintf(f, "\t\t\"%jx.%s\" [ label = \"%s\" ];\n",
-			    (uintmax_t)nlist->nodeinfo[i].id,
+			fprintf(f, "\t\t\"%lx.%s\" [ label = \"%s\" ];\n",
+			    (u_long)nlist->nodeinfo[i].id,
 			    hlist->link[j].ourhook, hlist->link[j].ourhook);
 		fprintf(f, "\t};\n");
 
 		fprintf(f, "\t{\n\t\tedge [ weight = 2.0, style = bold ];\n");
 		for (j = 0; j < ninfo->hooks; j++)
-			fprintf(f, "\t\t\"%jx\" -- \"%jx.%s\";\n",
-			    (uintmax_t)nlist->nodeinfo[i].id,
-			    (uintmax_t)nlist->nodeinfo[i].id,
+			fprintf(f, "\t\t\"%lx\" -- \"%lx.%s\";\n",
+			    (u_long)nlist->nodeinfo[i].id,
+			    (u_long)nlist->nodeinfo[i].id,
 			    hlist->link[j].ourhook);
 		fprintf(f, "\t};\n");
 
@@ -173,10 +173,10 @@ DotCmd(int ac, char **av)
 			/* Only print the edges going in one direction. */
 			if (hlist->link[j].nodeinfo.id > nlist->nodeinfo[i].id)
 				continue;
-			fprintf(f, "\t\"%jx.%s\" -- \"%jx.%s\";\n",
-			    (uintmax_t)nlist->nodeinfo[i].id,
+			fprintf(f, "\t\"%lx.%s\" -- \"%lx.%s\";\n",
+			    (u_long)nlist->nodeinfo[i].id,
 			    hlist->link[j].ourhook,
-			    (uintmax_t)hlist->link[j].nodeinfo.id,
+			    (u_long)hlist->link[j].nodeinfo.id,
 			    hlist->link[j].peerhook);
 		}
 		free(hlresp);
