@@ -75,10 +75,12 @@
 #if __FreeBSD_version > 500000
 #define USING_MUTEX
 #define USING_DEVFS
-#else
-#define	INTR_TYPE_AV INTR_TYPE_TTY
 #endif
 #define SND_DYNSYSCTL
+
+#ifndef	INTR_MPSAFE
+#define	INTR_TYPE_AV	INTR_TYPE_TTY
+#endif
 
 #ifndef	INTR_MPSAFE
 #define	INTR_MPSAFE	0
@@ -97,13 +99,9 @@ struct isa_device { int dummy; };
 #endif	/* _OS_H_ */
 
 struct pcm_channel;
-typedef struct pcm_channel pcm_channel;
 struct pcm_feeder;
-typedef struct pcm_feeder pcm_feeder;
 struct snd_dbuf;
-typedef struct snd_dbuf snd_dbuf;
 struct snd_mixer;
-typedef struct snd_mixer snd_mixer;
 
 #include <dev/sound/pcm/buffer.h>
 #include <dev/sound/pcm/channel.h>
