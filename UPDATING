@@ -9,7 +9,7 @@ COMMON ITEMS: section later in the file.
 	There's a bug in the world build process.  The cross-tools
 	are build with the NEW headers, but the OLD libc.a.  This
 	leads to all kinds of problems with the new libc.  A temporary
-	workaround is to do addn
+	workaround is to add
 		CFLAGS="-O -pipe -D_OLD_STDIO"
 	before building world when upgrading from 4.x to current.  This
 	can be removed afterwards.
@@ -792,9 +792,9 @@ Copyright information:
 
 Copyright 1998, 2001 M. Warner Losh.  All Rights Reserved.
 
-Redistribution, translation and use, with or without modification, in
-full or in part, are permitted provided that the above copyright
-notice is retained.
+Redistribution, publication, translation and use, with or without
+modification, in full or in part, in any form or format of this
+document are permitted.
 
 THIS DOCUMENT IS PROVIDED BY WARNER LOSH ``AS IS'' AND ANY EXPRESS OR
 IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -810,5 +810,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 If you find this document useful, and you want to, you may buy the
 author a beer.
+
+Contact the Warner Losh if you have any questions about your use of
+this document.
 
 $FreeBSD$
