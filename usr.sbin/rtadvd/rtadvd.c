@@ -214,11 +214,13 @@ main(argc, argv)
 	/* timer initialization */
 	rtadvd_timer_init();
 
+#ifndef HAVE_ARC4RANDOM
 	/* random value initialization */
 #ifdef __FreeBSD__
 	srandomdev();
 #else
 	srandom((u_long)time(NULL));
+#endif
 #endif
 
 	/* get iflist block from kernel */
@@ -1634,7 +1636,11 @@ ra_timer_update(void *data, struct timeval *tm)
 	 * MaxRtrAdvInterval (RFC2461 6.2.4).
 	 */
 	interval = rai->mininterval; 
+#ifdef HAVE_ARC4RANDOM
+	interval += arc4random() % (rai->maxinterval - rai->mininterval);
+#else
 	interval += random() % (rai->maxinterval - rai->mininterval);
+#endif
 
 	/*
 	 * For the first few advertisements (up to
