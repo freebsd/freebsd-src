@@ -1,5 +1,5 @@
 /*
- * Device driver for Specialix range (SLXOS) of serial line multiplexors.
+ * Device driver for Specialix range (SI/XIO) of serial line multiplexors.
  *
  * Copyright (C) 1990, 1992 Specialix International,
  * Copyright (C) 1993, Andy Rutter <andy@acronym.co.uk>
@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.8 1995/09/22 18:28:21 peter Exp $
+ *	$Id: si.c,v 1.11 1995/10/28 15:39:19 phk Exp $
  */
 
 #ifndef lint
@@ -38,8 +38,6 @@ static char si_copyright1[] =  "@(#) (C) Specialix International, 1990,1992",
             si_copyright2[] =  "@(#) (C) Andy Rutter 1993",
             si_copyright3[] =  "@(#) (C) Peter Wemm 1995";
 #endif	/* not lint */
-
-#define	SI_DEBUG			/* turn driver debugging on */
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -54,7 +52,6 @@ static char si_copyright1[] =  "@(#) (C) Specialix International, 1990,1992",
 #include <sys/dkstat.h>
 #include <sys/kernel.h>
 #include <sys/syslog.h>
-#include <sys/device.h>
 #include <sys/malloc.h>
 #include <sys/devconf.h>
 
@@ -71,15 +68,16 @@ static char si_copyright1[] =  "@(#) (C) Specialix International, 1990,1992",
 
 /*
  * This device driver is designed to interface the Specialix International
- * range of serial multiplexor cards (SLXOS) to BSDI/386 on an ISA bus machine.
+ * range of serial multiplexor cards (SI/XIO) to BSDI/386 on an ISA bus machine.
  *
  * The controller is interfaced to the host via dual port ram
  * and a (programmable - SIHOST2) interrupt at IRQ 11,12 or 15.
  */
 
 #define	POLL		/* turn on poller to generate buffer empty interrupt */
+#undef	FASTPOLL	/* turn on 100Hz poller, (XXX: NOTYET!) */
 #define SI_DEF_HWFLOW	/* turn on default CRTSCTS flow control */
-#define SI_I_HIGH_WATER	(TTYHOG - SLXOS_BUFFERSIZE)
+#define SI_I_HIGH_WATER	(TTYHOG - 2 * SI_BUFFERSIZE)
 
 enum si_mctl { GET, SET, BIS, BIC };
 
@@ -95,7 +93,7 @@ static void sihardclose __P((struct si_port *pp));
 static void sidtrwakeup __P((void *chan));
 
 void	sistop	__P((struct tty *tp, int rw));
-void	siintr	__P((int bdnum));
+void	siintr	__P((int unit));
 int	siparam __P((struct tty *, struct termios *));
 
 extern	void	si_registerdev __P((struct isa_device *id));
@@ -103,8 +101,9 @@ extern	int	siprobe __P((struct isa_device *id));
 extern	int	siattach __P((struct isa_device *id));
 static	void	si_modem_state __P((struct si_port *pp, struct tty *tp, int hi_ip));
 
-#ifdef SI_DEBUG
-static	void	si_dprintf __P((/* XXX should be varargs struct si_port *pp, int flags, char *str, int a1, int a2, int a3, int a4, int a5, int a6 */));
+#ifdef SI_DEBUG		/* use: ``options "SI_DEBUG"'' in your config file */
+/* XXX: should be varargs, I know.. but where's vprintf()? */
+static	void	si_dprintf __P((/* struct si_port *pp, int flags, char *str, int a1, int a2, int a3, int a4, int a5, int a6 */));
 static	char	*si_mctl2str __P((enum si_mctl cmd));
 #define	DPRINT(x)	si_dprintf x
 #else
@@ -117,13 +116,11 @@ static int si_debug = 0;	/* data, not bss, so it's patchable */
 
 static struct tty *si_tty;
 
-/* where the firmware lives */
+/* where the firmware lives; defined in si_code.c */
 extern int si_dsize;
 extern unsigned char si_download[];
 
 struct si_softc {
-	struct device	sc_dev;  	/* base device */
-
 	int 		sc_type;	/* adapter type */
 	char 		*sc_typename;	/* adapter type string */
 
@@ -139,7 +136,7 @@ struct si_softc {
 };
 struct si_softc si_softc[NSI];		/* up to 4 elements */
 
-#ifndef B2000	/* not standard */
+#ifndef B2000	/* not standard, but the hardware knows it. */
 # define B2000 2000
 #endif
 static struct speedtab bdrates[] = {
@@ -196,6 +193,7 @@ static int si_default_cflag =	TTYDEF_CFLAG;
 #ifdef POLL
 #define	POLL_INTERVAL	(hz/2)
 static int init_finished = 0;
+static int fastpoll = 0;
 static void si_poll __P((void *));
 #endif
 
@@ -232,6 +230,7 @@ si_registerdev(id)
 	}
 	si_kdc[id->id_unit].kdc_unit = id->id_unit;
 	si_kdc[id->id_unit].kdc_isa = id;
+	si_kdc[id->id_unit].kdc_state = DC_UNCONFIGURED;
 	dev_attach(&si_kdc[id->id_unit]);
 }
 
@@ -252,8 +251,8 @@ siprobe(id)
 	maddr = id->id_maddr;		/* virtual address... */
 	paddr = (caddr_t)vtophys(id->id_maddr);	/* physical address... */
 
-	DPRINT((0, DBG_AUTOBOOT, "SLXOS probe at virtual=0x%x physical=0x%x\n",
-		id->id_maddr, paddr));
+	DPRINT((0, DBG_AUTOBOOT, "si%d: probe at virtual=0x%x physical=0x%x\n",
+		id->id_unit, id->id_maddr, paddr));
 
 	/*
 	 * this is a lie, but it's easier than trying to handle caching
@@ -261,8 +260,8 @@ siprobe(id)
 	 */
 	if ((caddr_t)paddr < (caddr_t)IOM_BEGIN ||
 	    (caddr_t)paddr >= (caddr_t)IOM_END) {
-		printf("si%d: iomem (%x) out of range\n",
-			id->id_unit, paddr);
+		printf("si%d: iomem (%lx) out of range\n",
+			id->id_unit, (long)paddr);
 		return(0);
 	}
 
@@ -304,7 +303,7 @@ siprobe(id)
 		id->id_irq = eisa_irqs[irq];
 
 		DPRINT((0, DBG_AUTOBOOT,
-		    "SLXOS: si%d: EISA base %x, irq %x, id_irq %x, port %x\n",
+		    "si%d: EISA base %x, irq %x, id_irq %x, port %x\n",
 		    id->id_unit, base, irq, id->id_irq, port));
 
 		if ((id->id_irq&(IRQ1|IRQ2|IRQ8|IRQ13)) != 0)
@@ -370,7 +369,8 @@ try_mk1:
 	ramsize = SIHOST_RAMSIZE;
 
 got_card:
-	DPRINT((0, DBG_AUTOBOOT, "SLXOS: found type %d card, try memory test\n", type));
+	DPRINT((0, DBG_AUTOBOOT, "si%d: found type %d card, try memory test\n",
+		id->id_unit, type));
 	/* Try the acid test */
 	ux = (BYTE *)(maddr + SIRAM);
 	for (i=0; i<ramsize; i++, ux++)
@@ -379,7 +379,7 @@ got_card:
 	for (i=0; i<ramsize; i++, ux++) {
 		if ((was = *ux) != (BYTE)(i&0xff)) {
 			DPRINT((0, DBG_AUTOBOOT|DBG_FAIL,
-				"SLXOS si%d: match fail at phys 0x%x, was %x should be %x\n",
+				"si%d: match fail at phys 0x%x, was %x should be %x\n",
 				id->id_unit, paddr+i, was, i&0xff));
 			goto fail;
 		}
@@ -393,7 +393,7 @@ got_card:
 	for (i=0; i<ramsize; i++) {
 		if ((was = *ux++) != 0) {
 			DPRINT((0, DBG_AUTOBOOT|DBG_FAIL,
-				"SLXOS si%d: clear fail at phys 0x%x, was %x\n",
+				"si%d: clear fail at phys 0x%x, was %x\n",
 				id->id_unit, paddr+i, was));
 			goto fail;
 		}
@@ -450,8 +450,9 @@ siattach(id)
 	struct tty *tp;
 	struct speedtab *spt;
 	int nmodule, nport, x, y;
+	int uart_type;
 
-	DPRINT((0, DBG_AUTOBOOT, "SLXOS siattach\n"));
+	DPRINT((0, DBG_AUTOBOOT, "si%d: siattach\n", id->id_unit));
 
 	sc->sc_paddr = (caddr_t)vtophys(id->id_maddr);
 	sc->sc_maddr = id->id_maddr;
@@ -465,7 +466,8 @@ siattach(id)
 	 * OK, now lets download the firmware and try and boot the CPU..
 	 */
 
-	DPRINT((0, DBG_DOWNLOAD, "SLXOS si_download: nbytes %d\n", si_dsize));
+	DPRINT((0, DBG_DOWNLOAD, "si%d: si_download: nbytes %d\n",
+		id->id_unit, si_dsize));
 	bcopy(si_download, maddr, si_dsize);
 
 	switch (sc->sc_type) {
@@ -478,8 +480,10 @@ siattach(id)
 		break;
 #endif	/* fall-through if not EISA */
 	case SI2:
-		/* must get around to writing the code for
-		 * these one day */
+		/*
+		 * must get around to converting the code for
+		 * these one day, if FreeBSD ever supports it.
+		 */
 		return 0;
 	case SIHOST:
 		*(maddr+SIRESET_CL) = 0;
@@ -513,10 +517,10 @@ siattach(id)
 	switch (regp->initstat) {
 	case 0:
 		printf("si%d: startup timeout - aborting\n", unit);
-		sc->sc_type = NULL;
+		sc->sc_type = SIEMPTY;
 		return 0;
 	case 1:
-			/* set throttle to 100 intr per second */
+			/* set throttle to 125 intr per second */
 		regp->int_count = 25000;
 			/* rx intr max of 25 timer per second */
 		regp->rx_int_count = 4;
@@ -543,12 +547,12 @@ siattach(id)
 	nport = 0;
 	modp = (struct si_module *)(maddr + 0x80);
 	for (;;) {
-		DPRINT((0, DBG_DOWNLOAD, "SLXOS si%d: ccb addr 0x%x\n", unit, modp));
+		DPRINT((0, DBG_DOWNLOAD, "si%d: ccb addr 0x%x\n", unit, modp));
 		switch (modp->sm_type & (~MMASK)) {
 		case M232:
 		case M422:
 			DPRINT((0, DBG_DOWNLOAD,
-				"SLXOS si%d: Found 232/422 module, %d ports\n",
+				"si%d: Found 232/422 module, %d ports\n",
 				unit, (int)(modp->sm_type & MMASK)));
 
 			/* this is a firmware issue */
@@ -601,6 +605,7 @@ mem_fail:
 	pp = sc->sc_ports;
 	nmodule = 0;
 	modp = (struct si_module *)(maddr + 0x80);
+	uart_type = 0;
 	for (;;) {
 		switch (modp->sm_type & (~MMASK)) {
 		case M232:
@@ -608,11 +613,12 @@ mem_fail:
 			nmodule++;
 			nport = (modp->sm_type & MMASK);
 			ccbp = (struct si_channel *)((char *)modp+0x100);
+			if (uart_type == 0)
+				uart_type = ccbp->type;
 			for (x = 0; x < nport; x++, pp++, ccbp++) {
 				pp->sp_ccb = ccbp;	/* save the address */
 				pp->sp_tty = tp++;
 				pp->sp_pend = IDLE_CLOSE;
-				pp->sp_flags = 0;
 				pp->sp_state = 0;	/* internal flag */
 				pp->sp_dtr_wait = 3 * hz;
 				pp->sp_iin.c_iflag = si_default_iflag;
@@ -629,11 +635,12 @@ mem_fail:
 			break;
 		}
 		if (modp->sm_next == 0) {
-			printf("si%d: card: %s, ports: %d, modules: %d\n",
+			printf("si%d: card: %s, ports: %d, modules: %d (type: %d)\n",
 				unit,
 				sc->sc_typename,
 				sc->sc_nport,
-				nmodule);
+				nmodule,
+				uart_type);
 			break;
 		}
 		modp = (struct si_module *)
@@ -679,15 +686,15 @@ siopen(dev, flag, mode, p)
 		return (ENXIO);
 	sc = &si_softc[card];
 
-	if (sc->sc_type == NULL) {
-		DPRINT((0, DBG_OPEN|DBG_FAIL, "SLXOS si%d: type %s??\n",
+	if (sc->sc_type == SIEMPTY) {
+		DPRINT((0, DBG_OPEN|DBG_FAIL, "si%d: type %s??\n",
 			card, sc->sc_typename));
 		return(ENXIO);
 	}
 
 	port = SI_PORT(mynor);
 	if (port >= sc->sc_nport) {
-		DPRINT((0, DBG_OPEN|DBG_FAIL, "SLXOS si%d: nports %d\n",
+		DPRINT((0, DBG_OPEN|DBG_FAIL, "si%d: nports %d\n",
 			card, sc->sc_nport));
 		return(ENXIO);
 	}
@@ -1200,11 +1207,9 @@ si_Sioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	volatile struct si_reg *regp;
 	struct si_tcsi *dp;
 	struct si_pstat *sps;
-	BYTE *bp;
-	int i, *ip, error = 0;
+	int *ip, error = 0;
 	int oldspl;
 	int card, port;
-	unsigned short *usp;
 	int mynor = minor(dev);
 
 	DPRINT((0, DBG_ENTRY|DBG_IOCTL, "si_Sioctl(%x,%x,%x,%x)\n",
@@ -1252,7 +1257,7 @@ si_Sioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		sps = (struct si_pstat *)data;
 		card = dp->tc_card;
 		xsc = &si_softc[card];	/* check.. */
-		if (card < 0 || card >= NSI || xsc->sc_type == NULL) {
+		if (card < 0 || card >= NSI || xsc->sc_type == SIEMPTY) {
 			error = ENOENT;
 			goto out;
 		}
@@ -1510,7 +1515,6 @@ siparam(tp, t)
 		ccbp->hi_mr1, ccbp->hi_mr2, ccbp->hi_mask, ccbp->hi_prtcl, ccbp->hi_break));
 
 	splx(oldspl);
-out:
 	return(error);
 }
 
@@ -1616,6 +1620,9 @@ si_modem_state(pp, tp, hi_ip)
 
 /*
  * Poller to catch missed interrupts.
+ *
+ * Note that the SYSV Specialix drivers poll at 100 times per second to get
+ * better response.  We could really use a "periodic" version timeout(). :-)
  */
 #ifdef POLL
 static void
@@ -1624,16 +1631,17 @@ si_poll(void *nothing)
 	register struct si_softc *sc;
 	register int i;
 	volatile struct si_reg *regp;
-	int lost, oldspl;
+	register struct si_port *pp;
+	int lost, oldspl, port;
 
 	DPRINT((0, DBG_POLL, "si_poll()\n"));
+	oldspl = spltty();
 	if (in_intr)
 		goto out;
-	oldspl = spltty();
 	lost = 0;
 	for (i=0; i<NSI; i++) {
 		sc = &si_softc[i];
-		if (sc->sc_type == NULL)
+		if (sc->sc_type == SIEMPTY)
 			continue;
 		regp = (struct si_reg *)sc->sc_maddr;
 		/*
@@ -1644,19 +1652,30 @@ si_poll(void *nothing)
 		if (regp->int_pending != 0) {
 			if (regp->int_scounter >= 200 &&
 			    regp->initstat == 1) {
-				printf("SLXOS si%d: lost intr\n", i);
+				printf("si%d: lost intr\n", i);
 				lost++;
 			}
 		} else {
 			regp->int_scounter = 0;
 		}
 
+		/*
+		 * gripe about no input flow control..
+		 */
+		pp = sc->sc_ports;
+		for (port = 0; port < sc->sc_nport; pp++, port++) {
+			if (pp->sp_delta_overflows > 0) {
+				printf("si%d: %d tty level buffer overflows\n",
+					i, pp->sp_delta_overflows);
+				pp->sp_delta_overflows = 0;
+			}
+		}
 	}
 	if (lost)
 		siintr(-1);	/* call intr with fake vector */
+out:
 	splx(oldspl);
 
-out:
 	timeout(si_poll, (caddr_t)0L, POLL_INTERVAL);
 }
 #endif	/* ifdef POLL */
@@ -1666,37 +1685,28 @@ out:
  * it is called.
  */
 
-static BYTE rxbuf[SLXOS_BUFFERSIZE];	/* input staging area */
+static BYTE si_rxbuf[SI_BUFFERSIZE];	/* input staging area */
 
 void
-siintr(int bdnum)
+siintr(int unit)
 {
-	struct si_softc *Isc = NULL;
 	register struct si_softc *sc;
 
 	register struct si_port *pp;
 	volatile struct si_channel *ccbp;
 	register struct tty *tp;
 	volatile caddr_t maddr;
-	BYTE op, ip, cc;
-	int x, card, port, n, i;
+	BYTE op, ip;
+	int x, card, port, n, i, isopen;
 	volatile BYTE *z;
 	BYTE c;
-	static int in_poll = 0;
 
-	if (bdnum < 0) {
-		Isc = NULL;
-		in_poll = 1;
-	} else {
-		Isc = &si_softc[bdnum];
-	}
-
-	DPRINT((0, (Isc == 0)?DBG_POLL:DBG_INTR, "siintr(0x%x)\n", Isc));
-	if (in_intr != 0) {
-		if (Isc == NULL)	/* should never happen */
+	DPRINT((0, (unit < 0) ? DBG_POLL:DBG_INTR, "siintr(%d)\n", unit));
+	if (in_intr) {
+		if (unit < 0)	/* should never happen */
 			return;
-		printf("SLXOS si%d: Warning interrupt handler re-entered\n",
-			Isc==0 ? -1 : Isc->sc_dev.dv_unit);
+		printf("si%d: Warning interrupt handler re-entered\n",
+			unit);
 		return;
 	}
 	in_intr = 1;
@@ -1708,8 +1718,12 @@ siintr(int bdnum)
 	 */
 	for (card=0; card < NSI; card++) {
 		sc = &si_softc[card];
-		if (sc->sc_type == NULL)
+		if (sc->sc_type == SIEMPTY)
 			continue;
+
+		/*
+		 * First, clear the interrupt
+		 */
 		switch(sc->sc_type) {
 		case SIHOST :
 			maddr = sc->sc_maddr;
@@ -1737,11 +1751,13 @@ siintr(int bdnum)
 		}
 		((volatile struct si_reg *)maddr)->int_scounter = 0;
 
-		for (pp = sc->sc_ports, port=0;
-		     port < sc->sc_nport;
-		     pp++, port++) {
+		/*
+		 * check each port
+		 */
+		for (pp=sc->sc_ports,port=0; port < sc->sc_nport; pp++,port++) {
 			ccbp = pp->sp_ccb;
 			tp = pp->sp_tty;
+
 
 			/*
 			 * See if a command has completed ?
@@ -1777,108 +1793,154 @@ siintr(int bdnum)
 			si_modem_state(pp, tp, ccbp->hi_ip);
 
 			/*
+			 * Check to see if there's we should 'receive'
+			 * characters.
+			 */
+			if (tp->t_state & TS_CONNECTED &&
+			    tp->t_state & TS_ISOPEN)
+				isopen = 1;
+			else
+				isopen = 0;
+
+			/*
 			 * Do break processing
 			 */
 			if (ccbp->hi_state & ST_BREAK) {
-				if (tp->t_state & TS_CONNECTED &&
-				    tp->t_state & TS_ISOPEN) {
-					(*linesw[tp->t_line].l_rint)(TTY_BI, tp);
+				if (isopen) {
+				    (*linesw[tp->t_line].l_rint)(TTY_BI, tp);
 				}
 				ccbp->hi_state &= ~ST_BREAK;   /* A Bit iffy this */
 				DPRINT((pp, DBG_INTR, "si_intr break\n"));
 			}
 
 			/*
-			 * Do RX stuff - if not open then
-			 * dump any characters.
+			 * Do RX stuff - if not open then dump any characters.
+			 * XXX: This is VERY messy and needs to be cleaned up.
+			 *
+			 * XXX: can we leave data in the host adapter buffer
+			 * when the clists are full?  That may be dangerous
+			 * if the user cannot get an interrupt signal through.
 			 */
 
-			if ((tp->t_state & TS_CONNECTED) == 0 ||
-			    (tp->t_state & TS_ISOPEN) == 0) {
+	more_rx:	/* XXX Sorry. the nesting was driving me bats! :-( */
+
+			if (!isopen) {
 				ccbp->hi_rxopos = ccbp->hi_rxipos;
+				goto end_rx;
+			}
+
+			/*
+			 * Process read characters if not skipped above
+			 */
+			c = ccbp->hi_rxipos - ccbp->hi_rxopos;
+			if (c == 0) {
+				goto end_rx;
+			}
+
+			op = ccbp->hi_rxopos;
+			ip = ccbp->hi_rxipos;
+			n = c & 0xff;
+
+			DPRINT((pp, DBG_INTR, "n = %d, op = %d, ip = %d\n",
+						n, op, ip));
+
+			/*
+			 * Suck characters out of host card buffer into the
+			 * "input staging buffer" - so that we dont leave the
+			 * host card in limbo while we're possibly echoing
+			 * characters and possibly flushing input inside the
+			 * ldisc l_rint() routine.
+			 */
+			if (n <= SI_BUFFERSIZE - op) {
+
+				DPRINT((pp, DBG_INTR, "\tsingle copy\n"));
+				z = ccbp->hi_rxbuf + op;
+				bcopy((caddr_t)z, si_rxbuf, n);
+
+				op += n;
 			} else {
-				while ((c = ccbp->hi_rxipos - ccbp->hi_rxopos) != 0) {
+				x = SI_BUFFERSIZE - op;
 
-					op = ccbp->hi_rxopos;
-					ip = ccbp->hi_rxipos;
-					n = c & 0xff;
+				DPRINT((pp, DBG_INTR, "\tdouble part 1 %d\n", x));
+				z = ccbp->hi_rxbuf + op;
+				bcopy((caddr_t)z, si_rxbuf, x);
 
-					DPRINT((pp, DBG_INTR,
-						"n = %d, op = %d, ip = %d\n",
+				DPRINT((pp, DBG_INTR, "\tdouble part 2 %d\n", n-x));
+				z = ccbp->hi_rxbuf;
+				bcopy((caddr_t)z, si_rxbuf+x, n-x);
+
+				op += n;
+			}
+
+			/* clear collected characters from buffer */
+			ccbp->hi_rxopos = op;
+
+			DPRINT((pp, DBG_INTR, "n = %d, op = %d, ip = %d\n",
 						n, op, ip));
-					if (n <= SLXOS_BUFFERSIZE - op) {
 
-						DPRINT((pp, DBG_INTR,
-							"\tsingle copy\n"));
-						z = ccbp->hi_rxbuf + op;
-						bcopy((caddr_t)z, rxbuf, n);
+			/*
+			 * at this point...
+			 * n = number of chars placed in si_rxbuf
+			 */
 
-						op += n;
-					} else {
-						x = SLXOS_BUFFERSIZE - op;
+			/*
+			 * Avoid the grotesquely inefficient lineswitch
+			 * routine (ttyinput) in "raw" mode. It usually
+			 * takes about 450 instructions (that's without
+			 * canonical processing or echo!). slinput is
+			 * reasonably fast (usually 40 instructions
+			 * plus call overhead).
+			 */
+			if (tp->t_state & TS_CAN_BYPASS_L_RINT) {
 
-						DPRINT((pp, DBG_INTR, "\tdouble part 1 %d\n", x));
-						z = ccbp->hi_rxbuf + op;
-						bcopy((caddr_t)z, rxbuf, x);
+				/* block if the driver supports it */
+				if (tp->t_rawq.c_cc + n >= SI_I_HIGH_WATER
+				    && (tp->t_cflag & CRTS_IFLOW
+					|| tp->t_iflag & IXOFF)
+				    && !(tp->t_state & TS_TBLOCK))
+					ttyblock(tp);
 
-						DPRINT((pp, DBG_INTR, "\tdouble part 2 %d\n", n-x));
-						z = ccbp->hi_rxbuf;
-						bcopy((caddr_t)z, rxbuf+x, n-x);
+				tk_nin += n;
+				tk_rawcc += n;
+				tp->t_rawcc += n;
 
-						op += n;
+				pp->sp_delta_overflows +=
+				    b_to_q((char *)si_rxbuf, n, &tp->t_rawq);
+
+				ttwakeup(tp);
+				if (tp->t_state & TS_TTSTOP
+				    && (tp->t_iflag & IXANY
+					|| tp->t_cc[VSTART] == tp->t_cc[VSTOP])) {
+					tp->t_state &= ~TS_TTSTOP;
+					tp->t_lflag &= ~FLUSHO;
+					si_start(tp);
+				}
+			} else {
+				/*
+				 * It'd be nice to not have to go through the
+				 * function call overhead for each char here.
+				 * It'd be nice to block input it, saving a
+				 * loop here and the call/return overhead.
+				 */
+				for(x = 0; x < n; x++) {
+					i = si_rxbuf[x];
+					if ((*linesw[tp->t_line].l_rint)(i, tp)
+					     == -1) {
+						pp->sp_delta_overflows++;
 					}
-
-					ccbp->hi_rxopos = op;
-
-					DPRINT((pp, DBG_INTR,
-						"n = %d, op = %d, ip = %d\n",
-						n, op, ip));
-
 					/*
-					 * at this point...
-					 * n = number of chars placed in rxbuf
+					 * doesn't seem to be much point doing
+					 * this here.. this driver has no
+					 * softtty processing! ??
 					 */
-		/*
-		 * Avoid the grotesquely inefficient lineswitch routine
-		 * (ttyinput) in "raw" mode.  It usually takes about 450
-		 * instructions (that's without canonical processing or echo!).
-		 * slinput is reasonably fast (usually 40 instructions plus
-		 * call overhead).
-		 */
-					if (tp->t_state & TS_CAN_BYPASS_L_RINT) {
-
-						/* block if the driver supports it */
-						if (tp->t_rawq.c_cc + n >= SI_I_HIGH_WATER
-						    && (tp->t_cflag & CRTS_IFLOW
-							|| tp->t_iflag & IXOFF)
-						    && !(tp->t_state & TS_TBLOCK))
-							ttyblock(tp);
-
-						tk_nin += n;
-						tk_rawcc += n;
-						tp->t_rawcc += n;
-
-						b_to_q((char *)rxbuf, n, &tp->t_rawq);
-						ttwakeup(tp);
-						if (tp->t_state & TS_TTSTOP
-						    && (tp->t_iflag & IXANY
-							|| tp->t_cc[VSTART] == tp->t_cc[VSTOP])) {
-							tp->t_state &= ~TS_TTSTOP;
-							tp->t_lflag &= ~FLUSHO;
-							si_start(tp);
-						}
-					} else {
-						for(x = 0; x < n; x++) {
-							i = rxbuf[x];
-							(*linesw[tp->t_line].l_rint)(rxbuf[x], tp);
-							if (pp->sp_hotchar && i == pp->sp_hotchar) {
-								setsofttty();
-							}
-						}
+					if (pp->sp_hotchar && i == pp->sp_hotchar) {
+						setsofttty();
 					}
+				}
+			}
+			goto more_rx;	/* try for more until RXbuf is empty */
 
-				} /* end of RX while */
-			} /* end TS_CONNECTED */
+	end_rx:		/* XXX: Again, sorry about the gotos.. :-) */
 
 			/*
 			 * Do TX stuff
@@ -1888,12 +1950,19 @@ siintr(int bdnum)
 		} /* end of for (all ports on this controller) */
 	} /* end of for (all controllers) */
 
-	in_poll = in_intr = 0;
-	DPRINT((0, (Isc==0)?DBG_POLL:DBG_INTR, "end of siintr()\n"));
+	in_intr = 0;
+	DPRINT((0, (unit < 0) ? DBG_POLL:DBG_INTR, "end siintr(%d)\n", unit));
 }
 
 /*
  * Nudge the transmitter...
+ *
+ * XXX: I inherited some funny code here.  It implies the host card only
+ * interrupts when the transmit buffer reaches the low-water-mark, and does
+ * not interrupt when it's actually hits empty.  In some cases, we have
+ * processes waiting for complete drain, and we need to simulate an interrupt
+ * about when we think the buffer is going to be empty (and retry if not).
+ * I really am not certain about this...  I *need* the hardware manuals.
  */
 static void
 si_start(tp)
@@ -1946,17 +2015,17 @@ si_start(tp)
 		amount = min(nchar, (255 - (BYTE)count));
 		ipos = (unsigned int)ccbp->hi_txipos;
 		/* will it fit in one lump? */
-		if ((SLXOS_BUFFERSIZE - ipos) >= amount) {
+		if ((SI_BUFFERSIZE - ipos) >= amount) {
 			n = q_to_b(&tp->t_outq,
 				(char *)&ccbp->hi_txbuf[ipos], amount);
 		} else {
 			n = q_to_b(&tp->t_outq,
 				(char *)&ccbp->hi_txbuf[ipos],
-				SLXOS_BUFFERSIZE-ipos);
-			if (n == SLXOS_BUFFERSIZE-ipos) {
+				SI_BUFFERSIZE-ipos);
+			if (n == SI_BUFFERSIZE-ipos) {
 				n += q_to_b(&tp->t_outq,
 					(char *)&ccbp->hi_txbuf[0],
-					amount - (SLXOS_BUFFERSIZE-ipos));
+					amount - (SI_BUFFERSIZE-ipos));
 			}
 		}
 		ccbp->hi_txipos += n;
@@ -1990,8 +2059,8 @@ si_start(tp)
 				else
 					time = 2;
 			} else {
-				printf("SLXOS si%d: bad char time value!!\n",
-					SI_CARD(tp->t_dev));
+				printf("si%d: bad char time value!!\n",
+					(int)SI_CARD(tp->t_dev));
 				goto out;
 			}
 		}
@@ -2040,7 +2109,7 @@ si_lstart(pp)
 	/* deal with the process exit case */
 	ttwwakeup(tp);
 
-	/* nudge protocols */
+	/* nudge protocols - eg: ppp */
 	(*linesw[tp->t_line].l_start)(tp);
 
 	pp->sp_state &= ~SS_INLSTART;
@@ -2072,7 +2141,12 @@ sistop(tp, rw)
 			ttwwakeup(tp);	/* Bruce???? */
 		}
 	}
-#if 0	/* this doesn't work right yet.. */
+#if 1	/* XXX: this doesn't work right yet.. */
+	/* XXX: this may have been failing because we used to call l_rint()
+	 * while we were looping based on these two counters. Now, we collect
+	 * the data and then loop stuffing it into l_rint(), making this
+	 * useless.  Should we cause this to blow away the staging buffer?
+	 */
 	if (rw & FREAD) {
 		ccbp->hi_rxopos = ccbp->hi_rxipos;
 	}
@@ -2198,9 +2272,9 @@ si_dprintf(pp, flags, str, a1, a2, a3, a4, a5, a6)
 	if ((pp == NULL && (si_debug&flags)) ||
 	    (pp != NULL && ((pp->sp_debug&flags) || (si_debug&flags)))) {
 	    	if (pp != NULL)
-	    		printf("SLXOS %ci%d(%d): ", 's',
-	    			SI_CARD(pp->sp_tty->t_dev),
-	    			SI_PORT(pp->sp_tty->t_dev));
+	    		printf("%ci%d(%d): ", 's',
+	    			(int)SI_CARD(pp->sp_tty->t_dev),
+	    			(int)SI_PORT(pp->sp_tty->t_dev));
 		printf(str, a1, a2, a3, a4, a5, a6);
 	}
 }
