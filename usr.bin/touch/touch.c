@@ -260,8 +260,11 @@ stime_arg2(arg, year, tvp)
 	t->tm_mday = ATOI2(arg);
 	t->tm_hour = ATOI2(arg);
 	t->tm_min = ATOI2(arg);
-	if (year)
+	if (year) {
 		t->tm_year = ATOI2(arg);
+		if (t->tm_year < 38)	/* support 2000-2038 not 1902-1969 */
+			t->tm_year += 100;
+	}
 
 	t->tm_isdst = -1;		/* Figure out DST. */
 	tvp[0].tv_sec = tvp[1].tv_sec = mktime(t);
