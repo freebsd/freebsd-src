@@ -97,8 +97,11 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 	 */
 	GIANT_REQUIRED;
 	mtx_lock(&vm_object_list_mtx);
-	TAILQ_FOREACH(object, &vm_object_list, object_list)
+	TAILQ_FOREACH(object, &vm_object_list, object_list) {
+		vm_object_lock(object);
 		vm_object_clear_flag(object, OBJ_ACTIVE);
+		vm_object_unlock(object);
+	}
 	mtx_unlock(&vm_object_list_mtx);
 	/*
 	 * Calculate process statistics.
