@@ -332,14 +332,10 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, cred)
 	 * XXX
 	 * This entire block sorely needs a rewrite.
 	 */
-				if (t && (t->inp_vflag & INP_TIMEWAIT)) {
-					if ((ntohl(sin->sin_addr.s_addr) != INADDR_ANY ||
-					    ntohl(t->inp_laddr.s_addr) != INADDR_ANY ||
-					    (intotw(t)->tw_so_options & SO_REUSEPORT) == 0) &&
-					    (so->so_cred->cr_uid != intotw(t)->tw_cred->cr_uid))
-						return (EADDRINUSE);
-				} else
 				if (t &&
+				    ((t->inp_vflag & INP_TIMEWAIT) == 0) &&
+				    (so->so_type != SOCK_STREAM ||
+				     ntohl(t->inp_faddr.s_addr) == INADDR_ANY) &&
 				    (ntohl(sin->sin_addr.s_addr) != INADDR_ANY ||
 				     ntohl(t->inp_laddr.s_addr) != INADDR_ANY ||
 				     (t->inp_socket->so_options &
