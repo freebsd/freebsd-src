@@ -253,9 +253,6 @@ struct speedtab {
 #define	TSA_HUP_OR_INPUT(tp)	((void *)&(tp)->t_rawq.c_cf)
 #define	TSA_OCOMPLETE(tp)	((void *)&(tp)->t_outq.c_cl)
 #define	TSA_OLOWAT(tp)		((void *)&(tp)->t_outq)
-#define	TSA_PTC_READ(tp)	((void *)&(tp)->t_outq.c_cf)
-#define	TSA_PTC_WRITE(tp)	((void *)&(tp)->t_rawq.c_cl)
-#define	TSA_PTS_READ(tp)	((void *)&(tp)->t_canq)
 
 #ifdef _KERNEL
 #ifdef MALLOC_DECLARE
