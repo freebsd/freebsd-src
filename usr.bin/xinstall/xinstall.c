@@ -40,7 +40,7 @@ static const char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";*/
 static const char rcsid[] =
-	"$Id: xinstall.c,v 1.10 1996/09/05 07:27:43 peter Exp $";
+	"$Id: xinstall.c,v 1.11 1996/09/05 07:33:24 peter Exp $";
 #endif /* not lint */
 
 /*-
@@ -484,6 +484,7 @@ compare(int from_fd, const char *from_name, int to_fd, const char *to_name,
 	char *p, *q;
 	int rv;
 	size_t tsize;
+	int done_compare;
 
 	if (from_sb->st_size != to_sb->st_size)
 		return 1;
@@ -491,20 +492,26 @@ compare(int from_fd, const char *from_name, int to_fd, const char *to_name,
 	tsize = (size_t)from_sb->st_size;
 
 	if (tsize <= 8 * 1024 * 1024) {
+		done_compare = 0;
 		if (trymmap(from_fd) && trymmap(to_fd)) {
 			p = mmap(NULL, tsize, PROT_READ, 0, from_fd, (off_t)0);
 			if ((long)p == -1)
-				err(EX_OSERR, "mmap %s", from_name);
+				goto out;
 			q = mmap(NULL, tsize, PROT_READ, 0, to_fd, (off_t)0);
-			if ((long)q == -1)
-				err(EX_OSERR, "mmap %s", to_name);
+			if ((long)q == -1) {
+				munmap(p, tsize);
+				goto out;
+			}
 
 			rv = memcmp(p, q, tsize);
 			munmap(p, tsize);
 			munmap(q, tsize);
-		} else {
-			char buf1[16384];
-			char buf2[16384];
+			done_compare = 1;
+		}
+	out:
+		if (!done_compare) {
+			char buf1[MAXBSIZE];
+			char buf2[MAXBSIZE];
 			int n1, n2;
 
 			rv = 0;
@@ -545,19 +552,28 @@ copy(from_fd, from_name, to_fd, to_name, size)
 	register int nr, nw;
 	int serrno;
 	char *p, buf[MAXBSIZE];
+	int done_copy;
 
 	/*
 	 * Mmap and write if less than 8M (the limit is so we don't totally
 	 * trash memory on big files.  This is really a minor hack, but it
 	 * wins some CPU back.
 	 */
+	done_copy = 0;
 	if (size <= 8 * 1048576 && trymmap(from_fd)) {
 		if ((p = mmap(NULL, (size_t)size, PROT_READ,
-		    0, from_fd, (off_t)0)) == (char *)-1)
-			err(EX_OSERR, "mmap %s", from_name);
-		if (write(to_fd, p, size) != size)
+				0, from_fd, (off_t)0)) == (char *)-1)
+			goto out;
+		if ((nw = write(to_fd, p, size)) != size) {
+			serrno = errno;
+			(void)unlink(to_name);
+			errno = nw > 0 ? EIO : serrno;
 			err(EX_OSERR, "%s", to_name);
-	} else {
+		}
+		done_copy = 1;
+	out:
+	}
+	if (!done_copy) {
 		while ((nr = read(from_fd, buf, sizeof(buf))) > 0)
 			if ((nw = write(to_fd, buf, nr)) != nr) {
 				serrno = errno;
