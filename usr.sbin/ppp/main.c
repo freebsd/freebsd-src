@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.73 1997/08/26 23:20:11 brian Exp $
+ * $Id: main.c,v 1.74 1997/08/27 20:11:16 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -37,8 +37,6 @@
 #include <arpa/inet.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#include <sysexits.h>
-#include <libutil.h>
 #include "modem.h"
 #include "os.h"
 #include "hdlc.h"
@@ -337,12 +335,6 @@ main(int argc, char **argv)
   ProcessArgs(argc, argv);
   if (!(mode & MODE_DIRECT))
     VarTerm = stdout;
-
-  if (!login_progok(getuid(), "/usr/sbin/ppp")) {
-    LogPrintf(LogERROR, "You do not have permission to execute ppp\n");
-    return EX_NOPERM;
-  }
-
   Greetings();
   GetUid();
   IpcpDefAddress();

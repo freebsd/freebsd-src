@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.58 1997/08/26 23:20:16 brian Exp $
+.\" $Id: ppp.8,v 1.59 1997/08/27 20:11:16 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -128,18 +128,6 @@ Name Server Addresses and NetBIOS Name Server Addresses can be negotiated
 with clients using the Microsoft
 .Em PPP
 stack (ie. Win95, WinNT)
-
-.It Supports execution restriction.
-If
-.Nm /usr/sbin/ppp
-is specified in the
-.Dv prog.deny
-list in
-.Pa /etc/login.conf ,
-.Nm
-will refuse to execute.  Refer to
-.Xr login_progok 3
-for further details.
 
 .Sh GETTING STARTED
 
@@ -2082,9 +2070,7 @@ Get port number if port number is using service name.
 .Xr uucplock 3 ,
 .Xr syslog 3 ,
 .Xr syslog.conf 5 ,
-.Xr syslogd 8 ,
-.Xr login.conf 5 ,
-.Xr login_progok 3
+.Xr syslogd 8
 
 .Sh HISTORY
 
