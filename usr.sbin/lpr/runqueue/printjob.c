@@ -58,7 +58,6 @@ static char sccsid[] = "@(#)printjob.c	8.2 (Berkeley) 4/16/94";
 #include <pwd.h>
 #include <unistd.h>
 #include <signal.h>
-#include <sgtty.h>
 #include <syslog.h>
 #include <fcntl.h>
 #include <dirent.h>
@@ -66,6 +65,8 @@ static char sccsid[] = "@(#)printjob.c	8.2 (Berkeley) 4/16/94";
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/ioctl.h>
+#include <termios.h>
 #include "lp.h"
 #include "lp.local.h"
 #include "pathnames.h"
@@ -1181,6 +1182,7 @@ init()
 	cgetstr(bp, "vf", &VF);
 	cgetstr(bp, "cf", &CF);
 	cgetstr(bp, "tr", &TR);
+	cgetstr(bp, "ms", &MS);
 
 	RS = (cgetcap(bp, "rs", ':') != NULL);
 	SF = (cgetcap(bp, "sf", ':') != NULL);
@@ -1190,14 +1192,6 @@ init()
 	RW = (cgetcap(bp, "rw", ':') != NULL);
 
 	cgetnum(bp, "br", &BR);
-	if (cgetnum(bp, "fc", &FC) < 0)
-		FC = 0;
-	if (cgetnum(bp, "fs", &FS) < 0)
-		FS = 0;
-	if (cgetnum(bp, "xc", &XC) < 0)
-		XC = 0;
-	if (cgetnum(bp, "xs", &XS) < 0)
-		XS = 0;
 
 	tof = (cgetcap(bp, "fo", ':') == NULL);
 }
@@ -1317,15 +1311,15 @@ struct bauds {
 static void
 setty()
 {
-	struct sgttyb ttybuf;
-	register struct bauds *bp;
+	struct termios ttybuf;
+	struct bauds *bp;
 
 	if (ioctl(pfd, TIOCEXCL, (char *)0) < 0) {
 		syslog(LOG_ERR, "%s: ioctl(TIOCEXCL): %m", printer);
 		exit(1);
 	}
-	if (ioctl(pfd, TIOCGETP, (char *)&ttybuf) < 0) {
-		syslog(LOG_ERR, "%s: ioctl(TIOCGETP): %m", printer);
+	if (tcgetattr(pfd, &ttybuf) < 0) {
+		syslog(LOG_ERR, "%s: tcgetattr: %m", printer);
 		exit(1);
 	}
 	if (BR > 0) {
@@ -1336,24 +1330,18 @@ setty()
 			syslog(LOG_ERR, "%s: illegal baud rate %d", printer, BR);
 			exit(1);
 		}
-		ttybuf.sg_ispeed = ttybuf.sg_ospeed = bp->speed;
+		cfsetspeed(&ttybuf, bp->speed);
 	}
-	ttybuf.sg_flags &= ~FC;
-	ttybuf.sg_flags |= FS;
-	if (ioctl(pfd, TIOCSETP, (char *)&ttybuf) < 0) {
-		syslog(LOG_ERR, "%s: ioctl(TIOCSETP): %m", printer);
-		exit(1);
-	}
-	if (XC) {
-		if (ioctl(pfd, TIOCLBIC, &XC) < 0) {
-			syslog(LOG_ERR, "%s: ioctl(TIOCLBIC): %m", printer);
-			exit(1);
+	if (MS) {
+		char *s = strdup(MS), *tmp;
+
+		while (tmp = strsep (&s, ",")) {
+			msearch(tmp, &ttybuf);
 		}
 	}
-	if (XS) {
-		if (ioctl(pfd, TIOCLBIS, &XS) < 0) {
-			syslog(LOG_ERR, "%s: ioctl(TIOCLBIS): %m", printer);
-			exit(1);
+	if (MS || (BR > 0)) {
+		if (tcsetattr(pfd, TCSAFLUSH, &ttybuf) == -1) {
+			syslog(LOG_ERR, "%s: tcsetattr: %m", printer);
 		}
 	}
 }
