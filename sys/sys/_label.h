@@ -46,6 +46,8 @@
 
 #define	MAC_MAX_POLICIES	4
 
+#define	MAC_FLAG_INITIALIZED	0x0000001	/* Is initialized for use. */
+
 struct label {
 	int	l_flags;
 	union {
