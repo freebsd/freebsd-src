@@ -53,7 +53,7 @@ at boot time from the
 file.  
 It synchronizes the host's time with the time of other
 machines in a local area network running 
-.Nm timed 8 .
+.Nm timed .
 These time servers will slow down the clocks of some machines
 and speed up the clocks of others to bring them to the average network time.
 The average network time is computed from measurements of clock differences
@@ -66,7 +66,7 @@ The service provided by
 is based  on a master-slave
 scheme.
 When
-.Nm timed 8
+.Nm timed
 is started on a machine, it asks the master for the network time
 and sets the host's clock to that time.
 After that, it accepts synchronization messages periodically sent by
