@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.19 1996/03/03 23:04:10 hsu Exp $
+ * $Id: kern_synch.c,v 1.19 1996/03/11 05:48:57 hsu Exp $
  */
 
 #include "opt_ktrace.h"
@@ -413,6 +413,7 @@ endtsleep(arg)
 	splx(s);
 }
 
+#if 0
 /*
  * Short-term, non-interruptable sleep.
  */
@@ -472,6 +473,7 @@ sleep(ident, priority)
 	curpriority = p->p_usrpri;
 	splx(s);
 }
+#endif
 
 /*
  * Remove a process from its wait queue
