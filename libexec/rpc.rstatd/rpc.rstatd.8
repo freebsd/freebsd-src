@@ -31,7 +31,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: rpc.rstatd.8,v 1.3 1997/02/22 14:22:12 peter Exp $
 .\"
 .Dd June 7, 1993
 .Dt RPC.RSTATD 8
@@ -42,20 +42,21 @@
 .Sh SYNOPSIS
 .Nm /usr/libexec/rpc.rstatd
 .Sh DESCRIPTION
-.Nm rpc.rstatd
+.Nm Rpc.rstatd
 is a server which returns performance statistics obtained from the kernel.
 These statistics are read using the 
 .Xr rup 1
 command.
 The
-.Nm rpc.rstatd
+.Nm
 daemon is normally invoked by
 .Xr inetd 8 .
 .Pp
-.Nm rpc.rstatd
-uses an RPC protocol defined in 
+.Nm Rpc.rstatd
+uses an
+.Tn RPC
+protocol defined in 
 .Pa /usr/include/rpcsvc/rstat.x .
 .Sh SEE ALSO
 .Xr rup 1 ,
 .Xr inetd 8
-
