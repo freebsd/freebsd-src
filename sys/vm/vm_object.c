@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.145 1999/02/07 08:44:53 dillon Exp $
+ * $Id: vm_object.c,v 1.146 1999/02/07 21:48:22 dillon Exp $
  */
 
 /*
@@ -137,15 +137,12 @@ static struct vm_zone obj_zone_store;
 static int object_hash_rand;
 #define VM_OBJECTS_INIT 256
 static struct vm_object vm_objects_init[VM_OBJECTS_INIT];
-#if 0
-static int objidnumber;
-#endif
 
 void
 _vm_object_allocate(type, size, object)
 	objtype_t type;
 	vm_size_t size;
-	register vm_object_t object;
+	vm_object_t object;
 {
 	int incr;
 	TAILQ_INIT(&object->memq);
@@ -155,9 +152,6 @@ _vm_object_allocate(type, size, object)
 	object->size = size;
 	object->ref_count = 1;
 	object->flags = 0;
-#if 0
-	object->id = ++objidnumber;
-#endif
 	if ((object->type == OBJT_DEFAULT) || (object->type == OBJT_SWAP))
 		vm_object_set_flag(object, OBJ_ONEMAPPING);
 	object->behavior = OBJ_NORMAL;
@@ -175,9 +169,6 @@ _vm_object_allocate(type, size, object)
 	object->handle = NULL;
 	object->backing_object = NULL;
 	object->backing_object_offset = (vm_ooffset_t) 0;
-#if 0
-	object->page_hint = NULL;
-#endif
 	/*
 	 * Try to generate a number that will spread objects out in the
 	 * hash table.  We 'wipe' new objects across the hash in 128 page
@@ -235,7 +226,8 @@ vm_object_allocate(type, size)
 	objtype_t type;
 	vm_size_t size;
 {
-	register vm_object_t result;
+	vm_object_t result;
+
 	result = (vm_object_t) zalloc(obj_zone);
 
 	_vm_object_allocate(type, size, result);
@@ -251,7 +243,7 @@ vm_object_allocate(type, size)
  */
 void
 vm_object_reference(object)
-	register vm_object_t object;
+	vm_object_t object;
 {
 	if (object == NULL)
 		return;
@@ -404,9 +396,9 @@ doterm:
  */
 void
 vm_object_terminate(object)
-	register vm_object_t object;
+	vm_object_t object;
 {
-	register vm_page_t p;
+	vm_page_t p;
 	int s;
 
 	/*
@@ -506,8 +498,8 @@ vm_object_page_clean(object, start, end, flags)
 	vm_pindex_t end;
 	int flags;
 {
-	register vm_page_t p, np, tp;
-	register vm_offset_t tstart, tend;
+	vm_page_t p, np, tp;
+	vm_offset_t tstart, tend;
 	vm_pindex_t pi;
 	int s;
 	struct vnode *vp;
@@ -671,48 +663,15 @@ rescan:
  */
 static void
 vm_object_deactivate_pages(object)
-	register vm_object_t object;
+	vm_object_t object;
 {
-	register vm_page_t p, next;
+	vm_page_t p, next;
 
 	for (p = TAILQ_FIRST(&object->memq); p != NULL; p = next) {
 		next = TAILQ_NEXT(p, listq);
 		vm_page_deactivate(p);
 	}
 }
-#endif
-
-#if 0
-
-/*
- *	vm_object_pmap_copy:
- *
- *	Makes all physical pages in the specified
- *	object range copy-on-write.  No writeable
- *	references to these pages should remain.
- *
- *	The object must *not* be locked.
- */
-void
-vm_object_pmap_copy(object, start, end)
-	register vm_object_t object;
-	register vm_pindex_t start;
-	register vm_pindex_t end;
-{
-	register vm_page_t p;
-
-	if (object == NULL || (object->flags & OBJ_WRITEABLE) == 0)
-		return;
-
-	for (p = TAILQ_FIRST(&object->memq);
-		p != NULL;
-		p = TAILQ_NEXT(p, listq)) {
-		vm_page_protect(p, VM_PROT_READ);
-	}
-
-	vm_object_clear_flag(object, OBJ_WRITEABLE);
-}
-
 #endif
 
 /*
@@ -729,12 +688,12 @@ vm_object_pmap_copy(object, start, end)
 
 void
 vm_object_pmap_copy_1(object, start, end)
-	register vm_object_t object;
-	register vm_pindex_t start;
-	register vm_pindex_t end;
+	vm_object_t object;
+	vm_pindex_t start;
+	vm_pindex_t end;
 {
 	vm_pindex_t idx;
-	register vm_page_t p;
+	vm_page_t p;
 
 	if (object == NULL || (object->flags & OBJ_WRITEABLE) == 0)
 		return;
@@ -757,11 +716,12 @@ vm_object_pmap_copy_1(object, start, end)
  */
 void
 vm_object_pmap_remove(object, start, end)
-	register vm_object_t object;
-	register vm_pindex_t start;
-	register vm_pindex_t end;
+	vm_object_t object;
+	vm_pindex_t start;
+	vm_pindex_t end;
 {
-	register vm_page_t p;
+	vm_page_t p;
+
 	if (object == NULL)
 		return;
 	for (p = TAILQ_FIRST(&object->memq);
@@ -849,11 +809,6 @@ shadowlookup:
 			tobject = tobject->backing_object;
 			if (tobject == NULL)
 				continue;
-#if 0
-			if ((tobject == NULL) || (tobject->ref_count != 1)) {
-				continue;
-			}
-#endif
 			tpindex += OFF_TO_IDX(tobject->backing_object_offset);
 			goto shadowlookup;
 		}
@@ -919,8 +874,8 @@ vm_object_shadow(object, offset, length)
 	vm_ooffset_t *offset;	/* IN/OUT */
 	vm_size_t length;
 {
-	register vm_object_t source;
-	register vm_object_t result;
+	vm_object_t source;
+	vm_object_t result;
 
 	source = *object;
 
@@ -973,12 +928,12 @@ vm_object_shadow(object, offset, length)
  */
 static void
 vm_object_qcollapse(object)
-	register vm_object_t object;
+	vm_object_t object;
 {
-	register vm_object_t backing_object;
-	register vm_pindex_t backing_offset_index;
-	register vm_page_t p, pp;
-	register vm_size_t size;
+	vm_object_t backing_object;
+	vm_pindex_t backing_offset_index;
+	vm_page_t p, pp;
+	vm_size_t size;
 	int s;
 
 	backing_object = object->backing_object;
@@ -1366,12 +1321,12 @@ vm_object_collapse(object)
  */
 void
 vm_object_page_remove(object, start, end, clean_only)
-	register vm_object_t object;
-	register vm_pindex_t start;
-	register vm_pindex_t end;
+	vm_object_t object;
+	vm_pindex_t start;
+	vm_pindex_t end;
 	boolean_t clean_only;
 {
-	register vm_page_t p, next;
+	vm_page_t p, next;
 	unsigned int size;
 	int all;
 
@@ -1477,7 +1432,7 @@ again:
  */
 boolean_t
 vm_object_coalesce(prev_object, prev_pindex, prev_size, next_size)
-	register vm_object_t prev_object;
+	vm_object_t prev_object;
 	vm_pindex_t prev_pindex;
 	vm_size_t prev_size, next_size;
 {
@@ -1656,12 +1611,12 @@ DB_SHOW_COMMAND(object, vm_object_print_static)
 	vm_object_t object = (vm_object_t)addr;
 	boolean_t full = have_addr;
 
-	register vm_page_t p;
+	vm_page_t p;
 
 	/* XXX count is an (unused) arg.  Avoid shadowing it. */
 #define	count	was_count
 
-	register int count;
+	int count;
 
 	if (object == NULL)
 		return;
