@@ -33,6 +33,8 @@ unsigned g_lcm(unsigned a, unsigned b);
 off_t g_get_mediasize(const char *name);
 unsigned g_get_sectorsize(const char *name);
 
+int g_metadata_read(const char *name, u_char *md, size_t size,
+    const char *magic);
 int g_metadata_store(const char *name, u_char *md, size_t size);
 int g_metadata_clear(const char *name, const char *magic);
 
