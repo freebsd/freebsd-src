@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.31 1995/01/25 21:37:38 bde Exp $
+ *	$Id: boot.c,v 1.32 1995/01/28 03:51:39 davidg Exp $
  */
 
 
@@ -65,7 +65,6 @@ struct bootinfo bootinfo;
 extern void init_serial(void);
 extern int probe_keyboard(void);
 int loadflags;
-unsigned char loadsyms;
 
 extern int end;
 boot(drive)
@@ -93,7 +92,7 @@ int drive;
 	printf("\n\
 >> FreeBSD BOOT @ 0x%x: %d/%d k of memory\n\
 Use hd(1,a)/kernel to boot sd0 when wd0 is also installed.\n\
-Usage: [[[%s(%d,a)]%s][-Dabcdhrsv]]\n\
+Usage: [[%s(%d,a)]%s][-abcdhrsv]\n\
 Use ? for file list or press Enter for defaults\n\n",
 	       ouraddr, bootinfo.bi_basemem, bootinfo.bi_extmem,
 	       devs[drive & 0x80 ? 0 : 2], drive & 0x7f, name);
@@ -131,6 +130,7 @@ loadprog(howto)
 	long int addr;	/* physical address.. not directly useable */
 	long int bootdev;
 	int i;
+	unsigned pad;
 #ifdef REDUNDANT
 	unsigned char	tmpbuf[4096]; /* we need to load the first 4k here */
 #endif
@@ -229,49 +229,45 @@ loadprog(howto)
 	pbzero(addr,head.a_bss);
 #endif
 	addr += head.a_bss;
-	if (loadsyms)
-	{
-		unsigned pad;
 
-		/* Pad to a page boundary. */
-		pad = (unsigned)addr % NBPG;
-		if (pad != 0) {
-			pad = NBPG - pad;
-			addr += pad;
-		}
-		bootinfo.bi_symtab = addr;
-
-		/********************************************************/
-		/* Copy the symbol table size				*/
-		/********************************************************/
-		pcpy(&head.a_syms, addr, sizeof(head.a_syms));
-		addr += sizeof(head.a_syms);
-	
-		/********************************************************/
-		/* Load the symbol table				*/
-		/********************************************************/
-		printf("symbols=[+0x%x+0x%x+0x%x", pad, sizeof(head.a_syms),
-		       head.a_syms);
-		xread(addr, head.a_syms);
-		addr += head.a_syms;
-	
-		/********************************************************/
-		/* Load the string table size				*/
-		/********************************************************/
-		read(&i, sizeof(int));
-		pcpy(&i, addr, sizeof(int));
-		i -= sizeof(int);
-		addr += sizeof(int);
-	
-		/********************************************************/
-		/* Load the string table				*/
-		/********************************************************/
-		printf("+0x%x+0x%x] ", sizeof(int), i);
-		xread(addr, i);
-		addr += i;
-
-		bootinfo.bi_esymtab = addr;
+	/* Pad to a page boundary. */
+	pad = (unsigned)addr % NBPG;
+	if (pad != 0) {
+		pad = NBPG - pad;
+		addr += pad;
 	}
+	bootinfo.bi_symtab = addr;
+
+	/********************************************************/
+	/* Copy the symbol table size				*/
+	/********************************************************/
+	pcpy(&head.a_syms, addr, sizeof(head.a_syms));
+	addr += sizeof(head.a_syms);
+
+	/********************************************************/
+	/* Load the symbol table				*/
+	/********************************************************/
+	printf("symbols=[+0x%x+0x%x+0x%x", pad, sizeof(head.a_syms),
+	       head.a_syms);
+	xread(addr, head.a_syms);
+	addr += head.a_syms;
+
+	/********************************************************/
+	/* Load the string table size				*/
+	/********************************************************/
+	read(&i, sizeof(int));
+	pcpy(&i, addr, sizeof(int));
+	i -= sizeof(int);
+	addr += sizeof(int);
+
+	/********************************************************/
+	/* Load the string table				*/
+	/********************************************************/
+	printf("+0x%x+0x%x] ", sizeof(int), i);
+	xread(addr, i);
+	addr += i;
+
+	bootinfo.bi_esymtab = addr;
 
 	/*
 	 * For backwards compatibility, use the previously-unused adaptor
@@ -313,8 +309,6 @@ getbootdev(howto)
 			if (c=='-')
 				while ((c = *++ptr) && c!=' ')
 					switch (c) {
-					      case 'D':
-						loadsyms = 1; continue;
 					      case 'a':
 						*howto |= RB_ASKNAME; continue;
 					      case 'b':
