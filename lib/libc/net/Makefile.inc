@@ -10,7 +10,7 @@ SRCS+=	addr2ascii.c ascii2addr.c base64.c ether_addr.c getaddrinfo.c \
 	getnetbydns.c getnetbyht.c getnetbynis.c getnetnamadr.c \
 	getproto.c getprotoent.c getprotoname.c getservbyname.c \
 	getservbyport.c getservent.c herror.c hesiod.c inet_addr.c \
-	ifname.c inet_lnaof.c \
+	if_indextoname.c if_nameindex.c if_nametoindex.c inet_lnaof.c \
 	inet_makeaddr.c inet_net_ntop.c inet_net_pton.c inet_neta.c \
 	inet_netof.c inet_network.c inet_ntoa.c inet_ntop.c \
 	inet_pton.c ip6opt.c linkaddr.c map_v4v6.c name6.c ns_addr.c \
