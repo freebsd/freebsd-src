@@ -199,6 +199,8 @@ nfssvc_addsock(struct file *fp, struct sockaddr *mynam, struct thread *td)
 	struct socket *so;
 	int error, s;
 
+	GIANT_REQUIRED;		/* XXX until socket locking done */
+
 	so = fp->f_data;
 #if 0
 	tslp = NULL;

@@ -213,6 +213,8 @@ krpc_call(struct sockaddr_in *sa, u_int prog, u_int vers, u_int func,
 	nam = mhead = NULL;
 	from = NULL;
 
+	GIANT_REQUIRED;		/* XXX until socket locking done */
+
 	/*
 	 * Create socket and set its recieve timeout.
 	 */
