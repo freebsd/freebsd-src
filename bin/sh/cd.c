@@ -369,20 +369,6 @@ getpwd(void)
 
 	if (curdir)
 		return curdir;
-	/*
-	 * Things are a bit complicated here; we could have just used
-	 * getcwd, but traditionally getcwd is implemented using popen
-	 * to /bin/pwd. This creates a problem for us, since we cannot
-	 * keep track of the job if it is being ran behind our backs.
-	 * So we re-implement getcwd(), and we suppress interrupts
-	 * throughout the process. This is not completely safe, since
-	 * the user can still break out of it by killing the pwd program.
-	 * We still try to use getcwd for systems that we know have a
-	 * c implementation of getcwd, that does not open a pipe to
-	 * /bin/pwd.
-	 */
-#if defined(__NetBSD__) || defined(__FreeBSD__) || defined(__SVR4)
-
 	if (getcwd(buf, sizeof(buf)) == NULL) {
 		char *pwd = getenv("PWD");
 		struct stat stdot, stpwd;
@@ -397,47 +383,6 @@ getpwd(void)
 		return NULL;
 	}
 	curdir = savestr(buf);
-#else
-	{
-		char *p;
-		int i;
-		int status;
-		struct job *jp;
-		int pip[2];
 
-		INTOFF;
-		if (pipe(pip) < 0)
-			error("Pipe call failed: %s", strerror(errno));
-		jp = makejob((union node *)NULL, 1);
-		if (forkshell(jp, (union node *)NULL, FORK_NOJOB) == 0) {
-			(void) close(pip[0]);
-			if (pip[1] != 1) {
-				close(1);
-				copyfd(pip[1], 1);
-				close(pip[1]);
-			}
-			(void) execl("/bin/pwd", "pwd", (char *)0);
-			error("Cannot exec /bin/pwd");
-		}
-		(void) close(pip[1]);
-		pip[1] = -1;
-		p = buf;
-		while ((i = read(pip[0], p, buf + MAXPWD - p)) > 0
-		     || (i == -1 && errno == EINTR)) {
-			if (i > 0)
-				p += i;
-		}
-		(void) close(pip[0]);
-		pip[0] = -1;
-		status = waitforjob(jp);
-		if (status != 0)
-			error((char *)0);
-		if (i < 0 || p == buf || p[-1] != '\n')
-			error("pwd command failed");
-		p[-1] = '\0';
-	}
-	curdir = savestr(buf);
-	INTON;
-#endif
 	return curdir;
 }
