@@ -480,7 +480,10 @@ ata_cyrix_chipinit(device_t dev)
     if (ata_default_interrupt(dev))
 	return ENXIO;
 
-    ctlr->setmode = ata_cyrix_setmode;
+    if (ctlr->r_bmio)
+	ctlr->setmode = ata_cyrix_setmode;
+    else
+	ctlr->setmode = ata_generic_setmode;
     return 0;
 }
 
@@ -1592,7 +1595,7 @@ ata_sis_setmode(struct ata_device *atadev, int mode)
 	case SIS133NEW: {
 	    u_int32_t timings[] = 
 		{ 0x28269008, 0x0c266008, 0x04263008, 0x0c0a3008, 0x05093008,
-		  0x22190608, 0x0c0a3008, 0x05093008, 0x050939fc, 0x050936ac,
+		  0x22196008, 0x0c0a3008, 0x05093008, 0x050939fc, 0x050936ac,
 		  0x0509347c, 0x0509325c, 0x0509323c, 0x0509322c, 0x0509321c};
 	    u_int32_t reg;
 
