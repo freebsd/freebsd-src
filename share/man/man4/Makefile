@@ -17,6 +17,7 @@ MAN=	aac.4 \
 	atkbd.4 \
 	atkbdc.4 \
 	aue.4 \
+	awi.4 \
 	bge.4 \
 	bktr.4 \
 	blackhole.4 \
@@ -150,6 +151,7 @@ MAN=	aac.4 \
 	smb.4 \
 	smbus.4 \
 	smp.4 \
+	sn.4 \
 	snp.4 \
 	spic.4 \
 	splash.4 \
