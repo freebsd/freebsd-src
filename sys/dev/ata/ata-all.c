@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: ata-all.c,v 1.2 1999/03/03 21:10:29 sos Exp $
+ *  $Id: ata-all.c,v 1.3 1999/03/05 09:43:30 sos Exp $
  */
 
 #include "ata.h"
@@ -271,6 +271,7 @@ ata_probe(int32_t ioaddr, int32_t altioaddr, int32_t *unit)
     scp->unit = lun;
     scp->ioaddr = ioaddr; 
     scp->altioaddr = altioaddr;
+    scp->active = ATA_IDLE;
 
 #ifdef ATA_DEBUG
     printf("ata%d: iobase=0x%04x altiobase=0x%04x\n", 
@@ -419,29 +420,31 @@ ataintr(int32_t unit)
 #if NATADISK > 0
     case ATA_ACTIVE_ATA:
     	if ((ata_request = bufq_first(&scp->ata_queue)))
-            ad_interrupt(ata_request);
+            if (ad_interrupt(ata_request) == ATA_OP_CONTINUES)
+		return;
 	break;
 #endif
     case ATA_ACTIVE_ATAPI:
         if ((atapi_request = TAILQ_FIRST(&scp->atapi_queue)))
-	    atapi_interrupt(atapi_request);
+	    if (atapi_interrupt(atapi_request) == ATA_OP_CONTINUES)
+		return;
 	break;
 
     case ATA_WAIT_INTR:
 	wakeup((caddr_t)scp);
-	scp->active = ATA_IDLE;
 	break;
 
     case ATA_IGNORE_INTR:
-	scp->active = ATA_IDLE;
 	break;
 
     default:
     case ATA_IDLE:
 	if (intcount++ < 5)
 	    printf("ata%d: unwanted interrupt\n", unit);
-	break;
+	return;
     }
+    scp->active = ATA_IDLE;
+    ata_start(scp);
 }
 
 void
@@ -481,6 +484,7 @@ ata_wait(struct ata_softc *scp, u_int8_t mask)
 	status = inb(scp->ioaddr + ATA_STATUS);
 	if ((status == 0xff) && (scp->flags & ATA_F_SLAVE_ONLY)) {
     	    outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
+	    DELAY(1);
 	    status = inb(scp->ioaddr + ATA_STATUS);
 	}
 	if (status == 0xff)
@@ -505,24 +509,30 @@ ata_command(struct ata_softc *scp, int32_t device, u_int32_t command,
 	   u_int32_t cylinder, u_int32_t head, u_int32_t sector, 
 	   u_int32_t count, int32_t flags)
 {
-    /* ready to issue command ? */ 
-    while (ata_wait(scp, 0) < 0) {
-        printf("ad_transfer: timeout waiting to give command");
-	return -1;
+    /* ready to issue command ? */
+    if (ata_wait(scp, 0) < 0) { 
+        printf("ata_command: timeout waiting to give command");
+        return -1;
     }
-
+    outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | device | head);
     outb(scp->ioaddr + ATA_PRECOMP, 0); /* no precompensation */
     outb(scp->ioaddr + ATA_CYL_LSB, cylinder);
     outb(scp->ioaddr + ATA_CYL_MSB, cylinder >> 8);
-    outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | device | head);
     outb(scp->ioaddr + ATA_SECTOR, sector);
     outb(scp->ioaddr + ATA_COUNT, count);
+
+    if (scp->active && flags != ATA_IMMEDIATE)
+	printf("DANGER active=%d\n", scp->active);
 
     switch (flags) {
     case ATA_WAIT_INTR:
         scp->active = ATA_WAIT_INTR;
         outb(scp->ioaddr + ATA_CMD, command);
-	tsleep((caddr_t)scp, PRIBIO, "atacmd", 0);
+	if (tsleep((caddr_t)scp, PRIBIO, "atacmd", 500)) {
+	    printf("ata_command: timeout waiting for interrupt");
+	    scp->active = ATA_IDLE;
+	    return -1;
+	}
 	break;
     
     case ATA_IGNORE_INTR:

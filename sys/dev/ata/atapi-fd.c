@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-fd.c,v 1.1 1999/03/03 21:10:29 sos Exp $
+ *	$Id: atapi-fd.c,v 1.2 1999/03/05 09:43:30 sos Exp $
  */
 
 #include "ata.h"
@@ -69,7 +69,9 @@ static struct cdevsw afd_cdevsw = {
 	  afdopen,	afdclose,	afdread,	afdwrite,
 	  afdioctl,	nostop,		nullreset,	nodevtotty,
 	  seltrue,	nommap,		afdstrategy,	"afd",
-	  NULL,	-1 };
+	  NULL,		-1,		nodump,		nopsize,
+	  D_DISK,	0,		-1
+};
 
 #define NUNIT 			8
 #define UNIT(d)         	((minor(d) >> 3) & 3)
@@ -257,8 +259,13 @@ afdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
     if (lun >= afdnlun || !(fdp = afdtab[lun]))
         return ENXIO;
 
-    switch (cmd) {
+    error = dsioctl("sd", dev, cmd, addr, flag, &fdp->slices,
+                    afd_strategy, (ds_setgeom_t *)NULL);
 
+    if (error != ENOIOCTL)
+        return error;
+
+    switch (cmd) {
     case CDIOCEJECT:
         if ((fdp->flags & F_OPEN) && fdp->refcnt)
             return EBUSY;
@@ -328,6 +335,9 @@ afd_start(struct afd_softc *fdp)
     lba = bp->b_blkno / (fdp->cap.sector_size / DEV_BSIZE);
     count = (bp->b_bcount + (fdp->cap.sector_size - 1)) / fdp->cap.sector_size;
 
+    if (count > 64) /* only needed for ZIP drives SOS */
+	count = 64;
+
     if (bp->b_flags & B_READ)
 	ccb[0] = ATAPI_READ_BIG;
     else
@@ -343,7 +353,7 @@ afd_start(struct afd_softc *fdp)
 
     devstat_start_transaction(&fdp->stats);
 
-    atapi_queue_cmd(fdp->atp, ccb, bp->b_data, bp->b_bcount, 
+    atapi_queue_cmd(fdp->atp, ccb, bp->b_data, count*fdp->cap.sector_size, 
 		    (bp->b_flags & B_READ) ? A_READ : 0, afd_done, fdp, bp);
 }
 
