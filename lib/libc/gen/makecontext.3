@@ -1,11 +1,11 @@
 .\" Copyright (c) 2002 Packet Design, LLC.
 .\" All rights reserved.
-.\" 
+.\"
 .\" Subject to the following obligations and disclaimer of warranty,
 .\" use and redistribution of this software, in source or object code
 .\" forms, with or without modifications are expressly permitted by
 .\" Packet Design; provided, however, that:
-.\" 
+.\"
 .\"    (i)  Any and all reproductions of the source or object code
 .\"         must include the copyright notice above and the following
 .\"         disclaimer of warranties; and
@@ -13,7 +13,7 @@
 .\"         Packet Design trademarks, including the mark "PACKET DESIGN"
 .\"         on advertising, endorsements, or otherwise except as such
 .\"         appears in the above copyright notice or in the software.
-.\" 
+.\"
 .\" THIS SOFTWARE IS BEING PROVIDED BY PACKET DESIGN "AS IS", AND
 .\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, PACKET DESIGN MAKES NO
 .\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING
@@ -35,19 +35,22 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Sep 10, 2002
+.Dd September 10, 2002
 .Dt MAKECONTEXT 3
 .Os
 .Sh NAME
-.Nm makecontext
-.Nm swapcontext
+.Nm makecontext , swapcontext
 .Nd modify and exchange user thread contexts
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In ucontext.h
 .Ft void
-.Fn makecontext "ucontext_t *ucp" "void (*func)()" "int argc" "..."
+.Fo makecontext
+.Fa "ucontext_t *ucp"
+.Fa "void \*[lp]*func\*[rp]\*[lp]void\*[rp]"
+.Fa "int argc" ...
+.Fc
 .Ft int
 .Fn swapcontext "ucontext_t *oucp" "const ucontext_t *ucp"
 .Sh DESCRIPTION
@@ -55,7 +58,7 @@
 modifies the user thread context pointed to by
 .Fa ucp ,
 which must have previously been initialized by a call to
-.Fn getcontext
+.Xr getcontext 3
 and had a stack allocated for it.
 The context is modified so that it will continue execution by invoking
 .Fn func
@@ -90,7 +93,7 @@ the currently active context.
 If successful,
 .Fn swapcontext
 returns zero;
-otherwise -1 is returned and
+otherwise \-1 is returned and the global variable
 .Va errno
 is set appropriately.
 .Sh ERRORS
