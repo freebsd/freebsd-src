@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: prune.c,v 3.8 1995/11/29 22:36:34 fenner Rel $
+ * $Id: prune.c,v 1.10 1996/01/06 21:10:11 peter Exp $
  */
 
 
@@ -1234,17 +1234,11 @@ accept_prune(src, dst, p, datalen)
 	    return;
 	}
 	if ((pt = find_prune_entry(src, g->gt_pruntbl)) != NULL) {
-	    /*
-	     * If it's about to expire, then it's only still around because
-	     * of timer granularity, so don't warn about it.
-	     */
-	    if (pt->pt_timer > 10) {
-		log(LOG_WARNING, 0, "%s %d from %s for (%s %s)/%d %s %d %s %x",
-		    "duplicate prune received on vif",
-		    vifi, inet_fmt(src, s1), inet_fmt(prun_src, s2),
-		    inet_fmt(prun_grp, s3), prun_tmr,
-		    "old timer:", pt->pt_timer, "cur gm:", g->gt_grpmems);
-	    }
+	    log(LOG_DEBUG, 0, "%s %d from %s for (%s %s)/%d %s %d %s %x",
+		"duplicate prune received on vif",
+		vifi, inet_fmt(src, s1), inet_fmt(prun_src, s2),
+		inet_fmt(prun_grp, s3), prun_tmr,
+		"old timer:", pt->pt_timer, "cur gm:", g->gt_grpmems);
 	    pt->pt_timer = prun_tmr;
 	} else {
 	    /* allocate space for the prune structure */
@@ -1947,6 +1941,7 @@ dump_cache(fp2)
     register struct stable *st;
     register struct ptable *pt;
     register vifi_t i;
+    char c;
     register time_t thyme = time(0);
 
     fprintf(fp2,
@@ -1988,15 +1983,19 @@ dump_cache(fp2)
 			VIFM_ISSET(i, gt->gt_scope) ? 'b' : 'p');
 	}
 	fprintf(fp2, "\n");
+	if (gt->gt_pruntbl) {
+	    fprintf(fp2, "<");
+	    c = '(';
+	    for (pt = gt->gt_pruntbl; pt; pt = pt->pt_next) {
+		fprintf(fp2, "%c%s:%d/%d", c, inet_fmt(pt->pt_router, s1),
+		    pt->pt_vifi, pt->pt_timer);
+		c = ',';
+	    }
+	    fprintf(fp2, ")\n");
+	}
 	for (st = gt->gt_srctbl; st; st = st->st_next) {
 	    fprintf(fp2, ">%s\n", inet_fmt(st->st_origin, s1));
 	}
-#ifdef DEBUG_PRUNES
-	for (pt = gt->gt_pruntbl; pt; pt = pt->pt_next) {
-	    fprintf(fp2, "<r:%s v:%d t:%d\n", inet_fmt(pt->pt_router, s1),
-		pt->pt_vifi, pt->pt_timer);
-	}
-#endif
     }
 }
 
@@ -2169,8 +2168,8 @@ accept_mtrace(src, dst, group, data, no, datalen)
     bzero(resp, sizeof(struct tr_resp));
     datalen += RLEN;
 
-    resp->tr_qarr    = htonl((tp.tv_sec + JAN_1970) << 16) + 
-				((tp.tv_usec >> 4) & 0xffff);
+    resp->tr_qarr    = htonl(((tp.tv_sec + JAN_1970) << 16) + 
+				((tp.tv_usec << 10) / 15625));
 
     resp->tr_rproto  = PROTO_DVMRP;
     if (errcode != TR_NO_ERR) {

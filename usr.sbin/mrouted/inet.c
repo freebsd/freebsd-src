@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: inet.c,v 3.8 1995/11/29 22:36:57 fenner Rel $
+ * $Id: inet.c,v 1.5 1996/01/06 21:09:45 peter Exp $
  */
 
 
@@ -155,15 +155,17 @@ inet_fmts(addr, mask, s)
  * with "255.255.255.255".)
  */
 u_int32
-inet_parse(s)
+inet_parse(s,n)
     char *s;
+    int n;
 {
     u_int32 a = 0;
-    u_int a0, a1, a2, a3;
+    u_int a0 = 0, a1 = 0, a2 = 0, a3 = 0;
+    int i;
     char c;
 
-    if (sscanf(s, "%u.%u.%u.%u%c", &a0, &a1, &a2, &a3, &c) != 4 ||
-	a0 > 255 || a1 > 255 || a2 > 255 || a3 > 255)
+    i = sscanf(s, "%u.%u.%u.%u%c", &a0, &a1, &a2, &a3, &c);
+    if (i < n || i > 4 || a0 > 255 || a1 > 255 || a2 > 255 || a3 > 255)
 	return (0xffffffff);
 
     ((u_char *)&a)[0] = a0;

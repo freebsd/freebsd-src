@@ -50,7 +50,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Id: mtrace.c,v 1.7 1996/01/06 21:10:05 peter Exp $";
+    "@(#) $Id: mtrace.c,v 1.8 1996/10/01 23:14:35 fenner Exp $";
 #endif
 
 #include <netdb.h>
@@ -74,7 +74,7 @@ static char rcsid[] =
 #define DEFAULT_RETRIES 3	/* How many times to try */
 #define MAXHOPS UNREACHABLE	/* Don't need more hops than max metric */
 #define UNICAST_TTL 255		/* TTL for unicast response */
-#define MULTICAST_TTL1 64	/* Default TTL for multicast query/response */
+#define MULTICAST_TTL1 127	/* Default TTL for multicast query/response */
 #define MULTICAST_TTL_INC 32	/* TTL increment for increase after timeout */
 #define MULTICAST_TTL_MAX 192	/* Maximum TTL allowed (protect low-BW links */
 
@@ -99,6 +99,7 @@ struct resp_buf {
 char names[MAXHOPS][40];
 int reset[MAXHOPS];			/* To get around 3.4 bug, ... */
 int swaps[MAXHOPS];			/* To get around 3.6 bug, ... */
+int bogustime[MAXHOPS];			/* To get around 3.5 bug, ... */
 
 int timeout = DEFAULT_TIMEOUT;
 int nqueries = DEFAULT_RETRIES;
@@ -106,8 +107,11 @@ int numeric = FALSE;
 int debug = 0;
 int passive = FALSE;
 int multicast = FALSE;
+int unicast = FALSE;
 int statint = 10;
-int verbose = 0;
+int verbose = FALSE;
+int tunstats = FALSE;
+int weak = FALSE;
 
 u_int32 defgrp;				/* Default group if not specified */
 u_int32 query_cast;			/* All routers multicast addr */
@@ -132,10 +136,16 @@ u_int32 tdst = 0;		/* Address where trace is sent (last-hop) */
 
 vifi_t  numvifs;		/* to keep loader happy */
 				/* (see kern.c) */
+
 #ifndef SYSV
 extern long random();
 #endif
 extern int errno;
+
+/*
+ * max macro, with weird case to avoid conflicts
+ */
+#define	MaX(a,b)	(a) > (b) ? (a) : (b)
 
 char *			inet_name __P((u_int32 addr));
 u_int32			host_addr __P((char *name));
@@ -211,7 +221,7 @@ host_addr(name)
     if (e) memcpy((char *)&addr, e->h_addr_list[0], e->h_length);
     else {
 	addr = inet_addr(buf);
-	if (addr == -1) {
+	if (addr == -1 || (IN_MULTICAST(addr) && dots)) {
 	    addr = 0;
 	    printf("Could not parse %s as host name or address\n", name);
 	}
@@ -395,10 +405,12 @@ send_recv(dst, type, code, tries, save)
     struct ip *ip;
     struct igmp *igmp;
     struct tr_query *query, *rquery;
-    int ipdatalen, iphdrlen, igmpdatalen;
+    struct tr_resp *r;
+    struct sockaddr_in recvaddr;
     u_int32 local, group;
+    int ipdatalen, iphdrlen, igmpdatalen;
     int datalen;
-    int count, recvlen, dummy = 0;
+    int count, recvlen, socklen = sizeof(recvaddr);
     int len;
     int i;
 
@@ -482,7 +494,7 @@ send_recv(dst, type, code, tries, save)
 
 	    gettimeofday(&tr, 0);
 	    recvlen = recvfrom(igmp_socket, recv_buf, RECV_BUF_SIZE,
-			       0, (struct sockaddr *)0, &dummy);
+			       0, (struct sockaddr *)&recvaddr, &socklen);
 
 	    if (recvlen <= 0) {
 		if (recvlen && errno != EINTR) perror("recvfrom");
@@ -519,6 +531,8 @@ send_recv(dst, type, code, tries, save)
 	    switch (igmp->igmp_type) {
 
 	      case IGMP_DVMRP:
+		if (type != IGMP_DVMRP || code != DVMRP_ASK_NEIGHBORS2)
+			continue;
 		if (igmp->igmp_code != DVMRP_NEIGHBORS2) continue;
 		len = igmpdatalen;
 		/*
@@ -544,6 +558,7 @@ send_recv(dst, type, code, tries, save)
 
 	      case IGMP_MTRACE:	    /* For backward compatibility with 3.3 */
 	      case IGMP_MTRACE_RESP:
+		if (type != IGMP_MTRACE) continue;
 		if (igmpdatalen <= QLEN) continue;
 		if ((igmpdatalen - QLEN)%RLEN) {
 		    printf("packet with incorrect datalen\n");
@@ -558,6 +573,7 @@ send_recv(dst, type, code, tries, save)
 		if (rquery->tr_src != qsrc) continue;
 		if (rquery->tr_dst != qdst) continue;
 		len = (igmpdatalen - QLEN)/RLEN;
+		r = (struct tr_resp *)(rquery+1) + len - 1;
 
 		/*
 		 * Ignore trace queries passing through this node when
@@ -566,7 +582,6 @@ send_recv(dst, type, code, tries, save)
 		 * for backward compatibility with multicast release 3.3).
 		 */
 		if (igmp->igmp_type == IGMP_MTRACE) {
-		    struct tr_resp *r = (struct tr_resp *)(rquery+1) + len - 1;
 		    u_int32 smask;
 
 		    VAL_TO_MASK(smask, r->tr_smask);
@@ -574,6 +589,13 @@ send_recv(dst, type, code, tries, save)
 			&& r->tr_rmtaddr != 0 && !(r->tr_rflags & 0x80))
 		      continue;
 		}
+		/*
+		 * Some routers will return error messages without
+		 * filling in their addresses.  We fill in the address
+		 * for them.
+		 */
+		if (r->tr_outaddr == 0)
+		    r->tr_outaddr = recvaddr.sin_addr.s_addr;
 
 		/*
 		 * A match, we'll keep this one.
@@ -625,6 +647,10 @@ passive_mode()
     struct ip *ip;
     struct igmp *igmp;
     struct tr_resp *r;
+    struct sockaddr_in recvaddr;
+    struct tm *now;
+    char timebuf[32];
+    int socklen;
     int ipdatalen, iphdrlen, igmpdatalen;
     int len, recvlen, dummy = 0;
     u_int32 smask;
@@ -634,8 +660,9 @@ passive_mode()
     } else k_join(htonl(0xE0000120), INADDR_ANY);
 
     while (1) {
+	socklen = sizeof(recvaddr);
 	recvlen = recvfrom(igmp_socket, recv_buf, RECV_BUF_SIZE,
-			   0, (struct sockaddr *)0, &dummy);
+			   0, (struct sockaddr *)&recvaddr, &socklen);
 	gettimeofday(&tr,0);
 
 	if (recvlen <= 0) {
@@ -704,16 +731,41 @@ passive_mode()
 	    (qgrp != 0 && qgrp != igmp->igmp_group.s_addr))
 	    continue;
 
-	printf("Mtrace from %s to %s via group %s (mxhop=%d)\n",
+	now = localtime(&tr.tv_sec);
+	strftime(timebuf, sizeof(timebuf) - 1, "%b %e %k:%M:%S", now);
+	printf("Mtrace %s at %s",
+		len == 0 ? "query" :
+			   igmp->igmp_type == IGMP_MTRACE_RESP ? "response" :
+								 "in transit",
+		timebuf);
+	if (len == 0)
+		printf(" by %s", inet_fmt(recvaddr.sin_addr.s_addr, s1));
+	if (!IN_MULTICAST(base.qhdr.tr_raddr))
+		printf(", resp to %s", (len == 0 && recvaddr.sin_addr.s_addr == base.qhdr.tr_raddr) ? "same" : inet_fmt(base.qhdr.tr_raddr, s1));
+	else
+		printf(", respttl %d", base.qhdr.tr_rttl);
+	printf(", qid %06x\n", base.qhdr.tr_qid);
+	printf("packet from %s to %s\n",
+		inet_fmt(ip->ip_src.s_addr, s1),
+		inet_fmt(ip->ip_dst.s_addr, s2));
+
+	printf("from %s to %s via group %s (mxhop=%d)\n",
 		inet_fmt(base.qhdr.tr_dst, s1), inet_fmt(base.qhdr.tr_src, s2),
 		inet_fmt(igmp->igmp_group.s_addr, s3), igmp->igmp_code);
 	if (len == 0)
 	    continue;
+	r = base.resps + base.len - 1;
+	/*
+	 * Some routers will return error messages without
+	 * filling in their addresses.  We fill in the address
+	 * for them.
+	 */
+	if (r->tr_outaddr == 0)
+	    r->tr_outaddr = recvaddr.sin_addr.s_addr;
 	printf("  0  ");
 	print_host(base.qhdr.tr_dst);
 	printf("\n");
 	print_trace(1, &base);
-	r = base.resps + base.len - 1;
 	VAL_TO_MASK(smask, r->tr_smask);
 	if ((r->tr_inaddr & smask) == (base.qhdr.tr_src & smask)) {
 	    printf("%3d  ", -(base.len+1));
@@ -785,7 +837,20 @@ print_trace(index, buf)
 	    ms = scale(&hop);
 	    printf("  %d%s", hop, ms);
 	}
-	printf("  %s\n", flag_type(r->tr_rflags));
+	printf("  %s", flag_type(r->tr_rflags));
+	if (i > 1 && r->tr_outaddr != (r-1)->tr_rmtaddr) {
+	    printf(" !RPF!");
+	    print_host((r-1)->tr_rmtaddr);
+	}
+	if (r->tr_smask <= 1)	/* Buggy MASK_TO_VAL() returns 1 for default */
+	    printf(" [default]");
+	else if (verbose) {
+	    u_int32 smask;
+
+	    VAL_TO_MASK(smask, r->tr_smask);
+	    printf(" [%s]", inet_fmts(buf->qhdr.tr_src & smask, smask, s1));
+	}
+	printf("\n");
 	memcpy(names[i-1], name, sizeof(names[0]) - 1);
 	names[i-1][sizeof(names[0])-1] = '\0';
     }
@@ -886,27 +951,33 @@ stat_line(r, s, have_next, rst)
     int g_out = ntohl(s->tr_pktcnt) - ntohl(r->tr_pktcnt);
     int v_pps, g_pps;
     char v_str[8], g_str[8];
-    int have = NEITHER;
-    int res = *rst;
+    int vhave = NEITHER;
+    int ghave = NEITHER;
+    char whochar;
 
     if (timediff == 0) timediff = 1;
     v_pps = v_out / timediff;
     g_pps = g_out / timediff;
 
     if (v_out && (s->tr_vifout != 0xFFFFFFFF && s->tr_vifout != 0) ||
-		 (r->tr_vifout != 0xFFFFFFFF && r->tr_vifout != 0))
-	    have |= OUTS;
+		 (r->tr_vifout != 0xFFFFFFFF && r->tr_vifout != 0)) {
+	    vhave |= OUTS;
+	    if (!*rst)
+		ghave |= OUTS;
+    }
 
     if (have_next) {
 	--r,  --s,  --rst;
 	if ((s->tr_vifin != 0xFFFFFFFF && s->tr_vifin != 0) ||
-	    (r->tr_vifin != 0xFFFFFFFF && r->tr_vifin != 0))
-	  have |= INS;
-	if (*rst)
-	  res = 1;
+	    (r->tr_vifin != 0xFFFFFFFF && r->tr_vifin != 0)) {
+	  vhave |= INS;
+	  if (!*rst)
+		ghave |= INS;
+	}
     }
 
-    switch (have) {
+    whochar = have_next ? '^' : ' ';
+    switch (vhave) {
       case BOTH:
 	v_lost = v_out - (ntohl(s->tr_vifin) - ntohl(r->tr_vifin));
 	if (v_out) v_pct = (v_lost * 100 + (v_out >> 1)) / v_out;
@@ -915,6 +986,42 @@ stat_line(r, s, have_next, rst)
 	  sprintf(v_str, "%3d", v_pct);
 	else memcpy(v_str, " --", 4);
 
+	if (tunstats)
+	    printf("%6d/%-5d=%s%%", v_lost, v_out, v_str);
+	else
+	    printf("   ");
+	printf("%4d pps", v_pps);
+
+	break;
+
+      case INS:
+	v_out = ntohl(s->tr_vifin) - ntohl(r->tr_vifin);
+	v_pps = v_out / timediff;
+	whochar = 'v';
+	/* Fall through */
+
+      case OUTS:
+	if (tunstats)
+	    printf("      %c%-5d     ", whochar, v_out);
+	else
+	    printf("  %c", whochar);
+	printf("%4d pps", v_pps);
+
+	break;
+
+      case NEITHER:
+	if (vhave != NEITHER)
+	    if (tunstats)
+		printf("                 ");
+	    else
+		printf("   ");
+
+	break;
+    }
+
+    whochar = have_next ? '^' : ' ';
+    switch (ghave) {
+      case BOTH:
 	g_lost = g_out - (ntohl(s->tr_pktcnt) - ntohl(r->tr_pktcnt));
 	if (g_out) g_pct = (g_lost * 100 + (g_out >> 1))/ g_out;
 	else g_pct = 0;
@@ -922,34 +1029,34 @@ stat_line(r, s, have_next, rst)
 	  sprintf(g_str, "%3d", g_pct);
 	else memcpy(g_str, " --", 4);
 
-	printf("%6d/%-5d=%s%%%4d pps",
-	       v_lost, v_out, v_str, v_pps);
-	if (res)
-	    printf("\n");
-	else
-	    printf("%6d/%-5d=%s%%%4d pps\n",
-		   g_lost, g_out, g_str, g_pps);
+	if (!tunstats)
+	    printf("   ");
+	printf("%6d/%-5d=%s%%%4d pps\n",
+	       g_lost, g_out, g_str, g_pps);
+	break;
+
+#if 0
+      case INS:
+	g_out = ntohl(s->tr_pktcnt) - ntohl(r->tr_pktcnt);
+	g_pps = g_out / timediff;
+	whochar = 'v';
+	/* Fall through */
+#endif
+
+      case OUTS:
+	if (!tunstats)
+	    printf("   ");
+
+	printf("     ?/%-5d     %4d pps\n",
+	       g_out, g_pps);
 	break;
 
       case INS:
-	v_out = ntohl(s->tr_vifin) - ntohl(r->tr_vifin);
-	v_pps = v_out / timediff;
-	/* Fall through */
-
-      case OUTS:
-	printf("       %-5d     %4d pps",
-	       v_out, v_pps);
-	if (res)
-	    printf("\n");
-	else
-	    printf("       %-5d     %4d pps\n",
-		   g_out, g_pps);
-	break;
-
       case NEITHER:
 	printf("\n");
 	break;
     }
+
 
     if (debug > 2) {
 	printf("\t\t\t\tv_in: %ld ", ntohl(s->tr_vifin));
@@ -962,7 +1069,6 @@ stat_line(r, s, have_next, rst)
 	printf("v_out: %ld ", ntohl(s->tr_vifout) - ntohl(r->tr_vifout));
 	printf("pkts: %ld ", ntohl(s->tr_pktcnt) - ntohl(r->tr_pktcnt));
 	printf("time: %d\n", timediff);
-	printf("\t\t\t\tres: %d\n", res);
     }
 }
 
@@ -980,11 +1086,12 @@ fixup_stats(base, prev, new)
     struct tr_resp *n = new->resps + rno;
     int *r = reset + rno;
     int *s = swaps + rno;
+    int *t = bogustime + rno;
     int res;
 
     /* Check for byte-swappers */
     while (--rno >= 0) {
-	--n; --p; --b; --s;
+	--n; --p; --b; --s; --t;
 	if (*s || abs(ntohl(n->tr_vifout) - ntohl(p->tr_vifout)) > 100000) {
 	    /* This host sends byteswapped reports; swap 'em */
 	    if (!*s) {
@@ -999,6 +1106,26 @@ fixup_stats(base, prev, new)
 	    n->tr_vifin = byteswap(n->tr_vifin);
 	    n->tr_vifout = byteswap(n->tr_vifout);
 	    n->tr_pktcnt = byteswap(n->tr_pktcnt);
+	}
+	/*
+	 * A missing parenthesis in mrouted 3.5-3.8's prune.c
+	 * causes extremely bogus time diff's.
+	 * One half of the time calculation was
+	 * inside an htonl() and one half wasn't.  Therefore, on
+	 * a little-endian machine, both halves of the calculation
+	 * would get added together in the little end.  Thus, the
+	 * low-order 2 bytes are either 0000 (no overflow) or
+	 * 0100 (overflow from the addition).
+	 *
+	 * Odds are against these particular bit patterns
+	 * happening in both prev and new for actual time values.
+	 */
+	if (*t || ((ntohl(n->tr_qarr) & 0xfeff) == 0x0000) &&
+	    ((ntohl(p->tr_qarr) & 0xfeff) == 0x0000)) {
+	    *t = 1;
+	    n->tr_qarr = new->rtime;
+	    p->tr_qarr = prev->rtime;
+	    b->tr_qarr = base->rtime;
 	}
     }
 
@@ -1064,24 +1191,39 @@ print_stats(base, prev, new)
     int *r = reset + rno;
     u_long resptime = new->rtime;
     u_long qarrtime = fixtime(ntohl(n->tr_qarr));
-    u_int ttl = n->tr_fttl;
+    u_int ttl = n->tr_fttl + 1;
     int first = (base == prev);
 
     VAL_TO_MASK(smask, b->tr_smask);
-    printf("  Source        Response Dest");
-    printf("    Packet Statistics For     Only For Traffic\n");
-    printf("%-15s %-15s  All Multicast Traffic     From %s\n",
+    printf("  Source        Response Dest    ");
+    if (tunstats)
+	printf("Packet Statistics For     Only For Traffic\n");
+    else
+	printf("Overall     Packet Statistics For Traffic From\n");
+    (void)inet_fmt(qsrc, s1);
+    printf("%-15s %-15s  ",
 	   ((b->tr_inaddr & smask) == (qsrc & smask)) ? s1 : "   * * *       ",
-	   inet_fmt(base->qhdr.tr_raddr, s2), inet_fmt(qsrc, s1));
+	   inet_fmt(base->qhdr.tr_raddr, s2));
+    if (tunstats)
+	printf("All Multicast Traffic     From %s\n", s1);
+    else
+	printf("Packet      %s To %s\n", s1, inet_fmt(qgrp, s2));
     rtt = t_diff(resptime, new->qtime);
     ms = scale(&rtt);
-    printf("     %c       __/  rtt%5d%s    Lost/Sent = Pct  Rate       To %s\n",
-	   first ? 'v' : '|', rtt, ms, inet_fmt(qgrp, s2));
-    if (!first) {
+    printf("     %c       __/  rtt%5d%s    ",
+	   (first && !verbose) ? 'v' : '|', rtt, ms);
+    if (tunstats)
+	printf("Lost/Sent = Pct  Rate       To %s\n",inet_fmt(qgrp, s2));
+    else
+	printf(" Rate       Lost/Sent = Pct  Rate\n");
+    if (!first || verbose) {
 	hop = t_diff(resptime, qarrtime);
 	ms = scale(&hop);
-	printf("     v      /     hop%5d%s", hop, ms);
-	printf("    ---------------------     --------------------\n");
+	printf("     v      /     hop%5d%s    ", hop, ms);
+	if (tunstats)
+	    printf("---------------------     --------------------\n");
+	else
+	    printf("-------     ---------------------\n");
     }
     if (debug > 2) {
 	printf("\t\t\t\tv_in: %ld ", ntohl(n->tr_vifin));
@@ -1097,39 +1239,46 @@ print_stats(base, prev, new)
     }
 
     while (TRUE) {
-	if ((n->tr_inaddr != b->tr_inaddr) || (n->tr_inaddr != b->tr_inaddr))
+	if ((n->tr_inaddr != b->tr_inaddr) || (n->tr_outaddr != b->tr_outaddr))
 	  return 1;		/* Route changed */
 
-	if ((n->tr_inaddr != n->tr_outaddr))
+	if ((n->tr_inaddr != n->tr_outaddr) && n->tr_inaddr)
 	  printf("%-15s\n", inet_fmt(n->tr_inaddr, s1));
-	printf("%-15s %-14s %s\n", inet_fmt(n->tr_outaddr, s1), names[rno],
-		 flag_type(n->tr_rflags));
+	printf("%-15s %-14s %s%s\n", inet_fmt(n->tr_outaddr, s1), names[rno],
+		 flag_type(n->tr_rflags), *r ? " [reset counters]" : "");
 
 	if (rno-- < 1) break;
 
-	printf("     %c     ^      ttl%5d   ", first ? 'v' : '|', ttl);
+	printf("     %c     ^      ttl%5d   ", (first && !verbose) ? 'v' : '|',
+								ttl);
 	stat_line(p, n, TRUE, r);
-	if (!first) {
+	if (!first || verbose) {
 	    resptime = qarrtime;
 	    qarrtime = fixtime(ntohl((n-1)->tr_qarr));
 	    hop = t_diff(resptime, qarrtime);
 	    ms = scale(&hop);
 	    printf("     v     |      hop%5d%s", hop, ms);
-	    stat_line(b, n, TRUE, r);
+	    if (first)
+		printf("\n");
+	    else
+		stat_line(b, n, TRUE, r);
 	}
 
 	--b, --p, --n, --r;
-	if (ttl < n->tr_fttl) ttl = n->tr_fttl;
-	else ++ttl;
+	ttl = MaX(ttl, n->tr_fttl + base->len - rno);
     }
 	   
-    printf("     %c      \\__   ttl%5d   ", first ? 'v' : '|', ttl);
+    printf("     %c      \\__   ttl%5d   ", (first && !verbose) ? 'v' : '|',
+							ttl);
     stat_line(p, n, FALSE, r);
-    if (!first) {
+    if (!first || verbose) {
 	hop = t_diff(qarrtime, new->qtime);
 	ms = scale(&hop);
 	printf("     v         \\  hop%5d%s", hop, ms);
-	stat_line(b, n, FALSE, r);
+	if (first)
+	    printf("\n");
+	else
+	    stat_line(b, n, FALSE, r);
     }
     printf("%-15s %s\n", inet_fmt(qdst, s1), inet_fmt(lcl_addr, s2));
     printf("  Receiver      Query Source\n\n");
@@ -1194,6 +1343,15 @@ char *argv[];
 		    goto usage;
 	      case 'M':			/* Use multicast for reponse */
 		multicast = TRUE;
+		break;
+	      case 'U':			/* Use unicast for response */
+		unicast = TRUE;
+		break;
+	      case 'T':			/* Print confusing tunnel stats */
+		tunstats = TRUE;
+		break;
+	      case 'W':			/* Cisco's "weak" mtrace */
+		weak = TRUE;
 		break;
 	      case 'l':			/* Loop updating stats indefinitely */
 		numstats = 3153600;
@@ -1277,7 +1435,16 @@ char *argv[];
     }
 
     if (argc > 0 && (qsrc = host_addr(argv[0]))) {          /* Source of path */
-	if (IN_MULTICAST(ntohl(qsrc))) goto usage;
+	if (IN_MULTICAST(ntohl(qsrc))) {
+	    if (gwy) {
+		/* Should probably rewrite arg parsing at some point, as
+		 * this makes "mtrace -g foo 224.1.2.3 224.2.3.4" valid!... */
+		qgrp = qsrc;
+		qsrc = 0;
+	    } else {
+		goto usage;
+	    }
+	}
 	argv++, argc--;
 	if (argc > 0 && (qdst = host_addr(argv[0]))) {      /* Dest of path */
 	    argv++, argc--;
@@ -1298,7 +1465,7 @@ char *argv[];
 	return(0);
     }
 
-    if (argc > 0 || qsrc == 0) {
+    if (argc > 0) {
 usage:	printf("\
 Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
               [-S statint] [-t ttl] [-r resp_dest] [-i if_addr] source [receiver] [group]\n");
@@ -1312,7 +1479,16 @@ Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
     defgrp = htonl(0xE0020001);		/* MBone Audio (224.2.0.1) */
     query_cast = htonl(0xE0000002);	/* All routers multicast addr */
     resp_cast = htonl(0xE0000120);	/* Mtrace response multicast addr */
-    if (qgrp == 0) qgrp = defgrp;
+    if (qgrp == 0) {
+	if (!weak)
+	    qgrp = defgrp;
+	/* Stats are useless without a group */
+	fprintf(stderr, "mtrace: WARNING: no multicast group specified, so no statistics printed\n");
+	numstats = 0;
+    } else {
+	if (weak)
+	    fprintf(stderr, "mtrace: WARNING: group was specified so not performing \"weak\" mtrace\n");
+    }
 
     /*
      * Get default local address for multicasts to use in setting defaults.
@@ -1321,7 +1497,7 @@ Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
 #if (defined(BSD) && (BSD >= 199103))
     addr.sin_len = sizeof(addr);
 #endif
-    addr.sin_addr.s_addr = qgrp;
+    addr.sin_addr.s_addr = qgrp ? qgrp : query_cast;
     addr.sin_port = htons(2000);	/* Any port above 1024 will do */
 
     if (((udp = socket(AF_INET, SOCK_DGRAM, 0)) < 0) ||
@@ -1363,8 +1539,15 @@ Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
 
     /*
      * Default destination for path to be queried is the local host.
+     * When gateway specified, default destination is that gateway
+     *  and default source is local host.
      */
-    if (qdst == 0) qdst = lcl_addr ? lcl_addr : addr.sin_addr.s_addr;
+    if (qdst == 0)
+	qdst = gwy ? gwy : (lcl_addr ? lcl_addr : addr.sin_addr.s_addr);
+    if (qsrc == 0 && gwy)
+	qsrc = lcl_addr ? lcl_addr : addr.sin_addr.s_addr;
+    if (qsrc == 0)
+	goto usage;
     dst_netmask = get_netmask(udp, qdst);
     close(udp);
     if (lcl_addr == 0) lcl_addr = addr.sin_addr.s_addr;
@@ -1382,14 +1565,24 @@ Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
 
     /*
      * Protect against unicast queries to mrouted versions that might crash.
+     * Also use the obsolete "can mtrace" neighbor bit to warn about
+     * older implementations.
      */
     if (gwy && !IN_MULTICAST(ntohl(gwy)))
       if (send_recv(gwy, IGMP_DVMRP, DVMRP_ASK_NEIGHBORS2, 1, &incr[0])) {
-	  int version = ntohl(incr[0].igmp.igmp_group.s_addr) & 0xFFFF;
-	  if (version == 0x0303 || version == 0x0503) {
+	int flags = ntohl(incr[0].igmp.igmp_group.s_addr);
+	int version = flags & 0xFFFF;
+	int info = (flags & 0xFF0000) >> 16;
+
+	if (version == 0x0303 || version == 0x0503) {
 	    printf("Don't use -g to address an mrouted 3.%d, it might crash\n",
 		   (version >> 8) & 0xFF);
 	    exit(0);
+	}
+	if ((info & 0x08) == 0) {
+	    printf("mtrace: ");
+	    print_host(gwy);
+	    printf(" probably doesn't support mtrace, trying anyway...\n");
 	}
       }
 
@@ -1409,6 +1602,17 @@ Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
 	if (IN_MULTICAST(ntohl(raddr))) k_join(raddr, lcl_addr);
     } else k_join(resp_cast, lcl_addr);
 
+    restart:
+
+    /*
+     * Zero out bug-avoidance counters
+     */
+    memset(reset, 0, sizeof(reset));
+    memset(swaps, 0, sizeof(swaps));
+    memset(bogustime, 0, sizeof(bogustime));
+
+    memset(&base, 0, sizeof(base));
+
     /*
      * If the destination is on the local net, the last-hop router can
      * be found by multicast to the all-routers multicast group.
@@ -1416,12 +1620,14 @@ Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
      * query since by definition the last-hop router will be a member.
      * Set default TTLs for local remote multicasts.
      */
-    restart:
-
     if (gwy == 0)
       if ((qdst & dst_netmask) == (lcl_addr & dst_netmask)) tdst = query_cast;
       else tdst = qgrp;
     else tdst = gwy;
+    if (tdst == 0 && weak) {
+	fprintf(stderr, "mtrace: -W requires -g if destination is not local.\n");
+	exit(1);
+    }
 
     if (IN_MULTICAST(ntohl(tdst))) {
       k_set_loop(1);	/* If I am running on a router, I need to hear this */
@@ -1462,7 +1668,7 @@ Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
 	print_trace(1, &base);
 	r = base.resps + base.len - 1;
 	if (r->tr_rflags == TR_OLD_ROUTER || r->tr_rflags == TR_NO_SPACE ||
-		qno != 0) {
+		(qno != 0 && r->tr_rmtaddr != 0)) {
 	    printf("%3d  ", -(base.len+1));
 	    what_kind(&base, r->tr_rflags == TR_OLD_ROUTER ?
 				   "doesn't support mtrace"
@@ -1598,7 +1804,18 @@ or multicast at ttl %d doesn't reach its last-hop router for that source\n",
 	exit(1);
     }
 
-    printf("Round trip time %d ms\n\n", t_diff(base.rtime, base.qtime));
+    printf("Round trip time %d ms; ", t_diff(base.rtime, base.qtime));
+    {
+	struct tr_resp *n = base.resps + base.len - 1;
+	u_int ttl = n->tr_fttl + 1;
+
+	rno = base.len - 1;
+	while (--rno > 0) {
+	    --n;
+	    ttl = MaX(ttl, n->tr_fttl + base.len - rno);
+	}
+	printf("total ttl of %d required.\n\n",ttl);
+    }
 
     /*
      * Use the saved response which was the longest one received,
@@ -1623,7 +1840,11 @@ or multicast at ttl %d doesn't reach its last-hop router for that source\n",
 
 	if (recvlen == 0) {
 	    printf("Timed out.\n");
-	    exit(1);
+	    if (numstats) {
+		numstats++;
+		continue;
+	    } else
+		exit(1);
 	}
 
 	if (rno != new->len) {
@@ -1649,6 +1870,7 @@ or multicast at ttl %d doesn't reach its last-hop router for that source\n",
 	    printf("Route changed:\n");
 	    print_trace(1, new);
 	    printf("Restarting.\n\n");
+	    numstats++;
 	    goto restart;
 	}
 	prev = new;

@@ -32,15 +32,15 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static char copyright[] __attribute__ ((unused)) =
 "@(#) Copyright (c) 1983, 1991, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
 /* from: @(#)inetd.c	8.4 (Berkeley) 4/13/94"; */
-static char inetd_c_rcsid[] =
-	"$Id: inetd.c,v 1.14 1996/10/28 23:02:38 joerg Exp $";
+static char inetd_c_rcsid[] __attribute__ ((unused)) =
+	"$Id: inetd.c,v 1.17 1996/11/10 21:12:44 julian Exp $";
 #endif /* not lint */
 
 /*
@@ -112,6 +112,7 @@ static char inetd_c_rcsid[] =
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <rpc/rpc.h>
+#include <rpc/pmap_clnt.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -124,15 +125,16 @@ static char inetd_c_rcsid[] =
 #include <syslog.h>
 #include <unistd.h>
 #include <libutil.h>
+#include <sysexits.h>
 
 #include "pathnames.h"
 
 #define	TOOMANY		256		/* don't start more than TOOMANY */
 #define	CNT_INTVL	60		/* servers in CNT_INTVL sec. */
 #define	RETRYTIME	(60*10)		/* retry after bind or server fail */
+#define MAX_MAXCHLD	32767		/* max allowable max children */
 
 #define	SIGBLOCK	(sigmask(SIGCHLD)|sigmask(SIGHUP)|sigmask(SIGALRM))
-
 
 int	debug = 0;
 int	log = 0;
@@ -149,17 +151,20 @@ struct	servtab {
 	char	*se_service;		/* name of service */
 	int	se_socktype;		/* type of socket to use */
 	char	*se_proto;		/* protocol used */
-	short	se_wait;		/* single threaded server */
-	short	se_checked;		/* looked at during merge */
+	short	se_maxchild;		/* max number of children */
+	short	se_numchild;		/* current number of children */
+	pid_t	*se_pids;		/* array of child pids */
 	char	*se_user;		/* user name to run as */
 	struct	biltin *se_bi;		/* if built-in, description */
 	char	*se_server;		/* server program */
 #define	MAXARGV 20
 	char	*se_argv[MAXARGV+1];	/* program arguments */
 	int	se_fd;			/* open descriptor */
-	int	se_type;		/* type */
 	struct	sockaddr_in se_ctrladdr;/* bound address */
-	int	se_rpc;			/* ==1 if RPC service */
+	u_char	se_type;		/* type: normal, mux, or mux+ */
+	u_char	se_checked;		/* looked at during merge */
+	u_char	se_accept;		/* i.e., wait/nowait mode */
+	u_char	se_rpc;			/* ==1 if RPC service */
 	int	se_rpc_prog;		/* RPC program number */
 	u_int	se_rpc_lowvers;		/* RPC low version */
 	u_int	se_rpc_highvers;	/* RPC high version */
@@ -195,7 +200,10 @@ void		machtime_stream __P((int, struct servtab *));
 char	       *newstr __P((char *));
 char	       *nextline __P((FILE *));
 void		print_service __P((char *, struct servtab *));
+void		addchild __P((struct servtab *, int));
 void		reapchild __P((int));
+void		enable __P((struct servtab *));
+void		disable __P((struct servtab *));
 void		retry __P((int));
 int		setconfig __P((void));
 void		setup __P((struct servtab *));
@@ -209,7 +217,7 @@ struct biltin {
 	char	*bi_service;		/* internally provided service name */
 	int	bi_socktype;		/* type of socket supported */
 	short	bi_fork;		/* 1 if should fork before call */
-	short	bi_wait;		/* 1 if should wait for child */
+	short	bi_maxchild;		/* max number of children (default) */
 	void	(*bi_fn)();		/* function which performs it */
 } biltins[] = {
 	/* Echo received data */
@@ -298,7 +306,7 @@ main(argc, argv, envp)
 			if (!inet_aton(optarg, &bind_address)) {
 				syslog(LOG_ERR,
 			         "-a %s: invalid IP address", optarg);
-				 exit(1);
+				exit(EX_USAGE);
 			}
 			break;
 		case 'p':
@@ -309,7 +317,7 @@ main(argc, argv, envp)
 			syslog(LOG_ERR,
 				"usage: inetd [-dl] [-a address] [-R rate]"
 				" [-p pidfile] [conf-file]");
-			exit(1);
+			exit(EX_USAGE);
 		}
 	argc -= optind;
 	argv += optind;
@@ -383,7 +391,7 @@ main(argc, argv, envp)
 		    if (debug)
 			    fprintf(stderr, "someone wants %s\n",
 				sep->se_service);
-		    if (!sep->se_wait && sep->se_socktype == SOCK_STREAM) {
+		    if (sep->se_accept && sep->se_socktype == SOCK_STREAM) {
 			    ctrl = accept(sep->se_fd, (struct sockaddr *)0,
 				(int *)0);
 			    if (debug)
@@ -395,7 +403,7 @@ main(argc, argv, envp)
 						sep->se_service);
 				    continue;
 			    }
-			    if(log) {
+			    if (log) {
 				i = sizeof peer;
 				if(getpeername(ctrl, (struct sockaddr *)
 						&peer, &i)) {
@@ -456,20 +464,15 @@ main(argc, argv, envp)
 		    }
 		    if (pid < 0) {
 			    syslog(LOG_ERR, "fork: %m");
-			    if (!sep->se_wait &&
+			    if (sep->se_accept &&
 				sep->se_socktype == SOCK_STREAM)
 				    close(ctrl);
 			    sigsetmask(0L);
 			    sleep(1);
 			    continue;
 		    }
-		    if (pid && sep->se_wait) {
-			    sep->se_wait = pid;
-			    if (sep->se_fd >= 0) {
-				FD_CLR(sep->se_fd, &allsock);
-			        nsock--;
-			    }
-		    }
+		    if (pid)
+			addchild(sep, pid);
 		    sigsetmask(0L);
 		    if (pid == 0) {
 			    if (dofork) {
@@ -478,11 +481,12 @@ main(argc, argv, envp)
 						maxsock);
 				for (tmpint = maxsock; tmpint > 2; tmpint--)
 					if (tmpint != ctrl)
-						close(tmpint);
+						(void) close(tmpint);
 			    }
-			    if (sep->se_bi)
+			    if (sep->se_bi) {
 				(*sep->se_bi->bi_fn)(ctrl, sep);
-			    else {
+				/* NOTREACHED */
+			    } else {
 				if (debug)
 					fprintf(stderr, "%d execl %s\n",
 					    getpid(), sep->se_server);
@@ -497,26 +501,26 @@ main(argc, argv, envp)
 						sep->se_user);
 					if (sep->se_socktype != SOCK_STREAM)
 						recv(0, buf, sizeof (buf), 0);
-					_exit(1);
+					_exit(EX_NOUSER);
 				}
 				if (setsid() < 0) {
 					syslog(LOG_ERR,
 						"%s: can't setsid(): %m",
 						 sep->se_service);
-					/* _exit(1); not fatal yet */
+					/* _exit(EX_OSERR); not fatal yet */
 				}
 				if (pwd->pw_uid) {
 					if (setlogin(sep->se_user) < 0) {
 						syslog(LOG_ERR,
 						 "%s: can't setlogin(%s): %m",
 						 sep->se_service, sep->se_user);
-						/* _exit(1); not fatal yet */
+						/* _exit(EX_OSERR); not yet */
 					}
 					if (setgid(pwd->pw_gid) < 0) {
 						syslog(LOG_ERR,
 						  "%s: can't set gid %d: %m",
 						  sep->se_service, pwd->pw_gid);
-						_exit(1);
+						_exit(EX_OSERR);
 					}
 					(void) initgroups(pwd->pw_name,
 							pwd->pw_gid);
@@ -524,7 +528,7 @@ main(argc, argv, envp)
 						syslog(LOG_ERR,
 						  "%s: can't set uid %d: %m",
 						  sep->se_service, pwd->pw_uid);
-						_exit(1);
+						_exit(EX_OSERR);
 					}
 				}
 				execv(sep->se_server, sep->se_argv);
@@ -532,20 +536,46 @@ main(argc, argv, envp)
 					recv(0, buf, sizeof (buf), 0);
 				syslog(LOG_ERR,
 				    "cannot execute %s: %m", sep->se_server);
-				_exit(1);
+				_exit(EX_OSERR);
 			    }
 		    }
-		    if (!sep->se_wait && sep->se_socktype == SOCK_STREAM)
+		    if (sep->se_accept && sep->se_socktype == SOCK_STREAM)
 			    close(ctrl);
 		}
 	}
 }
 
+/*
+ * Record a new child pid for this service. If we've reached the
+ * limit on children, then stop accepting incoming requests.
+ */
+
+void
+addchild(struct servtab *sep, pid_t pid)
+{
+#ifdef SANITY_CHECK
+	if (sep->se_numchild >= sep->se_maxchild) {
+		syslog(LOG_ERR, "%s: %d >= %d",
+		    __FUNCTION__, sep->se_numchild, sep->se_maxchild);
+		exit(EX_SOFTWARE);
+	}
+#endif
+	if (sep->se_maxchild == 0)
+		return;
+	sep->se_pids[sep->se_numchild++] = pid;
+	if (sep->se_numchild == sep->se_maxchild)
+		disable(sep);
+}
+
+/*
+ * Some child process has exited. See if it's on somebody's list.
+ */
+
 void
 reapchild(signo)
 	int signo;
 {
-	int status;
+	int k, status;
 	pid_t pid;
 	struct servtab *sep;
 
@@ -556,19 +586,21 @@ reapchild(signo)
 		if (debug)
 			fprintf(stderr, "%d reaped, status %#x\n",
 				pid, status);
-		for (sep = servtab; sep; sep = sep->se_next)
-			if (sep->se_wait == pid) {
-				if (status)
-					syslog(LOG_WARNING,
-					    "%s: exit status 0x%x",
-					    sep->se_server, status);
-				if (debug)
-					fprintf(stderr, "restored %s, fd %d\n",
-					    sep->se_service, sep->se_fd);
-				FD_SET(sep->se_fd, &allsock);
-				nsock++;
-				sep->se_wait = 1;
-			}
+		for (sep = servtab; sep; sep = sep->se_next) {
+			for (k = 0; k < sep->se_numchild; k++)
+				if (sep->se_pids[k] == pid)
+					break;
+			if (k == sep->se_numchild)
+				continue;
+			if (sep->se_numchild == sep->se_maxchild)
+				enable(sep);
+			sep->se_pids[k] = sep->se_pids[--sep->se_numchild];
+			if (status)
+				syslog(LOG_WARNING,
+				    "%s[%d]: exit status 0x%x",
+				    sep->se_server, pid, status);
+			break;
+		}
 	}
 }
 
@@ -576,7 +608,7 @@ void
 config(signo)
 	int signo;
 {
-	struct servtab *sep, *cp, **sepp;
+	struct servtab *sep, *new, **sepp;
 	struct passwd *pwd;
 	long omask;
 
@@ -586,43 +618,57 @@ config(signo)
 	}
 	for (sep = servtab; sep; sep = sep->se_next)
 		sep->se_checked = 0;
-	while (cp = getconfigent()) {
-		if ((pwd = getpwnam(cp->se_user)) == NULL) {
+	while ((new = getconfigent())) {
+		if ((pwd = getpwnam(new->se_user)) == NULL) {
 			syslog(LOG_ERR,
 				"%s/%s: No such user '%s', service ignored",
-				cp->se_service, cp->se_proto, cp->se_user);
+				new->se_service, new->se_proto, new->se_user);
 			continue;
 		}
 		for (sep = servtab; sep; sep = sep->se_next)
-			if (strcmp(sep->se_service, cp->se_service) == 0 &&
-			    strcmp(sep->se_proto, cp->se_proto) == 0)
+			if (strcmp(sep->se_service, new->se_service) == 0 &&
+			    strcmp(sep->se_proto, new->se_proto) == 0)
 				break;
 		if (sep != 0) {
 			int i;
 
+#define SWAP(a, b) { typeof(a) c = a; a = b; b = c; }
 			omask = sigblock(SIGBLOCK);
-			/*
-			 * sep->se_wait may be holding the pid of a daemon
-			 * that we're waiting for.  If so, don't overwrite
-			 * it unless the config file explicitly says don't
-			 * wait.
-			 */
-			if (cp->se_bi == 0 &&
-			    (sep->se_wait == 1 || cp->se_wait == 0))
-				sep->se_wait = cp->se_wait;
-#define SWAP(a, b) { char *c = a; a = b; b = c; }
-			if (cp->se_user)
-				SWAP(sep->se_user, cp->se_user);
-			if (cp->se_server)
-				SWAP(sep->se_server, cp->se_server);
+			/* copy over outstanding child pids */
+			if (sep->se_maxchild && new->se_maxchild) {
+				new->se_numchild = sep->se_numchild;
+				if (new->se_numchild > new->se_maxchild)
+					new->se_numchild = new->se_maxchild;
+				memcpy(new->se_pids, sep->se_pids,
+				    new->se_numchild * sizeof(*new->se_pids));
+			}
+			SWAP(sep->se_pids, new->se_pids);
+			sep->se_maxchild = new->se_maxchild;
+			sep->se_numchild = new->se_numchild;
+			/* might need to turn on or off service now */
+			if (sep->se_fd >= 0) {
+			      if (sep->se_maxchild
+				  && sep->se_numchild == sep->se_maxchild) {
+				      if (FD_ISSET(sep->se_fd, &allsock))
+					  disable(sep);
+			      } else {
+				      if (!FD_ISSET(sep->se_fd, &allsock))
+					  enable(sep);
+			      }
+			}
+			sep->se_accept = new->se_accept;
+			if (new->se_user)
+				SWAP(sep->se_user, new->se_user);
+			if (new->se_server)
+				SWAP(sep->se_server, new->se_server);
 			for (i = 0; i < MAXARGV; i++)
-				SWAP(sep->se_argv[i], cp->se_argv[i]);
+				SWAP(sep->se_argv[i], new->se_argv[i]);
 			sigsetmask(omask);
-			freeconfig(cp);
+			freeconfig(new);
 			if (debug)
 				print_service("REDO", sep);
 		} else {
-			sep = enter(cp);
+			sep = enter(new);
 			if (debug)
 				print_service("ADD ", sep);
 		}
@@ -673,7 +719,7 @@ config(signo)
 	 */
 	omask = sigblock(SIGBLOCK);
 	sepp = &servtab;
-	while (sep = *sepp) {
+	while ((sep = *sepp)) {
 		if (sep->se_checked) {
 			sepp = &sep->se_next;
 			continue;
@@ -727,7 +773,7 @@ retry(signo)
 
 	timingout = 0;
 	for (sep = servtab; sep; sep = sep->se_next)
-		if (sep->se_fd == -1)
+		if (sep->se_fd == -1 && !ISMUX(sep))
 			setup(sep);
 }
 
@@ -796,10 +842,7 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
         }
 	if (sep->se_socktype == SOCK_STREAM)
 		listen(sep->se_fd, 64);
-	FD_SET(sep->se_fd, &allsock);
-	nsock++;
-	if (sep->se_fd > maxsock)
-		maxsock = sep->se_fd;
+	enable(sep);
 	if (debug) {
 		fprintf(stderr, "registered %s on %d\n",
 			sep->se_server, sep->se_fd);
@@ -814,18 +857,13 @@ close_sep(sep)
 	struct servtab *sep;
 {
 	if (sep->se_fd >= 0) {
-		nsock--;
-		FD_CLR(sep->se_fd, &allsock);
+		if (FD_ISSET(sep->se_fd, &allsock))
+			disable(sep);
 		(void) close(sep->se_fd);
 		sep->se_fd = -1;
 	}
 	sep->se_count = 0;
-	/*
-	 * Don't keep the pid of this running deamon: when reapchild()
-	 * reaps this pid, it would erroneously increment nsock.
-	 */
-	if (sep->se_wait > 1)
-		sep->se_wait = 1;
+	sep->se_numchild = 0;	/* forget about any existing children */
 }
 
 struct servtab *
@@ -838,7 +876,7 @@ enter(cp)
 	sep = (struct servtab *)malloc(sizeof (*sep));
 	if (sep == (struct servtab *)0) {
 		syslog(LOG_ERR, "Out of memory.");
-		exit(-1);
+		exit(EX_OSERR);
 	}
 	*sep = *cp;
 	sep->se_fd = -1;
@@ -847,6 +885,68 @@ enter(cp)
 	servtab = sep;
 	sigsetmask(omask);
 	return (sep);
+}
+
+void
+enable(struct servtab *sep)
+{
+	if (debug)
+		fprintf(stderr,
+		    "enabling %s, fd %d", sep->se_service, sep->se_fd);
+#ifdef SANITY_CHECK
+	if (sep->se_fd < 0) {
+		syslog(LOG_ERR,
+		    "%s: %s: bad fd", __FUNCTION__, sep->se_service);
+		exit(EX_SOFTWARE);
+	}
+	if (ISMUX(sep)) {
+		syslog(LOG_ERR,
+		    "%s: %s: is mux", __FUNCTION__, sep->se_service);
+		exit(EX_SOFTWARE);
+	}
+	if (FD_ISSET(sep->se_fd, &allsock)) {
+		syslog(LOG_ERR,
+		    "%s: %s: not off", __FUNCTION__, sep->se_service);
+		exit(EX_SOFTWARE);
+	}
+#endif
+	FD_SET(sep->se_fd, &allsock);
+	nsock++;
+	if (sep->se_fd > maxsock)
+		maxsock = sep->se_fd;
+}
+
+void
+disable(struct servtab *sep)
+{
+	if (debug)
+		fprintf(stderr,
+		    "disabling %s, fd %d", sep->se_service, sep->se_fd);
+#ifdef SANITY_CHECK
+	if (sep->se_fd < 0) {
+		syslog(LOG_ERR,
+		    "%s: %s: bad fd", __FUNCTION__, sep->se_service);
+		exit(EX_SOFTWARE);
+	}
+	if (ISMUX(sep)) {
+		syslog(LOG_ERR,
+		    "%s: %s: is mux", __FUNCTION__, sep->se_service);
+		exit(EX_SOFTWARE);
+	}
+	if (!FD_ISSET(sep->se_fd, &allsock)) {
+		syslog(LOG_ERR,
+		    "%s: %s: not on", __FUNCTION__, sep->se_service);
+		exit(EX_SOFTWARE);
+	}
+	if (nsock == 0) {
+		syslog(LOG_ERR, "%s: nsock=0", __FUNCTION__);
+		exit(EX_SOFTWARE);
+	}
+#endif
+	FD_CLR(sep->se_fd, &allsock);
+	nsock--;
+	if (sep->se_fd == maxsock)
+		maxsock--;
 }
 
 FILE	*fconfig = NULL;
@@ -879,7 +979,7 @@ getconfigent()
 {
 	struct servtab *sep = &serv;
 	int argc;
-	char *cp, *arg;
+	char *cp, *arg, *s;
 	char *versp;
 	static char TCPMUX_TOKEN[] = "tcpmux/";
 #define MUX_LEN		(sizeof(TCPMUX_TOKEN)-1)
@@ -959,14 +1059,36 @@ more:
                 }
         }
 	arg = sskip(&cp);
-	sep->se_wait = strcmp(arg, "wait") == 0;
+	if (!strncmp(arg, "wait", 4))
+		sep->se_accept = 0;
+	else if (!strncmp(arg, "nowait", 6))
+		sep->se_accept = 1;
+	else {
+		syslog(LOG_ERR,
+			"%s: bad wait/nowait for service %s",
+			CONFIG, sep->se_service);
+		goto more;
+	}
+	sep->se_maxchild = -1;
+	if ((s = strchr(arg, '/')) != NULL) {
+		char *eptr;
+		u_long val;
+
+		val = strtoul(s + 1, &eptr, 10);
+		if (eptr == s + 1 || *eptr || val > MAX_MAXCHLD) {
+			syslog(LOG_ERR,
+				"%s: bad max-child for service %s",
+				CONFIG, sep->se_service);
+			goto more;
+		}
+		sep->se_maxchild = val;
+	}
 	if (ISMUX(sep)) {
 		/*
-		 * Silently enforce "nowait" for TCPMUX services since
-		 * they don't have an assigned port to listen on.
+		 * Silently enforce "nowait" mode for TCPMUX services
+		 * since they don't have an assigned port to listen on.
 		 */
-		sep->se_wait = 0;
-
+		sep->se_accept = 1;
 		if (strcmp(sep->se_proto, "tcp")) {
 			syslog(LOG_ERR,
 				"%s: bad protocol for tcpmux service %s",
@@ -994,14 +1116,32 @@ more:
 				sep->se_service);
 			goto more;
 		}
+		sep->se_accept = 1;	/* force accept mode for built-ins */
 		sep->se_bi = bi;
-		sep->se_wait = bi->bi_wait;
 	} else
 		sep->se_bi = NULL;
+	if (sep->se_maxchild < 0)	/* apply default max-children */
+		if (sep->se_bi)
+			sep->se_maxchild = sep->se_bi->bi_maxchild;
+		else
+			sep->se_maxchild = sep->se_accept ? 0 : 1;
+	if (sep->se_maxchild) {
+		sep->se_pids = malloc(sep->se_maxchild * sizeof(*sep->se_pids));
+		if (sep->se_pids == NULL) {
+			syslog(LOG_ERR, "Out of memory.");
+			exit(EX_OSERR);
+		}
+	}
 	argc = 0;
 	for (arg = skip(&cp); cp; arg = skip(&cp))
-		if (argc < MAXARGV)
+		if (argc < MAXARGV) {
 			sep->se_argv[argc++] = newstr(arg);
+		} else {
+			syslog(LOG_ERR,
+				"%s: too many arguments for service %s",
+				CONFIG, sep->se_service);
+			goto more;
+		}
 	while (argc <= MAXARGV)
 		sep->se_argv[argc++] = NULL;
 	return (sep);
@@ -1021,6 +1161,8 @@ freeconfig(cp)
 		free(cp->se_user);
 	if (cp->se_server)
 		free(cp->se_server);
+	if (cp->se_pids)
+		free(cp->se_pids);
 	for (i = 0; i < MAXARGV; i++)
 		if (cp->se_argv[i])
 			free(cp->se_argv[i]);
@@ -1040,7 +1182,7 @@ sskip(cpp)
 	cp = skip(cpp);
 	if (cp == NULL) {
 		syslog(LOG_ERR, "%s: syntax error", CONFIG);
-		exit(-1);
+		exit(EX_DATAERR);
 	}
 	return (cp);
 }
@@ -1062,7 +1204,7 @@ again:
 		c = getc(fconfig);
 		(void) ungetc(c, fconfig);
 		if (c == ' ' || c == '\t')
-			if (cp = nextline(fconfig))
+			if ((cp = nextline(fconfig)))
 				goto again;
 		*cpp = (char *)0;
 		return ((char *)0);
@@ -1100,10 +1242,10 @@ char *
 newstr(cp)
 	char *cp;
 {
-	if (cp = strdup(cp ? cp : ""))
+	if ((cp = strdup(cp ? cp : "")))
 		return (cp);
 	syslog(LOG_ERR, "strdup: %m");
-	exit(-1);
+	exit(EX_OSERR);
 }
 
 #ifdef OLD_SETPROCTITLE
@@ -1439,18 +1581,11 @@ print_service(action, sep)
 	char *action;
 	struct servtab *sep;
 {
-	if(sep->se_rpc)
-		fprintf(stderr,
-	    		"%s: %s proto=%s, wait=%d, user=%s builtin=%x server=%s\n",
-	    		action, sep->se_service, sep->se_proto,
-	    		sep->se_wait, sep->se_user, (int)sep->se_bi,
-			sep->se_server);
-	else
-		fprintf(stderr,
-			"%s: %s proto=%s, wait=%d, user=%s builtin=%x server=%s\n",
-			action, sep->se_service, sep->se_proto,
-			sep->se_wait, sep->se_user, (int)sep->se_bi,
-			sep->se_server);
+	fprintf(stderr,
+	    "%s: %s proto=%s accept=%d max=%d user=%s builtin=%x server=%s\n",
+	    action, sep->se_service, sep->se_proto,
+	    sep->se_accept, sep->se_maxchild, sep->se_user,
+	    (int)sep->se_bi, sep->se_server);
 }
 
 /*

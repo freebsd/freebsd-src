@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: vif.c,v 3.8 1995/11/29 22:36:57 fenner Rel $
+ * $Id: vif.c,v 1.8 1996/01/06 21:10:26 peter Exp $
  */
 
 
@@ -163,8 +163,18 @@ check_vif_state()
     register vifi_t vifi;
     register struct uvif *v;
     struct ifreq ifr;
+    static int checking_vifs = 0;
+
+    /*
+     * If we get an error while checking, (e.g. two interfaces go down
+     * at once, and we decide to send a prune out one of the failed ones)
+     * then don't go into an infinite loop!
+     */
+    if (checking_vifs)
+	return;
 
     vifs_down = FALSE;
+    checking_vifs = 1;
     for (vifi = 0, v = uvifs; vifi < numvifs; ++vifi, ++v) {
 
 	if (v->uv_flags & VIFF_DISABLED) continue;
@@ -176,25 +186,26 @@ check_vif_state()
 
 	if (v->uv_flags & VIFF_DOWN) {
 	    if (ifr.ifr_flags & IFF_UP) {
-		v->uv_flags &= ~VIFF_DOWN;
-		start_vif(vifi);
-		log(LOG_INFO, 0,
+		log(LOG_NOTICE, 0,
 		    "%s has come up; vif #%u now in service",
 		    v->uv_name, vifi);
+		v->uv_flags &= ~VIFF_DOWN;
+		start_vif(vifi);
 	    }
 	    else vifs_down = TRUE;
 	}
 	else {
 	    if (!(ifr.ifr_flags & IFF_UP)) {
-		stop_vif(vifi);
-		v->uv_flags |= VIFF_DOWN;
-		log(LOG_INFO, 0,
+		log(LOG_NOTICE, 0,
 		    "%s has gone down; vif #%u taken out of service",
 		    v->uv_name, vifi);
+		stop_vif(vifi);
+		v->uv_flags |= VIFF_DOWN;
 		vifs_down = TRUE;
 	    }
 	}
     }
+    checking_vifs = 0;
 }
 
 /*
@@ -704,33 +715,7 @@ accept_neighbor_request(src, dst)
     u_char *p, *ncount;
     struct listaddr *la;
     int	datalen;
-    u_int32 temp_addr, us, them = src;
-
-    /* Determine which of our addresses to use as the source of our response
-     * to this query.
-     */
-    if (IN_MULTICAST(ntohl(dst))) { /* query sent to a multicast group */
-	int udp;		/* find best interface to reply on */
-	struct sockaddr_in addr;
-	int addrlen = sizeof(addr);
-
-	addr.sin_family = AF_INET;
-#if (defined(BSD) && (BSD >= 199103))
-	addr.sin_len = sizeof addr;
-#endif
-	addr.sin_addr.s_addr = dst;
-	addr.sin_port = htons(2000); /* any port over 1024 will do... */
-	if ((udp = socket(AF_INET, SOCK_DGRAM, 0)) < 0
-	    || connect(udp, (struct sockaddr *) &addr, sizeof(addr)) < 0
-	    || getsockname(udp, (struct sockaddr *) &addr, &addrlen) < 0) {
-	    log(LOG_WARNING, errno, "Determining local address");
-	    close(udp);
-	    return;
-	}
-	close(udp);
-	us = addr.sin_addr.s_addr;
-    } else			/* query sent to us alone */
-	us = dst;	
+    u_int32 temp_addr, them = src;
 
 #define PUT_ADDR(a)	temp_addr = ntohl(a); \
 			*p++ = temp_addr >> 24; \
@@ -751,7 +736,7 @@ accept_neighbor_request(src, dst)
 
 	    /* Make sure that there's room for this neighbor... */
 	    if (datalen + (ncount == 0 ? 4 + 3 + 4 : 4) > MAX_DVMRP_DATA_LEN) {
-		send_igmp(us, them, IGMP_DVMRP, DVMRP_NEIGHBORS,
+		send_igmp(INADDR_ANY, them, IGMP_DVMRP, DVMRP_NEIGHBORS,
 			  htonl(MROUTED_LEVEL), datalen);
 		p = (u_char *) (send_buf + MIN_IP_HEADER_LEN + IGMP_MINLEN);
 		datalen = 0;
@@ -775,8 +760,8 @@ accept_neighbor_request(src, dst)
     }
 
     if (datalen != 0)
-	send_igmp(us, them, IGMP_DVMRP, DVMRP_NEIGHBORS, htonl(MROUTED_LEVEL),
-		  datalen);
+	send_igmp(INADDR_ANY, them, IGMP_DVMRP, DVMRP_NEIGHBORS,
+			htonl(MROUTED_LEVEL), datalen);
 }
 
 /*
@@ -791,33 +776,7 @@ accept_neighbor_request2(src, dst)
     u_char *p, *ncount;
     struct listaddr *la;
     int	datalen;
-    u_int32 us, them = src;
-
-    /* Determine which of our addresses to use as the source of our response
-     * to this query.
-     */
-    if (IN_MULTICAST(ntohl(dst))) { /* query sent to a multicast group */
-	int udp;		/* find best interface to reply on */
-	struct sockaddr_in addr;
-	int addrlen = sizeof(addr);
-
-	addr.sin_family = AF_INET;
-#if (defined(BSD) && (BSD >= 199103))
-	addr.sin_len = sizeof addr;
-#endif
-	addr.sin_addr.s_addr = dst;
-	addr.sin_port = htons(2000); /* any port over 1024 will do... */
-	if ((udp = socket(AF_INET, SOCK_DGRAM, 0)) < 0
-	    || connect(udp, (struct sockaddr *) &addr, sizeof(addr)) < 0
-	    || getsockname(udp, (struct sockaddr *) &addr, &addrlen) < 0) {
-	    log(LOG_WARNING, errno, "Determining local address");
-	    close(udp);
-	    return;
-	}
-	close(udp);
-	us = addr.sin_addr.s_addr;
-    } else			/* query sent to us alone */
-	us = dst;	
+    u_int32 them = src;
 
     p = (u_char *) (send_buf + MIN_IP_HEADER_LEN + IGMP_MINLEN);
     datalen = 0;
@@ -847,7 +806,7 @@ accept_neighbor_request2(src, dst)
 	    if (rflags & DVMRP_NF_TUNNEL)
 		rflags |= DVMRP_NF_DOWN;
 	    if (datalen > MAX_DVMRP_DATA_LEN - 12) {
-		send_igmp(us, them, IGMP_DVMRP, DVMRP_NEIGHBORS2,
+		send_igmp(INADDR_ANY, them, IGMP_DVMRP, DVMRP_NEIGHBORS2,
 			  htonl(MROUTED_LEVEL), datalen);
 		p = (u_char *) (send_buf + MIN_IP_HEADER_LEN + IGMP_MINLEN);
 		datalen = 0;
@@ -865,7 +824,7 @@ accept_neighbor_request2(src, dst)
 	    for ( ; la; la = la->al_next) {
 		/* Make sure that there's room for this neighbor... */
 		if (datalen + (ncount == 0 ? 4+4+4 : 4) > MAX_DVMRP_DATA_LEN) {
-		    send_igmp(us, them, IGMP_DVMRP, DVMRP_NEIGHBORS2,
+		    send_igmp(INADDR_ANY, them, IGMP_DVMRP, DVMRP_NEIGHBORS2,
 			      htonl(MROUTED_LEVEL), datalen);
 		    p = (u_char *) (send_buf + MIN_IP_HEADER_LEN + IGMP_MINLEN);
 		    datalen = 0;
@@ -890,8 +849,8 @@ accept_neighbor_request2(src, dst)
 	}
     }
     if (datalen != 0)
-	send_igmp(us, them, IGMP_DVMRP, DVMRP_NEIGHBORS2, htonl(MROUTED_LEVEL),
-		  datalen);
+	send_igmp(INADDR_ANY, them, IGMP_DVMRP, DVMRP_NEIGHBORS2,
+		htonl(MROUTED_LEVEL), datalen);
 }
 
 void
