@@ -127,15 +127,16 @@ entry	:	ENCODING STRING
 		      strcmp($2, "BIG5") &&
 		      strcmp($2, "MSKanji"))
 			warnx("ENCODING %s is not supported by libc", $2);
-		strncpy(new_locale.encoding, $2, sizeof(new_locale.encoding)); }
+		strncpy(new_locale.__encoding, $2,
+		    sizeof(new_locale.__encoding)); }
 	|	VARIABLE
-		{ new_locale.variable_len = strlen($1) + 1;
-		  new_locale.variable = xmalloc(new_locale.variable_len);
-		  strcpy((char *)new_locale.variable, $1);
+		{ new_locale.__variable_len = strlen($1) + 1;
+		  new_locale.__variable = xmalloc(new_locale.__variable_len);
+		  strcpy((char *)new_locale.__variable, $1);
 		}
 	|	INVALID RUNE
 		{ warnx("the INVALID keyword is deprecated");
-		  new_locale.invalid_rune = $2;
+		  new_locale.__invalid_rune = $2;
 		}
 	|	LIST list
 		{ set_map(&types, $2, $1); }
@@ -259,8 +260,8 @@ main(int ac, char *av[])
 	mapupper.map[x] = x;
 	maplower.map[x] = x;
     }
-    new_locale.invalid_rune = _INVALID_RUNE;
-    memcpy(new_locale.magic, _RUNE_MAGIC_1, sizeof(new_locale.magic));
+    new_locale.__invalid_rune = _INVALID_RUNE;
+    memcpy(new_locale.__magic, _RUNE_MAGIC_1, sizeof(new_locale.__magic));
 
     yyparse();
 
@@ -598,7 +599,7 @@ dump_tables()
     else if (curr_d - first_d < 9)
 	errx(1, "error: DIGIT range is too small in the single byte area");
 
-    new_locale.invalid_rune = htonl(new_locale.invalid_rune);
+    new_locale.__invalid_rune = htonl(new_locale.__invalid_rune);
 
     /*
      * Fill in our tables.  Do this in network order so that
@@ -607,9 +608,9 @@ dump_tables()
      *  word size.  Sigh.  We tried.)
      */
     for (x = 0; x < _CACHED_RUNES; ++x) {
-	new_locale.runetype[x] = htonl(types.map[x]);
-	new_locale.maplower[x] = htonl(maplower.map[x]);
-	new_locale.mapupper[x] = htonl(mapupper.map[x]);
+	new_locale.__runetype[x] = htonl(types.map[x]);
+	new_locale.__maplower[x] = htonl(maplower.map[x]);
+	new_locale.__mapupper[x] = htonl(mapupper.map[x]);
     }
 
     /*
@@ -618,28 +619,31 @@ dump_tables()
     list = types.root;
 
     while (list) {
-	new_locale.runetype_ext.nranges++;
+	new_locale.__runetype_ext.__nranges++;
 	list = list->next;
     }
-    new_locale.runetype_ext.nranges = htonl(new_locale.runetype_ext.nranges);
+    new_locale.__runetype_ext.__nranges =
+         htonl(new_locale.__runetype_ext.__nranges);
 
     list = maplower.root;
 
     while (list) {
-	new_locale.maplower_ext.nranges++;
+	new_locale.__maplower_ext.__nranges++;
 	list = list->next;
     }
-    new_locale.maplower_ext.nranges = htonl(new_locale.maplower_ext.nranges);
+    new_locale.__maplower_ext.__nranges =
+        htonl(new_locale.__maplower_ext.__nranges);
 
     list = mapupper.root;
 
     while (list) {
-	new_locale.mapupper_ext.nranges++;
+	new_locale.__mapupper_ext.__nranges++;
 	list = list->next;
     }
-    new_locale.mapupper_ext.nranges = htonl(new_locale.mapupper_ext.nranges);
+    new_locale.__mapupper_ext.__nranges =
+        htonl(new_locale.__mapupper_ext.__nranges);
 
-    new_locale.variable_len = htonl(new_locale.variable_len);
+    new_locale.__variable_len = htonl(new_locale.__variable_len);
 
     /*
      * Okay, we are now ready to write the new locale file.
@@ -660,9 +664,9 @@ dump_tables()
     while (list) {
 	_RuneEntry re;
 
-	re.min = htonl(list->min);
-	re.max = htonl(list->max);
-	re.map = htonl(list->map);
+	re.__min = htonl(list->min);
+	re.__max = htonl(list->max);
+	re.__map = htonl(list->map);
 
 	if (fwrite((char *)&re, sizeof(re), 1, fp) != 1) {
 	    perror(locale_file);
@@ -679,9 +683,9 @@ dump_tables()
     while (list) {
 	_RuneEntry re;
 
-	re.min = htonl(list->min);
-	re.max = htonl(list->max);
-	re.map = htonl(list->map);
+	re.__min = htonl(list->min);
+	re.__max = htonl(list->max);
+	re.__map = htonl(list->map);
 
 	if (fwrite((char *)&re, sizeof(re), 1, fp) != 1) {
 	    perror(locale_file);
@@ -698,9 +702,9 @@ dump_tables()
     while (list) {
 	_RuneEntry re;
 
-	re.min = htonl(list->min);
-	re.max = htonl(list->max);
-	re.map = htonl(list->map);
+	re.__min = htonl(list->min);
+	re.__max = htonl(list->max);
+	re.__map = htonl(list->map);
 
 	if (fwrite((char *)&re, sizeof(re), 1, fp) != 1) {
 	    perror(locale_file);
@@ -731,8 +735,8 @@ dump_tables()
     /*
      * PART 5: And finally the variable data
      */
-    if (fwrite((char *)new_locale.variable,
-	       ntohl(new_locale.variable_len), 1, fp) != 1) {
+    if (fwrite((char *)new_locale.__variable,
+	       ntohl(new_locale.__variable_len), 1, fp) != 1) {
 	perror(locale_file);
 	exit(1);
     }
@@ -745,10 +749,10 @@ dump_tables()
     if (!debug)
 	return;
 
-    if (new_locale.encoding[0])
-	fprintf(stderr, "ENCODING	%s\n", new_locale.encoding);
-    if (new_locale.variable)
-	fprintf(stderr, "VARIABLE	%s\n", (char *)new_locale.variable);
+    if (new_locale.__encoding[0])
+	fprintf(stderr, "ENCODING	%s\n", new_locale.__encoding);
+    if (new_locale.__variable)
+	fprintf(stderr, "VARIABLE	%s\n", (char *)new_locale.__variable);
 
     fprintf(stderr, "\nMAPLOWER:\n\n");
 

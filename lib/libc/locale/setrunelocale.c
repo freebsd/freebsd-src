@@ -159,33 +159,33 @@ __setrunelocale(const char *encoding)
 	__mbsrtowcs = __mbsrtowcs_std;
 	__wcrtomb = NULL;
 	__wcsrtombs = __wcsrtombs_std;
-	rl->sputrune = __emulated_sputrune;
-	rl->sgetrune = __emulated_sgetrune;
-	if (strcmp(rl->encoding, "NONE") == 0)
+	rl->__sputrune = __emulated_sputrune;
+	rl->__sgetrune = __emulated_sgetrune;
+	if (strcmp(rl->__encoding, "NONE") == 0)
 		ret = _none_init(rl);
-	else if (strcmp(rl->encoding, "UTF2") == 0)
+	else if (strcmp(rl->__encoding, "UTF2") == 0)
 		ret = _UTF2_init(rl);
-	else if (strcmp(rl->encoding, "UTF-8") == 0)
+	else if (strcmp(rl->__encoding, "UTF-8") == 0)
 		ret = _UTF8_init(rl);
-	else if (strcmp(rl->encoding, "EUC") == 0)
+	else if (strcmp(rl->__encoding, "EUC") == 0)
 		ret = _EUC_init(rl);
- 	else if (strcmp(rl->encoding, "GB18030") == 0)
+ 	else if (strcmp(rl->__encoding, "GB18030") == 0)
  		ret = _GB18030_init(rl);
-	else if (strcmp(rl->encoding, "GB2312") == 0)
+	else if (strcmp(rl->__encoding, "GB2312") == 0)
 		ret = _GB2312_init(rl);
-	else if (strcmp(rl->encoding, "GBK") == 0)
+	else if (strcmp(rl->__encoding, "GBK") == 0)
 		ret = _GBK_init(rl);
-	else if (strcmp(rl->encoding, "BIG5") == 0)
+	else if (strcmp(rl->__encoding, "BIG5") == 0)
 		ret = _BIG5_init(rl);
-	else if (strcmp(rl->encoding, "MSKanji") == 0)
+	else if (strcmp(rl->__encoding, "MSKanji") == 0)
 		ret = _MSKanji_init(rl);
 	else
 		ret = EFTYPE;
 	if (ret == 0) {
 		if (CachedRuneLocale != NULL) {
 			/* See euc.c */
-			if (strcmp(CachedRuneLocale->encoding, "EUC") == 0)
-				free(CachedRuneLocale->variable);
+			if (strcmp(CachedRuneLocale->__encoding, "EUC") == 0)
+				free(CachedRuneLocale->__variable);
 			free(CachedRuneLocale);
 		}
 		CachedRuneLocale = _CurrentRuneLocale;
