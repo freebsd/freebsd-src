@@ -10,6 +10,8 @@ SRCS=	div_small.s errors.c fpu_arith.c fpu_aux.c fpu_entry.c fpu_etc.c \
 	reg_ld_str.c reg_u_mul.s reg_u_sub.s wm_shrx.s wm_sqrt.s
 NOMAN=
 
+EXPORT_SYMS=	math_emulate
+
 .s.o:
 	${CC} -x assembler-with-cpp -DLOCORE ${CFLAGS} -c \
 	    ${.IMPSRC} -o ${.TARGET}

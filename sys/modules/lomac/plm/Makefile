@@ -5,6 +5,10 @@ SRCS=	vnode_if.h kernel_plm.c
 NOMAN=	yes
 CFLAGS+=	-I${.CURDIR}/../../../security/lomac
 
+EXPORT_SYMS=	lomac_node_entry_root		\
+		lomac_plm_init_lomacfs_vnode	\
+		lomac_plm_initialized
+
 .PATH:	${.CURDIR}/../../../security/lomac
 
 .include "../Makefile.inc"
