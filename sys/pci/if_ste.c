@@ -929,7 +929,7 @@ ste_attach(dev)
 
 	mtx_init(&sc->ste_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
-
+#ifndef BURN_BRIDGES
 	/*
 	 * Handle power management nonsense.
 	 */
@@ -952,7 +952,7 @@ ste_attach(dev)
 		pci_write_config(dev, STE_PCI_LOMEM, membase, 4);
 		pci_write_config(dev, STE_PCI_INTLINE, irq, 4);
 	}
-
+#endif
 	/*
 	 * Map control/status registers.
 	 */

@@ -1063,7 +1063,7 @@ sis_attach(dev)
 		sc->sis_type = SIS_TYPE_83815;
 
 	sc->sis_rev = pci_read_config(dev, PCIR_REVID, 1);
-
+#ifndef BURN_BRIDGES
 	/*
 	 * Handle power management nonsense.
 	 */
@@ -1086,7 +1086,7 @@ sis_attach(dev)
 		pci_write_config(dev, SIS_PCI_LOMEM, membase, 4);
 		pci_write_config(dev, SIS_PCI_INTLINE, irq, 4);
 	}
-
+#endif
 	/*
 	 * Map control/status registers.
 	 */
