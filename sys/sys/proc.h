@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.26 1996/07/31 09:26:54 davidg Exp $
+ * $Id: proc.h,v 1.27 1996/08/20 07:18:08 smpatel Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -305,8 +305,8 @@ void	unsleep __P((struct proc *));
 void	wakeup __P((void *chan));
 void	wakeup_one __P((void *chan));
 
-__dead void cpu_exit __P((struct proc *)) __dead2;
-__dead void exit1 __P((struct proc *, int)) __dead2;
+void	cpu_exit __P((struct proc *)) __dead2;
+void	exit1 __P((struct proc *, int)) __dead2;
 int	cpu_fork __P((struct proc *, struct proc *));
 int	trace_req __P((struct proc *));
 void	cpu_wait __P((struct proc *));
