@@ -37,11 +37,11 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
+#include <sys/consio.h>
 #include <sys/tty.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 
-#include <machine/console.h>
 #include <machine/pc/display.h>
 
 #include <dev/syscons/syscons.h>

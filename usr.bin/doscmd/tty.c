@@ -47,7 +47,7 @@
 #include <signal.h>
 #include <sys/time.h>
 #ifdef __FreeBSD__
-# include <machine/console.h>
+# include <sys/kbio.h>
 #else
 # ifdef __NetBSD__
 #  include "machine/pccons.h"

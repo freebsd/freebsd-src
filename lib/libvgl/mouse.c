@@ -32,7 +32,8 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/signal.h>
-#include <machine/console.h>
+#include <sys/consio.h>
+#include <sys/fbio.h>
 #include "vgl.h"
 
 #define X 0xff

@@ -20,7 +20,7 @@
 #include <signal.h>
 #include <termios.h>
 #include <sys/reboot.h>
-#include <machine/console.h>
+#include <sys/consio.h>
 #include <sys/fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
