@@ -55,7 +55,7 @@
 
 #include "card_if.h"
 
-const struct pccard_product sn_pccard_products[] = {
+static const struct pccard_product sn_pccard_products[] = {
 	{ PCCARD_STR_MEGAHERTZ2_XJACK,		PCCARD_VENDOR_MEGAHERTZ2,
 	  PCCARD_PRODUCT_MEGAHERTZ2_XJACK,	 0, NULL, NULL },
 	{ PCCARD_STR_NEWMEDIA_BASICS,		PCCARD_VENDOR_NEWMEDIA,
