@@ -118,7 +118,7 @@ struct wihap_info {
 };
 
 #define WIHAP_INTERVAL			5
-#define WIHAP_DFLT_INACTIVITY_TIME	(120/WIHAP_INTERVAL) /* 2 minutes */
+#define WIHAP_DFLT_INACTIVITY_TIME	120	/* 2 minutes */
 
 struct wi_softc;
 struct wi_frame;
