@@ -15,7 +15,7 @@ CFLAGS+=	-DHAVE_CONFIG_H
 CFLAGS+=	-DLIBINTERFACE=${LIBINTERFACE}
 CFLAGS+=	-DLIBREVISION=${LIBREVISION}
 CFLAGS+=	-DLIBAGE=${LIBAGE}
-.if defined(WANT_BIND_LIBS)
+.if defined(WITH_BIND_LIBS)
 SHLIB_MAJOR=	${LIBINTERFACE}
 SHLIB_MINOR=	${LIBINTERFACE}
 .else
@@ -61,7 +61,7 @@ CFLAGS+=	-I${LIB_BIND_DIR}
 .endif
 
 # Link against BIND libraries
-.if !defined(WANT_BIND_LIBS)
+.if !defined(WITH_BIND_LIBS)
 LIBBIND9=	${LIB_BIND_REL}/bind9/libbind9.a
 CFLAGS+=	-I${BIND_DIR}/lib/bind9/include
 LIBDNS=		${LIB_BIND_REL}/dns/libdns.a
@@ -84,7 +84,7 @@ CFLAGS+=	-I${BIND_DIR}/lib/lwres/unix/include \
 .endif
 BIND_DPADD=	${LIBBIND9} ${LIBDNS} ${LIBISCCC} ${LIBISCCFG} \
 		${LIBISC} ${LIBLWRES}
-.if defined(WANT_BIND_LIBS)
+.if defined(WITH_BIND_LIBS)
 BIND_LDADD=	-lbind9 -ldns -lisccc -lisccfg -lisc -llwres
 .else
 BIND_LDADD=	${BIND_DPADD}

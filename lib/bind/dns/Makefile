@@ -40,7 +40,7 @@ CFLAGS+=	-I${.CURDIR}
 DPADD=		${CRYPTO_DPADD} ${PTHREAD_DPADD}
 LDADD=		${CRYPTO_LDADD} ${PTHREAD_LDADD}
 
-.if defined(WANT_BIND_LIBS)
+.if defined(WITH_BIND_LIBS)
 DNSINCS=	${SRCDIR}/include/dns/acl.h \
 		${SRCDIR}/include/dns/adb.h \
 		${SRCDIR}/include/dns/bit.h \

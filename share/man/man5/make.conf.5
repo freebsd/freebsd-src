@@ -603,7 +603,12 @@ subdir.
 .Pq Vt bool
 Setting this variable will prevent any part of BIND from being built,
 regardless of the presence of any of the other *_BIND_* variables below.
-.It Va WANT_BIND_LIBS
+.It Va NO_BIND_LIBS_LWRES
+.Pq Vt bool
+Set to avoid installing the lwres library in
+.Pa /usr/lib .
+The library that is private to the build system may still be built as needed.
+.It Va WITH_BIND_LIBS
 .Pq Vt bool
 Set to install BIND libraries and include files.
 .It Va PPP_NOSUID
