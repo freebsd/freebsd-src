@@ -38,7 +38,7 @@
 #
 # NOMLINKS	If you do not want install manual page links. [not set]
 #
-# MANFILTER	command to pipe the raw man page though before compressing
+# MANFILTER	command to pipe the raw man page through before compressing
 #		or installing.  Can be used to do sed substitution.
 #
 # MANBUILDCAT	create preformatted manual pages in addition to normal
@@ -57,7 +57,7 @@ MINSTALL=	${INSTALL} ${COPY} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
 
 CATDIR=		${MANDIR:H:S/$/\/cat/}
 CATEXT=		.cat
-MROFF_CMD?=	groff -Tascii -man
+MROFF_CMD?=	groff -Tascii -mandoc -mtty-char
 
 MCOMPRESS_CMD?=	${COMPRESS_CMD}
 MCOMPRESS_EXT?=	${COMPRESS_EXT}
@@ -73,7 +73,7 @@ _MANPAGES+= ${MAN${sect}}
 .endif
 .endfor
 
-# XXX MANDEPEND is only used for groff, man/man, man/manpath, at and atrun.
+# XXX MANDEPEND is only used for man/man, man/manpath, at and atrun.
 # It should be named more generally.
 all-man: ${MANDEPEND}
 

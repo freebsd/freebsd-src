@@ -1,4 +1,4 @@
-# Makefile for devlatin1
+# $FreeBSD$
 
 DEV=		latin1
 
