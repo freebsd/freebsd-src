@@ -88,9 +88,6 @@
 #include "tina.h"
 #include "ppc.h"
 #include "fla.h"
-#ifdef PC98
-#include "bs.h"
-#endif
 
 struct old_isa_driver {
 	int			type;
@@ -158,9 +155,6 @@ extern struct isa_driver pcfdriver;
 extern struct isa_driver isicdriver;
 extern struct isa_driver tinadriver;
 extern struct isa_driver ppcdriver;
-#ifdef PC98
-extern struct isa_driver bsdriver;
-#endif
 
 
 static struct old_isa_driver old_drivers[] = {
@@ -307,20 +301,12 @@ static struct old_isa_driver old_drivers[] = {
 
 /* CAM */
 
-#ifndef PC98
 #if NADV > 0
 	{ INTR_TYPE_CAM, &advdriver },
-#endif
 #endif
 
 #if NAHA > 0
 	{ INTR_TYPE_CAM, &ahadriver },
-#endif
-
-#ifdef PC98
-#if NBS > 0
-	{ INTR_TYPE_CAM, &bsdriver },
-#endif
 #endif
 
 /* MISC */
