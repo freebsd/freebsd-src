@@ -162,6 +162,7 @@ package_extract(Device *dev, char *name, Boolean depended)
 	sigpipe_caught = FALSE;
 	signal(SIGPIPE, catch_pipe);
 
+        dialog_clear_norefresh();
 	msgNotify("Adding %s%s\nfrom %s", path, depended ? " (as a dependency)" : "", dev->name);
 	pipe(pfd);
 	pid = fork();
@@ -216,6 +217,7 @@ package_extract(Device *dev, char *name, Boolean depended)
 		msgInfo("Package %s read successfully - waiting for pkg_add(1)", name);
 	    refresh();
 	    i = waitpid(pid, &tot, 0);
+	    dialog_clear_norefresh();
 	    if (sigpipe_caught || i < 0 || WEXITSTATUS(tot)) {
 		ret = DITEM_FAILURE;
 		if (variable_get(VAR_NO_CONFIRM))
@@ -236,6 +238,7 @@ package_extract(Device *dev, char *name, Boolean depended)
 	}
     }
     else {
+	dialog_clear_norefresh();
 	if (variable_get(VAR_NO_CONFIRM))
 	    msgNotify("Unable to fetch package %s from selected media.\n"
 		      "No package add will be done.", name);
@@ -245,5 +248,5 @@ package_extract(Device *dev, char *name, Boolean depended)
 	ret = DITEM_FAILURE;
     }
     signal(SIGPIPE, SIG_IGN);
-    return ret;
+    return ret | DITEM_RESTORE;
 }
