@@ -13,11 +13,13 @@ CFLAGS+= -DMONOLITH -DNO_IDEA -I${.CURDIR}
 
 LOCALBASE?=	/usr/local
 
+.if !defined(USA_RESIDENT) || ${USA_RESIDENT} != NO
 .if !exists(${LOCALBASE}/lib/librsaref.a)
 CFLAGS+= -DNO_RSA -DNO_SSL2
 .else
 CFLAGS+= -DRSAref
 LDADD+=	-lRSAglue ${LOCALBASE}/lib/librsaref.a
+.endif
 .endif
 
 SRCS=	apps.c asn1pars.c ca.c ciphers.c crl.c crl2p7.c dgst.c dh.c \
