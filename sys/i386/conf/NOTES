@@ -78,36 +78,46 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # CPU_ATHLON_SSE_HACK tries to enable SSE instructions when the BIOS has
 # forgotten to enable them.
 #
-# CPU_BLUELIGHTNING_FPU_OP_CACHE enables FPU operand cache on IBM
-# BlueLightning CPU.  It works only with Cyrix FPU, and this option
-# should not be used with Intel FPU.
-#
 # CPU_BLUELIGHTNING_3X enables triple-clock mode on IBM Blue Lightning
 # CPU if CPU supports it. The default is double-clock mode on
 # BlueLightning CPU box.
 #
-# CPU_BTB_EN enables branch target buffer on Cyrix 5x86 (NOTE 1).
+# CPU_BLUELIGHTNING_FPU_OP_CACHE enables FPU operand cache on IBM
+# BlueLightning CPU.  It works only with Cyrix FPU, and this option
+# should not be used with Intel FPU.
 #
-# CPU_DIRECT_MAPPED_CACHE sets L1 cache of Cyrix 486DLC CPU in direct
-# mapped mode.  Default is 2-way set associative mode.
+# CPU_BTB_EN enables branch target buffer on Cyrix 5x86 (NOTE 1).
 #
 # CPU_CYRIX_NO_LOCK enables weak locking for the entire address space
 # of Cyrix 6x86 and 6x86MX CPUs by setting the NO_LOCK bit of CCR1.
 # Otherwise, the NO_LOCK bit of CCR1 is cleared.  (NOTE 3)
 #
+# CPU_DIRECT_MAPPED_CACHE sets L1 cache of Cyrix 486DLC CPU in direct
+# mapped mode.  Default is 2-way set associative mode.
+#
 # CPU_DISABLE_5X86_LSSER disables load store serialize (i.e. enables
 # reorder).  This option should not be used if you use memory mapped
 # I/O device(s).
 #
-# CPU_ELAN enables support for AMDs ElanSC520 CPU.
-#    CPU_ELAN_XTAL sets the clock crystal frequency in Hz
-#    CPU_ELAN_PPS enables precision timestamp code.
+# CPU_DISABLE_CMPXCHG disables the CMPXCHG instruction on > i386 IA32 
+# machines.  VmWare seems to emulate this instruction poorly, causing 
+# the guest OS to run very slowly.  Enabling this with a SMP kernel
+# will cause the kernel to be unusable.
 #
-# CPU_SOEKRIS enables support www.soekris.com hardware.
+# CPU_DISABLE_SSE explicitly prevent I686_CPU from turning on SSE.
+#
+# CPU_ELAN enables support for AMDs ElanSC520 CPU.
+#    CPU_ELAN_PPS enables precision timestamp code.
+#    CPU_ELAN_XTAL sets the clock crystal frequency in Hz
 #
 # CPU_ENABLE_SSE enables SSE/MMX2 instructions support.  This is default
 # on I686_CPU and above.
-# CPU_DISABLE_SSE explicitly prevent I686_CPU from turning on SSE.
+#
+# CPU_ENABLE_TCC enables Thermal Control Circuitry (TCC) found in some
+# Pentium(tm) 4 and (possibly) later CPUs. When enabled and detected,
+# TCC allows to restrict power consumption by using machdep.cpuperf*
+# sysctls. This operates independently of SpeedStep and is useful on
+# systems where other mechanisms such as apm(4) or acpi(4) don't work.
 #
 # CPU_FASTER_5X86_FPU enables faster FPU exception handler.
 #
@@ -135,6 +145,8 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 #
 # CPU_RSTK_EN enables return stack on Cyrix 5x86 (NOTE 1).
 #
+# CPU_SOEKRIS enables support www.soekris.com hardware.
+#
 # CPU_SUSP_HLT enables suspend on HALT.  If this option is set, CPU
 # enters suspend mode following execution of HALT instruction.
 #
@@ -159,17 +171,6 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # which indicates that the 15-16MB range is *definitely* not being
 # occupied by an ISA memory hole.
 #
-# CPU_DISABLE_CMPXCHG disables the CMPXCHG instruction on > i386 IA32 
-# machines.  VmWare seems to emulate this instruction poorly, causing 
-# the guest OS to run very slowly.  Enabling this with a SMP kernel
-# will cause the kernel to be unusable.
-#
-# CPU_ENABLE_TCC enables Thermal Control Circuitry (TCC) found in some
-# Pentium(tm) 4 and (possibly) later CPUs. When enabled and detected,
-# TCC allows to restrict power consumption by using machdep.cpuperf*
-# sysctls. This operates independently of SpeedStep and is useful on
-# systems where other mechanisms such as apm(4) or acpi(4) don't work.
-#
 # NOTE 1: The options, CPU_BTB_EN, CPU_LOOP_EN, CPU_IORT,
 # CPU_LOOP_EN and CPU_RSTK_EN should not be used because of CPU bugs.
 # These options may crash your system.
@@ -182,18 +183,18 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # locked cycles in order to operate correctly.
 #
 options 	CPU_ATHLON_SSE_HACK
-options 	CPU_BLUELIGHTNING_FPU_OP_CACHE
 options 	CPU_BLUELIGHTNING_3X
+options 	CPU_BLUELIGHTNING_FPU_OP_CACHE
 options 	CPU_BTB_EN
 options 	CPU_DIRECT_MAPPED_CACHE
 options 	CPU_DISABLE_5X86_LSSER
+options 	CPU_DISABLE_CMPXCHG
+#options 	CPU_DISABLE_SSE
 options 	CPU_ELAN
-options 	CPU_SOEKRIS
-options 	CPU_ELAN_XTAL=32768000
 options 	CPU_ELAN_PPS
+options 	CPU_ELAN_XTAL=32768000
 options 	CPU_ENABLE_SSE
 options 	CPU_ENABLE_TCC
-#options 	CPU_DISABLE_SSE
 options 	CPU_FASTER_5X86_FPU
 options 	CPU_GEODE
 options 	CPU_I486_ON_386
@@ -202,13 +203,13 @@ options 	CPU_L2_LATENCY=5
 options 	CPU_LOOP_EN
 options 	CPU_PPRO2CELERON
 options 	CPU_RSTK_EN
+options 	CPU_SOEKRIS
 options 	CPU_SUSP_HLT
 options 	CPU_UPGRADE_HW_CACHE
 options 	CPU_WT_ALLOC
 options 	CYRIX_CACHE_WORKS
 options 	CYRIX_CACHE_REALLY_WORKS
 #options 	NO_F00F_HACK
-options 	CPU_DISABLE_CMPXCHG
 
 # Debug options
 options 	NPX_DEBUG	# enable npx debugging (FPU/math emu)
