@@ -845,7 +845,6 @@ void	exit1(struct thread *, int) __dead2;
 void	cpu_fork(struct thread *, struct proc *, struct thread *, int);
 void	cpu_set_fork_handler(struct thread *, void (*)(void *), void *);
 void	cpu_wait(struct proc *);
-int	cpu_coredump(struct thread *, struct vnode *, struct ucred *);
 
 /* New in KSE. */
 struct	thread *thread_alloc(void);

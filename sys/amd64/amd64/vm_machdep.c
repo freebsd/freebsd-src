@@ -445,40 +445,6 @@ cpu_wait(p)
 }
 
 /*
- * Dump the machine specific header information at the start of a core dump.
- */
-int
-cpu_coredump(td, vp, cred)
-	struct thread *td;
-	struct vnode *vp;
-	struct ucred *cred;
-{
-	struct proc *p = td->td_proc;
-	int error;
-	caddr_t tempuser;
-
-	tempuser = malloc(ctob(UAREA_PAGES + KSTACK_PAGES), M_TEMP, M_WAITOK | M_ZERO);
-	if (!tempuser)
-		return EINVAL;
-	
-	bcopy(p->p_uarea, tempuser, sizeof(struct user));
-#if 0		/* XXXKSE - broken, fixme!!!!! td_frame is in kstack! */
-	bcopy(td->td_frame,
-	      tempuser + ((caddr_t) td->td_frame - (caddr_t) p->p_uarea),
-	      sizeof(struct trapframe));
-#endif
-
-	error = vn_rdwr(UIO_WRITE, vp, (caddr_t) tempuser, 
-			ctob(UAREA_PAGES + KSTACK_PAGES),
-			(off_t)0, UIO_SYSSPACE, IO_UNIT, cred, NOCRED,
-			(int *)NULL, td);
-
-	free(tempuser, M_TEMP);
-	
-	return error;
-}
-
-/*
  * Convert kernel VA to physical address
  */
 u_long
