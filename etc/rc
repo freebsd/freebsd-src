@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.94 1996/07/13 17:27:39 pst Exp $
+#	$Id: rc,v 1.95 1996/07/18 19:09:06 pst Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -176,7 +176,7 @@ echo ' syslogd.';			syslogd
 echo -n starting network daemons:
 
 # $namedflags is imported from /etc/sysconfig
-if [ "X${namedflags}" != "XNO" ]; then
+if [ "X${namedflags}" != X"NO" ]; then
 	echo -n ' named';		named $namedflags
 fi
 
