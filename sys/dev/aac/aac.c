@@ -676,12 +676,12 @@ aac_startio(struct aac_softc *sc)
 		if (cm == NULL)
 			break;
 
-		/* try to give the command to the controller */
-		if (aac_map_command(cm) == EBUSY) {
-			/* put it on the ready queue for later */
-			aac_requeue_ready(cm);
-			break;
-		}
+		/*
+		 * Try to give the command to the controller.  Any error is
+		 * catastrophic since it means that bus_dmamap_load() failed.
+		 */
+		if (aac_map_command(cm) != 0)
+			panic("aac: error mapping command %p\n", cm);
 	}
 }
 
@@ -702,7 +702,7 @@ aac_map_command(struct aac_command *cm)
 
 	/* don't map more than once */
 	if (cm->cm_flags & AAC_CMD_MAPPED)
-		return (0);
+		panic("aac: command %p already mapped", cm);
 
 	if (cm->cm_datalen != 0) {
 		error = bus_dmamap_load(sc->aac_buffer_dmat, cm->cm_datamap,
@@ -747,10 +747,10 @@ aac_command_thread(struct aac_softc *sc)
 		 * will grab Giant, and would result in an LOR.
 		 */
 		if ((sc->aifflags & AAC_AIFFLAGS_ALLOCFIBS) != 0) {
-			sc->aifflags &= ~AAC_AIFFLAGS_ALLOCFIBS;
 			AAC_LOCK_RELEASE(&sc->aac_io_lock);
 			aac_alloc_commands(sc);
 			AAC_LOCK_ACQUIRE(&sc->aac_io_lock);
+			sc->aifflags &= ~AAC_AIFFLAGS_ALLOCFIBS;
 			aac_startio(sc);
 		}
 
@@ -1289,8 +1289,10 @@ aac_map_command_sg(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	cm->cm_flags |= AAC_CMD_MAPPED;
 
 	/* put the FIB on the outbound queue */
-	if (aac_enqueue_fib(sc, cm->cm_queue, cm) == EBUSY)
+	if (aac_enqueue_fib(sc, cm->cm_queue, cm) == EBUSY) {
+		aac_unmap_command(cm);
 		aac_requeue_ready(cm);
+	}
 
 	return;
 }
