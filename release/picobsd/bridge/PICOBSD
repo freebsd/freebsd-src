@@ -34,6 +34,7 @@ options		COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 
 options		IPFIREWALL
 options		IPFIREWALL_DEFAULT_TO_ACCEPT
+options		IPFW2
 options		IPDIVERT # divert (for natd, 4KB)
 #options	DEVFS
 options		PCI_QUIET
@@ -84,11 +85,11 @@ device		sio1	at isa? port IO_COM2 irq 3
 device	miibus 
 #device de0              # DEC/Intel DC21x4x (``Tulip'')
 device	fxp		# Intel, 4KB
-device	xl		# 3Com
+#device	xl		# 3Com
 #device	ep0
 device rl		# Realtek 8139, 4KB
 device dc		# New Dec/Intel DC21x4x, 8KB
-device lnc
+#device lnc
 device sis		# National
 
 device ed0 at isa? port 0x280 irq 5 iomem 0xd8000
