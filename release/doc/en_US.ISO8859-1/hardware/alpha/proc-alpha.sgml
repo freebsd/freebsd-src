@@ -1020,8 +1020,11 @@ cpu	EV4</programlisting>
 	      <para>36 bit, Fast Page Mode, uses ECC, [EB164 / PC164]</para>
             </listitem>
 	    <listitem>
-	      <para>SDRAM DIMMs in sets of 2, uses ECC [PC164SX / PC164LX]
-	      </para>
+	      <para>SDRAM DIMMs in sets of 2, non-ECC [PC164SX]</para>
+            </listitem>
+	    <listitem>
+	    <listitem>
+	      <para>SDRAM DIMMs in sets of 2, uses ECC [PC164LX]</para>
             </listitem></itemizedlist>
         </listitem>
         <listitem>
@@ -1078,8 +1081,8 @@ cpu	EV4</programlisting>
       challenging compatibility as far as SCSI adapters go.</para>
 
       <para>On 164SX you can have a maximum of 1 Gbyte of RAM. 4 regular
-      256MB PC133 ECC DIMMs are reported to work just fine. Whether 512MB
-      DIMMs will also work is currently unknown.</para>
+      (PC100 or PC133) 256MB DIMMs are reported to work just fine. Whether 
+      512MB DIMMs will also work is currently unknown.</para>
 
       <para>PCI bridge chips are sometimes not appreciated by the 164SX, 
       they cause SRM errors and kernel panics in those cases. This seems
