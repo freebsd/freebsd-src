@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.87 1995/04/03 10:29:14 ache Exp $
+ *	$Id: sio.c,v 1.88 1995/04/04 16:26:04 ache Exp $
  */
 
 #include "sio.h"
@@ -1262,11 +1262,19 @@ sioioctl(dev, cmd, data, flag, p)
 	int             s;
 	int		tiocm_xxx;
 	struct tty	*tp;
+	struct termios  term;
+	int             oldcmd;
 
 	mynor = minor(dev);
 	com = com_addr(MINOR_TO_UNIT(mynor));
 	iobase = com->iobase;
 	tp = com->tp;
+	term = tp->t_termios;
+	oldcmd = cmd;
+	if ((error = ttsetcompat(tp, &cmd, data, &term)) != 0)
+		return error;
+	if (cmd != oldcmd)
+		data = (caddr_t)&term;
 	if (mynor & CONTROL_MASK) {
 		struct termios *ct;
 
