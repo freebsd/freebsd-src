@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.62 1999/07/04 19:48:35 phk Exp $
+ * $Id: conf.h,v 1.64 1999/07/07 03:03:20 green Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -155,7 +155,7 @@ void ldisc_deregister __P((int));
  * Swap device table
  */
 struct swdevt {
-	dev_t	sw_dev;
+	udev_t	sw_dev;
 	int	sw_flags;
 	int	sw_nblks;
 	struct	vnode *sw_vp;
