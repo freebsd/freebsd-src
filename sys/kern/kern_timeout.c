@@ -125,8 +125,7 @@ softclock()
 							  c_links.sle);
 				} else {
 					c->c_flags =
-						(c->c_flags & ~CALLOUT_PENDING)
-						| CALLOUT_FIRED;
+					    (c->c_flags & ~CALLOUT_PENDING);
 				}
 				splx(s);
 				c_func(c_arg);
@@ -218,11 +217,11 @@ callout_handle_init(struct callout_handle *handle)
  * callout_init() - initialize a callout structure so that it can
  *	safely be passed to callout_reset() and callout_stop()
  *
- * <sys/callout.h> defines two convenience macros:
+ * <sys/callout.h> defines three convenience macros:
  *
- * callout_pending() - returns number of ticks until callout fires, or 0
- *	if not scheduled
- * callout_fired() - returns truth if callout has already been fired
+ * callout_active() - returns truth if callout has not been serviced
+ * callout_pending() - returns truth if callout is still waiting for timeout
+ * callout_deactivate() - marks the callout as having been serviced
  */
 void
 callout_reset(c, to_ticks, ftn, arg)
@@ -240,13 +239,13 @@ callout_reset(c, to_ticks, ftn, arg)
 	/*
 	 * We could spl down here and back up at the TAILQ_INSERT_TAIL,
 	 * but there's no point since doing this setup doesn't take much
-	 ^ time.
+	 * time.
 	 */
 	if (to_ticks <= 0)
 		to_ticks = 1;
 
 	c->c_arg = arg;
-	c->c_flags = (c->c_flags & ~CALLOUT_FIRED) | CALLOUT_PENDING;
+	c->c_flags |= (CALLOUT_ACTIVE | CALLOUT_PENDING);
 	c->c_func = ftn;
 	c->c_time = ticks + to_ticks;
 	TAILQ_INSERT_TAIL(&callwheel[c->c_time & callwheelmask], 
@@ -266,10 +265,11 @@ callout_stop(c)
 	 * Don't attempt to delete a callout that's not on the queue.
 	 */
 	if (!(c->c_flags & CALLOUT_PENDING)) {
+		c->c_flags &= ~CALLOUT_ACTIVE;
 		splx(s);
 		return;
 	}
-	c->c_flags &= ~CALLOUT_PENDING;
+	c->c_flags &= ~(CALLOUT_ACTIVE | CALLOUT_PENDING);
 
 	if (nextsoftcheck == c) {
 		nextsoftcheck = TAILQ_NEXT(c, c_links.tqe);

@@ -92,7 +92,7 @@ struct protosw inetsw[] = {
 	PR_CONNREQUIRED|PR_IMPLOPCL|PR_WANTRCVD,
   tcp_input,	0,		tcp_ctlinput,	tcp_ctloutput,
   0,
-  tcp_init,	tcp_fasttimo,	tcp_slowtimo,	tcp_drain,
+  tcp_init,	0,		tcp_slowtimo,	tcp_drain,
   &tcp_usrreqs
 },
 { SOCK_RAW,	&inetdomain,	IPPROTO_RAW,	PR_ATOMIC|PR_ADDR,
