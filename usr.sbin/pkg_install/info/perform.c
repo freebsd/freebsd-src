@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.13 1995/04/26 15:08:02 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.14 1995/04/28 18:24:31 jkh Exp $";
 #endif
 
 /*
@@ -94,10 +94,14 @@ pkg_do(char *pkg)
     else if (fexists(pkg)) {
 	int len;
 
-	if (!getcwd(fname, FILENAME_MAX))
-	    upchuck("getcwd");
-	len = strlen(fname);
-	snprintf(&fname[len], FILENAME_MAX - len, "/%s", pkg);
+	if (*pkg != '/') {
+	    if (!getcwd(fname, FILENAME_MAX))
+		upchuck("getcwd");
+	    len = strlen(fname);
+	    snprintf(&fname[len], FILENAME_MAX - len, "/%s", pkg);
+	}
+	else
+	    strcpy(fname, pkg);
 	cp = fname;
     }
     else {
