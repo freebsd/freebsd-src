@@ -6,7 +6,7 @@
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
- * $Id: iplang_y.y,v 2.1 1999/08/04 17:30:53 darrenr Exp $
+ * $Id: iplang_y.y,v 2.1.2.1 1999/11/21 11:05:09 darrenr Exp $
  */
 
 #include <stdio.h>
@@ -164,6 +164,7 @@ void	end_tcp __P((void));
 void	end_data __P((void));
 void	yyerror __P((char *));
 void	iplang __P((FILE *));
+int	arp_getipv4 __P((char *, char *));
 int	yyparse __P((void));
 %}
 %union {

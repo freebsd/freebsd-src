@@ -9,7 +9,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.1.2.2 1999/10/05 12:59:08 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.1.2.5 1999/12/11 05:31:10 darrenr Exp $";
 #endif
 
 #include <sys/types.h>
@@ -498,14 +498,15 @@ caddr_t data;
 	}
 
 	if (!f) {
-		ftail = fprev;
-		if (req != SIOCINAFR && req != SIOCINIFR)
+		if (req != SIOCINAFR || req != SIOCINIFR)
 			while ((f = *ftail))
 				ftail = &f->fr_next;
-		else if (fp->fr_hits)
-			while (--fp->fr_hits && (f = *ftail))
-				ftail = &f->fr_next;
-		f = NULL;
+		else {
+			if (fp->fr_hits)
+				while (--fp->fr_hits && (f = *ftail))
+					ftail = &f->fr_next;
+			f = NULL;
+		}
 	}
 
 	if (req == SIOCDELFR || req == SIOCRMIFR) {
@@ -534,7 +535,7 @@ caddr_t data;
 			error = EEXIST;
 		} else {
 			if (unit == IPL_LOGAUTH) {
-				error = fr_auth_ioctl(data, req, f, ftail);
+				error = fr_auth_ioctl(data, req, fp, ftail);
 				goto out;
 			}
 			KMALLOC(f, frentry_t *);

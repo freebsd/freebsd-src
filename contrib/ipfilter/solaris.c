@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  */
 /* #pragma ident   "@(#)solaris.c	1.12 6/5/96 (C) 1995 Darren Reed"*/
-#pragma ident "@(#)$Id: solaris.c,v 2.1.2.5 1999/10/15 13:49:44 darrenr Exp $";
+#pragma ident "@(#)$Id: solaris.c,v 2.1.2.11 1999/12/04 03:33:59 darrenr Exp $"
 
 #include <sys/systm.h>
 #include <sys/types.h>
@@ -31,6 +31,9 @@
 #include <sys/stropts.h>
 #include <sys/sockio.h>
 #include <net/if.h>
+#if SOLARIS2 >= 6
+# include <net/if_types.h>
+#endif
 #include <net/af.h>
 #include <net/route.h>
 #include <netinet/in.h>
@@ -139,6 +142,65 @@ static struct modldrv iplmod = {
 	&mod_driverops, IPL_VERSION, &ipf_ops };
 static struct modlinkage modlink1 = { MODREV_1, &iplmod, NULL };
 
+#if SOLARIS2 >= 6
+static	size_t	hdrsizes[57][2] = {
+	{ 0, 0 },
+	{ IFT_OTHER, 0 },
+	{ IFT_1822, 0 },
+	{ IFT_HDH1822, 0 },
+	{ IFT_X25DDN, 0 },
+	{ IFT_X25, 0 },
+	{ IFT_ETHER, 14 },
+	{ IFT_ISO88023, 0 },
+	{ IFT_ISO88024, 0 },
+	{ IFT_ISO88025, 0 },
+	{ IFT_ISO88026, 0 },
+	{ IFT_STARLAN, 0 },
+	{ IFT_P10, 0 },
+	{ IFT_P80, 0 },
+	{ IFT_HY, 0 },
+	{ IFT_FDDI, 24 },
+	{ IFT_LAPB, 0 },
+	{ IFT_SDLC, 0 },
+	{ IFT_T1, 0 },
+	{ IFT_CEPT, 0 },
+	{ IFT_ISDNBASIC, 0 },
+	{ IFT_ISDNPRIMARY, 0 },
+	{ IFT_PTPSERIAL, 0 },
+	{ IFT_PPP, 0 },
+	{ IFT_LOOP, 0 },
+	{ IFT_EON, 0 },
+	{ IFT_XETHER, 0 },
+	{ IFT_NSIP, 0 },
+	{ IFT_SLIP, 0 },
+	{ IFT_ULTRA, 0 },
+	{ IFT_DS3, 0 },
+	{ IFT_SIP, 0 },
+	{ IFT_FRELAY, 0 },
+	{ IFT_RS232, 0 },
+	{ IFT_PARA, 0 },
+	{ IFT_ARCNET, 0 },
+	{ IFT_ARCNETPLUS, 0 },
+	{ IFT_ATM, 0 },
+	{ IFT_MIOX25, 0 },
+	{ IFT_SONET, 0 },
+	{ IFT_X25PLE, 0 },
+	{ IFT_ISO88022LLC, 0 },
+	{ IFT_LOCALTALK, 0 },
+	{ IFT_SMDSDXI, 0 },
+	{ IFT_FRELAYDCE, 0 },
+	{ IFT_V35, 0 },
+	{ IFT_HSSI, 0 },
+	{ IFT_HIPPI, 0 },
+	{ IFT_MODEM, 0 },
+	{ IFT_AAL5, 0 },
+	{ IFT_SONETPATH, 0 },
+	{ IFT_SONETVT, 0 },
+	{ IFT_SMDSICIP, 0 },
+	{ IFT_PROPVIRTUAL, 0 },
+	{ IFT_PROPMUX, 0 },
+};
+#endif /* SOLARIS2 >= 6 */
 
 static dev_info_t *ipf_dev_info = NULL;
 
@@ -415,12 +477,12 @@ size_t off;
 	if (!ip && (m == mt) && m->b_cont && (MTYPE(m) != M_DATA))
 		m = m->b_cont;
 
-	printf("!IP %s:%d %d %p %p %p %d %p/%d %p/%d %p %d %d %p\n",
+	cmn_err(CE_CONT, " !IP %s:%d %d %p %p %p %d %p/%d %p/%d %p %d %d %p\n",
 		qif ? qif->qf_name : "?", out, qif->qf_hl, q,
 		q ? q->q_ptr : NULL, q ? q->q_qinfo : NULL,
 		mt->b_wptr - mt->b_rptr, m, MTYPE(m), mt, MTYPE(mt), m->b_rptr,
 		m->b_wptr - m->b_rptr, off, ip);
-	printf("%02x%02x%02x%02x\n", *s, *(s+1), *(s+2), *(s+3));
+	cmn_err(CE_CONT, "%02x%02x%02x%02x\n", *s, *(s+1), *(s+2), *(s+3));
 	while (m != mt) {
 		i = 0;
 		t = outb;
@@ -434,7 +496,7 @@ size_t off;
 		}
 		*t++ = '\n';
 		*t = '\0';
-		printf("%s", outb);
+		cmn_err(CE_CONT, "%s", outb);
 		mt = mt->b_cont;
 	}
 	i = 0;
@@ -448,7 +510,7 @@ size_t off;
 	}
 	*t++ = '\n';
 	*t = '\0';
-	printf("%s", outb);
+	cmn_err(CE_CONT, "%s", outb);
 }
 
 
@@ -540,7 +602,7 @@ tryagain:
 
 	len = m->b_wptr - m->b_rptr;
 	if (m->b_wptr < m->b_rptr) {
-		cmn_err(CE_NOTE, "IP Filter: Bad packet: wptr %p < rptr %p",
+		cmn_err(CE_NOTE, "!IP Filter: Bad packet: wptr %p < rptr %p",
 			m->b_wptr, m->b_rptr);
 		frstats[out].fr_bad++;
 		return -1;
@@ -558,12 +620,7 @@ tryagain:
 		 * can, now ?
 		 */
 fixalign:
-		if (off == (u_char *)ip - m->b_rptr) {
-			m->b_rptr += off;
-			off = 0;
-		}
-		if (!pullupmsg(m, sizeof(ip_t) + off)) {
-			cmn_err(CE_NOTE, "pullupmsg failed\n");
+		if (!pullupmsg(m, sizeof(ip_t))) {
 			frstats[out].fr_pull[1]++;
 			return -1;
 		}
@@ -582,7 +639,6 @@ fixalign:
 			READ_ENTER(&ipfs_mutex);
 			goto tryagain;
 		}
-		fr_donotip(out, qif, q, m, mt, ip, off);
 		frstats[out].fr_notip++;
 		return (fr_flags & FF_BLOCKNONIP) ? -1 : 0;
 	}
@@ -602,9 +658,6 @@ fixalign:
 		/*
 		 * Bad IP packet or not enough data/data length mismatches
 		 */
-		cmn_err(CE_NOTE,
-			"IP Filter: Bad packet: iphlen %u ip_len %u mlen %u",
-			iphlen, ip->ip_len, mlen);
 #ifndef	sparc
 		__iplen = (u_short)ip->ip_len,
 		__ipoff = (u_short)ip->ip_off;
@@ -679,7 +732,7 @@ fixalign:
 #endif
 		} else
 			cmn_err(CE_NOTE,
-				"IP Filter: *mp %p mt %p %s\n", *mp, mt,
+				"!IP Filter: *mp %p mt %p %s\n", *mp, mt,
 				"mblk changed, cannot revert ip_len, ip_off");
 	}
 	return err;
@@ -731,13 +784,13 @@ again:
 			goto again;
 		}
 		cmn_err(CE_WARN,
-			"IP Filter: dropped: fr_qin(%x,%x): type %x qif %x",
+			"!IP Filter: dropped: fr_qin(%x,%x): type %x qif %x",
 			q, mb, MTYPE(mb), qif);
 		cmn_err(CE_CONT,
-			"IP Filter: info %x next %x ptr %x fsrv %x bsrv %x\n",
+			"!IP Filter: info %x next %x ptr %x fsrv %x bsrv %x\n",
 			q->q_qinfo, q->q_next, q->q_ptr, q->q_nfsrv,
 			q->q_nbsrv);
-		cmn_err(CE_CONT, "IP Filter: info: putp %x srvp %x info %x\n",
+		cmn_err(CE_CONT, "!IP Filter: info: putp %x srvp %x info %x\n",
 			q->q_qinfo->qi_putp, q->q_qinfo->qi_srvp,
 #if SOLARIS > 3
 			q->q_qinfo->qi_infop
@@ -767,7 +820,7 @@ again:
 		if (pnext)
 			return (*pnext)(q, mb);
 
-		cmn_err(CE_WARN, "IP Filter: inp NULL: qif %x q %x info %x",
+		cmn_err(CE_WARN, "!IP Filter: inp NULL: qif %x q %x info %x",
 			qif, q, q->q_qinfo);
 	}
 	if (mb) {
@@ -823,13 +876,13 @@ again:
 			goto again;
 		}
 		cmn_err(CE_WARN,
-			"IP Filter: dropped: fr_qout(%x,%x): type %x: qif %x",
+			"!IP Filter: dropped: fr_qout(%x,%x): type %x: qif %x",
 			q, mb, MTYPE(mb), qif);
 		cmn_err(CE_CONT,
-			"IP Filter: info %x next %x ptr %x fsrv %x bsrv %x\n",
+			"!IP Filter: info %x next %x ptr %x fsrv %x bsrv %x\n",
 			q->q_qinfo, q->q_next, q->q_ptr, q->q_nfsrv,
 			q->q_nbsrv);
-		cmn_err(CE_CONT, "IP Filter: info: putp %x srvp %x info %x\n",
+		cmn_err(CE_CONT, "!IP Filter: info: putp %x srvp %x info %x\n",
 			q->q_qinfo->qi_putp, q->q_qinfo->qi_srvp,
 #if SOLARIS > 3
 			q->q_qinfo->qi_infop
@@ -839,12 +892,12 @@ again:
 			);
 		if (q->q_nfsrv)
 			cmn_err(CE_CONT,
-				"IP Filter: nfsrv: info %x next %x ptr %x\n",
+				"!IP Filter: nfsrv: info %x next %x ptr %x\n",
 				q->q_nfsrv->q_qinfo, q->q_nfsrv->q_next,
 				q->q_nfsrv->q_ptr);
 		if (q->q_nbsrv)
 			cmn_err(CE_CONT,
-				"IP Filter: nbsrv: info %x next %x ptr %x\n",
+				"!IP Filter: nbsrv: info %x next %x ptr %x\n",
 				q->q_nbsrv->q_qinfo, q->q_nbsrv->q_next,
 				q->q_nbsrv->q_ptr);
 		frstats[1].fr_drop++;
@@ -869,7 +922,8 @@ again:
 		if (pnext)
 			return (*pnext)(q, mb);
 
-		cmn_err(CE_WARN, "IP Filter: outp NULL: qif %x %s q %x info %x",
+		cmn_err(CE_WARN,
+			"!IP Filter: outp NULL: qif %x %s q %x info %x",
 			qif, qif->qf_name, q, q->q_qinfo);
 	}
 	if (mb) {
@@ -924,8 +978,6 @@ mblk_t *mb;
 #ifdef	IPFDEBUG
 		cmn_err(CE_NOTE, "IP Filter: ipf_ip_qin() M_IOCTL type=0x%x\n", ioc->ioc_cmd);
 #endif
-		ret = (*ipf_ip_inp)(q, mb);
-
 		WRITE_ENTER(&ipfs_mutex);
 		if (synctimeoutid == 0) {
 			synctimeoutid = timeout(ipf_synctimeout,
@@ -933,14 +985,13 @@ mblk_t *mb;
 						drv_usectohz(1000000) /*1 sec*/
 					);
 		}
-
 		RWLOCK_EXIT(&ipfs_mutex);
 		break;
 	default:
-		ret = (*ipf_ip_inp)(q, mb);
+		break;
 	}
 	RWLOCK_EXIT(&ipf_solaris);
-	return ret;
+	return (*ipf_ip_inp)(q, mb);
 }
 
 static int ipdrvattcnt = 0;
@@ -1003,6 +1054,10 @@ void solattach()
 		if (!in || !il->ill_wq)
 			continue;
 
+#if SOLARIS2 >= 8
+		if (il->ill_isv6)
+			continue;
+#endif
 		out = il->ill_wq->q_next;
 
 		WRITE_ENTER(&ipfs_mutex);
@@ -1025,7 +1080,7 @@ void solattach()
 #endif
 		KMALLOC(qif, qif_t *);
 		if (!qif) {
-			cmn_err(CE_NOTE,
+			cmn_err(CE_WARN,
 				"IP Filter: malloc(%d) for qif_t failed\n",
 				sizeof(qif_t));
 			RWLOCK_EXIT(&ipfs_mutex);
@@ -1077,7 +1132,36 @@ void solattach()
 		qif->qf_out = out;
 		qif->qf_iptr = in->q_ptr;
 		qif->qf_optr = out->q_ptr;
+#if SOLARIS2 < 8
 		qif->qf_hl = il->ill_hdr_length;
+#else
+		{
+		ire_t *ire;
+		mblk_t *m;
+
+		qif->qf_hl = 0;
+# if 0
+		/*
+		 * Can't seem to lookup a route for the IP address on the
+		 * interface itself.
+		 */
+		ire = ire_route_lookup(il->ill_ipif->ipif_lcl_addr, 0xffffffff,
+					0, 0, NULL, NULL, NULL,
+					MATCH_IRE_DSTONLY|MATCH_IRE_RECURSIVE);
+		if ((ire != NULL) && (m = ire->ire_fp_mp))
+			qif->qf_hl = m->b_wptr - m->b_rptr;
+# endif
+		if ((qif->qf_hl == 0) && (il->ill_type > 0) &&
+		    (il->ill_type < 0x37) &&
+		    (hdrsizes[il->ill_type][0] == il->ill_type))
+			qif->qf_hl = hdrsizes[il->ill_type][1];
+
+		if (qif->qf_hl == 0)
+			cmn_err(CE_WARN,
+				"Unknown layer 2 header size for %s type %d\n",
+				qif->qf_name, il->ill_type);
+		}
+#endif
 		strncpy(qif->qf_name, il->ill_name, sizeof(qif->qf_name));
 		qif->qf_name[sizeof(qif->qf_name) - 1] = '\0';
 
@@ -1168,12 +1252,14 @@ int ipfsync()
 		for (il = ill_g_head; il; il = il->ill_next)
 			if ((qif->qf_ill == il) &&
 			    !strcmp(qif->qf_name, il->ill_name)) {
+#if SOLARIS2 < 8
 				mblk_t	*m = il->ill_hdr_mp;
 
 				qif->qf_hl = il->ill_hdr_length;
 				if (m && qif->qf_hl != (m->b_wptr - m->b_rptr))
 					cmn_err(CE_NOTE,
 						"IP Filter: ILL Header Length Mismatch\n");
+#endif
 				break;
 			}
 		if (il) {
@@ -1237,6 +1323,7 @@ int ipfsync()
 	RWLOCK_EXIT(&ipfs_mutex);
 	solattach();
 
+	frsync();
 	/*
 	 * Resync. any NAT `connections' using this interface and its IP #.
 	 */
@@ -1337,7 +1424,7 @@ frdest_t *fdp;
 	mblk_t *mp = NULL;
 	size_t hlen = 0;
 	frentry_t *fr;
-	void *ifp;
+	ill_t *ifp;
 	u_char *s;
 
 #ifndef	sparc
@@ -1367,7 +1454,7 @@ frdest_t *fdp;
 	else
 		dst = fin->fin_fi.fi_dst;
 
-#if SOLARIS2 > 5
+#if SOLARIS2 >= 6
 	gw = NULL;
 	dir = ire_route_lookup(dst.s_addr, 0xffffffff, 0, 0, NULL, &gw, NULL,
 				MATCH_IRE_DSTONLY|MATCH_IRE_DEFAULT|
@@ -1375,15 +1462,23 @@ frdest_t *fdp;
 #else
 	dir = ire_lookup(dst.s_addr);
 #endif
+#if SOLARIS2 < 8
 	if (dir)
 		if (!dir->ire_ll_hdr_mp || !dir->ire_ll_hdr_length)
 			dir = NULL;
+#else
+	if (dir)
+		if (!dir->ire_fp_mp || !dir->ire_dlureq_mp)
+			dir = NULL;
+#endif
 
 	if (!ir)
 		ir = dir;
 
 	if (ir && dir) {
 		ifp = ire_to_ill(ir);
+		if (ifp == NULL)
+			goto bad_fastroute;
 		fr = fin->fin_fr;
 		/*
 		 * In case we're here due to "to <if>" being used with
@@ -1394,7 +1489,7 @@ frdest_t *fdp;
 		    (fin->fin_rev != 0) && (fdp == &fr->fr_tif))
 			return -1;
 
-		fin->fin_ifp == ifp;
+		fin->fin_ifp = ifp;
 		if (fin->fin_out == 0) {
 			fin->fin_fr = ipacct[1][fr_active];
 			if ((fin->fin_fr != NULL) &&
@@ -1413,11 +1508,22 @@ frdest_t *fdp;
 		ip->ip_off = htons(__ipoff);
 #endif
 
-		if ((mp = dir->ire_ll_hdr_mp)) {
-			hlen = dir->ire_ll_hdr_length;
-
+#if SOLARIS2 < 8
+		mp = dir->ire_ll_hdr_mp;
+		hlen = dir->ire_ll_hdr_length;
+#else
+		mp = dir->ire_fp_mp;
+		hlen = mp ? mp->b_wptr - mp->b_rptr : 0;
+		mp = dir->ire_dlureq_mp;
+#endif
+		if (mp != NULL) {
 			s = mb->b_rptr;
-			if (hlen && (s - mb->b_datap->db_base) >= hlen) {
+			if (
+#if SOLARIS2 >= 6
+			    (dohwcksum &&
+			     ifp->ill_ick.ick_magic == ICK_M_CTL_MAGIC) ||
+#endif
+			    (hlen && (s - mb->b_datap->db_base) >= hlen)) {
 				s -= hlen;
 				mb->b_rptr = (u_char *)s;
 				bcopy((char *)mp->b_rptr, (char *)s, hlen);
@@ -1440,6 +1546,20 @@ frdest_t *fdp;
 			mb->b_prev = NULL;
 			RWLOCK_EXIT(&ipfs_mutex);
 			RWLOCK_EXIT(&ipf_solaris);
+#if SOLARIS2 >= 6
+			if ((ip->ip_p == IPPROTO_TCP) && dohwcksum &&
+			    (ifp->ill_ick.ick_magic == ICK_M_CTL_MAGIC)) {
+				tcphdr_t *tcp;
+				u_32_t t;
+
+				tcp = (tcphdr_t *)((char *)ip + fin->fin_hlen);
+				t = ip->ip_src.s_addr;
+				t += ip->ip_dst.s_addr;
+				t += 30;
+				t = (t & 0xffff) + (t >> 16);
+				tcp->th_sum = t & 0xffff;
+			}
+#endif
 			putnext(q, mb);
 			READ_ENTER(&ipf_solaris);
 			READ_ENTER(&ipfs_mutex);

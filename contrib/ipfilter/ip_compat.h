@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_compat.h	1.8 1/14/96
- * $Id: ip_compat.h,v 2.1.2.1 1999/09/18 15:03:51 darrenr Exp $
+ * $Id: ip_compat.h,v 2.1.2.3 1999/11/18 13:55:26 darrenr Exp $
  */
 
 #ifndef	__IP_COMPAT_H__
@@ -99,6 +99,11 @@ struct  ether_addr {
 #  include <inet/ip.h>
 #  include <inet/ip_ire.h>
 # endif /* _KERNEL */
+# if SOLARIS2 >= 8
+#  include <netinet/ip6.h>
+#  include <inet/ip6.h>
+#  define	ipif_local_addr	ipif_lcl_addr
+# endif
 #else
 # if !defined(__sgi)
 typedef	 int	minor_t;
@@ -650,8 +655,8 @@ typedef	struct	{
 	__u8	ip_hl:4;
 	__u8	ip_v:4;
 # else
-	__u8	ip_hl:4;
 	__u8	ip_v:4;
+	__u8	ip_hl:4;
 # endif
 	__u8	ip_tos;
 	__u16	ip_len;
