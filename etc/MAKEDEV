@@ -1763,13 +1763,13 @@ perfmon)
 ipl)
 	mknod ipl c 79 0
 	mknod ipnat c 79 1
+	mknod ipstate c 79 2
+	mknod ipauth c 79 3
 	;;
 
 elan*)
 	mknod elan-mmcr c 100 0	# XXX local major
 	chmod 600 elan-mmcr
-	mknod ipstate c 79 2
-	mknod ipauth c 79 3
 	;;
 
 kbd*)
