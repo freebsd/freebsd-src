@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.14 1994/01/22 21:52:04 rgrimes Exp $
+ *	$Id: isa.c,v 1.15 1994/04/02 07:00:46 davidg Exp $
  */
 
 /*
@@ -530,7 +530,7 @@ isa_dmarangecheck(caddr_t va, unsigned length, unsigned chan) {
 #define ISARAM_END	RAM_END
 		if (phys == 0)
 			panic("isa_dmacheck: no physical page present");
-		if (phys > ISARAM_END) 
+		if (phys >= ISARAM_END)
 			return (1);
 		if (priorpage) {
 			if (priorpage + NBPG != phys)
