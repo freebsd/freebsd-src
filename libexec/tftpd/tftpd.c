@@ -375,11 +375,11 @@ validate_access(filep, mode)
 
 		/*
 		 * Relative file name: search the approved locations for it.
-		 * Don't allow write requests or ones that avoid directory
+		 * Don't allow write requests that avoid directory
 		 * restrictions.
 		 */
 
-		if (mode != RRQ || !strncmp(filename, "../", 3))
+		if (!strncmp(filename, "../", 3))
 			return (EACCESS);
 
 		/*
