@@ -6,7 +6,7 @@ MAN=	aac.4 adv.4 adw.4 agp.4 \
 	atkbdc.4 aue.4 bge.4 bktr.4 blackhole.4 bpf.4 bridge.4 bt.4 ccd.4 \
 	cd.4 ch.4 csa.4 cue.4 da.4 dc.4 ddb.4 de.4 \
 	divert.4 dpt.4 dummynet.4 ed.4 faith.4 fd.4 fdc.4 fpa.4 fxp.4 \
-	gif.4 gusc.4 \
+	gif.4 gusc.4 gx.4 \
 	ichsmb.4 icmp.4 icmp6.4 ieee80211.4 ifmib.4 \
 	iic.4 iicbb.4 iicbus.4 iicsmb.4 \
 	inet.4 inet6.4 intpm.4 intro.4 ip.4 ip6.4 ipfirewall.4 ipsec.4 isp.4 \
