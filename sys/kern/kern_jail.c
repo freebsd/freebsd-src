@@ -18,6 +18,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/taskqueue.h>
 #include <sys/jail.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -60,6 +61,7 @@ int	lastprid = 0;
 int	prisoncount = 0;
 
 static void		 init_prison(void *);
+static void		 prison_complete(void *context, int pending);
 static struct prison	*prison_find(int);
 static int		 sysctl_jail_list(SYSCTL_HANDLER_ARGS);
 
@@ -255,7 +257,6 @@ void
 prison_free(struct prison *pr)
 {
 
-	mtx_assert(&Giant, MA_OWNED);
 	mtx_lock(&allprison_mtx);
 	mtx_lock(&pr->pr_mtx);
 	pr->pr_ref--;
@@ -264,15 +265,30 @@ prison_free(struct prison *pr)
 		mtx_unlock(&pr->pr_mtx);
 		prisoncount--;
 		mtx_unlock(&allprison_mtx);
-		vrele(pr->pr_root);
-		mtx_destroy(&pr->pr_mtx);
-		if (pr->pr_linux != NULL)
-			FREE(pr->pr_linux, M_PRISON);
-		FREE(pr, M_PRISON);
+
+		TASK_INIT(&pr->pr_task, 0, prison_complete, pr);
+		taskqueue_enqueue(taskqueue_swi, &pr->pr_task);
 		return;
 	}
 	mtx_unlock(&pr->pr_mtx);
 	mtx_unlock(&allprison_mtx);
+}
+
+static void
+prison_complete(void *context, int pending)
+{
+	struct prison *pr;
+
+	pr = (struct prison *)context;
+
+	mtx_lock(&Giant);
+	vrele(pr->pr_root);
+	mtx_unlock(&Giant);
+
+	mtx_destroy(&pr->pr_mtx);
+	if (pr->pr_linux != NULL)
+		FREE(pr->pr_linux, M_PRISON);
+	FREE(pr, M_PRISON);
 }
 
 void
