@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.57 1994/03/15 01:58:16 wollman Exp $
+#	$Id: LINT,v 1.58 1994/03/19 22:17:56 wollman Exp $
 #
 
 machine		"i386"
@@ -162,7 +162,7 @@ disk		wd3	at wdc1 drive 1
 device		wt0	at isa? port 0x300 bio irq 5 drq 1 vector wtintr
 
 # Various sound card drivers.
-# See /sys/i386/doc/sound.doc for more information.
+# See /sys/doc/sound.doc for more information.
 device snd5 at isa? port 0x330 irq 6 drq 0 vector mpuintr
 device snd4 at isa? port 0x220 irq 15 drq 6 vector gusintr
 device snd3 at isa? port 0x388 irq 10 drq 6 vector pasintr
