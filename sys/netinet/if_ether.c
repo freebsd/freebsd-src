@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.2 1994/08/02 07:47:59 davidg Exp $
+ * $Id: if_ether.c,v 1.3 1994/08/18 22:35:26 wollman Exp $
  */
 
 /*
@@ -91,6 +91,10 @@ int	arp_inuse, arp_allocated, arp_intimer;
 int	arp_maxtries = 5;
 int	useloopback = 1;	/* use loopback interface for local traffic */
 int	arpinit_done = 0;
+
+#ifdef	ARP_PROXYALL
+int	arp_proxyall = 1;
+#endif
 
 /*
  * Timeout routine.  Age arp_tab entries periodically.
@@ -475,13 +479,46 @@ reply:
 		    sizeof(ea->arp_sha));
 	} else {
 		la = arplookup(itaddr.s_addr, 0, SIN_PROXY);
-		if (la == NULL)
+		if (la == NULL) {
+#ifdef ARP_PROXYALL
+			struct sockaddr_in sin;
+
+			if(!arp_proxyall) goto out;
+
+			bzero(&sin, sizeof sin);
+			sin.sin_family = AF_INET;
+			sin.sin_len = sizeof sin;
+			sin.sin_addr = itaddr;
+
+			rt = rtalloc1((struct sockaddr *)&sin, 0);
+			if( !rt )
+				goto out;
+			/*
+			 * Don't send proxies for nodes on the same interface
+			 * as this one came out of, or we'll get into a fight
+			 * over who claims what Ether address.
+			 */
+			if(rt->rt_ifp == &ac->ac_if) {
+				rtfree(rt);
+				goto out;
+			}
+			bcopy((caddr_t)ea->arp_sha, (caddr_t)ea->arp_tha,
+			      sizeof(ea->arp_sha));
+			bcopy(ac->ac_enaddr, (caddr_t)ea->arp_sha,
+			      sizeof(ea->arp_sha));
+			rtfree(rt);
+			printf("arp: proxying for %x\n", ntohl(itaddr.s_addr));
+#else
 			goto out;
-		rt = la->la_rt;
-		bcopy((caddr_t)ea->arp_sha, (caddr_t)ea->arp_tha,
-		    sizeof(ea->arp_sha));
-		sdl = SDL(rt->rt_gateway);
-		bcopy(LLADDR(sdl), (caddr_t)ea->arp_sha, sizeof(ea->arp_sha));
+#endif
+		} else {
+			rt = la->la_rt;
+			bcopy((caddr_t)ea->arp_sha, (caddr_t)ea->arp_tha,
+			      sizeof(ea->arp_sha));
+			sdl = SDL(rt->rt_gateway);
+			bcopy(LLADDR(sdl), (caddr_t)ea->arp_sha,
+			      sizeof(ea->arp_sha));
+		}
 	}
 
 	bcopy((caddr_t)ea->arp_spa, (caddr_t)ea->arp_tpa, sizeof(ea->arp_spa));
