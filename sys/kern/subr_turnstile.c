@@ -711,6 +711,7 @@ static char *spin_order_list[] = {
 };
 
 static char *order_list[] = {
+	"uidinfo hash", "uidinfo struct", NULL,
 	NULL
 };
 
