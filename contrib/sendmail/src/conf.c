@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: conf.c,v 8.646.2.2.2.86 2001/05/17 18:18:40 ca Exp $";
+static char id[] = "@(#)$Id: conf.c,v 8.646.2.2.2.87 2001/07/20 23:56:52 gshapiro Exp $";
 #endif /* ! lint */
 
 /* $FreeBSD$ */
@@ -4544,9 +4544,7 @@ sm_gethostbyname(name, family)
 					       hbuf, family);
 
 # if NETINET6
-				h = getipnodebyname(hbuf, family,
-						    AI_V4MAPPED|AI_ALL,
-						    &err);
+				h = getipnodebyname(hbuf, family, flags, &err);
 				SM_SET_H_ERRNO(err);
 				save_errno = errno;
 # else /* NETINET6 */

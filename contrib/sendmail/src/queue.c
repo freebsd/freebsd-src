@@ -16,9 +16,9 @@
 
 #ifndef lint
 # if QUEUE
-static char id[] = "@(#)$Id: queue.c,v 8.343.4.55 2001/05/03 23:37:11 gshapiro Exp $ (with queueing)";
+static char id[] = "@(#)$Id: queue.c,v 8.343.4.62 2001/07/20 00:53:01 gshapiro Exp $ (with queueing)";
 # else /* QUEUE */
-static char id[] = "@(#)$Id: queue.c,v 8.343.4.55 2001/05/03 23:37:11 gshapiro Exp $ (without queueing)";
+static char id[] = "@(#)$Id: queue.c,v 8.343.4.62 2001/07/20 00:53:01 gshapiro Exp $ (without queueing)";
 # endif /* QUEUE */
 #endif /* ! lint */
 
@@ -67,6 +67,35 @@ static int	workcmpf1();
 static int	workcmpf2();
 static int	workcmpf3();
 static int	workcmpf4();
+
+/*
+**  Current qf file field assignments:
+**
+**	A	AUTH= parameter
+**	B	body type
+**	C	controlling user
+**	D	data file name
+**	E	error recipient
+**	F	flag bits
+**	G	queue delay algorithm
+**	H	header
+**	I	data file's inode number
+**	K	time of last delivery attempt
+**	L	Solaris Content-Length: header (obsolete)
+**	M	message (obsolete)
+**	N	number of delivery attempts
+**	P	message priority
+**	Q	original recipient (ORCPT=)
+**	R	recipient
+**	S	sender
+**	T	init time
+**	V	queue file version
+**	X	character set (_FFR_SAVE_CHARSET)
+**	Y	current delay
+**	Z	original envelope id from ESMTP
+**	$	define macro
+**	.	terminate file
+*/
 
 /*
 **  QUEUEUP -- queue a message up for future transmission.
@@ -374,6 +403,7 @@ queueup(e, announce)
 		if (q->q_orcpt != NULL)
 			fprintf(tfp, "Q%s\n",
 				denlstring(q->q_orcpt, TRUE, FALSE));
+
 		(void) putc('R', tfp);
 		if (bitset(QPRIMARY, q->q_flags))
 			(void) putc('P', tfp);
@@ -2151,15 +2181,15 @@ readqf(e)
 			/* regenerated below */
 			break;
 
-		  case 'K':	/* time of last delivery attempt */
+		  case 'K':		/* time of last delivery attempt */
 			e->e_dtime = atol(&buf[1]);
 			break;
 
 # if _FFR_QUEUEDELAY
-		  case 'G':	/* queue delay algorithm */
+		  case 'G':		/* queue delay algorithm */
 			e->e_queuealg = atoi(&buf[1]);
 			break;
-		  case 'Y':	/* current delay */
+		  case 'Y':		/* current delay */
 			e->e_queuedelay = (time_t) atol(&buf[1]);
 			break;
 # endif /* _FFR_QUEUEDELAY */
@@ -2933,7 +2963,15 @@ setctluser(user, qfver)
 			if ((p = strtok(NULL, ":")) != NULL)
 				a->q_gid = atoi(p);
 			if ((p = strtok(NULL, ":")) != NULL)
+			{
+				char *o;
+
 				a->q_flags |= QGOODUID;
+
+				/* if there is another ':': restore it */
+				if ((o = strtok(NULL, ":")) != NULL && o > p)
+					o[-1] = ':';
+			}
 		}
 		else if ((pw = sm_getpwnam(user)) != NULL)
 		{
@@ -3086,7 +3124,7 @@ setnewqueue(e)
 		return;
 	}
 
-	if (NumQueues == 1)
+	if (NumQueues <= 1)
 		idx = 0;
 	else
 	{

@@ -13,7 +13,8 @@ main(argc, argv)
 
 	r = snprintf(buf, sizeof buf, "%s", TEST_STRING);
 
-	if (buf[sizeof buf - 1] != '\0')
+	if (buf[sizeof buf - 1] != '\0' ||
+	    r != strlen(TEST_STRING))
 	{
 		fprintf(stderr, "Add the following to devtools/Site/site.config.m4:\n\n");
 		fprintf(stderr, "APPENDDEF(`confENVDEF', `-DSNPRINTF_IS_BROKEN=1')\n\n");

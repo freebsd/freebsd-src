@@ -35,6 +35,13 @@ This list is not guaranteed to be complete.
   restructuring of the code -- for example, almost no C library support
   could be used to handle strings.
 
+* Header checks are not called if header value is too long.
+
+  If the value of a header is longer than 1250 (MAXNAME + MAXATOM - 6)
+  characters or it contains a single word longer than 256 (MAXNAME)
+  characters then no header check is done even if one is configured for
+  the header.
+
 * Duplicate error messages.
 
   Sometimes identical, duplicate error messages can be generated.  As
@@ -193,10 +200,10 @@ This list is not guaranteed to be complete.
   local mail delivery and NFS hard mounted home directories should be
   avoided, as attempts to open the forward files could hang.
 
-* Race condition for delivery to setuid files
+* Race condition for delivery to set-user-id files
 
   Sendmail will deliver to a fail if the file is owned by the DefaultUser
-  or has the setuid bit set.  Unfortunately, some systems clear that bit
+  or has the set-user-id bit set.  Unfortunately, some systems clear that bit
   when a file is modified.  Sendmail compensates by resetting the file mode 
   back to it's original settings.  Unfortunately, there's still a
   permission failure race as sendmail checks the permissions before locking 
@@ -211,4 +218,4 @@ This list is not guaranteed to be complete.
   state.  This option and it's use is deprecated and will be removed from a
   future version of sendmail.
 
-$Revision: 8.43.16.1 $, Last updated $Date: 2000/09/28 00:45:37 $
+$Revision: 8.43.16.2 $, Last updated $Date: 2001/07/31 22:42:46 $

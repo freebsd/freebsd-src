@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: map.c,v 8.414.4.53 2001/05/04 01:29:00 gshapiro Exp $";
+static char id[] = "@(#)$Id: map.c,v 8.414.4.54 2001/06/01 08:23:24 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -126,9 +126,6 @@ static bool	text_getcanonname __P((char *, int, int *));
 # define LOCK_ON_OPEN	0	/* no such luck -- bend over backwards */
 #endif /* O_EXLOCK && HASFLOCK && !BOGUS_O_EXCL */
 
-#ifndef O_ACCMODE
-# define O_ACCMODE	(O_RDONLY|O_WRONLY|O_RDWR)
-#endif /* ! O_ACCMODE */
 /*
 **  MAP_PARSEARGS -- parse config line arguments for database lookup
 **

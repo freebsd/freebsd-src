@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: version.c,v 8.43.4.33 2001/05/27 21:39:21 gshapiro Exp $";
+static char id[] = "@(#)$Id: version.c,v 8.43.4.37 2001/07/31 22:34:20 gshapiro Exp $";
 #endif /* ! lint */
 
-char	Version[] = "8.11.4";
+char	Version[] = "8.11.5";

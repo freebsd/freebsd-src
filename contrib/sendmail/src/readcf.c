@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: readcf.c,v 8.382.4.40 2001/05/03 17:24:13 gshapiro Exp $";
+static char id[] = "@(#)$Id: readcf.c,v 8.382.4.42 2001/07/31 22:30:24 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -3380,6 +3380,7 @@ settimeout(name, val, sticky)
 {
 	register struct timeoutinfo *to;
 	int i;
+	int addopts;
 	time_t toval;
 
 	if (tTd(37, 2))
@@ -3413,6 +3414,7 @@ settimeout(name, val, sticky)
 		dprintf("\n");
 
 	toval = convtime(val, 'm');
+	addopts = 0;
 
 	switch (to->to_code)
 	{
@@ -3481,6 +3483,7 @@ settimeout(name, val, sticky)
 		TimeOuts.to_q_warning[TOC_NORMAL] = toval;
 		TimeOuts.to_q_warning[TOC_URGENT] = toval;
 		TimeOuts.to_q_warning[TOC_NONURGENT] = toval;
+		addopts = 2;
 		break;
 
 	  case TO_QUEUEWARN_NORMAL:
@@ -3503,6 +3506,7 @@ settimeout(name, val, sticky)
 		TimeOuts.to_q_return[TOC_NORMAL] = toval;
 		TimeOuts.to_q_return[TOC_URGENT] = toval;
 		TimeOuts.to_q_return[TOC_NONURGENT] = toval;
+		addopts = 2;
 		break;
 
 	  case TO_QUEUERETURN_NORMAL:
@@ -3530,6 +3534,7 @@ settimeout(name, val, sticky)
 		TimeOuts.res_retrans[RES_TO_DEFAULT] = toval;
 		TimeOuts.res_retrans[RES_TO_FIRST] = toval;
 		TimeOuts.res_retrans[RES_TO_NORMAL] = toval;
+		addopts = 2;
 		break;
 
 	  case TO_RESOLVER_RETRY:
@@ -3537,6 +3542,7 @@ settimeout(name, val, sticky)
 		TimeOuts.res_retry[RES_TO_DEFAULT] = i;
 		TimeOuts.res_retry[RES_TO_FIRST] = i;
 		TimeOuts.res_retry[RES_TO_NORMAL] = i;
+		addopts = 2;
 		break;
 
 	  case TO_RESOLVER_RETRANS_NORMAL:
@@ -3565,7 +3571,10 @@ settimeout(name, val, sticky)
 	}
 
 	if (sticky)
-		setbitn(to->to_code, StickyTimeoutOpt);
+	{
+		for (i = 0; i <= addopts; i++)
+			setbitn(to->to_code + i, StickyTimeoutOpt);
+	}
 }
 /*
 **  INITTIMEOUTS -- parse and set timeout values
