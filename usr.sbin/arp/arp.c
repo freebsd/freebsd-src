@@ -42,7 +42,7 @@ static char const copyright[] =
 
 #ifndef lint
 static char const sccsid[] = "@(#)from: arp.c	8.2 (Berkeley) 1/2/94";
-static char const freebsdid[] = "$Id: arp.c,v 1.5 1996/12/10 17:00:34 wollman Exp $";
+static char const freebsdid[] = "$Id: arp.c,v 1.6 1996/12/19 19:33:10 nate Exp $";
 #endif /* not lint */
 
 /*
@@ -59,6 +59,7 @@ static char const freebsdid[] = "$Id: arp.c,v 1.5 1996/12/10 17:00:34 wollman Ex
 #include <sys/time.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/route.h>

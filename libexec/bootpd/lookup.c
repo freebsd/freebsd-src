@@ -1,7 +1,7 @@
 /*
  * lookup.c - Lookup IP address, HW address, netmask
  *
- *	$Id: lookup.c,v 1.2 1996/09/22 21:52:21 wosch Exp $
+ *	$Id: lookup.c,v 1.3 1996/12/10 17:05:33 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -12,7 +12,7 @@
 #include <netinet/in.h>
 
 #ifdef	ETC_ETHERS
-#include <netinet/if_ether.h>
+#include <net/ethernet.h>
 extern int ether_hostton();
 #endif
 

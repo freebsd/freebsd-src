@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: defs.h,v 3.8.1.2 1996/09/05 19:00:20 fenner Exp $
+ * $Id: defs.h,v 1.7 1996/11/11 03:49:57 fenner Exp $
  */
 
 
@@ -28,6 +28,9 @@
 #endif
 #include <sys/time.h>
 #include <net/if.h>
+#define rtentry kern_rtentry	/* XXX !!! UGH */
+#include <net/route.h>
+#undef rtentry
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>

@@ -39,7 +39,7 @@
 
 /*
  * from arp.c	8.2 (Berkeley) 1/2/94
- * $Id: rtmsg.c,v 1.4 1995/05/30 05:45:49 rgrimes Exp $
+ * $Id: rtmsg.c,v 1.5 1996/12/10 17:05:35 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -54,6 +54,7 @@
 #include <sys/time.h>
 
 #include <net/if.h>
+#include <net/if_var.h>		/* needed for if_ether.h XXX */
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/route.h>
