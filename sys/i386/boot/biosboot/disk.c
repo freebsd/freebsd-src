@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:49  rpd
- *	$Id$
+ *	$Id: disk.c,v 1.25 1997/02/22 09:30:09 peter Exp $
  */
 
 /*
@@ -52,12 +52,12 @@
 #define	HEADS(di)	((((di)>>8)&0xff)+1)
 
 #ifdef DO_BAD144
-struct dkbad dkb;
-int do_bad144;
+static struct dkbad dkb;
+static int do_bad144;
 #endif DO_BAD144
-int bsize;
+static int bsize;
 
-int spt, spc;
+static int spt, spc;
 
 struct fs *fs;
 struct inode inode;
@@ -76,6 +76,7 @@ static int ra_end;
 static int ra_first;
 
 static int badsect(int sector);
+static char *Bread(int dosdev, int sector);
 
 int
 devopen(void)
@@ -211,7 +212,7 @@ devread(char *iodest, int sector, int cnt)
 }
 
 
-char *
+static char *
 Bread(int dosdev, int sector)
 {
 	if (dosdev != ra_dev || sector < ra_first || sector >= ra_end)
