@@ -964,7 +964,7 @@ struct en_softc *sc;
  * en_dmaprobe_doit: do actual testing
  */
 
-int
+static int
 en_dmaprobe_doit(sc, sp, dp, wmtry)
 
 struct en_softc *sc;
@@ -3284,7 +3284,7 @@ done:
 
 #define END_BITS "\20\7SWSL\6DRQ\5DTQ\4RX\3TX\2MREGS\1STATS"
 
-int en_dump(unit, level)
+static int en_dump(unit, level)
 
 int unit, level;
 
@@ -3451,7 +3451,7 @@ int unit, level;
  * en_dumpmem: dump the memory
  */
 
-int en_dumpmem(unit, addr, len)
+static int en_dumpmem(unit, addr, len)
 
 int unit, addr, len;
 
