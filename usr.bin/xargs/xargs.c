@@ -261,11 +261,22 @@ arg2:
 					if (realloc_holder == NULL)
 						curlen = 0;
 					else {
-						curlen = strlen(realloc_holder);
-						if (curlen)
+						/*
+						 * If this string is not zero
+						 * length, append a space for
+						 * seperation before the next
+						 * argument.
+						 */
+						if (*inpline != '\0')
 							strcat(inpline, " ");
 					}
 					curlen++;
+					/*
+					 * Allocate enough to hold what we will
+					 * be holding in a secont, and to append
+					 * a space next time through, if we have
+					 * to.
+					 */
 					inpline = realloc(realloc_holder, strlen(argp) +
 					    curlen + 2);
 					if (inpline == NULL)
@@ -280,7 +291,9 @@ arg2:
 			/*
 			 * If max'd out on args or buffer, or reached EOF,
 			 * run the command.  If xflag and max'd out on buffer
-			 * but not on args, object.
+			 * but not on args, object.  Having reached the limit
+			 * of input lines, as specified by -L is the same as
+			 * maxing out on arguments.
 			 */
 			if (xp == exp || p > ebp || ch == EOF || (Lflag <= count && xflag) || foundeof) {
 				if (xflag && xp != exp && p > ebp)
@@ -294,34 +307,81 @@ arg2:
 					size_t repls;
 					int iter;
 
+					/*
+					 * Set up some locals, the number of
+					 * times we may replace replstr with a
+					 * line of input, a modifiable pointer
+					 * to the head of the original argument
+					 * list, and the number of iterations to
+					 * perform -- the number of arguments.
+					 */
+					repls = Rflag;
+					avj = av;
+					iter = argc;
+
+					/*
+					 * Allocate memory to hold the argument
+					 * list.
+					 */
 					tmp = malloc(linelen * sizeof(char **));
 					if (tmp == NULL)
 						err(1, "malloc");
 					tmp2 = tmp;
-					repls = Rflag;
-					for (avj = av, iter = argc; iter; avj++, iter--) {
-						*tmp = *avj;
-						if (avj != av && repls > 0 &&
-						    strstr(*tmp, replstr) != NULL) {
-							strnsubst(tmp, replstr,
-							    inpline, (size_t)255);
+					/*
+					 * Just save the first argument, as it
+					 * is the utility name, and we cannot
+					 * be trusted to do strnsubst() to it.
+					 */
+					*tmp++ = strdup(*avj++);
+					/*
+					 * Now for every argument to utility,
+					 * if we have not used up the number of
+					 * replacements we are allowed to do, and
+					 * if the argument contains at least one
+					 * occurance of replstr, call strnsubst(),
+					 * or else just save the string.
+					 * Iterations over elements of avj and tmp
+					 * are done where appropriate.
+					 */
+					while (--iter) {
+						*tmp = *avj++;
+						if (repls && strstr(*tmp, replstr) != NULL) {
+							strnsubst(tmp++, replstr, inpline,
+							    (size_t)255);
 							repls--;
 						} else {
-							*tmp = strdup(*avj);
-							if (*tmp == NULL)
-								err(1,
-								    "strdup");
+							if ((*tmp = strdup(*tmp)) == NULL)
+								err(1, "strdup");
+							tmp++;
 						}
-						tmp++;
 					}
+					/*
+					 * NULL terminate the list of arguments,
+					 * for run().
+					 */
 					*tmp = *xp = NULL;
 					run(tmp2);
+					/*
+					 * From the tail to the head, free along
+					 * the way.
+					 */
 					for (; tmp2 != tmp; tmp--)
 						free(*tmp);
+					/*
+					 * Free the list.
+					 */
 					free(tmp2);
+					/*
+					 * Free the input line buffer, and create
+					 * a new dummy.
+					 */
 					free(inpline);
 					inpline = strdup("");
 				} else {
+					/*
+					 * Mark the tail of the argument list with
+					 * a NULL, and run() with it.
+					 */
 					*xp = NULL;
 					run(av);
 				}
