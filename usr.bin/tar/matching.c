@@ -258,6 +258,8 @@ unmatched_inclusions(struct bsdtar *bsdtar)
 #if defined(HAVE_FNMATCH) && defined(HAVE_FNM_LEADING_DIR)
 
 /* Use system fnmatch() if it suits our needs. */
+/* On Linux, _GNU_SOURCE must be defined to get FNM_LEADING_DIR. */
+#define _GNU_SOURCE
 #include <fnmatch.h>
 static int
 bsdtar_fnmatch(const char *pattern, const char *string)

@@ -64,7 +64,7 @@ struct option {
 
 #include "bsdtar.h"
 
-#ifdef linux
+#ifdef __linux
 #define	_PATH_DEFTAPE "/dev/st0"
 #endif
 
