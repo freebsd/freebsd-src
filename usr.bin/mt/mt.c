@@ -62,14 +62,12 @@ static const char rcsid[] =
 #include <unistd.h>
 
 /* the appropriate sections of <sys/mtio.h> are also #ifdef'd for FreeBSD */
-#if defined(__FreeBSD__)
 /* c_flags */
 #define NEED_2ARGS	0x01
 #define ZERO_ALLOWED	0x02
 #define IS_DENSITY	0x04
 #define DISABLE_THIS	0x08
 #define IS_COMP		0x10
-#endif /* defined(__FreeBSD__) */
 
 #ifndef TRUE
 #define TRUE 1
@@ -82,31 +80,20 @@ struct commands {
 	char *c_name;
 	int c_code;
 	int c_ronly;
-#if defined(__FreeBSD__)
 	int c_flags;
-#endif /* defined(__FreeBSD__) */
 } com[] = {
 	{ "bsf",	MTBSF,	1 },
 	{ "bsr",	MTBSR,	1 },
-#if defined(__FreeBSD__)
 	/* XXX FreeBSD considered "eof" dangerous, since it's being
 	   confused with "eom" (and is an alias for "weof" anyway) */
 	{ "eof",	MTWEOF, 0, DISABLE_THIS },
-#else
-	{ "eof",	MTWEOF, 0 },
-#endif
 	{ "fsf",	MTFSF,	1 },
 	{ "fsr",	MTFSR,	1 },
 	{ "offline",	MTOFFL,	1 },
 	{ "rewind",	MTREW,	1 },
 	{ "rewoffl",	MTOFFL,	1 },
 	{ "status",	MTNOP,	1 },
-#if defined(__FreeBSD__)
 	{ "weof",	MTWEOF,	0, ZERO_ALLOWED },
-#else
-	{ "weof",	MTWEOF,	0 },
-#endif
-#if defined(__FreeBSD__)
 	{ "erase",	MTERASE, 0, ZERO_ALLOWED},
 	{ "blocksize",	MTSETBSIZ, 0, NEED_2ARGS|ZERO_ALLOWED },
 	{ "density",	MTSETDNSTY, 0, NEED_2ARGS|ZERO_ALLOWED|IS_DENSITY },
@@ -127,14 +114,12 @@ struct commands {
 	{ "seteotmodel",	MTIOCSETEOTMODEL, 0, NEED_2ARGS|ZERO_ALLOWED },
 	{ "getmodel",	MTIOCGETEOTMODEL },
 	{ "geteotmodel",	MTIOCGETEOTMODEL },
-#endif /* defined(__FreeBSD__) */
 	{ NULL }
 };
 
 void printreg __P((char *, u_int, char *));
 void status __P((struct mtget *));
 void usage __P((void));
-#if defined (__FreeBSD__)
 void st_status (struct mtget *);
 int stringtodens (const char *s);
 const char *denstostring (int d);
@@ -142,7 +127,6 @@ int denstobp(int d, int bpi);
 u_int32_t stringtocomp(const char *s);
 const char * comptostring(u_int32_t comp);
 void warn_eof __P((void));
-#endif /* defined (__FreeBSD__) */
 
 int
 main(argc, argv)
@@ -181,19 +165,16 @@ main(argc, argv)
 		if (strncmp(p, comp->c_name, len) == 0)
 			break;
 	}
-#if defined(__FreeBSD__)
 	if((comp->c_flags & NEED_2ARGS) && argc != 2)
 		usage();
 	if(comp->c_flags & DISABLE_THIS) {
 		warn_eof();
 	}
-#endif /* defined(__FreeBSD__) */
 	if ((mtfd = open(tape, comp->c_ronly ? O_RDONLY : O_RDWR)) < 0)
 		err(1, "%s", tape);
 	if (comp->c_code != MTNOP) {
 		mt_com.mt_op = comp->c_code;
 		if (*argv) {
-#if defined (__FreeBSD__)
 			if (!isdigit(**argv) &&
 			    (comp->c_flags & IS_DENSITY)) {
 				const char *dcanon;
@@ -217,22 +198,14 @@ main(argc, argv)
 			} else
 				/* allow for hex numbers; useful for density */
 				mt_com.mt_count = strtol(*argv, &p, 0);
-#else
-			mt_com.mt_count = strtol(*argv, &p, 10);
-#endif /* defined(__FreeBSD__) */
 			if ((mt_com.mt_count <=
-#if defined (__FreeBSD__)
 			    ((comp->c_flags & ZERO_ALLOWED)? -1: 0)
 			    && ((comp->c_flags & IS_COMP) == 0)
-#else
-			    0
-#endif /* defined (__FreeBSD__) */
 			    ) || *p)
 				errx(1, "%s: illegal count", *argv);
 		}
 		else
 			mt_com.mt_count = 1;
-#if	defined(__FreeBSD__)
 		switch (comp->c_code) {
 		case MTIOCERRSTAT:
 		{
@@ -320,7 +293,6 @@ main(argc, argv)
 		default:
 			break;
 		}
-#endif
 		if (ioctl(mtfd, MTIOCTOP, &mt_com) < 0)
 			err(1, "%s: %s", tape, comp->c_name);
 	} else {
@@ -332,26 +304,7 @@ main(argc, argv)
 	/* NOTREACHED */
 }
 
-#ifdef vax
-#include <vax/mba/mtreg.h>
-#include <vax/mba/htreg.h>
-
-#include <vax/uba/utreg.h>
-#include <vax/uba/tmreg.h>
-#undef b_repcnt		/* argh */
-#include <vax/uba/tsreg.h>
-#endif
-
-#ifdef sun
-#include <sundev/tmreg.h>
-#include <sundev/arreg.h>
-#endif
-
-#ifdef tahoe
-#include <tahoe/vba/cyreg.h>
-#endif
-
-#if defined(__FreeBSD__) && defined(__i386__)
+#if defined(__i386__)
 #include <machine/wtio.h>
 #endif
 
@@ -361,21 +314,6 @@ struct tape_desc {
 	char	*t_dsbits;	/* "drive status" register */
 	char	*t_erbits;	/* "error" register */
 } tapes[] = {
-#ifdef vax
-	{ MT_ISTS,	"ts11",		0,		TSXS0_BITS },
-	{ MT_ISHT,	"tm03",		HTDS_BITS,	HTER_BITS },
-	{ MT_ISTM,	"tm11",		0,		TMER_BITS },
-	{ MT_ISMT,	"tu78",		MTDS_BITS,	0 },
-	{ MT_ISUT,	"tu45",		UTDS_BITS,	UTER_BITS },
-#endif
-#ifdef sun
-	{ MT_ISCPC,	"TapeMaster",	TMS_BITS,	0 },
-	{ MT_ISAR,	"Archive",	ARCH_CTRL_BITS,	ARCH_BITS },
-#endif
-#ifdef tahoe
-	{ MT_ISCY,	"cipher",	CYS_BITS,	CYCW_BITS },
-#endif
-#if defined (__FreeBSD__)
 	/*
 	 * XXX This is weird.  The st driver reports the tape drive
 	 * as 0x7 (MT_ISAR - Sun/Archive compatible); the wt driver
@@ -389,7 +327,6 @@ struct tape_desc {
 	{ MT_ISVIPER1,	"Archive Viper", WTDS_BITS, WTER_BITS },
 	{ MT_ISMFOUR,	"Wangtek",	 WTDS_BITS, WTER_BITS },
 #endif
-#endif /* defined (__FreeBSD__) */
 	{ 0 }
 };
 
@@ -411,18 +348,15 @@ status(bp)
 		if (mt->t_type == bp->mt_type)
 			break;
 	}
-#if defined (__FreeBSD__)
 	if(mt->t_type == MT_ISAR)
 		st_status(bp);
 	else {
-#endif /* defined (__FreeBSD__) */
-	(void)printf("%s tape drive, residual=%d\n", mt->t_name, bp->mt_resid);
-	printreg("ds", (unsigned short)bp->mt_dsreg, mt->t_dsbits);
-	printreg("\ner", (unsigned short)bp->mt_erreg, mt->t_erbits);
-	(void)putchar('\n');
-#if defined (__FreeBSD__)
+		(void)printf("%s tape drive, residual=%d\n", 
+		    mt->t_name, bp->mt_resid);
+		printreg("ds", (unsigned short)bp->mt_dsreg, mt->t_dsbits);
+		printreg("\ner", (unsigned short)bp->mt_erreg, mt->t_erbits);
+		(void)putchar('\n');
 	}
-#endif /* defined (__FreeBSD__) */
 }
 
 /*
@@ -467,8 +401,6 @@ usage()
 	(void)fprintf(stderr, "usage: mt [-f device] command [ count ]\n");
 	exit(1);
 }
-
-#if defined (__FreeBSD__)
 
 struct densities {
 	int dens;
@@ -727,5 +659,3 @@ warn_eof(void)
 		"recorded medium.\n");
 	exit(1);
 }
-
-#endif /* defined (__FreeBSD__) */
