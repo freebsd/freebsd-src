@@ -324,6 +324,7 @@ pmap_bootstrap(vm_offset_t ekva)
 	 */
 	virtual_avail = roundup2(ekva, PAGE_SIZE_4M);
 	virtual_end = vm_max_kernel_address;
+	kernel_vm_end = vm_max_kernel_address;
 
 	/*
 	 * Allocate the kernel tsb.
@@ -1201,6 +1202,8 @@ pmap_release(pmap_t pm)
 void
 pmap_growkernel(vm_offset_t addr)
 {
+
+	panic("pmap_growkernel: can't grow kernel");
 }
 
 /*
