@@ -29,7 +29,7 @@
  *	Hunyue Yau	Jan 6 1994
  *	Added code to support Sound Galaxy NX Pro
  *
- * $Id$
+ * $Id: sb_dsp.c,v 1.19 1994/08/02 07:40:42 davidg Exp $
  */
 
 #include "sound_config.h"
@@ -78,7 +78,6 @@ volatile int    sb_intr_active = 0;
 
 static int      dsp_speed (int);
 static int      dsp_set_stereo (int mode);
-int             sb_dsp_command (unsigned char val);
 
 #if !defined(EXCLUDE_MIDI) || !defined(EXCLUDE_AUDIO)
 

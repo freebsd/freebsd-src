@@ -23,7 +23,7 @@
  * SUCH DAMAGE.
  *
  * 
- * $Id: soundcard.h,v 1.6 1994/08/02 07:39:03 davidg Exp $
+ * $Id: soundcard.h,v 1.7 1994/08/21 04:55:31 paul Exp $
  */
 
 #ifndef _I386_MACHINE_SOUNDCARD_H_
@@ -761,5 +761,4 @@ void seqbuf_dump(void);	/* This function must be provided by programs */
 					   perror("Write patch: /dev/sequencer");}
 
 #endif
-long soundcard_init(long mem_start);
 #endif 
