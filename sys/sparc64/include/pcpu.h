@@ -45,7 +45,10 @@ struct vmspace;
  * point at the globaldata structure.
  */
 #define	PCPU_MD_FIELDS							\
-	struct	intr_queue pc_iq;		/* interrupt queue */	\
+	struct	intr_request pc_irpool[IR_FREE];			\
+	struct	intr_request *pc_irhead;				\
+	struct	intr_request **pc_irtail;				\
+	struct	intr_request *pc_irfree;				\
 	struct	vmspace *pc_vmspace;					\
 	vm_offset_t pc_addr;						\
 	u_int 	pc_mid;							\
