@@ -33,6 +33,10 @@ done items, please see the COMMON ITEMS: section later in the file.
 	new kernel otherwise on a system with new binaries and an old
 	kernel.
 
+20031203:
+	The ACPI module has been reactivated.  It is no longer required
+	to compile ACPI support into kernels statically.
+
 20031112:
 	Some netgraph string length constants have been changed. This
 	change requires the netgraph kernel modules and all netgraph
