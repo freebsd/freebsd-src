@@ -181,6 +181,10 @@ devfs, which allows entries in the /dev directory to be built
 automatically and supports more flexible attachment of devices,
 has been largely reworked.
 
+Preliminary Cardbus support under NEWCARD has been added.  This supports
+TI113X, TI12XX, TI125X, Ricoh 5C46/5C47, Topic 95/97/100 and
+Cirrus Logic PD683X bridges.  16-bit PC Card support under this is not yet
+functional.
 
 1.2. SECURITY FIXES
 -------------------
@@ -725,6 +729,7 @@ Winbond W89C940, Surecom NE-34, VIA VT86C926.
 3C589/589B/589C/589D/589E/XE589ET/574TX/574B (PC-card/PCMCIA),
 3C590/592/595/900/905/905B/905C PCI,
 3C556/556B MiniPCI,
+3C575B/575C/656/656B/656C Cardbus,
 and EISA (Fast) Etherlink III / (Fast) Etherlink XL
 
 3Com 3c980/3c980B Fast Etherlink XL server adapter
@@ -764,6 +769,14 @@ including the following:
   Telecom Device SuperSocket RE450T
 
 Megahertz X-Jack Ethernet PC-Card CC-10BT
+
+Xircom X3201 (Cardbus) based Ethernet cards,
+including the following:
+  IBM EtherJet Cardbus Adapter
+  Intel PRO/100 Mobile Cardbus (versions that uses the X3201 chipset)
+  Xircom Cardbus Realport
+  Xircom Cardbus Ethernet 10/100
+  Xircom Cardbus Ethernet II 10/100
 
 2.3. FDDI
 ---------
