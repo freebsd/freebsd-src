@@ -1,4 +1,4 @@
-/*	$NetBSD: ohci.c,v 1.119 2001/12/31 12:20:35 augustss Exp $	*/
+/*	$NetBSD: ohci.c,v 1.121 2002/03/16 16:11:18 tsutsui Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -2185,7 +2185,7 @@ ohci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 		/* If we're dying, just do the software part. */
 		s = splusb();
 		xfer->status = status;	/* make software ignore it */
-		usb_uncallout(xfer->timeout_handle, ehci_timeout, xfer);
+		usb_uncallout(xfer->timeout_handle, ohci_timeout, xfer);
 		usb_transfer_complete(xfer);
 		splx(s);
 	}
@@ -3322,7 +3322,7 @@ ohci_device_isoc_start(usbd_xfer_handle xfer)
 
 #ifdef DIAGNOSTIC
 	if (xfer->status != USBD_IN_PROGRESS)
-		printf("uhci_device_isoc_start: not in progress %p\n", xfer);
+		printf("ohci_device_isoc_start: not in progress %p\n", xfer);
 #endif
 
 	/* XXX anything to do? */
