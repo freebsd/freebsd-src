@@ -24,6 +24,7 @@ SUBDIR=	UI \
 	l2tp \
 	lmi \
 	${_mppc} \
+	netflow \
 	netgraph \
 	one2many \
 	ppp \
