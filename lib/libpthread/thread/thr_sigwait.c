@@ -50,6 +50,7 @@ lib_sigtimedwait(const sigset_t *set, siginfo_t *info,
 	struct pthread	*curthread = _get_curthread();
 	int		ret = 0;
 	int		i;
+	struct sigwait_data waitdata;
 	sigset_t	waitset;
 	kse_critical_t  crit;
 	siginfo_t	siginfo;
@@ -97,11 +98,10 @@ lib_sigtimedwait(const sigset_t *set, siginfo_t *info,
 	curthread->interrupted = 0;
 	_thr_set_timeout(timeout);
 	/* Wait for a signal: */
-	curthread->oldsigmask = curthread->sigmask;
 	siginfo.si_signo = 0;
-	curthread->data.sigwaitinfo = &siginfo;
-	SIGFILLSET(curthread->sigmask);
-	SIGSETNAND(curthread->sigmask, waitset);
+	waitdata.waitset = &waitset;
+	waitdata.siginfo = &siginfo;
+	curthread->data.sigwait = &waitdata;
 	THR_SET_STATE(curthread, PS_SIGWAIT);
 	_thr_sched_switch_unlocked(curthread);
 	/*
@@ -122,7 +122,7 @@ lib_sigtimedwait(const sigset_t *set, siginfo_t *info,
 	 * Probably unnecessary, but since it's in a union struct
 	 * we don't know how it could be used in the future.
 	 */
-	curthread->data.sigwaitinfo = NULL;
+	curthread->data.sigwait = NULL;
 
 OUT:
 	if (ret > 0 && info != NULL)
