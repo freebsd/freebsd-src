@@ -127,7 +127,7 @@ static pcmchan_caps tr_reccaps = {
 static pcmchan_caps tr_playcaps = {
 	4000, 48000,
 	AFMT_STEREO | AFMT_U8 | AFMT_S8 | AFMT_S16_LE | AFMT_U16_LE,
-	AFMT_U16_LE
+	AFMT_STEREO | AFMT_S16_LE
 };
 
 static pcm_channel tr_chantemplate = {
