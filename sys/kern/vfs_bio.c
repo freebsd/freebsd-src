@@ -3547,13 +3547,18 @@ vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
  * All requests are (re)mapped into kernel VA space.
  * Notice that we use b_bufsize for the size of the buffer
  * to be mapped.  b_bcount might be modified by the driver.
+ *
+ * Note that even if the caller determines that the address space should
+ * be valid, a race or a smaller-file mapped into a larger space may
+ * actually cause vmapbuf() to fail, so all callers of vmapbuf() MUST
+ * check the return value.
  */
-void
+int
 vmapbuf(struct buf *bp)
 {
 	caddr_t addr, kva;
 	vm_offset_t pa;
-	int pidx;
+	int pidx, i;
 	struct vm_page *m;
 	struct pmap *pmap = &curproc->p_vmspace->vm_pmap;
 
@@ -3573,11 +3578,25 @@ vmapbuf(struct buf *bp)
 		 * the userland address space, and kextract is only guarenteed
 		 * to work for the kernland address space (see: sparc64 port).
 		 */
-		vm_fault_quick((addr >= bp->b_data) ? addr : bp->b_data,
-			(bp->b_iocmd == BIO_READ)?(VM_PROT_READ|VM_PROT_WRITE):VM_PROT_READ);
+retry:
+		i = vm_fault_quick((addr >= bp->b_data) ? addr : bp->b_data,
+			(bp->b_iocmd == BIO_READ) ?
+			(VM_PROT_READ|VM_PROT_WRITE) : VM_PROT_READ);
+		if (i < 0) {
+			printf("vmapbuf: warning, bad user address during I/O\n");
+			vm_page_lock_queues();
+			for (i = 0; i < pidx; ++i) {
+				vm_page_unhold(bp->b_pages[i]);
+				bp->b_pages[i] = NULL;
+			}
+			vm_page_unlock_queues();
+			return(-1);
+		}
 		pa = trunc_page(pmap_extract(pmap, (vm_offset_t) addr));
-		if (pa == 0)
-			panic("vmapbuf: page not present");
+		if (pa == 0) {
+			printf("vmapbuf: warning, race against user address during I/O");
+			goto retry;
+		}
 		m = PHYS_TO_VM_PAGE(pa);
 		vm_page_lock_queues();
 		vm_page_hold(m);
@@ -3592,6 +3611,7 @@ vmapbuf(struct buf *bp)
 	bp->b_npages = pidx;
 	bp->b_saveaddr = bp->b_data;
 	bp->b_data = kva + (((vm_offset_t) bp->b_data) & PAGE_MASK);
+	return(0);
 }
 
 /*
