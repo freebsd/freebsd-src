@@ -95,6 +95,7 @@ struct s_flist {
 static struct s_flist *files, **fl_nextp = &files;
 
 int aflag, eflag, nflag;
+int rflags = 0;
 
 /*
  * Current file and line number; line numbers restart across compilation
@@ -119,8 +120,11 @@ main(argc, argv)
 	(void) setlocale(LC_ALL, "");
 
 	fflag = 0;
-	while ((c = getopt(argc, argv, "ae:f:n")) != -1)
+	while ((c = getopt(argc, argv, "Eae:f:n")) != -1)
 		switch (c) {
+		case 'E':
+			rflags = REG_EXTENDED;
+			break;
 		case 'a':
 			aflag = 1;
 			break;
@@ -170,7 +174,7 @@ static void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n",
-		"usage: sed script [-an] [file ...]",
+		"usage: sed script [-Ean] [file ...]",
 		"       sed [-an] [-e script] ... [-f script_file] ... [file ...]");
 	exit(1);
 }

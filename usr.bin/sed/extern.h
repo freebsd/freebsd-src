@@ -35,6 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 extern struct s_command *prog;
@@ -46,6 +47,7 @@ extern int appendnum;
 extern int lastline;
 extern int aflag, eflag, nflag;
 extern char *fname;
+extern int rflags;	/* regex flags to use */
 
 void	 cfclose __P((struct s_command *, struct s_command *));
 void	 compile __P((void));
