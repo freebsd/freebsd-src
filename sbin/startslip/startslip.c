@@ -423,6 +423,9 @@ restart:
 		}
 	}
 
+	sleep(5);       /* Wait until login completed */
+	if (hup || terminate)
+		goto restart;
 	/*
 	 * Attach
 	 */
