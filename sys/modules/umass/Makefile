@@ -22,8 +22,8 @@ opt_cam.h:
 	echo > opt_cam.h
 
 bus_if.h:
-	perl5 ${KERN}/makedevops.pl -h ${KERN}/bus_if.m
+	perl ${KERN}/makedevops.pl -h ${KERN}/bus_if.m
 device_if.h:
-	perl5 ${KERN}/makedevops.pl -h ${KERN}/device_if.m
+	perl ${KERN}/makedevops.pl -h ${KERN}/device_if.m
 
 .include <bsd.kmod.mk>
