@@ -22,7 +22,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-chdlc.c,v 1.2 1999/11/21 09:36:49 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-chdlc.c,v 1.11 2000/10/09 01:53:19 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -31,40 +31,19 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/time.h>
-#include <sys/socket.h>
-#include <sys/file.h>
-#include <sys/ioctl.h>
-
-#if __STDC__
-struct mbuf;
-struct rtentry;
-#endif
-#include <net/if.h>
 
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/if_ether.h>
 
 #include <ctype.h>
 #include <netdb.h>
 #include <pcap.h>
 #include <stdio.h>
-#ifdef __bsdi__
-#include <net/slcompress.h>
-#include <net/if_ppp.h>
-#endif
 
 #include "interface.h"
 #include "addrtoname.h"
+#include "ethertype.h"
 #include "ppp.h"
-
-/* XXX This goes somewhere else. */
-#define CHDLC_HDRLEN 4
-#define CHDLC_UNICAST	0x0f
-#define CHDLC_BCAST	0x8f
-#define CHDLC_TYPE_SLARP	0x8035
-#define CHDLC_TYPE_CDP		0x2000
+#include "chdlc.h"
 
 static void chdlc_slarp_print(const u_char *, u_int);
 
@@ -111,7 +90,7 @@ chdlc_if_print(u_char *user, const struct pcap_pkthdr *h,
 
 	length -= CHDLC_HDRLEN;
 	ip = (struct ip *)(p + CHDLC_HDRLEN);
-	switch(proto) {
+	switch (proto) {
 	case ETHERTYPE_IP:
 		ip_print((const u_char *)ip, length);
 		break;
@@ -136,7 +115,7 @@ out:
 }
 
 struct cisco_slarp {
-	long code;
+	u_int32_t code;
 #define SLARP_REQUEST	0
 #define SLARP_REPLY	1
 #define SLARP_KEEPALIVE	2
@@ -144,14 +123,14 @@ struct cisco_slarp {
 		struct {
 			struct in_addr addr;
 			struct in_addr mask;
-			u_short unused[3];
+			u_int16_t unused[3];
 		} addr;
 		struct {
-			long myseq;
-			long yourseq;
-			short rel;
-			short t1;
-			short t2;
+			u_int32_t myseq;
+			u_int32_t yourseq;
+			u_int16_t rel;
+			u_int16_t t1;
+			u_int16_t t2;
 		} keep;
 	} un;
 };

@@ -11,7 +11,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-     "@(#) $Header: /tcpdump/master/tcpdump/smbutil.c,v 1.4.2.1 2000/01/11 06:58:28 fenner Exp $";
+     "@(#) $Header: /tcpdump/master/tcpdump/smbutil.c,v 1.12 2000/12/04 00:35:45 guy Exp $";
 #endif
 
 #include <sys/param.h>
@@ -19,20 +19,19 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#include <net/if.h>
 
 #include <netinet/in.h>
-#include <netinet/if_ether.h>
 
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "interface.h"
 #include "smb.h"
 
-extern uchar *startbuf;
+extern const uchar *startbuf;
 
 /*******************************************************************
   interpret a 32 bit dos packed date/time to some parameters
@@ -115,12 +114,18 @@ static time_t interpret_long_date(const char *p)
 
 
 /****************************************************************************
-interpret the weird netbios "name". Return the name type
+interpret the weird netbios "name". Return the name type, or -1 if
+we run past the end of the buffer
 ****************************************************************************/
-static int name_interpret(char *in,char *out)
+static int name_interpret(const uchar *in,const uchar *maxbuf,char *out)
 {
   int ret;
-  int len = (*in++) / 2;
+  int len;
+
+  if (in >= maxbuf)
+    return(-1);	/* name goes past the end of the buffer */
+  TCHECK2(*in, 1);
+  len = (*in++) / 2;
 
   *out=0;
 
@@ -128,6 +133,9 @@ static int name_interpret(char *in,char *out)
 
   while (len--)
     {
+      if (in + 1 >= maxbuf)
+	return(-1);	/* name goes past the end of the buffer */
+      TCHECK2(*in, 2);
       if (in[0] < 'A' || in[0] > 'P' || in[1] < 'A' || in[1] > 'P') {
 	*out = 0;
 	return(0);
@@ -140,46 +148,86 @@ static int name_interpret(char *in,char *out)
   ret = out[-1];
 
   return(ret);
+
+trunc:
+  return(-1);
 }
 
 /****************************************************************************
 find a pointer to a netbios name
 ****************************************************************************/
-static char *name_ptr(char *buf,int ofs)
+static const uchar *name_ptr(const uchar *buf,int ofs,const uchar *maxbuf)
 {
-  unsigned char c = *(unsigned char *)(buf+ofs);
+  const uchar *p;
+  uchar c;
 
+  p = buf+ofs;
+  if (p >= maxbuf)
+    return(NULL);	/* name goes past the end of the buffer */
+  TCHECK2(*p, 1);
+
+  c = *p;
+
+  /* XXX - this should use the same code that the DNS dissector does */
   if ((c & 0xC0) == 0xC0)
     {
       uint16 l = RSVAL(buf, ofs) & 0x3FFF;
+      if (l == 0)
+	{
+	  /* We have a pointer that points to itself. */
+	  return(NULL);
+	}
+      p = buf + l;
+      if (p >= maxbuf)
+	return(NULL);	/* name goes past the end of the buffer */
+      TCHECK2(*p, 1);
       return(buf + l);
     }
   else
     return(buf+ofs);
+
+trunc:
+  return(NULL);	/* name goes past the end of the buffer */
 }  
 
 /****************************************************************************
 extract a netbios name from a buf
 ****************************************************************************/
-static int name_extract(char *buf,int ofs,char *name)
+static int name_extract(const uchar *buf,int ofs,const uchar *maxbuf,char *name)
 {
-  char *p = name_ptr(buf,ofs);
+  const uchar *p = name_ptr(buf,ofs,maxbuf);
+  if (p == NULL)
+    return(-1);	/* error (probably name going past end of buffer) */
   strcpy(name,"");
-  return(name_interpret(p,name));
+  return(name_interpret(p,maxbuf,name));
 }  
   
 
 /****************************************************************************
 return the total storage length of a mangled name
 ****************************************************************************/
-static int name_len(const unsigned char *s)
+static int name_len(const unsigned char *s, const unsigned char *maxbuf)
 {
-  const char *s0 = s;
-  unsigned char c = *(unsigned char *)s;
+  const unsigned char *s0 = s;
+  unsigned char c;
+
+  if (s >= maxbuf)
+    return(-1);	/* name goes past the end of the buffer */
+  TCHECK2(*s, 1);
+  c = *s;
   if ((c & 0xC0) == 0xC0)
-    return(2);  
-  while (*s) s += (*s)+1;
+    return(2);
+  while (*s)
+    {
+      if (s >= maxbuf)
+	return(-1);	/* name goes past the end of the buffer */
+      TCHECK2(*s, 1);
+      s += (*s)+1;
+    }
   return(PTR_DIFF(s,s0)+1);
+
+trunc:
+  return(-1);	/* name goes past the end of the buffer */
 }
 
 static void print_asc(const unsigned char *buf,int len)
@@ -429,10 +477,17 @@ static const uchar *fdata1(const uchar *buf, const char *fmt, const uchar *maxbu
 	int t = atoi(fmt+1);
 	char nbuf[255];
 	int name_type;
+	int len;
 	switch (t) {
 	case 1:
-	  name_type = name_extract(startbuf,PTR_DIFF(buf,startbuf),nbuf);
-	  buf += name_len(buf);
+	  name_type = name_extract(startbuf,PTR_DIFF(buf,startbuf),maxbuf,
+	  	nbuf);
+	  if (name_type < 0)
+	    goto trunc;
+	  len = name_len(buf,maxbuf);
+	  if (len < 0)
+	    goto trunc;
+	  buf += len;
 	  printf("%-15.15s NameType=0x%02X (%s)",
 		 nbuf,name_type,name_type_str(name_type));
 	  break;
@@ -485,6 +540,11 @@ static const uchar *fdata1(const uchar *buf, const char *fmt, const uchar *maxbu
     printf("END OF BUFFER\n");
 
   return(buf);
+
+trunc:
+  printf("\n");
+  printf("WARNING: Short packet. Try increasing the snap length\n");
+  return(NULL);
 }
 
 const uchar *fdata(const uchar *buf, const char *fmt, const uchar *maxbuf)
@@ -525,11 +585,13 @@ const uchar *fdata(const uchar *buf, const char *fmt, const uchar *maxbuf)
     case '[':
       fmt++;
       if (buf>=maxbuf) return(buf);
-      bzero(s,sizeof(s));
+      memset(s, 0, sizeof(s));
       p = strchr(fmt,']');
       strncpy(s,fmt,p-fmt);
       fmt = p+1;
       buf = fdata1(buf,s,maxbuf);
+      if (buf == NULL)
+	return(NULL);
       break;
 
     default:
@@ -680,19 +742,16 @@ char *smb_errstr(int class,int num)
 	    for (j=0;err[j].name;j++)
 	      if (num == err[j].code)
 		{
-		  sprintf(ret,"%s - %s (%s)",err_classes[i].class,
+		  snprintf(ret,sizeof(ret),"%s - %s (%s)",err_classes[i].class,
 			  err[j].name,err[j].message);
 		  return ret;
 		}
 	  }
 
-	sprintf(ret,"%s - %d",err_classes[i].class,num);
+	snprintf(ret,sizeof(ret),"%s - %d",err_classes[i].class,num);
 	return ret;
       }
   
-  sprintf(ret,"ERROR: Unknown error (%d,%d)",class,num);
+  snprintf(ret,sizeof(ret),"ERROR: Unknown error (%d,%d)",class,num);
   return(ret);
 }
-
-
-

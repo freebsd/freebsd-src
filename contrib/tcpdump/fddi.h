@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /tcpdump/master/tcpdump/fddi.h,v 1.8.1.1 1999/10/07 23:47:10 mcr Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/tcpdump/fddi.h,v 1.9 2000/10/09 02:59:39 guy Exp $ (LBL)
  */
 
 /*
@@ -37,6 +37,13 @@ struct fddi_header {
 	u_char  fddi_shost[6];
 };
 
+/*
+ * Length of an FDDI header; note that some compilers may pad
+ * "struct fddi_header" to a multiple of 4 bytes, for example, so
+ * "sizeof (struct fddi_header)" may not give the right
+ * answer.
+ */
+#define FDDI_HDRLEN 13
 
 /* Useful values for fddi_fc (frame control) field */
 

@@ -51,34 +51,27 @@
 
 #ifndef lint
 static const char rcsid[] =
-     "@(#) $Header: /tcpdump/master/tcpdump/print-telnet.c,v 1.2.2.2 2000/01/11 06:58:28 fenner Exp $";
+     "@(#) $Header: /tcpdump/master/tcpdump/print-telnet.c,v 1.12 2000/09/29 04:58:51 guy Exp $";
 #endif
 
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <ctype.h>
 
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_var.h>
-#include <netinet/tcp.h>
-#include <netinet/tcpip.h>
 
 #define TELCMDS
 #define TELOPTS
 #include <arpa/telnet.h>
 
 #include <stdio.h>
-#ifdef __STDC__
 #include <stdlib.h>
-#endif
 #include <unistd.h>
 #include <string.h>
 
 #include "interface.h"
 #include "addrtoname.h"
-
 
 #ifndef TELCMD_FIRST
 # define TELCMD_FIRST SE
@@ -128,15 +121,16 @@ telnet_print(register const u_char *sp, u_int length)
 				x = *sp++; /* option */
 				length--;
 				if (x >= 0 && x < NTELOPTS) {
-					(void)sprintf(tnet, "%s %s",
-						      telcmds[i], telopts[x]);
+					(void)snprintf(tnet, sizeof(tnet),
+					    "%s %s", telcmds[i], telopts[x]);
 				} else {
-					(void)sprintf(tnet, "%s %#x",
-						      telcmds[i], x);
+					(void)snprintf(tnet, sizeof(tnet),
+					    "%s %#x", telcmds[i], x);
 				}
 				break;
 			default:
-				(void)strcpy(tnet, telcmds[i]);
+				(void)snprintf(tnet, sizeof(tnet), "%s",
+				    telcmds[i]);
 			}
 			if (c == SB) {
 				c = *sp++;
@@ -174,11 +168,13 @@ telnet_print(register const u_char *sp, u_int length)
 			hex_print_with_offset(osp, i, off);
 			off += i;
 			if (i > 8)
-				printf("\n\t\t\t\t%s", tnet);
+				printf("\n\t\t\t\t");
 			else
-				printf("%*s\t%s", (8 - i) * 3, "", tnet);
+				printf("%*s\t", (8 - i) * 3, "");
+			safeputs(tnet);
 		} else {
-			printf("%s%s", (first) ? " [telnet " : ", ", tnet);
+			printf("%s", (first) ? " [telnet " : ", ");
+			safeputs(tnet);
 		}
 		first = 0;
 	}

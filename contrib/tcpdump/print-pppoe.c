@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-"@(#) $Header: /tcpdump/master/tcpdump/print-pppoe.c,v 1.3 1999/12/15 00:23:06 fenner Exp $ (LBL)";
+"@(#) $Header: /tcpdump/master/tcpdump/print-pppoe.c,v 1.12 2000/10/09 02:59:40 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -32,18 +32,8 @@ static const char rcsid[] =
 #include <sys/time.h>
 #include <sys/socket.h>
 
-#if __STDC__
-struct mbuf;
-struct rtentry;
-#endif
-#include <net/if.h>
-
 #include <netinet/in.h>
-#include <netinet/if_ether.h>
 
-#ifdef HAVE_MEMORY_H
-#include <memory.h>
-#endif
 #include <stdio.h>
 #include <string.h>
 
@@ -51,6 +41,7 @@ struct rtentry;
 #include "addrtoname.h"
 #include "ppp.h"
 #include "ethertype.h"
+#include "ether.h"
 #include "extract.h"			/* must come after interface.h */
 
 /* Codes */
@@ -83,7 +74,7 @@ enum {
   PPPOE_RELAY_SID = 0x0110,
   PPPOE_SERVICE_NAME_ERROR = 0x0201,
   PPPOE_AC_SYSTEM_ERROR = 0x0202,
-  PPPOE_GENERIC_ERROR = 0x0203,
+  PPPOE_GENERIC_ERROR = 0x0203
 };
 
 static struct tok pppoetag2str[] = {
@@ -110,7 +101,7 @@ pppoe_print(register const u_char *bp, u_int length)
   const u_char *pppoe_packet, *pppoe_payload;
 
   eh = (struct ether_header *)packetp;
-  pppoe_packet = packetp+sizeof(struct ether_header);
+  pppoe_packet = packetp+ETHER_HDRLEN;
   if (pppoe_packet > snapend) {
     printf("[|pppoe]");
     return;
@@ -157,12 +148,12 @@ pppoe_print(register const u_char *bp, u_int length)
   
   if (pppoe_code) {
     /* PPP session packets don't contain tags */
-    u_short tag_type = -1, tag_len;
+    u_short tag_type = 0xffff, tag_len;
     const u_char *p = pppoe_payload;
 
     /* loop invariant: 
        p points to next tag, 
-       tag_type is previous tag or -1 for first iteration 
+       tag_type is previous tag or 0xffff for first iteration 
     */
     while (tag_type && 
 	   p+4 < pppoe_payload + length && 
@@ -199,6 +190,10 @@ pppoe_print(register const u_char *bp, u_int length)
       /* p points to next tag */
     }
   } else {
+#if 0
+    /* We now make use of ppp_print() instead, because it has more
+       comprehensive support for PPP. It also gives us a consistent 
+       output with other protocols like L2TP. */
     u_short ptype;
     if (pppoe_payload[0] & 0x1) {
       ptype = pppoe_payload[0];
@@ -219,6 +214,9 @@ pppoe_print(register const u_char *bp, u_int length)
       lcp_print(pppoe_payload, pppoe_length);
     else
       printf("%s ", tok2str(ppptype2str, "proto-0x%x", ptype));
+#endif
+    printf(" ");
+    ppp_print(pppoe_payload, pppoe_length);
   }
   return;
 }
