@@ -66,7 +66,7 @@ static int filename_mask;
 
 /* Short options.  */
 static char const short_options[] =
-"0123456789A:B:C::EFGHIRUVX:abcd:e:f:hiLlnqrsuvwxyZz";
+"0123456789A:B:C::EFGHIJRUVX:abcd:e:f:hiLlnqrsuvwxyZz";
 
 /* Non-boolean long options that have no corresponding short equivalents.  */
 enum
@@ -490,14 +490,26 @@ fillbuf (size_t save, struct stats *stats)
     {
       ssize_t bytesread;
       do
-	if (BZflag)
+	if (BZflag && bzbufdesc)
 	  {
-	    bytesread = BZ2_bzread (bzbufdesc, buffer + bufsalloc, readsize);
-	    /* gzread() will return "non-error" when given input that isn't
-	       its type of compression.  So we need to mimic that behavor
-	       for the bzgrep case.  */
-	    if (bytesread == -1)
-	      bytesread = 0;
+	    int bzerr;
+	    bytesread = BZ2_bzRead (&bzerr, bzbufdesc, buffer + bufsalloc, readsize);
+
+	    switch (bzerr)
+	      {
+	      case BZ_OK:
+	      case BZ_STREAM_END:
+		/* ok */
+		break;
+	      case BZ_DATA_ERROR_MAGIC:
+		BZ2_bzReadClose (&bzerr, bzbufdesc); bzbufdesc = NULL;
+		lseek (bufdesc, 0, SEEK_SET);
+		bytesread = read (bufdesc, buffer + bufsalloc, readsize);
+		break;
+	      default:
+		bytesread = 0;
+		break;
+	      }
 	  }
 	else
 #if HAVE_LIBZ > 0
@@ -747,7 +759,7 @@ grep (int fd, char const *file, struct stats *stats)
     {
       /* Close fd now, so that we don't open a lot of file descriptors
 	 when we recurse deeply.  */
-      if (BZflag)
+      if (BZflag && bzbufdesc)
 	BZ2_bzclose(bzbufdesc);
       else
 #if HAVE_LIBZ > 0
@@ -923,7 +935,7 @@ grepfile (char const *file, struct stats *stats)
       if (list_files == 1 - 2 * status)
 	printf ("%s%c", filename, '\n' & filename_mask);
 
-      if (BZflag)
+      if (BZflag && bzbufdesc)
 	BZ2_bzclose(bzbufdesc);
       else
 #if HAVE_LIBZ > 0
@@ -1321,6 +1333,11 @@ main (int argc, char **argv)
 	binary_files = WITHOUT_MATCH_BINARY_FILES;
 	break;
       case 'J':
+	if (Zflag)
+	  {
+	    printf (_("Cannot mix -Z and -J.\n"));
+	    usage (2);
+	  }
 	BZflag = 1;
 	break;
       case 'U':
@@ -1431,6 +1448,11 @@ main (int argc, char **argv)
 	break;
       case 'Z':
 #if HAVE_LIBZ > 0
+	if (BZflag)
+	  {
+	    printf (_("Cannot mix -J and -Z.\n"));
+	    usage (2);
+	  }
 	Zflag = 1;
 #else
 	filename_mask = 0;
