@@ -25,16 +25,6 @@ $FreeBSD$
        the FreeBSD-current list, or to Daniel C. Sobral
        <dcs@FreeBSD.org> or Mike Smith <msmith@FreeBSD.org>.
 
-       NOTE:
-
-       Please understand, all this is very current development, and
-       while getting this working for STABLE is a goal, it's not
-       yet ready for that.  It's possible that parts of this might
-       indeed work for stable, but if you're not absolutely sure
-       what you're doing, you're better off not using the
-       information in this README for STABLE.  Use this for current
-       only for a while longer, please!
-
        After the first two stages in the booting process (described
        in boot(8)), the last stage of the booting process, called
        the loader (see loader(8)) reads in the /boot/loader.rc
