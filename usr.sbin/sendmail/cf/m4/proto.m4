@@ -34,7 +34,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`@(#)proto.m4	8.134 (Berkeley) 10/13/96')
+VERSIONID(`@(#)proto.m4	8.135 (Berkeley) 10/26/96')
 
 MAILER(local)dnl
 
@@ -662,7 +662,7 @@ R$*			$: <> $1
 R<> $* < @ [ $+ ] > $*	$1 < @ [ $2 ] > $3
 R<> $* <$* : $* > $*	$#error $@ 5.1.1 $: "colon illegal in host name part"
 R<> $*			$1
-R$* < @ . > $*		$#error $@ 5.1.2 $: "invalid host name"
+R$* < @ . $* > $*	$#error $@ 5.1.2 $: "invalid host name"
 
 ifdef(`_MAILER_smtp_',
 `# handle numeric address spec

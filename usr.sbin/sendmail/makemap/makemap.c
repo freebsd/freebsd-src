@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)makemap.c	8.17 (Berkeley) 9/25/96";
+static char sccsid[] = "@(#)makemap.c	8.18 (Berkeley) 11/13/96";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -97,6 +97,7 @@ main(argc, argv)
 	int st;
 	int mode;
 	int putflags;
+	long dbcachesize = 1024 * 1024;
 	enum type type;
 	int fd;
 	union
@@ -112,6 +113,7 @@ main(argc, argv)
 	union dbent key, val;
 #ifdef NEWDB
 	BTREEINFO bti;
+	HASHINFO hinfo;
 #endif
 	char ibuf[BUFSIZE];
 	char fbuf[MAXNAME];
@@ -122,13 +124,24 @@ main(argc, argv)
 
 	progname = argv[0];
 
-	while ((opt = getopt(argc, argv, "Ndforv")) != EOF)
+#ifdef FFR_CFLAG
+#define OPTIONS		"Nc:dforv"
+#else
+#define OPTIONS		"Ndforv"
+#endif
+	while ((opt = getopt(argc, argv, OPTIONS)) != EOF)
 	{
 		switch (opt)
 		{
 		  case 'N':
 			inclnull = TRUE;
 			break;
+
+#ifdef FFR_CFLAG
+		  case 'c':
+			dbcachesize = atol(optarg);
+			break;
+#endif
 
 		  case 'd':
 			allowdups = TRUE;
@@ -189,7 +202,11 @@ main(argc, argv)
 	switch (type)
 	{
 	  case T_ERR:
+#ifdef FFR_CFLAG
+		fprintf(stderr, "Usage: %s [-N] [-c cachesize] [-d] [-f] [-o] [-r] [-v] type mapname\n", progname);
+#else
 		fprintf(stderr, "Usage: %s [-N] [-d] [-f] [-o] [-r] [-v] type mapname\n", progname);
+#endif
 		exit(EX_USAGE);
 
 	  case T_UNKNOWN:
@@ -294,7 +311,12 @@ main(argc, argv)
 
 #ifdef NEWDB
 	  case T_HASH:
-		dbp.db = dbopen(mapname, mode, 0644, DB_HASH, NULL);
+		/* tweak some parameters for performance */
+		bzero(&hinfo, sizeof(hinfo));
+		hinfo.nelem = 4096;
+		hinfo.cachesize = dbcachesize;
+
+		dbp.db = dbopen(mapname, mode, 0644, DB_HASH, &hinfo);
 		if (dbp.db != NULL)
 		{
 # if OLD_NEWDB
@@ -306,6 +328,9 @@ main(argc, argv)
 		break;
 
 	  case T_BTREE:
+		/* tweak some parameters for performance */
+		bti.cachesize = dbcachesize;
+
 		dbp.db = dbopen(mapname, mode, 0644, DB_BTREE, &bti);
 		if (dbp.db != NULL)
 		{

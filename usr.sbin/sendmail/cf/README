@@ -4,7 +4,7 @@
 
 		Eric Allman <eric@CS.Berkeley.EDU>
 
-		@(#)README	8.106 (Berkeley) 10/12/96
+		@(#)README	8.108 (Berkeley) 11/16/96
 
 
 This document describes the sendmail configuration files being used
@@ -128,7 +128,7 @@ Let's examine a typical .mc file:
 	divert(0)
 
 The divert(-1) will delete the crud in the resulting output file.
-The copyright notice can be replace by whatever your lawyers require;
+The copyright notice can be replaced by whatever your lawyers require;
 our lawyers require the one that I've included in my files.  A copyleft
 is a copyright by another name.  The divert(0) restores regular output.
 
@@ -587,8 +587,10 @@ uucpdomain	Similar feature for UUCP hosts.  The default map definition
 
 always_add_domain
 		Include the local host domain even on locally delivered
-		mail.  Normally it is not added unless it is already
-		present.
+		mail.  Normally it is not added on unqualified names.
+		However, if you use a shared message store but do not use
+		the same user name space everywhere, you may need the host
+		name on local names.
 
 allmasquerade	If masquerading is enabled (using MASQUERADE_AS), this
 		feature will cause recipient addresses to also masquerade
@@ -940,8 +942,8 @@ You can have your host masquerade as another using
 	MASQUERADE_AS(host.domain)
 
 This causes mail being sent to be labeled as coming from the
-indicated domain, rather than $j.  One normally masquerades as one
-of one's own subdomains (for example, it's unlikely that I would
+indicated host.domain, rather than $j.  One normally masquerades as
+one of one's own subdomains (for example, it's unlikely that I would
 choose to masquerade as an MIT site).  This behaviour is modified by
 a plethora of FEATUREs; in particular, see masquerade_envelope,
 allmasquerade, limited_masquerade, and masquerade_entire_domain.
@@ -1217,6 +1219,11 @@ Plussed users
 	If that is not found, the alias "root+*" will be tried,
 	then "root".
 
+LDAP
+	For notes on use LDAP in sendmail, see
+	http://www-leland.stanford.edu/~bbense/Inst.html
+
+
 
 +----------------+
 | SECURITY NOTES |
@@ -1262,7 +1269,7 @@ Sam Leffler's FlexFAX software is still in beta test -- but he expects a
 public version out "later this week" [as of 3/1/93].  The following
 blurb is direct from Sam:
 
-	$Header: /usr/people/sam/fax/RCS/HOWTO,v 1.14 93/05/24 11:42:16 sam Exp $
+	$Header: /home/ncvs/src/usr.sbin/sendmail/cf/README,v 1.1.1.5 1996/11/18 02:25:24 peter Exp $
 
 	How To Obtain This Software (in case all you get is this file)
 	--------------------------------------------------------------

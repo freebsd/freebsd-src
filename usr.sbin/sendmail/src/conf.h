@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)conf.h	8.267 (Berkeley) 10/17/96
+ *	@(#)conf.h	8.272 (Berkeley) 11/16/96
  */
 
 /*
@@ -41,7 +41,9 @@
 **	included in the next release.
 */
 
+#ifdef __GNUC__
 struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
+#endif
 
 # include <sys/param.h>
 # include <sys/types.h>
@@ -216,7 +218,11 @@ extern void	hard_syslog(int, char *, ...);
 
 #ifdef _AIX4
 # define _AIX3		1	/* pull in AIX3 stuff */
-# define HASSETREUID	1	/* setreuid(2) works */
+# define USESETEUID	1	/* seteuid(2) works */
+# define TZ_TYPE	TZ_NAME	/* use tzname[] vector */
+# if _AIX4 >= 40200
+#  define HASSETREUID	1	/* setreuid(2) works as of AIX 4.2 */
+# endif
 #endif
 
 
@@ -409,6 +415,9 @@ typedef int		pid_t;
 #    define snprintf	__snprintf	/* but names it oddly in 2.5 */
 #    define vsnprintf	__vsnprintf
 #   endif
+#   ifndef LA_TYPE
+#    define LA_TYPE	LA_KSTAT	/* use kstat(3k) -- may work in < 2.5 */
+#   endif
 #  endif
 #  ifndef HASGETUSERSHELL
 #   define HASGETUSERSHELL 0	/* getusershell(3) causes core dumps */
@@ -588,6 +597,7 @@ extern long	dgux_inet_addr();
 # define WAITUNION	1	/* use "union wait" as wait argument type */
 # define UID_T		int	/* compiler gripes on uid_t */
 # define GID_T		int	/* ditto for gid_t */
+# define MODE_T		int	/* and mode_t */
 # define sleep		sleepX
 # define setpgid	setpgrp
 # ifndef LA_TYPE
@@ -790,31 +800,43 @@ extern int		errno;
 **	The third is for SCO UNIX 3.2v4.0/Open Desktop 2.0 and earlier.
 */
 
+/* SCO OpenServer 5 */
 #if _SCO_DS >= 1
 # include <paths.h>
 # define _SCO_unix_4_2
-# define HASSNPRINTF	1	/* has snprintf() call */
-# define HASFCHMOD	1	/* has fchmod() call */
-# define HASSETRLIMIT	1	/* has setrlimit() call */
+# define HASSNPRINTF	1	/* has snprintf(3) call */
+# define HASFCHMOD	1	/* has fchmod(2) call */
+# define HASSETRLIMIT	1	/* has setrlimit(2) call */
+# define USESETEUID	1	/* has seteuid(2) call */
+# define HASINITGROUPS	1	/* has initgroups(3) call */
+# define HASGETDTABLESIZE 1	/* has getdtablesize(2) call */
 # define RLIMIT_NEEDS_SYS_TIME_H	1
+# ifndef LA_TYPE
+#  define LA_TYPE	LA_DEVSHORT
+# endif
+# define _PATH_AVENRUN	"/dev/table/avenrun"
 #endif
 
-
+/* SCO UNIX 3.2v4.2/Open Desktop 3.0 */
 #ifdef _SCO_unix_4_2
 # define _SCO_unix_
 # define HASSETREUID	1	/* has setreuid(2) call */
 #endif
 
+/* SCO UNIX 3.2v4.0 Open Desktop 2.0 and earlier */
 #ifdef _SCO_unix_
 # include <sys/stream.h>	/* needed for IP_SRCROUTE */
 # define SYSTEM5	1	/* include all the System V defines */
 # define HASGETUSERSHELL 0	/* does not have getusershell(3) call */
+# define NOFTRUNCATE	0	/* has (simulated) ftruncate call */
 # define MAXPATHLEN	PATHSIZE
-# define LA_TYPE	LA_SHORT
 # define SFS_TYPE	SFS_4ARGS	/* use <sys/statfs.h> 4-arg impl */
 # define SFS_BAVAIL	f_bfree		/* alternate field name */
 # define SPT_TYPE	SPT_SCO		/* write kernel u. area */
 # define TZ_TYPE	TZ_TM_NAME	/* use tm->tm_name */
+# define UID_T		uid_t
+# define GID_T		gid_t
+# define GIDSET_T	gid_t
 # define _PATH_UNIX		"/unix"
 # define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
 # ifndef _PATH_SENDMAILPID
@@ -827,9 +849,10 @@ extern int		errno;
 # endif
 
 # ifndef _SCO_DS
-#  define NOFTRUNCATE	0	/* does not have ftruncate(3) call */
+#  define ftruncate	chsize	/* use chsize(2) to emulate ftruncate */
 #  define NEEDFSYNC	1	/* needs the fsync(2) call stub */
 #  define NETUNIX	0	/* no unix domain socket support */
+#  define LA_TYPE	LA_SHORT
 # endif
 
 #endif
@@ -1847,6 +1870,10 @@ extern int	errno;
 
 #ifndef SIZE_T
 # define SIZE_T		size_t
+#endif
+
+#ifndef MODE_T
+# define MODE_T		mode_t
 #endif
 
 #ifndef ARGV_T
