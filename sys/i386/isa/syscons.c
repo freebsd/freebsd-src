@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.76 1994/11/06 00:30:16 bde Exp $
+ *	$Id: syscons.c,v 1.77 1994/11/17 22:03:16 sos Exp $
  */
 
 #include "sc.h"
@@ -2565,6 +2565,8 @@ next_code:
 			case NEXT:
 				switch_scr((get_scr_num()+1)%NCONS);
 				break;
+			case BTAB:
+				action = F(16);
 			default:
 				if (action >= F_SCR && action <= L_SCR) {
 					switch_scr(action - F_SCR);
