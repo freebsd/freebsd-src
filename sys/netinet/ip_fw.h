@@ -261,7 +261,8 @@ struct ipfw_dyn_rule {
 #ifdef _KERNEL
 
 #define IP_FW_PORT_DYNT_FLAG	0x10000
-#define IP_FW_PORT_TEE_FLAG	0x20000
+#define	IP_FW_PORT_TEE_FLAG	0x20000
+#define	IP_FW_PORT_DENY_FLAG	0x40000
 
 /*
  * Function definitions.
