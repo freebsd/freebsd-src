@@ -600,7 +600,7 @@ vm_page_list_find(basequeue, index)
 
 	for(j = 0; j < PQ_L1_SIZE; j++) {
 		for(i = (PQ_L2_SIZE/2) - (PQ_L1_SIZE - 1);
-			i >= 0;
+			(i+j) >= 0;
 			i -= PQ_L1_SIZE) {
 			hindex = (index + (i+j)) & PQ_L2_MASK;
 			m = TAILQ_FIRST(vm_page_queues[basequeue + hindex].pl);
