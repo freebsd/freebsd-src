@@ -41,6 +41,8 @@ void printf_output PARAMS((char const *, ...))
      ;
 void flush_output PARAMS((void));
 
+char * cvs_temp_name PARAMS((void));
+
 /*
  * Internal data structures and macros for the diff3 program; includes
  * data structures for both diff3 diffs and normal diffs.
@@ -475,8 +477,6 @@ diff3_run (argc, argv, out, callbacks_arg)
 
   free(content0);
   free(content1);
-  free_diff_blocks(thread0);
-  free_diff_blocks(thread1);
   free_diff3_blocks(diff3);
 
   if (! callbacks || ! callbacks->write_output)
@@ -676,7 +676,7 @@ make_3way_diff (thread0, thread1)
 
   struct diff3_block const *last_diff3;
 
-  static struct diff3_block const zero_diff3;
+  static struct diff3_block const zero_diff3 = { 0 };
 
   /* Initialization */
   result = 0;
@@ -765,6 +765,8 @@ make_3way_diff (thread0, thread1)
       tmpblock = using_to_diff3_block (using, last_using,
 				       base_water_thread, high_water_thread,
 				       last_diff3);
+      free_diff_blocks(using[0]);
+      free_diff_blocks(using[1]);
 
       if (!tmpblock)
 	diff3_fatal ("internal error: screwup in format of diff blocks");
@@ -1274,7 +1276,7 @@ read_diff (filea, fileb, output_placement)
   *ap++ = fileb;
   *ap = 0;
 
-  diffout = tmpnam(NULL);
+  diffout = cvs_temp_name ();
 
   outfile_hold = outfile;
   callbacks_hold = callbacks;

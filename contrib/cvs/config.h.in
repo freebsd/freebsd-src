@@ -16,11 +16,17 @@
 /* Define to `int' if <sys/types.h> doesn't define.  */
 #undef gid_t
 
+/* Define if your system has a working fnmatch function.  */
+#undef HAVE_FNMATCH
+
 /* Define if you support file names longer than 14 characters.  */
 #undef HAVE_LONG_FILE_NAMES
 
 /* Define if your struct stat has st_blksize.  */
 #undef HAVE_ST_BLKSIZE
+
+/* Define if your struct stat has st_rdev.  */
+#undef HAVE_ST_RDEV
 
 /* Define if you have <sys/wait.h> that is POSIX.1 compatible.  */
 #undef HAVE_SYS_WAIT_H
@@ -94,9 +100,6 @@
 /* Define if you have the connect function.  */
 #undef HAVE_CONNECT
 
-/* Define if this system supports chown(), link(), and friends.  */
-#undef PRESERVE_PERMISSIONS_SUPPORT
-
 /* Define if you have memchr (always for CVS).  */
 #undef HAVE_MEMCHR
 
@@ -117,6 +120,18 @@
 /* Define if you have the crypt function.  */
 #undef HAVE_CRYPT
 
+/* Define if you have the getspnam function.  */
+#undef HAVE_GETSPNAM
+
+/* Define to force lib/regex.c to use malloc instead of alloca.  */
+#undef REGEX_MALLOC
+
+/* Define to force lib/regex.c to define re_comp et al.  */
+#undef _REGEX_RE_COMP
+
+/* Define if you have the dup2 function.  */
+#undef HAVE_DUP2
+
 /* Define if you have the fchdir function.  */
 #undef HAVE_FCHDIR
 
@@ -135,14 +150,23 @@
 /* Define if you have the getpagesize function.  */
 #undef HAVE_GETPAGESIZE
 
-/* Define if you have the getspnam function.  */
-#undef HAVE_GETSPNAM
+/* Define if you have the getpassphrase function.  */
+#undef HAVE_GETPASSPHRASE
 
 /* Define if you have the initgroups function.  */
 #undef HAVE_INITGROUPS
 
 /* Define if you have the krb_get_err_text function.  */
 #undef HAVE_KRB_GET_ERR_TEXT
+
+/* Define if you have the memmove function.  */
+#undef HAVE_MEMMOVE
+
+/* Define if you have the mkdir function.  */
+#undef HAVE_MKDIR
+
+/* Define if you have the mknod function.  */
+#undef HAVE_MKNOD
 
 /* Define if you have the mktemp function.  */
 #undef HAVE_MKTEMP
@@ -152,6 +176,9 @@
 
 /* Define if you have the readlink function.  */
 #undef HAVE_READLINK
+
+/* Define if you have the rename function.  */
+#undef HAVE_RENAME
 
 /* Define if you have the sigaction function.  */
 #undef HAVE_SIGACTION
@@ -168,6 +195,15 @@
 /* Define if you have the sigvec function.  */
 #undef HAVE_SIGVEC
 
+/* Define if you have the strerror function.  */
+#undef HAVE_STRERROR
+
+/* Define if you have the strstr function.  */
+#undef HAVE_STRSTR
+
+/* Define if you have the strtoul function.  */
+#undef HAVE_STRTOUL
+
 /* Define if you have the tempnam function.  */
 #undef HAVE_TEMPNAM
 
@@ -177,11 +213,17 @@
 /* Define if you have the tzset function.  */
 #undef HAVE_TZSET
 
+/* Define if you have the valloc function.  */
+#undef HAVE_VALLOC
+
 /* Define if you have the vprintf function.  */
 #undef HAVE_VPRINTF
 
 /* Define if you have the wait3 function.  */
 #undef HAVE_WAIT3
+
+/* Define if you have the waitpid function.  */
+#undef HAVE_WAITPID
 
 /* Define if you have the <direct.h> header file.  */
 #undef HAVE_DIRECT_H
@@ -206,6 +248,9 @@
 
 /* Define if you have the <io.h> header file.  */
 #undef HAVE_IO_H
+
+/* Define if you have the <krb5.h> header file.  */
+#undef HAVE_KRB5_H
 
 /* Define if you have the <limits.h> header file.  */
 #undef HAVE_LIMITS_H
@@ -255,23 +300,5 @@
 /* Define if you have the <utime.h> header file.  */
 #undef HAVE_UTIME_H
 
-/* Define if you have the crypt library (-lcrypt).  */
-#undef HAVE_LIBCRYPT
-
 /* Define if you have the gen library (-lgen).  */
 #undef HAVE_LIBGEN
-
-/* Define if you have the inet library (-linet).  */
-#undef HAVE_LIBINET
-
-/* Define if you have the nsl library (-lnsl).  */
-#undef HAVE_LIBNSL
-
-/* Define if you have the nsl_s library (-lnsl_s).  */
-#undef HAVE_LIBNSL_S
-
-/* Define if you have the sec library (-lsec).  */
-#undef HAVE_LIBSEC
-
-/* Define if you have the socket library (-lsocket).  */
-#undef HAVE_LIBSOCKET

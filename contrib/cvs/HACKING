@@ -191,7 +191,7 @@ Anyone can add themselves to the following mailing lists:
       automatically, daily, by a script which runs "make check"
       and "make remotecheck" on the master CVS sources.
 To subscribe to devel-cvs, commit-cvs, or test-results, send
-a message to "majordomo@cyclic.com" whose body consists of
+a message to "majordomo@cvshome.org" whose body consists of
 "subscribe <list>", where <list> is devel-cvs, commit-cvs or
 test-results.
 

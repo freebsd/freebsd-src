@@ -22,7 +22,8 @@
    don't print warnings; all errors are fatal then.  */
 
 int
-Create_Admin (dir, update_dir, repository, tag, date, nonbranch, warn)
+Create_Admin (dir, update_dir, repository, tag, date, nonbranch, warn,
+	      dotemplate)
     char *dir;
     char *update_dir;
     char *repository;
@@ -30,6 +31,7 @@ Create_Admin (dir, update_dir, repository, tag, date, nonbranch, warn)
     char *date;
     int nonbranch;
     int warn;
+    int dotemplate;
 {
     FILE *fout;
     char *cp;
@@ -168,7 +170,7 @@ Create_Admin (dir, update_dir, repository, tag, date, nonbranch, warn)
     WriteTag (dir, tag, date, nonbranch, update_dir, repository);
 
 #ifdef SERVER_SUPPORT
-    if (server_active)
+    if (server_active && dotemplate)
     {
 	server_template (update_dir, repository);
     }

@@ -12,6 +12,12 @@
 
 #ifdef AUTH_CLIENT_SUPPORT   /* This covers the rest of the file. */
 
+#ifdef HAVE_GETPASSPHRASE
+#define GETPASS getpassphrase
+#else
+#define GETPASS getpass
+#endif
+
 /* There seems to be very little agreement on which system header
    getpass is declared in.  With a lot of fancy autoconfiscation,
    we could perhaps detect this, but for now we'll just rely on
@@ -20,7 +26,7 @@
    varadic, believe it or not).  On Cray, getpass will be declared
    in either stdlib.h or unistd.h.  */
 #ifndef _CRAY
-extern char *getpass ();
+extern char *GETPASS ();
 #endif
 
 #ifndef CVS_PASSWORD_FILE 
@@ -142,7 +148,7 @@ login (argc, argv)
     fflush (stdout);
 
     passfile = construct_cvspass_filename ();
-    typed_password = getpass ("CVS password: ");
+    typed_password = GETPASS ("CVS password: ");
     typed_password = scramble (typed_password);
 
     /* Force get_cvs_password() to use this one (when the client
@@ -289,14 +295,15 @@ login (argc, argv)
 }
 
 /* Returns the _scrambled_ password.  The server must descramble
-   before hashing and comparing. */
+   before hashing and comparing.  If password file not found, or
+   password not found in the file, just return NULL. */  
 char *
 get_cvs_password ()
 {
     int found_it = 0;
     int root_len;
-    char *password;
-    char *linebuf = (char *) NULL;
+    char *password = NULL;
+    char *linebuf = NULL;
     size_t linebuf_len;
     FILE *fp;
     char *passfile;
@@ -339,11 +346,10 @@ get_cvs_password ()
 
     passfile = construct_cvspass_filename ();
     fp = CVS_FOPEN (passfile, "r");
-    if (fp == NULL)
+    if (fp == NULL) 
     {
-	error (0, errno, "could not open %s", passfile);
 	free (passfile);
-	error (1, 0, "use \"cvs login\" to log in first");
+	return NULL;
     }
 
     root_len = strlen (CVSroot_original);
@@ -369,23 +375,19 @@ get_cvs_password ()
 	char *tmp;
 
 	strtok (linebuf, " ");
-	password = strtok (NULL, "\n");
+	tmp = strtok (NULL, "\n");
+	if (tmp == NULL)
+	    error (1, 0, "bad entry in %s for %s", passfile, CVSroot_original);
 
 	/* Give it permanent storage. */
-	tmp = xstrdup (password);
-	memset (password, 0, strlen (password));
-	free (linebuf);
-	return tmp;
+	password = xstrdup (tmp);
+	memset (tmp, 0, strlen (password));
     }
-    else
-    {
-        if (linebuf)
-            free (linebuf);
-	error (0, 0, "cannot find password");
-	error (1, 0, "use \"cvs login\" to log in first");
-    }
-    /* NOTREACHED */
-    return NULL;
+
+    if (linebuf)
+        free (linebuf);
+    free (passfile);
+    return password;
 }
 
 static const char *const logout_usage[] =
@@ -395,7 +397,7 @@ static const char *const logout_usage[] =
     NULL
 };
 
-/* Remove any entry for the CVSRoot repository found in "CVS/.cvspass". */
+/* Remove any entry for the CVSRoot repository found in .cvspass. */
 int
 logout (argc, argv)
     int argc;
@@ -403,7 +405,7 @@ logout (argc, argv)
 {
     char *passfile;
     FILE *fp;
-    char *tmp_name;
+    char *tmp_name = NULL;
     FILE *tmp_fp;
     char *linebuf = (char *) NULL;
     size_t linebuf_len;
@@ -498,6 +500,10 @@ logout (argc, argv)
 	    error (0, errno, "cannot remove %s", tmp_name);
 	chmod (passfile, 0600);
     }
+
+    if (tmp_name)
+        free (tmp_name);
+
     return 0;
 }
 

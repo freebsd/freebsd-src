@@ -515,11 +515,6 @@ merges from one branch to the other happen automatically (for example,
 the case in which the branches have not diverged).  This might be a
 legitimate question to ask even quite aside from multisite features.
 
-One additional random tidbit is to note that Eric Raymond has some
-interest in this sort of thing.  The item "Cooperative distributed
-freeware development" on http://www.ccil.org/~esr/ has a very brief
-introduction to what he is thinking about.
-
 187.  Might want to separate out usage error messages and help
 messages.  The problem now is that if you specify an invalid option,
 for example, the error message is lost among all the help text.  In
