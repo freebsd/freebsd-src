@@ -109,9 +109,9 @@
 #endif
 #ifndef NKPDE
 #ifdef SMP
-#define NKPDE	(KVA_PAGES - (NPGPTD + 1)) /* number of page tables/pde's */
+#define NKPDE	(KVA_PAGES - 1) /* number of page tables/pde's */
 #else
-#define NKPDE	(KVA_PAGES - NPGPTD)	/* number of page tables/pde's */
+#define NKPDE	(KVA_PAGES)	/* number of page tables/pde's */
 #endif
 #endif
 
@@ -123,12 +123,11 @@
  *
  * SMP_PRIVPAGES: The per-cpu address space is 0xff80000 -> 0xffbfffff
  */
-#define	APTDPTDI	(NPDEPTD-NPGPTD) /* alt ptd entry that points to APTD */
 #ifdef SMP
-#define MPPTDI		(APTDPTDI-1)	/* per cpu ptd entry */
+#define MPPTDI		(NPDEPTD-1)	/* per cpu ptd entry */
 #define	KPTDI		(MPPTDI-NKPDE)	/* start of kernel virtual pde's */
 #else
-#define	KPTDI		(APTDPTDI-NKPDE)/* start of kernel virtual pde's */
+#define	KPTDI		(NPDEPTD-NKPDE)/* start of kernel virtual pde's */
 #endif	/* SMP */
 #define	PTDPTDI		(KPTDI-NPGPTD)	/* ptd entry that points to ptd! */
 
@@ -166,9 +165,9 @@ typedef uint32_t pt_entry_t;
  * and directories.
  */
 #ifdef _KERNEL
-extern pt_entry_t PTmap[], APTmap[];
-extern pd_entry_t PTD[], APTD[];
-extern pd_entry_t PTDpde[], APTDpde[];
+extern pt_entry_t PTmap[];
+extern pd_entry_t PTD[];
+extern pd_entry_t PTDpde[];
 
 #ifdef PAE
 extern pdpt_entry_t *IdlePDPT;
@@ -184,7 +183,6 @@ extern pd_entry_t *IdlePTD;	/* physical address of "Idle" state directory */
  * the corresponding pde that in turn maps it.
  */
 #define	vtopte(va)	(PTmap + i386_btop(va))
-#define	avtopte(va)	(APTmap + i386_btop(va))
 
 /*
  *	Routine:	pmap_kextract
