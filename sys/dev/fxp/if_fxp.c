@@ -2117,7 +2117,7 @@ fxp_load_ucode(struct fxp_softc *sc)
 	memcpy(cbp->ucode, uc->ucode, uc->length);
 	if (uc->int_delay_offset)
 		*(u_short *)&cbp->ucode[uc->int_delay_offset] =
-		    sc->tunable_int_delay * 1.4881;
+		    sc->tunable_int_delay + sc->tunable_int_delay / 2;
 	if (uc->bundle_max_offset)
 		*(u_short *)&cbp->ucode[uc->bundle_max_offset] =
 		    sc->tunable_bundle_max;
