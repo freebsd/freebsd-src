@@ -97,7 +97,7 @@ static void ips_io_request_callback(void *cmdptr, bus_dma_segment_t *segments,in
 	}
 	command_struct = (ips_io_cmd *)command->command_buffer;
 	command_struct->id = command->id;
-	command_struct->drivenum = (uint32_t)iobuf->bio_driver1;
+	command_struct->drivenum = (uintptr_t)iobuf->bio_driver1;
 	if(segnum != 1){
 		if(ips_read_request(iobuf))
 			cmdtype = IPS_SG_READ_CMD;
