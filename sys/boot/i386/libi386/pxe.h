@@ -61,6 +61,8 @@
 #define	MAC_ARGS(mac)					\
 	mac[0], mac[1], mac[2], mac[3], mac[4], mac[5] 
 
+#define	PXENFSROOTPATH	"/pxeroot"
+
 typedef struct {
 	uint16_t		offset;
 	uint16_t		segment;
@@ -433,6 +435,17 @@ typedef struct {
 	uint16_t	buffer_size;	/* Size of the packet buffer */
 	SEGOFF16_t	buffer;		/* SEG:OFF to the packet buffer */
 } PACKED t_PXENV_UDP_READ;
+
+#define	PXENV_UDP_WRITE			0x0033
+typedef struct {
+	PXENV_STATUS_t	status;
+	IP4_t		ip;		/* dest ip addr */
+	IP4_t		gw;		/* ip gateway */
+	UDP_PORT_t	src_port;	/* source udp port */
+	UDP_PORT_t	dst_port;	/* destination udp port */
+	uint16_t	buffer_size;	/* Size of the packet buffer */
+	SEGOFF16_t	buffer;		/* SEG:OFF to the packet buffer */
+} PACKED t_PXENV_UDP_WRITE;
 
 #define	PXENV_UDP_WRITE			0x0033
 typedef struct {
