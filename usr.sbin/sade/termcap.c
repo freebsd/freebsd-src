@@ -16,7 +16,7 @@
 #include <fcntl.h>
 #include <sys/errno.h>
 #include <sys/ioctl.h>
-#include <machine/console.h>
+#include <sys/consio.h>
 
 #define VTY_STATUS_LINE    24
 #define TTY_STATUS_LINE    23

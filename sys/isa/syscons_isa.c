@@ -34,8 +34,9 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/cons.h>
+#include <sys/kbio.h>
+#include <sys/consio.h>
 
-#include <machine/console.h>
 
 #ifdef __i386__
 

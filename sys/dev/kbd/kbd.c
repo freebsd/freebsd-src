@@ -39,7 +39,7 @@
 #include <sys/vnode.h>
 #include <sys/uio.h>
 
-#include <machine/console.h>
+#include <sys/kbio.h>
 
 #include <dev/kbd/kbdreg.h>
 

@@ -34,8 +34,8 @@
 #include <sys/signalvar.h>
 #include <sys/tty.h>
 #include <sys/kernel.h>
-
-#include <machine/console.h>
+#include <sys/fbio.h>
+#include <sys/consio.h>
 
 #include <dev/fb/fbreg.h>
 #include <dev/syscons/syscons.h>

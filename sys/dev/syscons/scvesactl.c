@@ -36,7 +36,6 @@
 #include <sys/tty.h>
 #include <sys/kernel.h>
 
-#include <machine/console.h>
 #include <machine/pc/vesa.h>
 
 #include <dev/fb/fbreg.h>

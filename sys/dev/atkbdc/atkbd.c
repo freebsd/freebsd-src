@@ -167,7 +167,7 @@ atkbd_timeout(void *arg)
 /* LOW-LEVEL */
 
 #include <machine/limits.h>
-#include <machine/console.h>
+#include <sys/kbio.h>
 #include <machine/clock.h>
 
 #define ATKBD_DEFAULT	0

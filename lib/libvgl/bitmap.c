@@ -30,7 +30,7 @@
 
 #include <sys/types.h>
 #include <signal.h>
-#include <machine/console.h>
+#include <sys/fbio.h>
 #include "vgl.h"
 
 #define min(x, y)	(((x) < (y)) ? (x) : (y))

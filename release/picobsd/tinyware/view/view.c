@@ -36,7 +36,8 @@
 #include <signal.h>
 #include <termios.h>
 #include <sys/types.h>
-#include <machine/console.h>
+#include <sys/fbio.h>
+#include <sys/consio.h>
 #include <machine/mouse.h>
 #include <vgl.h>
 #include <png.h>

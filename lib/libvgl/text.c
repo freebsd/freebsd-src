@@ -29,7 +29,7 @@
  */
 
 #include <stdio.h>
-#include <machine/console.h>
+#include <sys/fbio.h>
 #include "vgl.h"
 
 static VGLText		*VGLTextFont = 0;
