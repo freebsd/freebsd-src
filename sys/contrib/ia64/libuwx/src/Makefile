@@ -8,7 +8,7 @@
 AR = ar
 RANLIB = :
 
-# OTHERCFLAGS = -DDISABLE_TRACE		# Disables trace output
+# OTHERCFLAGS = -DUWX_TRACE_ENABLE	# Enables trace output
 # OTHERCFLAGS = +DD64			# Builds 64-bit library
 OTHERCFLAGS =
 
