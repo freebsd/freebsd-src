@@ -35,7 +35,7 @@
 .\"	@(#)printf.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd July 3, 2004
 .Dt PRINTF 1
 .Os
 .Sh NAME
@@ -336,3 +336,8 @@ When present in the
 the
 .Ar format
 will be truncated at the \e000 character.
+.Pp
+Multibyte characters are not recognized in format strings (this is only
+a problem if
+.Dq Li %
+can appear inside a multibyte character.)
