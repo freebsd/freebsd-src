@@ -1160,6 +1160,8 @@ lnc_attach(struct isa_device * isa_dev)
 	int result = lnc_attach_sc (sc, unit);
 	if (result == 0)
 		return (0);
+
+#ifndef PC98
 	/*
 	 * XXX - is it safe to call isa_dmacascade() after if_attach() 
 	 *       and ether_ifattach() have been called in lnc_attach() ???
@@ -1168,6 +1170,7 @@ lnc_attach(struct isa_device * isa_dev)
 		 (sc->nic.ic != PCnet_32) &&
 		 (sc->nic.ic != PCnet_PCI))
 		isa_dmacascade(isa_dev->id_drq);
+#endif
 
 	return result;
 }
