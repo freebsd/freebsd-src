@@ -1253,7 +1253,7 @@ sbcreatecontrol(p, size, type, level)
 
 	if (CMSG_SPACE((u_int)size) > MCLBYTES)
 		return ((struct mbuf *) NULL);
-	if (CMSG_SPACE((u_int)size > MLEN))
+	if (CMSG_SPACE((u_int)size) > MLEN)
 		m = m_getcl(M_DONTWAIT, MT_CONTROL, 0);
 	else
 		m = m_get(M_DONTWAIT, MT_CONTROL);
