@@ -974,10 +974,10 @@ shadowlookup:
 			/*
 			 * next object
 			 */
-			tobject = tobject->backing_object;
-			if (tobject == NULL)
+			if (tobject->backing_object == NULL)
 				continue;
 			tpindex += OFF_TO_IDX(tobject->backing_object_offset);
+			tobject = tobject->backing_object;
 			goto shadowlookup;
 		}
 
