@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.44 1996/09/18 06:09:14 swallace Exp $
+#	$Id: bsd.lib.mk,v 1.45 1996/09/19 07:01:45 peter Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -23,6 +23,8 @@ CFLAGS+= ${DEBUG_FLAGS}
 .if !defined(DEBUG_FLAGS)
 STRIP?=	-s
 .endif
+
+.include <bsd.libnames.mk>
 
 .MAIN: all
 
@@ -261,5 +263,4 @@ all-man:
 .endif
 
 .include <bsd.dep.mk>
-.include <bsd.libnames.mk>
 .include <bsd.obj.mk>
