@@ -58,4 +58,14 @@
 #define	MAC_MLS_TYPE_EQUAL	4	/* Equivilent to any
 					 * MAC_MLS_TYPE_LABEL. */
 
+/*
+ * MLS compartments bit test/set macros.
+ * The range is 1 to MAC_MLS_MAX_COMPARTMENTS.
+ */
+#define	MAC_MLS_BIT_TEST(b, w) \
+	((w)[(((b) - 1) >> 3)] & (1 << (((b) - 1) & 7)))
+#define	MAC_MLS_BIT_SET(b, w) \
+	((w)[(((b) - 1) >> 3)] |= (1 << (((b) - 1) & 7)))
+#define	MAC_MLS_BIT_SET_EMPTY(set)	mls_bit_set_empty(set)
+
 #endif /* !_SYS_SECURITY_MAC_MLS_H */

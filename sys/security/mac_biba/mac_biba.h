@@ -58,4 +58,14 @@
 #define	MAC_BIBA_TYPE_EQUAL	4	/* Equivilent to any
 					 * MAC_BIBA_TYPE_LABEL. */
 
+/*
+ * Biba compartments bit test/set macros.
+ * The range is 1 to MAC_BIBA_MAX_COMPARTMENTS.
+ */
+#define	MAC_BIBA_BIT_TEST(b, w) \
+	((w)[(((b) - 1) >> 3)] & (1 << (((b) - 1) & 7)))
+#define	MAC_BIBA_BIT_SET(b, w) \
+	((w)[(((b) - 1) >> 3)] |= (1 << (((b) - 1) & 7)))
+#define	MAC_BIBA_BIT_SET_EMPTY(set)	biba_bit_set_empty(set)
+
 #endif /* !_SYS_SECURITY_MAC_BIBA_H */
