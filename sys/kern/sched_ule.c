@@ -69,7 +69,7 @@ SYSCTL_INT(_kern_sched, OID_AUTO, strict, CTLFLAG_RD, &sched_strict, 0, "");
 static int slice_min = 1;
 SYSCTL_INT(_kern_sched, OID_AUTO, slice_min, CTLFLAG_RW, &slice_min, 0, "");
 
-static int slice_max = 2;
+static int slice_max = 10;
 SYSCTL_INT(_kern_sched, OID_AUTO, slice_max, CTLFLAG_RW, &slice_max, 0, "");
 
 int realstathz;
@@ -140,7 +140,7 @@ struct td_sched *thread0_sched = &td_sched;
 #define	SCHED_PRI_BASE		((SCHED_PRI_NRESV / 2) + PRI_MIN_TIMESHARE)
 #define	SCHED_DYN_RANGE		(SCHED_PRI_RANGE - SCHED_PRI_NRESV)
 #define	SCHED_PRI_INTERACT(score)					\
-    ((score) * SCHED_DYN_RANGE / SCHED_INTERACT_RANGE)
+    ((score) * SCHED_DYN_RANGE / SCHED_INTERACT_MAX)
 
 /*
  * These determine the interactivity of a process.
@@ -148,15 +148,14 @@ struct td_sched *thread0_sched = &td_sched;
  * SLP_RUN_MAX:	Maximum amount of sleep time + run time we'll accumulate
  *		before throttling back.
  * SLP_RUN_THROTTLE:	Divisor for reducing slp/run time.
- * INTERACT_RANGE:	Range of interactivity values.  Smaller is better.
- * INTERACT_HALF:	Convenience define, half of the interactivity range.
+ * INTERACT_MAX:	Maximum interactivity value.  Smaller is better.
  * INTERACT_THRESH:	Threshhold for placement on the current runq.
  */
 #define	SCHED_SLP_RUN_MAX	((hz / 10) << 10)
 #define	SCHED_SLP_RUN_THROTTLE	(10)
-#define	SCHED_INTERACT_RANGE	(100)
-#define	SCHED_INTERACT_HALF	(SCHED_INTERACT_RANGE / 2)
-#define	SCHED_INTERACT_THRESH	(10)
+#define	SCHED_INTERACT_MAX	(100)
+#define	SCHED_INTERACT_HALF	(SCHED_INTERACT_MAX / 2)
+#define	SCHED_INTERACT_THRESH	(20)
 
 /*
  * These parameters and macros determine the size of the time slice that is
@@ -619,10 +618,6 @@ sched_slice(struct kse *ke)
 	 * in the kg.  This will cause us to forget old interactivity
 	 * while maintaining the current ratio.
 	 */
-	CTR4(KTR_ULE, "Slp vs Run %p (Slp %d, Run %d, Score %d)",
-	    ke, kg->kg_slptime >> 10, kg->kg_runtime >> 10,
-	    sched_interact_score(kg));
-
 	if ((kg->kg_runtime + kg->kg_slptime) >  SCHED_SLP_RUN_MAX) {
 		kg->kg_runtime /= SCHED_SLP_RUN_THROTTLE;
 		kg->kg_slptime /= SCHED_SLP_RUN_THROTTLE;
@@ -637,29 +632,22 @@ sched_slice(struct kse *ke)
 static int
 sched_interact_score(struct ksegrp *kg)
 {
-	int big;
-	int small;
-	int base;
+	int div;
 
 	if (kg->kg_runtime > kg->kg_slptime) {
-		big = kg->kg_runtime;
-		small = kg->kg_slptime;
-		base = SCHED_INTERACT_HALF;
-	} else {
-		big = kg->kg_slptime;
-		small = kg->kg_runtime;
-		base = 0;
+		div = max(1, kg->kg_runtime / SCHED_INTERACT_HALF);
+		return (SCHED_INTERACT_HALF +
+		    (SCHED_INTERACT_HALF - (kg->kg_slptime / div)));
+	} if (kg->kg_slptime > kg->kg_runtime) {
+		div = max(1, kg->kg_slptime / SCHED_INTERACT_HALF);
+		return (kg->kg_runtime / div);
 	}
 
-	big /= SCHED_INTERACT_HALF;
-	if (big != 0)
-		small /= big;
-	else
-		small = 0;
+	/*
+	 * This can happen if slptime and runtime are 0.
+	 */
+	return (0);
 
-	small += base;
-	/* XXX Factor in nice */
-	return (small);
 }
 
 /*
@@ -678,7 +666,9 @@ sched_pctcpu_update(struct kse *ke)
 {
 	/*
 	 * Adjust counters and watermark for pctcpu calc.
-	 *
+	 */
+
+	/*
 	 * Shift the tick count out so that the divide doesn't round away
 	 * our results.
 	 */
@@ -761,6 +751,13 @@ sched_switchout(struct thread *td)
         td->td_flags &= ~TDF_NEEDRESCHED;
 
 	if (TD_IS_RUNNING(td)) {
+		/*
+		 * This queue is always correct except for idle threads which
+		 * have a higher priority due to priority propagation.
+		 */
+		if (ke->ke_ksegrp->kg_pri_class == PRI_IDLE &&
+		    ke->ke_thread->td_priority > PRI_MIN_IDLE)
+			ke->ke_runq = KSEQ_SELF()->ksq_curr;
 		runq_add(ke->ke_runq, ke);
 		/* setrunqueue(td); */
 		return;
@@ -782,10 +779,6 @@ sched_switchin(struct thread *td)
 	mtx_assert(&sched_lock, MA_OWNED);
 
 	td->td_oncpu = PCPU_GET(cpuid);
-
-	if (td->td_ksegrp->kg_pri_class == PRI_TIMESHARE &&
-	    td->td_priority != td->td_ksegrp->kg_user_pri)
-		curthread->td_flags |= TDF_NEEDRESCHED;
 }
 
 void
@@ -872,7 +865,7 @@ void
 sched_fork_kse(struct kse *ke, struct kse *child)
 {
 
-	child->ke_slice = ke->ke_slice;
+	child->ke_slice = 1;	/* Attempt to quickly learn interactivity. */
 	child->ke_cpu = ke->ke_cpu; /* sched_pickcpu(); */
 	child->ke_runq = NULL;
 
@@ -891,6 +884,11 @@ sched_fork_ksegrp(struct ksegrp *kg, struct ksegrp *child)
 
 	PROC_LOCK_ASSERT(child->kg_proc, MA_OWNED);
 	/* XXX Need something better here */
+
+#if 1
+	child->kg_slptime = kg->kg_slptime;
+	child->kg_runtime = kg->kg_runtime;
+#else
 	if (kg->kg_slptime > kg->kg_runtime) {
 		child->kg_slptime = SCHED_DYN_RANGE;
 		child->kg_runtime = kg->kg_slptime / SCHED_DYN_RANGE;
@@ -898,6 +896,7 @@ sched_fork_ksegrp(struct ksegrp *kg, struct ksegrp *child)
 		child->kg_runtime = SCHED_DYN_RANGE;
 		child->kg_slptime = kg->kg_runtime / SCHED_DYN_RANGE;
 	}
+#endif
 
 	child->kg_user_pri = kg->kg_user_pri;
 	child->kg_nice = kg->kg_nice;
@@ -945,6 +944,7 @@ sched_exit(struct proc *p, struct proc *child)
 	/* XXX Need something better here */
 	mtx_assert(&sched_lock, MA_OWNED);
 	sched_exit_kse(FIRST_KSE_IN_PROC(p), FIRST_KSE_IN_PROC(child));
+	sched_exit_ksegrp(FIRST_KSEGRP_IN_PROC(p), FIRST_KSEGRP_IN_PROC(child));
 }
 
 void
@@ -956,6 +956,8 @@ sched_exit_kse(struct kse *ke, struct kse *child)
 void
 sched_exit_ksegrp(struct ksegrp *kg, struct ksegrp *child)
 {
+	kg->kg_slptime += child->kg_slptime;
+	kg->kg_runtime += child->kg_runtime;
 }
 
 void
@@ -1101,12 +1103,20 @@ void
 sched_userret(struct thread *td)
 {
 	struct ksegrp *kg;
+	struct kseq *kseq;
+	struct kse *ke;
 	
 	kg = td->td_ksegrp;
 
 	if (td->td_priority != kg->kg_user_pri) {
 		mtx_lock_spin(&sched_lock);
 		td->td_priority = kg->kg_user_pri;
+		kseq = KSEQ_SELF();
+		if (td->td_ksegrp->kg_pri_class == PRI_TIMESHARE &&
+		    kseq->ksq_load > 1 &&
+		    (ke = kseq_choose(kseq)) != NULL &&
+		    ke->ke_thread->td_priority < td->td_priority)
+			curthread->td_flags |= TDF_NEEDRESCHED;
 		mtx_unlock_spin(&sched_lock);
 	}
 }
@@ -1196,7 +1206,7 @@ sched_add(struct kse *ke)
 		/*
 		 * This is for priority prop.
 		 */
-		if (ke->ke_thread->td_priority < PRI_MAX_TIMESHARE)
+		if (ke->ke_thread->td_priority > PRI_MIN_IDLE)
 			ke->ke_runq = kseq->ksq_curr;
 		else
 			ke->ke_runq = &kseq->ksq_idle;
@@ -1242,10 +1252,16 @@ sched_pctcpu(struct kse *ke)
 
 		/* Update to account for time potentially spent sleeping */
 		ke->ke_ltick = ticks;
-		sched_pctcpu_update(ke);
+		/*
+		 * Don't update more frequently than twice a second.  Allowing
+		 * this causes the cpu usage to decay away too quickly due to
+		 * rounding errors.
+		 */
+		if (ke->ke_ltick < (ticks - (hz / 2)))
+			sched_pctcpu_update(ke);
 
 		/* How many rtick per second ? */
-		rtick = ke->ke_ticks / SCHED_CPU_TIME;
+		rtick = min(ke->ke_ticks / SCHED_CPU_TIME, SCHED_CPU_TICKS);
 		pctcpu = (FSCALE * ((FSCALE * rtick)/realstathz)) >> FSHIFT;
 	}
 
