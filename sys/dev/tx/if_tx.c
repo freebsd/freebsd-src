@@ -162,6 +162,7 @@ static void epic_write_phy_reg __P((epic_softc_t *, int, int, int));
 static int epic_miibus_readreg __P((device_t, int, int));
 static int epic_miibus_writereg __P((device_t, int, int, int));
 static void epic_miibus_statchg __P((device_t));
+static void epic_miibus_mediainit __P((device_t));
 
 static int epic_ifmedia_upd __P((struct ifnet *));
 static void epic_ifmedia_sts __P((struct ifnet *, struct ifmediareq *));
@@ -255,7 +256,7 @@ epic_openbsd_attach(
 #endif
 
 	ifp = &sc->sc_if;
-	bcopy(sc->sc_dev.dv_xname, ifp->if_xname,IFNAMSIZ);
+	bcopy(sc->dev.dv_xname, ifp->if_xname,IFNAMSIZ);
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = epic_ifioctl;
@@ -345,6 +346,7 @@ static device_method_t epic_methods[] = {
 	DEVMETHOD(miibus_readreg,	epic_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	epic_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	epic_miibus_statchg),
+	DEVMETHOD(miibus_mediainit,	epic_miibus_mediainit),
 
 	{ 0, 0 }
 };
@@ -362,7 +364,7 @@ DRIVER_MODULE(miibus, tx, miibus_driver, miibus_devclass, 0, 0);
 
 static struct epic_type epic_devs[] = {
 	{ SMC_VENDORID, SMC_DEVICEID_83C170,
-		"SMC EtherPower II 10/100BaseTX" },   
+		"SMC EtherPower II 10/100" },   
 	{ 0, 0, NULL }
 };
 
@@ -430,6 +432,7 @@ epic_freebsd_attach(dev)
 	/* Preinitialize softc structure */
     	bzero(sc, sizeof(epic_softc_t));		
 	sc->unit = unit;
+	sc->dev = dev;
 
 	/* Fill ifnet structure */
 	ifp = &sc->sc_if;
@@ -1128,12 +1131,40 @@ epic_ifmedia_upd(ifp)
 {
 	epic_softc_t *sc;
 	struct mii_data *mii;
+	struct ifmedia *ifm;
 
 	sc = ifp->if_softc;
 	mii = device_get_softc(sc->miibus);
-	mii_mediachg(mii);
+	ifm = &mii->mii_media;
 
-	return(0);
+	/* Do not do anything if interface is not up */
+	if(!(ifp->if_flags & IFF_UP))
+		return (0);
+
+	if((IFM_INST(ifm->ifm_cur->ifm_media) == mii->mii_instance) &&
+	   (IFM_SUBTYPE(ifm->ifm_cur->ifm_media) == IFM_10_2)) {
+		/* Call this, to isolate (and powerdown ?) all PHYs */
+		mii_mediachg(mii);
+
+		/* Select BNC */
+		CSR_WRITE_4(sc, MIICFG, MIICFG_SERIAL_ENABLE |
+					MIICFG_694_ENABLE | MIICFG_SMI_ENABLE);
+
+		/* Update txcon register */
+		epic_miibus_statchg(sc->dev);
+
+		return (0);
+	} else if(IFM_INST(ifm->ifm_cur->ifm_media) < mii->mii_instance) {
+		/* Select MII */
+		CSR_WRITE_4(sc, MIICFG, MIICFG_SMI_ENABLE);
+
+		/* Give it to miibus... */
+		mii_mediachg(mii);
+
+		return (0);
+	}
+
+	return(EINVAL);
 }
 
 /*
@@ -1146,10 +1177,24 @@ epic_ifmedia_sts(ifp, ifmr)
 {
 	epic_softc_t *sc;
 	struct mii_data *mii;
+	struct ifmedia *ifm;
 
 	sc = ifp->if_softc;
 	mii = device_get_softc(sc->miibus);
-	if (ifp->if_flags & IFF_UP) {
+	ifm = &mii->mii_media;
+
+	if(!(ifp->if_flags & IFF_UP)) {
+		ifmr->ifm_active = IFM_NONE;
+		ifmr->ifm_status = 0;
+
+		return;
+	}
+
+	if((IFM_INST(ifm->ifm_cur->ifm_media) == mii->mii_instance) &&
+	   (IFM_SUBTYPE(ifm->ifm_cur->ifm_media) == IFM_10_2)) {
+		ifmr->ifm_active = ifm->ifm_cur->ifm_media;
+		ifmr->ifm_status = 0;
+	} else if(IFM_INST(ifm->ifm_cur->ifm_media) < mii->mii_instance) {
 		mii_pollstat(mii);
 		ifmr->ifm_active = mii->mii_media_active;
 		ifmr->ifm_status = mii->mii_media_status;
@@ -1193,8 +1238,30 @@ epic_miibus_statchg(dev)
 	return;
 }
 
+static void epic_miibus_mediainit(dev)
+	device_t dev;
+{
+        epic_softc_t *sc;
+        struct mii_data *mii;
+	struct ifmedia *ifm;
+	int media;
+	
+	sc = device_get_softc(dev);
+	mii = device_get_softc(sc->miibus);
+	ifm = &mii->mii_media;
+
+	if(CSR_READ_4(sc, MIICFG) & MIICFG_PHY_PRESENT) {
+		media = IFM_MAKEWORD(IFM_ETHER, IFM_10_2, 0, mii->mii_instance);
+		printf(EPIC_FORMAT ": serial PHY detected (10Base2/BNC)\n",EPIC_ARGS(sc));
+		ifmedia_add(ifm, media, 0, NULL);
+	}
+
+	return;
+}
+
+
 /*
- * Reset chip, allocate rings, and call miibus mediachg.
+ * Reset chip, allocate rings, and update media.
  */
 static int
 epic_init(sc)
@@ -1283,9 +1350,8 @@ epic_init(sc)
 			mii_phy_reset(miisc);
 	}
 
-	/* Fetch info from MII */
-	mii_mediachg(mii);
-	mii_pollstat(mii);
+	/* Set appropriate media */
+	epic_ifmedia_upd(ifp);
 
 	splx(s);
 
