@@ -199,14 +199,11 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 				    + scopelen > hostlen)
 					return ENI_MEMORY;
 				/*
-				 * Shift the host string to allocate
-				 * space for the scope ID part.
+				 * Construct <numeric-addr><delim><scopeid>
 				 */
-				memmove(host + scopelen + 1, host, numaddrlen);
-				/* copy the scope ID and the delimiter */
-				memcpy(host, ifname, scopelen);
-				host[scopelen] = SCOPE_DELIMITER;
-				host[scopelen + 1 + numaddrlen] = '\0';
+				memcpy(host + numaddrlen + 1, ifname, scopelen);
+				host[numaddrlen] = SCOPE_DELIMITER;
+				host[numaddrlen + 1 + scopelen] = '\0';
 			}
 		}
 #endif /* INET6 */
