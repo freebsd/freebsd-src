@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.148 1999/05/26 23:01:53 gallatin Exp $
+**  $Id: ncr.c,v 1.149 1999/06/15 13:14:56 des Exp $
 **
 **  Device driver for the   NCR 53C8XX   PCI-SCSI-Controller Family.
 **
@@ -182,6 +182,7 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <machine/clock.h>
+#include <machine/md_var.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
@@ -1359,7 +1360,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 #if !defined(lint)
 static const char ident[] =
-	"\n$Id: ncr.c,v 1.148 1999/05/26 23:01:53 gallatin Exp $\n";
+	"\n$Id: ncr.c,v 1.149 1999/06/15 13:14:56 des Exp $\n";
 #endif
 
 static const u_long	ncr_version = NCR_VERSION	* 11
