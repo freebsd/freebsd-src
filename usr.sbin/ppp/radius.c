@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: radius.c,v 1.4 1999/03/03 23:00:41 brian Exp $
+ *	$Id: radius.c,v 1.4.2.2 1999/04/20 08:09:18 brian Exp $
  *
  */
 
@@ -80,7 +80,8 @@ radius_Process(struct radius *r, int got)
 {
   char *argv[MAXARGS], *nuke;
   struct bundle *bundle;
-  int len, argc, addrs;
+  int argc, addrs;
+  size_t len;
   struct in_range dest;
   struct in_addr gw;
   const void *data;
