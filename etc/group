@@ -10,9 +10,9 @@ man:*:9:
 games:*:13:
 staff:*:20:root
 guest:*:31:root
-nobody:*:39:
 uucp:*:66:
 ingres:*:74:ingres
 xten:*:100:xten
 dialer:*:117:
 nogroup:*:32766:
+nobody:*:65534:
