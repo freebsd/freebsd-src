@@ -30,6 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id$
+ *
  */
 
 #include <stdlib.h>
@@ -40,7 +42,7 @@
 
 void usage(char *myname)
 {
-	fprintf(stderr, "usage: %s [ [-q | -v] [-s N | -c M]... ]\n", myname);
+	fprintf(stderr, "usage: %s [ [-q ] [-s N | -c M]... ]\n", myname);
 }
 
 int
