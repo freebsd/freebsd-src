@@ -28,24 +28,22 @@
  * $FreeBSD$
  */
 
-#include "opt_compat.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
-#include <sys/systm.h>
+#include <sys/blist.h>
 #include <sys/fcntl.h>
 #include <sys/imgact_aout.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mac.h>
+#include <sys/malloc.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
-#include <sys/poll.h>
 #include <sys/proc.h>
-#include <sys/blist.h>
 #include <sys/reboot.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
@@ -53,8 +51,8 @@
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
+#include <sys/systm.h>
 #include <sys/time.h>
-#include <sys/unistd.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 #include <sys/wait.h>
@@ -73,6 +71,7 @@
 
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
+
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_util.h>
 

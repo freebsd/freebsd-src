@@ -28,16 +28,12 @@
  * $FreeBSD$
  */
 
-#include "opt_compat.h"
-
 #include <sys/param.h>
+#include <sys/malloc.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/sysproto.h>
 
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
-#include <compat/linux/linux_util.h>
 
 #define	LINUX_CTL_KERN		1
 #define	LINUX_CTL_VM		2
