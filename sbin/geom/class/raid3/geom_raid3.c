@@ -60,6 +60,8 @@ struct g_command class_commands[] = {
 		{ 'n', "noautosync", NULL, G_TYPE_NONE },
 		{ 'r', "round_robin", NULL, G_TYPE_NONE },
 		{ 'R', "noround_robin", NULL, G_TYPE_NONE },
+		{ 'w', "verify", NULL, G_TYPE_NONE },
+		{ 'W', "noverify", NULL, G_TYPE_NONE },
 		G_OPT_SENTINEL
 	    }
 	},
@@ -76,6 +78,7 @@ struct g_command class_commands[] = {
 		{ 'h', "hardcode", NULL, G_TYPE_NONE },
 		{ 'n', "noautosync", NULL, G_TYPE_NONE },
 		{ 'r', "round_robin", NULL, G_TYPE_NONE },
+		{ 'w', "verify", NULL, G_TYPE_NONE },
 		G_OPT_SENTINEL
 	    }
 	},
@@ -102,10 +105,10 @@ void
 usage(const char *comm)
 {
 	fprintf(stderr,
-	    "usage: %s label [-hnrv] name prov prov prov [prov [...]]\n"
+	    "usage: %s label [-hnrvw] name prov prov prov [prov [...]]\n"
 	    "       %s clear [-v] prov [prov [...]]\n"
 	    "       %s dump prov [prov [...]]\n"
-	    "       %s configure [-adhnrRv] name\n"
+	    "       %s configure [-adhnrRvwW] name\n"
 	    "       %s rebuild [-v] name prov\n"
 	    "       %s insert [-hv] <-n number> name prov\n"
 	    "       %s remove [-v] <-n number> name\n"
@@ -144,7 +147,7 @@ raid3_label(struct gctl_req *req)
 	u_char sector[512];
 	const char *str;
 	char param[16];
-	int *hardcode, *nargs, *noautosync, *round_robin;
+	int *hardcode, *nargs, *noautosync, *round_robin, *verify;
 	int error, i;
 	unsigned sectorsize;
 	off_t mediasize;
@@ -195,6 +198,17 @@ raid3_label(struct gctl_req *req)
 	}
 	if (*round_robin)
 		md.md_mflags |= G_RAID3_DEVICE_FLAG_ROUND_ROBIN;
+	verify = gctl_get_paraml(req, "verify", sizeof(*verify));
+	if (verify == NULL) {
+		gctl_error(req, "No '%s' argument.", "verify");
+		return;
+	}
+	if (*verify)
+		md.md_mflags |= G_RAID3_DEVICE_FLAG_VERIFY;
+	if (*round_robin && *verify) {
+		gctl_error(req, "Both '%c' and '%c' options given.", 'r', 'w');
+		return;
+	}
 	hardcode = gctl_get_paraml(req, "hardcode", sizeof(*hardcode));
 	if (hardcode == NULL) {
 		gctl_error(req, "No '%s' argument.", "hardcode");

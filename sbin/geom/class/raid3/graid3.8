@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Aug 20, 2004
+.Dd Aug 22, 2004
 .Dt GRAID3 8
 .Os
 .Sh NAME
@@ -33,7 +33,7 @@
 .Sh SYNOPSIS
 .Nm
 .Cm label
-.Op Fl hnrv
+.Op Fl hnrvw
 .Ar name
 .Ar prov
 .Ar prov
@@ -46,7 +46,7 @@
 .Op Ar prov Op Ar ...
 .Nm
 .Cm configure
-.Op Fl adhnrRv
+.Op Fl adhnrRvwW
 .Ar name
 .Nm
 .Cm rebuild
@@ -112,6 +112,21 @@ Without this option parity component is not used at all for reading operations
 when device is in complete state.
 With this option specified random I/O read operations are even 40% faster,
 but sequential reads are slower.
+One cannot not use this options if
+.Fl w
+option is also specified.
+.It Fl w
+Use verify reading feature.
+When reading from device in complete state, read data also from parity component
+and verify the data by comparing XORed regular data with parity data.
+If verification fails,
+.Er EIO
+error is returned and value of sysctl
+.Va kern.geom.raid3.parity_mismatch
+is increased.
+One cannot not use this options if
+.Fl r
+option is also specified.
 .El
 .It Cm clear
 Clear metadata on the given providers.
@@ -132,6 +147,10 @@ Turn off autosynchronization of stale components.
 Turn on round-robin reading.
 .It Fl R
 Turn off round-robin reading.
+.It Fl w
+Turn on verify reading.
+.It Fl W
+Turn off verify reading.
 .El
 .It Cm rebuild
 Rebuild the given component forcibly.
