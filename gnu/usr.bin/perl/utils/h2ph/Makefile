@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.2 1998/10/11 18:13:42 markm Exp $
+# $Id: Makefile,v 1.3 1999/03/18 19:39:07 julian Exp $
 #
 
 PROG=	h2ph
@@ -9,4 +9,4 @@ PROG=	h2ph
 afterinstall:
 	cd ${DESTDIR}/usr/include; \
 	miniperl ${.OBJDIR}/${PROG} -d \
-		${DESTDIR}/usr/libdata/perl/5.00502/mach * */*
+		${DESTDIR}/usr/libdata/perl/5.00503/mach * */*
