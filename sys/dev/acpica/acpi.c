@@ -1239,10 +1239,9 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	     */
 	    acpi_parse_resources(child, handle, &acpi_res_parse_set, NULL);
 
-	    /* If we're debugging, probe/attach now rather than later */
+	    /* If order was overridden, probe/attach now rather than later. */
 	    if (probe_now)
 		device_probe_and_attach(child);
-	    ACPI_DEBUG_EXEC(device_probe_and_attach(child));
 	    break;
 	}
     }
