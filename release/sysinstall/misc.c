@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.12.2.6 1995/10/22 17:39:23 jkh Exp $
+ * $Id: misc.c,v 1.12.2.7 1995/11/04 11:09:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -129,22 +129,22 @@ string_copy(char *s1, char *s2)
     return s1;
 }
 
-int
+Boolean
 directoryExists(const char *dirname)
 {
     DIR *tptr;
 
     if (!dirname)
-	return 0;
+	return FALSE;
     if (!strlen(dirname))
-	return 0;
+	return FALSE;
 
     tptr = opendir(dirname);
     if (!tptr)
-	return (0);
+	return (FALSE);
 
     closedir(tptr);
-    return (1);
+    return (TRUE);
 }
 
 char *

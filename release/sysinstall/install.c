@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.68 1995/11/04 12:02:16 jkh Exp $
+ * $Id: install.c,v 1.71.2.69 1995/11/04 12:20:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -421,13 +421,6 @@ installCommit(char *str)
 		   "to configure, select Cancel.");
 
 	dialog_clear();
-	if (cdromMounted && !msgYesNo("Would you like to link to the ports tree on your CDROM?\n\n"
-				      "This will require that you have your FreeBSD CD in the CDROM\n"
-				      "drive to use the ports collection, but at substantial savings\n"
-				      "in disk space."))
-	    configPorts(NULL);
-
-	dialog_clear();
 	if (!msgYesNo("Would you like to configure Samba for connecting NETBUI clients to this\n"
 		      "machine?  (that is Windows 95, Windows NT or Windows for Workgroups\n"
 		      "machines or others using compatible protocols)."))
@@ -440,11 +433,46 @@ installCommit(char *str)
 
 	dialog_clear();
 	if (!msgYesNo("Do you want to allow anonymous FTP connections to this machine?"))
+	    configAnonFTP(NULL);
+
+	dialog_clear();
+	if (!msgYesNo("Do you want to configure this machine as an NFS server?"))
 	    configNFSServer(NULL);
 
 	dialog_clear();
-	if (!msgYesNo("Do you wish to install a WEB server on this machine?"))
+	if (!msgYesNo("Do you want to configure this machine as an NFS client?"))
+	    variable_set2("nfs_client", "YES");
+
+	dialog_clear();
+	if (!msgYesNo("Do you want to configure this machine as a WEB server?"))
 	    configApache(NULL);
+
+	dialog_clear();
+	if (!msgYesNo("Would you like to customize your system console settings?"))
+	    dmenuOpenSimple(&MenuSyscons);
+
+	dialog_clear();
+	if (!msgYesNo("Would you like to set this machine's time zone now?"))
+	    systemExecute("rm -f /etc/wall_cmos_clock /etc/localtime; tzsetup");
+
+	dialog_clear();
+	if (!msgYesNo("Does this system have a mouse attached to it?"))
+	    dmenuOpenSimple(&MenuMouse);
+
+	if (directoryExists("/usr/X11R6")) {
+	    dialog_clear();
+	    if (!msgYesNo("Would you like to configure your X server at this time?"))
+		systemExecute("/usr/X11R6/bin/xf86config");
+	}
+
+	if (cdromMounted) {
+	    dialog_clear();
+	    if (!msgYesNo("Would you like to link to the ports tree on your CDROM?\n\n"
+			  "This will require that you have your FreeBSD CD in the CDROM\n"
+			  "drive to use the ports collection, but at substantial savings\n"
+			  "in disk space."))
+		configPorts(NULL);
+	}
 
 	dialog_clear();
 	if (!msgYesNo("The FreeBSD package collection is a collection of over 300 ready-to-run\n"
@@ -458,7 +486,7 @@ installCommit(char *str)
 	/* Final menu of last resort */
 	dialog_clear();
 	if (!msgYesNo("Would you like to go to the general configuration menu for any last\n"
-		      "configuration options (some of which you may have already answered)?"))
+		      "configuration options (many of which you may have already answered)?"))
 	    dmenuOpenSimple(&MenuConfigure);
     }
 
