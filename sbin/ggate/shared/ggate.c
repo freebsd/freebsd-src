@@ -326,5 +326,5 @@ g_gate_str2ip(const char *str)
 	hp = gethostbyname(str);
 	if (hp == NULL)
 		return (INADDR_NONE);
-	return (((struct in_addr *)(hp->h_addr))->s_addr);
+	return (((struct in_addr *)(void *)hp->h_addr)->s_addr);
 }

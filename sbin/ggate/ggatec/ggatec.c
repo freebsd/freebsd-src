@@ -254,7 +254,7 @@ once_again:
 			goto done;
 		}
 		if (ggio.gctl_cmd == BIO_READ) {
-			if (bsize < ggio.gctl_length) {
+			if (bsize < (size_t)ggio.gctl_length) {
 				ggio.gctl_data = realloc(ggio.gctl_data,
 				    ggio.gctl_length);
 				if (ggio.gctl_data != NULL)
