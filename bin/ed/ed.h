@@ -105,7 +105,7 @@ if (--mutex == 0) { \
 #define STRTOL(i, p) { \
 	if (((i = strtol(p, &p, 10)) == LONG_MIN || i == LONG_MAX) && \
 	    errno == ERANGE) { \
-		sprintf(errmsg, "number out of range"); \
+		errmsg = "number out of range"; \
 	    	i = 0; \
 		return ERR; \
 	} \
@@ -121,14 +121,14 @@ if ((i) > (n)) { \
 	if ((b) != NULL) { \
 		if ((ts = (char *) realloc((b), ti += max((i), MINBUFSZ))) == NULL) { \
 			fprintf(stderr, "%s\n", strerror(errno)); \
-			sprintf(errmsg, "out of memory"); \
+			errmsg = "out of memory"; \
 			SPL0(); \
 			return err; \
 		} \
 	} else { \
 		if ((ts = (char *) malloc(ti += max((i), MINBUFSZ))) == NULL) { \
 			fprintf(stderr, "%s\n", strerror(errno)); \
-			sprintf(errmsg, "out of memory"); \
+			errmsg = "out of memory"; \
 			SPL0(); \
 			return err; \
 		} \
@@ -146,7 +146,7 @@ if ((i) > (n)) { \
 	SPL1(); \
 	if ((ts = (char *) realloc((b), ti += max((i), MINBUFSZ))) == NULL) { \
 		fprintf(stderr, "%s\n", strerror(errno)); \
-		sprintf(errmsg, "out of memory"); \
+		errmsg = "out of memory"; \
 		SPL0(); \
 		return err; \
 	} \
@@ -190,7 +190,7 @@ if ((i) > (n)) { \
 /* Local Function Declarations */
 void add_line_node __P((line_t *));
 int append_lines __P((long));
-int apply_subst_template __P((char *, regmatch_t *, int, int));
+int apply_subst_template __P((const char *, regmatch_t *, int, int));
 int build_active_list __P((int));
 int cbc_decode __P((char *, FILE *));
 int cbc_encode __P((char *, int, FILE *));
@@ -200,7 +200,7 @@ void clear_undo_stack __P((void));
 int close_sbuf __P((void));
 int copy_lines __P((long));
 int delete_lines __P((long, long));
-void des_error __P((char *));
+void des_error __P((const char *));
 int display_lines __P((long, long, int));
 line_t *dup_line_node __P((line_t *));
 int exec_command __P((void));
@@ -236,16 +236,16 @@ int is_legal_filename __P((char *));
 int join_lines __P((long, long));
 int mark_line_node __P((line_t *, int));
 int move_lines __P((long));
-line_t *next_active_node __P(());
+line_t *next_active_node __P((void));
 long next_addr __P((void));
 int open_sbuf __P((void));
 char *parse_char_class __P((char *));
 int pop_undo_stack __P((void));
 undo_t *push_undo_stack __P((int, long, long));
 int put_des_char __P((int, FILE *));
-char *put_sbuf_line __P((char *));
-int put_stream_line __P((FILE *, char *, int));
-int put_tty_line __P((char *, int, long, int));
+const char *put_sbuf_line __P((const char *));
+int put_stream_line __P((FILE *, const char *, int));
+int put_tty_line __P((const char *, int, long, int));
 void quit __P((int));
 long read_file __P((char *, long));
 long read_stream __P((FILE *, long));
@@ -259,7 +259,7 @@ int substitute_matching_text __P((pattern_t *, line_t *, int, int));
 char *translit_text __P((char *, int, int, int));
 void unmark_line_node __P((line_t *));
 void unset_active_nodes __P((line_t *, line_t *));
-long write_file __P((char *, char *, long, long));
+long write_file __P((char *, const char *, long, long));
 long write_stream __P((FILE *, long, long));
 
 /* global buffers */
@@ -278,7 +278,7 @@ extern int sigflags;
 /* global vars */
 extern long addr_last;
 extern long current_addr;
-extern char errmsg[];
+extern const char *errmsg;
 extern long first_addr;
 extern int lineno;
 extern long second_addr;

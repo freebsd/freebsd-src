@@ -26,12 +26,8 @@
  */
 
 #ifndef lint
-#if 0
-static char * const rcsid = "@(#)undo.c,v 1.1 1994/02/01 00:34:44 alm Exp";
-#else
-static char * const rcsid =
+static const char rcsid[] =
   "$FreeBSD$";
-#endif
 #endif /* not lint */
 
 #include "ed.h"
@@ -55,7 +51,7 @@ push_undo_stack(type, from, to)
 	if (ustack == NULL &&
 	    (ustack = (undo_t *) malloc((usize = USIZE) * sizeof(undo_t))) == NULL) {
 		fprintf(stderr, "%s\n", strerror(errno));
-		sprintf(errmsg, "out of memory");
+		errmsg = "out of memory";
 		return NULL;
 	}
 #endif
@@ -70,7 +66,7 @@ push_undo_stack(type, from, to)
 	}
 	/* out of memory - release undo stack */
 	fprintf(stderr, "%s\n", strerror(errno));
-	sprintf(errmsg, "out of memory");
+	errmsg = "out of memory";
 	clear_undo_stack();
 	free(ustack);
 	ustack = NULL;
@@ -98,7 +94,7 @@ pop_undo_stack()
 	long o_addr_last = addr_last;
 
 	if (u_current_addr == -1 || u_addr_last == -1) {
-		sprintf(errmsg, "nothing to undo");
+		errmsg = "nothing to undo";
 		return ERR;
 	} else if (u_p)
 		modified = 1;
