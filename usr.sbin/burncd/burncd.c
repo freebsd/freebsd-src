@@ -119,7 +119,7 @@ main(int argc, char **argv)
 			if (strcasecmp("max", optarg) == 0)
 				speed = CDR_MAX_SPEED;
 			else
-				speed = atoi(optarg) * 177;
+				speed = atoi(optarg);
 			if (speed <= 0)
 				errx(EX_USAGE, "Invalid speed: %s", optarg);
 			break;
@@ -148,6 +148,7 @@ main(int argc, char **argv)
 	if (ioctl(fd, CDRIOCGETBLOCKSIZE, &saved_block_size) < 0) 
        		err(EX_IOERR, "ioctl(CDRIOCGETBLOCKSIZE)");
 
+	speed *= 177;
 	if (ioctl(fd, CDRIOCWRITESPEED, &speed) < 0) 
        		err(EX_IOERR, "ioctl(CDRIOCWRITESPEED)");
 
