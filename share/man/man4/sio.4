@@ -34,38 +34,95 @@
 .\"
 .\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
-.\"	$Id$
+.\"	$Id: sio.4,v 1.1 1993/08/28 12:41:23 rgrimes Exp $
 .\"
-.Dd August 28, 1993
+.Dd February 9, 1994
 .Dt SIO 4 i386
 .Os FreeBSD
 .Sh NAME
 .Nm sio
 .Nd
-fast interrupt serial communications interface
+fast interrupt driven asynchronous serial communications interface
 .Sh SYNOPSIS
+For standard ports:
 .Cd "device sio0 at isa? port" \&"IO_COM1\&" tty irq 4 vector siointr
 .Cd "device sio1 at isa? port" \&"IO_COM2\&" tty irq 3 vector siointr
 .Cd "device sio2 at isa? port" \&"IO_COM3\&" tty irq 5 vector siointr
 .Cd "device sio3 at isa? port" \&"IO_COM4\&" tty irq 9 vector siointr
+.sp
+For multiport cards:
+.Cd "options" \&"COM_MULTIPORT\&"
+.Cd "device sio4 at isa? port 0x2a0 tty irq 12 vector siointr flags 0x401"
+.Cd "device sio5 at isa? port 0x2a8 tty vector siointr flags 0x401"
+.Cd "device sio6 at isa? port 0x2b0 tty vector siointr flags 0x401"
+.Cd "device sio7 at isa? port 0x2b8 tty vector siointr flags 0x401"
+.sp
+For bidirectional use of ports:
+.Cd "options" \&"COM_BIDIR\&"
+.sp
+For control FIFO trigger:
+.Cd "options" \&"FIFO_TRIGGER=FIFO_TRIGGER_14\&"
+.sp
+Use 0x02 bit in flags field to disable FIFO on specified port.
 .Sh DESCRIPTION
 The
 .Nm sio
-driver provides support for NS8250-, NS16450-, and NS16550-based
+driver provides support for NS8250-, NS16450-, NS16550 and NS16550A-based
 .Tn EIA
 .Tn RS-232C
 .Pf ( Tn CCITT
-.Tn V.28 )
+.Tn V.24 )
 communications interfaces.  The NS8250 and NS16450 have single character
-buffers, and the NS16550 has a 16 character buffer.
+buffers, the NS16550A has a 16 character FIFO buffer.
 .Pp
 Input and output for each line may set to one of following baud rates;
 50, 75, 110, 134.5, 150, 300, 600, 1200, 1800, 2400, 4800, 9600,
-19200, 38400, 57600, or 115200.
+19200, 38400, 57600, or 115200. Your hardware may limit your baud
+rate choices.
+.Pp
+For multiport cards the 
+.Nm flags
+keyword in the kernel configuration file determines which port of 
+your multiport card is the master device, and whether the 
+port is part of a multiport card. The master device is the port with 
+the shared interrupt register.
+All ports of a multiport card report
+pending interrupts using this single register.
+.Pp
+In the synopsis the 
+.Nm flags 0x401
+means that the 4th port (sio4) is the master
+device (so the MSB of the flags), and that the ports are part of a 
+multiport card (the LSB of the flags, actually only the LS 
+.Nm bit
+).
+F.e. if you have only two standard ports in addition to multiport
+card, this
+.Nm flags
+will be
+.Nm 0x201 .
+.Pp
+Which port is the master device depends on the card type. Consult
+the hardware documentation of your card.
+If you are shure, that your master device fully compatible with
+standard port, you can ommit
+.Nm flags
+field from master device description line.
+.Pp
+Serial ports controlled by the 
+.Nm sio
+driver can be used for both dialin and dialout. Use 
+.Xr comcontrol 8
+to enable/disable bidirectional use of the 
+.Nm sio
+ports. The minor number of the dialout
+port is 128 higher than that of the corresponding dialin port. Use 
+.Xr stty 1
+to enable or disable modem control as required by your setup.
 .Sh FILES
 .Bl -tag -width Pa
-.It Pa /dev/tty00
-.It Pa /dev/tty01
+.It Pa /dev/tty0? for dialin
+.It Pa /dev/cua0? for dialout
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
@@ -78,8 +135,9 @@ has overflowed and incoming data has been lost.
 .\"with the code listed.
 .El
 .Sh SEE ALSO
-.Xr tty 4
-.Xr com 4
+.Xr tty 4 ,
+.Xr comcontrol 8 ,
+.Xr stty 1 .
 .Sh HISTORY
 The
 .Nm
@@ -89,13 +147,18 @@ driver is derived from the
 driver and is
 .Ud
 .Sh BUGS
-Data loss is not near as likely on busy systems as they are with the
-.Xr com 4
-driver but they still can occur at very high baud rates on slow systems.
+Data loss is not near as likely on busy systems
+but they still can occur at very high baud rates on slow systems. The
+use of NS16550A's helps lot to handle high baud rates.
 .Pp
 The constants which define the locations
-of the various seiral ports are holdovers from
+of the various serial ports are holdovers from
 .Nm DOS .
+As shown, hex addresses can be used instead.
 .Pp
-As usual, you get what you pay for; cheap NS16550 clones
-generally don't work.
+As usual, you get what you pay for; cheap NS16550 clones generally don't work.
+.Pp
+The multiport example has been successfully tested with an AST/4 card, your
+mileage may vary however.
+.Pp
+This man page can not replace the Ultimate Doc(tm): the source.
