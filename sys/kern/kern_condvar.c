@@ -201,13 +201,6 @@ static __inline void
 cv_waitq_add(struct cv *cvp, struct thread *td)
 {
 
-	/*
-	 * Process may be sitting on a slpque if asleep() was called, remove it
-	 * before re-adding.
-	 */
-	if (td->td_wchan != NULL)
-		unsleep(td);
-
 	td->td_flags |= TDF_CVWAITQ;
 	td->td_wchan = cvp;
 	td->td_wmesg = cvp->cv_description;
