@@ -1,8 +1,8 @@
 #	from: @(#)Makefile	5.6 (Berkeley) 5/22/91
-#	$Id: Makefile,v 1.17 1995/08/06 12:23:18 bde Exp $
+#	$Id: Makefile,v 1.18 1995/08/06 12:37:20 bde Exp $
 
-CFLAGS+=	-DLIBC_SCCS -DDYNAMIC
-OBJS=		crt0.o gcrt0.o c++rt0.o
+CFLAGS+=	-DLIBC_SCCS
+OBJS=		scrt0.o crt0.o gcrt0.o c++rt0.o
 CLEANFILES+=	a.out
 MAN3+=		dlopen.3
 MLINKS+=	dlopen.3 dlsym.3 \
@@ -11,8 +11,13 @@ MLINKS+=	dlopen.3 dlsym.3 \
 
 all: ${OBJS}
 
-crt0.o: crt0.c
+scrt0.o: crt0.c
 	${CC} ${CFLAGS} -c -DCRT0 ${.CURDIR}/crt0.c -o ${.TARGET}
+	${LD} -x -r ${.TARGET}
+	mv a.out ${.TARGET}
+
+crt0.o: crt0.c
+	${CC} ${CFLAGS} -c -DCRT0 -DDYNAMIC ${.CURDIR}/crt0.c -o ${.TARGET}
 	${LD} -x -r ${.TARGET}
 	mv a.out ${.TARGET}
 
@@ -26,7 +31,7 @@ c++rt0.o: c++rt0.c
 # to get the dependencies mostly correct.
 #
 gcrt0.o: crt0.o
-	${CC} ${CFLAGS} -c -DMCRT0 ${.CURDIR}/crt0.c -o ${.TARGET}
+	${CC} ${CFLAGS} -c -DMCRT0 -DDYNAMIC ${.CURDIR}/crt0.c -o ${.TARGET}
 	${LD} -x -r ${.TARGET}
 	mv a.out ${.TARGET}
 
@@ -46,7 +51,7 @@ depend:	.depend
 
 .depend:	crt0.c c++rt0.c
 	rm -f .depend
-	mkdep ${CFLAGS} -DCRT0 ${.CURDIR}/crt0.c
+	mkdep ${CFLAGS} -DCRT0 -DDYNAMIC ${.CURDIR}/crt0.c
 	mkdep -a ${CFLAGS} ${.CURDIR}/c++rt0.c
 
 lint tags:
