@@ -439,7 +439,7 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 			ahc->flags |= AHC_RESOURCE_SHORTAGE;
 			ahc_unlock(ahc, &s);
 			xpt_freeze_simq(sim, /*count*/1);
-			ahc_set_transaction_status(scb, CAM_REQUEUE_REQ);
+			ccb->ccb_h.status = CAM_REQUEUE_REQ;
 			xpt_done(ccb);
 			return;
 		}
