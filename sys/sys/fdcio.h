@@ -130,6 +130,10 @@ enum fd_drivetype {
 
 #define FD_GOPTS  _IOR('F', 64, int) /* drive options, see below */
 #define FD_SOPTS  _IOW('F', 65, int)
+ 
+#ifdef PC98
+#define FD_DEBUG  _IOW('F', 66, int)
+#endif
 
 #define FD_CLRERR _IO('F', 67)	/* clear error counter */
 
