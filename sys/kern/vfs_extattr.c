@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.15 1994/10/21 01:19:15 wollman Exp $
+ * $Id: vfs_syscalls.c,v 1.16 1994/11/04 14:41:34 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -331,7 +331,7 @@ sync(p, uap, retval)
 		    !vfs_busy(mp)) {
 			asyncflag = mp->mnt_flag & MNT_ASYNC;
 			mp->mnt_flag &= ~MNT_ASYNC;
-			VFS_SYNC(mp, MNT_NOWAIT, p->p_ucred, p);
+			VFS_SYNC(mp, MNT_NOWAIT, p != NULL ? p->p_ucred : NOCRED, p);
 			if (asyncflag)
 				mp->mnt_flag |= MNT_ASYNC;
 			vfs_unbusy(mp);
