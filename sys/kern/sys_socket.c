@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_socket.c	8.1 (Berkeley) 6/10/93
- * $Id: sys_socket.c,v 1.5 1995/05/30 08:05:59 rgrimes Exp $
+ * $Id: sys_socket.c,v 1.6 1995/12/14 08:31:49 phk Exp $
  */
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/file.h>

@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.26 1996/02/23 15:47:58 phk Exp $
+ *	$Id: raw_ip.c,v 1.27 1996/02/24 13:38:28 phk Exp $
  */
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -42,7 +43,6 @@
 #include <sys/socketvar.h>
 #include <sys/errno.h>
 #include <sys/systm.h>
-#include <sys/queue.h>
 
 #include <net/if.h>
 #include <net/route.h>

@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.16 1995/10/26 20:30:26 julian Exp $
+ *	$Id: rtsock.c,v 1.17 1995/11/16 19:00:11 phk Exp $
  */
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>

@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.24 1995/12/16 02:14:19 bde Exp $
+ *	$Id: tcp_subr.c,v 1.25 1995/12/20 17:42:28 wollman Exp $
  */
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -45,7 +46,6 @@
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
 #include <sys/errno.h>
-#include <sys/queue.h>
 
 #include <net/route.h>
 #include <net/if.h>

@@ -33,10 +33,11 @@
  *
  *	@(#)spx_debug.c
  *
- * $Id: spx_debug.c,v 1.3 1995/11/04 09:03:32 julian Exp $
+ * $Id: spx_debug.c,v 1.4 1996/02/13 18:16:26 wollman Exp $
  */
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
