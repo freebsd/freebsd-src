@@ -93,7 +93,7 @@
 	EXCA_SYSMEM_ADDR ## NUM ## _WIN,				\
 	EXCA_CARDMEM_ADDR ## NUM ## _LSB,				\
 	EXCA_CARDMEM_ADDR ## NUM ## _MSB,				\
-	EXCA_ADDRWIN_ENABLE_MEM ## NUM ##,				\
+	EXCA_ADDRWIN_ENABLE_MEM ## NUM,					\
 }
 
 static struct mem_map_index_st {
@@ -344,7 +344,7 @@ exca_mem_set_offset(struct exca_softc *sc, struct resource *res,
 	EXCA_IOADDR ## NUM ## _START_MSB,				\
 	EXCA_IOADDR ## NUM ## _STOP_LSB,				\
 	EXCA_IOADDR ## NUM ## _STOP_MSB,				\
-	EXCA_ADDRWIN_ENABLE_IO ## NUM ##,				\
+	EXCA_ADDRWIN_ENABLE_IO ## NUM,					\
 	EXCA_IOCTL_IO ## NUM ## _WAITSTATE				\
 	| EXCA_IOCTL_IO ## NUM ## _ZEROWAIT				\
 	| EXCA_IOCTL_IO ## NUM ## _IOCS16SRC_MASK			\
