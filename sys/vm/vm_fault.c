@@ -337,7 +337,7 @@ RetryFault:;
 
 			queue = fs.m->queue;
 			s = splvm();
-			vm_page_unqueue_nowakeup(fs.m);
+			vm_pageq_remove_nowakeup(fs.m);
 			splx(s);
 
 			if ((queue - fs.m->pc) == PQ_CACHE && vm_page_count_severe()) {
