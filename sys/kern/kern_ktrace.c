@@ -194,9 +194,10 @@ done:
 void
 ktrpsig(vp, sig, action, mask, code)
 	struct vnode *vp;
-	int sig, code;
+	int sig;
 	sig_t action;
 	sigset_t *mask;
+	int code;
 {
 	struct ktr_header *kth;
 	struct ktr_psig	kp;
