@@ -37,6 +37,15 @@ for the Intel EtherExpress Pro/10 network cards.
 The `de' driver now recognizes cards using the DE21140A chip, like the
 popular SMC9332BDT (10/100 Mbit/s) one.
 
+There's now a workaround for the brokeness of the frequently used
+CMD640 PCI IDE chip in the sources, albeit still disabled by default
+in 2.2.
+
+The number of EISA slots to probe is now a fully supported option,
+including the ability to save the value from a UserConfig session
+with dset(8).  This helps owners of HP NetServer LC machines to
+install the system on their hardware.
+
 
 1.1 What's new since 2.1.7-RELEASE
 ----------------------------------
@@ -70,16 +79,31 @@ The syscons and psm drivers now have a new underlying shared keyboard
 driver, eliminating many of the previously existing problems with
 their mutual interaction.
 
+Syscons now supports cut & paste in textmode using the moused(8)
+utility.
+
 2.2 is the first release that includes full CD-R support for the
-Plasmon RF41xx, HP4020i, and Philips CDD2000 drives.  The driver is
-still under development (in particular to extend its usability for
-other devices), but it has been proved to be stable by now.
+Plasmon RF41xx, HP4020i, HP6020i, and Philips CDD2000 drives.  The
+driver is still under development (in particular to extend its
+usability for other devices), but it has been proved to be stable
+by now.
 
 Support for NFSv3 clients and servers went into the 2.2 sources
 shortly after branching off the 2.0.5/2.1.X tree.  There are also
 other options available with NFS, like the ability to turn an NFSv2
 server into asynchronous write mode (which is in violation of the
 specs, but has precedents e.g. in SGI Irix).
+
+Poul-Henning Kamp's phkmalloc replaced the old and blatant BSD
+malloc implementation.  This usually saves a lot of virtual memory
+for the clients, and offers some neat features like aborting the
+program on detected malloc abuses, or filling the malloced and/or
+freed area with junk in order to detect semantical problems in
+programs that use malloc.
+
+The `netatalk' implementation of AppleTalk has been integrated into
+the sources, most of the integration work courtesy Wistle Communic-
+ations Corp.
 
 The mount option `async' allows asynchronous metadata updates on UFS
 file systems, something that is the default e.g. on Linux' ext2fs.
