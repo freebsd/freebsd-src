@@ -17,7 +17,6 @@
 #include <string.h>
 #include <err.h>
 #include <sys/types.h>
-#include <sys/queue.h>
 #include "libdisk.h"
 
 struct disk *
