@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.102 1999/05/09 20:27:26 peter Exp $
+ * $Id: pci.c,v 1.103 1999/05/10 17:56:22 dfr Exp $
  *
  */
 
@@ -199,6 +199,26 @@ pci_readmaps(pcicfgregs *cfg, int maxmaps)
 				map[j].base     = base;
 				map64 = 0;
 			}
+#ifdef __alpha__
+			/* 
+			 *  XXX: encode hose number in the base addr,
+			 *  This will go away once the bus_space functions
+			 *  can deal with multiple hoses 
+			 */
+
+			if(cfg->hose){
+				if(map[j].base & 0x80000000){
+					printf("base   addr = 0x%x\n", map[j].base);
+					printf("hacked addr = 0x%x\n",
+					       map[j].base | (cfg->hose << 31));
+					
+					panic("hose encoding hack would clobber base addr");
+				}
+				if(cfg->hose > 1 )
+					panic("only one hose supported!");
+				map[j].base |=  (cfg->hose << 31);
+			}
+#endif
 			j++;
 		}
 	}
@@ -339,7 +359,8 @@ pci_readcfg(pcicfgregs *probe)
 		bzero(devlist_entry, sizeof *devlist_entry);
 
 		cfg = &devlist_entry->cfg;
-
+		
+		cfg->hose               = probe->hose;
 		cfg->bus		= probe->bus;
 		cfg->slot		= probe->slot;
 		cfg->func		= probe->func;
@@ -446,6 +467,7 @@ pci_freecfg(struct pci_devinfo *dinfo)
 	return (0);
 }
 #endif
+
 
 /*
  * This is the user interface to PCI configuration space.
@@ -991,7 +1013,14 @@ pci_add_children(device_t dev, int busno)
 #endif
 
 	bzero(&probe, sizeof probe);
+#ifdef __alpha__
+	probe.hose = pcib_get_hose(dev);
+#endif
+#ifdef __i386__
+	probe.hose = 0;
+#endif
 	probe.bus = busno;
+
 	for (probe.slot = 0; probe.slot <= PCI_SLOTMAX; probe.slot++) {
 		int pcifunchigh = 0;
 		for (probe.func = 0; probe.func <= pcifunchigh; probe.func++) {
@@ -1096,6 +1125,12 @@ pci_read_ivar(device_t dev, device_t child, int which, u_long *result)
 		break;
 	case PCI_IVAR_SUBORDINATEBUS:
 		*result = cfg->subordinatebus;
+		break;
+	case PCI_IVAR_HOSE:
+		/*
+		 * Pass up to parent bridge.
+		 */
+		*result = pcib_get_hose(dev);
 		break;
 	default:
 		return ENOENT;
