@@ -376,7 +376,7 @@ register char	***arg;
 		}
 		s++;
 	}
-	if (s[0] != 0)
+	if (s[0] != 0 && s[0][0] != '\0')
 		recover(s[0]);
 }
 
