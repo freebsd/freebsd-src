@@ -42,7 +42,6 @@ int trace = FALSE;
 int noexec = FALSE;
 int logoff = FALSE;
 mode_t cvsumask = UMASK_DFLT;
-char *RCS_citag = NULL;
 
 char *CurDir;
 
@@ -951,40 +950,38 @@ parseopts(root)
 
 	    if (!strncmp(buf, "tag=", 4)) {
 		char *what;
+		char *rcs_localid;
 
-		RCS_citag = strdup(buf+4);
-		if (RCS_citag == NULL) {
-			printf("no memory for local tag\n");
-			return;
-		}
-		what = malloc(sizeof("RCSLOCALID")+1+strlen(RCS_citag)+1);
+		rcs_localid = buf + 4;
+		RCS_setlocalid(rcs_localid);
+		what = malloc(sizeof("RCSLOCALID") + 2 + strlen(rcs_localid));
 		if (what == NULL) {
 			printf("no memory for local tag\n");
 			return;
 		}
-		sprintf(what, "RCSLOCALID=%s", RCS_citag);
+		sprintf(what, "RCSLOCALID=%s", rcs_localid);
 		putenv(what);
 	    }
-#if 0	/* not yet.. gotta rethink the implications */
-	    else if (!strncmp(buf, "umask=", 6)) {
-		mode_t mode;
+	    if (!strncmp(buf, "tagexpand=", 10)) {
+		char *what;
+		char *rcs_incexc;
 
-		cvsumask = (mode_t)(strtol(buf+6, NULL, 8) & 0777);
-	    }
-	    else if (!strncmp(buf, "dlimit=", 7)) {
-#ifdef BSD
-#include <sys/resource.h>
-		struct rlimit rl;
-
-		if (getrlimit(RLIMIT_DATA, &rl) != -1) {
-			rl.rlim_cur = atoi(buf+7);
-			rl.rlim_cur *= 1024;
-
-			(void) setrlimit(RLIMIT_DATA, &rl);
+		rcs_incexc = buf + 10;
+		RCS_setincexc(rcs_incexc);
+		what = malloc(sizeof("RCSINCEXC") + 2 + strlen(rcs_incexc));
+		if (what == NULL) {
+			printf("no memory for tag expand mode\n");
+			return;
 		}
-#endif /* BSD */
+		sprintf(what, "RCSINCEXC=%s", rcs_incexc);
+		putenv(what);
 	    }
-#endif /* 0 */
+	    /*
+	     * OpenBSD has a "umask=" and "dlimit=" command, we silently
+	     * ignore them here since they are not much use to us.  cvsumask
+	     * defaults to 002 already, and the dlimit (data size limit)
+	     * should really be handled elsewhere.
+	     */
 	}
 	fclose(fp);
     }
