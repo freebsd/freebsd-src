@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.11 1997/03/13 02:04:47 kato Exp $
+#	$Id: Makefile,v 1.12 1997/03/24 02:38:48 kato Exp $
 #
 
 PROG=	boot
@@ -62,9 +62,7 @@ CFLAGS+=	-DCOMCONSOLE=${BOOT_COMCONSOLE_PORT} \
 # BOOT_HD_BIAS=1 makes sd(0,a) correspond to 1:sd(0,a) instead of 0:sd(0,a).
 
 CLEANFILES+=	boot.nohdr boot.strip boot1 boot2 sizetest
-DPADD=		${LIBC}
 LDFLAGS+=	-N -T 0 -nostdlib
-LDADD=		-lc
 #LINKS=		${BINDIR}/sdboot ${BINDIR}/wdboot\
 #		${BINDIR}/sdboot ${BINDIR}/fdboot\
 #		${BINDIR}/bootsd ${BINDIR}/bootwd\
