@@ -76,13 +76,13 @@ static struct cdevsw g_dev_cdevsw = {
 static g_taste_t g_dev_taste;
 static g_orphan_t g_dev_orphan;
 
-static struct g_method g_dev_method	= {
-	"DEV-method",
+static struct g_class g_dev_class	= {
+	"DEV-class",
 	g_dev_taste,
 	NULL,
 	g_dev_orphan,
 	NULL,
-	G_METHOD_INITSTUFF
+	G_CLASS_INITSTUFF
 };
 
 static void
@@ -98,7 +98,7 @@ g_dev_clone(void *arg, char *name, int namelen, dev_t *dev)
 
 	/* XXX: can I drop Giant here ??? */
 	/* g_topology_lock(); */
-	LIST_FOREACH(gp, &g_dev_method.geom, geom) {
+	LIST_FOREACH(gp, &g_dev_class.geom, geom) {
 		if (strcmp(gp->name, name))
 			continue;
 		*dev = gp->softc;
@@ -124,7 +124,7 @@ g_dev_register_cloner(void *foo __unused)
 SYSINIT(geomdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE,g_dev_register_cloner,NULL);
 
 static struct g_geom *
-g_dev_taste(struct g_method *mp, struct g_provider *pp, struct thread *tp __unused, int insist __unused)
+g_dev_taste(struct g_class *mp, struct g_provider *pp, struct thread *tp __unused, int insist __unused)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
@@ -137,7 +137,7 @@ g_dev_taste(struct g_method *mp, struct g_provider *pp, struct thread *tp __unus
 	g_trace(G_T_TOPOLOGY, "dev_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
 	LIST_FOREACH(cp, &pp->consumers, consumers)
-		if (cp->geom->method == mp)
+		if (cp->geom->class == mp)
 			return (NULL);
 	gp = g_new_geomf(mp, pp->name);
 	cp = g_new_consumer(gp);
@@ -282,7 +282,7 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 
 	if (error != 0 && cmd == DIOCGDVIRGIN) {
 		g_topology_lock();
-		gp = g_create_geomf("BSD-method", cp->provider, NULL);
+		gp = g_create_geomf("BSD-class", cp->provider, NULL);
 		g_topology_unlock();
 	}
 	PICKUP_GIANT();
@@ -386,5 +386,5 @@ g_dev_orphan(struct g_consumer *cp, struct thread *tp)
 	g_destroy_geom(gp);
 }
 
-DECLARE_GEOM_METHOD(g_dev_method, g_dev)
+DECLARE_GEOM_CLASS(g_dev_class, g_dev)
 

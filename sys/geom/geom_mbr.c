@@ -58,8 +58,8 @@
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
 
-#define MBR_METHOD_NAME "MBR-method"
-#define MBREXT_METHOD_NAME "MBREXT-method"
+#define MBR_CLASS_NAME "MBR-class"
+#define MBREXT_CLASS_NAME "MBREXT-class"
 
 static void
 g_dec_dos_partition(u_char *ptr, struct dos_partition *d)
@@ -164,7 +164,7 @@ g_mbr_print(int i __unused, struct dos_partition *dp __unused)
 }
 
 static struct g_geom *
-g_mbr_taste(struct g_method *mp, struct g_provider *pp, struct thread *tp, int insist)
+g_mbr_taste(struct g_class *mp, struct g_provider *pp, struct thread *tp, int insist)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
@@ -241,16 +241,16 @@ g_mbr_taste(struct g_method *mp, struct g_provider *pp, struct thread *tp, int i
 }
 
 
-static struct g_method g_mbr_method	= {
-	MBR_METHOD_NAME,
+static struct g_class g_mbr_class	= {
+	MBR_CLASS_NAME,
 	g_mbr_taste,
 	g_slice_access,
 	g_slice_orphan,
 	NULL,
-	G_METHOD_INITSTUFF
+	G_CLASS_INITSTUFF
 };
 
-DECLARE_GEOM_METHOD(g_mbr_method, g_mbr);
+DECLARE_GEOM_CLASS(g_mbr_class, g_mbr);
 
 #define NDOSEXTPART		32
 struct g_mbrext_softc {
@@ -304,7 +304,7 @@ g_mbrext_print(int i, struct dos_partition *dp)
 }
 
 static struct g_geom *
-g_mbrext_taste(struct g_method *mp, struct g_provider *pp, struct thread *tp __unused, int insist __unused)
+g_mbrext_taste(struct g_class *mp, struct g_provider *pp, struct thread *tp __unused, int insist __unused)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
@@ -317,7 +317,7 @@ g_mbrext_taste(struct g_method *mp, struct g_provider *pp, struct thread *tp __u
 
 	g_trace(G_T_TOPOLOGY, "g_mbrext_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
-	if (strcmp(pp->geom->method->name, MBR_METHOD_NAME))
+	if (strcmp(pp->geom->class->name, MBR_CLASS_NAME))
 		return (NULL);
 	gp = g_slice_new(mp, NDOSEXTPART, pp, &cp, &ms, sizeof *ms, g_mbrext_start);
 	if (gp == NULL)
@@ -379,13 +379,13 @@ g_mbrext_taste(struct g_method *mp, struct g_provider *pp, struct thread *tp __u
 }
 
 
-static struct g_method g_mbrext_method	= {
-	MBREXT_METHOD_NAME,
+static struct g_class g_mbrext_class	= {
+	MBREXT_CLASS_NAME,
 	g_mbrext_taste,
 	g_slice_access,
 	g_slice_orphan,
 	NULL,
-	G_METHOD_INITSTUFF
+	G_CLASS_INITSTUFF
 };
 
-DECLARE_GEOM_METHOD(g_mbrext_method, g_mbrext);
+DECLARE_GEOM_CLASS(g_mbrext_class, g_mbrext);

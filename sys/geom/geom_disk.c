@@ -56,8 +56,8 @@
 
 static g_access_t g_disk_access;
 
-struct g_method g_disk_method = {
-	"DISK-method",
+struct g_class g_disk_class = {
+	"DISK-class",
 	NULL,
 	g_disk_access,
 	NULL,
@@ -181,7 +181,7 @@ disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, struct 
 
 	mtx_unlock(&Giant);
 	if (!once) {
-		g_add_method(&g_disk_method);
+		g_add_class(&g_disk_class);
 		once++;
 	}
 	dev = g_malloc(sizeof *dev, M_WAITOK | M_ZERO);
@@ -190,7 +190,7 @@ disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, struct 
 	dev->si_disk = dp;
 	dev->si_udev = dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART);
 	g_topology_lock();
-	gp = g_new_geomf(&g_disk_method, "%s%d", cdevsw->d_name, unit);
+	gp = g_new_geomf(&g_disk_class, "%s%d", cdevsw->d_name, unit);
 	gp->start = g_disk_start;
 	gp->softc = dp;
 	dp->d_softc = gp;
