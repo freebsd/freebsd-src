@@ -92,8 +92,8 @@ async_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
   struct mbuf *wp;
   int cnt;
 
-  if (!p || mbuf_Length(bp) > HDLCSIZE) {
-    mbuf_Free(bp);
+  if (!p || m_length(bp) > HDLCSIZE) {
+    m_freem(bp);
     return NULL;
   }
 
@@ -103,20 +103,20 @@ async_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
   *cp++ = HDLC_SYN;
   while (wp) {
     sp = MBUF_CTOP(wp);
-    for (cnt = wp->cnt; cnt > 0; cnt--) {
+    for (cnt = wp->m_len; cnt > 0; cnt--) {
       async_Encode(&p->async, &cp, *sp++, *proto);
       if (cp >= ep) {
-	mbuf_Free(bp);
+	m_freem(bp);
 	return NULL;
       }
     }
-    wp = wp->next;
+    wp = wp->m_next;
   }
   *cp++ = HDLC_SYN;
 
   cnt = cp - p->async.xbuff;
-  mbuf_Free(bp);
-  bp = mbuf_Alloc(cnt, MB_ASYNCOUT);
+  m_freem(bp);
+  bp = m_get(cnt, MB_ASYNCOUT);
   memcpy(MBUF_CTOP(bp), p->async.xbuff, cnt);
   log_DumpBp(LogASYNC, "Write", bp);
 
@@ -135,7 +135,7 @@ async_Decode(struct async *async, u_char c)
   case HDLC_SYN:
     async->mode &= ~MODE_HUNT;
     if (async->length) {		/* packet is ready. */
-      bp = mbuf_Alloc(async->length, MB_ASYNCIN);
+      bp = m_get(async->length, MB_ASYNCIN);
       mbuf_Write(bp, async->hbuff, async->length);
       async->length = 0;
       return bp;
@@ -185,12 +185,12 @@ async_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp,
   log_DumpBp(LogASYNC, "Read", bp);
   while (bp) {
     ch = MBUF_CTOP(bp);
-    for (cnt = bp->cnt; cnt; cnt--) {
+    for (cnt = bp->m_len; cnt; cnt--) {
       *last = async_Decode(&p->async, *ch++);
       if (*last != NULL)
-        last = &(*last)->pnext;
+        last = &(*last)->m_nextpkt;
     }
-    bp = mbuf_FreeSeg(bp);
+    bp = m_free(bp);
   }
 
   return nbp;

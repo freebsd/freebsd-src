@@ -336,22 +336,6 @@ nat_Pptp(struct cmdargs const *arg)
 }
 
 static struct mbuf *
-nat_PadMbuf(struct mbuf *bp, int type)
-{
-  struct mbuf **last;
-  int len;
-
-  mbuf_SetType(bp, type);
-  for (last = &bp, len = 0; *last != NULL; last = &(*last)->next)
-    len += (*last)->cnt;
-
-  len = MAX_MRU - len;
-  *last = mbuf_Alloc(len, type);
-
-  return bp;
-}
-
-static struct mbuf *
 nat_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
                 int pri, u_short *proto)
 {
@@ -359,9 +343,9 @@ nat_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
     return bp;
 
   log_Printf(LogDEBUG, "nat_LayerPush: PROTO_IP -> PROTO_IP\n");
-  bp = mbuf_Contiguous(nat_PadMbuf(bp, MB_NATOUT));
-  PacketAliasOut(MBUF_CTOP(bp), bp->cnt);
-  bp->cnt = ntohs(((struct ip *)MBUF_CTOP(bp))->ip_len);
+  m_settype(bp, MB_NATOUT);
+  bp = m_pullup(bp);
+  PacketAliasOut(MBUF_CTOP(bp), bp->m_len);
 
   return bp;
 }
@@ -379,7 +363,8 @@ nat_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
     return bp;
 
   log_Printf(LogDEBUG, "nat_LayerPull: PROTO_IP -> PROTO_IP\n");
-  bp = mbuf_Contiguous(nat_PadMbuf(bp, MB_NATIN));
+  m_settype(bp, MB_NATIN);
+  bp = m_pullup(bp);
   pip = (struct ip *)MBUF_CTOP(bp);
   piip = (struct ip *)((char *)pip + (pip->ip_hl << 2));
 
@@ -387,13 +372,13 @@ nat_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
       (pip->ip_p == IPPROTO_IPIP && IN_CLASSD(ntohl(piip->ip_dst.s_addr))))
     return bp;
 
-  ret = PacketAliasIn(MBUF_CTOP(bp), bp->cnt);
+  ret = PacketAliasIn(MBUF_CTOP(bp), bp->m_len);
 
-  bp->cnt = ntohs(pip->ip_len);
-  if (bp->cnt > MAX_MRU) {
+  bp->m_len = ntohs(pip->ip_len);
+  if (bp->m_len > MAX_MRU) {
     log_Printf(LogWARN, "nat_LayerPull: Problem with IP header length (%d)\n",
-               bp->cnt);
-    mbuf_Free(bp);
+               bp->m_len);
+    m_freem(bp);
     return NULL;
   }
 
@@ -403,26 +388,26 @@ nat_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
 
     case PKT_ALIAS_UNRESOLVED_FRAGMENT:
       /* Save the data for later */
-      fptr = malloc(bp->cnt);
-      bp = mbuf_Read(bp, fptr, bp->cnt);
+      fptr = malloc(bp->m_len);
+      bp = mbuf_Read(bp, fptr, bp->m_len);
       PacketAliasSaveFragment(fptr);
       break;
 
     case PKT_ALIAS_FOUND_HEADER_FRAGMENT:
       /* Fetch all the saved fragments and chain them on the end of `bp' */
-      last = &bp->pnext;
+      last = &bp->m_nextpkt;
       while ((fptr = PacketAliasGetFragment(MBUF_CTOP(bp))) != NULL) {
 	PacketAliasFragmentIn(MBUF_CTOP(bp), fptr);
         len = ntohs(((struct ip *)fptr)->ip_len);
-        *last = mbuf_Alloc(len, MB_NATIN);
+        *last = m_get(len, MB_NATIN);
         memcpy(MBUF_CTOP(*last), fptr, len);
         free(fptr);
-        last = &(*last)->pnext;
+        last = &(*last)->m_nextpkt;
       }
       break;
 
     default:
-      mbuf_Free(bp);
+      m_freem(bp);
       bp = NULL;
       break;
   }

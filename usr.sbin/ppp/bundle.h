@@ -153,7 +153,6 @@ extern void bundle_Down(struct bundle *, int);
 extern void bundle_Open(struct bundle *, const char *, int, int);
 extern void bundle_LinkClosed(struct bundle *, struct datalink *);
 
-extern int bundle_FillQueues(struct bundle *);
 extern int bundle_ShowLinks(struct cmdargs const *);
 extern int bundle_ShowStatus(struct cmdargs const *);
 extern void bundle_StartIdleTimer(struct bundle *);

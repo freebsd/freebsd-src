@@ -534,14 +534,14 @@ extern struct mbuf *
 ccp_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 {
   /* Got PROTO_CCP from link */
-  mbuf_SetType(bp, MB_CCPIN);
+  m_settype(bp, MB_CCPIN);
   if (bundle_Phase(bundle) == PHASE_NETWORK)
     fsm_Input(&l->ccp.fsm, bp);
   else {
     if (bundle_Phase(bundle) < PHASE_NETWORK)
       log_Printf(LogCCP, "%s: Error: Unexpected CCP in phase %s (ignored)\n",
                  l->ccp.fsm.link->name, bundle_PhaseName(bundle));
-    mbuf_Free(bp);
+    m_freem(bp);
   }
   return NULL;
 }
@@ -584,10 +584,10 @@ ccp_LayerPush(struct bundle *b, struct link *l, struct mbuf *bp,
            (l->ccp.out.state, &l->ccp, l, pri, proto, bp);
     switch (*proto) {
       case PROTO_ICOMPD:
-        mbuf_SetType(bp, MB_ICOMPDOUT);
+        m_settype(bp, MB_ICOMPDOUT);
         break;
       case PROTO_COMPD:
-        mbuf_SetType(bp, MB_COMPDOUT);
+        m_settype(bp, MB_COMPDOUT);
         break;
     }
   }
@@ -616,15 +616,15 @@ ccp_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp, u_short *proto)
                (l->ccp.in.state, &l->ccp, proto, bp);
         switch (*proto) {
           case PROTO_ICOMPD:
-            mbuf_SetType(bp, MB_ICOMPDIN);
+            m_settype(bp, MB_ICOMPDIN);
             break;
           case PROTO_COMPD:
-            mbuf_SetType(bp, MB_COMPDIN);
+            m_settype(bp, MB_COMPDIN);
             break;
         }
         return bp;
       }
-      mbuf_Free(bp);
+      m_freem(bp);
       bp = NULL;
     } else if (PROTO_COMPRESSIBLE(*proto) && l->ccp.in.state != NULL) {
       log_Printf(LogDEBUG, "ccp_LayerPull: Ignore packet (dict only)\n");

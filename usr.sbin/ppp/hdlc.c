@@ -115,15 +115,15 @@ HdlcFcsBuf(u_short fcs, struct mbuf *m)
   int len;
   u_char *pos, *end;
 
-  len = mbuf_Length(m);
+  len = m_length(m);
   pos = MBUF_CTOP(m);
-  end = pos + m->cnt;
+  end = pos + m->m_len;
   while (len--) {
     fcs = (fcs >> 8) ^ fcstab[(fcs ^ *pos++) & 0xff];
     if (pos == end && len) {
-      m = m->next;
+      m = m->m_next;
       pos = MBUF_CTOP(m);
-      end = pos + m->cnt;
+      end = pos + m->m_len;
     }
   }
   return (fcs);
@@ -143,19 +143,19 @@ hdlc_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
   u_char *cp;
   u_short fcs;
 
-  mbuf_SetType(bp, MB_HDLCOUT);
+  m_settype(bp, MB_HDLCOUT);
   fcs = HdlcFcsBuf(INITFCS, bp);
   fcs = ~fcs;
 
-  for (last = bp; last->next; last = last->next)
+  for (last = bp; last->m_next; last = last->m_next)
     ;
 
-  if (last->size - last->offset - last->cnt >= 2) {
-    cp = MBUF_CTOP(last) + last->cnt;
-    last->cnt += 2;
+  if (last->m_size - last->m_offset - last->m_len >= 2) {
+    cp = MBUF_CTOP(last) + last->m_len;
+    last->m_len += 2;
   } else {
-    struct mbuf *tail = mbuf_Alloc(2, MB_HDLCOUT);
-    last->next = tail;
+    struct mbuf *tail = m_get(2, MB_HDLCOUT);
+    last->m_next = tail;
     cp = MBUF_CTOP(tail);
   }
 
@@ -306,31 +306,31 @@ hdlc_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp,
     return bp;
   }
 
-  log_DumpBp(LogHDLC, "hdlc_Input:", bp);
+  log_DumpBp(LogHDLC, "hdlc_LayerPull:", bp);
 
-  fcs = hdlc_Fcs(MBUF_CTOP(bp), bp->cnt);
+  fcs = hdlc_Fcs(MBUF_CTOP(bp), bp->m_len);
 
-  log_Printf(LogDEBUG, "%s: hdlc_Input: fcs = %04x (%s)\n",
+  log_Printf(LogDEBUG, "%s: hdlc_LayerPull: fcs = %04x (%s)\n",
              p->link.name, fcs, (fcs == GOODFCS) ? "good" : "BAD!");
 
   if (fcs != GOODFCS) {
     p->hdlc.lqm.SaveInErrors++;
     p->hdlc.stats.badfcs++;
-    mbuf_Free(bp);
+    m_freem(bp);
     return NULL;
   }
 
-  p->hdlc.lqm.SaveInOctets += bp->cnt + 1;
+  p->hdlc.lqm.SaveInOctets += bp->m_len + 1;
   p->hdlc.lqm.SaveInPackets++;
 
-  len = mbuf_Length(bp);
+  len = m_length(bp);
   if (len < 4) {			/* rfc1662 section 4.3 */
-    mbuf_Free(bp);
+    m_freem(bp);
     bp = NULL;
   }
 
-  bp = mbuf_Truncate(bp, len - 2);	/* discard the FCS */
-  mbuf_SetType(bp, MB_HDLCIN);
+  bp = m_adj(bp, -2);			/* discard the FCS */
+  m_settype(bp, MB_HDLCIN);
 
   return bp;
 }

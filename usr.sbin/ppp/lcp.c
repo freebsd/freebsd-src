@@ -1154,7 +1154,7 @@ extern struct mbuf *
 lcp_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 {
   /* Got PROTO_LCP from link */
-  mbuf_SetType(bp, MB_LCPIN);
+  m_settype(bp, MB_LCPIN);
   fsm_Input(&l->lcp.fsm, bp);
   return NULL;
 }
