@@ -371,8 +371,8 @@ fddi_input(ifp, fh, m)
 	 * Set mbuf flags for bcast/mcast.
 	 */
 	if (fh->fddi_dhost[0] & 1) {
-		if (bcmp((caddr_t)fddibroadcastaddr, (caddr_t)fh->fddi_dhost,
-		    FDDI_ADDR_LEN) == 0)
+		if (bcmp((caddr_t)ifp->if_broadcastaddr,
+			 (caddr_t)fh->fddi_dhost, FDDI_ADDR_LEN) == 0)
 			m->m_flags |= M_BCAST;
 		else
 			m->m_flags |= M_MCAST;
@@ -403,7 +403,6 @@ fddi_input(ifp, fh, m)
 	l = mtod(m, struct llc *);
 
 	switch (l->llc_dsap) {
-#if defined(INET) || defined(INET6) || defined(NS) || defined(DECNET) || defined(IPX) || defined(NETATALK)
 	case LLC_SNAP_LSAP:
 	{
 		u_int16_t type;
@@ -496,7 +495,6 @@ fddi_input(ifp, fh, m)
 		}
 		break;
 	}
-#endif /* INET || NS */
 		
 	default:
 		/* printf("fddi_input: unknown dsap 0x%x\n", l->llc_dsap); */
