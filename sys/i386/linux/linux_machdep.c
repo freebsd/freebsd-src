@@ -385,8 +385,52 @@ struct l_mmap_argv {
 #define STACK_SIZE  (2 * 1024 * 1024)
 #define GUARD_SIZE  (4 * PAGE_SIZE)
 
+static int linux_mmap_common(struct thread *, struct l_mmap_argv *);
+
+int
+linux_mmap2(struct thread *td, struct linux_mmap2_args *args)
+{
+	struct l_mmap_argv linux_args;
+
+#ifdef DEBUG
+	if (ldebug(mmap2))
+		printf(ARGS(mmap2, "%p, %d, %d, 0x%08x, %d, %d"),       
+		    (void *)args->addr, args->len, args->prot,       
+		    args->flags, args->fd, args->pgoff);       
+#endif
+
+	linux_args.addr = (l_caddr_t)args->addr;
+	linux_args.len = args->len;
+	linux_args.prot = args->prot;
+	linux_args.flags = args->flags;
+	linux_args.fd = args->fd;
+	linux_args.pos = args->pgoff * PAGE_SIZE;
+
+	return (linux_mmap_common(td, &linux_args));
+}
+
 int
 linux_mmap(struct thread *td, struct linux_mmap_args *args)
+{
+	int error;
+	struct l_mmap_argv linux_args;
+
+	error = copyin((caddr_t)args->ptr, &linux_args, sizeof(linux_args));
+	if (error)
+		return (error);
+
+#ifdef DEBUG
+	if (ldebug(mmap))
+		printf(ARGS(mmap, "%p, %d, %d, 0x%08x, %d, %d"),
+		    (void *)linux_args->addr, linux_args->len, linux_args->prot,
+		    linux_args->flags, linux_args->fd, linux_args->pos);
+#endif
+
+	return (linux_mmap_common(td, &linux_args));
+}
+
+static int
+linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 {
 	struct proc *p = td->td_proc;
 	struct mmap_args /* {
@@ -398,32 +442,19 @@ linux_mmap(struct thread *td, struct linux_mmap_args *args)
 		long pad;
 		off_t pos;
 	} */ bsd_args;
-	int error;
-	struct l_mmap_argv linux_args;
-
-	error = copyin((caddr_t)args->ptr, &linux_args, sizeof(linux_args));
-	if (error)
-		return (error);
-
-#ifdef DEBUG
-	if (ldebug(mmap))
-		printf(ARGS(mmap, "%p, %d, %d, 0x%08x, %d, %d"),
-		    (void *)linux_args.addr, linux_args.len, linux_args.prot,
-		    linux_args.flags, linux_args.fd, linux_args.pos);
-#endif
 
 	bsd_args.flags = 0;
-	if (linux_args.flags & LINUX_MAP_SHARED)
+	if (linux_args->flags & LINUX_MAP_SHARED)
 		bsd_args.flags |= MAP_SHARED;
-	if (linux_args.flags & LINUX_MAP_PRIVATE)
+	if (linux_args->flags & LINUX_MAP_PRIVATE)
 		bsd_args.flags |= MAP_PRIVATE;
-	if (linux_args.flags & LINUX_MAP_FIXED)
+	if (linux_args->flags & LINUX_MAP_FIXED)
 		bsd_args.flags |= MAP_FIXED;
-	if (linux_args.flags & LINUX_MAP_ANON)
+	if (linux_args->flags & LINUX_MAP_ANON)
 		bsd_args.flags |= MAP_ANON;
 	else
 		bsd_args.flags |= MAP_NOSYNC;
-	if (linux_args.flags & LINUX_MAP_GROWSDOWN) {
+	if (linux_args->flags & LINUX_MAP_GROWSDOWN) {
 		bsd_args.flags |= MAP_STACK;
 
 		/* The linux MAP_GROWSDOWN option does not limit auto
@@ -448,7 +479,7 @@ linux_mmap(struct thread *td, struct linux_mmap_args *args)
 		 */
 
 		/* This gives us TOS */
-		bsd_args.addr = linux_args.addr + linux_args.len;
+		bsd_args.addr = linux_args->addr + linux_args->len;
 
 		if (bsd_args.addr > p->p_vmspace->vm_maxsaddr) {
 			/* Some linux apps will attempt to mmap
@@ -472,8 +503,8 @@ linux_mmap(struct thread *td, struct linux_mmap_args *args)
 		}
 
 		/* This gives us our maximum stack size */
-		if (linux_args.len > STACK_SIZE - GUARD_SIZE)
-			bsd_args.len = linux_args.len;
+		if (linux_args->len > STACK_SIZE - GUARD_SIZE)
+			bsd_args.len = linux_args->len;
 		else
 			bsd_args.len  = STACK_SIZE - GUARD_SIZE;
 
@@ -485,16 +516,16 @@ linux_mmap(struct thread *td, struct linux_mmap_args *args)
 		 */
 		bsd_args.addr -= bsd_args.len;
 	} else {
-		bsd_args.addr = linux_args.addr;
-		bsd_args.len  = linux_args.len;
+		bsd_args.addr = linux_args->addr;
+		bsd_args.len  = linux_args->len;
 	}
 
-	bsd_args.prot = linux_args.prot | PROT_READ;	/* always required */
-	if (linux_args.flags & LINUX_MAP_ANON)
+	bsd_args.prot = linux_args->prot | PROT_READ;	/* always required */
+	if (linux_args->flags & LINUX_MAP_ANON)
 		bsd_args.fd = -1;
 	else
-		bsd_args.fd = linux_args.fd;
-	bsd_args.pos = linux_args.pos;
+		bsd_args.fd = linux_args->fd;
+	bsd_args.pos = linux_args->pos;
 	bsd_args.pad = 0;
 
 #ifdef DEBUG
@@ -775,4 +806,20 @@ linux_sigaltstack(struct thread *td, struct linux_sigaltstack_args *uap)
 	}
 
 	return (error);
+}
+
+int
+linux_ftruncate64(struct thread *td, struct linux_ftruncate64_args *args)
+{
+	struct ftruncate_args sa;
+
+#ifdef DEBUG
+	if (ldebug(ftruncate64))
+		printf(ARGS(ftruncate64, "%d, %d"), args->fd, args->length);
+#endif
+
+	sa.fd = args->fd;
+	sa.pad = 0;
+	sa.length = args->length;
+	return ftruncate(td, &sa);
 }

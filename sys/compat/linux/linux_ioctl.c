@@ -61,6 +61,7 @@
 #include <compat/linux/linux_util.h>
 
 static linux_ioctl_function_t linux_ioctl_cdrom;
+static linux_ioctl_function_t linux_ioctl_vfat;
 static linux_ioctl_function_t linux_ioctl_console;
 static linux_ioctl_function_t linux_ioctl_disk;
 static linux_ioctl_function_t linux_ioctl_socket;
@@ -71,6 +72,8 @@ static linux_ioctl_function_t linux_ioctl_special;
 
 static struct linux_ioctl_handler cdrom_handler =
 { linux_ioctl_cdrom, LINUX_IOCTL_CDROM_MIN, LINUX_IOCTL_CDROM_MAX };
+static struct linux_ioctl_handler vfat_handler =
+{ linux_ioctl_vfat, LINUX_IOCTL_VFAT_MIN, LINUX_IOCTL_VFAT_MAX };
 static struct linux_ioctl_handler console_handler =
 { linux_ioctl_console, LINUX_IOCTL_CONSOLE_MIN, LINUX_IOCTL_CONSOLE_MAX };
 static struct linux_ioctl_handler disk_handler =
@@ -85,6 +88,7 @@ static struct linux_ioctl_handler private_handler =
 { linux_ioctl_private, LINUX_IOCTL_PRIVATE_MIN, LINUX_IOCTL_PRIVATE_MAX };
 
 DATA_SET(linux_ioctl_handler_set, cdrom_handler);
+DATA_SET(linux_ioctl_handler_set, vfat_handler);
 DATA_SET(linux_ioctl_handler_set, console_handler);
 DATA_SET(linux_ioctl_handler_set, disk_handler);
 DATA_SET(linux_ioctl_handler_set, socket_handler);
@@ -1473,6 +1477,13 @@ linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 	return (error);
 }
 
+static int
+linux_ioctl_vfat(struct thread *td, struct linux_ioctl_args *args)
+{
+
+	return (ENOTTY);
+}
+
 /*
  * Sound related ioctls
  */
@@ -1559,6 +1570,10 @@ linux_ioctl_sound(struct thread *td, struct linux_ioctl_args *args)
 		int version = linux_get_oss_version(td->td_proc);
 		return (copyout(&version, (caddr_t)args->arg, sizeof(int)));
 	}
+
+	case LINUX_SOUND_MIXER_READ_STEREODEVS:
+		args->cmd = SOUND_MIXER_READ_STEREODEVS;
+		return (ioctl(td, (struct ioctl_args *)args));
 
 	case LINUX_SOUND_MIXER_READ_DEVMASK:
 		args->cmd = SOUND_MIXER_READ_DEVMASK;
