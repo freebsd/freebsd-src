@@ -11,6 +11,10 @@
 #include "readelf.h"
 #include "file.h"
 
+static void doshn __P((int, off_t, int, size_t, char *));
+static void dophn_exec __P((int, off_t, int, size_t, char *));
+static void dophn_core __P((int, off_t, int, size_t, char *));
+
 static void
 doshn(fd, off, num, size, buf)
 	int fd;
