@@ -392,7 +392,6 @@ MLINKS+=vcount.9 count_dev.9
 MLINKS+=zone.9 uma.9
 MLINKS+=zone.9 zalloc.9
 MLINKS+=zone.9 zfree.9
-MLINKS+=zone.9 zinit.9
 MLINKS+=zone.9 zdestroy.9
 
 .include <bsd.prog.mk>
