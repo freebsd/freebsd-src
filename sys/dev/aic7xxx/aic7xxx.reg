@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.reg#5 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.reg#9 $
  *
  * $FreeBSD$
  */
@@ -250,6 +250,7 @@ register CLRSINT0 {
 	bit	CLRSELDI	0x20
 	bit	CLRSELINGO	0x10
 	bit	CLRSWRAP	0x08
+	bit	CLRIOERR	0x08	/* Ultra2 Only */
 	bit	CLRSPIORDY	0x02
 }
 
@@ -806,11 +807,11 @@ register INTSTAT {
 						 * without honoring our ATN
 						 * request to issue a message. 
 						 */
-	mask	SCBPTR_MISMATCH	0xb0|SEQINT	/*
-						 * In the SCB paging case, our
-						 * SCBPTR is not the same as
-						 * we originally set prior to
-						 * download of a new scb.
+	mask	MISSED_BUSFREE	0xb0|SEQINT	/*
+						 * The sequencer never saw
+						 * the bus go free after
+						 * either a command complete
+						 * or disconnect message.
 						 */
 	mask	SCB_MISMATCH	0xc0|SEQINT	/*
 						 * Downloaded SCB's tag does

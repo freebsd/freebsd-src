@@ -1502,6 +1502,7 @@ bus_reset:
 		active_scb_index = ahc_inb(ahc, SCB_TAG);
 
 		if (last_phase != P_BUSFREE 
+		  && (ahc_inb(ahc, SEQ_FLAGS) & IDENTIFY_SEEN) != 0
 		  && (active_scb_index < ahc->scb_data->numscbs)) {
 			struct scb *active_scb;
 
@@ -1628,7 +1629,7 @@ bus_reset:
 				 * reslection, set the MK_MESSAGE flag in
 				 * the card's copy of the SCB.
 				 */
-				if ((ahc->flags & AHC_PAGESCBS) != 0) {
+				if ((ahc->flags & AHC_PAGESCBS) == 0) {
 					ahc_outb(ahc, SCBPTR, scb->hscb->tag);
 					ahc_outb(ahc, SCB_CONTROL,
 						 ahc_inb(ahc, SCB_CONTROL)
