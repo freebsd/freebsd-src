@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.136 1998/11/10 12:29:04 bde Exp $
+#	$Id: Makefile,v 1.137 1998/12/12 11:47:31 n_hibma Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR=	IPXrouted \
@@ -87,8 +87,6 @@ SUBDIR=	IPXrouted \
 	traceroute \
 	trpt \
 	tzsetup \
-	usbd \
-	usbdevs \
 	vidcontrol \
 	vipw \
 	vnconfig \
