@@ -114,6 +114,7 @@ __RCSID("$FreeBSD$");
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
+#include <unistd.h>
 #include "make.h"
 #include "hash.h"
 #include "dir.h"
@@ -1282,7 +1283,7 @@ JobExec(job, argv)
 #endif /* REMOTE */
 	   (void) execv(shellPath, argv);
 
-	(void) write(2, "Could not execute shell\n",
+	(void) write(STDERR_FILENO, "Could not execute shell\n",
 		     sizeof("Could not execute shell"));
 	_exit(1);
     } else {

@@ -41,6 +41,7 @@ static const char rcsid[] =
 
 #include "tip.h"
 #include <errno.h>
+#include <unistd.h>
 /*
  * tip
  *
@@ -160,7 +161,7 @@ tipout()
 		omask = sigblock(ALLSIGS);
 		for (cp = buf; cp < buf + cnt; cp++)
 			*cp &= 0177;
-		if (write(1, buf, cnt) < 0)
+		if (write(STDOUT_FILENO, buf, cnt) < 0)
 			exit(1);
 		if (boolean(value(SCRIPT)) && fscript != NULL) {
 			if (!boolean(value(BEAUTIFY))) {

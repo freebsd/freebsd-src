@@ -32,13 +32,16 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)vgrindefs.c	8.1 (Berkeley) 6/6/93";
-#endif /* not lint */
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
 
 #define	BUFSIZ	1024
 #define MAXHOP	32	/* max number of tc= indirections */
 
 #include <ctype.h>
+#include <unistd.h>
+
 /*
  * grindcap - routines for dealing with the language definitions data base
  *	(code stolen almost totally from termcap)
@@ -103,7 +106,7 @@ tgetent(bp, name, file)
 				break;
 			}
 			if (cp >= bp+BUFSIZ) {
-				write(2,"Vgrind entry too long\n", 23);
+				write(STDERR_FILENO, "Vgrind entry too long\n", 23);
 				break;
 			} else
 				*cp++ = c;
@@ -138,7 +141,7 @@ tnchktc()
 	p = tbuf + strlen(tbuf) - 2;	/* before the last colon */
 	while (*--p != ':')
 		if (p<tbuf) {
-			write(2, "Bad vgrind entry\n", 18);
+			write(STDERR_FILENO, "Bad vgrind entry\n", 18);
 			return (0);
 		}
 	p++;
@@ -151,7 +154,7 @@ tnchktc()
 		q++;
 	*q = 0;
 	if (++hopcount > MAXHOP) {
-		write(2, "Infinite tc= loop\n", 18);
+		write(STDERR_FILENO, "Infinite tc= loop\n", 18);
 		return (0);
 	}
 	if (tgetent(tcbuf, tcname, filename) != 1)
@@ -160,7 +163,7 @@ tnchktc()
 		;
 	l = p - holdtbuf + strlen(q);
 	if (l > BUFSIZ) {
-		write(2, "Vgrind entry too long\n", 23);
+		write(STDERR_FILENO, "Vgrind entry too long\n", 23);
 		q[BUFSIZ - (p-tbuf)] = 0;
 	}
 	strcpy(p, q+1);

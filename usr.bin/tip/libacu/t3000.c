@@ -32,8 +32,9 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)t3000.c	8.1 (Berkeley) 6/6/93";
-#endif /* not lint */
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
 
 /*
  * Routines for calling up on a Telebit T3000 modem.
@@ -43,6 +44,7 @@ static char sccsid[] = "@(#)t3000.c	8.1 (Berkeley) 6/6/93";
 #include "tip.h"
 #include "acucommon.h"
 #include <stdio.h>
+#include <unistd.h>
 
 #define	MAXRETRY	5
 
@@ -315,7 +317,7 @@ int n;
 {
 #ifdef notdef
 	if (boolean(value(VERBOSE)))
-		write(1, cp, n);
+		write(STDOUT_FILENO, cp, n);
 #endif
 	acu_flush ();
 	t3000_nap();
@@ -338,7 +340,7 @@ t3000_verbose_read()
 		return;
 	if (read(FD, buf, n) != n)
 		return;
-	write(1, buf, n);
+	write(STDOUT_FILENO, buf, n);
 }
 #endif
 

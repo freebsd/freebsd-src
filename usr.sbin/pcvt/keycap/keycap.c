@@ -35,6 +35,11 @@
  *
  */
 
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
+
 static char *id =
 	"@(#)keycap.c, 3.20, Last Edit-Date: [Tue Dec 20 14:51:50 1994]";
 
@@ -64,6 +69,7 @@ static char *id =
 
 #include <stdio.h>
 #include <ctype.h>
+#include <unistd.h>
 
 #include "keycap.h"
 
@@ -137,7 +143,7 @@ char *bp, *name;
 				break;
 			}
 			if (cp >= bp+KEYCAP_BUFSIZ) {
-				write(2,"Keycap entry too long\n", 23);
+				write(STDERR_FILENO, "Keycap entry too long\n", 23);
 				break;
 			} else
 				*cp++ = c;
@@ -170,7 +176,7 @@ static int knchktc()
 	p = tbuf + strlen(tbuf) - 2;	/* before the last colon */
 	while (*--p != ':')
 		if (p<tbuf) {
-			write(2, "Bad keycap entry\n", 18);
+			write(STDERR_FILENO, "Bad keycap entry\n", 18);
 			return (0);
 		}
 	p++;
@@ -183,7 +189,7 @@ static int knchktc()
 		q++;
 	*q = 0;
 	if (++hopcount > MAXHOP) {
-		write(2, "Infinite tc= loop\n", 18);
+		write(STDERR_FILENO, "Infinite tc= loop\n", 18);
 		return (0);
 	}
 	if (kgetent(tcbuf, tcname) != 1)
@@ -192,7 +198,7 @@ static int knchktc()
 		;
 	l = p - holdtbuf + strlen(q);
 	if (l > KEYCAP_BUFSIZ) {
-		write(2, "Keycap entry too long\n", 23);
+		write(STDERR_FILENO, "Keycap entry too long\n", 23);
 		q[KEYCAP_BUFSIZ - (p-tbuf)] = 0;
 	}
 	strcpy(p, q+1);

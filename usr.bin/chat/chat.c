@@ -969,7 +969,7 @@ register char *s;
     if (say_next) {
 	say_next = 0;
 	s = clean(s,0);
-	write(2, s, strlen(s));
+	write(STDERR_FILENO, s, strlen(s));
         free(s);
 	return;
     }
@@ -1118,7 +1118,7 @@ int get_char()
     int status;
     char c;
 
-    status = read(0, &c, 1);
+    status = read(STDIN_FILENO, &c, 1);
 
     switch (status) {
     case 1:
@@ -1146,7 +1146,7 @@ int c;
 
     usleep(10000);		/* inter-character typing delay (?) */
 
-    status = write(1, &ch, 1);
+    status = write(STDOUT_FILENO, &ch, 1);
 
     switch (status) {
     case 1:
@@ -1253,12 +1253,12 @@ int n;
 	    break;
 	/* fall through */
     case '\n':
-	write(2, "\n", 1);
+	write(STDERR_FILENO, "\n", 1);
 	need_lf = 0;
 	break;
     default:
 	s = character(n);
-	write(2, s, strlen(s));
+	write(STDERR_FILENO, s, strlen(s));
 	need_lf = 1;
 	break;
     }

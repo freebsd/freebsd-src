@@ -237,7 +237,7 @@ doit(f, fromp)
 
 	syslog(LOG_INFO, "login from %s as %s", remote, user);
 
-	(void) write(2, "\0", 1);
+	(void) write(STDERR_FILENO, "\0", 1);
 	if (port) {
 		(void) pipe(pv);
 		pid = fork();
@@ -314,7 +314,7 @@ error(fmt, a1, a2, a3)
 
 	buf[0] = 1;
 	(void) snprintf(buf+1, sizeof(buf) - 1, fmt, a1, a2, a3);
-	(void) write(2, buf, strlen(buf));
+	(void) write(STDERR_FILENO, buf, strlen(buf));
 }
 
 void
@@ -326,7 +326,7 @@ getstr(buf, cnt, err)
 	char c;
 
 	do {
-		if (read(0, &c, 1) != 1)
+		if (read(STDIN_FILENO, &c, 1) != 1)
 			exit(1);
 		*buf++ = c;
 		if (--cnt == 0) {

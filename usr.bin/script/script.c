@@ -185,7 +185,7 @@ main(argc, argv)
 			cc = read(master, obuf, sizeof (obuf));
 			if (cc <= 0)
 				break;
-			(void)write(1, obuf, cc);
+			(void)write(STDOUT_FILENO, obuf, cc);
 			(void)fwrite(obuf, 1, cc, fscript);
 		}
 		tvec = time(0);

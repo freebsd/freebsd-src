@@ -2234,7 +2234,7 @@ timed_getchar()
 		return(-1);
 	}
 
-	return(read(0, &temp, 1)? temp : -1);
+	return(read(STDIN_FILENO, &temp, 1)? temp : -1);
 }
 #endif
 
@@ -2252,11 +2252,11 @@ WINDOW *window;
 	if (Noblock)
 		in_value = ((bufp > 0) ? in_buff[--bufp] : timed_getchar());
 	else
-		in_value = ((bufp > 0) ? in_buff[--bufp] : read(0, &temp, 1)? temp : -1);
+		in_value = ((bufp > 0) ? in_buff[--bufp] : read(STDIN_FILENO, &temp, 1)? temp : -1);
 #else /* BSD_SELECT */
 #ifdef SYS5
 	in_value = ((bufp > 0) ? in_buff[--bufp] : 
-					(read(0, &temp, 1)> 0) ? temp : -1);
+					(read(STDIN_FILENO, &temp, 1)> 0) ? temp : -1);
 #else /* SYS5 */
 	if (Noblock)
 	{
@@ -2264,7 +2264,7 @@ WINDOW *window;
 		old_arg = fcntl(0, F_GETFL, 0);
 		in_value = fcntl(0, F_SETFL, old_arg | FNDELAY);
 	}
-	in_value = ((bufp > 0) ? in_buff[--bufp] : read(0, &temp, 1)? temp : -1);
+	in_value = ((bufp > 0) ? in_buff[--bufp] : read(STDIN_FILENO, &temp, 1)? temp : -1);
 	if (Noblock)
 	{
 		fcntl(0, F_SETFL, old_arg);

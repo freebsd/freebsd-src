@@ -53,6 +53,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "acucommon.h"
 #include "tod.h"
@@ -798,7 +799,7 @@ static void unidialer_verbose_read()
 		return;
 	if (read(FD, buf, n) != n)
 		return;
-	write(1, buf, n);
+	write(STDOUT_FILENO, buf, n);
 }
 #endif
 

@@ -171,7 +171,7 @@ readcmd(argc, argv)
 	backslash = 0;
 	STARTSTACKSTR(p);
 	for (;;) {
-		if (read(0, &c, 1) != 1) {
+		if (read(STDIN_FILENO, &c, 1) != 1) {
 			status = 1;
 			break;
 		}
@@ -194,7 +194,7 @@ readcmd(argc, argv)
 		}
 		startword = 0;
 		if (backslash && c == '\\') {
-			if (read(0, &c, 1) != 1) {
+			if (read(STDIN_FILENO, &c, 1) != 1) {
 				status = 1;
 				break;
 			}

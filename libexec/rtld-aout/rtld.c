@@ -2329,7 +2329,7 @@ char	*fmt;
 #endif
 
 	vsnprintf(buf, sizeof(buf), fmt, ap);
-	(void)write(1, buf, strlen(buf));
+	(void)write(STDOUT_FILENO, buf, strlen(buf));
 	va_end(ap);
 }
 
