@@ -41,9 +41,10 @@ struct snddev_channel {
 struct snddev_info {
 	SLIST_HEAD(, snddev_channel) channels;
 	struct pcm_channel *fakechan;
-	unsigned devcount, reccount, chancount, vchancount;
+	unsigned devcount, playcount, reccount, vchancount;
 	unsigned flags;
 	int inprog;
+	unsigned int bufsz;
 	void *devinfo;
 	device_t dev;
 	char status[SND_STATUSLEN];
@@ -339,19 +340,25 @@ pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t c
 {
 	struct pcm_channel *ch;
 	char *dirs;
-    	int err;
+    	int err, *pnum;
 
 	switch(dir) {
 	case PCMDIR_PLAY:
 		dirs = "play";
+		pnum = &d->playcount;
 		break;
+
 	case PCMDIR_REC:
 		dirs = "record";
+		pnum = &d->reccount;
 		break;
+
 	case PCMDIR_VIRTUAL:
 		dirs = "virtual";
 		dir = PCMDIR_PLAY;
+		pnum = &d->vchancount;
 		break;
+
 	default:
 		return NULL;
 	}
@@ -363,19 +370,24 @@ pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t c
 	ch->methods = kobj_create(cls, M_DEVBUF, M_WAITOK);
 	if (!ch->methods) {
 		free(ch, M_DEVBUF);
+
 		return NULL;
 	}
+
+	ch->num = (*pnum)++;
 
 	ch->pid = -1;
 	ch->parentsnddev = d;
 	ch->parentchannel = parent;
-	snprintf(ch->name, 32, "%s:%d:%s", device_get_nameunit(d->dev), d->chancount, dirs);
+	snprintf(ch->name, 32, "%s:%s:%d", device_get_nameunit(d->dev), dirs, ch->num);
 
 	err = chn_init(ch, devinfo, dir);
 	if (err) {
-		device_printf(d->dev, "chn_init() for channel %d (%s) failed: err = %d\n", d->chancount, dirs, err);
+		device_printf(d->dev, "chn_init(%s) failed: err = %d\n", ch->name, err);
 		kobj_delete(ch->methods, M_DEVBUF);
 		free(ch, M_DEVBUF);
+		(*pnum)--;
+
 		return NULL;
 	}
 
@@ -385,13 +397,22 @@ pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t c
 int
 pcm_chn_destroy(struct pcm_channel *ch)
 {
+	struct snddev_info *d;
 	int err;
 
+	d = ch->parentsnddev;
 	err = chn_kill(ch);
 	if (err) {
-		device_printf(ch->parentsnddev->dev, "chn_kill() for %s failed, err = %d\n", ch->name, err);
+		device_printf(d->dev, "chn_kill(%s) failed, err = %d\n", ch->name, err);
 		return err;
 	}
+
+	if (ch->direction == PCMDIR_REC)
+		d->reccount--;
+	else if (ch->flags & CHN_F_VIRTUAL)
+		d->vchancount--;
+	else
+		d->playcount--;
 
 	kobj_delete(ch->methods, M_DEVBUF);
 	free(ch, M_DEVBUF);
@@ -424,21 +445,11 @@ pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch, int mkdev)
 		SLIST_INSERT_AFTER(after, sce, link);
 	}
 
-	if (ch->direction == PCMDIR_REC)
-		ch->num = d->reccount++;
-/*
-	else
-		ch->num = d->playcount++;
-*/
-
 	if (mkdev) {
 		dsp_register(unit, d->devcount++);
 		if (ch->direction == PCMDIR_REC)
 			dsp_registerrec(unit, ch->num);
 	}
-    	d->chancount++;
-	if (ch->flags & CHN_F_VIRTUAL)
-		d->vchancount++;
 
 	snd_mtxunlock(d->lock);
 
@@ -459,16 +470,13 @@ pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch, int rmdev)
 	snd_mtxunlock(d->lock);
 	return EINVAL;
 gotit:
-	if (ch->flags & CHN_F_VIRTUAL)
-		d->vchancount--;
-	d->chancount--;
 	SLIST_REMOVE(&d->channels, sce, snddev_channel, link);
 	free(sce, M_DEVBUF);
 
 	if (rmdev) {
 		dsp_unregister(unit, --d->devcount);
 		if (ch->direction == PCMDIR_REC)
-			dsp_unregisterrec(unit, --d->reccount);
+			dsp_unregisterrec(unit, ch->num);
 	}
 	snd_mtxunlock(d->lock);
 
@@ -555,6 +563,22 @@ pcm_getdevinfo(device_t dev)
 	return d->devinfo;
 }
 
+unsigned int
+pcm_getbuffersize(device_t dev, unsigned int min, unsigned int deflt, unsigned int max)
+{
+    	struct snddev_info *d = device_get_softc(dev);
+	int sz;
+
+	sz = 0;
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev), "buffersize", &sz) == 0)
+		RANGE(sz, min, max);
+	else
+		sz = deflt;
+	d->bufsz = sz;
+
+	return sz;
+}
+
 int
 pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 {
@@ -568,7 +592,7 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	d->devinfo = devinfo;
 	d->devcount = 0;
 	d->reccount = 0;
-	d->chancount = 0;
+	d->playcount = 0;
 	d->vchancount = 0;
 	d->inprog = 0;
 
@@ -587,6 +611,8 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 		sysctl_ctx_free(&d->sysctl_tree);
 		goto no;
 	}
+	SYSCTL_ADD_INT(snd_sysctl_tree(dev), SYSCTL_CHILDREN(snd_sysctl_tree_top(dev)),
+            OID_AUTO, "buffersize", CTLFLAG_RD, &d->bufsz, 0, "");
 #endif
 	if (numplay > 0)
 		vchan_initsys(dev);
@@ -606,6 +632,7 @@ pcm_unregister(device_t dev)
 {
     	struct snddev_info *d = device_get_softc(dev);
     	struct snddev_channel *sce;
+	struct pcm_channel *ch;
 
 	snd_mtxlock(d->lock);
 	if (d->inprog) {
@@ -619,8 +646,9 @@ pcm_unregister(device_t dev)
 		return EBUSY;
 	}
 	SLIST_FOREACH(sce, &d->channels, link) {
-		if (sce->channel->refcount > 0) {
-			device_printf(dev, "unregister: channel busy\n");
+		ch = sce->channel;
+		if (ch->refcount > 0) {
+			device_printf(dev, "unregister: channel %s busy (pid %d)", ch->name, ch->pid);
 			snd_mtxunlock(d->lock);
 			return EBUSY;
 		}
@@ -677,7 +705,7 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 			} else
 				rc++;
 		}
-		sbuf_printf(s, " (%dp/%dr/%dv channels%s%s)", pc, rc, vc,
+		sbuf_printf(s, " (%dp/%dr/%dv channels%s%s)", d->playcount, d->reccount, d->vchancount,
 				(d->flags & SD_F_SIMPLEX)? "" : " duplex",
 #ifdef USING_DEVFS
 				(device_get_unit(dev) == snd_unit)? " default" : ""
