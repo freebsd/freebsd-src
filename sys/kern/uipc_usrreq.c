@@ -737,9 +737,10 @@ unp_detach(unp)
 		 * gets them (resulting in a "panic: closef: count < 0").
 		 */
 		sorflush(unp->unp_socket);
-		unp_gc();
-	}
-	UNP_UNLOCK();
+		unp_gc();	/* Will unlock UNP. */
+	} else
+		UNP_UNLOCK();
+	UNP_UNLOCK_ASSERT();
 	if (unp->unp_addr != NULL)
 		FREE(unp->unp_addr, M_SONAME);
 	uma_zfree(unp_zone, unp);
@@ -1491,6 +1492,11 @@ out:
 	return (error);
 }
 
+/*
+ * unp_defer is thread-local during garbage collection, and does not require
+ * explicit synchronization.  unp_gcing prevents other threads from entering
+ * garbage collection, and perhaps should be an sx lock instead.
+ */
 static int	unp_defer, unp_gcing;
 
 static void
@@ -1505,17 +1511,16 @@ unp_gc()
 
 	UNP_LOCK_ASSERT();
 
-	if (unp_gcing)
+	if (unp_gcing) {
+		UNP_UNLOCK();
 		return;
+	}
 	unp_gcing = 1;
 	unp_defer = 0;
+	UNP_UNLOCK();
 	/*
 	 * before going through all this, set all FDs to
 	 * be NOT defered and NOT externally accessible
-	 */
-	/*
-	 * XXXRW: Acquiring a sleep lock while holding UNP
-	 * mutex cannot be a good thing.
 	 */
 	sx_slock(&filelist_lock);
 	LIST_FOREACH(fp, &filehead, f_list)
@@ -1698,6 +1703,8 @@ again:
 		closef(*fpp, (struct thread *) NULL);
 	free(extra_ref, M_TEMP);
 	unp_gcing = 0;
+
+	UNP_UNLOCK_ASSERT();
 }
 
 void
