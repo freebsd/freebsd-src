@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.18 1995/03/31 13:54:40 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.19 1995/04/01 19:53:04 gibbs Exp $
  */
 /*
  * TODO:
@@ -1310,6 +1310,7 @@ ahc_done(unit, scb)
                 xs->error = XS_NOERROR;
         }
         xs->flags |= ITSDONE;
+#ifdef AHC_TAGENABLE
 	if(xs->cmd->opcode == 0x12 && xs->error == XS_NOERROR) 
 	{
 		struct ahc_data *ahc = ahcdata[unit];
@@ -1337,6 +1338,7 @@ ahc_done(unit, scb)
 #endif
 		}
 	}
+#endif
         ahc_free_scb(unit, scb, xs->flags);
         scsi_done(xs);  
 }
