@@ -11,9 +11,9 @@ SUBDIR+= cpp
 
 .if !defined(NO_CXX)
 SUBDIR+= cc1plus c++ c++filt doc
-.if !defined(NO_COLLECT2)
-SUBDIR+= collect2
-.endif
+#.if !defined(NO_COLLECT2)
+#SUBDIR+= collect2
+#.endif
 .endif
 
 .if !defined(NO_OBJC)
