@@ -380,7 +380,7 @@ the kernel will use
 .Pn \*(Dk1a
 as its root filesystem. If
 .Pn /dev/\*(Dk1b
-is configured as a swap partition, 
+is configured as a swap partition,
 it will be used as the initial swap area,
 otherwise the normal primary swap area (\c
 .Pn /dev/\*(Dk0b )
@@ -489,7 +489,7 @@ tape, extract them into a scratch directory, say
 .PP
 The data files marked in the previous table with a dagger (\(dg)
 may be used without change from the previous system.
-Those data files marked with a double dagger (\(dd) have syntax 
+Those data files marked with a double dagger (\(dd) have syntax
 changes or substantial enhancements.
 You should start with the \*(4B version and carefully
 integrate any local changes into the new file.
@@ -605,8 +605,8 @@ _	_	_
 /etc/passwd	/etc/master.passwd	new format; see below
 /usr/lib/sendmail.cf	/etc/sendmail.cf	changed pathnames
 /usr/lib/aliases	/etc/aliases	may contain changed pathnames
-/etc/*.pid	/var/run/*.pid	
-	
+/etc/*.pid	/var/run/*.pid
+
 .T&
 l l l
 lfC lfC l.
@@ -859,7 +859,7 @@ The ``daemon'' user is used for daemon processes that
 do not need root privileges.
 The ``operator'' user-id is used as an account for dumpers
 so that they can log in without having the root password.
-By placing them in the ``operator'' group, 
+By placing them in the ``operator'' group,
 they can get read access to the disks.
 The ``uucp'' login has existed long before \*(4B,
 and is noted here just to provide a common user-id.
@@ -1002,7 +1002,7 @@ privilege to set kernel state.
 .Sh 3 "Security"
 .PP
 The kernel runs with four different levels of security.
-Any superuser process can raise the security level, but only 
+Any superuser process can raise the security level, but only
 .Fn init (8)
 can lower it.
 Security levels are defined as follows:
@@ -1027,7 +1027,7 @@ but also inhibits running
 while the system is multi-user.
 See
 .Xr chflags (1)
-and the \-\fBo\fP option to 
+and the \-\fBo\fP option to
 .Xr ls (1)
 for information on setting and displaying the immutable and append-only
 flags.
@@ -1165,14 +1165,14 @@ structure into the kernel (e.g.
 .Fn sendto
 and
 .Fn connect )
-have a separate parameter that specifies the 
+have a separate parameter that specifies the
 .I sockaddr
 length, and thus it is not necessary to fill in the
 .I sa_len
 field for those system calls.
 System calls that pass a
 .I sockaddr
-structure back from the kernel (e.g. 
+structure back from the kernel (e.g.
 .Fn recvfrom
 and
 .Fn accept )
@@ -1319,7 +1319,7 @@ See
 and
 .Xr lfs_cleanerd (8)
 for more information.
-For a in-depth description of the implementation and performance
+For an in-depth description of the implementation and performance
 characteristics of log-structured filesystems in general,
 and this one in particular, see Dr. Margo Seltzer's doctoral thesis,
 available from the University of California Computer Science Department.
@@ -1328,7 +1328,7 @@ We have also added a memory-based filesystem that runs in
 pageable memory, allowing large temporary filesystems without
 requiring dedicated physical memory.
 .PP
-The local ``fast filesystem'' has been enhanced to do 
+The local ``fast filesystem'' has been enhanced to do
 clustering that allows large pieces of files to be
 allocated contiguously resulting in near doubling
 of filesystem throughput.
@@ -1355,7 +1355,7 @@ When set on a file,
 .Xr dump (8)
 will omit the file from incremental backups
 but retain them on full backups.
-See the ``-h'' flag to 
+See the ``-h'' flag to
 .Xr dump (8)
 for details on how to change this default.
 The ``nodump'' flag is usually set on core dumps,
@@ -1867,7 +1867,7 @@ yacc	A new, freely redistributable, significantly faster version.
 .PP
 The new versions of
 .Xr lex (1)
-(``flex'') and 
+(``flex'') and
 .Xr yacc (1)
 (``zoo'') should be installed early on if attempting to
 cross-compile \*(4B on another system.
@@ -1889,7 +1889,7 @@ for an example of their use.
 .Sh 2 "Hints on converting from \*(Ps to \*(4B"
 .PP
 This section summarizes changes between
-\*(Ps and \*(4B that are likely to 
+\*(Ps and \*(4B that are likely to
 cause difficulty in doing the conversion.
 It does not include changes in the network;
 see section 5 for information on setting up the network.

@@ -418,7 +418,7 @@ ipsec4_getpolicybyaddr(m, dir, flag, error)
 
 	bzero(&spidx, sizeof(spidx));
 
-	/* make a index to look for a policy */
+	/* Make an index to look for a policy. */
 	*error = ipsec_setspidx_mbuf(&spidx, dir, AF_INET, m,
 	    (flag & IP_FORWARDING) ? 0 : 1);
 
@@ -635,7 +635,7 @@ ipsec6_getpolicybyaddr(m, dir, flag, error)
 
 	bzero(&spidx, sizeof(spidx));
 
-	/* make a index to look for a policy */
+	/* Make an index to look for a policy. */
 	*error = ipsec_setspidx_mbuf(&spidx, dir, AF_INET6, m,
 	    (flag & IP_FORWARDING) ? 0 : 1);
 

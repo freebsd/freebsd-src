@@ -23,9 +23,9 @@ This document assumes a working knowledge of network theory.  It is
 intended for programmers who wish to write network applications using
 remote procedure calls (explained below), and who want to understand
 the RPC mechanisms usually hidden by the
-.I rpcgen(1) 
+.I rpcgen(1)
 protocol compiler.
-.I rpcgen 
+.I rpcgen
 is described in detail in the previous chapter, the
 .I "\fBrpcgen\fP \fIProgramming Guide\fP".
 .SH
@@ -41,7 +41,7 @@ The
 .I "Generating XDR Routines"
 section of that chapter contains the complete source for a working RPC
 service\(ema remote directory listing service which uses
-.I rpcgen 
+.I rpcgen
 to generate XDR routines as well as client and server stubs.
 .LP
 .LP
@@ -64,36 +64,36 @@ The RPC interface can be seen as being divided into three layers.\**
 .FS
 For a complete specification of the routines in the remote procedure
 call Library, see the
-.I rpc(3N) 
+.I rpc(3N)
 manual page.
 .FE
 .LP
 .I "The Highest Layer:"
 .IX RPC "The Highest Layer"
-The highest layer is totally transparent to the operating system, 
-machine and network upon which is is run.  It's probably best to 
+The highest layer is totally transparent to the operating system,
+machine and network upon which is is run.  It's probably best to
 think of this level as a way of
 .I using
 RPC, rather than as
-a \fIpart of\fP RPC proper.  Programmers who write RPC routines 
-should (almost) always make this layer available to others by way 
+a \fIpart of\fP RPC proper.  Programmers who write RPC routines
+should (almost) always make this layer available to others by way
 of a simple C front end that entirely hides the networking.
-.LP 
+.LP
 To illustrate, at this level a program can simply make a call to
 .I rnusers (),
 a C routine which returns the number of users on a remote machine.
-The user is not explicitly aware of using RPC \(em they simply 
+The user is not explicitly aware of using RPC \(em they simply
 call a procedure, just as they would call
 .I malloc() .
 .LP
 .I "The Middle Layer:"
 .IX RPC "The Middle Layer"
 The middle layer is really \*QRPC proper.\*U  Here, the user doesn't
-need to consider details about sockets, the UNIX system, or other low-level 
+need to consider details about sockets, the UNIX system, or other low-level
 implementation mechanisms.  They simply make remote procedure calls
-to routines on other machines.  The selling point here is simplicity.  
+to routines on other machines.  The selling point here is simplicity.
 It's this layer that allows RPC to pass the \*Qhello world\*U test \(em
-simple things should be simple.  The middle-layer routines are used 
+simple things should be simple.  The middle-layer routines are used
 for most applications.
 .LP
 RPC calls are made with the system routines
@@ -102,27 +102,27 @@ RPC calls are made with the system routines
 and
 .I svc_run ().
 The first two of these are the most fundamental:
-.I registerrpc() 
+.I registerrpc()
 obtains a unique system-wide procedure-identification number, and
-.I callrpc() 
-actually executes a remote procedure call.  At the middle level, a 
-call to 
+.I callrpc()
+actually executes a remote procedure call.  At the middle level, a
+call to
 .I rnusers()
 is implemented by way of these two routines.
 .LP
-The middle layer is unfortunately rarely used in serious programming 
-due to its inflexibility (simplicity).  It does not allow timeout 
+The middle layer is unfortunately rarely used in serious programming
+due to its inflexibility (simplicity).  It does not allow timeout
 specifications or the choice of transport.  It allows no UNIX
 process control or flexibility in case of errors.  It doesn't support
-multiple kinds of call authentication.  The programmer rarely needs 
+multiple kinds of call authentication.  The programmer rarely needs
 all these kinds of control, but one or two of them is often necessary.
 .LP
 .I "The Lowest Layer:"
 .IX RPC "The Lowest Layer"
-The lowest layer does allow these details to be controlled by the 
-programmer, and for that reason it is often necessary.  Programs 
+The lowest layer does allow these details to be controlled by the
+programmer, and for that reason it is often necessary.  Programs
 written at this level are also most efficient, but this is rarely a
-real issue \(em since RPC clients and servers rarely generate 
+real issue \(em since RPC clients and servers rarely generate
 heavy network loads.
 .LP
 Although this document only discusses the interface to C,
@@ -203,7 +203,7 @@ main(argc, argv)
 .DE
 .KE
 RPC library routines such as
-.I rnusers() 
+.I rnusers()
 are in the RPC services library
 .I librpcsvc.a
 Thus, the program above should be compiled with
@@ -212,17 +212,17 @@ Thus, the program above should be compiled with
 % cc \fIprogram.c -lrpcsvc\fP
 .DE
 .I rnusers (),
-like the other RPC library routines, is documented in section 3R 
+like the other RPC library routines, is documented in section 3R
 of the
 .I "System Interface Manual for the Sun Workstation" ,
-the same section which documents the standard Sun RPC services.  
+the same section which documents the standard Sun RPC services.
 .IX "RPC Services"
-See the 
-.I intro(3R) 
-manual page for an explanation of the documentation strategy 
+See the
+.I intro(3R)
+manual page for an explanation of the documentation strategy
 for these services and their RPC protocols.
 .LP
-Here are some of the RPC service library routines available to the 
+Here are some of the RPC service library routines available to the
 C programmer:
 .LP
 \fBTable 3-3\fI RPC Service Library Routines\fR
@@ -251,18 +251,18 @@ and
 They do, however,
 have RPC program numbers so they can be invoked with
 .I callrpc()
-which will be discussed in the next section.  Most of them also 
-have compilable 
-.I rpcgen(1) 
+which will be discussed in the next section.  Most of them also
+have compilable
+.I rpcgen(1)
 protocol description files.  (The
 .I rpcgen
 protocol compiler radically simplifies the process of developing
-network applications.  
+network applications.
 See the \fBrpcgen\fI Programming Guide\fR
-for detailed information about 
-.I rpcgen 
-and 
-.I rpcgen 
+for detailed information about
+.I rpcgen
+and
+.I rpcgen
 protocol description files).
 .KS
 .NH 2
@@ -270,7 +270,7 @@ protocol description files).
 .IX "intermediate layer of RPC"
 .IX "RPC" "intermediate layer"
 .LP
-The simplest interface, which explicitly makes RPC calls, uses the 
+The simplest interface, which explicitly makes RPC calls, uses the
 functions
 .I callrpc()
 and
@@ -305,63 +305,63 @@ main(argc, argv)
 }
 .DE
 .KE
-Each RPC procedure is uniquely defined by a program number, 
-version number, and procedure number.  The program number 
-specifies a group of related remote procedures, each of 
-which has a different procedure number.  Each program also 
-has a version number, so when a minor change is made to a 
-remote service (adding a new procedure, for example), a new 
-program number doesn't have to be assigned.  When you want 
-to call a procedure to find the number of remote users, you 
+Each RPC procedure is uniquely defined by a program number,
+version number, and procedure number.  The program number
+specifies a group of related remote procedures, each of
+which has a different procedure number.  Each program also
+has a version number, so when a minor change is made to a
+remote service (adding a new procedure, for example), a new
+program number doesn't have to be assigned.  When you want
+to call a procedure to find the number of remote users, you
 look up the appropriate program, version and procedure numbers
-in a manual, just as you look up the name of a memory allocator 
+in a manual, just as you look up the name of a memory allocator
 when you want to allocate memory.
 .LP
-The simplest way of making remote procedure calls is with the the RPC 
+The simplest way of making remote procedure calls is with the the RPC
 library routine
 .I callrpc()
-It has eight parameters.  The first is the name of the remote server 
-machine.  The next three parameters are the program, version, and procedure 
+It has eight parameters.  The first is the name of the remote server
+machine.  The next three parameters are the program, version, and procedure
 numbers\(emtogether they identify the procedure to be called.
 The fifth and sixth parameters are an XDR filter and an argument to
-be encoded and passed to the remote procedure.  
-The final two parameters are a filter for decoding the results 
-returned by the remote procedure and a pointer to the place where 
+be encoded and passed to the remote procedure.
+The final two parameters are a filter for decoding the results
+returned by the remote procedure and a pointer to the place where
 the procedure's results are to be stored.  Multiple arguments and
-results are handled by embedding them in structures.  If 
-.I callrpc() 
-completes successfully, it returns zero; else it returns a nonzero 
+results are handled by embedding them in structures.  If
+.I callrpc()
+completes successfully, it returns zero; else it returns a nonzero
 value.  The return codes (of type
 .IX "enum clnt_stat (in RPC programming)" "" "\fIenum clnt_stat\fP (in RPC programming)"
-cast into an integer) are found in 
+cast into an integer) are found in
 .I <rpc/clnt.h> .
 .LP
 Since data types may be represented differently on different machines,
-.I callrpc() 
+.I callrpc()
 needs both the type of the RPC argument, as well as
 a pointer to the argument itself (and similarly for the result).  For
 .I RUSERSPROC_NUM ,
 the return value is an
 .I "unsigned long"
 so
-.I callrpc() 
+.I callrpc()
 has
-.I xdr_u_long() 
+.I xdr_u_long()
 as its first return parameter, which says
 that the result is of type
 .I "unsigned long"
 and
-.I &nusers 
+.I &nusers
 as its second return parameter,
 which is a pointer to where the long result will be placed.  Since
-.I RUSERSPROC_NUM 
+.I RUSERSPROC_NUM
 takes no argument, the argument parameter of
-.I callrpc() 
+.I callrpc()
 is
 .I xdr_void ().
 .LP
 After trying several times to deliver a message, if
-.I callrpc() 
+.I callrpc()
 gets no answer, it returns with an error code.
 The delivery mechanism is UDP,
 which stands for User Datagram Protocol.
@@ -429,15 +429,15 @@ given RPC procedure number.  The first three parameters,
 .I RUSERPROG ,
 .I RUSERSVERS ,
 and
-.I RUSERSPROC_NUM 
+.I RUSERSPROC_NUM
 are the program, version, and procedure numbers
 of the remote procedure to be registered;
-.I nuser() 
+.I nuser()
 is the name of the local procedure that implements the remote
 procedure; and
-.I xdr_void() 
+.I xdr_void()
 and
-.I xdr_u_long() 
+.I xdr_u_long()
 are the XDR filters for the remote procedure's arguments and
 results, respectively.  (Multiple arguments or multiple results
 are passed as structures).
@@ -455,7 +455,7 @@ arguments and results less than 8K bytes in length.
 After registering the local procedure, the server program's
 main procedure calls
 .I svc_run (),
-the RPC library's remote procedure dispatcher.  It is this 
+the RPC library's remote procedure dispatcher.  It is this
 function that calls the remote procedures in response to RPC
 call messages.  Note that the dispatcher takes care of decoding
 remote procedure arguments and encoding results, using the XDR
@@ -465,8 +465,8 @@ filters specified when the remote procedure was registered.
 .IX "program number assignment"
 .IX "assigning program numbers"
 .LP
-Program numbers are assigned in groups of 
-.I 0x20000000 
+Program numbers are assigned in groups of
+.I 0x20000000
 according to the following chart:
 .DS
 .ft CW
@@ -491,7 +491,7 @@ applications that generate program numbers dynamically.  The
 final groups are reserved for future use, and should not be
 used.
 .LP
-To register a protocol specification, send a request by network 
+To register a protocol specification, send a request by network
 mail to
 .I rpc@sun
 or write to:
@@ -501,20 +501,20 @@ Sun Microsystems
 2550 Garcia Ave.
 Mountain View, CA 94043
 .DE
-Please include a compilable 
-.I rpcgen 
+Please include a compilable
+.I rpcgen
 \*Q.x\*U file describing your protocol.
 You will be given a unique program number in return.
 .IX RPC administration
 .IX administration "of RPC"
 .LP
-The RPC program numbers and protocol specifications 
+The RPC program numbers and protocol specifications
 of standard Sun RPC services can be
-found in the include files in 
+found in the include files in
 .I "/usr/include/rpcsvc" .
-These services, however, constitute only a small subset 
-of those which have been registered.  The complete list of 
-registered programs, as of the time when this manual was 
+These services, however, constitute only a small subset
+of those which have been registered.  The complete list of
+registered programs, as of the time when this manual was
 printed, is:
 .LP
 \fBTable 3-2\fI RPC Registered Programs\fR
@@ -527,53 +527,53 @@ _
 .TH
 .sp .5
 100000&PMAPPROG&portmapper
-100001&RSTATPROG&remote stats            
-100002&RUSERSPROG&remote users            
-100003&NFSPROG&nfs                     
-100004&YPPROG&Yellow Pages            
-100005&MOUNTPROG&mount daemon             
-100006&DBXPROG&remote dbx              
-100007&YPBINDPROG&yp binder               
-100008&WALLPROG&shutdown msg            
-100009&YPPASSWDPROG&yppasswd server         
-100010&ETHERSTATPROG&ether stats             
-100011&RQUOTAPROG&disk quotas             
-100012&SPRAYPROG&spray packets           
-100013&IBM3270PROG&3270 mapper             
-100014&IBMRJEPROG&RJE mapper              
-100015&SELNSVCPROG&selection service       
-100016&RDATABASEPROG&remote database access  
-100017&REXECPROG&remote execution        
-100018&ALICEPROG&Alice Office Automation 
-100019&SCHEDPROG&scheduling service      
-100020&LOCKPROG&local lock manager      
-100021&NETLOCKPROG&network lock manager    
-100022&X25PROG&x.25 inr protocol       
-100023&STATMON1PROG&status monitor 1        
-100024&STATMON2PROG&status monitor 2        
-100025&SELNLIBPROG&selection library       
-100026&BOOTPARAMPROG&boot parameters service 
-100027&MAZEPROG&mazewars game           
-100028&YPUPDATEPROG&yp update               
-100029&KEYSERVEPROG&key server              
-100030&SECURECMDPROG&secure login            
-100031&NETFWDIPROG&nfs net forwarder init	
-100032&NETFWDTPROG&nfs net forwarder trans	
-100033&SUNLINKMAP_PROG&sunlink MAP		
-100034&NETMONPROG&network monitor		
-100035&DBASEPROG&lightweight database	
-100036&PWDAUTHPROG&password authorization	
-100037&TFSPROG&translucent file svc	
-100038&NSEPROG&nse server		
-100039&NSE_ACTIVATE_PROG&nse activate daemon	
+100001&RSTATPROG&remote stats
+100002&RUSERSPROG&remote users
+100003&NFSPROG&nfs
+100004&YPPROG&Yellow Pages
+100005&MOUNTPROG&mount daemon
+100006&DBXPROG&remote dbx
+100007&YPBINDPROG&yp binder
+100008&WALLPROG&shutdown msg
+100009&YPPASSWDPROG&yppasswd server
+100010&ETHERSTATPROG&ether stats
+100011&RQUOTAPROG&disk quotas
+100012&SPRAYPROG&spray packets
+100013&IBM3270PROG&3270 mapper
+100014&IBMRJEPROG&RJE mapper
+100015&SELNSVCPROG&selection service
+100016&RDATABASEPROG&remote database access
+100017&REXECPROG&remote execution
+100018&ALICEPROG&Alice Office Automation
+100019&SCHEDPROG&scheduling service
+100020&LOCKPROG&local lock manager
+100021&NETLOCKPROG&network lock manager
+100022&X25PROG&x.25 inr protocol
+100023&STATMON1PROG&status monitor 1
+100024&STATMON2PROG&status monitor 2
+100025&SELNLIBPROG&selection library
+100026&BOOTPARAMPROG&boot parameters service
+100027&MAZEPROG&mazewars game
+100028&YPUPDATEPROG&yp update
+100029&KEYSERVEPROG&key server
+100030&SECURECMDPROG&secure login
+100031&NETFWDIPROG&nfs net forwarder init
+100032&NETFWDTPROG&nfs net forwarder trans
+100033&SUNLINKMAP_PROG&sunlink MAP
+100034&NETMONPROG&network monitor
+100035&DBASEPROG&lightweight database
+100036&PWDAUTHPROG&password authorization
+100037&TFSPROG&translucent file svc
+100038&NSEPROG&nse server
+100039&NSE_ACTIVATE_PROG&nse activate daemon
 .sp .2i
-150001&PCNFSDPROG&pc passwd authorization 
+150001&PCNFSDPROG&pc passwd authorization
 .sp .2i
-200000&PYRAMIDLOCKINGPROG&Pyramid-locking         
-200001&PYRAMIDSYS5&Pyramid-sys5            
-200002&CADDS_IMAGE&CV cadds_image		
+200000&PYRAMIDLOCKINGPROG&Pyramid-locking
+200001&PYRAMIDSYS5&Pyramid-sys5
+200002&CADDS_IMAGE&CV cadds_image
 .sp .2i
-300001&ADT_RFLOCKPROG&ADT file locking	
+300001&ADT_RFLOCKPROG&ADT file locking
 .TE
 .NH 2
 \&Passing Arbitrary Data Types
@@ -593,11 +593,11 @@ to XDR format is called
 and the reverse process is called
 .I deserializing .
 The type field parameters of
-.I callrpc() 
+.I callrpc()
 and
-.I registerrpc() 
+.I registerrpc()
 can be a built-in procedure like
-.I xdr_u_long() 
+.I xdr_u_long()
 in the previous example, or a user supplied one.
 XDR has these built-in type routines:
 .IX RPC "built-in routines"
@@ -609,14 +609,14 @@ xdr_short()    xdr_u_short()    xdr_wrapstring()
 xdr_char()     xdr_u_char()
 .DE
 Note that the routine
-.I xdr_string() 
-exists, but cannot be used with 
-.I callrpc() 
+.I xdr_string()
+exists, but cannot be used with
+.I callrpc()
 and
 .I registerrpc (),
 which only pass two parameters to their XDR routines.
-.I xdr_wrapstring() 
-has only two parameters, and is thus OK.  It calls 
+.I xdr_wrapstring()
+has only two parameters, and is thus OK.  It calls
 .I xdr_string ().
 .LP
 As an example of a user-defined type routine,
@@ -629,7 +629,7 @@ struct simple {
 } simple;
 .DE
 then you would call
-.I callrpc() 
+.I callrpc()
 as
 .DS
 .ft CW
@@ -637,7 +637,7 @@ callrpc(hostname, PROGNUM, VERSNUM, PROCNUM,
         xdr_simple, &simple ...);
 .DE
 where
-.I xdr_simple() 
+.I xdr_simple()
 is written as:
 .ie t .DS
 .el .DS L
@@ -656,11 +656,11 @@ xdr_simple(xdrsp, simplep)
 }
 .DE
 .LP
-An XDR routine returns nonzero (true in the sense of C) if it 
+An XDR routine returns nonzero (true in the sense of C) if it
 completes successfully, and zero otherwise.
 A complete description of XDR is in the
-.I "XDR Protocol Specification" 
-section of this manual, only few implementation examples are 
+.I "XDR Protocol Specification"
+section of this manual, only few implementation examples are
 given here.
 .LP
 In addition to the built-in primitives,
@@ -687,7 +687,7 @@ callrpc(hostname, PROGNUM, VERSNUM, PROCNUM,
         xdr_varintarr, &arr...);
 .DE
 with
-.I xdr_varintarr() 
+.I xdr_varintarr()
 defined as:
 .ie t .DS
 .el .DS L
@@ -696,7 +696,7 @@ xdr_varintarr(xdrsp, arrp)
 	XDR *xdrsp;
 	struct varintarr *arrp;
 {
-	return (xdr_array(xdrsp, &arrp->data, &arrp->arrlnth, 
+	return (xdr_array(xdrsp, &arrp->data, &arrp->arrlnth,
 		MAXLEN, sizeof(int), xdr_int));
 }
 .DE
@@ -735,22 +735,22 @@ That is the reason for the XDR routine
 which is like
 .I xdr_array()
 except that it packs characters;
-.I xdr_bytes() 
+.I xdr_bytes()
 has four parameters, similar to the first four parameters of
 .I xdr_array ().
 For null-terminated strings, there is also the
 .I xdr_string()
 routine, which is the same as
-.I xdr_bytes() 
+.I xdr_bytes()
 without the length parameter.
 On serializing it gets the string length from
 .I strlen (),
 and on deserializing it creates a null-terminated string.
 .LP
 Here is a final example that calls the previously written
-.I xdr_simple() 
+.I xdr_simple()
 as well as the built-in functions
-.I xdr_string() 
+.I xdr_string()
 and
 .I xdr_reference (),
 which chases pointers:
@@ -776,7 +776,7 @@ xdr_finalexample(xdrsp, finalp)
 }
 .DE
 Note that we could as easily call
-.I xdr_simple() 
+.I xdr_simple()
 here instead of
 .I xdr_reference ().
 .NH 1
@@ -791,23 +791,23 @@ by using lower layers of the RPC library.
 It is assumed that you are familiar with sockets
 and the system calls for dealing with them.
 .LP
-There are several occasions when you may need to use lower layers of 
-RPC.  First, you may need to use TCP, since the higher layer uses UDP, 
-which restricts RPC calls to 8K bytes of data.  Using TCP permits calls 
-to send long streams of data.  
+There are several occasions when you may need to use lower layers of
+RPC.  First, you may need to use TCP, since the higher layer uses UDP,
+which restricts RPC calls to 8K bytes of data.  Using TCP permits calls
+to send long streams of data.
 For an example, see the
 .I TCP
 section below.  Second, you may want to allocate and free memory
-while serializing or deserializing with XDR routines.  
-There is no call at the higher level to let 
-you free memory explicitly.  
+while serializing or deserializing with XDR routines.
+There is no call at the higher level to let
+you free memory explicitly.
 For more explanation, see the
 .I "Memory Allocation with XDR"
-section below.  
-Third, you may need to perform authentication 
-on either the client or server side, by supplying 
+section below.
+Third, you may need to perform authentication
+on either the client or server side, by supplying
 credentials or verifying them.
-See the explanation in the 
+See the explanation in the
 .I Authentication
 section below.
 .NH 2
@@ -815,9 +815,9 @@ section below.
 .IX RPC "server side"
 .LP
 The server for the
-.I nusers() 
+.I nusers()
 program shown below does the same thing as the one using
-.I registerrpc() 
+.I registerrpc()
 above, but is written using a lower layer of the RPC package:
 .ie t .DS
 .el .DS L
@@ -865,7 +865,7 @@ nuser(rqstp, transp)
 		 * and assign it to the variable \fInusers\fP
 		 */
 .ft CW
-		if (!svc_sendreply(transp, xdr_u_long, &nusers)) 
+		if (!svc_sendreply(transp, xdr_u_long, &nusers))
 			fprintf(stderr, "can't reply to RPC call\en");
 		return;
 	default:
@@ -877,7 +877,7 @@ nuser(rqstp, transp)
 .LP
 First, the server gets a transport handle, which is used
 for receiving and replying to RPC messages.
-.I registerrpc() 
+.I registerrpc()
 uses
 .I svcudp_create()
 to get a UDP handle.
@@ -885,39 +885,39 @@ If you require a more reliable protocol, call
 .I svctcp_create()
 instead.
 If the argument to
-.I svcudp_create() 
+.I svcudp_create()
 is
 .I RPC_ANYSOCK
 the RPC library creates a socket
 on which to receive and reply to RPC calls.  Otherwise,
-.I svcudp_create() 
+.I svcudp_create()
 expects its argument to be a valid socket number.
 If you specify your own socket, it can be bound or unbound.
 If it is bound to a port by the user, the port numbers of
-.I svcudp_create() 
+.I svcudp_create()
 and
 .I clnttcp_create()
 (the low-level client routine) must match.
 .LP
 If the user specifies the
-.I RPC_ANYSOCK 
+.I RPC_ANYSOCK
 argument, the RPC library routines will open sockets.
 Otherwise they will expect the user to do so.  The routines
-.I svcudp_create() 
-and 
+.I svcudp_create()
+and
 .I clntudp_create()
 will cause the RPC library routines to
-.I bind() 
+.I bind()
 their socket if it is not bound already.
 .LP
 A service may choose to register its port number with the
 local portmapper service.  This is done is done by specifying
 a non-zero protocol number in
 .I svc_register ().
-Incidently, a client can discover the server's port number by 
-consulting the portmapper on their server's machine.  This can 
-be done automatically by specifying a zero port number in 
-.I clntudp_create() 
+Incidently, a client can discover the server's port number by
+consulting the portmapper on their server's machine.  This can
+be done automatically by specifying a zero port number in
+.I clntudp_create()
 or
 .I clnttcp_create ().
 .LP
@@ -926,21 +926,21 @@ After creating an
 the next step is to call
 .I pmap_unset()
 so that if the
-.I nusers() 
+.I nusers()
 server crashed earlier,
 any previous trace of it is erased before restarting.
 More precisely,
-.I pmap_unset() 
+.I pmap_unset()
 erases the entry for
 .I RUSERSPROG
 from the port mapper's tables.
 .LP
 Finally, we associate the program number for
-.I nusers() 
+.I nusers()
 with the procedure
 .I nuser ().
 The final argument to
-.I svc_register() 
+.I svc_register()
 is normally the protocol being used,
 which, in this case, is
 .I IPPROTO_UDP
@@ -952,14 +952,14 @@ Also, registration is done on the program,
 rather than procedure, level.
 .LP
 The user routine
-.I nuser() 
+.I nuser()
 must call and dispatch the appropriate XDR routines
 based on the procedure number.
 Note that
 two things are handled by
-.I nuser() 
+.I nuser()
 that
-.I registerrpc() 
+.I registerrpc()
 handles automatically.
 The first is that procedure
 .I NULLPROC
@@ -986,9 +986,9 @@ As an example, we can add a procedure
 which has an argument
 .I nusers (),
 and returns
-.I TRUE 
+.I TRUE
 or
-.I FALSE 
+.I FALSE
 depending on whether there are nusers logged on.
 It would look like this:
 .ie t .DS
@@ -1103,13 +1103,13 @@ svc_freeargs(transp, xdr_chararr2, &arrptr);
 .DE
 Note that, after being used, the character array can be freed with
 .I svc_freeargs()
-.I svc_freeargs() 
-will not attempt to free any memory if the variable indicating it 
-is NULL.  For example, in the the routine 
+.I svc_freeargs()
+will not attempt to free any memory if the variable indicating it
+is NULL.  For example, in the the routine
 .I xdr_finalexample (),
 given earlier, if
-.I finalp->string 
-was NULL, then it would not be freed.  The same is true for 
+.I finalp->string
+was NULL, then it would not be freed.  The same is true for
 .I finalp->simplep .
 .LP
 To summarize, each XDR routine is responsible
@@ -1123,11 +1123,11 @@ the deserializer is used.
 And when called from
 .I svc_freeargs()
 the memory deallocator is used.  When building simple examples like those
-in this section, a user doesn't have to worry 
-about the three modes.  
+in this section, a user doesn't have to worry
+about the three modes.
 See the
 .I "External Data Representation: Sun Technical Notes"
-for examples of more sophisticated XDR routines that determine 
+for examples of more sophisticated XDR routines that determine
 which of the three modes they are in and adjust their behavior accordingly.
 .KS
 .NH 2
@@ -1207,9 +1207,9 @@ is
 which takes a
 .I CLIENT
 pointer rather than a host name.  The parameters to
-.I clnt_call() 
+.I clnt_call()
 are a
-.I CLIENT 
+.I CLIENT
 pointer, the procedure number,
 the XDR routine for serializing the argument,
 a pointer to the argument,
@@ -1218,36 +1218,36 @@ a pointer to where the return value will be placed,
 and the time in seconds to wait for a reply.
 .LP
 The
-.I CLIENT 
+.I CLIENT
 pointer is encoded with the transport mechanism.
 .I callrpc()
 uses UDP, thus it calls
-.I clntudp_create() 
+.I clntudp_create()
 to get a
-.I CLIENT 
+.I CLIENT
 pointer.  To get TCP (Transmission Control Protocol), you would use
 .I clnttcp_create() .
 .LP
 The parameters to
-.I clntudp_create() 
+.I clntudp_create()
 are the server address, the program number, the version number,
 a timeout value (between tries), and a pointer to a socket.
 The final argument to
-.I clnt_call() 
+.I clnt_call()
 is the total time to wait for a response.
 Thus, the number of tries is the
-.I clnt_call() 
+.I clnt_call()
 timeout divided by the
-.I clntudp_create() 
+.I clntudp_create()
 timeout.
 .LP
 Note that the
 .I clnt_destroy()
 call
 always deallocates the space associated with the
-.I CLIENT 
+.I CLIENT
 handle.  It closes the socket associated with the
-.I CLIENT 
+.I CLIENT
 handle, however, only if the RPC library opened it.  It the
 socket was opened by the user, it stays open.  This makes it
 possible, in cases where there are multiple client handles
@@ -1255,7 +1255,7 @@ using the same socket, to destroy one handle without closing
 the socket that other handles are using.
 .LP
 To make a stream connection, the call to
-.I clntudp_create() 
+.I clntudp_create()
 is replaced with a call to
 .I clnttcp_create() .
 .DS
@@ -1265,10 +1265,10 @@ clnttcp_create(&server_addr, prognum, versnum, &sock,
 .DE
 There is no timeout argument; instead, the receive and send buffer
 sizes must be specified.  When the
-.I clnttcp_create() 
+.I clnttcp_create()
 call is made, a TCP connection is established.
 All RPC calls using that
-.I CLIENT 
+.I CLIENT
 handle would use this connection.
 The server side of an RPC call using TCP has
 .I svcudp_create()
@@ -1278,9 +1278,9 @@ replaced by
 .ft CW
 transp = svctcp_create(RPC_ANYSOCK, 0, 0);
 .DE
-The last two arguments to 
-.I svctcp_create() 
-are send and receive sizes respectively.  If `0' is specified for 
+The last two arguments to
+.I svctcp_create()
+are send and receive sizes respectively.  If `0' is specified for
 either of these, the system chooses a reasonable default.
 .KS
 .NH 1
@@ -1301,7 +1301,7 @@ If the other activity involves periodically updating a data structure,
 the process can set an alarm signal before calling
 .I svc_run()
 But if the other activity
-involves waiting on a a file descriptor, the
+involves waiting on a file descriptor, the
 .I svc_run()
 call won't work.
 The code for
@@ -1345,15 +1345,15 @@ yourself.
 All you need to know are the file descriptors
 of the socket(s) associated with the programs you are waiting on.
 Thus you can have your own
-.I select() 
+.I select()
 .IX select() "" \fIselect()\fP
 that waits on both the RPC socket,
 and your own descriptors.  Note that
-.I svc_fds() 
-is a bit mask of all the file descriptors that RPC is using for 
+.I svc_fds()
+is a bit mask of all the file descriptors that RPC is using for
 services.  It can change everytime that
 .I any
-RPC library routine is called, because descriptors are constantly 
+RPC library routine is called, because descriptors are constantly
 being opened and closed, for example for TCP connections.
 .NH 2
 \&Broadcast RPC
@@ -1364,7 +1364,7 @@ The
 .I portmapper
 is a daemon that converts RPC program numbers
 into DARPA protocol port numbers; see the
-.I portmap 
+.I portmap
 man page.  You can't do broadcast RPC without the portmapper.
 Here are the main differences between
 broadcast RPC and normal RPC calls:
@@ -1421,7 +1421,7 @@ whether or not the user wants more responses.
 .el .DS L
 .ft CW
 bool_t done;
-	. . . 
+	. . .
 done = eachresult(resultsp, raddr)
 	caddr_t resultsp;
 	struct sockaddr_in *raddr; /* \fIAddr of responding machine\fP */
@@ -1518,7 +1518,7 @@ windowdispatch(rqstp, transp)
 
 	switch (rqstp->rq_proc) {
 	case NULLPROC:
-		if (!svc_sendreply(transp, xdr_void, 0)) 
+		if (!svc_sendreply(transp, xdr_void, 0))
 			fprintf(stderr, "can't reply to RPC call\en");
 		return;
 	case RENDERSTRING:
@@ -1537,7 +1537,7 @@ windowdispatch(rqstp, transp)
 		 * Code here to render the string \fIs\fP
 		 */
 .ft CW
-		if (!svc_sendreply(transp, xdr_void, NULL)) 
+		if (!svc_sendreply(transp, xdr_void, NULL))
 			fprintf(stderr, "can't reply to RPC call\en");
 		break;
 	case RENDERSTRING_BATCHED:
@@ -1795,7 +1795,7 @@ if the style is not one of the styles supported by the RPC package.
 That the request's
 .I rq_clntcred
 field is either
-.I NULL 
+.I NULL
 or points to a well formed structure
 that corresponds to a supported style of authentication credentials.
 Remember that only
@@ -1846,7 +1846,7 @@ nuser(rqstp, transp)
 .ft CW
 	switch (rqstp->rq_cred.oa_flavor) {
 	case AUTH_UNIX:
-		unix_cred = 
+		unix_cred =
 			(struct authunix_parms *)rqstp->rq_clntcred;
 		uid = unix_cred->aup_uid;
 		break;
@@ -1900,9 +1900,9 @@ instead.
 .LP
 The last point underscores the relation between
 the RPC authentication package and the services;
-RPC deals only with 
-.I authentication 
-and not with individual services' 
+RPC deals only with
+.I authentication
+and not with individual services'
 .I "access control" .
 The services themselves must implement their own access control policies
 and reflect these policies as return statuses in their protocols.
@@ -1914,24 +1914,24 @@ and reflect these policies as return statuses in their protocols.
 UNIX authentication is quite easy to defeat.  Instead of using
 .I authunix_create_default (),
 one can call
-.I authunix_create() 
+.I authunix_create()
 and then modify the RPC authentication handle it returns by filling in
 whatever user ID and hostname they wish the server to think they have.
 DES authentication is thus recommended for people who want more security
 than UNIX authentication offers.
 .LP
 The details of the DES authentication protocol are complicated and
-are not explained here.  
+are not explained here.
 See
 .I "Remote Procedure Calls: Protocol Specification"
 for the details.
 .LP
 In  order for  DES authentication   to  work, the
-.I keyserv(8c) 
+.I keyserv(8c)
 daemon must be running  on both  the  server  and client machines.  The
 users on  these machines  need  public  keys  assigned by  the network
 administrator in  the
-.I publickey(5) 
+.I publickey(5)
 database.  And,  they  need to have decrypted  their  secret keys
 using  their  login   password.  This automatically happens when one
 logs in using
@@ -1963,12 +1963,12 @@ host2netname(servername, rhostname, NULL);
 Here,
 .I rhostname
 is the hostname of the machine the server process is running on.
-.I host2netname() 
+.I host2netname()
 fills in
 .I servername
 to contain this root process's netname.  If the
 server process was run by a regular user, one could use the call
-.I user2netname() 
+.I user2netname()
 instead.  Here is an example for a server process with the same user
 ID as the client:
 .DS
@@ -1977,15 +1977,15 @@ char servername[MAXNETNAMELEN];
 user2netname(servername, getuid(), NULL);
 .DE
 The last argument to both of these calls,
-.I user2netname() 
+.I user2netname()
 and
 .I host2netname (),
 is the name of the naming domain where the server is located.  The
-.I NULL 
+.I NULL
 used here means \*Quse the local domain name.\*U
 .LP
 The second argument to
-.I authdes_create() 
+.I authdes_create()
 is a lifetime for the credential.  Here it is set to sixty
 seconds.  What that means is that the credential will expire 60
 seconds from now.  If some mischievous user tries to reuse the
@@ -1997,7 +1997,7 @@ remembers which credentials it has already seen in the near past,
 and will not grant requests to duplicates.
 .LP
 The third argument to
-.I authdes_create() 
+.I authdes_create()
 is the address of the host to synchronize with.  In order for DES
 authentication to work, the server and client must agree upon the
 time.  Here we pass the address of the server itself, so the
@@ -2008,13 +2008,13 @@ which means \*Qdon't bother synchronizing.\*U You should only do this
 if you are sure the client and server are already synchronized.
 .LP
 The final argument to
-.I authdes_create() 
+.I authdes_create()
 is the address of a DES encryption key to use for encrypting
 timestamps and data.  If this argument is
 .I NULL ,
 as it is in this example, a random key will be chosen.  The client
 may find out the encryption key being used by consulting the
-.I ah_key 
+.I ah_key
 field of the authentication handle.
 .sp
 .IP "\fIServer Side\fP"
@@ -2047,7 +2047,7 @@ nuser(rqstp, transp)
 	 */
 .ft CW
 
-	if (rqstp->rq_proc == NULLPROC) { 
+	if (rqstp->rq_proc == NULLPROC) {
 		/* \fIsame as before\fP */
 	}
 
@@ -2078,7 +2078,7 @@ nuser(rqstp, transp)
 .ft I
 	/*
 	 * The rest is the same as before
- 	 */	
+ 	 */
 .ft CW
 .vs
 .DE
@@ -2087,7 +2087,7 @@ Note the use of the routine
 the inverse of
 .I user2netname ():
 it takes a network ID and converts to a unix ID.
-.I netname2user () 
+.I netname2user ()
 also supplies the group IDs which we don't use in this example,
 but which may be useful to other UNIX programs.
 .NH 2
@@ -2126,8 +2126,8 @@ you need to explicitly exit, since
 .I svc_run()
 never returns.
 .LP
-The format of entries in 
-.I /etc/inetd.conf 
+The format of entries in
+.I /etc/inetd.conf
 for RPC services is in one of the following two forms:
 .ie t .DS
 .el .DS L
@@ -2224,13 +2224,13 @@ nuser(rqstp, transp)
 		nusers2 = nusers;
 		switch (rqstp->rq_vers) {
 		case RUSERSVERS_ORIG:
-            if (!svc_sendreply(transp, xdr_u_long, 
+            if (!svc_sendreply(transp, xdr_u_long,
 		    &nusers)) {
                 fprintf(stderr,"can't reply to RPC call\en");
 			}
 			break;
 		case RUSERSVERS_SHORT:
-            if (!svc_sendreply(transp, xdr_u_short, 
+            if (!svc_sendreply(transp, xdr_u_short,
 		    &nusers2)) {
                 fprintf(stderr,"can't reply to RPC call\en");
 			}
@@ -2387,7 +2387,7 @@ callrpctcp(host, prognum, procnum, versnum,
 main()
 {
 	register SVCXPRT *transp;
-     int rcp_service(), xdr_rcp(); 
+     int rcp_service(), xdr_rcp();
 
 	if ((transp = svctcp_create(RPC_ANYSOCK,
 	  BUFSIZ, BUFSIZ)) == NULL) {
@@ -2524,7 +2524,7 @@ gettransient(proto, vers, sockp)
 		perror("getsockname");
 		return (0);
 	}
-	while (!pmap_set(prognum++, vers, proto, 
+	while (!pmap_set(prognum++, vers, proto,
 		ntohs(addr.sin_port))) continue;
 	return (prognum-1);
 }
@@ -2534,17 +2534,17 @@ gettransient(proto, vers, sockp)
 Note:
 .I
 The call to
-.I ntohs() 
+.I ntohs()
 is necessary to ensure that the port number in
 .I "addr.sin_port" ,
-which is in 
-.I network 
-byte order, is passed in 
+which is in
+.I network
+byte order, is passed in
 .I host
 byte order (as
-.I pmap_set() 
+.I pmap_set()
 expects).  See the
-.I byteorder(3N) 
+.I byteorder(3N)
 man page for more details on the conversion of network
 addresses from network to host byte order.
 .KS

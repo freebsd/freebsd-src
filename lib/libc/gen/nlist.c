@@ -208,8 +208,8 @@ static void elf_sym_to_nlist(struct nlist *, Elf_Sym *, Elf_Shdr *, int);
  * __elf_is_okay__ - Determine if ehdr really
  * is ELF and valid for the target platform.
  *
- * WARNING:  This is NOT a ELF ABI function and
- * as such it's use should be restricted.
+ * WARNING:  This is NOT an ELF ABI function and
+ * as such its use should be restricted.
  */
 int
 __elf_is_okay__(ehdr)

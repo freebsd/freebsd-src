@@ -193,8 +193,8 @@ void print_devclass_list(void);
  * Also note: we specifically do not attach a device to the device_t tree
  * to avoid potential chicken and egg problems.  One could argue that all
  * of this belongs to the root node.  One could also further argue that the
- * sysctl interface that we have not might more properly be a ioctl
- * interface, but at this stage of the game, I'm not inclinde to rock that
+ * sysctl interface that we have not might more properly be an ioctl
+ * interface, but at this stage of the game, I'm not inclined to rock that
  * boat.
  *
  * I'm also not sure that the SIGIO support is done correctly or not, as

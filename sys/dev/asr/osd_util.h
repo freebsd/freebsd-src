@@ -325,7 +325,7 @@ uSHORT		osdDestroySemaphore(SEMAPHORE_T);
 uLONG		osdRequestSemaphore(SEMAPHORE_T,uLONG);
   /* Release access to the specified mutually exclusive semaphore */
 uSHORT		osdReleaseSemaphore(SEMAPHORE_T);
-	/* wait for a event to happen */
+	/* wait for an event to happen */
 uLONG				 osdWaitForEventSemaphore(SEMAPHORE_T, uLONG);
 	/* signal an event */
 uLONG				 osdSignalEventSemaphore(SEMAPHORE_T);

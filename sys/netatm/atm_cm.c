@@ -2118,7 +2118,7 @@ atm_cm_match(ap, pcop)
 /*
  * Find Shareable LLC VCC
  * 
- * Given a endpoint-supplied connection attribute using LLC multiplexing,
+ * Given an endpoint-supplied connection attribute using LLC multiplexing,
  * this function will attempt to locate an existing connection which meets
  * the requirements of the supplied attributes.
  *

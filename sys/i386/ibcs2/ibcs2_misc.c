@@ -411,7 +411,7 @@ again:
 			break;
 		}
 		/*
-		 * Massage in place to make a iBCS2-shaped dirent (otherwise
+		 * Massage in place to make an iBCS2-shaped dirent (otherwise
 		 * we have to worry about touching user memory outside of
 		 * the copyout() call).
 		 */
@@ -574,7 +574,7 @@ again:
 			break;
 		}
 		/*
-		 * Massage in place to make a iBCS2-shaped dirent (otherwise
+		 * Massage in place to make an iBCS2-shaped dirent (otherwise
 		 * we have to worry about touching user memory outside of
 		 * the copyout() call).
 		 *

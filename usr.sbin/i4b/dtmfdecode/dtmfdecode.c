@@ -23,7 +23,7 @@
 #define FSC	(1<<12)
 
 /* Alaw parameters */
-#define SIGN_BIT        (0x80)          /* Sign bit for a A-law byte. */
+#define SIGN_BIT        (0x80)          /* Sign bit for an A-law byte. */
 #define QUANT_MASK      (0xf)           /* Quantization field mask. */
 #define SEG_SHIFT       (4)             /* Left shift for segment number. */
 #define SEG_MASK        (0x70)          /* Segment field mask. */

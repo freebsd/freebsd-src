@@ -1435,7 +1435,7 @@ walk_kern(struct radix_node *rn,
 		 * it must be a "gateway."
 		 *
 		 * If it is a "remote" interface, it is also a "gateway" to
-		 * the kernel if is not a alias.
+		 * the kernel if is not an alias.
 		 */
 		if (RT->rt_ifp == 0
 		    || (RT->rt_ifp->int_state & IS_REMOTE))

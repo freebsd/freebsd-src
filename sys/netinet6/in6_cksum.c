@@ -85,7 +85,7 @@
 
 /*
  * m MUST contain a continuous IP6 header.
- * off is a offset where TCP/UDP/ICMP6 header starts.
+ * off is an offset where TCP/UDP/ICMP6 header starts.
  * len is a total length of a transport segment.
  * (e.g. TCP header + TCP payload)
  */

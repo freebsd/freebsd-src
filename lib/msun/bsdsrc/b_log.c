@@ -442,7 +442,7 @@ log(x) double x;
 
 /*
  * Extra precision variant, returning struct {double a, b;};
- * log(x) = a+b to 63 bits, with a is rounded to 26 bits.
+ * log(x) = a+b to 63 bits, with a rounded to 26 bits.
  */
 struct Double
 #ifdef _ANSI_SOURCE

@@ -1376,7 +1376,7 @@ mss_detect(device_t dev, struct mss_info *mss)
 		if ((tmp = io_rd(mss, MSS_INDEX)) & MSS_IDXBUSY) DELAY(10000);
 		else break;
 
-    	if (i >= 10) {	/* Not a AD1848 */
+    	if (i >= 10) {	/* Not an AD1848 */
 		BVDDB(printf("mss_detect, busy still set (0x%02x)\n", tmp));
 		goto no;
     	}

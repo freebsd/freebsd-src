@@ -384,7 +384,7 @@ vm_object_reference(vm_object_t object)
 }
 
 /*
- * handle deallocating a object of type OBJT_VNODE
+ * Handle deallocating an object of type OBJT_VNODE.
  */
 void
 vm_object_vndeallocate(vm_object_t object)

@@ -7,7 +7,7 @@ $FreeBSD$
 Introduction
 ============
 
-FAITH is a IPv6-to-IPv4 TCP relay.  It performs tcp relay just as some of
+FAITH is an IPv6-to-IPv4 TCP relay.  It performs tcp relay just as some of
 firewall-oriented gateway does, but between IPv6 and IPv4 with address
 translation.
 TCP connections has to be made from IPv6 node to IPv4 node.  FAITH will
@@ -29,7 +29,7 @@ invoked per each TCP services (TCP port number).
 You will have to allocate an IPv6 address prefix to map IPv4 addresses into.
 The following description uses 3ffe:0501:ffff:0000:: as example.
 Please use a prefix which belongs to your site.
-FAITH will make it possible to make a IPv6 TCP connection From IPv6 node
+FAITH will make it possible to make an IPv6 TCP connection From IPv6 node
 "src", toward IPv4 node "dest", by specifying FAITH-mapped address
 3ffe:0501:ffff:0000::123.4.5.6
 (which is, 3ffe:0501:ffff:0000:0000:0000:7b04:0506).

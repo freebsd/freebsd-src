@@ -1094,7 +1094,7 @@ dummynet_io(struct mbuf *m, int pipe_nr, int dir, struct ip_fw_args *fwa)
     pipe_nr &= 0xffff ;
 
     /*
-     * this is a dummynet rule, so we expect a O_PIPE or O_QUEUE rule
+     * This is a dummynet rule, so we expect an O_PIPE or O_QUEUE rule.
      */
     fs = locate_flowset(pipe_nr, fwa->rule);
     if (fs == NULL)

@@ -874,7 +874,7 @@ spd_done:
 			 * initiated packets) If we used the loopback inteface,
 			 * we would not be able to control what happens 
 			 * as the packet runs through ip_input() as
-			 * it is done through a ISR.
+			 * it is done through an ISR.
 			 */
 			LIST_FOREACH(ia,
 			    INADDR_HASH(dst->sin_addr.s_addr), ia_hash) {

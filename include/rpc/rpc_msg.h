@@ -187,7 +187,7 @@ extern bool_t	xdr_replymsg(XDR *, struct rpc_msg *);
 
 
 /*
- * XDR routine to handle a accepted rpc reply.
+ * XDR routine to handle an accepted rpc reply.
  * xdr_accepted_reply(xdrs, rej)
  * 	XDR *xdrs;
  * 	struct accepted_reply *rej;

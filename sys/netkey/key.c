@@ -1708,7 +1708,7 @@ fail:
 
 /*
  * SADB_X_SPDADD, SADB_X_SPDSETIDX or SADB_X_SPDUPDATE processing
- * add a entry to SP database, when received
+ * add an entry to SP database, when received
  *   <base, address(SD), (lifetime(H),) policy>
  * from the user(?).
  * Adding to SP database,
@@ -2239,7 +2239,7 @@ key_spdacquire(sp)
 	if (sp->policy != IPSEC_POLICY_IPSEC)
 		panic("key_spdacquire: policy mismathed. IPsec is expected.\n");
 
-	/* get a entry to check whether sent message or not. */
+	/* Get an entry to check whether sent message or not. */
 	if ((newspacq = key_getspacq(&sp->spidx)) != NULL) {
 		if (key_blockacq_count < newspacq->count) {
 			/* reset counter and do send message. */
@@ -5004,7 +5004,7 @@ key_getsavbyseq(sah, seq)
 
 /*
  * SADB_ADD processing
- * add a entry to SA database, when received
+ * add an entry to SA database, when received
  *   <base, SA, (SA2), (lifetime(HSC),) address(SD), (address(P),)
  *       key(AE), (identity(SD),) (sensitivity)>
  * from the ikmpd,
@@ -5818,7 +5818,7 @@ key_acquire(saidx, sp)
 	 * getting something message from IKEd.  In later case, to be
 	 * managed with ACQUIRING list.
 	 */
-	/* get a entry to check whether sending message or not. */
+	/* Get an entry to check whether sending message or not. */
 	if ((newacq = key_getacq(saidx)) != NULL) {
 		if (key_blockacq_count < newacq->count) {
 			/* reset counter and do send message. */

@@ -78,7 +78,7 @@
  * (3c59x) also supported a bus master mode, however for those chips
  * you could only DMA packets to/from a contiguous memory buffer. For
  * transmission this would mean copying the contents of the queued mbuf
- * chain into a an mbuf cluster and then DMAing the cluster. This extra
+ * chain into an mbuf cluster and then DMAing the cluster. This extra
  * copy would sort of defeat the purpose of the bus master support for
  * any packet that doesn't fit into a single mbuf.
  *

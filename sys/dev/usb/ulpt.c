@@ -739,7 +739,7 @@ ulptioctl(dev_t dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
 #if 0
 /* XXX This does not belong here. */
 /*
- * Print select parts of a IEEE 1284 device ID.
+ * Print select parts of an IEEE 1284 device ID.
  */
 void
 ieee1284_print_id(char *str)

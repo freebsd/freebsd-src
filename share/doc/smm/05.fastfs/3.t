@@ -31,6 +31,8 @@
 .\"
 .\"	@(#)3.t	8.1 (Berkeley) 6/8/93
 .\"
+.\"	$FreeBSD$
+.\"
 .ds RH New file system
 .NH
 New file system organization
@@ -55,7 +57,7 @@ bytes with only two levels of indirection,
 the minimum size of a file system block is 4096 bytes.
 The size of file system blocks can be any power of two
 greater than or equal to 4096.
-The block size of a file system is recorded in the 
+The block size of a file system is recorded in the
 file system's super-block
 so it is possible for file systems with different block sizes
 to be simultaneously accessible on the same system.
@@ -80,7 +82,7 @@ For each cylinder group a static number of inodes
 is allocated at file system creation time.
 The default policy is to allocate one inode for each 2048
 bytes of space in the cylinder group, expecting this
-to be far more than will ever be needed. 
+to be far more than will ever be needed.
 .PP
 All the cylinder group bookkeeping information could be
 placed at the beginning of each cylinder group.
@@ -109,7 +111,7 @@ This is because of a requirement that the first 8 kilobytes of the disk
 be reserved for a bootstrap program and a separate requirement that
 the cylinder group information begin on a file system block boundary.
 To start the cylinder group on a file system block boundary,
-file systems with block sizes larger than 8 kilobytes 
+file systems with block sizes larger than 8 kilobytes
 would have to leave an empty space between the end of
 the boot block and the beginning of the cylinder group.
 Without knowing the size of the file system blocks,
@@ -131,7 +133,7 @@ In large files, several
 4096 byte blocks may be allocated from the same cylinder so that
 even larger data transfers are possible before requiring a seek.
 .PP
-The main problem with 
+The main problem with
 larger blocks is that most UNIX
 file systems are composed of many small files.
 A uniformly large block size wastes space.
@@ -197,7 +199,7 @@ Figure 1 \- Example layout of blocks and fragments in a 4096/1024 file system.
 .KE
 Each bit in the map records the status of a fragment;
 an ``X'' shows that the fragment is in use,
-while a ``O'' shows that the fragment is available for allocation.
+while an ``O'' shows that the fragment is available for allocation.
 In this example,
 fragments 0\-5, 10, and 11 are in use,
 while fragments 6\-9, and 12\-15 are free.
@@ -256,7 +258,7 @@ a block with the necessary fragments is located,
 otherwise a full block is located.
 The remaining new data is written into the located space.
 .IP 3)
-The file contains one or more fragments (and the 
+The file contains one or more fragments (and the
 fragments contain insufficient space to hold the new data).
 If the size of the new data plus the size of the data
 already in the fragments exceeds the size of a full block,
@@ -274,7 +276,7 @@ appended with the new data
 are written into the allocated space.
 .PP
 The problem with expanding a file one fragment at a
-a time is that data may be copied many times as a 
+a time is that data may be copied many times as a
 fragmented block expands to a full block.
 Fragment reallocation can be minimized
 if the user program writes a full block at a time,
@@ -345,7 +347,7 @@ with the free space reserve set at 5%.
 (Compare 11.8% wasted with the old file system
 to 6.9% waste + 5% reserved space in the
 new file system.)
-.NH 2 
+.NH 2
 File system parameterization
 .PP
 Except for the initial creation of the free list,
@@ -353,11 +355,11 @@ the old file system ignores the parameters of the underlying hardware.
 It has no information about either the physical characteristics
 of the mass storage device,
 or the hardware that interacts with it.
-A goal of the new file system is to parameterize the 
+A goal of the new file system is to parameterize the
 processor capabilities and
 mass storage characteristics
 so that blocks can be allocated in an
-optimum configuration-dependent way. 
+optimum configuration-dependent way.
 Parameters used include the speed of the processor,
 the hardware support for mass storage transfers,
 and the characteristics of the mass storage devices.
@@ -370,8 +372,8 @@ it is placed.
 .PP
 For mass storage devices such as disks,
 the new file system tries to allocate new blocks
-on the same cylinder as the previous block in the same file. 
-Optimally, these new blocks will also be 
+on the same cylinder as the previous block in the same file.
+Optimally, these new blocks will also be
 rotationally well positioned.
 The distance between ``rotationally optimal'' blocks varies greatly;
 it can be a consecutive block
@@ -439,7 +441,7 @@ and the disk pack is then moved to a system that has a
 processor requiring 4 milliseconds to schedule a disk operation,
 the throughput will drop precipitously because of lost disk revolutions
 on nearly every block.
-If the eventual target machine is known, 
+If the eventual target machine is known,
 the file system can be parameterized for it
 even though it is initially created on a different processor.
 Even if the move is not known in advance,
@@ -464,7 +466,7 @@ the local allocation routines that use a locally optimal scheme to
 lay out data blocks.
 .PP
 Two methods for improving file system performance are to increase
-the locality of reference to minimize seek latency 
+the locality of reference to minimize seek latency
 as described by [Trivedi80], and
 to improve the layout of data to make larger transfers possible
 as described by [Nevalainen77].
@@ -486,7 +488,7 @@ while spreading out unrelated data.
 One allocatable resource is inodes.
 Inodes are used to describe both files and directories.
 Inodes of files in the same directory are frequently accessed together.
-For example, the ``list directory'' command often accesses 
+For example, the ``list directory'' command often accesses
 the inode for each file in a directory.
 The layout policy tries to place all the inodes of
 files in a directory in the same cylinder group.
@@ -547,10 +549,10 @@ a megabyte of data is typically accessible before
 a long seek must be performed,
 and the cost of one long seek per megabyte is small.
 .PP
-The global policy routines call local allocation routines with 
+The global policy routines call local allocation routines with
 requests for specific blocks.
 The local allocation routines will
-always allocate the requested block 
+always allocate the requested block
 if it is free, otherwise it
 allocates a free block of the requested size that is
 rotationally closest to the requested block.
@@ -558,7 +560,7 @@ If the global layout policies had complete information,
 they could always request unused blocks and
 the allocation routines would be reduced to simple bookkeeping.
 However, maintaining complete information is costly;
-thus the implementation of the global layout policy 
+thus the implementation of the global layout policy
 uses heuristics that employ only partial information.
 .PP
 If a requested block is not available, the local allocator uses
@@ -566,7 +568,7 @@ a four level allocation strategy:
 .IP 1)
 Use the next available block rotationally closest
 to the requested block on the same cylinder.  It is assumed
-here that head switching time is zero.  On disk 
+here that head switching time is zero.  On disk
 controllers where this is not the case, it may be possible
 to incorporate the time required to switch between disk platters
 when constructing the rotational layout tables.  This, however,
@@ -575,7 +577,7 @@ has not yet been tried.
 If there are no blocks available on the same cylinder,
 use a block within the same cylinder group.
 .IP 3)
-If that cylinder group is entirely full, 
+If that cylinder group is entirely full,
 quadratically hash the cylinder group number to choose
 another cylinder group to look for a free block.
 .IP 4)

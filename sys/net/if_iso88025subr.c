@@ -321,7 +321,7 @@ iso88025_output(ifp, m, dst, rt0)
 		 * full mac, llc, and source routing function to be controlled.
 		 * llc and source routing information must already be in the
 		 * mbuf provided, ac/fc are set in sa_data.  sockaddr.sa_data
-		 * should be a iso88025_sockaddr_data structure see iso88025.h
+		 * should be an iso88025_sockaddr_data structure see iso88025.h
 		 */
                 loop_copy = -1;
 		sd = (struct iso88025_sockaddr_data *)dst->sa_data;

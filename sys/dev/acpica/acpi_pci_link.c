@@ -846,7 +846,7 @@ acpi_pci_link_set_bootdisabled_priority(void)
 	TAILQ_INIT(&sorted_list);
 	while (!TAILQ_EMPTY(&acpi_pci_link_entries)) {
 		link = TAILQ_FIRST(&acpi_pci_link_entries);
-		/* find a entry which have the highest priority. */
+		/* find an entry which has the highest priority. */
 		TAILQ_FOREACH(link_pri, &acpi_pci_link_entries, links) {
 			if (link->priority < link_pri->priority) {
 				link = link_pri;

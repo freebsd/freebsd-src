@@ -3417,7 +3417,7 @@ tulip_rx_intr(
 	     * those buffers and chain to the starting mbuf.  All buffers but
 	     * the last buffer have the same length so we can set that now.
 	     * (we add to last_offset instead of multiplying since we normally
-	     * won't go into the loop and thereby saving a ourselves from
+	     * won't go into the loop and thereby saving ourselves from
 	     * doing a multiplication by 0 in the normal case).
 	     */
 	    _IF_DEQUEUE(&sc->tulip_rxq, ms);
@@ -3918,7 +3918,7 @@ tulip_intr_handler(
 
 #if defined(TULIP_USE_SOFTINTR)
 /*
- * This is a experimental idea to alleviate problems due to interrupt
+ * This is an experimental idea to alleviate problems due to interrupt
  * livelock.  What is interrupt livelock?  It's when you spend all your
  * time servicing device interrupts and never drop below device ipl
  * to do "useful" work.

@@ -108,7 +108,7 @@ PAPorCHAPpmdemand:
 #
 #  With static IP numbers, our setup is similar to dynamic:
 #  Remember, ppp.linkup is searched for a "192.244.176.44" label, then
-#  a "ondemand" label, and finally the "MYADDR" label.
+#  an "ondemand" label, and finally the "MYADDR" label.
 #
 ondemand:
  set phone 1234567
@@ -354,16 +354,16 @@ dodgynet:
     # If the remote host allowed IP forwarding and we wanted to use it, the
     # following rules could be split into two groups to separately validate
     # the source and destination addresses.
-    set filter dial  7 permit 172.17.16.0/20  172.17.20.248 
-    set filter dial  8 permit 172.17.36.0/22  172.17.20.248 
-    set filter dial  9 permit 172.17.118.0/26 172.17.20.248 
-    set filter dial 10 permit 10.123.5.0/24   172.17.20.248 
+    set filter dial  7 permit 172.17.16.0/20  172.17.20.248
+    set filter dial  8 permit 172.17.36.0/22  172.17.20.248
+    set filter dial  9 permit 172.17.118.0/26 172.17.20.248
+    set filter dial 10 permit 10.123.5.0/24   172.17.20.248
 
     # Once the link's up, limit outgoing access to the specified hosts
-    set filter out  0 4      172.17.16.0/20  172.17.20.248 
-    set filter out  1 4      172.17.36.0/22  172.17.20.248 
-    set filter out  2 4      172.17.118.0/26 172.17.20.248 
-    set filter out  3 deny ! 10.123.5.0/24   172.17.20.248 
+    set filter out  0 4      172.17.16.0/20  172.17.20.248
+    set filter out  1 4      172.17.36.0/22  172.17.20.248
+    set filter out  2 4      172.17.118.0/26 172.17.20.248
+    set filter out  3 deny ! 10.123.5.0/24   172.17.20.248
 
     # Allow established TCP connections
     set filter out  4 permit 0 0 tcp estab
@@ -481,7 +481,7 @@ direct-client:
  set ifaddr 10.0.4.2 10.0.4.1
  enable lqr
  accept lqr
- 
+
 direct-server:
  set timeout 0
  set lqrperiod 10
@@ -567,7 +567,7 @@ inet-loop:
  set login
  set ifaddr 127.0.0.2 127.0.0.3
  set server /var/run/ppp/loop "" 0177
- 
+
 inet-loop-in:
  set timeout 0
  set log phase lcp ipcp command
@@ -687,8 +687,8 @@ mloop:
  clone 1 2 3
  link deflink remove
  # dial
- # link 2 dial 
- # link 3 dial 
+ # link 2 dial
+ # link 3 dial
 
 mloop-in:
  set timeout 0                                 # No idle timer
@@ -780,10 +780,10 @@ loop:
  set device "!ppp -direct loop-in"
  set dial
  set login
- set ifaddr 10.0.1.1/0 10.0.10.1-10.0.19.255   
+ set ifaddr 10.0.1.1/0 10.0.10.1-10.0.19.255
  disable deflate pred1 mppe
  deny deflate pred1 mppe
- 
+
 loop-in:
  set timeout 0
  set log

@@ -1344,11 +1344,11 @@ bad_opt(void)
 
 /*
  * opt_add()
- *	breaks the value supplied to -o into a option name and value. options
+ *	breaks the value supplied to -o into an option name and value. Options
  *	are given to -o in the form -o name-value,name=value
  *	multiple -o may be specified.
  * Return:
- *	0 if format in name=value format, -1 if -o is passed junk
+ *	0 if format in name=value format, -1 if -o is passed junk.
  */
 
 int

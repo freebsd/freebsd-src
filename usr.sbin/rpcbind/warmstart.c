@@ -28,7 +28,7 @@
  */
 /*
  * warmstart.c
- * Allows for gathering of registrations from a earlier dumped file.
+ * Allows for gathering of registrations from an earlier dumped file.
  *
  * Copyright (c) 1990 by Sun Microsystems, Inc.
  */

@@ -409,7 +409,7 @@ ipsec_getpolicybyaddr(m, dir, flag, error)
 
 	sp = NULL;
 	if (key_havesp(dir)) {
-		/* make a index to look for a policy */
+		/* Make an index to look for a policy. */
 		*error = ipsec_setspidx(m, &spidx,
 					(flag & IP_FORWARDING) ? 0 : 1);
 		if (*error != 0) {

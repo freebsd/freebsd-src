@@ -74,7 +74,7 @@ struct ipxpcb {
 #define	sotoipxpcb(so)		((struct ipxpcb *)((so)->so_pcb))
 
 /*
- * Nominal space allocated to a IPX socket.
+ * Nominal space allocated to an IPX socket.
  */
 #define	IPXSNDQ		16384
 #define	IPXRCVQ		40960

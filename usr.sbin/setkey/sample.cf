@@ -166,10 +166,10 @@ add fec0:0:0:2::1 fec0:0:0:1::1 esp 0x10004
 	-E rc5-cbc "kamekame"
 	-A hmac-md5 "this is the test" ;
 
-# By "get" command, you can get a entry of either SP or SA.
+# By "get" command, you can get an entry of either SP or SA.
 get fec0:0:0:1::1 fec0:0:0:2::2 ah 0x10004 ;
 
-# Also delete command, you can delete a entry of either SP or SA.
+# Also delete command, you can delete an entry of either SP or SA.
 spddelete fec0:0:0:1::/64 fec0:0:0:2::/64 any -P out;
 delete fec0:0:0:1::1 fec0:0:0:2::2 ah 0x10004 ;
 
