@@ -17,6 +17,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040622:
+        Network interface cloning has been overhauled.  This change will
+        require a recompile of modules using cloning and modification of
+        external ones to the new API.  __FreeBSD_version has been bumped
+        to 502119 to mark this change.  Additionally, users creating
+	stf(4) interfaces via "ifconfig stf" will need to update their
+	scripts as this will create an interface named "stf" instead of
+	"stf0" and ifconfig will not print "stf0" to stdout.
+
 20040621:
 	On 20040524, the /etc/rc.d/nsswitch script was modified to
 	automatically create /etc/nsswitch.conf on startup if it did
