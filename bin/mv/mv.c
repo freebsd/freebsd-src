@@ -67,8 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 #include <unistd.h>
 
-#include "pathnames.h"
-
 int fflg, iflg, nflg, vflg;
 
 int	copy(char *, char *);

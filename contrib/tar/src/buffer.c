@@ -25,6 +25,12 @@
 
 #include <signal.h>
 
+#if __FreeBSD__
+# include <paths.h>
+#else
+# define _PATH_BSHELL "/bin/sh"
+#endif
+
 #if MSDOS
 # include <process.h>
 #endif
@@ -1549,7 +1555,7 @@ new_volume (enum access_mode access)
 		  pid_t child;
 		  const char *shell = getenv ("SHELL");
 		  if (! shell)
-		    shell = "/bin/sh";
+		    shell = _PATH_BSHELL;
 		  child = xfork ();
 		  if (child == 0)
 		    {

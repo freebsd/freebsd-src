@@ -64,7 +64,7 @@ vinum_create(int argc, char *argv[], char *arg0[])
 
 	editor = getenv("EDITOR");
 	if (editor == NULL)
-	    editor = "/usr/bin/vi";
+	    editor = _PATH_VI;
 	sprintf(tempfile, "/var/tmp/" VINUMMOD ".create.%d", getpid());	/* create a temp file */
 	tf = fopen(tempfile, "w");			    /* open it */
 	if (tf == NULL) {

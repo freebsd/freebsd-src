@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <unistd.h>
 #include <stdlib.h>
+#include <paths.h>
 
 /*
  * Shell variables.
@@ -105,7 +106,7 @@ const struct varinit varinit[] = {
 	  NULL },
 	{ &vmpath,	VSTRFIXED|VTEXTFIXED|VUNSET,	"MAILPATH=",
 	  NULL },
-	{ &vpath,	VSTRFIXED|VTEXTFIXED,		"PATH=/bin:/usr/bin",
+	{ &vpath,	VSTRFIXED|VTEXTFIXED,		"PATH=" _PATH_DEFPATH,
 	  changepath },
 	{ &vppid,	VSTRFIXED|VTEXTFIXED|VUNSET,	"PPID=",
 	  NULL },
