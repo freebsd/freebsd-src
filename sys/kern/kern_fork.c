@@ -97,13 +97,11 @@ fork(td, uap)
 	int error;
 	struct proc *p2;
 
-	mtx_lock(&Giant);
 	error = fork1(td, RFFDG | RFPROC, 0, &p2);
 	if (error == 0) {
 		td->td_retval[0] = p2->p_pid;
 		td->td_retval[1] = 0;
 	}
-	mtx_unlock(&Giant);
 	return error;
 }
 
@@ -119,13 +117,11 @@ vfork(td, uap)
 	int error;
 	struct proc *p2;
 
-	mtx_lock(&Giant);
 	error = fork1(td, RFFDG | RFPROC | RFPPWAIT | RFMEM, 0, &p2);
 	if (error == 0) {
 		td->td_retval[0] = p2->p_pid;
 		td->td_retval[1] = 0;
 	}
-	mtx_unlock(&Giant);
 	return error;
 }
 
@@ -150,13 +146,11 @@ rfork(td, uap)
 	if ((uap->flags & (RFPROC | RFTHREAD | RFFDG | RFCFDG)) ==
 	    RFPROC)
 		return(EINVAL);
-	mtx_lock(&Giant);
 	error = fork1(td, uap->flags, 0, &p2);
 	if (error == 0) {
 		td->td_retval[0] = p2 ? p2->p_pid : 0;
 		td->td_retval[1] = 0;
 	}
-	mtx_unlock(&Giant);
 	return error;
 }
 
@@ -223,12 +217,11 @@ fork1(td, flags, pages, procp)
 	struct procsig *newprocsig;
 	int error;
 
-	GIANT_REQUIRED;
-
 	/* Can't copy and clear */
 	if ((flags & (RFFDG|RFCFDG)) == (RFFDG|RFCFDG))
 		return (EINVAL);
 
+	mtx_lock(&Giant);
 	/*
 	 * Here we don't create a new process, but we divorce
 	 * certain parts of a process from itself.
@@ -261,6 +254,7 @@ fork1(td, flags, pages, procp)
 			} else
 				FILEDESC_UNLOCK(p1->p_fd);
 		}
+		mtx_unlock(&Giant);
 		*procp = NULL;
 		return (0);
 	}
@@ -283,6 +277,7 @@ fork1(td, flags, pages, procp)
 		if (thread_single(SINGLE_NO_EXIT)) {
 			/* Abort.. someone else is single threading before us */
 			PROC_UNLOCK(p1);
+			mtx_unlock(&Giant);
 			return (ERESTART);
 		}
 		PROC_UNLOCK(p1);
@@ -600,7 +595,7 @@ again:
 	PGRP_UNLOCK(p1->p_pgrp);
 	LIST_INIT(&p2->p_children);
 
-	callout_init(&p2->p_itcallout, 0);
+	callout_init(&p2->p_itcallout, 1);
 
 #ifdef KTRACE
 	/*
@@ -649,8 +644,11 @@ again:
 		pptr = p1;
 	p2->p_pptr = pptr;
 	LIST_INSERT_HEAD(&pptr->p_children, p2, p_sibling);
-	PROC_UNLOCK(p2);
 	sx_xunlock(&proctree_lock);
+
+	/* Inform accounting that we have forked. */
+	p2->p_acflag = AFORK;
+	PROC_UNLOCK(p2);
 
 	KASSERT(newprocsig == NULL, ("unused newprocsig"));
 	if (newsigacts != NULL)
@@ -691,7 +689,6 @@ again:
 	 * run queue.
 	 */
 	microtime(&(p2->p_stats->p_start));
-	p2->p_acflag = AFORK;
 	if ((flags & RFSTOPPED) == 0) {
 		mtx_lock_spin(&sched_lock);
 		p2->p_state = PRS_NORMAL;
@@ -734,6 +731,7 @@ again:
 	/*
 	 * Return child proc pointer to parent.
 	 */
+	mtx_unlock(&Giant);
 	*procp = p2;
 	return (0);
 fail:
@@ -745,6 +743,7 @@ fail:
 		PROC_UNLOCK(p1);
 	}
 	tsleep(&forksleep, PUSER, "fork", hz / 2);
+	mtx_unlock(&Giant);
 	return (error);
 }
 
