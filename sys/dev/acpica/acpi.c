@@ -2240,7 +2240,7 @@ acpi_name(ACPI_HANDLE handle)
     buf.Length = sizeof(data);
     buf.Pointer = data;
 
-    if (ACPI_SUCCESS(AcpiGetName(handle, ACPI_FULL_PATHNAME, &buf)))
+    if (handle && ACPI_SUCCESS(AcpiGetName(handle, ACPI_FULL_PATHNAME, &buf)))
 	return (data);
     return ("(unknown)");
 }
