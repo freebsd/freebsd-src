@@ -33,10 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.67 1998/02/04 22:32:11 eivind Exp $
+ *	$Id: swtch.s,v 1.68 1998/02/06 12:13:10 eivind Exp $
  */
 
 #include "npx.h"
+#include "opt_posix4.h"
 #include "opt_user_ldt.h"
 #include "opt_vm86.h"
 
@@ -112,7 +113,11 @@ set1:
 
 	movzwl	P_RTPRIO_PRIO(%eax),%edx
 
-	cmpw	$RTP_PRIO_REALTIME,P_RTPRIO_TYPE(%eax) /* realtime priority? */
+	cmpw	$RTP_PRIO_REALTIME,P_RTPRIO_TYPE(%eax) /* RR realtime priority? */
+#ifdef POSIX4
+	je	set_rt				/* RT priority */
+	cmpw	$RTP_PRIO_FIFO,P_RTPRIO_TYPE(%eax) /* FIFO realtime priority? */
+#endif
 	jne	set_id				/* must be idle priority */
 	
 set_rt:
@@ -164,9 +169,14 @@ ENTRY(remrq)
 
 	movzwl	P_RTPRIO_PRIO(%eax),%edx
 
-	cmpw	$RTP_PRIO_REALTIME,P_RTPRIO_TYPE(%eax) /* normal priority process? */
+	cmpw	$RTP_PRIO_REALTIME,P_RTPRIO_TYPE(%eax) /* realtime priority process? */
+#ifdef POSIX4
+	je	rem0rt
+	cmpw	$RTP_PRIO_FIFO,P_RTPRIO_TYPE(%eax) /* FIFO realtime priority process? */
+#endif
 	jne	rem_id
 		
+rem0rt:
 	btrl	%edx,_whichrtqs			/* clear full bit, panic if clear already */
 	jb	rem1rt
 	pushl	$rem3rt
