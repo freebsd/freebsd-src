@@ -34,28 +34,23 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.49 1997/10/12 20:25:49 phk Exp $
+ * $Id: nfs_vfsops.c,v 1.50 1997/10/28 14:06:23 bde Exp $
  */
 
 #include <sys/param.h>
-#include <sys/conf.h>
 #include <sys/sockio.h>
-#include <sys/signal.h>
 #include <sys/proc.h>
-#include <sys/namei.h>
 #include <sys/vnode.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
-#include <sys/buf.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/systm.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_extern.h>
 
 #include <net/if.h>

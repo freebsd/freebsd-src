@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_log.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_log.c,v 1.23 1997/09/14 02:46:44 peter Exp $
+ * $Id: subr_log.c,v 1.24 1997/09/16 11:43:30 bde Exp $
  */
 
 /*
@@ -46,7 +46,6 @@
 #include <sys/filio.h>
 #include <sys/ttycom.h>
 #include <sys/msgbuf.h>
-#include <sys/fcntl.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
 #include <sys/poll.h>

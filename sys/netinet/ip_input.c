@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.66 1997/09/25 00:34:35 wollman Exp $
+ * $Id: ip_input.c,v 1.67 1997/10/27 21:07:26 guido Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -43,12 +43,10 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
-#include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/syslog.h>
@@ -64,7 +62,6 @@
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/in_pcb.h>
-#include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <machine/in_cksum.h>

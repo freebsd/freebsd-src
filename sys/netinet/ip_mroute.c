@@ -9,19 +9,17 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id: ip_mroute.c,v 1.40 1997/07/19 20:07:07 fenner Exp $
+ * $Id: ip_mroute.c,v 1.41 1997/09/21 22:01:38 gibbs Exp $
  */
 
 #include "opt_mrouting.h"
 
 #include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
-#include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/sockio.h>
@@ -32,10 +30,8 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
-#include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
 #include <netinet/igmp.h>
-#include <netinet/igmp_var.h>
 #include <netinet/ip_mroute.h>
 #include <netinet/udp.h>
 

@@ -11,13 +11,11 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.h,v 1.28 1997/08/08 14:36:29 alex Exp $
+ *	$Id: ip_fw.h,v 1.29 1997/09/16 11:43:57 bde Exp $
  */
 
 #ifndef _IP_FW_H
 #define _IP_FW_H
-
-#include <net/if.h>
 
 /*
  * This union structure identifies an interface, either explicitly

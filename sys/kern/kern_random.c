@@ -1,7 +1,7 @@
 /*
  * random_machdep.c -- A strong random number generator
  *
- * $Id: random_machdep.c,v 1.17 1997/05/04 14:28:22 peter Exp $
+ * $Id: random_machdep.c,v 1.18 1997/09/14 03:19:15 peter Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -39,14 +39,11 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "opt_cpu.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/select.h>
 #include <sys/poll.h>
-#include <sys/fcntl.h>
 
 #include <machine/clock.h>
 #include <machine/random.h>

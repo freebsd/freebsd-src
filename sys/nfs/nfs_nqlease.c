@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.9 (Berkeley) 5/20/95
- * $Id: nfs_nqlease.c,v 1.29 1997/10/11 18:31:34 phk Exp $
+ * $Id: nfs_nqlease.c,v 1.30 1997/10/12 20:25:41 phk Exp $
  */
 
 
@@ -61,9 +61,6 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/file.h>
-#include <sys/buf.h>
-#include <sys/stat.h>
 #include <sys/protosw.h>
 
 #include <netinet/in.h>

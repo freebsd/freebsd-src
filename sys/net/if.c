@@ -31,11 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- *	$Id: if.c,v 1.54 1997/10/07 07:40:35 joerg Exp $
+ *	$Id: if.c,v 1.55 1997/10/12 20:25:09 phk Exp $
  */
 
 #include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/systm.h>
@@ -45,13 +44,11 @@
 #include <sys/protosw.h>
 #include <sys/kernel.h>
 #include <sys/sockio.h>
-#include <sys/errno.h>
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
-#include <net/if_types.h>
 #include <net/radix.h>
 
 /*

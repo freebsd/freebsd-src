@@ -26,17 +26,14 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: perfmon.c,v 1.10 1997/02/22 09:32:35 peter Exp $
+ *	$Id: perfmon.c,v 1.11 1997/07/01 01:18:38 bde Exp $
  */
-
-#include "opt_cpu.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/fcntl.h>
 
 #ifndef SMP
-#include <machine/cpu.h>
 #include <machine/cputypes.h>
 #include <machine/clock.h>
 #endif

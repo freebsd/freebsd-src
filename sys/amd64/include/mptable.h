@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.57 1997/10/10 09:44:03 peter Exp $
+ *	$Id: mp_machdep.c,v 1.58 1997/10/12 15:24:39 peter Exp $
  */
 
 #include "opt_smp.h"
@@ -47,7 +47,6 @@
 #include <machine/smptests.h>	/** TEST_DEFAULT_CONFIG, TEST_TEST1 */
 #include <machine/tss.h>
 #include <machine/specialreg.h>
-#include <machine/cpu.h>
 #include <machine/cputypes.h>
 
 #include <i386/i386/cons.h>	/* cngetc() */

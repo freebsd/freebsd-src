@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.42 1997/09/14 02:52:14 peter Exp $
+ * $Id: kern_lkm.c,v 1.43 1997/10/11 13:11:32 phk Exp $
  */
 
 #include <sys/param.h>
@@ -40,7 +40,6 @@
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/sysent.h>
 #include <sys/exec.h>
