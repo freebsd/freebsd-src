@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.18 1995/06/28 17:33:39 dfr Exp $
+ * $Id: nfs_vnops.c,v 1.19 1995/07/13 08:47:55 davidg Exp $
  */
 
 /*
@@ -506,9 +506,10 @@ nfs_close(ap)
 	if (vp->v_type == VREG) {
 	    if ((VFSTONFS(vp->v_mount)->nm_flag & NFSMNT_NQNFS) == 0 &&
 		(np->n_flag & NMODIFIED)) {
-		if (NFS_ISV3(vp))
+		if (NFS_ISV3(vp)) {
 		    error = nfs_flush(vp, ap->a_cred, MNT_WAIT, ap->a_p, 0);
-		else
+		    np->n_flag &= ~NMODIFIED;
+		} else
 		    error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred, ap->a_p, 1);
 		np->n_attrstamp = 0;
 	    }
@@ -599,22 +600,20 @@ nfs_setattr(ap)
  			vap->va_size = VNOVAL;
  			break;
  		default:
- 			if (np->n_flag & NMODIFIED) {
- 			    if (vap->va_size == 0)
+ 			if (vap->va_size == 0)
  				error = nfs_vinvalbuf(vp, 0,
  					ap->a_cred, ap->a_p, 1);
- 			    else
+ 			else
  				error = nfs_vinvalbuf(vp, V_SAVE,
  					ap->a_cred, ap->a_p, 1);
- 			    if (error)
+ 			if (error)
  				return (error);
- 			}
  			tsize = np->n_size;
  			np->n_size = np->n_vattr.va_size = vap->va_size;
  			vnode_pager_setsize(vp, (u_long)np->n_size);
   		};
   	} else if ((vap->va_mtime.ts_sec != VNOVAL ||
-		vap->va_atime.ts_sec != VNOVAL) && (np->n_flag & NMODIFIED) &&
+		vap->va_atime.ts_sec != VNOVAL) &&
 		vp->v_type == VREG &&
   		(error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred,
 		 ap->a_p, 1)) == EINTR)
@@ -2878,7 +2877,6 @@ loop:
 		error = np->n_error;
 		np->n_flag &= ~NWRITEERR;
 	}
-	np->n_flag &= ~NMODIFIED;
 	return (error);
 }
 
