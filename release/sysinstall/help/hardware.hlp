@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.14 1997/03/13 01:06:34 joerg Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.15 1997/03/27 03:03:34 jkh Exp $
 
 Contents last changed:  July 4th, 1996
 
@@ -495,10 +495,10 @@ A: I have a Panasonic AL-N1 or Rios Chandler Pentium machine and I find
 A: Your machine doesn't like the new i586_copyout and i586_copyin code
    for some reason.  To disable this, boot the installation boot floppy
    and when it comes to the very first menu (the choice to drop into
-   kernel UserConfig mode or not) choose the command-line ("expert")
-   version and type the following at it:
+   kernel UserConfig mode or not) choose the command-line interface
+   ("expert mode") version and type the following at it:
 
-        flags npx0 0x07
+        flags npx0 1
 
    Then proceed normally to boot.  This will be saved into your kernel,
    so you only need to do it once.
