@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
  * XXX On machines supporting quad precision, we should use that, but
  *     see the caveat in s_fmaf.c.
  */
+#if LDBL_MANT_DIG != 113
 double
 fma(double x, double y, double z)
 {
@@ -66,10 +67,10 @@ fma(double x, double y, double z)
 	int ex, ey, ez;
 	int spread;
 
-	if (x == 0.0 || y == 0.0)
-		return (z);
 	if (z == 0.0)
 		return (x * y);
+	if (x == 0.0 || y == 0.0)
+		return (x * y + z);
 
 	/* Results of frexp() are undefined for these cases. */
 	if (!isfinite(x) || !isfinite(y) || !isfinite(z))
@@ -176,3 +177,18 @@ fma(double x, double y, double z)
 	fesetround(oround);
 	return (ldexp(r + rr, ex + ey));
 }
+#else	/* LDBL_MANT_DIG == 113 */
+/*
+ * 113 bits of precision is more than twice the precision of a double,
+ * so it is enough to represent the intermediate product exactly.
+ */
+double
+fma(double x, double y, double z)
+{
+	return ((long double)x * y + z);
+}
+#endif	/* LDBL_MANT_DIG != 113 */
+
+#if (LDBL_MANT_DIG == 53)
+__strong_reference(fma, fmal);
+#endif
