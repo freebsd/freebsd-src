@@ -100,6 +100,7 @@ static struct isa_pnp_id sio_ids[] = {
 	{0xf015f435, NULL},	/* MOT15F0 - Motorola VoiceSURFR 56K Modem */
 	{0x6045f435, NULL},	/* MOT4560 - Motorola ? */
 	{0x61e7a338, NULL},	/* NECE761 - 33.6Modem */
+	{0x0160633a, NULL},	/* NSC6001 - National Semi's IrDA Controller*/
  	{0x08804f3f, NULL},	/* OZO8008 - Zoom  (33.6k Modem) */
 	{0x0f804f3f, NULL},	/* OZO800f - Zoom 2812 (56k Modem) */
 	{0x39804f3f, NULL},	/* OZO8039 - Zoom 56k flex */
@@ -139,6 +140,7 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x90307256, NULL},	/* USR3090 - USR ? */
 	{0x70917256, NULL},	/* USR9170 - U.S. Robotics 56K FAX INT */
 	{0x90917256, NULL},	/* USR9190 - USR 56k Voice INT */
+	{0x04f0235c, NULL},	/* WACF004 - Wacom Tablet PC Screen*/
 	{0x0300695c, NULL},	/* WCI0003 - Fax/Voice/Modem/Speakphone/Asvd */
 	{0x01a0896a, NULL},	/* ZTIA001 - Zoom Internal V90 Faxmodem */
 	{0x61f7896a, NULL},	/* ZTIF761 - Zoom ComStar 33.6 */
