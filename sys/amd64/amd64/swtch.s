@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.12 1994/09/01 05:12:18 davidg Exp $
+ *	$Id: swtch.s,v 1.13 1994/09/02 05:58:51 davidg Exp $
  */
 
 #include "npx.h"	/* for NNPX */
@@ -204,8 +204,13 @@ idle_loop:
 	jne	sw1a
 	cmpl	$0,_whichqs
 	jne	nortqr
+#ifdef APM
+	call	_apm_cpu_idle
+	call	_apm_cpu_busy
+#else
 	sti
 	hlt					/* wait for interrupt */
+#endif
 	jmp	idle_loop
 
 badsw:

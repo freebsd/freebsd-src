@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.38 1994/09/23 07:01:59 phk Exp $
+#	$Id: Makefile.i386,v 1.39 1994/09/29 14:02:40 csgr Exp $
 #
 # Makefile for FreeBSD
 #
@@ -66,7 +66,7 @@ DRIVER_C= ${CC} -c ${CFLAGS} ${PROF} $<
 DRIVER_C_C= ${CC} -c ${CFLAGS} ${PROF} ${PARAM} $<
 
 SFILES=	${I386}/i386/exception.s ${I386}/i386/microtime.s \
-	${I386}/i386/support.s ${I386}/i386/swtch.s
+	${I386}/i386/support.s ${I386}/i386/swtch.s ${I386}/apm/apm_setup.s
 SYSTEM_CFILES= ioconf.c param.c vnode_if.c
 SYSTEM_SFILES= ${I386}/i386/locore.s
 SYSTEM_OBJS=locore.o vnode_if.o ${OBJS} ioconf.o param.o 

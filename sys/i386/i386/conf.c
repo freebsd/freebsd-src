@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.34 1994/09/28 22:44:35 wollman Exp $
+ *	$Id: conf.c,v 1.35 1994/09/29 08:59:33 sos Exp $
  */
 
 #include <sys/param.h>
@@ -533,6 +533,17 @@ d_open_t lkmcopen;
 d_close_t lkmcclose;
 d_ioctl_t lkmcioctl;
 
+#include "apm.h"
+#if NAPM > 0
+d_open_t apmopen;
+d_close_t apmclose;
+d_ioctl_t apmioctl;
+#else
+#define	apmopen		(d_open_t *)enxio
+#define	apmclose	(d_close_t *)enxio
+#define	apmioctl	(d_ioctl_t *)enxio
+#endif
+
 #define noopen		(d_open_t *)enodev
 #define noclose		(d_close_t *)enodev
 #define noread		(d_rdwr_t *)enodev
@@ -671,8 +682,11 @@ struct cdevsw	cdevsw[] =
 	{ lkmopen,	lkmclose,	lkmread,	lkmwrite,	/*38*/
 	  lkmioctl,	lkmstop,	lkmreset,	NULL,
 	  lkmselect,	lkmmmap,	NULL },
-	/* character device 39 is reserved for local use */
-	{ (d_open_t *)enxio,	(d_close_t *)enxio,	(d_rdwr_t *)enxio, /*39*/
+	{ apmopen,	apmclose,	noread,		nowrite,	/*39*/
+	  apmioctl,	nostop,		nullreset,	NULL,	/* laptop APM */
+	  seltrue,	nommap,		NULL },
+	/* character device 40 is reserved for local use */
+	{ (d_open_t *)enxio,	(d_close_t *)enxio,	(d_rdwr_t *)enxio, /*40*/
 	  (d_rdwr_t *)enxio,	(d_ioctl_t *)enxio,	(d_stop_t *)enxio,
 	  (d_reset_t *)enxio,	NULL,			(d_select_t *)enxio,
 	  (d_mmap_t *)enxio,	NULL }

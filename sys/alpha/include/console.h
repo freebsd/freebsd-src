@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.10 1994/09/15 07:26:04 sos Exp $
+ *	$Id: console.h,v 1.11 1994/09/29 08:31:39 sos Exp $
  */
 
 #ifndef	_CONSOLE_H_
@@ -218,6 +218,7 @@ typedef struct ssaver ssaver_t;
 #define META		0x7f		/* meta key			*/
 #define RBT		0x80		/* boot machine			*/
 #define DBG		0x81		/* call debugger		*/
+#define SUSP		0x82		/* suspend power (APM BIOS)     */
 
 #define F(x)		((x)+F_FN-1)
 #define	S(x)		((x)+F_SCR-1)

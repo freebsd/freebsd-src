@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.65 1994/09/16 05:46:54 phk Exp $
+ *	$Id: machdep.c,v 1.66 1994/09/24 12:22:47 davidg Exp $
  */
 
 #include "npx.h"
@@ -1012,7 +1012,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0,			/* unused - default 32 vs 16 bit size */
 	0  			/* limit granularity (byte/page units)*/ },
 	/* User LDT Descriptor per process */
-{	(int) ldt,			/* segment base address  */
+{	(int) ldt,		/* segment base address  */
 	(512 * sizeof(union descriptor)-1),		/* length */
 	SDT_SYSLDT,		/* segment type */
 	0,			/* segment descriptor priority level */
@@ -1020,6 +1020,60 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0, 0,
 	0,			/* unused - default 32 vs 16 bit size */
 	0  			/* limit granularity (byte/page units)*/ },
+#ifdef APM
+	/* APM BIOS 32-bit interface (32bit Code) */
+{	0,			/* segment base address (overwritten by APM)  */
+	0xffff,			/* length */
+	SDT_MEMERA,		/* segment type */
+	0,			/* segment descriptor priority level */
+	1,			/* segment descriptor present */
+	0, 0,
+	1,			/* default 32 vs 16 bit size */
+	0  			/* limit granularity (byte/page units)*/ },
+	/* APM BIOS 32-bit interface (16bit Code) */
+{	0,			/* segment base address (overwritten by APM)  */
+	0xffff,			/* length */
+	SDT_MEMERA,		/* segment type */
+	0,			/* segment descriptor priority level */
+	1,			/* segment descriptor present */
+	0, 0,
+	0,			/* default 32 vs 16 bit size */
+	0  			/* limit granularity (byte/page units)*/ },
+	/* APM BIOS 32-bit interface (Data) */
+{	0,			/* segment base address (overwritten by APM) */
+	0xffff,			/* length */
+	SDT_MEMRWA,		/* segment type */
+	0,			/* segment descriptor priority level */
+	1,			/* segment descriptor present */
+	0, 0,
+	1,			/* default 32 vs 16 bit size */
+	0  			/* limit granularity (byte/page units)*/ },
+#else /* APM */
+{	0,			/* segment base address  */
+	0,			/* length */
+	0,			/* segment type */
+	0,			/* segment descriptor priority level */
+	0,			/* segment descriptor present */
+	0, 0,
+	0,			/* unused - default 32 vs 16 bit size */
+	0  			/* limit granularity (byte/page units)*/ },
+{	0,			/* segment base address  */
+	0,			/* length */
+	0,			/* segment type */
+	0,			/* segment descriptor priority level */
+	0,			/* segment descriptor present */
+	0, 0,
+	0,			/* unused - default 32 vs 16 bit size */
+	0  			/* limit granularity (byte/page units)*/ },
+{	0,			/* segment base address  */
+	0,			/* length */
+	0,			/* segment type */
+	0,			/* segment descriptor priority level */
+	0,			/* segment descriptor present */
+	0, 0,
+	0,			/* unused - default 32 vs 16 bit size */
+	0  			/* limit granularity (byte/page units)*/ },
+#endif /* APMBIOS */
 };
 
 struct soft_segment_descriptor ldt_segs[] = {
@@ -1102,6 +1156,22 @@ extern idtvec_t
 	IDTVEC(rsvd13), IDTVEC(rsvd14), IDTVEC(syscall);
 
 int _gsel_tss;
+
+/* added sdtossd() by HOSOKAWA Tatsumi <hosokawa@mt.cs.keio.ac.jp> */
+int
+sdtossd(sd, ssd)
+	struct segment_descriptor *sd;
+	struct soft_segment_descriptor *ssd;
+{
+	ssd->ssd_base  = (sd->sd_hibase << 24) | sd->sd_lobase;
+	ssd->ssd_limit = (sd->sd_hilimit << 16) | sd->sd_lolimit;
+	ssd->ssd_type  = sd->sd_type;
+	ssd->ssd_dpl   = sd->sd_dpl;
+	ssd->ssd_p     = sd->sd_p;
+	ssd->ssd_def32 = sd->sd_def32;
+	ssd->ssd_gran  = sd->sd_gran;
+	return 0;
+}
 
 void
 init386(first)
