@@ -67,6 +67,7 @@ static const char rcsid[] =
 #define CMD_RESET       12
 #define CMD_SET         13
 #define CMD_STATUS      14
+#define CMD_CDID        15
 #define STATUS_AUDIO    0x1
 #define STATUS_MEDIA    0x2
 #define STATUS_VOLUME   0x4
@@ -95,6 +96,7 @@ struct cmdtab {
 { CMD_STATUS,   "status",       1, "[audio | media | volume]" },
 { CMD_STOP,     "stop",         3, "" },
 { CMD_VOLUME,   "volume",       1, "<l> <r> | left | right | mute | mono | stereo" },
+{ CMD_CDID,     "cdid",         2, "" },
 { 0, }
 };
 
@@ -114,6 +116,7 @@ int             status __P((int *, int *, int *, int *));
 int             open_cd __P((void));
 int             play __P((char *arg));
 int             info __P((char *arg));
+int             cdid __P((void));
 int             pstatus __P((char *arg));
 char            *input __P((int *));
 void            prtrack __P((struct cd_toc_entry *e, int lastflag));
@@ -253,6 +256,12 @@ int run (int cmd, char *arg)
 			return (0);
 
 		return info (arg);
+
+	case CMD_CDID:
+		if (fd < 0 && ! open_cd ())
+			return (0);
+
+		return cdid ();
 
 	case CMD_STATUS:
 		if (fd < 0 && ! open_cd ())
@@ -741,6 +750,92 @@ int pstatus (char *arg)
 		printf ("No volume level info available\n");
 	}
 	return(0);
+}
+
+/*
+ * dbprog_sum
+ *	Convert an integer to its text string representation, and
+ *	compute its checksum.  Used by dbprog_discid to derive the
+ *	disc ID.
+ *
+ * Args:
+ *	n - The integer value.
+ *
+ * Return:
+ *	The integer checksum.
+ */
+static int
+dbprog_sum(int n)
+{
+	char	buf[12],
+		*p;
+	int	ret = 0;
+
+	/* For backward compatibility this algorithm must not change */
+	sprintf(buf, "%u", n);
+	for (p = buf; *p != '\0'; p++)
+		ret += (*p - '0');
+
+	return(ret);
+}
+
+
+/*
+ * dbprog_discid
+ *	Compute a magic disc ID based on the number of tracks,
+ *	the length of each track, and a checksum of the string
+ *	that represents the offset of each track.
+ *
+ * Args:
+ *	s - Pointer to the curstat_t structure.
+ *
+ * Return:
+ *	The integer disc ID.
+ */
+static u_int
+dbprog_discid()
+{
+	struct	ioc_toc_header h;
+	int	rc;
+	int	i, ntr,
+		t = 0,
+		n = 0;
+
+	rc = ioctl (fd, CDIOREADTOCHEADER, &h);
+	if (rc < 0)
+		return 0;
+	ntr = h.ending_track - h.starting_track + 1;
+	i = msf;
+	msf = 1;
+	rc = read_toc_entrys ((ntr + 1) * sizeof (struct cd_toc_entry));
+	msf = i;
+	if (rc < 0)
+		return 0;
+	/* For backward compatibility this algorithm must not change */
+	for (i = 0; i < ntr; i++) {
+#define TC_MM(a) toc_buffer[a].addr.msf.minute
+#define TC_SS(a) toc_buffer[a].addr.msf.second
+		n += dbprog_sum((TC_MM(i) * 60) + TC_SS(i));
+
+		t += ((TC_MM(i+1) * 60) + TC_SS(i+1)) -
+		     ((TC_MM(i) * 60) + TC_SS(i));
+	}
+
+	return((n % 0xff) << 24 | t << 8 | ntr);
+}
+
+int cdid ()
+{
+	u_int	id;
+
+	id = dbprog_discid();
+	if (id)
+	{
+		if (verbose)
+			printf ("CDID=");
+		printf ("%08x\n",id);
+	}
+	return id ? 0 : 1;
 }
 
 int info (char *arg)
