@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.90 1994/10/22 02:11:08 phk Exp $
+#	$Id: Makefile,v 1.91 1994/10/29 12:47:44 phk Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -123,7 +123,7 @@ DESCRYPT_LIB=	secure/lib/libcrypt
 CRYPT_SRCS=	bin/ed bin/rcp
 CRYPT_SRCS+=	sbin/init
 .if !defined(NOCRYPT)
-CRYPT_SRCS+=	secure/usr.bin/bdes
+CRYPT_SRCS+=	secure
 .endif
 CRYPT_DIRS=	bin sbin usr usr/bin usr/lib
 
@@ -146,9 +146,11 @@ descrypt:
 		cd ${.CURDIR}/../$$i; \
 		${MAKE} cleandir obj depend all; \
 	done
+
+distribute:
+	cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${RELEASEDIR}/bindist
 	
-	
-distribution: distrib-dirs
+distribution:
 	(cd ${.CURDIR}; \
 	install -c -o ${BINOWN} -g ${BINGRP} -m 644 ${BIN1} ${DESTDIR}/etc; \
 	install -c -o ${BINOWN} -g ${BINGRP} -m 666 ${BIN2} ${DESTDIR}/etc; \
@@ -198,14 +200,9 @@ distribution: distrib-dirs
 	    ${DESTDIR}/var/crash
 	(cd ${.CURDIR}/etc.${MACHINE}; install -c -o ${BINOWN} -g ${BINGRP} \
 	    -m 444 fstab.* ${DESTDIR}/etc)
-.if defined(NOCRYPT)
-	(cd ${.CURDIR}; ${MAKE} scrypt)
-	(cd ${.CURDIR}/..; ${MAKE} install)
-.else
-	(cd ${.CURDIR}; ${MAKE} descrypt)
-	(cd ${.CURDIR}/..; ${MAKE} install)
-.endif
 	(cd ${.CURDIR}/../usr.sbin/sendmail/src; \
+	    ${MAKE} obj; \
+	    ${MAKE} all; \
 	    ${MAKE} install; \
 	 cd ../cf/cf; \
 	    ${MAKE} obj; \
@@ -215,14 +212,6 @@ distribution: distrib-dirs
 	(cd ${.CURDIR}/..; \
 	    install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FREEBSD} ${DESTDIR}/)
 	(cd ${.CURDIR}/../share/man; ${MAKE} makedb; )
-.if ${MACHINE} == "tahoe"
-	(cd ${.CURDIR}/etc.tahoe; install -c -o ${BINOWN} -g ${BINGRP} \
-	    -m 444 ${WCS1} ${DESTDIR}/)
-.endif
-.if ${MACHINE} == "vax"
-	(cd ${.CURDIR}/etc.vax; install -c -o ${BINOWN} -g ${BINGRP} \
-	    -m 444 ${PCS} ${DESTDIR}/)
-.endif
 
 crunch:
 	crunchgen ${.CURDIR}/../usr.sbin/crunch/examples/kcopy.conf
@@ -408,8 +397,8 @@ bin-tarball:
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/bindist/bin_tgz.)
 
 src-clean:
+	#(cd ${DESTDIR}/usr/src; make cleandist)
 	find ${DESTDIR}/usr/src -name obj | xargs -n30 rm -rf
-	(cd ${DESTDIR}/usr/src; make cleandist)
 	rm -rf ${DESTDIR}/usr/src/sys/compile/*
 	chown -R bin:bin ${DESTDIR}/usr/src
 	chmod -R og-w ${DESTDIR}/usr/src
@@ -446,24 +435,39 @@ srcinclude-tarball:
 
 srclib-tarball:
 	(cd ${DESTDIR}; \
-		tar --exclude usr/src/${CRYPT_LIB} --exclude CVS -cf - \
+		tar --exclude CVS -cf - \
 		usr/src/lib | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/lib.)
-
-srclibcrypt-tarball:
-	(cd ${DESTDIR}; \
-		tar --exclude CVS -cf - usr/src/${CRYPT_LIB} | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/secrdist/libcrypt.)
 
 srclibexec-tarball:
 	(cd ${DESTDIR}; \
 		tar --exclude CVS -cf - usr/src/libexec | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/libexec.)
 
+srcrelease-tarball:
+	(cd ${DESTDIR}; \
+		tar --exclude CVS -cf - usr/src/release | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/release.)
+
 srcsbin-tarball:
 	(cd ${DESTDIR}; \
 		tar --exclude CVS -cf - usr/src/sbin | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/sbin.)
+
+srcsecure-tarball:
+	(cd ${DESTDIR}; \
+		tar --exclude CVS -cf - usr/src/secure | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/secrdist/secure.)
+
+srcebones-tarball:
+	(cd ${DESTDIR}; \
+		tar --exclude CVS -cf - usr/src/eBones | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/secrdist/ebones.)
+
+srckerberos-tarball:
+	(cd ${DESTDIR}; \
+		tar --exclude CVS -cf - usr/src/kerberosIV | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/secrdist/kerberos.)
 
 srcshare-tarball:
 	(cd ${DESTDIR}; \
@@ -472,7 +476,7 @@ srcshare-tarball:
 
 srcsys-tarball:
 	(cd ${DESTDIR}; \
-		tar --exclude CVS -cf - usr/src/sys | \
+		tar --exclude CVS -cf - usr/src/sys usr/src/lkm | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/sys.)
 
 srcusrbin-tarball:
@@ -487,8 +491,9 @@ srcusrsbin-tarball:
 
 src-tarball: src-clean srcbase-tarball srcbin-tarball \
 	srcetc-tarball srcgames-tarball srcgnu-tarball srcinclude-tarball \
-	srclib-tarball srclibcrypt-tarball srclibexec-tarball srcsbin-tarball \
-	srcshare-tarball srcsys-tarball srcusrbin-tarball srcusrsbin-tarball
+	srclib-tarball srcsecure-tarball srclibexec-tarball srcsbin-tarball \
+	srcshare-tarball srcsys-tarball srcusrbin-tarball srcusrsbin-tarball \
+	srcrelease-tarball srcebones-tarball srckerberos-tarball
 
 des-tarball:
 	rm -rf ${RELEASEDIR}/tmpdes
@@ -502,7 +507,8 @@ des-tarball:
 	# This is ugly, it force installs a /usr/lib/libcrypt.a so
 	# that the other makes will be built with des.
 	#
-	(cd ${.CURDIR}/../${CRYPT_LIB}; \
+	(set -x ; cd ${.CURDIR}/../${DESCRYPT_LIB}; \
+		NOCRYPT=; \
 		unset NOCRYPT; \
 		DESTDIR=; export DESTDIR; \
 		${MAKE} cleandir obj depend all install; \
@@ -510,6 +516,7 @@ des-tarball:
 		DESTDIR=${RELEASEDIR}/tmpdes; export DESTDIR; \
 		${MAKE} cleandir obj depend all install)
 	for i in ${CRYPT_SRCS}; do \
+		NOCRYPT=; \
 		unset NOCRYPT; \
 		DESTDIR=${RELEASEDIR}/tmpdes; export DESTDIR; \
 		NOMAN=noman; export NOMAN; \
