@@ -632,15 +632,21 @@ icmp_reflect(m)
 	}
 	t = ip->ip_dst;
 	ip->ip_dst = ip->ip_src;
+
 	/*
-	 * If the incoming packet was addressed directly to us,
-	 * use dst as the src for the reply.  Otherwise (broadcast
-	 * or anonymous), use the address which corresponds
-	 * to the incoming interface.
+	 * Source selection for ICMP replies:
+	 *
+	 * If the incoming packet was addressed directly to one of our
+	 * own addresses, use dst as the src for the reply.
 	 */
 	LIST_FOREACH(ia, INADDR_HASH(t.s_addr), ia_hash)
 		if (t.s_addr == IA_SIN(ia)->sin_addr.s_addr)
 			goto match;
+	/*
+	 * If the incoming packet was addressed to one of our broadcast
+	 * addresses, use the first non-broadcast address which corresponds
+	 * to the incoming interface.
+	 */
 	if (m->m_pkthdr.rcvif != NULL &&
 	    m->m_pkthdr.rcvif->if_flags & IFF_BROADCAST) {
 		TAILQ_FOREACH(ifa, &m->m_pkthdr.rcvif->if_addrhead, ifa_link) {
@@ -652,8 +658,13 @@ icmp_reflect(m)
 				goto match;
 		}
 	}
+	/* 
+	 * If the packet was transiting through us, use the address of
+	 * the interface that is the closest to the packet source.
+	 * When we don't have a route back to the packet source, stop here
+	 * and drop the packet.
+	 */
 	ia = ip_rtaddr(ip->ip_dst);
-	/* We need a route to do anything useful. */
 	if (ia == NULL) {
 		m_freem(m);
 		icmpstat.icps_noroute++;
