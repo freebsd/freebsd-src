@@ -117,18 +117,40 @@ typedef struct acl_t_struct *acl_t;
 #ifdef _KERNEL
 
 /*
+ * POSIX.1e ACLs are capable of expressing the read, write, and execute
+ * bits of the POSIX mode field.  We provide two masks: one that defines
+ * the bits the ACL will replace in the mode, and the other that defines
+ * the bits that must be preseved when an ACL is updating a mode.
+ */
+#define	ACL_OVERRIDE_MASK	(S_IRWXU | S_IRWXG | S_IRWXO)
+#define	ACL_PRESERVE_MASK	(~ACL_OVERRIDE_MASK)
+
+/*
  * Storage for ACLs and support structures.
  */
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_ACL);
 #endif
 
-acl_perm_t	acl_posix1e_mode_to_perm(acl_tag_t tag, mode_t mode);
+/*
+ * File system independent code to move back and forth between POSIX mode
+ * and POSIX.1e ACL representations.
+ */
+acl_perm_t		acl_posix1e_mode_to_perm(acl_tag_t tag, mode_t mode);
 struct acl_entry	acl_posix1e_mode_to_entry(acl_tag_t tag, uid_t uid,
-    gid_t gid, mode_t mode);
-mode_t	acl_posix1e_perms_to_mode(struct acl_entry *acl_user_obj_entry,
-    struct acl_entry *acl_group_obj_entry, struct acl_entry *acl_other_entry);
-int	acl_posix1e_check(struct acl *acl);
+			    gid_t gid, mode_t mode);
+mode_t			acl_posix1e_perms_to_mode(
+			    struct acl_entry *acl_user_obj_entry,
+			    struct acl_entry *acl_group_obj_entry,
+			    struct acl_entry *acl_other_entry);
+mode_t			acl_posix1e_acl_to_mode(struct acl *acl);
+mode_t			acl_posix1e_newfilemode(mode_t cmode,
+			    struct acl *dacl);
+
+/*
+ * File system independent syntax check for a POSIX.1e ACL.
+ */
+int			acl_posix1e_check(struct acl *acl);
 
 #else /* !_KERNEL */
 
