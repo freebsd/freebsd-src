@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "from: @(#)quota.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: quota.c,v 1.8 1998/01/20 12:53:43 bde Exp $";
+	"$Id: quota.c,v 1.9 1998/06/09 04:30:54 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -474,7 +474,7 @@ getprivs(id, quotatype)
 			if (getnfsquota(&fst[i], NULL, qup, id, quotatype)
 			    == 0)
 				continue;
-		} else if (strcmp(fst[i].f_fstypename, "ffs") == 0) {
+		} else if (strcmp(fst[i].f_fstypename, "ufs") == 0) {
 			/*
 			 * XXX
 			 * UFS filesystems must be in /etc/fstab, and must
