@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.163 1997/04/18 18:28:09 bde Exp $
+ *	$Id: sio.c,v 1.164 1997/04/26 11:46:06 peter Exp $
  */
 
 #include "opt_comconsole.h"
@@ -881,12 +881,47 @@ sioattach(isdp)
 		printf(" 16550?");
 		break;
 	case FIFO_RX_HIGH:
-		printf(" 16550A");
 		if (COM_NOFIFO(isdp)) {
-			printf(" fifo disabled");
+			printf(" 16550A fifo disabled");
 		} else {
+			/* Detect the fifo size. */
+			int i, n;
+
+			/* Enable and reset the FIFO. */
+			outb (iobase+com_fifo, FIFO_ENABLE | FIFO_RCV_RST | FIFO_XMT_RST);
+
+			/* Set the loopback mode, 57600 baud. */
+			outb (iobase+com_cfcr, CFCR_DLAB);
+			outb (iobase+com_dlbh, 0);
+			outb (iobase+com_dlbl, 2);
+			outb (iobase+com_cfcr, CFCR_8BITS);
+			outb (iobase+com_mcr, MCR_LOOPBACK);
+			inb (iobase+com_lsr);
+
+			/* Put data into transmit FIFO and wait until overrun. */
+			for (i=n=0; i<20000; ++i) {
+				unsigned char lsr = inb (iobase+com_lsr);
+				if (lsr & LSR_OE)
+					break;
+				if (lsr & LSR_TXRDY) {
+					outb (iobase+com_data, 0x5A);
+					++n;
+				}
+			}
+			outb (iobase+com_mcr, 0);
+			outb (iobase+com_fifo, 0);
+
 			com->hasfifo = TRUE;
-			com->tx_fifo_size = 16;
+			if (n > 40) {
+				com->tx_fifo_size = 64;
+				printf(" 16750");
+			} else if (n > 24) {
+				com->tx_fifo_size = 32;
+				printf(" 16650");
+			} else {
+				com->tx_fifo_size = 16;
+				printf(" 16550A");
+			}
 #ifdef COM_ESP
 			for (espp = likely_esp_ports; *espp != 0; espp++)
 				if (espattach(isdp, com, *espp)) {
