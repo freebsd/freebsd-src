@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "archive.h"
@@ -139,6 +140,7 @@ struct file_info {
 	mode_t		 mode;
 	uid_t		 uid;
 	gid_t		 gid;
+	ino_t		 inode;
 	int		 nlinks;
 	char		*name; /* Null-terminated filename. */
 	struct archive_string symlink;
@@ -151,6 +153,7 @@ struct iso9660 {
 	int	bid; /* If non-zero, return this as our bid. */
 	struct archive_string pathname;
 	char	seenRockridge; /* Set true if RR extensions are used. */
+	unsigned char	suspOffset;
 
 	uint64_t	previous_offset;
 	uint64_t	previous_size;
@@ -316,6 +319,7 @@ archive_read_format_iso9660_read_header(struct archive *a,
 	st.st_uid = file->uid;
 	st.st_gid = file->gid;
 	st.st_nlink = file->nlinks;
+	st.st_ino = file->inode;
 	st.st_mtime = file->mtime;
 	st.st_ctime = file->ctime;
 	st.st_atime = file->atime;
@@ -485,6 +489,7 @@ parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
 		rr_start = isodirrec->name + isodirrec->name_len[0];
 		if ((isodirrec->name_len[0] & 1) == 0)
 			rr_start++;
+		rr_start += iso9660->suspOffset;
 		parse_rockridge(iso9660, file, rr_start, rr_end);
 	}
 
@@ -596,19 +601,28 @@ parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
 			}
 			/* FALLTHROUGH */
 		case 'P':
+			if (p[0] == 'P' && p[1] == 'D' && version == 1) {
+				/*
+				 * PD extension is padding;
+				 * contents are always ignored.
+				 */
+				break;
+			}
 			if (p[0] == 'P' && p[1] == 'X' && version == 1) {
 				/*
 				 * PX extension comprises:
 				 *   8 bytes for mode,
 				 *   8 bytes for nlinks,
 				 *   8 bytes for uid,
-				 *   8 bytes for gid.
+				 *   8 bytes for gid,
+				 *   8 bytes for inode.
 				 */
 				if (data_length == 32) {
 					file->mode = toi(data, 4);
 					file->nlinks = toi(data + 8, 4);
 					file->uid = toi(data + 16, 4);
 					file->gid = toi(data + 24, 4);
+					file->inode = toi(data + 32, 4);
 				}
 				break;
 			}
@@ -670,6 +684,42 @@ parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
 					data_length -= nlen;
 				}
 				break;
+			}
+			if (p[0] == 'S' && p[1] == 'P'
+			    && version == 1 && data_length == 7
+			    && data[0] == (unsigned char)'\xbe'
+			    && data[1] == (unsigned char)'\xef') {
+				/*
+				 * SP extension stores the suspOffset
+				 * (Number of bytes to skip between
+				 * filename and SUSP records.)
+				 * It is mandatory by the SUSP standard
+				 * (IEEE 1281).
+				 *
+				 * It allows SUSP to coexist with
+				 * non-SUSP uses of the System
+				 * Use Area by placing non-SUSP data
+				 * before SUSP data.
+				 *
+				 * TODO: Add a check for 'SP' in
+				 * first directory entry, disable all SUSP
+				 * processing if not found.
+				 */
+				iso9660->suspOffset = data[2];
+				break;
+			}
+			if (p[0] == 'S' && p[1] == 'T'
+			    && data_length == 0 && version == 1) {
+				/*
+				 * ST extension marks end of this
+				 * block of SUSP entries.
+				 *
+				 * It allows SUSP to coexist with
+				 * non-SUSP uses of the System
+				 * Use Area by placing non-SUSP data
+				 * after SUSP data.
+				 */
+				return;
 			}
 		case 'T':
 			if (p[0] == 'T' && p[1] == 'F' && version == 1) {
