@@ -332,7 +332,7 @@ main(int argc, char *argv[])
 		}
 		first_time = 0;
 
-		if (IM && *IM !(PL && PP))
+		if (IM && *IM && !(PL && PP))
 			putf(IM);
 		if (setjmp(timeout)) {
 			cfsetispeed(&tmode, B0);
