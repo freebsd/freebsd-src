@@ -342,6 +342,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.ldd.1; can now be used on shared libraries, in addition
       to executables.</para>
 
+    <para>&man.last.1; now supports a <option>-y</option> flag, which
+      causes the year to be included in the session start time.</para>
+
     <para><filename>libstand</filename> now has support for loading
       large kernels and modules split across several physical
       media.</para>
@@ -385,6 +388,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       SSH passphrases and keypairs for authentication.  This module
       also handles session management by invoking
       &man.ssh-agent.1;.</para>
+
+    <para>&man.sshd.8; no longer emits fake S/Key challenges for users
+      who do not have S/Key enabled.  The prior behavior created
+      confusing, useless one-time-password prompts when using some
+      newer SSH clients to connect to a &os; system.</para>
 
     <para>The &man.usbhidctl.1; utility has been added to manipulate
       USB Human Interface Devices.</para>
