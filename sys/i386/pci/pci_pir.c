@@ -52,6 +52,11 @@ static int cfgmech;
 static int devmax;
 static int usebios;
 
+static int	pci_cfgintr_unique(struct PIR_entry *pe, int pin);
+static int	pci_cfgintr_linked(struct PIR_entry *pe, int pin);
+static int	pci_cfgintr_search(struct PIR_entry *pe, int bus, int device, int matchpin, int pin);
+static int	pci_cfgintr_virgin(struct PIR_entry *pe, int pin);
+
 static int	pcibios_cfgread(int bus, int slot, int func, int reg, int bytes);
 static void	pcibios_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes);
 static int	pcibios_cfgopen(void);
@@ -59,7 +64,7 @@ static int	pcireg_cfgread(int bus, int slot, int func, int reg, int bytes);
 static void	pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes);
 static int	pcireg_cfgopen(void);
 
-static struct PIR_entry	*pci_route_table;
+static struct PIR_table	*pci_route_table;
 static int		pci_route_count;
 
 /* 
@@ -96,7 +101,7 @@ pci_cfgregopen(void)
 	    ck += cv[i];
 	}
 	if (ck == 0) {
-	    pci_route_table = &pt->pt_entry[0];
+	    pci_route_table = pt;
 	    pci_route_count = (pt->pt_header.ph_length - sizeof(struct PIR_header)) / sizeof(struct PIR_entry);
 	    printf("Using $PIR table, %d entries at %p\n", pci_route_count, pci_route_table);
 	}
@@ -131,11 +136,9 @@ pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes)
 /*
  * Route a PCI interrupt
  *
- * XXX this needs to learn to actually route uninitialised interrupts as well
- *     as just returning interrupts for stuff that's already initialised.
- *
  * XXX we don't do anything "right" with the function number in the PIR table
- *     (because the consumer isn't currently passing it in).
+ *     (because the consumer isn't currently passing it in).  We don't care
+ *     anyway, due to the way PCI interrupts are assigned.
  */
 int
 pci_cfgintr(int bus, int device, int pin)
@@ -151,18 +154,20 @@ pci_cfgintr(int bus, int device, int pin)
     /*
      * Scan the entry table for a contender
      */
-    for (i = 0, pe = pci_route_table; i < pci_route_count; i++, pe++) {
+    for (i = 0, pe = &pci_route_table->pt_entry[0]; i < pci_route_count; i++, pe++) {
 	if ((bus != pe->pe_bus) || (device != pe->pe_device))
 	    continue;
-	if (!powerof2(pe->pe_intpin[pin - 1].irqs)) {
-	    printf("pci_cfgintr: %d:%d:%c is not routed to a unique interrupt\n",
-		   bus, device, 'A' + pin - 1);
-	    break;
-	}
-	irq = ffs(pe->pe_intpin[pin - 1].irqs) - 1;
-	printf("pci_cfgintr: %d:%d:%c routed to irq %d\n", 
-	       bus, device, 'A' + pin - 1, irq);
 
+	irq = pci_cfgintr_unique(pe, pin);
+	if (irq == 255)
+	    irq = pci_cfgintr_linked(pe, pin);
+	if (irq == 255)
+	    irq = pci_cfgintr_virgin(pe, pin);
+	
+	if (irq == 255)
+	    break;
+	    
+	    
 	/*
 	 * Ask the BIOS to route the interrupt
 	 */
@@ -171,9 +176,150 @@ pci_cfgintr(int bus, int device, int pin)
 	args.ecx = (irq << 8) | (0xa + pin - 1);	/* pin value is 0xa - 0xd */
 	bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL));
 
-	/* XXX if it fails, we should smack the router hardware directly */
+	/*
+	 * XXX if it fails, we should try to smack the router hardware directly
+	 */
 
+	printf("pci_cfgintr: %d:%d INT%c routed to irq %d\n", 
+	       bus, device, 'A' + pin - 1, irq);
 	return(irq);
+    }
+
+    printf("pci_cfgintr: can't route an interrupt to %d:%d INT%c\n", bus, device, 'A' + pin - 1);
+    return(255);
+}
+
+/*
+ * Look to see if the routing table claims this pin is uniquely routed.
+ */
+static int
+pci_cfgintr_unique(struct PIR_entry *pe, int pin)
+{
+    int		irq;
+    
+    if (powerof2(pe->pe_intpin[pin - 1].irqs)) {
+	irq = ffs(pe->pe_intpin[pin - 1].irqs) - 1;
+	printf("pci_cfgintr_unique: hard-routed to irq %d\n", irq);
+	return(irq);
+    }
+    return(255);
+}
+
+/*
+ * Look for another device which shares the same link byte and
+ * already has a unique IRQ, or which has had one routed already.
+ */
+static int
+pci_cfgintr_linked(struct PIR_entry *pe, int pin)
+{
+    struct PIR_entry	*oe;
+    struct PIR_intpin	*pi;
+    int			i, j, irq;
+
+    /*
+     * Scan table slots.
+     */
+    for (i = 0, oe = &pci_route_table->pt_entry[0]; i < pci_route_count; i++, oe++) {
+
+	/* scan interrupt pins */
+	for (j = 0, pi = &oe->pe_intpin[0]; j < 4; j++, pi++) {
+
+	    /* don't look at the entry we're trying to match with */
+	    if ((pe == oe) && (i == (pin - 1)))
+		continue;
+
+	    /* compare link bytes */
+	    if (pi->link != pe->pe_intpin[pin - 1].link)
+		continue;
+	    
+	    /* link destination mapped to a unique interrupt? */
+	    if (powerof2(pi->irqs)) {
+		irq = ffs(pi->irqs) - 1;
+		printf("pci_cfgintr_linked: linked (%x) to hard-routed irq %d\n",
+		       pi->link, irq);
+		return(irq);
+	    } 
+
+	    /* look for the real PCI device that matches this table entry */
+	    if ((irq = pci_cfgintr_search(pe, oe->pe_bus, oe->pe_device, j, pin)) != 255)
+		return(irq);
+	}
+    }
+    return(255);
+}
+
+/*
+ * Scan for the real PCI device at (bus)/(device) using intpin (matchpin) and
+ * see if it has already been assigned an interrupt.
+ */
+static int
+pci_cfgintr_search(struct PIR_entry *pe, int bus, int device, int matchpin, int pin)
+{
+    devclass_t		pci_devclass;
+    device_t		*pci_devices;
+    int			pci_count;
+    device_t		*pci_children;
+    int			pci_childcount;
+    device_t		*busp, *childp;
+    int			i, j, irq;
+
+    /*
+     * Find all the PCI busses.
+     */
+    pci_count = 0;
+    if ((pci_devclass = devclass_find("pci")) != NULL)
+	devclass_get_devices(pci_devclass, &pci_devices, &pci_count);
+
+    /*
+     * Scan all the PCI busses/devices looking for this one.
+     */
+    for (i = 0, busp = pci_devices; i < pci_count; i++, busp++) {
+	pci_childcount = 0;
+	device_get_children(*busp, &pci_children, &pci_childcount);
+		
+	for (j = 0, childp = pci_children; j < pci_childcount; j++, childp++) {
+	    if ((pci_get_bus(*childp) == bus) &&
+		(pci_get_slot(*childp) == device) &&
+		(pci_get_intpin(*childp) == matchpin) &&
+		((irq = pci_get_irq(*childp)) != 255)) {
+		printf("pci_cfgintr_search: linked (%x) to configured irq %d at %d:%d:%d\n",
+		       irq, pe->pe_intpin[pin - 1].link,
+		       pci_get_bus(*childp), pci_get_slot(*childp), pci_get_function(*childp));
+		return(irq);
+	    }
+	}
+    }
+    return(255);
+}
+
+/*
+ * Pick a suitable IRQ from those listed as routable to this device.
+ */
+static int
+pci_cfgintr_virgin(struct PIR_entry *pe, int pin)
+{
+    int		irq, ibit;
+    
+    /* first scan the set of PCI-only interrupts and see if any of these are routable */
+    for (irq = 0; irq < 16; irq++) {
+	ibit = (1 << irq);
+
+	/* can we use this interrupt? */
+	if ((pci_route_table->pt_header.ph_pci_irqs & ibit) &&
+	    (pe->pe_intpin[pin - 1].irqs & ibit)) {
+	    printf("pci_cfgintr_virgin: using routable PCI-only interrupt %d\n", irq);
+	    return(irq);
+	}
+    }
+    
+    /* life is tough, so just pick an interrupt */
+    for (irq = 0; irq < 16; irq++) {
+	ibit = (1 << irq);
+    
+	if (pe->pe_intpin[pin - 1].irqs & ibit) {
+	    printf("pci_cfgintr_virgin: using routable interrupt %d\n", irq);
+	    return(irq);
+	}
     }
     return(255);
 }
