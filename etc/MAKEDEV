@@ -447,7 +447,7 @@ wt*)
 	;;
 
 raidctl)
-	mknod raidctl c 201 0 root:operator;	chmod 0600 raidctl
+	mknod raidctl c 201 0
 	;;
 
 # Individual slices.
