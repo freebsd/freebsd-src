@@ -92,6 +92,7 @@ u_int16_t remote_port;
 int log_priority;
 int no_daemon;
 int save_scripts;
+int onetry;
 
 static void usage PROTO ((void));
 
@@ -126,6 +127,8 @@ int main (argc, argv, envp)
 			no_daemon = 1;
 		} else if (!strcmp (argv [i], "-D")) {
 			save_scripts = 1;
+		} else if (!strcmp (argv [i], "-1")) {
+			onetry = 1;
  		} else if (argv [i][0] == '-') {
  		    usage ();
  		} else {
@@ -240,7 +243,7 @@ int main (argc, argv, envp)
 
 static void usage ()
 {
-	error ("Usage: dhclient [-c] [-p <port>] [interface]");
+	error ("Usage: dhclient [-1] [-c] [-p <port>] [interface]");
 }
 
 void cleanup ()
@@ -1090,6 +1093,10 @@ void state_panic (ipp)
 	/* No leases were available, or what was available didn't work, so
 	   tell the shell script that we failed to allocate an address,
 	   and try again later. */
+	if (onetry) {
+		exit(1);
+		note ("Unable to obtain a lease on first try - exiting.\n");
+	}
 	note ("No working leases in persistent database - sleeping.\n");
 	script_init (ip, "FAIL", (struct string_list *)0);
 	if (ip -> client -> alias)
