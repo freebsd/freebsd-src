@@ -44,7 +44,6 @@ disk_err(struct bio *bp, const char *what, int blkdone, int nl)
 	case BIO_WRITE:		printf("cmd=write "); break;
 	case BIO_DELETE:	printf("cmd=delete "); break;
 	case BIO_GETATTR:	printf("cmd=getattr "); break;
-	case BIO_SETATTR:	printf("cmd=setattr "); break;
 	default:		printf("cmd=%x ", bp->bio_cmd); break;
 	}
 	sn = bp->bio_blkno;
