@@ -2320,6 +2320,10 @@ dc_attach(device_t dev)
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
+#ifdef DEVICE_POLLING
+	ifp->if_capabilities |= IFCAP_POLLING;
+#endif
+	ifp->if_capenable = ifp->if_capabilities;
 
 	callout_init(&sc->dc_stat_ch, IS_MPSAFE ? CALLOUT_MPSAFE : 0);
 
@@ -3083,6 +3087,10 @@ dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct dc_softc *sc = ifp->if_softc;
 
+	if (!(ifp->if_capenable & IFCAP_POLLING)) {
+		ether_poll_deregister(ifp);
+		cmd = POLL_DEREGISTER;
+	}
 	if (cmd == POLL_DEREGISTER) { /* final call, enable interrupts */
 		/* Re-enable interrupts. */
 		CSR_WRITE_4(sc, DC_IMR, DC_INTRS);
@@ -3153,7 +3161,8 @@ dc_intr(void *arg)
 #ifdef DEVICE_POLLING
 	if (ifp->if_flags & IFF_POLLING)
 		goto done;
-	if (ether_poll_register(dc_poll, ifp)) { /* ok, disable interrupts */
+	if ((ifp->if_capenable & IFCAP_POLLING) &&
+	    ether_poll_register(dc_poll, ifp)) { /* ok, disable interrupts */
 		CSR_WRITE_4(sc, DC_IMR, 0x00000000);
 		goto done;
 	}
@@ -3697,6 +3706,9 @@ dc_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (sc->dc_srm_media)
 			sc->dc_srm_media = 0;
 #endif
+		break;
+	case SIOCSIFCAP:
+		ifp->if_capenable = ifr->ifr_reqcap;
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
