@@ -32,7 +32,7 @@
  *
  *	@(#)if_slvar.h	8.3 (Berkeley) 2/1/94
  *
- * $Id: if_slvar.h,v 1.13 1997/02/22 09:41:06 peter Exp $
+ * $Id: if_slvar.h,v 1.14 1997/09/21 22:01:05 gibbs Exp $
  */
 
 #ifndef _NET_IF_SLVAR_H_
@@ -66,9 +66,7 @@ struct sl_softc {
 					 */
 	struct	callout_handle	sc_ofhandle;
 	struct	callout_handle	sc_kahandle;
-#ifdef INET				/* XXX */
 	struct	slcompress sc_comp;	/* tcp compression data */
-#endif
 };
 
 /* internal flags */
