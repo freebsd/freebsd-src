@@ -32,7 +32,7 @@
 .\"     @(#)isblank.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd October 6, 2002
+.Dd July 30, 2004
 .Dt ISBLANK 3
 .Os
 .Sh NAME
@@ -67,14 +67,12 @@ representable as an
 or the value of
 .Dv EOF .
 .Sh COMPATIBILITY
-Although
-.Fn isblank
-accepts arguments outside of the range of the
-.Vt "unsigned char"
-type in locales with large character sets,
-this is a
+The
 .Bx 4.4
-extension and the
+extension of accepting arguments outside of the range of the
+.Vt "unsigned char"
+type in locales with large character sets is deprecated.
+The
 .Fn iswblank
 function should be used instead for maximum portability.
 .Sh RETURN VALUES
