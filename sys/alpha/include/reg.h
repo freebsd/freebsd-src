@@ -1,4 +1,4 @@
-/* $Id: reg.h,v 1.2 1998/06/10 10:55:26 dfr Exp $ */
+/* $Id: reg.h,v 1.3 1999/04/03 22:19:57 jdp Exp $ */
 /* From: NetBSD: reg.h,v 1.3 1997/04/06 08:47:40 cgd Exp */
 
 /*
@@ -89,6 +89,13 @@ struct reg {
 struct fpreg {
 	u_int64_t	fpr_regs[32];
 	u_int64_t	fpr_cr;
+};
+
+/*
+ * Placeholder.
+ */
+struct dbreg {
+	unsigned long wankage;
 };
 
 #ifdef KERNEL
