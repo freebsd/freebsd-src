@@ -487,6 +487,10 @@ mca_alloc_resource (device_t dev, device_t child, int type, int *rid,
 		}
 	}
 
+	if (type == SYS_RES_IRQ) {
+		flags |= RF_SHAREABLE;
+	}
+
 	return (resource_list_alloc(&(m_dev->rl), dev, child, type, rid,
 				    start, end, count, flags));
 }
