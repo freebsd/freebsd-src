@@ -36,14 +36,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.6 (Berkeley) 2/19/95
- * $Id: types.h,v 1.11 1996/03/10 23:35:09 hsu Exp $
+ * $Id: types.h,v 1.9 1996/03/11 02:19:02 hsu Exp $
  */
 
 #ifndef _SYS_TYPES_H_
 #define	_SYS_TYPES_H_
 
 #include <sys/cdefs.h>
-#include <machine/ansi.h>
 
 /* Machine type dependent parameters. */
 #include <machine/ansi.h>
