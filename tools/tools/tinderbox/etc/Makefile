@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-ETCFILES	 = default.rc releng_4.rc current.rc experimental.rc
+ETCFILES	 = default.rc releng_4.rc releng_5.rc current.rc
 ETCFILES	+= ada.rc dsa.rc dwp.rc stanley.rc
 ETCDIR		?= ${HOME}/etc
 ETCOWN		?= ${USER}
