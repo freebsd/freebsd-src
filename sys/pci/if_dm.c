@@ -158,8 +158,8 @@ static int dm_list_tx_init	__P((struct dm_softc *));
 #define DM_RES			SYS_RES_IOPORT
 #define DM_RID			DM_PCI_LOIO
 #else
-#define DM_RES			SYS_RES_IOPORT
-#define DM_RID			DM_PCI_LOIO
+#define DM_RES			SYS_RES_MEMORY
+#define DM_RID			DM_PCI_LOMEM
 #endif
 
 static device_method_t dm_methods[] = {
