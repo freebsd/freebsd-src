@@ -55,7 +55,7 @@ modify an existing one.  In general, customizations specific to a
 particular computer should be done in the
 .B /etc/dhclient.conf
 script.   If you find that you can't make such a customization without
-customizing dhclient.conf, please submit a bug report.
+customizing dhclient-script, please submit a bug report.
 .SH OPERATION
 When dhclient needs to invoke the client configuration script, it
 writes a shell script into /tmp which defines a variety of variables.
@@ -89,7 +89,7 @@ no examples exist yet.   The IP address to check is passed in
 $new_ip_address, and the interface name is passed in $interface.
 .SH ARPCHECK
 The DHCP client wants to know if a response to the ARP request send
-using ARPCHECK has been received.   If one has, the script should exit
+using ARPSEND has been received.   If one has, the script should exit
 with a nonzero status, indicating that the offered address has already
 been requested and should be declined.   $new_ip_address and
 $interface are set as with ARPSEND.
