@@ -465,6 +465,7 @@ typedef struct _board_t {
 
 #define CX_SPEED_DFLT	9600
 
+#ifdef KERNEL
 int cx_probe_board (int port);
 void cx_init (cx_board_t *b, int num, int port, int irq, int dma);
 void cx_setup_board (cx_board_t *b);
@@ -474,6 +475,7 @@ void cx_chan_rts (cx_chan_t *c, int on);
 void cx_cmd (int base, int cmd);
 int cx_chan_cd (cx_chan_t *c);
 void cx_clock (long hz, long ba, int *clk, int *div);
+#endif
 
 #define CXIOCGETMODE _IOWR('x', 1, cx_options_t)   /* get channel options */
 #define CXIOCSETMODE _IOW('x', 2, cx_options_t)    /* set channel options */
