@@ -55,7 +55,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: mknetid.c,v 1.8 1997/11/24 07:31:31 charnier Exp $";
+	"$Id: mknetid.c,v 1.9 1997/12/15 07:19:41 charnier Exp $";
 #endif /* not lint */
 
 #define LINSIZ 1024
@@ -216,7 +216,7 @@ domain not set");
 		if ((glist = lookup(mtable, (char *)&readbuf)) != NULL) {
 			while(glist) {
 				if (glist->groupid != i)
-					printf(",%lu", glist->groupid);
+					printf(",%lu", (u_long)glist->groupid);
 				glist = glist->next;
 			}
 		}
