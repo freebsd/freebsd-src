@@ -1,4 +1,4 @@
-# @(#)asia	7.65
+# @(#)asia	7.67
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -172,7 +172,7 @@ Zone	Asia/Phnom_Penh	6:59:40 -	LMT	1906 Jun  9
 # China is across 4 physical time zones, before Feb 1, 1986 only the
 # Peking (Bejing) time zone was recognized.  Since that date, China
 # has two of 'em -- Peking's and Urumqi (named after the capital of
-# the Xinjiang Uighur Autonomous Region).  I don't know about DST for it.
+# the Xinjiang Uyghur Autonomous Region).  I don't know about DST for it.
 #
 # . . .I just deleted the DST table and this editor makes it too
 # painful to suck in another copy..  So, here is what I have for
@@ -200,26 +200,38 @@ Rule	PRC	1949	only	-	Jan	 1	0:00	0	S
 Rule	PRC	1986	only	-	May	 4	0:00	1:00	D
 Rule	PRC	1986	1991	-	Sep	Sun>=11	0:00	0	S
 Rule	PRC	1987	1991	-	Apr	Sun>=10	0:00	1:00	D
+#
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+#
+# From Anthony Fok (2001-12-20):
+# BTW, I did some research on-line and found some info regarding these five
+# historic timezones from some Taiwan websites.  And yes, there are official
+# Chinese names for these locales (before 1949):
+# Changbai Time ("Long-white Time", Long-white = Heilongjiang area)
 Zone	Asia/Harbin	8:26:44	-	LMT	1928 # or Haerbin
-			8:30	-	HART	1932 Mar # Harbin Time
+			8:30	-	CHAT	1932 Mar # Changbai Time
 			8:00	-	CST	1940
-			9:00	-	HART	1966 May
-			8:30	-	HART	1980 May
+			9:00	-	CHAT	1966 May
+			8:30	-	CHAT	1980 May
 			8:00	PRC	C%sT
+# Zhongyuan Time ("Central plain Time")
 Zone	Asia/Shanghai	8:05:52	-	LMT	1928
 			8:00	Shang	C%sT	1949
 			8:00	PRC	C%sT
+# Long-shu Time (probably due to Long and Shu being two names of that area)
 Zone	Asia/Chongqing	7:06:20	-	LMT	1928 # or Chungking
-			7:00	-	CHUT	1980 May # Chungking Time
+			7:00	-	LONT	1980 May # Long-shu Time
 			8:00	PRC	C%sT
+# Xin-zang Time ("Xinjiang-Tibet Time")
 Zone	Asia/Urumqi	5:50:20	-	LMT	1928 # or Urumchi
 			6:00	-	URUT	1980 May # Urumqi Time
 			8:00	PRC	C%sT
+# Kunlun Time
 Zone	Asia/Kashgar	5:03:56	-	LMT	1928 # or Kashi or Kaxgar
 			5:30	-	KAST	1940	 # Kashgar Time
 			5:00	-	KAST	1980 May
 			8:00	PRC	C%sT
+
 # Hong Kong (Xianggang)
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	HK	1946	only	-	Apr	20	3:30	1:00	S
@@ -266,25 +278,25 @@ Rule	Taiwan	1980	only	-	Sep	30	0:00	0	S
 Zone	Asia/Taipei	8:06:00 -	LMT	1896 # or Taibei or T'ai-pei
 			8:00	Taiwan	C%sT
 
-# Macao (Macau, Aomen)
+# Macau (Macao, Aomen)
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Macao	1961	1962	-	Mar	Sun>=16	3:30	1:00	S
-Rule	Macao	1961	1964	-	Nov	Sun>=1	3:30	0	-
-Rule	Macao	1963	only	-	Mar	Sun>=16	0:00	1:00	S
-Rule	Macao	1964	only	-	Mar	Sun>=16	3:30	1:00	S
-Rule	Macao	1965	only	-	Mar	Sun>=16	0:00	1:00	S
-Rule	Macao	1965	only	-	Oct	31	0:00	0	-
-Rule	Macao	1966	1971	-	Apr	Sun>=16	3:30	1:00	S
-Rule	Macao	1966	1971	-	Oct	Sun>=16	3:30	0	-
-Rule	Macao	1972	1974	-	Apr	Sun>=15	0:00	1:00	S
-Rule	Macao	1972	1973	-	Oct	Sun>=15	0:00	0	-
-Rule	Macao	1974	1977	-	Oct	Sun>=15	3:30	0	-
-Rule	Macao	1975	1977	-	Apr	Sun>=15	3:30	1:00	S
-Rule	Macao	1978	1980	-	Apr	Sun>=15	0:00	1:00	S
-Rule	Macao	1978	1980	-	Oct	Sun>=15	0:00	0	-
+Rule	Macau	1961	1962	-	Mar	Sun>=16	3:30	1:00	S
+Rule	Macau	1961	1964	-	Nov	Sun>=1	3:30	0	-
+Rule	Macau	1963	only	-	Mar	Sun>=16	0:00	1:00	S
+Rule	Macau	1964	only	-	Mar	Sun>=16	3:30	1:00	S
+Rule	Macau	1965	only	-	Mar	Sun>=16	0:00	1:00	S
+Rule	Macau	1965	only	-	Oct	31	0:00	0	-
+Rule	Macau	1966	1971	-	Apr	Sun>=16	3:30	1:00	S
+Rule	Macau	1966	1971	-	Oct	Sun>=16	3:30	0	-
+Rule	Macau	1972	1974	-	Apr	Sun>=15	0:00	1:00	S
+Rule	Macau	1972	1973	-	Oct	Sun>=15	0:00	0	-
+Rule	Macau	1974	1977	-	Oct	Sun>=15	3:30	0	-
+Rule	Macau	1975	1977	-	Apr	Sun>=15	3:30	1:00	S
+Rule	Macau	1978	1980	-	Apr	Sun>=15	0:00	1:00	S
+Rule	Macau	1978	1980	-	Oct	Sun>=15	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Macao	7:34:20 -	LMT	1912
-			8:00	Macao	MO%sT	1999 Dec 20 # return to China
+Zone	Asia/Macau	7:34:20 -	LMT	1912
+			8:00	Macau	MO%sT	1999 Dec 20 # return to China
 			8:00	PRC	C%sT
 
 
@@ -407,7 +419,7 @@ Zone Asia/Pontianak	7:17:20	-	LMT	1908 May
 			7:30	-	WIT	1964
 			8:00	-	CIT	1988 Jan  1
 			7:00	-	WIT
-Zone Asia/Ujung_Pandang 7:57:36 -	LMT	1920
+Zone Asia/Makassar	7:57:36 -	LMT	1920
 			7:57:36	-	MMT	1932 Nov    # Macassar MT
 			8:00	-	CIT	1942 Feb  9
 			9:00	-	JST	1945 Aug
@@ -817,31 +829,71 @@ Zone	Asia/Amman	2:23:44 -	LMT	1931
 # Guess that Aqtau and Aqtobe diverged in 1995, since that's the first time
 # IATA SSIM mentions a third time zone in Kazakhstan.
 #
+# From Paul Eggert (2001-10-18):
+# German Iofis, ELSI, Almaty (2001-10-09) reports that Kazakhstan uses
+# RussiaAsia rules, instead of switching at 00:00 as the IATA has it.
+# Go with Shanks, who has them always using RussiaAsia rules.
+# Also go with the following claims of Shanks:
+#
+# - Kazakhstan did not observe DST in 1991.
+# - Qyzylorda switched from +5:00 to +6:00 on 1992-01-19 02:00.
+# - Oral switched from +5:00 to +4:00 in spring 1989.
+# 
+#
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+#
+# Almaty (formerly Alma-Ata), representing most locations in Kazakhstan
 Zone	Asia/Almaty	5:07:48 -	LMT	1924 May  2 # or Alma-Ata
-			5:00	-	ALMT	1957 Mar # Alma-Ata Time
-			6:00 RussiaAsia ALM%sT	1991 Mar 31 2:00s
-			5:00	1:00	ALMST	1991 Sep 29 2:00s
-			5:00	-	ALMT	1992 Jan 19 2:00s
-			6:00 E-EurAsia	ALM%sT
+			5:00	-	ALMT	1930 Jun 21 # Alma-Ata Time
+			6:00 RussiaAsia ALM%sT	1991
+			6:00	-	ALMT	1992
+			6:00 RussiaAsia	ALM%sT
+# Qyzylorda (aka Kyzylorda, Kizilorda, Kzyl-Orda, etc.)
+Zone	Asia/Qyzylorda	4:21:52 -	LMT	1924 May  2
+			4:00	-	KIZT	1930 Jun 21 # Kizilorda Time
+			5:00	-	KIZT	1981 Apr  1
+			5:00	1:00	KIZST	1981 Oct  1
+			6:00	-	KIZT	1982 Apr  1
+			5:00 RussiaAsia	KIZ%sT	1991
+			5:00	-	KIZT	1991 Dec 16 # independence
+			5:00	-	QYZT	1992 Jan 19 2:00
+			6:00 RussiaAsia	QYZ%sT
+# Aqtobe (aka Aktobe, formerly Akt'ubinsk)
 Zone	Asia/Aqtobe	3:48:40	-	LMT	1924 May  2
-			4:00	-	AKT	1957 Mar # Aktyubinsk Time
-			5:00 RussiaAsia AK%sT	1991 Mar 31 2:00s
-			4:00	1:00	AKTST	1991 Sep 29 2:00s
-			4:00	-	AQTT	1992 Jan 19 2:00s # Aqtobe Time
-			5:00 E-EurAsia	AQT%sT
-Zone	Asia/Aqtau	3:21:04	-	LMT	1924 May  2 # or Aktau
-			4:00	-	SHET	1957 Mar # Fort Shevchenko Time
-			5:00 RussiaAsia SHE%sT	1991 Mar 31 2:00s
-			4:00	1:00	AQTST	1991 Sep 29 2:00s
-			4:00	-	AQTT	1992 Jan 19 2:00s # Aqtau Time
-			5:00 E-EurAsia	AQT%sT	1995 Sep lastSun
-			4:00 E-EurAsia	AQT%sT
+			4:00	-	AKTT	1930 Jun 21 # Aktyubinsk Time
+			5:00	-	AKTT	1981 Apr  1
+			5:00	1:00	AKTST	1981 Oct  1
+			6:00	-	AKTT	1982 Apr  1
+			5:00 RussiaAsia	AKT%sT	1991
+			5:00	-	AKTT	1991 Dec 16 # independence
+			5:00 RussiaAsia	AQT%sT	# Aqtobe Time
+# Mangghystau
+# Aqtau was not founded until 1963, but it represents an inhabited region,
+# so include time stamps before 1963.
+Zone	Asia/Aqtau	3:21:04	-	LMT	1924 May  2
+			4:00	-	FORT	1930 Jun 21 # Fort Shevchenko T
+			5:00	-	FORT	1963
+			5:00	-	SHET	1981 Oct  1 # Shevchenko Time
+			6:00	-	SHET	1982 Apr  1
+			5:00 RussiaAsia	SHE%sT	1991
+			5:00	-	SHET	1991 Dec 16 # independence
+			5:00 RussiaAsia	AQT%sT	1995 Sep lastSun # Aqtau Time
+			4:00 RussiaAsia	AQT%sT
+# West Kazakhstan
+Zone	Asia/Oral	3:25:24	-	LMT	1924 May  2 # or Ural'sk
+			4:00	-	URAT	1930 Jun 21 # Ural'sk time
+			5:00	-	URAT	1981 Apr  1
+			5:00	1:00	URAST	1981 Oct  1
+			6:00	-	URAT	1982 Apr  1
+			5:00 RussiaAsia	URA%sT	1989 Mar 26 2:00
+			4:00 RussiaAsia	URA%sT	1991
+			4:00	-	URAT	1991 Dec 16 # independence
+			4:00 RussiaAsia	ORA%sT	# Oral Time
 
 # Kyrgyzstan (Kirgizstan)
 # Transitions through 1991 are from Shanks.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Kirgiz	1992	1996	-	Apr	Sun>=7	0:00	1:00	S
+Rule	Kirgiz	1992	1996	-	Apr	Sun>=7	0:00s	1:00	S
 Rule	Kirgiz	1992	1996	-	Sep	lastSun	0:00	0	-
 Rule	Kirgiz	1997	max	-	Mar	lastSun	2:30	1:00	S
 Rule	Kirgiz	1997	max	-	Oct	lastSun	2:30	0	-
@@ -1042,13 +1094,36 @@ Zone	Asia/Muscat	3:54:20 -	LMT	1920
 			4:00	-	GST
 
 # Pakistan
+
+# From Rives McDow (2002-03-13):
+# I have been advised that Pakistan has decided to adopt dst on a
+# TRIAL basis for one year, starting 00:01 local time on April 7, 2002
+# and ending at 00:01 local time October 6, 2002.  This is what I was
+# told, but I believe that the actual time of change may be 00:00; the
+# 00:01 was to make it clear which day it was on.
+
+# From Paul Eggert (2002-03-15):
+# Jesper Norgaard found this URL:
+# http://www.pak.gov.pk/public/news/app/app06_dec.htm
+# (dated 2001-12-06) which says that the Cabinet adopted a scheme "to
+# advance the clocks by one hour on the night between the first
+# Saturday and Sunday of April and revert to the original position on
+# 15th October each year".  This agrees with McDow's 04-07 at 00:00,
+# but disagrees about the October transition, and makes it sound like
+# it's not on a trial basis.  Also, the "between the first Saturday
+# and Sunday of April" phrase, if taken literally, means that the
+# transition takes place at 00:00 on the first Sunday on or after 04-02.
+
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule Pakistan	2002	max	-	Apr	Sun>=2	0:00	1:00	S
+Rule Pakistan	2002	max	-	Oct	15	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Karachi	4:28:12 -	LMT	1907
 			5:30	-	IST	1942 Sep
 			5:30	1:00	IST	1945 Oct 15
 			5:30	-	IST	1951 Sep 30
 			5:00	-	KART	1971 Mar 26 # Karachi Time
-			5:00	-	PKT	# Pakistan Time
+			5:00 Pakistan	PK%sT	# Pakistan Time
 
 # Palestine
 

@@ -1,4 +1,4 @@
-# @(#)southamerica	7.42
+# @(#)southamerica	7.43
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -79,18 +79,11 @@ Rule	Arg	1963	only	-	Oct	 1	0:00	0	-
 Rule	Arg	1963	only	-	Dec	15	0:00	1:00	S
 Rule	Arg	1964	1966	-	Mar	 1	0:00	0	-
 Rule	Arg	1964	1966	-	Oct	15	0:00	1:00	S
-Rule	Arg	1967	only	-	Apr	 1	0:00	0	-
+Rule	Arg	1967	only	-	Apr	 2	0:00	0	-
 Rule	Arg	1967	1968	-	Oct	Sun>=1	0:00	1:00	S
 Rule	Arg	1968	1969	-	Apr	Sun>=1	0:00	0	-
 Rule	Arg	1974	only	-	Jan	23	0:00	1:00	S
 Rule	Arg	1974	only	-	May	 1	0:00	0	-
-Rule	Arg	1974	1976	-	Oct	Sun>=1	0:00	1:00	S
-Rule	Arg	1975	1977	-	Apr	Sun>=1	0:00	0	-
-Rule	Arg	1985	only	-	Nov	 2	0:00	1:00	S
-Rule	Arg	1986	only	-	Mar	14	0:00	0	-
-Rule	Arg	1986	1987	-	Oct	25	0:00	1:00	S
-Rule	Arg	1987	only	-	Feb	13	0:00	0	-
-Rule	Arg	1988	only	-	Feb	 7	0:00	0	-
 Rule	Arg	1988	only	-	Dec	 1	0:00	1:00	S
 #
 # From Hernan G. Otero <hernan@isoft.com.ar> (1995-06-26):
@@ -148,76 +141,97 @@ Rule	Arg	2000	only	-	Mar	Sun>=1	0:00	0	-
 # This kind of things had always been done this way in Argentina.
 # We are still -03:00 all year round in all of the country.
 #
+#
+# From Paul Eggert (2002-01-22):
+# <a href="http://www.spicasc.net/horvera.html">
+# Hora de verano para la Republica Argentina (2000-10-01)
+# </a> says that standard time in Argentina from 1894-10-31
+# to 1920-05-01 was -4:16:48.25.  Go with this more-precise value
+# over Shanks.
+
+# Unless otherwise specified, data are from Shanks through 1992, from
+# the IATA otherwise.  As noted below, Shanks says that
+# America/Cordoba split into 7 subregions during 1991/1992, but we
+# haven't verified this yet so for now we'll keep it a single region.
+#
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 #
 # Buenos Aires (BA), Capital Federal (CF), Santa Cruz (SC),
 # Tierra del Fuego, Antartida e Islas del Atlantico Sur (TF)
-Zone America/Buenos_Aires -3:53:48 -	LMT	1894 Nov
-			-4:16:44 -	CMT	1920 May    # Cordoba Mean Time
+Zone America/Buenos_Aires -3:53:48 -	LMT	1894 Oct 31
+			-4:16:48 -	CMT	1920 May # Cordoba Mean Time
 			-4:00	-	ART	1930 Dec
 			-4:00	Arg	AR%sT	1969 Oct  5
-			-3:00	Arg	AR%sT	1999 Oct  3 0:00
-			-4:00	Arg	AR%sT	2000 Mar  3 0:00
+			-3:00	Arg	AR%sT	1999 Oct  3
+			-4:00	Arg	AR%sT	2000 Mar  3
 			-3:00	-	ART
 #
 # Santa Fe (SF), Entre Rios (ER), Corrientes (CN), Misiones (MN), Chaco (CC),
-# Formosa (FM), La Pampa (LP), Chubut (CH)
-Zone America/Rosario	-4:02:40 -	LMT	1894 Nov
-			-4:16:44 -	CMT	1920 May
-			-4:00	-	ART	1930 Dec
-			-4:00	Arg	AR%sT	1969 Oct  5
-			-3:00	Arg	AR%sT	1991 Jul
-			-3:00	-	ART	1999 Oct  3 0:00
-			-4:00	Arg	AR%sT	2000 Mar  3 0:00
-			-3:00	-	ART
+# Formosa (FM), Salta (SA), Tucuman (TM), Santiago del Estero (SE),
+# Cordoba (CB), La Rioja (LR), San Juan (SJ), San Luis (SL), La Pampa (LP),
+# Neuquen (NQ), Rio Negro (RN), Chubut (CH)
 #
-# Cordoba (CB), Santiago del Estero (SE), Salta (SA), Tucuman (TM), La Rioja (LR), San Juan (SJ), San Luis (SL),
-# Neuquen (NQ), Rio Negro (RN)
-Zone America/Cordoba	-4:16:44 -	LMT	1894 Nov
-			-4:16:44 -	CMT	1920 May
+# Shanks also makes the following claims, which we haven't verified:
+# - Formosa switched to -3:00 on 1991-01-07.
+# - La Rioja and San Juan switched to -4:00 on 1991-03-01
+#   and then to 03:00 on 1991-05-07.
+# - Misiones switched to -3:00 on 1990-12-29.
+# - Chaco switched to -3:00 on 1991-01-04.
+# - San Luis switched to -4:00 on 1990-03-14, then to -3:00 on 1990-10-15,
+#   then to -4:00 on 1991-03-01, then to -3:00 on 1991-06-01.
+# - Santiago del Estero switched to -4:00 on 1991-04-01,
+#   then to -3:00 on 1991-04-26.
+# If we need to add Zones for these areas, we may need to have a subdirectory
+# for Argentina, as e.g. "America/San_Luis" is too ambiguious.
+#
+Zone America/Cordoba	-4:16:48 -	LMT	1894 Oct 31
+			-4:16:48 -	CMT	1920 May
 			-4:00	-	ART	1930 Dec
 			-4:00	Arg	AR%sT	1969 Oct  5
-			-3:00	Arg	AR%sT	1990 Jul
-			-3:00	-	ART	1999 Oct  3 0:00
-			-4:00	Arg	AR%sT	2000 Mar  3 0:00
+			-3:00	Arg	AR%sT	1991 Mar  3
+			-4:00	-	WART	1991 Oct 20
+			-3:00	Arg	AR%sT	1999 Oct  3
+			-4:00	Arg	AR%sT	2000 Mar  3
 			-3:00	-	ART
 #
 # Jujuy (JY)
-Zone America/Jujuy	-4:21:12 -	LMT	1894 Nov
-			-4:16:44 -	CMT	1920 May
+Zone America/Jujuy	-4:21:12 -	LMT	1894 Oct 31
+			-4:16:48 -	CMT	1920 May
 			-4:00	-	ART	1930 Dec
 			-4:00	Arg	AR%sT	1969 Oct  5
-			-3:00	Arg	AR%sT	1991 Mar  3
+			-3:00	Arg	AR%sT	1990 Mar  4
+			-4:00	-	WART	1990 Oct 28
+			-4:00	1:00	WARST	1991 Mar 17
 			-4:00	-	WART	1991 Oct  6
-			-4:00	1:00	WARST	1992 Mar 15
-			-4:00	-	WART	1992 Oct 18
-			-3:00	-	ART	1999 Oct  3 0:00
-			-4:00	Arg	AR%sT	2000 Mar  3 0:00
+			-3:00	1:00	ARST	1992
+			-3:00	Arg	AR%sT	1999 Oct  3
+			-4:00	Arg	AR%sT	2000 Mar  3
 			-3:00	-	ART
 #
 # Catamarca (CT)
-Zone America/Catamarca	-4:23:08 -	LMT	1894 Nov
-			-4:16:44 -	CMT	1920 May
-			-4:00	-	ART	1930 Dec
-			-4:00	Arg	AR%sT	1969 Oct  5
-			-3:00	Arg	AR%sT	1990 Jul
-			-3:00	-	ART	1991 Jul
-			-3:00	Arg	AR%sT	1992 Jul
-			-3:00	-	ART	1999 Oct  3 0:00
-			-4:00	Arg	AR%sT	2000 Mar  3 0:00
-			-3:00	-	ART
-#
-# Mendoza (MZ)
-Zone America/Mendoza	-4:35:16 -	LMT	1894 Nov
-			-4:16:44 -	CMT	1920 May
+Zone America/Catamarca	-4:23:08 -	LMT	1894 Oct 31
+			-4:16:48 -	CMT	1920 May
 			-4:00	-	ART	1930 Dec
 			-4:00	Arg	AR%sT	1969 Oct  5
 			-3:00	Arg	AR%sT	1991 Mar  3
+			-4:00	-	WART	1991 Oct 20
+			-3:00	Arg	AR%sT	1999 Oct  3
+			-4:00	Arg	AR%sT	2000 Mar  3
+			-3:00	-	ART
+#
+# Mendoza (MZ)
+Zone America/Mendoza	-4:35:16 -	LMT	1894 Oct 31
+			-4:16:48 -	CMT	1920 May
+			-4:00	-	ART	1930 Dec
+			-4:00	Arg	AR%sT	1969 Oct  5
+			-3:00	Arg	AR%sT	1990 Mar  4
+			-4:00	-	WART	1990 Oct 15
+			-4:00	1:00	WARST	1991 Mar  1
 			-4:00	-	WART	1991 Oct 15
 			-4:00	1:00	WARST	1992 Mar  1
 			-4:00	-	WART	1992 Oct 18
-			-3:00	-	ART	1999 Oct  3 0:00
-			-4:00	Arg	AR%sT	2000 Mar  3 0:00
+			-3:00	Arg	AR%sT	1999 Oct  3
+			-4:00	Arg	AR%sT	2000 Mar  3
 			-3:00	-	ART
 
 # Aruba
@@ -729,12 +743,19 @@ Rule	Para	1996	only	-	Mar	 1	0:00	0	-
 # From Jesper Norgaard (2001-03-06) [an official URL saying similar things]:
 # http://gateway.abc.com.py:8000/pub/pag04.mbr/artic?FHA=2001-03-03-02.24.52.900592
 #
-Rule	Para	1996	max	-	Oct	Sun>=1	0:00	1:00	S
+Rule	Para	1996	2001	-	Oct	Sun>=1	0:00	1:00	S
 # IATA SSIM (1997-09) says Mar 1; go with Shanks.
 Rule	Para	1997	only	-	Feb	lastSun	0:00	0	-
 # Shanks says 1999-02-28; IATA SSIM (1999-02) says 1999-02-27, but
 # (1999-09) reports no date; go with above sources and Gerd Knops (2001-02-27).
-Rule	Para	1998	max	-	Mar	Sun>=1	0:00	0	-
+Rule	Para	1998	2001	-	Mar	Sun>=1	0:00	0	-
+# From Rives McDow (2002-02-28):
+# A decree was issued in Paraguay (no. 16350) on 2002-02-26 that changed the
+# dst method to be from the first Sunday in September to the first Sunday in
+# April.
+Rule	Para	2002	max	-	Apr	Sun>=1	0:00	0	-
+Rule	Para	2002	max	-	Sep	Sun>=1	0:00	1:00	S
+
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Asuncion	-3:50:40 -	LMT	1890
