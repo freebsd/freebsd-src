@@ -349,8 +349,11 @@ putdir(char *buf, long size)
 		i = DIRBLKSIZ - (loc & (DIRBLKSIZ - 1));
 		if ((dp->d_reclen & 0x3) != 0 ||
 		    dp->d_reclen > i ||
-		    dp->d_reclen < DIRSIZ(0, dp) ||
-		    dp->d_namlen > NAME_MAX) {
+		    dp->d_reclen < DIRSIZ(0, dp)
+#if NAME_MAX < 255
+		    || dp->d_namlen > NAME_MAX
+#endif
+		    ) {
 			vprintf(stdout, "Mangled directory: ");
 			if ((dp->d_reclen & 0x3) != 0)
 				vprintf(stdout,
@@ -359,10 +362,12 @@ putdir(char *buf, long size)
 				vprintf(stdout,
 				   "reclen less than DIRSIZ (%d < %d) ",
 				   dp->d_reclen, DIRSIZ(0, dp));
+#if NAME_MAX < 255
 			if (dp->d_namlen > NAME_MAX)
 				vprintf(stdout,
 				   "reclen name too big (%d > %d) ",
 				   dp->d_namlen, NAME_MAX);
+#endif
 			vprintf(stdout, "\n");
 			loc += i;
 			continue;
