@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.496
+    Original revision: 1.500
 -->
 
 <articleinfo>
@@ -128,6 +128,8 @@
       <literal>NODEVFS</literal> オプションは、
       指定可能なカーネル設定オプションから削除されています。</para>
 
+    <para>Linux エミュレーションモードが IPv6 に対応しました。</para>
+
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
     <para>SMP における性能向上が期待できる、
@@ -170,13 +172,21 @@
     <sect3>
       <title>ネットワークインターフェイスの対応状況</title>
 
-      <para>802.11 リンク層に対応した新しいモジュールが追加されました。
+      <para>cm ドライバが IPX に対応しました。
+        &merged;</para>
+
+      <para>802.11 リンク層に対応した wlan モジュールが新しく追加されました。
         この機能は現在、&man.wi.4; ドライバで利用できます。</para>
 
     </sect3>
 
     <sect3>
       <title>ネットワークプロトコル</title>
+
+      <para>同一のカーネルで
+        <literal>FAST_IPSEC</literal> と <literal>INET6</literal>
+        を同時に指定して構築することができるようになりました
+        (ただし、両方の機能を同時に使用することはまだできません)。</para>
 
       <para>NewReno を有効にしていると高速リカバリが途中で終了してしまうという、
         TCP NewReno のバグが修正されました。
@@ -204,6 +214,9 @@
 
       <para>&man.vinum.4; ボリュームにルートファイルシステムが置けるようになりました。
         詳しくは &man.vinum.4; のマニュアルページをご覧ください。</para>
+
+      <para arch="pc98">しばらく壊れたままだった
+        wfd ドライバと wst ドライバが削除されました。</para>
     </sect3>
 
     <sect3>
@@ -233,6 +246,17 @@
 
   <sect2 id="userland">
     <title>ユーザランドの変更点</title>
+
+    <para arch="alpha,i386"><filename>compat4x</filename>
+      配布物に、&os; 4.7-RELEASE に含まれる
+      <filename>libcrypto.so.2</filename>,
+      <filename>libgmp.so.3</filename>,
+      <filename>libssl.so.2</filename> ライブラリが追加されました。</para>
+
+    <para>&man.config.8; に、
+      カーネルコンフィグファイルの <literal>device</literal>
+      指示子の指定を無効にする <literal>nodevice</literal>
+      指示子が追加されました。</para>
 
     <para>&man.disklabel.8; から、
       <option>-N</option> フラグと <option>-W</option>
@@ -311,6 +335,16 @@
     <para>ユーザランドから &man.geom.4; サブシステムの一部へのアクセスを提供する
       &man.libgeom.3; ライブラリが追加されました。</para>
 
+    <para>&man.mount.nfs.8; に、UDP マウントポイントに対して
+      &man.connect.2; を行なわないようにする <option>-c</option>
+      オプションが追加されました。このオプションは、サーバが
+      標準の NFS ポート番号である 2049 からの要求に応答しない、
+      あるいはその要求に対してサーバが異なる IP アドレスを
+      使って応答する (サーバがマルチホーム構成の場合など) 時に使います。
+      <varname>vfs.nfs.nfs_ip_paranoia</varname> sysctl 変数を
+      <literal>0</literal> にすると、このオプションがデフォルト動作になります。
+      &merged;</para>
+
     <para>&man.newsyslog.8; に、エントリの圧縮処理の開始前に、
       前回開始した圧縮処理を強制終了させる
       <literal>W</literal> フラグ (エントリのグループの場合は
@@ -326,6 +360,9 @@
     <para>&man.ping.8; に、送出パケットの
       <quote>Don't Fragment</quote> ビットをセットする
       <option>-D</option> フラグが追加されました。</para>
+
+    <para>&man.ping.8; に、ICMP echo 要求の代わりに、ICMP マスク要求メッセージを使う
+       <option>-M</option> フラグが追加されました。</para>
 
     <para>&man.ping.8; に、送出パケットの
       Type of Service ビットをセットする
@@ -381,8 +418,14 @@
 	1.11.5 に更新されました。
         &merged;</para>
 
+      <para><application>FILE</application> がバージョン
+	3.40 に更新されました。</para>
+
       <para><application>GCC</application> が
         3.2.2 リリースに更新されました。</para>
+
+      <para><application>IPFilter</application> がバージョン
+	3.4.31 に更新されました。</para>
 
       <para><application>ISC DHCP</application> クライアントがバージョン
         3.0.1RC11 に更新されました。</para>
@@ -394,7 +437,7 @@
         がリリース <quote>Daffodil</quote> に更新されました。</para>
 
       <para><application>OpenSSL</application> がリリース
-        0.9.7 に更新されました。
+        0.9.7a に更新されました。
         このリリースには、AES と &man.crypto.4;
         デバイス対応が含まれています。</para>
 
