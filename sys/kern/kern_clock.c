@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.89 1999/03/08 12:35:58 phk Exp $
+ * $Id: kern_clock.c,v 1.90 1999/03/11 15:09:47 phk Exp $
  */
 
 #include "opt_ntp.h"
@@ -69,9 +69,6 @@
 #if defined(SMP) && defined(BETTER_CLOCK)
 #include <machine/smp.h>
 #endif
-
-/* This is where the NTIMECOUNTER option hangs out */
-#include "opt_ntp.h"
 
 /*
  * Number of timecounters used to implement stable storage
