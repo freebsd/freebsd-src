@@ -7,3 +7,5 @@
 # Uncomment next line to activate italian locale
 # LANG=it_IT.ISO_8859-1; export LANG
 # For full locales list check /usr/share/locale/*
+# Read system messages
+# msgs
