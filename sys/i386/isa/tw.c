@@ -481,7 +481,8 @@ int twwrite(dev, uio, ioflag)
    */
   s = spltty();
   cnt = MIN(3 - sc->sc_pktsize, uio->uio_resid);
-  if(error = uiomove(&(sc->sc_pkt[sc->sc_pktsize]), cnt, uio)) {
+  error = uiomove(&(sc->sc_pkt[sc->sc_pktsize]), cnt, uio);
+  if(error) {
     splx(s);
     return(error);
   }
@@ -509,7 +510,8 @@ int twwrite(dev, uio, ioflag)
    * originated locally.
    */
   while(sc->sc_state & (TWS_RCVING | TWS_XMITTING)) {
-    if(error = tsleep((caddr_t)sc, TWPRI|PCATCH, "twwrite", 0)) {
+    error = tsleep((caddr_t)sc, TWPRI|PCATCH, "twwrite", 0);
+    if(error) {
       splx(s);
       return(error);
     }
@@ -860,7 +862,8 @@ int cnt;
   while(cnt--) {
     while(sc->sc_nextin == sc->sc_nextout) {  /* Buffer empty */
       sc->sc_state |= TWS_WANT;
-      if(error = tsleep((caddr_t)(&sc->sc_buf), TWPRI|PCATCH, "twread", 0)) {
+      error = tsleep((caddr_t)(&sc->sc_buf), TWPRI|PCATCH, "twread", 0);
+      if(error) {
 	return(error);
       }
     }

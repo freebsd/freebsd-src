@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.40 1999/04/28 10:52:43 dt Exp $
+ * $Id: mse.c,v 1.41 1999/05/06 18:12:28 peter Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -357,8 +357,9 @@ mseread(dev, uio, ioflag)
 				return (0);
 			}
 			sc->sc_flags |= MSESC_WANT;
-			if (error = tsleep((caddr_t)sc, MSEPRI | PCATCH,
-				"mseread", 0)) {
+			error = tsleep((caddr_t)sc, MSEPRI | PCATCH,
+				"mseread", 0);
+			if (error) {
 				splx(s);
 				return (error);
 			}
@@ -391,7 +392,8 @@ mseread(dev, uio, ioflag)
 	}
 	splx(s);
 	xfer = min(uio->uio_resid, sc->mode.packetsize - sc->sc_bytesread);
-	if (error = uiomove(&sc->sc_bytes[sc->sc_bytesread], xfer, uio))
+	error = uiomove(&sc->sc_bytes[sc->sc_bytesread], xfer, uio);
+	if (error)
 		return (error);
 	sc->sc_bytesread += xfer;
 	return(0);

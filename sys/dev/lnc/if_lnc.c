@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.c,v 1.57 1999/04/18 01:49:16 paul Exp $
+ * $Id: if_lnc.c,v 1.58 1999/05/06 18:12:26 peter Exp $
  */
 
 /*
@@ -2032,7 +2032,7 @@ mbuf_dump_chain(struct mbuf * m)
 				    m->M_dat.MH.MH_dat.MH_ext.ext_size);
 			}
 		}
-	} while (m = m->m_next);
+	} while ((m = m->m_next) != NULL);
 }
 #endif
 
