@@ -1417,9 +1417,10 @@ done:
 		TAILQ_INSERT_HEAD(&mountlist, mp, mnt_list);
 		mtx_unlock(&mountlist_mtx);
 
-		/* sanity check system clock against root filesystem timestamp */
+		/* sanity check system clock against root fs timestamp */
 		inittodr(mp->mnt_time);
 		vfs_unbusy(mp, curthread);
+		error = VFS_START(mp, 0, curthread);
 	}
 	return(error);
 }
