@@ -1635,6 +1635,7 @@ static void dc_decode_leaf_sia(sc, l)
 	struct dc_mediainfo	*m;
 
 	m = malloc(sizeof(struct dc_mediainfo), M_DEVBUF, M_NOWAIT);
+	bzero(m, sizeof(struct dc_mediainfo));
 	if (l->dc_sia_code == DC_SIA_CODE_10BT)
 		m->dc_media = IFM_10_T;
 
@@ -1665,6 +1666,7 @@ static void dc_decode_leaf_sym(sc, l)
 	struct dc_mediainfo	*m;
 
 	m = malloc(sizeof(struct dc_mediainfo), M_DEVBUF, M_NOWAIT);
+	bzero(m, sizeof(struct dc_mediainfo));
 	if (l->dc_sym_code == DC_SYM_CODE_100BT)
 		m->dc_media = IFM_100_TX;
 
@@ -1690,6 +1692,7 @@ static void dc_decode_leaf_mii(sc, l)
 	struct dc_mediainfo	*m;
 
 	m = malloc(sizeof(struct dc_mediainfo), M_DEVBUF, M_NOWAIT);
+	bzero(m, sizeof(struct dc_mediainfo));
 	/* We abuse IFM_AUTO to represent MII. */
 	m->dc_media = IFM_AUTO;
 	m->dc_gp_len = l->dc_gpr_len;
