@@ -399,6 +399,8 @@ __END_DECLS
 #define	IP_DUMMYNET_FLUSH	62   /* flush dummynet */
 #define	IP_DUMMYNET_GET		64   /* get entire dummynet pipes */
 
+#define	IP_EVIL_INTENT		65   /* RFC3514 */
+
 /*
  * Defaults and limits for options
  */
