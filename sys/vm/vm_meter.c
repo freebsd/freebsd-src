@@ -114,7 +114,8 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 		case SSTOP:
 			kg = &p->p_ksegrp;	/* XXXKSE */
 			if (p->p_sflag & PS_INMEM) {
-				if (kg->kg_pri.pri_level <= PZERO)
+				if (FIRST_THREAD_IN_PROC(p)->td_priority
+				    <= PZERO)
 					totalp->t_dw++;
 				else if (kg->kg_slptime < maxslp)
 					totalp->t_sl++;

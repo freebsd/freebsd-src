@@ -485,6 +485,7 @@ int action;
 {
 	struct proc *p;
 	struct ksegrp *kg;
+	struct thread *td;
 	struct proc *outp, *outp2;
 	int outpri, outpri2;
 	int didswap = 0;
@@ -531,7 +532,7 @@ retry:
 			 * Check all the thread groups..
 			 */
 			FOREACH_KSEGRP_IN_PROC(p, kg) {
-				if (PRI_IS_REALTIME(kg->kg_pri.pri_class)) {
+				if (PRI_IS_REALTIME(kg->kg_pri_class)) {
 					mtx_unlock_spin(&sched_lock);
 					PROC_UNLOCK(p);
 					goto nextproc;
@@ -543,7 +544,7 @@ retry:
 				 * Also guarantee swap_idle_threshold1
 				 * time in memory.
 				 */
-				if (((kg->kg_pri.pri_level) < PSOCK) ||
+				if (((FIRST_THREAD_IN_PROC(p)->td_priority) < PSOCK) ||
 				    (kg->kg_slptime < swap_idle_threshold1)) {
 					mtx_unlock_spin(&sched_lock);
 					PROC_UNLOCK(p);
