@@ -43,7 +43,7 @@ cpu_critical_enter(void)
 
 	msr = mfmsr();
 	td->td_md.md_savecrit = msr;
-	msr &= ~(PSL_EE | PSL_RI);
+	msr &= ~PSL_EE;
 	mtmsr(msr);
 }
 
