@@ -2002,6 +2002,7 @@ device		isp		# Qlogic family
 device		ispfw		# Firmware for QLogic HBAs
 device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets)
+device		sym		# Tekram DC395U/UW/F and DC315U
 #
 # Options for ISP
 #
