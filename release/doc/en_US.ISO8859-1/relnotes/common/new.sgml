@@ -260,7 +260,7 @@
 
     <para>&man.killall.1; now supports a <option>-e</option> flag to
       make the <option>-u</option> operate on effective, rather than
-      real, user ids.</para>
+      real, user IDs.</para>
 
     <para>The default mode for the <filename>lost+found</filename>
       directory of &man.fsck.8; is now <literal>0700</literal> instead
@@ -312,16 +312,14 @@
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
-    <para><application>BIND</application> has been updated from 8.3.4
-      to 8.3.7.</para>
+    <para><application>BIND</application> has been updated from
+      version 8.3.4 to version 8.3.7.</para>
 
     <para><application>OpenSSL</application> has been updated from
-      0.9.7c to 0.9.7d.</para>
+      version 0.9.7c to version 0.9.7d.</para>
 
     <para><application>sendmail</application> has been updated
-      from version 8.12.9
-      to
-      version 8.12.11.</para>
+      from version 8.12.9 to version 8.12.11.</para>
 
   </sect2>
 
