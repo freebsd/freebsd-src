@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.19 1997/08/28 09:50:41 smp Exp smp $
+ *	$Id: exception.s,v 1.42 1997/08/29 18:16:17 fsmp Exp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -38,9 +38,9 @@
 #include <machine/ipl.h>			/* SWI_AST_MASK ... */
 #include <machine/psl.h>			/* PSL_I */
 #include <machine/trap.h>			/* trap codes */
-#include <machine/asmacros.h>			/* miscellaneous macros */
-#include <machine/param.h>
+#include <machine/asmacros.h>
 #include <machine/smptests.h>			/* INTR_SIMPLELOCK */
+#include <machine/lock.h>
 
 #ifndef SMP
 #undef INTR_SIMPLELOCK				/* simplifies cpp tests */

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: intr_machdep.c,v 1.1 1997/08/29 18:38:35 smp Exp smp $
+ *	$Id: intr_machdep.c,v 1.5 1997/08/29 18:45:19 fsmp Exp $
  */
 
 #include "opt_auto_eoi.h"
@@ -451,6 +451,7 @@ icu_setup(int intr, inthand2_t *handler, void *arg, u_int *maskptr, int flags)
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 #endif /* FAST_HI */
 	INTREN(1 << intr);
+	MPINTR_UNLOCK();
 	write_eflags(ef);
 	return (0);
 }
@@ -487,8 +488,15 @@ icu_unset(intr, handler)
 	intr_mptr[intr] = NULL;
 	intr_mask[intr] = HWI_MASK | SWI_MASK;
 	intr_unit[intr] = intr;
+#ifdef FAST_HI_XXX
+	/* XXX how do I re-create dvp here? */
+	setidt(flags & INTR_FAST ? TPR_FAST_INTS + intr : TPR_SLOW_INTS + intr,
+	    slowintr[intr], SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+#else /* FAST_HI */
 	setidt(ICU_OFFSET + intr, slowintr[intr], SDT_SYS386IGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
+#endif /* FAST_HI */
+	MPINTR_UNLOCK();
 	write_eflags(ef);
 	return (0);
 }
