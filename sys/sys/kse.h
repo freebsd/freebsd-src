@@ -106,9 +106,6 @@ struct kse_mailbox {
 /* Flags for kse_switchin */
 #define KSE_SWITCHIN_SETTMBX	0x01
 
-/* Flags for kse_switchin */
-#define KSE_SWITCHIN_SETTMBX	0x01
-
 /* Commands for kse_thr_interrupt */
 #define KSE_INTR_INTERRUPT	0x01
 #define KSE_INTR_RESTART	0x02
