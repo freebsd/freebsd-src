@@ -130,9 +130,9 @@ atm_output(ifp, m0, dst, rt0)
 		case AF_INET:
 		case AF_INET6:
 			if (dst->sa_family == AF_INET6)
-			        etype = htons(ETHERTYPE_IPV6);
+			        etype = ETHERTYPE_IPV6;
 			else
-			        etype = htons(ETHERTYPE_IP);
+			        etype = ETHERTYPE_IP;
 			if (!atmresolve(rt, m, dst, &atmdst)) {
 				m = NULL; 
 				/* XXX: atmresolve already free'd it */
@@ -180,7 +180,7 @@ atm_output(ifp, m0, dst, rt0)
 			        bcopy(ATMLLC_HDR, atmllc->llchdr, 
 				      sizeof(atmllc->llchdr));
 				ATM_LLC_SETTYPE(atmllc, etype); 
-					/* note: already in network order */
+					/* note: in host order */
 			}
 			else
 			        bcopy(llc_hdr, atmllc, sizeof(struct atmllc));

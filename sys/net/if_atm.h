@@ -93,8 +93,8 @@ struct atmllc {
 /* ATM_LLC macros: note type code in host byte order */
 #define ATM_LLC_TYPE(X) (((X)->type[0] << 8) | ((X)->type[1]))
 #define ATM_LLC_SETTYPE(X,V) { \
-	(X)->type[1] = ((V) >> 8) & 0xff; \
-	(X)->type[0] = ((V) & 0xff); \
+	(X)->type[0] = ((V) >> 8) & 0xff; \
+	(X)->type[1] = ((V) & 0xff); \
 }
 
 #ifdef _KERNEL
