@@ -712,7 +712,7 @@ atapi_cmd2str(u_int8_t cmd)
     case 0xbe: return ("READ_CD");
     case 0xff: return ("POLL_DSC");
     default: {
-	static char buffer[16];
+	static char buffer[20];
 	sprintf(buffer, "unknown CMD (0x%02x)", cmd);
 	return buffer;
 	}
