@@ -2925,6 +2925,11 @@ options 	NBUF=512	# Number of buffer headers
 
 options 	NMBCLUSTERS=1024	# Number of mbuf clusters
 
+# Set the size of the TCB hash, where information about active connections
+# is stored.  This must be a power of two, and should be set to something
+# comfortably larger than the expected number of concurrent TCP connections.
+options 	TCBHASHSIZE=4096
+
 options 	PSM_DEBUG=1
 
 options 	SCSI_NCR_DEBUG
