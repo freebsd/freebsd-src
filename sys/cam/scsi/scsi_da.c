@@ -987,6 +987,13 @@ dacleanup(struct cam_periph *periph)
 
 	xpt_print_path(periph->path);
 	printf("removing device entry\n");
+	/*
+	 * If we can't free the sysctl tree, oh well...
+	 */
+	if (sysctl_ctx_free(&softc->sysctl_ctx) != 0) {
+		xpt_print_path(periph->path);
+		printf("can't remove sysctl context\n");
+	}
 	disk_destroy(&softc->disk);
 	free(softc, M_DEVBUF);
 }
@@ -1142,6 +1149,7 @@ daregister(struct cam_periph *periph, void *arg)
 
 	snprintf(tmpstr, sizeof(tmpstr), "CAM DA unit %d", periph->unit_number);
 	snprintf(tmpstr2, sizeof(tmpstr2), "%d", periph->unit_number);
+	sysctl_ctx_init(&softc->sysctl_ctx);
 	softc->sysctl_tree = SYSCTL_ADD_NODE(&softc->sysctl_ctx,
 		SYSCTL_STATIC_CHILDREN(_kern_cam_da), OID_AUTO, tmpstr2,
 		CTLFLAG_RD, 0, tmpstr);
