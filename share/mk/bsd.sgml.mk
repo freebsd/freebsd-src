@@ -1,7 +1,7 @@
 #       bsd.sgml.mk - 8 Sep 1995 John Fieber
 #       This file is in the public domain.
 #
-#	$Id: bsd.sgml.mk,v 1.24 1998/05/06 18:44:04 bde Exp $
+#	$Id: bsd.sgml.mk,v 1.25 1998/05/18 16:57:10 wosch Exp $
 #
 # The include file <bsd.sgml.mk> handles installing sgml documents.
 #
@@ -51,8 +51,11 @@
 #
 
 
+.if !target(__initialized__)
+__initialized__:
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
+.endif
 .endif
 
 # FORMATS indicates which output formats will be generated.  See

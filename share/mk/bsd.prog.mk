@@ -1,8 +1,11 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.74 1998/05/15 09:34:48 bde Exp $
+#	$Id: bsd.prog.mk,v 1.75 1998/06/05 18:38:54 dt Exp $
 
+.if !target(__initialized__)
+__initialized__:
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
+.endif
 .endif
 
 # Default executable format
