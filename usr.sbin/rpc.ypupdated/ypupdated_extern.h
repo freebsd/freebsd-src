@@ -1,4 +1,7 @@
-/*	$FreeBSD$ */
+/*
+ * $FreeBSD$
+ */
+
 #include <db.h>
 
 #define	YPOP_CHANGE 1			/* change, do not add */
