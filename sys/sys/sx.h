@@ -35,12 +35,14 @@
 #include <sys/condvar.h>
 
 struct sx {
-	struct mtx	sx_lock;	/* General protection lock and xlock. */
+	struct mtx	sx_lock;	/* General protection lock. */
+	const char	*sx_descr;	/* sx lock description. */
 	int		sx_cnt;		/* -1: xlock, > 0: slock count. */
 	struct cv	sx_shrd_cv;	/* slock waiters. */
 	int		sx_shrd_wcnt;	/* Number of slock waiters. */
 	struct cv	sx_excl_cv;	/* xlock waiters. */
 	int		sx_excl_wcnt;	/* Number of xlock waiters. */
+	struct proc	*sx_xholder;	/* Thread presently holding xlock. */
 };
 
 #ifdef _KERNEL
@@ -58,20 +60,22 @@ void	sx_xunlock(struct sx *sx);
  */
 #define	SX_ASSERT_SLOCKED(sx) do {					\
 	mtx_lock(&(sx)->sx_lock);					\
-	KASSERT(((sx)->sx_cnt > 0), ("%s: lacking slock\n",		\
-	    __FUNCTION__));						\
+	KASSERT(((sx)->sx_cnt > 0), ("%s: lacking slock %s\n",		\
+	    __FUNCTION__, (sx)->sx_descr));				\
 	mtx_unlock(&(sx)->sx_lock);					\
 } while (0)
+
 /*
- * SX_ASSERT_XLOCKED() can only detect that at least *some* thread owns an
- * xlock, but it cannot guarantee that *this* thread owns an xlock.
+ * SX_ASSERT_XLOCKED() detects and guarantees that *we* own the xlock.
  */
 #define	SX_ASSERT_XLOCKED(sx) do {					\
 	mtx_lock(&(sx)->sx_lock);					\
-	KASSERT(((sx)->sx_cnt == -1), ("%s: lacking xlock\n",		\
-	    __FUNCTION__));						\
+	KASSERT(((sx)->sx_xholder == curproc),				\
+	    ("%s: thread %p lacking xlock %s\n", __FUNCTION__,		\
+	    (sx)->sx_descr, curproc));					\
 	mtx_unlock(&(sx)->sx_lock);					\
 } while (0)
+
 #else	/* INVARIANTS */
 #define	SX_ASSERT_SLOCKED(sx)
 #define	SX_ASSERT_XLOCKER(sx)
