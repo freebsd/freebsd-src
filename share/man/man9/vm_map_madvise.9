@@ -26,7 +26,7 @@
 .\" $FreeBSD$
 .\"
 .Dd July 19, 2003
-.Dt vm_map_madvise 9
+.Dt VM_MAP_MADVISE 9
 .Sh NAME
 .Nm vm_map_madvise
 .Nd apply advice about use of memory to map entries
@@ -35,7 +35,9 @@
 .In vm/vm.h
 .In vm/vm_map.h
 .Ft int
-.Fn vm_map_madvise "vm_map_t map" "vm_offset_t start" "vm_offset_t end" "int behav"
+.Fo vm_map_madvise
+.Fa "vm_map_t map" "vm_offset_t start" "vm_offset_t end" "int behav"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn vm_map_madvise
@@ -49,13 +51,13 @@ and
 .Fa end .
 .Pp
 Advisories are classified as either those affecting the
-.Dv vm_map_entry
+.Vt vm_map_entry
 structure, or those affecting the underlying objects.
 .Pp
 The
 .Fn vm_map_madvise
 function is used by the
-.Fn madvise
+.Xr madvise 2
 system call.
 .Sh RETURN VALUES
 The
