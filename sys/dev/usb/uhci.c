@@ -97,7 +97,7 @@ struct cfdriver uhci_cd = {
 };
 #endif
 
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 uhci_softc_t *thesc;
 #define DPRINTF(x)	if (uhcidebug) printf x
 #define DPRINTFN(n,x)	if (uhcidebug>(n)) printf x
@@ -265,7 +265,7 @@ Static void		uhci_noop(usbd_pipe_handle pipe);
 Static __inline__ uhci_soft_qh_t *uhci_find_prev_qh(uhci_soft_qh_t *,
 						    uhci_soft_qh_t *);
 
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 Static void		uhci_dump_all(uhci_softc_t *);
 Static void		uhci_dumpregs(uhci_softc_t *);
 Static void		uhci_dump_qhs(uhci_soft_qh_t *);
@@ -372,7 +372,7 @@ uhci_find_prev_qh(uhci_soft_qh_t *pqh, uhci_soft_qh_t *sqh)
 	DPRINTFN(15,("uhci_find_prev_qh: pqh=%p sqh=%p\n", pqh, sqh));
 
 	for (; pqh->hlink != sqh; pqh = pqh->hlink) {
-#if defined(DIAGNOSTIC) || defined(UHCI_DEBUG)
+#if defined(DIAGNOSTIC) || defined(USB_DEBUG)
 		if (le32toh(pqh->qh.qh_hlink) & UHCI_PTR_T) {
 			printf("uhci_find_prev_qh: QH not found\n");
 			return (NULL);
@@ -400,7 +400,7 @@ uhci_init(uhci_softc_t *sc)
 
 	DPRINTFN(1,("uhci_init: start\n"));
 
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 	thesc = sc;
 
 	if (uhcidebug > 2)
@@ -676,7 +676,7 @@ uhci_power(int why, void *v)
 		 sc, why, sc->sc_suspend, cmd));
 
 	if (why != PWR_RESUME) {
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 		if (uhcidebug > 2)
 			uhci_dumpregs(sc);
 #endif
@@ -723,7 +723,7 @@ uhci_power(int why, void *v)
 		if (sc->sc_intr_xfer != NULL)
 			usb_callout(sc->sc_poll_handle, sc->sc_ival,
 				    uhci_poll_hub, sc->sc_intr_xfer);
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 		if (uhcidebug > 2)
 			uhci_dumpregs(sc);
 #endif
@@ -731,7 +731,7 @@ uhci_power(int why, void *v)
 	splx(s);
 }
 
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 Static void
 uhci_dumpregs(uhci_softc_t *sc)
 {
@@ -974,7 +974,7 @@ uhci_root_ctrl_done(usbd_xfer_handle xfer)
  */
 void
 uhci_add_loop(uhci_softc_t *sc) {
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 	if (uhcinoloop)
 		return;
 #endif
@@ -988,7 +988,7 @@ uhci_add_loop(uhci_softc_t *sc) {
 
 void
 uhci_rem_loop(uhci_softc_t *sc) {
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 	if (uhcinoloop)
 		return;
 #endif
@@ -1174,7 +1174,7 @@ uhci_intr1(uhci_softc_t *sc)
 		return(0);
 	}
 
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 	if (uhcidebug > 15) {
 		DPRINTF(("%s: uhci_intr1\n", USBDEVNAME(sc->sc_bus.bdev)));
 		uhci_dumpregs(sc);
@@ -1203,7 +1203,7 @@ uhci_intr1(uhci_softc_t *sc)
 		ack |= UHCI_STS_USBEI;
 	if (status & UHCI_STS_RD) {
 		ack |= UHCI_STS_RD;
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 		printf("%s: resume detect\n", USBDEVNAME(sc->sc_bus.bdev));
 #endif
 	}
@@ -1221,7 +1221,7 @@ uhci_intr1(uhci_softc_t *sc)
 		if (!sc->sc_dying) {
 			printf("%s: host controller halted\n",
 			    USBDEVNAME(sc->sc_bus.bdev));
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 			uhci_dump_all(sc);
 #endif
 		}
@@ -1349,7 +1349,7 @@ uhci_idone(uhci_intr_info_t *ii)
 		int s = splhigh();
 		if (ii->isdone) {
 			splx(s);
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 			printf("uhci_idone: ii is done!\n   ");
 			uhci_dump_ii(ii);
 #else
@@ -1374,7 +1374,7 @@ uhci_idone(uhci_intr_info_t *ii)
 		n = UXFER(xfer)->curframe;
 		for (i = 0; i < nframes; i++) {
 			std = stds[n];
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 			if (uhcidebug > 5) {
 				DPRINTFN(-1,("uhci_idone: isoc TD %d\n", i));
 				uhci_dump_td(std);
@@ -1393,7 +1393,7 @@ uhci_idone(uhci_intr_info_t *ii)
 		goto end;
 	}
 
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 	DPRINTFN(10, ("uhci_idone: ii=%p, xfer=%p, pipe=%p ready\n",
 		      ii, xfer, upipe));
 	if (uhcidebug > 10)
@@ -1421,7 +1421,7 @@ uhci_idone(uhci_intr_info_t *ii)
 		      actlen, status));
 	xfer->actlen = actlen;
 	if (status != 0) {
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 		char sbuf[128];
 
 		bitmask_snprintf((u_int32_t)status,
@@ -1819,7 +1819,7 @@ uhci_device_bulk_start(usbd_xfer_handle xfer)
 		return (err);
 	dataend->td.td_status |= htole32(UHCI_TD_IOC);
 
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 	if (uhcidebug > 8) {
 		DPRINTF(("uhci_device_bulk_transfer: data(1)\n"));
 		uhci_dump_tds(data);
@@ -1851,7 +1851,7 @@ uhci_device_bulk_start(usbd_xfer_handle xfer)
 	xfer->status = USBD_IN_PROGRESS;
 	splx(s);
 
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 	if (uhcidebug > 10) {
 		DPRINTF(("uhci_device_bulk_transfer: data(2)\n"));
 		uhci_dump_tds(data);
@@ -2041,7 +2041,7 @@ uhci_device_intr_start(usbd_xfer_handle xfer)
 		return (err);
 	dataend->td.td_status |= htole32(UHCI_TD_IOC);
 
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 	if (uhcidebug > 10) {
 		DPRINTF(("uhci_device_intr_transfer: data(1)\n"));
 		uhci_dump_tds(data);
@@ -2072,7 +2072,7 @@ uhci_device_intr_start(usbd_xfer_handle xfer)
 	xfer->status = USBD_IN_PROGRESS;
 	splx(s);
 
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 	if (uhcidebug > 10) {
 		DPRINTF(("uhci_device_intr_transfer: data(2)\n"));
 		uhci_dump_tds(data);
@@ -2203,7 +2203,7 @@ uhci_device_request(usbd_xfer_handle xfer)
 		                 UHCI_TD_IN (0, endpt, addr, 1));
 	stat->td.td_buffer = htole32(0);
 
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 	if (uhcidebug > 10) {
 		DPRINTF(("uhci_device_request: before transfer\n"));
 		uhci_dump_tds(setup);
@@ -2230,7 +2230,7 @@ uhci_device_request(usbd_xfer_handle xfer)
 	else
 		uhci_add_hs_ctrl(sc, sqh);
 	uhci_add_intr_info(sc, ii);
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 	if (uhcidebug > 12) {
 		uhci_soft_td_t *std;
 		uhci_soft_qh_t *xqh;
@@ -2349,7 +2349,7 @@ uhci_device_isoc_enter(usbd_xfer_handle xfer)
 		std->td.td_status = htole32(status);
 		std->td.td_token &= htole32(~UHCI_TD_MAXLEN_MASK);
 		std->td.td_token |= htole32(UHCI_TD_SET_MAXLEN(len));
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 		if (uhcidebug > 5) {
 			DPRINTFN(5,("uhci_device_isoc_enter: TD %d\n", i));
 			uhci_dump_td(std);
@@ -2578,7 +2578,7 @@ uhci_device_isoc_done(usbd_xfer_handle xfer)
 
         if (ii->stdend == NULL) {
                 printf("uhci_device_isoc_done: xfer=%p stdend==NULL\n", xfer);
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 		uhci_dump_ii(ii);
 #endif
 		return;
@@ -2593,7 +2593,7 @@ uhci_device_isoc_done(usbd_xfer_handle xfer)
 #ifdef DIAGNOSTIC
         if (ii->stdend == NULL) {
                 printf("uhci_device_isoc_done: xfer=%p stdend==NULL\n", xfer);
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 		uhci_dump_ii(ii);
 #endif
 		return;
@@ -2631,7 +2631,7 @@ uhci_device_intr_done(usbd_xfer_handle xfer)
 				     &xfer->dmabuf, &data, &dataend);
 		dataend->td.td_status |= htole32(UHCI_TD_IOC);
 
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 		if (uhcidebug > 10) {
 			DPRINTF(("uhci_device_intr_done: data(1)\n"));
 			uhci_dump_tds(data);

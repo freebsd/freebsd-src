@@ -104,10 +104,10 @@
 #include <dev/usb/udbp.h>
 #include <netgraph/netgraph.h>
 
-#ifdef UDBP_DEBUG
+#ifdef USB_DEBUG
 #define DPRINTF(x)	if (udbpdebug) logprintf x
 #define DPRINTFN(n,x)	if (udbpdebug>(n)) logprintf x
-int	udbpdebug = 9;
+int	udbpdebug = 0;
 SYSCTL_INT(_debug_usb, OID_AUTO, udbp, CTLFLAG_RW,
 	   &udbpdebug, 0, "udbp debug level");
 #else

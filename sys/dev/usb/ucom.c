@@ -100,8 +100,8 @@
 
 #include <dev/usb/ucomvar.h>
 
-#ifdef UCOM_DEBUG
-static int	ucomdebug = 1;
+#ifdef USB_DEBUG
+static int	ucomdebug = 0;
 SYSCTL_INT(_debug_usb, OID_AUTO, ucom, CTLFLAG_RW,
 	   &ucomdebug, 0, "ucom debug level");
 #define DPRINTF(x)	do { \

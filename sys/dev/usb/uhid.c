@@ -83,7 +83,7 @@
 /* Report descriptor for broken Wacom Graphire */
 #include <dev/usb/ugraphire_rdesc.h>
 
-#ifdef UHID_DEBUG
+#ifdef USB_DEBUG
 #define DPRINTF(x)	if (uhiddebug) logprintf x
 #define DPRINTFN(n,x)	if (uhiddebug>(n)) logprintf x
 int	uhiddebug = 0;
@@ -356,7 +356,7 @@ uhid_intr(usbd_xfer_handle xfer, usbd_private_handle addr, usbd_status status)
 {
 	struct uhid_softc *sc = addr;
 
-#ifdef UHID_DEBUG
+#ifdef USB_DEBUG
 	if (uhiddebug > 5) {
 		u_int32_t cc, i;
 		
