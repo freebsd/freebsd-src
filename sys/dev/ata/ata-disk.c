@@ -957,8 +957,11 @@ ad_print(struct ad_softc *adp, char *prepend)
 	if (prepend) printf("%s", prepend);
 	ata_printf(adp->controller, adp->unit,
 		   "%lluMB (%llu sectors), %llu C, %u H, %u S, %u B\n",
-		   adp->total_secs / ((1024L*1024L)/DEV_BSIZE), adp->total_secs,
-		   adp->total_secs / (adp->heads * adp->sectors),
+		   (unsigned long long)(adp->total_secs /
+		   ((1024L*1024L)/DEV_BSIZE)),
+		   (unsigned long long) adp->total_secs,
+		   (unsigned long long) (adp->total_secs /
+		    (adp->heads * adp->sectors)),
 		   adp->heads, adp->sectors, DEV_BSIZE);
 
 	if (prepend) printf("%s", prepend);
@@ -978,8 +981,11 @@ ad_print(struct ad_softc *adp, char *prepend)
     else
 	ata_printf(adp->controller, adp->unit,
 		   "%lluMB <%.40s> [%lld/%d/%d] at ata%d-%s %s%s\n",
-		   adp->total_secs / ((1024L * 1024L) / DEV_BSIZE),
-		   AD_PARAM->model, adp->total_secs / (adp->heads*adp->sectors),
+		   (unsigned long long)(adp->total_secs /
+		   ((1024L * 1024L) / DEV_BSIZE)),
+		   AD_PARAM->model,
+		   (unsigned long long)(adp->total_secs /
+		    (adp->heads*adp->sectors)),
 		   adp->heads, adp->sectors,
 		   device_get_unit(adp->controller->dev),
 		   (adp->unit == ATA_MASTER) ? "master" : "slave",
