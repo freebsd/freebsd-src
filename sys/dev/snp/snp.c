@@ -19,6 +19,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/fcntl.h>
 #include <sys/filio.h>
 #include <sys/malloc.h>
 #include <sys/tty.h>
@@ -28,7 +29,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/queue.h>
 #include <sys/snoop.h>
-#include <sys/vnode.h>
+#include <sys/uio.h>
 
 static	l_close_t	snplclose;
 static	l_write_t	snplwrite;
@@ -275,7 +276,7 @@ snpread(dev, uio, flag)
 
 	do {
 		if (snp->snp_len == 0) {
-			if (flag & IO_NDELAY)
+			if (flag & O_NONBLOCK)
 				return (EWOULDBLOCK);
 			snp->snp_flags |= SNOOP_RWAIT;
 			error = tsleep(snp, (PZERO + 1) | PCATCH,
