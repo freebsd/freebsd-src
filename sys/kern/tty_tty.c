@@ -31,13 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_tty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_tty.c,v 1.16 1997/03/24 11:24:38 bde Exp $
+ * $Id: tty_tty.c,v 1.17 1997/09/02 20:05:56 bde Exp $
  */
 
 /*
  * Indirect driver for controlling tty.
  */
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/proc.h>
 #include <sys/tty.h>
@@ -52,14 +53,14 @@ static	d_open_t	cttyopen;
 static	d_read_t	cttyread;
 static	d_write_t	cttywrite;
 static	d_ioctl_t	cttyioctl;
-static	d_select_t	cttyselect;
+static	d_poll_t	cttypoll;
 
 #define CDEV_MAJOR 1
 /* Don't make static, fdesc_vnops uses this. */
 struct cdevsw ctty_cdevsw = 
 	{ cttyopen,	nullclose,	cttyread,	cttywrite,	/*1*/
 	  cttyioctl,	nullstop,	nullreset,	nodevtotty,/* tty */
-	  cttyselect,	nommap,		NULL,	"ctty",	NULL,	-1 };
+	  cttypoll,	nommap,		NULL,	"ctty",	NULL,	-1 };
 
 
 #define cttyvp(p) ((p)->p_flag & P_CONTROLT ? (p)->p_session->s_ttyvp : NULL)
@@ -160,16 +161,17 @@ cttyioctl(dev, cmd, addr, flag, p)
 
 /*ARGSUSED*/
 static	int
-cttyselect(dev, flag, p)
+cttypoll(dev, events, p)
 	dev_t dev;
-	int flag;
+	int events;
 	struct proc *p;
 {
 	struct vnode *ttyvp = cttyvp(p);
 
 	if (ttyvp == NULL)
-		return (1);	/* try operation to get EOF/failure */
-	return (VOP_SELECT(ttyvp, flag, FREAD|FWRITE, NOCRED, p));
+		/* try operation to get EOF/failure */
+		return (seltrue(dev, events, p));
+	return (VOP_POLL(ttyvp, events, p->p_ucred, p));
 }
 
 static ctty_devsw_installed = 0;
