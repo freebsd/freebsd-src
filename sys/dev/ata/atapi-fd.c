@@ -211,8 +211,8 @@ afd_describe(struct afd_softc *fdp)
 	}
     }
     else {
-	ata_prtdev(fdp->device, "REMOVABLE <%.40s> at ata%d-%s %s\n",
-		   fdp->device->param->model,
+	ata_prtdev(fdp->device, "REMOVABLE <%.40s/%.8s> at ata%d-%s %s\n",
+		   fdp->device->param->model, fdp->device->param->revision,
 		   device_get_unit(fdp->device->channel->dev),
 		   (fdp->device->unit == ATA_MASTER) ? "master" : "slave",
 		   ata_mode2str(fdp->device->mode));

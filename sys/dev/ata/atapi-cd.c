@@ -454,7 +454,8 @@ acd_describe(struct acd_softc *cdp)
 		       (cdp->cap.media & MST_READ_DVDROM) ? "DVDROM" : "CDROM");
 	if (cdp->changer_info)
 	    printf("with %d CD changer ", cdp->changer_info->slots);
-	printf("<%.40s> at ata%d-%s %s\n", cdp->device->param->model,
+	printf("<%.40s/%.8s> at ata%d-%s %s\n",
+	       cdp->device->param->model, cdp->device->param->revision,
 	       device_get_unit(cdp->device->channel->dev),
 	       (cdp->device->unit == ATA_MASTER) ? "master" : "slave",
 	       ata_mode2str(cdp->device->mode) );
