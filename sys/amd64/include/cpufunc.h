@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.77 1998/05/11 02:13:47 dyson Exp $
+ *	$Id: cpufunc.h,v 1.78 1998/05/12 18:28:05 dyson Exp $
  */
 
 /*
@@ -225,6 +225,20 @@ cpu_invlpg(void *addr)
 	__asm   __volatile("invlpg %0"::"m"(*(char *)addr):"memory");
 }
 
+static __inline void
+cpu_invltlb(void)
+{
+	u_long	temp;
+	/*
+	 * This should be implemented as load_cr3(rcr3()) when load_cr3()
+	 * is inlined.
+	 */
+	__asm __volatile("movl %%cr3, %0; movl %0, %%cr3" : "=r" (temp)
+			 : : "memory");
+#if defined(SWTCH_OPTIM_STATS)
+	++tlb_flush_count;
+#endif
+}
 #else  /* !SMP */
 
 static __inline void

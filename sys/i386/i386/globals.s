@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: globals.s,v 1.1 1998/04/06 15:39:09 peter Exp $
+ * $Id: globals.s,v 1.2 1998/04/06 18:59:14 peter Exp $
  */
 
 #include "opt_vm86.h"
@@ -43,7 +43,7 @@
 	.set	_SMP_prvstart,(MPPTDI << PDRSHIFT)
 
 	.globl	globaldata,_SMP_prvpt,_lapic,_SMP_ioapic
-	.globl	_prv_CPAGE1,_prv_CPAGE2,_prv_CPAGE3
+	.globl	_prv_CPAGE1,_prv_CPAGE2,_prv_CPAGE3,_prv_PPAGE1
 	.globl	_idlestack,_idlestack_top
 
 	.set	globaldata,_SMP_prvstart + PS_GLOBALDATA
@@ -54,6 +54,7 @@
 	.set	_prv_CPAGE1,_SMP_prvstart + PS_CPAGE1
 	.set	_prv_CPAGE2,_SMP_prvstart + PS_CPAGE2
 	.set	_prv_CPAGE3,_SMP_prvstart + PS_CPAGE3
+	.set	_prv_PPAGE1,_SMP_prvstart + PS_PPAGE1
 	.set	_SMP_ioapic,_SMP_prvstart + PS_IOAPICS
 #endif
 
@@ -86,7 +87,7 @@ globaldata:
 	 * the AP versions are setup in mp_machdep.c.
 	 */
 	.globl	_cpuid,_cpu_lockid,_other_cpus,_my_idlePTD,_ss_tpr
-	.globl	_prv_CMAP1,_prv_CMAP2,_prv_CMAP3
+	.globl	_prv_CMAP1,_prv_CMAP2,_prv_CMAP3,_prv_PMAP1
 	.globl	_inside_intr
 
 	.set	_cpuid,globaldata + GD_CPUID
@@ -97,6 +98,7 @@ globaldata:
 	.set	_prv_CMAP1,globaldata + GD_PRV_CMAP1
 	.set	_prv_CMAP2,globaldata + GD_PRV_CMAP2
 	.set	_prv_CMAP3,globaldata + GD_PRV_CMAP3
+	.set	_prv_PMAP1,globaldata + GD_PRV_PMAP1
 	.set	_inside_intr,globaldata + GD_INSIDE_INTR
 #endif
 

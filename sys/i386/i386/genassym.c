@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.53 1998/04/06 15:40:10 peter Exp $
+ *	$Id: genassym.c,v 1.54 1998/04/06 18:59:14 peter Exp $
  */
 
 #include "opt_vm86.h"
@@ -219,6 +219,7 @@ main()
 	printf("#define\tGD_PRV_CMAP1 %d\n", &globaldata->prv_CMAP1);
 	printf("#define\tGD_PRV_CMAP2 %d\n", &globaldata->prv_CMAP2);
 	printf("#define\tGD_PRV_CMAP3 %d\n", &globaldata->prv_CMAP3);
+	printf("#define\tGD_PRV_PMAP1 %d\n", &globaldata->prv_PMAP1);
 	printf("#define\tGD_INSIDE_INTR %d\n", &globaldata->inside_intr);
 	printf("#define\tPS_GLOBALDATA 0x%x\n", &privatespace->globaldata);
 	printf("#define\tPS_PRVPT 0x%x\n", &privatespace->prvpt);
@@ -228,6 +229,7 @@ main()
 	printf("#define\tPS_CPAGE1 0x%x\n", &privatespace->CPAGE1);
 	printf("#define\tPS_CPAGE2 0x%x\n", &privatespace->CPAGE2);
 	printf("#define\tPS_CPAGE3 0x%x\n", &privatespace->CPAGE3);
+	printf("#define\tPS_PPAGE1 0x%x\n", &privatespace->PPAGE1);
 	printf("#define\tPS_IOAPICS 0x%x\n", &privatespace->ioapics);
 #endif
 
