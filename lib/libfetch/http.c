@@ -600,6 +600,23 @@ _http_authorize(int fd, char *hdr, char *p)
  */
 
 /*
+ * Return the default port for this scheme
+ */
+static int
+_http_default_port(char *scheme)
+{
+    struct servent *se;
+
+    if ((se = getservbyname(scheme, "tcp")) != NULL)
+	return ntohs(se->s_port);
+    if (strcasecmp(scheme, "ftp") == 0)
+	return FTP_DEFAULT_PORT;
+    if (strcasecmp(scheme, "http") == 0)
+	return HTTP_DEFAULT_PORT;
+    return 0;
+}
+
+/*
  * Connect to the specified HTTP proxy server.
  */
 static int
@@ -715,21 +732,8 @@ _http_connect(struct url *URL, int *proxy, char *flags)
 	af = AF_INET6;
     
     /* check port */
-    if (!URL->port) {
-	struct servent *se;
-
-	/* Scheme can be ftp if we're using a proxy */
-	if (strcasecmp(URL->scheme, "ftp") == 0)
-	    if ((se = getservbyname("ftp", "tcp")) != NULL)
-		URL->port = ntohs(se->s_port);
-	    else
-		URL->port = 21;
-	else
-	    if ((se = getservbyname("http", "tcp")) != NULL)
-		URL->port = ntohs(se->s_port);
-	    else
-		URL->port = 80;
-    }
+    if (!URL->port)
+	URL->port = _http_default_port(URL->scheme);
     
     if (!direct && (p = getenv("HTTP_PROXY")) != NULL && *p != '\0') {
 	/* attempt to connect to proxy server */
@@ -840,7 +844,10 @@ _http_request(struct url *URL, char *op, struct url_stat *us, char *flags)
 	}
 
 	/* other headers */
-	_http_cmd(fd, "Host: %s:%d", host, url->port);
+	if (url->port == _http_default_port(url->scheme))
+	    _http_cmd(fd, "Host: %s", host);
+	else
+	    _http_cmd(fd, "Host: %s:%d", host, url->port);
 	_http_cmd(fd, "User-Agent: %s " _LIBFETCH_VER, __progname);
 	if (url->offset)
 	    _http_cmd(fd, "Range: bytes=%lld-", url->offset);
