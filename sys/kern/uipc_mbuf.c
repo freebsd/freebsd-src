@@ -71,6 +71,7 @@ u_long	m_clalloc_wid = 0;
 struct mbffree_lst mmbfree;
 struct mclfree_lst mclfree;
 struct mcntfree_lst mcntfree;
+struct mtx	mbuf_mtx;
 
 /*
  * sysctl(8) exported objects
@@ -135,9 +136,7 @@ mbinit(void *dummy)
 	mmbfree.m_head = NULL;
 	mclfree.m_head = NULL;
 	mcntfree.m_head = NULL;
-	mtx_init(&mmbfree.m_mtx, "mbuf free list lock", MTX_DEF);
-	mtx_init(&mclfree.m_mtx, "mcluster free list lock", MTX_DEF);
-	mtx_init(&mcntfree.m_mtx, "m_ext counter free list lock", MTX_DEF);
+	mtx_init(&mbuf_mtx, "mbuf free list lock", MTX_DEF);
  
 	/*
 	 * Initialize mbuf subsystem (sysctl exported) statistics structure.
@@ -151,20 +150,14 @@ mbinit(void *dummy)
 	/*
 	 * Perform some initial allocations.
 	 */
-	mtx_lock(&mcntfree.m_mtx);
+	mtx_lock(&mbuf_mtx);
 	if (m_alloc_ref(REF_INIT, M_DONTWAIT) == 0)
 		goto bad;
-	mtx_unlock(&mcntfree.m_mtx);
-
-	mtx_lock(&mmbfree.m_mtx);
 	if (m_mballoc(NMB_INIT, M_DONTWAIT) == 0)
 		goto bad;
-	mtx_unlock(&mmbfree.m_mtx);
-
-	mtx_lock(&mclfree.m_mtx);
 	if (m_clalloc(NCL_INIT, M_DONTWAIT) == 0)
 		goto bad;
-	mtx_unlock(&mclfree.m_mtx);
+	mtx_unlock(&mbuf_mtx);
 
 	return;
 bad:
@@ -201,10 +194,12 @@ m_alloc_ref(u_int nmb, int how)
 	 */
 
 	nbytes = round_page(nmb * sizeof(union mext_refcnt));
-	mtx_unlock(&mcntfree.m_mtx);
+	if (1 /* XXX: how == M_TRYWAIT */)
+		mtx_unlock(&mbuf_mtx);
 	if ((p = (caddr_t)kmem_malloc(mb_map, nbytes, how == M_TRYWAIT ?
 	    M_WAITOK : M_NOWAIT)) == NULL) {
-		mtx_lock(&mcntfree.m_mtx);
+		if (1 /* XXX: how == M_TRYWAIT */)
+			mtx_lock(&mbuf_mtx);
 		return (0);
 	}
 	nmb = nbytes / sizeof(union mext_refcnt);
@@ -213,7 +208,8 @@ m_alloc_ref(u_int nmb, int how)
 	 * We don't let go of the mutex in order to avoid a race.
 	 * It is up to the caller to let go of the mutex.
 	 */
-	mtx_lock(&mcntfree.m_mtx);
+	if (1 /* XXX: how == M_TRYWAIT */)
+		mtx_lock(&mbuf_mtx);
 	for (i = 0; i < nmb; i++) {
 		((union mext_refcnt *)p)->next_ref = mcntfree.m_head;
 		mcntfree.m_head = (union mext_refcnt *)p;
@@ -248,13 +244,15 @@ m_mballoc(int nmb, int how)
 	if (mb_map_full || ((nmb + mbstat.m_mbufs) > nmbufs))
 		return (0);
 
-	mtx_unlock(&mmbfree.m_mtx);
-	p = (caddr_t)kmem_malloc(mb_map, nbytes, M_NOWAIT);
-	if (p == NULL && how == M_TRYWAIT) {
-		atomic_add_long(&mbstat.m_wait, 1);
-		p = (caddr_t)kmem_malloc(mb_map, nbytes, M_WAITOK);
+	if (1 /* XXX: how == M_TRYWAIT */)
+		mtx_unlock(&mbuf_mtx);
+	p = (caddr_t)kmem_malloc(mb_map, nbytes, how == M_TRYWAIT ?
+		M_WAITOK : M_NOWAIT);
+	if (1 /* XXX: how == M_TRYWAIT */) {
+		mtx_lock(&mbuf_mtx);
+		if (p == NULL)
+			mbstat.m_wait++;
 	}
-	mtx_lock(&mmbfree.m_mtx);
 
 	/*
 	 * Either the map is now full, or `how' is M_DONTWAIT and there
@@ -304,15 +302,15 @@ m_mballoc_wait(void)
 	 * importantly, to avoid a potential lock order reversal which may
 	 * result in deadlock (See comment above m_reclaim()).
 	 */
-	mtx_unlock(&mmbfree.m_mtx);
+	mtx_unlock(&mbuf_mtx);
 	m_reclaim();
 
-	mtx_lock(&mmbfree.m_mtx);
+	mtx_lock(&mbuf_mtx);
 	_MGET(p, M_DONTWAIT);
 
 	if (p == NULL) {
 		m_mballoc_wid++;
-		msleep(&m_mballoc_wid, &mmbfree.m_mtx, PVM, "mballc",
+		msleep(&m_mballoc_wid, &mbuf_mtx, PVM, "mballc",
 		    mbuf_wait);
 		m_mballoc_wid--;
 
@@ -332,7 +330,7 @@ m_mballoc_wait(void)
 
 	/* If we waited and got something... */
 	if (p != NULL) {
-		atomic_add_long(&mbstat.m_wait, 1);
+		mbstat.m_wait++;
 		if (mmbfree.m_head != NULL)
 			MBWAKEUP(m_mballoc_wid);
 	}
@@ -364,10 +362,12 @@ m_clalloc(int ncl, int how)
 	if (mb_map_full || ((ncl + mbstat.m_clusters) > nmbclusters))
 		return (0);
 
-	mtx_unlock(&mclfree.m_mtx);
+	if (1 /* XXX: how == M_TRYWAIT */)
+		mtx_unlock(&mbuf_mtx);
 	p = (caddr_t)kmem_malloc(mb_map, npg_sz,
 				 how == M_TRYWAIT ? M_WAITOK : M_NOWAIT);
-	mtx_lock(&mclfree.m_mtx);
+	if (1 /* XXX: how == M_TRYWAIT */)
+		mtx_lock(&mbuf_mtx);
 
 	/*
 	 * Either the map is now full, or `how' is M_DONTWAIT and there
@@ -376,9 +376,6 @@ m_clalloc(int ncl, int how)
 	if (p == NULL)
 		return (0);
 
-	/*
-	 * We don't let go of the mutex in order to avoid a race.
-	 */
 	for (i = 0; i < ncl; i++) {
 		((union mcluster *)p)->mcl_next = mclfree.m_head;
 		mclfree.m_head = (union mcluster *)p;
@@ -403,7 +400,7 @@ m_clalloc_wait(void)
 	caddr_t p = NULL;
 
 	m_clalloc_wid++;
-	msleep(&m_clalloc_wid, &mclfree.m_mtx, PVM, "mclalc", mbuf_wait);
+	msleep(&m_clalloc_wid, &mbuf_mtx, PVM, "mclalc", mbuf_wait);
 	m_clalloc_wid--;
 
 	/*
@@ -413,7 +410,7 @@ m_clalloc_wait(void)
 
 	/* If we waited and got something ... */
 	if (p != NULL) {
-		atomic_add_long(&mbstat.m_wait, 1);
+		mbstat.m_wait++;
 		if (mclfree.m_head != NULL)
 			MBWAKEUP(m_clalloc_wid);
 	}
@@ -476,9 +473,8 @@ m_getclr(int how, int type)
 	struct mbuf *m;
 
 	MGET(m, how, type);
-	if (m == NULL)
-		return (NULL);
-	bzero(mtod(m, caddr_t), MLEN);
+	if (m != NULL)
+		bzero(mtod(m, caddr_t), MLEN);
 	return (m);
 }
 
@@ -613,8 +609,6 @@ m_prepend(struct mbuf *m, int len, int how)
  * Note that the copy is read-only, because clusters are not copied,
  * only their reference counts are incremented.
  */
-#define MCFail (mbstat.m_mcfail)
-
 struct mbuf *
 m_copym(struct mbuf *m, int off0, int len, int wait)
 {
@@ -669,12 +663,17 @@ m_copym(struct mbuf *m, int off0, int len, int wait)
 		m = m->m_next;
 		np = &n->m_next;
 	}
-	if (top == NULL)
-		atomic_add_long(&MCFail, 1);
+	if (top == NULL) {
+		mtx_lock(&mbuf_mtx);
+		mbstat.m_mcfail++;
+		mtx_unlock(&mbuf_mtx);
+	}
 	return (top);
 nospace:
 	m_freem(top);
-	atomic_add_long(&MCFail, 1);
+	mtx_lock(&mbuf_mtx);
+	mbstat.m_mcfail++;
+	mtx_unlock(&mbuf_mtx);
 	return (NULL);
 }
 
@@ -733,7 +732,9 @@ m_copypacket(struct mbuf *m, int how)
 	return top;
 nospace:
 	m_freem(top);
-	atomic_add_long(&MCFail, 1);
+	mtx_lock(&mbuf_mtx);
+	mbstat.m_mcfail++;
+	mtx_unlock(&mbuf_mtx);
 	return (NULL);
 }
 
@@ -834,7 +835,9 @@ m_dup(struct mbuf *m, int how)
 
 nospace:
 	m_freem(top);
-	atomic_add_long(&MCFail, 1);
+	mtx_lock(&mbuf_mtx);
+	mbstat.m_mcfail++;
+	mtx_unlock(&mbuf_mtx);
 	return (NULL);
 }
 
@@ -943,8 +946,6 @@ m_adj(struct mbuf *mp, int req_len)
  * If there is room, it will add up to max_protohdr-len extra bytes to the
  * contiguous region in an attempt to avoid being called next time.
  */
-#define MPFail (mbstat.m_mpfail)
-
 struct mbuf *
 m_pullup(struct mbuf *n, int len)
 {
@@ -998,7 +999,9 @@ m_pullup(struct mbuf *n, int len)
 	return (m);
 bad:
 	m_freem(n);
-	atomic_add_long(&MPFail, 1);
+	mtx_lock(&mbuf_mtx);
+	mbstat.m_mcfail++;
+	mtx_unlock(&mbuf_mtx);
 	return (NULL);
 }
 
