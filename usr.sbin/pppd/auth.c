@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: auth.c,v 1.13 1997/04/13 01:06:56 brian Exp $";
+static char rcsid[] = "$Id: auth.c,v 1.14 1997/04/15 07:00:32 danny Exp $";
 #endif
 
 #include <stdio.h>
@@ -536,14 +536,14 @@ ppplogin(user, passwd, msg, msglen)
     }
 
 /*
- * Check that the user is not listed in /etc/ppp/ppp.disabled
+ * Check that the user is not listed in /etc/ppp/ppp.deny
  * and that the user's shell is listed in /etc/ppp/ppp.shells
  * if /etc/ppp/ppp.shells exists.
  */
 
-    if (checkfile(_PATH_PPPDISABLED, user) == 1) {
-	    	syslog(LOG_WARNING, "upap user %s: account disabled in %s",
-			user, _PATH_PPPDISABLED);
+    if (checkfile(_PATH_PPPDENY, user) == 1) {
+	    	syslog(LOG_WARNING, "upap user %s: login denied in %s",
+			user, _PATH_PPPDENY);
 		return (UPAP_AUTHNAK);
     }
 

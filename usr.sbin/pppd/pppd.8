@@ -1,5 +1,5 @@
 .\" manual page [] for pppd 2.0
-.\" $Id: pppd.8,v 1.10 1997/04/13 01:07:00 brian Exp $
+.\" $Id: pppd.8,v 1.11 1997/04/15 07:00:35 danny Exp $
 .\" SH section heading
 .\" SS subsection heading
 .\" LP paragraph
@@ -567,7 +567,7 @@ set of IP addresses that each user can use.  Typically, when using the
 avoid the need to have the same secret in two places.
 .LP
 Additional checks are performed when the \fBlogin\fR option is used.  
-If the file /etc/ppp/ppp.disabled exists, and the user is listed in it,
+If the file /etc/ppp/ppp.deny exists, and the user is listed in it,
 the authentication fails.  If the file /etc/ppp/ppp.shells exists and 
 the user's normal login shell is not listed, the authentication fails.
 .LP
@@ -735,7 +735,7 @@ User default options, read before command-line options.
 System default options for the serial port being used, read after
 command-line options.
 .TP
-.B /etc/ppp/ppp.disabled
+.B /etc/ppp/ppp.deny
 Lists users who may not use the system password PAP authentication.
 .TP
 .B /etc/ppp/ppp.shells
