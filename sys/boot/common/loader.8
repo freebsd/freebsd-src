@@ -131,7 +131,7 @@ interpreting mode.
 .Pp
 The builtin commands available are:
 .Pp
-.Bl -tag -width Ds -compact -offset indent
+.Bl -tag -width Ds -compact
 .It Ic autoboot Op Ar seconds
 Proceeds to bootstrap the system after a number of seconds, if not
 interrupted by the user.
@@ -308,7 +308,7 @@ or kernel's behavior at boot.
 While some of these may require a value,
 others define behavior just by being set.
 These are described below.
-.Bl -tag -width bootfile -offset indent
+.Bl -tag -width bootfile
 .It Va autoboot_delay
 Number of seconds
 .Ic autoboot
@@ -396,7 +396,7 @@ explicitly.
 .Pp
 Other variables are used to override kernel tunable parameters.
 The following tunables are available:
-.Bl -tag -width Va -offset indent
+.Bl -tag -width Va
 .It Va kern.ipc.nmbclusters
 Set the number of mbuf clusters to be allocated.
 The value cannot be set below the default
@@ -556,7 +556,7 @@ section.
 The words falling in the two other groups are described in the
 following subsections.
 .Ss FICL EXTRA WORDS
-.Bl -tag -width wid-set-super -offset indent
+.Bl -tag -width wid-set-super
 .It Ic .env
 .It Ic .ver
 .It Ic -roll
@@ -582,7 +582,7 @@ This is the STRING word set's
 .It Ic -rot
 .El
 .Ss FREEBSD EXTRA WORDS
-.Bl -tag -width XXXXXXXX -offset indent
+.Bl -tag -width XXXXXXXX
 .It Ic \&$ Pq --
 Evaluates the remainder of the input buffer, after having printed it first.
 .It Ic \&% Pq --
@@ -642,7 +642,7 @@ Does not work with
 .Ic catch .
 .El
 .Ss FREEBSD DEFINED ENVIRONMENTAL QUERIES
-.Bl -tag -width Ds -offset indent
+.Bl -tag -width Ds
 .It arch-i386
 .Ic TRUE
 if the architecture is IA32.
@@ -658,7 +658,7 @@ version.
 .El
 .Ss SYSTEM DOCUMENTATION
 .Sh FILES
-.Bl -tag -width /dev/loader.helpX -compact
+.Bl -tag -width /boot/defaults/loader.conf -compact
 .It Pa /boot/loader
 .Nm
 itself.
@@ -693,15 +693,13 @@ Loads kernel's user configuration file.
 Notice that a kernel must be loaded before any other
 .Ic load
 command is attempted.
-.Pp
-.Bd -literal -offset indent -compact
+.Bd -literal -offset indent
 load kernel
 load -t userconfig_script /boot/kernel.conf
 .Ed
 .Pp
 Loads the kernel, a splash screen, and then autoboots in five seconds.
-.Pp
-.Bd -literal -offset indent -compact
+.Bd -literal -offset indent
 load kernel
 load splash_bmp
 load -t splash_image_data /boot/chuckrulez.bmp
@@ -711,8 +709,7 @@ autoboot 5
 Sets the disk unit of the root device to 2, and then boots.
 This would be needed in the case of a two IDE disks system,
 with the second IDE hardwired to wd2 instead of wd1.
-.Pp
-.Bd -literal -offset indent -compact
+.Bd -literal -offset indent
 set root_disk_unit=2
 boot /kernel
 .Ed
