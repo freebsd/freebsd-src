@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.3 (Berkeley) 1/5/94
- * $Id: types.h,v 1.10 1997/02/22 09:35:21 peter Exp $
+ * $Id: types.h,v 1.11 1997/05/31 09:07:36 peter Exp $
  */
 
 #ifndef _MACHINE_TYPES_H_
@@ -48,7 +48,7 @@ typedef struct label_t {
 #endif
 
 typedef	unsigned int	vm_offset_t;
-typedef	long long	vm_ooffset_t;
+typedef	__int64_t	vm_ooffset_t;
 typedef	unsigned int	vm_pindex_t;
 typedef	unsigned int	vm_size_t;
 
@@ -62,17 +62,21 @@ typedef	short			  int16_t;
 typedef	unsigned short		u_int16_t;
 typedef	int			  int32_t;
 typedef	unsigned int		u_int32_t;
-typedef	long long		  int64_t;
-typedef	unsigned long long	u_int64_t;
+typedef	__int64_t		  int64_t;
+typedef	__uint64_t		u_int64_t;
 
 typedef	int32_t			register_t;
 
 typedef int32_t			ufs_daddr_t;
 
+#ifdef KERNEL
+typedef	__uint64_t		uoff_t;		/* unsigned file offset */
+#endif
+
 /* Interrupt mask (spl, xxx_imask, etc) */
 typedef u_int32_t		intrmask_t;
 
 /* Interrupt handler function type - arg should be "void *" one day */
-typedef void			inthand2_t(int _unit);
+typedef	void			inthand2_t __P((int _unit));
 
 #endif /* !_MACHINE_TYPES_H_ */
