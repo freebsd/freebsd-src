@@ -93,7 +93,7 @@ MAN2+=	_exit.2 accept.2 access.2 acct.2 adjtime.2 \
 	nfssvc.2 open.2 pathconf.2 pipe.2 poll.2 profil.2 ptrace.2 quotactl.2 \
 	read.2 readlink.2 reboot.2 recv.2 rename.2 revoke.2 rfork.2 rmdir.2 \
 	rtprio.2 select.2 semctl.2 semget.2 semop.2 send.2 sendfile.2 \
-	setgroups.2 setpgid.2 setregid.2 setresuid.2 setreuid.2 setsid.2
+	setgroups.2 setpgid.2 setregid.2 setresuid.2 setreuid.2 setsid.2 \
 	setuid.2 shmat.2 shmctl.2 shmget.2 shutdown.2 \
 	sigaction.2 sigaltstack.2 sigpending.2 sigprocmask.2 sigreturn.2 \
 	sigstack.2 sigsuspend.2 socket.2 socketpair.2 stat.2 statfs.2 \
