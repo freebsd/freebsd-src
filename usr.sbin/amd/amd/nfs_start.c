@@ -34,12 +34,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)nfs_start.c	8.1 (Berkeley) 6/6/93
- *
- * $Id: nfs_start.c,v 1.4 1997/02/22 16:01:38 peter Exp $
- *
  */
+
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)nfs_start.c 8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include "am.h"
 #include "amq.h"
@@ -264,7 +267,7 @@ static serv_state run_rpc(P_void)
 #endif /* DEBUG */
 				continue;
 			}
-			perror("select");
+			warn("select");
 			break;
 
 		case 0:
@@ -344,12 +347,12 @@ int ppid;
 	int nmount;
 
 	if (so < 0 || bindnfs_port(so) < 0) {
-		perror("Can't create privileged nfs port");
+		warn("can't create privileged nfs port");
 		return 1;
 	}
 
 	if (so2 < 0 || bind_resv_port(so2, NULL) < 0) {
-		perror("Can't create privileged port");
+		warn("can't create privileged port");
 		return 1;
 	}
 	if ((nfsxprt = svcudp_create(so)) == NULL) {

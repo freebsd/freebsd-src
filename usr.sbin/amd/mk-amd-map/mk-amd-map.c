@@ -34,10 +34,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)mk-amd-map.c	8.1 (Berkeley) 6/28/93
- *
- * $Id: mk-amd-map.c,v 1.3 1997/02/22 16:03:56 peter Exp $
  */
 
 /*
@@ -53,11 +49,15 @@ char copyright[] = "\
 #endif /* not lint */
 
 #ifndef lint
-static char rcsid[] = "$Id: mk-amd-map.c,v 1.3 1997/02/22 16:03:56 peter Exp $";
+#if 0
 static char sccsid[] = "@(#)mk-amd-map.c	8.1 (Berkeley) 6/28/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include "am.h"
+#include <unistd.h>
 
 #ifndef SIGINT
 #include <signal.h>
@@ -72,6 +72,8 @@ static char sccsid[] = "@(#)mk-amd-map.c	8.1 (Berkeley) 6/28/93";
 #endif
 
 #define create_database(name) dbm_open(name, O_RDWR|O_CREAT, 0644)
+
+static void usage __P((void));
 
 static int store_data(db, k, v)
 voidp db;
@@ -245,9 +247,8 @@ char *argv[];
 	int len;
 	char *sl;
 	int printit = 0;
-	int usage = 0;
+	int usageflg = 0;
 	int ch;
-	extern int optind;
 
 	while ((ch = getopt(argc, argv, "p")) != -1)
 	switch (ch) {
@@ -255,13 +256,12 @@ char *argv[];
 		printit = 1;
 		break;
 	default:
-		usage++;
+		usageflg++;
 		break;
 	}
 
-	if (usage || optind != (argc - 1)) {
-		fputs("Usage: mk-amd-map [-p] file-map\n", stderr);
-		exit(1);
+	if (usageflg || optind != (argc - 1)) {
+		usage();
 	}
 
 	map = argv[optind];
@@ -375,6 +375,14 @@ char *argv[];
 	}
 	exit(rc);
 }
+
+static void
+usage()
+{
+	fprintf(stderr, "usage: mk-amd-map [-p] file-map\n");
+	exit(1);
+}
+
 #else
 main()
 {

@@ -34,11 +34,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)amq.c	8.1 (Berkeley) 6/7/93
- *
- * $Id: amq.c,v 1.5 1997/03/22 23:12:08 joerg Exp $
- *
  */
 
 /*
@@ -54,19 +49,23 @@ char copyright[] = "\
 #endif /* not lint */
 
 #ifndef lint
-static char rcsid[] = "$Id: amq.c,v 1.5 1997/03/22 23:12:08 joerg Exp $";
+#if 0
 static char sccsid[] = "@(#)amq.c	8.1 (Berkeley) 6/7/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include "am.h"
 #include "amq.h"
-#include <stdio.h>
 #include <fcntl.h>
 #include <netdb.h>
+#include <stdio.h>
+#include <unistd.h>
 
 static int privsock();
+static void usage __P((void));
 
-char *progname;
 static int flush_flag;
 static int minfo_flag;
 static int unmount_flag;
@@ -78,9 +77,6 @@ static char *mount_map;
 static char *xlog_optstr;
 static char localhost[] = "localhost";
 static char *def_server = localhost;
-
-extern int optind;
-extern char *optarg;
 
 static struct timeval tmo = { 10, 0 };
 #define	TIMEOUT tmo
@@ -295,19 +291,6 @@ char *argv[];
 	int nodefault = 0;
 
 	/*
-	 * Compute program name
-	 */
-	if (argv[0]) {
-		progname = strrchr(argv[0], '/');
-		if (progname && progname[1])
-			progname++;
-		else
-			progname = argv[0];
-	}
-	if (!progname)
-		progname = "amq";
-
-	/*
 	 * Parse arguments
 	 */
 	while ((opt_ch = getopt(argc, argv, "fh:l:msuvx:D:M:")) != -1)
@@ -371,13 +354,8 @@ char *argv[];
 			errs = 1;
 	}
 
-	if (errs) {
-show_usage:
-		fprintf(stderr, "\
-Usage: %s [-h host] [[-f] [-m] [-v] [-s]] | [[-u] directory ...]] |\n\
-\t[-l logfile|\"syslog\"] [-x log_flags] [-D dbg_opts] [-M mapent]\n", progname);
-		exit(1);
-	}
+	if (errs)
+		usage();
 
 #ifdef hpux
 	/*
@@ -392,10 +370,8 @@ Usage: %s [-h host] [[-f] [-m] [-v] [-s]] | [[-u] directory ...]] |\n\
 	/*
 	 * Get address of server
 	 */
-	if ((hp = gethostbyname(server)) == 0 && strcmp(server, localhost) != 0) {
-		fprintf(stderr, "%s: Can't get address of %s\n", progname, server);
-		exit(1);
-	}
+	if ((hp = gethostbyname(server)) == 0 && strcmp(server, localhost) != 0)
+		errx(1, "can't get address of %s", server);
 	bzero(&server_addr, sizeof server_addr);
 	server_addr.sin_family = AF_INET;
 	if (hp) {
@@ -416,11 +392,8 @@ Usage: %s [-h host] [[-f] [-m] [-v] [-s]] | [[-u] directory ...]] |\n\
 		s = privsock(SOCK_DGRAM);
 		clnt = clntudp_create(&server_addr, AMQ_PROGRAM, AMQ_VERSION, TIMEOUT, &s);
 	}
-	if (clnt == 0) {
-		fprintf(stderr, "%s: ", progname);
-		clnt_pcreateerror(server);
-		exit(1);
-	}
+	if (clnt == 0)
+		errx(1, "%s", clnt_spcreateerror(server));
 
 	/*
 	 * Control debugging
@@ -432,10 +405,10 @@ Usage: %s [-h host] [[-f] [-m] [-v] [-s]] | [[-u] directory ...]] |\n\
 		opt.as_str = debug_opts;
 		rc = amqproc_setopt_1(&opt, clnt);
 		if (rc && *rc < 0) {
-			fprintf(stderr, "%s: daemon not compiled for debug", progname);
+			warnx("daemon not compiled for debug");
 			errs = 1;
 		} else if (!rc || *rc > 0) {
-			fprintf(stderr, "%s: debug setting for \"%s\" failed\n", progname, debug_opts);
+			warnx("debug setting for \"%s\" failed", debug_opts);
 			errs = 1;
 		}
 	}
@@ -450,7 +423,7 @@ Usage: %s [-h host] [[-f] [-m] [-v] [-s]] | [[-u] directory ...]] |\n\
 		opt.as_str = xlog_optstr;
 		rc = amqproc_setopt_1(&opt, clnt);
 		if (!rc || *rc) {
-			fprintf(stderr, "%s: setting log level to \"%s\" failed\n", progname, xlog_optstr);
+			warnx("setting log level to \"%s\" failed", xlog_optstr);
 			errs = 1;
 		}
 	}
@@ -465,7 +438,7 @@ Usage: %s [-h host] [[-f] [-m] [-v] [-s]] | [[-u] directory ...]] |\n\
 		opt.as_str = logfile;
 		rc = amqproc_setopt_1(&opt, clnt);
 		if (!rc || *rc) {
-			fprintf(stderr, "%s: setting logfile to \"%s\" failed\n", progname, logfile);
+			warnx("setting logfile to \"%s\" failed", logfile);
 			errs = 1;
 		}
 	}
@@ -480,7 +453,7 @@ Usage: %s [-h host] [[-f] [-m] [-v] [-s]] | [[-u] directory ...]] |\n\
 		opt.as_str = "";
 		rc = amqproc_setopt_1(&opt, clnt);
 		if (!rc || *rc) {
-			fprintf(stderr, "%s: amd on %s cannot flush the map cache\n", progname, server);
+			warnx("amd on %s cannot flush the map cache", server);
 			errs = 1;
 		}
 	}
@@ -498,7 +471,7 @@ Usage: %s [-h host] [[-f] [-m] [-v] [-s]] | [[-u] directory ...]] |\n\
 			show_mi(ml, Full, &mwid, &dwid, &twid);
 
 		} else {
-			fprintf(stderr, "%s: amd on %s cannot provide mount info\n", progname, server);
+			warnx("amd on %s cannot provide mount info", server);
 		}
 	}
 
@@ -515,8 +488,7 @@ Usage: %s [-h host] [[-f] [-m] [-v] [-s]] | [[-u] directory ...]] |\n\
 				errno = *rc;
 			else
 				errno = ETIMEDOUT;
-			fprintf(stderr, "%s: could not start new ", progname);
-			perror("autmount point");
+			warn("could not start new autmount point");
 		}
 	}
 
@@ -529,7 +501,7 @@ Usage: %s [-h host] [[-f] [-m] [-v] [-s]] | [[-u] directory ...]] |\n\
 			printf("%s.\n", *spp);
 			free(*spp);
 		} else {
-			fprintf(stderr, "%s: failed to get version information\n", progname);
+			warnx("failed to get version information");
 			errs = 1;
 		}
 	}
@@ -560,25 +532,23 @@ Usage: %s [-h host] [[-f] [-m] [-v] [-s]] | [[-u] directory ...]] |\n\
 			dwid, dwid, "What");
 						show_mt(mt, Stats, &mwid, &dwid, &twid);
 					} else {
-						fprintf(stderr, "%s: %s not automounted\n", progname, fs);
+						warnx("%s not automounted", fs);
 					}
 					xdr_pri_free(xdr_amq_mount_tree_p, (caddr_t) mtp);
 				} else {
-					fprintf(stderr, "%s: ", progname);
-					clnt_perror(clnt, server);
+					warnx("%s", clnt_sperror(clnt, server));
 					errs = 1;
 				}
 			}
 		} while (optind < argc);
 	} else if (unmount_flag) {
-		goto show_usage;
+		usage();
 	} else if (stats_flag) {
 		amq_mount_stats *ms = amqproc_stats_1((voidp) 0, clnt);
 		if (ms) {
 			show_ms(ms);
 		} else {
-			fprintf(stderr, "%s: ", progname);
-			clnt_perror(clnt, server);
+			warnx("%s", clnt_sperror(clnt, server));
 			errs = 1;
 		}
 	} else if (!nodefault) {
@@ -597,13 +567,21 @@ Usage: %s [-h host] [[-f] [-m] [-v] [-s]] | [[-u] directory ...]] |\n\
 				else if (e == Short) e = ShowDone;
 			}
 		} else {
-			fprintf(stderr, "%s: ", progname);
-			clnt_perror(clnt, server);
+			warnx("%s", clnt_sperror(clnt, server));
 			errs = 1;
 		}
 	}
 
 	exit(errs);
+}
+
+static void
+usage()
+{
+	fprintf(stderr, "%s\n%s\n",
+"usage: amq [-h host] [[-f] [-m] [-v] [-s]] | [[-u] directory ...]] |",
+"           [-l logfile|\"syslog\"] [-x log_flags] [-D dbg_opts] [-M mapent]");
+		exit(1);
 }
 
 /*

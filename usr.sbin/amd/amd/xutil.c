@@ -34,12 +34,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)xutil.c	8.1 (Berkeley) 6/6/93
- *
- * $Id$
- *
  */
+
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)xutil.c 8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include "config.h"
 #ifdef HAS_SYSLOG
@@ -154,7 +157,7 @@ extern struct mallinfo __mallinfo;
 		if (orig_mem_bytes == 0)
 			mem_bytes = orig_mem_bytes = __mallinfo.uordbytes;
 		else {
-			fprintf(logfp, "%s[%d]: ", progname, mypid);
+			fprintf(logfp, "amd[%d]: ", mypid);
 			if (mem_bytes < __mallinfo.uordbytes) {
 				fprintf(logfp, "ALLOC: %d bytes",
 					__mallinfo.uordbytes - mem_bytes);
@@ -245,7 +248,7 @@ extern char **gargv;
 #if defined(DEBUG) && defined(PARANOID)
 		gargv[0],
 #else
-		progname,
+		"amd",
 #endif /* defined(DEBUG) && defined(PARANOID) */
 		mypid,
 		sev);
@@ -322,7 +325,7 @@ struct opt_tab *opts;
 	 */
 	int i;
 	int s = '{';
-	fprintf(stderr, "\t[-%c {no}", ch);
+	fprintf(stderr, "           [-%c {no}", ch);
 	for (i = 0; opts[i].opt; i++) {
 		fprintf(stderr, "%c%s", s, opts[i].opt);
 		s = ',';
@@ -441,11 +444,11 @@ char *logfile;
 			syslogging = 1;
 			new_logfp = stderr;
 #if defined(LOG_CONS) && defined(LOG_NOWAIT)
-			openlog(progname, LOG_PID|LOG_CONS|LOG_NOWAIT,
+			openlog("amd", LOG_PID|LOG_CONS|LOG_NOWAIT,
 				LOG_DAEMON);
 #else
 			/* 4.2 compat mode - XXX */
-			openlog(progname, LOG_PID);
+			openlog("amd", LOG_PID);
 #endif /* LOG_CONS && LOG_NOWAIT */
 #else
 			plog(XLOG_WARNING, "syslog option not supported, logging unchanged");
