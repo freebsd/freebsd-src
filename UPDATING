@@ -17,6 +17,9 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20040505:	p20	FreeBSD-SA-04:09.kadmind
+	Correct a heap buffer overflow in k5admind's Kerberos IV support.
+
 20040505:	p19	FreeBSD-SA-04:08.heimdal
 	Correctly validate the transited field in Kerberos tickets.
 
