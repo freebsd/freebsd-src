@@ -190,7 +190,7 @@ ata_attach(device_t dev)
 	    if (ata_getparam(&ch->device[MASTER], ATA_C_ATA_IDENTIFY))
 		ch->devices &= ~ATA_ATA_MASTER;
 	if (ch->devices & ATA_ATAPI_MASTER)
-	    if (ata_getparam(&ch->device[MASTER] ,ATA_C_ATAPI_IDENTIFY))
+	    if (ata_getparam(&ch->device[MASTER], ATA_C_ATAPI_IDENTIFY))
 		ch->devices &= ~ATA_ATAPI_MASTER;
 #ifdef DEV_ATADISK
 	if (ch->devices & ATA_ATA_MASTER)
