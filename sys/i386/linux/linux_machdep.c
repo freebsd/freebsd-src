@@ -313,6 +313,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 {
 	int error, ff = RFPROC | RFSTOPPED;
 	struct proc *p2;
+	struct thread *td2;
 	int exit_signal;
 
 #ifdef DEBUG
@@ -341,35 +342,34 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	if (!(args->flags & CLONE_FILES))
 		ff |= RFFDG;
 
-	mtx_lock(&Giant);
 	error = fork1(td, ff, 0, &p2);
-	if (error == 0) {
-		td->td_retval[0] = p2->p_pid;
-		td->td_retval[1] = 0;
+	if (error)
+		return (error);
+	
 
-		PROC_LOCK(p2);
-		p2->p_sigparent = exit_signal;
-		FIRST_THREAD_IN_PROC(p2)->td_frame->tf_esp =
-					(unsigned int)args->stack;
+	PROC_LOCK(p2);
+	p2->p_sigparent = exit_signal;
+	PROC_UNLOCK(p2);
+	td2 = FIRST_THREAD_IN_PROC(p2);
+	td2->td_frame->tf_esp = (unsigned int)args->stack;
 
 #ifdef DEBUG
-		if (ldebug(clone))
-			printf(LMSG("clone: successful rfork to %ld"),
-			    (long)p2->p_pid);
+	if (ldebug(clone))
+		printf(LMSG("clone: successful rfork to %ld, stack %p sig = %d"),
+		    (long)p2->p_pid, args->stack, exit_signal);
 #endif
 
-		/*
-		 * Make this runnable after we are finished with it.
-		 */
-		mtx_lock_spin(&sched_lock);
-		TD_SET_CAN_RUN(FIRST_THREAD_IN_PROC(p2));
-		setrunqueue(FIRST_THREAD_IN_PROC(p2));
-		mtx_unlock_spin(&sched_lock);
-		PROC_UNLOCK(p2);
-	}
-	mtx_unlock(&Giant);
+	/*
+	 * Make this runnable after we are finished with it.
+	 */
+	mtx_lock_spin(&sched_lock);
+	TD_SET_CAN_RUN(td2);
+	setrunqueue(td2);
+	mtx_unlock_spin(&sched_lock);
 
-	return (error);
+	td->td_retval[0] = p2->p_pid;
+	td->td_retval[1] = 0;
+	return (0);
 }
 
 /* XXX move */
