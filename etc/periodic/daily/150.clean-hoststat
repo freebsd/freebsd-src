@@ -2,7 +2,7 @@
 #
 # $FreeBSD$
 #
-# Remove stale files in /var/spool/.hoststat
+# Remove stale persistent host status files
 #
 
 # If there is a global system configuration file, suck it in.
@@ -14,13 +14,13 @@ fi
 
 case "$daily_clean_hoststat_enable" in
     [Yy][Ee][Ss])
-	if [ -z "$(sendmail -bh 2>&1)" ]; then
+	if [ -z "$(hoststat 2>&1)" ]; then
 	    rc=2
 	else
 	    echo ""
 	    echo "Removing stale entries from sendmail host status cache:"
 	    rc=0
-	    sendmail -bH || rc=1
+	    purgestat || rc=1
 	fi;;
 
     *)  rc=0;;
