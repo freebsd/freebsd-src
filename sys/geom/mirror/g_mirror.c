@@ -2699,6 +2699,8 @@ g_mirror_can_go(void)
 	g_topology_lock();
 	LIST_FOREACH(gp, &g_mirror_class.geom, geom) {
 		sc = gp->softc;
+		if (sc == NULL)
+			continue;
 		pp = sc->sc_provider;
 		if (pp == NULL || pp->error != 0) {
 			can_go = 0;
