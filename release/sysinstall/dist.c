@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.36.2.6 1995/10/07 11:55:17 jkh Exp $
+ * $Id: dist.c,v 1.36.2.7 1995/10/14 19:13:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -423,10 +423,40 @@ distExtract(char *parent, Distribution *me)
     return status;
 }
 
+static void
+printSelected(char *buf, int selected, Distribution *me)
+{
+    int i;
+    static int col = 0;
+
+    /* Loop through to see if we're in our parent's plans */
+    for (i = 0; me[i].my_name; i++) {
+
+	/* If our bit isn't set, go to the next */
+	if (!(me[i].my_bit & selected))
+	    continue;
+
+	/* This is shorthand for "dist currently disabled" */
+	if (!me[i].my_dir)
+	    continue;
+
+	col += strlen(me[i].my_name);
+	if (col > 50) {
+	    col = 0;
+	    strcat(buf, "\n");
+	}
+	sprintf(&buf[strlen(buf)], " %s", me[i].my_name);
+	/* Recurse if have a sub-distribution */
+	if (me[i].my_dist)
+	    printSelected(buf, *(me[i].my_mask), me[i].my_dist);
+    }
+}
+
 int
 distExtractAll(char *ptr)
 {
     int retries = 0;
+    char buf[512];
 
     /* First try to initialize the state of things */
     if (!mediaDevice->init(mediaDevice))
@@ -439,10 +469,11 @@ distExtractAll(char *ptr)
     while (Dists && ++retries < 3)
 	distExtract(NULL, DistTable);
 
-    /* Anything left? XXX lose the funky residue and convert back to distribution names soon! XXX */
-    if (Dists)
+    if (Dists) {
+	printSelected(buf, Dists, DistTable);
 	msgConfirm("Couldn't extract all of the distributions.  This may\n"
-		   "be because the specified distributions are not available from the\n"
-		   "installation media you've chosen (residue: %0x)", Dists);
+		   "be because the following distributions are not available on the\n"
+		   "installation media you've chosen:\n\n\t%s", buf);
+    }
     return RET_SUCCESS;
 }
