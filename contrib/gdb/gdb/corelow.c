@@ -525,10 +525,10 @@ core_xfer_partial (struct target_ops *ops, enum target_object object,
     {
     case TARGET_OBJECT_MEMORY:
       if (readbuf)
-	return (*ops->to_xfer_memory) (offset, readbuf, len, 0/*write*/,
+	return (*ops->to_xfer_memory) (offset, readbuf, len, 0/*read*/,
 				       NULL, ops);
       if (writebuf)
-	return (*ops->to_xfer_memory) (offset, readbuf, len, 1/*write*/,
+	return (*ops->to_xfer_memory) (offset, writebuf, len, 1/*write*/,
 				       NULL, ops);
       return -1;
 
@@ -563,6 +563,19 @@ core_xfer_partial (struct target_ops *ops, enum target_object object,
 	  return size;
 	}
       return -1;
+
+    case TARGET_OBJECT_DIRTY:
+      {
+	ULONGEST addr;
+	addr = *(ULONGEST*)annex + offset;
+	if (readbuf)
+	  return (*ops->to_xfer_memory) (addr, readbuf, len, 0/*read*/,
+					 NULL, ops);
+	if (writebuf)
+	  return (*ops->to_xfer_memory) (addr, writebuf, len, 1/*write*/,
+					 NULL, ops);
+	return -1;
+      }
 
     default:
       if (ops->beneath != NULL)
