@@ -43,11 +43,11 @@
 Function prototypes are given in the main body of the text.
 .Pp
 Applications using this interface must be linked with
-.Li -lmp
+.Fl l Ns Ar mp
 (this library)
 and
-.Li -lcrypto
-.Xr ( crypto 3 ) .
+.Fl l Ns Ar crypto
+.Pq Xr crypto 3 .
 .Sh DESCRIPTION
 .Bf -symbolic
 This interface is obsolete in favor of the
@@ -80,13 +80,13 @@ Routines which store a result in one of their arguments expect that
 the latter has also been initialized prior to being passed to it.
 The following routines are defined and implemented:
 .Pp
-.Ft MINT * Ns
+.Ft "MINT *" Ns
 .Fn itom "short n" ;
 .Pp
-.Ft MINT * Ns
+.Ft "MINT *" Ns
 .Fn xtom "const char *s" ;
 .Pp
-.Ft char * Ns
+.Ft "char *" Ns
 .Fn mtox "const MINT *mp" ;
 .Pp
 .Ft void
@@ -96,12 +96,12 @@ The following routines are defined and implemented:
 returns an
 .Vt MINT
 with the value of
-.Fa s .
+.Fa n .
 .Fn xtom
 returns an
 .Vt MINT
 with the value of
-.Fa x ,
+.Fa s ,
 which is treated to be in hexadecimal.
 The return values from
 .Fn itom
@@ -115,7 +115,7 @@ returns a null-terminated hexadecimal string having the value of
 .Fa mp ;
 its return value must be released with
 .Fn free
-.Xr ( free 3 )
+.Pq Xr free 3
 when it is no longer needed.
 .Ed
 .Pp
@@ -128,7 +128,7 @@ when it is no longer needed.
 .Ft void
 .Fn mult "const MINT *mp1" "const MINT *mp2" "MINT *rmp" ;
 .Bd -ragged -offset indent
-.Fn madd , 
+.Fn madd ,
 .Fn msub ,
 and
 .Fn mult
@@ -218,7 +218,7 @@ computes the greatest common divisor of
 .Fa mp1
 and
 .Fa mp2
-and stores he result in
+and stores the result in
 .Fa rmp .
 .Ed
 .Pp
@@ -280,8 +280,8 @@ on standard error and a call to
 .Xr abort 3 ,
 .Xr crypto 3 ,
 .Xr free 3 ,
-.Xr math 3 ,
-.Xr malloc 3
+.Xr malloc 3 ,
+.Xr math 3
 .Sh HISTORY
 A
 .Nm
