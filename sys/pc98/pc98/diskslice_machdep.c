@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.2 1996/07/23 07:46:09 asami Exp $
+ *	$Id: diskslice_machdep.c,v 1.3 1996/10/09 21:46:15 asami Exp $
  */
 
 /*
@@ -386,17 +386,18 @@ reread_mbr:
 	max_nsectors = 0;
 	max_ntracks = 0;
 	for (dospart = 0, dp = dp0; dospart < NDOSPART; dospart++, dp++) {
+		int	ncyls;
 		int	nsectors;
 		int	ntracks;
 
 
 #ifdef PC98
-		max_ncyls = lp->d_secpercyl;
+		ncyls = lp->d_secpercyl;
 #else
-		max_ncyls = DPCYL(dp->dp_ecyl, dp->dp_esect);
+		ncyls = DPCYL(dp->dp_ecyl, dp->dp_esect) + 1;
 #endif
-		if (max_ncyls < max_ncyls)
-			max_ncyls = max_ncyls;
+		if (max_ncyls < ncyls)
+			max_ncyls = ncyls;
 #ifdef PC98
 		nsectors = lp->d_nsectors;
 #else
@@ -413,7 +414,10 @@ reread_mbr:
 			max_ntracks = ntracks;
 	}
 
-	/* Check the geometry. */
+	/*
+	 * Check that we have guessed the geometry right by checking the
+	 * partition entries.
+	 */
 	/*
 	 * TODO:
 	 * As above.
@@ -421,7 +425,6 @@ reread_mbr:
 	 * Check against d_secperunit if the latter is reliable.
 	 */
 	error = 0;
-	secpercyl = (u_long)max_nsectors * max_ntracks;
 #ifdef PC98
 	for (dospart = 0, dp = dp0; dospart < NDOSPART; dospart++, dp++) {
 		if (dp->dp_scyl == 0 && dp->dp_shd == 0 && dp->dp_ssect == 0)
@@ -454,6 +457,7 @@ reread_mbr:
 	 * First adjust the label (we have been careful not to change it
 	 * before we can guarantee success).
 	 */
+	secpercyl = (u_long)max_nsectors * max_ntracks;
 	if (secpercyl != 0) {
 		u_long	secperunit;
 
