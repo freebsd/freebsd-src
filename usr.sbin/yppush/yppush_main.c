@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: yppush_main.c,v 1.9 1997/11/03 07:53:44 charnier Exp $";
 #endif /* not lint */
 
 #include <errno.h>
@@ -655,7 +655,7 @@ main(argc,argv)
 	sigaction(SIGIO, &sa, NULL);
 
 	/* set initial transaction ID */
-	time(&yppush_transid);
+	yppush_transid = time((time_t *)NULL);
 
 	if (yppush_hostlist) {
 	/*
