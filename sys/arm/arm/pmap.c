@@ -3546,6 +3546,13 @@ pmap_extract(pmap_t pm, vm_offset_t va)
 	return (pa);
 }
 
+/*
+ * Atomically extract and hold the physical page with the given
+ * pmap and virtual address pair if that mapping permits the given
+ * protection.
+ *
+ * XXX Need to implement the protection check.
+ */
 vm_page_t
 pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
