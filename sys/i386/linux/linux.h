@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.h,v 1.26.2.3 1999/08/17 13:16:54 marcel Exp $
+ *	$Id: linux.h,v 1.26.2.4 1999/08/17 21:06:04 marcel Exp $
  */
 
 #ifndef _I386_LINUX_LINUX_H_
@@ -257,7 +257,11 @@ struct trapframe;
 #define LINUX_VT_ACTIVATE       0x5606  
 #define LINUX_VT_WAITACTIVE     0x5607
 
-
+/* arguments for tcflow() and LINUX_TCXONC */
+#define LINUX_TCOOFF		0
+#define LINUX_TCOON		1
+#define LINUX_TCIOFF		2
+#define LINUX_TCION		3
 
 /* arguments for tcflush() and LINUX_TCFLSH */
 #define LINUX_TCIFLUSH        0
