@@ -1,4 +1,4 @@
-/*	$OpenBSD: readpassphrase.h,v 1.1 2000/11/21 00:48:38 millert Exp $	*/
+/*	$OpenBSD: /usr/local/www/cvsroot/OpenBSD/src/include/readpassphrase.h,v 1.2 2002/02/16 21:27:17 millert Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -41,7 +41,7 @@
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-char * readpassphrase __P((const char *, char *, size_t, int));
+char * readpassphrase(const char *, char *, size_t, int);
 __END_DECLS
 
 #endif /* !_READPASSPHRASE_H_ */
