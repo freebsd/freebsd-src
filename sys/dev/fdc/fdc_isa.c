@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/systm.h>
+#include <machine/bus.h>
 
 #include <machine/bus.h>
 
@@ -61,9 +62,135 @@ fdctl_wr_isa(fdc_p fdc, u_int8_t v)
 }
 
 static int
+fdc_isa_alloc_resources(device_t dev, struct fdc_data *fdc)
+{
+	int ispnp, nports;
+
+	ispnp = (fdc->flags & FDC_ISPNP) != 0;
+	fdc->rid_ioport = 0;
+	fdc->rid_irq = 0;
+	fdc->rid_drq = 0;
+	fdc->rid_ctl = 1;
+
+	/*
+	 * On standard ISA, we don't just use an 8 port range
+	 * (e.g. 0x3f0-0x3f7) since that covers an IDE control
+	 * register at 0x3f6.
+	 *
+	 * Isn't PC hardware wonderful.
+	 */
+	nports = ispnp ? 1 : 6;
+
+	/*
+	 * Some ACPI BIOSen have _CRS objects for the floppy device that
+	 * split the I/O port resource into several resources.  We detect
+	 * this case by checking if there are more than 2 IOPORT resources.
+	 * If so, we use the resource with the smallest start address as
+	 * the port RID and the largest start address as the control RID.
+	 */
+	if (bus_get_resource_count(dev, SYS_RES_IOPORT, 2) != 0) {
+		u_long min_start, max_start, tmp;
+		int i;
+
+		/* Find the min/max start addresses and their RIDs. */
+		max_start = 0ul;
+		min_start = ~0ul;
+		for (i = 0; bus_get_resource_count(dev, SYS_RES_IOPORT, i) > 0;
+		    i++) {
+			tmp = bus_get_resource_start(dev, SYS_RES_IOPORT, i);
+			KASSERT(tmp != 0, ("bogus resource"));
+			if (tmp < min_start) {
+				min_start = tmp;
+				fdc->rid_ioport = i;
+			}
+			if (tmp > max_start) {
+				max_start = tmp;
+				fdc->rid_ctl = i;
+			}
+		}
+		if (min_start + 7 != max_start) {
+			device_printf(dev, "I/O to control range incorrect\n");
+			return (ENXIO);
+		}
+	}
+
+	fdc->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,
+	    &fdc->rid_ioport, 0ul, ~0ul, nports, RF_ACTIVE);
+	if (fdc->res_ioport == 0) {
+		device_printf(dev, "cannot reserve I/O port range (%d ports)\n",
+			      nports);
+		return ENXIO;
+	}
+	fdc->portt = rman_get_bustag(fdc->res_ioport);
+	fdc->porth = rman_get_bushandle(fdc->res_ioport);
+
+	/*
+	 * Some BIOSen report the device at 0x3f2-0x3f5,0x3f7
+	 * and some at 0x3f0-0x3f5,0x3f7. We detect the former
+	 * by checking the size and adjust the port address
+	 * accordingly.
+	 */
+	if (bus_get_resource_count(dev, SYS_RES_IOPORT, 0) == 4)
+		fdc->port_off = -2;
+
+	/*
+	 * Register the control port range as rid 1 if it
+	 * isn't there already. Most PnP BIOSen will have
+	 * already done this but non-PnP configurations don't.
+	 *
+	 * And some (!!) report 0x3f2-0x3f5 and completely
+	 * leave out the control register!  It seems that some
+	 * non-antique controller chips have a different
+	 * method of programming the transfer speed which
+	 * doesn't require the control register, but it's
+	 * mighty bogus as the chip still responds to the
+	 * address for the control register.
+	 */
+	if (bus_get_resource_count(dev, SYS_RES_IOPORT, 1) == 0) {
+		u_long ctlstart;
+		/* Find the control port, usually 0x3f7 */
+		ctlstart = rman_get_start(fdc->res_ioport) + fdc->port_off + 7;
+		bus_set_resource(dev, SYS_RES_IOPORT, 1, ctlstart, 1);
+	}
+
+	/*
+	 * Now (finally!) allocate the control port.
+	 */
+	fdc->res_ctl = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+	    &fdc->rid_ctl, RF_ACTIVE);
+	if (fdc->res_ctl == 0) {
+		device_printf(dev,
+		    "cannot reserve control I/O port range (control port)\n");
+		return ENXIO;
+	}
+	fdc->ctlt = rman_get_bustag(fdc->res_ctl);
+	fdc->ctlh = rman_get_bushandle(fdc->res_ctl);
+
+	fdc->res_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &fdc->rid_irq,
+					      RF_ACTIVE | RF_SHAREABLE);
+	if (fdc->res_irq == 0) {
+		device_printf(dev, "cannot reserve interrupt line\n");
+		return ENXIO;
+	}
+
+	if ((fdc->flags & FDC_NODMA) == 0) {
+		fdc->res_drq = bus_alloc_resource_any(dev, SYS_RES_DRQ,
+		    &fdc->rid_drq, RF_ACTIVE | RF_SHAREABLE);
+		if (fdc->res_drq == 0) {
+			device_printf(dev, "cannot reserve DMA request line\n");
+			fdc->flags |= FDC_NODMA;
+		} else
+			fdc->dmachan = rman_get_start(fdc->res_drq);
+	}
+
+	return 0;
+}
+
+static int
 fdc_isa_probe(device_t dev)
 {
 	int	error, ic_type;
+	int	ispnp;
 	struct	fdc_data *fdc;
 
 	fdc = device_get_softc(dev);
@@ -73,17 +200,17 @@ fdc_isa_probe(device_t dev)
 	/* Check pnp ids */
 	error = ISA_PNP_PROBE(device_get_parent(dev), dev, fdc_ids);
 	if (error == ENXIO)
-		return ENXIO;
-	if (error == 0)
-		fdc->flags = FDC_ISPNP;
+		return (ENXIO);
+	ispnp = (error == 0);
+	
 
 	/* Attempt to allocate our resources for the duration of the probe */
-	error = fdc_alloc_resources(fdc);
+	error = fdc_isa_alloc_resources(dev, fdc);
 	if (error)
 		goto out;
 
 	/* Check that the controller is working. */
-	if ((fdc->flags & FDC_ISPNP) == 0) {
+	if (!ispnp) {
 		error = fdc_initial_reset(fdc);
 		if (error)
 			goto out;
@@ -91,21 +218,17 @@ fdc_isa_probe(device_t dev)
 
 	/* Try to determine a more specific device type. */
 	if (fd_cmd(fdc, 1, NE7CMD_VERSION, 1, &ic_type) == 0) {
-		ic_type = (u_char)ic_type;
-		switch (ic_type) {
+		switch (ic_type & 0xff) {
 		case 0x80:
 			device_set_desc(dev, "NEC 765 or clone");
-			fdc->fdct = FDC_NE765;
 			break;
 		case 0x81:	/* not mentioned in any hardware doc */
 		case 0x90:
 			device_set_desc(dev,
 		"Enhanced floppy controller (i82077, NE72065 or clone)");
-			fdc->fdct = FDC_ENHANCED;
 			break;
 		default:
 			device_set_desc(dev, "Generic floppy controller");
-			fdc->fdct = FDC_UNKNOWN;
 			break;
 		}
 	}
@@ -115,10 +238,41 @@ out:
 	return (error);
 }
 
+static int
+fdc_isa_attach(device_t dev)
+{
+	int	ic_type;
+	struct	fdc_data *fdc;
+	int error;
+
+	fdc = device_get_softc(dev);
+	fdc->fdctl_wr = fdctl_wr_isa;
+	error = ISA_PNP_PROBE(device_get_parent(dev), dev, fdc_ids);
+	if (error == 0)
+		fdc->flags |= FDC_ISPNP;
+	if (fd_cmd(fdc, 1, NE7CMD_VERSION, 1, &ic_type) == 0) {
+		ic_type = (u_char)ic_type;
+		switch (ic_type) {
+		case 0x80:
+			fdc->fdct = FDC_NE765;
+			break;
+		case 0x81:	/* not mentioned in any hardware doc */
+		case 0x90:
+			fdc->fdct = FDC_ENHANCED;
+			break;
+		default:
+			fdc->fdct = FDC_UNKNOWN;
+			break;
+		}
+	}
+	fdc_isa_alloc_resources(dev, fdc);
+	return (fdc_attach(dev));
+}
+
 static device_method_t fdc_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		fdc_isa_probe),
-	DEVMETHOD(device_attach,	fdc_attach),
+	DEVMETHOD(device_attach,	fdc_isa_attach),
 	DEVMETHOD(device_detach,	fdc_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
