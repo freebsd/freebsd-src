@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.10 1994/10/14 05:34:04 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.11 1994/10/14 05:43:41 jkh Exp $";
 #endif
 
 /*
@@ -170,7 +170,8 @@ pkg_do(char *pkg)
 	    code = 1;
 	    goto success;	/* well, partial anyway */
 	}
-	sprintf(LogDir, "%s/%s", LOG_DIR, PkgName);
+	/* Protect against old packages with bogus @name fields */
+	sprintf(LogDir, "%s/%s", LOG_DIR, basename_of(PkgName));
 	if (Verbose)
 	    printf("Attempting to record package into %s..\n", LogDir);
 	if (make_hierarchy(LogDir)) {
