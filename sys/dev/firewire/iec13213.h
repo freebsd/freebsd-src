@@ -63,6 +63,12 @@
 #define CSRTYPE_L	(2 << CSRTYPE_SHIFT) /* Leaf */
 #define CSRTYPE_D	(3 << CSRTYPE_SHIFT) /* Directory */
 
+/*
+ * CSR keys
+ * 00 - 2F: defined by CSR architecture standards.
+ * 30 - 37: defined by BUS starndards
+ * 38 - 3F: defined by Vendor/Specifier
+ */
 #define CSRKEY_MASK	0x3f
 #define CSRKEY_DESC	0x01 /* Descriptor */
 #define CSRKEY_BDINFO	0x02 /* Bus_Dependent_Info */
@@ -98,6 +104,7 @@
 #define CROM_LUN	(CSRTYPE_I | CSRKEY_DINFO) /* 0x14 Logical unit num. */
 #define CROM_MGM	(CSRTYPE_C | CSRKEY_DINFO) /* 0x54 Management agent */
 
+#define CSRVAL_VENDOR_PRIVATE	0xacde48
 #define CSRVAL_1394TA	0x00a02d
 #define CSRVAL_ANSIT10	0x00609e
 #define CSRVAL_IETF	0x00005e
