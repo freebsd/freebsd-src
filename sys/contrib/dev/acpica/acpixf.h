@@ -377,6 +377,11 @@ AcpiGetFirmwareWakingVector (
     void                    **PhysicalAddress);
 
 ACPI_STATUS
+AcpiGetProcessorId (
+    ACPI_HANDLE             ProcessorHandle,
+    UINT32                  *Id);
+
+ACPI_STATUS
 AcpiGetProcessorThrottlingInfo (
     ACPI_HANDLE             ProcessorHandle,
     ACPI_BUFFER             *UserBuffer);
@@ -406,5 +411,8 @@ AcpiProcessorSleep (
     ACPI_HANDLE             ProcessorHandle,
     UINT32                  *PmTimerTicks);
 
+ACPI_STATUS
+AcpiSetSystemSleepState (
+    UINT8                   SleepState);
 
 #endif /* __ACXFACE_H__ */

@@ -138,6 +138,68 @@ UINT32                      AcpiHwActiveCxState = 1;
 
 /****************************************************************************
  *
+ * FUNCTION:    AcpiGetProcessorId
+ *
+ * PARAMETERS:  ProcessorHandle     - handle for the cpu to get info about
+ *              Id                  - location to return the processor ID
+ *
+ * RETURN:      Status of function
+ *
+ * DESCRIPTION: Get the ACPI processor ID
+ *
+ ****************************************************************************/
+
+ACPI_STATUS
+AcpiGetProcessorId (
+    ACPI_HANDLE             ProcessorHandle,
+    UINT32                  *Id)
+{
+    ACPI_NAMESPACE_NODE     *CpuNode;
+    ACPI_OPERAND_OBJECT     *CpuObj;
+
+
+    FUNCTION_TRACE ("AcpiGetProcessorId");
+
+
+    /*
+     *  Have to at least have somewhere to return the ID
+     */
+    if (!Id)
+    {
+        return_ACPI_STATUS(AE_BAD_PARAMETER);
+    }
+
+    /*
+     *  Convert and validate the device handle
+     */
+
+    CpuNode = AcpiNsConvertHandleToEntry (ProcessorHandle);
+    if (!CpuNode)
+    {
+        return_ACPI_STATUS (AE_BAD_PARAMETER);
+    }
+
+   /*
+    *   Check for an existing internal object
+    */
+
+    CpuObj = AcpiNsGetAttachedObject ((ACPI_HANDLE) CpuNode);
+    if (!CpuObj)
+    {
+        return_ACPI_STATUS (AE_NOT_FOUND);
+    }
+
+    /*
+     * Return the ID
+     */
+    *Id = CpuObj->Processor.ProcId;
+
+    return_ACPI_STATUS (AE_OK);
+}
+
+
+/****************************************************************************
+ *
  * FUNCTION:    AcpiGetProcessorThrottlingInfo
  *
  * PARAMETERS:  ProcessorHandle     - handle for the cpu to get info about
@@ -725,4 +787,170 @@ AcpiGetFirmwareWakingVector (
     return_ACPI_STATUS (AE_OK);
 }
 
+/****************************************************************************
+ *
+ * FUNCTION:    AcpiSetSystemSleepState
+ *
+ * PARAMETERS:  SleepState           - the Sx sleeping state (S1-S5)
+ *
+ * RETURN:      Status of function
+ *
+ * DESCRIPTION: Puts the system into the specified sleeping state.
+ *              Note that currently supports only S1 and S5.
+ *
+ ****************************************************************************/
+
+ACPI_STATUS
+AcpiSetSystemSleepState (
+    UINT8                   SleepState)
+{
+    UINT8                   Slp_TypA, Slp_TypB;
+    UINT16                  Count;
+    ACPI_STATUS             Status;
+    ACPI_OBJECT_LIST        Arg_list;
+    ACPI_OBJECT             Arg;
+    ACPI_OBJECT             Objects[3];	/* package plus 2 number objects */
+    ACPI_BUFFER             ReturnBuffer;
+
+    FUNCTION_TRACE ("AcpiSetSystemSxState");
+
+    Slp_TypA = Slp_TypB = 0;
+
+    if (SleepState > ACPI_STATE_S5)
+    {
+        return_ACPI_STATUS (AE_BAD_PARAMETER);
+    }
+
+    Status = AcpiHwObtainSleepTypeRegisterData (SleepState, &Slp_TypA, &Slp_TypB);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    /*
+     * The value for ACPI_STATE_S5 is not 5 actually, so adjust it.
+     */
+    if (SleepState > ACPI_STATE_S4) 
+    {
+        SleepState--;
+    }
+
+    /*
+     * Evaluate the _PTS method
+     */
+    MEMSET(&Arg_list, 0, sizeof(Arg_list));
+    Arg_list.Count = 1;
+    Arg_list.Pointer = &Arg;
+
+    MEMSET(&Arg, 0, sizeof(Arg));
+    Arg.Type = ACPI_TYPE_NUMBER;
+    Arg.Number.Value = SleepState;
+
+    AcpiEvaluateObject (NULL, "\\_PTS", &Arg_list, NULL);
+
+    /*
+     * Clear wake status
+     */
+    AcpiHwRegisterAccess (ACPI_WRITE, ACPI_MTX_DO_NOT_LOCK, WAK_STS, 1);
+
+    /*
+     * Set ACPI_SLP_TYPA/b and ACPI_SLP_EN
+     */
+    AcpiHwRegisterAccess (ACPI_WRITE, ACPI_MTX_DO_NOT_LOCK, SLP_TYPE_A, Slp_TypA);
+    AcpiHwRegisterAccess (ACPI_WRITE, ACPI_MTX_DO_NOT_LOCK, SLP_TYPE_B, Slp_TypB);
+    AcpiHwRegisterAccess (ACPI_WRITE, ACPI_MTX_DO_NOT_LOCK, SLP_EN, 1);
+
+    /* 
+     *  For S0 we don't wait for the WAK_STS bit.
+     */
+    if (SleepState != ACPI_STATE_S0)
+    {
+	/*
+	 * Wait for WAK_STS bit
+	 */
+
+	Count = 0;
+	while (!(AcpiHwRegisterAccess (ACPI_READ, ACPI_MTX_DO_NOT_LOCK, WAK_STS)))
+	{
+#if 1
+	    AcpiOsSleepUsec(1000);	/* should we have OsdFunc for sleep or halt? */
+#endif
+	    /*
+	     * Some BIOSes don't set WAK_STS at all,
+	     * give up waiting for wakeup if we time out.
+	     */
+
+	    if (Count > 1000)
+	    {
+		break;		/* giving up */
+	    }
+	    Count++;
+	}
+    }
+
+    /*
+     * Evaluate the _WAK method
+     */
+    MEMSET(&Arg_list, 0, sizeof(Arg_list));
+    Arg_list.Count = 1;
+    Arg_list.Pointer = &Arg;
+
+    MEMSET(&Arg, 0, sizeof(Arg));
+    Arg.Type = ACPI_TYPE_NUMBER;
+    Arg.Number.Value = SleepState;
+
+    /* Set up _WAK result code buffer */
+    MEMSET(Objects, 0, sizeof(Objects));
+    ReturnBuffer.Length = sizeof(Objects);
+    ReturnBuffer.Pointer = Objects;
+
+    AcpiEvaluateObject (NULL, "\\_WAK", &Arg_list, &ReturnBuffer);
+
+    Status = AE_OK;
+    /* Check result code for _WAK */
+    if (Objects[0].Type != ACPI_TYPE_PACKAGE ||
+        Objects[1].Type != ACPI_TYPE_NUMBER  ||
+        Objects[2].Type != ACPI_TYPE_NUMBER)
+    {
+        /*
+         * In many BIOSes, _WAK doesn't return a result code.
+         * We don't need to worry about it too much :-).
+         */
+        DEBUG_PRINT (ACPI_INFO,
+            ("AcpiSetSystemSleepState: _WAK result code is corrupted, "
+             "but should be OK.\n"));
+    }
+
+    else
+    {
+        /* evaluate status code */
+        switch (Objects[1].Number.Value)
+        {
+        case 0x00000001:
+            DEBUG_PRINT (ACPI_ERROR,
+                ("AcpiSetSystemSleepState: Wake was signaled but failed "
+                 "due to lack of power.\n"));
+            Status = AE_ERROR;
+            break;
+
+        case 0x00000002:
+            DEBUG_PRINT (ACPI_ERROR,
+                ("AcpiSetSystemSleepState: Wake was signaled but failed "
+                 "due to thermal condition.\n"));
+            Status = AE_ERROR;
+            break;
+        }
+        /* evaluate PSS code */
+        if (Objects[2].Number.Value == 0)
+        {
+            DEBUG_PRINT (ACPI_ERROR,
+                ("AcpiSetSystemSleepState: The targeted S-state was not "
+                 "entered because of too much current being drawn from "
+                 "the power supply.\n"));
+            Status = AE_ERROR;
+        }
+    }
+
+    return_ACPI_STATUS (Status);
+}
 
