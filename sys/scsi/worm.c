@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.4 1995/04/23 22:07:56 gibbs Exp $
+ *      $Id: worm.c,v 1.5 1995/05/03 23:38:20 gpalmer Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -58,8 +58,6 @@
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 #include <scsi/scsi_disk.h>
-
-#define STUNIT(DEV)      ((minor(DEV)&0xF0) >> 4)    /* 4 bit unit.  */
 
 struct scsi_data {
 	struct buf *buf_queue;		/* the queue of pending IO operations */
@@ -258,7 +256,7 @@ worm_strategy(struct buf *bp, struct scsi_link *sc_link)
 	u_int32 opri;
 	struct scsi_data *worm;
 
-	unit = STUNIT((bp->b_dev));
+	unit = minor((bp->b_dev));
 	worm = sc_link->sd;
 
 	/* XXX: Can't we move this check up to "scsi_strategy"?
