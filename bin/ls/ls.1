@@ -77,7 +77,9 @@ and
 .Ql .. .
 Always set for the super-user.
 .It Fl B
-Force printing of non-graphic characters in file names as \\xxx,
+Force printing of non-printable characters (as defined by
+.Xr ctype 3
+and current locale settings) in file names as \\xxx,
 where xxx is the numeric value of the character in octal.
 .It Fl C
 Force multi-column output; this is the default when output is to a terminal.
