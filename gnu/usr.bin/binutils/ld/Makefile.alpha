@@ -7,7 +7,7 @@ NATIVE_EMULATION=	elf64alpha_fbsd
 HOST=	${TARGET_TUPLE}
 CFLAGS+= -DDEFAULT_EMULATION=\"${NATIVE_EMULATION}\"
 CFLAGS+= -DTARGET=\"${TARGET_TUPLE}\"
-_alpha_path=	\"${TOOLS_PREFIX}/usr/lib\"
+_alpha_path=	\"${TOOLS_PREFIX}/lib:${TOOLS_PREFIX}/usr/lib\"
 .else
 _alpha_path=	\"/usr/cross/alpha-freebsd/usr/lib\"
 .endif
