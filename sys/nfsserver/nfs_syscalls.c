@@ -566,7 +566,7 @@ nfsrv_zapsock(struct nfssvc_sock *slp)
 		so->so_rcv.sb_flags &= ~SB_UPCALL;
 		so->so_upcall = NULL;
 		so->so_upcallarg = NULL;
-		soshutdown(so, 2);
+		soshutdown(so, SHUT_RDWR);
 		closef(fp, NULL);
 		if (slp->ns_nam)
 			FREE(slp->ns_nam, M_SONAME);
