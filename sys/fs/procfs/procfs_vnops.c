@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.46 1997/12/08 22:09:24 sef Exp $
+ *	$Id: procfs_vnops.c,v 1.47 1997/12/12 03:33:43 sef Exp $
  */
 
 /*
@@ -243,8 +243,9 @@ procfs_ioctl(ap)
 	  break;
 	case PIOCSFL:
 	  procp->p_pfsflags = (unsigned char)*(unsigned int*)ap->a_data;
-	  *(unsigned int*)ap->a_data = procp->p_stops;
 	  break;
+	case PIOCGFL:
+	  *(unsigned int*)ap->a_data = (unsigned int)procp->p_pfsflags;
 	case PIOCSTATUS:
 	  psp = (struct procfs_status *)ap->a_data;
 	  psp->state = (procp->p_step == 0);
@@ -273,7 +274,7 @@ procfs_ioctl(ap)
 	case PIOCCONT:	/* Restart a proc */
 	  if (procp->p_step == 0)
 	    return EINVAL;	/* Can only start a stopped process */
-	  if (ap->a_data && (signo = *(int*)ap->a_data)) {
+	  if (signo = *(int*)ap->a_data) {
 	    if (signo >= NSIG || signo <= 0)
 	      return EINVAL;
 	    psignal(procp, signo);
