@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)netstat.c	8.1 (Berkeley) 6/6/93";
 */
 static const char rcsid[] =
-	"$Id: netstat.c,v 1.8 1997/02/22 19:57:16 peter Exp $";
+	"$Id: netstat.c,v 1.9 1998/06/09 04:17:23 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -49,6 +49,7 @@ static const char rcsid[] =
 #include <sys/protosw.h>
 
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <net/route.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
