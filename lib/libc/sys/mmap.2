@@ -363,3 +363,10 @@ the file system code that causes the limit to be further restricted to
 .Pp
 Another reason for the 2GB limit is that file system metadata can
 reside at negative offsets.
+.Pp
+Note that an attempt to
+.Fn mmap
+zero bytes has no effect and succeeds, while an attempt to
+.Fn munmap
+zero bytes will return
+.Bq Er EINVAL .
