@@ -45,21 +45,11 @@ is a POSIX.1e call that sets the ACL tag type of ACL entry
 to the value of
 .Fa tag_type .
 .Sh RETURN VALUES
-Upon successful completion, the function will return a value of
-.Va 0 .
-Otherwise, a value of
-.Va -1
-will be returned, and
-.Va errno
-will be set to indicate the error.
+.Rv -std acl_set_tag_type
 .Sh ERRORS
-If any of the following conditions occur, the
+The
 .Fn acl_set_tag_type
-function will return a value of
-.Va -1
-and set
-.Va errno
-to the corresponding value:
+function fails if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 Argument
