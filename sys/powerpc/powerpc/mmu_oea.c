@@ -909,6 +909,17 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	TODO;
 }
 
+void
+pmap_zero_page_idle(vm_page_t m)
+{
+
+	/* XXX this is called outside of Giant, is pmap_zero_page safe? */
+	/* XXX maybe have a dedicated mapping for this to avoid the problem? */
+	mtx_lock(&Giant);
+	pmap_zero_page(m);
+	mtx_unlock(&Giant);
+}
+
 /*
  * Map the given physical page at the specified virtual address in the
  * target pmap with the protection requested.  If specified the page
