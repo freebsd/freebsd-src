@@ -612,7 +612,6 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 		 */
 		if (_thread_run->interrupted != 0) {
 			mutex_queue_remove(*mutex, _thread_run);
-			ret = EINTR;
 		}
 
 		/* Unlock the mutex structure: */
@@ -777,11 +776,20 @@ mutex_unlock_common(pthread_mutex_t * mutex, int add_reference)
 				if (((*mutex)->m_owner =
 			  	    mutex_queue_deq(*mutex)) != NULL) {
 					/*
-					 * Allow the new owner of the mutex to
-					 * run:
+					 * Unless the new owner of the mutex is
+					 * currently suspended, allow the owner
+					 * to run.  If the thread is suspended,
+					 * make a note that the thread isn't in
+					 * a wait queue any more.
 					 */
-					PTHREAD_NEW_STATE((*mutex)->m_owner,
-					    PS_RUNNING);
+					if (((*mutex)->m_owner->state !=
+					    PS_SUSPENDED)) {
+						PTHREAD_NEW_STATE((*mutex)->m_owner,
+						    PS_RUNNING);
+					} else {
+						(*mutex)->m_owner->suspended =
+						    SUSP_NOWAIT;
+					}
 
 					/*
 					 * Add the mutex to the threads list of
@@ -899,11 +907,20 @@ mutex_unlock_common(pthread_mutex_t * mutex, int add_reference)
 						(*mutex)->m_prio;
 
 					/*
-					 * Allow the new owner of the mutex to
-					 * run:
+					 * Unless the new owner of the mutex is
+					 * currently suspended, allow the owner
+					 * to run.  If the thread is suspended,
+					 * make a note that the thread isn't in
+					 * a wait queue any more.
 					 */
-					PTHREAD_NEW_STATE((*mutex)->m_owner,
-					    PS_RUNNING);
+					if (((*mutex)->m_owner->state !=
+					    PS_SUSPENDED)) {
+						PTHREAD_NEW_STATE((*mutex)->m_owner,
+						    PS_RUNNING);
+					} else {
+						(*mutex)->m_owner->suspended =
+						    SUSP_NOWAIT;
+					}
 				}
 			}
 			break;
@@ -1019,11 +1036,20 @@ mutex_unlock_common(pthread_mutex_t * mutex, int add_reference)
 					    (*mutex)->m_prio;
 
 					/*
-					 * Allow the new owner of the mutex to
-					 * run:
+					 * Unless the new owner of the mutex is
+					 * currently suspended, allow the owner
+					 * to run.  If the thread is suspended,
+					 * make a note that the thread isn't in
+					 * a wait queue any more.
 					 */
-					PTHREAD_NEW_STATE((*mutex)->m_owner,
-					    PS_RUNNING);
+					if (((*mutex)->m_owner->state !=
+					    PS_SUSPENDED)) {
+						PTHREAD_NEW_STATE((*mutex)->m_owner,
+						    PS_RUNNING);
+					} else {
+						(*mutex)->m_owner->suspended =
+						    SUSP_NOWAIT;
+					}
 				}
 			}
 			break;

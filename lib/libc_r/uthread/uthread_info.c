@@ -125,6 +125,23 @@ _thread_dump_info(void)
 			    pthread->fname,pthread->lineno);
 			_thread_sys_write(fd, s, strlen(s));
 
+			switch (pthread->state) {
+			case PS_COND_WAIT:
+				snprintf(s, sizeof(s),
+				    "Condition %p\n",
+				    pthread->data.cond);
+				_thread_sys_write(fd, s, strlen(s));
+				break;
+			case PS_MUTEX_WAIT:
+				snprintf(s, sizeof(s),
+				    "Mutex %p, owner %p\n", pthread->data.mutex,
+				    pthread->data.mutex->m_owner);
+				_thread_sys_write(fd, s, strlen(s));
+				break;
+				
+			default:
+				break;
+			}
 			/* Check if this is the running thread: */
 			if (pthread == _thread_run) {
 				/* Output a record for the running thread: */
