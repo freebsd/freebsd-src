@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 /*
  * Copyright (c) 1996-2000 Distributed Processing Technology Corporation
- * Copyright (c) 2000 Adaptec Corporation
+ * Copyright (c) 2000-2001 Adaptec Corporation
  * All rights reserved.
  *
  * TERMS AND CONDITIONS OF USE
@@ -23,6 +23,39 @@
  *
  * SCSI I2O host adapter driver
  *
+ *      V1.08 2001/08/21 Mark_Salyzyn@adaptec.com
+ *              - The 2000S and 2005S do not initialize on some machines,
+ *		  increased timeout to 255ms from 50ms for the StatusGet
+ *		  command.
+ *      V1.07 2001/05/22 Mark_Salyzyn@adaptec.com
+ *              - I knew this one was too good to be true. The error return
+ *                on ioctl commands needs to be compared to CAM_REQ_CMP, not
+ *                to the bit masked status.
+ *      V1.06 2001/05/08 Mark_Salyzyn@adaptec.com
+ *              - The 2005S that was supported is affectionately called the
+ *                Conjoined BAR Firmware. In order to support RAID-5 in a
+ *                16MB low-cost configuration, Firmware was forced to go
+ *                to a Split BAR Firmware. This requires a separate IOP and
+ *                Messaging base address.
+ *      V1.05 2001/04/25 Mark_Salyzyn@adaptec.com
+ *              - Handle support for 2005S Zero Channel RAID solution.
+ *              - System locked up if the Adapter locked up. Do not try
+ *                to send other commands if the resetIOP command fails. The
+ *                fail outstanding command discovery loop was flawed as the
+ *                removal of the command from the list prevented discovering
+ *                all the commands.
+ *              - Comment changes to clarify driver.
+ *              - SysInfo searched for an EATA SmartROM, not an I2O SmartROM.
+ *              - We do not use the AC_FOUND_DEV event because of I2O.
+ *                Removed asr_async.
+ *      V1.04 2000/09/22 Mark_Salyzyn@adaptec.com, msmith@freebsd.org,
+ *                       lampa@fee.vutbr.cz and Scott_Long@adaptec.com.
+ *              - Removed support for PM1554, PM2554 and PM2654 in Mode-0
+ *                mode as this is confused with competitor adapters in run
+ *                mode.
+ *              - critical locking needed in ASR_ccbAdd and ASR_ccbRemove
+ *                to prevent operating system panic.
+ *              - moved default major number to 154 from 97.
  *      V1.03 2000/07/12 Mark_Salyzyn@adaptec.com
  *              - The controller is not actually an ASR (Adaptec SCSI RAID)
  *                series that is visible, it's more of an internal code name.
@@ -74,13 +107,13 @@
 
 #define ASR_VERSION     1
 #define ASR_REVISION    '0'
-#define ASR_SUBREVISION '3'
-#define ASR_MONTH       7
-#define ASR_DAY         12
-#define ASR_YEAR        2000 - 1980
+#define ASR_SUBREVISION '8'
+#define ASR_MONTH       8
+#define ASR_DAY         21
+#define ASR_YEAR        2001 - 1980
 
 /*
- *      Debug macros to resude the unsightly ifdefs
+ *      Debug macros to reduce the unsightly ifdefs
  */
 #if (defined(DEBUG_ASR) || defined(DEBUG_ASR_USR_CMD) || defined(DEBUG_ASR_CMD))
 # define debug_asr_message(message)                                            \
@@ -241,7 +274,9 @@ static dpt_sig_S ASR_sig = {
 #define MAX_INBOUND      2000   /* Max CCBs, Also Max Queue Size         */
 #define MAX_OUTBOUND     256    /* Maximum outbound frames/adapter       */
 #define MAX_INBOUND_SIZE 512    /* Maximum inbound frame size            */
-#define MAX_MAP          4194304L /* Maximum mapping size of IOP           */
+#define MAX_MAP          4194304L /* Maximum mapping size of IOP         */
+                                /* Also serves as the minimum map for    */
+                                /* the 2005S zero channel RAID product   */
 
 /**************************************************************************
 ** ASR Host Adapter structure - One Structure For Each Host Adapter That **
@@ -292,17 +327,18 @@ typedef struct Asr_softc {
         u_int16_t               ha_irq;
         void                  * ha_Base;       /* base port for each board */
         u_int8_t     * volatile ha_blinkLED;
-        i2oRegs_t             * ha_Virt;       /* Base address of adapter  */
+        i2oRegs_t             * ha_Virt;       /* Base address of IOP      */
+        U8                    * ha_Fvirt;      /* Base address of Frames   */
         I2O_IOP_ENTRY           ha_SystemTable;
         LIST_HEAD(,ccb_hdr)     ha_ccb;        /* ccbs in use              */
         struct cam_path       * ha_path[MAX_CHANNEL+1];
         struct cam_sim        * ha_sim[MAX_CHANNEL+1];
 #if __FreeBSD_version >= 400000
         struct resource       * ha_mem_res;
+        struct resource       * ha_mes_res;
         struct resource       * ha_irq_res;
         void                  * ha_intr;
 #endif
-        u_int8_t                ha_adapter_target[MAX_CHANNEL+1];
         PI2O_LCT                ha_LCT;        /* Complete list of devices */
 #                define le_type   IdentityTag[0]
 #                        define I2O_BSA     0x20
@@ -316,8 +352,12 @@ typedef struct Asr_softc {
         target2lun_t          * ha_targets[MAX_CHANNEL+1];
         PI2O_SCSI_ERROR_REPLY_MESSAGE_FRAME ha_Msgs;
         u_long                  ha_Msgs_Phys;
-        u_int16_t               ha_Msgs_Count;
 
+        u_int8_t                ha_in_reset;
+#               define HA_OPERATIONAL       0
+#               define HA_IN_RESET          1
+#               define HA_OFF_LINE          2
+#               define HA_OFF_LINE_RECOVERY 3
         /* Configuration information */
         /* The target id maximums we take     */
         u_int8_t                ha_MaxBus;     /* Maximum bus              */
@@ -326,7 +366,9 @@ typedef struct Asr_softc {
         u_int8_t                ha_SgSize;     /* Max SG elements          */
         u_int8_t                ha_pciBusNum;
         u_int8_t                ha_pciDeviceNum;
+        u_int8_t                ha_adapter_target[MAX_CHANNEL+1];
         u_int16_t               ha_QueueSize;  /* Max outstanding commands */
+        u_int16_t               ha_Msgs_Count;
 
         /* Links into other parents and HBAs */
         struct Asr_softc      * ha_next;       /* HBA list                 */
@@ -436,11 +478,6 @@ STATIC INLINE int     ASR_acquireHrt __P((
 STATIC void           asr_action __P((
                         IN struct cam_sim * sim,
                         IN union ccb      * ccb));
-STATIC void           asr_async __P((
-                        void            * callback_arg,
-                        u_int32_t         code,
-                        struct cam_path * path,
-                        void            * arg));
 STATIC void           asr_poll __P((
                         IN struct cam_sim * sim));
 
@@ -637,6 +674,7 @@ ASR_getMessage(
 STATIC U32
 ASR_initiateCp (
         INOUT i2oRegs_t     * virt,
+        INOUT U8            * fvirt,
         IN PI2O_MESSAGE_FRAME Message)
 {
         OUT U32               Mask = -1L;
@@ -653,7 +691,7 @@ ASR_initiateCp (
                 DELAY (10000);
         }
         if (MessageOffset != EMPTY_QUEUE) {
-                bcopy (Message, virt->Address + MessageOffset,
+                bcopy (Message, fvirt + MessageOffset,
                   I2O_MESSAGE_FRAME_getMessageSize(Message) << 2);
                 /*
                  *      Disable the Interrupts
@@ -669,7 +707,8 @@ ASR_initiateCp (
  */
 STATIC U32
 ASR_resetIOP (
-        INOUT i2oRegs_t                * virt)
+        INOUT i2oRegs_t                * virt,
+        INOUT U8                       * fvirt)
 {
         struct resetMessage {
                 I2O_EXEC_IOP_RESET_MESSAGE M;
@@ -696,7 +735,7 @@ ASR_resetIOP (
         /*
          *      Send the Message out
          */
-        if ((Old = ASR_initiateCp (virt, (PI2O_MESSAGE_FRAME)Message_Ptr)) != (U32)-1L) {
+        if ((Old = ASR_initiateCp (virt, fvirt, (PI2O_MESSAGE_FRAME)Message_Ptr)) != (U32)-1L) {
                 /*
                  *      Wait for a response (Poll), timeouts are dangerous if
                  * the card is truly responsive. We assume response in 2s.
@@ -723,6 +762,7 @@ ASR_resetIOP (
 STATIC INLINE PI2O_EXEC_STATUS_GET_REPLY
 ASR_getStatus (
         INOUT i2oRegs_t *                        virt,
+        INOUT U8 *                               fvirt,
         OUT PI2O_EXEC_STATUS_GET_REPLY           buffer)
 {
         defAlignLong(I2O_EXEC_STATUS_GET_MESSAGE,Message);
@@ -748,14 +788,14 @@ ASR_getStatus (
         /*
          *      Send the Message out
          */
-        if ((Old = ASR_initiateCp (virt, (PI2O_MESSAGE_FRAME)Message_Ptr)) != (U32)-1L) {
+        if ((Old = ASR_initiateCp (virt, fvirt, (PI2O_MESSAGE_FRAME)Message_Ptr)) != (U32)-1L) {
                 /*
                  *      Wait for a response (Poll), timeouts are dangerous if
                  * the card is truly responsive. We assume response in 50ms.
                  */
-                u_int8_t Delay = 50;
+                u_int8_t Delay = 255;
 
-                while (*((U8 * volatile)&buffer->SyncByte) == 0) {
+                while (*((U8 * volatile)&(buffer->SyncByte)) == 0) {
                         if (--Delay == 0) {
                                 buffer = (PI2O_EXEC_STATUS_GET_REPLY)NULL;
                                 break;
@@ -783,7 +823,7 @@ STATIC PROBE_RET
 asr_probe(PROBE_ARGS)
 {
         PROBE_SET();
-        if (id == 0xA5011044) {
+        if ((id == 0xA5011044) || (id == 0xA5111044)) {
                 PROBE_RETURN ("Adaptec Caching SCSI RAID");
         }
         PROBE_RETURN (NULL);
@@ -815,12 +855,38 @@ STATIC PROBE_RET
 mode0_probe(PROBE_ARGS)
 {
         PROBE_SET();
-        if (id == 0x908010B5) {
-                PROBE_RETURN ("Adaptec Mode0 3xxx");
+
+        /*
+         *      If/When we can get a business case to commit to a
+         * Mode0 driver here, we can make all these tests more
+         * specific and robust. Mode0 adapters have their processors
+         * turned off, this the chips are in a raw state.
+         */
+
+        /* This is a PLX9054 */
+        if (id == 0x905410B5) {
+                PROBE_RETURN ("Adaptec Mode0 PM3757");
         }
-#if 0	/* this would match any generic i960 -- mjs */
+        /* This is a PLX9080 */
+        if (id == 0x908010B5) {
+                PROBE_RETURN ("Adaptec Mode0 PM3754/PM3755");
+        }
+        /* This is a ZION 80303 */
+        if (id == 0x53098086) {
+                PROBE_RETURN ("Adaptec Mode0 3010S");
+        }
+        /* This is an i960RS */
+        if (id == 0x39628086) {
+                PROBE_RETURN ("Adaptec Mode0 2100S");
+        }
+        /* This is an i960RN */
+        if (id == 0x19648086) {
+                PROBE_RETURN ("Adaptec Mode0 PM2865/2400A/3200S/3400S");
+        }
+#if 0   /* this would match any generic i960 -- mjs */
+        /* This is an i960RP (typically also on Motherboards) */
         if (id == 0x19608086) {
-                PROBE_RETURN ("Adaptec Mode0 1xxx");
+                PROBE_RETURN ("Adaptec Mode0 PM2554/PM1554/PM2654");
         }
 #endif
         PROBE_RETURN (NULL);
@@ -905,7 +971,7 @@ ASR_queue_s (
         /*
          * Wait for this board to report a finished instruction.
          */
-        while (ccb->ccb_h.status == CAM_REQ_INPROG) {
+        while ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INPROG) {
                 (void)asr_intr (sc);
         }
 
@@ -946,9 +1012,9 @@ ASR_ccbAdd (
         IN Asr_softc_t      * sc,
         INOUT union asr_ccb * ccb)
 {
-	int s;
+        int s;
 
-	s = splcam();
+        s = splcam();
         LIST_INSERT_HEAD(&(sc->ha_ccb), &(ccb->ccb_h), sim_links.le);
         if (ccb->ccb_h.timeout != CAM_TIME_INFINITY) {
                 if (ccb->ccb_h.timeout == CAM_TIME_DEFAULT) {
@@ -962,7 +1028,7 @@ ASR_ccbAdd (
                 ccb->ccb_h.timeout_ch = timeout(asr_timeout, (caddr_t)ccb,
                   (ccb->ccb_h.timeout * hz) / 1000);
         }
-	splx(s);
+        splx(s);
 } /* ASR_ccbAdd */
 
 /*
@@ -973,12 +1039,12 @@ ASR_ccbRemove (
         IN Asr_softc_t      * sc,
         INOUT union asr_ccb * ccb)
 {
-	int s;
+        int s;
 
-	s = splcam();
+        s = splcam();
         untimeout(asr_timeout, (caddr_t)ccb, ccb->ccb_h.timeout_ch);
-        LIST_REMOVE(&ccb->ccb_h, sim_links.le);
-	splx(s);
+        LIST_REMOVE(&(ccb->ccb_h), sim_links.le);
+        splx(s);
 } /* ASR_ccbRemove */
 
 /*
@@ -990,9 +1056,12 @@ ASR_failActiveCommands (
         IN Asr_softc_t                         * sc)
 {
         struct ccb_hdr                         * ccb;
+        int                                      s;
+
+#if 0 /* Currently handled by callers, unnecessary paranoia currently */
+      /* Left in for historical perspective. */
         defAlignLong(I2O_EXEC_LCT_NOTIFY_MESSAGE,Message);
         PI2O_EXEC_LCT_NOTIFY_MESSAGE             Message_Ptr;
-	int                                      s;
 
         /* Send a blind LCT command to wait for the enableSys to complete */
         Message_Ptr = (PI2O_EXEC_LCT_NOTIFY_MESSAGE)ASR_fillMessage(Message,
@@ -1002,14 +1071,25 @@ ASR_failActiveCommands (
         I2O_EXEC_LCT_NOTIFY_MESSAGE_setClassIdentifier(Message_Ptr,
           I2O_CLASS_MATCH_ANYCLASS);
         (void)ASR_queue_c(sc, (PI2O_MESSAGE_FRAME)Message_Ptr);
+#endif
 
-	s  = splcam();
-        LIST_FOREACH(ccb, &(sc->ha_ccb), sim_links.le) {
-
+        s = splcam();
+        /*
+         *      We do not need to inform the CAM layer that we had a bus
+         * reset since we manage it on our own, this also prevents the
+         * SCSI_DELAY settling that would be required on other systems.
+         * The `SCSI_DELAY' has already been handled by the card via the
+         * acquisition of the LCT table while we are at CAM priority level.
+         *  for (int bus = 0; bus <= sc->ha_MaxBus; ++bus) {
+         *      xpt_async (AC_BUS_RESET, sc->ha_path[bus], NULL);
+         *  }
+         */
+        while ((ccb = LIST_FIRST(&(sc->ha_ccb))) != (struct ccb_hdr *)NULL) {
                 ASR_ccbRemove (sc, (union asr_ccb *)ccb);
 
                 ccb->status &= ~CAM_STATUS_MASK;
                 ccb->status |= CAM_REQUEUE_REQ;
+                /* Nothing Transfered */
                 ((struct ccb_scsiio *)ccb)->resid
                   = ((struct ccb_scsiio *)ccb)->dxfer_len;
 
@@ -1019,7 +1099,7 @@ ASR_failActiveCommands (
                         wakeup ((caddr_t)ccb);
                 }
         }
-	splx(s);
+        splx(s);
 } /* ASR_failActiveCommands */
 
 /*
@@ -1318,7 +1398,7 @@ ASR_rescan(
         bus = sc->ha_MaxBus;
         /* Reset all existing cached TID lookups */
         do {
-                int target;
+                int target, event = 0;
 
                 /*
                  *      Scan for all targets on this bus to see if they
@@ -1327,9 +1407,14 @@ ASR_rescan(
                 for (target = 0; target <= sc->ha_MaxId; ++target) {
                         int lun;
 
+                        /* Stay away from the controller ID */
+                        if (target == sc->ha_adapter_target[bus]) {
+                                continue;
+                        }
                         for (lun = 0; lun <= sc->ha_MaxLun; ++lun) {
                                 PI2O_LCT_ENTRY Device;
                                 tid_t          TID = (tid_t)-1;
+                                tid_t          LastTID;
 
                                 /*
                                  * See if the cached TID changed. Search for
@@ -1355,8 +1440,46 @@ ASR_rescan(
                                  * to be recalculated, or that the specific
                                  * open device is no longer valid (Merde)
                                  * because the cached TID changed.
-                                 *  ASR_getTid (sc, bus, target, lun) != TI
                                  */
+                                LastTID = ASR_getTid (sc, bus, target, lun);
+                                if (LastTID != TID) {
+                                        struct cam_path * path;
+
+                                        if (xpt_create_path(&path,
+                                          /*periph*/NULL,
+                                          cam_sim_path(sc->ha_sim[bus]),
+                                          target, lun) != CAM_REQ_CMP) {
+                                                if (TID == (tid_t)-1) {
+                                                        event |= AC_LOST_DEVICE;
+                                                } else {
+                                                        event |= AC_INQ_CHANGED
+                                                               | AC_GETDEV_CHANGED;
+                                                }
+                                        } else {
+                                                if (TID == (tid_t)-1) {
+                                                        xpt_async(
+                                                          AC_LOST_DEVICE,
+                                                          path, NULL);
+                                                } else if (LastTID == (tid_t)-1) {
+                                                        struct ccb_getdev ccb;
+
+                                                        xpt_setup_ccb(
+                                                          &(ccb.ccb_h),
+                                                          path, /*priority*/5);
+                                                        xpt_async(
+                                                          AC_FOUND_DEVICE,
+                                                          path,
+                                                          &ccb);
+                                                } else {
+                                                        xpt_async(
+                                                          AC_INQ_CHANGED,
+                                                          path, NULL);
+                                                        xpt_async(
+                                                          AC_GETDEV_CHANGED,
+                                                          path, NULL);
+                                                }
+                                        }
+                                }
                                 /*
                                  *      We have the option of clearing the
                                  * cached TID for it to be rescanned, or to
@@ -1367,6 +1490,19 @@ ASR_rescan(
                                  */
                                 ASR_setTid (sc, bus, target, lun, TID);
                         }
+                }
+                /*
+                 *      The xpt layer can not handle multiple events at the
+                 * same call.
+                 */
+                if (event & AC_LOST_DEVICE) {
+                        xpt_async(AC_LOST_DEVICE, sc->ha_path[bus], NULL);
+                }
+                if (event & AC_INQ_CHANGED) {
+                        xpt_async(AC_INQ_CHANGED, sc->ha_path[bus], NULL);
+                }
+                if (event & AC_GETDEV_CHANGED) {
+                        xpt_async(AC_GETDEV_CHANGED, sc->ha_path[bus], NULL);
                 }
         } while (--bus >= 0);
         return (error);
@@ -1383,14 +1519,69 @@ ASR_rescan(
 /* Return : None                                                           */
 /*-------------------------------------------------------------------------*/
 
-STATIC INLINE void
+STATIC INLINE int
 ASR_reset(
         IN Asr_softc_t * sc)
 {
-        (void)ASR_resetIOP (sc->ha_Virt);
-        (void)ASR_init (sc);
-        (void)ASR_rescan (sc);
-        (void)ASR_failActiveCommands (sc);
+        int              s, retVal;
+
+        s = splcam();
+        if ((sc->ha_in_reset == HA_IN_RESET)
+         || (sc->ha_in_reset == HA_OFF_LINE_RECOVERY)) {
+                splx (s);
+                return (EBUSY);
+        }
+        /*
+         *      Promotes HA_OPERATIONAL to HA_IN_RESET,
+         * or HA_OFF_LINE to HA_OFF_LINE_RECOVERY.
+         */
+        ++(sc->ha_in_reset);
+        if (ASR_resetIOP (sc->ha_Virt, sc->ha_Fvirt) == 0) {
+                debug_asr_printf ("ASR_resetIOP failed\n");
+                /*
+                 *      We really need to take this card off-line, easier said
+                 * than make sense. Better to keep retrying for now since if a
+                 * UART cable is connected the blinkLEDs the adapter is now in
+                 * a hard state requiring action from the monitor commands to
+                 * the HBA to continue. For debugging waiting forever is a
+                 * good thing. In a production system, however, one may wish
+                 * to instead take the card off-line ...
+                 */
+#               if 0 && (defined(HA_OFF_LINE))
+                        /*
+                         * Take adapter off-line.
+                         */
+                        printf ("asr%d: Taking adapter off-line\n",
+                          sc->ha_path[0]
+                            ? cam_sim_unit(xpt_path_sim(sc->ha_path[0]))
+                            : 0);
+                        sc->ha_in_reset = HA_OFF_LINE;
+                        splx (s);
+                        return (ENXIO);
+#               else
+                        /* Wait Forever */
+                        while (ASR_resetIOP (sc->ha_Virt, sc->ha_Fvirt) == 0);
+#               endif
+        }
+        retVal = ASR_init (sc);
+        splx (s);
+        if (retVal != 0) {
+                debug_asr_printf ("ASR_init failed\n");
+                sc->ha_in_reset = HA_OFF_LINE;
+                return (ENXIO);
+        }
+        if (ASR_rescan (sc) != 0) {
+                debug_asr_printf ("ASR_rescan failed\n");
+        }
+        ASR_failActiveCommands (sc);
+        if (sc->ha_in_reset == HA_OFF_LINE_RECOVERY) {
+                printf ("asr%d: Brining adapter back on-line\n",
+                  sc->ha_path[0]
+                    ? cam_sim_unit(xpt_path_sim(sc->ha_path[0]))
+                    : 0);
+        }
+        sc->ha_in_reset = HA_OPERATIONAL;
+        return (0);
 } /* ASR_reset */
 
 /*
@@ -1411,9 +1602,15 @@ asr_timeout(
          *      Check if the adapter has locked up?
          */
         if ((s = ASR_getBlinkLedCode(sc)) != 0) {
-                debug_asr_printf (
-                  " due to adapter blinkled code %x\nresetting adapter\n", s);
-                ASR_reset (sc);
+                /* Reset Adapter */
+                printf ("asr%d: Blink LED 0x%x resetting adapter\n",
+                  cam_sim_unit(xpt_path_sim(ccb->ccb_h.path)), s);
+                if (ASR_reset (sc) == ENXIO) {
+                        /* Try again later */
+                        ccb->ccb_h.timeout_ch = timeout(asr_timeout,
+                          (caddr_t)ccb,
+                          (ccb->ccb_h.timeout * hz) / 1000);
+                }
                 return;
         }
         /*
@@ -1422,9 +1619,14 @@ asr_timeout(
          * our best bet, followed by a complete adapter reset if that fails.
          */
         s = splcam();
-        if (ccb->ccb_h.status == CAM_CMD_TIMEOUT) {
+        /* Check if we already timed out once to raise the issue */
+        if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_CMD_TIMEOUT) {
                 debug_asr_printf (" AGAIN\nreinitializing adapter\n");
-                ASR_reset (sc);
+                if (ASR_reset (sc) == ENXIO) {
+                        ccb->ccb_h.timeout_ch = timeout(asr_timeout,
+                          (caddr_t)ccb,
+                          (ccb->ccb_h.timeout * hz) / 1000);
+                }
                 splx(s);
                 return;
         }
@@ -1435,6 +1637,7 @@ asr_timeout(
         ccb->ccb_h.timeout_ch = timeout(asr_timeout, (caddr_t)ccb,
           (ccb->ccb_h.timeout * hz) / 1000);
         ASR_resetBus (sc, cam_sim_bus(xpt_path_sim(ccb->ccb_h.path)));
+        xpt_async (AC_BUS_RESET, ccb->ccb_h.path, NULL);
         splx(s);
 } /* asr_timeout */
 
@@ -1452,19 +1655,10 @@ ASR_queue(
         debug_asr_printf ("Host Command Dump:\n");
         debug_asr_dump_message (Message);
 
-        /*
-         *      Limit the number of Messages sent to this HBA. Better to sleep,
-         *      than to hardware loop like a nut! By limiting the number of
-         *      messages to an individual HBA here, we manage to perform all
-         *      the processing of the message ready to drop the next one into
-         *      the controller. We could limit the messages we are allowed to
-         *      take, but that may have a performance hit.
-         */
         ccb = (union asr_ccb *)(long)
           I2O_MESSAGE_FRAME_getInitiatorContext64(Message);
 
-        if (((MessageOffset = ASR_getMessage(sc->ha_Virt)) != EMPTY_QUEUE)
-         || ((MessageOffset = ASR_getMessage(sc->ha_Virt)) != EMPTY_QUEUE)) {
+        if ((MessageOffset = ASR_getMessage(sc->ha_Virt)) != EMPTY_QUEUE) {
 #ifdef ASR_MEASURE_PERFORMANCE
                 int     startTimeIndex;
 
@@ -1476,7 +1670,7 @@ ASR_queue(
                           sc->ha_timeQFreeHead,
                           sc->ha_timeQFreeTail);
                         if (-1 != startTimeIndex) {
-                                microtime(&sc->ha_timeQ[startTimeIndex]);
+                                microtime(&(sc->ha_timeQ[startTimeIndex]));
                         }
                         /* Time stamp the command before we send it out */
                         ((PRIVATE_SCSI_SCB_EXECUTE_MESSAGE *) Message)->
@@ -1491,7 +1685,7 @@ ASR_queue(
                         }
                 }
 #endif
-                bcopy (Message, sc->ha_Virt->Address + MessageOffset,
+                bcopy (Message, sc->ha_Fvirt + MessageOffset,
                   I2O_MESSAGE_FRAME_getMessageSize(Message) << 2);
                 if (ccb) {
                         ASR_ccbAdd (sc, ccb);
@@ -1500,7 +1694,11 @@ ASR_queue(
                 sc->ha_Virt->ToFIFO = MessageOffset;
         } else {
                 if (ASR_getBlinkLedCode(sc)) {
-                        ASR_reset (sc);
+                        /*
+                         *      Unlikely we can do anything if we can't grab a
+                         * message frame :-(, but lets give it a try.
+                         */
+                        (void)ASR_reset (sc);
                 }
         }
         return (MessageOffset);
@@ -2042,7 +2240,7 @@ ASR_initOutBound (
         /*
          *      Send the Message out
          */
-        if ((Old = ASR_initiateCp (sc->ha_Virt, (PI2O_MESSAGE_FRAME)Message_Ptr)) != (U32)-1L) {
+        if ((Old = ASR_initiateCp (sc->ha_Virt, sc->ha_Fvirt, (PI2O_MESSAGE_FRAME)Message_Ptr)) != (U32)-1L) {
                 u_long size, addr;
 
                 /*
@@ -2261,7 +2459,7 @@ ASR_sync (
          * issuing a shutdown or an adapter reset).
          */
         if ((sc != (Asr_softc_t *)NULL)
-         && (sc->ha_ccb.lh_first != (struct ccb_hdr *)NULL)
+         && (LIST_FIRST(&(sc->ha_ccb)) != (struct ccb_hdr *)NULL)
          && ((TID = ASR_getTid (sc, bus, target, lun)) != (tid_t)-1)
          && (TID != (tid_t)0)) {
                 defAlignLong(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE,Message);
@@ -2339,7 +2537,7 @@ asr_hbareset(
         IN Asr_softc_t * sc)
 {
         ASR_synchronize (sc);
-        ASR_reset (sc);
+        (void)ASR_reset (sc);
 } /* asr_hbareset */
 
 /*
@@ -2356,7 +2554,7 @@ asr_pci_map_mem (
         IN Asr_softc_t * sc)
 {
         int              rid;
-        u_int32_t        p, l;
+        u_int32_t        p, l, s;
 
 #if __FreeBSD_version >= 400000
         /*
@@ -2364,7 +2562,7 @@ asr_pci_map_mem (
          */
         for (rid = PCIR_MAPS;
           rid < (PCIR_MAPS + 4 * sizeof(u_int32_t));
-          ++rid) {
+          rid += sizeof(u_int32_t)) {
                 p = pci_read_config(tag, rid, sizeof(p));
                 if ((p & 1) == 0) {
                         break;
@@ -2383,6 +2581,23 @@ asr_pci_map_mem (
         if (l > MAX_MAP) {
                 l = MAX_MAP;
         }
+        /*
+         * The 2005S Zero Channel RAID solution is not a perfect PCI
+         * citizen. It asks for 4MB on BAR0, and 0MB on BAR1, once
+         * enabled it rewrites the size of BAR0 to 2MB, sets BAR1 to
+         * BAR0+2MB and sets it's size to 2MB. The IOP registers are
+         * accessible via BAR0, the messaging registers are accessible
+         * via BAR1. If the subdevice code is 50 to 59 decimal.
+         */
+        s = pci_read_config(tag, PCIR_DEVVENDOR, sizeof(s));
+        if (s != 0xA5111044) {
+                s = pci_read_config(tag, PCIR_SUBVEND_0, sizeof(s));
+                if ((((ADPTDOMINATOR_SUB_ID_START ^ s) & 0xF000FFFF) == 0)
+                 && (ADPTDOMINATOR_SUB_ID_START <= s)
+                 && (s <= ADPTDOMINATOR_SUB_ID_END)) {
+                        l = MAX_MAP; /* Conjoined BAR Raptor Daptor */
+                }
+        }
         p &= ~15;
         sc->ha_mem_res = bus_alloc_resource(tag, SYS_RES_MEMORY, &rid,
           p, p + l, l, RF_ACTIVE);
@@ -2394,6 +2609,31 @@ asr_pci_map_mem (
                 return (0);
         }
         sc->ha_Virt = (i2oRegs_t *) rman_get_virtual(sc->ha_mem_res);
+        if (s == 0xA5111044) { /* Split BAR Raptor Daptor */
+                if ((rid += sizeof(u_int32_t))
+                  >= (PCIR_MAPS + 4 * sizeof(u_int32_t))) {
+                        return (0);
+                }
+                p = pci_read_config(tag, rid, sizeof(p));
+                pci_write_config(tag, rid, -1, sizeof(p));
+                l = 0 - (pci_read_config(tag, rid, sizeof(l)) & ~15);
+                pci_write_config(tag, rid, p, sizeof(p));
+                if (l > MAX_MAP) {
+                        l = MAX_MAP;
+                }
+                p &= ~15;
+                sc->ha_mes_res = bus_alloc_resource(tag, SYS_RES_MEMORY, &rid,
+                  p, p + l, l, RF_ACTIVE);
+                if (sc->ha_mes_res == (struct resource *)NULL) {
+                        return (0);
+                }
+                if ((void *)rman_get_start(sc->ha_mes_res) == (void *)NULL) {
+                        return (0);
+                }
+                sc->ha_Fvirt = (U8 *) rman_get_virtual(sc->ha_mes_res);
+        } else {
+                sc->ha_Fvirt = (U8 *)(sc->ha_Virt);
+        }
 #else
         vm_size_t psize, poffs;
 
@@ -2402,7 +2642,7 @@ asr_pci_map_mem (
          */
         for (rid = PCI_MAP_REG_START;
           rid < (PCI_MAP_REG_START + 4 * sizeof(u_int32_t));
-          ++rid) {
+          rid += sizeof(u_int32_t)) {
                 p = pci_conf_read (tag, rid);
                 if ((p & 1) == 0) {
                         break;
@@ -2446,6 +2686,23 @@ asr_pci_map_mem (
         if (psize > MAX_MAP) {
                 psize = MAX_MAP;
         }
+        /*
+         * The 2005S Zero Channel RAID solution is not a perfect PCI
+         * citizen. It asks for 4MB on BAR0, and 0MB on BAR1, once
+         * enabled it rewrites the size of BAR0 to 2MB, sets BAR1 to
+         * BAR0+2MB and sets it's size to 2MB. The IOP registers are
+         * accessible via BAR0, the messaging registers are accessible
+         * via BAR1. If the subdevice code is 50 to 59 decimal.
+         */
+        s = pci_read_config(tag, PCIR_DEVVENDOR, sizeof(s));
+        if (s != 0xA5111044) {
+                s = pci_conf_read (tag, PCIR_SUBVEND_0)
+                if ((((ADPTDOMINATOR_SUB_ID_START ^ s) & 0xF000FFFF) == 0)
+                 && (ADPTDOMINATOR_SUB_ID_START <= s)
+                 && (s <= ADPTDOMINATOR_SUB_ID_END)) {
+                        psize = MAX_MAP;
+                }
+        }
 
         if ((sc->ha_Base == (void *)NULL)
          || (sc->ha_Base == (void *)PCI_MAP_MEMORY_ADDRESS_MASK)) {
@@ -2467,6 +2724,71 @@ asr_pci_map_mem (
         }
 
         sc->ha_Virt = (i2oRegs_t *)((u_long)sc->ha_Virt + poffs);
+        if (s == 0xA5111044) {
+                if ((rid += sizeof(u_int32_t))
+                  >= (PCI_MAP_REG_START + 4 * sizeof(u_int32_t))) {
+                        return (0);
+                }
+
+                /*
+                **      save old mapping, get size and type of memory
+                **
+                **      type is in the lowest four bits.
+                **      If device requires 2^n bytes, the next
+                **      n-4 bits are read as 0.
+                */
+
+                if ((((p = pci_conf_read (tag, rid))
+                  & PCI_MAP_MEMORY_ADDRESS_MASK) == 0L)
+                 || ((p & PCI_MAP_MEMORY_ADDRESS_MASK)
+                  == PCI_MAP_MEMORY_ADDRESS_MASK)) {
+                        debug_asr_printf ("asr_pci_map_mem: not configured by bios.\n");
+                }
+                pci_conf_write (tag, rid, 0xfffffffful);
+                l = pci_conf_read (tag, rid);
+                pci_conf_write (tag, rid, p);
+                p &= PCI_MAP_MEMORY_TYPE_MASK;
+
+                /*
+                **      check the type
+                */
+
+                if (!((l & PCI_MAP_MEMORY_TYPE_MASK)
+                    == PCI_MAP_MEMORY_TYPE_32BIT_1M
+                   && (p & ~0xfffff) == 0)
+                  && ((l & PCI_MAP_MEMORY_TYPE_MASK)
+                   != PCI_MAP_MEMORY_TYPE_32BIT)) {
+                        debug_asr_printf (
+                          "asr_pci_map_mem failed: bad memory type=0x%x\n",
+                          (unsigned) l);
+                        return (0);
+                };
+
+                /*
+                **      get the size.
+                */
+
+                psize = -(l & PCI_MAP_MEMORY_ADDRESS_MASK);
+                if (psize > MAX_MAP) {
+                        psize = MAX_MAP;
+                }
+
+                /*
+                **      Truncate p to page boundary.
+                **      (Or does pmap_mapdev the job?)
+                */
+
+                poffs = p - trunc_page (p);
+                sc->ha_Fvirt = (U8 *)pmap_mapdev (p - poffs, psize + poffs);
+
+                if (sc->ha_Fvirt == (U8 *)NULL) {
+                        return (0);
+                }
+
+                sc->ha_Fvirt = (U8 *)((u_long)sc->ha_Fvirt + poffs);
+        } else {
+                sc->ha_Fvirt = (U8 *)(sc->ha_Virt);
+        }
 #endif
         return (1);
 } /* asr_pci_map_mem */
@@ -2532,7 +2854,7 @@ asr_attach (ATTACH_ARGS)
          *      Initialize the software structure
          */
         bzero (sc, sizeof(*sc));
-        LIST_INIT(&sc->ha_ccb);
+        LIST_INIT(&(sc->ha_ccb));
 #       ifdef ASR_MEASURE_PERFORMANCE
                 {
                         u_int32_t i;
@@ -2597,11 +2919,11 @@ asr_attach (ATTACH_ARGS)
                 }
 #endif
                 /* Check if the device is there? */
-                if ((ASR_resetIOP(sc->ha_Virt) == 0)
+                if ((ASR_resetIOP(sc->ha_Virt, sc->ha_Fvirt) == 0)
                  || ((status = (PI2O_EXEC_STATUS_GET_REPLY)malloc (
                   sizeof(I2O_EXEC_STATUS_GET_REPLY), M_TEMP, M_WAITOK))
                   == (PI2O_EXEC_STATUS_GET_REPLY)NULL)
-                 || (ASR_getStatus(sc->ha_Virt, status) == NULL)) {
+                 || (ASR_getStatus(sc->ha_Virt, sc->ha_Fvirt, status) == NULL)) {
                         printf ("asr%d: could not initialize hardware\n", unit);
                         ATTACH_RETURN(ENODEV);  /* Get next, maybe better luck */
                 }
@@ -2668,7 +2990,7 @@ asr_attach (ATTACH_ARGS)
                     I2O_DPT_EXEC_IOP_BUFFERS_GROUP_NO,
                     Buffer, sizeof(struct BufferInfo)))
                 != (PI2O_DPT_EXEC_IOP_BUFFERS_SCALAR)NULL) {
-                        sc->ha_blinkLED = sc->ha_Virt->Address
+                        sc->ha_blinkLED = sc->ha_Fvirt
                           + I2O_DPT_EXEC_IOP_BUFFERS_SCALAR_getSerialOutputOffset(Info)
                           + FW_DEBUG_BLED_OFFSET;
                 }
@@ -2854,13 +3176,6 @@ asr_attach (ATTACH_ARGS)
                                 sc->ha_sim[bus] = NULL;
                                 continue;
                         }
-                        xpt_setup_ccb(&(ccb->ccb_h),
-                          sc->ha_path[bus], /*priority*/5);
-                        ccb->ccb_h.func_code = XPT_SASYNC_CB;
-                        ccb->csa.event_enable = AC_LOST_DEVICE;
-                        ccb->csa.callback = asr_async;
-                        ccb->csa.callback_arg = sc->ha_sim[bus];
-                        xpt_action((union ccb *)ccb);
                 }
                 asr_free_ccb (ccb);
         }
@@ -2871,23 +3186,6 @@ asr_attach (ATTACH_ARGS)
         destroy_dev(makedev(asr_cdevsw.d_maj,unit+1));
         ATTACH_RETURN(0);
 } /* asr_attach */
-
-#if (!defined(UNREFERENCED_PARAMETER))
-# define UNREFERENCED_PARAMETER(x) (void)(x)
-#endif
-
-STATIC void
-asr_async(
-        void            * callback_arg,
-        u_int32_t         code,
-        struct cam_path * path,
-        void            * arg)
-{
-        UNREFERENCED_PARAMETER(callback_arg);
-        UNREFERENCED_PARAMETER(code);
-        UNREFERENCED_PARAMETER(path);
-        UNREFERENCED_PARAMETER(arg);
-} /* asr_async */
 
 STATIC void
 asr_poll(
@@ -2921,7 +3219,22 @@ asr_action(
                 defAlignLong(struct Message,Message);
                 PI2O_MESSAGE_FRAME   Message_Ptr;
 
-                if (ccb->ccb_h.status != CAM_REQ_INPROG) {
+                /* Reject incoming commands while we are resetting the card */
+                if (sc->ha_in_reset != HA_OPERATIONAL) {
+                        ccb->ccb_h.status &= ~CAM_STATUS_MASK;
+                        if (sc->ha_in_reset >= HA_OFF_LINE) {
+                                /* HBA is now off-line */
+                                ccb->ccb_h.status |= CAM_UNREC_HBA_ERROR;
+                        } else {
+                                /* HBA currently resetting, try again later. */
+                                ccb->ccb_h.status |= CAM_REQUEUE_REQ;
+                        }
+                        debug_asr_cmd_printf (" e\n");
+                        xpt_done(ccb);
+                        debug_asr_cmd_printf (" q\n");
+                        break;
+                }
+                if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_INPROG) {
                         printf(
                           "asr%d WARNING: scsi_cmd(%x) already done on b%dt%du%d\n",
                           cam_sim_unit(xpt_path_sim(ccb->ccb_h.path)),
@@ -2996,7 +3309,7 @@ asr_action(
                 struct  ccb_trans_settings *cts;
                 u_int   target_mask;
 
-                cts = &ccb->cts;
+                cts = &(ccb->cts);
                 target_mask = 0x01 << ccb->ccb_h.target_id;
                 if ((cts->flags & CCB_TRANS_USER_SETTINGS) != 0) {
                         cts->flags = CCB_TRANS_DISC_ENB|CCB_TRANS_TAG_ENB;
@@ -3023,7 +3336,7 @@ asr_action(
                 u_int32_t size_mb;
                 u_int32_t secs_per_cylinder;
 
-                ccg = &ccb->ccg;
+                ccg = &(ccb->ccg);
                 size_mb = ccg->volume_size
                         / ((1024L * 1024L) / ccg->block_size);
 
@@ -3061,7 +3374,7 @@ asr_action(
 
         case XPT_PATH_INQ:              /* Path routing inquiry */
         {
-                struct ccb_pathinq *cpi = &ccb->cpi;
+                struct ccb_pathinq *cpi = &(ccb->cpi);
 
                 cpi->version_num = 1; /* XXX??? */
                 cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
@@ -3114,7 +3427,7 @@ asr_IObySize(
 
                 if ( submitted_time != 0xffffffff ) {
                         timevaladd(
-                          &sc->ha_performance.read_by_size_total_time[index],
+                          &(sc->ha_performance.read_by_size_total_time[index]),
                           &submitted_timeval);
                         if ( (min_submitR == 0)
                           || (submitted_time < min_submitR) ) {
@@ -3129,7 +3442,7 @@ asr_IObySize(
                 ++sc->ha_performance.write_by_size_count[index];
                 if ( submitted_time != 0xffffffff ) {
                         timevaladd(
-                          &sc->ha_performance.write_by_size_total_time[index],
+                          &(sc->ha_performance.write_by_size_total_time[index]),
                           &submitted_timeval);
                         if ( (submitted_time < min_submitW)
                           || (min_submitW == 0) ) {
@@ -3200,8 +3513,7 @@ asr_intr (
                          */
                         Reply->StdReplyFrame.TransactionContext
                           = ((PI2O_SINGLE_REPLY_MESSAGE_FRAME)
-                            (sc->ha_Virt->Address + MessageOffset))
-                              ->TransactionContext;
+                            (sc->ha_Fvirt + MessageOffset))->TransactionContext;
                         /*
                          *      For 64 bit machines, we need to reconstruct the
                          * 64 bit context.
@@ -3229,7 +3541,7 @@ asr_intr (
                          *  Copy the packet out to the Original Message
                          */
                         bcopy ((caddr_t)Message_Ptr,
-                          sc->ha_Virt->Address + MessageOffset,
+                          sc->ha_Fvirt + MessageOffset,
                           sizeof(I2O_UTIL_NOP_MESSAGE));
                         /*
                          *  Issue the NOP
@@ -3550,6 +3862,9 @@ ASR_get_sc (
 } /* ASR_get_sc */
 
 STATIC u_int8_t ASR_ctlr_held;
+#if (!defined(UNREFERENCED_PARAMETER))
+# define UNREFERENCED_PARAMETER(x) (void)(x)
+#endif
 
 STATIC int
 asr_open(
@@ -3662,7 +3977,7 @@ ASR_queue_i(
         case I2O_EXEC_IOP_RESET:
         {       U32 status;
 
-                status = ASR_resetIOP(sc->ha_Virt);
+                status = ASR_resetIOP(sc->ha_Virt, sc->ha_Fvirt);
                 ReplySizeInBytes = sizeof(status);
                 debug_usr_cmd_printf ("resetIOP done\n");
                 return (copyout ((caddr_t)&status, (caddr_t)Reply,
@@ -3672,7 +3987,7 @@ ASR_queue_i(
         case I2O_EXEC_STATUS_GET:
         {       I2O_EXEC_STATUS_GET_REPLY status;
 
-                if (ASR_getStatus (sc->ha_Virt, &status)
+                if (ASR_getStatus (sc->ha_Virt, sc->ha_Fvirt, &status)
                   == (PI2O_EXEC_STATUS_GET_REPLY)NULL) {
                         debug_usr_cmd_printf ("getStatus failed\n");
                         return (ENXIO);
@@ -3774,7 +4089,8 @@ ASR_queue_i(
                   Message_Ptr) & 0xF0) >> 2)) {
                         free (Message_Ptr, M_TEMP);
                         I2O_SINGLE_REPLY_MESSAGE_FRAME_setDetailedStatusCode(
-                          &(Reply_Ptr->StdReplyFrame), (ASR_setSysTab(sc) != CAM_REQ_CMP));
+                          &(Reply_Ptr->StdReplyFrame),
+                          (ASR_setSysTab(sc) != CAM_REQ_CMP));
                         I2O_MESSAGE_FRAME_setMessageSize(
                           &(Reply_Ptr->StdReplyFrame.StdMessageFrame),
                           sizeof(I2O_SINGLE_REPLY_MESSAGE_FRAME));
@@ -3938,7 +4254,7 @@ ASR_queue_i(
                 if (error) {
                         while ((elm = SLIST_FIRST(&sgList))
                           != (struct ioctlSgList_S *)NULL) {
-                                SLIST_REMOVE_HEAD(&sgList,link);
+                                SLIST_REMOVE_HEAD(&sgList, link);
                                 free (elm, M_TEMP);
                         }
                         free (Reply_Ptr, M_TEMP);
@@ -3955,7 +4271,7 @@ ASR_queue_i(
                 /* Free up in-kernel buffers */
                 while ((elm = SLIST_FIRST(&sgList))
                   != (struct ioctlSgList_S *)NULL) {
-                        SLIST_REMOVE_HEAD(&sgList,link);
+                        SLIST_REMOVE_HEAD(&sgList, link);
                         free (elm, M_TEMP);
                 }
                 free (Reply_Ptr, M_TEMP);
@@ -3978,20 +4294,21 @@ ASR_queue_i(
          * Wait for the board to report a finished instruction.
          */
         s = splcam();
-        while (ccb->ccb_h.status == CAM_REQ_INPROG) {
+        while ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INPROG) {
                 if (ASR_getBlinkLedCode(sc)) {
                         /* Reset Adapter */
                         printf ("asr%d: Blink LED 0x%x resetting adapter\n",
                           cam_sim_unit(xpt_path_sim(ccb->ccb_h.path)),
                           ASR_getBlinkLedCode(sc));
-                        ASR_reset (sc);
+                        if (ASR_reset (sc) == ENXIO) {
+                                /* Command Cleanup */
+                                ASR_ccbRemove(sc, ccb);
+                        }
                         splx(s);
-                        /* Command Cleanup */
-                        ASR_ccbRemove(sc, ccb);
                         /* Free up in-kernel buffers */
                         while ((elm = SLIST_FIRST(&sgList))
                           != (struct ioctlSgList_S *)NULL) {
-                                SLIST_REMOVE_HEAD(&sgList,link);
+                                SLIST_REMOVE_HEAD(&sgList, link);
                                 free (elm, M_TEMP);
                         }
                         free (Reply_Ptr, M_TEMP);
@@ -4008,7 +4325,8 @@ ASR_queue_i(
         debug_usr_cmd_dump_message(Reply_Ptr);
 
         I2O_SINGLE_REPLY_MESSAGE_FRAME_setDetailedStatusCode(
-          &(Reply_Ptr->StdReplyFrame), (ccb->ccb_h.status != CAM_REQ_CMP));
+          &(Reply_Ptr->StdReplyFrame),
+          (ccb->ccb_h.status != CAM_REQ_CMP));
 
         if (ReplySizeInBytes >= (sizeof(I2O_SCSI_ERROR_REPLY_MESSAGE_FRAME)
           - I2O_SCSI_SENSE_DATA_SZ - sizeof(U32))) {
@@ -4042,7 +4360,7 @@ ASR_queue_i(
                           elm->UserSpace,
                           I2O_FLAGS_COUNT_getCount(&(elm->FlagsCount)));
                 }
-                SLIST_REMOVE_HEAD(&sgList,link);
+                SLIST_REMOVE_HEAD(&sgList, link);
                 free (elm, M_TEMP);
         }
         if (error == 0) {
@@ -4146,12 +4464,13 @@ asr_ioctl(
         case DPT_SYSINFO & 0x0000FFFF:
         case DPT_SYSINFO: {
                 sysInfo_S       Info;
-                caddr_t         c_addr;
+                char          * cp;
                 /* Kernel Specific ptok `hack' */
 #               define          ptok(a) ((char *)(a) + KERNBASE)
 
                 bzero (&Info, sizeof(Info));
 
+                /* Appears I am the only person in the Kernel doing this */
                 outb (0x70, 0x12);
                 i = inb(0x71);
                 j = i >> 4;
@@ -4188,49 +4507,41 @@ asr_ioctl(
                 /* Info.osSubRevision = 0; */
                 Info.busType = SI_PCI_BUS;
                 Info.flags = SI_CMOS_Valid | SI_NumDrivesValid
-                        | SI_OSversionValid |SI_BusTypeValid;
+                       | SI_OSversionValid | SI_BusTypeValid | SI_NO_SmartROM;
 
-                /* Go Out And Look For SmartROM */
-                for(i = 0; i < 3; ++i) {
-                        int     k;
+                /* Go Out And Look For I2O SmartROM */
+                for(j = 0xC8000; j < 0xE0000; j += 2048) {
+                        int k;
 
-                        if (i == 0) {
-                                j = 0xC8000;
-                        } else if (i == 1) {
-                                j = 0xD8000;
-                        } else {
-                                j = 0xDC000;
-                        }
-                        c_addr = ptok(j);
-                        if (*((unsigned short *)c_addr) != 0xAA55) {
+                        cp = ptok(j);
+                        if (*((unsigned short *)cp) != 0xAA55) {
                                 continue;
                         }
-                        if (*((u_long *)(c_addr + 6)) != 0x202053) {
+                        j += (cp[2] * 512) - 2048;
+                        if ((*((u_long *)(cp + 6))
+                          != ('S' + (' ' * 256) + (' ' * 65536L)))
+                         || (*((u_long *)(cp + 10))
+                          != ('I' + ('2' * 256) + ('0' * 65536L)))) {
                                 continue;
                         }
-                        if (*((u_long *)(c_addr + 10)) != 0x545044) {
-                                continue;
-                        }
-                        c_addr += 0x24;
+                        cp += 0x24;
                         for (k = 0; k < 64; ++k) {
-                                if ((*((unsigned char *)(c_addr++)) == ' ')
-                                 && (*((unsigned char *)(c_addr)) == 'v')) {
+                                if (*((unsigned short *)cp)
+                                 == (' ' + ('v' * 256))) {
                                         break;
                                 }
                         }
                         if (k < 64) {
                                 Info.smartROMMajorVersion
-                                    = *((unsigned char *)(c_addr += 3)) - '0';
+                                    = *((unsigned char *)(cp += 4)) - '0';
                                 Info.smartROMMinorVersion
-                                    = *((unsigned char *)(c_addr += 2));
+                                    = *((unsigned char *)(cp += 2));
                                 Info.smartROMRevision
-                                    = *((unsigned char *)(++c_addr));
+                                    = *((unsigned char *)(++cp));
                                 Info.flags |= SI_SmartROMverValid;
+                                Info.flags &= ~SI_NO_SmartROM;
                                 break;
                         }
-                }
-                if (i >= 3) {
-                        Info.flags |= SI_NO_SmartROM;
                 }
                 /* Get The Conventional Memory Size From CMOS */
                 outb (0x70, 0x16);
@@ -4328,7 +4639,7 @@ asr_ioctl(
                 /* Get performance metrics */
 #ifdef ASR_MEASURE_PERFORMANCE
         case DPT_PERF_INFO:
-                bcopy((caddr_t) &sc->ha_performance, data,
+                bcopy((caddr_t) &(sc->ha_performance), data,
                   sizeof(sc->ha_performance));
                 return (0);
 #endif
@@ -4339,8 +4650,7 @@ asr_ioctl(
 
                 /* Reset and re-initialize the adapter */
         case I2ORESETCMD:
-                ASR_reset (sc);
-                return (0);
+                return (ASR_reset (sc));
 
                 /* Rescan the LCT table and resynchronize the information */
         case I2ORESCANCMD:
