@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.118 1995/03/16 22:54:42 phk Exp $
+#	$Id: Makefile,v 1.119 1995/03/17 04:54:13 phk Exp $
 #
 # How to roll a release:
 #
@@ -19,7 +19,7 @@ CPIO1=	etc/services etc/protocols
 CPIO2=  scripts/miscfuncs.sh scripts/instdist.sh scripts/netinst.sh \
 	scripts/adduser.sh scripts/bininst.sh scripts/setup.sh
 
-FAQS=	README README-2.0 MIRROR.SITES
+FAQS=	README MIRROR.SITES
 
 # define this to use a vn device instead of the floppy drive
 # vn driver can still do odd bogosities.  don't use it.
@@ -223,11 +223,11 @@ release.6:
 		rsd[0123][a-h] rwd[0123][a-h] rfd[01] | \
 	cpio -dump ${RD}/bootfd/dev )
 	install -c ${.CURDIR}/../COPYRIGHT ${RD}/bootfd
-	cd ${RD}/trees/bin/usr/share/FAQ ; \
+	cd ${RD}/trees/bin/usr/share/FAQ/Text ; \
 		install -c diskspace.FAQ ${RD}/bootfd/DISKSPACE.FAQ ;\
 		install -c RELNOTES.FreeBSD ${RD}/bootfd ;\
 		install -c TROUBLESHOOTING ${RD}/bootfd ;\
-		install -c README-2.0 ${RD}/bootfd/README
+		install -c README ${RD}/bootfd/README
 	touch ${RD}/bootfd/this_is_boot_flp
 	cd ${.CURDIR} ; ${MAKE} doFLOPPY FLOPPY=boot
 	touch release.6
@@ -310,7 +310,7 @@ ftp.1:
 	rm -rf ${FD}
 	mkdir ${FD}
 	cd ${RD} && find floppies dists -print | cpio -dumpl ${FD}
-	cd ${RD}/trees/bin/usr/share/FAQ && ln -f ${FAQS} ${FD}
+	cd ${RD}/trees/bin/usr/share/FAQ/Text && ln -f ${FAQS} ${FD}
 
 cdrom.1:
 	rm -rf ${CD}
