@@ -1190,6 +1190,7 @@ product SIGMATEL I_BEAD100	0x8008	i-Bead 100 MP3 Player
 
 /* SIIG products */
 product SIIG DIGIFILMREADER	0x0004	DigiFilm-Combo Reader
+product SIIG WINTERREADER	0x0330	WINTERREADER Reader
 product SIIG2 US2308		0x0421	USB to Serial
 
 /* Silicon Portals Inc. */
