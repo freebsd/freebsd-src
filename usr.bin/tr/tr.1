@@ -206,7 +206,7 @@ When ``[:lower:]'' appears in
 .Ar string1
 and ``[:upper:]'' appears in the same relative position in
 .Ar string2 ,
-it represents the characters from the
+it represents the characters pairs from the
 .Dv toupper
 mapping in the
 .Ev LC_CTYPE
@@ -215,17 +215,14 @@ When ``[:upper:]'' appears in
 .Ar string1
 and ``[:lower:]'' appears in the same relative position in
 .Ar string2 ,
-it represents the characters from the
+it represents the characters pairs from the
 .Dv tolower
 mapping in the
 .Ev LC_CTYPE
 category of the current locale.
 .Pp
-With the exception of the ``upper'' and ``lower'' classes, characters
-in the classes are in unspecified order.
-In the ``upper'' and ``lower'' classes, characters are entered in
-ascending order,
-as defined by the collation sequence.
+With the exception of case conversion,
+characters in the classes are in unspecified order.
 .Pp
 For specific information as to which
 .Tn ASCII
