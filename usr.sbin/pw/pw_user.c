@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw_user.c,v 1.1.1.3 1996/12/10 23:59:02 joerg Exp $
+ *	$Id: pw_user.c,v 1.2 1996/12/11 15:10:47 joerg Exp $
  */
 
 #include <unistd.h>
@@ -33,6 +33,10 @@
 #include <sys/param.h>
 #include <dirent.h>
 #include <termios.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <md5.h>
 #include "pw.h"
 #include "bitmap.h"
 #include "pwupd.h"
@@ -730,7 +734,7 @@ pw_pwcrypt(char *password)
 	/*
 	 * Calculate a salt value
 	 */
-	srandom((unsigned) (time(NULL) | getpid()));
+	srandom((unsigned) (time(NULL) ^ getpid()));
 	for (i = 0; i < 8; i++)
 		salt[i] = chars[random() % 63];
 	salt[i] = '\0';
@@ -738,19 +742,61 @@ pw_pwcrypt(char *password)
 	return strcpy(buf, crypt(password, salt));
 }
 
+u_char *
+pw_genmd5rand (u_char *d)		/* cryptographically secure rng */
+{
+	MD5_CTX md5_ctx;
+	struct timeval tv, tvo;
+	struct rusage ru;
+	int n=0;
+	int t;
+	MD5Init (&md5_ctx);
+	t=getpid();
+	MD5Update (&md5_ctx, (u_char*)&t, sizeof t);
+	t=getppid();
+	MD5Update (&md5_ctx, (u_char*)&t, sizeof t);
+	gettimeofday (&tvo, NULL);
+	do {
+		getrusage (RUSAGE_SELF, &ru);
+		MD5Update (&md5_ctx, (u_char*)&ru, sizeof ru);
+		gettimeofday (&tv, NULL);
+		MD5Update (&md5_ctx, (u_char*)&tv, sizeof tv);
+	} while (n++<20 || tv.tv_usec-tvo.tv_usec<100*1000);
+	MD5Final (d, &md5_ctx);
+	return d;
+}
+
+static u_char *
+pw_getrand(u_char *buf, int len)
+{
+	int		fd;
+	fd = open("/dev/urandom", O_RDONLY);
+	if (!fd || read(fd, buf, len)!=len) {
+		int n;
+		for (n=0;n<len;n+=16) {
+			u_char ubuf[16];
+			pw_genmd5rand(ubuf);
+			memcpy(buf+n, ubuf, MIN(16, len-n));
+		}
+	}
+	close(fd);
+	return buf;
+}
 
 static char    *
 pw_password(struct userconf * cnf, struct cargs * args, char const * user)
 {
 	int             i, l;
 	char            pwbuf[32];
+	u_char		rndbuf[sizeof pwbuf];
 
 	switch (cnf->default_password) {
 	case -1:		/* Random password */
-		srandom((unsigned) (time(NULL) | getpid()));
+		srandom((unsigned) (time(NULL) ^ getpid()));
 		l = (random() % 8 + 8);	/* 8 - 16 chars */
+		pw_getrand(rndbuf, l);
 		for (i = 0; i < l; i++)
-			pwbuf[i] = chars[random() % sizeof(chars)];
+			pwbuf[i] = chars[rndbuf[i] % sizeof(chars)];
 		pwbuf[i] = '\0';
 
 		/*
