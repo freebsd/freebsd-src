@@ -1,7 +1,7 @@
 /*
  * Русские праздники
  *
- * $Id: calendar.common,v 1.5 1997/02/24 22:52:52 ache Exp $
+ * $Id: calendar.common,v 1.6 1997/05/01 14:39:55 ache Exp $
  */
 
 #ifndef _ru_SU_KOI8_R_common_
@@ -17,6 +17,7 @@ LANG=ru_SU.KOI8-R
  1 май	Праздник весны и труда
  9 май	День Победы
  1 июн	День Защиты Детей
+12 июн	День Независимости России
  1 сен	День Знаний
 
 #endif /* !_ru_SU_KOI8_R_common_ */
