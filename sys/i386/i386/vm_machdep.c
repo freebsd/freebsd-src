@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 
 #include <machine/cpu.h>
+#include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/pcb_ext.h>
