@@ -79,7 +79,7 @@ Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
     
 	/* Allocate the rest sequentially */
 	for (c1 = c->part; c1; c1 = c1->next) {
-		const char order[] = "efghabd";
+		const char order[] = "defghab";
 		if (c1->type == unused) continue;
 		if (strcmp("X", c1->name)) continue;
 	
