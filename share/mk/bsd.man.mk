@@ -1,4 +1,4 @@
-#	$Id: bsd.man.mk,v 1.15 1996/08/26 10:55:32 peter Exp $
+#	$Id: bsd.man.mk,v 1.16 1996/09/16 14:13:40 peter Exp $
 #
 # The include file <bsd.man.mk> handles installing manual pages and 
 # their links. <bsd.man.mk> includes the file named "../Makefile.inc" 
@@ -36,6 +36,8 @@
 #
 # NOMANCOMPRESS	If you do not want unformatted manual pages to be 
 #		compressed when they are installed. [not set]
+#
+# NOMLINKS	If you do not want install manual page links. [not set]
 #
 # MANFILTER	command to pipe the raw man page though before compressing
 #		or installing.  Can be used to do sed substitution.
@@ -141,7 +143,7 @@ maninstall:: ${MAN${sect}}
 .endif
 .endfor
 
-.if defined(MLINKS) && !empty(MLINKS)
+.if !defined(NOMLINKS) && defined(MLINKS) && !empty(MLINKS)
 	@set `echo ${MLINKS} " " | sed 's/\.\([^.]*\) /.\1 \1 /g'`; \
 	while : ; do \
 		case $$# in \
