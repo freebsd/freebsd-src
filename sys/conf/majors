@@ -149,7 +149,10 @@ chrdev	name		comments
 94	loran		Loran-C Receiver
 95	md		Memory Disk
 96	altq		alternate queueing (including cbq, red, wfq)
-97	??		(is prom on alpha)
+97	prom		Alpha PROM console
+# Alpha vs. i386 conflicts
+#98	zsc		TurboLaser console uart
+#99	ipr		Iprobe on-chip perf. counters (gallatin@freebsd.org)
 98	loe		Loopback pseudo-ethernet (sbabkin@dcn.att.com)
 99	ct		Cronyx/Tau serial adaptor
 100	xrpu		Xilinx Reprogrammable Processing Unit
