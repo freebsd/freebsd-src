@@ -743,16 +743,11 @@ trap_pfault(frame, usermode, eva)
 		 * a growable stack region, or if the stack 
 		 * growth succeeded.
 		 */
-		if (!grow_stack (p, va)) {
+		if (!grow_stack (p, va))
 			rv = KERN_FAILURE;
-			PROC_LOCK(p);
-			--p->p_lock;
-			PROC_UNLOCK(p);
-			goto nogo;
-		}
-		
-		/* Fault in the user page: */
-		rv = vm_fault(map, va, ftype,
+		else
+			/* Fault in the user page: */
+			rv = vm_fault(map, va, ftype,
 			      (ftype & VM_PROT_WRITE) ? VM_FAULT_DIRTY
 						      : VM_FAULT_NORMAL);
 
@@ -864,16 +859,11 @@ trap_pfault(frame, usermode, eva)
 		 * a growable stack region, or if the stack 
 		 * growth succeeded.
 		 */
-		if (!grow_stack (p, va)) {
+		if (!grow_stack (p, va))
 			rv = KERN_FAILURE;
-			PROC_LOCK(p);
-			--p->p_lock;
-			PROC_UNLOCK(p);
-			goto nogo;
-		}
-
-		/* Fault in the user page: */
-		rv = vm_fault(map, va, ftype,
+		else
+			/* Fault in the user page: */
+			rv = vm_fault(map, va, ftype,
 			      (ftype & VM_PROT_WRITE) ? VM_FAULT_DIRTY
 						      : VM_FAULT_NORMAL);
 
@@ -1044,17 +1034,13 @@ int trapwrite(addr)
 	++p->p_lock;
 	PROC_UNLOCK(p);
 
-	if (!grow_stack (p, va)) {
-		PROC_LOCK(p);
-		--p->p_lock;
-		PROC_UNLOCK(p);
-		return (1);
-	}
-
-	/*
-	 * fault the data page
-	 */
-	rv = vm_fault(&vm->vm_map, va, VM_PROT_WRITE, VM_FAULT_DIRTY);
+	if (!grow_stack (p, va))
+		rv = KERN_FAILURE;
+	else
+		/*
+		 * fault the data page
+		 */
+		rv = vm_fault(&vm->vm_map, va, VM_PROT_WRITE, VM_FAULT_DIRTY);
 
 	PROC_LOCK(p);
 	--p->p_lock;
