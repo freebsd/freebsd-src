@@ -8,7 +8,7 @@
 # IRQ == 0 means "allocate free IRQ from IRQ pool"
 # IRQ == 16 means "do not use IRQ (e.g. PIO mode)"
 #
-# $Id: pccard.conf.sample,v 1.16 1998/02/24 13:32:36 hosokawa Exp $
+# $Id: pccard.conf.sample,v 1.17 1998/02/24 13:56:38 itojun Exp $
 
 # Generally available IO ports
 io	0x240-0x360
@@ -289,6 +289,12 @@ card "NTT-IT CO., LTD" "ThunderCard AVF288, V.34"
 	config	0x22 "sio2" 10
 	insert echo NTT ThunderCard inserted
 	remove echo NTT ThunderCard removed
+
+# U.S. Robotics XJ1560J
+card "U.S. Robotics" "XJ/CC1560J"
+	config	0x22 "sio2" 10
+	insert	echo U.S. Robotics XJ1560J inserted
+	remove	echo U.S. Robotics XJ1560J removed
 
 # BUG Linkboy D64K (ISDN)
 card "BUG Inc." "Linkboy D64K"
