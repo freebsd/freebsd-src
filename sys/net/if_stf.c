@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: if_stf.c,v 1.60 2001/05/03 14:51:47 itojun Exp $	*/
+/*	$KAME: if_stf.c,v 1.62 2001/06/07 22:32:16 itojun Exp $	*/
 
 /*
  * Copyright (C) 2000 WIDE Project.
@@ -375,6 +375,30 @@ stf_output(ifp, m, dst, rt)
 		m_freem(m);
 		return ENETUNREACH;
 	}
+
+#if NBPFILTER > 0
+	if (ifp->if_bpf) {
+		/*
+		 * We need to prepend the address family as
+		 * a four byte field.  Cons up a dummy header
+		 * to pacify bpf.  This is safe because bpf
+		 * will only read from the mbuf (i.e., it won't
+		 * try to free it or keep a pointer a to it).
+		 */
+		struct mbuf m0;
+		u_int32_t af = AF_INET6;
+		
+		m0.m_next = m;
+		m0.m_len = 4;
+		m0.m_data = (char *)&af;
+		
+#ifdef HAVE_OLD_BPF
+		bpf_mtap(ifp, &m0);
+#else
+		bpf_mtap(ifp->if_bpf, &m0);
+#endif
+	}
+#endif /*NBPFILTER > 0*/
 
 	M_PREPEND(m, sizeof(struct ip), M_DONTWAIT);
 	if (m && m->m_len < sizeof(struct ip))
