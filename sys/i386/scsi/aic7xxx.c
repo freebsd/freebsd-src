@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.118 1997/04/26 05:03:18 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.119 1997/06/27 19:39:18 gibbs Exp $
  */
 /*
  * TODO:
@@ -105,9 +105,7 @@
 
 #include <sys/malloc.h>
 #include <sys/buf.h>
-#include <sys/proc.h>
 
-#include <scsi/scsi_all.h>
 #include <scsi/scsi_message.h>
 #if defined(__NetBSD__)
 #include <scsi/scsi_debug.h>
@@ -120,7 +118,6 @@
 #endif
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 
 #if defined(__FreeBSD__)

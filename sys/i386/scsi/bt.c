@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt.c,v 1.12 1997/02/22 09:38:43 peter Exp $
+ *      $Id: bt.c,v 1.13 1997/03/23 06:33:37 bde Exp $
  */
 
 /*
@@ -36,17 +36,14 @@
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/kernel.h>
-#include <sys/proc.h>
 #include <sys/sysctl.h>
  
 #include <machine/clock.h>
 #include <machine/stdarg.h>
  
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
  
-#include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 #include <scsi/scsi_debug.h>
 
