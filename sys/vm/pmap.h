@@ -129,7 +129,6 @@ void		 pmap_zero_page_idle(vm_page_t);
 int		 pmap_mincore(pmap_t pmap, vm_offset_t addr);
 void		 pmap_activate(struct thread *td);
 vm_offset_t	 pmap_addr_hint(vm_object_t obj, vm_offset_t addr, vm_size_t size);
-void		*pmap_kenter_temporary(vm_offset_t pa, int i);
 void		 pmap_init2(void);
 
 #define	pmap_resident_count(pm)	((pm)->pm_stats.resident_count)

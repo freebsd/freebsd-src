@@ -214,6 +214,7 @@ struct vmspace;
 vm_offset_t pmap_steal_memory(vm_size_t);
 void	pmap_bootstrap(vm_offset_t, u_int);
 void	pmap_kenter(vm_offset_t va, vm_offset_t pa);
+void	*pmap_kenter_temporary(vm_offset_t pa, int i);
 void	pmap_kremove(vm_offset_t);
 void	pmap_setdevram(unsigned long long basea, vm_offset_t sizea);
 int	pmap_uses_prom_console(void);
