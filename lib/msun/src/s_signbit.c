@@ -38,3 +38,21 @@ __signbit(double d)
 	u.d = d;
 	return (u.bits.sign);
 }
+
+int
+__signbitf(float f)
+{
+	union IEEEf2bits u;
+
+	u.f = f;
+	return (u.bits.sign);
+}
+
+int
+__signbitl(long double e)
+{
+	union IEEEl2bits u;
+
+	u.e = e;
+	return (u.bits.sign);
+}
