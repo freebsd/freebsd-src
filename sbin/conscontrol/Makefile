@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	conscontrol
-MAN=	conscontrol.8
 WARNS?=	2
+MAN=	conscontrol.8
 
 .include <bsd.prog.mk>
