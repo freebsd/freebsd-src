@@ -1,6 +1,6 @@
-<!-- $Id: ctm.sgml,v 1.5 1997/02/22 13:00:46 peter Exp $ -->
+<!-- $Id: ctm.sgml,v 1.6 1997/02/25 04:54:34 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.15 -->
+<!-- Original revision: 1.16 -->
 <!--
 # This is the sgml version of the ctm.FAQ file.
 #
@@ -65,7 +65,7 @@
         ができます.
         もしインターネットにFTPアクセスできるなら, 次のFTPサイト:
 
-        <url url="ftp://freefall.cdrom.com/pub/CTM">
+        <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/CTM">
 
         または、その<ref id="mirrors-ctm" name="ミラーサイト">が<tt/CTM/
         へのアクセスをサポートします.
