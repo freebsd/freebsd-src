@@ -340,7 +340,7 @@ static	char *ip6nh[] = {
  * Dump IP6 statistics structure.
  */
 void
-ip6_stats(u_long off, char *name)
+ip6_stats(u_long off __unused, char *name, int af __unused)
 {
 	struct ip6stat ip6stat;
 	int first, i;
@@ -807,7 +807,7 @@ static	char *icmp6names[] = {
  * Dump ICMP6 statistics.
  */
 void
-icmp6_stats(u_long off, char *name)
+icmp6_stats(u_long off __unused, char *name, int af __unused)
 {
 	struct icmp6stat icmp6stat;
 	register int i, first;
@@ -945,7 +945,7 @@ icmp6_ifstats(char *ifname)
  * Dump PIM statistics structure.
  */
 void
-pim6_stats(u_long off, char *name)
+pim6_stats(u_long off __unused, char *name, int af __unused)
 {
 	struct pim6stat pim6stat;
 
@@ -970,7 +970,7 @@ pim6_stats(u_long off, char *name)
  * Dump raw ip6 statistics structure.
  */
 void
-rip6_stats(u_long off, char *name)
+rip6_stats(u_long off __unused, char *name, int af __unused)
 {
 	struct rip6stat rip6stat;
 	u_quad_t delivered;

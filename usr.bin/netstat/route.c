@@ -135,11 +135,6 @@ static void p_rtentry (struct rtentry *);
 static u_long forgemask (u_long);
 static void domask (char *, u_long, u_long);
 
-#ifdef INET6
-char *routename6 (struct sockaddr_in6 *);
-char *netname6 (struct sockaddr_in6 *, struct in6_addr *);
-#endif /*INET6*/
-
 /*
  * Print routing tables.
  */
