@@ -295,8 +295,8 @@ afdstrategy(struct bio *bp)
 
     s = splbio();
     bioqdisksort(&fdp->queue, bp);
-    ata_start(fdp->device->channel);
     splx(s);
+    ata_start(fdp->device->channel);
 }
 
 void 
