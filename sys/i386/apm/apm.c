@@ -13,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.7 1994/11/15 14:09:18 bde Exp $
+ *	$Id: apm.c,v 1.8 1994/12/16 06:16:30 phk Exp $
  */
 
 #include "apm.h"
@@ -95,8 +95,7 @@ apm_int(u_long *eax,u_long *ebx,u_long *ecx)
 		pushl	%%esi
 		pushl	%%edi
 		xorl	%3,%3
-		movl	%%edi,%3
-		movl	%%esi,%3
+		movl	%3,%%esi
 		lcall	_apm_addr
 		jnc	1f
 		incl	%3
@@ -312,7 +311,7 @@ static void
 apm_timeout(void *arg1)
 {
 	apm_processevent();
-	timeout(apm_timeout, NULL, hz ); /* 1 Hz */
+	timeout(apm_timeout, NULL, hz - 1 );  /* More than 1 Hz */
 }
 
 /* enable APM BIOS */
@@ -324,7 +323,7 @@ apm_event_enable(void)
 #endif
 	if (apm_initialized) {
 		active = 1;
-		timeout(apm_timeout, NULL, 2 * hz);
+		apm_timeout(0);
 	}
 }
 
