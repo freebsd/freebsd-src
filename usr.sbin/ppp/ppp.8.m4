@@ -5341,6 +5341,10 @@ or
 .Dv HISADDR
 keywords.
 .Pp
+.It RAD_FRAMED_IPV6_PREFIX
+If this attribute is supplied, the value is substituted for IPV6PREFIX
+in a command.  You may pass it to such as DHCPv6 for delegating an
+IPv6 prefix to a peer.
 .It RAD_FRAMED_IPV6_ROUTE
 The received string is expected to be in the format
 .Ar dest Ns Op / Ns Ar bits
