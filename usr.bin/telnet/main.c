@@ -43,6 +43,8 @@ static char copyright[] =
 static char sccsid[] = "@(#)main.c	8.2 (Berkeley) 12/15/93";
 #endif /* not lint */
 
+#include <unistd.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 
@@ -125,10 +127,8 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	extern char *optarg;
-	extern int optind;
 	int ch;
-	char *user, *strrchr();
+	char *user;
 	char *src_addr = NULL;
 #ifdef	FORWARD
 	extern int forward_flags;
