@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.c,v 1.26 1997/08/21 05:08:25 fsmp Exp $
+ *	$Id: mpapic.c,v 1.27 1997/12/08 18:36:02 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -488,6 +488,73 @@ apic_ipi(int dest_type, int vector, int delivery_mode)
 	return 0;
 }
 
+static int
+apic_ipi_singledest(int cpu, int vector, int delivery_mode)
+{
+	u_long  icr_lo;
+	u_long  icr_hi;
+	u_long  eflags;
+
+#if defined(DETECT_DEADLOCK)
+#define MAX_SPIN1	10000000
+#define MAX_SPIN2	1000
+	int     x;
+
+	/* "lazy delivery", ie we only barf if they stack up on us... */
+	for (x = MAX_SPIN1; x; --x) {
+		if ((lapic.icr_lo & APIC_DELSTAT_MASK) == 0)
+			break;
+	}
+	if (x == 0)
+		panic("apic_ipi was stuck");
+#endif  /* DETECT_DEADLOCK */
+
+	eflags = read_eflags();
+	__asm __volatile("cli" : : : "memory");
+	icr_hi = lapic.icr_hi & ~APIC_ID_MASK;
+	icr_hi |= (CPU_TO_ID(cpu) << 24);
+	lapic.icr_hi = icr_hi;
+
+	/* build IRC_LOW */
+	icr_lo = (lapic.icr_lo & APIC_RESV2_MASK)
+	    | APIC_DEST_DESTFLD | delivery_mode | vector;
+
+	/* write APIC ICR */
+	lapic.icr_lo = icr_lo;
+	write_eflags(eflags);
+
+	/* wait for pending status end */
+#if defined(DETECT_DEADLOCK)
+	for (x = MAX_SPIN2; x; --x) {
+		if ((lapic.icr_lo & APIC_DELSTAT_MASK) == 0)
+			break;
+	}
+#ifdef needsattention
+/*
+ * XXX FIXME:
+ *      The above loop waits for the message to actually be delivered.
+ *      It breaks out after an arbitrary timout on the theory that it eventually
+ *      will be delivered and we will catch a real failure on the next entry to
+ *      this function, which would panic().
+ *      We could skip this wait entirely, EXCEPT it probably protects us from
+ *      other "less robust" routines that assume the message was delivered and
+ *      acted upon when this function returns.  TLB shootdowns are one such
+ *      "less robust" function.
+ */
+	if (x == 0)
+		printf("apic_ipi might be stuck\n");
+#endif
+#undef MAX_SPIN2
+#undef MAX_SPIN1
+#else
+	while (lapic.icr_lo & APIC_DELSTAT_MASK)
+		 /* spin */ ;
+#endif  /* DETECT_DEADLOCK */
+
+	/** XXX FIXME: return result */
+	return 0;
+}
+
 
 /*
  * Send APIC IPI 'vector' to 'target's via 'delivery_mode'.
@@ -501,21 +568,16 @@ selected_apic_ipi(u_int target, int vector, int delivery_mode)
 {
 	int     x;
 	int     status;
-	u_long  icr_hi;
 
 	if (target & ~0x7fff)
 		return -1;	/* only 15 targets allowed */
 
 	for (status = 0, x = 0; x <= 14; ++x)
 		if (target & (1 << x)) {
-			/* write the destination field for the target AP */
-			icr_hi = lapic.icr_hi & ~APIC_ID_MASK;
-			icr_hi |= (CPU_TO_ID(x) << 24);
-			lapic.icr_hi = icr_hi;
 
 			/* send the IPI */
-			if (apic_ipi(APIC_DEST_DESTFLD, vector,
-				     delivery_mode) == -1)
+			if (apic_ipi_singledest(x, vector, 
+						delivery_mode) == -1)
 				status |= (1 << x);
 		}
 	return status;
