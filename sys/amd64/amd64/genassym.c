@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.61 1998/09/24 10:22:21 bde Exp $
+ *	$Id: genassym.c,v 1.62 1998/10/08 21:03:41 msmith Exp $
  */
 
 #include "opt_vm86.h"
@@ -199,6 +199,7 @@ main()
 	printf("#define\tGD_CURPCB %#x\n", OS(globaldata, curpcb));
 	printf("#define\tGD_COMMON_TSS %#x\n", OS(globaldata, common_tss));
 	printf("#define\tGD_SWITCHTIME %#x\n", OS(globaldata, switchtime));
+	printf("#define\tGD_SWITCHTICKS %#x\n", OS(globaldata, switchticks));
 #ifdef VM86
 	printf("#define\tGD_COMMON_TSSD %#x\n", OS(globaldata, common_tssd));
 	printf("#define\tGD_PRIVATE_TSS %#x\n", OS(globaldata, private_tss));
