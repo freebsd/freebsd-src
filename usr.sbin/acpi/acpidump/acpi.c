@@ -479,7 +479,8 @@ acpi_print_fadt(struct FADTbody *fadt)
 	sep = '{';
 	PRINTFLAG(fadt->iapc_boot_arch, LEGACY_DEV);
 	PRINTFLAG(fadt->iapc_boot_arch, 8042);
-	printf("}\n");
+	if (fadt->iapc_boot_arch != 0)
+		printf("}\n");
 
 	printf("\tFlags=");
 	sep = '{';
@@ -497,7 +498,8 @@ acpi_print_fadt(struct FADTbody *fadt)
 	PRINTFLAG(fadt->flags, SEALED_CASE);
 	PRINTFLAG(fadt->flags, HEADLESS);
 	PRINTFLAG(fadt->flags, CPU_SW_SLP);
-	printf("}\n");
+	if (fadt->flags != 0)
+		printf("}\n");
 
 #undef PRINTFLAG
 
