@@ -27,7 +27,7 @@
 	build.
 
         $FreeBSD$
-        Original revision: 1.210
+        Original revision: 1.256
 -->
 
 <sect1 id="support">
@@ -37,102 +37,32 @@
 
   <title>対応ハードウェア</title>
 
-  <para>この節には、現在 &arch.print; プラットフォーム版 &os;
-    での対応が確認されているデバイスが書かれています。
-    ここに書かれていない構成でも動作するものもありますが、
-    それらはまだ試験されていません。このリストに対する動作報告や更新案、
+  <para>この節には、現在 &arch.print; 版 &os;
+    で動作が確認されている機器がまとめられています。
+    ここに書かれている機器以外にも動作するものがありますが、
+    それらは単に、まだ試験されていないというだけです。
+    このリストに対する動作報告や更新案、
     誤記の修正等のご意見がありましたら、ぜひお寄せください。</para>
 
-  <para>可能なものについては、各々のデバイスやデバイス群に対応するドライバも併記してあります。
-    また、そのドライバのマニュアルページがある場合
+  <para>リストには、その機器に対応するデバイスドライバも併記してあり、
+    そのドライバのマニュアルページがある場合
     (ほとんどあるはずですが) は、その参照先も記載してあります。
-    対応しているデバイスやコントローラなどの特定のモデルについての情報は
+    対応しているデバイスやコントローラなどの特定のモデルについての情報は、
     マニュアルページをご覧ください。</para>
 
   <note>
-    <para>特定の対応デバイスのリストは、
-      重複している (そして潜在的には古くなっている) 記述を減らすために、
-      徐々にこの文書から削除されています。
-      この作業が完了した時には、各ドライバのマニュアルページは
-      対応デバイスの権威あるリストとして参考にすべきです。</para>
+    <para>対応デバイスリストは、&os;
+      のマニュアルページから自動的に生成されています。
+      そのため、あるデバイスに複数のドライバが対応している場合は、
+      そのデバイスが複数回、重複してリストに登場します。</para>
   </note>
   
-  <sect2>
+  <sect2 id="disk">
     <title>ディスクコントローラ</title>
 
-    <para arch="i386,alpha,sparc64,ia64,pc98,amd64">IDE/ATA コントローラ (&man.ata.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>Acard ATP850 UDMA2, ATP860 UDMA4, ATP865 UDMA6</para>
-        </listitem>
-        <listitem>
-	  <para>AMD 756 ATA66, 766 ATA100, 768 ATA100</para>
-	</listitem>
-	<listitem>
-	  <para>Cenatek Rocket Drive</para>
-        </listitem>
-        <listitem>
-          <para>CMD 646, 648 ATA66, 649 ATA100</para>
-        </listitem>
-        <listitem>
-          <para>Cypress 82C693</para>
-        </listitem>
-        <listitem>
-	  <para>Cyrix 5530 ATA33</para>
-        </listitem>
-        <listitem>
-	  <para>HighPoint HPT366 ATA66, HPT370 ATA100, HPT372 ATA133, HPT374 ATA133</para>
-        </listitem>
-        <listitem>
-          <para>Intel PIIX, PIIX3, PIIX4</para>
-        </listitem>
-        <listitem>
-	  <para>Intel ICH ATA66, ICH2 ATA100, ICH3 ATA100, ICH4 ATA100</para>
-	</listitem>
-	<listitem>
-	  <para>nVidia nForce ATA100, nForce2 ATA133</para>
-        </listitem>
-        <listitem>
-          <para>Promise ATA100 OEM チップ (pdc20265)</para>
-        </listitem>
-        <listitem>
-	  <para>Promise ATA133 OEM チップ (pdc20269)</para>
-        </listitem>
-        <listitem>
-	  <para>Promise Fasttrak-33, -66, -100, -100 TX2/TX4, -133 TX2/TX2000</para>
-	</listitem>
-	<listitem>
-	  <para>Promise SATA150 TX2/TX4 シリアル ATA/150</para>
-        </listitem>
-	<listitem>
-	  <para>Promise Ultra-33, -66, -100, -133 TX2/TX2000/TX4000</para>
-        </listitem>
-        <listitem>
-          <para>ServerWorks ROSB4 ATA33</para>
-        </listitem>
-        <listitem>
-	  <para>ServerWorks CSB5, CSB6 ATA66/ATA100</para>
-	</listitem>
-	<listitem>
-	  <para>Sil 0680 UDMA6</para>
-	</listitem>
-	<listitem>
-          <para>SiS 530, 540, 550, 620</para>
-        </listitem>
-        <listitem>
-	  <para>SiS 630, 630S, 633, 635, 640, 645, 645DX, 648, 650, 651, 652, 655, 658, 730, 733, 735, 740, 745, 746, 748, 750, 751, 752, 755</para>
-        </listitem>
-        <listitem>
-          <para>SiS 5591 ATA100</para>
-        </listitem>
-        <listitem>
-          <para>VIA 82C586 ATA33, 82C596 ATA66, 82C686a ATA66, 82C686b ATA100</para>
-        </listitem>
-	<listitem>
-	  <para>VIA 8233, 8235 ATA133</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    <para arch="i386,alpha,sparc64,ia64,pc98,amd64">IDE/ATA コントローラ
+      (&man.ata.4; ドライバ)</para>
+
     <para arch="pc98">IDE/ATA コントローラ (wdc ドライバ)
       <itemizedlist>
         <listitem>
@@ -141,25 +71,19 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,amd64">Adaptec AIC-6260 ベース、AIC-6360 ベースのボード
-      (&man.aic.4; ドライバ)</para>
+    &hwlist.aic;
 
-    <para arch="i386">Adaptec AHA-154X シリーズ
-      ISA SCSI コントローラ、AHA-1640 MCA SCSI コントローラおよびその互換品
-      (&man.aha.4; ドライバ)</para>
+    &hwlist.aha;
 
-    <para arch="i386">Adaptec AHA_174x シリーズ EISA SCSI コントローラ、
-      エンハンスドモード (&man.ahb.4; ドライバ)</para>
+    &hwlist.ahb;
 
-    <para arch="i386,pc98,alpha,sparc64,amd64">Adaptec AIC-7770, AIC-7850,
-      AIC-7860, AIC-7870, AIC-7880, AIC789x ベースの SCSI ホストアダプタ
-      (&man.ahc.4; ドライバ)</para>
+    &hwlist.ahc;
 
-    <para arch="i386,sparc64,amd64">Adaptec AIC7901, AIC7901A, AIC7902 Ultra320
-      コントローラチップをベースにした Ultra-320 SCSI コントローラ
-      (&man.ahd.4; ドライバ)</para>
+    &hwlist.ahd;
 
-    <para arch="i386,amd64">Adaptec FSA ファミリ RAID コントローラ (&man.aac.4; ドライバ)</para>
+    &hwlist.aac;
+
+    &hwlist.ct;
 
     <para arch="pc98">NEC PC-9801-55, 92 およびその互換 C-Bus SCSI インタフェース (ct ドライバ)
       <itemizedlist>
@@ -265,57 +189,29 @@
         </listitem>
       </itemizedlist>
     </para>
-    <para arch="i386,pc98,amd64">AdvanSys SCSI コントローラ (すべてのモデル。
-      &man.adv.4; および &man.adw.4; ドライバ)
-      <itemizedlist>
-        <listitem arch="pc98">
-           <para>MELCO IFC-USP, RATOC REX-PCI30, @Nifty FNECHARD
-           IFC-USUP-TX (&man.adv.4; ドライバ)</para>
-        </listitem>
-      </itemizedlist>
-    </para>
-    
-    <para arch="i386,amd64">BusLogic MultiMaster <quote>W</quote>,
-      <quote>C</quote>、<quote>S</quote>、および <quote>A</quote> シリーズ
-      ホストアダプタ (&man.bt.4; ドライバ)
 
-      <note arch="i386">
-	<para>Buslogic/Bustek BT-640 および
-	  Storage Dimensions SDC3211B, SDC3211F マイクロチャネル (MCA)
-	  バスアダプタにも対応しています。</para>
-      </note>
-    
-    </para>
-    
-    <para arch="i386,amd64">DPT SmartCACHE Plus, SmartCACHE III, SmartRAID III, SmartCACHE IV,
-      SmartRAID IV SCSI/RAID コントローラ (&man.dpt.4; ドライバ)</para>
 
-    <para arch="i386,amd64">Adaptec 21x0S/32x0S/34x0S SCSI RAID
-      コントローラ (&man.asr.4; ドライバ)</para>
+    &hwlist.adv;
 
-    <para arch="i386,amd64">Adaptec 2000S/2005S Zero-Channel RAID コントローラ
-      (&man.asr.4; ドライバ)</para>
+    &hwlist.adw;
 
-    <para arch="i386,amd64">Adaptec 2400A ATA-100 RAID コントローラ
-      (&man.asr.4; ドライバ)</para>
-    
-    <para arch="i386,amd64">DPT SmartRAID V, VI SCSI RAID コントローラ
-      (&man.asr.4; ドライバ)</para>
+    &hwlist.bt;
 
-    <para arch="i386,alpha,amd64">AMI MegaRAID Express, Enterprise ファミリ RAID コントローラ
-      (&man.amr.4; ドライバ)
+    &hwlist.dpt;
 
-      <note>
-	<para arch="i386,amd64">これらのコントローラからの起動にも対応しています。
-          EISA アダプタには対応していません。</para>
+    &hwlist.asr;
+
+    &hwlist.amr;
+
+    <note>
+      <para arch="i386,amd64">これらのコントローラからの起動にも対応しています。
+	EISA アダプタには対応していません。</para>
         
-	<para arch="alpha">SRM の制限のため、
-          これらのコントローラからの起動には対応していません。</para>
-      </note>
-    </para>
+      <para arch="alpha">SRM の制限のため、
+	これらのコントローラからの起動には対応していません。</para>
+    </note>
 
-    <para arch="i386,alpha,amd64">Mylex DAC960 および DAC1100 RAID コントローラ。
-      2.x, 3.x, 4.x, 5.x の各ファームウェアに対応。(&man.mlx.4; ドライバ)
+    &hwlist.mlx;
 
       <note>
 	<para arch="i386,amd64">これらのコントローラからの起動にも対応しています。
@@ -331,69 +227,46 @@
           それより新しいファームウェアで
           SRM から起動できるかどうかは不明です。</para>
       </note>
-    </para>
 
-    <para arch="i386,amd64">Mylex PCI to SCSI RAID コントローラ。
-      6.x ファームウェアに対応。
-      (&man.mly.4; ドライバ)</para>
+    &hwlist.mly;
 
-    <para arch="i386">3ware Escalade ATA RAID コントローラ (&man.twe.4; ドライバ)
-    </para>
+    &hwlist.twe;
 
-    <para arch="i386,pc98,alpha,sparc64,amd64">LSI/SymBios (以前の NCR)
-      53C8<replaceable>XX</replaceable> および 53C10<replaceable>XX</replaceable>
-      PCI SCSI コントローラ。マザーボードに内蔵のもの、および外付ボード
-      (&man.ncr.4; および &man.sym.4; ドライバ)</para>      
-        
-    <para arch="i386,pc98">NCR 53C500 ベースの PC-Card SCSI ホストアダプタ
-      (&man.ncv.4; ドライバ)</para>
+    &hwlist.twa;
 
-    <para arch="i386,pc98">TMC 18C30, 18C50 ベースの ISA/PC-Card SCSI
-      ホストアダプタ (&man.stg.4; ドライバ)
-    </para>
+    &hwlist.ncr;
 
-    <para arch="i386,pc98,alpha,ia64,sparc64,amd64">Qlogic コントローラ。すべての変種に対応。
-      (&man.isp.4; ドライバ)
-    </para>
+    &hwlist.sym;
 
-    <para arch="i386,amd64">DTC 3290 EISA SCSI コントローラ。
-      1542 エミュレーションモードに対応。</para>
+    &hwlist.ncv;
 
-    <para arch="i386,pc98,amd64">Tekram DC390 および DC390T コントローラ。
-      AMD 53c974 をベースにした他のカードも動作するかも知れません。
-      (&man.amd.4; ドライバ)
-      <itemizedlist arch="pc98">
-        <listitem arch="pc98">
-           <para>MELCO IFC-DP</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.stg;
 
-    <para arch="i386,pc98">Workbit Ninja SCSI-3 ベースの PC-Card SCSI ホストアダプタ
-      (&man.nsp.4; ドライバ)</para>
-    
+    &hwlist.isp;
+
+    &hwlist.amd;
+
+    &hwlist.nsp;
+
     <para arch="i386">Adaptec AIC-7110 パラレル-SCSI インタフェース
       (&man.vpo.4; ドライバ)</para>
 
-    <para arch="i386">Compaq Intelligent ディスクアレイコントローラ
-      (&man.ida.4; ドライバ)</para>
+    &hwlist.ida;
 
-    <para arch="i386,amd64">Command Interface for SCSI-3 を利用する
-      SCSI アダプタ (&man.ciss.4; ドライバ)</para>
+    &hwlist.ciss;
 
-    <para arch="i386,amd64">Intel 内蔵 RAID コントローラ
-      (&man.iir.4; ドライバ)</para>
+    &hwlist.iir;
 
     <para arch="i386">Promise SuperTrak ATA RAID コントローラ (&man.pst.4;
     ドライバ)</para>
 
-    <para arch="i386,amd64">IBM / Adaptec ServeRAID シリーズ (ips ドライバ)</para>
+    &hwlist.ips;
 
-    <para arch="i386,alpha,pc98,sparc64,ia64,amd64">LSI Logic Fusion/MP
-	architecture Fiber Channel controllers (&man.mpt.4; ドライバ)</para>
+    &hwlist.mpt;
 
-    <para arch="i386,amd64">Tekram TRM-S1040 SCSI チップセットベースの
-       PCI SCSI ホストアダプタ (&man.trm.4; ドライバ)</para>
+    &hwlist.trm;
+
+    <para arch="i386">WD7000 SCSI コントローラ (wds(4) ドライバ)</para>
 
     <para>対応しているすべての SCSI コントローラは、
       ハードディスク、光ディスク、テープドライブ (DAT, 8mm Exabyte,
@@ -427,36 +300,6 @@
 	</listitem>
       </itemizedlist>
     </para>
-    
-    <para arch="i386">以下のドライバは旧 SCSI
-      サブシステムで対応していましたが、
-      現在の新しい &man.cam.4; SCSI サブシステムでは、
-      まだ対応していないものです。
-      <itemizedlist>
-        <listitem arch="i386">
-	  <para>NCR5380/NCR53400 (<quote>ProAudio Spectrum</quote>)
-            SCSI コントローラ</para>
-	</listitem>
-        <listitem arch="i386">
-	  <para>UltraStor 14F, 24F, 34F SCSI コントローラ
-	    <note>
-	      <para>現在、UltraStor ドライバを
-                新しい CAM SCSI フレームワークに移植する作業が進められていますが、
-                それがどれくらいで完了するかは、まだ不明です。</para>
-            </note>
-          </para>
-	</listitem>
-        <listitem arch="i386">
-	  <para>Seagate ST01/02 SCSI コントローラ</para>
-	</listitem>
-        <listitem arch="i386">
-	  <para>Future Domain 8xx/950 シリーズ SCSI コントローラ</para>
-	</listitem>
-        <listitem arch="i386">
-	  <para>WD7000 SCSI コントローラ</para>
-	</listitem>
-      </itemizedlist>
-    </para>
 
     <para arch="i386">以下のデバイスは現在保守されていないものです。
       <itemizedlist>
@@ -471,55 +314,13 @@
   <sect2 id="ethernet">
     <title>Ethernet インタフェース</title>
 
-    <para arch="i386,pc98,alpha,amd64">Adaptec AIC-6915 Fast Ethernet コントローラチップベースの
-      Adaptec Duralink PCI Fast Ethernet アダプタ (&man.sf.4; ドライバ)</para>
+    &hwlist.sf;
 
-    <para arch="i386,pc98,amd64">Tigon 1, Tigon 2 チップセットベースの
-      Alteon Networks PCI Gigabit Ethernet NIC (&man.ti.4; ドライバ)</para>
+    &hwlist.ti;
 
-    <para arch="i386,pc98,alpha,amd64">AMD PCnet NICs (&man.lnc.4; および &man.pcn.4; ドライバ)
-      <itemizedlist>
-        <listitem arch="i386,alpha,amd64">
-          <para>AMD PCnet/PCI (79c970 & 53c974 もしくは 79c974)</para>
-        </listitem>
-        <listitem arch="i386,alpha,amd64">
-          <para>AMD PCnet/FAST</para>
-        </listitem>
-	<listitem arch="i386,alpha,amd64">
-	  <para>Isolan AT 4141-0 (16 bit)</para>
-	</listitem>
-	<listitem arch="i386,alpha,amd64">
-	  <para>Isolink 4110 (8 bit)</para>
-	</listitem>
-        <listitem arch="i386,alpha,amd64">
-          <para>PCnet/FAST+</para>
-        </listitem>
-        <listitem arch="i386,alpha,amd64">
-          <para>PCnet/FAST III</para>
-        </listitem>
-        <listitem arch="i386,alpha,amd64">
-          <para>PCnet/PRO</para>
-        </listitem>
-        <listitem arch="i386,alpha,amd64">
-          <para>PCnet/Home</para>
-        </listitem>
-        <listitem arch="i386,alpha,amd64">
-          <para>HomePNA</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>Contec C-NET(98)S</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>PCI NIC using AMD AM79C97x (PCnet-PCI/Fast)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>NEC SV-98/2-B05, B06 (PCI)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>Allied-Telesis LA-PCI (PCI)</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.pcn;
+
+    &hwlist.lnc;
 
     <para arch="i386,pc98,amd64">SMC 83c17x (EPIC) ベースの Ethernet NIC
       (&man.tx.4; ドライバ)</para>
@@ -757,178 +558,97 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">RealTek RTL 8002 Pocket Ethernet (&man.rdp.4;
-      ドライバ)</para>
+    &hwlist.rl;
 
-    <para arch="i386,pc98,alpha,sparc64,amd64">RealTek 8129/8139 Fast Ethernet NIC
-      (&man.rl.4; ドライバ)</para>
+    &hwlist.wb;
 
-    <para arch="i386,pc98,alpha,amd64">Winbond W89C840F Fast Ethernet NIC
-      (&man.wb.4; ドライバ)</para>
+    &hwlist.vr;
 
-    <para arch="i386,pc98,alpha,amd64">VIA Technologies VT3043 <quote>Rhine I</quote>,
-      VT86C100A <quote>Rhine II</quote>,
-      VT86C105/VT86C105M <quote>Rhine III</quote> Fast Ethernet NIC (&man.vr.4; ドライバ)</para>
+    &hwlist.sis;
 
-    <para arch="i386,pc98,alpha,amd64">Silicon Integrated Systems SiS 900
-      および SiS 7016 PCI Fast Ethernet NIC (&man.sis.4; ドライバ)</para>
+    &hwlist.nge;
 
-    <para arch="i386,pc98,alpha,amd64">National Semiconductor DP83815 Fast Ethernet NIC
-      (&man.sis.4; ドライバ)</para>
+    &hwlist.ste;
 
-    <para arch="i386,pc98,amd64">National Semiconductor DP83820 および DP83821 Gigabit Ethernet
-      NIC (&man.nge.4; ドライバ)</para>
+    &hwlist.sk;
 
-    <para arch="i386,pc98,alpha,amd64">Sundance Technologies ST201 PCI Fast Ethernet NIC
-      (&man.ste.4; ドライバ)</para>
+    &hwlist.tl;
 
-    <para arch="i386,pc98,alpha,amd64">SysKonnect SK-984x PCI Gigabit Ethernet カード
-      (&man.sk.4 ドライバ)</para>
+    &hwlist.dc;
 
-    <para arch="i386,pc98,alpha,amd64">Texas Instruments ThunderLAN PCI NIC (&man.tl.4; ドライバ)</para>
+    &hwlist.aue;
 
-    <para arch="i386,pc98,alpha,sparc64,amd64">DEC/Intel 21143 Fast Ethernet
-      NIC と PCI, MiniPCI, CardBus 版の互換品 (&man.dc.4; ドライバ)</para>
+    &hwlist.cue;
 
-    <para arch="i386,pc98,amd64">ADMtek Inc. AN986 ベースの USB Ethernet NIC
-      (&man.aue.4; ドライバ)</para>
+    &hwlist.kue;
 
-    <para arch="i386,pc98,amd64">CATC USB-EL1210A ベースの USB Ethernet NIC
-      (&man.cue.4; ドライバ)</para>
+    &hwlist.axe;
 
-    <para arch="i386,pc98,amd64">Kawasaki LSI KU5KUSB101B ベースの USB Ethernet NIC
-      (&man.kue.4; ドライバ)</para>
+    &hwlist.rue;
 
-    <para arch="i386,pc98,amd64">ASIX Electronics AX88172 ベースの USB Ethernet NIC
-      (&man.axe.4; ドライバ)</para>
+    &hwlist.udav;
 
-    <para arch="i386,pc98,amd64">RealTek RTL8150 ベースの USB Ethernet NIC
-      (&man.rue.4; ドライバ)</para>
+    &hwlist.de;
 
-    <para arch="i386">DEC EtherWORKS II, III NIC
-      (&man.le.4; ドライバ)</para>
+    &hwlist.fe;
 
-    <para arch="i386,pc98,alpha,amd64">DEC DC21040, DC21041, DC21140, DC21141, DC21142, DC21143
-      ベースの NICs (&man.de.4; ドライバ)</para>
+    &hwlist.fxp;
 
-    <para arch="i386,pc98,amd64">Fujitsu MB86960A/MB86965A ベースの Fast Ethernet NIC
-      (&man.fe.4; ドライバ)</para>
+    &hwlist.ex;
 
-    <para arch="i386,pc98,alpha,ia64,sparc64,amd64">Intel 82557, 82258, 82559, 82550,
-      82562 ベースの Fast Ethernet NIC (&man.fxp.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>Intel EtherExpress Pro/100B PCI Fast Ethernet</para>
-        </listitem>
-        <listitem arch="i386,alpha,ia64,amd64">
-	  <para>Intel InBusiness 10/100 PCI Network アダプタ</para>
-        </listitem>
-        <listitem>
-	  <para>Intel PRO/100+ マネージメントアダプタ</para>
-        </listitem>
-        <listitem>
-          <para>Intel Pro/100 VE デスクトップアダプタ</para>
-        </listitem>
-        <listitem>
-          <para>Intel Pro/100 M デスクトップアダプタ</para>
-        </listitem>
-        <listitem>
-          <para>Intel Pro/100 S デスクトップ、サーバ、デュアルポートサーバアダプタ</para>
-        </listitem>
-        <listitem arch="i386,ia64,amd64">
-          <para>多くの Intel 製マザーボードに内蔵されている Ethernet NIC</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>NEC PC-9821Ra20, Rv20, Xv13, Xv20 内蔵 100Base-TX
-          (PCI)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>NEC PC-9821X-B06 (PCI)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>Contec C-NET(PI)-100TX (PCI)</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.ie;
 
-    <para arch="i386,amd64">Intel 82595 ベースの Ethernet NICs (&man.ex.4; ドライバ)</para>
+    &hwlist.ep;
 
-    <para arch="i386">Intel 82586 ベースの Ethernet NIC
-      (&man.ie.4; ドライバ)</para>
+    &hwlist.el;
 
-    <para arch="i386,pc98,amd64">3Com 3C5x9 Etherlink III NIC (&man.ep.4; ドライバ)</para>
+    &hwlist.xl;
 
-    <para arch="i386">3Com 3C501 8-bit ISA Ethernet NIC 
-      (&man.el.4; ドライバ)</para>
-
-    <para arch="i386,pc98,alpha,sparc64,amd64">3Com Etherlink XL ベースの NIC
-      (&man.xl.4; ドライバ)</para>
-
-    <para arch="i386,pc98,amd64">3Com 3C59X シリーズ NIC
-      (&man.vx.4; ドライバ)</para>
+    &hwlist.vx;
 
     <para arch="i386,amd64">Crystal Semiconductor CS89x0 ベースの NIC 
       (&man.cs.4; ドライバ)</para>
 
-    <para arch="i386,amd64">Megahertz X-Jack Ethernet PC-Card CC-10BT
-      (&man.sn.4; ドライバ)</para>
+    &hwlist.sn;
 
-    <para arch="i386,amd64">Xircom CreditCard アダプタ (16 bit) および互換品
-      (&man.xe.4; ドライバ)</para>
+    &hwlist.xe;
 
-    <para arch="pc98">National Semiconductor DP8393X (SONIC) Ethernet
-      カード (snc ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>NEC PC-9801-83, -84, -103, -104</para>
-        </listitem>
-        <listitem>
-	  <para>NEC PC-9801N-25 および -J02R</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.snc;
 
-    <para arch="i386,pc98,amd64">Level 1 LXT1001 NetCellerator コントローラベースの
-      Gigabit Ethernet カード (&man.lge.4; ドライバ)</para>
+    &hwlist.lge;
 
-    <para arch="i386,pc98,alpha,amd64">3Com 3XP Typhoon/Sidewinder (3CR990)
-      チップセットベースの Ethernet および Fast Ethernet NIC 
-      (&man.txp.4; ドライバ)</para>
+    &hwlist.txp;
 
-    <para arch="i386,pc98,ia64,amd64">Broadcom BCM570x ベースの
-      Gigabit Ethernet NIC (&man.bge.4; ドライバ)</para>
+    &hwlist.bge;
 
-    <para arch="i386,pc98,alpha,ia64,amd64">Intel 82542, 82543
-      コントローラチップベースの Gigabit Ethernet NIC
-      (&man.gx.4;  と &man.em.4; ドライバ) および、
-      Intel 82540EM, 82544, 82545EM, 82546EB コントローラチップベースの NIC
-      (&man.em.4; ドライバのみ)</para>
+    &hwlist.em;
 
-    <para arch="sparc64">Sun HME Ethernet および QFE Ethernet NIC
-      (&man.hme.4; ドライバ)</para>
-    
-    <para arch="sparc64">Sun GEM (Gigabit Ethernet) および ERI (Fast
-      Ethernet) NIC (&man.gem.4; ドライバ)</para>
+    &hwlist.gx;
 
-    <para arch="i386,pc98">Myson Ethernet NICs (&man.my.4; ドライバ)
-    </para>
+    &hwlist.hme;
+
+    &hwlist.gem;
+
+    &hwlist.my;
 
     <para arch="i386,amd64">Broadcom BCM4401 ベースの Fast Ethernet アダプタ
       (&man.bfe.4; ドライバ)</para>
 
-    <para arch="alpha,i386,pc98,amd64">RealTek RTL8139C+, RTL8169, RTL8169S,
-      RTL8110S ベースの PCI Fast Ethernet および Gigabit Ethernet
-      コントローラ (&man.re.4; ドライバ)</para>
+    &hwlist.re;
+
+    &hwlist.ixgb;
+
+    &hwlist.vge;
 
   </sect2>
 
-  <sect2>
+  <sect2 id="fddi">
     <title>FDDI インタフェース</title>
     <para arch="i386,pc98,alpha">DEC DEFPA PCI (&man.fpa.4; ドライバ)</para>
     <para arch="i386">DEC DEFEA EISA (&man.fpa.4; ドライバ)</para>
   </sect2>
 
-  <sect2>
+  <sect2 id="atm">
     <title>ATM インタフェース</title>
 
     <para arch="i386,pc98">Midway ベースの ATM インタフェース (&man.en.4;
@@ -947,7 +667,7 @@
       (&man.patm.4; ドライバ)</para>
   </sect2>
 
-  <sect2>
+  <sect2 id="wlan">
     <title>無線ネットワークインタフェース</title>
     
     <para arch="i386">NCR / AT&amp;T / Lucent Technologies WaveLan T1-speed
@@ -964,18 +684,21 @@
     <para arch="i386,pc98">Raytheon Raylink 2.4GHz 無線アダプタ
       (&man.ray.4; ドライバ)</para>
 
-    <para arch="i386,pc98,amd64">AMD Am79C930 および Harris (Intersil)
-      ベースの 802.11b カード (&man.awi.4; ドライバ)</para>
+    &hwlist.awi;
 
-    <para arch="i386">Atheros AR5210, AR5211, AR5212 ベースの
-      802.11a/b/g ネットワークインタフェース (&man.ath.4; ドライバ)</para>
+    &hwlist.cnw;
+
+    &hwlist.ath;
   </sect2>
 
-  <sect2>
+  <sect2 id="misc-network">
     <title>その他のネットワーク機器</title>
 
-    <para arch="i386">Cronyx-Sigma 同期・非同期シリアルアダプタ
-      (&man.cx.4; ドライバ)</para>
+    &hwlist.cx;
+
+    &hwlist.cp;
+
+    &hwlist.ctau;
 
     <para arch="i386">Granch SBNI12 point-to-point 通信アダプタ
       (&man.sbni.4; ドライバ)</para>
@@ -983,16 +706,11 @@
     <para arch="i386">Granch SBNI16 SHDSL モデム (&man.sbsh.4;
       ドライバ)</para>
 
-    <para arch="i386">SMC COM90cx6 ARCNET ネットワークアダプタ (cm ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>SMC 90c26, 90c56, 90c66 の 90c56 互換モード</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.cm;
+
   </sect2>
 
-  <sect2>
+  <sect2 id="isdn">
     <title>ISDN インタフェース</title>
     <para arch="i386">AcerISDN P10 ISA PnP (実験段階)</para>
     <para arch="i386">Asuscom ISDNlink 128K ISA</para>
@@ -1086,7 +804,7 @@
     <para arch="i386">Winbond W6692 ベースの PCI カード</para>
   </sect2>
 
-  <sect2>
+  <sect2 id="serial">
     <title>シリアルインタフェース</title>
     <para arch="i386,alpha,ia64,amd64"><quote>PC に標準で搭載されている</quote>
       8250, 16450, 16550 ベースのシリアルポート (&man.sio.4; ドライバ)</para>
@@ -1224,9 +942,6 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Stallion Technologies マルチポートシリアルカード
-       (&man.stl.4; および &man.stli.4; ドライバ)</para>
-
     <!-- 2002/03/03 hrs: "enhanced" is a part of product name? -->
     <para arch="i386,amd64">Specialix SI/XIO/SX マルチポートシリアルカード。
       従来の SIHOST2.x および、新しい (JET とも呼ばれている
@@ -1288,8 +1003,14 @@
 
   </sect2>
 
-  <sect2>
+  <sect2 id="audio">
     <title>オーディオデバイス</title>
+
+    &hwlist.snd.ad1816;
+
+    &hwlist.snd.cs4281;
+
+    &hwlist.snd.solo;
 
     <para arch="i386,amd64">Advance (&man.sbc.4; ドライバ)
       <itemizedlist>
@@ -1302,32 +1023,11 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,amd64">CMedia サウンドチップ
-      <itemizedlist>
-        <listitem>
-	  <para>CMI8338/CMI8738</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.snd.cmi;
 
-    <para arch="i386,amd64">Crystal Semiconductor (&man.csa.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>CS461x/462x Audio Accelerator</para>
-	</listitem>
-	<listitem>
-	  <para>CS428x Audio コントローラ</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.snd.csa;
 
-    <para arch="i386,amd64">ENSONIQ (&man.pcm.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>AudioPCI ES1370/1371</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.snd.es137x;
 
     <para arch="i386,alpha,amd64">ESS
       <itemizedlist>
@@ -1353,16 +1053,7 @@
 
     <para arch="i386,amd64">ForteMedia fm801</para>
 
-    <para arch="i386,amd64">Gravis (&man.gusc.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>UltraSound MAX</para>
-	</listitem>
-        <listitem>
-	  <para>UltraSound PnP</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.snd.gusc;
 
     <para arch="i386,amd64">Intel 443MX, 810, 815, 815E 内蔵のサウンドデバイス
       (&man.pcm.4; ドライバ)</para>
@@ -1398,23 +1089,13 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,amd64">Creative Technologies Sound Blaster Live! シリーズ
-      (emu10k1 ドライバ)</para>
+    &hwlist.snd.emu10k1;
 
     <para arch="i386,amd64">Trident 4DWave DX/NX (&man.pcm.4; ドライバ)</para>
 
     <para arch="i386,amd64">VIA Technologies VT82C686A</para>
 
-    <para arch="i386,amd64">Yamaha
-      <itemizedlist>
-        <listitem>
-	  <para>DS1</para>
-	</listitem>
-        <listitem>
-	  <para>DS1e</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.snd.ds1;
 
     <para arch="pc98">NEC PC-9801-73, 86 およびその互換品 (nss ドライバ)
       <itemizedlist>
@@ -1446,14 +1127,12 @@
       ドライバ)</para>
   </sect2>
 
-  <sect2>
+  <sect2 id="camera">
     <title>カメラおよびビデオキャプチャデバイス</title>
 
     <para arch="i386,pc98">Brooktree Bt848/849/878/879 ベースのフレームグラバ
       (&man.bktr.4; ドライバ)</para>      
     <para arch="i386">Connectix QuickCam</para>
-    <para arch="i386">Cortex1 frame grabber (ctx ドライバ)</para>
-    <para arch="i386">Creative Labs Video Spigot フレームグラバ (spigot ドライバ)</para>
   </sect2>
 
   <sect2 id="usb">
@@ -1477,10 +1156,10 @@
       linkend="bluetooth">Bluetooth</link> の節にまとめられています。</para>
     </note>
 
-    <para arch="i386,pc98,alpha,ia64,amd64">OHCI 1.0 準拠のホストコントローラ (&man.ohci.4; ドライバ)</para>
- 
-    <para arch="i386,pc98,alpha,ia64,amd64">UHCI 1.1 準拠のホストコントローラ (&man.uhci.4; ドライバ)</para>
+    &hwlist.ohci;
 
+    &hwlist.uhci;
+ 
     <para arch="i386,ia64,pc98,amd64">EHCI インタフェースを使った USB 2.0 コントローラ
       (&man.ehci.4; ドライバ)</para>
 
@@ -1510,28 +1189,23 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para arch="i386,pc98,amd64">モデム (&man.umodem.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>3Com 5605</para>
-	</listitem>
-        <listitem>
-	  <para>Metricom Ricochet GS USB 無線モデム</para>
-	</listitem>
-        <listitem>
-	  <para>Yamaha ブロードバンド無線ルータ RTW65b</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+
+    &hwlist.umodem;
+
     <para arch="i386,pc98,alpha,amd64">マウス (&man.ums.4; ドライバ)</para>
 
     <para arch="i386,pc98,alpha,amd64">プリンタ、パラレルプリンタ変換ケーブル
       (&man.ulpt.4; ドライバ)</para>
 
-    <para arch="i386,pc98,amd64">シリアルデバイス (&man.ubsa.4;,
-      &man.uftdi.4;, &man.uplcom.4; ドライバ)</para>
+    &hwlist.ubsa;
 
-    <para arch="i386,pc98,amd64">スキャナ (SANE 経由) (&man.uscanner.4; ドライバ)</para>
+    &hwlist.ubser;
+
+    &hwlist.uftdi;
+
+    &hwlist.uplcom;
+
+    &hwlist.uscanner;
 
     <para arch="i386,pc98,alpha,amd64">ストレージデバイス (&man.umass.4; ドライバ)
       <itemizedlist>
@@ -1636,27 +1310,14 @@
 
     <para arch="i386,pc98,amd64">オーディオデバイス (&man.uaudio.4; ドライバ)</para>
 
-    <para arch="i386,pc98,amd64">Handspring Visor および、その他の PalmOS デバイス
-      (&man.uvisor.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>Handspring Visor</para>
-        </listitem>
-        <listitem>
-	  <para>Palm M125, M500, M505</para>
-        </listitem>
-        <listitem>
-	  <para>Sony Clie 4.0, 4.1</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.uvisor;
+
  </sect2>
 
   <sect2 id="firewire">
     <title>IEEE 1394 (FireWire) デバイス</title>
 
-    <para arch="i386,sparc64,amd64">ホストコントローラ (&man.fwohci.4;
-      ドライバ)</para>
+    &hwlist.fwohci;
 
     <para arch="i386,sparc64,amd64">シリアルバスプロトコル 2 (SBP-2)
       ストレージデバイス (&man.sbp.4; ドライバ)</para>
@@ -1673,47 +1334,22 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,amd64">USB ホストコントローラ (&man.ng.ubt.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>3Com 3CREB96</para>
-	</listitem>
-        <listitem>
-	  <para>EPoX BT-DG02</para>
-	</listitem>
-        <listitem>
-	  <para>Mitsumi USB Bluetooth アダプタ</para>
-	</listitem>
-        <listitem>
-	  <para>MSI MS-6967</para>
-	</listitem>
-        <listitem>
-	  <para>TDK Bluetooth USB adapter</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.ng.ubt;
  
    </sect2>
 
-  <sect2>
+  <sect2 id="crypto-accel">
     <title>暗号処理アクセラレータ</title>
 
-    <para arch="i386,pc98,amd64">Hifn 7751, 7811, 7951
-      チップセットベースのアクセラレータ (&man.hifn.4; ドライバ)</para>
+    &hwlist.hifn;
 
-    <para arch="i386,pc98,amd64">SafeNet 1141, 1741
-      チップセットベースのアクセラレータ (&man.safe.4; ドライバ)</para>
+    &hwlist.safe;
 
-    <para arch="i386,pc98,amd64">Bluesteel 5501, 5601
-      チップセットベースのアクセラレータ (&man.ubsec.4;
-      ドライバ)</para>
+    &hwlist.ubsec;
 
-    <para arch="i386,pc98,amd64">Broadcom BCM5801, BCM5802, BCM5805, BCM5820, BCM5821,
-      BCM5822 チップセットベースのアクセラレータ
-      (&man.ubsec.4; ドライバ)</para>
   </sect2>
 
-  <sect2>
+  <sect2 id="misc">
     <title>その他のデバイス</title>
 
     <para arch="i386,pc98,amd64">FAX モデム/PCCARD
@@ -1728,8 +1364,6 @@
     </para>
 
     <para arch="i386,pc98,alpha,amd64">フロッピドライブ (&man.fdc.4; ドライバ)</para>
-    <para arch="i386">Genius および Mustek ハンドスキャナ</para>
-    <para arch="i386">GPB および Transputer ドライバ</para>
 
     <para arch="i386,alpha,ia64,amd64">VGA 互換ビデオカード
       (&man.vga.4; ドライバ)
