@@ -681,12 +681,7 @@ udp_getcred(SYSCTL_HANDLER_ARGS)
 	INP_INFO_RLOCK(&udbinfo);
 	inp = in_pcblookup_hash(&udbinfo, addrs[1].sin_addr, addrs[1].sin_port,
 				addrs[0].sin_addr, addrs[0].sin_port, 1, NULL);
-	if (inp == NULL) {
-		error = ENOENT;
-		goto outunlocked;
-	}
-	INP_LOCK(inp);
-	if (inp->inp_socket == NULL) {
+	if (inp == NULL || inp->inp_socket == NULL) {
 		error = ENOENT;
 		goto out;
 	}
@@ -695,8 +690,6 @@ udp_getcred(SYSCTL_HANDLER_ARGS)
 		goto out;
 	cru2x(inp->inp_socket->so_cred, &xuc);
 out:
-	INP_UNLOCK(inp);
-outunlocked:
 	INP_INFO_RUNLOCK(&udbinfo);
 	splx(s);
 	if (error == 0)
