@@ -30,8 +30,14 @@
  *
  */
 
+#ifndef lint
+#if 0
 static char *id =
 	"@(#)playvt.c, 1.00, Last Edit-Date: [Sun Jan  1 18:32:22 1995]";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
 
 /*---------------------------------------------------------------------------*
  *
@@ -48,10 +54,6 @@ main(argc,argv)
 int argc;
 char *argv[];
 {
-	extern int optind;
-	extern int opterr;
-	extern char *optarg;
-
 	int c;
 	FILE *fp = stdin;
 	volatile int i;

@@ -46,6 +46,7 @@
 #include <stdio.h>
 #include <err.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <machine/pcvt_ioctl.h>
@@ -76,10 +77,6 @@ main(argc,argv)
 int argc;
 char *argv[];
 {
-	extern int optind;
-	extern int opterr;
-	extern char *optarg;
-
 	FILE *in;
 	struct stat sbuf, *sbp;
 	unsigned char *fonttab;
