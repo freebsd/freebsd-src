@@ -886,8 +886,7 @@ mac_ioctl_ifnet_set(struct ucred *cred, struct ifreq *ifr,
 }
 
 int
-mac_setsockopt_label_set(struct ucred *cred, struct socket *so,
-    struct mac *mac)
+mac_setsockopt_label(struct ucred *cred, struct socket *so, struct mac *mac)
 {
 	struct label *intlabel;
 	char *buffer;
@@ -925,8 +924,7 @@ mac_setsockopt_label_set(struct ucred *cred, struct socket *so,
 }
 
 int
-mac_getsockopt_label_get(struct ucred *cred, struct socket *so,
-    struct mac *mac)
+mac_getsockopt_label(struct ucred *cred, struct socket *so, struct mac *mac)
 {
 	char *buffer, *elements;
 	int error;
@@ -955,7 +953,7 @@ mac_getsockopt_label_get(struct ucred *cred, struct socket *so,
 }
 
 int
-mac_getsockopt_peerlabel_get(struct ucred *cred, struct socket *so,
+mac_getsockopt_peerlabel(struct ucred *cred, struct socket *so,
     struct mac *mac)
 {
 	char *elements, *buffer;
