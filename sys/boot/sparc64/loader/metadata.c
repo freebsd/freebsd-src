@@ -56,7 +56,6 @@ static struct
 } howto_names[] = {
     {"boot_askname",	RB_ASKNAME},
     {"boot_cdrom",	RB_CDROM},
-    {"boot_userconfig",	RB_CONFIG},
     {"boot_ddb",	RB_KDB},
     {"boot_gdb",	RB_GDB},
     {"boot_single",	RB_SINGLE},
@@ -88,9 +87,6 @@ md_getboothowto(char *kargs)
 		switch (*cp) {
 		case 'a':
 		    howto |= RB_ASKNAME;
-		    break;
-		case 'c':
-		    howto |= RB_CONFIG;
 		    break;
 		case 'C':
 		    howto |= RB_CDROM;
