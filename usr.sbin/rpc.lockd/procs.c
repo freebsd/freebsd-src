@@ -165,7 +165,7 @@ static CLIENT *get_client(struct sockaddr_in *host_addr)
   client = clntudp_create(host_addr, NLM_PROG, NLM_VERS, retry_time, &sock_no);
   if (!client)
   {
-    syslog(LOG_ERR, clnt_spcreateerror("clntudp_create"));
+    syslog(LOG_ERR, "%s", clnt_spcreateerror("clntudp_create"));
     syslog(LOG_ERR, "Unable to return result to %s",
       inet_ntoa(host_addr->sin_addr));
     return NULL;

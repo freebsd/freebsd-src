@@ -513,7 +513,7 @@ void
 quit(msg)
 	char *msg;
 {
-	syslog(LOG_ERR, msg);
+	syslog(LOG_ERR, "%s", msg);
 	exit(1);
 }
 
