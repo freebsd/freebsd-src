@@ -2029,7 +2029,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>The &man.route.8; <option>add</option> command now supports
     the <option>-ifp</option> and <option>-ifa</option>
-    modifiers.</para>
+    modifiers. &merged;</para>
 
     <para>&man.rpcbind.8; has replaced &man.portmap.8;.</para>
 
@@ -2392,7 +2392,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       5.2-20010512.</para>
 
       <para>The <application>NTP</application> suite of programs has been
-      updated to 4.1.0.</para>
+      updated to 4.1.0. &merged;</para>
 
       <para>The <application>OPIE</application> one-time-password suite
       has been updated to 2.32. &merged;  It has completely replaced
