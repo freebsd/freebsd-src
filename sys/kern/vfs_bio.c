@@ -3060,7 +3060,6 @@ bufwait(register struct buf * bp)
 
  /*
   * Call back function from struct bio back up to struct buf.
-  * The corresponding initialization lives in sys/conf.h:DEV_STRATEGY().
   */
 static void
 bufdonebio(struct bio *bp)
