@@ -297,13 +297,17 @@ ata_end_transaction(struct ata_request *request)
 
     /* ATA PIO data transfer and control commands */
     default:
+	/* XXX Doesn't handle the non-PIO case. */
+	if (request->flags & ATA_R_TIMEOUT)
+	    return ATA_OP_FINISHED;
 
 	/* on control commands read back registers to the request struct */
 	if (request->flags & ATA_R_CONTROL) {
 	    request->u.ata.count = ATA_IDX_INB(ch, ATA_COUNT);
 	    request->u.ata.lba = ATA_IDX_INB(ch, ATA_SECTOR) |
 				 (ATA_IDX_INB(ch, ATA_CYL_LSB) << 8) |
-				 (ATA_IDX_INB(ch, ATA_CYL_MSB) << 16);
+				 (ATA_IDX_INB(ch, ATA_CYL_MSB) << 16) |
+	    			 ((ATA_IDX_INB(ch, ATA_DRIVE) & 0x0f) << 24);
 	}
 
 	/* if we got an error we are done with the HW */
@@ -492,7 +496,7 @@ ata_end_transaction(struct ata_request *request)
 static void
 ata_generic_reset(struct ata_channel *ch)
 {
-    u_int8_t err, lsb, msb, ostat0, ostat1;
+    u_int8_t err = 0, lsb = 0, msb = 0, ostat0, ostat1;
     u_int8_t stat0 = 0, stat1 = 0;
     int mask = 0, timeout;
 
@@ -601,19 +605,26 @@ ata_generic_reset(struct ata_channel *ch)
 	    }
 	}
 	if (mask == 0x01)	/* wait for master only */
-	    if (!(stat0 & ATA_S_BUSY) || (stat0 == 0xff && timeout > 5))
+	    if (!(stat0 & ATA_S_BUSY) || (stat0 == 0xff && timeout > 5) ||
+		(stat0 == err && lsb == err && msb == err && timeout > 5))
 		break;
 	if (mask == 0x02)	/* wait for slave only */
-	    if (!(stat1 & ATA_S_BUSY) || (stat1 == 0xff && timeout > 5))
+	    if (!(stat1 & ATA_S_BUSY) || (stat1 == 0xff && timeout > 5) ||
+		(stat1 == err && lsb == err && msb == err && timeout > 5))
 		break;
 	if (mask == 0x03) {	/* wait for both master & slave */
 	    if (!(stat0 & ATA_S_BUSY) && !(stat1 & ATA_S_BUSY))
 		break;
-	    if (stat0 == 0xff && timeout > 5)
+	    if ((stat0 == 0xff && timeout > 5) ||
+		(stat0 == err && lsb == err && msb == err && timeout > 5))
 		mask &= ~0x01;
-	    if (stat1 == 0xff && timeout > 5)
+	    if ((stat1 == 0xff && timeout > 5) ||
+		(stat1 == err && lsb == err && msb == err && timeout > 5))
 		mask &= ~0x02;
 	}
+	if (mask == 0 && !(stat0 & ATA_S_BUSY) && !(stat1 & ATA_S_BUSY))
+	    break;
+
 	ata_udelay(100000);
     }	
 
