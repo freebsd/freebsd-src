@@ -49,6 +49,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <ctype.h>
 #include <errno.h>
 #include <err.h>
 
@@ -282,6 +283,7 @@ static void wi_setkeys(iface, key, idx)
 	char			*key;
 	int			idx;
 {
+	int			keylen;
 	struct wi_req		wreq;
 	struct wi_ltv_keys	*keys;
 	struct wi_key		*k;
@@ -292,7 +294,7 @@ static void wi_setkeys(iface, key, idx)
 
 	wi_getval(iface, &wreq);
 	if (wreq.wi_val[0] == 0)
-		err(1, "no WEP option available on this card");
+		errx(1, "no WEP option available on this card");
 
 	bzero((char *)&wreq, sizeof(wreq));
 	wreq.wi_len = WI_MAX_DATALEN;
@@ -301,13 +303,21 @@ static void wi_setkeys(iface, key, idx)
 	wi_getval(iface, &wreq);
 	keys = (struct wi_ltv_keys *)&wreq;
 
-	if (strlen(key) > 14) {
-		err(1, "encryption key must be no "
-		    "more than 14 characters long");
+	keylen = strlen(key);
+	if (key[0] == '0' && (key[1] == 'x' || key[1] == 'X')) {
+		if(keylen != 2 && keylen != 12 && keylen != 28) {
+			errx(1, "encryption key must be 0, 10, or 26 "
+			    "hex digits long");
+		}
+	} else {
+		if (keylen != 0 && keylen != 5 && keylen != 13) {
+			errx(1, "encryption key must be 0, 5, or 13 "
+			    "bytes long");
+		}
 	}
 
 	if (idx > 3)
-		err(1, "only 4 encryption keys available");
+		errx(1, "only 4 encryption keys available");
 
 	k = &keys->wi_keys[idx];
 	wi_str2key(key, k);
@@ -323,6 +333,7 @@ static void wi_printkeys(wreq)
 	struct wi_req		*wreq;
 {
 	int			i, j;
+	int			isprintable;
 	struct wi_key		*k;
 	struct wi_ltv_keys	*keys;
 	char			*ptr;
@@ -332,12 +343,24 @@ static void wi_printkeys(wreq)
 	for (i = 0; i < 4; i++) {
 		k = &keys->wi_keys[i];
 		ptr = (char *)k->wi_keydat;
+		isprintable = 1;
 		for (j = 0; j < k->wi_keylen; j++) {
-			if (ptr[i] == '\0')
-				ptr[i] = ' ';
+			if (!isprint(ptr[j])) {
+				isprintable = 0;
+				break;
+			}
 		}
-		ptr[j] = '\0';
-		printf("[ %s ]", ptr);
+		if(isprintable) {
+			ptr[j] = '\0';
+			printf("[ %s ]", ptr);
+		} else {
+			printf("[ 0x");
+			for (j = 0; j < k->wi_keylen; j++) {
+				printf("%02x", ptr[j] & 0xFF);
+			}
+			printf(" ]");
+					
+		}
 	}
 
 	return;

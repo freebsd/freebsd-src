@@ -38,7 +38,7 @@
 .Nd configure WaveLAN/IEEE devices
 .Sh SYNOPSIS
 .Nm wicontrol
-.Fl i Ar iface Op Fl o
+.Fl i Ar iface Op Fl oa
 .Nm wicontrol
 .Fl i Ar iface Fl t Ar tx rate
 .Nm wicontrol
@@ -105,7 +105,7 @@ device (wi0, wi1, etc...).
 .Sh OPTIONS
 The options are as follows:
 .Bl -tag -width Fl
-.It Fl i Ar iface Op Fl o
+.It Fl i Ar iface Op Fl oa
 Display the current settings of the specified WaveLAN/IEEE interface.
 This retrieves the current card settings from the driver and prints them
 out.
@@ -113,7 +113,13 @@ Using the additional
 .Fl o
 flag will cause
 .Nm
-to print out the statistics counters instead of the card settings.
+to print out the statistics counters instead of the card settings. Using
+the additional
+.Fl a
+flag will cause
+.Nm
+to print out encryption keys as ascii characters instead of in hex.
+Encryption keys are only displayed if wicontrol is run as root.
 .It Fl i Ar iface Fl t Ar tx rate
 Set the transmit rate of the specified interface.
 The legal values
@@ -238,14 +244,10 @@ can either be normal text (i.e. "hello") or a series of hexadecimal
 digits (i.e. "0x1234512345"). For
 WaveLAN Turbo Silver cards, the key is restricted to 40 bits, hence
 the key can be either a 5 character text string or 10 hex digits.
-For WaveLAN Turbo Gold cards, the key can be up to 128 bits,
-which means the key can be specified as either a 16 character text
-string or 32 hex digits.
-.Pp
-Note: currently, the field in the structure used to program the key
-into the NIC is only 14 bytes long, not 16.
-I'm not sure how this is
-supposed to allow 128 bits of key info for the gold cards.
+For WaveLAN Turbo Gold cards, the key can also be 104 bits,
+which means the key can be specified as either a 13 character text
+string or 26 hex digits in addition to the formats supported by the
+Silver cards.
 .It Fl i Ar iface Fl T Ar 1|2|3|4
 Specify which of the four WEP encryption keys will be used to
 encrypt transmitted packets.
