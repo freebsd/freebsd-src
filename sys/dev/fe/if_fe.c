@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.18 1996/09/06 23:07:34 phk Exp $
+ * $Id: if_fe.c,v 1.19 1996/09/08 10:44:11 phk Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -225,7 +225,6 @@ static struct fe_softc {
 	u_short txb_free;	/* free bytes in TX buffer  */
 	u_char txb_count;	/* number of packets in TX buffer  */
 	u_char txb_sched;	/* number of scheduled packets  */
-	u_char txb_padding;	/* number of delayed padding bytes  */
 
 	/* Multicast address filter management.  */
 	u_char filter_change;	/* MARs must be changed ASAP. */
@@ -2554,14 +2553,6 @@ fe_get_packet ( struct fe_softc * sc, u_short len )
  * Packets shorter than Ethernet minimum are legal, and we pad them
  * before sending out.  An exception is "partial" packets which are
  * shorter than mandatory Ethernet header.
- *
- * I wrote a code for an experimental "delayed padding" technique.
- * When employed, it postpones the padding process for short packets.
- * If xmit() occurred at the moment, the padding process is omitted, and
- * garbage is sent as pad data.  If next packet is stored in the
- * transmission buffer before xmit(), write_mbuf() pads the previous
- * packet before transmitting new packet.  This *may* gain the
- * system performance (slightly).
  */
 static void
 fe_write_mbufs ( struct fe_softc *sc, struct mbuf *m )
@@ -2572,6 +2563,8 @@ fe_write_mbufs ( struct fe_softc *sc, struct mbuf *m )
 	u_char *data;
 	u_short savebyte;	/* WARNING: Architecture dependent!  */
 #define NO_PENDING_BYTE 0xFFFF
+
+	static u_char padding [ ETHER_MIN_LEN - ETHER_CRC_LEN - ETHER_HDR_LEN ];
 
 #if FE_DEBUG >= 2
 	/* First, count up the total number of bytes to copy */
@@ -2595,9 +2588,9 @@ fe_write_mbufs ( struct fe_softc *sc, struct mbuf *m )
 	 * it should be a bug of upper layer.  We just ignore it.
 	 * ... Partial (too short) packets, neither.
 	 */
-	if ( ETHER_IS_VALID_LEN(length + ETHER_CRC_LEN)) {
+	if ( ! ETHER_IS_VALID_LEN(length + ETHER_CRC_LEN)) {
 		log( LOG_ERR,
-			"fe%d: got a out-of-spes packet (%u bytes) to send\n",
+			"fe%d: got an out-of-spec packet (%u bytes) to send\n",
 			sc->sc_unit, length );
 		sc->sc_if.if_oerrors++;
 		return;
@@ -2662,6 +2655,11 @@ fe_write_mbufs ( struct fe_softc *sc, struct mbuf *m )
 	/* Spit the last byte, if the length is odd.  */
 	if ( savebyte != NO_PENDING_BYTE ) {
 		outw( addr_bmpr8, savebyte );
+	}
+
+	/* Pad to the Ethernet minimum length, if the packet is too short.  */
+	if ( length < ETHER_MIN_LEN - ETHER_CRC_LEN ) {
+		outsw( addr_bmpr8, padding, ( ETHER_MIN_LEN - ETHER_CRC_LEN - length ) >> 1);
 	}
 }
 
