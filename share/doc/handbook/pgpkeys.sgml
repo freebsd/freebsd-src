@@ -1,4 +1,4 @@
-<!-- $Id: pgpkeys.sgml,v 1.3 1996/05/26 18:25:11 joerg Exp $ -->
+<!-- $Id: pgpkeys.sgml,v 1.4 1996/05/27 02:33:13 ache Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>PGP keys<label id="pgpkeys"></heading>
@@ -114,8 +114,22 @@ Version: 2.6.2i
 mQCNAzGCFeAAAAEEAKmRBU2Nvc7nZy1Ouid61HunA/5hF4O91cXm71/KPaT7dskz
 q5sFXvPJPpawwvqHPHfEbAK42ZaywyFp59L1GaYj87Pda+PlAYRJyY2DJl5/7JPe
 ziq+7B8MdvbX6D526sdmcR+jPXPbHznASjkx9DPmK+7TgFujyXW7bjh2o/exAAUR
-tCJKb2VyZyBXdW5zY2ggPGpAdXJpYWguaGVlcC5zYXguZGU+
-=UwPv
+tCJKb2VyZyBXdW5zY2ggPGpAdXJpYWguaGVlcC5zYXguZGU+iQCVAwUQMalkbHW7
+bjh2o/exAQFwwQP+Pa82QeWpJE0m7f4DXd/DiYAvh/DeXWtub1fXQ9yqAL131n8O
+zsSLMb0PwG/qyZrpK61sT3bAvtVlNftaxmuD7yaf1SUQ3rNmsBq5/oju/3EKEiFc
+4gtuyaXG74y7y1XASIstck/0byfvO2t4z0R7d1RRnKRYeCspMcUjYshsoJeJAJUD
+BRAxpL3UPiAdBSUb0JkBAZg7BACE+mKhsrd39/P6NattCCOSg76Pf2CVgZdvbb7q
+K4SmsVGz+58pi2OWM1M0rcHgNZKTIg9rBy47gui2KOnqOR7ZuyMVJJqyEZZywmWm
+fCy/sR4Ui1PehZNNNBAi09u03ItbozrEH6Msa1oC8mp86XOA70Et8e4DYtj5a9tV
+bjjtJYkAlQMFEDGCUB31FVv7jlQtXQEB5KgD/iIJZe5lFkPr2B/Cr7BKMVBot1/J
+Su05NsHgJZ3uK15w4mVtNPZcFi/dKbn+qRM6LKDFe/GF0HZD/ZD1FJt8yQjzF2w3
+40B+F2GGEOwnClqZDtEAqnIBzM/ECQQqH+6Bi8gpkFZrFgg5eON7ikqmusDnOlYS
+tM/CBfgpSbR8kDmFtCZKb2VyZyBXdW5zY2ggPGpAaW50ZXJmYWNlLWJ1c2luZXNz
+LmRlPokAlQMFEDGpbnd1u244dqP3sQEBJnQD/RVSAzgf4uorv3fpbosI0LE3LUuf
+AYGBSJNJnskeKyudZkNkI5zGGDwVneH/cSkKT4ORooeqcTBxKeMaMuXPVl30Qahg
+NwWjfuTvl5OZ8orsQGGWIn5FhqYXsKkjEGxIOBOfvvlVQ0UbcR0N2+5F6Mb5GqrX
+ZpIesn7jFJpkQKPU
+=46Ab
 -----END PGP PUBLIC KEY BLOCK-----
 </verb></tscreen>
 
