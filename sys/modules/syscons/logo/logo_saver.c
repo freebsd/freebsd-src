@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: logo_saver.c,v 1.5 1999/02/05 12:40:15 des Exp $
+ *	$Id: logo_saver.c,v 1.6 1999/04/12 13:34:57 des Exp $
  */
 
 #include <sys/param.h>
@@ -97,7 +97,11 @@ logo_saver(video_adapter_t *adp, int blank)
 	/* switch to graphics mode */
 	if (blanked <= 0) {
 	    pl = splhigh();
-	    set_video_mode(adp, scrmode, logo_pal, 0);
+	    set_video_mode(adp, scrmode);
+	    load_palette(adp, logo_pal);
+#if 0 /* XXX conflict */
+	    set_border(adp, 0);
+#endif
 	    blanked++;
 	    vid = (u_char *)adp->va_window;
 	    bpsl = adp->va_line_width;
