@@ -2363,7 +2363,8 @@ sk_init_xmac(sc_if)
 	return;
 }
 
-static void sk_init_yukon(sc_if)
+static void
+sk_init_yukon(sc_if)
 	struct sk_if_softc	*sc_if;
 {
 	u_int32_t		phy;
