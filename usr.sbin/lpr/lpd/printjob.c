@@ -339,8 +339,9 @@ printit(pp, file)
 	char *file;
 {
 	register int i;
-	char *cp;
-	int bombed = OK;
+	char	*cp;
+	int	 bombed = OK;
+	int	 didignorehdr = 0;
 
 	/*
 	 * open control file; ignore if no longer there.
@@ -489,7 +490,22 @@ printit(pp, file)
 			continue;
 
 		default:	/* some file to print */
-			switch (i = print(pp, line[0], line+1)) {
+			/* only lowercase cmd-codes include a file-to-print */
+			if ((line[0] < 'a') || (line[0] > 'z')) {
+				/* ignore any other lines */
+				if (lflag <= 1)
+					continue;
+				if (!didignorehdr) {
+					syslog(LOG_INFO, "%s: in %s :",
+					       pp->printer, file);
+					didignorehdr = 1;
+				}
+				syslog(LOG_INFO, "%s: ignoring line: '%c' %s",
+				       pp->printer, line[0], &line[1]);
+				continue;
+			}
+			i = print(pp, line[0], line+1);
+			switch (i) {
 			case ERROR:
 				if (bombed == OK)
 					bombed = FATALERR;
@@ -566,8 +582,11 @@ print(pp, format, file)
 	union wait status;
 	struct stat stb;
 
-	if (lstat(file, &stb) < 0 || (fi = open(file, O_RDONLY)) < 0)
+	if (lstat(file, &stb) < 0 || (fi = open(file, O_RDONLY)) < 0) {
+		syslog(LOG_INFO, "%s: unable to open %s ('%c' line)",
+		       pp->printer, file, format);
 		return(ERROR);
+	}
 	/*
 	 * Check to see if data file is a symbolic link. If so, it should
 	 * still point to the same file or someone is trying to print
