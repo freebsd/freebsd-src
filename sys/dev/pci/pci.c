@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.28 1995/07/29 18:21:48 davidg Exp $
+**  $Id: pci.c,v 1.29 1995/09/07 15:20:53 se Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -35,8 +35,6 @@
 **
 ***************************************************************************
 */
-
-#define __PCI_C__ "pl13 95/03/21"
 
 #include <pci.h>
 #if NPCI > 0
@@ -366,9 +364,8 @@ pci_bus_config (void)
 	*/
 	pci_bridge_config ();
 
+	printf ("Probing for devices on the PCI bus:\n");
 #ifndef PCI_QUIET
-	printf ("Probing for devices on the %s%d bus:\n",
-		pcibus->pb_name, pcicb->pcicb_bus);
 	if (bootverbose && !pci_info_done) {
 		pci_info_done=1;
 		printf ("\tconfiguration mode %d allows %d devices.\n",
@@ -439,6 +436,7 @@ pci_bus_config (void)
 		};
 
 		pcicb->pcicb_seen |= (1ul << device);
+
 		/*
 		**	Get and increment the unit.
 		*/
@@ -835,6 +833,7 @@ pci_bridge_config (void)
 			pcicb->pcicb_memlimit = pcicb->pcicb_membase+size-1;
 	}
 }
+
 /*-----------------------------------------------------------------
 **
 **	The following functions are provided for the device driver
@@ -1622,9 +1621,9 @@ void not_supported (pcici_t tag, u_long type)
 	*/
 
 	if (vp->ident) printf (vp->name);
-		else   printf ("vendor=0x%lx", type & 0xffff);
+		else   printf ("vendor=0x%04lx", type & 0xffff);
 
-	printf (", device=0x%lx", type >> 16);
+	printf (", device=0x%04lx", type >> 16);
 
 	data = (pcibus->pb_read(tag, PCI_CLASS_REG) >> 24) & 0xff;
 	if (data < sizeof(majclasses) / sizeof(majclasses[0]))
