@@ -256,7 +256,7 @@ find_rcs (dir, list)
     /* read the dir, grabbing the ,v files */
     while ((dp = readdir (dirp)) != NULL)
     {
-	if (fnmatch (RCSPAT, dp->d_name, 0) == 0) 
+	if (CVS_FNMATCH (RCSPAT, dp->d_name, 0) == 0) 
 	{
 	    char *comma;
 
@@ -320,7 +320,7 @@ find_dirs (dir, list, checkadm, entries)
 		continue;
 #endif
 	    /* don't bother stating ,v files */
-	    if (fnmatch (RCSPAT, dp->d_name, 0) == 0)
+	    if (CVS_FNMATCH (RCSPAT, dp->d_name, 0) == 0)
 		continue;
 
 	    expand_string (&tmp,

@@ -234,11 +234,13 @@ numdots (s)
     return (dots);
 }
 
-/*
- * Get the caller's login from his uid. If the real uid is "root" try LOGNAME
- * USER or getlogin(). If getlogin() and getpwuid() both fail, return
- * the uid as a string.
- */
+/* Return the username by which the caller should be identified in
+   CVS, in contexts such as the author field of RCS files, various
+   logs, etc.
+
+   Returns a pointer to storage that we manage; it is good until the
+   next call to getcaller () (provided that the caller doesn't call
+   getlogin () or some such themself).  */
 char *
 getcaller ()
 {
@@ -246,6 +248,16 @@ getcaller ()
     struct passwd *pw;
     char *name;
     uid_t uid;
+
+    /* If there is a CVS username, return it.  */
+#ifdef AUTH_SERVER_SUPPORT
+    if (CVS_Username != NULL)
+	return CVS_Username;
+#endif
+
+    /* Get the caller's login from his uid.  If the real uid is "root"
+       try LOGNAME USER or getlogin(). If getlogin() and getpwuid()
+       both fail, return the uid as a string.  */
 
     uid = getuid ();
     if (uid == (uid_t) 0)

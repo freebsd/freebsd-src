@@ -708,6 +708,8 @@ init (argc, argv)
     char *info;
     /* Name of ,v file for this administrative file.  */
     char *info_v;
+    /* Exit status.  */
+    int err;
 
     const struct admin_file *fileptr;
 
@@ -739,7 +741,10 @@ init (argc, argv)
     strcat (adm, CVSROOTADM);
     mkdir_if_needed (adm);
 
-    /* This is needed by the call to "ci" below.  */
+    /* This is needed because we pass "fileptr->filename" not "info"
+       to add_rcs_file below.  I think this would be easy to change,
+       thus nuking the need for CVS_CHDIR here, but I haven't looked
+       closely (e.g. see wrappers calls within add_rcs_file).  */
     if ( CVS_CHDIR (adm) < 0)
 	error (1, errno, "cannot change to directory %s", adm);
 
@@ -776,16 +781,15 @@ init (argc, argv)
 		if (fclose (fp) < 0)
 		    error (1, errno, "cannot close %s", info);
 	    }
-	    /* Now check the file in.  FIXME: we could be using
-	       add_rcs_file from import.c which is faster (if it were
-	       tweaked slightly).  */
-	    run_setup ("%s%s -x,v/ -q -u -t-", Rcsbin, RCS_CI);
-	    run_args ("-minitial checkin of %s", fileptr->filename);
-	    run_arg (fileptr->filename);
-	    retcode = run_exec (RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL);
+	    /* The message used to say " of " and fileptr->filename after
+	       "initial checkin" but I fail to see the point as we know what
+	       file it is from the name.  */
+	    retcode = add_rcs_file ("initial checkin", info_v,
+				    fileptr->filename, "1.1", NULL, NULL,
+				    0, NULL, NULL);
 	    if (retcode != 0)
-		error (1, retcode == -1 ? errno : 0,
-		       "failed to check in %s", info);
+		/* add_rcs_file already printed an error message.  */
+		err = 1;
 	}
     }
 
