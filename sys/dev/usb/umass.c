@@ -612,10 +612,6 @@ Static int umass_scsi_transform	(struct umass_softc *sc,
 				unsigned char *cmd, int cmdlen,
 		     		unsigned char **rcmd, int *rcmdlen);
 
-/* Translator helper functions */
-Static int umass_scsi_6_to_10   (unsigned char *cmd, int cmdlen,
-		    		unsigned char **rcmd, int *rcmdlen);
-
 /* UFI specific functions */
 #define UFI_COMMAND_LENGTH	12	/* UFI commands are always 12 bytes */
 Static int umass_ufi_transform	(struct umass_softc *sc,
@@ -2778,56 +2774,8 @@ umass_rbc_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 }
 
 /*
- * Translator helper functions
- */
-
-Static int
-umass_scsi_6_to_10(unsigned char *cmd, int cmdlen, unsigned char **rcmd,
-		   int *rcmdlen)
-{
-
-	/*
-	 * This function translates 6 byte commands to 10 byte commands.
-	 * For read/write, the format is:
-	 *
-	 * 6 byte:
-	 * -------------------------
-	 * | 0 | 1 | 2 | 3 | 4 | 5 |
-	 * -------------------------
-	 *  OP |  ADDRESS  |LEN|CTRL
-	 *
-	 * 10 byte:
-	 * -----------------------------------------
-	 * | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
-	 * -----------------------------------------
-	 *  OP |B2 |    ADDRESS    |RSV|  LEN  |CTRL
-	 */
-	switch (cmd[0]) {
-	case READ_6:
-		(*rcmd)[0] = READ_10;
-		break;
-	case WRITE_6:
-		(*rcmd)[0] = WRITE_10;
-		break;
-	default:
-		return (0);
-	}
-
-	switch (cmd[0]) {
-	case READ_6:
-	case WRITE_6:
-		memcpy(&(*rcmd)[3], &cmd[1], 3);
-		break;
-	}
-	(*rcmd)[8] = cmd[4];
-	(*rcmd)[9] = cmd[5];
-	return (1);
-}
-
-/*
  * UFI specific functions
  */
-
 Static int
 umass_ufi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 		    unsigned char **rcmd, int *rcmdlen)
@@ -2839,13 +2787,6 @@ umass_ufi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 
 	*rcmdlen = UFI_COMMAND_LENGTH;
 	memset(*rcmd, 0, UFI_COMMAND_LENGTH);
-
-	/* Convert 6 byte commands that have a 10 byte version as well to the
-	 * longer one. Many devices do not understand the 6 byte ones and
-	 * wedge, mainly the drives that use the ATAPI & UFI command sets.
-	 */
-	if (umass_scsi_6_to_10(cmd, cmdlen, rcmd, rcmdlen))
-		return (1);
 
 	switch (cmd[0]) {
 	/* Commands of which the format has been verified. They should work.
@@ -2909,8 +2850,6 @@ umass_atapi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 	*rcmdlen = ATAPI_COMMAND_LENGTH;
 	memset(*rcmd, 0, ATAPI_COMMAND_LENGTH);
 
-	if (umass_scsi_6_to_10(cmd, cmdlen, rcmd, rcmdlen))
-		return (1);
 	switch (cmd[0]) {
 	/* Commands of which the format has been verified. They should work.
 	 * Copy the command into the (zeroed out) destination buffer.
