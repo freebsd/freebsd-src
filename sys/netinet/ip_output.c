@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.38 1996/05/21 20:47:31 peter Exp $
+ *	$Id: ip_output.c,v 1.39 1996/05/22 17:23:08 wollman Exp $
  */
 
 #define _IP_VHL
@@ -513,7 +513,7 @@ ip_insertoptions(m, opt, phlen)
 		ovbcopy((caddr_t)ip, mtod(m, caddr_t), sizeof(struct ip));
 	}
 	ip = mtod(m, struct ip *);
-	(void)memcpy(ip + 1, p->ipopt_list, (unsigned)optlen);
+	bcopy(p->ipopt_list, ip + 1, optlen);
 	*phlen = sizeof(struct ip) + optlen;
 	ip->ip_vhl = IP_MAKE_VHL(IPVERSION, *phlen >> 2);
 	ip->ip_len += optlen;
@@ -549,7 +549,7 @@ ip_optcopy(ip, jp)
 		if (optlen > cnt)
 			optlen = cnt;
 		if (IPOPT_COPIED(opt)) {
-			(void)memcpy(dp, cp, (unsigned)optlen);
+			bcopy(cp, dp, optlen);
 			dp += optlen;
 		}
 	}
@@ -683,8 +683,8 @@ ip_ctloutput(op, so, level, optname, mp)
 			*mp = m = m_get(M_WAIT, MT_SOOPTS);
 			if (inp->inp_options) {
 				m->m_len = inp->inp_options->m_len;
-				(void)memcpy(mtod(m, void *),
-				    mtod(inp->inp_options, void *), (unsigned)m->m_len);
+				bcopy(mtod(inp->inp_options, void *),
+				    mtod(m, void *), m->m_len);
 			} else
 				m->m_len = 0;
 			break;
