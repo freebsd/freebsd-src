@@ -1715,6 +1715,16 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 						"size failed: %s, %s",
 						sense_key_desc,
 						asc_desc);
+ 				} else if ((have_sense == 0) 
+ 				      && ((status & CAM_STATUS_MASK) ==
+ 					   CAM_SCSI_STATUS_ERROR)
+ 				      && (csio->scsi_status ==
+ 					  SCSI_STATUS_BUSY)) {
+ 					snprintf(announce_buf,
+ 					    sizeof(announce_buf),
+ 					    "Attempt to query device "
+ 					    "size failed: SCSI Status: %s",
+					    scsi_status_string(csio));
 				} else if (SID_TYPE(&cgd.inq_data) == T_CDROM) {
 					/*
 					 * We only print out an error for
