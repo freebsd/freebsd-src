@@ -449,6 +449,9 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
 		    by Maurice Castro <maurice@atum.castro.aus.net>
 		    Tom Jansen <tom@unhooked.net> added BSDi support again.
 
+1.72    31 Aug 1999 Juha Nurmela <Juha.Nurmela@quicknet.inet.fi>
+                    Clear cap_ctl register when restarting the RISC program.
+                    This fixes the freezes experienced when changing changes.
 */
 
 #ifdef __FreeBSD__
@@ -1612,6 +1615,7 @@ common_bktr_intr( void *arg )
 		u_short	tdec_save = bt848->tdec;
 
 		bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
+		bt848->cap_ctl      = CAPTURE_OFF;
 
 		bt848->int_mask = ALL_INTS_DISABLED;
 
