@@ -10,7 +10,7 @@
 .\" This document was written for free use and redistribution by
 .\" Eric S. Raymond <esr@thyrsus.com> in August 1995.
 .\"
-.\"	$Id: pic.ms,v 1.27 1997/07/03 17:35:39 esr Exp $	
+.\"	$Id: pic.ms,v 1.2 1999/12/04 08:57:07 wlemb Exp $	
 .\"
 .\" Set a proper TeX
 .ie t .ds tx T\h'-.1667m'\v'.224m'E\v'-.224m'\h'-.125m'X
@@ -299,7 +299,8 @@ possible to set a global style variable \fBscale\fP that changes the
 unit.  Setting \fBscale = 2.54\fP will effectively change the internal
 unit to centimeters (all other size variable valuess will be scaled
 correspondingly).
-.NH 2 Default Sizes of Objects
+.NH 2
+Default Sizes of Objects
 .PP
 Here are the default sizes for \fBpic\fP objects:
 .RS

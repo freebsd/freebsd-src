@@ -13,7 +13,8 @@ of tmac.m) and the version of groff.
 Any new ideas or improvements are welcome.
 
 Newest version is available with anonymous FTP
-at ftp.efd.lth.se [130.235.48.11], as pub/groff/mm<something>.Z
+at ftp://ftp.efd.lth.se/pub/groff/mm<something>.gz
+or ftp://ftp.axis.se/pub/groff/mm<something>.gz
 
 You can install mgm as a separate package without the configure in groff
 with the following command:

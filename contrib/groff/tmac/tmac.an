@@ -31,6 +31,14 @@
 .if !rD .nr D 0
 .if !rC .nr C 0
 .if rP .pn 0\nP
+.de set-an-margin
+.  ie '\*(.T'html' \{\
+.    nr an-margin 0i
+.  \}
+.  el \{\
+.    nr an-margin \\n[IN]
+.  \}
+..
 .\" .TH title section extra1 extra2 extra3
 .de TH
 .cp 0
@@ -41,17 +49,22 @@
 .ie \\n[.$]>3 .ds an-extra2 "\\$4
 .el .ds an-extra2 \"Sun Release 4.0
 .ie \\n[.$]>4 .ds an-extra3 "\\$5
-.el .ds an-extra3 \"UNIX Programmer's Manual
+.el .ds an-extra3 \"System Programmer's Manual
 .ds an-init
 \\..
 .DT
-.nr IN 7.2n
+.ie '\*(.T'html' \{\
+.  nr IN 1.3i
+.\}
+.el \{\
+.  nr IN 7.2n
+.\}
 .nr LL 6.5i
 .PD
 .nr PS 10 \" normal point-size
 .nr SN 3n \" the indentation of sub-sub-headings relative to sub-headings
 .nr an-level 1
-.nr an-margin \\n[IN]
+.set-an-margin
 .nr an-prevailing-indent \\n[IN]
 .nr an-tag-sep 1n
 .nr an-no-space-flag 0
@@ -75,9 +88,14 @@
 .de an-header
 .an-init
 .ev 1
-.sp .5i
-.tl '\\*[an-title](\\*[an-section])'\\*[an-extra3]'\\*[an-title](\\*[an-section])'
-.sp |1i
+.ie '\*(.T'html' \{\
+.   tl ''''
+.\}
+.el \{\
+.   sp .5i
+.   tl '\\*[an-title](\\*[an-section])'\\*[an-extra3]'\\*[an-title](\\*[an-section])'
+.   sp |1i
+.\}
 .ev
 .ns
 ..
@@ -87,7 +105,12 @@
 .af an-page-letter a
 .de an-p-footer
 .ev 1
-.ds an-page-string \\n%
+.ie '\*(.T'html' \{\
+.   ds an-page-string "
+.   ds an-extra1      "
+.   ds an-extra2      "
+.\}
+.el .ds an-page-string \\n%
 .if rX \{\
 .	if \\n%>\\nX \{\
 .		nr an-page-letter \\n%-\\nX
@@ -98,15 +121,18 @@
 .	if e .tl '\\*[an-page-string]'\\*[an-extra1]'\\*[an-extra2]'
 .\}
 .el .tl '\\*[an-extra2]'\\*[an-extra1]'\\*[an-page-string]'
+.if '\*(.T'html' \{\
+.	tl ''''
+.\}
 .ev
 ..
 .de SH
 .sp \\n[PD]u
 .nr an-level 1
-.nr an-margin \\n[IN]
+.set-an-margin
 .nr an-prevailing-indent \\n[IN]
 .fi
-.in \\n[IN]u
+.in \\n[an-margin]u
 .ti 0
 .it 1 an-trap
 .nr an-no-space-flag 1
@@ -119,7 +145,7 @@
 .de SS
 .sp \\n[PD]u
 .nr an-level 1
-.nr an-margin \\n[IN]
+.set-an-margin
 .nr an-prevailing-indent \\n[IN]
 .fi
 .in \\n[IN]u
@@ -178,14 +204,16 @@
 .nr an-div? 0
 .br
 .di
-.in \\n[an-margin]u+\\n[an-prevailing-indent]u
-.ti -\\n[an-prevailing-indent]u
 .ie \\n[dl]+\\n[an-tag-sep]>\\n[an-prevailing-indent] \{\
+.	in \\n[an-margin]u
 .	ne 2v+1u
 .	an-div
 .	br
+.	in \\n[an-margin]u+\\n[an-prevailing-indent]u
 .\}
 .el \{\
+.	in \\n[an-margin]u+\\n[an-prevailing-indent]u
+.	ti -\\n[an-prevailing-indent]u
 .	chop an-div
 .	ne 1v+1u
 \\*[an-div]\\h'|\\n[an-prevailing-indent]u'\c

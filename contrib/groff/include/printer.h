@@ -46,6 +46,8 @@ public:
   void set_special_char(const char *nm, const environment *env,
 			int *widthp = 0);
   void set_numbered_char(int n, const environment *env, int *widthp = 0);
+  int set_char_and_width(const char *nm, const environment *env,
+			 int *widthp, font **f);
   virtual void draw(int code, int *p, int np, const environment *env);
   virtual void begin_page(int) = 0;
   virtual void end_page(int page_length) = 0;
@@ -55,12 +57,20 @@ public:
   static int adjust_arc_center(const int *, double *);
 protected:
   font_pointer_list *font_list;
+
+  // information about named characters
+  int   is_char_named;
+  int   is_named_set;
+  char  named_command;
+  const char *named_char_s;
+  int   named_char_n;
+
 private:
   font **font_table;
   int nfonts;
   font *find_font(const char *);
   virtual void set_char(int index, font *f, const environment *env,
-			int w) = 0;
+			int w, const char *name) = 0;
 };
 
 printer *make_printer();

@@ -23,8 +23,6 @@ TODO
 
 option to use beziers for circle/ellipse/arc
 option to use lines for spline (for LJ3)
-duplex option
-duplex short/long edge options
 left/top offset registration
 output bin selection option
 paper source option
@@ -56,6 +54,7 @@ static struct {
 
 static int paper_size = -1;
 static int landscape_flag = 0;
+static int duplex_flag = 0;
 
 // An upper limit on the paper size in centipoints,
 // used for setting HPGL picture frame.
@@ -157,7 +156,7 @@ class lj4_printer : public printer {
 public:
   lj4_printer();
   ~lj4_printer();
-  void set_char(int, font *, const environment *, int);
+  void set_char(int, font *, const environment *, int, const char *name);
   void draw(int code, int *p, int np, const environment *env);
   void begin_page(int);
   void end_page(int page_length);
@@ -233,6 +232,8 @@ lj4_printer::lj4_printer()
   else
     x_offset = paper_table[paper_size].x_offset_portrait;
   x_offset = (x_offset * font::res) / 300;
+  if (duplex_flag)
+     printf("\033&l%dS", duplex_flag);
 }
 
 lj4_printer::~lj4_printer()
@@ -261,7 +262,7 @@ int is_unprintable(unsigned char c)
   return c < 32 && (c == 0 || (7 <= c && c <= 15) || c == 27);
 }
 
-void lj4_printer::set_char(int index, font *f, const environment *env, int w)
+void lj4_printer::set_char(int index, font *f, const environment *env, int w, const char *name)
 {
   int code = f->get_code(index);
 
@@ -602,10 +603,28 @@ int main(int argc, char **argv)
   setbuf(stderr, stderr_buf);
   font::set_unknown_desc_command_handler(handle_unknown_desc_command);
   int c;
-  while ((c = getopt(argc, argv, "F:p:lvw:c:")) != EOF)
+  extern int optopt, optind;
+  while ((c = getopt(argc, argv, ":F:p:d:lvw:c:")) != EOF)
     switch(c) {
     case 'l':
       landscape_flag = 1;
+      break;
+    case ':':
+      if (optopt == 'd') {
+	fprintf(stderr, "duplex assumed to be long-side\n");
+	duplex_flag = 1;
+      } else
+	fprintf(stderr, "option -%c requires an operand\n", optopt);
+      fflush(stderr);
+      break;
+    case 'd':
+      if (!isdigit(*optarg))	// this ugly hack prevents -d without
+	optind--;		//  args from messing up the arg list
+      duplex_flag = atoi(optarg);
+      if (duplex_flag != 1 && duplex_flag != 2) {
+	fprintf(stderr, "odd value for duplex; assumed to be long-side\n");
+	duplex_flag = 1;
+      }
       break;
     case 'p':
       {
@@ -669,7 +688,8 @@ int main(int argc, char **argv)
 static void usage()
 {
   fprintf(stderr,
-	  "usage: %s [-lv] [-c n] [-p paper_size] [-w n] [-F dir] [files ...]\n",
+	  "usage: %s [-lv] [-d [n]] [-c n] [-p paper_size]\n"
+	  "       [-w n] [-F dir] [files ...]\n",
 	  program_name);
   exit(1);
 }

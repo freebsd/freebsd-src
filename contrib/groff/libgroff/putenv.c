@@ -43,8 +43,7 @@ extern char **environ;
 
 /* Put STRING, which is of the form "NAME=VALUE", in the environment.  */
 
-int putenv(string)
-     char *string;
+int putenv(const char *string)
 {
   char *name_end = strchr(string, '=');
   SIZE_T size;

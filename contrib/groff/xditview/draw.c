@@ -422,32 +422,24 @@ setFillGC (dw)
 	DviWidget	dw;
 {
 	int fill_type;
-	
-	if (dw->dvi.fill == DVI_FILL_MAX)
-		fill_type = DVI_FILL_BLACK;
-	else if (dw->dvi.fill == 0)
-		fill_type = DVI_FILL_WHITE;
-	else
-		fill_type = DVI_FILL_GRAY;
+	unsigned long mask = GCFillStyle | GCForeground;
+
+	fill_type = (dw->dvi.fill * 10) / (DVI_FILL_MAX + 1);
 	if (dw->dvi.fill_type != fill_type) {
 		XGCValues values;
-		switch (fill_type) {
-		case DVI_FILL_WHITE:
+		if (fill_type <= 0) {
 			values.foreground = dw->dvi.background;
 			values.fill_style = FillSolid;
-			break;
-		case DVI_FILL_BLACK:
+		} else if (fill_type >= 9) {
 			values.foreground = dw->dvi.foreground;
 			values.fill_style = FillSolid;
-			break;
-		case DVI_FILL_GRAY:
+		} else {
 			values.foreground = dw->dvi.foreground;
 			values.fill_style = FillOpaqueStippled;
-			break;
+			values.stipple = dw->dvi.gray[fill_type - 1];
+			mask |= GCStipple;
 		}
-		XChangeGC(XtDisplay (dw), dw->dvi.fill_GC,
-			  GCFillStyle|GCForeground,
-			  &values);
+		XChangeGC(XtDisplay (dw), dw->dvi.fill_GC, mask, &values);
 		dw->dvi.fill_type = fill_type;
 	}
 }
@@ -493,6 +485,9 @@ DrawFilledCircle (dw, diam)
 	XFillArc (XtDisplay (dw), XtWindow (dw), dw->dvi.fill_GC,
 		  XPos (dw), YPos (dw) - d/2,
 		  d, d, 0, 64*360);
+	XDrawArc (XtDisplay (dw), XtWindow (dw), dw->dvi.fill_GC,
+		  XPos (dw), YPos (dw) - d/2,
+		  d, d, 0, 64*360);
 }
 
 DrawEllipse (dw, a, b)
@@ -513,6 +508,9 @@ DrawFilledEllipse (dw, a, b)
 	AdjustCacheDeltas (dw);
 	setFillGC (dw);
 	XFillArc (XtDisplay (dw), XtWindow (dw), dw->dvi.fill_GC,
+		  XPos (dw), YPos (dw) - DeviceToX (dw, b/2),
+		  DeviceToX (dw, a), DeviceToX (dw, b), 0, 64*360);
+	XDrawArc (XtDisplay (dw), XtWindow (dw), dw->dvi.fill_GC,
 		  XPos (dw), YPos (dw) - DeviceToX (dw, b/2),
 		  DeviceToX (dw, a), DeviceToX (dw, b), 0, 64*360);
 }
@@ -590,9 +588,9 @@ DrawFilledPolygon (dw, v, n)
 	
 	AdjustCacheDeltas (dw);
 	setFillGC (dw);
-	p = (XPoint *)XtMalloc((n + 1)*sizeof(XPoint));
-	p[0].x = XPos (dw);
-	p[0].y = YPos (dw);
+	p = (XPoint *)XtMalloc((n + 2)*sizeof(XPoint));
+	p[0].x = p[n+1].x = XPos (dw);
+	p[0].y = p[n+1].y = YPos (dw);
 	dx = 0;
 	dy = 0;
 	for (i = 0; i < n; i++) {
@@ -603,6 +601,8 @@ DrawFilledPolygon (dw, v, n)
 	}
 	XFillPolygon (XtDisplay (dw), XtWindow (dw), dw->dvi.fill_GC,
 		      p, n + 1, Complex, CoordModeOrigin);
+	XDrawLines (XtDisplay (dw), XtWindow (dw), dw->dvi.fill_GC,
+		      p, n + 2, CoordModeOrigin);
 	XtFree((char *)p);
 }
 

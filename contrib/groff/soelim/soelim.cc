@@ -29,23 +29,38 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include "error.h"
 #include "stringclass.h"
 
+static int include_list_length;
+static char **include_list;
+
 int compatible_flag = 0;
 
 extern int interpret_lf_args(const char *);
 
 int do_file(const char *filename);
 
+
+static void
+include_path_append(char *path)
+{
+  ++include_list_length;
+  size_t nbytes = include_list_length * sizeof(include_list[0]);
+  include_list = (char **)realloc((void *)include_list, nbytes);
+  include_list[include_list_length - 1] = path;
+}
+
+
 void usage()
 {
-  fprintf(stderr, "usage: %s [ -vC ] [ files ]\n", program_name);
+  fprintf(stderr, "usage: %s [ -vC ] [ -I file ] [ files ]\n", program_name);
   exit(1);
 }
 
 int main(int argc, char **argv)
 {
   program_name = argv[0];
+  include_path_append(".");
   int opt;
-  while ((opt = getopt(argc, argv, "vC")) != EOF)
+  while ((opt = getopt(argc, argv, "CI:v")) != EOF)
     switch (opt) {
     case 'v':
       {
@@ -56,6 +71,9 @@ int main(int argc, char **argv)
       }
     case 'C':
       compatible_flag = 1;
+      break;
+    case 'I':
+      include_path_append(optarg);
       break;
     case '?':
       usage();
@@ -125,9 +143,15 @@ void do_so(const char *line)
 int do_file(const char *filename)
 {
   FILE *fp;
-  if (strcmp(filename, "-") == 0)
+  string whole_filename;
+  if (strcmp(filename, "-") == 0) {
     fp = stdin;
-  else {
+    whole_filename = filename;
+    whole_filename += '\0';
+  }
+  else if (filename[0] == '/') {
+    whole_filename = filename;
+    whole_filename += '\0';
     errno = 0;
     fp = fopen(filename, "r");
     if (fp == 0) {
@@ -135,7 +159,34 @@ int do_file(const char *filename)
       return 0;
     }
   }
-  current_filename = filename;
+  else {
+    size_t j;
+    for (j = 0; j < include_list_length; ++j)
+    {
+      char *path = include_list[j];
+      if (0 == strcmp(path, "."))
+      	whole_filename = filename;
+      else
+        whole_filename = string(path) + "/" + filename;
+      whole_filename += '\0';
+      errno = 0;
+      fp = fopen(whole_filename.contents(), "r");
+      if (fp != 0)
+      	break;
+      if (errno != ENOENT) {
+        error("can't open `%1': %2",
+	      whole_filename.contents(), strerror(errno));
+        return 0;
+      }
+    }
+    if (j >= include_list_length)
+    {
+      errno = ENOENT;
+      error("can't open `%1': %2", filename, strerror(errno));
+      return 0;
+    }
+  }
+  current_filename = whole_filename.contents();
   current_lineno = 1;
   set_location();
   enum { START, MIDDLE, HAD_DOT, HAD_s, HAD_so, HAD_l, HAD_lf } state = START;

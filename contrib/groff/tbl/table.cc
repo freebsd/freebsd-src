@@ -669,13 +669,13 @@ void block_entry::do_divert(int alphabetic, int ncols, const string *mw,
       break;
   if (i > end_col) {
     // Every column spanned by this entry has a minimum width.
-    for (int i = start_col; i <= end_col; i++) {
-      if (i > start_col) {
+    for (int j = start_col; j <= end_col; j++) {
+      if (j > start_col) {
 	if (sep)
-	  printfs("+%1n", as_string(sep[i - 1]));
+	  printfs("+%1n", as_string(sep[j - 1]));
 	prints('+');
       }
-      printfs("(n;%1)", mw[i]);
+      printfs("(n;%1)", mw[j]);
     }
     printfs(">?\\n[%1]u", span_width_reg(start_col, end_col));
   }
@@ -2651,13 +2651,13 @@ void table::do_row(int r)
 	     " 0\n");
     }
     int printed_one = 0;
-    for (vertical_rule *p = vrule_list; p; p = p->next)
-      if (p->end_row == r) {
+    for (vertical_rule *vr = vrule_list; vr; vr = vr->next)
+      if (vr->end_row == r) {
 	if (!printed_one) {
 	  prints("." REPEATED_VPT_MACRO " 0\n");
 	  printed_one = 1;
 	}
-	p->print();
+	vr->print();
       }
     if (printed_one)
       prints("." REPEATED_VPT_MACRO " 1\n");
