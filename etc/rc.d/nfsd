@@ -1,0 +1,17 @@
+#!/bin/sh
+#
+# $NetBSD: nfsd,v 1.2 2000/05/13 08:45:07 lukem Exp $
+#
+
+# PROVIDE: nfsd
+# REQUIRE: mountd
+
+. /etc/rc.subr
+
+name="nfsd"
+rcvar="nfs_server"
+command="/usr/sbin/${name}"
+required_vars="rpcbind"
+
+load_rc_config $name
+run_rc_command "$1"

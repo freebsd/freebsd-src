@@ -1,0 +1,10 @@
+#!/bin/sh
+#
+# $NetBSD$
+#
+
+# PROVIDE: NETWORK
+# REQUIRE: network dhclient
+
+#	This is a dummy dependancy, for services which require networking
+#	to be operational before starting.

@@ -1,0 +1,25 @@
+#!/bin/sh
+#
+# $NetBSD: rtsold,v 1.3 2000/05/13 08:45:09 lukem Exp $
+#
+
+# PROVIDE: rtsold
+# REQUIRE: DAEMON
+
+. /etc/rc.subr
+
+name="rtsold"
+rcvar=$name
+command="/usr/sbin/${name}"
+start_precmd="rtsold_precmd"
+
+rtsold_precmd()
+{
+	if [ "$ip6mode" != "autohost" ]; then
+		warn "\$ip6mode must be set to 'autohost' to use ${name}."
+		return 1
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

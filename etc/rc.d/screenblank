@@ -1,0 +1,17 @@
+#!/bin/sh
+#
+# $NetBSD: screenblank,v 1.3 2000/05/13 08:45:09 lukem Exp $
+#
+
+# PROVIDE: screenblank
+# REQUIRE: DAEMON
+
+. /etc/rc.subr
+
+name="screenblank"
+rcvar=$name
+command="/usr/sbin/${name}"
+pidfile="/var/run/${name}.pid"
+
+load_rc_config $name
+run_rc_command "$1"

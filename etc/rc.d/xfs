@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+# $NetBSD: xfs,v 1.4 2000/09/19 13:04:39 lukem Exp $
+#
+
+# PROVIDE: xfs
+# REQUIRE: mountall cleartmp
+
+. /etc/rc.subr
+
+name="xfs"
+rcvar=$name
+command="/usr/X11R6/bin/${name}"
+command_args="& sleep 2"
+required_files="/usr/X11R6/lib/X11/fs/config"
+extra_commands="reload"
+
+load_rc_config $name
+run_rc_command "$1"

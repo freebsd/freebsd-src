@@ -1,0 +1,31 @@
+#!/bin/sh
+#
+# $NetBSD: local,v 1.4 2000/05/13 08:45:07 lukem Exp $
+#
+
+# REQUIRE: DAEMON
+# PROVIDE: local
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="local"
+start_cmd="local_start"
+stop_cmd="local_stop"
+
+local_start()
+{
+	if [ -f /etc/rc.local ]; then
+		. /etc/rc.local
+	fi
+}
+
+local_stop()
+{
+	if [ -f /etc/rc.shutdown.local ]; then
+		. /etc/rc.shutdown.local
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

@@ -1,0 +1,67 @@
+#!/bin/sh
+#
+# $NetBSD: ipsec,v 1.5 2000/07/21 01:16:07 lukem Exp $
+#
+
+# PROVIDE: ipsec
+# REQUIRE: root beforenetlkm mountcritlocal tty
+
+#	it does not really require beforenetlkm.
+
+. /etc/rc.subr
+
+name="ipsec"
+rcvar=$name
+start_precmd="ipsec_prestart"
+start_cmd="ipsec_start"
+stop_precmd="test -f /etc/ipsec.conf"
+stop_cmd="ipsec_stop"
+reload_cmd="ipsec_reload"
+extra_commands="reload"
+
+ipsec_prestart()
+{
+	if [ ! -f /etc/ipsec.conf ]; then
+		warn "/etc/ipsec.conf not readable; ipsec start aborted."
+			#
+			# If booting directly to multiuser, send SIGTERM to
+			# the parent (/etc/rc) to abort the boot
+			#
+		if [ "$autoboot" = yes ]; then
+			echo "ERROR: ABORTING BOOT (sending SIGTERM to parent)!"
+			kill -TERM $$
+			exit 1
+		fi
+		return 1
+	fi
+	return 0
+}
+
+ipsec_start()
+{
+	echo "Installing ipsec manual keys/policies."
+	/sbin/setkey -f /etc/ipsec.conf
+}
+
+ipsec_stop()
+{
+	echo "Clearing ipsec manual keys/policies."
+
+	# still not 100% sure if we would like to do this.
+	# it is very questionable to do this during shutdown session, since
+	# it can hang any of remaining IPv4/v6 session.
+	#
+	/sbin/setkey -F
+	/sbin/setkey -FP
+}
+
+ipsec_reload()
+{
+	echo "Reloading ipsec manual keys/policies."
+	/sbin/setkey -F
+	/sbin/setkey -FP
+	/sbin/setkey -f /etc/ipsec.conf
+}
+
+load_rc_config $name
+run_rc_command "$1"

@@ -1,0 +1,31 @@
+#!/bin/sh
+#
+# $NetBSD: ntpdate,v 1.5 2000/08/21 14:48:39 abs Exp $
+#
+
+# PROVIDE: ntpdate
+# REQUIRE: NETWORK syslogd
+
+. /etc/rc.subr
+
+name="ntpdate"
+rcvar=$name
+start_cmd="ntpdate_start"
+stop_cmd=":"
+
+ntpdate_start()
+{
+	if [ -z "$ntpdate_hosts" ]; then
+		ntpdate_hosts=`awk '
+		    /^server[ \t]*127.127/	{next}
+		    /^(server|peer)/		{print $2}
+		' </etc/ntp.conf`
+	fi
+	if [ -n "$ntpdate_hosts"  ]; then
+		echo "Setting date via ntp."
+		ntpdate $ntpdate_flags $ntpdate_hosts
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

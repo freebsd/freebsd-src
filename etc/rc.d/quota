@@ -1,0 +1,24 @@
+#!/bin/sh
+#
+# $NetBSD: quota,v 1.1.1.1 2000/03/10 11:53:24 lukem Exp $
+#
+
+# PROVIDE: quota
+# REQUIRE: mountall
+
+. /etc/rc.subr
+
+name="quota"
+start_cmd="quota_start"
+stop_cmd="/usr/sbin/quotaoff -a"
+
+quota_start()
+{
+	echo -n "Checking quotas:"
+	/usr/sbin/quotacheck -a
+	echo " done."
+	/usr/sbin/quotaon -a
+}
+
+load_rc_config $name
+run_rc_command "$1"

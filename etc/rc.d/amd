@@ -1,0 +1,21 @@
+#!/bin/sh
+#
+# $NetBSD: amd,v 1.6 2000/09/19 13:04:38 lukem Exp $
+#
+
+# PROVIDE: amd
+# REQUIRE: rpcbind mountall ypbind
+
+. /etc/rc.subr
+
+name="amd"
+rcvar=$name
+command="/usr/sbin/${name}"
+load_rc_config $name
+
+command_args='-p -a '$amd_dir' -F /etc/amd.conf >/var/run/amd.pid'
+required_files="/etc/amd.conf"
+required_dirs="$amd_dir"
+required_vars="rpcbind"
+
+run_rc_command "$1"

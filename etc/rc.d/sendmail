@@ -1,0 +1,60 @@
+#!/bin/sh
+#
+# $NetBSD: sendmail,v 1.12 2000/10/09 06:11:38 nisimura Exp $
+#
+
+# PROVIDE: mail
+# REQUIRE: LOGIN
+
+#	we could do this, but make mail start late, so that things like
+#	.forward's are not processed until the system is fully operational
+## REQUIRE: DAEMON
+
+. /etc/rc.subr
+
+name="sendmail"
+rcvar=$name
+command="/usr/sbin/${name}"
+pidfile="/var/run/${name}.pid"
+required_files="/etc/mail/${name}.cf"
+start_precmd="sendmail_precmd"
+
+sendmail_precmd()
+{
+	# Die if there's pre-8.10 custom configuration file.  This check is
+	# mandatory for smooth upgrade.  See NetBSD PR 10100 for details.
+	#
+	if checkyesno sendmail && [ -f "/etc/${name}.cf" ]; then
+		if ! cmp -s "/etc/mail/${name}.cf" "/etc/${name}.cf"; then
+			warn \
+    "${name} was not started; you have multiple copies of sendmail.cf."
+			return 1
+		fi
+	fi
+
+	# check modifications on /etc/mail/aliases
+	if [ -f "/etc/mail/aliases.db" ]; then
+		if [ "/etc/mail/aliases" -nt "/etc/mail/aliases.db" ]; then
+			echo \
+	    "${name}: /etc/mail/aliases newer than /etc/mail/aliases.db, regenerating"
+			/usr/bin/newaliases
+		fi
+	else
+		echo \
+	    "${name}: /etc/mail/aliases.db not present, generating"
+			/usr/bin/newaliases
+	fi
+
+	# check couple of common db files, too
+	for f in genericstable virtusertable domaintable mailertable; do
+		if [ -r "/etc/mail/$f" ] && [ "/etc/mail/$f" -nt "/etc/mail/$f.db" ];
+		then
+			echo \
+    "${name}: /etc/mail/$f newer than /etc/mail/$f.db, regenerating"
+			/usr/sbin/makemap hash /etc/mail/$f < /etc/mail/$f
+		fi
+	done
+}
+
+load_rc_config $name
+run_rc_command "$1"

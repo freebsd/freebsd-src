@@ -1,0 +1,32 @@
+#!/bin/sh
+#
+# $NetBSD: ypserv,v 1.4 2000/06/02 22:54:13 fvdl Exp $
+#
+
+# PROVIDE: ypserv
+# REQUIRE: rpcbind
+
+. /etc/rc.subr
+
+name="ypserv"
+rcvar=$name
+command="/usr/sbin/${name}"
+required_vars="rpcbind"
+start_precmd="ypserv_precmd"
+
+ypserv_precmd()
+{
+	_domain=`domainname`
+	if [ -z "$_domain" ]; then
+		warn "domainname(1) is not set."
+		return 1
+	fi
+
+	if [ ! -d /var/yp/$_domain/. ]; then
+		warn "/var/yp/$_domain is not a directory."
+		return 1
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"
