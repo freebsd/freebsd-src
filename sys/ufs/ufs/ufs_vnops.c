@@ -1915,7 +1915,7 @@ ufs_strategy(ap)
 	struct buf *bp = ap->a_bp;
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip;
-	daddr_t blkno;
+	ufs_daddr_t blkno;
 	int error;
 
 	ip = VTOI(vp);
