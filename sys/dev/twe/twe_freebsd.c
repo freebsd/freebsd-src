@@ -692,7 +692,7 @@ twed_strategy(twe_bio *bp)
 /********************************************************************************
  * System crashdump support
  */
-int
+static int
 twed_dump(dev_t dev, void *virtual, vm_offset_t physical, off_t offset, size_t length)
 {
 

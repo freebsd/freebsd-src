@@ -166,7 +166,7 @@ bad:
 	return (error);
 }
 
-void
+static void
 mcd_release_resources (device_t dev)
 {
 	struct mcd_softc *	sc;

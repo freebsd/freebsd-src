@@ -183,7 +183,7 @@ static	int ubsec_maxbatch = 2;		/* XXX tune based on part+sys speed */
 SYSCTL_INT(_kern, OID_AUTO, ubsec_maxbatch, CTLFLAG_RW, &ubsec_maxbatch,
 	    0, "Broadcom driver: max ops to batch w/o interrupt");
 
-int
+static int
 ubsec_probe(device_t dev)
 {
 	if (pci_get_vendor(dev) == PCI_VENDOR_BLUESTEEL &&
@@ -2234,7 +2234,7 @@ errout:
 /*
  * Start computation of cr[C] = (cr[M] ^ cr[E]) mod cr[N] (hw normalization)
  */
-int
+static int
 ubsec_kprocess_modexp_hw(struct ubsec_softc *sc, struct cryptkop *krp, int hint)
 {
 	struct ubsec_q2_modexp *me;

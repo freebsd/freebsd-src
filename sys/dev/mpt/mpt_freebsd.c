@@ -596,7 +596,7 @@ mpt_bus_reset(union ccb *ccb)
 static void mpt_ctlop(mpt_softc_t *, void *, u_int32_t);
 static void mpt_event_notify_reply(mpt_softc_t *mpt, MSG_EVENT_NOTIFY_REPLY *);
 
-void
+static void
 mpt_ctlop(mpt_softc_t *mpt, void *vmsg, u_int32_t reply)
 {
 	MSG_DEFAULT_REPLY *dmsg = vmsg;

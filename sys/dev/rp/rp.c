@@ -955,7 +955,7 @@ rp_releaseresource(CONTROLLER_t *ctlp)
 	}
 }
 
-int
+static int
 rpopen(dev, flag, mode, td)
 	dev_t	dev;
 	int	flag, mode;
@@ -1114,7 +1114,7 @@ out2:
 	return(error);
 }
 
-int
+static int
 rpclose(dev, flag, mode, td)
 	dev_t	dev;
 	int	flag, mode;
@@ -1229,7 +1229,7 @@ rpdtrwakeup(void *chan)
 	wakeup(&rp->dtr_wait);
 }
 
-int
+static int
 rpioctl(dev, cmd, data, flag, td)
 	dev_t	dev;
 	u_long	cmd;

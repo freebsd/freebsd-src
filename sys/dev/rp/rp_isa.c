@@ -476,7 +476,7 @@ rp_isa_aiop2off(int aiop, int offset)
 }
 
 /* Read the int status for an ISA controller. */
-unsigned char
+static unsigned char
 rp_isa_ctlmask(CONTROLLER_t *ctlp)
 {
 	return sGetControllerIntStatus(rp_controller,ctlp);
