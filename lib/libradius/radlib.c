@@ -928,3 +928,20 @@ rad_put_vendor_string(struct rad_handle *h, int vendor, int type,
 {
 	return (rad_put_vendor_attr(h, vendor, type, str, strlen(str)));
 }
+
+ssize_t
+rad_request_authenticator(struct rad_handle *h, char *buf, size_t len)
+{
+	if (len < LEN_AUTH)
+		return (-1);
+	memcpy(buf, h->request + POS_AUTH, LEN_AUTH);
+	if (len > LEN_AUTH)
+		buf[LEN_AUTH] = '\0';
+	return (LEN_AUTH);
+}
+
+const char *
+rad_server_secret(struct rad_handle *h)
+{
+	return (h->servers[h->srv].secret);
+}
