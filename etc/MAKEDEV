@@ -64,7 +64,6 @@
 #
 # Printers:
 #	lpt*	stock lp
-#	lpa*	interruptless lp
 #
 # Call units:
 #
@@ -76,7 +75,7 @@
 #	snd*	various sound cards
 #	pcaudio PCM audio driver 
 #
-#	$Id: MAKEDEV,v 1.36 1994/05/30 03:53:01 ache Exp $
+#	$Id: MAKEDEV,v 1.37 1994/06/17 21:50:07 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -89,7 +88,7 @@ all)
 	sh MAKEDEV std						# standard
 	sh MAKEDEV wd0 wd1 fd0 fd1 ft0 wt0 sd0 sd1 st0 cd0 mcd0	# bdev
 	sh MAKEDEV pty0 tty0 tty1 pc0 lpt0 lpt1 lpt2            # cdev
-	sh MAKEDEV ch0 tw0 bpf0 dcf0 lpa0 lpa1 lpa2		# cdev
+	sh MAKEDEV ch0 tw0 bpf0 dcf0 				# cdev
 	sh MAKEDEV speaker pcaudio psm0 mse0 ttyd2 ttyd3        # cdev
 	sh MAKEDEV vty4						# cdev
 	;;
@@ -418,7 +417,10 @@ cd*|mcd*)
 lpt*)
 	unit=`expr $i : 'lpt\(.*\)'`
 	rm -f lpt$unit
+	rm -f lpctl$unit
 	mknod lpt$unit c 16 $unit
+	mknod lpctl$unit c 16 `expr $unit + 128`
+	chown root.wheel lpt$unit
 	chown root.wheel lpt$unit
 	;;
 
@@ -467,15 +469,6 @@ dcf*)
 	rm -f dcf$unit
 	mknod dcf$unit c 24 $unit
 	chown root.wheel dcf$unit
-	;;
-
-lpa*)
-	unit=`expr $i : 'lpa\(.*\)'`
-	chr=25
-	rm -f lpa$unit lpa${unit}p
-	mknod lpa${unit}	c $chr `expr $unit + 0`
-	mknod lpa${unit}p	c $chr `expr $unit + 32`
-	chown root.wheel lpa${unit} lpa${unit}p
 	;;
 
 speaker)

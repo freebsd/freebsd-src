@@ -12,56 +12,62 @@
 .\"
 .\"
 .\" $Id: lptcontrol.1,v 1.3 1994/05/22 12:31:54 csgr Exp $
-.TH lptcontrol 1 "March 12, 1994" "" "FreeBSD"
-
-.SH NAME
-lptcontrol - a utility for manipulating the lpt printer driver.
-.SH SYNOPSIS
-.na
-.B lptcontrol
-.RB [options]
-.SH DESCRIPTION
+.Dd September 3, 1994
+.Dt LPTCONTROL 8
+.Os FreeBSD 2
+.Sh NAME
+.Nm \&lptcontrol 
+.Nd a utility for manipulating the lpt printer driver.
+.Sh SYNOPSIS
+.Nm \&lptcontrol
+.Cm -i
+|
+.Cm -p
+.Op Fl u Ar unit no
+.Sh DESCRIPTION
 The
-.B lptcontrol
+.Nm lptcontrol
 command is used to set either the interrupt-driven or polling mode
-of individual lpt devices.  When a printer is switched between
+of individual 
+.Xr lpt 4
+devices.  When a printer is switched between
 interrupt-driven and polled mode, this change will only take effect
 the next time the device is opened.
-.SH OPTIONS
+.Sh OPTIONS
 .TP
-The following command line options are supported.
-.TP
-.B \-i
+The following command line options are supported:
+.Bl -tag -width indent 
+.It Fl i
 Turns on interrupt-driven mode.
-.TP
-.B \-p
+.It Fl p
 Turns on polled mode.
-.TP
-.BI "\-f\ " file
+.It Fl u  Ar n
 Sets the mode of the printer device specified by
-.I file.
+.Em n .
 The default value for 
-.I file
+.Em n
 is
-.I /dev/lpt0
-.TP
+.Em 0 (ie. /dev/lpt0)
+.El
+.Pp
 One of 
-.B \-i
+.Fl i
 or
-.B \-p
+.Fl p
 must be specified.
-.PP
-.SH FILES
-/dev/lpt?
-.PP
-.SH BUGS
-If the port to be controlled does not have a printer connected and
-on-line, then lptcontrol will not be able to open the port in question
-for performing ioctl's and will fail.
-.sp
-Sure to be others.
-.SH "SEE ALSO"
-.BR lpt (4) ,
-.BR /sys/i386/conf/GENERICAH
-.SH AUTHOR
+.Pp
+.Sh FILES
+.Bl -tag -width indent -compact
+.It Pa /dev/lpt?  - printer devices
+.It Pa /dev/lpctl?  - printer control devices
+.El
+.Sh BUGS
+Sure to be some.
+.Sh "SEE ALSO"
+.Xr lpt 4 
+.Xr /sys/i386/conf/GENERICAH
+.Sh AUTHOR
 Geoffrey M. Rehmet
+.Sh HISTORY
+.Nm lptcontrol
+first appeared in FreeBSD 1.1.5
