@@ -100,6 +100,7 @@ static void	aac_unmap_command(struct aac_command *cm);
 /* Hardware Interface */
 static void	aac_common_map(void *arg, bus_dma_segment_t *segs, int nseg,
 			       int error);
+static int	aac_check_firmware(struct aac_softc *sc);
 static int	aac_init(struct aac_softc *sc);
 static int	aac_sync_command(struct aac_softc *sc, u_int32_t command,
 				 u_int32_t arg0, u_int32_t arg1, u_int32_t arg2,
@@ -257,6 +258,12 @@ aac_attach(struct aac_softc *sc)
 
 	/* mark controller as suspended until we get ourselves organised */
 	sc->aac_state |= AAC_STATE_SUSPEND;
+
+	/*
+	 * Check that the firmware on the card is supported.
+	 */
+	if ((error = aac_check_firmware(sc)) != 0)
+		return(error);
 
 	/*
 	 * Allocate command structures.
@@ -1343,6 +1350,39 @@ aac_common_map(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	sc = (struct aac_softc *)arg;
 
 	sc->aac_common_busaddr = segs[0].ds_addr;
+}
+
+/*
+ * Retrieve the firmware version numbers.  Dell PERC2/QC cards with
+ * firmware version 1.x are not compatible with this driver.
+ */
+static int
+aac_check_firmware(struct aac_softc *sc)
+{
+	u_int32_t major, minor;
+
+	debug_called(1);
+
+	if (sc->quirks & AAC_QUIRK_PERC2QC) {
+		if (aac_sync_command(sc, AAC_MONKER_GETKERNVER, 0, 0, 0, 0,
+				     NULL)) {
+			device_printf(sc->aac_dev,
+				      "Error reading firmware version\n");
+			return (EIO);
+		}
+
+		/* These numbers are stored as ASCII! */
+		major = (AAC_GETREG4(sc, AAC_SA_MAILBOX + 4) & 0xff) - 0x30;
+		minor = (AAC_GETREG4(sc, AAC_SA_MAILBOX + 8) & 0xff) - 0x30;
+		if (major == 1) {
+			device_printf(sc->aac_dev,
+			    "Firmware version %d.%d is not supported.\n",
+			    major, minor);
+			return (EINVAL);
+		}
+	}
+
+	return (0);
 }
 
 static int
