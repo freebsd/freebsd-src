@@ -960,7 +960,8 @@ build-tools:
 _elf2aout=	usr.bin/elf2aout
 .endif
 
-.if ${TARGET_ARCH} == "i386" && ${TARGET_ARCH} != ${MACHINE_ARCH}
+.if (${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386") && \
+    ${TARGET_ARCH} != ${MACHINE_ARCH}
 _btxld=		usr.sbin/btxld
 .endif
 
