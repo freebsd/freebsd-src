@@ -75,8 +75,8 @@
 /*
  * Bus address and size types
  */
-typedef u_int32_t		bus_addr_t;
-typedef u_int32_t		bus_size_t;
+typedef u_int64_t		bus_addr_t;
+typedef u_int64_t		bus_size_t;
 typedef struct alpha_busspace	*bus_space_tag_t;
 typedef u_int32_t		bus_space_handle_t;
 
@@ -85,9 +85,10 @@ typedef u_int32_t		bus_space_handle_t;
 #define BUS_SPACE_MAXSIZE	(64 * 1024) /* Maximum supported size */
 #define BUS_SPACE_MAXADDR_24BIT	0xFFFFFF
 #define BUS_SPACE_MAXADDR_32BIT 0xFFFFFFFF
-#define BUS_SPACE_MAXADDR	0xFFFFFFFF
+/* The largest address space known so far is 40 bits */
+#define BUS_SPACE_MAXADDR	0xFFFFFFFFFUL
 
-#define BUS_SPACE_UNRESTRICTED	(~0)
+#define BUS_SPACE_UNRESTRICTED	(~0UL)
 
 struct alpha_busspace;
 
