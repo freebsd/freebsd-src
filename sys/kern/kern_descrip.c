@@ -525,8 +525,6 @@ fsetown(pgid, sigiop)
 	sigio->sio_pgid = pgid;
 	crhold(curproc->p_ucred);
 	sigio->sio_ucred = curproc->p_ucred;
-	/* It would be convenient if p_ruid was in ucred. */
-	sigio->sio_ruid = curproc->p_cred->p_ruid;
 	sigio->sio_myref = sigiop;
 	s = splhigh();
 	*sigiop = sigio;

@@ -153,11 +153,11 @@ procfs_dostatus(curp, p, pfs, uio)
 
 	ps += snprintf(ps, psbuf + sizeof(psbuf) - ps, " %lu %lu %lu", 
 		(u_long)cr->cr_uid,
-		(u_long)p->p_cred->p_ruid,
-		(u_long)p->p_cred->p_rgid);
+		(u_long)cr->cr_ruid,
+		(u_long)cr->cr_rgid);
 	DOCHECK();
 
-	/* egid (p->p_cred->p_svgid) is equal to cr_ngroups[0] 
+	/* egid (cr->cr_svgid) is equal to cr_ngroups[0] 
 	   see also getegid(2) in /sys/kern/kern_prot.c */
 
 	for (i = 0; i < cr->cr_ngroups; i++) {

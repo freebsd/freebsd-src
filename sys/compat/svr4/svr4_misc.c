@@ -1283,7 +1283,7 @@ loop:
 			/*
 			 * Decrement the count of procs running with this uid.
 			 */
-			(void)chgproccnt(q->p_cred->p_uidinfo, -1, 0);
+			(void)chgproccnt(q->p_ucred->cr_ruidinfo, -1, 0);
 
 			/*
 			 * Release reference to text vnode.
@@ -1294,13 +1294,8 @@ loop:
 			/*
 			 * Free up credentials.
 			 */
-			PROC_LOCK(q);
-			if (--q->p_cred->p_refcnt == 0) {
-				crfree(q->p_ucred);
-				uifree(q->p_cred->p_uidinfo);
-				FREE(q->p_cred, M_SUBPROC);
-				q->p_cred = NULL;
-			}
+			crfree(q->p_ucred);
+			q->p_ucred = NULL;
 
 			/*
 			 * Remove unused arguments

@@ -1710,8 +1710,8 @@ access(p, uap)
 	 * rather than to modify the potentially shared process structure.
 	 */
 	tmpcred = crdup(cred);
-	tmpcred->cr_uid = p->p_cred->p_ruid;
-	tmpcred->cr_groups[0] = p->p_cred->p_rgid;
+	tmpcred->cr_uid = cred->cr_ruid;
+	tmpcred->cr_groups[0] = cred->cr_rgid;
 	p->p_ucred = tmpcred;
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
 	    SCARG(uap, path), p);
@@ -3801,7 +3801,7 @@ extattr_set_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	}
 	cnt = auio.uio_resid;
 	error = VOP_SETEXTATTR(vp, attrnamespace, attrname, &auio,
-	    p->p_cred->pc_ucred, p);
+	    p->p_ucred, p);
 	cnt -= auio.uio_resid;
 	p->p_retval[0] = cnt;
 done:
@@ -3914,7 +3914,7 @@ extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	}
 	cnt = auio.uio_resid;
 	error = VOP_GETEXTATTR(vp, attrnamespace, attrname, &auio,
-	    p->p_cred->pc_ucred, p);
+	    p->p_ucred, p);
 	cnt -= auio.uio_resid;
 	p->p_retval[0] = cnt;
 done:
@@ -3997,7 +3997,7 @@ extattr_delete_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 
 	error = VOP_SETEXTATTR(vp, attrnamespace, attrname, NULL,
-	    p->p_cred->pc_ucred, p);
+	    p->p_ucred, p);
 
 	VOP_UNLOCK(vp, 0, p);
 	vn_finished_write(mp);

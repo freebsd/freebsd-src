@@ -95,7 +95,7 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 
 		db_printf("%5d %8p %8p %4d %5d %5d %06x  %d",
 		    p->p_pid, (volatile void *)p, (void *)p->p_addr,
-		    p->p_cred ? p->p_cred->p_ruid : 0, pp->p_pid,
+		    p->p_ucred ? p->p_ucred->cr_ruid : 0, pp->p_pid,
 		    p->p_pgrp ? p->p_pgrp->pg_id : 0, p->p_flag, p->p_stat);
 		if (p->p_wchan) {
 			db_printf("  %6s %8p", p->p_wmesg, (void *)p->p_wchan);

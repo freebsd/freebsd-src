@@ -531,17 +531,17 @@ static int
 ktrcanset(callp, targetp)
 	struct proc *callp, *targetp;
 {
-	register struct pcred *caller = callp->p_cred;
-	register struct pcred *target = targetp->p_cred;
+	struct ucred *callcr = callp->p_ucred;
+	struct ucred *targetcr = targetp->p_ucred;
 
-	if (prison_check(callp->p_ucred, targetp->p_ucred))
+	if (prison_check(callcr, targetcr))
 		return (0);
-	if ((caller->pc_ucred->cr_uid == target->p_ruid &&
-	     target->p_ruid == target->p_svuid &&
-	     caller->p_rgid == target->p_rgid &&	/* XXX */
-	     target->p_rgid == target->p_svgid &&
+	if ((callcr->cr_uid == targetcr->cr_ruid &&
+	     targetcr->cr_ruid == targetcr->cr_svuid &&
+	     callcr->cr_rgid == targetcr->cr_rgid &&	/* XXX */
+	     targetcr->cr_rgid == targetcr->cr_svgid &&
 	     (targetp->p_traceflag & KTRFAC_ROOT) == 0) ||
-	     caller->pc_ucred->cr_uid == 0)
+	     !suser_xxx(callcr, NULL, PRISON_ROOT))
 		return (1);
 
 	return (0);

@@ -478,14 +478,14 @@ linprocfs_doprocstatus(curp, p, pfs, uio)
 	PROC_LOCK(p);
 	sbuf_printf(&sb, "PPid:\t%d\n",		p->p_pptr ?
 						p->p_pptr->p_pid : 0);
-	sbuf_printf(&sb, "Uid:\t%d %d %d %d\n", p->p_cred->p_ruid,
+	sbuf_printf(&sb, "Uid:\t%d %d %d %d\n", p->p_ucred->cr_ruid,
 			                        p->p_ucred->cr_uid,
-			                        p->p_cred->p_svuid,
+			                        p->p_ucred->cr_svuid,
 			                        /* FreeBSD doesn't have fsuid */
 				                p->p_ucred->cr_uid);
-	sbuf_printf(&sb, "Gid:\t%d %d %d %d\n", p->p_cred->p_rgid,
+	sbuf_printf(&sb, "Gid:\t%d %d %d %d\n", p->p_ucred->cr_rgid,
 			                        p->p_ucred->cr_gid,
-			                        p->p_cred->p_svgid,
+			                        p->p_ucred->cr_svgid,
 			                        /* FreeBSD doesn't have fsgid */
 				                p->p_ucred->cr_gid);
 	sbuf_cat(&sb, "Groups:\t");
@@ -577,7 +577,7 @@ linprocfs_doexelink(curp, p, pfs, uio)
 	char *freepath = NULL;
 
 	p = PFIND(pfs->pfs_pid);
-	if (p == NULL || p->p_cred == NULL || p->p_ucred == NULL) {
+	if (p == NULL || p->p_ucred == NULL) {
 		if (p != NULL)
 			PROC_UNLOCK(p);
 		printf("doexelink: pid %d disappeared\n", pfs->pfs_pid);

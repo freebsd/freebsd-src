@@ -117,7 +117,6 @@ struct	sigio {
 	struct	sigio **sio_myref;	/* location of the pointer that holds
 					 * the reference to this structure */
 	struct	ucred *sio_ucred;	/* current credentials */
-	uid_t	sio_ruid;		/* real user id */
 	pid_t	sio_pgid;		/* pgid for signals */
 };
 #define	sio_proc	sio_u.siu_proc
