@@ -86,7 +86,7 @@ contrib/dev/acpica/dbutils.c	 optional acpi acpi_debug
 contrib/dev/acpica/dbxface.c	 optional acpi acpi_debug
 contrib/dev/acpica/dmbuffer.c	 optional acpi acpi_debug
 contrib/dev/acpica/dmnames.c	 optional acpi acpi_debug
-contrib/dev/acpica/dmopcode.c	 optional acpi acpi_debug nowerror
+contrib/dev/acpica/dmopcode.c	 optional acpi acpi_debug
 contrib/dev/acpica/dmobject.c	 optional acpi acpi_debug
 contrib/dev/acpica/dmresrc.c	 optional acpi acpi_debug
 contrib/dev/acpica/dmresrcl.c	 optional acpi acpi_debug
@@ -139,7 +139,7 @@ contrib/dev/acpica/exsystem.c	 optional acpi
 contrib/dev/acpica/exutils.c	 optional acpi
 contrib/dev/acpica/hwacpi.c	 optional acpi
 contrib/dev/acpica/hwgpe.c	 optional acpi
-contrib/dev/acpica/hwregs.c	 optional acpi nowerror
+contrib/dev/acpica/hwregs.c	 optional acpi
 contrib/dev/acpica/hwsleep.c	 optional acpi
 contrib/dev/acpica/hwtimer.c	 optional acpi
 contrib/dev/acpica/nsaccess.c	 optional acpi
@@ -189,8 +189,8 @@ contrib/dev/acpica/utclib.c	 optional acpi
 contrib/dev/acpica/utcopy.c	 optional acpi
 contrib/dev/acpica/utdebug.c	 optional acpi
 contrib/dev/acpica/utdelete.c	 optional acpi
-contrib/dev/acpica/uteval.c	 optional acpi nowerror
-contrib/dev/acpica/utglobal.c	 optional acpi nowerror
+contrib/dev/acpica/uteval.c	 optional acpi
+contrib/dev/acpica/utglobal.c	 optional acpi
 contrib/dev/acpica/utinit.c	 optional acpi
 contrib/dev/acpica/utmath.c	 optional acpi
 contrib/dev/acpica/utmisc.c	 optional acpi
@@ -264,7 +264,7 @@ dev/acpica/acpi_pci_link.c	optional acpi pci
 dev/acpica/acpi_pcib.c		optional acpi pci
 dev/acpica/acpi_pcib_acpi.c	optional acpi pci
 dev/acpica/acpi_pcib_pci.c	optional acpi pci
-dev/acpica/acpi_powerres.c	optional acpi nowerror
+dev/acpica/acpi_powerres.c	optional acpi
 dev/acpica/acpi_resource.c	optional acpi
 dev/acpica/acpi_thermal.c	optional acpi
 dev/acpica/acpi_timer.c		optional acpi
