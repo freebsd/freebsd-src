@@ -8,9 +8,10 @@ PODS=	perl.pod perl5004delta.pod perlapio.pod perlbook.pod perlbot.pod \
 	perlfaq3.pod perlfaq4.pod perlfaq5.pod perlfaq6.pod perlfaq7.pod \
 	perlfaq8.pod perlfaq9.pod perlform.pod perlfunc.pod perlguts.pod \
 	perlhist.pod perlipc.pod perllocale.pod perllol.pod perlmod.pod \
-	perlmodinstall.pod perlmodlib.pod perlobj.pod perlop.pod perlpod.pod \
-	perlport.pod perlre.pod perlref.pod perlrun.pod perlsec.pod \
-	perlstyle.pod perlsub.pod perlsyn.pod perltie.pod perltoc.pod \
+	perlmodinstall.pod perlmodlib.pod perlobj.pod perlop.pod \
+	perlopentut.pod perlpod.pod perlport.pod perlre.pod perlref.pod \
+	perlreftut.pod perlrun.pod perlsec.pod perlstyle.pod perlsub.pod \
+	perlsyn.pod perlthrtut.pod perltie.pod perltoc.pod \
 	perltoot.pod perltrap.pod perlvar.pod perlxs.pod perlxstut.pod
 
 .for I in ${PODS:R}
