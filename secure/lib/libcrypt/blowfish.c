@@ -53,27 +53,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include "blowfish.h"
 
-#undef inline
-#ifdef __GNUC__
-#define inline __inline
-#else				/* !__GNUC__ */
-#define inline
-#endif				/* !__GNUC__ */
-
 /* Function for Feistel Networks */
 
-#define F(s, x) ((((s)[        (((x)>>24)&0xFF)]  \
+#define _F(s, x) ((((s)[        (((x)>>24)&0xFF)]  \
 		 + (s)[0x100 + (((x)>>16)&0xFF)]) \
 		 ^ (s)[0x200 + (((x)>> 8)&0xFF)]) \
 		 + (s)[0x300 + ( (x)     &0xFF)])
 
-#define BLFRND(s,p,i,j,n) (i ^= F(s,j) ^ (p)[n])
+#define BLFRND(s, p, i, j, n) (i ^= _F(s, j) ^ (p)[n])
 
 void
-Blowfish_encipher(c, xl, xr)
-	blf_ctx *c;
-	u_int32_t *xl;
-	u_int32_t *xr;
+Blowfish_encipher(blf_ctx *c, u_int32_t *xl, u_int32_t *xr)
 {
 	u_int32_t Xl;
 	u_int32_t Xr;
@@ -98,10 +88,7 @@ Blowfish_encipher(c, xl, xr)
 }
 
 void
-Blowfish_decipher(c, xl, xr)
-	blf_ctx *c;
-	u_int32_t *xl;
-	u_int32_t *xr;
+Blowfish_decipher(blf_ctx *c, u_int32_t *xl, u_int32_t *xr)
 {
 	u_int32_t Xl;
 	u_int32_t Xr;
@@ -126,8 +113,7 @@ Blowfish_decipher(c, xl, xr)
 }
 
 void
-Blowfish_initstate(c)
-	blf_ctx *c;
+Blowfish_initstate(blf_ctx *c)
 {
 
 /* P-box and S-box tables initialized with digits of Pi */
@@ -199,7 +185,7 @@ Blowfish_initstate(c)
 			0xd60f573f, 0xbc9bc6e4, 0x2b60a476, 0x81e67400,
 			0x08ba6fb5, 0x571be91f, 0xf296ec6b, 0x2a0dd915,
 			0xb6636521, 0xe7b9f9b6, 0xff34052e, 0xc5855664,
-		0x53b02d5d, 0xa99f8fa1, 0x08ba4799, 0x6e85076a},
+			0x53b02d5d, 0xa99f8fa1, 0x08ba4799, 0x6e85076a},
 		{
 			0x4b7a70e9, 0xb5b32944, 0xdb75092e, 0xc4192623,
 			0xad6ea6b0, 0x49a7df7d, 0x9cee60b8, 0x8fedb266,
@@ -264,7 +250,7 @@ Blowfish_initstate(c)
 			0x9e447a2e, 0xc3453484, 0xfdd56705, 0x0e1e9ec9,
 			0xdb73dbd3, 0x105588cd, 0x675fda79, 0xe3674340,
 			0xc5c43465, 0x713e38d8, 0x3d28f89e, 0xf16dff20,
-		0x153e21e7, 0x8fb03d4a, 0xe6e39f2b, 0xdb83adf7},
+			0x153e21e7, 0x8fb03d4a, 0xe6e39f2b, 0xdb83adf7},
 		{
 			0xe93d5a68, 0x948140f7, 0xf64c261c, 0x94692934,
 			0x411520f7, 0x7602d4f7, 0xbcf46b2e, 0xd4a20068,
@@ -329,7 +315,7 @@ Blowfish_initstate(c)
 			0xed545578, 0x08fca5b5, 0xd83d7cd3, 0x4dad0fc4,
 			0x1e50ef5e, 0xb161e6f8, 0xa28514d9, 0x6c51133c,
 			0x6fd5c7e7, 0x56e14ec4, 0x362abfce, 0xddc6c837,
-		0xd79a3234, 0x92638212, 0x670efa8e, 0x406000e0},
+			0xd79a3234, 0x92638212, 0x670efa8e, 0x406000e0},
 		{
 			0x3a39ce37, 0xd3faf5cf, 0xabc27737, 0x5ac52d1b,
 			0x5cb0679e, 0x4fa33742, 0xd3822740, 0x99bc9bbe,
@@ -394,7 +380,7 @@ Blowfish_initstate(c)
 			0x85cbfe4e, 0x8ae88dd8, 0x7aaaf9b0, 0x4cf9aa7e,
 			0x1948c25c, 0x02fb8a8c, 0x01c36ae4, 0xd6ebe1f9,
 			0x90d4f869, 0xa65cdea0, 0x3f09252d, 0xc208e69f,
-		0xb74e6132, 0xce77e25b, 0x578fdfe3, 0x3ac372e6}
+			0xb74e6132, 0xce77e25b, 0x578fdfe3, 0x3ac372e6}
 	},
 	{
 		0x243f6a88, 0x85a308d3, 0x13198a2e, 0x03707344,
@@ -408,16 +394,9 @@ Blowfish_initstate(c)
 
 }
 
-#ifdef __STDC__
 u_int32_t
-Blowfish_stream2word(const u_int8_t *data, u_int16_t databytes, u_int16_t *current)
-#else
-u_int32_t
-Blowfish_stream2word(data, databytes, current)
-	const u_int8_t *data;
-	u_int16_t databytes;
-	u_int16_t *current;
-#endif
+Blowfish_stream2word(const u_int8_t *data, u_int16_t databytes,
+    u_int16_t *current)
 {
 	u_int8_t i;
 	u_int16_t j;
@@ -436,16 +415,8 @@ Blowfish_stream2word(data, databytes, current)
 	return temp;
 }
 
-#if __STDC__
 void
 Blowfish_expand0state(blf_ctx *c, const u_int8_t *key, u_int16_t keybytes)
-#else
-void
-Blowfish_expand0state(c, key, keybytes)
-	blf_ctx *c;
-	const u_int8_t *key;
-	u_int16_t keybytes;
-#endif
 {
 	u_int16_t i;
 	u_int16_t j;
@@ -482,19 +453,9 @@ Blowfish_expand0state(c, key, keybytes)
 }
 
 
-#if __STDC__
 void
 Blowfish_expandstate(blf_ctx *c, const u_int8_t *data, u_int16_t databytes,
-		     const u_int8_t *key, u_int16_t keybytes)
-#else
-void
-Blowfish_expandstate(c, data, databytes, key, keybytes)
-	blf_ctx *c;
-	const u_int8_t *data;
-	u_int16_t databytes;
-	const u_int8_t *key;
-	u_int16_t keybytes;
-#endif
+    const u_int8_t *key, u_int16_t keybytes)
 {
 	u_int16_t i;
 	u_int16_t j;
@@ -535,16 +496,8 @@ Blowfish_expandstate(c, data, databytes, key, keybytes)
 
 }
 
-#if __STDC__
 void
 blf_key(blf_ctx *c, const u_int8_t *k, u_int16_t len)
-#else
-void
-blf_key(c, k, len)
-	blf_ctx *c;
-	const u_int8_t *k;
-	u_int16_t len;
-#endif
 {
 	/* Initalize S-boxes and subkeys with Pi */
 	Blowfish_initstate(c);
@@ -553,16 +506,8 @@ blf_key(c, k, len)
 	Blowfish_expand0state(c, k, len);
 }
 
-#if __STDC__
 void
 blf_enc(blf_ctx *c, u_int32_t *data, u_int16_t blocks)
-#else
-void
-blf_enc(c, data, blocks)
-	blf_ctx *c;
-	u_int32_t *data;
-	u_int16_t blocks;
-#endif
 {
 	u_int32_t *d;
 	u_int16_t i;
@@ -574,16 +519,8 @@ blf_enc(c, data, blocks)
 	}
 }
 
-#if __STDC__
 void
 blf_dec(blf_ctx *c, u_int32_t *data, u_int16_t blocks)
-#else
-void
-blf_dec(c, data, blocks)
-	blf_ctx *c;
-	u_int32_t *data;
-	u_int16_t blocks;
-#endif
 {
 	u_int32_t *d;
 	u_int16_t i;
@@ -595,16 +532,8 @@ blf_dec(c, data, blocks)
 	}
 }
 
-#if __STDC__
 void
 blf_ecb_encrypt(blf_ctx *c, u_int8_t *data, u_int32_t len)
-#else
-void
-blf_ecb_encrypt(c, data, len)
-     blf_ctx *c;
-     u_int8_t *data;
-     u_int32_t len;
-#endif
 {
 	u_int32_t l, r;
 	u_int32_t i;
@@ -625,16 +554,8 @@ blf_ecb_encrypt(c, data, len)
 	}
 }
 
-#if __STDC__
 void
 blf_ecb_decrypt(blf_ctx *c, u_int8_t *data, u_int32_t len)
-#else
-void
-blf_ecb_decrypt(c, data, len)
-     blf_ctx *c;
-     u_int8_t *data;
-     u_int32_t len;
-#endif
 {
 	u_int32_t l, r;
 	u_int32_t i;
@@ -655,17 +576,8 @@ blf_ecb_decrypt(c, data, len)
 	}
 }
 
-#if __STDC__
 void
 blf_cbc_encrypt(blf_ctx *c, u_int8_t *iv, u_int8_t *data, u_int32_t len)
-#else
-void
-blf_cbc_encrypt(c, iv, data, len)
-     blf_ctx *c;
-     u_int8_t *iv;
-     u_int8_t *data;
-     u_int32_t len;
-#endif
 {
 	u_int32_t l, r;
 	u_int32_t i, j;
@@ -689,17 +601,8 @@ blf_cbc_encrypt(c, iv, data, len)
 	}
 }
 
-#if __STDC__
 void
 blf_cbc_decrypt(blf_ctx *c, u_int8_t *iva, u_int8_t *data, u_int32_t len)
-#else
-void
-blf_cbc_decrypt(c, iva, data, len)
-     blf_ctx *c;
-     u_int8_t *iva;
-     u_int8_t *data;
-     u_int32_t len;
-#endif
 {
 	u_int32_t l, r;
 	u_int8_t *iv;
@@ -758,7 +661,7 @@ main(void)
 
 	u_int32_t data[10];
 	u_int32_t data2[] =
-	{0x424c4f57l, 0x46495348l};
+	{0x424c4f57L, 0x46495348L};
 
 	u_int16_t i;
 

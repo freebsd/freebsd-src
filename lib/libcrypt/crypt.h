@@ -34,5 +34,5 @@ char *crypt_des(const char *pw, const char *salt);
 char *crypt_md5(const char *pw, const char *salt);
 char *crypt_blowfish(const char *pw, const char *salt);
 
-extern void _crypt_to64(char *s, unsigned long v, int n);
+extern void _crypt_to64(char *s, u_long v, int n);
 
