@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.149 1999/03/12 15:38:54 brian Exp $
+#	$Id: Makefile,v 1.150 1999/03/14 18:02:01 markm Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR=	IPXrouted \
@@ -39,6 +39,7 @@ SUBDIR=	IPXrouted \
 	kvm_mkdb \
 	lpr \
 	manctl \
+	memcontrol \
 	moused \
 	mrouted \
 	mtest \
