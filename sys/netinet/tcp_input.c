@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.38 1996/03/11 15:13:29 davidg Exp $
+ *	$Id: tcp_input.c,v 1.39 1996/03/22 18:09:20 wollman Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -1923,7 +1923,7 @@ tcp_xmit_timer(tp, rtt)
 	    tp->t_rttmin, TCPTV_REXMTMAX);
 #else /* Peterson */
 	TCPT_RANGESET(tp->t_rxtcur, TCP_REXMTVAL(tp),
-		      max(tp->t_rttmin, TCPTV_MIN + rtt - 1), TCPTV_REXMTMAX);
+		      max(tp->t_rttmin, rtt + 2), TCPTV_REXMTMAX);
 #endif
 
 	/*
