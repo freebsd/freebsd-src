@@ -29,8 +29,6 @@
 #ifndef _MBLOCAL_H_
 #define	_MBLOCAL_H_
 
-#include <stddef.h>	/* XXX for rune_t */
-
 /*
  * Conversion function pointers for current encoding.
  */
@@ -60,11 +58,5 @@ extern size_t __mbsnrtowcs_std(wchar_t * __restrict, const char ** __restrict,
     size_t, size_t, mbstate_t * __restrict);
 extern size_t __wcsnrtombs_std(char * __restrict, const wchar_t ** __restrict,
     size_t, size_t, mbstate_t * __restrict);
-
-/*
- * Rune emulation functions.
- */
-extern rune_t __emulated_sgetrune(const char *, size_t, const char **);
-extern int __emulated_sputrune(rune_t, char *, size_t, char **);
 
 #endif	/* _MBLOCAL_H_ */
