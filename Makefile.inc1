@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.77 1999/06/01 02:55:44 billf Exp $
+#	$Id: Makefile.inc1,v 1.78 1999/06/04 17:34:28 billf Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -136,6 +136,17 @@ MK_FLAGS=	-DWORLD -DNOINFO -DNOMAN -DNOPIC -DNOPROFILE -DNOSHARED
 .endif
 
 #
+# If we're building a cross world, define MACHINE and MACHINE_ARCH for
+# the version of make that we're using.
+#
+.if defined(TARGET)
+CROSS_MAKE_FLAGS+=-DMACHINE=\"${TARGET}\"
+.endif
+.if defined(TARGET_ARCH)
+CROSS_MAKE_FLAGS+=-DMACHINE_ARCH=\"${TARGET_ARCH}\"
+.endif
+
+#
 # Define the location of the temporary installation directory. Note that
 # MAKEOBJDIRPREFIX normally isn't defined so if the current directory is
 # /usr/src, then the world temporary directory is /usr/obj/usr/src/tmp.
@@ -187,9 +198,15 @@ COMPILER_ENV=	BISON_SIMPLE=${TOOLROOT}/usr/share/misc/bison.simple \
 		LD_LIBRARY_PATH=${TOOLROOT}${SHLIBDIR} \
 		LIBRARY_PATH=${WORLDTMP}${SHLIBDIR}:${WORLDTMP}/usr/lib
 
-BMAKEENV=	PATH=${TMPPATH} ${COMPILER_ENV} NOEXTRADEPEND=t \
+BMAKEENV=	${COMPILER_ENV} NOEXTRADEPEND=t PATH=${TMPPATH} \
 		OBJFORMAT_PATH=${TOOLROOT}/usr/libexec:/usr/libexec
-XMAKEENV=	PATH=${STRICTTMPPATH} ${COMPILER_ENV} \
+XTMAKEENV=	NOEXTRADEPEND=t
+.if defined(TARGET)
+XMAKEENV=	PATH=${TMPPATH}
+.else
+XMAKEENV=	PATH=${STRICTTMPPATH}
+.endif
+XMAKEENV+=	${COMPILER_ENV} \
 		PERL5LIB=${DESTDIR}/usr/libdata/perl/5.00503 \
 		OBJFORMAT_PATH=${TOOLROOT}/usr/libexec \
 		CFLAGS="-nostdinc ${CFLAGS}"	# XXX -nostdlib
@@ -199,6 +216,8 @@ MAKETMP=	${WORLDTMP}/make
 IBMAKE=	${BMAKEENV} MAKEOBJDIR=${MAKETMP} ${MAKE} DESTDIR=${WORLDTMP}
 
 .if	defined(NOTOOLS)
+# cross tools make
+XTMAKE=	${XTMAKEENV} ${MAKE} DESTDIR=${WORLDTMP}
 # bootstrap make
 BMAKE=	${BMAKEENV} ${MAKE} DESTDIR=${WORLDTMP}
 # cross make used for compilation
@@ -206,6 +225,8 @@ XMAKE=	${XMAKEENV} ${MAKE} DESTDIR=${WORLDTMP}
 # cross make used for final installation
 IXMAKE=	${XMAKEENV} ${MAKE}
 .else
+# cross tools make
+XTMAKE=	${XTMAKEENV} ${WORLDTMP}/usr/bin/make DESTDIR=${WORLDTMP}
 # bootstrap make
 BMAKE=	${BMAKEENV} ${WORLDTMP}/usr/bin/make DESTDIR=${WORLDTMP}
 # cross make used for compilation
@@ -239,7 +260,7 @@ buildworld: check-objformat
 	( \
 	cd ${.CURDIR}/usr.bin/make; \
 		MAKEOBJDIRPREFIX=""; unset MAKEOBJDIRPREFIX; \
-		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} all; \
+		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} all CROSS_MAKE_FLAGS='${CROSS_MAKE_FLAGS}'; \
 		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} install; \
 		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} clean \
 	)
@@ -274,7 +295,14 @@ buildworld: check-objformat
 	@echo ">>> Rebuilding the ${OBJFORMAT} obj tree"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${BMAKE} -f Makefile.inc1 par-${OBJDIR}
-.if !defined(NOTOOLS)
+.if defined(TARGET)
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Rebuilding toolchain for ${TARGET} buildworld"
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR}; ${XTMAKE} -f Makefile.inc1 cross-toolchain
+.endif
+.if !defined(NOTOOLS) && !defined(TARGET)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Rebuilding ${OBJFORMAT} bootstrap tools"
@@ -302,8 +330,6 @@ buildworld: check-objformat
 	@echo ">>> Rebuilding tools needed to build libraries"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${BMAKE} -f Makefile.inc1 lib-tools
-.endif
-.if !defined(NOTOOLS)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Rebuilding all other tools needed to build the ${OBJFORMAT} world"
@@ -475,8 +501,14 @@ hierarchy:
 # for the dependency information to be gathered from.
 #
 bootstrap:
+.if defined(DESTDIR)
+	rm -f ${DESTDIR}/usr/src/sys
+	ln -s ${.CURDIR}/sys ${DESTDIR}/usr/src
+	cd ${.CURDIR}/include;	${MAKE} all
+	cd ${.CURDIR}/include;	${MAKE} beforeinstall
+.endif
 	cd ${.CURDIR}/usr.bin/make; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
-		${MAKE} ${MK_FLAGS} all; \
+		${MAKE} ${MK_FLAGS} all CROSS_MAKE_FLAGS='${CROSS_MAKE_FLAGS}'; \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/xinstall; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
 		${MAKE} ${MK_FLAGS} all; \
@@ -492,6 +524,9 @@ bootstrap:
 	cd ${.CURDIR}/usr.sbin/mtree; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
 		${MAKE} ${MK_FLAGS} all; \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
+.if defined(DESTDIR)
+	cd ${.CURDIR}/include && ${MAKE} copies
+.endif
 
 #
 # include-tools - generally the same as 'bootstrap', except that it's for
@@ -966,6 +1001,24 @@ check-objformat	:
 	@exit 1
 .endif
 
+#
+# cross toolchain
+#
+# This is a subset of the tools built in lib-tools, build-tools, etc.  What
+# we are looking for here is to build the cross compilers, etc, with
+# the current host compiler.
+#
+cross-toolchain:
+.for d in				\
+		gnu/usr.bin/binutils	\
+		gnu/usr.bin/bison	\
+		gnu/usr.bin/cc		\
+		usr.bin/objformat
+	cd ${.CURDIR}/$d; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
+		${XTMAKE} ${MK_FLAGS} all; \
+		${XTMAKE} ${MK_FLAGS} -B install; \
+		${XTMAKE} ${MK_FLAGS:S/-DNOPIC//} -B ${CLEANDIR} ${OBJDIR}
+.endfor
 
 .for __target in clean cleandepend cleandir depend obj
 .for entry in ${SUBDIR}
