@@ -46,7 +46,7 @@ static const char sccsid[] = "@(#)sys_bsd.c	8.4 (Berkeley) 5/30/95";
  * (at least between 4.x and dos) which is used in telnet.c.
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <errno.h>
