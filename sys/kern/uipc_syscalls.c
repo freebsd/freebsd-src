@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.9 1995/10/23 15:42:12 bde Exp $
+ * $Id: uipc_syscalls.c,v 1.10 1995/12/14 22:51:04 bde Exp $
  */
 
 #include <sys/param.h>
@@ -1040,14 +1040,14 @@ pipe(p, uap, retval)
 	if (error)
 		goto free2;
 	retval[0] = fd;
-	rf->f_flag = FREAD;
+	rf->f_flag = FREAD | FWRITE;
 	rf->f_type = DTYPE_SOCKET;
 	rf->f_ops = &socketops;
 	rf->f_data = (caddr_t)rso;
 	error = falloc(p, &wf, &fd);
 	if (error)
 		goto free3;
-	wf->f_flag = FWRITE;
+	wf->f_flag = FREAD | FWRITE;
 	wf->f_type = DTYPE_SOCKET;
 	wf->f_ops = &socketops;
 	wf->f_data = (caddr_t)wso;
