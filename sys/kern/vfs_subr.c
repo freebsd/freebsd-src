@@ -831,7 +831,11 @@ getnewvnode(tag, mp, vops, vpp)
 	 */
 	vp->v_vnlock = &vp->v_lock;
 	mtx_init(&vp->v_interlock, "vnode interlock", NULL, MTX_DEF);
-	lockinit(vp->v_vnlock, PVFS, tag, VLKTIMEOUT, 0);
+	/*
+	 * By default, don't allow shared locks unless filesystems
+	 * opt-in.
+	 */
+	lockinit(vp->v_vnlock, PVFS, tag, VLKTIMEOUT, LK_NOSHARE);
 	/*
 	 * Initialize bufobj.
 	 */
