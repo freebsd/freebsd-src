@@ -39,7 +39,7 @@
 
 /*
  * from arp.c	8.2 (Berkeley) 1/2/94
- * $Id: rtmsg.c,v 1.2 1994/09/10 15:13:28 csgr Exp $
+ * $Id: rtmsg.c,v 1.1.1.1 1994/09/30 05:45:06 pst Exp $
  */
 
 #include <sys/param.h>
@@ -110,6 +110,7 @@ int bsd_arp_set(ia, eaddr, len)
 	register struct rt_msghdr *rtm = &(m_rtmsg.m_rtm);
 	u_char *ea;
 	struct timeval time;
+	int op = RTM_ADD;
 
 	getsocket();
 	sdl_m = blank_sdl;
@@ -138,6 +139,7 @@ tryagain:
 		    !(rtm->rtm_flags & RTF_GATEWAY)) switch (sdl->sdl_type) {
 		case IFT_ETHER: case IFT_FDDI: case IFT_ISO88023:
 		case IFT_ISO88024: case IFT_ISO88025:
+			op = RTM_CHANGE;
 			goto overwrite;
 		}
 		if (doing_proxy == 0) {
@@ -163,7 +165,7 @@ overwrite:
 	}
 	sdl_m.sdl_type = sdl->sdl_type;
 	sdl_m.sdl_index = sdl->sdl_index;
-	return (rtmsg(RTM_ADD));
+	return (rtmsg(op));
 }
 
 
@@ -186,6 +188,7 @@ static int rtmsg(cmd)
 		report(LOG_ERR, "set_arp: internal wrong cmd - exiting");
 		exit(1);
 	case RTM_ADD:
+	case RTM_CHANGE:
 		rtm->rtm_addrs |= RTA_GATEWAY;
 		rtm->rtm_rmx.rmx_expire = expire_time;
 		rtm->rtm_inits = RTV_EXPIRE;
