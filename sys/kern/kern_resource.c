@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.4 1994/09/01 05:12:40 davidg Exp $
+ * $Id: kern_resource.c,v 1.5 1994/09/25 19:33:42 phk Exp $
  */
 
 #include <sys/param.h>
@@ -195,8 +195,9 @@ donice(curp, chgp, n)
 
 /* rtprio system call */
 struct rtprio_args {
-        int     who;
-        pid_t   rtprio;
+	int		function;
+	pid_t		pid;
+	struct rtprio	*rtprio;
 };
 
 /*
@@ -211,45 +212,55 @@ rtprio(curp, uap, retval)
 	int *retval;
 {
 	register struct proc *p;
-	register int n = uap->rtprio;
 	register struct pcred *pcred = curp->p_cred;
+	struct rtprio rtp;
+	int error;
 
-	if (uap->who == 0)
+	error = copyin(uap->rtprio, &rtp, sizeof(struct rtprio));
+	if (error)
+		return (error);
+
+	if (uap->pid == 0)
 		p = curp;
 	else
-		p = pfind(uap->who);
+		p = pfind(uap->pid);
 
 	if (p == 0)
 		return (ESRCH);
 
-        if (n == RTPRIO_NOCHG) {
-                *retval = (int)p->p_rtprio;
-                return(0); }
-
-	if (pcred->pc_ucred->cr_uid && pcred->p_ruid &&
-	    pcred->pc_ucred->cr_uid != p->p_ucred->cr_uid &&
-	    pcred->p_ruid != p->p_ucred->cr_uid)
-	      return (EPERM);
-
-         if (n == RTPRIO_RTOFF) {
-  	   if(suser(pcred->pc_ucred, &curp->p_acflag)&& !uap->who)
-	     return (EPERM); 
-           p->p_rtprio = RTPRIO_RTOFF;
-           *retval = RTPRIO_RTOFF;
-           return (0); }
-
-	if (n > RTPRIO_MAX)
-	   return (EINVAL);
-	if (n < RTPRIO_MIN)
-	   return (EINVAL);
-	if (suser(pcred->pc_ucred, &curp->p_acflag))
-		return (EPERM);
-
-	p->p_rtprio = n;
-
-        *retval = (int)p->p_rtprio;
-	return (0);
-};
+	switch (uap->function) {
+	case RTP_LOOKUP:
+		return (copyout(&p->p_rtprio, uap->rtprio, sizeof(struct rtprio)));
+	case RTP_SET:
+		if (pcred->pc_ucred->cr_uid && pcred->p_ruid &&
+		    pcred->pc_ucred->cr_uid != p->p_ucred->cr_uid &&
+		    pcred->p_ruid != p->p_ucred->cr_uid)
+		        return (EPERM);
+		/* disallow setting rtprio in most cases if not superuser */
+		if (suser(pcred->pc_ucred, &curp->p_acflag)) {
+			/* can't set someone else's */
+			if (uap->pid)
+				return (EPERM); 
+			/* can't set realtime priority */
+			if (rtp.type == RTP_PRIO_REALTIME)
+				return (EPERM);
+		}
+		switch (rtp.type) {
+		case RTP_PRIO_REALTIME:
+		case RTP_PRIO_NORMAL:
+		case RTP_PRIO_IDLE:
+			if (rtp.prio > RTP_PRIO_MAX)
+				return (EINVAL);
+			p->p_rtprio = rtp;
+			return (0);
+		default:
+			return (EINVAL);
+		}
+		
+	default:
+		return (EINVAL);
+	}
+}
 
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 struct setrlimit_args {
