@@ -53,10 +53,11 @@
 #include <net/if_var.h>
 #include <net/netisr.h>
 
-/*
- * XXX this is a temporary measure to allow folks to
- * XXX disable Giant locking in the network code without
- * XXX recompiling--in case of problems.
+/* 
+ * debug_mpsafenet controls network subsystem-wide use of the Giant lock,
+ * from system calls down to interrupt handlers.  It can be changed only
+ * via a tunable at boot, not at run-time, due to the complexity of
+ * unwinding.
  */
 int	debug_mpsafenet = 0;
 TUNABLE_INT("debug.mpsafenet", &debug_mpsafenet);
