@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.42 1997/09/14 02:58:04 peter Exp $
+ * $Id: union_vnops.c,v 1.43 1997/10/15 09:21:32 phk Exp $
  */
 
 #include <sys/param.h>
@@ -1764,9 +1764,9 @@ static struct vnodeopv_entry_desc union_vnodeop_entries[] = {
 	{ &vop_create_desc,		(vop_t *) union_create },
 	{ &vop_fsync_desc,		(vop_t *) union_fsync },
 	{ &vop_getattr_desc,		(vop_t *) union_getattr },
-	{ &vop_inactive_desc,	(vop_t *) union_inactive },
+	{ &vop_inactive_desc,		(vop_t *) union_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) union_ioctl },
-	{ &vop_islocked_desc,	(vop_t *) union_islocked },
+	{ &vop_islocked_desc,		(vop_t *) union_islocked },
 	{ &vop_lease_desc,		(vop_t *) union_lease },
 	{ &vop_link_desc,		(vop_t *) union_link },
 	{ &vop_lock_desc,		(vop_t *) union_lock },
@@ -1775,12 +1775,12 @@ static struct vnodeopv_entry_desc union_vnodeop_entries[] = {
 	{ &vop_mknod_desc,		(vop_t *) union_mknod },
 	{ &vop_mmap_desc,		(vop_t *) union_mmap },
 	{ &vop_open_desc,		(vop_t *) union_open },
-	{ &vop_pathconf_desc,	(vop_t *) union_pathconf },
+	{ &vop_pathconf_desc,		(vop_t *) union_pathconf },
 	{ &vop_poll_desc,		(vop_t *) union_poll },
 	{ &vop_print_desc,		(vop_t *) union_print },
 	{ &vop_read_desc,		(vop_t *) union_read },
 	{ &vop_readdir_desc,		(vop_t *) union_readdir },
-	{ &vop_readlink_desc,	(vop_t *) union_readlink },
+	{ &vop_readlink_desc,		(vop_t *) union_readlink },
 	{ &vop_reclaim_desc,		(vop_t *) union_reclaim },
 	{ &vop_remove_desc,		(vop_t *) union_remove },
 	{ &vop_rename_desc,		(vop_t *) union_rename },
@@ -1788,10 +1788,10 @@ static struct vnodeopv_entry_desc union_vnodeop_entries[] = {
 	{ &vop_rmdir_desc,		(vop_t *) union_rmdir },
 	{ &vop_seek_desc,		(vop_t *) union_seek },
 	{ &vop_setattr_desc,		(vop_t *) union_setattr },
-	{ &vop_strategy_desc,	(vop_t *) union_strategy },
+	{ &vop_strategy_desc,		(vop_t *) union_strategy },
 	{ &vop_symlink_desc,		(vop_t *) union_symlink },
 	{ &vop_unlock_desc,		(vop_t *) union_unlock },
-	{ &vop_whiteout_desc,	(vop_t *) union_whiteout },
+	{ &vop_whiteout_desc,		(vop_t *) union_whiteout },
 	{ &vop_write_desc,		(vop_t *) union_write },
 	{ NULL, NULL }
 };
