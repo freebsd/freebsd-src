@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)spidp.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: spidp.h,v 1.2 1994/08/02 07:51:56 davidg Exp $
  */
+
+#ifndef _NETNS_SPIDP_H_
+#define _NETNS_SPIDP_H_
 
 /*
  * Definitions for NS(tm) Internet Datagram Protocol
@@ -61,3 +64,5 @@ struct spidp_q {
 #define si_seq	si_s.sp_seq
 #define si_ack	si_s.sp_ack
 #define si_alo	si_s.sp_alo
+
+#endif
