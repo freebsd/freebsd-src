@@ -206,10 +206,13 @@ err:
 void
 autoh_freeall(autoh_t *ah)
 {
+	autoh_t *ahp;
 
-	while (*ah != NULL) {
-		autoh_free(*ah);
-		ah++;
+	ahp = ah;
+
+	while (*ahp != NULL) {
+		autoh_free(*ahp);
+		ahp++;
 	}
 	safe_free(ah);
 }
@@ -394,6 +397,13 @@ autoreq_getoffset(autoreq_t req, off_t *offp)
 {
 
 	*offp = req->au_offset - AUTOFS_USEROFF;
+}
+
+void
+autoreq_getxid(autoreq_t req, int *xid)
+{
+
+	*xid = req->au_xid;
 }
 
 /* toggle by path. args = handle, AUTO_?, pid (-1 to disable), path. */

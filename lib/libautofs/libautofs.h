@@ -92,8 +92,9 @@ autoino_t	autoreq_getdirino(autoreq_t);
 void		autoreq_seterrno(autoreq_t, int);
 void		autoreq_setaux(autoreq_t, void *, size_t);
 void		autoreq_getaux(autoreq_t, void **, size_t *);
-void		autoreq_seteof(autoreq_t req, int eof);
-void		autoreq_getoffset(autoreq_t req, off_t *offp);
+void		autoreq_seteof(autoreq_t, int);
+void		autoreq_getoffset(autoreq_t, off_t *);
+void		autoreq_getxid(autoreq_t, int *);
 
 /* toggle by path. args = handle, AUTO_?, pid (-1 to disable), path. */
 int		autoh_togglepath(autoh_t, int, pid_t,  const char *);
