@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 1996 Alex Nash
  * Copyright (c) 1993 Daniel Boulet
  * Copyright (c) 1994 Ugen J.S.Antsilevich
  *
@@ -11,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.35 1996/05/06 20:31:04 phk Exp $
+ *	$Id: ip_fw.c,v 1.36 1996/05/08 04:28:57 gpalmer Exp $
  */
 
 /*
@@ -22,10 +23,9 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/queue.h>
-#if 0 /* XXX -current, but not -stable */
 #include <sys/kernel.h>
+#include <sys/time.h>
 #include <sys/sysctl.h>
-#endif
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -41,7 +41,11 @@ static int fw_verbose = 1;
 #else
 static int fw_verbose = 0;
 #endif
-
+#ifdef IPFIREWALL_VERBOSE_LIMIT
+static int fw_verbose_limit = IPFIREWALL_VERBOSE_LIMIT;
+#else
+static int fw_verbose_limit = 0;
+#endif
 
 LIST_HEAD (ip_fw_head, ip_fw_chain) ip_fw_chain;
 
@@ -49,6 +53,7 @@ LIST_HEAD (ip_fw_head, ip_fw_chain) ip_fw_chain;
 SYSCTL_NODE(net_inet_ip, OID_AUTO, fw, CTLFLAG_RW, 0, "Firewall");
 SYSCTL_INT(net_inet_ip_fw, OID_AUTO, debug, CTLFLAG_RW, &fw_debug, 0, "");
 SYSCTL_INT(net_inet_ip_fw, OID_AUTO, verbose, CTLFLAG_RW, &fw_verbose, 0, "");
+SYSCTL_INT(net_inet_ip_fw, OID_AUTO, verbose_limit, CTLFLAG_RW, &fw_verbose_limit, 0, "");
 #endif
 
 #define dprintf(a)	if (!fw_debug); else printf a
@@ -62,16 +67,20 @@ SYSCTL_INT(net_inet_ip_fw, OID_AUTO, verbose, CTLFLAG_RW, &fw_verbose, 0, "");
 
 static int	add_entry __P((struct ip_fw_head *chainptr, struct ip_fw *frwl));
 static int	del_entry __P((struct ip_fw_head *chainptr, struct ip_fw *frwl));
+static int	zero_entry __P((struct mbuf *m));
 static struct ip_fw *
 		check_ipfw_struct __P(( struct mbuf *m));
 static int	ipopts_match __P((struct ip *ip, struct ip_fw *f));
 static int	port_match __P((u_short *portptr, int nports, u_short port,
 				int range_flag));
 static int	tcpflg_match __P((struct tcphdr *tcp, struct ip_fw *f));
-static void	ipfw_report __P((char *txt, int rule, struct ip *ip));
+static int	icmptype_match __P((struct icmp *  icmp, struct ip_fw * f));
+static void	ipfw_report __P((char *txt, int rule, struct ip *ip, int counter));
 
+#ifdef ACTUALLY_LKM_NOT_KERNEL
 static ip_fw_chk_t *old_chk_ptr;
 static ip_fw_ctl_t *old_ctl_ptr;
+#endif
 
 static int	ip_fw_chk __P((struct ip **pip, int hlen, struct ifnet *rif,
 			       int dir, struct mbuf **m));
@@ -82,11 +91,7 @@ static int	ip_fw_ctl __P((int stage, struct mbuf **mm));
  * Returns 1 if the port is matched by the vector, 0 otherwise
  */
 static inline int 
-port_match(portptr, nports, port, range_flag)
-	u_short *portptr;
-	int nports;
-	u_short port;
-	int range_flag;
+port_match(u_short *portptr, int nports, u_short port, int range_flag)
 {
 	if (!nports)
 		return 1;
@@ -106,9 +111,7 @@ port_match(portptr, nports, port, range_flag)
 }
 
 static int
-tcpflg_match(tcp, f)
-	struct tcphdr		*tcp;
-	struct ip_fw		*f;
+tcpflg_match(struct tcphdr *tcp, struct ip_fw *f)
 {
 	u_char		flg_set, flg_clr;
 	
@@ -127,11 +130,26 @@ tcpflg_match(tcp, f)
 	return 1;
 }
 
+static int
+icmptype_match(struct icmp *icmp, struct ip_fw *f)
+{
+	int type;
+
+	if (!(f->fw_flg & IP_FW_F_ICMPBIT))
+		return(1);
+
+	type = icmp->icmp_type;
+
+	/* check for matching type in the bitmap */
+	if (f->fw_icmptypes[type / (sizeof(unsigned) * 8)] & 
+		(1U << (type % (8 * sizeof(unsigned)))))
+		return(1);
+
+	return(0); /* no match */
+}
 
 static int
-ipopts_match(ip, f)
-	struct ip 	*ip;
-	struct ip_fw	*f;
+ipopts_match(struct ip *ip, struct ip_fw *f)
 {
 	register u_char *cp;
 	int opt, optlen, cnt;
@@ -188,12 +206,14 @@ ipopts_match(ip, f)
 }
 
 static void
-ipfw_report(char *txt, int rule, struct ip *ip)
+ipfw_report(char *txt, int rule, struct ip *ip, int counter)
 {
 	struct tcphdr *tcp = (struct tcphdr *) ((u_long *) ip + ip->ip_hl);
 	struct udphdr *udp = (struct udphdr *) ((u_long *) ip + ip->ip_hl);
 	struct icmp *icmp = (struct icmp *) ((u_long *) ip + ip->ip_hl);
 	if (!fw_verbose)
+		return;
+	if (fw_verbose_limit != 0 && counter > fw_verbose_limit)
 		return;
 	printf("ipfw: %d %s ",rule, txt);
 	switch (ip->ip_p) {
@@ -212,7 +232,7 @@ ipfw_report(char *txt, int rule, struct ip *ip)
 		printf(":%d", ntohs(udp->uh_dport));
 		break;
 	case IPPROTO_ICMP:
-		printf("ICMP:%u ", icmp->icmp_type);
+		printf("ICMP:%u.%u ", icmp->icmp_type, icmp->icmp_code);
 		print_ip(ip->ip_src);
 		printf(" ");
 		print_ip(ip->ip_dst);
@@ -234,11 +254,7 @@ ipfw_report(char *txt, int rule, struct ip *ip)
  */
 
 static int 
-ip_fw_chk(pip, hlen, rif, dir, m)
-	struct ip **pip;
-	struct ifnet *rif;
-	int hlen, dir;
-	struct mbuf **m;
+ip_fw_chk(struct ip **pip, int hlen, struct ifnet *rif, int dir, struct mbuf **m)
 {
 	struct ip_fw_chain *chain;
 	register struct ip_fw *f = NULL;
@@ -256,7 +272,10 @@ ip_fw_chk(pip, hlen, rif, dir, m)
 	 * we're not going to pass it...
 	 */
 	if ((ip->ip_off & IP_OFFMASK) == 1) {
-		ipfw_report("Refuse", -1, ip);
+		static int frag_counter = 0;
+
+		++frag_counter;
+		ipfw_report("Refuse", -1, ip, frag_counter);
 		m_freem(*m);
 		return 0;
 	}
@@ -332,7 +351,7 @@ ip_fw_chk(pip, hlen, rif, dir, m)
 		if ((f->fw_flg & IP_FW_F_IFNAME) && f->fw_via_name[0]) {
 
 			/* Not same unit, don't match */
-			if (rif->if_unit != f->fw_via_unit)
+			if (!(f->fw_flg & IP_FW_F_IFUWILD) && rif->if_unit != f->fw_via_unit)
 				continue;
 
 			/* Not same name */
@@ -382,8 +401,12 @@ ip_fw_chk(pip, hlen, rif, dir, m)
 			continue;
 
 		/* ICMP, done */
-		if (prt == IP_FW_F_ICMP) 
+		if (prt == IP_FW_F_ICMP) {
+			if (!icmptype_match(icmp, f))
+				continue;
+
 			goto got_match;
+		}
 
 		/* Fragments can't match past this point */
 		if (ip->ip_off & IP_OFFMASK)
@@ -406,13 +429,14 @@ ip_fw_chk(pip, hlen, rif, dir, m)
 got_match:
 		f->fw_pcnt++;
 		f->fw_bcnt+=ip->ip_len;
+		f->timestamp = time.tv_sec;
 		if (f->fw_flg & IP_FW_F_PRN) {
 			if (f->fw_flg & IP_FW_F_ACCEPT)
-				ipfw_report("Accept", f->fw_number, ip);
+				ipfw_report("Allow", f->fw_number, ip, f->fw_pcnt);
 			else if (f->fw_flg & IP_FW_F_COUNT)
-				ipfw_report("Count", f->fw_number, ip);
+				ipfw_report("Count", f->fw_number, ip, f->fw_pcnt);
 			else
-				ipfw_report("Deny", f->fw_number, ip);
+				ipfw_report("Deny", f->fw_number, ip, f->fw_pcnt);
 		}
 		if (f->fw_flg & IP_FW_F_ACCEPT)
 			return 1;
@@ -445,9 +469,7 @@ got_match:
 }
 
 static int
-add_entry(chainptr, frwl)
-	struct ip_fw_head *chainptr;
-	struct ip_fw *frwl;
+add_entry(struct ip_fw_head *chainptr, struct ip_fw *frwl)
 {
 	struct ip_fw *ftmp = 0;
 	struct ip_fw_chain *fwc = 0, *fcp, *fcpl = 0;
@@ -502,9 +524,7 @@ add_entry(chainptr, frwl)
 }
 
 static int
-del_entry(chainptr, frwl)
-	struct ip_fw_head *chainptr;
-	struct ip_fw *frwl;
+del_entry(struct ip_fw_head *chainptr, struct ip_fw *frwl)
 {
 	struct ip_fw_chain *fcp;
 	int s;
@@ -512,7 +532,7 @@ del_entry(chainptr, frwl)
 	s = splnet();
 
 	fcp = chainptr->lh_first; 
-	if (fcp->rule->fw_number != (u_short)-1) {
+	if (frwl->fw_number != (u_short)-1) {
 		for (; fcp; fcp = fcp->chain.le_next) {
 			if (fcp->rule->fw_number == frwl->fw_number) {
 				LIST_REMOVE(fcp, chain);
@@ -528,9 +548,40 @@ del_entry(chainptr, frwl)
 	return (EINVAL);
 }
 
+static int
+zero_entry(struct mbuf *m)
+{
+	struct ip_fw *frwl;
+	struct ip_fw_chain *fcp;
+	int s;
+
+	if (m) {
+		frwl = check_ipfw_struct(m);
+
+		if (!frwl)
+			return(EINVAL);
+	}
+	else
+		frwl = NULL;
+
+	/*
+	 *	It's possible to insert multiple chain entries with the
+	 *	same number, so we don't stop after finding the first
+	 *	match if zeroing a specific entry.
+	 */
+	s = splnet();
+	for (fcp = ip_fw_chain.lh_first; fcp; fcp = fcp->chain.le_next)
+		if (!frwl || frwl->fw_number == fcp->rule->fw_number) {
+			fcp->rule->fw_bcnt = fcp->rule->fw_pcnt = 0;
+			fcp->rule->timestamp = 0;
+		}
+	splx(s);
+
+	return(0);
+}
+
 static struct ip_fw *
-check_ipfw_struct(m)
-	struct mbuf *m;
+check_ipfw_struct(struct mbuf *m)
 {
 	struct ip_fw *frwl;
 
@@ -566,19 +617,11 @@ check_ipfw_struct(m)
 		    frwl->fw_nsp, frwl->fw_ndp));
 		return (NULL);
 	}
-#if 0
-	if ((frwl->fw_flg & IP_FW_F_KIND) == IP_FW_F_ICMP) {
-		dprintf(("ip_fw_ctl:  request for unsupported ICMP frwling\n"));
-		return (NULL);
-	}
-#endif
 	return frwl;
 }
 
 static int
-ip_fw_ctl(stage, mm)
-	int stage;
-	struct mbuf **mm;
+ip_fw_ctl(int stage, struct mbuf **mm)
 {
 	int error;
 	struct mbuf *m;
@@ -596,6 +639,11 @@ ip_fw_ctl(stage, mm)
 		return (0);
 	}
 	m = *mm;
+	/* only allow get calls if secure mode > 2 */
+	if (securelevel > 2) {
+		if (m) (void)m_free(m);
+		return(EPERM);
+	}
 	if (stage == IP_FW_FLUSH) {
 		while (ip_fw_chain.lh_first != NULL && 
 		    ip_fw_chain.lh_first->rule->fw_number != (u_short)-1) {
@@ -610,13 +658,9 @@ ip_fw_ctl(stage, mm)
 		return (0);
 	}
 	if (stage == IP_FW_ZERO) {
-		int s = splnet();
-		struct ip_fw_chain *fcp;
-		for (fcp = ip_fw_chain.lh_first; fcp; fcp = fcp->chain.le_next)
-			fcp->rule->fw_bcnt = fcp->rule->fw_pcnt = 0;
-		splx(s);
+		error = zero_entry(m);
 		if (m) (void)m_free(m);
-		return (0);
+		return (error);
 	}
 	if (m == NULL) {
 		printf("ip_fw_ctl:  NULL mbuf ptr\n");
@@ -657,7 +701,15 @@ ip_fw_init(void)
 	deny.fw_number = (u_short)-1;
 	add_entry(&ip_fw_chain, &deny);
 	
-	printf("IP firewall initialized\n");
+	printf("IP firewall initialized, ");
+#ifndef IPFIREWALL_VERBOSE
+	printf("logging disabled\n");
+#else
+	if (fw_verbose_limit == 0)
+		printf("unlimited logging\n");
+	else
+		printf("logging limited to %d packets/entry\n", fw_verbose_limit);
+#endif
 }
 
 #ifdef ACTUALLY_LKM_NOT_KERNEL
@@ -672,21 +724,12 @@ static int
 ipfw_load(struct lkm_table *lkmtp, int cmd)
 {
 	int s=splnet();
-	struct ip_fw deny;
 
-        old_chk_ptr = ip_fw_chk_ptr;
-        old_ctl_ptr = ip_fw_ctl_ptr;
-	ip_fw_chk_ptr = ip_fw_chk;
-	ip_fw_ctl_ptr = ip_fw_ctl;
+	old_chk_ptr = ip_fw_chk_ptr;
+	old_ctl_ptr = ip_fw_ctl_ptr;
 
-	LIST_INIT(&ip_fw_chain);
-	bzero(&deny, sizeof deny);
-	deny.fw_flg = IP_FW_F_ALL;
-	deny.fw_number = (u_short)-1;
-	add_entry(&ip_fw_chain, &deny);
-
+	ip_fw_init();
 	splx(s);
-	printf("IP firewall loaded\n");
 	return 0;
 }
 
