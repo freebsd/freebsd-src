@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.5 1994/09/28 03:37:49 bde Exp $
+ *	$Id: exception.s,v 1.6 1994/12/03 10:02:19 bde Exp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -158,43 +158,15 @@ IDTVEC(fpu)
 #else	/* NNPX > 0 */
 	pushl $0; TRAP(T_ARITHTRAP)
 #endif	/* NNPX > 0 */
-	/* 17 - 31 reserved for future exp */
-IDTVEC(rsvd0)
-	pushl $0; TRAP(17)
-IDTVEC(rsvd1)
-	pushl $0; TRAP(18)
-IDTVEC(rsvd2)
-	pushl $0; TRAP(19)
-IDTVEC(rsvd3)
-	pushl $0; TRAP(20)
-IDTVEC(rsvd4)
-	pushl $0; TRAP(21)
-IDTVEC(rsvd5)
-	pushl $0; TRAP(22)
-IDTVEC(rsvd6)
-	pushl $0; TRAP(23)
-IDTVEC(rsvd7)
-	pushl $0; TRAP(24)
-IDTVEC(rsvd8)
-	pushl $0; TRAP(25)
-IDTVEC(rsvd9)
-	pushl $0; TRAP(26)
-IDTVEC(rsvd10)
-	pushl $0; TRAP(27)
-IDTVEC(rsvd11)
-	pushl $0; TRAP(28)
-IDTVEC(rsvd12)
-	pushl $0; TRAP(29)
-IDTVEC(rsvd13)
-	pushl $0; TRAP(30)
-IDTVEC(rsvd14)
-	pushl $0; TRAP(31)
+IDTVEC(align)
+	TRAP(T_ALIGNFLT)
 
 	SUPERALIGN_TEXT
 _alltraps:
 	pushal
 	pushl	%ds
 	pushl	%es
+alltraps_with_regs_pushed:
 	movl	$KDSEL,%eax
 	movl	%ax,%ds
 	movl	%ax,%es
