@@ -30,13 +30,15 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 25, 2003
+.Dd March 15, 2004
 .Dt ARLCONFIG 8 i386
 .Os
 .Sh NAME
 .Nm arlconfig
 .Nd configure Aironet Arlan 655 device
 .Sh SYNOPSIS
+.Nm
+.Ar iface
 .Nm
 .Ar iface Cm name Ar name 
 .Nm
@@ -60,7 +62,7 @@
 .Nm
 .Ar iface Cm stat
 .Nm
-.Ar iface Cm quality Ar seconds [ Cm count Ar <count> ] 
+.Ar iface Cm quality
 .Sh DESCRIPTION
 The
 .Nm
@@ -91,7 +93,11 @@ etc.) and must be specified.
 .Sh OPTIONS
 The options are as follows:
 .Bl -tag -width indent
-.It Cm name Ar name 
+.It Ar iface
+Display current settings of specified wireless interface. 
+This retrieves current card settings from the driver and prints 
+them out. 
+.It Ar iface Cm name Ar name 
 Set 
 .Ar Device Name . 
 This 
@@ -104,7 +110,7 @@ If you choose to assign a name, while operating in
 .Ar TMA
 mode, the name will appear in the Arlan Access Point's Registration Table.
 Duplicate names are allowed. 
-.It Cm sid Ar SID 
+.It Ar iface Cm sid Ar SID 
 Set
 .Ar System Identifier.
 The System Identifier 
@@ -127,7 +133,7 @@ SID is
 Since nodes will only receive packets from other nodes with a matching SID, 
 you must make sure that the Arlan 655 Client Card is set the same SID as 
 other nodes on your network. 
-.It Cm mode Ar mode ( Cm 640 | 655 )
+.It Ar iface Cm mode Ar mode ( Cm 640 | 655 )
 Use
 .Ar operating mode
 parameter to specify whether you are operating in 
@@ -146,9 +152,9 @@ mode.
 .It PSP Ta Power save mode 
 .El
 .!!!
-.It Cm country Ar country ( Cm 9-15 )
-.It Cm channel Ar channel
-.It Cm freq Ar freq ( Cm 2412, 2427, 2442, 2457, 2465 ) 
+.It Ar iface Cm country Ar country ( Cm 9-15 )
+.It Ar iface Cm channel Ar channel
+.It Ar iface Cm freq Ar freq ( Cm 2412, 2427, 2442, 2457, 2465 ) 
 Chose 
 .Ar country , channel , freq
  parameters that depend on the
@@ -170,8 +176,8 @@ according to the following table:
 .It "U.K.         " Ta 15 Ta "2460"
 .It "Spain        " Ta 15 Ta "2460"
 .El
-.It Cm bitrate Ar bitrate ( Cm 0-4) 
-.It Cm spread Ar spread Cm ( 354, 500, 1000, 2000 ) 
+.It Ar iface Cm bitrate Ar bitrate ( Cm 0-4) 
+.It Ar iface Cm spread Ar spread Cm ( 354, 500, 1000, 2000 ) 
 Set device operating bitrate or spread.
 .Bl -column ".Em Rate" ".Em Spread" ".Em kb/s"  -offset indent indent
 .Em "Rate	Spread	kb/s"
@@ -181,7 +187,7 @@ Set device operating bitrate or spread.
 .It 3 Ta 1000 Ta 1000
 .It 4 Ta 2000 Ta 2000
 .El
-.It Cm priority Ar priority ( Cm normal, high, highest )
+.It Ar iface Cm priority Ar priority ( Cm normal, high, highest )
 Use the
 .Ar priority
 parameter to set the priority of the Atlan 655 Radio Media Access Control 
@@ -196,21 +202,19 @@ to transmit at the same time.
 The percentage of units on your network that you set to other than
 .Dq normal
 should be kept small - 10 percent or less.  
-.It Cm stat
+.It Ar iface Cm stat
 Print internal Arlan 655 statistics block.
-.It Cm quality Ar seconds  [ Cm count  Ar <count> ]
-Perform link quality test during 
-.Ar seconds 
-transmitting
-.Ar count 
-packets.
-Currently is broken.
+.It Ar iface Cm quality
+Display the cached signal level and quality mantained by the
+.Xr arl 4
+driver . The driver retains information about quality and level for packets received from different hosts. Also driver extract values from ACK packets.
 .El
 .Sh EXAMPLES
 .Bd -literal -offset indent
-alrlconfig arl0 name NODE1 sid 4 freq 2442 
-arlconfig arl0 quality 10 seconds
-arlconfig arl0 status 
+arlconfig arl0 name NODE1 sid 4 freq 2442 
+arlconfig arl0 quality 
+arlconfig arl0 stat
+arlconfig arl0
 .Pp
 You can configure Arlan 655 card from /etc/start_if.arl0. For example: 
 .Pp

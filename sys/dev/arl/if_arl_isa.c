@@ -1,9 +1,15 @@
 /*
- * $RISS: if_arl/dev/arl/if_arl_isa.c,v 1.4 2004/01/22 12:08:48 count Exp $
+ * $RISS: if_arl/dev/arl/if_arl_isa.c,v 1.7 2004/03/16 05:30:38 count Exp $
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+
+#include "opt_inet.h"
+
+#ifdef INET
+#define ARLCACHE
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -125,7 +131,7 @@ arl_isa_identify (driver_t *driver, device_t parent)
 	u_int16_t	free_mem = 0xFFFF;
 
 	if (bootverbose)
-		printf("in identify\n");
+		printf("arl: in identify\n");
 
 	/* Try avoid already added devices */
 	for (i = 0; (child = device_find_child(parent, "arl", i)) != NULL; i++) {
@@ -263,10 +269,10 @@ arl_isa_probe (device_t dev)
 		if (!arcfg.channelSet)
 			arcfg.channelSet = ar->defaultChannelSet;
 		GET_ARL_PARAM(channelNumber);
-		GET_ARL_PARAM(registrationMode);
 		GET_ARL_PARAM(spreadingCode);
 		GET_ARL_PARAM(priority);
 		GET_ARL_PARAM(receiveMode);
+		arcfg.registrationMode	= 1;	/* set default TMA mode */
 		arcfg.txRetry		= 0;	/* use default */
 
 		strncpy(arcfg.name, ar->name, ARLAN_NAME_SIZE);
