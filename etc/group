@@ -17,6 +17,8 @@ smmsp:*:25:
 mailnull:*:26:
 guest:*:31:
 bind:*:53:
+proxy:*:62
+authpf:*:63
 uucp:*:66:
 dialer:*:68:
 network:*:69:

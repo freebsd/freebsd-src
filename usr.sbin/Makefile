@@ -13,6 +13,7 @@ SUBDIR=	ac \
 	arp \
 	${_asf} \
 	${_atm} \
+	${_authpf} \
 	${_bluetooth} \
 	${_boot0cfg} \
 	${_boot98cfg} \
@@ -213,6 +214,10 @@ _ipftest=	ipftest
 _ipresend=	ipresend
 _ipsend=	ipsend
 _iptest=	iptest
+.endif
+
+.if !defined(NO_PF) && !defined(NO_AUTHPF)
+_authpf=	authpf
 .endif
 
 .if !defined(NO_LPR)

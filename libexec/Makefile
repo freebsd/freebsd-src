@@ -6,6 +6,7 @@ SUBDIR=	atrun \
 	comsat \
 	fingerd \
 	ftpd \
+	${_ftp-proxy} \
 	getNAME \
 	getty \
 	${_lukemftpd} \
@@ -36,6 +37,10 @@ SUBDIR=	atrun \
 
 .if !defined(NO_BIND)
 _named-xfer=	named-xfer
+.endif
+
+.if !defined(NO_PF)
+_ftp-proxy=	ftp-proxy
 .endif
 
 .if !defined(NOPIC)
