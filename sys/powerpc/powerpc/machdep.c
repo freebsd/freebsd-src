@@ -252,6 +252,7 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	struct		pcpu *pc;
 	vm_offset_t	end, off;
 	void		*kmdp;
+        char		*env;
 
 	end = 0;
 	kmdp = NULL;
@@ -359,6 +360,15 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	 * Initialize params/tunables that are derived from memsize
 	 */
 	init_param2(physmem);
+
+	/*
+	 * Grab booted kernel's name
+	 */
+        env = getenv("kernelname");
+        if (env != NULL) {
+		strlcpy(kernelname, env, sizeof(kernelname));
+		freeenv(env);
+	}
 
 	/*
 	 * Finish setting up thread0.
