@@ -268,6 +268,7 @@ cxattach (struct isa_device *id)
 			}
 			bzero (c->ifp, IFSTRUCTSZ);
 			c->master = c->ifp;
+			c->ifp->if_softc = c;
 			c->ifp->if_unit = u;
 			c->ifp->if_name = "cx";
 			c->ifp->if_mtu = PP_MTU;
@@ -280,7 +281,7 @@ cxattach (struct isa_device *id)
 			if_attach (c->ifp);
 #if NBPFILTER > 0
 			/* If BPF is in the kernel, call the attach for it. */
-			bpfattach (&c->bpf, c->ifp, DLT_PPP, PPP_HEADER_LEN);
+			bpfattach (c->ifp, DLT_PPP, PPP_HEADER_LEN);
 #endif
 		}
 	}
@@ -319,7 +320,7 @@ struct isa_driver cxdriver = { cxprobe, cxattach, "cx" };
 static int
 cxsioctl (struct ifnet *ifp, int cmd, caddr_t data)
 {
-	cx_chan_t *q, *c = cxchan[ifp->if_unit];
+	cx_chan_t *q, *c = ifp->if_softc;
 	int error, s, was_up, should_be_up;
 
 	/*
@@ -488,8 +489,8 @@ cxput (cx_chan_t *c, char b)
 	}
 	m_copydata (m, 0, len, buf);
 #if NBPFILTER > 0
-	if (c->bpf)
-		bpf_mtap (c->bpf, m);
+	if (c->ifp->if_bpf)
+		bpf_mtap (c->ifp, m);
 #endif
 	m_freem (m);
 
@@ -555,7 +556,7 @@ cxsend (cx_chan_t *c)
 static void
 cxstart (struct ifnet *ifp)
 {
-	cx_chan_t *q, *c = cxchan[ifp->if_unit];
+	cx_chan_t *q, *c = ifp->if_softc;
 
 	if (c->ifp->if_flags & IFF_DEBUG)
 		print (("cx%d.%d: cxstart\n", c->board->num, c->num));
@@ -579,7 +580,7 @@ cxstart (struct ifnet *ifp)
 static void
 cxwatchdog (struct ifnet *ifp)
 {
-	cx_chan_t *q, *c = cxchan[ifp->if_unit];
+	cx_chan_t *q, *c = ifp->if_softc;
 
 	if (! (ifp->if_flags & IFF_RUNNING))
 		return;
@@ -816,8 +817,8 @@ cxinput (cx_chan_t *c, void *buf, unsigned len)
 	 * Check if there's a BPF listener on this interface.
 	 * If so, hand off the raw packet to bpf.
 	 */
-	if (c->bpf)
-		bpf_tap (c->bpf, buf, len);
+	if (c->ifp->if_bpf)
+		bpf_tap (c->ifp, buf, len);
 #endif
 
 	/* Count the received bytes to the subchannel, not the master. */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.26 1996/01/26 09:29:17 phk Exp $
+ * $Id: if.h,v 1.27 1996/01/26 22:09:54 wollman Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -127,7 +127,7 @@ struct ifnet {
 	struct	ifnet *if_next;		/* all struct ifnets are chained */
 	struct	ifaddr *if_addrlist;	/* linked list of addresses per if */
         int	if_pcount;		/* number of promiscuous listeners */
-	caddr_t	if_bpf;			/* packet filter structure */
+	struct	bpf_if *if_bpf;		/* packet filter structure */
 	u_short	if_index;		/* numeric abbreviation for this if  */
 	short	if_unit;		/* sub-unit for lower level driver */
 	short	if_timer;		/* time 'til if_watchdog called */

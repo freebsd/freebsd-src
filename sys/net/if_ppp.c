@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.29 1995/12/14 09:53:13 phk Exp $ */
+/* $Id: if_ppp.c,v 1.30 1996/01/24 21:09:18 phk Exp $ */
 /* from if_ppp.c,v 1.5 1995/08/16 01:36:38 paulus Exp */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
@@ -200,7 +200,7 @@ pppattach(dummy)
 	sc->sc_rawq.ifq_maxlen = IFQ_MAXLEN;
 	if_attach(&sc->sc_if);
 #if NBPFILTER > 0
-	bpfattach(&sc->sc_bpf, &sc->sc_if, DLT_PPP, PPP_HDRLEN);
+	bpfattach(&sc->sc_if, DLT_PPP, PPP_HDRLEN);
 #endif
     }
     register_netisr(NETISR_PPP, pppintr);
@@ -710,8 +710,8 @@ pppoutput(ifp, m0, dst, rtp)
     /*
      * See if bpf wants to look at the packet.
      */
-    if (sc->sc_bpf)
-	bpf_mtap(sc->sc_bpf, m0);
+    if (ifp->if_bpf)
+	bpf_mtap(ifp, m0);
 #endif
 
     /*
@@ -1325,8 +1325,8 @@ ppp_inproc(sc, m)
 
 #if NBPFILTER > 0
     /* See if bpf wants to look at the packet. */
-    if (sc->sc_bpf)
-	bpf_mtap(sc->sc_bpf, m);
+    if (sc->sc_if.if_bpf)
+	bpf_mtap(&sc->sc_if, m);
 #endif
 
     rv = 0;

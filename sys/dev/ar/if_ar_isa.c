@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ar.c,v 1.3 1995/12/10 13:38:34 phk Exp $
+ * $Id: if_ar.c,v 1.4 1995/12/15 00:54:03 bde Exp $
  */
 
 /*
@@ -95,8 +95,6 @@
 				AR_ENA_SCA | (ch ? AR_SEL_SCA_1:AR_SEL_SCA_0))
 #define ARC_SET_OFF(iobase)	outb(iobase+AR_MSCA_EN, 0)
 
-#define ARUNIT2SC(unit)		ar_sc_ind[unit]
-
 static struct ar_hardc {
 	int cunit;
 	struct ar_softc *sc;
@@ -125,7 +123,6 @@ struct ar_softc {
 	int unit;            /* With regards to all ar devices */
 	int subunit;         /* With regards to this card */
 	struct ar_hardc *hc;
-	caddr_t bpf;
 
 	u_int txdesc;        /* On card address */
 	u_int txstart;       /* On card address */
@@ -144,8 +141,6 @@ struct ar_softc {
 
 	struct kern_devconf kdc;
 };
-
-static struct ar_softc *ar_sc_ind[NAR*NPORT];
 
 static int arprobe(struct isa_device *id);
 static int arattach(struct isa_device *id);
@@ -395,6 +390,7 @@ arattach(struct isa_device *id)
 
 		ifp = &sc->ifsppp.pp_if;
 
+		ifp->if_softc = sc;
 		ifp->if_unit = hc->startunit + unit;
 		ifp->if_name = "ar";
 		ifp->if_mtu = PP_MTU;
@@ -416,7 +412,7 @@ arattach(struct isa_device *id)
 		if_attach(ifp);
 
 #if NBPFILTER > 0
-		bpfattach(&sc->bpf, ifp, DLT_PPP, PPP_HEADER_LEN);
+		bpfattach(ifp, DLT_PPP, PPP_HEADER_LEN);
 #endif
 	}
 
@@ -505,7 +501,7 @@ void arintr(int unit)
 static void
 arstart(struct ifnet *ifp)
 {
-	struct ar_softc *sc = ARUNIT2SC(ifp->if_unit);
+	struct ar_softc *sc = ifp->if_softc;
 	int i, len, tlen;
 	struct mbuf *mtx;
 	u_char *txdata;
@@ -562,8 +558,8 @@ arstart(struct ifnet *ifp)
 		i++;
 
 #if NBPFILTER > 0
-		if(sc->bpf)
-			bpf_mtap(sc->bpf, mtx);
+		if(ifp->if_bpf)
+			bpf_mtap(ifp, mtx);
 #endif
 		m_freem(mtx);
 		++sc->ifsppp.pp_if.if_opackets;
@@ -624,7 +620,7 @@ arioctl(struct ifnet *ifp, int cmd, caddr_t data)
 	int s, error;
 	int was_up, should_be_up;
 	struct sppp *sp = (struct sppp *)ifp;
-	struct ar_softc *sc = ARUNIT2SC(ifp->if_unit);
+	struct ar_softc *sc = ifp->if_softc;
 
 	TRC(printf("ar%d: arioctl.\n", ifp->if_unit);)
 
@@ -674,7 +670,7 @@ arioctl(struct ifnet *ifp, int cmd, caddr_t data)
 static void
 arwatchdog(struct ifnet *ifp)
 {
-	struct ar_softc *sc = ARUNIT2SC(ifp->if_unit);
+	struct ar_softc *sc = ifp->if_softc;
 
 	if(!(ifp->if_flags & IFF_RUNNING))
 		return;
@@ -860,11 +856,6 @@ void arc_init(struct isa_device *id)
 		sc->rxend = next + bufmem;
 		sc->rxmax = (sc->rxend - sc->rxstart) / AR_BUF_SIZ;
 		next += bufmem;
-
-		/*
-		 * This is by ARUNIT2SC().
-		 */
-		ar_sc_ind[x] = sc;
 	}
 }
 
@@ -1233,8 +1224,8 @@ ar_get_packets(struct ar_softc *sc)
 					m->m_pkthdr.len = m->m_len = len;
 					ar_copy_rxbuf(m, sc, len);
 #if NBPFILTER > 0
-					if(sc->bpf)
-						bpf_mtap(sc->bpf, m);
+					if(sc->ifsppp.pp_if.if_bpf)
+						bpf_mtap(&sc->ifsppp.pp_if, m);
 #endif
 					sppp_input(&sc->ifsppp.pp_if, m);
 					sc->ifsppp.pp_if.if_ipackets++;

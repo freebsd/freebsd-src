@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_pdq.c,v 1.12 1995/12/16 00:27:42 bde Exp $
+ * $Id: if_pdq.c,v 1.13 1996/01/23 21:47:06 se Exp $
  *
  */
 
@@ -121,9 +121,6 @@ typedef struct {
     struct arpcom sc_ac;
     void (*if_init) __P((int unit));
     pdq_t *sc_pdq;
-#if NBPFILTER > 0 && !defined(__FreeBSD__) && !defined(__bsdi__)
-    caddr_t sc_bpf;
-#endif
 #if NFEA > 0
     unsigned sc_iobase;
 #endif
@@ -243,7 +240,7 @@ pdq_os_receive_pdu(
     sc->sc_if.if_ipackets++;
 #if NBPFILTER > 0
     if (sc->sc_bpf != NULL)
-	bpf_mtap(sc->sc_bpf, m);
+	bpf_mtap(&sc->sc_if, m);
     if ((fh->fddi_fc & (FDDIFC_L|FDDIFC_F)) != FDDIFC_LLC_ASYNC) {
 	m_freem(m);
 	return;
@@ -279,7 +276,7 @@ pdq_os_transmit_done(
     pdq_softc_t *sc = (pdq_softc_t *) pdq->pdq_os_ctx;
 #if NBPFILTER > 0
     if (sc->sc_bpf != NULL)
-	bpf_mtap(sc->sc_bpf, m);
+	bpf_mtap(&sc->sc_if, m);
 #endif
     m_freem(m);
     sc->sc_if.if_opackets++;
@@ -407,6 +404,7 @@ pdq_ifattach(
 {
     struct ifnet *ifp = &sc->sc_if;
 
+    ifp->if_softc = sc;
     ifp->if_flags = IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST;
 
     sc->if_init = ifinit;
@@ -419,7 +417,7 @@ pdq_ifattach(
     if_attach(ifp);
     fddi_ifattach(ifp);
 #if NBPFILTER > 0
-    bpfattach(&sc->sc_bpf, ifp, DLT_FDDI, sizeof(struct fddi_header));
+    bpfattach(ifp, DLT_FDDI, sizeof(struct fddi_header));
 #endif
 
 }

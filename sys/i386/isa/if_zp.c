@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.14 1995/12/13 10:35:36 phk Exp $
+ *	$Id: if_zp.c,v 1.15 1996/01/26 09:27:34 phk Exp $
  */
 /*-
  * TODO:
@@ -174,7 +174,6 @@ static struct zp_softc {
 	struct mbuf *mb[MAX_MBS];	/* spare mbuf storage.		 */
 	int     next_mb;	/* Which mbuf to use next. 	 */
 	int     last_mb;	/* Last mbuf.			 */
-	caddr_t bpf;		/* BPF  "magic cookie"		 */
 	short   ep_io_addr;	/* i/o bus address		 */
 	char    ep_connectors;	/* Connectors on this card.	 */
 	int     tx_start_thresh;/* Current TX_start_thresh.	 */
@@ -542,6 +541,7 @@ zpattach(isa_dev)
 
 	printf(" address %6D\n", sc->arpcom.ac_enaddr, ":");
 
+	ifp->if_softc = sc;
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX;
 	ifp->if_unit = isa_dev->id_unit;
@@ -554,24 +554,10 @@ zpattach(isa_dev)
 	ifp->if_flags |= IFF_LINK0;
 
 	if_attach(ifp);
+	ether_ifattach(ifp);
 
-	/* Fill the hardware address into ifa_addr if we find an AF_LINK
-	 * entry. We need to do this so bpf's can get the hardware addr of
-	 * this card. netstat likes this too! */
-	ifa = ifp->if_addrlist;
-	while ((ifa != 0) && (ifa->ifa_addr != 0) &&
-	    (ifa->ifa_addr->sa_family != AF_LINK))
-		ifa = ifa->ifa_next;
-
-	if ((ifa != 0) && (ifa->ifa_addr != 0)) {
-		sdl = (struct sockaddr_dl *) ifa->ifa_addr;
-		sdl->sdl_type = IFT_ETHER;
-		sdl->sdl_alen = ETHER_ADDR_LEN;
-		sdl->sdl_slen = 0;
-		bcopy(sc->arpcom.ac_enaddr, LLADDR(sdl), ETHER_ADDR_LEN);
-	}
 #if NBPFILTER > 0
-	bpfattach(&sc->bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
+	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 #if NAPM > 0
 	sc->s_hook.ah_fun = zp_suspend;
@@ -687,7 +673,7 @@ static void
 zpstart(ifp)
 	struct ifnet *ifp;
 {
-	register struct zp_softc *sc = &zp_softc[ifp->if_unit];
+	register struct zp_softc *sc = ifp->if_softc;
 	struct mbuf *m, *top;
 
 	int     s, len, pad;
@@ -760,8 +746,8 @@ startagain:
 		outb(BASE + EP_W1_TX_PIO_WR_1, 0);	/* Padding */
 
 #if NBPFILTER > 0
-	if (sc->bpf) {
-		bpf_mtap(sc->bpf, top);
+	if (sc->arpcom.ac_if.if_bpf) {
+		bpf_mtap(&sc->arpcom.ac_if, top);
 	}
 #endif
 
@@ -973,8 +959,8 @@ zpread(sc)
 	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
 	++sc->arpcom.ac_if.if_ipackets;
 #if NBPFILTER > 0
-	if (sc->bpf) {
-		bpf_mtap(sc->bpf, top);
+	if (sc->arpcom.ac_if.if_bpf) {
+		bpf_mtap(&sc->arpcom.ac_if, top);
 
 		/* Note that the interface cannot be in promiscuous mode if
 		 * there are no BPF listeners.  And if we are in promiscuous
@@ -1012,7 +998,7 @@ zpioctl(ifp, cmd, data)
 	caddr_t data;
 {
 	register struct ifaddr *ifa = (struct ifaddr *) data;
-	struct zp_softc *sc = &zp_softc[ifp->if_unit];
+	struct zp_softc *sc = ifp->if_softc;
 	int     error = 0;
 
 
