@@ -2,8 +2,15 @@
 
 .PATH:	${.CURDIR}/../../dev/aic
 KMOD	= aic
-SRCS	= aic.c aic_pccard.c aic_isa.c 
+SRCS	= aic.c aic_pccard.c
 SRCS	+= opt_bdg.h device_if.h bus_if.h pci_if.h isa_if.h
 SRCS	+= opt_cam.h opt_scsi.h
+
+.if ${MACHINE} == "pc98"
+SRCS	+= aic_cbus.c
+CFLAGS	+= -DPC98
+.else
+SRCS	+= aic_isa.c
+.endif
 
 .include <bsd.kmod.mk>
