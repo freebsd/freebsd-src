@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$OpenBSD: parse.y,v 1.415 2003/09/01 15:07:40 henning Exp $	*/
 
 /*
@@ -54,6 +55,10 @@
 
 #include "pfctl_parser.h"
 #include "pfctl.h"
+
+#if defined(__FreeBSD__)
+#define	HTONL(x)	(x) = htonl((__uint32_t)(x))
+#endif
 
 static struct pfctl	*pf = NULL;
 static FILE		*fin = NULL;
