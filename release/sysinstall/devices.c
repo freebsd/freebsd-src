@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.35.2.7 1995/06/04 22:24:42 jkh Exp $
+ * $Id: devices.c,v 1.35.2.8 1995/06/05 03:15:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -130,7 +130,7 @@ dummyInit(Device *dev)
 }
 
 int
-dummyGet(Device *dev, char *dist)
+dummyGet(Device *dev, char *dist, Attribs *dist_attrs)
 {
     return -1;
 }
@@ -166,8 +166,8 @@ deviceTry(char *name, char *try)
 /* Register a new device in the devices array */
 Device *
 deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean enabled,
-	       Boolean (*init)(Device *), int (*get)(Device *, char *), Boolean (*close)(Device *, int),
-	       void (*shutdown)(Device *), void *private)
+	       Boolean (*init)(Device *), int (*get)(Device *, char *, Attribs *),
+	       Boolean (*close)(Device *, int), void (*shutdown)(Device *), void *private)
 {
     Device *newdev;
 

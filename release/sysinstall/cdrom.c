@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.6.2.1 1995/06/04 05:13:25 jkh Exp $
+ * $Id: cdrom.c,v 1.6.2.2 1995/06/05 03:15:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -101,7 +101,7 @@ mediaInitCDROM(Device *dev)
 }
 
 int
-mediaGetCDROM(Device *dev, char *file)
+mediaGetCDROM(Device *dev, char *file, Attribs *dist_attrs)
 {
     char		buf[PATH_MAX];
 

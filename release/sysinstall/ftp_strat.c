@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.6.2.16 1995/06/04 22:38:22 jkh Exp $
+ * $Id: ftp_strat.c,v 1.6.2.17 1995/06/05 06:36:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -185,7 +185,7 @@ retry:
 }
 
 int
-mediaGetFTP(Device *dev, char *file)
+mediaGetFTP(Device *dev, char *file, Attribs *dist_attrs)
 {
     int fd;
     int nretries = 0, max_retries = MAX_FTP_RETRIES;

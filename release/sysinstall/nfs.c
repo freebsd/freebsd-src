@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: nfs.c,v 1.4.2.2 1995/06/04 05:13:35 jkh Exp $
+ * $Id: nfs.c,v 1.4.2.3 1995/06/04 22:24:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -76,7 +76,7 @@ mediaInitNFS(Device *dev)
 }
 
 int
-mediaGetNFS(Device *dev, char *file)
+mediaGetNFS(Device *dev, char *file, Attribs *dist_attrs)
 {
     char		buf[PATH_MAX];
 
