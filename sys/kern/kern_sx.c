@@ -136,7 +136,7 @@ sx_sunlock(struct sx *sx)
 {
 
 	mtx_lock(&sx->sx_lock);
-	SX_ASSERT_SLOCKED(sx);
+	_SX_ASSERT_SLOCKED(sx);
 
 	/* Release. */
 	sx->sx_cnt--;
@@ -161,7 +161,7 @@ sx_xunlock(struct sx *sx)
 {
 
 	mtx_lock(&sx->sx_lock);
-	SX_ASSERT_XLOCKED(sx);
+	_SX_ASSERT_XLOCKED(sx);
 	MPASS(sx->sx_cnt == -1);
 
 	/* Release. */
