@@ -45,19 +45,19 @@
 ; redistributions should be placed in the reserved range at the end
 ; of the current calls.
 
-0	STD	{ int nosys(void); } syscall nosys_args int
+0	MSTD	{ int nosys(void); } syscall nosys_args int
 1	MSTD	{ void sys_exit(int rval); } exit sys_exit_args void
 2	MSTD	{ int fork(void); }
 3	MSTD	{ ssize_t read(int fd, void *buf, size_t nbyte); }
 4	MSTD	{ ssize_t write(int fd, const void *buf, size_t nbyte); }
-5	STD	{ int open(char *path, int flags, int mode); }
+5	MSTD	{ int open(char *path, int flags, int mode); }
 ; XXX should be		{ int open(const char *path, int flags, ...); }
 ; but we're not ready for `const' or varargs.
 ; XXX man page says `mode_t mode'.
 6	MSTD	{ int close(int fd); }
 7	MSTD	{ int wait4(int pid, int *status, int options, \
 			    struct rusage *rusage); } wait4 wait_args int
-8	COMPAT	{ int creat(char *path, int mode); }
+8	MCOMPAT	{ int creat(char *path, int mode); }
 9	STD	{ int link(char *path, char *link); }
 10	STD	{ int unlink(char *path); }
 11	OBSOL	execv
