@@ -44,8 +44,10 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <sys/ipl.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
+#include <sys/mutex.h>
 #include <sys/signalvar.h>
 #include <sys/resourcevar.h>
 #include <sys/vmmeter.h>
@@ -58,9 +60,7 @@
 #endif
 
 #include <machine/cpu.h>
-#include <machine/ipl.h>
 #include <machine/smp.h>
-#include <machine/mutex.h>
 
 static void sched_setup __P((void *dummy));
 SYSINIT(sched_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, sched_setup, NULL)
@@ -376,19 +376,6 @@ updatepri(p)
 #define TABLESIZE	128
 static TAILQ_HEAD(slpquehead, proc) slpque[TABLESIZE];
 #define LOOKUP(x)	(((intptr_t)(x) >> 8) & (TABLESIZE - 1))
-
-#if 0
-/*
- * During autoconfiguration or after a panic, a sleep will simply
- * lower the priority briefly to allow interrupts, then return.
- * The priority to be used (safepri) is machine-dependent, thus this
- * value is initialized and maintained in the machine-dependent layers.
- * This priority will typically be 0, or the lowest priority
- * that is safe for use on the interrupt stack; it can be made
- * higher to block network software interrupts after panics.
- */
-int safepri;
-#endif
 
 void
 sleepinit(void)
@@ -899,7 +886,8 @@ mi_switch()
 		p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
 	mtx_enter(&sched_lock, MTX_SPIN | MTX_RLIKELY);
 
-	WITNESS_SAVE(&Giant, Giant);
+	if (mtx_owned(&Giant))
+		WITNESS_SAVE(&Giant, Giant);
 	for (giantreleased = 0; mtx_owned(&Giant); giantreleased++)
 		mtx_exit(&Giant, MTX_DEF | MTX_NOSWITCH);
 
@@ -958,7 +946,8 @@ mi_switch()
 	mtx_exit(&sched_lock, MTX_SPIN);
 	while (giantreleased--)
 		mtx_enter(&Giant, MTX_DEF);
-	WITNESS_RESTORE(&Giant, Giant);
+	if (mtx_owned(&Giant))
+		WITNESS_RESTORE(&Giant, Giant);
 
 	splx(x);
 }
