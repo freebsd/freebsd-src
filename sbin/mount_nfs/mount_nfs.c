@@ -486,7 +486,8 @@ main(argc, argv)
 	name = *argv;
 
 	if (retrycnt == -1)
-		retrycnt = (opflags & BGRND) ? 0 : 1;
+		/* The default is to keep retrying forever. */
+		retrycnt = 0;
 	if (!getnfsargs(spec, nfsargsp))
 		exit(1);
 
