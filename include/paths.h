@@ -50,6 +50,7 @@
 #define	_PATH_DEVDB	"/var/run/dev.db"
 #define	_PATH_DEVNULL	"/dev/null"
 #define	_PATH_DRUM	"/dev/drum"
+#define	_PATH_FTPUSERS	"/etc/ftpusers"
 #define	_PATH_KMEM	"/dev/kmem"
 #define	_PATH_MAILDIR	"/var/mail"
 #define	_PATH_MAN	"/usr/share/man"
