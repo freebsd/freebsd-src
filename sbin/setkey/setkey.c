@@ -1,7 +1,10 @@
+/*	$FreeBSD$	*/
+/*	$KAME: setkey.c,v 1.14 2000/06/10 06:47:09 sakane Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +16,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -25,10 +28,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
-/* KAME $Id: setkey.c,v 1.5 1999/10/26 09:39:37 sakane Exp $ */
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -51,40 +51,42 @@
 #include <errno.h>
 #include <netdb.h>
 
-void	Usage __P((void));
-int	main __P((int, char **));
-int	get_supported __P((void));
-void	sendkeyshort __P((u_int));
-void	promisc __P((void));
-int	sendkeymsg __P((void));
-int	postproc __P((struct sadb_msg *, int));
-const char	*numstr __P((int));
-void	shortdump_hdr __P((void));
-void	shortdump __P((struct sadb_msg *));
+#include "libpfkey.h"
+
+void Usage __P((void));
+int main __P((int, char **));
+int get_supported __P((void));
+void sendkeyshort __P((u_int));
+void promisc __P((void));
+int sendkeymsg __P((void));
+int postproc __P((struct sadb_msg *, int));
+const char *numstr __P((int));
+void shortdump_hdr __P((void));
+void shortdump __P((struct sadb_msg *));
 
 #define MODE_SCRIPT	1
 #define MODE_CMDDUMP	2
 #define MODE_CMDFLUSH	3
+#define MODE_PROMISC	4
 
 int so;
 
-int	f_forever = 0;
-int	f_all = 0;
-int	f_debug = 0;
-int	f_verbose = 0;
-int	f_mode = 0;
-int	f_cmddump = 0;
-int	f_policy = 0;
-int	f_promisc = 0;
-int	f_hexdump = 0;
-char	*pname;
+int f_forever = 0;
+int f_all = 0;
+int f_debug = 0;
+int f_verbose = 0;
+int f_mode = 0;
+int f_cmddump = 0;
+int f_policy = 0;
+int f_hexdump = 0;
+char *pname;
 
-u_char	m_buf[BUFSIZ];
-u_int	m_len;
+u_char m_buf[BUFSIZ];
+u_int m_len;
 
-extern int	lineno;
+extern int lineno;
 
-extern int	parse __P((FILE **));
+extern int parse __P((FILE **));
 
 void
 Usage()
@@ -95,7 +97,7 @@ Usage()
 	printf("\t%s [-Pdv] -F\n", pname);
 	printf("\t%s [-h] -x\n", pname);
 	pfkey_close(so);
-	exit(0);
+	exit(1);
 }
 
 int
@@ -139,9 +141,8 @@ main(ac, av)
 			f_hexdump = 1;
 			break;
 		case 'x':
-			f_promisc = 1;
-			promisc();
-			/*NOTREACHED*/
+			f_mode = MODE_PROMISC;
+			break;
 		case 'P':
 			f_policy = 1;
 			break;
@@ -170,10 +171,15 @@ main(ac, av)
 			errx(-1, "%s", ipsec_strerror());
 			/*NOTREACHED*/
 		}
-		parse(&fp);
+		if (parse(&fp))
+			exit (1);
 		break;
+	case MODE_PROMISC:
+		promisc();
+		/*NOTREACHED*/
 	default:
 		Usage();
+		/*NOTREACHED*/
 	}
 
 	exit(0);
@@ -216,7 +222,6 @@ sendkeyshort(type)
 	m_msg->sadb_msg_satype = SADB_SATYPE_UNSPEC;
 	m_msg->sadb_msg_len = PFKEY_UNIT64(m_len);
 	m_msg->sadb_msg_reserved = 0;
-	m_msg->sadb_msg_reserved = 0;
 	m_msg->sadb_msg_seq = 0;
 	m_msg->sadb_msg_pid = getpid();
 
@@ -239,7 +244,6 @@ promisc()
 	m_msg->sadb_msg_errno = 0;
 	m_msg->sadb_msg_satype = 1;
 	m_msg->sadb_msg_len = PFKEY_UNIT64(m_len);
-	m_msg->sadb_msg_reserved = 0;
 	m_msg->sadb_msg_reserved = 0;
 	m_msg->sadb_msg_seq = 0;
 	m_msg->sadb_msg_pid = getpid();
@@ -325,8 +329,10 @@ sendkeymsg()
 	if (f_forever)
 		shortdump_hdr();
 again:
-	if (f_verbose)
+	if (f_verbose) {
 		kdebug_sadb((struct sadb_msg *)m_buf);
+		printf("\n");
+	}
 
 	if ((len = send(so, m_buf, m_len, 0)) < 0) {
 		perror("send");
@@ -345,8 +351,10 @@ again:
 			break;
 		}
 
-		if (f_verbose)
+		if (f_verbose) {
 			kdebug_sadb((struct sadb_msg *)rbuf);
+			printf("\n");
+		}
 		if (postproc(msg, len) < 0)
 			break;
 	} while (msg->sadb_msg_errno || msg->sadb_msg_seq);
@@ -423,8 +431,10 @@ postproc(msg, len)
 			pfkey_sadump(msg);
 		msg = (struct sadb_msg *)((caddr_t)msg +
 				     PFKEY_UNUNIT64(msg->sadb_msg_len));
-		if (f_verbose)
+		if (f_verbose) {
 			kdebug_sadb((struct sadb_msg *)msg);
+			printf("\n");
+		}
 		break;
 
 	case SADB_X_SPDDUMP:
@@ -432,8 +442,10 @@ postproc(msg, len)
 		if (msg->sadb_msg_seq == 0) break;
 		msg = (struct sadb_msg *)((caddr_t)msg +
 				     PFKEY_UNUNIT64(msg->sadb_msg_len));
-		if (f_verbose)
+		if (f_verbose) {
 			kdebug_sadb((struct sadb_msg *)msg);
+			printf("\n");
+		}
 		break;
 	}
 
