@@ -77,6 +77,7 @@ SRCS+= \
 	uthread_join.c \
 	uthread_kern.c \
 	uthread_kevent.c \
+	uthread_kqueue.c \
 	uthread_kill.c \
 	uthread_listen.c \
 	uthread_main_np.c \
