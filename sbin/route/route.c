@@ -50,6 +50,7 @@ static const char rcsid[] =
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/sysctl.h>
+#include <sys/types.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -105,7 +106,7 @@ char	*routename(), *netname();
 void	flushroutes(), newroute(), monitor(), sockaddr(), sodump(), bprintf();
 void	print_getmsg(), print_rtmsg(), pmsg_common(), pmsg_addrs(), mask_addr();
 int	getaddr(), rtmsg(), x25_makemask();
-extern	char *inet_ntoa(), *iso_ntoa(), *link_ntoa();
+extern	char *iso_ntoa();
 
 void usage __P((const char *)) __dead2;
 
