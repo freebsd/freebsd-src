@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.45 1997/02/22 09:39:04 peter Exp $
+ * $Id: kern_exit.c,v 1.46 1997/03/24 11:24:35 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -171,8 +171,6 @@ exit1(p, rv)
 
 	/* The next two chunks should probably be moved to vmspace_exit. */
 	vm = p->p_vmspace;
-	if (vm->vm_shm)
-		shmexit(p);
 	/*
 	 * Release user portion of address space.
 	 * This releases references to vnodes,
@@ -182,6 +180,8 @@ exit1(p, rv)
 	 * may be mapped within that space also.
 	 */
 	if (vm->vm_refcnt == 1) {
+		if (vm->vm_shm)
+			shmexit(p);
 		pmap_remove_pages(&vm->vm_pmap, VM_MIN_ADDRESS,
 		    VM_MAXUSER_ADDRESS);
 		(void) vm_map_remove(&vm->vm_map, VM_MIN_ADDRESS,

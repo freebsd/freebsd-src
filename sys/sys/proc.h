@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.32 1997/02/22 09:45:41 peter Exp $
+ * $Id: proc.h,v 1.33 1997/03/03 09:51:12 ache Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -91,6 +91,7 @@ struct	proc {
 	struct	filedesc *p_fd;		/* Ptr to open files structure. */
 	struct	pstats *p_stats;	/* Accounting/statistics (PROC ONLY). */
 	struct	plimit *p_limit;	/* Process limits. */
+	struct	vm_object *p_upages_obj;/* Upages object */
 	struct	vmspace *p_vmspace;	/* Address space. */
 	struct	sigacts *p_sigacts;	/* Signal actions, state (PROC ONLY). */
 
@@ -306,7 +307,7 @@ void	wakeup_one __P((void *chan));
 
 void	cpu_exit __P((struct proc *)) __dead2;
 void	exit1 __P((struct proc *, int)) __dead2;
-int	cpu_fork __P((struct proc *, struct proc *));
+void	cpu_fork __P((struct proc *, struct proc *));
 int	trace_req __P((struct proc *));
 void	cpu_wait __P((struct proc *));
 int	cpu_coredump __P((struct proc *, struct vnode *, struct ucred *));

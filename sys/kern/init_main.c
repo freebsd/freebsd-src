@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.58 1997/03/01 17:49:09 wosch Exp $
+ * $Id: init_main.c,v 1.59 1997/03/22 06:52:55 bde Exp $
  */
 
 #include "opt_rlimit.h"
@@ -145,7 +145,8 @@ main(framep)
 	int			rval[2];	/* SI_TYPE_KTHREAD support*/
 
 	/*
-	 * Save the locore.s frame pointer for start_init().
+	 * Copy the locore.s frame pointer for proc0, this is forked into
+	 * all other processes.
 	 */
 	init_framep = framep;
 
@@ -189,21 +190,7 @@ main(framep)
 			/* kernel thread*/
 			if (fork(&proc0, NULL, rval))
 				panic("fork kernel process");
-			if (rval[1]) {
-				(*((*sipp)->func))( (*sipp)->udata);
-				/*
-				 * The call to start "init" returns
-				 * here after the scheduler has been
-				 * started, and returns to the caller
-				 * in i386/i386/locore.s.  This is a
-				 * necessary part of initialization
-				 * and is rather non-obvious.
-				 *
-				 * No other "kernel threads" should
-				 * return here.  Call panic() instead.
-				 */
-				return;
-			}
+			cpu_set_fork_handler(pfind(rval[0]), (*sipp)->func, (*sipp)->udata);
 			break;
 
 		default:
@@ -378,10 +365,7 @@ proc0_init(dummy)
 #define INCOMPAT_LITES2
 #ifdef INCOMPAT_LITES2
 	/*
-	 * proc0 needs to have a coherent frame base, too.
-	 * This probably makes the identical call for the init proc
-	 * that happens later unnecessary since it should inherit
-	 * it during the fork.
+	 * proc0 needs to have a coherent frame base in it's stack.
 	 */
 	cpu_set_init_frame(p, init_framep);			/* XXX! */
 #endif	/* INCOMPAT_LITES2*/
@@ -499,7 +483,8 @@ static void kthread_init __P((void *dummy));
 SYSINIT_KT(init,SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST, kthread_init, NULL)
 
 
-static void start_init __P((struct proc *p, void *framep));
+extern void prepare_usermode __P((void));
+static void start_init __P((struct proc *p));
 
 /* ARGSUSED*/
 static void
@@ -508,11 +493,12 @@ kthread_init(dummy)
 {
 
 	/* Create process 1 (init(8)). */
-	start_init(curproc, init_framep);
+	start_init(curproc);
+
+	prepare_usermode();
 
 	/*
-	 * This is the only kernel thread allowed to return yo the
-	 * caller!!!
+	 * This returns to the fork trampoline, then to user mode.
 	 */
 	return;	
 }
@@ -534,9 +520,8 @@ static char *initpaths[] = {
  * The program is invoked with one argument containing the boot flags.
  */
 static void
-start_init(p, framep)
+start_init(p)
 	struct proc *p;
-	void *framep;
 {
 	vm_offset_t addr;
 	struct execve_args args;
@@ -544,15 +529,6 @@ start_init(p, framep)
 	char **pathp, *path, *ucp, **uap, *arg0, *arg1;
 
 	initproc = p;
-
-	/*
-	 * We need to set the system call frame as if we were entered through
-	 * a syscall() so that when we call execve() below, it will be able
-	 * to set the entry point (see setregs) when it tries to exec.  The
-	 * startup code in "locore.s" has allocated space for the frame and
-	 * passed a pointer to that space as main's argument.
-	 */
-	cpu_set_init_frame(p, framep);
 
 	/*
 	 * Need just enough stack to hold the faked-up "execve()" arguments.

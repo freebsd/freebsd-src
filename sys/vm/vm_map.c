@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.73 1997/04/06 02:29:43 dyson Exp $
+ * $Id: vm_map.c,v 1.74 1997/04/06 03:04:31 dyson Exp $
  */
 
 /*
@@ -256,9 +256,6 @@ vmspace_free(vm)
 		while( vm->vm_map.ref_count != 1)
 			tsleep(&vm->vm_map.ref_count, PVM, "vmsfre", 0);
 		--vm->vm_map.ref_count;
-		vm_object_pmap_remove(vm->vm_upages_obj,
-			0, vm->vm_upages_obj->size);
-		vm_object_deallocate(vm->vm_upages_obj);
 		pmap_release(&vm->vm_pmap);
 		FREE(vm, M_VMMAP);
 	} else {

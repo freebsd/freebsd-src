@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: exception.s,v 1.21 1997/02/22 09:32:16 peter Exp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -241,6 +241,20 @@ IDTVEC(int0x80_syscall)
 	incl	_cnt+V_SYSCALL
 	movl	$SWI_AST_MASK,_cpl
 	call	_syscall
+	/*
+	 * Return via _doreti to handle ASTs.
+	 */
+	pushl	$0				/* cpl to restore */
+	subl	$4,%esp
+	movb	$1,_intr_nesting_level
+	MEXITCOUNT
+	jmp	_doreti
+
+ENTRY(fork_trampoline)
+	pushl	%ebx				/* arg1 */
+	call	%esi				/* function */
+	addl	$4,%esp
+	/* cut from syscall */
 	/*
 	 * Return via _doreti to handle ASTs.
 	 */

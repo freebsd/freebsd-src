@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.42 1997/02/22 09:32:18 peter Exp $
+ *	$Id: genassym.c,v 1.43 1997/04/07 06:45:11 peter Exp $
  */
 
 #include <stdio.h>
@@ -57,6 +57,7 @@
 #include <machine/psl.h>
 #include <machine/reg.h>
 #include <machine/bootinfo.h>
+#include <machine/tss.h>
 #include <sys/syscall.h>
 #include <sys/vmmeter.h>
 #include <vm/vm.h>
@@ -84,6 +85,7 @@ main()
 	struct uprof *uprof = (struct uprof *)0;
 	struct vmspace *vms = (struct vmspace *)0;
 	struct pcb *pcb = (struct pcb *)0;
+	struct i386tss *tss = (struct i386tss *)0;
 	struct trapframe *tf = (struct trapframe *)0;
 	struct sigframe *sigf = (struct sigframe *)0;
 	struct bootinfo *bootinfo = (struct bootinfo *)0;
@@ -127,6 +129,7 @@ main()
 	printf("#define\tPCB_ESP %p\n", &pcb->pcb_esp);
 	printf("#define\tPCB_EBX %p\n", &pcb->pcb_ebx);
 	printf("#define\tPCB_EIP %p\n", &pcb->pcb_eip);
+	printf("#define\tTSS_ESP0 %p\n", &tss->tss_esp0);
 	printf("#define\tPCB_USERLDT %p\n", &pcb->pcb_ldt);
 	printf("#define\tU_PROF %p\n", &up->u_stats.p_prof);
 	printf("#define\tU_PROFSCALE %p\n", &up->u_stats.p_prof.pr_scale);
