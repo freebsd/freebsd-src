@@ -44,15 +44,15 @@ authentication service module for PAM,
 provides functionality for two PAM categories:
 authentication
 and account management.
-In terms of the 
+In terms of the
 .Ar module-type
 parameter, they are the
-.Dv auth
+.Dq Li auth
 and
-.Dv account
+.Dq Li account
 features.
 It also provides a null function for session management.
-.Ss Ux Authentication Module
+.Ss Ux Ss Authentication Module
 The
 .Ux
 authentication component
@@ -97,7 +97,7 @@ the user is prompted for another password.
 This option will require the user
 to authenticate themself as the user
 given by
-.Fn getuid 2 ,
+.Xr getuid 2 ,
 not as the account they are attempting to access.
 This is primarily for services like
 .Xr su 1 ,
@@ -112,7 +112,7 @@ then this option
 will forgo password prompting,
 and silently allow authentication to succeed.
 .El
-.Ss Ux Account Management Module
+.Ss Ux Ss Account Management Module
 The
 .Ux
 account management component
@@ -134,7 +134,7 @@ level.
 .Sh FILES
 .Bl -tag -xwidth ".Pa /etc/master.passwd" -compact
 .It Pa /etc/master.passwd
-default 
+default
 .Ux
 password database.
 .El
@@ -142,7 +142,7 @@ password database.
 .Xr passwd 1 ,
 .Xr getuid 2 ,
 .Xr crypt 3 ,
-.Xr passwd 5 ,
 .Xr syslog 3 ,
 .Xr pam.conf 5 ,
+.Xr passwd 5 ,
 .Xr pam 8

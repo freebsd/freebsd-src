@@ -41,10 +41,10 @@ The SecureTTY authentication service module for PAM,
 .Nm
 provides functionality for only one PAM category:
 authentication.
-In terms of the 
+In terms of the
 .Ar module-type
 parameter, this is the
-.Dv auth
+.Dq Li auth
 feature.
 It also provides a null function for session management.
 .Ss SecureTTY Authentication Module
@@ -62,12 +62,14 @@ by
 .Xr getttynam 3
 (see
 .Xr ttys 5 ) ,
-and the entry (a struct ttyent) has the 
+and the entry (a
+.Vt "struct ttyent" )
+has the
 .Dv TTY_SECURE
 flag set.
 .Pp
 The following options may be passed to the authentication module:
-.Bl -tag -xwidth ".Cm use_first_pass"
+.Bl -tag -xwidth ".Cm debug"
 .It Cm debug
 .Xr syslog 3
 debugging information at
@@ -75,8 +77,8 @@ debugging information at
 level.
 .El
 .Sh SEE ALSO
-.Xr getttyynam 3 ,
+.Xr getttynam 3 ,
 .Xr syslog 3 ,
-.Xr ttys 5 ,
 .Xr pam.conf 5 ,
+.Xr ttys 5 ,
 .Xr pam 8

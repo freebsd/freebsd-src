@@ -41,10 +41,10 @@ The OPIE authentication service module for PAM,
 .Nm
 provides functionality for only one PAM category:
 that of authentication.
-In terms of the 
+In terms of the
 .Ar module-type
 parameter, this is the
-.Dv auth
+.Dq Li auth
 feature.
 It also provides a null function for session management.
 .Ss OPIE Authentication Module
@@ -59,7 +59,7 @@ and verifies that this is correct with
 .Xr opiechallenge 3 .
 .Pp
 The following options may be passed to the authentication module:
-.Bl -tag -xwidth ".Cm use_first_pass"
+.Bl -tag -xwidth ".Cm auth_as_self"
 .It Cm debug
 .Xr syslog 3
 debugging information at
@@ -69,7 +69,7 @@ level.
 This option will require the user
 to authenticate themself as the user
 given by
-.Fn getuid 2 ,
+.Xr getuid 2 ,
 not as the account they are attempting to access.
 This is primarily for services like
 .Xr su 1 ,
@@ -85,7 +85,7 @@ default OPIE password database.
 .Sh SEE ALSO
 .Xr passwd 1 ,
 .Xr opiechallenge 3 ,
-.Xr opie 4 ,
 .Xr syslog 3 ,
+.Xr opie 4 ,
 .Xr pam.conf 5 ,
 .Xr pam 8
