@@ -108,21 +108,53 @@ struct mount_args {
 int
 mount(p, uap)
 	struct proc *p;
-	struct mount_args *uap;
-{
-	return (mount1(p, uap, UIO_USERSPACE));
-}
-
-int
-mount1(p, uap, segflag)
-	struct proc *p;
 	struct mount_args /* {
 		syscallarg(char *) type;
 		syscallarg(char *) path;
 		syscallarg(int) flags;
 		syscallarg(caddr_t) data;
 	} */ *uap;
-	int segflag;
+{
+	char *fstype;
+	char *fspath;
+	int error;
+
+	fstype = malloc(MFSNAMELEN, M_TEMP, M_WAITOK | M_ZERO);
+	fspath = malloc(MNAMELEN, M_TEMP, M_WAITOK | M_ZERO);
+
+	/*
+	 * vfs_mount() actually takes a kernel string for `type' and
+	 * `path' now, so extract them.
+	 */
+	error = copyinstr(SCARG(uap, type), fstype, MFSNAMELEN, NULL);
+	if (error)
+		goto finish;
+	error = copyinstr(SCARG(uap, path), fspath, MNAMELEN, NULL);
+	if (error)
+		goto finish;
+	error = vfs_mount(p, fstype, fspath, SCARG(uap, flags),
+	    SCARG(uap, data));
+finish:
+	free(fstype, M_TEMP);
+	free(fspath, M_TEMP);
+	return (error);
+}
+
+/*
+ * vfs_mount(): actually attempt a filesystem mount.
+ *
+ * This routine is designed to be a "generic" entry point for routines
+ * that wish to mount a filesystem. All parameters except `fsdata' are
+ * pointers into kernel space. `fsdata' is currently still a pointer
+ * into userspace.
+ */
+int
+vfs_mount(p, fstype, fspath, fsflags, fsdata)
+	struct proc *p;
+	char *fstype;
+	char *fspath;
+	int fsflags;
+	void *fsdata;
 {
 	struct vnode *vp;
 	struct mount *mp;
@@ -130,14 +162,22 @@ mount1(p, uap, segflag)
 	int error, flag = 0, flag2 = 0;
 	struct vattr va;
 	struct nameidata nd;
-	char fstypename[MFSNAMELEN];
+
+	/*
+	 * Be ultra-paranoid about making sure the type and fspath
+	 * variables will fit in our mp buffers, including the
+	 * terminating NUL.
+	 */
+	if ((strlen(fstype) >= MNAMELEN - 1) ||
+	    (strlen(fspath) >= MFSNAMELEN - 1))
+		return (ENAMETOOLONG);
 
 	if (usermount == 0 && (error = suser(p)))
 		return (error);
 	/*
 	 * Do not allow NFS export by non-root users.
 	 */
-	if (SCARG(uap, flags) & MNT_EXPORTED) {
+	if (fsflags & MNT_EXPORTED) {
 		error = suser(p);
 		if (error)
 			return (error);
@@ -146,16 +186,16 @@ mount1(p, uap, segflag)
 	 * Silently enforce MNT_NOSUID and MNT_NODEV for non-root users
 	 */
 	if (suser_xxx(p->p_ucred, 0, 0)) 
-		SCARG(uap, flags) |= MNT_NOSUID | MNT_NODEV;
+		fsflags |= MNT_NOSUID | MNT_NODEV;
 	/*
 	 * Get vnode to be covered
 	 */
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, segflag, SCARG(uap, path), p);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, fspath, p);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
-	if (SCARG(uap, flags) & MNT_UPDATE) {
+	if (fsflags & MNT_UPDATE) {
 		if ((vp->v_flag & VROOT) == 0) {
 			vput(vp);
 			return (EINVAL);
@@ -167,7 +207,7 @@ mount1(p, uap, segflag)
 		 * We only allow the filesystem to be reloaded if it
 		 * is currently mounted read-only.
 		 */
-		if ((SCARG(uap, flags) & MNT_RELOAD) &&
+		if ((fsflags & MNT_RELOAD) &&
 		    ((mp->mnt_flag & MNT_RDONLY) == 0)) {
 			vput(vp);
 			return (EOPNOTSUPP);	/* Needs translation */
@@ -195,7 +235,7 @@ mount1(p, uap, segflag)
 		}
 		vp->v_flag |= VMOUNT;
 		mtx_unlock(&vp->v_interlock);
-		mp->mnt_flag |= SCARG(uap, flags) &
+		mp->mnt_flag |= fsflags &
 		    (MNT_RELOAD | MNT_FORCE | MNT_UPDATE | MNT_SNAPSHOT);
 		VOP_UNLOCK(vp, 0, p);
 		goto update;
@@ -218,13 +258,8 @@ mount1(p, uap, segflag)
 		vput(vp);
 		return (ENOTDIR);
 	}
-	if ((error = copyinstrfrom(SCARG(uap, type),
-	     fstypename, MFSNAMELEN, NULL, segflag)) != 0) {
-		vput(vp);
-		return (error);
-	}
 	for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next)
-		if (!strcmp(vfsp->vfc_name, fstypename))
+		if (!strcmp(vfsp->vfc_name, fstype))
 			break;
 	if (vfsp == NULL) {
 		linker_file_t lf;
@@ -234,7 +269,7 @@ mount1(p, uap, segflag)
 			vput(vp);
 			return error;
 		}
-		error = linker_load_file(fstypename, &lf);
+		error = linker_load_file(fstype, &lf);
 		if (error || lf == NULL) {
 			vput(vp);
 			if (lf == NULL)
@@ -244,7 +279,7 @@ mount1(p, uap, segflag)
 		lf->userrefs++;
 		/* lookup again, see if the VFS was loaded */
 		for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next)
-			if (!strcmp(vfsp->vfc_name, fstypename))
+			if (!strcmp(vfsp->vfc_name, fstype))
 				break;
 		if (vfsp == NULL) {
 			lf->userrefs--;
@@ -274,16 +309,19 @@ mount1(p, uap, segflag)
 	vfsp->vfc_refcount++;
 	mp->mnt_stat.f_type = vfsp->vfc_typenum;
 	mp->mnt_flag |= vfsp->vfc_flags & MNT_VISFLAGMASK;
-	strncpy(mp->mnt_stat.f_fstypename, vfsp->vfc_name, MFSNAMELEN);
+	strncpy(mp->mnt_stat.f_fstypename, fstype, MFSNAMELEN);
+	mp->mnt_stat.f_fstypename[MFSNAMELEN - 1] = '\0';
 	mp->mnt_vnodecovered = vp;
 	mp->mnt_stat.f_owner = p->p_ucred->cr_uid;
+	strncpy(mp->mnt_stat.f_mntonname, fspath, MNAMELEN);
+	mp->mnt_stat.f_mntonname[MNAMELEN - 1] = '\0';
 	mp->mnt_iosize_max = DFLTPHYS;
 	VOP_UNLOCK(vp, 0, p);
 update:
 	/*
 	 * Set the mount level flags.
 	 */
-	if (SCARG(uap, flags) & MNT_RDONLY)
+	if (fsflags & MNT_RDONLY)
 		mp->mnt_flag |= MNT_RDONLY;
 	else if (mp->mnt_flag & MNT_RDONLY)
 		mp->mnt_kern_flag |= MNTK_WANTRDWR;
@@ -291,7 +329,7 @@ update:
 	    MNT_SYNCHRONOUS | MNT_UNION | MNT_ASYNC | MNT_NOATIME |
 	    MNT_NOSYMFOLLOW | MNT_IGNORE |
 	    MNT_NOCLUSTERR | MNT_NOCLUSTERW | MNT_SUIDDIR);
-	mp->mnt_flag |= SCARG(uap, flags) & (MNT_NOSUID | MNT_NOEXEC |
+	mp->mnt_flag |= fsflags & (MNT_NOSUID | MNT_NOEXEC |
 	    MNT_NODEV | MNT_SYNCHRONOUS | MNT_UNION | MNT_ASYNC | MNT_FORCE |
 	    MNT_NOSYMFOLLOW | MNT_IGNORE |
 	    MNT_NOATIME | MNT_NOCLUSTERR | MNT_NOCLUSTERW | MNT_SUIDDIR);
@@ -300,7 +338,7 @@ update:
 	 * XXX The final recipients of VFS_MOUNT just overwrite the ndp they
 	 * get.  No freeing of cn_pnbuf.
 	 */
-	error = VFS_MOUNT(mp, SCARG(uap, path), SCARG(uap, data), &nd, p);
+	error = VFS_MOUNT(mp, fspath, fsdata, &nd, p);
 	if (mp->mnt_flag & MNT_UPDATE) {
 		if (mp->mnt_kern_flag & MNTK_WANTRDWR)
 			mp->mnt_flag &= ~MNT_RDONLY;
