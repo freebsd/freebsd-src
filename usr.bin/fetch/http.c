@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.19 1998/07/12 09:07:36 se Exp $
+ *	$Id: http.c,v 1.20 1998/09/20 00:01:26 jkh Exp $
  */
 
 #include <sys/types.h>
@@ -1036,18 +1036,29 @@ http_suck(struct fetch_state *fs, FILE *remote, FILE *local,
 {
 	static char buf[BUFFER_SIZE];
 	ssize_t readresult, writeresult;
+	off_t remain = total_length;
+
+	if (total_length == -1)
+		remain = 1;	/*XXX*/
 
 	do {
 		alarm(timo);
 		readresult = fread(buf, 1, sizeof buf, remote);
 		alarm(0);
 
+		/*
+		 * If know the content-length, ignore anything more the
+		 * the server chooses to send us.
+		 */
+		if (total_length != -1 && ((remain -= readresult) < 0))
+			readresult += remain;
+
 		if (readresult == 0)
 			return 0;
 		display(fs, total_length, readresult);
 
 		writeresult = fwrite(buf, 1, readresult, local);
-	} while (writeresult == readresult);
+	} while (writeresult == readresult && remain > 0);
 	return 0;
 }
 
