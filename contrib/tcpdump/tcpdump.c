@@ -71,6 +71,7 @@ int aflag;			/* translate network and broadcast addresses */
 int dflag;			/* print filter code */
 int eflag;			/* print ethernet header */
 int fflag;			/* don't translate "foreign" IP address */
+int Lflag;			/* list available data link types and exit */
 int nflag;			/* leave addresses as numbers */
 int Nflag;			/* remove domains from printed host names */
 int Oflag = 1;			/* run filter code optimizer */
@@ -85,6 +86,9 @@ int vflag;			/* verbose */
 int xflag;			/* print packet in hex */
 int Xflag;			/* print packet in ascii as well as hex */
 off_t Cflag = 0;                /* rotate dump files after this many bytes */
+int dlt = -1;			/* if != -1, ask libpcap for the DLT it names */
+
+const char *dlt_name = NULL;
 
 char *espsecret = NULL;		/* ESP secret key */
 
@@ -100,6 +104,7 @@ int32_t thiszone;		/* seconds offset from gmt to local time */
 /* Forwards */
 static RETSIGTYPE cleanup(int);
 static void usage(void) __attribute__((noreturn));
+static void show_dlts_and_exit(pcap_t *pd) __attribute__((noreturn));
 
 static void dump_and_trunc(u_char *, const struct pcap_pkthdr *, const u_char *);
 
@@ -188,6 +193,94 @@ struct dump_info {
 	pcap_dumper_t *p;
 };
 
+struct dlt_choice {
+	const char*	name;
+	int		dlt;
+};
+
+#define DLT_CHOICE(code) { #code, code }
+#define DLT_CHOICE_SENTINEL { NULL, 0 }
+
+struct dlt_choice dlt_choices[] = {
+	DLT_CHOICE(DLT_ARCNET),
+	DLT_CHOICE(DLT_EN10MB),
+	DLT_CHOICE(DLT_IEEE802),
+#ifdef DLT_LANE8023
+	DLT_CHOICE(DLT_LANE8023),
+#endif
+#ifdef DLT_CIP
+	DLT_CHOICE(DLT_CIP),
+#endif
+#ifdef DLT_ATM_CLIP
+	DLT_CHOICE(DLT_ATM_CLIP),
+#endif
+	DLT_CHOICE(DLT_SLIP),
+	DLT_CHOICE(DLT_SLIP_BSDOS),
+	DLT_CHOICE(DLT_PPP),
+	DLT_CHOICE(DLT_PPP_BSDOS),
+	DLT_CHOICE(DLT_FDDI),
+	DLT_CHOICE(DLT_NULL),
+#ifdef DLT_LOOP
+	DLT_CHOICE(DLT_LOOP),
+#endif
+	DLT_CHOICE(DLT_RAW),
+	DLT_CHOICE(DLT_ATM_RFC1483),
+#ifdef DLT_C_HDLC
+	DLT_CHOICE(DLT_C_HDLC),
+#endif
+#ifdef DLT_HDLC
+	DLT_CHOICE(DLT_HDLC),
+#endif
+#ifdef DLT_PPP_SERIAL
+	DLT_CHOICE(DLT_PPP_SERIAL),
+#endif
+#ifdef DLT_PPP_ETHER
+	DLT_CHOICE(DLT_PPP_ETHER),
+#endif
+#ifdef DLT_LINUX_SLL
+	DLT_CHOICE(DLT_LINUX_SLL),
+#endif
+#ifdef DLT_IEEE802_11
+	DLT_CHOICE(DLT_IEEE802_11),
+#endif
+#ifdef DLT_LTALK
+	DLT_CHOICE(DLT_LTALK),
+#endif
+#ifdef DLT_PFLOG
+	DLT_CHOICE(DLT_PFLOG),
+#endif
+	DLT_CHOICE_SENTINEL
+};
+
+static void
+show_dlts_and_exit(pcap_t *pd)
+{
+	int i, n_dlts;
+	int *dlts = 0;
+	n_dlts = pcap_list_datalinks(pd, &dlts);
+	if (n_dlts < 0)
+		error("%s", pcap_geterr(pd));
+	else if (n_dlts == 0 || !dlts)
+		error("No data link types.");
+
+	(void) fprintf(stderr, "Data link types (use option -y):\n");
+
+	while (--n_dlts >= 0) {
+		for (i = 0; dlt_choices[i].name; i++) {
+			if (dlt_choices[i].dlt != dlts[n_dlts]) {
+				continue;
+			}
+			(void) fprintf(stderr, "  %s\n",
+			           dlt_choices[i].name + sizeof("DLT_") - 1);
+			break;
+		}
+		if (!dlt_choices[i].name)
+			fprintf(stderr, "  %d (not supported)\n", dlts[n_dlts]);
+	}
+	free(dlts);
+	exit(0);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -220,7 +313,7 @@ main(int argc, char **argv)
 	
 	opterr = 0;
 	while (
-	    (op = getopt(argc, argv, "ac:C:deE:fF:i:lm:nNOpqr:Rs:StT:uvw:xXY")) != -1)
+	    (op = getopt(argc, argv, "ac:C:deE:fF:i:lLm:nNOpqr:Rs:StT:uvw:xXy:Y")) != -1)
 		switch (op) {
 
 		case 'a':
@@ -241,6 +334,10 @@ main(int argc, char **argv)
 
 		case 'd':
 			++dflag;
+			break;
+
+		case 'L':
+			Lflag++;
 			break;
 
 		case 'e':
@@ -374,6 +471,21 @@ main(int argc, char **argv)
 			++Xflag;
 			break;
 
+		case 'y':
+			for (i = 0; dlt_choices[i].name; i++) {
+				if (!strcasecmp(dlt_choices[i].name +
+				                    sizeof("DLT_") - 1,
+						optarg)) {
+					dlt = dlt_choices[i].dlt;
+					dlt_name = dlt_choices[i].name;
+					break;
+				}
+			}
+			if (dlt < 0) {
+				error("invalid data link type %s", optarg);
+			}
+			break;
+
 #ifdef YYDEBUG
 		case 'Y':
 			{
@@ -421,6 +533,16 @@ main(int argc, char **argv)
 			error("%s", ebuf);
 		else if (*ebuf)
 			warning("%s", ebuf);
+		if (Lflag) {
+			show_dlts_and_exit(pd);
+		}
+		if (dlt >= 0) {
+			if (pcap_set_datalink(pd, dlt) < 0)
+				error("%s", pcap_geterr(pd));
+			(void)fprintf(stderr, "%s: data link type %s\n",
+			              program_name, dlt_name);
+			(void)fflush(stderr);
+		}
 		i = pcap_snapshot(pd);
 		if (snaplen < i) {
 			warning("snaplen raised from %d to %d", snaplen, i);
@@ -640,10 +762,12 @@ usage(void)
 	(void)fprintf(stderr, "%s version %s\n", program_name, version);
 	(void)fprintf(stderr, "libpcap version %s\n", pcap_version);
 	(void)fprintf(stderr,
-"Usage: %s [-adeflnNOpqRStuvxX] [ -c count ] [ -C file_size ]\n", program_name);
+"Usage: %s [-adeflLnNOpqRStuvxX] [ -c count ] [ -C file_size ]\n", program_name);
 	(void)fprintf(stderr,
 "\t\t[ -F file ] [ -i interface ] [ -r file ] [ -s snaplen ]\n");
 	(void)fprintf(stderr,
-"\t\t[ -T type ] [ -w file ] [ -E algo:secret ] [ expression ]\n");
+"\t\t[ -T type ] [ -w file ] [ -E algo:secret ] [ -y datalinktype ]\n");
+	(void)fprintf(stderr,
+"\t\t[ expression ]\n");
 	exit(1);
 }
