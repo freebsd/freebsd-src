@@ -586,24 +586,8 @@ trap(int vector, struct trapframe *framep)
 		vm_prot_t ftype;
 		int rv;
 
-		rv = 0; 
-		va = framep->tf_special.ifa;
-
-		/*
-		 * If it was caused by fuswintr or suswintr, just punt. Note
-		 * that we check the faulting address against the address
-		 * accessed by [fs]uswintr, in case another fault happens when
-		 * they are running.
-		 */
-		if (!user && td != NULL && td->td_pcb->pcb_accessaddr == va &&
-		    td->td_pcb->pcb_onfault == (unsigned long)fswintrberr) {
-			framep->tf_special.iip = td->td_pcb->pcb_onfault;
-			framep->tf_special.psr &= ~IA64_PSR_RI;
-			td->td_pcb->pcb_onfault = 0;
-			goto out;
-		}
-
-		va = trunc_page((vm_offset_t)va);
+		rv = 0;
+		va = trunc_page(framep->tf_special.ifa);
 
 		if (va >= VM_MIN_KERNEL_ADDRESS) {
 			/*

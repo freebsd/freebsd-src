@@ -90,37 +90,24 @@ struct clockframe {
 
 #ifdef _KERNEL
 
-struct pcb;
 struct thread;
-struct reg;
-struct rpb;
 struct trapframe;
 
-u_int64_t console_restart(u_int64_t, u_int64_t, u_int64_t);
+void	cpu_mp_add(u_int, u_int, u_int);
 int	do_ast(struct trapframe *);
-void	dumpconf(void);
-void	frametoreg(struct trapframe *, struct reg *);
-long	fswintrberr(void);				/* MAGIC */
+void	fork_trampoline(void);				/* MAGIC */
+int	ia64_count_cpus(void);
 int	ia64_highfp_drop(struct thread *);
 int	ia64_highfp_load(struct thread *);
 int	ia64_highfp_save(struct thread *);
 void	ia64_init(void);
-void	init_prom_interface(struct rpb*);
-void	interrupt(u_int64_t, struct trapframe *);
-void	machine_check(unsigned long, struct trapframe *, unsigned long,
-    unsigned long);
-void	regdump(struct trapframe *);
-void	regtoframe(struct reg *, struct trapframe *);
-void	set_iointr(void (*)(void *, unsigned long));
-void	fork_trampoline(void);				/* MAGIC */
-int	syscall(struct trapframe *);
-void	trap(int vector, struct trapframe *framep);
 void	ia64_probe_sapics(void);
-int	ia64_count_cpus(void);
+void	interrupt(u_int64_t, struct trapframe *);
 void	map_gateway_page(void);
 void	map_pal_code(void);
 void	map_port_space(void);
-void	cpu_mp_add(u_int, u_int, u_int);
+int	syscall(struct trapframe *);
+void	trap(int, struct trapframe *);
 
 /*
  * Return contents of in-cpu fast counter as a sort of "bogo-time"
