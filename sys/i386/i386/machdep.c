@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.108 1995/02/11 04:21:24 phk Exp $
+ *	$Id: machdep.c,v 1.109 1995/02/12 09:21:04 davidg Exp $
  */
 
 #include "npx.h"
@@ -1125,6 +1125,11 @@ extern inthand_t
 	IDTVEC(page), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(align),
 	IDTVEC(syscall);
 
+#ifdef COMPAT_LINUX
+extern inthand_t
+	IDTVEC(linux_syscall);
+#endif
+
 void
 sdtossd(sd, ssd)
 	struct segment_descriptor *sd;
@@ -1224,7 +1229,10 @@ init386(first)
 	setidt(15, &IDTVEC(rsvd),  SDT_SYS386TGT, SEL_KPL);
 	setidt(16, &IDTVEC(fpu),  SDT_SYS386TGT, SEL_KPL);
 	setidt(17, &IDTVEC(align), SDT_SYS386TGT, SEL_KPL);
-
+#ifdef COMPAT_LINUX
+ 	setidt(0x80, &IDTVEC(linux_syscall),  SDT_SYS386TGT, SEL_UPL);
+#endif
+  
 #include	"isa.h"
 #if	NISA >0
 	isa_defaultirq();
