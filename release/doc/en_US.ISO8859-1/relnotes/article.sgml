@@ -1945,6 +1945,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:30.ktrace.asc">FreeBSD-SA-02:30</ulink>
       for more details. &merged;</para>
 
+    <para>A race condition in &man.pppd.8;, which could be used to
+      change the permissions of an arbitrary file, has been corrected.
+      For more information, see security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:32.pppd.asc">FreeBSD-SA-02:32</ulink>.
+      &merged;</para>
+
   </sect2>
 
   <sect2 id="userland">
