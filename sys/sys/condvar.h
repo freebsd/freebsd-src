@@ -58,7 +58,7 @@ int	cv_timedwait(struct cv *cvp, struct mtx *mp, int timo);
 int	cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo);
 
 void	cv_signal(struct cv *cvp);
-void	cv_broadcastpri(struct cv *cvp, int);
+void	cv_broadcastpri(struct cv *cvp, int pri);
 
 #define cv_broadcast(cvp)	cv_broadcastpri(cvp, -1)
 
