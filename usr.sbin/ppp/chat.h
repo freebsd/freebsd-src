@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.h,v 1.8 1997/10/26 01:02:23 brian Exp $
+ * $Id: chat.h,v 1.9 1997/11/22 03:37:27 brian Exp $
  *
  */
 
@@ -26,4 +26,4 @@
 
 extern char *ExpandString(const char *, char *, int, int);
 extern int MakeArgs(char *, char **, int);  /* Mangles the first arg ! */
-extern int DoChat(char *);			/* passes arg to MakeArgs() */
+extern int DoChat(struct physical *, char *); /* passes arg to MakeArgs() */

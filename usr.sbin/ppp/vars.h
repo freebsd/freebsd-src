@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.41 1998/01/20 22:47:48 brian Exp $
+ * $Id: vars.h,v 1.42 1998/01/21 02:15:32 brian Exp $
  *
  *	TODO:
  */
@@ -79,6 +79,9 @@ struct pppvars {
 #define LOCAL_DENY	0x03
   u_char lauth;			/* Local Authorized status */
   FILE *termfp;			/* The terminal */
+  struct physical *physical;	/* Active physical device */
+
+   /* The rest are just default initialized in vars.c */
 #define DIALUP_REQ	0x01
 #define DIALUP_DONE	0x02
   char dial_script[SCRIPT_LEN];	/* Dial script */
@@ -105,9 +108,11 @@ struct pppvars {
 #define	VarDevice		pppVars.modem_dev
 #define	VarDeviceList		pppVars.modem_devlist
 #define	VarBaseDevice		pppVars.base_modem_dev
-#define	VarSpeed		pppVars.modem_speed
-#define	VarParity		pppVars.modem_parity
-#define	VarCtsRts		pppVars.modem_ctsrts
+#if 0
+#	define	VarSpeed		pppVars.modem_speed
+#	define	VarParity		pppVars.modem_parity
+#	define	VarCtsRts		pppVars.modem_ctsrts
+#endif
 #define	VarOpenMode		pppVars.open_mode
 #define	VarLocalAuth		pppVars.lauth
 #define	VarDialScript		pppVars.dial_script

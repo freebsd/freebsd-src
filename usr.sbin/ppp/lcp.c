@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.54 1998/01/20 22:47:40 brian Exp $
+ * $Id: lcp.c,v 1.55 1998/01/21 02:15:18 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -64,6 +64,7 @@
 #include "ip.h"
 #include "modem.h"
 #include "tun.h"
+#include "physical.h"
 
 /* for received LQRs */
 struct lqrreq {
@@ -126,6 +127,8 @@ struct fsm LcpFsm = {
   {0, 0, 0, NULL, NULL, NULL},	/* Open timer */
   {0, 0, 0, NULL, NULL, NULL},	/* Stopped timer */
   LogLCP,
+
+  NULL,
 
   LcpLayerUp,
   LcpLayerDown,
@@ -197,11 +200,11 @@ GenerateMagic(void)
 }
 
 void
-LcpInit()
+LcpInit(struct physical *physical)
 {
   struct lcpstate *lcp = &LcpInfo;
 
-  FsmInit(&LcpFsm);
+  FsmInit(&LcpFsm, physical);
   HdlcInit();
 
   memset(lcp, '\0', sizeof(struct lcpstate));
@@ -318,7 +321,7 @@ LcpSendConfigReq(struct fsm * fp)
 
   LogPrintf(LogLCP, "LcpSendConfigReq\n");
   cp = ReqBuff;
-  if (!DEV_IS_SYNC) {
+  if (!Physical_IsSync(fp->physical)) {
     if (lcp->want_acfcomp && !REJECTED(lcp, TY_ACFCOMP))
       PUTN(TY_ACFCOMP);
 
@@ -381,7 +384,7 @@ static void
 LcpLayerStart(struct fsm * fp)
 {
   LogPrintf(LogLCP, "LcpLayerStart\n");
-  NewPhase(PHASE_ESTABLISH);
+  NewPhase(fp->physical, PHASE_ESTABLISH);
 }
 
 static void
@@ -398,13 +401,13 @@ static void
 LcpLayerFinish(struct fsm * fp)
 {
   LogPrintf(LogLCP, "LcpLayerFinish\n");
-  HangupModem(0);
+  HangupModem(fp->physical, 0);
   StopAllTimers();
   /* We're down at last.  Lets tell background and direct mode to get out */
-  NewPhase(PHASE_DEAD);
-  LcpInit();
-  IpcpInit();
-  CcpInit();
+  NewPhase(fp->physical, PHASE_DEAD);
+  LcpInit(fp->physical);
+  IpcpInit(fp->physical);
+  CcpInit(fp->physical);
   Prompt();
 }
 
@@ -412,12 +415,12 @@ static void
 LcpLayerUp(struct fsm * fp)
 {
   LogPrintf(LogLCP, "LcpLayerUp\n");
-  tun_configure(LcpInfo.his_mru, ModemSpeed());
+  tun_configure(LcpInfo.his_mru, ModemSpeed(fp->physical));
   SetLinkParams(&LcpInfo);
 
-  NewPhase(PHASE_AUTHENTICATE);
+  NewPhase(fp->physical, PHASE_AUTHENTICATE);
 
-  StartLqm();
+  StartLqm(fp->physical);
   StopTimer(&LcpReportTimer);
   LcpReportTimer.state = TIMER_STOPPED;
   LcpReportTimer.load = 60 * SECTICKS;
@@ -462,11 +465,11 @@ LcpOpen(int open_mode)
 }
 
 void
-LcpClose()
+LcpClose(struct fsm *fp)
 {
-  NewPhase(PHASE_TERMINATE);
+  NewPhase(fp->physical, PHASE_TERMINATE);
   OsInterfaceDown(0);
-  FsmClose(&LcpFsm);
+  FsmClose(fp);
   LcpFailedMagic = 0;
 }
 

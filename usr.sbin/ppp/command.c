@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.130 1998/01/23 04:36:42 brian Exp $
+ * $Id: command.c,v 1.131 1998/01/27 23:14:49 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -73,6 +73,7 @@
 #include "ip.h"
 #include "slcompress.h"
 #include "auth.h"
+#include "physical.h"
 
 struct in_addr ifnetmask;
 static const char *HIDDEN = "********";
@@ -191,13 +192,13 @@ DialCommand(struct cmdargs const *arg)
     }
     if (VarTerm)
       fprintf(VarTerm, "Dial attempt %u of %d\n", ++tries, VarDialTries);
-    if (OpenModem() < 0) {
+    if (OpenModem(pppVars.physical) < 0) {
       if (VarTerm)
 	fprintf(VarTerm, "Failed to open modem.\n");
       break;
     }
-    if ((res = DialModem()) == EX_DONE) {
-      ModemTimeout(NULL);
+    if ((res = DialModem(pppVars.physical)) == EX_DONE) {
+      ModemTimeout(pppVars.physical);
       PacketMode(VarOpenMode);
       break;
     } else if (res == EX_SIG)
@@ -840,7 +841,7 @@ TerminalCommand(struct cmdargs const *arg)
   }
   if (!IsInteractive(1))
     return (1);
-  if (OpenModem() < 0) {
+  if (OpenModem(pppVars.physical) < 0) {
     if (VarTerm)
       fprintf(VarTerm, "Failed to open modem.\n");
     return (1);
@@ -871,7 +872,7 @@ static int
 CloseCommand(struct cmdargs const *arg)
 {
   reconnect(RECON_FALSE);
-  LcpClose();
+  LcpClose(&LcpFsm);
   return 0;
 }
 
@@ -885,19 +886,29 @@ DownCommand(struct cmdargs const *arg)
 static int
 SetModemSpeed(struct cmdargs const *arg)
 {
-  int speed;
+  long speed;
+  char *end;
 
-  if (arg->argc > 0) {
+  if (arg->argc > 0 && **arg->argv) {
+	if (arg->argc > 1) {
+	  LogPrintf(LogWARN, "SetModemSpeed: Too many arguments");
+	  return -1;
+	}
     if (strcasecmp(*arg->argv, "sync") == 0) {
-      VarSpeed = 0;
+      Physical_SetSync(pppVars.physical);
       return 0;
     }
-    speed = atoi(*arg->argv);
-    if (IntToSpeed(speed) != B0) {
-      VarSpeed = speed;
-      return 0;
-    }
+	end = NULL;
+    speed = strtol(*arg->argv, &end, 10);
+	if (*end) {
+	  LogPrintf(LogWARN, "SetModemSpeed: Bad argument \"%s\"", *arg->argv);
+	  return -1;
+	}
+	if (Physical_SetSpeed(pppVars.physical, speed))
+	  return 0;
     LogPrintf(LogWARN, "%s: Invalid speed\n", *arg->argv);
+  } else {
+    LogPrintf(LogWARN, "SetModemSpeed: No speed specified\n");
   }
   return -1;
 }
@@ -1075,7 +1086,7 @@ SetServer(struct cmdargs const *arg)
 static int
 SetModemParity(struct cmdargs const *arg)
 {
-  return arg->argc > 0 ? ChangeParity(*arg->argv) : -1;
+  return arg->argc > 0 ? ChangeParity(pppVars.physical, *arg->argv) : -1;
 }
 
 static int
@@ -1352,13 +1363,13 @@ SetVariable(struct cmdargs const *arg)
     break;
   case VAR_DEVICE:
     if (mode & MODE_INTER)
-      HangupModem(0);
-    if (modem != -1)
-      LogPrintf(LogWARN, "Cannot change device to \"%s\" when \"%s\" is open\n",
-                argp, VarDevice);
+      HangupModem(pppVars.physical, 0);
+    if (Physical_IsActive(pppVars.physical))
+      LogPrintf(LogWARN,
+		"Cannot change device to \"%s\" when \"%s\" is open\n",
+                argp, Physical_GetDevice(pppVars.physical));
     else {
-      strncpy(VarDeviceList, argp, sizeof VarDeviceList - 1);
-      VarDeviceList[sizeof VarDeviceList - 1] = '\0';
+      Physical_SetDevice(pppVars.physical, argp);
     }
     break;
   case VAR_ACCMAP:
@@ -1390,10 +1401,15 @@ static int
 SetCtsRts(struct cmdargs const *arg)
 {
   if (arg->argc > 0) {
+	if (arg->argc > 1) {
+	  LogPrintf(LogWARN, "SetCtsRts: Too many arguments\n");
+	  return -1;
+	}
+
     if (strcmp(*arg->argv, "on") == 0)
-      VarCtsRts = 1;
+      Physical_SetRtsCts(pppVars.physical, 1);
     else if (strcmp(*arg->argv, "off") == 0)
-      VarCtsRts = 0;
+      Physical_SetRtsCts(pppVars.physical, 0);
     else
       return -1;
     return 0;

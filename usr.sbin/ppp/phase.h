@@ -15,10 +15,12 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: phase.h,v 1.8 1997/10/26 01:03:32 brian Exp $
+ * $Id: phase.h,v 1.9 1998/01/21 02:15:24 brian Exp $
  *
  *	TODO:
  */
+
+struct physical;
 
 #define	PHASE_DEAD		0	/* Link is dead */
 #define	PHASE_ESTABLISH		1	/* Establishing link */
@@ -28,4 +30,4 @@
 
 extern int phase;			/* Curent phase */
 
-extern void NewPhase(int);
+extern void NewPhase(struct physical *physical, int);

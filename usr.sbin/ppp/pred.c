@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pred.c,v 1.19 1997/12/21 12:11:08 brian Exp $
+ *	$Id: pred.c,v 1.20 1998/01/14 01:47:50 brian Exp $
  */
 
 #include <sys/param.h>
@@ -182,7 +182,8 @@ Pred1InitOutput(void)
 }
 
 static int
-Pred1Output(int pri, u_short proto, struct mbuf * bp)
+Pred1Output(struct physical *physical, int pri, u_short proto,
+			struct mbuf * bp)
 {
   struct mbuf *mwp;
   u_char *cp, *wp, *hp;
@@ -218,7 +219,7 @@ Pred1Output(int pri, u_short proto, struct mbuf * bp)
   *wp++ = fcs & 0377;
   *wp++ = fcs >> 8;
   mwp->cnt = wp - MBUF_CTOP(mwp);
-  HdlcOutput(PRI_NORMAL, PROTO_COMPD, mwp);
+  HdlcOutput(physical, PRI_NORMAL, PROTO_COMPD, mwp);
   return 1;
 }
 

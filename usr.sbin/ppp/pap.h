@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.h,v 1.4 1997/10/26 01:03:29 brian Exp $
+ * $Id: pap.h,v 1.5 1997/10/26 12:42:13 brian Exp $
  *
  *	TODO:
  */
@@ -26,4 +26,4 @@
 
 extern struct authinfo AuthPapInfo;
 
-extern void PapInput(struct mbuf *);
+extern void PapInput(struct mbuf *, struct physical *);

@@ -15,10 +15,12 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.h,v 1.9 1997/10/26 01:02:09 brian Exp $
+ * $Id: auth.h,v 1.10 1997/11/22 03:37:24 brian Exp $
  *
  *	TODO:
  */
+
+struct physical;
 
 typedef enum {
   VALID,
@@ -27,15 +29,18 @@ typedef enum {
 } LOCAL_AUTH_VALID;
 
 struct authinfo {
-  void (*ChallengeFunc) (int);
+  void (*ChallengeFunc) (int, struct physical *);
   struct pppTimer authtimer;
   int retry;
   int id;
+  struct physical *physical;
 };
 
 extern LOCAL_AUTH_VALID LocalAuthValidate(const char *, const char *, const char *);
 extern void StopAuthTimer(struct authinfo *);
-extern void StartAuthChallenge(struct authinfo *);
+extern void StartAuthChallenge(struct authinfo *, struct physical *);
 extern void LocalAuthInit(void);
-extern int AuthValidate(const char *, const char *, const char *);
-extern char *AuthGetSecret(const char *, const char *, int, int);
+extern int AuthValidate(const char *, const char *, const char *,
+						struct physical *);
+extern char *AuthGetSecret(const char *, const char *, int, int,
+						   struct physical *);

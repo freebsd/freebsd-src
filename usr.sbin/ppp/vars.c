@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.c,v 1.44 1998/01/20 22:47:48 brian Exp $
+ * $Id: vars.c,v 1.45 1998/01/21 02:15:31 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -37,9 +37,10 @@
 #include "loadalias.h"
 #include "vars.h"
 #include "auth.h"
+#include "physical.h"
 
 char VarVersion[] = "PPP Version 1.65";
-char VarLocalVersion[] = "$Date: 1998/01/20 22:47:48 $";
+char VarLocalVersion[] = "$Date: 1998/01/21 02:15:31 $";
 int Utmp = 0;
 int ipKeepAlive = 0;
 int reconnectState = RECON_UNKNOWN;
@@ -66,11 +67,13 @@ struct confdesc pppConfs[] = {
   {NULL},
 };
 
+extern struct physical phys_modem;
+
 struct pppvars pppVars = {
   DEF_MRU, DEF_MTU, 0, MODEM_SPEED, CS8, MODEM_CTSRTS, 180, 30, 3,
   RECONNECT_TIMER, RECONNECT_TRIES, REDIAL_PERIOD,
   NEXT_REDIAL_PERIOD, 1, 1, MODEM_DEV, "", BASE_MODEM_DEV,
-  1, LOCAL_NO_AUTH, 0
+  1, LOCAL_NO_AUTH, 0, &phys_modem
 };
 
 int

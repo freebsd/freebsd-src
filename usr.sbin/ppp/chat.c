@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.43 1997/12/27 07:22:11 brian Exp $
+ * $Id: chat.c,v 1.44 1998/01/21 02:15:13 brian Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -50,6 +50,7 @@
 #include "vars.h"
 #include "chat.h"
 #include "modem.h"
+#include "physical.h"
 
 #ifndef isblank
 #define	isblank(c)	((c) == '\t' || (c) == ' ')
@@ -274,7 +275,7 @@ connect_log(const char *str, int single_p)
 }
 
 static void
-ExecStr(char *command, char *out, int olen)
+ExecStr(struct physical *physical, char *command, char *out, int olen)
 {
   pid_t pid;
   int fids[2];
@@ -296,17 +297,15 @@ ExecStr(char *command, char *out, int olen)
     signal(SIGTERM, SIG_DFL);
     signal(SIGHUP, SIG_DFL);
     signal(SIGALRM, SIG_DFL);
-    if (modem == 2) {
-      int nmodem;
-      nmodem = dup(modem);
-      close(modem);
-      modem = nmodem;
+	/* XXX-ML This looks like it might need more encapsulation. */
+    if (Physical_GetFD(physical) == 2) {
+	   Physical_DupAndClose(physical);
     }
     close(fids[0]);
     dup2(fids[1], 2);
     close(fids[1]);
-    dup2(modem, 0);
-    dup2(modem, 1);
+    dup2(Physical_GetFD(physical), 0);
+    dup2(Physical_GetFD(physical), 1);
     if ((nb = open("/dev/tty", O_RDWR)) > 3) {
       dup2(nb, 3);
       close(nb);
@@ -360,7 +359,7 @@ ExecStr(char *command, char *out, int olen)
 }
 
 static int
-WaitforString(const char *estr)
+WaitforString(struct physical *physical, const char *estr)
 {
   struct timeval timeout;
   char *s, *str, ch;
@@ -376,7 +375,7 @@ WaitforString(const char *estr)
   clear_log();
   if (*estr == '!') {
     ExpandString(estr + 1, buff, sizeof buff, 0);
-    ExecStr(buff, buff, sizeof buff);
+    ExecStr(physical, buff, buff, sizeof buff);
   } else {
     ExpandString(estr, buff, sizeof buff, 0);
   }
@@ -402,11 +401,12 @@ WaitforString(const char *estr)
     str[IBSIZE - 1] = 0;
     LogPrintf(LogCHAT, "Truncating String to %d character: %s\n", IBSIZE, str);
   }
-  nfds = modem + 1;
+  /* XXX-ML - this look REALLY fishy.  */
+  nfds = Physical_GetFD(physical) + 1;
   s = str;
   for (;;) {
     FD_ZERO(&rfds);
-    FD_SET(modem, &rfds);
+    FD_SET(Physical_GetFD(physical), &rfds);
 
     /*
      * Because it is not clear whether select() modifies timeout value, it is
@@ -437,8 +437,8 @@ WaitforString(const char *estr)
 #endif
       return (NOMATCH);
     }
-    if (FD_ISSET(modem, &rfds)) {	/* got something */
-      if (DEV_IS_SYNC) {
+    if (Physical_FD_ISSET(physical, &rfds)) {	/* got something */
+      if (Physical_IsSync(physical)) {
 	int length;
 
 	if ((length = strlen(inbuff)) > IBSIZE) {
@@ -446,7 +446,9 @@ WaitforString(const char *estr)
 	  memcpy(inbuff, &(inbuff[IBSIZE]), IBSIZE + 1);
 	  length = strlen(inbuff);
 	}
-	nb = read(modem, &(inbuff[length]), IBSIZE);
+	if (length + IBSIZE > sizeof(inbuff))
+	    abort();		/* Bug & security problem */
+	nb = Physical_Read(physical, &(inbuff[length]), IBSIZE);
 	inbuff[nb + length] = 0;
 	connect_log(inbuff, 0);
 	if (strstr(inbuff, str)) {
@@ -467,7 +469,7 @@ WaitforString(const char *estr)
 	  }
 	}
       } else {
-	if (read(modem, &ch, 1) < 0) {
+	if (Physical_Read(physical, &ch, 1) < 0) {
 	  LogPrintf(LogERROR, "read error: %s\n", strerror(errno));
 	  *inp = '\0';
 	  return (NOMATCH);
@@ -514,7 +516,7 @@ WaitforString(const char *estr)
 }
 
 static void
-SendString(const char *str)
+SendString(struct physical *physical, const char *str)
 {
   char *cp;
   int on;
@@ -532,7 +534,7 @@ SendString(const char *str)
   } else {
     if (*str == '!') {
       ExpandString(str + 1, buff + 2, sizeof buff - 2, 0);
-      ExecStr(buff + 2, buff + 2, sizeof buff - 2);
+      ExecStr(physical, buff + 2, buff + 2, sizeof buff - 2);
     } else {
       ExpandString(str, buff + 2, sizeof buff - 2, 1);
     }
@@ -545,17 +547,18 @@ SendString(const char *str)
       LogPrintf(LogCHAT, "Sending: %.*s\n", cp - buff - 1, buff + 2);
     }
     cp = buff;
-    if (DEV_IS_SYNC)
+    if (Physical_IsSync(physical))
       memcpy(buff, "\377\003", 2);	/* Prepend HDLC header */
     else
       cp += 2;
     on = strlen(cp);
-    write(modem, cp, on);
+    /* XXX - missing return value check */
+    Physical_Write(physical, cp, on);
   }
 }
 
 static int
-ExpectString(char *str)
+ExpectString(struct physical *physical, char *str)
 {
   char *minus;
   int state;
@@ -581,7 +584,7 @@ ExpectString(char *str)
     }
     if (*minus == '-') {	/* We have sub-send-expect. */
       *minus = '\0';	/* XXX: Cheat with the const string */
-      state = WaitforString(str);
+      state = WaitforString(physical, str);
       *minus = '-';	/* XXX: Cheat with the const string */
       minus++;
       if (state != NOMATCH)
@@ -599,18 +602,18 @@ ExpectString(char *str)
       }
       if (*minus == '-') {
         *minus = '\0';	/* XXX: Cheat with the const string */
-	SendString(str);
+	SendString(physical, str);
         *minus = '-';	/* XXX: Cheat with the const string */
 	str = ++minus;
       } else {
-	SendString(str);
+	SendString(physical, str);
 	return (MATCH);
       }
     } else {
       /*
        * Simple case. Wait for string.
        */
-      return (WaitforString(str));
+      return (WaitforString(physical, str));
     }
   }
   return (MATCH);
@@ -626,7 +629,7 @@ StopDial(int sig)
 }
 
 int
-DoChat(char *script)
+DoChat(struct physical *physical, char *script)
 {
   char *vector[MAXARGS];
   char *const *argv;
@@ -658,14 +661,14 @@ DoChat(char *script)
   while (*argv) {
     if (strcmp(*argv, "P_ZERO") == 0 ||
 	strcmp(*argv, "P_ODD") == 0 || strcmp(*argv, "P_EVEN") == 0) {
-      ChangeParity(*argv++);
+      ChangeParity(physical, *argv++);
       continue;
     }
-    state = ExpectString(*argv++);
+    state = ExpectString(physical, *argv++);
     switch (state) {
     case MATCH:
       if (*argv)
-	SendString(*argv++);
+	SendString(physical, *argv++);
       break;
     case ABORT:
     case NOMATCH:

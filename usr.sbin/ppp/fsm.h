@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.h,v 1.15 1998/01/20 22:47:37 brian Exp $
+ * $Id: fsm.h,v 1.16 1998/01/21 02:15:15 brian Exp $
  *
  *	TODO:
  */
@@ -70,6 +70,9 @@ struct fsm {
   struct pppTimer StoppedTimer;
   int LogLevel;
 
+  /* The physical layer active with this FSM. */
+  struct physical *physical;
+
   void (*LayerUp) (struct fsm *);
   void (*LayerDown) (struct fsm *);
   void (*LayerStart) (struct fsm *);
@@ -123,7 +126,7 @@ extern u_char *rejp;
 
 extern char const *StateNames[];
 
-extern void FsmInit(struct fsm *);
+extern void FsmInit(struct fsm *, struct physical *);
 extern void FsmOutput(struct fsm *, u_int, u_int, u_char *, int);
 extern void FsmOpen(struct fsm *);
 extern void FsmUp(struct fsm *);

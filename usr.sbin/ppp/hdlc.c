@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.27 1998/01/10 01:55:10 brian Exp $
+ * $Id: hdlc.c,v 1.28 1998/01/21 02:15:15 brian Exp $
  *
  *	TODO:
  */
@@ -48,6 +48,7 @@
 #include "vars.h"
 #include "modem.h"
 #include "ccp.h"
+#include "physical.h"
 
 static struct hdlcstat {
   int badfcs;
@@ -157,7 +158,8 @@ HdlcFcsBuf(u_short fcs, struct mbuf *m)
 }
 
 void
-HdlcOutput(int pri, u_short proto, struct mbuf * bp)
+HdlcOutput(struct physical *physical,
+		   int pri, u_short proto, struct mbuf * bp)
 {
   struct mbuf *mhp, *mfcs;
   struct protostat *statp;
@@ -167,10 +169,10 @@ HdlcOutput(int pri, u_short proto, struct mbuf * bp)
 
   if ((proto & 0xfff1) == 0x21)		/* Network Layer protocol */
     if (CcpFsm.state == ST_OPENED)
-      if (CcpOutput(pri, proto, bp))
+      if (CcpOutput(physical, pri, proto, bp))
         return;
 
-  if (DEV_IS_SYNC)
+  if (Physical_IsSync(physical))
     mfcs = NULL;
   else
     mfcs = mballoc(2, MB_HDLCOUT);
@@ -220,7 +222,7 @@ HdlcOutput(int pri, u_short proto, struct mbuf * bp)
     LqrDump("LqrOutput", lqr);
     LqrChangeOrder(lqr, (struct lqrdata *) (MBUF_CTOP(bp)));
   }
-  if (!DEV_IS_SYNC) {
+  if (!Physical_IsSync(physical)) {
     mfcs->cnt = 0;
     fcs = HdlcFcsBuf(INITFCS, mhp);
     fcs = ~fcs;
@@ -237,10 +239,10 @@ HdlcOutput(int pri, u_short proto, struct mbuf * bp)
 
   LogPrintf(LogDEBUG, "HdlcOutput: proto = 0x%04x\n", proto);
 
-  if (DEV_IS_SYNC)
-    ModemOutput(pri, mhp);
+  if (Physical_IsSync(physical))
+    ModemOutput(physical, pri, mhp);
   else
-    AsyncOutput(pri, mhp, proto);
+    AsyncOutput(pri, mhp, proto, physical);
 }
 
 /* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
@@ -370,7 +372,7 @@ Protocol2Nam(u_short proto)
 }
 
 static void
-DecodePacket(u_short proto, struct mbuf * bp)
+DecodePacket(u_short proto, struct mbuf * bp, struct physical *physical)
 {
   u_char *cp;
 
@@ -392,14 +394,14 @@ DecodePacket(u_short proto, struct mbuf * bp)
     LcpInput(bp);
     break;
   case PROTO_PAP:
-    PapInput(bp);
+    PapInput(bp, physical);
     break;
   case PROTO_LQR:
     HisLqrSave.SaveInLQRs++;
-    LqrInput(bp);
+    LqrInput(physical, bp);
     break;
   case PROTO_CHAP:
-    ChapInput(bp);
+    ChapInput(bp, physical);
     break;
   case PROTO_VJUNCOMP:
   case PROTO_VJCOMP:
@@ -485,14 +487,14 @@ HdlcErrorCheck()
 }
 
 void
-HdlcInput(struct mbuf * bp)
+HdlcInput(struct mbuf * bp, struct physical *physical)
 {
   u_short fcs, proto;
   u_char *cp, addr, ctrl;
   struct protostat *statp;
 
   LogDumpBp(LogHDLC, "HdlcInput:", bp);
-  if (DEV_IS_SYNC)
+  if (Physical_IsSync(physical))
     fcs = GOODFCS;
   else
     fcs = HdlcFcs(INITFCS, MBUF_CTOP(bp), bp->cnt);
@@ -507,7 +509,7 @@ HdlcInput(struct mbuf * bp)
     pfree(bp);
     return;
   }
-  if (!DEV_IS_SYNC)
+  if (!Physical_IsSync(physical))
     bp->cnt -= 2;		/* discard FCS part */
 
   if (bp->cnt < 2) {		/* XXX: raise this bar ? */
@@ -572,5 +574,5 @@ HdlcInput(struct mbuf * bp)
   statp->in_count++;
   HisLqrSave.SaveInPackets++;
 
-  DecodePacket(proto, bp);
+  DecodePacket(proto, bp, physical);
 }

@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.19 1997/11/22 03:37:43 brian Exp $
+ * $Id: pap.c,v 1.20 1997/12/24 09:29:11 brian Exp $
  *
  *	TODO:
  */
@@ -51,11 +51,12 @@
 #include "lcpproto.h"
 #include "phase.h"
 #include "auth.h"
+#include "physical.h"
 
 static const char *papcodes[] = { "???", "REQUEST", "ACK", "NAK" };
 
 static void
-SendPapChallenge(int papid)
+SendPapChallenge(int papid, struct physical *physical)
 {
   struct fsmheader lh;
   struct mbuf *bp;
@@ -83,7 +84,7 @@ SendPapChallenge(int papid)
   *cp++ = keylen;
   memcpy(cp, VarAuthKey, keylen);
 
-  HdlcOutput(PRI_LINK, PROTO_PAP, bp);
+  HdlcOutput(physical, PRI_LINK, PROTO_PAP, bp);
 }
 
 struct authinfo AuthPapInfo = {
@@ -91,7 +92,7 @@ struct authinfo AuthPapInfo = {
 };
 
 static void
-SendPapCode(int id, int code, const char *message)
+SendPapCode(int id, int code, const char *message, struct physical *physical)
 {
   struct fsmheader lh;
   struct mbuf *bp;
@@ -109,14 +110,14 @@ SendPapCode(int id, int code, const char *message)
   *cp++ = mlen;
   memcpy(cp, message, mlen);
   LogPrintf(LogPHASE, "PapOutput: %s\n", papcodes[code]);
-  HdlcOutput(PRI_LINK, PROTO_PAP, bp);
+  HdlcOutput(physical, PRI_LINK, PROTO_PAP, bp);
 }
 
 /*
  * Validate given username and passwrd against with secret table
  */
 static int
-PapValidate(u_char * name, u_char * key)
+PapValidate(u_char * name, u_char * key, struct physical *physical)
 {
   int nlen, klen;
 
@@ -140,11 +141,11 @@ PapValidate(u_char * name, u_char * key)
   }
 #endif
 
-  return (AuthValidate(SECRETFILE, name, key));
+  return (AuthValidate(SECRETFILE, name, key, physical));
 }
 
 void
-PapInput(struct mbuf * bp)
+PapInput(struct mbuf * bp, struct physical *physical)
 {
   int len = plength(bp);
   struct fsmheader *php;
@@ -161,11 +162,12 @@ PapInput(struct mbuf * bp)
       switch (php->code) {
       case PAP_REQUEST:
 	cp = (u_char *) (php + 1);
-	if (PapValidate(cp, cp + *cp + 1)) {
-	  SendPapCode(php->id, PAP_ACK, "Greetings!!");
+	if (PapValidate(cp, cp + *cp + 1, physical)) {
+	  SendPapCode(php->id, PAP_ACK, "Greetings!!", physical);
 	  lcp->auth_ineed = 0;
 	  if (lcp->auth_iwait == 0) {
-	    if ((mode & MODE_DIRECT) && isatty(modem) && Enabled(ConfUtmp))
+	    if ((mode & MODE_DIRECT) && Physical_IsATTY(physical) &&
+			Enabled(ConfUtmp))
 	      if (Utmp)
 		LogPrintf(LogERROR, "Oops, already logged in on %s\n",
 			  VarBaseDevice);
@@ -180,12 +182,12 @@ PapInput(struct mbuf * bp)
 	        login(&ut);
 	        Utmp = 1;
 	      }
-	    NewPhase(PHASE_NETWORK);
+	    NewPhase(physical, PHASE_NETWORK);
 	  }
 	} else {
-	  SendPapCode(php->id, PAP_NAK, "Login incorrect");
+	  SendPapCode(php->id, PAP_NAK, "Login incorrect", physical);
 	  reconnect(RECON_FALSE);
-	  LcpClose();
+	  LcpClose(&LcpFsm);
 	}
 	break;
       case PAP_ACK:
@@ -197,7 +199,7 @@ PapInput(struct mbuf * bp)
 	if (lcp->auth_iwait == PROTO_PAP) {
 	  lcp->auth_iwait = 0;
 	  if (lcp->auth_ineed == 0)
-	    NewPhase(PHASE_NETWORK);
+	    NewPhase(physical, PHASE_NETWORK);
 	}
 	break;
       case PAP_NAK:
@@ -207,7 +209,7 @@ PapInput(struct mbuf * bp)
 	cp[len] = 0;
 	LogPrintf(LogPHASE, "Received PAP_NAK (%s)\n", cp);
 	reconnect(RECON_FALSE);
-	LcpClose();
+	LcpClose(&LcpFsm);
 	break;
       }
     }

@@ -1,12 +1,12 @@
-#	$Id: Makefile,v 1.35 1998/01/17 14:21:21 brian Exp $
+#	$Id: Makefile,v 1.36 1998/01/29 00:42:04 brian Exp $
 
 PROG=	ppp
 SRCS=	arp.c async.c auth.c ccp.c chap.c chat.c command.c deflate.c \
 	defs.c filter.c fsm.c hdlc.c id.c ip.c ipcp.c iplist.c lcp.c \
-	log.c lqr.c main.c mbuf.c modem.c os.c pap.c phase.c \
+	log.c lqr.c main.c mbuf.c modem.c os.c pap.c phase.c physical.c \
 	pred.c route.c server.c sig.c slcompress.c systems.c throughput.c \
 	timer.c tun.c vars.c vjcomp.c
-CFLAGS+=-Wall
+CFLAGS+=-Wall -Wpointer-arith
 LDADD+= -lmd -lcrypt -lutil -lz
 DPADD+= ${LIBMD} ${LIBCRYPT} ${LIBUTIL} ${LIBZ}
 MAN8=	ppp.8

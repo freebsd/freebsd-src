@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.120 1998/01/27 23:14:51 brian Exp $
+ * $Id: main.c,v 1.121 1998/01/29 00:42:05 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -73,6 +73,7 @@
 #include "pathnames.h"
 #include "tun.h"
 #include "route.h"
+#include "physical.h"
 
 #ifndef O_NONBLOCK
 #ifdef O_NDELAY
@@ -180,7 +181,8 @@ Cleanup(int excode)
   DropClient(1);
   ServerClose();
   OsInterfaceDown(1);
-  HangupModem(1);
+  HangupModem(pppVars.physical, 1); /* XXX must be expanded to
+				       take all modems */
   nointr_sleep(1);
   DeleteIfRoutes(1);
   ID0unlink(pid_filename);
@@ -222,7 +224,7 @@ CloseSession(int signo)
   }
   LogPrintf(LogPHASE, "Signal %d, terminate.\n", signo);
   reconnect(RECON_FALSE);
-  LcpClose();
+  LcpClose(&LcpFsm);
   Cleanup(EX_TERM);
 }
 
@@ -564,15 +566,15 @@ main(int argc, char **argv)
 void
 PacketMode(int delay)
 {
-  if (RawModem() < 0) {
+  if (RawModem(pppVars.physical) < 0) {
     LogPrintf(LogWARN, "PacketMode: Not connected.\n");
     return;
   }
   AsyncInit();
   VjInit(15);
-  LcpInit();
-  IpcpInit();
-  CcpInit();
+  LcpInit(pppVars.physical);
+  IpcpInit(pppVars.physical);
+  CcpInit(pppVars.physical);
   LcpUp();
 
   LcpOpen(delay);
@@ -637,7 +639,8 @@ ReadTty(void)
       if (ch == '~')
 	ttystate++;
       else
-	write(modem, &ch, n);
+	/* XXX missing return value check */
+	Physical_Write(pppVars.physical, &ch, n);
       break;
     case 1:
       switch (ch) {
@@ -668,7 +671,7 @@ ReadTty(void)
 	  break;
 	}
       default:
-	if (write(modem, &ch, n) < 0)
+	if (Physical_Write(pppVars.physical, &ch, n) < 0)
 	  LogPrintf(LogERROR, "error writing to modem.\n");
 	break;
       }
@@ -693,7 +696,7 @@ static const char *FrameHeaders[] = {
 };
 
 static const u_char *
-HdlcDetect(u_char * cp, int n)
+HdlcDetect(struct physical *physical, u_char * cp, int n)
 {
   const char *ptr, *fp, **hp;
 
@@ -701,7 +704,7 @@ HdlcDetect(u_char * cp, int n)
   ptr = NULL;
   for (hp = FrameHeaders; *hp; hp++) {
     fp = *hp;
-    if (DEV_IS_SYNC)
+    if (Physical_IsSync(physical))
       fp++;
     ptr = strstr((char *) cp, fp);
     if (ptr)
@@ -763,13 +766,13 @@ DoLoop(void)
 
   if (mode & MODE_DIRECT) {
     LogPrintf(LogDEBUG, "Opening modem\n");
-    if (OpenModem() < 0)
+    if (OpenModem(pppVars.physical) < 0)
       return;
     LogPrintf(LogPHASE, "Packet mode enabled\n");
     PacketMode(VarOpenMode);
   } else if (mode & MODE_DEDICATED) {
-    if (modem < 0)
-      while (OpenModem() < 0)
+    if (!Physical_IsActive(pppVars.physical))
+      while (OpenModem(pppVars.physical) < 0)
 	nointr_sleep(VarReconnectTimer);
   }
   fflush(VarTerm);
@@ -823,8 +826,9 @@ DoLoop(void)
      * If Ip packet for output is enqueued and require dial up, Just do it!
      */
     if (dial_up && RedialTimer.state != TIMER_RUNNING) {
-      LogPrintf(LogDEBUG, "going to dial: modem = %d\n", modem);
-      if (OpenModem() < 0) {
+      LogPrintf(LogDEBUG, "going to dial: modem = %d\n",
+		Physical_GetFD(pppVars.physical));
+      if (OpenModem(pppVars.physical) < 0) {
 	tries++;
 	if (!(mode & MODE_DDIAL) && VarDialTries)
 	  LogPrintf(LogCHAT, "Failed to open modem (attempt %u of %d)\n",
@@ -849,8 +853,8 @@ DoLoop(void)
 	else
 	  LogPrintf(LogCHAT, "Dial attempt %u\n", tries);
 
-	if ((res = DialModem()) == EX_DONE) {
-	  ModemTimeout(NULL);
+	if ((res = DialModem(pppVars.physical)) == EX_DONE) {
+	  ModemTimeout(pppVars.physical);
 	  PacketMode(VarOpenMode);
 	  dial_up = 0;
 	  reconnectState = RECON_UNKNOWN;
@@ -879,19 +883,20 @@ DoLoop(void)
 	}
       }
     }
-    qlen = ModemQlen();
+    qlen = ModemQlen(pppVars.physical);
 
     if (qlen == 0) {
-      IpStartOutput();
-      qlen = ModemQlen();
+      IpStartOutput(pppVars.physical);
+      qlen = ModemQlen(pppVars.physical);
     }
-    if (modem >= 0) {
-      if (modem + 1 > nfds)
-	nfds = modem + 1;
-      FD_SET(modem, &rfds);
-      FD_SET(modem, &efds);
+    if (Physical_IsActive(pppVars.physical)) {
+      /* XXX-ML this should probably be abstracted */
+      if (Physical_GetFD(pppVars.physical) + 1 > nfds)
+	nfds = Physical_GetFD(pppVars.physical) + 1;
+      Physical_FD_SET(pppVars.physical, &rfds);
+      Physical_FD_SET(pppVars.physical, &efds);
       if (qlen > 0) {
-	FD_SET(modem, &wfds);
+	Physical_FD_SET(pppVars.physical, &wfds);
       }
     }
     if (server >= 0) {
@@ -957,7 +962,8 @@ DoLoop(void)
       LogPrintf(LogERROR, "DoLoop: select(): %s\n", strerror(errno));
       break;
     }
-    if ((netfd >= 0 && FD_ISSET(netfd, &efds)) || (modem >= 0 && FD_ISSET(modem, &efds))) {
+    if ((netfd >= 0 && FD_ISSET(netfd, &efds)) ||
+	(Physical_FD_ISSET(pppVars.physical, &efds))) {
       LogPrintf(LogALERT, "Exception detected.\n");
       break;
     }
@@ -1001,17 +1007,17 @@ DoLoop(void)
     if (netfd >= 0 && FD_ISSET(netfd, &rfds))
       /* something to read from tty */
       ReadTty();
-    if (modem >= 0 && FD_ISSET(modem, &wfds)) {
+    if (Physical_FD_ISSET(pppVars.physical, &wfds)) {
       /* ready to write into modem */
-      ModemStartOutput(modem);
-      if (modem < 0)
+      ModemStartOutput(pppVars.physical);
+      if (!Physical_IsActive(pppVars.physical))
         dial_up = 1;
     }
-    if (modem >= 0 && FD_ISSET(modem, &rfds)) {
+    if (Physical_FD_ISSET(pppVars.physical, &rfds)) {
       /* something to read from modem */
       if (LcpFsm.state <= ST_CLOSED)
 	nointr_usleep(10000);
-      n = read(modem, rbuff, sizeof rbuff);
+      n = Physical_Read(pppVars.physical, rbuff, sizeof rbuff);
       if ((mode & MODE_DIRECT) && n <= 0) {
 	DownConnection();
       } else
@@ -1022,14 +1028,15 @@ DoLoop(void)
 	 * In dedicated mode, we just discard input until LCP is started.
 	 */
 	if (!(mode & MODE_DEDICATED)) {
-	  cp = HdlcDetect(rbuff, n);
+	  cp = HdlcDetect(pppVars.physical, rbuff, n);
 	  if (cp) {
 	    /*
 	     * LCP packet is detected. Turn ourselves into packet mode.
 	     */
 	    if (cp != rbuff) {
-	      write(modem, rbuff, cp - rbuff);
-	      write(modem, "\r\n", 2);
+	      /* XXX missing return value checks */
+	      Physical_Write(pppVars.physical, rbuff, cp - rbuff);
+	      Physical_Write(pppVars.physical, "\r\n", 2);
 	    }
 	    PacketMode(0);
 	  } else
@@ -1037,7 +1044,7 @@ DoLoop(void)
 	}
       } else {
 	if (n > 0)
-	  AsyncInput(rbuff, n);
+	  AsyncInput(rbuff, n, pppVars.physical);
       }
     }
     if (tun_in >= 0 && FD_ISSET(tun_in, &rfds)) {	/* something to read

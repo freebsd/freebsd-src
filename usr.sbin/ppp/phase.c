@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: phase.c,v 1.6 1997/12/21 12:11:07 brian Exp $
  */
 
 #include <sys/param.h>
@@ -69,7 +69,7 @@ Auth2Nam(u_short auth)
 }
 
 void
-NewPhase(int new)
+NewPhase(struct physical *physical, int new)
 {
   struct lcpstate *lcp = &LcpInfo;
 
@@ -82,12 +82,13 @@ NewPhase(int new)
     if (lcp->his_auth || lcp->want_auth) {
       LogPrintf(LogPHASE, " his = %s, mine = %s\n",
                 Auth2Nam(lcp->his_auth), Auth2Nam(lcp->want_auth));
+       /* XXX-ML AuthPapInfo and AuthChapInfo must be allocated! */
       if (lcp->his_auth == PROTO_PAP)
-	StartAuthChallenge(&AuthPapInfo);
+	StartAuthChallenge(&AuthPapInfo, physical);
       if (lcp->want_auth == PROTO_CHAP)
-	StartAuthChallenge(&AuthChapInfo);
+	StartAuthChallenge(&AuthChapInfo, physical);
     } else
-      NewPhase(PHASE_NETWORK);
+      NewPhase(physical, PHASE_NETWORK);
     break;
   case PHASE_NETWORK:
     IpcpUp();

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.37 1998/01/11 17:53:18 brian Exp $
+ * $Id: ip.c,v 1.38 1998/01/21 02:15:16 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -71,7 +71,7 @@ IdleTimeout(void *v)
 {
   LogPrintf(LogPHASE, "Idle timer expired.\n");
   reconnect(RECON_FALSE);
-  LcpClose();
+  LcpClose(&LcpFsm);
 }
 
 /*
@@ -514,7 +514,7 @@ IsIpEnqueued()
 #endif
 
 void
-IpStartOutput()
+IpStartOutput(struct physical *physical)
 {
   struct mqueue *queue;
   struct mbuf *bp;
@@ -527,7 +527,7 @@ IpStartOutput()
       bp = Dequeue(queue);
       if (bp) {
 	cnt = plength(bp);
-	SendPppFrame(bp);
+	SendPppFrame(physical, bp);
 	RestartIdleTimer();
         IpcpAddOutOctets(cnt);
 	break;

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.26 1998/01/10 01:55:09 brian Exp $
+ * $Id: fsm.c,v 1.27 1998/01/20 22:47:36 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -44,6 +44,7 @@
 #include "modem.h"
 #include "loadalias.h"
 #include "vars.h"
+#include "physical.h"
 
 u_char AckBuff[200];
 u_char NakBuff[200];
@@ -73,20 +74,21 @@ StoppedTimeout(void *v)
               fp->name);
     StopTimer(&fp->OpenTimer);
   }
-  if (modem != -1)
+  if (Physical_IsActive(fp->physical))
     DownConnection();
   else
     FsmDown(fp);
 }
 
 void
-FsmInit(struct fsm * fp)
+FsmInit(struct fsm * fp, struct physical *physical)
 {
   LogPrintf(LogDEBUG, "FsmInit\n");
   fp->state = ST_INITIAL;
   fp->reqid = 1;
   fp->restart = 1;
   fp->maxconfig = 3;
+  fp->physical = physical;
 }
 
 static void
@@ -124,7 +126,7 @@ FsmOutput(struct fsm * fp, u_int code, u_int id, u_char * ptr, int count)
   if (count)
     memcpy(MBUF_CTOP(bp) + sizeof(struct fsmheader), ptr, count);
   LogDumpBp(LogDEBUG, "FsmOutput", bp);
-  HdlcOutput(PRI_LINK, fp->proto, bp);
+  HdlcOutput(fp->physical, PRI_LINK, fp->proto, bp);
 }
 
 static void
@@ -663,7 +665,7 @@ FsmRecvProtoRej(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 
   switch (proto) {
   case PROTO_LQR:
-    StopLqr(LQM_LQR);
+    StopLqr(fp->physical, LQM_LQR);
     break;
   case PROTO_CCP:
     fp = &CcpFsm;
@@ -756,7 +758,7 @@ FsmRecvResetReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
    * output queue.... dump 'em to the priority queue so that they arrive
    * at the peer before our ResetAck.
    */
-  SequenceQueues();
+  SequenceQueues(fp->physical);
   LogPrintf(fp->LogLevel, "SendResetAck(%d)\n", lhp->id);
   FsmOutput(fp, CODE_RESETACK, lhp->id, NULL, 0);
   pfree(bp);

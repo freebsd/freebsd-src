@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.21 1998/01/11 17:50:40 brian Exp $
+ * $Id: lqr.c,v 1.22 1998/01/21 02:15:19 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -112,6 +112,7 @@ static void
 SendLqrReport(void *v)
 {
   struct mbuf *bp;
+  struct physical *physical = v;
 
   StopTimer(&LqrTimer);
 
@@ -124,10 +125,10 @@ SendLqrReport(void *v)
       LogPrintf(LogPHASE, "** 1 Too many ECHO packets are lost. **\n");
       lqmmethod = 0;		/* Prevent rcursion via LcpClose() */
       reconnect(RECON_TRUE);
-      LcpClose();
+      LcpClose(&LcpFsm);
     } else {
       bp = mballoc(sizeof(struct lqrdata), MB_LQR);
-      HdlcOutput(PRI_LINK, PROTO_LQR, bp);
+      HdlcOutput(physical, PRI_LINK, PROTO_LQR, bp);
       lqrsendcnt++;
     }
   } else if (lqmmethod & LQM_ECHO) {
@@ -135,7 +136,7 @@ SendLqrReport(void *v)
       LogPrintf(LogPHASE, "** 2 Too many ECHO packets are lost. **\n");
       lqmmethod = 0;		/* Prevent rcursion via LcpClose() */
       reconnect(RECON_TRUE);
-      LcpClose();
+      LcpClose(&LcpFsm);
     } else
       SendEchoReq();
   }
@@ -144,7 +145,7 @@ SendLqrReport(void *v)
 }
 
 void
-LqrInput(struct mbuf * bp)
+LqrInput(struct physical *physical, struct mbuf * bp)
 {
   int len;
   u_char *cp;
@@ -184,7 +185,7 @@ LqrInput(struct mbuf * bp)
      */
     if (LqrTimer.load == 0 || lastpeerin == HisLqrData.PeerInLQRs) {
       lqmmethod |= LQM_LQR;
-      SendLqrReport(0);
+      SendLqrReport(physical);
     }
     lastpeerin = HisLqrData.PeerInLQRs;
   }
@@ -195,7 +196,7 @@ LqrInput(struct mbuf * bp)
  *  When LCP is reached to opened state, We'll start LQM activity.
  */
 void
-StartLqm()
+StartLqm(struct physical *physical)
 {
   struct lcpstate *lcp = &LcpInfo;
   int period;
@@ -220,7 +221,8 @@ StartLqm()
     LqrTimer.state = TIMER_STOPPED;
     LqrTimer.load = period * SECTICKS / 100;
     LqrTimer.func = SendLqrReport;
-    SendLqrReport(0);
+	LqrTimer.arg  = physical;
+    SendLqrReport(physical);
     StartTimer(&LqrTimer);
     LogPrintf(LogLQM, "Will send LQR every %d.%d secs\n",
 	      period / 100, period % 100);
@@ -236,7 +238,7 @@ StopLqrTimer()
 }
 
 void
-StopLqr(int method)
+StopLqr(struct physical *physical, int method)
 {
   LogPrintf(LogLQM, "StopLqr method = %x\n", method);
 
@@ -246,7 +248,7 @@ StopLqr(int method)
     LogPrintf(LogLQM, "Stop sending LCP ECHO.\n");
   lqmmethod &= ~method;
   if (lqmmethod)
-    SendLqrReport(0);
+    SendLqrReport(physical);
   else
     StopTimer(&LqrTimer);
 }

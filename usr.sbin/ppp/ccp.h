@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.h,v 1.13 1998/01/10 01:55:09 brian Exp $
+ * $Id: ccp.h,v 1.14 1998/01/11 17:50:29 brian Exp $
  *
  *	TODO:
  */
@@ -73,7 +73,7 @@ struct ccp_algorithm {
     int (*Init)(void);
     void (*Term)(void);
     void (*Reset)(void);
-    int (*Write)(int, u_short, struct mbuf *);
+    int (*Write)(struct physical *, int, u_short, struct mbuf *);
   } o;
 };
 
@@ -84,9 +84,9 @@ extern void CcpSendResetReq(struct fsm *);
 extern void CcpInput(struct mbuf *);
 extern void CcpUp(void);
 extern void CcpOpen(void);
-extern void CcpInit(void);
+extern void CcpInit(struct physical *physical);
 extern int ReportCcpStatus(struct cmdargs const *);
 extern void CcpResetInput(u_char);
-extern int CcpOutput(int, u_short, struct mbuf *);
+extern int CcpOutput(struct physical *, int, u_short, struct mbuf *);
 extern struct mbuf *CompdInput(u_short *, struct mbuf *);
 extern void CcpDictSetup(u_short, struct mbuf *);

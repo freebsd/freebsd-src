@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: deflate.c,v 1.5 1997/12/28 02:17:06 brian Exp $
+ *	$Id: deflate.c,v 1.6 1998/01/10 01:55:09 brian Exp $
  */
 
 #include <sys/param.h>
@@ -72,7 +72,8 @@ DeflateResetOutput(void)
 }
 
 static int
-DeflateOutput(int pri, u_short proto, struct mbuf *mp)
+DeflateOutput(struct physical *physical, int pri, u_short proto,
+			  struct mbuf *mp)
 {
   u_char *wp, *rp;
   int olen, ilen, len, res, flush;
@@ -184,7 +185,7 @@ DeflateOutput(int pri, u_short proto, struct mbuf *mp)
   LogPrintf(LogDEBUG, "DeflateOutput: %d => %d bytes, proto 0x%04x\n",
             ilen, olen, proto);
 
-  HdlcOutput(PRI_NORMAL, PROTO_COMPD, mo_head);
+  HdlcOutput(physical, PRI_NORMAL, PROTO_COMPD, mo_head);
   return 1;
 }
 

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.17 1998/01/11 17:50:33 brian Exp $
+ * $Id: ipcp.h,v 1.18 1998/01/18 20:49:19 brian Exp $
  *
  *	TODO:
  */
@@ -70,7 +70,7 @@ extern struct in_addr TriggerAddress;
 extern int HaveTriggerAddress;
 extern struct fsm IpcpFsm;
 
-extern void IpcpInit(void);
+extern void IpcpInit(struct physical *physical);
 extern void IpcpDefAddress(void);
 extern void IpcpUp(void);
 extern void IpcpOpen(void);

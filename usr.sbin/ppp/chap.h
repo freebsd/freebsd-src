@@ -15,10 +15,12 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.h,v 1.8 1997/10/26 01:02:19 brian Exp $
+ * $Id: chap.h,v 1.9 1997/10/26 12:42:08 brian Exp $
  *
  *	TODO:
  */
+
+struct physical;
 
 #define	CHAP_CHALLENGE	1
 #define	CHAP_RESPONSE	2
@@ -27,4 +29,4 @@
 
 extern struct authinfo AuthChapInfo;
 
-extern void ChapInput(struct mbuf *);
+extern void ChapInput(struct mbuf *, struct physical *);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.26 1998/01/05 01:35:17 brian Exp $
+ * $Id: auth.c,v 1.27 1998/01/21 02:15:09 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -25,6 +25,7 @@
 #include <sys/param.h>
 #include <netinet/in.h>
 
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -99,7 +100,8 @@ LocalAuthValidate(const char *fname, const char *system, const char *key)
 }
 
 int
-AuthValidate(const char *fname, const char *system, const char *key)
+AuthValidate(const char *fname, const char *system, const char *key,
+			 struct physical *physical)
 {
   FILE *fp;
   int n;
@@ -124,7 +126,7 @@ AuthValidate(const char *fname, const char *system, const char *key)
 	CloseSecret(fp);
 	if (n > 2 && !UseHisaddr(vector[2], 1))
 	    return (0);
-	IpcpInit();
+	IpcpInit(physical);
 	if (n > 3)
 	  SetLabel(vector[3]);
 	return (1);		/* Valid */
@@ -136,7 +138,8 @@ AuthValidate(const char *fname, const char *system, const char *key)
 }
 
 char *
-AuthGetSecret(const char *fname, const char *system, int len, int setaddr)
+AuthGetSecret(const char *fname, const char *system, int len, int setaddr,
+			  struct physical *physical)
 {
   FILE *fp;
   int n;
@@ -162,7 +165,7 @@ AuthGetSecret(const char *fname, const char *system, int len, int setaddr)
       }
       if (n > 2 && setaddr)
 	if (UseHisaddr(vector[2], 1))
-          IpcpInit();
+          IpcpInit(physical);
         else
           return NULL;
       if (n > 3)
@@ -184,14 +187,18 @@ AuthTimeout(void *vauthp)
   StopTimer(tp);
   if (--authp->retry > 0) {
     StartTimer(tp);
-    (authp->ChallengeFunc) (++authp->id);
+    (authp->ChallengeFunc) (++authp->id, authp->physical);
   }
 }
 
 void
-StartAuthChallenge(struct authinfo *authp)
+StartAuthChallenge(struct authinfo *authp, struct physical *physical)
 {
   struct pppTimer *tp;
+
+  assert(authp->physical == NULL);
+
+  authp->physical = physical;
 
   tp = &authp->authtimer;
   StopTimer(tp);
@@ -202,11 +209,12 @@ StartAuthChallenge(struct authinfo *authp)
   StartTimer(tp);
   authp->retry = 3;
   authp->id = 1;
-  (authp->ChallengeFunc) (authp->id);
+  (authp->ChallengeFunc) (authp->id, physical);
 }
 
 void
 StopAuthTimer(struct authinfo *authp)
 {
   StopTimer(&authp->authtimer);
+  authp->physical = NULL;
 }

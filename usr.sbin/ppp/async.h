@@ -23,10 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: async.h,v 1.2 1997/12/21 12:11:04 brian Exp $
  */
 
 extern void AsyncInit(void);
 extern void SetLinkParams(struct lcpstate *);
-extern void AsyncOutput(int, struct mbuf *, int);
-extern void AsyncInput(u_char *, int);
+extern void AsyncOutput(int, struct mbuf *, int, struct physical *);
+extern void AsyncInput(u_char *, int, struct physical *);
