@@ -102,6 +102,9 @@ struct socket {
 		struct	selinfo sb_sel;	/* process selecting read/write */
 #define	sb_startzero	sb_mb
 		struct	mbuf *sb_mb;	/* the mbuf chain */
+		struct	mbuf *sb_mbtail; /* the last mbuf in the chain */
+		struct	mbuf *sb_lastrecord;	/* first mbuf of last record in
+						 * socket buffer */
 		u_int	sb_cc;		/* actual chars in buffer */
 		u_int	sb_hiwat;	/* max actual char count */
 		u_int	sb_mbcnt;	/* chars of mbufs used */
@@ -136,6 +139,13 @@ struct socket {
 		char	*so_accept_filter_str;	/* saved user args */
 	} *so_accf;
 };
+
+#define SB_EMPTY_FIXUP(sb) do {						\
+	if ((sb)->sb_mb == NULL) {					\
+		(sb)->sb_mbtail = NULL;					\
+		(sb)->sb_lastrecord = NULL;				\
+	}								\
+} while (/*CONSTCOND*/0)
 
 /*
  * Socket state bits.
@@ -353,6 +363,7 @@ struct	sockaddr *dup_sockaddr(struct sockaddr *sa, int canwait);
 int	sockargs(struct mbuf **mp, caddr_t buf, int buflen, int type);
 int	getsockaddr(struct sockaddr **namp, caddr_t uaddr, size_t len);
 void	sbappend(struct sockbuf *sb, struct mbuf *m);
+void	sbappendstream(struct sockbuf *sb, struct mbuf *m);
 int	sbappendaddr(struct sockbuf *sb, struct sockaddr *asa,
 	    struct mbuf *m0, struct mbuf *control);
 int	sbappendcontrol(struct sockbuf *sb, struct mbuf *m0,
@@ -421,6 +432,17 @@ int	sosetopt(struct socket *so, struct sockopt *sopt);
 int	soshutdown(struct socket *so, int how);
 void	sotoxsocket(struct socket *so, struct xsocket *xso);
 void	sowakeup(struct socket *so, struct sockbuf *sb);
+
+#ifdef SOCKBUF_DEBUG
+void	sblastrecordchk(struct sockbuf *, const char *, int);
+#define	SBLASTRECORDCHK(sb)	sblastrecordchk((sb), __FILE__, __LINE__)
+
+void	sblastmbufchk(struct sockbuf *, const char *, int);
+#define	SBLASTMBUFCHK(sb)	sblastmbufchk((sb), __FILE__, __LINE__)
+#else
+#define	SBLASTRECORDCHK(sb)      /* nothing */
+#define	SBLASTMBUFCHK(sb)        /* nothing */
+#endif /* SOCKBUF_DEBUG */
 
 /*
  * Accept filter functions (duh).

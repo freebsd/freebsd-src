@@ -2295,6 +2295,7 @@ options 	INIT_PATH=/sbin/init:/stand/sysinstall
 # Debug options
 options 	BUS_DEBUG	# enable newbus debugging
 options 	DEBUG_VFS_LOCKS	# enable vfs lock debugging
+options		SOCKBUF_DEBUG	# enable sockbuf last record/mb tail checking
 
 #####################################################################
 # SYSV IPC KERNEL PARAMETERS
