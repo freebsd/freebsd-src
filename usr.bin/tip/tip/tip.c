@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)tip.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: tip.c,v 1.7 1997/09/18 14:07:17 phk Exp $";
+	"$Id: tip.c,v 1.8 1998/06/09 04:28:05 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -153,9 +153,9 @@ main(argc, argv)
 	 * Copy the number then stomp on the original (in case the number
 	 *	is private, we don't want 'ps' or 'w' to find it).
 	 */
-	if (strlen(system) > sizeof(PNbuf - 1))
+	if (strlen(system) > sizeof(PNbuf) - 1)
 		errx(1, "phone number too long (max = %d bytes)", sizeof PNbuf - 1);
-	strncpy(PNbuf, system, sizeof(PNbuf - 1));
+	strncpy(PNbuf, system, sizeof(PNbuf) - 1);
 	for (p = system; *p; p++)
 		*p = '\0';
 	PN = PNbuf;
