@@ -1,6 +1,5 @@
 /* signals.c -- install and maintain Info signal handlers.
    $Id: signals.c,v 1.4 2003/01/29 19:23:22 karl Exp $
-   $FreeBSD$
 
    Copyright (C) 1993, 1994, 1995, 1998, 2002, 2003 Free Software
    Foundation, Inc.
@@ -114,7 +113,7 @@ static int term_conf_busy = 0;
 #endif /* !HAVE_SIGACTION */
 
 static signal_info old_TSTP, old_TTOU, old_TTIN;
-static signal_info old_WINCH, old_INT, old_USR1, old_CONT;
+static signal_info old_WINCH, old_INT, old_USR1;
 
 void
 initialize_info_signal_handler ()
@@ -133,9 +132,6 @@ initialize_info_signal_handler ()
 
 #if defined (SIGWINCH)
   set_termsig (SIGWINCH, &old_WINCH);
-#if defined (SIGCONT)
-  set_termsig (SIGCONT, &old_CONT);
-#endif
 #endif
 
 #if defined (SIGINT)
@@ -238,12 +234,6 @@ info_signal_proc (sig)
 
 #if defined (SIGWINCH) || defined (SIGUSR1)
 #ifdef SIGWINCH
-#ifdef SIGCONT
-    case SIGCONT:
-      /* pretend a SIGWINCH in case the terminal window size has changed
-	 while we've been asleep */
-      /* FALLTHROUGH */
-#endif
     case SIGWINCH:
 #endif
 #ifdef SIGUSR1
@@ -255,10 +245,6 @@ info_signal_proc (sig)
 #ifdef SIGWINCH
 	if (sig == SIGWINCH)
 	  old_signal_handler = &old_WINCH;
-#ifdef SIGCONT
-	else if (sig == SIGCONT)
-	  old_signal_handler = &old_CONT;
-#endif
 #endif
 #ifdef SIGUSR1
 	if (sig == SIGUSR1)
