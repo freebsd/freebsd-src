@@ -180,20 +180,28 @@ was not open for writing.
 .It Bq Er EBADF
 .Fa Fd
 is not a valid open file descriptor.
-.\".It Bq Er EINVAL
-.\"One of
-.\".Dv MAP_ANON
-.\"or
-.\".Dv MAP_FILE
-.\"was not specified as part of the
-.\".Fa flags
-.\"parameter.
+.It Bq Er EINVAL
 .Dv MAP_FIXED
 was specified and the
-.I addr
-parameter was not page aligned.
-.Fa Fd
+.Fa addr
+parameter was not page aligned, or part of the desired address space
+resides out of the valid address space for a user process.
+.It Bq Er EINVAL
+.Fa Len
+was negative.
+.It Bq Er EINVAL
+.Dv MAP_ANON
+was specified and the
+.Fa fd
+parameter was not -1.
+.It Bq Er EINVAL
+.Dv MAP_ANON
+has not been specified and
+.Fa fd
 did not reference a regular or character special file.
+.It Bq Er EINVAL
+.Fa Offset
+was not page-aligned.  (See BUGS below.)
 .It Bq Er ENOMEM
 .Dv MAP_FIXED
 was specified and the
@@ -226,3 +234,5 @@ the filesystem code that causes the limit to be further restricted to
 
 Another reason for the 2GB limit is that filesystem metadata can
 reside at negative offsets.
+
+We currently can only deal with page aligned file offsets.
