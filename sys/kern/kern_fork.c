@@ -474,7 +474,6 @@ again:
 	if (pages != 0)
 		vm_thread_new_altkstack(td2, pages);
 
-	mtx_lock(&Giant);	/* XXX: for VREF() */
 	PROC_LOCK(p2);
 	PROC_LOCK(p1);
 
@@ -537,11 +536,7 @@ again:
 	else
 	        p2->p_sigparent = SIGCHLD;
 
-	/* Bump references to the text vnode (for procfs) */
 	p2->p_textvp = p1->p_textvp;
-	if (p2->p_textvp)
-		VREF(p2->p_textvp);
-	mtx_unlock(&Giant); /* XXX: for VREF() */
 	p2->p_fd = fd;
 	p2->p_fdtol = fdtol;
 
@@ -551,6 +546,10 @@ again:
 	p2->p_limit = lim_hold(p1->p_limit);
 	PROC_UNLOCK(p1);
 	PROC_UNLOCK(p2);
+
+	/* Bump references to the text vnode (for procfs) */
+	if (p2->p_textvp)
+		vref(p2->p_textvp);
 
 	/*
 	 * Set up linkage for kernel based threading.
