@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983 Eric P. Allman
+ * Copyright (c) 1983, 1995 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,11 +33,10 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)envelope.c	8.34.1.1 (Berkeley) 2/28/95";
+static char sccsid[] = "@(#)envelope.c	8.76 (Berkeley) 11/11/95";
 #endif /* not lint */
 
 #include "sendmail.h"
-#include <pwd.h>
 
 /*
 **  NEWENVELOPE -- allocate a new envelope
@@ -60,9 +59,6 @@ newenvelope(e, parent)
 	register ENVELOPE *e;
 	register ENVELOPE *parent;
 {
-	extern putheader(), putbody();
-	extern ENVELOPE BlankEnvelope;
-
 	if (e == parent && e->e_parent != NULL)
 		parent = e->e_parent;
 	clearenvelope(e, TRUE);
@@ -100,16 +96,20 @@ dropenvelope(e)
 	register ENVELOPE *e;
 {
 	bool queueit = FALSE;
-	bool saveit = bitset(EF_FATALERRS, e->e_flags);
+	bool failure_return = FALSE;
+	bool success_return = FALSE;
 	register ADDRESS *q;
 	char *id = e->e_id;
 	char buf[MAXLINE];
 
 	if (tTd(50, 1))
 	{
+		extern void printenvflags();
+
 		printf("dropenvelope %x: id=", e);
 		xputs(e->e_id);
-		printf(", flags=0x%x\n", e->e_flags);
+		printf(", flags=");
+		printenvflags(e);
 		if (tTd(50, 10))
 		{
 			printf("sendq=");
@@ -117,17 +117,23 @@ dropenvelope(e)
 		}
 	}
 
+#ifdef LOG
+	if (LogLevel > 84)
+		syslog(LOG_DEBUG, "%s: dropenvelope, e_flags=0x%x, OpMode=%c, pid=%d",
+			id == NULL ? "[NOQUEUE]" : id,
+			e->e_flags, OpMode, getpid());
+#endif
+
 	/* we must have an id to remove disk files */
 	if (id == NULL)
 		return;
 
-#ifdef LOG
+	/* if verify-only mode, we can skip most of this */
+	if (OpMode == MD_VERIFY)
+		goto simpledrop;
+
 	if (LogLevel > 4 && bitset(EF_LOGSENDER, e->e_flags))
 		logsender(e, NULL);
-	if (LogLevel > 84)
-		syslog(LOG_DEBUG, "dropenvelope, id=%s, flags=0x%x, pid=%d",
-				  id, e->e_flags, getpid());
-#endif /* LOG */
 	e->e_flags &= ~EF_LOGSENDER;
 
 	/* post statistics */
@@ -140,17 +146,30 @@ dropenvelope(e)
 	e->e_flags &= ~EF_QUEUERUN;
 	for (q = e->e_sendqueue; q != NULL; q = q->q_next)
 	{
-		if (bitset(QQUEUEUP, q->q_flags))
+		if (!bitset(QBADADDR|QDONTSEND|QSENT, q->q_flags) ||
+		    bitset(QQUEUEUP, q->q_flags))
 			queueit = TRUE;
-		if (!bitset(QDONTSEND, q->q_flags) &&
-		    bitset(QBADADDR, q->q_flags))
+
+		/* see if a notification is needed */
+		if (bitset(QBADADDR, q->q_flags) &&
+		    bitset(QPINGONFAILURE, q->q_flags))
 		{
-			if (q->q_owner == NULL &&
-			    strcmp(e->e_from.q_paddr, "<>") != 0)
+			failure_return = TRUE;
+			if (q->q_owner == NULL && !emptyaddr(&e->e_from))
 				(void) sendtolist(e->e_from.q_paddr, NULL,
-						  &e->e_errorqueue, e);
+						  &e->e_errorqueue, 0, e);
+		}
+		else if (bitset(QPINGONSUCCESS, q->q_flags) &&
+			 ((bitset(QSENT, q->q_flags) &&
+			   bitnset(M_LOCALMAILER, q->q_mailer->m_flags)) ||
+			  bitset(QRELAYED|QEXPANDED|QDELIVERED, q->q_flags)))
+		{
+			success_return = TRUE;
 		}
 	}
+
+	if (e->e_class < 0)
+		e->e_flags |= EF_NO_BODY_RETN;
 
 	/*
 	**  See if the message timed out.
@@ -158,51 +177,85 @@ dropenvelope(e)
 
 	if (!queueit)
 		/* nothing to do */ ;
-	else if (curtime() > e->e_ctime + TimeOuts.to_q_return)
+	else if (curtime() > e->e_ctime + TimeOuts.to_q_return[e->e_timeoutclass])
 	{
 		(void) sprintf(buf, "Cannot send message for %s",
-			pintvl(TimeOuts.to_q_return, FALSE));
+			pintvl(TimeOuts.to_q_return[e->e_timeoutclass], FALSE));
 		if (e->e_message != NULL)
 			free(e->e_message);
 		e->e_message = newstr(buf);
 		message(buf);
 		e->e_flags |= EF_CLRQUEUE;
-		saveit = TRUE;
+		failure_return = TRUE;
 		fprintf(e->e_xfp, "Message could not be delivered for %s\n",
-			pintvl(TimeOuts.to_q_return, FALSE));
+			pintvl(TimeOuts.to_q_return[e->e_timeoutclass], FALSE));
 		fprintf(e->e_xfp, "Message will be deleted from queue\n");
 		for (q = e->e_sendqueue; q != NULL; q = q->q_next)
 		{
-			if (bitset(QQUEUEUP, q->q_flags))
+			if (bitset(QQUEUEUP, q->q_flags) ||
+			    !bitset(QBADADDR|QDONTSEND|QSENT, q->q_flags))
+			{
 				q->q_flags |= QBADADDR;
+				q->q_status = "4.4.7";
+			}
 		}
 	}
-	else if (TimeOuts.to_q_warning > 0 &&
-	    curtime() > e->e_ctime + TimeOuts.to_q_warning)
+	else if (TimeOuts.to_q_warning[e->e_timeoutclass] > 0 &&
+	    curtime() > e->e_ctime + TimeOuts.to_q_warning[e->e_timeoutclass])
 	{
-		if (!bitset(EF_WARNING|EF_RESPONSE, e->e_flags) &&
+		bool delay_return = FALSE;
+
+		for (q = e->e_sendqueue; q != NULL; q = q->q_next)
+		{
+			if (bitset(QQUEUEUP, q->q_flags) &&
+			    bitset(QPINGONDELAY, q->q_flags))
+			{
+				q->q_flags |= QDELAYED;
+				delay_return = TRUE;
+			}
+		}
+		if (delay_return &&
+		    !bitset(EF_WARNING|EF_RESPONSE, e->e_flags) &&
 		    e->e_class >= 0 &&
-		    strcmp(e->e_from.q_paddr, "<>") != 0)
+		    e->e_from.q_paddr != NULL &&
+		    strcmp(e->e_from.q_paddr, "<>") != 0 &&
+		    strncasecmp(e->e_from.q_paddr, "owner-", 6) != 0 &&
+		    (strlen(e->e_from.q_paddr) <= (SIZE_T) 8 ||
+		     strcasecmp(&e->e_from.q_paddr[strlen(e->e_from.q_paddr) - 8], "-request") != 0))
 		{
 			(void) sprintf(buf,
-				"warning: cannot send message for %s",
-				pintvl(TimeOuts.to_q_warning, FALSE));
+				"Warning: could not send message for past %s",
+				pintvl(TimeOuts.to_q_warning[e->e_timeoutclass], FALSE));
 			if (e->e_message != NULL)
 				free(e->e_message);
 			e->e_message = newstr(buf);
 			message(buf);
 			e->e_flags |= EF_WARNING;
-			saveit = TRUE;
+			failure_return = TRUE;
 		}
 		fprintf(e->e_xfp,
 			"Warning: message still undelivered after %s\n",
-			pintvl(TimeOuts.to_q_warning, FALSE));
+			pintvl(TimeOuts.to_q_warning[e->e_timeoutclass], FALSE));
 		fprintf(e->e_xfp, "Will keep trying until message is %s old\n",
-			pintvl(TimeOuts.to_q_return, FALSE));
+			pintvl(TimeOuts.to_q_return[e->e_timeoutclass], FALSE));
+	}
+
+	if (tTd(50, 2))
+		printf("failure_return=%d success_return=%d queueit=%d\n",
+			failure_return, success_return, queueit);
+
+	/*
+	**  If we had some fatal error, but no addresses are marked as
+	**  bad, mark them _all_ as bad.
+	*/
+
+	if (bitset(EF_FATALERRS, e->e_flags) && !failure_return)
+	{
+		failure_return = TRUE;
 		for (q = e->e_sendqueue; q != NULL; q = q->q_next)
 		{
-			if (bitset(QQUEUEUP, q->q_flags))
-				q->q_flags |= QREPORT;
+			if (!bitset(QDONTSEND, q->q_flags))
+				q->q_flags |= QBADADDR;
 		}
 	}
 
@@ -210,33 +263,42 @@ dropenvelope(e)
 	**  Send back return receipts as requested.
 	*/
 
+/*
 	if (e->e_receiptto != NULL && bitset(EF_SENDRECEIPT, e->e_flags)
 	    && !bitset(PRIV_NORECEIPTS, PrivacyFlags))
+*/
+	if (e->e_receiptto == NULL)
+		e->e_receiptto = e->e_from.q_paddr;
+	if (success_return && !failure_return &&
+	    !bitset(PRIV_NORECEIPTS, PrivacyFlags) &&
+	    strcmp(e->e_receiptto, "<>") != 0)
 	{
 		auto ADDRESS *rlist = NULL;
 
-		(void) sendtolist(e->e_receiptto, NULLADDR, &rlist, e);
+		e->e_flags |= EF_SENDRECEIPT;
+		(void) sendtolist(e->e_receiptto, NULLADDR, &rlist, 0, e);
 		(void) returntosender("Return receipt", rlist, FALSE, e);
-		e->e_flags &= ~EF_SENDRECEIPT;
 	}
+	e->e_flags &= ~EF_SENDRECEIPT;
 
 	/*
 	**  Arrange to send error messages if there are fatal errors.
 	*/
 
-	if (saveit && e->e_errormode != EM_QUIET)
-		savemail(e);
+	if (failure_return && e->e_errormode != EM_QUIET)
+		savemail(e, !bitset(EF_NO_BODY_RETN, e->e_flags));
 
 	/*
 	**  Arrange to send warning messages to postmaster as requested.
 	*/
 
-	if (bitset(EF_PM_NOTIFY, e->e_flags) && PostMasterCopy != NULL &&
+	if ((failure_return || bitset(EF_PM_NOTIFY, e->e_flags)) &&
+	    PostMasterCopy != NULL &&
 	    !bitset(EF_RESPONSE, e->e_flags) && e->e_class >= 0)
 	{
 		auto ADDRESS *rlist = NULL;
 
-		(void) sendtolist(PostMasterCopy, NULLADDR, &rlist, e);
+		(void) sendtolist(PostMasterCopy, NULLADDR, &rlist, 0, e);
 		(void) returntosender(e->e_message, rlist, FALSE, e);
 	}
 
@@ -244,13 +306,18 @@ dropenvelope(e)
 	**  Instantiate or deinstantiate the queue.
 	*/
 
-	if ((!queueit && !bitset(EF_KEEPQUEUE, e->e_flags)) ||
-	    bitset(EF_CLRQUEUE, e->e_flags))
+simpledrop:
+	if (!queueit || bitset(EF_CLRQUEUE, e->e_flags))
 	{
 		if (tTd(50, 1))
-			printf("\n===== Dropping [dq]f%s =====\n\n", e->e_id);
-		if (e->e_df != NULL)
-			xunlink(e->e_df);
+		{
+			extern void printenvflags();
+
+			printf("\n===== Dropping [dq]f%s... queueit=%d, e_flags=",
+				e->e_id, queueit);
+			printenvflags(e);
+		}
+		xunlink(queuename(e, 'd'));
 		xunlink(queuename(e, 'q'));
 
 #ifdef LOG
@@ -261,7 +328,7 @@ dropenvelope(e)
 	else if (queueit || !bitset(EF_INQUEUE, e->e_flags))
 	{
 #ifdef QUEUE
-		queueup(e, bitset(EF_KEEPQUEUE, e->e_flags), FALSE);
+		queueup(e, FALSE);
 #else /* QUEUE */
 		syserr("554 dropenvelope: queueup");
 #endif /* QUEUE */
@@ -273,9 +340,10 @@ dropenvelope(e)
 
 	/* make sure that this envelope is marked unused */
 	if (e->e_dfp != NULL)
-		(void) xfclose(e->e_dfp, "dropenvelope", e->e_df);
+		(void) xfclose(e->e_dfp, "dropenvelope df", e->e_id);
 	e->e_dfp = NULL;
-	e->e_id = e->e_df = NULL;
+	e->e_id = NULL;
+	e->e_flags &= ~EF_HAS_DF;
 }
 /*
 **  CLEARENVELOPE -- clear an envelope without unlocking
@@ -312,7 +380,7 @@ clearenvelope(e, fullclear)
 		if (e->e_xfp != NULL)
 			(void) xfclose(e->e_xfp, "clearenvelope xfp", e->e_id);
 		if (e->e_dfp != NULL)
-			(void) xfclose(e->e_dfp, "clearenvelope dfp", e->e_df);
+			(void) xfclose(e->e_dfp, "clearenvelope dfp", e->e_id);
 		e->e_xfp = e->e_dfp = NULL;
 	}
 
@@ -359,7 +427,6 @@ initsys(e)
 #endif /* TTYNAME */
 	extern char *ttyname();
 	extern void settime();
-	extern char Version[];
 
 	/*
 	**  Give this envelope a reality.
@@ -491,9 +558,12 @@ openxscript(e)
 	}
 	e->e_xfp = fdopen(fd, "a");
 	if (e->e_xfp == NULL)
-	{
 		syserr("!Can't create transcript stream %s", p);
-	}
+#ifdef HASSETVBUF
+	setvbuf(e->e_xfp, NULL, _IOLBF, 0);
+#else
+	setlinebuf(e->e_xfp);
+#endif
 	if (tTd(46, 9))
 	{
 		printf("openxscript(%s):\n  ", p);
@@ -573,7 +643,6 @@ setsender(from, e, delimptr, internal)
 	char *bp;
 	char buf[MAXNAME + 2];
 	char pvpbuf[PSBUFSIZE];
-	extern struct passwd *getpwnam();
 	extern char *FullName;
 
 	if (tTd(45, 1))
@@ -614,9 +683,12 @@ setsender(from, e, delimptr, internal)
 			if (p == NULL)
 			{
 				char *host = RealHostName;
+
 				if (host == NULL)
 					host = MyHostName;
-				(void) sprintf(ebuf, "%s@%s", realname, host);
+				(void) sprintf(ebuf, "%.*s@%.*s",
+					MAXNAME, realname,
+					MAXNAME, host);
 				p = ebuf;
 			}
 			syslog(LOG_NOTICE,
@@ -629,6 +701,7 @@ setsender(from, e, delimptr, internal)
 			if (!bitset(QBADADDR, e->e_from.q_flags))
 			{
 				/* it was a bogus mailer in the from addr */
+				e->e_status = "5.1.7";
 				usrerr("553 Invalid sender address");
 			}
 			SuprErrs = TRUE;
@@ -640,7 +713,7 @@ setsender(from, e, delimptr, internal)
 			char nbuf[100];
 
 			SuprErrs = TRUE;
-			expand("\201n", nbuf, &nbuf[sizeof nbuf], e);
+			expand("\201n", nbuf, sizeof nbuf, e);
 			if (parseaddr(from = newstr(nbuf), &e->e_from,
 				      RF_COPYALL, ' ', NULL, e) == NULL &&
 			    parseaddr(from = "postmaster", &e->e_from,
@@ -658,37 +731,30 @@ setsender(from, e, delimptr, internal)
 	}
 	SuprErrs = FALSE;
 
-	pvp = NULL;
-	if (e->e_from.q_mailer == LocalMailer)
+# if USERDB
+	if (bitnset(M_CHECKUDB, e->e_from.q_mailer->m_flags))
 	{
-# ifdef USERDB
 		register char *p;
 		extern char *udbsender();
-# endif
 
+		p = udbsender(e->e_from.q_user);
+		if (p != NULL)
+			from = p;
+	}
+# endif /* USERDB */
+
+	if (bitnset(M_HASPWENT, e->e_from.q_mailer->m_flags))
+	{
 		if (!internal)
 		{
-			/* if the user has given fullname already, don't redefine */
+			/* if the user already given fullname don't redefine */
 			if (FullName == NULL)
 				FullName = macvalue('x', e);
 			if (FullName != NULL && FullName[0] == '\0')
 				FullName = NULL;
-
-# ifdef USERDB
-			p = udbsender(e->e_from.q_user);
-
-			if (p != NULL)
-			{
-				/*
-				**  We have an alternate address for the sender
-				*/
-
-				pvp = prescan(p, '\0', pvpbuf, sizeof pvpbuf, NULL);
-			}
-# endif /* USERDB */
 		}
 
-		if ((pw = getpwnam(e->e_from.q_user)) != NULL)
+		if ((pw = sm_getpwnam(e->e_from.q_user)) != NULL)
 		{
 			/*
 			**  Process passwd file entry.
@@ -738,14 +804,14 @@ setsender(from, e, delimptr, internal)
 	**	links in the net.
 	*/
 
-	if (pvp == NULL)
-		pvp = prescan(from, delimchar, pvpbuf, sizeof pvpbuf, NULL);
+	pvp = prescan(from, delimchar, pvpbuf, sizeof pvpbuf, NULL, NULL);
 	if (pvp == NULL)
 	{
 		/* don't need to give error -- prescan did that already */
 # ifdef LOG
 		if (LogLevel > 2)
-			syslog(LOG_NOTICE, "cannot prescan from (%s)", from);
+			syslog(LOG_NOTICE, "cannot prescan from (%s)",
+				shortenstring(from, 203));
 # endif
 		finis();
 	}
@@ -754,7 +820,7 @@ setsender(from, e, delimptr, internal)
 	(void) rewrite(pvp, 4, 0, e);
 	bp = buf + 1;
 	cataddr(pvp, NULL, bp, sizeof buf - 2, '\0');
-	if (*bp == '@')
+	if (*bp == '@' && !bitnset(M_NOBRACKET, e->e_from.q_mailer->m_flags))
 	{
 		/* heuristic: route-addr: add angle brackets */
 		strcat(bp, ">");
@@ -767,11 +833,92 @@ setsender(from, e, delimptr, internal)
 	if (e->e_from.q_mailer != NULL &&
 	    bitnset(M_CANONICAL, e->e_from.q_mailer->m_flags))
 	{
+		char **lastat;
 		extern char **copyplist();
 
-		while (*pvp != NULL && strcmp(*pvp, "@") != 0)
-			pvp++;
-		if (*pvp != NULL)
-			e->e_fromdomain = copyplist(pvp, TRUE);
+		/* get rid of any pesky angle brackets */
+		(void) rewrite(pvp, 3, 0, e);
+		(void) rewrite(pvp, 1, 0, e);
+		(void) rewrite(pvp, 4, 0, e);
+
+		/* strip off to the last "@" sign */
+		for (lastat = NULL; *pvp != NULL; pvp++)
+			if (strcmp(*pvp, "@") == 0)
+				lastat = pvp;
+		if (lastat != NULL)
+		{
+			e->e_fromdomain = copyplist(lastat, TRUE);
+			if (tTd(45, 3))
+			{
+				printf("Saving from domain: ");
+				printav(e->e_fromdomain);
+			}
+		}
 	}
+}
+/*
+**  PRINTENVFLAGS -- print envelope flags for debugging
+**
+**	Parameters:
+**		e -- the envelope with the flags to be printed.
+**
+**	Returns:
+**		none.
+*/
+
+struct eflags
+{
+	char	*ef_name;
+	u_long	ef_bit;
+};
+
+struct eflags	EnvelopeFlags[] =
+{
+	"OLDSTYLE",	EF_OLDSTYLE,
+	"INQUEUE",	EF_INQUEUE,
+	"NO_BODY_RETN",	EF_NO_BODY_RETN,
+	"CLRQUEUE",	EF_CLRQUEUE,
+	"SENDRECEIPT",	EF_SENDRECEIPT,
+	"FATALERRS",	EF_FATALERRS,
+	"DELETE_BCC",	EF_DELETE_BCC,
+	"RESPONSE",	EF_RESPONSE,
+	"RESENT",	EF_RESENT,
+	"VRFYONLY",	EF_VRFYONLY,
+	"WARNING",	EF_WARNING,
+	"QUEUERUN",	EF_QUEUERUN,
+	"GLOBALERRS",	EF_GLOBALERRS,
+	"PM_NOTIFY",	EF_PM_NOTIFY,
+	"METOO",	EF_METOO,
+	"LOGSENDER",	EF_LOGSENDER,
+	"NORECEIPT",	EF_NORECEIPT,
+	"HAS8BIT",	EF_HAS8BIT,
+	"NL_NOT_EOL",	EF_NL_NOT_EOL,
+	"CRLF_NOT_EOL",	EF_CRLF_NOT_EOL,
+	"RET_PARAM",	EF_RET_PARAM,
+	"HAS_DF",	EF_HAS_DF,
+	"IS_MIME",	EF_IS_MIME,
+	"DONT_MIME",	EF_DONT_MIME,
+	NULL
+};
+
+void
+printenvflags(e)
+	register ENVELOPE *e;
+{
+	register struct eflags *ef;
+	bool first = TRUE;
+
+	printf("%lx", e->e_flags);
+	for (ef = EnvelopeFlags; ef->ef_name != NULL; ef++)
+	{
+		if (!bitset(ef->ef_bit, e->e_flags))
+			continue;
+		if (first)
+			printf("<%s", ef->ef_name);
+		else
+			printf(",%s", ef->ef_name);
+		first = FALSE;
+	}
+	if (!first)
+		printf(">\n");
 }

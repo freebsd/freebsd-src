@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983 Eric P. Allman
+ * Copyright (c) 1983, 1995 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)clock.c	8.8 (Berkeley) 1/12/94";
+static char sccsid[] = "@(#)clock.c	8.12 (Berkeley) 5/23/95";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -65,7 +65,7 @@ static void tick __P((int));
 EVENT *
 setevent(intvl, func, arg)
 	time_t intvl;
-	int (*func)();
+	void (*func)();
 	int arg;
 {
 	register EVENT **evp;
@@ -117,6 +117,7 @@ setevent(intvl, func, arg)
 **		arranges for event ev to not happen.
 */
 
+void
 clrevent(ev)
 	register EVENT *ev;
 {
@@ -182,7 +183,7 @@ tick(arg)
 	while ((ev = EventQueue) != NULL &&
 	       (ev->ev_time <= now || ev->ev_pid != mypid))
 	{
-		int (*f)();
+		void (*f)();
 		int arg;
 		int pid;
 
@@ -216,10 +217,10 @@ tick(arg)
 		sigaddset(&ss, SIGALRM);
 		sigprocmask(SIG_UNBLOCK, &ss, NULL);
 #else
-#ifdef SIGVTALRM
+#if HASSIGSETMASK
 		/* reset 4.2bsd signal mask to allow future alarms */
 		(void) sigsetmask(sigblock(0) & ~sigmask(SIGALRM));
-#endif /* SIGVTALRM */
+#endif /* HASSIGSETMASK */
 #endif /* SIG_UNBLOCK */
 
 		/* call ev_func */
@@ -251,7 +252,7 @@ tick(arg)
 */
 
 static bool	SleepDone;
-static int	endsleep();
+static void	endsleep();
 
 #ifndef SLEEP_T
 # define SLEEP_T	unsigned int
@@ -262,14 +263,15 @@ sleep(intvl)
 	unsigned int intvl;
 {
 	if (intvl == 0)
-		return;
+		return (SLEEP_T) 0;
 	SleepDone = FALSE;
 	(void) setevent((time_t) intvl, endsleep, 0);
 	while (!SleepDone)
 		pause();
+	return (SLEEP_T) 0;
 }
 
-static
+static void
 endsleep()
 {
 	SleepDone = TRUE;
