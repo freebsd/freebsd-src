@@ -866,9 +866,8 @@ static void
 ptc_drvinit(unused)
 	void *unused;
 {
+
 	EVENTHANDLER_REGISTER(dev_clone, pty_clone, 0, 1000);
-	cdevsw_add(&pts_cdevsw);
-	cdevsw_add(&ptc_cdevsw);
 }
 
 SYSINIT(ptcdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR_C,ptc_drvinit,NULL)
