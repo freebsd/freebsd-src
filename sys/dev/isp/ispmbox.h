@@ -373,7 +373,7 @@ typedef struct {
 } ispstatusreq_t;
 
 /* 
- * For Qlogic 2100, the high order byte of SCSI status has
+ * For Qlogic 2X00, the high order byte of SCSI status has
  * additional meaning.
  */
 #define	RQCS_RU	0x800	/* Residual Under */
@@ -437,6 +437,15 @@ typedef struct {
 #define RQSF_GOT_SENSE			0x2000
 #define	RQSF_XFER_COMPLETE		0x4000
 
+/*
+ * 2X00 specific State Flags
+ * (same as 1X00 except RQSF_GOT_BUS/RQSF_GOT_TARGET are not available)
+ */
+#define	RQSF_DATA_IN			0x0020
+#define	RQSF_DATA_OUT			0x0040
+#define	RQSF_STAG			0x0008
+#define	RQSF_OTAG			0x0004
+#define	RQSF_HTAG			0x0002
 /*
  * 1X00 Status Flags
  */
@@ -651,6 +660,7 @@ typedef struct {
 
 #define	SNS_GAN	0x100
 #define	SNS_GP3	0x171
+#define	SNS_RFT	0x217
 typedef struct {
 	u_int16_t	snscb_rblen;	/* response buffer length (words) */
 	u_int16_t	snscb_res0;
@@ -661,6 +671,7 @@ typedef struct {
 } sns_screq_t;	/* Subcommand Request Structure */
 #define	SNS_GAN_REQ_SIZE	(sizeof (sns_screq_t)+(5*(sizeof (u_int16_t))))
 #define	SNS_GP3_REQ_SIZE	(sizeof (sns_screq_t)+(5*(sizeof (u_int16_t))))
+#define	SNS_RFT_REQ_SIZE	(sizeof (sns_screq_t)+(21*(sizeof (u_int16_t))))
 
 typedef struct {
 	u_int8_t	snscb_cthdr[16];
@@ -671,6 +682,7 @@ typedef struct {
 } sns_scrsp_t;	/* Subcommand Response Structure */
 #define	SNS_GAN_RESP_SIZE	608	/* Maximum response size (bytes) */
 #define	SNS_GP3_RESP_SIZE	532	/* XXX: For 128 ports */
+#define	SNS_RFT_RESP_SIZE	16
 
 typedef struct {
 	u_int8_t	snscb_cthdr[16];
