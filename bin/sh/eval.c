@@ -42,6 +42,7 @@ static char sccsid[] = "@(#)eval.c	8.9 (Berkeley) 6/8/95";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <paths.h>
 #include <signal.h>
 #include <unistd.h>
 #include <sys/wait.h> /* For WIFSIGNALED(status) */
@@ -747,7 +748,9 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	    && (cmdentry.cmdtype != CMDBUILTIN
 		 || cmdentry.u.index == CDCMD
 		 || cmdentry.u.index == DOTCMD
-		 || cmdentry.u.index == EVALCMD))) {
+		 || cmdentry.u.index == EVALCMD))
+	 || (cmdentry.cmdtype == CMDBUILTIN &&
+	    cmdentry.u.index == COMMANDCMD)) {
 		jp = makejob(cmd, 1);
 		mode = cmd->ncmd.backgnd;
 		if (flags & EV_BACKCMD) {
@@ -869,7 +872,8 @@ cmddone:
 #ifndef NO_HISTORY
 			   || cmdentry.u.index == HISTCMD
 #endif
-			   || cmdentry.u.index == EXECCMD)
+			   || cmdentry.u.index == EXECCMD
+			   || cmdentry.u.index == COMMANDCMD)
 				exraise(e);
 			FORCEINTON;
 		}
@@ -984,6 +988,55 @@ breakcmd(int argc, char **argv)
 		skipcount = n;
 	}
 	return 0;
+}
+
+/*
+ * The `command' command.
+ */
+int
+commandcmd(int argc, char **argv)
+{
+	static char stdpath[] = _PATH_STDPATH;
+	struct jmploc loc, *old;
+	struct strlist *sp;
+	char *path;
+	int ch;
+
+	for (sp = cmdenviron; sp ; sp = sp->next)
+		setvareq(sp->text, VEXPORT|VSTACK);
+	path = pathval();
+
+	optind = optreset = 1;
+	opterr = 0;
+	while ((ch = getopt(argc, argv, "p")) != -1) {
+		switch (ch) {
+		case 'p':
+			path = stdpath;
+			break;
+		case '?':
+		default:
+			error("unknown option: -%c", optopt);
+		}
+	}
+	argc -= optind;
+	argv += optind;
+
+	if (argc != 0) {
+		old = handler;
+		handler = &loc;
+		if (setjmp(handler->loc) == 0)
+			shellexec(argv, environment(), path, 0);
+		handler = old;
+		if (exception == EXEXEC)
+			exit(exerrno);
+		exraise(exception);
+	}
+
+	/*
+	 * Do nothing successfully if no command was specified;
+	 * ksh also does this.
+	 */
+	exit(0);
 }
 
 

@@ -67,7 +67,7 @@ struct job {
 	struct procstat ps0;	/* status of process */
 	struct procstat *ps;	/* status or processes when more than one */
 	short nprocs;		/* number of processes */
-	short pgrp;		/* process group of this job */
+	pid_t pgrp;		/* process group of this job */
 	char state;		/* true if job is finished */
 	char used;		/* true if this entry is in used */
 	char changed;		/* true if status has changed */
@@ -92,7 +92,7 @@ void showjobs(int, int, int);
 int waitcmd(int, char **);
 int jobidcmd(int, char **);
 struct job *makejob(union node *, int);
-int forkshell(struct job *, union node *, int);
+pid_t forkshell(struct job *, union node *, int);
 int waitforjob(struct job *, int *);
 int stoppedjobs(void);
 char *commandtext(union node *);
