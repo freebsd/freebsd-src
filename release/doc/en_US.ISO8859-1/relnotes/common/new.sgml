@@ -3254,6 +3254,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       specify a country code to help direct queries towards a
       particular whois server. &merged;</para>
 
+    <para>&man.wicontrol.8; now supports a <option>-l</option> to list
+      the stations associated in <literal>hostap</literal> mode and a
+      <option>-L</option> to list available access points.</para>
+
     <para>&man.xargs.1; now supports a <option>-I</option>
       <replaceable>replstr</replaceable> option that allows the user
       to tell &man.xargs.1; to insert the data read from standard
@@ -3506,10 +3510,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para><application>tcpdump</application> has been updated to
 	3.7.1. &merged;</para>
 
-      <para role="historic">The &man.csh.1; shell has been replaced by &man.tcsh.1;,
+      <para>The &man.csh.1; shell has been replaced by &man.tcsh.1;,
 	although it can still be run as <command>csh</command>.
 	<application>tcsh</application> has been updated to version
-	6.11. &merged;</para>
+	6.12.</para>
 
       <para>The contributed version of
 	<application>tcp_wrappers</application> now includes the
@@ -3524,6 +3528,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para><application>top</application> has been updated to version
 	3.5b12.</para>
+
+      <para><application>traceroute</application> has been updated to
+        LBL version 1.4a12.</para>
 
       <para role="historic">&man.traceroute.8; now takes its default maximum TTL value
 	from the <varname>net.inet.ip.ttl</varname> sysctl
