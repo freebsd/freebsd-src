@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
- *	$Id$
+ *	$Id: io.c,v 1.21 1997/02/22 09:30:10 peter Exp $
  */
 
 #include "boot.h"
@@ -45,6 +45,8 @@
 					   enable data line
 					   enable clock line */
 
+
+static int getchar(int in_buf);
 
 /*
  * Gate A20 for high memory
@@ -133,7 +135,7 @@ putchar(int c)
 		putc(c);
 }
 
-int
+static int
 getchar(int in_buf)
 {
 	int c;
