@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: engine.c,v 8.119 2003/12/02 18:53:57 ca Exp $")
+SM_RCSID("@(#)$Id: engine.c,v 8.120 2004/10/20 21:09:00 ca Exp $")
 
 #include "libmilter.h"
 
@@ -347,6 +347,7 @@ mi_engine(ctx)
 			ctx->ctx_state = curstate;
 		}
 		arg.a_idx = cmds[i].cm_macros;
+		call_abort = ST_IN_MAIL(curstate);
 
 		/* call function to deal with command */
 		r = (*f)(&arg);
@@ -361,7 +362,6 @@ mi_engine(ctx)
 			break;
 		}
 
-		call_abort = ST_IN_MAIL(curstate);
 		if (r == SMFIS_ACCEPT)
 		{
 			/* accept mail, no further actions taken */

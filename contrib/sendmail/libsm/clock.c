@@ -12,7 +12,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: clock.c,v 1.45 2004/01/19 19:32:08 ca Exp $")
+SM_RCSID("@(#)$Id: clock.c,v 1.46 2004/08/03 19:57:22 ca Exp $")
 #include <unistd.h>
 #include <time.h>
 #include <errno.h>
@@ -63,7 +63,7 @@ static SM_EVENT	*volatile SmFreeEventList;	/* list of free events */
 SM_EVENT *
 sm_seteventm(intvl, func, arg)
 	int intvl;
-	void (*func)();
+	void (*func)__P((int));
 	int arg;
 {
 	ENTER_CRITICAL();
@@ -86,7 +86,7 @@ sm_seteventm(intvl, func, arg)
 SM_EVENT *
 sm_sigsafe_seteventm(intvl, func, arg)
 	int intvl;
-	void (*func)();
+	void (*func)__P((int));
 	int arg;
 {
 	register SM_EVENT **evp;
@@ -394,7 +394,7 @@ sm_tick(sig)
 #endif /* SM_CONF_SETITIMER */
 		))
 	{
-		void (*f)();
+		void (*f)__P((int));
 		int arg;
 		pid_t pid;
 
@@ -497,7 +497,7 @@ sm_tick(sig)
 
 
 # if !HAVE_NANOSLEEP
-static void	sm_endsleep __P((void));
+static void	sm_endsleep __P((int));
 static bool	volatile SmSleepDone;
 # endif /* !HAVE_NANOSLEEP */
 
@@ -625,7 +625,8 @@ sleep(intvl)
 
 #if !HAVE_NANOSLEEP
 static void
-sm_endsleep()
+sm_endsleep(ignore)
+	int ignore;
 {
 	/*
 	**  NOTE: THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD

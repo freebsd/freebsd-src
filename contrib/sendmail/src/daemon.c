@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: daemon.c,v 8.649 2004/07/14 21:57:52 ca Exp $")
+SM_RCSID("@(#)$Id: daemon.c,v 8.653 2004/11/18 23:45:01 ca Exp $")
 
 #if defined(SOCK_STREAM) || defined(__GNU_LIBRARY__)
 # define USE_SOCK_STREAM	1
@@ -81,10 +81,15 @@ struct daemon
 
 typedef struct daemon DAEMON_T;
 
-static void		connecttimeout __P((void));
+static void		connecttimeout __P((int));
 static int		opendaemonsocket __P((DAEMON_T *, bool));
 static unsigned short	setupdaemon __P((SOCKADDR *));
 static void		getrequests_checkdiskspace __P((ENVELOPE *e));
+static void		setsockaddroptions __P((char *, DAEMON_T *));
+static void		printdaemonflags __P((DAEMON_T *));
+static int		addr_family __P((char *));
+static int		addrcmp __P((struct hostent *, char *, SOCKADDR *));
+static void		authtimeout __P((int));
 
 /*
 **  DAEMON.C -- routines to use when running as a daemon.
@@ -1414,7 +1419,7 @@ chkdaemonmodifiers(flag)
 
 static void
 setsockaddroptions(p, d)
-	register char *p;
+	char *p;
 	DAEMON_T *d;
 {
 #if NETISO
@@ -2571,6 +2576,8 @@ gothostent:
 				break;
 #endif /* NETINET6 */
 			}
+			if (tTd(16, 1))
+				sm_dprintf("Connecting to [%s]...\n", anynet_ntoa(&addr));
 			i = connect(s, (struct sockaddr *) &addr, addrlen);
 			save_errno = errno;
 			if (ev != NULL)
@@ -2774,7 +2781,8 @@ nextaddr:
 }
 
 static void
-connecttimeout()
+connecttimeout(ignore)
+	int ignore;
 {
 	/*
 	**  NOTE: THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
@@ -3257,7 +3265,8 @@ addrcmp(hp, ha, sa)
 static jmp_buf	CtxAuthTimeout;
 
 static void
-authtimeout()
+authtimeout(ignore)
+	int ignore;
 {
 	/*
 	**  NOTE: THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
