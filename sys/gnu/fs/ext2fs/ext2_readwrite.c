@@ -254,7 +254,8 @@ WRITE(ap)
 
 		error =
 		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
-		if (ioflag & IO_VMIO)
+		if ((ioflag & IO_VMIO) &&
+		   (LIST_FIRST(&bp->b_dep) == NULL)) /* in ext2fs? */
 			bp->b_flags |= B_RELBUF;
 
 		if (ioflag & IO_SYNC) {
