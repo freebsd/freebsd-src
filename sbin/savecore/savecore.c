@@ -422,7 +422,7 @@ DoFile(char *savedir, const char *device)
 				if (fwrite(buf + nw, hs - nw, 1, fp) != 1)
 				    break;
 			    if (he > hs)
-				if (fseek(fp, he - hs, SEEK_CUR) == -1)
+				if (fseeko(fp, he - hs, SEEK_CUR) == -1)
 				    break;
 			}
 		}
