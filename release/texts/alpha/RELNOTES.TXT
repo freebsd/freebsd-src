@@ -121,6 +121,10 @@ and packages should not be affected.
 
 ncurses has been updated to ncurses-5.1-20001009.
 
+make(1) has gained the :C/// (regexp substitution), :L (lowercase),
+and :U (uppercase) variable modifiers.  These were added to reduce the
+differences between the FreeBSD and OpenBSD/NetBSD make programs.
+
 
 2. Supported Configurations
 ---------------------------
