@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.61 1998/12/08 08:17:43 kato Exp $
+ **      $Id: userconfig.c,v 1.62 1998/12/14 08:53:32 kato Exp $
  **/
 
 /**
@@ -118,6 +118,7 @@
 #include <sys/malloc.h>
 #include <sys/reboot.h>
 #include <sys/linker.h>
+#include <sys/sysctl.h>
 
 #include <machine/cons.h>
 #include <machine/md_var.h>
@@ -139,6 +140,45 @@ static struct isa_device *isa_devlist;	/* list read by dset to extract changes *
 static int userconfig_boot_parsing;	/* set if we are reading from the boot instructions */
 
 #define putchar(x)	cnputc(x)
+
+static int
+sysctl_machdep_uc_devlist SYSCTL_HANDLER_ARGS
+{
+	struct isa_device *id;
+	int error=0;
+	char name[8];
+
+	if(!req->oldptr) {
+		/* Only sizing */
+		id=isa_devlist;
+		while(id) {
+			error+=sizeof(struct isa_device)+8;
+			id=id->id_next;
+		}
+		return(SYSCTL_OUT(req,0,error));
+	} else {
+		/* Output the data. The buffer is filled with consecutive
+		 * struct isa_device and char buf[8], containing the name
+		 * (not guaranteed to end with '\0').
+		 */
+		id=isa_devlist;
+		while(id) {
+			error=sysctl_handle_opaque(oidp,id,
+				sizeof(struct isa_device),req);
+			if(error) return(error);
+			strncpy(name,id->id_driver->name,8);
+			error=sysctl_handle_opaque(oidp,name,
+				8,req);
+			if(error) return(error);
+			id=id->id_next;
+		}
+		return(0);
+	}
+}
+
+SYSCTL_PROC( _machdep, OID_AUTO, uc_devlist, CTLFLAG_RD,
+	0, 0, sysctl_machdep_uc_devlist, "A",
+	"List of ISA devices changed in UserConfig");
 
 /*
 ** Obtain command input.
@@ -195,15 +235,21 @@ getchar(void)
 
     } else if (assize == 0) {
 	
-	/* Finished parsing script/no script */
-	userconfig_boot_parsing = 0;
 #ifdef INTRO_USERCONFIG
 	if (intro == 0) 
 	{
-	    intro = 1;
-	    c = 'i';
-	    asp = "ntro\n";
-	    assize = strlen(asp);
+	    /* 
+	     * We don't want intro if we just executed a
+	     * script (userconfig_boot_parsing==1), otherwise
+	     * we would always block here waiting for user input.
+	     */
+	    if (userconfig_boot_parsing == 0)
+	    {
+		intro = 1;
+	        c = 'i';
+	        asp = "ntro\n";
+	        assize = strlen(asp);
+	    }
 #else
 	if (!(boothowto & RB_CONFIG)) 
 	{
@@ -212,6 +258,7 @@ getchar(void)
 	    asp = "uit\n";
 	    assize = strlen(asp);
 #endif
+	    userconfig_boot_parsing = 0;
 	} else {
 	    /* Only display signon banner if we are about to go interactive */
 	    if (!intro)
@@ -2475,7 +2522,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.61 1998/12/08 08:17:43 kato Exp $
+ *      $Id: userconfig.c,v 1.62 1998/12/14 08:53:32 kato Exp $
  */
 
 #include "scbus.h"
