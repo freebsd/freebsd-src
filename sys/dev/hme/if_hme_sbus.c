@@ -244,8 +244,14 @@ hme_sbus_attach(device_t dev)
 
 	burst = sbus_get_burstsz(dev);
 	/* Translate into plain numerical format */
-	sc->sc_burst =  (burst & SBUS_BURST_32) ? 32 :
-	    (burst & SBUS_BURST_16) ? 16 : 0;
+	if ((burst & SBUS_BURST_64))
+		sc->sc_burst = 64;
+	else if ((burst & SBUS_BURST_32))
+		sc->sc_burst = 32;
+	else if ((burst & SBUS_BURST_16))
+		sc->sc_burst = 16;
+	else
+		 sc->sc_burst = 0;
 
 	sc->sc_pci = 0;	/* XXX: should all be done in bus_dma. */
 	sc->sc_dev = dev;

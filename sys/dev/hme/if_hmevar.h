@@ -140,6 +140,7 @@ struct hme_softc {
 	int		sc_phys[2];	/* MII instance -> PHY map */
 
 	int		sc_pci;		/* XXXXX -- PCI buses are LE. */
+	int		sc_csum_features;
 
 	/* Ring descriptor */
 	struct hme_ring		sc_rb;
