@@ -119,6 +119,10 @@ ufsdirhash_build(struct inode *ip)
 		ufsdirhash_free(ip);
 	}
 
+	/* Don't hash removed directories. */
+	if (ip->i_effnlink == 0)
+		return (-1);
+
 	vp = ip->i_vnode;
 	/* Allocate 50% more entries than this dir size could ever need. */
 	KASSERT(ip->i_size >= DIRBLKSIZ, ("ufsdirhash_build size"));

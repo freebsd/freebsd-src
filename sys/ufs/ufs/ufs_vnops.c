@@ -41,6 +41,7 @@
 
 #include "opt_quota.h"
 #include "opt_suiddir.h"
+#include "opt_ufs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -71,6 +72,9 @@
 #include <ufs/ufs/dir.h>
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
+#ifdef UFS_DIRHASH
+#include <ufs/ufs/dirhash.h>
+#endif
 
 static int ufs_access __P((struct vop_access_args *));
 static int ufs_advlock __P((struct vop_advlock_args *));
@@ -1565,6 +1569,11 @@ ufs_rmdir(ap)
 		    cnp->cn_proc);
 	}
 	cache_purge(vp);
+#ifdef UFS_DIRHASH
+	/* Kill any active hash; i_effnlink == 0, so it will not come back. */
+	if (ip->i_dirhash != NULL)
+		ufsdirhash_free(ip);
+#endif
 out:
 	VN_KNOTE(vp, NOTE_DELETE);
 	return (error);
