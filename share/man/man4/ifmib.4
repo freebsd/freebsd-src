@@ -76,7 +76,7 @@ MIB.  The manifest constants for each level in the
 .Ar name
 are defined in
 .Aq Pa net/if_mib.h .
-A count of interfaces (and thus rows in the table) is given by
+The index of the last row in the table is given by
 .Dq Li net.link.generic.system.ifcount
 (or, using the manifest constants,
 .Dv CTL_NET ,
@@ -87,6 +87,10 @@ A count of interfaces (and thus rows in the table) is given by
 A management application searching for a particular interface should
 start with row 1 and continue through the table row-by-row until the
 desired interface is found, or the interface count is reached.
+Note that the table may be sparse, i.e. a given row may not exist,
+indicated by an errno of
+.Er ENOENT .
+Such an error should be ignored, and the next row should be checked.
 .Pp
 The generic interface information, common to all interfaces,
 can be accessed via the following procedure:

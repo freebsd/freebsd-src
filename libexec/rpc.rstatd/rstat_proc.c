@@ -51,6 +51,7 @@ static const char rcsid[] =
 #include <sys/param.h>
 
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <kvm.h>
 #include <limits.h>
@@ -294,6 +295,9 @@ updatestat()
 		mib[4] = i;
 		mib[5] = IFDATA_GENERAL;
 		if (sysctl(mib, 6, &ifmd, &len, 0, 0) < 0) {
+			if (errno == ENOENT)
+				continue;
+
 			syslog(LOG_ERR, "sysctl(net.link.ifdata.%d.general)"
 			       ": %m", i);
 			exit(1);
