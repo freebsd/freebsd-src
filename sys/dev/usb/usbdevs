@@ -821,6 +821,7 @@ product PHILIPS HUB		0x0201	hub
 product PHILIPS PCA646VC	0x0303	PCA646VC PC Camera
 product PHILIPS PCVC680K	0x0308	PCVC680K Vesta Pro PC Camera
 product PHILIPS DSS150		0x0471	DSS 150 Digital Speaker System
+product PHILIPS DIVAUSB		0x1801	DIVA USB mp3 player
 
 /* Philips Semiconductor products */
 product PHILIPSSEMI HUB1122	0x1122	hub
