@@ -50,40 +50,36 @@ static void label_dump(struct gctl_req *req);
 static void label_label(struct gctl_req *req);
 
 struct g_command class_commands[] = {
-	{ "clear", G_FLAG_VERBOSE, label_main, G_NULL_OPTS },
-	{ "create", G_FLAG_VERBOSE | G_FLAG_LOADKLD, NULL, G_NULL_OPTS },
+	{ "clear", G_FLAG_VERBOSE, label_main, G_NULL_OPTS,
+	    "[-v] dev ..."
+	},
+	{ "create", G_FLAG_VERBOSE | G_FLAG_LOADKLD, NULL, G_NULL_OPTS,
+	    "[-v] name dev"
+	},
 	{ "destroy", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_NONE },
 		G_OPT_SENTINEL
-	    }
+	    },
+	    "[-fv] name ..."
 	},
-	{ "dump", 0, label_main, G_NULL_OPTS },
-	{ "label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, label_main, G_NULL_OPTS },
+	{ "dump", 0, label_main, G_NULL_OPTS,
+	    "dev ..."
+	},
+	{ "label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, label_main, G_NULL_OPTS,
+	    "[-v] name dev"
+	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_NONE },
 		G_OPT_SENTINEL
-	    }
+	    },
+	    "[-fv] name ..."
 	},
 	G_CMD_SENTINEL
 };
 
 static int verbose = 0;
-
-
-void usage(const char *name);
-void
-usage(const char *name)
-{
-
-	fprintf(stderr, "usage: %s create [-v] name dev\n", name);
-	fprintf(stderr, "       %s destroy [-fv] name ...\n", name);
-	fprintf(stderr, "       %s label [-v] name dev\n", name);
-	fprintf(stderr, "       %s stop [-fv] name ...\n", name);
-	fprintf(stderr, "       %s clear [-v] dev ...\n", name);
-	fprintf(stderr, "       %s dump dev ...\n", name);
-}
 
 static void
 label_main(struct gctl_req *req, unsigned flags)
