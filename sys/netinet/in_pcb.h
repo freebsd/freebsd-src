@@ -144,6 +144,7 @@ struct inpcb {
 	u_char	inp_vflag;
 #define	INP_IPV4	0x1
 #define	INP_IPV6	0x2
+#define	INP_ONESBCAST	0x10		/* send all-ones broadcast */
 	u_char	inp_ip_ttl;		/* time to live proto */
 	u_char	inp_ip_p;		/* protocol proto */
 

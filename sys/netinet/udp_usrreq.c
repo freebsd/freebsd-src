@@ -681,9 +681,10 @@ udp_output(inp, m, addr, control, p)
 {
 	register struct udpiphdr *ui;
 	register int len = m->m_pkthdr.len;
-	struct in_addr laddr;
+	struct in_addr faddr, laddr;
 	struct sockaddr_in *sin;
 	int s = 0, error = 0;
+	int ipflags;
 
 	if (control)
 		m_freem(control);		/* XXX */
@@ -741,11 +742,18 @@ udp_output(inp, m, addr, control, p)
 	ui->ui_dport = inp->inp_fport;
 	ui->ui_ulen = htons((u_short)len + sizeof(struct udphdr));
 
+	ipflags = inp->inp_socket->so_options & (SO_DONTROUTE | SO_BROADCAST);
+	if (inp->inp_flags & INP_ONESBCAST)
+		ipflags |= IP_SENDONES;
+
 	/*
 	 * Set up checksum and output datagram.
 	 */
 	if (udpcksum) {
-        	ui->ui_sum = in_pseudo(ui->ui_src.s_addr, ui->ui_dst.s_addr,
+		faddr = ui->ui_dst;
+		if (inp->inp_flags & INP_ONESBCAST)
+			faddr.s_addr = INADDR_BROADCAST;
+		ui->ui_sum = in_pseudo(ui->ui_src.s_addr, faddr.s_addr,
 		    htons((u_short)len + sizeof(struct udphdr) + IPPROTO_UDP));
 		m->m_pkthdr.csum_flags = CSUM_UDP;
 		m->m_pkthdr.csum_data = offsetof(struct udphdr, uh_sum);
@@ -757,8 +765,7 @@ udp_output(inp, m, addr, control, p)
 	((struct ip *)ui)->ip_tos = inp->inp_ip_tos;	/* XXX */
 	udpstat.udps_opackets++;
 
-	error = ip_output(m, inp->inp_options, &inp->inp_route,
-	    (inp->inp_socket->so_options & (SO_DONTROUTE | SO_BROADCAST)),
+	error = ip_output(m, inp->inp_options, &inp->inp_route, ipflags,
 	    inp->inp_moptions, inp);
 
 	if (addr) {

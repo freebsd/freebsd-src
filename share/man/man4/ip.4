@@ -136,6 +136,47 @@ cmsg_level = IPPROTO_IP
 cmsg_type = IP_RECVDSTADDR
 .Ed
 .Pp
+If the
+.Dv IP_ONESBCAST
+option is enabled on a
+.Dv SOCK_DGRAM
+or a
+.Dv SOCK_RAW
+socket, the destination address of outgoing
+broadcast datagrams on that socket will be forced
+to the undirected broadcast address,
+.Dv INADDR_BROADCAST ,
+before transmission.
+This is in contrast to the default behavior of the
+system, which is to transmit undirected broadcasts
+via the first network interface with the
+.Dv IFF_BROADCAST flag set.
+.Pp
+This option allows applications to choose which
+interface is used to transmit an undirected broadcast
+datagram.
+For example, the following code would force an
+undirected broadcast to be transmitted via the interface
+configured with the broadcast address 192.168.2.255:
+.Bd -literal
+char msg[512];
+struct sockaddr_in sin;
+u_char onesbcast = 1; /* 0 = disable (default), 1 = enable */
+
+setsockopt(s, IPPROTO_IP, IP_ONESBCAST, &onesbcast, sizeof(onesbcast));
+sin.sin_addr.s_addr = inet_addr("192.168.2.255");
+sin.sin_port = htons(1234);
+sendto(s, msg, sizeof(msg), 0, &sin, sizeof(sin));
+.Ed
+.Pp
+It is the application's responsibility to set the
+.Dv IP_TTL option
+to an appropriate value in order to prevent broadcast storms.
+The application must have sufficient credentials to set the
+.Dv SO_BROADCAST
+socket level option, otherwise the
+.Dv IP_ONESBCAST option has no effect.
+.Pp
 .Dv IP_PORTRANGE
 may be used to set the port range used for selecting a local port number
 on a socket with an unspecified (zero) port number.

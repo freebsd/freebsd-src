@@ -460,6 +460,8 @@ ip_output(struct mbuf *m0, struct mbuf *opt, struct route *ro,
 			error = EMSGSIZE;
 			goto bad;
 		}
+		if (flags & IP_SENDONES)
+			ip->ip_dst.s_addr = INADDR_BROADCAST;
 		m->m_flags |= M_BCAST;
 	} else {
 		m->m_flags &= ~M_BCAST;
@@ -1443,6 +1445,7 @@ ip_ctloutput(so, sopt)
 		case IP_RECVDSTADDR:
 		case IP_RECVIF:
 		case IP_FAITH:
+		case IP_ONESBCAST:
 			error = sooptcopyin(sopt, &optval, sizeof optval,
 					    sizeof optval);
 			if (error)
@@ -1480,6 +1483,10 @@ ip_ctloutput(so, sopt)
 
 			case IP_FAITH:
 				OPTSET(INP_FAITH);
+				break;
+
+			case IP_ONESBCAST:
+				OPTSET(INP_ONESBCAST);
 				break;
 			}
 			break;
@@ -1573,6 +1580,7 @@ ip_ctloutput(so, sopt)
 		case IP_RECVIF:
 		case IP_PORTRANGE:
 		case IP_FAITH:
+		case IP_ONESBCAST:
 			switch (sopt->sopt_name) {
 
 			case IP_TOS:
@@ -1612,6 +1620,10 @@ ip_ctloutput(so, sopt)
 
 			case IP_FAITH:
 				optval = OPTBIT(INP_FAITH);
+				break;
+
+			case IP_ONESBCAST:
+				optval = OPTBIT(INP_ONESBCAST);
 				break;
 			}
 			error = sooptcopyout(sopt, &optval, sizeof optval);
