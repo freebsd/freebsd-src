@@ -11,7 +11,7 @@ BIN1=   amd.map apmd.conf auth.conf \
 	hosts hosts.allow hosts.equiv hosts.lpd \
 	inetd.conf login.access login.conf \
 	motd modems netconfig networks newsyslog.conf \
-	pam.conf phones printcap profile protocols \
+	phones printcap profile protocols \
 	rc rc.atm rc.devfs rc.diskless1 rc.diskless2 rc.firewall rc.firewall6 \
 	rc.network rc.network6 rc.pccard rc.serial rc.shutdown \
 	rc.syscons rc.sysctl remote rpc security services shells sysctl.conf \
@@ -22,6 +22,10 @@ BIN1=   amd.map apmd.conf auth.conf \
 	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config \
 	${.CURDIR}/../usr.bin/mail/misc/mail.rc \
 	${.CURDIR}/../usr.bin/locate/locate/locate.rc
+
+.if !defined(USE_PAM_D)
+BIN1+=	pam.conf
+.endif
 
 .if !defined(NO_I4B)
 BIN1+=	rc.isdn
@@ -79,6 +83,9 @@ distribution:
 	( cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap ); \
 	( cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt ); \
 	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd; )
+.if defined(USE_PAM_D)
+	( cd ${.CURDIR}/pam.d; ${MAKE} install )
+.endif
 .if !defined(NO_I4B)
 	( cd ${.CURDIR}/isdn; ${MAKE} install )
 .endif
