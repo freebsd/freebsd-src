@@ -94,6 +94,12 @@
 #define	SIGUSR1		30	/* user defined signal 1 */
 #define	SIGUSR2		31	/* user defined signal 2 */
 
+/* XXX needs namespace conditional. */
+#ifndef _SIGSET_T_DECLARED
+#define	_SIGSET_T_DECLARED
+typedef	__sigset_t	sigset_t;
+#endif
+
 /*-
  * Type of a signal handling function.
  *
