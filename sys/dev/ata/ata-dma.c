@@ -726,7 +726,7 @@ via_82c586:
     case 0x4d68105a:	/* Promise TX2 ATA100 controllers */
     case 0x6268105a:	/* Promise TX2v2 ATA100 controllers */
 	ATA_OUTB(scp->r_bmio, ATA_BMDEVSPEC_0, 0x0b);
-	if (udmamode >= 4 && (ATA_INB(scp->r_bmio, ATA_BDDEVSPEC_1) & 0x20)) {
+	if (udmamode >= 4 && !(ATA_INB(scp->r_bmio, ATA_BMDEVSPEC_1) & 0x04)) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA + max(udmamode, 5), ATA_C_F_SETXFER,
 				ATA_WAIT_READY);
