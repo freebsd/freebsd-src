@@ -1,6 +1,6 @@
 /* ns_func.h - declarations for ns_*.c's externally visible functions
  *
- * $Id: ns_func.h,v 8.3 1995/06/29 09:26:17 vixie Exp $
+ * $Id: ns_func.h,v 8.6 1995/12/22 10:20:30 vixie Exp $
  */
 
 /* ++from ns_resp.c++ */
@@ -22,7 +22,7 @@ extern int		doupdate __P((u_char *, int, u_char *, int,
 			wanted __P((struct databuf *, int, int)),
 			add_data __P((struct namebuf *,
 				      struct databuf **,
-				      u_char *, int));
+				      u_char *, int, int *));
 /* --from ns_resp.c-- */
 
 /* ++from ns_req.c++ */
@@ -63,10 +63,7 @@ extern int		ns_forw __P((struct databuf *nsp[],
 				      const char *sysloginfo)),
 			qcomp __P((struct qserv *, struct qserv *));
 extern struct qdatagram	*aIsUs __P((struct in_addr));
-extern void		nslookupComplain __P((const char *, const char *,
-					      const char *, const char *,
-					      const struct databuf *)),
-			schedretry __P((struct qinfo *, time_t)),
+extern void		schedretry __P((struct qinfo *, time_t)),
 			unsched __P((struct qinfo *)),
 			retry __P((struct qinfo *)),
 			qflush __P((void)),
@@ -108,7 +105,10 @@ extern void		ns_maint __P((void)),
 			loadxfer __P((void)),
 			qserial_query __P((struct zoneinfo *)),
 			qserial_answer __P((struct qinfo *, u_int32_t));
-extern SIG_FN		endxfer __P(());
+extern void		holdsigchld __P((void));
+extern void		releasesigchld __P((void));
+extern SIG_FN		reapchild __P(());
+extern void		endxfer __P((void));
 extern const char *	zoneTypeString __P((const struct zoneinfo *));
 #ifdef DEBUG
 extern void		printzoneinfo __P((int));
@@ -147,15 +147,15 @@ extern void		nameserIncr __P((struct in_addr addr,
 /* ++from ns_validate.c++ */
 extern int
 #ifdef NCACHE
-			validate __P((char *, struct sockaddr_in *,
+			validate __P((char *, char *, struct sockaddr_in *,
 				      int, int, char *, int, int)),
 #else
-			validate __P((char *, struct sockaddr_in *,
+			validate __P((char *, char *, struct sockaddr_in *,
 				      int, int, char *, int)),
 #endif
 			dovalidate __P((u_char *, int, u_char *, int, int,
-					struct sockaddr_in *, int *)),
+					char *, struct sockaddr_in *, int *)),
 			update_msg __P((u_char *, int *, int Vlist[], int));
-extern void		store_name_addr __P((char *, struct in_addr,
-					     char *, char *));
+extern void		store_name_addr __P((const char *, struct in_addr,
+					     const char *, const char *));
 /* --from ns_validate.c-- */
