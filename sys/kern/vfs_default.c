@@ -605,7 +605,9 @@ retry:
 		 * Dereference the reference we just created.  This assumes
 		 * that the object is associated with the vp.
 		 */
+		VM_OBJECT_LOCK(object);
 		object->ref_count--;
+		VM_OBJECT_UNLOCK(object);
 		vrele(vp);
 	} else {
 		if (object->flags & OBJ_DEAD) {
