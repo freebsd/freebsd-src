@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.c#133 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.c#134 $
  *
  * $FreeBSD$
  */
@@ -1469,7 +1469,7 @@ ahc_clear_critical_section(struct ahc_softc *ahc)
 				 * current connection, so we must
 				 * leave it on while single stepping.
 				 */
-				ahc_outb(ahc, SIMODE1, ENBUSFREE);
+				ahc_outb(ahc, SIMODE1, simode1 & ENBUSFREE);
 			else
 				ahc_outb(ahc, SIMODE1, 0);
 			ahc_outb(ahc, CLRINT, CLRSCSIINT);
