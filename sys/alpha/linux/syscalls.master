@@ -134,7 +134,7 @@
 80	STD	LINUX	{ int linux_getgroups(l_int gidsetsize, \
 				l_gid_t *grouplist); }
 81	UNIMPL	LINUX	
-82	STD	LINUX	{ int linux_setpgid(l_pid_t pid, l_pid_t pgid); }
+82	NODEF	LINUX	setpgid
 83	STD	OSF1	{ int osf1_setitimer(u_int which, \
 				struct itimerval *itv, \
 				struct itimerval *oitv); }
@@ -318,7 +318,7 @@
 230	UNIMPL	LINUX
 231	UNIMPL	LINUX
 232	UNIMPL	LINUX
-233	STD	LINUX	{ int linux_getpgid(l_pid_t pid); }
+233	NOPROTO	LINUX	{ int getpgid(int pid); }
 234	STD	LINUX	{ int linux_getsid(l_pid_t pid); }
 235	STD	LINUX	{ int linux_sigaltstack(void); }
 236	UNIMPL	LINUX
