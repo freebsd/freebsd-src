@@ -2050,7 +2050,7 @@ twa_enqueue_aen(struct twa_softc *sc, struct twa_command_header *cmd_hdr)
 				event->parameter_len,
 				event->parameter_data);
 
-		twa_dbg_dprint(4, sc, "cmd_hdr = %x %lx %x %x %x %x %x\n %s",
+		twa_dbg_dprint(4, sc, "cmd_hdr = %x %lx %x %x %x %x %zx\n %s",
 				sc->twa_current_sequence_id,
 				local_time,
 				cmd_hdr->status_block.error,
