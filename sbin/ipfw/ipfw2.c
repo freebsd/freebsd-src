@@ -224,6 +224,7 @@ enum tokens {
 	TOK_ICMPTYPES,
 	TOK_MAC,
 	TOK_MACTYPE,
+	TOK_VERREVPATH,
 
 	TOK_PLR,
 	TOK_NOERROR,
@@ -333,6 +334,7 @@ struct _s_x rule_options[] = {
 	{ "MAC",		TOK_MAC },
 	{ "mac",		TOK_MAC },
 	{ "mac-type",		TOK_MACTYPE },
+	{ "verrevpath",		TOK_VERREVPATH },
 
 	{ "not",		TOK_NOT },		/* pseudo option */
 	{ "!", /* escape ? */	TOK_NOT },		/* pseudo option */
@@ -1162,6 +1164,10 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			    }
 				break;
 
+			case O_VERREVPATH:
+				printf(" verrevpath");
+				break;
+			  
 			case O_KEEP_STATE:
 				printf(" keep-state");
 				break;
@@ -3160,6 +3166,10 @@ read_options:
 			ac--; av++;
 			break;
 
+		case TOK_VERREVPATH:
+			fill_cmd(cmd, O_VERREVPATH, 0, 0);
+			break;
+		  
 		default:
 			errx(EX_USAGE, "unrecognised option [%d] %s\n", i, s);
 		}
