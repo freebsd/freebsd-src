@@ -1237,7 +1237,9 @@ pci_probe_nomatch(device_t dev, device_t child)
 	}
 	printf(" at device %d.%d (no driver attached)\n",
 	    pci_get_slot(child), pci_get_function(child));
-	pci_cfg_save(child, (struct pci_devinfo *) device_get_ivars(child), 1);
+	if (pci_do_powerstate)
+		pci_cfg_save(child,
+		    (struct pci_devinfo *) device_get_ivars(child), 1);
 	return;
 }
 
@@ -1811,6 +1813,7 @@ pci_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
 	 */
 	if (dinfo->cfg.hdrtype != 0)
 		return;
+
 	/*
 	 * Restore the device to full power mode.  We must do this
 	 * before we restore the registers because moving from D3 to
@@ -1819,7 +1822,7 @@ pci_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
 	 * the noise on boot by doing nothing if we are already in
 	 * state D0.
 	 */
-	if (pci_do_powerstate && (pci_get_powerstate(dev) != PCI_POWERSTATE_D0)) {
+	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
 		if (bootverbose)
 			printf(
 			    "pci%d:%d:%d: Transition from D%d to D0\n",
@@ -1901,7 +1904,7 @@ pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
 	 * implement (a) we don't power the device down on a reattach.
 	 */
 	cls = pci_get_class(dev);
-	if (pci_do_powerstate && setstate && cls != PCIC_DISPLAY && cls != PCIC_MEMORY) {
+	if (setstate && cls != PCIC_DISPLAY && cls != PCIC_MEMORY) {
 		/*
 		 * PCI spec is clear that we can only go into D3 state from
 		 * D0 state.  Transition from D[12] into D0 before going
