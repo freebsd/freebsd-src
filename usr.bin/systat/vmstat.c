@@ -58,6 +58,7 @@ static const char rcsid[] =
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <nlist.h>
 #include <paths.h>
 #include <signal.h>
@@ -731,7 +732,6 @@ getinfo(s, st)
 {
 	struct devinfo *tmp_dinfo;
 	int mib[2], size;
-	extern int errno;
 
 	NREAD(X_CPTIME, s->time, sizeof s->time);
 	NREAD(X_CPTIME, cur.cp_time, sizeof(cur.cp_time));

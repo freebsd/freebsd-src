@@ -50,6 +50,7 @@ static const char rcsid[] =
 #include <sys/resource.h>
 
 #include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <pwd.h>
@@ -124,7 +125,6 @@ donice(which, who, prio)
 	int which, who, prio;
 {
 	int oldprio;
-	extern int errno;
 
 	errno = 0, oldprio = getpriority(which, who);
 	if (oldprio == -1 && errno) {

@@ -32,6 +32,8 @@
  * SUCH DAMAGE.
  *
  *      @(#)tip.h	8.1 (Berkeley) 6/6/93
+ *
+ * $FreeBSD$
  */
 
 /*
@@ -318,7 +320,7 @@ extern	void shell_uid __P((void));
 extern	void unraw __P((void));
 extern	void xpwrite __P((int, char *, int));
 extern	int prompt __P((char *, char *, size_t));
-extern	void  consh __P((int));
+extern	int consh __P((int));
 extern	void tipabort __P((char *));
 
 #define TL_VERBOSE       0x00000001

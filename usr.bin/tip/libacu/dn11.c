@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -40,6 +42,7 @@ static char sccsid[] = "@(#)dn11.c	8.1 (Berkeley) 6/6/93";
  */
 #include "tipconf.h"
 #include "tip.h"
+#include <errno.h>
 
 int dn_abort();
 void alarmtr();
@@ -49,7 +52,6 @@ static int child = -1, dn;
 dn_dialer(num, acu)
 	char *num, *acu;
 {
-	extern errno;
 	char *p, *q, phone[40];
 	int lt, nw, connected = 1;
 	register int timelim;
