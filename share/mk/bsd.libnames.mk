@@ -79,8 +79,9 @@ LIBPAM+=	${LIBKRB} ${LIBCRYPTO} ${LIBCOM_ERR}
 MINUSLPAM+=	-lkrb -lcrypto -lcom_err
 .endif
 LIBPAM+=	${LIBRADIUS} ${LIBTACPLUS} ${LIBSKEY} ${LIBCRYPT} ${LIBMD} \
-		${LIBUTIL}
-MINUSLPAM+=	-lradius -ltacplus -lskey -lcrypt -lmd -lutil
+		${LIBUTIL} ${LIBOPIE}
+MINUSLPAM+=	-lradius -ltacplus -lskey -lcrypt -lmd \
+		-lutil -lopie
 .endif
 
 LIBPANEL?=	${DESTDIR}${LIBDIR}/libpanel.a
