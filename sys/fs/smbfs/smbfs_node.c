@@ -337,7 +337,7 @@ smbfs_inactive(ap)
 	} */ *ap;
 {
 	struct thread *td = ap->a_td;
-	struct ucred *cred = td->td_proc->p_ucred;
+	struct ucred *cred = td->td_ucred;
 	struct vnode *vp = ap->a_vp;
 	struct smbnode *np = VTOSMB(vp);
 	struct smb_cred scred;

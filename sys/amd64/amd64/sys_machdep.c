@@ -185,7 +185,7 @@ i386_set_ioperm(td, args)
 
 	if ((error = suser_td(td)) != 0)
 		return (error);
-	if ((error = securelevel_gt(td->td_proc->p_ucred, 0)) != 0)
+	if ((error = securelevel_gt(td->td_ucred, 0)) != 0)
 		return (error);
 	/*
 	 * XXX 

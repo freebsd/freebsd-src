@@ -2619,7 +2619,7 @@ usl_vt_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct thread *td)
 		error = suser_td(td);
 		if (error != 0)
 			return (error);
-		error = securelevel_gt(p->p_ucred, 0);
+		error = securelevel_gt(td->td_ucred, 0);
 		if (error != 0)
 			return (error);
 

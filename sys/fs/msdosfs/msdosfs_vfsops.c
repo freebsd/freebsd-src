@@ -199,7 +199,7 @@ msdosfs_mount(mp, path, data, ndp, td)
 				devvp = pmp->pm_devvp;
 				vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 				error = VOP_ACCESS(devvp, VREAD | VWRITE,
-						   td->td_proc->p_ucred, td);
+						   td->td_ucred, td);
 				if (error) {
 					VOP_UNLOCK(devvp, 0, td);
 					return (error);
@@ -247,7 +247,7 @@ msdosfs_mount(mp, path, data, ndp, td)
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
 			accessmode |= VWRITE;
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-		error = VOP_ACCESS(devvp, accessmode, td->td_proc->p_ucred, td);
+		error = VOP_ACCESS(devvp, accessmode, td->td_ucred, td);
 		if (error) {
 			vput(devvp);
 			return (error);
@@ -315,7 +315,7 @@ mountmsdosfs(devvp, mp, td, argp)
 	if (vcount(devvp) > 1 && devvp != rootvp)
 		return (EBUSY);
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = vinvalbuf(devvp, V_SAVE, td->td_proc->p_ucred, td, 0, 0);
+	error = vinvalbuf(devvp, V_SAVE, td->td_ucred, td, 0, 0);
 	VOP_UNLOCK(devvp, 0, td);
 	if (error)
 		return (error);

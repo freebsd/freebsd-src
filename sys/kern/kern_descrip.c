@@ -635,7 +635,7 @@ fsetown(pgid, sigiop)
 	/* Allocate and fill in the new sigio out of locks. */
 	MALLOC(sigio, struct sigio *, sizeof(struct sigio), M_SIGIO, M_WAITOK);
 	sigio->sio_pgid = pgid;
-	sigio->sio_ucred = crhold(curthread->td_proc->p_ucred);
+	sigio->sio_ucred = crhold(curthread->td_ucred);
 	sigio->sio_myref = sigiop;
 
 	PGRPSESS_SLOCK();
@@ -1114,7 +1114,7 @@ falloc(td, resultfp, resultfd)
 	fp->f_mtxp = mtx_pool_alloc();
 	fp->f_gcflag = 0;
 	fp->f_count = 1;
-	fp->f_cred = crhold(p->p_ucred);
+	fp->f_cred = crhold(td->td_ucred);
 	fp->f_ops = &badfileops;
 	fp->f_seqcount = 1;
 	FILEDESC_UNLOCK(p->p_fd);

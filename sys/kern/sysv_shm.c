@@ -620,7 +620,7 @@ shmget_allocate_segment(td, uap, mode)
 	int mode;
 {
 	int i, segnum, shmid, size;
-	struct ucred *cred = td->td_proc->p_ucred;
+	struct ucred *cred = td->td_ucred;
 	struct shmid_ds *shmseg;
 	struct shm_handle *shm_handle;
 

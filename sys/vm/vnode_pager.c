@@ -463,8 +463,8 @@ vnode_pager_input_smlfs(object, m)
 			bp->b_iodone = vnode_pager_iodone;
 			KASSERT(bp->b_rcred == NOCRED, ("leaking read ucred"));
 			KASSERT(bp->b_wcred == NOCRED, ("leaking write ucred"));
-			bp->b_rcred = crhold(curthread->td_proc->p_ucred);
-			bp->b_wcred = crhold(curthread->td_proc->p_ucred);
+			bp->b_rcred = crhold(curthread->td_ucred);
+			bp->b_wcred = crhold(curthread->td_ucred);
 			bp->b_data = (caddr_t) kva + i * bsize;
 			bp->b_blkno = fileaddr;
 			pbgetvp(dp, bp);
@@ -555,7 +555,7 @@ vnode_pager_input_old(object, m)
 		auio.uio_resid = size;
 		auio.uio_td = curthread;
 
-		error = VOP_READ(vp, &auio, 0, curthread->td_proc->p_ucred);
+		error = VOP_READ(vp, &auio, 0, curthread->td_ucred);
 		if (!error) {
 			int count = size - auio.uio_resid;
 
@@ -782,8 +782,8 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	/* B_PHYS is not set, but it is nice to fill this in */
 	KASSERT(bp->b_rcred == NOCRED, ("leaking read ucred"));
 	KASSERT(bp->b_wcred == NOCRED, ("leaking write ucred"));
-	bp->b_rcred = crhold(curthread->td_proc->p_ucred);
-	bp->b_wcred = crhold(curthread->td_proc->p_ucred);
+	bp->b_rcred = crhold(curthread->td_ucred);
+	bp->b_wcred = crhold(curthread->td_ucred);
 	bp->b_blkno = firstaddr;
 	pbgetvp(dp, bp);
 	bp->b_bcount = size;
@@ -1030,7 +1030,7 @@ vnode_pager_generic_putpages(vp, m, bytecount, flags, rtvals)
 	auio.uio_rw = UIO_WRITE;
 	auio.uio_resid = maxsize;
 	auio.uio_td = (struct thread *) 0;
-	error = VOP_WRITE(vp, &auio, ioflags, curthread->td_proc->p_ucred);
+	error = VOP_WRITE(vp, &auio, ioflags, curthread->td_ucred);
 	cnt.v_vnodeout++;
 	cnt.v_vnodepgsout += ncount;
 

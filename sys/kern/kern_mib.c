@@ -161,7 +161,7 @@ sysctl_hostname(SYSCTL_HANDLER_ARGS)
 	char tmphostname[MAXHOSTNAMELEN];
 	int error;
 
-	pr = req->td->td_proc->p_ucred->cr_prison;
+	pr = req->td->td_ucred->cr_prison;
 	if (pr != NULL) {
 		if (!jail_set_hostname_allowed && req->newptr)
 			return (EPERM);
@@ -211,7 +211,7 @@ sysctl_kern_securelvl(SYSCTL_HANDLER_ARGS)
 	struct prison *pr;
 	int error, level;
 
-	pr = req->td->td_proc->p_ucred->cr_prison;
+	pr = req->td->td_ucred->cr_prison;
 
 	/*
 	 * If the process is in jail, return the maximum of the global and

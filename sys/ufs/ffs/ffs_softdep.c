@@ -812,7 +812,7 @@ softdep_flushworklist(oldmnt, countp, td)
 	while ((count = softdep_process_worklist(oldmnt)) > 0) {
 		*countp += count;
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-		error = VOP_FSYNC(devvp, td->td_proc->p_ucred, MNT_WAIT, td);
+		error = VOP_FSYNC(devvp, td->td_ucred, MNT_WAIT, td);
 		VOP_UNLOCK(devvp, 0, td);
 		if (error)
 			break;
@@ -3078,7 +3078,7 @@ handle_workitem_remove(dirrem)
 	}
 	inodedep->id_nlinkdelta = ip->i_nlink - ip->i_effnlink;
 	FREE_LOCK(&lk);
-	if ((error = UFS_TRUNCATE(vp, (off_t)0, 0, td->td_proc->p_ucred, td)) != 0)
+	if ((error = UFS_TRUNCATE(vp, (off_t)0, 0, td->td_ucred, td)) != 0)
 		softdep_error("handle_workitem_remove: truncate", error);
 	/*
 	 * Rename a directory to a new parent. Since, we are both deleting
@@ -4245,7 +4245,7 @@ softdep_fsync(vp)
 				return (error);
 			}
 			if ((pagedep->pd_state & NEWBLOCK) &&
-			    (error = VOP_FSYNC(pvp, td->td_proc->p_ucred, MNT_WAIT, td))) {
+			    (error = VOP_FSYNC(pvp, td->td_ucred, MNT_WAIT, td))) {
 				vput(pvp);
 				return (error);
 			}
@@ -4253,7 +4253,7 @@ softdep_fsync(vp)
 		/*
 		 * Flush directory page containing the inode's name.
 		 */
-		error = bread(pvp, lbn, blksize(fs, VTOI(pvp), lbn), td->td_proc->p_ucred,
+		error = bread(pvp, lbn, blksize(fs, VTOI(pvp), lbn), td->td_ucred,
 		    &bp);
 		if (error == 0)
 			error = BUF_WRITE(bp);
@@ -4730,8 +4730,8 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 			FREE_LOCK(&lk);
 			if ((error = VFS_VGET(mp, inum, &vp)) != 0)
 				break;
-			if ((error=VOP_FSYNC(vp, td->td_proc->p_ucred, MNT_NOWAIT, td)) ||
-			    (error=VOP_FSYNC(vp, td->td_proc->p_ucred, MNT_NOWAIT, td))) {
+			if ((error=VOP_FSYNC(vp, td->td_ucred, MNT_NOWAIT, td)) ||
+			    (error=VOP_FSYNC(vp, td->td_ucred, MNT_NOWAIT, td))) {
 				vput(vp);
 				break;
 			}
@@ -4997,7 +4997,7 @@ clear_remove(td)
 				vn_finished_write(mp);
 				return;
 			}
-			if ((error = VOP_FSYNC(vp, td->td_proc->p_ucred, MNT_NOWAIT, td)))
+			if ((error = VOP_FSYNC(vp, td->td_ucred, MNT_NOWAIT, td)))
 				softdep_error("clear_remove: fsync", error);
 			drain_output(vp, 0);
 			vput(vp);
@@ -5071,10 +5071,10 @@ clear_inodedeps(td)
 			return;
 		}
 		if (ino == lastino) {
-			if ((error = VOP_FSYNC(vp, td->td_proc->p_ucred, MNT_WAIT, td)))
+			if ((error = VOP_FSYNC(vp, td->td_ucred, MNT_WAIT, td)))
 				softdep_error("clear_inodedeps: fsync1", error);
 		} else {
-			if ((error = VOP_FSYNC(vp, td->td_proc->p_ucred, MNT_NOWAIT, td)))
+			if ((error = VOP_FSYNC(vp, td->td_ucred, MNT_NOWAIT, td)))
 				softdep_error("clear_inodedeps: fsync2", error);
 			drain_output(vp, 0);
 		}

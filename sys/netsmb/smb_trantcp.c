@@ -227,7 +227,7 @@ nb_connect_in(struct nbpcb *nbp, struct sockaddr_in *to, struct thread *td)
 	int error, s;
 
 	error = socreate(AF_INET, &so, SOCK_STREAM, IPPROTO_TCP,
-	    td->td_proc->p_ucred, td);
+	    td->td_ucred, td);
 	if (error)
 		return error;
 	nbp->nbp_tso = so;

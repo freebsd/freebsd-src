@@ -211,7 +211,7 @@ nmdmopen(dev_t dev, int flag, int devtype, struct thread *td)
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
 	} else if (tp->t_state & TS_XCLUDE && suser_td(td)) {
 		return (EBUSY);
-	} else if (pti->pt_prison != td->td_proc->p_ucred->cr_prison) {
+	} else if (pti->pt_prison != td->td_ucred->cr_prison) {
 		return (EBUSY);
 	}
 

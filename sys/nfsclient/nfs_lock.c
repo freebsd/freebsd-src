@@ -140,7 +140,7 @@ nfs_dolock(struct vop_advlock_args *ap)
 	msg.lm_fh_len = NFS_ISV3(vp) ? VTONFS(vp)->n_fhsize : NFSX_V2FH;
 	bcopy(VTONFS(vp)->n_fhp, msg.lm_fh, msg.lm_fh_len);
 	msg.lm_nfsv3 = NFS_ISV3(vp);
-	msg.lm_cred = *(p->p_ucred);
+	msg.lm_cred = *(td->td_ucred);
 
 	/*
 	 * Open the lock fifo.  If for any reason we don't find the fifo, it
@@ -242,7 +242,7 @@ nfslockdans(struct thread *td, struct lockd_ans *ansp)
 	 * XXX This authorization check is probably not right.
 	 */
 	if ((error = suser(td->td_proc)) != 0 &&
-	    td->td_proc->p_ucred->cr_svuid != 0)
+	    td->td_ucred->cr_svuid != 0)
 		return (error);
 
 	/* the version should match, or we're out of sync */

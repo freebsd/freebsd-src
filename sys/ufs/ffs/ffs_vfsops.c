@@ -230,7 +230,7 @@ ffs_mount(mp, path, data, ndp, td)
 			if (suser_td(td)) {
 				vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 				if ((error = VOP_ACCESS(devvp, VREAD | VWRITE,
-				    td->td_proc->p_ucred, td)) != 0) {
+				    td->td_ucred, td)) != 0) {
 					VOP_UNLOCK(devvp, 0, td);
 					return (error);
 				}
@@ -261,7 +261,7 @@ ffs_mount(mp, path, data, ndp, td)
 			}
 			/* check to see if we need to start softdep */
 			if ((fs->fs_flags & FS_DOSOFTDEP) &&
-			    (error = softdep_mount(devvp, mp, fs, td->td_proc->p_ucred))){
+			    (error = softdep_mount(devvp, mp, fs, td->td_ucred))){
 				vn_finished_write(mp);
 				return (error);
 			}
@@ -313,7 +313,7 @@ ffs_mount(mp, path, data, ndp, td)
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
 			accessmode |= VWRITE;
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-		if ((error = VOP_ACCESS(devvp, accessmode, td->td_proc->p_ucred, td))!= 0){
+		if ((error = VOP_ACCESS(devvp, accessmode, td->td_ucred, td))!= 0){
 			vput(devvp);
 			return (error);
 		}
@@ -409,7 +409,7 @@ ffs_reload(mp, cred, td)
 	 */
 	if (vn_isdisk(devvp, NULL)) {
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-		vfs_object_create(devvp, td, td->td_proc->p_ucred);
+		vfs_object_create(devvp, td, td->td_ucred);
 		mtx_lock(&devvp->v_interlock);
 		VOP_UNLOCK(devvp, LK_INTERLOCK, td);
 	}
@@ -556,7 +556,7 @@ ffs_mountfs(devvp, mp, td, malloctype)
 	int ncount;
 
 	dev = devvp->v_rdev;
-	cred = td ? td->td_proc->p_ucred : NOCRED;
+	cred = td ? td->td_ucred : NOCRED;
 	/*
 	 * Disallow multiple mounts of the same device.
 	 * Disallow mounting of a device that is currently in use
@@ -942,7 +942,7 @@ ffs_flushfiles(mp, flags, td)
 	 * Flush filesystem metadata.
 	 */
 	vn_lock(ump->um_devvp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = VOP_FSYNC(ump->um_devvp, td->td_proc->p_ucred, MNT_WAIT, td);
+	error = VOP_FSYNC(ump->um_devvp, td->td_ucred, MNT_WAIT, td);
 	VOP_UNLOCK(ump->um_devvp, 0, td);
 	return (error);
 }
