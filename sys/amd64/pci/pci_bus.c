@@ -310,7 +310,6 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 	int pcifunchigh;
 	int found824xx = 0;
 	int found_orion = 0;
-	int found_pcibios_flaming_death = 0;
 	device_t child;
 	devclass_t pci_devclass;
 
@@ -398,23 +397,6 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 	}
 	if (found824xx && bus == 0) {
 		bus++;
-		goto retry;
-	}
-
-	/*
-	 * This is just freaking brilliant!  Some BIOS writers have
-	 * decided that we must be forcibly prevented from using
-	 * PCIBIOS to query the host->pci bridges.  If you try and
-	 * access configuration registers, it pretends there is
-	 * no pci device at that bus:device:function address.
-	 */
-	if (!found && pci_pcibios_active() && !found_pcibios_flaming_death) {
-		/* retry with the old mechanism, or fail */
-		if (pci_kill_pcibios() == 0)
-			return;
-		printf("nexus_pcib_identify: found broken PCIBIOS - disabling it and retrying.\n");
-		printf("nexus_pcib_identify: it is bogusly censoring host->pci bridges.\n");
-		found_pcibios_flaming_death = 1;
 		goto retry;
 	}
 

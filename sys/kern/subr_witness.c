@@ -259,6 +259,9 @@ static struct witness_order_list_entry order_lists[] = {
 #ifdef __ia64__
 	{ "MCA spin lock", &lock_class_mtx_spin },
 #endif
+#ifdef __i386__
+	{ "pcicfg", &lock_class_mtx_spin },
+#endif
 	{ NULL, NULL },
 	{ NULL, NULL }
 };
