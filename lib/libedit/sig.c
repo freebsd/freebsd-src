@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -112,7 +114,7 @@ sig_init(el)
     sigset_t nset, oset;
 
     (void) sigemptyset(&nset);
-#define _DO(a) (void) sigaddset(&nset, SIGWINCH);
+#define _DO(a) (void) sigaddset(&nset, a);
     ALLSIGS
 #undef _DO
     (void) sigprocmask(SIG_BLOCK, &nset, &oset);
@@ -152,7 +154,7 @@ sig_set(el)
     sigset_t nset, oset;
 
     (void) sigemptyset(&nset);
-#define _DO(a) (void) sigaddset(&nset, SIGWINCH);
+#define _DO(a) (void) sigaddset(&nset, a);
     ALLSIGS
 #undef _DO
     (void) sigprocmask(SIG_BLOCK, &nset, &oset);
@@ -179,7 +181,7 @@ sig_clr(el)
     sigset_t nset, oset;
 
     (void) sigemptyset(&nset);
-#define _DO(a) (void) sigaddset(&nset, SIGWINCH);
+#define _DO(a) (void) sigaddset(&nset, a);
     ALLSIGS
 #undef _DO
     (void) sigprocmask(SIG_BLOCK, &nset, &oset);
