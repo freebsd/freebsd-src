@@ -28,8 +28,8 @@
 	this file to fix "missed" conversions are likely to break the
 	build.
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.7 2002/04/12 17:55:55 ue Exp $
-	basiert auf: 1.80
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.10 2002/04/21 18:43:16 ue Exp $
+	basiert auf: 1.83
 -->
 
 <sect1>
@@ -2090,10 +2090,21 @@
     </para>
 
     <para arch="sparc64">Sun HME Ethernet und Fast Ethernet Karten
-      (hme driver)</para>
+      (hme Treiber)</para>
 
     <para arch="sparc64">Sun GEM (Gigabit Ethernet) und ERI (Fast
-      Ethernet) Karten (gem driver)</para>
+      Ethernet) Karten (gem Treiber)</para>
+
+    <para arch="i386">Myson Ethernetkarten (my Treiber)
+      <itemizedlist>
+        <listitem>
+         <para>Myson MTD80X Based Fast Ethernet Karte</para>
+       </listitem>
+        <listitem>
+         <para>Myson MTD89X Based Gigabit Ethernet Karte</para>
+       </listitem>
+      </itemizedlist>
+    </para>
   </sect2>
 
   <sect2>
@@ -2573,6 +2584,10 @@
         </listitem>
 
         <listitem>
+          <para>PCCOM dual port RS232/422/485</para>
+        </listitem>
+
+        <listitem>
           <para>SIIG Cyber Serial Dual PCI 16C550</para>
         </listitem>
       </itemizedlist>
@@ -2911,12 +2926,12 @@
     <para arch="i386,alpha">Serielle Schnittstellen 
       <itemizedlist>
 	<listitem>
-	  <para>Prolific PL-2303 serial adapter (uplcom
+	  <para>Prolific PL-2303 serial adapter (&man.uplcom.4;
 	    Treiber)</para>
 	</listitem>
 
 	<listitem>
-	  <para>SUNTAC Slipper U VS-10U (uvscom Treiber)</para>
+	  <para>SUNTAC Slipper U VS-10U (&man.uvscom.4; Treiber)</para>
 	</listitem>
       </itemizedlist>
     </para>
@@ -2983,7 +2998,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Modems (umodem Treiber) 
+    <para arch="i386">Modems (&man.umodem.4; Treiber) 
       <itemizedlist>
         <listitem>
           <para>3Com 5605</para>
@@ -3048,7 +3063,7 @@
     </para>
 
     <para arch="i386,alpha">Drucker und Adapterkabel f&uuml;r
-      konventionelle Drucker (ulpt Treiber) 
+      konventionelle Drucker (&man.ulpt.4; Treiber) 
       <itemizedlist>
         <listitem>
           <para>ATen parallel printer Adapter</para>
@@ -3124,7 +3139,7 @@
 
     <para arch="i386">Genius und Mustek Handscanner</para>
 
-    <para arch="i386">GPB und Transputer drivers</para>
+    <para arch="i386">GPB und Transputer Treiber</para>
 
     <para arch="i386,alpha,ia64">Tastaturen:  
       <itemizedlist>
