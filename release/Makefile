@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.51 1994/11/20 01:19:33 phk Exp $
+#	$Id: Makefile,v 1.52 1994/11/20 01:54:13 phk Exp $
 #
 
 # Evil floppies are, of course, 1.2MB floppies.
@@ -19,17 +19,17 @@ MNT=		/mnt
 
 CPIO1= basename cat chmod cksum cp date dd df dmesg echo ed expr hostname kill
 CPIO1+= ln ls mkdir mt mv rcp rm rmdir sh sleep stty sync tar test tip [ -sh
-CPIO1+= badsect chown clri disklabel dump dmesg fdisk fsck ifconfig init
+CPIO1+= badsect chown clri disklabel dump dmesg fdisk fsck getopt ifconfig init
 CPIO1+= mknod mount mount_cd9660 mount_msdos mount_nfs ncftp newfs ping pwd
 CPIO1+= reboot restore slattach swapon umount route
 CPIO1+= rdump rrestore halt ft
-CPIO1+= ftp rsh sed telnet rlogin grep
+CPIO1+= ftp rsh sed telnet tzsetup rlogin grep
 
 CPIO2=  etc/services etc/protocols
 
 # bininst MUST be the last file on the cpio floppy.  It's used to detect
 # a successful extraction.
-CPIO3=	miscfuncs.sh instdist.sh netinst.sh bininst
+CPIO3=	miscfuncs.sh instdist.sh netinst.sh adduser.sh bininst
 
 # Somewhat on the rough side...
 CLEANFILES+=	*.o *.c *.cache *.mk *.lo ${CPIO1} *.flp *.gz 

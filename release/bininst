@@ -13,7 +13,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: bininst,v 1.45 1994/11/18 13:59:49 jkh Exp $
+# $Id: bininst,v 1.46 1994/11/18 16:27:51 jkh Exp $
 
 if [ "$_BININST_LOADED_" = "yes" ]; then
 	echo "Error, $0 loaded more than once!"
@@ -64,25 +64,57 @@ to go, please remove the cpio floppy from the drive and press return!" -1 -1
 
 do_last_config()
 {
-	dialog --title "Auf Wiedersehen!" \
---msgbox "We now come to the end of the installation.  Please remove
-any floppies from the drive before exiting this dialog.  At this point in
-time, there's nothing fancy here, but for the release we plan to
-ask some additional questions about time zone setup, what sort of
-mail client this host is, etc.  We just ran out of time for ALPHA!
-At the very least, you may wish to check out the 'tzsetup' command;
-it will at least handle the first checklist item for you. \n
-The login name \"root\" has no password.  If you're new to UN*X, log
-in as root when prompted for a user name and run vipw to add a new
-user for yourself.
+	dialog --title "Final Configuration!" --menu \
+"We now come to the end of the installation.  If there's a\n\
+floppy in the boot drive, now would probably be a good time\n\
+to remove it as the system will reboot when you exit the shell\n\
+at the end of this stage.\n\n\
+Please select one of the following options:" -1 -1 4 \
+"tzsetup" "Configure your time zone" \
+"user" "Add a user name for yourself to the system" \
+"guest" "Simply add a user \"guest\" with all default options" \
+"done" "Exit the installation." 2> ${TMP}/menu.tmp.$$
+	retval=$?
+	choice=`cat ${TMP}/menu.tmp.$$`
+	rm -f ${TMP}/menu.tmp.$$
+	if ! handle_rval $retval; then exit 0; fi
 
-There are also many useful pre-compiled packages for ${DISTNAME}
-available which you may wish to investigate.  Look in:
+	case $choice in
+	tzsetup)
+		dialog --clear
+		tzsetup
+		dialog --clear
+	;;
 
-	ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}/packages
+	user)
+		dialog --clear
+		sh /stand/adduser.sh -i
+	;;
+
+	guest)
+		dialog --clear
+		sh /stand/adduser.sh
+	;;
+
+	esac
+
+	dialog --title "Auf Wiedersehen!" --msgbox \
+"Don't forget that the login name \"root\" has no password.
+If you didn't create any users with adduser, you can at least log in
+as this user.  Also be aware that root is the _superuser_, which means
+that you can easily wipe out your system if you're not careful!
+
+There are many useful pre-compiled packages for ${DISTNAME}
+available which you may also wish to investigate.  Look in:
+
+        ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}/packages
 
 Any install-related comments to jkh@freebsd.org, phk@freebsd.org or
-paul@freebsd.org." -1 -1
+paul@freebsd.org.
+
+We sincerely hope you enjoy FreeBSD 2.0!
+
+		The FreeBSD Project Team" -1 -1
 }
 
 welcome
