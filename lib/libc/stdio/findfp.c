@@ -66,6 +66,7 @@ int	__sdidinit;
   /*     _ub _extra */
 				/* the usual - (stdin + stdout + stderr) */
 static FILE usual[FOPEN_MAX - 3];
+static struct __sFILEX usual_extra[FOPEN_MAX - 3];
 static struct glue uglue = { NULL, FOPEN_MAX - 3, usual };
 
 static struct __sFILEX __sFX[3];
@@ -215,7 +216,17 @@ _cleanup()
 void
 __sinit()
 {
-	/* Make sure we clean up on exit. */
-	__cleanup = _cleanup;		/* conservative */
-	__sdidinit = 1;
+	int	i;
+
+	THREAD_LOCK();
+	if (__sdidinit == 0) {
+		/* Set _extra for the usual suspects. */
+		for (i = 0; i < FOPEN_MAX - 3; i++)
+			usual[i]._extra = &usual_extra[i];
+
+		/* Make sure we clean up on exit. */
+		__cleanup = _cleanup;		/* conservative */
+		__sdidinit = 1;
+	}
+	THREAD_UNLOCK();
 }
