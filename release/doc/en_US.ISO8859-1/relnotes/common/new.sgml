@@ -132,6 +132,9 @@
 
       <para>The &man.txp.4; driver has been added to support NICs
       based on the 3Com 3XP Typhoon/Sidewinder (3CR990) chipset.</para>
+
+      <para>The &man.an.4; driver now supports the Cisco Aironet 350
+      series of adaptors. &merged;</para>
     </sect3>
 
     <sect3>
@@ -412,9 +415,11 @@
     program.  They are used by error-reporting routines to produce
     consistent output.</para>
 
-    <para>&man.xargs.1; gained a <option>-J</option> option which allows
-    the user to specify exactly where in the command line the input should
-    be retrofitted.</para>
+    <para>&man.xargs.1; now supports a <option>-J</option>
+    <replaceable>replstr</replaceable> option that allows the user to
+    tell &man.xargs.1; to insert the data read from standard input at
+    a specific point in the command line arguments rather than at the
+    end.</para>
 
     <para>&man.ifconfig.8; now has support for setting parameters for
     IEEE 802.11 wireless network devices.  &man.wi.4; and
@@ -509,6 +514,13 @@
     environment variable, if set, to specify the location of temporary
     files.</para>
 
+    <para>&man.rc.8; now deletes all non-directory files in
+    <filename>/var/run</filename> and
+    <filename>/var/spool/lock</filename> at boot time.</para>
+
+    <para>&man.fmtcheck.3;, a function for checking consistency of
+    format string arguments, has been added.</para>
+
     <sect3>
       <title>Contributed Software</title>
 
@@ -588,8 +600,8 @@
 
         <para>&man.pim6dd.8; and &man.pim6sd.8; have been removed due to
         restrictive licensing conditions.  These programs are available
-        in the ports collection as <filename>net/pim6dd</filename> and
-        <filename>net/pim6sd</filename>.</para>
+        in the ports collection as <port>net/pim6dd</port> and
+        <port>net/pim6sd</port>.</para>
 
 	<para>&man.route6d.8; now supports a <option>-n</option> flag
 	to avoid updating the kernel forwarding table.</para>
