@@ -49,7 +49,7 @@
 		an address.
 */
 
-struct sm_stat_res *sm_stat_1(sm_name *arg)
+struct sm_stat_res *sm_stat_1_svc(sm_name *arg, struct svc_req *req)
 {
   static sm_stat_res res;
 
@@ -75,7 +75,7 @@ struct sm_stat_res *sm_stat_1(sm_name *arg)
 		valid (as judged by gethostbyname())
 */
 
-struct sm_stat_res *sm_mon_1(mon *arg)
+struct sm_stat_res *sm_mon_1_svc(mon *arg, struct svc_req *req)
 {
   static sm_stat_res res;
   HostInfo *hp;
@@ -129,7 +129,7 @@ struct sm_stat_res *sm_mon_1(mon *arg)
 /*
    Purpose:	Remove a monitor request from a host
    Returns:	TRUE if found, FALSE if not found.
-   Notes:	Common code from sm_unmon_1 and sm_unmon_all_1
+   Notes:	Common code from sm_unmon_1_svc and sm_unmon_all_1_svc
 		In the unlikely event of more than one identical monitor
 		request, all are removed.
 */
@@ -172,7 +172,7 @@ static int do_unmon(HostInfo *hp, my_id *idp)
 		earlier call to sm_mon_1
 */
 
-struct sm_stat *sm_unmon_1(mon_id *arg)
+struct sm_stat *sm_unmon_1_svc(mon_id *arg, struct svc_req *req)
 {
   static sm_stat res;
   HostInfo *hp;
@@ -210,7 +210,7 @@ struct sm_stat *sm_unmon_1(mon_id *arg)
 		host and program number.
 */
 
-struct sm_stat *sm_unmon_all_1(my_id *arg)
+struct sm_stat *sm_unmon_all_1_svc(my_id *arg, struct svc_req *req)
 {
   static sm_stat res;
   HostInfo *hp;
@@ -248,7 +248,7 @@ struct sm_stat *sm_unmon_all_1(my_id *arg)
 		and inform all hosts on the monitor list.
 */
 
-void *sm_simu_crash_1(void)
+void *sm_simu_crash_1_svc(void *v, struct svc_req *req)
 {
   static char dummy;
   int work_to_do;
@@ -292,7 +292,7 @@ void *sm_simu_crash_1(void)
 		that modify the list.
 */
 
-void *sm_notify_1(stat_chge *arg)
+void *sm_notify_1_svc(stat_chge *arg, struct svc_req *req)
 {
   struct timeval timeout = { 20, 0 };	/* 20 secs timeout		*/
   CLIENT *cli;
