@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: key_debug.c,v 1.25 2000/07/24 13:23:12 itojun Exp $	*/
+/*	$KAME: key_debug.c,v 1.26 2001/06/27 10:46:50 sakane Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -388,9 +388,9 @@ kdebug_sadb_x_sa2(ext)
 
 	printf("sadb_x_sa2{ mode=%u reqid=%u\n",
 	    sa2->sadb_x_sa2_mode, sa2->sadb_x_sa2_reqid);
-	printf("  reserved1=%u reserved2=%u reserved3=%u }\n",
-	    sa2->sadb_x_sa2_reserved1, sa2->sadb_x_sa2_reserved1,
-	    sa2->sadb_x_sa2_reserved1);
+	printf("  reserved1=%u reserved2=%u sequence=%u }\n",
+	    sa2->sadb_x_sa2_reserved1, sa2->sadb_x_sa2_reserved2,
+	    sa2->sadb_x_sa2_sequence);
 
 	return;
 }

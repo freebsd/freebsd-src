@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: pfkey_dump.c,v 1.27 2001/03/12 09:03:38 itojun Exp $	*/
+/*	$KAME: pfkey_dump.c,v 1.28 2001/06/27 10:46:51 sakane Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
@@ -300,17 +300,15 @@ pfkey_sadump(m)
 	}
 
 	/* replay windoe size & flags */
-	printf("\treplay=%u flags=0x%08x ",
+	printf("\tseq=0x%08x replay=%u flags=0x%08x ",
+		m_sa2->sadb_x_sa2_sequence,
 		m_sa->sadb_sa_replay,
 		m_sa->sadb_sa_flags);
 
 	/* state */
 	printf("state=");
 	GETMSGSTR(str_state, m_sa->sadb_sa_state);
-
-	printf("seq=%lu pid=%lu\n",
-		(u_long)m->sadb_msg_seq,
-		(u_long)m->sadb_msg_pid);
+	printf("\n");
 
 	/* lifetime */
 	if (m_lftc != NULL) {
@@ -354,8 +352,12 @@ pfkey_sadump(m)
 			0 : m_lfts->sadb_lifetime_allocations));
 	}
 
+	printf("\tsadb_seq=%lu pid=%lu ",
+		(u_long)m->sadb_msg_seq,
+		(u_long)m->sadb_msg_pid);
+
 	/* XXX DEBUG */
-	printf("\trefcnt=%u\n", m->sadb_msg_reserved);
+	printf("refcnt=%u\n", m->sadb_msg_reserved);
 
 	return;
 }

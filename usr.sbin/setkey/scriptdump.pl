@@ -32,9 +32,9 @@ foreach $_ (<IN>) {
 		$akey = $2;
 		$akey =~ s/\s//g;
 		$akey =~ s/^/0x/g;
-	} elsif (/^\treplay=(\d+) flags=(0x\d+) state=/) {
+	} elsif (/^\tseq=(0x\d+) replay=(\d+) flags=(0x\d+) state=/) {
 		print "$mode $src $dst $proto $spi";
-		$replay = $1;
+		$replay = $2;
 		print " -u $reqid" if $reqid;
 		if ($mode eq 'add') {
 			print " -m $ipsecmode -r $replay" if $replay;
