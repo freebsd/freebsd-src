@@ -24,6 +24,18 @@ static const char *rcsid = "$Id";
 
 #include "lib.h"
 
+/* Return the filename portion of a path */
+char *
+basename_of(char *str)
+{
+    char *basename = str + strlen(str) - 1;
+
+    while (basename != str && basename[-1] != '/')
+	--basename;
+    return basename;
+}
+
+/* Get a string parameter as a file spec or as a "contents follow -" spec */
 char *
 get_dash_string(char **str)
 {
@@ -36,6 +48,7 @@ get_dash_string(char **str)
     return *str;
 }
 
+/* Rather Obvious */
 char *
 copy_string(char *str)
 {
