@@ -773,7 +773,9 @@ ata_intel_ident(device_t dev)
      { ATA_I82801CA,   0, 0, 0x00, ATA_UDMA5, "Intel ICH3" },
      { ATA_I82801CA_1, 0, 0, 0x00, ATA_UDMA5, "Intel ICH3" },
      { ATA_I82801DB,   0, 0, 0x00, ATA_UDMA5, "Intel ICH4" },
+     { ATA_I82801DB_1, 0, 0, 0x00, ATA_UDMA5, "Intel ICH4" },
      { ATA_I82801EB,   0, 0, 0x00, ATA_UDMA5, "Intel ICH5" },
+     { ATA_I82801EB_1, 0, 0, 0x00, ATA_UDMA5, "Intel ICH5" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
