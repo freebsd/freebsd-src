@@ -755,12 +755,11 @@ als_pci_attach(device_t dev)
 	u_int32_t data;
 	char status[SND_STATUSLEN];
 
-	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT)) == NULL) {
+	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
 		return ENXIO;
 	}
 
-	bzero(sc, sizeof(*sc));
 	sc->dev = dev;
 
 	data = pci_read_config(dev, PCIR_COMMAND, 2);

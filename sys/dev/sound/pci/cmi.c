@@ -797,12 +797,11 @@ cmi_attach(device_t dev)
 	char			status[SND_STATUSLEN];
 
 	d = device_get_softc(dev);
-	sc = malloc(sizeof(struct sc_info), M_DEVBUF, M_NOWAIT);
+	sc = malloc(sizeof(struct sc_info), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (sc == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
 		return ENXIO;
 	}
-	bzero(sc, sizeof(*sc));
 
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 	data |= (PCIM_CMD_PORTEN|PCIM_CMD_BUSMASTEREN);

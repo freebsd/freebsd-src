@@ -709,12 +709,11 @@ tr_pci_attach(device_t dev)
 	int		i;
 	char 		status[SND_STATUSLEN];
 
-	if ((tr = malloc(sizeof(*tr), M_DEVBUF, M_NOWAIT)) == NULL) {
+	if ((tr = malloc(sizeof(*tr), M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
 		return ENXIO;
 	}
 
-	bzero(tr, sizeof(*tr));
 	tr->type = pci_get_devid(dev);
 
 	data = pci_read_config(dev, PCIR_COMMAND, 2);

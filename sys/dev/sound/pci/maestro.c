@@ -956,11 +956,10 @@ agg_attach(device_t dev)
 	void	*ih = NULL;
 	char	status[SND_STATUSLEN];
 
-	if ((ess = malloc(sizeof *ess, M_DEVBUF, M_NOWAIT)) == NULL) {
+	if ((ess = malloc(sizeof *ess, M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
 		return ENXIO;
 	}
-	bzero(ess, sizeof *ess);
 	ess->dev = dev;
 
 	if (bus_dma_tag_create(/*parent*/NULL,
