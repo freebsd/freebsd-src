@@ -211,6 +211,7 @@ static int	carp_set_addr(struct carp_softc *, struct sockaddr_in *);
 static int	carp_del_addr(struct carp_softc *, struct sockaddr_in *);
 static void	carp_carpdev_state1(void *);
 static void	carp_carpdev_state_locked(struct carp_if *);
+static void	carp_sc_state_locked(struct carp_softc *);
 #ifdef INET6
 static void	carp_send_na(struct carp_softc *);
 static int	carp_set_addr6(struct carp_softc *, struct sockaddr_in6 *);
@@ -1475,7 +1476,7 @@ carp_set_addr(struct carp_softc *sc, struct sockaddr_in *sin)
 	sc->sc_if.if_flags |= IFF_UP;
 	if (own)
 		sc->sc_advskew = 0;
-	carp_carpdev_state_locked(cif);
+	carp_sc_state_locked(sc);
 	carp_setrun(sc, 0);
 
 	CARP_UNLOCK(cif);
@@ -1659,7 +1660,7 @@ carp_set_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 	sc->sc_ac.ac_if.if_flags |= IFF_UP;
 	if (own)
 		sc->sc_advskew = 0;
-	carp_carpdev_state_locked(cif);
+	carp_sc_state_locked(sc);
 	carp_setrun(sc, 0);
 
 	CARP_UNLOCK(cif);
@@ -2079,34 +2080,43 @@ carp_carpdev_state_locked(struct carp_if *cif)
 {
 	struct carp_softc *sc;
 
-	TAILQ_FOREACH(sc, &cif->vhif_vrs, sc_list) {
-		if (sc->sc_carpdev->if_link_state != LINK_STATE_UP ||
-		    !(sc->sc_carpdev->if_flags & IFF_UP)) {
-			sc->sc_flags_backup = sc->sc_if.if_flags;
-			sc->sc_if.if_flags &= ~(IFF_UP|IFF_RUNNING);
-			callout_stop(&sc->sc_ad_tmo);
-			callout_stop(&sc->sc_md_tmo);
-			callout_stop(&sc->sc_md6_tmo);
-			carp_set_state(sc, INIT);
-			carp_setrun(sc, 0);
-			if (!sc->sc_suppress) {
-				carp_suppress_preempt++;
-				if (carp_suppress_preempt == 1) {
-					CARP_SCUNLOCK(sc);
-					carp_send_ad_all();
-					CARP_SCLOCK(sc);
-				}
+	TAILQ_FOREACH(sc, &cif->vhif_vrs, sc_list)
+		carp_sc_state_locked(sc);
+}
+
+static void
+carp_sc_state_locked(struct carp_softc *sc)
+{
+	CARP_SCLOCK_ASSERT(sc);
+
+	if (sc->sc_carpdev->if_link_state != LINK_STATE_UP ||
+	    !(sc->sc_carpdev->if_flags & IFF_UP)) {
+		sc->sc_flags_backup = sc->sc_if.if_flags;
+		sc->sc_if.if_flags &= ~(IFF_UP|IFF_RUNNING);
+		callout_stop(&sc->sc_ad_tmo);
+		callout_stop(&sc->sc_md_tmo);
+		callout_stop(&sc->sc_md6_tmo);
+		carp_set_state(sc, INIT);
+		carp_setrun(sc, 0);
+		if (!sc->sc_suppress) {
+			carp_suppress_preempt++;
+			if (carp_suppress_preempt == 1) {
+				CARP_SCUNLOCK(sc);
+				carp_send_ad_all();
+				CARP_SCLOCK(sc);
 			}
-			sc->sc_suppress = 1;
-		} else {
-			sc->sc_if.if_flags |= sc->sc_flags_backup;
-			carp_set_state(sc, INIT);
-			carp_setrun(sc, 0);
-			if (sc->sc_suppress)
-				carp_suppress_preempt--;
-			sc->sc_suppress = 0;
 		}
+		sc->sc_suppress = 1;
+	} else {
+		sc->sc_if.if_flags |= sc->sc_flags_backup;
+		carp_set_state(sc, INIT);
+		carp_setrun(sc, 0);
+		if (sc->sc_suppress)
+			carp_suppress_preempt--;
+		sc->sc_suppress = 0;
 	}
+
+	return;
 }
 
 static int
