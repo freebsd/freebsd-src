@@ -73,10 +73,6 @@
  */
 #define	PSYSCALL(x)	2: PIC_PROLOGUE; jmp PIC_PLT(HIDENAME(cerror));	\
 			ENTRY(__CONCAT(_thread_sys_,x));		\
-			.weak CNAME(__CONCAT(_,x));			\
-			.set CNAME(__CONCAT(_,x)),CNAME(__CONCAT(_thread_sys_,x));\
-			.weak CNAME(x);					\
-			.set CNAME(x),CNAME(__CONCAT(_,x));		\
 			lea __CONCAT(SYS_,x),%eax; KERNCALL; jb 2b
 #define	PRSYSCALL(x)	PSYSCALL(x); ret
 #define	PPSEUDO(x,y)	ENTRY(__CONCAT(_thread_sys_,x));		\

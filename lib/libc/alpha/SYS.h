@@ -104,14 +104,10 @@ END(___CONCAT(_thread_sys_,name))
 
 #define	PSYSCALL(name)						\
 PLEAF(name,0);				/* XXX # of args? */	\
-	WEAK_ALIAS(__CONCAT(_,name), __CONCAT(_thread_sys_,name));	\
-	WEAK_ALIAS(name, __CONCAT(_,name));			\
 	CALLSYS_ERROR(name)
 
 #define	PRSYSCALL(name)						\
 PLEAF(name,0);				/* XXX # of args? */	\
-	WEAK_ALIAS(__CONCAT(_,name), __CONCAT(_thread_sys_,name));	\
-	WEAK_ALIAS(name, __CONCAT(_,name));			\
 	CALLSYS_ERROR(name)					\
 	RET;							\
 PEND(name)
