@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: login.c,v 1.41 1998/11/11 02:16:01 jdp Exp $";
+	"$Id: login.c,v 1.42 1998/11/11 05:47:45 jdp Exp $";
 #endif /* not lint */
 
 /*
@@ -77,9 +77,8 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <utmp.h>
 
-#ifdef	SKEY
-#include <skey.h>
-#endif /* SKEY */
+#include <security/pam_appl.h>
+#include <security/pam_misc.h>
 
 #include "pathnames.h"
 
@@ -96,12 +95,10 @@ char	*stypeof __P((char *));
 void	 timedout __P((int));
 int	 login_access __P((char *, char *));
 void     login_fbtab __P((char *, uid_t, gid_t));
-#ifdef KERBEROS
-int	 klogin __P((struct passwd *, char *, char *, char *));
-#endif
 
+static int auth_pam __P((void));
+static int auth_traditional __P((void));
 extern void login __P((struct utmp *));
-extern void trimdomain __P((char *, int));
 static void usage __P((void));
 
 #define	TTYGRPNAME	"tty"		/* name of group to own ttys */
@@ -113,14 +110,6 @@ static void usage __P((void));
  * be patched on machines where it's too small.
  */
 u_int	timeout = 300;
-
-#ifdef KERBEROS
-int	notickets = 1;
-int	noticketsdontcomplain = 1;
-char	*instance;
-char	*krbtkfile_env;
-int	authok;
-#endif
 
 struct	passwd *pwd;
 int	failures;
@@ -142,18 +131,11 @@ main(argc, argv)
 	int changepass;
 	time_t warntime;
 	uid_t uid, euid;
-	char *domain, *p, *salt, *ttyn;
-	const char *ep;
+	char *domain, *p, *ttyn;
 	char tbuf[MAXPATHLEN + 2], tname[sizeof(_PATH_TTY) + 10];
 	char localhost[MAXHOSTNAMELEN];
 	char *shell = NULL;
 	login_cap_t *lc = NULL;
-#ifdef SKEY
-	int permit_passwd = 0;
-#endif /* SKEY */
-#ifdef KERBEROS
-	char *k;
-#endif
 
 	(void)signal(SIGALRM, timedout);
 	(void)alarm(timeout);
@@ -256,14 +238,6 @@ main(argc, argv)
 		}
 		rootlogin = 0;
 		rootok = rootterm(tty); /* Default (auth may change) */
-#ifdef KERBEROS
-		if ((instance = strchr(username, '.')) != NULL) {
-			if (strncmp(instance, ".root", 5) == 0)
-				rootlogin = 1;
-			*instance++ = '\0';
-		} else
-			instance = "";
-#endif /* KERBEROS */
 
 		if (strlen(username) > UT_NAMESIZE)
 			username[UT_NAMESIZE] = '\0';
@@ -281,20 +255,7 @@ main(argc, argv)
 		(void)strncpy(tbuf, username, sizeof tbuf-1);
 		tbuf[sizeof tbuf-1] = '\0';
 
-		if ((pwd = getpwnam(username)) != NULL)
-			salt = pwd->pw_passwd;
-		else
-			salt = "xx";
-
-		/*
-		 * Establish the class now, before we might goto
-		 * within the next block. pwd can be NULL since it
-		 * falls back to the "default" class if it is.
-		 */
-		if (pwd != NULL)
-			(void)seteuid(rootlogin ? 0 : pwd->pw_uid);
-		lc = login_getpwclass(pwd);
-		seteuid(euid);
+		pwd = getpwnam(username);
 
 		/*
 		 * if we have a valid account name, and it doesn't have a
@@ -302,7 +263,6 @@ main(argc, argv)
 		 * is root or the caller isn't changing their uid, don't
 		 * authenticate.
 		 */
-		rval = 1;
 		if (pwd != NULL) {
 			if (pwd->pw_uid == 0)
 				rootlogin = 1;
@@ -324,51 +284,23 @@ main(argc, argv)
 
 		(void)setpriority(PRIO_PROCESS, 0, -4);
 
-#ifdef SKEY
-		permit_passwd = skeyaccess(username, tty,
-					   hostname ? full_hostname : NULL,
-					   NULL);
-		p = skey_getpass("Password:", pwd, permit_passwd);
-		ep = skey_crypt(p, salt, pwd, permit_passwd);
-#else /* !SKEY */
-		p = getpass("Password:");
-		ep = crypt(p, salt);
-#endif/* SKEY */
-
-		if (pwd) {
-			if (!p[0] && pwd->pw_passwd[0])
-				ep = ":";
-#ifdef KERBEROS
-#ifdef SKEY
-			/*
-			 * Do not allow user to type in kerberos password
-			 * over the net (actually, this is ok for encrypted
-			 * links, but we have no way of determining if the
-			 * link is encrypted.
-			 */
-			if (!permit_passwd) {
-				rval = 1;		/* failed */
-			} else
-#endif /* SKEY */
-			rval = 1;
-			k = auth_getval("auth_list");
-			if (k && strstr(k, "kerberos"))
-				rval = klogin(pwd, instance, localhost, p);
-			if (rval != 0 && rootlogin && pwd->pw_uid != 0)
-				rootlogin = 0;
-			if (rval == 0)
-				authok = 1; /* kerberos authenticated ok */
-			else if (rval == 1) /* fallback to unix passwd */
-				rval = strcmp(ep, pwd->pw_passwd);
-#else /* !KERBEROS */
-			rval = strcmp(ep, pwd->pw_passwd);
-#endif /* KERBEROS */
-		}
-
-		/* clear entered password */
-		memset(p, 0, strlen(p));
+		/*
+		 * Try to authenticate using PAM.  If a PAM system error
+		 * occurs, perhaps because of a botched configuration,
+		 * then fall back to using traditional Unix authentication.
+		 */
+		if ((rval = auth_pam()) == -1)
+			rval = auth_traditional();
 
 		(void)setpriority(PRIO_PROCESS, 0, 0);
+
+		/*
+		 * PAM authentication may have changed "pwd" to the
+		 * entry for the template user.  Check again to see if
+		 * this is a root login after all.
+		 */
+		if (pwd != NULL && pwd->pw_uid == 0)
+			rootlogin = 1;
 
 	ttycheck:
 		/*
@@ -376,11 +308,7 @@ main(argc, argv)
 		 * but with insecure terminal, refuse the login attempt.
 		 */
 		if (pwd && !rval) {
-#if defined(KERBEROS)
-			if (authok == 0 && rootlogin && !rootok)
-#else
 			if (rootlogin && !rootok)
-#endif
 				refused(NULL, "NOROOT", 0);
 			else	/* valid password & authenticated */
 				break;
@@ -406,6 +334,13 @@ main(argc, argv)
 	(void)alarm((u_int)0);
 
 	endpwent();
+
+	/*
+	 * Establish the login class.
+	 */
+	(void)seteuid(rootlogin ? 0 : pwd->pw_uid);
+	lc = login_getpwclass(pwd);
+	seteuid(euid);
 
 	/* if user not super-user, check for disabled logins */
 	if (!rootlogin)
@@ -530,11 +465,6 @@ main(argc, argv)
 	if (hostname==NULL && isdialuptty(tty))
 		syslog(LOG_INFO, "DIALUP %s, %s", tty, pwd->pw_name);
 
-#ifdef KERBEROS
-	if (!quietlog && notickets == 1 && !noticketsdontcomplain)
-		(void)printf("Warning: no Kerberos tickets issued.\n");
-#endif
-
 #ifdef LOGALL
 	/*
 	 * Syslog each successful login, so we don't have to watch hundreds
@@ -573,7 +503,12 @@ main(argc, argv)
 	 * We don't need to be root anymore, so
 	 * set the user and session context
 	 */
-	if (setusercontext(lc, pwd, pwd->pw_uid, LOGIN_SETALL) != 0) {
+	if (setlogin(username) != 0) {
+                syslog(LOG_ERR, "setlogin(%s): %m - exiting", username);
+		exit(1);
+	}
+	if (setusercontext(lc, pwd, pwd->pw_uid,
+	    LOGIN_SETALL & ~LOGIN_SETLOGIN) != 0) {
                 syslog(LOG_ERR, "setusercontext() failed - exiting");
 		exit(1);
 	}
@@ -585,13 +520,9 @@ main(argc, argv)
 	else {
 		(void)setenv("TERM", stypeof(tty), 0);	/* Fallback doesn't */
 	}
-	(void)setenv("LOGNAME", pwd->pw_name, 1);
-	(void)setenv("USER", pwd->pw_name, 1);
+	(void)setenv("LOGNAME", username, 1);
+	(void)setenv("USER", username, 1);
 	(void)setenv("PATH", rootlogin ? _PATH_STDPATH : _PATH_DEFPATH, 0);
-#ifdef KERBEROS
-	if (krbtkfile_env)
-		(void)setenv("KRBTKFILE", krbtkfile_env, 1);
-#endif
 
 	if (!quietlog) {
 		char	*cw;
@@ -644,6 +575,114 @@ main(argc, argv)
 
 	execlp(shell, tbuf, 0);
 	err(1, "%s", shell);
+}
+
+static int
+auth_traditional()
+{
+	int rval;
+	char *p;
+	char *ep;
+	char *salt;
+
+	rval = 1;
+	salt = pwd != NULL ? pwd->pw_passwd : "xx";
+
+	p = getpass("Password:");
+	ep = crypt(p, salt);
+
+	if (pwd) {
+		if (!p[0] && pwd->pw_passwd[0])
+			ep = ":";
+		if (strcmp(ep, pwd->pw_passwd) == 0)
+			rval = 0;
+	}
+
+	/* clear entered password */
+	memset(p, 0, strlen(p));
+	return rval;
+}
+
+/*
+ * Attempt to authenticate the user using PAM.  Returns 0 if the user is
+ * authenticated, or 1 if not authenticated.  If some sort of PAM system
+ * error occurs (e.g., the "/etc/pam.conf" file is missing) then this
+ * function returns -1.  This can be used as an indication that we should
+ * fall back to a different authentication mechanism.
+ */
+static int
+auth_pam()
+{
+	pam_handle_t *pamh = NULL;
+	const char *tmpl_user;
+	const void *item;
+	int rval;
+	int e;
+	static struct pam_conv conv = { misc_conv, NULL };
+
+	if ((e = pam_start("login", username, &conv, &pamh)) != PAM_SUCCESS) {
+		syslog(LOG_ERR, "pam_start: %s", pam_strerror(pamh, e));
+		return -1;
+	}
+	if ((e = pam_set_item(pamh, PAM_TTY, tty)) != PAM_SUCCESS) {
+		syslog(LOG_ERR, "pam_set_item(PAM_TTY): %s",
+		    pam_strerror(pamh, e));
+		return -1;
+	}
+	if (hostname != NULL &&
+	    (e = pam_set_item(pamh, PAM_RHOST, full_hostname)) != PAM_SUCCESS) {
+		syslog(LOG_ERR, "pam_set_item(PAM_RHOST): %s",
+		    pam_strerror(pamh, e));
+		return -1;
+	}
+	e = pam_authenticate(pamh, 0);
+	switch (e) {
+
+	case PAM_SUCCESS:
+		/*
+		 * With PAM we support the concept of a "template"
+		 * user.  The user enters a login name which is
+		 * authenticated by PAM, usually via a remote service
+		 * such as RADIUS or TACACS+.  If authentication
+		 * succeeds, a different but related "template" name
+		 * is used for setting the credentials, shell, and
+		 * home directory.  The name the user enters need only
+		 * exist on the remote authentication server, but the
+		 * template name must be present in the local password
+		 * database.
+		 *
+		 * This is supported by two various mechanisms in the
+		 * individual modules.  However, from the application's
+		 * point of view, the template user is always passed
+		 * back as a changed value of the PAM_USER item.
+		 */
+		if ((e = pam_get_item(pamh, PAM_USER, &item)) ==
+		    PAM_SUCCESS) {
+			tmpl_user = (const char *) item;
+			if (strcmp(username, tmpl_user) != 0)
+				pwd = getpwnam(tmpl_user);
+		} else
+			syslog(LOG_ERR, "Couldn't get PAM_USER: %s",
+			    pam_strerror(pamh, e));
+		rval = 0;
+		break;
+
+	case PAM_AUTH_ERR:
+	case PAM_USER_UNKNOWN:
+	case PAM_MAXTRIES:
+		rval = 1;
+		break;
+
+	default:
+		syslog(LOG_ERR, "auth_pam: %s", pam_strerror(pamh, e));
+		rval = -1;
+		break;
+	}
+	if ((e = pam_end(pamh, e)) != PAM_SUCCESS) {
+		syslog(LOG_ERR, "pam_end: %s", pam_strerror(pamh, e));
+		rval = -1;
+	}
+	return rval;
 }
 
 static void
