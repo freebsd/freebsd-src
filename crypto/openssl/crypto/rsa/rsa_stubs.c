@@ -87,6 +87,16 @@ ERR_load_RSA_strings_stub(void)
 }
 __weak_reference(ERR_load_RSA_strings_stub, ERR_load_RSA_strings);
 
+int
+RSA_libversion_stub(void)
+{
+    static void (*sym)(void);
+
+    if (sym || (sym = getsym("RSA_libversion")))
+	sym();
+}
+__weak_reference(RSA_libversion_stub, RSA_libversion);
+
 #else	/* !PIC */
 
 /* Sigh, just get your own libs, ld(1) doesn't deal with weaks here */
