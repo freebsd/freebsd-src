@@ -1,0 +1,161 @@
+Troubleshooting Tips - or "These are the times that try men's souls"
+--------------------------------------------------------------------
+
+The following tips and tricks may help you turn a failing (or failed)
+installation attempt into a success.  Please read them carefully.
+
+---
+
+Summary:	Hardware conflict or misconfiguration.
+
+Problem:	A device is conflicting with another or doesn't match
+		the kernel's compiled-in IRQ or address.
+
+Cause:		While most device drivers in FreeBSD are now smart
+		enough to match themselves to your hardware settings
+		dynamically, there are a few that still require fairly
+		rigid configuration parameters to be compiled in (and
+		matched by the hardware) before they'll work.  We're
+		working hard to eliminate as many of these last
+		hold-outs as we can, but it's not always as easy as
+		it looks.
+
+Solution:	There are several possible solutions.  The first,
+		and easiest, is to boot the kernel with the -c flag.
+		When you see the initial boot prompt (from floppy or
+		hard disk), type:
+
+			/kernel -c
+
+		This will boot just past the memory sizing code and
+		then drop into a dynamic kernel configuration utility.
+		Type `?' at the prompt to see a list of commands.  You
+		can use this utility to reset the IRQ, memory address,
+		IO address or a number of other device configuration
+		parameters.  You can also disable a device entirely
+		if it's causing problems for other devices you'd much
+		rather have work.  Note that this only affects the
+		kernel being booted temporarily, it does not "write out"
+		the information to the kernel so that these settings
+		are permanantly altered (this would be actually rather
+		hard).  If you reboot, you'll have to make the same
+		changes again.  The goal of the -c utility is to get
+		you up far enough to be able to download the appropriate
+		sources and configure and rebuild a kernel more specific
+		to your needs.
+
+		Another solution is, obviously, to remove the offending
+		hardware or simply strip the system down to the bare
+		essentials until the problem (hopefully) goes away.
+		Once you're up, you can do the same thing mentioned
+		above - compile a kernel more suited to your hardware,
+		or incrementally try to figure out what it was about
+		your original hardware configuration that didn't work.
+
+---
+
+Summary:	When I boot for the first time, it still looks for /386bsd!
+
+Cause:		You still have the old FreeBSD 1.x boot blocks on your
+		boot partition.
+
+Solution:	You should re-enter the installation process, invoke
+		the (F)disk editor and chose the (W)rite option.  This
+		won't hurt an existing installation and will make sure
+		that the new boot blocks get written to the drive.
+		If you're installing for the first time, don't forget
+		to (W)rite out your new boot blocks! :-)
+
+---
+
+Summary:	I want to boot FreeBSD off the second drive.  It doesn't!
+
+Cause:		FreeBSD will actually install just fine on a drive other
+		than 0 (the first drive), and the boot manager will even
+		allow you to select it, but the boot blocks rather
+		pathologically assume 0.  This should be fixed in 2.1.
+
+Solution:	Easy - follow these steps:
+
+		1.  Select the first (0) drive from the (F)disk editor
+		    and write out the boot manager with the (B) option.
+		    This will enable the boot manager that allows you to
+		    actually boot off the other drive.
+
+		2.  Exit the fdisk editor for the first drive and and
+		    re-enter it again for the drive you wish to install
+		    on.  Set up a partition on this drive, or select
+		    (A)ll for the entire drive.
+
+		3.  Enter the disklabel editor and allocate space on
+		    your second drive as normal.  Proceed with the
+		    installation.
+
+		4.  Once you've installed on the disk and are going to
+		    reboot from the hard disk, enter the following at
+		    the boot prompt:
+
+				hd(1,a)/kernel
+
+		    This will ensure that you really boot from the second
+		    drive.  If you've actually installed on a drive other
+		    than 1 (the 3rd or 4th drive?), substitute that number
+		    in for the above.  You will need to enter this EVERY
+		    time you reboot from the hard disk.  If you're feeling
+		    brave and have a srcdist + the requisite experience,
+		    you can hack the boot blocks in:
+
+			/usr/src/sys/i386/boot/biosboot
+
+		    So that this drive you're booting from is hard-coded.
+		    Recompile the boot blocks and reinstall them on your
+		    drive with `disklabel -B ...'  You can then have the
+		    default Do The Right Thing.
+---
+
+Summary:	Newfs crashes, requesting that blocksize be 32K
+
+Cause:		You have your SCSI controller configured to translate
+		geometries for disks >1GB in size.
+
+Solution:	Turn such translation OFF in your controller's BIOS
+		setup!  FreeBSD has no problems with disks >1GB just
+		so long as the root partition starts and ends BELOW
+		cylinder 1024.  This is a PC hardware limitation.
+---
+
+Summary:	FreeBSD won't boot off the hard disk
+
+Cause:		Root partition does not start and end below cylinder 1024.
+
+Solution:	See solution for newfs crashes, or move your root
+		partition.  This limitation holds true for ANY operating
+		system you wish to boot from your hard drive.
+
+---
+
+Summary:	FreeBSD still won't boot off the hard disk
+
+Cause:		No boot code is installed in sector 1.
+
+Solution:	Chose the Write MBR (B)oot code in the FDISK editor.
+
+---
+Summary:	Nope, FreeBSD's still not booting from the hard disk.
+
+Cause:		BIOS disk geometry different from that used when
+		installing FreeBSD.
+
+Solution:	With IDE drives, pay careful attention to the geometry
+		information that FreeBSD prints out when it's first
+		booting off the floppy.  Use this geometry in your BIOS
+		setup or use the BIOS geometry when you install FreeBSD.
+		Either way, they have to match.
+
+		With SCSI drives, the values they report is most often
+		bogus and cannot be used.  In this situation, the SCSI
+		controller is performing geometry translation and
+		it's probably wise to assume a default of 64 heads,
+		32 sectors and 1MB/cylinder.  Use these values when
+		you install FreeBSD.  See above comments concerning
+		newfs failures for more info.
