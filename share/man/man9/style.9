@@ -58,7 +58,7 @@ is silent on an issue.
  */
 .Ed
 .Pp
-The copyright header should be a muli-line comment, with the first
+The copyright header should be a multi-line comment, with the first
 line of the comment having a dash after the star like so:
 .Bd -literal
 /*-
@@ -67,6 +67,7 @@ line of the comment having a dash after the star like so:
  * Long, boring license goes here, but redacted for brevity
  */
 .Ed
+.Pp
 An automatic script collects license information from the tree for
 all comments that start in the first column with
 .Dq Li "/*-" .
@@ -75,7 +76,7 @@ If you desire to flag
 to not reformat a comment that starts in the first column which is not a
 license or copyright notice, change the dash to a star for those
 comments.
-Coments starting in columns other than the first comment are never
+Comments starting in columns other than the first comment are never
 considered license statements.
 .Pp
 After any copyright header, there is a blank line, and the
