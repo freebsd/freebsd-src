@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.68 1997/12/18 01:10:13 brian Exp $
+ * $Id: modem.c,v 1.69 1997/12/21 03:16:12 brian Exp $
  *
  *  TODO:
  */
@@ -466,12 +466,12 @@ OpenModem()
       return modem = 0;
     }
   } else {
-    strncpy(tmpDeviceList, VarDeviceList, sizeof(tmpDeviceList));
+    strncpy(tmpDeviceList, VarDeviceList, sizeof(tmpDeviceList)-1);
     tmpDeviceList[sizeof(tmpDeviceList)-1] = '\0';
 
     for(tmpDevice=strtok(tmpDeviceList, ","); tmpDevice && (modem < 0);
 	tmpDevice=strtok(NULL,",")) {
-      strncpy(VarDevice, tmpDevice, sizeof(VarDevice));
+      strncpy(VarDevice, tmpDevice, sizeof(VarDevice)-1);
       VarDevice[sizeof(VarDevice)-1]= '\0';
       VarBaseDevice = strrchr(VarDevice, '/');
       VarBaseDevice = VarBaseDevice ? VarBaseDevice + 1 : "";
@@ -700,7 +700,7 @@ HangupModem(int flag)
   if (modem >= 0) {
     char ScriptBuffer[SCRIPT_LEN];
 
-    strncpy(ScriptBuffer, VarHangupScript, sizeof(ScriptBuffer));
+    strncpy(ScriptBuffer, VarHangupScript, sizeof(ScriptBuffer)-1);
     ScriptBuffer[sizeof(ScriptBuffer) - 1] = '\0';
     LogPrintf(LogDEBUG, "HangupModem: Script: %s\n", ScriptBuffer);
     if (flag || !(mode & MODE_DEDICATED)) {
