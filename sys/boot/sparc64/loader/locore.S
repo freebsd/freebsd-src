@@ -86,18 +86,16 @@ ENTRY(dtlb_va_to_pa)
 	 not	%o0
 
 /*
- * %o0 = slot number
- * %o1 = vpn
- * %o2 = tte data
+ * %o0 = vpn
+ * %o1 = tte data
  */
 ENTRY(itlb_enter)
 	rdpr	%pstate, %o4
 	wrpr	%o4, PSTATE_IE, %pstate
-	sllx	%o0, 3, %o0
-	sllx	%o1, PAGE_SHIFT, %o1
+	sllx	%o0, PAGE_SHIFT, %o0
 	mov	AA_IMMU_TAR, %o3
-	stxa	%o1, [%o3] ASI_IMMU
-	stxa	%o2, [%o0] ASI_ITLB_DATA_ACCESS_REG
+	stxa	%o0, [%o3] ASI_IMMU
+	stxa	%o1, [%g0] ASI_ITLB_DATA_IN_REG
 	membar	#Sync
 	retl
 	 wrpr	%o4, 0, %pstate
@@ -105,11 +103,10 @@ ENTRY(itlb_enter)
 ENTRY(dtlb_enter)
 	rdpr	%pstate, %o4
 	wrpr	%o4, PSTATE_IE, %pstate
-	sllx	%o0, 3, %o0
-	sllx	%o1, PAGE_SHIFT, %o1
+	sllx	%o0, PAGE_SHIFT, %o0
 	mov	AA_DMMU_TAR, %o3
-	stxa	%o1, [%o3] ASI_DMMU
-	stxa	%o2, [%o0] ASI_DTLB_DATA_ACCESS_REG
+	stxa	%o0, [%o3] ASI_DMMU
+	stxa	%o1, [%g0] ASI_DTLB_DATA_IN_REG
 	membar	#Sync
 	retl
 	 wrpr	%o4, 0, %pstate
