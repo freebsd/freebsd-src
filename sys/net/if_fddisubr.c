@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: if_ethersubr.c,v 1.5 1994/12/13 22:31:45 wollman Exp
- * $Id: if_fddisubr.c,v 1.2 1995/03/14 22:15:36 davidg Exp $
+ * $Id: if_fddisubr.c,v 1.3 1995/03/16 18:14:26 bde Exp $
  */
 
 #include <sys/param.h>
@@ -264,7 +264,7 @@ fddi_output(ifp, m0, dst, rt0)
 	{
 		struct ether_header *eh;
 		eh = (struct ether_header *)dst->sa_data;
- 		bcopy((caddr_t)eh->ether_dhost, (caddr_t)edst, sizeof (edst));
+ 		(void)memcpy((caddr_t)edst, (caddr_t)eh->ether_dhost, sizeof (edst));
 		if (*edst & 1)
 			m->m_flags |= (M_BCAST|M_MCAST);
 		type = eh->ether_type;
@@ -325,7 +325,7 @@ fddi_output(ifp, m0, dst, rt0)
 		l->llc_dsap = l->llc_ssap = LLC_SNAP_LSAP;
 		l->llc_snap.org_code[0] = l->llc_snap.org_code[1] = l->llc_snap.org_code[2] = 0;
 		type = ntohs(type);
-		bcopy((caddr_t) &type, (caddr_t) &l->llc_snap.ether_type,
+		(void)memcpy((caddr_t) &l->llc_snap.ether_type, (caddr_t) &type,
 			sizeof(u_short));
 	}
 	/*
@@ -337,9 +337,9 @@ fddi_output(ifp, m0, dst, rt0)
 		senderr(ENOBUFS);
 	fh = mtod(m, struct fddi_header *);
 	fh->fddi_fc = FDDIFC_LLC_ASYNC|FDDIFC_LLC_PRIO4;
- 	bcopy((caddr_t)edst, (caddr_t)fh->fddi_dhost, sizeof (edst));
+ 	(void)memcpy((caddr_t)fh->fddi_dhost, (caddr_t)edst, sizeof (edst));
   queue_it:
- 	bcopy((caddr_t)ac->ac_enaddr, (caddr_t)fh->fddi_shost,
+ 	(void)memcpy((caddr_t)fh->fddi_shost, (caddr_t)ac->ac_enaddr,
 	    sizeof(fh->fddi_shost));
 	s = splimp();
 	/*
