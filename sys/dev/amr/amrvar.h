@@ -256,8 +256,6 @@ struct amrd_softc
     struct disk		amrd_disk;
     struct devstat	amrd_stats;
     int			amrd_unit;
-    int			amrd_flags;
-#define AMRD_OPEN	(1<<0)		/* drive is open (can't detach) */
 };
 
 /*
