@@ -3782,7 +3782,13 @@ and
 .Dq authkey
 values.
 .Pp
-Ignoring the
+If the
+.Dq \&!
+is doubled up
+.Pq to Dq \&!! ,
+it is treated as a single literal
+.Dq \&! ,
+otherwise, ignoring the
 .Dq \&! ,
 .Ar value
 is parsed as a program to execute in the same was as the
@@ -4289,6 +4295,10 @@ It is also possible to execute external commands from the chat script.
 To do this, the first character of the expect or send string is an
 exclamation mark
 .Pq Dq \&! .
+If a literal exclaimation mark is required, double it up to
+.Dq \&!!
+and it will be treated as a single literal
+.Dq \&! .
 When the command is executed, standard input and standard output are
 directed to the open device (see the
 .Dq set device
