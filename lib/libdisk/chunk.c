@@ -307,7 +307,6 @@ ShowChunkFlags(struct chunk *c)
 	static char ret[10];
 
 	int i=0;
-	if (c->flags & CHUNK_BSD_COMPAT)	ret[i++] = 'C';
 	if (c->flags & CHUNK_ACTIVE)		ret[i++] = 'A';
 	if (c->flags & CHUNK_ALIGN)		ret[i++] = '=';
 	if (c->flags & CHUNK_IS_ROOT)		ret[i++] = 'R';

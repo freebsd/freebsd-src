@@ -98,12 +98,8 @@ Write_Disk(const struct disk *d1)
 
 
         fd = open(device,O_RDWR);
-        if (fd < 0) {
-#ifdef DEBUG
-                warn("open(%s) failed", device);
-#endif
+        if (fd < 0)
                 return 1;
-        }
 
 	memset(s,0,sizeof s);
 	mbr = read_block(fd, 0, d1->sector_size);

@@ -78,8 +78,6 @@ struct chunk {
 /*
  * flags:
  *
- * BSD_COMPAT	-	This chunk is in the BSD-compatibility, and has
- *			a short name too, ie wd0s4f -> wd0f
  * ALIGN	-	This chunk should be aligned
  * IS_ROOT	-	This 'part' is a rootfs, allocate 'a'
  * ACTIVE	-	This is the active slice in the MBR
@@ -91,7 +89,6 @@ struct chunk {
  *			delete (along with AUTO_SIZE).
  */
 
-#define CHUNK_BSD_COMPAT	0x0002
 #define CHUNK_ALIGN		0x0008
 #define CHUNK_IS_ROOT		0x0010
 #define CHUNK_ACTIVE		0x0020
