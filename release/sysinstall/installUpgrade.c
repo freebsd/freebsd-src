@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.30 1996/07/14 01:54:38 jkh Exp $
+ * $Id: installUpgrade.c,v 1.31 1996/08/03 10:11:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -262,12 +262,6 @@ installUpgrade(dialogMenuItem *self)
 	    variable_unset(DISK_PARTITIONED);
 	    return DITEM_FAILURE | DITEM_RECREATE;
 	}
-    }
-
-    if (!copySelf()) {
-	msgConfirm("Couldn't clone the boot floppy onto the root file system.\n"
-		   "Aborting.");
-	return DITEM_FAILURE | DITEM_RECREATE;
     }
 
     if (DITEM_STATUS(chroot("/mnt")) == DITEM_FAILURE) {
