@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.249
+    Original revision: 1.22.2.267
 -->
 
 <articleinfo>
@@ -57,8 +57,8 @@
     <ulink url="&release.url;"></ulink>
     および各ミラーサイトで公開されています。
     &os; の &release.type; 版 (またはそれ以外) の入手法については
-    <ulink url="http://www.FreeBSD.org/handbook/">FreeBSD
-      ハンドブック</ulink>の<ulink url="http://www.FreeBSD.org/handbook/mirrors.html">
+    <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD
+      ハンドブック</ulink>の<ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors.html">
       <quote>&os; を入手するには</quote></ulink>をご覧ください。</para>
 
 ]]>
@@ -98,573 +98,282 @@
   <sect2 id="kernel">
     <title>カーネルの変更点</title>
 
-    <para arch="i386">&man.puc.4;
-      (PCI <quote>ユニバーサル</quote> コミュニケーション)
-      ドライバが追加されました。
-      これは PCI ベースのシリアルポートを
-      &man.sio.4; ドライバへ接続することを可能にします。</para>
+    <para>&man.acct.2; は、アカウンティングファイルを
+      追記モードでオープンするように変更されました。
+      これは &man.accton.8; のアカウンティング機能を、
+      追記専用ファイルに対して使えるようにするための変更です。</para>
 
-    <para>ローダから変更可能な変数 <varname>dumpdev</varname>
-      が新たに追加されました。これはカーネルダンプデバイスを設定するものです。
-      これにより、カーネル初期化の最後の段階 (システムがシングルユーザモードに入る前)
-      で発生した panic のクラッシュダンプを取得することが可能です。</para>
-
-    <para>&man.snp.4; ドライバは静的にカーネルに組み込む必要はなくなり、
-      モジュールとしてコンパイルできるようになりました。</para>
-
-    <para arch="i386">Sony 製のいくつかのラップトップ機が搭載する
-      ジョグダイアルへアクセスするための
-      &man.spic.4; ドライバが追加されました。
-      また、&man.moused.8; にも
-      このデバイスへの対応が追加されています。</para>
-
-    <para arch="i386">VIA SMBus 電源管理コントローラ用の
-      &man.viapm.4; ドライバが追加されました。</para>
+    <para><literal>RLIMIT_VMEM</literal> 機能が追加されました。
+      これは、あるプロセスに対して、&man.mmap.2; 空間を含む、
+      全仮想メモリ空間の大きさに制限を設けるものです。
+      制限は &man.login.conf.5; に追加された
+      <varname>vmemoryuse</varname> 変数によって設定することができます。</para>
 
 <!-- Above this line, kernel changes ordered by manpage/variable name -->
 
     <sect3>
       <title>プロセッサ・マザーボードの対応状況</title>
 
-      <para arch="i386">カーネルオプションに
-	<literal>CPU_ATHLON_SSE_HACK</literal>
-	が追加されました。
-	これは BIOS 側で最近の Athlon CPU にある SSE
-        機能を有効にする処理が行なわれていない場合にも、
-        SSE 機能を有効化しようと試みるものです。</para>
-
-      <para arch="i386">いくつかのシステムでは、
-	BIOS が PCI デバイスの I/O ポートやメモリを動作可能に設定しないため、
-	利用することができません。
-	カーネルオプション <literal>PCI_ENABLE_IO_MODES</literal> は
-	それらのデバイスを利用できるようにするために、
-	&os; がそれらを強制的に有効化するようにします。</para>
+      <para></para>
     </sect3>
 
     <sect3>
       <title>起動ローダ関連</title>
 
-      <para arch="i386"><filename>boot2</filename> に、
-	キーボード操作によって boot が中断されることを防ぐ
-	<option>-n</option> オプションが追加されました。</para>
-      
+      <para></para>
+
 <!-- Above this line, order boot loader changes by manpage/variable name-->
       
     </sect3>
     
     <sect3>
       <title>ネットワークインターフェイスの対応状況</title>
+
+      <para arch="i386,pc98">&man.em.4; ドライバが
+        Intel 82545EM および 82545EB チップに対応しました。
+        VLAN にも対応しています。</para>
+
+      <para arch="i386">&man.rp.4; ドライバがバージョン
+        3.02 に更新され、
+        モジュールとしてコンパイルできるようになりました。</para>
       
-      <para>&man.an.4; ドライバが
-	<quote>Home</quote> WEP 暗号鍵に加えて
-	新しく Cisco LEAP にも対応しました。
-        Linux Aironet ユーティリティは現在、
-        エミュレーション環境下での動作に対応しています。</para>
-
-      <para arch="i386">ARCNET token
-        ベースのネットワークに対する汎用的なサポートが追加されました。</para>
-
-      <para arch="i386">cm ドライバが新しく追加されました。
-        これは SMC COM90cx6 ARCNET ネットワークアダプタに対応しています。</para>
-      
-      <para>&man.dc.4; ドライバが VLAN に対応しました。</para>
-
-      <para arch="i386"><filename>GENERIC</filename> カーネルにおける
-        Intel Gigabit Ethernet カード対応は、
-	&man.wx.4; ドライバではなく
-	&man.em.4; ドライバが使われるようになりました。
-	&man.wx.4; ドライバは &os; 4.5-RELEASE 以降、保守されていません。</para>
-
-      <para arch="alpha">&man.fpa.4; ドライバが
-	Alpha マシンで動作するようになりました。</para>
-
-      <para>my ドライバが追加されました。
-	これは Myson Fast Ethernet アダプタおよび
-	Gigabit Ethernet アダプタをサポートするものです。</para>
-
-      <para>&man.wi.4; ドライバが
-	Prism II および Prism 2.5 ベースの NIC に対応しました。
-	また、104/128 ビット WEP 暗号化が Prism カードで動作するようになりました。</para>
-
-      <para>&man.wi.4; ドライバが
-	<application>bsd-airtools</application>
-	に対応しました。</para>
-
-      <para>xe ドライバがモジュールとして構築できるようになりました。</para>
-
 <!-- Above this line, order network driver changes by manpage/variable name-->
 
-      <para>ネットワーク攻撃や過負荷に対するシステムの耐性を強化するため、
-        いくつかのネットワークデバイスに準ポーリングモードが実装されました。
-        このポーリングを有効にするには、
-        カーネルコンフィグレーションファイルに
-        次のオプションを追加する必要があります。
-
-       <programlisting>options DEVICE_POLLING
-options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
-
-        これに加えて sysctl 変数 <varname>kern.polling.enable</varname>
-        を設定すると、ポーリングモードを有効にすることができます。
-        この時、<varname>kern.polling.user_frac</varname> sysctl 変数は
-        ユーザランド用に予約された CPU 時間の割合を百分率で示します。
-        ポーリングに対応したデバイスは、現時点で
-        &man.dc.4;、&man.fxp.4;、&man.rl.4;、&man.sis.4; です。
-        詳細については &man.polling.4; のマニュアルページを参照してください。</para>
     </sect3>
 
     <sect3>
       <title>ネットワークプロトコル</title>
 
-      <para>&man.bridge.4;
-	が複数の完全に独立したブリッジクラスタに対応し、
-	ブリッジの動的な追加・削除に対する安定性が向上しました。
-	また、VLAN にも完全に対応しています。</para>
+      <para></para>
 
-      <para>IPsec の IPv4 処理において、
-        上り SPD チェックが無視されるというバグが修正されました。</para>
-
-      <para>ng_eiface netgraph モジュールが新たに追加されました。
-        Netgraph フックへイーサネットフレームを配送する
-        イーサネットインターフェースとして振舞います。</para>
-
-      <para>&man.ng.etf.4; netgraph ノードが新たに追加されました。
-        これは、異なるフック間のイーサネットパケットを ethertype
-        に応じてフィルタする機能を実現します。</para>
-
-      <para>&man.tcp.4; syncache 実装に存在していた、
-        カーネルパニックを引き起こす可能性のあるバグが修正されました。</para>
-
-      <para>TCP 実装は、IP 層のブロードキャストアドレス宛のパケットを
-        正しく破棄するようになりました。</para>
     </sect3>
 
     <sect3>
       <title>ディスク・記憶装置</title>
 
-      <para>&man.ahc.4; ドライバが
-	2002 年 4 月 29 日時点の &os; -CURRENT と同期しました。</para>
+      <para>&man.ata.4; のタグ付きキューイング機能で
+        時々発生していた動作不良が修正されました。</para>
 
-      <para>&man.ata.4; ドライバが
-	2002 年 5 月 18 日時点の &os; -CURRENT と同期しました。</para>
-
-      <important>
-	<para>ATA タグ付きキューイングを有効にして試験していたユーザ数人から、
-	  問題が生じるという報告がありました。
-	  典型的な症状は起動時に読み込みがタイムアウトしてしまい、
-	  ルートファイルシステムのマウントに失敗するというものです。
-	  これらはマザーボードの ATA コントローラに接続されている
-	  ディスクがタグ付きキューイングに対応している場合にのみ現れます。
-	  この機能は特定の ATA ハードディスクのみが対応しているもので、
-	  利用するには <filename>/boot/loader.conf</filename> で
-	  <literal>hw.ata.tags="1"</literal> として明示的に有効にする
-	  必要があるため、多くのユーザには影響はないでしょう。</para>
-      </important>
-
-      <para>&man.ata.4; ドライバが、&man.atacontrol.8; を使った
-	ATA RAID の生成、削除、クエリ、再構築に対応しました。</para>
     </sect3>
 
     <sect3>
       <title>ファイルシステム</title>
 
-      <para>新しいカーネルやソフトウェアのインストールといった、
-	ファイルシステムに負荷のかかる作業を行った直後に
-	システムをシャットダウンした場合、
-	ファイルシステムを破壊する可能性がある
-	soft updates のバグが修正されました。</para>
+      <para></para>
+
     </sect3>
 
     <sect3>
       <title>PCCARD 対応状況</title>
 
       <para></para>
+
     </sect3>
 
     <sect3>
       <title>マルチメディアへの対応状況</title>
       
-      <para arch="i386">ufm ドライバが追加されました。
-	これは D-Link DSB-R100 USB Radio に対応しています。</para>
-
-      <para arch="i386">via82c686 サウンドドライバが
-	VIA VT8233 に対応しました。</para>
-
-      <para arch="i386">ich サウンドドライバが
-	SiS 7012 チップセットに対応しました。</para>
-
-      <para arch="i386">&man.pcm.4; ドライバが
-	2002 年 4 月 22 日時点の &os; -CURRENT と同期しました。</para>
+      <para></para>
 
     </sect3>
 
     <sect3>
       <title>寄贈ソフトウェア</title>
 
-      <sect4>
-	<title>IPFilter</title>
+      <para></para>
 
-	<para><application>IPFilter</application> が 3.4.27 に更新されました。</para>
-
-      </sect4>
-
-      <sect4 arch="i386">
-	<title>isdn4bsd</title>
-
-	<para>&man.ifpi2.4; ドライバが追加されました。
-          これは AVM Fritz!Card PCI version 2 コントローラに対応しています。</para>
-      </sect4>
-    </sect3>
   </sect2>
 
   <sect2 id="security">
     <title>セキュリティ勧告</title>
 
-    <para><application>OpenSSH</application> の多重化に関するコードにおいて
-      <quote>一つ違い (off-by-one)</quote> バグが修正されました。
-      このバグは認証されたリモートユーザが
-      &man.sshd.8;
-      に任意のコードをスーパユーザ権限で実行したり、
-      悪意のある SSH サーバがクライアントユーザの権限で
-      (クライアントユーザの) システム上の任意のコードを実行することが可能です。
-      詳細はセキュリティ勧告 <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.openssh.asc">FreeBSD-SA-02:13</ulink>
-      をご覧ください。</para>
-
-    <para><application>zlib</application> には、
-      メモリを複数回解放するように仕向けることが可能な
-      プログラミング上の誤りが存在します。
-      &os; が採用している &man.malloc.3;/&man.free.3; ルーチンは
-      この誤りによるセキュリティ上の弱点はありませんが、
-      アプリケーションが特殊な細工が施された不正な圧縮データブロックを
-      受け取った場合、この仕組みを悪用して
-      機能を正常に働かなくさせたり異常終了させることが可能です。
-      なお、この <application>zlib</application> のバグは修正済みです。
-      この問題の回避方法および解決策はセキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:18.zlib.v1.2.asc">FreeBSD-SA-02:18</ulink>
-      をご覧ください。</para>
-
-    <para>TCP SYN cache (<quote>syncache</quote>) と
-      SYN cookie (<quote>syncookie</quote>) の実装にあった、
-      正規の TCP/IP トラフィックによりマシンを
-      クラッシュさせる可能性のあるバグが修正されました。
-      この問題の回避方法やパッチはセキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:20.syncache.asc">FreeBSD-SA-02:20</ulink>
-      をご覧ください。</para>
-
-    <para>リモートの攻撃者にターゲットのマシン上のメモリを
-      枯渇させる可能性のある経路表のメモリリークが修正されました。
-      回避方法やパッチはセキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:21.tcpip.asc">FreeBSD-SA-02:21</ulink>
-      をご覧ください。</para>
-
-    <para>システムクラッシュを起こす可能性のある
-      memory-mapped I/O のバグが修正されました。
-      詳細と解決策はセキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:22.mmap.asc">FreeBSD-SA-02:22</ulink>
-      をご覧ください。</para>
-
-    <para>標準入出力ファイル記述子を操作することによって、
-      SUID されたプログラムを悪用して不正にファイルを
-      読み書きすることが可能なセキュリティホールが修正されました。
-      この問題に関する解決策はセキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>
-      をご覧ください。</para>
-
-    <para>&man.k5su.8; は (&man.su.1; のように)
-      権限を行使するユーザが <groupname>wheel</groupname> グループに
-      所属していることを必要としないため、予想に反した挙動を示す可能性があります。
-      このような状況を回避するために、
-      &man.k5su.8; はデフォルトで (事実上、上記の機能を無効化するために)
-      SUID せずにインストールされるようになりました。
+    <para>悪意を持ったドメインネームサーバや
+      DNS メッセージを生成できる攻撃者が悪用可能な、
+      リゾルバのバッファオーバフロー問題が修正されました。
       詳細はセキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:24.k5su.asc">FreeBSD-SA-02:24</ulink>
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:28.resolv.asc">FreeBSD-SA-02:28</ulink>
       をご覧ください。</para>
 
-    <para>&man.bzip2.1; ユーティリティに、
-      事前に警告することなく既存のファイルを上書きしたり、
-      許可属性の競合状態により意図しないユーザにファイルのアクセスを許す
-      といった複数の弱点が発見されました。
-      この問題は新しい <application>bzip2</application> の
-      import により修正されました。
+    <para>不正な NFS パケットによって悪用される可能性がある、
+      &man.tcpdump.1; のバッファオーバフロー問題が修正されました。
       詳細はセキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:25.bzip2.asc">FreeBSD-SA-02:25</ulink>
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:29.tcpdump.asc">FreeBSD-SA-02:29</ulink>
       をご覧ください。</para>
 
-    <para>TCP SYN cache (<quote>syncache</quote>) の実装において
-      accept filter (&man.accept.filter.9; 参照) が使用されていた時に
-      リモートの攻撃者がサービス妨害を実現できる可能性のあるバグが修正されました。
-      より詳しい情報は
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:26.accept.asc">FreeBSD-SA-02:26</ulink>
-      を参照してください。
-    </para>
-
-    <para>&man.rc.8; においてシェルのグロブ演算子が不適切な使われ方をしていたため、
-      <filename>/tmp/.X11-unix</filename> が存在せず、システムを再起動可能な場合、
-      ユーザが任意のファイルの中身を消すことができるようになっていました。
-      このバグは修正されています
-      (セキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:27.rc.asc">FreeBSD-SA-02:27</ulink>
-      を参照)。</para>
+    <para>高い権限を放棄したプロセスに対して、&man.ktrace.1; を使った追跡
+      (trace) 操作ができないようになりました。
+      これにより、そのプロセスが権限を放棄する前に得たセキュリティ上重要な
+      情報の漏洩を防ぐことができます。この問題の詳細は、
+      セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:30.ktrace.asc">FreeBSD-SA-02:30</ulink>
+      をご覧ください。</para>
   </sect2>
 
   <sect2 id="userland">
     <title>ユーザランドの変更点</title>
 
-    <para>&man.atacontrol.8; が追加されました。
-      これは &man.ata.4; ドライバの各種制御を可能にします。</para>
+    <para>&man.dump.8; に、単に予想ダンプサイズを表示して終了するという、
+      <option>-S</option> フラグが追加されました。</para>
 
-    <para>&man.cdcontrol.1; が、
-      ATAPI CDROM ドライブの最大速度を設定する
-      <literal>speed</literal> コマンドに対応しました。</para>
+    <para>&man.finger.1; が
+      <filename>.pubkey</filename> ファイルに対応しました。</para>
 
-    <para>&man.ctags.1; が、ソースファイルに (C++ スタイルの)
-      <literal>//</literal> コメントが使用されている場合でも
-      壊れたタグファイルを生成しなくなりました。</para>
+    <para>&man.finger.1; に、GECOS
+      情報の表示をユーザのフルネームのみに制限する
+      <option>-g</option> フラグが追加されました。</para>
 
-    <para>&man.dump.8; は、進行状況をプロセスタイトルに出力するようになりました。
-      これは自動化したバックアップを監視する際に有用です。</para>
+    <para>&man.fold.1; に、指定バイト位置で改行する
+      <option>-b</option> オプションと、
+      単語境界で改行する <option>-s</option> オプションが追加されました。</para>
 
-    <para><filename>/etc/rc.firewall</filename> と
-      <filename>/etc/rc.firewall6</filename> は、
-      <varname>firewall_type</varname> 変数にルールファイルが設定された場合と
-      存在しないファイアウォールの種類が指定された場合に
-      ハードコーディングされたルールを追加しなくなりました
-      (この変更の目的は、サイトのファイアウォールポリシが
-      仮定していることに、影響を与えないようにするためです)。
-      また、ファイアウォールタイプに <literal>closed</literal>
-      が設定されている場合、&man.rc.firewall.8;
-      のマニュアルページに記述どおりに動作するようになりました。</para>
+    <para>&man.ifconfig.8; に、IPv6 アドレスの下位 64
+      ビットを自動的に設定する <option>eui64</option>
+      コマンドが追加されました。この変更にともない、
+      &man.prefix.8; は廃止されました。</para>
 
-    <para>ローカルでのカスタマイズや保守の手間を軽減するため、
-      <filename>/etc/security</filename> の機能が
-      &man.periodic.8; フレームワークにおけるスクリプト群に移動されました。
-      現在、これらのスクリプトは
-      <filename>/etc/periodic/security/</filename> に置かれています。</para>
+    <para>&man.nice.1; に、実行するユーティリティの <quote>nice
+        値</quote>を指定する <option>-n</option>
+      オプションが追加されました。</para>
 
-    <para>&man.ifconfig.8; の
-      <option>ether</option> アドレスファミリが
-      より一般的な <option>link</option> ファミリに変更されました
-      (<option>ether</option> は後方互換性のためにまだ利用できます)。</para>
+    <para><varname>no_fake_prompts</varname> が設定されている場合、
+      &man.pam.opie.8; は偽のチャレンジを送出しなくなりました。</para>
 
-    <para>&man.fsdb.8; が
-      特定の inode によって割り当てられたブロック一覧を表示するための
-      <literal>blocks</literal> コマンドに対応しました。</para>
+    <para>&man.pam.opieaccess.8; モジュールが追加されました。</para>
 
-    <para>&man.ispppcontrol.8; が削除され、
-      その機能が &man.spppcontrol.8; に統合されました。</para>
+    <para>&man.pam.unix.8; が、2002 年 3 月 9 日時点の
+      &os; -CURRENT (<application>OpenPAM</application>
+      に変更される前) と同期しました。</para>
 
-    <para>&man.k5su.8; がデフォルトで <username>root</username> に
-      SUID されたバイナリとしてインストールされなくなりました。
-      この機能が必要なユーザは、手動で
-      &man.k5su.8; の実行ファイルの許可属性を変更するか、
-      ソースからのアップグレードの前に
-      <literal>ENABLE_SUID_K5SU=yes</literal> を
-      <filename>/etc/make.conf</filename> に加えてください。</para>
+    <para>&man.pwd.1; に、論理カレントディレクトリを表示する
+      <option>-L</option> フラグが追加されました。</para>
 
-    <para>&man.ldd.1; が実行ファイルに加え、
-      共有ライブラリに対しても使用できるようになりました。</para>
+    <para>&man.renice.8; コマンドに、プロセスの優先度に対する増分を指定する
+      <option>-n</option> オプションが追加されました。</para>
 
-    <para>&man.last.1; が <option>-y</option> フラグに対応しました。
-      これは、セッションの開始時刻に年の表示を含めるようにします。</para>
+    <para>&man.sed.1; に、指定ファイルそのものを編集する
+      <option>-i</option> オプションが追加されました。</para>
 
-    <para><filename>libstand</filename> が
-      複数の物理メディアをまたがって分割された
-      大きなカーネルやモジュール群をロードできるようになりました。</para>
+    <para>&man.su.1; が、Kerberos V 認証に対応しました。</para>
 
-    <para><filename>libusb</filename> の名前が
-      <filename>libusbhid</filename> に変更されました。
-      これは NetBSD の命名規則に従ったものです。</para>
+    <!-- 2002/07/27:hrs - tabstabs? -->
+    <para>&man.unexpand.1; に、&man.expand.1; と同様のタブ位置を指定する
+      <option>-t</option> オプションが追加されました。</para>
 
-    <para>&man.lpd.8; が
-      <option>-p</option> フラグと同じ意味を持ち、よりわかりやすい
-      <option>-s</option> フラグを認識するようになりました
-      (これらのフラグは &man.lpd.8; が
-      ネットワーク経由のプリントジョブ用ソケットを開かないようにします)。</para>
+    <para>&man.xargs.1; に、標準入力からのデータの挿入を
+      コマンドラインの最後ではなく、指定できるようにするための
+      <option>-I</option> <replaceable>replstr</replaceable>
+      オプションが追加されました (同様の機能を実現する
+      <option>-J</option> オプションがありますが、
+      これに対応しているのは &os; のみであるため、より互換性の高い
+      <option>-I</option> オプションの使用が推奨されています)。</para>
 
-    <para>&man.lpd.8; に、
-      新たに <literal>rc</literal> printcap オプションが実装されました。
-      この bool オプションがリモートホストのプリントキューに指定されると、
-      <command>lpr -#<replaceable>n</replaceable></command>
-      によるユーザ要求に対して、必要な回数分繰り返してデータファイルが
-      &man.lpd.8; により転送されます。</para>
-
-    <para>&man.ls.1; が
-      <option>-h</option> フラグを受け付けるようになりました。
-      <option>-l</option> フラグと組み合わせると、
-      ファイルに単位 (訳注: B, KB, MB など) をつけて
-      3 以下の桁数でファイルサイズを出力させることができます。</para>
-
-    <para>&man.m4.1; が、&man.cpp.1; で利用するための
-      <literal>#line</literal> 指示子を出力するように指示する
-      <option>-s</option> フラグを受け付けるようになりました。</para>
-
-    <para>&man.mergemaster.8; が新たに次の 2 つのフラグに対応しました。
-      <option>-p</option> フラグは
-      <quote>pre-<literal>buildworld</literal></quote> モードを有効にします。
-      これは、
-      <literal>buildworld</literal> および <literal>installworld</literal> の
-      システムアップグレードステップを成功させるために不可欠なファイル群を比較するものです。
-      <option>-C</option> フラグは &man.mergemaster.8; がうまく動作した後、
-      <filename>/etc/rc.conf</filename> で指定されているオプションと
-      <filename>/etc/defaults/rc.conf</filename> で
-      定義されているデフォルトのオプションを比較します。</para>      
-
-    <para>&man.ngctl.8; が新しく <option>write</option>
-      コマンドに対応しました。
-      これは指定したフックにデータパケットを送ります。</para>
-
-    <para>&man.patch.1; に、標準入力ではなく、
-      ファイルからパッチを読み込むことを指定する
-      <option>-i</option> コマンドラインフラグが追加されました。</para>
-
-    <para>&man.pam.ssh.8; モジュールが追加されました。
-      これは、SSH のパスフレーズと暗号鍵対を使った認証の利用を実現します。
-      また、このモジュールは &man.ssh-agent.1;
-      を起動することでセッション管理も行ないます。</para>
-
-    <para>&man.pr.1; が、端末への出力を一時停止するよう指示する
-      <option>-f</option>、<option>-p</option>
-      フラグに対応しました。</para>
-
-    <para>&man.ps.1; の <option>-W</option> オプション
-      (指定したスワップデバイスから情報を抽出する) が削除されました。
-      このオプションは少し前から使えなくなっていたものです。</para>
-
-    <para>&man.reboot.8; は次の起動時のカーネルを指定するための
-      <option>-k</option> オプションを受け付けるようになりました。</para>
-
-    <para>&man.sshd.8; は S/Key を有効化していないユーザに対して
-      偽の S/Key チャレンジを出力しないようになりました。
-      以前の動作は、比較的新しいいくつかの SSH クライアントが
-      &os; システムに接続した時に、ユーザを混乱させる無意味な
-      one-time-password のプロンプトを出力していました。</para>
-
-    <para>未完成ですが、&man.sysinstall.8; が
-      (複数の CD による配布のような)
-      複数のボリュームを利用するインストールにおいて、正しいボリュームから
-      package を拾い出す機能に対応しました。</para>
-
-    <para>&man.tftp.1; と &man.tftpd.8; が
-      IPv6 に対応しました。</para>
-
-    <para>USB Human Interface Device を操作するための
-      &man.usbhidctl.1; ユーティリティ追加されました。</para>
-
-    <para>&man.uuencode.1; と &man.uudecode.1; に、
-      出力ファイルを指定する <option>-o</option> オプションが追加されました。
-      &man.uuencode.1; は <option>-m</option> フラグを指定すると
-      base64 エンコーディングを行なうようになりました。
-      また、&man.uudecode.1; は自動的に base64
-      ファイルをデコードするようになっています。</para>
-
-    <para>&man.watch.8; に<option>-f</option> オプションが追加されました。
-      これは、利用する &man.snp.4 デバイスを指定します。</para>
+    <para>&man.xargs.1; に、入力を指定行数ごとに区切り、
+      それを引数にして入力がなくなるまで複数回コマンドを呼び出すという
+      <option>-L</option> オプションが追加されました。</para>
 
 <!-- Above this line, order userland changes by manpage/variable name-->
-
-    <para><literal>*.EUC</literal> 形式の locale 名が
-      <literal>*.euc??</literal> 形式へ改名されました。
-      たとえば、<literal>ja_JP.EUC</literal> は
-      <literal>ja_JP.eucJP</literal> になります。
-      これは &os; CURRENT、X11R6 および、他のたくさんの UNIX のバージョンとの
-      locale 名との互換性を向上するものです。</para>
-
-    <para>locale 対応が &os; -CURRENT のコードと同期しました。
-      この変更により
-      &man.strftime.3; の改良、
-      locale 定義の改訂、
-      多くのベースシステムプログラムの地域化が改良されており、
-      さらに
-      <literal>LC_NUMERIC</literal>、
-      <literal>LC_MONETARY</literal> および
-      <literal>LC_MESSAGES</literal> カテゴリに対応しています。</para>
 
     <sect3>
       <title>寄贈ソフトウェア</title>
 
       <para><application>BIND</application> が
-        8.3.2-T1B に更新されました。</para>
+        8.3.3 に更新されました。</para>
 
-      <para><application>bzip2</application> が
-        1.0.2 に更新されました。</para>
+      <para><application>gcc</application> がバージョン
+        2.95.4 に更新されました。</para>
 
-      <para><application>Heimdal Kerberos</application> が
-	0.4e に更新されました。</para>
+      <para><application>libpcap</application> がバージョン
+        0.7.1 に更新されました。</para>
 
-      <para><application>ISC DHCP</application> クライアントが
-	to 3.0.1RC8 に更新されました</para>
+      <para>NetBSD の FTP デーモン、<application>lukemftpd</application> の
+        バージョン 1.2 beta 1 が統合され、
+        &man.lukemftpd.8; として利用できるようになりました。</para>
 
-      <para><application>texinfo</application> が
-	4.1 に更新されました</para>
+      <para>OpenBSD より、2002 年 4 月 26 日時点の &man.m4.1;
+        が統合されました。</para>
 
-      <para>timezone database が
-	<filename>tzdata2002c</filename> リリースに更新されました。</para>
+      <para><application>OPIE</application> one-time-password
+        スイートがバージョン 2.4 に更新されました。</para>
 
-      <sect4>
+      <para><application>OpenSSH</application> が
+        バージョン 3.4p1 に更新されました。主な変更点は次のとおりです。
 
-	<title>Sendmail</title>
+         <itemizedlist>
+          <listitem>
+            <para><filename>*2</filename>
+              という名前のファイルが廃止されました
+              (たとえば
+              以前
+              <filename>~/.ssh/known_hosts2</filename>
+              に書かれていた内容は
+              <filename>~/.ssh/known_hosts</filename>
+              に書かれるようになっています)。</para>
+           </listitem>
 
-	<para><application>sendmail</application> が
-	  8.12.3 に更新されました。
-	  &man.sendmail.8; は <username>root</username> に
-	  set-user-ID されたバイナリとしてインストールされなくなりました
-          (現在は smmsp に set-group-ID されています)。
-	  詳細は
-	  <filename>/usr/src/contrib/sendmail/RELEASE_NOTES</filename> と
-	  <filename>/etc/mail/README</filename> をご覧ください。</para>
+           <listitem>
+             <para>&man.ssh-keygen.1; は、
+              SECSH Public Key File Format を使って、
+              商用の SSH 実装と暗号鍵を交換することができるようになりました。</para>
+           </listitem>
 
-	<para>この <application>sendmail</application> の更新にともない、
-	  複数の <application>sendmail</application> デーモン
-	  (外へ出ていくメールを扱うために必要なもの) は
-	  <varname>sendmail_enable</varname> 変数が
-	  <literal>NO</literal> に設定されている場合にも、
-	  &man.rc.8; によって起動されるようになりました。
-	  <application>sendmail</application> を完全に無効化するには、
-	  <varname>sendmail_enable</varname> を
-	  <literal>NONE</literal> に設定しなければなりません。
-	  また、別の MTA を利用するシステムでは
-	  <varname>mta_start_script</varname>
-	  変数を用いて異なる起動スクリプトを指定することが可能です
-	  (詳細は &man.rc.sendmail.8; をご覧ください)。</para>
+           <listitem>
+             <para>&man.ssh-add.1; は、3
+              種類のデフォルト暗号鍵すべてを追加するようになりました。</para>
+           </listitem>
 
-	<para><filename>/etc/mail/Makefile</filename> から構築される
-	  <application>sendmail</application> の alias ファイル、
-	  map データベースの許可属性は、
-	  ファイルロックに対するローカルからのサービス妨害攻撃を防ぐために
-	  デフォルトが 0640 になりました。
-	  これは <filename>make.conf</filename> の
-	  <varname>SENDMAIL_MAP_PERMS</varname>
-	  という新しいオプションの設定で変更することが可能です。</para>
+           <listitem>
+             <para>&man.ssh-keygen.1; において、
+              暗号鍵タイプのデフォルトがなくなりました。
+              特定のタイプを、<option>-t</option>
+              オプションで指定する必要があります。</para>
+           </listitem>
 
-	<para><application>sendmail</application> の統計ファイル
-	  (<filename>/var/log/sendmail.st</filename>) の許可属性が
-	  ファイルロックに対するローカルからのサービス妨害攻撃を防ぐために
-	  0644 から 0640 へ変更されました。</para>
-      </sect4>
+           <listitem>
+             <para>プログラムのバグや将来的に発見される可能性のある
+              セキュリティ上の弱点の影響を小さくするために、
+              特権を持たないプロセスを使うという
+              <quote>特権分離 (privilege separation)</quote> 機能
+              が追加されました。</para>
+           </listitem>
+
+           <listitem>
+             <para>整数変数のオーバフローによって権限の不正な獲得が可能になるという
+              セキュリティホールなど、いくつかのバグが修正されました。</para>
+           </listitem>
+
+           <listitem>
+            <para>SSH プロトコルのデフォルトは、
+              バージョン 1 (使えない場合はバージョン 2 にフォールバック)
+              ではなく、
+              バージョン 2 (使えない場合はバージョン 1 にフォールバック)
+              になっています。</para>
+          </listitem>
+        </itemizedlist>
+      </para>
+
+      <para><application>sendmail</application> がバージョン
+        8.12.3 からバージョン 8.12.5 に更新されました。</para>
+
+      <para><application>GNU tar</application> がバージョン
+        1.13.25 に更新されました。</para>
+
+      <para><application>tcpdump</application> がバージョン
+        3.7.1 に更新されました。</para>
     </sect3>
     
     <sect3>
       <title>Ports/Packages Collection</title>
 
-      <para>Ports Collection において、(訳注: 各 port が) 依存する
-	X Window System のデフォルトのバージョンが
-	<application>XFree86</application> 4.2.0 に変更されました。
-	<application>XFree86</application> 3.3.6 に戻すには、
-	<filename>/etc/make.conf</filename> に次の行を加えてください。</para>
-
-      <programlisting>XFREE86_VERSION=3</programlisting>
+      <para></para>
+      
     </sect3>
   </sect2>
 
   <sect2>
     <title>リリースエンジニアリングと統合</title>
 
-    <para arch="i386,alpha"><application>XFree86</application> 4.2.0 は
-      &man.sysinstall.8; が対応する
-      X Window System のデフォルトのバージョンになりました。
-      &man.sysinstall.8; は <application>XFree86</application>
-      を標準のバイナリパッケージセットとしてインストールするため、
-      &man.pkg.info.1; のような通常の package ユーティリティを使って
-      それらのコンポーネントを調べたり操作することが可能です。</para>
+    <para></para>
+
   </sect2>
 </sect1>
 
@@ -696,6 +405,10 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
       <para><filename>/usr/src</filename> のソースコードから構築する方法。
         この手段は非常に柔軟な対応が可能ですが、
         ディスク空間と時間、そして専門的なノウハウを必要とします。
+        詳細については
+        <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD
+          ハンドブック</ulink>の
+        <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html"><quote><command>make world</command> を利用する</quote></ulink> という章をご覧ください。
         また、非常に古いバージョンの &os;
         からのアップグレードは問題が発生することが多いため、
         そのような場合にはバイナリアップグレード、
@@ -710,9 +423,9 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
 
   <para>最後になりますが、&os; の -STABLE もしくは -CURRENT
     ブランチを追いかけるために用意された手段の一つをとりたいと考えているなら、
-    <ulink url="http://www.FreeBSD.org/handbook/">FreeBSD
+    <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD
       ハンドブック</ulink>の
-    <ulink url="http://www.FreeBSD.org/handbook/current-stable.html"><quote>-CURRENT
+    <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/current-stable.html"><quote>-CURRENT
         vs. -STABLE</quote></ulink> の節をご覧になるようお願いします。</para>
 
   <important>
