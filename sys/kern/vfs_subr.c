@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.38 1995/11/07 05:09:43 dyson Exp $
+ * $Id: vfs_subr.c,v 1.39 1995/11/09 08:13:48 bde Exp $
  */
 
 /*
@@ -63,8 +63,6 @@
 #include <sys/sysctl.h>
 
 #include <miscfs/specfs/specdev.h>
-
-void insmntque __P((struct vnode *, struct mount *));
 
 enum vtype iftovt_tab[16] = {
 	VNON, VFIFO, VCHR, VNON, VDIR, VNON, VBLK, VNON,
@@ -1437,7 +1435,7 @@ out:
 static int
 vfs_free_netcred(rn, w)
 	struct radix_node *rn;
-	caddr_t w;
+	void *w;
 {
 	register struct radix_node_head *rnh = (struct radix_node_head *) w;
 
