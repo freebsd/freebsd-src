@@ -255,6 +255,7 @@ vendor ADMTEK		0x07a6	ADMtek, Inc.
 vendor COREGA		0x07aa	Corega
 vendor FREECOM		0x07ab	Freecom
 vendor MICROTECH	0x07af	Microtech
+vendor OLYMPUS		0x07b4	Olympus
 vendor ABOCOM		0x07b8	AboCom Systems, Inc.
 vendor KEISOKUGIKEN	0x07c1	Keisokugiken Corp.
 vendor APG		0x07c5	APG Cash Drawer
@@ -783,6 +784,9 @@ product NETGEAR EA101		0x1001	Ethernet adapter
 
 /* Nikon products */
 product NIKON E990		0x0102	Digital Camera E990
+
+/* Olympus products */
+product OLYMPUS C700		0x0105	C-700 Ultra Zoom
 
 /* OmniVision Technologies, Inc. products */
 product OMNIVISION OV511	0x0511	OV511 Camera
