@@ -62,6 +62,7 @@ ${BASE}.efi: ${BASE}.sym
 		-j .rela \
 		-j .reloc \
 		-j .dynsym \
+		-j .dynstr \
 		--target=efi-app-${MACHINE_ARCH} \
 		${BASE}.sym ${BASE}.efi
 
@@ -87,10 +88,9 @@ machine:
 
 .include <bsd.prog.mk>
 
-${BASE}.sym: ${OBJS} ${LIBSTAND} ${LIBEFI} ${CRT} vers.o
-	${LD} ${LDFLAGS} -o ${BASE}.sym -M \
-	    ${CRT} ${OBJS} vers.o \
-	    ${LIBFICL} ${LIBSTAND} ${LIBEFI} ${LIBSTAND} \
+${BASE}.sym: ${OBJS} ${LIBEFI} ${CRT} vers.o
+	${LD} ${LDFLAGS} -o ${BASE}.sym -M ${CRT} ${OBJS} vers.o \
+	    ${LIBFICL}  ${LIBEFI} -L${DESTDIR}${LIBDIR} ${LIBSTAND} \
 	    > ${.OBJDIR}/${BASE}.list
 
 beforedepend ${OBJS}: machine
