@@ -648,38 +648,32 @@ static int vr_attach(dev)
 	/*
 	 * Handle power management nonsense.
 	 */
+	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
+		u_int32_t		iobase, membase, irq;
 
-	command = pci_read_config(dev, VR_PCI_CAPID, 4) & 0x000000FF;
-	if (command == 0x01) {
+		/* Save important PCI config data. */
+		iobase = pci_read_config(dev, VR_PCI_LOIO, 4);
+		membase = pci_read_config(dev, VR_PCI_LOMEM, 4);
+		irq = pci_read_config(dev, VR_PCI_INTLINE, 4);
 
-		command = pci_read_config(dev, VR_PCI_PWRMGMTCTRL, 4);
-		if (command & VR_PSTATE_MASK) {
-			u_int32_t		iobase, membase, irq;
-
-			/* Save important PCI config data. */
-			iobase = pci_read_config(dev, VR_PCI_LOIO, 4);
-			membase = pci_read_config(dev, VR_PCI_LOMEM, 4);
-			irq = pci_read_config(dev, VR_PCI_INTLINE, 4);
-
-			/* Reset the power state. */
-			printf("vr%d: chip is in D%d power mode "
-			"-- setting to D0\n", unit, command & VR_PSTATE_MASK);
-			command &= 0xFFFFFFFC;
-			pci_write_config(dev, VR_PCI_PWRMGMTCTRL, command, 4);
+		/* Reset the power state. */
+		printf("vr%d: chip is in D%d power mode "
+		    "-- setting to D0\n", unit,
+		    pci_get_powerstate(dev));
+		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
 
 			/* Restore PCI config data. */
-			pci_write_config(dev, VR_PCI_LOIO, iobase, 4);
-			pci_write_config(dev, VR_PCI_LOMEM, membase, 4);
-			pci_write_config(dev, VR_PCI_INTLINE, irq, 4);
-		}
+		pci_write_config(dev, VR_PCI_LOIO, iobase, 4);
+		pci_write_config(dev, VR_PCI_LOMEM, membase, 4);
+		pci_write_config(dev, VR_PCI_INTLINE, irq, 4);
 	}
 
 	/*
 	 * Map control/status registers.
 	 */
-	command = pci_read_config(dev, PCIR_COMMAND, 4);
-	command |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCIR_COMMAND, command, 4);
+	pci_enable_busmaster(dev);
+	pci_enable_io(dev, PCIM_CMD_PORTEN);
+	pci_enable_io(dev, PCIM_CMD_MEMEN);
 	command = pci_read_config(dev, PCIR_COMMAND, 4);
 
 #ifdef VR_USEIOSPACE

@@ -1481,9 +1481,8 @@ static int ti_attach(dev)
 	/*
 	 * Map control/status registers.
 	 */
-	command = pci_read_config(dev, PCIR_COMMAND, 4);
-	command |= (PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCIR_COMMAND, command, 4);
+	pci_enable_busmaster(dev);
+	pci_enable_io(dev, PCIM_CMD_MEMEN);
 	command = pci_read_config(dev, PCIR_COMMAND, 4);
 
 	if (!(command & PCIM_CMD_MEMEN)) {
