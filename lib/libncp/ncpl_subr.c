@@ -248,11 +248,7 @@ ncp_initlib(void){
 
 	if (ncp_initialized)
 		return 0;
-#if __FreeBSD_version < 400001
-	error = sysctlbyname("net.ipx.ncp.version", &kv, &kvlen, NULL, 0);
-#else
 	error = sysctlbyname("net.ncp.version", &kv, &kvlen, NULL, 0);
-#endif
 	if (error) {
 		fprintf(stderr, "%s: kernel module is old, please recompile it.\n", __FUNCTION__);
 		return error;
