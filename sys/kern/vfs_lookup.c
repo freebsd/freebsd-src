@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/filedesc.h>
 #include <sys/proc.h>
+#include <sys/syscallsubr.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
@@ -805,5 +806,117 @@ bad2:
 bad:
 	vput(dp);
 	*vpp = NULL;
+	return (error);
+}
+
+/*
+ * Determine if there is a suitable alternate filename under the specified
+ * prefix for the specified path.  If the create flag is set, then the
+ * alternate prefix will be used so long as the parent directory exists.
+ * This is used by the various compatiblity ABIs so that Linux binaries prefer
+ * files under /compat/linux for example.  The chosen path (whether under
+ * the prefix or under /) is returned in a kernel malloc'd buffer pointed
+ * to by pathbuf.  The caller is responsible for free'ing the buffer from
+ * the M_TEMP bucket if one is returned.
+ */
+int
+kern_alternate_path(struct thread *td, const char *prefix, char *path,
+    enum uio_seg pathseg, char **pathbuf, int create)
+{
+	struct nameidata nd, ndroot;
+	char *ptr, *buf, *cp;
+	size_t len, sz;
+	int error;
+
+	buf = (char *) malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
+	*pathbuf = buf;
+
+	/* Copy the prefix into the new pathname as a starting point. */
+	len = strlcpy(buf, prefix, MAXPATHLEN);
+	if (len >= MAXPATHLEN) {
+		*pathbuf = NULL;
+		free(buf, M_TEMP);
+		return (EINVAL);
+	}
+	sz = MAXPATHLEN - len;
+	ptr = buf + len;
+
+	/* Append the filename to the prefix. */
+	if (pathseg == UIO_SYSSPACE)
+		error = copystr(path, ptr, sz, &len);
+	else
+		error = copyinstr(path, ptr, sz, &len);
+
+	if (error) {
+		*pathbuf = NULL;
+		free(buf, M_TEMP);
+		return (error);
+	}
+
+	/* Only use a prefix with absolute pathnames. */
+	if (*ptr != '/') {
+		error = EINVAL;
+		goto keeporig;
+	}
+
+	/* XXX: VFS_LOCK_GIANT? */
+	mtx_lock(&Giant);
+
+	/*
+	 * We know that there is a / somewhere in this pathname.
+	 * Search backwards for it, to find the file's parent dir
+	 * to see if it exists in the alternate tree. If it does,
+	 * and we want to create a file (cflag is set). We don't
+	 * need to worry about the root comparison in this case.
+	 */
+
+	if (create) {
+		for (cp = &ptr[len] - 1; *cp != '/'; cp--);
+		*cp = '\0';
+
+		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, td);
+		error = namei(&nd);
+		*cp = '/';
+		if (error != 0)
+			goto nd_failed;
+	} else {
+		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, td);
+
+		error = namei(&nd);
+		if (error != 0)
+			goto nd_failed;
+
+		/*
+		 * We now compare the vnode of the prefix to the one
+		 * vnode asked. If they resolve to be the same, then we
+		 * ignore the match so that the real root gets used.
+		 * This avoids the problem of traversing "../.." to find the
+		 * root directory and never finding it, because "/" resolves
+		 * to the emulation root directory. This is expensive :-(
+		 */
+		NDINIT(&ndroot, LOOKUP, FOLLOW, UIO_SYSSPACE, prefix, td);
+
+		/* We shouldn't ever get an error from this namei(). */
+		error = namei(&ndroot);
+		if (error == 0) {
+			if (nd.ni_vp == ndroot.ni_vp)
+				error = ENOENT;
+
+			NDFREE(&ndroot, NDF_ONLY_PNBUF);
+			vrele(ndroot.ni_vp);
+		}
+	}
+
+	NDFREE(&nd, NDF_ONLY_PNBUF);
+	vrele(nd.ni_vp);
+
+nd_failed:
+	/* XXX: VFS_UNLOCK_GIANT? */
+	mtx_unlock(&Giant);
+
+keeporig:
+	/* If there was an error, use the original path name. */
+	if (error)
+		bcopy(ptr, buf, len);
 	return (error);
 }
