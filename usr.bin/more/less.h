@@ -33,7 +33,7 @@
  *
  *	@(#)less.h	8.1 (Berkeley) 6/6/93
  *
- *	$Id$
+ *	$Id: less.h,v 1.3 1999/05/30 18:06:55 hoek Exp $
  */
 
 #define	NULL_POSITION	((off_t)(-1))
@@ -90,3 +90,5 @@
 #define	A_L_COL			28
 #define	A_R_COL			29
 #define	A_HOME			30
+#define	A_NEXTTAG		31
+#define	A_PREVTAG		32

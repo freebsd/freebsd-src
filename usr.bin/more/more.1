@@ -245,6 +245,10 @@ Examine the previous file.
 If a number N is specified, the N-th previous file is examined.
 .It Ic \&:t
 Go to supplied tag.
+.It Ic t
+Go forward in tag queue [gtags only].
+.It Ic T
+Go backward in tag queue [gtags only].
 .It Ic v
 Invokes an editor to edit the current file being viewed.
 The editor is taken from the environment variable
@@ -286,6 +290,8 @@ Specifies terminal type, used by more to get the terminal
 characteristics necessary to manipulate the screen.
 .El
 .Sh SEE ALSO
+.Xr gtags 1 ,
+.Xr global 1 ,
 .Xr ctags 1 ,
 .Xr vi 1
 .Sh BUGS
