@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.59 1999/03/11 18:28:46 dg Exp $
+ * 	$Id: pmap.h,v 1.60 1999/04/02 17:59:49 alc Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
@@ -255,13 +255,9 @@ pmap_t	pmap_kernel __P((void));
 void	*pmap_mapdev __P((vm_offset_t, vm_size_t));
 unsigned *pmap_pte __P((pmap_t, vm_offset_t)) __pure2;
 vm_page_t pmap_use_pt __P((pmap_t, vm_offset_t));
-void	pmap_set_opt	__P((unsigned *));
-void	pmap_set_opt_bsp	__P((void));
-void 	getmtrr __P((void));
-void	putmtrr __P((void));
-void	putfmtrr __P((void));
-void	pmap_setdevram __P((unsigned long long, unsigned));
-void	pmap_setvidram __P((void));
+#ifdef SMP
+void	pmap_set_opt __P((void));
+#endif
 
 #endif /* KERNEL */
 

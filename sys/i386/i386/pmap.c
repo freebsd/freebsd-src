@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.238 1999/06/05 16:16:37 luoqi Exp $
+ *	$Id: pmap.c,v 1.239 1999/06/08 17:14:22 dt Exp $
  */
 
 /*
@@ -385,11 +385,6 @@ pmap_bootstrap(firstaddr, loadaddr)
 	if (cpu_feature & CPUID_PSE) {
 		unsigned ptditmp;
 		/*
-		 * Enable the PSE mode
-		 */
-		load_cr4(rcr4() | CR4_PSE);
-
-		/*
 		 * Note that we have enabled PSE mode
 		 */
 		pseflag = PG_PS;
@@ -399,6 +394,11 @@ pmap_bootstrap(firstaddr, loadaddr)
 		pdir4mb = ptditmp;
 
 #if !defined(SMP)
+		/*
+		 * Enable the PSE mode.
+		 */
+		load_cr4(rcr4() | CR4_PSE);
+
 		/*
 		 * We can do the mapping here for the single processor
 		 * case.  We simply ignore the old page table page from
@@ -460,38 +460,19 @@ pmap_bootstrap(firstaddr, loadaddr)
 
 #ifdef SMP
 /*
- * Set 4mb pdir for mp startup, and global flags
+ * Set 4mb pdir for mp startup
  */
 void
-pmap_set_opt(unsigned *pdir) {
-	int i;
-
+pmap_set_opt(void)
+{
 	if (pseflag && (cpu_feature & CPUID_PSE)) {
 		load_cr4(rcr4() | CR4_PSE);
-		if (pdir4mb) {
-			pdir[KPTDI] = pdir4mb;
+		if (pdir4mb && cpuid == 0) {	/* only on BSP */
+			kernel_pmap->pm_pdir[KPTDI] =
+			    PTD[KPTDI] = (pd_entry_t)pdir4mb;
+			cpu_invltlb();
 		}
 	}
-
-	if (pgeflag && (cpu_feature & CPUID_PGE)) {
-		load_cr4(rcr4() | CR4_PGE);
-		for(i = KPTDI; i < KPTDI + nkpt; i++) {
-			if (pdir[i]) {
-				pdir[i] |= PG_G;
-			}
-		}
-	}
-}
-
-/*
- * Setup the PTD for the boot processor
- */
-void
-pmap_set_opt_bsp(void)
-{
-	pmap_set_opt((unsigned *)kernel_pmap->pm_pdir);
-	pmap_set_opt((unsigned *)PTD);
-	invltlb();
 }
 #endif
 
