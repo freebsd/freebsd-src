@@ -35,11 +35,14 @@
 static const char copyright[] =
 "@(#) Copyright (c) 1983, 1988, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
-/*
+#endif /* not lint */
+
+#ifndef lint
+#if 0
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
-*/
+#endif
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.12.2.7 1997/08/17 14:41:32 joerg Exp $";
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -92,6 +95,7 @@ static const char rcsid[] =
 #include <arpa/inet.h>
 
 #include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <regex.h>
@@ -267,7 +271,7 @@ void	printsys __P((char *));
 int	p_open __P((char *, pid_t *));
 void	reapchild __P((int));
 char   *ttymsg __P((struct iovec *, int, char *, int));
-void	usage __P((void));
+static void	usage __P((void));
 int	validate __P((struct sockaddr_in *, const char *));
 void	wallmsg __P((struct filed *, struct iovec *));
 int	waitdaemon __P((int, int, int));
@@ -464,13 +468,13 @@ main(argc, argv)
 	}
 }
 
-void
+static void
 usage()
 {
 
-	fprintf(stderr,
-		"usage: syslogd [-ds] [-a allowed_peer] [-f config_file]"
-		" [-m mark_interval]\n                [-p log_socket]\n");
+	fprintf(stderr, "%s\n%s\n",
+		"usage: syslogd [-ds] [-a allowed_peer] [-f config_file]",
+		"               [-m mark_interval] [-p log_socket]");
 	exit(1);
 }
 
@@ -705,7 +709,6 @@ fprintlog(f, flags, msg)
 	int l;
 	char line[MAXLINE + 1], repbuf[80], greetings[200];
 	char *msgret;
-	dq_t q;
 
 	v = iov;
 	if (f->f_type == F_WALL) {
