@@ -93,14 +93,15 @@ struct vpollinfo {
 
 /*
  * Reading or writing any of these items requires holding the appropriate lock.
- * v_freelist is locked by the global vnode_free_list mutex.
- * v_mntvnodes is locked by the global mntvnodes mutex.
- * v_iflag, v_usecount, v_holdcount and v_writecount are
- *    locked by the v_interlock mutex.
- * v_pollinfo is locked by the lock contained inside it.
- * V vnode lock
- * I inter lock
+ *
+ * Lock reference:
+ * V		vnode lock
+ * I		inter lock
+ * F		freelist mutex
+ * M		mntvnodes mutex
+ * P		pollinfo lock
  */
+
 struct vnode {
 	struct	mtx v_interlock;		/* lock on usecount and flag */
 	u_long	v_iflag;			/* I vnode flags (see below) */
@@ -108,13 +109,13 @@ struct vnode {
 	int	v_writecount;			/* I ref count of writers */
 	long	v_numoutput;			/* I writes in progress */
 	struct thread *v_vxproc;		/* I thread owning VXLOCK */
+	int	v_holdcnt;			/* I page & buffer references */
 	u_long	v_vflag;			/* V vnode flags */
-	int	v_holdcnt;			/* page & buffer references */
 	u_long	v_id;				/* capability identifier */
 	struct	mount *v_mount;			/* ptr to vfs we are in */
 	vop_t	**v_op;				/* vnode operations vector */
-	TAILQ_ENTRY(vnode) v_freelist;		/* vnode freelist */
-	TAILQ_ENTRY(vnode) v_nmntvnodes;	/* vnodes for mount point */
+	TAILQ_ENTRY(vnode) v_freelist;		/* F vnode freelist */
+	TAILQ_ENTRY(vnode) v_nmntvnodes;	/* M vnodes for mount point */
 	struct	buflists v_cleanblkhd;		/* SORTED clean blocklist */
 	struct buf	*v_cleanblkroot;	/* clean buf splay tree root */
 	struct	buflists v_dirtyblkhd;		/* SORTED dirty blocklist */
@@ -143,7 +144,7 @@ struct vnode {
 	TAILQ_HEAD(, namecache) v_cache_dst;	/* Cache entries to us */
 	struct	vnode *v_dd;			/* .. vnode */
 	u_long	v_ddid;				/* .. capability identifier */
-	struct vpollinfo *v_pollinfo;
+	struct vpollinfo *v_pollinfo;		/* P Poll events */
 	struct label v_label;			/* MAC label for vnode */
 #ifdef	DEBUG_LOCKS
 	const char *filename;			/* Source file doing locking */
