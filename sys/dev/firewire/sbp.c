@@ -39,12 +39,13 @@
 #include <sys/systm.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/mbuf.h>
 #include <sys/sysctl.h>
 #include <machine/bus.h>
 #include <sys/malloc.h>
+#if __FreeBSD_version >= 501102
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#endif
 
 #if __FreeBSD_version < 500106
 #include <sys/devicestat.h>	/* for struct devstat */
@@ -58,8 +59,6 @@
 #include <cam/cam_periph.h>
 
 #include <cam/scsi/scsi_all.h>
-#include <cam/scsi/scsi_message.h>
-#include <cam/scsi/scsi_da.h>
 
 #include <sys/kernel.h>
 

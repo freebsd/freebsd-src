@@ -38,8 +38,10 @@
 #include <sys/types.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#if __FreeBSD_version >= 501102 
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#endif
 
 #include <sys/bus.h>
 #include <machine/bus.h>
