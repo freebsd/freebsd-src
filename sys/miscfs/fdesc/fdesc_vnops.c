@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.2 1994/05/25 09:07:13 rgrimes Exp $
+ * $Id: fdesc_vnops.c,v 1.3 1994/09/09 13:23:20 davidg Exp $
  */
 
 /*
@@ -520,7 +520,7 @@ fdesc_setattr(ap)
 		break;
 
 	default:
-		panic("fdesc setattr");
+		error = EBADF;
 		break;
 	}
 
