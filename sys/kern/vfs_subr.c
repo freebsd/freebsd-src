@@ -4062,3 +4062,16 @@ sysctl_vfs_ctl(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_vfs, OID_AUTO, ctl, CTLFLAG_WR,
         NULL, 0, sysctl_vfs_ctl, "", "Sysctl by fsid");
+
+/*
+ * Function to initialize a va_filerev field sensibly.
+ * XXX: Wouldn't a random number make a lot more sense ??
+ */
+u_quad_t
+init_va_filerev(void)
+{
+	struct bintime bt;
+
+	getbinuptime(&bt);
+	return (((u_quad_t)bt.sec << 32LL) | (bt.frac >> 32LL));
+}
