@@ -146,7 +146,6 @@ static	d_open_t	rcopen;
 static	d_close_t	rcclose;
 static	d_ioctl_t	rcioctl;
 
-#define	CDEV_MAJOR	63
 static struct cdevsw rc_cdevsw = {
 	.d_open =	rcopen,
 	.d_close =	rcclose,
@@ -155,7 +154,6 @@ static struct cdevsw rc_cdevsw = {
 	.d_ioctl =	rcioctl,
 	.d_poll =	ttypoll,
 	.d_name =	"rc",
-	.d_maj =	CDEV_MAJOR,
 	.d_flags =	D_TTY,
 	.d_kqfilter =	ttykqfilter,
 };

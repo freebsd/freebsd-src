@@ -152,7 +152,6 @@ struct cdevsw usb_cdevsw = {
 	.d_ioctl =	usbioctl,
 	.d_poll =	usbpoll,
 	.d_name =	"usb",
-	.d_maj =	USB_CDEV_MAJOR,
 #if __FreeBSD_version < 500014
 	.d_bmaj =	-1
 #endif

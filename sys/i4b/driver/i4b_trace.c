@@ -73,7 +73,6 @@ static d_read_t i4btrcread;
 static d_ioctl_t i4btrcioctl;
 static d_poll_t i4btrcpoll;
 
-#define CDEV_MAJOR 59
 
 static struct cdevsw i4btrc_cdevsw = {
 	.d_open =	i4btrcopen,
@@ -82,7 +81,6 @@ static struct cdevsw i4btrc_cdevsw = {
 	.d_ioctl =	i4btrcioctl,
 	.d_poll =	i4btrcpoll,
 	.d_name =	"i4btrc",
-	.d_maj =	CDEV_MAJOR,
 };
 
 static void i4btrcattach(void *);

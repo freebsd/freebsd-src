@@ -66,13 +66,11 @@ static d_open_t		acpiopen;
 static d_close_t	acpiclose;
 static d_ioctl_t	acpiioctl;
 
-#define CDEV_MAJOR 152
 static struct cdevsw acpi_cdevsw = {
 	.d_open =	acpiopen,
 	.d_close =	acpiclose,
 	.d_ioctl =	acpiioctl,
 	.d_name =	"acpi",
-	.d_maj =	CDEV_MAJOR,
 };
 
 static const char* sleep_state_names[] = {

@@ -72,14 +72,12 @@ static	d_close_t	gpclose;
 static	d_write_t	gpwrite;
 static	d_ioctl_t	gpioctl;
 
-#define CDEV_MAJOR 44
 static struct cdevsw gp_cdevsw = {
 	.d_open =	gpopen,
 	.d_close =	gpclose,
 	.d_write =	gpwrite,
 	.d_ioctl =	gpioctl,
 	.d_name =	"gp",
-	.d_maj =	CDEV_MAJOR,
 };
 
 #define	BUFSIZE		1024

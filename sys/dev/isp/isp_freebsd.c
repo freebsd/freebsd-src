@@ -52,11 +52,9 @@ static void isp_kthread(void *);
 static void isp_action(struct cam_sim *, union ccb *);
 
 
-#define ISP_CDEV_MAJOR	248
 static struct cdevsw isp_cdevsw = {
 	.d_ioctl =	ispioctl,
 	.d_name =	"isp",
-	.d_maj =	ISP_CDEV_MAJOR,
 };
 
 static struct ispsoftc *isplist = NULL;

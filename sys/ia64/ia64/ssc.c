@@ -57,7 +57,6 @@ static	d_open_t	sscopen;
 static	d_close_t	sscclose;
 static	d_ioctl_t	sscioctl;
 
-#define CDEV_MAJOR 97
 static struct cdevsw ssc_cdevsw = {
 	.d_open =	sscopen,
 	.d_close =	sscclose,
@@ -66,7 +65,6 @@ static struct cdevsw ssc_cdevsw = {
 	.d_ioctl =	sscioctl,
 	.d_poll =	ttypoll,
 	.d_name =	"ssc",
-	.d_maj =	CDEV_MAJOR,
 };
 
 static struct tty *ssc_tp = NULL;

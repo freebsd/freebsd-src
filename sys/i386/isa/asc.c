@@ -195,7 +195,6 @@ static d_read_t		ascread;
 static d_ioctl_t	ascioctl;
 static d_poll_t		ascpoll;
 
-#define CDEV_MAJOR 71
 
 static struct cdevsw asc_cdevsw = {
 	.d_open =	ascopen,
@@ -204,7 +203,6 @@ static struct cdevsw asc_cdevsw = {
 	.d_ioctl =	ascioctl,
 	.d_poll =	ascpoll,
 	.d_name =	"asc",
-	.d_maj =	CDEV_MAJOR,
 };
 
 #define STATIC static

@@ -109,7 +109,6 @@ static struct cdevsw tdfx_cdev = {
 	.d_ioctl =	tdfx_ioctl,
 	.d_mmap =	tdfx_mmap,
 	.d_name =	"tdfx",
-	.d_maj =	CDEV_MAJOR,
 };
 
 static int

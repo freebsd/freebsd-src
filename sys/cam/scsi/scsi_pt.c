@@ -116,7 +116,6 @@ static struct periph_driver ptdriver =
 
 PERIPHDRIVER_DECLARE(pt, ptdriver);
 
-#define PT_CDEV_MAJOR 61
 
 static struct cdevsw pt_cdevsw = {
 	.d_open =	ptopen,
@@ -126,7 +125,6 @@ static struct cdevsw pt_cdevsw = {
 	.d_ioctl =	ptioctl,
 	.d_strategy =	ptstrategy,
 	.d_name =	"pt",
-	.d_maj =	PT_CDEV_MAJOR,
 };
 
 #ifndef SCSI_PT_DEFAULT_TIMEOUT

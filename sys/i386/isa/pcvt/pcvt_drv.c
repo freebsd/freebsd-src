@@ -93,7 +93,6 @@ static	d_close_t	pcvt_close;
 static	d_ioctl_t	pcvt_ioctl;
 static	d_mmap_t	pcvt_mmap;
 
-#define	CDEV_MAJOR	12
 
 static struct cdevsw vt_cdevsw = {
 	.d_open =	pcvt_open,
@@ -104,7 +103,6 @@ static struct cdevsw vt_cdevsw = {
 	.d_poll =	ttypoll,
 	.d_mmap =	pcvt_mmap,
 	.d_name =	"vt",
-	.d_maj =	CDEV_MAJOR,
 	.d_flags =	D_TTY,
 	.d_kqfilter =	ttykqfilter,
 };

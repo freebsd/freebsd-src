@@ -62,13 +62,11 @@ static	d_open_t	ppsopen;
 static	d_close_t	ppsclose;
 static	d_ioctl_t	ppsioctl;
 
-#define CDEV_MAJOR 89
 static struct cdevsw pps_cdevsw = {
 	.d_open =	ppsopen,
 	.d_close =	ppsclose,
 	.d_ioctl =	ppsioctl,
 	.d_name =	PPS_NAME,
-	.d_maj =	CDEV_MAJOR,
 };
 
 static void

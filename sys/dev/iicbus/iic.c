@@ -92,7 +92,6 @@ static	d_write_t	iicwrite;
 static	d_read_t	iicread;
 static	d_ioctl_t	iicioctl;
 
-#define CDEV_MAJOR 105
 static struct cdevsw iic_cdevsw = {
 	.d_open =	iicopen,
 	.d_close =	iicclose,
@@ -100,7 +99,6 @@ static struct cdevsw iic_cdevsw = {
 	.d_write =	iicwrite,
 	.d_ioctl =	iicioctl,
 	.d_name =	"iic",
-	.d_maj =	CDEV_MAJOR,
 };
 
 static void

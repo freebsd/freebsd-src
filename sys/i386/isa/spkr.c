@@ -33,14 +33,12 @@ static	d_close_t	spkrclose;
 static	d_write_t	spkrwrite;
 static	d_ioctl_t	spkrioctl;
 
-#define CDEV_MAJOR 26
 static struct cdevsw spkr_cdevsw = {
 	.d_open =	spkropen,
 	.d_close =	spkrclose,
 	.d_write =	spkrwrite,
 	.d_ioctl =	spkrioctl,
 	.d_name =	"spkr",
-	.d_maj =	CDEV_MAJOR,
 };
 
 static MALLOC_DEFINE(M_SPKR, "spkr", "Speaker buffer");

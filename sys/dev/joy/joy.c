@@ -63,7 +63,6 @@ __FBSDID("$FreeBSD$");
 #define JOY_SOFTC(unit) (struct joy_softc *) \
         devclass_get_softc(joy_devclass,(unit))
 
-#define CDEV_MAJOR 51
 static	d_open_t	joyopen;
 static	d_close_t	joyclose;
 static	d_read_t	joyread;
@@ -75,7 +74,6 @@ static struct cdevsw joy_cdevsw = {
 	.d_read =	joyread,
 	.d_ioctl =	joyioctl,
 	.d_name =	"joy",
-	.d_maj =	CDEV_MAJOR,
 };
 
 devclass_t joy_devclass;

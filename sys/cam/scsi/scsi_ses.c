@@ -153,7 +153,6 @@ struct ses_softc {
 #define	SES_FLAG_INITIALIZED	0x04
 
 #define SESUNIT(x)       (minor((x)))
-#define SES_CDEV_MAJOR	110
 
 static	d_open_t	sesopen;
 static	d_close_t	sesclose;
@@ -175,13 +174,11 @@ static struct periph_driver sesdriver = {
 
 PERIPHDRIVER_DECLARE(ses, sesdriver);
 
-static struct cdevsw ses_cdevsw = 
-{
+static struct cdevsw ses_cdevsw = {
 	.d_open =	sesopen,
 	.d_close =	sesclose,
 	.d_ioctl =	sesioctl,
 	.d_name =	"ses",
-	.d_maj =	SES_CDEV_MAJOR,
 };
 
 static void

@@ -132,7 +132,6 @@ static d_read_t i4btelwrite;
 static d_ioctl_t i4btelioctl;
 static d_poll_t i4btelpoll;
 
-#define CDEV_MAJOR 56
 
 static struct cdevsw i4btel_cdevsw = {
 	.d_open =	i4btelopen,
@@ -142,7 +141,6 @@ static struct cdevsw i4btel_cdevsw = {
 	.d_ioctl =	i4btelioctl,
 	.d_poll =	i4btelpoll,
 	.d_name =	"i4btel",
-	.d_maj =	CDEV_MAJOR,
 };
 
 static void i4btelattach(void *);

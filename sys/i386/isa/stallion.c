@@ -536,7 +536,6 @@ COMPAT_PCI_DRIVER (stlpci, stlpcidriver);
  *	FreeBSD-2.2+ kernel linkage.
  */
 
-#define	CDEV_MAJOR	72
 static struct cdevsw stl_cdevsw = {
 	.d_open =	stlopen,
 	.d_close =	stlclose,
@@ -545,7 +544,6 @@ static struct cdevsw stl_cdevsw = {
 	.d_ioctl =	stlioctl,
 	.d_poll =	ttypoll,
 	.d_name =	"stl",
-	.d_maj =	CDEV_MAJOR,
 	.d_flags =	D_TTY,
 	.d_kqfilter =	ttykqfilter,
 };

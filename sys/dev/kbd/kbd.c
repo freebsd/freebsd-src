@@ -431,7 +431,6 @@ static d_write_t	genkbdwrite;
 static d_ioctl_t	genkbdioctl;
 static d_poll_t		genkbdpoll;
 
-#define CDEV_MAJOR	112
 
 static struct cdevsw kbd_cdevsw = {
 	.d_open =	genkbdopen,
@@ -441,7 +440,6 @@ static struct cdevsw kbd_cdevsw = {
 	.d_ioctl =	genkbdioctl,
 	.d_poll =	genkbdpoll,
 	.d_name =	"kbd",
-	.d_maj =	CDEV_MAJOR,
 };
 
 int
