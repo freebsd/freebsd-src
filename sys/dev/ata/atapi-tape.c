@@ -112,8 +112,6 @@ astattach(struct atapi_softc *atp)
 	free(stp, M_AST);
 	return -1;
     }
-    stp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
-    stp->atp->driver = stp;
 
     if (!strcmp(ATA_PARAM(stp->atp->controller, stp->atp->unit)->model,
 		"OnStream DI-30")) {
@@ -145,6 +143,8 @@ astattach(struct atapi_softc *atp)
     dev->si_drv1 = stp;
     dev->si_iosize_max = 252 * DEV_BSIZE;
     stp->dev2 = dev;
+    stp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
+    stp->atp->driver = stp;
     if ((stp->atp->devname = malloc(8, M_AST, M_NOWAIT)))
         sprintf(stp->atp->devname, "ast%d", stp->lun);
     ast_describe(stp);
