@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_kld.c,v 1.3 1998/10/09 23:34:09 peter Exp $
+ *	$Id: db_kld.c,v 1.4 1998/10/15 02:01:50 peter Exp $
  *	from db_aout.c,v 1.20 1998/06/07 17:09:36 dfr Exp
  */
 
@@ -49,7 +49,7 @@
 db_sym_t
 X_db_lookup(stab, symstr)
 	db_symtab_t	*stab;
-	char *		symstr;
+	const char *	symstr;
 {
 	linker_sym_t sym;
 
@@ -85,7 +85,7 @@ void
 X_db_symbol_values(symtab, dbsym, namep, valuep)
 	db_symtab_t	*symtab;
 	db_sym_t	dbsym;
-	char		**namep;
+	const char	**namep;
 	db_expr_t	*valuep;
 {
 	linker_sym_t sym = (linker_sym_t) dbsym;
@@ -93,7 +93,7 @@ X_db_symbol_values(symtab, dbsym, namep, valuep)
 
 	linker_ddb_symbol_values(sym, &symval);
 	if (namep)
-	    *namep = (char*) symval.name;
+	    *namep = (const char*) symval.name;
 	if (valuep)
 	    *valuep = (db_expr_t) symval.value;
 }
