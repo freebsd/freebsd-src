@@ -141,8 +141,8 @@ rm_tree(argv)
 #define	SKIPPED	1
 
 	if (!(fts = fts_open(argv,
-	    needstat ? FTS_PHYSICAL : FTS_PHYSICAL|FTS_NOSTAT,
-	    (int (*)())NULL)))
+	    needstat ? FTS_PHYSICAL|FTS_NOCHDIR :
+		FTS_PHYSICAL|FTS_NOSTAT|FTS_NOCHDIR, (int (*)())NULL)))
 		err(1, NULL);
 	while ((p = fts_read(fts)) != NULL) {
 		switch (p->fts_info) {
