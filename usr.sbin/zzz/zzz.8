@@ -36,20 +36,30 @@
 The
 .Nm
 utility
-checks for ACPI or APM support and then suspends the system appropriately.
-For APM,
+checks for
+.Tn ACPI 
+or
+.Tn APM
+support and then suspends the system appropriately.
+For
+.Tn APM ,
 .Pp
 .Dl apm -z
 .Pp
 will be issued.
-For ACPI, the configured suspend state will be looked up, checked to see
-if it is supported, and
+For
+.Tn ACPI,
+the configured suspend state will be looked up, checked to see
+if it is supported and,
 .Pp
 .Dl acpiconf -s <state>
 .Pp
 will be issued.
 .Sh SEE ALSO
-.Xr acpiconf 8 ,
-.Xr apm 8 ,
 .Xr acpi 4 ,
-.Xr apm 4
+.Xr apm 4 ,
+.Xr acpiconf 8 ,
+.Xr apm 8
+.Sh
+This manual page is written by
+.An Nate Lawson Aq njl@FreeBSD.ORG
