@@ -139,6 +139,7 @@ pcf_probe(device_t pcfdev)
 {
 	struct pcf_softc *pcf = DEVTOSOFTC(pcfdev);
 	device_t parent = device_get_parent(pcfdev);
+	uintptr_t base;
 
 	device_set_desc(pcfdev, "PCF8584 I2C bus controller");
 
@@ -156,7 +157,8 @@ pcf_probe(device_t pcfdev)
 		device_printf(pcfdev, "cannot reserve I/O port range\n");
 		goto error;
 	}
-	BUS_READ_IVAR(parent, pcfdev, ISA_IVAR_PORT, &pcf->pcf_base);
+	BUS_READ_IVAR(parent, pcfdev, ISA_IVAR_PORT, &base);
+	pcf->pcf_base = base;
 
 	pcf->pcf_flags = device_get_flags(pcfdev);
 
