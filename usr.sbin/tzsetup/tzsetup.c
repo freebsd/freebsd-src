@@ -216,7 +216,11 @@ read_iso3166_table(void)
 			     ":%d: country code `%s' multiply defined: %s",
 			     lineno, t, cp->name);
 		cp->name = strdup(name);
+		if (cp->name == NULL)
+			errx(1, "malloc failed");
 		cp->tlc = strdup(t);
+		if (cp->tlc == NULL)
+			errx(1, "malloc failed");
 	}
 
 	fclose(fp);
@@ -245,13 +249,17 @@ add_zone_to_country(int lineno, const char *tlc, const char *descr,
 
 		zp = malloc(sizeof *zp);
 		if (zp == 0)
-			err(1, "malloc(%lu)", (unsigned long)sizeof *zp);
+			errx(1, "malloc(%lu)", (unsigned long)sizeof *zp);
 		
 		if (cp->nzones == 0)
 			TAILQ_INIT(&cp->zones);
 
 		zp->descr = strdup(descr);
+		if (zp->descr == NULL)
+			errx(1, "malloc failed");
 		zp->filename = strdup(file);
+		if (zp->filename == NULL)
+			errx(1, "malloc failed");
 		zp->continent = cont;
 		TAILQ_INSERT_TAIL(&cp->zones, zp, link);
 		cp->nzones++;
@@ -264,6 +272,8 @@ add_zone_to_country(int lineno, const char *tlc, const char *descr,
 			     ":%d: zone multiply defined", lineno);
 		cp->nzones = -1;
 		cp->filename = strdup(file);
+		if (cp->filename == NULL)
+			errx(1, "malloc failed");
 		cp->continent = cont;
 	}
 }
@@ -390,7 +400,7 @@ make_menus(void)
 			malloc(sizeof(dialogMenuItem) *
 			       continent_names[i].continent->nitems);
 		if (continent_names[i].continent->menu == 0)
-			err(1, "malloc for continent menu");
+			errx(1, "malloc for continent menu");
 		continent_names[i].continent->nitems = 0;
 	}
 
@@ -415,7 +425,7 @@ make_menus(void)
 		} else {
 			cp->submenu = malloc(cp->nzones * sizeof *dmi);
 			if (cp->submenu == 0)
-				err(1, "malloc for submenu");
+				errx(1, "malloc for submenu");
 			cp->nzones = 0;
 			for (zp = cp->zones.tqh_first; zp; 
 			     zp = zp->link.tqe_next) {
