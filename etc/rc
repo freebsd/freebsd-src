@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.47 1995/03/17 17:57:24 rgrimes Exp $
+#	$Id: rc,v 1.48 1995/03/21 15:20:47 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -95,7 +95,7 @@ echo -n ' system logger'
 rm -f /dev/log
 syslogd
 
-# $timedflags is imported from /etc/netstart;
+# $timedflags is imported from /etc/sysconfig;
 # if $timedflags == NO, timed isn't run.
 if [ "X${timedflags}" != X"NO" ]; then
 	echo -n ' time daemon'; timed $timedflags
@@ -164,7 +164,7 @@ if [ -x /usr/sbin/portmap ]; then
 	echo -n ' portmap';		portmap
 fi
 
-# $gated and $routedflags are imported from /etc/netstart.
+# $gated and $routedflags are imported from /etc/sysconfig.
 # If $gated == YES, gated is used; otherwise routed.
 # If $routedflags == NO, routed isn't run.
 if [ "X${gated}" = X"YES" -a -r /etc/gated.conf ]; then
@@ -173,11 +173,12 @@ elif [ "X${routedflags}" != X"NO" ]; then
 	echo -n ' routed';	routed $routedflags
 fi
 
-if [ "X${name_server}" = X"YES" -a -r /etc/namedb/named.boot ]; then
-	echo -n ' named';		named -b /etc/namedb/named.boot
+# $namedflags is imported from /etc/sysconfig
+if [ "X${namedflags}" != "XNO" ]; then
+	echo -n ' named';	named $namedflags
 fi
 
-# $ntpdate and $xntpdflags are imported from /etc/netstart.
+# $ntpdate and $xntpdflags are imported from /etc/sysconfig.
 # If $ntpdate != NO, run ntpdate $ntpdate to set the date correctly.
 # If $xntpdflags != NO, start xntpd.
 if [ "X${ntpdate}" != X"NO" -o "X${xntpdflags}" != X"NO" ]; then
@@ -194,7 +195,7 @@ if [ "X${ntpdate}" != X"NO" -o "X${xntpdflags}" != X"NO" ]; then
 	fi
 fi
 
-# $rwhod is imported from /etc/netstart;
+# $rwhod is imported from /etc/sysconfig;
 # if $rwhod is set to YES, rwhod is run.
 if [ "X${rwhod}" = X"YES" ]; then
 	echo -n ' rwhod';	rwhod
@@ -215,7 +216,7 @@ if [ "X${amdflags}" != X"NO" ]; then
 	echo -n ' amd';			amd ${amdflags}
 fi
 
-# $sendmail_flags is imported from /etc/netstart;
+# $sendmail_flags is imported from /etc/sysconfig;
 # if $sendmail_flags is something other than NO, sendmail is run.
 if [ "X${sendmail_flags}" != X"NO" -a -r /etc/sendmail.cf ]; then
 	echo -n ' sendmail';		sendmail ${sendmail_flags} 
