@@ -49,7 +49,11 @@ struct tcpcb {
 	int	t_dupacks;		/* consecutive dup acks recd */
 	struct	tcpiphdr *t_template;	/* skeletal packet for transmit */
 
-	int	t_timer[TCPT_NTIMERS];	/* tcp timers */
+	struct	callout *tt_rexmt;	/* retransmit timer */
+	struct	callout *tt_persist;	/* retransmit persistence */
+	struct	callout *tt_keep;	/* keepalive */
+	struct	callout *tt_2msl;	/* 2*msl TIME_WAIT timer */
+	struct	callout *tt_delack;	/* delayed ACK timer */
 
 	struct	inpcb *t_inpcb;		/* back pointer to internet pcb */
 	int	t_state;		/* state of this connection */
@@ -98,12 +102,12 @@ struct tcpcb {
 					 */
 	u_int	t_maxopd;		/* mss plus options */
 
-	u_int	t_idle;			/* inactivity time */
-	u_long	t_duration;		/* connection duration */
-	int	t_rtt;			/* round trip time */
+	u_long	t_rcvtime;		/* inactivity time */
+	u_long	t_starttime;		/* time connection was established */
+	int	t_rtttime;		/* round trip time */
 	tcp_seq	t_rtseq;		/* sequence number being timed */
 
-	int	t_rxtcur;		/* current retransmit value */
+	int	t_rxtcur;		/* current retransmit value (ticks) */
 	u_int	t_maxseg;		/* maximum segment size */
 	int	t_srtt;			/* smoothed round-trip time */
 	int	t_rttvar;		/* variance in round-trip time */
@@ -131,6 +135,10 @@ struct tcpcb {
 /* RFC 1644 variables */
 	tcp_cc	cc_send;		/* send connection count */
 	tcp_cc	cc_recv;		/* receive connection count */
+/* experimental */
+	u_long	snd_cwnd_prev;		/* cwnd prior to retransmit */
+	u_long	snd_ssthresh_prev;	/* ssthresh prior to retransmit */
+	u_long	t_badrxtwin;		/* window for retransmit recovery */
 };
 
 /*
@@ -305,7 +313,8 @@ struct	xtcpcb {
 #define	TCPCTL_RECVSPACE	9	/* receive buffer space */
 #define	TCPCTL_KEEPINIT		10	/* receive buffer space */
 #define	TCPCTL_PCBLIST		11	/* list of all outstanding PCBs */
-#define TCPCTL_MAXID		12
+#define	TCPCTL_DELACKTIME	12	/* time before sending delayed ACK */
+#define TCPCTL_MAXID		13
 
 #define TCPCTL_NAMES { \
 	{ 0, 0 }, \
@@ -320,6 +329,7 @@ struct	xtcpcb {
 	{ "recvspace", CTLTYPE_INT }, \
 	{ "keepinit", CTLTYPE_INT }, \
 	{ "pcblist", CTLTYPE_STRUCT }, \
+	{ "delacktime", CTLTYPE_INT }, \
 }
 
 
@@ -332,8 +342,9 @@ extern	struct inpcbhead tcb;		/* head of queue of active tcpcb's */
 extern	struct inpcbinfo tcbinfo;
 extern	struct tcpstat tcpstat;	/* tcp statistics */
 extern	int tcp_mssdflt;	/* XXX */
-extern	u_long tcp_now;		/* for RFC 1323 timestamps */
 extern	int tcp_delack_enabled;
+extern	int ss_fltsz;
+extern	int ss_fltsz_local;
 
 void	 tcp_canceltimers __P((struct tcpcb *));
 struct tcpcb *

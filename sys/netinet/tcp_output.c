@@ -73,6 +73,13 @@ static int path_mtu_discovery = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, path_mtu_discovery, CTLFLAG_RW,
 	&path_mtu_discovery, 1, "Enable Path MTU Discovery");
 
+int ss_fltsz = 1;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, slowstart_flightsize, CTLFLAG_RW,
+	&ss_fltsz, 1, "Slow start flight size");
+
+int ss_fltsz_local = TCP_MAXWIN;               /* something large */
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, local_slowstart_flightsize, CTLFLAG_RW,
+	&ss_fltsz_local, 1, "Slow start flight size for local networks");
 
 /*
  * Tcp output routine: figure out what should be sent and send it.
@@ -99,13 +106,20 @@ tcp_output(tp)
 	 * to send, then transmit; otherwise, investigate further.
 	 */
 	idle = (tp->snd_max == tp->snd_una);
-	if (idle && tp->t_idle >= tp->t_rxtcur)
+	if (idle && (ticks - tp->t_rcvtime) >= tp->t_rxtcur) {
 		/*
 		 * We have been idle for "a while" and no acks are
 		 * expected to clock out any data we send --
 		 * slow start to get ack "clock" running again.
-		 */
-		tp->snd_cwnd = tp->t_maxseg;
+		 *       
+		 * Set the slow-start flight size depending on whether
+		 * this is a local network or not.
+		 */      
+		if (in_localaddr(tp->t_inpcb->inp_faddr)) 
+			tp->snd_cwnd = tp->t_maxseg * ss_fltsz_local;
+		else     
+			tp->snd_cwnd = tp->t_maxseg * ss_fltsz;
+	}
 again:
 	sendalot = 0;
 	off = tp->snd_nxt - tp->snd_una;
@@ -149,7 +163,7 @@ again:
 				flags &= ~TH_FIN;
 			win = 1;
 		} else {
-			tp->t_timer[TCPT_PERSIST] = 0;
+			callout_stop(tp->tt_persist);
 			tp->t_rxtshift = 0;
 		}
 	}
@@ -200,10 +214,10 @@ again:
 		 */
 		len = 0;
 		if (win == 0) {
-			tp->t_timer[TCPT_REXMT] = 0;
+			callout_stop(tp->tt_rexmt);
 			tp->t_rxtshift = 0;
 			tp->snd_nxt = tp->snd_una;
-			if (tp->t_timer[TCPT_PERSIST] == 0)
+			if (!callout_active(tp->tt_persist))
 				tcp_setpersist(tp);
 		}
 	}
@@ -291,11 +305,11 @@ again:
 	 *	persisting		to move a small or zero window
 	 *	(re)transmitting	and thereby not persisting
 	 *
-	 * tp->t_timer[TCPT_PERSIST]
-	 *	is set when we are in persist state.
+	 * callout_active(tp->tt_persist)
+	 *	is true when we are in persist state.
 	 * tp->t_force
 	 *	is set when we are called to send a persist packet.
-	 * tp->t_timer[TCPT_REXMT]
+	 * callout_active(tp->tt_rexmt)
 	 *	is set when we are retransmitting
 	 * The output side is idle when both timers are zero.
 	 *
@@ -305,8 +319,8 @@ again:
 	 * if window is nonzero, transmit what we can,
 	 * otherwise force out a byte.
 	 */
-	if (so->so_snd.sb_cc && tp->t_timer[TCPT_REXMT] == 0 &&
-	    tp->t_timer[TCPT_PERSIST] == 0) {
+	if (so->so_snd.sb_cc && !callout_active(tp->tt_rexmt) &&
+	    !callout_active(tp->tt_persist)) {
 		tp->t_rxtshift = 0;
 		tcp_setpersist(tp);
 	}
@@ -364,7 +378,7 @@ send:
 
  		/* Form timestamp option as shown in appendix A of RFC 1323. */
  		*lp++ = htonl(TCPOPT_TSTAMP_HDR);
- 		*lp++ = htonl(tcp_now);
+ 		*lp++ = htonl(ticks);
  		*lp   = htonl(tp->ts_recent);
  		optlen += TCPOLEN_TSTAMP_APPA;
  	}
@@ -569,7 +583,8 @@ send:
 	 * case, since we know we aren't doing a retransmission.
 	 * (retransmit and persist are mutually exclusive...)
 	 */
-	if (len || (flags & (TH_SYN|TH_FIN)) || tp->t_timer[TCPT_PERSIST])
+	if (len || (flags & (TH_SYN|TH_FIN)) 
+	    || callout_active(tp->tt_persist))
 		ti->ti_seq = htonl(tp->snd_nxt);
 	else
 		ti->ti_seq = htonl(tp->snd_max);
@@ -615,7 +630,7 @@ send:
 	 * In transmit state, time the transmission and arrange for
 	 * the retransmit.  In persist state, just set snd_max.
 	 */
-	if (tp->t_force == 0 || tp->t_timer[TCPT_PERSIST] == 0) {
+	if (tp->t_force == 0 || !callout_active(tp->tt_persist)) {
 		tcp_seq startseq = tp->snd_nxt;
 
 		/*
@@ -636,8 +651,8 @@ send:
 			 * Time this transmission if not a retransmission and
 			 * not currently timing anything.
 			 */
-			if (tp->t_rtt == 0) {
-				tp->t_rtt = 1;
+			if (tp->t_rtttime == 0) {
+				tp->t_rtttime = ticks;
 				tp->t_rtseq = startseq;
 				tcpstat.tcps_segstimed++;
 			}
@@ -651,11 +666,12 @@ send:
 		 * Initialize shift counter which is used for backoff
 		 * of retransmit time.
 		 */
-		if (tp->t_timer[TCPT_REXMT] == 0 &&
+		if (!callout_active(tp->tt_rexmt) &&
 		    tp->snd_nxt != tp->snd_una) {
-			tp->t_timer[TCPT_REXMT] = tp->t_rxtcur;
-			if (tp->t_timer[TCPT_PERSIST]) {
-				tp->t_timer[TCPT_PERSIST] = 0;
+			callout_reset(tp->tt_rexmt, tp->t_rxtcur,
+				      tcp_timer_rexmt, tp);
+			if (callout_active(tp->tt_persist)) {
+				callout_stop(tp->tt_persist);
 				tp->t_rxtshift = 0;
 			}
 		}
@@ -733,7 +749,9 @@ out:
 	if (win > 0 && SEQ_GT(tp->rcv_nxt+win, tp->rcv_adv))
 		tp->rcv_adv = tp->rcv_nxt + win;
 	tp->last_ack_sent = tp->rcv_nxt;
-	tp->t_flags &= ~(TF_ACKNOW|TF_DELACK);
+	tp->t_flags &= ~TF_ACKNOW;
+	if (tcp_delack_enabled)
+		callout_stop(tp->tt_delack);
 	if (sendalot)
 		goto again;
 	return (0);
@@ -743,16 +761,17 @@ void
 tcp_setpersist(tp)
 	register struct tcpcb *tp;
 {
-	register int t = ((tp->t_srtt >> 2) + tp->t_rttvar) >> 1;
+	int t = ((tp->t_srtt >> 2) + tp->t_rttvar) >> 1;
+	int tt;
 
-	if (tp->t_timer[TCPT_REXMT])
-		panic("tcp_output REXMT");
+	if (callout_active(tp->tt_rexmt))
+		panic("tcp_setpersist: retransmit pending");
 	/*
 	 * Start/restart persistance timer.
 	 */
-	TCPT_RANGESET(tp->t_timer[TCPT_PERSIST],
-	    t * tcp_backoff[tp->t_rxtshift],
-	    TCPTV_PERSMIN, TCPTV_PERSMAX);
+	TCPT_RANGESET(tt, t * tcp_backoff[tp->t_rxtshift],
+		      TCPTV_PERSMIN, TCPTV_PERSMAX);
+	callout_reset(tp->tt_persist, tt, tcp_timer_persist, tp);
 	if (tp->t_rxtshift < TCP_MAXRXTSHIFT)
 		tp->t_rxtshift++;
 }
