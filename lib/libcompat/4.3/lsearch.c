@@ -40,6 +40,7 @@ static char sccsid[] = "@(#)lsearch.c	8.1 (Berkeley) 6/4/93";
 
 #include <sys/types.h>
 #include <unistd.h>
+#include <string.h>
 
 static char *linear_base();
 

@@ -49,7 +49,6 @@ static char sccsid[] = "@(#)genget.c	8.1 (Berkeley) 6/4/93";
 isprefix(s1, s2)
 	register char *s1, *s2;
 {
-        register int n = 0;
         char *os1;
 	register char c1, c2;
 

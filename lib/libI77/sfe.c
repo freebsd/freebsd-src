@@ -15,9 +15,9 @@ integer e_rsfe(Void)
 	return(n);
 }
 #ifdef KR_headers
-c_sfe(a) cilist *a; /* check */
+int c_sfe(a) cilist *a; /* check */
 #else
-c_sfe(cilist *a) /* check */
+int c_sfe(cilist *a) /* check */
 #endif
 {	unit *p;
 	if(a->ciunit >= MXUNIT || a->ciunit<0)

@@ -65,7 +65,6 @@ int ss_listen (sci_idx)
     register ss_data *info;
     sigtype (*sig_int)(), (*old_sig_cont)();
     char input[BUFSIZ];
-    char expanded_input[BUFSIZ];
     char buffer[BUFSIZ];
     char *end = buffer;
     int mask;
@@ -134,14 +133,14 @@ egress:
 }
 
 void ss_abort_subsystem(sci_idx, code)
-    int sci_idx;
+    int sci_idx, code;
 {
     ss_info(sci_idx)->abort = 1;
     ss_info(sci_idx)->exit_status = code;
 
 }
 
-int ss_quit(argc, argv, sci_idx, infop)
+void ss_quit(argc, argv, sci_idx, infop)
     int argc;
     char **argv;
     int sci_idx;

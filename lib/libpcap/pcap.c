@@ -33,11 +33,12 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: /home/ncvs/src/lib/libpcap/pcap.c,v 1.2 1995/02/23 06:55:14 phk Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/lib/libpcap/pcap.c,v 1.3 1995/05/30 05:47:24 rgrimes Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>
 
+#include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 

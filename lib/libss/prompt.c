@@ -16,6 +16,7 @@
 static const char rcsid[] =
     "Header: prompt.c,v 1.2 89/01/18 18:27:02 raeburn Exp ";
 
+void
 ss_set_prompt(sci_idx, new_prompt)
      int sci_idx;
      char *new_prompt;

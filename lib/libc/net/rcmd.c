@@ -57,6 +57,8 @@ static char sccsid[] = "@(#)rcmd.c	8.3 (Berkeley) 3/26/94";
 #include <rpcsvc/ypclnt.h>
 #endif
 
+extern int innetgr __P(( const char *, const char *, const char *, const char * ));
+
 #define max(a, b)	((a > b) ? a : b)
 
 int	__ivaliduser __P((FILE *, u_long, const char *, const char *));

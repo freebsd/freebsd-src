@@ -12,6 +12,7 @@
 
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -174,16 +175,12 @@ skeyverify(mp,response)
 struct skey *mp;
 char *response;
 {
- struct timeval startval;
- struct timeval endval;
 	char key[8];
 	char fkey[8];
 	char filekey[8];
 	time_t now;
 	struct tm *tm;
-	char tbuf[27],buf[60];
-	char me[80];
-	int rval;
+	char tbuf[27];
 	char *cp, *p;
 
 	time(&now);
@@ -266,6 +263,7 @@ char *response;
 /* Convert 8-byte hex-ascii string to binary array
  * Returns 0 on success, -1 on error
  */
+int
 atob8(out,in)
 register char *out,*in;
 {

@@ -24,8 +24,8 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)$Id: gethostbynis.c,v 1.1 1994/09/25 02:12:14 pst Exp $";
-static char rcsid[] = "$Id: gethostbynis.c,v 1.1 1994/09/25 02:12:14 pst Exp $";
+static char sccsid[] = "@(#)$Id: gethostbynis.c,v 1.2 1996/03/16 21:25:58 wpaul Exp $";
+static char rcsid[] = "$Id: gethostbynis.c,v 1.2 1996/03/16 21:25:58 wpaul Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -34,6 +34,7 @@ static char rcsid[] = "$Id: gethostbynis.c,v 1.1 1994/09/25 02:12:14 pst Exp $";
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <ctype.h>
 #include <errno.h>
 #include <string.h>

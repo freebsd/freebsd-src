@@ -49,6 +49,10 @@ static char sccsid[] = "@(#)getpwent.c	8.1 (Berkeley) 6/4/93";
 #include <limits.h>
 #include <grp.h>
 
+extern void setnetgrent __P(( char * ));
+extern int getnetgrent __P(( char **, char **, char ** ));
+extern int innetgr __P(( const char *, const char *, const char *, const char * ));
+
 static struct passwd _pw_passwd;	/* password structure */
 static DB *_pw_db;			/* password database */
 static int _pw_keynum;			/* key counter */
@@ -237,7 +241,7 @@ endpwent()
 #endif
 }
 
-static
+static int
 __initdb()
 {
 	static int warned;
@@ -273,7 +277,7 @@ __initdb()
 	return(0);
 }
 
-static
+static int
 __hashpw(key)
 	DBT *key;
 {
@@ -289,7 +293,7 @@ __hashpw(key)
 		return(0);
 
 	t = line;
-#define	EXPAND(e)	e = t; while (*t++ = *p++);
+#define	EXPAND(e)	e = t; while ( (*t++ = *p++) );
 	EXPAND(_pw_passwd.pw_name);
 	EXPAND(_pw_passwd.pw_passwd);
 	bcopy(p, (char *)&_pw_passwd.pw_uid, sizeof(int));

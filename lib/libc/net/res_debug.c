@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_debug.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_debug.c,v 1.6 1996/01/07 09:14:55 peter Exp $";
+static char rcsid[] = "$Id: res_debug.c,v 1.7 1996/02/06 20:35:48 wollman Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -171,7 +171,7 @@ do_rrset(msg, len, cp, cnt, pflag, file, hs)
 	 * Print answer records.
 	 */
 	sflag = (_res.pfcode & pflag);
-	if (n = ntohs(cnt)) {
+	if ( (n = ntohs(cnt)) ) {
 		if ((!_res.pfcode) ||
 		    ((sflag) && (_res.pfcode & RES_PRF_HEAD1)))
 			fprintf(file, hs);
@@ -286,7 +286,7 @@ __fp_nquery(msg, len, file)
 	/*
 	 * Print question records.
 	 */
-	if (n = ntohs(hp->qdcount)) {
+	if ( (n = ntohs(hp->qdcount)) ) {
 		if ((!_res.pfcode) || (_res.pfcode & RES_PRF_QUES))
 			fprintf(file, ";; QUESTIONS:\n");
 		while (--n >= 0) {
@@ -490,7 +490,7 @@ __p_rr(cp, msg, file)
 	case T_HINFO:
 	case T_ISDN:
 		cp2 = cp + dlen;
-		if (n = *cp++) {
+		if ( (n = *cp++) ) {
 			fprintf(file, "\t%.*s", n, cp);
 			cp += n;
 		}
@@ -549,7 +549,7 @@ __p_rr(cp, msg, file)
 		(void) fputs("\t\"", file);
 		cp2 = cp1 + dlen;
 		while (cp < cp2) {
-			if (n = (unsigned char) *cp++) {
+			if ( (n = (unsigned char) *cp++) ) {
 				for (c = n; c > 0 && cp < cp2; c--)
 					if ((*cp == '\n') || (*cp == '"')) {
 					    (void) putc('\\', file);

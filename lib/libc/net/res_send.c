@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_send.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_send.c,v 1.6 1995/08/21 09:15:40 bde Exp $";
+static char rcsid[] = "$Id: res_send.c,v 1.7 1996/01/07 09:15:02 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 	/* change this to "0"
@@ -716,7 +716,7 @@ res_send(buf, buflen, ans, anssiz)
  * This routine is not expected to be user visible.
  */
 void
-_res_close()
+_res_close(void)
 {
 	if (s >= 0) {
 		(void) close(s);

@@ -42,6 +42,7 @@ static char sccsid[] = "@(#)killpg.c	8.1 (Berkeley) 6/2/93";
 /*
  * Backwards-compatible killpg().
  */
+int
 #if __STDC__
 killpg(pid_t pgid, int sig)
 #else

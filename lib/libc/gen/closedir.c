@@ -40,6 +40,8 @@ static char sccsid[] = "@(#)closedir.c	8.1 (Berkeley) 6/10/93";
 #include <stdlib.h>
 #include <unistd.h>
 
+extern void _reclaim_telldir __P(( const DIR * ));
+
 /*
  * close a directory.
  */

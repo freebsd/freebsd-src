@@ -1,5 +1,7 @@
 #ifdef KR_headers
+#ifndef __FreeBSD__
 extern FILE *fdopen();
+#endif
 #else
 #ifdef MSDOS
 #include "io.h"
@@ -14,14 +16,20 @@ extern "C" {
 #endif
 #ifndef MSDOS
 #ifdef OPEN_DECL
+#ifndef __FreeBSD__
 extern int creat(const char*,int), open(const char*,int);
 #endif
+#endif
+#ifndef __FreeBSD__
 extern int close(int);
 extern int read(int,void*,size_t), write(int,void*,size_t);
 extern int unlink(const char*);
+#endif
 #ifndef _POSIX_SOURCE
 #ifndef NON_UNIX_STDIO
+#ifndef __FreeBSD__
 extern FILE *fdopen(int, const char*);
+#endif
 #endif
 #endif
 #endif
