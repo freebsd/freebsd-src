@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id$
+ * $Id: vnode.h,v 1.42 1997/02/22 09:46:29 peter Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -385,6 +385,44 @@ struct vop_generic_args {
 	/* other random data follows, presumably */
 };
 
+#ifdef DEBUG_VFS_LOCKS
+/*
+ * Macros to aid in tracing VFS locking problems.  Not totally
+ * reliable since if the process sleeps between changing the lock
+ * state and checking it with the assert, some other process could
+ * change the state.  They are good enough for debugging a single
+ * filesystem using a single-threaded test.  I find that 'cvs co src'
+ * is a pretty good test.
+ */
+
+/*
+ * [dfr] Kludge until I get around to fixing all the vfs locking.
+ */
+#define IS_LOCKING_VFS(vp)	((vp)->v_tag == VT_UFS		\
+				 || (vp)->v_tag == VT_MFS	\
+				 || (vp)->v_tag == VT_NFS	\
+				 || (vp)->v_tag == VT_LFS	\
+				 || (vp)->v_tag == VT_ISOFS	\
+				 || (vp)->v_tag == VT_MSDOSFS	\
+				 || (vp)->v_tag == VT_DEVFS)
+
+#define ASSERT_VOP_LOCKED(vp, str)				\
+    if ((vp) && IS_LOCKING_VFS(vp) && !VOP_ISLOCKED(vp)) {	\
+	panic("%s: %x is not locked but should be", str, vp);	\
+    }
+
+#define ASSERT_VOP_UNLOCKED(vp, str)				\
+    if ((vp) && IS_LOCKING_VFS(vp) && VOP_ISLOCKED(vp)) {	\
+	panic("%s: %x is locked but shouldn't be", str, vp);	\
+    }
+
+#else
+
+#define ASSERT_VOP_LOCKED(vp, str)
+#define ASSERT_VOP_UNLOCKED(vp, str)
+
+#endif
+
 /*
  * VOCALL calls an op given an ops vector.  We break it out because BSD's
  * vclean changes the ops vector and then wants to call ops with the old
@@ -462,6 +500,7 @@ int 	vn_writechk __P((struct vnode *vp));
 int	vop_noislocked __P((struct vop_islocked_args *));
 int	vop_nolock __P((struct vop_lock_args *));
 int	vop_nounlock __P((struct vop_unlock_args *));
+int	vop_sharedlock __P((struct vop_lock_args *));
 int	vop_revoke __P((struct vop_revoke_args *));
 struct vnode *
 	checkalias __P((struct vnode *vp, dev_t nvp_rdev, struct mount *mp));
