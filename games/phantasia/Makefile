@@ -3,8 +3,8 @@
 
 PROG=	phantasia
 SRCS=	main.c fight.c io.c interplayer.c gamesupport.c misc.c phantglobs.c
-DPADD=	${LIBM} ${LIBCURSES} ${LIBTERMCAP} ${LIBCOMPAT}
-LDADD=	-lm -lcurses -ltermcap -lcompat
+DPADD=	${LIBM} ${LIBCURSES} ${LIBCOMPAT}
+LDADD=	-lm -lcurses -lcompat
 DATAFILES=characs gold lastdead mess monsters motd scoreboard void
 HIDEGAME=hidegame
 MAN6=	phantasia.6

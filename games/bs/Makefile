@@ -2,8 +2,8 @@
 
 PROG=   bs
 MAN6=   bs.6
-DPADD=  ${LIBNCURSES} ${LIBMYTINFO}
-LDADD=  -lncurses -lmytinfo
+DPADD=  ${LIBNCURSES}
+LDADD=  -lncurses
 HIDEGAME=hidegame
 
 .include <bsd.prog.mk>
