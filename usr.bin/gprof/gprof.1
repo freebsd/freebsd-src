@@ -65,7 +65,7 @@ and establishes the relation between its symbol table
 and the call graph profile.
 The default graph profile file name is the name
 of the executable with the suffix
-.Pa .gmon 
+.Pa .gmon
 appended.
 If more than one profile file is specified,
 the
@@ -121,10 +121,10 @@ Find a minimal set of arcs that can be broken to eliminate all cycles with
 .Ar count
 or more members.
 Caution: the algorithm used to break cycles is exponential,
-so using this option may cause 
+so using this option may cause
 .Nm
 to run for a very long time.
-.It Fl e Ar name 
+.It Fl e Ar name
 Suppresses the printing of the graph profile entry for routine
 .Ar name
 and all its descendants
@@ -137,7 +137,7 @@ Only one
 may be given with each
 .Fl e
 option.
-.It Fl E Ar name 
+.It Fl E Ar name
 Suppresses the printing of the graph profile entry for routine
 .Ar name
 (and its descendants) as
@@ -151,7 +151,7 @@ above, and also excludes the time spent in
 .Fl E
 .Ar mcleanup
 is the default.)
-.It Fl f Ar name 
+.It Fl f Ar name
 Prints the graph profile entry of only the specified routine
 .Ar name
 and its descendants.
@@ -163,7 +163,7 @@ Only one
 may be given with each
 .Fl f
 option.
-.It Fl F Ar name 
+.It Fl F Ar name
 Prints the graph profile entry of only the routine
 .Ar name
 and its descendants (as
@@ -185,7 +185,7 @@ overrides
 the
 .Fl E
 option.
-.It Fl k Ar fromname Ar toname 
+.It Fl k Ar fromname Ar toname
 Will delete any arcs from routine
 .Ar fromname
 to routine

@@ -39,11 +39,11 @@
 .Nm Crunchide
 hides the global symbols of
 .Ar object-file
-such that they are ignored by subsequent runs of the linker, 
+such that they are ignored by subsequent runs of the linker,
 .Xr ld 1 .
 Some symbols may be left visible via the
 .Fl k Ar keep-symbol
-and 
+and
 .Fl f Ar keep-list-file
 options.  The
 .Ar keep-list-file
@@ -53,14 +53,14 @@ The names given by
 or in
 .Ar keep-list-file
 should be C names.  For example,
-to keep the C function 
+to keep the C function
 .Dq foo
-visible, the option 
-.Dq -k foo 
+visible, the option
+.Dq -k foo
 should be used.
 .Pp
 .Nm Crunchide
-is designed as a companion program for 
+is designed as a companion program for
 .Xr crunchgen 1 ,
 which automates the process of creating crunched binaries from
 multiple component programs.

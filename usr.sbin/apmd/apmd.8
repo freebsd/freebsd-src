@@ -52,17 +52,17 @@ all other events are ignored.  For each event posted by the APM BIOS,
 invokes the sequence of commands specified in the configuration file.
 When
 .Nm
-is running with monitoring suspend/standby requests, 
-the kernel will not process those requests.  
+is running with monitoring suspend/standby requests,
+the kernel will not process those requests.
 Therefore, if you wish action to be taken when these events
-occur, you need to explicitly configure the appropriate commands or 
+occur, you need to explicitly configure the appropriate commands or
 built-in functions in the configuration file.
 .Pp
 .Nm Apmd
 recognizes the following runtime options:
 .Bl -tag -width -f_file
 .It Fl d
-Starts in debug mode.  This causes 
+Starts in debug mode.  This causes
 .Nm
 to execute in the foreground instead of in daemon mode.
 .It Fl f Ar file
@@ -85,7 +85,7 @@ and notifies the set of events to be monitored to the APM device driver.
 When it terminates, the APM device driver automatically cancels
 monitored events.
 .Pp
-If the 
+If the
 .Nm
 process receives a SIGHUP, it will reread its configuration file and
 notify the APM device driver of any changes to its configuration.
@@ -100,14 +100,14 @@ This device file is opened exclusively, so only a single
 .Nm
 process can be running at any time.
 .Pp
-When 
+When
 .Nm
 receives an APM event, it forks a child process to execute the
 commands specified in the configuration file and then continues
 listening for more events.  The child process executes the commands
 specified, one at a time and in the order that they are listed.
 .Pp
-While 
+While
 .Nm
 is processing the command list for SUSPEND/STANDBY requests, the APM kernel
 device driver issues notifications to APM BIOS once per second so that the
@@ -138,7 +138,7 @@ apm_event SUSPENDREQ {
 will cause
 .Nm
 to receive the APM event
-.Ql SUSPENDREQ 
+.Ql SUSPENDREQ
 (which may be posted by an LCD close), run the
 .Ql sync
 command 3 times and wait for a while, then execute
@@ -189,7 +189,7 @@ after kernel handling:
 .It CAPABILITIESCHANGE
 .El
 .Pp
-Other events will not be sent to 
+Other events will not be sent to
 .Nm .
 .El
 .Ed
@@ -199,7 +199,7 @@ command line syntax
 In the example above, the three lines begining with
 .Ql exec
 are commands for the event.
-Each line should be terminated with a semicolon. 
+Each line should be terminated with a semicolon.
 The command list for the event should be enclosed by
 .Ql {
 and
@@ -210,10 +210,10 @@ uses
 for double-quotation enclosed command execution, just as with
 .Xr system 3 .
 Each command is executed in order until the end of
-the list is reached or a command finishes with a non-zero status code. 
+the list is reached or a command finishes with a non-zero status code.
 .Nm
 will report any failed command's status code via
-.Xr syslog 3 
+.Xr syslog 3
 and will then reject the request event posted by the APM BIOS.
 .Ed
 .It

@@ -28,16 +28,16 @@
 .Os
 .Sh NAME
 .Nm spray
-.Nd send many packets to host 
+.Nd send many packets to host
 .Sh SYNOPSIS
 .Nm
-.Op Fl c Ar count 
-.Op Fl d Ar delay 
+.Op Fl c Ar count
+.Op Fl d Ar delay
 .Op Fl l Ar length
-.Ar host 
+.Ar host
 .Sh DESCRIPTION
 .Nm Spray
-sends multiple RPC packets to 
+sends multiple RPC packets to
 .Ar host
 and records how many of them were correctly received and how long it took.
 .Pp
@@ -52,17 +52,17 @@ Pause
 .Ar delay
 microseconds between sending each packet.
 .It Fl l Ar length
-Set the length of the packet that holds the RPC call message to 
+Set the length of the packet that holds the RPC call message to
 .Ar length
 bytes.
 Not all values of
 .Ar length
-are possible because RPC data is encoded using XDR. 
+are possible because RPC data is encoded using XDR.
 .Nm Spray
 rounds up to the nearest possible value.
 .El
 .Pp
-.Nm Spray 
+.Nm Spray
 is intended for use in network testing, measurement, and management.
 This command
 .Em "can be very hard on a network and should be used with caution" .

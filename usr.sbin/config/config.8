@@ -51,7 +51,7 @@ It understands the old autoconfiguration scheme
 used on the HP300, i386, DECstation, and derivative platforms.
 The new version of config is used with the
 SPARC platform.
-Only the version of 
+Only the version of
 .Nm
 applicable to the architecture that you are running
 will be installed on your machine.
@@ -113,7 +113,7 @@ creates the directory
 .Pa ../compile/SYSTEM_NAME
 or the one given with the
 .Fl d
-option 
+option
 as necessary and places all output files there.
 The output of
 .Nm
@@ -148,7 +148,7 @@ should be run again.
 Attempts to compile a system that had configuration errors
 are likely to fail.
 .Pp
-If the option "INCLUDE_CONFIG_FILE" is used in the configuration file the 
+If the option "INCLUDE_CONFIG_FILE" is used in the configuration file the
 entire input file is embedded in the new kernel.  This means that
 .Xr strings 1
 can be used to extract it from a kernel:
@@ -163,7 +163,7 @@ system when compiling a
 kernel.  A debug kernel contains complete symbols for all the source files, and
 enables an experienced kernel programmer to analyse the cause of a problem.  The
 debuggers available prior to 4.4BSD-Lite were able to find some information
-from a normal kernel; 
+from a normal kernel;
 .Xr gdb 1
 provides very little support for normal kernels, and a debug kernel is needed
 for any meaningful analysis.

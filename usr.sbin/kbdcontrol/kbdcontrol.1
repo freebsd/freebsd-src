@@ -40,7 +40,7 @@ The
 command is used to set various keyboard related options for the
 .Xr syscons 4
 console driver and the keyboard drivers,
-such as key map, keyboard repeat and delay rates, bell 
+such as key map, keyboard repeat and delay rates, bell
 characteristics etc.
 .Pp
 Keyboard options may be automatically configured at system boot time by
@@ -55,17 +55,17 @@ The following command line options are supported:
 .It Fl b Xo
 .Ar duration . Ns Ar pitch | Ar belltype
 .Xc
-Set the bell duration in milliseconds and pitch in hertz. 
-If a 
+Set the bell duration in milliseconds and pitch in hertz.
+If a
 .Ar belltype
-argument is specified, it may be one of 
+argument is specified, it may be one of
 .Cm normal
 which sets sound parameters back to normal values,
 .Cm off
 which disables the bell entirely, or
 .Cm visual
 which sets the bell to visual mode, i.e. flashes the screen instead.
-If 
+If
 .Ar belltype
 is preceded by the word
 .Cm quiet. ,
@@ -78,12 +78,12 @@ Set keyboard
 (250, 500, 750, 1000)
 and
 .Ar repeat
-(34, 38, 42, 46, 50, 55, 59, 63, 68, 76, 84, 92, 100, 110, 118, 126, 
+(34, 38, 42, 46, 50, 55, 59, 63, 68, 76, 84, 92, 100, 110, 118, 126,
 136, 152, 168, 184, 200, 220, 236, 252, 272, 304, 336, 368, 400, 440,
 472, 504)
 rates, or if a
 .Ar speed
-argument is specified, it may be one of 
+argument is specified, it may be one of
 .Cm slow
 (1000.504),
 .Cm fast
@@ -94,7 +94,7 @@ or
 .It Fl l Ar keymap_file
 Install keyboard map file from
 .Ar keymap_file .
-You may load the keyboard map file from a menu-driven command, 
+You may load the keyboard map file from a menu-driven command,
 .Xr kbdmap 1 .
 .It Fl d
 Dump the current keyboard map onto stdout.
@@ -134,7 +134,7 @@ section).
 .It Fl L Ar keymap_file
 Load keyboard map file from
 .Ar keymap_file
-and write the 
+and write the
 .Ft "struct keymap"
 compiled from it to stdout.
 This option is primarily intended for programmers and is probably
@@ -169,7 +169,7 @@ option.
 .El
 .Pp
 See
-.Xr rc.conf 5 
+.Xr rc.conf 5
 for details.
 .Ss Driver Configuration
 The keyboard device driver may let you change default configuration

@@ -25,7 +25,7 @@
 The
 .Nm
 command is used to set either the interrupt-driven, extended or polling mode
-of individual 
+of individual
 .Xr lpt 4
 devices.
 When a printer is switched from
@@ -37,7 +37,7 @@ For an
 ECP/ISA parallel port, it may be FIFO+DMA or ECP.
 .Pp
 The following command line options are supported:
-.Bl -tag -width indent 
+.Bl -tag -width indent
 .It Fl i
 Turn on interrupt-driven mode.
 .It Fl p
@@ -49,13 +49,13 @@ Turn on standard mode, i.e. turn off extended mode.
 .It Fl d Ar device
 Set the mode of the printer device specified by
 .Ar device .
-The default value for 
+The default value for
 .Ar device
 is
 .Pa /dev/lpt0 .
 .El
 .Pp
-One of 
+One of
 .Fl i , p
 or
 .Fl e
@@ -72,7 +72,7 @@ kernel configuration file
 .Sh BUGS
 Sure to be some.
 .Sh SEE ALSO
-.Xr lpt 4 
+.Xr lpt 4
 .Sh AUTHORS
 .An Geoffrey M. Rehmet
 .Sh HISTORY
