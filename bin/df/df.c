@@ -381,7 +381,8 @@ static void
 prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 {
 	static long blocksize;
-	static int headerlen, timesthrough;
+	static int timesthrough;
+	static size_t headerlen;
 	static const char *header;
 	long used, availblks, inodes;
 
@@ -392,7 +393,7 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 			mwp->total = mwp->used = mwp->avail = strlen(header);
 		} else {
 			header = getbsize(&headerlen, &blocksize);
-			mwp->total = imax(mwp->total, headerlen);
+			mwp->total = imax(mwp->total, (int)headerlen);
 		}
 		mwp->used = imax(mwp->used, strlen("Used"));
 		mwp->avail = imax(mwp->avail, strlen("Avail"));
@@ -441,7 +442,7 @@ static void
 update_maxwidths(struct maxwidths *mwp, struct statfs *sfsp)
 {
 	static long blocksize;
-	int dummy;
+	size_t dummy;
 
 	if (blocksize == 0)
 		getbsize(&dummy, &blocksize);
