@@ -198,9 +198,10 @@ restart:
 	 * Make sure that a VM object is created for VMIO support.
 	 */
 	if (vn_canvmio(vp) == TRUE) {
-		if ((error = vfs_object_create(vp, td, cred)) != 0)
+		if ((error = vfs_object_create(vp, td, cred)) != 0) {
 			VOP_CLOSE(vp, fmode, cred, td);
 			goto bad;
+		}
 	}
 
 	if (fmode & FWRITE)
