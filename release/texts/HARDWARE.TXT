@@ -628,8 +628,8 @@ the following:
 
 SysKonnect SK-984x PCI gigabit Ethernet cards including the following:
     SK-9841 1000baseLX single mode fiber, single port
-    SK-9842 1000baseSX multimode fiber, single port
-    SK-9843 1000baseLX single mode fiber, dual port
+    SK-9842 1000baseLX single mode fiber, dual port
+    SK-9843 1000baseSX multimode fiber, single port
     SK-9844 1000baseSX multimode fiber, dual port
     SK-9821 1000baseT copper, single port
     SK-9822 1000baseT copper, dual port
