@@ -9,7 +9,7 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: op.me,v 8.609.2.20 2003/01/15 19:17:16 ca Exp $
+.\"	$Id: op.me,v 8.609.2.23 2003/03/28 05:51:16 ca Exp $
 .\"
 .\" eqn op.me | pic | troff -me
 .\"
@@ -90,7 +90,7 @@ Sendmail, Inc.
 .de Ve
 Version \\$2
 ..
-.Ve $Revision: 8.609.2.20 $
+.Ve $Revision: 8.609.2.23 $
 .rm Ve
 .sp
 For Sendmail Version 8.12
@@ -6292,7 +6292,7 @@ Addr	Address mask (defaults INADDR_ANY)
 Family	Address family (defaults to INET)
 SndBufSize	Size of TCP send buffer
 RcvBufSize	Size of TCP receive buffer
-Modifier	Options (flags) for the daemon
+Modifier	Options (flags) for the client
 .)b
 The
 .i Addr ess
@@ -7012,6 +7012,10 @@ Defaults to 25.
 Specify the maximum message size
 to be advertised in the ESMTP EHLO response.
 Messages larger than this will be rejected.
+If set to a value greater than zero,
+that value will be listed in the SIZE response,
+otherwise SIZE is advertised in the ESMTP EHLO response
+without a parameter.
 .ip MaxMimeHeaderLength=\fIN[/M]\fP
 [no short name]
 Sets the maximum length of certain MIME header field values to
@@ -7029,7 +7033,8 @@ is not specified, one half of
 .i N
 will be used.
 By default,
-these values are 0, meaning no checks are done.
+these values are 2048 and 1024, respectively.
+To allow any length, a value of 0 can be specified.
 .ip MaxQueueChildren=\fIN\fP
 [no short name]
 When set, this limits the number of concurrent queue runner processes to
@@ -8954,6 +8959,10 @@ Reject connection if filter unavailable.
 .ip T
 Temporary fail connection if filter unavailable.
 .pp
+If neither F=R nor F=T is specified, the message is passed through
+.i sendmail
+in case of filter errors as if the failing filters were not present.
+.pp
 The timeouts can be set using the four fields inside of the
 .b T=
 equate:
@@ -10755,7 +10764,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version $Revision: 8.609.2.20 $
+.\"Version $Revision: 8.609.2.23 $
 .\".ce 0
 .bp 3
 .ce

@@ -16,7 +16,7 @@ To compile a filter, modify the Makefile provided with the sample program, or:
     <li>Put the include and Sendmail directories in your include path
     (e.g. -I/path/to/include -I/path/to/sendmail).  
 
-    <li>Make sure libmilter.so is in your library path, and link your
+    <li>Make sure libmilter.a is in your library path, and link your
     application with it (e.g. "-lmilter").
 
     <li>Compile with pthreads, either by using -pthread for gcc, or
@@ -30,10 +30,6 @@ and your linking command line will look something like
 <pre>
 cc -o myfilter [object-files] -L[library-location] -lmilter -pthread
 </pre>
-
-<p>
-To run the filter, the Milter shared library must be available to the
-run-time linker.
 
 <H2><a name="config">Configuring Sendmail</A></H2>
 
@@ -161,10 +157,10 @@ For information about available macros and their meanings, please
 consult the sendmail documentation.
 <hr size="1">
 <font size="-1">
-Copyright (c) 2000-2002 Sendmail, Inc. and its suppliers.
+Copyright (c) 2000-2003 Sendmail, Inc. and its suppliers.
 All rights reserved.
 <br>
 By using this file, you agree to the terms and conditions set
-forth in the <a href="LICENSE.txt">LICENSE</a>.
+forth in the LICENSE.
 </font>
 </body> </html>
