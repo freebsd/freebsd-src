@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.4 (Berkeley) 1/21/94
  *
- *	$Id: procfs_mem.c,v 1.3 1994/09/15 19:47:47 bde Exp $
+ *	$Id: procfs_mem.c,v 1.4 1994/10/18 04:26:53 davidg Exp $
  */
 
 /*
@@ -86,9 +86,11 @@ procfs_rwmem(p, uio)
 		int fix_prot;
 
 		uva = (vm_offset_t) uio->uio_offset;
-		if (uva >= VM_MAXUSER_ADDRESS + UPAGES * PAGE_SIZE) {
-			error = 0;
-			break;
+		if (uva >= VM_MAXUSER_ADDRESS) {
+			if (writing || (uva >= (VM_MAXUSER_ADDRESS + UPAGES * PAGE_SIZE))) {
+				error = 0;
+				break;
+			}
 		}
 
 		/*
