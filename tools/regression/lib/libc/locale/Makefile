@@ -1,28 +1,16 @@
 # $FreeBSD$
 
+TESTS=	test-mbrtowc	\
+	test-wcrtomb	\
+	test-mbsrtowcs	\
+	test-wcsrtombs	\
+	test-btowc	\
+	test-mbrlen
+
 .PHONY: tests
-tests: test-btowc test-mbrlen test-mbrtowc test-mbsrtowcs test-wcsrtombs \
-		test-wcrtomb
-	${.OBJDIR}/test-mbrtowc
-	${.OBJDIR}/test-wcrtomb
-	${.OBJDIR}/test-mbsrtowcs
-	${.OBJDIR}/test-wcsrtombs
-	${.OBJDIR}/test-btowc
-	${.OBJDIR}/test-mbrlen
+tests: ${TESTS}
+	for p in ${TESTS}; do ${.OBJDIR}/$$p; done
 
 .PHONY: clean
 clean:
-	-rm -f test-btowc test-mbrlen test-mbrtowc test-mbsrtowcs \
-		test-wcrtomb test-wcsrtombs
-
-test-btowc: test-btowc.c
-
-test-mbrlen: test-mbrlen.c
-
-test-mbrtowc: test-mbrtowc.c
-
-test-mbsrtowcs: test-mbsrtowcs.c
-
-test-wcrtomb: test-wcrtomb.c
-
-test-wcsrtombs: test-wcsrtombs.c
+	-rm -f ${TESTS}
