@@ -528,6 +528,8 @@ sendsig(catcher, sig, mask, code)
  * context left by sendsig. Check carefully to
  * make sure that the user has not modified the
  * state to gain improper privileges.
+ *
+ * MPSAFE
  */
 int
 osigreturn(td, uap)
@@ -624,6 +626,10 @@ osigreturn(td, uap)
 	regs->tf_cs = scp->sc_cs;
 	regs->tf_ss = scp->sc_ss;
 	regs->tf_isp = scp->sc_isp;
+	regs->tf_ebp = scp->sc_fp;
+	regs->tf_esp = scp->sc_sp;
+	regs->tf_eip = scp->sc_pc;
+	regs->tf_eflags = eflags;
 
 	PROC_LOCK(p);
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
@@ -632,21 +638,19 @@ osigreturn(td, uap)
 	else
 		p->p_sigstk.ss_flags &= ~SS_ONSTACK;
 #endif
-
 	SIGSETOLD(p->p_sigmask, scp->sc_mask);
 	SIG_CANTMASK(p->p_sigmask);
 	signotify(p);
 	PROC_UNLOCK(p);
-	regs->tf_ebp = scp->sc_fp;
-	regs->tf_esp = scp->sc_sp;
-	regs->tf_eip = scp->sc_pc;
-	regs->tf_eflags = eflags;
 	return (EJUSTRETURN);
 #else /* !COMPAT_43 */
 	return (ENOSYS);
 #endif /* COMPAT_43 */
 }
 
+/*
+ * MPSAFE
+ */
 int
 sigreturn(td, uap)
 	struct thread *td;
