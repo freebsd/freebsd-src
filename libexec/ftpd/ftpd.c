@@ -410,9 +410,9 @@ main(argc, argv, envp)
 			}
 		}
 		if (error) {
-			syslog(LOG_ERR, gai_strerror(error));
+			syslog(LOG_ERR, "%s", gai_strerror(error));
 			if (error == EAI_SYSTEM)
-				syslog(LOG_ERR, strerror(errno));
+				syslog(LOG_ERR, "%s", strerror(errno));
 			exit(1);
 		}
 		if (res->ai_addr == NULL) {
