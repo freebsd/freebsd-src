@@ -112,7 +112,6 @@ struct ioapic {
 	struct ioapic_intsrc io_pins[0];
 };
 
-
 static u_int	ioapic_read(volatile ioapic_t *apic, int reg);
 static void	ioapic_write(volatile ioapic_t *apic, int reg, u_int val);
 static void	ioapic_enable_source(struct intsrc *isrc);
@@ -726,7 +725,7 @@ SYSINIT(ioapic_destinations, SI_SUB_SMP, SI_ORDER_SECOND,
  * that IRQ instead.
  */
 
-void
+static void
 ioapic_setup_mixed_mode(struct ioapic_intsrc *intpin)
 {
 	struct ioapic_intsrc *extint;
