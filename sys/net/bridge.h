@@ -41,6 +41,8 @@ extern bdg_hash_table *bdg_table ;
 extern unsigned char bdg_addresses[6*BDG_MAX_PORTS];
 extern int bdg_ports ;
 
+extern void bdgtakeifaces(void);
+
 /*
  * out of the 6 bytes, the last ones are more "variable". Since
  * we are on a little endian machine, we have to do some gimmick...

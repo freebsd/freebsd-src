@@ -118,10 +118,11 @@
 #define DEB(x)
 
 static void bdginit(void *);
-static void bdgtakeifaces(void);
 static void flush_table(void);
 static void bdg_promisc_on(void);
 static void parse_bdg_cfg(void);
+
+static int bdg_initialized = 0;
 
 static int bdg_ipfw = 0 ;
 int do_bridge = 0;
@@ -434,6 +435,7 @@ static void
 bdginit(void *dummy)
 {
 
+    bdg_initialized++;
     if (bdg_table == NULL)
 	bdg_table = (struct hash_table *)
 		malloc(HASH_SIZE * sizeof(struct hash_table),
@@ -458,6 +460,9 @@ bdgtakeifaces(void)
     struct arpcom *ac ;
     u_char *eth_addr ;
     struct bdg_softc *bp;
+
+    if (!bdg_initialized)
+	return;
 
     bdg_ports = 0 ;
     eth_addr = bdg_addresses ;
