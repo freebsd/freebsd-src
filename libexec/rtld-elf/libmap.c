@@ -34,6 +34,9 @@ static char *		lml_find	(struct lm_list *, const char *);
 static struct lm_list *	lmp_find	(const char *);
 static struct lm_list *	lmp_init	(char *);
 
+#define	iseol(c)	(((c) == '#') || ((c) == '\0') || \
+			 ((c) == '\n') || ((c) == '\r'))
+
 void
 lm_init (void)
 {
@@ -51,40 +54,70 @@ lm_init (void)
 	p = NULL;
 	while ((cp = fgets(line, MAXPATHLEN + 1, fp)) != NULL) {
 		t = f = NULL;
+
 		/* Skip over leading space */
-		while (!isalpha(*cp) &&
-		       *cp != '#' && *cp != '\0' && *cp != '[') cp++;
+		while (isspace(*cp)) cp++;
+
 		/* Found a comment or EOL */
-		if (*cp == '#' || *cp == '\0')
-			continue;
-		/* Found a costraint selector */
+		if (iseol(*cp)) goto next;
+
+		/* Found a constraint selector */
 		if (*cp == '[') {
 			cp++;
+
 			/* Skip leading space */
-			while (isspace(*cp) &&
-			       *cp != '#' && *cp != '\0' && *cp != ']') cp++;
+			while (isspace(*cp)) cp++;
+
 			/* Found comment, EOL or end of selector */
-			if  (*cp == '#' || *cp == '\0' || *cp == ']')
-				continue;
+			if  (iseol(*cp) || *cp == ']') goto next;
+
 			p = cp;
 			/* Skip to end of word */
-			while (!isspace(*cp) &&
-			       *cp != '#' && *cp != '\0' && *cp != ']') cp++;
+			while (!isspace(*cp) && !iseol(*cp) && *cp != ']') cp++;
+
+			/* Skip and zero out trailing space */
+			while (isspace(*cp)) *cp++ = '\0';
+
+			/* Check if there is a closing brace */
+			if (*cp != ']') goto next;
+
+			/* Terminate string if there was no trailing space */
 			*cp++ = '\0';
-			bzero(prog, MAXPATHLEN);
-			strncpy(prog, p, strlen(p));
-			p = prog;
-			continue;
+
+			/*
+			 * There should be nothing except whitespace or comment
+			 * from this point to the end of the line.   
+			 */
+			while(isspace(*cp++));
+			if (*cp != '\0' && *cp != '#') goto next;
+
+			if (strlen(p) > 0) {
+				bzero(prog, MAXPATHLEN);
+				strncpy(prog, p, strlen(p));
+				p = prog;
+			}
+			goto next;
 		}
+
+		/* Parse the 'from' candidate. */
 		f = cp;
-		while (!isspace(*cp) && *cp != '#' && *cp != '\0') cp++;
-		*cp++ = '\0';
-		while (isspace(*cp) && *cp != '#' && *cp != '\0') cp++;
-		t = cp;
-		while (!isspace(*cp) && *cp != '#' && *cp != '\0') cp++;
+		while (!isspace(*cp) && !iseol(*cp)) cp++;
 		*cp++ = '\0';
 
-		lm_add(p, strdup(f), strdup(t));
+		/* Skip and zero out the trailing whitespace */
+		while (isspace(*cp)) *cp++ = '\0';
+
+		/* Found a comment or EOL */
+		if (iseol(*cp)) goto next;
+
+		/* Parse 'to' mapping */
+		t = cp;
+		while (!isspace(*cp) && !iseol(*cp)) cp++;
+		*cp++ = '\0';
+
+		if ((strlen(f) > 0) && (strlen(t) > 0))
+			lm_add(p, strdup(f), strdup(t));
+next:
 		bzero(line, sizeof(line));
 	}
 	(void)fclose(fp);
