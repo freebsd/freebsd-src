@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.5 (Berkeley) 12/30/93
- * $Id: ffs_inode.c,v 1.20 1996/01/19 03:59:12 dyson Exp $
+ * $Id: ffs_inode.c,v 1.21 1996/09/19 18:21:27 nate Exp $
  */
 
 #include "opt_quota.h"
@@ -423,7 +423,7 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	register struct fs *fs = ip->i_fs;
 	register daddr_t *bap;
 	struct vnode *vp;
-	daddr_t *copy, nb, nlbn, last;
+	daddr_t *copy = NULL, nb, nlbn, last;
 	long blkcount, factor;
 	int nblocks, blocksreleased = 0;
 	int error = 0, allerror = 0;
@@ -467,21 +467,20 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	}
 
 	bap = (daddr_t *)bp->b_data;
+	if (lastbn != -1) {
 	MALLOC(copy, daddr_t *, fs->fs_bsize, M_TEMP, M_WAITOK);
 	bcopy((caddr_t)bap, (caddr_t)copy, (u_int)fs->fs_bsize);
 	bzero((caddr_t)&bap[last + 1],
 	  (u_int)(NINDIR(fs) - (last + 1)) * sizeof (daddr_t));
-	if (last == -1)
-		bp->b_flags |= B_INVAL;
 	if ((vp->v_mount->mnt_flag & MNT_ASYNC) == 0) {
 		error = bwrite(bp);
+			if (error)
+				allerror = error;
 	} else {
 		bawrite(bp);
-		error = 0;
 	}
-	if (error)
-		allerror = error;
 	bap = copy;
+	}
 
 	/*
 	 * Recursively free totally unused blocks.
@@ -516,7 +515,13 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 			blocksreleased += blkcount;
 		}
 	}
+	if (copy != NULL) {
 	FREE(copy, M_TEMP);
+	} else {
+		bp->b_flags |= B_INVAL | B_NOCACHE;
+		brelse(bp);
+	}
+		
 	*countp = blocksreleased;
 	return (allerror);
 }
