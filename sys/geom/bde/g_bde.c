@@ -138,6 +138,7 @@ g_bde_create(struct g_createargs *ga)
 
 	g_trace(G_T_TOPOLOGY, "g_bde_create(%d)", ga->flag);
 	g_topology_assert();
+	gp = NULL;
 	if (ga->flag == 1) {
 		/*
 		 * Orderly dettachment.
