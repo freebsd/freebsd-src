@@ -26,14 +26,18 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kbdio.c,v 1.1 1996/11/14 22:19:06 sos Exp $
+ * $Id: kbdio.c,v 1.2 1996/12/01 19:05:44 sos Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/syslog.h>
 #include <machine/clock.h>
+#ifdef PC98
+#include <pc98/pc98/pc98.h>
+#else
 #include <i386/isa/isa.h>
+#endif
 #include <i386/isa/isa_device.h>
 #include <i386/isa/kbdio.h>
 
@@ -46,18 +50,25 @@ static int verbose = KBDIO_DEBUG;
 /* 
  * device I/O routines
  */
+
+
 int
 wait_while_controller_busy(int port)
 {
+#ifdef PC98
+	DELAY(KBDC_DELAYTIME);
+	return TRUE;
+#else
     /* CPU will stay inside the loop for 100msec at most */
     int retry = 5000;
 
     while (inb(port + KBD_STATUS_PORT) & KBDS_INPUT_BUFFER_FULL) {
-        DELAY(20);
+        DELAY(KBDC_DELAYTIME);
         if (--retry < 0)
     	return FALSE;
     }
     return TRUE;
+#endif
 }
 
 /*
@@ -71,11 +82,11 @@ wait_for_data(int port)
     int retry = 10000;
 
     while ((inb(port + KBD_STATUS_PORT) & KBDS_ANY_BUFFER_FULL) == 0) {
-        DELAY(20);
+        DELAY(KBDC_DELAYTIME);
         if (--retry < 0)
     	return FALSE;
     }
-    DELAY(7);
+    DELAY(KBDD_DELAYTIME);
     return TRUE;
 }
 
@@ -88,11 +99,11 @@ wait_for_kbd_data(int port)
 
     while ((inb(port + KBD_STATUS_PORT) & KBDS_BUFFER_FULL)
            != KBDS_KBD_BUFFER_FULL) {
-        DELAY(20);
+        DELAY(KBDC_DELAYTIME);
         if (--retry < 0)
     	return FALSE;
     }
-    DELAY(7);
+    DELAY(KBDD_DELAYTIME);
     return TRUE;
 }
 
@@ -105,11 +116,11 @@ wait_for_aux_data(int port)
 
     while ((inb(port + KBD_STATUS_PORT) & KBDS_BUFFER_FULL)
            != KBDS_AUX_BUFFER_FULL) {
-        DELAY(20);
+        DELAY(KBDC_DELAYTIME);
         if (--retry < 0)
     	return FALSE;
     }
-    DELAY(7);
+    DELAY(KBDD_DELAYTIME);
     return TRUE;
 }
 
@@ -254,6 +265,9 @@ read_kbd_data(int port)
 {
     if (!wait_for_kbd_data(port))
         return -1;		/* timeout */
+#ifdef PC98
+	DELAY(KBDC_DELAYTIME);
+#endif
     return inb(port + KBD_DATA_PORT);
 }
 
@@ -266,7 +280,7 @@ read_kbd_data_no_wait(int port)
     if ((inb(port + KBD_STATUS_PORT) & KBDS_BUFFER_FULL)
     	!= KBDS_KBD_BUFFER_FULL) 
         return -1;		/* no data */
-    DELAY(7);
+    DELAY(KBDD_DELAYTIME);
     return inb(port + KBD_DATA_PORT);
 }
 
@@ -290,7 +304,7 @@ empty_kbd_buffer(int port, int t)
     for (; t > 0; t -= delta) { 
         if ((inb(port + KBD_STATUS_PORT) & KBDS_BUFFER_FULL)
     	   == KBDS_KBD_BUFFER_FULL) {
-	    DELAY(7);
+	    DELAY(KBDD_DELAYTIME);
         b = inb(port + KBD_DATA_PORT);
         ++c;
     }
@@ -311,7 +325,7 @@ empty_aux_buffer(int port, int t)
     for (; t > 0; t -= delta) { 
         if ((inb(port + KBD_STATUS_PORT) & KBDS_BUFFER_FULL)
     	    == KBDS_AUX_BUFFER_FULL) {
-	    DELAY(7);
+	    DELAY(KBDD_DELAYTIME);
         b = inb(port + KBD_DATA_PORT);
         ++c;
     }
@@ -331,7 +345,7 @@ empty_both_buffers(int port, int t)
 
     for (; t > 0; t -= delta) { 
         if (inb(port + KBD_STATUS_PORT) & KBDS_ANY_BUFFER_FULL) {
-	    DELAY(7);
+	    DELAY(KBDD_DELAYTIME);
         b = inb(port + KBD_DATA_PORT);
         ++c;
     }

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.13 1996/11/13 02:00:17 asami Exp $
+ *	$Id: machdep.c,v 1.14 1996/12/01 16:34:25 bde Exp $
  */
 
 #include "npx.h"
@@ -1200,6 +1200,10 @@ init386(first)
 #ifdef MAXMEM
 	Maxmem = MAXMEM/4;
 #endif
+
+	idp = find_isadev(isa_devtab_null, &npxdriver, 0);
+	if (idp != NULL && idp->id_msize != 0)
+		Maxmem = idp->id_msize / 4;
 
 	/* call pmap initialization to make new kernel address space */
 	pmap_bootstrap (first, 0);
