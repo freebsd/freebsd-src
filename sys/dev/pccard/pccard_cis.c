@@ -1142,9 +1142,7 @@ pccard_parse_cis_tuple(struct pccard_tuple *tuple, void *arg)
 					goto abort_cfe;
 				}
 
-				if (memspace == PCCARD_TPCE_FS_MEMSPACE_NONE) {
-					cfe->num_memspace = 0;
-				} else if (memspace == PCCARD_TPCE_FS_MEMSPACE_LENGTH) {
+				if (memspace == PCCARD_TPCE_FS_MEMSPACE_LENGTH) {
 					cfe->num_memspace = 1;
 					cfe->memspace[0].length = 256 *
 					    pccard_tuple_read_2(tuple, idx);
@@ -1227,7 +1225,8 @@ pccard_parse_cis_tuple(struct pccard_tuple *tuple, void *arg)
 						}
 					}
 				}
-			}
+			} else
+				cfe->num_memspace = 0;
 			if (misc) {
 				if (tuple->length <= idx) {
 					DPRINTF(("ran out of space before TCPE_MI\n"));
