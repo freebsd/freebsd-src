@@ -38,25 +38,19 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifdef __ELF__
-
 #include "opt_ddb.h"
 
 #ifdef DDB_NOKLDSYM
 
-#include <sys/types.h>
 #include <sys/param.h>
-#include <sys/systm.h>  
-#include <sys/proc.h>
+#include <sys/systm.h>
 
 #ifdef __i386__
 #include <machine/bootinfo.h>
 #endif
-#include <machine/db_machdep.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_sym.h>
-#include <ddb/db_output.h>
 
 #include <machine/elf.h>
 
@@ -153,7 +147,7 @@ X_db_sym_init(symtab, esymtab, name)
 			strtab_end = (char *)symtab + shp[i].sh_offset +
 			    shp[i].sh_size;
 			break;
-		
+
 		case SHT_SYMTAB:
 			if (symtab_start != NULL)
 				goto multiple_symtab;
@@ -419,5 +413,3 @@ kdb_init(void)
 }
 
 #endif /* DDB_NOKLDSYM */
-
-#endif /* __ELF__ */
