@@ -130,13 +130,12 @@ nfs_dolock(struct vop_advlock_args *ap)
 	msg.lm_wait = ap->a_flags & F_WAIT;
 	msg.lm_getlk = ap->a_op == F_GETLK;
 	/*
-	 * XXX  -- I think this is wrong for anything other AF_INET.
-	 *
 	 * XXX: the lm_cred assignment below directly exports a ucred
 	 * structure to userland.  This is probably wrong, and should at
 	 * least be xucred.
 	 */
-	msg.lm_addr = *(VFSTONFS(vp->v_mount)->nm_nam);
+	bcopy(VFSTONFS(vp->v_mount)->nm_nam, &msg.lm_addr,
+		min(sizeof msg.lm_addr, VFSTONFS(vp->v_mount)->nm_nam->sa_len));
 	msg.lm_fh_len = NFS_ISV3(vp) ? VTONFS(vp)->n_fhsize : NFSX_V2FH;
 	bcopy(VTONFS(vp)->n_fhp, msg.lm_fh, msg.lm_fh_len);
 	msg.lm_nfsv3 = NFS_ISV3(vp);

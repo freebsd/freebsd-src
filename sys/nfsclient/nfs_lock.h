@@ -58,7 +58,7 @@ struct lockd_msg_ident {
 	int		msg_seq;	/* Sequence number of message */
 };
 
-#define LOCKD_MSG_VERSION	1
+#define LOCKD_MSG_VERSION	2
 
 /*
  * The structure that the kernel hands us for each lock request.
@@ -69,7 +69,7 @@ typedef struct __lock_msg {
 	struct flock		lm_fl;             /* The lock request. */
 	int			lm_wait;           /* The F_WAIT flag. */
 	int			lm_getlk;		/* is this a F_GETLK request */
-	struct sockaddr 	lm_addr;		/* The address. */
+	struct sockaddr_storage lm_addr;		/* The address. */
 	int			lm_nfsv3;		/* If NFS version 3. */
 	size_t			lm_fh_len;		/* The file handle length. */
 	struct ucred		lm_cred;		/* user cred for lock req */

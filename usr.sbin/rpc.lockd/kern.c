@@ -47,6 +47,7 @@
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
+#include <netdb.h>
 
 #include "nlm_prot.h"
 #include <nfs/rpcv2.h>
@@ -87,8 +88,17 @@ int	unlock_request(LOCKD_MSG *);
 #define d_calls (debug_level > 1)
 #define d_args (debug_level > 2)
 
-#define from_addr(sockaddr) \
-	(inet_ntoa((sockaddr)->sin_addr))
+static const char *
+from_addr(saddr)
+	struct sockaddr *saddr;
+{
+	static char inet_buf[INET6_ADDRSTRLEN];
+
+	if (getnameinfo(saddr, saddr->sa_len, inet_buf, sizeof(inet_buf),
+			NULL, 0, NI_NUMERICHOST) == 0)
+		return inet_buf;
+	return "???";
+}
 
 void
 client_cleanup(void)
@@ -257,7 +267,7 @@ test_request(LOCKD_MSG *msg)
 		syslog(LOG_DEBUG, "test request: %s: %s to %s",
 		    msg->lm_nfsv3 ? "V4" : "V1/3",
 		    msg->lm_fl.l_type == F_WRLCK ? "write" : "read",
-		    from_addr((struct sockaddr_in *)&msg->lm_addr));
+		    from_addr((struct sockaddr *)&msg->lm_addr));
 
 	if (msg->lm_nfsv3) {
 		struct nlm4_testargs arg4;
@@ -326,7 +336,7 @@ lock_request(LOCKD_MSG *msg)
 		syslog(LOG_DEBUG, "lock request: %s: %s to %s",
 		    msg->lm_nfsv3 ? "V4" : "V1/3",
 		    msg->lm_fl.l_type == F_WRLCK ? "write" : "read",
-		    from_addr((struct sockaddr_in *)&msg->lm_addr));
+		    from_addr((struct sockaddr *)&msg->lm_addr));
 
 	if (msg->lm_nfsv3) {
 		arg4.cookie.n_bytes = (char *)&msg->lm_msg_ident;
@@ -396,7 +406,7 @@ unlock_request(LOCKD_MSG *msg)
 	if (d_calls)
 		syslog(LOG_DEBUG, "unlock request: %s: to %s",
 		    msg->lm_nfsv3 ? "V4" : "V1/3",
-		    from_addr((struct sockaddr_in *)&msg->lm_addr));
+		    from_addr((struct sockaddr *)&msg->lm_addr));
 
 	if (msg->lm_nfsv3) {
 		arg4.cookie.n_bytes = (char *)&msg->lm_msg_ident;
