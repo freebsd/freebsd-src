@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ls.c	8.5 (Berkeley) 4/2/94";
 #else
 static const char rcsid[] =
-	"$Id: ls.c,v 1.15 1997/08/07 15:33:47 steve Exp $";
+	"$Id: ls.c,v 1.16 1997/08/07 22:28:23 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -528,16 +528,12 @@ mastercmp(a, b)
 	if (a_info == FTS_NS || b_info == FTS_NS)
 		return (namecmp(*a, *b));
 
-	if (a_info == b_info)
-		return (sortfcn(*a, *b));
-
-	if ((*a)->fts_level == FTS_ROOTLEVEL)
+	if (a_info != b_info &&
+	    (*a)->fts_level == FTS_ROOTLEVEL && !f_listdir) {
 		if (a_info == FTS_D)
 			return (1);
-		else if (b_info == FTS_D)
+		if (b_info == FTS_D)
 			return (-1);
-		else
-			return (sortfcn(*a, *b));
-	else
-		return (sortfcn(*a, *b));
+	}
+	return (sortfcn(*a, *b));
 }
