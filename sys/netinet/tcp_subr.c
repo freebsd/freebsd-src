@@ -459,6 +459,8 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 	tlen += sizeof (struct tcpiphdr);
 	ip->ip_len = tlen;
 	ip->ip_ttl = ip_defttl;
+	if (path_mtu_discovery)
+		ip->ip_off |= IP_DF;
       }
 	m->m_len = tlen;
 	m->m_pkthdr.len = tlen;
@@ -1733,6 +1735,8 @@ tcp_twrespond(struct tcptw *tw, struct socket *so, struct mbuf *msrc,
 		m->m_pkthdr.csum_flags = CSUM_TCP;
 		m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
 		ip->ip_len = m->m_pkthdr.len;
+		if (path_mtu_discovery)
+			ip->ip_off |= IP_DF;
 		error = ip_output(m, inp->inp_options, NULL,
 		    (tw->tw_so_options & SO_DONTROUTE), NULL, inp);
 	}
