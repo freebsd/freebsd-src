@@ -263,6 +263,7 @@ found:
 	switch (ifp->if_type) {
 	case IFT_ETHER:
 	case IFT_FDDI:
+	case IFT_ISO88025:
 	case IFT_ATM:
 	case IFT_IEEE1394:
 #ifdef IFT_IEEE80211

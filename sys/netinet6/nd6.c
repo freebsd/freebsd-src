@@ -62,6 +62,7 @@
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_atm.h>
+#include <net/iso88025.h>
 #include <net/fddi.h>
 #include <net/route.h>
 
@@ -234,6 +235,9 @@ nd6_setmtu(ifp)
 		ndi->maxmtu = MIN(ETHERMTU, ifp->if_mtu);
 		break;
 #endif
+	 case IFT_ISO88025:
+		 ndi->maxmtu = MIN(ISO88025_MAX_MTU, ifp->if_mtu);
+		 break;
 	default:
 		ndi->maxmtu = ifp->if_mtu;
 		break;
@@ -2087,6 +2091,7 @@ nd6_storelladdr(ifp, rt, m, dst, desten)
 #ifdef IFT_IEEE80211
 		case IFT_IEEE80211:
 #endif
+		case IFT_ISO88025:
 			ETHER_MAP_IPV6_MULTICAST(&SIN6(dst)->sin6_addr,
 						 desten);
 			return(1);
