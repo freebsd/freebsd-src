@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.c#129 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.c#130 $
  *
  * $FreeBSD$
  */
@@ -3573,7 +3573,7 @@ ahc_handle_ign_wide_residue(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 
 		sgptr = ahc_inb(ahc, SCB_RESIDUAL_SGPTR);
 		if ((sgptr & SG_LIST_NULL) != 0
-		 && ahc_inb(ahc, DATA_COUNT_ODD) == 1) {
+		 && (ahc_inb(ahc, SCB_LUN) & SCB_XFERLEN_ODD) != 0) {
 			/*
 			 * If the residual occurred on the last
 			 * transfer and the transfer request was
@@ -3586,25 +3586,27 @@ ahc_handle_ign_wide_residue(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 			uint32_t data_addr;
 			uint32_t sglen;
 
-			/* Pull in the rest of the sgptr */
-			sgptr |= (ahc_inb(ahc, SCB_RESIDUAL_SGPTR + 3) << 24)
-			      | (ahc_inb(ahc, SCB_RESIDUAL_SGPTR + 2) << 16)
-			      | (ahc_inb(ahc, SCB_RESIDUAL_SGPTR + 1) << 8);
-			sgptr &= SG_PTR_MASK;
-			data_cnt = (ahc_inb(ahc, SCB_RESIDUAL_DATACNT+3) << 24)
-				 | (ahc_inb(ahc, SCB_RESIDUAL_DATACNT+2) << 16)
-				 | (ahc_inb(ahc, SCB_RESIDUAL_DATACNT+1) << 8)
-				 | (ahc_inb(ahc, SCB_RESIDUAL_DATACNT));
+			/* Pull in all of the sgptr */
+			sgptr = ahc_inl(ahc, SCB_RESIDUAL_SGPTR);
+			data_cnt = ahc_inl(ahc, SCB_RESIDUAL_DATACNT);
 
-			data_addr = (ahc_inb(ahc, SHADDR + 3) << 24)
-				  | (ahc_inb(ahc, SHADDR + 2) << 16)
-				  | (ahc_inb(ahc, SHADDR + 1) << 8)
-				  | (ahc_inb(ahc, SHADDR));
+			if ((sgptr & SG_LIST_NULL) != 0) {
+				/*
+				 * The residual data count is not updated
+				 * for the command run to completion case.
+				 * Explicitly zero the count.
+				 */
+				data_cnt &= ~AHC_SG_LEN_MASK;
+			}
+
+			data_addr = ahc_inl(ahc, SHADDR);
 
 			data_cnt += 1;
 			data_addr -= 1;
+			sgptr &= SG_PTR_MASK;
 
 			sg = ahc_sg_bus_to_virt(scb, sgptr);
+
 			/*
 			 * The residual sg ptr points to the next S/G
 			 * to load so we must go back one.
@@ -3630,19 +3632,17 @@ ahc_handle_ign_wide_residue(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 				 */
 				sg++;
 				sgptr = ahc_sg_virt_to_bus(scb, sg);
-				ahc_outb(ahc, SCB_RESIDUAL_SGPTR + 3,
-					 sgptr >> 24);
-				ahc_outb(ahc, SCB_RESIDUAL_SGPTR + 2,
-					 sgptr >> 16);
-				ahc_outb(ahc, SCB_RESIDUAL_SGPTR + 1,
-					 sgptr >> 8);
-				ahc_outb(ahc, SCB_RESIDUAL_SGPTR, sgptr);
 			}
-
-			ahc_outb(ahc, SCB_RESIDUAL_DATACNT + 3, data_cnt >> 24);
-			ahc_outb(ahc, SCB_RESIDUAL_DATACNT + 2, data_cnt >> 16);
-			ahc_outb(ahc, SCB_RESIDUAL_DATACNT + 1, data_cnt >> 8);
-			ahc_outb(ahc, SCB_RESIDUAL_DATACNT, data_cnt);
+			ahc_outl(ahc, SCB_RESIDUAL_SGPTR, sgptr);
+			ahc_outl(ahc, SCB_RESIDUAL_DATACNT, data_cnt);
+			/*
+			 * Toggle the "oddness" of the transfer length
+			 * to handle this mid-transfer ignore wide
+			 * residue.  This ensures that the oddness is
+			 * correct for subsequent data transfers.
+			 */
+			ahc_outb(ahc, SCB_LUN,
+				 ahc_inb(ahc, SCB_LUN) ^ SCB_XFERLEN_ODD);
 		}
 	}
 }

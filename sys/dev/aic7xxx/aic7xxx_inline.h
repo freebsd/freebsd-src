@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7xxx_inline.h#42 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7xxx_inline.h#43 $
  *
  * $FreeBSD$
  */
@@ -453,6 +453,13 @@ ahc_queue_scb(struct ahc_softc *ahc, struct scb *scb)
 	 || scb->hscb->next == SCB_LIST_NULL)
 		panic("Attempt to queue invalid SCB tag %x:%x\n",
 		      scb->hscb->tag, scb->hscb->next);
+
+	/*
+	 * Setup data "oddness".
+	 */
+	scb->hscb->lun &= LID;
+	if (ahc_get_transfer_length(scb) & 0x1)
+		scb->hscb->lun |= SCB_XFERLEN_ODD;
 
 	/*
 	 * Keep a history of SCBs we've downloaded in the qinfifo.
