@@ -114,7 +114,7 @@ argument. This structure contains the following fields:
 struct ngm_vjc_config {
   u_char   enableComp;    /* Enable compression */
   u_char   enableDecomp;  /* Enable decompression */
-  u_char   numChannels;   /* Number of outgoing channels */
+  u_char   maxChannel;    /* Number of outgoing channels - 1 */
   u_char   compressCID;   /* OK to compress outgoing CID's */
 };
 .Ed
@@ -141,9 +141,9 @@ both compression and decompression are disabled and the node is
 therefore operating in bi-directional ``pass through'' mode.
 .Pp
 When enabling compression,
-.Dv numChannels
-should be set to the number of outgoing compression channels, and is a value
-between 3 and 16, inclusive. Also, the
+.Dv maxChannel
+should be set to the number of outgoing compression channels minus one,
+and is a value between 3 and 15, inclusive. Also, the
 .Dv compressCID
 field indicates whether it is OK to compress the CID field for
 outgoing compressed TCP packets. This value should be zero unless
