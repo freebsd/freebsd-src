@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.40 1996/08/21 21:56:09 dyson Exp $
+ * $Id: ffs_vfsops.c,v 1.41 1996/09/07 17:34:57 dyson Exp $
  */
 
 #include "opt_quota.h"
@@ -383,6 +383,7 @@ ffs_reload(mp, cred, p)
 	if (error)
 		return (error);
 	fs = (struct fs *)bp->b_data;
+	fs->fs_fmod = 0;
 	if (fs->fs_magic != FS_MAGIC || fs->fs_bsize > MAXBSIZE ||
 	    fs->fs_bsize < sizeof(struct fs)) {
 		brelse(bp);
@@ -511,6 +512,7 @@ ffs_mountfs(devvp, mp, p)
 		error = EINVAL;		/* XXX needs translation */
 		goto out;
 	}
+	fs->fs_fmod = 0;
 	if (!fs->fs_clean) {
 		if (ronly || (mp->mnt_flag & MNT_FORCE)) {
 			printf("WARNING: %s was not properly dismounted.\n",fs->fs_fsmnt);
