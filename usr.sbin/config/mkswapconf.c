@@ -45,6 +45,9 @@ static char sccsid[] = "@(#)mkswapconf.c	8.1 (Berkeley) 6/6/93";
 
 #include <ctype.h>
 #include <stdio.h>
+#include <string.h>
+
+#define ns(s) strdup(s)
 
 swapconf()
 {
