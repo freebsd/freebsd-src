@@ -1,0 +1,41 @@
+# This is an example of port, the port configuration file for Taylor
+# UUCP.  To use it, you must compile the package with
+# HAVE_TAYLOR_CONFIG set to 1 in policy.h (that is the default), copy
+# this file to newconfigdir as set in Makefile.in (the default is
+# /usr/local/conf/uucp), and edit it as appropriate for your system.
+
+# Everything after a '#' character is a comment.  To uncomment any of
+# the sample lines below, just delete the '#'.
+
+# All ports named in the sys file must be described in a port file.
+# It is also possible to describe the port directly in the sys file.
+
+# Commands that appears before the first ``port'' command are defaults
+# for all ports that appear later in the file.  In this case all ports
+# will default to being modems (other possible types are direct, tcp
+# and tli).
+type modem
+
+# Now we describe two ports.
+
+# This is the name of the port.  This name may be used in the sys file
+# to select the port, or the sys file may just specify a baud rate in
+# which case the first matching unlocked port will be used.
+port port1
+
+# This is the device name to open to dial out.
+device /dev/ttyd0
+
+# This is the dialer to use, as described in the dialer file.
+dialer hayes
+
+# This is the baud rate to dial out at.
+speed 2400
+
+# Here is a second port.  This is like the first, except that it uses
+# a different device.  It also permits a range of speeds, which is
+# mainly useful if the system specifies a particular baud rate.
+port port2
+device /dev/ttyd1
+dialer hayes
+speed-range 2400 9600

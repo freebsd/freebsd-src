@@ -1,0 +1,183 @@
+.\" $FreeBSD$
+.\"	Written by Garrett A. Wollman, September 1994.
+.\"	This manual page is in the public domain.
+.\"
+.Dd September 24, 1994
+.Dt GETVFSENT 3
+.Os
+.Sh NAME
+.Nm getvfsent ,
+.Nm setvfsent ,
+.Nm endvfsent ,
+.Nm vfsisloadable ,
+.Nm vfsload
+.Nd manage virtual filesystem modules
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.Fd #include <sys/param.h>
+.Fd #include <sys/mount.h>
+.Ft struct ovfsconf *
+.Fn getvfsent "void"
+.Ft void
+.Fn setvfsent "int cachelist"
+.Ft void
+.Fn endvfsent "void"
+.Ft int
+.Fn vfsisloadable "const char *name"
+.Ft int
+.Fn vfsload "const char *name"
+.Sh DESCRIPTION
+The
+.Fn getvfsent
+function provides convenient access to a list of installed virtual
+filesystem modules managed by the kernel.  It steps through the
+list of filesystems one at a time.  A null pointer is returned when
+no more data is available.  The fields in a
+.Dq Li struct ovfsconf
+are as follows:
+.Pp
+.Bl -tag -compact -width vfc_refcount
+.It vfc_name
+the name of the filesystem
+.It vfc_index
+the filesystem type number assigned by the kernel and used in calls to
+.Xr mount 2
+.It vfc_refcount
+the number of references to this filesystem
+(usually the number of mounts, but one greater for filesystems which
+cannot be unloaded or which are statically linked into the kernel)
+.It vfc_flags
+flag bits
+.El
+.Pp
+The flags are defined as follows:
+.Pp
+.Bl -tag -width VFCF_SYNTHETIC -compact
+.It Dv VFCF_STATIC
+statically compiled into kernel
+.It Dv VFCF_NETWORK
+may get data over the network
+.It Dv VFCF_READONLY
+writes are not implemented
+.It Dv VFCF_SYNTHETIC
+data does not represent real files
+.It Dv VFCF_LOOPBACK
+aliases some other mounted FS
+.It Dv VFCF_UNICODE
+stores file names as Unicode
+.El
+.Pp
+The
+.Fn setvfsent
+and
+.Fn endvfsent
+functions are used to control caching of the filesystem list, which is
+obtained in toto from the kernel via
+.Xr sysctl 3 .
+If the
+.Fa cachelist
+parameter to
+.Fn setvfsent
+is non-zero, the list will be retrieved only once, upon the first call
+to one of the retrieval functions, until
+.Fn endvfsent
+is called to clear the cache.  In general,
+.Fn setvfsent 1
+should be called by programs using the
+.Fn getvfsent
+function, and
+.Fn setvfsent 0
+(which is also the default state)
+should be called by programs using the
+.Fn vfsload
+function.
+.Pp
+The
+.Fn vfsisloadable
+function returns a non-zero value if a later call to
+.Fn vfsload name
+is likely to succeed.  We say
+.Dq likely
+because
+.Fn vfsisloadable
+does not check any of the conditions necessary for
+.Fn vfsload
+to succeed.
+.Pp
+The
+.Fn vfsload
+function attempts to load a kernel module implementing filesystem
+.Fa name .
+It returns zero if the filesystem module was successfully located and
+loaded, or non-zero otherwise.  It should only be called in the
+following circumstances:
+.Bl -enum
+.It
+.Fn getvfsbyname
+has been called and returned a non-zero value.
+.It
+.Fn vfsisloadable
+has been called and returned a non-zero value.
+.El
+.Pp
+Here is an example, taken from the source to
+.Xr mount_cd9660 8 :
+.Bd -literal -offset indent
+
+struct vfsconf *vfc;
+int error;
+
+/* setup code here */
+
+error = getvfsbyname("cd9660", &vfc);
+if (error && vfsisloadable("cd9660")) {
+	if (vfsload("cd9660"))
+		err(EX_OSERR, "vfsload(cd9660)");
+	endvfsent();	/* flush cache */
+	error = getvfsbyname("cd9660", &vfc);
+}
+if (error)
+	errx(1, "cd9660 filesystem is not available");
+
+if (mount(vfc.vfc_name, dir, mntflags, &args) < 0)
+	err(1, NULL);
+
+.Ed
+.Sh RETURN VALUES
+The
+.Fn getvfsent
+routine returns a pointer to a static data structure when
+it succeeds, and returns a null pointer when it fails.  On failure,
+.Va errno
+may be set to one of the values documented for
+.Xr sysctl 3
+or
+.Xr malloc 3 ,
+if a failure of that function was the cause; otherwise
+.Va errno
+will be unmodified.
+.Pp
+The
+.Fn vfsload
+function returns a non-zero value on failure, or zero on success.  If
+.Fn vfsload
+fails,
+.Va errno
+may be set to one of the values documented for
+.Xr kldload 2 .
+.Sh SEE ALSO
+.Xr kldload 2 ,
+.Xr mount 2 ,
+.Xr mount 8
+.Sh AUTHORS
+.An -nosplit
+The loadable filesystem support was written by
+.An Garrett A. Wollman ,
+based on generic loadable kernel module support by
+.An Terry Lambert .
+.Sh HISTORY
+The
+.Fn getvfsent
+family of functions first appeared in
+.Fx 2.0 .

@@ -1,0 +1,162 @@
+<HTML>
+<HEAD>
+   <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+   <META NAME="GENERATOR" CONTENT="Mozilla/4.01 [en] (Win95; I) [Netscape]">
+   <TITLE>Miscellaneous Options
+</TITLE>
+</HEAD>
+<BODY>
+
+<H3>
+Miscellaneous Options</H3>
+
+<HR>
+<DL>
+<DT>
+<TT>broadcastdelay <I>seconds</I></TT></DT>
+
+<DD>
+The broadcast and multicast modes require a special calibration to determine
+the network delay between the local and remote servers. Ordinarily, this
+is done automatically by the initial protocol exchanges between the local
+and remote servers. In some cases, the calibration procedure may fail due
+to network or server access controls, for example. This command specifies
+the default delay to be used under these circumstances. Typically (for
+Ethernet), a number between 0.003 and 0.007 seconds is appropriate. The
+default when this command is not used is 0.004 seconds.</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DT>
+<TT>trap <I>host_address</I> [port <I>port_number</I>] [interface <I>interface_address</I>]</TT></DT>
+
+<DD>
+This command configures a trap receiver at the given host address and port
+number for sending messages with the specified local interface address.
+If the port number is unspecified. a value of 18447 is used. If the interface
+address is not specified, the message is sent with a source address of
+the local interface the message is sent through. Note that on a multihomed
+host the interface used may vary from time to time with routing changes.</DD>
+
+<DD>
+The trap receiver will generally log event messages and other information
+from the server in a log file. While such monitor programs may also request
+their own trap dynamically, configuring a trap receiver will ensure that
+no messages are lost when the server is started.</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DT>
+<TT>setvar <I>variable</I> [default]</TT></DT>
+
+<DD>
+This command adds an additional system variable. These variables can be
+used to distribute additional information such as the access policy. If
+the variable of the form <TT><I>name</I> = <I>value</I></TT> is followed
+by the <TT>default</TT> keyword, the variable will be listed as part of
+the default system variables (<TT>ntpq rv</TT> command). These additional
+variables serve informational purposes only. They are not related to the
+protocol other that they can be listed. The known protocol variables will
+always override any variables defined via the <TT>setvar</TT> mechanism.
+There are three special variables that contain the names of all variable
+of the same group. The <TT>sys_var_list</TT> holds the names of all system
+variables. The <TT>peer_var_list</TT> holds the names of all peer variables
+and the <TT>clock_var_list</TT> holds the names of the reference clock
+variables.</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DT>
+<TT>logfile <I>logfile</I></TT></DT>
+
+<DD>
+This command specifies the location of an alternate log file to be used
+instead of the default system <TT>syslog</TT> facility.</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DT>
+<TT>logconfig <I>configkeyword</I></TT></DT>
+
+<DD>
+This command controls the amount and type of output written to the system
+<TT>syslog</TT> facility or the alternate <TT>logfile</TT> log file. By
+default, all output is turned on. All <I><TT>configkeyword</TT></I> keywords
+can be prefixed with <TT>=</TT>, <TT>+</TT> and <TT>-</TT>, where <TT>=</TT>
+sets the <TT>syslogmask</TT>, <TT>+</TT> adds and <TT>-</TT> removes messages.
+<TT>syslog messages</TT> can be controlled in four classes (, <TT>peer</TT>,
+<TT>sys</TT> and <TT>sync</TT>). Within these classes four types of messages
+can be controlled.</DD>
+
+<DD>
+Informational messages (<TT>info</TT>) control configuration information.
+Event messages (<TT>events</TT>) control logging of events (reachability,
+synchronization, alarm conditions). Statistical output is controlled with
+the <TT>statistics</TT> keyword. The final message group is the status
+messages. This describes mainly the synchronizations status. Configuration
+keywords are formed by concatenating the message class with the event class.
+The <TT>allprefix</TT> can be used instead of a message class. A message
+class may also be followed by the <TT>all</TT> keyword to enable/disable
+all messages of the respective message class.</DD>
+
+<DD>
+Thus, a minimal log configuration could look like this:</DD>
+
+<DD>
+<TT>logconfig = syncstatus +sysevents</TT></DD>
+
+<DD>
+This would just list the synchronizations state of <TT>ntpd</TT> and the
+major system events. For a simple reference server, the following minimum
+message configuration could be useful:</DD>
+
+<DD>
+<TT>logconfig = syncall +clockall</TT></DD>
+
+<DD>
+This configuration will list all clock information and synchronization
+information. All other events and messages about peers, system events and
+so on is suppressed.</DD>
+</DL>
+
+<H4>
+Variables</H4>
+Most variables used by the NTP protocol can be examined with the <TT>ntpdc</TT>
+(mode 7 messages) and the <TT>ntpq</TT> (mode 6 messages). Currently, very
+few variables can be modified via mode 6 messages. These variables are
+either created with the <TT>setvar</TT> directive or the leap warning bits.
+The leap warning bits can be set in the <TT>leapwarning</TT> variable up
+to one month ahead. Both the <TT>leapwarning</TT> and <TT>leapindication</TT>
+variables have a slightly different encoding than the usual leap bits interpretation:
+<DL>
+<DT>
+<TT>00</TT></DT>
+
+<DD>
+The daemon passes the leap bits of its synchronization source (usual mode
+of operation).</DD>
+
+<DT>
+<TT>01/10</TT></DT>
+
+<DD>
+A leap second is added/deleted (operator forced leap second).</DD>
+
+<DT>
+<TT>11</TT></DT>
+
+<DD>
+Leap information from the synchronizations source is ignored (thus <TT>LEAP_NOWARNING</TT>
+is passed on).</DD>
+</DL>
+
+<HR>
+<ADDRESS>
+David L. Mills (mills@udel.edu)</ADDRESS>
+
+</BODY>
+</HTML>

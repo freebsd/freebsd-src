@@ -1,0 +1,626 @@
+/ $FreeBSD$
+
+/ primitive units
+
+m			!a!
+kg			!b!
+sec			!c!
+coul			!d!
+candela			!e!
+dollar			!f!
+bit			!h!
+erlang			!i!
+K			!j!
+
+/ prefixes
+
+yotta-			1e24
+zetta-			1e21
+exa-			1e18
+peta-			1e15
+tera-			1e12
+giga-			1e9
+mega-			1e6
+myria-			1e4
+kilo-			1e3
+hecto-			1e2
+deka-			1e1
+deci-			1e-1
+centi-			1e-2
+milli-			1e-3
+micro-			1e-6
+nano-			1e-9
+pico-			1e-12
+femto-			1e-15
+atto-			1e-18
+zopto-			1e-21
+yocto-			1e-24
+
+semi-			.5
+demi-			.5
+
+Y-			yotta
+Z-			zetta
+E-			exa
+P-			peta
+T-			tera
+G-			giga
+M-			mega
+k-			kilo
+h-			hecto
+da-			deka
+d-			deci
+c-			centi
+m-			milli
+n-			nano
+p-			pico
+f-			femto
+a-			atto
+z-			zopto
+y-			yocto
+
+/ binary prefixes introduced in 1999
+exbi-			1152921504606846976
+pebi-			1125899906842624
+tebi-			1099511627776
+gibi-			1073741824
+mebi-			1048576
+kibi-			1024
+
+Ei-			exbi
+Pi-			pebi
+Ti-			tebi
+Gi-			gibi
+Mi-			mebi
+Ki-			kibi
+
+/ constants
+
+fuzz			1
+pi			3.14159265358979323846
+c			2.99792458e+8 m/sec fuzz
+g			9.80665 m/sec2
+bigG			6.67390e-11 m3/kg/s2
+au			1.49597871e+11 m fuzz
+mole			6.022169e+23 fuzz
+e			1.6021917e-19 coul fuzz
+energy			c2
+force			g
+mercury			1.33322e+5 kg/m2-sec2
+hg			mercury
+
+/ dimensionless
+
+radian			.5 / pi
+degree			1|180 pi-radian
+circle			2 pi-radian
+turn			2 pi-radian
+revolution			turn
+rev			turn
+grade			.9 degree
+arcdeg			1 degree
+arcmin			1|60 arcdeg
+ccs			1|36 erlang
+arcsec			1|60 arcmin
+
+steradian		radian2
+sphere			4 pi-steradian
+sr			steradian
+
+/ Time
+
+second			sec
+s			sec
+minute			60 sec
+min			minute
+hour			60 min
+hr			hour
+day			24 hr
+da			day
+week			7 day
+year			365.24219879 day fuzz
+yr			year
+month			1|12 year
+us			microsec
+
+/ Mass
+
+gram			millikg
+gm			gram
+metricton		kilokg
+
+/ Avoirdupois
+
+lb			.45359237 kg
+pound			lb
+lbf			lb g
+ounce			1|16 lb
+oz			ounce
+dram			1|16 oz
+dr			dram
+grain			1|7000 lb
+gr			grain
+shortton		2000 lb
+ton			shortton
+longton			2240 lb
+
+/ Apothecary
+
+scruple			20 grain
+apdram			60 grain
+apounce			480 grain
+appound			5760 grain
+troypound		appound
+
+/ Length
+
+meter			m
+micron			micrometer
+angstrom		decinanometer
+
+inch			2.54 cm
+in			inch
+foot			12 in
+feet			foot
+ft			foot
+yard			3 ft
+yd			yard
+rod			5.5 yd
+rd			rod
+mile			5280 ft
+mi			mile
+
+british			1200|3937 m/ft
+nmile			1852 m
+
+acre			4840 yd2
+
+cc			cm3
+liter			kilocc
+ml			milliliter
+
+/ US Liquid
+
+gallon			231 in3
+imperial		1.20095
+gal			gallon
+quart			1|4 gal
+qt			quart
+pint			1|2 qt
+pt			pint
+
+floz			1|16 pt
+fldr			1|8 floz
+shot			3|2 floz
+
+/ US Dry
+
+dry			268.8025 in3/gallon fuzz
+peck			8 dry-quart
+pk			peck
+bushel			4 peck
+bu			bushel
+chaldron		36 bushel
+
+/ British
+
+brgallon		277.420 in3 fuzz
+brquart			1|4 brgallon
+brpint			1|2 brquart
+brfloz			1|20 brpint
+brpeck			554.84 in3 fuzz
+brbushel		4 brpeck
+
+/ Energy Work
+
+newton			kg-m/sec2
+nt			newton
+N			newton
+joule			nt-m
+cal			4.1868 joule
+
+/ Electrical
+
+coulomb			coul
+C			coul
+ampere			coul/sec
+amp			ampere
+watt			joule/sec
+volt			watt/amp
+ohm			volt/amp
+mho			/ohm
+farad			coul/volt
+henry			sec2/farad
+weber			volt-sec
+
+/ Light
+
+cd			candela
+lumen			cd sr
+lux			cd sr/m2
+
+/ Wall Street Journal, July 2, 1993
+
+$			dollar
+argentinapeso		$
+australiadollar		.66 $
+bahraindinar		2.6522 $
+brazilcruzeiro		.000019 $
+britainpound		1.49 $
+canadadollar		.77 $
+czechkoruna		.034 $
+chilepeso		.0025 $
+chinarenminbi		.174856 $
+colombiapeso		.001495 $
+denmarkkrone		.15 $
+ecuadorsucre		.000539 $
+greatbritainpound	britainpound
+greecedrachma		.0043 $
+hongkongdollar		.13  $
+hungaryforint		.011 $
+indiarupee		.03211 $
+indonesiarupiah		.0004782 $
+israelshekel		.3642 $
+japanyen		.0093 $
+jordandinar		1.4682 $
+kuwaitdinar		3.3173 $
+lebanonpound		.000578 $
+malaysiaringgit		.338 $
+maltalira		2.6042 $
+mexicopeso		.3205128 $
+newzealanddollar	.539 $
+norwaykrone		.139 $
+pakistanrupee		.037 $
+perunewsol		.5065 $
+philippinespeso		.03738 $
+polandzloty		.000059 $
+saudiarabiariyal	.26702 $
+singaporedollar		.6157 $
+slovakkoruna		.034 $
+southafricarand		.21 $
+southkoreawon		.001 $
+swedenkrona		.13 $
+switzerlandfranc	.66 $
+taiwandollar		.038285 $
+thailandbaht		.03962 $
+turkeylira		.0000929 $
+unitedarabdirham	.2723 $
+uruguaynewpeso		.246852 $
+venezuelabolivar	.011 $
+
+/ EMU currencies have constant exchange rate against Euro since 1.1.1999
+austriaschilling	1|13.7603 euro
+belgiumfranc		1|40.3399 euro
+finlandmarkka		1|5.94573 euro
+francefranc		1|6.55957 euro
+germanymark		1|1.95583 euro
+irelandpunt		1|0.787564 euro
+italylira		1|1936.27 euro
+netherlandsguilder	1|2.20371 euro
+portugalescudo		1|200.482 euro
+spainpeseta		1|166.386 euro
+
+/ rate of euro aganist dollar is just suggestive
+euro			1.17 $
+
+mark			germanymark
+bolivar			venezuelabolivar
+peseta			spainpeseta
+rand			southafricarand
+escudo			portugalescudo
+sol			perusol
+guilder			netherlandsguilder
+hollandguilder		netherlandsguilder
+peso			mexicopeso
+yen			japanyen
+lira			italylira
+rupee			indiarupee
+drachma			greecedrachma
+franc			francefranc
+markka			finlandmarkka
+sucre			ecuadorsucre
+poundsterling		britainpound
+cruzeiro		brazilcruzeiro
+
+/ computer
+
+baud			bit/sec
+byte			8 bit
+block			512 byte
+kbyte			1024 byte
+megabyte		1024 kbyte
+gigabyte		1024 megabyte
+meg			megabyte
+
+
+/ Trivia
+
+%			1|100
+admiraltyknot		6080 ft/hr
+apostilb		cd/pi-m2
+are			1e+2 m2
+arpentcan		27.52 mi
+arpentlin		191.835 ft
+astronomicalunit	au
+atmosphere		1.01325e+5 nt/m2
+atm			atmosphere
+atomicmassunit		1.66044e-27 kg fuzz
+amu			atomicmassunit
+bag			94 lb
+bakersdozen		13
+bar			1e+5 nt/m2
+barie			1e-1 nt/m2
+barleycorn		1|3 in
+barn			1e-28 m2
+barrel			42 gal
+barye			1e-1 nt/m2
+bev			1e+9 e-volt
+biot			10 amp
+blondel			cd/pi-m2
+boardfoot		144 in3
+bolt			40 yd
+bottommeasure		1|40 in
+britishthermalunit	1.05506e+3 joule fuzz
+btu			britishthermalunit
+refrigeration		12000 btu/ton-hour
+buck			dollar
+cable			720 ft
+caliber			1e-2 in
+calorie			cal
+carat			205 mg
+caratgold		1|24
+cent			centidollar
+cental			100 lb
+centesimalminute	1e-2 grade
+centesimalsecond	1e-4 grade
+century			100 year
+cfs			ft3/sec
+chain			66 ft
+circularinch		1|4 pi-in2
+circularmil		1e-6|4 pi-in2
+clusec			1e-8 mm-hg m3/s
+coomb			4 bu
+cord			128 ft3
+cordfoot		cord
+crith			9.06e-2 gm
+cubit			18 in
+cup			1|2 pt
+curie			3.7e+10 /sec
+dalton			amu
+decade			10 yr
+dipotre			/m
+displacementton		35 ft3
+doppelzentner		100 kg
+dozen			12
+drop			.03 cm3
+dyne			cm-gm/sec2
+electronvolt		e-volt
+ell			45 in
+engineerschain		100 ft
+engineerslink		100|100 ft
+equivalentfootcandle	lumen/pi-ft2
+equivalentlux		lumen/pi-m2
+equivalentphot		cd/pi-cm2
+erg			cm2-gm/sec2
+ev			e-volt
+faraday			9.652e+4 coul
+fathom			6 ft
+fermi			1e-15 m
+fifth			4|5 qt
+fin			5 dollar
+finger			7|8 in
+firkin			9 gal
+footcandle		lumen/ft2
+footlambert		cd/pi-ft2
+fortnight		14 da
+franklin		3.33564e-10 coul
+frigorie		kilocal
+furlong			220 yd
+galileo			1e-2 m/sec2
+gamma			1e-9 weber/m2
+gauss			1e-4 weber/m2
+geodeticfoot		british-ft
+geographicalmile	1852 m
+gilbert			7.95775e-1 amp
+gill			1|4 pt
+gross			144
+gunterschain		22 yd
+hand			4 in
+hectare			1e+4 m2
+hefnercandle		.92 cd
+hertz			/sec
+Hz			hertz
+hogshead		2 barrel
+hd			hogshead
+homestead		1|4 mi2
+horsepower		550 ft-lb-g/sec
+hp			horsepower
+hyl			gm force sec2/m
+hz			/sec
+imaginarycubicfoot	1.4 ft3
+jeroboam		4|5 gal
+karat			1|24
+key			kg
+khz			1e+3 /sec
+kilderkin		18 gal
+knot			nmile/hr
+lambert			cd/pi-cm2
+langley			cal/cm2
+last			80 bu
+league			3 mi
+lightyear		c-yr
+line			1|12 in
+link			66|100 ft
+longhundredweight	112 lb
+longquarter		28 lb
+lusec			1e-6 mm-hg m3/s
+m_earth			5.97223e24 kg
+m_moon			7.34e22 kg
+m_sun			1.98843e30 kg
+mach			331.46 m/sec
+magnum			2 qt
+marineleague		3 nmile
+maxwell			1e-8 weber
+metriccarat		200 mg
+mgd			megagal/day
+mh			millihenry
+mhz			1e+6 /sec
+mil			1e-3 in
+millennium		1000 year
+minersinch		1.5 ft3/min
+minim			1|60 fldr
+mo			month
+mpg			mile/gal
+mph			mile/hr
+nail			1|16 yd
+nauticalmile		nmile
+nit			cd/m2
+noggin			1|8 qt
+nox			1e-3 lux
+oersted			2.5e+2 pi-amp/m
+oe			oersted
+pace			36 in
+palm			3 in
+parasang		3.5 mi
+parsec			au-radian/arcsec
+pascal			nt/m2
+pc			parsec
+pennyweight		1|20 oz
+pwt			pennyweight
+percent			%
+perch			rd
+pf			picofarad
+phot			lumen/cm2
+pica			1|6 in
+pieze			1e+3 nt/m2
+pipe			4 barrel
+point			1|72 in
+poise			gm/cm-sec
+pole			rd
+poundal			ft-lb/sec2
+pdl			poundal
+proof			1|200
+psi			lb-g/in2
+quarter			9 in
+quartersection		1|4 mi2
+quintal			100 kg
+quire			25
+rad			100 erg/gm
+ream			500
+registerton		100 ft3
+rehoboam		156 floz
+rhe			10 m2/nt-sec
+rontgen			2.58e-4 curie/kg
+rood			1.21e+3 yd
+rope			20 ft
+rutherford		1e+6 /sec
+rydberg			1.36054e+1 ev
+sabin			1 ft2
+sack			3 bu
+seam			8 bu
+section			mi2
+shippington		40 ft3
+shorthundredweight	100 lb
+shortquarter		25 lb
+siemens			/ohm
+sigma			microsec
+skein			120 yd
+skot			1e-3 apostilb
+slug			lb-g-sec2/ft
+span			9 in
+spat			4 pi sr
+spindle			14400 yd
+square			100 ft2
+stere			m3
+sthene			1e+3 nt
+stilb			cd/cm2
+stoke			1e-4 m2/sec
+stone			14 lb
+strike			2 bu
+surveyfoot		british-ft
+surveyyard		3 surveyfoot
+surveyorschain		66 ft
+surveyorslink		66|100 ft
+tablespoon		4 fldr
+teaspoon		4|3 fldr
+tesla			weber/m2
+therm			1e+5 btu
+thermie			1e+6 cal
+timberfoot		ft3
+tnt			4.6e+6 m2/sec2
+tonne			1e+6 gm
+torr			mm hg
+township		36 mi2
+tun			8 barrel
+water			gram g / cc
+wey			40 bu
+weymass			252 lb
+Xunit			1.00202e-13 m
+k			1.38047e-16 erg/degC
+
+
+degC			K
+kelvin			K
+brewster		1e-12 m2/newton
+degF			5|9 degC
+degreesrankine		degF
+degrankine		degreesrankine
+degreerankine		degF
+degreaumur		10|8 degC
+drachm			60 grain
+poncelet		100 kg m g / sec
+denier			.05|450 gram / m
+tex			.001 gram / m
+englishell		45 inch
+scottishell		37.2 inch
+flemishell		27 inch
+planck			6.626e-34 joule-sec
+hbar			1.055e-34 joule-sec
+electronmass		9.1095e-31 kg
+protonmass		1.6726e-27 kg
+neutronmass		1.6606e-27 kg
+V			volt
+eV			e V
+bohrradius		hbar2-C2/8.988e9 N m2-e2-electronmass
+becquerel		1|3.7e10 curie
+fresnel			1e12 hertz
+statcoul		1|2.99792458e9 coul
+statamp			1|2.99792458e9 amp
+statvolt		2.99792458e2 volt
+statcoulomb		statcoul
+statampere		statamp
+debye			3.336e-30 coul-m
+pulsatance		2 pi/sec
+rpm			rev/minute
+rps			rev/sec
+kilohm			kiloohm
+megohm			megaohm
+siderealyear		365.256360417 day
+siderealday		23.934469444 hour
+siderealhour		1|24 sidereal day
+lunarmonth		29.5305555 day
+synodicmonth		lunarmonth
+siderealmonth		27.32152777 day
+tropicalyear		year
+solaryear		year
+lunaryear		12 lunarmonth
+cran			37.5 brgallon
+kip			1000 lbf
+frenchfoot		16|15 ft
+frenchfeet		frenchfoot
+toise			6 frenchfeet
+sievert			8.4 rontgen
+candle			1.02 candela
+militarypace		2.5 feet
+metre			meter
+litre			liter
+gramme			gram
+iudiptheria		62.8 microgram
+iupenicillin		.6 microgram
+iuinsulin		41.67 microgram
+cottonyarncount		2520 ft/pound
+linenyarncount		900 ft/pound
+worstedyarncount	1680 ft/pound
+metricyarncount		meter/gram
+jewlerspoint		2 milligram
+

@@ -1,0 +1,188 @@
+$FreeBSD$
+
+Hopefully, this list will one day be obsoleted by DEVFS, but for now
+this is the current allocation of device major numbers.
+
+For local use, you are encouraged to use the reserved numbers.
+
+If you intend the driver to be available, send email to the
+hackers@freebsd.org mailing list to see about having a number
+reserved for you.
+
+The most "complete" version of this will be the one in FreeBSD-current.
+(see http://www.freebsd.org/ or from ftp://ftp.freesoftware.com/pub/FreeBSD/)
+
+NOTICE: FreeBSD does not use block major numbers anymore, you neither
+need to assign nor use a block major number for any device driver any
+more.
+
+chrdev	name		comments
+0	cn		console
+1	ctty		/dev/tty
+2	mm		/dev/mem,kmem,etc
+3	wd		ST506 disk controller (with IDE extensions)
+4	was:swap	/dev/drum
+5	pts		pseudo tty "tty" half
+6	ptc		pseudo tty "master" half
+7	log		system log
+8	bqu		B004 transputer board
+9	fd		floppy disk
+10	wt		QIC-02/36 tape
+11	spigot		Video capture?
+12	sc		syscons/pcvt virtual consoles
+13	da		SCSI "direct access devices"
+14	sa		SCSI "sequential access devices"
+15	cd		SCSI "CDROM type"
+16	lpt		PC parallel printer port
+17	ch		SCSI changer
+18	nmdm		nullmodem back-to-back tty ports
+19	tw		X-10 power interface
+20	??		reserved for local use
+21	psm		PS/2 Mouse
+22	fd		(/dev/stdin etc)
+23	bpf		Berkeley Packet Filter
+24	pca		PC speaker (/dev/pcaudio)
+25	??		was vat
+26	spkr		PC speaker (/dev/spkr)
+27	mse		Microsoft bus-mouse
+28	sio		16450/16550 serial
+29	mcd		Mitsumi CDROM interface
+30	snd		sound driver system
+31	pass		SCSI "Application Pass-Thru"
+32	lkmc		Loadable Kernel Module Controller
+33	lkm		assigned to Loadable Kernel Modules
+34	lkm		assigned to Loadable Kernel Modules
+35	lkm		assigned to Loadable Kernel Modules
+36	lkm		assigned to Loadable Kernel Modules
+37	lkm		assigned to Loadable Kernel Modules
+38	lkm		assigned to Loadable Kernel Modules
+39	apm		Advanced Power Management
+40	ctx		Cortex
+41	??		was socksys
+42	cx		Cronyx/Sigma serial adapter
+43	vn		vnode "disk" device
+44	gp		GPIB
+45	scd		Sony CDROM interface
+46	matcd		Matsushita/Panasonic/Creative(SB) CDROM interface
+47	gsc		Genius Scanner
+48	cy		Cyclades
+49	??		was ssc
+50	card		pcmcia cards
+51	joy		joystick
+52	tun		IP tunnel device
+53	snp		tty snoop
+54	OLDnic		ISDN system
+55	OLDisdn		ISDN system
+56	OLDity		ISDN system
+57	OLDitel		ISDN system
+58	dgb		Digiboard PC/Xe
+59	OLDispy		ISDN system
+60	OLDnnic		ISDN system
+61	pt		SCSI "processor target"
+62	worm		SCSI "worm type"
+63	rc		Riscom/8 driver
+64	??		Talisman
+65	targ		SCSI target sample driver
+66	labpc		National Instruments LabPC
+67	meteor		Matrox Meteor video capture
+68	si		Specialix SI/XIO (peter@freebsd.org)
+69	wcd		ATAPI CDROM client of "wd"
+71	asc		AmiScan driver
+72	stl		Stallion (cd1400 based) (gerg@stallion.oz.au)
+73	??		was qcam
+74	ccd		concatenated disk
+75	stli		Stallion (intelligent cdk based) (gerg@stallion.oz.au)
+76	scc		IBM Smart Capture Card (ohashi@mickey.ai.kyutech.ac.jp)
+77	cyy		Cyclades Ye/PCI serial card
+78	pci		PCI bus
+79	ipl		IP Filter
+80	xdcp		Assigned to Chris Ficklin <chris@serengeti.com>
+81	rp		RocketPort/Steve Gericke <steveg@comtrol.com>
+82	ppi		Generic Parallel I/O <Nicolas.Souchu@prism.uvsq.fr>
+83	can		CAN16-2 CAN-PC Interface
+84	dtfp		Datum Time and Frequency processor (louie@UU.NET)
+85	vesa		VESA support device (j_mini@efn.org)
+86      alog            Industrial Computer Source AIO8-P driver (deprecated)
+87	wfd		ATAPI floppy client of "wd"
+88	dpt		DPT RAID Controller <shimon@i-connect.net>
+89	pps		Pulse-Per-Second timing interface
+90	wst		ATAPI tape client of "wd"
+91	vinum		Volume manager
+92      bktr            Bt848 video capture driver (hasty@star-gate.com)
+93	coda		CODA filesystem.
+94	loran		Loran-C Receiver
+95	md		Memory Disk
+96	altq		alternate queueing (including cbq, red, wfq)
+97	prom		Alpha PROM console
+98	loe		Loopback pseudo-ethernet (sbabkin@dcn.att.com)
+99	ct		Cronyx/Tau serial adaptor
+100	xrpu		Xilinx Reprogrammable Processing Unit
+101	dgm		Digiboard PC/Xem
+102	fla		M-Systems DiskOnChip(r)
+103	streams		SVR4 Streams emulation <newton@atdot.dotat.org>
+104	xpt		CAM Transport Layer Services
+105	iic		I2C bus generic i/o
+106	smb		System Management Bus generic i/o
+107	3dfx		3Dfx driver <cokane>
+108	usb		Universal Serial Bus <n_hibma>
+109	ida		Intelligent Disk [Array] (md@doc.ic.ac.uk)
+110	ses		SCSI Environmental Services driver (mjacob@feral.com)
+111	ums		USB Mouse <n_hibma>
+112	kbd		keyboard
+113	ulpt		USB Printer <n_hibma>
+114	ugen		USB Generic device <n_hibma>
+115	dag		University of Waikato DAG network capture boards
+116	ad		ATA disks
+117	acd		ATAPI CDROM
+118	afd		ATAPI floppy
+119	ast		ATAPI tape
+120	aud		Audit Device <rwatson@FreeBSD.org>
+121	onew		Dallas Semiconductor One-Wire bus <phk@freebsd.org>
+122	uhid		USB HID devices <n_hibma>
+123	fb		frame buffer
+124	ucdc		USB Communication Class Driver <n_hibma>
+125	digio		Advantech PCI-1750 IO card jen@vulture.dmem.strath.ac.uk
+126	sync		Generic sync port support <phk>, <brian>
+127	fire		Firewire driver <ikob@koganei.wide.ad.jp>
+128	arla		Arla (AFS-clone) driver
+129	i2o		Intelligent I/O Character Device
+130	mlx		Mylex DAC960 RAID (control device)
+131	mlxd		Mylex DAC960 RAID (disk device)
+132	amr		AMI MegaRAID (control device)
+133	amrd		AMI MegaRAID (disk device)
+134	taupci		Cronyx Tau-PCI card <vak@hanoi.cronyx.ru>
+135	zsc		TurboLaser console uart
+136	ipr		Iprobe on-chip perf. counters (gallatin@freebsd.org)
+137	nfp		nFast PCI crypto accelerator (support@ncipher.com)
+138	usio		USB Serial support <n_hibma>
+139	wanrouter	Sangoma Technologies Inc. (al.feldman@sangoma.com)
+140	pcfclock	PCFCLOCK <sascha@schumann.cx>
+141	pcdmx		PCDMX theatre lighting controller
+142	skip		SKIP port (security/skip) control device
+143	urio		USB Rio 500 <n_hibma>
+144	nsmb		SMB/CIFS protocol interface <bp>
+145	dri		DRI Graphics for OpenGL <dfr>
+146	twe		3ware Escalade ATA RAID (controller)
+147	twed		3ware Escalade ATA RAID (drives)
+148	agp		AGP <dfr>
+149	tap		Ethernet tunneling device <myevmenkin@att.com>
+150	aac		Adaptec FSA RAID (controller)
+151	aacd		Adaptec FSA RAID (drives)
+152	acpi		ACPI bios support (Takanori Watanabe takawata@shidahara1.planet.sci.kobe-u.ac.jp)
+153	ti		Tigon Gigabit Ethernet driver (ken@FreeBSD.ORG)
+154	asr		Adaptec SCSI RAID <msmith@freebsd.org>
+155	phone		Quicknet PhoneJACK and LineJACK cards for VoIP <roger>
+156	uscanner	USB Scanners <n_hibma>
+157	ar		ATA "pseudo" RAID device
+158	mly		Mylex RAID control device
+159	ata		ATA control device
+160	spic		Sony Programmable I/O Controller (jogdial)
+161	swdoc		Sitara networks watchdog device
+162	digi		Digiboard
+163	gdt		ICP Vortex RAID controller
+164	src		Intel SRC RAID controller
+200	??		entries from 200-252 are reserved for local use
+252	??		entries from 200-252 are reserved for local use
+253	mfs		Used by MFS
+254	internal	Used internally by the kernel
+255	bad choice	-1 is 255 which has magic meanings internally

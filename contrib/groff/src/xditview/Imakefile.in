@@ -1,0 +1,115 @@
+srcdir=@srcdir@
+top_srcdir=@top_srcdir@
+VPATH=@srcdir@
+top_builddir=@top_builddir@
+
+version=`cat $(top_srcdir)/VERSION`
+# No additional number if revision is zero
+revision=`sed -e 's/^0$$//' -e 's/^[1-9].*$$/.&/' $(top_srcdir)/REVISION`
+
+GROFF_PREFIX = @prefix@
+GROFF_DATADIR = $(GROFF_PREFIX)/share
+GROFF_DATAPROGRAMDIR = $(GROFF_DATADIR)/groff
+GROFF_DATASUBDIR = $(GROFF_DATAPROGRAMDIR)/$(version)$(revision)
+GROFF_FONTDIR = $(GROFF_DATASUBDIR)/font
+GROFF_FONTPATH = $(GROFF_FONTDIR):/usr/local/lib/font:/usr/lib/font
+DPIS = 75 100
+
+PROGRAMS = \
+  gxditview \
+  xtotroff
+DEPLIBS = XawClientDepLibs
+#if defined(HPArchitecture) && (OSMajorVersion > 9)
+LOCAL_LIBRARIES = -L/usr/contrib/X11R6/lib XawClientLibs
+#else
+LOCAL_LIBRARIES = XawClientLibs
+#endif
+SRCS1 = \
+  $(srcdir)/xditview.c \
+  $(srcdir)/Dvi.c \
+  $(srcdir)/draw.c \
+  $(srcdir)/font.c \
+  $(srcdir)/lex.c \
+  $(srcdir)/page.c \
+  $(srcdir)/parse.c \
+  $(srcdir)/XFontName.c \
+  $(srcdir)/DviChar.c \
+  $(srcdir)/device.c
+OBJS1 = \
+  xditview.o \
+  Dvi.o \
+  draw.o \
+  font.o \
+  lex.o \
+  page.o \
+  parse.o \
+  XFontName.o \
+  DviChar.o \
+  device.o
+SRCS2 = \
+  $(srcdir)/xtotroff.c \
+  $(srcdir)/XFontName.c \
+  $(srcdir)/DviChar.c
+OBJS2 = \
+  xtotroff.o \
+  XFontName.o \
+  DviChar.o
+#if defined(HPArchitecture) && (OSMajorVersion > 9)
+INCLUDES = \
+  -I/usr/contrib/X11R6/include \
+  -I$(TOOLKITSRC) \
+  -I$(TOP)
+#else
+INCLUDES = \
+  -I$(TOOLKITSRC) \
+  -I$(TOP)
+#endif
+MATHLIB = -lm
+DEFINES = \
+  $(SIGNAL_DEFINES) \
+  -DFONTPATH=\"$(GROFF_FONTPATH)\" # -DX_NOT_STDC_ENV
+
+DEVDIR = $(top_builddir)/font
+MKINSTALLDIRS = $(top_srcdir)/mkinstalldirs
+
+ComplexProgramTarget_1(gxditview,$(LOCAL_LIBRARIES),$(MATHLIB))
+NormalProgramTarget(xtotroff,$(OBJS2),$(DEPXLIB),$(XLIB), /**/)
+
+InstallAppDefaults(GXditview)
+
+fonts: xtotroff $(srcdir)/DESC $(srcdir)/FontMap
+	@dir=`pwd`; \
+	fonts=`sed -e 's/[	 ].*//' $(srcdir)/FontMap`; \
+	for dpi in $(DPIS); do \
+	  echo Making devX$$dpi; \
+	  test -d $(DEVDIR)/devX$$dpi || \
+	    $(MKINSTALLDIRS) $(DEVDIR)/devX$$dpi; \
+	  rm -f $(DEVDIR)/devX$$dpi/DESC; \
+	  sed -e "s/res 75/res $$dpi/" $(srcdir)/DESC \
+	    >$(DEVDIR)/devX$$dpi/DESC; \
+	  (cd $(DEVDIR)/devX$$dpi; \
+	  rm -f Makefile.sub; \
+	  echo DEV=X$$dpi >Makefile.sub; \
+	  echo DEVFILES=DESC $$fonts >>Makefile.sub; \
+	  $$dir/xtotroff -g -r $$dpi -s 10 $(srcdir)/FontMap); \
+	  echo Making devX$$dpi-12; \
+	  test -d $(DEVDIR)/devX$$dpi-12 || \
+	    $(MKINSTALLDIRS) $(DEVDIR)/devX$$dpi-12; \
+	  rm -f $(DEVDIR)/devX$$dpi-12/DESC; \
+	  sed -e "s/res 75/res $$dpi/" \
+	      -e 's/unitwidth 10/unitwidth 12/' $(srcdir)/DESC \
+	    >$(DEVDIR)/devX$$dpi-12/DESC; \
+	  (cd $(DEVDIR)/devX$$dpi-12; \
+	  rm -f Makefile.sub; \
+	  echo DEV=X$$dpi-12 >Makefile.sub; \
+	  echo DEVFILES=DESC $$fonts >>Makefile.sub; \
+	  $$dir/xtotroff -g -r $$dpi -s 12 $(srcdir)/FontMap); \
+	done
+
+GXditview-ad.h: $(srcdir)/GXditview.ad
+	/bin/sh $(srcdir)/ad2c $(srcdir)/GXditview.ad >GXditview-ad.h
+
+extraclean: clean
+	-rm -f junk tmp grot old Makefile Imakefile
+
+FORCE:

@@ -1,0 +1,106 @@
+.\" @(#)bindresvport.3n	2.2 88/08/02 4.0 RPCSRC; from 1.7 88/03/14 SMI
+.\" $FreeBSD$
+.\"
+.Dd January 27, 2000
+.Dt BINDRESVPORT 3
+.Os
+.Sh NAME
+.Nm bindresvport ,
+.Nm bindresvport_sa
+.Nd bind a socket to a privileged IP port
+.Sh SYNOPSIS
+.Fd #include <rpc/rpc.h>
+.Ft int
+.Fn bindresvport "int sd" "struct sockaddr_in *sin"
+.Ft int
+.Fn bindresvport_sa "int sd" "struct sockaddr *sa"
+.Sh DESCRIPTION
+.Fn bindresvport
+and
+.Fn bindresvport_sa
+are used to bind a socket descriptor to a privileged
+.Tn IP
+port, that is, a
+port number in the range 0-1023.
+.Pp
+Only root can bind to a privileged port; this call will fail for any
+other users.
+.Pp
+When
+.Va sin
+is not null,
+.Va sin->sin_family
+must be initialized to the address family of the socket, passed by
+.Va sd .
+If the value of sin->sin_port is non-zero
+.Fn bindresvport
+will attempt to use that specific port.  If it fails, it chooses another
+privileged port automatically.
+.Pp
+It is legal to pass null pointer to
+.Va sin .
+In this case, the caller cannot get the port number
+.Fn bindresvport
+has picked.
+.Pp
+Function prototype of
+.Fn bindresvport
+is biased to
+.Dv AF_INET
+socket.
+.Fn bindresvport_sa
+acts exactly the same, with more neutral function prototype.
+Note that both functions behave exactly the same, and
+both support
+.Dv AF_INET6
+sockets as well as
+.Dv AF_INET
+sockets.
+.Sh RETURN VALUES
+.Fn bindresvport
+and
+.Fn bindresvport_sa
+return 0 if they are successful, otherwise \-1 is returned and
+.Va errno
+set to reflect the cause of the error.
+.Sh ERRORS
+The
+.Fn bindresvport
+and
+.Fn bindresvport_sa
+functions fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+.Fa sd
+is not a valid descriptor.
+.It Bq Er ENOTSOCK
+.Fa sd
+is not a socket.
+.It Bq Er EADDRNOTAVAIL
+The specified address is not available from the local machine.
+.It Bq Er EADDRINUSE
+The specified address is already in use.
+.It Bq Er EINVAL
+The socket is already bound to an address,
+or the socket family and the family of specified address mismatch.
+.It Bq Er EACCES
+The requested address is protected, and the current user
+has inadequate permission to access it.
+.It Bq Er EFAULT
+The
+.Fa name
+parameter is not in a valid part of the user
+address space.
+.It Bq Er ENOBUFS
+Insufficient resources were available in the system
+to perform the operation.
+.It Bq Er EPFNOSUPPORT
+The protocol family has not been configured into the
+system, no implementation for it exists,
+or address family did not match between arguments.
+.El
+.Sh "SEE ALSO"
+.Xr bind 2 ,
+.Xr socket 2 ,
+.Xr rresvport 3 ,
+.Xr rresvport_af 3

@@ -1,0 +1,103 @@
+.\" $Id: getnameinfo.3,v 8.1 1999/01/11 21:30:51 vixie Exp $
+.\"
+.\"Copyright (c) 1998,1999 by Internet Software Consortium
+.\"
+.\"Permission to use, copy, modify, and distribute this software for any
+.\"purpose with or without fee is hereby granted, provided that the above
+.\"copyright notice and this permission notice appear in all copies.
+.\"
+.\"THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+.\"ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+.\"OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+.\"CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+.\"DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+.\"PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+.\"ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+.\"SOFTWARE.
+.\"
+.Dd January 11, 1999
+.Dt GETRNAMEINFO @LIB_NETWORK_EXT@
+.Sh NAME
+.Nm getnameinfo
+.Nd address-to-name translation in protocol-independent manner
+.Sh SYNOPSIS
+.Fd #include <sys/socket.h>
+.Fd #include <netdb.h>
+.Ft int
+.Fn getnameinfo "const struct sockaddr *sa" "socklen_t salen" \
+"char *host" "size_t hostlen" "char *serv" "size_t servlen" "int flags"
+.Sh DESCRIPTION
+The
+.Fn getnameinfo
+function is defined for protocol-independent address-to-nodename translation.
+It performs functionality of 
+.Xr gethostbyaddr @LIB_NETWORK_EXT@
+and
+.Xr getservbyport @LIB_NETWORK_EXT@
+in more sophisticated manner.
+.Pp
+The
+.Fa sa
+arguement is a pointer to a generic socket address structure of size
+.Fa salen .
+The arguements
+.Fa host
+and
+.Fa serv
+are pointers to buffers to hold the return values.
+Their sizes are specified by
+.Fa hostlen
+and
+.Fa servlen
+repectively.
+Either
+.Fa host
+or
+.Fa serv
+may be
+.Dv NULL
+if the hostname  or service name is not required.
+.Pp
+The 
+.Fa flags
+arguement modifies the behaviour of 
+.Fn getnameinfo
+as follows:
+.Pp
+If 
+.Dv NI_NOFQDN
+is set only the unqualified hostname is returned for local fully
+qualified names.
+.Pp
+If
+.Dv NI_NUMERICHOST
+is set then the numeric form of the hostname is returned.
+.Pp
+If
+.Dv NI_NAMEREQD
+is set, then a error is returned if the hostname cannot be looked up.
+.Pp
+If
+.Dv NI_NUMERICSERV
+is set then the service is returned in numeric form.
+.Pp
+If
+.Dv NI_DGRAM
+is set then the service is UDP based rather than TCP based.
+.Sh SEE ALSO
+.Xr getaddrinfo @LIB_NETWORK_EXT@ ,
+.Xr gethostbyaddr @LIB_NETWORK_EXT@ ,
+.Xr getservbyport @LIB_NETWORK_EXT@ ,
+.Xr hosts @FORMAT_EXT@ ,
+.Xr services @FORMAT_EXT@ ,
+.Xr hostname @DESC_EXT@ ,
+.Xr named @SYS_OPS_EXT@
+.Pp
+R. Gilligan, S.  Thomson, J. Bound, and W. Stevens,
+``Basic Socket Interface Extensions for IPv6,'' RFC2133, April 1997.
+.Sh STANDARDS
+The
+.Fn getaddrinfo
+function is defined IEEE POSIX 1003.1g draft specification,
+and documented in ``Basic Socket Interface Extensions for IPv6''
+.Pq RFC2133 .

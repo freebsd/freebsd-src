@@ -1,0 +1,602 @@
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 7, 2000
+.Dt NTPQ 8
+.Os
+.Sh NAME
+.Nm ntpq
+.Nd standard NTP query program
+.Sh SYNOPSIS
+.Nm
+.Op Fl inp
+.Op Fl c Ar command
+.Op Ar host ...
+.Sh DESCRIPTION
+.Nm
+is used to query NTP servers which implement the recommended NTP mode 6
+control message format about current state and to request changes in
+that state.
+The program may be run either in interactive mode or
+controlled using command line arguments.
+Requests to read and write
+arbitrary variables can be assembled, with raw and pretty-printed
+output options being available.
+.Nm
+can also obtain and print a list of peers in a common format by sending
+multiple queries to the server.
+.Pp
+If one or more request options is included on the command line when
+.Nm
+is executed, each of the requests will be sent to the NTP servers
+running on each of the hosts given as command line arguments, or on
+.Dq localhost
+by default.
+If no request options are given,
+.Nm
+will attempt to read commands from the standard input and execute these
+on the NTP server running on the first host given on the command line,
+again
+defaulting to
+.Dq localhost
+when no other host is specified.
+.Nm
+will prompt for commands if the standard input is a terminal device.
+.Pp
+.Nm
+uses NTP mode 6 packets to communicate with the NTP server, and hence
+can be used to query any compatible server on the network which permits
+it.
+Note that since NTP is a UDP protocol this communication will be
+somewhat unreliable, especially over large distances in terms of network
+topology.
+.Nm
+makes one attempt to retransmit requests, and will time requests out if
+the remote host is not heard from within a suitable timeout time.
+.Pp
+Command line options are described following.
+Specifying a command line
+option other than
+.Fl i
+or
+.Fl n
+will cause the specified query (queries) to be sent to the indicated
+host(s) immediately.
+Otherwise,
+.Nm
+will attempt to read interactive format commands from the standard
+input.
+The following options are available:
+.Bl -tag -width indent
+.It Fl c Ar command
+The following argument is interpreted
+as an interactive format command
+and is added to the list of commands to be executed on the specified
+host(s).
+Multiple
+.Fl c
+options may be given.
+.It Fl i
+Force
+.Nm
+to operate in interactive mode.
+Prompts will be written to the standard
+output and commands read from the standard input.
+.It Fl n
+Output all host addresses in dotted-quad numeric format rather than
+converting to the canonical host names.
+.It Fl p
+Print a list of the peers known to the server as well as a summary of
+their state.
+This is equivalent to the
+.Ic peers
+interactive command.
+.El
+.Ss Internal Commands
+Interactive format commands consist of a keyword followed by zero to
+four arguments.
+Only enough characters of the full keyword to uniquely
+identify the command need be typed.
+The output of a command is normally
+sent to the standard output, but optionally the output of individual
+commands may be sent to a file by appending a
+.Qq > ,
+followed by a file name, to the command line.
+A number of interactive format commands are executed entirely within the
+.Nm
+program itself and do not result in NTP mode 6 requests being sent to a
+server.
+These are described following.
+.Bl -tag -width indent
+.It Ic ?\& Op Ar command_keyword
+.It Ic help Op Ar command_keyword
+A
+.Ic ?\&
+by itself will print a list of all the command keywords
+known to this incarnation of
+.Nm .
+A
+.Ic ?\&
+followed by a command keyword will print function and
+usage information about the command.
+This command is probably a better
+source of information about
+.Nm
+than this manual page.
+.\"
+.\" XXX Both variable_name and value below should be arguments,
+.\"	not angle-quoted text.
+.\"
+.It Xo Ic addvars
+.Aq variable_name Ns
+.Op = Ns Aq value Ns
+.Op ,...
+.Xc
+.It Xo Ic rmvars
+.Aq variable_name Ns
+.Op ,...
+.Xc
+.It Ic clearvars
+The data carried by NTP mode 6 messages consists of a list of items of
+the form
+.Sm off
+.Ao variable_name Ac = Aq value
+.Sm on
+where the
+.Qq = Ns Aq value
+is ignored, and can be omitted, in requests
+to the server to read variables.
+.Nm
+maintains an internal list in which data to be included in control
+messages can be assembled, and sent using the
+.Ic readlist
+and
+.Ic writelist
+commands described below.
+The
+.Ic addvars
+command allows variables and their optional values to be added to the
+list.
+If more than one variable is to be added, the list should be
+comma-separated and not contain white space.
+The
+.Ic rmvars
+command can be used to remove individual variables from the list, while
+the
+.Ic clearvars
+command removes all variables from the list.
+.It Ic authenticate Ar yes | Ar no
+Normally
+.Nm
+does not authenticate requests unless they are write requests.
+The command
+.Dq Li authenticate yes
+causes
+.Nm
+to send authentication with all requests it makes.
+Authenticated requests cause some servers
+to handle requests slightly differently,
+and can occasionally melt the CPU in fuzzballs if you turn
+authentication on before doing a peer display.
+.It Ic cooked
+Causes output from query commands to be
+.Qq cooked Ns .
+Variables
+which are recognized by the server will have their values reformatted
+for human consumption.
+Variables which
+.Nm
+thinks should have a decodeable value but didn't are marked with a
+trailing
+.Qq ? Ns .
+.It Ic debug Xo
+.Ar more | Ar less | Ar off
+.Xc
+Turn internal query program debugging on and off.
+.It Ic delay Ar milliseconds
+Specify a time interval to be added to timestamps included in requests
+which require authentication.
+This is used to enable (unreliable) server
+reconfiguration over long delay network paths or between machines whose
+clocks are unsynchronized.
+Actually the server does not now require
+timestamps in authenticated requests,
+so this command may be obsolete.
+.It Ic host Ar hostname
+Set the host to which future queries will be sent.
+The
+.Ar hostname
+supplied
+may be either a host name or a numeric
+address.
+.It Ic hostnames Ar yes | Ar no
+If
+.Ar yes
+is specified, host names are printed in information
+displays.
+If
+.Ar no
+is given, numeric addresses are printed
+instead.
+The default is
+.Ar yes
+unless modified using the command line
+.Fl n
+switch.
+.It Ic keyid Ar keyid
+This command allows the specification of a key number to be used to
+authenticate configuration requests.
+This must correspond to a key
+number the server has been configured to use for this purpose.
+.It Ic ntpversion Xo
+.Ar 1 | Ar 2 |
+.Ar 3 | Ar 4
+.Xc
+Set the NTP version number which
+.Nm
+claims in packets.
+Defaults to 3.
+Note that mode 6 control messages
+(and modes, for that matter)
+didn't exist in NTP version 1.
+There appear to be no servers left which demand version 1.
+.It Ic quit
+Exit
+.Nm .
+.It Ic passwd
+This command prompts you to type in a password (which will not be
+echoed) which will be used to authenticate configuration requests.
+The
+password must correspond to the key configured for use by the NTP server
+for this purpose if such requests are to be successful.
+.It Ic raw
+Cause all output from query commands
+to be printed as received from the remote server.
+The only formatting and intepretation done on the data is to
+transform non-ASCII data into a printable (but barely understandable)
+form.
+.It Ic timeout Ar milliseconds
+Specify a timeout period for responses to server queries.
+The default
+is about 5000 milliseconds.
+Note that since
+.Nm
+retries each query once after a timeout, the total waiting time for a
+timeout will be twice the timeout value set.
+.El
+.Ss Control Message Commands
+Each peer known to an NTP server has a 16 bit integer
+association identifier
+assigned to it.
+NTP control messages which carry peer variables must
+identify the peer the values correspond to by including its association
+ID.
+An association ID of 0 is special, and indicates the variables are
+system variables, whose names are drawn from a separate name space.
+.Pp
+Control message commands result in one or more NTP mode 6 messages being
+sent to the server, and cause the data returned to be printed in some
+format.
+Most commands currently implemented send a single message and
+expect a single response.
+The current exceptions are the
+.Ic peers
+command,
+which will send a preprogrammed series of messages to obtain
+the data it needs, and the
+.Ic mreadlist
+and
+.Ic mreadvar
+commands, which will iterate over a range of associations.
+.Bl -tag -width indent
+.It Ic associations
+Obtains and prints a list of association identifiers and peer statuses
+for in-spec peers of the server being queried.
+The list is printed in columns.
+The first of these is an index numbering the associations from
+1 for internal use, the second the actual association identifier
+returned by the server and the third the status word for the peer.
+This is followed by a number of columns
+containing data decoded from the status word.
+Note that the data returned by the
+.Ic associations
+command is cached internally in
+.Nm .
+The index is then of use when dealing with stupid servers which use
+association identifiers which are hard for humans to type, in that for
+any subsequent commands which require an association identifier as an
+argument, the form
+.Dq Li &index
+may be used as an alternative.
+.\"
+.\" XXX Both variable_name and value below should be arguments,
+.\"	not angle-quoted text.
+.\"
+.It Xo Ic clockvar
+.Op Ar assocID Ns
+.Pf [ Aq variable_name Ns
+.Op = Ns Aq value Ns
+.Op ,...]
+.Xc
+.It Xo Ic cv
+.Op Ar assocID Ns
+.Pf [ Aq variable_name Ns
+.Op = Ns Aq value Ns
+.Op ,...]
+.Xc
+Requests that a list of the server's clock variables be sent.
+Servers which have a radio clock
+or other external synchronization will respond positively to this.
+If the association identifier is omitted or zero the
+request is for the variables of the
+.Qq system clock
+and will
+generally get a positive response from all servers with a clock.
+If the server treats clocks as pseudo-peers,
+and hence can possibly have more than one clock connected at once,
+referencing the appropriate peer association ID
+will show the variables of a particular clock.
+Omitting the variable list
+will cause the server to return a default variable display.
+.It Ic lassociations
+Obtains and prints a list of association identifiers and peer statuses
+for all associations for which the server is maintaining state.
+This command differs from the
+.Ic associations
+command only for servers
+which retain state for out-of-spec client associations
+(i.e.  fuzzballs).
+Such associations are normally omitted from the display when
+the
+.Ic associations
+command is used, but are included in the
+output of
+.Ic lassociations Ns .
+.It Ic lpassociations
+Print data for all associations, including out-of-spec client
+associations, from the internally cached list of associations.
+This command differs from
+.Ic passociations
+only when dealing with fuzzballs.
+.It Ic lpeers
+Like
+.Ic peers ,
+except a summary of all associations for which the server is maintaining
+state is printed.
+This can produce a much longer list of peers from
+fuzzball servers.
+.It Ic mreadlist Ar assocID assocID
+.It Ic mrl Ar assocID assocID
+Like the
+.Ic readlist
+command except the query is done for each of a range of (nonzero)
+association IDs.
+This range is determined from the association list
+cached by the most recent
+.Ic associations
+command.
+.It Xo Ic mreadvar
+.Ar assocID assocID Oo
+.Aq variable_name Ns
+.Op = Ns Aq value Ns
+.Op ,... Oc
+.Xc
+.It Xo Ic mrv
+.Ar assocID assocID Oo
+.Aq variable_name Ns
+.Op = Ns Aq value Ns
+.Op ,... Oc
+.Xc
+Like the
+.Ic readvar
+command except the query is done for each of a range of (nonzero)
+association IDs.
+This range is determined from the association list
+cached by the most recent
+.Ic associations
+command.
+.It Ic opeers
+An old form of the
+.Ic peers
+command with the reference ID
+replaced by the local interface address.
+.It Ic passociations
+Print association data concerning in-spec peers from the internally
+cached list of associations.
+This command performs identically to the
+.Ic associations
+except that it displays the internally stored
+data rather than making a new query.
+.It Ic peers
+Obtains a list of in-spec peers of the server, along with a summary of
+each peer's state.
+Summary information includes the address of the
+remote peer, the reference ID (0.0.0.0 if this is unknown), the
+stratum of the remote peer, the type of the peer (local, unicast,
+multicast or broadcast), when the last packet was received, the polling
+interval, in seconds, the reachability register, in octal, and the
+current estimated delay, offset and dispersion of the peer, all in
+milliseconds.
+.Pp
+The character in the left margin indicates the fate of this peer in the
+clock selection process.
+Following is a list of these characters,
+the pidgeon used in the
+.Ic rv
+command,
+and a short explanation of the condition revealed.
+.Bl -tag -width indent
+.It space
+.Pq reject
+The peer is discarded as unreachable,
+synchronized to this server (synch loop)
+or outrageous synchronization distance.
+.It x
+.Pq falsetick
+The peer is discarded by the intersection algorithm
+as a falseticker.
+.It .
+.Pq excess
+The peer is discarded as not among the first ten peers
+sorted by synchronization distance
+and so is probably a poor candidate for further consideration.
+.It -
+.Pq outlyer
+The peer is discarded by the clustering algorithm as an outlyer.
+.It +
+.Pq candidate
+The peer is a survivor and a candidate for the combining algorithm.
+.It #
+.Pq selected
+The peer is a survivor,
+but not among the first six peers sorted by synchronization distance.
+If the association is ephemeral,
+it may be demobilized to conserve resources.
+.It *
+.Pq sys.peer
+The peer has been declared the system peer
+and lends its variables to the system variables.
+.It o
+.Pq pps.peer
+The peer has been declared the system peer
+and lends its variables to the system variables.
+However, the actual system synchronization
+is derived from a pulse-per-second (PPS) signal,
+either indirectly via the PPS reference clock driver
+or directly via kernel interface.
+.El
+.Pp
+The flash variable is not defined in the NTP specification,
+but is included as a valuable debugging aid.
+It displays the results of the packet sanity checks
+defined in the NTP specification TEST1 through TEST9.
+The bits for each test read in increasing sequency
+from the least significant bit
+and are defined as follows.
+.Pp
+The following TEST1 through TEST4 enumerate procedure errors.
+The packet timestamps may or may not be believed,
+but the remaining header data are ignored.
+.Bl -tag -width indent
+.It TEST1
+Duplicate packet.
+A copy from somewhere.
+.It TEST2
+Bogus packet.
+It is not a reply to a message previously sent.
+This can happen when the NTP daemon is restarted
+and before a peer notices.
+.It TEST3
+Unsynchronized.
+One or more timestamp fields are missing.
+This normally happens when the first packet from a peer is received.
+.It TEST4
+Either peer delay or peer dispersion is greater than one second.
+You must be joking.
+.El
+.Pp
+The following TEST5 through TEST10
+enumerate errors in the packet header.
+The packet is discarded without inspecting its contents.
+.Bl -tag -width indent
+.It TEST5
+Cryptographic authentication fails.
+See the
+.Qq Authentication Support
+section of the
+.Xr ntp.conf 5
+page.
+.It TEST6
+Peer is unsynchronized.
+Wind up its clock first.
+.It TEST7
+Peer stratum is greater than 15.
+The peer is probably unsynchronized.
+.It TEST8
+Either root delay or root dispersion is greater than one second.
+Too far from home.
+.It TEST9
+Peer cryptographic authentication fails.
+Either the key identifier or key is wrong
+or somebody trashed our packet.
+.It TEST10
+Access is denied.
+See the
+.Qq Access Control Support
+section of the
+.Xr ntp.conf 5
+page.
+.El
+.It Ic pstatus Ar assocID
+Send a read status request to the server for the given association.
+The names and values of the peer variables returned will be printed.
+Note that the status word from the header is displayed preceding the
+variables, both in hexadecimal and in pidgeon English.
+.It Ic readlist Op Ar assocID
+.It Ic rl Op Ar assocID
+Requests that the values of the variables in the internal variable list
+be returned by the server.
+If the association ID is omitted or is 0
+the variables are assumed to be system variables.
+Otherwise they are treated as peer variables.
+If the internal variable list is empty a request is
+sent without data, which should induce the remote server to return a
+default display.
+.\"
+.\" XXX Both variable_name and value below should be arguments,
+.\"	not angle-quoted text.
+.\"
+.It Xo Ic readvar
+.Op Ar assocID Ns
+.Pf [ Aq variable_name Ns
+.Op = Ns Aq value Ns
+.Op ,...]
+.Xc
+.It Xo Ic rv
+.Op Ar assocID Ns
+.Pf [ Aq variable_name Ns
+.Op = Ns Aq value Ns
+.Op ,...]
+.Xc
+Requests that the values of the specified variables be returned by the
+server by sending a read variables request.
+If the association ID is
+omitted or is given as zero the variables are system variables,
+otherwise they are peer variables and the values returned will be those
+of the corresponding peer.
+Omitting the variable list will send a
+request with no data which should induce the server to return a default
+display.
+.It Xo Ic writevar
+.Ar assocID
+.Aq variable_name Ns
+.Pf = Ns Aq value Ns
+.Op ,...
+.Xc
+Like the
+.Ic readvar
+request, except the specified variables are written instead of read.
+.It Ic writelist Op Ar assocID
+Like the
+.Ic readlist
+request, except the internal list variables are written instead of read.
+.El
+.Sh SEE ALSO
+.Xr ntp.conf 5 ,
+.Xr ntpd 8 ,
+.Xr ntpdc 8
+.Sh HISTORY
+Written by
+.An Dennis Ferguson
+at the University of Toronto.
+.Sh BUGS
+The
+.Ic peers
+command is non-atomic and may occasionally result in spurious error
+messages about invalid associations occurring and terminating the
+command.
+The timeout time is a fixed constant, which means you wait a long time
+for timeouts since it assumes sort of a worst case.
+The program should
+improve the timeout estimate as it sends queries to a particular host,
+but doesn't.

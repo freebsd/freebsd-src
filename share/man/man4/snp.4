@@ -1,0 +1,67 @@
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 24, 1995
+.Dt SNP 4
+.Os
+.Sh NAME
+.Nm snp
+.Nd tty snoop interface
+.Sh SYNOPSIS
+.Fd #include <sys/snoop.h>
+.Ft int
+.Fn ioctl fd SNPSTTY &dev
+.Ft int
+.Fn ioctl fd SNPGTTY &dev
+.Ft int
+.Fn ioctl fd FIONREAD &result
+.Sh DESCRIPTION
+/dev/snp? are snoop devices which allow user to attach to any tty
+and watch activities on it.
+.Pp
+To associate a given
+.Nm
+device with a tty to be observed,  open the
+.Nm
+device and then use the SNPSTTY ioctl.
+The argument passed to the IOCTL is the address of a variable of type
+dev_t.
+By setting the value of the variable pointed to -1, the user may detach
+the snp device from a tty.
+.Pp
+The SNPGTTY ioctl returns information about the current tty attached to
+the open
+.Nm
+device.
+.Pp
+The FIONREAD ioctl returns a positive value equal to the number of characters
+in a read buffer.
+Special values defined are:
+.Bl -tag -width SNP_TTYCLOSE
+.It Dv SNP_OFLOW
+device overflow occured, device detached.
+.It Dv SNP_TTYCLOSE
+tty not attached.
+.It Dv SNP_DETACH
+.Nm
+device has been detached by user or tty device has been closed
+and detached.
+.El
+.Sh SEE ALSO
+.Xr pty 4 ,
+.Xr sio 4 ,
+.Xr watch 8
+.Sh RESTRICTIONS
+Only the superuser may access the
+.Nm
+devices.
+.Sh BUGS
+While in line mode, user input can't be seen.
+No signals may be sent to the observed tty.
+.Sh AUTHORS
+.An Ugen J.S. Antsilevich Aq ugen@NetVision.net.il
+.Sh HISTORY
+The
+.Nm
+device first appeared in
+.Fx 2.1 .

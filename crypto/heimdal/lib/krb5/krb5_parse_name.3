@@ -1,0 +1,35 @@
+.\" Copyright (c) 1997 Kungliga Tekniska Högskolan
+.\" $Id: krb5_parse_name.3,v 1.2 2001/01/26 22:43:22 assar Exp $
+.Dd August 8, 1997
+.Dt KRB5_PARSE_NAME 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_parse_name
+.Nd string to principal conversion
+.Sh SYNOPSIS
+.Fd #include <krb5.h>
+.Ft krb5_error_code
+.Fn krb5_parse_name "krb5_context context" "const char *name" "krb5_principal *principal"
+.Sh DESCRIPTION
+.Fn krb5_parse_name
+converts a string representation of a princpal name to
+.Nm krb5_principal .
+The
+.Fa principal 
+will point to allocated data that should be freed with
+.Fn krb5_free_principal .
+.Pp
+The string should consist of one or more name components separated with slashes
+.Pq Dq / , 
+optionally followed with an
+.Dq @
+and a realm name. A slash or @ may be contained in a name component by
+quoting it with a back-slash
+.Pq Dq \ .
+A realm should not contain slashes or colons.
+.Sh SEE ALSO
+.Xr krb5_425_conv_principal 3 ,
+.Xr krb5_build_principal 3 ,
+.Xr krb5_free_principal 3 ,
+.Xr krb5_sname_to_principal 3 ,
+.Xr krb5_unparse_name 3

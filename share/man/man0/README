@@ -1,0 +1,18 @@
+These files have been somewhat updated so that they at least format
+without fatal errors under FreeBSD 2.0-current (and so presumably 2.1).
+Some parts are not very accurate, and quite a bit of extra verbiage
+should probably be added describing FreeBSD additions relative to 4.4.
+The formatting is not perfect, and groff generates copious errors which
+hopefully some [nt]roff expert will actually look into some day.  The entire
+suite needs to be fixed to learn to live with obj directories, in line
+with our goal to have a completely read-only source tree, before it can
+be added to the top-level Makefile (if it is even then).
+
+The man[1-8] files were generated through the following process:
+	locate *.1
+	pipe through a long series of fgrep and sed commands to fix up
+	sort-regexp ^.*/\([^/]*\)$ \1 in Emacs
+	visually inspect the result for duplicates and false matches
+
+Garrett Wollman <wollman@lcs.mit.edu>
+11 January 1995

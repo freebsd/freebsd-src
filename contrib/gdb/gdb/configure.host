@@ -1,0 +1,162 @@
+# Mapping of configurations into GDB host definitions.  This is
+# invoked from the autoconf generated configure script.
+
+# This file sets the following shell variables:
+#  gdb_host_cpu		generic name of host's CPU
+#  gdb_host		name of GDB host definition to use
+
+# Map host cpu into the config cpu subdirectory name.
+# The default is $host_cpu.
+
+case "${host_cpu}" in
+
+alpha*)			gdb_host_cpu=alpha ;;
+c[12])			gdb_host_cpu=convex ;;
+hppa*)			gdb_host_cpu=pa ;;
+i[3456]86*)		gdb_host_cpu=i386 ;;
+m68*)			gdb_host_cpu=m68k ;;
+m88*)			gdb_host_cpu=m88k ;;
+# OBSOLETE np1)			gdb_host_cpu=gould ;;
+pyramid)		gdb_host_cpu=pyr ;;
+powerpc*)		gdb_host_cpu=powerpc ;;
+sparc64)		gdb_host_cpu=sparc ;;
+*)			gdb_host_cpu=$host_cpu ;;
+
+esac
+
+# map host info into gdb names.
+
+case "${host}" in
+
+a29k-*-*)		gdb_host=ultra3 ;;
+
+alpha*-*-osf1*)		gdb_host=alpha-osf1 ;;
+alpha*-*-osf2*)		gdb_host=alpha-osf2 ;;
+alpha*-*-osf[3456789]*)	gdb_host=alpha-osf3 ;;
+alpha*-*-linux*)	gdb_host=alpha-linux ;;
+
+arm-*-*)		gdb_host=arm ;;
+
+c[12]-*-*)		gdb_host=convex ;;
+
+hppa*-*-bsd*)		gdb_host=hppabsd ;;
+hppa*-*-hiux*)		gdb_host=hppahpux ;;
+hppa*-*-hpux10.20)	gdb_host=hpux1020 ;;
+hppa*-*-hpux11.0*)	gdb_host=hpux1100 ;;
+hppa*-*-hpux*)		gdb_host=hppahpux ;;
+hppa*-*-osf*)		gdb_host=hppaosf ;;
+
+i[3456]86-ncr-*)	gdb_host=ncr3000 ;;
+i[3456]86-sequent-bsd*)	gdb_host=symmetry ;;  # dynix
+i[3456]86-sequent-sysv4*) gdb_host=ptx4 ;;
+i[3456]86-sequent-sysv*) gdb_host=ptx ;;
+i[3456]86-*-aix*)	gdb_host=i386aix ;;
+i[3456]86-*-bsd*)	gdb_host=i386bsd ;;
+i[3456]86-*-dgux*)	gdb_host=i386dgux ;;
+i[3456]86-*-freebsd*)	gdb_host=fbsd ;;
+i[3456]86-*-netbsd*)	gdb_host=nbsd ;;
+i[3456]86-*-go32*)	gdb_host=go32 ;;
+i[3456]86-*-linux*)	gdb_host=linux ;;
+i[3456]86-*-lynxos*)	gdb_host=i386lynx ;;
+i[3456]86-*-mach3*)	gdb_host=i386m3 ;;
+i[3456]86-*-mach*)	gdb_host=i386mach ;;
+i[3456]86-*-gnu*)	gdb_host=i386gnu ;;
+i[3456]86-*-osf1mk*)	gdb_host=i386mk ;;
+i[3456]86-*-sco3.2v5*)	gdb_host=i386sco5 ;;
+i[3456]86-*-sco3.2v4*)	gdb_host=i386sco4 ;;
+i[3456]86-*-sco*)	gdb_host=i386sco ;;
+i[3456]86-*-solaris*)	gdb_host=i386sol2 ;;
+i[3456]86-*-sunos*)	gdb_host=sun386 ;;
+i[3456]86-*-sysv3.2*)	gdb_host=i386v32 ;;
+i[3456]86-*-sysv32*)	gdb_host=i386v32 ;;
+i[3456]86-*-sysv4.2*)	gdb_host=i386v42mp ;;
+i[3456]86-*-sysv4*)	gdb_host=i386v4 ;;
+i[3456]86-*-sysv5*)	gdb_host=i386v42mp ;;
+i[3456]86-*-unixware2*)	gdb_host=i386v42mp ;;
+i[3456]86-*-unixware*)	gdb_host=i386v4 ;;
+i[3456]86-*-sysv*)	gdb_host=i386v ;;
+i[3456]86-*-isc*)	gdb_host=i386v32 ;;
+i[3456]86-*-cygwin*)	gdb_host=cygwin ;;
+m680[01]0-sun-sunos3*)	gdb_host=sun2os3 ;;
+m680[01]0-sun-sunos4*)	gdb_host=sun2os4 ;;
+m68030-sony-*)		gdb_host=news1000 ;;
+
+m68*-altos-*)		gdb_host=altos ;;
+m68*-apollo*-sysv*)	gdb_host=apollo68v ;;
+m68*-apollo*-bsd*)	gdb_host=apollo68b ;;
+m68*-att-*)		gdb_host=3b1 ;;
+m68*-bull*-sysv*)	gdb_host=dpx2 ;;
+m68*-hp-bsd*)		gdb_host=hp300bsd ;;
+m68*-hp-hpux*)		gdb_host=hp300hpux ;;
+m68*-isi-*)		gdb_host=isi ;;
+m68*-*-linux*)		gdb_host=linux ;;
+m68*-*-lynxos*)		gdb_host=m68klynx ;;
+m68*-*-netbsd*)		gdb_host=nbsd ;;
+m68*-*-sysv4*)		gdb_host=m68kv4 ;;
+m68*-motorola-*)	gdb_host=delta68 ;;
+m68*-sony-*)		gdb_host=news ;;
+m68*-sun-sunos3*)	gdb_host=sun3os3 ;;
+m68*-sun-sunos4*)	gdb_host=sun3os4 ;;
+m68*-sun-*)		gdb_host=sun3os4 ;;
+
+m88*-harris-cxux*)	gdb_host=cxux ;;
+m88*-motorola-sysv4*)	gdb_host=delta88v4 ;;
+m88*-motorola-sysv*)	gdb_host=delta88 ;;
+m88*-*-*)		gdb_host=m88k ;;
+
+mips-dec-mach3*)	gdb_host=mach3 ;;
+mips-dec-*)		gdb_host=decstation ;;
+mips-little-*)		gdb_host=littlemips ;;
+mips-sgi-irix3*)	gdb_host=irix3 ;;
+mips-sgi-irix4*)	gdb_host=irix4 ;;
+mips-sgi-irix5*)	gdb_host=irix5 ;;
+# Close enough for now.
+mips-sgi-irix6*)	gdb_host=irix5 ;;
+mips-sony-*)		gdb_host=news-mips ;;
+mips-*-mach3*)		gdb_host=mipsm3 ;;
+mips-*-sysv4*)		gdb_host=mipsv4 ;;
+mips-*-sysv*)		gdb_host=riscos ;;
+mips-*-riscos*)		gdb_host=riscos ;;
+
+none-*-*)		gdb_host=none ;;
+
+# OBSOLETE np1-*-*)		gdb_host=np1 ;;
+
+ns32k-*-mach3*)		gdb_host=ns32km3 ;;
+ns32k-*-netbsd*)	gdb_host=nbsd ;;
+ns32k-umax-*)		gdb_host=umax ;;
+ns32k-utek-sysv*)	gdb_host=merlin ;;
+
+powerpc-*-aix*)		gdb_host=aix ;;
+powerpcle-*-cygwin*)	gdb_host=cygwin ;;
+powerpcle-*-solaris*)	gdb_host=solaris ;;
+powerpc-*-linux*)	gdb_host=linux ;;
+
+# OBSOLETE pn-*-*)			gdb_host=pn ;;
+
+pyramid-*-*)		gdb_host=pyramid ;;
+
+romp-*-*)		gdb_host=rtbsd ;;
+
+rs6000-*-lynxos*)	gdb_host=rs6000lynx ;;
+rs6000-*-aix4*)		gdb_host=aix4 ;;
+rs6000-*-*)		gdb_host=rs6000 ;;
+
+sparc-*-linux*)		gdb_host=linux ;;
+sparc-*-lynxos*)	gdb_host=sparclynx ;;
+sparc-*-netbsd*)	gdb_host=nbsd ;;
+sparc-*-solaris2*)	gdb_host=sun4sol2 ;;
+sparc-*-sunos4*)	gdb_host=sun4os4 ;;
+sparc-*-sunos5*)	gdb_host=sun4sol2 ;;
+sparc-*-*)		gdb_host=sun4os4 ;;
+sparc64-*-*)		gdb_host=sun4sol2 ;;
+
+strongarm-*-*)		gdb_host=arm ;;
+
+tahoe-*-*)		gdb_host=tahoe ;;
+
+vax-*-bsd*)		gdb_host=vaxbsd ;;
+vax-*-ultrix2*)		gdb_host=vaxult2 ;;
+vax-*-ultrix*)		gdb_host=vaxult ;;
+
+esac

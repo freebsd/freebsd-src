@@ -1,0 +1,9 @@
+[1mps[m	List running processes
+
+	This is a small 'ps' replacement, which uses information
+	available via sysctl(3) interface. It's primitive, but
+	gives you the most important informations, i.e. how many
+	processes are running and on which vty, and the pid number
+	to kill some of them. :-)
+
+	Currently, no options are implemented yet.

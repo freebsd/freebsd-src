@@ -1,0 +1,166 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1996 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 24, 1996
+.Os
+.Dt VOP_READDIR 9
+.Sh NAME
+.Nm VOP_READDIR
+.Nd read contents of a directory
+.Sh SYNOPSIS
+.Fd #include <sys/param.h>
+.Fd #include <sys/dirent.h>
+.Fd #include <sys/vnode.h>
+.Ft int
+.Fn VOP_READDIR "struct vnode *vp" "struct uio *uio" "struct ucred *cred" "int *eofflag" "int *ncookies" "u_long **cookies"
+.Sh DESCRIPTION
+Read directory entries.
+.Bl -tag -width ncookies
+.It Ar vp
+the vnode of the directory
+.It Ar uio
+where to read the directory contents
+.It Ar cred
+the caller's credentials
+.It Ar eofflag
+return end of file status (NULL if not wanted)
+.It Ar ncookies
+number of directory cookies generated for NFS (NULL if not wanted)
+.It Ar cookies
+directory seek cookies generated for NFS (NULL if not wanted)
+.El
+The directory contents are read into
+.Dv struct dirent
+structures.  If the on-disc data structures differ from this then they
+should be translated.
+.Sh LOCKS
+The directory should be locked on entry and will still be locked on exit.
+.Sh RETURN VALUES
+Zero is returned on success, otherwise an error code is returned.
+.Pp
+If this is called from the NFS server, the extra arguments
+.Fa eofflag ,
+.Fa ncookies
+and
+.Fa cookies
+are given.
+The value of
+.Fa *eofflag
+should be set to TRUE if the end of the directory is reached while
+reading.
+The directory seek cookies are returned to the NFS client and may be used
+later to restart a directory read part way through the directory.
+There should be one cookie returned per directory entry.  The value of
+the cookie should be the offset within the directory where the on-disc
+version of the appropriate directory entry starts.
+Memory for the cookies should be allocated using:
+.Pp
+.Bd -literal
+	...;
+	*ncookies = number of entries read;
+	*cookies = (u_int*)#
+		malloc(*ncookies * sizeof(u_int), M_TEMP, M_WAITOK);
+.Ed
+.Sh PSEUDOCODE
+.Bd -literal
+int
+vop_readdir(struct vnode *vp, struct uio *uio, struct ucred *cred,
+	    int *eofflag, int *ncookies, u_int **cookies)
+{
+    off_t off;
+    int error = 0;
+
+    /*
+     * Remember the original offset to use later in generating cookies.
+     */
+    off = uio->uio_offset;
+
+    /*
+     * Read directory contents starting at uio->uio_offset into buffer
+     * pointed to by uio.
+     */
+    ...;
+
+    if (!error && ncookies != NULL) {
+	struct dirent *dpStart;
+	struct dirent *dpEnd;
+	struct dirent *dp;
+	int count;
+	u_int *cookiebuf;
+	u_int *cookiep;
+
+	if (uio->uio_segflg != UIO_SYSSPACE || uio->uio_iovcnt != 1)
+	    panic("vop_readdir: unexpected uio from NFS server");
+
+	/*
+	 * Parse the stuff just read into the uio.
+	 */
+	dpStart = (struct dirent *)
+	    (uio->uio_iov->iov_base - (uio->uio_offset - off));
+	dpEnd = (struct dirent *) uio->uio_iov->iov_base;
+
+	/*
+	 * Count number of entries.
+	 */
+	for (dp = dpStart, count = 0;
+	     dp < dpEnd;
+	     dp = (struct dirent *)((caddr_t) dp + dp->d_reclen))
+	    count++;
+
+	cookiebuf = (u_int *) malloc(count * sizeof(u_int), M_TEMP, M_WAITOK);
+	for (dp = dpStart; cookiep = cookiebuf;
+	     dp < dpEnd;
+	     dp = (struct dirent *)((caddr_t) dp + dp->d_reclen)) {
+	    off += dp->d_reclen;
+	    *cookiep++ = (u_int) off;
+	}
+	*ncookies = count;
+	*cookies = cookiebuf;
+    }
+
+    if (eofflag && uio->uio_offset is past the end of the directory) {
+	*eofflag = TRUE;
+    }
+
+    return error;
+}
+.Ed
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EINVAL
+attempt to read from an illegal offset in the directory
+.It Bq Er EIO
+a read error occurred while reading the directory
+.El
+.Sh SEE ALSO
+.Xr vnode 9
+.Sh AUTHORS
+This man page was written by
+.An Doug Rabson .

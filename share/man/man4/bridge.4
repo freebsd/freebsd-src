@@ -1,0 +1,114 @@
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 28, 1998
+.Dt BRIDGE 4
+.Os
+.Sh NAME
+.Nm bridge
+.Nd bridging support
+.Sh SYNOPSIS
+.Cd "options BRIDGE"
+.Sh DESCRIPTION
+.Fx
+supports bridging on Ethernet-type interfaces.
+.Pp
+Runtime operation of the
+.Nm
+is controlled by several
+.Xr sysctl 8
+variables.
+The
+.Va net.link.ether.bridge
+variable can be set to
+.Li 1
+to enable bridging, or set to
+.Li 0
+to disable it.
+.Pp
+The
+.Va net.link.ether.bridge_ipfw
+variable can be set to
+.Li 1
+to enable
+.Xr ipfw 8
+filtering on bridged packets.
+Note that
+.Xr ipfw 8
+rules only apply
+to IP packets.
+Non-IP packets are subject to the default
+.Xr ipfw 8
+rule
+(number 65535)
+which must be an
+.Cm allow
+rule if ARP and other non-IP packets need to flow through the
+.Nm .
+.Pp
+The
+.Nm
+configuration is controlled by the
+.Va net.link.ether.bridge_cfg
+variable.
+It consists of a comma-separated list of
+.Ar interface : Ns Ar cluster
+pairs, where all interfaces with the same
+.Ar cluster
+number will
+be bridged together.
+.Pp
+Another
+variable reinitializes the
+.Nm ;
+this is required if bridged
+configurations include loadable interfaces.
+After loading new interface drivers, setting the
+.Va net.link.ether.bridge_refresh
+variable to
+.Li 1
+will cause the
+.Nm
+to reinitialize itself.
+.Sh EXAMPLES
+The following command will cause the
+.Li ep0
+and
+.Li fxp0
+interfaces to be bridged together, and the
+.Li fxp1
+and
+.Li de0
+interfaces to be bridged together:
+.Pp
+.Dl "sysctl -w net.link.ether.bridge_cfg ep0:0,fxp0:0,fxp1:1,de0:1"
+.Sh BUGS
+Care must be taken not to construct loops in the
+.Nm
+topology.
+The kernel supports only a primitive form of loop detection, by disabling
+some interfaces when a loop is detected.
+No support for a daemon running the
+spanning tree algorithm is currently provided.
+.Pp
+With bridging active, interfaces are in promiscuous mode,
+thus causing some load on the system to receive and filter
+out undesired traffic.
+.Pp
+Extended functionality to enable bridging selectively on clusters
+of interfaces is still in the works.
+.Pp
+Interfaces that cannot be put into promiscuous mode or that don't
+support sending packets with arbitrary Ethernet source addresses
+are not compatible with bridging.
+.Sh SEE ALSO
+.Xr ip 4 ,
+.Xr ng_bridge 4 ,
+.Xr ipfw 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+.Nm
+bridging was introduced in
+.Fx 2.2.8
+by
+.An Luigi Rizzo Aq luigi@iet.unipi.it .

@@ -1,0 +1,231 @@
+.\" $FreeBSD$
+.TH SORT 1 "GNU Text Utilities" "FSF" \" -*- nroff -*-
+.SH NAME
+sort \- sort lines of text files
+.SH SYNOPSIS
+.B sort
+[\-cmus] [\-t separator] [\-o output-file] [\-T tempdir] [\-bdfiMnr]
+[+POS1 [\-POS2]] [\-k POS1[,POS2]] [file...]
+.br
+.B sort
+{\-\-help,\-\-version}
+.SH DESCRIPTION
+This manual page
+documents the GNU version of
+.BR sort .
+.B sort
+sorts, merges, or compares all the lines from the given files, or the standard
+input if no files are given.  A file name of `-' means standard input.
+By default,
+.B sort
+writes the results to the standard output.
+.PP
+.B sort
+has three modes of operation: sort (the default), merge, and check for
+sortedness.  The following options change the operation mode:
+.TP
+.I \-c
+Check whether the given files are already sorted: if they are not all
+sorted, print an error message and exit with a status of 1.
+.TP
+.I \-m
+Merge the given files by sorting them as a group.  Each input file
+should already be individually sorted.  It always works to sort
+instead of merge; merging is provided because it is faster, in the
+case where it works.
+.PP
+A pair of lines is compared as follows: 
+if any key fields have been specified,
+.B sort
+compares each pair of fields, in the order specified on the command
+line, according to the associated ordering options, until a difference
+is found or no fields are left.
+.PP 
+If any of the global options
+.I Mbdfinr
+are given but no key fields are 
+specified,
+.B sort
+compares the entire lines according to the global options.
+.PP 
+Finally, as a last resort when all keys compare equal
+(or if no ordering options were specified at all),
+.B sort
+compares the lines byte by byte in machine collating sequence.
+The last resort comparison honors the
+.I -r
+global option.
+The
+.I \-s
+(stable) option disables this last-resort comparison so that
+lines in which all fields compare equal are left in their original
+relative order.  If no fields or global options are specified,
+.I \-s
+has no effect.
+.PP
+GNU
+.B sort
+has no limits on input line length or restrictions on bytes allowed
+within lines.  In addition, if the final byte of an input file is not
+a newline, GNU
+.B sort
+silently supplies one.
+.PP
+If the environment variable
+.B TMPDIR
+is set,
+.B sort
+uses it as the directory in which to put temporary files instead of
+the default, /tmp.  The
+.I "\-T tempdir"
+option is another way to select the directory for temporary files; it
+overrides the environment variable.
+.PP
+The following options affect the ordering of output lines.  They may
+be specified globally or as part of a specific key field.  If no key
+fields are specified, global options apply to comparison of entire
+lines; otherwise the global options are inherited by key fields that
+do not specify any special options of their own.
+.TP
+.I \-b
+Ignore leading blanks when finding sort keys in each line.
+.TP
+.I \-d
+Sort in `phone directory' order: ignore all characters except letters,
+digits and blanks when sorting.
+.TP
+.I \-f
+Fold lower case characters into the equivalent upper case characters
+when sorting so that, for example, `b' is sorted the same way `B' is.
+.TP
+.I \-i
+Ignore characters outside the ASCII range 040-0176 octal (inclusive)
+when sorting.
+.TP
+.I \-M
+An initial string, consisting of any amount of white space, followed 
+by three letters abbreviating a month name, is folded to UPPER case 
+and compared in the order `JAN' < `FEB' < ... < `DEC.'  Invalid names 
+compare low to valid names.
+.TP
+.I \-n
+Compare according to arithmetic value an initial numeric string
+consisting of optional white space, an optional \- sign, and zero or
+more digits, optionally followed by a decimal point and zero or more
+digits.
+.TP
+.I \-r
+Reverse the result of comparison, so that lines with greater key
+values appear earlier in the output instead of later.
+.PP
+Other options are:
+.TP
+.I "\-o output-file"
+Write output to
+.I output-file
+instead of to the standard output.  If
+.I output-file
+is one of the input files,
+.B sort
+copies it to a temporary file before sorting and writing the output to
+.IR output-file .
+.TP
+.I "\-t separator"
+Use character
+.I separator
+as the field separator when finding the sort keys in each line.  By
+default, fields are separated by the empty string between a
+non-whitespace character and a whitespace character.  That is to say,
+given the input line ` foo bar',
+.B sort
+breaks it into fields ` foo' and ` bar'.  The field separator is not
+considered to be part of either the field preceding or the field
+following it.
+.TP
+.I \-u
+For the default case or the
+.I \-m
+option, only output the first of a sequence of lines that compare
+equal.  For the
+.I \-c
+option, check that no pair of consecutive lines compares equal.
+.TP
+.I "+POS1 [\-POS2]"
+Specify a field within each line to use as a sorting key.  The field
+consists of the portion of the line starting at POS1 and up to (but
+not including) POS2 (or to the end of the line if POS2 is not given).
+The fields and character positions are numbered starting with 0.
+.TP
+.I "\-k POS1[,POS2]"
+An alternate syntax for specifying sorting keys.
+The fields and character positions are numbered starting with 1.
+.PP
+A position has the form \fIf\fP.\fIc\fP, where \fIf\fP is the number
+of the field to use and \fIc\fP is the number of the first character
+from the beginning of the field (for \fI+pos\fP) or from the end of
+the previous field (for \fI\-pos\fP).  The .\fIc\fP part of a position
+may be omitted in which case it is taken to be the first character in
+the field.  If the
+.I \-b
+option has been given, the .\fIc\fP part of a field specification is
+counted from the first nonblank character of the field (for
+\fI+pos\fP) or from the first nonblank character following the
+previous field (for \fI\-pos\fP).
+.PP
+A \fI+pos\fP or \fI-pos\fP argument may also have any of the option
+letters
+.I Mbdfinr
+appended to it, in which case the global ordering options are not used
+for that particular field.  The
+.I \-b
+option may be independently attached to either or both of the
+\fI+pos\fP and \fI\-pos\fP parts of a field specification, and if it
+is inherited from the global options it will be attached to both.
+If a
+.I \-n
+or
+.I \-M
+option is used, thus implying a
+.I \-b
+option, the
+.I \-b
+option is taken to apply to both the \fI+pos\fP and the \fI\-pos\fP
+parts of a key specification.  Keys may span multiple fields.
+.PP
+In addition, when GNU
+.B sort
+is invoked with exactly one argument, the following options are recognized:
+.TP
+.I "\-\-help"
+Print a usage message on standard output and exit successfully.
+.TP
+.I "\-\-version"
+Print version information on standard output then exit successfully.
+.SH COMPATIBILITY
+Historical (BSD and System V) implementations of
+.B sort
+have differed in their interpretation of some options,
+particularly
+.IR \-b ,
+.IR \-f ,
+and
+.IR \-n .
+GNU sort follows the POSIX behavior, which is
+usually (but not always!) like the System V behavior.
+According to POSIX
+.I \-n
+no longer implies
+.IR \-b .
+For consistency,
+.I \-M
+has been changed in the same way.
+This may affect the meaning of character positions in field
+specifications in obscure cases.
+If this bites you the fix is to add an explicit
+.IR \-b .
+.SH BUGS
+The different meaning of field numbers depending
+on whether
+.I -k
+is used is confusing.
+It's all POSIX's fault!

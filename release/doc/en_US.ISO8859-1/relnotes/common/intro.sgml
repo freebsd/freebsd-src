@@ -1,0 +1,37 @@
+<!--
+	$FreeBSD$
+
+	Introduction to the release notes, adapted from the
+	introduction to the old RELNOTES.TXT.
+-->
+
+<sect1>
+  <title>Introduction</title>
+
+  <para>This document contains the release notes for &os; &release.current; on
+  the &arch; hardware platform.  It describes new features of &os;
+  that have been added (or changed) since &release.prev;.</para>
+
+<![ %release.type.snapshot [
+
+  <para>The &release.type; distribution to which these release notes
+  apply represents a point along the &release.branch; development
+  branch between &release.prev; and &release.next;.  Some pre-built,
+  binary &release.type; distributions along this branch can be found
+  at <ulink url="&release.url;"></ulink>.</para>
+
+]]>
+
+<![ %release.type.release [
+
+  <para>This distribution of &os; &release.current; is a &release.type;
+  distribution.  It can be found at <ulink
+  url="&release.url;"></ulink> or any of its mirrors.  More
+  information on obtaining this (or other) &release.type; distributions of
+  &os; can be found in the <ulink
+  url="http://www.FreeBSD.org/handbook/mirrors.html"><quote>Obtaining
+  FreeBSD</quote> appendix</ulink> to the <ulink
+  url="http://www.FreeBSD.org/handbook/">FreeBSD Handbook</ulink>.</para>
+
+]]>
+</sect1>

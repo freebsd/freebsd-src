@@ -1,0 +1,33 @@
+# This is ssh client systemwide configuration file.  This file provides 
+# defaults for users, and the values can be changed in per-user configuration
+# files or on the command line.
+#
+# $FreeBSD$
+
+# Configuration data is parsed as follows:
+#  1. command line options
+#  2. user-specific file
+#  3. system-wide file
+# Any configuration value is only changed the first time it is set.
+# Thus, host-specific definitions should be at the beginning of the
+# configuration file, and defaults at the end.
+
+# Site-wide defaults for various options
+
+# Host *
+#   ForwardAgent yes
+#   ForwardX11 yes
+#   RhostsAuthentication yes
+#   RhostsRSAAuthentication yes
+#   RSAAuthentication yes
+#   PasswordAuthentication yes
+#   FallBackToRsh no
+#   UseRsh no
+#   BatchMode no
+#   CheckHostIP yes
+#   StrictHostKeyChecking no
+#   IdentityFile ~/.ssh/identity
+#   Port 22
+#   Protocol 2,1
+#   Cipher blowfish
+#   EscapeChar ~

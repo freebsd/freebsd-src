@@ -1,0 +1,1020 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by the University of
+.\"      California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)doc-common	8.1 (Berkeley) 06/08/93
+.\"	$FreeBSD$
+.\"
+.\"     %beginstrip%
+.
+.
+.\" Macro Identifiers.  For each user macro a corresponding register with
+.\" the same name must exist.  Its value must not be zero.
+.
+.nr %A 1
+.nr %B 1
+.nr %D 1
+.nr %J 1
+.nr %N 1
+.nr %O 1
+.nr %P 1
+.nr %Q 1
+.nr %R 1
+.nr %T 1
+.nr %V 1
+.nr Ac 3
+.nr Ad 12n
+.nr An 12n
+.nr Ao 12n
+.nr Ap 2
+.nr Aq 12n
+.nr Ar 12n
+.nr At 1
+.nr Bc 3
+.nr Bf 8n\" ?
+.nr Bk 8n\" ?
+.nr Bl 1
+.nr Bo 12n
+.nr Bq 12n
+.nr Brc 3
+.nr Bro 12n
+.nr Brq 12n
+.nr Bsx 1
+.nr Bt 8n\" ?
+.nr Bx 1
+.nr Cd 12n
+.nr Cm 10n
+.nr D1 8n\" ?
+.nr Dc 3
+.nr Dl 8n\" ?
+.nr Dt 8n\" ?
+.nr Do 12n
+.nr Dq 12n
+.nr Ds 6n\" many manpages still use this as a -width value
+.nr Dv 12n
+.nr Ec 3
+.nr Ef 8n\" ?
+.nr Ek 8n\" ?
+.nr El 1
+.nr Em 10n
+.nr En 12n
+.nr Eo 12n
+.nr Eq 12n
+.nr Er 17n
+.nr Es 12n
+.nr Ev 15n
+.nr Ex 1
+.nr Fa 12n
+.nr Fc 3
+.nr Fd 12n\" ?
+.nr Fl 10n
+.nr Fn 16n
+.nr Fo 16n
+.nr Fr 12n\" ?
+.nr Ft 8n\" ?
+.nr Fx 1
+.nr Ic 10n
+.nr In 12n\" ?
+.nr It 8n\" ?
+.nr Lb 11n
+.nr Li 16n
+.nr Lk 6n\" ?
+.nr Lp 8n\" ?
+.nr Me 6n
+.nr Ms 6n
+.nr Mt 6n\" ?
+.nr Nd 8n\" ?
+.nr Nm 10n
+.nr No 12n
+.nr Ns 2
+.nr Nx 1
+.nr Oc 3
+.nr Oo 10n
+.nr Op 14n
+.nr Os 6n\" ?
+.nr Ox 1
+.nr Pa 32n
+.nr Pc 3
+.nr Pf 12n
+.nr Po 12n
+.nr Pp 8n\" ?
+.nr Pq 12n
+.nr Qc 3
+.nr Ql 16n
+.nr Qo 12n
+.nr Qq 12n
+.nr Rv 1
+.nr Sc 3
+.nr Sh 8n
+.nr Sm 8n\" ?
+.nr So 12n
+.nr Sq 12n
+.nr Ss 8n
+.nr St 8n\" ?
+.nr Sx 16n
+.nr Sy 6n
+.nr Ta 2
+.nr Tn 10n
+.nr Ud 8n\" ?
+.nr Ux 1
+.nr Va 12n
+.nr Vt 8n\" ?
+.nr Xc 3
+.nr Xo 1
+.nr Xr 10n
+.
+.
+.\" requests which must be processed after the closing delimiter of `Op'
+.\" and friends
+.ds doc-after-Ao
+.ds doc-after-Bo
+.ds doc-after-Bro
+.ds doc-after-Do
+.ds doc-after-Eo
+.ds doc-after-Fo
+.ds doc-after-Ns
+.ds doc-after-Oo
+.ds doc-after-Po
+.ds doc-after-Qo
+.ds doc-after-So
+.ds doc-after-Xo
+.
+.
+.nr doc-display-indent 6n
+.
+.
+.\" space strings
+.
+.ds doc-soft-space " \"
+.ds doc-hard-space \~
+.ds doc-tab \t
+.
+.
+.eo
+.
+.
+.\" punctuation values (suffix=3, prefix = 4)
+.
+.nr doc-punct. 3
+.nr doc-punct, 3
+.nr doc-punct: 3
+.nr doc-punct; 3
+.nr doc-punct( 4
+.nr doc-punct) 3
+.nr doc-punct[ 4
+.nr doc-punct] 3
+.nr doc-punct? 3
+.nr doc-punct! 3
+.
+.
+.\" header assembly macros
+.
+.\" NS doc-document-title global string
+.\" NS   the title of the manual page
+.
+.ds doc-document-title UNTITLED
+.
+.
+.\" NS doc-volume global string
+.\" NS   the volume where the manual page belongs to
+.
+.ds doc-volume LOCAL
+.
+.
+.\" NS doc-section global string
+.\" NS   the manual section
+.
+.ds doc-section Null
+.
+.
+.\" NS Dt user macro (not parsed, not callable)
+.\" NS   document title
+.\" NS
+.\" NS modifies:
+.\" NS   doc-document-title
+.\" NS   doc-section
+.\" NS   doc-volume
+.\" NS
+.\" NS local variables:
+.\" NS   doc-volume-as-XXX
+.\" NS   doc-volume-ds-XXX
+.\" NS
+.\" NS width register `Dt' set above
+.
+.\" an alternative, more detailed scheme for naming the manual sections
+.\"
+.ds doc-volume-ds-1 System General Commands Manual
+.ds doc-volume-ds-2 System Calls Manual
+.ds doc-volume-ds-3 System Library Functions Manual
+.ds doc-volume-ds-4 System Kernel Interfaces Manual
+.ds doc-volume-ds-5 System File Formats Manual
+.ds doc-volume-ds-6 System Games Manual
+.ds doc-volume-ds-7 System Miscellaneous Information Manual
+.ds doc-volume-ds-8 System Manager's Manual
+.ds doc-volume-ds-9 System Kernel Developer's Manual
+.
+.ds doc-volume-ds-USD   System User's Supplementary Documents
+.ds doc-volume-ds-PS1   System Programmer's Supplementary Documents
+.ds doc-volume-ds-AMD   System Ancestral Manual Documents
+.ds doc-volume-ds-SMM   System Manager's Manual
+.ds doc-volume-ds-URM   System Reference Manual
+.ds doc-volume-ds-PRM   System Programmer's Manual
+.ds doc-volume-ds-KM    System Kernel Manual
+.ds doc-volume-ds-IND   System Manual Master Index
+.ds doc-volume-ds-LOCAL System Local Manual
+.ds doc-volume-ds-CON   System Contributed Software Manual
+.
+.als doc-volume-ds-MMI doc-volume-ds-IND
+.als doc-volume-ds-LOC doc-volume-ds-LOCAL
+.
+.ds doc-volume-as-alpha    (Alpha Architecture)
+.als doc-volume-as-Alpha doc-volume-as-alpha
+.ds doc-volume-as-amiga    (Amiga Architecture)
+.ds doc-volume-as-arc      (Arc Architecture)
+.ds doc-volume-as-arm26    (ARM26 Architecture)
+.ds doc-volume-as-arm32    (ARM32 Architecture)
+.ds doc-volume-as-atari    (Atari Architecture)
+.ds doc-volume-as-bebox    (BEbox Architecture)
+.ds doc-volume-as-cobalt   (Cobalt Architecture)
+.ds doc-volume-as-evbsh3   (Evbsh3 Architecture)
+.ds doc-volume-as-hp300    (HP300 Architecture)
+.ds doc-volume-as-hpcmips  (HPcmips Architecture)
+.ds doc-volume-as-i386     (i386 Architecture)
+.ds doc-volume-as-luna68k  (luna68k Architecture)
+.ds doc-volume-as-m68k     (m68k Architecture)
+.ds doc-volume-as-mac68k   (mac68k Architecture)
+.ds doc-volume-as-macppc   (macppc Architecture)
+.ds doc-volume-as-mips     (MIPS Architecture)
+.ds doc-volume-as-mmeye    (mmeye Architecture)
+.ds doc-volume-as-mvme68k  (mvme68k Architecture)
+.ds doc-volume-as-news68k  (news68k Architecture)
+.ds doc-volume-as-newsmips (newsmips Architecture)
+.ds doc-volume-as-next68k  (next68k Architecture)
+.ds doc-volume-as-ofppc    (ofppc Architecture)
+.ds doc-volume-as-pc532    (pc532 Architecture)
+.ds doc-volume-as-pmax     (pmax Architecture)
+.ds doc-volume-as-powerpc  (powerpc Architecture)
+.ds doc-volume-as-prep     (prep Architecture)
+.ds doc-volume-as-sgimips  (sgimips Architecture)
+.ds doc-volume-as-sh3      (sh3 Architecture)
+.ds doc-volume-as-sparc    (SPARC Architecture)
+.ds doc-volume-as-sparc64  (sparc64 Architecture)
+.ds doc-volume-as-sun3     (sun3 Architecture)
+.ds doc-volume-as-tahoe    (Tahoe Architecture)
+.ds doc-volume-as-vax      (VAX Architecture)
+.ds doc-volume-as-x68k     (x68k Architecture)
+.
+.de Dt
+.  \" reset default arguments
+.  ds doc-document-title UNTITLED
+.  ds doc-volume LOCAL
+.  ds doc-section Null
+.
+.  if !"\$1"" \
+.    ds doc-document-title "\$1
+.
+.  if !"\$2"" \{\
+.    ds doc-section \$2
+.    ie \B\$2 \{\
+.      if ((\$2 >= 1) & (\$2 <= 9)) \{\
+.        ds doc-volume "\*[doc-volume-ds-URM]
+.        ie d doc-volume-ds-\$2 \
+.          ds doc-volume "\*[doc-volume-ds-\$2]
+.        el \{ .ie ((\$2 > 1) & (\$2 < 6)) \
+.          ds doc-volume "\*[doc-volume-ds-PRM]
+.        el \{ .ie (\$2 == 8) \
+.          ds doc-volume "\*[doc-volume-ds-SMM]
+.        el \{ .if (\$2 == 9) \
+.          ds doc-volume "\*[doc-volume-ds-KM]
+.    \}\}\}\}\}
+.    el \{ .ie "\$2"unass" .ds doc-volume DRAFT
+.    el \{ .ie "\$2"draft" .ds doc-volume DRAFT
+.    el \{ .ie "\$2"paper" .ds doc-volume UNTITLED
+.    el \
+.      tm mdoc warning: .Dt: unknown section `\$2' (#\n[.c])
+.  \}\}\}\}
+.
+.  if \A\$3 \{\
+.    if d doc-volume-ds-\$3 \
+.      ds doc-volume "\*[doc-volume-ds-\$3]
+.
+.    if d doc-volume-as-\$3 \
+.      as doc-volume " \*[doc-volume-as-\$3]
+.  \}
+.
+.  if !"\$3"" \
+.    if "\*[doc-volume]"LOCAL" \
+.      ds doc-volume \$3
+..
+.
+.
+.\" NS doc-operating-system global string
+.\" NS   the exact version of the operating system
+.\" NS
+.\" NS override this in `mdoc.local', if necessary
+.
+.ds doc-operating-system BSD
+.
+.
+.\" NS Os user macro (not parsed, not callable)
+.\" NS   operating system
+.\" NS
+.\" NS modifies:
+.\" NS   doc-operating-system
+.\" NS
+.\" NS local variables:
+.\" NS   doc-operating-system-XXX-XXX
+.\" NS
+.\" NS width register `Os' set above
+.
+.ds doc-operating-system-ATT-7   7th\~Edition
+.als doc-operating-system-ATT-7th doc-operating-system-ATT-7
+.ds doc-operating-system-ATT-3   System\~III
+.als doc-operating-system-ATT-III doc-operating-system-ATT-3
+.ds doc-operating-system-ATT-V   System\~V
+.ds doc-operating-system-ATT-V.2 System\~V Release\~2
+.ds doc-operating-system-ATT-V.3 System\~V Release\~3
+.ds doc-operating-system-ATT-V.4 System\~V Release\~4
+.
+.ds doc-operating-system-BSD-3    3rd\~Berkeley Distribution
+.ds doc-operating-system-BSD-4    4th\~Berkeley Distribution
+.ds doc-operating-system-BSD-4.1  4.1\~Berkeley Distribution
+.ds doc-operating-system-BSD-4.2  4.2\~Berkeley Distribution
+.ds doc-operating-system-BSD-4.3  4.3\~Berkeley Distribution
+.ds doc-operating-system-BSD-4.3T 4.3-Tahoe Berkeley Distribution
+.ds doc-operating-system-BSD-4.3R 4.3-Reno Berkeley Distribution
+.als doc-operating-system-BSD-4.3t doc-operating-system-BSD-4.3T
+.als doc-operating-system-BSD-4.3r doc-operating-system-BSD-4.3R
+.ds doc-operating-system-BSD-4.4  4.4BSD
+.
+.ds doc-operating-system-NetBSD-0.8  0.8
+.ds doc-operating-system-NetBSD-0.8a 0.8A
+.ds doc-operating-system-NetBSD-0.9  0.9
+.ds doc-operating-system-NetBSD-0.9a 0.9A
+.ds doc-operating-system-NetBSD-1.0  1.0
+.ds doc-operating-system-NetBSD-1.0a 1.0A
+.ds doc-operating-system-NetBSD-1.1  1.1
+.ds doc-operating-system-NetBSD-1.2  1.2
+.ds doc-operating-system-NetBSD-1.2a 1.2A
+.ds doc-operating-system-NetBSD-1.2b 1.2B
+.ds doc-operating-system-NetBSD-1.2c 1.2C
+.ds doc-operating-system-NetBSD-1.2d 1.2D
+.ds doc-operating-system-NetBSD-1.2e 1.2E
+.ds doc-operating-system-NetBSD-1.3  1.3
+.ds doc-operating-system-NetBSD-1.3a 1.3A
+.ds doc-operating-system-NetBSD-1.4  1.4
+.ds doc-operating-system-NetBSD-1.5  1.5
+.
+.ds doc-operating-system-FreeBSD-1.0     1.0
+.ds doc-operating-system-FreeBSD-1.1     1.1
+.ds doc-operating-system-FreeBSD-1.1.5   1.1.5
+.ds doc-operating-system-FreeBSD-1.1.5.1 1.1.5.1
+.ds doc-operating-system-FreeBSD-2.0     2.0
+.ds doc-operating-system-FreeBSD-2.0.5   2.0.5
+.ds doc-operating-system-FreeBSD-2.1     2.1
+.ds doc-operating-system-FreeBSD-2.1.5   2.1.5
+.ds doc-operating-system-FreeBSD-2.1.6   2.1.6
+.ds doc-operating-system-FreeBSD-2.1.7   2.1.7
+.ds doc-operating-system-FreeBSD-2.2     2.2
+.ds doc-operating-system-FreeBSD-2.2.1   2.2.1
+.ds doc-operating-system-FreeBSD-2.2.2   2.2.2
+.ds doc-operating-system-FreeBSD-2.2.5   2.2.5
+.ds doc-operating-system-FreeBSD-2.2.6   2.2.6
+.ds doc-operating-system-FreeBSD-2.2.7   2.2.7
+.ds doc-operating-system-FreeBSD-2.2.8   2.2.8
+.ds doc-operating-system-FreeBSD-3.0     3.0
+.ds doc-operating-system-FreeBSD-3.1     3.1
+.ds doc-operating-system-FreeBSD-3.2     3.2
+.ds doc-operating-system-FreeBSD-3.3     3.3
+.ds doc-operating-system-FreeBSD-3.4     3.4
+.ds doc-operating-system-FreeBSD-3.5     3.5
+.ds doc-operating-system-FreeBSD-4.0     4.0
+.ds doc-operating-system-FreeBSD-4.1     4.1
+.ds doc-operating-system-FreeBSD-4.1.1   4.1.1
+.ds doc-operating-system-FreeBSD-4.2     4.2
+.ds doc-operating-system-FreeBSD-4.3     4.3
+.ds doc-operating-system-FreeBSD-5.0     5.0
+.
+.de Os
+.  if "\$1"" \
+.    return
+.
+.  ie        "\$1"ATT" \{\
+.    ds doc-operating-system AT&T
+.    if \A\$2 \{\
+.      ie d doc-operating-system-ATT-\$2 \
+.        as doc-operating-system " \*[doc-operating-system-ATT-\$2]
+.      el \
+.        as doc-operating-system " UNIX
+.  \}\}
+.  el \{ .ie "\$1"BSD" \{\
+.    if \A\$2 \{\
+.      ie d doc-operating-system-BSD-\$2 \
+.        ds doc-operating-system "\*[doc-operating-system-BSD-\$2]
+.      el \
+.        tm mdoc warning: .Os: Unknown BSD version `\$2' (#\n[.c])
+.  \}\}
+.  el \{ .ie "\$1"FreeBSD" \{\
+.    ds doc-operating-system FreeBSD
+.    if \A\$2 \{\
+.      ie d doc-operating-system-FreeBSD-\$2 \
+.        as doc-operating-system \~\*[doc-operating-system-FreeBSD-\$2]
+.      el \
+.        tm mdoc warning: .Os: Unknown FreeBSD version `\$2' (#\n[.c])
+.  \}\}
+.  el \{ .ie "\$1"NetBSD" \{\
+.    ds doc-operating-system NetBSD
+.    if \A\$2 \{\
+.      ie d doc-operating-system-NetBSD-\$2 \
+.        as doc-operating-system \~\*[doc-operating-system-NetBSD-\$2]
+.      el \
+.        tm mdoc warning: .Os: Unknown NetBSD version `\$2' (#\n[.c])
+.  \}\}
+.  el \{\
+.    ds doc-operating-system \$1
+.    if !"\$2"" \
+.      as doc-operating-system " \$2
+.  \}\}\}\}
+..
+.
+.
+.\" NS doc-date-string global string
+.\" NS   the manual page date as set by `Dd'
+.
+.ds doc-date-string
+.
+.
+.\" NS Dd user macro (not parsed, not callable)
+.\" NS   set document date
+.\" NS
+.\" NS modifies:
+.\" NS   doc-date-string
+.\" NS
+.\" NS local variables:
+.\" NS   doc-date-XXX
+.\" NS
+.\" NS width register `Dd' set above
+.
+.ds doc-date-1  January
+.ds doc-date-2  February
+.ds doc-date-3  March
+.ds doc-date-4  April
+.ds doc-date-5  May
+.ds doc-date-6  June
+.ds doc-date-7  July
+.ds doc-date-8  August
+.ds doc-date-9  September
+.ds doc-date-10 October
+.ds doc-date-11 November
+.ds doc-date-12 December
+.
+.de Dd
+.  \" XXX: why do we need gX?
+.  if "\*[doc-date-string]"" \
+.    nr gX 1
+.
+.  ie \n[.$] \{\
+.    ie (\n[.$] == 3) \
+.      ds doc-date-string \$1\~\$2 \$3
+.    el \{\
+.      ds doc-date-string "\*[doc-date-\n[mo]]
+.      as doc-date-string \~\n[dy], \n[year]
+.    \}
+.  \}
+.  el \
+.    ds doc-date-string Epoch
+..
+.
+.
+.\" NS doc-hyphen-flags global register
+.\" NS   the parameter for the `.hy' request
+.\" NS
+.\" NS override this in `mdoc.local', if necessary.
+.
+.nr doc-hyphen-flags 12
+.
+.
+.\" NS doc-header macro
+.\" NS   print page header
+.
+.de doc-header
+.  ev doc-env-dh
+.  doc-setup-page-layout
+.  if !\n[cR] \
+'    sp \n[doc-header-space]u
+.  tl \*[doc-caption-font]\*[doc-header-string]\f[P]\*[doc-caption-font2]\*[doc-volume]\f[P]\*[doc-caption-font]\*[doc-header-string]\f[P]
+'  sp \n[doc-header-space]u
+.  ev
+..
+.
+.
+.\" NS doc-footer macro
+.\" NS   print page footer
+.
+.de doc-footer
+.  ie \n[cR] \
+'    br
+.  el \{\
+.    ev doc-caption-enviroment
+.    doc-setup-page-layout
+'    sp \n[doc-footer-space]u
+.    ie \n[D] \{\
+.      ie o \
+.        tl %\*[doc-caption-font2]\*[doc-date-string]\f[P]\*[doc-caption-font]\*[doc-operating-system]\f[P]
+.      el \
+.        tl \*[doc-caption-font]\*[doc-operating-system]\f[P]\*[doc-caption-font2]\*[doc-date-string]\f[P]%
+.    \}
+.    el \
+.      tl \*[doc-caption-font]\*[doc-operating-system]\f[P]\*[doc-caption-font2]\*[doc-date-string]\f[P]%
+'    bp
+.    ev
+.  \}
+..
+.
+.
+.\" NS doc-end-macro macro
+.\" NS   finish output
+.
+.de doc-end-macro
+.  \" We may still have a partial line in the environment.  If this is the
+.  \" case, and we happen to be on the last line of the page, the `.fl'
+.  \" request will cause the page to be ejected and troff will immediately
+.  \" exit.  If we are in nroff mode, this would be unfortunate, since we
+.  \" would never get a chance to output the footer.  So we fudge the page
+.  \" length to make sure that the last page is never ejected until we want
+.  \" it to be.
+.
+.  if \n[cR] \
+.    pl +3v
+.  fl
+.
+.  if \n[doc-list-depth] \
+.    tm mdoc warning: list open at EOF!  A .Bl directive has no matching .El
+.
+.  if \n[cR] \{\
+'    sp
+.    tl \*[doc-caption-font]\*[doc-operating-system]\f[P]\*[doc-caption-font2]\*[doc-date-string]\f[P]\*[doc-caption-font]\*[doc-operating-system]\f[P]
+.    \" suppress empty lines after the footer
+.    pl \n[nl]u
+.  \}
+..
+.
+.
+.\" NS doc-paragraph macro
+.\" NS   insert a paragraph
+.
+.de doc-paragraph
+.  sp \n[doc-paragraph-space]u
+.  if !\n[cR] \
+.    ne 2
+.  ns
+..
+.
+.
+.\" NS Pp user macro (not parsed, not callable)
+.\" NS   new paragraph
+.\" NS
+.\" NS width register `Pp' set above
+.
+.als Pp doc-paragraph
+.
+.
+.\" NS Lp user macro (not parsed, not callable)
+.\" NS   same as .Pp
+.\" NS
+.\" NS width register `Lp' set above
+.
+.als Lp doc-paragraph
+.
+.
+.de LP
+.  tm Not a \-mdoc command: .LP (#\n[.c])
+..
+.
+.
+.de PP
+.  tm Not a \-mdoc command: .PP (#\n[.c])
+..
+.
+.
+.de pp
+.  tm Not a \-mdoc command: .pp (#\n[.c])
+..
+.
+.
+.de SH
+.  tm Not a \-mdoc command: .SH (#\n[.c])
+..
+.
+.
+.\" NS Nd user macro (not parsed, not callable)
+.\" NS   print name description
+.\" NS
+.\" NS width register `Nd' set above
+.
+.de Nd
+.  nop \- \$*
+..
+.
+.
+.\" NS doc-in-synopsis-section global register (bool)
+.\" NS   whether we are in the `synopsis' section
+.
+.nr doc-in-synopsis-section 0
+.
+.
+.\" NS doc-in-see-also-section global register (bool)
+.\" NS   whether we are in the `see also' section
+.
+.nr doc-in-see-also-section 0
+.
+.
+.\" NS doc-in-files-section global register (bool)
+.\" NS   whether we are in the `files' section
+.
+.nr doc-in-files-section 0
+.
+.
+.\" NS doc-in-authors-section global register (bool)
+.\" NS   whether we are in the `authors' section
+.
+.nr doc-in-authors-section 0
+.
+.
+.\" NS doc-first-parameter macro
+.\" NS   return first parameter
+.\" NS
+.\" NS local variables:
+.\" NS   doc-str-dfp
+.
+.de doc-first-parameter
+.  ds doc-str-dfp "\$1
+..
+.
+.
+.\" NS Sh user macro (not callable)
+.\" NS   section headers
+.\" NS
+.\" NS modifies:
+.\" NS   doc-func-args-processed
+.\" NS   doc-func-count
+.\" NS   doc-in-authors-section
+.\" NS   doc-in-files-section
+.\" NS   doc-in-see-also-section
+.\" NS   doc-in-synopsis-section
+.\" NS   doc-indent-synopsis
+.\" NS   doc-indent-synopsis-active
+.\" NS   doc-is-func
+.\" NS   doc-num-func-args
+.\" NS
+.\" NS local variables:
+.\" NS   doc-reg-Sh
+.\" NS   doc-reg-Sh1
+.\" NS   doc-section-XXX
+.\" NS
+.\" NS width register `Sh' set in doc-common
+.
+.ds doc-section-name        NAME
+.ds doc-section-synopsis    SYNOPSIS
+.ds doc-section-description DESCRIPTION
+.ds doc-section-see-also    SEE
+.ds doc-section-files       FILES
+.ds doc-section-authors     AUTHORS
+.
+.de Sh
+.  ie \n[doc-arg-limit] \{\
+.    \" we only allow `Sh' within `Sh'; it will change the font back to
+.    \" `doc-Sh-font'
+.    ie "\*[doc-macro-name]"Sh" \{\
+.      nr doc-arg-ptr +1
+.      ie (\n[doc-arg-limit] >= \n[doc-arg-ptr]) \{\
+.        nr doc-curr-font \n[.f]
+.        nr doc-curr-size \n[.ps]
+.        nop \*[doc-Sh-font]\c
+.        doc-print-recursive
+.      \}
+.      el \{\
+.        tm Usage: .Sh section_name ... (#\n[.c])
+.        doc-reset-args
+.    \}\}
+.    el \{\
+.      tm Usage: .Sh not callable by other macros (#\n[.c])
+.      doc-reset-args
+.  \}\}
+.  el \{\
+.    if !\n[.$] \{\
+.      tm Usage: .Sh section_name ... (#\n[.c])
+.      return
+.    \}
+.
+.    ds doc-macro-name Sh
+.    doc-parse-args \$@
+.
+.    if t \
+'      ad
+.
+.    \" this resolves e.g. `.Sh "SEE ALSO"'
+.    doc-first-parameter \$*
+.
+.    ie "\*[doc-str-dfp]"\*[doc-section-name]" \{\
+.      doc-setup-header
+'      in 0
+.    \}
+.    el \{\
+.      nr doc-in-synopsis-section 0
+.      nr doc-in-see-also-section 0
+.      nr doc-in-files-section 0
+.      nr doc-in-authors-section 0
+.
+.      ie        "\*[doc-str-dfp]"\*[doc-section-synopsis]" \{\
+.        if t \
+.          na
+.        nr doc-in-synopsis-section 1
+.        nr doc-indent-synopsis 0
+.        nr doc-indent-synopsis-active 0
+.      \}
+.      el \{ .ie "\*[doc-str-dfp]"\*[doc-section-description]" \{\
+.        nr doc-is-func 0
+.        nr doc-func-count 0
+.        nr doc-func-args-processed 0
+.        nr doc-num-func-args 0
+.      \}
+.      el \{ .ie "\*[doc-str-dfp]"\*[doc-section-see-also]" \{\
+.        if t \
+.          na
+.        nr doc-in-see-also-section 1
+.      \}
+.      el \{ .ie "\*[doc-str-dfp]"\*[doc-section-files]" \
+.        nr doc-in-files-section 1
+.      el .if    "\*[doc-str-dfp]"\*[doc-section-authors]" \
+.        nr doc-in-authors-section 1
+.      \}\}\}
+.
+.      in 0
+.      nr doc-have-author 0
+.    \}
+.
+.    doc-setup-page-layout
+'    sp
+.    ns
+.    ta T .5i
+.    if !\n[cR] \
+.      ne 3
+'    fi
+.
+.    if t \{\
+.      nr doc-reg-Sh \n[.ss]
+.      nr doc-reg-Sh1 \n[.sss]
+.      ss (\n[.ss] * 5 / 3) (\n[.sss] * 5 / 3)
+.    \}
+.
+.    nr doc-arg-ptr +1
+.    nr doc-curr-font \n[.f]
+.    nr doc-curr-size \n[.ps]
+.    nop \*[doc-Sh-font]\c
+.    doc-print-recursive
+.
+.    if t \
+.      ss \n[doc-reg-Sh] \n[doc-reg-Sh1]
+.
+.    in +\n[doc-subheader-indent]u
+.    ns
+.  \}
+..
+.
+.
+.\" NS Ss user macro (not callable)
+.\" NS   subsection
+.\" NS
+.\" NS local variable:
+.\" NS   doc-reg-Ss
+.\" NS   doc-reg-Ss1
+.\" NS
+.\" NS width register `Ss' set above
+.
+.de Ss
+.  ie \n[doc-arg-limit] \{\
+.    \" we only allow `Ss' within `Ss'; it will change the font back to
+.    \" `doc-Sh-font'
+.    ie "\*[doc-macro-name]"Ss" \{\
+.      nr doc-arg-ptr +1
+.      ie (\n[doc-arg-limit] >= \n[doc-arg-ptr]) \{\
+.        nr doc-curr-font \n[.f]
+.        nr doc-curr-size \n[.ps]
+.        nop \*[doc-Sh-font]\c
+.        doc-print-recursive
+.      \}
+.      el \{\
+.        tm Usage: .Ss subsection_name ... (#\n[.c])
+.        doc-reset-args
+.    \}\}
+.    el \{\
+.      tm Usage: .Ss not callable by other macros (#\n[.c])
+.      doc-reset-args
+.  \}\}
+.  el \{\
+.    if !\n[.$] \{\
+.      tm Usage: .Ss subsection_name ... (#\n[.c])
+.      return
+.    \}
+.
+.    ds doc-macro-name Ss
+.    doc-parse-args \$@
+.
+.    sp
+.    if !\n[cR] \
+.      ne 3
+.    ti -.25i
+.
+.    nr doc-reg-Ss \n[.ss]
+.    nr doc-reg-Ss1 \n[.sss]
+.    ss (\n[.ss] * 5 / 4) (\n[.sss] * 5 / 4)
+.
+.    nr doc-arg-ptr +1
+.    nr doc-curr-font \n[.f]
+.    nr doc-curr-size \n[.ps]
+.    nop \*[doc-Sh-font]\c
+.    doc-print-recursive
+.
+.    ss \n[doc-reg-Ss] \n[doc-reg-Ss1]
+.
+.    ta T .5i
+.    if !\n[cR] \
+.      ne 2
+.    br
+.  \}
+..
+.
+.
+.\" NS Rd macro (not parsed, not callable)
+.\" NS   print global register dump to stderr
+.\" NS
+.\" NS local variables:
+.\" NS   doc-reg-Rd
+.
+.de Rd
+.  tm MDOC GLOBAL REGISTER DUMP
+.  tm doc-macro-name == `\*[doc-macro-name]'
+.  tm doc-arg-limit == \n[doc-arg-limit]
+.  tm doc-num-args == \n[doc-num-args]
+.  tm doc-arg-ptr == \n[doc-arg-ptr]
+.
+.  nr doc-reg-Rd 1
+.  while (\n[doc-reg-Rd] <= \n[doc-arg-limit]) \{\
+.    tm doc-arg\n[doc-reg-Rd] == `\*[doc-arg\n[doc-reg-Rd]]'
+.    tm doc-type\n[doc-reg-Rd] == \n[doc-type\n[doc-reg-Rd]]
+.    tm doc-space\n[doc-reg-Rd] == `\*[doc-space\n[doc-reg-Rd]]'
+.    nr doc-reg-Rd +1
+.  \}
+.
+.  tm doc-curr-font == \n[doc-curr-font]
+.  tm doc-curr-size == \n[doc-curr-size]
+.  tm doc-indent-synopsis == \n[doc-indent-synopsis]
+.  tm doc-indent-synopsis-active == \n[doc-indent-synopsis-active]
+.  tm doc-have-decl == \n[doc-have-decl]
+.  tm doc-have-var == \n[doc-have-var]
+.  tm doc-command-name == `\*[doc-command-name]'
+.  tm doc-quote-left == `\*[doc-quote-left]'
+.  tm doc-quote-right == `\*[doc-quote-right]'
+.  tm doc-nesting-level == \n[doc-nesting-level]
+.  tm doc-in-list == \n[doc-in-list]
+.  tm doc-space == `\*[doc-space]'
+.  tm doc-saved-space == `\*[doc-saved-space]'
+.  tm doc-space-mode == \n[doc-space-mode]
+.  tm doc-have-space == \n[doc-have-space]
+.  tm doc-have-slot == \n[doc-have-slot]
+.  tm doc-keep-type == \n[doc-keep-type]
+.  tm doc-display-depth == \n[doc-display-depth]
+.  tm doc-is-compact == \n[doc-is-compact]
+.
+.  nr doc-reg-Rd 0
+.  while (\n[doc-reg-Rd] <= \n[doc-display-depth]) \{\
+.    tm doc-display-type-stack\n[doc-reg-Rd] == `\*[doc-display-type-stack\n[doc-reg-Rd]]'
+.    tm doc-display-indent-stack\n[doc-reg-Rd] == \n[doc-display-indent-stack\n[doc-reg-Rd]]
+.    tm doc-display-ad-stack\n[doc-reg-Rd] == \n[doc-display-ad-stack\n[doc-reg-Rd]]
+.    tm doc-display-fi-stack\n[doc-reg-Rd] == \n[doc-display-fi-stack\n[doc-reg-Rd]]
+.    tm doc-display-ft-stack\n[doc-reg-Rd] == \n[doc-display-ft-stack\n[doc-reg-Rd]]
+.    tm doc-display-ps-stack\n[doc-reg-Rd] == \n[doc-display-ps-stack\n[doc-reg-Rd]]
+.    nr doc-reg-Rd +1
+.  \}
+.
+.  tm doc-fontmode-depth == \n[doc-fontmode-depth]
+.
+.  nr doc-reg-Rd 1
+.  while (\n[doc-reg-Rd] <= \n[doc-fontmode-depth]) \{\
+.    tm doc-fontmode-font-stack\n[doc-reg-Rd] == `\n[doc-fontmode-font-stack\n[doc-reg-Rd]]'
+.    tm doc-fontmode-size-stack\n[doc-reg-Rd] == `\n[doc-fontmode-size-stack\n[doc-reg-Rd]]'
+.    nr doc-reg-Rd +1
+.  \}
+.
+.  tm doc-list-depth == \n[doc-list-depth]
+.
+.  nr doc-reg-Rd 1
+.  while (\n[doc-reg-Rd] <= \n[doc-list-depth]) \{\
+.    tm doc-list-type-stack\n[doc-reg-Rd] == `\*[doc-list-type-stack\n[doc-reg-Rd]]'
+.    tm doc-list-have-indent-stack\n[doc-reg-Rd] == \n[doc-list-have-indent-stack\n[doc-reg-Rd]]
+.    tm doc-list-indent-stack\n[doc-reg-Rd] == \n[doc-list-indent-stack\n[doc-reg-Rd]]
+.    tm doc-compact-list-stack\n[doc-reg-Rd] == \n[doc-compact-list-stack\n[doc-reg-Rd]]
+.    tm doc-tag-prefix-stack\n[doc-reg-Rd] == `\*[doc-tag-prefix-stack\n[doc-reg-Rd]]'
+.    tm doc-tag-width-stack\n[doc-reg-Rd] == `\*[doc-tag-width-stack\n[doc-reg-Rd]]'
+.    tm doc-list-offset-stack\n[doc-reg-Rd] == \n[doc-list-offset-stack\n[doc-reg-Rd]]
+.    tm doc-enum-list-count-stack\n[doc-reg-Rd] == \n[doc-enum-list-count-stack\n[doc-reg-Rd]]
+.    nr doc-reg-Rd +1
+.  \}
+.
+.  tm doc-saved-Pa-font == `\*[doc-saved-Pa-font]'
+.  tm doc-curr-type == \n[doc-curr-type]
+.  tm doc-curr-arg == `\*[doc-curr-arg]'
+.  tm doc-diag-list-input-line-count == \n[doc-diag-list-input-line-count]
+.  tm doc-num-columns == \n[doc-num-columns]
+.  tm doc-column-indent-width == \n[doc-column-indent-width]
+.  tm doc-is-func == \n[doc-is-func]
+.  tm doc-have-old-func == \n[doc-have-old-func]
+.  tm doc-func-arg-count == \n[doc-func-arg-count]
+.  tm doc-func-arg == `\*[doc-func-arg]'
+.  tm doc-num-func-args == \n[doc-num-func-args]
+.  tm doc-func-args-processed == \n[doc-func-args-processed]
+.  tm doc-have-func == \n[doc-have-func]
+.  tm doc-is-reference == \n[doc-is-reference]
+.  tm doc-reference-count == \n[doc-reference-count]
+.  tm doc-author-count == \n[doc-author-count]
+.
+.  nr doc-reg-Rd 0
+.  while (\n[doc-reg-Rd] <= \n[doc-author-count]) \{\
+.    tm doc-author-name\n[doc-reg-Rd] == `\*[doc-author-name\n[doc-reg-Rd]]'
+.    nr doc-reg-Rd +1
+.  \}
+.
+.  tm doc-book-count == \n[doc-book-count]
+.  tm doc-book-name == `\*[doc-book-name]'
+.  tm doc-date-count == \n[doc-date-count]
+.  tm doc-date == `\*[doc-date]'
+.  tm doc-publisher-count == \n[doc-publisher-count]
+.  tm doc-publisher-name == `\*[doc-publisher-name]'
+.  tm doc-journal-count == \n[doc-journal-count]
+.  tm doc-journal-name == `\*[doc-journal-name]'
+.  tm doc-issue-count == \n[doc-issue-count]
+.  tm doc-issue-name == `\*[doc-issue-name]'
+.  tm doc-optional-count == \n[doc-optional-count]
+.  tm doc-optional-string == `\*[doc-optional-string]'
+.  tm doc-page-number-count == \n[doc-page-number-count]
+.  tm doc-page-number-string == `\*[doc-page-number-string]'
+.  tm doc-corporate-count == \n[doc-corporate-count]
+.  tm doc-corporate-name == `\*[doc-corporate-name]'
+.  tm doc-report-count == \n[doc-report-count]
+.  tm doc-report-name == `\*[doc-report-name]'
+.  tm doc-reference-title-count == \n[doc-reference-title-count]
+.  tm doc-reference-title-name == `\*[doc-reference-title-name]'
+.  tm doc-reference-title-name-for-book == `\*[doc-reference-title-name-for-book]'
+.  tm doc-volume-count == \n[doc-volume-count]
+.  tm doc-volume-name == `\*[doc-volume-name]'
+.  tm doc-have-author == \n[doc-have-author]
+.
+.  tm doc-document-title == `\*[doc-document-title]'
+.  tm doc-volume == `\*[doc-volume]'
+.  tm doc-section == `\*[doc-section]'
+.  tm doc-operating-system == `\*[doc-operating-system]'
+.  tm doc-date-string == `\*[doc-date-string]'
+.  tm doc-header-space == \n[doc-header-space]
+.  tm doc-footer-space == \n[doc-footer-space]
+.  tm doc-display-vertical == \n[doc-display-vertical]
+.  tm doc-header-string == `\*[doc-header-string]'
+.  tm doc-in-synopsis-section == \n[doc-in-synopsis-section]
+.  tm doc-in-see-also-section == \n[doc-in-see-also-section]
+.  tm doc-in-files-section == \n[doc-in-files-section]
+.  tm doc-in-authors-section == \n[doc-in-authors-section]
+.
+.  tm END OF GLOBAL REGISTER DUMP
+..
+.
+.
+.ec
+.
+.\" EOF

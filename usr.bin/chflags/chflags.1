@@ -1,0 +1,151 @@
+.\" Copyright (c) 1989, 1990, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)chflags.1	8.4 (Berkeley) 5/2/95
+.\" $FreeBSD$
+.\"
+.Dd May 2, 1995
+.Dt CHFLAGS 1
+.Os
+.Sh NAME
+.Nm chflags
+.Nd change file flags
+.Sh SYNOPSIS
+.Nm
+.Oo
+.Fl R
+.Op Fl H | Fl L | Fl P
+.Oc
+.Ar flags
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility modifies the file flags of the listed files
+as specified by the
+.Ar flags
+operand.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl H
+If the
+.Fl R
+option is specified, symbolic links on the command line are followed.
+(Symbolic links encountered in the tree traversal are not followed.)
+.It Fl L
+If the
+.Fl R
+option is specified, all symbolic links are followed.
+.It Fl P
+If the
+.Fl R
+option is specified, no symbolic links are followed.
+This is the default.
+.It Fl R
+Change the file flags for the file hierarchies rooted
+in the files instead of just the files themselves.
+.El
+.Pp
+The flags are specified as an octal number or a comma separated list
+of keywords.
+The following keywords are currently defined:
+.Pp
+.Bl -tag -offset indent -width "opaque" -compact
+.It Ar arch
+set the archived flag (super-user only)
+.It Ar opaque
+set the opaque flag (owner or super-user only)
+.It Ar nodump
+set the nodump flag (owner or super-user only)
+.It Ar sappnd
+set the system append-only flag (super-user only)
+.It Ar schg
+set the system immutable flag (super-user only)
+.It Ar sunlnk
+set the system undeletable flag (super-user only)
+.It Ar uappnd
+set the user append-only flag (owner or super-user only)
+.It Ar uchg
+set the user immutable flag (owner or super-user only)
+.It Ar uunlnk
+set the user undeletable flag (owner or super-user only)
+.It Ar archived , sappend , schange , Xo
+.Ar simmutable , uappend , uchange , uimmutable ,
+.Ar sunlink , uunlink
+.Xc
+aliases for the above
+.El
+.Pp
+Putting the letters
+.Dq Ar no
+before an option causes the flag to be turned off.
+For example:
+.Bl -tag -offset indent -width "nouchg"
+.It Ar nouchg
+the immutable bit should be cleared
+.El
+.Pp
+Symbolic links do not have flags, so unless the
+.Fl H
+or
+.Fl L
+option is set,
+.Nm
+on a symbolic link always succeeds and has no effect.
+The
+.Fl H ,
+.Fl L
+and
+.Fl P
+options are ignored unless the
+.Fl R
+option is specified.
+In addition, these options override each other and the
+command's actions are determined by the last one specified.
+.Pp
+You can use "ls -lo" to see the flags of existing files.
+.Sh DIAGNOSTICS
+.Ex -std
+.Sh SEE ALSO
+.Xr ls 1 ,
+.Xr chflags 2 ,
+.Xr stat 2 ,
+.Xr fts 3 ,
+.Xr symlink 7
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Bx 4.4 .

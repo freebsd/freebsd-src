@@ -1,0 +1,236 @@
+.\" -*- nroff-fill -*-
+.\" $FreeBSD$
+.Dd June 20, 2001
+.Os
+.Dt PICOBSD 8
+.Sh NAME
+.Nm picobsd
+.Nd floppy disk based FreeBSD system
+.Sh SYNOPSIS
+.Nm
+.Op options
+.Op Ar floppy-type Op Ar site-name
+.Sh DESCRIPTION
+.Nm
+is a script which can be used to produce a minimal implementation of
+.Fx
+(historically called
+.Nm PicoBSD )
+which typically fits on one floppy disk, or can be downloaded as a
+single image file from some media such as CDROM, flash memory, or through
+.Xr etherboot .
+.Pp
+The boot media (typically a floppy disk) contains a boot loader and a
+compressed kernel which includes a memory file system.
+Depending on the media, it might also contain a number of
+additional files, which can be updated at run time, and are
+used to override/update those in the memory file system.
+.Pp
+The system loads the kernel in the normal way, uncompresses
+the memory file system and mounts it as root.
+It then updates the memory
+filesystem with files from the boot media (if present),
+and executes a specialized version of
+.Pa /etc/rc .
+The boot media (floppy etc.) is
+required for loading only, and typically used as readonly.
+After the boot phase, the system runs entirely from ram.
+.Pp
+The following options are available (but also check the
+.Nm
+script for more details):
+.Pp
+.Bl -tag -width "--floppy_size" -compact
+.It Fl c
+.It Fl clean
+Clean the product of previous builds.
+.It Fl n
+Make the script non interactive. Do not show the initial menu, and
+proceed in the build process without requiring user input.
+.It Fl v
+Make the script verbose, showing the various commands to execute and
+waiting for user input before each of them. Useful when debugging.
+.It Fl -floppy_size Ar size
+Set the size of the floppy image. Values other than 1440 can
+be used for images that are burned into a CDROM, or downloaded
+using
+.Xr etherboot
+.It Fl -src Ar pathname
+Use the source tree at
+.Ar pathname
+instead the one at
+.Ar /usr/src .
+Can be useful for cross-building floppy images, but you must be
+careful in that there are dependencies with the
+.Xr config 8
+program, and also with include files and libraries.
+.El
+.Sh ENVIRONMENT
+As a result of the extreme size limitations, the
+.Nm
+environment differs from the normal
+.Fx
+in a number of ways:
+.Bl -bullet
+.It
+There are no dynamic libraries, and there is no directory
+.Pa /usr/lib .
+As a result, only static executables may be executed.
+.It
+In order to reduce the size of the executables, all executables on a specific
+floppy are joined together as a single executable built with
+.Xr crunchgen 1 .
+.It
+Some programs are supplied in minimalistic versions, specifically
+.Nm ns ,
+a cut-down version of
+.Xr netstat 1 ,
+and
+.Nm vm ,
+a cut-down version of
+.Xr vmstat 8 .
+.El
+.Sh BUILDING picobsd
+The
+.Nm
+sources reside in the hierarchy
+.Pa /usr/src/release/picobsd .
+In the following discussion, all relative path names are relative to this
+directory.  The
+.Nm
+build process has changed slightly over time, in order to cope
+with the unavoidable increase of code size, which requires more and more
+tricks to cram as much as possible on
+to the floppies.
+In
+.Fx 4.3 ,
+the supported build script is
+.Pa /usr/src/release/picobsd/build/picobsd
+which can be run from anywhere.
+This interactive script will ask for parameter entries and then build the
+appropriate single floppy version.
+The following kinds of floppy are envisaged:
+.Bl -hang -width "install  "
+.It bridge
+is a configuration suitable for bridges, routers and firewalls
+.It dial
+is a configuration suitable for dial-out (ppp) networking.
+.It install
+is a configuration suitable for software installation.
+.It isp
+is a configuration suitable for dial-in (ppp) networking.
+.It net
+is a configuration suitable for general networking.
+.It router
+is a configuration suitable for use as a router.  This particular configuration
+aims to work on minimal hardware.
+.El
+.Pp
+These configurations serve only as examples to build your own.
+Not all of them have been tested, and you might need small tweaks
+to the configuration files to make them work or even fit into
+the available disk space as code size increases.
+.Pp
+You can define your own floppy type, by creating a directory
+with a name of your choice (e.g. FOO) which contains
+.Pp
+.Bl -tag -width "floppy.tree.exclude" -compact
+.It Pa PICOBSD
+the kernel configuration file (required).
+.It Pa crunch.conf
+crunchgen configuration (required).
+.It Pa config
+shell variables, sourced by the
+.Pa picobsd
+script (optional).
+.It Pa floppy.tree.exclude
+files from the standard floppy tree which are not needed (optional).
+.It Pa floppy.tree/
+local additions to the standard floppy tree (optional).
+.It Pa floppy.tree. Ns ${site}
+same as above, site-specific (optional).
+.El
+.Pp
+More information on the build process can be found in the
+.Pa picobsd
+script.
+Sample configurations can be found in
+.Pa /usr/src/release/picobsd/ Ns ${type} Ns /
+.Sh USING ALTERNATE SOURCE TREES
+The build script can be instructed use an alternate source tree
+using the
+.Fl -src Ar pathname
+option.
+The tree that you specify must contain full sources for the kernel
+and for all programs that you want to include in your image.
+This option must be used with great care though, because different
+source trees might refer to different include files, libraries
+or versions of the
+.Xr config 8
+program.
+.Sh BOOTING PicoBSD
+To boot
+.Nm ,
+insert the floppy and reset the machine.  The boot procedure is similar to the
+standard
+.Fx
+boot, but proceeds at a snail's pace.  From the end of the POST
+(BIOS Power On Self Test) until the system is up and running takes
+anywhere between 1 and 3 minutes.
+.Pp
+To speed up booting, you can use
+.Xr etherboot
+to load the preloaded, uncompressed kernel image
+which is a byproduct of the
+.Nm
+build.
+In this case
+the load time is a matter of a few seconds, even on a 10Mbit/s
+ethernet.
+.Ss Swap space
+After booting,
+.Nm
+runs entirely from the memory file system.  The floppies are no longer used, and
+even if there are hard disk drivers in the
+.Nm
+kernel, it does not access the drives.  In particular, there is no swap space,
+so if you run out of memory, unpredictable things can happen.
+.Pp
+If you have a disk driver and a disk with a swap partition on it, and the swap
+partition does not contain a dump you want to keep, you can use this swap with
+.Nm .
+Use the
+.Xr swapon 8
+command.
+.Sh SEE ALSO
+.Xr crunchgen 1 ,
+.Xr swapon 8 ,
+.Xr vnconfig 8
+.Sh AUTHORS
+.An -nosplit
+.An Andrzej Bialecki Aq abial@FreeBSD.org ,
+with subsequent work on the scripts by
+.An Luigi Rizzo Aq luigi@iet.unipi.it
+and others.
+Man page and
+.Pa Makefiles
+created by
+.An Greg Lehey Aq grog@lemis.com .
+.Sh BUGS
+In order to build
+.Nm ,
+the kernel of the system on which it is built must have the
+.Xr vn 4
+driver installed.
+.Pp
+The build process must be run as
+.Dq root
+because of the need of running
+.Xr vnconfig 8
+and
+.Xr mount 8 .
+.Pp
+Building
+.Nm
+is still a black art.  The biggest problem is determining what will fit on the
+floppies, and the only practical method is trial and error.

@@ -1,0 +1,51 @@
+<HTML><HEAD><TITLE>
+A Kernel Model for Precision Timekeeping
+</TITLE></HEAD><BODY><H3>
+A Kernel Model for Precision Timekeeping
+</H3><HR>
+
+<P>The technical memorandum: <I>A Kernel Model for Precision
+Timekeeping</I><A
+HREF="http://www.eecis.udel.edu/~mills/database/memos/memo96b.ps">
+(PostScript) </A>describes an engineering model which implements a
+precision time-of-day function for a generic operating system. The model
+is based on the principles of disciplined oscillators using phase-lock
+loops (PLL) and frequency-lock loops (FLL) often found in the
+engineering literature. The model uses a hybrid PLL/FLL discipline
+algorithm implemented in the kernel. The hybrid loop provides automatic
+time and frequency steering with update intervals from a few seconds to
+over one day.
+
+<P>The hybrid PLL/FLL has been implemented in the Unix kernels for
+several workstations, including those made by Sun Microsystems, Digital
+and Hewlett Packard. Currently, the modifications are in licensed
+kernels for Digital Unix 4.0 and Sun Solaris 2.6. Since these specific
+implementations involve modifications to licensed code, they cannot be
+provided directly. Inquiries should be directed to the manufacturer's
+representatives. In addition to the licensed kernels, the hybrid PLL/FLL
+has been implemented in the nonlicensed kernels for Linux and FreeBSD.
+The engineering model for these implementations, including a simulator
+with code segments almost identical to the implementations, but not
+involving licensed code, is available via the web at <A
+HREF="http://www.eecis.udel.edu/~mills/ntp/ntp">kernel.tar.Z</A> or by
+anonymous FTP from ftp.udel.edu in the <TT>pub/ntp</TT> directory.
+
+<P>The model changes the way the system clock is adjusted in time and
+frequency, as well as provides mechanisms to discipline its time and
+frequency to an external precision timing source, such as a pulse-per-
+second (PPS) signal. The model incorporates a generic system-call
+interface for use with the Network Time Protocol (NTP) or similar time
+synchronization protocol. The NTP software daemons for Version 3
+<TT>xntpd</TT> and Version 4&nbsp; <TT>ntpd</TT> operate with this model
+to provide synchronization limited in principle only by the accuracy and
+stability of the external timing source. There are two new system calls
+defined in the model, <TT>ntp_gettime()</TT>, which returns a structure
+including the current time, estimated error and maximum error, and
+<TT>ntp_adjtime()</TT>, which provides a means to adjust kernel
+variables, including the current time and frequency offsets. Further
+information on the calling sequences and variable definitions are in the
+<TT>/usr/include/sys/timex.h</TT> file.&nbsp;
+
+<hr><a href=index.htm><img align=left src=pic/home.gif></a><address><a
+href=mailto:mills@udel.edu> David L. Mills &lt;mills@udel.edu&gt;</a>
+</address></a></body></html>

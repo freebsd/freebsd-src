@@ -1,0 +1,5 @@
+# System-wide .profile file for sh(1).
+BLOCKSIZE=K; export BLOCKSIZE
+set -o emacs
+PATH=/stand:/mnt/bin:/mnt/sbin:/mnt/usr/bin:/mnt/usr/sbin export PATH
+stty erase 

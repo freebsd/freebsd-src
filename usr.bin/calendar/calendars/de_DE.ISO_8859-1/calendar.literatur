@@ -1,0 +1,36 @@
+/*
+ * Literatur
+ *
+ * $FreeBSD$
+ */
+
+#ifndef _de_DE_ISO_8859_1_literatur_
+#define _de_DE_ISO_8859_1_literatur_
+
+LANG=de_DE.ISO_8859-1
+
+/* Schriftsteller 
+
+	Fontane
+	Goethe
+	Grass
+	Hegel
+	Heine
+	Schiller
+ */
+
+01/04   Jakob Grimm geboren, 1785
+04/22   Kant geboren, 1724
+07/03   Franz Kafka geboren, 1883
+08/12   Thomas Mann gestorben, 1955
+
+
+/* Verlage */
+03/09	"die tageszeitung" als erste täglich aktualisierte deutsche 
+	Tageszeitung im WWW, 1995, Betatest, vollständige Ausgabe
+05/05	Schweriner Volkszeitung als erste deutsche Tageszeitung im WWW, 1995
+05/12	"die tageszeitung" offiziell im WWW, 1995
+08/31	Hitler stellt Frankfurter Zeitung ein, 1943
+11/01	Frankfurter Allgemeine Zeitung in Leben gerufen, 1949
+
+#endif /* !_de_DE_ISO_8859_1_literatur_ */

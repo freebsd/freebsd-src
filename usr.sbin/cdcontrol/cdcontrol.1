@@ -1,0 +1,191 @@
+.\" $FreeBSD$
+.\"
+.Dd July 3, 1995
+.Dt CDCONTROL 1
+.Os
+.Sh NAME
+.Nm cdcontrol
+.Nd compact disc control utility
+.Sh SYNOPSIS
+.Nm
+.Op Fl sv
+.Op Fl f Ar device
+.Op Ar command ...
+.Sh DESCRIPTION
+.Nm Cdcontrol
+is a program to control audio features of a CD drive.
+The device is a name such
+as
+.Pa cd0
+or
+.Pa mcd0 .
+.Pp
+If no command is given, then
+.Nm
+enters an interactive mode, reading commands from the standard input.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl s
+Silent mode - do not print table headers and human readable comments.
+.It Fl v
+Verbose mode - print as much information as possible.
+.It Fl f Ar device
+Specify a device, such as
+.Pa /dev/cd0c
+or
+.Pa mcd0 .
+Both absolute path and relative to
+.Pa /dev
+filename are possible.
+Suffix `c' is added to the device name if needed.
+.El
+.Pp
+The available commands are listed below.  Only as many
+characters as are required to uniquely identify a command
+need be specified.
+The word
+.Cm play
+can be omitted or the characters
+.Dq +
+and
+.Dq -
+can be used in the
+place of
+.Cm next
+and
+.Cm prev .
+.Bl -tag -width Cm
+.It Cm play Ar first_track Op Ar last_track
+Play from track
+.Ar first_track
+to track
+.Ar last_track .
+The first track has number 1.
+Can be omitted in all cases.
+.It Cm play Xo
+.Ar start_m : Ns Ar start_s . Ns Ar start_f
+.Oo Ar end_m : Ns Ar end_s . Ns
+.Ar end_f Oc
+.Xc
+Play from the absolute address
+(MSF) defined by
+.Ar start_m
+in minutes,
+.Ar start_s ,
+in seconds and
+.Ar start_f
+(frame number) to the absolute address defined by
+.Ar end_m
+in minutes,
+.Ar end_s ,
+in seconds and
+.Ar end_f
+(frame number). Minutes are in the range 0-99.
+Seconds are in the range 0-59.
+Frame numbers are in the range 0-74.
+.It Cm play Op Ar #start_block Op length
+Play starting from the logical block
+.Ar start_block
+using
+.Ar length
+logical blocks.
+.It Cm next Op Ar tracks
+Skip forward a number of tracks (default 1).
+.It Cm prev Op Ar tracks
+Skip backward a number of tracks (default 1).
+.It Cm pause
+Stop playing.
+Do not stop the disc.
+.It Cm resume
+Resume playing.
+Used after the
+.Em pause
+command.
+.It Cm stop
+Stop the disc.
+.It Cm eject
+Eject the disc.
+.It Cm close
+Inject the disc.
+.It Cm volume Ar left_channel Ar right_channel
+Set the volume of left channel to
+.Ar left_channel
+and the volume of right channel to
+.Ar right_channel .
+Allowed values are in the range 0-255.
+.It Cm volume Ar mute
+Turn the sound off.
+.It Cm volume Ar mono
+Set the mono mode.
+.It Cm volume Ar stereo
+Set the stereo mode.
+.It Cm volume Ar left
+Play the left subtrack on both left and right channels.
+.It Cm volume Ar right
+Play the right subtrack on both left and right channels.
+.It Cm info
+Print the table of contents.
+.It Cm status Xo
+.Op Ar audio | media | volume
+.Xc
+Print the information about the disc:
+.Pp
+.Bl -tag -width "volume" -compact
+.It Ar audio
+the current playing status and position
+.It Ar media
+the current media catalog status
+.It Ar volume
+the current values of the volume for left and right channels.
+.El
+.It Cm cdid
+Display the serial number of the cd using the method used by the
+cddb (http://www.cddb.org/) project.
+.It Cm help
+Print the list of available commands.
+.It Cm debug Ar on
+Enable the debugging mode of the CD device driver.
+.It Cm debug Ar off
+Disable the driver debugging mode.
+.It Cm reset
+Perform the hardware reset of the device.
+.It Cm set Ar msf
+Set minute-second-frame ioctl mode (default).
+.It Cm set Ar lba
+Set LBA ioctl mode.
+.It Cm quit
+Quit the program.
+.El
+.Sh ENVIRONMENT
+The following environment variables affect the execution of
+.Nm :
+.Pp
+.Bl -tag -width CD_DRIVE -compact
+.It Ev CDROM
+The cd device to use if one isn't specified with the
+.Fl f
+flag.
+.Pp
+.It Ev CDPLAY
+.It Ev CD_DRIVE
+.It Ev DISC
+.It Ev MUSIC_CD
+These variables have been deprecated in favour of
+.Ev CDROM .
+.El
+.Sh FILES
+.Bl -tag -width /dev/mcd0c -compact
+.It Pa /dev/cd0c
+.It Pa /dev/mcd0c
+.It Pa /dev/acd0c
+.El
+.Sh AUTHORS
+.An Jean-Marc Zucconi ,
+.An Andrey A.\ Chernov ,
+.An Serge V.\ Vakulenko
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Fx 2.1 .

@@ -1,0 +1,90 @@
+-*- indented-text -*-
+
+$Id: TODO,v 1.55 2001/01/30 22:51:32 assar Exp $
+
+* configure
+
+use more careful checking before starting to use berkeley db.  it only
+makes sense to do so if we have the appropriate library and the header
+file.
+
+handle readline hiding in readline/readline.h
+
+* appl
+
+** appl/popper
+
+Implement RFC1731 and 1734, pop over GSS-API
+
+* doc
+
+* kdc
+
+* kadmin
+
+make it happy with reading and parsing kdc.conf
+
+is in need of a major cleanup
+
+* kpasswdd
+
+figure out what's the deal with do_sequence and the MIT client
+
+* lib
+
+** lib/asn1
+
+prepend a prefix on all generated symbols
+
+** lib/auth
+
+PAM
+
+** lib/com_err
+
+write a man-page
+
+** lib/des
+
+make everything work with openssl and make prototypes compatible
+
+** lib/gssapi
+
+process_context_token, add_cred, inquire_cred_by_mech,
+inquire_names_for_mech, and
+inquire_mechs_for_name not implemented.
+
+set minor_status in all functions
+
+anonymous credentials not implemented
+
+add rc4
+
+** lib/hdb
+
+** lib/kadm5
+
+add policies?
+
+fix to use rpc?
+
+** lib/krb5
+
+rewrite the lookup of KDCs to handle kerberos-<n> and not do any DNS
+requests if the information can be found locally.  this requires stop
+using krb5_get_krbhst.
+
+the replay cache is, in its current state, not very useful
+
+always generates a new subkey in an authenticator
+
+should the sequence numbers be XORed?
+
+OTP?
+
+make checksum/encryption type configuration more realm-specific.  make
+some simple way of handling the w2k situtation
+
+crypto: allow scather/gather creation of checksums
+
+** lib/roken

@@ -1,0 +1,20 @@
+.\" lj4.tmac
+.\"
+.nr _C \n(.C
+.cp 0
+.ftr CW CR
+.ftr C CR
+.ftr CX CBI
+.ftr H UR
+.ftr HR UR
+.ftr HB UB
+.ftr HBI UBI
+.ftr HI UI
+.ftr HO UI
+.ftr HX UBI
+.\" This is designed so that \(ul, \(rn and \(br form corners.
+.if !c\[br] .char \[br] \Z'\v'.25m'\D'R .04m -1m''
+.if !c\[ru] .char \[ru] \Z'\v'-.02m'\D'R .54m .04m''\h'.5m'
+.if !c\[rn] .char \[rn] \Z'\v'-.77m'\D'R .54m .04m''\h'.5m'
+.if !c\[ul] .char \[ul] \Z'\v'.23m'\D'R .54m .04m''\h'.5m'
+.cp \n(_C

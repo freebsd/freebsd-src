@@ -1,0 +1,23 @@
+FreeBSD ?.?.?  (UNKNOWN)
+
+Welcome to FreeBSD!
+
+Before seeking technical support, please use the following resources:
+
+o  Security advisories and updated errata information for all releases are
+   at http://www.FreeBSD.org/releases/ - always consult the ERRATA section
+   for your release first as it's updated frequently.
+
+o  The Handbook and FAQ documents are at http://www.FreeBSD.org/ and,
+   along with the mailing lists, can be searched by going to
+   http://www.FreeBSD.org/search/  If the doc distribution has
+   been installed, they're also available formatted in /usr/share/doc.
+
+If you still have a question or problem, please take the output of
+`uname -a',  along with any relevant error messages, and email it
+as a question to the questions@FreeBSD.org mailing list.  If you are
+unfamiliar with FreeBSD's directory layout, please refer to the hier(7)
+man page. If you are not familiar with man pages, type `man man'.
+You may also use `/stand/sysinstall' to re-enter the installation and
+configuration utility.  Edit /etc/motd to change this login announcement.
+

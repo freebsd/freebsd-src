@@ -1,0 +1,37 @@
+.\" $Id: kdb_init.8,v 1.3 1997/04/02 21:09:54 assar Exp $
+.\" Copyright 1989 by the Massachusetts Institute of Technology.
+.\"
+.\" For copying and distribution information,
+.\" please see the file <mit-copyright.h>.
+.\"
+.TH KDB_INIT 8 "Kerberos Version 4.0" "MIT Project Athena"
+.SH NAME
+kdb_init \- Initialize Kerberos key distribution center database
+.SH SYNOPSIS
+kdb_init [ 
+.B realm
+]
+.SH DESCRIPTION
+.I kdb_init
+initializes a Kerberos key distribution center database, creating the
+necessary principals.
+.PP
+If the optional
+.I realm
+argument is not present,
+.I kdb_init
+prompts for a realm name.
+After determining the realm to be created, it prompts for
+a master key password.  The master key password is used to encrypt
+every encryption key stored in the database.
+.SH DIAGNOSTICS
+.TP 20n
+"/var/kerberos/principal: File exists"
+An attempt was made to create a database on a machine which already had
+an existing database.
+.SH FILES
+.TP 20n
+/var/kerberos/principal.pag, /var/kerberos/principal.dir
+DBM files containing database
+.SH SEE ALSO
+kdb_destroy(8)

@@ -1,0 +1,25 @@
+getopt.c is a modified version of the getopt.c found in the glibc snapshot
+on 1998-04-14. Below the patch that has been applied to this file. The glibc
+maintainer has been informed of these patches.
+
+diff -c3 getopt.c.orig getopt.c
+*** getopt.c.orig	Sun Mar  8 16:06:55 1998
+--- getopt.c	Thu Apr 16 00:09:41 1998
+***************
+*** 201,207 ****
+  /* Avoid depending on library functions or files
+     whose names are inconsistent.  */
+  
+! char *getenv ();
+  
+  static char *
+  my_index (str, chr)
+--- 201,208 ----
+  /* Avoid depending on library functions or files
+     whose names are inconsistent.  */
+  
+! extern char *getenv ();
+! extern int strncmp ();
+  
+  static char *
+  my_index (str, chr)

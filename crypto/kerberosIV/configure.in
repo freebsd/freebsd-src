@@ -1,0 +1,1286 @@
+dnl
+dnl *** PLEASE NOTE ***
+dnl *** PLEASE NOTE ***
+dnl *** PLEASE NOTE ***
+dnl
+dnl Update $VERSION before making a new release
+dnl
+
+dnl Process this file with autoconf to produce a configure script.
+dnl
+AC_REVISION($Revision: 1.432.2.14 $)
+AC_INIT(lib/krb/getrealm.c)
+AC_CONFIG_HEADER(include/config.h)
+
+dnl
+dnl definitions
+dnl
+
+PACKAGE=krb4
+AC_SUBST(PACKAGE)dnl
+VERSION=1.0.5
+AC_SUBST(VERSION)dnl
+AC_DEFINE_UNQUOTED(PACKAGE, "$PACKAGE", [Name of package])dnl
+AC_DEFINE_UNQUOTED(VERSION, "$VERSION", [Version number of package])dnl
+
+# This may be overridden using --prefix=/usr to configure
+AC_PREFIX_DEFAULT(/usr/athena)
+
+AC_CANONICAL_HOST
+CANONICAL_HOST=$host
+AC_SUBST(CANONICAL_HOST)
+
+dnl OS specific defines
+
+sunos=no
+case "$host" in 
+*-*-sunos4*)
+	sunos=40
+	;;
+*-*-solaris2.7)
+	sunos=57
+	;;
+*-*-solaris2.8)
+	sunos=58
+	;;
+*-*-solaris2*)
+	sunos=50
+	;;
+esac
+if test "$sunos" != no; then
+	AC_DEFINE_UNQUOTED(SunOS, $sunos, 
+		[Define to what version of SunOS you are running.])
+fi
+
+AC_PROG_MAKE_SET
+AC_ARG_PROGRAM
+
+# We want these before the checks, so the checks can modify their values.
+test -z "$LDFLAGS" && LDFLAGS=-g
+
+dnl
+dnl check for programs
+dnl
+
+AC_KRB_PROG_LN_S
+AC_PROG_CC
+AC_PROG_CPP
+AC_ISC_POSIX
+AC_KRB_PROG_YACC
+AC_PROG_LEX
+AC_PROG_RANLIB
+AC_PROG_INSTALL
+AC_PROG_AWK
+AC_CHECK_PROG(MAKEINFO, makeinfo, makeinfo, :)
+
+dnl Use make Wall or make WFLAGS=".."
+WFLAGS=""
+WFLAGS_NOUNUSED=""
+WFLAGS_NOIMPLICITINT=""
+AC_SUBST(WFLAGS) dnl
+AC_SUBST(WFLAGS_NOUNUSED) dnl
+AC_SUBST(WFLAGS_NOIMPLICITINT) dnl
+
+dnl
+dnl check for build options
+dnl
+
+AC_TEST_PACKAGE_NEW(socks,[#include <socks.h>],-lsocks5)
+CFLAGS="$INCLUDE_socks $CFLAGS"
+LIBS="$LIB_socks $LIBS"
+
+AC_ARG_ENABLE(legacy-kdestroy,
+[  --enable-legacy-kdestroy    kdestroy doesn't destroy tokens by default],[
+if test "$enableval" = "yes"; then
+	AC_DEFINE(LEGACY_KDESTROY,1, [Define to enable old kdestroy behavior.])
+fi
+])
+
+AC_ARG_ENABLE(match-subdomains,
+[  --enable-match-subdomains	match realm in subdomains],
+[if test "$enableval" = "yes"; then
+	AC_DEFINE(MATCH_SUBDOMAINS,1, [Define if you want to match subdomains.])
+fi
+])
+
+AC_ARG_WITH(ld-flags,
+[  --with-ld-flags=flags   what flags use when linking])
+
+AC_ARG_WITH(cracklib,
+[  --with-cracklib=dir     use the cracklib.a in dir],
+)
+
+AC_ARG_WITH(dictpath,
+[  --with-dictpath=path    use this dictionary with cracklib]
+)
+
+(test -z "$with_cracklib" && test -n "$with_dictpath") ||
+(test -n "$with_cracklib" && test -z "$with_dictpath") &&
+AC_MSG_ERROR(--with-cracklib requires --with-dictpath and vice versa)
+test -n "$with_cracklib" &&
+CRACKLIB="-L$with_cracklib -lcrack" &&
+AC_MSG_RESULT(Using cracklib in $with_cracklib)
+AC_SUBST(CRACKLIB)dnl
+test -n "$with_dictpath" &&
+AC_MSG_RESULT(Using dictpath=$with_dictpath) &&
+AC_DEFINE_UNQUOTED(DICTPATH,"$with_dictpath", [Define this to be the directory where the 
+	dictionary for cracklib resides.])
+
+AC_ARG_WITH(mailspool,
+[  --with-mailspool=dir    this is the mail spool directory]
+)
+
+test -n "$with_mailspool" &&
+AC_DEFINE_UNQUOTED(KRB4_MAILDIR, "$with_mailspool", [Define this to the path of the mail spool directory.])
+
+AC_ARG_WITH(db-dir,
+[  --with-db-dir=dir	   this is the database directory (default /var/kerberos)])
+
+test -n "$with_db_dir" &&
+AC_DEFINE_UNQUOTED(DB_DIR, "$with_db_dir", [Define this to the kerberos database directory.])
+
+AC_ARG_ENABLE(random-mkey,
+[  --enable-random-mkey    use new code for master keys],[
+if test "$enableval" = "yes"; then
+	AC_DEFINE(RANDOM_MKEY,1, [Define to enable new master key code.])
+fi
+])
+
+AC_ARG_WITH(mkey,
+[  --with-mkey=file        where to put the master key],[
+if test -n "$withval"; then
+	AC_DEFINE_UNQUOTED(MKEYFILE,"$withval", [Define this to the location of the master key.])
+fi
+])
+
+otp=yes
+AC_ARG_ENABLE(otp,
+[  --disable-otp           if you don't want OTP support],
+[
+if test "$enableval" = "no"; then
+	otp=no
+fi
+])
+
+if test "$otp" = "yes"; then
+	AC_DEFINE(OTP)
+	LIB_otp='-L$(top_builddir)/lib/otp -lotp'
+	OTP_dir=otp
+	LIB_SUBDIRS="$LIB_SUBDIRS otp"
+fi
+AC_SUBST(LIB_otp)
+AC_SUBST(OTP_dir)
+
+AC_CHECK_OSFC2
+
+mmap=yes
+AC_ARG_ENABLE(mmap,
+[  --disable-mmap          disable use of mmap],
+[
+if test "$enableval" = "no"; then
+	mmap=no
+fi
+])
+if test "$mmap" = "no"; then
+	AC_DEFINE(NO_MMAP, 1, [Define if you don't want to use mmap.])
+fi
+
+aix_dynamic_afs=yes
+AC_ARG_ENABLE(dynamic-afs,
+[  --disable-dynamic-afs   don't use loaded AFS library with AIX],[
+if test "$enableval" = "no"; then
+	aix_dynamic_afs=no
+fi
+])
+
+berkeley_db=db
+AC_ARG_WITH(berkeley-db,
+[  --without-berkeley-db   if you don't want berkeley db],[
+if test "$withval" = no; then
+	berkeley_db=""
+fi
+])
+
+afs_support=yes
+AC_ARG_WITH(afs-support,
+[  --without-afs-support   if you don't want support for afs],[
+if test "$withval" = no; then
+	AC_DEFINE(NO_AFS, 1, [Define if you don't wan't support for AFS.])
+	afs_support=no
+fi
+])
+
+des_quad=guess
+AC_ARG_WITH(des-quad-checksum,
+[  --with-des-quad-checksum=kind
+                           default checksum to use (new, old, or guess)],[
+des_quad="$withval"
+])
+if test "$des_quad" = "new"; then
+	ac_x=DES_QUAD_NEW
+elif test "$des_quad" = "old"; then
+	ac_x=DES_QUAD_OLD
+else
+	ac_x=DES_QUAD_GUESS
+fi	
+AC_DEFINE_UNQUOTED(DES_QUAD_DEFAULT,$ac_x, 
+	[Set this to the type of des-quad-cheksum to use.])
+
+AC_ARG_WITH(afsws,
+[  --with-afsws=dir        use AFS includes and libraries from dir=/usr/afsws],
+AFSWS=$withval,
+AFSWS=/usr/afsws
+)
+test "$AFSWS" = "yes" && AFSWS=/usr/afsws
+AC_SUBST(AFSWS)
+
+AC_ARG_ENABLE(rxkad,
+[  --enable-rxkad           build rxkad library])
+
+if test "$afs_support" = yes -a "$enable_rxkad" = yes; then
+	LIB_SUBDIRS="$LIB_SUBDIRS rxkad"
+fi
+AC_SUBST(LIB_SUBDIRS)
+
+AC_ARG_ENABLE(cat-manpages,
+[  --disable-cat-manpages   don't install any preformatted manpages],
+[
+if test "$enableval" = "no"; then
+	disable_cat_manpages=yes
+fi
+])
+
+AC_SUBST(disable_cat_manpages)dnl
+
+AC_TEST_PACKAGE_NEW(readline,[
+#include <stdio.h>
+#include <readline.h>
+],-lreadline)
+
+AC_MIPS_ABI
+
+AC_TEST_PACKAGE_NEW(hesiod,[#include <hesiod.h>],-lhesiod)
+
+AC_SHARED_LIBS
+
+dnl
+dnl Check for endian-ness, this breaks cross compilation
+dnl
+AC_C_BIGENDIAN
+
+dnl
+dnl Check for constness
+dnl
+AC_C_CONST
+
+dnl
+dnl Check for inline keyword
+dnl
+AC_C_INLINE
+
+dnl
+dnl Check for __attribute__
+dnl
+AC_C___ATTRIBUTE__
+
+dnl
+dnl Check for strange operating systems that you need to handle differently
+dnl
+
+AC_KRB_SYS_NEXTSTEP
+AC_KRB_SYS_AIX
+
+if test "$krb_cv_sys_aix" = yes ;then
+	if test "$aix_dynamic_afs" = yes; then
+		AFS_EXTRA_OBJS=
+		AFS_EXTRA_LIBS=afslib.so
+		# this works differently in AIX <=3 and 4
+		if test `uname -v` = 4 ; then
+			AFS_EXTRA_LD="-bnoentry"
+		else
+			AFS_EXTRA_LD="-e _nostart"
+		fi
+		AFS_EXTRA_DEFS=
+		AC_FIND_FUNC_NO_LIBS(dlopen, dl)
+		if test "$ac_cv_funclib_dlopen" = yes; then
+			AIX_EXTRA_KAFS=
+		elif test "$ac_cv_funclib_dlopen" != no; then
+			AIX_EXTRA_KAFS="$ac_cv_funclib_dlopen"
+		else
+			AFS_EXTRA_OBJS="$AFS_EXTRA_OBJS dlfcn.o"
+			AIX_EXTRA_KAFS=-lld
+		fi
+	else
+		AFS_EXTRA_OBJS='$(srcdir)/afsl.exp afslib.o'
+		AFS_EXTRA_LIBS=
+		AFS_EXTRA_DEFS='-DSTATIC_AFS_SYSCALLS'
+		AIX_EXTRA_KAFS=
+	fi
+	AC_SUBST(AFS_EXTRA_OBJS)dnl
+	AC_SUBST(AFS_EXTRA_LIBS)dnl
+	AC_SUBST(AFS_EXTRA_LD)dnl
+	AC_SUBST(AFS_EXTRA_DEFS)dnl
+	AC_SUBST(AIX_EXTRA_KAFS)dnl
+fi
+
+#
+# AIX needs /lib/pse.exp for getmsg, but alas that file is broken in
+# AIX414
+#
+
+case "${host}" in
+*-*-aix4.1*)
+if test -f /lib/pse.exp ;then
+	LIBS="$LIBS -Wl,-bnolibpath -Wl,-bI:/lib/pse.exp"
+fi
+;;
+*-*-aix*)
+	LIBS="$LIBS -Wl,-bnolibpath"
+	;;
+esac
+
+dnl
+dnl Various checks for headers and their contents
+dnl
+
+AC_HEADER_STDC
+
+AC_CHECK_HEADERS([arpa/ftp.h			\
+	arpa/inet.h				\
+	arpa/nameser.h				\
+	arpa/telnet.h				\
+	bsd/bsd.h				\
+	bsdsetjmp.h				\
+	capability.h				\
+	crypt.h					\
+	curses.h				\
+	db.h					\
+	dbm.h					\
+	dirent.h				\
+	err.h					\
+	errno.h					\
+	fcntl.h					\
+	fnmatch.h				\
+	gdbm/ndbm.h				\
+	grp.h					\
+	inttypes.h				\
+	io.h					\
+	lastlog.h				\
+	libutil.h				\
+	limits.h				\
+	login.h					\
+	maillock.h				\
+	ndbm.h					\
+	net/if.h				\
+	net/if_tun.h				\
+	net/if_var.h				\
+	netdb.h					\
+	netinet/in.h				\
+	netinet/in6_machtypes.h			\
+	netinet/in_systm.h			\
+	paths.h					\
+	pty.h					\
+	pwd.h					\
+	resolv.h				\
+	rpcsvc/dbm.h				\
+	rpcsvc/ypclnt.h				\
+	sac.h					\
+	security/pam_modules.h			\
+	shadow.h				\
+	siad.h					\
+	signal.h				\
+	stropts.h				\
+	sys/bitypes.h				\
+	sys/category.h				\
+	sys/file.h				\
+	sys/filio.h				\
+	sys/ioccom.h				\
+	sys/ioctl.h				\
+	sys/locking.h				\
+	sys/mman.h				\
+	sys/param.h				\
+	sys/proc.h				\
+	sys/pty.h				\
+	sys/ptyio.h				\
+	sys/ptyvar.h				\
+	sys/resource.h				\
+	sys/select.h				\
+	sys/socket.h				\
+	sys/sockio.h				\
+	sys/stat.h				\
+	sys/str_tty.h				\
+	sys/stream.h				\
+	sys/stropts.h				\
+	sys/strtty.h				\
+	sys/syscall.h				\
+	sys/sysctl.h				\
+	sys/termio.h				\
+	sys/time.h				\
+	sys/timeb.h				\
+	sys/times.h				\
+	sys/tty.h				\
+	sys/types.h				\
+	sys/uio.h				\
+	sys/un.h				\
+	sys/utsname.h				\
+	sys/wait.h				\
+	syslog.h				\
+	term.h					\
+	termcap.h				\
+	termio.h				\
+	termios.h				\
+	tmpdir.h				\
+	ttyent.h				\
+	udb.h					\
+	ulimit.h				\
+	unistd.h				\
+	userpw.h				\
+	usersec.h				\
+	util.h					\
+	utime.h					\
+	utmp.h					\
+	utmpx.h					\
+	wait.h])
+
+AC_HEADER_TIME
+AC_DECL_SYS_SIGLIST
+
+CHECK_NETINET_IP_AND_TCP
+
+EXTRA_LOCL_HEADERS=
+EXTRA_HEADERS=
+if test "$ac_cv_header_err_h" != yes; then
+	EXTRA_HEADERS="$EXTRA_HEADERS err.h"
+fi
+if test "$ac_cv_header_fnmatch_h" != yes; then
+	EXTRA_LOCL_HEADERS="$EXTRA_LOCL_HEADERS fnmatch.h"
+fi
+AC_SUBST(EXTRA_HEADERS)
+AC_SUBST(EXTRA_LOCL_HEADERS)
+
+AC_GROK_TYPES(int8_t int16_t int32_t int64_t)
+AC_GROK_TYPES(u_int8_t u_int16_t u_int32_t u_int64_t)
+
+AC_MSG_CHECKING(for strange sys/bitypes.h)
+AC_CACHE_VAL(krb_cv_int8_t_ifdef, [
+AC_TRY_COMPILE([
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_BITYPES_H
+#include <sys/bitypes.h>
+#endif
+#ifdef HAVE_NETINET_IN6_MACHTYPES_H
+#include <netinet/in6_machtypes.h>
+#endif
+],
+int8_t x;
+,
+krb_cv_int8_t_ifdef=no,
+krb_cv_int8_t_ifdef=yes)])
+AC_MSG_RESULT($krb_cv_int8_t_ifdef)
+if test "$krb_cv_int8_t_ifdef" = "yes"; then
+  AC_DEFINE(HAVE_STRANGE_INT8_T, 1, [Huh?])dnl
+fi
+
+dnl
+dnl Various checks for libraries and their contents
+dnl
+
+AC_FIND_FUNC_NO_LIBS(crypt, crypt)dnl
+
+dnl
+dnl System V is have misplaced the socket routines, should really be in libc
+dnl
+
+AC_FIND_FUNC(socket, socket,
+[#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif],
+[0,0,0])
+AC_FIND_FUNC(gethostbyname, nsl,
+[#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif],
+"foo")
+
+dnl
+dnl Horror AIX needs -lodm -lcfg to link login
+dnl
+
+AC_FIND_FUNC(odm_initialize, odm)
+AC_FIND_FUNC(getattr, cfg)
+AC_FIND_FUNC(setpcred, s)
+AC_FIND_FUNC(logwtmp, util)
+
+AC_FIND_FUNC(logout, util)
+AC_FIND_FUNC_NO_LIBS(tgetent, termcap ncurses curses)
+	
+dnl 
+dnl See if there is any X11 present
+dnl
+KRB_CHECK_X
+if test "$no_x" = "yes" ; then
+	MAKE_X_PROGS_BIN=""
+	MAKE_X_SCRIPTS_BIN=""
+	MAKE_X_PROGS_LIBEXEC=""
+else
+	MAKE_X_PROGS_BIN='$(X_PROGS_BIN)'
+	MAKE_X_SCRIPTS_BIN='$(X_SCRIPTS_BIN)'
+	MAKE_X_PROGS_LIBEXEC='$(X_PROGS_LIBEXEC)'
+fi
+AC_SUBST(MAKE_X_PROGS_BIN)dnl
+AC_SUBST(MAKE_X_SCRIPTS_BIN)dnl
+AC_SUBST(MAKE_X_PROGS_LIBEXEC)dnl
+
+AC_CHECK_XAU
+
+dnl
+dnl Look for berkeley db, gdbm, and ndbm in that order.
+dnl
+
+KRB_FIND_DB("" $berkeley_db gdbm ndbm)
+
+AC_FIND_FUNC(syslog, syslog)
+
+AC_BROKEN_SNPRINTF
+AC_BROKEN_GLOB
+
+if test "$ac_cv_func_glob_working" != yes; then
+	EXTRA_LOCL_HEADERS="$EXTRA_LOCL_HEADERS glob.h"
+	LIBOBJS="$LIBOBJS glob.o"
+fi
+
+AC_CHECK_FUNCS([				\
+	_getpty					\
+	_scrsize				\
+	_setsid					\
+	_stricmp				\
+	asnprintf				\
+	asprintf				\
+	atexit					\
+	cgetent					\
+	chroot					\
+	fattach					\
+	fchmod					\
+	fcntl					\
+	forkpty					\
+	frevoke					\
+	getpriority				\
+	getrlimit				\
+	getservbyname				\
+	getspnam				\
+	gettimeofday				\
+	gettosbyname				\
+	getuid					\
+	grantpt					\
+	mktime					\
+	on_exit					\
+	parsetos				\
+	ptsname					\
+	rand					\
+	random					\
+	revoke					\
+	setitimer				\
+	setpgid					\
+	setpriority				\
+	setproctitle				\
+	setregid				\
+	setresgid				\
+	setresuid				\
+	setreuid				\
+	setsid					\
+	setutent				\
+	sigaction				\
+	sysconf					\
+	sysctl					\
+	ttyname					\
+	ttyslot					\
+	ulimit					\
+	uname					\
+	unlockpt				\
+	vasnprintf				\
+	vasprintf				\
+	vhangup					\
+	vsnprintf				\
+	yp_get_default_domain			\
+	])
+
+KRB_CAPABILITIES
+
+AC_CHECK_GETPWNAM_R_POSIX
+
+AC_FIND_FUNC_NO_LIBS(getsockopt,,
+[#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif],
+[0,0,0,0,0])
+AC_FIND_FUNC_NO_LIBS(setsockopt,,
+[#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif],
+[0,0,0,0,0])
+
+dnl Cray stuff
+AC_CHECK_FUNCS(getudbnam setlim)
+
+AC_FIND_FUNC(res_search, resolv,
+[
+#include <stdio.h>
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+#ifdef HAVE_ARPA_NAMESER_H
+#include <arpa/nameser.h>
+#endif
+#ifdef HAVE_RESOLV_H
+#include <resolv.h>
+#endif
+],
+[0,0,0,0,0])
+
+AC_FIND_FUNC(dn_expand, resolv,
+[
+#include <stdio.h>
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+#ifdef HAVE_ARPA_NAMESER_H
+#include <arpa/nameser.h>
+#endif
+#ifdef HAVE_RESOLV_H
+#include <resolv.h>
+#endif
+],
+[0,0,0,0,0])
+
+AC_SUBST(LIB_res_search)dnl
+AC_SUBST(LIB_dn_expand)dnl
+
+AC_FUNC_MMAP
+AC_FUNC_ALLOCA
+
+AC_FUNC_GETLOGIN
+
+AC_FIND_IF_NOT_BROKEN(hstrerror, resolv,
+[#ifdef HAVE_NETDB_H
+#include <netdb.h>
+#endif],
+17)
+if test "$ac_cv_func_hstrerror" = yes; then
+AC_NEED_PROTO([
+#ifdef HAVE_NETDB_H
+#include <netdb.h>
+#endif],
+hstrerror)
+fi
+
+AC_BROKEN(chown copyhostent daemon err errx fchown flock fnmatch freehostent)
+AC_BROKEN(getcwd getdtablesize gethostname getipnodebyaddr getipnodebyname)
+AC_BROKEN(geteuid getgid getegid)
+AC_BROKEN(getopt getusershell)
+AC_BROKEN(inet_aton inet_ntop inet_pton initgroups innetgr iruserok lstat)
+AC_BROKEN(memmove)
+AC_BROKEN(mkstemp putenv rcmd readv recvmsg sendmsg setegid setenv seteuid)
+AC_BROKEN(strcasecmp strncasecmp strdup strerror strftime)
+AC_BROKEN(strlcat strlcpy strlwr)
+AC_BROKEN(strndup strnlen strptime strsep strtok_r strupr)
+AC_BROKEN(swab unsetenv verr verrx vsyslog)
+AC_BROKEN(vwarn vwarnx warn warnx writev)
+
+if test "$ac_cv_func_gethostname" = "yes"; then
+AC_NEED_PROTO([
+#include <unistd.h>],
+gethostname)
+fi
+
+if test "$ac_cv_func_mkstemp" = "yes"; then
+AC_NEED_PROTO([
+#include <unistd.h>],
+mkstemp)
+fi
+
+if test "$ac_cv_func_inet_aton" = "yes"; then
+AC_NEED_PROTO([
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif],
+inet_aton)
+fi
+
+AC_CACHE_CHECK(if realloc is broken, ac_cv_func_realloc_broken, [
+ac_cv_func_realloc_broken=no
+AC_TRY_RUN([
+#include <stddef.h>
+#include <stdlib.h>
+
+int main()
+{
+	return realloc(NULL, 17) == NULL;
+}
+],:, ac_cv_func_realloc_broken=yes, :)
+])
+if test "$ac_cv_func_realloc_broken" = yes ; then
+	AC_DEFINE(BROKEN_REALLOC, 1, [Define if realloc(NULL, X) doesn't work.])
+fi
+
+AC_KRB_FUNC_GETCWD_BROKEN
+
+dnl
+dnl Figure what authentication modules should be built
+dnl
+
+AC_MSG_CHECKING(which authentication modules should be built)
+
+LIB_AUTH_SUBDIRS=
+
+if test "$ac_cv_header_siad_h" = yes; then
+	LIB_AUTH_SUBDIRS="$LIB_AUTH_SUBDIRS sia"
+fi
+
+if test "$ac_cv_header_security_pam_modules_h" = yes -a "$enable_shared" = yes; then
+	LIB_AUTH_SUBDIRS="$LIB_AUTH_SUBDIRS pam"
+fi
+
+case "${host}" in
+changequote(,)dnl
+*-*-irix[56]*) LIB_AUTH_SUBDIRS="$LIB_AUTH_SUBDIRS afskauthlib" ;;
+changequote([,])dnl
+esac
+
+AC_MSG_RESULT($LIB_AUTH_SUBDIRS)
+
+AC_SUBST(LIB_AUTH_SUBDIRS)dnl
+
+dnl
+dnl Checks for prototypes and declarations
+dnl
+
+AC_PROTO_COMPAT([
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
+#ifdef HAVE_NETDB_H
+#include <netdb.h>
+#endif
+],
+gethostbyname, struct hostent *gethostbyname(const char *))
+
+AC_PROTO_COMPAT([
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
+#ifdef HAVE_NETDB_H
+#include <netdb.h>
+#endif
+],
+gethostbyaddr, struct hostent *gethostbyaddr(const void *, size_t, int))
+
+AC_PROTO_COMPAT([
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
+#ifdef HAVE_NETDB_H
+#include <netdb.h>
+#endif
+],
+getservbyname, struct servent *getservbyname(const char *, const char *))
+
+AC_PROTO_COMPAT([
+#ifdef HAVE_SYSLOG_H
+#include <syslog.h>
+#endif
+],
+openlog, void openlog(const char *, int, int))
+
+AC_NEED_PROTO([
+#ifdef HAVE_CRYPT_H
+#include <crypt.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+],
+crypt)
+
+AC_NEED_PROTO([
+#include <stdio.h>
+],
+fclose)
+
+AC_NEED_PROTO([
+#include <string.h>
+],
+strtok_r)
+
+AC_NEED_PROTO([
+#include <string.h>
+],
+strsep)
+
+AC_NEED_PROTO([
+#include <unistd.h>
+],
+getusershell)
+
+AC_NEED_PROTO([
+#ifdef HAVE_UTIME_H
+#include <utime.h>
+#endif
+],
+utime)
+
+AC_CHECK_VAR([#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_NETDB_H
+#include <netdb.h>
+#endif],
+h_errno)
+
+AC_CHECK_VAR([#ifdef HAVE_NETDB_H
+#include <netdb.h>
+#endif],
+h_errlist)
+
+AC_CHECK_VAR([#ifdef HAVE_NETDB_H
+#include <netdb.h>
+#endif],
+h_nerr)
+
+AC_CHECK_VAR([#ifdef HAVE_ERR_H
+#include <err.h>
+#endif],[__progname])
+
+AC_CHECK_DECLARATION([#include <stdlib.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif], optarg)
+AC_CHECK_DECLARATION([#include <stdlib.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif], optind)
+AC_CHECK_DECLARATION([#include <stdlib.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif], opterr)
+AC_CHECK_DECLARATION([#include <stdlib.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif], optopt)
+
+AC_CHECK_DECLARATION([#include <stdlib.h>], environ)
+
+dnl
+dnl According to ANSI you are explicitly allowed to cast to void,
+dnl but the standard fails to say what should happen. Some compilers
+dnl think this is illegal:
+dnl
+dnl void foo(void)
+dnl {
+dnl   return (void)0;
+dnl }
+dnl
+dnl Thus explicitly test for void
+dnl
+AC_TYPE_SIGNAL
+if test "$ac_cv_type_signal" = "void" ; then
+	AC_DEFINE(VOID_RETSIGTYPE, 1, [Define if RETSIGTYPE == void.])
+fi
+
+dnl
+dnl Check for fields in struct utmp
+dnl
+
+AC_HAVE_STRUCT_FIELD(struct utmp, ut_addr,
+[#include <sys/types.h>
+ #include <utmp.h>])
+AC_HAVE_STRUCT_FIELD(struct utmp, ut_host,
+[#include <sys/types.h>
+ #include <utmp.h>])
+AC_HAVE_STRUCT_FIELD(struct utmp, ut_id,
+[#include <sys/types.h>
+ #include <utmp.h>])
+AC_HAVE_STRUCT_FIELD(struct utmp, ut_pid,
+[#include <sys/types.h>
+ #include <utmp.h>])
+AC_HAVE_STRUCT_FIELD(struct utmp, ut_type,
+[#include <sys/types.h>
+ #include <utmp.h>])
+AC_HAVE_STRUCT_FIELD(struct utmp, ut_user,
+[#include <sys/types.h>
+ #include <utmp.h>])
+AC_HAVE_STRUCT_FIELD(struct utmpx, ut_exit,
+[#include <sys/types.h>
+ #include <utmp.h>])
+AC_HAVE_STRUCT_FIELD(struct utmpx, ut_syslen,
+[#include <sys/types.h>
+ #include <utmp.h>])
+
+dnl
+dnl Check for fields in struct tm
+dnl
+
+AC_HAVE_STRUCT_FIELD(struct tm, tm_gmtoff, [#include <time.h>])
+AC_HAVE_STRUCT_FIELD(struct tm, tm_zone, [#include <time.h>])
+
+dnl
+dnl or do we have a variable `timezone' ?
+dnl
+
+AC_CHECK_VAR(
+[#include <time.h>],
+timezone)
+
+AC_HAVE_TYPE([sa_family_t],[#include <sys/socket.h>])
+
+AC_HAVE_TYPE([socklen_t],[#include <sys/socket.h>])
+ 
+AC_HAVE_TYPE([struct sockaddr_storage], [#include <sys/socket.h>])
+
+AC_KRB_STRUCT_SPWD
+
+AC_STRUCT_ST_BLKSIZE
+
+dnl
+dnl Check for struct winsize
+dnl
+
+AC_KRB_STRUCT_WINSIZE
+
+dnl
+dnl Check for some common types
+dnl
+
+AC_TYPE_PID_T
+AC_TYPE_UID_T
+AC_TYPE_OFF_T
+AC_TYPE_SIZE_T
+
+AC_CHECK_TYPE_EXTRA(ssize_t, int, [
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif])
+
+AC_CHECK_TYPE_EXTRA(sig_atomic_t, int, [#include <signal.h>])
+
+dnl
+dnl Check for broken ultrix sys/socket.h
+dnl
+
+AC_MSG_CHECKING(for broken sys/socket.h)
+AC_CACHE_VAL(krb_cv_header_sys_socket_h_broken, [
+AC_TRY_COMPILE(
+[#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/socket.h>],[],
+krb_cv_header_sys_socket_h_broken=no,
+krb_cv_header_sys_socket_h_broken=yes)])
+AC_MSG_RESULT($krb_cv_header_sys_socket_h_broken)
+AC_SUBST(krb_cv_header_sys_socket_h_broken)
+
+dnl
+dnl Check for broken ultrix netdb.h
+dnl
+
+AC_MSG_CHECKING(for broken netdb.h)
+AC_CACHE_VAL(krb_cv_header_netdb_h_broken, [
+AC_TRY_COMPILE(
+[#include <sys/types.h>
+#include <netdb.h>
+#include <netdb.h>],[],
+krb_cv_header_netdb_h_broken=no,
+krb_cv_header_netdb_h_broken=yes)])
+AC_MSG_RESULT($krb_cv_header_netdb_h_broken)
+AC_SUBST(krb_cv_header_netdb_h_broken)
+if test "$krb_cv_header_netdb_h_broken" = "yes"; then
+  EXTRA_HEADERS="$EXTRA_HEADERS netdb.h"
+fi
+
+dnl
+dnl Check for sa_len in sys/socket.h
+dnl
+
+AC_HAVE_STRUCT_FIELD(struct sockaddr, sa_len, [#include <sys/types.h>
+#include <sys/socket.h>])
+
+dnl
+dnl Check for ouid in sys/siad.h
+dnl
+
+if test "$ac_cv_header_siad_h" = yes; then
+AC_HAVE_STRUCT_FIELD(SIAENTITY, ouid, [#include <siad.h>])
+fi
+
+dnl
+dnl you can link with getmsg on AIX 3.2 but you cannot run the program
+dnl
+
+AC_CHECK_FUNC(getmsg)
+
+if test "$ac_cv_func_getmsg" = "yes"; then
+
+AC_CACHE_CHECK(for working getmsg, ac_cv_func_getmsg_work,
+AC_TRY_RUN(
+[
+#include <stdio.h>
+#include <errno.h>
+
+int main()
+{
+  int ret;
+  ret = getmsg(open("/dev/null", 0), NULL, NULL, NULL);
+  if(ret < 0 && errno == ENOSYS)
+    return 1;
+  return 0;
+}
+], ac_cv_func_getmsg_work=yes, ac_cv_func_getmsg_work=no,
+ac_cv_func_getmsg_work=no))
+test "$ac_cv_func_getmsg_work" = "yes" &&
+AC_DEFINE(HAVE_GETMSG, 1, [Define if you have a working getmsg.])
+
+fi
+
+dnl
+dnl Tests for editline
+dnl
+
+dnl el_init
+
+AC_FIND_FUNC_NO_LIBS(el_init, edit, [], [], [$LIB_tgetent])
+if test "$ac_cv_func_el_init" = yes ; then
+	AC_CACHE_CHECK(for four argument el_init, ac_cv_func_el_init_four,[
+		AC_TRY_COMPILE([#include <stdio.h>
+			#include <histedit.h>],
+			[el_init("", NULL, NULL, NULL);],
+			ac_cv_func_el_init_four=yes,
+			ac_cv_func_el_init_four=no)])
+	if test "$ac_cv_func_el_init_four" = yes; then
+		AC_DEFINE(HAVE_FOUR_VALUED_EL_INIT, 1, [Define if el_init takes four arguments.])
+	fi
+fi
+
+dnl readline
+
+save_LIBS="$LIBS"
+LIBS="$LIB_tgetent $LIBS"
+AC_FIND_FUNC_NO_LIBS(readline, edit readline)
+LIBS="$save_LIBS"
+el_yes="# "
+if test "$with_readline" -a "$with_readline" != "no"; then
+	:
+elif test "$ac_cv_func_readline" = yes; then
+	INCLUDE_readline=
+elif test "$ac_cv_func_el_init" = yes; then
+	el_yes=
+	LIB_readline="-L\$(top_builddir)/lib/editline -lel_compat $LIB_el_init"
+	INCLUDE_readline='-I$(top_srcdir)/lib/editline'
+else
+	LIB_readline='-L$(top_builddir)/lib/editline -leditline'
+	INCLUDE_readline='-I$(top_srcdir)/lib/editline'
+fi
+LIB_readline="$LIB_readline \$(LIB_tgetent)"
+AC_DEFINE(HAVE_READLINE, 1, [Define if you have a readline function.])dnl XXX
+AC_SUBST(LIB_readline)
+AC_SUBST(INCLUDE_readline)
+AC_SUBST(el_yes)
+
+dnl telnet muck --------------------------------------------------
+
+AC_DEFINE(AUTHENTICATION)dnl
+AC_DEFINE(KRB4)dnl
+AC_DEFINE(ENCRYPTION)dnl
+AC_DEFINE(DES_ENCRYPTION)dnl
+AC_DEFINE(DIAGNOSTICS)dnl
+AC_DEFINE(OLD_ENVIRON)dnl
+
+# Simple test for streamspty, based on the existance of getmsg(), alas
+# this breaks on SunOS4 which have streams but BSD-like ptys
+#
+# And also something wierd has happend with dec-osf1, fallback to bsd-ptys
+
+AC_MSG_CHECKING(for streamspty)
+case "`uname -sr`" in
+SunOS\ 4*|OSF1*|IRIX\ 4*|HP-UX\ ?.1[[01]].*)
+	krb_cv_sys_streamspty=no
+	;;
+AIX*)
+	os_rel=`uname -v`.`uname -r`
+	if expr "$os_rel" : "3*" >/dev/null 2>&1; then
+		krb_cv_sys_streamspty=no
+	else
+		krb_cv_sys_streamspty="$ac_cv_func_getmsg_work"
+	fi
+	;;
+*)
+	krb_cv_sys_streamspty="$ac_cv_func_getmsg_work"
+	;;
+esac
+if test "$krb_cv_sys_streamspty" = yes; then
+	AC_DEFINE(STREAMSPTY, 1, [Define if you have working stream ptys.])
+fi
+dnl AC_SUBST(STREAMSPTY)
+AC_MSG_RESULT($krb_cv_sys_streamspty)
+
+AC_MSG_CHECKING([if /bin/ls takes -A])
+if /bin/ls -A > /dev/null 2>&1 ;then
+	AC_DEFINE(HAVE_LS_A, 1, [Define if /bin/ls has a \`-A' flag.])
+	krb_ls_a=yes
+else
+	krb_ls_a=no
+fi
+AC_MSG_RESULT($krb_ls_a)
+	
+dnl ------------------------------------------------------------
+AC_CACHE_CHECK(for suffix of preformatted manual pages, krb_cv_sys_cat_suffix,
+if grep _version /etc/man.conf > /dev/null 2>&1; then
+	krb_cv_sys_cat_suffix=0
+else
+	krb_cv_sys_cat_suffix=number
+fi)
+if test "$krb_cv_sys_cat_suffix" = number; then
+		CATSUFFIX='$$s'
+else
+		CATSUFFIX=0
+fi
+AC_SUBST(CATSUFFIX)
+
+dnl ------------------------------------------------------------
+
+KRB_KAFS_LIB="-L\$(top_builddir)/lib/kafs -lkafs $AIX_EXTRA_KAFS"
+AC_SUBST(KRB_KAFS_LIB)dnl
+
+dnl ------------------------------------------------------------
+
+
+dnl This is done by AC_OUTPUT but we need the result here.
+
+test "x$prefix" = xNONE && prefix=$ac_default_prefix
+test "x$exec_prefix" = xNONE && exec_prefix='${prefix}'
+
+for i in bin lib libexec sbin; do
+	i=${i}dir
+	foo=`echo $i | tr 'xindiscernible' 'XINDISCERNIBLE'`
+	x="\$${i}"
+	eval y="$x"
+	while test "x$y" != "x$x"; do
+		x="$y"
+		eval y="$x"
+	done
+	AC_DEFINE_UNQUOTED($foo,"$x")
+done
+
+dnl
+dnl We are all set to emit the Makefiles and config.h
+dnl
+AC_OUTPUT(					\
+Makefile 					\
+include/Makefile				\
+include/sys/Makefile				\
+						\
+man/Makefile					\
+						\
+lib/Makefile					\
+lib/com_err/Makefile				\
+lib/des/Makefile				\
+lib/krb/Makefile				\
+lib/kdb/Makefile				\
+lib/kadm/Makefile				\
+lib/acl/Makefile				\
+lib/kafs/Makefile				\
+lib/roken/Makefile				\
+lib/otp/Makefile				\
+lib/sl/Makefile					\
+lib/editline/Makefile				\
+lib/rxkad/Makefile				\
+lib/auth/Makefile				\
+lib/auth/pam/Makefile				\
+lib/auth/sia/Makefile				\
+lib/auth/afskauthlib/Makefile			\
+						\
+kuser/Makefile					\
+server/Makefile					\
+slave/Makefile					\
+admin/Makefile					\
+kadmin/Makefile					\
+						\
+appl/Makefile					\
+						\
+appl/afsutil/Makefile 				\
+appl/ftp/Makefile				\
+appl/ftp/common/Makefile			\
+appl/ftp/ftp/Makefile				\
+appl/ftp/ftpd/Makefile				\
+appl/telnet/Makefile				\
+appl/telnet/libtelnet/Makefile			\
+appl/telnet/telnet/Makefile			\
+appl/telnet/telnetd/Makefile			\
+appl/bsd/Makefile 				\
+appl/kauth/Makefile				\
+appl/popper/Makefile				\
+appl/movemail/Makefile				\
+appl/push/Makefile				\
+appl/sample/Makefile				\
+appl/xnlock/Makefile				\
+appl/kx/Makefile				\
+appl/kip/Makefile				\
+appl/otp/Makefile				\
+doc/Makefile					\
+etc/inetd.conf.changes				\
+) dnl end of AC_OUTPUT
+
+AC_KRB_VERSION

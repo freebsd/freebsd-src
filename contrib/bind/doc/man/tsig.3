@@ -1,0 +1,240 @@
+.\" $Id: tsig.3,v 8.2 1999/01/08 18:54:28 vixie Exp $
+.\"
+.\"Copyright (c) 1995-1999 by Internet Software Consortium
+.\"
+.\"Permission to use, copy, modify, and distribute this software for any
+.\"purpose with or without fee is hereby granted, provided that the above
+.\"copyright notice and this permission notice appear in all copies.
+.\"
+.\"THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+.\"ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+.\"OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+.\"CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+.\"DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+.\"PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+.\"ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+.\"SOFTWARE.
+.\"
+.Dd January 1, 1996
+.Os BSD 4
+.Dt TSIG @SYSCALL_EXT@
+.Sh NAME
+.Nm ns_sign ,
+.Nm ns_sign_tcp ,
+.Nm ns_sign_tcp_init ,
+.Nm ns_verify ,
+.Nm ns_verify_tcp ,
+.Nm ns_verify_tcp_init ,
+.Nm ns_find_tsig
+.Nd TSIG system
+.Sh SYNOPSIS
+.Ft int
+.Fo ns_sign
+.Fa "u_char *msg"
+.Fa "int *msglen"
+.Fa "int msgsize"
+.Fa "int error"
+.Fa "void *k"
+.Fa "const u_char *querysig"
+.Fa "int querysiglen"
+.Fa "u_char *sig"
+.Fa "int *siglen"
+.Fa "time_t in_timesigned"
+.Fc
+.Ft int
+.Fn ns_sign_tcp "u_char *msg" "int *msglen" "int msgsize" "int error" \
+    "ns_tcp_tsig_state *state" "int done"
+.Ft int
+.Fn ns_sign_tcp_init "void *k" "const u_char *querysig" "int querysiglen" \
+    "ns_tcp_tsig_state *state"
+.Ft int
+.Fo ns_verify
+.Fa "u_char *msg"
+.Fa "int *msglen"
+.Fa "void *k"
+.Fa "const u_char *querysig"
+.Fa "int querysiglen"
+.Fa "u_char *sig"
+.Fa "int *siglen"
+.Fa "time_t in_timesigned"
+.Fa "int nostrip"
+.Fc
+.Ft int
+.Fn ns_verify_tcp "u_char *msg" "int *msglen" "ns_tcp_tsig_state *state" \
+    "int required"
+.Ft int
+.Fn ns_verify_tcp_init "void *k" "const u_char *querysig" "int querysiglen" \
+    "ns_tcp_tsig_state *state"
+.Ft u_char *
+.Fn ns_find_tsig "u_char *msg" "u_char *eom"
+.Sh DESCRIPTION
+The TSIG routines are used to implement transaction/request security of
+DNS messages.
+.Pp
+.Fn ns_sign
+and
+.Fn ns_verify
+are the basic routines.
+.Fn ns_sign_tcp
+and
+.Fn ns_verify_tcp
+are used to sign/verify TCP messages that may be split into multiple packets,
+such as zone transfers, and
+.Fn ns_sign_tcp_init,
+.Fn ns_verify_tcp_init
+initialize the state structure necessary for TCP operations.
+.Fn ns_find_tsig
+locates the TSIG record in a message, if one is present.
+.Pp
+.Fn ns_sign
+.Bl -tag -width "in_timesigned" -compact -offset indent
+.It Dv msg
+the incoming DNS message, which will be modified
+.It Dv msglen
+the length of the DNS message, on input and output
+.It Dv msgsize
+the size of the buffer containing the DNS message on input
+.It Dv error
+the value to be placed in the TSIG error field
+.It Dv key
+the (DST_KEY *) to sign the data
+.It Dv querysig
+for a response, the signature contained in the query
+.It Dv querysiglen
+the length of the query signature
+.It Dv sig
+a buffer to be filled with the generated signature
+.It Dv siglen
+the length of the signature buffer on input, the signature length on output
+.El
+.Pp
+.Fn ns_sign_tcp
+.Bl -tag -width "in_timesigned" -compact -offset indent
+.It Dv msg
+the incoming DNS message, which will be modified
+.It Dv msglen
+the length of the DNS message, on input and output
+.It Dv msgsize
+the size of the buffer containing the DNS message on input
+.It Dv error
+the value to be placed in the TSIG error field
+.It Dv state
+the state of the operation
+.It Dv done
+non-zero value signifies that this is the last packet
+.El
+.Pp
+.Fn ns_sign_tcp_init
+.Bl -tag -width "in_timesigned" -compact -offset indent
+.It Dv k
+the (DST_KEY *) to sign the data
+.It Dv querysig
+for a response, the signature contained in the query
+.It Dv querysiglen
+the length of the query signature
+.It Dv state
+the state of the operation, which this initializes
+.El
+.Pp
+.Fn ns_verify
+.Bl -tag -width "in_timesigned" -compact -offset indent
+.It Dv msg
+the incoming DNS message, which will be modified
+.It Dv msglen
+the length of the DNS message, on input and output
+.It Dv key
+the (DST_KEY *) to sign the data
+.It Dv querysig
+for a response, the signature contained in the query
+.It Dv querysiglen
+the length of the query signature
+.It Dv sig
+a buffer to be filled with the signature contained
+.It Dv siglen
+the length of the signature buffer on input, the signature length on output
+.It Dv nostrip
+non-zero value means that the TSIG is left intact
+.El
+.Pp
+.Fn ns_verify_tcp
+.Bl -tag -width "in_timesigned" -compact -offset indent
+.It Dv msg
+the incoming DNS message, which will be modified
+.It Dv msglen
+the length of the DNS message, on input and output
+.It Dv state
+the state of the operation
+.It Dv required
+non-zero value signifies that a TSIG record must be present at this step
+.El
+.Pp
+.Fn ns_verify_tcp_init
+.Bl -tag -width "in_timesigned" -compact -offset indent
+.It Dv k
+the (DST_KEY *) to verify the data
+.It Dv querysig
+for a response, the signature contained in the query
+.It Dv querysiglen
+the length of the query signature
+.It Dv state
+the state of the operation, which this initializes
+.El
+.Pp
+.Fn ns_find_tsig
+.Bl -tag -width "in_timesigned" -compact -offset indent
+.It Dv msg
+the incoming DNS message
+.It Dv msglen
+the length of the DNS message
+.El
+.Sh RETURN VALUES
+.Fn ns_find_tsig
+returns a pointer to the TSIG record if one is found, and NULL otherwise.
+.Pp
+All other routines return 0 on success, modifying arguments when necessary.
+.Pp
+.Fn ns_sign
+and
+.Fn ns_sign_tcp
+return the following errors:
+.Bl -tag -width "NS_TSIG_ERROR_NO_SPACE" -compact -offset indent
+.It Dv (-1)
+bad input data
+.It Dv (-ns_r_badkey)
+The key was invalid, or the signing failed
+.It Dv NS_TSIG_ERROR_NO_SPACE
+the message buffer is too small.
+.El
+.Pp
+.Fn ns_verify
+and
+.Fn ns_verify_tcp
+return the following errors:
+.Bl -tag -width "NS_TSIG_ERROR_NO_SPACE" -compact -offset indent
+.It Dv (-1)
+bad input data
+.It Dv NS_TSIG_ERROR_FORMERR
+The message is malformed
+.It Dv NS_TSIG_ERROR_NO_TSIG
+The message does not contain a TSIG record
+.It Dv NS_TSIG_ERROR_ID_MISMATCH
+The TSIG original ID field does not match the message ID
+.It Dv (-ns_r_badkey)
+Verification failed due to an invalid key
+.It Dv (-ns_r_badsig)
+Verification failed due to an invalid signature
+.It Dv (-ns_r_badtime)
+Verification failed due to an invalid timestamp
+.It Dv ns_r_badkey
+Verification succeeded but the message had an error of BADKEY
+.It Dv ns_r_badsig
+Verification succeeded but the message had an error of BADSIG
+.It Dv ns_r_badtime
+Verification succeeded but the message had an error of BADTIME
+.El
+.Pp
+.Sh SEE ALSO
+.Xr resolver 3 .
+.Sh AUTHORS
+Brian Wellington, TISLabs at Network Associates
+.\" .Sh BUGS

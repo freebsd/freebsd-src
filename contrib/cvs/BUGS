@@ -1,0 +1,231 @@
+See the Cederqvist manual (cvs.texinfo) for information on how to
+report bugs (and what will happen to your bug reports if you do).
+
+The following is a list of some of the known bugs.  It may or may not
+be comprehensive.  We would dearly love for people to volunteer to
+help us keep it up to date (for starters, if you notice any
+inaccuracies, please let bug-cvs know as described in the Cederqvist
+manual).  There are some other reported bugs in MINOR-BUGS; the
+difference, at least in theory, is that those bugs are less serious.
+
+
+* For platform-specific information (in some cases including known
+bugs), see README.VMS, windows-NT/README, or os2/README.  There is no
+similar file for the unix-like operating systems (not yet, at least).
+This file also might contain some platform-specific bugs.
+
+
+* Need more work on the procedure for fixing it if a binary file is
+accidentally added in text mode (sanity.sh test cases, better
+documentation, probably update and/or admin -kb should update
+the -k setting in CVS/Entries).
+
+
+* Wrappers (-t/-f) do not work client/server, and there are a variety of other
+bugs and annoyances with wrappers.
+
+
+* If your login name contains a space or various other characters
+(particularly an issue on Windows), CVS will have trouble (it will
+write invalid RCS files, probably).  The fix would be to have CVS
+change such characters to underscores before writing them to the RCS
+file.  Furthermore, the LOGNAME or USER environment variables usually
+won't override the system login name, so this can be hard to work
+around.
+
+
+* If you specify the -w global option to client/server CVS, it only
+overrides a CVSREAD environment variable set on the client, not a
+CVSREAD variable which was set on the server (for example, in .bashrc
+when the server was run via rsh).  The fix of course will be to
+provide a "Option-read-write" request which sends -w, in addition to
+"Global_option -r" which sends -r.
+
+
+* "make remotecheck" sometimes fails on test 187a3 with
+    cvs server: in directory .:
+    cvs [server aborted]: *PANIC* administration files missing
+This does not happen every time.  (-kingdon, Nov 96, Red Hat linux 3.0.3).
+
+
+* The -m option to "cvs add" does not work with client/server CVS.
+CVS will accept the option, but it won't actually set the
+file's description.
+
+
+* cvs update walks into a user's work directory if there's a directory
+  of the same name in the repository even if the user's directory
+  doesn't yet have a CVS admin sub-directory.  This can greatly confuse
+  users who try to add the same directory at nearly the same time.
+
+
+* 'cvs admin' dumped core when files were missing from working directory
+  (and from the repository)?
+
+
+* The following bug was reported against CVS 1.9:
+
+    Create a module named test with a file named test in it.
+
+      cactus:sfavor> cvs get test
+      cvs checkout: Updating test
+      U test/test
+      cactus:sfavor> cd test
+      cactus:sfavor> cvs get test
+      cvs checkout: cannot chdir to test: Not a directory
+      cvs checkout: ignoring module test
+      Exit 1
+      cactus:sfavor> cvs update
+      cvs update: Updating .
+      rcs.c:2139: failed assertion `rev == NULL || isdigit (*rev)'
+      Abort (core dumped)
+      Exit 134
+
+
+* pcl-cvs doesn't like it when you try to check in a file which isn't
+  up-to-date.  The messages produced by the server perhaps don't match
+  what pcl-cvs is looking for.
+
+
+* From: billr@mpd.tandem.com (Bill Robertson)
+  Subject: Problem with rtag and the -D option
+  Date: Fri, 17 Mar 1995 10:53:29 -0600 (CST)
+
+  I have been trying to use the -D option to specify a date for tagging, but
+  rtag does not recognize the -D option. It is documented to do so and I've
+  tested the use of -D with cvs update and cvs diff and it works fine there.
+
+* From: "Charles M. Hannum" <mycroft@ai.mit.edu>
+  To: info-cvs@prep.ai.mit.edu
+  Subject: Still one more bug
+  Date: Sat, 25 Feb 1995 17:01:15 -0500
+  
+  mycroft@duality [1]; cd /usr/src/lib/libc
+  mycroft@duality [1]; cvs diff -c2 '-D1 day ago' -Dnow
+  cvs server: Diffing .
+  cvs server: Diffing DB
+  cvs [server aborted]: could not chdir to DB: No such file or directory
+  mycroft@duality [1];
+  
+  `DB' is an old directory, which no longer has files in it, and is
+  removed automatically when I use the `-P' option to checkout.
+  
+  This error doesn't occur when run locally.
+  
+  P.S.  Is anyone working on fixing these bugs?
+
+
+* From: Roland McGrath <roland@gnu.ai.mit.edu>
+  To: Cyclic CVS Hackers <info-cvs@prep.ai.mit.edu>
+  Subject: weird bug
+  Date: Sat, 25 Mar 1995 16:41:41 -0500
+  X-Windows: Even your dog won't like it.
+
+  I just noticed some droppings on my disk from what must be a pretty weird
+  bug in remote CVS.
+
+  In my home directory on a repository machine I use, I find:
+
+  drwxr-xr-x   4 roland   staff         512 Mar  7 14:08 cvs-serv28962
+  drwxr-xr-x   4 roland   staff         512 Mar  7 14:11 cvs-serv28978
+  drwxr-xr-x   4 roland   staff         512 Mar  7 15:13 cvs-serv29141
+
+  OK, so these are leftover cruft from some cvs run that got aborted.
+  Well, it should clean up after itself, but so what.
+
+  The last one is pretty dull; the real weirdness is the contents of the
+  first two directories.
+
+  duality 77 # ls -RF cvs-serv28978/
+  CVS/		cvs-serv28978/
+
+  cvs-serv28978/CVS:
+  Entries	    Repository
+
+  cvs-serv28978/cvs-serv28978:
+  arpa/
+
+  cvs-serv28978/cvs-serv28978/arpa:
+  CVS/		cvs-serv28978/
+
+  cvs-serv28978/cvs-serv28978/arpa/CVS:
+  Entries	    Repository
+
+  cvs-serv28978/cvs-serv28978/arpa/cvs-serv28978:
+  assert/
+
+  cvs-serv28978/cvs-serv28978/arpa/cvs-serv28978/assert:
+  CVS/		cvs-serv28978/
+
+  cvs-serv28978/cvs-serv28978/arpa/cvs-serv28978/assert/CVS:
+  Entries	    Repository
+
+  cvs-serv28978/cvs-serv28978/arpa/cvs-serv28978/assert/cvs-serv28978:
+  bare/
+
+  cvs-serv28978/cvs-serv28978/arpa/cvs-serv28978/assert/cvs-serv28978/bare:
+  CVS/		cvs-serv28978/
+
+  cvs-serv28978/cvs-serv28978/arpa/cvs-serv28978/assert/cvs-serv28978/bare/CVS:
+  Entries	    Repository
+
+  cvs-serv28978/cvs-serv28978/arpa/cvs-serv28978/assert/cvs-serv28978/bare/cvs-serv28978:
+  conf/
+
+  cvs-serv28978/cvs-serv28978/arpa/cvs-serv28978/assert/cvs-serv28978/bare/cvs-serv28978/conf:
+  CVS/		cvs-serv28978/
+
+  cvs-serv28978/cvs-serv28978/arpa/cvs-serv28978/assert/cvs-serv28978/bare/cvs-serv28978/conf/CVS:
+  Entries	    Repository
+
+  cvs-serv28978/cvs-serv28978/arpa/cvs-serv28978/assert/cvs-serv28978/bare/cvs-serv28978/conf/cvs-serv28978:
+  crypt/
+
+  cvs-serv28978/cvs-serv28978/arpa/cvs-serv28978/assert/cvs-serv28978/bare/cvs-serv28978/conf/cvs-serv28978/crypt:
+  CVS/		cvs-serv28978/
+
+  cvs-serv28978/cvs-serv28978/arpa/cvs-serv28978/assert/cvs-serv28978/bare/cvs-serv28978/conf/cvs-serv28978/crypt/CVS:
+  Entries	    Repository
+
+  cvs-serv28978/cvs-serv28978/arpa/cvs-serv28978/assert/cvs-serv28978/bare/cvs-serv28978/conf/cvs-serv28978/crypt/cvs-serv28978:
+  csu/
+
+  cvs-serv28978/cvs-serv28978/arpa/cvs-serv28978/assert/cvs-serv28978/bare/cvs-serv28978/conf/cvs-serv28978/crypt/cvs-serv28978/csu:
+  CVS/		cvs-serv28978/
+
+  cvs-serv28978/cvs-serv28978/arpa/cvs-serv28978/assert/cvs-serv28978/bare/cvs-serv28978/conf/cvs-serv28978/crypt/cvs-serv28978/csu/CVS:
+  Entries	    Repository
+
+  cvs-serv28978/cvs-serv28978/arpa/cvs-serv28978/assert/cvs-serv28978/bare/cvs-serv28978/conf/cvs-serv28978/crypt/cvs-serv28978/csu/cvs-serv28978:
+  ctype/
+
+  cvs-serv28978/cvs-serv28978/arpa/cvs-serv28978/assert/cvs-serv28978/bare/cvs-serv28978/conf/cvs-serv28978/crypt/cvs-serv28978/csu/cvs-serv28978/ctype:
+  CVS/		cvs-serv28978/
+
+  [...]
+
+  ls: cvs-serv28978/cvs-serv28978/arpa/cvs-serv28978/assert/cvs-serv28978/bare/cvs-serv28978/conf/cvs-serv28978/crypt/cvs-serv28978/csu/cvs-serv28978/ctype/cvs-serv28978/dirent/cvs-serv28978/elf/cvs-serv28978/gnu/cvs-serv28978/gnulib/cvs-serv28978/grp/cvs-serv28978/hurd/cvs-serv28978/hurd/hurd/cvs-serv28978/inet/cvs-serv28978/inet/arpa/cvs-serv28978/inet/netinet[...]/cvs-serv28978/posix/cvs-serv28978/posix/glob/cvs-serv28978/posix/gnu/cvs-serv28978/posix/sys/cvs-serv28978/protocols/cvs-serv28978/pwd/cvs-serv28978/resolv/cvs-serv28978/resolv/arpa/cvs-serv28978/resolv/sys/cvs-serv28978/resource/cvs-serv28978/resource/sys/cvs-serv28978/rpc/cvs-serv28978/setjmp/cvs-serv28978/signal/cvs-serv28978/signal/sys/cvs-serv28978/socket/cvs-serv28978/socket: File name too long
+  cvs-serv28978/cvs-serv28978/arpa/cvs-serv28978/assert/cvs-serv28978/bare/cvs-serv28978/conf/cvs-serv28978/crypt/cvs-serv28978/csu/cvs-serv28978/ctype/cvs-serv28978/dirent/cvs-serv28978/elf/cvs-serv28978/gnu/cvs-serv28978/gnulib/cvs-serv28978/grp/cvs-serv28978/hurd/cvs-serv28978/hurd/hurd/cvs-serv28978/inet/cvs-serv28978/inet/arpa/cvs-serv28978/inet/netinet[...]/cvs-serv28978/posix/glob/cvs-serv28978/posix/gnu/cvs-serv28978/posix/sys/cvs-serv28978/protocols/cvs-serv28978/pwd/cvs-serv28978/resolv/cvs-serv28978/resolv/arpa/cvs-serv28978/resolv/sys/cvs-serv28978/resource/cvs-serv28978/resource/sys/cvs-serv28978/rpc/cvs-serv28978/setjmp/cvs-serv28978/signal/cvs-serv28978/signal/sys/cvs-serv28978/socket/cvs-serv28978:
+
+* From: Roland McGrath <roland@gnu.ai.mit.edu>
+  To: Cyclic CVS Hackers <info-cvs@prep.ai.mit.edu>
+  Subject: bizarre failure mode
+  Date: Tue, 7 Mar 95 14:17:28 -0500
+  
+  This is pretty weird:
+  
+  CVS_SERVER='TMPDIR=. /usr/local/bin/cvs' ../cvs-build/src/cvs update -q
+  cvs [server aborted]: could not get working directory: Result too large
+  [Exit 1]
+  asylum 29 % grep 'Result too large' /usr/include/sys/errno.h 
+  #define ERANGE          34              /* Result too large */
+  
+  Now, getcwd fails with ERANGE when the buffer is too small.  But I don't
+  know why that would be the case; I don't think there are exceptionally long
+  directory names involved.  It would be robust to notice ERANGE and use a
+  bigger buffer.  But I suspect something weirder is going on.
+  
+  The repository in question in duality.gnu.ai.mit.edu:/gd4/gnu/cvsroot/libc.
+  
+  Send me a PGP-signed message if you want the password to use the machine
+  where the problem showed up.

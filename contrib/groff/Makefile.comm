@@ -1,0 +1,265 @@
+# Copyright (C) 1989-2000 Free Software Foundation, Inc.
+#      Written by James Clark (jjc@jclark.com)
+# 
+# This file is part of groff.
+# 
+# groff is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2, or (at your option) any later
+# version.
+# 
+# groff is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# for more details.
+# 
+# You should have received a copy of the GNU General Public License along
+# with groff; see the file COPYING.  If not, write to the Free Software
+# Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+# Makefile.comm
+#
+SHELL=/bin/sh
+INCLUDES=-I. -I$(srcdir) \
+  -I$(top_builddir)/src/include -I$(top_srcdir)/src/include
+ALL_CCFLAGS=$(INCLUDES) $(CCDEFINES) $(CCFLAGS) $(CPPFLAGS)
+COMPILE.cc=$(CCC) $(ALL_CCFLAGS) -c
+ALL_CFLAGS=$(INCLUDES) $(CDEFINES) $(CFLAGS) $(CPPFLAGS)
+COMPILE.c=$(CC) $(ALL_CFLAGS)  -c
+LINK.cc=$(CCC) $(CCFLAGS) $(LDFLAGS)
+LINK.c=$(CC) $(CFLAGS) $(LDFLAGS)
+LIBGROFF=$(top_builddir)/src/libs/libgroff/libgroff.a
+LIBBIB=$(top_builddir)/src/libs/libbib/libbib.a
+LIBDRIVER=$(top_builddir)/src/libs/libdriver/libdriver.a
+MLIB=
+XLIBS=
+YTABH=
+YTABC=
+GRAM=
+LIBCLEAN=
+CLEANADD=
+MOSTLYCLEANFILES=$(MANCLEAN) $(PROG) $(OBJS) $(GENSRCS) $(GENHDRS) \
+  depend.temp core y.output $(CLEANADD)
+CLEANFILES=$(LIBCLEAN)
+DISTCLEANFILES=TAGS Makefile Makefile.dep
+REALCLEANFILES=$(YTABC) $(YTABH)
+NAMEPREFIX=
+HDRS=
+MANPAGES=$(MAN1) $(MAN5) $(MAN7)
+MANCLEAN=$(MANPAGES)
+fontsubdir=$(fontdir)/dev$(DEV)
+
+all install install_bin install_data TAGS depend distfiles uninstall_sub:
+
+install: prefix_must_exist install_bin install_data
+uninstall: uninstall_sub
+pure:
+
+.PHONY: all clean distclean mostlyclean realclean extraclean depend distfiles
+.PHONY: install install_bin install_data prefix_must_exist
+.PHONY: uninstall uninstall_sub
+.PHONY: pure
+
+prefix_must_exist:
+	@test -d $(prefix) \
+	  || (echo ; \
+	      echo The prefix directory \`$(prefix)\' doesn\'t exist; \
+	      echo ; \
+	      exit 1)
+
+mostlyclean:
+	-rm -f $(MOSTLYCLEANFILES)
+
+clean:
+	-rm -f $(CLEANFILES) $(MOSTLYCLEANFILES)
+
+distclean:
+	-rm -f $(DISTCLEANFILES) $(CLEANFILES) $(MOSTLYCLEANFILES)
+
+realclean:
+	-rm -f $(REALCLEANFILES) $(DISTCLEANFILES) $(CLEANFILES) \
+	  $(MOSTLYCLEANFILES)
+
+extraclean:
+	-rm -f $(DISTCLEANFILES) $(CLEANFILES) $(MOSTLYCLEANFILES) \
+	  \#* *~ =* core junk grot old temp tmp tem
+
+.SUFFIXES:
+.SUFFIXES: .o .cc .c .y .man .n
+
+.cc.o:
+	$(COMPILE.cc) $<
+
+.c.o:
+	$(COMPILE.c) $<
+
+.y.cc:
+	if test -n "$(YTABH)"; then \
+	  $(YACC) $(YACCFLAGS) -d $<; \
+	else \
+	  $(YACC) $(YACCFLAGS) $<; \
+	fi
+	-test -f y.tab.h && mv y.tab.h y_tab.h
+	-test -f y.tab.c && mv y.tab.c y_tab.c
+	mv y_tab.c $@
+# Avoid ending up with two versions of $(YTABH).
+	if test -n "$(YTABH)"; then \
+	  if test -f $(srcdir)/$(YTABH); then \
+	    rm -f $(YTABH); \
+	    mv y_tab.h $(srcdir)/$(YTABH); \
+	  else \
+	    mv y_tab.h $(YTABH); \
+	  fi; \
+	fi
+
+version=`cat $(top_srcdir)/VERSION`
+# No additional number for the groff archive if revision is zero
+revision=`sed -e 's/^0$$//' -e 's/^[1-9].*$$/.&/' $(top_srcdir)/REVISION`
+
+.man.n:
+	@echo Making $@ from $<
+	@-rm -f $@
+	@sed -e "s|@BINDIR@|$(bindir)|g" \
+	-e "s|@FONTDIR@|$(fontdir)|g" \
+	-e "s|@FONTPATH@|$(fontpath)|g" \
+	-e "s|@MACRODIR@|$(tmacdir)|g" \
+	-e "s|@SYSTEMMACRODIR@|$(systemtmacdir)|g" \
+	-e "s|@LOCALMACRODIR@|$(localtmacdir)|g" \
+	-e "s|@MACROPATH@|$(tmacpath)|g" \
+	-e "s|@DEVICE@|$(DEVICE)|g" \
+	-e "s|@DEFAULT_INDEX@|$(indexdir)/$(indexname)|g" \
+	-e "s|@DEFAULT_INDEX_NAME@|$(indexname)|g" \
+	-e "s|@INDEX_SUFFIX@|$(indexext)|g" \
+	-e "s|@COMMON_WORDS_FILE@|$(common_words_file)|g" \
+	-e "s|@MAN1EXT@|$(man1ext)|g" \
+	-e "s|@MAN5EXT@|$(man5ext)|g" \
+	-e "s|@MAN7EXT@|$(man7ext)|g" \
+	-e "s|@TMAC_S_PREFIX@|$(tmac_s_prefix)|g" \
+	-e "s|@TMAC_M_PREFIX@|$(tmac_m_prefix)|g" \
+	-e "s|@TMAC_AN_PREFIX@|$(tmac_an_prefix)|g" \
+	-e "s|@TMAC_MDIR@|$(tmacdir)/mm|g" \
+	-e "s|@BROKEN_SPOOLER_FLAGS@|$(BROKEN_SPOOLER_FLAGS)|g" \
+	-e "s|@VERSION@|$(version)$(revision)|g" \
+	-e "s|@MDATE@|`$(SHELL) $(top_srcdir)/mdate.sh $<`|g" \
+	-e "s|@g@|$(g)|g" \
+	-e "s!@G@!`echo $(g) | tr [a-z] [A-Z]`!g" \
+	$< >$@
+
+.PHONY: install_man
+install_man:
+	-test -d $(manroot) || $(mkinstalldirs) $(manroot)
+	-test -d $(man1dir) || $(mkinstalldirs) $(man1dir)
+	@-pages="$(MAN1)"; \
+	for p in $$pages; do \
+	 prog=`basename $$p .n`; \
+	 target=$(man1dir)/$(NAMEPREFIX)$$prog.$(man1ext); \
+	 rm -f $$target; \
+	 echo $(INSTALL_DATA) $$p $$target; \
+	 $(INSTALL_DATA) $$p $$target; \
+	done
+	-test -d $(man5dir) || $(mkinstalldirs) $(man5dir)
+	@-pages="$(MAN5)"; \
+	for p in $$pages; do \
+	 target=$(man5dir)/`basename $$p .n`.$(man5ext); \
+	 rm -f $$target; \
+	 echo $(INSTALL_DATA) $$p $$target; \
+	 $(INSTALL_DATA) $$p $$target; \
+	done
+	-test -d $(man7dir) || $(mkinstalldirs) $(man7dir)
+	@-pages="$(MAN7)"; \
+	for p in $$pages; do \
+	 target=$(man7dir)/`basename $$p .n`.$(man7ext); \
+	 rm -f $$target; \
+	 echo $(INSTALL_DATA) $$p $$target; \
+	 $(INSTALL_DATA) $$p $$target; \
+	done
+
+.PHONY: uninstall_man
+uninstall_man:
+	@-pages="$(MAN1)"; \
+	for p in $$pages; do \
+	 target=$(man1dir)/$(NAMEPREFIX)`basename $$p .n`.$(man1ext); \
+	 echo rm -f $$target; \
+	 rm -f $$target; \
+	done
+	@-pages="$(MAN5)"; \
+	for p in $$pages; do \
+	 target=$(man5dir)/`basename $$p .n`.$(man5ext); \
+	 echo rm -f $$target; \
+	 rm -f $$target; \
+	done
+	@-pages="$(MAN7)"; \
+	for p in $$pages; do \
+	 target=$(man7dir)/`basename $$p .n`.$(man7ext); \
+	 echo rm -f $$target; \
+	 rm -f $$target; \
+	done
+
+.PHONY: install_prog
+install_prog:
+	-test -d $(bindir) || $(mkinstalldirs) $(bindir)
+	rm -f $(bindir)/$(NAMEPREFIX)$(PROG)
+	$(INSTALL_PROGRAM) $(PROG) $(bindir)/$(NAMEPREFIX)$(PROG)
+
+.PHONY: uninstall_prog
+uninstall_prog:
+	-rm -f $(bindir)/$(NAMEPREFIX)$(PROG)	
+
+.PHONY: install_dev
+install_dev:
+	-test -d $(datadir) || $(mkinstalldirs) $(datadir)
+	-test -d $(dataprogramdir) || $(mkinstalldirs) $(dataprogramdir)
+	-test -d $(datasubdir) || $(mkinstalldirs) $(datasubdir)
+	-test -d $(fontdir) || $(mkinstalldirs) $(fontdir)
+	-test -d $(fontsubdir) || $(mkinstalldirs) $(fontsubdir)
+	-if test -d $(srcdir)/generate; then \
+	  test -d $(fontsubdir)/generate || \
+	    $(mkinstalldirs) $(fontsubdir)/generate; \
+	fi
+	-for f in $(DEVFILES); do \
+	  rm -f $(fontsubdir)/$$f; \
+	  if test -f $$f; then \
+	    $(INSTALL_DATA) $$f $(fontsubdir)/$$f; \
+	  else \
+	    $(INSTALL_DATA) $(srcdir)/$$f $(fontsubdir)/$$f; \
+	  fi; \
+	done
+
+.PHONY: uninstall_dev
+uninstall_dev:
+	-for f in $(DEVFILES); do rm -f $(fontsubdir)/$$f; done
+	-if test -d $(fontsubdir)/generate; then \
+	  rmdir $(fontsubdir)/generate; \
+	fi
+	-rmdir $(fontsubdir)
+
+.PHONY: depend_src
+depend_src: depend.temp
+	mv depend.temp Makefile.dep
+
+depend.temp: FORCE
+	> depend.temp;
+	test -z "$(CCSRCS)$(YTABC)"  \
+	  || $(CCC) $(ALL_CCFLAGS) -MM $(CCSRCS) $(YTABC) >>depend.temp
+	test -z "$(CSRCS)" \
+	  || $(CC) $(ALL_CFLAGS) -MM $(CSRCS) >>depend.temp
+	if test -n "$(YTABH)"; then \
+	  sed -e 's|$(YTABH)|$(YTABC)|g' depend.temp >depend1.temp; \
+	  mv depend1.temp depend.temp; \
+	fi
+
+.PHONY: TAGS_src
+TAGS_src:
+	$(ETAGS) $(ETAGSFLAGS) $(CCSRCS) $(CSRCS)
+	test -z "$(GRAM)$(HDRS)" \
+	  || $(ETAGS) $(ETAGSFLAGS) -a $(ETAGSCCFLAG) $(GRAM) $(HDRS)
+
+Makefile:
+	-rm -f Makefile
+	echo srcdir=$(srcdir) >>Makefile
+	echo VPATH=$(VPATH) >>Makefile
+	cat $(MAKEFILEPARTS) /dev/null >>Makefile
+
+FORCE:
+
+.NOEXPORT:

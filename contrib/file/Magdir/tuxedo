@@ -1,0 +1,7 @@
+#
+#------------------------------------------------------------------------------
+# tuxedo:	file(1) magic for BEA TUXEDO data files
+#
+# from Ian Springer <ispringer@hotmail.com>
+#
+0	string		\0\0\1\236\0\0\0\0\0\0\0\0\0\0\0\0	BEA TUXEDO DES mask data

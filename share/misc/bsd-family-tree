@@ -1,0 +1,384 @@
+The UNIX system family tree: Research and BSD
+---------------------------------------------
+
+First Edition (V1)
+     |
+Second Edition (V2)
+     |
+Third Edition (V3)
+     |
+Fourth Edition (V4)
+     |
+Fifth Edition (V5)
+     |
+Sixth Edition (V6) -----*
+       \                |
+        \               |
+         \              |
+Seventh Edition (V7)    |
+            \           |
+             \        1BSD
+             32V        |
+               \      2BSD---------------*
+                \    /                   |
+                 \  /                    |
+                  \/                     |
+                 3BSD                    |
+                  |                      |
+               4.0BSD               2.7.9BSD
+                  |                      |
+               4.1BSD --------------> 2.8BSD
+                  |                      |
+              4.1aBSD -----------\       |
+                  |                \     |
+              4.1bBSD                \   |
+                  |                    \ |
+      *------ 4.1cBSD --------------> 2.9BSD
+     /            |                      |
+Eighth Edition    |                   2.9BSD-Seismo
+     |            |                      |
+     +----<--- 4.2BSD               2.9.1BSD
+     |            |                      |
+     +----<--- 4.3BSD -------------> 2.10BSD
+     |            |               /      |
+Ninth Edition     |              / 2.10.1BSD
+     |         4.3BSD Tahoe-----+        |
+     |            |              \       |
+     |            |                \     |
+     v            |                  2.11BSD
+Tenth Edition     |                      |
+                  |                  2.11BSD rev #430
+               4.3BSD NET/1              |
+                  |                      v
+               4.3BSD Reno
+                  |
+   *---------- 4.3BSD NET/2 -------------------+-------------*
+   |                    |                      |             |
+386BSD 0.0              |                      |           BSD/386 ALPHA
+   |                    |                      |             |
+386BSD 0.1 ------------>+                      |           BSD/386 0.3.[13]
+   |     \              |                  4.4BSD Alpha      |
+   |     386BSD 1.0     |                      |           BSD/386 0.9.[34]
+   |                    |                  4.4BSD            |
+   |                    |                    / |             |
+   |                    |   4.4BSD-Encumbered  |             |
+   |                 NetBSD 0.8                |           BSD/386 1.0
+   |                    |                      |             |
+FreeBSD 1.0          NetBSD 0.9                |           BSD/386 1.1
+   |                    |           .----- 4.4BSD Lite       |
+FreeBSD 1.1             |          /   /       |     \       |
+   |                    |         /   /        |      \      |
+FreeBSD 1.1.5       .---|--------'   /         |       \     |
+   |               /    |           /          |        \    |
+FreeBSD 1.1.5.1   /     |          /           |         \   |
+   |             /   NetBSD 1.0 <-'            |          \  |
+   |            /       |                      |           \ |
+FreeBSD 2.0 <--'        |                      |           BSD/OS 2.0
+   |                     \                     |             |
+FreeBSD 2.0.5             \                    |           BSD/OS 2.0.1
+   |                       \         .--- 4.4BSD Lite2       |
+   |                        \        |       |   |   |       |
+   |                         |   FreeBSD 3.0 |   |   |       |
+   |                         |        NetBSD 1.3 |   |       |
+   |                         |           OpenBSD 2.3 |       |
+   |                         |                BSD/OS 3.0     |
+FreeBSD 2.1                  |                               |
+ |   |                    NetBSD 1.1 ------.               BSD/OS 2.1
+ | FreeBSD 2.1.5             |              \                |
+ |     |                  NetBSD 1.2         \             BSD/OS 3.0
+ | FreeBSD 2.1.6             |  \          OpenBSD 2.0       |
+ |     |                     |   \             |             |
+ | FreeBSD 2.1.6.1           |    \            |             |
+ |     |                     |     \           |             |
+ | FreeBSD 2.1.7             |      |          |             |
+ |     |                     |  NetBSD 1.2.1   |             |
+ | FreeBSD 2.1.7.1           |                 |             |
+ |                           |                 |             |
+ |                           |                 |             |
+ *-FreeBSD 2.2               |                 |             |
+ |        \                  |                 |             |
+ |     FreeBSD 2.2.1         |                 |             |
+ |         |                 |                 |             |
+ |     FreeBSD 2.2.2         |             OpenBSD 2.1       |
+ |         |                 |                 |             |
+ |     FreeBSD 2.2.5         |                 |             |
+ |         |                 |             OpenBSD 2.2       |
+ |         |              NetBSD 1.3           |             |
+ |     FreeBSD 2.2.6         |    |            |             |
+ |         |                 | NetBSD 1.3.1    |           BSD/OS 3.1
+ |         |                 |    |        OpenBSD 2.3       |
+ |         |                 | NetBSD 1.3.2    |             |
+ |     FreeBSD 2.2.7         |    |            |             |
+ |         |                 |    |            |           BSD/OS 4.0
+ |         v                 |    |            |             |
+ |     FreeBSD 2.2.8         |    |            |             |
+ |                           |    |            |             |
+ |                           |    |        OpenBSD 2.4       |
+FreeBSD 3.0                  |    v            |             |
+ |                           | NetBSD 1.3.3    |             |
+ *---FreeBSD 3.1             |                 |             |
+ |       |                   |                 |           BSD/OS 4.0.1
+ |   FreeBSD 3.2          NetBSD 1.4       OpenBSD 2.5       |
+ |       |                   |    |            |             |
+ |   FreeBSD 3.3             | NetBSD 1.4.1    |             |
+ |       |                   |    |        OpenBSD 2.6       |
+ |   FreeBSD 3.4             |    |            |             |
+ |           |               |    |            |           BSD/OS 4.1
+FreeBSD 4.0  |               | NetBSD 1.4.2    |             |
+ |           |               |    |            |             |
+ |           |               |    |            |             |
+ |   FreeBSD 3.5             |    |        OpenBSD 2.7       |
+ |           |               |    |            |             |
+ |   FreeBSD 3.5.1           |    |            |             |
+ |                           |    |            |             |
+ *---FreeBSD 4.1             |    |            |             |
+ |      |                    |    |            |             |
+ |   FreeBSD 4.1.1           |    |            |             |
+ |      |                    |    v            |             |
+ |   FreeBSD 4.2             | NetBSD 1.4.3    |             |
+ |      |                    |             OpenBSD 2.8     BSD/OS 4.2
+ |      |                 NetBSD 1.5           |             |
+ |   FreeBSD 4.3             |                 |             v
+ |      |                    |                 |
+ |      v                    |                 |
+ |                           |                 |
+FreeBSD 5.0-current       NetBSD -current  OpenBSD -current
+ |                           |                 |
+ v                           v                 v
+
+
+Time
+----------------
+
+Time tolerance +/- 6 months, depending on which book/article you read; if it
+was the announcement in Usenet or if it was available as tape.
+
+[44B] McKusick, Marshall Kirk, Keith Bostic, Michael J Karels,
+	and John Quarterman. The Design and Implementation of
+	the 4.4BSD Operating System.
+[DOC] README, COPYRIGHT on tape.
+[QCU] Salus, Peter H. A quarter century of UNIX.
+[U25] Peter H. Salus. Unix at 25.
+[USE] Usenet announcement.
+[KSJ] Michael J. Karels, Carl F. Smith, and William F. Jolitz.
+	Changes in the Kernel in 2.9BSD. Second Berkeley Software
+	Distribution UNIX Version 2.9, July, 1983.
+[KB]  Keith Bostic. BSD2.10 available from Usenix. comp.unix.sources,
+	Volume 11, Info 4, April, 1987.
+[KKK] Mike Karels, Kirk McKusick, and Keith Bostic. tahoe announcement.
+	comp.bugs.4bsd.ucb-fixes, June 15, 1988.
+[SMS] Steven M. Schultz. 2.11BSD, UNIX for the PDP-11.
+[FBD] FreeBSD Project, The.
+[NBD] NetBSD Project, The.
+[OBD] OpenBSD Project, The.
+[dmr] Dennis Ritchie, via E-Mail
+[BSDI] Berkeley Software Design, Inc.
+
+Multics                 1965
+UNIX                    Summer 1969
+				DEC PDP-7
+First   Edition         1971-11-03 [QCU]
+				DEC PDP-11/20, Assembler
+Second  Edition         1972-06-12 [QCU]
+				10 UNIX installations
+Third   Edition         1973-02-xx [QCU]
+				Pipes, 16 installations
+Fourth  Edition         1973-11-xx [QCU]
+				rewriting in C effected,
+                                above 30 installations
+Fifth   Edition         1974-06-xx [QCU]
+				above 50 installations
+Sixth   Edition         1975-05-xx [QCU]
+				port to DEC Vax
+Seventh Edition         1979-01-xx [QCU]
+				first portable UNIX
+Eighth  Edition         1985-02-xx [QCU]
+				VAX 11/750, VAX 11/780 [dmr]
+				descended from 4.1c BSD [dmr]
+				descended from 4.1 BSD [44B]
+			scooping-out and replacement of the character-device
+			and networking part by the streams mechanism
+
+Ninth   Edition         1986-09-xx [QCU]
+Tenth   Edition         1989-10-xx [QCU]
+
+1BSD                    late 1977
+			1978-03-09 [QCU]
+				PDP-11, Pascal, ex(1)
+				30 free copies of 1BSD sent out
+				35 tapes sold for 50 USD [QCU]
+2BSD                    mid 1978 [QCU]
+				75 2BSD tapes shipped
+2.7.9BSD		?? [SMS]
+2.8BSD			1981-07-xx [KSJ]
+
+2.8.1BSD		1982-01-xx [QCU]
+				set of performance improvements
+2.9BSD			1983-07-xx [KSJ]
+2.9.1BSD                1983-11-xx
+2.9BSD-Seismo		1985-08-xx [SMS]
+2.10BSD			1987-04-xx [KKK]
+2.10.1BSD		1989-01-xx [SMS]
+2.11BSD			1992-02-xx [SMS]
+2.11BSD rev #430	1999-12-13 [SMS]
+
+32V			1978-1[01]-xx [QCU]
+3BSD                    late 1979 [QCU]
+				virtual memory, page replacement,
+                        	demand paging
+4.0BSD                  1980-10-xx
+4.1BSD                  1981-06-xx
+4.1aBSD                 1982-04-xx
+				alpha release, 100 sites, networking [44B]
+4.1bBSD				internal release, fast filesystem [44B]
+4.1cBSD                 late 1982
+				beta release, IPC [44B]
+4.2BSD                  1983-09-xx [QCU]
+4.3BSD                  1986-06-xx [QCU]
+			1986-04-xx [KB]
+4.3BSD Tahoe            1988-06-xx [QCU]
+4.3BSD NET/1            1988-11-xx [QCU]
+4.3BSD Reno             1990-06-xx [QCU], [DOC]
+4.3BSD NET/2            1991-06-xx [QCU]
+
+BSD/386 ALPHA		1991-12-xx [BSDI]
+				first code released to people outside BSDI
+386BSD 0.0              1992-02-xx [DOC]
+BSD/386 0.3.1	        1992-04-xx [BSDI] first ext. beta; B customers
+BSD/386 0.3.3		1992-06-xx [BSDI] first CDROM version
+386BSD 0.1              1992-07-28 [DOC]
+4.4BSD Alpha            1992-07-07
+BSD/386 0.9.3		1992-10-xx [BSDI]
+				first external gamma; G customers
+BSD/386 0.9.4		1992-12-xx [BSDI]
+				would have been 1.0 except for request
+				for preliminary injunction
+BSD/386 1.0 		1993-03-xx [BSDI]
+				injunction denied; first official release
+NetBSD 0.8              1993-04-20 [NBD]
+4.4BSD                  1993-06-01 [USE]
+NetBSD 0.9              1993-08-23 [NBD]
+FreeBSD 1.0		1993-11-xx [FOO]
+BSD/386 1.1		1994-02-xx [BSDI]
+4.4BSD Lite             1994-03-01 [USE]
+FreeBSD 1.1		1994-04-xx [FBD]
+FreeBSD 1.1.5.1		1994-07-xx [FBD]
+				supersedes 1.1.5 3 days after release.
+NetBSD 1.0              1994-10-26 [NBD]
+386BSD 1.0              1994-11-12 [USE]
+FreeBSD 2.0		1995-01-xx [FBD]
+BSD/OS 2.0		1995-01-xx [BSDI] 4.4 lite based
+FreeBSD 2.0.5		1995-06-10 [FBD]
+BSD/OS 2.0.1		1995-06-xx [BSDI]
+4.4BSD Lite Release 2	1995-06-xx [44B]
+				the true final distribution from the CSRG
+FreeBSD 2.1.0		1995-11-19 [FBD]
+NetBSD 1.1              1995-11-26 [NBD]
+BSD/OS 2.1		1996-01-xx [BSDI]
+FreeBSD 2.1.5		1996-07-14 [FBD]
+NetBSD 1.2              1996-10-04 [NBD]
+OpenBSD 2.0             1996-10-18 [OBD]
+FreeBSD 2.1.6		1996-11-16 [FBD]
+FreeBSD 2.1.6.1		1996-11-25 [FBD] (sendmail security release)
+FreeBSD 2.1.7		1997-02-20 [FBD]
+BSD/OS 3.0		1997-02-xx [BSDI] 4.4 lite2 based
+FreeBSD 2.2.0		1997-03-16 [FBD]
+FreeBSD 2.2.1		1997-03-25 [FBD]
+FreeBSD 2.2.2		1997-05-16 [FBD]
+NetBSD 1.2.1            1997-05-20 [NBD] (patch release)
+OpenBSD 2.1             1997-06-01 [OBD]
+FreeBSD 2.2.5		1997-10-22 [FBD]
+OpenBSD 2.2             1997-12-01 [OBD]
+NetBSD 1.3              1998-01-04 [NBD]
+FreeBSD 2.2.6		1998-03-25 [FBD]
+NetBSD 1.3.1            1998-03-09 [NBD] (patch release)
+BSD/OS 3.1		1998-03-xx [BSDI]
+OpenBSD 2.3             1998-05-19 [OBD]
+NetBSD 1.3.2            1998-05-29 [NBD] (patch release)
+FreeBSD 2.2.7		1998-07-22 [FBD]
+BSD/OS 4.0		1998-08-xx [BSDI]
+				2-lock MP support, ELF executables
+FreeBSD 3.0		1998-10-16 [FBD]
+				FreeBSD-3.0 is a snapshot from -current,
+				while 3.1 and 3.2 are from 3.x-stable which
+				was branched quite some time after 3.0-release
+FreeBSD 2.2.8           1998-11-29 [FBD]
+OpenBSD 2.4             1998-12-01 [OBD]
+NetBSD 1.3.3            1998-12-23 [NBD] (patch release)
+FreeBSD 3.1		1999-02-15 [FBD]
+BSD/OS 4.0.1		1999-03-xx [BSDI]
+NetBSD 1.4              1999-05-12 [NBD]
+FreeBSD 3.2             1999-05-17 [FBD]
+OpenBSD 2.5             1999-05-19 [OBD]
+NetBSD 1.4.1            1999-08-26 [NBD] (patch release)
+FreeBSD 3.3             1999-09-17 [FBD]
+OpenBSD 2.6             1999-12-01 [OBD]
+FreeBSD 3.4             1999-12-20 [FBD]
+BSD/OS 4.1		1999-12-xx [BSDI]
+FreeBSD 4.0             2000-03-13 [FBD]
+NetBSD 1.4.2            2000-03-19 [NBD] (patch release)
+OpenBSD 2.7             2000-06-15 [OBD]
+FreeBSD 3.5		2000-06-24 [FBD]
+FreeBSD 4.1		2000-07-27 [FBD]
+FreeBSD 3.5.1		2000-07-28 [FBD]
+FreeBSD 4.1.1		2000-09-25 [FBD] (a network-only patch release)
+FreeBSD 4.2  		2000-11-21 [FBD]
+NetBSD 1.4.3		2000-11-25 [NBD] (patch release)
+BSD/OS 4.2		2000-11-29 [BSDI]
+OpenBSD 2.8		2000-12-01 [OBD]
+NetBSD 1.5              2000-12-06 [NBD]
+FreeBSD 4.3  		2001-04-20 [FBD]
+
+
+Bibliography
+------------------------
+
+Leffler, Samuel J., Marshall Kirk McKusick, Michael J Karels and John
+Quarterman. The Design and Implementation of the 4.3BSD UNIX Operating
+System. Reading, Mass. Addison-Wesley, 1989. ISBN 0-201-06196-1
+
+Salus, Peter H. A quarter century of UNIX. Addison-Wesley Publishing
+Company, Inc., 1994. ISBN 0-201-54777-5
+
+McKusick, Marshall Kirk, Keith Bostic, Michael J Karels, and John
+Quarterman. The Design and Implementation of the 4.4BSD Operating
+System. Reading, Mass. Addison-Wesley, 1996. ISBN 0-201-54979-4
+
+Doug McIlroy. Research Unix Reader.
+
+Michael G. Brown. The Role of BSD in the Development of Unix.
+Presented to the Tasmanian Unix Special Interest Group of the
+Australian Computer Society, Hobart, August 1993.
+
+Peter H. Salus. Unix at 25. Byte Magazine, October 1994.
+URL: http://www.byte.com/art/9410/sec8/art3.htm
+
+Andreas Klemm, Lars Köller. If you're going to San Francisco ...
+Die freien BSD-Varianten von Unix. c't April 1997, page 368ff.
+
+BSD Release Announcements collection.
+URL: http://www.de.FreeBSD.org/de/ftp/releases/
+
+BSD Hypertext Man Pages
+http://www.FreeBSD.org/cgi/man.cgi
+
+UNIX history graphing project
+http://minnie.cs.adfa.edu.au/Unix_History/index.html
+
+UNIX history
+http://perso.wanadoo.fr/levenez/unix/
+
+Acknowledgments
+---------------
+
+Josh Gilliam for suggestions, bug fixes, and finding very old
+original BSD announcements from Usenet or tapes.
+
+Steven M. Schultz for providing 2.8BSD, 2.10BSD, 2.11BSD manual pages.
+
+--
+Copyright (c) 1997-2001 Wolfram Schneider <wosch@FreeBSD.ORG>
+URL: ftp://ftp.freebsd.org/pub/FreeBSD/branches/-current/src/share/misc/bsd-family-tree
+
+$FreeBSD$
+

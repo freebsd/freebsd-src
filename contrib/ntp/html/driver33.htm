@@ -1,0 +1,38 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html> <head>
+<meta http-equiv="Content-Type" content="text/html; charset=iso8859-1">
+<title>Dumb Clock</title>
+</head>
+
+<body>
+<h3>Dumb Clock</h3>
+
+<hr>
+<h4>Synopsis</h4>
+Address: 127.127.33.<i>u</i><br>
+Reference ID: <TT>DUMBCLOCK</TT><br>
+Driver ID: <tt>DUMBCLOCK</tt><br>
+Serial Port: <tt>/dev/dumbclock<i>u</i></tt>; 9600 bps, 8-bits,
+no parity<br>
+<br>Features: <tt>(none)</tt>
+<h4>Description</h4>
+This driver supports a dumb ASCII clock that only emits localtime at a reliable
+interval.  This has no provisions for leap seconds, quality codes,
+etc.  It assumes output in the local time zone, and that the C library
+mktime()/localtime() routines will correctly convert back and forth
+between local and UTC.
+
+<P>Most of this code is originally from refclock_wwvb.c with thanks. It
+has been so mangled that wwvb is not a recognizable ancestor.
+<pre>
+Timecode format: hh:mm:ssCL
+hh:mm:ss - local time
+C - \r (carriage return)
+L - \n (newline)
+</pre>
+<hr>
+<address></address>
+<!-- hhmts start -->
+Last modified: Sun Feb 14 12:07:01 EST 1999
+<!-- hhmts end -->
+</body> </html>

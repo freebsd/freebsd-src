@@ -1,0 +1,157 @@
+2001-02-05  Assar Westerlund  <assar@assaris.sics.se>
+
+	* Release 0.3e
+
+2001-01-30  Assar Westerlund  <assar@sics.se>
+
+	* kdc/hprop.c (v4_get_masterkey): check kdb_verify_master_key
+	properly
+	(kdb_prop): decrypt key properly
+	* kdc/hprop.c: handle building with KRB4 always try to decrypt v4
+	data with the master key leave it up to the v5 how to encrypt with
+	that master key
+
+	* kdc/kstash.c: include file name in error messages
+	* kdc/hprop.c: fix a typo and check some more return values
+	* lib/hdb/hdb-ldap.c (LDAP__lookup_princ): call ldap_search_s
+	correctly.  From Jacques Vidrine <n@nectar.com>
+	* kdc/misc.c (db_fetch): HDB_ERR_NOENTRY makes more sense than
+	ENOENT
+
+	* lib/krb5/Makefile.am (libkrb5_la_LDFLAGS): bump version to
+	15:0:0
+	* lib/hdb/Makefile.am (libhdb_la_LDFLAGS): bump version to 7:0:0
+	* lib/asn1/Makefile.am (libasn1_la_LDFLAGS): bump version to 4:0:2
+	* kdc/misc.c (db_fetch): return an error code.  change callers to
+	look at this and try to print it in log messages
+
+	* lib/krb5/crypto.c (decrypt_internal_derived): check that there's
+	enough data
+
+2001-01-29  Assar Westerlund  <assar@sics.se>
+
+	* kdc/hprop.c (realm_buf): move it so it becomes properly
+	conditional on KRB4
+
+	* lib/hdb/mkey.c (hdb_unseal_keys_mkey, hdb_seal_keys_mkey,
+	hdb_unseal_keys, hdb_seal_keys): check that we have the correct
+	master key and that we manage to decrypt the key properly,
+	returning an error code.  fix all callers to check return value.
+
+	* tools/krb5-config.in: use @LIB_des_appl@
+	* tools/Makefile.am (krb5-config): add LIB_des_appl
+	* configure.in (LIB_des): set correctly
+	(LIB_des_appl): add for the use by krb5-config.in
+
+	* lib/krb5/store_fd.c (fd_fetch, fd_store): use net_{read,write}
+	to make sure of not dropping data when doing it over a socket.
+	(this might break when used with ordinary files on win32)
+
+	* lib/hdb/hdb_err.et (NO_MKEY): add
+
+	* kdc/kerberos5.c (as_rep): be paranoid and check
+	krb5_enctype_to_string for failure, noted by <lha@stacken.kth.se>
+
+	* lib/krb5/krb5_init_context.3, lib/krb5/krb5_context.3,
+	lib/krb5/krb5_auth_context.3: add new man pages, contributed by
+	<lha@stacken.kth.se>
+
+	* use the openssl api for md4/md5/sha and handle openssl/*.h
+
+	* kdc/kaserver.c (do_getticket): check length of ticket.  noted by
+ 	<lha@stacken.kth.se>
+
+2001-01-28  Assar Westerlund  <assar@sics.se>
+
+	* configure.in: send -R instead of -rpath to libtool to set
+	runtime library paths
+
+	* lib/krb5/Makefile.am: remove all dependencies on libkrb
+
+2001-01-27  Assar Westerlund  <assar@sics.se>
+
+	* appl/rcp: add port of bsd rcp changed to use existing rsh,
+	contributed by Richard Nyberg <rnyberg@it.su.se>
+
+2001-01-27  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/get_port.c: don't warn if the port name can't be found,
+	nobody cares anyway
+
+2001-01-26  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kdc/hprop.c: make it possible to convert a v4 dump file without
+	having any v4 libraries; the kdb backend still require them
+
+	* kdc/v4_dump.c: include shadow definition of kdb Principal, so we
+	don't have to depend on any v4 libraries
+
+	* kdc/hprop.h: include shadow definition of kdb Principal, so we
+	don't have to depend on any v4 libraries
+
+	* lib/hdb/print.c: reduce number of memory allocations
+
+	* lib/hdb/mkey.c: add support for reading krb4 /.k files
+
+2001-01-19  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/krb5.conf.5: document admin_server and kpasswd_server
+	for realms document capath better
+
+	* lib/krb5/krbhst.c (krb5_get_krb_changepw_hst): preferably look
+	at kpasswd_server before admin_server
+
+	* lib/krb5/get_cred.c (get_cred_from_kdc_flags): look in
+	[libdefaults]capath for better hint of realm to send request to.
+	this allows the client to specify `realm routing information' in
+	case it cannot be done at the server (which is preferred)
+
+	* lib/krb5/rd_priv.c (krb5_rd_priv): handle no sequence number as
+	zero when we were expecting a sequence number.  MIT krb5 cannot
+	generate a sequence number of zero, instead generating no sequence
+	number
+	* lib/krb5/rd_safe.c (krb5_rd_safe): dito
+
+2001-01-11  Assar Westerlund  <assar@sics.se>
+
+	* kpasswd/kpasswdd.c: add --port option
+
+2001-01-10  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/appdefault.c (krb5_appdefault_string): fix condition
+	just before returning
+
+2001-01-09  Assar Westerlund  <assar@sics.se>
+
+	* appl/kf/kfd.c (proto): use krb5_rd_cred2 instead of krb5_rd_cred
+
+2001-01-05  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kuser/kinit.c: call a time `time', and not `seconds'
+
+	* lib/krb5/init_creds.c: not much point in setting the anonymous
+	flag here
+
+	* lib/krb5/krb5_appdefault.3: document appdefault_time
+
+2001-01-04  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/verify_user.c: use
+	krb5_get_init_creds_opt_set_default_flags
+
+	* kuser/kinit.c: use krb5_get_init_creds_opt_set_default_flags
+
+	* lib/krb5/init_creds.c: new function
+	krb5_get_init_creds_opt_set_default_flags to set options from
+	krb5.conf
+
+	* lib/krb5/rd_cred.c: make this match the MIT function
+	
+	* lib/krb5/appdefault.c (krb5_appdefault_string): handle NULL
+	def_val
+	(krb5_appdefault_time): new function
+
+2001-01-03  Assar Westerlund  <assar@sics.se>
+
+	* kdc/hpropd.c (main): handle EOF when reading from stdin
+

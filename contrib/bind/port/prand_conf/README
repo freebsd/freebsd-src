@@ -1,0 +1,8 @@
+this is a utility used to build prand_conf.h on new ports.
+
+To run you can either compile the program prand_conf.c with 
+cc prand_conf.c -o prand_conf		# add -posix on NeXTstep systems
+./prand_conf 
+
+both programs create a file prand_conf.h,
+copy this file to the appropriate port/<os>/include directory

@@ -1,0 +1,107 @@
+.\"
+.\" Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$Id: isdnd.acct.5,v 1.11 1999/12/13 22:11:55 hm Exp $
+.\"
+.\" $FreeBSD$
+.\"
+.\"	last edit-date: [Mon Dec 13 22:58:12 1999]
+.\"
+.Dd September 11, 1998
+.Dt ISDND.ACCT 5
+.Os
+.Sh NAME
+.Nm isdnd.acct
+.Nd isdn4bsd ISDN management daemon accounting file format
+.Sh DESCRIPTION
+The file
+.Pa isdnd.acct
+contains accounting information which is written if the variable
+.Em useacctfile
+in the
+.Xr isdnd 8
+configuration file
+.Xr isdnd.rc 5
+is set to
+.Em on
+and charging information transmission has been subscribed for the
+ISDN connection (AOCD or AOCE).
+.Pp
+If the variable
+.Em acctall
+is set to
+.Em on ,
+accounting information is written even if the local site was not charged
+or no charging information is available or is not subscribed.
+.Pp
+The general format of an accounting line is as follows:
+.Pp
+.Dl FROM - UNTIL NAME UNITS (SECONDS) (INBYTES/OUTBYTES)
+.Pp
+.Em FROM
+is the time the connection was established in the format
+.Dl Day.Month.Year Hour:Minutes:seconds
+.Pp
+.Em UNTIL
+is the time the connection was closed. The format is the same as
+described for
+.Em FROM
+above.
+.Pp
+.Em NAME
+is the symbolic name got from the
+.Em name
+entry of the
+.Xr isdnd.rc 5
+config file for this connection.
+.Pp
+.Em UNITS
+is the amount of charging units billed for the connection.
+.Pp
+.Em SECONDS
+is the number of seconds the connection lasted.
+.Pp
+.Em INBYTES
+and
+.Em OUTBYTES
+is the (optional) number of bytes that were transferred.
+.Sh FILES
+.Bl -tag -width /var/log/isdnd.acct -compact
+.It Pa /var/log/isdnd.acct
+The default accounting information file for the
+.Nm isdnd
+ISDN daemon.
+.El
+.Sh EXAMPLES
+This is a typical accounting line:
+.Pp
+.Dl 12.06.97 10:41:37 - 12.06.97 10:45:18 GROGGY 2 (65) (4711/1147)
+.Sh SEE ALSO
+.Xr isdnd.rc 5 ,
+.Xr isdnd 8
+.Sh AUTHORS
+The
+.Xr isdnd 8
+daemon and this manual page were written by
+.An Hellmuth Michaelis Aq hm@kts.org .

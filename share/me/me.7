@@ -1,0 +1,318 @@
+.\" Copyright (c) 1980, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)me.7	8.1 (Berkeley) 6/5/93
+.\" $FreeBSD$
+.\"
+.hc %
+.TH ME 7 "June 5, 1993"
+.UC 3
+.SH NAME
+me \- macros for formatting papers
+.SH SYNOPSIS
+.B "nroff \-me"
+[ options ]
+file ... 
+.br
+.B "troff \-me"
+[ options ]
+file ... 
+.SH DESCRIPTION
+This package of 
+.I nroff
+and
+.I troff
+macro definitions provides a canned formatting
+facility for tech%nical papers in various formats.
+When producing 2-column output on a terminal, filter
+the output through
+.IR  col (1).
+.PP
+The macro requests are defined below.
+Many
+.I nroff
+and
+.I troff
+requests are unsafe in conjunction with
+this package, however, these requests may be used with
+impunity after the first .pp:
+.nf
+.IP
+.ta \w'.sz +n  'u
+\&.bp	begin new page
+\&.br	break output line here
+\&.sp n	insert n spacing lines
+\&.ls n	(line spacing) n=1 single, n=2 double space
+\&.na	no alignment of right margin
+\&.ce n	center next n lines
+\&.ul n	underline next n lines
+\&.sz +n	add n to point size
+.fi
+.PP
+Output of the
+.I eqn,
+.I neqn,
+.I refer,
+and
+.IR  tbl (1)
+preprocessors
+for equations and tables is acceptable as input.
+.SH FILES
+/usr/share/tmac/tmac.e
+.br
+/usr/share/me/*
+.SH "SEE ALSO"
+eqn(1), troff(1), refer(1), tbl(1)
+.br
+\-me Reference Manual, Eric P. Allman
+.br
+Writing Papers with Nroff Using \-me
+.tr &.
+.SH REQUESTS 
+In the following list,
+\*(lqinitialization\*(rq
+refers to the first .pp, .lp, .ip, .np, .sh, or .uh macro.
+This list is incomplete;
+see
+.I "The \-me Reference Manual"
+for interesting details.
+.PP
+.ta \w'.eh \'x\'y\'z\'  'u +\w'Initial 'u +\w'Cause 'u
+.br
+.di x
+			\ka
+.br
+.di
+.in \nau
+.ti 0
+Request	Initial	Cause	Explanation
+.ti 0
+	Value	Break
+.br
+.in \nau
+.ti 0
+\&.(c	-	yes	Begin centered block
+.ti 0
+\&.(d	-	no	Begin delayed text
+.ti 0
+\&.(f	-	no	Begin footnote
+.ti 0
+\&.(l	-	yes	Begin list
+.ti 0
+\&.(q	-	yes	Begin major quote
+.ti 0
+\&.(x \fIx\fR	-	no	Begin indexed item in index
+.I x
+.ti 0
+\&.(z	-	no	Begin floating keep
+.ti 0
+\&.)c	-	yes	End centered block
+.ti 0
+\&.)d	-	yes	End delayed text
+.ti 0
+\&.)f	-	yes	End footnote
+.ti 0
+\&.)l	-	yes	End list
+.ti 0
+\&.)q	-	yes	End major quote
+.ti 0
+\&.)x	-	yes	End index item
+.ti 0
+\&.)z	-	yes	End floating keep
+.ti 0
+\&.++ \fIm H\fR	-	no	Define paper section.
+.I m
+defines the part of the paper, and can be
+.B C
+(chapter),
+.B A
+(appendix),
+.B P
+(preliminary, e.g., abstract, table of contents, etc.),
+.B B
+(bibliography),
+.B RC
+(chapters renumbered from page one each chapter),
+or
+.B RA
+(appendix renumbered from page one).
+.ti 0
+\&.+c \fIT\fR	-	yes	Begin chapter (or appendix, etc., as
+set by .++).
+.I T
+is the chapter title.
+.ti 0
+\&.1c	1	yes	One column format on a new page.
+.ti 0
+\&.2c	1	yes	Two column format.
+.ti 0
+\&.EN	-	yes	Space after equation
+produced by
+.I eqn
+or
+.IR neqn .
+.ti 0
+\&.EQ \fIx y\fR	-	yes	Precede equation; break out and
+add space.
+Equation number is
+.IR y .
+The optional argument \fIx\fR
+may be
+.I I
+to indent equation (default),
+.I L
+to left-adjust the equation, or
+.I C
+to center the equation.
+.ti 0
+\&.GE	-	yes	End \fIgremlin\fP picture.
+.ti 0
+\&.GS	-	yes	Begin \fIgremlin\fP picture.
+.ti 0
+\&.PE	-	yes	End \fIpic\fP picture.
+.ti 0
+\&.PS	-	yes	Begin \fIpic\fP picture.
+.ti 0
+\&.TE	-	yes	End table.
+.ti 0
+\&.TH	-	yes	End heading section of table.
+.ti 0
+\&.TS \fIx\fR	-	yes	Begin table; if \fIx\fR is
+.I H
+table has repeated heading.
+.ti 0
+\&.ac \fIA N\fR	-	no	Set up for ACM style output.
+.I A
+is the Author's name(s),
+.I N
+is the total number of pages.
+Must be given before the first initialization.
+.ti 0
+\&.b \fIx\fR	no	no	Print
+.I x
+in boldface; if no argument switch to boldface.
+.ti 0
+\&.ba \fI+n\fR	0	yes	Augments the base indent by
+.I n.
+This indent is used to set the indent on regular text
+(like paragraphs).
+.ti 0
+\&.bc	no	yes	Begin new column
+.ti 0
+\&.bi \fIx\fR	no	no	Print
+.I x
+in bold italics (nofill only)
+.ti 0
+\&.bu	-	yes	Begin bulleted paragraph
+.ti 0
+\&.bx \fIx\fR	no	no	Print \fIx\fR in a box (nofill only).
+.ti 0
+\&.ef \fI\'x\'y\'z\'\fR	\'\'\'\'	no	Set even footer to x  y  z
+.ti 0
+\&.eh \fI\'x\'y\'z\'\fR	\'\'\'\'	no	Set even header to x  y  z
+.ti 0
+\&.fo \fI\'x\'y\'z\'\fR	\'\'\'\'	no	Set footer to x  y  z
+.ti 0
+\&.hx	-	no	Suppress headers and footers on next page.
+.ti 0
+\&.he \fI\'x\'y\'z\'\fR	\'\'\'\'	no	Set header to x  y  z
+.ti 0
+\&.hl	-	yes	Draw a horizontal line
+.ti 0
+\&.i \fIx\fR	no	no	Italicize
+.I x;
+if
+.I x
+missing, italic text follows.
+.ti 0
+\&.ip \fIx y\fR	no	yes	Start indented paragraph,
+with hanging tag
+.IR x .
+Indentation is
+.I y
+ens (default 5).
+.ti 0
+\&.lp	yes	yes	Start left-blocked paragraph.
+.ti 0
+\&.lo	-	no	Read in a file of local macros of the
+form
+.BI \&.* x.
+Must be given before initialization.
+.ti 0
+\&.np	1	yes	Start numbered paragraph.
+.ti 0
+\&.of \fI\'x\'y\'z\'\fR	\'\'\'\'	no	Set odd footer to x  y  z
+.ti 0
+\&.oh \fI\'x\'y\'z\'\fR	\'\'\'\'	no	Set odd header to x  y  z
+.ti 0
+\&.pd	-	yes	Print delayed text.
+.ti 0
+\&.pp	no	yes	Begin paragraph.
+First line indented.
+.ti 0
+\&.r	yes	no	Roman text follows.
+.ti 0
+\&.re	-	no	Reset tabs to default values.
+.ti 0
+\&.sc	no	no	Read in a file of special characters
+and diacritical marks.
+Must be given before initialization.
+.ti 0
+\&.sh \fIn x\fR	-	yes	Section head follows,
+font automatically bold.
+.I n
+is level of section,
+.I x
+is title of section.
+.ti 0
+\&.sk	no	no	Leave the next page blank.
+Only one page is remembered ahead.
+.ti 0
+\&.sm \fIx\fR	-	no	Set
+.I x
+in a smaller pointsize.
+.ti 0
+\&.sz \fI+n\fR	10p	no	Augment the point size by
+.I n
+points.
+.ti 0
+\&.th	no	no	Produce the paper in thesis format.
+Must be given before initialization.
+.ti 0
+\&.tp	no	yes	Begin title page.
+.ti 0
+\&.u \fIx\fR	-	no	Underline argument (even in \fItroff\fR).
+(Nofill only).
+.ti 0
+\&.uh	-	yes	Like .sh but unnumbered.
+.ti 0
+\&.xp \fIx\fR	-	no	Print index
+.I x.

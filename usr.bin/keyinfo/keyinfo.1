@@ -1,0 +1,62 @@
+.\"	from: @(#)keyinfo.1	1.1 (Bellcore) 7/20/93
+.\" $FreeBSD$
+.\"
+.Dd April 26, 1996
+.Dt KEYINFO 1
+.Os
+.Sh NAME
+.Nm keyinfo
+.Nd display current S/Key sequence number and seed
+.Sh SYNOPSIS
+.Nm
+.Op Ar username
+.Sh DESCRIPTION
+.Nm
+takes an optional user name and displays the user\'s current sequence
+number and seed found in the S/Key database
+.Pa /etc/skeykeys .
+.Pp
+The command can be useful when generating a list of passwords for use
+on a field trip, by combining with the command
+.Xr key 1
+in the form:
+.Bd -literal -offset indent
+key -n  <number of passwords> `keyinfo` | lpr
+.Ed
+.Pp
+The optional
+.Ar username
+argument specifies the S/Key user for whom to display the information.
+The default is to display S/Key information
+on the user who invokes the command.
+Only the superuser can ask for another user's key information.
+.Sh EXAMPLES
+Usage example:
+.Bd -literal -offset indent
+$ keyinfo
+.Ed
+.Pp
+This would produce the following output:
+.Bd -literal -offset indent
+98 ws91340
+.Ed
+.Sh DIAGNOSTICS
+The
+.Nm
+utility
+exits with status 0 if a key for the requested user has been found,
+else with status 1.
+.Sh SEE ALSO
+.Xr key 1 ,
+.Xr keyinit 1
+.Sh AUTHORS
+.An -nosplit
+Original command by
+.An Phil Karn ,
+.An Neil M. Haller
+and
+.An John S. Walden .
+Rewritten in Perl by
+.An J\(:org Wunsch
+so that it could be made setuid, with the S/Key keys file read-protected
+from the users.

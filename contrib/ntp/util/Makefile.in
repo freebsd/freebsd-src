@@ -1,0 +1,504 @@
+# Makefile.in generated automatically by automake 1.4a from Makefile.am
+
+# Copyright (C) 1994, 1995-8, 1999 Free Software Foundation, Inc.
+# This Makefile.in is free software; the Free Software Foundation
+# gives unlimited permission to copy and/or distribute it,
+# with or without modifications, as long as this notice is preserved.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY, to the extent permitted by law; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.
+
+SHELL = @SHELL@
+
+srcdir = @srcdir@
+top_srcdir = @top_srcdir@
+VPATH = @srcdir@
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+
+bindir = @bindir@
+sbindir = @sbindir@
+libexecdir = @libexecdir@
+datadir = @datadir@
+sysconfdir = @sysconfdir@
+sharedstatedir = @sharedstatedir@
+localstatedir = @localstatedir@
+libdir = @libdir@
+infodir = @infodir@
+mandir = @mandir@
+includedir = @includedir@
+oldincludedir = /usr/include
+
+DESTDIR =
+
+pkgdatadir = $(datadir)/@PACKAGE@
+pkglibdir = $(libdir)/@PACKAGE@
+pkgincludedir = $(includedir)/@PACKAGE@
+
+top_builddir = ..
+
+ACLOCAL = @ACLOCAL@
+AUTOCONF = @AUTOCONF@
+AUTOMAKE = @AUTOMAKE@
+AUTOHEADER = @AUTOHEADER@
+
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA = @INSTALL_DATA@
+INSTALL_SCRIPT = @INSTALL_SCRIPT@
+INSTALL_STRIP_FLAG =
+transform = @program_transform_name@
+
+NORMAL_INSTALL = :
+PRE_INSTALL = :
+POST_INSTALL = :
+NORMAL_UNINSTALL = :
+PRE_UNINSTALL = :
+POST_UNINSTALL = :
+build_alias = @build_alias@
+build_triplet = @build@
+host_alias = @host_alias@
+host_triplet = @host@
+target_alias = @target_alias@
+target_triplet = @target@
+AMDEP = @AMDEP@
+AMTAR = @AMTAR@
+AWK = @AWK@
+CC = @CC@
+CFLAGS = @CFLAGS@
+CHUTEST = @CHUTEST@
+CLKTEST = @CLKTEST@
+CPP = @CPP@
+CXX = @CXX@
+CXXCPP = @CXXCPP@
+DCFD = @DCFD@
+DEPDIR = @DEPDIR@
+LDFLAGS = @LDFLAGS@
+LIBPARSE = @LIBPARSE@
+LIBRSAREF = @LIBRSAREF@
+LN_S = @LN_S@
+MAKEINFO = @MAKEINFO@
+MAKE_ADJTIMED = @MAKE_ADJTIMED@
+MAKE_CHECK_Y2K = @MAKE_CHECK_Y2K@
+MAKE_LIBPARSE = @MAKE_LIBPARSE@
+MAKE_LIBPARSE_KERNEL = @MAKE_LIBPARSE_KERNEL@
+MAKE_LIBRSAREF = @MAKE_LIBRSAREF@
+MAKE_NTPTIME = @MAKE_NTPTIME@
+MAKE_PARSEKMODULE = @MAKE_PARSEKMODULE@
+MAKE_TICKADJ = @MAKE_TICKADJ@
+PACKAGE = @PACKAGE@
+PATH_SH = @PATH_SH@
+PROPDELAY = @PROPDELAY@
+RANLIB = @RANLIB@
+RSAREF = @RSAREF@
+TESTDCF = @TESTDCF@
+U = @U@
+VERSION = @VERSION@
+install_sh = @install_sh@
+
+#AUTOMAKE_OPTIONS = ../ansi2knr no-dependencies
+
+
+AUTOMAKE_OPTIONS = ansi2knr
+bin_PROGRAMS = @MAKE_TICKADJ@ @MAKE_NTPTIME@
+EXTRA_PROGRAMS = byteorder hist jitter kern longsize ntptime \
+precision tickadj testrs6000 timetrim sht
+
+
+INCLUDES = -I$(top_srcdir)/include
+# LDADD might need RESLIB and ADJLIB
+LDADD = ../libntp/libntp.a
+#EXTRA_DIST = README TAGS
+EXTRA_DIST = 
+ETAGS_ARGS = Makefile.am
+subdir = util
+mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
+CONFIG_HEADER = ../config.h
+CONFIG_CLEAN_FILES = 
+PROGRAMS =  $(bin_PROGRAMS)
+
+
+DEFS = @DEFS@ -I. -I$(srcdir) -I..
+CPPFLAGS = @CPPFLAGS@
+LIBS = @LIBS@
+ANSI2KNR = @ANSI2KNR@
+byteorder_SOURCES = byteorder.c
+byteorder_OBJECTS =  byteorder$U.o
+byteorder_LDADD = $(LDADD)
+byteorder_DEPENDENCIES =  ../libntp/libntp.a
+byteorder_LDFLAGS = 
+hist_SOURCES = hist.c
+hist_OBJECTS =  hist$U.o
+hist_LDADD = $(LDADD)
+hist_DEPENDENCIES =  ../libntp/libntp.a
+hist_LDFLAGS = 
+jitter_SOURCES = jitter.c
+jitter_OBJECTS =  jitter$U.o
+jitter_LDADD = $(LDADD)
+jitter_DEPENDENCIES =  ../libntp/libntp.a
+jitter_LDFLAGS = 
+kern_SOURCES = kern.c
+kern_OBJECTS =  kern$U.o
+kern_LDADD = $(LDADD)
+kern_DEPENDENCIES =  ../libntp/libntp.a
+kern_LDFLAGS = 
+longsize_SOURCES = longsize.c
+longsize_OBJECTS =  longsize$U.o
+longsize_LDADD = $(LDADD)
+longsize_DEPENDENCIES =  ../libntp/libntp.a
+longsize_LDFLAGS = 
+ntptime_SOURCES = ntptime.c
+ntptime_OBJECTS =  ntptime$U.o
+ntptime_LDADD = $(LDADD)
+ntptime_DEPENDENCIES =  ../libntp/libntp.a
+ntptime_LDFLAGS = 
+precision_SOURCES = precision.c
+precision_OBJECTS =  precision$U.o
+precision_LDADD = $(LDADD)
+precision_DEPENDENCIES =  ../libntp/libntp.a
+precision_LDFLAGS = 
+sht_SOURCES = sht.c
+sht_OBJECTS =  sht$U.o
+sht_LDADD = $(LDADD)
+sht_DEPENDENCIES =  ../libntp/libntp.a
+sht_LDFLAGS = 
+testrs6000_SOURCES = testrs6000.c
+testrs6000_OBJECTS =  testrs6000$U.o
+testrs6000_LDADD = $(LDADD)
+testrs6000_DEPENDENCIES =  ../libntp/libntp.a
+testrs6000_LDFLAGS = 
+tickadj_SOURCES = tickadj.c
+tickadj_OBJECTS =  tickadj$U.o
+tickadj_LDADD = $(LDADD)
+tickadj_DEPENDENCIES =  ../libntp/libntp.a
+tickadj_LDFLAGS = 
+timetrim_SOURCES = timetrim.c
+timetrim_OBJECTS =  timetrim$U.o
+timetrim_LDADD = $(LDADD)
+timetrim_DEPENDENCIES =  ../libntp/libntp.a
+timetrim_LDFLAGS = 
+COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+CCLD = $(CC)
+LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+DIST_SOURCES =  byteorder.c hist.c jitter.c kern.c longsize.c ntptime.c \
+precision.c sht.c testrs6000.c tickadj.c timetrim.c
+DIST_COMMON =  README Makefile.am Makefile.in ansi2knr.1 ansi2knr.c
+
+
+DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
+
+GZIP_ENV = --best
+depcomp = $(SHELL) $(top_srcdir)/depcomp
+DEP_FILES =  @AMDEP@ $(DEPDIR)/byteorder$U.Po $(DEPDIR)/hist$U.Po \
+$(DEPDIR)/jitter$U.Po $(DEPDIR)/kern$U.Po $(DEPDIR)/longsize$U.Po \
+$(DEPDIR)/ntptime$U.Po $(DEPDIR)/precision$U.Po $(DEPDIR)/sht$U.Po \
+$(DEPDIR)/testrs6000$U.Po $(DEPDIR)/tickadj$U.Po \
+$(DEPDIR)/timetrim$U.Po
+SOURCES = byteorder.c hist.c jitter.c kern.c longsize.c ntptime.c precision.c sht.c testrs6000.c tickadj.c timetrim.c
+OBJECTS = byteorder$U.o hist$U.o jitter$U.o kern$U.o longsize$U.o ntptime$U.o precision$U.o sht$U.o testrs6000$U.o tickadj$U.o timetrim$U.o
+
+all: all-redirect
+.SUFFIXES:
+.SUFFIXES: .c .o
+$(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
+	cd $(top_srcdir) && $(AUTOMAKE) --gnu util/Makefile
+
+Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status $(BUILT_SOURCES)
+	cd $(top_builddir) \
+	  && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= $(SHELL) ./config.status
+
+
+mostlyclean-binPROGRAMS:
+
+clean-binPROGRAMS:
+	-test -z "$(bin_PROGRAMS)" || rm -f $(bin_PROGRAMS)
+
+distclean-binPROGRAMS:
+
+maintainer-clean-binPROGRAMS:
+
+install-binPROGRAMS: $(bin_PROGRAMS)
+	@$(NORMAL_INSTALL)
+	$(mkinstalldirs) $(DESTDIR)$(bindir)
+	@list='$(bin_PROGRAMS)'; for p in $$list; do \
+	  if test -f $$p; then \
+	    f="`echo $$p|sed -e 's/$(EXEEXT)$$//' -e '$(transform)' -e 's/$$/$(EXEEXT)/'`"; \
+	    echo "  $(INSTALL_PROGRAM) $(INSTALL_STRIP_FLAG) $$p $(DESTDIR)$(bindir)/$$f"; \
+	     $(INSTALL_PROGRAM) $(INSTALL_STRIP_FLAG) $$p $(DESTDIR)$(bindir)/$$f; \
+	  else :; fi; \
+	done
+
+uninstall-binPROGRAMS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(bin_PROGRAMS)'; for p in $$list; do \
+	  f="`echo $$p|sed -e 's/$(EXEEXT)$$//' -e '$(transform)' -e 's/$$/$(EXEEXT)/'`"; \
+	  echo " rm -f $(DESTDIR)$(bindir)/$$f"; \
+	  rm -f $(DESTDIR)$(bindir)/$$f; \
+	done
+
+mostlyclean-compile:
+	-rm -f *.o core *.core
+
+clean-compile:
+
+distclean-compile:
+	-rm -f *.tab.c
+
+maintainer-clean-compile:
+
+mostlyclean-krextra:
+
+clean-krextra:
+	-rm -f ansi2knr
+
+distclean-krextra:
+
+maintainer-clean-krextra:
+ansi2knr: ansi2knr.o
+	$(LINK) ansi2knr.o $(LIBS)
+ansi2knr.o: $(CONFIG_HEADER)
+
+
+mostlyclean-kr:
+	-rm -f *_.c
+
+clean-kr:
+
+distclean-kr:
+
+maintainer-clean-kr:
+
+byteorder: $(byteorder_OBJECTS) $(byteorder_DEPENDENCIES)
+	@rm -f byteorder
+	$(LINK) $(byteorder_LDFLAGS) $(byteorder_OBJECTS) $(byteorder_LDADD) $(LIBS)
+
+hist: $(hist_OBJECTS) $(hist_DEPENDENCIES)
+	@rm -f hist
+	$(LINK) $(hist_LDFLAGS) $(hist_OBJECTS) $(hist_LDADD) $(LIBS)
+
+jitter: $(jitter_OBJECTS) $(jitter_DEPENDENCIES)
+	@rm -f jitter
+	$(LINK) $(jitter_LDFLAGS) $(jitter_OBJECTS) $(jitter_LDADD) $(LIBS)
+
+kern: $(kern_OBJECTS) $(kern_DEPENDENCIES)
+	@rm -f kern
+	$(LINK) $(kern_LDFLAGS) $(kern_OBJECTS) $(kern_LDADD) $(LIBS)
+
+longsize: $(longsize_OBJECTS) $(longsize_DEPENDENCIES)
+	@rm -f longsize
+	$(LINK) $(longsize_LDFLAGS) $(longsize_OBJECTS) $(longsize_LDADD) $(LIBS)
+
+ntptime: $(ntptime_OBJECTS) $(ntptime_DEPENDENCIES)
+	@rm -f ntptime
+	$(LINK) $(ntptime_LDFLAGS) $(ntptime_OBJECTS) $(ntptime_LDADD) $(LIBS)
+
+precision: $(precision_OBJECTS) $(precision_DEPENDENCIES)
+	@rm -f precision
+	$(LINK) $(precision_LDFLAGS) $(precision_OBJECTS) $(precision_LDADD) $(LIBS)
+
+sht: $(sht_OBJECTS) $(sht_DEPENDENCIES)
+	@rm -f sht
+	$(LINK) $(sht_LDFLAGS) $(sht_OBJECTS) $(sht_LDADD) $(LIBS)
+
+testrs6000: $(testrs6000_OBJECTS) $(testrs6000_DEPENDENCIES)
+	@rm -f testrs6000
+	$(LINK) $(testrs6000_LDFLAGS) $(testrs6000_OBJECTS) $(testrs6000_LDADD) $(LIBS)
+
+tickadj: $(tickadj_OBJECTS) $(tickadj_DEPENDENCIES)
+	@rm -f tickadj
+	$(LINK) $(tickadj_LDFLAGS) $(tickadj_OBJECTS) $(tickadj_LDADD) $(LIBS)
+
+timetrim: $(timetrim_OBJECTS) $(timetrim_DEPENDENCIES)
+	@rm -f timetrim
+	$(LINK) $(timetrim_LDFLAGS) $(timetrim_OBJECTS) $(timetrim_LDADD) $(LIBS)
+byteorder_.c: byteorder.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/byteorder.c; then echo $(srcdir)/byteorder.c; else echo byteorder.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > byteorder_.c
+hist_.c: hist.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/hist.c; then echo $(srcdir)/hist.c; else echo hist.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > hist_.c
+jitter_.c: jitter.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/jitter.c; then echo $(srcdir)/jitter.c; else echo jitter.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > jitter_.c
+kern_.c: kern.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/kern.c; then echo $(srcdir)/kern.c; else echo kern.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > kern_.c
+longsize_.c: longsize.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/longsize.c; then echo $(srcdir)/longsize.c; else echo longsize.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > longsize_.c
+ntptime_.c: ntptime.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/ntptime.c; then echo $(srcdir)/ntptime.c; else echo ntptime.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > ntptime_.c
+precision_.c: precision.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/precision.c; then echo $(srcdir)/precision.c; else echo precision.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > precision_.c
+sht_.c: sht.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/sht.c; then echo $(srcdir)/sht.c; else echo sht.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > sht_.c
+testrs6000_.c: testrs6000.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/testrs6000.c; then echo $(srcdir)/testrs6000.c; else echo testrs6000.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > testrs6000_.c
+tickadj_.c: tickadj.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/tickadj.c; then echo $(srcdir)/tickadj.c; else echo tickadj.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > tickadj_.c
+timetrim_.c: timetrim.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/timetrim.c; then echo $(srcdir)/timetrim.c; else echo timetrim.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > timetrim_.c
+byteorder_.o hist_.o jitter_.o kern_.o longsize_.o ntptime_.o \
+precision_.o sht_.o testrs6000_.o tickadj_.o timetrim_.o : $(ANSI2KNR)
+
+tags: TAGS
+
+ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
+	list='$(SOURCES) $(HEADERS) $(TAGS_FILES)'; \
+	unique=`for i in $$list; do \
+	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
+	  done | \
+	  $(AWK) '    { files[$$0] = 1; } \
+	       END { for (i in files) print i; }'`; \
+	mkid -f$$here/ID $$unique $(LISP)
+
+TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
+		$(TAGS_FILES) $(LISP)
+	tags=; \
+	here=`pwd`; \
+	list='$(SOURCES) $(HEADERS) $(TAGS_FILES)'; \
+	unique=`for i in $$list; do \
+	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
+	  done | \
+	  $(AWK) '    { files[$$0] = 1; } \
+	       END { for (i in files) print i; }'`; \
+	test -z "$(ETAGS_ARGS)$$unique$(LISP)$$tags" \
+	  || etags $(ETAGS_ARGS) $$tags  $$unique $(LISP)
+
+mostlyclean-tags:
+
+clean-tags:
+
+distclean-tags:
+	-rm -f TAGS ID
+
+maintainer-clean-tags:
+
+distdir = $(top_builddir)/$(PACKAGE)-$(VERSION)/$(subdir)
+
+distdir: $(DISTFILES)
+	@for file in $(DISTFILES); do \
+	  d=$(srcdir); \
+	  if test -d $$d/$$file; then \
+	    cp -pR $$d/$$file $(distdir); \
+	  else \
+	    test -f $(distdir)/$$file \
+	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
+	    || cp -p $$d/$$file $(distdir)/$$file || :; \
+	  fi; \
+	done
+
+@AMDEP@include $(DEPDIR)/byteorder$U.Po
+@AMDEP@include $(DEPDIR)/hist$U.Po
+@AMDEP@include $(DEPDIR)/jitter$U.Po
+@AMDEP@include $(DEPDIR)/kern$U.Po
+@AMDEP@include $(DEPDIR)/longsize$U.Po
+@AMDEP@include $(DEPDIR)/ntptime$U.Po
+@AMDEP@include $(DEPDIR)/precision$U.Po
+@AMDEP@include $(DEPDIR)/sht$U.Po
+@AMDEP@include $(DEPDIR)/testrs6000$U.Po
+@AMDEP@include $(DEPDIR)/tickadj$U.Po
+@AMDEP@include $(DEPDIR)/timetrim$U.Po
+
+mostlyclean-depend:
+
+clean-depend:
+
+distclean-depend:
+	-rm -rf $(DEPDIR)
+
+maintainer-clean-depend:
+
+@AMDEP@CCDEPMODE = @CCDEPMODE@
+
+.c.o:
+@AMDEP@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@AMDEP@	depfile='$(DEPDIR)/$*.Po' tmpdepfile='$(DEPDIR)/$*.TPo' @AMDEPBACKSLASH@
+@AMDEP@	$(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+	$(COMPILE) -c -o $@ $<
+
+info-am:
+info: info-am
+dvi-am:
+dvi: dvi-am
+check-am: all-am
+check: check-am
+installcheck-am:
+installcheck: installcheck-am
+install-exec-am: install-binPROGRAMS
+install-exec: install-exec-am
+
+install-data-am:
+install-data: install-data-am
+
+install-am: all-am
+	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
+install: install-am
+uninstall-am: uninstall-binPROGRAMS
+uninstall: uninstall-am
+all-am: Makefile $(ANSI2KNR) $(PROGRAMS)
+all-redirect: all-am
+install-strip:
+	$(MAKE) $(AM_MAKEFLAGS) INSTALL_STRIP_FLAG=-s install
+installdirs:
+	$(mkinstalldirs)  $(DESTDIR)$(bindir)
+
+
+mostlyclean-generic:
+
+clean-generic:
+
+distclean-generic:
+	-rm -f Makefile $(CONFIG_CLEAN_FILES)
+	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
+
+maintainer-clean-generic:
+	-rm -f Makefile.in
+mostlyclean-am:  mostlyclean-binPROGRAMS mostlyclean-compile \
+		mostlyclean-krextra mostlyclean-kr mostlyclean-tags \
+		mostlyclean-depend mostlyclean-generic
+
+mostlyclean: mostlyclean-am
+
+clean-am:  clean-binPROGRAMS clean-compile clean-krextra clean-kr \
+		clean-tags clean-depend clean-generic mostlyclean-am
+
+clean: clean-am
+
+distclean-am:  distclean-binPROGRAMS distclean-compile distclean-krextra \
+		distclean-kr distclean-tags distclean-depend \
+		distclean-generic clean-am
+
+distclean: distclean-am
+
+maintainer-clean-am:  maintainer-clean-binPROGRAMS \
+		maintainer-clean-compile maintainer-clean-krextra \
+		maintainer-clean-kr maintainer-clean-tags \
+		maintainer-clean-depend maintainer-clean-generic \
+		distclean-am
+	@echo "This command is intended for maintainers to use;"
+	@echo "it deletes files that may require special tools to rebuild."
+
+maintainer-clean: maintainer-clean-am
+
+.PHONY: mostlyclean-binPROGRAMS distclean-binPROGRAMS clean-binPROGRAMS \
+maintainer-clean-binPROGRAMS uninstall-binPROGRAMS install-binPROGRAMS \
+mostlyclean-compile distclean-compile clean-compile \
+maintainer-clean-compile mostlyclean-krextra distclean-krextra \
+clean-krextra maintainer-clean-krextra mostlyclean-kr distclean-kr \
+clean-kr maintainer-clean-kr tags mostlyclean-tags distclean-tags \
+clean-tags maintainer-clean-tags distdir mostlyclean-depend \
+distclean-depend clean-depend maintainer-clean-depend info-am info \
+dvi-am dvi check check-am installcheck-am installcheck install-exec-am \
+install-exec install-data-am install-data install-am install \
+uninstall-am uninstall all-redirect all-am all install-strip \
+installdirs mostlyclean-generic distclean-generic clean-generic \
+maintainer-clean-generic clean mostlyclean distclean maintainer-clean
+
+
+../libntp/libntp.a:
+	cd ../libntp && $(MAKE)
+
+kern.o: kern.c
+	$(COMPILE) -DHAVE_TIMEX_H -c kern.c
+
+# Tell versions [3.59,3.63) of GNU make to not export all variables.
+# Otherwise a system limit (for SysV at least) may be exceeded.
+.NOEXPORT:

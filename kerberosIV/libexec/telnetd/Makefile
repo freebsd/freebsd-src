@@ -1,0 +1,29 @@
+# $FreeBSD$
+
+# Do not define -DKLUDGELINEMODE, as it does not interact well with many
+# telnet implementations.
+
+PROG=		telnetd
+MAN=		telnetd.8
+
+CFLAGS+=	-DLINEMODE -DUSE_TERMIO -DDIAGNOSTICS -DOLD_ENVIRON \
+		-DENV_HACK -DAUTHENTICATION -DENCRYPTION \
+		-I${TELNETDIR} -DINET6
+
+SRCS=		global.c slc.c state.c sys_term.c telnetd.c \
+		termstat.c utility.c authenc.c
+
+DPADD=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET} ${LIBCRYPTO} ${LIBKRB} \
+		${LIBCRYPT} ${LIBCOM_ERR}
+LDADD=		-lutil -ltermcap -L${TELNETOBJDIR} -ltelnet -lcrypto \
+		-L${KRBOBJDIR} -lkrb -lcrypt -lcom_err -lmp
+
+.if !defined(NOPAM)
+CFLAGS+=-DUSE_PAM
+DPADD+= ${LIBPAM}
+LDADD+= ${MINUSLPAM}
+.endif
+
+.include <bsd.prog.mk>
+
+.PATH:	${TELNETDIR}/telnetd

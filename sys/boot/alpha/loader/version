@@ -1,0 +1,10 @@
+$FreeBSD$
+
+NOTE ANY CHANGES YOU MAKE TO THE BOOTBLOCKS HERE.  The format of this
+file is important.  Make sure the current version number is on line 6.
+
+1.0:	Released working DEC Alpha version.
+0.3:	Set/getenv&cia, copyin/out.
+0.2:	FICL added to Alpha.
+0.1:	Initial i386 version, germinated from the NetBSD i386
+	standalone, but enormously modified.

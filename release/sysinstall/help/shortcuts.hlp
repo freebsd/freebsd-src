@@ -1,0 +1,114 @@
+/stand/sysinstall now supports command-line "shortcuts" which can
+often replace outdated commands, like pkg_manage.  Multiple commands
+can be invoked in sequence, and variables may be set on-the-fly to
+customize the installation program's behavior in various ways.
+
+Syntax:
+
+/stand/sysinstall [var=value ..] [command ..]
+
+Where "var" can be one or more of:
+
+blanktime               Screen blank time setting in seconds
+bootManager             Select boot manager: booteasy, standard or none
+browserBinary           Which doc browser to use (default: lynx)
+browserPackage          Which package to get browser from (default: lynx)
+cpioVerbose             How verbose to be with cpio: high, medium or low
+debug                   Extra debugging?
+disk                    Which disk to operate on (wd0, da0, etc).
+domainname              Domain name
+editor                  Which screen editor to use
+ifconfig_<iface>        For each <iface> in network_devices
+ftpDirectory            Root of the FreeBSD distribution tree on FTP server
+ftpOnError              Set to retry or abort
+ftpPass                 Which password to use when logging into FTP server
+ftp                     Which FTP site/dir to use (URL ftp://site/dir/..)
+ftpPort                 Which FTP port to use (default: 21)
+ftpRetryCount           How many times to retry a fetch operation
+ftpUser                 Which username to use when logging into FTP server
+ftpHost                 Which FTP hostname to use (overrides ftp variable)
+gated                   Use gated instead of routed
+defaultrouter           IP address of default route
+geometry                Geometry to use for selected disk ("cyl/hd/sec")
+hostname                Fully qualified domain name for host.
+network_interfaces      Which network interfaces to configure
+ipaddr                  IP address for this host's primary interface
+nameserver              IP address of name server
+netmask                 Netmask for this host's primary interface
+nfs                     Full host:/path/ specification to NFS media
+nfsHost                 Host portion of nfs path
+nfsSecure               Use NFS secure mount (-P flag)
+nfs_server              Configure this machine as an NFS server
+noConfirm               Don't ask for confirmation on non-fatal errors
+ntpDate                 Which ntp clock synchronization server to use
+pcnfsd                  Install the PCNFSD package 
+ports                   Path to the ports collection
+releaseName             Which FreeBSD release to install
+rootSize                Size of the root partition to create for Auto
+routedflags             Which flags to pass to routed, if enabled
+serialSpeed             How fast to run a SLIP/PPP connection
+slowEthernetCard        PC ethernet card is uncommonly slow
+swapSize                Size of the swap partition to create for Auto
+tapeBlocksize           Tape size in blocks
+ufs                     Full path to UFS media directory
+usrSize                 Size of the /usr partition to create for Auto
+varSize                 Size of the /var partition to create for Auto
+
+And "command" can be one or more of:
+
+addUser                 Add a new user to the system
+addGroup                Add a new group to the system
+configAnonFTP           Configure system for anonymous FTP
+configGated             Configure and install gated
+configNFSServer         Configure host as an NFS server
+configPackages          Browse / install packages
+diskPartitionEditor     Partition a new or existing disk
+diskPartitionWrite      Write out any changed partition information
+diskLabelEditor         Label/Newfs/Mount new or existing filesystems
+diskLabelCommit         Write out any changed label information
+distReset               Reset distribution information
+distSetDeveloper        Select developer distribution
+distSetXDeveloper       Select X developer distribution
+distSetKernDeveloper    Select kernel developer distribution
+distSetUser             Select user distribution
+distSetXUser            Select X user distribution
+distSetMinimum          Select minimal distribution
+distSetEverything       Select all distributions
+distSetDES              Select DES sub-distributions
+distSetSrc              Select source sub-distributions
+distSetXF86             Select XFree86 sub-distributions
+distExtractAll          Extract all selected distributions
+docBrowser              Browse documentation
+installCommit           Commit any pending installation operations
+installExpress          Express installation
+installUpgrade          Upgrade installation
+installFixup            Go into "fixit" mode
+mediaSetCDROM           Select CDROM media
+mediaSetFloppy          Select floppy media
+mediaSetDOS             Select DOS media
+mediaSetTape            Select tape media
+mediaSetFTP             Select FTP media
+mediaSetFTPPassive      Select FTP media in passive mode
+mediaSetUFS             Select UFS media
+mediaSetNFS             Select NFS media
+mediaSetFtpUserPass     Prompt for FTP username and password
+mediaSetCPIOVerbosity   Prompt for CPIO verbosity
+mediaGetType            Prompt for media type
+optionsEditor           Go to options editor
+register                Go to registration editor.
+
+Examples:
+
+/stand/sysinstall       mediaSetFTP configPackages
+
+Selects an FTP site and then goes to the package configuration menu.
+
+
+/stand/sysinstall       disk=da0 diskPartitionEditor
+
+Invokes the disk partition editor on disk da0.
+
+
+If /stand/sysinstall is linked to another filename, say
+`/usr/local/bin/configPackages', then the basename will be used
+as an implicit command name.

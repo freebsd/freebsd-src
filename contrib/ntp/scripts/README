@@ -1,0 +1,37 @@
+README file for directory ./scripts of the NTP Version 4 distribution
+
+This directory contains shell and perl script files for the configuration,
+monitoring and support of NTP installations. See the README and RELNOTES
+files in the parent directory for directions on how to use these files.
+
+calc_tickadj	Calculates "optimal" value for tick given ntp.drift file
+
+freq_adj	Calculates and optionally sets the clock frequency
+		based on ntp.drift .  For FreeBSD systems.
+
+mkver.in	script to create new version numbers for all sources
+
+monitoring      directory containing perl scripts useful for monitoring
+                operations
+
+rc1		start/stop scripts for NTP
+
+rc2		start/stop script for NTP
+
+ntp-groper	script useful for reaching out and rattling the cages of
+		NTP peers to see if animals are inside the bars
+
+ntp-restart	script useful for killing and restarting the NTP daemon
+
+ntpsweep	prints per host given in <file> the NTP stratum level, the
+		clock offset in seconds, the daemon version, the operating
+		system and the processor.
+
+ntpver		What version of the NTP daemon is running?
+
+stats		directory containing awk and shell scripts useful for
+		maintaining statistics summaries of clockstats, loopstats
+		and peerstats files
+
+support         directory containing shell and perl scripts useful for
+                configuration and monitoring of NTP subnets
