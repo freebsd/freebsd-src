@@ -32,7 +32,7 @@
 .\"     @(#)ul.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd July 16, 2004
+.Dd July 30, 2004
 .Dt UL 1
 .Os
 .Sh NAME
@@ -76,23 +76,14 @@ Overrides the terminal type specified in the environment with
 .Ar terminal .
 .El
 .Sh ENVIRONMENT
-The following environment variable is used:
-.Bl -tag -width TERM
-.It Ev TERM
 The
+.Ev LANG , LC_ALL , LC_CTYPE
+and
 .Ev TERM
-variable is used to relate a tty device
-with its device capability description (see
-.Xr termcap 5 ) .
-.Ev TERM
-is set at login time, either by the default terminal type
-specified in
-.Pa /etc/ttys
-or as set during the login process by the user in their
-.Pa login
-file (see
-.Xr environ 7 ) .
-.El
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
 .Sh SEE ALSO
 .Xr colcrt 1 ,
 .Xr man 1 ,
@@ -104,8 +95,6 @@ command usually outputs a series of backspaces and underlines intermixed
 with the text to indicate underlining.
 No attempt is made to optimize
 the backward motion.
-.Pp
-Multibyte characters are not recognized.
 .Sh HISTORY
 The
 .Nm
