@@ -1,5 +1,5 @@
 /*	$NetBSD: if_de.c,v 1.72 1998/07/05 06:49:14 jonathan Exp $	*/
-/*	$Id: if_de.c,v 1.85 1998/07/15 02:32:27 bde Exp $ */
+/*	$Id: if_de.c,v 1.86 1998/09/24 13:31:01 peter Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -4264,8 +4264,8 @@ tulip_txput(
      * latter case we have to recopy.
      */
 #if !defined(TULIP_BUS_DMA) || defined(TULIP_BUS_DMA_NOTX)
-    m0 = m;
   again:
+    m0 = m;
 #endif
     d_status = 0;
     eop = nextout = ri->ri_nextout;
