@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.46 1996/04/28 22:54:18 jkh Exp $
+ * $Id: label.c,v 1.47 1996/04/29 05:09:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -103,9 +103,9 @@ diskLabelEditor(dialogMenuItem *self)
 	    ++enabled;
     }
     if (!enabled) {
-	devs[0]->enabled = TRUE;
-	if (DITEM_STATUS(diskPartitionEditor(self)) == DITEM_FAILURE)
-	    return DITEM_FAILURE;
+	msgConfirm("No disks have been selected.  Please visit the Partition\n"
+		   "editor first to specify which disks you wish to operate on.");
+	return DITEM_FAILURE;
     }
     i = diskLabel(devs[0]->name);
     if (DITEM_STATUS(i) != DITEM_FAILURE)
@@ -400,7 +400,7 @@ print_label_chunks(void)
 	if (label_chunk_info[i].type == PART_SLICE) {
 	    sz = space_free(label_chunk_info[i].c);
 	    if (i == here)
-		attrset(A_REVERSE);
+		attrset(item_selected_attr);
 	    mvprintw(srow++, 0, "Disk: %s\tPartition name: %s\tFree: %d blocks (%dMB)",
 		     label_chunk_info[i].c->disk->name, label_chunk_info[i].c->name, sz, (sz / ONE_MEG));
 	    attrset(A_NORMAL);
@@ -447,7 +447,7 @@ print_label_chunks(void)
 	    memcpy(onestr + PART_NEWFS_COL, newfs, strlen(newfs));
 	    onestr[PART_NEWFS_COL + strlen(newfs)] = '\0';
 	    if (i == here)
-		wattrset(ChunkWin, A_REVERSE);
+		wattrset(ChunkWin, item_selected_attr);
 	    mvwaddstr(ChunkWin, prow, pcol, onestr);
 	    wattrset(ChunkWin, A_NORMAL);
 	    wrefresh(ChunkWin);
@@ -463,16 +463,10 @@ print_command_summary()
     mvprintw(17, 0, "The following commands are valid here (upper or lower case):");
     mvprintw(18, 0, "C = Create      D = Delete         M = Mount");
     if (!RunningAsInit)
-	mvprintw(18, 48, "W = Write");
+	mvprintw(18, 47, "W = Write");
     mvprintw(19, 0, "N = Newfs Opts  T = Newfs Toggle   U = Undo    Q = Finish");
     mvprintw(20, 0, "A = Auto Defaults for all!");
-    mvprintw(22, 0, "The default target will be displayed in ");
-
-    attrset(A_REVERSE);
-    addstr("reverse");
-    attrset(A_NORMAL);
-    addstr(" video.");
-    mvprintw(23, 0, "Use F1 or ? to get more help, arrow keys to move.");
+    mvprintw(22, 0, "Use F1 or ? to get more help, arrow keys to select.");
     move(0, 0);
 }
 
@@ -506,7 +500,7 @@ diskLabel(char *str)
 	    first_time = 0;
 	}
 	if (msg) {
-	    attrset(A_REVERSE); mvprintw(23, 0, msg); attrset(A_NORMAL);
+	    attrset(title_attr); mvprintw(23, 0, msg); attrset(A_NORMAL);
 	    clrtoeol();
 	    beep();
 	    msg = NULL;
@@ -837,8 +831,11 @@ diskLabel(char *str)
 			  "operation, and it should also be noted that this option is NOT for\n"
 			  "use during new installations but rather for modifying existing ones.\n\n"
 			  "Are you absolutely SURE you want to do this now?")) {
+		WINDOW *save = savescr();
+
 		variable_set2(DISK_LABELLED, "yes");
 		diskLabelCommit(NULL);
+		restorescr(save);
 	    }
 	    break;
 
