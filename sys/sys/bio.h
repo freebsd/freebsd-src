@@ -45,9 +45,6 @@
 #include <sys/queue.h>
 
 struct bio;
-struct buf;
-struct g_consumer;
-struct g_provider;
 
 struct iodone_chain {
 	long	ic_prev_flags;
@@ -107,6 +104,8 @@ struct bio {
 #define BIO_FLAG1	0x80000000	/* Available for local hacks */
 
 #ifdef _KERNEL
+
+struct uio;
 
 static __inline__ void
 biodone(struct bio *bp)
