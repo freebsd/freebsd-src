@@ -41,7 +41,7 @@
  * rknier 940331 Added fast transfer code 
  * rknier 940407 Added assembler coded data transfers 
  *
- * $Id: seagate.c,v 1.1 1994/07/03 20:50:32 sos Exp $
+ * $Id: seagate.c,v 1.1 1994/10/24 22:14:34 sos Exp $
  */
 
 /*
@@ -496,8 +496,10 @@ struct isa_device *dev;
       break;
     }
   if(j == NUM_SIGNATURES) {
+#ifdef SEADEBUG
     printf("sea: Board type unknown at address 0x%lx\n",
 	   sea->basemaddr);
+#endif
     seadata[unit]=NULL;
     free(sea, M_TEMP);
     return(0);
