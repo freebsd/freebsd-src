@@ -11,4 +11,6 @@ WARNS=	0
 DPADD=	${LIBUTIL} ${LIBCRYPT}
 LDADD=	-lutil -lcrypt
 
+NOSHARED?=	YES
+
 .include <bsd.prog.mk>
