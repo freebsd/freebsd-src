@@ -12,6 +12,7 @@ CFLAGS+=	 -g -W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wpointer-arith -
 # Uncomment for ElectricFence
 #LDADD += -lefence -L/usr/local/lib
 
+DPADD += ${LIBBSDXML}
 LDADD += -lbsdxml
 
 NOMAN=	yeah
