@@ -493,6 +493,11 @@ ip6_input(m)
 			/* this address is ready */
 			ours = 1;
 			deliverifp = ia6->ia_ifp;	/* correct? */
+
+			/* Count the packet in the ip address stats */
+			ia6->ia_ifa.if_ipackets++;
+			ia6->ia_ifa.if_ibytes += m->m_pkthdr.len;
+
 			goto hbhcheck;
 		} else {
 			/* address is not ready, so discard the packet. */

@@ -253,7 +253,7 @@ ip_input(struct mbuf *m)
 {
 	struct ip *ip;
 	struct ipq *fp;
-	struct in_ifaddr *ia;
+	struct in_ifaddr *ia = NULL;
 	int    i, hlen, mff;
 	u_short sum;
 	u_int16_t divert_cookie;		/* firewall cookie */
@@ -585,6 +585,11 @@ pass:
 	return;
 
 ours:
+	/* Count the packet in the ip address stats */
+	if (ia != NULL) {
+		ia->ia_ifa.if_ipackets++;
+		ia->ia_ifa.if_ibytes += m->m_pkthdr.len;
+	}
 
 	/*
 	 * If offset or IP_MF are set, must reassemble.

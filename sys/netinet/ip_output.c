@@ -801,6 +801,13 @@ skip_ipsec:
 				ip->ip_sum = in_cksum(m, hlen);
 			}
 		}
+
+		/* Record statistics for this interface address. */
+		if (!(flags & IP_FORWARDING)) {
+			ia->ia_ifa.if_opackets++;
+			ia->ia_ifa.if_obytes += m->m_pkthdr.len;
+		}
+
 		error = (*ifp->if_output)(ifp, m,
 				(struct sockaddr *)dst, ro->ro_rt);
 		goto done;
