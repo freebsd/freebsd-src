@@ -4,7 +4,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_frag.h	1.5 3/24/96
- * $Id: ip_frag.h,v 2.4.2.7 2002/07/06 14:17:51 darrenr Exp $
+ * $Id: ip_frag.h,v 2.4.2.8 2003/06/11 22:28:16 darrenr Exp $
  */
 
 #ifndef	__IP_FRAG_H__
@@ -53,6 +53,7 @@ extern	int	ipfr_nat_newfrag __P((ip_t *, fr_info_t *, struct nat *));
 extern	nat_t	*ipfr_nat_knownfrag __P((ip_t *, fr_info_t *));
 extern	frentry_t *ipfr_knownfrag __P((ip_t *, fr_info_t *));
 extern	void	ipfr_forget __P((void *));
+extern	void	ipfr_forgetnat __P((void *));
 extern	void	ipfr_unload __P((void));
 extern	void	ipfr_fragexpire __P((void));
 
