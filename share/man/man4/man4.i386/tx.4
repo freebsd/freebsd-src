@@ -67,7 +67,9 @@ driver supports the following media options:
 Set full-duplex operation
 .El
 .Pp
-Driver supports oversized ethernet packets (up to 1600 bytes).
+The
+.Nm
+driver supports oversized ethernet packets (up to 1600 bytes).
 Refer to the
 .Xr ifconfig 8
 man page on setting the interface's MTU.
@@ -78,7 +80,7 @@ The
 .Nm
 driver supports the VLAN operation (using
 .Xr vlan 4
-inteface) without decreasing the MTU on the
+intefaces) without decreasing the MTU on the
 .Xr vlan 4
 interfaces.
 .Sh DIAGNOSTICS
@@ -94,7 +96,7 @@ Device and driver reset follows this error.
 Cannot allocate memory for received packet.
 Packet thrown away.
 .It "tx%d: can't stop %s DMA"
-While reseting, driver failed to stop device correctly.
+While resetting, driver failed to stop device correctly.
 .El
 .Sh BUGS
 The multicast packets filtering is not supported.
