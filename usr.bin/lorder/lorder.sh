@@ -49,6 +49,7 @@ esac
 # temporary files
 R=$(mktemp -t _reference_)
 S=$(mktemp -t _symbol_)
+NM=${NM:-nm}
 
 # remove temporary files on HUP, INT, QUIT, PIPE, TERM
 trap "rm -f $R $S; exit 1" 1 2 3 13 15
@@ -63,7 +64,7 @@ done
 #
 # if the line has " U " it's a globally undefined symbol, put it into
 # the reference file.
-nm -go $* | sed "
+${NM} -go $* | sed "
 	/ [TD] / {
 		s/:.* [TD] / /
 		w $S
