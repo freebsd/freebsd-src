@@ -871,7 +871,8 @@ command is
 .Op Ar exitstatus
 .Ed
 .Pp
-It terminates the currently executing function.
+It terminates the current executional scope, returning from the previous
+nested function, sourced script, or shell instance, in that order.
 The
 .Ic return
 command is implemented as a built-in command.
@@ -1249,6 +1250,11 @@ command is provided for efficiency.
 A null command that returns a 0 (true) exit value.
 .It Ic \&. Ar file
 The commands in the specified file are read and executed by the shell.
+The
+.Ic return
+command may be used to return to the
+.Ic \&.
+command's caller.
 If
 .Ar file
 contains any
