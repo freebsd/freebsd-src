@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 LIB=	alias
+SHLIBDIR?=	/lib
 SHLIB_MAJOR=	4
 MAN=	libalias.3
 SRCS=	alias.c alias_cuseeme.c alias_db.c alias_ftp.c alias_irc.c \
