@@ -7,7 +7,7 @@
 
 <!ENTITY release.4x "4.<replaceable>X</replaceable>">
 <!ENTITY release.5x "5.<replaceable>X</replaceable>">
-<!ENTITY release.4last "4.10-RELEASE">
+<!ENTITY release.4last "4.11-RELEASE">
 <!ENTITY release.5branchpoint "5.3-RELEASE">
 ]>
 
@@ -25,6 +25,7 @@
       <year>2002</year>
       <year>2003</year>
       <year>2004</year>
+      <year>2005</year>
       <holder role="mailto:re@FreeBSD.org">The &os; Release
         Engineering Team</holder>
     </copyright>
@@ -42,7 +43,7 @@
 
     <abstract>
       <para>This article describes major differences between &os;
-	&release.4x; and &os; &release.5branchpoint;, from the
+	&release.4x; and &os; &release.current;, from the
 	viewpoint of a user or administrator upgrading an existing
 	system.  It provides a brief overview of &os; release
 	engineering.  It then describes some of the new features in
@@ -50,8 +51,9 @@
 	particular interest to users accustomed to working with the
 	&release.4x; series of releases.  This article also describes
 	binary- and source-based upgrading procedures for existing
-	systems.  An earlier version of this article appeared in prior
-	&os; &release.5x; releases as the <quote>Early Adopters
+	systems.  Earlier versions of this article appeared in prior
+	&os; &release.5x; releases.  Prior to &os; &release.5branchpoint;,
+	this article was known as the <quote>Early Adopters
 	Guide</quote>.</para>
     </abstract>
   </articleinfo>
@@ -59,22 +61,22 @@
   <sect1 id="intro">
     <title>Introduction</title>
 
-    <para>&os; &release.5branchpoint; marks the beginning of a new
+    <para>&os; &release.current; is the latest version of &os; in the
       <quote>&os.stable;</quote> series of releases.  This and future
-      releases in the &release.5x; series will be targeted
+      releases in the &release.5x; series are targeted
       toward production usage in much the same way as the prior
       &release.4x; series of releases.</para>
 
     <para>This article addresses a number of topics and issues
       of interest to users updating from a &release.4x; release to
-      &release.5branchpoint;.  It begins with a brief overview of
+      &release.current;.  It begins with a brief overview of
       current release engineering practices and then describes some of
       the new features available with the &os; &release.5x; series.
       Perhaps the most important section lists issues
       where major changes have taken place, user-visible behavior has
       changed, or external software interfaces have been modified.
       Last are some notes on upgrading existing &os; &release.4x;
-      systems to &os; &release.5branchpoint;, from binaries or
+      systems to &os; &release.current;, from binaries or
       from source.</para>
 
   </sect1>
@@ -137,13 +139,17 @@
 
     <para>The next release from CURRENT will likely be 6.0-RELEASE,
       created from CVS <literal>HEAD</literal>.  There is no firm date for 6.0, 
-      as of the 5.3 release
-      date, although it is
-      expected sometime in 2006.</para>
+      as of this writing, although it is
+      expected sometime in the third quarter of 2005.  Future release
+      engineering plans call for new major releases approximately
+      every eighteen months, with minor releases approximately every
+      four months.</para>
 
-    <para>A limited amount of development will continue on the
-      4-STABLE development branch, with at least one more release (4.11)
-      planned at some point after 5.3-RELEASE.  For especially
+    <para>The last planned release along the 4-STABLE development
+      branch was &release.4last;, which was announced in January 2005.
+      No new major features are planned for the 4-STABLE branch at
+      this time, and any future work will likely be limited to bug
+      fixes and security patches.  For especially
       conservative users, it may be reasonable to continue using the
       &release.4x; releases for a time.  The
       &a.security-officer; will continue to support releases made from
@@ -181,7 +187,7 @@
  	  kernel subsystems to increase the number of threads of
  	  execution that can be running in the kernel.  Particular
  	  attention has been paid to the performance of the network
- 	  stack.  More
+ 	  stack and storage drivers.  More
  	  information can be found on the
 	  <ulink url="&url.base;/smp/index.html">FreeBSD SMP
  	  Project</ulink> page.</para>
@@ -223,7 +229,8 @@
 	  partitions, the &man.gbde.4; disk encryption facility,
 	  various levels of RAID functionality, network export of disk
 	  devices (with &man.ggated.8 and related utilities), and
-	  transparent disk decompression.</para>
+	  transparent disk decompression.  The geom_vinum system
+	  brings GEOM compatibility to the VINUM volume manager.</para>
       </listitem>
 
       <listitem>
@@ -317,8 +324,9 @@
       </listitem>
 
       <listitem>
-	<para>A shortage of users and maintainers caused some parts of the &os; 
-	  base system to fall into disrepair.
+	<para>A shortage of users and maintainers for some parts of
+	  the base system has caused them
+	  to fall into disrepair.
 	  These have been removed.  Examples include the
 	  generation of <filename>a.out</filename>-style executables,
 	    <footnote>
@@ -529,6 +537,14 @@
         &windowsnt;&nbsp;4, &windows2k;, or &windowsxp; installation
 	CDROMs should be able to boot the &os; &release.5x; CDROMs.</para>
 
+      <para>The layout of CDROMs has changed from the &release.4x;
+	series.  Beginning with 5.4-RELEASE, the installation image
+	and the <quote>live filesystem</quote> are now contained on
+	the first disk on all architectures except for ia64 (ia64
+	releases use separate installation and live filesystem disks
+	due to disk space constraints).  Common packages are now
+	contained on the second and succeeding disks of a release.</para>
+
     </sect2>
 
     <sect2>
@@ -620,11 +636,11 @@
 	<listitem>
 	  <para>Using &man.cvs.1; or other means,
 	    obtain a copy of the &os; base system sources (the
-	    <filename>src/</filename> module).  To check out 5.3-RELEASE
+	    <filename>src/</filename> module).  To check out 5.4-RELEASE
 	    from the &os; CVS repository, use the
-	    <literal>RELENG_5_3_0_RELEASE</literal> tag.  For the 5.3
-	    release and security fix branch, use the
-	    <literal>RELENG_5_3</literal> tag.  To track the &os;
+	    <literal>RELENG_5_4_0_RELEASE</literal> tag.  For the 5.4
+	    release and errata branch, use the
+	    <literal>RELENG_5_4</literal> tag.  To track the &os;
 	    5-STABLE development branch, use the <literal>RELENG_5</literal> branch tag.
 	    When using CVS to
 	    check out the source tree, it is important to pass the
@@ -822,6 +838,12 @@
 	  <screen>&prompt.root; <userinput>cd /var/named/etc/namedb</userinput>
 &prompt.root; <userinput>/bin/sh make-localhost</userinput>
 &prompt.root; <userinput>rm -f localhost-v6.rev localhost.rev</userinput></screen>
+
+	  <para>Finally, two obsolete binaries from the prior
+	    <application>BIND</application> need to be removed:</para>
+
+	  <screen>&prompt.root; <userinput>rm /usr/sbin/nslookup</userinput>
+&prompt.root; <userinput>rm /usr/sbin/nsupdate</userinput></screen>
 
 	<listitem>
 	  <para>Update the system configuration files by running:</para>
