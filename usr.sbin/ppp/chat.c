@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.35 1997/10/26 01:02:22 brian Exp $
+ * $Id: chat.c,v 1.36 1997/10/29 01:19:39 brian Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -460,16 +460,8 @@ ExecStr(char *command, char *out)
       LogPrintf(LogCHAT, "dup2(nb, 0) in ExecStr: %s\n", strerror(errno));
       return;
     }
+    setuid(geteuid());
     LogPrintf(LogCHAT, "exec: %s\n", command);
-    /* switch back to original privileges */
-    if (setgid(getgid()) < 0) {
-      LogPrintf(LogCHAT, "setgid: %s\n", strerror(errno));
-      exit(1);
-    }
-    if (setuid(getuid()) < 0) {
-      LogPrintf(LogCHAT, "setuid: %s\n", strerror(errno));
-      exit(1);
-    }
     pid = execvp(command, vector);
     LogPrintf(LogCHAT, "execvp failed for (%d/%d): %s\n", pid, errno, command);
     exit(127);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.87 1997/11/04 01:17:02 brian Exp $
+ * $Id: main.c,v 1.88 1997/11/08 00:28:09 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -47,6 +47,7 @@
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
+#include "id.h"
 #include "timer.h"
 #include "fsm.h"
 #include "modem.h"
@@ -82,7 +83,6 @@ static struct termios oldtio;	/* Original tty mode */
 static struct termios comtio;	/* Command level tty mode */
 static pid_t BGPid = 0;
 static char pid_filename[MAXPATHLEN];
-static char if_filename[MAXPATHLEN];
 static int dial_up;
 
 static void DoLoop(void);
@@ -178,8 +178,7 @@ Cleanup(int excode)
   nointr_sleep(1);
   if (mode & MODE_AUTO)
     DeleteIfRoutes(1);
-  (void) unlink(pid_filename);
-  (void) unlink(if_filename);
+  ID0unlink(pid_filename);
   if (mode & MODE_BACKGROUND && BGFiledes[1] != -1) {
     char c = EX_ERRDEAD;
 
@@ -190,9 +189,9 @@ Cleanup(int excode)
     close(BGFiledes[1]);
   }
   LogPrintf(LogPHASE, "PPP Terminated (%s).\n", ex_desc(excode));
-  LogClose();
   ServerClose();
   TtyOldMode();
+  LogClose();
 
   exit(excode);
 }
@@ -344,8 +343,8 @@ main(int argc, char **argv)
     }
     VarTerm = stdout;
   }
+  ID0init();
   Greetings();
-  GetUid();
   IpcpDefAddress();
   LocalAuthInit();
 
@@ -475,9 +474,8 @@ main(int argc, char **argv)
 
   snprintf(pid_filename, sizeof(pid_filename), "%stun%d.pid",
            _PATH_VARRUN, tunno);
-  (void) unlink(pid_filename);
-
-  if ((lockfile = fopen(pid_filename, "w")) != NULL) {
+  lockfile = ID0fopen(pid_filename, "w");
+  if (lockfile != NULL) {
     fprintf(lockfile, "%d\n", (int) getpid());
     fclose(lockfile);
   } else

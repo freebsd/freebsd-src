@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.17 1997/10/26 01:03:48 brian Exp $
+ * $Id: systems.c,v 1.18 1997/11/04 01:17:05 brian Exp $
  *
  *  TODO:
  */
@@ -31,6 +31,7 @@
 
 #include "mbuf.h"
 #include "log.h"
+#include "id.h"
 #include "defs.h"
 #include "timer.h"
 #include "fsm.h"
@@ -42,88 +43,16 @@
 #include "server.h"
 #include "systems.h"
 
-static int uid;
-static int gid;
-static int euid;
-static int egid;
-static int usermode;
-
-int
-OrigUid()
-{
-  return uid;
-}
-
-void
-GetUid()
-{
-  uid = getuid();
-  gid = getgid();
-  euid = geteuid();
-  egid = getegid();
-  usermode = 0;
-}
-
-static void
-SetUserId()
-{
-  if (!usermode) {
-    if (setreuid(euid, uid) == -1) {
-      LogPrintf(LogERROR, "unable to setreuid!\n");
-      ServerClose();
-      exit(1);
-    }
-    if (setregid(egid, gid) == -1) {
-      LogPrintf(LogERROR, "unable to setregid!\n");
-      ServerClose();
-      exit(1);
-    }
-    usermode = 1;
-  }
-}
-
-static void
-SetPppId()
-{
-  if (usermode) {
-    if (setreuid(uid, euid) == -1) {
-      LogPrintf(LogERROR, "unable to setreuid!\n");
-      ServerClose();
-      exit(1);
-    }
-    if (setregid(gid, egid) == -1) {
-      LogPrintf(LogERROR, "unable to setregid!\n");
-      ServerClose();
-      exit(1);
-    }
-    usermode = 0;
-  }
-}
-
 FILE *
 OpenSecret(char *file)
 {
   FILE *fp;
-  char *cp;
   char line[100];
 
-  fp = NULL;
-  cp = getenv("HOME");
-  if (cp) {
-    SetUserId();
-    snprintf(line, sizeof line, "%s/.%s", cp, file);
-    fp = fopen(line, "r");
-  }
-  if (fp == NULL) {
-    SetPppId();
-    snprintf(line, sizeof line, "%s/%s", _PATH_PPP, file);
-    fp = fopen(line, "r");
-  }
-  if (fp == NULL) {
+  snprintf(line, sizeof line, "%s/%s", _PATH_PPP, file);
+  fp = ID0fopen(line, "r");
+  if (fp == NULL)
     LogPrintf(LogWARN, "OpenSecret: Can't open %s.\n", line);
-    SetPppId();
-    return (NULL);
-  }
   return (fp);
 }
 
@@ -131,7 +60,6 @@ void
 CloseSecret(FILE * fp)
 {
   fclose(fp);
-  SetPppId();
 }
 
 int
@@ -145,21 +73,10 @@ SelectSystem(char *name, char *file)
   char filename[200];
   int linenum;
 
-  fp = NULL;
-  cp = getenv("HOME");
-  if (cp) {
-    SetUserId();
-    snprintf(filename, sizeof filename, "%s/.%s", cp, file);
-    fp = fopen(filename, "r");
-  }
-  if (fp == NULL) {
-    SetPppId();			/* fix from pdp@ark.jr3uom.iijnet.or.jp */
-    snprintf(filename, sizeof filename, "%s/%s", _PATH_PPP, file);
-    fp = fopen(filename, "r");
-  }
+  snprintf(filename, sizeof filename, "%s/%s", _PATH_PPP, file);
+  fp = ID0fopen(filename, "r");
   if (fp == NULL) {
     LogPrintf(LogDEBUG, "SelectSystem: Can't open %s.\n", filename);
-    SetPppId();
     return (-1);
   }
   LogPrintf(LogDEBUG, "SelectSystem: Checking %s (%s).\n", name, filename);
@@ -197,27 +114,23 @@ SelectSystem(char *name, char *file)
             if (!len)
               continue;
 	    LogPrintf(LogCOMMAND, "%s: %s\n", name, cp);
-	    SetPppId();
 	    olauth = VarLocalAuth;
 	    if (VarLocalAuth == LOCAL_NO_AUTH)
 	      VarLocalAuth = LOCAL_AUTH;
 	    DecodeCommand(cp, len, 0);
 	    VarLocalAuth = olauth;
-	    SetUserId();
 	  } else if (*cp == '#') {
 	    continue;
 	  } else
 	    break;
 	}
 	fclose(fp);
-	SetPppId();
 	return (0);
       }
       break;
     }
   }
   fclose(fp);
-  SetPppId();
   return -1;
 }
 

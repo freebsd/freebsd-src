@@ -17,12 +17,10 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.h,v 1.6 1997/08/25 00:29:29 brian Exp $
+ * $Id: systems.h,v 1.7 1997/10/26 01:03:49 brian Exp $
  *
  */
 
-extern int OrigUid(void);
-extern void GetUid(void);
 extern int SelectSystem(char *, char *);
 extern FILE *OpenSecret(char *);
 extern void CloseSecret(FILE *);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.15 1997/09/10 02:20:27 brian Exp $
+ * $Id: arp.c,v 1.16 1997/10/26 01:02:03 brian Exp $
  *
  */
 
@@ -47,6 +47,7 @@
 
 #include "mbuf.h"
 #include "log.h"
+#include "id.h"
 #include "arp.h"
 
 static int rtm_seq;
@@ -91,7 +92,8 @@ sifproxyarp(int unit, u_long hisaddr)
     LogPrintf(LogERROR, "Cannot determine ethernet address for proxy ARP\n");
     return 0;
   }
-  if ((routes = socket(PF_ROUTE, SOCK_RAW, AF_INET)) < 0) {
+  routes = ID0socket(PF_ROUTE, SOCK_RAW, AF_INET);
+  if (routes < 0) {
     LogPrintf(LogERROR, "sifproxyarp: opening routing socket: %s\n",
 	      strerror(errno));
     return 0;
@@ -134,7 +136,8 @@ cifproxyarp(int unit, u_long hisaddr)
   arpmsg.hdr.rtm_type = RTM_DELETE;
   arpmsg.hdr.rtm_seq = ++rtm_seq;
 
-  if ((routes = socket(PF_ROUTE, SOCK_RAW, AF_INET)) < 0) {
+  routes = ID0socket(PF_ROUTE, SOCK_RAW, AF_INET);
+  if (routes < 0) {
     LogPrintf(LogERROR, "sifproxyarp: opening routing socket: %s\n",
 	      strerror(errno));
     return 0;
@@ -178,7 +181,7 @@ sifproxyarp(int unit, u_long hisaddr)
   SET_SA_FAMILY(arpreq.arp_pa, AF_INET);
   ((struct sockaddr_in *) & arpreq.arp_pa)->sin_addr.s_addr = hisaddr;
   arpreq.arp_flags = ATF_PERM | ATF_PUBL;
-  if (ioctl(unit, SIOCSARP, (caddr_t) & arpreq) < 0) {
+  if (ID0ioctl(unit, SIOCSARP, (caddr_t) & arpreq) < 0) {
     LogPrintf(LogERROR, "sifproxyarp: ioctl(SIOCSARP): %s\n", strerror(errno));
     return 0;
   }
@@ -196,7 +199,7 @@ cifproxyarp(int unit, u_long hisaddr)
   memset(&arpreq, '\0', sizeof(arpreq));
   SET_SA_FAMILY(arpreq.arp_pa, AF_INET);
   ((struct sockaddr_in *) & arpreq.arp_pa)->sin_addr.s_addr = hisaddr;
-  if (ioctl(unit, SIOCDARP, (caddr_t) & arpreq) < 0) {
+  if (ID0ioctl(unit, SIOCDARP, (caddr_t) & arpreq) < 0) {
     LogPrintf(LogERROR, "cifproxyarp: ioctl(SIOCDARP): %s\n", strerror(errno));
     return 0;
   }
