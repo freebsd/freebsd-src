@@ -44,7 +44,6 @@
 #include <machine/resource.h>
 
 #include <dev/pccard/pccardreg.h>
-#include <dev/pccard/pccardchip.h>
 #include <dev/pccard/pccardvar.h>
 
 #include "card_if.h"
@@ -135,6 +134,7 @@ pccard_scan_cis(device_t dev, int (*fct)(struct pccard_tuple *, void *),
 	    rid, PCCARD_A_MEM_ATTR);
 	tuple.memt = rman_get_bustag(res);
 	tuple.memh = rman_get_bushandle(res);
+	tuple.ptr = 0;
 
 	DPRINTF(("cis mem map %x\n", (unsigned int) tuple.memh));
 
@@ -169,6 +169,7 @@ pccard_scan_cis(device_t dev, int (*fct)(struct pccard_tuple *, void *),
 					ret = 1;
 					goto done;
 				}
+				ret = 1; goto done; /* XXX IMP XXX */
 				tuple.ptr++;
 				break;
 			}
