@@ -57,7 +57,6 @@
 #include <sys/fcntl.h>
 #include <sys/uio.h>
 #include <sys/namei.h>
-#include <sys/select.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
