@@ -157,6 +157,13 @@ http://www.openssh.com for more details. [MERGED]
 OpenSSH can now authenticate using OPIE passwords in SSH1 mode.
 Support is not yet available in SSH2 mode. [MERGED]
 
+OpenSSH has been upgraded to 2.2.0.  ssh-add(1) and ssh-agent(1) can now
+handle DSA keys.  An sftp server interoperable with ssh.com clients
+and others has been added.  scp(1) can now handle files >2GB.
+Interoperability with other ssh2 clients/servers has been improved.  A
+new feature to limit the number of outstanding unauthenticated ssh
+connections in sshd has been added.
+
 Support for USB devices was added to the GENERIC kernel and to the
 installation programs to support USB devices out of the box.  Note that
 an AT keyboard must still be used during the initial install, but it
@@ -241,6 +248,17 @@ required for USA residents. [MERGED]
 sshd now enabled by default on new installs. [MERGED]
 
 perl has been updated to version 5.6.0.
+
+Binutils have been upgraded to 2.10.0. [MERGED]
+
+libreadline has been upgraded to 4.1. [MERGED]
+
+The ifconfig(8) command can set the link-layer address of an interface. 
+[MERGED]
+
+bktr(4) driver update to 2.1.5.  New tuner types have been added, 
+and improvememts to the KLD module and to memory allocation have been
+made. [MERGED]
 
 
 2. Supported Configurations
