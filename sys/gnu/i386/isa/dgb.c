@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.17 1996/03/29 11:39:08 bde Exp $
+ *  dgb.c $Id: dgb.c,v 1.18 1996/06/12 04:59:14 gpalmer Exp $
  *
  *  Digiboard driver.
  *
@@ -51,13 +51,11 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
-#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 
 #include <gnu/i386/isa/dgbios.h>
 #include <gnu/i386/isa/dgfep.h>
 #include <gnu/i386/isa/dgreg.h>
-
 
 #define	CALLOUT_MASK		0x80
 #define	CONTROL_MASK		0x60

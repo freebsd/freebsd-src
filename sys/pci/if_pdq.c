@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_pdq.c,v 1.14 1996/02/06 18:51:25 wollman Exp $
+ * $Id: if_pdq.c,v 1.15 1996/03/23 19:29:10 fenner Exp $
  *
  */
 
@@ -95,7 +95,6 @@
 #endif
 
 #if NFEA > 0
-#include <i386/isa/isa.h>
 #include <i386/isa/icu.h>
 #ifdef __FreeBSD__
 #include <sys/devconf.h>

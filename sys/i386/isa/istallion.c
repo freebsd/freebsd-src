@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: istallion.c,v 1.2 1996/05/04 08:49:40 peter Exp $
+ * $Id: istallion.c,v 1.3 1996/06/12 04:26:35 gpalmer Exp $
  */
 
 /*****************************************************************************/
@@ -57,7 +57,6 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
-#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <machine/cdk.h>
 #include <machine/comstats.h>

@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_eg.c,v 1.12 1996/02/06 18:50:39 wollman Exp $
+ * $Id: if_eg.c,v 1.13 1996/04/07 17:38:33 bde Exp $
  */
 
 /* To do:
@@ -76,9 +76,7 @@
 
 #include <machine/clock.h>
 
-#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
-#include <i386/isa/icu.h>
 #include <i386/isa/if_egreg.h>
 
 /* for debugging convenience */
