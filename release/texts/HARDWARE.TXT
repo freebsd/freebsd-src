@@ -479,10 +479,13 @@ Alteon Networks PCI gigabit ethernet NICs based on the Tigon 1 and Tigon 2
 chipsets, including the following:
     3Com 3c985-SX (Tigon 1 and 2)
     Alteon AceNIC (Tigon 1 and 2)
+    Alteon AceNIC 1000baseT (Tigon 2)
     DEC/Compaq EtherWORKS 1000
     NEC Gigabit Ethernet
     Netgear GA620 (Tigon 2)
+    Netgear GA620T (Tigon 2, 1000baseT)
     Silicon Graphics Gigabit Ethernet
+    Farallon PN9000SX
 
 AMD PCnet/PCI (79c970 & 53c974 or 79c974)
 
@@ -531,7 +534,8 @@ NICs including the following:
 Silicon Integrated Systems SiS 900 and SiS 7016 PCI fast ethernet NICs
 
 National Semiconductor DP83815 fast ethernet NICs including the following:
-  NetGear FA312-TX
+    NetGear FA311-TX
+    NetGear FA312-TX
 
 Sundance Technologies ST201 PCI fast ethernet NICs including
 the following:
@@ -542,6 +546,8 @@ SysKonnect SK-984x PCI gigabit ethernet cards including the following:
     SK-9842 1000baseSX multimode fiber, single port
     SK-9843 1000baseLX single mode fiber, dual port
     SK-9844 1000baseSX multimode fiber, dual port
+    SK-9821 1000baseT copper, single port
+    SK-9822 1000baseT copper, dual port
 
 Texas Instruments ThunderLAN PCI NICs, including the following:
     Compaq Netelligent 10, 10/100, 10/100 Proliant, 10/100 Dual-Port
@@ -553,7 +559,8 @@ Texas Instruments ThunderLAN PCI NICs, including the following:
 
 ADMtek Inc. AL981-based PCI fast ethernet NICs
 
-ADMtek Inc. AN985-based PCI fast ethernet NICs
+ADMtek Inc. AN985-based PCI fast ethernet NICs including the following:
+    LinkSys EtherFast LNE100TX v4.0/4.1
 
 ADMtek Inc. AN986-based USB ethernet NICs including the following:
     Billionton USB100
@@ -568,7 +575,7 @@ CATC USB-EL1210A-based USB ethernet NICs including the following:
     CATC Netmate
     CATC Netmate II
 
-Kawasaki LSI KU5KUSB101B-based USB ethernet NICs including
+Kawasaki LSI KL5KUSB101B-based USB ethernet NICs including
 the following:
     3Com 3c19250
     ADS Technologies USB-10BT
@@ -627,9 +634,11 @@ Winbond W89C940, Surecom NE-34, VIA VT86C926, etc.
 3C590/592/595/900/905/905B/905C PCI 
 and EISA (Fast) Etherlink III / (Fast) Etherlink XL
 
-3Com 3c980/3c980B Fast Etherlink XL server adapter
+3Com 3c980/3c980B/3c980C Fast Etherlink XL server adapter
 
 3Com 3cSOHO100-TX OfficeConnect adapter
+
+3Com 3c450-TX HomeConnect adapter
 
 Toshiba ethernet cards
 
