@@ -43,7 +43,7 @@
 __FBSDID("$FreeBSD$");
 
 #ifndef OLD_JOKE
-#define OLD_JOKE 0
+#define	OLD_JOKE 0
 #endif /* OLD_JOKE */
 
 /*-
@@ -132,15 +132,15 @@ __FBSDID("$FreeBSD$");
  */
 static int     	errors = 0;	    /* number of errors reported */
 static int    	aborting = 0;	    /* why is the make aborting? */
-#define ABORT_ERROR	1   	    /* Because of an error */
-#define ABORT_INTERRUPT	2   	    /* Because it was interrupted */
-#define ABORT_WAIT	3   	    /* Waiting for jobs to finish */
+#define	ABORT_ERROR	1   	    /* Because of an error */
+#define	ABORT_INTERRUPT	2   	    /* Because it was interrupted */
+#define	ABORT_WAIT	3   	    /* Waiting for jobs to finish */
 
 /*
  * XXX: Avoid SunOS bug... FILENO() is fp->_file, and file
  * is a char! So when we go above 127 we turn negative!
  */
-#define FILENO(a) ((unsigned) fileno(a))
+#define	FILENO(a) ((unsigned) fileno(a))
 
 /*
  * post-make command processing. The node postCommands is really just the
@@ -156,10 +156,10 @@ static int     	  numCommands; 	    /* The number of commands actually printed
 /*
  * Return values from JobStart.
  */
-#define JOB_RUNNING	0   	/* Job is running */
-#define JOB_ERROR 	1   	/* Error in starting the job */
-#define JOB_FINISHED	2   	/* The job is already finished */
-#define JOB_STOPPED	3   	/* The job is stopped */
+#define	JOB_RUNNING	0   	/* Job is running */
+#define	JOB_ERROR 	1   	/* Error in starting the job */
+#define	JOB_FINISHED	2   	/* The job is already finished */
+#define	JOB_STOPPED	3   	/* The job is stopped */
 
 /*
  * tfile is used to build temp file names to store shell commands to
@@ -284,7 +284,7 @@ STATIC Lst	stoppedJobs;	/* Lst of Job structures describing
  * stuff much more. So, we devise our own macros... This is
  * really ugly, use dramamine sparingly. You have been warned.
  */
-#define W_SETMASKED(st, val, fun)				\
+#define	W_SETMASKED(st, val, fun)				\
 	{							\
 		int sh = (int) ~0;				\
 		int mask = fun(sh);				\
@@ -294,8 +294,8 @@ STATIC Lst	stoppedJobs;	/* Lst of Job structures describing
 		*(st) = (*(st) & ~mask) | ((val) << sh);	\
 	}
 
-#define W_SETTERMSIG(st, val) W_SETMASKED(st, val, WTERMSIG)
-#define W_SETEXITSTATUS(st, val) W_SETMASKED(st, val, WEXITSTATUS)
+#define	W_SETTERMSIG(st, val) W_SETMASKED(st, val, WTERMSIG)
+#define	W_SETEXITSTATUS(st, val) W_SETMASKED(st, val, WEXITSTATUS)
 
 
 static int JobCondPassSig(void *, void *);
@@ -547,7 +547,7 @@ JobPrintCommand(cmdp, jobp)
 	return 0;
     }
 
-#define DBPRINTF(fmt, arg) if (DEBUG(JOB)) {	\
+#define	DBPRINTF(fmt, arg) if (DEBUG(JOB)) {	\
 	(void) fprintf(stdout, fmt, arg); 	\
 	(void) fflush(stdout); 			\
     }						\

@@ -1074,7 +1074,7 @@ Dir_AddDir (path, name)
 	    Hash_InitTable (&p->files, -1);
 
 	    while ((dp = readdir (d)) != (struct dirent *) NULL) {
-#if defined(sun) && defined(d_ino) /* d_ino is a sunos4 #define for d_fileno */
+#if defined(sun) && defined(d_ino) /* d_ino is a sunos4 #define	for d_fileno */
 		/*
 		 * The sun directory library doesn't check for a 0 inode
 		 * (0-inode slots just take up space), so we have to do

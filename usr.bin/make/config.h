@@ -49,8 +49,8 @@
  *	created on the local machine at once. Note that if you set this
  *	to 0, nothing will ever happen...
  */
-#define DEFMAXJOBS	4
-#define DEFMAXLOCAL	1
+#define	DEFMAXJOBS	4
+#define	DEFMAXLOCAL	1
 
 /*
  * INCLUDES
@@ -61,8 +61,8 @@
  *	.INCLUDES dependency lines. Similarly for LIBRARIES and .LIBS
  *	See suff.c for more details.
  */
-#define INCLUDES
-#define LIBRARIES
+#define	INCLUDES
+#define	LIBRARIES
 
 /*
  * LIBSUFF
@@ -89,7 +89,7 @@
  *	  environment.
  *	- Allow empty command lines if starting with tab.
  */
-#define POSIX
+#define	POSIX
 
 /*
  * SYSVINCLUDE
@@ -97,8 +97,8 @@
  * SYSVVARSUB
  *	Recognize system V like ${VAR:x=y} variable substitutions
  */
-#define SYSVINCLUDE
-#define SYSVVARSUB
+#define	SYSVINCLUDE
+#define	SYSVVARSUB
 
 /*
  * SUNSHCMD
@@ -107,7 +107,7 @@
  *		${VAR:sh}	# Return the command substitution of the value
  *				# of ${VAR}
  */
-#define SUNSHCMD
+#define	SUNSHCMD
 
 #if !defined(__svr4__) && !defined(__SVR4) && !defined(__ELF__)
 # ifndef RANLIBMAG

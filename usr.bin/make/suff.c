@@ -111,9 +111,9 @@ typedef struct _Suff {
     char         *name;	    	/* The suffix itself */
     int		 nameLen;	/* Length of the suffix */
     short	 flags;      	/* Type of suffix */
-#define SUFF_INCLUDE	  0x01	    /* One which is #include'd */
-#define SUFF_LIBRARY	  0x02	    /* One which contains a library */
-#define SUFF_NULL 	  0x04	    /* The empty suffix */
+#define	SUFF_INCLUDE	  0x01	    /* One which is #include'd */
+#define	SUFF_LIBRARY	  0x02	    /* One which contains a library */
+#define	SUFF_NULL 	  0x04	    /* The empty suffix */
     Lst    	 searchPath;	/* The path along which files of this suffix
 				 * may be found */
     int          sNum;	      	/* The suffix number */

@@ -66,7 +66,7 @@ static void RebuildTable(Hash_Table *);
  * at which we rebuild the table to make it larger.
  */
 
-#define rebuildLimit 8
+#define	rebuildLimit 8
 
 /*
  *---------------------------------------------------------
