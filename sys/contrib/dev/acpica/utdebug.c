@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utdebug - Debug print routines
- *              $Revision: 104 $
+ *              $Revision: 105 $
  *
  *****************************************************************************/
 
@@ -250,7 +250,7 @@ AcpiUtDebugPrint (
 
     if (ACPI_LV_THREADS & AcpiDbgLevel)
     {
-        AcpiOsPrintf ("[%04lX] ", ThreadId, AcpiGbl_NestingLevel, DbgInfo->ProcName);
+        AcpiOsPrintf ("[%04lX] ", ThreadId);
     }
 
     AcpiOsPrintf ("[%02ld] %-22.22s: ", AcpiGbl_NestingLevel, DbgInfo->ProcName);
@@ -620,7 +620,7 @@ AcpiUtDumpBuffer (
     {
         /* Print current offset */
 
-        AcpiOsPrintf ("%05X    ", i);
+        AcpiOsPrintf ("%05X    ", (UINT32) i);
 
         /* Print 16 hex chars */
 

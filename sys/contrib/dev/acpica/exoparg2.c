@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exoparg2 - AML execution - opcodes with 2 arguments
- *              $Revision: 110 $
+ *              $Revision: 111 $
  *
  *****************************************************************************/
 
@@ -346,9 +346,10 @@ AcpiExOpcode_2A_1T_1R (
 {
     ACPI_OPERAND_OBJECT     **Operand   = &WalkState->Operands[0];
     ACPI_OPERAND_OBJECT     *ReturnDesc = NULL;
-    ACPI_OPERAND_OBJECT     *TempDesc;
+    ACPI_OPERAND_OBJECT     *TempDesc = NULL;
     UINT32                  Index;
     ACPI_STATUS             Status      = AE_OK;
+    ACPI_SIZE               Length;
 
 
     ACPI_FUNCTION_TRACE_STR ("ExOpcode_2A_1T_1R", AcpiPsGetOpcodeName (WalkState->Opcode));
@@ -390,7 +391,6 @@ AcpiExOpcode_2A_1T_1R (
 
         Status = AcpiUtDivide (&Operand[0]->Integer.Value, &Operand[1]->Integer.Value,
                         NULL, &ReturnDesc->Integer.Value);
-
         break;
 
 
@@ -406,15 +406,15 @@ AcpiExOpcode_2A_1T_1R (
         switch (ACPI_GET_OBJECT_TYPE (Operand[0]))
         {
         case ACPI_TYPE_INTEGER:
-            Status = AcpiExConvertToInteger (Operand[1], &Operand[1], WalkState);
+            Status = AcpiExConvertToInteger (Operand[1], &TempDesc, WalkState);
             break;
 
         case ACPI_TYPE_STRING:
-            Status = AcpiExConvertToString (Operand[1], &Operand[1], 16, ACPI_UINT32_MAX, WalkState);
+            Status = AcpiExConvertToString (Operand[1], &TempDesc, 16, ACPI_UINT32_MAX, WalkState);
             break;
 
         case ACPI_TYPE_BUFFER:
-            Status = AcpiExConvertToBuffer (Operand[1], &Operand[1], WalkState);
+            Status = AcpiExConvertToBuffer (Operand[1], &TempDesc, WalkState);
             break;
 
         default:
@@ -431,14 +431,69 @@ AcpiExOpcode_2A_1T_1R (
          * (Both are Integer, String, or Buffer), and we can now perform the
          * concatenation.
          */
-        Status = AcpiExDoConcatenate (Operand[0], Operand[1], &ReturnDesc, WalkState);
+        Status = AcpiExDoConcatenate (Operand[0], TempDesc, &ReturnDesc, WalkState);
+        if (TempDesc != Operand[1])
+        {
+            AcpiUtRemoveReference (TempDesc);
+        }
         break;
 
 
     case AML_TO_STRING_OP:          /* ToString (Buffer, Length, Result) (ACPI 2.0) */
 
-        Status = AcpiExConvertToString (Operand[0], &ReturnDesc, 16,
-                        (UINT32) Operand[1]->Integer.Value, WalkState);
+        /*
+         * Input object is guaranteed to be a buffer at this point (it may have
+         * been converted.)  Copy the raw buffer data to a new object of type String.
+         */
+
+        /* Get the length of the new string */
+
+        Length = 0;
+        if (Operand[1]->Integer.Value == 0)
+        {
+            /* Handle optional length value */
+
+            Operand[1]->Integer.Value = ACPI_INTEGER_MAX;
+        }
+
+        while ((Length < Operand[0]->Buffer.Length) &&
+               (Length < Operand[1]->Integer.Value) &&
+               (Operand[0]->Buffer.Pointer[Length]))
+        {
+            Length++;
+        }
+
+        if (Length > ACPI_MAX_STRING_CONVERSION)
+        {
+            Status = AE_AML_STRING_LIMIT;
+            goto Cleanup;
+        }
+
+        /* Create the internal return object */
+
+        ReturnDesc = AcpiUtCreateInternalObject (ACPI_TYPE_STRING);
+        if (!ReturnDesc)
+        {
+            Status = AE_NO_MEMORY;
+            goto Cleanup;
+        }
+        
+        /* Allocate a new string buffer (Length + 1 for null terminator) */
+
+        ReturnDesc->String.Pointer = ACPI_MEM_CALLOCATE (Length + 1);
+        if (!ReturnDesc->String.Pointer)
+        {
+            Status = AE_NO_MEMORY;
+            goto Cleanup;
+        }
+
+        /* Copy the raw buffer data with no transform */
+
+        ACPI_MEMCPY (ReturnDesc->String.Pointer, Operand[0]->Buffer.Pointer, Length);
+
+        /* Set the string length */
+
+        ReturnDesc->String.Length = Length;
         break;
 
 

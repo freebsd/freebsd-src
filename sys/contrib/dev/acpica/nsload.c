@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsload - namespace loading/expanding/contracting procedures
- *              $Revision: 58 $
+ *              $Revision: 59 $
  *
  *****************************************************************************/
 
@@ -118,7 +118,6 @@
 
 #include "acpi.h"
 #include "acnamesp.h"
-#include "amlcode.h"
 #include "acparser.h"
 #include "acdispat.h"
 
