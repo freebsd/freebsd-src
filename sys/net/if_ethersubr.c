@@ -162,6 +162,8 @@ ether_output(ifp, m, dst, rt0)
 		senderr(error);
 #endif
 
+	if (ifp->if_flags & IFF_MONITOR)
+		senderr(ENETDOWN);
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
 		senderr(ENETDOWN);
 	rt = rt0;
@@ -581,6 +583,11 @@ ether_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
 		mh.mh_data = (char *)eh;
 		mh.mh_len = ETHER_HDR_LEN;
 		bpf_mtap(ifp, (struct mbuf *)&mh);
+	}
+
+	if (ifp->if_flags & IFF_MONITOR) {
+		m_freem(m);
+		return;
 	}
 
 #ifdef MAC
