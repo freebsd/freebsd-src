@@ -1917,7 +1917,6 @@ issignal(td)
 		if (SIGISEMPTY(sigpending))	/* no signal to send */
 			return (0);
 		sig = sig_ffs(&sigpending);
-		prop = sigprop(sig);
 
 		_STOPEVENT(p, S_SIG, sig);
 
@@ -1953,14 +1952,6 @@ issignal(td)
 			mtx_lock(&ps->ps_mtx);
 
 			/*
-			 * If the traced bit got turned off, go back up
-			 * to the top to rescan signals.  This ensures
-			 * that p_sig* and p_sigacts are consistent.
-			 */
-			if ((p->p_flag & P_TRACED) == 0)
-				continue;
-
-			/*
 			 * If parent wants us to take the signal,
 			 * then it will leave it in p->p_xstat;
 			 * otherwise we just look for signals again.
@@ -1968,6 +1959,14 @@ issignal(td)
 			SIGDELSET(td->td_siglist, sig);	/* clear old signal */
 			sig = p->p_xstat;
 			if (sig == 0)
+				continue;
+
+			/*
+			 * If the traced bit got turned off, go back up
+			 * to the top to rescan signals.  This ensures
+			 * that p_sig* and p_sigact are consistent.
+			 */
+			if ((p->p_flag & P_TRACED) == 0)
 				continue;
 
 			/*
@@ -1979,6 +1978,8 @@ issignal(td)
 				continue;
 			signotify(td);
 		}
+
+		prop = sigprop(sig);
 
 		/*
 		 * Decide whether the signal should be returned.
