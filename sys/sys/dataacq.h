@@ -1,4 +1,7 @@
-/* Header for general data acquisition definitions.
+/*
+ * Header for general data acquisition definitions.
+ *
+ * $FreeBSD$
  */
 
 #ifndef	_SYS_DATAACQ_H_

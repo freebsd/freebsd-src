@@ -1,3 +1,4 @@
+# $FreeBSD$
 # Options used when building app-specific libalpha components
 PRIMARY_LOAD_ADDRESS=	0x20000000	# "Region 1 start"
 SECONDARY_LOAD_ADDRESS=	0x2000c000	# "Region 1 start" + 48k

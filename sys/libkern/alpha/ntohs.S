@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*	$NetBSD: ntohs.S,v 1.1 1996/04/17 22:37:02 cgd Exp $	*/
 
 /*

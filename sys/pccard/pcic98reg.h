@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*
 	pcic98reg.h
 
