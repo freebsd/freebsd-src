@@ -203,7 +203,7 @@ draw:
 		}
 		delwin(save);
 	    }
-	    else
+	    else if (result)
 		strcpy(result, items[(scroll + choice) * 2]);
 	    delwin(menu);
 	    delwin(dialog);
