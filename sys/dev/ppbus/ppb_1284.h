@@ -23,21 +23,63 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppb_1284.h,v 1.1 1997/08/16 14:05:33 msmith Exp $
+ *	$Id: ppb_1284.h,v 1.2 1998/08/03 19:14:31 msmith Exp $
  *
  */
 #ifndef __1284_H
 #define __1284_H
 
+/*
+ * IEEE1284 signals
+ */
+
+/* host driven signals */
+
+#define nHostClk	STROBE
+#define Write		STROBE
+
+#define nHostBusy	AUTOFEED
+#define nHostAck	AUTOFEED
+#define DStrb		AUTOFEED
+
+#define nReveseRequest	nINIT
+
+#define nActive1284	SELECTIN
+#define AStrb		SELECTIN
+
+/* peripheral driven signals */
+
+#define nDataAvail	nFAULT
+#define nPeriphRequest	nFAULT
+
+#define Xflag		SELECT
+
+#define AckDataReq	PERROR
+#define nAckReverse	PERROR
+
+#define nPtrBusy	nBUSY
+#define nPeriphAck	nBUSY
+#define Wait		nBUSY
+
+#define PtrClk		nACK
+#define PeriphClk	nACK
+#define Intr		nACK
+
+/* request mode values */
 #define NIBBLE_1284_NORMAL	0
 #define NIBBLE_1284_REQUEST_ID	4
 
-extern int do_1284_wait(struct ppb_device *, char, char);
+/* how to terminate */
+#define VALID_STATE	0
+#define IMMEDIATE	1
 
-extern int byte_1284_inbyte(struct ppb_device *, char *);
+extern int do_1284_wait(struct ppb_device *, char, char);
 
 extern int nibble_1284_inbyte(struct ppb_device *, char *);
 extern void nibble_1284_sync(struct ppb_device *);
 extern int nibble_1284_mode(struct ppb_device *, int);
+
+extern int ppb_1284_negociate(struct ppb_device *, int);
+extern int ppb_1284_terminate(struct ppb_device *, int how);
 
 #endif
