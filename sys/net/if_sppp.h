@@ -14,7 +14,7 @@
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
  *
- * From: Version 1.7, Wed Jun  7 22:12:02 MSD 1995
+ * From: Version 2.0, Fri Oct  6 20:39:21 MSK 1995
  *
  * $Id: if_sppp.h,v 1.6 1997/05/22 22:15:39 joerg Exp $
  */
@@ -47,7 +47,24 @@ struct sipcp {
 #define IPCP_MYADDR_DYN   2	/* my address is dynamically assigned */
 };
 
-#define IDX_COUNT (IDX_IPCP + 1) /* bump this when adding cp's! */
+#define AUTHNAMELEN	32
+#define AUTHKEYLEN	16
+
+struct sauth {
+	u_short	proto;			/* authentication protocol to use */
+	u_short	flags;
+#define AUTHFLAG_NOCALLOUT	1	/* do not require authentication on */
+					/* callouts */
+#define AUTHFLAG_NORECHALLENGE	2	/* do not re-challenge CHAP */
+	u_char	name[AUTHNAMELEN];	/* system identification name */
+	u_char	secret[AUTHKEYLEN];	/* secret password */
+	u_char	challenge[AUTHKEYLEN];	/* random challenge */
+};
+
+#define IDX_PAP		2
+#define IDX_CHAP	3
+
+#define IDX_COUNT (IDX_CHAP + 1) /* bump this when adding cp's! */
 
 /*
  * Don't change the order of this.  Ordering the phases this way allows
@@ -75,9 +92,12 @@ struct sppp {
 	u_char  confid[IDX_COUNT];	/* id of last configuration request */
 	int	rst_counter[IDX_COUNT];	/* restart counter */
 	int	fail_counter[IDX_COUNT]; /* negotiation failure counter */
-	struct	callout_handle ch[IDX_COUNT];
-	struct slcp lcp;        /* LCP params */
-	struct sipcp ipcp;      /* IPCP params */
+	struct callout_handle ch[IDX_COUNT]; /* per-proto and if callouts */
+	struct callout_handle pap_my_to_ch; /* PAP needs one more... */
+	struct slcp lcp;		/* LCP params */
+	struct sipcp ipcp;		/* IPCP params */
+	struct sauth myauth;		/* auth params, i'm peer */
+	struct sauth hisauth;		/* auth params, i'm authenticator */
 	/*
 	 * These functions are filled in by sppp_attach(), and are
 	 * expected to be used by the lower layer (hardware) drivers
@@ -100,9 +120,33 @@ struct sppp {
 
 #define PP_KEEPALIVE    0x01    /* use keepalive protocol */
 #define PP_CISCO        0x02    /* use Cisco protocol instead of PPP */
+				/* 0x04 was PP_TIMO */
+#define PP_CALLIN	0x08	/* we are being called */
+#define PP_NEEDAUTH	0x10	/* remote requested authentication */
+
 
 #define PP_MTU          1500    /* default/minimal MRU */
 #define PP_MAX_MRU	2048	/* maximal MRU we want to negotiate */
+
+/*
+ * Definitions to pass struct sppp data down into the kernel using the
+ * SIOC[SG]IFGENERIC ioctl interface.
+ *
+ * In order to use this, create a struct spppreq, fill in the cmd
+ * field with SPPPIOGDEFS, and put the address of this structure into
+ * the ifr_data portion of a struct ifreq.  Pass this struct to a
+ * SIOCGIFGENERIC ioctl.  Then replace the cmd field by SPPPIOCDEFS,
+ * modify the defs field as desired, and pass the struct ifreq now
+ * to a SIOCSIFGENERIC ioctl.
+ */
+
+#define SPPPIOGDEFS  ((caddr_t)(('S' << 24) + (1 << 16) + sizeof(struct sppp)))
+#define SPPPIOSDEFS  ((caddr_t)(('S' << 24) + (2 << 16) + sizeof(struct sppp)))
+
+struct spppreq {
+	int	cmd;
+	struct sppp defs;
+};
 
 #ifdef KERNEL
 void sppp_attach (struct ifnet *ifp);
@@ -110,6 +154,7 @@ void sppp_detach (struct ifnet *ifp);
 void sppp_input (struct ifnet *ifp, struct mbuf *m);
 int sppp_ioctl (struct ifnet *ifp, int cmd, void *data);
 struct mbuf *sppp_dequeue (struct ifnet *ifp);
+struct mbuf *sppp_pick(struct ifnet *ifp);
 int sppp_isempty (struct ifnet *ifp);
 void sppp_flush (struct ifnet *ifp);
 #endif
