@@ -902,7 +902,6 @@ digiclose(dev_t dev, int flag, int mode, struct thread *td)
 	s = spltty();
 	linesw[tp->t_line].l_close(tp, flag);
 	digi_disc_optim(tp, &tp->t_termios, port);
-	digistop(tp, FREAD | FWRITE);
 	digihardclose(port);
 	ttyclose(tp);
 	if (--sc->opencnt == 0)
