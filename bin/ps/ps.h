@@ -59,6 +59,7 @@ typedef struct var {
 #define	LJUST	0x02		/* left adjust on output (trailing blanks) */
 #define	USER	0x04		/* needs user structure */
 #define	DSIZ	0x08		/* field size is dynamic*/
+#define	INF127	0x10		/* values >127 displayed as 127 */
 	u_int	flag;
 				/* output routine */
 	void	(*oproc)(struct kinfo *, struct varent *);
