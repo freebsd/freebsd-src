@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.4 1994/08/18 22:35:09 wollman Exp $
+ * $Id: vfs_subr.c,v 1.5 1994/08/20 16:03:12 davidg Exp $
  */
 
 /*
@@ -193,8 +193,13 @@ vfs_unmountroot(rootfs)
 	if (error = VFS_SYNC(mp, MNT_WAIT, initproc->p_ucred, initproc))
 		printf("sync of root filesystem failed (%d)\n", error);
 
-	if (error = VFS_UNMOUNT(mp, MNT_FORCE, initproc))
-		printf("unmount of root filesystem failed (%d)\n", error);
+	if (error = VFS_UNMOUNT(mp, MNT_FORCE, initproc)) {
+		printf("unmount of root filesystem failed (");
+		if (error == EBUSY)
+			printf("BUSY)\n");
+		else
+			printf("%d)\n", error);
+	}
 
 	mp->mnt_flag &= ~MNT_UNMOUNT;
 	vfs_unbusy(mp);
@@ -220,8 +225,11 @@ vfs_unmountall()
 
 		error = dounmount(mp, MNT_FORCE, initproc);
 		if (error) {
-			printf("unmount of %s failed (%d)\n",
-			    mp->mnt_stat.f_mntonname, error);
+			printf("unmount of %s failed (", mp->mnt_stat.f_mntonname);
+			if (error == EBUSY)
+				printf("BUSY)\n");
+			else
+				printf("%d)\n", error);
 		}
 	}
 
