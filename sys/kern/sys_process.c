@@ -598,8 +598,8 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		/* deliver or queue signal */
 		if (P_SHOULDSTOP(p)) {
 			p->p_xstat = data;
-			mtx_lock_spin(&sched_lock);
 			p->p_flag &= ~(P_STOPPED_TRACE|P_STOPPED_SIG);
+			mtx_lock_spin(&sched_lock);
 			thread_unsuspend(p);
 			setrunnable(td2);	/* XXXKSE */
 			/* Need foreach kse in proc, ... make_kse_queued(). */
@@ -743,9 +743,8 @@ void
 stopevent(struct proc *p, unsigned int event, unsigned int val)
 {
 
-	PROC_LOCK_ASSERT(p, MA_OWNED | MA_NOTRECURSED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	p->p_step = 1;
-
 	do {
 		p->p_xstat = val;
 		p->p_stype = event;	/* Which event caused the stop? */
