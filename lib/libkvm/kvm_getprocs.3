@@ -36,7 +36,7 @@
 .\"     @(#)kvm_getprocs.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd September 27, 2003
 .Dt KVM_GETPROCS 3
 .Os
 .Sh NAME
@@ -74,7 +74,9 @@ describes the filtering predicate as follows:
 .Pp
 .Bl -tag -width 20n -offset indent -compact
 .It Sy KERN_PROC_ALL
-all processes
+all processes and kernel visible threads
+.It Sy KERN_PROC_PROC
+all processes, without threads
 .It Sy KERN_PROC_PID
 processes with process id
 .Fa arg
