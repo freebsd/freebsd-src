@@ -228,6 +228,15 @@ void	mexitcount(uintfptr_t selfpc);
 void	nullfunc(void);
 void	nullfunc_loop(void);
 
+#else /* !_KERNEL */
+
+#include <sys/cdefs.h>
+
+__BEGIN_DECLS
+void	moncontrol(int);
+void	monstartup(u_long, u_long);
+__END_DECLS
+
 #endif /* _KERNEL */
 
 #endif /* !_SYS_GMON_H_ */
