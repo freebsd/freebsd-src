@@ -1,0 +1,14 @@
+stable-base release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/src delete old 
+stable-bin release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/src delete old 
+stable-etc release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/src delete old 
+stable-games release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/src delete old 
+stable-gnu release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/src delete old 
+stable-include release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/src delete old 
+stable-sys release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/src delete old 
+stable-lib release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/src delete old 
+stable-libexec release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/src delete old 
+stable-sbin release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/src delete old 
+#stable-secure release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/src delete old 
+stable-share release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/src delete old 
+stable-usrbin release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/src delete old 
+stable-usrsbin release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/src delete old 
