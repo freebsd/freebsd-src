@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 
-static const char *ieee80211_phymode_name[] = {
+const char *ieee80211_phymode_name[] = {
 	"auto",		/* IEEE80211_MODE_AUTO */
 	"11a",		/* IEEE80211_MODE_11A */
 	"11b",		/* IEEE80211_MODE_11B */

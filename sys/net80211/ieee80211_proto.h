@@ -51,6 +51,7 @@ enum ieee80211_state {
 	((*(_ic)->ic_send_mgmt)(_ic, _ni, _type, _arg))
 
 extern	const char *ieee80211_mgt_subtype_name[];
+extern	const char *ieee80211_phymode_name[];
 
 extern	void ieee80211_proto_attach(struct ieee80211com *);
 extern	void ieee80211_proto_detach(struct ieee80211com *);
