@@ -41,6 +41,7 @@
 #define _NET_IF_GRE_H
 
 #include <sys/ioccom.h>
+#ifdef _KERNEL
 #include <sys/queue.h>
 
 struct gre_softc {
@@ -140,6 +141,8 @@ struct mobip_h {
 #define MOB_H_SBIT	0x0080
 
 #define	GRE_TTL	30
+
+#endif /* _KERNEL */
 
 /* 
  * ioctls needed to manipulate the interface 
