@@ -215,6 +215,18 @@ pointed to by the first argument.
 Assert that the current thread
 does not hold the mutex
 pointed to by the first argument.
+.It
+.Dv MA_RECURSED
+Assert that the current thread has recursed on the mutex
+pointed to by the first argument.
+This assertion is only valid in conjuction with
+.Dv MA_OWNED .
+.It
+.Dv MA_NOTRECURSED
+Assert that the current thread has not recursed on the mutex
+pointed to by the first argument.
+This assertion is only valid in conjuction with
+.Dv MA_OWNED .
 .El
 .Pp
 The
@@ -397,6 +409,9 @@ and is used in conjunction with mutexes declared with
 to initialize mutexes that are needed before
 .Xr malloc 9
 is available for use.
+.It Dv MTX_QUIET
+This option is used to quiet logging messages during mutex operations.
+This can be used to trim superfluous logging messages for debugging purposes.
 .El
 .Sh HISTORY
 These
