@@ -206,10 +206,6 @@ typedef unsigned long   u_32_t;
 #   if defined(IPFILTER_LKM) && !defined(ACTUALLY_LKM_NOT_KERNEL)
 #    define	ACTUALLY_LKM_NOT_KERNEL
 #   endif
-#  else
-#   if defined(IPFILTER_LKM) && !defined(KLD_MODULE)
-#    define	KLD_MODULE
-#   endif
 #  endif
 # endif
 #endif /* __FreeBSD__ && KERNEL */
