@@ -479,7 +479,7 @@ physical_ShowStatus(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, "\"%s\"", dev);
     dev += strlen(dev) + 1;
   }
-  
+
   prompt_Printf(arg->prompt, "\n Characteristics: ");
   if (physical_IsSync(arg->cx->physical))
     prompt_Printf(arg->prompt, "sync");

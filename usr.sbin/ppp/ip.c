@@ -218,7 +218,7 @@ FilterCheck(const unsigned char *packet, u_int32_t family,
      */
     const struct ip *pip = (const struct ip *)packet;
 
-    len = ntohs(pip->ip_off) & IP_OFFMASK;	/* fragment offset */ 
+    len = ntohs(pip->ip_off) & IP_OFFMASK;	/* fragment offset */
     if (len > 0) {		/* Not first fragment within datagram */
       if (len < (24 >> 3)) {	/* don't allow fragment to over-write header */
         log_Printf(LogFILTER, " error: illegal header\n");
@@ -231,7 +231,7 @@ FilterCheck(const unsigned char *packet, u_int32_t family,
       } else
         return 0;
     }
-  
+
     ncpaddr_setip4(&srcaddr, pip->ip_src);
     ncpaddr_setip4(&dstaddr, pip->ip_dst);
     datalen = ntohs(pip->ip_len) - (pip->ip_hl << 2);
@@ -432,12 +432,12 @@ FilterCheck(const unsigned char *packet, u_int32_t family,
         } else {
           if (log_IsKept(LogFILTER)) {
             snprintf(dstip, sizeof dstip, "%s", ncpaddr_ntoa(&dstaddr));
-            log_Printf(LogFILTER, 
-                       "%sbound rule = %d deny %s src = %s/%d dst = %s/%d\n", 
+            log_Printf(LogFILTER,
+                       "%sbound rule = %d deny %s src = %s/%d dst = %s/%d\n",
                        filter->name, n, prototxt,
                        ncpaddr_ntoa(&srcaddr), sport, dstip, dport);
           }
-          return 1;	
+          return 1;
         }		/* Explict match.  Deny this packet */
       }
     } else {
@@ -448,8 +448,8 @@ FilterCheck(const unsigned char *packet, u_int32_t family,
 
   if (log_IsKept(LogFILTER)) {
     snprintf(dstip, sizeof dstip, "%s", ncpaddr_ntoa(&dstaddr));
-    log_Printf(LogFILTER, 
-               "%sbound rule = implicit deny %s src = %s/%d dst = %s/%d\n", 
+    log_Printf(LogFILTER,
+               "%sbound rule = implicit deny %s src = %s/%d dst = %s/%d\n",
                filter->name, prototxt, ncpaddr_ntoa(&srcaddr), sport,
                dstip, dport);
   }
@@ -849,7 +849,7 @@ PacketCheck(struct bundle *bundle, u_int32_t family,
           *psecs = alivesecs;
         if (*psecs) {
           if (*psecs != alivesecs)
-            log_Printf(LogTCPIP, "%s - (timeout = %d / ALIVE = %d secs)\n", 
+            log_Printf(LogTCPIP, "%s - (timeout = %d / ALIVE = %d secs)\n",
                        logbuf, *psecs, alivesecs);
           else
             log_Printf(LogTCPIP, "%s - (timeout = %d secs)\n", logbuf, *psecs);

@@ -448,7 +448,7 @@ radius_Process(struct radius *r, int got)
                              r->msrepstr);
                 }
                 break;
- 
+
               case RAD_MICROSOFT_MS_MPPE_ENCRYPTION_POLICY:
                 r->mppe.policy = rad_cvt_int(data);
                 log_Printf(LogPHASE, " MS-MPPE-Encryption-Policy %s\n",
@@ -820,7 +820,7 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
       break;
 #endif
     default:
-      log_Printf(LogERROR, "CHAP: Unrecognised type 0x%02x\n", 
+      log_Printf(LogERROR, "CHAP: Unrecognised type 0x%02x\n",
                  authp->physical->link.lcp.want_authtype);
       rad_close(r->cx.rad);
       return 0;
@@ -871,7 +871,7 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
  * Send an accounting request to the RADIUS server
  */
 void
-radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl, 
+radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
                int acct_type, struct in_addr *peer_ip, struct in_addr *netmask,
                struct pppThroughput *stats)
 {
@@ -920,7 +920,7 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
     ac->user_name[AUTHLEN-1] = '\0';
 
     ac->authentic = 2;		/* Assume RADIUS verified auth data */
- 
+
     /* Generate a session ID */
     snprintf(ac->session_id, sizeof ac->session_id, "%s%ld-%s%lu",
              dl->bundle->cfg.auth.name, (long)getpid(),
@@ -938,8 +938,8 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
 
   if (rad_put_string(r->cx.rad, RAD_USER_NAME, ac->user_name) != 0 ||
       rad_put_int(r->cx.rad, RAD_SERVICE_TYPE, RAD_FRAMED) != 0 ||
-      rad_put_int(r->cx.rad, RAD_FRAMED_PROTOCOL, RAD_PPP) != 0 || 
-      rad_put_addr(r->cx.rad, RAD_FRAMED_IP_ADDRESS, ac->ip) != 0 || 
+      rad_put_int(r->cx.rad, RAD_FRAMED_PROTOCOL, RAD_PPP) != 0 ||
+      rad_put_addr(r->cx.rad, RAD_FRAMED_IP_ADDRESS, ac->ip) != 0 ||
       rad_put_addr(r->cx.rad, RAD_FRAMED_IP_NETMASK, ac->mask) != 0) {
     log_Printf(LogERROR, "rad_put: %s\n", rad_strerror(r->cx.rad));
     rad_close(r->cx.rad);
@@ -971,10 +971,10 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
   radius_put_physical_details(r->cx.rad, dl->physical);
 
   if (rad_put_int(r->cx.rad, RAD_ACCT_STATUS_TYPE, acct_type) != 0 ||
-      rad_put_string(r->cx.rad, RAD_ACCT_SESSION_ID, ac->session_id) != 0 || 
+      rad_put_string(r->cx.rad, RAD_ACCT_SESSION_ID, ac->session_id) != 0 ||
       rad_put_string(r->cx.rad, RAD_ACCT_MULTI_SESSION_ID,
                      ac->multi_session_id) != 0 ||
-      rad_put_int(r->cx.rad, RAD_ACCT_DELAY_TIME, 0) != 0) { 
+      rad_put_int(r->cx.rad, RAD_ACCT_DELAY_TIME, 0) != 0) {
 /* XXX ACCT_DELAY_TIME should be increased each time a packet is waiting */
     log_Printf(LogERROR, "rad_put: %s\n", rad_strerror(r->cx.rad));
     rad_close(r->cx.rad);

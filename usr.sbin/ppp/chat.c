@@ -449,7 +449,7 @@ chat_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
         /* Got it ! */
         timer_Stop(&c->timeout);
         if (memchr(begin + c->arglen - 1, '\n',
-            c->bufend - begin - c->arglen + 1) == NULL) { 
+            c->bufend - begin - c->arglen + 1) == NULL) {
           /* force it into the log */
           end = c->bufend;
           c->bufend = begin + c->arglen;
@@ -467,7 +467,7 @@ chat_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
           if (!strncmp(begin, c->abort.string[n].data,
                        c->abort.string[n].len)) {
             if (memchr(begin + c->abort.string[n].len - 1, '\n',
-                c->bufend - begin - c->abort.string[n].len + 1) == NULL) { 
+                c->bufend - begin - c->abort.string[n].len + 1) == NULL) {
               /* force it into the log */
               end = c->bufend;
               c->bufend = begin + c->abort.string[n].len;

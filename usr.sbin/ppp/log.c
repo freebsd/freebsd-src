@@ -323,7 +323,7 @@ log_Printf(int lev, const char *fmt,...)
 	         LogTunno, log_Name(lev), fmt);
       else
         snprintf(nfmt, sizeof nfmt, "%s: %s", log_Name(lev), fmt);
-  
+
       if (log_PromptContext && lev == LogWARN)
         /* Warnings just go to the current prompt */
         prompt_vPrintf(log_PromptContext, nfmt, ap);

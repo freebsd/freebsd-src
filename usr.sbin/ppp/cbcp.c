@@ -75,7 +75,7 @@ static void cbcp_SendReq(struct cbcp *);
 static void cbcp_SendResponse(struct cbcp *);
 static void cbcp_SendAck(struct cbcp *);
 
-static void 
+static void
 cbcp_Timeout(void *v)
 {
   struct cbcp *cbcp = (struct cbcp *)v;

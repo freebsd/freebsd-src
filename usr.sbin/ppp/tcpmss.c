@@ -70,7 +70,7 @@
  * We are in a liberal position about MSS
  * (RFC 879, section 7).
  */
-#define MAXMSS(mtu) (mtu - sizeof(struct ip) - sizeof(struct tcphdr)) 
+#define MAXMSS(mtu) (mtu - sizeof(struct ip) - sizeof(struct tcphdr))
 
 
 /*-
