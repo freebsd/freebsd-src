@@ -2120,6 +2120,10 @@ alpha_fpstate_check(struct proc *p)
 void
 alpha_fpstate_save(struct proc *p, int write)
 {
+	int s;
+
+	s = save_intr();
+	disable_intr();
 	if (p == PCPU_GET(fpcurproc)) {
 		/*
 		 * If curproc != fpcurproc, then we need to enable FEN 
@@ -2154,6 +2158,7 @@ alpha_fpstate_save(struct proc *p, int write)
 				alpha_pal_wrfen(0);
 		}
 	}
+	restore_intr(s);
 }
 
 /*
@@ -2164,6 +2169,10 @@ alpha_fpstate_save(struct proc *p, int write)
 void
 alpha_fpstate_drop(struct proc *p)
 {
+	int s;
+
+	s = save_intr();
+	disable_intr();
 	if (p == PCPU_GET(fpcurproc)) {
 		if (p == curproc) {
 			/*
@@ -2179,6 +2188,7 @@ alpha_fpstate_drop(struct proc *p)
 		}
 		PCPU_SET(fpcurproc, NULL);
 	}
+	restore_intr(s);
 }
 
 /*
@@ -2188,9 +2198,13 @@ alpha_fpstate_drop(struct proc *p)
 void
 alpha_fpstate_switch(struct proc *p)
 {
+	int s;
+
 	/*
 	 * Enable FEN so that we can access the fp registers.
 	 */
+	s = save_intr();
+	disable_intr();
 	alpha_pal_wrfen(1);
 	if (PCPU_GET(fpcurproc)) {
 		/*
@@ -2217,6 +2231,7 @@ alpha_fpstate_switch(struct proc *p)
 	}
 
 	p->p_md.md_flags |= MDP_FPUSED;
+	restore_intr(s);
 }
 
 /*

@@ -121,16 +121,20 @@ sched_ithd(void *cookie)
 /*		membar_lock(); */
 		ir->it_proc->p_stat = SRUN;
 		setrunqueue(ir->it_proc);
-		aston();
+		if (!cold) {
+			if (curproc != PCPU_GET(idleproc))
+				setrunqueue(curproc);
+			mi_switch();
+		}
 	}
 	else {
 		CTR3(KTR_INTR, "sched_ithd %d: it_need %d, state %d",
 			ir->it_proc->p_pid,
 		        ir->it_need,
 		        ir->it_proc->p_stat );
+		need_resched();
 	}
 	mtx_exit(&sched_lock, MTX_SPIN);
-	need_resched();
 }
 
 /*

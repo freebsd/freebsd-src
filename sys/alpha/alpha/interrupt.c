@@ -553,6 +553,12 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 	 * is higher priority than their current thread, it gets run now.
 	 */
 	ithd->it_need = 1;
+	if (i->disable) {
+		CTR1(KTR_INTR,
+		    "alpha_dispatch_intr: disabling vector 0x%x", i->vector);
+		i->disable(i->vector);
+	}
+	enable_intr();
 	mtx_enter(&sched_lock, MTX_SPIN);
 	if (ithd->it_proc->p_stat == SWAIT) {
 		/* not on the run queue and not running */
@@ -562,19 +568,17 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 		alpha_mb();	/* XXX - ??? */
 		ithd->it_proc->p_stat = SRUN;
 		setrunqueue(ithd->it_proc);
-		aston();
+		if (!cold) {
+			if (curproc != PCPU_GET(idleproc))
+				setrunqueue(curproc);
+			mi_switch();
+		}
 	} else {
 		CTR3(KTR_INTR, "alpha_dispatch_intr: %d: it_need %d, state %d",
 		    ithd->it_proc->p_pid, ithd->it_need, ithd->it_proc->p_stat);
-	}
-	if (i->disable) {
-		CTR1(KTR_INTR,
-		    "alpha_dispatch_intr: disabling vector 0x%x", i->vector);
-		i->disable(i->vector);
+		need_resched();
 	}
 	mtx_exit(&sched_lock, MTX_SPIN);
-
-	need_resched();
 }
  
 void
