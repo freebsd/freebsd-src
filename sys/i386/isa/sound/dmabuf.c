@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: dmabuf.c,v 1.9 1994/10/01 02:16:35 swallace Exp $
+ * $Id: dmabuf.c,v 1.10 1994/11/01 17:26:49 ache Exp $
  */
 
 #include "sound_config.h"
@@ -33,6 +33,9 @@
 #ifdef CONFIGURE_SOUNDCARD
 
 #include "sound_calls.h"
+#ifdef __FreeBSD__
+extern struct selinfo selinfo[SND_NDEVS>>4];
+#endif
 
 #if !defined(EXCLUDE_AUDIO) || !defined(EXCLUDE_GUS)
 
@@ -295,11 +298,10 @@ DMAbuf_release (int dev, int mode)
   return 0;
 }
 
-int
-DMAbuf_getrdbuffer (int dev, char **buf, int *len)
+static int
+DMAbuf_start_input(int dev)
 {
   unsigned long   flags;
-  int             err = EIO;
   struct dma_buffparms *dmap = audio_devs[dev]->dmap;
 
   DISABLE_INTR (flags);
@@ -342,14 +344,32 @@ DMAbuf_getrdbuffer (int dev, char **buf, int *len)
 					!(dmap->flags & DMA_STARTED));
 	  dmap->flags |= DMA_ACTIVE | DMA_STARTED;
 	}
+    }
+  RESTORE_INTR (flags);
+
+  return 0;
+}
+
+int
+DMAbuf_getrdbuffer (int dev, char **buf, int *len)
+{
+  unsigned long   flags;
+  int             err = EIO;
+  struct dma_buffparms *dmap = audio_devs[dev]->dmap;
+
+  DISABLE_INTR (flags);
+  if (!dmap->qlen)
+    {
+      if(err = DMAbuf_start_input(dev))
+	return err;
 
       /* Wait for the next block */
 
+      err = EIO;
       DO_SLEEP (dev_sleeper[dev], dev_sleep_flag[dev], 2 * HZ);
       if (TIMED_OUT (dev_sleeper[dev], dev_sleep_flag[dev]))
 	{
 	  printk ("Sound: DMA timed out - IRQ/DRQ config error?\n");
-	  err = EIO;
 	  SET_ABORT_FLAG (dev_sleeper[dev], dev_sleep_flag[dev]);
 	}
       else
@@ -411,6 +431,20 @@ DMAbuf_ioctl (int dev, unsigned int cmd, unsigned int arg, int local)
 	reorganize_buffers (dev);
 
       return IOCTL_OUT (arg, dmap->fragment_size);
+      break;
+
+    case SNDCTL_DSP_SETBLKSIZE:
+      {
+	int	size = IOCTL_IN (arg);
+
+	if(!(dmap->flags & DMA_ALLOC_DONE) && size)
+	  {
+	     dmap->fragment_size = size;
+	     return 0;
+	  } 
+        else
+          return RET_ERROR (EINVAL);	/* Too late to change */
+      }
       break;
 
     case SNDCTL_DSP_SUBDIVIDE:
@@ -784,6 +818,10 @@ DMAbuf_outputintr (int dev, int event_type)
       WAKE_UP (dev_sleeper[dev], dev_sleep_flag[dev]);
     }
   RESTORE_INTR (flags);
+#ifdef __FreeBSD__
+  if(selinfo[dev].si_pid)
+    selwakeup(&selinfo[dev]);
+#endif
 }
 
 void
@@ -823,6 +861,10 @@ DMAbuf_inputintr (int dev)
       WAKE_UP (dev_sleeper[dev], dev_sleep_flag[dev]);
     }
   RESTORE_INTR (flags);
+#ifdef __FreeBSD__
+  if(selinfo[dev].si_pid)
+    selwakeup(&selinfo[dev]);
+#endif
 }
 
 int
@@ -862,6 +904,49 @@ DMAbuf_reset_dma (int chan)
 }
 
 /*
+ * Used by unix select system call to see if data is ready.
+ */
+int
+DMAbuf_output_ready(int dev)
+{
+  struct dma_buffparms *dmap = audio_devs[dev]->dmap;
+
+  if (!(dmap->flags & DMA_ALLOC_DONE))
+    reorganize_buffers (dev);
+  return space_in_queue (dev);
+}
+int
+DMAbuf_input_ready(int dev)
+{
+  int	h,i,r;
+  struct dma_buffparms *dmap = audio_devs[dev]->dmap;
+          
+  r = 0;
+  if(dmap->qlen)
+    {
+      if(dmap->fragment_size)
+        {
+          for(i=0; i<dmap->qlen; i++)
+            {
+              h = (dmap->qhead + i) % dmap->nbufs;
+              r += dmap->fragment_size - dmap->counts[h];
+              if(r >= dmap->fragment_size) 
+                 break;
+            } 
+          if(r < dmap->fragment_size)
+            r = 0;
+          else
+            r = 1; 
+        }
+      else
+          r = 1;
+    }
+  else
+    DMAbuf_start_input(dev);
+
+  return(r);
+}
+/*
  * The sound_mem_init() is called by mem_init() immediately after mem_map is
  * initialized and before free_page_list is created.
  *
@@ -882,6 +967,24 @@ DMAbuf_open (int dev, int mode)
 
 int
 DMAbuf_release (int dev, int mode)
+{
+  return 0;
+}
+
+int
+DMAbuf_start_input (int dev)
+{
+  return RET_ERROR (EIO);
+}
+
+int
+DMAbuf_input_ready (int dev)
+{
+  return 0;
+}
+
+int
+DMAbuf_output_ready (int dev)
 {
   return 0;
 }
