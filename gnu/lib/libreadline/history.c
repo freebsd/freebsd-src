@@ -1,52 +1,43 @@
 /* History.c -- standalone history library */
 
-/* Copyright (C) 1989 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1991 Free Software Foundation, Inc.
 
    This file contains the GNU History Library (the Library), a set of
    routines for managing the text of previously typed lines.
 
    The Library is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 1, or (at your option)
-   any later version.
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-   The Library is distributed in the hope that it will be useful, but
-   WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   General Public License for more details.
+   The Library is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-   The GNU General Public License is often shipped with GNU software, and
-   is generally kept in a file called COPYING or LICENSE.  If you do not
-   have a copy of the license, write to the Free Software Foundation,
-   675 Mass Ave, Cambridge, MA 02139, USA. */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* The goal is to make the implementation transparent, so that you
    don't have to know what data types are used, just what functions
    you can call.  I think I have done that. */
 
 /* Remove these declarations when we have a complete libgnu.a. */
-#define STATIC_MALLOC
-#ifndef STATIC_MALLOC
+#if !defined (STATIC_MALLOC)
 extern char *xmalloc (), *xrealloc ();
 #else
 static char *xmalloc (), *xrealloc ();
 #endif
 
+#include "sysdep.h"
 #include <stdio.h>
-#include <sys/types.h>
+#include <errno.h>
+#ifndef	NO_SYS_FILE
 #include <sys/file.h>
+#endif
 #include <sys/stat.h>
 #include <fcntl.h>
-
-#ifdef __GNUC__
-#define alloca __builtin_alloca
-#else
-#if defined (sparc) && defined (sun)
-#include <alloca.h>
-#else
-extern char *alloca ();
-#endif
-#endif
 
 #include "history.h"
 
@@ -131,6 +122,8 @@ int
 history_total_bytes ()
 {
   register int i, result;
+
+  result = 0;
 
   for (i = 0; the_history && the_history[i]; i++)
     result += strlen (the_history[i]->line);
@@ -232,15 +225,22 @@ where_history ()
 }
 
 /* Search the history for STRING, starting at history_offset.
-   If DIRECTION < 0, then the search is through previous entries,
-   else through subsequent.  If the string is found, then
-   current_history () is the history entry, and the value of this function
-   is the offset in the line of that history entry that the string was
-   found in.  Otherwise, nothing is changed, and a -1 is returned. */
-int
-history_search (string, direction)
+   If DIRECTION < 0, then the search is through previous entries, else
+   through subsequent.  If ANCHORED is non-zero, the string must
+   appear at the beginning of a history line, otherwise, the string
+   may appear anywhere in the line.  If the string is found, then
+   current_history () is the history entry, and the value of this
+   function is the offset in the line of that history entry that the
+   string was found in.  Otherwise, nothing is changed, and a -1 is
+   returned. */
+
+#define ANCHORED_SEARCH 1
+#define NON_ANCHORED_SEARCH 0
+
+static int
+history_search_internal (string, direction, anchored)
      char *string;
-     int direction;
+     int direction, anchored;
 {
   register int i = history_offset;
   register int reverse = (direction < 0);
@@ -272,7 +272,19 @@ history_search (string, direction)
       if (string_len > index)
 	goto next_line;
 
-      /* Do the actual search. */
+      /* Handle anchored searches first. */
+      if (anchored == ANCHORED_SEARCH)
+	{
+	  if (strncmp (string, line, string_len) == 0)
+	    {
+	      history_offset = i;
+	      return (0);
+	    }
+
+	  goto next_line;
+	}
+
+      /* Do substring search. */
       if (reverse)
 	{
 	  index -= string_len;
@@ -289,7 +301,7 @@ history_search (string, direction)
 	}
       else
 	{
-	  register int limit = (string_len - index) + 1;
+	  register int limit = index - string_len + 1;
 	  index = 0;
 
 	  while (index < limit)
@@ -308,6 +320,24 @@ history_search (string, direction)
       else
 	i++;
     }
+}
+
+/* Do a non-anchored search for STRING through the history in DIRECTION. */
+int
+history_search (string, direction)
+     char *string;
+     int direction;
+{
+  return (history_search_internal (string, direction, NON_ANCHORED_SEARCH));
+}
+
+/* Do an anchored search for string through the history in DIRECTION. */
+int
+history_search_prefix (string, direction)
+     char *string;
+     int direction;
+{
+  return (history_search_internal (string, direction, ANCHORED_SEARCH));
 }
 
 /* Remove history element WHICH from the history.  The removed
@@ -340,6 +370,8 @@ void
 stifle_history (max)
      int max;
 {
+  if (max < 0)
+    max = 0;
   if (history_length > max)
     {
       register int i, j;
@@ -416,7 +448,7 @@ read_history_range (filename, from, to)
 {
   register int line_start, line_end;
   char *input, *buffer = (char *)NULL;
-  int file, current_line, done;
+  int file, current_line;
   struct stat finfo;
   extern int errno;
 
@@ -497,7 +529,7 @@ history_truncate_file (fname, lines)
   if (stat (filename, &finfo) == -1)
     goto truncate_exit;
 
-  file = open (filename, O_RDONLY, 066);
+  file = open (filename, O_RDONLY, 0666);
 
   if (file == -1)
     goto truncate_exit;
@@ -554,10 +586,9 @@ history_do_write (filename, nelements, overwrite)
      int nelements, overwrite;
 {
   extern int errno;
-  register int i;
+  register int i, j;
   char *output = history_filename (filename);
   int file, mode;
-  char cr = '\n';
 
   if (overwrite)
     mode = O_WRONLY | O_CREAT | O_TRUNC;
@@ -570,13 +601,30 @@ history_do_write (filename, nelements, overwrite)
   if (nelements > history_length)
     nelements = history_length;
 
-  for (i = history_length - nelements; i < history_length; i++)
-    {
-      if (write (file, the_history[i]->line, strlen (the_history[i]->line)) < 0)
-	break;
-      if (write (file, &cr, 1) < 0)
-	break;
-    }
+  /* Build a buffer of all the lines to write, and write them in one syscall.
+     Suggested by Peter Ho (peter@robosts.oxford.ac.uk). */
+  {
+    register int j = 0;
+    int buffer_size = 0;
+    char *buffer;
+
+    /* Calculate the total number of bytes to write. */
+    for (i = history_length - nelements; i < history_length; i++)
+      buffer_size += 1 + strlen (the_history[i]->line);
+
+    /* Allocate the buffer, and fill it. */
+    buffer = (char *)xmalloc (buffer_size);
+
+    for (i = history_length - nelements; i < history_length; i++)
+      {
+	strcpy (buffer + j, the_history[i]->line);
+	j += strlen (the_history[i]->line);
+	buffer[j++] = '\n';
+      }
+
+    write (file, buffer, buffer_size);
+    free (buffer);
+  }
 
   close (file);
   return (0);
@@ -815,7 +863,8 @@ get_history_event (string, caller_index, delimiting_quote)
 
   search_again:
 
-    index = history_search (temp, -1);
+    index = history_search_internal
+      (temp, -1, substring_okay ? NON_ANCHORED_SEARCH : ANCHORED_SEARCH);
 
     if (index < 0)
     search_lost:
@@ -824,9 +873,7 @@ get_history_event (string, caller_index, delimiting_quote)
 	return ((char *)NULL);
       }
 
-    if (index == 0 || substring_okay || 
-	(strncmp (temp, the_history[history_offset]->line,
-		  strlen (temp)) == 0))
+    if (index == 0)
       {
       search_won:
 	entry = current_history ();

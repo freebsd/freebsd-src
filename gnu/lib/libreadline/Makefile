@@ -1,9 +1,11 @@
-#       $Id: Makefile,v 1.1.1.1 1994/05/09 15:59:08 ache Exp $
+#       $Id: Makefile,v 1.1 1993/12/28 07:54:51 ache Exp $
 
 SHLIB_MAJOR=1
 SHLIB_MINOR=0
 
-CFLAGS+= -I${.CURDIR} -I${.CURDIR}/readline -DVOID_SIGHANDLER -Dstricmp=strcasecmp -Dstrnicmp=strncasecmp
+CFLAGS+= -I${.CURDIR} -I${.CURDIR}/readline -DVOID_SIGHANDLER \
+	 -DHAVE_UNISTD_H -DSTATIC_MALLOC \
+	 -Dstricmp=strcasecmp -Dstrnicmp=strncasecmp
 
 LIB=    readline
 SRCS+=  readline.c history.c funmap.c keymaps.c
