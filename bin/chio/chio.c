@@ -34,11 +34,12 @@
  * Additional Copyright (c) 1997, by Matthew Jacob, for NASA/Ames Research Ctr.
  */
 
-#include <sys/cdefs.h>
 #ifndef lint
-__COPYRIGHT("@(#) Copyright (c) 1996 Jason R. Thorpe.  All rights reserved.");
-__RCSID("$NetBSD: chio.c,v 1.6 1998/01/04 23:53:58 thorpej Exp $");
-#endif
+static const char copyright[] =
+	"@(#) Copyright (c) 1996 Jason R. Thorpe.  All rights reserved.";
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/chio.h> 
@@ -55,45 +56,44 @@ __RCSID("$NetBSD: chio.c,v 1.6 1998/01/04 23:53:58 thorpej Exp $");
 extern	char *__progname;	/* from crt0.o */
 extern int optreset;		/* from getopt.o */
 
-int	main(int, char *[]);
-static	void usage(void);
-static	void cleanup(void);
-static	int parse_element_type(char *);
-static	int parse_element_unit(char *);
-static	const char * element_type_name(int et);
-static	int parse_special(char *);
-static	int is_special(char *);
-static	char *bits_to_string(int, const char *);
+static	void usage __P((void));
+static	void cleanup __P((void));
+static	int parse_element_type __P((char *));
+static	int parse_element_unit __P((char *));
+static	const char * element_type_name __P((int et));
+static	int parse_special __P((char *));
+static	int is_special __P((char *));
+static	const char *bits_to_string __P((int, const char *));
 
-static	int do_move(char *, int, char **);
-static	int do_exchange(char *, int, char **);
-static	int do_position(char *, int, char **);
-static	int do_params(char *, int, char **);
-static	int do_getpicker(char *, int, char **);
-static	int do_setpicker(char *, int, char **);
-static	int do_status(char *, int, char **);
-static	int do_ielem(char *, int, char **);
-static	int do_voltag(char *, int, char **);
+static	int do_move __P((char *, int, char **));
+static	int do_exchange __P((char *, int, char **));
+static	int do_position __P((char *, int, char **));
+static	int do_params __P((char *, int, char **));
+static	int do_getpicker __P((char *, int, char **));
+static	int do_setpicker __P((char *, int, char **));
+static	int do_status __P((char *, int, char **));
+static	int do_ielem __P((char *, int, char **));
+static	int do_voltag __P((char *, int, char **));
 
 /* Valid changer element types. */
 const struct element_type elements[] = {
-	{ "picker",		CHET_MT },
-	{ "slot",		CHET_ST },
-	{ "portal",		CHET_IE },
 	{ "drive",		CHET_DT },
+	{ "picker",		CHET_MT },
+	{ "portal",		CHET_IE },
+	{ "slot",		CHET_ST },
 	{ NULL,			0 },
 };
 
 /* Valid commands. */
 const struct changer_command commands[] = {
-	{ "move",		do_move },
 	{ "exchange",		do_exchange },
-	{ "position",		do_position },
-	{ "params",		do_params },
 	{ "getpicker",		do_getpicker },
+	{ "ielem", 		do_ielem },
+	{ "move",		do_move },
+	{ "params",		do_params },
+	{ "position",		do_position },
 	{ "setpicker",		do_setpicker },
 	{ "status",		do_status },
-	{ "ielem", 		do_ielem },
 	{ "voltag",		do_voltag },
 	{ NULL,			0 },
 };
@@ -107,10 +107,12 @@ const struct special_word specials[] = {
 };
 
 static	int changer_fd;
-static	char *changer_name;
+static	const char *changer_name;
 
 int
-main(int argc, char *argv[])
+main(argc, argv)
+	int argc;
+	char **argv;
 {
 	int ch, i;
 
@@ -147,15 +149,26 @@ main(int argc, char *argv[])
 	for (i = 0; commands[i].cc_name != NULL; ++i)
 		if (strcmp(*argv, commands[i].cc_name) == 0)
 			break;
+	if (commands[i].cc_name == NULL) {
+		/* look for abbreviation */
+		for (i = 0; commands[i].cc_name != NULL; ++i)
+			if (strncmp(*argv, commands[i].cc_name,
+			    strlen(*argv)) == 0)
+				break;
+	}
+
 	if (commands[i].cc_name == NULL)
 		errx(1, "unknown command: %s", *argv);
 
-	exit((*commands[i].cc_handler)(commands[i].cc_name, argc, argv));
+	exit ((*commands[i].cc_handler)(commands[i].cc_name, argc, argv));
 	/* NOTREACHED */
 }
 
 static int
-do_move(char *cname, int argc, char **argv)
+do_move(cname, argc, argv)
+	char *cname;
+	int argc;
+	char **argv;
 {
 	struct changer_move cmd;
 	int val;
@@ -223,7 +236,10 @@ do_move(char *cname, int argc, char **argv)
 }
 
 static int
-do_exchange(char *cname, int argc, char **argv)
+do_exchange(cname, argc, argv)
+	char *cname;
+	int argc;
+	char **argv;
 {
 	struct changer_exchange cmd;
 	int val;
@@ -318,7 +334,10 @@ do_exchange(char *cname, int argc, char **argv)
 }
 
 static int
-do_position(char *cname, int argc, char **argv)
+do_position(cname, argc, argv)
+	char *cname;
+	int argc;
+	char **argv;
 {
 	struct changer_position cmd;
 	int val;
@@ -379,7 +398,10 @@ do_position(char *cname, int argc, char **argv)
 
 /* ARGSUSED */
 static int
-do_params(char *cname, int argc, char **argv)
+do_params(cname, argc, argv)
+	char *cname;
+	int argc;
+	char **argv;
 {
 	struct changer_params data;
 	int picker;
@@ -422,7 +444,10 @@ do_params(char *cname, int argc, char **argv)
 
 /* ARGSUSED */
 static int
-do_getpicker(char *cname, int argc, char **argv)
+do_getpicker(cname, argc, argv)
+	char *cname;
+	int argc;
+	char **argv;
 {
 	int picker;
 
@@ -449,7 +474,10 @@ do_getpicker(char *cname, int argc, char **argv)
 }
 
 static int
-do_setpicker(char *cname, int argc, char **argv)
+do_setpicker(cname, argc, argv)
+	char *cname;
+	int argc;
+	char **argv;
 {
 	int picker;
 
@@ -477,7 +505,10 @@ do_setpicker(char *cname, int argc, char **argv)
 }
 
 static int
-do_status(char *cname, int argc, char **argv)
+do_status(cname, argc, argv)
+	char *cname;
+	int argc;
+	char **argv;
 {
 	struct changer_params cp;
 	struct changer_element_status_request cesr;
@@ -496,7 +527,7 @@ do_status(char *cname, int argc, char **argv)
 	description = NULL;
 
 	optind = optreset = 1;
-	while ((c = getopt(argc, argv, "vVsSbaI")) != EOF) {
+	while ((c = getopt(argc, argv, "vVsSbaI")) != -1) {
 		switch (c) {
 		case 'v':
 			pvoltag = 1;
@@ -656,7 +687,7 @@ do_status(char *cname, int argc, char **argv)
 				printf(" avoltag: <%s:%d>", 
 				       ces->ces_avoltag.cv_volid,
 				       ces->ces_avoltag.cv_serial);
-			if (source)
+			if (source) {
 				if (ces->ces_flags & CES_SOURCE_VALID)
 					printf(" source: <%s %d>", 
 					       element_type_name(
@@ -664,6 +695,7 @@ do_status(char *cname, int argc, char **argv)
 					       ces->ces_source_addr);
 				else
 					printf(" source: <>");
+			}
 			if (intaddr)
 				printf(" intaddr: <%d>", ces->ces_int_addr);
 			if (scsi) {
@@ -695,7 +727,10 @@ do_status(char *cname, int argc, char **argv)
 }
 
 static int
-do_ielem(char *cname, int argc, char **argv)
+do_ielem(cname, argc, argv)
+	char *cname;
+	int argc;
+	char **argv;
 {
 	int timeout = 0;
 
@@ -718,7 +753,10 @@ do_ielem(char *cname, int argc, char **argv)
 }
 
 static int
-do_voltag(char *cname, int argc, char **argv)
+do_voltag(cname, argc, argv)
+	char *cname;
+	int argc;
+	char **argv;
 {
 	int force = 0;
 	int clear = 0;
@@ -729,7 +767,7 @@ do_voltag(char *cname, int argc, char **argv)
 	bzero(&csvr, sizeof(csvr));
 
 	optind = optreset = 1;
-	while ((c = getopt(argc, argv, "fca")) != EOF) {
+	while ((c = getopt(argc, argv, "fca")) != -1) {
 		switch (c) {
 		case 'f':
 			force = 1;
@@ -803,7 +841,8 @@ do_voltag(char *cname, int argc, char **argv)
 }
 
 static int
-parse_element_type(char *cp)
+parse_element_type(cp)
+	char *cp;
 {
 	int i;
 
@@ -816,7 +855,8 @@ parse_element_type(char *cp)
 }
 
 static const char *
-element_type_name(int et)
+element_type_name(et)
+	int et;
 {
 	int i;
 
@@ -828,7 +868,8 @@ element_type_name(int et)
 }
 
 static int
-parse_element_unit(char *cp)
+parse_element_unit(cp)
+	char *cp;
 {
 	int i;
 	char *p;
@@ -841,7 +882,8 @@ parse_element_unit(char *cp)
 }
 
 static int
-parse_special(char *cp)
+parse_special(cp)
+	char *cp;
 {
 	int val;
 
@@ -854,7 +896,8 @@ parse_special(char *cp)
 }
 
 static int
-is_special(char *cp)
+is_special(cp)
+	char *cp;
 {
 	int i;
 
@@ -865,8 +908,10 @@ is_special(char *cp)
 	return (0);
 }
 
-static char *
-bits_to_string(int v, const char *cp)
+static const char *
+bits_to_string(v, cp)
+	int v;
+	const char *cp;
 {
 	const char *np;
 	char f, sep, *bp;
@@ -880,7 +925,9 @@ bits_to_string(int v, const char *cp)
 			np++;
 		if ((v & (1 << (f - 1))) == 0)
 			continue;
-		bp += sprintf(bp, "%c%.*s", sep, (int)(long)(np - cp), cp);
+		(void) snprintf(bp, sizeof(buf) - (bp - &buf[0]),
+			"%c%.*s", sep, (int)(long)(np - cp), cp);
+		bp += strlen(bp);
 		sep = ',';
 	}
 	if (sep != '<')
@@ -899,11 +946,7 @@ cleanup()
 static void
 usage()
 {
-
-	(void) fprintf(stderr, "usage: %s command arg1 arg2 ...\n", __progname);
-	(void) fprintf(stderr, "Examples:\n");
-	(void) fprintf(stderr, "\tchio -f /dev/ch0 move slot 1 drive 0\n");
-	(void) fprintf(stderr, "\tchio ielem\n");
-	(void) fprintf(stderr, "\tchio -f /dev/ch1 status\n");
+	(void) fprintf(stderr, "usage: %s [-f changer] command [-<flags>] "
+		"arg1 arg2 [arg3 [...]]\n", __progname);
 	exit(1);
 }
