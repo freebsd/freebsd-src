@@ -532,7 +532,7 @@ int isBinaryFile(fd)
 
   /* look for non-printable chars */
   for(i = 0; i < n; i++)
-    if (!isprint(buf[i]) && !isspace(buf[i]))
+    if (!isprint((unsigned char)buf[i]) && !isspace((unsigned char)buf[i]))
       return(1);
 
   /* reset fd to begin of file */
