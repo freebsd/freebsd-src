@@ -71,6 +71,11 @@ topology.
 If you want to force to detach the device, run
 .Dq Nm fwcontrol Fl r
 several times.
+.Pp
+Some (broken) HDD's don't work well with tagged queuing. If you have problem
+with such drives, try
+.Dq Nm camcontrol [device id] tags -N 1
+to disable tagged queuing.
 .Sh SEE ALSO
 .Xr cam 4 ,
 .Xr firewire 4 ,
