@@ -23,9 +23,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: intro.4,v 1.3.2.3 1996/12/31 22:55:05 mpp Exp $
+.\" $Id: ports.7,v 1.1 1997/11/09 06:05:45 obrien Exp $
 .\"
-.Dd January 7, 1997
+.Dd January 25, 1997
 .Dt PORTS 7
 .Os FreeBSD 2.2
 .Sh NAME
@@ -41,7 +41,9 @@ Each
 listed here contains any patches necessary to make the original
 application source code compile and run on BSD. Installing an
 application is as simple as downloading the port, unpacking it and typing
-make in the port directory. The Makefile automatically fetches the
+make in the port directory. The 
+.Ar Makefile
+automatically fetches the
 application source code, either from a local disk or via ftp, unpacks it
 on your system, applies the patches, and compiles. If all goes well,
 simply type
@@ -58,11 +60,97 @@ For information about creating new ports, see
 http://www.freebsd.org/handbook/porting.html).
 Both are part of the FreeBSD Handbook.
 .Pp
+.Sh TARGETS
+.Ss fetch
+Fetch all of the files needed to build this port from the site(s)
+listed in MASTER_SITES and PATCH_SITES.  See FETCH_CMD, MASTER_SITES,
+PATCH_SITES, and MASTER_SITE_OVERRIDE for details on how those
+environment variables impact this command.  If there are
+subdirectories, then this target operates recursively.
+.Ss fetch-list
+Show list of files needed to be fetched in order to build the port.
+.Ss checksum
+Verifies the fetched distfile matches the one the port was tested against.
+.Ss makesum
+Creats an MD5 checksum for the distfile the port is tested against.
+.Ss extract
+Checksum the files for the port and then extract them into a work
+directory.  Defining NO_CHECKSUM will skip the checksum check step.
+Files will be fetched in the same way that 
+.Ar make fetch
+fetches them.
+If there are subdirectories, then this target operates recursively.
+.Ss patch
+Patches the port.  Generally this isn't used directly as the "all"
+target does this.  If the port hasn't been extracted yet, then it will
+be extracted.
+.Ss configure
+Configures the port.  Generally this isn't used directly as the "all"
+target does this.  If the port hasn't been patched yet, the patch
+target is performed.
+.Ss build
+Builds the the port.   Generally this isn't used directly as the "all"
+target does this.
+.Ss install
+Installs the the port and registers the port with the pkg system.  If
+the port hasn't been built yet, then all steps to build the port are
+perforfmed.
+.Ss reinstall
+Simular to \'install\'.
+.Ss deinstall
+Removes an installed port from the system.
+.Ss package
+Makes a binary package for the port from an installed port.  You must
+install the package first.  If the port has not been installed then
+the port will be installed.  The .tar.gz file that is built is placed
+into the current directory, unless the PACKAGES variable is set.
+.Ss clean
+Cleans up after yourself.  Blah Blah Blah.
+.Ss distclean
+Cleans up fetched distfiles in addition to what \'clean\' does.
+.Sh ENVIRONMENT VARIABLES
+.Ss PORTSDIR
+Location of the ports tree.  This defaults to /usr/ports on
+FreeBSD
+and
+OpenBSD
+, but on 
+.Nx
+this defaults to /usr/pkgsrc
+.Ss DISTDIR
+Where to install the ports into.
+.Ss PACKAGES
+Location of where to put the packages that are built with make packages
+.Ss PREFIX
+Where to install things in general (default: /usr/local).
+.Ss MASTER_SITES
+Primary sites for distribution files if not found locally.
+.Ss PATCH_SITES
+Primary locations(s) for distribution patch files if not found
+locally.
+.Ss NOCLEANDEPNDS
+.Ss FETCH_CMD
+Command to use to fetch files from the remote.
+.Ss FETCH_BEFORE_ARGS
+.Ss FETCH_AFTER_ARGS
+.Ss MASTER_SITE_OVERRIDE
+If set, override MASTER_SITES setting with this value.
+.Ss FORCE_PKG_REGISTER
+If set, it will overwrite any existing package registration on the
+system.
+.Ss MOTIFLIB
+Location of libXm.{a,so}.
+.Ss PATCH_DEBUG
+Displays verbose output from applying each patch.
+.Ss BROKEN
+String as to why the port is broken.
+.Ss RESTRICTED
+String as to why the port is restricted.
 .Sh FILES
 .Bl -tag -width /usr/ports/xxxx -compact
 .It Pa /usr/ports
 The default ports directory (FreeBSD and OpenBSD).
-.It Pa /usr/opt
+.It Pa /usr/pkgsrc
 The default ports directory (NetBSD).
 .Sh SEE ALSO
 .Xr make 1 ,
@@ -71,7 +159,7 @@ The default ports directory (NetBSD).
 .Xr pkg_delete 1 ,
 .Xr pkg_info 1 .
 .Sh AUTHORS
-This man page has been written by David E. O'Brien.
+This man page has been written by David O'Brien.
 The ports collection is maintained by Satoshi Asami and the
 .\" incredible
 awesome
