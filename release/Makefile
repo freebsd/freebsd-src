@@ -455,9 +455,17 @@ release.6:
 	done
 	# More munition braindeadness.
 	( cd ${RD}/dists && \
-		if [ -f krb4/krb4.aa ] ; then mv krb4/* crypto && rmdir krb4 ; fi )
+		if [ -f krb4/krb4.aa ] ; then \
+			mv krb4/krb4.* crypto && \
+			cat krb4/CHECKSUM.MD5 >> crypto/CHECKSUM.MD5 && \
+			rm -r krb4; \
+		fi )
 	( cd ${RD}/dists && \
-		if [ -f krb5/krb5.aa ] ; then mv krb5/* crypto && rmdir krb5 ; fi )
+		if [ -f krb5/krb5.aa ] ; then \
+			mv krb5/krb5.* crypto && \
+			cat krb5/CHECKSUM.MD5 >> crypto/CHECKSUM.MD5 && \
+			rm -r krb5; \
+		fi )
 	touch release.6
 
 
