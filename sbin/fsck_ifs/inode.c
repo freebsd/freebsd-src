@@ -63,7 +63,7 @@ ckinode(dp, idesc)
 	idesc->id_filesize = dp->di_size;
 	mode = dp->di_mode & IFMT;
 	if (mode == IFBLK || mode == IFCHR || (mode == IFLNK &&
-	    dp->di_size < sblock.fs_maxsymlinklen))
+	    (dp->di_size < sblock.fs_maxsymlinklen || dp->di_blocks == 0)))
 		return (KEEPON);
 	dino = *dp;
 	ndb = howmany(dino.di_size, sblock.fs_bsize);
