@@ -299,9 +299,13 @@ witness_initialize(void *dummy __unused)
 	/* First add in all the specified order lists. */
 	for (order = order_lists; order->w_name != NULL; order++) {
 		w = enroll(order->w_name, order->w_class);
+		if (w == NULL)
+			continue;
 		w->w_file = "order list";
 		for (order++; order->w_name != NULL; order++) {
 			w1 = enroll(order->w_name, order->w_class);
+			if (w1 == NULL)
+				continue;
 			w1->w_file = "order list";
 			itismychild(w, w1);
 			w = w1;
