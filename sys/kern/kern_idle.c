@@ -67,7 +67,7 @@ idle_setup(void *dummy)
 		p->p_state = PRS_NORMAL;
 		td = FIRST_THREAD_IN_PROC(p);
 		td->td_state = TDS_CAN_RUN;
-		td->td_kse->ke_flags |= KEF_IDLEKSE;
+		td->td_flags |= TDF_IDLETD;
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 #ifdef SMP
