@@ -316,7 +316,7 @@ READ(ap)
 			 */
 			error =
 				uiomoveco((char *)bp->b_data + blkoffset,
-					(int)xfersize, uio, object);
+					(int)xfersize, uio, object, 0);
 		} else 
 #endif
 		{

@@ -917,8 +917,50 @@ pass:
 		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 	}
 
+	if (len > PAGE_SIZE) {
+		/* 
+		 * Fragement large datagrams such that each segment 
+		 * contains a multiple of PAGE_SIZE amount of data, 
+		 * plus headers. This enables a receiver to perform 
+		 * page-flipping zero-copy optimizations.
+		 */
+
+		int newlen;
+		struct mbuf *mtmp;
+
+		for (mtmp = m, off = 0; 
+		     mtmp && ((off + mtmp->m_len) <= ifp->if_mtu);
+		     mtmp = mtmp->m_next) {
+			off += mtmp->m_len;
+		}
+		/*
+		 * firstlen (off - hlen) must be aligned on an 
+		 * 8-byte boundary
+		 */
+		if (off < hlen)
+			goto smart_frag_failure;
+		off = ((off - hlen) & ~7) + hlen;
+		newlen = (~PAGE_MASK) & ifp->if_mtu;
+		if ((newlen + sizeof (struct ip)) > ifp->if_mtu) {
+			/* we failed, go back the default */
+smart_frag_failure:
+			newlen = len;
+			off = hlen + len;
+		}
+
+/*		printf("ipfrag: len = %d, hlen = %d, mhlen = %d, newlen = %d, off = %d\n",
+		len, hlen, sizeof (struct ip), newlen, off);*/
+
+		len = newlen;
+
+	} else {
+		off = hlen + len;
+	}
+
+
+
     {
-	int mhlen, firstlen = len;
+	int mhlen, firstlen = off - hlen;
 	struct mbuf **mnext = &m->m_nextpkt;
 	int nfrags = 1;
 
@@ -928,7 +970,7 @@ pass:
 	 */
 	m0 = m;
 	mhlen = sizeof (struct ip);
-	for (off = hlen + len; off < (u_short)ip->ip_len; off += len) {
+	for (; off < (u_short)ip->ip_len; off += len) {
 		MGETHDR(m, M_DONTWAIT, MT_HEADER);
 		if (m == 0) {
 			error = ENOBUFS;

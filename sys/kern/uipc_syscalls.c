@@ -74,8 +74,8 @@
 
 static void sf_buf_init(void *arg);
 SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL)
-static struct sf_buf *sf_buf_alloc(void);
-static void sf_buf_free(caddr_t addr, void *args);
+struct sf_buf *sf_buf_alloc(void);
+void sf_buf_free(caddr_t addr, void *args);
 
 static int sendit(struct thread *td, int s, struct msghdr *mp, int flags);
 static int recvit(struct thread *td, int s, struct msghdr *mp,
@@ -96,9 +96,9 @@ static struct {
 	struct mtx sf_lock;
 } sf_freelist;
 
-static vm_offset_t sf_base;
-static struct sf_buf *sf_bufs;
-static u_int sf_buf_alloc_want;
+vm_offset_t sf_base;
+struct sf_buf *sf_bufs;
+u_int sf_buf_alloc_want;
 
 /*
  * System call interface to the socket abstraction.
@@ -1570,7 +1570,7 @@ sf_buf_init(void *arg)
 /*
  * Get an sf_buf from the freelist. Will block if none are available.
  */
-static struct sf_buf *
+struct sf_buf *
 sf_buf_alloc()
 {
 	struct sf_buf *sf;
@@ -1600,7 +1600,7 @@ sf_buf_alloc()
 /*
  * Detatch mapped page and release resources back to the system.
  */
-static void
+void
 sf_buf_free(caddr_t addr, void *args)
 {
 	struct sf_buf *sf;
