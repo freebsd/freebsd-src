@@ -1,5 +1,7 @@
 /*
  * mjs copyright
+ *
+ * $FreeBSD$
  */
 
 /*
@@ -41,7 +43,7 @@ int
 getextmem(void)
 {
     int		extkb;
-
+    
 #ifdef PC98
     extkb = *(u_char *)PTOV(0xA1401)*128 + *(unsigned short *)PTOV(0xA1594)*1024;
 #else    
@@ -51,6 +53,7 @@ getextmem(void)
     v86int();
     extkb = v86.eax & 0xffff;
 #endif
+
     /* Set memtop to actual top or 16M, whicheve is less */
     memtop = min((0x100000 + (extkb * 1024)), (16 * 1024 * 1024));
     
