@@ -82,6 +82,7 @@ static	int	beeping = 0;
 
 extern u_int64_t itc_frequency;
 
+#ifndef SMP
 static timecounter_get_t	ia64_get_timecount;
 
 static struct timecounter ia64_timecounter = {
@@ -94,6 +95,7 @@ static struct timecounter ia64_timecounter = {
 
 SYSCTL_OPAQUE(_debug, OID_AUTO, ia64_timecounter, CTLFLAG_RD, 
 	&ia64_timecounter, sizeof(ia64_timecounter), "S,timecounter", "");
+#endif
 
 /* Values for timerX_state: */
 #define	RELEASED	0
@@ -119,7 +121,9 @@ static u_int64_t scaled_ticks_per_cycle;
 static u_int32_t max_cycles_per_tick;
 static u_int32_t last_time;
 
+#if 0	/* not used yet */
 static u_int32_t calibrate_clocks(u_int32_t firmware_freq);
+#endif
 
 void
 clockattach(kobj_t dev)
@@ -185,8 +189,10 @@ cpu_initclocks()
 	scaled_ticks_per_cycle = ((u_int64_t)hz << FIX_SHIFT) / freq;
 	max_cycles_per_tick = 2*freq / hz;
 
+#ifndef SMP
 	ia64_timecounter.tc_frequency = freq;
 	tc_init(&ia64_timecounter);
+#endif
 
 	ia64_set_itm(ia64_get_itc() + (itc_frequency + hz/2) / hz);
 	ia64_set_itv(255);	/* highest priority class */
@@ -194,6 +200,7 @@ cpu_initclocks()
 	stathz = 128;
 }
 
+#if 0	/* not used yet */
 static u_int32_t
 calibrate_clocks(u_int32_t firmware_freq)
 {
@@ -247,6 +254,7 @@ fail:
 		       firmware_freq);
 	return (firmware_freq);
 }
+#endif
 
 void
 handleclock(void* arg)
@@ -414,11 +422,13 @@ resettodr()
 	CLOCK_SET(clockdev, &ct);
 }
 
+#ifndef SMP
 static unsigned
 ia64_get_timecount(struct timecounter* tc)
 {
     return ia64_get_itc();
 }
+#endif
 
 int
 acquire_timer2(int mode)
