@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.25 1996/02/04 19:56:34 dyson Exp $
+ * $Id: kern_descrip.c,v 1.28 1996/02/25 09:38:18 hsu Exp $
  */
 
 #include <sys/param.h>
@@ -80,8 +80,8 @@ static int finishdup(struct filedesc *fdp, int old, int new, int *retval);
 /*
  * Descriptor management.
  */
-struct file *filehead;	/* head of list of open files */
-int nfiles;		/* actual number of open files */
+struct filelist filehead;	/* head of list of open files */
+int nfiles;			/* actual number of open files */
 extern int cmask;	
 
 /*
@@ -259,7 +259,7 @@ fcntl(p, uap, retval)
 			return (0);
 		}
 		error = (*fp->f_ops->fo_ioctl)
-			(fp, (int)TIOCGPGRP, (caddr_t)retval, p);
+			(fp, TIOCGPGRP, (caddr_t)retval, p);
 		*retval = -*retval;
 		return (error);
 
@@ -277,7 +277,7 @@ fcntl(p, uap, retval)
 			uap->arg = p1->p_pgrp->pg_id;
 		}
 		return ((*fp->f_ops->fo_ioctl)
-			(fp, (int)TIOCSPGRP, (caddr_t)&uap->arg, p));
+			(fp, TIOCSPGRP, (caddr_t)&uap->arg, p));
 
 	case F_SETLKW:
 		flg |= F_WAIT;
@@ -641,7 +641,7 @@ falloc(p, resultfp, resultfd)
 	struct file **resultfp;
 	int *resultfd;
 {
-	register struct file *fp, *fq, **fpp;
+	register struct file *fp, *fq;
 	int error, i;
 
 	if ((error = fdalloc(p, 0, &i)))
@@ -659,16 +659,12 @@ falloc(p, resultfp, resultfd)
 	nfiles++;
 	MALLOC(fp, struct file *, sizeof(struct file), M_FILE, M_WAITOK);
 	bzero(fp, sizeof(struct file));
-	if ((fq = p->p_fd->fd_ofiles[0]))
-		fpp = &fq->f_filef;
-	else
-		fpp = &filehead;
+	if ((fq = p->p_fd->fd_ofiles[0])) {
+		LIST_INSERT_AFTER(fq, fp, f_list);
+	} else {
+		LIST_INSERT_HEAD(&filehead, fp, f_list);
+	}
 	p->p_fd->fd_ofiles[i] = fp;
-	if ((fq = *fpp))
-		fq->f_fileb = &fp->f_filef;
-	fp->f_filef = fq;
-	fp->f_fileb = fpp;
-	*fpp = fp;
 	fp->f_count = 1;
 	fp->f_cred = p->p_ucred;
 	crhold(fp->f_cred);
@@ -688,13 +684,9 @@ ffree(fp)
 {
 	register struct file *fq;
 
-	if ((fq = fp->f_filef))
-		fq->f_fileb = fp->f_fileb;
-	*fp->f_fileb = fq;
+	LIST_REMOVE(fp, f_list);
 	crfree(fp->f_cred);
 #ifdef DIAGNOSTIC
-	fp->f_filef = NULL;
-	fp->f_fileb = NULL;
 	fp->f_count = 0;
 #endif
 	nfiles--;
@@ -1085,7 +1077,7 @@ sysctl_kern_file SYSCTL_HANDLER_ARGS
 	/*
 	 * followed by an array of file structures
 	 */
-	for (fp = filehead; fp != NULL; fp = fp->f_filef) {
+	for (fp = filehead.lh_first; fp != NULL; fp = fp->f_list.le_next) {
 		error = SYSCTL_OUT(req, (caddr_t)fp, sizeof (struct file));
 		if (error)
 			return (error);
