@@ -1,7 +1,13 @@
 #	From: @(#)Makefile.inc	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile.inc,v 1.11 1996/06/24 04:22:24 jkh Exp $
+#	$Id$
 
 DISTRIBUTION=	krb
+
+.if exists(${.CURDIR}/../../lib/libtelnet/obj)
+TELNETOBJDIR=	${.CURDIR}/../../lib/libtelnet/obj
+.else
+TELNETOBJDIR=	${.CURDIR}/../../lib/libtelnet
+.endif
 
 .if exists(${.OBJDIR}/../../../secure/lib/libdes)
 DESOBJDIR=	${.OBJDIR}/../../../secure/lib/libdes

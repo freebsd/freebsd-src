@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)utility.c	8.4 (Berkeley) 5/30/95";
+static const char sccsid[] = "@(#)utility.c	8.4 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 #ifdef __FreeBSD__
@@ -40,6 +40,13 @@ static char sccsid[] = "@(#)utility.c	8.4 (Berkeley) 5/30/95";
 #endif
 #define PRINTOPTIONS
 #include "telnetd.h"
+
+#if	defined(AUTHENTICATION)
+#include <libtelnet/auth.h>
+#endif
+#if	defined(ENCRYPTION)
+#include <libtelnet/encrypt.h>
+#endif
 
 /*
  * utility functions performing io related tasks
@@ -949,7 +956,6 @@ printsub(direction, pointer, length)
 			    break;
 
 			default:
-			def_case:
 			    if (isprint(pointer[i]) && pointer[i] != '"') {
 				if (noquote) {
 				    *nfrontp++ = '"';
@@ -1120,12 +1126,12 @@ printsub(direction, pointer, length)
 		break;
 
 	    case ENCRYPT_ENC_KEYID:
-		sprintf(nfrontp, " ENC_KEYID", pointer[1]);
+		sprintf(nfrontp, " ENC_KEYID");
 		nfrontp += strlen(nfrontp);
 		goto encommon;
 
 	    case ENCRYPT_DEC_KEYID:
-		sprintf(nfrontp, " DEC_KEYID", pointer[1]);
+		sprintf(nfrontp, " DEC_KEYID");
 		nfrontp += strlen(nfrontp);
 		goto encommon;
 

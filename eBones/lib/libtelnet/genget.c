@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)genget.c	8.2 (Berkeley) 5/30/95";
+static const char sccsid[] = "@(#)genget.c	8.2 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 
@@ -49,7 +49,6 @@ static char sccsid[] = "@(#)genget.c	8.2 (Berkeley) 5/30/95";
 isprefix(s1, s2)
 	register char *s1, *s2;
 {
-        register int n = 0;
         char *os1;
 	register char c1, c2;
 
@@ -99,7 +98,7 @@ genget(name, table, stlen)
  */
 	int
 Ambiguous(s)
-	char *s;
+	char **s;
 {
-	return((char **)s == &ambiguous);
+	return(s == &ambiguous);
 }

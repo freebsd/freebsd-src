@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)enc_des.c	8.3 (Berkeley) 5/30/95";
+static const char sccsid[] = "@(#)enc_des.c	8.3 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 #ifdef	ENCRYPTION
@@ -44,6 +44,8 @@ static char sccsid[] = "@(#)enc_des.c	8.3 (Berkeley) 5/30/95";
 #include <stdlib.h>
 #endif
 
+#include <des.h>
+#include <string.h>
 #include "encrypt.h"
 #include "key-proto.h"
 #include "misc-proto.h"
@@ -180,7 +182,6 @@ fb64_start(fbp, dir, server)
 	int dir;
 	int server;
 {
-	Block b;
 	int x;
 	unsigned char *p;
 	register int state;
@@ -215,8 +216,8 @@ fb64_start(fbp, dir, server)
 		/*
 		 * Create a random feed and send it over.
 		 */
-		des_new_random_key(fbp->temp_feed);
-		des_ecb_encrypt(fbp->temp_feed, fbp->temp_feed,
+		des_new_random_key((Block *)fbp->temp_feed);
+		des_ecb_encrypt((Block *)fbp->temp_feed, (Block *)fbp->temp_feed,
 				fbp->krbdes_sched, 1);
 		p = fbp->fb_feed + 3;
 		*p++ = ENCRYPT_IS;
@@ -264,9 +265,7 @@ fb64_is(data, cnt, fbp)
 	int cnt;
 	struct fb *fbp;
 {
-	int x;
 	unsigned char *p;
-	Block b;
 	register int state = fbp->state[DIR_DECRYPT-1];
 
 	if (cnt-- < 1)
@@ -356,9 +355,6 @@ fb64_reply(data, cnt, fbp)
 	int cnt;
 	struct fb *fbp;
 {
-	int x;
-	unsigned char *p;
-	Block b;
 	register int state = fbp->state[DIR_ENCRYPT-1];
 
 	if (cnt-- < 1)
@@ -428,10 +424,10 @@ fb64_session(key, server, fbp)
 	fb64_stream_key(fbp->krbdes_key, &fbp->streams[DIR_DECRYPT-1]);
 
 	if (fbp->once == 0) {
-		des_set_random_generator_seed(fbp->krbdes_key);
+		des_set_random_generator_seed((Block *)fbp->krbdes_key);
 		fbp->once = 1;
 	}
-	des_key_sched(fbp->krbdes_key, fbp->krbdes_sched);
+	des_key_sched((Block *)fbp->krbdes_key, fbp->krbdes_sched);
 	/*
 	 * Now look to see if krbdes_start() was was waiting for
 	 * the key to show up.  If so, go ahead an call it now
@@ -552,7 +548,7 @@ fb64_stream_iv(seed, stp)
 	memmove((void *)stp->str_iv, (void *)seed, sizeof(Block));
 	memmove((void *)stp->str_output, (void *)seed, sizeof(Block));
 
-	des_key_sched(stp->str_ikey, stp->str_sched);
+	des_key_sched((Block *)stp->str_ikey, stp->str_sched);
 
 	stp->str_index = sizeof(Block);
 }
@@ -563,7 +559,7 @@ fb64_stream_key(key, stp)
 	register struct stinfo *stp;
 {
 	memmove((void *)stp->str_ikey, (void *)key, sizeof(Block));
-	des_key_sched(key, stp->str_sched);
+	des_key_sched((Block *)key, stp->str_sched);
 
 	memmove((void *)stp->str_output, (void *)stp->str_iv, sizeof(Block));
 
@@ -604,7 +600,7 @@ cfb64_encrypt(s, c)
 	while (c-- > 0) {
 		if (index == sizeof(Block)) {
 			Block b;
-			des_ecb_encrypt(stp->str_output, b, stp->str_sched, 1);
+			des_ecb_encrypt((Block *)stp->str_output, (Block *)b, stp->str_sched, 1);
 			memmove((void *)stp->str_feed, (void *)b, sizeof(Block));
 			index = 0;
 		}
@@ -638,7 +634,7 @@ cfb64_decrypt(data)
 	index = stp->str_index++;
 	if (index == sizeof(Block)) {
 		Block b;
-		des_ecb_encrypt(stp->str_output, b, stp->str_sched, 1);
+		des_ecb_encrypt((Block *)stp->str_output, (Block *)b, stp->str_sched, 1);
 		memmove((void *)stp->str_feed, (void *)b, sizeof(Block));
 		stp->str_index = 1;	/* Next time will be 1 */
 		index = 0;		/* But now use 0 */
@@ -680,7 +676,7 @@ ofb64_encrypt(s, c)
 	while (c-- > 0) {
 		if (index == sizeof(Block)) {
 			Block b;
-			des_ecb_encrypt(stp->str_feed, b, stp->str_sched, 1);
+			des_ecb_encrypt((Block *)stp->str_feed, (Block *)b, stp->str_sched, 1);
 			memmove((void *)stp->str_feed, (void *)b, sizeof(Block));
 			index = 0;
 		}
@@ -711,7 +707,7 @@ ofb64_decrypt(data)
 	index = stp->str_index++;
 	if (index == sizeof(Block)) {
 		Block b;
-		des_ecb_encrypt(stp->str_feed, b, stp->str_sched, 1);
+		des_ecb_encrypt((Block *)stp->str_feed, (Block *)b, stp->str_sched, 1);
 		memmove((void *)stp->str_feed, (void *)b, sizeof(Block));
 		stp->str_index = 1;	/* Next time will be 1 */
 		index = 0;		/* But now use 0 */

@@ -32,10 +32,14 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)termstat.c	8.2 (Berkeley) 5/30/95";
+static const char sccsid[] = "@(#)termstat.c	8.2 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 #include "telnetd.h"
+
+#if	defined(ENCRYPTION)
+#include <libtelnet/encrypt.h>
+#endif
 
 /*
  * local variables
@@ -488,7 +492,7 @@ clientstat(code, parm1, parm2)
 		 ack = (useeditmode & MODE_ACK);
 		 useeditmode &= ~MODE_ACK;
 
-		 if (changed = (useeditmode ^ editmode)) {
+		 if ((changed = (useeditmode ^ editmode))) {
 			/*
 			 * This check is for a timing problem.  If the
 			 * state of the tty has changed (due to the user
