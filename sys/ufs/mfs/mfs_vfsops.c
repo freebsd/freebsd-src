@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.4 (Berkeley) 4/16/94
- * $Id: mfs_vfsops.c,v 1.7 1995/04/25 03:39:50 phk Exp $
+ * $Id: mfs_vfsops.c,v 1.8 1995/05/19 03:27:01 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -109,7 +109,6 @@ mfs_mountroot()
 	mp = malloc((u_long)sizeof(struct mount), M_MOUNT, M_WAITOK);
 	bzero((char *)mp, (u_long)sizeof(struct mount));
 	mp->mnt_op = &mfs_vfsops;
-	mp->mnt_flag = MNT_RDONLY;
 	mfsp = malloc(sizeof *mfsp, M_MFSNODE, M_WAITOK);
 	rootvp->v_data = mfsp;
 	rootvp->v_op = mfs_vnodeop_p;
