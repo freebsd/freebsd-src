@@ -44,26 +44,37 @@
 #define _NET_ISO88025_H_
 
 /*
- * The number of bytes in an iso 802.5 (MAC) address.
+ * General ISO 802.5 definitions
  */
 #define	ISO88025_ADDR_LEN	6
+#define ISO88025_HDR_LEN	(ISO88025_CF_LEN + (ISO88025_ADDR_LEN * 2))
+#define ISO88025_CF_LEN		2
+#define RCF_LEN			2
+#define RIF_MAX_RD		14
+#define RIF_MAX_LEN		16
+
+#define TR_AC			0x10
+#define TR_LLC_FRAME		0x40
+
+#define TR_4MBPS		4000000
+#define TR_16MBPS		16000000
+#define TR_100MBPS		100000000
 
 /*
+ * Source routing 
  */
-#define ISO88025_HDR_LEN        (ISO88025_CF_LEN + ISO88025_ADDR_LEN*2)
-#define ISO88025_CF_LEN         2
-#define RCF_LEN                 2
-#define RIF_LEN                 16
+#define	TR_RII			0x80
+#define TR_RCF_BCST_MASK	0xe000
+#define TR_RCF_LEN_MASK		0x1f00
+#define TR_RCF_DIR		0x0080
+#define TR_RCF_LF_MASK		0x0070
 
-
-/*
- * The minimum packet length.
- */
-#define	ISO88025_MIN_LEN	0 /* This offends my morality */
+#define TR_RCF_RIFLEN(x)	((ntohs(x) & TR_RCF_LEN_MASK) >> 8)
 
 /*
- * The maximum packet length.
+ * Minimum and maximum packet payload lengths.
  */
+#define	ISO88025_MIN_LEN	0 
 #define	ISO88025_MAX_LEN	17960	
 
 /*
@@ -73,15 +84,15 @@
 	((foo) >= ISO88025_MIN_LEN && (foo) <= ISO88025_MAX_LEN)
 
 /*
- * ISO 802.5 physical header 
+ * ISO 802.5 physical header
  */
 struct iso88025_header {
-        u_char   ac;                                    /* access control field */
-        u_char   fc;                                    /* frame control field */
-        u_char   iso88025_dhost[ISO88025_ADDR_LEN];     /* destination address */
-        u_char   iso88025_shost[ISO88025_ADDR_LEN];     /* source address */
-        u_short  rcf;                                   /* route control field */
-        u_short  rseg[RIF_LEN];                         /* routing registers */
+	u_char	ac;				    /* access control field */
+	u_char	fc;				    /* frame control field */
+	u_char	iso88025_dhost[ISO88025_ADDR_LEN];  /* destination address */
+	u_char	iso88025_shost[ISO88025_ADDR_LEN];  /* source address */
+	u_short	rcf;				    /* route control field */
+	u_short	rd[RIF_MAX_RD];			    /* routing designators */
 };
 
 struct iso88025_sockaddr_data {
@@ -99,14 +110,13 @@ struct	iso88025_addr {
 	u_char octet[ISO88025_ADDR_LEN];
 };
 
-#define ISO88025MTU     18000
-#define ISO88025_DEFAULT_MTU     1500
+#define ISO88025_MAX_MTU	18000
+#define ISO88025_DEFAULT_MTU	1500
 #define senderr(e) { error = (e); goto bad;}
 
-void   iso88025_ifattach __P((struct ifnet *));
-int    iso88025_ioctl __P((struct ifnet *, int , caddr_t ));
-int    iso88025_output __P((struct ifnet *, struct mbuf *, struct sockaddr *, struct rtentry *));
-void   iso88025_input __P((struct ifnet *, struct iso88025_header *, struct mbuf *));
-
+void	iso88025_ifattach __P((struct ifnet *));
+int	iso88025_ioctl __P((struct ifnet *, int , caddr_t ));
+int	iso88025_output __P((struct ifnet *, struct mbuf *, struct sockaddr *, struct rtentry *));
+void	iso88025_input __P((struct ifnet *, struct iso88025_header *, struct mbuf *));
 
 #endif
