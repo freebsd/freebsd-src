@@ -13,7 +13,7 @@
  *	Tritonvej 36		UUCP:	...uunet!dkuug!kmd-ac!sos
  *	DK9210 Aalborg SO	Phone:  +45 9814 8076
  *
- *	$Id: kbdtables.h,v 1.7 1993/11/04 01:49:20 ache Exp $
+ *	$Id: kbdtables.h,v 1.8 1994/01/18 05:31:37 nate Exp $
  */
 
 #define SET8 0x80       	/* eight bit for emacs SET8-key */
@@ -486,7 +486,7 @@ keymap_t key_map = { 0xe9,        /* keys number */
  * -------------------------------------------------------------------------------------------
  */
 /* sc=00 */  NOP,   NOP,   NOP,   NOP,     NOP,       NOP,       NOP,       NOP,    0xFF, 0x00,
-/* sc=01 */ 0x1B,  0x1B,   NOP,   NOP,  SET8|0x1B, SET8|0x1B,    NOP,       NOP,    0x33, 0x00,
+/* sc=01 */ 0x1B,  0x1B,   NOP,   NOP,  SET8|0x1B, SET8|0x1B,    DBG,       NOP,    0x33, 0x00,
 /* sc=02 */  '1',   '!',   NOP,   NOP,  SET8|'1',  SET8|'!',     NOP,       NOP,    0x33, 0x00,
 /* sc=03 */  '2',   '@',  0x00,  0x00,  SET8|'2',  SET8|'@',  SET8|0x00, SET8|0x00, 0x00, 0x00,
 /* sc=04 */  '3',   '#',   NOP,   NOP,  SET8|'3',  SET8|'#',     NOP,       NOP,    0x33, 0x00,
@@ -615,7 +615,7 @@ keymap_t key_map = { 0xe9,        /* keys number */
 /* sc=7f */  NOP,   NOP,   NOP,   NOP,     NOP,       NOP,       NOP,       NOP,    0xFF, 0x00,
 /* extended (ALTGR LOCK keys) */
 /* sc=00 */  NOP,   NOP,   NOP,   NOP,     NOP,       NOP,       NOP,       NOP,    0xFF, 0x00,
-/* sc=01 */ 0x1B,  0x1B,   NOP,   NOP,  SET8|0x1B, SET8|0x1B,    NOP,       NOP,    0x33, 0x00,
+/* sc=01 */ 0x1B,  0x1B,   NOP,   NOP,  SET8|0x1B, SET8|0x1B,    DBG,       NOP,    0x33, 0x00,
 /* sc=02 */  '!',   '1',   NOP,   NOP,  SET8|'1',  SET8|'!',     NOP,       NOP,    0x33, 0x00,
 /* sc=03 */  '"',   '2',  0x00,  0x00,  SET8|'2',  SET8|'@',  SET8|0x00, SET8|0x00, 0x00, 0x00,
 /* sc=04 */  '\'',  '3',   NOP,   NOP,  SET8|'3',  SET8|'#',     NOP,       NOP,    0x33, 0x00,
