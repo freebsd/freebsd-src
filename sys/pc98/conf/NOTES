@@ -43,6 +43,8 @@ profile         2
 
 # Mandatory:
 device		apic			# I/O apic
+
+# Optional:
 options 	NO_MIXED_MODE		# Disable use of mixed mode
 
 
@@ -63,30 +65,36 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 #
 # Options for CPU features.
 #
+# CPU_BLUELIGHTNING_3X enables triple-clock mode on IBM Blue Lightning
+# CPU if CPU supports it.  The default is double-clock mode on
+# BlueLightning CPU box.
+#
 # CPU_BLUELIGHTNING_FPU_OP_CACHE enables FPU operand cache on IBM
 # BlueLightning CPU.  It works only with Cyrix FPU, and this option
 # should not be used with Intel FPU.
 #
-# CPU_BLUELIGHTNING_3X enables triple-clock mode on IBM Blue Lightning
-# CPU if CPU supports it. The default is double-clock mode on
-# BlueLightning CPU box.
-#
 # CPU_BTB_EN enables branch target buffer on Cyrix 5x86 (NOTE 1).
-#
-# CPU_DIRECT_MAPPED_CACHE sets L1 cache of Cyrix 486DLC CPU in direct
-# mapped mode.  Default is 2-way set associative mode.
 #
 # CPU_CYRIX_NO_LOCK enables weak locking for the entire address space
 # of Cyrix 6x86 and 6x86MX CPUs by setting the NO_LOCK bit of CCR1.
 # Otherwise, the NO_LOCK bit of CCR1 is cleared.  (NOTE 3)
 #
+# CPU_DIRECT_MAPPED_CACHE sets L1 cache of Cyrix 486DLC CPU in direct
+# mapped mode.  Default is 2-way set associative mode.
+#
 # CPU_DISABLE_5X86_LSSER disables load store serialize (i.e. enables
 # reorder).  This option should not be used if you use memory mapped
 # I/O device(s).
 #
+# CPU_DISABLE_CMPXCHG disables the CMPXCHG instruction on > i386 IA32 
+# machines.  VmWare seems to emulate this instruction poorly, causing 
+# the guest OS to run very slowly.  Enabling this with a SMP kernel
+# will cause the kernel to be unusable.
+#
+# CPU_DISABLE_SSE explicitly prevent I686_CPU from turning on SSE.
+#
 # CPU_ENABLE_SSE enables SSE/MMX2 instructions support.  This is default
 # on I686_CPU and above.
-# CPU_DISABLE_SSE explicitly prevent I686_CPU from turning on SSE.
 #
 # CPU_FASTER_5X86_FPU enables faster FPU exception handler.
 #
@@ -135,11 +143,6 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # which indicates that the 15-16MB range is *definitely* not being
 # occupied by an ISA memory hole.
 #
-# CPU_DISABLE_CMPXCHG disables the CMPXCHG instruction on > i386 IA32 
-# machines.  VmWare seems to emulate this instruction poorly, causing 
-# the guest OS to run very slowly.  Enabling this with a SMP kernel
-# will cause the kernel to be unusable.
-#
 # NOTE 1: The options, CPU_BTB_EN, CPU_LOOP_EN, CPU_IORT,
 # CPU_LOOP_EN and CPU_RSTK_EN should not be used because of CPU bugs.
 # These options may crash your system.
@@ -151,13 +154,14 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # NOTE 3: This option may cause failures for software that requires
 # locked cycles in order to operate correctly.
 #
-options 	CPU_BLUELIGHTNING_FPU_OP_CACHE
 options 	CPU_BLUELIGHTNING_3X
+options 	CPU_BLUELIGHTNING_FPU_OP_CACHE
 options 	CPU_BTB_EN
 options 	CPU_DIRECT_MAPPED_CACHE
 options 	CPU_DISABLE_5X86_LSSER
-options 	CPU_ENABLE_SSE
+options 	CPU_DISABLE_CMPXCHG
 #options 	CPU_DISABLE_SSE
+options 	CPU_ENABLE_SSE
 options 	CPU_FASTER_5X86_FPU
 options 	CPU_I486_ON_386
 options 	CPU_IORT
@@ -171,11 +175,9 @@ options 	CPU_WT_ALLOC
 options 	CYRIX_CACHE_WORKS
 options 	CYRIX_CACHE_REALLY_WORKS
 #options 	NO_F00F_HACK
-options 	CPU_DISABLE_CMPXCHG
 
 # Debug options
-options 	NPX_DEBUG	# enable npx debugging (FPU/math emu)
-					#new math emulator
+options 	NPX_DEBUG	# enable npx debugging
 
 #
 # PERFMON causes the driver for Pentium/Pentium Pro performance counters
@@ -192,7 +194,7 @@ options 	PERFMON
 # of network device drivers, which has significant benefits in terms
 # of robustness to overloads and responsivity, as well as permitting
 # accurate scheduling of the CPU time between kernel network processing
-# and other activities. The drawback is a moderate (up to 1/HZ seconds)
+# and other activities.  The drawback is a moderate (up to 1/HZ seconds)
 # potential increase in response times.
 # It is strongly recommended to use HZ=1000 or 2000 with DEVICE_POLLING
 # to achieve smoother behaviour.
@@ -230,7 +232,7 @@ options 	CLK_USE_I8254_CALIBRATION
 device		speaker		#Play IBM BASIC-style noises out your speaker
 hint.speaker.0.at="isa"
 hint.speaker.0.port="0x35"
-device		gzip		#Exec gzipped a.out's. REQUIRES COMPAT_AOUT!
+device		gzip		#Exec gzipped a.out's.  REQUIRES COMPAT_AOUT!
 device		apm_saver	# Requires APM
 
 
@@ -283,10 +285,6 @@ device		agp
 #####################################################################
 # HARDWARE DEVICE CONFIGURATION
 
-#
-# Mandatory devices:
-#
-
 # PC98 keyboard
 device		pckbd
 hint.pckbd.0.at="isa"
@@ -334,13 +332,13 @@ device		npx
 # Optional devices:
 #
 
-# 3Dfx Voodoo Graphics, Voodoo II /dev/3dfx CDEV support. This will create
-# the /dev/3dfx0 device to work with glide implementations. This should get
-# linked to /dev/3dfx and /dev/voodoo. Note that this is not the same as
+# 3Dfx Voodoo Graphics, Voodoo II /dev/3dfx CDEV support.  This will create
+# the /dev/3dfx0 device to work with glide implementations.  This should get
+# linked to /dev/3dfx and /dev/voodoo.  Note that this is not the same as
 # the tdfx DRI module from XFree86 and is completely unrelated.
 #
 # To enable Linuxulator support, one must also include COMPAT_LINUX in the
-# config as well, or you will not have the dependencies. The other option
+# config as well, or you will not have the dependencies.  The other option
 # is to load both as modules.
 
 device 		tdfx			# Enable 3Dfx Voodoo support
@@ -493,6 +491,7 @@ options		SAFE_RNDTEST	# enable rndtest support
 # apm: Laptop Advanced Power Management (experimental)
 # pmtimer: Timer device driver for power management events (APM or ACPI)
 # spigot: The Creative Labs Video Spigot video-acquisition board
+# cy: Cyclades serial driver
 # digi: Digiboard driver
 # gp:  National Instruments AT-GPIB and AT-GPIB/TNT board, PCMCIA-GPIB
 # stl: Stallion EasyIO and EasyConnection 8/32 (cd1400 based)
@@ -501,8 +500,6 @@ options		SAFE_RNDTEST	# enable rndtest support
 # Notes on APM
 #  The flags takes the following meaning for apm0:
 #    0x0020  Statclock is broken.
-#  If apm is omitted, some systems require sysctl kern.timecounter.method=1
-#  for correct timekeeping.
 
 # Notes on the spigot:
 #  The video spigot is at 0xad6.  This port address can not be changed.
@@ -523,13 +520,13 @@ options		SAFE_RNDTEST	# enable rndtest support
 
 # Notes on the Sony Programmable I/O controller
 #  This is a temporary driver that should someday be replaced by something
-#  that hooks into the ACPI layer. The device is hooked to the PIIX4's
+#  that hooks into the ACPI layer.  The device is hooked to the PIIX4's
 #  General Device 10 decoder, which means you have to fiddle with PCI
 #  registers to map it in, even though it is otherwise treated here as
-#  an ISA device. At the moment, the driver polls, although the device
-#  is capable of generating interrupts. It largely undocumented.
+#  an ISA device.  At the moment, the driver polls, although the device
+#  is capable of generating interrupts.  It largely undocumented.
 #  The port location in the hint is where you WANT the device to be
-#  mapped. 0x10a0 seems to be traditional. At the moment the jogdial
+#  mapped.  0x10a0 seems to be traditional.  At the moment the jogdial
 #  is the only thing truly supported, but aparently a fair percentage
 #  of the Vaio extra features are controlled by this device.
 
@@ -564,15 +561,18 @@ hint.spigot.0.irq="15"
 hint.spigot.0.maddr="0xee000"
 device		apm
 hint.apm.0.flags="0x20"
-device		pmc
 device		canbus
 device		canbepm
+device		pmc
 hint.pmc.0.at="isa"
 hint.pmc.0.port="0x8f0"
 device		pmtimer			# Adjust system timer at wakeup time
-device		gp
-hint.gp.0.at="isa"
-hint.gp.0.port="0x2c0"
+device		cy	1
+options 	CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
+hint.cy.0.at="isa"
+hint.cy.0.irq="10"
+hint.cy.0.maddr="0xd4000"
+hint.cy.0.msize="0x2000"
 device		digi
 hint.digi.0.at="isa"
 hint.digi.0.port="0x104"
@@ -585,6 +585,12 @@ device		digi_EPCX_PCI
 device		digi_Xe
 device		digi_Xem
 device		digi_Xr
+device		gp
+hint.gp.0.at="isa"
+hint.gp.0.port="0x2c0"
+device		olpt
+hint.olpt.0.at="isa"
+hint.olpt.0.port="0x040"
 device		stl
 hint.stl.0.at="isa"
 hint.stl.0.port="0x2a0"
@@ -595,9 +601,6 @@ hint.stli.0.port="0x2a0"
 hint.stli.0.maddr="0xcc000"
 hint.stli.0.flags="23"
 hint.stli.0.msize="0x1000"
-device		olpt
-hint.olpt.0.at="isa"
-hint.olpt.0.port="0x040"
 
 #
 # Laptop/Notebook options:
@@ -621,23 +624,6 @@ device		pcic
 hint.pcic.0.at="isa"
 #hint.pcic.1.at="isa"
 device		card	1
-
-#
-# PC Card/PCMCIA and Cardbus
-# (NEWCARD)
-#
-# Note that NEWCARD and OLDCARD are incompatible.  Do not use both at the same
-# time.
-#
-# pccbb: pci/cardbus bridge implementing YENTA interface
-# pccard: pccard slots
-# cardbus: cardbus slots
-#device		cbb
-#device		pccard
-#device		cardbus
-#device		pcic		ISA attachment currently busted
-#hint.pcic.0.at="isa"
-#hint.pcic.1.at="isa"
 
 #---------------------------------------------------------------------------
 # ISDN4BSD
@@ -673,18 +659,8 @@ device	isic
 # PCI bus Cards:
 # --------------
 #
-# Cyclades Cyclom-Y PCI serial driver
-device		cy	1
-options 	CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
-hint.cy.0.at="isa"
-hint.cy.0.irq="10"
-hint.cy.0.maddr="0xd4000"
-hint.cy.0.msize="0x2000"
-#
-#---------------------------------------------------------------------------
 # ELSA MicroLink ISDN/PCI (same as ELSA QuickStep 1000pro PCI)
 options 	ELSA_QS1PCI
-#
 #
 #---------------------------------------------------------------------------
 #	ifpnp driver for AVM Fritz!Card PnP
@@ -787,7 +763,7 @@ device		"i4bcapi"
 
 #
 # Set the number of PV entries per process.  Increasing this can
-# stop panics related to heavy use of shared memory. However, that can
+# stop panics related to heavy use of shared memory.  However, that can
 # (combined with large amounts of physical memory) cause panics at
 # boot time due the kernel running out of VM space.
 #
