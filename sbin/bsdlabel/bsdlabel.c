@@ -173,6 +173,10 @@ main(int argc, char *argv[])
 					labeloffset = 64;
 					bbsize = 8192;
 					alphacksum = 1;
+				} else if (!strcmp(optarg, "ia64")) {
+					labeloffset = 512;
+					bbsize = 8192;
+					alphacksum = 0;
 				} else {
 					errx(1, "Unsupported architecture");
 				}
