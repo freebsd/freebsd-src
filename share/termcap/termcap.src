@@ -3972,6 +3972,38 @@ ifmr|Informer D304:\
 	:am:bs:cd=\E/:ce=\EQ:cl=\EZ:cm=\EY%r%+ %+ :co#80:dc=\E\\:\
 	:do=^J:im=:ei=:ic=\E[:li#24:nd=\EC:so=\EJ:se=\EK:up=\EA:\
 	:sr=\En:ho=\EH:
+# dtterm termcap entry - Obtained from Xinside's CDE with permission
+# from Thomas Roell
+dtterm|dtterm-cde10:\
+	:am:km:mi:ms:xn:\
+	:co#80:li#24:Co#8:it#8:lm#0:pa#8:\
+	:ac=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~:\
+	:bl=^G:cr=\r:ta=\t:\
+	:cl=\E[H\E[J:cb=\E[1K:ce=\E[K:cd=\E[J:\
+	:cm=\E[%i%d;%dH:ho=\E[H:\
+	:LE=\E[%dD:le=\b:\
+	:DO=\E[%dB:do=\n:\
+	:RI=\E[%dC:nd=\E[C:\
+	:UP=\E[%dA:up=\E[A:\
+	:DC=\E[%dP:dc=\E[P:DL=\E[%dM:dl=\E[M:\
+	:IC=\E[%d@:ic=\E[@:AL=\E[%dL:al=\E[L:\
+	:sc=\E7:rc=\E8:\
+	:sf=\ED:sr=\EM:\
+	:st=\EH:ct=\E[3g:\
+	:me=\E[0m:md=\E[1m:mr=\E[7m:\
+	:as=^N:ae=^O:\
+	:SA=\E[?7h:RA=\E[?7l:\
+	:im=\E[4h:ei=\E[4l:\
+	:so=\E[2;7m:se=\E[22;27m:\
+	:us=\E[4m:ue=\E[24m:\
+	:mh=\E[2m:mb=\E[5m:vi=\E[?25l:ve=\E[?25h:ec=\E[%dX:\
+	:mk=\E[8m:i2=\E\sF\E>\E[?1l\E[?7h\E[?45l:\
+	:nw=\EE:op=\E[39;49m:\
+	:kb=\b:kl=\E[D:kd=\E[B:kr=\E[C:ku=\E[A:kD=\E[3~:k1=\E[11~:k2=\E[12~:\
+	:k3=\E[13~:k4=\E[14~:k5=\E[15~:k6=\E[17~:k7=\E[18~:k8=\E[19~:\
+	:k9=\E[20~:k;=\E[21~:F1=\E[23~:F2=\E[24~:F3=\E[25~:F4=\E[26~:\
+	:F5=\E[28~:F6=\E[29~:F7=\E[31~:F8=\E[32~:F9=\E[33~:F20=\E[34~:\
+	:@0=\E[1~:%1=\E[28~:kI=\E[2~:kN=\E[6~:kP=\E[5~:*6=\E[4~:
 #
 # END OF TERMCAP
 #  ------------------------
