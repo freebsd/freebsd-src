@@ -42,9 +42,6 @@ SRCS+=	device_if.h bus_if.h pci_if.h pcib_if.h isa_if.h
 
 CFLAGS+=   -I${.CURDIR}/../../contrib/dev/acpica/Subsystem/Include
 
-opt_acpi.h: Makefile
-	touch opt_acpi.h
-
 opt_ddb.h: Makefile
 	echo '#define DDB 1'  >opt_ddb.h
 

@@ -32,10 +32,9 @@ svr4_genassym.o: svr4_genassym.c svr4.h @ machine
 opt_compat.h:
 	echo "#define COMPAT_43 1" > opt_compat.h
 
-opt_svr4.h:
-	touch opt_svr4.h
 .if defined(DEBUG)
-	echo "#define DEBUG_SVR4 1" >> opt_svr4.h
+opt_svr4.h:
+	echo "#define DEBUG_SVR4 1" > opt_svr4.h
 .endif
 
 .include <bsd.kmod.mk>

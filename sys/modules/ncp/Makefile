@@ -20,15 +20,13 @@ CFLAGS+= -DNCPBURST
 
 NOMAN=
 
-opt_inet.h:
-	touch ${.TARGET}
 .if ${NCP_INET} > 0
+opt_inet.h:
 	echo "#define INET 1" > ${.TARGET}
 .endif
 
-opt_ipx.h:
-	touch ${.TARGET}
 .if ${NCP_IPX} > 0
+opt_ipx.h:
 	echo "#define IPX 1" > ${.TARGET}
 .endif
 

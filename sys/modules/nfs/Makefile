@@ -10,9 +10,8 @@ SRCS=	vnode_if.h \
 NFS_INET?=	1	# 0/1 - requires INET to be configured in kernel
 NOMAN=
 
-opt_inet.h:
-	touch ${.TARGET}
 .if ${NFS_INET} > 0
+opt_inet.h:
 	echo "#define INET 1" > ${.TARGET}
 .endif
 
