@@ -130,7 +130,7 @@ sranddev()
 		unsigned long junk;
 
 		gettimeofday(&tv, NULL);
-		next = getpid() ^ tv.tv_sec ^ tv.tv_usec ^ junk;
+		next = (getpid() << 16) ^ tv.tv_sec ^ tv.tv_usec ^ junk;
 	}
 }
 
