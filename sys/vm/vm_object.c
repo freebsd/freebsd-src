@@ -502,6 +502,7 @@ vm_object_deallocate(vm_object_t object)
 			return;
 		}
 doterm:
+		VM_OBJECT_LOCK(object);
 		temp = object->backing_object;
 		if (temp) {
 			TAILQ_REMOVE(&temp->shadow_head, object, shadow_list);
@@ -516,6 +517,8 @@ doterm:
 		 */
 		if ((object->flags & OBJ_DEAD) == 0)
 			vm_object_terminate(object);
+		else
+			VM_OBJECT_UNLOCK(object);
 		object = temp;
 	}
 	vm_object_unlock(object);
@@ -534,12 +537,11 @@ vm_object_terminate(vm_object_t object)
 	vm_page_t p;
 	int s;
 
-	GIANT_REQUIRED;
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 
 	/*
 	 * Make sure no one uses us.
 	 */
-	VM_OBJECT_LOCK(object);
 	vm_object_set_flag(object, OBJ_DEAD);
 
 	/*
