@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.143.2.9 1997/08/14 07:02:07 jkh Exp $
+#	$Id: Makefile,v 1.143.2.10 1997/09/22 19:01:02 jkh Exp $
 
 # -rw-r--r--
 BINOWN= root
@@ -62,6 +62,7 @@ distribution:
 	( cd ${.CURDIR}/../gnu/libexec/uucp/sample; ${MAKE} install ); \
 	( cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap ); \
 	( cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt ); \
+	( cd ${.CURDIR}/../usr.sbin/sendmail/cf/cf; ${MAKE} etc-sendmail.cf ); \
 	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
 	     MAKEDEV.local etc.${MACHINE}/MAKEDEV ${DESTDIR}/dev )
@@ -106,15 +107,6 @@ distribution:
 	    ${DESTDIR}/var/run/utmp
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 ${.CURDIR}/minfree \
 	    ${DESTDIR}/var/crash
-	(cd ${.CURDIR}/../usr.sbin/sendmail/src; \
-	    ${MAKE} obj; \
-	    ${MAKE} all; \
-	    ${MAKE} install; \
-	 cd ../cf/cf; \
-	    ${MAKE} obj OBJLINK=YES; \
-	    ${MAKE} ${SENDMAILCF}; \
-	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 obj/${SENDMAILCF} \
-		${DESTDIR}/etc/sendmail.cf)
 	(cd ${.CURDIR}/..; \
 	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FREEBSD} \
 		${DESTDIR}/)
