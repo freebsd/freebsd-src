@@ -112,6 +112,12 @@ List information about plexes
 .in +1i
 List information about volumes
 .in
+.Cd printconfig
+.Pa file
+.in +1i
+Write a copy of the current configuration to
+.Pa file .
+.in
 .Cd makedev
 .in +1i
 Remake the device nodes in 
@@ -168,6 +174,12 @@ are specified.
 .in +1i
 Remove an object
 .in
+.Cd saveconfig
+.in +1i
+Save
+.Nm
+configuration to disk.
+.in
 .ig
 XXX
 .Cd set
@@ -192,7 +204,9 @@ Allow the system to access the objects
 .Op Fl f
 .Op volume | plex | subdisk
 .in +1i
-Terminate access the objects
+Terminate access to the objects, or stop
+.Nm
+if no parameters are specified.
 .in
 .Sh DESCRIPTION
 .Nm
@@ -317,6 +331,12 @@ relationship and the potential dangers involved in creating a
 .Nm
 object, there is no interactive interface to this function.  See the section
 CONFIGURATION FILE below for more information.
+.Pp
+Note that the
+.Nm
+.Ar create
+function is additive: if you run it multiple times, you will create multiple
+copies of all unnamed objects.
 .It Nm debug
 .Pp
 .Nm
@@ -629,6 +649,13 @@ program when running in interactive mode.  Normally this would be done by
 entering the
 .Ar EOF
 character.
+.It Nm printconfig Pa file
+Write a copy of the current configuration to
+.Pa file 
+in a format that can be used to recreate the
+.Nm
+configuration.  Unlike the configuration saved on disk, it includes definitions
+of the drives.
 .It Nm read
 .Ar disk Op disk...
 .Pp
@@ -645,10 +672,34 @@ partition.  You must specify all of the partitions in a configuration as the
 parameter to this command.
 .Nm
 .Nm read
-will accept the names of non-Vinum partitions, so you can specify all partitions
+accepts the names of non-Vinum partitions, so you can specify all partitions
 upon which a
 .Nm
 partition might be resident to this command.
+.Pp
+The
+.Nm read
+command is intended to selectively load a
+.Nm
+configuration on a system which has other
+.Nm
+partitions.  If you want to start all partitions on the system, it is easier to
+use the
+.Nm start
+command.
+.Pp
+If
+.Nm
+encounters any errors during this command, it will turn off automatic
+configuration update to avoid corrupting the copies on disk.  This will also
+happen if the configuration on disk indicates a configuration error (for
+example, subdisks which do not have a valid space specification).  You can turn
+the updates on again with the
+.Nm setdaemon
+and
+.Nm saveconfig
+commands.  Reset bit 4 of the daemon options mask to re-enable configuration
+saves.
 .It Nm rename
 .Op Fl r
 .Ar [ drive | subdisk | plex | volume ]
@@ -740,6 +791,12 @@ to remove the subordinate objects as well by using the
 .Fl r
 flag, it will remove both the plexes and the subdisks which belong to the
 plexes.
+.It Nm saveconfig
+.Pp
+Save the current configuration to disk.  This is primarily a maintenance
+function.  For example, if an error occurs on startup, updates will be
+disabled.  When you reenable them, the configuration is not automatically saved
+to disk.  Use this command to save the configuration.
 .ig
 .It Nm set
 .Op Fl f
@@ -779,11 +836,24 @@ scans the disks known to the system for
 .Nm
 drives and then reads in the configuration as described under the
 .Nm read
-command.  The
+commands.  The
 .Nm
 drive contains a header with all information about the data stored on the drive,
 including the names of the other drives which are required in order to represent
 plexes and volumes.
+.Pp
+If
+.Nm
+encounters any errors during this command, it will turn off automatic
+configuration update to avoid corrupting the copies on disk.  This will also
+happen if the configuration on disk indicates a configuration error (for
+example, subdisks which do not have a valid space specification).  You can turn
+the updates on again with the
+.Nm setdaemon
+and
+.Nm saveconfig
+command.  Reset bit 4 of the daemon options mask to re-enable configuration
+saves.
 .Pp
 If object names are specified,
 .Nm
@@ -796,17 +866,41 @@ background.
 .Op Fl f
 .Op volume | plex | subdisk
 .Pp
+If no parameters are specified,
 .Nm stop
-disables access to the specified objects and any subordinate objects.  It does
-not remove the objects from the configuration.  They can be accessed again after
-a
+removes the
+.Nm
+kld and stops
+.Xr vinum 8 .
+This can only be done if no objects are active.  In particular, the
+.Fl f
+flag does not override this requirement.  This command can only work if
+.Nm
+has been loaded as a kld, since it is not possible to unload a statically
+configured driver.  
+.Nm 
+.Nm stop
+will fail if
+.Nm
+is statically configured.
+.Pp
+If object names are specified,
+.Nm stop
+disables access to the objects.  If the objects have  subordinate objects, they
+subordinate objects must either already be inactive (stopped or in error), or
+the
+.Fl r
+and
+.Fl f
+flags must be specified.  This command does not remove the objects from the
+configuration.  They can be accessed again after a
 .Nm start 
 command.
 .Pp
 By default, 
 .Nm
-does not remove active objects.  For example, you cannot remove a plex which is
-attached to an active volume, and you cannot remove a volume which is open.  The
+does not stop active objects.  For example, you cannot stop a plex which is
+attached to an active volume, and you cannot stop a volume which is open.  The
 .Fl f
 option tells
 .Nm
