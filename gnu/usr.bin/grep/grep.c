@@ -61,13 +61,12 @@ static int show_version;
 /* If nonzero, use mmap if possible.  */
 static int mmap_option;
 
+/* If zero, output nulls after filenames.  */
+static int filename_mask;
+
 /* Short options.  */
 static char const short_options[] =
-#if HAVE_LIBZ > 0
 "0123456789A:B:C::EFGHUVX:abcd:e:f:hiLlnqrsuvwxyZz";
-#else
-"0123456789A:B:C::EFGHUVX:abcd:e:f:hiLlnqrsuvwxyZz";
-#endif
 
 /* Long options equivalences. */
 static struct option long_options[] =
@@ -93,7 +92,8 @@ static struct option long_options[] =
   {"no-filename", no_argument, NULL, 'h'},
   {"no-messages", no_argument, NULL, 's'},
 #if HAVE_LIBZ > 0
-  {"null", no_argument, NULL, /*'Z'*/ 1},
+  {"decompress", no_argument, NULL, 'Z'},
+  {"null", no_argument, &filename_mask, 0},
 #else
   {"null", no_argument, NULL, 'Z'},
 #endif
@@ -109,15 +109,10 @@ static struct option long_options[] =
   {"version", no_argument, NULL, 'V'},
   {"with-filename", no_argument, NULL, 'H'},
   {"word-regexp", no_argument, NULL, 'w'},
-#if HAVE_LIBZ > 0
-  {"decompress", no_argument, NULL, 'Z'},
-#endif
   {0, 0, 0, 0}
 };
 
 /* Define flags declared in grep.h. */
-/* I do not know why we need this decl, while if you build GNU grep 2.4 by
-   hand you don't... */
 char const *matcher;
 int match_icase;
 int match_words;
@@ -517,7 +512,6 @@ fillbuf (save, stats)
 
 /* Flags controlling the style of output. */
 static int always_text;		/* Assume the input is always text. */
-static int filename_mask;	/* If zero, output nulls after filenames.  */
 static int out_quiet;		/* Suppress all normal output. */
 static int out_invert;		/* Print nonmatching stuff. */
 static int out_file;		/* Print filenames. */
