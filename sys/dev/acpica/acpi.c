@@ -1232,8 +1232,8 @@ acpi_EvaluateInteger(ACPI_HANDLE handle, char *path, int *number)
 	    status = AcpiEvaluateObject(handle, path, NULL, &buf);
 	    if (ACPI_SUCCESS(status))
 		status = acpi_ConvertBufferToInteger(&buf, number);
+	    AcpiOsFree(buf.Pointer);
 	}
-	AcpiOsFree(buf.Pointer);
     }
     return (status);
 }
