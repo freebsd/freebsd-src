@@ -525,36 +525,36 @@ ioapic_set_extint(void *cookie, u_int pin)
 }
 
 int
-ioapic_set_polarity(void *cookie, u_int pin, char activehi)
+ioapic_set_polarity(void *cookie, u_int pin, enum intr_polarity pol)
 {
 	struct ioapic *io;
 
 	io = (struct ioapic *)cookie;
-	if (pin >= io->io_numintr)
+	if (pin >= io->io_numintr || pol == INTR_POLARITY_CONFORM)
 		return (EINVAL);
 	if (io->io_pins[pin].io_vector >= NUM_IO_INTS)
 		return (EINVAL);
-	io->io_pins[pin].io_activehi = activehi;
+	io->io_pins[pin].io_activehi = (pol == INTR_POLARITY_HIGH);
 	if (bootverbose)
 		printf("ioapic%u: intpin %d polarity: %s\n", io->io_id, pin,
-		    activehi ? "active-hi" : "active-lo");
+		    pol == INTR_POLARITY_HIGH ? "high" : "low");
 	return (0);
 }
 
 int
-ioapic_set_triggermode(void *cookie, u_int pin, char edgetrigger)
+ioapic_set_triggermode(void *cookie, u_int pin, enum intr_trigger trigger)
 {
 	struct ioapic *io;
 
 	io = (struct ioapic *)cookie;
-	if (pin >= io->io_numintr)
+	if (pin >= io->io_numintr || trigger == INTR_TRIGGER_CONFORM)
 		return (EINVAL);
 	if (io->io_pins[pin].io_vector >= NUM_IO_INTS)
 		return (EINVAL);
-	io->io_pins[pin].io_edgetrigger = edgetrigger;
+	io->io_pins[pin].io_edgetrigger = (trigger == INTR_TRIGGER_EDGE);
 	if (bootverbose)
 		printf("ioapic%u: intpin %d trigger: %s\n", io->io_id, pin,
-		    edgetrigger ? "edge" : "level");
+		    trigger == INTR_TRIGGER_EDGE ? "edge" : "level");
 	return (0);
 }
 
