@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.44 1997/12/06 04:11:13 sef Exp $
+ *	$Id: procfs_vnops.c,v 1.45 1997/12/07 04:01:03 sef Exp $
  */
 
 /*
@@ -50,6 +50,7 @@
 #include <sys/lock.h>
 #include <sys/fcntl.h>
 #include <sys/proc.h>
+#include <sys/signalvar.h>
 #include <sys/vnode.h>
 #include <sys/namei.h>
 #include <sys/malloc.h>
@@ -275,8 +276,7 @@ procfs_ioctl(ap)
 	  if (ap->a_data && (signo = *(int*)ap->a_data)) {
 	    if (signo >= NSIG || signo <= 0)
 	      return EINVAL;
-	    if (error = psignal(procp, signo))
-	      return error;
+	    psignal(procp, signo);
 	  }
 	  procp->p_step = 0;
 	  wakeup(&procp->p_step);
