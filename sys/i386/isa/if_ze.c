@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.12 1995/02/26 05:14:48 bde Exp $
+ * $Id: if_ze.c,v 1.13 1995/03/28 07:55:35 bde Exp $
  */
 
 #include "ze.h"
@@ -106,18 +106,14 @@
  * ze_softc: per line info and status
  */
 struct	ze_softc {
+
+	caddr_t  maddr;
+	u_long  iobase, irq;
+	
 	struct	arpcom arpcom;	/* ethernet common */
 
 	char	*type_str;	/* pointer to type string */
 	char    *mau;		/* type of media access unit */
-#if 0
-	u_char	vendor;		/* interface vendor */
-	u_char	type;		/* interface type code */
-#endif
-
-#if 0
-	u_short	vector;		/* interrupt vector */
-#endif
 	u_short	nic_addr;	/* NIC (DS8390) I/O bus address */
 
 	caddr_t	smem_start;	/* shared memory start address */
@@ -151,6 +147,7 @@ int	ze_attach(), ze_ioctl(), ze_probe();
 void	ze_init(), ze_start(), ze_stop(), ze_intr();
 void	ze_reset(), ze_watchdog(), ze_get_packet();
 
+void 	ze_setup __P((struct ze_softc *sc));
 static inline void ze_rint();
 static inline void ze_xmit();
 static inline char *ze_ring_copy();
@@ -325,6 +322,7 @@ ze_find_adapter (unsigned char *scratch, int reconfig)
  *   on exit:
  *	NULL if device not found
  *	or # of i/o addresses used (if found)
+	pcic(
  */
 int
 ze_probe(isa_dev)
@@ -372,125 +370,19 @@ ze_probe(isa_dev)
 	enet_addr[5] = PEEK(isa_dev->id_maddr+0xffa);
 	pcic_unmap_memory (slot, 0);
 
-	re_init_flag = 0;
-re_init:
-	/*
-	 * (2) map card configuration registers.  these are offset
-	 * in card memory space by 0x20000.  normally we could get
-	 * this offset from the card information structure, but I'm
-	 * too lazy and am not quite sure if I understand the CIS anyway.
-	 *
-	 * XXX IF YOU'RE TRYING TO PORT THIS DRIVER FOR A DIFFERENT
-	 * PCMCIA CARD, the most likely thing to change is the constant
-	 * 0x20000 in the next statement.  Oh yes, also change the
-	 * card id string that we probe for.
-	 */
-	pcic_map_memory (slot, 0, kvtop (isa_dev->id_maddr), 0x20000, 8L,
-			 ATTRIBUTE, 1);
-	POKE(isa_dev->id_maddr, 0x80);	/* reset the card (how long?) */
-	DELAY (40000);
-	/*
-	 * Set the configuration index.  According to [1], the adapter won't
-	 * respond to any i/o signals until we do this; it uses the
-	 * Memory Only interface (whatever that is; it's not documented).
-	 * Also turn on "level" (not pulse) interrupts.
-	 *
-	 * XXX probably should init the socket and copy register also,
-	 * so that we can deal with multiple instances of the same card.
-	 */
-	POKE(isa_dev->id_maddr, 0x41);
-	pcic_unmap_memory (slot, 0);
-
-	/*
-	 * (3) now map in the shared memory buffer.  This has to be mapped
-	 * as words, not bytes, and on a 16k boundary.  The offset value
-	 * was derived by installing IBM's POINTETH.SYS under DOS and
-	 * looking at the PCIC registers; it's not documented in IBM's
-	 * tech ref manual ([1]).
-	 */
-	pcic_map_memory (slot, 0, kvtop (isa_dev->id_maddr), 0x4000L, 0x4000L,
-			 COMMON, 2);
-
-	/*
-	 * (4) map i/o ports.
-	 *
-	 * XXX is it possible that the config file leaves this unspecified,
-	 * in which case we have to pick one?
-	 *
-	 * At least one PCMCIA device driver I'v seen maps a block
-	 * of 32 consecutive i/o ports as two windows of 16 ports each.
-	 * Maybe some other pcic chips are restricted to 16-port windows;
-	 * the 82365SL doesn't seem to have that problem.  But since
-	 * we have an extra window anyway...
-	 */
-#ifdef SHARED_MEMORY
-	pcic_map_io (slot, 0, isa_dev->id_iobase, 32, 1);
-#else
-	pcic_map_io (slot, 0, isa_dev->id_iobase, 16, 1);
-	pcic_map_io (slot, 1, isa_dev->id_iobase+16, 16, 2);
-#endif /* SHARED_MEMORY */
-
-	/*
-	 * (5) configure the card for the desired interrupt
-	 *
-	 * XXX is it possible that the config file leaves this unspecified?
-	 */
-	pcic_map_irq (slot, ffs (isa_dev->id_irq) - 1);
-
-	/* tell the PCIC that this is an I/O card (not memory) */
-	pcic_putb (slot, PCIC_INT_GEN,
-		   pcic_getb (slot, PCIC_INT_GEN) | PCIC_CARDTYPE);
-
-#if 0
-	/* tell the PCIC to use level-mode interrupts */
-	/* XXX this register may not be present on all controllers */
-	pcic_putb (slot, PCIC_GLO_CTRL,
-		   pcic_getb (slot, PCIC_GLO_CTRL) | PCIC_LVL_MODE);
-#endif
-	
-#if 0
-	pcic_print_regs (slot);
-#endif
+	sc->maddr = isa_dev->id_maddr;
+	sc->irq = isa_dev->id_irq;
+	sc->iobase = isa_dev->id_iobase;
+	sc->slot = slot;
 	/*
 	 * Setup i/o addresses
 	 */
-	sc->nic_addr = isa_dev->id_iobase;
-#if 0
-	sc->vector = isa_dev->id_irq;
-#endif
-	sc->smem_start = (caddr_t)isa_dev->id_maddr;
+	sc->nic_addr = sc->iobase;
+	sc->smem_start = (caddr_t)sc->maddr;
  
-#if 0
-	sc->vendor = ZE_VENDOR_IBM;
-	sc->type = xxx;
-#endif
+	ze_setup(sc);
 
-	/* reset card to force it into a known state */
-	tmp = inb (isa_dev->id_iobase + ZE_RESET);
-	DELAY(20000);
-	outb (isa_dev->id_iobase + ZE_RESET, tmp);
-	DELAY(20000);
-
-#if 0
-	tmp = inb(isa_dev->id_iobase);
-	printf("CR = 0x%x\n", tmp);
-#endif
-	/*
-	 * query MAM bit in misc register for 10base2
-	 */
-	tmp = inb (isa_dev->id_iobase + ZE_MISC);
-
-	/*
-	 * Some Intel-compatible PCICs of Cirrus Logic fails in 
-	 * initializing them.  This is a quick hack to fix this 
-	 * problem.
-	 *        HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
-	 */
-	if (!tmp && !re_init_flag) {
-		re_init_flag++;
-		goto re_init;
-	}
-
+	tmp = inb (sc->iobase + ZE_RESET);
 	sc->mau = tmp & 0x09 ? "10base2" : "10baseT";
 
 	/* set width/size */
@@ -517,9 +409,120 @@ re_init:
 	/* information for reconfiguration */
 	sc->last_alive = 0;
 	sc->last_up = 0;
-	sc->slot = slot;
 
 	return 32;
+}
+
+
+void
+ze_setup(struct ze_softc *sc)
+{
+	int re_init_flag = 0,tmp,slot = sc->slot;
+
+re_init:
+	/*
+	 * (2) map card configuration registers.  these are offset
+	 * in card memory space by 0x20000.  normally we could get
+	 * this offset from the card information structure, but I'm
+	 * too lazy and am not quite sure if I understand the CIS anyway.
+	 *
+	 * XXX IF YOU'RE TRYING TO PORT THIS DRIVER FOR A DIFFERENT
+	 * PCMCIA CARD, the most likely thing to change is the constant
+	 * 0x20000 in the next statement.  Oh yes, also change the
+	 * card id string that we probe for.
+	 */
+	pcic_map_memory (slot, 0, kvtop (sc->maddr), 0x20000, 8L,
+			 ATTRIBUTE, 1);
+	POKE(sc->maddr, 0x80);	/* reset the card (how long?) */
+	DELAY (40000);
+	/*
+	 * Set the configuration index.  According to [1], the adapter won't
+	 * respond to any i/o signals until we do this; it uses the
+	 * Memory Only interface (whatever that is; it's not documented).
+	 * Also turn on "level" (not pulse) interrupts.
+	 *
+	 * XXX probably should init the socket and copy register also,
+	 * so that we can deal with multiple instances of the same card.
+	 */
+	POKE(sc->maddr, 0x41);
+	pcic_unmap_memory (slot, 0);
+
+	/*
+	 * (3) now map in the shared memory buffer.  This has to be mapped
+	 * as words, not bytes, and on a 16k boundary.  The offset value
+	 * was derived by installing IBM's POINTETH.SYS under DOS and
+	 * looking at the PCIC registers; it's not documented in IBM's
+	 * tech ref manual ([1]).
+	 */
+	pcic_map_memory (slot, 0, kvtop (sc->maddr), 0x4000L, 0x4000L,
+			 COMMON, 2);
+
+	/*
+	 * (4) map i/o ports.
+	 *
+	 * XXX is it possible that the config file leaves this unspecified,
+	 * in which case we have to pick one?
+	 *
+	 * At least one PCMCIA device driver I'v seen maps a block
+	 * of 32 consecutive i/o ports as two windows of 16 ports each.
+	 * Maybe some other pcic chips are restricted to 16-port windows;
+	 * the 82365SL doesn't seem to have that problem.  But since
+	 * we have an extra window anyway...
+	 */
+#ifdef SHARED_MEMORY
+	pcic_map_io (slot, 0, sc->iobase, 32, 1);
+#else
+	pcic_map_io (slot, 0, sc->iobase, 16, 1);
+	pcic_map_io (slot, 1, sc->iobase+16, 16, 2);
+#endif /* SHARED_MEMORY */
+
+	/*
+	 * (5) configure the card for the desired interrupt
+	 *
+	 * XXX is it possible that the config file leaves this unspecified?
+	 */
+	pcic_map_irq (slot, ffs (sc->irq) - 1);
+
+	/* tell the PCIC that this is an I/O card (not memory) */
+	pcic_putb (slot, PCIC_INT_GEN,
+		   pcic_getb (slot, PCIC_INT_GEN) | PCIC_CARDTYPE);
+
+#if 0
+	/* tell the PCIC to use level-mode interrupts */
+	/* XXX this register may not be present on all controllers */
+	pcic_putb (slot, PCIC_GLO_CTRL,
+		   pcic_getb (slot, PCIC_GLO_CTRL) | PCIC_LVL_MODE);
+#endif
+	
+#if 0
+	pcic_print_regs (slot);
+#endif
+
+	/* reset card to force it into a known state */
+	tmp = inb (sc->iobase + ZE_RESET);
+	DELAY(20000);
+	outb (sc->iobase + ZE_RESET, tmp);
+	DELAY(20000);
+
+#if 0
+	tmp = inb(sc->iobase);
+	printf("CR = 0x%x\n", tmp);
+#endif
+	/*
+	 * query MAM bit in misc register for 10base2
+	 */
+	tmp = inb (sc->iobase + ZE_MISC);
+
+	/*
+	 * Some Intel-compatible PCICs of Cirrus Logic fails in 
+	 * initializing them.  This is a quick hack to fix this 
+	 * problem.
+	 *        HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
+	 */
+	if (!tmp && !re_init_flag) {
+		re_init_flag++;
+		goto re_init;
+	}
 }
 
 #if NAPM > 0
@@ -714,6 +717,7 @@ ze_stop(unit)
 	 *	DS8390's, but just in case it's an old one.
 	 */
 	while (((inb(sc->nic_addr + ZE_P0_ISR) & ZE_ISR_RST) == 0) && --n);
+	pcic_power_off(0);
 
 }
 
@@ -730,6 +734,8 @@ ze_watchdog(unit)
     u_char isr, imr;
     u_short imask;
 
+    if(!(sc->arpcom.ac_if.if_flags & IFF_UP))
+	return;
     /* select page zero */
     outb (sc->nic_addr + ZE_P0_CR, 
 	  (inb (sc->nic_addr + ZE_P0_CR) & 0x3f) | ZE_CR_PAGE_0);
@@ -768,6 +774,11 @@ ze_init(unit)
 	u_char	command;
 
 
+	pcic_power_on(sc->slot);
+	pcic_reset(sc->slot);
+        if(!(sc->arpcom.ac_if.if_flags & IFF_UP))
+		Debugger("here!!");
+	ze_setup(sc);
 	/* address not known */
 	if (ifp->if_addrlist == (struct ifaddr *)0) return;
 
@@ -884,20 +895,6 @@ ze_init(unit)
 	 * Take interface out of loopback
 	 */
 	outb(sc->nic_addr + ZE_P0_TCR, 0);
-
-#if 0
-	/*
-	 * If this is a 3Com board, the tranceiver must be software enabled
-	 *	(there is no settable hardware default).
-	 */
-	if (sc->vendor == ZE_VENDOR_3COM) {
-		if (ifp->if_flags & IFF_LINK0) {
-			outb(sc->asic_addr + ZE_3COM_CR, 0);
-		} else {
-			outb(sc->asic_addr + ZE_3COM_CR, ZE_3COM_CR_XSEL);
-		}
-	}
-#endif
 
 	/*
 	 * Set 'running' flag, and clear output active flag.
@@ -1024,16 +1021,6 @@ outloop:
 	/*
 	 * Copy the mbuf chain into the transmit buffer
 	 */
-#if 0
-	/*
-	 * Enable 16bit access to shared memory on WD/SMC boards
-	 */
-	if (sc->memwidth == 16)
-		if (sc->vendor == ZE_VENDOR_WD_SMC) {
-			laar_tmp = inb(sc->asic_addr + ZE_WD_LAAR);
-			outb(sc->asic_addr + ZE_WD_LAAR, laar_tmp | ZE_WD_LAAR_M16EN);
-		}
-#endif
 
 	buffer = sc->smem_start + (sc->txb_next * ZE_TXBUF_SIZE * ZE_PAGE_SIZE);
 	len = 0;
@@ -1042,16 +1029,6 @@ outloop:
 		buffer += m->m_len;
         	len += m->m_len;
 	}
-
-#if 0
-	/*
-	 * Restore previous shared mem access type
-	 */
-	if (sc->memwidth == 16)
-		if (sc->vendor == ZE_VENDOR_WD_SMC) {
-			outb(sc->asic_addr + ZE_WD_LAAR, laar_tmp);
-		}
-#endif
 
 	sc->txb_next_len = max(len, ETHER_MIN_LEN);
 
@@ -1181,6 +1158,8 @@ zeintr(unit)
 	struct ze_softc *sc = &ze_softc[unit];
 	u_char isr;
 
+        if(!(sc->arpcom.ac_if.if_flags & IFF_UP))
+		return;
 	/*
 	 * Set NIC to page 0 registers
 	 */
@@ -1247,14 +1226,9 @@ zeintr(unit)
 		if (isr & ZE_ISR_RXE) {
 			++sc->arpcom.ac_if.if_ierrors;
 #ifdef ZE_DEBUG
-#if 0
-			printf("ze%d: receive error %x\n", unit,
-				inb(sc->nic_addr + ZE_P0_RSR));
-#else
 			printf("ze%d: receive error %b\n", unit,
 				inb(sc->nic_addr + ZE_P0_RSR),
 			       "\20\8DEF\7REC DISAB\6PHY/MC\5MISSED\4OVR\3ALIGN\2FCS\1RCVD");
-#endif
 #endif
 		}
 
@@ -1269,12 +1243,6 @@ zeintr(unit)
 		 */
 		if (isr & ZE_ISR_OVW) {
 			++sc->arpcom.ac_if.if_ierrors;
-#if 0
-			/* sigh.  this happens too often on our net */
-			log(LOG_WARNING,
-				"ze%d: warning - receiver ring buffer overrun\n",
-				unit);
-#endif
 			/*
 			 * Stop/reset/re-init NIC
 			 */
@@ -1318,30 +1286,7 @@ zeintr(unit)
 		 *	   interface to not accept packets with errors).
 		 */
 		if (isr & (ZE_ISR_PRX|ZE_ISR_RXE)) {
-#if 0
-			/*
-			 * Enable access to shared memory on WD/SMC boards
-			 */
-			if (sc->memwidth == 16)
-				if (sc->vendor == ZE_VENDOR_WD_SMC) {
-					outb(sc->asic_addr + ZE_WD_LAAR,
-						inb(sc->asic_addr + ZE_WD_LAAR)
-						| ZE_WD_LAAR_M16EN);
-				}
-#endif
 			ze_rint (unit);
-
-#if 0
-			/*
-			 * Disable access to shared memory
-			 */
-			if (sc->memwidth == 16)
-				if (sc->vendor == ZE_VENDOR_WD_SMC) {
-					outb(sc->asic_addr + ZE_WD_LAAR,
-						inb(sc->asic_addr + ZE_WD_LAAR)
-						& ~ZE_WD_LAAR_M16EN);
-				}
-#endif
 		}
 
 		/*
@@ -1485,21 +1430,6 @@ ze_ioctl(ifp, command, data)
 			outb(sc->nic_addr + ZE_P0_RCR, ZE_RCR_AB);
 		}
 #endif
-#if 0
-		/*
-		 * An unfortunate hack to provide the (required) software control
-		 *	of the tranceiver for 3Com boards. The LLC0 flag disables
-		 *	the tranceiver if set.
-		 */
-		if (sc->vendor == ZE_VENDOR_3COM) {
-			if (ifp->if_flags & IFF_LINK0) {
-				outb(sc->asic_addr + ZE_3COM_CR, 0);
-			} else {
-				outb(sc->asic_addr + ZE_3COM_CR, ZE_3COM_CR_XSEL);
-			}
-		}
-#endif
-
 		break;
 
 	default:
