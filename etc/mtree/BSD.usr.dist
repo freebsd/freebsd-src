@@ -833,6 +833,8 @@
             ..
             sv_SE.ISO_8859-1
             ..
+	    tr_TR.ISO_8859-9
+	    ..
             uk_UA.KOI8-U
             ..
             zh_CN.EUC
