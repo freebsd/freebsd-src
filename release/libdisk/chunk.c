@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: chunk.c,v 1.2 1995/04/29 01:55:19 phk Exp $
  *
  */
 
@@ -228,8 +228,8 @@ Print_Chunk(struct chunk *c1,int offset)
 	if(!c1) return;
 	for(i=0;i<offset;i++) putchar('>');
 	for(;i<10;i++) putchar(' ');
-	printf("%10lu %10lu %10lu %-8s %d %-8s %d %lx\n",
-		c1->offset, c1->size, c1->end, c1->name, 
+	printf("%p %10lu %10lu %10lu %-8s %d %-8s %d %lx\n",
+		c1, c1->offset, c1->size, c1->end, c1->name, 
 		c1->type, chunk_n[c1->type],c1->subtype,c1->flags);
 	Print_Chunk(c1->part,offset + 2);
 	Print_Chunk(c1->next,offset);
