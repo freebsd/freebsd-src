@@ -166,7 +166,7 @@ int	 cgetustr __P((char *, char *, char **));
 int	 daemon __P((int, int));
 char	*devname __P((int, int));
 int	 getloadavg __P((double [], int));
-const char *
+__const char *
 	 getprogname __P((void));
 
 char	*group_from_gid __P((unsigned long, int));
