@@ -52,8 +52,8 @@ struct memory_slice {
 typedef void kernel_entry_t(vm_offset_t mdp, u_long o1, u_long o2, u_long o3,
 			    void *openfirmware);
 
-extern void itlb_enter(int slot, u_long vpn, u_long data);
-extern void dtlb_enter(int slot, u_long vpn, u_long data);
+extern void itlb_enter(u_long vpn, u_long data);
+extern void dtlb_enter(u_long vpn, u_long data);
 extern vm_offset_t itlb_va_to_pa(vm_offset_t);
 extern vm_offset_t dtlb_va_to_pa(vm_offset_t);
 extern vm_offset_t md_load(char *, vm_offset_t *);
@@ -242,10 +242,6 @@ mmu_mapin(vm_offset_t va, vm_size_t len)
 	vm_offset_t pa, mva;
 	struct tte tte;
 
-	if (dtlb_slot < 0) 
-		panic("mmu_mapin: out of dtlb_slots");
-	if (itlb_slot < 0)
-		panic("mmu_mapin: out of itlb_slots");
 	if (va + len > curkva)
 		curkva = va + len;
 
@@ -271,13 +267,21 @@ mmu_mapin(vm_offset_t va, vm_size_t len)
 				/* The mappings may have changed, be paranoid. */
 				continue;
 			}
+			/*
+			 * Actually, we can only allocate two pages less at
+			 * most (depending on the kernel TSB size).
+			 */
+			if (dtlb_slot >= dtlb_slot_max)
+				panic("mmu_mapin: out of dtlb_slots");
+			if (itlb_slot >= itlb_slot_max)
+				panic("mmu_mapin: out of itlb_slots");
 			tte.tte_vpn = TV_VPN(va);
 			tte.tte_data = TD_V | TD_4M | TD_PA(pa) | TD_L | TD_CP |
 			    TD_CV | TD_P | TD_W;
-			dtlb_store[--dtlb_slot] = tte;
-			itlb_store[--itlb_slot] = tte;
-			dtlb_enter(dtlb_slot, tte.tte_vpn, tte.tte_data);
-			itlb_enter(itlb_slot, tte.tte_vpn, tte.tte_data);
+			dtlb_store[dtlb_slot++] = tte;
+			itlb_store[itlb_slot++] = tte;
+			dtlb_enter(tte.tte_vpn, tte.tte_data);
+			itlb_enter(tte.tte_vpn, tte.tte_data);
 			pa = (vm_offset_t)-1;
 		}
 		len -= len > PAGE_SIZE_4M ? PAGE_SIZE_4M : len;
@@ -336,8 +340,6 @@ tlb_init(void)
 	itlb_store = malloc(itlb_slot_max * sizeof(*itlb_store));
 	if (dtlb_store == NULL || itlb_store == NULL)
 		panic("init_tlb: malloc");
-	dtlb_slot = dtlb_slot_max;
-	itlb_slot = itlb_slot_max;
 }
 
 int
