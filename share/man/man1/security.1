@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)security.1	8.2 (Berkeley) 12/30/93
-.\"	$Id: security.1,v 1.10 1997/06/13 21:11:27 max Exp $
+.\"	$Id: security.1,v 1.1 1998/12/19 09:33:03 dillon Exp $
 .\"
 .Dd December 30, 1993
 .Dt SECURITY 1
@@ -39,6 +39,7 @@
 .Nm security
 .Nd introduction to security under FreeBSD
 .Sh DESCRIPTION
+.Pp
 Security is a function that begins and ends with the system administrator.
 While all
 .Bx
@@ -237,6 +238,7 @@ program or emulator with a talk-back feature, the hacker can potentially
 generate a data stream that causes the user's terminal to echo a command, which
 is then run as that user.
 .Sh SECURING USER ACCOUNTS
+.Pp
 User accounts are usually the most difficult to secure.  While you can impose
 draconian access restrictions on your staff and *-out their passwords, you
 may not be able to do so with any general user accounts you might have.  If
@@ -246,6 +248,7 @@ monitoring of those accounts.  Use of ssh and kerberos for user accounts is
 more problematic, but still a very good solution compared to a crypted
 password. 
 .Sh SECURING THE PASSWORD FILE
+.Pp
 The only sure fire way is to *-out as many passwords as you can and 
 use ssh or kerberos for access to those accounts.  Even though the 
 crypted password file (/etc/spwd.db) can only be read by root, it may
@@ -255,6 +258,7 @@ attacker cannot obtain root-write access.
 Your security scripts should always check for and report changes to 
 the password file (see 'Checking file integrity' below).
 .Sh SECURING THE KERNEL CORE, RAW DEVICES, AND FILESYSTEMS
+.Pp
 If an attacker breaks root he can do just about anything, but there
 are certain conveniences.  For example, most modern kernels have a
 packet sniffing device driver built in.  Under FreeBSD it is called
@@ -336,11 +340,98 @@ should be generated in as secured a manner as possible - remote syslog can be
 very useful.  A hacker tries to cover his tracks, and log files are critical
 to the sysop trying to track down the time and method of the initial breakin.
 .Sh PARANOIA
+.Pp
 A little paranoia never hurts.  As a rule, a sysop can add any number
 of security features as long as they do not effect convenience, and 
 can add security features that do effect convenience with some added
 thought.
+.Sh SPECIAL SECTION ON D.O.S. ATTACKS
+.Pp
+This section covers Dential of Service attacks.  A DOS attack is typically
+a packet attack.  While there isn't much you can do about modern spoofed
+packet attacks that saturate your network, you can generally limit the damage
+by ensuring that the attacks cannot take down your servers.  
+.Bl -enum -offset indent
+.It
+Limiting server forks
+.It
+Limiting springboard attacks (ICMP response attacks, ping broadcast, etc...)
+.It
+Kernel Route Cache
+.El
+.Pp
+A common DOS attack is against a forking server that attempts to cause the
+server to eat processes, file descirptors, and memory until the machine
+dies.  Inetd (see inetd(8)) has several options to limit this sort of attack.
+It should be noted that while it is possible to prevent a machine from going
+down it is not generally possible to prevent a service from being disrupted 
+by the attack.  Read the inetd manual page carefully and pay specific attention
+to the -c, -C, and -R options.  Note that spoofed-IP attacks will circumvent
+the -C option to inetd, so typically a combination of options must be used.
+Some standalone servers have self-fork-limitation parameters.  
+.Pp
+Sendmail has its -OMaxDaemonChildren option which tends to work much
+better then trying to use sendmail's load limiting options due to the
+load lag.  You should specify a MaxDaemonChildren parameter when you start
+sendmail high enough to handle your expected load but no so high that the
+computer cannot handle that number of sendmails without falling on its face. 
+It is also prudent to run sendmail in queued mode (-ODeliveryMode=queued)
+and to run the daemon (sendmail -bd) separate from the queue-runs
+(sendmail -q15m).   If you still want realtime delivery you can run the queue
+at a much lower interval, such as -q1m, but be sure to specify a reasonable
+MaxDaemonChildren option for that sendmail to prevent cascade failures.
+.Pp
+You should also be fairly careful
+with connect-back services such as tcpwrapper's reverse-identd, which can 
+be attacked directly.  You generally do not want to use the reverse-ident
+feature of tcpwrappers for this reason.
+.Pp
+Another common DOS attack is called a springboard attack - to attack a server
+in a manner that causes the server to generate responses which then overload
+the server, the local network, or some other machine.  The most common attack
+of this nature is the ICMP PING BROADCAST attack.  The attacker spoofed ping
+packets sent to your LAN's broadcast address with the source IP address set
+to the actual machine they wish to attack.  If your border routers are not
+configured to stomp on ping's to broadcast addresses, your LAN winds up
+generating sufficient responses to the spoofed source address to saturate the
+victim, especially when the attacker uses the same trick on several dozen
+broadcast addresses over several dozen different networks at once.  Broadcast
+attacks of over a hundred and twenty megabits have been measured.  A second
+common springboard attack is against the ICMP error reporting system.  By
+constructing packets that generate ICMP error responses, an attacker can 
+saturate a server's incoming network and cause the server to saturate its 
+outgoing network with ICMP responses.  This type of attack can also crash the
+server by running it out of mbuf's, especially if the server cannot drain the
+ICMP responses it generates fast enough.  The FreeBSD kernel has a new kernel
+compile option called ICMP_BANDLIM which limits the effectiveness of these 
+sorts of attacks.  The last major class of springboard attacks is related to
+certain internal inetd services such as the udp echo service.  An attacker 
+simply spoofs a UDP packet with the source address being server A's echo port,
+and the destination address being server B's echo port, where server A and B
+are both on your LAN.  The two servers then bounce this one packet back and
+forth between each other.  The attacker can overload both servers and their
+LANs simply by injecting a few packets in this manner.  Similar problems
+exist with the internal chargen port.  A competent sysad will turn off all
+of these inetd-internal test services.
+.Pp
+Spoofed packet attacks may also be used to overload the kernel route cache.
+Refer to the net.inet.ip.rtexpire, rtminexpire, and rtmaxcache sysctl 
+parameters.  A spoofed packet attack that uses a random source IP will cause
+the kernel to generate a temporary cached route in the route table, viewable
+with 'netstat -rna | fgrep W3'.  These routes typically timeout in 1600
+seconds or so.  If the kernel detects that the cached route table has gotten
+too big it will dynamically reduce the rtexpire but will never decrease it to
+less then rtminexpire.  There are two problems:  (1) The kernel does not react
+quickly enough when a lightly loaded server is suddenly attacked, and (2) The
+rtminexpire is not low enough for the kernel to survive a sustained attack.
+If your servers are connected to the internet via a T3 or better it may be 
+prudent to manually override both rtexpire and rtminexpire via sysctl(8).
+Never set either parameter to zero (unless you want to crash the machine :-)).
+Setting both parameters to 2 seconds should be sufficient to protect the route
+table from attack.
+
 .Sh SEE ALSO
+.Pp
 .Xr ssh 1 ,
 .Xr sshd 1 ,
 .Xr kerberos 1 ,
@@ -349,8 +440,11 @@ thought.
 .Xr syslogd 1 ,
 .Xr chflags 1 ,
 .Xr find 1 ,
-.Xr md5 1
+.Xr md5 1 ,
+.Xr sysctl 8
 .Sh HISTORY
 The
 .Nm
-manual page first appeared in FreeBSD-3.0.1, December 1998.
+manual page was originally written by Matthew Dillon and first appeared 
+in FreeBSD-3.0.1, December 1998.
+
