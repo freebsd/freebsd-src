@@ -54,18 +54,63 @@
 .Ft void
 .Fn free "void *addr" "struct malloc_type *type"
 .Fn FREE "void *addr" "struct malloc_type *type"
+.Ft void *
+.Fn realloc "void *addr" "unsigned long size" "struct malloc_type *type" "int flags"
+.Ft void *
+.Fn reallocf "void *addr" "unsigned long size" "struct malloc_type *type" "int flags"
 .Sh DESCRIPTION
 The
 .Fn malloc
 function allocates uninitialized memory in kernel address space for an
 object whose size is specified by
 .Fa size .
+.Pp
 .Fn free
 releases memory at address
 .Fa addr
 that was previously allocated by
 .Fn malloc
-for re-use.  The memory is not zeroed.
+for re-use.
+The memory is not zeroed.
+If
+.Fa addr
+is
+.Dv NULL ,
+then
+.Fn free
+does nothing.
+.Pp
+The
+.Fn realloc
+function changes the size of the previously allocated memory referenced by
+.Fa addr
+to
+.Fa size
+bytes.
+The contents of the memory are unchanged up to the lesser of the new and
+old sizes.
+Note that the returned value may differ from
+.Fa addr .
+If the requested memory cannot be allocated,
+.Dv NULL
+is returned and the memory referenced by
+.Fa addr
+is valid and unchanged.
+If
+.Fa addr
+is
+.Dv NULL ,
+the
+.Fn realloc
+function behaves identically to
+.Fn malloc
+for the specified size.
+.Pp
+The
+.Fn reallocf
+function call is identical to the realloc function call, except that it
+will free the passed pointer when the requested memory cannot be allocated.
+.Pp
 The
 .Fn MALLOC
 macro variant is functionally equivalent to
@@ -92,26 +137,35 @@ operational characteristics as follows:
 Causes the allocated memory to be set to all zeros.
 .It Dv M_NOWAIT
 Causes
-.Fn malloc
+.Fn malloc ,
+.Fn realloc ,
+or
+.Fn reallocf
 to return
 .Dv NULL
 if the request cannot be immediately fulfilled due to resource shortage.
-Otherwise,
-.Fn malloc
-may call sleep to wait for resources to be released by other processes.
+Otherwise, the current process may be put to sleep to wait for
+resources to be released by other processes.
 If this flag is set,
 .Fn malloc
 will return
 .Dv NULL
-rather then block.  Note that
+rather then block.
+Note that
 .Dv M_WAITOK
 is defined to be 0, meaning that blocking operation is the default.
+Also note that 
+.Dv M_NOWAIT
+is required when running in an interrupt context.
 .It Dv M_WAITOK
 Indicates that it is Ok to wait for resources.  It is unconveniently
 defined as 0 so care should be taken never to compare against this value
 directly or try to AND it as a flag.  The default operation is to block
 until the memory allocation succeeds.
-.Fn malloc
+.Fn malloc ,
+.Fn realloc ,
+and
+.Fn reallocf
 can only return
 .Dv NULL
 if
@@ -157,13 +211,22 @@ MALLOC(buf, struct foo_buf *, sizeof *buf, M_FOOBUF, M_NOWAIT);
 
 .Ed
 .Sh RETURN VALUES
-.Fn malloc
-returns a kernel virtual address that is suitably aligned for storage of
+.Fn malloc ,
+.Fn realloc ,
+and
+.Fn reallocf 
+return a kernel virtual address that is suitably aligned for storage of
 any type of object, or
 .Dv NULL
-if the request could not be satisfied and
+if the request could not be satisfied (implying that
 .Dv M_NOWAIT
-was set.
+was set).
+.Sh IMPLEMENTATION NOTES
+The memory allocator allocates memory in chunks that have size a power
+of two for requests up to the size of a page of memory.
+For larger requests, one or more pages is allocated.
+While it should not be relied upon, this information may be useful for
+optimizing the efficiency of memory use.
 .Sh SEE ALSO
 .Xr vmstat 8
 .Sh DIAGNOSTICS

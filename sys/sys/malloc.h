@@ -173,6 +173,10 @@ void	free __P((void *addr, struct malloc_type *type));
 void	*malloc __P((unsigned long size, struct malloc_type *type, int flags));
 void	malloc_init __P((void *));
 void	malloc_uninit __P((void *));
+void	*realloc __P((void *addr, unsigned long size,
+		      struct malloc_type *type, int flags));
+void	*reallocf __P((void *addr, unsigned long size,
+		      struct malloc_type *type, int flags));
 #endif /* _KERNEL */
 
 #endif /* !_SYS_MALLOC_H_ */
