@@ -42,14 +42,13 @@
 protocol server
 .Sh SYNOPSIS
 .Nm /usr/libexec/telnetd
-.Op Fl BUhlkns
+.Op Fl BUhlkn
 .Op Fl D Ar debugmode
 .Op Fl S Ar tos
 .Op Fl X Ar authtype
 .Op Fl a Ar authmode
 .Op Fl edebug
 .Op Fl p Ar loginprog
-.Op Fl r Ns Ar lowpty-highpty
 .Op Fl u Ar len
 .Op Fl debug Op Ar port
 .Sh DESCRIPTION
@@ -188,11 +187,6 @@ If
 has been compiled with support for data encryption, then the
 .Fl edebug
 option may be used to enable encryption debugging code.
-.It Fl p Ar loginprog
-Specify an alternate
-.Xr login 1
-command to run to complete the login.  The alternate command must
-understand the same command arguments as the standard login.
 .It Fl h
 Disable the printing of host-specific information before
 login has been completed.
@@ -243,25 +237,11 @@ have been idle for some period of time to determine
 if the client is still there, so that idle connections
 from machines that have crashed or can no longer
 be reached may be cleaned up.
-.It Fl s
-This option is only enabled if
-.Nm
-is compiled with support for
-.Tn SecurID
-cards.
-It causes the
-.Fl s
-option to be passed on to
-.Xr login 1 ,
-and thus is only useful if
+.It Fl p Ar loginprog
+Specify an alternate
 .Xr login 1
-supports the
-.Fl s
-flag to indicate that only
-.Tn SecurID
-validated logins are allowed, and is
-usually useful for controlling remote logins
-from outside of a firewall.
+command to run to complete the login.  The alternate command must
+understand the same command arguments as the standard login.
 .It Fl S Ar tos
 .It Fl u Ar len
 This option is used to specify the size of the field
