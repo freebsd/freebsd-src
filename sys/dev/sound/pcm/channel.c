@@ -258,6 +258,7 @@ chn_write(struct pcm_channel *c, struct uio *buf)
 				timeout = (hz * sndbuf_getblksz(bs)) / (sndbuf_getspd(bs) * sndbuf_getbps(bs));
 				if (timeout < 1)
 					timeout = 1;
+				timeout = 1;
 	   			ret = chn_sleep(c, "pcmwr", timeout);
 				if (ret == EWOULDBLOCK) {
 					count -= timeout;
@@ -353,7 +354,7 @@ chn_rdintr(struct pcm_channel *c)
 	CHN_LOCKASSERT(c);
 	/* tell the driver to update the primary buffer if non-dma */
 	chn_trigger(c, PCMTRIG_EMLDMARD);
-	/* update pointers in primary bufhard */
+	/* update pointers in primary buffer */
 	chn_dmaupdate(c);
 	/* ...and feed from primary to secondary */
 	ret = chn_rdfeed(c);
@@ -422,7 +423,7 @@ chn_intr(struct pcm_channel *c)
 u_int32_t
 chn_start(struct pcm_channel *c, int force)
 {
-	u_int32_t i;
+	u_int32_t i, j;
 	struct snd_dbuf *b = c->bufhard;
 	struct snd_dbuf *bs = c->bufsoft;
 
@@ -432,7 +433,8 @@ chn_start(struct pcm_channel *c, int force)
 		return EINVAL;
 
 	i = (c->direction == PCMDIR_PLAY)? sndbuf_getready(bs) : sndbuf_getfree(bs);
-	if (force || (i >= sndbuf_getblksz(b))) {
+	j = (c->direction == PCMDIR_PLAY)? sndbuf_getfree(b) : sndbuf_getready(b);
+	if (force || (i >= j)) {
 		c->flags |= CHN_F_TRIGGERED;
 		/*
 		 * if we're starting because a vchan started, don't feed any data
@@ -448,6 +450,7 @@ chn_start(struct pcm_channel *c, int force)
 				sndbuf_fillsilence(b);
 		}
 		sndbuf_setrun(b, 1);
+		c->xruns = 0;
 	    	chn_trigger(c, PCMTRIG_START);
 		return 0;
 	}
