@@ -1,4 +1,4 @@
-/* $NetBSD: pathnames.h,v 1.2 1995/07/03 21:25:20 cgd Exp $	*/
+/*	$NetBSD: pathnames.h,v 1.2 1995/07/03 21:25:20 cgd Exp $	*/
 
 /*
  * Copyright (c) 1994, 1995 Jochen Pohl
