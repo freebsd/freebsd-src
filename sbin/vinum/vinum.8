@@ -21,7 +21,7 @@
 .\" 4. Neither the name of the Company nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
-.\"  
+.\"
 .\" This software is provided ``as is'', and any express or implied
 .\" warranties, including, but not limited to, the implied warranties of
 .\" merchantability and fitness for a particular purpose are disclaimed.
@@ -38,311 +38,264 @@
 .\" $FreeBSD$
 .\"
 .Dd December 20, 2000
-.Dt vinum 8
+.Dt VINUM 8
 .Os
 .Sh NAME
 .Nm vinum
 .Nd Logical Volume Manager control program
 .Sh SYNOPSIS
 .Nm
-.Op command
+.Op Ar command
 .Op Fl options
 .Sh COMMANDS
-.Cd attach Ar plex Ar volume
-.Op Nm rename
-.Cd attach Ar subdisk Ar plex Ar [offset]
-.Op Nm rename
-.in +1i
+.Bl -tag -width indent
+.It Ic attach Ar plex volume Op Cm rename
+.It Xo
+.Ic attach Ar subdisk plex
+.Op Ar offset
+.Op Cm rename
+.Xc
 Attach a plex to a volume, or a subdisk to a plex.
-.in
-.Cd checkparity Ar plex Op Fl f 
+.It Xo
+.Ic checkparity Ar plex
+.Op Fl f
 .Op Fl v
-.in +1i
+.Xc
 Check the parity blocks of a RAID-4 or RAID-5 plex.
-.in
-.Nm concat
+.It Xo
+.Ic concat
 .Op Fl f
 .Op Fl n Ar name
 .Op Fl v
 .Ar drives
-.in +1i
+.Xc
 Create a concatenated volume from the specified drives.
-.in
-.Cd create
+.It Xo
+.Ic create
 .Op Fl f
 .Ar description-file
-.in +1i
+.Xc
 Create a volume as described in
-.Ar description-file
-.in
-.Cd debug
-.in +1i
+.Ar description-file .
+.It Ic debug
 Cause the volume manager to enter the kernel debugger.
-.in
-.Cd debug
-.Ar flags
-.in +1i
+.It Ic debug Ar flags
 Set debugging flags.
-.in
-.Cd detach
+.It Xo
+.Ic detach
 .Op Fl f
 .Op Ar plex | subdisk
-.in +1i
+.Xc
 Detach a plex or subdisk from the volume or plex to which it is attached.
-.in
-.Cd dumpconfig
-.Op Ar drive ...
-.in +1i
+.It Ic dumpconfig Op Ar drive ...
 List the configuration information stored on the specified drives, or all drives
 in the system if no drive names are specified.
-.in
-.Cd info
+.It Xo
+.Ic info
 .Op Fl v
 .Op Fl V
-.in +1i
+.Xc
 List information about volume manager state.
-.in
-.Cd init
+.It Xo
+.Ic init
 .Op Fl S Ar size
 .Op Fl w
 .Ar plex | subdisk
-.in +1i
+.Xc
 .\" XXX
 Initialize the contents of a subdisk or all the subdisks of a plex to all zeros.
-.in
-.Cd label
-.Ar volume
-.in +1i
-Create a volume label
-.in
-.Cd list
+.It Ic label Ar volume
+Create a volume label.
+.It Xo
+.Ic l | list
 .Op Fl r
 .Op Fl s
 .Op Fl v
 .Op Fl V
-.Op volume | plex | subdisk
-.in +1i
-List information about specified objects
-.in
-.Cd l
+.Op Ar volume | plex | subdisk
+.Xc
+List information about specified objects.
+.It Xo
+.Ic ld
 .Op Fl r
 .Op Fl s
 .Op Fl v
 .Op Fl V
-.Op volume | plex | subdisk
-.in +1i
-List information about specified objects (alternative to
-.Cd list
-command)
-.in
-.Cd ld
+.Op Ar volume
+.Xc
+List information about drives.
+.It Xo
+.Ic ls
 .Op Fl r
 .Op Fl s
 .Op Fl v
 .Op Fl V
-.Op volume
-.in +1i
-List information about drives
-.in
-.Cd ls
+.Op Ar subdisk
+.Xc
+List information about subdisks.
+.It Xo
+.Ic lp
 .Op Fl r
 .Op Fl s
 .Op Fl v
 .Op Fl V
-.Op subdisk
-.in +1i
-List information about subdisks
-.in
-.Cd lp
+.Op Ar plex
+.Xc
+List information about plexes.
+.It Xo
+.Ic lv
 .Op Fl r
 .Op Fl s
 .Op Fl v
 .Op Fl V
-.Op plex
-.in +1i
-List information about plexes
-.in
-.Cd lv
-.Op Fl r
-.Op Fl s
-.Op Fl v
-.Op Fl V
-.Op volume
-.in +1i
-List information about volumes
-.in
-.Cd makedev
-.in +1i
+.Op Ar volume
+.Xc
+List information about volumes.
+.It Ic makedev
 Remake the device nodes in
-.Ar /dev/vinum .
-.in
-.Nm mirror
+.Pa /dev/vinum .
+.It Xo
+.Ic mirror
 .Op Fl f
 .Op Fl n Ar name
 .Op Fl s
 .Op Fl v
 .Ar drives
-.in +1i
+.Xc
 Create a mirrored volume from the specified drives.
-.in
-.Cd mv Fl f Ar drive Ar object ...
-.br
-.Cd move Fl f Ar drive Ar object ...
-.in +1i
+.It Xo
+.Ic move | mv
+.Fl f
+.Ar drive object ...
+.Xc
 Move the object(s) to the specified drive.
-.in
-.Cd printconfig
-.Op Pa file
-.in +1i
+.It Ic printconfig Op Ar file
 Write a copy of the current configuration to
-.Pa file .
-.in
-.Cd quit
-.in +1i
+.Ar file .
+.It Ic quit
 Exit the
 .Nm
 program when running in interactive mode.  Normally this would be done by
 entering the
-.Ar EOF
+.Dv EOF
 character.
-.in
-.Cd read
-.Ar disk Op disk...
-.in +1i
+.It Ic read Ar disk ...
 Read the
 .Nm
 configuration from the specified disks.
-.in
-.Cd rename Op Fl r
-.Ar [ drive | subdisk | plex | volume ]
+.It Xo
+.Ic rename Op Fl r
+.Op Ar drive | subdisk | plex | volume
 .Ar newname
-.in +1i
+.Xc
 Change the name of the specified object.
-.in
-.ig
-XXX
-.Cd replace
-.Ar drive
-.Ar newdrive
-.in +1i 
-Move all the subdisks from the specified drive onto the new drive.
-.in
-..
-.Cd rebuildparity Ar plex Op Fl f
-.Op Fl v 
+.\" XXX
+.\".It Ic replace Ar drive newdrive
+.\"Move all the subdisks from the specified drive onto the new drive.
+.It Xo
+.Ic rebuildparity Ar plex Op Fl f
+.Op Fl v
 .Op Fl V
-.in +1i
+.Xc
 Rebuild the parity blocks of a RAID-4 or RAID-5 plex.
-.in
-.Cd resetconfig
-.in +1i
+.It Ic resetconfig
 Reset the complete
 .Nm
 configuration.
-.in
-.Cd resetstats
+.It Xo
+.Ic resetstats
 .Op Fl r
-.Op volume | plex | subdisk
-.in +1i
+.Op Ar volume | plex | subdisk
+.Xc
 Reset statistisc counters for the specified objects, or for all objects if none
 are specified.
-.in
-.Cd rm
+.It Xo
+.Ic rm
 .Op Fl f
 .Op Fl r
 .Ar volume | plex | subdisk
-.in +1i
-Remove an object
-.in
-.Cd saveconfig
-.in +1i
+.Xc
+Remove an object.
+.It Ic saveconfig
 Save
 .Nm
 configuration to disk after configuration failures.
-.in
-.ig
-XXX
-.Cd set
-.Op Fl f
-.Ar state
-.Ar volume | plex | subdisk | disk
-.in +1i
-Set the state of the object to \fIstate\fP\|
-.in
-..
-.Cd setdaemon
-.Op value
-.in +1i
-Set dæmon configuration.
-.in
-.Cd setstate
+.\" XXX
+.\".It Xo
+.\".Ic set
+.\".Op Fl f
+.\".Ar state
+.\".Ar volume | plex | subdisk | disk
+.\".Xc
+.\"Set the state of the object to
+.\".Ar state .
+.It Ic setdaemon Op Ar value
+Set daemon configuration.
+.It Xo
+.Ic setstate
 .Ar state
 .Op Ar volume | plex | subdisk | drive
-.in +1i
+.Xc
 Set state without influencing other objects, for diagnostic purposes only.
-.in
-.Cd start
-.in +1i
+.It Ic start
 Read configuration from all vinum drives.
-.in
-.Cd start
+.It Xo
+.Ic start
 .Op Fl i Ar interval
 .Op Fl S Ar size
 .Op Fl w
-volume | plex | subdisk
-.in +1i
-Allow the system to access the objects
-.in
-.Cd stop
+.Ar volume | plex | subdisk
+.Xc
+Allow the system to access the objects.
+.It Xo
+.Ic stop
 .Op Fl f
-.Op volume | plex | subdisk
-.in +1i
+.Op Ar volume | plex | subdisk
+.Xc
 Terminate access to the objects, or stop
 .Nm
 if no parameters are specified.
-.in
-.Nm stripe
+.It Xo
+.Ic stripe
 .Op Fl f
 .Op Fl n Ar name
 .Op Fl v
 .Ar drives
-.in +1i
+.Xc
 Create a striped volume from the specified drives.
-.in
+.El
 .Sh DESCRIPTION
 .Nm
-is a utility program to communicate with the \fBVinum\fP\| logical volume
-manager.  See
+is a utility program to communicate with the
 .Xr vinum 4
-for more information about the volume manager.
-.Xr vinum 8
+logical volume
+manager.
+.Nm
 is designed either for interactive use, when started without command line
 arguments, or to execute a single command if the command is supplied on the
 command line.  In interactive mode,
 .Nm
 maintains a command line history.
-.Ss OPTIONS
+.Sh OPTIONS
 .Nm
 commands may optionally be followed by an option.  Any of the following options
 may be specified with any command, but in some cases the options are ignored.
 For example, the
-.Nm stop
+.Ic stop
 command ignores the
 .Fl v
 and
 .Fl V
 options.
-.Bl -hang
+.Bl -tag -width indent
 .It Fl f
 The
 .Fl f
-.if t (``force'')
-.if n ("force")
+.Pq Dq force
 option overrides safety checks.  Use with extreme care.  This option is for
 emergency use only.  For example, the command
-.Bd -unfilled -offset indent
-rm -f myvolume
-.Ed
+.Pp
+.Dl rm -f myvolume
 .Pp
 removes
 .Ar myvolume
@@ -350,9 +303,9 @@ even if it is open.  Any subsequent access to the volume will almost certainly
 cause a panic.
 .It Fl i Ar millisecs
 When performing the
-.Nm init
+.Ic init
 and
-.Nm start
+.Ic start
 commands, wait
 .Ar millisecs
 milliseconds between copying each block.  This lowers the load on the system.
@@ -360,19 +313,17 @@ milliseconds between copying each block.  This lowers the load on the system.
 Use the
 .Fl n
 option to specify a volume name to the simplified configuration commands
-.Nm concat ,
-.Nm mirror
+.Ic concat , mirror
 and
-.Nm stripe .
+.Ic stripe .
 .It Fl r
 The
 .Fl r
-.if t (``recursive'')
-.if n ("recursive")
+.Pq Dq recursive
 option is used by the list commands to display information not
 only about the specified objects, but also about subordinate objects.  For
 example, in conjunction with the
-.Nm lv
+.Ic lv
 command, the
 .Fl r
 option will also show information about the plexes and subdisks belonging to the
@@ -380,58 +331,51 @@ volume.
 .It Fl s
 The
 .Fl s
-.if t (``statistics'')
-.if n ("statistics")
+.Pq Dq statistics
 option is used by the list commands to display statistical information.  The
-.Nm mirror
+.Ic mirror
 command also uses this option to specify that it should create striped plexes.
 .It Fl S Ar size
 The
 .Fl S
 option specifies the transfer size for the
-.Nm init
+.Ic init
 and
-.Nm start
+.Ic start
 commands.
 .It Fl v
 The
 .Fl v
-.if t (``verbose'')
-.if n ("verbose")
+.Pq Dq verbose
 option can be used to request more detailed information.
 .It Fl V
 The
 .Fl V
-.if t (``Very verbose'')
-.if n ("Very verbose")
+.Pq Dq Very verbose
 option can be used to request more detailed information than the
 .Fl v
 option provides.
 .It Fl w
 The
 .Fl w
-.if t (``wait'')
-.if n ("wait")
+.Pq Dq wait
 option tells
 .Nm
 to wait for completion of commands which normally run in the background, such as
-.Nm init .
+.Ic init .
 .El
-.Pp
-.Ss COMMANDS IN DETAIL
-.Pp
+.Sh COMMANDS IN DETAIL
 .Nm
 commands perform the following functions:
-.Bl -hang
-.It Nm attach Ar plex Ar volume
-.Op Nm rename
-.if n .sp -1v
-.if t .sp -.6v
-.It Nm attach Ar subdisk Ar plex Ar [offset]
-.Op Nm rename
-.sp
-.Nm
-.Ar attach
+.Pp
+.Bl -tag -width indent -compact
+.It Ic attach Ar plex volume Op Cm rename
+.It Xo
+.Ic attach Ar subdisk plex
+.Op Ar offset
+.Op Cm rename
+.Xc
+.Nm Ic attach
 inserts the specified plex or subdisk in a volume or plex.  In the case of a
 subdisk, an offset in the plex may be specified.  If it is not, the subdisk will
 be attached at the first possible location.  After attaching a plex to a
@@ -440,14 +384,14 @@ non-empty volume,
 reintegrates the plex.
 .Pp
 If the keyword
-.Nm rename
+.Cm rename
 is specified,
 .Nm
 renames the object (and in the case of a plex, any subordinate subdisks) to fit
 in with the default
 .Nm
 naming convention.  To rename the object to any other name, use the
-.Nm rename
+.Ic rename
 command.
 .Pp
 A number of considerations apply to attaching subdisks:
@@ -456,11 +400,11 @@ A number of considerations apply to attaching subdisks:
 Subdisks can normally only be attached to concatenated plexes.
 .It
 If a striped or RAID-5 plex is missing a subdisk (for example after drive
-failure), it should be replaced by a subdisk of the same size only.  
+failure), it should be replaced by a subdisk of the same size only.
 .It
 In order to add further subdisks to a striped or RAID-5 plex, use the
 .Fl f
-(force) option.  This will corrupt the data in the plex.  
+(force) option.  This will corrupt the data in the plex.
 .\"No other attachment of
 .\"subdisks is currently allowed for striped and RAID-5 plexes.
 .It
@@ -473,48 +417,52 @@ multiplied by the stripe size.  For example, in a plex with stripe size 271k,
 the first subdisk will have offset 0, the second offset 271k, the third 542k,
 etc.  This calculation ignores parity blocks in RAID-5 plexes.
 .El
-.It Nm checkparity
+.Pp
+.It Xo
+.Ic checkparity
 .Ar plex
 .Op Fl f
 .Op Fl v
-.Pp
+.Xc
 Check the parity blocks on the specified RAID-4 or RAID-5 plex.  This operation
 maintains a pointer in the plex, so it can be stopped and later restarted from
 the same position if desired.  In addition, this pointer is used by the
-.Nm rebuildparity
+.Ic rebuildparity
 command, so rebuilding the parity blocks need only start at the location where
 the first parity problem has been detected.
 .Pp
 If the
 .Fl f
 flag is specified,
-.Nm checkparity
+.Ic checkparity
 starts checking at the beginning of the plex.  If the
 .Fl v
 flag is specified,
-.Nm checkparity
+.Ic checkparity
 prints a running progress report.
-.It Nm concat
+.Pp
+.It Xo
+.Ic concat
 .Op Fl f
 .Op Fl n Ar name
 .Op Fl v
 .Ar drives
-.br
+.Xc
 The
-.Nm concat
+.Ic concat
 command provides a simplified alternative to the
-.Nm create
+.Ic create
 command for creating volumes with a single concatenated plex.  The largest
 contiguous space available on each drive is used to create the subdisks for the
 plexes.
 .Pp
 Normally, the
-.Nm concat
+.Ic concat
 command creates an arbitrary name for the volume and its components.  The name
 is composed of the text
-.Ar vinum
+.Dq Li vinum
 and a small integer, for example
-.Ar vinum3 .
+.Dq Li vinum3 .
 You can override this with the
 .Fl n Ar name
 option, which assigns the name specified to the volume.  The plexes and subdisks
@@ -525,25 +473,28 @@ initialized as
 .Nm
 drives, the name remains.  Otherwise the drives are given names starting with
 the text
-.Ar vinumdrive
+.Dq Li vinumdrive
 and a small integer, for example
-.Ar vinumdrive7 .
+.Dq Li vinumdrive7 .
 As with the
-.Nm create
+.Ic create
 command, the
 .Fl f
 option can be used to specify that a previous name should be overwritten.  The
 .Fl v
 is used to specify verbose output.
 .Pp
-See the section SIMPLIFIED CONFIGURATION below for some examples of this
+See the section
+.Sx SIMPLIFIED CONFIGURATION
+below for some examples of this
 command.
-.Cd create
+.Pp
+.It Xo
+.Ic create
 .Op Fl f
 .Ar description-file
-.sp
-.Nm
-.Ar create
+.Xc
+.Nm Ic create
 is used to create any object.  In view of the relatively complicated
 relationship and the potential dangers involved in creating a
 .Nm
@@ -556,128 +507,117 @@ is set,
 .Nm
 starts this editor.  If not, it defaults to
 .Nm vi .
-See the section CONFIGURATION FILE below for more information on the format of
+See the section
+.Sx CONFIGURATION FILE
+below for more information on the format of
 this file.
 .Pp
 Note that the
-.Nm
-.Ar create
+.Nm Ic create
 function is additive: if you run it multiple times, you will create multiple
 copies of all unnamed objects.
 .Pp
 Normally the
-.Nm create
+.Ic create
 command will not change the names of existing
 .Nm
 drives, in order to avoid accidentally erasing them.  The correct way to dispose
 of no longer wanted
 .Nm
 drives is to reset the configuration with the
-.Nm resetconfig
+.Ic resetconfig
 command.  In some cases, however, it may be necessary to create new data on
 .Nm
 drives which can no longer be started.  In this case, use the
-.Nm create Fl f
+.Ic create Fl f
 command.
-.It Nm debug
 .Pp
-.Nm
-.Ar debug ,
+.It Ic debug
+.Nm Ic debug ,
 without any arguments, is used to enter the remote kernel debugger.  It is only
 activated if
 .Nm
 is built with the
-.Ar VINUMDEBUG
+.Dv VINUMDEBUG
 option.  This option will stop the execution of the operating system until the
 kernel debugger is exited.  If remote debugging is set and there is no remote
 connection for a kernel debugger, it will be necessary to reset the system and
 reboot in order to leave the debugger.
-.It Nm debug
-.Ar flags
 .Pp
+.It Ic debug Ar flags
 Set a bit mask of internal debugging flags.  These will change without warning
 as the product matures; to be certain, read the header file
-.Pa sys/dev/vinumvar.h .
+.Aq Pa sys/dev/vinumvar.h .
 The bit mask is composed of the following values:
-.Bl -hang
-.It DEBUG_ADDRESSES (1)
-.br
+.Bl -tag -width indent
+.It Dv DEBUG_ADDRESSES Pq No 1
 Show buffer information during requests
-.ig
-.It DEBUG_NUMOUTPUT (2)
-.br
-Show the value of
-.Dv vp->v_numoutput.
-..
-.It DEBUG_RESID (4)
-.br
+.\".It Dv DEBUG_NUMOUTPUT Pq No 2
+.\"Show the value of
+.\".Va vp->v_numoutput .
+.It Dv DEBUG_RESID Pq No 4
 Go into debugger in
-.Fn complete_rqe.
-.It DEBUG_LASTREQS (8)
-.br
+.Fn complete_rqe .
+.It Dv DEBUG_LASTREQS Pq No 8
 Keep a circular buffer of last requests.
-.It DEBUG_REVIVECONFLICT (16)
-.br
+.It Dv DEBUG_REVIVECONFLICT Pq No 16
 Print info about revive conflicts.
-.It DEBUG_EOFINFO (32)
-.br
-Print information about internal state when returning an EOF on a striped plex.
-.It DEBUG_MEMFREE (64)
-.br
+.It Dv DEBUG_EOFINFO Pq No 32
+Print information about internal state when returning an
+.Dv EOF
+on a striped plex.
+.It Dv DEBUG_MEMFREE Pq No 64
 Maintain a circular list of the last memory areas freed by the memory allocator.
-.It DEBUG_REMOTEGDB (256)
-.br
+.It Dv DEBUG_REMOTEGDB Pq No 256
 Go into remote
-.Ic gdb
+.Nm gdb
 when the
-.Nm debug
+.Ic debug
 command is issued.
-.It DEBUG_WARNINGS (512)
-.br
+.It Dv DEBUG_WARNINGS Pq No 512
 Print some warnings about minor problems in the implementation.
 .El
-.It Nm detach Op Fl f
-.Ar plex
-.if n .sp -1v
-.if t .sp -.6v
-.It Nm detach Op Fl f
-.Ar subdisk
-.sp
-.Nm
-.Ar detach
+.Pp
+.It Ic detach Oo Fl f Oc Ar plex
+.It Ic detach Oo Fl f Oc Ar subdisk
+.Nm Ic detach
 removes the specified plex or subdisk from the volume or plex to which it is
 attached.  If removing the object would impair the data integrity of the volume,
 the operation will fail unless the
 .Fl f
 option is specified.  If the object is named after the object above it (for
-example, subdisk vol1.p7.s0 attached to plex vol1.p7), the name will be changed
-by prepending the text 
-.if t ``ex-'' 
-.if n "ex-" 
-(for example, ex-vol1.p7.s0).  If necessary, the name will be truncated in the
+example, subdisk
+.Li vol1.p7.s0
+attached to plex
+.Li vol1.p7 ) ,
+the name will be changed
+by prepending the text
+.Dq Li ex-
+(for example,
+.Li ex-vol1.p7.s0 ) .
+If necessary, the name will be truncated in the
 process.
 .Pp
-.Nm detach
+.Ic detach
 does not reduce the number of subdisks in a striped or RAID-5 plex.  Instead,
 the subdisk is marked absent, and can later be replaced with the
-.Nm attach
+.Ic attach
 command.
-.It Nm dumpconfig  Op Ar drive ...
 .Pp
-.Nm
-.Ar dumpconfig
+.It Ic dumpconfig Op Ar drive ...
+.Pp
+.Nm Ic dumpconfig
 shows the configuration information stored on the specified drives.  If no drive
 names are specified,
-.Nm dumpconfig
+.Ic dumpconfig
 searches all drives on the system for Vinum partitions and dumps the
 information.  If configuration updates are disabled, it is possible that this
 information is not the same as the information returned by the
-.Nm list
+.Ic list
 command.  This command is used primarily for maintenance and debugging.
-.It Nm info
-.br
-.Nm
-.Ar info
+.Pp
+.It Ic info
+.Nm Ic info
 displays information about
 .Nm
 memory usage.  This is intended primarily for debugging.  With the
@@ -687,12 +627,11 @@ option, it will give detailed information about the memory areas in use.
 With the
 .Fl V
 option,
-.Ar info
+.Ic info
 displays information about the last up to 64 I/O requests handled by the
 .Nm
 driver.  This information is only collected if debug flag 8 is set.  The format
 looks like:
-.Pp
 .Bd -literal
 vinum -> info -V
 Flags: 0x200    1 opens
@@ -724,7 +663,7 @@ to identify the requests associated with a user request, though this is not 100%
 reliable: theoretically two requests in sequence could use the same buffer
 header, though this is not common.  The beginning of a request can be identified
 by the event
-.Ar 1VS 
+.Ar 1VS
 or
 .Ar 7VS .
 The first example above shows the requests involved in a user request.  The
@@ -738,8 +677,8 @@ chain.  The digit
 to
 .Ar 6
 indicates the approximate sequence of events, and the two-letter abbreviation is
-a mnemonic for the location
-.Bl -hang
+a mnemonic for the location:
+.Bl -tag -width Lockwait
 .It 1VS
 (vinumstrategy) shows information about the user request on entry to
 .Fn vinumstrategy .
@@ -755,6 +694,7 @@ requests in the function
 The parameters should be the same as in the
 .Ar 1VS
 information.
+.El
 .Pp
 In the following requests,
 .Ar Dev
@@ -763,13 +703,14 @@ is the device number of the associated disk partition,
 is the offset from the beginning of the partition,
 .Ar SD
 is the subdisk index in
-.Dv vinum_conf ,
+.Va vinum_conf ,
 .Ar SDoff
 is the offset from the beginning of the subdisk,
 .Ar Doffset
 is the offset of the associated data request, and
 .Ar Goffset
 is the offset of the associated group request, where applicable.
+.Bl -tag -width Lockwait
 .It 3RQ
 (request) shows one of possibly several low-level
 .Nm
@@ -805,7 +746,7 @@ shows a subdisk I/O request.  These requests are usually internal to
 .Nm
 for operations like initialization or rebuilding plexes.
 .It 8LR
-shows the low--level operation generated for a subdisk I/O request.
+shows the low-level operation generated for a subdisk I/O request.
 .It Lockwait
 specifies that the process is waiting for a range lock.  The parameters are the
 buffer header associated with the request, the plex number and the block number.
@@ -819,13 +760,14 @@ specifies that a range lock has been released.  The parameters are the same as
 for the range lock.
 .El
 .\" XXX
-.It Nm init Op Fl S 
-.Ar size
+.Pp
+.It Xo
+.Ic init
+.Op Fl S Ar size
 .Op Fl w
 .Ar plex | subdisk
-.Pp
-.Nm
-.Ar init
+.Xc
+.Nm Ic init
 initializes a subdisk by writing zeroes to it.  You can initialize all subdisks
 in a plex by specifying the plex name.  This is the only way to ensure
 consistent data in a plex.  You must perform this initialization before using a
@@ -843,90 +785,88 @@ option if you want to write blocks of a different size from the default value of
 16 kB.
 .Nm
 prints a console message when the initialization is complete.
-.It Nm label
-.Ar volume
 .Pp
+.It Ic label Ar volume
 The
-.Nm label
+.Ic label
 command writes a
-.Ar ufs
+.Em ufs
 style volume label on a volume.  It is a simple alternative to an appropriate
 call to
-.Ar disklabel .
+.Ic disklabel .
 This is needed because some
-.Ar ufs
+.Em ufs
 commands still read the disk to find the label instead of using the correct
-.Ar ioctl
+.Xr ioctl 2
 call to access it.
 .Nm
 maintains a volume label separately from the volume data, so this command is not
 needed for
-.Ar newfs .
+.Xr newfs 8 .
 This command is deprecated.
 .Pp
-.It Nm list
+.It Xo
+.Ic list
 .Op Fl r
 .Op Fl V
-.Op volume | plex | subdisk
-.if n .sp -1v
-.if t .sp -.6v
-.It Nm l
+.Op Ar volume | plex | subdisk
+.Xc
+.It Xo
+.Ic l
 .Op Fl r
 .Op Fl V
-.Op volume | plex | subdisk
-.if n .sp -1v
-.if t .sp -.6v
-.It Nm ld
-.Op Fl r
-.Op Fl s
-.Op Fl v
-.Op Fl V
-.Op volume
-.if n .sp -1v
-.if t .sp -.6v
-.It Nm ls
+.Op Ar volume | plex | subdisk
+.Xc
+.It Xo
+.Ic ld
 .Op Fl r
 .Op Fl s
 .Op Fl v
 .Op Fl V
-.Op subdisk
-.if n .sp -1v
-.if t .sp -.6v
-.It Nm lp
+.Op Ar volume
+.Xc
+.It Xo
+.Ic ls
 .Op Fl r
 .Op Fl s
 .Op Fl v
 .Op Fl V
-.Op plex
-.if n .sp -1v
-.if t .sp -.6v
-.It Nm lv
+.Op Ar subdisk
+.Xc
+.It Xo
+.Ic lp
 .Op Fl r
 .Op Fl s
 .Op Fl v
 .Op Fl V
-.Op volume
-.Pp
-.Ar list
+.Op Ar plex
+.Xc
+.It Xo
+.Ic lv
+.Op Fl r
+.Op Fl s
+.Op Fl v
+.Op Fl V
+.Op Ar volume
+.Xc
+.Ic list
 is used to show information about the specified object.  If the argument is
 omitted, information is shown about all objects known to
-.Nm vinum .
+.Nm .
 The
-.Ar l
+.Ic l
 command is a synonym for
-.Ar list .
+.Ic list .
 .Pp
 The
 .Fl r
 option relates to volumes and plexes: if specified, it recursively lists
 information for the subdisks and (for a volume) plexes subordinate to the
 objects.  The commands
-.Ar lv ,
-.Ar lp ,
-.Ar ls
+.Ic lv , lp , ls
 and
-.Ar ld
-commands list only volumes, plexes, subdisks and drives respectively.  This is
+.Ic ld
+list only volumes, plexes, subdisks and drives respectively.  This is
 particularly useful when used without parameters.
 .Pp
 The
@@ -934,29 +874,32 @@ The
 option causes
 .Nm
 to output device statistics, the
-.Op Fl v
+.Fl v
 (verbose) option causes some additional information to be output, and the
-.Op Fl V
+.Fl V
 causes considerable additional information to be output.
-.It Nm makedev
-.br
+.Pp
+.It Ic makedev
 The
-.Nm makedev
-command removes the directory /dev/vinum and recreates it with device nodes
+.Ic makedev
+command removes the directory
+.Pa /dev/vinum
+and recreates it with device nodes
 which reflect the current configuration.  This command is not intended for
 general use, and is provided for emergency use only.
 .Pp
-.It Nm mirror
+.It Xo
+.Ic mirror
 .Op Fl f
 .Op Fl n Ar name
 .Op Fl s
 .Op Fl v
 .Ar drives
-.br
+.Xc
 The
-.Nm mirror
+.Ic mirror
 command provides a simplified alternative to the
-.Nm create
+.Ic create
 command for creating mirrored volumes.  Without any options, it creates a RAID-1
 (mirrored) volume with two concatenated plexes.  The largest contiguous space
 available on each drive is used to create the subdisks for the plexes.  The
@@ -967,18 +910,18 @@ sizes, the plexes will be of different sizes.
 If the
 .Fl s
 option is provided,
-.Nm mirror
+.Ic mirror
 builds striped plexes with a stripe size of 256 kB.  The size of the subdisks in
 each plex is the size of the smallest contiguous storage available on any of the
 drives which form the plex.  Again, the plexes may differ in size.
 .Pp
 Normally, the
-.Nm mirror
+.Ic mirror
 command creates an arbitrary name for the volume and its components.  The name
 is composed of the text
-.Ar vinum
+.Dq Li vinum
 and a small integer, for example
-.Ar vinum3 .
+.Dq Li vinum3 .
 You can override this with the
 .Fl n Ar name
 option, which assigns the name specified to the volume.  The plexes and subdisks
@@ -989,22 +932,24 @@ initialized as
 .Nm
 drives, the name remains.  Otherwise the drives are given names starting with
 the text
-.Ar vinumdrive
+.Dq Li vinumdrive
 and a small integer, for example
-.Ar vinumdrive7 .
+.Dq Li vinumdrive7 .
 As with the
-.Nm create
+.Ic create
 command, the
 .Fl f
 option can be used to specify that a previous name should be overwritten.  The
 .Fl v
 is used to specify verbose output.
 .Pp
-See the section SIMPLIFIED CONFIGURATION below for some examples of this
+See the section
+.Sx SIMPLIFIED CONFIGURATION
+below for some examples of this
 command.
-.It Nm mv Fl f Ar drive Ar object ...
-.It Nm move Fl f Ar drive Ar object ...
 .Pp
+.It Ic mv Fl f Ar drive object ...
+.It Ic move Fl f Ar drive object ...
 Move all the subdisks from the specified objects onto the new drive.  The
 objects may be subdisks, drives or plexes.  When drives or plexes are specified,
 all subdisks associated with the object are moved.
@@ -1014,30 +959,30 @@ The
 option is required for this function, since it currently does not preserve the
 data in the subdisk.  This functionality will be added at a later date.  In this
 form, however, it is suited to recovering a failed disk drive.
-.It Nm printconfig Op Pa file
 .Pp
+.It Ic printconfig Op Ar file
 Write a copy of the current configuration to
-.Pa file
+.Ar file
 in a format that can be used to recreate the
 .Nm
 configuration.  Unlike the configuration saved on disk, it includes definitions
 of the drives.  If you omit
-.Pa file ,
+.Ar file ,
 .Nm
 writes the list to
-.Pa stdout .
-.It Nm quit
+.Dv stdout .
+.Pp
+.It Ic quit
 Exit the
 .Nm
 program when running in interactive mode.  Normally this would be done by
 entering the
-.Ar EOF
+.Dv EOF
 character.
-.It Nm read
-.Ar disk Op disk...
 .Pp
+.It Ic read Ar disk ...
 The
-.Nm read
+.Ic read
 command scans the specified disks for
 .Nm
 partitions containing previously created configuration information.  It reads
@@ -1049,14 +994,14 @@ partition.  You must specify all of the slices in a configuration as the
 parameter to this command.
 .Pp
 The
-.Nm read
+.Ic read
 command is intended to selectively load a
 .Nm
 configuration on a system which has other
 .Nm
 partitions.  If you want to start all partitions on the system, it is easier to
 use the
-.Nm start
+.Ic start
 command.
 .Pp
 If
@@ -1066,108 +1011,118 @@ configuration update to avoid corrupting the copies on disk.  This will also
 happen if the configuration on disk indicates a configuration error (for
 example, subdisks which do not have a valid space specification).  You can turn
 the updates on again with the
-.Nm setdaemon
+.Ic setdaemon
 and
-.Nm saveconfig
+.Ic saveconfig
 commands.  Reset bit 2 (numerical value 4) of the daemon options mask to
 re-enable configuration saves.
-.It Nm rebuildparity
+.Pp
+.It Xo
+.Ic rebuildparity
 .Ar plex
 .Op Fl f
 .Op Fl v
 .Op Fl V
-.Pp
+.Xc
 Rebuild the parity blocks on the specified RAID-4 or RAID-5 plex.  This
 operation maintains a pointer in the plex, so it can be stopped and later
 restarted from the same position if desired.  In addition, this pointer is used
 by the
-.Nm checkparity
+.Ic checkparity
 command, so rebuilding the parity blocks need only start at the location where
 the first parity problem has been detected.
 .Pp
 If the
 .Fl f
 flag is specified,
-.Nm rebuildparity
+.Ic rebuildparity
 starts rebuilding at the beginning of the plex.  If the
 .Fl v
 flag is specified,
-.Nm rebuildparity
+.Ic rebuildparity
 first checks the existing parity blocks prints information about those found to
 be incorrect before rebuilding.  If the
 .Fl V
 flag is specified,
-.Nm rebuildparity
+.Ic rebuildparity
 prints a running progress report.
-.It Nm rename
-.Op Fl r
-.Ar [ drive | subdisk | plex | volume ]
-.Ar newname
 .Pp
+.It Xo
+.Ic rename
+.Op Fl r
+.Op Ar drive | subdisk | plex | volume
+.Ar newname
+.Xc
 Change the name of the specified object.  If the
 .Fl r
 option is specified, subordinate objects will be named by the default rules:
-plex names will be formed by appending .p\f(BInumber\fP to the volume name, and
-subdisk names will be formed by appending .s\f(BInumber\fP to the plex name.
-.ig
-.It Nm replace
-.Ar drive
-.Ar newdrive
+plex names will be formed by appending
+.Li .p Ns Ar number
+to the volume name, and
+subdisk names will be formed by appending
+.Li .s Ns Ar number
+to the plex name.
+.\".Pp
+.\".It Xo
+.\".Ic replace
+.\".Ar drive newdrive
+.\"Move all the subdisks from the specified drive onto the new drive.  This will
+.\"attempt to recover those subdisks that can be recovered, and create the others
+.\"from scratch.  If the new drive lacks the space for this operation, as many
+.\"subdisks as possible will be fitted onto the drive, and the rest will be left on
+.\"the original drive.
 .Pp
-Move all the subdisks from the specified drive onto the new drive.  This will
-attempt to recover those subdisks that can be recovered, and create the others
-from scratch.  If the new drive lacks the space for this operation, as many
-subdisks as possible will be fitted onto the drive, and the rest will be left on
-the original drive.
-..
-.It Nm resetconfig
-.Pp
+.It Ic resetconfig
 The
-.Nm resetconfig
+.Ic resetconfig
 command completely obliterates the
 .Nm
 configuration on a system.  Use this command only when you want to completely
 delete the configuration.
 .Nm
-will ask for confirmation: you must type in the words NO FUTURE exactly
-as shown:
+will ask for confirmation; you must type in the words
+.Li "NO FUTURE"
+exactly as shown:
 .Bd -unfilled -offset indent
-# \f(CBvinum resetconfig\f(CW
+.No # Nm Ic resetconfig
 
 WARNING!  This command will completely wipe out your vinum
 configuration.  All data will be lost.  If you really want
 to do this, enter the text
 
 NO FUTURE
-Enter text -> \f(BINO FUTURE\fP
+.No "Enter text ->" Sy "NO FUTURE"
 Vinum configuration obliterated
 .Ed
-.ft R
 .Pp
 As the message suggests, this is a last-ditch command.  Don't use it unless you
 have an existing configuration which you never want to see again.
-.It Nm resetstats
-.Op Fl r
-.Op volume | plex | subdisk
 .Pp
+.It Xo
+.Ic resetstats
+.Op Fl r
+.Op Ar volume | plex | subdisk
+.Xc
 .Nm
 maintains a number of statistical counters for each object.  See the header file
-.Pa vinumvar.h
+.Aq Pa sys/dev/vinumvar.h
 for more information.
 .\" XXX put it in here when it's finalized
 Use the
-.Nm resetstats
+.Ic resetstats
 command to reset these counters.  In conjunction with the
 .Fl r
 option,
 .Nm
 also resets the counters of subordinate objects.
-.It Nm rm
+.Pp
+.It Xo
+.Ic rm
 .Op Fl f
 .Op Fl r
 .Ar volume | plex | subdisk
-.Pp
-.Nm rm
+.Xc
+.Ic rm
 removes an object from the
 .Nm
 configuration.  Once an object has been removed, there is no way to recover it.
@@ -1195,63 +1150,65 @@ to remove the subordinate objects as well by using the
 .Fl r
 option, it will remove both the plexes and the subdisks which belong to the
 plexes.
-.It Nm saveconfig
 .Pp
+.It Ic saveconfig
 Save the current configuration to disk.  Normally this is not necessary, since
 .Nm
 automatically saves any change in configuration.  If an error occurs on startup,
 updates will be disabled.  When you reenable them with the
-.Ar setdaemon
+.Ic setdaemon
 command,
 .Nm
 does not automatically save the configuration to disk.  Use this command to save
 the configuration.
-.ig
-.It Nm set
-.Op Fl f
-.Ar state
-.Ar volume | plex | subdisk | disk
-.Nm set
-sets the state of the specified object to one of the valid states (see OBJECT
-STATES below).  Normally
-.Nm
-performs a large amount of consistency checking before making the change.  The
-.Fl f
-option tells
-.Nm
-to omit this checking and perform the change anyway.  Use this option with great
-care: it can result in total loss of data on a volume.
-.\"XXX
-.Nm This command has not yet been implemented.
-..
-.It Nm setdaemon
-.Op value
+.\".Pp
+.\".It Xo
+.\".Ic set
+.\".Op Fl f
+.\".Ar state
+.\".Ar volume | plex | subdisk | disk
+.\".Xc
+.\".Ic set
+.\"sets the state of the specified object to one of the valid states (see
+.\".Sx OBJECT STATES
+.\"below).  Normally
+.\".Nm
+.\"performs a large amount of consistency checking before making the change.  The
+.\".Fl f
+.\"option tells
+.\".Nm
+.\"to omit this checking and perform the change anyway.  Use this option with great
+.\"care: it can result in total loss of data on a volume.
 .Pp
-.Nm setdaemon
+.It Ic setdaemon Op Ar value
+.Ic setdaemon
 sets a variable bitmask for the
 .Nm
-dæmon.  This command is temporary and will be replaced.  Currently, the bit mask
+daemon.  This command is temporary and will be replaced.  Currently, the bit mask
 may contain the bits 1 (log every action to syslog) and 4 (don't update
 configuration).  Option bit 4 can be useful for error recovery.
-.It Nm setstate
-.Ar state
-.Op Ar volume | plex | subdisk | drive
 .Pp
-.Nm setstate
+.It Xo
+.Ic setstate Ar state
+.Op Ar volume | plex | subdisk | drive
+.Xc
+.Ic setstate
 sets the state of the specified objects to the specified state.  This bypasses
 the usual consistency mechanism of
 .Nm
 and should be used only for recovery purposes.  It is possible to crash the
 system by incorrect use of this command.
-.It Nm start
+.Pp
+.It Xo
+.Ic start
 .Op Fl i Ar interval
 .Op Fl S Ar size
 .Op Fl w
-.Op plex | subdisk
-.Pp
-.Nm start
+.Op Ar plex | subdisk
+.Xc
+.Ic start
 starts (brings into to the
-.Ar up
+.Em up
 state) one or more
 .Nm
 objects.
@@ -1261,7 +1218,7 @@ If no object names are specified,
 scans the disks known to the system for
 .Nm
 drives and then reads in the configuration as described under the
-.Nm read
+.Ic read
 commands.  The
 .Nm
 drive contains a header with all information about the data stored on the drive,
@@ -1275,9 +1232,9 @@ configuration update to avoid corrupting the copies on disk.  This will also
 happen if the configuration on disk indicates a configuration error (for
 example, subdisks which do not have a valid space specification).  You can turn
 the updates on again with the
-.Nm setdaemon
+.Ic setdaemon
 and
-.Nm saveconfig
+.Ic saveconfig
 command.  Reset bit 4 of the daemon options mask to re-enable configuration
 saves.
 .Pp
@@ -1288,58 +1245,57 @@ depends on the current state of the object:
 .Bl -bullet
 .It
 If the object is already in the
-.Ar up
+.Em up
 state,
 .Nm
 does nothing.
 .It
 If the object is a subdisk in the
-.Ar down
+.Em down
 or
-.Ar reborn
+.Em reborn
 states,
 .Nm
 changes it to the
-.Ar up
+.Em up
 state.
 .It
 If the object is a subdisk in the
-.Ar empty
+.Em empty
 state, the change depends on the subdisk.  If it is part of a plex which is part
 of a volume which contains other plexes,
 .Nm
 places the subdisk in the
-.Ar reviving
+.Em reviving
 state and attempts to copy the data from the volume.  When the operation
 completes, the subdisk is set into the
-.Ar up
+.Em up
 state.  If it is part of a plex which is part of a volume which contains no
 other plexes, or if it is not part of a plex,
 .Nm
 brings it into the
-.Ar up
+.Em up
 state immediately.
 .It
 If the object is a subdisk in the
-.Ar reviving
+.Em reviving
 state,
 .Nm
-continues the
-.Ar revive
+continues the revive
 operation offline.  When the operation completes, the subdisk is set into the
-.Ar up
+.Em up
 state.
 .El
 .Pp
 When a subdisk comes into the
-.Ar up
+.Em up
 state,
 .Nm
 automatically checks the state of any plex and volume to which it may belong and
 changes their state where appropriate.
 .Pp
 If the object is a plex,
-.Nm start
+.Ic start
 checks the state of the subordinate subdisks (and plexes in the case of a
 volume) and starts any subdisks which can be started.
 .Pp
@@ -1357,20 +1313,22 @@ option, and an interval (in milliseconds) to wait between copying each block wit
 the
 .Fl i
 option.  Both of these options lessen the load on the system.
-.It Nm stop
-.Op Fl f
-.Op volume | plex | subdisk
 .Pp
+.It Xo
+.Ic stop
+.Op Fl f
+.Op Ar volume | plex | subdisk
+.Xc
 If no parameters are specified,
-.Nm stop
+.Ic stop
 removes the
 .Nm
-kld and stops
-.Xr vinum 8 .
+KLD and stops
+.Xr vinum 4 .
 This can only be done if no objects are active.  In particular, the
 .Fl f
 option does not override this requirement.  Normally, the
-.Nm stop
+.Ic stop
 command writes the current configuration back to the drives before terminating.
 This will not be possible if configuration updates are disabled, so
 .Nm
@@ -1380,20 +1338,19 @@ specifying the
 option.
 .Pp
 The
-.Nm stop
+.Ic stop
 command can only work if
 .Nm
-has been loaded as a kld, since it is not possible to unload a statically
+has been loaded as a KLD, since it is not possible to unload a statically
 configured driver.
-.Nm
-.Nm stop
+.Nm Ic stop
 will fail if
 .Nm
 is statically configured.
 .Pp
 If object names are specified,
-.Nm stop
-disables access to the objects.  If the objects have  subordinate objects, they
+.Ic stop
+disables access to the objects.  If the objects have subordinate objects, they
 subordinate objects must either already be inactive (stopped or in error), or
 the
 .Fl r
@@ -1401,7 +1358,7 @@ and
 .Fl f
 options must be specified.  This command does not remove the objects from the
 configuration.  They can be accessed again after a
-.Nm start
+.Ic start
 command.
 .Pp
 By default,
@@ -1414,27 +1371,29 @@ option tells
 to omit this checking and remove the object anyway.  Use this option with great
 care and understanding: used incorrectly, it can result in serious data
 corruption.
-.It Nm stripe
+.Pp
+.It Xo
+.Ic stripe
 .Op Fl f
 .Op Fl n Ar name
 .Op Fl v
 .Ar drives
-.br
+.Xc
 The
-.Nm stripe
+.Ic stripe
 command provides a simplified alternative to the
-.Nm create
+.Ic create
 command for creating volumes with a single striped plex.  The size of the
 subdisks is the size of the largest contiguous space available on all the
 specified drives.  The stripe size is fixed at 256 kB.
 .Pp
 Normally, the
-.Nm stripe
+.Ic stripe
 command creates an arbitrary name for the volume and its components.  The name
 is composed of the text
-.Ar vinum
+.Dq Li vinum
 and a small integer, for example
-.Ar vinum3 .
+.Dq Li vinum3 .
 You can override this with the
 .Fl n Ar name
 option, which assigns the name specified to the volume.  The plexes and subdisks
@@ -1445,31 +1404,33 @@ initialized as
 .Nm
 drives, the name remains.  Otherwise the drives are given names starting with
 the text
-.Ar vinumdrive
+.Dq Li vinumdrive
 and a small integer, for example
-.Ar vinumdrive7 .
+.Dq Li vinumdrive7 .
 As with the
-.Nm create
+.Ic create
 command, the
 .Fl f
 option can be used to specify that a previous name should be overwritten.  The
 .Fl v
 is used to specify verbose output.
 .Pp
-See the section SIMPLIFIED CONFIGURATION below for some examples of this
+See the section
+.Sx SIMPLIFIED CONFIGURATION
+below for some examples of this
 command.
 .El
 .Sh SIMPLIFIED CONFIGURATION
 This section describes a simplified interface to
 .Nm
 configuration using the
-.Nm concat ,
-.Nm mirror
+.Ic concat ,
+.Ic mirror
 and
-.Nm stripe
+.Ic stripe
 commands.  These commands create convenient configurations for some more normal
 situations, but they are not as flexible as the
-.Nm create
+.Ic create
 command.
 .Pp
 See above for the description of the commands.  Here are some examples, all
@@ -1488,7 +1449,7 @@ option, these commands produce no output.
 Use a volume with a single concatenated plex for the largest possible storage
 without resilience to drive failures:
 .Bd -literal
-vinum ->  concat -v /dev/da1h /dev/da2h /dev/da3h /dev/da4h
+vinum -> concat -v /dev/da1h /dev/da2h /dev/da3h /dev/da4h
 volume vinum0
   plex name vinum0.p0 org concat
 drive vinumdrive0 device /dev/da1h
@@ -1559,12 +1520,12 @@ S mirror.p1.s0          State: up       PO:        0  B Size:        573 MB
 S mirror.p1.s1          State: up       PO:      573 MB Size:        573 MB
 .Ed
 .Pp
-This example specifies the name of the volume:
+This example specifies the name of the volume,
 .Ar mirror .
 Since one drive is smaller than the others, the two plexes are of different
 size, and the last 158 MB of the volume is non-resilient.  To ensure complete
 reliability in such a situation, use the
-.Nm create
+.Ic create
 command to create a volume with 988 MB.
 .Ss Mirrored volume with two striped plexes
 Alternatively, use the
@@ -1594,19 +1555,18 @@ S raid10.p1.s1          State: up       PO:      256 kB Size:        573 MB
 .Pp
 In this case, the usable part of the volume is even smaller, since the first
 plex has shrunken to match the smallest drive.
-.Ss CONFIGURATION FILE
+.Sh CONFIGURATION FILE
 .Nm
 requires that all parameters to the
-.Nm create
+.Ic create
 commands must be in a configuration file.  Entries in the configuration file
 define volumes, plexes and subdisks, and may be in free format, except that each
 entry must be on a single line.
-.Pp
 .Ss Scale factors
 Some configuration file parameters specify a size (lengths, stripe sizes).
 These values can be specified as bytes, or one of the following scale factors
 may be appended:
-.Bl -hang
+.Bl -tag -width indent
 .It s
 specifies that the value is a number of sectors of 512 bytes.
 .It k
@@ -1616,147 +1576,137 @@ specifies that the value is a number of megabytes (1048576 bytes).
 .It g
 specifies that the value is a number of gigabytes (1073741824 bytes).
 .It b
-is used for compatibility with VERITAS.  It stands for blocks of 512 bytes.
-This abbreviation is confusing, since the word ``block'' is used in different
+is used for compatibility with
+.Tn VERITAS .
+It stands for blocks of 512 bytes.
+This abbreviation is confusing, since the word
+.Dq block
+is used in different
 meanings, and its use is deprecated.
 .El
 .Pp
 For example, the value 16777216 bytes can also be written as
-.Nm 16m ,
-.Nm 16384k
+.Em 16m ,
+.Em 16384k
 or
-.Nm 32768s .
+.Em 32768s .
 .Pp
 The configuration file can contain the following entries:
-.Pp
-.Bl -hang -width 4n
-.It Nm drive Ar name devicename
-.Op options
-.Pp
+.Bl -tag -width 4n
+.It Ic drive Ar name devicename Op Ar options
 Define a drive.  The options are:
-.Pp
-.Bl -hang -width 18n
-.It Nm device Ar devicename
-Specify the device on which the drive resides.  
+.Bl -tag -width 18n
+.It Cm device Ar devicename
+Specify the device on which the drive resides.
 .Ar devicename
 must be the name of a disk partition, for example
 .Pa /dev/da1e
 or
 .Pa /dev/ad3s2h ,
 and it must be of type
-.Nm vinum .
+.Em vinum .
 Do not use the
-.Nm c
+.Dq Li c
 partition, which is reserved for the complete disk.
-.It Nm hotspare
+.It Cm hotspare
 Define the drive to be a
-.Do
-hot spare
-.Dc
+.Dq hot spare
 drive, which is maintained to automatically replace a failed drive.
 .Nm
 does not allow this drive to be used for any other purpose.  In particular, it
 is not possible to create subdisks on it.  This functionality has not been
 completely implemented.
 .El
-.It Nm volume
-.Ar name
-.Op options
-.Pp
+.It Ic volume Ar name Op Ar options
 Define a volume with name
 .Ar name .
-.Pp
 Options are:
-.Pp
-.Bl -hang -width 18n
-.It Nm plex Ar plexname
+.Bl -tag -width 18n
+.It Cm plex Ar plexname
 Add the specified plex to the volume.  If
 .Ar plexname
 is specified as
-.Ar * ,
+.Cm * ,
 .Nm
 will look for the definition of the plex as the next possible entry in the
 configuration file after the definition of the volume.
-.It Nm readpol Ar policy
+.It Cm readpol Ar policy
 Define a
-.Ar read policy
+.Em read policy
 for the volume.
 .Ar policy
 may be either
-.Nm round
+.Cm round
 or
-.Nm prefer Ar plexname .
+.Cm prefer Ar plexname .
 .Nm
 satisfies a read request from only one of the plexes.  A
-.Ar round
+.Cm round
 read policy specifies that each read should be performed from a different plex
-in \fIround-robin\fR\| fashion.  A
-.Ar prefer
+in
+.Em round-robin
+fashion.  A
+.Cm prefer
 read policy reads from the specified plex every time.
-.It Nm setupstate
-.Pp
+.It Cm setupstate
 When creating a multi-plex volume, assume that the contents of all the plexes
 are consistent.  This is normally not the case, so by default
 .Nm
 sets all plexes except the first one to the
 .Em faulty
 state.  Use the
-.Nm start
+.Ic start
 command to first bring them to a consistent state.  In the case of striped and
 concatenated plexes, however, it does not normally cause problems to leave them
 inconsistent: when using a volume for a file system or a swap partition, the
 previous contents of the disks are not of interest, so they may be ignored.
 If you want to take this risk, use the
-.Nm setupstate
+.Cm setupstate
 keyword.  It will only apply to the plexes defined immediately after the volume
 in the configuration file.  If you add plexes to a volume at a later time, you
 must integrate them manually with the
-.Nm start
+.Ic start
 command.
 .Pp
-Note that you \fImust\fP\| use the
-.Nm init
+Note that you
+.Em must
+use the
+.Ic init
 command with RAID-5 plexes: otherwise extreme data corruption will result if one
 subdisk fails.
-.fi
 .El
-.It Nm plex Op options
-.Pp
+.It Ic plex Op Ar options
 Define a plex.  Unlike a volume, a plex does not need a name.  The options may
 be:
-.Pp
-.Bl -hang -width 18n
-.It Nm name Ar plexname
+.Bl -tag -width 18n
+.It Cm name Ar plexname
 Specify the name of the plex.  Note that you must use the keyword
-.Ar name
+.Cm name
 when naming a plex or subdisk.
-.sp
-.It Nm org Ar organization Op stripesize
-.Pp
+.It Cm org Ar organization Op Ar stripesize
 Specify the organization of the plex.
 .Ar organization
 can be one of
-.Ar concat ,
-.Ar striped
+.Cm concat , striped
 or
-.Ar raid5 .
+.Cm raid5 .
 For
-.Ar striped
+.Cm striped
 and
-.Ar raid5
+.Cm raid5
 plexes, the parameter
 .Ar stripesize
 must be specified, while for
-.Ar concat
+.Cm concat
 it must be omitted.  For type
-.Ar striped ,
+.Cm striped ,
 it specifies the width of each stripe.  For type
-.Ar raid5 ,
+.Cm raid5 ,
 it specifies the size of a group.  A group is a portion of a plex which
-stores the parity bits all in the same subdisk.   It must be a factor of the plex size (in
+stores the parity bits all in the same subdisk.  It must be a factor of the plex size (in
 other words, the result of dividing the plex size by the stripe size must be an
 integer), and it must be a multiple of a disk sector (512 bytes).
-.sp
+.Pp
 For optimum performance, stripes should be at least 128 kB in size: anything
 smaller will result in a significant increase in I/O activity due to mapping of
 individual requests over multiple disks.  The performance improvement due to the
@@ -1769,65 +1719,51 @@ A striped plex must have at least two subdisks (otherwise it is a concatenated
 plex), and each must be the same size.  A RAID-5 plex must have at least three
 subdisks, and each must be the same size.  In practice, a RAID-5 plex should
 have at least 5 subdisks.
-.Pp
-.It Nm volume Ar volname
+.It Cm volume Ar volname
 Add the plex to the specified volume.  If no
-.Nm volume
+.Cm volume
 keyword is specified, the plex will be added to the last volume mentioned in the
 configuration file.
-.sp
-.It Nm sd Ar sdname Ar offset
-Add the specified subdisk to the  plex at offset
+.It Cm sd Ar sdname offset
+Add the specified subdisk to the plex at offset
 .Ar offset .
-.br
-.fi
 .El
-.It Nm subdisk Op options
-.Pp
+.It Ic subdisk Op Ar options
 Define a subdisk.  Options may be:
-.Pp
 .Bl -hang -width 18n
-.nf
-.sp
-.It Nm name Ar name
+.It Cm name Ar name
 Specify the name of a subdisk.  It is not necessary to specify a name for a
-subdisk\(emsee OBJECT NAMING above.  Note that you must specify the keyword
-.Ar name
+subdisk, see
+.Sx OBJECT NAMING
+above.  Note that you must specify the keyword
+.Cm name
 if you wish to name a subdisk.
-.sp
-.It Nm plexoffset Ar offset
+.It Cm plexoffset Ar offset
 Specify the starting offset of the subdisk in the plex.  If not specified,
 .Nm
 allocates the space immediately after the previous subdisk, if any, or otherwise
 at the beginning of the plex.
-.sp
-.It Nm driveoffset Ar offset
+.It Cm driveoffset Ar offset
 Specify the starting offset of the subdisk in the drive.  If not specified,
 .Nm
 allocates the first contiguous
 .Ar length
 bytes of free space on the drive.
-.sp
-.It Nm length Ar length
+.It Cm length Ar length
 Specify the length of the subdisk.  This keyword must be specified.  There is no
-default, but the value 0 may be specified to mean 
-.if t ``use the largest available contiguous free area on the drive''. 
-.if n "use the largest available contiguous free area on the drive". 
+default, but the value 0 may be specified to mean
+.Dq "use the largest available contiguous free area on the drive" .
 If the drive is empty, this means that the entire drive will be used for the
 subdisk.
-.Nm length
+.Cm length
 may be shortened to
-.Nm len .
-.sp
-.It Nm plex Ar plex
+.Cm len .
+.It Cm plex Ar plex
 Specify the plex to which the subdisk belongs.  By default, the subdisk belongs
 to the last plex specified.
-.sp
-.It Nm drive Ar drive
+.It Cm drive Ar drive
 Specify the drive on which the subdisk resides.  By default, the subdisk resides
 on the last drive specified.
-.br
-.fi
 .El
 .El
 .Sh EXAMPLE CONFIGURATION FILE
@@ -1865,7 +1801,7 @@ volume strcon
  plex org concat
   sd length 150m drive drive2
   sd length 50m drive drive4
-# a volume with a  RAID-5 and a striped plex
+# a volume with a RAID-5 and a striped plex
 # note that the RAID-5 volume is longer by
 # the length of one subdisk
 volume vol5
@@ -1879,16 +1815,17 @@ volume vol5
   sd length 500m drive drive4
   sd length 500m drive drive5
 .Ed
-.Ss DRIVE LAYOUT CONSIDERATIONS
+.Sh DRIVE LAYOUT CONSIDERATIONS
 .Nm
-drives are currently BSD disk partitions.  They must be of type
-.Ar vinum
+drives are currently
+.Bx
+disk partitions.  They must be of type
+.Em vinum
 in order to avoid overwriting data used for other purposes.  Use
-.Nm disklabel
-.Ar -e
+.Nm disklabel Fl e
 to edit a partition type definition.  The following display shows a typical
 partition layout as shown by
-.Nm disklabel:
+.Xr disklabel 8 :
 .Bd -literal
 8 partitions:
 #        size   offset    fstype   [fsize bsize bps/cpg]
@@ -1899,24 +1836,24 @@ partition layout as shown by
   f:  1900000   425984    4.2BSD        0     0     0   # (Cyl.  297*- 1626*)
   g:  1900741  2325984     vinum        0     0     0   # (Cyl. 1626*- 2955*)
 .Ed
-.sp
+.Pp
 In this example, partition
-.Nm g
+.Dq Li g
 may be used as a
 .Nm
 partition.  Partitions
-.Nm a ,
-.Nm e
+.Dq Li a ,
+.Dq Li e
 and
-.Nm f
+.Dq Li f
 may be used as
-.Nm UFS
+.Em UFS
 file systems or
-.Nm ccd
+.Em ccd
 partitions.  Partition
-.Nm b
+.Dq Li b
 is a swap partition, and partition
-.Nm c
+.Dq Li c
 represents the whole disk and should not be used for any other purpose.
 .Pp
 .Nm
@@ -1927,13 +1864,13 @@ the maximum size of a subdisk is 265 sectors smaller than the drive.
 maintains a log file, by default
 .Pa /var/tmp/vinum_history ,
 in which it keeps track of the commands issued to
-.Nm vinum .
+.Nm .
 You can override the name of this file by setting the environment variable
-.Ev VINUM_HISTORY 
-to the name of the file.  
+.Ev VINUM_HISTORY
+to the name of the file.
 .Pp
-Each message in the log file is preceded by a date.  The default format is 
-.Li %e %b %Y %H:%M:%S
+Each message in the log file is preceded by a date.  The default format is
+.Qq Li %e %b %Y %H:%M:%S .
 See
 .Xr strftime 3
 for further details of the format string.  It can be overridden by the
@@ -1946,22 +1883,24 @@ system.
 .Ss Where to put the data
 The first choice you need to make is where to put the data.  You need dedicated
 disk partitions for
-.Nm vinum .
+.Nm .
 They should be partitions, not devices, and they should not be partition
-.Nm c .
+.Dq Li c .
 For example, good names are
 .Pa /dev/da0e
 or
 .Pa /dev/ad3s4a .
-Bad names are 
+Bad names are
 .Pa /dev/da0
 and
 .Pa /dev/da0s1 ,
 both of which represent a device, not a partition, and
 .Pa /dev/ad1c ,
 which represents a complete disk and should be of type
-.Nm unused .
-See the example under DRIVE LAYOUT CONSIDERATIONS above.
+.Em unused .
+See the example under
+.Sx DRIVE LAYOUT CONSIDERATIONS
+above.
 .Ss Designing volumes
 The way you set up
 .Nm
@@ -1971,7 +1910,7 @@ volumes depends on your intentions.  There are a number of possibilities:
 You may want to join up a number of small disks to make a reasonable sized file
 system.  For example, if you had five small drives and wanted to use all the
 space for a single volume, you might write a configuration file like:
-.Bd -literal -offset 4n
+.Bd -literal -offset indent
 drive d1 device /dev/da2e
 drive d2 device /dev/da3e
 drive d3 device /dev/da4e
@@ -1986,22 +1925,22 @@ volume bigger
    sd length 0 drive d5
 .Ed
 .Pp
-In this case, you specify the length of the subdisks as 0, which means 
-.if t ``use the largest area of free space that you can find on the drive''.
-.if n "use the largest area of free space that you can find on the drive".
+In this case, you specify the length of the subdisks as 0, which means
+.Dq "use the largest area of free space that you can find on the drive" .
 If the subdisk is the only subdisk on the drive, it will use all available
 space.
 .It
 You want to set up
 .Nm
 to obtain additional resilience against disk failures.  You have the choice of
-RAID-1, also called 
-.if t ``mirroring'', or RAID-5, also called ``parity''.
-.if n "mirroring", or RAID-5, also called "parity".
+RAID-1, also called
+.Dq mirroring ,
+or RAID-5, also called
+.Dq parity .
 .Pp
 To set up mirroring, create multiple plexes in a volume.  For example, to create
 a mirrored volume of 2 GB, you might create the following configuration file:
-.Bd -literal -offset 4n
+.Bd -literal -offset indent
 drive d1 device /dev/da2e
 drive d2 device /dev/da3e
 volume mirror
@@ -2020,10 +1959,10 @@ example, the volume has a size of 2 GB, but each plex (and each subdisk)
 requires 2 GB, so the total disk storage requirement is 4 GB.
 .Pp
 To set up RAID-5, create a single plex of type
-.Ar raid5 .  
+.Cm raid5 .
 For example, to create an equivalent resilient volume of 2 GB, you might use the
 following configuration file:
-.Bd -literal -offset 4n
+.Bd -literal -offset indent
 drive d1 device /dev/da2e
 drive d2 device /dev/da3e
 drive d3 device /dev/da4e
@@ -2044,7 +1983,7 @@ greater the proportion of the disk storage can be used for data storage.  In
 this example, the total storage usage is 2.5 GB, compared to 4 GB for a mirrored
 configuration.  If you were to use the minimum of only three disks, you would
 require 3 GB to store the information, for example:
-.Bd -literal -offset 4n
+.Bd -literal -offset indent
 drive d1 device /dev/da2e
 drive d2 device /dev/da3e
 drive d3 device /dev/da4e
@@ -2068,9 +2007,8 @@ multiple disks, you can increase the throughput in multi-access environments.
 This technique shows little or no performance improvement in single-access
 environments.
 .Nm
-uses a technique called 
-.if t ``striping'', 
-.if n "striping", 
+uses a technique called
+.Dq striping ,
 or sometimes RAID-0, to increase this concurrency of access.  The name RAID-0 is
 misleading: striping does not provide any redundancy or additional reliability.
 In fact, it decreases the reliability, since the failure of a single disk will
@@ -2078,9 +2016,9 @@ render the volume useless, and the more disks you have, the more likely it is
 that one of them will fail.
 .Pp
 To implement striping, use a
-.Ar striped
+.Cm striped
 plex:
-.Bd -literal -offset 4n
+.Bd -literal -offset indent
 drive d1 device /dev/da2e
 drive d2 device /dev/da3e
 drive d3 device /dev/da4e
@@ -2101,7 +2039,7 @@ performance.  This is sometimes called RAID-10 (a combination of RAID-1 and
 RAID-0), though again this name is misleading.  With
 .Nm
 you can do this with the following configuration file:
-.Bd -literal -offset 4n
+.Bd -literal -offset indent
 drive d1 device /dev/da2e
 drive d2 device /dev/da3e
 drive d3 device /dev/da4e
@@ -2124,9 +2062,9 @@ increasing reliablity.  Note that this example shows the subdisks of the second
 plex in reverse order from the first plex.  This is for performance reasons and
 will be discussed below.  In addition, the volume specification includes the
 keyword
-.Ar setupstate ,
+.Cm setupstate ,
 which ensures that all plexes are
-.Ar up
+.Em up
 after creation.
 .El
 .Ss Creating the volumes
@@ -2134,65 +2072,65 @@ Once you have created your configuration files, start
 .Nm
 and create the volumes.  In this example, the configuration is in the file
 .Pa configfile :
-.Bd -literal
-  # vinum create -v configfile
-     1: drive d1 device /dev/da2e
-     2: drive d2 device /dev/da3e
-     3: volume mirror
-     4:  plex org concat
-     5:    sd length 2g drive d1
-     6:  plex org concat
-     7:    sd length 2g drive d2
-  Configuration summary
-  
-  Drives:         2 (4 configured)
-  Volumes:        1 (4 configured)
-  Plexes:         2 (8 configured)
-  Subdisks:       2 (16 configured)
-  
-  Drive d1:       Device /dev/da2e
-                  Created on vinum.lemis.com at Tue Mar 23 12:30:31 1999
-                  Config last updated Tue Mar 23 14:30:32 1999
-                  Size:      60105216000 bytes (57320 MB)
-                  Used:       2147619328 bytes (2048 MB)
-                  Available: 57957596672 bytes (55272 MB)
-                  State: up
-                  Last error: none
-  Drive d2:       Device /dev/da3e
-                  Created on vinum.lemis.com at Tue Mar 23 12:30:32 1999
-                  Config last updated Tue Mar 23 14:30:33 1999 
-                  Size:      60105216000 bytes (57320 MB)
-                  Used:       2147619328 bytes (2048 MB)
-                  Available: 57957596672 bytes (55272 MB)
-                  State: up
-                  Last error: none
-  
-  Volume mirror:  Size: 2147483648 bytes (2048 MB)
-                  State: up
-                  Flags: 
-                  2 plexes
-                  Read policy: round robin
-  
-  Plex mirror.p0: Size:   2147483648 bytes (2048 MB)
-                  Subdisks:        1
-                  State: up
-                  Organization: concat
-                  Part of volume mirror
-  Plex mirror.p1: Size:   2147483648 bytes (2048 MB)
-                  Subdisks:        1
-                  State: up
-                  Organization: concat
-                  Part of volume mirror
-  
-  Subdisk mirror.p0.s0:
-                  Size:       2147483648 bytes (2048 MB)
-                  State: up
-                  Plex mirror.p0 at offset 0
-  
-  Subdisk mirror.p1.s0:
-                  Size:       2147483648 bytes (2048 MB)
-                  State: up
-                  Plex mirror.p1 at offset 0
+.Bd -literal -offset 2n
+# vinum create -v configfile
+   1: drive d1 device /dev/da2e
+   2: drive d2 device /dev/da3e
+   3: volume mirror
+   4:  plex org concat
+   5:    sd length 2g drive d1
+   6:  plex org concat
+   7:    sd length 2g drive d2
+Configuration summary
+
+Drives:         2 (4 configured)
+Volumes:        1 (4 configured)
+Plexes:         2 (8 configured)
+Subdisks:       2 (16 configured)
+
+Drive d1:       Device /dev/da2e
+                Created on vinum.lemis.com at Tue Mar 23 12:30:31 1999
+                Config last updated Tue Mar 23 14:30:32 1999
+                Size:      60105216000 bytes (57320 MB)
+                Used:       2147619328 bytes (2048 MB)
+                Available: 57957596672 bytes (55272 MB)
+                State: up
+                Last error: none
+Drive d2:       Device /dev/da3e
+                Created on vinum.lemis.com at Tue Mar 23 12:30:32 1999
+                Config last updated Tue Mar 23 14:30:33 1999
+                Size:      60105216000 bytes (57320 MB)
+                Used:       2147619328 bytes (2048 MB)
+                Available: 57957596672 bytes (55272 MB)
+                State: up
+                Last error: none
+
+Volume mirror:  Size: 2147483648 bytes (2048 MB)
+                State: up
+                Flags:
+                2 plexes
+                Read policy: round robin
+
+Plex mirror.p0: Size:   2147483648 bytes (2048 MB)
+                Subdisks:        1
+                State: up
+                Organization: concat
+                Part of volume mirror
+Plex mirror.p1: Size:   2147483648 bytes (2048 MB)
+                Subdisks:        1
+                State: up
+                Organization: concat
+                Part of volume mirror
+
+Subdisk mirror.p0.s0:
+                Size:       2147483648 bytes (2048 MB)
+                State: up
+                Plex mirror.p0 at offset 0
+
+Subdisk mirror.p1.s0:
+                Size:       2147483648 bytes (2048 MB)
+                State: up
+                Plex mirror.p1 at offset 0
 .Ed
 .Pp
 The
@@ -2201,48 +2139,46 @@ option tells
 .Nm
 to list the file as it configures.  Subsequently it lists the current
 configuration in the same format as the
-.Nm list Fl v
+.Ic list Fl v
 command.
 .Ss Creating more volumes
 Once you have created the
-.Nm 
-volumes, 
+.Nm
+volumes,
 .Nm
 keeps track of them in its internal configuration files.  You do not need to
 create them again.  In particular, if you run the
-.Nm create
+.Ic create
 command again, you will create additional objects:
 .Bd -literal
-.if t .ps -2
-  # vinum create sampleconfig 
-  Configuration summary
-  
-  Drives:         2 (4 configured)
-  Volumes:        1 (4 configured)
-  Plexes:         4 (8 configured)
-  Subdisks:       4 (16 configured)
-  
-  D d1                    State: up       Device /dev/da2e        Avail: 53224/57320 MB (92%)
-  D d2                    State: up       Device /dev/da3e        Avail: 53224/57320 MB (92%)
-  
-  V mirror                State: up       Plexes:       4 Size:       2048 MB
-  
-  P mirror.p0           C State: up       Subdisks:     1 Size:       2048 MB
-  P mirror.p1           C State: up       Subdisks:     1 Size:       2048 MB
-  P mirror.p2           C State: up       Subdisks:     1 Size:       2048 MB
-  P mirror.p3           C State: up       Subdisks:     1 Size:       2048 MB
-  
-  S mirror.p0.s0          State: up       PO:        0  B Size:       2048 MB
-  S mirror.p1.s0          State: up       PO:        0  B Size:       2048 MB
-  S mirror.p2.s0          State: up       PO:        0  B Size:       2048 MB
-  S mirror.p3.s0          State: up       PO:        0  B Size:       2048 MB
-.if t .ps
+# vinum create sampleconfig
+Configuration summary
+
+Drives:         2 (4 configured)
+Volumes:        1 (4 configured)
+Plexes:         4 (8 configured)
+Subdisks:       4 (16 configured)
+
+D d1                    State: up       Device /dev/da2e        Avail: 53224/57320 MB (92%)
+D d2                    State: up       Device /dev/da3e        Avail: 53224/57320 MB (92%)
+
+V mirror                State: up       Plexes:       4 Size:       2048 MB
+
+P mirror.p0           C State: up       Subdisks:     1 Size:       2048 MB
+P mirror.p1           C State: up       Subdisks:     1 Size:       2048 MB
+P mirror.p2           C State: up       Subdisks:     1 Size:       2048 MB
+P mirror.p3           C State: up       Subdisks:     1 Size:       2048 MB
+
+S mirror.p0.s0          State: up       PO:        0  B Size:       2048 MB
+S mirror.p1.s0          State: up       PO:        0  B Size:       2048 MB
+S mirror.p2.s0          State: up       PO:        0  B Size:       2048 MB
+S mirror.p3.s0          State: up       PO:        0  B Size:       2048 MB
 .Ed
 .Pp
 As this example (this time with the
 .Fl f
 option) shows, re-running the
-.Nm create
+.Ic create
 has created four new plexes, each with a new subdisk.  If you want to add other
 volumes, create new configuration files for them.  They do not need to reference
 the drives that
@@ -2250,55 +2186,53 @@ the drives that
 already knows about.  For example, to create a volume
 .Pa raid
 on the four drives
-.Pa /dev/da1e ,
-.Pa /dev/da2e ,
-.Pa /dev/da3e 
+.Pa /dev/da1e , /dev/da2e , /dev/da3e
 and
 .Pa /dev/da4e ,
 you only need to mention the other two:
-.Bd -literal
-  drive d3 device /dev/da1e
-  drive d4 device /dev/da4e
-  volume raid
-    plex org raid5 512k
-      sd size 2g drive d1
-      sd size 2g drive d2
-      sd size 2g drive d3
-      sd size 2g drive d4
+.Bd -literal -offset indent
+drive d3 device /dev/da1e
+drive d4 device /dev/da4e
+volume raid
+  plex org raid5 512k
+    sd size 2g drive d1
+    sd size 2g drive d2
+    sd size 2g drive d3
+    sd size 2g drive d4
 .Ed
 .Pp
 With this configuration file, we get:
 .Bd -literal
-  # vinum create newconfig
-  Configuration summary
-  
-  Drives:         4 (4 configured)
-  Volumes:        2 (4 configured)
-  Plexes:         5 (8 configured)
-  Subdisks:       8 (16 configured)
-  
-  D d1                    State: up       Device /dev/da2e        Avail: 51176/57320 MB (89%)
-  D d2                    State: up       Device /dev/da3e        Avail: 53220/57320 MB (89%)
-  D d3                    State: up       Device /dev/da1e        Avail: 53224/57320 MB (92%)
-  D d4                    State: up       Device /dev/da4e        Avail: 53224/57320 MB (92%)
-  
-  V mirror                State: down     Plexes:       4 Size:       2048 MB
-  V raid                  State: down     Plexes:       1 Size:       6144 MB
-  
-  P mirror.p0           C State: init     Subdisks:     1 Size:       2048 MB
-  P mirror.p1           C State: init     Subdisks:     1 Size:       2048 MB
-  P mirror.p2           C State: init     Subdisks:     1 Size:       2048 MB
-  P mirror.p3           C State: init     Subdisks:     1 Size:       2048 MB
-  P raid.p0            R5 State: init     Subdisks:     4 Size:       6144 MB
-  
-  S mirror.p0.s0          State: up       PO:        0  B Size:       2048 MB
-  S mirror.p1.s0          State: up       PO:        0  B Size:       2048 MB
-  S mirror.p2.s0          State: up       PO:        0  B Size:       2048 MB
-  S mirror.p3.s0          State: up       PO:        0  B Size:       2048 MB
-  S raid.p0.s0            State: empty    PO:        0  B Size:       2048 MB
-  S raid.p0.s1            State: empty    PO:      512 kB Size:       2048 MB
-  S raid.p0.s2            State: empty    PO:     1024 kB Size:       2048 MB
-  S raid.p0.s3            State: empty    PO:     1536 kB Size:       2048 MB
+# vinum create newconfig
+Configuration summary
+
+Drives:         4 (4 configured)
+Volumes:        2 (4 configured)
+Plexes:         5 (8 configured)
+Subdisks:       8 (16 configured)
+
+D d1                    State: up       Device /dev/da2e        Avail: 51176/57320 MB (89%)
+D d2                    State: up       Device /dev/da3e        Avail: 53220/57320 MB (89%)
+D d3                    State: up       Device /dev/da1e        Avail: 53224/57320 MB (92%)
+D d4                    State: up       Device /dev/da4e        Avail: 53224/57320 MB (92%)
+
+V mirror                State: down     Plexes:       4 Size:       2048 MB
+V raid                  State: down     Plexes:       1 Size:       6144 MB
+
+P mirror.p0           C State: init     Subdisks:     1 Size:       2048 MB
+P mirror.p1           C State: init     Subdisks:     1 Size:       2048 MB
+P mirror.p2           C State: init     Subdisks:     1 Size:       2048 MB
+P mirror.p3           C State: init     Subdisks:     1 Size:       2048 MB
+P raid.p0            R5 State: init     Subdisks:     4 Size:       6144 MB
+
+S mirror.p0.s0          State: up       PO:        0  B Size:       2048 MB
+S mirror.p1.s0          State: up       PO:        0  B Size:       2048 MB
+S mirror.p2.s0          State: up       PO:        0  B Size:       2048 MB
+S mirror.p3.s0          State: up       PO:        0  B Size:       2048 MB
+S raid.p0.s0            State: empty    PO:        0  B Size:       2048 MB
+S raid.p0.s1            State: empty    PO:      512 kB Size:       2048 MB
+S raid.p0.s2            State: empty    PO:     1024 kB Size:       2048 MB
+S raid.p0.s3            State: empty    PO:     1536 kB Size:       2048 MB
 .Ed
 .Pp
 Note the size of the RAID-5 plex: it is only 6 GB, although together its
@@ -2307,38 +2241,41 @@ subdisk is used for storing parity data.
 .Ss Restarting Vinum
 On rebooting the system, start
 .Nm
-with the 
-.Nm start 
+with the
+.Ic start
 command:
-.Bd -literal
-  # vinum start
-.Ed
+.Pp
+.Dl "# vinum start"
 .Pp
 This will start all the
 .Nm
 drives in the system.  If for some reason you wish to start only some of them,
 use the
-.Nm read
+.Ic read
 command.
 .Ss Performance considerations
 A number of misconceptions exist about how to set up a RAID array for best
 performance.  In particular, most systems use far too small a stripe size.  The
 following discussion applies to all RAID systems, not just to
-.Nm vinum .
+.Nm .
 .Pp
-The FreeBSD block I/O system issues requests of between .5kB and 128 kB; a
+The
+.Fx
+block I/O system issues requests of between .5kB and 128 kB; a
 typical mix is somewhere round 8 kB.  You can't stop any striping system from
 breaking a request into two physical requests, and if you make the stripe small
 enough, it can be broken into several.  This will result in a significant drop
 in performance: the decrease in transfer time per disk is offset by the order of
 magnitude greater increase in latency.
 .Pp
-With modern disk sizes and the FreeBSD I/O system, you can expect to have a
+With modern disk sizes and the
+.Fx
+I/O system, you can expect to have a
 reasonably small number of fragmented requests with a stripe size between 256 kB
 and 512 kB; with correct RAID implementations there is no obvious reason not to
 increase the size to 2 or 4 MB on a large disk.
 .Pp
-When choosing a stripe size, consider that most current ufs file systems have
+When choosing a stripe size, consider that most current UFS file systems have
 cylinder groups 32 MB in size.  If you have a stripe size and number of disks
 both of which are a power of two, it is probable that all superblocks and inodes
 will be placed on the same subdisk, which will impact performance significantly.
@@ -2346,7 +2283,8 @@ Choose an odd number instead, for example 479 kB.
 .Pp
 The easiest way to consider the impact of any transfer in a multi-access system
 is to look at it from the point of view of the potential bottleneck, the disk
-subsystem: how much total disk time does the transfer use?  Since just about
+subsystem: how much total disk time does the transfer use?
+Since just about
 everything is cached, the time relationship between the request and its
 completion is not so important: the important parameter is the total time that
 the request keeps the disks active, the time when the disks are not available to
@@ -2364,24 +2302,23 @@ we don't have to worry about fragments, so the file will start on a 4 kB
 boundary.  The number of transfers required depends on where the block starts:
 it's (S + F - 1) / S, where S is the stripe size in file system blocks, and F is
 the file size in file system blocks.
-.Pp
 .Bl -enum
 .It
 Stripe size of 4 kB.  You'll have 6 transfers.  Total subsystem load: 48 ms
 latency, 2 ms transfer, 50 ms total.
-.It   
+.It
 Stripe size of 8 kB.  On average, you'll have 3.5 transfers.  Total subsystem
 load: 28 ms latency, 2 ms transfer, 30 ms total.
-.It   
+.It
 Stripe size of 16 kB.  On average, you'll have 2.25 transfers.  Total subsystem
 load: 18 ms latency, 2 ms transfer, 20 ms total.
-.It   
+.It
 Stripe size of 256 kB.  On average, you'll have 1.08 transfers.  Total subsystem
 load: 8.6 ms latency, 2 ms transfer, 10.6 ms total.
-.It   
+.It
 Stripe size of 4 MB.  On average, you'll have 1.0009 transfers.  Total subsystem
 load: 8.01 ms latency, 2 ms transfer, 10.01 ms total.
-.El   
+.El
 .Pp
 It appears that some hardware RAID systems have problems with large stripes:
 they appear to always transfer a complete stripe to or from disk, so that a
@@ -2432,7 +2369,7 @@ by the cost of mirroring, so writes to a volume with a single RAID-5 plex are
 approximately half the speed of writes to a correctly configured volume with two
 striped plexes.
 .It
-When the 
+When the
 .Nm
 configuration changes (for example, adding or removing objects, or the change of
 state of one of the objects),
@@ -2442,20 +2379,19 @@ number of drives, the longer this takes.
 .El
 .Ss Creating file systems on Vinum volumes
 You do not need to run
-.Nm disklabel
+.Xr disklabel 8
 before creating a file system on a
 .Nm
 volume.  Just run
-.Nm newfs .
+.Xr newfs 8 .
 Use the
 .Fl v
 option to state that the device is not divided into partitions.  For example, to
 create a file system on volume
 .Pa mirror ,
 enter the following command:
-.Bd -literal -offset 4n
-# newfs -v /dev/vinum/mirror
-.Ed
+.Pp
+.Dl "# newfs -v /dev/vinum/mirror"
 .Pp
 A number of other considerations apply to
 .Nm
@@ -2482,11 +2418,11 @@ for more details.  They are only completely accessible if their state is
 To change an object state to
 .Em up ,
 use the
-.Nm start
+.Ic start
 command.  To change an object state to
 .Em down ,
 use the
-.Nm stop
+.Ic stop
 command.  Normally other states are created automatically by the relationship
 between objects.  For example, if you add a plex to a volume, the subdisks of
 the plex will be set in the
@@ -2495,18 +2431,18 @@ state, indicating that, though the hardware is accessible, the data on the
 subdisk is invalid.  As a result of this state, the plex will be set in the
 .Em faulty
 state.
-.Ss The 'reviving' state
+.Ss The `reviving' state
 In many cases, when you start a subdisk the system must copy data to the
 subdisk.  Depending on the size of the subdisk, this can take a long time.
 During this time, the subdisk is set in the
-.Em reviving 
+.Em reviving
 state.  On successful completion of the copy operation, it is automatically set
 to the
 .Em up
 state.  It is possible for the process performing the revive to be stopped and
 restarted.  The system keeps track of how far the subdisk has been revived, and
 when the
-.Nm start
+.Ic start
 command is reissued, the copying continues from this point.
 .Pp
 In order to maintain the consistency of a volume while one or more of its plexes
@@ -2521,30 +2457,34 @@ section above.
 .Bl -enum
 .It
 .Nm
-drives are UNIX disk partitions and must have the partition type
-.Ar vinum .
+drives are
+.Ux
+disk partitions and must have the partition type
+.Em vinum .
 This is different from
-.Nm ccd ,
+.Xr ccd 4 ,
 which expects partitions of type
-.Ar 4.2BSD .
-This behaviour of ccd is an invitation to shoot yourself in the foot: with
-.Nm ccd 
-you can easily overwrite a file system.  
+.Em 4.2BSD .
+This behaviour of
+.Nm ccd
+is an invitation to shoot yourself in the foot: with
+.Nm ccd
+you can easily overwrite a file system.
 .Nm
 will not permit this.
 .Pp
 For similar reasons, the
-.Nm vinum Ar start
+.Nm Ic start
 command will not accept a drive on partition
-.Ar c .
+.Dq Li c .
 Partition
-.Ar c
+.Dq Li c
 is used by the system to represent the whole disk, and must be of type
-.Ar unused .
+.Em unused .
 Clearly there is a conflict here, which
 .Nm
 resolves by not using the
-.Ar c
+.Dq Li c
 partition.
 .It
 When you create a volume with multiple plexes,
@@ -2553,86 +2493,85 @@ does not automatically initialize the plexes.  This means that the contents are
 not known, but they are certainly not consistent.  As a result, by default
 .Nm
 sets the state of all newly-created plexes except the first to
-.Ar faulty .
+.Em faulty .
 In order to synchronize them with the first plex, you must
-.Nm start
+.Ic start
 them, which causes
 .Nm
 to copy the data from a plex which is in the
-.Ar up
+.Em up
 state.  Depending on the size of the subdisks involved, this can take a long
 time.
 .Pp
 In practice, people aren't too interested in what was in the plex when it was
 created, and other volume managers cheat by setting them
-.Ar up
+.Em up
 anyway.
 .Nm
 provides two ways to ensure that newly created plexes are
-.Ar up :
+.Em up :
 .Bl -bullet
 .It
 Create the plexes and then synchronize them with
-.Nm vinum start .
+.Nm Ic start .
 .It
 Create the volume (not the plex) with the keyword
-.Ar setupstate ,
+.Cm setupstate ,
 which tells
 .Nm
 to ignore any possible inconsistency and set the plexes to be
-.Ar up .
+.Em up .
 .El
 .It
 Some of the commands currently supported by
 .Nm
 are not really needed.  For reasons which I don't understand, however, I find
 that users frequently try the
-.Nm label
+.Ic label
 and
-.Nm resetconfig
+.Ic resetconfig
 commands, though especially
-.Nm resetconfig
+.Ic resetconfig
 outputs all sort of dire warnings.  Don't use these commands unless you have a
 good reason to do so.
 .It
 Some state transitions are not very intuitive.  In fact, it's not clear whether
 this is a bug or a feature.  If you find that you can't start an object in some
 strange state, such as a
-.Ar reborn
+.Em reborn
 subdisk, try first to get it into
-.Ar stopped
+.Em stopped
 state, with the
-.Nm stop
+.Ic stop
 or
-.Nm stop Ar -f
+.Ic stop Fl f
 commands.  If that works, you should then be able to start it.  If you find
 that this is the only way to get out of a position where easier methods fail,
 please report the situation.
 .It
 If you build the kernel module with the
-.Ar -DVINUMDEBUG
+.Fl D Ns Dv VINUMDEBUG
 option, you must also build
-.Nm vinum(8)
+.Nm
 with the
-.Ar -DVINUMDEBUG
+.Fl D Ns Dv VINUMDEBUG
 option, since the size of some data objects used by both components depends on
 this option.  If you don't do so, commands will fail with the message
-.Ar Invalid argument ,
+.Sy Invalid argument ,
 and a console message will be logged such as
+.Bl -diag
+.It "vinumioctl: invalid ioctl from process 247 (vinum): c0e44642"
+.El
 .Pp
-.Bd -literal
-vinumioctl: invalid ioctl from process 247 (vinum): c0e44642
-.Ed
-.Pp
-This error may also occur if you use old versions of kld or userland program.
+This error may also occur if you use old versions of KLD or userland program.
 .It
 The
-.Nm vinum Ar read
+.Nm Ic read
 command has a particularly emetic syntax.  Once it was the only way to start
-.Nm vinum ,
+.Nm ,
 but now the preferred method is with
-.Nm vinum Ar start .
-.Nm vinum Ar read
+.Nm Ic start .
+.Nm Ic read
 should be used for maintenance purposes only.  Note that its syntax has changed,
 and the arguments must be disk slices, such as
 .Pa /dev/da0 ,
@@ -2641,31 +2580,32 @@ not partitions such as
 .El
 .\"XXX.Sh BUGS
 .Sh FILES
-.Ar /dev/vinum
-- directory with device nodes for
+.Bl -tag -width /dev/vinum/control -compact
+.It Pa /dev/vinum
+directory with device nodes for
 .Nm
-objects.
-.br
-.Ar /dev/vinum/control
-- control device for
-.Nm vinum
-.br
-.Ar /dev/vinum/plex
-- directory containing device nodes for
+objects
+.It Pa /dev/vinum/control
+control device for
 .Nm
-plexes.
-.br
-.Ar /dev/vinum/sd
-- directory containing device nodes for
+.It Pa /dev/vinum/plex
+directory containing device nodes for
 .Nm
-subdisks.
+plexes
+.It Pa /dev/vinum/sd
+directory containing device nodes for
+.Nm
+subdisks
+.El
 .Sh ENVIRONMENT
-.Bl -hang
-.It VINUM_HISTORY
-The name of the log file, by default /var/log/vinum_history.
-.It VINUM_DATEFORMAT
-The format of dates in the log file, by default %e %b %Y %H:%M:%S.
-.It EDITOR
+.Bl -tag -width VINUM_DATEFORMAT
+.It Ev VINUM_HISTORY
+The name of the log file, by default
+.Pa /var/log/vinum_history .
+.It Ev VINUM_DATEFORMAT
+The format of dates in the log file, by default
+.Qq Li %e %b %Y %H:%M:%S .
+.It Ev EDITOR
 The name of the editor to use for editing configuration files, by default
 .Nm vi .
 .El
@@ -2673,11 +2613,12 @@ The name of the editor to use for editing configuration files, by default
 .Xr strftime 3 ,
 .Xr vinum 4 ,
 .Xr disklabel 8 ,
-.Xr newfs 8 ,
+.Xr newfs 8
+.Pp
 .Pa http://www.vinumvm.org/vinum.html ,
 .Pa http://www.vinumvm.org/vinum-debugging.html .
 .Sh AUTHORS
-.An Greg Lehey Aq grog@lemis.com .
+.An Greg Lehey Aq grog@lemis.com
 .Sh HISTORY
 The
 .Nm
@@ -2685,6 +2626,6 @@ command first appeared in
 .Fx 3.0 .
 The RAID-5 component of
 .Nm
-was developed for Cybernet Inc. 
-.Pa www.cybernet.com
+was developed for Cybernet Inc.\&
+.Pq Pa www.cybernet.com
 for its NetMAX product.
