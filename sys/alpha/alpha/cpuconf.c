@@ -104,6 +104,12 @@ extern void st6600_init __P((int));
 #define	st6600_init		platform_not_configured
 #endif
 
+#ifdef DEC_1000A
+extern void dec_1000a_init __P((int));
+#else
+#define dec_1000a_init          platform_not_configured
+#endif
+
 struct cpuinit cpuinit[] = {
 	cpu_notsupp("???"),			     /*  0: ??? */
 	cpu_notsupp("ST_ADU"),			     /*  1: ST_ADU */
@@ -122,7 +128,7 @@ struct cpuinit cpuinit[] = {
 	cpu_notsupp("ST_DEC_MUSTANG"),		     /* 14: ST_DEC_MUSTANG */
 	cpu_init(dec_kn20aa_init,"DEC_KN20AA"),	     /* 15: ST_DEC_KN20AA */
 	cpu_notsupp("???"),			     /* 16: ??? */
-	cpu_notsupp("ST_DEC_1000"),		     /* 17: ST_DEC_1000 */
+	cpu_init(dec_1000a_init, "ST_DEC_1000"),     /* 17: ST_DEC_1000 */
 	cpu_notsupp("???"),			     /* 18: ??? */
 	cpu_notsupp("ST_EB66"),			     /* 19: ST_EB66 */
 	cpu_init(dec_eb64plus_init,"DEC_EB64PLUS"),  /* 20: ST_EB64P */
@@ -132,7 +138,7 @@ struct cpuinit cpuinit[] = {
 	cpu_notsupp("ST_DEC_2100A_A500"),	     /* 24: ST_DEC_2100A_A500 */
 	cpu_notsupp("???"),			     /* 25: ??? */
 	cpu_init(dec_eb164_init,"DEC_EB164"),	     /* 26: ST_EB164 */
-	cpu_notsupp("ST_DEC_1000A"),		     /* 27: ST_DEC_1000A */
+	cpu_init(dec_1000a_init,"ST_DEC_1000A"),     /* 27: ST_DEC_1000A */
 	cpu_notsupp("ST_DEC_ALPHAVME_224"),	   /* 28: ST_DEC_ALPHAVME_224 */
 	cpu_notsupp("???"),			     /* 29: ??? */
 	cpu_init(st550_init,"DEC_ST550"),            /* 30: ST_DEC_550 */
