@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aicasm/aicasm_symbol.c#23 $
+ * $Id: //depot/aic7xxx/aic7xxx/aicasm/aicasm_symbol.c#24 $
  *
  * $FreeBSD$
  */
@@ -546,7 +546,7 @@ symtable_dump(FILE *ofile, FILE *dfile)
 				if (num_entries == 0)
 					aic_print_reg_dump_start(dfile,
 								 curnode);
-				else
+				else if (dfile != NULL)
 					fputs(",\n", dfile);
 				num_entries++;
 				aic_print_reg_dump_entry(dfile, fieldnode);
