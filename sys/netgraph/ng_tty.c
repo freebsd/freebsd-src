@@ -239,7 +239,7 @@ ngt_open(struct cdev *dev, struct tty *tp)
 
 	/* Set back pointers */
 	NG_NODE_SET_PRIVATE(sc->node, sc);
-	tp->t_sc = (caddr_t) sc;
+	tp->t_lsc = sc;
 
 	/*
 	 * Pre-allocate cblocks to the an appropriate amount.
@@ -265,7 +265,7 @@ done:
 static int
 ngt_close(struct tty *tp, int flag)
 {
-	const sc_p sc = (sc_p) tp->t_sc;
+	const sc_p sc = (sc_p) tp->t_lsc;
 	int s;
 
 	s = spltty();
@@ -279,7 +279,7 @@ ngt_close(struct tty *tp, int flag)
 		ngt_nodeop_ok = 1;
 		ng_rmnode_self(sc->node);
 		ngt_nodeop_ok = 0;
-		tp->t_sc = NULL;
+		tp->t_lsc = NULL;
 	}
 	splx(s);
 	return (0);
@@ -309,7 +309,7 @@ ngt_write(struct tty *tp, struct uio *uio, int flag)
 static int
 ngt_tioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
-	const sc_p sc = (sc_p) tp->t_sc;
+	const sc_p sc = (sc_p) tp->t_lsc;
 	int s, error = 0;
 
 	s = spltty();
@@ -343,7 +343,7 @@ done:
 static int
 ngt_input(int c, struct tty *tp)
 {
-	const sc_p sc = (sc_p) tp->t_sc;
+	const sc_p sc = (sc_p) tp->t_lsc;
 	const node_p node = sc->node;
 	struct mbuf *m;
 	int s, error = 0;
@@ -408,7 +408,7 @@ done:
 static int
 ngt_start(struct tty *tp)
 {
-	const sc_p sc = (sc_p) tp->t_sc;
+	const sc_p sc = (sc_p) tp->t_lsc;
 	int s;
 
 	s = spltty();

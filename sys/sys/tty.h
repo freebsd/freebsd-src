@@ -114,6 +114,7 @@ struct tty {
 	struct	termios t_lock_out;	/* ... outgoing */
 	struct	winsize t_winsize;	/* Window size. */
 	void	*t_sc;			/* driver private softc pointer. */
+	void	*t_lsc;			/* linedisc private softc pointer. */
 	int	t_column;		/* Tty output column. */
 	int	t_rocount, t_rocol;	/* Tty. */
 	int	t_ififosize;		/* Total size of upstream fifos. */
