@@ -749,6 +749,8 @@
       </itemizedlist>
     </para>
 
+    &hwlist.snd.ess;
+
     <para arch="i386,alpha,amd64">ESS
       <itemizedlist>
         <listitem>
