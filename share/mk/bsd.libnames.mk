@@ -33,6 +33,7 @@ LIBDEVSTAT?=	${DESTDIR}${LIBDIR}/libdevstat.a
 LIBDIALOG?=	${DESTDIR}${LIBDIR}/libdialog.a
 LIBDISK?=	${DESTDIR}${LIBDIR}/libdisk.a
 LIBEDIT?=	${DESTDIR}${LIBDIR}/libedit.a
+LIBFBSDCURL?=	${DESTDIR}${LIBDIR}/libfbsdcurl.a
 LIBFETCH?=	${DESTDIR}${LIBDIR}/libfetch.a
 LIBFL?=		"don't use LIBFL, use LIBL"
 LIBFORM?=	${DESTDIR}${LIBDIR}/libform.a
@@ -58,6 +59,7 @@ LIBKVM?=	${DESTDIR}${LIBDIR}/libkvm.a
 LIBL?=		${DESTDIR}${LIBDIR}/libl.a
 LIBLN?=		"don't use LIBLN, use LIBL"
 LIBM?=		${DESTDIR}${LIBDIR}/libm.a
+LIBMAGIC?=	${DESTDIR}${LIBDIR}/libmagic.a
 LIBMD?=		${DESTDIR}${LIBDIR}/libmd.a
 LIBMENU?=	${DESTDIR}${LIBDIR}/libmenu.a
 .if !defined(NO_SENDMAIL)
