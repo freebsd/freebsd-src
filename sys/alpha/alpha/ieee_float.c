@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ieee_float.c,v 1.2 1999/04/23 19:53:37 dt Exp $
+ *	$Id: ieee_float.c,v 1.3 1999/05/10 16:02:11 peter Exp $
  */
 
 /*
@@ -579,7 +579,7 @@ ieee_mul(fp_register_t fa, fp_register_t fb,
 	}
 
 	/* Handle INF and 0 */
-	if ((isINF(fa) && isZERO(fb)) || (isINF(fa) && isZERO(fb))) {
+	if ((isINF(fa) && isZERO(fb)) || (isZERO(fa) && isINF(fb))) {
 		/* INF * 0 = NaN */
 		*status |= FPCR_INV;
 		return makeQNaN();
@@ -857,7 +857,7 @@ ieee_cmplt(fp_register_t fa, fp_register_t fb, u_int64_t *status)
 			else if (fb.t.exponent > fa.t.exponent)
 				/* fb has a larger exponent, return true */
 				result.q = IEEE_TRUE;
-			else if (fb.t.exponent == fb.t.exponent
+			else if (fa.t.exponent == fb.t.exponent
 				 && fa.t.fraction < fb.t.fraction)
 				/* compare fractions */
 				result.q = IEEE_TRUE;
@@ -902,7 +902,7 @@ ieee_cmple(fp_register_t fa, fp_register_t fb, u_int64_t *status)
 			else if (fb.t.exponent > fa.t.exponent)
 				/* fb has a larger exponent, return true */
 				result.q = IEEE_TRUE;
-			else if (fb.t.exponent == fb.t.exponent
+			else if (fa.t.exponent == fb.t.exponent
 				 && fa.t.fraction <= fb.t.fraction)
 				/* compare fractions */
 				result.q = IEEE_TRUE;
