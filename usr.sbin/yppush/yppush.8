@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: yppush.8,v 1.3 1996/02/11 22:38:02 mpp Exp $
+.\"	$Id: yppush.8,v 1.4 1996/04/03 03:23:59 wpaul Exp $
 .\"
 .Dd February 5, 1995
 .Dt YPPUSH 8
@@ -47,7 +47,7 @@
 .Op Fl v
 .Ar mapname
 .Sh DESCRIPTION
-.Nm yppush
+.Nm Yppush
 distributes updated NIS databases (or
 .Pa maps )
 from an NIS master server to NIS slave servers within an NIS
@@ -56,17 +56,19 @@ domain. It is normally only run on the NIS master by
 whenever any of the NIS maps are updated. Note that
 .Pa /var/yp/Makefile
 does not invoke
-.Nm yppush
+.Nm
 by default: the
 .Nm NOPUSH=True
 entry in the Makefile must first be commented out
-(the default FreeBSD configuration assumes a small network with only
+(the default
+.Bx Free
+configuration assumes a small network with only
 a single NIS server; in such a configuration,
-.Nm yppush
+.Nm
 is not needed).
 .Pp
 By default,
-.Nm yppush
+.Nm
 determines the names of the slave servers for a domain by searching the
 .Pa ypservers
 map. A destination host (or a list of hosts) can also be manually
@@ -79,31 +81,28 @@ Included within each request is the name of the map to be copied
 and some special information required by
 .Xr ypxfr 8
 to successfully 'callback' to
-.Nm yppush
+.Nm
 and carry out the transfer. Any error messages
-.Nm yppush
+.Nm
 receives from
 .Xr ypxfr 8
 via callback will be printed to stderr.
 .Pp
 .Sh OPTIONS
-The following options are supported by
-.Nm yppush :
-.Bl -tag -width flag
+The following options are available:
+.Bl -tag -width indent
 .It Fl d Ar domain
 Specify a particular domain. The NIS domain of
 the local host system is used by default. If the local host's domain
 name is not set, the domain name must be specified with this flag.
 .It Fl t Ar timeout
-The
-.Fl t
-flag is used to specify a timeout value in seconds. This timeout
+Specify a timeout value in seconds. This timeout
 controls how long
-.Nm yppush
+.Nm
 will wait for a response from a slave server before sending a
 map transfer request to the next slave server in its list.
 .It Fl j Ar #parallel jobs
-.Nm yppush
+.Nm Yppush
 normally performs transfers serially, meaning that it will
 send a map transfer request to one slave server and then wait for
 it to respond before moving on to the next slave server. In environments
@@ -111,25 +110,23 @@ with many slaves, it is more efficient to initiate several map transfers
 at once so that the transfers can take place in parallel. The
 .Fl j
 flag is used to specify the desired number of parallel jobs:
-.Nm yppush
+.Nm
 will initiate the specified number of transfers immediately and
 listen for responses. If the number of specified parallel jobs is
 less than the number of slave servers,
-.Nm yppush
+.Nm
 will initiate only the number of specified jobs and then wait
 for some of them to finish before starting any more.
 .Pp
 Note that
-.Nm yppush
+.Nm
 handles callbacks asynchronously, which means that it will collect
 and display the callback information received from
 .Xr ypxfr 8
 as soon as it arrives, even it arrives before all of the map
 transfer requests have been sent.
 .It Fl h Ar host
-The
-.Fl h
-flag can be used to transfer a map to a user-specified machine or
+Can be used to transfer a map to a user-specified machine or
 group of machines instead of the list of servers contained in
 the
 .Pa ypservers
@@ -139,7 +136,7 @@ instances of the
 flag.
 .It Fl p Ar path
 By default,
-.Nm yppush
+.Nm
 expects all the local NIS maps to be stored under
 .Pa /var/yp .
 The
@@ -148,10 +145,10 @@ flag can be used to specify an alternate path in the event that
 the system administrator decides to store the NIS maps somewhere else.
 .It Fl v
 Verbose mode: causes
-.Nm yppush
+.Nm
 to print debugging messages as it runs. Specifying this flag twice
 makes
-.Nm yppush
+.Nm
 even more verbose.
 .Sh FILES
 .Bl -tag -width Pa -compact
@@ -166,7 +163,7 @@ a particular NIS domain.
 .Sh BUGS
 The mechanism for transferring NIS maps in NIS v1 is different
 than that in NIS version 2. This version of
-.Nm yppush
+.Nm
 has support for transferring maps to NIS v2 systems only.
 .Sh AUTHOR
-Bill Paul <wpaul@ctr.columbia.edu>
+.An Bill Paul Aq wpaul@ctr.columbia.edu
