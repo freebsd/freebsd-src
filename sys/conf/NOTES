@@ -127,6 +127,7 @@ options 	GEOM_GATE		# Userland services.
 options 	GEOM_GPT		# GPT partitioning
 options 	GEOM_LABEL		# Providers labelization.
 options 	GEOM_MBR		# DOS/MBR partitioning
+options 	GEOM_MIRROR		# Disk mirroring.
 options 	GEOM_NOP		# Test class.
 options 	GEOM_PC98		# NEC PC9800 partitioning
 options 	GEOM_STRIPE		# Disk striping.

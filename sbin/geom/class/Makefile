@@ -2,6 +2,7 @@
 
 SUBDIR=	concat
 SUBDIR+=label
+SUBDIR+=mirror
 SUBDIR+=nop
 SUBDIR+=stripe
 

@@ -88,6 +88,8 @@
         ..
         label
         ..
+        mirror
+        ..
         nop
         ..
         stripe
