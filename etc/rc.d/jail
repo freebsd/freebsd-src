@@ -45,11 +45,18 @@ init_variables()
 	eval jail_procfs=\"\$jail_${_j}_procfs_enable\"
 	[ -z "${jail_procfs}" ] && jail_procfs="NO"
 
+	eval jail_mount=\"\$jail_${_j}_mount_enable\"
+	[ -z "${jail_mount}" ] && jail_mount="NO"
+	# "/etc/fstab.${_j}" will be used for {,u}mount(8) if none is specified.
+	eval jail_fstab=\"\$jail_${_j}_fstab\"
+	[ -z "${jail_fstab}" ] && jail_fstab="/etc/fstab.${_j}"
+
 	# Debugging aid
 	#
 	debug "$_j devfs enable: $jail_devfs"
 	debug "$_j fdescfs enable: $jail_fdescfs"
 	debug "$_j procfs enable: $jail_procfs"
+	debug "$_j mount enable: $jail_mount"
 	debug "$_j hostname: $jail_hostname"
 	debug "$_j ip: $jail_ip"
 	debug "$_j root: $jail_rootdir"
@@ -57,6 +64,7 @@ init_variables()
 	debug "$_j fdescdir: $jail_fdescdir"
 	debug "$_j procdir: $jail_procdir"
 	debug "$_j ruleset: $jail_ruleset"
+	debug "$_j fstab: $jail_fstab"
 }
 
 # set_sysctl rc_knob mib msg
@@ -108,6 +116,10 @@ jail_umount_fs()
 			umount -f ${jail_procdir} >/dev/null 2>&1
 		fi
 	fi
+	if checkyesno jail_mount; then
+		[ -f "${jail_fstab}" ] || warn "${jail_fstab} does not exist"
+		umount -a -F "${jail_fstab}" >/dev/null 2>&1
+	fi
 }
 
 jail_start()
@@ -127,6 +139,13 @@ jail_start()
 	for _jail in ${jail_list}
 	do
 		init_variables $_jail
+		if checkyesno jail_mount; then
+			info "Mounting fstab for jail ${_jail} (${jail_fstab})"
+			if [ ! -f "${jail_fstab}" ]; then
+				err 3 "$name: ${jail_fstab} doest not exist"
+			fi
+			mount -a -F "${jail_fstab}"
+		fi
 		if checkyesno jail_devfs; then
 			info "Mounting devfs on ${jail_devdir}"
 			devfs_mount_jail "${jail_devdir}" ${jail_ruleset}
