@@ -70,8 +70,17 @@ setting for a user's login class) and not purely alphabetic.
 Its total length must be less than
 .Dv _PASSWORD_LEN
 (currently 128 characters).
-Numbers, upper case letters and meta characters
-are encouraged.
+.Pp
+The new password should contain a mixture of upper and lower case
+characters (which may be overridden using the
+.Xr login.conf 5
+.if t ``mixpasswordcase''
+.if n "mixpasswordcase"
+setting for a user's login class).  Allowing lower case passwords may
+be useful where the password file will be used in situations where only
+lower case passwords are permissable, such as when using Samba to
+authenticate Windows clients.  In all other situations, numbers, upper
+case letters and meta characters are encouraged.
 .Pp
 Once the password has been verified,
 .Nm passwd
