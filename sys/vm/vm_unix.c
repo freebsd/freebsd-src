@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_unix.c 1.1 89/11/07$
  *
  *	@(#)vm_unix.c	8.1 (Berkeley) 6/11/93
- * $Id: vm_unix.c,v 1.17 1998/10/13 08:24:44 dg Exp $
+ * $Id: vm_unix.c,v 1.18 1999/02/05 07:49:29 dillon Exp $
  */
 
 /*
@@ -98,7 +98,7 @@ obreak(p, uap)
 		}
 		diff = new - old;
 		rv = vm_map_find(&vm->vm_map, NULL, 0, &old, diff, FALSE,
-			VM_PROT_READ|VM_PROT_WRITE, VM_PROT_ALL, 0);
+			VM_PROT_ALL, VM_PROT_ALL, 0);
 		if (rv != KERN_SUCCESS) {
 			return (ENOMEM);
 		}
