@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.128 1998/10/25 17:44:59 phk Exp $
+ * $Id: vm_pageout.c,v 1.129 1998/10/31 17:21:31 peter Exp $
  */
 
 /*
@@ -245,12 +245,17 @@ vm_pageout_clean(m)
 	    ((m->busy != 0) || (m->flags & PG_BUSY)))
 		return 0;
 
+#if 0
 	/*
-	 * Try collapsing before it's too late.
+	 * XXX REMOVED XXX.  vm_object_collapse() can block, which can
+	 * change the page state.  Calling vm_object_collapse() might also
+	 * destroy or rename the page because we have not busied it yet!!!
+	 * So this code segment is removed.
 	 */
 	if (object->backing_object) {
 		vm_object_collapse(object);
 	}
+#endif
 
 	mc[vm_pageout_page_count] = m;
 	pageout_count = 1;
