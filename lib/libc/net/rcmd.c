@@ -52,6 +52,8 @@ static char sccsid[] = "@(#)rcmd.c	8.3 (Berkeley) 3/26/94";
 #include <ctype.h>
 #include <string.h>
 
+#define max(a, b)	((a > b) ? a : b)
+
 int	__ivaliduser __P((FILE *, u_long, const char *, const char *));
 static int __icheckhost __P((u_long, char *));
 
@@ -131,6 +133,7 @@ rcmd(ahost, rport, locuser, remuser, cmd, fd2p)
 		char num[8];
 		int s2 = rresvport(&lport), s3;
 		int len = sizeof(from);
+		int nfds;
 
 		if (s2 < 0)
 			goto bad;
@@ -143,11 +146,17 @@ rcmd(ahost, rport, locuser, remuser, cmd, fd2p)
 			(void)close(s2);
 			goto bad;
 		}
+		nfds = max(s, s2)+1;
+		if(nfds > FD_SETSIZE) {
+			fprintf(stderr, "rcmd: too many files\n");
+			(void)close(s2);
+			goto bad;
+		}
 		FD_ZERO(&reads);
 		FD_SET(s, &reads);
 		FD_SET(s2, &reads);
 		errno = 0;
-		if (select(32, &reads, 0, 0, 0) < 1 || !FD_ISSET(s2, &reads)) {
+		if (select(nfds, &reads, 0, 0, 0) < 1 || !FD_ISSET(s2, &reads)){
 			if (errno != 0)
 				(void)fprintf(stderr,
 				    "rcmd: select (setting up stderr): %s\n",
