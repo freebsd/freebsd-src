@@ -104,13 +104,13 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		if (!rle) {
 			if (*rid < 0)
 				return 0;
-			if (type == SYS_RES_IRQ && *rid > 1)
+			if (type == SYS_RES_IRQ && *rid >= ISA_NIRQ)
 				return 0;
-			if (type == SYS_RES_DRQ && *rid > 1)
+			if (type == SYS_RES_DRQ && *rid >= ISA_NDRQ)
 				return 0;
-			if (type != SYS_RES_MEMORY && *rid > 3)
+			if (type != SYS_RES_MEMORY && *rid >= ISA_NMEM)
 				return 0;
-			if (type == SYS_RES_IOPORT && *rid > 7)
+			if (type == SYS_RES_IOPORT && *rid >= ISA_NPORT)
 				return 0;
 			resource_list_add(rl, type, *rid, start, end, count);
 		}
