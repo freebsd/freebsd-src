@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.94 1999/01/21 08:29:10 dillon Exp $
+ * $Id: vm_fault.c,v 1.95 1999/01/21 09:35:38 dillon Exp $
  */
 
 /*
@@ -309,12 +309,18 @@ RetryFault:;
 			vm_page_unqueue_nowakeup(fs.m);
 			splx(s);
 
-#if 0
 			/*
-			 * Code removed.  In a low-memory situation (say, a
-			 * memory-bound program is running), the last thing you
-			 * do is starve reactivations for other processes.
-			 * XXX we need to find a better way.
+			 * This code is designed to prevent thrashing in a 
+			 * low-memory situation by assuming that pages placed
+			 * in the cache are generally inactive, so if a cached
+			 * page is requested and we are low on memory, we try
+			 * to wait for the low-memory condition to be resolved.
+			 *
+			 * This code cannot handle a major memory starvation
+			 * situation where pages are forced into the cache and
+			 * may cause 'good' programs to stall.  As of 22Jan99
+			 * the problem is still under discussion and not 
+			 * resolved.
 			 */
 			if (((queue - fs.m->pc) == PQ_CACHE) &&
 			    (cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min) {
@@ -323,7 +329,7 @@ RetryFault:;
 				VM_WAIT;
 				goto RetryFault;
 			}
-#endif
+
 			/*
 			 * Mark page busy for other processes, and the 
 			 * pagedaemon.  If it still isn't completely valid
