@@ -44,8 +44,6 @@
 #include "thr_private.h"
 #include "libc_private.h"
 
-static u_int64_t next_uniqueid = 1;
-
 #define OFF(f)	offsetof(struct pthread, f)
 int _thread_next_offset			= OFF(tle.tqe_next);
 int _thread_uniqueid_offset		= OFF(uniqueid);
@@ -145,8 +143,13 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		    || ((kseg = _kseg_alloc(curthread)) == NULL))) {
 			/* Insufficient memory to create a new KSE/KSEG: */
 			ret = EAGAIN;
-			if (kse != NULL)
+#ifndef	KMF_DONE
+#define	KMF_DONE	0x04
+#endif
+			if (kse != NULL) {
+				kse->k_mbx.km_flags |= KMF_DONE;
 				_kse_free(curthread, kse);
+			}
 			if ((new_thread->attr.flags & THR_STACK_USER) == 0) {
 				crit = _kse_critical_enter();
 				curkse = _get_curkse();
@@ -161,7 +164,8 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		else {
 			if (kseg != NULL) {
 				/* Add the KSE to the KSEG's list of KSEs. */
-				TAILQ_INSERT_HEAD(&kseg->kg_kseq, kse, k_qe);
+				TAILQ_INSERT_HEAD(&kseg->kg_kseq, kse, k_kgqe);
+				kseg->kg_ksecount = 1;
 				kse->k_kseg = kseg;
 				kse->k_schedq = &kseg->kg_schedq;
 			}
@@ -286,30 +290,11 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 				kse->k_mbx.km_curthread = NULL;
 			}
 
-			crit = _kse_critical_enter();
-			KSE_LOCK_ACQUIRE(curthread->kse, &_thread_list_lock);
-			/*
-			 * Initialise the unique id which GDB uses to
-			 * track threads.
-			 */
-			new_thread->uniqueid = next_uniqueid++;
-			/* Add the thread to the linked list of all threads: */
-			THR_LIST_ADD(new_thread);
-			KSE_LOCK_RELEASE(curthread->kse, &_thread_list_lock);
-
 			/*
 			 * Schedule the new thread starting a new KSEG/KSE
 			 * pair if necessary.
 			 */
 			ret = _thr_schedule_add(curthread, new_thread);
-			if (ret != 0) {
-				KSE_LOCK_ACQUIRE(curthread->kse,
-				    &_thread_list_lock);
-				THR_LIST_REMOVE(new_thread);
-				KSE_LOCK_RELEASE(curthread->kse,
-				    &_thread_list_lock);
-			}
-			_kse_critical_leave(crit);
 			if (ret != 0)
 				free_thread(curthread, new_thread);
 
@@ -341,7 +326,7 @@ create_stack(struct pthread_attr *pattr)
 	/* Check if a stack was specified in the thread attributes: */
 	if ((pattr->stackaddr_attr) != NULL) {
 		pattr->guardsize_attr = 0;
-		pattr->flags = THR_STACK_USER;
+		pattr->flags |= THR_STACK_USER;
 		ret = 0;
 	}
 	else
