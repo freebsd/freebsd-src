@@ -56,7 +56,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_init.c	8.1 (Berkeley) 6/7/93";
 static char orig_rcsid[] = "From: Id: res_init.c,v 8.8 1997/06/01 20:34:37 vixie Exp";
-static char rcsid[] = "$Id: res_init.c,v 1.12 1997/02/22 15:00:32 peter Exp $";
+static char rcsid[] = "$Id: res_init.c,v 1.13 1997/06/27 08:22:03 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -424,6 +424,8 @@ res_setoptions(options, source)
 #endif
 		} else if (!strncmp(cp, "inet6", sizeof("inet6") - 1)) {
 			_res.options |= RES_USE_INET6;
+		} else if (!strncmp(cp, "no_tld_query", sizeof("no_tld_query") - 1)) {
+			_res.options |= RES_NOTLDQUERY;
 		} else {
 			/* XXX - print a warning here? */
 		}

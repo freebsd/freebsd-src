@@ -53,7 +53,7 @@
  *
  *	@(#)resolv.h	8.1 (Berkeley) 6/2/93
  *	From Id: resolv.h,v 8.18 1997/06/01 20:34:32 vixie Exp
- *	$Id: resolv.h,v 1.12 1997/05/07 20:00:10 eivind Exp $
+ *	$Id: resolv.h,v 1.13 1997/06/27 08:32:38 peter Exp $
  */
 
 #ifndef _RESOLV_H_
@@ -135,6 +135,7 @@ struct __res_state {
 #define	RES_INSECURE2	0x00000800	/* type 2 security disabled */
 #define	RES_NOALIASES	0x00001000	/* shuts off HOSTALIASES feature */
 #define	RES_USE_INET6	0x00002000	/* use/map IPv6 in gethostbyname() */
+#define	RES_NOTLDQUERY	0x00004000	/* Don't query TLD names */
 
 #define RES_DEFAULT	(RES_RECURSE | RES_DEFNAMES | RES_DNSRCH)
 
