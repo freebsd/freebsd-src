@@ -170,13 +170,17 @@ hardclock(frame)
 		if (CLKF_USERMODE(frame) &&
 		    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value) &&
 		    itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0) {
-			p->p_flag |= P_ALRMPEND;
+			mtx_enter(&sched_lock, MTX_SPIN);
+			p->p_sflag |= PS_ALRMPEND;
 			aston();
+			mtx_exit(&sched_lock, MTX_SPIN);
 		}
 		if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value) &&
 		    itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0) {
-			p->p_flag |= P_PROFPEND;
+			mtx_enter(&sched_lock, MTX_SPIN);
+			p->p_sflag |= PS_PROFPEND;
 			aston();
+			mtx_exit(&sched_lock, MTX_SPIN);
 		}
 	}
 
@@ -283,8 +287,14 @@ startprofclock(p)
 {
 	int s;
 
-	if ((p->p_flag & P_PROFIL) == 0) {
-		p->p_flag |= P_PROFIL;
+	/*
+	 * XXX; Right now sched_lock protects statclock(), but perhaps
+	 * it should be protected later on by a time_lock, which would
+	 * cover psdiv, etc. as well.
+	 */
+	mtx_enter(&sched_lock, MTX_SPIN);
+	if ((p->p_sflag & PS_PROFIL) == 0) {
+		p->p_sflag |= PS_PROFIL;
 		if (++profprocs == 1 && stathz != 0) {
 			s = splstatclock();
 			psdiv = pscnt = psratio;
@@ -292,6 +302,7 @@ startprofclock(p)
 			splx(s);
 		}
 	}
+	mtx_exit(&sched_lock, MTX_SPIN);
 }
 
 /*
@@ -303,8 +314,9 @@ stopprofclock(p)
 {
 	int s;
 
-	if (p->p_flag & P_PROFIL) {
-		p->p_flag &= ~P_PROFIL;
+	mtx_enter(&sched_lock, MTX_SPIN);
+	if (p->p_sflag & PS_PROFIL) {
+		p->p_sflag &= ~PS_PROFIL;
 		if (--profprocs == 0 && stathz != 0) {
 			s = splstatclock();
 			psdiv = pscnt = 1;
@@ -312,6 +324,7 @@ stopprofclock(p)
 			splx(s);
 		}
 	}
+	mtx_exit(&sched_lock, MTX_SPIN);
 }
 
 /*
@@ -342,7 +355,7 @@ statclock(frame)
 		 * If this process is being profiled, record the tick.
 		 */
 		p = curproc;
-		if (p->p_flag & P_PROFIL)
+		if (p->p_sflag & PS_PROFIL)
 			addupc_intr(p, CLKF_PC(frame), 1);
 #if defined(SMP) && defined(BETTER_CLOCK)
 		if (stathz != 0)
