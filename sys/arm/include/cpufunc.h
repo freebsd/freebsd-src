@@ -50,13 +50,11 @@
 #include <machine/cpuconf.h>
 #include <machine/katelib.h> /* For in[bwl] and out[bwl] */
 
-void disable_intr(void);
-void enable_intr(void);
-
 static __inline void
 breakpoint(void)
 {
 }
+
 static __inline register_t
 intr_disable(void)
 {
