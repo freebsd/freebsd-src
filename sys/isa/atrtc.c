@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.3 1997/06/25 20:37:29 smp Exp smp $
+ *	$Id: clock.c,v 1.88 1997/06/25 20:59:58 fsmp Exp $
  */
 
 /*
@@ -66,6 +66,7 @@
 #include <machine/ipl.h>
 #ifdef APIC_IO
 #include <machine/smp.h>
+#include <machine/smptests.h>		/** TEST_ALTTIMER */
 #endif /* APIC_IO */
 
 #include <i386/isa/icu.h>
@@ -871,9 +872,11 @@ cpu_initclocks()
 
 	/* Finish initializing 8253 timer 0. */
 #ifdef APIC_IO
+#if 0
 #ifndef IO_ICU1
-#define IO_ICU1 0x20
+#define IO_ICU1			0x20
 #endif /* IO_ICU1 */
+#endif /** 0 */
 
 	/* 8254 is traditionally on ISA IRQ0 */
 	if ((x = isa_apic_pin(0)) < 0) {
@@ -882,14 +885,27 @@ cpu_initclocks()
 			printf("APIC missing 8254 connection\n");
 
 		/* allow 8254 timer to INTerrupt 8259 */
-		x = inb(IO_ICU1 + 1);	/* current mask in 8259 */
-		x &= ~1;		/* clear 8254 timer mask */
-		outb(IO_ICU1 + 1, x);	/* write new mask */
+#ifdef TEST_ALTTIMER
+		/*
+		 * re-initialize master 8259:
+		 * reset; prog 4 bytes, single ICU, edge triggered
+		 */
+		outb(IO_ICU1, 0x13);
+		outb(IO_ICU1 + 1, NRSVIDT);	/* start vector */
+		outb(IO_ICU1 + 1, 0x00);	/* ignore slave */
+		outb(IO_ICU1 + 1, 0x03);	/* auto EOI, 8086 */
+
+		outb(IO_ICU1 + 1, 0xfe);	/* unmask INT0 */
+#else
+		x = inb(IO_ICU1 + 1);		/* current mask in 8259 */
+		x &= ~1;			/* clear 8254 timer mask */
+		outb(IO_ICU1 + 1, x);		/* write new mask */
+#endif /* TEST_ALTTIMER */
 
 		/* program IO APIC for type 3 INT on INT0 */
 		if (ext_int_setup(0, 0) < 0)
 			panic("8254 redirect impossible!");
-		x = 0;			/* 8259 is on 0 */
+		x = 0;				/* 8259 is on 0 */
 	}
 
 	vec[x] = (u_int)vec8254;
