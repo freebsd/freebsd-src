@@ -487,6 +487,13 @@ static int
 archive_read_extract_hard_link(struct archive *a, struct archive_entry *entry,
     int flags)
 {
+	int r;
+	const char *pathname;
+	const char *linkname;
+
+	pathname = archive_entry_pathname(entry);
+	linkname = archive_entry_hardlink(entry);
+
 	/*
 	 * XXX Should we suppress the unlink here unless
 	 * ARCHIVE_EXTRACT_UNLINK?  That would make the
@@ -497,11 +504,20 @@ archive_read_extract_hard_link(struct archive *a, struct archive_entry *entry,
 
 	/* Just remove any pre-existing file with this name. */
 	if (!(flags & ARCHIVE_EXTRACT_NO_OVERWRITE))
-		unlink(archive_entry_pathname(entry));
+		unlink(pathname);
 
-	if (link(archive_entry_hardlink(entry),
-	    archive_entry_pathname(entry))) {
-		archive_set_error(a, errno, "Can't restore hardlink");
+	r = link(linkname, pathname);
+
+	if (r != 0) {
+		/* Might be a non-existent parent dir; try fixing that. */
+		mkdirpath(a, pathname);
+		r = link(linkname, pathname);
+	}
+
+	if (r != 0) {
+		/* XXX Better error message here XXX */
+		archive_set_error(a, errno,
+		    "Can't restore hardlink to '%s'", linkname);
 		return (ARCHIVE_WARN);
 	}
 
@@ -518,6 +534,13 @@ static int
 archive_read_extract_symbolic_link(struct archive *a,
     struct archive_entry *entry, int flags)
 {
+	int r;
+	const char *pathname;
+	const char *linkname;
+
+	pathname = archive_entry_pathname(entry);
+	linkname = archive_entry_symlink(entry);
+
 	/*
 	 * XXX Should we suppress the unlink here unless
 	 * ARCHIVE_EXTRACT_UNLINK?  That would make the
@@ -528,13 +551,20 @@ archive_read_extract_symbolic_link(struct archive *a,
 
 	/* Just remove any pre-existing file with this name. */
 	if (!(flags & ARCHIVE_EXTRACT_NO_OVERWRITE))
-		unlink(archive_entry_pathname(entry));
+		unlink(pathname);
 
-	if (symlink(archive_entry_symlink(entry),
-		archive_entry_pathname(entry))) {
+	r = symlink(linkname, pathname);
+
+	if (r != 0) {
+		/* Might be a non-existent parent dir; try fixing that. */
+		mkdirpath(a, pathname);
+		r = symlink(linkname, pathname);
+	}
+
+	if (r != 0) {
 		/* XXX Better error message here XXX */
-		archive_set_error(a, errno, "Can't restore symlink to '%s'",
-		    archive_entry_symlink(entry));
+		archive_set_error(a, errno,
+		    "Can't restore symlink to '%s'", linkname);
 		return (ARCHIVE_WARN);
 	}
 
