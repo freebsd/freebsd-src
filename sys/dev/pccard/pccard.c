@@ -1202,6 +1202,10 @@ pccard_intr(void *arg)
 	 * the interrupt will pacify the card enough to keep an
 	 * interrupt storm from happening.  Of course this won't
 	 * help in the non-MFC case.
+	 *
+	 * This has no impact for MPSAFEness of the client drivers.
+	 * We register this with whatever flags the intr_handler
+	 * was registered with.  All these functions are MPSAFE.
 	 */
 	if (pccard_mfc(pf->sc)) {
 		reg = pccard_ccr_read(pf, PCCARD_CCR_STATUS);
