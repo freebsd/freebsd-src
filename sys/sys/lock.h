@@ -175,6 +175,28 @@ struct lock {
 #define LK_KERNPROC ((pid_t) -2)
 #define LK_NOPROC ((pid_t) -1)
 
+#ifdef INVARIANTS
+#define	LOCKMGR_ASSERT(lkp, what, p) do {				\
+	switch ((what)) {						\
+	case LK_SHARED:							\
+		if (lockstatus((lkp), (p)) == LK_SHARED)		\
+			break;						\
+		/* fall into exclusive */				\
+	case LK_EXCLUSIVE:						\
+		if (lockstatus((lkp), (p)) != LK_EXCLUSIVE)		\
+			panic("lock %s %s not held at %s:%d",		\
+			    (lkp)->lk_wmesg, #what, __FILE__,		\
+			    __LINE__);					\
+		break;							\
+	default:							\
+		panic("unknown LOCKMGR_ASSERT at %s:%d", __FILE__,	\
+		    __LINE__);						\
+	}								\
+} while (0)
+#else	/* INVARIANTS */
+#define	LOCKMGR_ASSERT(lkp, p, what)
+#endif	/* INVARIANTS */
+
 void dumplockinfo(struct lock *lkp);
 struct proc;
 
