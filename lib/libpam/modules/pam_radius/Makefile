@@ -25,7 +25,7 @@
 #	$FreeBSD$
 
 LIB=		pam_radius
-SHLIB_NAME=	pam_radius.so
+SHLIB_NAME=	${LIB}.so.${SHLIB_MAJOR}
 SRCS=		pam_radius.c
 DPADD=		${LIBRADIUS}
 LDADD=		-lradius

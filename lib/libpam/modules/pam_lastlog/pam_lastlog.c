@@ -124,7 +124,6 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	struct utmp utmp;
 	struct lastlog ll;
 	const char *rhost, *user, *tty;
-	char *buf;
 	off_t llpos;
 	int fd, pam_err;
 
@@ -164,22 +163,14 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	if ((flags & PAM_SILENT) == 0) {
 		if (read(fd, &ll, sizeof(ll)) == sizeof(ll) &&
 		    ll.ll_time != 0) {
-			asprintf(&buf, "Last login: %.*s ", 24 - 5,
+			pam_info(pamh, "Last login: %.*s ", 24 - 5,
 			    ctime(&ll.ll_time));
-			if (buf != NULL) {
-				pam_prompt(pamh, PAM_TEXT_INFO, buf, NULL);
-				free(buf);
-			}
 			if (*ll.ll_host != '\0')
-				asprintf(&buf, "from %.*s\n",
+				pam_info(pamh, "from %.*s\n",
 				    (int)sizeof(ll.ll_host), ll.ll_host);
 			else
-				asprintf(&buf, "on %.*s\n",
+				pam_info(pamh, "on %.*s\n",
 				    (int)sizeof(ll.ll_line), ll.ll_line);
-			if (buf != NULL) {
-				pam_prompt(pamh, PAM_TEXT_INFO, buf, NULL);
-				free(buf);
-			}
 		}
 		if (lseek(fd, llpos, L_SET) != llpos)
 			goto file_err;

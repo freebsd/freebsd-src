@@ -228,9 +228,9 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc,
 				retval = pam_get_user(pamh, &user_msg,
 				    srvr_msg[0] != '\0' ? srvr_msg : NULL);
 			else if (status == TAC_AUTHEN_STATUS_GETPASS)
-				retval = pam_get_pass(pamh, &user_msg,
+				retval = pam_get_authtok(pamh, &user_msg,
 				    srvr_msg[0] != '\0' ? srvr_msg :
-				    "Password:", &options);
+				    "Password:");
 			free(srvr_msg);
 			if (retval != PAM_SUCCESS) {
 				/* XXX - send a TACACS+ abort packet */
@@ -246,9 +246,10 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc,
 				PAM_RETURN(PAM_SERVICE_ERR);
 			retval = pam_prompt(pamh,
 			    pam_test_option(&options, PAM_OPT_ECHO_PASS, NULL)
-				? PAM_PROMPT_ECHO_ON : PAM_PROMPT_ECHO_OFF,
-			    srvr_msg[0] != '\0' ? srvr_msg : "Data:",
-			    &data_msg);
+			        ? PAM_PROMPT_ECHO_ON : PAM_PROMPT_ECHO_OFF,
+			    &data_msg,
+			    "%s",
+			    srvr_msg[0] != '\0' ? srvr_msg : "Data:");
 			free(srvr_msg);
 			if (retval != PAM_SUCCESS) {
 				/* XXX - send a TACACS+ abort packet */

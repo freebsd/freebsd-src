@@ -108,7 +108,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 	if (mtmp != NULL) {
 		read(fd, mtmp, st.st_size);
 		mtmp[st.st_size] = '\0';
-		pam_prompt(pamh, PAM_ERROR_MSG, mtmp, NULL);
+		pam_error(pamh, "%s", mtmp, NULL);
 		free(mtmp);
 	}
 	

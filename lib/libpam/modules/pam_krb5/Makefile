@@ -25,7 +25,7 @@
 #	$FreeBSD$
 
 LIB=		pam_krb5
-SHLIB_NAME=	pam_krb5.so
+SHLIB_NAME=	${LIB}.so.${SHLIB_MAJOR}
 SRCS=		pam_krb5.c
 DPADD=		${LIBKRB5} ${LIBGSSAPI} ${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} \
 		${LIBCOM_ERR} ${LIBROKEN}

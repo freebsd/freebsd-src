@@ -56,9 +56,11 @@ __FBSDID("$FreeBSD$");
 #include <security/pam_modules.h>
 #include <security/pam_mod_misc.h>
 
-#include <security/_pam_macros.h>
-
-enum { PAM_OPT_NO_ANON=PAM_OPT_STD_MAX, PAM_OPT_IGNORE, PAM_OPT_USERS };
+enum {
+	PAM_OPT_NO_ANON = PAM_OPT_STD_MAX,
+	PAM_OPT_IGNORE,
+	PAM_OPT_USERS
+};
 
 static struct opttab other_options[] = {
 	{ "no_anon",	PAM_OPT_NO_ANON },
@@ -150,10 +152,9 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags __unused, int argc, const cha
 		PAM_LOG("Doing non-anonymous");
 	}
 
-	retval = pam_prompt(pamh, PAM_PROMPT_ECHO_OFF, prompt, &token);
+	retval = pam_prompt(pamh, PAM_PROMPT_ECHO_OFF, &token, "%s", prompt);
 	if (retval != PAM_SUCCESS)
-		PAM_RETURN(retval == PAM_CONV_AGAIN
-			? PAM_INCOMPLETE : PAM_AUTHINFO_UNAVAIL);
+		PAM_RETURN(PAM_AUTHINFO_UNAVAIL);
 
 	PAM_LOG("Got password");
 
@@ -173,13 +174,13 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags __unused, int argc, const cha
 				}
 			}
 		}
-		else
+		else {
 			PAM_LOG("Ignoring supplied password structure");
+		}
 
 		PAM_LOG("Done anonymous");
 
 		retval = PAM_SUCCESS;
-
 	}
 	else {
 		pam_set_item(pamh, PAM_AUTHTOK, token);

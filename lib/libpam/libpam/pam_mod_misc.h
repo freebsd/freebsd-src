@@ -54,8 +54,6 @@ struct options {
 };
 
 __BEGIN_DECLS
-int	pam_get_pass(pam_handle_t *, const char **, const char *, struct options *);
-int	pam_prompt(pam_handle_t *, int, const char *, char **);
 void	pam_std_option(struct options *, struct opttab *, int, const char **);
 int	pam_test_option(struct options *, enum opt, char **);
 void	pam_set_option(struct options *, enum opt);
