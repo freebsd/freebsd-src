@@ -383,8 +383,10 @@ isoloop:
 				return err;
 			}
 		}
+#if 0 /* What's this for? (overwritten by the following uiomove)*/
 		fp = (struct fw_pkt *)(it->stproc->buf + it->queued * it->psize);
 		fp->mode.stream.len = htons(uio->uio_resid - sizeof(u_int32_t));
+#endif
 		err = uiomove(it->stproc->buf + it->queued * it->psize,
 							uio->uio_resid, uio);
 		it->queued ++;
@@ -422,8 +424,10 @@ dvloop:
 				return err;
 			}
 		}
+#if 0 /* What's this for? (it->dvptr? overwritten by the following uiomove)*/
 		fp = (struct fw_pkt *)(it->dvproc->buf + it->queued * it->psize);
 		fp->mode.stream.len = htons(uio->uio_resid - sizeof(u_int32_t));
+#endif
 		err = uiomove(it->dvproc->buf + it->dvptr,
 							uio->uio_resid, uio);
 		it->dvptr += it->psize;
@@ -564,7 +568,7 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 			err = ENOMEM;
 			break;
 		}
-#define FWDVPACKET 250
+#define FWDVPACKET 250	/* NTSC (300 for PAL) */
 #define FWDVPMAX 512
 		ibufreq->rx.nchunk = 8;
 		ibufreq->rx.npacket = 50;
@@ -582,11 +586,13 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 		sc->fc->it[sub]->dvproc = NULL;
 		sc->fc->it[sub]->dvdma = NULL;
 		sc->fc->it[sub]->flag |= FWXFERQ_DV;
+		/* XXX check malloc failure */
 		sc->fc->it[sub]->dvbuf
 			= (struct fw_dvbuf *)malloc(sizeof(struct fw_dvbuf) * NDVCHUNK, M_DEVBUF, M_DONTWAIT);
 		STAILQ_INIT(&sc->fc->it[sub]->dvvalid);
 		STAILQ_INIT(&sc->fc->it[sub]->dvfree);
 		for( i = 0 ; i < NDVCHUNK ; i++){
+			/* XXX check malloc failure */
 			sc->fc->it[sub]->dvbuf[i].buf
 				= malloc(FWDVPMAX * sc->fc->it[sub]->dvpacket, M_DEVBUF, M_DONTWAIT);
 			STAILQ_INSERT_TAIL(&sc->fc->it[sub]->dvfree,
@@ -663,6 +669,7 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 		it->dvdbc = 0;
 		it->dvdiff = 0;
 		it->dvsync = 0;
+		it->dvoffset = 0;
 
 		STAILQ_INIT(&ir->stvalid);
 		STAILQ_INIT(&ir->stfree);
