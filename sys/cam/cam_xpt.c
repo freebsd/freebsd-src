@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.1 1998/09/15 06:33:23 gibbs Exp $
+ *      $Id: cam_xpt.c,v 1.2 1998/09/15 22:05:44 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -631,6 +631,12 @@ xptopen(dev_t dev, int flags, int fmt, struct proc *p)
 	int unit;
 
 	unit = minor(dev) & 0xff;
+
+	/*
+	 * Only allow read-write access.
+	 */
+	if (((flags & FWRITE) == 0) || ((flags & FREAD) == 0))
+		return(EPERM);
 
 	/*
 	 * We don't allow nonblocking access.
