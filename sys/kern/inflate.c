@@ -7,7 +7,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: imgact_gzip.c,v 1.4 1994/10/04 06:51:42 phk Exp $
+ * $Id: inflate.c,v 1.2 1994/10/07 23:18:09 csgr Exp $
  *
  * This module handles execution of a.out files which have been run through
  * "gzip -9".
@@ -27,15 +27,9 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/resourcevar.h>
-#include <sys/exec.h>
 #include <sys/inflate.h>
 #include <sys/mman.h>
 #include <sys/malloc.h>
-#include <sys/imgact.h>
-#include <sys/imgact_aout.h>
-#include <sys/kernel.h>
-#include <sys/sysent.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -389,7 +383,11 @@ static int inflate_stored OF((struct gzip *, struct gz_global *));
 static int inflate_fixed OF((struct gzip *, struct gz_global *));
 static int inflate_dynamic OF((struct gzip *, struct gz_global *));
 static int inflate_block OF((struct gzip *,int *, struct gz_global *));
+
+#if 0
+/* never used - why not ? */
 static int inflate_free OF((struct gzip *, struct gz_global *));
+#endif
 
 
 /* The inflate algorithm uses a sliding 32K byte window on the uncompressed
@@ -453,8 +451,8 @@ static const ush mask[] = {
  * The following 2 were global variables.
  * They are now fields of the gz_global structure.
  */
-#define bb	(glbl->bb)	/* bit buffer */
-#define	bk	(glbl->bk)	/* bits in bit buffer */
+#define bb	(glbl->gz_bb)	/* bit buffer */
+#define	bk	(glbl->gz_bk)	/* bits in bit buffer */
 
 #ifndef CHECK_EOF
 #  define NEEDBITS(n) {while(k<(n)){b|=((ulg)NEXTBYTE)<<k;k+=8;}}
@@ -510,7 +508,7 @@ static const int dbits = 6;	/* bits in base distance lookup table */
 /*
  * This also used to be a global variable
  */
-#define hufts (glbl->hufts)
+#define hufts (glbl->gz_hufts)
 
 
 static int huft_build(gz,b, n, s, d, e, t, m, glbl)
@@ -547,7 +545,7 @@ struct gz_global * glbl;
   register struct huft *q;      /* points to current table */
   struct huft r;                /* table entry for structure assignment */
   struct huft *u[BMAX];         /* table stack */
-  static unsigned v[N_MAX];     /* values in order of bit length */
+  unsigned v[N_MAX];     	/* values in order of bit length */
   register int w;               /* bits before this table == (l * h) */
   unsigned x[BMAX+1];           /* bit offsets, then code stack */
   unsigned *xp;                 /* pointer into x */
@@ -914,10 +912,10 @@ struct gz_global * glbl;
 
 /* Globals for literal tables (built once) */
 /* The real variables are now in the struct gz_global */
-#define fixed_tl (glbl->fixed_tl)
-#define fixed_td (glbl->fixed_td)
-#define fixed_bl (glbl->fixed_bl)
-#define fixed_bd (glbl->fixed_bd)
+#define fixed_tl (glbl->gz_fixed_tl)
+#define fixed_td (glbl->gz_fixed_td)
+#define fixed_bl (glbl->gz_fixed_bl)
+#define fixed_bd (glbl->gz_fixed_bd)
 
 static int inflate_fixed(gz, glbl)
 struct gzip *gz;
@@ -988,9 +986,9 @@ struct gz_global * glbl;
   unsigned nl;          /* number of literal/length codes */
   unsigned nd;          /* number of distance codes */
 #ifdef PKZIP_BUG_WORKAROUND
-  static unsigned ll[288+32]; /* literal/length and distance code lengths */
+  unsigned ll[288+32];  /* literal/length and distance code lengths */
 #else
-  static unsigned ll[286+30]; /* literal/length and distance code lengths */
+  unsigned ll[286+30];  /* literal/length and distance code lengths */
 #endif
   register ulg b;       /* bit buffer */
   register unsigned k;  /* number of bits in bit buffer */
@@ -1225,7 +1223,8 @@ struct gz_global * glbl;
 }
 
 
-
+#if 0
+/* Nobody uses this - why not? */
 static int inflate_free(gz, glbl)
 struct gzip *gz;
 struct gz_global * glbl;
@@ -1238,3 +1237,4 @@ struct gz_global * glbl;
   }
   return 0;
 }
+#endif

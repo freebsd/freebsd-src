@@ -7,7 +7,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: imgact_gzip.c,v 1.4 1994/10/04 06:51:42 phk Exp $
+ * $Id: inflate.h,v 1.2 1994/10/07 23:18:18 csgr Exp $
  *
  * This module handles execution of a.out files which have been run through
  * "gzip -9".
@@ -33,18 +33,9 @@
 #ifdef KERNEL
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/resourcevar.h>
-#include <sys/exec.h>
-#include <sys/mman.h>
-#include <sys/malloc.h>
 #include <sys/imgact.h>
 #include <sys/imgact_aout.h>
-#include <sys/kernel.h>
-#include <sys/sysent.h>
 
-#include <vm/vm.h>
-#include <vm/vm_kern.h>
 
 /* needed to make inflate() work */
 #define	uch u_char
@@ -74,13 +65,13 @@ struct gzip {
  * This structure is used in order to make inflate() reentrant.
  */
 struct gz_global {
-	ulg		bb;		/* bit buffer */
-	unsigned	bk;		/* bits in bit buffer */
-	unsigned	hufts;		/* track memory usage */
-	struct huft 	*fixed_tl;	/* must init to NULL !! */
-	struct huft	*fixed_td;
-	int		fixed_bl;
-	int		fixed_bd;
+	ulg		gz_bb;		/* bit buffer */
+	unsigned	gz_bk;		/* bits in bit buffer */
+	unsigned	gz_hufts;	/* track memory usage */
+	struct huft 	*gz_fixed_tl;	/* must init to NULL !! */
+	struct huft	*gz_fixed_td;
+	int		gz_fixed_bl;
+	int		gz_fixed_bd;
 };
 
 int inflate __P((struct gzip *, struct gz_global *));
