@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rshd.c,v 1.16 1997/04/23 03:06:47 davidn Exp $
+ *	$Id: rshd.c,v 1.17 1997/05/10 19:02:03 davidn Exp $
  */
 
 #ifndef lint
@@ -480,7 +480,7 @@ doit(fromp)
 				syslog(LOG_INFO|LOG_AUTH,
 				    "Kerberos rsh denied to %s.%s@%s",
 				    kdata->pname, kdata->pinst, kdata->prealm);
-				error("Permission denied.\n");
+				error("Login incorrect.\n");
 				exit(1);
 			}
 		}
@@ -503,7 +503,7 @@ doit(fromp)
 				    remuser, hostname, locuser, cmdbuf);
 fail:
 			if (errorstr == NULL)
-				errorstr = "Permission denied.\n";
+				errorstr = "Login incorrect.\n";
 			error(errorstr, errorhost);
 			exit(1);
 		}
@@ -524,7 +524,7 @@ fail:
 			    "%s@%s as %s: permission denied (%s). cmd='%.80s'",
 			    remuser, hostname, locuser, __rcmd_errstr,
 			    cmdbuf);
-			error("Permission denied.\n");
+			error("Login incorrect.\n");
 			exit(1);
 		}
 		if (!auth_timeok(lc, time(NULL))) {
