@@ -365,8 +365,22 @@ as well as reducing the algorithm's ability to adapt to changing
 situations and should only be done as a last resort.
 .It tcp.rfc3042
 Enable the Limited Transmit algorithm as described in RFC 3042.  It
-helps avoid timeouts on lossy links.  This is a standards track RFC
+helps avoid timeouts on lossy links and also when the congestion window
+is small, as happens on short transfers.  This is a standards track RFC
 and is off by default.
+.It tcp.rfc3390
+Enable support for RFC 3390, which allows for a variable-sized
+starting congestion window on new connections, depending on the
+maximum segment size.  This helps throughput in general, but
+particularly affects short transfers and high-bandwidth large
+propagation-delay connections.  This is a standards track RFC and
+support for it is off by default.
+.Pp
+When this feature is enabled, the slowstart_flightsize and
+local_slowstart_flightsize settings are not observed for new
+connection slow starts, but they are still used for slow starts
+that occur when the connection has been idle and starts sending
+again.
 .El
 .Sh ERRORS
 A socket operation may fail with one of the following errors returned:
