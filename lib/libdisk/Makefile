@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.22 1998/12/30 11:26:24 bde Exp $
+#	$Id: Makefile,v 1.23 1998/12/30 12:06:07 bde Exp $
 
 LIB=	disk
 SRCS=	blocks.c disklabel.c dkcksum.c chunk.c disk.c change.c \
@@ -42,7 +42,7 @@ MLINKS+=	libdisk.3 Open_Disk.3 \
 
 .include <bsd.lib.mk>
 
-BOOTS=/usr/mdec
+BOOTS=/boot
 
 .if ${MACHINE_ARCH} == "i386"
 data.c:	${.CURDIR}/libdisk.h ${BOOTS}/boot1 ${BOOTS}/boot2
