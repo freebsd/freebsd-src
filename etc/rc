@@ -84,7 +84,7 @@ case ${rc_ng} in
 	fi
 
 	os=`eval ${CMD_OSTYPE}`
-	files=`rcorder -k ${os} -s nostart /etc/rc.d/*`
+	files=`rcorder -k ${os} -s nostart /etc/rc.d/* 2>/dev/null`
 
 	for _rc_elem in ${files}; do
         	run_rc_script ${_rc_elem} ${_boot}
