@@ -252,7 +252,7 @@ linux_do_sigprocmask(struct thread *td, int how, l_sigset_t *new,
 	} else
 		nmaskp = NULL;
 	error = kern_sigprocmask(td, how, nmaskp, &omask, 0);
-	if (error != 0 && old != NULL)
+	if (error == 0 && old != NULL)
 		bsd_to_linux_sigset(&omask, old);
 
 	return (error);
