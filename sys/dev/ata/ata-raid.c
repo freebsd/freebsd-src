@@ -41,6 +41,7 @@
 #include <sys/devicestat.h>
 #include <sys/cons.h>
 #include <machine/bus.h>
+#include <sys/rman.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/ata-disk.h>
 #include <dev/ata/ata-raid.h>
@@ -542,7 +543,8 @@ ar_read(struct ad_softc *adp, u_int32_t lba, int count, char *data)
 	ata_printf(adp->controller, adp->unit, "RAID read config timeout\n");
 	return 1;
     }
-    insw(adp->controller->ioaddr + ATA_DATA, data, count/sizeof(int16_t));
-    inb(adp->controller->ioaddr + ATA_STATUS);
+    ATA_INSW(adp->controller->r_io, ATA_DATA, (int16_t *)data,
+	     count/sizeof(int16_t));
+    ATA_INB(adp->controller->r_io, ATA_STATUS);
     return 0;
 }

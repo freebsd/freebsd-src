@@ -42,6 +42,7 @@
 #include <pci/pcivar.h>
 #endif
 #include <machine/bus.h>
+#include <sys/rman.h>
 #include <dev/ata/ata-all.h>
 
 #if NPCI > 0
@@ -84,14 +85,15 @@ ata_dmainit(struct ata_softc *scp, int device,
     /* set our most pessimistic default mode */
     scp->mode[ATA_DEV(device)] = ATA_PIO;
 
-    if (!scp->bmaddr)
+    if (!scp->r_bmio)
 	return;
 
     /* if simplex controller, only allow DMA on primary channel */
     if (scp->channel == 1) {
-	outb(scp->bmaddr + ATA_BMSTAT_PORT, inb(scp->bmaddr + ATA_BMSTAT_PORT) &
-	     (ATA_BMSTAT_DMA_MASTER | ATA_BMSTAT_DMA_SLAVE));
-	if (inb(scp->bmaddr + ATA_BMSTAT_PORT) & ATA_BMSTAT_DMA_SIMPLEX) {
+	ATA_OUTB(scp->r_bmio, ATA_BMSTAT_PORT,
+		 ATA_INB(scp->r_bmio, ATA_BMSTAT_PORT) &
+		 (ATA_BMSTAT_DMA_MASTER | ATA_BMSTAT_DMA_SLAVE));
+	if (ATA_INB(scp->r_bmio, ATA_BMSTAT_PORT) & ATA_BMSTAT_DMA_SIMPLEX) {
 	    ata_printf(scp, device, "simplex device, DMA on primary only\n");
 	    return;
 	}
@@ -823,7 +825,7 @@ via_82c586:
 	/* if controller says its setup for DMA take the easy way out */
 	/* the downside is we dont know what DMA mode we are in */
 	if ((udmamode >= 0 || wdmamode > 1) &&
-	    (inb(scp->bmaddr + ATA_BMSTAT_PORT) &
+	    (ATA_INB(scp->r_bmio, ATA_BMSTAT_PORT) &
 	     ((device==ATA_MASTER) ? 
 	      ATA_BMSTAT_DMA_MASTER : ATA_BMSTAT_DMA_SLAVE))) {
 	    scp->mode[ATA_DEV(device)] = ATA_DMA;
@@ -831,7 +833,7 @@ via_82c586:
 	}
 
 	/* well, we have no support for this, but try anyways */
-	if ((wdmamode >= 2 && apiomode >= 4) && scp->bmaddr) {
+	if ((wdmamode >= 2 && apiomode >= 4) && scp->r_bmio) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
@@ -903,28 +905,33 @@ ata_dmastart(struct ata_softc *scp, int device,
 	     struct ata_dmaentry *dmatab, int dir)
 {
     scp->flags |= ATA_DMA_ACTIVE;
-    outl(scp->bmaddr + ATA_BMDTP_PORT, vtophys(dmatab));
-    outb(scp->bmaddr + ATA_BMCMD_PORT, dir ? ATA_BMCMD_WRITE_READ : 0);
-    outb(scp->bmaddr + ATA_BMSTAT_PORT, 
-         (inb(scp->bmaddr + ATA_BMSTAT_PORT) | 
+    ATA_OUTL(scp->r_bmio, ATA_BMDTP_PORT, vtophys(dmatab));
+    ATA_OUTB(scp->r_bmio, ATA_BMCMD_PORT, dir ? ATA_BMCMD_WRITE_READ : 0);
+    ATA_OUTB(scp->r_bmio, ATA_BMSTAT_PORT, 
+         (ATA_INB(scp->r_bmio, ATA_BMSTAT_PORT) | 
 	  (ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR)));
-    outb(scp->bmaddr + ATA_BMCMD_PORT, 
-	 inb(scp->bmaddr + ATA_BMCMD_PORT) | ATA_BMCMD_START_STOP);
+    ATA_OUTB(scp->r_bmio, ATA_BMCMD_PORT, 
+	 ATA_INB(scp->r_bmio, ATA_BMCMD_PORT) | ATA_BMCMD_START_STOP);
 }
 
 int
 ata_dmadone(struct ata_softc *scp)
 {
-    outb(scp->bmaddr + ATA_BMCMD_PORT, 
-	 inb(scp->bmaddr + ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
+    int error;
+
+    ATA_OUTB(scp->r_bmio, ATA_BMCMD_PORT, 
+		ATA_INB(scp->r_bmio, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
     scp->flags &= ~ATA_DMA_ACTIVE;
-    return inb(scp->bmaddr + ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
+    error = ATA_INB(scp->r_bmio, ATA_BMSTAT_PORT);
+    ATA_OUTB(scp->r_bmio, ATA_BMSTAT_PORT, 
+	     error | ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR);
+    return error & ATA_BMSTAT_MASK;
 }
 
 int
 ata_dmastatus(struct ata_softc *scp)
 {
-    return inb(scp->bmaddr + ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
+    return ATA_INB(scp->r_bmio, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
 }
 
 static void
@@ -942,8 +949,8 @@ cyrix_timing(struct ata_softc *scp, int devno, int mode)
     case ATA_WDMA2:	reg24 = 0x00002020; break;
     case ATA_UDMA2:	reg24 = 0x00911030; break;
     }
-    outl(scp->bmaddr + (devno << 3) + 0x20, reg20);
-    outl(scp->bmaddr + (devno << 3) + 0x24, reg24);
+    ATA_OUTL(scp->r_bmio, (devno << 3) + 0x20, reg20);
+    ATA_OUTL(scp->r_bmio, (devno << 3) + 0x24, reg24);
 }
  
 static void

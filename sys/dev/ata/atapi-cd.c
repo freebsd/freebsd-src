@@ -1208,7 +1208,8 @@ acd_start(struct atapi_softc *atp)
     devstat_start_transaction(cdp->stats);
 
     atapi_queue_cmd(cdp->atp, ccb, bp->bio_data, count * blocksize,
-		    bp->bio_cmd == BIO_READ ? ATPR_F_READ : 0, 30, acd_done,bp);
+		    bp->bio_cmd == BIO_READ ? ATPR_F_READ : 0, 
+		    (ccb[0] == ATAPI_WRITE_BIG) ? 60 : 30, acd_done, bp);
 }
 
 static int 
@@ -1533,6 +1534,7 @@ acd_get_progress(struct acd_softc *cdp, int *finished)
 
     error = atapi_queue_cmd(cdp->atp, ccb, (caddr_t)&sense, sizeof(sense),
     			    ATPR_F_READ, 10, NULL, NULL);
+
     *finished = ((sense.sk_specific2|(sense.sk_specific1<<8))*100)/65535;
     return error;
 }

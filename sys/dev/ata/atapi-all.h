@@ -188,7 +188,7 @@ int atapi_interrupt(struct atapi_request *);
 int atapi_queue_cmd(struct atapi_softc *, int8_t [], caddr_t, int, int, int, atapi_callback_t, void *);
 void atapi_reinit(struct atapi_softc *);
 int atapi_test_ready(struct atapi_softc *);
-int atapi_wait_ready(struct atapi_softc *, int);
+int atapi_wait_dsc(struct atapi_softc *, int);
 void atapi_request_sense(struct atapi_softc *, struct atapi_reqsense *);
 void atapi_dump(char *, void *, int);
 int acdattach(struct atapi_softc *);
