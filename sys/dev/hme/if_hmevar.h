@@ -131,11 +131,6 @@ struct hme_softc {
 	bus_space_tag_t	sc_etxt;	/* HME ETX registers */
 	bus_space_tag_t	sc_mact;	/* HME MAC registers */
 	bus_space_tag_t	sc_mift;	/* HME MIF registers */
-	bus_addr_t	sc_sebo;	/* HME Global registers */
-	bus_addr_t	sc_erxo;	/* HME ERX registers */
-	bus_addr_t	sc_etxo;	/* HME ETX registers */
-	bus_addr_t	sc_maco;	/* HME MAC registers */
-	bus_addr_t	sc_mifo;	/* HME MIF registers */
 	int		sc_burst;	/* DVMA burst size in effect */
 	int		sc_phys[2];	/* MII instance -> PHY map */
 

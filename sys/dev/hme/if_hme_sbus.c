@@ -33,7 +33,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	from: NetBSD: if_hme_sbus.c,v 1.9 2001/11/13 06:58:17 lukem Exp
+ *	from: NetBSD: if_hme_sbus.c,v 1.19 2004/03/17 17:04:58 pk Exp
  */
 
 #include <sys/cdefs.h>
@@ -150,7 +150,7 @@ hme_sbus_attach(device_t dev)
 	struct hme_softc *sc = &hsc->hsc_hme;
 	u_int32_t burst;
 	u_long start, count;
-	int error;
+	int error = 0;
 
 	/*
 	 * Map five register banks:
@@ -162,7 +162,6 @@ hme_sbus_attach(device_t dev)
 	 *	bank 4: HME MIF registers
 	 *
 	 */
-	sc->sc_sebo = sc->sc_etxo = sc->sc_erxo = sc->sc_maco = sc->sc_mifo = 0;
 	hsc->hsc_seb_rid = 0;
 	hsc->hsc_seb_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &hsc->hsc_seb_rid, RF_ACTIVE);
@@ -178,6 +177,7 @@ hme_sbus_attach(device_t dev)
 	    &hsc->hsc_etx_rid, RF_ACTIVE);
 	if (hsc->hsc_etx_res == NULL) {
 		device_printf(dev, "cannot map ETX registers\n");
+		error = ENXIO;
 		goto fail_seb_res;
 	}
 	sc->sc_etxt = rman_get_bustag(hsc->hsc_etx_res);
@@ -188,6 +188,7 @@ hme_sbus_attach(device_t dev)
 	    &hsc->hsc_erx_rid, RF_ACTIVE);
 	if (hsc->hsc_erx_res == NULL) {
 		device_printf(dev, "cannot map ERX registers\n");
+		error = ENXIO;
 		goto fail_etx_res;
 	}
 	sc->sc_erxt = rman_get_bustag(hsc->hsc_erx_res);
@@ -198,6 +199,7 @@ hme_sbus_attach(device_t dev)
 	    &hsc->hsc_mac_rid, RF_ACTIVE);
 	if (hsc->hsc_mac_res == NULL) {
 		device_printf(dev, "cannot map MAC registers\n");
+		error = ENXIO;
 		goto fail_erx_res;
 	}
 	sc->sc_mact = rman_get_bustag(hsc->hsc_mac_res);
@@ -205,7 +207,7 @@ hme_sbus_attach(device_t dev)
 
 	/*
 	 * At least on some HMEs, the MIF registers seem to be inside the MAC
-	 * range, so map try to kluge around it.
+	 * range, so try to kludge around it.
 	 */
 	hsc->hsc_mif_rid = 4;
 	hsc->hsc_mif_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
@@ -214,18 +216,20 @@ hme_sbus_attach(device_t dev)
 		if (bus_get_resource(dev, SYS_RES_MEMORY, hsc->hsc_mif_rid,
 		    &start, &count) != 0) {
 			device_printf(dev, "cannot get MIF registers\n");
+			error = ENXIO;
 			goto fail_mac_res;
 		}
 		if (start < rman_get_start(hsc->hsc_mac_res) ||
 		    start + count - 1 > rman_get_end(hsc->hsc_mac_res)) {
 			device_printf(dev, "cannot move MIF registers to MAC "
 			    "bank\n");
+			error = ENXIO;
 			goto fail_mac_res;
 		}
 		sc->sc_mift = sc->sc_mact;
-		sc->sc_mifh = sc->sc_mach;
-		sc->sc_mifo = sc->sc_maco + start -
-		    rman_get_start(hsc->hsc_mac_res);
+		bus_space_subregion(sc->sc_mact, sc->sc_mach,
+		    start - rman_get_start(hsc->hsc_mac_res), count,
+		    &sc->sc_mifh);
 	} else {
 		sc->sc_mift = rman_get_bustag(hsc->hsc_mif_res);
 		sc->sc_mifh = rman_get_bushandle(hsc->hsc_mif_res);
@@ -239,7 +243,6 @@ hme_sbus_attach(device_t dev)
 		error = ENXIO;
 		goto fail_mif_res;
 	}
-
 
 	OF_getetheraddr(dev, sc->sc_arpcom.ac_enaddr);
 
@@ -261,7 +264,6 @@ hme_sbus_attach(device_t dev)
 		device_printf(dev, "could not be configured\n");
 		goto fail_ires;
 	}
-
 
 	if ((error = bus_setup_intr(dev, hsc->hsc_ires, INTR_TYPE_NET, hme_intr,
 	     sc, &hsc->hsc_ih)) != 0) {
@@ -290,7 +292,7 @@ fail_etx_res:
 fail_seb_res:
 	bus_release_resource(dev, SYS_RES_MEMORY, hsc->hsc_seb_rid,
 	    hsc->hsc_seb_res);
-	return (ENXIO);
+	return (error);
 }
 
 static int

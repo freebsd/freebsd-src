@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: NetBSD: if_hme_pci.c,v 1.4 2001/08/27 22:18:49 augustss Exp
+ *	from: NetBSD: if_hme_pci.c,v 1.7 2001/10/05 17:49:43 thorpej Exp
  */
 
 #include <sys/cdefs.h>
@@ -133,7 +133,7 @@ hme_pci_attach(device_t dev)
 {
 	struct hme_pci_softc *hsc = device_get_softc(dev);
 	struct hme_softc *sc = &hsc->hsc_hme;
-	int error;
+	int error = 0;
 
 	pci_enable_busmaster(dev);
 	/*
@@ -171,15 +171,20 @@ hme_pci_attach(device_t dev)
 		error = ENXIO;
 		goto fail_sres;
 	}
+	hsc->hsc_memt = rman_get_bustag(hsc->hsc_sres);
+	hsc->hsc_memh = rman_get_bushandle(hsc->hsc_sres);
 	sc->sc_sebt = sc->sc_etxt = sc->sc_erxt = sc->sc_mact = sc->sc_mift =
-	    rman_get_bustag(hsc->hsc_sres);
-	sc->sc_sebh = sc->sc_etxh = sc->sc_erxh = sc->sc_mach = sc->sc_mifh =
-	    rman_get_bushandle(hsc->hsc_sres);
-	sc->sc_sebo = 0;
-	sc->sc_etxo = 0x2000;
-	sc->sc_erxo = 0x4000;
-	sc->sc_maco = 0x6000;
-	sc->sc_mifo = 0x7000;
+	    hsc->hsc_memt;
+	bus_space_subregion(hsc->hsc_memt, hsc->hsc_memh, 0x0000, 0x1000,
+	    &sc->sc_sebh);
+	bus_space_subregion(hsc->hsc_memt, hsc->hsc_memh, 0x2000, 0x1000,
+	    &sc->sc_etxh);
+	bus_space_subregion(hsc->hsc_memt, hsc->hsc_memh, 0x4000, 0x1000,
+	    &sc->sc_erxh);
+	bus_space_subregion(hsc->hsc_memt, hsc->hsc_memh, 0x6000, 0x1000,
+	    &sc->sc_mach);
+	bus_space_subregion(hsc->hsc_memt, hsc->hsc_memh, 0x7000, 0x1000,
+	    &sc->sc_mifh);
 
 	OF_getetheraddr(dev, sc->sc_arpcom.ac_enaddr);
 
@@ -205,7 +210,7 @@ fail_ires:
 	bus_release_resource(dev, SYS_RES_IRQ, hsc->hsc_irid, hsc->hsc_ires);
 fail_sres:
 	bus_release_resource(dev, SYS_RES_MEMORY, hsc->hsc_srid, hsc->hsc_sres);
-	return (ENXIO);
+	return (error);
 }
 
 static int
