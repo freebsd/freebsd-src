@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.24.2.35 1997/09/05 23:07:22 brian Exp $
+ * $Id: command.c,v 1.24.2.36 1997/09/09 23:17:28 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -663,7 +663,7 @@ FindExec(struct cmdtab const * cmdlist, int argc, char **argv)
   if (nmatch > 1)
     LogPrintf(LogWARN, "%s: Ambiguous command\n", *argv);
   else if (cmd && (cmd->lauth & VarLocalAuth))
-    val = (cmd->func) (cmd, --argc, ++argv, cmd->args);
+    val = (cmd->func) (cmd, argc-1, argv+1, cmd->args);
   else
     LogPrintf(LogWARN, "%s: Invalid command\n", *argv);
 
