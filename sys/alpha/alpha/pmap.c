@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.4 1998/07/15 20:07:33 dfr Exp $
+ *	$Id: pmap.c,v 1.5 1998/07/24 09:43:27 dfr Exp $
  */
 
 /*
@@ -200,7 +200,7 @@ pmap_break(void)
 {
 }
 
-#define PMAP_DEBUG_VA(va) if ((va) == 0x120058000) pmap_break(); else
+/* #define PMAP_DEBUG_VA(va) if ((va) == 0x120058000) pmap_break(); else */
 
 #endif
 
@@ -1780,12 +1780,12 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	}
 
 	for (va = sva; va < eva; va = nva1) {
-		nva1 = alpha_l1trunc(va + ALPHA_L1SIZE - 1);
+		nva1 = alpha_l1trunc(va + ALPHA_L1SIZE);
 		if (!pmap_pte_v(pmap_lev1pte(pmap, va)))
 			continue;
 
 		for (; va < eva && va < nva1; va = nva2) {
-			nva2 = alpha_l2trunc(va + ALPHA_L2SIZE - 1);
+			nva2 = alpha_l2trunc(va + ALPHA_L2SIZE);
 			if (!pmap_pte_v(pmap_lev2pte(pmap, va)))
 				continue;
 			for (; va < eva && va < nva2; va += PAGE_SIZE)
@@ -2760,6 +2760,22 @@ pmap_clear_modify(vm_offset_t pa)
 		pmap_changebit(pa, PG_FOW, TRUE);
 		ppv->pv_flags &= ~PV_TABLE_MOD;
 	}
+}
+
+/*
+ *	pmap_page_is_free:
+ *
+ *	Called when a page is freed to allow pmap to clean up
+ *	any extra state associated with the page.  In this case
+ *	clear modified/referenced bits.
+ */
+void
+pmap_page_is_free(vm_page_t m)
+{
+	pv_table_t *ppv;
+
+	ppv = pa_to_pvh(VM_PAGE_TO_PHYS(m));
+	ppv->pv_flags = 0;
 }
 
 /*
