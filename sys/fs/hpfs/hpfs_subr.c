@@ -247,8 +247,8 @@ hpfs_cpload (
  */
 int
 hpfs_cpinit (
-	struct hpfsmount *hpmp,
-	struct hpfs_args *argsp)
+	struct mount *mp,
+	struct hpfsmount *hpmp)
 {
 	struct buf *bp;
 	int error, i;
@@ -260,15 +260,21 @@ hpfs_cpinit (
 
 	dprintf(("hpfs_cpinit: \n"));
 
-	if (argsp->flags & HPFSMNT_TABLES) {
-		bcopy(argsp->d2u, hpmp->hpm_d2u, sizeof(u_char) * 0x80);
-		bcopy(argsp->u2d, hpmp->hpm_u2d, sizeof(u_char) * 0x80);
-	} else {
-		for (i=0x0; i<0x80;i++) {
+	error = vfs_copyopt(mp->mnt_optnew, "d2u", hpmp->hpm_d2u,
+	    sizeof hpmp->hpm_d2u);
+	if (error == ENOENT)
+		for (i=0x0; i<0x80;i++)
 			hpmp->hpm_d2u[i] = i + 0x80;
+	else if (error)
+		return (error);
+
+	error = vfs_copyopt(mp->mnt_optnew, "u2d", hpmp->hpm_u2d,
+	    sizeof hpmp->hpm_u2d);
+	if (error == ENOENT)
+		for (i=0x0; i<0x80;i++)
 			hpmp->hpm_u2d[i] = i + 0x80;
-		}
-	}
+	else if (error)
+		return (error);
 
 	cpicnt = hpmp->hpm_sp.sp_cpinum;
 

@@ -39,7 +39,7 @@ int		hpfs_bmlookup (struct hpfsmount *, u_long, lsn_t, u_long,
 				lsn_t *, u_long *);
 
 struct hpfs_args;
-int		hpfs_cpinit (struct hpfsmount *, struct hpfs_args *);
+int		hpfs_cpinit (struct mount *, struct hpfsmount *);
 int		hpfs_cpdeinit (struct hpfsmount *);
 int		hpfs_cpload (struct hpfsmount *, struct cpiblk *,
 			     struct cpdblk *);
