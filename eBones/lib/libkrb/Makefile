@@ -1,7 +1,8 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.9 1995/09/14 04:05:02 gibbs Exp $
+#	$Id: Makefile,v 1.10 1995/10/05 21:29:41 gibbs Exp $
 
 LIB=	krb
+SHLIB_MINOR=   1
 CFLAGS+=-DKERBEROS -DCRYPT -DDEBUG -DBSD42
 SRCS=	krb_err.c create_auth_reply.c create_ciph.c \
 	create_death_packet.c create_ticket.c debug_decl.c decomp_ticket.c \
