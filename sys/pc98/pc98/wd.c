@@ -1226,7 +1226,7 @@ done: ;
  * Initialize a drive.
  */
 int
-wdopen(dev_t dev, int flags, int fmt, struct proc *p)
+wdopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	register unsigned int lunit;
 	register struct softc *du;
