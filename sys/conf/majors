@@ -171,6 +171,7 @@
 183	*smapi		SMAPI BIOS interface <mdodd>
 184	dcons		Dumb console driver <simokawa>
 185	ce		Cronyx Tau-32 E1 adapter <rik@cronyx.ru>
+186	sx		Specialix I/O8+ driver <frank@exit.com>
 200	??		entries from 200-252 are reserved for local use
 248	*isp		dev/isp/isp_freebsd.c
 252	??		entries from 200-252 are reserved for local use
