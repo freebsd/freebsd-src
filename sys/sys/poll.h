@@ -31,9 +31,13 @@
 #ifndef _SYS_POLL_H_
 #define	_SYS_POLL_H_
 
+#include <sys/cdefs.h>
+
 /*
  * This file is intended to be compatible with the traditional poll.h.
  */
+
+typedef	unsigned int	nfds_t;
 
 /*
  * This structure is passed as an array to poll(2).
@@ -63,7 +67,9 @@ struct pollfd {
 #define	POLLWRBAND	0x0100		/* OOB/Urgent data can be written */
 
 /* General FreeBSD extension (currently only supported for sockets): */
+#if __BSD_VISIBLE
 #define	POLLINIGNEOF	0x2000		/* like POLLIN, except ignore EOF */
+#endif
 
 /*
  * These events are set if they occur regardless of whether they were
@@ -72,6 +78,8 @@ struct pollfd {
 #define	POLLERR		0x0008		/* some poll error occurred */
 #define	POLLHUP		0x0010		/* file descriptor was "hung up" */
 #define	POLLNVAL	0x0020		/* requested events "invalid" */
+
+#if __BSD_VISIBLE
 
 #define	POLLSTANDARD	(POLLIN|POLLPRI|POLLOUT|POLLRDNORM|POLLRDBAND|\
 			 POLLWRBAND|POLLERR|POLLHUP|POLLNVAL)
@@ -83,18 +91,12 @@ struct pollfd {
  */
 #define	INFTIM		(-1)
 
+#endif
+
 #ifndef _KERNEL
 
-#include <sys/cdefs.h>
-
 __BEGIN_DECLS
-/*
- * XXX logically, poll() should be declared in <poll.h>, but SVR4 at
- * least has it here in <sys/poll.h>.
- * XXX poll() has "unsigned long" nfds on SVR4, not unsigned as on the
- * other BSDs.
- */
-int	poll(struct pollfd *_pfd, unsigned int _nfds, int _timeout);
+int	poll(struct pollfd _pfd[], nfds_t _nfds, int _timeout);
 __END_DECLS
 
 #endif /* !_KERNEL */
