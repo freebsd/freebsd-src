@@ -681,7 +681,6 @@ vm_waitproc(p)
 	struct proc *p;
 {
 
-	GIANT_REQUIRED;
 	vmspace_exitfree(p);		/* and clean-out the vmspace */
 }
 
