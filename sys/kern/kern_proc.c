@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $Id: kern_proc.c,v 1.30 1997/10/12 20:23:52 phk Exp $
+ * $Id: kern_proc.c,v 1.31 1998/01/22 17:29:48 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -423,6 +423,7 @@ fill_eproc(p, ep)
 		ep->e_vm.vm_daddr = vm->vm_daddr;
 		ep->e_vm.vm_minsaddr = vm->vm_minsaddr;
 		ep->e_vm.vm_maxsaddr = vm->vm_maxsaddr;
+		ep->e_vm.vm_map = vm->vm_map;
 #ifndef sparc
 		ep->e_vm.vm_pmap = vm->vm_pmap;
 #endif
