@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.8 1994/01/31 23:47:24 davidg Exp $
+ *	$Id: autoconf.c,v 1.9 1994/03/21 14:37:01 ache Exp $
  */
 
 /*
@@ -142,6 +142,7 @@ static	char devname[][2] = {
 
 #define	PARTITIONMASK	0x7
 #define	PARTITIONSHIFT	3
+#define FDUNITSHIFT     6
 
 /*
  * Attempt to find the device from which we were booted.
@@ -163,12 +164,15 @@ setroot()
 	if (majdev > sizeof(devname) / sizeof(devname[0]))
 		return;
 	adaptor = (bootdev >> B_ADAPTORSHIFT) & B_ADAPTORMASK;
-	part = (bootdev >> B_PARTITIONSHIFT) & B_PARTITIONMASK;
 	unit = (bootdev >> B_UNITSHIFT) & B_UNITMASK;
-	if (majdev == FDMAJOR)
-		mindev = unit << 6;
-	else
+	if (majdev == FDMAJOR) {
+		part = 0;
+		mindev = unit << FDUNITSHIFT;
+	}
+	else {
+		part = (bootdev >> B_PARTITIONSHIFT) & B_PARTITIONMASK;
 		mindev = (unit << PARTITIONSHIFT) + part;
+	}
 	orootdev = rootdev;
 	rootdev = makedev(majdev, mindev);
 	/*
@@ -179,7 +183,8 @@ setroot()
 		return;
 	printf("changing root device to %c%c%d%c\n",
 		devname[majdev][0], devname[majdev][1],
-		mindev >> PARTITIONSHIFT, part + 'a');
+		mindev >> (majdev == FDMAJOR ? FDUNITSHIFT : PARTITIONSHIFT),
+		part + 'a');
 #ifdef DOSWAP
 	mindev &= ~PARTITIONMASK;
 	for (swp = swdevt; swp->sw_dev; swp++) {
