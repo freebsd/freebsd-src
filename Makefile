@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.130 1997/06/08 15:04:06 jfieber Exp $
+#	$Id: Makefile,v 1.131 1997/07/31 08:06:29 asami Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -279,7 +279,7 @@ update:
 	@echo "--------------------------------------------------------------"
 	@echo "Updating /usr/src from cvs repository" ${CVSROOT}
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} &&  cvs -q update -P -d
+	cd ${.CURDIR} && cvs -q update -P -d
 .endif
 
 
@@ -385,9 +385,9 @@ includes:
 	cd ${.CURDIR}/gnu/include &&		${MAKE} install
 	cd ${.CURDIR}/gnu/lib/libreadline &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libregex &&	${MAKE} beforeinstall
-	cd ${.CURDIR}/gnu/lib/libstdc++ &&      ${MAKE} beforeinstall
-	cd ${.CURDIR}/gnu/lib/libg++ &&         ${MAKE} beforeinstall
-	cd ${.CURDIR}/gnu/lib/libdialog &&      ${MAKE} beforeinstall
+	cd ${.CURDIR}/gnu/lib/libstdc++ &&	${MAKE} beforeinstall
+	cd ${.CURDIR}/gnu/lib/libg++ &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/gnu/lib/libdialog &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libmp &&		${MAKE} beforeinstall
 .if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_EBONES)
 	cd ${.CURDIR}/eBones/include &&		${MAKE} beforeinstall
@@ -401,7 +401,7 @@ includes:
 	cd ${.CURDIR}/lib/libedit &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libftpio &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libmd &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libmytinfo &&         ${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libmytinfo &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libncurses &&		${MAKE} beforeinstall
 .if !defined(WANT_CSRG_LIBM)
 	cd ${.CURDIR}/lib/msun &&		${MAKE} beforeinstall
