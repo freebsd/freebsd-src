@@ -469,8 +469,10 @@ sltioctl(tp, cmd, data, flag, td)
 			return (ENXIO);
 		}
 		if (sc->sc_if.if_dunit != unit) {
-			if (!slisunitfree(unit))
+			if (!slisunitfree(unit)) {
+				splx(s);
 				return (ENXIO);
+			}
 
 			wasup = sc->sc_if.if_flags & IFF_UP;
 			bpfdetach(&sc->sc_if);
