@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.50 1999/01/10 17:40:10 luigi Exp $
+ * $Id: if_ether.c,v 1.51 1999/01/18 01:54:36 fenner Exp $
  */
 
 /*
@@ -327,7 +327,7 @@ arpresolve(ac, rt, m, dst, desten, rt0)
 	register u_char *desten;
 	struct rtentry *rt0;
 {
-	register struct llinfo_arp *la;
+	register struct llinfo_arp *la = 0;
 	struct sockaddr_dl *sdl;
 
 	if (m->m_flags & M_BCAST) {	/* broadcast */
