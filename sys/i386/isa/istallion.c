@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id$
  */
 
 /*****************************************************************************/
@@ -45,7 +47,6 @@
 #include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <sys/proc.h>
-#include <sys/user.h>
 #include <sys/conf.h>
 #include <sys/file.h>
 #include <sys/uio.h>
@@ -53,10 +54,13 @@
 #include <sys/devconf.h>
 #include <machine/cpu.h>
 #include <machine/clock.h>
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
-#include <i386/isa/cdk.h>
-#include <i386/isa/comstats.h>
+#include <machine/cdk.h>
+#include <machine/comstats.h>
 
 /*****************************************************************************/
 
@@ -65,7 +69,7 @@
  *	appropriate bits of code. By default this will compile for a 2.1
  *	level kernel.
  */
-#define	VFREEBSD	210
+#define	VFREEBSD	220
 
 #if VFREEBSD >= 220
 #define	STATIC		static
@@ -639,7 +643,7 @@ struct isa_driver	stlidriver = {
  *	FreeBSD-2.2+ kernel linkage.
  */
 
-#define	CDEV_MAJOR	72
+#define	CDEV_MAJOR	75
 
 static struct cdevsw stli_cdevsw = 
 	{ stliopen,	stliclose,	stliread,	stliwrite,
@@ -666,7 +670,7 @@ SYSINIT(sidev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,stli_drvinit,NULL)
 
 /*****************************************************************************/
 
-static stlibrd_t *stli_brdalloc()
+static stlibrd_t *stli_brdalloc(void)
 {
 	stlibrd_t	*brdp;
 
@@ -688,7 +692,7 @@ static stlibrd_t *stli_brdalloc()
  *	boards - but we only want to maintain one setup board structures.
  */
 
-static int stli_findfreeunit()
+static int stli_findfreeunit(void)
 {
 	int	i;
 
