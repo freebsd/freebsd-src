@@ -194,15 +194,25 @@ pte_load_store(pt_entry_t *ptep, pt_entry_t pte)
 {
 	pt_entry_t r;
 
-	r = *ptep;
-	*ptep = pte;
+	__asm __volatile(
+	    "xchgq %0,%1"
+	    : "=m" (*ptep),
+	      "=r" (r)
+	    : "1" (pte),
+	      "m" (*ptep));
 	return (r);
 }
 
 #define	pte_load_clear(pte)	atomic_readandclear_long(pte)
 
-#define	pte_clear(ptep)		pte_load_store((ptep), (pt_entry_t)0ULL)
-#define	pte_store(ptep, pte)	pte_load_store((ptep), (pt_entry_t)pte)
+static __inline void
+pte_store(pt_entry_t *ptep, pt_entry_t pte)
+{
+
+	*ptep = pte;
+}
+
+#define	pte_clear(ptep)		pte_store((ptep), (pt_entry_t)0ULL)
 
 #define	pde_store(pdep, pde)	pte_store((pdep), (pde))
 
