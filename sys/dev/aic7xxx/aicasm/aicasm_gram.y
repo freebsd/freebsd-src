@@ -1577,7 +1577,6 @@ format_1_instr(int opcode, symbol_ref_t *dest, expression_t *immed,
 		case AIC_OP_OR:
 			dst_value = src_value | immed->value;
 			break;
-			break;
 		case AIC_OP_BMOV:
 			dst_value = src_value;
 			break;
@@ -1586,9 +1585,9 @@ format_1_instr(int opcode, symbol_ref_t *dest, expression_t *immed,
 		}
 		src_mode = dst_value & 0xF;
 		dst_mode = (dst_value >> 4) & 0xF;
-cant_update:
 	}
 
+cant_update:
 	symlist_free(&immed->referenced_syms);
 	instruction_ptr++;
 }
