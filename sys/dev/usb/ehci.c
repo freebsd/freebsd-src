@@ -2497,7 +2497,6 @@ ehci_close_pipe(usbd_pipe_handle pipe, ehci_soft_qh_t *head)
  * have happened since the hardware runs concurrently.
  * If the transaction has already happened we rely on the ordinary
  * interrupt processing to process it.
- * XXX This is most probably wrong.
  */
 void
 ehci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
