@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	../shared
+.PATH:	${.CURDIR}/../shared
 
 BINDIR=	/sbin
 PROG=	ggatec
@@ -9,7 +9,7 @@ MAN=	ggatec.8
 DPADD=	${LIBGEOM} ${LIBSBUF} ${LIBBSDXML}
 LDADD=	-lgeom -lsbuf -lbsdxml
 WARNS=	6
-CFLAGS+=-I../shared
+CFLAGS+=-I${.CURDIR}/../shared
 CFLAGS+=-DLIBGEOM
 
 .include <bsd.prog.mk>
