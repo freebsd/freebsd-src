@@ -1,0 +1,286 @@
+############
+# Setup system for IPv6 firewall service.
+# $FreeBSD$
+
+# Suck in the configuration variables.
+if [ -z "${source_rc_confs_defined}" ]; then
+	if [ -r /etc/defaults/rc.conf ]; then
+		. /etc/defaults/rc.conf
+		source_rc_confs
+	elif [ -r /etc/rc.conf ]; then
+		. /etc/rc.conf
+	fi
+fi
+
+############
+# Define the firewall type in /etc/rc.conf.  Valid values are:
+#   open     - will allow anyone in
+#   client   - will try to protect just this machine
+#   simple   - will try to protect a whole network
+#   closed   - totally disables IP services except via lo0 interface
+#   UNKNOWN  - disables the loading of firewall rules.
+#   filename - will load the rules in the given filename (full path required)
+#
+# For ``client'' and ``simple'' the entries below should be customized
+# appropriately.
+
+############
+#
+# If you don't know enough about packet filtering, we suggest that you
+# take time to read this book:
+#
+#	Building Internet Firewalls, 2nd Edition
+#	Brent Chapman and Elizabeth Zwicky
+#
+#	O'Reilly & Associates, Inc
+#	ISBN 1-56592-871-7
+#	http://www.ora.com/
+#	http://www.oreilly.com/catalog/fire2/
+#
+# For a more advanced treatment of Internet Security read:
+#
+#	Firewalls & Internet Security
+#	Repelling the wily hacker
+#	William R. Cheswick, Steven M. Bellowin
+#
+#	Addison-Wesley
+#	ISBN 0-201-63357-4
+#	http://www.awl.com/
+#	http://www.awlonline.com/product/0%2C2627%2C0201633574%2C00.html
+#
+
+setup_local () {
+	############
+	# Only in rare cases do you want to change these rules
+	#
+	${fw6cmd} add 100 pass all from any to any via lo0
+	#
+	# ND
+	#
+	# DAD
+	${fw6cmd} add pass ipv6-icmp from :: to ff02::/16
+	# RS, RA, NS, NA, redirect...
+	${fw6cmd} add pass ipv6-icmp from fe80::/10 to fe80::/10
+	${fw6cmd} add pass ipv6-icmp from fe80::/10 to ff02::/16
+}
+
+if [ -n "${1}" ]; then
+	ipv6_firewall_type="${1}"
+fi
+
+############
+# Set quiet mode if requested
+#
+case ${ipv6_firewall_quiet} in
+[Yy][Ee][Ss])
+	fw6cmd="/sbin/ip6fw -q"
+	;;
+*)
+	fw6cmd="/sbin/ip6fw"
+	;;
+esac
+
+############
+# Flush out the list before we begin.
+#
+${fw6cmd} -f flush
+
+############
+# If you just configured ipfw in the kernel as a tool to solve network
+# problems or you just want to disallow some particular kinds of traffic
+# then you will want to change the default policy to open.  You can also
+# do this as your only action by setting the ipv6_firewall_type to ``open''.
+#
+# ${fw6cmd} add 65000 pass all from any to any
+
+
+# Prototype setups.
+#
+case ${ipv6_firewall_type} in
+[Oo][Pp][Ee][Nn])
+	setup_local
+	${fw6cmd} add 65000 pass all from any to any
+	;;
+
+[Cc][Ll][Ii][Ee][Nn][Tt])
+	############
+	# This is a prototype setup that will protect your system somewhat
+	# against people from outside your own network.
+	############
+
+	# set these to your network and prefixlen and ip
+	#
+	# This needs more work
+	#
+	net="3ffe:505:2:1::"
+	prefixlen="64"
+	ip="3ffe:505:2:1::1"
+
+	setup_local
+
+	# Allow any traffic to or from my own net.
+	${fw6cmd} add pass all from ${ip} to ${net}/${prefixlen}
+	${fw6cmd} add pass all from ${net}/${prefixlen} to ${ip}
+
+	# Allow any link-local multicast traffic
+	${fw6cmd} add pass all from fe80::/10 to ff02::/16
+	${fw6cmd} add pass all from ${net}/${prefixlen} to ff02::/16
+
+	# Allow TCP through if setup succeeded
+	${fw6cmd} add pass tcp from any to any established
+
+	# Allow IP fragments to pass through
+	${fw6cmd} add pass all from any to any frag
+
+	# Allow setup of incoming email
+	${fw6cmd} add pass tcp from any to ${ip} 25 setup
+
+	# Allow setup of outgoing TCP connections only
+	${fw6cmd} add pass tcp from ${ip} to any setup
+
+	# Disallow setup of all other TCP connections
+	${fw6cmd} add deny tcp from any to any setup
+
+	# Allow DNS queries out in the world
+	${fw6cmd} add pass udp from any 53 to ${ip}
+	${fw6cmd} add pass udp from ${ip} to any 53
+
+	# Allow NTP queries out in the world
+	${fw6cmd} add pass udp from any 123 to ${ip}
+	${fw6cmd} add pass udp from ${ip} to any 123
+
+	# Allow ICMPv6 destination unreach
+	${fw6cmd} add pass ipv6-icmp from any to any icmptypes 1
+
+	# Allow NS/NA/toobig (don't filter it out)
+	${fw6cmd} add pass ipv6-icmp from any to any icmptypes 2,135,136
+
+	# Everything else is denied by default, unless the
+	# IPV6FIREWALL_DEFAULT_TO_ACCEPT option is set in your kernel
+	# config file.
+	;;
+
+[Ss][Ii][Mm][Pp][Ll][Ee])
+	############
+	# This is a prototype setup for a simple firewall.  Configure this
+	# machine as a named server and ntp server, and point all the machines
+	# on the inside at this machine for those services.
+	############
+
+	# set these to your outside interface network and prefixlen and ip
+	oif="ed0"
+	onet="3ffe:505:2:1::"
+	oprefixlen="64"
+	oip="3ffe:505:2:1::1"
+
+	# set these to your inside interface network and prefixlen and ip
+	iif="ed1"
+	inet="3ffe:505:2:2::"
+	iprefixlen="64"
+	iip="3ffe:505:2:2::1"
+
+	setup_local
+
+	# Stop spoofing
+	${fw6cmd} add deny all from ${inet}/${iprefixlen} to any in via ${oif}
+	${fw6cmd} add deny all from ${onet}/${oprefixlen} to any in via ${iif}
+
+	# Stop site-local on the outside interface
+	${fw6cmd} add deny all from fec0::/10 to any via ${oif}
+	${fw6cmd} add deny all from any to fec0::/10 via ${oif}
+
+	# Disallow "internal" addresses to appear on the wire.
+	${fw6cmd} add deny all from ::ffff:0.0.0.0/96 to any via ${oif}
+	${fw6cmd} add deny all from any to ::ffff:0.0.0.0/96 via ${oif}
+
+	# Disallow packets to malicious IPv4 compatible prefix.
+	${fw6cmd} add deny all from ::224.0.0.0/100 to any via ${oif}
+	${fw6cmd} add deny all from any to ::224.0.0.0/100 via ${oif}
+	${fw6cmd} add deny all from ::127.0.0.0/104 to any via ${oif}
+	${fw6cmd} add deny all from any to ::127.0.0.0/104 via ${oif}
+	${fw6cmd} add deny all from ::0.0.0.0/104 to any via ${oif}
+	${fw6cmd} add deny all from any to ::0.0.0.0/104 via ${oif}
+	${fw6cmd} add deny all from ::255.0.0.0/104 to any via ${oif}
+	${fw6cmd} add deny all from any to ::255.0.0.0/104 via ${oif}
+
+	${fw6cmd} add deny all from ::0.0.0.0/96 to any via ${oif}
+	${fw6cmd} add deny all from any to ::0.0.0.0/96 via ${oif}
+
+	# Disallow packets to malicious 6to4 prefix.
+	${fw6cmd} add deny all from 2002:e000::/20 to any via ${oif}
+	${fw6cmd} add deny all from any to 2002:e000::/20 via ${oif}
+	${fw6cmd} add deny all from 2002:7f00::/24 to any via ${oif}
+	${fw6cmd} add deny all from any to 2002:7f00::/24 via ${oif}
+	${fw6cmd} add deny all from 2002:0000::/24 to any via ${oif}
+	${fw6cmd} add deny all from any to 2002:0000::/24 via ${oif}
+	${fw6cmd} add deny all from 2002:ff00::/24 to any via ${oif}
+	${fw6cmd} add deny all from any to 2002:ff00::/24 via ${oif}
+
+	${fw6cmd} add deny all from 2002:0a00::/24 to any via ${oif}
+	${fw6cmd} add deny all from any to 2002:0a00::/24 via ${oif}
+	${fw6cmd} add deny all from 2002:ac10::/28 to any via ${oif}
+	${fw6cmd} add deny all from any to 2002:ac10::/28 via ${oif}
+	${fw6cmd} add deny all from 2002:c0a8::/32 to any via ${oif}
+	${fw6cmd} add deny all from any to 2002:c0a8::/32 via ${oif}
+
+	${fw6cmd} add deny all from ff05::/16 to any via ${oif}
+	${fw6cmd} add deny all from any to ff05::/16 via ${oif}
+
+	# Allow TCP through if setup succeeded
+	${fw6cmd} add pass tcp from any to any established
+
+	# Allow IP fragments to pass through
+	${fw6cmd} add pass all from any to any frag
+
+	# Allow setup of incoming email
+	${fw6cmd} add pass tcp from any to ${oip} 25 setup
+
+	# Allow access to our DNS
+	${fw6cmd} add pass tcp from any to ${oip} 53 setup
+	${fw6cmd} add pass udp from any to ${oip} 53
+	${fw6cmd} add pass udp from ${oip} 53 to any
+
+	# Allow access to our WWW
+	${fw6cmd} add pass tcp from any to ${oip} 80 setup
+
+	# Reject&Log all setup of incoming connections from the outside
+	${fw6cmd} add deny log tcp from any to any in via ${oif} setup
+
+	# Allow setup of any other TCP connection
+	${fw6cmd} add pass tcp from any to any setup
+
+	# Allow DNS queries out in the world
+	${fw6cmd} add pass udp from any 53 to ${oip}
+	${fw6cmd} add pass udp from ${oip} to any 53
+
+	# Allow NTP queries out in the world
+	${fw6cmd} add pass udp from any 123 to ${oip}
+	${fw6cmd} add pass udp from ${oip} to any 123
+
+	# Allow RIPng
+	#${fw6cmd} add pass udp from fe80::/10 521 to ff02::9 521
+	#${fw6cmd} add pass udp from fe80::/10 521 to fe80::/10 521
+
+	# Allow ICMPv6 destination unreach
+	${fw6cmd} add pass ipv6-icmp from any to any icmptypes 1
+
+	# Allow NS/NA/toobig (don't filter it out)
+	${fw6cmd} add pass ipv6-icmp from any to any icmptypes 2,135,136
+
+	# Everything else is denied by default, unless the
+	# IPV6FIREWALL_DEFAULT_TO_ACCEPT option is set in your kernel
+	# config file.
+	;;
+
+[Cc][Ll][Oo][Ss][Ee][Dd])
+	# Only enable the loopback interface
+	${fw6cmd} add 100 pass all from any to any via lo0
+	;;
+[Uu][Nn][Kk][Nn][Oo][Ww][Nn])
+	;;
+*)
+	if [ -r "${ipv6_firewall_type}" ]; then
+		${fw6cmd} ${ipv6_firewall_flags} ${ipv6_firewall_type}
+	fi
+	;;
+esac

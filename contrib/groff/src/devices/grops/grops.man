@@ -1,0 +1,865 @@
+.ig
+Copyright (C) 1989-2000, 2001 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be included in
+translations approved by the Free Software Foundation instead of in
+the original English.
+..
+.\" Like TP, but if specified indent is more than half
+.\" the current line-length - indent, use the default indent.
+.de Tp
+.ie \\n(.$=0:((0\\$1)*2u>(\\n(.lu-\\n(.iu)) .TP
+.el .TP "\\$1"
+..
+.TH GROPS @MAN1EXT@ "@MDATE@" "Groff Version @VERSION@"
+.SH NAME
+grops \- PostScript driver for groff
+.SH SYNOPSIS
+.nr a \n(.j
+.ad l
+.nr i \n(.i
+.in +\w'\fBgrops 'u
+.ti \niu
+.B grops
+.de OP
+.ie \\n(.$-1 .RI "[\ \fB\\$1\fP" "\\$2" "\ ]"
+.el .RB "[\ " "\\$1" "\ ]"
+..
+.OP \-glmv
+.OP \-b n
+.OP \-c n
+.OP \-w n
+.OP \-F dir
+.OP \-P prologue
+.RI "[\ " files\|.\|.\|. "\ ]"
+.br
+.ad \na
+.PP
+It is possible to have whitespace between a command line option and its
+parameter.
+.SH DESCRIPTION
+.B grops
+translates the output of GNU
+.B troff
+to PostScript.
+Normally
+.B grops
+should be invoked by using the groff command
+with a
+.B \-Tps
+option.
+.if '@DEVICE@'ps' (Actually, this is the default for groff.)
+If no files are given,
+.B grops
+will read the standard input.
+A filename of
+.B \-
+will also cause
+.B grops
+to read the standard input.
+PostScript output is written to the standard output.
+When
+.B grops
+is run by
+.B groff
+options can be passed to
+.B grops
+using the
+.B groff
+.B \-P
+option.
+.SH OPTIONS
+.TP
+.BI \-b n
+Workaround broken spoolers and previewers.
+Normally
+.B grops
+produces output that conforms
+the Document Structuring Conventions version 3.0.
+Unfortunately some spoolers and previewers can't handle such output.
+The value of
+.I n
+controls what
+.B grops
+does to its output acceptable to such programs.
+A value of 0 will cause grops not to employ any workarounds.
+Add 1 if no
+.B %%BeginDocumentSetup
+and
+.B %%EndDocumentSetup
+comments should be generated;
+this is needed for early versions of TranScript that get confused by
+anything between the
+.B %%EndProlog
+comment and the first
+.B %%Page
+comment.
+Add 2 if lines in included files beginning with
+.B %!
+should be stripped out; this is needed for Sun's pageview previewer.
+Add 4 if
+.BR %%Page ,
+.BR %%Trailer
+and
+.B %%EndProlog
+comments should be
+stripped out of included files; this is needed for spoolers that
+don't understand the
+.B %%BeginDocument
+and
+.B %%EndDocument
+comments.
+Add 8 if the first line of the PostScript output should be
+.B %!PS-Adobe-2.0
+rather than
+.BR %!PS-Adobe-3.0 ;
+this is needed when using Sun's Newsprint with a printer that requires
+page reversal.
+The default value can be specified by a
+.RS
+.IP
+.BI broken\  n
+.LP
+command in the DESC file.
+Otherwise the default value is 0.
+.RE
+.TP
+.BI \-c n
+Print
+.I n
+copies of each page.
+.TP
+.BI \-g
+Guess the page length.
+This generates PostScript code that guesses the page length.
+The guess will be correct only if the imageable area is vertically
+centered on the page.
+This option allows you to generate documents that can be printed
+both on letter (8.5\(mu11) paper and on A4 paper without change.
+.TP
+.B \-l
+Print the document in landscape format.
+.TP
+.B \-m
+Turn manual feed on for the document.
+.TP
+.BI \-F dir
+Prepend directory
+.IB dir /dev name
+to the search path for prologue, font, and device description files;
+.I name
+is the name of the device, usually
+.BR ps .
+.TP
+.BI \-P prologue-file
+Use the file
+.I prologue-file
+(in the font path) as the prologue instead of the default prologue file
+.BR prologue .
+This option overrides the environment variable
+.SM GROPS_PROLOGUE.
+.TP
+.BI \-w n
+Lines should be drawn using a thickness of
+.I n
+thousandths of an em.
+.TP
+.B \-v
+Print the version number.
+.SH USAGE
+There are styles called
+.BR R ,
+.BR I ,
+.BR B ,
+and
+.B BI
+mounted at font positions 1 to 4.
+The fonts are grouped into families
+.BR A ,
+.BR BM ,
+.BR C ,
+.BR H ,
+.BR HN ,
+.BR N ,
+.B P
+and
+.B T
+having members in each of these styles:
+.de FT
+.if '\\*(.T'ps' .ft \\$1
+..
+.TP
+.B AR
+.FT AR
+AvantGarde-Book
+.FT
+.TP
+.B AI
+.FT AI
+AvantGarde-BookOblique
+.FT
+.TP
+.B AB
+.FT AB
+AvantGarde-Demi
+.FT
+.TP
+.B ABI
+.FT ABI
+AvantGarde-DemiOblique
+.FT
+.TP
+.B BMR
+.FT BMR
+Bookman-Light
+.FT
+.TP
+.B BMI
+.FT BMI
+Bookman-LightItalic
+.FT
+.TP
+.B BMB
+.FT BMB
+Bookman-Demi
+.FT
+.TP
+.B BMBI
+.FT BMBI
+Bookman-DemiItalic
+.FT
+.TP
+.B CR
+.FT CR
+Courier
+.FT
+.TP
+.B CI
+.FT CI
+Courier-Oblique
+.FT
+.TP
+.B CB
+.FT CB
+Courier-Bold
+.FT
+.TP
+.B CBI
+.FT CBI
+Courier-BoldOblique
+.FT
+.TP
+.B HR
+.FT HR
+Helvetica
+.FT
+.TP
+.B HI
+.FT HI
+Helvetica-Oblique
+.FT
+.TP
+.B HB
+.FT HB
+Helvetica-Bold
+.FT
+.TP
+.B HBI
+.FT HBI
+Helvetica-BoldOblique
+.FT
+.TP
+.B HNR
+.FT HNR
+Helvetica-Narrow
+.FT
+.TP
+.B HNI
+.FT HNI
+Helvetica-Narrow-Oblique
+.FT
+.TP
+.B HNB
+.FT HNB
+Helvetica-Narrow-Bold
+.FT
+.TP
+.B HNBI
+.FT HNBI
+Helvetica-Narrow-BoldOblique
+.FT
+.TP
+.B NR
+.FT NR
+NewCenturySchlbk-Roman
+.FT
+.TP
+.B NI
+.FT NI
+NewCenturySchlbk-Italic
+.FT
+.TP
+.B NB
+.FT NB
+NewCenturySchlbk-Bold
+.FT
+.TP
+.B NBI
+.FT NBI
+NewCenturySchlbk-BoldItalic
+.FT
+.TP
+.B PR
+.FT PR
+Palatino-Roman
+.FT
+.TP
+.B PI
+.FT PI
+Palatino-Italic
+.FT
+.TP
+.B PB
+.FT PB
+Palatino-Bold
+.FT
+.TP
+.B PBI
+.FT PBI
+Palatino-BoldItalic
+.FT
+.TP
+.B TR
+.FT TR
+Times-Roman
+.FT
+.TP
+.B TI
+.FT TI
+Times-Italic
+.FT
+.TP
+.B TB
+.FT TB
+Times-Bold
+.FT
+.TP
+.B TBI
+.FT TBI
+Times-BoldItalic
+.FT
+.LP
+There is also the following font which is not a member of a family:
+.TP
+.B ZCMI
+.FT ZCMI
+ZapfChancery-MediumItalic
+.FT
+.LP
+There are also some special fonts called
+.B SS
+and
+.BR S .
+Zapf Dingbats is available as
+.BR ZD
+and a reversed version of ZapfDingbats (with symbols pointing in the opposite
+direction) is available as
+.BR ZDR ;
+most characters in these fonts are unnamed and must be accessed using
+.BR \eN .
+.LP
+.B grops
+understands various X commands produced using the
+.B \eX
+escape sequence;
+.B grops
+will only interpret commands that begin with a
+.B ps:
+tag.
+.TP
+.BI \eX'ps:\ exec\  code '
+This executes the arbitrary PostScript commands in
+.IR code .
+The PostScript currentpoint will be set to the position of the
+.B \eX
+command before executing
+.IR code .
+The origin will be at the top left corner of the page,
+and y coordinates will increase down the page.
+A procedure
+.B u
+will be defined that converts groff units
+to the coordinate system in effect.
+For example, 
+.RS
+.IP
+.B
+\&.nr x 1i
+.br
+.B
+\eX'ps: exec \enx u 0 rlineto stroke'
+.br
+.RE
+.IP
+will draw a horizontal line one inch long.
+.I code
+may make changes to the graphics state,
+but any changes will persist only to the
+end of the page.
+A dictionary containing the definitions specified by the
+.B def
+and
+.B mdef
+will be on top of the dictionary stack.
+If your code adds definitions to this dictionary,
+you should allocate space for them using
+.BI \eX'ps\ mdef \ n '\fR.
+Any definitions will persist only until the end of the page.
+If you use the
+.B \eY
+escape sequence with an argument that names a macro,
+.I code
+can extend over multiple lines.
+For example,
+.RS
+.IP
+.nf
+.ft B
+\&.nr x 1i
+\&.de y
+\&ps: exec
+\&\enx u 0 rlineto
+\&stroke
+\&..
+\&\eYy
+.fi
+.ft R
+.LP
+is another way to draw a horizontal line one inch long.
+.RE
+.TP
+.BI \eX'ps:\ file\  name '
+This is the same as the
+.B exec
+command except that the PostScript code is read from file
+.IR name .
+.TP
+.BI \eX'ps:\ def\  code '
+Place a PostScript definition contained in
+.I code
+in the prologue.
+There should be at most one definition per
+.B \eX
+command.
+Long definitions can be split over several
+.B \eX
+commands;
+all the
+.I code
+arguments are simply joined together separated by newlines.
+The definitions are placed in a dictionary which is automatically
+pushed on the dictionary stack when an
+.B exec
+command is executed.
+If you use the
+.B \eY
+escape sequence with an argument that names a macro,
+.I code
+can extend over multiple lines.
+.TP
+.BI \eX'ps:\ mdef\  n\ code  '
+Like
+.BR def ,
+except that
+.I code
+may contain up to
+.I n
+definitions.
+.B grops
+needs to know how many definitions
+.I code
+contains
+so that it can create an appropriately sized PostScript dictionary
+to contain them.
+.TP
+.BI \eX'ps:\ import\  file\ llx\ lly\ urx\ ury\ width\ \fR[\fP\ height\ \fR]\fP '
+Import a PostScript graphic from
+.IR file .
+The arguments
+.IR llx ,
+.IR lly ,
+.IR urx ,
+and
+.I ury
+give the bounding box of the graphic in the default PostScript
+coordinate system; they should all be integers;
+.I llx
+and
+.I lly
+are the x and y coordinates of the lower left
+corner of the graphic;
+.I urx
+and
+.I ury
+are the x and y coordinates of the upper right corner of the graphic;
+.I width
+and
+.I height
+are integers that give the desired width and height in groff
+units of the graphic.
+The graphic will be scaled so that it has this width and height
+and translated so that the lower left corner of the graphic is
+located at the position associated with
+.B \eX
+command.
+If the height argument is omitted it will be scaled uniformly in the
+x and y directions so that it has the specified width.
+Note that the contents of the
+.B \eX
+command are not interpreted by
+.BR troff ;
+so vertical space for the graphic is not automatically added,
+and the
+.I width
+and
+.I height
+arguments are not allowed to have attached scaling indicators.
+If the PostScript file complies with the Adobe Document Structuring
+Conventions and contains a
+.B %%BoundingBox
+comment, then the bounding box can be automatically
+extracted from within groff by using the
+.B psbb
+request.
+.RS
+.LP
+The
+.B \-mps
+macros (which are automatically loaded when
+.B grops
+is run by the groff command) include a
+.B PSPIC
+macro which allows a picture to be easily imported.
+This has the format
+.IP
+\&\fB.PSPIC\fP [ \fB\-L\fP | \fB-R\fP | \fB\-I\fP \fIn\fP ]\ \"
+\fI\|file\fP [ \fIwidth\fP [ \fIheight\fP ]]
+.LP
+.I file
+is the name of the file containing the illustration;
+.I width
+and
+.I height
+give the desired width and height of the graphic.
+The
+.I width
+and
+.I height
+arguments may have scaling indicators attached;
+the default scaling indicator is
+.BR i .
+This macro will scale the graphic uniformly
+in the x and y directions so that it is no more than
+.I width
+wide
+and
+.I height
+high.
+By default, the graphic will be horizontally centered.
+The
+.BI \-L
+and
+.BI \-R
+cause the graphic to be left-aligned and right-aligned
+respectively.
+The
+.B \-I
+option causes the graphic to be indented by
+.IR n .
+.RE
+.TP
+.B \eX'ps:\ invis'
+.br
+.ns
+.TP
+.B \eX'ps:\ endinvis'
+No output will be generated for text and drawing commands
+that are bracketed with these
+.B \eX
+commands.
+These commands are intended for use when output from
+.B troff
+will be previewed before being processed with
+.BR grops ;
+if the previewer is unable to display certain characters
+or other constructs, then other substitute characters or constructs
+can be used for previewing by bracketing them with these
+.B \eX
+commands.
+.RS
+.LP
+For example,
+.B gxditview
+is not able to display a proper
+.B \e(em
+character because the standard X11 fonts do not provide it;
+this problem can be overcome by executing the following
+request
+.IP
+.ft B
+.nf
+\&.char \e(em \eX'ps: invis'\e
+\eZ'\ev'-.25m'\eh'.05m'\eD'l .9m 0'\eh'.05m''\e
+\eX'ps: endinvis'\e(em
+.ft
+.fi
+.LP
+In this case,
+.B gxditview
+will be unable to display the
+.B \e(em
+character and will draw the line,
+whereas
+.B grops
+will print the
+.B \e(em
+character
+and ignore the line.
+.RE
+.LP
+The input to
+.B grops
+must be in the format output by
+.BR @g@troff (@MAN1EXT@).
+This is described in
+.BR groff_out (@MAN5EXT@).
+In addition the device and font description files for the device used
+must meet certain requirements.
+The device and font description files supplied for
+.B ps
+device meet all these requirements.
+.BR afmtodit (@MAN1EXT@)
+can be used to create font files from AFM files.
+The resolution must be an integer multiple of 72 times the
+.BR sizescale .
+The
+.B ps
+device uses a resolution of 72000 and a sizescale of 1000.
+The device description file should contain a command
+.IP
+.BI paperlength\  n
+.LP
+which says that output should be generated which is suitable for
+printing on a page whose length is
+.I n
+machine units.
+Each font description file must contain a command
+.IP
+.BI internalname\  psname
+.LP
+which says that the PostScript name of the font is
+.IR psname .
+It may also contain a command
+.IP
+.BI encoding\  enc_file
+.LP
+which says that
+the PostScript font should be reencoded using the encoding described in
+.IR enc_file ;
+this file should consist of a sequence of lines of the form:
+.IP
+.I
+pschar code
+.LP
+where
+.I pschar
+is the PostScript name of the character,
+and
+.I code
+is its position in the encoding expressed as a decimal integer.
+The code for each character given in the font file must correspond
+to the code for the character in encoding file, or to the code in the default
+encoding for the font if the PostScript font is not to be reencoded.
+This code can be used with the
+.B \eN
+escape sequence in
+.B troff
+to select the character,
+even if the character does not have a groff name.
+Every character in the font file must exist in the PostScript font, and 
+the widths given in the font file must match the widths used
+in the PostScript font.
+.B grops
+will assume that a character with a groff name of
+.B space
+is blank (makes no marks on the page);
+it can make use of such a character to generate more efficient and
+compact PostScript output.
+.LP
+.B grops
+can automatically include the downloadable fonts necessary
+to print the document.
+Any downloadable fonts which should, when required, be included by
+.B grops
+must be listed in the file
+.BR @FONTDIR@/devps/download ;
+this should consist of lines of the form
+.IP
+.I
+font  filename
+.LP
+where
+.I font
+is the PostScript name of the font,
+and
+.I filename
+is the name of the file containing the font;
+lines beginning with
+.B #
+and blank lines are ignored;
+fields may be separated by tabs or spaces;
+.I filename
+will be searched for using the same mechanism that is used
+for groff font metric files.
+The
+.B download
+file itself will also be searched for using this mechanism.
+.LP
+If the file containing a downloadable font or imported document
+conforms to the Adobe Document Structuring Conventions,
+then
+.B grops
+will interpret any comments in the files sufficiently to ensure that its
+own output is conforming.
+It will also supply any needed font resources that are listed in the
+.B download
+file
+as well as any needed file resources.
+It is also able to handle inter-resource dependencies.
+For example, suppose that you have a downloadable font called Garamond,
+and also a downloadable font called Garamond-Outline
+which depends on Garamond
+(typically it would be defined to copy Garamond's font dictionary,
+and change the PaintType),
+then it is necessary for Garamond to be appear before Garamond-Outline
+in the PostScript document.
+.B grops
+will handle this automatically
+provided that the downloadable font file for Garamond-Outline
+indicates its dependence on Garamond by means of
+the Document Structuring Conventions,
+for example by beginning with the following lines
+.IP
+.B
+%!PS-Adobe-3.0 Resource-Font
+.br
+.B
+%%DocumentNeededResources: font Garamond
+.br
+.B
+%%EndComments
+.br
+.B
+%%IncludeResource: font Garamond
+.LP
+In this case both Garamond and Garamond-Outline would need to be listed
+in the
+.B download
+file.
+A downloadable font should not include its own name in a
+.B %%DocumentSuppliedResources
+comment.
+.LP
+.B grops
+will not interpret 
+.B %%DocumentFonts
+comments.
+The
+.BR %%DocumentNeededResources ,
+.BR %%DocumentSuppliedResources ,
+.BR %%IncludeResource ,
+.BR %%BeginResource
+and
+.BR %%EndResource
+comments
+(or possibly the old
+.BR %%DocumentNeededFonts ,
+.BR %%DocumentSuppliedFonts ,
+.BR %%IncludeFont ,
+.BR %%BeginFont
+and
+.BR %%EndFont
+comments)
+should be used.
+.SH ENVIRONMENT
+.TP
+.SM
+.B GROPS_PROLOGUE
+If this is set to
+.IR foo ,
+then
+.B grops
+will use the file
+.I foo
+(in the font path) instead of the default prologue file
+.BR prologue .
+The option
+.B \-P
+overrides this environment variable.
+.SH FILES
+.Tp \w'\fB@FONTDIR@/devps/download'u+2n
+.B @FONTDIR@/devps/DESC
+Device description file.
+.TP
+.BI @FONTDIR@/devps/ F
+Font description file for font
+.IR F .
+.TP
+.B @FONTDIR@/devps/download
+List of downloadable fonts.
+.TP
+.B @FONTDIR@/devps/text.enc
+Encoding used for text fonts.
+.TP
+.B @MACRODIR@/ps.tmac
+Macros for use with
+.BR grops ;
+automatically loaded by
+.BR troffrc
+.TP
+.B @MACRODIR@/pspic.tmac
+Definition of
+.B PSPIC
+macro,
+automatically loaded by
+.BR ps.tmac .
+.TP
+.B @MACRODIR@/psold.tmac
+Macros to disable use of characters not present in older
+PostScript printers (e.g. `eth' or `thorn').
+.TP
+.BI /tmp/grops XXXXXX
+Temporary file.
+.SH "SEE ALSO"
+.BR afmtodit (@MAN1EXT@),
+.BR groff (@MAN1EXT@),
+.BR @g@troff (@MAN1EXT@),
+.BR psbb (@MAN1EXT@),
+.BR groff_out (@MAN5EXT@),
+.BR groff_font (@MAN5EXT@),
+.BR groff_char (@MAN7EXT@)
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

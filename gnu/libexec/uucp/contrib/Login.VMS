@@ -1,0 +1,96 @@
+#!xchat
+# @(#) Login.VMS V1.1 Tue Sep  1 13:24:54 1992 (Bob Denny)
+#
+#
+# xchat script for logging into a VMS system.  If no VMS password
+# parameter supplied, skips password phase of VMS login. If syspass
+# parameter given, will go through steps needed to log into a VMS
+# system where a "system password" was set on the port.
+#
+# Cannot handle situation where system password is required but
+# no password needed.
+#
+#
+# Usage:
+#	xchat Login.VMS username [ password [ syspass ] ]
+#
+# Uncomment the lines starting with "###" to get debug logging.
+#
+start:
+###	dbgfile	Login.Log
+###	dbgset	15
+	sleep	2000			# Wait 2 seconds
+	zero
+	flush				# Flush typeahead
+	ifnstr	login		2	# Skip sys passwd if not given
+#
+# Need system password. Send <CR> to get bell.
+# Try 5 times at 2 sec. intervals. Skip to do
+# username if we see "Username:".
+#
+syspass:
+	count
+	ifgtr	nobell		5	# Fail after 5 tries
+	send	\r
+	timeout	syspass		2000	# Wait 2 sec. and try again
+	expect gotbell		\007
+	expect gotlogin		Username:
+#
+# Got the bell. Send the system password. Repeat 5 times
+# at 2 sec. intervals. Fail if we don't get Username:
+#
+gotbell:
+	zero
+	sleep 2000
+l1:
+	count
+	ifgtr	nologin		5	# Fail after 5 tries
+	sendstr	2
+	send	\r
+	timeout	l1		2000	# Wait 2 sec. and try again
+	expect	gotlogin		Username:
+#
+# Start here if no system password supplied. 
+# Send <CR> until we get Username: Try 5 times at 2 sec. intervals.
+#
+login:
+	count
+	ifgtr	nologin		5	# Fail after 5 tries
+	send	\r
+	timeout	login		2000	# Wait 2 sec. and try again
+	expect	gotlogin	Username:
+#
+# Got VMS "Username:" prompt. Send the username. If a password
+# was given, wait for the "Password:" prompt. Die after 10 seconds.
+# if no password was given, we're done!
+#
+gotlogin:
+	sendstr	0
+	send	\r
+	ifnstr	done		1
+	timeout	nopasswd	10000
+	expect	gotpasswd	Password:
+#
+# Got VMS "Password:" prompt. Send the password and we're done!
+#
+gotpasswd:
+	sendstr	1
+	send	\r
+#
+# Success!
+#
+done:
+	success
+#
+# ERROR HANDLERS
+#
+nobell:
+	logerr	No VMS system password prompt (bell)
+	failed
+nologin:
+	logerr	No VMS Username: prompt
+	failed
+nopasswd:
+	logerr	No VMS Password: prompt.
+	failed
+

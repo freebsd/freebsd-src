@@ -1,0 +1,361 @@
+<!-- 
+	FreeBSD errata document.  Unlike some of the other RELNOTESng
+	files, this file should remain as a single SGML file, so that
+	the dollar FreeBSD dollar header has a meaningful modification
+	time.  This file is all but useless without a datestamp on it,
+	so we'll take some extra care to make sure it has one.
+
+	(If we didn't do this, then the file with the datestamp might
+	not be the one that received the last change in the document.)
+
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.4.2.11 2002/05/31 20:23:59 ue Exp $
+	basiert auf: 1.1.2.67
+-->
+
+<!DOCTYPE ARTICLE PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
+%man;
+<!ENTITY % authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
+%authors;
+<!ENTITY % translators PUBLIC "-//FreeBSD//ENTITIES DocBook Translator Entities//DE">
+%translators;
+<!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//DE">
+%mlists;
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//DE">
+%release;
+]>
+
+<article lang="de">
+  <articleinfo>
+    <title>&os;
+<![ %release.type.snapshot [
+    &release.prev;
+]]>
+<![ %release.type.release [
+    &release.current;
+]]>
+    Errata</title>
+
+    <authorgroup>
+      <corpauthor>Das &os; Projekt</corpauthor>
+
+      <collab>
+        <collabname>Deutsche &Uuml;bersetzung von Udo Erdelhoff</collabname>
+      </collab>
+    </authorgroup>
+
+    <pubdate>$FreeBSD$</pubdate>
+
+    <copyright>
+      <year>2000</year>
+      <year>2001</year>
+      <year>2002</year>
+      <holder role="mailto:freebsd-doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
+    </copyright>
+
+    <copyright>
+      <year>2001</year>
+      <year>2002</year>
+      <holder role="mailto:de-bsd-translators@de.FreeBSD.org">The FreeBSD German Documentation Project</holder>
+    </copyright>
+  </articleinfo>
+
+  <abstract>
+    <para>Dieses Dokument enth&auml;lt die Errata f&uuml;r &os;
+<![ %release.type.snapshot [
+      &release.prev;,
+]]>
+<![ %release.type.release [
+            &release.current;,
+]]>  
+      also wichtige Informationen, die erst nach
+      der Ver&ouml;ffentlichung bekannt wurden.  Dazu geh&ouml;hren
+      Ratschl&auml;ge zur Sicherheit sowie &Auml;nderungen in der
+      Software oder Dokumentation, die die Stabilit&auml;t und die
+      Nutzung beeintr&auml;chtigen k&ouml;nnten.  Sie sollten immer
+      die aktuelle Version dieses Dokumentes lesen, bevor sie diese
+      Version von &os; installieren.</para>
+
+    <para>Dieses Errata f&uuml;r &os;
+<![ %release.type.snapshot [
+      &release.prev;
+]]>
+<![ %release.type.release [
+      &release.current;
+]]>
+      wird bis zum
+      Erscheinen von &os; &release.next; weiter aktualsiert
+      werden.</para>
+
+  </abstract>
+
+  <sect1>
+    <title>Einleitung</title>
+
+    <para>Dieses Errata enth&auml;lt <quote>brandhei&szlig;e</quote>
+      Informationen &uuml;ber &os;
+<![ %release.type.snapshot [
+      &release.prev;.
+]]>
+<![ %release.type.release [
+      &release.current;.
+]]>
+      Bevor Sie diese
+      Version installieren, sollten Sie auf jeden Fall dieses Dokument
+      lesen, um &uuml;ber Probleme informiert zu werden, die erst nach
+      der Ver&ouml;ffentlichung entdeckt (und vielleicht auch schon
+      behoben) wurden.</para>
+
+    <para>Die zusammen mit der Ver&ouml;ffentlichung erschienene
+      Version dieses Dokumentes (zum Beispiel die Version auf der
+      CDROM) ist per Definition veraltet.  Allerdings sind im Internet
+      aktualisierte Versionen verf&uuml;gbar, die die <quote>aktuellen
+      Errata</quote> f&uuml;r diese Version sind.  Diese Versionen
+      sind bei <ulink url="http://www.FreeBSD.org/releases/"></ulink>
+      und allen aktuellen Mirrors dieser Webseite
+      verf&uuml;gbar.</para>
+
+    <para>Die Snapshots von &os; &release.branch; (sowohl die der
+      Quelltexte als auch die der ausf&uuml;hrbaren Programme)
+      enthalten ebenfalls die zum Zeitpunkt ihrer
+      Ver&ouml;ffentlichung aktuelle Version dieses
+      Dokumentes.</para>
+
+    <para>Die Liste der &os; CERT security advisories finden Sie bei
+      <ulink url="http://www.FreeBSD.org/security/"></ulink> oder
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
+  </sect1>
+
+  <sect1>
+    <title>Sicherheitshinweise</title>
+
+<![ %release.type.release [
+    <para>Zur Zeit gibt es keine Sicherheitshinweise.</para>
+]]>
+
+<![ %release.type.snapshot [
+    <para>Unter bestimmten Umst&auml;nden war es m&ouml;glich, eine
+      Datei in der Zeit zwischen dem Aufruf von &man.fstatfs.2; und
+      dem Zugriff auf die Datei zu l&ouml;schen, dadurch kam es zu
+      einer Kernel Panic.  Dieses Problem betraft nur das
+      &man.procfs.5; Dateisystem.  Der Fehler wurde zwar schon in &os;
+      &release.prev; behoben, der Sicherheitshinweis mit der
+      Beschreibung des Fehler wurde aber erst nach dieser Version
+      herausgegeben.  Wie Sie das Problem umgehen bzw. beseitigen
+      k&ouml;nnen sowie weitere Informationen finden Sie in
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:09.
+      fstatfs.asc">FreeBSD-SA-02:09</ulink>.</para>
+
+    <para>In der Multiplexer-Routine von
+      <application>OpenSSH</application> wurde ein
+      <quote>off-by-one</quote> Fehler beseitigt.  Durch diesen Fehler
+      w&auml;re ein authentifizierter Benutzer in der Lage gewesen,
+      auf dem Server beliebige Programme mit root-Rechten
+      ausf&uuml;hren zu lassen; ein Server w&auml;re in der Lage
+      gewesen, auf dem Client beliebige Programme mit den
+      Berechtigungen des Benutzers auszuf&uuml;hren.  Informationen,
+      wie Sie dieses Problem in den diversen Versionen von
+      <application>OpenSSH</application> umgehen bzw. beseitigen
+      k&ouml;nnen, finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.op
+      enssh.asc">FreeBSD-SA-02:13</ulink>.  Dabei wird sowohl die
+      im Basisversion verwendete Version von
+      <application>OpenSSH</application> betrachtet, als auch die
+      diversen Ports.</para>
+
+    <para>Durch einen Fehler in <application>zlib</application> war es
+      m&ouml;glich, da&szlig; Speicher doppelt freigegeben wurde.  Die
+      &man.malloc.3;/&man.free.3; Routinen von &os; sind von diesem
+      Fehler nicht betroffen, einzelne Anwendungen k&ouml;nnten aber
+      durch entsprechend konstruierte Pakete mit komprimierten Daten
+      beeintr&auml;chtigt oder zum Absturz gebracht werden.  Der
+      Fehler in <application>zlib</application> wurde mittlerweile
+      beseitigt.  Informationen, wie Sie dieses Problem umgehen bzw.
+      beseitigen k&ouml;nnen, finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:18.zlib.v1.2.asc">FreeBSD-SA-02:18</ulink>.</para>
+
+    <para>Durch Fehler in den TCP SYN Cache (<quote>syncache</quote>)
+      und SYN Cookie (<quote>syncookie</quote>) Routinen war es
+      m&ouml;glich, da&szlig; normale TCP/IP Datenpakete das System
+      abst&uuml;rzen lie&szlig;en.  Die Routinen wurden mittlerweile
+      beseitigt; Informationen, wie Sie die Problem umgehen bzw.
+      beseitigen k&ouml;nnen, finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:20.syncache.asc">FreeBSD-SA-02:20</ulink>.</para>
+
+    <para>In den Routinen zur Behandlung der Routing-Tabelle wurde ein
+      Speicherleck gestopft, durch das ein Angreifer den gesamten
+      Speicher eines System verbrauchen konnte.  Informationen, wie
+      Sie die Problem umgehen bzw.  beseitigen k&ouml;nnen, finden Sie
+      in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:21.tcpip.asc">FreeBSD-SA-02:21</ulink>.</para>
+
+    <para>Bei der Behandlung von memory-mapped I/O wurde ein Fehler
+      beseitigt, der zum Absturz des Systems f&uuml;hren konnte.
+      Weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:22.mmap.asc">FreeBSD-SA-02:22</ulink>.</para>
+
+    <para>SUID Programme konnten durch Manipulation Ihrer Standard-I/O
+      File-Descriptoren dazu gebracht werden, die falschen Dateien zu
+      lesen oder zu schreiben, dieser Fehler wurde behoben.  Weitere
+      Informatione finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>.</para>
+
+    <para>Um mit &man.k5su.8; zum Super-User werden zu k&ouml;nnen,
+      mu&szlig; ein Benutzer nicht wie &man.su.1; in die Gruppe
+      <groupname>wheel</groupname> eingetragen sein.  Dadurch kann es
+      zu unerwarteten Situationen kommen.  Um dieses Problem zu
+      umgehen, wird &man.k5su.8; standardm&auml;&szlig;ig nicht mehr
+      SUID root installiert und damit wirkungslos gemacht.  Weitere
+      Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:24.k5su.asc">FreeBSD-SA-02:24</ulink>.</para>
+
+    <para>In &man.bzip2.1; wurden mehrere Fehler entdeckt, durch die
+      es m&ouml;glich war, da&szlig; Dateien ohne Warnung
+      &uuml;berschrieben werden konnten; au&szlig;erdem war es
+      m&ouml;glich, da&szlig; lokale Benutzer Zugriff auf f&uuml;r sie
+      eigentlich nicht zug&auml;ngliche Dateien erhielten.  Diese
+      Fehler wurden durch den Import einer neuen Version von
+      <application>bzip2</application> behoben.  Weitere Informationen
+      finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:25.bzip2.asc">FreeBSD-SA-02:25</ulink>.</para>
+
+    <para>Ein Fehler in der Implementation des TCP SYN Cache
+      (<quote>syncache</quote>) erlaubte es einem Angreifer, einen
+      Denial-of-Service Angriff durchzuf&uuml;hren, wenn
+      &man.accept.filter.9; genutzt wurden.  Dieser Fehler wurde
+      beseitigt, weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:26.accept.asc">FreeBSD-SA-02:26</ulink>.</para>
+
+    <para>Durch einen Fehler bei der Behandlung der Shell-Wildcards in
+      &man.rc.8; war es normalen Anwendern m&ouml;glich, beliebige
+      Dateien zu l&ouml;schen, wenn das Verzeichnis
+      <filename>/tmp/.X11-unix</filename> nicht existierte und sie
+      einen Neustart des Systems erzwingen konnten.  Dieser Fehler
+      wurde beseitigt, weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:27.rc.asc">FreeBSD-SA-02:27</ulink>).</para>
+
+]]>
+  </sect1>
+
+  <sect1>
+    <title>Zus&auml;tzliche Informationen</title>
+<![ %release.type.release [
+    <para>Zur Zeit gibt keine zus&auml;tzlichen Informationen.</para>
+]]>
+
+<![ %release.type.snapshot [
+    <para>Einige SSH-Clients haben Probleme beim Aufbau einer
+      Verbindung zu einem Server mit &os; &release.prev;.  Sie fordern
+      den Benutzer zur Eingabe eines <application>S/Key</application>
+      Pa&szlig;wortes auf, obwohl der &man.sshd.8; auf dem Server gar
+      nicht f&uuml;r <application>S/Key</application> Autentifizierung
+      konfiguriert ist.  M&ouml;gliche Gr&uuml;nde sind
+      &Auml;nderungen in den Standardeinstellungen der Clients (z.B.
+      die Benutzung der Version 2 des SSH Protokolls, wenn es vorher
+      nicht genutzt wurde) oder durch eine &Auml;nderung in der
+      Reihenfolge der Autentifizierungen.  Es gibt einige
+      M&ouml;glichkeiten, das Problem zu l&ouml;sen:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>Wenn Sie eine neuere Version eines
+          <application>OpenSSH</application> Clients verwenden,
+          sollten Sie die folgende Zeile in Ihre
+          <filename>~/.ssh/config</filename> einf&uuml;gen:</para>
+
+        <programlisting>PreferredAuthentications publickey,password,keyboard-interactive</programlisting>
+      </listitem>
+
+      <listitem>
+        <para>Bei <application>PuTTY</application> kann die
+          Reihenfolge der Autentifizierungen zwar nicht ge&auml;ndert
+          werden, in den Einstellungen k&ouml;nnen Sie aber
+          interaktive Methoden der Autentifizierung
+          deaktivieren.</para>
+      </listitem>
+
+      <listitem>
+        <para>Um interaktive Methoden der Autentifizierung auf dem
+          Server abzuschalten, m&uuml;ssen Sie auf dem Server das
+          Kommentarzeichen vor der folgenden Zeile in der
+          <filename>/etc/ssh/sshd_config</filename> entfernen:</para>
+
+        <programlisting>ChallengeResponseAuthentication no</programlisting>
+      </listitem>
+    </itemizedlist>
+
+    <para>Dieser Fehler wurde in &os; &release.current;
+      behoben.</para>
+
+    <para>Der neue Treiber sbni wird zwar in den Release Notes
+      erw&auml;hnt, allerdings ist der Verweis auf das Programm in der
+      &os; Ports Collection fehlerhaft.  Der richtige Dateiname
+      f&uuml;r den Ports ist <filename
+      role="package">sysutils/sbniconfig</filename>.</para>
+
+    <para>f&uuml;r die Linux-Emulation mu&szlig; jetzt die Zeile
+      <literal>options SYSVSEM</literal> in der Konfigurationsdatei
+      des angepa&szlig;ten Kernels stehen.  Diese Abh&auml;ngigkeit
+      existierte schon vor dem Erscheinen von &os;
+      &release.prev;.</para>
+
+    <para>Auf den ISO-Images (und damit auch auf dem offiziellen Satz
+      mit 4 CDs) wurden einige Pakete mit optionalen Komponenten der
+      <application>KDE</application> vergessen.  In &auml;teren
+      Versionen konnten diese Packages mit dem <filename
+      role="package">x11/kde2</filename> installiert werden.  Sie
+      k&ouml;nnen die Packages sowohl &uuml;ber die &os; Ports
+      Collection installieren oder die bin&auml;ren Packages von einem
+      der &os; FTP herunterladen.  Die fehlenden Pakete sind:
+      <filename role="package">games/kdegames2</filename>, <filename
+      role="package">misc/kdeutils2</filename>, <filename
+      role="package">editors/koffice</filename>, <filename
+      role="package">net/kdenetwork2</filename>, <filename
+      role="package">graphics/kdegraphics2</filename> und <filename
+      role="package">audio/kdemultimedia2</filename>.  Bitte beachten
+      Sie, da&szlig; die h&auml;fig ben&ouml;tigten Packages <filename
+      role="package">x11/kdelibs2</filename> und <filename
+      role="package">x11/kdebase2</filename> auf der ersten der vier
+      offiziellen CDs vorhanden <emphasis>sind</emphasis>.
+      <footnote>
+        <para>Die komplette &os; Package Collection belegt im Moment
+          neun CDs.  Der offizielle Satz von CDs kann daher nur eine
+          Auswahl der verf&uuml;gbare Packages enthalten.  Mehere
+          Firmen bieten &os; Distributionen an, die mehr Packages
+          enthalten; auch die &os; FTP Server bieten eine
+          gr&ouml;&szlig;ere Auswahl an.</para>
+      </footnote>
+    </para>
+
+    <para>Das <application>Samba</application> Package wurde bei der
+      Erzeugung der ISO Images vergessen.  Sie k&ouml;nnen diese
+      Anwendung mit dem Port <filename
+      role="package">net/samba</filename > aus der &os; Ports
+      Collection installieren oder das Package von einem der &os; FTP
+      Server herunterladen.</para>
+
+    <para>Bei den Soft Updates wurde ein Fehler korrigiert, durch den
+      das Dateisystem unter bestimmten Umst&auml;nden inkonsistent
+      werden konnte.  Der Fehler trat auf, wenn das System unmittelbar nach
+      massiver Benutzung des Dateisystems (z.B. der Installation eines
+      neuen Kernels oder anderer Software) heruntergefahren wurde.
+      Dabei war das System dann nicht in der Lage, alle Puffer auf
+      die Festplatte zu schreiben und gab eine entsprechende
+      Meldung aus.  Um das Problem zu umgehen, sollten Sie vor
+      einem Neustart des Systems mehrfach &man.sync.8; aufrufen;
+      um das Problem komplett aus der Welt zu schaffen, sollten
+      Sie einen aktuellen Snapshot von &os; &release.current;
+      einspielen.</para>
+
+    <para>Bei der Erzeugung des Standardkernels
+      (<filename>GENERIC</filename>) f&uuml;r &os; &release.prev;
+      wurde der ciss Treiber vergessen, dadurch ist es fast
+      unm&ouml;glich, &os; auf einer Festplatte zu installieren, die
+      an einen solchen Controller angeschlossen ist.  Das Problem
+      wurde in &os; &release.current; behoben.</para>
+
+]]>
+  </sect1>
+</article>

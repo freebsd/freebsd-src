@@ -1,0 +1,119 @@
+.\"
+.\" Copyright (c) 1997 David E. O'Brien
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 19, 1997
+.Dt FXP 4
+.Os
+.Sh NAME
+.Nm fxp
+.Nd Intel EtherExpress Pro/100B ethernet device driver
+.Sh SYNOPSIS
+.Cd "device miibus"
+.Cd "device fxp"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the EtherExpress Pro/10, InBusiness
+10/100, Pro/100 B, Pro/100+, Pro/100 VE, Pro/100 M, and Pro/100 S
+PCI Fast Ethernet adapters based on the Intel i82557, i82558, i82559,
+i82550, or i82562 Ethernet chips.
+Many on-board network interfaces on Intel motherboards use these chips
+and are also supported.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Pp
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It autoselect
+Enable autoselection of the media type and options
+.It 10baseT/UTP
+Set 10Mbps operation
+.It 100baseTX
+Set 100Mbps (fast ethernet) operation
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Pp
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It full-duplex
+Set full duplex operation
+.El
+.Pp
+Note that 100baseTX media type is not available on the Pro/10.
+For further information on configuring this device, see
+.Xr ifconfig 8 .
+.Pp
+The
+.Nm
+driver also supports a special link option:
+.Bl -tag -width link0
+.It Cm link0
+Some chip revisions have loadable microcode which can be used to reduce the
+interrupt load on the host cpu.
+Not all boards have support microcode support.
+Setting the
+.Cm link0
+flag with
+.Xr ifconfig 8
+will download the microcode to the chip if it is available.
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "fxp%d: couldn't map memory"
+A fatal initialization error has occurred.
+.It "fxp%d: couldn't map interrupt"
+A fatal initialization error has occurred.
+.It "fxp%d: Failed to malloc memory"
+There are not enough mbuf's available for allocation.
+.It "fxp%d: device timeout"
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).
+.It "fxp%d: Microcode loaded, int_delay: %d usec  bundle_max: %d"
+The chip has successfully downloaded the microcode, and changed the
+parameterized values to the given settings.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 2.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+device driver was written by
+.An David Greenman .
+This manual page was written by
+.An David E. O'Brien .

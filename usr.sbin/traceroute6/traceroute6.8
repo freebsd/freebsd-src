@@ -1,0 +1,123 @@
+.\"	$KAME: traceroute6.8,v 1.8 2000/06/12 16:29:18 itojun Exp $
+.\"
+.\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$FreeBSD$
+.\"
+.Dd May 17, 1998
+.Dt TRACEROUTE6 8
+.Os
+.\"
+.Sh NAME
+.Nm traceroute6
+.Nd "print the route IPv6 packets will take to the destination"
+.\"
+.Sh SYNOPSIS
+.Nm
+.Bk -words
+.Op Fl dlnrv
+.Ek
+.Bk -words
+.Op Fl f Ar firsthop
+.Ek
+.Bk -words
+.Op Fl g Ar gateway
+.Ek
+.Bk -words
+.Op Fl m Ar hoplimit
+.Ek
+.Bk -words
+.Op Fl p Ar port
+.Ek
+.Bk -words
+.Op Fl q Ar probes
+.Ek
+.Bk -words
+.Op Fl s Ar src
+.Ek
+.Bk -words
+.Op Fl w Ar waittime
+.Ek
+.Bk -words
+.Ar target
+.Op Ar datalen
+.Ek
+.\"
+.Sh DESCRIPTION
+.Bl -tag -width Ds
+.It Fl d
+Debug mode.
+.It Fl f Ar firsthop
+Specify how many hops to skip in trace.
+.It Fl g Ar gateway
+Specify intermediate gateway
+.Nm (
+uses routing header).
+.It Fl m Ar hoplimit
+Specify maximum hoplimit.
+.It Fl l
+Print both host hostnames and numeric addresses.
+Normally
+.Nm
+prints only hostnames if
+.Fl n
+is not specified, and only numeric addresses if
+.Fl n
+is specified.
+.It Fl n
+Do not resolve numeric address to hostname.
+.It Fl p Ar port
+Set UDP port number to
+.Ar port .
+.It Fl q Ar probes
+Set the number of probe per hop count to
+.Ar probes .
+.It Fl r
+.It Fl s Ar src
+.Ar Src
+specifies the source IPv6 address to be used.
+.It Fl v
+Be verbose.
+.It Fl w Ar waittime
+Specify the delay time between probes.
+.El
+.\"
+.Sh RETURN VALUES
+The
+.Nm
+command will exit with 0 on success, and non-zero on errors.
+.\"
+.Sh SEE ALSO
+.Xr ping 8 ,
+.Xr ping6 8 ,
+.Xr traceroute 8
+.\"
+.Sh HISTORY
+The
+.Nm
+command first appeared in WIDE hydrangea IPv6 protocol stack kit.

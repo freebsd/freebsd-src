@@ -1,0 +1,23 @@
+# $FreeBSD$
+#
+# list of users disallowed any ftp access.
+# read by ftpd(8).
+root
+toor
+daemon
+operator
+bin
+tty
+kmem
+games
+news
+man
+sshd
+bind
+uucp
+xten
+pop
+www
+nobody
+mailnull
+smmsp

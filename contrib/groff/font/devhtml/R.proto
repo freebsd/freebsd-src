@@ -1,0 +1,315 @@
+name R
+internalname 0
+spacewidth 24
+charset
+!	24	0	0x0021
+"	24	0	0x0022	       &quot;
+dq	"
+#	24	0	0x0023
+sh	"
+$	24	0	0x0024
+Do	"
+%	24	0	0x0025
+&	24	0	0x0026	       &amp;
+aq	24	0	0x0027
+'	"
+(	24	0	0x0028
+)	24	0	0x0029
+*	24	0	0x002A
++	24	0	0x002B
+pl	"
+,	24	0	0x002C
+\-	24	0	0x002D
+hy	"
+-	"
+mi	"
+en	"
+.	24	0	0x002E
+/	24	0	0x002F
+sl	"
+0	24	0	0x0030
+1	24	0	0x0031
+2	24	0	0x0032
+3	24	0	0x0033
+4	24	0	0x0034
+5	24	0	0x0035
+6	24	0	0x0036
+7	24	0	0x0037
+8	24	0	0x0038
+9	24	0	0x0039
+:	24	0	0x003A
+;	24	0	0x003B
+<	24	0	0x003C	       &lt;
+la	"
+=	24	0	0x003D
+eq	"
+>	24	0	0x003E	       &gt;
+ra	"
+?	24	0	0x003F
+@	24	0	0x0040
+at	"
+A	24	0	0x0041
+B	24	0	0x0042
+C	24	0	0x0043
+D	24	0	0x0044
+E	24	0	0x0045
+F	24	0	0x0046
+G	24	0	0x0047
+H	24	0	0x0048
+I	24	0	0x0049
+J	24	0	0x004A
+K	24	0	0x004B
+L	24	0	0x004C
+M	24	0	0x004D
+N	24	0	0x004E
+O	24	0	0x004F
+P	24	0	0x0050
+Q	24	0	0x0051
+R	24	0	0x0052
+S	24	0	0x0053
+T	24	0	0x0054
+U	24	0	0x0055
+V	24	0	0x0056
+W	24	0	0x0057
+X	24	0	0x0058
+Y	24	0	0x0059
+Z	24	0	0x005A
+[	24	0	0x005B
+lB	"
+\	24	0	0x005C
+rs	"
+]	24	0	0x005D
+rB	"
+^	24	0	0x005E
+a^	"
+ha	"
+_	24	0	0x005F
+ru	"
+ul	"
+`	24	0	0x0060
+a	24	0	0x0061
+b	24	0	0x0062
+c	24	0	0x0063
+d	24	0	0x0064
+e	24	0	0x0065
+f	24	0	0x0066
+g	24	0	0x0067
+h	24	0	0x0068
+i	24	0	0x0069
+j	24	0	0x006A
+k	24	0	0x006B
+l	24	0	0x006C
+m	24	0	0x006D
+n	24	0	0x006E
+o	24	0	0x006F
+p	24	0	0x0070
+q	24	0	0x0071
+r	24	0	0x0072
+s	24	0	0x0073
+t	24	0	0x0074
+u	24	0	0x0075
+v	24	0	0x0076
+w	24	0	0x0077
+x	24	0	0x0078
+y	24	0	0x0079
+z	24	0	0x007A
+lC	24	0	0x007B
+{	"
+ba	24	0	0x007C
+or	"
+|	"
+rC	24	0	0x007D
+}	"
+a~	24	0	0x007E
+~	"
+ti	"
+r!	24	0	0x00A1	       &iexcl;
+char161	"
+ct	24	0	0x00A2	       &cent;
+char162	"
+Po	24	0	0x00A3         &pound;
+char163	"
+Cs	24	0	0x00A4         &curren;
+char164	"
+Ye	24	0	0x00A5         &yen;
+char165	"
+bb	24	0	0x00A6         &brvbar;
+char166	"
+sc	24	0	0x00A7         &sect;
+char167	"
+ad	24	0	0x00A8         &uml;
+char168	"
+co	24	0	0x00A9         &copy;
+char169	"
+Of	24	0	0x00AA         &ordf;
+char170	"
+Fo	24	0	0x00AB         &laquo;
+char171	"
+no	24	0	0x00AC         &not;
+char172	"
+rg	24	0	0x00AE         &reg;
+char174	"
+a-	24	0	0x00AF         &macr;
+char175	"
+de	24	0	0x00B0         &deg;
+char176	"
++-	24	0	0x00B1         &plusmn;
+char177	"
+S2	24	0	0x00B2         &sup2;
+char178	"
+S3	24	0	0x00B3         &sup3;
+char179	"
+aa	24	0	0x00B4         &acute;
+\'	"
+char180	"
+char181	24	0	0x00B5         &micro;
+ps	24	0	0x00B6         &para;
+char182	"
+pc	24	0	0x00B7         &middot;
+char183	"
+ac	24	0	0x00B8         &cedil;
+char184	"
+S1	24	0	0x00B9         &sup1;
+char185	"
+Om	24	0	0x00BA         &ordm;
+char186	"
+Fc	24	0	0x00BB         &raquo;
+char187	"
+14	24	0	0x00BC         &frac14;
+char188	"
+12	24	0	0x00BD         &frac12;
+char189	"
+34	24	0	0x00BE         &frac34;
+char190	"
+r?	24	0	0x00BF         &iquest;
+char191	"
+`A	24	0	0x00C0         &Agrave;
+char192	"
+'A	24	0	0x00C1         &Aacute;
+char193	"
+^A	24	0	0x00C2         &Acirc;
+char194	"
+~A	24	0	0x00C3         &Atilde;
+char195	"
+:A	24	0	0x00C4         &Auml;
+char196	"
+oA	24	0	0x00C5         &Aring;
+char197	"
+AE	24	0	0x00C6         &AElig;
+char198	"
+,C	24	0	0x00C7         &Ccedil;
+char199	"
+`E	24	0	0x00C8         &Egrave;
+char200	"
+'E	24	0	0x00C9         &Eacute;
+char201	"
+^E	24	0	0x00CA         &Ecirc;
+char202	"
+:E	24	0	0x00CB         &Euml;
+char203	"
+`I	24	0	0x00CC         &Igrave;
+char204	"
+'I	24	0	0x00CD         &Iacute;
+char205	"
+^I	24	0	0x00CE         &Icirc;
+char206	"
+:I	24	0	0x00CF         &Iuml;
+char207	"
+-D	24	0	0x00D0         &ETH;
+char208	"
+~N	24	0	0x00D1         &Ntilde;
+char209	"
+`O	24	0	0x00D2         &Ograve;
+char210	"
+'O	24	0	0x00D3         &Oacute;
+char211	"
+^O	24	0	0x00D4         &Ocirc;
+char212	"
+~O	24	0	0x00D5         &Otilde;
+char213	"
+:O	24	0	0x00D6         &Ouml;
+char214	"
+mu	24	0	0x00D7         &times;
+char215	"
+/O	24	0	0x00D8         &Oslash;
+char216	"
+`U	24	0	0x00D9         &Ugrave;
+char217	"
+'U	24	0	0x00DA         &Uacute;
+char218	"
+^U	24	0	0x00DB         &Ucirc;
+char219	"
+:U	24	0	0x00DC         &Uuml;
+char220	"
+'Y	24	0	0x00DD         &Yacute;
+char221	"
+TP	24	0	0x00DE         &THORN;
+char222	"
+ss	24	0	0x00DF         &szlig;
+char223	"
+`a	24	0	0x00E0         &agrave;
+char224	"
+'a	24	0	0x00E1         &aacute;
+char225	"
+^a	24	0	0x00E2         &acirc;
+char226	"
+~a	24	0	0x00E3         &atilde;
+char227	"
+:a	24	0	0x00E4         &auml;
+char228	"
+oa	24	0	0x00E5         &aring;
+char229	"
+ae	24	0	0x00E6         &aelig;
+char230	"
+,c	24	0	0x00E7         &ccedil;
+char231	"
+`e	24	0	0x00E8         &egrave;
+char232	"
+'e	24	0	0x00E9         &eacute;
+char233	"
+^e	24	0	0x00EA         &ecirc;
+char234	"
+:e	24	0	0x00EB         &euml;
+char235	"
+`i	24	0	0x00EC         &igrave;
+char236	"
+'i	24	0	0x00ED         &iacute;
+char237	"
+^i	24	0	0x00EE         &icirc;
+char238	"
+:i	24	0	0x00EF         &iuml;
+char239	"
+Sd	24	0	0x00F0         &eth;
+char240	"
+~n	24	0	0x00F1         &ntilde;
+char241	"
+`o	24	0	0x00F2         &ograve;
+char242	"
+'o	24	0	0x00F3         &oacute;
+char243	"
+^o	24	0	0x00F4         &ocirc;
+char244	"
+~o	24	0	0x00F5         &otilde;
+char245	"
+:o	24	0	0x00F6         &ouml;
+char246	"
+di	24	0	0x00F7         &divide;
+char247	"
+/o	24	0	0x00F8         &oslash;
+char248	"
+`u	24	0	0x00F9         &ugrave;
+char249	"
+'u	24	0	0x00FA         &uacute;
+char250	"
+^u	24	0	0x00FB         &ucirc;
+char251	"
+:u	24	0	0x00FC         &uuml;
+char252	"
+'y	24	0	0x00FD         &yacute;
+char253	"
+Tp	24	0	0x00FE         &thorn;
+char254	"
+:y	24	0	0x00FF         &yuml;
+char255	"
+\`	24	0	0x2018         &grave;
+ga	"

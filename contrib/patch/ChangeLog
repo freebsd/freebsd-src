@@ -1,0 +1,1704 @@
+1997-08-31  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Version 2.5 released.
+
+1997-07-21  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Bump to 2.4.4.
+	* pch.c (there_is_another_patch), NEWS: Report an error if the patch
+	input contains garbage but no patches.
+
+	* pch.c (open_patch_file):
+	Check for patch file too long (i.e., its size
+	doesn't fit in a `long', and LFS isn't available).
+
+	* inp.c (plan_a):
+	Cast malloc return value, in case malloc returns char *.
+
+1997-07-16  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Bump to 2.4.3.
+
+	* NEWS, patch.man, pch.c (intuit_diff_type, get_line, pget_line):
+	Now demangles RFC 934 encapsulation.
+	* pch.c (p_rfc934_nesting): New var.
+
+	* pch.c (intuit_diff_type): Don't bother to check file names carefully
+	if we're going to return NO_DIFF.
+
+	* inp.c (plan_a): Count the number of lines before allocating
+	pointer-to-line buffer; this reduces memory requirements
+	considerably (roughly by a factor of 5 on 32-bit hosts).
+	Decrease `size' only when read unexpectedly reports EOF.
+	(i_buffer): New var.
+	(too_many_lines): New fn.
+	(re_input): Free i_buffer if using plan A.
+	Free buffers unconditionally; they can't be zero.
+
+	* inp.c (plan_a, plan_b): Check for overflow of line counter.
+
+	* pch.c (malformed), util.h (memory_fatal, read_fatal, write_fatal):
+	Declare as noreturn.
+
+1997-07-10  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Bump to 2.4.2.
+
+	* util.c (ok_to_reverse), NEWS: The default answer is now `n';
+	this is better for Emacs.
+
+	* Makefile.in (dist): Use cp -p, not ln;
+	some hosts do the wrong thing with ln if the source is a symbolic link.
+
+	* patch.man: Fix typo: -y -> -Y.
+
+1997-07-05  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Bump to 2.4.1.
+
+	* patch.c: (main, get_some_switches), NEWS, patch.man:
+	Version control is now independent of whether backups are made.
+	* patch.c (option_help): Put version control options together.
+	(get_some_switches): With CVS 1.9 hack, treat -b foo like -b -z foo,
+	not just -z foo.  This change is needed due to recent change in -z.
+	* backupfile.c (find_backup_file_name):
+	backup_type == none causes undefined behavior;
+	this undoes the previous change to this file.
+
+	* patch.c (locate_hunk): Fix bug when locating context diff hunks
+ 	near end of file with nonzero fuzz.
+
+	* util.c (move_file): Don't assume that ENOENT is reported when both
+	ENOENT and EXDEV apply; this isn't true with DJGPP, and
+	Posix doesn't require it.
+
+	* pch.c (there_is_another_patch):
+	Suggest -p when we can't intuit a file.
+
+1997-06-19  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Version 2.4 released.
+	* NEWS: Patch is now verbose when patches do not match exactly.
+
+1997-06-17  Paul Eggert  <eggert@twinsun.com>
+
+	* pc/djgpp/configure.sed (config.h): Remove redundant $(srcdir).
+
+	* configure.in (VERSION): Bump to 2.3.9.
+	* patch.c (main): By default, warn about hunks that succeed
+	with nonzero offset.
+	* patch.man: Add LC_ALL=C advice for making patches.
+	* pc/djgpp/configure.sed (config.h): Fix paths to dependent files.
+
+1997-06-17  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Bump to 2.3.8.
+
+	* pch.c (open_patch_file): Test stdin for fseekability.
+	(intuit_diff_type): Missing context diff headers are now warnings,
+	not errors; some people use patches with them (e.g. when retrying
+	rejects).
+
+	* patch.c (struct outstate):
+	New type, collecting together some output state vars.
+	(apply_hunk, copy_till, spew_output, init_output): Use it.
+	Keep track of whether some output has been generated.
+	(backup_if_mismatch): New var.
+	(ofp): Remove, in favor of local struct outstate vars.
+	(main): Use struct outstate.  Initialize backup_if_mismatch to
+	be the inverse of posixly_correct.  Keep track of whether mismatches
+	occur, and use this to implement backup_if_mismatch.
+	Report files that are not empty after patching, but should be.
+	(longopts, option_help, get_some_switches): New options
+	--backup-if-mismatch, --no-backup-if-mismatch.
+	(get_some_switches): -B, -Y, -z no longer set backup_type.
+	* backupfile.c (find_backup_file_name):
+	Treat backup_type == none like simple.
+
+	* Makefile.in (CONFIG_HDRS):
+	Remove var; no longer needed by djgpp port.
+	(DISTFILES_PC_DJGPP): Rename pc/djgpp/config.sed to
+	pc/djgpp/configure.sed; remove pc/djgpp/config.h in favor of
+	new file that edits it, called pc/djgpp/config.sed.
+	* pc/djgpp/configure.bat: Rename config.sed to configure.sed.
+	* pc/djgpp/configure.sed (CONFIG_HDRS): Remove.
+	(config.h): Add rule to build this from config.hin and
+	pc/djgpp/config.sed.
+	* pc/djgpp/config.sed:
+	Convert from .h file to .sed script that generates .h file.
+
+	* NEWS: Describe --backup-if-mismatch, --no-backup-if-mismatch.
+	* patch.man:
+	Describe new options --backup-if-mismatch, --no-backup-if-mismatch
+	and their ramifications.  Use unreadable backup to represent
+	nonexistent file.
+
+1997-06-12  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Bump to 2.3.7.
+	(AC_CHECK_FUNCS): Add `raise'.
+
+	* Makefile.in (inp.o): No longer depends on quotearg.h.
+
+	* common.h (outfile): New decl (was private var named `output').
+	(invc): New decl.
+	(GENERIC_OBJECT): Renamed from VOID.
+	(NULL_DEVICE, TTY_DEVICE): New macros.
+
+	* patch.c (output): Remove; renamed to `outfile' and moved to common.h.
+	(main): `failed' is count, not boolean.
+	Say "Skipping patch." when deciding to skip patch.
+	(get_some_switches): Set invc when setting inname.
+
+	* inp.c: Do not include <quotearg.h>.
+	(SCCSPREFIX, GET, GET_LOCKED, SCCSDIFF1, SCCSDIFF2, SCCSDIFF3,
+	RCSSUFFIX, CHECKOUT, CHECKOUT_LOCKED, RCSDIFF1, RCSDIFF2):
+	Move to util.c.
+	(get_input_file): Invoke new functions version_controller and
+	version_get to simplify this code.
+	(plan_b): "/dev/tty" -> NULL_DEVICE
+
+	* pch.h (pch_timestamp): New decl.
+	* pch.c (p_timestamp): New var; takes over from global timestamp array.
+	(pch_timestamp): New function to export p_timestamp.
+	(there_is_another_patch): Use blander wording when you can't intuit
+	the file name.
+	Say "Skipping patch." when deciding to skip patch.
+	(intuit_diff_type): Look for version-controlled but nonexistent files
+	when intuiting file names; set invc accordingly.
+	Ignore Index: line if either old or new line is present, and if
+	POSIXLY_CORRECT is not set.
+	(do_ed_script): Flush stdout before invoking popen, since it may
+	send output to stdout.
+
+	* util.h (version_controller, version_get): New decls.
+	* util.c: Include <quotearg.h> earlier.
+	(raise): New macro, if ! HAVE_RAISE.
+	(move_file): Create empty unreadable file when backing up a nonexistent
+	file.
+	(DEV_NULL): New constant.
+	(SCCSPREFIX, GET. GET_LOCKED, SCCSDIFF1, SCCSDIFF2,
+ 	RCSSUFFIX, CHECKOUT, CHECKOUT_LOCKED, RCSDIFF1): Moved here from inp.c.
+	(version_controller, version_get): New functions.
+	(ask): Look only at /dev/tty for answers; and when standard output is
+	not a terminal and ! posixly_correct, don't even look there.
+	Remove unnecessary fflushes of stdout.
+	(ok_to_reverse): Say "Skipping patch." when deciding to skip patch..
+	(sigs): SIGPIPE might not be defined.
+	(exit_with_signal): Use `raise' instead of `kill'.
+	(systemic): fflush stdout before invoking subsidiary command.
+
+	* patch.man: Document recent changes.
+	Add "COMPATIBILITY ISSUES" section.
+
+	* NEWS: New COMPATIBILITY ISSUES for man page.
+	Changed verbosity when fuzz is found.
+	File name intuition is changed, again.
+	Backups are made unreadable when the file did not exist.
+
+	* pc/djgpp/config.h (HAVE_STRUCT_UTIMBUF): Define.
+	(HAVE_RAISE): New macro.
+	(HAVE_UTIME_H): Define.
+	(TZ_is_unset): Do not define; it's not a serious problem with `patch'
+	to have TZ be unset in DOS.
+
+1997-06-08  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Bump to 2.3.6.
+	(AC_CHECK_HEADERS): Add utime.h.
+	* acconfig.h, configure.in, pc/djgpp/config.h (HAVE_STRUCT_UTIMBUF):
+ 	New macro.
+	* pc/djgpp/config.h (HAVE_UTIME_H, TZ_is_unset): New macros.
+
+	* NEWS, patch.man: Describe new -Z, -T options, new numeric
+ 	option for -G, retired -G, and more verbose default behavior
+ 	with fuzz.
+
+	* pch.c (intuit_diff_type): Record times reported for files in headers.
+	Remove head_says_nonexistent[x], since it's now equivalent to
+	!timestamp[x].
+	* util.h (fetchname): Change argument head_says_nonexistent to
+ 	timestamp.
+	* util.c: #include <partime.h> for TM_LOCAL_ZONE.
+	Don't include <time.h> since common.h now includes it.
+	(ok_to_reverse): noreverse and batch cases now output regardless of
+	verbosity.
+	(fetchname): Change argument head_says_nonexistent to pstamp, and
+	store header timestamp into *pstamp.
+	If -T or -Z option is given, match time stamps more precisely.
+	(ask): Remove unnecessary close of ttyfd.
+	When there is no terminal at all, output a newline to make the
+	output look nicer.  After reporting EOF, flush stdout;
+	when an input error, report the error type.
+
+	* inp.c (get_input_file):
+	Ask user whether to get file if patch_get is negative.
+
+	* Makefile.in (clean): Don't clean */*.o; clean core* and *core.
+
+1997-06-04  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Bump to 2.3.5.
+
+	* util.c (ok_to_reverse):
+	Be less chatty if verbosity is SILENT and we don't
+	have to ask the user.  If force is nonzero, apply the patch anyway.
+
+	* pch.c (there_is_another_patch):
+	Before skipping rest of patch, skip to
+	the patch start, so that another_hunk can skip it properly.
+	(intuit_diff_type): Slight wording change for missing headers, to
+	regularize with other diagnostics.  Fix off-by-one error when setting
+	p_input_line when scanning the first hunk to check for deleted files.
+
+1997-06-03  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Bump to 2.3.4.
+
+	* NEWS: Now matches more generously against nonexistent or empty files.
+
+	* pch.c (there_is_another_patch): Move warning about not being
+	able to intuit file names here from skip_to.
+	(intuit_diff_type): Fatal error if we find a headless unified
+	or context diff.
+
+	* util.c (ask): Null-terminate buffer properly even if it grew.
+	(fetchname): No need to test for null first argument.
+
+1997-06-02  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Bump to 2.3.3.
+	* pch.c (p_says_nonexistent, pch_says_nonexistent): Is now 1 for empty,
+	2 for nonexistent.
+	(intuit_diff_type): Set p_says_nonexistent according to new meaning.
+	Treat empty files like nonexistent files when reversing.
+	(skip_to): Output better diagnostic when we can't intuit a file name.
+	* patch.c (main):
+	Count bytes, not lines, when testing whether a file is empty,
+	since it may contain only non-newline chars.
+	pch_says_nonexistent now returns 2 for nonexistent files.
+
+1997-06-01  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Bump to 2.3.2.
+	* pch.c (open_patch_file):
+	Fix bug when computing size of patch read from a pipe.
+
+1997-05-30  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Bump to 2.3.1.
+
+	* Makefile.in (transform, patch_name): New vars,
+	for proper implementation of AC_ARG_PROGRAM.
+	(install, uninstall): Use them.
+	(install-strip): New rule.
+	* pc/djgpp/config.sed (program_transform_name): Set to empty.
+
+1997-05-30  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION), NEWS: Version 2.3 released.
+	* patch.man: Fix two font typos.
+	* util.c (doprogram): Fix misspelled decl.
+
+1997-05-26  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Bump to 2.2.93.
+
+	* pch.c (open_patch_file):
+	Fatal error if binary_transput and stdin is a tty.
+
+	* pc/djgpp/config.sed (chdirsaf.c):
+	Use sed instead of cp, since cp might not be installed.
+	* pc/djgpp/configure.bat:
+	Prepend %srcdir% to pathname of config.sed, for crosscompiles.
+
+1997-05-25  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Bump to 2.2.92.
+	(D_INO_IN_DIRENT): New macro.
+	* pc/djgpp/config.h, acconfig.h (D_INO_IN_DIRENT): New macro.
+	* backupfile.c (REAL_DIR_ENTRY):
+	Depend on D_INO_IN_DIRENT, not _POSIX_VERSION.
+
+	* addext.c (addext): Adjust slen when adjusting s for DOS 8.3 limit.
+	Do not use xxx.h -> xxxh~ hack.
+
+	* util.c: (move_file): Avoid makedirs test when possible even
+ 	if FILESYSTEM_PREFIX_LEN (p) is nonzero.  Don't play
+ 	case-changing tricks to come up with backup file name; it's
+ 	not portable to case-insensitive file systems.
+	* common.h (ISLOWER): Remove.
+
+	* inp.c (scan_input): Don't use Plan A if (debug & 16).
+
+	* patch.c (shortopts): Add -g, -G.
+	(longopts): --help now maps to 132, not 'h', to avoid confusion.
+	(get_some_switches): Likewise.
+	Don't invoke setmode on input if --binary; wait until needed.
+	Don't ever invoke setmode on stdout.
+	* pch.c (open_patch_file): Setmode stdin to binary if binary_transput.
+
+	* patch.man: Fix documentation of backup file name to match behavior.
+	Add advice for ordering of patches of derived files.
+	Add /dev/tty to list of files used.
+	* README: Adjust instructions for building on DOS.
+	* pc/djgpp/README: Remove tentative wording.
+	* NEWS: The DOS port is now tested.
+	Backup file names are no longer computed by switching case.
+
+	* pc/chdirsaf.c (ERANGE): Include <errno.h> to define it.
+	(restore_wd): chdir unconditionally.
+	(chdir_safer): Invoke atexit successfully at most once.
+	* pc/djgpp/config.sed: Use chdirsaf.o, not pc/chdirsaf.o.
+	Replace CONFIG_HDRS, don't append.
+	Use $(srcdir) in CONFIG_STATUS.
+	Don't apply $(SHELL) to $(CONFIG_STATUS).
+	Append rules for chdirsaf.o, chdirsaf.c; clean chdirsaf.c at the end.
+	* pc/djgpp/configure.bat: Append CR to each line; DOS needs this.
+	Don't use | as sed s delimiter; DOS can't handle it.
+
+1997-05-21  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Bump to 2.2.91.
+
+	* pch.c (another_hunk):
+	Fix bug with computing size of prefix and suffix context
+	with ordinary context diffs.  Report malformed patch if a unified diff
+	has nothing but context.
+
+	* inp.c (get_input_file):
+	Use patch_get, not backup_type, to decide whether to
+	get from RCS or SCCS.  Use the word `get' in diagnostics.
+	* patch.c (main): Initialize patch_get from PATCH_GET.
+	Omit DEFAULT_VERSION_CONTROL hook; it just leads to nonstandarization.
+	(longopts, option_help, get_some_switches): Add support for -g, -G.
+	(option_help): Add bug report address.
+	* common.h (patch_get): New decl.
+	* patch.man: Add -g and -G options; use `get' instead of `check out'.
+	Add PATCH_GET.  Recommend -Naur instead of -raNU2 for diff.
+	* NEWS: Describe -g, -G, PATCH_GET.
+
+	* version.c (copyright_string): Use only most recent copyright year,
+	as per GNU standards.
+
+	* Makefile.in (DISTFILES_PC): Remove pc/quotearg.c.
+	* pc/djgpp/config.sed: Remove unnecessary hooks for quotearg and SHELL.
+
+1997-05-18  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Increase to 2.2.9.
+	(AC_TYPE_MODE_T): Add.
+
+	* pch.h (another_hunk): New parameter REV.
+	* pch.c (hunkmax): Now of type LINENUM.
+	(malformed): Add decl.
+	(there_is_another_patch): Skip inname-detection if skip_rest_of_patch.
+	(intuit_diff_type): To determine whether file appears to have been
+	deleted, look at replacement, not pattern.
+	If there is a mismatch between existence of file and whether the
+	patch claims to change whether the file exists, ask whether to
+	reverse the patch.
+	(another_hunk): New parameter REV specifying whether to reverse the
+	hunk.  All callers changed.
+	(do_ed_script): Add assertion to ensure input file exists.
+
+	* util.h (create_file): New function.
+	(copy_file): Now takes mode, not struct stat.
+	(makedirs): No longer exported.
+	(move_file): Now takes mode, not struct stat.
+	* util.c (makedirs): No longer exported.
+	(move_file): Accept mode of destination, not struct stat.
+	All callers changed.
+	Quote file names in diagnostics.
+	Create parent dir of destination if necessary.
+	Don't use ENOTDIR.
+	Don't unlink source; it will be unlinked later.
+	Unlink destination if FROM is zero.
+	(create_file): New function.
+	(copy_file): Accept mode of destination, not struct stat.
+	All callers changed.
+	Use create_file to create file.
+	(ok_to_reverse): Moved here from patch.c.  Now accepts format and args;
+	all callers changed.
+	(mkdir): 2nd arg is now mode_t, for better compatibility.
+	(replace_slashes): Ignore slashes at the end of the filename.
+
+	* common.h (noreverse): New decl.
+	(ok_to_reverse): Remove decl.
+
+	* patch.c (noreverse): Now extern.
+	(main): New environment var PATCH_VERSION_CONTROL overrides VERSION_CONTROL.
+	Don't assert(hunk) if we're skipping the patch; we may not have any hunks.
+	When removing a file, back it up if backups are desired.
+	Don't chmod output file if input file did not exist.
+	chmod rej file to input file's mode minus executable bits.
+	(locate_hunk): Go back to old way of a single fuzz parameter, but
+	handle it more precisely: context diffs with partial contexts
+	can only match file ends, since the partial context can occur
+	only at the start or end of file.
+	All callers changed.
+	(create_output_file): Use create_file to create files.
+	(ok_to_reverse): Move to util.c.
+
+	* inp.c (scan_input, get_input_file): Quote file names in diagnostics.
+	(get_input_file): Set inerrno if it's not already set.
+	Don't create file; it's now the caller's responsibility.
+	(plan_b): Use /dev/null if input size is zero, since it might not exist.
+	Use create_file to create temporary file.
+
+	* NEWS: Add PATCH_VERSION_CONTROL; DOS port is untested.
+
+	* pc/djgpp/config.h: Add comment for mode_t.
+
+	* pc/djgpp/README: Note that it's not tested.
+
+	* patch.man: PATCH_VERSION_CONTROL overrides VERSION_CONTROL.
+
+1997-05-15  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in: Add AC_PREREQ(2.12).
+	(VERSION): Bump to 2.2.8.
+	(ed_PROGRAM): Rename from ED_PROGRAM.
+
+	* pch.c (prefix_components): Support DOS file names better.
+	Fix typo that caused fn to almost always yield 0.
+
+	* util.c (<time.h>, <maketime.h>): Include.
+	(move_file, copy_file): Add support for DOS filenames.
+	Preserve mode of input files when creating temp files.
+	Add binary file support.
+	(doprogram, rmdir): New functions.
+	(mkdir): Use doprogram.
+	(replace_slashes): Add support for DOS filenames.
+	(removedirs): New function.
+	(init_time)): New function.
+	(initial_time): New var.
+	(fetchname): Add support for deleted files, DOS filenames.
+
+	* basename.c (FILESYSTEM_PREFIX_LEN, ISSLASH):
+	New macros, for DOS port.
+	(base_name): Use them.
+
+	* addext.c (HAVE_DOS_FILE_NAMES): New macro.
+	<limits.h>: Include if HAVE_LIMITS_H.
+	(addext): Handle hosts with DOS file name limits.
+
+	* common.h (LONG_MIN): New macro.
+	(FILESYSTEM_PREFIX_LEN, ISSLASH): New macros, for DOS port.
+	(ok_to_create_file): Remove.
+	(reverse): Now int.
+	(ok_to_reverse): New function decl.
+	(O_WRONLY, _O_BINARY, O_BINARY, O_CREAT, O_TRUNC): New macros.
+	(binary_transput): New var decl.
+
+	* Makefile.in (ed_PROGRAM): Renamed from ED_PROGRAM.
+	(CONFIG_HDRS, CONFIG_STATUS): New vars.
+	(SRCS): Add maketime.c, partime.c.
+	(OBJS): Likewise.
+	(HDRS): Add maketime.h, partime.h.
+	(DISTFILES_PC, DISTFILES_PC_DJGPP): New vars.
+	(Makefile, config.status): Use CONFIG_STATUS, not config.status.
+	(clean): Remove */*.o.
+	(dist): Add pc and pc/djgpp subdirectories.
+	($(OBJS)): Depend on $(CONFIG_HDRS) instead of config.h.
+	(maketime.o, partime.o): New rules.
+	(util.o): Depend on maketime.h.
+
+	* patch.c (main):
+	Call init_time.  Add DEFAULT_VERSION_CONTROL hook for people who
+	prefer the old ways.  Build temp file names before we might invoke cleanup.
+	Add support for deleted files and clean up the patch-swapping code a bit.
+	Delete empty ancestors of deleted files.
+	When creating temporaries, use file modes of original files.
+	(longopts, get_some_switches): New option --binary.
+	(get_some_switches): Report non-errno errors with `fatal', not `pfatal'.
+	(create_output_file): New function, which preserves modes of original files
+	and supports binary transput.
+	(init_output, init_reject): Use it.
+	(ok_to_reverse): New function.
+	(TMPDIR): New macro.
+	(make_temp): Use $TMPDIR, $TMP, $TEMP, or TMPDIR, whichever comes first.
+
+	* pch.c (p_says_nonexistent): New var.
+	(open_patch_file): Add binary transput support.
+	Apply stat to file names retrieved from user.
+	Reject them if they don't exist.
+	(intuit_diff_type): Add support for deleting files.
+	Don't treat trivial directories any differently.
+	Avoid stating the same file twice in common case of context diffs.
+	(prefix_components): Don't treat trivial directories any differently.
+	Add support for DOS filenames.
+	(pch_says_nonexistent): New function.
+	(do_ed_script): Preserve mode of input files when creating temp files.
+	Add support for binary transput.
+
+	* pch.h (pch_says_nonexistent): New decl.
+
+	* util.h (replace_slashes): No longer exported.
+	(fetchname): Add support for deleted files.
+	(copy_file, move_file): Add support for preserving file modes.
+	(init_time, removedirs): New functions.
+
+	* argmatch.c: Converge with fileutils.
+
+	* backupfile.c: Converge with fileutils.
+	(find_backup_file_name): Treat .~N~ suffix just like any other suffix
+	when handling file names that are too long.
+
+	* inp.c:
+	In messages, put quotes around file names and spaces around "--".
+	(get_input_file): Allow files to be deleted.  Do the expense of
+	makedirs only if we can't create the file.
+	(plan_a, plan_b): Add support for binary transput.
+
+	* pc/chdirsaf.c, pc/djgpp/README, pc/djgpp/config.h, pc/djgpp/config.sed, pc/djgpp/configure.bat, pc/quotearg.c:
+	New file.
+
+	* NEWS:
+	New methods for removing files; adjust file name intuition again.
+	Add description of MS-DOS and MS-Windows ports.
+
+	* patch.man:
+	Simplify file name intuition slightly (no distinction for trivial dirs).
+	Add --binary.  Describe how files and directories are deleted.
+	Suggest diff -a.  Include caveats about what context diffs cannot represent.
+
+1997-05-06  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Now 2.2.7.
+	(CPPFLAGS, LDFLAGS, LIBS): If the user has not set any of these vars,
+	prefer support for large files if available.
+
+	* common.h (_LARGEFILE_SOURCE): Define.
+	(file_offset): New typedef.
+	(file_seek, file_tell): New macros.
+
+	* patch.c (main):
+	Remove empty files by default unless POSIXLY_CORRECT is set.
+
+	* util.c, util.h (Fseek):
+	Use file_offset instead of long, for portability to large-file hosts.
+
+	* pch.c: (p_base, p_start, next_intuit_at, skip_to, open_patch_file,
+	intuit_diff_type, another_hunk, incomplete_line, do_ed_script):
+	Use file_offset instead of long, for portability to large-file hosts.
+	(prefix_components): Renamed from path_name_components; count only
+	nontrivial prefix components, and take a 2nd EXISTING arg.
+	(existing_prefix_components): Remove; subsumed by prefix_components.
+	(intuit_diff_type): When creating files, try for the creation of the
+	fewest directories.
+
+	* configure.in (VERSION): Now 2.2.6.
+
+	* pch.c (existing_prefix_components): New function.
+	(intuit_diff_type): When creating a file, use a name whose existing
+ 	directory prefix contains the most nontrivial path name components.
+	(best_name): Don't check for null 2nd arg.
+
+	* util.h (replace_slashes): New decl.
+
+	* util.c (replace_slashes): Now external.
+	(fetchname): Don't assume chars are nonnegative.
+
+	* patch.man:
+	When creating a file, use a name whose existing directory prefix
+	contains the most nontrivial path name components.
+	Add advice for creating patches and applying them.
+
+1997-05-06  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Now 2.2.6.
+
+	* pch.c (existing_prefix_components): New function.
+	(intuit_diff_type): When creating a file, use a name whose existing
+ 	directory prefix contains the most nontrivial path name components.
+	(best_name): Don't check for null 2nd arg.
+
+	* util.h (replace_slashes): New decl.
+	* util.c (replace_slashes): Now external.
+	(fetchname): Don't assume chars are nonnegative.
+
+	* patch.man:  Describe above change to pch.c.
+	Add advice for creating patches and applying them.
+
+1997-05-05  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Update to 2.2.5.
+
+	* quotearg.h, quotearg.c: New files.
+	* Makefile.in (SRCS, OBJS, HDRS): Mention new files.
+	(inp.o, util.o): Now depends on quotearg.h.
+	(quotearg.o): New makefile rule.
+
+	* common.h (posixly_correct): New var.
+	* patch.c (main): Initialize it.
+	If ! posixly_correct, default backup type is now `existing'.
+	SIMPLE_BACKUP_SUFFIX no longer affects backup type.
+	(backup): Remove var.
+
+	* util.h: (countdirs): Remove.
+	(systemic): New decl.
+	* util.c (move_file): Try making the parent directory of TO
+	if backup prefix or suffix contain a slash.
+	(ask): Remove arbitrary limit on size of result.
+	(systemic): New function.
+	(mkdir): Work even if arg contains shell metacharacters.
+	(replace_slashes): Return 0 if none were replaced.
+	Don't replace slash after . or .. since it's redundant.
+	(countdirs): Remove.
+	(makedirs): Ignore mkdir failures.
+
+	* NEWS, patch.man: More POSIXLY_CORRECT adjustments.
+	Describe new rules for how file names are intuited.
+
+1997-04-17  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Version 2.2 released.
+
+	* Makefile.in (config.hin):
+	Remove before building; we always want the timestamp updated.
+
+	* inp.c (get_input_file):
+	Look for RCS files only if backup_type == numbered_existing.
+
+	* NEWS, patch.man:
+	Remove mention of never-implemented -V rcs and -V sccs options.
+	* patch.man: `pathname' -> `file name'
+	Correct the description of how file names are found in diff headers.
+	Clarify the distinction between ordinary and unified context diffs.
+
+1997-04-13  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Update to 2.1.7.
+
+	* patch.c (numeric_optarg): New function.
+	(get_some_switches): Use it.
+
+	* pch.c (intuit_diff_type): When creating a file, prefer a name whose
+	existing dir prefix is the longest.
+
+	* util.h (countdirs): New function.
+	* util.c (replace_slashes, countdirs): New functions.
+	(makedirs): Use replace_slashes, to be more like countdirs.
+
+	* patch.man: Explain -pN vs -p N.  Recommend --new-file.
+	Explain possible incompatibility with strip count.
+
+1997-04-10  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Bump to 2.1.6.
+	(AC_CHECK_HEADERS): Remove stdlib.h (i.e. remove HAVE_STDLIB_H).
+
+	* Makefile.in: (HDRS, patchlevel.h, TAGS, distclean, maintainer-clean):
+	Don't distribute patchlevel.h; let the user do it.
+	This works around some obscure (possibly nonexistent?) `make' bugs.
+
+	* common.h (program_name): extern, not XTERN.
+	(<stdlib.h>): Include if STDC_HEADERS, not if HAVE_STDLIB_H.
+	(atol, getenv, malloc, realloc): Don't worry whether they're #defined.
+
+	* patch.c (get_some_switches):
+	Add special hack for backwards compatibility with CVS 1.9.
+	(-B, -Y, -z): Now set backup_type = simple.
+
+	* NEWS: Fix misspellings; minor reformatting.
+	* README: Report POSIX.2 compliance.
+
+1997-04-06  Paul Eggert  <eggert@twinsun.com>
+
+	Move all old RCS $Log entries into ChangeLog.
+	#include all files with < >, not " ".
+
+	* addext.c, argmatch.c, argmatch.h, memchr.c, install-sh:
+	New files.
+	* EXTERN.h, INTERN.h: Removed.
+	* config.hin: Renamed from config.h.in.
+
+	* acconfig.h (NODIR): Remove.
+	(HAVE_MEMCHR): Add.
+
+	* configure.in (AC_ARG_PROGRAM, AC_PROG_MAKE_SET, HAVE_MEMCHR): Add.
+	(AC_CHECK_HEADERS): Replaces obsolescent AC_HAVE_HEADERS.
+	Add stdlib.h, string.h, unistd.h, varargs.h.
+	Delete obsolete call to AC_UNISTD_H.
+	(AC_CONFIG_HEADER): Rename config.h.in to config.hin.
+	(AC_C_CONST): Replaces obsolescent AC_CONST.
+	(AC_CHECK_FUNC): Check for getopt_long; define LIBOBJS and substitute
+	for it accordingly.
+	(AC_CHECK_FUNCS): Replaces obsolescent AC_HAVE_FUNCS.
+	Add _doprintf, isascii, mktemp, sigaction, sigprocmask, sigsetmask.
+	Remove strerror.
+	(AC_FUNC_CLOSEDIR_VOID, AC_FUNC_VPRINTF): Add.
+	(AC_HEADER_DIRENT): Replaces obsolescent AC_DIR_HEADER.
+	(AC_HEADER_STDC): Replaces obsolescent AC_STDC_HEADERS.
+	(AC_SYS_LONG_FILE_NAMES): Replaces obsolescent AC_LONG_FILE_NAMES.
+	(AC_TYPE_OFF_T): Replaces obsolescent AC_OFF_T.
+	(AC_TYPE_SIGNAL): Replaces obsolescent AC_RETSIGTYPE.
+	(AC_TYPE_SIZE_T): Replaces obsolescent AC_SIZE_T.
+	(AC_XENIX_DIR): Remove.
+	(ED_PROGRAM): New var.
+	(NODIR): Remove.
+	(PACKAGE, VERSION): New vars; substitute them with AC_SUBST.
+
+	* Makefile.in: Conform to current GNU build standards.
+	Redo dependencies.  Use library getopt_long if available.
+	Use `&&' instead of `;' inside shell commands where applicable;
+	GNU make requires this.
+	Use double-colon rules for actions that do not build files.
+	(@SET_MAKE@): Added.
+	(CFLAGS, LDFLAGS, prefix, exec_prefix): Base on @ versions of symbols.
+	(COMPILE, CPPFLAGS, DEFS, ED_PROGRAM, LIBOBJS, LIBSRCS, PACKAGE,
+	VERSION): New symbols.
+	(SRCS, OBJS, HDRS, MISC): Add new files.
+	(man1dir): Renamed from mandir.
+	(man1ext): Renamed from manext.
+	(patch): Put -o first.
+	(install): Use $(transform) to allow program to be renamed by configure.
+	(patchlevel.h): Build from $(VERSION).
+	(dist): Get version number from $(VERSION) and package name from
+	$(PACKAGE).
+	(TAGS): Scan $(HDRS).
+	(maintainer-clean): Renamed from realclean.  Remove patchlevel.h.
+
+	* backupfile.h (simple_backup_suffix): Now const *.
+	(find_backup_file_name, base_name, get_version): Args are now const *.
+	(base_name): New decl.
+	* backupfile.c (<config.h>): Include only if HAVE_CONFIG_H.
+	(<argmatch.h>): Include.
+	(<string.h>): Include if HAVE_STRING_H, not if STDC_HEADERS.
+	(<strings.h>): Include if !HAVE_STRING_H.
+	(<unistd.h>): Do not include.
+	(<dirent.h>): Redo include as per current autoconf standards.
+	(<limits.h>): Include if HAVE_LIMITS_H. Define CHAR_BIT if not defined.
+	(NLENGTH): Now returns size_t.
+	(CLOSEDIR, INT_STRLEN_BOUND): New macros.
+	(ISDIGIT): Use faster method.
+	(find_backup_file_name): No longer depends on NODIR.
+	Remove redundant code.
+	(make_version_name): Remove; do it more portably.
+	(max_backup_version): Args are now const *.
+	(version_number): Simplify digit checking.
+	(basename, concat, dirname): Remove.
+	(argmatch, invalid_arg): Move to argmatch.c.  Simplify test for
+	ambiguous args.  When reporting an error, use program_name not "patch".
+	(addext): Move to addext.c.  Treat all negative values from pathconf
+	like -1.  Always use long extension if it fits, even if the filesystem
+	does not support long file names.
+	(backup_types): Now const.
+
+	* common.h, inp.h (XTERN): Renamed from EXT to avoid collision
+	with errno.h reserved name space.
+
+	* common.h (DEBUGGING): Now an integer; default is 1.
+	(enum diff): New type.
+	(diff_type): Use it instead of small integers.
+	(CONTEXT_DIFF, NORMAL_DIFF, ED_DIFF, NEW_CONTEXT_DIFF, UNI_DIFF):
+	Now enumerated values instead of macros.
+	(NO_DIFF): New enumerated value (used instead of 0).
+	(volatile): Default to the empty string if __STDC__ is not defined.
+	(<signal.h>): Do not include.
+	(Chmod, Close, Fclose, Fflush, Fputc, Signal, Sprintf, Strcat,
+	Strcpy, Unlink, Write): Remove these macros; casts to void are
+	not needed for GNU coding standards.
+	(INITHUNKMAX): Move to pch.c.
+	(malloc, realloc, INT_MIN, MAXLINELEN, strNE, strnNE,
+	Reg1, Reg2, Reg3, Reg4, Reg5, Reg6, Reg7, Reg8, Reg9, Reg10, Reg11,
+	Reg12, Reg13, Reg14, Reg15, Reg16): Remove these macros.
+	(S_IXOTH, S_IWOTH, S_IROTH, S_IXGRP, S_IWGRP,
+	S_IRGRP, S_IXUSR, S_IWUSR, S_IRUSR, O_RDONLY, O_RDWR):
+	Define these macros, if not defined.
+	(CTYPE_DOMAIN, ISLOWER, ISSPACE, ISDIGIT, PARAMS): New macros.
+	(instat): Renamed from filestat; used for input file now.
+	(bufsize, using_plan_a, debug, strippath): Not statically initialized.
+	(debug): #define to 0 if not DEBUGGING, so that users of `debug'
+	no longer need to be surrounded by `#if DEBUGGING'.
+	(out_of_mem, filec, filearg, outname, toutkeep, trejkeep): Remove.
+	(inname, inerrno, dry_run, origbase): New variables.
+	(origprae): Now const*.
+	(TMPOUTNAME, TMPINNAME, TMPPATNAME): Now const*volatile.
+	(verbosity): New variable; subsumes `verbose'.
+	(DEFAULT_VERBOSITY, SILENT, VERBOSE): Values in a new enum.
+	(verbose): Removed.
+	(VOID): Use `#ifdef __STDC__' instead of`#if __STDC__',
+	for consistency elsewhere.
+	(__attribute__): New macro (empty if not a recent GCC).
+	(fatal_exit): Renamed from my_exit.
+	(errno): Don't define if STDC_HEADERS.
+	(<string.h>): Include if either STDC_HEADERS or HAVE_STRING_H.
+	(memcmp, memcpy): Define if !STDC_HEADERS && !HAVE_STRING_H
+	&& !HAVE_MEMCHR.
+	(<stdlib.h>): Include if HAVE_STDLIB_H, not if STDC_HEADERS.
+	(atol, getenv, malloc, realloc, lseek): Declare only if not defined
+	as a macro.
+	(popen, strcpy, strcat, mktemp): Do not declare.
+	(lseek): Declare to yield off_t, not long.
+	(<fcntl.h>): Include only if HAVE_FCNTL_H.
+
+	* inp.h (get_input_file): New decl.
+	* inp.c (SCCSPREFIX, GET, GET_LOCKED, SCCSDIFF, RCSSUFFIX, CHECKOUT,
+	CHECKOUT_LOCKED, RCSDIFF): Moved here from common.h.
+	(i_ptr): Now char const **.
+	(i_size): Remove.
+	(TIBUFSIZE_MINIMUM): Define only if not already defined.
+	(plan_a, plan_b): Arg is now const *.
+	(report_revision): Declare before use.  It's now the caller's
+	responsibility to test whether revision is 0.
+	(scan_input, report_revision, get_input_file):
+	Be less chatty unless --verbose.
+	(get_input_file): New function, split off from plan_a.
+	Reuse file status gotten by pch if possible.  Allow for dry run.
+	Use POSIX bits for creat, not number.  Check for creation and
+	close failure, and use fstat not stat.  Use memcpy not strncpy.
+	(plan_a): Rewrite for speed.
+	Caller now assigns result to using_plan_a.
+	Don't bother reading empty files; during dry runs they might not exist.
+	Use ISSPACE, not isspace.
+	(plan_b): Allow for dry runs.  Use ISSPACE, and handle sign extension
+	correctly on arg.  Use POSIX symbol for open arg.
+
+	* patch.c (backup, output, patchname, program_name): New vars.
+	(last_frozen_line): Moved here from inp.h.
+	(TMPREJNAME): Moved here from common.h.
+	(optind_last): Removed.
+	(do_defines, if_defined, not_defined, else_defined, end_defined):
+	Now char const.  Prepend with \n (except for not_defined) to
+	allow for files ending in non-newline.
+	(Argv): Now char*const*.
+	(main, get_some_switches): Exit status 0 means success,
+	1 means hunks were rejected, 2 means trouble.
+	(main, locate_hunk, patch_match): Keep track of patch prefix context
+	separately from suffix context; this fixes several bugs.
+	(main): Initialize bufsize, strippath.
+	Be less chatty unless --verbose.
+	No more NODIR; always have version control available.
+	Require environment variables to be nonempty to have effect.
+	Add support for --dry-run, --output, --verbose.
+	Invoke get_input_file first, before deciding among do_ed_script,
+	plan_a, or plan_b.
+	Clear ofp after closing it, to keep discipline that ofp is either
+	0 or open, to avoid file descriptor leaks.  Conversely, rejfp doesn't
+	need this trick since static analysis is enough to show when it
+	needs to be closed.
+	Don't allow file-creation patches to be applied to existing files.
+	Misordered hunks are now not fatal errors; just go on to the next file.
+	It's a fatal error to fall back on plan B when --output is given,
+	since the moving hand has writ.
+	Add support for binary files.
+	Check for I/O errors.
+	chmod output file ourselves, rather than letting move_file do it;
+	this saves global state.
+	Use better grammar when outputting hunks messages, e.g. avoid
+	`1 hunks'.
+	(main, reinitialize_almost_everything):
+	Remove support for multiple file arguments.
+	Move get_some_switches call from reinitialize_almost_everything
+	to main.
+	(reinitialize_almost_everything): No need to reinitialize things
+	that are no longer global variables, e.g. outname.
+	(shortopts): Remove leading "-"; it's no longer important to
+	return options and arguments in order.  '-b' no longer takes operand.
+	-p's operand is no longer optional.  Add -i, -Y, -z.  Remove -S.
+	(longopts): --suffix is now pared with -z, not -b.  --backup now
+	means -b.  Add --input, --basename-prefix, --dry-run, --verbose.
+	Remove --skip.  --strip's operand is now required.
+	(option_help): New variable.  Use style of current coding standards.
+	Change to match current option set.
+	(usage): Use it.
+	(get_some_switches): Get all switches, since `+' is defunct.
+	New options -i, -Y, -z, --verbose, --dry-run.
+	Option -S removed.
+	-b now means backup (backup_type == simple), not simple_backup_suffix.
+	-B now implies backup, and requires nonempty operand.
+	-D no longer requires first char of argument to be an identifier.
+	`-o -' is now disallowed (formerly output to regular file named "-").
+	-p operand is now required.
+	-v no longer needs to cleanup (no temp files can exist at that point).
+	-V now implies backup.
+	Set inname, patchname from file name arguments, if any;
+	do not set filearg.  It's now an error if extra operands are given.
+	(abort_junk): Check for write errors in reject file.
+	(apply_hunk, copy_till): Return error flag, so that failure to apply
+	out-of-order hunk is no longer fatal.
+	(apply_hunk): New arg after_newline,
+	for patching files not ending in newline.
+	Cache ofp for speed.  Check for write errors.
+	(OUTSIDE, IN_IFNDEF, IN_IFDEF, IN_ELSE): Now part of an enumerated type
+	instead of being #defined to small integers.
+	Change while-do to do-while when copying !-part for R_do_defines,
+	since condition is always true the first time through the loop.
+	(init_output, init_reject): Arg is now const *.
+	(copy_till, spew_output): Do not insert ``missing'' newlines;
+	propagate them via new after_newline argument.
+	(spew_output): Nothing to copy if last_frozen_line == input lines.
+	Do not close (ofp) if it's null.
+	(dump_line): Remove.
+	(similar): Ignore presence or absence of trailing newlines.
+	Check for only ' ' or '\t', not isspace (as per POSIX.2).
+	(make_temp): Use tmpnam if mktemp is not available.
+	(cleanup): New function.
+	(fatal_exit): Use it.  Renamed from my_exit.
+	Take signal to exit with, not exit status (which is now always 2).
+
+	* pch.h, pch.c (pch_prefix_context, pch_suffix_context):
+	New fns replacing pch_context.
+	(another_hunk): Now yields int, not bool; -1 means out of memory.
+	Now takes difftype as argument.
+	(pch_write_line): Now returns boolean indicating whether we're after
+	a newline just after the write, for supporting non-text files.
+	* pch.c (isdigit): Remove; use ISDIGIT instead.
+	(INITHUNKMAX): Moved here from common.h.
+	(p_context): Removed.  We need to keep track of the pre- and post-
+	context separately, in:
+	(p_prefix_context, p_suffix_context): New variables.
+	(bestguess): Remove.
+	(open_patch_file): Arg is now char const *.
+	Copy file a buffer at a time, not a char at a time, for speed.
+	(grow_hunkmax): Now returns success indicator.
+	(there_is_another_patch, skip_to, another_hunk, do_ed_script):
+	Be less chatty unless --verbose.
+	(there_is_another_patch):
+	Avoid infinite loop if user input keeps yielding EOF.
+	(intuit_diff_type): New returns enum diff, not int.
+	Strip paths as they're being fetched.
+	Set ok_to_create_file correctly even if patch is reversed.
+	Set up file names correctly with unidiff output.
+	Use algorithm specified by POSIX 1003.2b/D11 to deduce
+	name of file to patch, with the exception of patches
+	that can create files.
+	(skip_to): Be verbose if !inname, since we're about to ask the
+	user for a file name and the context will help the user choose.
+	(another_hunk): Keep context as LINENUM, not int.
+	If the replacement is missing, calculate its context correctly.
+	Don't assume input ends in newline.
+	Keep track of patch prefix context separately from suffix context;
+	this fixes several bugs.
+	Don't assume blank lines got chopped if the replacement is missing.
+	Report poorly-formed hunks instead of aborting.
+	Do not use strcpy on overlapping strings; it's not portable.
+	Work even if lines are incomplete.
+	Fix bugs associated with context-less context hunks,
+	particularly when patching in reverse.
+	(pget_line): Now takes just 1 arg; instead of second arg,
+	just examine using_plan_a global.  Return -1 if we ran out
+	of memory.
+	(do_ed_script): Now takes output FILE * argument.
+	Take name of editor from ED_PROGRAM instead of hardwiring /bin/ed.
+	Don't bother unlinking TMPOUTNAME.
+	Check for popen failure.
+	Flush pipe to check for output errors.
+	If ofp is nonzero, copy result to it, instead of trying to
+	move the result.
+
+	* util.h, util.c (say1, say2, say3, say4, fatal1, fatal2, fatal3,
+	fatal4, pfatal1, pfatal2, pfatal3, pfatal4, ask1, ask2, ask3, ask4):
+	Remove; replaced with following.
+	(ask, say, fatal, pfatal): New stdarg functions.
+	(fetchname): Remove last, `assume_exists' parameter.
+	(savebuf, savestr, move_file, copy_file): Args are now const *.
+	(exit_with_signal): New function, for proper process status if
+	a signal is received as per POSIX.2.
+	(basename): Rename to `base_name' and move to backupfile.
+	* util.c (<signal.h>): Include here, not in common.h.
+	(vararg_start): New macro.
+	(va_dcl, va_start, va_arg, va_end): Define if neither <stdarg.h>
+	nor <varargs.h> are available.
+	(SIGCHLD): Define to SIGCLD if SIGCLD is defined and
+	SIGCHLD isn't.
+	(private_strerror): Remove.
+	(move_file): Remove option of moving to stdout.
+	Add support for -Y, -z.
+	Don't assume chars in file name are nonnegative.
+	Use copy_file if rename fails due to EXDEV;
+	report failure if rename fails for any other reason.
+	(copy_file, makedirs): Use POSIX symbols for permissions.
+	(copy_file): Open source before destination.
+	(remove_prefix): New function.
+	(vfprintf): New function, if !HAVE_VPRINTF.
+	(afatal, apfatal, zfatal, zpfatal, errnum): Remove.
+	(fatal, pfatal, say): New functions that use stdarg.
+	All callers changed.
+	(zask): Renamed from `ask'.  Now uses stdarg.  Output to stdout,
+	and read from /dev/tty, or if that cannot be opened, from
+	stderr, stdout, stdin, whichever is first a tty.
+	Print "EOF" when an EOF is read.  Do not echo input.
+	(sigs): New array.
+	(sigset_t, sigemptyset, sigmask, sigaddset, sigismember, SIG_BLOCK,
+	SIG_UNBLOCK, SIG_SETMASK, sigprocmask, sigblock, sigsetmask):
+	Define substitutes if not available.
+	(initial_signal_mask, signals_to_block): New vars.
+	(fatal_exit_handler): New function, if !HAVE_SIGACTION.
+	(set_signals, ignore_signals): Use sigaction and sigprocmask style
+	signal-handling if possible; it doesn't lose signals.
+	(set_signals): Default SIGCHLD to work around SysV fork+wait bug.
+	(mkdir): First arg is now const *.
+	(makedirs): Handle multiple adjacent slashes correctly.
+	(fetchname): Do not worry about whether the file exists
+	(that is now the caller's responsibility).
+	Treat a sequence of one or more slashes like one slash.
+	Do not unstrip leading directories if they all exist and if
+	no -p option was given; POSIX doesn't allow this.
+	(memcmp): Remove (now a macro in common.h).
+
+	* version.c (copyright_string, free_software_msgid, authorship_msgid):
+	New constants.
+	(version): Use them.  Use program_name instead of hardwiring it.
+
+	* patch.man: Generate date from RCS Id.
+	Rewrite to match the above changes.
+
+Fri Jul 30 02:02:51 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* configure.in (AC_HAVE_FUNCS): Add mkdir.
+
+	* common.h (Chmod, Fputc, Write, VOID): New macros.
+	(malloc, realloc): Yield `VOID *', not `char *'.
+
+	* util.h (makedirs): Omit `striplast' argument.  Remove `aask'.
+
+	* inp.c (plan_a): Remove fixed internal buffer.  Remove lint.
+
+	* util.c (set_signals, ignore_signals): Trap SIGTERM, too.
+	(makedirs): Removed fixed internal buffer.  Omit `striplast' argument.
+	(mkdir): New function, if !HAVE_MKDIR.
+	(fetchname): Remove fixed internal buffer.
+	Remove lint from various functions.
+
+	* patch.c, pch.c: Remove lint.
+
+Thu Jul 29 20:52:07 1993  David J. MacKenzie  (djm@wookumz.gnu.ai.mit.edu)
+
+	* Makefile.in (config.status): Run config.status --recheck, not
+	configure, to get the right args passed.
+
+Thu Jul 29 07:46:16 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* The following changes remove all remaining fixed limits on memory,
+	and fix bugs in patch's handling of null bytes and files that do not
+	end in newline.  `Patch' now works on binary files.
+
+	* backupfile.c (find_backup_file_name): Don't dump core if malloc fails.
+
+	* EXTERN.h, INTERN.h (EXITING): New macro.
+	* backupfile.[ch], patch.c, pch.c: Add PARAMS to function declarations.
+
+	* common.h (bool): Change to int, so ANSI C prototype promotion works.
+	(CANVARARG): Remove varargs hack; it wasn't portable.
+	(filearg): Now a pointer, not an array, so that it can be reallocated.
+	(GET*, SCCSDIFF, CHECKOUT*, RCSDIFF): Quote operands to commands.
+	(my_exit): Declare here.
+	(BUFFERSIZE, Ctl, filemode, Fseek, Fstat, Lseek, MAXFILEC, MAXHUNKSIZE,
+	Mktemp, myuid, Null, Nullch, Nullfp, Nulline, Pclose, VOIDUSED): Remove.
+	All invokers changed.
+	(Argc, Argv, *define[sd], last_offset, maxfuzz, noreverse, ofp,
+	optind_last, rejfp, rejname): No longer externally visible; all
+	definers changed.
+	(INT_MAX, INT_MIN, STD*_FILENO, SEEK_SET): Define if the underlying
+	system doesn't.  Include <limits.h> for this.
+
+	* configure.in: Add limits.h, memcmp.  Delete getline.
+
+	* inp.c (tibufsize): New variable; buffers grow as needed.
+	(TIBUFSIZE_MINIMUM): New macro.
+	(report_revision): New function.
+	(plan_a): Do not search patch as a big string, since that fails
+	if it contains null bytes.
+	Prepend `./' to filenames starting with `-', for RCS and SCCS.
+	If file does not match default RCS/SCCS version, go ahead and patch
+	it anyway; warn about the problem but do not report a fatal error.
+	(plan_b): Do not use a fixed buffer to read lines; read byte by byte
+	instead, so that the lines can be arbitrarily long.  Do not search
+	lines as strings, since they may contain null bytes.
+	(plan_a, plan_b): Report I/O errors.
+
+	* inp.c, inp.h (rev_in_string): Remove.
+	(ifetch): Yield size of line too, since strlen no longer applies.
+	(plan_a, plan_b): No longer exported.
+
+	* patch.c (abort_hunk, apply_hunk, patch_match, similar):
+	Lines may contain NUL and need not end in newline.
+	(copy_till, dump_line): Insert newline if appending after partial line.
+	All invokers changed.
+	(main, get_some_switches, apply_hunk): Allocate *_define[ds], filearg,
+	rejname dynamically.
+	(make_temp): New function.
+	(main): Use it.
+	(main, spew_output, dump_line) Check for I/O errors.
+
+	* pch.c (open_patch_file): Don't copy stdin to a temporary file if
+	it's a regular file, since we can seek on it directly.
+	(open_patch_file, skip_to, another_hunk): The patch file may contain
+	NULs.
+	(another_hunk): The patch file may contain lines starting with '\',
+	which means the preceding line lacked a trailing newline.
+	(pgetline): Rename to pget_line.
+	(get_line, incomplete_line, pch_write_line): New functions.
+	(pch_line_len): Return size_t, not short; lines may be very long.
+	(do_ed_script): Check for I/O errors.  Allow scripts to contain
+	'i' and 's' commands, too.
+
+	* pch.h (pfp, grow_hunkmax, intuit_diff_type, next_intuit_at, skip_to,
+	pfetch, pgetline): No longer exported.
+	(pch_write_line): New declaration.
+	(getline): Removed.
+
+	* util.c (move_file, fetchname): Use private stat buffer, so that
+	filestat isn't lost.  Check for I/O errors.
+	(savestr): Use savebuf.
+	(zask): Use STD*_FILENO instead of 0, 1, 2.
+	(fetchname): strip_leading defaults to INT_MAX instead of 957 (!).
+	(memcmp): Define if !HAVE_MEMCMP.
+
+	* util.c, util.h (say*, fatal*, pfatal*, ask*): Delete; these
+	pseudo-varargs functions weren't ANSI C.  Replace by macros
+	that invoke [fs]printf directly, and invoke new functions
+	[az]{say,fatal,pfatal,ask} before and after.
+	(savebuf, read_fatal, write_fatal, memory_fatal, Fseek): New functions.
+	(fatal*): Output trailing newline after message.  All invokers changed.
+
+	* version.c (version): Don't exit.
+
+	* Makefile.in (SRCS): Remove getline.c.
+
+Thu Jul 22 15:24:24 1993  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* EXTERN.h, INTERN.h (PARAMS): Define.
+	* backupfile.h, common.h, inp.h, pch.h, util.h: Use.
+	* backupfile.c: Include EXTERN.h.
+
+Wed Jul 21 13:14:05 1993  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* getline.c: New file.
+	* configure.in: Check for getline (GNU libc has it).
+	* pch.c: Use it instead of fgets.
+	(pgetline): Renamed from pgets.  Change callers.
+	* pch.h: Change decl.
+
+	* pch.c (pgets): Tab adjusts by 8 - (indent % 8), not % 7.
+	Be consistent with similar code in pch.c::intuit_diff_type.
+
+	* common.h (MEM): Typedef removed.
+	inp.c, pch.c, util.c: Use size_t instead of MEM.
+	inp.c, pch.c: Use off_t.
+	configure.in: Add AC_SIZE_T and AC_OFF_T.
+
+	* common.h: Make buf a pointer and add a bufsize variable.
+	* util.c, pch.c, inp.c: Replace sizeof buf with bufsize.
+	* patch.c: malloc buf to bufsize bytes.
+
+Tue Jul 20 20:40:03 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* common.h (BUFFERSIZE): Grow it to 8k too, just in case.
+	(buf): Turn `buf' back into an array; making it a pointer broke
+	things seriously.
+	* patch.c (main): Likewise.
+
+Tue Jul 20 20:02:40 1993  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* Move Reg[1-16] and CANVARARG decls from config.h.in to common.h.
+	* acconfig.h: New file.
+	* Makefile (HDRS): Add it.
+
+Tue Jul 20 16:35:27 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* Makefile.in: Remove alloca.[co]; getopt no longer needs it.
+	* configure.in (AC_ALLOCA): Remove.
+
+	* util.c (set_signals, ignore_signals): Do nothing if SIGHUP
+	and SIGINT aren't defined.
+
+Tue Jul 20 17:59:56 1993  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* patch.c (main): Call xmalloc, not malloc.  xmalloc buf.
+	* common.h: Declare xmalloc.  Make buf a pointer, not an array.
+
+	* util.c (xmalloc): Call fatal1, not fatal.
+
+	* common.h [MAXLINELEN]: Bump from 1k to 8k.
+
+Thu Jul  8 19:56:16 1993  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* Makefile.in (installdirs): New target.
+	(install): Use it.
+	(Makefile, config.status, configure): New targets.
+
+Wed Jul  7 13:25:40 1993  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* patch.c (get_some_switches, longopts): Recognize --help
+	option, and call usage.
+	(usage): New function.
+
+Fri Jun 25 07:49:45 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* backupfile.c (find_backup_file_name): Don't use .orig if
+	numbered_existing with no existing numbered backup.
+	(addext):  Don't use ext if !HAVE_LONG_FILE_NAMES,
+	even if it would fit.  This matches patch's historical behavior.
+	(simple_backup_suffix): Default to ".orig".
+	* patch.c (main): Just use that default.
+
+Tue Jun 15 22:32:14 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* config.h.in (HAVE_ALLOCA_H): This #undef was missing.
+	* Makefile.in (info, check, installcheck): New rules.
+
+Sun Jun 13 14:31:29 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* config.h.in (index, rindex): Remove unused macro
+	definitions; they get in the way when porting to AIX.
+	* config.h.in, configure.in (HAVE_STRING_H): Remove unused defn.
+
+Thu Jun 10 21:13:47 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* patchlevel.h: PATCH_VERSION 2.1.
+	(The name `patch-2.0.12g12' is too long for traditional Unix.)
+
+	* patchlevel.h (PATCH_VERSION): Renamed from PATCHLEVEL.
+	Now contains the entire patch version number.
+	* version.c (version): Use it.
+
+Wed Jun  9 21:43:23 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* common.h: Remove declarations of index and rindex.
+	* backupfile.c: Likewise.
+	(addext, basename, dirname): Avoid rindex.
+
+Tue Jun  8 15:24:14 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* inp.c (plan_a): Check that RCS and working files are not the
+	same.  This check is needed on hosts that do not report file
+	name length limits and have short limits.
+
+Sat Jun  5 22:56:07 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* Makefile.in (.c.o): Put $(CFLAGS) after other options.
+	(dist): Switch from .z to .gz.
+
+Wed Jun  2 10:37:15 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* backupfile.c (find_backup_file_name): Initialize copy of
+	file name properly.
+
+Mon May 31 21:55:21 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* patchlevel.h: Patch level 12g11.
+
+	* pch.c (p_Char): Renamed from p_char, which is a system type
+	in Tex XD88's <sys/types.h>.
+
+	* backupfile.c: Include "config.h" first, so that `const' is
+	treated consistently in system headers.
+
+Mon May 31 16:06:23 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* patchlevel.h: Patch level 12g10.
+
+	* configure.in: Add AC_CONST.
+	* config.h.in: Add `const'.
+	* Makefile.in (.c.o): Add -DHAVE_CONFIG_H.
+	(getopt.o getopt1.o): Depend on config.h.
+
+	* util.c (xmalloc): New function; alloca.c needs this.
+
+Mon May 31 00:49:40 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* patchlevel.h: PATCHLEVEL 12g9.
+
+	* backupfile.c, backupfile.h (addext): New function.
+	It uses pathconf(), if available, to determine maximum file
+	name length.
+	* patch.c (main): Use it for reject file name.
+	* common.h (ORIGEXT): Moved to patch.c.
+	* config.h.in (HAVE_PATHCONF): New macro.
+	* configure.in: Define it.
+
+	* Makefile.in (dist): Use gzip, not compress.
+
+Sat May 29 09:42:18 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* patch.c (main): Use pathconf to decide reject file name.
+	* common.h (REJEXT): Remove.
+
+	* inp.c (plan_a): Don't lock the checked-out file if `patch -o'
+	redirected the output elsewhere.
+	* common.h (CHECKOUT_LOCKED, GET_LOCKED): New macros.  GET and
+	CHECKOUT now just checkout unlocked copies.
+
+Fri May 28 08:44:50 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* backupfile.c (basename): Define even if NODIR isn't defined.
+	* patch.c (main): Ask just once to apply a reversed patch.
+
+Tue Nov 24 08:09:04 1992  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* config.h.in, common.h: Use HAVE_FCNTL_H and HAVE_STRING_H
+	instead of USG.
+
+	* backupfile.c: Use SYSDIR and NDIR instead of USG.
+	Define direct as dirent, not vice-versa.
+
+Wed Sep 16 17:11:48 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* patch.c (get_some_switches): optc should be int, not char.
+
+Tue Sep 15 00:36:46 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* patchlevel.h: PATCHLEVEL 12g8.
+
+Mon Sep 14 22:01:23 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* Makefile.in: Add uninstall target.
+
+	* util.c (fatal, pfatal): Add some asterisks to make fatal
+	messages stand out more.
+
+Tue Aug 25 22:13:36 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* patch.c (main, get_some_switches), common.h, inp.c (plan_a,
+	plan_b), pch.c (there_is_another_patch): Add -t --batch
+	option, similar to -f --force.
+
+Mon Jul 27 11:27:07 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* common.h: Define SCCSDIFF and RCSDIFF.
+	* inp.c (plan_a): Use them to make sure it's safe to check out
+	the default RCS or SCCS version.
+	From Paul Eggert.
+
+Mon Jul 20 14:10:32 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* util.h: Declare basename.
+	* inp.c (plan_a), util.c (fetchname): Use it to isolate the
+	leading path when testing for RCS and SCCS files.
+
+Fri Jul 10 16:03:23 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* util.c (makedirs): Only make the directories that don't exist.
+	From chip@tct.com (Chip Salzenberg).
+
+Wed Jul  8 01:20:56 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* patch.c (main): Open ofp after checking for ed script.
+	Close ofp and rejfp before trying plan B.
+	From epang@sfu.ca (Eugene Pang).
+
+	* util.c (fatal, pfatal): Print "patch: " before message.
+	* pch.c, inp.c, patch.c, util.c: Remove "patch: " from the
+	callers that had it.
+
+	* common.h (myuid): New variable.
+	* patch.c (main): Initialize it.
+	* inp.c (myuid): Function removed.
+	(plan_a): Use the variable, not the function.
+
+	* patch.c: Add back -E --remove-empty-files option.
+
+Tue Jul  7 23:19:28 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* inp.c (myuid): New function.
+	(plan_a): Call it.  Optimize stat calls.  Be smarter about
+	detecting checked out RCS and SCCS files.
+	From Paul Eggert (eggert@twinsun.com).
+
+	* inp.c, util.c, patch.c: Don't bother checking for stat() > 0.
+
+Mon Jul  6 13:01:52 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* util.c (move_file): Use rename instead of link and copying.
+
+	* util.c (pfatal): New function.
+	* util.h: Declare it and pfatal[1-4] macros.
+	* various files: Use it instead of fatal where appropriate.
+
+	* common.h, patch.c: Replace Arg[cv]_last with optind_last.
+
+	* patch.c (main, get_some_switches): Use getopt_long.  Update
+	usage message.
+	(nextarg): Function removed.
+
+	* Rename FLEXFILENAMES to HAVE_LONG_FILE_NAMES,
+	VOIDSIG to RETSIGTYPE.
+
+	* backupfile.c, common.h: Use STDC header files if available.
+	backupfile.h: Declare get_version.
+
+	* COPYING, COPYING.LIB, INSTALL, Makefile.in, alloca.c,
+	config.h.in, configure, configure.in, getopt.[ch], getopt1.c,
+	rename.c: New files.
+	* Configure, MANIFEST, Makefile.SH, config.H, config.h.SH,
+	malloc.c: Files removed.
+
+	* version.c (version): Don't print the RCS stuff, since we're
+	not updating it regularly.
+
+	* patchlevel.h: PATCHLEVEL 12u7.
+
+	* Makefile.SH (dist): New target.
+	Makedist: File removed.
+
+	* inp.c (plan_a): Check whether the user can write to the
+	file, not whether anyone can write to the file.
+
+Sat Jul  4 00:06:58 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* inp.c (plan_a): Try to check out read-only files from RCS or SCCS.
+
+	* util.c (move_file): If backing up by linking fails, try copying.
+	From cek@sdc.boeing.com (Conrad Kimball).
+
+	* patch.c (get_some_switches): Eliminate -E option; always
+	remove empty output files.
+
+	* util.c (fetchname): Only undo slash removal for relative
+	paths if -p was not given.
+
+	* Makefile.sh: Add mostlyclean target.
+
+Fri Jul  3 23:48:14 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* util.c (fetchname): Accept whitespace between `Index:' and filename.
+	Also plug a small memory leak for diffs against /dev/null.
+	From eggert@twinsun.com (Paul Eggert).
+
+	* common.h: Don't define TRUE and FALSE if already defined.
+	From phk@data.fls.dk (Poul-Henning Kamp).
+
+Wed Apr 29 10:19:33 1992  David J. MacKenzie  (djm@churchy.gnu.ai.mit.edu)
+
+	* backupfile.c (get_version): Exit if given a bad backup type.
+
+Fri Mar 27 09:57:14 1992  Karl Berry  (karl at hayley)
+
+	* common.h (S_ISDIR, S_ISREG): define these.
+	* inp.c (plan_a): use S_ISREG, not S_IFREG.
+	* util.c (fetchname): use S_ISDIR, not S_IFDIR.
+
+Mon Mar 16 14:10:42 1992  David J. MacKenzie  (djm@wookumz.gnu.ai.mit.edu)
+
+	* patchlevel.h: PATCHLEVEL 12u6.
+
+Sat Mar 14 13:13:29 1992  David J. MacKenzie  (djm at frob.eng.umd.edu)
+
+	* Configure, config.h.SH: Check for directory header and unistd.h.
+
+	* patch.c (main): If -E was given and output file is empty after
+	patching, remove it.
+	(get_some_switches): Recognize -E option.
+
+	* patch.c (copy_till): Make garbled output an error, not a warning
+	that doesn't change the exit status.
+
+	* common.h: Protect against system declarations of malloc and realloc.
+
+	* Makedist: Add backupfile.[ch].
+
+	* Configure: Look for C library where NeXT and SVR4 put it.
+	Look in /usr/ucb after /bin and /usr/bin for utilities,
+	and look in /usr/ccs/bin, to make SVR4 happier.
+	Recognize m68k predefine.
+
+	* util.c (fetchname): Test of stat return value was backward.
+	From csss@scheme.cs.ubc.ca.
+
+	* version.c (version): Exit with status 0, not 1.
+
+	* Makefile.SH: Add backupfile.[cho].
+	* patch.c (main): Initialize backup file generation.
+	(get_some_switches): Add -V option.
+	* common.h, util,c, patch.c: Replace origext with simple_backup_suffix.
+	* util.c (move_file): Use find_backup_file_name.
+
+Tue Dec  3 11:27:16 1991  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* patchlevel.h: PATCHLEVEL 12u5.
+
+	* Makefile.SH: Change clean, distclean, and realclean targets a
+	little so they agree with the GNU coding standards.
+	Add Makefile to addedbyconf, so distclean removes it.
+
+	* Configure: Recognize Domain/OS C library in /lib/libc.
+	From mmuegel@mot.com (Michael S. Muegel).
+
+	* pch.c: Fixes from Wayne Davison:
+	Patch now accepts no-context context diffs that are
+	specified with an assumed one line hunk (e.g.  "*** 10 ****").
+	Fixed a bug in both context and unified diff processing that would
+	put a zero-context hunk in the wrong place (one line too soon).
+	Fixed a minor problem with p_max in unified diffs where it would
+	set p_max to hunkmax unnecessarily (the only adverse effect was to
+	not supply empty lines at eof by assuming they were truncated).
+
+Tue Jul  2 03:25:51 1991  David J. MacKenzie  (djm at geech.gnu.ai.mit.edu)
+
+	* Configure: Check for signal declaration in
+	/usr/include/sys/signal.h as well as /usr/include/signal.h.
+
+	* Configure, common.h, config.h.SH: Comment out the sprintf
+	declaration and tests to determine its return value type.  It
+	conflicts with ANSI C systems' prototypes in stdio.h and the
+	return value of sprintf is never used anyway -- it's always cast
+	to void.
+
+Thu Jun 27 13:05:32 1991  David J. MacKenzie  (djm at churchy.gnu.ai.mit.edu)
+
+	* patchlevel.h: PATCHLEVEL 12u4.
+
+Thu Feb 21 15:18:14 1991  David J. MacKenzie  (djm at geech.ai.mit.edu)
+
+	* pch.c (another_hunk): Fix off by 1 error.  From
+	iverson@xstor.com (Tim Iverson).
+
+Sun Jan 20 20:18:58 1991  David J. MacKenzie  (djm at geech.ai.mit.edu)
+
+	* Makefile.SH (all): Don't make a dummy `all' file.
+
+	* patchlevel.h: PATCHLEVEL 12u3.
+
+	* patch.c (nextarg): New function.
+	(get_some_switches): Use it, to prevent dereferencing a null
+	pointer if an option that takes an arg is not given one (is last
+	on the command line).  From Paul Eggert.
+
+	* pch.c (another_hunk): Fix from Wayne Davison to recognize
+	single-line hunks in unified diffs (with a single line number
+	instead of a range).
+
+	* inp.c (rev_in_string): Don't use `s' before defining it.  From
+	Wayne Davison.
+
+Mon Jan  7 06:25:11 1991  David J. MacKenzie  (djm at geech.ai.mit.edu)
+
+	* patchlevel.h: PATCHLEVEL 12u2.
+
+	* pch.c (intuit_diff_type): Recognize `+++' in diff headers, for
+	unified diff format.  From unidiff patch 1.
+
+Mon Dec  3 00:14:25 1990  David J. MacKenzie  (djm at albert.ai.mit.edu)
+
+	* patch.c (get_some_switches): Make the usage message more
+	informative.
+
+Sun Dec  2 23:20:18 1990  David J. MacKenzie  (djm at albert.ai.mit.edu)
+
+	* Configure: When checking for C preprocessor, look for 'abc.*xyz'
+	instead of 'abc.xyz', so ANSI C preprocessors work.
+
+	* Apply fix for -D from ksb@mentor.cc.purdue.edu (Kevin Braunsdorf).
+
+1990-05-01  Wayne Davison  <davison@dri.com>
+	* patch.c, pch.c: unidiff support added
+
+Wed Mar  7 23:47:25 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* pch.c: Call malformed instead of goto malformed
+	(just allows easier debugging).
+
+Tue Jan 23 21:27:00 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* common.h (TMP*NAME): Make these char *, not char [].
+	patch.c (main): Use TMPDIR (if present) to set TMP*NAME.
+	common.h: Declare getenv.
+
+Sun Dec 17 17:29:48 1989  Jim Kingdon  (kingdon at hobbes.ai.mit.edu)
+
+	* patch.c (reverse_flag_specified): New variable.
+	(get_some_switches, reinitialize_almost_everything): Use it.
+
+1988-06-22  Larry Wall  <sdcrdcf!lwall>
+	patch12:
+	* common.h: sprintf was declared wrong
+	* patch.c: rindex() wasn't declared
+	* patch.man: now avoids Bell System Logo
+
+1988-06-03  Larry Wall  <sdcrdcf!lwall>
+	patch10:
+	* common.h: support for shorter extensions.
+	* inp.c: made a little smarter about sccs files
+	* patch.c: exit code improved.
+	better support for non-flexfilenames.
+	* patch.man: -B switch was contributed.
+	* pch.c: Can now find patches in shar scripts.
+	Hunks that swapped and then swapped back could core dump.
+
+1987-06-04  Larry Wall  <sdcrdcf!lwall>
+	* pch.c: pch_swap didn't swap p_bfake and p_efake.
+
+1987-02-16  Larry Wall  <sdcrdcf!lwall>
+	* patch.c: Short replacement caused spurious "Out of sync" message.
+
+1987-01-30  Larry Wall  <sdcrdcf!lwall>
+	* patch.c: Improved diagnostic on sync error.
+	Moved do_ed_script() to pch.c.
+	* pch.c: Improved responses to mangled patches.
+	* pch.h: Added do_ed_script().
+
+1987-01-05  Larry Wall  <sdcrdcf!lwall>
+	* pch.c: New-style context diffs caused double call to free().
+
+1986-11-21  Larry Wall  <sdcrdcf!lwall>
+	* patch.c: Fuzz factor caused offset of installed lines.
+
+1986-11-14  Larry Wall  <sdcrdcf!lwall>
+	* pch.c: Fixed problem where a long pattern wouldn't grow the hunk.
+	Also restored p_input_line when backtracking so error messages are
+	right.
+
+1986-11-03  Larry Wall  <sdcrdcf!lwall>
+	* pch.c: New-style delete triggers spurious assertion error.
+
+1986-10-29  Larry Wall  <sdcrdcf!lwall>
+	* patch.c: Backwards search could terminate prematurely.
+	* pch.c: Could falsely report new-style context diff.
+
+1986-09-17  Larry Wall  <sdcrdcf!lwall>
+	* common.h, inp.c, inp.h, patch.c, patch.man, pch.c, pch.h,
+	util.h, version.c, version.h:  Baseline for netwide release.
+
+1986-08-01  Larry Wall  <sdcrdcf!lwall>
+	* patch.c: Fixes for machines that can't vararg.
+	Added fuzz factor.  Generalized -p.  General cleanup.
+	Changed some %d's to %ld's.  Linted.
+	* patch.man: Documented -v, -p, -F.
+	Added notes to patch senders.
+
+1985-08-15  van%ucbmonet@berkeley
+	Changes for 4.3bsd diff -c.
+
+1985-03-26  Larry Wall  <sdcrdcf!lwall>
+	* patch.c: Frozen.
+	* patch.man: Frozen.
+
+1985-03-12  Larry Wall  <sdcrdcf!lwall>
+	* patch.c: Now checks for normalness of file to patch.
+	Check i_ptr and i_womp to make sure they aren't null before freeing.
+	Also allow ed output to be suppressed.
+	Changed pfp->_file to fileno(pfp).
+	Added -p option from jromine@uci-750a.
+	Added -D (#ifdef) option from joe@fluke.
+	* patch.man: Documented -p, -D.
+
+1984-12-06  Larry Wall  <sdcrdcf!lwall>
+	* patch.c: Made smarter about SCCS subdirectories.
+
+1984-12-05  Larry Wall  <sdcrdcf!lwall>
+	* patch.c: Added -l switch to do loose string comparison.
+	* patch.man: Added -l switch, and noted bistability bug.
+
+1984-12-04  Larry Wall  <sdcrdcf!lwall>
+	Branch for sdcrdcf changes.
+	* patch.c: Failed hunk count not reset on multiple patch file.
+	* patch.man: Baseline version.
+
+1984-11-29  Larry Wall  <sdcrdcf!lwall>
+	* patch.c: Linted.  Identifiers uniquified.  Fixed i_ptr malloc() bug.
+	Fixed multiple calls to mktemp().  Will now work on machines that can
+	only read 32767 chars.  Added -R option for diffs with new and old
+	swapped.  Various cosmetic changes.
+
+1984-11-09  Larry Wall  <sdcrdcf!lwall>
+	* patch.c: Initial revision
+
+Local Variables:
+mode: indented-text
+left-margin: 8
+version-control: never
+end:

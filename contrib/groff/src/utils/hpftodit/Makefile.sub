@@ -1,0 +1,6 @@
+PROG=hpftodit
+MAN1=hpftodit.n
+XLIBS=$(LIBGROFF)
+MLIB=$(LIBM)
+OBJS=hpftodit.o
+CCSRCS=$(srcdir)/hpftodit.cc

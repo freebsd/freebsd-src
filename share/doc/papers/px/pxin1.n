@@ -1,0 +1,538 @@
+.\" Copyright (c) 1979 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)pxin1.n	5.2 (Berkeley) 4/17/91
+.\" $FreeBSD$
+.\"
+.tr _\(ru
+.nr H1 0
+.NH 
+Organization
+.PP
+Most of
+.I px
+is written in the
+.SM "VAX 11/780"
+assembly language, using the
+.UX
+assembler
+.I as.
+Portions of
+.I px
+are also written in the
+.UX
+systems programming language C.
+.I Px
+consists of a main procedure that reads in the interpreter code,
+a main interpreter loop that transfers successively to various
+code segments implementing the abstract machine operations,
+built-in procedures and functions,
+and several routines that support the implementation of the
+Pascal input-output environment.
+.PP
+The interpreter runs at a fraction of the speed of equivalent
+compiled C code, with this fraction varying from 1/5 to 1/15.
+The interpreter occupies 18.5K bytes of instruction space, shared among
+all processes executing Pascal, and has 4.6K bytes of data space (constants,
+error messages, etc.) a copy of which is allocated to each executing process.
+.NH 2
+Format of the object file
+.PP
+.I Px
+normally interprets the code left in an object file by a run of the
+Pascal translator
+.I pi.
+The file where the translator puts the object originally, and the most
+commonly interpreted file, is called
+.I obj.
+In order that all persons using
+.I px
+share a common text image, this executable file is 
+a small process that coordinates with the interpreter to start
+execution.
+The interpreter code is placed
+at the end of a special ``header'' file and the size of the initialized
+data area of this header file is expanded to include this code,
+so that during execution it is located at an
+easily determined address in its data space.
+When executed, the object process creates a
+.I pipe ,
+creates another process by doing a
+.I fork ,
+and arranges that the resulting parent process becomes an instance of
+.I px .
+The child process then writes the interpreter code through 
+the pipe that it has to the
+interpreter process parent.
+When this process is complete, the child exits.
+.PP
+The real advantage of this approach is that it does not require modifications
+to the shell, and that the resultant objects are ``true objects'' not
+requiring special treatment.
+A simpler mechanism would be to determine the name of the file that was
+executed and pass this to the interpreter.
+However it is not possible to determine this name
+in all cases.\*(Dd
+.FS
+\*(dd\ For instance, if the
+.I pxref
+program is placed in the directory
+`/usr/bin'
+then when the user types
+``pxref program.p''
+the first argument to the program, nominally the programs name, is
+``pxref.''
+While it would be possible to search in the standard place,
+i.e. the current directory, and the system directories
+`/bin'
+and
+`/usr/bin'
+for a corresponding object file,
+this would be expensive and not guaranteed to succeed.
+Several shells exist that allow other directories to be searched
+for commands, and there is,
+in general,
+no way to determine what these directories are.
+.FE
+.NH 2
+General features of object code
+.PP
+Pascal object code is relocatable as all addressing references for
+control transfers within the code are relative.
+The code consists of instructions interspersed with inline data.
+All instructions have a length that is an even number of bytes.
+No variables are kept in the object code area.
+.PP
+The first byte of a Pascal interpreter instruction contains an operation
+code.
+This allows a total of 256 major operation codes, and 232 of these are
+in use in the current
+.I px.
+The second byte of each interpreter instruction is called the
+``sub-operation code'',
+or more commonly the
+.I sub-opcode.
+It contains a small integer that may, for example, be used as a
+block-structure level for the associated operation.
+If the instruction can take a longword constant,
+this constant is often packed into the sub-opcode
+if it fits into 8 bits and is not zero.
+A sub-opcode value of zero specifies that the constant would not
+fit and therefore follows in the next word.
+This is a space optimization, the value of zero for flagging
+the longer case being convenient because it is easy to test.
+.PP
+Other instruction formats are used.
+The branching
+instructions take an offset in the following word,
+operators that load constants onto the stack 
+take arbitrarily long inline constant values,
+and many operations deal exclusively with data on the
+interpreter stack, requiring no inline data.
+.NH 2
+Stack structure of the interpreter
+.PP
+The interpreter emulates a stack-structured Pascal machine.
+The ``load'' instructions put values onto the stack, where all
+arithmetic operations take place.
+The ``store'' instructions take values off the stack
+and place them in an address that is also contained on the stack.
+The only way to move data or to compute in the machine is with the stack.
+.PP
+To make the interpreter operations more powerful
+and to thereby increase the interpreter speed,
+the arithmetic operations in the interpreter are ``typed''.
+That is, length conversion of arithmetic values occurs when they are
+used in an operation.
+This eliminates interpreter cycles for length conversion
+and the associated overhead.
+For example, when adding an integer that fits in one byte to one that
+requires four bytes to store, no ``conversion'' operators are required.
+The one byte integer is loaded onto the stack, followed by the four
+byte integer, and then an adding operator is used that has, implicit
+in its definition, the sizes of the arguments.
+.NH 2
+Data types in the interpreter
+.PP
+The interpreter deals with several different fundamental data types.
+In the memory of the machine, 1, 2, and 4 byte integers are supported,
+with only 2 and 4 byte integers being present on the stack.
+The interpreter always converts to 4 byte integers when there is a possibility
+of overflowing the shorter formats.
+This corresponds to the Pascal language definition of overflow in
+arithmetic operations that requires that the result be correct
+if all partial values lie within the bounds of the base integer type:
+4 byte integer values.
+.PP
+Character constants are treated similarly to 1 byte integers for
+most purposes, as are Boolean values.
+All enumerated types are treated as integer values of
+an appropriate length, usually 1 byte.
+The interpreter also has real numbers, occupying 8 bytes of storage,
+and sets and strings of varying length.
+The appropriate operations are included for each data type, such as
+set union and intersection and an operation to write a string.
+.PP
+No special
+.B packed
+data formats are supported by the interpreter.
+The smallest unit of storage occupied by any variable is one byte.
+The built-ins
+.I pack
+and
+.I unpack
+thus degenerate to simple memory to memory transfers with
+no special processing.
+.NH 2
+Runtime environment
+.PP
+The interpreter runtime environment uses a stack data area and a heap
+data area, that are kept at opposite ends of memory
+and grow towards each other.
+All global variables and variables local to procedures and functions
+are kept in the stack area.
+Dynamically allocated variables and buffers for input/output are
+allocated in the heap.
+.PP
+The addressing of block structured variables is done by using
+a fixed display
+that contains the address of its stack frame
+for each statically active block.\*(Dg
+.FS
+\*(dg\ Here ``block'' is being used to mean any
+.I procedure ,
+.I function
+or the main program.
+.FE
+This display is referenced by instructions that load and store
+variables and maintained by the operations for
+block entry and exit, and for non-local
+.B goto
+statements.
+.NH 2
+Dp, lc, loop
+.PP
+Three ``global'' variables in the interpreter, in addition to the
+``display'', are the
+.I dp,
+.I lc,
+and the
+.I loop.
+The
+.I dp
+is a pointer to the display entry for the current block;
+the
+.I lc
+is the abstract machine location counter;
+and the
+.I loop
+is a register that holds the address of the main interpreter
+loop so that returning to the loop to fetch the next instruction is
+a fast operation.
+.NH 2
+The stack frame structure
+.PP
+Each active block
+has a stack frame consisting of three parts:
+a block mark, local variables, and temporary storage for partially
+evaluated expressions.
+The stack in the interpreter grows from the high addresses in memory
+to the low addresses,
+so that those parts of the stack frame that are ``on the top''
+of the stack have the most negative offsets from the display
+entry for the block.
+The major parts of the stack frame are represented in Figure 1.1.
+.so fig1.1.n
+Note that the local variables of each block
+have negative offsets from the corresponding display entry,
+the ``first'' local variable having offset `\-2'.
+.NH 2
+The block mark
+.PP
+The block mark contains the saved information necessary
+to restore the environment when the current block exits.
+It consists of two parts.
+The first and top-most part is saved by the
+.SM CALL
+instruction in the interpreter.
+This information is not present for the main program
+as it is never ``called''.
+The second part of the block mark is created by the
+.SM BEG
+begin block operator that also allocates and clears the
+local variable storage.
+The format of these blocks is represented in Figure 1.2.
+.sp
+.so fig1.2.n
+.PP
+The data saved by the
+.SM CALL
+operator includes the line number
+.I lino
+of the point of call,
+that is printed if the program execution ends abnormally;
+the location counter
+.I lc
+giving the return address;
+and the current display entry address
+.I dp
+at the time of call.
+.PP
+The
+.SM BEG
+begin operator saves the previous display contents at the level
+of this block, so that the display can be restored on block exit.
+A pointer to the beginning line number and the
+name of this block is also saved.
+This information is stored in the interpreter object code in-line after the
+.SM BEG
+operator.
+It is used in printing a post-mortem backtrace.
+The saved file name and buffer reference are necessary because of
+the input/output structure
+(this is discussed in detail in 
+sections 3.3 and 3.4).
+The top of stack reference gives the value the stack pointer should
+have when there are no expression temporaries on the stack.
+It is used for a consistency check in the
+.SM LINO
+line number operators in the interpreter, that occurs before
+each statement executed.
+This helps to catch bugs in the interpreter, that often manifest
+themselves by leaving the stack non-empty between statements.
+.PP
+Note that there is no explicit static link here.
+Thus to set up the display correctly after a non-local
+.B goto
+statement one must ``unwind''
+through all the block marks on the stack to rebuild the display.
+.NH 2
+Arguments and return values
+.PP
+A function returns its value into a space reserved by the calling
+block.
+Arguments to a
+.B function
+are placed on top of this return area.
+For both
+.B procedure
+and
+.B function
+calls, arguments are placed at the end of the expression evaluation area
+of the caller.
+When a
+.B function
+completes, expression evaluation can continue
+after popping the arguments to the
+.B function
+off the stack,
+exactly as if the function value had been ``loaded''.
+The arguments to a
+.B procedure
+are also popped off the stack by the caller
+after its execution ends.
+.KS
+.PP
+As a simple example consider the following stack structure
+for a call to a function
+.I f,
+of the form ``f(a)''.
+.so fig1.3.n
+.KE
+.PP
+If we suppose that
+.I f
+returns a
+.I real
+and that
+.I a
+is an integer,
+the calling sequence for this function would be:
+.DS
+.TS
+lp-2w(8) l.
+PUSH	\-8
+RV4:\fIl	a\fR
+CALL:\fIl	f\fR
+POP	4
+.TE
+.DE
+.ZP
+Here we use the operator
+.SM PUSH
+to clear space for the return value,
+load
+.I a
+on the stack with a ``right value'' operator,
+call the function,
+pop off the argument
+.I a ,
+and can then complete evaluation of the containing expression.
+The operations used here will be explained in section 2.
+.PP
+If the function
+.I f
+were given by
+.LS
+ 10 \*bfunction\fR f(i: integer): real;
+ 11 \*bbegin\fR
+ 12     f := i
+ 13 \*bend\fR;
+.LE
+then
+.I f
+would have code sequence:
+.DS
+.TS
+lp-2w(8) l.
+BEG:2	0
+	11
+	"f"
+LV:\fIl\fR	40
+RV4:\fIl\fR	32
+AS48
+END
+.TE
+.DE
+.ZP
+Here the
+.SM BEG
+operator takes 9 bytes of inline data.
+The first byte specifies the 
+length of the function name.
+The second longword specifies the
+amount of local variable storage, here none.
+The succeeding two lines give the line number of the
+.B begin
+and the name of the block
+for error traceback.
+The
+.SM BEG
+operator places a name pointer in the block mark.
+The body of the
+.B function
+first takes an address of the
+.B function
+result variable
+.I f
+using the address of operator
+.SM LV
+.I a .
+The next operation in the interpretation of this function is the loading
+of the value of
+.I i .
+.I I
+is at the level of the
+.B function
+.I f ,
+here symbolically
+.I l,
+and the first variable in the local variable area.
+The
+.B function
+completes by assigning the 4 byte integer on the stack to the 8 byte
+return location, hence the
+.SM AS48
+assignment operator, and then uses the
+.SM END
+operator to exit the current block.
+.NH 2
+The main interpreter loop
+.PP
+The main interpreter loop is simply:
+.DS
+.mD
+iloop:
+	\fBcaseb\fR	(lc)+,$0,$255
+	<table of opcode interpreter addresses>
+.DE
+.ZP
+The main opcode is extracted from the first byte of the instruction
+and used to index into the table of opcode interpreter addresses.
+Control is then transferred to the specified location.
+The sub-opcode may be used to index the display,
+as a small constant,
+or to specify one of several relational operators.
+In the cases where a constant is needed, but it
+is not small enough to fit in the byte sub-operator,
+a zero is placed there and the constant follows in the next word.
+Zero is easily tested for,
+as the instruction that fetches the
+sub-opcode sets the condition code flags.
+A construction like:
+.DS
+.mD
+_OPER:
+	\fBcvtbl\fR	(lc)+,r0
+	\fBbneq\fR	L1
+	\fBcvtwl\fR	(lc)+,r0
+L1:	...
+.DE
+is all that is needed to effect this packing of data.
+This technique saves space in the Pascal
+.I obj
+object code.
+.PP
+The address of the instruction at
+.I iloop
+is always contained in the register variable 
+.I loop .
+Thus a return to the main interpreter is simply:
+.DS
+	\fBjmp\fR	(loop)
+.DE
+that is both quick and occupies little space.
+.NH 2
+Errors
+.PP
+Errors during interpretation fall into three classes:
+.DS
+1) Interpreter detected errors.
+2) Hardware detected errors.
+3) External events.
+.DE
+.PP
+Interpreter detected errors include I/O errors and
+built-in function errors.  
+These errors cause a subroutine call to an error routine
+with a single parameter indicating the cause of the error.
+Hardware errors such as range errors and overflows are
+fielded by a special routine that determines the opcode
+that caused the error.
+It then calls the error routine with an appropriate error
+parameter.
+External events include interrupts and system limits such
+as available memory.
+They generate a call to the error routine with an 
+appropriate error code.
+The error routine processes the error condition, 
+printing an appropriate error message and usually
+a backtrace from the point of the error.

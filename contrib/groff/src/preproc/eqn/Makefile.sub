@@ -1,0 +1,59 @@
+PROG=eqn
+MAN1=eqn.n neqn.n
+XLIBS=$(LIBGROFF)
+OBJS=\
+  eqn.o \
+  main.o \
+  lex.o \
+  box.o \
+  limit.o \
+  list.o \
+  over.o \
+  text.o \
+  script.o \
+  mark.o \
+  other.o \
+  delim.o \
+  sqrt.o \
+  pile.o \
+  special.o
+CCSRCS=\
+  $(srcdir)/main.cc \
+  $(srcdir)/lex.cc \
+  $(srcdir)/box.cc \
+  $(srcdir)/limit.cc \
+  $(srcdir)/list.cc \
+  $(srcdir)/over.cc \
+  $(srcdir)/text.cc \
+  $(srcdir)/script.cc \
+  $(srcdir)/mark.cc \
+  $(srcdir)/other.cc \
+  $(srcdir)/delim.cc \
+  $(srcdir)/sqrt.cc \
+  $(srcdir)/pile.cc \
+  $(srcdir)/special.cc
+HDRS=\
+  $(srcdir)/box.h \
+  $(srcdir)/eqn.h \
+  $(srcdir)/pbox.h
+GRAM=$(srcdir)/eqn.y
+YTABC=$(srcdir)/eqn.cc
+YTABH=$(srcdir)/eqn_tab.h
+NAMEPREFIX=$(g)
+CLEANADD=neqn
+
+all: neqn
+
+neqn: neqn.sh
+	-rm -f $@
+	sed -e 's/@g@/$(g)/g' \
+	-e 's|@BINDIR@|$(bindir)|g' \
+	-e $(SH_SCRIPT_SED_CMD) $(srcdir)/neqn.sh >$@
+	chmod +x $@
+
+install_data: neqn
+	-rm -f $(bindir)/$(NAMEPREFIX)neqn
+	$(INSTALL_SCRIPT) neqn $(bindir)/$(NAMEPREFIX)neqn
+
+uninstall_sub:
+	-rm -f $(bindir)/$(NAMEPREFIX)neqn

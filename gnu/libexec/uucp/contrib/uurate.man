@@ -1,0 +1,280 @@
+''' $FreeBSD$
+.TH uurate 1
+.SH NAME
+uurate \- Report Taylor UUCP statistics
+.SH SYNOPSIS
+.BR uurate " [ " "\-acdefhipqtvx" " ] [ " "\-s "
+.I host
+.RI " ] [ " "\-I "
+.I config
+.RI " ][ " "logfile..." " ] "
+.PP
+or simply,
+.PP
+.B uurate
+.PP
+for a traffic summary report.
+.SH DESCRIPTION
+The
+.I uurate
+command provides tabular summary reports on the operation of the
+Taylor UUCP system. Data is taken from the currently active log
+files, standard input, or from a list of log files given on the
+command line. Output is in the form of tabular reports summarizing
+call, file transfer, and command execution
+.RI "("  "uuxqt" ")"
+activity.
+.PP
+The log and stats files given to
+.I uurate
+must be in the ``Taylor'' or ``V2'' format. Also, note that call and file
+transfer activities are logged in separate files, nominally called
+.I Log
+and
+.I Stats,
+respectively. For reports to be meaningful, the
+.I Log
+and
+.I Stats
+files should be given to
+.I uurate
+together, and cover the same time period.
+.PP
+If neither the
+.B \-i
+or
+.B \-I
+option nor any
+.I logfile
+options are given,
+.I uurate
+defaults to taking its input from the current Taylor
+.I Log
+and
+.I Stats
+files. The names are either as defined at compilation time, in case
+there is no config file, or taken from the arguments of the keywords
+.I logfile
+and
+.I statfile
+when encountered in the config file.
+This is the normal mode of operation.
+.PP
+The reporting options described below can be used to select
+the set of reports desired. If no options are given, a summary
+report is displayed. If there is no relevant data for a particular
+report or host, that report or host will be suppressed.
+.SH OPTIONS
+The following options may be given to
+.I uurate:
+.TP 5
+.B \-a
+All reports. Identical to
+.B \-cfexp.
+.TP 5
+.B \-c
+Report on call statistics. Requires data from a
+.I Log
+file.
+.TP 5
+.B \-d
+will print the default config file to be used.
+.TP 5
+.B \-e
+Report on efficiency (total connect time versus time spent transferring
+files). Requires data from both a
+.I Log
+and a
+.I Stats
+file, and they must span the same time period.
+.TP 5
+.B \-f
+Report on file transfer statistics. Requires data from a
+.I Stats
+file.
+.TP 5
+.B \-h
+will print a short help information.
+.TP 5
+.B \-i
+tells uurate to read any logfile information from standard input.
+.TP 5
+.B \-p
+report on protocol errors and packets sent/received
+.TP 5
+.B \-q
+do not print the Environment information,
+.TP 5
+.B \-t
+All reports. Identical to
+.B \-cfexp.
+plus the
+.B Compact summary.
+.TP 5
+.B \-v
+will print the version id string
+.TP 5
+.B \-x
+Report on remote execution requests (e.g.,
+.IR rmail ")."
+Requires data from a
+.I Log
+file.
+.TP 5
+.BI "\-s " "host"
+Restrict report output to
+.I host.
+.TP 5
+.BI "\-I " "config file"
+an alternate config file may be passed by this option.
+.SH "DESCRIPTION OF REPORTS"
+There are four reports available: the call, file transfer, efficiency,
+and remote execution reports. Each may be selected by a command line
+option. All reports may be selected via the options
+.B \-a
+or
+.B \-t.
+If no report selection options are given,
+.I uurate
+displays a compact traffic summary report (see below).
+.SS "Summary report"
+If no report options are given,
+.I uurate
+displays a traffic summary report. This is particularly useful in daily
+.I cron
+jobs which report on errors and the like. Traffic statistics for each
+active system is reported on a single line. If more than one system was
+active, a 'totals' line is included at the end of the report.
+.SS "Protocol packet report"
+The protocol report gives statistics on min/max packet and window sizes
+used during transmission. Further on data is collected for packets
+transferred. The data is collected for each host/protocol type.
+The fields are described below:
+.PP
+.br
+.nf
+.in +.3i
+.ta 1.0i
+.BR "site	" "UUCP node name of neighbor host system,"
+.BR "typ	" "Type of protocol used"
+.BR "Min	" "minimum packet/window size"
+.BR "Max	" "maximum packet/window size"
+.BR "sent	" "packets sent"
+.BR "resent	" "packets resent"
+.BR "received	" "packets received"
+.in -.3
+.SS "Protocol error report"
+The protocol report gives statistics on packet errors
+during transmission. The data is collected for each host/protocol type.
+The fields are described below:
+.PP
+.br
+.nf
+.in +.3i
+.ta 1.5i
+.BR "site	" "UUCP node name of neighbor host system,"
+.BR "typ	" "Type of protocol used"
+.BR "header	" "number of errors in header"
+.BR "checksum	" "number of checksum errors"
+.BR "order	" "number of order errors"
+.BR "resent	" "number packets resent"
+.BR "rem-reject	" "packets that the remote site rejected"
+.in -.3
+.SS "Call report"
+The call report gives statistics on inbound and outbound calls for
+each active host system. The fields are described below:
+.PP
+.br
+.nf
+.in +.3i
+.ta 1.0i
+.BR "site	" "UUCP node name of neighbor host system,"
+.BR "succ.	" "Successful calls attempted to/by that system,"
+.BR "failed	" "Failed calls to/by that system,"
+.BR "total	" "Total calls to/by that system,"
+.BR "time	" "Collected connect time (hh:mm:ss) for all calls,"
+.in -.3
+.SS "File transfer reports"
+The file transfer reports give statistics on inbound and
+outbound file transfers (regardless of which end initiated the transfer)
+for each active host system. There are two reports, one for files
+sent to the remote system and one for files received from the remote
+system. The fields in each report are described below:
+.PP
+.br
+.nf
+.in +.3i
+.ta 1.0i
+.BR "site	  " "UUCP node name of neighbor host system"
+.BR "files	  " "Number of files transferred"
+.BR "Bytes/1000	  " "Total size of files transferred given in thousands"
+.BR "xfr time	  " "Total time (hh:mm:ss) spent on transfer the files,"
+.BR "B/sec	  " "Average transfer rate (bytes/sec)."
+.in -.3
+.SS "Efficiency report"
+The efficiency report describes the utilization of the links
+to each active remote system, giving the ratio of total connect time
+to the time spent actually transferring files.
+The fields are described below:
+.PP
+.br
+.nf
+.in +.3i
+.ta 1.0i
+.BR "site	 " "UUCP node name of neighbor host system"
+.BR "connected	 " "Total connect time for that system (turn-around)"
+.BR "xfr time	 " "Total file transfer time for that system"
+.BR "overhead	 " "Connect time not used to transfer files,"
+.BR "eff. %	 " "Ratio of connect time to transfer time (xfer*100/conn)"
+.in -.3
+.SS "Command executions report"
+The remote execution report describes remotely
+requested command executions from each active host system, like
+.I rmail
+and
+.IR rnews "."
+Up to eight command names are displayed. If there are more, the
+rest will be put together in an `Misc.' column.
+The fields are described below:
+.PP
+.br
+.nf
+.in +.3i
+.ta 1.0i
+.BR "site	  " "UUCP node name of neighbor host system,"
+.BR "(command)	  " "Number of requests of this command,"
+.BR "Misc.	  " "Number of other requests, if more than eight."
+.in -.3i
+.SS FILES
+The file names below may be changed at compilation time or by the
+configuration file, so these are only approximations.
+.br
+.nf
+.in +.3in
+.ta 2.2i
+.IR "/usr/spool/uucp/Log	" "V2/Taylor format call/execution log,"
+.IR "/usr/spool/uucp/Stats	" "V2/Taylor format file transfer log."
+.SS "SEE ALSO"
+.IR uucico "(8)"
+.SS BUGS
+Does not understand other than V2/TAYLOR logging formats. Anyone care to
+volunteer to add the not mentioned?
+.PP
+Scanning the arguments of logfile and statfile keywords 
+in config should handle lines continued with the backslash as well.
+.PP
+The
+.B failfm
+field in the call statistics table is always zero, unless
+something really serious happens, e.g. uucico got SIGQUIT or
+the whole system crashed.
+.SS AUTHOR
+Robert B. Denny (denny@alisa.com).
+.br
+Loosely based on the DECUS UUCP program
+.I uurate
+by Mark Pizzolato.
+.br
+Modified by Stephan Niemz (stephan@sunlab.ka.sub.org).
+.br
+Modified by Klaus Dahlenburg (kdburg@incoahe.hanse.de).

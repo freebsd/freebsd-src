@@ -1,0 +1,415 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>Authentication Options</title>
+</head>
+<body>
+<h3>Authentication Options</h3>
+
+<img align="left" src="pic/alice44.gif" alt="gif"><a href=
+"http://www.eecis.udel.edu/~mills/pictures.htm">from <i>Alice's
+Adventures in Wonderland</i>, Lewis Carroll</a> 
+
+<p>Our resident cryptographer; now you see him, now you don't.<br
+clear="left">
+</p>
+
+<hr>
+<h4>Authentication Support</h4>
+
+<p>Authentication support allows the NTP client to verify that the
+server is in fact known and trusted and not an intruder intending
+accidentally or on purpose to masquerade as that server. The NTPv3
+specification RFC-1305 defines an scheme which provides
+cryptographic authentication of received NTP packets. Originally,
+this was done using the Data Encryption Standard (DES) algorithm
+operating in Cipher Block Chaining (CBC) mode, commonly called
+DES-CBC. Subsequently, this was augmented by the RSA Message Digest
+5 (MD5) algorithm using a private key, commonly called keyed-MD5.
+Either algorithm computes a message digest, or one-way hash, which
+can be used to verify the server has the correct private key and
+key identifier.</p>
+
+<p>NTPv4 retains the NTPv3 schemes, properly described as
+symmetric-key cryptography and, in addition, provides a new Autokey
+scheme based on public-key cryptography. Public-key cryptography is
+generally considered more secure than symmetric-key cryptography,
+since the security is based on a private value which is generated
+by each server and never revealed. With Autokey all key
+distribution and management functions involve only public values,
+which considerably simplifies key distribution and storage.</p>
+
+<p>Authentication is configured separately for each association
+using the <tt>key</tt> or <tt>autokey</tt> subcommands on the <tt>
+peer</tt>, <tt>server</tt>, <tt>broadcast</tt> and <tt>
+manycastclient</tt> commands as described in the <a href=
+"config.htm">Configuration Options</a> page. The authentication
+options described below specify the suite of keys, select the key
+for each configured association and manage the configuration
+operations.</p>
+
+<p>The <tt>auth</tt> flag controls whether new associations or
+remote configuration commands require cryptographic authentication.
+This flag can be set or reset by the <tt>enable</tt> and <tt>
+disable</tt> configuration commands and also by remote
+configuration commands sent by a <tt>ntpdc</tt> program running in
+another machine. If this flag is enabled, which is the default
+case, new broadcast client and symmetric passive associations and
+remote configuration commands must be cryptographically
+authenticated using either symmetric-key or public-key schemes. If
+this flag is disabled, these operations are effective even if not
+cryptographic authenticated. It should be understood that operating
+in the latter mode invites a significant vulnerability where a
+rogue hacker can seriously disrupt client timekeeping.</p>
+
+<p>In networks with firewalls and large numbers of broadcast
+clients it may be acceptable to disable authentication, since that
+avoids key distribution and simplifies network maintenance.
+However, when the configuration file contains host names, or when a
+server or client is configured remotely, host names are resolved
+using the DNS and a separate name resolution process. In order to
+protect against bogus name server messages, name resolution
+messages are authenticated using an internally generated key which
+is normally invisible to the user. However, if cryptographic
+support is disabled, the name resolution process will fail. This
+can be avoided either by specifying IP addresses instead of host
+names, which is generally inadvisable, or by enabling the flag for
+name resolution and disabled it once the name resolution process is
+complete.</p>
+
+<p>An attractive alternative where multicast support is available
+is manycast mode, in which clients periodically troll for servers.
+Cryptographic authentication in this mode uses public-key schemes
+as described below. The principle advantage of this manycast mode
+is that potential servers need not be configured in advance, since
+the client finds them during regular operation, and the
+configuration files for all clients can be identical.</p>
+
+<p>In addition to the default symmetric-key cryptographic support,
+support for public-key cryptography is available if the requisite
+<tt>rsaref20</tt> software distribution has been installed before
+building the distribution. Public-key cryptography provides secure
+authentication of servers without compromising accuracy and
+stability. The security model and protocol schemes for both
+symmetric-key and public-key cryptography are described below.</p>
+
+<h4>Symmetric-Key Scheme</h4>
+
+The original RFC-1305 specification allows any one of possibly
+65,534 keys, each distinguished by a 32-bit key identifier, to
+authenticate an association. The servers and clients involved must
+agree on the key and key identifier to authenticate their messages.
+Keys and related information are specified in a key file, usually
+called <tt>ntp.keys</tt>, which should be exchanged and stored
+using secure procedures beyond the scope of the NTP protocol
+itself. Besides the keys used for ordinary NTP associations,
+additional keys can be used as passwords for the <tt><a href=
+"ntpq.htm">ntpq</a></tt> and <tt><a href="ntpdc.htm">ntpdc</a></tt>
+utility programs. 
+
+<p>When <tt>ntpd</tt> is first started, it reads the key file
+specified int he <tt>keys</tt> command and installs the keys in the
+key cache. However, the keys must be activated with the <tt>
+trusted</tt> command before use. This allows, for instance, the
+installation of possibly several batches of keys and then
+activating or deactivating each batch remotely using <tt>
+ntpdc</tt>. This also provides a revocation capability that can be
+used if a key becomes compromised. The <tt>requestkey</tt> command
+selects the key used as the password for the <tt>ntpdc</tt>
+utility, while the <tt>controlkey</tt> command selects the key used
+as the password for the <tt>ntpq</tt> utility.</p>
+
+<h4>Public-Key Scheme</h4>
+
+The original NTPv3 authentication scheme described in RFC-1305
+continues to be supported; however, in NTPv4 an additional
+authentication scheme called Autokey is available. It uses MD5
+message digest, RSA public-key signature and Diffie-Hellman key
+agreement algorithms available from several sources, but not
+included in the NTPv4 software distribution. In order to be
+effective, the <tt>rsaref20</tt> package must be installed as
+described in the <tt>README.rsa</tt> file. Once installed, the
+configure and build process automatically detects it and compiles
+the routines required. The Autokey scheme has several modes of
+operation corresponding to the various NTP modes supported. RSA
+signatures with timestamps are used in all modes to verify the
+source of cryptographic values. All modes use a special cookie
+which can be computed independently by the client and server. In
+symmetric modes the cookie is constructed using the Diffie-Hellman
+key agreement algorithm. In other modes the cookie is constructed
+from the IP addresses and a private value known only to the server.
+All modes use in addition a variant of the S-KEY scheme, in which a
+pseudo-random key list is generated and used in reverse order.
+These schemes are described along with an executive summary,
+current status, briefing slides and reading list, on the <a href=
+"http://www.eecis.udel.edu/~mills/autokey.htm">Autonomous
+Authentication</a> page. 
+
+<p>The cryptographic values used by the Autokey scheme are
+incorporated as a set of files generated by the <a href=
+"genkeys.htm"><tt>ntp-genkeys</tt></a> program, including the
+symmetric private keys, public/private key pair, and the agreement
+parameters. See the <tt>ntp-genkeys</tt> page for a description of
+the formats of these files. They contain cryptographic values
+generated by the algorithms of the <tt>rsaref20</tt> package and
+are in printable ASCII format. All file names include the
+timestamp, in NTP seconds, following the default names given below.
+Since the file data are derived from random values seeded by the
+system clock and the file name includes the timestamp, every
+generation produces a different file and different file name.</p>
+
+<p>The <tt>ntp.keys</tt> file contains the DES/MD5 private keys. It
+must be distributed by secure means to other servers and clients
+sharing the same security compartment and made visible only to
+root. While this file is not used with the Autokey scheme, it is
+needed to authenticate some remote configuration commands used by
+the <a href="ntpdc.htm"><tt>ntpq</tt></a> and <a href="ntpq.htm">
+<tt>ntpdc</tt></a> utilities. The <tt>ntpkey</tt> file contains the
+RSA private key. It is useful only to the machine that generated it
+and never shared with any other daemon or application program, so
+must be made visible only to root.</p>
+
+<p>The <tt>ntp_dh</tt> file contains the agreement parameters,
+which are used only in symmetric (active and passive) modes. It is
+necessary that both peers beginning a symmetric-mode association
+share the same parameters, but it does not matter which <tt>
+ntp_dh</tt> file generates them. If one of the peers contains the
+parameters, the other peer obtains them using the Autokey protocol.
+If both peers contain the parameters, the most recent copy is used
+by both peers. If a peer does not have the parameters, they will be
+requested by all associations, either configured or not; but, none
+of the associations can proceed until one of them has received the
+parameters. Once loaded, the parameters can be provided on request
+to other clients and servers. The <tt>ntp_dh</tt> file can be also
+be distributed using insecure means, since the data are public
+values.</p>
+
+<p>The <tt>ntpkey_<i>host</i></tt> file contains the RSA public
+key, where <tt><i>host</i></tt> is the name of the host. Each host
+must have its own <tt>ntpkey_<i>host</i></tt> file, which is
+normally provided to other hosts using the Autokey protocol Each
+<tt>server</tt> or <tt>peer</tt> association requires the public
+key associated with the particular server or peer to be loaded
+either directly from a local file or indirectly from the server
+using the Autokey protocol. These files can be widely distributed
+and stored using insecure means, since the data are public
+values.</p>
+
+<p>The optional <tt>ntpkey_certif_<i>host</i></tt> file contains
+the PKI certificate for the host. This provides a binding between
+the host hame and RSA public key. In the current implementation the
+certificate is obtained by a client, if present, but the contents
+are ignored.</p>
+
+<p>Due to the widespread use of interface-specific naming, the host
+names used in configured and mobilized associations are determined
+by the Unix <tt>gethostname()</tt> library routine. Both the <tt>
+ntp-genkeys</tt> program and the Autokey protocol derive the name
+of the public key file using the name returned by this routine.
+While every server and client is required to load their own public
+and private keys, the public keys for each client or peer
+association can be obtained from the server or peer using the
+Autokey protocol. Note however, that at the current stage of
+development the authenticity of the server or peer and the
+cryptographic binding of the server name, address and public key is
+not yet established by a certificate authority or web of trust.</p>
+
+<h4>Leapseconds Table</h4>
+
+<p>The NIST provides a table showing the epoch for all historic
+occasions of leap second insertion since 1972. The leapsecond table
+shows each epoch of insertion along with the offset of
+International Atomic Time (TAI) with respect to Coordinated
+Universtal Time (UTC), as disseminated by NTP. The table can be
+obtained directly from NIST national time servers using <tt>
+ftp</tt> as the ASCII file <tt>pub/leap-seconds</tt>.</p>
+
+<p>While not strictly a security function, the Autokey scheme
+provides means to securely retrieve the leapsecond table from a
+server or peer. Servers load the leapsecond table directly from the
+file specified in the <tt>crypto</tt> command, while clients can
+load the table indirectly from the servers using the Autokey
+protocol. Once loaded, the table can be provided on request to
+other clients and servers.</p>
+
+<h4>Key Management</h4>
+
+<p>All key files are installed by default in <tt>
+/usr/local/etc</tt>, which is normally in a shared filesystem in
+NFS-mounted networks and avoids installing them in each machine
+separately. The default can be overridden by the <tt>keysdir</tt>
+configuration command. However, this is not a good place to install
+the private key file, since each machine needs its own file. A
+suitable place to install it is in <tt>/etc</tt>, which is normally
+not in a shared filesystem.</p>
+
+<p>The recommended practice is to keep the timestamp extensions
+when installing a file and to install a link from the default name
+(without the timestamp extension) to the actual file. This allows
+new file generations to be activated simply by changing the link.
+However, <tt>ntpd</tt> parses the link name when present to extract
+the extension value and sends it along with the public key and host
+name when requested. This allows clients to verify that the file
+and generation time are always current. However, the actual
+location of each file can be overridden by the <tt>crypto</tt>
+configuration command.</p>
+
+<p>All cryptographic keys and related parameters should be
+regenerated on a periodic and automatic basis, like once per month.
+The <tt>ntp-genkeys</tt> program uses the same timestamp extension
+for all files generated at one time, so each generation is distinct
+and can be readily recognized in monitoring data. While a
+public/private key pair must be generated by every server and
+client, the public keys and agreement parameters do not need to be
+explicitly copied to all machines in the same security compartment,
+since they can be obtained automatically using the Autokey
+protocol. However, it is necessary that all primary servers have
+the same agreement parameter file. The recommended way to do this
+is for one of the primary servers to generate that file and then
+copy it to the other primary servers in the same compartment using
+the Unix <tt>rdist</tt> command. Future versions of the Autokey
+protocol are to contain provisions for an agreement protocol to do
+this automatically.</p>
+
+<p>Servers and clients can make a new generation in the following
+way. All machines have loaded the old generation at startup and are
+operating normally. At designated intervals, each machine generates
+a new public/private key pair and makes links from the default file
+names to the new file names. The <tt>ntpd</tt> is then restarted
+and loads the new generation, with result clients no longer can
+authenticate correctly. The Autokey protocol is designed so that
+after a few minutes the clients time out and restart the protocol
+from the beginning, with result the new generation is loaded and
+operation continues as before. A similar procedure can be used for
+the agreement parameter file, but in this case precautions must be
+take to be sure that all machines with this file have the same
+copy.</p>
+
+<h4>Authentication Commands</h4>
+
+<dl>
+<dt><tt>autokey [<i>logsec</i>]</tt></dt>
+
+<dd>Specifies the interval between regenerations of the session key
+list used with the Autokey protocol. Note that the size of the key
+list for each association depends on this interval and the current
+poll interval. The default value is 12 (4096 s or about 1.1 hours).
+For poll intervals above the specified interval, a session key list
+with a single entry will be regenerated for every message
+sent.</dd>
+
+<dt><tt>controlkey <i>key</i></tt></dt>
+
+<dd>Specifies the key identifier to use with the <a href=
+"ntpq.htm"><tt>ntpq</tt></a> utility, which uses the standard
+protocol defined in RFC-1305. The <tt><i>key</i></tt> argument is
+the key identifier for a trusted key, where the value can be in the
+range 1 to 65534, inclusive.</dd>
+
+<dt><tt>crypto [flags <i>flags</i>] [privatekey <i>file</i>]
+[publickey <i>file</i>] [dhparms <i>file</i>] [leap <i>
+file</i>]</tt></dt>
+
+<dd>This command requires the NTP daemon build process be
+configured with the RSA library. This command activates public-key
+cryptography and loads the required RSA private and public key
+files and the optional Diffie-Hellman agreement parameter file, if
+present. If one or more files are left unspecified, the default
+names are used as described below. Following are the
+subcommands:</dd>
+
+<dd>
+<dl>
+<dt><tt>privatekey <i>file</i></tt></dt>
+
+<dd>Specifies the location of the RSA private key file, which
+otherwise defaults to <tt>/usr/local/etc/ntpkey</tt>.</dd>
+
+<dt><tt>publickey <i>file</i></tt></dt>
+
+<dd>Specifies the location of the RSA public key file, which
+otherwise defaults to <tt>/usr/local/etc/ntpkey_<i>host</i></tt>.,
+where <i>host</i> is the name of the generating machine.</dd>
+
+<dt><tt>dhparms <i>file</i></tt></dt>
+
+<dd>Specifies the location of the Diffie-Hellman parameters file,
+which otherwise defaults to <tt>/usr/local/etc/ntpkey_dh</tt>.</dd>
+
+<dt><tt>leap <i>file</i></tt></dt>
+
+<dd>Specifies the location of the leapsecond table file, which
+otherwise defaults to <tt>/usr/local/etc/ntpkey_leap</tt>.</dd>
+</dl>
+</dd>
+
+<dt><tt>keys <i>keyfile</i></tt></dt>
+
+<dd>Specifies the location of the DES/MD5 private key file
+containing the keys and key identifiers used by <tt>ntpd</tt>, <tt>
+ntpq</tt> and <tt>ntpdc</tt> when operating in symmetric-key
+mode.</dd>
+
+<dt><tt>keysdir <i>path</i></tt></dt>
+
+<dd>This command requires the NTP daemon build process be
+configured with the RSA library. It specifies the default directory
+path for the private key file, agreement parameters file and one or
+more public key files. The default when this command does not
+appear in the configuration file is <tt>/usr/local/etc/</tt>.</dd>
+
+<dt><tt>requestkey <i>key</i></tt></dt>
+
+<dd>Specifies the key identifier to use with the <a href=
+"ntpdc.htm"><tt>ntpdc</tt></a> utility program, which uses a
+proprietary protocol specific to this implementation of <tt>
+ntpd</tt>. The <tt><i>key</i></tt> argument is a key identifier for
+the trusted key, where the value can be in the range 1 to 65534,
+inclusive.</dd>
+
+<dt><tt>revoke [<i>logsec</i>]</tt></dt>
+
+<dd>Specifies the interval between re-randomization of certain
+cryptographic values used by the Autokey scheme, as a power of 2 in
+seconds. These values need to be updated frequently in order to
+deflect brute-force attacks on the algorithms of the scheme;
+however, updating some values is a relatively expensive operation.
+The default interval is 16 (65,536 s or about 18 hours). For poll
+intervals above the specified interval, the values will be updated
+for every message sent.</dd>
+
+<dt><tt>trustedkey <i>key</i> [...]</tt></dt>
+
+<dd>Specifies the key identifiers which are trusted for the
+purposes of authenticating peers with symmetric-key cryptography,
+as well as keys used by the <tt>ntpq</tt> and <tt>ntpdc</tt>
+programs. The authentication procedures require that both the local
+and remote servers share the same key and key identifier for this
+purpose, although different keys can be used with different
+servers. The <tt><i>key</i></tt> arguments are 32-bit unsigned
+integers with values from 1 to 65,534.</dd>
+</dl>
+
+<h4>Files</h4>
+
+<tt>ntp.keys</tt> private MD5 keys <br>
+<tt>ntpkey</tt> RSA private key <br>
+<tt>ntpkey_<i>host</i></tt> RSA public key <br>
+<tt>ntp_dh</tt> Diffie-Hellman agreement parameters 
+
+<h4>Bugs</h4>
+
+The <tt>ntpkey_<i>host</i></tt> files are really digital
+certificates. These should be obtained via secure directory
+services when they become universally available. 
+
+<hr>
+<a href="index.htm"><img align="left" src="pic/home.gif" alt=
+"gif"></a> 
+
+<address><a href="mailto:mills@udel.edu">David L. Mills
+&lt;mills@udel.edu&gt;</a></address>
+</body>
+</html>
+

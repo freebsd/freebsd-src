@@ -1,0 +1,11 @@
+# Host: Intel 386 running LynxOS
+
+XM_FILE= xm-i386lynx.h
+XM_CLIBS= -lbsd
+XDEPFILES= ser-tcp.o
+
+NAT_FILE= nm-i386lynx.h
+NATDEPFILES= fork-child.o infptrace.o inftarg.o corelow.o lynx-nat.o
+
+GDBSERVER_LIBS= -lbsd
+GDBSERVER_DEPFILES= low-lynx.o

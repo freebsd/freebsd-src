@@ -1,0 +1,69 @@
+$NetBSD: README.mach-traps,v 1.2 1999/03/23 09:19:25 itohy Exp $
+$FreeBSD$
+
+Some Alpha AXP OSF/1 binaries directly use the facilities provided by
+the Mach kernel that is the basis for OSF/1.  These include (but are
+surely not limited to) 'dd', 'ps', and 'w'.
+
+Invariably, the symptom that these binaries display is that they crash
+with an "unimplemented system call" trap (SIGSYS signal) for a syscall
+that has a negative number.  In general, binaries that use the Mach
+syscalls appear to invoke task_self() as their first syscall.
+
+The name, number, and number of arguments for each Mach syscall is
+given below; this information was gleaned by looking through the OSF/1
+libmach.a's object files with dbx, then double-checked against the
+contents of OSF/1's <mach/syscall_sw.h>.
+
+These calls would be very difficult to implement properly in the
+OSF/1 emulation code; by its very nature, NetBSD is not Mach, and we
+don't and can't provide the underlying facilities that it does.
+
+-- cgd
+
+trap name			number	nargs	notes
+---- ----			------	-----	-----
+task_self			-10	0
+thread_reply			-11	0
+task_notify			-12	0
+thread_self			-13	0
+msg_send_old			-14	3
+msg_receive_old			-15	3
+msg_rpc_old			-16	5
+msg_send_trap			-20	4
+msg_receive_trap		-21	5
+msg_rpc_trap			-22	6
+lw_wire				-30	3
+lw_unwire			-31	1
+nxm_task_init			-33	2
+nxm_sched_thread		-34	1
+nxm_idle			-35	1
+nxm_wakeup_idle			-36	1
+nxm_set_pthid			-37	2
+nxm_thread_kill			-38	2
+nxm_thread_block		-39	1
+nxm_thread_wakeup		-40	1
+inode_swap_preference		-40	3	old call?
+init_process			-41	0
+map_fd				-43	5
+nxm_resched			-44	2
+htg_unix_syscall		-52	3
+host_self			-55	1
+host_priv_self			-56	1
+swtch_pri			-59	1
+swtch				-60	0
+thread_switch			-61	3
+semop_fast			-62	4
+mach_sctimes_0			-70	0	only if MACH_SCTIMES defined
+mach_sctimes_1			-71	1	only if MACH_SCTIMES defined
+mach_sctimes_2			-72	2	only if MACH_SCTIMES defined
+mach_sctimes_3			-73	3	only if MACH_SCTIMES defined
+mach_sctimes_4			-74	4	only if MACH_SCTIMES defined
+mach_sctimes_5			-75	5	only if MACH_SCTIMES defined
+mach_sctimes_6			-76	6	only if MACH_SCTIMES defined
+mach_sctimes_7			-77	0	only if MACH_SCTIMES defined
+mach_sctimes_8			-78	6	only if MACH_SCTIMES defined
+mach_sctimes_9			-79	1	only if MACH_SCTIMES defined
+mach_sctimes_10			-80	2	only if MACH_SCTIMES defined
+mach_sctimes_11			-81	2	only if MACH_SCTIMES defined
+mach_sctimes_port_alloc_dealloc	-82	1	only if MACH_SCTIMES defined

@@ -1,0 +1,71 @@
+This is GNU cpio, a program to manage archives of files.
+As of version 2.0, it supports the features of the System V release 4
+cpio, including support for tar archives.
+
+This package also includes rmt, the remote tape server, and mt, a tape
+drive control program; these two programs will only be compiled if
+your system supports remote command execution, and tape drive control
+operations, respectively.
+
+See the file INSTALL for compilation and installation instructions for Unix.
+
+For non-Unix systems:
+
+makefile.pc is a makefile for Turbo C or C++ or Borland C++ on MS-DOS.
+
+makefile.os2 is a makefile for MS C and GNU C (emx/gcc) on OS/2.
+cpio.def is a linker definition file for the MS C OS/2 version.
+
+
+The main advantages of GNU cpio over Unix versions are:
+
+* It can access tape drives on other hosts using TCP/IP.
+
+* `-o' and `-p' can copy symbolic links either as symbolic links or,
+with `-L', as the files they point to.
+
+* `-i' automatically recognizes the archive format and tries to
+recover from corrupted archives.
+
+* The output of '-itv' looks like 'ls -l'.
+
+* It accepts long-named options as well as traditional
+single-character options.
+
+A few features of other versions of cpio are missing from GNU cpio, including:
+
+* The `-6' option to support Sixth Edition Unix cpio archives with `-i'.
+
+* An option to limit volume size, like afio -s.
+
+
+GNU cpio supports the POSIX.1 "ustar" tar format.  GNU tar supports a
+somewhat different, early draft of that format.  That draft format has
+a slightly different magic number in the tar header and doesn't
+include the path prefix part of the header, which allows storing file
+names that are longer than 100 characters.  GNU cpio knows to
+recognize the nonstandard GNU tar "ustar" archives.
+
+The following patch to GNU tar 1.11.1 makes GNU tar recognize standard
+"ustar" archives, such as GNU cpio produces, except that it won't use
+the path prefix.  Without this patch, GNU tar thinks that standard
+"ustar" archives are old-format tar archives and can not use the extra
+information that "ustar" format contains.  If you use this patch,
+remember that you will lose the beginnings of paths that are longer
+than 100 characters.  That's why it's not an official part of GNU tar.
+(Adding support for the path prefix to GNU tar is not trivial.)
+
+--- list.c.orig Mon Sep 14 17:04:03 1992
++++ list.c      Wed Oct 14 14:02:28 1992
+@@ -439,7 +439,7 @@
+                st->st_ctime = from_oct(1+12, header->header.ctime);
+        }
+ 
+-       if (0==strcmp(header->header.magic, TMAGIC)) {
++       if (0==strncmp(header->header.magic, TMAGIC, 5)) {
+                /* Unix Standard tar archive */
+                *stdp = 1;
+                if (wantug) {
+
+Mail suggestions and bug reports for GNU cpio to
+bug-gnu-utils@prep.ai.mit.edu.

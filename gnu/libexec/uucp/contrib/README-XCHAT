@@ -1,0 +1,42 @@
+This is xchat V1.1 (Tue Sep  1 15:50:56 1992)
+
+Introduction:
+------------
+
+Xchat is a general-purpose dialing and login program designed for use
+with Taylor UUCP as a "chat-program", taking the place (or augmenting)
+the built-in chat scripting facility. It provides the ability to
+closely control timeouts, multiple simultaneous expect strings with
+separate actions, extended terminal control, modem command character
+pacing, and more.
+
+When used in conjunction with Taylor UUCP's configuration features,
+xchat can provide you the ability to manage the most intricate login,
+dial and hangup needs. The scripts are written in a shell-like (well,
+sort-of) style with labels, commands, and parameters, easing the task
+of writing procedures for complex terminal communications situations.
+
+Installation:
+------------
+
+(1) Copy xc-conf.h-dist to xc-conf.h, then edit xc-conf.h to reflect
+    your condifuration. A description of the settings is in that file.
+
+(2) Copy Makefile.xchat to Makefile and edit it to set BIN to where
+    you want xchat installed.
+
+(2) Do a 'make' to build xchat.
+
+(3) Do a 'make install' to install it.
+
+(4) Format and print xchat.8, and install it if you want.
+
+(5) Print out copies of the scripts in the ./scripts subdirectory.
+
+(6) Read xchat.8 and the scripts together.
+
+
+Author:
+------
+
+Robert B. Denny  (denny@alisa.com)

@@ -1,0 +1,46 @@
+Date: Sat, 22 Apr 2000 06:07:06 -0600 (MDT)
+From: "Nelson H. F. Beebe" <beebe@math.utah.edu>
+To: arnold@gnu.org
+Cc: beebe@math.utah.edu, sysstaff@math.utah.edu, othmer@math.utah.edu
+Subject: gawk-3.0.4 and a GNU/Linux gotcha
+
+Yesterday, I was assisting a colleague install some software on his
+GNU/Linux machine for which uname -r reports 2.2.14.
+
+A (mis)feature of this system, which I've never encountered before,
+broke the build of one of my programs, and also of gawk-3.0.4.
+
+Namely, the kernel will not execute anything that resides in /tmp,
+though it will if the same script is in /usr/tmp!
+
+% cat /tmp/foo.sh
+#! /bin/sh
+echo hello
+
+ls -l /tmp/foo.sh
+-rwxr-xr-x   1 othmer   math           22 Apr 21 10:34 /tmp/foo.sh*
+
+% /tmp/foo.sh
+bash: /tmp/foo.sh: Permission denied
+
+% cp /tmp/foo.sh /usr/tmp
+
+% /usr/tmp/foo.sh
+hello
+
+Thus, programs that do a temporary install in /tmp, as some of mine do
+in order to run the validation suite, will fail.
+
+gawk-3.0.4, and likely other gawk versions, hits this problem too. It
+fails because test/poundbang starts with
+
+#! /tmp/gawk -f
+
+I tracked down where it comes from:
+
+% grep /tmp /etc/fstab
+/dev/hda3 /tmp ext2 rw,nosuid,noexec,nouser,auto,async,nodev 1 1
+                              !!!!!!
+
+Since this is done via a mount command, potentially ANY directory tree
+could be mounted with noexec.

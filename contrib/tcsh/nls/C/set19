@@ -1,0 +1,15 @@
+$ $Id: set19,v 1.3 1996/04/26 20:31:58 christos Exp $
+$ tc.alloc.c
+$set 19 
+1 nbytes=%d: Out of memory\n
+2 free(%lx) called before any allocations.
+3 free(%lx) above top of memory.
+4 free(%lx) below bottom of memory.
+5 free(%lx) bad block.
+6 free(%lx) bad range check.
+7 free(%lx) bad block index.
+8 %s current memory allocation:\nfree:\t
+9 \nused:\t
+10 \n\tTotal in use: %d, total free: %d\n
+11 \tAllocated memory from 0x%lx to 0x%lx.  Real top at 0x%lx\n
+12 Allocated memory from 0x%lx to 0x%lx (%ld).\n

@@ -1,0 +1,9 @@
+To strip down a new version of Linux PAM for import, extract
+the files like this:
+
+    tar -xvzf pam-xxx.tar.gz -X FREEBSD-Xlist
+
+If you decide to bring in more of the files, import them -- don't
+use "cvs add".  And please remember to adjust the contents of
+"FREEBSD-Xlist" so that it reflects what is really imported from
+the vendor.

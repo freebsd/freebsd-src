@@ -1,0 +1,33 @@
+# This first section gives alternate sets defined in terms of the sets given
+# by the second section.  The order is important--all references must be
+# forward references.
+
+Nnd=sun-nd
+all=sun+mc+vax
+baseline=sun+mc
+sun=sun2+sun3
+vax=750+8600
+pep=manny+moe+jack
+
+# This second section defines the basic sets.  Each host should have a line
+# that specifies which sets it is a member of.  Extra sets should be separated
+# by white space.  (The first section isn't strictly necessary, since all sets
+# could be defined in the second section, but then it wouldn't be so readable.)
+
+basvax	8600	src
+cdb0	sun3		sys
+cdb1	sun3		sys
+cdb2	sun3		sys
+chief	sun3	src
+tis0	sun3
+manny	sun3		sys
+moe	sun3		sys
+jack	sun3		sys
+disney	sun3		sys
+huey	sun3		nd
+dewey	sun3		nd
+louie	sun3		nd
+bizet	sun2	src	sys
+gif0	mc	src
+mc0	mc
+dtv0	mc

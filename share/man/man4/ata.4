@@ -1,0 +1,242 @@
+.\"
+.\" Copyright (c) 2000 Jeroen Ruigrok van der Werven
+.\" Copyright (c) 2000,2001,2002 Søren Schmidt
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 27, 2000
+.Dt ATA 4
+.Os
+.Sh NAME
+.Nm ata ,
+.Nm acd ,
+.Nm ad ,
+.Nm afd ,
+.Nm ast
+.Nd generic ATA/ATAPI disk controller driver
+.Sh SYNOPSIS
+For ISA based ATA/ATAPI support:
+.Cd device isa
+.Cd device ata0 at isa? port IO_WD1 irq 14
+.Cd device ata1 at isa? port IO_WD2 irq 15
+.Pp
+For PCI based ATA/ATAPI support:
+.Cd device pci
+.Cd device ata
+.Pp
+To support ATA compliant disk drives:
+.Cd device atadisk
+.Pp
+To support ATAPI CD-ROM, CDR, CDRW, DVD-ROM and DVD-RAM drives:
+.Cd device atapicd
+.Pp
+To support ATAPI floppy drives,
+such as the ZIP and LS120:
+.Cd device atapifd
+.Pp
+To support ATAPI tape drives:
+.Cd device atapist
+.Pp
+The following tunables are setable from the loader:
+.Bl -ohang
+.It Va hw.ata.ata_dma
+set to 1 for DMA access, 0 for PIO (default is DMA).
+.It Va hw.ata.atapi_dma
+set to 1 for DMA access, 0 for PIO (default is PIO).
+.It Va hw.ata.wc
+set to 1 to enable Write Caching, 0 to disable (default is disabled).
+(WARNING: might cause data loss on power failures.)
+.It Va hw.ata.tags
+set to 1 to enable Tagged Queuing support, 0 to disable (default is disabled).
+(Only IBM DPTA, DTLA, ICxxxxxxAT, ICxxxxxxAV drives support that.)
+.El
+.Sh DESCRIPTION
+This driver provides access to disk drives, ATAPI CD-ROM and DVD drives,
+ZIP drives and tape streamers connected to controllers
+according to the ATA and ATAPI standards.
+These devices are also commonly known as IDE or EIDE devices.
+.Pp
+The currently supported controllers with their maximum speed include:
+.Pp
+.Bl -tag -width "Promise Ultra/Fasttrak-100 TX2/TX2000" -compact
+.It Acerlabs Aladdin
+Ultra DMA 100 (UDMA5), 100 MB/sec (depending on model, max stated at boot)
+.It AMD 756
+Ultra DMA 66 (UDMA4), 66 MB/sec
+.It AMD 766
+Ultra DMA 100 (UDMA5), 100 MB/sec
+.It CMD 646
+DMA 2 (WDMA2), 16 MB/sec
+.It CMD 648
+Ultra DMA 66 (UDMA4), 66 MB/sec
+.It CMD 649
+Ultra DMA 100 (UDMA5), 100 MB/sec
+.It Cypress 82C693
+DMA 2 (WDMA2), 16 MB/sec
+.It Cyrix 5530
+Ultra DMA 33 (UDMA2), 33 MB/sec
+.It HighPoint HPT366
+Ultra DMA 66 (UDMA4), 66 MB/sec
+.It HighPoint HPT370
+Ultra DMA 100 (UDMA5), 100 MB/sec
+.It HighPoint HPT372
+Ultra DMA 133 (UDMA6), 133 MB/sec
+.It HighPoint HPT374
+Ultra DMA 133 (UDMA6), 133 MB/sec
+.It Intel PIIX
+DMA 2 (WDMA2), 16 MB/sec
+.It Intel PIIX3
+DMA 2 (WDMA2), 16 MB/sec
+.It Intel PIIX4
+Ultra DMA 33 (UDMA2), 33 MB/sec
+.It Intel ICH0
+Ultra DMA 33 (UDMA2), 33 MB/sec
+.It Intel ICH
+Ultra DMA 66 (UDMA4), 66 MB/sec
+.It Intel ICH2
+Ultra DMA 100 (UDMA5), 100 MB/sec
+.It Intel ICH3
+Ultra DMA 100 (UDMA5), 100 MB/sec
+.It Intel ICH4
+Ultra DMA 100 (UDMA5), 100 MB/sec
+.It Promise Ultra/Fasttrak-33
+Ultra DMA 33 (UDMA2), 33 MB/sec
+.It Promise Ultra/Fasttrak-66
+Ultra DMA 66 (UDMA4), 66 MB/sec
+.It Promise Ultra/Fasttrak-100
+Ultra DMA 100 (UDMA5), 100 MB/sec
+.It Promise Ultra/Fasttrak-100 TX2/TX4
+Ultra DMA 100 (UDMA5), 100 MB/sec
+.It Promise Ultra/Fasttrak-133 TX2/TX2000
+Ultra DMA 133 (UDMA6), 133 MB/sec
+.It ServerWorks ROSB4
+Ultra DMA 33 (UDMA2), 33 MB/sec
+.It ServerWorks CSB5
+Ultra DMA 100 (UDMA5), 100 MB/sec (depending on model, max stated at boot)
+.It Sil 0680
+Ultra DMA 133 (UDMA6), 133 MB/sec (depending on model, max stated at boot)
+.It SiS 5591
+Ultra DMA 100 (UDMA5), 100 MB/sec (depending on model, max stated at boot)
+.It VIA 82C586
+Ultra DMA 33 (UDMA2), 33 MB/sec
+.It VIA 82C596
+Ultra DMA 66 (UDMA4), 66 MB/sec (depending on model, max stated at boot)
+.It VIA 82C686a
+Ultra DMA 66 (UDMA4), 66 MB/sec
+.It VIA 82C686b
+Ultra DMA 100 (UDMA5), 100 MB/sec
+.It VIA 8233/8235
+Ultra DMA 133 (UDMA6), 133 MB/sec (depending on model, max stated at boot)
+.El
+.Pp
+All unknown chipsets are supported at the maximum speed of 16 MB/sec.
+.Pp
+The
+.Nm
+driver also allows for changes to the transfer mode of the devices
+at a later time when the system is up and running, see
+.Xr atacontrol 8 .
+.Pp
+The driver attempts to set the maximum performance transfer mode on your disk
+drives by selecting the highest possible DMA mode. However the 
+.Nm
+driver sometimes issue the message 
+"DMA limited to UDMA33, non-ATA66 cable or device",
+if the cable is ATA66 (or above) compliant, it is because the other device
+on this channel states it can only accept upto UDMA2/ATA33 signals.
+ATAPI devices are left in PIO mode because DMA problems are common despite the
+device specifications.
+You can always try to set DMA mode on an ATAPI device using
+.Xr atacontrol 8 ,
+but be aware that your hardware might
+.Em not
+support it and can
+.Em hang
+the system.
+.Sh FILES
+.Bl -tag -width "/sys/i386/conf/GENERIC " -compact
+.It Pa /dev/ad*
+ATA disk device nodes
+.It Pa /dev/acd*
+ATAPI CD-ROM device nodes
+.It Pa /dev/afd*
+ATAPI floppy drive device nodes
+.It Pa /dev/ast*
+ATAPI tape drive device nodes
+.It Pa /sys/i386/conf/GENERIC
+sample generic kernel config file for
+.Nm
+based systems
+.El
+.Sh NOTES
+Static numbering
+(enabled with the
+.Dv ATA_STATIC_ID
+kernel option)
+reserves a number for each possibly connected disk,
+even when not present.
+This may result in odd situations where,
+for example,
+ad0 and ad2 exist in the absence of ad1.
+The advantage is that the addition of the formerly absent drive
+does not cause the numbers of the other drives to change.
+.Pp
+The
+.Nm
+driver does not support MFM/RLL/ESDI (ST-506) style disks.
+.Pp
+Remember that in order to use UDMA4 (and above) mode you
+.Em have
+to use a special 80 conductor cable,
+and the driver tries to determine if you have such a cable
+attached before setting UDMA4 mode.
+.Pp
+The use of UDMA4(66MHz) and higher together with non-UDMA4 devices on
+the same ATA channel is not recommended,
+unless they are run at the non-UDMA4 device's lower speed.
+The driver has been designed to handle that kind of setup but lots of
+older devices do not like this.
+.Sh SEE ALSO
+.Xr atacontrol 8 ,
+.Xr burncd 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 4.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An S\(/oren Schmidt
+.Aq sos@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Jeroen Ruigrok van der Werven
+.Aq asmodai@FreeBSD.org
+and
+.An S\(/oren Schmidt
+.Aq sos@FreeBSD.org .

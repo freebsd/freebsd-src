@@ -1,0 +1,112 @@
+.\" Copyright (c) 2000 Kelly Yancey
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"    $FreeBSD$
+.\"
+.Dd January 3, 2000
+.Dt MICROTIME 9
+.Os
+.Sh NAME
+.Nm microtime ,
+.Nm getmicrotime ,
+.Nm nanotime ,
+.Nm getnanotime
+.Nd get the current time
+.Sh SYNOPSIS
+.In sys/time.h
+.Ft void
+.Fn microtime "struct timeval *tv"
+.Ft void
+.Fn getmicrotime "struct timeval *tv"
+.Ft void
+.Fn nanotime "struct timespec *ts"
+.Ft void
+.Fn getnanotime "struct timespec *tsp"
+.Sh DESCRIPTION
+The
+.Fn microtime
+and
+.Fn getmicrotime
+functons stores the system time as a
+.Ft struct timeval
+at the address specified by
+.Fa tv .
+The
+.Fn nanotime
+and
+.Fn getnanotime
+functions perform the same utility, but record the time as a
+.Ft struct timespec
+instead.
+.Pp
+.Fn Microtime
+and
+.Fn nanotime
+always query the timecounter to return the current time as precisely as
+possible.
+Whereas
+.Fn getmicrotime
+and
+.Fn getnanotime
+functions are abstractions which can alternately return a less precise, but
+faster to obtain, time.
+This behaviour can be toggled via the
+kern.timecounter.method sysctl variable:
+.Bl -tag -width ABC
+.It Dv 0
+sacrifice precision in favor of faster code execution
+.It Dv 1
+return the more precise time (the same as calling
+.Fn microtime
+or
+.Fn nanotime ) .
+.El
+.Pp
+The intent of the
+.Fn getmicrotime
+and
+.Fn getnanotime
+functions is to enforce the user's preference for timer accuracy versus
+execution time.
+.Sh SEE ALSO
+.Xr getmicrouptime 9 ,
+.Xr getnanouptime 9 ,
+.Xr microuptime 9 ,
+.Xr nanouptime 9 ,
+.Xr tvtohz 9
+.Sh DIAGNOSTICS
+Buggy hardware can cause "calcru negative..." when kern.timecounter.method
+is set to 0.
+.Sh HISTORY
+The
+.Nm
+and
+.Nm nanotime
+functions first appeared in
+.Fx 3.0
+but existed in other incarnations since
+.Bx 4.4
+.Sh AUTHORS
+This manual page was written by
+.An Kelly Yancey Aq kbyanc@posi.net .

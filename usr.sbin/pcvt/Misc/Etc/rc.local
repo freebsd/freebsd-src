@@ -1,0 +1,264 @@
+#---------------------------------------------------------------------------
+#
+#	sample rc.local
+#	---------------
+#
+#	last edit-date: [Sun Feb 19 19:20:42 1995]
+#
+#---------------------------------------------------------------------------
+#
+#	NOTE: 
+#	assumptions:	- 8 screens configured
+#			- /dev/ttyv0 ... /dev/ttyv7 exist
+#
+#---------------------------------------------------------------------------
+
+# start xdm on screen 8
+#xdm_start=YES
+xdm_start=NO
+
+# setup german keyboard layout
+#set_keybd=YES
+set_keybd=NO
+
+# setup keyboard delay & rate
+set_keydr=YES
+# very fast settings
+set_keydr_rate=0
+set_keydr_delay=0
+#set_keydr=NO
+
+# constuct a new /etc/motd file
+construct_motd=NO
+#construct_motd=YES
+
+# setup cursor start and end scanline
+set_cursor=YES
+#set_cursor=NO
+# block cursor
+set_cur_start=0
+set_cur_end=15
+
+#-----------------------------------------------------
+# construct /etc/motd file
+#-----------------------------------------------------
+
+if [ X${construct_motd} = X"YES" ]
+then
+	if [ -f /netbsd ]
+	then
+		if [ ! -f /etc/motd ]; then
+			install -c -o root -g wheel -m 664 /dev/null /etc/motd
+		fi
+		T=/tmp/_motd
+		rm -f $T
+		sysctl -n kern.version | sed 1q > $T
+		echo "" >> $T
+		sed '1,/^$/d' < /etc/motd >> $T
+		cmp -s $T /etc/motd || cp $T /etc/motd
+		rm -f $T
+		echo 'runtime link editor directory cache'
+		ldconfig
+	else
+		T=/tmp/_motd
+		rm -f $T
+		uname -a > $T
+		echo "" >> $T
+		sed '1,/^$/d' < /etc/motd >> $T
+		cp $T /etc/motd
+		chmod 644 /etc/motd
+		rm -f $T
+
+	fi
+fi
+
+#-----------------------------------------------------
+# local daemons
+#-----------------------------------------------------
+
+echo -n 'starting local daemons:'
+
+# Kerberos runs ONLY on the Kerberos server machine
+if [ X${kerberos_server} = X"YES" ]; then
+	echo -n ' kerberos';	kerberos >> /var/log/kerberos.log &
+fi
+
+echo '.'
+
+#-----------------------------------------------------
+# check for correct driver and driver version matching
+#-----------------------------------------------------
+
+if [ -x /usr/sbin/ispcvt ]
+then
+  if /usr/sbin/ispcvt
+  then
+
+#--------------------------------------------------
+# loading fonts into vga
+#--------------------------------------------------
+    echo 'console driver type: pcvt'
+    if [ -x /usr/sbin/loadfont -a -x /usr/sbin/scon ]
+    then
+      adaptor=`/usr/sbin/scon -a`
+      if [ $adaptor = VGA ]
+      then
+        echo 'loading 25 lines base font into character set 0'
+        /usr/sbin/loadfont -c0 -f/usr/share/misc/pcvtfonts/vt220l.816
+        echo 'loading 25 lines extension font into character set 1'
+        /usr/sbin/loadfont -c1 -f/usr/share/misc/pcvtfonts/vt220h.816
+        echo 'loading 28 lines base font into character set 2'
+        /usr/sbin/loadfont -c2 -f/usr/share/misc/pcvtfonts/vt220l.814
+        echo 'loading 28 lines extension font into character set 3'
+        /usr/sbin/loadfont -c3 -f/usr/share/misc/pcvtfonts/vt220h.814
+        echo 'loading 40 lines base font into character set 4'
+        /usr/sbin/loadfont -c4 -f/usr/share/misc/pcvtfonts/vt220l.810
+        echo 'loading 40 lines extension font into character set 5'
+        /usr/sbin/loadfont -c5 -f/usr/share/misc/pcvtfonts/vt220h.810
+        echo 'loading 50 lines base font into character set 6'
+        /usr/sbin/loadfont -c6 -f/usr/share/misc/pcvtfonts/vt220l.808
+        echo 'loading 50 lines extension font into character set 7'
+        /usr/sbin/loadfont -c7 -f/usr/share/misc/pcvtfonts/vt220h.808
+      elif [ $adaptor = EGA ]
+      then
+        echo 'loading 25 lines base font into character set 0'
+        /usr/sbin/loadfont -c0 -f/usr/share/misc/pcvtfonts/vt220l.814
+        echo 'loading 25 lines extension font into character set 1'
+        /usr/sbin/loadfont -c1 -f/usr/share/misc/pcvtfonts/vt220h.814
+        echo 'loading 35 lines base font into character set 2'
+        /usr/sbin/loadfont -c2 -f/usr/share/misc/pcvtfonts/vt220l.810
+        echo 'loading 35 lines extension font into character set 3'
+        /usr/sbin/loadfont -c3 -f/usr/share/misc/pcvtfonts/vt220h.810
+
+#        echo 'loading 43 lines base font into character set 2'
+#        /usr/sbin/loadfont -c2 -f/usr/share/misc/pcvtfonts/vt220l.808
+#        echo 'loading 43 lines extension font into character set 3'
+#        /usr/sbin/loadfont -c3 -f/usr/share/misc/pcvtfonts/vt220h.808
+
+      fi
+    fi
+
+#--------------------------------------------------
+# setting screen sizes and emulation
+#--------------------------------------------------
+    if [ -x /usr/sbin/scon ]
+    then
+      if [ $adaptor = VGA ]
+      then
+        size=-s28
+        echo 'switching to 28 lines and VT/HP-emulation'
+      elif [ $adaptor = EGA ]
+      then
+        size=-s25
+        echo 'switching to 25 lines and VT/HP-emulation'
+      else
+        size=
+        echo 'switching to VT/HP-emulation'
+      fi
+
+# get monitor type (mono/color)
+
+      monitor=`/usr/sbin/scon -m`
+
+# for all screens do
+
+      for device in /dev/ttyv*
+      do
+
+# setup HP mode
+
+        /usr/sbin/scon -d$device $size -H
+
+# setup cursor size
+
+        if [ X${set_cursor} = X"YES" -a -x /usr/sbin/cursor ]
+        then
+          /usr/sbin/cursor -d$device -s$set_cur_start -e$set_cur_end
+        fi
+
+# if monochrome monitor, set color palette to use a higher intensity
+
+        if [ $monitor = MONO ]
+	then
+          if [ $adaptor = VGA ]
+          then
+            /usr/sbin/scon -d$device -p8,60,60,60
+          fi
+        fi
+      done
+
+# switch to screen 0
+
+      /usr/sbin/scon -c0
+
+# set screensaver timeout to one minute
+
+      /usr/sbin/scon -t360
+    fi
+
+#------------------------------------------------------
+# if desired, setup keyboard for german keyboard layout
+#------------------------------------------------------
+
+    if [ X${set_keybd} = X"YES" -a -x /usr/sbin/kcon ]
+    then
+      echo 'switching to german keyboard layout'
+      /usr/sbin/kcon -m de
+    fi
+
+#------------------------------------------------------
+# if desired, setup rate and delay keyboard values
+#------------------------------------------------------
+
+    if [ X${set_keydr} = X"YES" -a -x /usr/sbin/kcon ]
+    then
+      echo setting keyboard typematic rate = $set_keydr_rate and delay = $set_keydr_delay
+      /usr/sbin/kcon -r $set_keydr_rate -d $set_keydr_delay
+    fi
+
+#--------------------------------------------------
+# if desired, start xdm on screen 8
+#--------------------------------------------------
+
+    if [ X${xdm_start} = X"YES" -a -x /usr/X386/bin/xdm ]
+    then
+      /usr/sbin/scon -c 7
+      /usr/X386/bin/xdm
+      sleep 5
+      /usr/sbin/scon -c 0
+    fi
+
+#--------------------------------------------------
+# cp /etc/ttys corresponding to console driver
+#--------------------------------------------------
+
+    if [ -f /etc/ttys.pcvt ]
+    then
+      echo 'copying /etc/ttys.pcvt -> /etc/ttys'
+      cp /etc/ttys.pcvt /etc/ttys
+    fi
+
+  else
+    echo 'console driver type: not pcvt or pcvt utility/driver mismatch:'
+    echo '--------------------------------------------------------------'
+    /usr/sbin/ispcvt -v
+    echo '--------------------------------------------------------------'
+    if [ -f /etc/ttys.pccons ]
+    then
+      echo 'copying /etc/ttys.pccons -> /etc/ttys'
+      cp /etc/ttys.pccons /etc/ttys
+    fi
+  fi
+else
+  echo 'console driver type: not pcvt'
+  if [ -f /etc/ttys.pccons ]
+  then
+    echo 'copying /etc/ttys.pccons -> /etc/ttys'
+    cp /etc/ttys.pccons /etc/ttys
+  fi
+fi
+
+echo
+
+# EOF ----------------------------------------------------------------------
+

@@ -1,0 +1,816 @@
+<!--
+     The FreeBSD Documentation Project
+     The FreeBSD French Documentation Project
+
+     $Id$
+     $FreeBSD$
+     Original revision: 1.22.2.300
+-->
+
+<articleinfo>
+  <title>&os;/&arch; &release.current; notes de version</title>
+
+  <pubdate>$FreeBSD$</pubdate>
+
+  <corpauthor>Projet FreeBSD</corpauthor>
+
+  <copyright>
+    <year>2000</year>
+    <year>2001</year>
+    <year>2002</year>
+    <holder role="mailto:doc@FreeBSD.org">Projet de Documentation de FreeBSD</holder>
+  </copyright>
+
+  <abstract>
+  <para>Les notes de version pour &os; &release.current;
+  contiennent un r&eacute;sum&eacute; des changements r&eacute;alis&eacute;s 
+  dans le syst&egrave;me &os; de base depuis &release.prev;. Les
+  changements concernant le noyau et les programmes
+  utilisateurs sont mentionn&eacute;s ainsi que les avis de
+  s&eacute;curit&eacute; applicables au syst&egrave;me de base qui ont 
+  &eacute;t&eacute; d&eacute;couverts depuis la derni&egrave;re version. 
+  Ces notes contiennent &eacute;galement quelques br&egrave;ves remarques sur 
+  la mise &agrave; jour.</para>
+  </abstract>
+</articleinfo>
+
+<sect1>
+  <title>Introduction</title>
+        <para>Ce document contient les notes de version pour &os;
+        &release.current; sur plate-forme &arch.print;. Il d&eacute;crit les 
+	nouvelles fonctions de &os; qui ont &eacute;t&eacute; ajout&eacute;es 
+	(ou modifi&eacute;es)
+        depuis &release.prev;. Il contient &eacute;galement quelques notes
+        sur la mise &agrave; jour depuis la version pr&eacute;c&eacute;dente de
+        &os;.</para>
+<![ %release.type.snapshot [
+
+        <para>La distribution snapshot &agrave; laquelle s'applique ces notes
+        de version repr&eacute;sente une &eacute;tape sur la branche de
+        d&eacute;veloppement &release.branch; entre &release.prev; et la future
+        &release.next;. Quelques distributions binaires 
+	pr&eacute;-compil&eacute;es de la version snapshot pour cette branche 
+	sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
+
+]]>
+
+
+<![ %release.type.release [
+
+
+
+  <para>This distribution of &os; &release.current; is a &release.type;
+  distribution.  It can be found at <ulink
+  url="&release.url;"></ulink> or any of its mirrors.  More
+  information on obtaining this (or other) &release.type; distributions of
+  &os; can be found in the <ulink
+  url="http://www.FreeBSD.org/doc/en_US_ISO8859-1/books/handbook/mirrors.html"><quote>Obtaining
+  FreeBSD</quote></ulink> appendix in the <ulink
+  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD Handbook</ulink>.</para>
+
+]]>
+</sect1>
+
+<!--
+	The "What's New" section of the release notes. 
+
+	Guidelines for new entries:
+
+	1.  If there is some obvious "keyword" associated with an
+	entry (such as a manpage entry or an application name), try to
+	put it at the start of the sentence.
+
+	2.  Within each subsection (i.e. kernel, security, userland),
+	list items in alphabetical order by these keywords.
+
+	Some entries will have no obvious keywords to help with
+	ordering.  In sections containing these entries, put those
+	containing (e.g.) manpage references first, then some
+	suitable SGML comment line as a demarc, then the remaining
+	entries.
+
+-->
+
+<sect1>
+  <title>Les nouveaut&eacute;s</title>
+
+        <para>Cette section d&eacute;crit les fonctions nouvelles ou les
+        modifications les plus visibles pour l'utilisateur sous
+        &os; depuis la version &release.prev;. Il s'agit
+        typiquement de nouveaux gestionnaires de p&eacute;riph&eacute;riques ou
+        du support de mat&eacute;riels, de nouvelles commandes ou options,
+        de corrections de bugs majeurs, ou de mise &agrave; jour de
+        logiciels. Les avis de s&eacute;curit&eacute; pour le syst&egrave;me 
+	de base d&eacute;couverts apr&egrave;s la &release.prev; sont 
+	&eacute;galements mentionn&eacute;s.</para>
+
+  <sect2 id="kernel">
+    <title>Changements concernant le noyau</title>
+
+    <para>&man.acct.2; a &eacute;t&eacute; modifi&eacute; pour ouvrir le 
+    fichier de comptage en mode ajout, cela permet &agrave; &man.accton.8; 
+    d'etre utilis&eacute; en mode ajout seul.</para>
+
+    <para>Le support de <literal>RLIMIT_VMEM</literal> a &eacute;t&eacute; 
+    ajout&eacute;. Cette fonctionnalit&eacute; d&eacute;fini une nouvelle 
+    limite de ressources qui couvre l'espace m&eacute;moire virtuel d'un 
+    processus, incluant l'espace &man.mmap.2;. Cette limite est configurable 
+    dans &man.login.conf.5; via la variable 
+    <varname>vmemoryuse</varname>.</para>
+
+    <para>Un bogue dans l'appel syst&egrave;me &man.sendfile.2;, qui comptait 
+    les ent&egrave;tes plutot que la taille du fichier &agrave; envoyer, a 
+    &eacute;t&eacute; corrig&eacute;.</para>
+
+    <para>Le gestionnaire de p&eacute;riph&eacute;rique &man.ucom.4; a 
+    &eacute;t&eacute; ajout&eacute;, pour permettre de g&eacute;rer les 
+    modems, p&eacute;riph&eacute;riques s&eacute;rie, et les autres
+    programmes qui n&eacute;cessitent d'etre vu comme un tty. Les gestionnaires
+    &man.uplcom.4; et &man.uvscom.4; g&egrave;rent le support 
+    sp&eacute;cifique pour les adaptateurs s&eacute;rie Prolific PL-2303 et 
+    SUNTAC Slipper U VS-10U.
+     </para>
+
+    <para>Le gestionnaire de p&eacute;riph&eacute;rique uvisor permettant 
+    de connecter les Handspring Visors via USB &agrave; &eacute;t&eacute; 
+    ajout&eacute;.</para>
+
+<!-- Above this line, kernel changes ordered by manpage/variable name -->
+
+    <sect3>
+      <title>Support des cartes m&egrave;res et des processeurs</title>
+
+      <para arch="i386">Le support des cartes AMD &Eacute;lan SC520 a 
+      &eacute;t&eacute; ajout&eacute;; cette carte n&eacute;cessite 
+      l'option <literal>CPU_ELAN</literal> dans le fichier de configuration du 
+      noyau.</para>
+
+      <para arch="alpha">Les AlphaServer 8200/8400 TurboLaser ne sont
+      pas support&eacute;s, le noyau d'installation causant une
+      v&eacute;rification de la machine lors du d&eacute;marrage.</para>
+
+
+    </sect3>
+
+    <sect3>
+      <title>Gestionnaire de d&eacute;marrage</title>
+
+      <para></para>
+
+<!-- Above this line, order boot loader changes by manpage/variable name-->
+
+    </sect3>
+
+    <sect3>
+      <title>Support des interfaces r&eacute;seau</title>
+
+      <para arch="i386,pc98">Le gestionnaire &man.em.4; supporte maintenant
+      les composants Intel 82545EM et 82545EB chips. Il supporte aussi les
+      VLANs.</para>
+      
+      <para arch="i386">Le gestionnaire &man.rp.4; &eacute;t&eacute; mis 
+      &agrave; jour en version 3.02 et peut maintenant etre compiler en 
+      module.</para>
+
+<!-- Above this line, order network driver changes by manpage/variable name-->
+    </sect3>
+
+    <sect3>
+      <title>Protocoles r&eacute;seau</title>
+
+      <para>Une nouvelle version de &man.ipfw.4;(dont nous ferons 
+      r&eacute;f&eacute;rence sous <quote>IPFW2</quote>) a &eacute;t&eacute; 
+      ajout&eacute;. Il utilise une repr&eacute;sentation sous forme de 
+      variables des r&egrave;gles dans le noyau, de façon similaire aux 
+      instructions de &man.bpf.4;. La plupart des fonctionnalit&eacute;s 
+      visibles (ie: via &man.ipfw.8;) restent inchang&eacute;es, de plus 
+      &man.ipfw.8; supporte le litt&eacute;ral <literal>or</literal>. 
+      Cette nouvelle version n'est pas activ&eacute;e par d&eacute;faut. 
+      Pour l'utiliser : </para>
+
+      <procedure>
+	<step>
+	  <para>Ajouter l'option <literal>options IPFW2</literal> 
+	  (non document&eacute;e)au fichier de configuration du noyau.</para>
+	</step>
+
+	<step>
+	  <para>Compilez et installez  <filename>libalias</filename> et
+	    &man.ipfw.8; avec l'option <option>-DIPFW2</option> en 
+	    la sp&eacute;cifiant &agrave; &man.make.1;.</para>
+	</step>
+      </procedure>
+
+      <para>Une nouvelle version de &man.ng.l2tp.4;, impl&eacute;mentant 
+      l'encapsulation du protocole L2TP comme d&eacute;crit dans le RFC 2661, 
+      a &eacute;t&eacute; ajout&eacute;.</para>
+
+      <para>Le timer de retransmission du protocole &man.tcp.4; 
+      peut maintenant etre manipul&eacute; via les variables sysctl :
+      <varname>net.inet.tcp.rexmit_min</varname> et
+      <varname>net.inet.tcp.rexmit_slop</varname>.</para>
+
+       <para>Le procotole  &man.tcp.4; dispose de la possibilit&eacute; de 
+       limiter dynamiquement la fen&ecirc;tre d'envoi pour maximiser
+       la bande passante et r&eacute;duire les temps de transit. Cette
+       fonctionnalit&eacute; est activable via la variable sysctl 
+       <varname>net.inet.tcp.inflight_enable</varname></para>
+
+    </sect3>
+
+    <sect3>
+      <title>Disques et Stockage</title>
+
+      <para arch="i386">Le gestionnaire de p&eacute;riph&eacute;rique 
+      &man.ahd.4;, permettant le support des composants Adaptec SCSI AIC7901, 
+      AIC7901A, et AIC7902 Ultra320 PCI-X, a &eacute;t&eacute; 
+      ajout&eacute;.</para>
+
+      <para>Un bogue emp&eacute;chant parfois &man.ata.4; de fonctionner
+      correctement en mode "tagged queueing" a &eacute;t&eacute; 
+      corrig&eacute;.</para>
+
+      <para>Les gestionnaire &man.ata.4;  calcule maintenant correctement la 
+      taille maximum de transfert. Cela permet de corriger un certain nombre 
+      de <literal>READ_BIG</literal>
+      et autres erreus qui apparaissaient lors de l'acc&egrave;s &agrave; 
+      certains p&eacute;riph&eacute;riques ATA.</para>
+
+      <para>Le gestionnaire de p&eacute;riph&eacute;rique &man.ata.4; supporte 
+      maintenant les controleurs Sil 0680 et VIA 8233/8235.</para>
+
+      <para arch="i386,alpha">Le gestionnaire de p&eacute;riph&eacute;rique 
+      mpt, permettant le support des architectures des controlleurs 
+      Fibre Channel LSI  Logic Fusion/MP a &eacute;t&eacute; ajout&eacute;.
+      </para>
+
+      <para arch="i386">Le gestionnaire de p&eacute;riph&eacute;riques pst, 
+      permettant le support des controleurs RAID Promise SuperTrak ATA, 
+      a &eacute;t&eacute; ajout&eacute;.</para>
+
+      <para arch="alpha">Le lecteur de disquette sur les AlphaStation/
+      AlphaServer DS100 ne fonctionne pas avec &os;, du a des bogues
+      non d&eacute;couverts.</para>   
+
+      <para arch="alpha">Lors de l'installation sur des syst&egrave;mes
+      Alpha dot&eacute;s de cartes QLogic Fibrechannel, il est
+      n&eacute;cessaire de d&eacute;sactiver la reconnaissance de cette carte
+      par le chargeur. Cela permet d'&eacute;viter de tr&egrave;s longs temps
+      d'attentes de la part de &man.isp.4; lors du d&eacute;marrage du
+      noyau. Par exemple, en supposant que vous disposez d'un
+      syst&egrave;me avec une carte QLogic Fiberchannel s'affichant sous
+      isp1, Vous devez taper &agrave; l'invite de d&eacute;marrage:
+      </para>
+
+<screen><prompt>ok:</prompt><userinput>set isp_disable=0x2</userinput></screen>
+
+    </sect3>
+
+    <sect3>
+      <title>Syst&egrave;mes de fichier</title>
+
+      <para></para>
+
+    </sect3>
+
+    <sect3>
+      <title>Support PCCARD</title>
+
+      <para></para>
+    
+    </sect3>
+
+    <sect3>
+      <title>Support Multim&eacute;dia</title>
+
+        <para arch="i386">Le controleur audio VT8233 dispose maintenant de
+	son propre gestionnaire de p&eacute;riph&eacute;rique, pour faciliter 
+	le support de toutes les versions de mat&eacute;riel. Il est 
+	chargeable au d&eacute;marrage en ajoutant 
+	<literal>device pcm</literal>au fichier de configuration
+	du noyau et en ajoutant <literal>snd_via8233="YES"</literal> au 
+	fichier <filename>/boot/loader.conf</filename>. La documentation
+	pour son support a &eacute;t&eacute; fournie par VIA.</para>
+
+      <para arch="i386">Le gestionnaire de p&eacute;riph&eacute;riques sonore 
+      ich permet maintenant un support rudimentaire audio ich4.</para>
+   
+   <para>Le gestionnaire de p&eacute;riph&eacute;rique uaudio, permettant de 
+   controller les p&eacute;riph&eacute;rique audio USB a &eacute;t&eacute; 
+   ajout&eacute;.</para>
+ 
+    </sect3>
+
+    <sect3>
+      <title>Logiciel externes</title>
+
+      <para><application>IPFilter</application> a &eacute;t&eacute; mis 
+      &agrave; jour en  version 3.4.29</para>
+    </sect3>
+  </sect2>
+
+  <sect2 id="security">
+    <title>Changements li&eacute;s a la s&eacute;curit&eacute;</title>
+
+    <para>La correction originelle de l'avis de s&eacute;curit&eacute; 
+    SA-02:23 (en rapport avec les descripteurs de fichiers et les set-user-id 
+    ou set-group-id)
+    contenait une erreur. Il etait possible de l'exploiter via les
+    syst&egrave;mes utilisant &man.procfs.5; ou &man.linprocfs.5;. Cette
+    erreur a &eacute;t&eacute; corrig&eacute;e et un avis de 
+    s&eacute;curit&eacute; r&eacute;vis&eacute;
+    a &eacute;t&eacute; publi&eacute;. <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>
+      contient plus de d&eacute;tails.</para>
+
+    <para>Un d&eacute;passement de tampon dans le r&eacute;solveur, qui pouvait
+    etre exploit&eacute; par un serveur DNS malicieux ou un attaquant en 
+    modifiant les messages DNS a &eacute;t&eacute; corrig&eacute;. 
+    Voyez l'avis de s&eacute;curit&eacute; <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:28.resolv.asc">FreeBSD-SA-02:28</ulink>
+      pour plus de d&eacute;tails.</para>
+
+      <para>Un d&eacute;passement de tampon dans &man.tcpdump.1;, qui pouvait 
+      etre atteint lorsque des paquets NFS &eacute;taient mal construits a 
+      &eacute;t&eacute; corrig&eacute;. Voyez l'avis de s&eacute;curit&eacute;
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:29.tcpdump.asc">FreeBSD-SA-02:29</ulink>
+      pour plus de d&eacute;tails.</para>
+
+<para>&man.ktrace.1; ne peut plus suivre l'activit&eacute; des processus
+    disposant de droits privil&eacute;gi&eacute;s; cela permet de 
+    pr&eacute;venir l'obtention d'informations sensibles dont le processus 
+    dispose avant de perdre les privil&egrave;ges. Pour plus d'informations 
+    voyez l'avis de s&eacute;curit&eacute;
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:30.ktrace.asc">FreeBSD-SA-02:30</ulink>
+      .</para>
+ 
+    <para>Une "race condition" dans &man.pppd.8;, permettant de changer les
+    permissions d'un fichier de façon arbitraire a &eacute;t&eacute; 
+    r&eacute;solue.
+    Pour plus d'informations, voyez l'avis de s&eacute;curit&eacute; <ulink 
+    url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:32.pppd.asc">FreeBSD-SA-02:32</ulink>.
+    </para>
+
+    <para>De multiples d&eacute;passements de tampons dans
+      <application>OpenSSL</application> on &eacute;t&eacute; 
+      corrig&eacute;s via
+      la mise &agrave; jour dans le syst&egrave;me de base de la version de
+      <application>OpenSSL</application>. Pour plus d'informations, 
+      voyez l'avis de s&eacute;curit&eacute; <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:33.openssl.asc">FreeBSD-SA-02:33</ulink>.
+      </para>
+
+    <para>Un d&eacute;passement de tampon dans le d&eacute;codeur XDR a 
+    &eacute;t&eacute; corrig&eacute;.
+    Pour plus d'informations, voyez l'avis de s&eacute;curit&eacute; <ulink 
+    url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:34.rpc.asc">FreeBSD-SA-02:34</ulink>.
+    </para>
+
+    <para>Un bogue permettant aux utilisateurs locaux d'&eacute;crire 
+    ou de lire des blocs arbitraires dans un syst&egrave;mes de fichiers 
+    FFS a &eacute;t&eacute; corrig&eacute;.Pour plus d'informations, voyez 
+    l'avis de s&eacute;curit&eacute; <ulink 
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:35.ffs.asc">FreeBSD-SA-02:35</ulink>.
+      </para>
+
+      <para>Un bogue dans le code du serveur NFS, permettant des
+       attaques en d&eacute;ni de service a &eacute;t&eacute; corrig&eacute;.
+       Pour plus d'informations, voyez l'avis de s&eacute;curit&eacute; <ulink 
+       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:36.nfs.asc">FreeBSD-SA-02:36</ulink>
+      .</para>
+
+    <para>Un bogue permettant aux utilisateurs locaux de 
+    g&eacute;n&eacute;rer des panics du syst&egrave;me via 
+    le m&eacute;canisme &man.kqueue.2; a &eacute;t&eacute; corrig&eacute;.
+    Pour plus d'informations, voyez l'avis de s&eacute;curit&eacute; <ulink 
+    url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:37.kqueue.asc">FreeBSD-SA-02:37</ulink>.
+    </para>
+
+    <para>Plusieurs bogues dans la v&eacute;rification des limites dans les 
+    appels syst&egrave;mes, qui r&eacute;sultaient en retour de trop grandes 
+    portions de m&eacute;moire du noyau ont &eacute;t&eacute; fix&eacute;s.
+    Pour plus d'informations, voyez l'avis de s&eacute;curit&eacute; <ulink 
+    url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:38.signed-error.asc">FreeBSD-SA-02:38</ulink>.
+    </para>
+
+    <para>Un bogue permettant aux applications utilisant 
+    <filename>libkvm</filename> d'obtenir des descripteurs de fichiers a 
+    &eacute;t&eacute; corrig&eacute; (Voyez l'avis de s&eacute;curit&eacute; 
+    <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:39.libkvm.asc">
+    FreeBSD-SA-02:39</ulink> pour plus de d&eacute;tails.)</para>
+      
+   </sect2>
+
+  <sect2 id="userland">
+    <title>Changements dans les programmes utilisateurs</title>
+
+<!-- Above this line, order userland changes by manpage/variable name-->
+
+    <para>&man.biff.1; accepte maintenant l'argument <option>b</option>
+    permettant d'activer la <quote>notification via un son</quote>
+    lors de la r&eacute;ception d'un nouveau message (cela permet de ne
+    pas perturber le contenu du terminal, comme le ferai 
+    <command>biff y</command>).</para>
+
+    <para>&man.cp.1; dispose maintenant (de façon non standard) de l'option 
+    <option>-n</option>permettant automatiquement de r&eacute;pondre 
+    <quote>no</quote> lors du remplacement d'un fichier.</para>
+
+    <para>La programme &man.daemon.8; , une interface en ligne de commande 
+    &agrave; &man.daemon.3;, a &eacute;t&eacute; ajout&eacute;. Il se 
+    d&eacute;tache lui m&ecirc;me de son terminal de controle, et 
+    ex&eacute;cute le programme sp&eacute;cifi&eacute; en ligne de commande. 
+    Cela permet &agrave; un utilisateur de lancer un programme comme s'il 
+    &eacute;tait &eacute;crit en d&eacute;mon..</para>
+
+    <para>&man.dump.8; dispose de l'option <option>-S</option> lui
+    permettant d'afficher la taille estim&eacute;e de la copie.</para>
+ 
+    <para>&man.finger.1; supporte maintenant les options  <option>-4</option> 
+    et <option>-6</option> pour sp&eacute;cifier les familles d'adresses des 
+    requetes distantes.</para>
+
+    <para>&man.finger.1; supporte maintenant le fichier
+      <filename>.pubkey</filename>.</para>
+
+    <para>&man.finger.1; dispose maintenant de l'option de ligne de
+    commande <option>-g</option> permettant de n'afficher que le nom
+    complet de l'utilisateur depuis les informations du champ GECOS.</para>
+
+    <para>&man.fold.1; dispose maintenant de l'option de ligne de commande
+    <option>-b</option> permettant de couper a un certain nombre de bytes
+    et de l'option <option>-s</option> permettant de couper au mot.</para>
+
+    <para>&man.ftp.1; dispose maintenant de la commande 
+    <command>epsv4</command> pour lui permettre de basculer entre la
+    nouvelle requ&egrave;te EPSV/EPRT et l'ancienne PASV/PORT lors
+    de trransferts en IPv4. Cette commande permet de rem&eacute;dier
+    aux probl&egrave;me survenant lors de l'utilisation de &man.ftp.1;
+    &agrave; travers <application>IPFilter</application> ou &agrave;
+    travers d'autres firewalls ne supportant pas les nouvelles
+    requ&egrave;tes FTP.</para>
+
+    <para>&man.ftpd.8; supporte maintenant l'option <option>-m</option> 
+    permettant aux utilisateurs anonymes de modifier les fichiers existants, 
+    dans le cas ou les permissions du syst&egrave;me de fichier les y 
+    autorisent. En particulier cela permet aux utilisateurs anonymes de 
+    reprendre un transfert non termin&eacute;.</para>
+
+    <para>&man.ftpd.8; supporte l'option <option>-M</option> pour empecher 
+    les utilisateurs anonymes de cr&eacute;er des r&eacute;pertoires.</para>
+
+    <para>&man.ftpd.8; supporte l'option <option>-W</option> permettant de 
+    d&eacute;sactiver le tracage des sessions FTP dans &man.wtmp.5;.</para>
+ 
+    <para>&man.ifconfig.8; dispose de la commande <option>eui64</option>
+    permettant de remplir les 64 bits inf&eacute;rieurs d'une adresse
+    IPv6 automatiquement. &man.prefix.8; devient donc obsol&egrave;te.</para>
+
+    <para>&man.ifconfig.8; a la possiblit&eacute; de mettre en mode 
+    promiscuous une interface via la nouvelle option 
+    <option>promisc</option>.</para>
+
+    <para>&man.inetd.8; dispose de la capacit&eacute; &agrave; limiter le 
+    nombre maximum d'executions simultan&eacute;es de chaque service depuis 
+    une adresse IP.</para>
+    
+    <para>&man.lock.1; accepte maintenant une option
+    <option>-v</option>, permettant de d&eacute;sactiver le changement de
+    VTY lorsque le terminal courant est v&eacute;rouill&eacute;. Cela permet
+    de v&eacute;rouiller l'ensemble de la console depuis un seul
+    terminal.</para>
+
+    <para>Le programme &man.ls.1; dispose maintenant d'une option
+    <option>-m</option> permettant de lister par page, d'une option
+    <option>-p</option> permettant de forcer l'affichage d'un 
+    <literal>/</literal> apr&egrave;s les r&eacute;pertoires et d'une option
+    <option>-x</option> pour trier les noms des fichiers sur une
+    page.</para>
+
+    <para>&man.mv.1; dispose maintenant (de façon non standard) de l'option 
+    <option>-n</option>permettant automatiquement de r&eacute;pondre 
+    <quote>no</quote> lors du remplacement d'un fichier.</para>
+
+    <para>&man.nice.1; dispose maintenant d'une option <option>-n</option>
+    permettant de sp&eacute;cifier  la valeur souhait&eacute;e de 
+    <quote>nice</quote> de l'utilitaire &agrave; lancer.</para>
+
+    <para>&man.od.1; supporte maintenant l'option <option>-A</option>
+    permettant de sp&eacute;cifier l'adresse de base d'entr&eacute;e et de 
+    l'option <option>-N</option> permettant de s&eacute;pcifier le nombre de 
+    byte &agrave; passer, de l'option <option>-s</option> permettant 
+    d'afficher des "shorts" sign&eacute;s, et de l'option <option>-t</option> 
+    permettant de choisir le type de sortie.</para>
+
+    <para>&man.pam.opie.8; ne propose plus des challenges faux lorsque
+    la variable <varname>no_fake_prompts</varname> est positionn&eacute;e.
+    </para>
+
+    <para>Un module &man.pam.opieaccess.8; a &eacute;t&eacute; ajout&eacute;.
+    </para>
+
+    <para>&man.pam.radius.8;, &man.pam.ssh.8;, et &man.pam.tacplus.8;
+      ont &eacute;t&eacute; synchronis&eacute; avec les versions de  &os; 
+      -CURRENT du 3 Juillet 2002.</para>
+
+    <para>&man.pam.unix.8; a &eacute;t&eacute; synchronis&eacute;avec la 
+    version de &os; -CURRENT du 9 Mars 2002
+     (pre-<application>OpenPAM</application>).</para>
+
+    <para>&man.pwd.1; dispose de l'option de ligne de commande
+    <option>-L</option> permettant d'afficher le r&eacute;pertoire logique 
+    courant.</para>
+
+    <para>La commande &man.renice.8; dispose d'une option <option>-n</option>
+    qui sp&eacute;cifie l'incr&eacute;ment &agrave; appliquer &agrave; la 
+    priorit&eacute; du processus.</para>
+
+    <para>&man.sed.1; dispose maintenant de l'option <option>-i</option> 
+    permettant d'activer l'&eacute;dition automatique du fichier.</para>
+
+    <para>&man.sh.1; supporte maintenant l'option <option>-C</option> 
+    permettant de ne pas &eacute;craser un fichier en utilisant les 
+    redirections de sortie, et de l'option <option>-u</option> affichant une 
+    erreur lorsqu'une variable non affect&eacute;e est utilis&eacute;e.</para>
+
+    <para>La built-in <command>cd</command> de &man.sh.1; 
+    supporte maintenant les options <option>-L</option> et
+    <option>-P</option> permettant d'invoquer les modes logique
+    ou physique d'op&eacute;ration. Le mode logique est le mode par
+    d&eacute;faut, mais il peut etre modifi&eacute; en 
+    <varname>physical</varname>.</para>
+
+    <para>La  built-in <command>jobs</command> de &man.sh.1; supporte
+    l'option  <option>-s</option> permettant d'afficher uniquement
+    les PIDs et de l'option <option>-l</option> pour ajouter les PIDs
+    &agrave; l'affichage.</para>
+
+    <para>Les built-in <command>export</command> et 
+    <command>readonly</command> de &man.sh.1; supportent
+    l'option <option>-p</option> pour afficher leur
+    sortie en format <quote>portable</quote>.</para>
+
+    <para>&man.split.1; supporte maintenant une option 
+    <option>-a</option> permettant de sp&eacute;cifier le nombre
+    de lettres &agrave; utiliser comme suffixe pour le nom
+    des fichiers.</para>
+
+    <para>&man.su.1; support l'authentification Kerberos V.</para>
+
+    <para>&man.tr.1; dispose maintenant du support basic pour
+    les classes de locales.</para>
+
+    <para>&man.unexpand.1; dispose de l'option <option>-t</option> permettant
+    de sp&eacute;cifier le nombre de tabulations de la meme façon que 
+    &man.expand.1;.</para>
+
+    <para>&man.vidcontrol.1; accepte maintenant l'option
+    <option>-S</option>, permettant &agrave; l'utilisateur de
+    d&eacute;sactiver le changement de VTY.</para>
+
+    <para>&man.who.1; dispose de plusieurs nouvelles options: 
+      <option>-H</option> affiche un titre de colonnes; <option>-T</option>
+      affiche l'&eacute;tat &man.mesg.1;; <option>-m</option> est un 
+      &eacute;quivalent &agrave;
+      <option>am i</option>; <option>-u</option> affiche le temps idle;
+      <option>-q</option> affiche les noms en colonnes.</para>
+
+    <para>&man.xargs.1; dispose de l'option <option>-I</option>
+      <replaceable>replstr</replaceable> permettant de demander &agrave;
+      l'utilisateur les donn&eacute;es &agrave; ins&eacute;r&eacute;es depuis
+      l'entr&eacute;e standard &agrave; certains points, plutot que de prendre
+      ces donn&eacute;es &agrave; la fin des arguments. (L'option 
+      sp&eacute;cifique &agrave; &os;, <option>-J</option>, est maintenant 
+      d&eacute;pr&eacute;ci&eacute; en faveur de l'option portable 
+      <option>-I</option>.)</para>
+
+    <para>&man.xargs.1; dispose de l'option <option>-L</option> permettant
+    de forcer la demande d'arguments apr&egrave;s un certain nombre de 
+    lignes.</para>
+
+<!-- Above this line, order userland changes by manpage/variable name-->
+
+    <sect3>
+      <title>Logiciels externes</title>
+      <para><application>BIND</application> a &eacute;t&eacute; mis &agrave; 
+      jour en version 8.3.3.</para>
+
+      <para>Les <application>Binutils</application> ont &eacute;t&eacute; mis 
+      &agrave; jour en version 2.12.1 (plus pr&eacute;cis&eacute;ment, en 
+      version du 20 Juin 2002).</para>
+
+      <para><application>gcc</application> a &eacute;t&eacute; mis &agrave; 
+      jour en version de la branche CVS GCC 2.95, du 20 Mars 2002. Cela
+      explique le num&eacute;ro de version non officielle 2.95.4.</para>
+
+      <para><application>Heimdal Kerberos</application> a &eacute;t&eacute; 
+      mis &agrave; jour en version pre-0.5 du 29 Aout 2002.</para>
+
+      <para><application>libpcap</application> a &eacute;t&eacute; mis 
+      &agrave; jour en version 0.7.1.</para>
+
+      <para>Le d&eacute;mon FTP de NetBSD, plus connu sous le nom
+	<application>lukemftpd</application> 1.2 beta 1, a &eacute;t&eacute;
+	import&eacute; et est disponible sous&man.lukemftpd.8;.</para>
+
+      <para>&man.m4.1; a &eacute;t&eacute; import&eacute; depuis la version 
+      du 26 Avril 2002 de OpenBSD.</para>
+
+      <para>La suite de mot de passe unique <application>OPIE</application>
+	a &eacute;t&eacute; mise &agrave; jour en version 2.4.</para>
+
+      <para><application>OpenSSH</application> a &eacute;t&eacute; mis 
+      &agrave; jour en version 3.4p1.  Parmis les changements il y a:
+	  <itemizedlist>
+	    <listitem>
+	      <para>Les fichiers <filename>*2</filename> sont obsol&egrave;tes
+		(par ex, le fichier,
+		<filename>~/.ssh/known_hosts</filename> peut disposer du 
+		contenu du 
+		fichier <filename>~/.ssh/known_hosts2</filename>).</para>
+	    </listitem>
+
+	    <listitem>
+	      <para>&man.ssh-keygen.1; peut importer et exportes les clefs 
+	      en utilisant le fichier d'&eacute;change de clefs publique SECSH, 
+	      permettant l'&eacute;change de clefs avec diff&eacute;rentes 
+	      impl&eacute;mentations commerciales de SSH.</para>
+	    </listitem>
+
+	    <listitem>
+	      <para>&man.ssh-add.1; ajoute maintenant les trois clefs par 
+	      d&eacute;faut.</para>
+	    </listitem>
+
+	    <listitem>
+	      <para>&man.ssh-keygen.1; ne dispose plus d'un certain type
+	      de clefs par d&eacute;faut; il faut maintenant le 
+	      sp&eacute;cifier via l'option <option>-t</option> option.</para>
+	    </listitem>
+
+	    <listitem>
+	      <para>Une fonctionnalit&eacute; de <quote>s&eacute;paration des 
+	      privil&egrave;ges</quote> qui utilise des processus non
+	      privil&eacute;gi&eacute;s, pour r&eacute;duire l'effet des 
+	      compromissions ou d'erreurs de programmations, a 
+	      &eacute;t&eacute; ajout&eacute;e </para>
+	      </listitem>
+
+	    <listitem>
+	      <para>Diff&eacute;rentes corrections de bogues, dont un trou
+	      de s&eacute;curit&eacute; qui permettant d'obtenir plus de 
+	      privil&egrave;ges via un d&eacute;passement d'entier, ont 
+	      &eacute;t&eacute; effectu&eacute;es.</para>
+	    </listitem>
+
+	    <listitem>
+	      <para>Le protocole SSH par d&eacute;faut a utiliser
+	      est maintenant la version 2 (avec un retour arri&egrave;re 
+	      possible en  Version 1), plutot que la  Version 1
+	        (avec une &eacute;volution en  Version 2).</para>
+	    </listitem>
+
+	  </itemizedlist>
+	</para>
+
+      <para><application>OpenSSL</application> a &eacute;t&eacute; mis 
+      &agrave; jour en version 0.9.6g.</para>
+
+      <para><application>sendmail</application> a &eacute;t&eacute; mis 
+      &agrave; jour de la version 8.12.3 en version 8.12.6.</para>
+
+      <para><application>GNU tar</application> a &eacute;t&eacute; mis 
+      &agrave; jour en version 1.13.25.</para>
+
+       <para><application>tcsh</application> a &eacute;t&eacute; mis 
+       &agrave; jour en version 6.12.</para>
+
+      <para><application>texinfo</application> a &eacute;t&eacute; mis 
+      &agrave; jour en version 4.2.</para>
+
+      <para>La version de 
+	<application>tcp_wrappers</application> inclue maintenant le 
+	d&eacute;mon &man.tcpd.8; helper daemon. Ce programme n'est pas 
+	n&eacute;cessaire pour une installation standard de &os; (car  
+	&man.inetd.8; inclue cette fonction), mais peut &ecirc;tre 
+	n&eacute;cessaire pour des remplacants &agrave; &man.inetd.8;, 
+	comme par exemple <application>xinetd</application>.
+	</para>
+
+
+	<para><application>tcpdump</application> a &eacute;t&eacute; mis 
+	&agrave; jour en version 3.7.1.</para>
+
+      <para><application>top</application> a &eacute;t&eacute; mis &agrave; 
+      jour en version 3.5b12.</para>
+
+    </sect3>
+
+    <sect3>
+      <title>Collection des Ports/Packages</title>
+
+      <para>Les librairies install&eacute;es par le port <filename
+	role="package">emulators/linux_base</filename>  (n&eacute;cessaire 
+	pour l'&eacute;mulation Linux) ont &eacute;t&eacute; mises &agrave; 
+	jour; elles correspondent &agrave; celles incluent dans	
+	<application>Red Hat Linux</application> 7.1.</para>
+
+      <para><application>XFree86</application> a &eacute;t&eacute; mis 
+      &agrave; jour en version 4.2.1. Cette version fournit quelques 
+      corrections de bogues et de s&eacute;curit&eacute; par rapport 
+      &agrave; la version 4.2.0..</para>
+ 
+	
+    </sect3>
+  </sect2>
+
+  <sect2>
+    <title>Confection de version et int&eacute;gration</title>
+
+    <para>Un bogue ne permettant pas de compl&egrave;tement mettre
+    &agrave; jour  <filename>/usr/share/examples</filename> lors de nouvelles
+    installations a &eacute;t&eacute; corrig&eacute;.</para>
+
+    <para>Il est maintenant possible de cr&eacute;er une version de &os;
+      5-CURRENT sur un syst&egrave;me &os; 4-STABLE et vice versa.  
+      La cr&eacute;ation de cross-archtiecture (cr&eacute;ation d'une version 
+      pour une architecture donn&eacute;e sur une autre architecture) est 
+      maintenant possible. Voyez &man.release.7; pour plus de d&eacute;tails.
+      </para>
+
+  </sect2>
+
+</sect1>
+
+<sect1>
+  <title>Mise &agrave; jour depuis une version pr&eacute;cedente de  &os;</title>
+
+       <para>Si vous effectuez une mise &agrave; jour depuis une version
+        ant&eacute;rieure de &os;, vous avez g&eacute;n&eacute;ralement 
+	3 options :</para>
+
+    <itemizedlist>
+      <listitem>
+      <para>Utiliser l'option de mise &agrave; jour binaire de
+      &man.sysinstall.8;.Cette option est sans doute la plus rapide
+      mais elle suppose que votre installation de &os; n'utilise
+      aucune option sp&eacute;ciale de compilation.</para>
+          </listitem>
+          <listitem>
+            <para>Faire une r&eacute;installation compl&egrave;te de &os;.
+            Techniquement, ce n'est pas une m&eacute;thode de mis &agrave; jour
+            et, dans tous les cas, elle est moins pratique qu'une
+            mise &agrave; jour binaire dans le sens ou elle n&eacute;cessite de
+            sauvegarder et de restaurer manuellement le contenu du
+            r&eacute;pertoire <filename>/etc</filename>. Cependant,
+            cela peut &ecirc;tre utile si vous d&eacute;sirez (ou si
+            vous devez) modifier le partitionnement de vos
+            disques.</para>
+          </listitem>
+          <listitem>
+            <para>A partir du code source du r&eacute;pertoire 
+	    <filename>/usr/src</filename>.
+	    Cette option est plus souple mais demande plus d'espace disque, 
+	    plus de temps et plus de comp&eacute;tences techniques. Plus
+	    d'informations se trouvent dans la section <ulink
+	    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html">
+	    <quote>Using <command>make world</command></quote></ulink> du 
+	    <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">manuel FreeBSD</ulink>. Faire 
+	    une mise &agrave; jour depuis une tr&egrave;s ancienne version de 
+	    &os; peut &ecirc;tre probl&eacute;matique; dans de tels
+            cas, il est g&eacute;n&eacute;ralement plus efficace de
+            r&eacute;aliser une mise &agrave; jour binaire ou une
+            r&eacute;installation compl&egrave;te.</para>
+          </listitem>
+    </itemizedlist>
+
+        <para>Veuillez lire le fichier <filename>INSTALL.TXT</filename>
+	 pour plus d'informations, de
+        pr&eacute;f&eacute;rence <emphasis>avant</emphasis> de commencer une 
+	mise &agrave; jour.
+        Si vous effectuez une mise &agrave; jour depuis les sources,
+        veuillez &eacute;galement consulter le fichier
+	 <filename>/usr/src/UPDATING</filename>.</para>
+
+        <para>Enfin, si vous d&eacute;sirez utiliser un des moyens de suivre
+        les branches -STABLE ou -CURRENT de &os;, veuillez
+        consulter la section 
+       <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/current-stable.html">
+       <quote>-CURRENT vs. -STABLE</quote></ulink>  
+       <ulink
+       url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">du manuel de r&eacute;f&eacute;rence de FreeBSD</ulink>.
+       </para>
+
+        <important>
+            <para><emphasis>Important:</emphasis> La mise &agrave; jour 
+	    de &os; devrait,
+            bien &eacute;videmment, &ecirc;tre r&eacute;alis&eacute;e
+            uniquement apr&egrave;s avoir effectu&eacute; une
+            sauvegarde de <emphasis>toutes</emphasis> les
+            donn&eacute;es et des fichiers de configuration.</para>
+        </important>
+
+</sect1>
+

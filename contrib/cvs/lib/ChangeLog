@@ -1,0 +1,838 @@
+2001-04-25  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated using AM 1.4e as of today at 18:10 -0400.
+
+2001-04-02  Derek Price  <dprice@collab.net>
+	    for Alon Ziv  <alonz@zapper.com>
+
+	* getdate.y: Add a declaration for yyparse().
+
+	* getdate.c: Regenerated.
+
+2001-03-14  Derek Price  <derek.price@openavenue.com>
+
+        * Makefile.in: Regenerated
+
+2001-02-20  Derek Price  <derek.price@openavenue.com>
+
+	* xgssapi.h: New file to perform GSSAPI include magic.
+	* Makefile.am (EXTRA_DIST): Add xgssapi.h.
+
+	* Makefile.in: Regenerated.
+
+2001-02-14  Derek Price  <derek.price@openavenue.com>
+
+	* Makefile.am (libcvs_a_SOURCES): Add xtime.h & xselect.h.
+	* Makefile.in: Regenerated.
+	* getdate.y: Include xtime.h.
+	* getdate.c: Regenerated.
+	* system.h: Include xtime.h.
+	* xtime.h: New file to do include magic for time functions.
+	* xselect.h: New file to do select include magic.
+
+2001-02-06  Derek Price  <derek.price@openavenue.com>
+	    Rex Jolliff  <Rex_Jolliff@notes.ymp.gov>
+	    Shawn Smith  <Shawn_Smith@notes.ymp.gov>
+
+	* system.h: definitions of CVS_OPENDIR, CVS_READDIR, & CVS_CLOSEDIR
+	provided here in support of changes to handle VMS DEC C 5.7
+	{open,read,close}dir problems.  Check today's entry in the vms subdir
+	for more.
+
+2001-01-10  Derek Price  <derek.price@openavenue.com>
+	    Rex Jolliff  <Rex_Jolliff@notes.ymp.gov>
+
+	* rename.c: replace calls to unlink() with CVS_UNLINK() for VMS
+
+2000-12-22  Derek Price  <derek.price@openavenue.com>
+
+	* Makefile.am (INCLUDES): Fixed typo
+        * Makefile.in: Regenerated
+
+2000-12-22  Derek Price  <derek.price@openavenue.com>
+
+	* Makefile.am (INCLUDES): Added $(top_srcdir)/src
+        * Makefile.in: Regenerated
+
+2000-12-21  Derek Price  <derek.price@openavenue.com>
+
+	* .cvsignore: Added .deps directory and alphabetized
+	* Makefile.am: New file needed by Automake
+	* Makefile.in: Regenerated
+
+2000-11-15  Derek Price  <derek.price@openavenue.com>
+
+	* system.h:  Added CVS_FDOPEN to conform to CVS_FOPEN precedent
+
+2000-07-10  Larry Jones  <larry.jones@sdrc.com>
+
+	* savecwd.c: #include <sys/types.h> before <fcntl.h>.
+
+2000-07-04  Karl Fogel  <kfogel@red-bean.com>
+
+	* getline.h, getline.c (getstr): take new limit arg.
+	(GETLINE_NO_LIMIT): new #define.
+	(getline_safe): new function, takes limit arg and passes it on.
+	(getline): pass GETLINE_NO_LIMIT to getstr().
+	
+	See related change of same date in ../src/ChangeLog.
+
+2000-06-19  Larry Jones  <larry.jones@sdrc.com>
+
+	* regex.c, regex.h: Version from emacs 20.7 to plug memory leaks
+	and avoid potential portability problems.
+
+2000-03-22  Larry Jones  <larry.jones@sdrc.com>
+
+	* getdate.y: Add logic to allow yyyy/mm/dd in addition to mm/dd/yy
+	(since that is the format CVS frequently uses).
+	* getdate.c: Regenerated.
+
+2000-02-16  Jim Meyering  <meyering@lucent.com>
+
+	* sighandle.c (SIG_inCrSect): New function.
+
+2000-01-03  Larry Jones  <larry.jones@sdrc.com>
+
+	* getdate.y (Convert): Add window to determine whether 2-digit dates
+	are 19xx (69-99) or 20xx (00-68).
+	(get_date): Fix y2k bug: initialize yyYear to tm_year + 1900,
+	not just tm_year.
+	* getdate.c: Regenerated.
+
+1999-12-29  Jim Kingdon  <http://developer.redhat.com/>
+
+	* Makefile.in: There was a comment here which referred to a long
+	comment in configure.in about regex.o (the configure.in comment
+	isn't there any more).  Replace our comment with a conciser
+	version of the former configure.in comment.
+
+1999-03-26  Jim Kingdon  <http://www.cyclic.com>
+
+	* getopt.h: Don't declare the arguments to getopt.
+
+1999-02-09  Jim Kingdon  <http://www.cyclic.com>
+
+	* vasprintf.c: Removed; there is apparently no clean, portable
+	solution to the VA_LIST_IS_ARRAY problem (C9X drafts have va_copy,
+	but we aren't even assuming C90 yet!).
+	* Makefile.in (SOURCES): Remove vasprintf.c.
+	* build_lib.com: Remove vasprintf.c and vasprintf.obj.
+
+1999-01-26  Jim Kingdon  <http://www.cyclic.com>
+	and Joerg Bullmann  <http://www.glink.net.hk/~jb/MacCVSClient/>
+
+	* fnmatch.c: Use FOLD_FN_CHAR in two cases where it had been
+	omitted.
+
+1999-01-22  Jim Kingdon  <http://www.cyclic.com>
+
+	* fnmatch.c: Include system.h; FOLD_FN_CHAR has moved there from
+	config.h (from Alexey Milov).  Don't define our own FOLD_FN_CHAR;
+	that just masks cases in which we got the includes tangled up.
+
+1999-01-12  Jim Kingdon  <http://www.cyclic.com>
+
+	* memmove.c: Remove paragraph which contained the FSF's old
+	snail mail address; it has changed.
+
+1999-01-05  Jim Kingdon  <http://www.cyclic.com>
+
+	* md5.c, md5.h: Rename all the external interfaces to start with
+	cvs_* to avoid namespace pollution problems.  Include string.h
+	unconditionally, to avoid gcc -Wall warnings on memset.
+
+1998-12-29  Jim Kingdon  <http://www.cyclic.com>
+
+	* getdate.y (RelativeMonth): Add 1900 to tm_year, so that in 2000,
+	we pass 2000, not 100, to Convert.
+	(Convert): Add comment about Year argument.
+	* getdate.c: Regenerated using byacc.
+
+Tue Mar 24 16:08:00 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in (CFLAGS): Set to @CFLAGS@, not -g.
+
+1998-02-20  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* regex.c: Partial merge with version from emacs 20.2.  Brings
+	over some trivial changes (whitespace and so on) (most such
+	changes I didn't bother with, for this time).  Don't cast to int
+	before comparing old_regend[r] to regstart[r] (this is the point
+	of bothering; the old code was broken for 64 bit machines.
+	Reported by Paul Vixie).
+
+Tue Feb 17 18:33:26 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* memmove.c: New file, resurrecting the old one.
+	* Makefile.in (SOURCES): Add memmove.c.
+
+1998-02-03  Tim Pierce  <twp@skepsis.com>
+
+	* system.h (CVS_LSTAT): New macro.
+
+Sat Feb  7 17:33:39 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* getline.h (getstr): Declare.
+
+13 Jan 1998  Jim Kingdon
+
+	* fncase.c: Include config.h before system.h.
+
+	* system.h: Just include string.h unconditionally.  We already
+	include it unconditionally elsewhere.
+
+Tue Jan 13 16:51:59 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* fncase.c: New file, taken from windows-NT/filesubr.c.
+	* system.h: If __CYGWIN32__ or WIN32 are defined, define
+	FOLD_FN_CHAR, FILENAMES_CASE_INSENSITIVE, and ISDIRSEP, and
+	declare fncmp and fnfold.  Taken from windows-NT/config.h.
+	* Makefile.in (SOURCES): Add fncase.c.
+
+Sat Jan 10 10:51:26 1998  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* getline.c (getstr): Make sure to set errno when appropriate.  I
+	didn't test the error case for the new code but inspection shows
+	the old code was rather broken.
+
+Sat Nov 29 22:03:39 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	getwd and getcwd were a big big mess.  Although Jim's fix might
+	indeed be fixing a typo, the code is so tangled that I would guess
+	it probably breaks some system.  So clean this up:
+	* xgetwd.c: Always assume we have getcwd (we had been anyway,
+	before Jim's change).
+	* getwd.c: Removed.
+	* Makefile.in: Remove getwd.c
+	* system.h: Remove declarations of getwd and getcwd.  Move getcwd
+	declaration to the !HAVE_UNISTD_H section.
+
+1997-11-29  Jim Meyering  <meyering@na-net.ornl.gov>
+
+	* xgetwd.c: Fix typo s/ifndef/ifdef/ in test of HAVE_GETWD.
+
+Wed Nov 26 10:12:33 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* system.h: Always use "rb" and "wb".  Check for O_BINARY with an
+	#ifdef, not the error-prone LINES_CRLF_TERMINATED.
+
+Thu Sep 25 10:57:39 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* getdate.y (get_date): If gmtime returns NULL, try to cope.
+	* getdate.c: Regenerated using byacc.
+
+	* getdate.y: Remove comment about sending email concerning this file
+	to Rich Salz.
+	* getdate.c: Regenerated using byacc.
+
+Wed Sep 24 10:35:38 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in (OBJECTS): Add regex.o.
+
+Wed Sep 17 16:37:17 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* getdate.y (ToSeconds): For am or pm, a hour of "12" really means 0.
+	* getdate.c: Regenerated using byacc (not bison per comment).
+
+Tue Sep  9 20:51:45 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* build_lib.com: Add vasprintf.c and vasprintf.obj.
+
+	* build_lib.com: Remove strippath.obj from library/create command.
+
+Sun Sep  7 17:35:27 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* system.h: Replace comment referring to ChangeLog with a
+	comment based on the ChangeLog entries.
+
+	* strdup.c: Removed, per change to ../configure.in
+	* Makefile.in (SOURCES): Remove strdup.c.
+
+Mon Jun 16 18:59:50 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* system.h: Add CVS_FNMATCH.
+
+Sun Jun  8 23:41:11 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* system.h (mkfifo): Remove; not used anywhere.
+
+Thu Mar  6 17:14:49 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* regex.c: Partial merge with version from emacs 19.34.  I brought
+	over most trivial changes (whitespace and so on).  Most of the
+	changes to portability cruft I did not bring over, on the theory
+	of sticking to the devil that we know.  I did bring over the
+	change to undef MAX and MIN (this is a better solution to a
+	problem we had been handling a different way).  There were a
+	variety of changes I probably could/should have brought over, but
+	elected not to try to understand them and whether they would cause
+	trouble (printchar -> putchar, changes to output format in
+	print_partial_compiled_pattern, internationalization,
+	FREE_STACK_RETURN and friends which would appear to be fixing
+	memory leaks in error cases, RE_TRANSLATE_TYPE, and others).  I
+	did merge the changes (union fail_stack_elt, PUSH_FAILURE_POINTER,
+	etc.) to use a union for the failure stack rather than playing
+	games with pointers and integers (that was my reason for
+	bothering; the code had been broken on the Alpha).
+
+Mon Feb 10 18:52:18 1997  Ullrich von Bassewitz <uz@musoftware.com>
+
+	* md5.c: Make the parameter to getu32 const since the function will
+        only read the values and this will avoid compiler warnings in other
+        places.
+
+Mon Feb 10 18:29:04 1997  Ullrich von Bassewitz <uz@musoftware.com>
+
+	* vasprintf.c: Added a #define for systems where a va_list is
+	defined as an array, not as a pointer.
+
+Mon Feb 10 09:31:38 1997  Ken Raeburn  <raeburn@cygnus.com>
+
+	* md5.c (MD5STEP): Truncate to 32 bits before shifting right.
+
+Thu Jan 30 11:35:26 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* regex.h: Don't prototype re_comp and re_exec.
+
+Tue Jan 28 17:45:46 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* md5.c, md5.h: Changes so these work without having an integer
+	type which is exactly 32 bits.  Modeled after changes by Tatu Ylonen
+	<ylo@cs.hut.fi> as part of SSH but rewritten.
+
+Wed Jan  8 14:50:47 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in, getopt.h, sighandle.c, system.h: Remove CVSid; we
+	decided to get rid of these some time ago.
+
+Thu Jan  2 13:30:56 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in, argmatch.c, fnmatch.c, fnmatch.h, getline.c,
+	getopt.c, getopt.h, getopt1.c, getwd.c, hostname.c, mkdir.c,
+	regex.c, regex.h, rename.c, sighandle.c, strdup.c, strerror.c,
+	stripslash.c, system.h, vasprintf.c, wait.h, xgetwd.c, yesno.c:
+	Remove "675" paragraph;	see ../ChangeLog for rationale.
+
+Sun Nov 24 13:34:25 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* getdate.y (Convert): Change last acceptable year from 1999 to
+	2038.
+	* getdate.c: Regenerated using byacc 1.9.
+
+Tue Nov 19 17:11:17 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in (OBJECTS): Remove strippath.o; we don't use
+	strip_path anymore.
+	(SOURCES): Remove strippath.c.
+	* strippath.c: Removed.
+	* build_lib.com: Remove strippath.c.
+
+Wed Oct  2 10:43:35 1996  Norbert Kiesel  <nk@col.sw-ley.de>
+
+	* getdate.y: removed CVSid variable
+
+	* getdate.c: regenerated (using byacc 1.9)
+
+Wed Sep 25 10:25:00 1996  Larry Jones  <larry.jones@sdrc.com>
+
+	* vasprintf.c: Fix type clashes in calls to strtoul.
+
+Wed Sep 11 15:55:31 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* build_lib.com: Add valloc.c.
+
+Tue Sep 10 23:04:34 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in (DISTFILES): Add build_lib.com.
+
+Fri Aug 16 16:01:57 1996  Norbert Kiesel  <nk@col.sw-ley.de>
+
+	* Makefile.in (installdirs): new (empty) target
+
+Mon Aug 12 11:03:43 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* system.h: Don't use #elif.  It is said to cause problems with
+	one of the HP compilers on HPUX 9.01.
+
+Sun Jul  7 23:25:46 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* memmove.c: Removed.  The memove function was used by a very old
+	version of the CVS server for nefarious purposes and it has been
+	long gone.
+	* Makefile.in (SOURCES): Remove memmove.c.
+
+Thu Jun  6 15:12:59 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* vasprintf.c: If STDC_HEADERS, include stdlib.h rather than
+	declaring its functions ourself.
+
+Wed Jun 05 10:14:29 1996  Mike Ladwig  <mike@twinpeaks.prc.com>
+			  and Jim Kingdon  <kingdon@cyclic.com>
+
+	* system.h: If ERRNO_H_MISSING is defined, don't include errno.h.
+
+Wed Jun 05 10:14:29 1996  Mike Ladwig  <mike@twinpeaks.prc.com>
+
+	* regex.c: Don't define MAX and MIN if already defined.
+
+Sun May 12 09:40:08 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* getdate.y: Replace alloca.h include with a comment explaining
+	why we avoid alloca and the consequences of that.
+	* getdate.c: Regenerated.
+
+Wed May  8 09:31:03 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* getdate.c: Regenerate with the version of byacc in Red Hat 3.0.3
+	(which I believe is byacc 1.9).  byacc, unlike bison, does not
+	require alloca in the generated parser.
+
+Thu Apr 25 18:26:34 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* getdate.y (get_date): Set Start from nowtime, not now->time,
+	which may not be set.
+	* getdate.c: Regenerated.
+
+Wed Apr 10 17:55:02 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* getdate.y (get_date): Use a time_t variable rather than a field
+	in a struct timeb.  Works around Solaris compiler bug.  Sure, it
+	is a compiler bug, but the workaround is completely painless.
+	* getdate.c: Regenerated.
+
+Fri Mar 22 11:17:05 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* system.h: If EXIT_FAILURE is not defined by stdlib.h, define it
+	ourself.
+
+Thu Mar 14 16:27:53 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* system.h: Remove alloca cruft.
+
+Wed Feb 28 03:16:48 1996  Benjamin J. Lee  <benjamin@cyclic.com>
+
+	* build_lib.com: Changed definition of symbol CC to search
+	for include files in [-.VMS] so VMS config.h can be picked
+	up without copying.
+
+Tue Feb 27 21:26:34 1996  Benjamin J. Lee  <benjamin@cyclic.com>
+
+	* build_lib.com: Added.  DCL File to build contents of [.lib]
+
+Tue Feb 27 21:18:38 1996  Benjamin J. Lee  <benjamin@cyclic.com>
+
+	* system.h: added an existence_error macro check for EVMSERR
+	necessary for happiness under VMS
+
+Thu Feb 22 22:30:04 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in (OBJECTS): Remove @ALLOCA@
+	(SOURCES): Remove alloca.c
+	* alloca.c: Removed.
+	* regex.c (REGEX_MALLOC): Define.
+
+Thu Feb 15 14:00:00  Jim Kingdon  <kingdon@cyclic.com>
+
+	* vasprintf.c: Declare abs().
+
+Wed Feb 14 14:48:31 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* vasprintf.c (int_vasprintf): Don't cast arguments to memcpy.
+	* vasprintf.c, strtoul.c: Don't include ansidecl.h.  Do include
+	config.h if HAVE_CONFIG_H (for const).
+	* strtoul.c: Change CONST to const.
+
+Tue Feb 13 20:04:39 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* strtoul.c: Added (needed by vasprintf.c, and missing on SunOS4).
+	* Makefile.in (SOURCES): Add strtoul.c.
+
+Mon Feb 12 10:04:46 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* vasprintf.c: Added (same contents as before).
+	* Makefile.in (SOURCES): Add vasprintf.c.
+
+Thu Feb  1 14:33:17 1996  Karl Fogel  <kfogel@floss.red-bean.com>
+
+        * Makefile.in (xlint): new rule; does nothing, as I'm not sure
+        running lint is actually advisable in here, but the top-level
+        Makefile thinks it can `make xlint' here.
+
+Thu Feb  1 15:07:42 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* getopt.c: Remove rcsid.
+
+Tue Jan 30 18:20:27 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* getline.c: Don't define NDEBUG.
+	(getstr): Rewrite assertions in a way which should stay clear of
+	signed/unsigned problems and compiler warnings thereof.
+
+Thu Jan 25 00:14:06 1996  Jim Kingdon  <kingdon@beezley.cyclic.com>
+
+	* yesno.c (yesno): fflush stdout as well as stderr.
+
+Wed Jan  3 18:16:50 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* sighandle.c (SIG_register): Use memset not bzero.
+	* system.h: Remove defines for index, rindex, bcmp, and bzero.
+	All the calls to those functions are gone from CVS.
+
+Tue Jan  2 13:00:00 1996  Jim Kingdon  <kingdon@peary.cyclic.com>
+
+	Visual C++ lint:
+	* sighandle.c: Prototype SIG_handle and SIG_defaults.
+	Use SIG_ERR where appropriate.
+
+Mon Dec 18 10:15:05 1995  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* rename.c: Check ENOENT rather than existence_error.  The latter
+	is undefined in this file, and including system.h is said to cause
+	(unspecified) problems.
+
+Sun Dec 17 23:58:06 1995  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* vasprintf.c: Removed (it is no longer used).
+	* Makefile.in (SOURCES): Remove vasprintf.c.
+
+Sat Dec 16 17:18:33 1995  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* vasprintf.c: Added.
+	* Makefile.in (SOURCES): Add vasprintf.c
+
+Mon Dec  4 10:54:04 1995  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* getdate.c: Remove #line directives.  I know, this is a kludge,
+	but Visual C++ 2.1 seems to require it (why, I have no idea.  It
+	has no trouble with the #line directives in getdate in CVS 1.6).
+
+Sat Nov 18 16:20:37 1995  Karl Fogel  <kfogel@floss.cyclic.com>
+
+        * rename.c: same.
+
+        * mkdir.c: Use new macro `existence_error', instead of comparing
+        errno to ENOENT directly.
+
+        * system.h (existence_error): new macro, tries to portably ask if
+        errno represents a file-not-exist error.
+
+Fri Nov 17 20:08:58 1995  Karl Fogel  <kfogel@floss.cyclic.com>
+
+        * system.h (NEED_DECOY_PERMISSIONS): moved this section to where
+        it belongs, duh.
+
+        * getdate.c: if STDC_HEADERS, then just include <stdlib.h> instead
+        of declaring malloc() and realloc() to be char *.
+
+        * system.h: ifdef NEED_DECOY_PERMISSIONS, then define the S_I*
+        permission masks for USR, GRP, and OTH in terms of the simpler
+        OS/2 masks.
+
+Wed Nov 15 15:36:03 1995  Karl Fogel  <kfogel@floss.cyclic.com>
+
+        * system.h: ifdef USE_OWN_TCPIP_H, then include "tcpip.h".  Only
+        OS/2 does this right now.
+
+Tue Nov 14 18:44:57 1995  Greg A. Woods  <woods@most.weird.com>
+
+	* getdate.c: OK, this one is from SunOS-4.1 yacc and may be more
+	portable -- at least it compiles silently here!  ;-)
+
+Mon Nov 13 03:53:45 1995  Karl Fogel  <kfogel@floss.cyclic.com>
+
+        * fnmatch.c: conform to 80 column standard (yes, I'm a pedant).
+
+Wed Nov  8 11:10:59 1995  Karl Fogel  <kfogel@floss.cyclic.com>
+
+        * system.h (STAT_MACROS): ifdef S_IFMT, then use it as before; but
+        if it's not defined, then just do a single mask and assume
+        acceptance any of non-zero result.  Norbert, I trust you'll let me
+        know if this is unsatisfactory. :-)
+        Ifdef HAVE_SYS_UTIME_H, then include <sys/utime.h>.  Only OS/2
+        defines this right now.
+
+Wed Nov  8 13:18:51 1995  Norbert Kiesel  <nk@col.sw-ley.de>
+
+	* valloc.c: omit malloc declaration (it's already in system.h
+	  which is included and conflicts with <stdlib.h> on some
+	  systems).
+
+Tue Nov  7 19:38:48 1995  Norbert Kiesel  <nk@col.sw-ley.de>
+
+	* system.h (STAT_MACROS_BROKEN): undo previous change, because
+	  else all regular files will be identified as links (the mask for
+	  links is S_IFREG|S_IFCHR).
+
+Mon Nov  6 19:20:56 1995  Karl Fogel  <kfogel@floss.cyclic.com>
+
+        * system.h (STAT_MACROS_BROKEN): in defining the S_IF* macros,
+        don't fold to 1 or 0 by first masking with S_IFMT; not all
+        systems have that macro, and anyway it's only necessary that we
+        return non-zero.
+
+Fri Oct 27 13:43:35 1995  Karl Fogel  <kfogel@floss.cyclic.com>
+
+        * save-cwd.c: use __PROTO instead of __P (see below).
+
+        * getline.h (__PROTO): same as below.
+
+        * save-cwd.h (__PROTO): replaces __P.  New name, so don't ask if
+        already defined.  The conflict was that OS/2 w/ IBM C/C++ uses
+        `__P' for something else, in <ctype.h> of all places.
+
+        * system.h: do nothing about alloca ifdef ALLOCA_IN_STDLIB (see
+        ../src/ChangeLog).
+
+Tue Oct 24 13:01:25 1995  Norbert Kiesel  <nk@col.sw-ley.de>
+
+	* wait.h: include sys/resource.h if available. This is needed at
+	  least under AIX-3.2 where <sys/wait.h> doesn't include it.
+
+Mon Oct 23 17:39:11 1995  Norbert Kiesel  <nk@col.sw-ley.de>
+
+	* valloc.c (valloc): change parameter definition
+
+Sun Oct 22 14:15:44 1995  Jim Meyering  (meyering@comco.com)
+
+	* getline.c, getline.h: New files.
+	* Makefile.in (SOURCES, OBJECTS, HEADERS): Add getline.c, getline.o,
+	and getline.h, respectively.
+
+Tue Oct 10 18:01:50 1995  Karl Fogel  <kfogel@totoro.cyclic.com>
+
+        * Makefile.in (cvs_srcdir): define cvs_srcdir to be ../src, then
+        include it with -I so save_cwd.c can find error.h (for example).
+
+Sun Oct  8 12:27:57 1995  Peter Wemm  <peter@haywire.DIALix.COM>
+
+	* system.h: define POSIX_SIGNALS or BSD_SIGNALS if configure has
+	located all the necessary functions for each "type".
+	* sighandle.c: detect/use POSIX/BSD reliable signals (especially
+	for blocking signals in critical sections).  Helps prevent stray
+	locks on interruption.
+
+Mon Oct  2 18:11:23 1995  Jim Blandy  <jimb@totoro.cyclic.com>
+
+	* system.h: Doc fix.
+
+Mon Oct  2 18:10:35 1995  Larry Jones  <larry.jones@sdrc.com>
+
+	* regex.c: compile 4.2 BSD compatible functions even when
+	_POSIX_SOURCE is defined since we need them and we wouldn't be
+	compiling this file unless they don't exist.
+
+Mon Oct  2 10:32:20 1995  Michael Finken  <finken@conware.de>
+
+        * strstr.c (strstr): new file and func.
+
+        * Makefile.in (SOURCES): added strstr.c.
+
+Sun Oct  1 21:03:40 1995  Karl Fogel  <kfogel@totoro.cyclic.com>
+
+        * regex.c: reverted below change.
+
+Thu Sep 28 13:37:04 1995  Larry Jones <larry.jones@sdrc.com>
+
+        * regexp.c: check for ISC.
+
+Thu Sep 7  19:18:00 1995  Jim Blandy  <jimb@cyclic.com>
+
+	* save-cwd.c: #include <direct.h> and <io.h>, on systems that
+	have them.
+
+	* getopt.c (_getopt_internal): Cast the return value of strlen,
+	which is unsigned, before comparing it with the difference between
+	two pointers, which is unsigned.
+
+Thu Aug 31 11:31:42 1995  Jim Blandy  <jimb@totoro.cyclic.com>
+
+	* getdate.y [STDC_HEADERS]: #include <stdlib.h>, for abort.
+	[HAVE_ALLOCA_H]: #include <alloca.h>, for alloca on Windows NT.
+
+Wed Aug 30 18:48:44 1995  Jim Blandy  <jimb@totoro.cyclic.com>
+
+	* system.h [HAVE_IO_H]: #include <io.h>, for Windows NT.
+	[HAVE_DIRECT_H]: #include <direct.h>, for Windows NT.
+	(CVS_MKDIR, FOLD_FN_CHAR, fnfold, fncmp, ISDIRSEP, OPEN_BINARY,
+	FOPEN_BINARY_READ, FOPEN_BINARY_WRITE): New macros/functions, for
+	use in system-sensitive code.
+
+	* regex.c (re_set_registers): start and end are pointers, not
+	integers.  Cast the initializing value appropriately.
+
+	* getopt.c [HAVE_STRING_H]: #include <string.h>, to avoid
+	warnings.
+
+	* fnmatch.c (FOLD_FN_CHAR): Give this a dummy #definition if
+	config.h didn't #define it.
+        (fnmatch): Pass filename characters through FOLD_FN_CHAR before
+	comparing them.
+
+	* argmatch.c: #include <sys/types.h>.
+	(argmatch): Declare arglen to be a size_t, rather than an int,
+	to avoid signed/unsigned comparison "problems".
+
+	* .cvsignore: Remove getdate.c from this file.  We want to
+	distribute it, for systems that don't have a Yacc-equivalent
+	installed (like Windows NT).
+
+Sat Aug 19 22:00:51 1995  Jim Blandy  <jimb@totoro.cyclic.com>
+
+	* error.c: Don't #define CVS_SUPPORT here.  config.h takes care of
+	that for us.
+	[CVS_SUPPORT] (error_use_protocol): New variable, with apology.
+	(error): If error_use_protocol is set, report errors using the
+	client/server protocol.
+	* error.h [CVS_SUPPORT]: Extern decl for error_use_protocol.
+
+Fri Aug  4 00:01:24 1995  Jim Meyering  (meyering@comco.com)
+
+	* xgetwd.c: Don't declare free.  A K&R style declaration gets
+	a conflict on some Sun systems when compiling with acc.
+
+	* save-cwd.c: New file.
+	* save-cwd.h: New file.
+	* Makefile.in (SOURCES): Add save-cwd.c
+	(OBJECTS): Add save-cwd.o.
+	(HEADERS): Add save-cwd.h.
+
+Thu Aug  3 00:55:54 1995  Jim Meyering  (meyering@comco.com)
+
+	* error.h: New file.
+	* Makefile.in (HEADERS): Add error.h.
+
+Sat Jul 29 15:53:55 1995  James Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in (SOURCES): Add getdate.c.
+
+Thu Jul 27 09:11:41 1995  Robert Lipe <robertl@rjlhome.arnet.com>
+
+	* system.h: Check for PATHSIZE before falling back to _POSIX_PATH_MAX.
+
+Thu Jul 20 12:38:03 1995  James Kingdon  <kingdon@harvey.cyclic.com>
+
+	* error.c: Instead of calling cvs functions to clean up, allow cvs
+	to register a callback via error_set_cleanup.  Avoids hassles with
+	include files and SERVER_SUPPORT and so on.
+
+Tue Jul 18 21:18:00 1995  Jim Blandy <jimb@cyclic.com>
+
+	* system.h: Include <sys/param.h> only if HAVE_SYS_PARAM_H
+	is #defined.  We've added a test to configure.in to #define this
+	on most systems.
+
+Thu Jul 13 11:22:21 1995  Jim Meyering  (meyering@comco.com)
+
+	* xgetwd.c: New file.
+	* Makefile.in (SOURCES): Add xgetwd.c
+	(OBJECTS): Add xgetwd.o.
+
+Wed Jul 12 09:18:49 1995  Jim Meyering  (meyering@comco.com)
+
+	* Makefile.in (OBJECTS): Remove fnmatch.o.  Now configure adds it
+	to LIBOBJS when necessary.
+
+Fri Jun 30 16:27:18 1995  James Kingdon  <kingdon@harvey.cyclic.com>
+
+	* rename.c (rename): If MVDIR is not defined, just give an error
+	on attempt to rename a directory.
+
+Thu Jun 29 00:46:31 1995  James Kingdon  <kingdon@harvey.cyclic.com>
+
+	* system.h: Check HAVE_SYS_TIMEB_H not non-existent HAVE_TIMEB_H.
+
+	* system.h: Don't define alloca if it is already defined.
+
+Wed Jun 28 15:24:51 1995  James Kingdon  <kingdon@harvey.cyclic.com>
+
+	* system.h: If NeXT, define utimbuf ourself.
+
+Mon May 29 22:32:40 1995  J.T. Conklin  <jtc@rtl.cygnus.com>
+
+	* system.h: Handle time and directory headers as recommended in
+	the autoconf manual.
+	Undefine the S_FOO() macros if STAT_MACROS_BROKEN is set.
+	Don't define mode_t, as it is handled by config.h.
+
+Sat May 27 08:46:00 1995  Jim Meyering  (meyering@comco.com)
+
+	* Makefile.in (Makefile): Regenerate only Makefile in current
+	directory when Makefile.in is out of date.  Depend on ../config.status.
+
+Fri Apr 28 22:49:25 1995  Jim Blandy  <jimb@totoro.bio.indiana.edu>
+
+	* Makefile.in (SOURCES, OBJECTS): Updated.
+	(HEADERS): New variable.
+	(DISTFILES): Updated.
+	(dist-dir): Renamed from dist; changed to work with DISTDIR
+	variable passed from parent.
+
+Wed Feb  8 06:37:53 1995  Roland McGrath  <roland@churchy.gnu.ai.mit.edu>
+
+	* system.h (S_IRUSR et al): Define if not already defined.
+
+	* waitpid.c [HAVE_CONFIG_H]: Include "config.h".
+	(ualloc): Return OLDPTR rather than running off the end.
+
+Mon Aug 22 22:48:19 1994  Ken Raeburn  (raeburn@kr-pc.cygnus.com)
+
+	* error.c (strerror): Replaced conditional static definition
+	(always used, since the condition variable was never set) with an
+	extern declaration, since it's provided by libc or strerror.c.
+
+Wed Aug 10 14:54:25 1994  Ken Raeburn  (raeburn@cujo.cygnus.com)
+
+	* Makefile.in (SOURCES): Add waitpid.c.
+	* waitpid.c: New file.
+
+Tue Aug  9 16:00:12 1994  Ken Raeburn  (raeburn@cujo.cygnus.com)
+
+	* md5.h (uint32): If SIZEOF_LONG isn't 4, don't define this to be
+	"unsigned long"; try SIZEOF_INT and "unsigned int", otherwise
+	complain.
+
+	* md5.c: Include config.h.
+	(const): Don't bother defining here, config.h should take care of
+	it.
+
+	* valloc.c (malloc): Declare.
+
+Fri Jul 15 12:57:20 1994  Ian Lance Taylor  (ian@sanguine.cygnus.com)
+
+	* getopt.c: Do not include <stdlib.h> unless __GNU_LIBRARY__ is
+	defined.  On Irix 5.2, <stdlib.h> includes <getopt.h>, which
+	causes a multiple definition of struct option.
+
+Fri Jul  8 10:04:59 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* md5.h, md5.c: Remove ANSI-isms.
+
+Thu Jul  7 20:24:18 1994  Ian Lance Taylor  (ian@sanguine.cygnus.com)
+
+	* md5.h, md5.c: New files.
+	* Makefile.in (SOURCES): Add md5.c.
+	(OBJECTS): Add md5.o.
+	(DISTFILES): Add md5.h.
+	(md5.o): New target; depend upon md5.h.
+
+Fri May 27 18:15:34 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* valloc.c: New file.
+
+Tue May 17 08:18:26 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* error.c (error, fperror): If server_active, call server_cleanup
+	as well as Lock_Cleanup.
+
+Thu Jan  6 13:45:04 1994  Ken Raeburn  (raeburn@cujo.cygnus.com)
+
+	* system.h: Fix Dec 27 change to work correctly.  Makes Sep 9
+	change unnecessary, so backed that one out.  Never define PATH_MAX
+	in terms of pathconf, because that doesn't produce a constant, and
+	PATH_MAX is used to set array sizes.
+
+Mon Dec 27 14:22:07 1993  Mark Eichin  (eichin@cygnus.com)
+
+	* system.h: don't touch PATH_MAX or MAXPATHLEN if *both* of them
+	are already defined, as one may be defined in terms of the other.

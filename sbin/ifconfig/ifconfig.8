@@ -1,0 +1,729 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgment:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
+.\" $FreeBSD$
+.\"
+.Dd July 2, 2001
+.Dt IFCONFIG 8
+.Os
+.Sh NAME
+.Nm ifconfig
+.Nd configure network interface parameters
+.Sh SYNOPSIS
+.Nm
+.Op Fl L
+.Op Fl m
+.Ar interface
+.Op Cm create
+.Op Ar address_family
+.Oo
+.Ar address
+.Op Ar dest_address
+.Oc
+.Op Ar parameters
+.Nm
+.Ar interface
+.Cm destroy
+.Nm
+.Fl a
+.Op Fl L
+.Op Fl d
+.Op Fl m
+.Op Fl u
+.Op Ar address_family
+.Nm
+.Fl l
+.Op Fl d
+.Op Fl u
+.Op Ar address_family
+.Nm
+.Op Fl L
+.Op Fl d
+.Op Fl m
+.Op Fl u
+.Op Fl C
+.Sh DESCRIPTION
+.Nm Ifconfig
+is used to assign an address
+to a network interface and/or configure
+network interface parameters.
+.Nm Ifconfig
+must be used at boot time to define the network address
+of each interface present on a machine; it may also be used at
+a later time to redefine an interface's address
+or other operating parameters.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Ar address
+For the
+.Tn DARPA Ns -Internet
+family,
+the address is either a host name present in the host name data
+base,
+.Xr hosts 5 ,
+or a
+.Tn DARPA
+Internet address expressed in the Internet standard
+.Dq dot notation .
+.Pp
+It is also possible to use the CIDR notation (also known as the
+slash notation) to include the netmask.
+That is, one can specify an address like
+.Li 192.168.0.1/16 .
+.Pp
+For
+.Dq inet6
+family, it is also possible to specify the prefix length using the slash
+notation, like
+.Li ::1/128 .
+See the
+.Cm prefixlen
+parameter below for more information.
+.\" For the Xerox Network Systems(tm) family,
+.\" addresses are
+.\" .Ar net:a.b.c.d.e.f ,
+.\" where
+.\" .Ar net
+.\" is the assigned network number (in decimal),
+.\" and each of the six bytes of the host number,
+.\" .Ar a
+.\" through
+.\" .Ar f ,
+.\" are specified in hexadecimal.
+.\" The host number may be omitted on IEEE 802 protocol
+.\" (Ethernet, FDDI, and Token Ring) interfaces,
+.\" which use the hardware physical address,
+.\" and on interfaces other than the first.
+.\" For the
+.\" .Tn ISO
+.\" family, addresses are specified as a long hexadecimal string,
+.\" as in the Xerox family.
+.\" However, two consecutive dots imply a zero
+.\" byte, and the dots are optional, if the user wishes to (carefully)
+.\" count out long strings of digits in network byte order.
+.Pp
+The link-level
+.Pq Dq link
+address
+is specified as a series of colon-separated hex digits.
+This can be used to
+e.g. set a new MAC address on an ethernet interface, though the
+mechanism used is not ethernet-specific.
+If the interface is already
+up when this option is used, it will be briefly brought down and
+then brought back up again in order to ensure that the receive
+filter in the underlying ethernet hardware is properly reprogrammed.
+.It Ar address_family
+Specify the
+address family
+which affects interpretation of the remaining parameters.
+Since an interface can receive transmissions in differing protocols
+with different naming schemes, specifying the address family is recommended.
+The address or protocol families currently
+supported are
+.Dq inet ,
+.Dq inet6 ,
+.Dq atalk ,
+.Dq ipx ,
+.\" .Dq iso ,
+and
+.Dq link .
+.\" and
+.\" .Dq ns .
+The default is
+.Dq inet .
+.Dq ether
+and
+.Dq lladdr
+are synonyms for
+.Dq link .
+.It Ar dest_address
+Specify the address of the correspondent on the other end
+of a point to point link.
+.It Ar interface
+This
+parameter is a string of the form
+.Dq name unit ,
+for example,
+.Dq Li ed0 .
+.El
+.Pp
+The following parameters may be set with
+.Nm :
+.Bl -tag -width indent
+.It Cm add
+Another name for the
+.Cm alias
+parameter.
+Introduced for compatibility
+with
+.Bsx .
+.It Cm alias
+Establish an additional network address for this interface.
+This is sometimes useful when changing network numbers, and
+one wishes to accept packets addressed to the old interface.
+If the address is on the same subnet as the first network address
+for this interface, a non-conflicting netmask must be given.
+Usually
+.Li 0xffffffff
+is most appropriate.
+.It Fl alias
+Remove the network address specified.
+This would be used if you incorrectly specified an alias, or it
+was no longer needed.
+If you have incorrectly set an NS address having the side effect
+of specifying the host portion, removing all NS addresses will
+allow you to respecify the host portion.
+.It Cm anycast
+(Inet6 only.)
+Specify that the address configured is an anycast address.
+Based on the current specification,
+only routers may configure anycast addresses.
+Anycast address will not be used as source address of any of outgoing
+IPv6 packets.
+.It Cm arp
+Enable the use of the Address Resolution Protocol
+.Pq Xr arp 4
+in mapping
+between network level addresses and link level addresses (default).
+This is currently implemented for mapping between
+.Tn DARPA
+Internet
+addresses and
+.Tn IEEE
+802 48-bit MAC addresses (Ethernet, FDDI, and Token Ring addresses).
+.It Fl arp
+Disable the use of the Address Resolution Protocol
+.Pq Xr arp 4 .
+.It Cm broadcast
+(Inet only.)
+Specify the address to use to represent broadcasts to the
+network.
+The default broadcast address is the address with a host part of all 1's.
+.It Cm debug
+Enable driver dependent debugging code; usually, this turns on
+extra console error logging.
+.It Fl debug
+Disable driver dependent debugging code.
+.It Cm promisc
+Put interface into permanently promiscuous mode.
+.It Fl promisc
+Disable permanently promiscuous mode.
+.It Cm delete
+Another name for the
+.Fl alias
+parameter.
+.It Cm down
+Mark an interface
+.Dq down .
+When an interface is marked
+.Dq down ,
+the system will not attempt to
+transmit messages through that interface.
+If possible, the interface will be reset to disable reception as well.
+This action does not automatically disable routes using the interface.
+.It Cm eui64
+(Inet6 only.)
+Fill interface index
+.Pq lowermost 64bit of an IPv6 address
+automatically.
+.\" .It Cm ipdst
+.\" This is used to specify an Internet host who is willing to receive
+.\" ip packets encapsulating NS packets bound for a remote network.
+.\" An apparent point to point link is constructed, and
+.\" the address specified will be taken as the NS address and network
+.\" of the destination.
+.\" IP encapsulation of
+.\" .Tn CLNP
+.\" packets is done differently.
+.It Cm media Ar type
+If the driver supports the media selection system, set the media type
+of the interface to
+.Ar type .
+Some interfaces support the mutually exclusive use of one of several
+different physical media connectors.
+For example, a 10Mb/s Ethernet
+interface might support the use of either
+.Tn AUI
+or twisted pair connectors.
+Setting the media type to
+.Dq 10base5/AUI
+would change the currently active connector to the AUI port.
+Setting it to
+.Dq 10baseT/UTP
+would activate twisted pair.
+Refer to the interfaces' driver
+specific documentation or man page for a complete list of the
+available types.
+.It Cm mediaopt Ar opts
+If the driver supports the media selection system, set the specified
+media options on the interface.
+The
+.Ar opts
+argument
+is a comma delimited list of options to apply to the interface.
+Refer to the interfaces' driver specific man page for a complete
+list of available options.
+.It Fl mediaopt Ar opts
+If the driver supports the media selection system, disable the
+specified media options on the interface.
+.It Cm tunnel Ar src_addr dest_addr
+(IP tunnel devices only.)
+Configure the physical source and destination address for IP tunnel
+interfaces
+.Pq Xr gif 4 .
+The arguments
+.Ar src_addr
+and
+.Ar dest_addr
+are interpreted as the outer source/destination for the encapsulating
+IPv4/IPv6 header.
+.It Cm deletetunnel
+Unconfigure the physical source and destination address for IP tunnel
+interfaces previously configured with
+.Cm tunnel .
+.It Cm create
+Create the specified network pseudo-device.
+If the interface is given without a unit number, try to create a new
+device with an arbitrary unit number.
+If creation of an arbitrary device is successful, the new device name is
+printed to standard output.
+.It Cm destroy
+Destroy the specified network pseudo-device.
+.It Cm plumb
+Another name for the
+.Cm create
+parameter.
+Included for
+.Tn Solaris
+compatibility.
+.It Cm unplumb
+Another name for the
+.Cm destroy
+parameter.
+Included for
+.Tn Solaris
+compatibility.
+.It Cm vlan Ar vlan_tag
+If the interface is a vlan pseudo interface, set the vlan tag value
+to
+.Ar vlan_tag .
+This value is a 16-bit number which is used to create an 802.1Q
+vlan header for packets sent from the vlan interface.
+Note that
+.Cm vlan
+and
+.Cm vlandev
+must both be set at the same time.
+.It Cm vlandev Ar iface
+If the interface is a vlan pseudo device, associate physical interface
+.Ar iface
+with it.
+Packets transmitted through the vlan interface will be
+diverted to the specified physical interface
+.Ar iface
+with 802.1Q vlan encapsulation.
+Packets with 802.1Q encapsulation received
+by the parent interface with the correct vlan tag will be diverted to
+the associated vlan pseudo-interface.
+The vlan interface is assigned a
+copy of the parent interface's flags and the parent's ethernet address.
+The
+.Cm vlandev
+and
+.Cm vlan
+must both be set at the same time.
+If the vlan interface already has
+a physical interface associated with it, this command will fail.
+To
+change the association to another physical interface, the existing
+association must be cleared first.
+.Pp
+Note: if the
+.Cm link0
+flag is set on the vlan interface, the vlan pseudo
+interface's behavior changes: the
+.Cm link0
+tells the vlan interface that the
+parent interface supports insertion and extraction of vlan tags on its
+own (usually in firmware) and that it should pass packets to and from
+the parent unaltered.
+.It Fl vlandev Ar iface
+If the driver is a vlan pseudo device, disassociate the physical interface
+.Ar iface
+from it.
+This breaks the link between the vlan interface and its parent,
+clears its vlan tag, flags and its link address and shuts the interface down.
+.It Cm metric Ar n
+Set the routing metric of the interface to
+.Ar n ,
+default 0.
+The routing metric is used by the routing protocol
+.Pq Xr routed 8 .
+Higher metrics have the effect of making a route
+less favorable; metrics are counted as addition hops
+to the destination network or host.
+.It Cm mtu Ar n
+Set the maximum transmission unit of the interface to
+.Ar n ,
+default is interface specific.
+The MTU is used to limit the size of packets that are transmitted on an
+interface.
+Not all interfaces support setting the MTU, and some interfaces have
+range restrictions.
+.It Cm netmask Ar mask
+.\" (Inet and ISO.)
+(Inet only.)
+Specify how much of the address to reserve for subdividing
+networks into sub-networks.
+The mask includes the network part of the local address
+and the subnet part, which is taken from the host field of the address.
+The mask can be specified as a single hexadecimal number
+with a leading
+.Ql 0x ,
+with a dot-notation Internet address,
+or with a pseudo-network name listed in the network table
+.Xr networks 5 .
+The mask contains 1's for the bit positions in the 32-bit address
+which are to be used for the network and subnet parts,
+and 0's for the host part.
+The mask should contain at least the standard network portion,
+and the subnet field should be contiguous with the network
+portion.
+.Pp
+The netmask can also be specified in CIDR notation after the address.
+See the
+.Ar address
+option above for more information.
+.It Cm prefixlen Ar len
+(Inet6 only.)
+Specify that
+.Ar len
+bits are reserved for subdividing networks into sub-networks.
+The
+.Ar len
+must be integer, and for syntactical reason it must be between 0 to 128.
+It is almost always 64 under the current IPv6 assignment rule.
+If the parameter is omitted, 64 is used.
+.Pp
+The prefix can also be specified using the slash notation after the address.
+See the
+.Ar address
+option above for more information.
+.\" see
+.\" Xr eon 5 .
+.\" .It Cm nsellength Ar n
+.\" .Pf ( Tn ISO
+.\" only)
+.\" This specifies a trailing number of bytes for a received
+.\" .Tn NSAP
+.\" used for local identification, the remaining leading part of which is
+.\" taken to be the
+.\" .Tn NET
+.\" (Network Entity Title).
+.\" The default value is 1, which is conformant to US
+.\" .Tn GOSIP .
+.\" When an ISO address is set in an ifconfig command,
+.\" it is really the
+.\" .Tn NSAP
+.\" which is being specified.
+.\" For example, in
+.\" .Tn US GOSIP ,
+.\" 20 hex digits should be
+.\" specified in the
+.\" .Tn ISO NSAP
+.\" to be assigned to the interface.
+.\" There is some evidence that a number different from 1 may be useful
+.\" for
+.\" .Tn AFI
+.\" 37 type addresses.
+.It Cm range Ar netrange
+Under appletalk, set the interface to respond to a
+.Ar netrange
+of the form
+.Ar startnet Ns - Ns Ar endnet .
+Appletalk uses this scheme instead of
+netmasks though
+.Fx
+implements it internally as a set of netmasks.
+.It Cm remove
+Another name for the
+.Fl alias
+parameter.
+Introduced for compatibility
+with
+.Bsx .
+.It Cm phase
+The argument following this specifies the version (phase) of the
+Appletalk network attached to the interface.
+Values of 1 or 2 are permitted.
+.Sm off
+.It Cm link Op Cm 0 No - Cm 2
+.Sm on
+Enable special processing of the link level of the interface.
+These three options are interface specific in actual effect, however,
+they are in general used to select special modes of operation.
+An example
+of this is to enable SLIP compression, or to select the connector type
+for some Ethernet cards.
+Refer to the man page for the specific driver
+for more information.
+.Sm off
+.It Fl link Op Cm 0 No - Cm 2
+.Sm on
+Disable special processing at the link level with the specified interface.
+.It Cm up
+Mark an interface
+.Dq up .
+This may be used to enable an interface after an
+.Dq Nm Cm down .
+It happens automatically when setting the first address on an interface.
+If the interface was reset when previously marked down,
+the hardware will be re-initialized.
+.It Cm ssid Ar ssid
+For IEEE 802.11 wireless interfaces, set the desired Service Set
+Identifier (aka network name).
+The SSID is a string up to 32 characters
+in length and may be specified as either a normal string or in
+hexadecimal when proceeded by
+.Ql 0x .
+Additionally, the SSID may be cleared by setting it to
+.Ql - .
+.It Cm nwid Ar ssid
+Another name for the
+.Cm ssid
+parameter.
+Included for
+.Nx
+compatibility.
+.It Cm stationname Ar name
+For IEEE 802.11 wireless interfaces, set the name of this station.
+It appears that the station name is not really part of the IEEE 802.11
+protocol though all interfaces seem to support it.
+As such it only
+seems to be meaningful to identical or virtually identical equipment.
+Setting the station name is identical in syntax to setting the SSID.
+.It Cm station Ar name
+Another name for the
+.Cm stationname
+parameter.
+Included for
+.Bsx
+compatibility.
+.It Cm channel Ar number
+For IEEE 802.11 wireless interfaces, set the desired channel.
+Channels range from 1 to 14, but the exact selection available
+depends on the region your adaptor was manufactured for.
+Setting
+the channel to 0 will give you the default for your adaptor.
+Many
+adaptors ignore this setting unless you are in ad-hoc mode.
+.It Cm authmode Ar mode
+For IEEE 802.11 wireless interfaces, set the desired authentication mode
+in infrastructure mode.
+Not all adaptors support all modes.
+The set of
+valid modes is
+.Dq none ,
+.Dq open ,
+and
+.Dq shared .
+Modes are case insensitive.
+.It Cm powersave
+For IEEE 802.11 wireless interfaces, enable powersave mode.
+.It Fl powersave
+For IEEE 802.11 wireless interfaces, disable powersave mode.
+.It Cm powersavesleep Ar sleep
+For IEEE 802.11 wireless interfaces, set the desired max powersave sleep
+time in milliseconds.
+.It Cm wepmode Ar mode
+For IEEE 802.11 wireless interfaces, set the desired WEP mode.
+Not all adaptors support all modes.
+The set of valid modes is
+.Dq off ,
+.Dq on ,
+and
+.Dq mixed .
+.Dq Mixed
+mode explicitly tells the adaptor to allow association with access
+points which allow both encrypted and unencrypted traffic.
+On these adaptors,
+.Dq on
+means that the access point must only allow encrypted connections.
+On other adaptors,
+.Dq on
+is generally another name for
+.Dq mixed .
+Modes are case insensitive.
+.It Cm weptxkey Ar index
+For IEEE 802.11 wireless interfaces, set the WEP key to be used for
+transmission.
+.It Cm wepkey Ar key Ns | Ns Ar index : Ns Ar key
+For IEEE 802.11 wireless interfaces, set the selected WEP key.
+If an
+.Ar index
+is not given, key 1 is set.
+A WEP key will be either 5 or 13
+characters (40 or 104 bits) depending of the local network and the
+capabilities of the adaptor.
+It may be specified either as a plain
+string or as a string of hexadecimal digits proceeded by
+.Ql 0x .
+A key may be cleared by setting it to
+.Ql - .
+If WEP is supported then there are at least four keys.
+Some adaptors support more than four keys.
+If that is the case, then the first four keys
+(1-4) will be the standard temporary keys and any others will be adaptor
+specific keys such as permanent keys stored in NVRAM.
+.It Cm wep
+Another way of saying
+.Cm wepmode on .
+Included for
+.Bsx
+compatibility.
+.It Fl wep
+Another way of saying
+.Cm wepmode off .
+Included for
+.Bsx
+compatibility.
+.It Cm nwkey key
+Another way of saying:
+.Pp
+.Dq Li "wepmode on weptxkey 1 wepkey 1:key wepkey 2:- wepkey 3:- wepkey 4:-" .
+.Pp
+Included for
+.Nx
+compatibility.
+.It Cm nwkey Xo
+.Sm off
+.Ar n : k1 , k2 , k3 , k4
+.Sm on
+.Xc
+Another way of saying
+.Pp
+.Dq Li "wepmode on weptxkey n wepkey 1:k1 wepkey 2:k2 wepkey 3:k3 wepkey 4:k4" .
+.Pp
+Included for
+.Nx
+compatibility.
+.It Fl nwkey
+Another way of saying
+.Cm wepmode off .
+.Pp
+Included for
+.Nx
+compatibility.
+.El
+.Pp
+.Nm Ifconfig
+displays the current configuration for a network interface
+when no optional parameters are supplied.
+If a protocol family is specified,
+.Nm
+will report only the details specific to that protocol family.
+.Pp
+If the driver does supports the media selection system, the supported
+media list will be included in the output.
+.Pp
+If the
+.Fl m
+flag is passed before an interface name,
+.Nm
+will display all
+of the supported media for the specified interface.
+If
+.Fl L
+flag is supplied, address lifetime is displayed for IPv6 addresses,
+as time offset string.
+.Pp
+Optionally, the
+.Fl a
+flag may be used instead of an interface name.
+This flag instructs
+.Nm
+to display information about all interfaces in the system.
+The
+.Fl d
+flag limits this to interfaces that are down, and
+.Fl u
+limits this to interfaces that are up.
+When no arguments are given,
+.Fl a
+is implied.
+.Pp
+The
+.Fl l
+flag may be used to list all available interfaces on the system, with
+no other additional information.
+Use of this flag is mutually exclusive
+with all other flags and commands, except for
+.Fl d
+(only list interfaces that are down)
+and
+.Fl u
+(only list interfaces that are up).
+.Pp
+The
+.Fl C
+flag may be used to list all of the interface cloners available on
+the system, with no additional information.
+Use of this flag is mutually exclusive with all other flags and commands.
+.Pp
+Only the super-user may modify the configuration of a network interface.
+.Sh NOTES
+The media selection system is relatively new and only some drivers support
+it (or have need for it).
+.Sh DIAGNOSTICS
+Messages indicating the specified interface does not exist, the
+requested address is unknown, or the user is not privileged and
+tried to alter an interface's configuration.
+.Sh BUGS
+IPv6 link-local addresses are required for several basic communication
+between IPv6 node.
+If they are deleted by
+.Nm
+manually, the kernel might show very strange behavior.
+So, such manual deletions are strongly discouraged.
+.Sh SEE ALSO
+.Xr netstat 1 ,
+.Xr netintro 4 ,
+.\" .Xr eon 5 ,
+.Xr rc 8 ,
+.Xr routed 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.2 .

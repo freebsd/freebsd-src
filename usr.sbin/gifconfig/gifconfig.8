@@ -1,0 +1,160 @@
+.\"	$FreeBSD$
+.\"	$KAME: gifconfig.8,v 1.6 2000/11/22 11:10:09 itojun Exp $
+.\"
+.\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd May 17, 1998
+.Dt GIFCONFIG 8
+.Os
+.Sh NAME
+.Nm gifconfig
+.Nd configure generic IP tunnel
+.\"
+.Sh SYNOPSIS
+.Nm
+.Ar interface
+.Op Ar af
+.Op Ar physsrc physdest
+.Nm
+.Ar interface
+.Ic delete
+.Nm
+.Fl a
+.Sh DESCRIPTION
+.Nm
+configures the physical address for the generic IP tunnel
+inteface, such as "gif0".
+Argument
+.Ar physsrc
+and
+.Ar physdest
+are interpreted as the outer source/destination address for
+encapsulating IPv4/v6 header.
+Argument
+.Ar af
+specifies the address family for
+.Ar physsrc
+and
+.Ar physdest .
+.Ar af
+can be
+.Li inet
+or
+.Li inet6 ,
+and will be treated as
+.Li inet
+if ommitted.
+.Pp
+If a special argument
+.Ic delete
+is specified,
+.Nm
+just deletes the existing source and destination addresses on
+.Ar interface .
+If no outer addresses are specified, this usage has no effect.
+.Pp
+.Nm
+takes the following optional argument:
+.Bl -tag -width Ds
+.It Fl a
+Display information associated with all
+.Xr gif 4
+interfaces.
+.El
+.Pp
+Please note that it is very easy to create infinite routing loop,
+when you configure tunnel over same address family
+(e.g. IPv4-over-IPv4).
+.Pp
+Each
+.Xr gif 4
+interface is created at runtime using interface cloning.
+This is
+most easily done with the
+.Xr ifconfig 8
+.Cm create
+command or using the
+.Va gifconfig_ Ns Aq Ar interface
+variable in
+.Xr rc.conf 5 .
+.Sh EXAMPLES
+If you would like to configure IPv6 over IPv4
+(aka IPv6 in IPv4)
+tunnel between
+.Li 10.1.1.1
+and
+.Li 10.2.3.4 ,
+you should perform the following command:
+.Bd -literal -offset
+# gifconfig gif0 inet 10.1.1.1 10.2.3.4
+.Ed
+.Pp
+.\" To use the
+.\" .Li 0.0.0.0
+.\" feature to establish a tunnel from host1 to host3
+.\" which will encapsulate and carry packets from host2, on host1 do:
+.\" .Bd -literal -offset
+.\" # ifconfig gif0 inet host1  127.0.0.2  # assign an address to gif0
+.\" # gifconfig gif0 inet host1 0.0.0.0    # assign encapsulation addresses
+.\" # route add host2 host3 -ifp gif0:     # encap host2 packets, send to host3
+.\" .Ed
+.\" .Pp
+.\" Note: the
+.\" .Fl ifp
+.\" option to route does not work as documented in
+.\" most versions of FreeBSD.
+.\" .Pp
+.\" On host3 do:
+.\" .Bd -literal -offset
+.\" # ifconfig gif0 inet host3  127.0.0.2  # assign an address to gif0
+.\" # gifconfig gif0 inet host3 0.0.0.0    # assign encapsulation addresses
+.\" .Ed
+.\" .Pp
+.\" Now if you ping host2 from host1, the packets should be encapsulated
+.\" with outer source address = host1 and outer destination address = host3,
+.\" and delivered to host3.
+.\" host3 will decapsulate the packet and deliver it normally to host2.
+.\" .Pp
+This is also possible to use IPv6 as outer proto, by replacing
+.Li inet
+to
+.Li inet6 ,
+and IPv4 addresses to some appropriate IPv6 addresses in above example.
+.Sh RETURN VALUES
+The command exits with exit status of 1 on errors, 0 on success.
+.Sh SEE ALSO
+.Xr gif 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+command first appeared in WIDE Hydrangea IPv6 protocol stack kit.
+.Pp
+IPv6 and IPsec support based on the KAME Project (http://www.kame.net/) stack
+was initially integrated into
+.Fx 4.0

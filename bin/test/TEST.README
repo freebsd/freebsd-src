@@ -1,0 +1,24 @@
+# $FreeBSD$
+
+OS/shell			syntax error	failed
+--------------------------------------------------------------------
+bash 1.14.5 			3		0
+pdksh 5.2.5			7		0
+zsh 2.6-beta17			6		4
+FreeBSD 2.1 /bin/test		8		0
+IRIX 5.3 ksh			3		0
+IRIX 5.3 sh			3		0
+IRIX 5.3 /usr/bin/test		11		3
+SunOS 5.4 ksh			3		0
+SunOS 5.4 sh			3		0
+SunOS 5.4 /usr/ucb/test		3		0
+SunOS 5.5 ksh			0		0
+SunOS 5.5 sh			3		0
+SunOS 5.5 /usr/ucb/test		3		0
+SunOP 4.1.3_U1 sh		3		0
+SunOP 4.1.3_U1 /usr/bin/test	3		0
+ULTRIX 4.2 /bin/test		9		0
+ULTRIX 4.2 ksh			1		0
+ULTRIX 4.2 sh5			4		0
+
+96/06/16

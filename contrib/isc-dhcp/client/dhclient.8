@@ -1,0 +1,327 @@
+.\"	dhclient.8
+.\"
+.\" Copyright (c) 1996-1999 Internet Software Consortium.
+.\" Use is subject to license terms which appear in the file named
+.\" ISC-LICENSE that should have accompanied this file when you
+.\" received it.   If a file named ISC-LICENSE did not accompany this
+.\" file, or you are not sure the one you have is correct, you may
+.\" obtain an applicable copy of the license at:
+.\"
+.\"             http://www.isc.org/isc-license-1.0.html. 
+.\"
+.\" This file is part of the ISC DHCP distribution.   The documentation
+.\" associated with this file is listed in the file DOCUMENTATION,
+.\" included in the top-level directory of this release.
+.\"
+.\" Support and other services are available for ISC products - see
+.\" http://www.isc.org for more information.
+.\"
+.\" Portions copyright (c) 2000 David E. O'Brien.
+.\" All rights reserved.
+.\" $FreeBSD$
+.\"
+.TH dhclient 8
+.SH NAME
+dhclient - Dynamic Host Configuration Protocol Client
+.SH SYNOPSIS
+.B dhclient
+[
+.B -p
+.I port
+]
+[
+.B -D
+]
+[
+.B -d
+]
+[
+.B -q
+]
+[
+.B -1
+]
+[
+.B -r
+]
+[
+.B -lf
+.I lease-file
+]
+[
+.B -pf
+.I pid-file
+]
+[
+.B -cf
+.I config-file
+]
+[
+.B -sf
+.I script-file
+]
+[
+.B -s
+server
+]
+[
+.B -g
+relay
+]
+[
+.B -n
+]
+[
+.B -nw
+]
+[
+.B -w
+]
+[
+.I if0
+[
+.I ...ifN
+]
+]
+.SH DESCRIPTION
+The Internet Software Consortium DHCP Client, dhclient, provides a
+means for configuring one or more network interfaces using the Dynamic
+Host Configuration Protocol, BOOTP protocol, or if these protocols
+fail, by statically assigning an address.
+.SH OPERATION
+.PP
+The DHCP protocol allows a host to contact a central server which
+maintains a list of IP addresses which may be assigned on one or more
+subnets.   A DHCP client may request an address from this pool, and
+then use it on a temporary basis for communication on network.   The
+DHCP protocol also provides a mechanism whereby a client can learn
+important details about the network to which it is attached, such as
+the location of a default router, the location of a name server, and
+so on.
+.PP
+On startup, dhclient reads the
+.IR dhclient.conf
+for configuration instructions.   It then gets a list of all the
+network interfaces that are configured in the current system.   For
+each interface, it attempts to configure the interface using the DHCP
+protocol.
+.PP
+In order to keep track of leases across system reboots and server
+restarts, dhclient keeps a list of leases it has been assigned in the
+dhclient.leases(5) file.   On startup, after reading the dhclient.conf
+file, dhclient reads the dhclient.leases file to refresh its memory
+about what leases it has been assigned.
+.PP
+When a new lease is acquired, it is appended to the end of the
+dhclient.leases file.   In order to prevent the file from becoming
+arbitrarily large, from time to time dhclient creates a new
+dhclient.leases file from its in-core lease database.  The old version
+of the dhclient.leases file is retained under the name
+.IR dhclient.leases~
+until the next time dhclient rewrites the database.
+.PP
+Old leases are kept around in case the DHCP server is unavailable when
+dhclient is first invoked (generally during the initial system boot
+process).   In that event, old leases from the dhclient.leases file
+which have not yet expired are tested, and if they are determined to
+be valid, they are used until either they expire or the DHCP server
+becomes available.
+.PP
+A mobile host which may sometimes need to access a network on which no
+DHCP server exists may be preloaded with a lease for a fixed
+address on that network.   When all attempts to contact a DHCP server
+have failed, dhclient will try to validate the static lease, and if it
+succeeds, will use that lease until it is restarted.
+.PP
+A mobile host may also travel to some networks on which DHCP is not
+available but BOOTP is.   In that case, it may be advantageous to
+arrange with the network administrator for an entry on the BOOTP
+database, so that the host can boot quickly on that network rather
+than cycling through the list of old leases.
+.SH COMMAND LINE
+.PP
+The names of the network interfaces that dhclient should attempt to
+configure may be specified on the command line.  If no interface names
+are specified on the command line dhclient will normally identify all
+network interfaces, elimininating non-broadcast interfaces if
+possible, and attempt to configure each interface.
+.PP
+It is also possible to specify interfaces by name in the
+.B dhclient.conf(5)
+file.   If interfaces are specified in this way, then the client will
+only configure interfaces that are either specified in the
+configuration file or on the command line, and will ignore all other
+interfaces.
+.PP
+The
+.B -D
+flag causes
+.B dhclient
+to save the script it creates for use in conjunction with
+.B dhclient-script
+in 
+.IR /tmp.
+.PP
+If the DHCP client should listen and transmit on a port other than the
+standard (port 68), the
+.B -p
+flag may used.  It should be followed by the udp port number that
+dhclient should use.  This is mostly useful for debugging purposes.
+If a different port is specified for the client to listen on and
+transmit on, the client will also use a different destination port -
+one greater than the specified destination port.
+.PP
+The DHCP client normally transmits any protocol messages it sends
+before acquiring an IP address to, 255.255.255.255, the IP limited
+broadcast address.   For debugging purposes, it may be useful to have
+the server transmit these messages to some other address.   This can
+be specified with the 
+.B -s
+flag, followed by the IP address or domain name of the destination.
+.PP
+For testing purposes, the giaddr field of all packets that the client
+sends can be set using the
+.B -g
+flag, followed by the IP address to send.   This is only useful for testing,
+and should not be expected to work in any consistent or useful way.
+.PP
+The DHCP client will normally run in the foreground until it has
+configured an interface, and then will revert to running in the
+background.   To run force dhclient to always run as a foreground
+process, the
+.B -d
+flag should be specified.  This is useful when running the client
+under a debugger, or when running it out of inittab on System V
+systems.
+.PP
+The client normally prints a startup message and displays the
+protocol sequence to the standard error descriptor until it has
+acquired an address, and then only logs messages using the
+.B syslog (3)
+facility.   The
+.B -q
+flag prevents any messages other than errors from being printed to the
+standard error descriptor.
+.PP
+The client normally doesn't release the current lease as it is not
+required by the DHCP protocol.  Some cable ISPs require their clients
+to notify the server if they wish to release an assigned IP address.
+The
+.B -r
+flag explicitly releases the current lease, and once the lease has been
+released, the client exits.
+.PP
+The
+.B -1
+flag cause dhclient to try once to get a lease.  If it fails, dhclient exits
+with exit code two.
+.PP
+The DHCP client normally gets its configuration information from
+.B ETCDIR/dhclient.conf,
+its lease database from
+.B DBDIR/dhclient.leases,
+stores its process ID in a file called
+.B RUNDIR/dhclient.pid,
+and configures the network interface using
+.B CLIENTBINDIR/dhclient-script
+To specify different names and/or locations for these files, use the
+.B -cf,
+.B -lf,
+.B -pf
+and
+.B -sf
+flags, respectively, followed by the name of the file.   This can be
+particularly useful if, for example,
+.B DBDIR
+or
+.B RUNDIR
+has not yet been mounted when the DHCP client is started.
+.PP
+The DHCP client normally exits if it isn't able to identify any
+network interfaces to configure.   On laptop computers and other
+computers with hot-swappable I/O buses, it is possible that a
+broadcast interface may be added after system startup.   The
+.B -w
+flag can be used to cause the client not to exit when it doesn't find
+any such interfaces.   The
+.B omshell (8)
+program can then be used to notify the client when a network interface
+has been added or removed, so that the client can attempt to configure an IP
+address on that interface.
+.PP
+The DHCP client can be directed not to attempt to configure any interfaces
+using the
+.B -n
+flag.   This is most likely to be useful in combination with the
+.B -w
+flag.
+.PP
+The client can also be instructed to become a daemon immediately, rather
+than waiting until it has acquired an IP address.   This can be done by
+supplying the
+.B -nw
+flag.
+.SH CONFIGURATION
+The syntax of the dhclient.conf(5) file is discussed separately.
+.SH OMAPI
+The DHCP client provides some ability to control it while it is
+running, without stopping it.  This capability is provided using OMAPI,
+an API for manipulating remote objects.  OMAPI clients connect to the
+client using TCP/IP, authenticate, and can then examine the client's
+current status and make changes to it. 
+.PP
+Rather than implementing the underlying OMAPI protocol directly, user
+programs should use the dhcpctl API or OMAPI itself.   Dhcpctl is a
+wrapper that handles some of the housekeeping chores that OMAPI does
+not do automatically.   Dhcpctl and OMAPI are documented in \fBdhcpctl(3)\fR
+and \fBomapi(3)\fR.   Most things you'd want to do with the client can
+be done directly using the \fBomshell(1)\fR command, rather than
+having to write a special program.
+.SH THE CONTROL OBJECT
+The control object allows you to shut the client down, releasing all
+leases that it holds and deleting any DNS records it may have added.
+It also allows you to pause the client - this unconfigures any
+interfaces the client is using.   You can then restart it, which
+causes it to reconfigure those interfaces.   You would normally pause
+the client prior to going into hibernation or sleep on a laptop
+computer.   You would then resume it after the power comes back.
+This allows PC cards to be shut down while the computer is hibernating
+or sleeping, and then reinitialized to their previous state once the
+computer comes out of hibernation or sleep.
+.PP
+The control object has one attribute - the state attribute.   To shut
+the client down, set its state attribute to 2.   It will automatically
+do a DHCPRELEASE.   To pause it, set its state attribute to 3.   To
+resume it, set its state attribute to 4.
+.PP
+.SH FILES
+.B CLIENTBINDIR/dhclient-script,
+.B ETCDIR/dhclient.conf, DBDIR/dhclient.leases, RUNDIR/dhclient.pid,
+.B DBDIR/dhclient.leases~.
+.SH SEE ALSO
+dhclient.conf(5), dhclient.leases(5), dhclient-script(8).
+.SH AUTHOR
+.B dhclient(8)
+has been written for the Internet Software Consortium
+by Ted Lemon in cooperation with Vixie
+Enterprises.  To learn more about the Internet Software Consortium,
+see
+.B http://www.isc.org
+To learn more about Vixie
+Enterprises, see
+.B http://www.vix.com.
+.PP
+This client was substantially modified and enhanced by Elliot Poger
+for use on Linux while he was working on the MosquitoNet project at
+Stanford.
+.PP
+The current version owes much to Elliot's Linux enhancements, but
+was substantially reorganized and partially rewritten by Ted Lemon
+so as to use the same networking framework that the Internet Software
+Consortium DHCP server uses.   Much system-specific configuration code
+was moved into a shell script so that as support for more operating
+systems is added, it will not be necessary to port and maintain
+system-specific configuration code to these operating systems - instead,
+the shell script can invoke the native tools to accomplish the same
+purpose.
+.PP

@@ -1,0 +1,861 @@
+.\" Copyright (c) 2000
+.\"	Mike W. Meyer
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 3, 2000
+.Dt MAKE.CONF 5
+.Os
+.Sh NAME
+.Nm make.conf
+.Nd system build information
+.Sh DESCRIPTION
+The file
+.Nm
+contains settings that control the compilation of the
+.Fx
+sources
+and ported applications.
+The file
+.Nm
+is generally created by the system administrator when the values need
+to be changed from their defaults.
+.Pp
+The purpose of
+.Nm
+is not to run commands or perform compilation actions
+directly.
+Instead, it is included by the
+various makefiles in
+.Pa /usr/src ,
+.Pa /usr/ports
+and
+.Pa /usr/doc
+which conditionalize their
+internal actions according to the settings found there.
+.Pp
+The
+.Pa /etc/make.conf
+file is included from the appropriate
+.Pa Makefile
+which specifies the default settings for all the available options.
+Options need only be specified in
+.Pa /etc/make.conf
+when the system administrator wishes to override these defaults.
+.Pp
+The build procedures occur in four broad areas: the world, the kernel,
+documentations and ports.
+Variables set in
+.Nm
+may be applicable during builds in one, two, or all four of these
+areas.
+They may be specified for a particular build via the
+.Fl D
+option of
+.Xr make 1 .
+.Pp
+The following lists provide a name and short description for each
+variable you can use during the indicated builds.
+The values of
+variables flagged as
+.Vt bool
+are ignored; the variable being
+set at all (even to
+.Dq Li FALSE
+or
+.Dq Li NO )
+causes it to
+be treated as if it were set.
+.Pp
+The following list provides a name and short description for variables
+that are used for all builds, or are used by the
+.Pa makefiles
+for things other than builds.
+.Bl -tag -width Ar
+.It Va CFLAGS
+.Pq Vt str
+Controls the compiler setting when compiling C code.
+Optimization levels above
+.Fl O
+.Pq Fl O2 , No ...
+are not supported.
+.Va BDECFLAGS
+is provided as a set of
+.Xr gcc 1
+settings suggested by
+.An "Bruce Evans" Aq bde@FreeBSD.org
+for developing and testing changes.
+They can be used, if set, by:
+.Pp
+.Bd -literal -offset indent
+CFLAGS+=${BDECFLAGS}
+.Ed
+.It Va CVS_UPDATE
+.Pq Vt bool
+Set this to use
+.Xr cvs 1
+to update your ports with
+.Dq Li "make update" .
+.It Va CXXFLAGS
+.Pq Vt str
+Controls the compiler settings when compiling C++ code.
+.Va CXXFLAGS
+is initially set to the value of
+.Va CFLAGS .
+If you want to
+add to the
+.Va CXXFLAGS
+value, use
+.Dq Li +=
+instead of
+.Dq Li = .
+.It Va INSTALL
+.Pq Vt str
+the default install command.
+To have commands compared before doing
+the install, use
+.Bd -literal -offset indent
+INSTALL="install -C"
+.Ed
+.It Va LOCAL_DIRS
+.Pq Vt str
+List any directories that should be entered when doing
+make's in
+.Pa /usr/src
+in this variable.
+.It Va MTREE_FOLLOWS_SYMLINKS
+.Pq Vt str
+Set this to
+.Dq Fl L
+to cause
+.Xr mtree 8
+to follow symlinks.
+.It Va NO_DOCUPDATE
+.Pq Vt bool
+Set this to not update the doc tree during
+.Dq Li "make update" .
+.It Va NO_PORTSUPDATE
+.Pq Vt bool
+Set this to not update the ports tree during
+.Dq Li "make update" .
+.It Va SUP_UPDATE
+.Pq Vt bool
+Set this to use
+.Xr cvsup 1
+to update your ports with
+.Dq Li "make update" .
+.It Va SUP
+.Pq Vt str
+The location of the
+.Xr cvsup 1
+command for
+.Dq Li "make update" .
+.It Va SUPFLAGS
+.Pq Vt str
+The flag for the
+.Xr sup 1
+command when doing
+.Dq Li "make update" .
+This defaults to
+.Op Fl g L Ar 2 .
+.It Va SUPHOST
+.Pq Vt str
+The hostname of the sup server to use when doing
+.Dq Li "make update" .
+.It Va SUPFILE
+.Pq Vt str
+The first
+.Ar supfile
+to use when doing a
+.Dq Li "make update" .
+This defaults to
+.Pa /usr/share/examples/cvsup/standard\-supfile .
+.It Va SUPFILE1
+.Pq Vt str
+The second
+.Ar supfile
+to use when doing a
+.Dq Li "make update" .
+This defaults to
+.Pa /usr/share/examples/cvsup/secure\-supfile .
+.It Va SUPFILE2
+.Pq Vt str
+The third
+.Ar supfile
+to use when doing a
+.Dq Li "make update" .
+This defaults to
+.Pa /usr/share/examples/cvsup/secure\-supfile .
+.It Va PORTSSUPFILE
+.Pq Vt str
+The ports
+.Ar supfile
+to use when doing a
+.Dq Li "make update" .
+This defaults to
+.Pa /usr/share/examples/cvsup/ports\-supfile .
+.It Va DOCSUPFILE
+.Pq Vt str
+The documentation
+.Ar supfile
+to use when doing a
+.Dq Li "make update" .
+This defaults to
+.Pa /usr/share/examples/cvsup/doc\-supfile .
+.It Va WARNS_WERROR
+Causes -Werror to be added to
+.Va CFLAGS
+when WARNS is in effect.
+.El
+.Pp
+The following list provides a name and short description for variables
+that are only used doing a kernel build:
+.Bl -tag -width Ar
+.It Va BOOT_COMCONSOLE_PORT
+.Pq Vt str
+The port address to use for the console if the boot blocks have
+been configured to use a serial console instead of the keyboard/video card.
+.It Va BOOT_COMCONSOLE_SPEED
+.Pq Vt int
+The baud rate to use for the console if the boot blocks have
+been configured to use a serial console instead of the keyboard/video card.
+.It Va BOOTWAIT
+.Pq Vt int
+Controls the amount of time the kernel waits for a console keypress
+before booting the default kernel.
+The value is approximately milliseconds.
+Keypresses are accepted by the BIOS before booting from disk,
+making it possible to give custom boot parameters even when this is
+set to 0.
+.It Va COPTFLAGS
+.Pq Vt str
+Controls the compiler settings when building the
+kernel.
+Optimization levels above
+.Oo Fl O ( O2 , No ...\& ) Oc
+are not guaranteed to work.
+.It Va KERNCONF
+.Pq Vt str
+Controls which kernel configurations will be
+built by
+.Dq Li "${MAKE} buildkernel"
+and installed by
+.Dq Li "${MAKE} installkernel" .
+For example,
+.Bd -literal -offset indent
+KERNCONF=MINE DEBUG GENERIC OTHERMACHINE
+.Ed
+.Pp
+will build the kernels specified by the config files
+.Pa MINE , DEBUG , GENERIC ,
+and
+.Pa OTHERMACHINE ,
+and install the kernel specified by the config file
+.Pa MINE .
+It defaults to
+.Pa GENERIC .
+.It Va NO_KERNELCONFIG
+.Pq Vt bool
+Set this to skip running
+.Xr config 8
+during
+.Dq Li "${MAKE} buildkernel" .
+.It Va NO_KERNELDEPEND
+.Pq Vt bool
+Set this to skip running
+.Dq Li "${MAKE} depend"
+during
+.Dq Li "${MAKE} buildkernel" .
+.It Va NO_MODULES
+.Pq Vt bool
+Set to not build modules with the kernel.
+.It Va MODULES_OVERRIDE
+.Pq Vt str
+Set to a list of modules to build instead of all of them.
+.El
+.Pp
+The following list provides a name and short description for variables
+that are used during the world build:
+.Bl -tag -width Ar
+.It Va COMPAT1X
+.Pq Vt bool
+Set to install the
+.Fx
+1 compatibility libraries.
+.It Va COMPAT20
+.Pq Vt bool
+Set to install the
+.Fx 2.0
+compatibility libraries.
+.It Va COMPAT21
+.Pq Vt bool
+Set to install the
+.Fx 2.1
+compatibility libraries.
+.It Va COMPAT22
+.Pq Vt bool
+Set to install the
+.Fx 2.2
+compatibility libraries.
+.It Va COMPAT3X
+.Pq Vt bool
+Set to install the
+.Fx
+3
+compatibility libraries.
+.It Va COMPAT4X
+.Pq Vt bool
+Set to install the
+.Fx
+4
+compatibility libraries.
+.It Va ENABLE_SUIDPERL
+.Pq Vt bool
+Set to enable the installation of an suid
+.Xr perl 1
+binary.
+.It Va FETCH_CMD
+.Pq Vt str
+Command to use to fetch files.
+Normally
+.Xr fetch 1 .
+.It Va MAKE_IDEA
+.Pq Vt bool
+Set to build the IDEA encryption code.
+This code is patented in the USA and many European countries.
+It is
+.Em "YOUR RESPONSIBILITY"
+to determine if you can legally use IDEA.
+.It Va MAKE_KERBEROS4
+.Pq Vt bool
+Set this to build KerberosIV (KTH eBones).
+.It Va MAKE_KERBEROS5
+.Pq Vt bool
+Set this to build Kerberos5 (KTH Heimdal).
+.Em WARNING !
+This is still experimental code.
+If you need stable Kerberos5, use the
+port(s).
+.It Va ENABLE_SUID_K5SU
+.Pq Vt bool
+Set this if you wish to use the k5su utility.  Otherwise, it will be
+installed without the set-user-ID bit set.
+.It Va MODULES_WITH_WORLD
+.Pq Vt bool
+Set to build modules with the system instead of the kernel.
+.It Va NO_CVS
+.Pq Vt bool
+Set to not build CVS.
+.It Va NO_BIND
+.Pq Vt bool
+Set to not build BIND.
+.It Va NO_FORTRAN
+.Pq Vt bool
+Set to not build
+.Xr g77 1
+and related libraries.
+.It Va NO_I4B
+.Pq Vt bool
+Set to not build isdn4bsd package.
+.It Va NO_IPFILTER
+.Pq Vt bool
+Set to not build IP Filter package.
+.It Va NO_LPR
+.Pq Vt bool
+Set to not build
+.Xr lpr 1
+and related programs.
+.It Va NO_MAILWRAPPER
+.Pq Vt bool
+Set to not build the
+.Xr mailwrapper 8
+MTA selector.
+.It Va NO_MAKEDEV
+.Pq Vt bool
+Set to avoid running
+.Dq Li "MAKEDEV all"
+on
+.Pa /dev
+during install.
+.It Va NO_OBJC
+.Pq Vt bool
+Set to not build Objective C support.
+.It Va NO_OPENSSH
+.Pq Vt bool
+Set to not build OpenSSH.
+.It Va NO_OPENSSL
+.Pq Vt bool
+Set to not build OpenSSL (implies
+.Va NO_OPENSSH ) .
+.It Va NO_SENDMAIL
+.Pq Vt bool
+Set to not build
+.Xr sendmail 8
+and related programs.
+.It Va NO_SHAREDOCS
+.Pq Vt bool
+Set to not build the
+.Bx 4.4
+legacy docs.
+.It Va NO_TCSH
+.Pq Vt bool
+Set to not build and install
+.Pa /bin/csh
+(which is
+.Xr tcsh 1 ) .
+.It Va NO_X
+.Pq Vt bool
+Set to not compile in X\-Windows support (e.g.\&
+.Xr doscmd 1 ) .
+.It Va NOCLEAN
+.Pq Vt bool
+Set this to disable cleaning during
+.Dq Li "make buildworld" .
+This should not be set unless you know what you are doing.
+.It Va NOCLEANDIR
+.Pq Vt bool
+Set this to run
+.Dq Li "${MAKE} clean"
+instead of
+.Dq Li "${MAKE} cleandir" .
+.It Va NOCRYPT
+.Pq Vt bool
+Set to not build any crypto code.
+.It Va NOGAMES
+.Pq Vt bool
+Set to not build games.
+.It Va NOINFO
+.Pq Vt bool
+Set to not make or install
+.Xr info 5
+files.
+.It Va NOLIBC_R
+.Pq Vt bool
+Set to not build
+.Nm libc_r
+(reentrant version of
+.Nm libc ) .
+.It Va NOMANCOMPRESS
+.Pq Vt bool
+Set to install man pages uncompressed.
+.It Va NOPERL
+.Pq Vt bool
+Set to avoid building
+.Xr perl 1 .
+.It Va NOPROFILE
+.Pq Vt bool
+Set to avoid compiling profiled libraries.
+.It Va NOSECURE
+.Pq Vt bool
+set to not build crypto code in
+.Pa secure
+subdir.
+.It Va NOSHARE
+.Pq Vt bool
+Set to not build in the
+.Pa share
+subdir.
+.It Va NOUUCP
+.Pq Vt bool
+Set to not build
+.Xr uucp 1
+related programs.
+.It Va PERL_THREADED
+.Pq Vt bool
+Set to enable the building and installation of
+.Xr perl 1
+with thread
+support.
+.It Va PPP_NOSUID
+.Pq Vt bool
+Set to disable the installation of
+.Xr ppp 8
+as an suid root program.
+.It Va SENDMAIL_MC
+.Pq Vt str
+The default m4 configuration file to use at install time.
+The value should include the full path to the
+.Pa .mc
+file, e.g.,
+.Pa /etc/mail/myconfig.mc .
+Use with caution as a make install will overwrite any existing
+.Pa /etc/mail/sendmail.cf .
+Note that
+.Va SENDMAIL_CF
+is now deprecated.
+Avoid using a value of
+.Pa /etc/mail/sendmail.mc
+as a buildworld will create
+.Pa /etc/mail/sendmail.cf
+before installworld installs an updated
+.Xr sendmail 8
+binary.
+.It Va SENDMAIL_SUBMIT_MC
+.Pq Vt str
+The default m4 configuration file for mail submission
+to use at install time.
+The value should include the full path to the
+.Pa .mc
+file, e.g.,
+.Pa /etc/mail/mysubmit.mc .
+Use with caution as a make install will overwrite any existing
+.Pa /etc/mail/submit.cf .
+Avoid using a value of
+.Pa /etc/mail/submit.mc
+as a buildworld will create
+.Pa /etc/mail/submit.cf
+before installworld installs an updated
+.Xr sendmail 8
+binary.
+.It Va SENDMAIL_ADDITIONAL_MC
+.Pq Vt str
+Additional
+.Pa .mc
+files which should be built into
+.Pa .cf
+files at build time.
+The value should include the full path to the
+.Pa .mc
+file(s), e.g.,
+.Pa /etc/mail/foo.mc
+.Pa /etc/mail/bar.mc .
+Avoid using a value of
+.Pa /etc/mail/sendmail.mc
+as a buildworld will create
+.Pa /etc/mail/sendmail.cf
+before installworld installs an updated
+.Xr sendmail 8
+binary.
+.It Va SENDMAIL_M4_FLAGS
+.Pq Vt str
+Flags passed to m4 when building a
+.Pa .cf
+file from a
+.Pa .mc
+file.
+.It Va SENDMAIL_CFLAGS
+.Pq Vt str
+Flags to pass to the compile command when building
+.Xr sendmail 8 .
+The
+.Va SENDMAIL_*
+flags can be used to provide SASL support with setting such as:
+.Bd -literal -offset indent
+SENDMAIL_CFLAGS=-I/usr/local/include -DSASL
+SENDMAIL_LDFLAGS=-L/usr/local/lib
+SENDMAIL_LDADD=-lsasl
+.Ed
+.It Va SENDMAIL_LDFLAGS
+.Pq Vt str
+Flags to pass to the
+.Xr ld 1
+command when building
+.Xr sendmail 8 .
+.It Va SENDMAIL_LDADD
+.Pq Vt str
+Flags to add to the end of the
+.Xr ld 1
+command when building
+.Xr sendmail 8 .
+.It Va SENDMAIL_DPADD
+.Pq Vt str
+Extra dependencies to add when building
+.Xr sendmail 8 .
+.It Va SENDMAIL_SET_USER_ID
+.Pq Vt bool
+If set, install
+.Xr sendmail 8
+as a set-user-ID root binary instead of a set-group-ID binary
+and do not install
+.Pa /etc/mail/submit.{cf,mc} .
+Use of this flag is not recommended and the alternative advice in
+.Pa /etc/mail/README
+should be followed instead of at all possible.
+.It Va SENDMAIL_MAP_PERMS
+.Pq Vt str
+Mode to use when generating alias and map database files using
+.Pa /etc/mail/Makefile .
+The default value is 0640.
+.El
+.Pp
+The following list provides a name and short description for variables
+that are used when building documentation.
+.Bl -tag -width Ar
+.It Va DISTDIR
+.Pq Vt str
+Where distfiles are kept.
+Normally, this is
+.Pa distfiles
+in
+.Va PORTSDIR .
+.It Va DOC_LANG
+.Pq Vt str
+The list of languages and encodings to build and install.
+.It Va PRINTERDEVICE
+.Pq Vt str
+The default format for system documentation, depends on your
+printer.
+This can be set to
+.Dq Li ascii
+for simple printers or
+.Dq Li ps
+for postscript or graphics printers with a ghostscript
+filter.
+.El
+.Pp
+The following list provides a name and short description for variables
+that are used when building ports:
+.Bl -tag -width Ar
+.It Va FORCE_PKG_REGISTER
+.Pq Vt bool
+Set this to override any existing package registration.
+.It Va HAVE_MOTIF
+.Pq Vt bool
+Set this if you have Motif on your system.
+.It Va KRB5_HOME
+.Pq Vt str
+Set this if you want to install the MIT Kerberos5 port somewhere
+other than
+.Pa /usr/local .
+.It Va LOCALBASE
+.Pq Vt str
+Set this to the base directory that non\-X ports should be
+installed in.
+It provides the default for
+.Va PREFIX
+when building in
+.Pa /usr/ports .
+.It Va MASTER_SITE_AFTERSTEP
+.Pq Vt str
+Set this to change the master site for AfterStep ports.
+The last
+part of the path must be
+.Dq Li /%SUBDIR%/ .
+.It Va MASTER_SITE_BACKUP
+.Pq Vt str
+Controls the site location that ports check for distfiles if the
+locations listed in their
+.Pa Makefile
+do not work.
+The last part of the path must be
+.Dq Li /${DIST_SUBDIR}/ .
+.It Va MASTER_SITE_COMP_SOURCES
+.Pq Vt str
+Controls the master site location for
+.Pa comp.sources
+ports.
+The
+last part of the path must be
+.Dq Li %SUBDIR%/
+.It Va MASTER_SITE_GNOME
+.Pq Vt str
+Controls the master site location for GNOME ports.
+The
+last part of the path must be
+.Dq Li /%SUBDIR%/
+.It Va MASTER_SITE_GNU
+.Pq Vt str
+Controls the master site location for GNU ports.
+The
+last part of the path must be
+.Dq Li /%SUBDIR%/
+.It Va MASTER_SITE_KDE
+.Pq Vt str
+Controls the master site location for KDE ports.
+The
+last part of the path must be
+.Dq Li /%SUBDIR%/
+.It Va MASTER_SITE_FREEBSD
+.Pq Vt bool
+If set, go to the master
+.Fx
+site for all files.
+.It Va MASTER_SITE_MOZILLA
+.Pq Vt str
+Controls the master site location for Mozilla ports.
+The
+last part of the path must be
+.Dq Li /%SUBDIR%/
+.It Va MASTER_SITE_OVERRIDE
+.Pq Vt str
+If set, this site is checked before the sites listed in the ports
+.Pa Makefile .
+You can have it check the backup site first by like so:
+.Bd -literal -offset indent
+MASTER_SITE_OVERRIDE?=	${MASTER_SITE_BACKUP}
+.Ed
+.It Va MASTER_SITE_PERL_CPAN
+.Pq Vt str
+Controls the master site location for Perl ports.
+The
+last part of the path must be
+.Bd -literal -offset indent
+/%SUBDIR%/
+.Ed
+.It Va MASTER_SORT_REGEX
+.Pq Vt str
+Set this to control the sort order for mirror sets.
+To set it to
+prefer mirrors in the
+.Pa .jp
+domain, use:
+.Bd -literal -offset indent
+MASTER_SORT_REGEX?=	^file: ^ftp://ftp\.FreeBSD\.org/pub/FreeBSD/ports/local-distfiles/ ://[^/]*\.jp/ ://[^/]*\.jp\.
+.Ed
+.Pp
+Users of other ccTLD domains should change the
+.Dq Li jp
+to the
+appropriate domain.
+.It Va MASTER_SITE_RINGSERVER
+.Pq Vt str
+Controls the master site location for Ringserver ports.
+The last
+part of the path must be
+.Dq Li /%SUBDIR%/ .
+.It Va MASTER_SITE_RUBY
+.Pq Vt str
+Controls the master site location for Ruby ports.
+The last
+part of the path must be
+.Dq Li /%SUBDIR%/ .
+.It Va MASTER_SITE_SUNSITE
+.Pq Vt str
+Controls the master site location for Sunsite ports.
+The last
+part of the path must be
+.Dq Li /%SUBDIR%/ .
+.It Va MASTER_SITE_TCLTK
+.Pq Vt str
+Controls the master site location for Tcl and Tk ports.
+The last
+part of the path must be
+.Dq Li /%SUBDIR%/ .
+.It Va MASTER_SITE_TEX_CTAN
+.Pq Vt str
+Controls the master site location for TeX ports.
+The last
+part of the path must be
+.Dq Li /%SUBDIR%/ .
+.It Va MASTER_SITE_WINDOWMAKER
+.Pq Vt str
+Controls the master site location for WindowMaker ports.
+The last
+part of the path must be
+.Dq Li /%SUBDIR%/ .
+.It Va MASTER_SITE_XCONTRIB
+.Pq Vt str
+Controls the master site location for contributed X ports.
+The last
+part of the path must be
+.Dq Li /%SUBDIR%/ .
+.It Va MASTER_SITE_XEMACS
+.Pq Vt str
+Controls the master site location for Xemacs ports.
+The last
+part of the path must be
+.Dq Li /%SUBDIR%/ .
+.It Va MASTER_SITE_XFREE
+.Pq Vt str
+Controls the master site location for XFree ports.
+The last
+part of the path must be
+.Dq Li /%SUBDIR%/ .
+.It Va MOTIFLIB
+.Pq Vt str
+Location of
+.Pa libXm.a
+and
+.Pa libXm.so .
+.It Va MOTIF_STATIC
+.Pq Vt bool
+Set this if you want ports that use Motif to be built so they
+can be run on systems without the Motif shared libraries.
+.It Va NOCLEANDEPENDS
+.Pq Vt bool
+Set this to prevent
+.Dq Li "make clean"
+from cleaning the ports that the one being cleaned depends on.
+.It Va NOPORTDOCS
+.Pq Vt bool
+Set this to disable installing additional documentation with ports.
+.It Va PACKAGES
+.Pq Vt str
+Used only for the package target; the directory for the package tree.
+.It Va PATCH_SITES
+.Pq Vt str
+Primary location(s) for the distribution of patch files.
+.It Va PORTSDIR
+.Pq Vt str
+The location of the ports tree.
+.It Va USA_RESIDENT
+.Pq Vt bool
+Set this if you are a resident of the USA so that ports that
+need to can attempt to comply with U.S. export regulations.
+.It Va WITHOUT_X11
+.Pq Vt bool
+Set this so that ports that can be built with or without X11
+support will build without X11 support by default.
+.It Va WRKDIRPREFIX
+.Pq Vt str
+Where to create temporary files used when building ports.
+.It Va X11BASE
+.Pq Vt str
+Should be set to where the X11 distribution has been
+installed if it is installed anywhere other than
+.Pa /usr/X11R6 .
+.El
+.Sh FILES
+.Bl -tag -width /etc/defaults/make.conf -compact
+.It Pa /etc/defaults/make.conf
+.It Pa /etc/make.conf
+.It Pa /usr/doc/Makefile
+.It Pa /usr/src/Makefile
+.It Pa /usr/src/Makefile.inc1
+.It Pa /usr/ports/Mk/bsd.port.mk
+.It Pa /usr/ports/Mk/bsd.sites.mk
+.El
+.Sh SEE ALSO
+.Xr gcc 1 ,
+.Xr install 1 ,
+.Xr make 1 ,
+.Xr ports 7 ,
+.Xr lpd 8 ,
+.Xr sendmail 8
+.Sh HISTORY
+The
+.Nm
+file appeared sometime before
+.Fx 4.0 .
+.Sh AUTHORS
+This
+manual page was written by
+.An Mike W. Meyer Aq mwm@mired.org .
+.Sh BUGS
+This manual page may occasionally be out of date with respect to
+the options currently available for use in
+.Nm .
+Please check the
+.Pa /etc/defaults/make.conf
+file for the latest options which are available.

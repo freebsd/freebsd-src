@@ -1,0 +1,114 @@
+/*	$NecBSD: bshw.lst,v 1.1 1997/07/18 09:19:05 kmatsuda Exp $	*/
+/*	$NetBSD$	*/
+/*
+ * [NetBSD for NEC PC98 series]
+ *  Copyright (c) 1994, 1995, 1996 NetBSD/pc98 porting staff.
+ *  All rights reserved.
+ * 
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *  1. Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *  2. Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *  3. The name of the author may not be used to endorse or promote products
+ *     derived from this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+ * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+/*
+ * Copyright (c) 1994, 1995, 1996 Naofumi HONDA.  All rights reserved.
+ */
+
+static struct bshw bshw_generic = {
+	BSHW_SYNC_RELOAD,
+
+	0,
+
+	NULL,
+	NULL,
+	NULL,
+};
+
+static int bshw_dma_init_sc98 __P((struct bs_softc *));
+static void bshw_dma_start_sc98 __P((struct bs_softc *));
+static void bshw_dma_stop_sc98 __P((struct bs_softc *));
+static struct bshw bshw_sc98 = {
+	BSHW_DOUBLE_DMACHAN,
+
+	0x60,
+
+	bshw_dma_init_sc98,
+	bshw_dma_start_sc98,
+	bshw_dma_stop_sc98,
+};
+
+static int bshw_dma_init_texa __P((struct bs_softc *));
+static struct bshw bshw_texa = {
+	BSHW_DOUBLE_DMACHAN,
+
+	0x60,
+
+	bshw_dma_init_texa,
+	NULL,
+	NULL,
+};
+
+static void bshw_dma_start_elecom __P((struct bs_softc *));
+static void bshw_dma_stop_elecom __P((struct bs_softc *));
+static struct bshw bshw_elecom = {
+	0,
+
+	0x38,
+
+	NULL,
+	bshw_dma_start_elecom,
+	bshw_dma_stop_elecom,
+};
+
+static struct bshw bshw_lc_smit = {
+	BSHW_SMFIFO | BSHW_DOUBLE_DMACHAN,
+
+	0x60,
+
+	NULL,
+	NULL,
+	NULL,
+};
+
+static struct bshw bshw_lha20X = {
+	BSHW_DOUBLE_DMACHAN,
+
+	0x60,
+
+	NULL,
+	NULL,
+	NULL,
+};
+
+/* hw tabs */
+static dvcfg_hw_t bshw_hwsel_array[] = {
+/* 0x00 */	&bshw_generic,
+/* 0x01 */	&bshw_sc98,
+/* 0x02 */	&bshw_texa,
+/* 0x03 */	&bshw_elecom,
+/* 0x04 */	&bshw_lc_smit,
+/* 0x05 */	&bshw_lha20X,
+};
+
+struct dvcfg_hwsel bshw_hwsel = {
+	DVCFG_HWSEL_SZ(bshw_hwsel_array),
+	bshw_hwsel_array
+};

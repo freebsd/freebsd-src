@@ -1,0 +1,721 @@
+<!--
+    FreeBSD Japanese Documentation Project
+
+    $FreeBSD$
+
+    Original revision: 1.22.2.294
+-->
+
+<articleinfo>
+  <title>&os;/&arch; &release.current; リリースノート</title>
+
+  <pubdate>$FreeBSD$</pubdate>
+  
+  <corpauthor>FreeBSD プロジェクト</corpauthor>
+
+  <copyright>
+    <year>2000</year>
+    <year>2001</year>
+    <year>2002</year>
+    <holder role="mailto:doc@FreeBSD.org">FreeBSD ドキュメンテーションプロジェクト</holder>
+  </copyright>
+
+  <abstract>
+    <para>この &os; &release.current; リリースノートには、
+      &os; &release.prev; のリリース以降に &os;
+      ベースシステムに対して加えられた変更点がまとめられています。
+      変更点はカーネル、ユーザランドにおけるものだけでなく、
+      前回のリリース以降に発行され、
+      ベースシステムに影響のあるセキュリティ勧告も含まれています。
+      また、アップグレードの際の注意点についても簡単に説明しています。</para>
+  </abstract>
+</articleinfo>
+
+<sect1>
+  <title>はじめに</title>
+
+  <para>この文書は &arch.print; アーキテクチャ版 &os; &release.current;
+    のリリースノートです。
+    これには &release.prev; 以降に追加 (変更)
+    された新機能および、前のバージョンの &os;
+    からアップグレードする場合におけるいくつかの注意点か書かれています。</para>
+
+<![ %release.type.snapshot [
+
+  <para>リリースノートが対象としているこの &release.type; は、
+    &release.branch; 開発ブランチの
+    &release.prev; と、リリースが予定されている
+    &release.next; の中間点に対応します。
+    このブランチにおける構築済みのバイナリ &release.type;
+    は <ulink url="&release.url;"></ulink> から入手可能です。</para>
+
+]]>
+
+<![ %release.type.release [
+
+  <para>この &os; &release.current は &release.type; 版であり、
+    <ulink url="&release.url;"></ulink>
+    および各ミラーサイトで公開されています。
+    &os; の &release.type; 版 (またはそれ以外) の入手法については
+    <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD
+      ハンドブック</ulink>の<ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors.html">
+      <quote>&os; を入手するには</quote></ulink>をご覧ください。</para>
+
+]]>
+</sect1>
+
+<!--
+       The "What's New" section of the release notes.  
+
+       Guidelines for new entries:
+
+       1.  If there is some obvious "keyword" associated with an
+       entry (such as a manpage entry or an application name), try to
+       put it at the start of the sentence.
+
+       2.  Within each subsection (i.e. kernel, security, userland),
+       list items in alphabetical order by these keywords.
+
+       Some entries will have no obvious keywords to help with
+       ordering.  In sections containing these entries, put those
+       containing (e.g.) manpage references first, then some
+       suitable SGML comment line as a demarc, then the remaining
+       entries.
+-->
+
+<sect1>
+  <title>更新情報</title>
+
+  <para>この節では &release.prev; 以降に新たに追加・変更された
+    ユーザに影響する機能について説明します。
+    リリースノートの項目には通常、新しいドライバや新しいハードウェアへの対応、
+    新しいコマンドや新しいオプションの導入、
+    大規模なバグ修正、寄贈ソフトウェアのアップグレードが含まれており、
+    それに加えて
+    &release.prev; 以降に発行され、
+    ベースシステムに影響のあるセキュリティ勧告も記載されています。</para>
+
+  <sect2 id="kernel">
+    <title>カーネルの変更点</title>
+
+    <para>&man.acct.2; は、アカウンティングファイルを
+      追記モードでオープンするように変更されました。
+      これは &man.accton.8; のアカウンティング機能を、
+      追記専用ファイルに対して使えるようにするための変更です。</para>
+
+    <para><literal>RLIMIT_VMEM</literal> 機能が追加されました。
+      これは、あるプロセスに対して、&man.mmap.2; 空間を含む、
+      全仮想メモリ空間の大きさに制限を設けるものです。
+      制限は &man.login.conf.5; に追加された
+      <varname>vmemoryuse</varname> 変数によって設定することができます。</para>
+
+    <para>&man.sendfile.2; システムコールにおいて、
+      送信ファイルサイズの計算でヘッダサイズを正しく含めていなかった
+      というバグが修正されました。</para>
+
+    <para>USB モデム、USB シリアルデバイスを
+      tty を使うプログラムに対応させるための
+      &man.ucom.4; デバイスドライバが追加されました。
+      また、&man.uplcom.4;、&man.uvscom.4; ドライバはそれぞれ、
+      Prolific PL-2303 シリアルアダプタと
+      SUNTAC Slipper U VS-10U に対応しています。</para>
+
+    <para>Handspring Visors を USB 経由で接続できるようにするための
+      &man.uvisor.4; ドライバが追加されました。</para>
+
+<!-- Above this line, kernel changes ordered by manpage/variable name -->
+
+    <sect3>
+      <title>プロセッサ・マザーボードの対応状況</title>
+
+      <para arch="i386">AMD &Eacute;lan SC520 に対応しました。
+	利用するには、カーネルコンフィグファイルに
+        <literal>CPU_ELAN</literal> オプションを追加する必要があります。</para>
+    </sect3>
+
+    <sect3>
+      <title>起動ローダ関連</title>
+
+      <para></para>
+
+<!-- Above this line, order boot loader changes by manpage/variable name-->
+      
+    </sect3>
+    
+    <sect3>
+      <title>ネットワークインターフェイスの対応状況</title>
+
+      <para arch="i386,pc98">&man.em.4; ドライバが
+        Intel 82545EM および 82545EB チップに対応しました。
+        VLAN にも対応しています。</para>
+
+      <para arch="i386">&man.rp.4; ドライバがバージョン
+        3.02 に更新され、
+        モジュールとしてコンパイルできるようになりました。</para>
+      
+<!-- Above this line, order network driver changes by manpage/variable name-->
+
+    </sect3>
+
+    <sect3>
+      <title>ネットワークプロトコル</title>
+
+      <para>新しいバージョンの &man.ipfw.4; (<quote>IPFW2</quote>
+        と呼ばれています) が追加され、
+        オプション機能として選択できるようになりました。
+        &man.ipfw.4; は、カーネル内で &man.bpf.4;
+        命令に似た可変長ルール表現を使っています。
+        &man.ipfw.8; に、マッチフィールド連結子 <literal>or</literal>
+        が新しく追加されていますが、(&man.ipfw.8; に記載されている)
+        外部に見える部分の動作のほとんどは、変更されていません。
+        新しいバージョンの &man.ipfw.4; は、デフォルトでは
+        <emphasis>有効になっていません</emphasis>。
+        有効にするには、次のようにします。</para>
+
+      <procedure>
+	<step>
+	  <para>カーネルコンフィグファイルに
+            <literal>options IPFW2</literal> オプション
+            (文書化されていません) を追加する。</para>
+	</step>
+
+	<step>
+	  <para>&man.make.1; に <option>-DIPFW2</option> オプションを付けて
+            <filename>libalias</filename> をコンパイル・インストールする。
+	</step>
+      </procedure>
+
+      <para>新しい netgraph ノードタイプ &man.ng.l2tp.4; が追加されました。
+        これは RFC 2661 に記載されている L2TP プロトコルのカプセル化レイヤを
+        実装したものです。</para>
+
+    <para>&man.tcp.4; プロトコルの再送タイマが
+      <varname>net.inet.tcp.rexmit_min</varname> と
+      <varname>net.inet.tcp.rexmit_slop</varname>
+      の、2 つの sysctl 変数で操作できるようになりました。</para>
+
+    <para>&man.tcp.4; プロトコルに、送信側のウィンドウのサイズを動的に
+      制限して、帯域を最大化し、ラウンドトリップタイムを最小にするための
+      機能が追加されました。この機能は、sysctl 変数
+      <varname>net.inet.tcp.inflight_enable</varname>
+      を使って有効化することが可能です。</para>
+    </sect3>
+
+    <sect3>
+      <title>ディスク・記憶装置</title>
+
+      <para arch="i386">&man.ahd.4; ドライバが新しく追加されました。
+        これは Adaptec AIC7901, AIC7901A, AIC7902 Ultra320 PCI-X SCSI
+        コントローラチップに対応しています。</para>
+
+      <para>&man.ata.4; のタグ付きキューイング機能で
+        時々発生していた動作不良が修正されました。</para>
+
+      <para>&man.ata.4; ドライバが最大転送データサイズを正しく計算するようになりました。
+        この修正により、特定の ATA デバイスにアクセスした時に数多く生じていた
+        <literal>READ_BIG</literal>
+        エラーやその他のエラーが発生しなくなっています。</para>
+
+      <para>&man.ata.4; ドライバが新しく Sil 0680 と
+        VIA 8233/8235 コントローラに対応しました。</para>
+
+      <para arch="i386,alpha">mpt ドライバが新しく追加されました。
+	これは、LSI Logic Fusion/MP アーキテクチャ
+        ファイバチャネルコントローラに対応してます。</para>
+
+      <para arch="i386">pst ドライバが新しく追加されました。
+        これは Promise SuperTrak ATA RAID コントローラに対応しています。</para>
+    </sect3>
+
+    <sect3>
+      <title>ファイルシステム</title>
+
+      <para></para>
+
+    </sect3>
+
+    <sect3>
+      <title>PCCARD 対応状況</title>
+
+      <para></para>
+
+    </sect3>
+
+    <sect3>
+      <title>マルチメディアへの対応状況</title>
+      
+      <para arch="i386">VT8233 オーディオコントローラのドライバが
+        追加されました。これはすべてのリビジョンのハードウェアに対応しています。
+        このドライバは、カーネルコンフィグファイルに
+        <literal>device pcm</literal> を追加するか、
+        <filename>/boot/loader.conf</filename> に
+        <literal>snd_via8233="YES"</literal> と追加することで
+        起動時にロードすることが可能です。
+        このドライバは、VIA から提供された資料を用いて開発されました。</para>
+
+      <para arch="i386">ich サウンドドライバに、ich4 オーディオ対応の
+        基本部分が追加されました。</para>
+
+      <para>USB オーディオデバイス用の uaudio ドライバが追加されました。</para>
+    </sect3>
+
+    <sect3>
+      <title>寄贈ソフトウェア</title>
+
+      <para><application>IPFilter</application> が
+	バージョン 3.4.29 に更新されました。</para>
+    </sect3>
+
+  </sect2>
+
+  <sect2 id="security">
+    <title>セキュリティ勧告</title>
+
+    <para>セキュリティ勧告 SA-02:23 (set-user-id もしくは
+      set-group-id されたプログラムのファイル記述子の取り扱いに関する問題)
+      における修正に誤りがありました。
+      &man.procfs.5;, あるいは &man.linprocfs.5; を使っているシステムは、
+      修正を行なっていてもなお、悪用することが可能です。
+      誤りは修正されており、詳細は改訂版のセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink> に記載されています。</para>
+
+    <para>悪意を持ったドメインネームサーバや
+      DNS メッセージを生成できる攻撃者が悪用可能な、
+      リゾルバのバッファオーバフロー問題が修正されました。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:28.resolv.asc">FreeBSD-SA-02:28</ulink>
+      をご覧ください。</para>
+
+    <para>不正な NFS パケットによって悪用される可能性がある、
+      &man.tcpdump.1; のバッファオーバフロー問題が修正されました。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:29.tcpdump.asc">FreeBSD-SA-02:29</ulink>
+      をご覧ください。</para>
+
+    <para>高い権限を放棄したプロセスに対して、&man.ktrace.1; を使った追跡
+      (trace) 操作ができないようになりました。
+      これにより、そのプロセスが権限を放棄する前に得たセキュリティ上重要な
+      情報の漏洩を防ぐことができます。この問題の詳細は、
+      セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:30.ktrace.asc">FreeBSD-SA-02:30</ulink>
+      をご覧ください。</para>
+
+    <para>悪用することで任意のファイルの許可属性を変更できるという、
+      &man.pppd.8; にあった競合状態が修正されました。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:32.pppd.asc">FreeBSD-SA-02:32</ulink> をご覧ください。</para>
+
+    <para>ベースシステムの <application>OpenSSL</application>
+      が新しいバージョンにアップグレードされ、
+      <application>OpenSSL</application>
+      に存在していた複数のバッファオーバフロー問題が修正されました。
+      この問題の詳細は、
+      セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:33.openssl.asc">FreeBSD-SA-02:33</ulink> をご覧ください。</para>
+
+    <para>XDR デコーダにあったヒープバッファオーバフローが修正されました。
+      この問題の詳細は、
+      セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:34.rpc.asc">FreeBSD-SA-02:34</ulink> をご覧ください。</para>
+
+    <para>ローカルユーザが FFS
+      ファイルシステム上の任意のブロックを読み書きできるというバグが修正されました。
+      この問題の詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:35.ffs.asc">FreeBSD-SA-02:35</ulink> をご覧ください。</para>
+
+    <para>NFS サーバのコードに含まれていた、
+      リモートからのサービス妨害攻撃を可能にするバグが修正されました。
+      この問題の詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:36.nfs.asc">FreeBSD-SA-02:36</ulink> をご覧ください。</para>
+
+    <para>&man.kqueue.2; 機構を使うことで、
+      ローカルユーザがシステムパニックを引き起こすことができる可能性のあるバグが修正されました。
+      この問題の詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:37.kqueue.asc">FreeBSD-SA-02:37</ulink> をご覧ください。</para>
+
+    <para>カーネルメモリの大きな部分を返してしまうという、
+      いくつかのシステムコールにあった境界チェックのバグが修正されました。
+      この問題の詳細は、
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:38.signed-error.asc">FreeBSD-SA-02:38</ulink> をご覧ください。</para>
+
+    <para><filename>libkvm</filename> を使っているアプリケーションから
+      セキュリティ上重要な記述子が漏洩する可能性があるバグが修正されました
+      この問題の詳細は <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:39.libkvm.asc">FreeBSD-SA-02:39</ulink>
+      をご覧ください。</para>
+  </sect2>
+
+  <sect2 id="userland">
+    <title>ユーザランドの変更点</title>
+
+    <para>&man.biff.1; に、新しい引数 <option>b</option> が追加されました。
+      これは、新しいメール到着時の<quote>ベル通知</quote>を有効にします
+      (<command>biff y</command> のように、端末には表示されません).</para>
+
+    <para>&man.cp.1; に (非標準の) <option>-n</option> オプションが
+      追加されました。これは、ファイルを上書きする際の確認に対して、
+      自動的に <quote>no</quote> を回答するものです。</para>
+
+    <para>&man.daemon.3; をコマンドラインから呼び出すための、
+      &man.daemon.8; プログラムが追加されました。
+      このコマンドは制御端末を切り離して、コマンドラインに指定された
+      プログラムを実行します。ユーザは任意のプログラムを、それが
+      デーモンとして作成されているかのように実行することが可能です。</para>
+
+    <para>&man.dump.8; に、単に予想ダンプサイズを表示して終了するという、
+      <option>-S</option> フラグが追加されました。</para>
+
+    <para>&man.finger.1; が
+      <filename>.pubkey</filename> ファイルに対応しました。</para>
+
+    <para>&man.finger.1; に、GECOS
+      情報の表示をユーザのフルネームのみに制限する
+      <option>-g</option> フラグが追加されました。</para>
+
+    <para>&man.finger.1; に、リモートの問い合わせに使うアドレスファミリを指定する
+      <option>-4</option> フラグと <option>-6</option> フラグが追加されました。</para>
+
+    <para>&man.fold.1; に、指定バイト位置で改行する
+      <option>-b</option> オプションと、
+      単語境界で改行する <option>-s</option> オプションが追加されました。</para>
+
+    <para>&man.ftp.1; が、<command>epsv4</command> コマンドに対応しました。
+      これは、IPv4 で通信している時に、新しい EPSV/EPRT
+      と従来の PASV/PORT を切り替えるものです。このコマンドは、
+      <application>IPFilter</application> などの、新しい FTP
+      要求に対応していないファイアウォールを経由して
+      &man.ftp.1; を運用する場合に発生する問題の解決を目的としています。</para>
+
+    <para>&man.ftpd.8; に、新しく <option>-m</option> オプションが追加されました。
+      これは、ファイルシステム上の許可属性に従い、ゲストユーザも既存のファイルを
+      変更できるようにするものです。これは特に、ゲストユーザが
+      アップロードする際の途中再送 (resume) を可能にします。</para>
+
+    <para>&man.ftpd.8; に、新しく <option>-M</option> オプションが追加されました。
+      これは、ゲストユーザがディレクトリを作成できないようにします。</para>
+
+    <para>&man.ftpd.8; に、新しく <option>-W</option> オプションが追加されました。
+      これは、FTP セションのログを &man.wtmp.5; に記録しないようにします。</para>
+
+    <para>&man.ifconfig.8; に、IPv6 アドレスの下位 64
+      ビットを自動的に設定する <option>eui64</option>
+      コマンドが追加されました。この変更にともない、
+      &man.prefix.8; は廃止されました。</para>
+
+    <para>&man.ifconfig.8; に、インターフェイスをプロミスキャス (promiscuous) モードに
+      する機能が追加されました。これは、新しく追加された
+      <option>promisc</option> フラグを使います。</para>
+
+    <para>&man.inetd.8; に、同一の IP アドレスからの同時アクセス数の最大値を
+      各サービスに対して設定する機能が追加されました。</para>
+
+    <para>&man.ls.1; プログラムに、
+      リストを一行で表示する <option>-m</option> フラグ、
+      ディレクトリ名の後ろに <literal>/</literal> を付加する
+      <option>-p</option> フラグ、ファイル名を行方向にソートして表示する
+      <option>-x</option> フラグが追加されました。</para>
+
+    <para>&man.mv.1; に、(非標準の) <option>-n</option> オプションが
+      追加されました。これは、ファイルを上書きする際の確認に対して、
+      自動的に <quote>no</quote> を回答するものです。</para>
+
+    <para>&man.nice.1; に、実行するユーティリティの <quote>nice
+      値</quote>を指定する <option>-n</option>
+      オプションが追加されました。</para>
+
+    <para>&man.od.1; に、入力アドレスの起点を指定する <option>-A</option> オプション、
+      ダンプするバイト数を指定する <option>-N</option> オプション、
+      ダンプを何バイトスキップするか指定する <option>-j</option> オプション、
+      符号付きの 10 進数で出力する <option>-s</option> オプション、
+      出力形式を指定する <option>-t</option> オプションが追加されました。</para>
+
+    <para><varname>no_fake_prompts</varname> が設定されている場合、
+      &man.pam.opie.8; は偽のチャレンジを送出しなくなりました。</para>
+
+    <para>&man.pam.opieaccess.8; モジュールが追加されました。</para>
+
+    <para>&man.pam.unix.8; が、2002 年 3 月 9 日時点の
+      &os; -CURRENT (<application>OpenPAM</application>
+      に変更される前) と同期しました。</para>
+
+    <para>&man.pwd.1; に、論理カレントディレクトリを表示する
+      <option>-L</option> フラグが追加されました。</para>
+
+    <para>&man.renice.8; コマンドに、プロセスの優先度に対する増分を指定する
+      <option>-n</option> オプションが追加されました。</para>
+
+    <para>&man.sed.1; に、指定ファイルそのものを編集する
+      <option>-i</option> オプションが追加されました。</para>
+    
+    <para>&man.sh.1; に、出力のリダイレクトで
+      既存の通常ファイルを上書きする操作を禁止する
+      <option>-C</option> オプションと、
+      未定義の変数を展開しようとした時にエラーを発生させる
+      <option>-u</option> オプションが追加されました。</para>
+
+    <para>&man.sh.1; 内蔵の <command>cd</command> コマンドに、
+      論理モードと物理モードを指定する
+      <option>-L</option> フラグと <option>-P</option>
+      フラグがそれぞれ追加されました。
+      デフォルトは論理モードです。このデフォルトは、
+      <varname>physical</varname> という &man.sh.1; オプションで
+      変更できます。</para>
+
+    <para>&man.sh.1; 内蔵の <command>jobs</command> コマンドに、
+      PID のみを表示する <option>-s</option> フラグと、
+      出力に PID を含める <option>-l</option> フラグが追加されました。</para>
+
+    <para>&man.sh.1; 内蔵の <command>export</command> および
+      <command>readonly</command> コマンドに、
+      <quote>portable</quote> フォーマットで出力する
+      <option>-p</option> フラグが追加されました。</para>
+
+    <para>&man.split.1; に、分割ファイルの接尾子に使用する文字数を指定する
+      <option>-a</option> オプションが追加されました。</para>
+
+    <para>&man.su.1; が、Kerberos V 認証に対応しました。</para>
+
+    <para>&man.tr.1; が、一部の等価クラス (equivalence class, 対応しているロケールのみ)
+      に対応しました。</para>
+
+    <!-- 2002/07/27:hrs - tabstabs? -->
+    <para>&man.unexpand.1; に、&man.expand.1; と同様のタブ位置を指定する
+      <option>-t</option> オプションが追加されました。</para>
+
+    <para>&man.who.1; に数多くのオプションが追加されました。
+      <option>-H</option> はカラムヘッダを出力し、
+      <option>-T</option> は &man.mesg.1; の設定を表示します。
+      また、<option>-m</option> は <option>am i</option> と等価であり、
+      <option>-u</option> はアイドル時間の表示、
+      <option>-q</option> はログイン名を列で表示します。</para>
+
+    <para>&man.xargs.1; に、標準入力からのデータの挿入を
+      コマンドラインの最後ではなく、指定できるようにするための
+      <option>-I</option> <replaceable>replstr</replaceable>
+      オプションが追加されました (同様の機能を実現する
+      <option>-J</option> オプションがありますが、
+      これに対応しているのは &os; のみであるため、より互換性の高い
+      <option>-I</option> オプションの使用が推奨されています)。</para>
+
+    <para>&man.xargs.1; に、入力を指定行数ごとに区切り、
+      それを引数にして入力がなくなるまで複数回コマンドを呼び出すという
+      <option>-L</option> オプションが追加されました。</para>
+
+<!-- Above this line, order userland changes by manpage/variable name-->
+
+    <sect3>
+      <title>寄贈ソフトウェア</title>
+
+      <para><application>BIND</application> がバージョン
+        8.3.3 に更新されました。</para>
+
+      <para><application>binutils</application> がバージョン
+        2.12.1 (具体的には 2002 年 7 月 20 日のスナップショット)
+        に更新されました。</para>
+
+      <para><application>gcc</application> がバージョン
+        2.95.4 に更新されました。</para>
+
+      <para><application>Heimdal Kerberos</application> が
+	2002 年 8 月 29 日の pre-0.5 スナップショットに更新されました。</para>
+
+      <para><application>libpcap</application> がバージョン
+        0.7.1 に更新されました。</para>
+
+      <para>NetBSD の FTP デーモン、<application>lukemftpd</application> の
+        バージョン 1.2 beta 1 が統合され、
+        &man.lukemftpd.8; として利用できるようになりました。</para>
+
+      <para>OpenBSD より、2002 年 4 月 26 日時点の &man.m4.1;
+        が統合されました。</para>
+
+      <para><application>OPIE</application> one-time-password
+        スイートがバージョン 2.4 に更新されました。</para>
+
+      <para><application>OpenSSH</application> が
+        バージョン 3.4p1 に更新されました。主な変更点は次のとおりです。
+
+         <itemizedlist>
+          <listitem>
+            <para><filename>*2</filename>
+              という名前のファイルが廃止されました
+              (たとえば
+              以前
+              <filename>~/.ssh/known_hosts2</filename>
+              に書かれていた内容は
+              <filename>~/.ssh/known_hosts</filename>
+              に書かれるようになっています)。</para>
+           </listitem>
+
+           <listitem>
+             <para>&man.ssh-keygen.1; は、
+              SECSH Public Key File Format を使って、
+              商用の SSH 実装と暗号鍵を交換することができるようになりました。</para>
+           </listitem>
+
+           <listitem>
+             <para>&man.ssh-add.1; は、3
+              種類のデフォルト暗号鍵すべてを追加するようになりました。</para>
+           </listitem>
+
+           <listitem>
+             <para>&man.ssh-keygen.1; において、
+              暗号鍵タイプのデフォルトがなくなりました。
+              特定のタイプを、<option>-t</option>
+              オプションで指定する必要があります。</para>
+           </listitem>
+
+           <listitem>
+             <para>プログラムのバグや将来的に発見される可能性のある
+              セキュリティ上の弱点の影響を小さくするために、
+              特権を持たないプロセスを使うという
+              <quote>特権分離 (privilege separation)</quote> 機能
+              が追加されました。</para>
+           </listitem>
+
+           <listitem>
+             <para>整数変数のオーバフローによって権限の不正な獲得が可能になるという
+              セキュリティホールなど、いくつかのバグが修正されました。</para>
+           </listitem>
+
+           <listitem>
+            <para>SSH プロトコルのデフォルトは、
+              バージョン 1 (使えない場合はバージョン 2 にフォールバック)
+              ではなく、
+              バージョン 2 (使えない場合はバージョン 1 にフォールバック)
+              になっています。</para>
+          </listitem>
+        </itemizedlist>
+      </para>
+
+      <para><application>OpenSSL</application> がバージョン
+	0.9.6g に更新されました。</para>
+
+      <para><application>sendmail</application> がバージョン
+        8.12.3 からバージョン 8.12.6 に更新されました。</para>
+
+      <para arch="i386"><application>smbfs</application> ユーザランドユーティリティの
+        バージョン 1.4.5 が統合されました。</para>
+
+      <para><application>GNU tar</application> がバージョン
+        1.13.25 に更新されました。</para>
+
+      <para><application>tcsh</application> が
+	バージョン 6.12 に更新されました。</para>
+
+      <para><application>texinfo</application> がバージョン
+	4.2 に更新されました。</para>
+
+      <para>寄贈ソフトウェアの
+        <application>tcp_wrappers</application> に、新しく
+        &man.tcpd.8; デーモンが追加されました。厳密に言うと標準の
+        &os; インストールでは必要のないもの (&man.inetd.8; には、
+        相当の機能が搭載されています) ですが、
+        <application>xinetd</application> のような
+        &man.inetd.8; の代替物を使う場合に有用です。</para>
+
+      <para><application>tcpdump</application> がバージョン
+        3.7.1 に更新されました。</para>
+
+      <para><application>top</application> がバージョン
+	3.5b12 に更新されました。</para>
+    </sect3>
+    
+    <sect3>
+      <title>Ports/Packages Collection</title>
+
+      <para><filename role="package">emulators/linux_base</filename> の port
+        (Linux エミュレーション用に必要)
+        でインストールされるライブラリのデフォルトが更新されました。
+        現在は <application>Red Hat Linux</application>
+	7.1 に含まれるものに対応しています。</para>
+
+      <para><application>XFree86</application> がバージョン
+	4.2.1 に更新されました。このバージョンは、バージョン 4.2.0 から
+        いくつかのバグとセキュリティ上の修正が加えられています。</para>
+
+      <!--
+      <para>Ports Collection から生成される package (および、FTP サイトに
+        置かれている package) は &man.gzip.1; ではなく、デフォルトで 
+        &man.bzip2.1; を使用するように更新されました
+        (このため、拡張子が <filename>.tgz</filename> ではなく、
+        <filename>.tbz</filename> になりました)。
+        package 関連ツールも、新しい形式のファイルを
+        操作できるように更新されています。</para>
+      -->
+    </sect3>
+  </sect2>
+
+  <sect2>
+    <title>リリースエンジニアリングと統合</title>
+
+    <para>新規インストール時に
+      <filename>/usr/share/examples</filename>
+      が展開されないというバグが修正されました。</para>
+
+    <para>&os; 4-STABLE ホスト上での &os; 5-CURRENT
+      の make release、および &os; 5-CURRENT ホスト上での
+      &os; 4-STABLE の make release ができるようになりました。
+      クロスアーキテクチャのリリース構築 (ホストと異なるアーキテクチャの
+      リリースを構築すること)も可能になっています。
+      詳しくは &man.release.7; をご覧ください。</para>
+  </sect2>
+</sect1>
+
+<sect1>
+  <title>以前の &os; リリース版からのアップグレード</title>
+
+  <para>以前の &os; リリース版からのアップグレードを行なうには、
+    主に次の 3 つの方法があります。</para>
+
+  <itemizedlist>
+    <listitem>
+      <para>&man.sysinstall.8; のバイナリアップグレード機能を使う方法。
+        おそらくこの方法が最も時間のかからない方法なのですが、
+        これは &os; のインストール時に
+        特別なコンパイルオプションを指定していないことを前提としています。</para>
+    </listitem>
+    
+    <listitem>
+      <para>&os; を完全に再インストールする方法。
+        技術的にはアップグレード手段の一つとは言えませんし、
+        <filename>/etc</filename>
+        の内容を手動で退避・復元したりする必要があるなど、
+        大抵の場合はバイナリアップグレード機能を使うより手間がかかります。
+        しかし、ディスクのパーティション分割を変更したい (とか、
+        変更しなければならない) 場合などには便利な方法でしょう。</para>
+    </listitem>
+    
+    <listitem>
+      <para><filename>/usr/src</filename> のソースコードから構築する方法。
+        この手段は非常に柔軟な対応が可能ですが、
+        ディスク空間と時間、そして専門的なノウハウを必要とします。
+        詳細については
+        <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD
+          ハンドブック</ulink>の
+        <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html"><quote><command>make world</command> を利用する</quote></ulink> という章をご覧ください。
+        また、非常に古いバージョンの &os;
+        からのアップグレードは問題が発生することが多いため、
+        そのような場合にはバイナリアップグレード、
+        もしくは完全な再インストールを行なった方が効果的でしょう。</para>
+    </listitem>
+  </itemizedlist>
+  
+  <para>なるべくアップグレードを始める前に詳細について
+    <filename>INSTALL.TXT</filename> をご覧ください。
+    ソースからアップグレードする場合は
+    <filename>/usr/src/UPDATING</filename> にも目を通す必要があります。</para>
+
+  <para>最後になりますが、&os; の -STABLE もしくは -CURRENT
+    ブランチを追いかけるために用意された手段の一つをとりたいと考えているなら、
+    <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD
+      ハンドブック</ulink>の
+    <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/current-stable.html"><quote>-CURRENT
+        vs. -STABLE</quote></ulink> の節をご覧になるようお願いします。</para>
+
+  <important>
+    <para>もちろん言うまでもないことですが、
+      &os; のアップグレードは、データと設定ファイルを
+      <emphasis>すべて</emphasis> バックアップした後に行なうべきです。</para>
+  </important>
+</sect1>

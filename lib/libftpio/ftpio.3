@@ -1,0 +1,233 @@
+.\" Copyright (c) 1996 Jordan Hubbard (jkh@FreeBSD.org)
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 17, 1996
+.Dt FTPIO 3
+.Os
+.Sh NAME
+.Nm ftpLogin ,
+.Nm ftpChdir ,
+.Nm ftpErrno ,
+.Nm ftpGetModtime ,
+.Nm ftpGetSize ,
+.Nm ftpGet ,
+.Nm ftpPut ,
+.Nm ftpBinary ,
+.Nm ftpPassive ,
+.Nm ftpVerbose ,
+.Nm ftpGetURL ,
+.Nm ftpPutURL ,
+.Nm ftpLoginAf ,
+.Nm ftpGetURLAf ,
+.Nm ftpPutURLAf
+.Nd FTPIO user library
+.Sh SYNOPSIS
+.In ftpio.h
+.Ft FILE *
+.Fn ftpLogin "char *host" "char *user" "char *passwd" "int ftp_port" "int verbose" "int *retcode"
+.Ft int
+.Fn ftpChdir "FILE *stream" "char *dirname"
+.Ft int
+.Fn ftpErrno "FILE *stream"
+.Ft const char *
+.Fn ftpErrString "int errno"
+.Ft time_t
+.Fn ftpGetModtime "FILE *stream" "char *file"
+.Ft off_t
+.Fn ftpGetSize "FILE *stream" "char *file"
+.Ft FILE *
+.Fn ftpGet "FILE *stream" "char *file" "off_t *seekto"
+.Ft FILE *
+.Fn ftpPut "FILE *stream" "char *file"
+.Ft int
+.Fn ftpAscii "FILE *stream"
+.Ft int
+.Fn ftpBinary "FILE *stream"
+.Ft int
+.Fn ftpPassive "FILE *stream" "int status"
+.Ft void
+.Fn ftpVerbose "FILE *stream" "int status"
+.Ft FILE *
+.Fn ftpGetURL "char *url" "char *user" "char *passwd" "int *retcode"
+.Ft FILE *
+.Fn ftpPutURL "char *url" "char *user" "char *passwd" "int *retcode"
+.Ft FILE *
+.Fn ftpLoginAf "char *host" "int af" "char *user" "char *passwd" "int ftp_port" "int verbose" "int *retcode"
+.Ft FILE *
+.Fn ftpGetURLAf "char *url" "int af" "char *user" "char *passwd" "int *retcode"
+.Ft FILE *
+.Fn ftpPutURLAf "char *url" "int af" "char *user" "char *passwd" "int *retcode"
+.Sh DESCRIPTION
+These functions implement a high-level library for managing FTP connections.
+.Pp
+.Fn ftpLogin
+attempts to log in using the supplied
+.Fa user ,
+.Fa passwd ,
+.Fa ftp_port
+(if passed as 0,
+.Fa ftp_port
+defaults to the standard ftp port of 21) and
+.Fa verbose
+fields.  If it is successful, a
+standard stream descriptor is returned which should be passed to
+subsequent FTP operations.
+On failure, NULL is returned and
+.Fa retcode
+will have the error code returned by the foreign server.
+.Pp
+.Fn ftpChdir
+attempts to issue a server CD command to the directory named in
+.Fa dir .
+On success, zero is returned.  On failure, the error code from the server.
+.Pp
+.Fn ftpErrno
+returns the server failure code for the last operation (useful for seeing
+more about what happened if you're familiar with FTP error codes).
+.Fn ftpErrString
+returns a human readable version of the supplied server failure code.
+.Pp
+.Fn ftpGet
+attempts to retreive the file named by the
+.Fa file
+argument (which is assumed to be relative to the FTP server's current directory,
+see
+.Fn ftpChdir )
+and returns a new FILE* pointer for the file or NULL on failure.  If
+.Fa seekto
+is non-NULL, the contents of the integer it points to will be used
+as a restart point for the file, that is to say that the stream
+returned will point
+.Fa *seekto
+bytes into the file gotten (this is handy for restarting failed
+transfers efficiently).  If the seek operation fails, the value
+of
+.Fa *seekto
+will be zero'd.
+.Pp
+.Fn ftpGetModtime
+returns the last modification time of the file named by the
+.Fa file
+argument.  If the file could not be opened or stat'd, 0 is returned.
+.Pp
+.Fn ftpGetSize
+returns the size in bytes of the file named by the
+.Fa file
+argument.  If the file could not be opened or stat'd, -1 is returned.
+.Pp
+.Fn ftpPut
+attempts to create a new file named by the
+.Fa file
+argument (which is assumed to be relative to the FTP server's current directory,
+see
+.Fn ftpChdir )
+and returns a new
+.Fa stream
+pointer for the file or NULL on failure.
+.Pp
+.Fn ftpAscii
+sets ASCII mode for the current server connection named by
+.Fa stream .
+.Pp
+.Fn ftpBinary
+sets binary mode for the current server connection named by
+.Fa stream .
+.Pp
+.Fn ftpPassive
+sets passive mode (for firewalls) for the current server connection named by
+.Fa stream
+to boolean value
+.Fa status .
+.Pp
+.Fn ftpVerbose
+sets the verbosity mode for the current server connection named by
+.Fa stream
+to boolean value
+.Fa status .
+.Pp
+.Fn ftpGetURL
+attempts to retreive the file named by the supplied
+.Fa URL
+and can be considered equivalent to the combined
+.Fn ftpLogin ,
+.Fn ftpChdir
+and
+.Fn ftpGet
+operations except that no server
+.Fa stream
+is ever returned - the connection to the server closes when
+the file has been completely read.  Use the lower-level routines
+if multiple gets are required as it will be far more efficient.
+.Pp
+.Fn ftpPutURL
+attempts to create the file named by the supplied
+.Fa URL
+and can be considered equivalent to the combined
+.Fn ftpLogin ,
+.Fn ftpChdir
+and
+.Fn ftpPut
+operations except that no server stream is ever returned - the connection
+to the server closes when the file has been completely written.  Use the
+lower-level routines if multiple puts are required as it will be far more
+efficient.
+.Pp
+.Fn ftpLoginAf ,
+.Fn ftpGetURLAf ,
+.Fn ftpPutURLAf
+are same as
+.Fn ftpLogin ,
+.Fn ftpGetURL ,
+.Fn ftpPutURL
+except that they are able to specify address family
+.Fa af .
+.Sh ENVIRONMENT
+.Bl -tag -width FTP_PASSIVE_MODE -offset 3n
+.It Ev FTP_TIMEOUT
+Maximum time, in seconds, to wait for a response
+from the peer before aborting an
+.Tn FTP
+connection.
+.It Ev FTP_PASSIVE_MODE
+If defined, forces the use of passive mode, unless equal
+to ``NO'' or ``no'' in which case active mode is forced.
+If defined, the setting of this variable always overrides any calls to
+.Fn ftpPassive .
+.El
+.Sh BUGS
+I'm sure you can get this thing's internal state machine confused if
+you really work at it, but so far it's proven itself pretty robust in
+all my tests.
+.Sh HISTORY
+Started life as Poul-Henning Kamp's ftp driver for the system installation
+utility, later significantly mutated into a more general form as an
+extension of stdio by Jordan Hubbard.  Also incorporates some ideas and
+extensions from Jean-Marc Zucconi.
+.Sh AUTHORS
+.An Jordan Hubbard ,
+.An Poul-Henning Kamp
+and
+.An Jean-Marc Zucconi

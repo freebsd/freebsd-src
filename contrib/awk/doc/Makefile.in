@@ -1,0 +1,129 @@
+# Makefile for GNU Awk documentation.
+#
+# Copyright (C) 1993-2000 the Free Software Foundation, Inc.
+# 
+# This file is part of GAWK, the GNU implementation of the
+# AWK Programming Language.
+# 
+# GAWK is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# GAWK is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA
+
+SHELL = /bin/sh
+
+srcdir = @srcdir@
+VPATH = @srcdir@
+
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA = @INSTALL_DATA@
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+binprefix =
+manprefix =
+
+bindir = @bindir@
+libdir = @libdir@
+mandir = @mandir@/man1
+manext = .1
+infodir = @infodir@
+datadir = @datadir@/awk
+
+TEXI2DVI = texi2dvi
+TEX = tex
+MAKEINFO = makeinfo --no-split
+TROFF = groff -t -Tps
+SEDME = sed -e "s/^level0 restore/level0 restore flashme 100 72 moveto (Copyright `date '+%m-%d-%y %T'`, FSF, Inc. (all)) show/" \
+		-e "s/^\/level0 save def/\/level0 save def 30 -48 translate/"
+
+DOCS= gawk.1 igawk.1 gawk.texi
+
+TEXFILES= gawk.aux gawk.cp gawk.cps gawk.fn gawk.fns gawk.ky gawk.kys \
+	   gawk.pg gawk.pgs gawk.toc gawk.tp gawk.tps gawk.vr gawk.vrs
+
+ALLDOC= gawk.dvi $(TEXFILES) gawk.log awkcard.tr
+
+CARDSRC = $(srcdir)/macros $(srcdir)/cardfonts $(srcdir)/colors awkcard.tr
+CARDSRC_N = $(srcdir)/macros $(srcdir)/cardfonts $(srcdir)/no.colors awkcard.tr
+CARDFILES= $(CARDSRC) ad.block awkcard.in setter.outline
+
+# Use this if your troff can correctly handle macros from 'colors' file
+AWKCARD = awkcard.ps
+
+# Uncomment the following definition of AWKCARD if your troff can produce
+# Postscript but still has troubles with macros from 'colors'.  As this
+# is not groff you will have to change TROFF macro as well.  Do not forget
+# to ensure that awkcard.tr is processed by tbl.
+#AWKCARD = awkcard.nc
+
+all: $(DOCS) info
+
+install: $(mandir)/gawk$(manext) $(mandir)/igawk$(manext) $(infodir)/gawk.info
+
+$(infodir)/gawk.info::
+	-if test -f gawk.info; then d=.; \
+	else d=$(srcdir); fi; \
+	if    [ -f $(infodir)/dir -a -f $(infodir)/gawk.info ] \
+	   && cmp $$d/gawk.info $(infodir)/gawk.info > /dev/null \
+	   && grep '(gawk)' $(infodir)/dir  > /dev/null; then \
+		exit 0; \
+	fi; \
+	$(INSTALL_DATA) $$d/gawk.info $(infodir)/gawk.info ; \
+	if $(SHELL) -c 'install-info --version' > /dev/null 2>&1 ; \
+	then install-info --info-dir=$(infodir) gawk.info ; \
+	else true ; fi; exit 0
+
+$(mandir)/gawk$(manext):: gawk.1
+	$(INSTALL_DATA) $(srcdir)/gawk.1 $(mandir)/gawk$(manext)
+
+$(mandir)/igawk$(manext):: igawk.1
+	$(INSTALL_DATA) $(srcdir)/igawk.1 $(mandir)/igawk$(manext)
+
+uninstall:
+	rm -f $(mandir)/gawk$(manext) $(mandir)/igawk$(manext) $(infodir)/gawk.info*
+
+dvi:	gawk.dvi
+
+gawk.dvi: gawk.texi
+	-TEXINPUTS=$(srcdir):$$TEXINPUTS $(TEXI2DVI) $(srcdir)/gawk.texi
+
+info:	gawk.info
+
+gawk.info: gawk.texi
+	$(MAKEINFO) $(srcdir)/gawk.texi
+
+postscript: dvi gawk.1 igawk.1 $(AWKCARD)
+	-groff -man $(srcdir)/gawk.1 > gawk.1.ps
+	-groff -man $(srcdir)/igawk.1 > igawk.1.ps
+	dvips -o gawk.ps gawk.dvi
+
+awkcard.tr: awkcard.in
+	sed 's:SRCDIR:$(srcdir):' < $(srcdir)/awkcard.in > awkcard.tr
+
+awkcard.ps: $(CARDFILES)
+	$(TROFF) $(CARDSRC) | $(SEDME) | cat $(srcdir)/setter.outline - > awkcard.ps
+
+awkcard.nc: $(CARDFILES)
+	$(TROFF) $(CARDSRC_N) | $(SEDME) | cat $(srcdir)/setter.outline - > awkcard.ps && touch awkcard.nc
+
+clean:
+	rm -f *.ps $(ALLDOC) *~ awkcard.nc
+
+distclean: clean
+	rm -f Makefile
+
+maintainer-clean: distclean
+	@echo "This command is intended for maintainers to use; it"
+	@echo "deletes files that may require special tools to rebuild."
+	rm -f gawk.info

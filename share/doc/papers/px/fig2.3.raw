@@ -1,0 +1,103 @@
+HALT	2.2	Produce control flow backtrace
+BEG s,W,w,"	2.2,1.8	Write second part of block mark, enter block
+END	2.2,1.8	End block execution
+CALL l,A	2.2,1.8	Procedure or function call
+NODUMP s,W,w,"	2.2	\s-2BEG\s0 main program, suppress dump
+PUSH s	2.2,1.9	Clear space (for function result)
+POP s	2.2,1.9	Pop (arguments) off stack
+LINO s	2.2	Set line number, count statements
+TRA a	2.2	Short control transfer (local branching)
+TRA4 A	2.2	Long control transfer
+GOTO l,A	2.2,1.8	Non-local goto statement
+IF a	2.3	Conditional transfer
+REL* r	2.3	Relational test yielding Boolean result
+AND	2.4	Boolean and
+OR	2.4	Boolean or
+NOT	2.4	Boolean not
+LRV* l,A	2.5	Right value (load) operators
+RV* l,a	2.5	Right value (load) operators
+CON* v	2.5	Load constant operators
+AS*	2.5	Assignment operators
+OFF s	2.5	Offset address, typically used for field reference
+INX* s,w,w	2.6	Subscripting (indexing) operator
+NIL	2.6	Assert non-nil pointer
+LLV l,W	2.6	Address of operator
+LV l,w	2.6	Address of operator
+IND*	2.6	Indirection operators
+ADD*	2.7	Addition
+SUB*	2.7	Subtraction
+MUL*	2.7	Multiplication
+SQR*	2.7	Squaring
+DIV*	2.7	Fixed division
+MOD*	2.7	Modulus
+ABS*	2.7	Absolute value
+NEG*	2.7	Negation
+DVD*	2.7	Floating division
+RANG* v	2.8	Subrange checking
+CASEOP*	2.9	Case statements
+FOR* a	2.12	For statements
+PXPBUF w	2.10	Initialize \fIpxp\fP count buffer
+TRACNT w,A	2.10	Count a procedure entry
+COUNT w	2.10	Count a statement count point
+CTTOT s,w,w	2.11	Construct set
+CARD s	2.11	Cardinality of set
+STOI	2.12	Convert short to long integer
+STOD	2.12	Convert short integer to real
+ITOD	2.12	Convert integer to real
+ITOS	2.12	Convert integer to short integer
+GET	3.7	Get next record from a file
+PUT	3.8	Output a record to a file
+MESSAGE	3.6	Write to terminal
+FNIL	3.7	Check file initialized, not eof, synced
+FLUSH	3.11	Flush a file
+BUFF	3.11	Specify buffering for file "output"
+EOF	3.10	Returns \fItrue\fR if end of file
+EOLN	3.10	Returns \fItrue\fR if end of line on input text file
+RESET	3.11	Open file for input
+REWRITE	3.11	Open file for output
+REMOVE	3.11	Remove a file
+UNIT*	3.10	Set active file
+READ*	3.7	Read a record from a file
+WRITEC	3.8	Character unformatted write
+WRITEF l	3.8	General formatted write
+WRITES l	3.8	String unformatted write
+WRITLN	3.8	Output a newline to a text file
+PAGE	3.8	Output a formfeed to a text file
+MIN s	3.8	Minimum of top of stack and \fIs\fR
+MAX s,w	3.8	Maximum of top of stack and \fIw\fR
+NAM A	3.8	Convert enumerated type value to print format
+FILE	3.9	Push descriptor for active file
+DEFNAME	3.11	Attach file name for \fBprogram\fR statement files
+PACK s,w,w,w	2.15	Convert and copy from unpacked to packed
+UNPACK s,w,w,w	2.15	Convert and copy from packed to unpacked
+LLIMIT	2.14	Set linelimit for output text file
+ARGC	2.14	Returns number of arguments to current process
+ARGV	2.14	Copy specified process argument into char array
+CLCK	2.14	Returns user time of program
+SCLCK	2.14	Returns system time of program
+WCLCK	2.14	Returns current time stamp
+DATE	2.14	Copy date into char array
+TIME	2.14	Copy time into char array
+SEED	2.13	Set random seed, return old seed
+RANDOM	2.13	Returns random number
+DISPOSE	2.15	Dispose of a heap allocation
+NEW s	2.15	Allocate a record on heap, set pointer to it
+EXPO	2.13	Returns machine representation of real exponent
+ATAN	2.13	Returns arctangent of argument
+EXP	2.13	Returns exponential of argument
+LN	2.13	Returns natural log of argument
+COS	2.13	Returns cos of argument
+SIN	2.13	Returns sin of argument
+SQRT	2.13	Returns square root of argument
+CHR*	2.15	Returns integer to ascii mapping of argument
+ODD*	2.15	Returns \fItrue\fR if argument is odd, \fIfalse\fR if even
+PRED*	2.7	Returns predecessor of argument
+STLIM	2.14	Set program statement limit
+SUCC*	2.7	Returns successor of argument
+ROUND	2.13	Returns \s-2TRUNC\s0(argument + 0.5)
+TRUNC	2.13	Returns integer part of argument
+UNDEF	2.15	Returns \fIfalse\fR
+SDUP	2.2	Duplicate top stack word
+ASRT	2.12	Assert \fItrue\fR to continue
+IN s,w,w	2.11	Set membership
+INCT	2.11	Membership in a constructed set

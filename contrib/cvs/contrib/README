@@ -1,0 +1,104 @@
+This "contrib" directory is a place holder for code/scripts sent to me
+by contributors around the world.  This README file will be kept
+up-to-date from release to release.  BUT, we must point out that these
+contributions are really, REALLY UNSUPPORTED.  In fact, we probably
+don't even know what some of them really do.  We certainly do not
+guarantee to have tried them, or ported them to work with this CVS
+distribution.  If you have questions, your best bet is to contact the
+original author, but you should not necessarily expect a reply, since
+the author may not be available at the address given.
+
+USE AT YOUR OWN RISK -- and all that stuff.
+
+"Unsupported" also means that no one has volunteered to accept and check
+in changes to this directory.  So submissions for new scripts to add
+here are unlikely to be accepted.  Suggested changes to the existing
+scripts here conceivably might, but that isn't clear either, unless of
+course they come from the original author of the script.
+
+If you have some software that works with CVS that you wish to offer it
+is suggested that you make it available by FTP or HTTP and then announce
+it on the info-cvs mailing list.
+
+There is a web page of software related to CVS at the following URL which
+would presumably be willing to list your software.
+
+	http://www.loria.fr/~molli/cvs-index.html
+
+An attempt at a table of Contents for this directory:
+
+	README		This file.
+	log		A perl script suitable for including in your
+			$CVSROOT/CVSROOT/loginfo file for logging commit
+			changes.  Includes the RCS revision of the change
+			as part of the log.
+			Contributed by Kevin Samborn <samborn@sunrise.com>.
+	commit_prep	A perl script, to be combined with log_accum.pl, to
+	log_accum	provide for a way to combine the individual log
+			messages of a multi-directory "commit" into a
+			single log message, and mail the result somewhere.
+			Can also do other checks for $Id and that you are
+			committing the correct revision of the file.
+			Read the comments carefully.
+			Contributed by David Hampton <hampton@cisco.com>.
+	mfpipe		Another perl script for logging.  Allows you to
+			pipe the log message to a file and/or send mail
+			to some alias.
+			Contributed by John Clyne <clyne@niwot.scd.ucar.edu>.
+	rcs-to-cvs	Script to import sources that may have been under
+			RCS control already.
+			Contributed by Per Cederqvist <ceder@lysator.liu.se>.
+	cvscheck	Identifies files added, changed, or removed in a
+	cvscheck.man	checked out CVS tree; also notices unknown files.
+			Contributed by Lowell Skoog <fluke!lowell@uunet.uu.net>
+	cvshelp.man	An introductory manual page written by Lowell Skoog
+			<fluke!lowell@uunet.uu.net>.  It is most likely
+			out-of-date relative to CVS 1.3, but still may be
+			useful.
+	dirfns		A shar file which contains some code that might
+			help your system support opendir/readdir/closedir,
+			if it does not already.
+			Copied from the C-News distribution.
+	rcslock		A perl script that can be added to your commitinfo
+			file that tries to determine if your RCS file is
+			currently locked by someone else, as might be the
+			case for a binary file.
+			Contributed by John Rouillard <rouilj@cs.umb.edu>.
+	cvs_acls	A perl script that implements Access Control Lists
+			by using the "commitinfo" hook provided with the
+			"cvs commit" command.
+			Contributed by David G. Grubbs <dgg@ksr.com>.
+	descend		A shell script that can be used to recursively
+	descend.man	descend through a directory.  In CVS 1.2, this was
+			very useful, since many of the commands were not
+			recursive.  In CVS 1.3 (and later), however, most of
+			the commands are recursive.  However, this may still
+			come in handy.
+			Contributed by Lowell Skoog <fluke!lowell@uunet.uu.net>
+	cln_hist	A perl script to compress your
+			$CVSROOT/CVSROOT/history file, as it can grow quite
+			large after extended use.
+			Contributed by David G. Grubbs <dgg@ksr.com>
+	sccs2rcs	A C-shell script that can convert (some) SCCS files
+			into RCS files, retaining the info contained in the
+			SCCS file (like dates, author, and log message).
+			Contributed by Ken Cox <kenstir@viewlogic.com>.
+	intro.doc	A user's view of what you need to know to get
+			started with CVS.
+			Contributed by <Steven.Pemberton@cwi.nl>.
+	rcs2sccs	A shell script to convert simple RCS files into
+			SCCS files, originally gleaned off the network
+			somewhere (originally by "kenc") and modified by
+			Jerry Jelinek <jerry@rmtc.Central.Sun.COM> and
+			Brian Berliner <berliner@sun.com> to increase
+			robustness and add support for one-level of branches.
+	rcs2log		A shell script to create a ChangeLog-format file
+			given only a set of RCS files.
+			Contributed by Paul Eggert <eggert@twinsun.com>.
+ 	clmerge		A perl script to handle merge conflicts in GNU
+			style ChangeLog files .
+			Contributed by Tom Tromey <tromey@busco.lanl.gov>.
+	cvs2vendor	A shell script to move changes from a repository
+			that was started without a vendor branch to one
+			that has a vendor branch.
+			Contributed by Greg A. Woods <woods@planix.com>

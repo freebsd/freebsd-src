@@ -1,0 +1,853 @@
+.\" $Id: eventlib.mdoc,v 1.22 2001/12/28 04:24:22 marka Exp $
+.\"
+.\"Copyright (c) 1995-1999 by Internet Software Consortium
+.\"
+.\"Permission to use, copy, modify, and distribute this software for any
+.\"purpose with or without fee is hereby granted, provided that the above
+.\"copyright notice and this permission notice appear in all copies.
+.\"
+.\"THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+.\"ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+.\"OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+.\"CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+.\"DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+.\"PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+.\"ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+.\"SOFTWARE.
+.\"
+.Dd March 6, 1996
+.Dt EVENTLIB 3
+.Os BSD 4
+.Sh NAME
+.Nm evConnFunc ,
+.Nm evFileFunc ,
+.Nm evStreamFunc ,
+.Nm evTimerFunc ,
+.Nm evWaitFunc ,
+.Nm evCreate ,
+.Nm evDestroy ,
+.Nm evGetNext ,
+.Nm evDispatch ,
+.Nm evDrop ,
+.Nm evMainLoop ,
+.Nm evConsTime ,
+.Nm evTimeSpec ,
+.Nm evTimeVal ,
+.Nm evAddTime ,
+.Nm evSubTime ,
+.Nm evCmpTime ,
+.Nm evNowTime ,
+.Nm evLastEventTime ,
+.Nm evSetTimer ,
+.Nm evResetTimer ,
+.Nm evClearTimer ,
+.Nm evSetIdleTimer ,
+.Nm evTouchIdleTimer ,
+.Nm evClearIdleTimer ,
+.Nm evWaitFor ,
+.Nm evDo ,
+.Nm evUnwait ,
+.Nm evDefer ,
+.Nm evSelectFD ,
+.Nm evDeselectFD ,
+.Nm evWrite ,
+.Nm evRead ,
+.Nm evCancelRW ,
+.Nm evTimeRW ,
+.Nm evUntimeRW ,
+.Nm evListen ,
+.Nm evConnect ,
+.Nm evCancelConn ,
+.Nm evHold ,
+.Nm evUnhold ,
+.Nm evTryAccept ,
+.Nm evConsIovec ,
+.Nm evSetDebug ,
+.Nm evPrintf ,
+.Nm evInitID ,
+.Nm evTestID
+.Nd event handling library
+.Sh SYNOPSIS
+.Fd #include <isc/eventlib.h>
+.Ft typedef void
+.Fn \*(lp*evConnFunc\*(rp "evContext ctx" "void *uap" "int fd" \
+"const void *la" "int lalen" "const void *ra" "int ralen"
+.Ft typedef void
+.Fn \*(lp*evTimerFunc\*(rp "evContext ctx" "void *uap" \
+"struct timespec due" "struct timespec inter"
+.Ft typedef void
+.Fn \*(lp*evFileFunc\*(rp "evContext ctx" "void *uap" "int fd" "int eventmask"
+.Ft typedef void
+.Fn \*(lp*evStreamFunc\*(rp "evContext ctx" "void *uap" "int fd" "int bytes"
+.Ft typedef void
+.Fn \*(lp*evWaitFunc\*(rp "evContext ctx" "void *uap" "const void *tag"
+.Ft int
+.Fn evCreate "evContext *ctx"
+.Ft int
+.Fn evDestroy "evContext ctx"
+.Ft int
+.Fn evGetNext "evContext ctx" "evEvent *ev" "int options"
+.Ft int
+.Fn evDispatch "evContext ctx" "evEvent ev"
+.Ft void
+.Fn evDrop "evContext ctx" "evEvent ev"
+.Ft int
+.Fn evMainLoop "evContext ctx"
+.Ft struct timespec
+.Fn evConsTime "int sec" "int usec"
+.Ft struct timespec
+.Fn evTimeSpec "struct timeval tv"
+.Ft struct timeval
+.Fn evTimeVal "struct timespec ts"
+.Ft struct timespec
+.Fn evAddTime "struct timespec addend1" "struct timespec addend2"
+.Ft struct timespec
+.Fn evSubTime "struct timespec minuend" "struct timespec subtrahend"
+.Ft struct timespec
+.Fn evCmpTime "struct timespec a" "struct timespec b"
+.Ft struct timespec
+.Fn evNowTime "void"
+.Ft struct timespec
+.Fn evLastEventTime "evContext opaqueCtx"
+.Ft int
+.Fn evSetTimer "evContext ctx" "evTimerFunc func" "void *uap" \
+"struct timespec due" "struct timespec inter" "evTimerID *id"
+.Ft int
+.Fn evResetTimer "evContext ctx" "evTimerID id" "evTimerFunc func" \
+"void *uap" "struct timespec due" "struct timespec inter"
+.Ft int
+.Fn evClearTimer "evContext ctx" "evTimerID id"
+.Ft int
+.Fn evSetIdleTimer "evContext opaqueCtx" "evTimerFunc func" "void *uap" \
+"struct timespec max_idle" "evTimerID *opaqueID"
+.Ft int 
+.Fn evTouchIdleTimer "evContext opaqueCtx" "evTimerID id"
+.Ft int 
+.Fn evResetIdleTimer "evContext opaqueCtx" "evTimerID id" "evTimerFunc func" \
+"void *uap" "struct timespec max_idle"
+.Ft int
+.Fn evClearIdleTimer "evContext opaqueCtx" "evTimerID id"
+.Ft int
+.Fn evWaitFor "evContext opaqueCtx" "const void *tag" \
+"evWaitFunc func" "void *uap" "evWaitID *id"
+.Ft int
+.Fn evDo "evContext opaqueCtx" "const void *tag"
+.Ft int
+.Fn evUnwait "evContext opaqueCtx" "evWaitID id"
+.Ft int
+.Fn evDefer "evContext opaqueCtx" "evWaitFunc func" "void *uap"
+.Ft int
+.Fn evSelectFD "evContext ctx" "int fd" "int eventmask" \
+"evFileFunc func" "void *uap" "evFileID *id"
+.Ft int
+.Fn evDeselectFD "evContext ctx" "evFileID id"
+.Ft struct iovec
+.Fn evConsIovec "void *buf" "size_t cnt"
+.Ft int
+.Fn evWrite "evContext ctx" "int fd" "const struct iovec *iov" "int cnt" \
+"evStreamFunc func" "void *uap" "evStreamID *id"
+.Ft int
+.Fn evRead "evContext ctx" "int fd" "const struct iovec *iov" "int cnt" \
+"evStreamFunc func" "void *uap" "evStreamID *id"
+.Ft int
+.Fn evCancelRW "evContext ctx" "evStreamID id"
+.Ft int
+.Fn evTimeRW "evContext opaqueCtx" "evStreamID id" "evTimerID timer"
+.Ft int
+.Fn evUntimeRW "evContext opaqueCtx" "evStreamID id"
+.Ft int
+.Fn evListen "evContext ctx" "int fd" "int maxconn" \
+"evConnFunc func" "void *uap" "evConnID *id"
+.Ft int
+.Fn evConnect "evContext ctx" "int fd" "void *ra" "int ralen" \
+"evConnFunc func" "void *uap" "evConnID *id"
+.Ft int
+.Fn evCancelConn "evContext ctx" "evConnID id"
+.Ft int
+.Fn evHold "evContext ctx" "evConnID id"
+.Ft int
+.Fn evUnhold "evContext ctx" "evConnID id"
+.Ft int
+.Fn evTryAccept "evContext ctx" "evConnID id" "int *sys_errno"
+.Ft void
+.Fn evSetDebug "evContext ctx" "int level" "FILE *output"
+.Ft void
+.Fn evPrintf "const evContext_p *ctx" "int level" "const char *fmt" "..."
+.Ft void
+.Fn evInitID "*\s-1ID\s+1"
+.Ft int
+.Fn evTestID "\s-1ID\s+1"
+.Sh DESCRIPTION
+This library provides multiple outstanding asynchronous timers and I/O
+to a cooperating application.  The model is similar to that of the X
+Toolkit, in that events are registered with the library and the application
+spends most of its time in the
+.Fn evMainLoop
+function.  If an application already has a main loop, it can safely register
+events with this library as long as it periodically calls the
+.Fn evGetNext
+and
+.Fn evDispatch
+functions.  (Note that
+.Fn evGetNext
+has both polling and blocking modes.)
+.Pp
+The function
+.Fn evCreate
+creates an event context which is needed by all the other functions in this
+library.  All information used internally by this library is bound to this
+context, rather than to static storage.  This makes the library 
+.Dq thread safe ,
+and permits other library functions to use events without
+disrupting the application's use of events.
+.Pp
+The function
+.Fn evDestroy
+destroys a context that has been created by
+.Fn evCreate .
+All dynamic memory bound to this context will be freed.  An implicit
+.Fn evTimerClear
+will be done on all timers set in this event context.  An implicit
+.Fn evDeselectFD
+will be done on all file descriptors selected in this event context.
+.Pp
+The function
+.Fn evGetNext
+potentially waits for and then retrieves the next asynchronous event,
+placing it in the object of the
+.Fa ev
+pointer argument.  The following
+.Fa options
+are available:
+.Fa EV_POLL ,
+meaning that
+.Fn evGetNext
+should not block, but rather return
+.Dq Fa -1
+with
+.Fa errno
+set to
+.Fa EWOULDBLOCK
+if no events have occurred;
+.Fa EV_WAIT ,
+which tells
+.Fn evGetNext
+to block internally until the next event occurs; and
+.Fa EV_NULL ,
+which tells
+.Fn evGetNext
+that it should return a special 
+.Dq no-op 
+event, which is ignored by
+.Fn evDispatch
+but handled correctly by
+.Fn evDrop .
+.Fa EV_NULL
+can be necessary to the correct functioning of a caller\-written equivilent to
+.Fn evMainLoop ,
+wherein perterbations caused by external system events must be polled for, and
+the default behaviour of internally ignoring such events is undesirable.
+Note that
+.Fa EV_POLL
+and
+.Fa EV_WAIT
+are mutually exclusive.
+.Pp
+The function
+.Fn evDispatch
+dispatches an event retrieved by
+.Fn evGetNext .
+This usually involves calling the function that was associated with the event
+when the event was registered with
+.Fn evSetTimer ,
+.Fn evResetTimer ,
+or
+.Fn evSelectFD .
+All events retrieved by
+.Fn evGetNext
+must be given over to
+.Fn evDispatch
+at some point, since there is some dynamic memory associated with each event.
+.Pp
+The function
+.Fn evDrop
+deallocates dynamic memory that has been allocated by
+.Fn evGetNext .
+Calling
+.Fn evDispatch
+has the side effect of calling
+.Fn evDrop ,
+but if you are going to drop the event rather than dispatch it, you will have
+to call
+.Fn evDrop
+directly.
+.Pp
+The function
+.Fn evMainLoop
+is just:
+.Bd -literal -offset indent
+while ((x = evGetNext(opaqueCtx, &event, EV_WAIT)) == 0)
+	if ((x = evDispatch(opaqueCtx, event)) < 0)
+		break;
+return (x);
+.Ed
+.Pp
+In other words, get events and dispatch them until an error occurs.  One such
+error would be that all the events under this context become unregistered; in
+that event, there will be nothing to wait for and
+.Fn evGetNext
+becomes an undefined operation.
+.Pp
+The function
+.Fn evConsTime
+is a constructor for
+.Dq Fa struct timespec
+which allows these structures to be created and then passed as arguments to
+other functions without the use of temporary variables.  (If C had inline
+constructors, there would be no need for this function.)
+.Pp
+The functions
+.Fn evTimeSpec
+and
+.Fn evTimeVal 
+are utilities which allow the caller to convert a
+.Dq Fa struct timeval
+to a 
+.Dq Fa struct timespec
+(the function of
+.Fn evTimeSpec )
+or vice versa (the function of
+.Fn evTimeVal ) .
+Note that the name of the function indicates the type of the return value.
+.Pp
+The function
+.Fn evAddTime
+adds two
+.Dq Fa struct timespec
+values and returns the result as a
+.Dq Fa struct timespec .
+.Pp
+The function
+.Fn evSubTime
+subtracts its second
+.Dq Fa struct timespec
+argument from its first
+.Dq Fa struct timespec
+argument and returns the result as a
+.Dq Fa struct timespec .
+.Pp
+The function
+.Fn evCmpTime
+compares its two
+.Dq Fa struct timespec
+arguments and returns an
+.Dq Fa int
+that is less than zero if the first argument specifies an earlier time than
+the second, or more than zero if the first argument specifies a later time
+than the second, or equal to zero if both arguments specify the same time.
+.Pp
+The function
+.Fn evNowTime
+returns a
+.Dq Fa struct timespec
+which either describes the current time (using
+.Xr gettimeofday 2 ) ,
+if successful, or has its fields set to zero, if there is an error.
+(In the latter case, the caller can check
+.Va errno ,
+since it will be set by
+.Xr gettimeofday 2 . )
+.Pp
+The function
+.Fn evLastEventTime 
+returns the
+.Dq Fa struct timespec
+which describes the last time that certain events happened to the 
+event context indicated by 
+.Fa opaqueCtx .
+This value is updated by
+.Fn evCreate 
+and
+.Fn evGetNext 
+(upon entry and after
+.Xr select 2
+returns); it is routinely compared with other times in the internal handling
+of, e.g., timers.
+.Pp
+The function
+.Fn evSetTimer
+registers a timer event, which will be delivered as a function call to the
+function specified by the
+.Fa func
+argument.  The event will be delivered at absolute time
+.Fa due ,
+and then if time
+.Fa inter
+is not equal to
+.Dq Fn evConsTime 0 0 ,
+subsequently at intervals equal to time
+.Fa inter .
+As a special case, specifying a
+.Fa due
+argument equal to
+.Dq Fn evConsTime 0 0
+means 
+.Dq due immediately .
+The
+.Fa opaqueID
+argument, if specified as a value other than
+.Fa NULL ,
+will be used to store the resulting 
+.Dq timer \s-1ID\s+1 , 
+useful as an argument to
+.Fn evClearTimer .
+Note that in a 
+.Dq one\-shot 
+timer (which has an
+.Fa inter
+argument equal to
+.Dq Fa evConsTime(0,0) )
+the user function
+.Fa func
+should deallocate any dynamic memory that is uniquely bound to the
+.Fa uap ,
+since no handles to this memory will exist within the event library
+after a one\-shot timer has been delivered.
+.Pp
+The function
+.Fn evResetTimer
+resets the values of the timer specified by
+.Fa id
+to the given arguments.  The arguments are the same as in the description of
+.Fn evSetTimer
+above.
+.Pp
+The function
+.Fn evClearTimer
+will unregister the timer event specified by
+.Fa id .
+Note that if the
+.Fa uap
+specified in the corresponding
+.Fn evSetTimer
+call is uniquely bound to any dynamic memory, then that dynamic memory should
+be freed by the caller before the handle is lost.  After a call to
+.Fn evClearTimer ,
+no handles to this
+.Fa uap
+will exist within the event library.
+.Pp
+The function
+.Fn evSetIdleTimer 
+is similar to (and built on)
+.Fn evSetTimer ;
+it registers an idle timer event which provides for the function call to
+.Fa func
+to occur.  However, for an
+.Em idle
+timer, the call will occur after at least
+.Dq Fa max_idle
+time has passed since the time the idle timer was
+.Dq last touched ;
+originally, this is set to the time returned by
+.Fn evLastEventTime 
+(described above) for the event context specified by 
+.Fa opaqueCtx .  
+This is a 
+.Dq one\-shot 
+timer, but the time at which the
+.Fa func
+is actually called can be changed by recourse to
+.Fn evTouchIdleTimer
+(described below).  The pointer to the underlying 
+.Dq timer \s-1ID\s+1 
+is returned in
+.Fa opaqueID ,
+if it is
+.No non- Ns Dv NULL .
+.Pp
+The
+.Fn evTouchIdleTimer 
+function updates the idle timer associated with
+.Fa id ,
+setting its idea of the time it was last accessed to the value returned by
+.Fn evLastEventTime
+(described above) for the event context specified by
+.Fa opaqueCtx .
+This means that the idle timer will expire after at least
+.Fa max_idle
+time has passed since this (possibly new) time, providing a caller mechanism
+for resetting the call to the
+.Fa func
+associated with the idle timer.  (See the description of
+.Fn evSetIdleTimer ,
+above, for information about
+.Fa func
+and
+.Fa max_idle . )
+.Pp
+The
+.Fn evResetIdleTimer
+function reschedules a timer and resets the callback function and its argument.
+Note that resetting a timer also ``touches'' it.
+.Pp
+The
+.Fn evClearIdleTimer
+function unregisters the idle timer associated with
+.Fa id .
+See the discussion under
+.Fn evClearTimer , 
+above, for information regarding caller handling of the
+.Fa uap
+associated with the corresponding
+.Fn evSetIdleTimer
+call.
+.Pp
+The function
+.Fn evWaitFor
+places the function
+.Fa func
+on the given event context's wait queue with the associated (possibly
+.Dv NULL )
+.Dq Fa tag ;
+if 
+.Fa id
+is 
+.No non- Ns Dv NULL ,
+then it will contain the 
+.Dq wait \s-1ID\s+1 
+associated with the created queue element.
+.Pp
+The function
+.Fn evDo 
+marks 
+.Em all
+of the 
+.Dq waiting 
+functions in the given event context's wait queue with the associated (possibly
+.Dv NULL )
+.Dq Fa tag
+as runnable.  This places these functions in a
+.Dq done
+queue which will be read by
+.Fn evGetNext .
+.Pp
+The function
+.Fn evUnwait 
+will search for the
+.Dq wait \s-1ID\s+1 
+.Fa id
+in the wait queue of the given event context; if an element with the given
+.Fa id 
+is not found, then the
+.Dq done
+queue of that context is searched.  If found, the queue element is removed
+from the appropriate list.
+.Pp
+The function
+.Fn evDefer
+causes a function (specified as
+.Fa func ,
+with argument
+.Fa uap )
+to be dispatched at some later time.  Note that the
+.Fa tag
+argument to
+.Fa func
+will always be
+.Fa NULL
+when dispatched.
+.Pp
+The function
+.Fn evSelectFD
+registers a file I/O event for the file descriptor specified by
+.Fa fd .
+Bits in the
+.Fa eventmask
+argument are named
+.Fa EV_READ ,
+.Fa EV_WRITE ,
+and
+.Fa EV_EXCEPT .
+At least one of these bits must be specified.  If the
+.Fa id
+argument is not equal to
+.Fa NULL ,
+it will be used to store a unique ``file event \s-1ID\s+1'' for this event,
+which is useful in subsequent calls to
+.Fn evDeselectFD .
+A file descriptor will be made nonblocking using the
+.Fa O_NONBLOCK
+flag with
+.Xr fcntl 2
+on its first concurrent registration via
+.Fn evSelectFD .
+An
+.Fn evSelectFD
+remains in effect until cancelled via
+.Fn evDeselectFD .
+.Pp
+The function
+.Fn evDeselectFD
+unregisters the ``file event'' specified by the
+.Fa id
+argument.  If the corresponding
+.Fa uap
+uniquely points to dynamic memory, that memory should be freed before its
+handle is lost, since after a call to
+.Fn evDeselectFD ,
+no handles to this event's
+.Fa uap
+will remain within the event library.  A file descriptor will be taken out of
+nonblocking mode (see
+.Fa O_NONBLOCK
+and
+.Xr fcntl 2 )
+when its last event registration is removed via
+.Fn evDeselectFD ,
+if it was in blocking mode before the first registration via
+.Fn evSelectFD .
+.Pp
+The function
+.Fn evConsIovec
+is a constructor for a single
+.Ft struct iovec
+structure, which is useful for
+.Fn evWrite
+and
+.Fn evRead .
+.Pp
+The functions
+.Fn evWrite
+and
+.Fn evRead
+start asynchronous stream I/O operations on file descriptor
+.Fa fd .
+The data to be written or read is in the scatter/gather descriptor specified by
+.Fa iov
+and
+.Fa cnt .
+The supplied function
+.Fa func
+will be called with argument
+.Fa uap
+when the I/O operation is complete.  If
+.Fa id
+is not
+.Fa NULL ,
+it will be filled a with the stream event identifier suitable for use with
+.Fn evCancelRW .
+.Pp
+The function
+.Fn evCancelRW
+extinguishes an outstanding
+.Fn evWrite
+or
+.Fn evRead
+call.  System I/O calls cannot always be cancelled, but you are guaranteed
+that the
+.Fa func
+function supplied to
+.Fn evWrite
+or
+.Fn evRead
+will not be called after a call to
+.Fn evCancelRW .
+Care should be taken not to deallocate or otherwise reuse the space pointed
+to by the segment descriptors in
+.Fa iov
+unless the underlying file descriptor is closed first.
+.Pp
+The function
+.Fn evTimeRW
+sets the stream associated with the given stream \s-1ID\s+1 
+.Dq Fa id
+to have the idle timer associated with the timer \s-1ID\s+1 
+.Dq Fa timer .
+.Pp
+The function
+.Fn evUntimeRW
+says that the stream associated with the given stream \s-1ID\s+1
+.Dq Fa id
+should ignore its idle timer, if present.
+.Pp
+The functions
+.Fn evListen ,
+.Fn evConnect ,
+and
+.Fn evCancelConn
+can be used to manage asynchronous incoming and outgoing socket connections.
+Sockets to be used with these functions should first be created with
+.Xr socket 2
+and given a local name with
+.Xr bind 2 .
+It is extremely unlikely that the same socket will ever be
+useful for both incoming and outgoing connections.  The
+.Fa id
+argument to
+.Fn evListen
+and
+.Fn evConnect
+is either
+.Fa NULL
+or the address of a
+.Ft evFileID
+variable which can then be used in a subsequent call to
+.Fn evCancelConn .
+.Pp
+After a call to
+.Fn evListen ,
+each incoming connection arriving on
+.Fa fd
+will cause
+.Fa func
+to be called with
+.Fa uap
+as one of its arguments.
+.Fn evConnect
+initiates an outgoing connection on
+.Fa fd
+to destination address
+.Fa ra
+(whose length is
+.Fa ralen ) .
+When the connection is complete,
+.Fa func
+will be called with
+.Fa uap
+as one of its arguments.  The argument
+.Fa fd
+to
+.Fn \*(lp*func\*(rp
+will be
+.Fa -1
+if an error occurred that prevented this connection from completing 
+successfully.  In this case
+.Fn errno
+will have been set and the socket described by
+.Fa fd
+will have been closed.  The
+.Fn evCancelConn
+function will prevent delivery of all pending and subsequent
+events for the outstanding connection.  The
+.Fn evHold
+function will suspend the acceptance of new connections on the listener
+specified by
+.Fa id .
+Connections will be queued by the protocol stack up to the system's limit.  The
+.Fn evUnhold
+function will reverse the effects of
+.Fn evHold ,
+allowing incoming connections to be delivered for listener
+.Fa id .
+The
+.Fn evTryAccept
+function will poll the listener specified by
+.Fa id ,
+accepting a new connection if one is available, and queuing a connection event
+for later retrieval by
+.Fn evGetNext .
+If the connection event queued is an accept error(), sys_errno will contain
+the error code; otherwise it will be zero.  All connection events queued by
+.Fn evTryAccept
+will be delivered by
+.Fn evGetNext
+before a new select is done on the listener.
+.Pp
+The function
+.Fn evSetDebug
+sets the debugging
+.Fa level
+and diagnostic
+.Fa output
+file handle for an event context.  Greater numeric levels will
+result in more verbose output being sent to the output FILE during program
+execution.
+.Pp
+The function
+.Fn evPrintf
+prints a message with the format
+.Dq Fa fmt
+and the following arguments (if any), on the output stream associated
+with the event context pointed to by
+.Fa ctx .
+The message is output if the event context's debug level is greater than
+or equal to the indicated
+.Fa level .
+.Pp
+The function
+.Fn evInitID
+will initialize an opaque 
+.Dq evConn \s-1ID\s+1 , 
+.Dq evFile \s-1ID\s+1 , 
+.Dq evStream \s-1ID\s+1 , 
+.Dq evTimer \s-1ID\s+1 , 
+.Dq evWait \s-1ID\s+1 , 
+.Dq evContext , 
+or
+.Dq evEvent ,
+which is passed by reference.
+.Pp
+The function
+.Fn evTestID
+will examine an opaque \s-1ID\s+1 and return
+.Dq TRUE
+only if it is not in its initialized state.
+.Sh RETURN VALUES
+All the functions whose return type is
+.Dq Fa int
+use the standard convention of returning zero (0) to indicate success, or
+returning
+.Dq Fa -1
+and setting
+.Fa errno
+to indicate failure.
+.Sh FILE
+.Pa heap.h ,
+which is in the 
+.Pa src/lib/isc
+directory of the current 
+.Sy BIND
+distribution.
+.Sh ERRORS
+The possible values for
+.Fa errno
+when one of the
+.Dq Fa int
+functions in this library returns
+.Dq Fa -1
+include those of the Standard C Library and also:
+.Bl -tag -width EWOULDBLOCKAA
+.It Bq Er EINVAL
+Some function argument has an unreasonable value.
+.It Bq Er EINVAL
+The specified file descriptor has an integer value greater than the default
+.Fa FD_SETSIZE ,
+meaning that the application's limit is higher than the library's.
+.It Bq Er ENOENT
+The specified 
+.Dq event \s-1ID\s+1 
+does not exist.
+.It Bq Er EWOULDBLOCK
+No events have occurred and the
+.Fa EV_POLL
+option was specified.
+.It Bq Er EBADF
+The specified signal was unblocked outside the library.
+.El
+.Sh SEE ALSO
+.Xr gettimeofday 2 ,
+.Xr select 2 ,
+.Xr fcntl 3 ,
+.Xr malloc 3 ,
+.Xr @INDOT@named @SYS_OPS_EXT@ ,
+.Xr readv 3 ,
+.Xr writev 3 .
+.Sh BUGS
+This huge man page needs to be broken up into a handful of smaller ones.
+.Sh HISTORY
+The
+.Nm eventlib
+library was designed by Paul Vixie with excellent advice from his friends
+and with tips 'o the cap to the X Consortium and the implementors of DEC SRC
+Modula-3.

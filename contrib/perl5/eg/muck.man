@@ -1,0 +1,21 @@
+.\" $RCSfile: muck.man,v $$Revision: 4.1 $$Date: 92/08/07 17:20:23 $
+.TH MUCK 1 "10 Jan 1989"
+.SH NAME
+muck \- make usage checker
+.SH SYNOPSIS
+.B muck
+[options]
+.SH DESCRIPTION
+.I muck
+looks at your current makefile and complains if you've left out any dependencies
+between .o and .h files.
+It also complains about extraneous dependencies.
+.PP
+You can use the -f FILENAME option to specify an alternate name for your
+makefile.
+The -v option is a little more verbose about what muck is mucking around
+with at the moment.
+.SH SEE ALSO
+make(1)
+.SH BUGS
+Only knows about .h, .c and .o files.

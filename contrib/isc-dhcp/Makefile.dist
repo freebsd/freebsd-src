@@ -1,0 +1,63 @@
+# Makefile.dist
+#
+# Copyright (c) 1996-1999 Internet Software Consortium.
+# Use is subject to license terms which appear in the file named
+# ISC-LICENSE that should have accompanied this file when you
+# received it.   If a file named ISC-LICENSE did not accompany this
+# file, or you are not sure the one you have is correct, you may
+# obtain an applicable copy of the license at:
+#
+#             http://www.isc.org/isc-license-1.0.html. 
+#
+# This file is part of the ISC DHCP distribution.   The documentation
+# associated with this file is listed in the file DOCUMENTATION,
+# included in the top-level directory of this release.
+#
+# Support and other services are available for ISC products - see
+# http://www.isc.org for more information.
+#
+
+SUBDIRS=	common $(MINIRES) dst omapip server client relay dhcpctl
+
+all:
+	@for dir in ${SUBDIRS}; do \
+		echo "Making all in $$dir"; \
+		(cd $$dir; $(MAKE) all) || exit 1; \
+	 done
+
+install:
+	@for dir in ${SUBDIRS}; do \
+		echo "Installing in $$dir"; \
+		(cd $$dir; $(MAKE) install) || exit 1; \
+	 done
+
+depend:
+	@for dir in ${SUBDIRS}; do \
+		echo "Making dependencies in $$dir"; \
+		(cd $$dir; $(MAKE) depend) || exit 1; \
+	 done
+
+clean:
+	@for dir in ${SUBDIRS}; do \
+		echo "Cleaning in $$dir"; \
+		(cd $$dir; $(MAKE) clean) || exit 1; \
+	 done
+
+realclean:
+	@for dir in ${SUBDIRS}; do \
+		echo "Really cleaning in $$dir"; \
+		(cd $$dir; $(MAKE) realclean) || exit 1; \
+	 done
+
+distclean:
+	@for dir in ${SUBDIRS}; do \
+		echo "Really, really cleaning in $$dir"; \
+		(cd $$dir; $(MAKE) distclean) || exit 1; \
+	 done
+	@rm -f Makefile
+
+links:
+	@for dir in ${SUBDIRS}; do \
+		echo "Making links in $$dir"; \
+		(cd $$dir; $(MAKE) links) || exit 1; \
+	 done

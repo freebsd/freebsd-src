@@ -1,0 +1,80 @@
+<html>
+<head><title>xxfi_body</title></head>
+<body>
+<h1>xxfi_body</h1>
+
+<table border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<tr><th valign="top" align=left width=150>SYNOPSIS</th><td>
+<pre>
+#include &lt;libmilter/mfapi.h&gt;
+sfsistat (*xxfi_body)(
+	SMFICTX * ctx,
+	unsigned char * bodyp,
+	size_t len
+);
+</pre>
+Handle a piece of a message's body.
+</td></tr>
+
+<!----------- Description ---------->
+<tr><th valign="top" align=left>DESCRIPTION</th><td>
+<table border="1" cellspacing=1 cellpadding=4>
+<tr align="left" valign=top>
+<th width="80">Called When</th>
+<td>xxfi_body is called zero or more times between xxfi_eoh and xxfi_eom.</td>
+</tr>
+<tr align="left" valign=top>
+<th>Default Behavior</th>
+<td>Do nothing; return SMFIS_CONTINUE.</td>
+</tr>
+</table>
+
+<!----------- Arguments ---------->
+<tr><th valign="top" align=left>ARGUMENTS</th><td>
+    <table border="1" cellspacing=0>
+    <tr bgcolor="#dddddd"><th>Argument</th><th>Description</th></tr>
+    <tr valign="top"><td>ctx</td>
+	<td>Opaque context structure.
+	</td></tr>
+    <tr valign="top"><td>bodyp</td>
+	<td>Pointer to the start of this block of body data.  bodyp is not valid outside this call to xxfi_body.
+	</td></tr>
+    <tr valign="top"><td>len</td>
+	<td>The amount of data pointed to by bodyp.
+	</td></tr>
+    </table>
+</td></tr>
+
+<!----------- Notes ---------->
+<tr>
+<th valign="top" align=left>NOTES</th> 
+<td>
+<ul>
+<li>bodyp points to a sequence of bytes.
+It is <em>not</em> a C string (a sequence of characters that is terminated by '\0').
+Therefore, do not use the usual C string functions like strlen() on this byte block.
+Moreover, the byte sequence may contain '\0' characters inside the block.
+Hence even if a trailing '\0' is added, C string functions may still fail
+to work as expected.
+<li>Since message bodies can be very large, defining xxfi_body can
+significantly impact filter performance.
+<li>End-of-lines are represented as received from SMTP (normally CR/LF).
+<li>Later filters will see body changes made by earlier ones.
+<li>Message bodies may be sent in multiple chunks, with one call to 
+    xxfi_body per chunk.
+</ul>
+</td>
+</tr>
+</table>
+
+<hr size="1">
+<font size="-1">
+Copyright (c) 2000-2002 Sendmail, Inc. and its suppliers.
+All rights reserved.
+<br>
+By using this file, you agree to the terms and conditions set
+forth in the <a href="LICENSE.txt">LICENSE</a>.
+</font>
+</body>
+</html>

@@ -1,0 +1,41 @@
+Hi Everybody!
+
+This is version 1.5 of "fbsdboot", a program that allows you to boot a kernel
+from a MS-DOS partition or a FreeBSD partition. This program runs using DOS.
+It works with various memory managers (like  EMM386, 386MAX) under certain
+circumstances.
+
+First, a FreeBSD kernel is always loaded to memory starting at 0x100000. To
+assure that loading the kernel *does not* overwrite memory used by memory
+managers, high memory for the kernel is allocated and after loading the kernel
+it's moved to 0x100000.
+
+Second, there are many ways to switch to protected mode which is necessary to
+start the kernel. Each BIOS gives you the possibility to use INT15H (AH=89H)
+to do that. But some memory-managers like 386max does not allow you to use
+this method.
+
+An other way to do the switch is to use DPMI services, but they do not
+guarantee, that the protected mode application is executed with privilege
+level 0. Therefore this method is *not* used.
+
+VCPI services offer another way to switch to protected mode, and VCPI servers
+are built into "emm386.exe", "386max" and "qemm". That's why, this method is
+implemented in fbsdboot.exe.
+
+Fbsdboot.exe tries to switch to protected mode using VCPI services. If they're
+not available INT15H is used to do the switch. If that fails, it's not possible
+for this version of fbsdboot.exe to boot a kernel :-(.
+
+You can get commandline options of fbsdboot if you start it with "-?" as option!
+
+I don't know, if fbsdboot works with QEMM, as I don't have the possibility to
+test it.
+
+Enjoy and have fun!
+
+Christian.
+cg@fimp01.fim.uni-linz.ac.at
+
+
+PS: Many thanks to Bruce Evans for his assistance!

@@ -1,0 +1,366 @@
+<!-- 
+	FreeBSD errata document.  Unlike some of the other RELNOTESng
+	files, this file should remain as a single SGML file, so that
+	the dollar FreeBSD dollar header has a meaningful modification
+	time.  This file is all but useless without a datestamp on it,
+	so we'll take some extra care to make sure it has one.
+
+	(If we didn't do this, then the file with the datestamp might
+	not be the one that received the last change in the document.)
+
+-->
+
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
+%man;
+<!ENTITY % authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
+%authors;
+<!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//EN">
+%mlists;
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+
+<!ENTITY release.point "4.6.2-RELEASE">
+]>
+
+<article>
+  <articleinfo>
+    <title>&os;
+<![ %release.type.snapshot [
+    &release.prev;/&release.point;
+]]>
+<![ %release.type.release [
+    &release.current;
+]]>
+    Errata</title>
+
+    <corpauthor>
+    The &os; Project
+    </corpauthor>
+
+    <pubdate>$FreeBSD$</pubdate>
+
+    <copyright>
+      <year>2000</year>
+      <year>2001</year>
+      <year>2002</year>
+      <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
+    </copyright>
+  </articleinfo>
+
+  <abstract>
+    <para>This document lists errata items for &os; 
+<![ %release.type.snapshot [
+      &release.prev;,
+]]>
+<![ %release.type.release [
+      &release.current;,
+]]>
+      containing significant information discovered after the release.
+      This information includes security advisories, as well as news
+      relating to the software or documentation that could affect its
+      operation or usability.  An up-to-date version of this document
+      should always be consulted before installing this version of
+      &os;.</para>
+
+    <para>Unless otherwise noted, items listed here also pertain
+      to &os; &release.point;, which was designed to fix certain,
+      specific problems in &release.prev; (see the release notes for
+      more details).</para>
+
+    <para>This errata document for &os; 
+<![ %release.type.snapshot [
+      &release.prev;
+]]>
+<![ %release.type.release [
+      &release.current;
+]]>
+      will be maintained until the release of &os; &release.next;.</para>
+  </abstract>
+
+  <sect1>
+    <title>Introduction</title>
+
+    <para>This errata document contains <quote>late-breaking news</quote>
+      about &os;
+<![ %release.type.snapshot [
+      &release.prev;.
+]]>
+<![ %release.type.release [
+      &release.current;.
+]]>
+      Before installing this version, it is important to consult this
+      document to learn about any post-release discoveries or problems
+      that may already have been found and fixed.</para>
+
+    <para>Any version of this errata document actually distributed
+      with the release (for example, on a CDROM distribution) will be
+      out of date by definition, but other copies are kept updated on
+      the Internet and should be consulted as the <quote>current
+      errata</quote> for this release.  These other copies of the
+      errata are located at <ulink
+      url="http://www.FreeBSD.org/releases/"></ulink>, plus any sites
+      which keep up-to-date mirrors of this location.</para>
+
+    <para>Source and binary snapshots of &os; &release.branch; also
+      contain up-to-date copies of this document (as of the time of
+      the snapshot).</para>
+
+    <para>For a list of all &os; CERT security advisories, see <ulink
+      url="http://www.FreeBSD.org/security/"></ulink> or <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
+
+  </sect1>
+
+  <sect1>
+    <title>Security Advisories</title>
+
+<![ %release.type.release [
+    <para>No active security advisories.</para>
+]]>
+
+<![ %release.type.snapshot [
+    <para>&os; &release.prev; contains a fix for a bug described in
+      security advisory SA-02:23 (which
+      addressed the use of file descriptors by set-user-id or
+      set-group-id programs).  An error has been discovered in the
+      bugfix; it is still
+      possible for systems using &man.procfs.5; or &man.linprocfs.5;
+      to be exploited.  A revised
+      version of security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>
+      contains a corrected bugfix.
+      This problem was corrected in &os; &release.point;.</para>
+
+    <para>A buffer overflow in the resolver could be exploited
+      by a malicious domain name server or an attacker forging DNS
+      messages.  This could potentially be used to force arbitrary
+      code to run on a client machine with the privileges of a
+      resolver-using application.  See security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:28.resolv.asc">FreeBSD-SA-02:28</ulink>
+      for more information and a fix.
+      This problem was corrected in &os; &release.point;.</para>
+
+    <para>Badly-formed NFS packets could trigger a buffer overflow in
+      &man.tcpdump.1;.  For a fix to this problem, see security advisory
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:29.tcpdump.asc">FreeBSD-SA-02:29</ulink>.
+      This problem was corrected in &os; &release.point;.</para>
+
+    <para>&man.ktrace.1; can be used to trace the operation of
+      formerly-privileged processes.  This is undesirable, as it is
+      then possible to leak information obtained while these processes
+      had elevated privileges.  See security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:30.ktrace.asc">FreeBSD-SA-02:30</ulink>
+      for a workaround and a fix.
+      This problem was corrected in &os; &release.point;.</para>
+
+    <para>A race condition in &man.pppd.8; can be used to
+      change the permissions of an arbitrary file.
+      For more details, a workaround, and bugfix information, see
+      security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:32.pppd.asc">FreeBSD-SA-02:32</ulink>.
+      This problem was corrected in &os; &release.point;.</para>
+
+    <para>Multiple buffer overflows have been discovered in
+      <application>OpenSSL</application>.
+      More details (including workarounds and bugfixes) can be found
+      in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:33.openssl.asc">FreeBSD-SA-02:33</ulink>.
+      This problem was corrected in &os; &release.point;.</para>
+
+    <para>A bug in the XDR decoder (used by Sun RPC) could result in a
+      heap buffer overflow.
+      Security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:34.rpc.asc">FreeBSD-SA-02:34</ulink>
+      contains workaround and bugfix information.
+      This problem was corrected in &os; &release.point;.</para>
+
+    <para>Local users can, under certain circumstances, read and write
+      arbitrary blocks on an FFS filesystem has been corrected.  More
+      details can be found in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:35.ffs.asc">FreeBSD-SA-02:35</ulink>,
+      which contains a workaround and bugfix information.
+      This problem was corrected in &os; &release.point;.</para>
+
+    <para>A bug in the NFS server code could allow a remote
+      denial of service attack.  Security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:36.nfs.asc">FreeBSD-SA-02:36</ulink>
+      has information on a fix and a workaround.
+      This problem was corrected in &os; &release.point;.</para>
+
+    <para>A bug in &man.kqueue.2; could allow local users to panic a
+      system.  Correction information is contained in security
+      advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:37.kqueue.asc">FreeBSD-SA-02:37</ulink>.
+      This problem was corrected in &os; &release.point;.</para>
+
+    <para>Several bounds-checking bugs in system calls could result in
+      some system calls returning a large portion of kernel memory.
+      More details can be found in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:38.signed-error.asc">FreeBSD-SA-02:38</ulink>.
+      This problem was corrected in time for &os; &release.point;,
+      although not mentioned in the accompanying release
+      documentation.</para>
+
+    <para>A bug in <filename>libkvm</filename> could result in some
+      applications leaking file descriptors with access to potentially
+      sensitive information.  More details, as well as a bugfix and a
+      workaround, can be found in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:39.libkvm.asc">FreeBSD-SA-02:39</ulink>.</para>
+
+]]>
+  </sect1>
+
+  <sect1>
+    <title>Late-Breaking News</title>
+
+<![ %release.type.release [
+    <para>No news.</para>
+]]>
+
+<![ %release.type.snapshot [
+
+    <para>In &os; &release.prev;, the default maximum TCP window size
+      was lowered from 65536 bytes to 57334 bytes, for better
+      compatability with some versions of
+      <application>IPFilter</application>.</para>
+
+    <para>A recently-discovered interaction between the &os; kernel
+      and the <filename role="port">archivers/zip</filename> port can
+      result in some errors on the alpha platform.  A post-release fix
+      has been committed to the &os; ports tree; versions of the
+      <filename role="port">archivers/zip</filename> port beginning
+      with 2.3_1 will function correctly.</para>
+
+    <para>On the alpha platform, the &man.de.4; and &man.txp.4;
+      drivers were moved from the boot kernel on the floppy images to
+      modules on the <filename>mfsroot</filename> floppy.  This change
+      was made in order to get the alpha kernel to fit onto the boot
+      floppy.  It should be transparent to all users, as
+      &man.sysinstall.8; will automatically load any kernel modules it
+      finds on the <filename>mfsroot</filename> floppy.</para>
+
+    <para>Several last-minute patches were made to the <filename
+      role="port">x11-servers/XFree86-4-Server</filename> package.
+      These allow the various server configuration programs to give
+      better support for the <filename>sysmouse</filename> device
+      supported by &man.moused.8;.  The binary packages on the CDROMs
+      and the FTP sites incoporate this patch and bear the version
+      number 4.2.0_3.  However, the ports collection included in the
+      distribution does not contain this patch.  To get an updated
+      version, use <application>CVSup</application> to obtain a more
+      recent ports collection.</para>
+
+    <para>Some &os;/i386 users have experienced difficulties reading
+      from certain ATA CDROM drives.  Specific models on which this
+      problem has been observed include the AOpen 48x, 52x, and 56x
+      CDROM drives, as well as the Mitsumi Slim CRMC-SR242S CDROM
+      drive.  A typical symptom is the following error message on the
+      console and/or &man.dmesg.8; buffer (sometimes accompanied by a
+      kernel panic):</para>
+
+    <screen>acd0: READ_BIG command timeout - resetting
+ata1: resetting devices .. done</screen>
+
+    <para>In some cases, this bug can prevent installation of &os;
+      from an affected CDROM drive.  It can cause &man.sysinstall.8;
+      to hang while extracting distribution files from CD
+      media.</para>
+
+    <para>A two-part workaround listed here has shown to be helpful in
+      some (but not necessarily all) cases.  First, to allow a CDROM
+      installation, it is necessary to modify the normal CDROM
+      installation procedure:</para>
+
+    <procedure>
+      <step>
+        <para>Start the computer with a &os; installation CDROM in
+        the drive.</para>
+      </step>
+
+      <step>
+        <para>Wait for a console message similar to:</para>
+
+	<screen>Hit [Enter] to boot immediately, or any other key for command prompt.
+Booting [kernel] in 9 seconds...</screen>
+      </step>
+
+      <step>
+        <para>Immediately interrupt the boot process by pressing the
+        <keycap>Space</keycap> bar on the keyboard.</para>
+      </step>
+
+      <step>
+        <para>Enter the following three lines at the
+        <literal>ok</literal> prompt:</para>
+
+        <screen><prompt>ok</prompt> <userinput>set hw.ata.ata_dma="1"</userinput></screen>
+        <screen><prompt>ok</prompt> <userinput>set hw.ata.atapi_dma="1"</userinput></screen>
+        <screen><prompt>ok</prompt> <userinput>boot</userinput></screen>
+      </step>
+
+      <step>
+        <para>Continue the installation as normal.</para>
+      </step>
+    </procedure>
+
+    <para>The second part of the workaround takes place after
+    completing the CDROM installation (or a successful source
+    upgrade).  It consists of configuring the &man.ata.4; driver so
+    that future CDROM reads work correctly:
+
+    <procedure>
+      <step>
+	<para>Add the following two lines to
+	  <filename>/boot/loader.conf</filename> (creating this file
+	  if it does not already exist):</para>
+
+	<programlisting>hw.ata.ata_dma="1"
+hw.ata.atapi_dma="1"</programlisting>
+      </step>
+
+      <step>
+        <para>Reboot the machine.
+      </step>
+    </procedure>
+
+    <para>This problem was fixed in &os; &release.current;
+      on 31 July 2002, as well as &os; &release.point;.</para>
+
+    <para>Due to a bug in the release generation process, some of the
+      directories under <filename>/usr/share/examples</filename> are
+      empty (most notably
+      <filename>/usr/share/examples/cvsup</filename>).  A partial
+      workaround is to install the <filename>sshare</filename>
+      distribution via &man.sysinstall.8; (from the main menu, choose
+      <guimenuitem>Configure</guimenuitem>,
+      <guimenuitem>Distributions</guimenuitem>,
+      <guimenuitem>src</guimenuitem>, then
+      <guimenuitem>share</guimenuitem>).
+      <filename>/usr/src/share/examples</filename> will then contain 
+      the missing files.  This problem was corrected in
+      &os; &release.current; on 16 July 2002, as well as &os;
+      &release.point;.</para>
+
+    <para>The item in the <quote>Filesystems</quote> section of the
+      release notes contains a small grammatical error.  It should
+      read: <quote>A bug has been fixed in soft updates that could
+      cause occasional filesystem corruption if the system is shut
+      down immediately after performing heavy filesystem activities,
+      such as installing a new kernel or other software.</quote></para>
+
+    <para>Due to an omission, <command>pkg_add -r</command> on
+      &release.prev; or &release.point; may attempt to fetch packages
+      built for &os; -STABLE, rather than for the appropriate release.
+      As a workaround, set the <varname>PACKAGESITE</varname>
+      environment variable appropriately before invoking
+      &man.pkg.add.1;.  For example, a &man.csh.1; user on
+      &release.point; could use:</para>
+
+    <programlisting>&prompt.user; <userinput>setenv PACKAGESITE \</userinput>
+<userinput>ftp://ftp.FreeBSD.org/pub/FreeBSD/ports/i386/packages-4.6.2-release/Latest/</userinput></programlisting>
+
+]]>
+  </sect1>
+</article>

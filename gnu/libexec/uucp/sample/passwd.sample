@@ -1,0 +1,18 @@
+# This is an example of passwd, the call in password file for Taylor
+# UUCP.  To use it, you must compile the package with
+# HAVE_TAYLOR_CONFIG set to 1 in policy.h (that is the default), copy
+# this file to newconfigdir as set in Makefile.in (the default is
+# /usr/local/conf/uucp), and edit it as appropriate for your system.
+
+# Everything after a '#' character is a comment.  To uncomment any of
+# the sample lines below, just delete the '#'.
+
+# This file is used when uucico is invoked with the -l or -e argument.
+# uucico will then prompt for a login name and password.  The login
+# name is looked up in this file to check the password (the system
+# password file, /etc/passwd, is not checked).  This permits uucico to
+# completely take over a port, allowing UUCP access to remote systems
+# but not permitting remote users to actually log in to the system.
+
+# The format is just login-name password.
+Uairs foobar

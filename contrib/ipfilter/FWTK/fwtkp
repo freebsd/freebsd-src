@@ -1,0 +1,812 @@
+diff -c -r ./ftp-gw/ftp-gw.c ../../NEW/fwtk/ftp-gw/ftp-gw.c
+*** ./ftp-gw/ftp-gw.c   Fri Sep  6 12:55:05 1996
+--- ../../NEW/fwtk/ftp-gw/ftp-gw.c      Wed Oct  9 02:51:35 1996
+***************
+*** 40,47 ****
+  
+  extern        char    *optarg;
+  
+! #include      "firewall.h"
+  
+  
+  #ifndef       BSIZ
+  #define       BSIZ    2048
+--- 40,48 ----
+  
+  extern        char    *optarg;
+  
+! char *getdsthost();
+  
++ #include      "firewall.h"
+  
+  #ifndef       BSIZ
+  #define       BSIZ    2048
+***************
+*** 84,89 ****
+--- 85,92 ----
+  static        int                     cmdcnt = 0;
+  static        int                     timeout = PROXY_TIMEOUT;
+  
++ static int do_transparent=0;
++ 
+  
+  static        int     cmd_user();
+  static        int     cmd_authorize();
+***************
+*** 98,103 ****
+--- 101,107 ----
+  static        void    saveline();
+  static        void    flushsaved();
+  static        void    trap_sigurg();
++ static int connectdest();
+  
+  #define       OP_CONN 001     /* only valid if connected */
+  #define       OP_WCON 002     /* writethrough if connected */
+***************
+*** 170,175 ****
+--- 174,180 ----
+        char            xuf[1024];
+        char            huf[128];
+        char            *passuser = (char *)0;  /* passed user as av */
++       char *psychic, *hotline;
+  
+  #ifndef       LOG_DAEMON
+        openlog("ftp-gw",LOG_PID);
+***************
+*** 314,319 ****
+--- 319,326 ----
+        } else
+                timeout = 60*60;
+  
++         psychic=getdsthost(0,NULL);
++         if(psychic) { do_transparent++; }
+  
+        /* display a welcome file or message */
+        if(passuser == (char *)0) {
+***************
+*** 322,327 ****
+--- 329,340 ----
+                                syslog(LLEV,"fwtkcfgerr: welcome-msg must have one parameter, line %d",cf->ln);
+                                exit(1);
+                        }
++                       if(do_transparent) {
++                               if(sayfile2(0,cf->argv[0],220)) {
++                                       syslog(LLEV,"fwtksyserr: cannot display welcome %s: %m",cf->argv[0]);
++                                       exit(1);
++                               }
++                       } else
+                        if(sayfile(0,cf->argv[0],220)) {
+                                syslog(LLEV,"fwtksyserr: cannot display welcome %s: %m",cf->argv[0]);
+                                exit(1);
+***************
+*** 332,338 ****
+                        if(authallflg)
+                                if(say(0,"220-Proxy first requires authentication"))
+                                        exit(1);
+!                       sprintf(xuf,"220 %s FTP proxy (Version %s) ready.",huf,FWTK_VERSION_MINOR);
+                        if(say(0,xuf))
+                                exit(1);
+                }
+--- 345,357 ----
+                        if(authallflg)
+                                if(say(0,"220-Proxy first requires authentication"))
+                                        exit(1);
+! /* foo */
+!                       if(do_transparent)
+!                       sprintf(xuf,"220-%s FTP proxy (Version %s) ready.",huf,FWTK_VERSION_MINOR);
+!                       else
+!                       sprintf(xuf,"220 %s FTP Proxy (Version %s) ready.",huf,FWTK_VERSION_MINOR);
+! /* foo */
+! 
+                        if(say(0,xuf))
+                                exit(1);
+                }
+***************
+*** 353,358 ****
+--- 372,381 ----
+                                exit(1);
+        }
+  
++       if(do_transparent) {
++               connectdest(psychic,21);
++       }
++ 
+        /* main loop */
+        while(1) {
+                FD_ZERO(&rdy);
+***************
+*** 676,681 ****
+--- 699,713 ----
+                        return(sayn(0,noad,sizeof(noad)-1));
+        }
+  
++       if(do_transparent) {
++               if((rfd==(-1)) && (x=connectdest(dest,port))) return x;
++               sprintf(buf,"USER %s",user);
++               if(say(rfd,buf)) return(1);
++               x=getresp(rfd,buf,sizeof(buf),1);
++               if(sendsaved(0,x)) return(1);
++               return(say(0,buf));
++       }
++ 
+        if(*dest == '\0')
+                dest = "localhost";
+  
+***************
+*** 701,708 ****
+                if(msg_int == 1) {
+                        sprintf(mbuf,"Permission denied for user %s to connect to %s",authuser,dest);
+                        syslog(LLEV,"deny host=%s/%s connect to %s user=%s",rladdr,riaddr,dest,authuser);
+!                       say(0,mbuf);
+!                       return(1);
+                } else {
+                        if(msg_int == -1) {
+                                sprintf(mbuf,"No match in netperm-table for %s to ftp to %s",authuser,dest);
+--- 733,740 ----
+                if(msg_int == 1) {
+                        sprintf(mbuf,"Permission denied for user %s to connect to %s",authuser,dest);
+                        syslog(LLEV,"deny host=%s/%s connect to %s user=%s",rladdr,riaddr,dest,authuser);
+!                               say(0,mbuf);
+!                               return(1);
+                } else {
+                        if(msg_int == -1) {
+                                sprintf(mbuf,"No match in netperm-table for %s to ftp to %s",authuser,dest);
+***************
+*** 717,723 ****
+                char    ebuf[512];
+  
+                strcpy(ebuf,buf);
+!               sprintf(buf,"521 %s: %s",dest,ebuf);
+                rfd = -1;
+                return(say(0,buf));
+        }
+--- 749,759 ----
+                char    ebuf[512];
+  
+                strcpy(ebuf,buf);
+!               if(do_transparent) {
+!                       sprintf(buf,"521 %s,%d: %s",dest,ntohs(port),ebuf);
+!               } else {
+!                       sprintf(buf,"521 %s: %s",dest,ebuf);
+!               }
+                rfd = -1;
+                return(say(0,buf));
+        }
+***************
+*** 732,737 ****
+--- 768,778 ----
+        }
+        saveline(buf);
+  
++       /* if(do_transparent) {
++               sendsaved(0,-1);
++               return(0);
++       } /* EEEk. I can't remember what this does. */
++ 
+        sprintf(buf,"USER %s",user);
+        if(say(rfd,buf))
+                return(1);
+***************
+*** 744,749 ****
+--- 785,860 ----
+        return 0;
+  }
+  
++ static int connectdest(dest, port)
++ char *dest;
++ short port;
++ {
++       char buf[1024], mbuf[512];
++       int msg_int, x;
++ 
++         if(*dest == '\0')
++                 dest = "localhost";
++ 
++         if(validests != (char **)0) {
++                 char    **xp;
++                 int     x;
++ 
++                 for(xp = validests; *xp != (char *)0; xp++) {
++                         if(**xp == '!' && hostmatch(*xp + 1,dest)) {
++                                 return(baddest(0,dest));
++                         } else {
++                                 if(hostmatch(*xp,dest))
++                                         break;
++                         }
++                 }
++                 if(*xp == (char *)0)
++                         return(baddest(0,dest));
++         }
++ 
++         /* Extended permissions processing goes in here for destination */
++         if(extendperm) {
++                 msg_int = auth_perm(confp, authuser, "ftp-gw", dest,(char *)0);
++                 if(msg_int == 1) {
++                         sprintf(mbuf,"Permission denied for user %s to connect to %s",authuser,dest);
++                         syslog(LLEV,"deny host=%s/%s connect to %s user=%s",rladdr,riaddr,dest,authuser);
++                                 say(0,mbuf);
++                                 return(1);
++                 } else {
++                         if(msg_int == -1) {
++                                 sprintf(mbuf,"No match in netperm-table for %s to ftp to %s",authuser,dest);
++                                 say(0,mbuf);
++                                 return(1);
++                         }
++                 }
++         }      
++ 
++         syslog(LLEV,"permit host=%s/%s connect to %s",rladdr,riaddr,dest);
++ 
++         if((rfd = conn_server(dest,port,0,buf)) < 0) {
++                 char    ebuf[512];
++ 
++                 strcpy(ebuf,buf);
++                 sprintf(buf,"521 %s: %s",dest,ebuf);
++                 rfd = -1;
++                 return(say(0,buf));
++         }
++       if(!do_transparent) {
++               sprintf(buf,"----GATEWAY CONNECTED TO %s----",dest);
++               saveline(buf);
++       }
++ 
++         /* we are now connected and need to try the autologin thing */
++         x = getresp(rfd,buf,sizeof(buf),1);
++         if(x / 100 != COMPLETE) {
++                 sendsaved(0,-1);
++                 return(say(0,buf));
++         }
++         saveline(buf);
++ 
++       sendsaved(0,-1);
++       return 0;
++ }
++ 
+  
+  
+  static        int
+***************
+*** 1053,1058 ****
+--- 1164,1171 ----
+        static char             nprn[] = "500 cannot get peername";
+        char                    buf[512];
+  
++       /* syslog(LLEV,"DEBUG: port cmd"); */
++ 
+        if(ac < 2)
+                return(sayn(0,narg,sizeof(narg)-1));
+  
+***************
+*** 1119,1124 ****
+--- 1232,1238 ----
+  #define UC(c)   (((int)c) & 0xff)
+        sprintf(buf,"PORT %d,%d,%d,%d,%d,%d\r\n",UC(k[0]),UC(k[1]),UC(k[2]),
+                UC(k[3]),UC(l[0]),UC(l[1]));
++       /* syslog(LLEV,"DEBUG: %s",buf); */
+        s = strlen(buf);
+        if (write(rfd, buf, s) != s)
+                return 1;
+***************
+*** 1330,1335 ****
+--- 1444,1450 ----
+  callback()
+  {
+        /* if we haven't gotten a valid PORT scrub the connection */
++       /* syslog(LLEV,"DEBUG: callback()."); */
+        if((outgoing = accept(boundport,(struct sockaddr *)0,(int *)0)) < 0 || clntport.sin_port == 0)
+                goto bomb;
+        if(pasvport != -1) { /* incoming handled by PASVcallback */
+***************
+*** 1796,1801 ****
+--- 1911,1960 ----
+        }
+        return(0);
+  }
++ 
++ /* ok, so i'm in a hurry. english paper due RSN. */
++ sayfile2(fd,fn,code)
++ int     fd;
++ char    *fn;
++ int     code;
++ {
++         FILE    *f;
++         char    buf[BUFSIZ];
++         char    yuf[BUFSIZ];
++         char    *c;
++         int     x;
++         int     saidsomething = 0;
++ 
++         if((f = fopen(fn,"r")) == (FILE *)0)
++                 return(1);
++         while(fgets(buf,sizeof(buf),f) != (char *)0) {
++                 if((c = index(buf,'\n')) != (char *)0)
++                         *c = '\0';
++                 x = fgetc(f);
++                 if(feof(f))
++                         sprintf(yuf,"%3.3d-%s",code,buf);
++                 else {
++                         sprintf(yuf,"%3.3d-%s",code,buf);
++                         ungetc(x,f);
++                 }
++                 if(say(fd,yuf)) {
++                         fclose(f);
++                         return(1);
++                 }
++                 saidsomething++;
++         }
++         fclose(f);
++         if (!saidsomething) {
++                 syslog(LLEV,"fwtkcfgerr: sayfile for %d is empty",code);
++                 sprintf(yuf, "%3.3d The file to display is empty",code);
++                 if(say(fd,yuf)) {
++                         fclose(f);
++                         return(1);
++                 }
++         }
++         return(0);
++ }
++ 
+  
+  
+  porttoaddr(s,a)
+diff -c -r ./http-gw/http-gw.c ../../NEW/fwtk/http-gw/http-gw.c
+*** ./http-gw/http-gw.c Mon Sep  9 14:40:53 1996
+--- ../../NEW/fwtk/http-gw/http-gw.c    Wed Oct  9 02:51:57 1996
+***************
+*** 27,32 ****
+--- 27,37 ----
+  static char http_buffer[8192];
+  static char reason[8192];
+  static        int     checkBrowserType = 1;
++ /* foo */
++ static int do_transparent=0;
++ /* foo */
++ 
++ char *getdsthost();
+  
+  static void do_logging()
+  {     char *proto = "GOPHER";
+***************
+*** 422,427 ****
+--- 427,443 ----
+        /*(NOT A SPECIAL FORM)*/
+  
+                if((rem_type & TYPE_LOCAL)== 0){
++               /* foo */
++                       char *psychic=getdsthost(sockfd,&def_port);
++                       if(psychic) {
++                               if(strlen(psychic)<=MAXHOSTNAMELEN) {
++                                       do_transparent++;
++                                       strncpy(def_httpd,psychic,strlen(psychic));
++                                       strncpy(def_server,psychic,strlen(psychic));
++                               }
++                       }
++ 
++               /* foo */
+  /*  See if it can be forwarded */
+  
+                        if( can_forward(buf)){
+***************
+*** 1513,1519 ****
+                                                    parse_vec[0], 
+                                                    parse_vec[1],
+                                                    ourname, ourport);
+!                                   }else{
+                                            sprintf(new_reply,"%s\tgopher://%s:%s/%c%s\t%s\t%u",
+                                                    parse_vec[0], parse_vec[2],
+                                                    parse_vec[3], chk_type_ch,
+--- 1529,1541 ----
+                                                    parse_vec[0], 
+                                                    parse_vec[1],
+                                                    ourname, ourport);
+!                                   }
+! /* FOO */
+! else if(do_transparent) {
+!  sprintf(new_reply,"%s\t%s\t%s\t%s",parse_vec[0],parse_vec[1],parse_vec[2],parse_vec[3]);
+! }
+! /* FOO */
+!                                       else{
+                                            sprintf(new_reply,"%s\tgopher://%s:%s/%c%s\t%s\t%u",
+                                                    parse_vec[0], parse_vec[2],
+                                                    parse_vec[3], chk_type_ch,
+diff -c -r ./lib/hnam.c ../../NEW/fwtk/lib/hnam.c
+*** ./lib/hnam.c        Fri Nov  4 18:30:19 1994
+--- ../../NEW/fwtk/lib/hnam.c   Wed Oct  9 02:34:13 1996
+***************
+*** 22,27 ****
+--- 22,31 ----
+  
+  
+  #include      "firewall.h"
++ #ifdef __FreeBSD__
++ #include      <net/if.h>
++ #include      "ip_nat.h"
++ #endif /* __FreeBSD__ */
+  
+  
+  char  *
+***************
+*** 44,47 ****
+--- 48,115 ----
+  
+        bcopy(hp->h_addr,&sin.sin_addr,hp->h_length);
+        return(inet_ntoa(sin.sin_addr));
++ }
++ 
++ char *getdsthost(fd, ptr)
++ int fd;
++ int *ptr;
++ {
++  struct sockaddr_in sin;
++  struct hostent *hp;
++  int sl=sizeof(struct sockaddr_in), err=0, local_h=0, i=0;
++  char buf[255], hostbuf[255];
++ #ifdef __FreeBSD__
++  struct sockaddr_in rsin;
++  struct natlookup natlookup;
++ #endif
++ 
++ #ifdef linux
++ /* This should also work for UDP. Unfortunately, it doesn't.
++    Maybe when the Linux UDP proxy code gets a little cleaner.
++ */
++  if(!(err=getsockname(0,&sin,&sl))) {
++   if(ptr) *ptr=ntohs(sin.sin_port);
++   sprintf(buf,"%s",inet_ntoa(sin.sin_addr));
++   gethostname(hostbuf,254);
++   hp=gethostbyname(hostbuf);
++   while(hp->h_addr_list[i]) {
++    bzero(&sin,&sl);
++    memcpy(&sin.sin_addr,hp->h_addr_list[i++],sizeof(hp->h_addr_list[i++]));
++    if(!strcmp(buf,inet_ntoa(sin.sin_addr))) local_h++;
++   }
++   if(local_h) { /* syslog(LLEV,"DEBUG: hnam.c: non-transparent."); */ return(NULL); }
++   else { return(buf); }
++  }
++ #endif
++ 
++ #ifdef __FreeBSD__
++ /* The basis for this block of code is Darren Reed's
++    patches to the TIS ftwk's ftp-gw.
++ */
++  bzero((char*)&sin,sizeof(sin));
++  bzero((char*)&rsin,sizeof(rsin));
++  if(getsockname(fd,(struct sockaddr*)&sin,&sl)<0) {
++   return NULL;
++  }
++  sl=sizeof(rsin);
++  if(getpeername(fd,(struct sockaddr*)&rsin,&sl)<0) {
++   return NULL;
++  }
++  natlookup.nl_inport=sin.sin_port;
++  natlookup.nl_outport=rsin.sin_port;
++  natlookup.nl_inip=sin.sin_addr;
++  natlookup.nl_outip=rsin.sin_addr;
++  if((natfd=open("/dev/ipl",O_RDONLY))<0) {
++   return(NULL);
++  }
++  if(ioctl(natfd,SIOCGNATL,&natlookup)==(-1)) {
++   return(NULL);
++  }
++  close(natfd);
++  if(ptr) *ptr=ntohs(natlookup.nl_inport);
++  sprintf(buf,"%s",inet_ntoa(natlookup.nl_inip));
++ #endif
++ 
++  /* No transparent proxy support */
++  return(NULL);
+  }
+Only in ./lib: hnam.c.orig
+diff -c -r ./plug-gw/plug-gw.c ../../NEW/fwtk/plug-gw/plug-gw.c
+*** ./plug-gw/plug-gw.c Thu Sep  5 15:36:33 1996
+--- ../../NEW/fwtk/plug-gw/plug-gw.c    Wed Oct  9 02:46:48 1996
+***************
+*** 39,44 ****
+--- 39,48 ----
+  static        char            **validdests = (char **)0;
+  static        Cfg             *confp;
+  
++ int do_transparent=0;
++ 
++ char *getdsthost();
++ 
+  main(ac,av)
+  int   ac;
+  char  *av[];
+***************
+*** 193,201 ****
+--- 197,213 ----
+        char            *ptr;
+        int             state = 0;
+        int             ssl_plug = 0;
++       int             pport=0;
+  
+        struct timeval  timo;
+  
++       /* Transparent plug-gw is probably a bad idea, but hey .. */
++       dhost=getdsthost(0,&pport);
++       if(dhost) {
++               do_transparent++;
++               portid=pport;
++       }
++ 
+        if(c->flags & PERM_DENY) {
+                if (p == -1)
+                        syslog(LLEV,"deny host=%s/%s port=any",rhost,raddr);
+***************
+*** 215,221 ****
+                                syslog(LLEV,"fwtkcfgerr: -plug-to takes an argument, line %d",c->ln);
+                                exit (1);
+                        }
+!                       dhost = av[x];
+                        continue;
+                }
+  
+--- 227,234 ----
+                                syslog(LLEV,"fwtkcfgerr: -plug-to takes an argument, line %d",c->ln);
+                                exit (1);
+                        }
+!                       if(!dhost) dhost = av[x];
+!                       /* syslog(LLEV,"DEBUG: dhost now is [%s]",dhost); */
+                        continue;
+                }
+  
+diff -c -r ./rlogin-gw/rlogin-gw.c ../../NEW/fwtk/rlogin-gw/rlogin-gw.c
+*** ./rlogin-gw/rlogin-gw.c     Fri Sep  6 12:56:33 1996
+--- ../../NEW/fwtk/rlogin-gw/rlogin-gw.c        Wed Oct  9 02:49:04 1996
+***************
+*** 39,45 ****
+--- 39,47 ----
+  
+  
+  extern        char    *maphostname();
++ char *getdsthost();
+  
++ int do_transparent=0;
+  
+  static        int     cmd_quit();
+  static        int     cmd_help();
+***************
+*** 120,125 ****
+--- 122,130 ----
+        static char     *tokav[56];
+        int             tokac;
+        struct timeval  timo;
++       /* foo */
++       char *psychic;
++       /* foo */
+  
+  #ifndef       LOG_NDELAY
+        openlog("rlogin-gw",LOG_PID);
+***************
+*** 185,191 ****
+                xforwarder = cf->argv[0];
+        }
+  
+! 
+  
+        if((cf = cfg_get("directory",confp)) != (Cfg *)0) {
+                if(cf->argc != 1) {
+--- 190,203 ----
+                xforwarder = cf->argv[0];
+        }
+  
+!       /* foo */
+!       psychic=getdsthost(0,NULL);
+!       if(psychic) {
+!               do_transparent++;
+!               strncpy(dest,psychic,511);
+!               dest[511]='\0';
+!       }
+!       /* foo */
+  
+        if((cf = cfg_get("directory",confp)) != (Cfg *)0) {
+                if(cf->argc != 1) {
+***************
+*** 260,269 ****
+        }
+  
+        /* if present a host name, chop and save username and hostname */
+!       dest[0] = '\0';
+        if((p = index(rusername,'@')) != (char *)0) {
+                char    *namp;
+  
+                *p++ = '\0';
+                if(*p == '\0')
+                        p = "localhost";
+--- 272,282 ----
+        }
+  
+        /* if present a host name, chop and save username and hostname */
+!       /* dest[0] = '\0'; */
+        if((p = index(rusername,'@')) != (char *)0) {
+                char    *namp;
+  
++               dest[0] = '\0';
+                *p++ = '\0';
+                if(*p == '\0')
+                        p = "localhost";
+***************
+*** 293,300 ****
+--- 306,326 ----
+                        goto leave;
+        }
+  
++       /* syslog(LLEV,"DEBUG: Uh-oh, $dest = %s\n",dest); */
++ 
+        if(dest[0] != '\0') {
+  /* Setup connection directly to remote machine */
++               if((cf = cfg_get("welcome-msg",confp)) != (Cfg *)0) {
++                       if(cf->argc != 1) {
++                               syslog(LLEV,"fwtkcfgerr: welcome-msg must have one parameter, line %d",cf->ln);
++                               exit(1);
++                       }
++                       if(sayfile(0,cf->argv[0])) {
++                               syslog(LLEV,"fwtksyserr: cannot display welcome %s: %m",cf->argv[0]);
++                               exit(1);
++                       }
++               }
++ /* Does this cmd_connect thing feel like a kludge or what? */
+                sprintf(buf,"connect %.1000s",dest);
+                tokac = enargv(buf, tokav, 56, tokbuf, sizeof(tokbuf));
+                if (cmd_connect(tokac, tokav, buf) != 2)
+***************
+*** 526,539 ****
+                char    ebuf[512];
+  
+                syslog(LLEV,"permit host=%s/%s connect to %s",rhost,raddr,namp);
+                if(strlen(namp) > 20)
+                        namp[20] = '\0';
+                if(rusername[0] != '\0')
+                        sprintf(ebuf,"Trying %s@%s...",rusername,namp);
+                else
+                        sprintf(ebuf,"Trying %s...",namp);
+!               if(say(0,ebuf))
+!                       return(1);
+        } else
+                syslog(LLEV,"permit host=%s/%s connect to %s",rhost,raddr,av[1]);
+        if((serfd = conn_server(av[1],RLOGINPORT,1,buf)) < 0) {
+--- 552,567 ----
+                char    ebuf[512];
+  
+                syslog(LLEV,"permit host=%s/%s connect to %s",rhost,raddr,namp);
++               if(!do_transparent) {
+                if(strlen(namp) > 20)
+                        namp[20] = '\0';
+                if(rusername[0] != '\0')
+                        sprintf(ebuf,"Trying %s@%s...",rusername,namp);
+                else
+                        sprintf(ebuf,"Trying %s...",namp);
+!                       if(say(0,ebuf))
+!                               return(1);
+!               }
+        } else
+                syslog(LLEV,"permit host=%s/%s connect to %s",rhost,raddr,av[1]);
+        if((serfd = conn_server(av[1],RLOGINPORT,1,buf)) < 0) {
+diff -c -r ./tn-gw/tn-gw.c ../../NEW/fwtk/tn-gw/tn-gw.c
+*** ./tn-gw/tn-gw.c     Fri Sep  6 12:55:48 1996
+--- ../../NEW/fwtk/tn-gw/tn-gw.c        Wed Oct  9 02:50:17 1996
+***************
+*** 87,92 ****
+--- 87,94 ----
+  static        int                     cmd_xforward();
+  static        int                     cmd_timeout();
+  
++ char *getdsthost();
++ 
+  static        int                     tn3270 = 1;     /* don't do tn3270 stuff */
+  static        int                     doX;
+  
+***************
+*** 97,102 ****
+--- 99,106 ----
+  static        int                     timeout = PROXY_TIMEOUT;
+  static        char                    timed_out_msg[] = "\r\nConnection closed due to inactivity";
+  
++ int do_transparent=0;
++ 
+  typedef       struct  {
+        char    *name;
+        char    *hmsg;
+***************
+*** 140,145 ****
+--- 144,151 ----
+        char            tokbuf[BSIZ];
+        char            *tokav[56];
+        int             tokac;
++       int port;
++       char *psychic;
+  
+  #ifndef       LOG_DAEMON
+        openlog("tn-gw",LOG_PID);
+***************
+*** 308,313 ****
+--- 314,346 ----
+                }
+        }
+  
++       psychic=getdsthost(0,&port);
++       if(psychic) {
++               if((strlen(psychic) + 10) < 510) {
++                       do_transparent++;
++                       if(port)
++                               sprintf(dest,"%s:%d",psychic,port);
++                       else
++                               sprintf(dest,"%s",psychic);
++ 
++ 
++               if(!welcomedone)
++                       if((cf = cfg_get("welcome-msg",confp)) != (Cfg *)0) {
++                                if(cf->argc != 1) {
++                                        syslog(LLEV,"fwtkcfgerr: welcome-msg must have one parameter, line %d",cf->ln);
++                                        exit(1);
++                                }
++                                if(sayfile(0,cf->argv[0])) {
++                                        syslog(LLEV,"fwtksyserr: cannot display welcome %s:%m",cf->argv[0]);
++                                        exit(1);
++                                }
++                                welcomedone = 1;
++                               }
++ 
++ 
++               }
++       }
++ 
+        while (argc > 1) {
+                argc--;
+                argv++;
+***************
+*** 864,877 ****
+                }
+        }
+  
+- 
+        if((namp = maphostname(av[1])) != (char *)0) {
+                char    ebuf[512];
+  
+                syslog(LLEV,"permit host=%s/%s destination=%s",rladdr,riaddr,namp);
+!               sprintf(ebuf,"Trying %s port %d...",namp,port);
+!               if(say(0,ebuf))
+!                       return(1);
+        } else
+                syslog(LLEV,"permit host=%s/%s destination=%s",rladdr,riaddr,av[1]);
+  
+--- 897,911 ----
+                }
+        }
+  
+        if((namp = maphostname(av[1])) != (char *)0) {
+                char    ebuf[512];
+  
+                syslog(LLEV,"permit host=%s/%s destination=%s",rladdr,riaddr,namp);
+!               if(!do_transparent) {
+!                       sprintf(ebuf,"Trying %s port %d...",namp,port);
+!                       if(say(0,ebuf))
+!                               return(1);
+!               }
+        } else
+                syslog(LLEV,"permit host=%s/%s destination=%s",rladdr,riaddr,av[1]);
+  
+***************
+*** 903,910 ****
+  
+        syslog(LLEV,"connected host=%s/%s destination=%s",rladdr,riaddr,av[1]);
+        strncpy(dest,av[1], 511);
+!       sprintf(buf, "Connected to %s.", dest);
+!       say(0, buf);
+        return(2);
+  }
+  
+--- 937,946 ----
+  
+        syslog(LLEV,"connected host=%s/%s destination=%s",rladdr,riaddr,av[1]);
+        strncpy(dest,av[1], 511);
+!       if(!do_transparent) {
+!               sprintf(buf, "Connected to %s.", dest);
+!               say(0, buf);
+!       }
+        return(2);
+  }
+  
+
+

@@ -1,0 +1,154 @@
+.\" Copyright (c) 1986, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)who.1	8.2 (Berkeley) 12/30/93
+.\" $FreeBSD$
+.\"
+.Dd May 8, 2002
+.Dt WHO 1
+.Os
+.Sh NAME
+.Nm who
+.Nd display who is on the system
+.Sh SYNOPSIS
+.Nm
+.Op Fl HmqsTu
+.Op Cm am I
+.Op Ar file
+.Sh DESCRIPTION
+The
+.Nm
+utility displays information about currently logged in users.
+By default, this includes the login name, tty name, date and time of login and
+remote hostname if not local.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl H
+Write column headings above the output.
+.It Fl m
+Show information about the terminal attached to standard input only.
+.It Fl q
+.Dq "Quick mode" :
+List the names and number of logged in users in columns.
+All other command line options are ignored.
+.It Fl s
+Show the name, line and time fields only.
+This is the default.
+.It Fl T
+Indicate whether each user is accepting messages.
+One of the following characters is written:
+.Pp
+.Bl -tag -width 1n -compact
+.It Li +
+User is accepting messages.
+.It Li \&-
+User is not accepting messages.
+.It Li \&?
+An error occurred.
+.El
+.It Fl u
+Show idle time for each user in hours and minutes as
+.Ar hh Ns : Ns Ar mm ,
+.Ql \&.
+if the user has been idle less that a minute, and
+.Dq Li old
+if the user has been idle more than 24 hours.
+.It Cm am I
+Equivalent to
+.Fl m .
+.El
+.Pp
+By default,
+.Nm
+gathers information from the file
+.Pa /var/run/utmp .
+An alternate
+.Ar file
+may be specified which is usually
+.Pa /var/log/wtmp
+(or
+.Pa /var/log/wtmp.[0-6]
+depending on site policy as
+.Pa wtmp
+can grow quite large and daily versions may or may not
+be kept around after compression by
+.Xr ac 8 ) .
+The
+.Pa wtmp
+file contains a record of every login, logout,
+crash, shutdown and date change
+since
+.Pa wtmp
+was last truncated or
+created.
+.Pp
+If
+.Pa /var/log/wtmp
+is being used as the file, the user name may be empty
+or one of the special characters '|', '}' and '~'.  Logouts produce
+an output line without any user name.  For more information on the
+special characters, see
+.Xr utmp 5 .
+.Sh ENVIRONMENT
+The
+.Ev COLUMNS ,
+.Ev LANG ,
+.Ev LC_ALL
+and
+.Ev LC_TIME
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
+.Sh FILES
+.Bl -tag -width /var/log/wtmp.[0-6] -compact
+.It Pa /var/run/utmp
+.It Pa /var/log/wtmp
+.It Pa /var/log/wtmp.[0-6]
+.El
+.Sh DIAGNOSTICS
+.Ex -std
+.Sh SEE ALSO
+.Xr last 1 ,
+.Xr users 1 ,
+.Xr w 1 ,
+.Xr utmp 5
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.1-2001 .
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v1 .

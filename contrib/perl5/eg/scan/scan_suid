@@ -1,0 +1,84 @@
+#!/usr/bin/perl -P
+
+# $RCSfile: scan_suid,v $$Revision: 4.1 $$Date: 92/08/07 17:20:43 $
+
+# Look for new setuid root files.
+
+chdir '/usr/adm/private/memories' || die "Can't cd to memories: $!\n";
+
+($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,
+   $blksize,$blocks) = stat('oldsuid');
+if ($nlink) {
+    $lasttime = $mtime;
+    $tmp = $ctime - $atime;
+    if ($tmp <= 0 || $tmp >= 10) {
+	print "WARNING: somebody has read oldsuid!\n";
+    }
+    $tmp = $ctime - $mtime;
+    if ($tmp <= 0 || $tmp >= 10) {
+	print "WARNING: somebody has modified oldsuid!!!\n";
+    }
+} else {
+    $lasttime = time - 60 * 60 * 24;	# one day ago
+}
+$thistime = time;
+
+#if defined(mc300) || defined(mc500) || defined(mc700)
+open(Find, 'find / -perm -04000 -print |') ||
+	die "scan_find: can't run find";
+#else
+open(Find, 'find / \( -fstype nfs -prune \) -o -perm -04000 -ls |') ||
+	die "scan_find: can't run find";
+#endif
+
+open(suid, '>newsuid.tmp');
+
+while (<Find>) {
+
+#if defined(mc300) || defined(mc500) || defined(mc700)
+    $x = `/bin/ls -il $_`;
+    $_ = $x;
+    s/^ *//;
+    ($inode,$perm,$links,$owner,$group,$size,$month,$day,$time,$name)
+      = split;
+#else
+    s/^ *//;
+    ($inode,$blocks,$perm,$links,$owner,$group,$size,$month,$day,$time,$name)
+      = split;
+#endif
+
+    if ($perm =~ /[sS]/ && $owner eq 'root') {
+	($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,
+	   $blksize,$blocks) = stat($name);
+	$foo = sprintf("%10s%3s %-8s %-8s%9s %3s %2s %s %s\n",
+		$perm,$links,$owner,$group,$size,$month,$day,$name,$inode);
+	print suid $foo;
+	if ($ctime > $lasttime) {
+	    if ($ctime > $thistime) {
+		print "Future file: $foo";
+	    }
+	    else {
+		$ct .= $foo;
+	    }
+	}
+    }
+}
+close(suid);
+
+print `sort +7 -8 newsuid.tmp >newsuid 2>&1`;
+$foo = `/bin/diff oldsuid newsuid 2>&1`;
+print "Differences in suid info:\n",$foo if $foo;
+print `mv oldsuid oldoldsuid 2>&1; mv newsuid oldsuid 2>&1`;
+print `touch oldsuid 2>&1;sleep 2 2>&1;chmod o+w oldsuid 2>&1`;
+print `rm -f newsuid.tmp 2>&1`;
+
+@ct = split(/\n/,$ct);
+$ct = '';
+$* = 1;
+while ($#ct >= 0) {
+    $tmp = shift(@ct);
+    unless ($foo =~ "^>.*$tmp\n") { $ct .= "$tmp\n"; }
+}
+
+print "Inode changed since last time:\n",$ct if $ct;
+

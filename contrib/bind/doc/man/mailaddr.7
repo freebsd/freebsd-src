@@ -1,0 +1,179 @@
+.\" Copyright (c) 1983, 1987 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the University of California, Berkeley.  The name of the
+.\" University may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.\"	@(#)mailaddr.7	6.5 (Berkeley) 2/14/89
+.\"
+.Dd February 14, 1989
+.Dt MAILADDR @DESC_EXT_U@ 
+.Os BSD 4
+.Sh NAME
+.Nm mailaddr 
+.Nd mail addressing description
+.Sh DESCRIPTION
+Mail addresses are based on the ARPANET protocol listed at the end of this
+manual page.  These addresses are in the general format
+.Pp
+.Bd -ragged -offset indent-two
+.Li user@domain
+.Ed
+.Pp
+where a domain is a hierarchical, dot-separated list of subdomains.  For
+example, the address
+.Pp
+.Bd -ragged -offset indent-two
+.Li eric@monet.berkeley.edu
+.Ed
+.Pp
+is normally interpreted from right to left: the message should go to the
+ARPA name tables (which do not correspond exactly to the physical ARPANET),
+then to the Berkeley gateway, after which it should go to the local host
+.Dq Li monet .  
+When the message reaches 
+.Li monet , 
+it is delivered to the user 
+.Dq Li eric .
+.Pp
+Unlike some other forms of addressing, this does not imply any routing.
+Thus, although this address is specified as an ARPA address, it might
+travel by an alternate route if that were more convenient or efficient.
+For example, at Berkeley, the associated message would probably go directly
+to 
+.Li monet 
+over the Ethernet rather than going via the Berkeley ARPANET gateway.
+.Ss Abbreviation
+.Pp
+Under certain circumstances, it may not be necessary to type the entire
+domain name.  In general, anything following the first dot may be omitted
+if it is the same as the domain from which you are sending the message.
+For example, a user on 
+.Dq Li calder.berkeley.edu 
+could send to 
+.Dq Li eric@monet
+without adding the 
+.Dq Li berkeley.edu 
+since it is the same on both sending and receiving hosts.
+.Pp
+Certain other abbreviations may be permitted as special cases.  For
+example, at Berkeley, ARPANET hosts may be referenced without adding the 
+.Dq Li berkeley.edu 
+as long as their names do not conflict with a local host name.
+.Ss Compatibility
+.Pp
+Certain old address formats are converted to the new format to provide
+compatibility with the previous mail system.  In particular,
+.Bd -ragged -offset indent-two
+.Li user@host.ARPA
+.Ed
+.Pp
+is allowed and
+.Bd -ragged -offset indent-two
+.Li host:user
+.Ed
+.Pp
+is converted to
+.Bd -ragged -offset indent-two
+.Li user@host
+.Ed
+.Pp
+in order to be consistent with the 
+.Xr rcp @CMD_EXT@ 
+command.
+.Pp
+Also, the syntax
+.Bd -ragged -offset indent-two
+.Li host!user
+.Ed
+.Pp
+is converted to:
+.Bd -ragged -offset indent-two
+.Li user@host.UUCP
+.Ed
+.Pp
+This is normally converted back to the 
+.Dq Li host!user 
+form before being sent on, for compatibility with older UUCP hosts.
+.Pp
+The current implementation is not able to route messages automatically through
+the UUCP network.  Until that time you must explicitly tell the mail system
+which hosts to send your message through to get to your final destination.
+.Ss Case Distinctions
+.Pp
+Domain names (i.e., anything after the 
+.Dq Li @ 
+sign) may be given in any mixture
+of upper and lower case with the exception of UUCP hostnames.  Most hosts
+accept any combination of case in user names, with the notable exception of
+MULTICS sites.
+.Ss Route-addrs.
+.Pp
+Under some circumstances it may be necessary to route a message through
+several hosts to get it to the final destination.  Normally this routing
+is done automatically, but sometimes it is desirable to route the message
+manually.  Addresses which show these relays are termed 
+.Dq route-addrs .
+These use the syntax:
+.Bd -ragged -offset indent-two
+.Li <@hosta,@hostb:user@hostc>
+.Ed
+.Pp
+This specifies that the message should be sent to 
+.Li hosta , 
+from there to 
+.Li hostb ,
+and finally to 
+.Li hostc .  
+This path is forced even if there is a more efficient path to 
+.Li hostc .
+.Pp
+Route-addrs occur frequently on return addresses, since these are generally
+augmented by the software at each host.  It is generally possible to ignore
+all but the 
+.Dq Li user@domain 
+part of the address to determine the actual sender.
+.Ss Postmaster
+.Pp
+Every site is required to have a user or user alias designated 
+.Dq Li postmaster
+to which problems with the mail system may be addressed.
+.Ss Other Networks
+.Pp
+Some other networks can be reached by giving the name of the network as the
+last component of the domain.  
+.Em This is not a standard feature
+and may
+.Em not 
+be supported at all sites.  For example, messages to CSNET or BITNET sites
+can often be sent to 
+.Dq Li user@host.CSNET 
+or 
+.Dq Li user@host.BITNET , 
+respectively.
+.Sh BUGS
+The RFC822 group syntax 
+.Pq Dq Li group:user1,user2,user3; 
+is not supported except in the special case of 
+.Dq LI group:; 
+because of a conflict with old berknet-style addresses.
+.Pp
+Route-Address syntax is grotty.
+.Pp
+UUCP- and ARPANET-style addresses do not coexist politely.
+.Sh SEE ALSO
+.Xr mail @CMD_EXT@ , 
+.Xr sendmail @SYS_OPS_EXT@ ;
+Crocker, D. H., RFC822, 
+.Do
+Standard for the Format of Arpa Internet Text Messages
+.Dc .

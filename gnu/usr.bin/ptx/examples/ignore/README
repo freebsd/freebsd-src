@@ -1,0 +1,65 @@
+From beebe@math.utah.edu Wed Oct 27 19:37:22 1993
+Date: Tue, 26 Oct 93 15:43:19 MDT
+From: "Nelson H. F. Beebe" <beebe@math.utah.edu>
+To: pinard@iro.umontreal.ca
+Subject: Re: Another short comment on gptx 0.2
+
+/usr/lib/eign:		DECstation 5000, ULTRIX 4.3
+			HP 9000/735, HP-UX 9.0
+			IBM RS/6000, AIX 2.3
+			IBM 3090, AIX MP370 2.1
+			Stardent 1520, OS 2.2
+			Sun SPARCstation, SunOS 4.x
+
+No eign anywhere on:	HP 375, BSD 4.3 (ptx.c is in /usr/src/usr.bin,
+				and the source code refers to /usr/lib/eign,
+				but I could not find it in the source tree)
+			NeXT, Mach 3.0 (though documented in man pages)
+			Sun SPARCstation, Solaris 2.x
+			SGI Indigo, IRIX 4.0.x
+			
+The contents of the eign files that I found on the above machines were
+almost identical.  With the exception of the Stardent and the IBM
+3090, there were only two such files, one with 150 words, and the
+other with 133, with only a few differences between them (some words
+in the 133-word file were not in the 150-word file).  I found the
+133-word variant in groff-1.06/src/indxbib.  I used archie to search
+for eign, and it found 7 sites, all with the groff versions.
+
+The Stardent and IBM 3090 eign files have the same contents as the
+150-word version, but have a multiline copyright comment at the
+beginning.  None of the others contains a copyright.
+
+I recently had occasion to build a similar list of words for bibindex,
+which indexes a BibTeX .bib file, and for which omission of common
+words, like articles and prepositions, helps to reduce the size of the
+index.  I didn't use eign to build that list, but instead, went
+through the word lists from 3.8MB of .bib files in the tuglib
+collection on ftp.math.utah.edu:pub/tex/bib, and collected words to be
+ignored.  That list includes words from several languages.  I'll leave
+it up to you to decide whether you wish to merge them or not; I
+suspect it may be a better design choice to keep a separate eign file
+for each language, although in my own application of ptx-ing
+bibliographies, the titles do occur in multiple languages, so a
+mixed-language eign is appropriate.  Since there are standard ISO
+2-letter abbreviations for every country, perhaps one could have
+eign.xy for country xy (of course, only approximately is country ==
+language).  The exact list of words in eign is not so critical; its
+only purpose is to reduce the size of the output by not indexing words
+that occur very frequently and have little content in themselves.
+
+I'm enclosing a shar bundle at the end of this message with the merger
+of the multiple eign versions (duplicates eliminated, and the list
+sorted into 179 unique words), followed by the bibindex list.
+
+
+
+========================================================================
+Nelson H. F. Beebe                      Tel: +1 801 581 5254
+Center for Scientific Computing         FAX: +1 801 581 4148
+Department of Mathematics, 105 JWB      Internet: beebe@math.utah.edu
+University of Utah
+Salt Lake City, UT 84112, USA
+========================================================================
+
+

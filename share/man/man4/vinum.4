@@ -1,0 +1,972 @@
+.\"  Hey, Emacs, edit this file in -*- nroff-fill -*- mode
+.\"-
+.\" Copyright (c) 1997, 1998
+.\"	Nan Yang Computer Services Limited.  All rights reserved.
+.\"
+.\"  This software is distributed under the so-called ``Berkeley
+.\"  License'':
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Nan Yang Computer
+.\"      Services Limited.
+.\" 4. Neither the name of the Company nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" This software is provided ``as is'', and any express or implied
+.\" warranties, including, but not limited to, the implied warranties of
+.\" merchantability and fitness for a particular purpose are disclaimed.
+.\" In no event shall the company or contributors be liable for any
+.\" direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute
+.\" goods or services; loss of use, data, or profits; or business
+.\" interruption) however caused and on any theory of liability, whether
+.\" in contract, strict liability, or tort (including negligence or
+.\" otherwise) arising in any way out of the use of this software, even if
+.\" advised of the possibility of such damage.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 5, 1999
+.Dt vinum 4
+.Os
+.Sh NAME
+.Nm vinum
+.Nd Logical Volume Manager
+.Sh SYNOPSIS
+.Cd "kldload vinum"
+.Cd "kldload Vinum"
+.Sh DESCRIPTION
+.Nm
+is a logical volume manager inspired by, but not derived from, the Veritas
+Volume Manager.  It provides the following features:
+.Bl -bullet
+.It
+It provides device-independent logical disks, called \fIvolumes\fP.  Volumes are
+not restricted to the size of any disk on the system.
+.It
+The volumes consist of one or more \fIplexes\fP, each of which contain the
+entire address space of a volume.  This represents an implementation of RAID-1
+(mirroring).  Multiple plexes can also be used for
+.\" XXX What about sparse plexes?  Do we want them?
+.if t .sp
+.Bl -bullet
+.It
+Increased read throughput.
+.Nm
+will read data from the least active disk, so if a volume has plexes on multiple
+disks, more data can be read in parallel.
+.Nm
+reads data from only one plex, but it writes data to all plexes.
+.It
+Increased reliability.  By storing plexes on different disks, data will remain
+available even if one of the plexes becomes unavailable.  In comparison with a
+RAID-5 plex (see below), using multiple plexes requires more storage space, but
+gives better performance, particularly in the case of a drive failure.
+.It
+Additional plexes can be used for on-line data reorganization.  By attaching an
+additional plex and subsequently detaching one of the older plexes, data can be
+moved on-line without compromising access.
+.It
+An additional plex can be used to obtain a consistent dump of a file system.  By
+attaching an additional plex and detaching at a specific time, the detached plex
+becomes an accurate snapshot of the file system at the time of detachment.
+.\" Make sure to flush!
+.El
+.It
+Each plex consists of one or more logical disk slices, called \fIsubdisks\fP.
+Subdisks are defined as a contiguous block of physical disk storage.  A plex may
+consist of any reasonable number of subdisks (in other words, the real limit is
+not the number, but other factors, such as memory and performance, associated
+with maintaining a large number of subdisks).
+.It
+A number of mappings between subdisks and plexes are available:
+.Bl -bullet
+.It
+\fIConcatenated plexes\fP\| consist of one or more subdisks, each of which
+is mapped to a contiguous part of the plex address space.
+.It
+\fIStriped plexes\fP\| consist of two or more subdisks of equal size.  The file
+address space is mapped in \fIstripes\fP, integral fractions of the subdisk
+size.  Consecutive plex address space is mapped to stripes in each subdisk in
+.if n turn.
+.if t \{\
+turn.
+.ig
+.\" FIXME
+.br
+.ne 1.5i
+.PS
+move right 2i
+down
+SD0: box
+SD1: box
+SD2: box
+
+"plex 0" at SD0.n+(0,.2)
+"subdisk 0" rjust at SD0.w-(.2,0)
+"subdisk 1" rjust at SD1.w-(.2,0)
+"subdisk 2" rjust at SD2.w-(.2,0)
+.PE
+..
+.\}
+The subdisks of a striped plex must all be the same size.
+.It
+\fIRAID-5 plexes\fP\| require at least three equal-sized subdisks.  They
+resemble striped plexes, except that in each stripe, one subdisk stores parity
+information.  This subdisk changes in each stripe: in the first stripe, it is the
+first subdisk, in the second it is the second subdisk, etc.  In the event of a
+single disk failure,
+.Nm
+will recover the data based on the information stored on the remaining subdisks.
+This mapping is particularly suited to read-intensive access.  The subdisks of a
+RAID-5 plex must all be the same size.
+.\" Make sure to flush!
+.El
+.It
+.Nm Drives
+are the lowest level of the storage hierarchy.  They represent disk special
+devices.
+.It
+.Nm
+offers automatic startup.  Unlike UNIX file systems,
+.Nm
+volumes contain all the configuration information needed to ensure that they are
+started correctly when the subsystem is enabled.  This is also a significant
+advantage over the Veritas\(tm File System.  This feature regards the presence
+of the volumes.  It does not mean that the volumes will be mounted
+automatically, since the standard startup procedures with
+.Pa /etc/fstab
+perform this function.
+.El
+.Sh KERNEL CONFIGURATION
+.Nm
+is currently supplied as a kernel loadable module (kld), and does not require
+configuration.  As with other klds, it is absolutely necessary to match the kld
+to the version of the operating system.  Failure to do so will cause
+.Nm
+to issue an error message and terminate.
+.Pp
+It is possible to configure
+.Nm
+in the kernel, but this is not recommended.  To do so, add this line to the
+kernel configuration file:
+.Bd -literal -offset indent
+pseudo-device	vinum
+.Ed
+.Pp
+.Ss DEBUG OPTIONS
+The current version of
+.Nm ,
+both the kernel module and the user program
+.Xr vinum 8 ,
+include significant debugging support.  It is not recommended to remove
+this support at the moment, but if you do you must remove it from both the
+kernel and the user components.  To do this, edit the files
+.Pa /usr/src/sbin/vinum/Makefile
+and
+.Pa /usr/src/sys/modules/vinum/Makefile
+and edit the CFLAGS variable to remove the -DVINUMDEBUG option.  If you have
+configured
+.Nm
+into the kernel, either specify the line
+.Bd -literal -offset indent
+options		VINUMDEBUG
+.Ed
+.Pp
+in the kernel configuration file or remove the -DVINUMDEBUG option from
+.Pa /usr/src/sbin/vinum/Makefile
+as described above.
+.Pp
+If the VINUMDEBUG variables do not match,
+.Xr vinum 8
+will fail with a message
+explaining the problem and what to do to correct it.
+.Pp
+.Nm
+was previously available in two versions: a freely available version which did
+not contain RAID-5 functionality, and a full version including RAID-5
+functionality, which was available only from Cybernet Systems Inc.  The present
+version of
+.Nm
+includes the RAID-5 functionality.
+.Sh RUNNING VINUM
+.Nm
+is part of the base
+.Fx
+system.  It does not require installation.
+To start it, start the
+.Nm
+program, which will load the kld if it is not already present.
+Before using
+.Nm ,
+it must be configured.  See
+.Xr vinum 8
+for information on how to create a
+.Nm
+configuration.
+.Pp
+Normally, you start a configured version of
+.Nm
+at boot time.  Set the variable
+.Ar start_vinum
+in
+.Pa /etc/rc.conf
+to
+.Ar YES
+to start
+.Nm
+at boot time.
+.Pp
+If
+.Nm
+is loaded as a kld (the recommended way), the
+.Nm
+.Ar stop
+command will unload it.  You can also do this with the
+.Nm kldunload
+command.
+.Pp
+The kld can only be unloaded when idle, in other words when no volumes are
+mounted and no other instances of the
+.Nm
+program are active.  Unloading the kld does not harm the data in the volumes.
+.Ss CONFIGURING AND STARTING OBJECTS
+Use the
+.Xr vinum 8
+utility to configure and start
+.Nm
+objects.
+.Sh IOCTL CALLS
+.Pa ioctl
+calls are intended for the use of the
+.Nm
+configuration program only.  They are described in the header file
+.Pa /sys/sys/vinumio.h
+.Ss DISK LABELS
+Conventional disk special devices have a
+.Em disk label
+in the second sector of the device.  See
+.Xr disklabel 5
+for more details.  This disk label describes the layout of the partitions within
+the device.
+.Nm
+does not subdivide volumes, so volumes do not contain a physical disk label.
+For convenience,
+.Nm
+implements the ioctl calls DIOCGDINFO (get disk label), DIOCGPART (get partition
+information), DIOCWDINFO (write partition information) and DIOCSDINFO (set
+partition information).  DIOCGDINFO and DIOCGPART refer to an internal
+representation of the disk label which is not present on the volume.  As a
+result, the
+.Fl r
+option of
+.Xr disklabel 8 ,
+which reads the
+.if t ``raw disk'',
+.if n "raw disk",
+will fail.
+.Pp
+In general,
+.Xr disklabel 8
+serves no useful purpose on a vinum volume.  If you run it, it will show you
+three partitions, a, b and c, all the same except for the fstype, for example:
+.br
+.ne 1i
+.Bd -literal -offset
+3 partitions:
+#        size   offset    fstype   [fsize bsize bps/cpg]
+  a:     2048        0    4.2BSD     1024  8192     0   # (Cyl.    0 - 0)
+  b:     2048        0      swap                        # (Cyl.    0 - 0)
+  c:     2048        0    unused        0     0         # (Cyl.    0 - 0)
+.Ed
+.Pp
+.Nm
+ignores the DIOCWDINFO and DIOCSDINFO ioctls, since there is nothing to change.
+As a result, any attempt to modify the disk label will be silently ignored.
+.Sh MAKING FILE SYSTEMS
+Since
+.Nm
+volumes do not contain partitions, the names do not need to conform to the
+standard rules for naming disk partitions.  For a physical disk partition, the
+last letter of the device name specifies the partition identifier (a to h).
+.Nm
+volumes need not conform to this convention, but if they do not,
+.Nm newfs
+will complain that it cannot determine the partition.  To solve this problem,
+use the
+.Fl v
+flag to
+.Nm newfs .
+For example, if you have a volume
+.Pa concat ,
+use the following command to create a ufs file system on it:
+.Pp
+.Bd -literal
+  # newfs -v /dev/vinum/concat
+.Ed
+.Pp
+.Sh OBJECT NAMING
+.Nm
+assigns default names to plexes and subdisks, although they may be overridden.
+We do not recommend overriding the default names.  Experience with the
+.if t Veritas\(tm
+.if n Veritas(tm)
+volume manager, which allows arbitary naming of objects, has shown that this
+flexibility does not bring a significant advantage, and it can cause confusion.
+.sp
+Names may contain any non-blank character, but it is recommended to restrict
+them to letters, digits and the underscore characters.  The names of volumes,
+plexes and subdisks may be up to 64 characters long, and the names of drives may
+up to 32 characters long.  When choosing volume and plex names, bear in mind
+that automatically generated plex and subdisk names are longer than the name
+from which they are derived.
+.Bl -bullet
+.It
+When
+.Xr vinum 8
+creates or deletes objects, it creates a directory
+.Pa /dev/vinum ,
+in which it makes device entries for each volume.  It also creates the
+subdirectories
+.Pa /dev/vinum/plex
+and
+.Pa /dev/vinum/sd ,
+in which it stores device entries for the plexes and subdisks.  In addition, it
+creates two more directories,
+.Pa /dev/vinum/vol
+and
+.Pa /dev/vinum/drive ,
+in which it stores hierarchical information for volumes and drives.
+.It
+In addition,
+.Nm
+creates three super-devices,
+.Pa /dev/vinum/control ,
+.Pa /dev/vinum/Control
+and
+.Pa /dev/vinum/controld .
+.Pa /dev/vinum/control
+is used by
+.Xr vinum 8
+when it has been compiled without the VINUMDEBUG option,
+.Pa /dev/vinum/Control
+is used by
+.Xr vinum 8
+when it has been compiled with the VINUMDEBUG option,
+and
+.Pa /dev/vinum/controld
+is used by the
+.Nm
+daemon.  The two control devices for
+.Xr vinum 8
+are used to synchronize the debug status of kernel and user modules.
+.It
+Unlike
+.Nm UNIX
+drives,
+.Nm
+volumes are not subdivided into partitions, and thus do not contain a disk
+label.  Unfortunately, this confuses a number of utilities, notably
+.Nm newfs ,
+which normally tries to interpret the last letter of a
+.Nm
+volume name as a partition identifier.  If you use a volume name which does not
+end in the letters
+.Ar a
+to
+.Ar c ,
+you must use the
+.Fl v
+flag to
+.Nm newfs
+in order to tell it to ignore this convention.
+.\"
+.It
+Plexes do not need to be assigned explicit names.  By default, a plex name is
+the name of the volume followed by the letters \f(CW.p\fR and the number of the
+plex.  For example, the plexes of volume
+.Ar vol3
+are called
+.Ar vol3.p0 ,
+.Ar vol3.p1
+and so on.  These names can be overridden, but it is not recommended.
+.br
+.It
+Like plexes, subdisks are assigned names automatically, and explicit naming is
+discouraged.  A subdisk name is the name of the plex followed by the letters
+\f(CW\&.s\fR and a number identifying the subdisk.  For example, the subdisks of
+plex
+.Ar vol3.p0
+are called
+.Ar vol3.p0.s0 ,
+.Ar vol3.p0.s1
+and so on.
+.br
+.It
+By contrast,
+.Nm drives
+must be named.  This makes it possible to move a drive to a different location
+and still recognize it automatically.  Drive names may be up to 32 characters
+long.
+.El
+.Pp
+EXAMPLE
+.Pp
+Assume the
+.Nm
+objects described in the section CONFIGURATION FILE in
+.Xr vinum 8 .
+The directory
+.Ar /dev/vinum
+looks like:
+.Bd -literal -offset indent
+# ls -lR /dev/vinum
+total 5
+crwxr-xr--  1 root  wheel   91,   2 Mar 30 16:08 concat
+crwx------  1 root  wheel   91, 0x40000000 Mar 30 16:08 control
+crwx------  1 root  wheel   91, 0x40000001 Mar 30 16:08 controld
+drwxrwxrwx  2 root  wheel       512 Mar 30 16:08 drive
+drwxrwxrwx  2 root  wheel       512 Mar 30 16:08 plex
+drwxrwxrwx  2 root  wheel       512 Mar 30 16:08 rvol
+drwxrwxrwx  2 root  wheel       512 Mar 30 16:08 sd
+crwxr-xr--  1 root  wheel   91,   3 Mar 30 16:08 strcon
+crwxr-xr--  1 root  wheel   91,   1 Mar 30 16:08 stripe
+crwxr-xr--  1 root  wheel   91,   0 Mar 30 16:08 tinyvol
+drwxrwxrwx  7 root  wheel       512 Mar 30 16:08 vol
+crwxr-xr--  1 root  wheel   91,   4 Mar 30 16:08 vol5
+
+/dev/vinum/drive:
+total 0
+crw-r-----  1 root  operator    4,  15 Oct 21 16:51 drive2
+crw-r-----  1 root  operator    4,  31 Oct 21 16:51 drive4
+
+/dev/vinum/plex:
+total 0
+crwxr-xr--  1 root  wheel   91, 0x10000002 Mar 30 16:08 concat.p0
+crwxr-xr--  1 root  wheel   91, 0x10010002 Mar 30 16:08 concat.p1
+crwxr-xr--  1 root  wheel   91, 0x10000003 Mar 30 16:08 strcon.p0
+crwxr-xr--  1 root  wheel   91, 0x10010003 Mar 30 16:08 strcon.p1
+crwxr-xr--  1 root  wheel   91, 0x10000001 Mar 30 16:08 stripe.p0
+crwxr-xr--  1 root  wheel   91, 0x10000000 Mar 30 16:08 tinyvol.p0
+crwxr-xr--  1 root  wheel   91, 0x10000004 Mar 30 16:08 vol5.p0
+crwxr-xr--  1 root  wheel   91, 0x10010004 Mar 30 16:08 vol5.p1
+
+/dev/vinum/sd:
+total 0
+crwxr-xr--  1 root  wheel   91, 0x20000002 Mar 30 16:08 concat.p0.s0
+crwxr-xr--  1 root  wheel   91, 0x20100002 Mar 30 16:08 concat.p0.s1
+crwxr-xr--  1 root  wheel   91, 0x20010002 Mar 30 16:08 concat.p1.s0
+crwxr-xr--  1 root  wheel   91, 0x20000003 Mar 30 16:08 strcon.p0.s0
+crwxr-xr--  1 root  wheel   91, 0x20100003 Mar 30 16:08 strcon.p0.s1
+crwxr-xr--  1 root  wheel   91, 0x20010003 Mar 30 16:08 strcon.p1.s0
+crwxr-xr--  1 root  wheel   91, 0x20110003 Mar 30 16:08 strcon.p1.s1
+crwxr-xr--  1 root  wheel   91, 0x20000001 Mar 30 16:08 stripe.p0.s0
+crwxr-xr--  1 root  wheel   91, 0x20100001 Mar 30 16:08 stripe.p0.s1
+crwxr-xr--  1 root  wheel   91, 0x20000000 Mar 30 16:08 tinyvol.p0.s0
+crwxr-xr--  1 root  wheel   91, 0x20100000 Mar 30 16:08 tinyvol.p0.s1
+crwxr-xr--  1 root  wheel   91, 0x20000004 Mar 30 16:08 vol5.p0.s0
+crwxr-xr--  1 root  wheel   91, 0x20100004 Mar 30 16:08 vol5.p0.s1
+crwxr-xr--  1 root  wheel   91, 0x20010004 Mar 30 16:08 vol5.p1.s0
+crwxr-xr--  1 root  wheel   91, 0x20110004 Mar 30 16:08 vol5.p1.s1
+
+/dev/vinum/vol:
+total 5
+crwxr-xr--  1 root  wheel   91,   2 Mar 30 16:08 concat
+drwxr-xr-x  4 root  wheel       512 Mar 30 16:08 concat.plex
+crwxr-xr--  1 root  wheel   91,   3 Mar 30 16:08 strcon
+drwxr-xr-x  4 root  wheel       512 Mar 30 16:08 strcon.plex
+crwxr-xr--  1 root  wheel   91,   1 Mar 30 16:08 stripe
+drwxr-xr-x  3 root  wheel       512 Mar 30 16:08 stripe.plex
+crwxr-xr--  1 root  wheel   91,   0 Mar 30 16:08 tinyvol
+drwxr-xr-x  3 root  wheel       512 Mar 30 16:08 tinyvol.plex
+crwxr-xr--  1 root  wheel   91,   4 Mar 30 16:08 vol5
+drwxr-xr-x  4 root  wheel       512 Mar 30 16:08 vol5.plex
+
+/dev/vinum/vol/concat.plex:
+total 2
+crwxr-xr--  1 root  wheel   91, 0x10000002 Mar 30 16:08 concat.p0
+drwxr-xr-x  2 root  wheel       512 Mar 30 16:08 concat.p0.sd
+crwxr-xr--  1 root  wheel   91, 0x10010002 Mar 30 16:08 concat.p1
+drwxr-xr-x  2 root  wheel       512 Mar 30 16:08 concat.p1.sd
+
+/dev/vinum/vol/concat.plex/concat.p0.sd:
+total 0
+crwxr-xr--  1 root  wheel   91, 0x20000002 Mar 30 16:08 concat.p0.s0
+crwxr-xr--  1 root  wheel   91, 0x20100002 Mar 30 16:08 concat.p0.s1
+
+/dev/vinum/vol/concat.plex/concat.p1.sd:
+total 0
+crwxr-xr--  1 root  wheel   91, 0x20010002 Mar 30 16:08 concat.p1.s0
+
+/dev/vinum/vol/strcon.plex:
+total 2
+crwxr-xr--  1 root  wheel   91, 0x10000003 Mar 30 16:08 strcon.p0
+drwxr-xr-x  2 root  wheel       512 Mar 30 16:08 strcon.p0.sd
+crwxr-xr--  1 root  wheel   91, 0x10010003 Mar 30 16:08 strcon.p1
+drwxr-xr-x  2 root  wheel       512 Mar 30 16:08 strcon.p1.sd
+
+/dev/vinum/vol/strcon.plex/strcon.p0.sd:
+total 0
+crwxr-xr--  1 root  wheel   91, 0x20000003 Mar 30 16:08 strcon.p0.s0
+crwxr-xr--  1 root  wheel   91, 0x20100003 Mar 30 16:08 strcon.p0.s1
+
+/dev/vinum/vol/strcon.plex/strcon.p1.sd:
+total 0
+crwxr-xr--  1 root  wheel   91, 0x20010003 Mar 30 16:08 strcon.p1.s0
+crwxr-xr--  1 root  wheel   91, 0x20110003 Mar 30 16:08 strcon.p1.s1
+
+/dev/vinum/vol/stripe.plex:
+total 1
+crwxr-xr--  1 root  wheel   91, 0x10000001 Mar 30 16:08 stripe.p0
+drwxr-xr-x  2 root  wheel       512 Mar 30 16:08 stripe.p0.sd
+
+/dev/vinum/vol/stripe.plex/stripe.p0.sd:
+total 0
+crwxr-xr--  1 root  wheel   91, 0x20000001 Mar 30 16:08 stripe.p0.s0
+crwxr-xr--  1 root  wheel   91, 0x20100001 Mar 30 16:08 stripe.p0.s1
+
+/dev/vinum/vol/tinyvol.plex:
+total 1
+crwxr-xr--  1 root  wheel   91, 0x10000000 Mar 30 16:08 tinyvol.p0
+drwxr-xr-x  2 root  wheel       512 Mar 30 16:08 tinyvol.p0.sd
+
+/dev/vinum/vol/tinyvol.plex/tinyvol.p0.sd:
+total 0
+crwxr-xr--  1 root  wheel   91, 0x20000000 Mar 30 16:08 tinyvol.p0.s0
+crwxr-xr--  1 root  wheel   91, 0x20100000 Mar 30 16:08 tinyvol.p0.s1
+
+/dev/vinum/vol/vol5.plex:
+total 2
+crwxr-xr--  1 root  wheel   91, 0x10000004 Mar 30 16:08 vol5.p0
+drwxr-xr-x  2 root  wheel       512 Mar 30 16:08 vol5.p0.sd
+crwxr-xr--  1 root  wheel   91, 0x10010004 Mar 30 16:08 vol5.p1
+drwxr-xr-x  2 root  wheel       512 Mar 30 16:08 vol5.p1.sd
+
+/dev/vinum/vol/vol5.plex/vol5.p0.sd:
+total 0
+crwxr-xr--  1 root  wheel   91, 0x20000004 Mar 30 16:08 vol5.p0.s0
+crwxr-xr--  1 root  wheel   91, 0x20100004 Mar 30 16:08 vol5.p0.s1
+
+/dev/vinum/vol/vol5.plex/vol5.p1.sd:
+total 0
+crwxr-xr--  1 root  wheel   91, 0x20010004 Mar 30 16:08 vol5.p1.s0
+crwxr-xr--  1 root  wheel   91, 0x20110004 Mar 30 16:08 vol5.p1.s1
+.Ed
+.Pp
+In the case of unattached plexes and subdisks, the naming is reversed.  Subdisks
+are named after the disk on which they are located, and plexes are named after
+the subdisk.
+.\" XXX
+.Nm This mapping is still to be determined.
+.Ss OBJECT STATES
+.Pp
+Each
+.Nm
+object has a \fIstate\fR associated with it.
+.Nm
+uses this state to determine the handling of the object.
+.Pp
+.Ss VOLUME STATES
+Volumes may have the following states:
+.sp
+.Bl -hang -width 14n
+.It Li down
+The volume is completely inaccessible.
+.It Li up
+The volume is up and at least partially functional.  Not all plexes may be
+available.
+.El
+.Ss "PLEX STATES"
+Plexes may have the following states:
+.sp
+.ne 1i
+.Bl -hang -width 14n
+.It Li referenced
+A plex entry which has been referenced as part of a volume, but which is
+currently not known.
+.It Li faulty
+A plex which has gone completely down because of I/O errors.
+.It Li down
+A plex which has been taken down by the administrator.
+.It Li initializing
+A plex which is being initialized.
+.sp
+The remaining states represent plexes which are at least partially up.
+.It Li corrupt
+A plex entry which is at least partially up.  Not all subdisks are available,
+and an inconsistency has occurred.  If no other plex is uncorrupted, the volume
+is no longer consistent.
+.It Li degraded
+A RAID-5 plex entry which is accessible, but one subdisk is down, requiring
+recovery for many I/O requests.
+.It Li flaky
+A plex which is really up, but which has a reborn subdisk which we don't
+completely trust, and which we don't want to read if we can avoid it.
+.It Li up
+A plex entry which is completely up.  All subdisks are up.
+.El
+.sp 2v
+.Ss "SUBDISK STATES"
+Subdisks can have the following states:
+.sp
+.ne 1i
+.Bl -hang -width 14n
+.It Li empty
+A subdisk entry which has been created completely.  All fields are correct, and
+the disk has been updated, but the on the disk is not valid.
+.It Li referenced
+A subdisk entry which has been referenced as part of a plex, but which is
+currently not known.
+.It Li initializing
+A subdisk entry which has been created completely and which is currently being
+initialized.
+.sp
+The following states represent invalid data.
+.It Li obsolete
+A subdisk entry which has been created completely.  All fields are correct, the
+config on disk has been updated, and the data was valid, but since then the
+drive has been taken down, and as a result updates have been missed.
+.It Li stale
+A subdisk entry which has been created completely.  All fields are correct, the
+disk has been updated, and the data was valid, but since then the drive has been
+crashed and updates have been lost.
+.sp
+The following states represent valid, inaccessible data.
+.It Li crashed
+A subdisk entry which has been created completely.  All fields are correct, the
+disk has been updated, and the data was valid, but since then the drive has gone
+down.  No attempt has been made to write to the subdisk since the crash, so the
+data is valid.
+.It Li down
+A subdisk entry which was up, which contained valid data, and which was taken
+down by the administrator.  The data is valid.
+.It Li reviving
+The subdisk is currently in the process of being revived.  We can write but not
+read.
+.sp
+The following states represent accessible subdisks with valid data.
+.It Li reborn
+A subdisk entry which has been created completely.  All fields are correct, the
+disk has been updated, and the data was valid, but since then the drive has gone
+down and up again.  No updates were lost, but it is possible that the subdisk
+has been damaged.  We won't read from this subdisk if we have a choice.  If this
+is the only subdisk which covers this address space in the plex, we set its
+state to up under these circumstances, so this status implies that there is
+another subdisk to fulfil the request.
+.It Li up
+A subdisk entry which has been created completely.  All fields are correct, the
+disk has been updated, and the data is valid.
+.El
+.sp 2v
+.Ss "DRIVE STATES"
+Drives can have the following states:
+.sp
+.ne 1i
+.Bl -hang -width 14n
+.It Li referenced
+At least one subdisk refers to the drive, but it is not currently accessible to
+the system.  No device name is known.
+.It Li down
+The drive is not accessible.
+.It Li up
+The drive is up and running.
+.El
+.sp 2v
+.Sh BUGS
+.Bl -enum
+.It
+.Nm
+is a new product.  Bugs can be expected.  The configuration mechanism is not yet
+fully functional.  If you have difficulties, please look at the section
+DEBUGGING PROBLEMS WITH VINUM before reporting problems.
+.It
+Kernels with the
+.Nm
+pseudo-device appear to work, but are not supported.  If you have trouble with
+this configuration, please first replace the kernel with a non-Vinum
+kernel and test with the kld module.
+.It
+Detection of differences between the version of the kernel and the kld is not
+yet implemented.
+.It
+The RAID-5 functionality is new in
+.Fx 3.3 .
+Some problems have been
+reported with
+.Nm
+in combination with soft updates, but these are not reproducible on all
+systems.  If you are planning to use
+.Nm
+in a production environment, please test carefully.
+.El
+.Sh DEBUGGING PROBLEMS WITH VINUM
+Solving problems with
+.Nm
+can be a difficult affair.  This section suggests some approaches.
+.Ss Configuration problems
+.Pp
+It is relatively easy (too easy) to run into problems with the
+.Nm
+configuration.  If you do, the first thing you should do is stop configuration
+updates:
+.if t .ps -3
+.if t .vs -3
+.Bd -literal
+# \fBvinum setdaemon 4\fP
+.Ed
+.if t .vs
+.if t .ps
+.Pp
+This will stop updates and any further corruption of the on-disk configuration.
+.Pp
+Next, look at the on-disk configuration with the
+.Nm vinum dumpconfig
+command, for example:
+.if t .ps -3
+.if t .vs -3
+.Bd -literal
+# \fBvinum dumpconfig\fP
+Drive 4:        Device /dev/da3h
+                Created on crash.lemis.com at Sat May 20 16:32:44 2000
+                Config last updated Sat May 20 16:32:56 2000
+                Size:        601052160 bytes (573 MB)
+volume obj state up
+volume src state up
+volume raid state down
+volume r state down
+volume foo state up
+plex name obj.p0 state corrupt org concat vol obj
+plex name obj.p1 state corrupt org striped 128b vol obj
+plex name src.p0 state corrupt org striped 128b vol src
+plex name src.p1 state up org concat vol src
+plex name raid.p0 state faulty org disorg vol raid
+plex name r.p0 state faulty org disorg vol r
+plex name foo.p0 state up org concat vol foo
+plex name foo.p1 state faulty org concat vol foo
+sd name obj.p0.s0 drive drive2 plex obj.p0 state reborn len 409600b driveoffset 265b plexoffset 0b
+sd name obj.p0.s1 drive drive4 plex obj.p0 state up len 409600b driveoffset 265b plexoffset 409600b
+sd name obj.p1.s0 drive drive1 plex obj.p1 state up len 204800b driveoffset 265b plexoffset 0b
+sd name obj.p1.s1 drive drive2 plex obj.p1 state reborn len 204800b driveoffset 409865b plexoffset 128b
+sd name obj.p1.s2 drive drive3 plex obj.p1 state up len 204800b driveoffset 265b plexoffset 256b
+sd name obj.p1.s3 drive drive4 plex obj.p1 state up len 204800b driveoffset 409865b plexoffset 384b
+.Ed
+.if t .vs
+.if t .ps
+.Pp
+The configuration on all disks should be the same.  If this is not the case,
+please save the output to a file and report the problem.  There is probably
+little that can be done to recover the on-disk configuration, but if you keep a
+copy of the files used to create the objects, you should be able to re-create
+them.  The
+.Cm create
+command does not change the subdisk data, so this will not cause data
+corruption.  You may need to use the
+.Cm resetconfig
+command if you have this kind of trouble.
+.Ss Kernel Panics
+.Pp
+In order to analyse a panic which you suspect comes from
+.Nm
+you will need to build a debug kernel.  See the online handbook at
+.Pa /usr/share/doc/en/books/developers-handbook/kerneldebug.html
+(if installed) or
+.Pa http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/developers-handbook/kerneldebug.html
+for more details of how to do this.
+.Pp
+Perform the following steps to analyse a
+.Nm
+problem:
+.Bl -enum
+.It
+Copy the files
+.Pa /usr/src/sys/modules/vinum/.gdbinit.crash ,
+.Pa /usr/src/sys/modules/vinum/.gdbinit.kernel ,
+.Pa /usr/src/sys/modules/vinum/.gdbinit.serial ,
+.Pa /usr/src/sys/modules/vinum/.gdbinit.vinum
+and
+.Pa /usr/src/sys/modules/vinum/.gdbinit.vinum.paths
+to the directory in which you will be performing the analysis, typically
+.Pa /var/crash .
+.It
+Make sure that you build the
+.Nm
+module with debugging information.  The standard
+.Pa Makefile
+builds a module with debugging symbols by default.  If the version of
+.Nm
+in
+.Pa /modules
+does not contain symbols, you will not get an error message, but the stack trace
+will not show the symbols.  Check the module before starting
+.Nm gdb :
+.Bd -literal
+$ file /modules/vinum.ko
+/modules/vinum.ko: ELF 32-bit LSB shared object, Intel 80386,
+  version 1 (FreeBSD), not stripped
+.Ed
+.Pp
+If the output shows that
+.Pa /modules/vinum.ko
+is stripped, you will have to find a version which is not.  Usually this will be
+either in
+.Pa /usr/obj/sys/modules/vinum/vinum.ko
+(if you have built
+.Nm
+with a
+.Ar make world )
+or
+.Pa /usr/src/sys/modules/vinum/vinum.ko
+(if you have built
+.Nm
+in this directory).  Modify the file
+.Pa .gdbinit.vinum.paths
+accordingly.
+.It
+Either take a dump or use remote serial
+.Cm gdb
+to analyse the problem.  To analyse a dump, say
+.Pa /var/crash/vmcore.5 ,
+link
+.Pa /var/crash/.gdbinit.crash
+to
+.Pa /var/crash/.gdbinit
+and enter:
+.Bd -literal
+# cd /var/crash
+# gdb -k kernel.debug vmcore.5
+.Ed
+.Pp
+This example assumes that you have installed the correct debug kernel at
+.Pa /var/crash/kernel.debug .
+If not, substitute the correct name of the debug kernel.
+.Pp
+To perform remote serial debugging,
+link
+.Pa /var/crash/.gdbinit.serial
+to
+.Pa /var/crash/.gdbinit
+and enter
+.Bd -literal
+# cd /var/crash
+# gdb -k kernel.debug
+.Ed
+.Pp
+In this case, the
+.Pa .gdbinit
+file performs the functions necessary to establish connection.  The remote
+machine must already be in debug mode: enter the kernel debugger and select
+.Nm gdb .
+The serial
+.Pa .gdbinit
+file expects the serial connection to run at 38400 bits per second; if you run
+at a different speed, edit the file accordingly (look for the
+.Ar remotebaud
+specification).
+.Pp
+The following example shows a remote debugging session using the
+.Ar debug
+command of
+.Xr vinum 8 :
+.if t .ps -3
+.if t .vs -3
+.Bd -literal
+GDB 4.16 (i386-unknown-freebsd), Copyright 1996 Free Software Foundation, Inc.
+Debugger (msg=0xf1093174 "vinum debug") at ../../i386/i386/db_interface.c:318
+318                 in_Debugger = 0;
+#1  0xf108d9bc in vinumioctl (dev=0x40001900, cmd=0xc008464b, data=0xf6dedee0 "",
+    flag=0x3, p=0xf68b7940) at
+    /usr/src/sys/modules/Vinum/../../dev/Vinum/vinumioctl.c:102
+102             Debugger ("vinum debug");
+(kgdb) bt
+#0  Debugger (msg=0xf0f661ac "vinum debug") at ../../i386/i386/db_interface.c:318
+#1  0xf0f60a7c in vinumioctl (dev=0x40001900, cmd=0xc008464b, data=0xf6923ed0 "",
+      flag=0x3, p=0xf688e6c0) at
+      /usr/src/sys/modules/vinum/../../dev/vinum/vinumioctl.c:109
+#2  0xf01833b7 in spec_ioctl (ap=0xf6923e0c) at ../../miscfs/specfs/spec_vnops.c:424
+#3  0xf0182cc9 in spec_vnoperate (ap=0xf6923e0c) at ../../miscfs/specfs/spec_vnops.c:129
+#4  0xf01eb3c1 in ufs_vnoperatespec (ap=0xf6923e0c) at ../../ufs/ufs/ufs_vnops.c:2312
+#5  0xf017dbb1 in vn_ioctl (fp=0xf1007ec0, com=0xc008464b, data=0xf6923ed0 "",
+      p=0xf688e6c0) at vnode_if.h:395
+#6  0xf015dce0 in ioctl (p=0xf688e6c0, uap=0xf6923f84) at ../../kern/sys_generic.c:473
+#7  0xf0214c0b in syscall (frame={tf_es = 0x27, tf_ds = 0x27, tf_edi = 0xefbfcff8,
+      tf_esi = 0x1, tf_ebp = 0xefbfcf90, tf_isp = 0xf6923fd4, tf_ebx = 0x2,
+      tf_edx = 0x804b614, tf_ecx = 0x8085d10, tf_eax = 0x36, tf_trapno = 0x7,
+      tf_err = 0x2, tf_eip = 0x8060a34, tf_cs = 0x1f, tf_eflags = 0x286,
+      tf_esp = 0xefbfcf78, tf_ss = 0x27}) at ../../i386/i386/trap.c:1100
+#8  0xf020a1fc in Xint0x80_syscall ()
+#9  0x804832d in ?? ()
+#10 0x80482ad in ?? ()
+#11 0x80480e9 in ?? ()
+.Ed
+.if t .vs
+.if t .ps
+.Pp
+When entering from the debugger, it's important that the source of frame 1
+(listed by the
+.Pa .gdbinit
+file at the top of the example) contains the text
+.if t .ps -3
+.if t .vs -3
+.Bd -literal
+Debugger ("vinum debug");
+.Ed
+.if t .vs
+.if t .ps
+.Pp
+This is an indication that the address specifications are correct.  If you get
+some other output, your symbols and the kernel module are out of sync, and the
+trace will be meaningless.
+.El
+.Pp
+For an initial investigation, the most important information is the output of
+the
+.Nm bt
+(backtrace) command above.
+.Ss Reporting problems with Vinum
+.Pp
+If you find any bugs in
+.Nm ,
+please report them to Greg Lehey <grog@lemis.com>.  Supply the following
+information:
+.Pp
+.Bl -bullet
+.It
+The output of the
+.Nm
+.Cm list
+command.
+.It
+Any messages printed in
+.Pa /var/log/messages .
+All such messages will be identified by the text
+.Nm
+at the beginning.
+.It
+If you have a panic, a stack trace as described above.
+.El
+.Sh AUTHORS
+.An Greg Lehey Aq grog@lemis.com .
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 3.0 .
+The RAID-5 component of
+.Nm
+was developed by Cybernet Inc.
+.Pa www.cybernet.com
+for its NetMAX product.
+.Sh SEE ALSO
+.Xr disklabel 5 ,
+.Xr disklabel 8 ,
+.Xr newfs 8 ,
+.Xr vinum 8

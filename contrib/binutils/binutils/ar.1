@@ -1,0 +1,891 @@
+.\" Copyright (c) 1991, 1992, 1993, 1995, 1998, 1999, 2000 Free Software Foundation
+.\" See section COPYING for conditions for redistribution
+.TH ar 1 "1999" "Free Software Foundation" "GNU Development Tools"
+.de BP
+.sp
+.ti \-.2i
+\(**
+..
+
+.SH NAME
+ar \- create, modify, and extract from archives.
+
+.SH SYNOPSIS
+.hy 0
+.na
+.BR ar " [\|" "-" "\|]"\c
+.I {dmpqrtx}[abcfilNoPsSuvV] \c
+[\|\c
+.I membername\c
+\&\|] \c
+[\|\c
+.I count\c
+\&\|] \c
+.I archive\c
+\& \c
+.I files\c
+\&.\|.\|.
+
+.ad b
+.hy 1
+.SH DESCRIPTION
+The GNU \c
+.B ar\c
+\& program creates, modifies, and extracts from
+archives.  An \c
+.I archive\c
+\& is a single file holding a collection of
+other files in a structure that makes it possible to retrieve
+the original individual files (called \c
+.I members\c
+\& of the archive).
+
+The original files' contents, mode (permissions), timestamp, owner, and
+group are preserved in the archive, and may be reconstituted on
+extraction.  
+
+GNU \c
+.B ar\c
+\& can maintain archives whose members have names of any
+length; however, depending on how \c
+.B ar\c
+\& is configured on your
+system, a limit on member-name length may be imposed (for compatibility
+with archive formats maintained with other tools).  If it exists, the
+limit is often 15 characters (typical of formats related to a.out) or 16
+characters (typical of formats related to coff).
+
+\c
+.B ar\c
+\& is considered a binary utility because archives of this sort
+are most often used as \c
+.I libraries\c
+\& holding commonly needed
+subroutines.
+
+\c
+.B ar\c
+\& will create an index to the symbols defined in relocatable
+object modules in the archive when you specify the modifier `\|\c
+.B s\c
+\|'.
+Once created, this index is updated in the archive whenever \c
+.B ar\c
+\&
+makes a change to its contents (save for the `\|\c
+.B q\c
+\|' update operation).
+An archive with such an index speeds up linking to the library, and
+allows routines in the library to call each other without regard to
+their placement in the archive.
+
+You may use `\|\c
+.B nm \-s\c
+\|' or `\|\c
+.B nm \-\-print\-armap\c
+\|' to list this index
+table.  If an archive lacks the table, another form of \c
+.B ar\c
+\& called
+\c
+.B ranlib\c
+\& can be used to add just the table.
+
+\c
+.B ar\c
+\& insists on at least two arguments to execute: one
+keyletter specifying the \c
+.I operation\c
+\& (optionally accompanied by other
+keyletters specifying \c
+.I modifiers\c
+\&), and the archive name to act on.
+
+Most operations can also accept further \c
+.I files\c
+\& arguments,
+specifying particular files to operate on.
+
+.SH OPTIONS
+GNU \c
+.B ar\c
+\& allows you to mix the operation code \c
+.I p\c
+\& and modifier
+flags \c
+.I mod\c
+\& in any order, within the first command-line argument.
+
+If you wish, you may begin the first command-line argument with a
+dash.
+
+The \c
+.I p\c
+\& keyletter specifies what operation to execute; it may be
+any of the following, but you must specify only one of them:
+
+.TP
+.B d
+\c
+.I Delete\c
+\& modules from the archive.  Specify the names of modules to
+be deleted as \c
+.I files\c
+\&; the archive is untouched if you
+specify no files to delete.
+
+If you specify the `\|\c
+.B v\c
+\|' modifier, \c
+.B ar\c
+\& will list each module
+as it is deleted.
+
+.TP
+.B m
+Use this operation to \c
+.I move\c
+\& members in an archive.
+
+The ordering of members in an archive can make a difference in how
+programs are linked using the library, if a symbol is defined in more
+than one member.  
+
+If no modifiers are used with \c
+.B m\c
+\&, any members you name in the
+\c
+.I files\c
+\& arguments are moved to the \c
+.I end\c
+\& of the archive;
+you can use the `\|\c
+.B a\c
+\|', `\|\c
+.B b\c
+\|', or `\|\c
+.B i\c
+\|' modifiers to move them to a
+specified place instead.
+
+.TP
+.B p
+\c
+.I Print\c
+\& the specified members of the archive, to the standard
+output file.  If the `\|\c
+.B v\c
+\|' modifier is specified, show the member
+name before copying its contents to standard output.
+
+If you specify no \c
+.I files\c
+\&, all the files in the archive are printed.
+
+.TP
+.B q
+\c
+.I Quick append\c
+\&; add \c
+.I files\c
+\& to the end of \c
+.I archive\c
+\&,
+without checking for replacement.  
+
+The modifiers `\|\c
+.B a\c
+\|', `\|\c
+.B b\c
+\|', and `\|\c
+.B i\c
+\|' do \c
+.I not\c
+\& affect this
+operation; new members are always placed at the end of the archive.
+
+The modifier `\|\c
+.B v\c
+\|' makes \c
+.B ar\c
+\& list each file as it is appended.
+
+Since the point of this operation is speed, the archive's symbol table
+index is not updated, even if it already existed; you can use `\|\c
+.B ar s\c
+\|' or
+\c
+.B ranlib\c
+\& explicitly to update the symbol table index.
+
+However, too many different systems assume quick append rebuilds the
+index, so GNU
+.B ar
+implements `\|\c
+.B q\c
+\|' as a synonym for `\|\c
+.B r\c
+\|'.
+
+.TP
+.B r
+Insert \c
+.I files\c
+\& into \c
+.I archive\c
+\& (with \c
+.I replacement\c
+\&). This
+operation differs from `\|\c
+.B q\c
+\|' in that any previously existing members
+are deleted if their names match those being added.
+
+If one of the files named in \c
+.I files\c
+\& doesn't exist, \c
+.B ar\c
+\&
+displays an error message, and leaves undisturbed any existing members
+of the archive matching that name.
+
+By default, new members are added at the end of the file; but you may
+use one of the modifiers `\|\c
+.B a\c
+\|', `\|\c
+.B b\c
+\|', or `\|\c
+.B i\c
+\|' to request
+placement relative to some existing member.
+
+The modifier `\|\c
+.B v\c
+\|' used with this operation elicits a line of
+output for each file inserted, along with one of the letters `\|\c
+.B a\c
+\|' or
+`\|\c
+.B r\c
+\|' to indicate whether the file was appended (no old member
+deleted) or replaced.
+
+.TP
+.B t
+Display a \c
+.I table\c
+\& listing the contents of \c
+.I archive\c
+\&, or those
+of the files listed in \c
+.I files\c
+\& that are present in the
+archive.  Normally only the member name is shown; if you also want to
+see the modes (permissions), timestamp, owner, group, and size, you can
+request that by also specifying the `\|\c
+.B v\c
+\|' modifier.
+
+If you do not specify any \c
+.I files\c
+\&, all files in the archive
+are listed.
+
+If there is more than one file with the same name (say, `\|\c
+.B fie\c
+\|') in
+an archive (say `\|\c
+.B b.a\c
+\|'), `\|\c
+.B ar t b.a fie\c
+\|' will list only the
+first instance; to see them all, you must ask for a complete
+listing\(em\&in our example, `\|\c
+.B ar t b.a\c
+\|'.
+
+.TP
+.B x
+\c
+.I Extract\c
+\& members (named \c
+.I files\c
+\&) from the archive.  You can
+use the `\|\c
+.B v\c
+\|' modifier with this operation, to request that
+\c
+.B ar\c
+\& list each name as it extracts it.
+
+If you do not specify any \c
+.I files\c
+\&, all files in the archive
+are extracted.
+
+.PP
+
+A number of modifiers (\c
+.I mod\c
+\&) may immediately follow the \c
+.I p\c
+\&
+keyletter, to specify variations on an operation's behavior:
+
+.TP
+.B a
+Add new files \c
+.I after\c
+\& an existing member of the
+archive.  If you use the modifier \c
+.B a\c
+\&, the name of an existing archive
+member must be present as the \c
+.I membername\c
+\& argument, before the
+\c
+.I archive\c
+\& specification.
+
+.TP
+.B b
+Add new files \c
+.I before\c
+\& an existing member of the
+archive.  If you use the modifier \c
+.B b\c
+\&, the name of an existing archive
+member must be present as the \c
+.I membername\c
+\& argument, before the
+\c
+.I archive\c
+\& specification.  (same as `\|\c
+.B i\c
+\|').
+
+.TP
+.B c
+\c
+.I Create\c
+\& the archive.  The specified \c
+.I archive\c
+\& is always
+created if it didn't exist, when you request an update.  But a warning is
+issued unless you specify in advance that you expect to create it, by
+using this modifier.
+
+.TP
+.B f
+Truncate names in the archive.  
+.B ar
+will normally permit file names of any length.  This will cause it to
+create archives which are not compatible with the native 
+.B ar
+program on some systems.  If this is a concern, the 
+.B f
+modifier may be used to truncate file names when putting them in the
+archive.
+
+.TP
+.B i
+Insert new files \c
+.I before\c
+\& an existing member of the
+archive.  If you use the modifier \c
+.B i\c
+\&, the name of an existing archive
+member must be present as the \c
+.I membername\c
+\& argument, before the
+\c
+.I archive\c
+\& specification.  (same as `\|\c
+.B b\c
+\|').
+
+.TP
+.B l
+This modifier is accepted but not used.
+
+.TP
+.B N
+Uses the
+.I count
+parameter.  This is used if there are multiple entries in the archive
+with the same name.  Extract or delete instance
+.I count
+of the given name from the archive.
+
+.TP
+.B o
+Preserve the \c
+.I original\c
+\& dates of members when extracting them.  If
+you do not specify this modifier, files extracted from the archive
+will be stamped with the time of extraction.
+
+.TP
+.B P
+Use the full path name when matching names in the archive.
+.B ar
+can not create an archive with a full path name (such archives are not
+POSIX complaint), but other archive creators can.  This option will
+cause
+.B ar
+to match file names using a complete path name, which can be
+convenient when extracting a single file from an archive created by
+another tool.
+
+.TP
+.B s
+Write an object-file index into the archive, or update an existing one,
+even if no other change is made to the archive.  You may use this modifier
+flag either with any operation, or alone.  Running `\|\c
+.B ar s\c
+\|' on an
+archive is equivalent to running `\|\c
+.B ranlib\c
+\|' on it.
+
+.TP
+.B S
+Do not generate an archive symbol table.  This can speed up building a
+large library in several steps.  The resulting archive can not be used
+with the linker.  In order to build a symbol table, you must omit the
+`\|\c
+.B S\c
+\|' modifier on the last execution of `\|\c
+.B ar\c
+\|', or you must run `\|\c
+.B ranlib\c
+\|' on the archive.
+
+.TP
+.B u
+Normally, \c
+.B ar r\c
+\&.\|.\|. inserts all files
+listed into the archive.  If you would like to insert \c
+.I only\c
+\& those
+of the files you list that are newer than existing members of the same
+names, use this modifier.  The `\|\c
+.B u\c
+\|' modifier is allowed only for the
+operation `\|\c
+.B r\c
+\|' (replace).  In particular, the combination `\|\c
+.B qu\c
+\|' is
+not allowed, since checking the timestamps would lose any speed
+advantage from the operation `\|\c
+.B q\c
+\|'.
+
+.TP
+.B v
+This modifier requests the \c
+.I verbose\c
+\& version of an operation.  Many
+operations display additional information, such as filenames processed,
+when the modifier `\|\c
+.B v\c
+\|' is appended.
+
+.TP
+.B V
+This modifier shows the version number of
+.BR ar .
+
+.PP
+
+.SH "SEE ALSO"
+.RB "`\|" binutils "\|'"
+entry in 
+.B
+info\c
+\&; 
+.I
+The GNU Binary Utilities\c
+, Roland H. Pesch (October 1991).
+.BR nm ( 1 )\c
+\&,
+.BR ranlib ( 1 )\c
+\&.
+
+.SH COPYING
+Copyright (c) 1991, 1992, 1993, 1995, 1998, 1999, 2000 Free Software Foundation, Inc.
+.PP
+This document is distributed under the terms of the GNU Free
+Documentation License, version 1.1.  That license is described in the
+sources for this manual page, but it is not displayed here in order to
+make this manual more consise.  Copies of this license can also be
+obtained from: http://www.gnu.org/copyleft/.
+
+\"  .SH GNU Free Documentation License
+\"    Version 1.1, March 2000
+
+\"    Copyright (C) 2000  Free Software Foundation, Inc.
+\"    59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+     
+\"    Everyone is permitted to copy and distribute verbatim
+\"    copies of this license document, but changing it is
+\"    not allowed.
+\"  .PP
+\"  0. PREAMBLE
+\"  .PP
+\"  The purpose of this License is to make a manual, textbook, or other
+\"  written document "free" in the sense of freedom: to assure everyone
+\"  the effective freedom to copy and redistribute it, with or without
+\"  modifying it, either commercially or noncommercially.  Secondarily,
+\"  this License preserves for the author and publisher a way to get
+\"  credit for their work, while not being considered responsible for
+\"  modifications made by others.
+\"  .PP
+\"  This License is a kind of "copyleft", which means that derivative
+\"  works of the document must themselves be free in the same sense.  It
+\"  complements the GNU General Public License, which is a copyleft
+\"  license designed for free software.
+\"  .PP
+\"  We have designed this License in order to use it for manuals for free
+\"  software, because free software needs free documentation: a free
+\"  program should come with manuals providing the same freedoms that the
+\"  software does.  But this License is not limited to software manuals;
+\"  it can be used for any textual work, regardless of subject matter or
+\"  whether it is published as a printed book.  We recommend this License
+\"  principally for works whose purpose is instruction or reference.
+\"  .PP
+\"  1. APPLICABILITY AND DEFINITIONS
+\"  .PP
+\"  This License applies to any manual or other work that contains a
+\"  notice placed by the copyright holder saying it can be distributed
+\"  under the terms of this License.  The "Document", below, refers to any
+\"  such manual or work.  Any member of the public is a licensee, and is
+\"  addressed as "you".
+\"  .PP
+\"  A "Modified Version" of the Document means any work containing the
+\"  Document or a portion of it, either copied verbatim, or with
+\"  modifications and/or translated into another language.
+\"  .PP
+\"  A "Secondary Section" is a named appendix or a front-matter section of
+\"  the Document that deals exclusively with the relationship of the
+\"  publishers or authors of the Document to the Document's overall subject
+\"  (or to related matters) and contains nothing that could fall directly
+\"  within that overall subject.  (For example, if the Document is in part a
+\"  textbook of mathematics, a Secondary Section may not explain any
+\"  mathematics.)  The relationship could be a matter of historical
+\"  connection with the subject or with related matters, or of legal,
+\"  commercial, philosophical, ethical or political position regarding
+\"  them.
+\"  .PP
+\"  The "Invariant Sections" are certain Secondary Sections whose titles
+\"  are designated, as being those of Invariant Sections, in the notice
+\"  that says that the Document is released under this License.
+\"  .PP
+\"  The "Cover Texts" are certain short passages of text that are listed,
+\"  as Front-Cover Texts or Back-Cover Texts, in the notice that says that
+\"  the Document is released under this License.
+\"  .PP
+\"  A "Transparent" copy of the Document means a machine-readable copy,
+\"  represented in a format whose specification is available to the
+\"  general public, whose contents can be viewed and edited directly and
+\"  straightforwardly with generic text editors or (for images composed of
+\"  pixels) generic paint programs or (for drawings) some widely available
+\"  drawing editor, and that is suitable for input to text formatters or
+\"  for automatic translation to a variety of formats suitable for input
+\"  to text formatters.  A copy made in an otherwise Transparent file
+\"  format whose markup has been designed to thwart or discourage
+\"  subsequent modification by readers is not Transparent.  A copy that is
+\"  not "Transparent" is called "Opaque".
+\"  .PP
+\"  Examples of suitable formats for Transparent copies include plain
+\"  ASCII without markup, Texinfo input format, LaTeX input format, SGML
+\"  or XML using a publicly available DTD, and standard-conforming simple
+\"  HTML designed for human modification.  Opaque formats include
+\"  PostScript, PDF, proprietary formats that can be read and edited only
+\"  by proprietary word processors, SGML or XML for which the DTD and/or
+\"  processing tools are not generally available, and the
+\"  machine-generated HTML produced by some word processors for output
+\"  purposes only.
+\"  .PP
+\"  The "Title Page" means, for a printed book, the title page itself,
+\"  plus such following pages as are needed to hold, legibly, the material
+\"  this License requires to appear in the title page.  For works in
+\"  formats which do not have any title page as such, "Title Page" means
+\"  the text near the most prominent appearance of the work's title,
+\"  preceding the beginning of the body of the text.
+\"  .PP
+\"  2. VERBATIM COPYING
+\"  .PP
+\"  You may copy and distribute the Document in any medium, either
+\"  commercially or noncommercially, provided that this License, the
+\"  copyright notices, and the license notice saying this License applies
+\"  to the Document are reproduced in all copies, and that you add no other
+\"  conditions whatsoever to those of this License.  You may not use
+\"  technical measures to obstruct or control the reading or further
+\"  copying of the copies you make or distribute.  However, you may accept
+\"  compensation in exchange for copies.  If you distribute a large enough
+\"  number of copies you must also follow the conditions in section 3.
+\"  .PP
+\"  You may also lend copies, under the same conditions stated above, and
+\"  you may publicly display copies.
+\"  .PP
+\"  3. COPYING IN QUANTITY
+\"  .PP
+\"  If you publish printed copies of the Document numbering more than 100,
+\"  and the Document's license notice requires Cover Texts, you must enclose
+\"  the copies in covers that carry, clearly and legibly, all these Cover
+\"  Texts: Front-Cover Texts on the front cover, and Back-Cover Texts on
+\"  the back cover.  Both covers must also clearly and legibly identify
+\"  you as the publisher of these copies.  The front cover must present
+\"  the full title with all words of the title equally prominent and
+\"  visible.  You may add other material on the covers in addition.
+\"  Copying with changes limited to the covers, as long as they preserve
+\"  the title of the Document and satisfy these conditions, can be treated
+\"  as verbatim copying in other respects.
+\"  .PP
+\"  If the required texts for either cover are too voluminous to fit
+\"  legibly, you should put the first ones listed (as many as fit
+\"  reasonably) on the actual cover, and continue the rest onto adjacent
+\"  pages.
+\"  .PP
+\"  If you publish or distribute Opaque copies of the Document numbering
+\"  more than 100, you must either include a machine-readable Transparent
+\"  copy along with each Opaque copy, or state in or with each Opaque copy
+\"  a publicly-accessible computer-network location containing a complete
+\"  Transparent copy of the Document, free of added material, which the
+\"  general network-using public has access to download anonymously at no
+\"  charge using public-standard network protocols.  If you use the latter
+\"  option, you must take reasonably prudent steps, when you begin
+\"  distribution of Opaque copies in quantity, to ensure that this
+\"  Transparent copy will remain thus accessible at the stated location
+\"  until at least one year after the last time you distribute an Opaque
+\"  copy (directly or through your agents or retailers) of that edition to
+\"  the public.
+\"  .PP
+\"  It is requested, but not required, that you contact the authors of the
+\"  Document well before redistributing any large number of copies, to give
+\"  them a chance to provide you with an updated version of the Document.
+\"  .PP
+\"  4. MODIFICATIONS
+\"  .PP
+\"  You may copy and distribute a Modified Version of the Document under
+\"  the conditions of sections 2 and 3 above, provided that you release
+\"  the Modified Version under precisely this License, with the Modified
+\"  Version filling the role of the Document, thus licensing distribution
+\"  and modification of the Modified Version to whoever possesses a copy
+\"  of it.  In addition, you must do these things in the Modified Version:
+\"  .PP
+\"  A. Use in the Title Page (and on the covers, if any) a title distinct
+\"  from that of the Document, and from those of previous versions
+\"  (which should, if there were any, be listed in the History section
+\"  of the Document).  You may use the same title as a previous version
+\"  if the original publisher of that version gives permission.
+\"  .PP
+\"  B. List on the Title Page, as authors, one or more persons or entities
+\"  responsible for authorship of the modifications in the Modified
+\"  Version, together with at least five of the principal authors of the
+\"  Document (all of its principal authors, if it has less than five).
+\"  .PP
+\"  C. State on the Title page the name of the publisher of the
+\"  Modified Version, as the publisher.
+\"  .PP
+\"  D. Preserve all the copyright notices of the Document.
+\"  .PP
+\"  E. Add an appropriate copyright notice for your modifications
+\"  adjacent to the other copyright notices.
+\"  .PP
+\"  F. Include, immediately after the copyright notices, a license notice
+\"  giving the public permission to use the Modified Version under the
+\"  terms of this License, in the form shown in the Addendum below.
+\"  Preserve in that license notice the full lists of Invariant Sections
+\"  and required Cover Texts given in the Document's license notice.
+\"  .PP
+\"  H. Include an unaltered copy of this License.
+\"  .PP
+\"  I. Preserve the section entitled "History", and its title, and add to
+\"  it an item stating at least the title, year, new authors, and
+\"  publisher of the Modified Version as given on the Title Page.  If
+\"  there is no section entitled "History" in the Document, create one
+\"  stating the title, year, authors, and publisher of the Document as
+\"  given on its Title Page, then add an item describing the Modified
+\"  Version as stated in the previous sentence.
+\"  .PP
+\"  J. Preserve the network location, if any, given in the Document for
+\"  public access to a Transparent copy of the Document, and likewise
+\"  the network locations given in the Document for previous versions
+\"  it was based on.  These may be placed in the "History" section.
+\"  You may omit a network location for a work that was published at
+\"  least four years before the Document itself, or if the original
+\"  publisher of the version it refers to gives permission.
+\"  .PP
+\"  K. In any section entitled "Acknowledgements" or "Dedications",
+\"  preserve the section's title, and preserve in the section all the
+\"  substance and tone of each of the contributor acknowledgements
+\"  and/or dedications given therein.
+\"  .PP
+\"  L. Preserve all the Invariant Sections of the Document,
+\"  unaltered in their text and in their titles.  Section numbers
+\"  or the equivalent are not considered part of the section titles.
+\"  .PP
+\"  M. Delete any section entitled "Endorsements".  Such a section
+\"  may not be included in the Modified Version.
+\"  .PP
+\"  N. Do not retitle any existing section as "Endorsements"
+\"  or to conflict in title with any Invariant Section.
+\"  .PP
+\"  If the Modified Version includes new front-matter sections or
+\"  appendices that qualify as Secondary Sections and contain no material
+\"  copied from the Document, you may at your option designate some or all
+\"  of these sections as invariant.  To do this, add their titles to the
+\"  list of Invariant Sections in the Modified Version's license notice.
+\"  These titles must be distinct from any other section titles.
+\"  .PP
+\"  You may add a section entitled "Endorsements", provided it contains
+\"  nothing but endorsements of your Modified Version by various
+\"  parties--for example, statements of peer review or that the text has
+\"  been approved by an organization as the authoritative definition of a
+\"  standard.
+\"  .PP
+\"  You may add a passage of up to five words as a Front-Cover Text, and a
+\"  passage of up to 25 words as a Back-Cover Text, to the end of the list
+\"  of Cover Texts in the Modified Version.  Only one passage of
+\"  Front-Cover Text and one of Back-Cover Text may be added by (or
+\"  through arrangements made by) any one entity.  If the Document already
+\"  includes a cover text for the same cover, previously added by you or
+\"  by arrangement made by the same entity you are acting on behalf of,
+\"  you may not add another; but you may replace the old one, on explicit
+\"  permission from the previous publisher that added the old one.
+\"  .PP
+\"  The author(s) and publisher(s) of the Document do not by this License
+\"  give permission to use their names for publicity for or to assert or
+\"  imply endorsement of any Modified Version.
+\"  .PP
+
+\"  5. COMBINING DOCUMENTS
+\"  .PP
+\"  You may combine the Document with other documents released under this
+\"  License, under the terms defined in section 4 above for modified
+\"  versions, provided that you include in the combination all of the
+\"  Invariant Sections of all of the original documents, unmodified, and
+\"  list them all as Invariant Sections of your combined work in its
+\"  license notice.
+\"  .PP
+\"  The combined work need only contain one copy of this License, and
+\"  multiple identical Invariant Sections may be replaced with a single
+\"  copy.  If there are multiple Invariant Sections with the same name but
+\"  different contents, make the title of each such section unique by
+\"  adding at the end of it, in parentheses, the name of the original
+\"  author or publisher of that section if known, or else a unique number.
+\"  Make the same adjustment to the section titles in the list of
+\"  Invariant Sections in the license notice of the combined work.
+\"  .PP
+\"  In the combination, you must combine any sections entitled "History"
+\"  in the various original documents, forming one section entitled
+\"  "History"; likewise combine any sections entitled "Acknowledgements",
+\"  and any sections entitled "Dedications".  You must delete all sections
+\"  entitled "Endorsements."
+\"  .PP
+
+\"  6. COLLECTIONS OF DOCUMENTS
+\"  .PP
+\"  You may make a collection consisting of the Document and other documents
+\"  released under this License, and replace the individual copies of this
+\"  License in the various documents with a single copy that is included in
+\"  the collection, provided that you follow the rules of this License for
+\"  verbatim copying of each of the documents in all other respects.
+\"  .PP
+\"  You may extract a single document from such a collection, and distribute
+\"  it individually under this License, provided you insert a copy of this
+\"  License into the extracted document, and follow this License in all
+\"  other respects regarding verbatim copying of that document.
+\"  .PP
+
+\"  7. AGGREGATION WITH INDEPENDENT WORKS
+\"  .PP
+\"  A compilation of the Document or its derivatives with other separate
+\"  and independent documents or works, in or on a volume of a storage or
+\"  distribution medium, does not as a whole count as a Modified Version
+\"  of the Document, provided no compilation copyright is claimed for the
+\"  compilation.  Such a compilation is called an "aggregate", and this
+\"  License does not apply to the other self-contained works thus compiled
+\"  with the Document, on account of their being thus compiled, if they
+\"  are not themselves derivative works of the Document.
+\"  .PP
+\"  If the Cover Text requirement of section 3 is applicable to these
+\"  copies of the Document, then if the Document is less than one quarter
+\"  of the entire aggregate, the Document's Cover Texts may be placed on
+\"  covers that surround only the Document within the aggregate.
+\"  Otherwise they must appear on covers around the whole aggregate.
+\"  .PP
+
+\"  8. TRANSLATION
+\"  .PP
+\"  Translation is considered a kind of modification, so you may
+\"  distribute translations of the Document under the terms of section 4.
+\"  Replacing Invariant Sections with translations requires special
+\"  permission from their copyright holders, but you may include
+\"  translations of some or all Invariant Sections in addition to the
+\"  original versions of these Invariant Sections.  You may include a
+\"  translation of this License provided that you also include the
+\"  original English version of this License.  In case of a disagreement
+\"  between the translation and the original English version of this
+\"  License, the original English version will prevail.
+\"  .PP
+
+\"  9. TERMINATION
+\"  .PP
+\"  You may not copy, modify, sublicense, or distribute the Document except
+\"  as expressly provided for under this License.  Any other attempt to
+\"  copy, modify, sublicense or distribute the Document is void, and will
+\"  automatically terminate your rights under this License.  However,
+\"  parties who have received copies, or rights, from you under this
+\"  License will not have their licenses terminated so long as such
+\"  parties remain in full compliance.
+\"  .PP
+
+\"  10. FUTURE REVISIONS OF THIS LICENSE
+\"  .PP
+\"  The Free Software Foundation may publish new, revised versions
+\"  of the GNU Free Documentation License from time to time.  Such new
+\"  versions will be similar in spirit to the present version, but may
+\"  differ in detail to address new problems or concerns.  See
+\"  http://www.gnu.org/copyleft/.
+\"  .PP
+\"  Each version of the License is given a distinguishing version number.
+\"  If the Document specifies that a particular numbered version of this
+\"  License "or any later version" applies to it, you have the option of
+\"  following the terms and conditions either of that specified version or
+\"  of any later version that has been published (not as a draft) by the
+\"  Free Software Foundation.  If the Document does not specify a version
+\"  number of this License, you may choose any version ever published (not
+\"  as a draft) by the Free Software Foundation.
+\"  .PP
+
+\"  ADDENDUM: How to use this License for your documents
+\"  .PP
+\"  To use this License in a document you have written, include a copy of
+\"  the License in the document and put the following copyright and
+\"  license notices just after the title page:
+\"  .PP
+\"      Copyright (c)  YEAR  YOUR NAME.
+\"      Permission is granted to copy, distribute and/or
+\"      modify this document under the terms of the GNU
+\"      Free Documentation License, Version 1.1 or any later
+\"      version published by the Free Software Foundation;
+\"      with the Invariant Sections being LIST THEIR TITLES,
+\"      with the Front-Cover Texts being LIST, and with the
+\"      Back-Cover Texts being LIST.  A copy of the license
+\"      is included in the section entitled "GNU Free
+\"      Documentation License".
+\"  .PP
+\"  If you have no Invariant Sections, write "with no Invariant Sections"
+\"  instead of saying which ones are invariant.  If you have no
+\"  Front-Cover Texts, write "no Front-Cover Texts" instead of
+\"  "Front-Cover Texts being LIST"; likewise for Back-Cover Texts.
+\"  .PP
+\"  If your document contains nontrivial examples of program code, we
+\"  recommend releasing these examples in parallel under your choice of
+\"  free software license, such as the GNU General Public License,
+\"  to permit their use in free software.

@@ -1,0 +1,319 @@
+.\" -*- nroff -*-
+.\" ---------------------------------------------------------------------------
+.\"    man page for send-pr (by Heinz G. Seidl, hgs@cygnus.com)
+.\"    updated Feb 1993 for GNATS 3.00 by Jeffrey Osier, jeffrey@cygnus.com
+.\"
+.\"    This file is part of the Problem Report Management System (GNATS)
+.\"    Copyright 1992 Cygnus Support
+.\"
+.\"    This program is free software; you can redistribute it and/or
+.\"    modify it under the terms of the GNU General Public
+.\"    License as published by the Free Software Foundation; either
+.\"    version 2 of the License, or (at your option) any later version.
+.\"
+.\"    This program is distributed in the hope that it will be useful,
+.\"    but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\"    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+.\"    General Public License for more details.
+.\"
+.\"    You should have received a copy of the GNU Library General Public
+.\"    License along with this program; if not, write to the Free
+.\"    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA
+.\"
+.\" ---------------------------------------------------------------------------
+.\"
+.\" $FreeBSD$
+.nh
+.TH SEND-PR 1 3.113 "February 1993"
+.SH NAME
+send-pr \- send problem report (PR) to a central support site
+.SH SYNOPSIS
+.B send-pr
+[
+.I site
+]
+[
+.B \-f
+.I problem-report
+]
+[
+.B \-t
+.I mail-address
+]
+.br
+.in +0.8i
+[
+.B \-P
+]
+[
+.B \-L
+]
+[
+.B \-s
+.I severity
+]
+[
+.B \-V
+]
+.br
+[
+.B \-\-version
+]
+[
+.B \-c
+.I address
+]
+[
+.B \-a
+.I file
+]
+.SH DESCRIPTION
+.B send-pr
+is a tool used to submit 
+.I problem reports 
+.\" SITE ADMINISTRATORS - change this if you use a local default
+(PRs) to a central support site.  In most cases the correct 
+.I site
+will be the default.  This argument indicates the support site which
+is responsible for the category of problem involved.  Some sites may
+use a local address as a default.  
+.I site
+values are defined by using the 
+.BR aliases (5).
+.LP
+.B send-pr
+invokes an editor on a problem report template (after trying to fill
+in some fields with reasonable default values).  When you exit the
+editor,
+.B send-pr 
+sends the completed form to the
+.I Problem Report Management System
+(\fBGNATS\fR) at a central support site.  At the support site, the PR
+is assigned a unique number and is stored in the \fBGNATS\fR database
+according to its category and submitter-id.  \fBGNATS\fR automatically
+replies with an acknowledgement, citing the category and the PR
+number.
+.LP
+To ensure that a PR is handled promptly, it should contain
+one of the available \fIcategories\fR to identify the
+problem area.  (Use
+.B `send-pr -L'
+to see a list of categories.)
+.LP
+The more precise your problem description and the more complete your
+information, the faster your support team can solve your problems.
+.SH OPTIONS
+.TP
+.BI \-f " problem-report"
+specify a file (\fIproblem-report\fR) which already contains a
+complete problem report.
+.B send-pr
+sends the contents of the file without invoking the editor.  If 
+the value for 
+.I problem-report
+is
+.BR `\|\-\|' ,
+then
+.B send-pr
+reads from standard input.
+.TP
+.BI \-s " severity"
+Give the problem report the severity
+.IR severity .
+.TP
+.BI \-t " mail-address"
+Change mail address at the support site for problem reports.  The
+default 
+.I mail-address
+is the address used for the default 
+.IR site .  
+Use the
+.I site
+argument rather than this option in nearly all cases.
+.TP
+.BI \-c " address"
+Put
+.I address
+in the 
+.B Cc:
+header of the message.
+.TP
+.BI \-a " file"
+Copy the specified
+.I file
+into the
+.B Fix:
+section.
+Binary files are uuencoded.
+.TP
+.B \-P
+print the form specified by the environment variable 
+.B PR_FORM 
+on standard output.  If 
+.B PR_FORM
+is not set, print the standard blank PR template.  No mail is sent.
+.TP
+.B \-L
+print the list of available categories.  No mail is sent.
+.TP
+.B \-V
+Display the 
+.B send-pr
+version number.
+This may also be specified as
+.B \-\-version.
+.LP
+Note: use
+.B send-pr
+to submit problem reports rather than mailing them directly.  Using
+both the template and
+.B send-pr
+itself will help ensure all necessary information will reach the
+support site.
+.SH FREEBSD CATEGORIES
+.TP
+.B advocacy
+This used to be for the advocacy WWW pages.  Not quite sure what is used
+for now.
+.TP
+.B alpha
+Alpha processor specific problems.
+.TP
+.B bin
+Corrections or enhancements to system executables.
+.TP
+.B conf
+Corrections or enhancements to the system configuration files.
+.TP
+.B docs
+Corrections or enhancements to the manpages or other documentation.
+.TP
+.B gnu
+Corrections or enhancements to the GNU contributed software.
+.TP
+.B i386
+Intel x86 processor specific problems.
+.TP
+.B ia64
+Intel ia64 processor specific problems.
+.TP
+.B java
+Problems related to Java.
+.TP
+.B kern
+Changes or enhancements to the architecture independent kernel sources.
+.TP
+.B misc
+Problems that don't fit into any of the other categories.
+.TP
+.B ports
+Corrections or enhancements (including new ports) to the ports collection.
+.TP
+.B powerpc
+PowerPC processor specific problems.
+.TP
+.B sparc64
+SPARC processor specific problems.
+.TP
+.B standards
+Standards conformance issues.
+.TP
+.B www
+Changes or enhancements to the FreeBSD website.
+.SH ENVIRONMENT
+The environment variable 
+.B EDITOR
+specifies the editor to invoke on the template.
+.br
+default:
+.B vi
+.sp
+If the environment variable 
+.B PR_FORM
+is set, then its value is used as the file name of the template for
+your problem-report editing session.  You can use this to start with a
+partially completed form (for example, a form with the identification
+fields already completed).
+.SH "HOW TO FILL OUT A PROBLEM REPORT"
+Problem reports have to be in a particular form so that a program can
+easily manage them.  Please remember the following guidelines:
+.IP \(bu 3m 
+describe only 
+.B one problem
+with each problem report.
+.IP \(bu 3m
+For follow-up mail, use the same subject line as the one in the automatic
+acknowledgement. It consists of category, PR number and the original synopsis
+line.  This allows the support site to relate several mail messages to a
+particular PR and to record them automatically.
+.IP \(bu 3m 
+Please try to be as accurate as possible in the subject and/or synopsis line.
+.IP \(bu 3m 
+The subject and the synopsis line are not confidential.  This is
+because open-bugs lists are compiled from them.  Avoid confidential
+information there.
+.LP
+See the GNU 
+.B Info 
+file
+.B send-pr.info
+or the document \fIReporting Problems With send-pr\fR\ for detailed
+information on reporting problems
+.SH "HOW TO SUBMIT TEST CASES, CODE, ETC."
+Submit small code samples with the PR.  Contact the support site for
+instructions on submitting larger test cases and problematic source
+code.
+.SH FILES
+.ta \w'/tmp/pbad$$  'u
+/tmp/p$$	copy of PR used in editing session
+.br
+/tmp/pf$$	copy of empty PR form, for testing purposes
+.br
+/tmp/pbad$$	file for rejected PRs
+.SH EMACS USER INTERFACE
+An Emacs user interface for 
+.B send-pr
+with completion of field values is part of the 
+.B send-pr
+distribution (invoked with
+.BR "M-x send-pr" ).
+See the file
+.B send-pr.info
+or the ASCII file
+.B INSTALL
+in the top level directory of the distribution for configuration and
+installation information.  The Emacs LISP template file is 
+.B send-pr-el.in
+and is installed as
+.BR send-pr.el .
+.SH INSTALLATION AND CONFIGURATION
+See 
+.B send-pr.info
+or
+.B INSTALL
+for installation instructions.
+.SH SEE ALSO
+.I Reporting Problems Using send-pr
+(also installed as the GNU Info file
+.BR send-pr.info ).
+.SH AUTHORS
+Jeffrey Osier, Brendan Kehoe, Jason Merrill, Heinz G. Seidl (Cygnus
+Support)
+.SH COPYING
+Copyright (c) 1992, 1993 Free Software Foundation, Inc.
+.PP
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+.PP
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+.PP
+Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be included in
+translations approved by the Free Software Foundation instead of in
+the original English.
+

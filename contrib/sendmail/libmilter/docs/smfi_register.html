@@ -1,0 +1,160 @@
+<html>
+<head><title>smfi_register</title></head>
+<body>
+<h1>smfi_register</h1>
+
+<table border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<tr><th valign="top" align=left width=150>SYNOPSIS</th><td>
+<pre>
+#include &lt;libmilter/mfapi.h&gt;
+int smfi_register(
+	smfiDesc_str descr
+);
+</pre>
+Register a set of filter callbacks.
+</td></tr>
+
+<!----------- Description ---------->
+<tr><th valign="top" align=left>DESCRIPTION</th><td>
+<table border="1" cellspacing=1 cellpadding=1>
+<tr align="left" valign=top>
+<th width="80">Called When</th>
+<td>smfi_register must be called before smfi_main</td>
+</tr>
+<tr align="left" valign=top>
+<th width="80">Effects</th>
+<td>smfi_register creates a filter using the information given in the
+smfiDesc_str argument.  Multiple calls to smfi_register within a
+single process are not allowed.</td>
+</tr>
+</table>
+
+<!----------- Arguments ---------->
+<tr><th valign="top" align=left>ARGUMENTS</th><td>
+    <table border="1" cellspacing=0>
+    <tr bgcolor="#dddddd"><th>Argument</th><th>Description</th></tr>
+    <tr valign="top"><td>descr</td>
+	<td>
+A filter descriptor of type smfiDesc_str describing the filter's
+functions.  The structure has the following members:
+<pre>
+struct smfiDesc
+{
+	char		*xxfi_name;	/* filter name */
+	int		xxfi_version;	/* version code -- do not change */
+	unsigned long	xxfi_flags;	/* <a href="#flags">flags</a> */
+
+	/* connection info filter */
+	sfsistat	(*<a href="xxfi_connect.html">xxfi_connect</a>)(SMFICTX *, char *, _SOCK_ADDR *);
+	/* SMTP HELO command filter */
+	sfsistat	(*<a href="xxfi_helo.html">xxfi_helo</a>)(SMFICTX *, char *);
+	/* envelope sender filter */
+	sfsistat	(*<a href="xxfi_envfrom.html">xxfi_envfrom</a>)(SMFICTX *, char **);
+	/* envelope recipient filter */
+	sfsistat	(*<a href="xxfi_envrcpt.html">xxfi_envrcpt</a>)(SMFICTX *, char **);
+	/* header filter */
+	sfsistat	(*<a href="xxfi_header.html">xxfi_header</a>)(SMFICTX *, char *, char *);
+	/* end of header */
+	sfsistat	(*<a href="xxfi_eoh.html">xxfi_eoh</a>)(SMFICTX *);
+	/* body block */
+	sfsistat	(*<a href="xxfi_body.html">xxfi_body</a>)(SMFICTX *, unsigned char *, size_t);
+	/* end of message */
+	sfsistat	(*<a href="xxfi_eom.html">xxfi_eom</a>)(SMFICTX *);
+	/* message aborted */
+	sfsistat	(*<a href="xxfi_abort.html">xxfi_abort</a>)(SMFICTX *);
+	/* connection cleanup */
+	sfsistat	(*<a href="xxfi_close.html">xxfi_close</a>)(SMFICTX *);
+};
+</pre>
+
+A NULL value for any callback function indicates that the filter does
+not wish to process the given type of information, simply returning
+SMFIS_CONTINUE.
+	</td></tr>
+    </table>
+</td></tr>
+
+<!----------- Return values ---------->
+<tr>
+<th valign="top" align=left>RETURN VALUES</th> 
+
+<td>
+smfi_register may return MI_FAILURE for any of the following reasons:
+<ul>
+<li>memory allocation failed.  
+<li>incompatible version or illegal flags value.
+</ul>
+
+</td>
+</tr>
+
+<!----------- Notes ---------->
+<tr align="left" valign=top>
+<th>NOTES</th> 
+<td>
+
+<a name="flags"></A>
+The xxfi_flags field should contain the bitwise OR of zero or more of
+the following values, describing the actions the filter may take:
+<TABLE BORDER CELLPADDING="1" cellspacing=1>
+<tr valign="top" bgcolor="#dddddd"><th align="left">Flag</th><th align="center">Description</th></tr>
+  <TR align="left" valign=top>
+    <TD>
+        SMFIF_ADDHDRS
+    </TD>
+    <TD>
+        This filter may add headers.
+    </TD>
+  </TR>
+  <TR align="left" valign=top>
+    <TD>
+        SMFIF_CHGHDRS
+    </TD>
+    <TD>
+        This filter may change and/or delete headers.
+    </TD>
+  </TR>
+  <TR align="left" valign=top>
+    <TD VALIGN="TOP">
+        SMFIF_CHGBODY
+    </TD>
+    <TD>
+        This filter may replace the body during filtering.
+        This may have significant performance impact
+        if other filters do body filtering after this filter.
+    </TD>
+  </TR>
+  <TR>
+    <TD VALIGN="TOP">
+        SMFIF_ADDRCPT
+    </TD>
+    <TD>
+        This filter may add recipients to the message.
+    </TD>
+  </TR>
+  <TR>
+    <TD VALIGN="TOP">
+        SMFIF_DELRCPT
+    </TD>
+    <TD>
+        This filter may remove recipients from the message.
+    </TD>
+  </TR>
+</TABLE>
+
+</td>
+</tr>
+
+</table>
+
+<hr size="1">
+<font size="-1">
+Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+All rights reserved.
+<br>
+By using this file, you agree to the terms and conditions set
+forth in the <a href="LICENSE.txt">LICENSE</a>.
+</font>
+</body>
+</html>

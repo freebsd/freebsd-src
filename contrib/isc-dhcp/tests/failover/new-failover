@@ -1,0 +1,28 @@
+#!/bin/sh
+
+foo=10
+while [ $foo -lt 100 ]; do
+  cat >>dhcp-1.leases <<~
+lease 10.0.0.$foo {
+  starts 4 2001/05/01 02:19:16;
+  ends 5 2021/05/03 02:29:16;
+  binding state active;
+  next binding state free;
+  hardware ethernet 08:00:46:06:6c:23;
+  uid "test-$foo";
+}
+~
+  foo=`expr $foo + 1`
+  cat >>dhcp-2.leases <<~
+lease 10.0.0.$foo {
+  starts 4 2001/04/19 02:19:16;
+  ends 5 2021/04/21 02:29:16;
+  binding state active;
+  next binding state free;
+  hardware ethernet 08:00:46:06:6c:23;
+  uid "test-$foo";
+}
+~
+  foo=`expr $foo + 1`
+done
+

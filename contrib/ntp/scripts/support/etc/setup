@@ -1,0 +1,72 @@
+#
+# setup,v 3.1 1993/07/06 01:10:55 jbj Exp
+#
+# /bin/sh sourced file for environment setup
+# expects NTPROOT variable initialized
+#
+# if not set it will be initialized to /usr/local/NTP
+#
+# setup,v
+# Revision 3.1  1993/07/06  01:10:55  jbj
+# XNTP release 3.1
+#
+#
+# Revision 1.1  1992/12/10  12:59:25  kardel
+# Prerelease NTP V3 / DCF
+#
+# Revision 1.1  1992/12/10  10:14:46  kardel
+# Initial revision
+#
+#
+NTPROOT=${NTPROOT-/usr/local/NTP}
+
+#
+# we so use our own echos, as we somes want to substitute them with a
+# file logging version durin the /etc/rc.local phase
+#
+set `type ECHO`
+
+PATH="${PATH}:$NTPROOT/bin"
+export PATH
+
+if [ "$2" = "is" ]; then
+	:
+else
+	#
+	# find out the way echos work (Rest of rc thinks BSD echo)
+	#
+        ECHOREP="`echo -n x`"
+        if [ "$ECHOREP" = "-n x" ]; then
+                ECHO () {
+                        if [ "$1" = "-n" ]; then
+                                shift
+                                echo "$@\c"
+                        else
+                                echo "$@"
+                        fi
+                }
+                #ECHO "System V style echo"
+        else
+                ECHO () {
+                        echo "$@"
+                }
+                #ECHO "BSD style echo"
+        fi
+
+	NLECHO () {
+		echo "$@"
+	}
+
+	LOG () {
+		while read _line; do
+			ECHO "$_line"
+		done
+	}
+	#
+	# carefully find out some configuration Variables
+	#
+	ARCH="`(arch) 2>/dev/null || ((uname) > /dev/null && uname -a | awk '{ print $6; }') 2>/dev/null || echo 'no-arch'`"
+	KARCH="`(arch -k) 2>/dev/null || ((uname) > /dev/null && uname -a | awk '{ print $5 }') || echo 'no-arch'`"
+	HOSTNAME="`(hostname) 2>/dev/null || uname -n`"
+fi
+

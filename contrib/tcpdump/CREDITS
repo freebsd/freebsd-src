@@ -1,0 +1,86 @@
+This file lists people who have contributed to tcpdump:
+
+The current maintainers:
+	Bill Fenner			<fenner@research.att.com>
+	Assar Westerlund 		<assar@sics.se>
+	Alexey Kuznetsov		<kuznet@ms2.inr.ac.ru>
+	Jun-ichiro itojun Hagino	<itojun@iijlab.net>
+	Guy Harris 			<guy@alum.mit.edu>
+	Torsten Landschoff 		<t.landschoff@gmx.net>
+	Michael Richardson 		<mcr@sandelman.ottawa.on.ca>
+	Ken Hornstein			<kenh@cmf.nrl.navy.mil>
+
+Additional people who have contributed patches:
+
+	Alfredo Andres			<aandres@s21sec.com>
+	Andrew Tridgell			<tridge@linuxcare.com>
+	Arkadiusz Miskiewicz 		<misiek@pld.org.pl>
+	Armando L. Caro Jr.		<acaro@mail.eecis.udel.edu>
+	Ben Smithurst			<ben@scientia.demon.co.uk>
+	Brent L. Bates			<blbates@vigyan.com>
+	Charlie Lenahan			<clenahan@fortresstech.com>
+	Chris G. Demetriou		<cgd@netbsd.org>
+	Chris Jepeway			<jepeway@blasted-heath.com>
+	Craig Rodrigues			<rodrigc@mediaone.net>
+	Crist J. Clark			<cjclark@alum.mit.edu>
+	Daniel Hagerty 			<hag@ai.mit.edu>
+	Francisco Matias Cuenca-Acuna	<mcuenca@george.rutgers.edu>
+	Frank Volf			<volf@oasis.IAEhv.nl>
+	Gert Doering			<gert@greenie.muc.de>
+	Gilbert Ramirez Jr.		<gram@xiexie.org>
+	Gisle Vanem			<gvanem@eunet.no>
+	Hannes Gredler			<hannes@juniper.net>
+	Harry Raaymakers		<harryr@connect.com.au>
+	Heinz-Ado Arnolds		<Ado.Arnolds@dhm-systems.de>
+	Hendrik Scholz			<hendrik@scholz.net>
+	Jakob Schlyter			<jakob@openbsd.org>
+	Jan Oravec			<wsx@wsx6.net>
+	Jason R. Thorpe			<thorpej@zembu.com>
+	Jefferson Ogata 		<jogata@nodc.noaa.gov>
+	Jeffrey Hutzelman		<jhutz@cmu.edu>
+	Jim Hutchins			<jim@ca.sandia.gov>
+	JINMEI Tatuya			<jinmei@kame.net>
+	Juergen Schoenwaelder		<schoenw@ibr.cs.tu-bs.de>
+	Julian Cowley			<julian@lava.net>
+	Kaarthik Sivakumar		<kaarthik@torrentnet.com>
+	Kazushi Sugyo			<sugyo@pb.jp.nec.com>
+	Kelly Carmichael		<kcarmich@ipapp.com>
+	Ken Hornstein			<kenh@cmf.nrl.navy.mil>
+	Kevin Steves			<stevesk@sweden.hp.com>
+	Klaus Klein			<kleink@reziprozitaet.de>
+ 	Kris Kennaway			<kris@freebsd.org>
+	Larry Lile			<lile@stdio.com>
+	Lennert Buytenhek 		<buytenh@gnu.org>
+	Love Hörnquist-Åstrand		<lha@stacken.kth.se>
+	Maciej W. Rozycki		<macro@ds2.pg.gda.pl>
+	Marko Kiiskila			<carnil@cs.tut.fi>
+	Marshall Rose			<mrose@dbc.mtview.ca.us>
+	Martin Husemann			<martin@netbsd.org>
+	Michael Madore			<mmadore@turbolinux.com>
+	Michael Shalayeff		<mickey@openbsd.org>
+	Michael T. Stolarchuk		<mts@off.to>
+	Monroe Williams 		<monroe@pobox.com>
+	Motonori Shindo			<mshindo@mshindo.net>
+	Nathan J. Williams		<nathanw@MIT.EDU>
+	Nathaniel Couper-Noles		<Nathaniel@isi1.tccisi.com>
+	Nickolai Zeldovich		<kolya@MIT.EDU>
+	Olaf Kirch 			<okir@caldera.de>
+	Onno van der Linden		<onno@simplex.nl>
+	Pascal Hennequin 		<pascal.hennequin@int-evry.fr>
+	Pasvorn Boonmark		<boonmark@juniper.net>
+	Pekka Savola 			<pekkas@netcore.fi>	
+	Peter Jeremy			<peter.jeremy@alcatel.com.au>
+	Rafal Maszkowski		<rzm@icm.edu.pl>
+	Rick Jones			<raj@cup.hp.com>
+	Roderick Schertler		<roderick@argon.org>
+	Sebastian Krahmer		<krahmer@cs.uni-potsdam.de>
+	Seth Webster			<swebster@sst.ll.mit.edu>
+	Timo Koskiahde
+	Tony Li				<tli@jnx.com>
+	Uns Lider			<unslider@miranda.org>
+	Wilbert de Graaf		<wilbertdg@hetnet.nl>
+
+The original LBL crew:
+	Steve McCanne
+	Craig Leres
+	Van Jacobson

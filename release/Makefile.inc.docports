@@ -1,0 +1,67 @@
+# $FreeBSD$
+#
+# List of (dependent) ports that are minimally required to be
+# checked out from CVS in order to get ${DOCPORTS} built and
+# installed.  It should follow the dependency list in
+# ports/textproc/docproj/Makefile as much as feasible.
+#
+# Note that these names are /not/ CVS module names but path
+# names, so the required part of the ports infrastructure will
+# be cvs co'ed accordingly.
+#
+
+# Get __FreeBSD_version
+.if !defined(OSVERSION)
+.if exists(/sbin/sysctl)
+OSVERSION!=	/sbin/sysctl -n kern.osreldate
+.else
+OSVERSION!=	/usr/sbin/sysctl -n kern.osreldate
+.endif
+.endif
+
+MINIMALDOCPORTS= \
+	ports/Mk \
+	ports/archivers/unzip \
+	ports/converters/libiconv \
+	ports/devel/bison \
+	ports/devel/gettext \
+	ports/devel/gmake \
+	ports/devel/libtool \
+	ports/devel/pkgconfig \
+	ports/graphics/gd \
+	ports/graphics/jbigkit \
+	ports/graphics/jpeg \
+	ports/graphics/netpbm \
+	ports/graphics/peps \
+	ports/graphics/png \
+	ports/graphics/scr2png \
+	ports/graphics/tiff \
+	ports/print/freetype2 \
+	ports/print/ghostscript-gnu \
+	ports/textproc/docbook \
+	ports/textproc/docbook-241 \
+	ports/textproc/docbook-300 \
+	ports/textproc/docbook-310 \
+	ports/textproc/docbook-400 \
+	ports/textproc/docbook-410 \
+	ports/textproc/docproj \
+	ports/textproc/dsssl-docbook-modular \
+	ports/textproc/expat2 \
+	ports/textproc/html \
+	ports/textproc/iso8879 \
+	ports/textproc/libxml2 \
+	ports/textproc/libxslt \
+	ports/textproc/linuxdoc \
+	ports/textproc/mkcatalog \
+	ports/textproc/sgmlformat \
+	ports/textproc/xhtml \
+	ports/www/links1 \
+	ports/www/tidy
+.if ${OSVERSION} < 460101 || ( ${OSVERSION} >= 500000 && ${OSVERSION} < 500036 )
+MINIMALDOCPORTS+=	ports/textproc/sed_inplace
+.endif
+.if ${MACHINE_ARCH} == "alpha"
+MINIMALDOCPORTS+=	ports/textproc/openjade
+.else
+MINIMALDOCPORTS+=	ports/textproc/jade
+.endif

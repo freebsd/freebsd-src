@@ -1,0 +1,51 @@
+KRB5-CONFIG(1)          FreeBSD General Commands Manual         KRB5-CONFIG(1)
+
+NNAAMMEE
+     kkrrbb55--ccoonnffiigg - give information on how to link code against Heimdal
+     libraries
+
+SSYYNNOOPPSSIISS
+     kkrrbb55--ccoonnffiigg [----pprreeffiixx[=_d_i_r]] [----eexxeecc--pprreeffiixx[=_d_i_r]] [----lliibbss] [----ccffllaaggss]
+                 [_l_i_b_r_a_r_i_e_s]
+
+DDEESSCCRRIIPPTTIIOONN
+     kkrrbb55--ccoonnffiigg tells the application programmer what special flags to use to
+     compile and link programs against the libraries installed by Heimdal.
+
+     Options supported:
+
+     ----pprreeffiixx[=_d_i_r]
+             Print the prefix if no _d_i_r is specified, otherwise set prefix to
+             _d_i_r.
+
+     ----eexxeecc--pprreeffiixx[=_d_i_r]
+             Print the exec-prefix if no _d_i_r is specified, otherwise set exec-
+             prefix to _d_i_r.
+
+     ----lliibbss  Output the set of libraries that should be linked against.
+
+     ----ccffllaaggss
+             Output the set of flags to give to the C compiler when using the
+             Heimdal libraries.
+
+     By default kkrrbb55--ccoonnffiigg will output the set of flags and libraries to be
+     used by a normal program using the krb5 API.  The user can also supply a
+     library to be used, the supported ones are:
+
+     krb5    (the default)
+
+     gssapi  use the krb5 gssapi mechanism
+
+     kadm-client
+             use the client-side kadmin libraries
+
+     kadm-server
+             use the server-side kadmin libraries
+
+SSEEEE AALLSSOO
+     cc(1)
+
+HHIISSTTOORRYY
+     kkrrbb55--ccoonnffiigg appeared in Heimdal 0.3d.
+
+HEIMDAL                        November 30, 2000                       HEIMDAL

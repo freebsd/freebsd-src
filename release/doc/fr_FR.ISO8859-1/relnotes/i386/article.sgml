@@ -1,0 +1,30 @@
+<!--
+     The FreeBSD Documentation Project
+     The FreeBSD French Documentation Project
+
+     $Id$
+     $FreeBSD$
+     Original revision: 1.1.2.3
+-->
+
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
+%man;
+<!ENTITY % authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
+%authors;
+<!--  <!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//EN"> -->
+<!--  %mlists; -->
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+<!ENTITY % sections SYSTEM "../common/relnotes.ent"> %sections;
+
+<!-- Architecture-specific customization -->
+
+<!ENTITY arch "i386">
+<!ENTITY arch.print "IA-32">
+
+]>
+
+<article>
+  &art;
+</article>

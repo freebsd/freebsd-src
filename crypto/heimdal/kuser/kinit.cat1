@@ -1,0 +1,127 @@
+KINIT(1)                FreeBSD General Commands Manual               KINIT(1)
+
+NNAAMMEE
+     kkiinniitt kkaauutthh - acquire initial tickets
+
+SSYYNNOOPPSSIISS
+     kkiinniitt [--44 | ----552244iinniitt] [--99 | ----552244ccoonnvveerrtt] [----aaffsslloogg] [--cc _c_a_c_h_e_n_a_m_e |
+           ----ccaacchhee==_c_a_c_h_e_n_a_m_e] [--ff | ----ffoorrwwaarrddaabbllee] [--tt _k_e_y_t_a_b_n_a_m_e |
+           ----kkeeyyttaabb==_k_e_y_t_a_b_n_a_m_e] [--ll _t_i_m_e | ----lliiffeettiimmee==_t_i_m_e] [--pp | ----pprrooxxiiaabbllee]
+           [--RR | ----rreenneeww] [----rreenneewwaabbllee] [--rr _t_i_m_e | ----rreenneewwaabbllee--lliiffee==_t_i_m_e] [--SS
+           _p_r_i_n_c_i_p_a_l | ----sseerrvveerr==_p_r_i_n_c_i_p_a_l] [--ss _t_i_m_e | ----ssttaarrtt--ttiimmee==_t_i_m_e]
+           [--kk | ----uussee--kkeeyyttaabb] [--vv | ----vvaalliiddaattee] [--ee _e_n_c_t_y_p_e_s |
+           ----eennccttyyppeess==_e_n_c_t_y_p_e_s] [--aa _a_d_d_r_e_s_s_e_s | ----eexxttrraa--aaddddrreesssseess==_a_d_d_r_e_s_s_e_s]
+           [----ffccaacchhee--vveerrssiioonn==_i_n_t_e_g_e_r] [----nnoo--aaddddrreesssseess] [----aannoonnyymmoouuss]
+           [----vveerrssiioonn] [----hheellpp] [_p_r_i_n_c_i_p_a_l [_c_o_m_m_a_n_d]]
+
+DDEESSCCRRIIPPTTIIOONN
+     kkiinniitt is used to authenticate to the kerberos server as _p_r_i_n_c_i_p_a_l, or if
+     none is given, a system generated default (typically your login name at
+     the default realm), and acquire a ticket granting ticket that can later
+     be used to obtain tickets for other services.
+
+     If you have compiled kkiinniitt with Kerberos 4 support and you have a Ker-
+     beros 4 server, kkiinniitt will detect this and get you Kerberos 4 tickets.
+
+     Supported options:
+
+     --cc _c_a_c_h_e_n_a_m_e ----ccaacchhee==_c_a_c_h_e_n_a_m_e
+             The credentials cache to put the acquired ticket in, if other
+             than default.
+
+     --ff, ----ffoorrwwaarrddaabbllee
+             Get ticket that can be forwarded to another host.
+
+     --tt _k_e_y_t_a_b_n_a_m_e, ----kkeeyyttaabb==_k_e_y_t_a_b_n_a_m_e
+             Don't ask for a password, but instead get the key from the speci-
+             fied keytab.
+
+     --ll _t_i_m_e, ----lliiffeettiimmee==_t_i_m_e
+             Specifies the lifetime of the ticket. The argument can either be
+             in seconds, or a more human readable string like `1h'.
+
+     --pp, ----pprrooxxiiaabbllee
+             Request tickets with the proxiable flag set.
+
+     --RR, ----rreenneeww
+             Try to renew ticket. The ticket must have the `renewable' flag
+             set, and must not be expired.
+
+     ----rreenneewwaabbllee
+             The same as ----rreenneewwaabbllee--lliiffee, with an infinite time.
+
+     --rr _t_i_m_e, ----rreenneewwaabbllee--lliiffee==_t_i_m_e
+             The max renewable ticket life.
+
+     --SS _p_r_i_n_c_i_p_a_l, ----sseerrvveerr==_p_r_i_n_c_i_p_a_l
+             Get a ticket for a service other than krbtgt/LOCAL.REALM.
+
+     --ss _t_i_m_e, ----ssttaarrtt--ttiimmee==_t_i_m_e
+             Obtain a ticket that starts to be valid _t_i_m_e (which can really be
+             a generic time specification, like `1h') seconds into the future.
+
+     --kk, ----uussee--kkeeyyttaabb
+             The same as ----kkeeyyttaabb, but with the default keytab name (normally
+             _F_I_L_E_:_/_e_t_c_/_k_r_b_5_._k_e_y_t_a_b).
+
+     --vv, ----vvaalliiddaattee
+             Try to validate an invalid ticket.
+
+     --ee, ----eennccttyyppeess==_e_n_c_t_y_p_e_s
+             Request tickets with this particular enctype.
+
+     ----ffccaacchhee--vveerrssiioonn==_v_e_r_s_i_o_n
+             Create a credentials cache of version vveerrssiioonn.
+
+     --aa, ----eexxttrraa--aaddddrreesssseess==_e_n_c_t_y_p_e_s
+             Adds a set of addresses that will, in addition to the systems
+             local addresses, be put in the ticket. This can be useful if all
+             addresses a client can use can't be automatically figured out.
+             One such example is if the client is behind a firewall. Also set-
+             table via libdefaults/extra_addresses in krb5.conf(5).
+
+     ----nnoo--aaddddrreesssseess
+             Request a ticket with no addresses.
+
+     ----aannoonnyymmoouuss
+             Request an anonymous ticket (which means that the ticket will be
+             issued to an anonymous principal, typically ``anonymous@REALM'').
+
+     The following options are only available if kkiinniitt has been compiled with
+     support for Kerberos 4.
+
+     --44, ----552244iinniitt
+             Try to convert the obtained Kerberos 5 krbtgt to a version 4 com-
+             patible ticket. It will store this ticket in the default Kerberos
+             4 ticket file.
+
+     --99, ----552244ccoonnvveerrtt
+             only convert ticket to version 4
+
+     ----aaffsslloogg
+             Gets AFS tickets, converts them to version 4 format, and stores
+             them in the kernel. Only useful if you have AFS.
+
+     The _f_o_r_w_a_r_d_a_b_l_e, _p_r_o_x_i_a_b_l_e, _t_i_c_k_e_t___l_i_f_e, and _r_e_n_e_w_a_b_l_e___l_i_f_e options can
+     be set to a default value from the appdefaults section in krb5.conf, see
+     krb5_appdefault(3).
+
+     If  a _c_o_m_m_a_n_d is given, kkiinniitt will setup new credentials caches, and AFS
+     PAG, and then run the given command. When it finishes the credentials
+     will be removed.
+
+EENNVVIIRROONNMMEENNTT
+     KRB5CCNAME
+             Specifies the default credentials cache.
+
+     KRB5_CONFIG
+             The file name of _k_r_b_5_._c_o_n_f , the default being _/_e_t_c_/_k_r_b_5_._c_o_n_f.
+
+     KRBTKFILE
+             Specifies the Kerberos 4 ticket file to store version 4 tickets
+             in.
+
+SSEEEE AALLSSOO
+     kdestroy(1), klist(1), krb5_appdefault(3), krb5.conf(5)
+
+HEIMDAL                          May 29, 1998                          HEIMDAL

@@ -1,0 +1,216 @@
+1999-11-05  Assar Westerlund  <assar@sics.se>
+
+	* check-x.m4: include X_PRE_LIBS and X_EXTRA_LIBS when testing
+
+1999-11-01  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am.common (install-build-headers): use `cp' instead of
+ 	INSTALL_DATA for copying header files inside the build tree.  The
+ 	user might have redefined INSTALL_DATA to specify owners and other
+ 	information.
+
+1999-10-30  Assar Westerlund  <assar@sics.se>
+
+	* find-func-no-libs2.m4: add yet another argument to allow specify
+ 	linker flags that will be added _before_ the library when trying
+ 	to link
+
+	* find-func-no-libs.m4: add yet another argument to allow specify
+ 	linker flags that will be added _before_ the library when trying
+ 	to link
+
+1999-10-12  Assar Westerlund  <assar@sics.se>
+
+	* find-func-no-libs2.m4 (AC_FIND_FUNC_NO_LIBS2): new argument
+ 	`extra libs'
+
+	* find-func-no-libs.m4 (AC_FIND_FUNC_NO_LIBS): new argument `extra
+ 	libs'
+
+1999-09-01  Johan Danielsson  <joda@pdc.kth.se>
+
+	* capabilities.m4: sgi capabilities
+
+1999-07-29  Assar Westerlund  <assar@sics.se>
+
+	* have-struct-field.m4: quote macros when undefining
+
+1999-07-28  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am.common (install-build-headers): add dependencies
+
+1999-07-24  Assar Westerlund  <assar@sics.se>
+	
+	* have-type.m4: try to get autoheader to co-operate
+
+	* have-type.m4: stolen from Arla
+
+	* krb-struct-sockaddr-sa-len.m4: not used any longer.  removed.
+
+1999-06-13  Assar Westerlund  <assar@sics.se>
+
+	* krb-struct-spwd.m4: consequent name of cache variables
+
+	* krb-func-getlogin.m4: new file for testing for posix (broken)
+ 	getlogin
+
+	* shared-libs.m4 (freebsd[34]): don't use ld -Bshareable
+
+1999-06-02  Johan Danielsson  <joda@pdc.kth.se>
+
+	* check-x.m4: extended test for X
+	
+1999-05-14  Assar Westerlund  <assar@sics.se>
+
+	* check-netinet-ip-and-tcp.m4: proper autoheader tricks
+
+	* check-netinet-ip-and-tcp.m4: new file for checking for
+ 	netinet/{ip,tcp}.h.  These are special as they on Irix 6.5.3
+	require <standards.h> to be included in advance.
+ 
+	* check-xau.m4: we also need to check for XauFilename since it's
+ 	used by appl/kx.  And on Irix 6.5 that function requires linking
+ 	with -lX11.
+
+1999-05-08  Assar Westerlund  <assar@sics.se>
+
+	* krb-find-db.m4: try with more header files than ndbm.h
+
+1999-04-19  Assar Westerlund  <assar@sics.se>
+
+	* test-package.m4: try to handle the case of --without-package
+ 	correctly
+
+1999-04-17  Assar Westerlund  <assar@sics.se>
+
+	* make-aclocal: removed.  Not used anymore, being replaced by
+	aclocal from automake.
+
+Thu Apr 15 14:17:26 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* make-proto.pl: handle __attribute__
+
+Fri Apr  9 20:37:18 1999  Assar Westerlund  <assar@sics.se>
+
+	* shared-libs.m4: quote $@
+	(freebsd3): add install_symlink_command2
+
+Wed Apr  7 20:40:22 1999  Assar Westerlund  <assar@sics.se>
+
+	* shared-libs.m4 (hpux): no library dependencies
+
+Mon Apr  5 16:13:08 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* test-package.m4: compile and link, rather than looking for
+ 	files; also export more information, so it's possible to add rpath
+ 	information
+
+Tue Mar 30 13:49:54 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am.common: CFLAGS -> AM_CFLAGS
+
+Mon Mar 29 16:51:12 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* check-xau.m4: check for XauWriteAuth before checking for
+ 	XauReadAuth to catch -lX11:s not containing XauWriteAuth, and IRIX
+ 	6.5 that doesn't work with -lXau
+
+Sat Mar 27 18:03:58 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* osfc2.m4: --enable-osfc2
+
+Fri Mar 19 15:34:52 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* shared-libs.m4: move shared lib stuff here
+
+Wed Mar 24 23:24:51 1999  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am.common (install-build-headers): simplify loop
+
+Tue Mar 23 17:31:23 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* check-getpwnam_r-posix.m4: check for getpwnam_r, and if it's
+ 	posix or not
+
+Tue Mar 23 00:00:13 1999  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am.common (install_build_headers): try to make it work
+ 	better when list of headers is empty.  handle make rewriting the
+ 	filenames.
+
+	* Makefile.am.common: hesoid -> hesiod
+
+Sun Mar 21 14:48:03 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* grok-type.m4: <bind/bitypes.h>
+
+	* Makefile.am.common: fix for automake bug/feature; add more LIB_*
+
+	* test-package.m4: fix typo
+
+	* check-man.m4: fix some typos
+
+	* auth-modules.m4: tests for authentication modules
+
+Thu Mar 18 11:02:55 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am.common: make install-build-headers a multi
+ 	dependency target
+
+	* Makefile.am.common: remove include_dir hack
+
+	* Makefile.am.common: define LIB_kafs and LIB_gssapi
+
+	* krb-find-db.m4: subst DBLIB also
+
+	* check-xau.m4: test for Xau{Read,Write}Auth
+
+Wed Mar 10 19:29:20 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* wflags.m4: AC_WFLAGS
+
+Mon Mar  1 11:23:41 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* have-struct-field.m4: remove extra AC_MSG_RESULT
+
+	* proto-compat.m4: typo
+
+	* krb-func-getcwd-broken.m4: update to autoconf 2.13
+
+	* krb-find-db.m4: update to autoconf 2.13
+
+	* check-declaration.m4: typo
+
+	* have-pragma-weak.m4: update to autoconf 2.13
+
+	* have-struct-field.m4: better handling of types with spaces
+
+Mon Feb 22 20:05:06 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* broken-glob.m4: check for broken glob
+
+Sun Jan 31 06:50:33 1999  Assar Westerlund  <assar@sics.se>
+
+	* krb-ipv6.m4: more magic for different v6 implementations.  From
+ 	Jun-ichiro itojun Hagino <itojun@kame.net>
+
+Sun Nov 22 12:16:06 1998  Assar Westerlund  <assar@sics.se>
+
+	* krb-struct-spwd.m4: new file
+
+Thu Jun  4 04:07:41 1998  Assar Westerlund  <assar@sics.se>
+
+	* find-func-no-libs2.m4: new file
+
+Fri May  1 23:31:28 1998  Assar Westerlund  <assar@sics.se>
+
+	* c-attribute.m4, c-function.m4: new files (from arla)
+
+Wed Mar 18 23:11:29 1998  Assar Westerlund  <assar@sics.se>
+
+	* krb-ipv6.m4: rename HAVE_STRUCT_SOCKADDR_IN6 to HAVE_IPV6
+
+Thu Feb 26 02:37:49 1998  Assar Westerlund  <assar@sics.se>
+
+	* make-proto.pl: should work with perl4
+

@@ -1,0 +1,15 @@
+TO-DO list 
+----------
+
+  * svr4_getdents64() doesn't work properly in 'large' directories.
+
+  * signals are still suspect
+
+  * networking is notworking
+
+  * VM86 and USER_LDT are currently disabled (low-priority)
+
+  * Make SysV emulator use SysV shared memory support (duh)
+
+
+$FreeBSD$

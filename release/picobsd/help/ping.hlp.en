@@ -1,0 +1,10 @@
+[1mping[m	send ICMP ECHO_REQUEST packets to network hosts
+
+	Usage:
+
+	ping [-QRadfnqrv] [-c count] [-i wait] [-l preload] [-p pattern]
+		[-s packetsize] [host | [-L] [-I iface] [-T ttl] mcast-group]
+
+	Most commonly:
+
+		ping <host>

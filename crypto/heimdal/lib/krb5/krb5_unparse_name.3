@@ -1,0 +1,31 @@
+.\" Copyright (c) 1997 Kungliga Tekniska Högskolan
+.\" $Id: krb5_unparse_name.3,v 1.6 2002/09/02 12:42:00 joda Exp $
+.Dd August 8, 1997
+.Dt KRB5_UNPARSE_NAME 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_unparse_name
+.\" .Nm krb5_unparse_name_ext
+.Nd principal to string conversion
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.Fd #include <krb5.h>
+.Ft krb5_error_code
+.Fn krb5_unparse_name "krb5_context context" "krb5_principal principal" "char **name"
+.\" .Ft krb5_error_code
+.\" .Fn krb5_unparse_name_ext "krb5_context context" "krb5_const_principal principal" "char **name" "size_t *size"
+.Sh DESCRIPTION
+This function takes a
+.Fa principal ,
+and will convert in to a printable representation with the same syntax
+as described in
+.Xr krb5_parse_name 3 .
+.Fa *name
+will point to allocated data and should be freed by the caller.
+.Sh SEE ALSO
+.Xr krb5_425_conv_principal 3 ,
+.Xr krb5_build_principal 3 ,
+.Xr krb5_free_principal 3 ,
+.Xr krb5_parse_name 3 ,
+.Xr krb5_sname_to_principal 3

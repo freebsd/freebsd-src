@@ -1,0 +1,208 @@
+#!/bin/sh
+
+# Fix up yacc output to allow dynamic allocation.  Since perly.c
+# is now provided with the perl source, this should not be necessary.
+#  
+# However, if the user wishes to use byacc, or wishes to try another 
+# compiler compiler (e.g. bison or yacc), this script will get run.
+# See makefile run_byacc target for more details.
+#
+# Currently, only byacc version 1.8 is fully supported.
+#
+#  Hacks to make it work with Interactive's SysVr3 Version 2.2
+#   doughera@lafvax.lafayette.edu (Andy Dougherty)   3/23/91
+#
+# Additional information to make the BSD section work with SunOS 4.0.2
+#   tdinger@East.Sun.COM (Tom Dinger)	4/15/1991
+
+input=$1
+output=$2
+tmp=/tmp/f$$
+
+if grep 'yaccpar 1.8 (Berkeley)' $input >/dev/null 2>&1; then
+    cp $input $output
+    if test -f perly_c.diff; then
+	patch -F3 $output <perly_c.diff
+	rm -rf $input
+    fi
+    exit
+elif grep 'yaccpar	1.9 (Berkeley)' $input >/dev/null 2>&1; then
+    if test -f perly.c.dif9; then
+	patch -F3 $output <perly.c.dif9
+	rm -rf $input
+	exit 0
+    else
+	echo "Diffs from byacc-1.9 are not available."
+	echo "If you wish to proceed anyway, do"
+	echo "cp $input $output"
+	echo "cp y.tab.h perly.h"
+	echo "and re-run make. Otherwise, I will use the old perly.c"
+	touch perly.c
+	# Exit with error status to stop make.
+	exit 1
+    fi
+fi
+
+plan="unknown"
+
+echo ""
+echo "Warning: the yacc you have used is not directly supported by perl."
+echo "The perly.fixer script will attempt to make some changes to the generated"
+echo "file. The changes may be incomplete and that might lead to problems later"
+echo "(especially with complex scripts). You may need to apply the changes"
+echo "embedded in perl.fixer (and/or perly_c.dif*) by hand."
+echo ""
+
+# Below, we check for various characteristic yaccpar outputs.
+
+#  Test for BSD 4.3 version.
+#  Also tests for the SunOS 4.0.2 version
+egrep 'YYSTYPE[ 	]*yyv\[ *YYMAXDEPTH *\];
+short[  ]*yys\[ *YYMAXDEPTH *\] *;
+yyps *= *&yys\[ *-1 *\];
+yypv *= *&yyv\[ *-1 *\];
+if *\( *\+\+yyps *>=* *&yys\[ *YYMAXDEPTH *\] *\)' $input >$tmp 2>/dev/null
+
+set `wc -l $tmp`
+if test "$1" = "5"; then
+      plan="bsd43"
+fi
+
+if test "$plan" = "unknown"; then
+    #   Test for ISC 2.2 version (probably generic SysVr3).
+egrep 'YYSTYPE[ 	]*yyv\[ *YYMAXDEPTH *\];
+int[    ]*yys\[ *YYMAXDEPTH *\] *;
+yyps *= *&yys\[ *-1 *\];
+yypv *= *&yyv\[ *-1 *\];
+if *\( *\+\+yy_ps *>= *&yys\[ *YYMAXDEPTH *\] *\)' $input >$tmp 2>/dev/null
+
+    set `wc -l $tmp`
+    if test "$1" = "5"; then
+	plan="isc"
+    fi
+fi
+
+# ------
+
+case "$plan" in
+    ##################################################################
+    # The SunOS 4.0.2 version has the comparison fixed already.
+    # Also added are out of memory checks (makes porting the generated
+    # code easier) For most systems, it can't hurt. -- TD
+    "bsd43")
+	echo "Attempting to path perly.c to allow dynamic yacc stack allocation"
+	echo "Assuming bsd4.3 yaccpar"
+	cat >$tmp <<'END'
+/YYSTYPE[ 	]*yyv\[ *YYMAXDEPTH *\];/c\
+int yymaxdepth = YYMAXDEPTH;\
+YYSTYPE *yyv; /* where the values are stored */\
+short *yys;\
+short *maxyyps;
+
+/short[ 	]*yys\[ *YYMAXDEPTH *\] *;/d
+
+/yyps *= *&yys\[ *-1 *\];/d
+
+/yypv *= *&yyv\[ *-1 *\];/c\
+\	if (!yyv) {\
+\	    New(73, yyv, yymaxdepth, YYSTYPE);\
+\	    New(73, yys, yymaxdepth, short);\
+\	    if ( !yyv || !yys ) {\
+\		yyerror( "out of memory" );\
+\		return(1);\
+\	    }\
+\	    maxyyps = &yys[yymaxdepth];\
+\	}\
+\	yyps = &yys[-1];\
+\	yypv = &yyv[-1];
+
+
+/if *( *\+\+yyps *>=* *&yys\[ *YYMAXDEPTH *\] *)/c\
+\		if( ++yyps >= maxyyps ) {\
+\		    int tv = yypv - yyv;\
+\		    int ts = yyps - yys;\
+\
+\		    yymaxdepth *= 2;\
+\		    Renew(yyv, yymaxdepth, YYSTYPE);\
+\		    Renew(yys, yymaxdepth, short);\
+\		    if ( !yyv || !yys ) {\
+\			yyerror( "yacc stack overflow" );\
+\			return(1);\
+\		    }\
+\		    yyps = yys + ts;\
+\		    yypv = yyv + tv;\
+\		    maxyyps = &yys[yymaxdepth];\
+\		}
+
+/yacc stack overflow.*}/d
+/yacc stack overflow/,/}/d
+END
+	if sed -f $tmp <$input >$output
+	then echo "The edit seems to have been applied okay."
+	else echo "The edit seems to have failed!"
+	fi
+	;;
+
+    #######################################################
+    "isc") # Interactive Systems 2.2  version
+	echo "Attempting to path perly.c to allow dynamic yacc stack allocation"
+	echo "Assuming Interactive SysVr3 2.2 yaccpar"
+	# Easier to simply put whole script here than to modify the
+	# bsd script with sed.
+	# Main changes:  yaccpar sometimes uses yy_ps and yy_pv
+	# which are local register variables.
+	#  if(++yyps > YYMAXDEPTH) had opening brace on next line.
+	# I've kept that brace in along with a call to yyerror if
+	# realloc fails. (Actually, I just don't know how to do
+	# multi-line matches in sed.)
+	cat > $tmp << 'END'
+/YYSTYPE[ 	]*yyv\[ *YYMAXDEPTH *\];/c\
+int yymaxdepth = YYMAXDEPTH;\
+YYSTYPE *yyv; /* where the values are stored */\
+int *yys;\
+int *maxyyps;
+
+/int[ 	]*yys\[ *YYMAXDEPTH *\] *;/d
+
+/yyps *= *&yys\[ *-1 *\];/d
+
+/yypv *= *&yyv\[ *-1 *\];/c\
+\	if (!yyv) {\
+\	    New(73, yyv, yymaxdepth, YYSTYPE);\
+\	    New(73, yys, yymaxdepth, int);\
+\	    maxyyps = &yys[yymaxdepth];\
+\	}\
+\	yyps = &yys[-1];\
+\	yypv = &yyv[-1];
+
+/if *( *\+\+yy_ps *>= *&yys\[ *YYMAXDEPTH *\] *)/c\
+\		if( ++yy_ps >= maxyyps ) {\
+\		    int tv = yy_pv - yyv;\
+\		    int ts = yy_ps - yys;\
+\
+\		    yymaxdepth *= 2;\
+\		    Renew(yyv, yymaxdepth, YYSTYPE);\
+\		    Renew(yys, yymaxdepth, int);\
+\		    yy_ps = yyps = yys + ts;\
+\		    yy_pv = yypv = yyv + tv;\
+\		    maxyyps = &yys[yymaxdepth];\
+\		}\
+\		if (yyv == NULL || yys == NULL)
+END
+	if sed -f $tmp < $input > $output
+	then echo "The edit seems to have been applied okay."
+	else echo "The edit seems to have failed!"
+	fi
+	;;
+
+    ######################################################
+    # Plan still unknown
+    *)
+	echo "Unable to patch perly.c to allow dynamic yacc stack allocation (plan=$plan)"
+	# just do minimal change to write $output from $input
+	sed -e 's/Received token/ *** Received token/' $input >$output
+	;;
+esac
+
+echo ""
+rm -rf $tmp $input

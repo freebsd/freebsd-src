@@ -1,0 +1,58 @@
+# Makefile for less.
+# MS-DOS version
+
+#### Start of system configuration section. ####
+
+CC = cl
+# Change the following directories to match your installation.
+LIBDIR = c:\msvc\lib
+INCDIR = c:\msvc\include
+
+# CFLAGS are compile-time options and LDFLAGS are link-time options. They are
+# customized for MSVC 1.0 (MSC 8.0). If you have a different version of the
+# compiler, you may need to change some of the options to their equivalents.
+# -Ot     optimize for speed
+# -AL     large memory model
+# -Za     ANSI C conformance
+# -nologo suppress MSVC banners
+# -onerror:noexe   no .EXE file if link errors occur
+CFLAGS = -Ot -AL -Za -nologo
+LDFLAGS = -onerror:noexe -nologo
+LIBS = $(LIBDIR)\llibce.lib $(LIBDIR)\graphics.lib
+
+#### End of system configuration section. ####
+
+# This rule allows us to supply the necessary -D options
+# in addition to whatever the user asks for.
+.c.obj:
+	$(CC) -c -I. -I$(INCDIR) $(CPPFLAGS) $(CFLAGS) $<
+
+OBJ =	main.obj screen.obj brac.obj ch.obj charset.obj cmdbuf.obj command.obj \
+	decode.obj edit.obj filename.obj forwback.obj help.obj ifile.obj \
+	input.obj jump.obj line.obj linenum.obj lsystem.obj \
+	mark.obj optfunc.obj option.obj opttbl.obj os.obj output.obj \
+	position.obj prompt.obj search.obj signal.obj tags.obj \
+	ttyin.obj version.obj
+
+all: less lesskey
+
+# This is really horrible, but the command line is too long for 
+# MS-DOS if we try to link $(OBJ).
+less: $(OBJ)
+	-if exist lesskey.obj del lesskey.obj
+	$(CC) $(LDFLAGS) -o $@ *.obj $(LIBS)
+
+lesskey: lesskey.obj version.obj
+	$(CC) $(LDFLAGS) -o $@ lesskey.obj version.obj $(LIBS)
+
+defines.h: defines.ds
+	-del defines.h
+	-copy defines.ds defines.h
+
+$(OBJ): less.h defines.h
+
+clean:
+	-del *.obj 
+	-del less.exe
+	-del lesskey.exe
+

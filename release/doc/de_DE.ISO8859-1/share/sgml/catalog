@@ -1,0 +1,15 @@
+  -- FreeBSD SGML Public Identifiers --
+  -- Language-specific --
+
+  -- $FreeBSD$ --
+  -- $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/share/sgml/catalog,v 1.3.2.3 2002/03/12 17:57:15 ue Exp $ --
+  -- $Id: catalog,v 1.3 2002/03/10 15:37:20 ue Exp $ --
+  -- basiert auf: 1.1.2.1 --
+
+PUBLIC "-//FreeBSD//DOCUMENT Release Notes DocBook Stylesheet//EN"
+       "release.dsl"
+
+PUBLIC "-//FreeBSD//ENTITIES Release Specification//DE"
+       "release.ent"
+
+

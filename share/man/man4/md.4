@@ -1,0 +1,138 @@
+.\" ----------------------------------------------------------------------------
+.\" "THE BEER-WARE LICENSE" (Revision 42):
+.\" <phk@FreeBSD.ORG> wrote this file.  As long as you retain this notice you
+.\" can do whatever you want with this stuff. If we meet some day, and you think
+.\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
+.\" ----------------------------------------------------------------------------
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 4, 2000
+.Dt MD 4
+.Os
+.Sh NAME
+.Nm md
+.Nd memory disk
+.Sh SYNOPSIS
+.Cd device md
+.Pp
+To specify the default maximum size of
+.Xr malloc 9
+backed disks:
+.Cd options MD_NSECT=20000
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for two kinds of memory backed virtual disks:
+.Xr malloc 9
+backed
+and pre-loaded module backed.
+.Pp
+The
+.Xr malloc 9
+backed
+disks
+are severely limited in size by constraints imposed by
+.Xr malloc 9 .
+Specifically, only one malloc bucket is used, which means that all
+.Nm
+devices with
+.Xr malloc 9
+backing must share the malloc per-bucket quota.
+The exact size of this quota varies,
+in particuar with the amount of RAM in the system.
+The exact value can be determined with
+.Xr vmstat 8 .
+.Pp
+A sector filled with identical bytes does not consume storage,
+and therefore the storage allocated by a
+.Nm
+disk can be freed with a command such as this:
+.Bd -literal -offset indent
+dd if=/dev/zero of=/dev/md567
+.Ed
+.Pp
+The default maximum size of a
+.Nm
+disk
+backed by
+.Xr malloc 9
+is 20,000 sectors of 512 bytes each.
+This can be changed
+with the kernel option
+.Dv MD_NSECT .
+.Pp
+At boot time the
+.Nm
+driver will search for pre-loaded modules of type
+.Sq md_image
+and instantiate a
+.Nm
+device for each of these modules.
+The type
+.Sq mfs_root
+is also allowed for backward compatibility.
+These devices are backed by the RAM reserved by the
+.Xr loader 8 ,
+and as such not limited by the
+.Xr malloc 9
+size constraints.
+However, this also means that the storage cannot be released.
+For the same reason,
+the
+.Dq identical byte
+detection is not applicable.
+.Pp
+The
+.Nm
+driver uses the
+.Dq almost-clone
+convention,
+whereby opening device number N creates device instance number N+1.
+.Pp
+The
+.Xr vmstat 8
+utility can be used to monitor memory usage by
+.Xr malloc 9
+backed
+.Nm
+disks,
+but not those backed by pre-loaded modules.
+.Sh EXAMPLES
+To mount a
+.Xr malloc 9
+backed
+.Nm
+device on
+.Pa /tmp :
+.Bd -literal
+if [ -e /dev/md0 -a -e /dev/md0c ]; then
+	disklabel -r -w md0 auto && \\
+	newfs /dev/md0c && \\
+	mount /dev/md0c /tmp && \\
+	chmod 1777 /tmp
+fi
+.Ed
+.Sh SEE ALSO
+.Xr disklabel 5 ,
+.Xr disklabel 8 ,
+.Xr fdisk 8 ,
+.Xr loader 8 ,
+.Xr newfs 8 ,
+.Xr vmstat 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 4.0
+as a cleaner replacement
+for the MFS functionality previously used in PicoBSD
+and in the
+.Fx
+installation process.
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Poul-Henning Kamp
+.Aq phk@FreeBSD.org .

@@ -1,0 +1,65 @@
+.\"
+.\" Copyright (c) 1996 Joerg Wunsch
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\" "
+.Dd December 29, 1996
+.Os
+.Dt LOGIN 3
+.Sh NAME
+.Nm login
+.Nd "log a new login record to the utmp and wtmp files"
+.Sh LIBRARY
+.Lb libutil
+.Sh SYNOPSIS
+.In sys/types.h
+.In utmp.h
+.In libutil.h
+.Ft void
+.Fn login "struct utmp *ut"
+.Sh DESCRIPTION
+The function
+.Fn login
+records the
+.Ar ut
+entry being passed into the appropriate slot of the
+.Xr utmp 5
+file (according to the controlling terminal of the calling process),
+and appends it to the
+.Xr wtmp 5
+file.  The calling process must have permission to write to both files.
+.Sh RETURN VALUES
+None.
+.Sh SEE ALSO
+.Xr logout 3 ,
+.Xr ttyslot 3 ,
+.Xr utmp 5 ,
+.Xr wtmp 5
+.Sh BUGS
+The interface provided by
+.Fn login
+is rather crude.  The caller must know about the details of a
+.Va struct utmp .
+Some better abstraction needs to be worked out.

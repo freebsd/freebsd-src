@@ -1,0 +1,5 @@
+# Host: Sequent Symmetry running Dynix 3.0, with Weitek 1167 or i387.
+XDEPFILES=
+XM_FILE= xm-symmetry.h
+NAT_FILE= nm-symmetry.h
+NATDEPFILES= inftarg.o fork-child.o corelow.o core-aout.o symm-nat.o

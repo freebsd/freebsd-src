@@ -1,0 +1,84 @@
+/* config.h.in.  Generated automatically from configure.in by autoheader.  */
+
+/* Define to empty if the keyword does not work.  */
+#undef const
+
+/* Define if your struct stat has st_rdev.  */
+#undef HAVE_ST_RDEV
+
+/* Define if you have <sys/wait.h> that is POSIX.1 compatible.  */
+#undef HAVE_SYS_WAIT_H
+
+/* Define if major, minor, and makedev are declared in <mkdev.h>.  */
+#undef MAJOR_IN_MKDEV
+
+/* Define if major, minor, and makedev are declared in <sysmacros.h>.  */
+#undef MAJOR_IN_SYSMACROS
+
+/* Define to `long' if <sys/types.h> doesn't define.  */
+#undef off_t
+
+/* Define to `unsigned' if <sys/types.h> doesn't define.  */
+#undef size_t
+
+/* Define if you have the ANSI C header files.  */
+#undef STDC_HEADERS
+
+/* Define if builtin ELF support is enabled.  */
+#undef BUILTIN_ELF
+
+/* Define if ELF core file support is enabled.  */
+#undef ELFCORE
+
+/* Define if the `long long' type works.  */
+#undef HAVE_LONG_LONG
+
+/* Define to `unsigned char' if standard headers don't define.  */
+#undef uint8_t
+
+/* Define to `unsigned short' if standard headers don't define.  */
+#undef uint16_t
+
+/* Define to `unsigned int' if standard headers don't define.  */
+#undef uint32_t
+
+/* Define to `unsigned long long', if available, or `unsigned long', if
+   standard headers don't define.  */
+#undef uint64_t
+
+/* The number of bytes in a uint8_t.  */
+#define SIZEOF_UINT8_T 0
+
+/* The number of bytes in a uint16_t.  */
+#define SIZEOF_UINT16_T 0
+
+/* The number of bytes in a uint32_t.  */
+#define SIZEOF_UINT32_T 0
+
+/* The number of bytes in a uint64_t.  */
+#define SIZEOF_UINT64_T 0
+
+/* Define if you have the mmap function.  */
+#undef HAVE_MMAP
+
+/* Define if you have the strerror function.  */
+#undef HAVE_STRERROR
+
+/* Define if you have the strtoul function.  */
+#undef HAVE_STRTOUL
+
+/* Define if you have the <locale.h> header file.  */
+#undef HAVE_LOCALE_H
+
+/* Define if you have the <sys/mman.h> header file.  */
+#undef HAVE_SYS_MMAN_H
+
+/* Define if you have the <unistd.h> header file.  */
+#undef HAVE_UNISTD_H
+
+/* Name of package */
+#undef PACKAGE
+
+/* Version number of package */
+#undef VERSION
+

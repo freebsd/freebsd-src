@@ -1,0 +1,240 @@
+.\" Copyright (c) 1986 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that the above copyright notice and this paragraph are
+.\" duplicated in all such forms and that any documentation,
+.\" advertising materials, and other materials related to such
+.\" distribution and use acknowledge that the software was developed
+.\" by the University of California, Berkeley.  The name of the
+.\" University may not be used to endorse or promote products derived
+.\" from this software without specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.\"	@(#)resolver.5	5.9 (Berkeley) 12/14/89
+.\"	$Id: resolver.5,v 8.9 2001/12/28 04:24:21 marka Exp $
+.\"
+.Dd November 11, 1993
+.Dt RESOLVER @FORMAT_EXT_U@ 
+.Os BSD 4
+.Sh NAME
+.Nm resolver 
+.Nd resolver configuration file
+.Sh SYNOPSIS
+.Pa /etc/resolv.conf
+.Sh DESCRIPTION
+The
+.Nm resolver
+is a set of routines in the C library
+.Pq Xr resolve @LIB_NETWORK_EXT@
+that provide access to the Internet Domain Name System.
+The 
+.Nm resolver 
+configuration file contains information that is read
+by the 
+.Nm resolver 
+routines the first time they are invoked by a process.
+The file is designed to be human readable and contains a list of
+keywords with values that provide various types of 
+.Nm resolver 
+information.
+.Pp
+On a normally configured system, this file should not be necessary.
+The only name server to be queried will be on the local machine,
+the domain name is determined from the host name,
+and the domain search path is constructed from the domain name.
+.Pp
+The different configuration directives are:
+.Bl -tag -width "nameser"
+.It Li nameserver
+Internet address (in dot notation) of a name server that the 
+.Nm resolver 
+should query.  Up to 
+.Dv MAXNS 
+(see
+.Pa <resolv.h> )
+name servers may be listed, one per keyword.
+If there are multiple servers, the 
+.Nm resolver 
+library queries them in the order listed.
+If no 
+.Li nameserver 
+entries are present, the default is to use the name server on the local machine.
+(The algorithm used is to try a name server, and if the query times out,
+try the next, until out of name servers,
+then repeat trying all the name servers
+until a maximum number of retries are made).
+.It Li domain
+Local domain name.
+Most queries for names within this domain can use short names
+relative to the local domain.
+If no 
+.Li domain 
+entry is present, the domain is determined from the local host name returned by
+.Xr gethostname @BSD_SYSCALL_EXT@ ;
+the domain part is taken to be everything after the first 
+.Sq \&. .
+Finally, if the host name does not contain a domain part, the root
+domain is assumed.
+.It Li search
+Search list for host-name lookup.
+The search list is normally determined from the local domain name;
+by default, it contains only the local domain name.
+This may be changed by listing the desired domain search path
+following the 
+.Li search 
+keyword with spaces or tabs separating the names.
+Most 
+.Nm resolver 
+queries will be attempted using each component
+of the search path in turn until a match is found.
+Note that this process may be slow and will generate a lot of network
+traffic if the servers for the listed domains are not local,
+and that queries will time out if no server is available
+for one of the domains.
+.Pp
+The search list is currently limited to six domains
+with a total of 256 characters.
+.It Li sortlist
+Allows addresses returned by gethostbyname to be sorted.
+A 
+.Li sortlist 
+is specified by IP address netmask pairs. The netmask is
+optional and defaults to the natural netmask of the net. The IP address
+and optional network pairs are separated by slashes. Up to 10 pairs may
+be specified.  For example:
+.Bd -literal -offset indent
+sortlist 130.155.160.0/255.255.240.0 130.155.0.0
+.Ed
+.It Li options
+Allows certain internal 
+.Nm resolver 
+variables to be modified.
+The syntax is
+.D1 Li options Ar option ...
+where 
+.Ar option 
+is one of the following:
+.Bl -tag -width "ndots:n " 
+.It Li debug 
+sets 
+.Dv RES_DEBUG 
+in 
+.Ft _res.options .
+.It Li ndots: Ns Ar n 
+sets a threshold for the number of dots which
+must appear in a name given to 
+.Fn res_query 
+(see 
+.Xr resolver @LIB_NETWORK_EXT@ )
+before an 
+.Em initial absolute query 
+will be made.  The default for
+.Ar n 
+is 
+.Dq 1 , 
+meaning that if there are 
+.Em any 
+dots in a name, the name will be tried first as an absolute name before any 
+.Em search list
+elements are appended to it.
+.It Li timeout: Ns Ar n
+sets the amount of time the resolver will wait for a response from a remote
+name server before retrying the query via a different name server.  Measured in
+seconds, the default is
+.Dv RES_TIMEOUT
+(see
+.Pa <resolv.h> ) .
+.It Li attempts: Ns Ar n
+sets the number of times the resolver will send a query to its name servers
+before giving up and returning an error to the calling application.  The
+default is
+.Dv RES_DFLRETRY
+(see
+.Pa <resolv.h> ) .
+.It Li rotate
+sets
+.Dv RES_ROTATE
+in
+.Ft _res.options ,
+which causes round robin selection of nameservers from among those listed.
+This has the effect of spreading the query load among all listed servers,
+rather than having all clients try the first listed server first every time.
+.It Li no-check-names
+sets
+.Dv RES_NOCHECKNAME
+in
+.Ft _res.options ,
+which disables the modern BIND checking of incoming host names and mail names
+for invalid characters such as underscore (_), non-ASCII, or control characters.
+.It Li inet6
+sets 
+.Dv RES_USE_INET6
+in 
+.Ft _res.options .
+This has the effect of trying a AAAA query before an A query inside the
+.Ft gethostbyname
+function, and of mapping IPv4 responses in IPv6 ``tunnelled form'' if no
+AAAA records are found but an A record set exists.
+.It Li no-tld-query
+sets
+.Dv RES_NOTLDQUERY
+in
+.Ft _res.options .
+This option causes
+.Fn res_nsearch
+to not attempt to resolve a unqualified name as if it were a top level  
+domain (TLD).
+This option can cause problems if the site has "localhost" as a TLD rather
+than having localhost on one or more elements of the search list.
+This option has no effect if neither
+.Dv RES_DEFNAMES
+or
+.Dv RES_DNSRCH
+is set.
+.El
+.El
+.Pp
+The 
+.Li domain 
+and 
+.Li search 
+keywords are mutually exclusive.
+If more than one instance of these keywords is present,
+the last instance wins.
+.Pp
+The 
+.Li search 
+keyword of a system's 
+.Pa resolv.conf 
+file can be
+overridden on a per-process basis by setting the environment variable
+.Dq Ev LOCALDOMAIN 
+to a space-separated list of search domains.
+.Pp
+The 
+.Li options 
+keyword of a system's 
+.Pa resolv.conf 
+file can be amended on a per-process basis by setting the environment variable
+.Dq Ev RES_OPTIONS to a space-separated list of 
+.Nm resolver 
+options as explained above under 
+.Li options .
+.Pp
+The keyword and value must appear on a single line, and the keyword
+(e.g., 
+.Li nameserver ) 
+must start the line.  The value follows the keyword, separated by white space.
+.Sh FILES
+.Pa /etc/resolv.conf
+.Pa <resolv.h>
+.Sh SEE ALSO
+.Xr gethostbyname @LIB_NETWORK_EXT@ , 
+.Xr hostname @DESC_EXT@ , 
+.Xr @INDOT@named @SYS_OPS_EXT@ ,
+.Xr resolver @LIB_NETWORK_EXT@ , 
+.Xr resolver @FORMAT_EXT@ .
+.Dq Name Server Operations Guide for Sy BIND

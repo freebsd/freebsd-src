@@ -1,0 +1,75 @@
+#
+# GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
+#
+# For more information read the handbook part System Administration -> 
+# Configuring the FreeBSD Kernel -> The Configuration File. 
+# The handbook is available in /usr/share/doc/handbook or online as
+# latest version from the FreeBSD World Wide Web server 
+# <URL:http://www.FreeBSD.org/>
+#
+# An exhaustive list of options and more detailed explanations of the 
+# device lines is present in the ./LINT configuration file. If you are 
+# in doubt as to the purpose or necessity of a line, check first in LINT.
+#
+# $FreeBSD$
+
+machine		"alpha"
+cpu		"EV5"
+ident		GENERIC
+maxusers	10
+
+options		"DEC_KN8AE"
+options		SIMOS
+options		INET			#InterNETworking
+options		FFS			#Berkeley Fast Filesystem
+options		NFS			#Network Filesystem
+options		MSDOSFS			#MSDOS Filesystem
+options		"CD9660"		#ISO 9660 Filesystem
+options		"CD9660_ROOT"		#CD-ROM usable as root device
+options		FFS_ROOT		#FFS usable as root device [keep this!]
+options		NFS_ROOT		#NFS usable as root device
+options		PROCFS			#Process filesystem
+options		"COMPAT_43"		#Compatible with BSD 4.3 [KEEP THIS!]
+options		SCSI_DELAY=100		#Be pessimistic about Joe SCSI device
+options		UCONSOLE		#Allow users to grab the console
+
+config		kernel	root on da0
+
+device		pci
+device		tlsb
+device		gbus
+device		kft
+device		dwlpx
+
+device		simos
+
+device		scbus
+device		da
+device		od
+device		st
+device		cd
+
+# Order is important here due to intrusive probes, do *not* alphabetize
+# this list of network interfaces until the probes have been fixed.
+# Right now it appears that the ie0 must be probed before ep0. See
+# revision 1.20 of this file.
+#device de
+
+pseudo-device	loop
+pseudo-device	ether
+pseudo-device	sl	1
+pseudo-device	ppp	1
+pseudo-device	tun
+pseudo-device	pty
+pseudo-device	gzip		# Exec gzipped a.out's
+
+# KTRACE enables the system-call tracing facility ktrace(2).
+# This adds 4 KB bloat to your kernel, and slightly increases
+# the costs of each syscall.
+options		KTRACE		#kernel tracing
+
+# This provides support for System V shared memory.
+#
+options		SYSVSHM
+
+options		DDB

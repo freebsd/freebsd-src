@@ -1,0 +1,102 @@
+# $FreeBSD$
+#
+# WARNING: spaces may be essential at the end of lines
+# WARNING: empty lines are essential too
+#
+# Short month names
+#
+ 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+#
+# Long month names
+#
+一月
+二月
+三月
+四月
+五月
+六月
+七月
+八月
+九月
+十月
+十一月
+十二月
+#
+# Short weekday names
+#
+周日
+周一
+周二
+周三
+周四
+周五
+周六
+#
+# Long weekday names
+#
+星期日
+星期一
+星期二
+星期三
+星期四
+星期五
+星期六
+#
+# X_fmt
+#
+%H时%M分%S秒
+#
+# x_fmt
+#
+%Y/%m/%d
+#
+# c_fmt
+#
+%a %b/%e %T %Y
+#
+# am
+#
+上午
+#
+# pm
+#
+下午
+#
+# date_fmt
+#
+%Y年%b月%e日 %A %X %Z
+#
+# Long month names (alternative)
+#
+一月
+二月
+三月
+四月
+五月
+六月
+七月
+八月
+九月
+十月
+十一月
+十二月
+#
+# md_order
+#
+md
+#
+# ampm_fmt
+#
+%I:%M:%S %p
+# EOF

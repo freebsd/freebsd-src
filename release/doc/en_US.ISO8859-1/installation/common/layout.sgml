@@ -1,0 +1,154 @@
+<!--
+	$FreeBSD$
+
+	This section contains the contents of the old LAYOUT.TXT file.
+-->
+<sect1 id="layout">
+  <title>Distribution Format</title>
+
+  <para>A typical &os; distribution directory looks something like this:</para>
+
+<screen>ERRATA.HTM      README.TXT      compat1x        dict            manpages
+ERRATA.TXT      RELNOTES.HTM    compat20        doc             packages
+HARDWARE.HTM    RELNOTES.TXT    compat21        docbook.css     ports
+HARDWARE.TXT    XF86336         compat22        floppies        proflibs
+INSTALL.HTM     bin             compat3x        games           src
+INSTALL.TXT     catpages        compat4x        info            tools
+README.HTM      cdrom.inf       crypto          kernel</screen>
+
+  <para>If you want to do a CDROM, FTP or NFS installation from this
+  distribution directory, all you need to do is make the 1.44MB boot
+  floppies from the floppies directory (see
+  <xref linkend="floppies"> for instructions on how to
+  do this), boot them and follow the instructions.  The rest of the
+  data needed during the installation will be obtained automatically
+  based on your selections.  If you've never installed &os; before,
+  you also want to read the entirety of this document (the
+  installation instructions) file.</para>
+
+  <para>If you're trying to do some other type of installation or are
+  merely curious about how a distribution is organized, what follows
+  is a more thorough description of each item in more detail:
+    <orderedlist>
+      <listitem>
+	<para>The <filename>*.TXT</filename> and
+	<filename>*.HTM</filename> files contain
+	documentation (for example, this document is contained in both
+	<filename>INSTALL.TXT</filename> and
+	<filename>INSTALL.HTM</filename>) and should be read
+	before starting an installation.  The
+	<filename>*.TXT</filename> files are plain text, while the
+	<filename>*.HTM</filename> files are HTML files that can be
+	read by almost any Web browser.  Some distributions may
+	contain documentation in other formats as well, such as PDF or
+	PostScript.</para>
+      </listitem>
+      <listitem>
+        <para><filename>docbook.css</filename> is a Cascading Style
+        Sheet (CSS) file used by some Web browsers for formatting the
+        HTML documentation.
+      </listitem>
+      <listitem>
+	<para>The <filename>XF86336</filename> directory contains the
+	XFree86 project's 3.3.6 release and consists of a series of
+	gzip'd tar files which contain each component of the XFree86
+	distribution.</para>
+      </listitem>
+      <listitem>
+	<para>The <filename>bin</filename>,
+	<filename>catpages</filename>,
+	<filename>crypto</filename>, 
+	<filename>dict</filename>,
+	<filename>doc</filename>,
+	<filename>games</filename>,
+	<filename>info</filename>, 
+	<filename>manpages</filename>,
+	<filename>proflibs</filename>, and 
+	<filename>src</filename> directories contain the primary distribution
+	components of &os; itself and are split into smaller files
+	for easy packing onto floppies (should that be
+	necessary).</para>
+      </listitem>
+      <listitem>
+	<para>The <filename>compat1x</filename>,
+	<filename>compat20</filename>,
+	<filename>compat21</filename>,
+	<filename>compat22</filename>,
+	<filename>compat3x</filename>, and
+	<filename>compat4x</filename>
+	directories contain distributions for compatibility with older
+	releases and are distributed as single gzip'd tar files - they
+	can be installed during release time or later by running their
+	<filename>install.sh</filename> scripts.</para>
+      </listitem>
+      <listitem>
+	<para>The <filename>floppies/</filename> subdirectory contains the floppy
+	installation images; further information on using them can be
+	found in <xref linkend="floppies">.</para>
+      </listitem>
+      <listitem>
+	<para>The <filename>packages</filename> and <filename>ports</filename> directories contain the &os;
+	Packages and Ports Collections.  Packages may be installed from
+	the packages directory by running the command:</para>
+
+	<screen>&prompt.root;<userinput>/stand/sysinstall configPackages</userinput></screen>
+
+	<para>Packages can also be installed by feeding individual
+	filenames in <filename>packages</filename>/ to the &man.pkg.add.1; command.</para>
+
+	<para>The Ports Collection may be installed like any other
+	distribution and requires about 100MB unpacked.  More
+	information on the ports collection may be obtained from
+	<ulink url="http://www.FreeBSD.org/ports/">http://www.FreeBSD.org/ports/</ulink> or locally from
+	<filename>/usr/share/doc/handbook</filename> if you've installed the <filename>doc</filename>
+	distribution.</para>
+      </listitem>
+      <listitem>
+	<para>Last of all, the <filename>tools</filename> directory contains various DOS
+	tools for discovering disk geometries, installing boot managers
+	and the like.  It is purely optional and provided only for user
+	convenience.</para>
+      </listitem>
+    </orderedlist>
+  </para>
+
+  <para>A typical distribution directory (for example, the <filename>info</filename> distribution) looks like this internally:</para>
+
+<screen>CHECKSUM.MD5    info.ab         info.ad         info.inf        install.sh
+info.aa         info.ac         info.ae         info.mtree</screen>
+
+  <para>The <filename>CHECKSUM.MD5</filename> file contains MD5 signatures for each file,
+  should data corruption be suspected, and is purely for reference. It
+  is not used by the actual installation and does not need to be
+  copied with the rest of the distribution files.  The <filename>info.a*</filename> files
+  are split, gzip'd tar files, the contents of which can be viewed by
+  doing:</para>
+
+  <screen>&prompt.root; <userinput>cat info.a* | tar tvzf -</userinput></screen>
+
+  <para>During installation, they are automatically concatenated and
+  extracted by the installation procedure.</para>
+
+  <para>The <filename>info.inf</filename> file is also necessary since it is read by the
+  installation program in order to figure out how many pieces to look
+  for when fetching and concatenating the distribution.  When putting
+  distributions onto floppies, the <filename>.inf</filename> file <emphasis>must</emphasis> occupy the first
+  floppy of each distribution set!</para>
+
+  <para>The <filename>info.mtree</filename> file is another non-essential file which is
+  provided for user reference.  It contains the MD5 signatures of the
+  <emphasis>unpacked</emphasis> distribution files and can be later
+  used with the &man.mtree.8; program to verify the installation
+  permissions and checksums against any possible modifications to the
+  file.  When used with the <filename>bin</filename> distribution,
+  this can be an excellent way of detecting trojan horse attacks on
+  your system.</para>
+
+  <para>Finally, the <filename>install.sh</filename> file is for use
+  by those who want to install the distribution after installation
+  time.  To install the info distribution from CDROM after a system
+  was installed, for example, you'd do:</para>
+
+  <screen>&prompt.root; <userinput>cd /cdrom/info</userinput>
+&prompt.root; <userinput>sh install.sh</userinput></screen>
+</sect1>

@@ -1,0 +1,4 @@
+#!/bin/sh
+/etc/init.d/xntp stop
+
+exit 0
