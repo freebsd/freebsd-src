@@ -282,7 +282,7 @@ SUBDIR=${MODULES_OVERRIDE}
 .endif
 
 # Calling kldxref(8) for each module is expensive.
-.if !defined(NO_XREF) && ${MACHINE_ARCH} != "sparc64"
+.if !defined(NO_XREF)
 .MAKEFLAGS:=	${.MAKEFLAGS} -DNO_XREF
 afterinstall:
 	@if type kldxref >/dev/null 2>&1; then \
