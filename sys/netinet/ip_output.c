@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.39 1996/05/22 17:23:08 wollman Exp $
+ *	$Id: ip_output.c,v 1.40 1996/06/08 08:18:59 bde Exp $
  */
 
 #define _IP_VHL
@@ -79,6 +79,8 @@ static int	ip_optcopy __P((struct ip *, struct ip *));
 static int	ip_pcbopts __P((struct mbuf **, struct mbuf *));
 static int	ip_setmoptions
 	__P((int, struct ip_moptions **, struct mbuf *));
+
+extern	struct protosw inetsw[];
 
 /*
  * IP output.  The packet in mbuf chain m contains a skeletal IP
@@ -329,15 +331,34 @@ ip_output(m0, opt, ro, flags, imo)
 	}
 
 sendit:
+#ifdef COMPAT_IPFW
 	/*
 	 * Check with the firewall...
 	 */
-#ifdef COMPAT_IPFW
-	if (ip_fw_chk_ptr && !(*ip_fw_chk_ptr)(&ip, hlen, ifp, 1, &m)) {
-		error = EACCES;
-		goto done;
-	}
+	if (ip_fw_chk_ptr) {
+		int action;
+
+#ifdef IPDIVERT
+		action = (*ip_fw_chk_ptr)(&ip,
+				hlen, ifp, (~0 << 16) | ip_divert_ignore, &m);
+#else
+		action = (*ip_fw_chk_ptr)(&ip, hlen, ifp, (~0 << 16), &m);
 #endif
+		if (action == -1) {
+			error = EACCES;		/* XXX is this appropriate? */
+			goto done;
+		} else if (action != 0) {
+#ifdef IPDIVERT
+			ip_divert_port = action;	/* divert to port */
+			(*inetsw[ip_protox[IPPROTO_DIVERT]].pr_input)(m, 0);
+			goto done;
+#else
+			m_freem(m);	/* ipfw says divert, but we can't */
+			goto done;
+#endif
+		}
+	}
+#endif /* COMPAT_IPFW */
 
 	/*
 	 * If small enough for interface, can just send directly.

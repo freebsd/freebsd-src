@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: ip_var.h,v 1.19 1996/01/30 22:58:27 mpp Exp $
+ *	$Id: ip_var.h,v 1.20 1996/03/26 19:16:45 fenner Exp $
  */
 
 #ifndef _NETINET_IP_VAR_H_
@@ -63,6 +63,9 @@ struct ipq {
 	struct	ipasfrag *ipq_next,*ipq_prev;
 					/* to ip headers of fragments */
 	struct	in_addr ipq_src,ipq_dst;
+#ifdef IPDIVERT
+	u_short ipq_divert;		/* divert protocol port */
+#endif
 };
 
 /*
@@ -189,6 +192,15 @@ int	ip_rsvp_vif_init __P((struct socket *, struct mbuf *));
 int	ip_rsvp_vif_done __P((struct socket *, struct mbuf *));
 void	ip_rsvp_force_done __P((struct socket *));
 
-#endif
+#ifdef IPDIVERT
+void	div_init __P((void));
+void	div_input __P((struct mbuf *, int));
+int	div_usrreq __P((struct socket *,
+		int, struct mbuf *, struct mbuf *, struct mbuf *));
+extern u_short ip_divert_port;
+extern u_short ip_divert_ignore;
+#endif  /* IPDIVERT */
+
+#endif  /* KERNEL */
 
 #endif
