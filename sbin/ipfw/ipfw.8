@@ -1,5 +1,5 @@
 .\"
-.\" $Id: ipfw.8,v 1.54 1999/06/19 18:43:18 green Exp $
+.\" $Id: ipfw.8,v 1.55 1999/08/01 16:57:23 green Exp $
 .\"
 .Dd July 20, 1996
 .Dt IPFW 8
@@ -54,6 +54,7 @@ show
 .Oc
 add
 .Op Ar number
+.Op prob match_probability
 .Ar action 
 .Op log Op Ar logamount Ar number
 .Ar proto
@@ -208,6 +209,16 @@ until a match is found.
 All rules have two associated counters, a packet count and
 a byte count.
 These counters are updated when a packet matches the rule.
+.Pp
+If a rule has the optional
+.Dq prob match_probability
+specifier, where the match_probability is a floating point number
+between 0 and 1, a match is only declared with the specified
+probability. This can be useful for a number of applications
+such as random packet drop or (in conjunction with
+.Xr dummynet 4
+) to simulate the effect of multiple paths leading to out-of-order
+packet delivery.
 .Pp
 The rules are ordered by a 
 .Dq line-number
@@ -388,6 +399,15 @@ The search terminates if this rule matches. If the port number is not
 given then the port number in the packet is used, so that a packet for
 an external machine port Y would be forwarded to local port Y. The kernel
 must have been compiled with options IPFIREWALL_FORWARD.
+.It Ar pipe pipe_nr
+Pass packet to a
+.Xr dummynet 4
+``pipe'' (for bandwidth limitation, delay etc.). See the
+.Xr dummynet 4
+manpage for further information. The search terminates; however,
+on exit from the pipe and if the sysctl variable
+net.inet.ip.fw.one_pass is not set, the packet is passed again to
+the firewall code starting from the next rule.
 .It Ar skipto number
 Skip all subsequent rules numbered less than
 .Ar number .
@@ -723,6 +743,7 @@ This rule diverts all incoming packets from 192.168.2.0/24 to divert port 5000:
 .Xr cpp 1 ,
 .Xr m4 1 ,
 .Xr divert 4 ,
+.Xr dummynet 4 ,
 .Xr ip 4 ,
 .Xr ipfirewall 4 ,
 .Xr protocols 5 ,
