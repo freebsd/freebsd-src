@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.103 1998/07/11 07:46:14 bde Exp $
+ *	$Id: vm_page.c,v 1.104 1998/07/15 04:17:55 bde Exp $
  */
 
 /*
@@ -1116,6 +1116,10 @@ vm_page_freechk_and_unqueue(m)
 			}
 		}
 	}
+
+#ifdef __alpha__
+	pmap_page_is_free(m);
+#endif
 
 	return 1;
 }
