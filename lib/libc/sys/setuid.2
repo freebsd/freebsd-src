@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)setuid.2	8.1 (Berkeley) 6/4/93
-.\"	$Id: setuid.2,v 1.10 1997/04/01 18:58:38 mpp Exp $
+.\"	$Id: setuid.2,v 1.11 1997/04/02 17:24:16 peter Exp $
 .\"
 .Dd June 4, 1993
 .Dt SETUID 2
@@ -96,7 +96,7 @@ The
 .Fn setgid
 function is permitted if the specified ID is equal to the real group ID
 .\" Comment out next line for !_POSIX_SAVED_IDS
-.\" or the saved set-groupd-ID
+.\" or the saved set-group-ID
 .\" Next line is for Appendix B.4.2.2 case.
 or the effective group ID
 of the process, or if the effective user ID is that of the super user.
