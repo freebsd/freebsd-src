@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.19 1996/05/31 05:11:22 peter Exp $
+ *	$Id: in_pcb.c,v 1.20 1996/08/12 14:05:54 peter Exp $
  */
 
 #include <sys/param.h>
@@ -201,6 +201,8 @@ in_pcbbind(inp, nam)
 	if (lport == 0) {
 		ushort first, last;
 		int count;
+
+		inp->inp_flags |= INP_ANONPORT;
 
 		if (inp->inp_flags & INP_HIGHPORT) {
 			first = ipport_hifirstauto;	/* sysctl */
