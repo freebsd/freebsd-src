@@ -56,7 +56,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 12, 2000
+.Dd August 19, 2004
 .Dt SYM 4
 .Os
 .Sh NAME
@@ -75,71 +75,8 @@ To control driver probing against HVD buses
 To control chip attachment balancing between the ncr driver and this driver
 .Cd options SYM_SETUP_LP_PROBE_MAP=<bit combination>
 .Sh DESCRIPTION
-This driver provides support for the following Symbios/LSI Logic
-PCI SCSI controllers:
-.Pp
-.Bl -bullet -compact
-.It
-.Tn 53C810
-.It
-.Tn 53C810A
-.It
-.Tn 53C815
-.It
-.Tn 53C825
-.It
-.Tn 53C825A
-.It
-.Tn 53C860
-.It
-.Tn 53C875
-.It
-.Tn 53C876
-.It
-.Tn 53C895
-.It
-.Tn 53C895A
-.It
-.Tn 53C896
-.It
-.Tn 53C897
-.It
-.Tn 53C1000
-.It
-.Tn 53C1000R
-.It
-.Tn 53C1010-33
-.It
-.Tn 53C1010-66
-.It
-.Tn 53C1510D
-.El
-.Pp
-The SCSI controllers can be either embedded on a motherboard, or on
-one of the following add-on boards:
-.Pp
-.Bl -bullet -compact
-.It
-ASUS SC-200, SC-896
-.It
-Data Technology DTC3130 (all variants)
-.It
-DawiControl DC2976UW
-.It
-Diamond FirePort (all)
-.It
-I-O DATA SC-UPCI (PC-98)
-.It
-Logitec LHA-521UA (PC-98)
-.It
-NCR cards (all)
-.It
-Symbios cards (all)
-.It
-Tekram DC390W, 390U, 390F, 390U2B, 390U2W, 390U3D, and 390U3W
-.It
-Tyan S1365
-.El
+This driver provides support for the Symbios/LSI Logic 53C8XX
+PCI SCSI controllers.
 .Pp
 Driver features include support for wide SCSI busses and fast10, fast20,
 fast40 and fast80-dt synchronous data transfers depending on controller
@@ -322,6 +259,76 @@ NCR/Symbios/LSI Logic 53C8XX family of PCI SCSI controllers.
 .It "sym53c897	40MHz	16Bit	8KB	Y	Y"
 .It "sym53c1510D	40MHz	16Bit	4KB	Y	Y"
 .It "sym53c1010	80MHz	16Bit	8KB	Y	Y"
+.El
+.Sh HARDWARE
+The
+.Nm
+driver provides support for the following Symbios/LSI Logic PCI SCSI
+controllers:
+.Pp
+.Bl -bullet -compact
+.It
+.Tn 53C810
+.It
+.Tn 53C810A
+.It
+.Tn 53C815
+.It
+.Tn 53C825
+.It
+.Tn 53C825A
+.It
+.Tn 53C860
+.It
+.Tn 53C875
+.It
+.Tn 53C876
+.It
+.Tn 53C895
+.It
+.Tn 53C895A
+.It
+.Tn 53C896
+.It
+.Tn 53C897
+.It
+.Tn 53C1000
+.It
+.Tn 53C1000R
+.It
+.Tn 53C1010-33
+.It
+.Tn 53C1010-66
+.It
+.Tn 53C1510D
+.El
+.Pp
+The SCSI controllers supported by
+.Nm
+can be either embedded on a motherboard, or on
+one of the following add-on boards:
+.Pp
+.Bl -bullet -compact
+.It
+ASUS SC-200, SC-896
+.It
+Data Technology DTC3130 (all variants)
+.It
+DawiControl DC2976UW
+.It
+Diamond FirePort (all)
+.It
+I-O DATA SC-UPCI (PC-98)
+.It
+Logitec LHA-521UA (PC-98)
+.It
+NCR cards (all)
+.It
+Symbios cards (all)
+.It
+Tekram DC390W, 390U, 390F, 390U2B, 390U2W, 390U3D, and 390U3W
+.It
+Tyan S1365
 .El
 .Sh MISC
 The DEC KZPCA-AA is a rebadged SYM8952U.
