@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.16 1994/04/02 20:43:25 ache Exp $
+ *	$Id: isa.c,v 1.18 1994/05/25 08:59:24 rgrimes Exp $
  */
 
 /*
@@ -587,6 +587,12 @@ isa_freephysmem(caddr_t va, unsigned length) {
 	}
 }
 	
+#define NMI_PARITY (1 << 7)
+#define NMI_IOCHAN (1 << 6)
+#define ENMI_WATCHDOG (1 << 7)
+#define ENMI_BUSTIMER (1 << 6)
+#define ENMI_IOSTATUS (1 << 5)
+
 /*
  * Handle a NMI, possibly a machine check.
  * return true to panic system, false to ignore.
@@ -595,9 +601,22 @@ int
 isa_nmi(cd) 
 	int cd;
 {
-
-	log(LOG_CRIT, "\nNMI port 61 %x, port 70 %x\n", inb(0x61), inb(0x70));
-	return(0);
+	int isa_port = inb(0x61);
+	int eisa_port = inb(0x461);
+	if(isa_port & NMI_PARITY) {
+		panic("RAM parity error, likely hardware failure.");
+	} else if(isa_port & NMI_IOCHAN) {
+		panic("I/O channel check, likely hardware failure.");
+	} else if(eisa_port & ENMI_WATCHDOG) {
+		panic("EISA watchdog timer expired, likely hardware failure.");
+	} else if(eisa_port & ENMI_BUSTIMER) {
+		panic("EISA bus timeout, likely hardware failure.");
+	} else if(eisa_port & ENMI_IOSTATUS) {
+		panic("EISA I/O port status error.");
+	} else {
+		printf("\nNMI ISA %x, EISA %x\n", isa_port, eisa_port);
+		return(0);
+	}
 }
 
 /*
