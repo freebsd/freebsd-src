@@ -256,6 +256,11 @@ fdesc_open(ap)
 	return (ENODEV);
 }
 
+/*
+ * !!!! READ THIS !!!!
+ * the proper way to handle this sort of thing is to do proper exclusion,
+ * so that adding new filetypes works properly at runtime
+ */
 static int
 fdesc_getattr(ap)
 	struct vop_getattr_args /* {
@@ -323,14 +328,13 @@ fdesc_getattr(ap)
 			vap->va_fileid = VTOFDESC(vp)->fd_ix;
 			vap->va_fsid = VNOVAL;
 			break;
-	
-		case DTYPE_PIPE:
-		case DTYPE_SOCKET:
-		case DTYPE_KQUEUE:
+
+		default:	
 			error = fo_stat(fp, &stb, ap->a_p);
 			if (error == 0) {
 				VATTR_NULL(vap);
-				if (fp->f_type == DTYPE_KQUEUE)
+				/* XXX Fake it! */
+				if (fp->f_type != DTYPE_PIPE && fp->f_type != DTYPE_SOCKET)
 					vap->va_type = VFIFO;
 				else
 					vap->va_type = IFTOVT(stb.st_mode);
@@ -345,11 +349,9 @@ fdesc_getattr(ap)
 				vap->va_blocksize = stb.st_blksize;
 
 				/*
-				 * XXX Sockets and kqueues don't have any
-				 * mtime/atime/ctime data.
+				 * XXX Only pipes have any mtime/atime/ctime data.
 				 */
-				if (fp->f_type == DTYPE_SOCKET ||
-				    fp->f_type == DTYPE_KQUEUE) {
+				if (fp->f_type != DTYPE_PIPE) {
 					nanotime(&stb.st_atimespec);
 					stb.st_mtimespec = stb.st_atimespec;
 					stb.st_ctimespec = stb.st_mtimespec;
@@ -360,9 +362,6 @@ fdesc_getattr(ap)
 				vap->va_uid = stb.st_uid;
 				vap->va_gid = stb.st_gid;
 			}
-			break;
-		default:
-			panic("fdesc_getattr: Unknown fp->f_type encountered");
 			break;
 		}
 		break;
@@ -412,17 +411,11 @@ fdesc_setattr(ap)
 		    ap->a_cred, ap->a_p);
 		break;
 
-	case DTYPE_SOCKET:
-	case DTYPE_PIPE:
-	case DTYPE_KQUEUE:
+	default:
 		if (vap->va_flags != VNOVAL)
 			error = EOPNOTSUPP;
 		else
 			error = 0;
-		break;
-
-	default:
-		error = EBADF;
 		break;
 	}
 
