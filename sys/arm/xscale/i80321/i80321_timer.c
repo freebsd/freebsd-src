@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/xscale/xscalevar.h>
 
+void (*i80321_hardclock_hook)(void) = NULL;
 struct i80321_timer_softc {
 	device_t	dev;
 } timer_softc;
@@ -381,6 +382,8 @@ clockhandler(void *arg)
 	tisr_write(TISR_TMR0);
 	hardclock(frame);
 
+	if (i80321_hardclock_hook != NULL)
+		(*i80321_hardclock_hook)();
 	return;
 }
 
