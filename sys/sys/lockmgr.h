@@ -62,6 +62,11 @@ struct lock {
 	const char *lk_filename;
 	const char *lk_lockername;
 	int     lk_lineno;
+
+	pid_t	lk_slockholder;
+	const char *lk_sfilename;
+	const char *lk_slockername;
+	int     lk_slineno;
 #endif
 };
 /*
