@@ -80,28 +80,28 @@ MALLOC_DEFINE(M_FWXFER, "fw_xfer", "XFER/FireWire");
 
 devclass_t firewire_devclass;
 
-static int firewire_match      __P((device_t));
-static int firewire_attach      __P((device_t));
-static int firewire_detach      __P((device_t));
-static int firewire_resume      __P((device_t));
+static int firewire_match      (device_t);
+static int firewire_attach      (device_t);
+static int firewire_detach      (device_t);
+static int firewire_resume      (device_t);
 #if 0
-static int firewire_shutdown    __P((device_t));
+static int firewire_shutdown    (device_t);
 #endif
-static device_t firewire_add_child   __P((device_t, int, const char *, int));
-static void fw_try_bmr __P((void *));
-static void fw_try_bmr_callback __P((struct fw_xfer *));
-static void fw_asystart __P((struct fw_xfer *));
-static int fw_get_tlabel __P((struct firewire_comm *, struct fw_xfer *));
-static void fw_bus_probe __P((struct firewire_comm *));
-static void fw_bus_explore __P((struct firewire_comm *));
-static void fw_bus_explore_callback __P((struct fw_xfer *));
-static void fw_attach_dev __P((struct firewire_comm *));
+static device_t firewire_add_child   (device_t, int, const char *, int);
+static void fw_try_bmr (void *);
+static void fw_try_bmr_callback (struct fw_xfer *);
+static void fw_asystart (struct fw_xfer *);
+static int fw_get_tlabel (struct firewire_comm *, struct fw_xfer *);
+static void fw_bus_probe (struct firewire_comm *);
+static void fw_bus_explore (struct firewire_comm *);
+static void fw_bus_explore_callback (struct fw_xfer *);
+static void fw_attach_dev (struct firewire_comm *);
 #ifdef FW_VMACCESS
-static void fw_vmaccess __P((struct fw_xfer *));
+static void fw_vmaccess (struct fw_xfer *);
 #endif
-struct fw_xfer *asyreqq __P((struct firewire_comm *, u_int8_t, u_int8_t, u_int8_t,
-	u_int32_t, u_int32_t, void (*)__P((struct fw_xfer *))));
-static int fw_bmr __P((struct firewire_comm *));
+struct fw_xfer *asyreqq (struct firewire_comm *, u_int8_t, u_int8_t, u_int8_t,
+	u_int32_t, u_int32_t, void (*)(struct fw_xfer *));
+static int fw_bmr (struct firewire_comm *);
 
 static device_method_t firewire_methods[] = {
 	/* Device interface */
@@ -1393,7 +1393,7 @@ done:
 struct fw_xfer *
 asyreqq(struct firewire_comm *fc, u_int8_t spd, u_int8_t tl, u_int8_t rt,
 	u_int32_t addr_hi, u_int32_t addr_lo,
-	void (*hand) __P((struct fw_xfer*)))
+	void (*hand) (struct fw_xfer*))
 {
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;

@@ -62,13 +62,13 @@
 #define TX_MAX_QUEUE	(FWMAXQUEUE - 1)
 
 /* network interface */
-static void fwe_start __P((struct ifnet *));
-static int fwe_ioctl __P((struct ifnet *, u_long, caddr_t));
-static void fwe_init __P((void *));
+static void fwe_start (struct ifnet *);
+static int fwe_ioctl (struct ifnet *, u_long, caddr_t);
+static void fwe_init (void *);
 
-static void fwe_output_callback __P((struct fw_xfer *));
-static void fwe_as_output __P((struct fwe_softc *, struct ifnet *));
-static void fwe_as_input __P((struct fw_xferq *));
+static void fwe_output_callback (struct fw_xfer *);
+static void fwe_as_output (struct fwe_softc *, struct ifnet *);
+static void fwe_as_input (struct fw_xferq *);
 
 static int fwedebug = 0;
 static int stream_ch = 1;
