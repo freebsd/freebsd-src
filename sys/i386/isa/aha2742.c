@@ -18,7 +18,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha2742.c,v 1.1 1994/11/18 05:01:06 jkh Exp $
+ *      $Id: aha2742.c,v 1.2 1994/11/18 07:07:28 jkh Exp $
  */
 /*
  * TODO:
@@ -62,6 +62,14 @@
 #define PAGESIZ 4096  
 #if 0
 #define AHCDEBUG
+#endif
+
+/*
+ * I don't know if this is correct, but Justin screwed the pooch here too
+ * so I have to guess.  ARGH! -jkh
+ */
+#ifndef IO_EISASIZE
+#define IO_EISASIZE	0x1000
 #endif
 
 typedef unsigned long int physaddr;
