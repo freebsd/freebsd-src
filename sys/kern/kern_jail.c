@@ -34,6 +34,11 @@ SYSCTL_INT(_jail, OID_AUTO, set_hostname_allowed, CTLFLAG_RW,
     &jail_set_hostname_allowed, 0,
     "Processes in jail can set their hostnames");
 
+int	jail_socket_unixiproute_only = 1;
+SYSCTL_INT(_jail, OID_AUTO, socket_unixiproute_only, CTLFLAG_RW,
+    &jail_socket_unixiproute_only, 0,
+    "Processes in jail are limited to creating UNIX/IPv4/route sockets only");
+
 int
 jail(p, uap)
         struct proc *p;
@@ -126,7 +131,9 @@ prison_if(struct proc *p, struct sockaddr *sa)
 	struct sockaddr_in *sai = (struct sockaddr_in*) sa;
 	int ok;
 
-	if (sai->sin_family != AF_INET)
+	if ((sai->sin_family != AF_INET) && jail_socket_unixiproute_only)
+		ok = 1;
+	else if (sai->sin_family != AF_INET)
 		ok = 0;
 	else if (p->p_prison->pr_ip != ntohl(sai->sin_addr.s_addr))
 		ok = 1;
