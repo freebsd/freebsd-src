@@ -4,13 +4,13 @@
 # WARNING: empty lines are essential too
 #
 # int_curr_symbol
-RUR 
+RUR
 # currency_symbol
-руб
+руб.
 # mon_decimal_point
-.
+,
 # mon_thousands_sep
-
+ 
 # mon_grouping
 3;3
 # positive_sign
