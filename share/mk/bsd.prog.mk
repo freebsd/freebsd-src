@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.29 1996/03/19 14:30:15 bde Exp $
+#	$Id: bsd.prog.mk,v 1.30 1996/03/24 00:41:11 wosch Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -35,6 +35,7 @@ LIBEDIT?=	${DESTDIR}/usr/lib/libedit.a
 LIBF2C?=	${DESTDIR}/usr/lib/libf2c.a
 LIBFL?=		"don't use LIBFL, use LIBL"
 LIBFORMS?=	${DESTDIR}/usr/lib/libforms.a
+LIBFTPIO?=	${DESTDIR}/usr/lib/libftpio.a
 LIBGPLUSPLUS?=	${DESTDIR}/usr/lib/libg++.a
 LIBGCC?=	${DESTDIR}/usr/lib/libgcc.a
 LIBGCC_PIC?=	${DESTDIR}/usr/lib/libgcc_pic.a
