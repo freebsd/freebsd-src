@@ -27,11 +27,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: sprayd.c,v 1.7 1995/03/26 23:36:44 mycroft Exp $
+ *	$Id: sprayd.c,v 1.1.1.1 1996/01/05 08:53:39 graichen Exp $
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: sprayd.c,v 1.7 1995/03/26 23:36:44 mycroft Exp $";
+static char rcsid[] = "$Id: sprayd.c,v 1.1.1.1 1996/01/05 08:53:39 graichen Exp $";
 #endif /* not lint */
 
 #include <stdio.h>

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_main.c,v 1.6.2.1 1997/01/14 01:33:57 wpaul Exp $
+ *	$Id: yp_main.c,v 1.6.2.2 1997/08/29 05:16:13 imp Exp $
  */
 
 /*
@@ -66,7 +66,7 @@
 
 #define	_RPCSVC_CLOSEDOWN 120
 #ifndef lint
-static const char rcsid[] = "$Id: yp_main.c,v 1.6.2.1 1997/01/14 01:33:57 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_main.c,v 1.6.2.2 1997/08/29 05:16:13 imp Exp $";
 #endif /* not lint */
 int _rpcpmstart;		/* Started by a port monitor ? */
 static int _rpcfdtype;

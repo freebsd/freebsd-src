@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.5 1996/09/02 23:38:58 peter Exp $
 
 PROG=	watch
 MAN8=   watch.8

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.29 1996/08/31 16:52:22 bde Exp $
+ *	$Id: imgact_aout.c,v 1.29.2.1 1996/12/22 23:21:19 joerg Exp $
  */
 
 #include "opt_rlimit.h"

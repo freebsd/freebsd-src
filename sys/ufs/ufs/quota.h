@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)quota.h	8.1 (Berkeley) 6/11/93
- * $Id: quota.h,v 1.5 1996/02/27 07:57:57 mpp Exp $
+ * $Id: quota.h,v 1.6 1996/05/01 02:16:17 bde Exp $
  */
 
 #ifndef _UFS_UFS_QUOTA_H_

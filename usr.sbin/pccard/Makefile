@@ -1,6 +1,6 @@
 #
 # Makefile for xntpd.
-# $Id: Makefile,v 1.4 1994/09/29 23:43:54 wollman Exp $
+# $Id: Makefile,v 1.1 1995/08/25 09:45:02 phk Exp $
 #
 SUBDIR= pccardc pccardd
 

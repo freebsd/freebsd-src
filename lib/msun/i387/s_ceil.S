@@ -35,7 +35,7 @@
 
 #include <machine/asmacros.h>
 
-RCSID("$Id: s_ceil.S,v 1.2 1994/08/19 11:14:21 jkh Exp $")
+RCSID("$Id: s_ceil.S,v 1.2.8.1 1996/12/15 15:22:44 bde Exp $")
 
 ENTRY(ceil)
 	pushl	%ebp

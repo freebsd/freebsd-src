@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_init.c,v 1.11 1995/12/07 12:48:12 davidg Exp $
+ * $Id: vm_init.c,v 1.12 1995/12/11 04:58:07 dyson Exp $
  */
 
 /*

@@ -1,5 +1,5 @@
 #	from: Makefile.inc,v 1.1 1993/09/03 19:04:23 jtc Exp
-#	$Id: Makefile.inc,v 1.5 1997/05/03 03:49:56 jb Exp $
+#	$Id: Makefile.inc,v 1.2.10.1 1997/06/24 03:51:32 julian Exp $
 
 .PATH:	${.CURDIR}/../libc/${MACHINE}/sys
 

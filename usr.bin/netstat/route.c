@@ -36,7 +36,7 @@
 static char sccsid[] = "From: @(#)route.c	8.6 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: route.c,v 1.21.2.1 1997/06/28 09:23:54 jhay Exp $";
+	"$Id: route.c,v 1.21.2.2 1997/07/30 06:52:06 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

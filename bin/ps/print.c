@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.16.2.1 1997/04/16 16:10:48 jdp Exp $
+ *	$Id: print.c,v 1.16.2.2 1997/08/03 08:33:17 peter Exp $
  */
 
 #ifndef lint

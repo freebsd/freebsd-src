@@ -37,14 +37,14 @@
  |	Copyright (c) 1986, 1987, 1988, 1991, 1992, 1993, 1994, 1995 Hugh Mahon
  |	All are rights reserved.
  |
- |	$Header: /home/ncvs/src/usr.bin/ee/doc/new_curse.c,v 1.1.1.1 1995/08/30 07:28:06 jkh Exp $
+ |	$Header: /home/ncvs/src/usr.bin/ee/new_curse.c,v 1.2 1996/12/29 10:54:12 joerg Exp $
  |
  */
 
 char *copyright_message[] = { "Copyright (c) 1986, 1987, 1988, 1991, 1992, 1993, 1994, 1995 Hugh Mahon",
 				"All rights are reserved."};
 
-char * new_curse_name= "@(#) new_curse.c $Revision: 1.1.1.1 $";
+char * new_curse_name= "@(#) new_curse.c $Revision: 1.2 $";
 
 #include "new_curse.h"
 #include <signal.h>

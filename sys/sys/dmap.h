@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dmap.h	8.2 (Berkeley) 1/4/94
- * $Id: dmap.h,v 1.2 1994/08/02 07:52:52 davidg Exp $
+ * $Id: dmap.h,v 1.3 1995/07/29 11:42:45 bde Exp $
  */
 
 #ifndef _SYS_DMAP_H_

@@ -44,7 +44,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- *      $Id: su.c,v 1.13 1995/12/14 19:13:36 bde Exp $
+ *      $Id: su.c,v 1.14 1996/04/19 17:39:48 bde Exp $
  *
  * Tabstops 4
  * XXX devfs entries for this device should be handled by generic scsiconfig

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
-#	$Id: Makefile,v 1.8 1996/09/05 17:14:50 bde Exp $
+#	$Id: Makefile,v 1.8.2.1 1997/08/18 03:30:04 davidn Exp $
 
 PROG=	init
 MAN8=	init.8

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id: ns_pcb.h,v 1.3 1994/08/21 06:22:09 paul Exp $
+ * $Id: ns_pcb.h,v 1.6 1996/10/17 18:42:18 jkh Exp $
  */
 
 #ifndef _NETNS_NS_PCB_H_

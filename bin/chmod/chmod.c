@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chmod.c,v 1.5.2.1 1997/08/24 10:30:25 jkh Exp $
+ *	$Id: chmod.c,v 1.5.2.2 1997/09/14 13:07:01 jkh Exp $
  */
 
 #ifndef lint

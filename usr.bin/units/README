@@ -1,4 +1,4 @@
-#	$Id: README,v 1.2 1996/04/06 06:00:59 thorpej Exp $
+#	$Id: README,v 1.1.1.1 1996/06/08 03:43:43 alex Exp $
 
 This is a program which I wrote as a clone of the UNIX 'units'
 command.  I threw it together in a couple days, but it seems to work,

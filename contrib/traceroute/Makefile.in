@@ -17,7 +17,7 @@
 #  WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 #  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-# @(#) $Header: Makefile.in,v 1.21 96/09/16 18:49:46 leres Exp $ (LBL)
+# @(#) $Header: /home/ncvs/src/contrib/traceroute/Makefile.in,v 1.1.1.1 1996/09/30 19:09:53 fenner Exp $ (LBL)
 
 #
 # Various configurable paths (remember to edit Makefile.in, not Makefile)

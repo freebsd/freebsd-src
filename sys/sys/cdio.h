@@ -1,7 +1,7 @@
 /*
  * 16 Feb 93	Julian Elischer	(julian@dialix.oz.au)
  *
- *	$Id$
+ *	$Id: cdio.h,v 1.14.2.1 1997/05/07 08:28:05 joerg Exp $
  */
 
 /*

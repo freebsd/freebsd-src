@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: spl.h,v 1.14 1996/05/18 03:36:42 dyson Exp $
+ *	$Id: spl.h,v 1.15 1996/07/01 20:16:10 bde Exp $
  */
 
 #ifndef _MACHINE_IPL_H_

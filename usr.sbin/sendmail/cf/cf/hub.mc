@@ -40,7 +40,7 @@ divert(-1)
 
 divert(0)dnl
 include(../m4/cf.m4)
-VERSIONID(`$Id: hub.mc,v 1.1.2.2 1997/08/22 16:52:39 peter Exp $')
+VERSIONID(`$Id: hub.mc,v 1.1.2.3 1997/10/06 04:12:54 peter Exp $')
 
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl

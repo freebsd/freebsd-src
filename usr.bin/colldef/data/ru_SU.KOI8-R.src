@@ -1,6 +1,6 @@
 # koi8-r (backward compatible with ASCII)
 #
-# $Id$
+# $Id: ru_SU.KOI8-R.src,v 1.5 1996/10/23 15:00:18 ache Exp $
 #
 charmap map.KOI8-R
 order \

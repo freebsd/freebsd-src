@@ -1,5 +1,5 @@
 #	From: @(#)Makefile.inc	8.3 (Berkeley) 4/16/94
-#	$Id: Makefile.inc,v 1.22.2.5 1997/06/24 19:23:07 julian Exp $
+#	$Id: Makefile.inc,v 1.22.2.6 1997/08/13 07:41:44 peter Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/gen ${.CURDIR}/../libc/gen

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.3 1996/10/20 09:28:03 markm Exp $
+# $Id: Makefile,v 1.3.2.1 1997/04/11 16:58:03 asami Exp $
 #
 INFO = gmp
 INFOSECTION= "Programming & development tools."

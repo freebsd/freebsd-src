@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *		$Id: initcpu.c,v 1.5.2.3 1997/07/25 08:34:11 kato Exp $
+ *		$Id: initcpu.c,v 1.5.2.4 1997/10/17 08:29:01 kato Exp $
  */
 
 #include "opt_cpu.h"

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mkmakefile.c,v 1.18.2.3 1997/09/16 06:57:10 charnier Exp $";
 #endif /* not lint */
 
 /*

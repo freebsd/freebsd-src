@@ -1,5 +1,5 @@
 #	from @(#)Makefile.inc	8.3 (Berkeley) 2/4/95
-#	$Id: Makefile.inc,v 1.4.2.1 1997/06/24 03:51:37 julian Exp $
+#	$Id: Makefile.inc,v 1.4.2.2 1997/07/24 08:25:24 phk Exp $
 
 # machine-independent stdlib sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/stdlib ${.CURDIR}/../libc/stdlib

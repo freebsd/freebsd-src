@@ -14,7 +14,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.c,v 1.15.2.3 1997/08/03 18:45:21 peter Exp $
+ * $Id: ftpio.c,v 1.15.2.4 1997/10/01 07:22:06 jkh Exp $
  *
  */
 

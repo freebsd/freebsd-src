@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- * $Id: scsi_ioctl.c,v 1.21 1996/03/10 07:13:09 gibbs Exp $
+ * $Id: scsi_ioctl.c,v 1.22 1996/07/14 10:46:51 joerg Exp $
  *
  *
  */

@@ -1,5 +1,5 @@
 # Makefile
-# $Id: Makefile,v 1.6 1995/07/25 00:37:23 bde Exp $
+# $Id: Makefile,v 1.7 1996/01/23 23:59:34 wosch Exp $
 
 MAN8=	manctl.8
 

@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: README,v 1.2 1996/09/22 21:51:54 wosch Exp $
 
 This is an enhanced version of the CMU BOOTP server which was derived
 from the original BOOTP server created by Bill Croft at Stanford.

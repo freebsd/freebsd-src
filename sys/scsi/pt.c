@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pt.c,v 1.18 1996/09/06 23:09:12 phk Exp $
+ *      $Id: pt.c,v 1.18.2.1 1997/05/21 19:38:01 joerg Exp $
  */
 
 #include "opt_bounce.h"

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: collate.h,v 1.4 1996/10/15 21:53:23 ache Exp $
+ * $Id: collate.h,v 1.5 1996/10/31 04:25:13 ache Exp $
  */
 
 #ifndef COLLATE_H_INCLUDED

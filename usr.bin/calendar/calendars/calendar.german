@@ -1,7 +1,7 @@
 /*
  * German calendar file(s)
  *
- * $Id: calendar.german,v 1.4 1997/02/22 19:28:20 peter Exp $
+ * $Id: calendar.german,v 1.2.4.1 1997/02/25 01:57:40 mpp Exp $
  */
 
 #ifndef _calendar_german_

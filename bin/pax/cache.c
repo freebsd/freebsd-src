@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cache.c,v 1.3.2.2 1997/08/25 08:36:54 jkh Exp $
+ *	$Id: cache.c,v 1.3.2.3 1997/09/14 13:07:15 jkh Exp $
  */
 
 #ifndef lint

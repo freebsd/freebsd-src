@@ -1,5 +1,5 @@
 #
-# $Id: ppp.conf.filter.sample,v 1.2 1995/02/26 12:16:35 amurai Exp $
+# $Id: ppp.conf.filter.sample,v 1.2.6.1 1997/06/10 10:05:30 brian Exp $
 #
 # An example of packet filter definitions.  Merge whatever rules you
 # want into your ppp.conf file.

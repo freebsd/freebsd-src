@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_mkdb.c,v 1.3.2.1 1997/02/15 04:37:16 wpaul Exp $
+ *	$Id: yp_mkdb.c,v 1.3.2.2 1997/08/29 05:16:10 imp Exp $
  */
 
 #include <stdio.h>
@@ -50,7 +50,7 @@
 #include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_mkdb.c,v 1.3.2.1 1997/02/15 04:37:16 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_mkdb.c,v 1.3.2.2 1997/08/29 05:16:10 imp Exp $";
 #endif
 
 char *yp_dir = "";	/* No particular default needed. */

@@ -29,7 +29,7 @@
 /*
  * MS-DOS (FAT) file system structure definitions.
  *
- * $Id$
+ * $Id: dosfs.h,v 1.1.1.1 1995/11/05 16:02:04 joerg Exp $
  */
 
 #ifndef DOSFS_H

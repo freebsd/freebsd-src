@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: kern.c,v 1.6 1996/01/06 21:09:50 peter Exp $
+ * $Id: kern.c,v 1.6.2.1 1996/11/11 23:37:44 phk Exp $
  */
 
 

@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id: bios.S,v 1.1.1.1.2.3 1997/01/04 16:16:06 kato Exp $
+ *	$Id: bios.S,v 1.1.1.1.2.4 1997/08/17 04:31:33 kato Exp $
  */
 
 /*

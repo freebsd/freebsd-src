@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.1.1.1 1995/11/05 16:02:04 joerg Exp $
 #
 PROG=	mkdosfs
 

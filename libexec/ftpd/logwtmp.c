@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: logwtmp.c,v 1.3 1996/09/22 21:53:28 wosch Exp $
+ *	$Id: logwtmp.c,v 1.3.2.1 1997/09/05 12:45:31 tg Exp $
  */
 
 #ifndef lint

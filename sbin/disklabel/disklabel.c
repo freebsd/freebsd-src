@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *		$Id: disklabel.c,v 1.9.2.2 1997/06/11 07:02:16 charnier Exp $
+ *		$Id: disklabel.c,v 1.9.2.3 1997/08/25 21:28:37 jkh Exp $
  */
 
 #ifndef lint

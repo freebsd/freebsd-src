@@ -1,5 +1,5 @@
 :
-# $Id: fixit.profile,v 1.1.6.2 1996/11/28 08:58:25 joerg Exp $
+# $Id: fixit.profile,v 1.1.6.3 1997/03/02 12:03:31 joerg Exp $
 
 export BLOCKSIZE=K
 export PS1="Fixit# "

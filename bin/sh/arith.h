@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)arith.h	1.1 (Berkeley) 5/4/95
- *	$Id$
+ *	$Id: arith.h,v 1.2 1996/09/01 10:19:35 peter Exp $
  */
 
 int arith __P((char *));

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.11.2.9 1997/09/17 09:10:05 kato Exp $
+ *	$Id: if_ed.c,v 1.11.2.10 1997/10/13 08:57:49 kato Exp $
  */
 
 /*

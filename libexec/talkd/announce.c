@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: announce.c,v 1.5 1996/09/22 21:55:15 wosch Exp $
+ *	$Id: announce.c,v 1.5.2.1 1997/01/18 08:35:16 pst Exp $
  */
 
 #ifndef lint

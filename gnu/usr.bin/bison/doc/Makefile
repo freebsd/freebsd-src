@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1 1996/09/10 13:23:46 peter Exp $
+# $Id: Makefile,v 1.1.2.1 1997/04/11 16:58:15 asami Exp $
 
 INFO = bison
 INFOSECTION= "Programming & development tools."

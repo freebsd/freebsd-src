@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile.inc,v 1.10 1997/05/03 03:50:05 jb Exp $
+#	$Id: Makefile.inc,v 1.7.2.1 1997/06/24 03:51:38 julian Exp $
 
 .PATH: ${.CURDIR}/../libc/${MACHINE}/string ${.CURDIR}/../libc/string
 

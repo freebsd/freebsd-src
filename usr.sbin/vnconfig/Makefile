@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1994/12/04 20:12:24 phk Exp $
+#	$Id: Makefile,v 1.2 1996/02/02 06:14:09 wosch Exp $
 
 PROG=		vnconfig
 MAN8=		vnconfig.8

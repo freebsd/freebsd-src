@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 5/31/93
- *	$Id: pathnames.h,v 1.2 1994/09/24 02:54:12 davidg Exp $
+ *	$Id: pathnames.h,v 1.2.8.1 1997/08/24 21:41:37 jkh Exp $
  */
 
 #define	_PATH_BIN		"/bin"

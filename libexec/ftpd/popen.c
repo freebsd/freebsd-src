@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: popen.c,v 1.4.2.1 1996/11/21 16:35:53 phk Exp $
+ *	$Id: popen.c,v 1.4.2.2 1997/04/26 23:39:31 davidn Exp $
  */
 
 #if 0

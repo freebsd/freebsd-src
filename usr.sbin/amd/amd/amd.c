@@ -37,7 +37,7 @@
  *
  *	@(#)amd.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: amd.c,v 1.3 1996/08/13 09:21:28 peter Exp $
+ * $Id: amd.c,v 1.3.2.1 1997/09/03 06:27:03 charnier Exp $
  *
  */
 

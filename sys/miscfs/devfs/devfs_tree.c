@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.32.2.1 1996/11/23 08:32:08 phk Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.32.2.2 1997/08/27 01:32:26 julian Exp $
  */
 
 #include "opt_devfs.h"

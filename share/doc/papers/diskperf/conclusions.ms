@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)conclusions.ms	6.2 (Berkeley) 4/16/91
-.\"	$Id: conclusions.ms,v 1.5 1997/02/22 13:02:59 peter Exp $
+.\"	$Id: conclusions.ms,v 1.2.2.1 1997/03/15 23:34:07 jkh Exp $
 .\"
 .ds RH Conclusions
 .NH

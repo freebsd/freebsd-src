@@ -1,4 +1,4 @@
-/* $RCSfile: array.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:31 $
+/* $RCSfile: array.c,v $$Revision: 1.2 $$Date: 1995/05/30 05:02:50 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: array.c,v $
+ * Revision 1.2  1995/05/30 05:02:50  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1994/09/10  06:27:31  gclarkii
  * Initial import of Perl 4.046 bmaked
  *

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aicasm_scan.l,v 1.1.2.2 1997/09/03 04:25:18 gibbs Exp $
+ *      $Id: aicasm_scan.l,v 1.1.2.3 1997/09/27 19:46:57 gibbs Exp $
  */
 
 #include <limits.h>

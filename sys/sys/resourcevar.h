@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)resourcevar.h	8.4 (Berkeley) 1/9/95
- * $Id: resourcevar.h,v 1.7 1996/03/11 02:20:13 hsu Exp $
+ * $Id: resourcevar.h,v 1.8 1996/06/25 20:02:16 bde Exp $
  */
 
 #ifndef	_SYS_RESOURCEVAR_H_

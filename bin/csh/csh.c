@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: csh.c,v 1.6 1995/10/23 23:08:25 ache Exp $
+ *	$Id: csh.c,v 1.6.2.1 1997/08/24 21:41:29 jkh Exp $
  */
 
 #ifndef lint

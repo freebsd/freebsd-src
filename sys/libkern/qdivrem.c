@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: qdivrem.c,v 1.3 1995/05/30 08:06:42 rgrimes Exp $
+ * $Id: qdivrem.c,v 1.4 1996/09/10 08:22:46 bde Exp $
  */
 
 /*

@@ -71,7 +71,7 @@
 /* File scope variables */
 
 static char *namep;
-static char rcsid[] = "$Id: atrun.c,v 1.6 1995/08/28 21:30:23 mpp Exp $";
+static char rcsid[] = "$Id: atrun.c,v 1.6.2.1 1997/09/08 23:45:35 dima Exp $";
 static debug = 0;
 
 void perr(const char *a);

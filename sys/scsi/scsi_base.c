@@ -8,7 +8,7 @@
  * file.
  *
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.39.4.4 1997/04/04 19:50:04 gibbs Exp $
+ *      $Id: scsi_base.c,v 1.39.4.5 1997/07/29 19:42:50 jdp Exp $
  */
 
 #include "opt_bounce.h"

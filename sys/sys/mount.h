@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
- *	$Id: mount.h,v 1.34 1996/10/17 17:12:03 jkh Exp $
+ *	$Id: mount.h,v 1.34.2.1 1997/08/17 13:33:43 joerg Exp $
  */
 
 #ifndef _SYS_MOUNT_H_

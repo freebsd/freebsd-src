@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 6/2/93
-#	$Id: Makefile.inc,v 1.5 1997/05/03 03:49:51 jb Exp $
+#	$Id: Makefile.inc,v 1.4.6.1 1997/06/24 03:51:26 julian Exp $
 
 # compat-43 sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/compat-43 ${.CURDIR}/../libc/compat-43

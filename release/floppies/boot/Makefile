@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.214 1996/05/02 08:18:28 jkh Exp $
+#	$Id: Makefile,v 1.1 1996/05/21 01:12:32 julian Exp $
 SUBDIR= crunch mfs floppy
 
 .include <bsd.subdir.mk>

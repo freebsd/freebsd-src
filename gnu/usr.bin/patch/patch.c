@@ -1,5 +1,5 @@
 char rcsid[] =
-	"$Header: /home/ncvs/src/gnu/usr.bin/patch/patch.c,v 1.6 1995/05/30 05:02:34 rgrimes Exp $";
+	"$Header: /home/ncvs/src/gnu/usr.bin/patch/patch.c,v 1.6.6.1 1997/03/17 22:32:26 jmg Exp $";
 
 /* patch - a program to apply diffs to original files
  *

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rmdir.c,v 1.2 1994/09/24 02:57:13 davidg Exp $
+ *	$Id: rmdir.c,v 1.2.8.1 1997/08/25 08:43:06 jkh Exp $
  */
 
 #ifndef lint

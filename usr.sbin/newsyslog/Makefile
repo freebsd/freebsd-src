@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1996/01/05 09:28:11 graichen Exp $
+#	$Id: Makefile,v 1.2 1996/01/16 10:32:01 graichen Exp $
 
 PROG=	newsyslog
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_timer.c,v 1.20 1996/09/13 23:51:42 pst Exp $
+ *	$Id: tcp_timer.c,v 1.20.2.1 1997/09/16 18:37:02 joerg Exp $
  */
 
 #include "opt_tcpdebug.h"

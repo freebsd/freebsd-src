@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.29.2.5 1997/08/19 13:12:24 jmz Exp $
+ *      $Id: worm.c,v 1.29.2.6 1997/10/09 12:47:05 joerg Exp $
  */
 
 #include "opt_bounce.h"

@@ -24,7 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ibcs2_fcntl.c,v 1.3 1995/10/16 05:52:53 swallace Exp $
+ * $Id: ibcs2_fcntl.c,v 1.4 1995/11/12 04:42:58 bde Exp $
  */
 
 #include <sys/param.h>

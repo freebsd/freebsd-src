@@ -1,4 +1,4 @@
-#	$Id: bsd.libnames.mk,v 1.3.2.1 1997/02/07 17:06:24 pst Exp $
+#	$Id: bsd.libnames.mk,v 1.3.2.2 1997/05/24 10:27:06 brian Exp $
 
 LIBCRT0?=	${DESTDIR}/usr/lib/crt0.o
 LIBKZHEAD?=	${DESTDIR}/usr/lib/kzhead.o

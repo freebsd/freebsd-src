@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/18/93
-#	$Id$
+#	$Id: Makefile,v 1.3.6.1 1997/08/25 12:50:39 jmg Exp $
 
 PROG=	dumplfs
 CFLAGS+=-I${.CURDIR}/../../sys/ufs/lfs

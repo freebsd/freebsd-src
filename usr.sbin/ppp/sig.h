@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: sig.h,v 1.8 1997/06/09 03:27:37 brian Exp $
+ * $Id: sig.h,v 1.2.2.4 1997/08/25 00:34:39 brian Exp $
  *
  *  TODO:
  *

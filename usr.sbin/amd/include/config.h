@@ -37,7 +37,7 @@
  *
  *	@(#)config.h	8.1 (Berkeley) 6/6/93
  *
- * $Id: config.h,v 1.1.1.1 1994/05/26 05:22:06 rgrimes Exp $
+ * $Id: config.h,v 1.1.1.1.8.1 1997/09/03 06:27:16 charnier Exp $
  *
  */
 

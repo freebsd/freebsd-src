@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: tty_subr.c,v 1.23 1996/09/14 10:53:48 bde Exp $
+ * $Id: tty_subr.c,v 1.23.2.1 1997/03/07 09:22:57 joerg Exp $
  */
 
 /*

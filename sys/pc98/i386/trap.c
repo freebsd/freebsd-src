@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.8.2.2 1997/02/13 12:32:37 kato Exp $
+ *	$Id: trap.c,v 1.8.2.3 1997/06/20 10:28:08 kato Exp $
  */
 
 /*

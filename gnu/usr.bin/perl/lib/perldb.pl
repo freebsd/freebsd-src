@@ -4,7 +4,7 @@ package DB;
 # Ray Lischner (uunet!mntgfx!lisch) as of 5 Nov 1990
 # Johan Vromans -- upgrade to 4.0 pl 10
 
-$header = '$RCSfile: perldb.pl,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:51 $';
+$header = '$RCSfile: perldb.pl,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:53 $';
 #
 # This file is automatically included if you do perl -d.
 # It's probably not useful to include this yourself.
@@ -14,6 +14,10 @@ $header = '$RCSfile: perldb.pl,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:51
 # have a breakpoint.  It also inserts a do 'perldb.pl' before the first line.
 #
 # $Log: perldb.pl,v $
+# Revision 1.1.1.1  1994/09/10 06:27:53  gclarkii
+# Initial import of Perl 4.046 bmaked
+#
+#
 # Revision 1.1.1.1  1993/08/23  21:29:51  nate
 # PERL!
 #

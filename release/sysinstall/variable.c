@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: variable.c,v 1.11.2.6 1997/06/13 14:18:47 jkh Exp $
+ * $Id: variable.c,v 1.11.2.7 1997/10/12 16:22:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

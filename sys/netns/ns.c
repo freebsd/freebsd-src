@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns.c	8.2 (Berkeley) 11/15/93
- * $Id: ns.c,v 1.4 1995/05/30 08:12:21 rgrimes Exp $
+ * $Id: ns.c,v 1.6 1996/10/17 18:41:48 jkh Exp $
  */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1 1996/05/04 08:02:10 peter Exp $
+# $Id: Makefile,v 1.2 1996/05/05 07:40:46 peter Exp $
 
 FILES	= 	2681.sys cdk.sys
 

@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.30 1996/10/29 13:15:30 bde Exp $
+ *	$Id: subr_diskslice.c,v 1.30.2.1 1997/09/27 17:50:01 bde Exp $
  */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.8.2.9 1997/07/14 17:45:05 kato Exp $
+#	$Id: options.pc98,v 1.8.2.10 1997/09/17 09:08:26 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h

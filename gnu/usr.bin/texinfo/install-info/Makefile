@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.6 1997/04/07 16:52:45 bde Exp $
+#	$Id: Makefile,v 1.6.2.1 1997/08/29 09:11:24 obrien Exp $
 
 PROG=	install-info
 

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1.1.1 1995/08/06 11:15:54 ache Exp $
+# $Id: Makefile,v 1.2 1995/11/03 15:07:53 ache Exp $
 
 SUBDIR = data
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.56.2.5 1997/05/11 18:01:23 tegge Exp $
+ *	$Id: autoconf.c,v 1.56.2.6 1997/08/17 14:13:07 joerg Exp $
  */
 
 /*

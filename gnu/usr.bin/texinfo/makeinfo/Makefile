@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.3.6.1 1997/04/11 17:54:01 asami Exp $
 
 PROG=	makeinfo
 NOMAN=	yes

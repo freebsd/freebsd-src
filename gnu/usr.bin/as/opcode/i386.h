@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with GAS; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-/* $Id: i386.h,v 1.4 1996/10/01 00:13:48 peter Exp $ */
+/* $Id: i386.h,v 1.4.2.1 1996/11/11 21:24:26 phk Exp $ */
 
 static const template i386_optab[] = {
 

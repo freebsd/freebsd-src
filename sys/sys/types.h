@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.6 (Berkeley) 2/19/95
- * $Id: types.h,v 1.11.2.1 1997/01/30 11:08:01 asami Exp $
+ * $Id: types.h,v 1.11.2.2 1997/06/21 17:45:53 bde Exp $
  */
 
 #ifndef _SYS_TYPES_H_

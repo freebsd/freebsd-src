@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	$Id: ostern.c,v 1.4 1996/05/11 20:44:20 ache Exp $
+ * 	$Id: ostern.c,v 1.5 1996/08/27 20:04:15 wosch Exp $
  */
 
 #include <stdio.h>

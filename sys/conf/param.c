@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.c	8.3 (Berkeley) 8/20/94
- * $Id: param.c,v 1.20.2.1 1997/01/17 19:28:20 davidg Exp $
+ * $Id: param.c,v 1.20.2.2 1997/02/28 11:11:33 bde Exp $
  */
 
 #include "opt_sysvipc.h"

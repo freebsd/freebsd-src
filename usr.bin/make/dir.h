@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)dir.h	8.1 (Berkeley) 6/6/93
- *	$Id$
+ *	$Id: dir.h,v 1.4 1996/10/08 04:05:49 steve Exp $
  */
 
 /* dir.h --

@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 5/31/93
-#	$Id$
+#	$Id: Makefile.inc,v 1.7 1996/09/22 21:51:04 wosch Exp $
 
 BINDIR?=	/bin
 NOSHARED?=	YES

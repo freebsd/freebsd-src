@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.8 (Berkeley) 7/28/90
-#	$Id: Makefile,v 1.6 1995/07/04 08:38:54 bde Exp $
+#	$Id: Makefile,v 1.7 1996/03/28 20:49:29 joerg Exp $
 
 PROG=	bootparamd
 SRCS=	bootparam_prot_xdr.c bootparam_prot_svc.c bootparamd.c main.c

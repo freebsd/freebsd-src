@@ -1,4 +1,4 @@
-#	$Id: Makefile.inc,v 1.7 1997/05/03 03:57:21 jb Exp $
+#	$Id: Makefile.inc,v 1.5.2.1 1997/06/24 00:27:44 julian Exp $
 
 .PATH:	 ${.CURDIR}/sys
 

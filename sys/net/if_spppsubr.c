@@ -14,7 +14,7 @@
  *
  * Version 1.9, Wed Oct  4 18:58:15 MSK 1995
  *
- * $Id: if_spppsubr.c,v 1.13.2.1 1997/08/08 05:48:49 itojun Exp $
+ * $Id: if_spppsubr.c,v 1.13.2.2 1997/08/12 05:38:48 kjc Exp $
  */
 #undef DEBUG
 

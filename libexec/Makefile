@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile,v 1.20.2.2 1997/07/05 13:48:12 peter Exp $
+#	$Id: Makefile,v 1.20.2.3 1997/07/05 14:23:54 peter Exp $
 
 SUBDIR=	atrun bootpd comsat fingerd ftpd getNAME getty lfs_cleanerd \
 	mail.local makekey mknetid named-xfer revnetgroup rexecd rlogind \

@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)mkdep.gcc.sh	8.1 (Berkeley) 6/6/93
-#	$Id: mkdep.gcc.sh,v 1.8 1996/10/27 15:53:18 wosch Exp $
+#	$Id: mkdep.gcc.sh,v 1.8.2.1 1997/09/15 09:20:44 jkh Exp $
 
 PATH=/bin:/usr/bin; export PATH
 

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: dir.c,v 1.4 1995/06/18 14:34:48 ache Exp $
+ *	$Id: dir.c,v 1.4.2.1 1997/08/24 21:41:30 jkh Exp $
  */
 
 #ifndef lint

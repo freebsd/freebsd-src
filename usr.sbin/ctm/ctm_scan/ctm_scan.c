@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_scan.c,v 1.13 1996/03/19 15:17:34 bde Exp $
+ * $Id: ctm_scan.c,v 1.13.2.1 1997/09/18 06:23:23 charnier Exp $
  *
  */
 #include <err.h>

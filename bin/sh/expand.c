@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: expand.c,v 1.11.2.4 1997/06/19 17:57:30 jkh Exp $
+ *	$Id: expand.c,v 1.11.2.5 1997/08/25 09:09:51 jkh Exp $
  */
 
 #ifndef lint

@@ -1,4 +1,4 @@
-/* $RCSfile: util.h,v $$Revision: 1.2 $$Date: 1995/05/30 05:03:46 $
+/* $RCSfile: util.h,v $$Revision: 1.2.6.1 $$Date: 1997/02/23 11:46:32 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: util.h,v $
+ * Revision 1.2.6.1  1997/02/23 11:46:32  joerg
+ * YAMFC (rev 1.3: remove bogus redeclaration of getenv())
+ *
  * Revision 1.2  1995/05/30 05:03:46  rgrimes
  * Remove trailing whitespace.
  *

@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.6 (Berkeley) 5/22/91
-#	$Id: Makefile,v 1.25.2.2 1997/04/30 03:13:33 msmith Exp $
+#	$Id: Makefile,v 1.25.2.3 1997/06/06 02:18:41 brian Exp $
 
 CFLAGS+=        -DLIBC_SCCS -fno-omit-frame-pointer -I${.CURDIR}
 OBJS=		crt0.o c++rt0.o gcrt0.o scrt0.o sgcrt0.o

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_dnslookup.c,v 1.3.2.2 1997/07/27 03:42:53 wpaul Exp $
+ *	$Id: yp_dnslookup.c,v 1.3.2.3 1997/07/28 14:17:30 wpaul Exp $
  */
 
 /*
@@ -65,7 +65,7 @@
 #include "yp_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_dnslookup.c,v 1.3.2.2 1997/07/27 03:42:53 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_dnslookup.c,v 1.3.2.3 1997/07/28 14:17:30 wpaul Exp $";
 #endif
 
 static char *parse(hp)

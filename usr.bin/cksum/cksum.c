@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cksum.c,v 1.1.1.1.8.2 1997/08/29 05:29:00 imp Exp $
+ *	$Id: cksum.c,v 1.1.1.1.8.3 1997/09/14 23:16:56 jkh Exp $
  */
 
 #ifndef lint

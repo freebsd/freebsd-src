@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ar_io.c,v 1.4.2.1 1997/08/25 08:36:50 jkh Exp $
+ *	$Id: ar_io.c,v 1.4.2.2 1997/09/14 13:07:09 jkh Exp $
  */
 
 #ifndef lint

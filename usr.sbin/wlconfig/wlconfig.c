@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: wlconfig.c,v 1.4 1997/08/06 00:45:23 rgrimes Exp $
+ * $Id: wlconfig.c,v 1.4.2.1 1997/09/15 04:56:53 rgrimes Exp $
  *
  */
 /*

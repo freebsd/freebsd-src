@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: igmp.c,v 1.10 1996/01/29 16:04:20 peter Exp $
+ * $Id: igmp.c,v 1.10.2.1 1996/11/11 23:37:37 phk Exp $
  */
 
 

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1996/04/06 06:00:58 thorpej Exp $
+#	$Id: Makefile,v 1.1.1.1 1996/06/08 03:43:43 alex Exp $
 
 PROG=	units
 

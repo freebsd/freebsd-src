@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)shell.h	8.2 (Berkeley) 5/4/95
- *	$Id: shell.h,v 1.6 1996/10/31 07:15:57 ache Exp $
+ *	$Id: shell.h,v 1.6.2.1 1997/08/25 09:10:41 jkh Exp $
  */
 
 /*

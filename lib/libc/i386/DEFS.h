@@ -35,7 +35,7 @@
  *
  *	from: @(#)DEFS.h	5.1 (Berkeley) 4/23/90
  *
- *	$Id: DEFS.h,v 1.3 1996/05/05 07:56:02 peter Exp $
+ *	$Id: DEFS.h,v 1.3.2.1 1997/02/14 11:08:46 bde Exp $
  */
 
 #include <sys/cdefs.h>

@@ -1,4 +1,4 @@
-/* $RCSfile: stab.c,v $$Revision: 1.2 $$Date: 1995/05/30 05:03:19 $
+/* $RCSfile: stab.c,v $$Revision: 1.2.6.1 $$Date: 1997/05/22 21:41:35 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: stab.c,v $
+ * Revision 1.2.6.1  1997/05/22 21:41:35  imp
+ * MFG->2.2: Fix buffer overflow
+ *
  * Revision 1.2  1995/05/30 05:03:19  rgrimes
  * Remove trailing whitespace.
  *

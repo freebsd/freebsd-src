@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pat_rep.c,v 1.5.2.2 1997/08/25 08:37:02 jkh Exp $
+ *	$Id: pat_rep.c,v 1.5.2.3 1997/09/14 13:07:27 jkh Exp $
  */
 
 #ifndef lint

@@ -33,7 +33,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: Makefile,v 1.1 1994/08/19 12:14:02 davidg Exp $
+#	$Id: Makefile,v 1.2 1996/05/30 02:19:03 pst Exp $
 #
 
 PROG=	modstat

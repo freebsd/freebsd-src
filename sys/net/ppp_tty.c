@@ -70,7 +70,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: ppp_tty.c,v 1.11.2.2 1997/06/18 02:52:16 brian Exp $ */
+/* $Id: ppp_tty.c,v 1.11.2.3 1997/06/22 02:22:15 brian Exp $ */
 /* from Id: ppp_tty.c,v 1.3 1995/08/16 01:36:40 paulus Exp */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 

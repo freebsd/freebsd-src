@@ -10,7 +10,7 @@ use and modify. Please send modifications and/or suggestions + bug fixes to
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: main.c,v 1.3.2.2 1997/09/15 06:26:16 charnier Exp $";
 #endif /* not lint */
 
 #include <ctype.h>

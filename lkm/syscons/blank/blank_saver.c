@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: blank_saver.c,v 1.6.2.1 1997/06/29 08:51:37 obrien Exp $
+ *	$Id: blank_saver.c,v 1.6.2.2 1997/09/02 10:37:30 yokota Exp $
  */
 
 #include <sys/param.h>

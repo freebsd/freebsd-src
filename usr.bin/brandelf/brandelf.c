@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: brandelf.c,v 1.1.2.3 1997/08/23 15:57:35 joerg Exp $
+ *  $Id: brandelf.c,v 1.1.2.4 1997/08/29 05:28:56 imp Exp $
  */
 
 #include <err.h>

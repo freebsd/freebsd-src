@@ -33,7 +33,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: rusers.c,v 1.2.6.1 1997/08/11 07:11:24 charnier Exp $";
+	"$Id: rusers.c,v 1.2.6.2 1997/09/15 10:19:57 jkh Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

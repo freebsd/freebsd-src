@@ -22,5 +22,5 @@ end		return END;
 .		{ return (*yytext); }
 %%
 #ifndef lint
-static char rcsid_et_lex_lex_l[] = "$Header: /home/ncvs/src/usr.bin/compile_et/et_lex.lex.l,v 1.2 1995/01/14 22:29:33 wollman Exp $";
+static char rcsid_et_lex_lex_l[] = "$Header: /home/ncvs/src/usr.bin/compile_et/et_lex.lex.l,v 1.3 1996/07/12 19:05:19 jkh Exp $";
 #endif

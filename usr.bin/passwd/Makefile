@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
-# $Id: Makefile,v 1.19.2.1 1996/11/05 20:13:30 phk Exp $
+# $Id: Makefile,v 1.19.2.2 1997/05/10 21:32:32 davidn Exp $
 
 PROG=	passwd
 SRCS=	local_passwd.c yppasswd_private_xdr.c yppasswd_comm.c yp_passwd.c \

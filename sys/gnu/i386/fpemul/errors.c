@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: errors.c,v 1.4 1995/03/16 18:11:10 bde Exp $
+ *    $Id: errors.c,v 1.5 1996/09/10 08:23:31 bde Exp $
  *
  */
 

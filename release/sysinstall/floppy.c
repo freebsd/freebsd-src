@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.16.2.4 1997/01/24 21:05:52 jkh Exp $
+ * $Id: floppy.c,v 1.16.2.5 1997/03/21 04:49:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

@@ -37,7 +37,7 @@
  *
  *	@(#)info_hes.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: info_hes.c,v 1.2 1995/05/30 03:45:47 rgrimes Exp $
+ * $Id: info_hes.c,v 1.2.6.1 1997/04/29 10:11:58 dfr Exp $
  *
  */
 

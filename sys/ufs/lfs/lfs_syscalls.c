@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_syscalls.c	8.5 (Berkeley) 4/20/94
- * $Id: lfs_syscalls.c,v 1.13 1995/11/12 06:43:17 bde Exp $
+ * $Id: lfs_syscalls.c,v 1.14 1995/12/17 21:09:51 phk Exp $
  */
 
 #include <sys/param.h>

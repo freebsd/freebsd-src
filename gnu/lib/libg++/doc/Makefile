@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1 1996/10/04 08:43:37 peter Exp $
+# $Id: Makefile,v 1.1.2.1 1997/04/11 16:58:00 asami Exp $
 
 INFO = g++FAQ libg++ iostream
 INFOSECTION= "Gcc Documentation"

@@ -1,4 +1,4 @@
-char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.5 $$Date: 1996/06/02 19:59:24 $\nPatch level: ###\n";
+char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.7 $$Date: 1996/06/30 09:47:56 $\nPatch level: ###\n";
 /*
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,11 @@ char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.5 $$Date: 1996/06/02 19:59:24 $
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: perl.c,v $
+ * Revision 1.7  1996/06/30 09:47:56  joerg
+ * Back out Nate's changes from rev. 1.6; our Perl has not been
+ * vulnerable since it used setreuid() as opposed to Posix saved IDs.
+ * The change broke setuid scripts.
+ *
  * Revision 1.5  1996/06/02 19:59:24  gpalmer
  * Use setreuid instead of seteuid for permissions management
  *

@@ -37,7 +37,7 @@
  *
  *	@(#)amq.h	8.1 (Berkeley) 6/6/93
  *
- * $Id: amq.h,v 1.1.1.1 1994/05/26 05:22:05 rgrimes Exp $
+ * $Id: amq.h,v 1.2 1995/12/07 14:33:33 bde Exp $
  *
  */
 

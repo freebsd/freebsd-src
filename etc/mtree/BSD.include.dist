@@ -1,4 +1,4 @@
-#	$Id: BSD.include.dist,v 1.7.2.1 1997/03/09 06:58:45 bde Exp $
+#	$Id: BSD.include.dist,v 1.7.2.2 1997/08/21 04:48:58 peter Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755

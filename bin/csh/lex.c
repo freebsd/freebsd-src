@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: lex.c,v 1.4 1995/08/10 05:13:42 ache Exp $
+ *	$Id: lex.c,v 1.4.2.1 1997/08/24 21:41:35 jkh Exp $
  */
 
 #ifndef lint

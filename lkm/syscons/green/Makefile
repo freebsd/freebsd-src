@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1996/10/06 22:17:02 wosch Exp $
+#	$Id: Makefile,v 1.3.2.1 1997/09/02 10:37:46 yokota Exp $
 
 KMOD=	green_saver_mod
 SRCS= 	green_saver.c

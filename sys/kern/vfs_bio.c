@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.104.2.6 1997/06/21 13:32:58 bde Exp $
+ * $Id: vfs_bio.c,v 1.104.2.7 1997/09/01 23:23:08 tegge Exp $
  */
 
 /*

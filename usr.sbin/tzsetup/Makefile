@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1996/09/04 22:25:35 bde Exp $
+#	$Id: Makefile,v 1.4.2.1 1996/11/28 22:07:05 phk Exp $
 
 PROG=	tzsetup
 MAN8=	tzsetup.8

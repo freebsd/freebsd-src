@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_conv.c,v 1.10 1996/09/19 18:20:43 nate Exp $ */
+/*	$Id: msdosfs_conv.c,v 1.10.2.1 1996/12/14 14:42:07 joerg Exp $ */
 /*	$NetBSD: msdosfs_conv.c,v 1.6.2.1 1994/08/30 02:27:57 cgd Exp $	*/
 
 /*

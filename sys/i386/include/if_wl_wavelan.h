@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: if_wl_wavelan.h,v 1.2 1997/08/01 03:33:43 msmith Exp $ */
 /* 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

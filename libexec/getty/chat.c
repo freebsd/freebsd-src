@@ -22,7 +22,7 @@
  * Modem chat module - send/expect style functions for getty
  * For semi-intelligent modem handling.
  *
- *	$Id: chat.c,v 1.3 1997/02/22 14:21:36 peter Exp $
+ *	$Id: chat.c,v 1.3.2.1 1997/09/01 10:08:44 davidn Exp $
  */
 
 #include <sys/param.h>

@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.51.2.4 1997/08/06 00:22:59 alex Exp $
+ *	$Id: ip_fw.c,v 1.51.2.5 1997/08/23 14:31:52 alex Exp $
  */
 
 /*

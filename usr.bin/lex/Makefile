@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.7 1996/09/19 05:21:07 peter Exp $
+# $Id: Makefile,v 1.8 1996/10/29 05:08:21 peter Exp $
 #
 # By default, flex will be configured to generate 8-bit scanners only if the
 # -8 flag is given.  If you want it to always generate 8-bit scanners, add

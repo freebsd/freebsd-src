@@ -37,7 +37,7 @@
  *
  *      @(#)bpfdesc.h	8.1 (Berkeley) 6/10/93
  *
- * $Id: bpfdesc.h,v 1.7 1996/01/30 22:57:40 mpp Exp $
+ * $Id: bpfdesc.h,v 1.8 1996/02/06 18:51:08 wollman Exp $
  */
 
 #ifndef _NET_BPFDESC_H_

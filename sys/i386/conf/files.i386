@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.141.2.14 1997/09/03 04:25:39 gibbs Exp $
+#	$Id: files.i386,v 1.141.2.15 1997/09/15 04:56:49 rgrimes Exp $
 #
 aicasm				optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/*.[chyl]"			   \

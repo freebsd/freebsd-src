@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw_user.c,v 1.1.1.1.2.8 1997/05/24 10:43:09 davidn Exp $
+ *	$Id: pw_user.c,v 1.1.1.1.2.9 1997/08/01 15:07:25 davidn Exp $
  */
 
 #include <unistd.h>

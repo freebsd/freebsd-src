@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: alias.c,v 1.4 1996/09/01 10:19:26 peter Exp $
+ *	$Id: alias.c,v 1.4.2.1 1997/08/25 09:09:30 jkh Exp $
  */
 
 #ifndef lint

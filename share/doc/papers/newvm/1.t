@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)1.t	5.1 (Berkeley) 4/16/91
-.\"	$Id: 1.t,v 1.5 1997/02/22 13:03:52 peter Exp $
+.\"	$Id: 1.t,v 1.2.2.1 1997/03/15 23:34:53 jkh Exp $
 .\"
 .NH
 Motivations for a New Virtual Memory System

@@ -1,4 +1,4 @@
-#	$Id: aliases,v 1.6 1997/08/19 17:16:14 wosch Exp $
+#	$Id: aliases,v 1.3.2.2 1997/08/21 12:07:55 wosch Exp $
 #	@(#)aliases	5.3 (Berkeley) 5/24/90
 #
 #  Aliases in this file will NOT be expanded in the header from

@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: scsi.c,v 1.12.2.1 1997/06/19 14:25:07 charnier Exp $
+ *	$Id: scsi.c,v 1.12.2.2 1997/09/14 19:48:28 jkh Exp $
  */
 
 #include <stdio.h>

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id$
+ *      $Id: sd.c,v 1.95.2.5 1997/10/15 16:16:03 joerg Exp $
  */
 
 #include "opt_bounce.h"

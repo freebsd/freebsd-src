@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_writev.c,v 1.3 1997/04/01 22:44:18 jb Exp $
+ * $Id: uthread_writev.c,v 1.1.2.1 1997/06/24 00:28:13 julian Exp $
  *
  */
 #include <sys/types.h>

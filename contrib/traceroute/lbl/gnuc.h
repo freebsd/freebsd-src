@@ -1,4 +1,4 @@
-/* @(#) $Header: gnuc.h,v 1.3 95/10/09 02:47:01 leres Exp $ (LBL) */
+/* @(#) $Header: /home/ncvs/src/contrib/traceroute/lbl/gnuc.h,v 1.1.1.1 1996/09/30 19:09:55 fenner Exp $ (LBL) */
 
 /* Define __P() macro, if necessary */
 #ifndef __P

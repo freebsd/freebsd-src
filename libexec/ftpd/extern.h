@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.2 (Berkeley) 4/4/94
- *	$Id: extern.h,v 1.6.2.1 1997/04/26 23:39:29 davidn Exp $
+ *	$Id: extern.h,v 1.6.2.2 1997/09/05 12:45:27 tg Exp $
  */
 
 void	blkfree __P((char **));

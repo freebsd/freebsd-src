@@ -17,7 +17,7 @@
 
 #if !defined(lint) && !defined(LINT)
 static const char rcsid[] =
-	"$Id: entry.c,v 1.4 1995/08/28 21:30:46 mpp Exp $";
+	"$Id: entry.c,v 1.4.2.1 1997/09/16 07:02:25 charnier Exp $";
 #endif
 
 /* vix 26jan87 [RCS'd; rest of log is in RCS file]

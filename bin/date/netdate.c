@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: netdate.c,v 1.3.6.1 1997/03/10 19:51:16 guido Exp $
+ *	$Id: netdate.c,v 1.3.6.2 1997/09/14 13:07:06 jkh Exp $
  */
 
 #ifndef lint

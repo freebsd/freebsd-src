@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)psl.h	5.2 (Berkeley) 1/18/91
- *	$Id: psl.h,v 1.6 1995/01/14 13:20:25 bde Exp $
+ *	$Id: psl.h,v 1.7 1996/01/30 22:54:50 mpp Exp $
  */
 
 #ifndef _MACHINE_PSL_H_

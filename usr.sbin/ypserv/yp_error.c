@@ -34,7 +34,7 @@
  * error logging/reporting facilities
  * stolen from /usr/libexec/mail.local via ypserv
  *
- * $Id: yp_error.c,v 1.3 1996/05/01 02:36:34 wpaul Exp $
+ * $Id: yp_error.c,v 1.3 1996/05/31 16:01:50 wpaul Exp $
  */
 
 #include <stdio.h>
@@ -42,7 +42,7 @@
 #include <syslog.h>
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_error.c,v 1.3 1996/05/01 02:36:34 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_error.c,v 1.3 1996/05/31 16:01:50 wpaul Exp $";
 #endif
 
 int debug;

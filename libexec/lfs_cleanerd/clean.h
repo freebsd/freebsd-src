@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clean.h	8.1 (Berkeley) 6/4/93
- *	$Id$
+ *	$Id: clean.h,v 1.4 1996/09/22 21:53:42 wosch Exp $
  */
 
 /*

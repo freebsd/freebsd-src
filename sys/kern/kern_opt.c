@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_opt.c,v 1.4 1997/02/28 10:14:24 bde Exp $
+ *	$Id: kern_opt.c,v 1.4.2.1 1997/02/28 10:17:29 bde Exp $
  */
 
 #include "opt_defunct.h"

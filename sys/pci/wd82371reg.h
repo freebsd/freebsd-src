@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: wd82371reg.h,v 1.1 1996/01/28 22:15:48 wollman Exp $
  */
 
 #ifndef _PCI_WD82371REG_H_

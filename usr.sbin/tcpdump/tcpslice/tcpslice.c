@@ -22,7 +22,7 @@
 char copyright[] =
     "@(#) Copyright (c) 1987-1990 The Regents of the University of California.\nAll rights reserved.\n";
 static  char rcsid[] =
-    "@(#)$Header: /home/ncvs/src/usr.sbin/tcpdump/tcpslice/tcpslice.c,v 1.3 1995/08/23 05:18:59 pst Exp $ (LBL)";
+    "@(#)$Header: /home/ncvs/src/usr.sbin/tcpdump/tcpslice/tcpslice.c,v 1.3.2.1 1997/08/29 05:16:01 imp Exp $ (LBL)";
 #endif
 
 /*

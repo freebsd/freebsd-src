@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1997/06/22 04:19:08 brian Exp $
+#	$Id: Makefile,v 1.1.1.1.2.1 1997/08/22 10:24:36 peter Exp $
 
 PROG=	natd
 SRCS=	natd.c icmp.c

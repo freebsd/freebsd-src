@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypxfr_main.c,v 1.6 1996/10/25 16:13:05 wpaul Exp $
+ *	$Id: ypxfr_main.c,v 1.6.2.1 1997/10/03 17:47:40 wpaul Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,7 +51,7 @@ struct dom_binding {};
 #include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: ypxfr_main.c,v 1.6 1996/10/25 16:13:05 wpaul Exp $";
+static const char rcsid[] = "$Id: ypxfr_main.c,v 1.6.2.1 1997/10/03 17:47:40 wpaul Exp $";
 #endif
 
 char *progname = "ypxfr";

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scan.l,v 1.3 1996/06/02 17:18:18 phk Exp $
+ * $Id: scan.l,v 1.5 1996/10/16 03:12:22 ache Exp $
  */
 
 #include <ctype.h>

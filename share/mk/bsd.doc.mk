@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.26.2.3 1997/04/04 01:26:08 mpp Exp $
+#	$Id: bsd.doc.mk,v 1.26.2.4 1997/06/21 15:48:16 jkh Exp $
 
 PRINTERDEVICE?=	ascii
 

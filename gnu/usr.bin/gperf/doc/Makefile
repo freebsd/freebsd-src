@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1 1996/09/10 14:03:12 peter Exp $
+# $Id: Makefile,v 1.1.2.1 1997/04/11 16:58:27 asami Exp $
 
 INFO = gperf
 INFOSECTION= "Programming & development tools."

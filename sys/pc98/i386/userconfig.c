@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.10.2.12 1997/08/29 14:54:29 kato Exp $
+ **      $Id: userconfig.c,v 1.10.2.13 1997/09/06 01:21:24 kato Exp $
  **/
 
 /**
@@ -2372,7 +2372,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.10.2.12 1997/08/29 14:54:29 kato Exp $
+ *      $Id: userconfig.c,v 1.10.2.13 1997/09/06 01:21:24 kato Exp $
  */
 
 #include "scbus.h"

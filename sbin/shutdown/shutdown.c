@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: shutdown.c,v 1.4.2.3 1997/08/23 14:11:28 joerg Exp $
+ *	$Id: shutdown.c,v 1.4.2.4 1997/09/14 19:49:29 jkh Exp $
  */
 
 #ifndef lint

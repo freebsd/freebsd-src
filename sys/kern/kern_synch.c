@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.26.2.3 1997/08/13 19:35:33 julian Exp $
+ * $Id: kern_synch.c,v 1.26.2.4 1997/08/18 01:38:29 julian Exp $
  */
 
 #include "opt_ktrace.h"

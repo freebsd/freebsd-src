@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.40.2.4 1997/07/18 19:48:22 se Exp $
+**  $Id: pcisupport.c,v 1.40.2.5 1997/10/10 11:53:38 asami Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **

@@ -30,7 +30,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: quot.c,v 1.3 1995/11/03 17:04:02 peter Exp $";
+static char rcsid[] = "$Id: quot.c,v 1.3.4.1 1997/08/13 12:14:41 jkh Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

@@ -5,7 +5,7 @@
 
 /*
  *
- * $Id: pred.c,v 1.13 1997/06/09 23:38:37 brian Exp $
+ * $Id: pred.c,v 1.7.2.4 1997/08/25 00:34:37 brian Exp $
  *
  * pred.c -- Test program for Dave Rand's rendition of the
  * predictor algorithm

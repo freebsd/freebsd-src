@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_proto.c
  *
- * $Id: ipx_proto.c,v 1.5 1996/05/08 04:38:22 gpalmer Exp $
+ * $Id: ipx_proto.c,v 1.5.2.1 1997/06/28 09:22:41 jhay Exp $
  */
 
 #include <sys/param.h>

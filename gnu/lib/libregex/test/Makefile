@@ -1,4 +1,4 @@
-#	$Id: $
+#	$Id: Makefile,v 1.3 1996/05/07 23:14:48 wosch Exp $
 
 # Generated automatically from Makefile.in by configure.
 # Makefile for regex testing.

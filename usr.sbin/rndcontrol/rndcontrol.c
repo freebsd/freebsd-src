@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: rndcontrol.c,v 1.4 1996/06/25 18:56:19 markm Exp $
+ * $Id: rndcontrol.c,v 1.4.4.1 1997/08/29 05:15:56 imp Exp $
  *
  */
 
