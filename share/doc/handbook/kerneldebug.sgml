@@ -26,10 +26,8 @@
   normally arranged via <tt>/etc/sysconfig</tt> and <tt>/etc/rc</tt>.  
   Alternatively, you can
   hard-code the dump device via the `dump' clause in the `config' line
-  of your kernel config file.  This is deprecated, but might be the
-  only chance to get a crash dump from a kernel that's not booting at
-  all, so that you didn't had the ability to run any command before it
-  used to crash.
+  of your kernel config file.  This is deprecated, use only if you
+  want a crash dump from a kernel that crashes during booting.
 
   <em><bf>Note:</bf> In the following, the term `<tt>kgdb</tt>' refers
   to <tt>gdb</tt> run in `kernel debug mode'.  This can be accomplished by
@@ -44,7 +42,7 @@
   programs will drastically increase, and since
   the whole kernel is loaded entirely at boot time and cannot be
   swapped out later, several megabytes of
-  physical RAM will be wasted.
+  physical memory will be wasted.
 
   If you are testing a new kernel, for example by typing the new
   kernel's name at the boot prompt, but need to boot a different
@@ -58,7 +56,9 @@
   exit                  # ...to multi-user
 </verb></tscreen>
   This instructs <tt>savecore(8)</tt> to use another kernel for symbol name
-  extraction.  It would otherwise default to the currently running kernel.
+  extraction.  It would otherwise default to the currently running kernel
+  and most likely not do anything at all since the crash dump and the
+  kernel symbols differ.
 
   Now, after a crash dump, go to <tt>/sys/compile/WHATEVER</tt> and run
   <tt>kgdb</tt>.  From <tt>kgdb</tt> do:
@@ -70,22 +70,8 @@
   and voila, you can debug the crash dump using the kernel sources
   just like you can for any other program.
 
-  If your kernel panicked due to a trap, perhaps the most common
-  case for getting a core dump, the following trick might help
-  you.  Examine the stack using <tt>kgdb</tt>'s `where' command,
-  and look for the stack frame in the function <tt>trap()</tt>.  Go `up'
-  to that frame, and then type:
-<tscreen><verb>
-  frame frame->tf_ebp frame->tf_eip
-</verb></tscreen>
-  This will tell <tt>kgdb</tt> to go to the stack frame explicitly named by a
-  frame pointer and instruction pointer, which is the location where
-  the trap occured.  There are still some bugs in <tt>kgdb</tt> (you can go
-  `up' from there, but not `down'; the stack trace will still remain
-  as it was before going to here), but generally this method will lead
-  you much closer to the failing piece of code.
-
-  Here's a script log of a <tt>kgdb</tt> session illustrating the above.  Long
+  Here's a script log of a <tt>kgdb</tt> session illustrating the
+  procedure.  Long
   lines have been folded to improve readability, and the lines are
   numbered for reference.  Despite of this, it's a real-world error
   trace taken during the development of the pcvt console driver.
@@ -180,9 +166,13 @@
             a page fault trap though.
 <tag/line 20:/  This is the location of function <tt>trap()</tt>
 	    in the stack trace. 
-<tag/line 36:/  Force usage of a new stack frame, kgdb responds and displays
-            the source line where the trap happened; from looking at the
-            code, there's a high probability that either the pointer
+<tag/line 36:/  Force usage of a new stack frame; this is no longer
+            necessary now.  The stack frames are supposed to point to
+            the right locations now, even in case of a trap.
+            (I don't have a new core dump handy &lt;g&gt;, my kernel
+            didn't panic for rather long.)
+            From looking at the code in source line 403,
+            there's a high probability that either the pointer
             access for ``tp'' was messed up, or the array access was
             out of bounds.
 <tag/line 52:/  The pointer looks suspicious, but happens to be a valid
@@ -202,11 +192,7 @@
   Not everything is lost here.  Don't panic!
 
   Of course, you still need to enable crash dumps.  See above
-  on the options you've got to do this.
-  (This is for safety reasons in the default kernels, to avoid them
-  trying to dump e.g. during system installation where there's no
-  FreeBSD partition at all and valuable data on the disk could be
-  destroyed.)
+  on the options you've got in order to do this.
 
   Go to your kernel compile directory, and edit the line
   containing <tt>COPTFLAGS?=-O</tt>.  Add the <tt>-g</tt> option
@@ -270,14 +256,17 @@
   Ctrl-Alt-ESC.  For syscons, this can be remapped, and some of
   the distributed maps do this, so watch out.
   There's an option
-  available for a COMCONSOLE kernel (``options BREAK_TO_DEBUGGER'')
+  available for serial consoles
   that allows the use of a serial line BREAK on the console line to
-  enter DDB.
+  enter DDB (``<tt>options BREAK_TO_DEBUGGER</tt>''
+  in the kernel config file).  It is not the default since there are a lot of
+  crappy serial adapters around that gratuitously generate a
+  BREAK condition for example when pulling the cable.
 
   The third way is that any panic condition will branch to DDB if
-  the kernel is configured to use it.  It is not wise to
-  configure a kernel with DDB for a machine running unattended
-  for this reason.
+  the kernel is configured to use it.  
+  For this reason, it is not wise to
+  configure a kernel with DDB for a machine running unattended.
 
   The DDB commands roughly resemble some <tt>gdb</tt> commands.  The first you
   probably need is to set a breakpoint:
@@ -325,7 +314,7 @@
 <tscreen><verb>
   n
 </verb></tscreen>
-  Note: this is different from <tt>gdb</tt>'s `next' statement, it's like
+  <bf>Note:</bf> this is different from <tt>gdb</tt>'s `next' statement, it's like
   <tt>gdb</tt>'s `finish'.
 
   To examine data from memory, use (for example):
@@ -364,7 +353,7 @@
 </verb></tscreen>
   Alternatively, you can display a single register value by e.g.
 <tscreen><verb>
-  print $eax
+  p $eax
 </verb></tscreen>
   and modify it by
 <tscreen><verb>
@@ -412,14 +401,24 @@
   is the final way out of disaster and almost the same as hitting
   the Big Red Button.
 
+  If you nead a short command summary, simply type
+<tscreen><verb>
+  help
+</verb></tscreen>
+  However, it's highly recommended to have a printed copy of the
+  <tt>ddb(4)</tt> manual page ready for a debugging session.
+  Remember that it's hard to read the on-line manual while
+  single-stepping the kernel.
 
 
 <sect><heading>Debugging a console driver</heading>
 
 <p>Since you need a console driver to run DDB on, things are more
-  complicated if the console driver itself is flakey.  You might
-  remember the <tt>options COMCONSOLE</tt> line, and hook up a standard
+  complicated if the console driver itself is failing.  You might
+  remember the use of a serial console (either with modified boot
+  blocks, or by specifying <tt><bf>-h</bf></tt> at the <tt>Boot:</tt>
+  prompt), and hook up a standard
   terminal onto your first serial port.  DDB works on any configured
-  console driver, of course it also works on a <tt>COMCONSOLE</tt>.
+  console driver, of course also on a serial console.
 
 
