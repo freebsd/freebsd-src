@@ -651,7 +651,8 @@ _http_get_proxy()
     struct url *purl;
     char *p;
     
-    if ((p = getenv("HTTP_PROXY")) && (purl = fetchParseURL(p))) {
+    if (((p = getenv("HTTP_PROXY")) || (p = getenv("http_proxy"))) &&
+	(purl = fetchParseURL(p))) {
 	if (!*purl->scheme)
 	    strcpy(purl->scheme, SCHEME_HTTP);
 	if (!purl->port)
