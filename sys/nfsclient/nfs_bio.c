@@ -118,6 +118,7 @@ nfs_getpages(ap)
 	pages = ap->a_m;
 	count = ap->a_count;
 
+	mtx_assert(&Giant, MA_OWNED);
 	if (vp->v_object == NULL) {
 		printf("nfs_getpages: called with non-merged cache vnode??\n");
 		return VM_PAGER_ERROR;
@@ -126,9 +127,7 @@ nfs_getpages(ap)
 	if ((nmp->nm_flag & NFSMNT_NFSV3) != 0 &&
 	    (nmp->nm_state & NFSSTA_GOTFSINFO) == 0) {
 		mtx_unlock(&vm_mtx);
-		mtx_lock(&Giant);
 		(void)nfs_fsinfo(nmp, vp, cred, p);
-		mtx_unlock(&Giant);
 		mtx_lock(&vm_mtx);
 	}
 
@@ -174,9 +173,7 @@ nfs_getpages(ap)
 	uio.uio_procp = p;
 
 	mtx_unlock(&vm_mtx);
-	mtx_lock(&Giant);
 	error = nfs_readrpc(vp, &uio, cred);
-	mtx_unlock(&Giant);
 	mtx_lock(&vm_mtx);
 	pmap_qremove(kva, npages);
 
@@ -288,12 +285,11 @@ nfs_putpages(ap)
 	npages = btoc(count);
 	offset = IDX_TO_OFF(pages[0]->pindex);
 
+	mtx_assert(&Giant, MA_OWNED);
 	if ((nmp->nm_flag & NFSMNT_NFSV3) != 0 &&
 	    (nmp->nm_state & NFSSTA_GOTFSINFO) == 0) {
 		mtx_unlock(&vm_mtx);
-		mtx_lock(&Giant);
 		(void)nfs_fsinfo(nmp, vp, cred, p);
-		mtx_unlock(&Giant);
 		mtx_lock(&vm_mtx);
 	}
 
@@ -336,9 +332,7 @@ nfs_putpages(ap)
 	    iomode = NFSV3WRITE_FILESYNC;
 
 	mtx_unlock(&vm_mtx);
-	mtx_lock(&Giant);
 	error = nfs_writerpc(vp, &uio, cred, &iomode, &must_commit);
-	mtx_unlock(&Giant);
 	mtx_lock(&vm_mtx);
 
 	pmap_qremove(kva, npages);
@@ -352,9 +346,7 @@ nfs_putpages(ap)
 		}
 		if (must_commit) {
 			mtx_unlock(&vm_mtx);
-			mtx_lock(&Giant);
 			nfs_clearcommit(vp->v_mount);
-			mtx_unlock(&Giant);
 			mtx_lock(&vm_mtx);
 		}
 	}
