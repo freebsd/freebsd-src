@@ -25,15 +25,14 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+# $FreeBSD$
+#
 
 #
 # For use on the fixit floppy.  External programs required:
 # cpio(1), find(1), test(1)
 #
 
-#
-# $FreeBSD$
-#
 
 archive=${TAPE:-/dev/rsa0}
 blocksize="20"

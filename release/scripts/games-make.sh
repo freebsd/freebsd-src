@@ -1,6 +1,7 @@
 #!/bin/sh
-
+#
 # $FreeBSD$
+#
 
 # Move all the games out to their own dist
 if [ -d ${RD}/trees/bin/usr/games ]; then
