@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_write.c,v 1.3 1997/04/01 22:44:17 jb Exp $
+ * $Id: uthread_write.c,v 1.1.2.1 1997/06/24 00:28:13 julian Exp $
  *
  */
 #include <sys/types.h>
@@ -47,8 +47,8 @@ write(int fd, const void *buf, size_t nbytes)
 	int	ret;
 	int	status;
 
-	/* Lock the file descriptor for read and write: */
-	if ((ret = _thread_fd_lock(fd, FD_RDWR, NULL,
+	/* Lock the file descriptor for write: */
+	if ((ret = _thread_fd_lock(fd, FD_WRITE, NULL,
 	    __FILE__, __LINE__)) == 0) {
 		/* Perform a non-blocking write syscall: */
 		while ((ret = _thread_sys_write(fd, buf, nbytes)) < 0) {
