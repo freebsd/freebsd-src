@@ -1317,7 +1317,7 @@ ng_atm_shutdown(node_p node)
 {
 	struct priv *priv = NG_NODE_PRIVATE(node);
 
-	if (node->nd_flags & NG_REALLY_DIE) {
+	if (node->nd_flags & NGF_REALLY_DIE) {
 		/*
 		 * We are called from unloading the ATM driver. Really,
 		 * really need to shutdown this node. The ifp was
@@ -1332,7 +1332,7 @@ ng_atm_shutdown(node_p node)
 
 #ifdef NGATM_DEBUG
 	if (!allow_shutdown)
-		node->nd_flags &= ~NG_INVALID;
+		NG_NODE_REVIVE(node);		/* we persist */
 	else {
 		IFP2NG(priv->ifp) = NULL;
 		NG_NODE_SET_PRIVATE(node, NULL);
@@ -1343,7 +1343,7 @@ ng_atm_shutdown(node_p node)
 	/*
 	 * We are persistant - reinitialize
 	 */
-	node->nd_flags &= ~NG_INVALID;
+	NG_NODE_REVIVE(node);
 #endif
 	return (0);
 }
