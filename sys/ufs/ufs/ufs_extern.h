@@ -74,8 +74,6 @@ int	 ufs_getlbns(struct vnode *, ufs2_daddr_t, struct indir *, int *);
 int	 ufs_ihashget(struct cdev *, ino_t, int, struct vnode **);
 void	 ufs_ihashinit(void);
 int	 ufs_ihashins(struct inode *, int, struct vnode **);
-struct vnode *
-	 ufs_ihashlookup(struct cdev *, ino_t);
 void	 ufs_ihashrem(struct inode *);
 void	 ufs_ihashuninit(void);
 int	 ufs_inactive(struct vop_inactive_args *);
