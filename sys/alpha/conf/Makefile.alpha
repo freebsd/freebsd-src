@@ -1,7 +1,7 @@
 # Makefile.alpha -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.alpha	7.1 5/10/91
-#	$Id: Makefile.alpha,v 1.26 1999/06/26 12:45:17 peter Exp $
+#	$Id: Makefile.alpha,v 1.27 1999/06/28 09:18:44 peter Exp $
 #
 # Makefile for FreeBSD
 #
@@ -243,7 +243,10 @@ links:
 	sh makelinks && rm -f dontlink
 
 tags:
-	@echo "see $S/kern/Makefile for tags"
+	@[ -f .depend ] || { echo "you must make depend first"; exit 1; }
+	sh $S/conf/systags.sh
+	rm -f tags1
+	sed -e 's,      ../,    ,' tags > tags1
   
 install install.debug:
 	@if [ ! -f ${KERNEL}${.TARGET:S/install//} ] ; then \
