@@ -673,6 +673,8 @@ aio_daemon(void *uproc)
 	mycp->p_fd = NULL;
 	mycp->p_ucred = crcopy(mycp->p_ucred);
 	mycp->p_ucred->cr_uid = 0;
+	uifree(mycp->p_ucred->cr_uidinfo);
+	mycp->p_ucred->cr_uidinfo = uifind(0);
 	mycp->p_ucred->cr_ngroups = 1;
 	mycp->p_ucred->cr_groups[0] = 1;
 
