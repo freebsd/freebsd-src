@@ -47,6 +47,11 @@
 
 int			boot_cpu_id;
 
+void
+cpu_mp_setmaxid(void)
+{
+}
+
 int
 cpu_mp_probe(void)
 {
