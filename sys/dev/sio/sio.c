@@ -899,14 +899,15 @@ sioattach(isdp)
 	}
 #ifdef COM_ESP
 	if (com->esp) {
-		outb(iobase + com_fifo,
-		     FIFO_DMA_MODE | FIFO_ENABLE | FIFO_RCV_RST | FIFO_XMT_RST
-		     | FIFO_RX_MEDH);
-
-		/* Set 16550 compatibility mode. */
+		/*
+		 * Set 16550 compatibility mode.
+		 * We don't use the ESP_MODE_SCALE bit to increase the
+		 * fifo trigger levels because we can't handle large
+		 * bursts of input.
+		 * XXX flow control should be set in comparam(), not here.
+		 */
 		outb(com->esp_port + ESP_CMD1, ESP_SETMODE);
-		outb(com->esp_port + ESP_CMD2,
-		     ESP_MODE_SCALE | ESP_MODE_RTS | ESP_MODE_FIFO);
+		outb(com->esp_port + ESP_CMD2, ESP_MODE_RTS | ESP_MODE_FIFO);
 
 		/* Set RTS/CTS flow control. */
 		outb(com->esp_port + ESP_CMD1, ESP_SETFLOWTYPE);
@@ -1918,6 +1919,15 @@ comparam(tp, t)
 		 */
 		com->fifo_image = t->c_ospeed <= 4800
 				  ? FIFO_ENABLE : FIFO_ENABLE | FIFO_RX_HIGH;
+#ifdef COM_ESP
+		/*
+		 * The Hayes ESP card needs the fifo DMA mode bit set
+		 * in compatibility mode.  If not, it will interrupt
+		 * for each character received.
+		 */
+		if (com->esp)
+			com->fifo_image |= FIFO_DMA_MODE;
+#endif
 		outb(iobase + com_fifo, com->fifo_image);
 	}
 
@@ -2128,6 +2138,10 @@ siostop(tp, rw)
 	disable_intr();
 	if (rw & FWRITE) {
 		if (com->hasfifo)
+#ifdef COM_ESP
+		    /* XXX avoid h/w bug. */
+		    if (!com->esp)
+#endif
 			/* XXX does this flush everything? */
 			outb(com->iobase + com_fifo,
 			     FIFO_XMT_RST | com->fifo_image);
@@ -2140,6 +2154,10 @@ siostop(tp, rw)
 	}
 	if (rw & FREAD) {
 		if (com->hasfifo)
+#ifdef COM_ESP
+		    /* XXX avoid h/w bug. */
+		    if (!com->esp)
+#endif
 			/* XXX does this flush everything? */
 			outb(com->iobase + com_fifo,
 			     FIFO_RCV_RST | com->fifo_image);
