@@ -9,7 +9,7 @@ PermitRootLogin yes
 IgnoreRhosts no
 StrictModes yes
 QuietMode no
-X11Forwarding yes
+X11Forwarding no
 X11DisplayOffset 10
 FascistLogging no
 PrintMotd yes
