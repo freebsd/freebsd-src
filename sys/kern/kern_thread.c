@@ -118,6 +118,8 @@ thread_ctor(void *mem, int size, void *arg, int flags)
 	td->td_state = TDS_INACTIVE;
 	td->td_oncpu = NOCPU;
 
+	td->td_tid = alloc_unr(tid_unrhdr);
+
 	/*
 	 * Note that td_critnest begins life as 1 because the thread is not
 	 * running and is thereby implicitly waiting to be on the receiving
@@ -164,6 +166,8 @@ thread_dtor(void *mem, int size, void *arg)
 		/* NOTREACHED */
 	}
 #endif
+
+	free_unr(tid_unrhdr, td->td_tid);
 	sched_newthread(td);
 }
 
@@ -176,8 +180,6 @@ thread_init(void *mem, int size, int flags)
 	struct thread *td;
 
 	td = (struct thread *)mem;
-
-	td->td_tid = alloc_unr(tid_unrhdr);
 
 	vm_thread_new(td, 0);
 	cpu_thread_setup(td);
@@ -202,8 +204,6 @@ thread_fini(void *mem, int size)
 	sleepq_free(td->td_sleepqueue);
 	umtxq_free(td->td_umtxq);
 	vm_thread_dispose(td);
-
-	free_unr(tid_unrhdr, td->td_tid);
 }
 
 /*
