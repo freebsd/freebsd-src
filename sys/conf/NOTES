@@ -1546,6 +1546,15 @@ options 	DPT_ALLOW_MEMIO
 device		ciss
 
 #
+# Intel Integrated RAID controllers.
+# This driver was developed and is maintained by Intel.  Contacts
+# at Intel for this driver are
+# "Kannanthanam, Boji T" <boji.t.kannanthanam@intel.com> and
+# "Leubner, Achim" <achim.leubner@intel.com>.
+#
+device		iir
+
+#
 # Mylex AcceleRAID and eXtremeRAID controllers with v6 and later
 # firmware.  These controllers have a SCSI-like interface, and require
 # the CAM infrastructure.
