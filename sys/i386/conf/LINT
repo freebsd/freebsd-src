@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.41 1994/01/17 05:45:26 rgrimes Exp $
+#	$Id: LINT,v 1.42 1994/01/21 09:55:56 davidg Exp $
 #
 
 machine		"i386"
@@ -84,7 +84,6 @@ pseudo-device	sl	2
 device		st0
 device		st1
 pseudo-device	swappager
-options         SYSVIPC                 #define if have any SYSV mechanisms
 options		SYSVSHM
 options		"SHMMAXPGS=64"		# 256Kb of sharable memory
 options         SYSVSEM
