@@ -1880,7 +1880,6 @@ umass_cam_rescan(struct umass_softc *sc)
 {
 	struct cam_path *path;
 	union ccb *ccb = malloc(sizeof(union ccb), M_USBDEV, M_WAITOK);
-	struct cam_periph *periph;
 
 	memset(ccb, 0, sizeof(union ccb));
 
@@ -1889,29 +1888,7 @@ umass_cam_rescan(struct umass_softc *sc)
 		USBDEVNAME(sc->sc_dev), cam_sim_path(umass_sim),
 		USBDEVUNIT(sc->sc_dev), CAM_LUN_WILDCARD));
 
-	/* Lookup the peripheral for the SIM */
-	if (xpt_create_path(&path, NULL, cam_sim_path(umass_sim),
-			    UMASS_SCSIID_HOST, 0)
-	    != CAM_REQ_CMP)
-		return;
-	periph = cam_periph_find(path, cam_sim_name(umass_sim));
-#ifdef UMASS_DO_CAM_RESCAN
-	if (periph == NULL) {
-		DPRINTF(UDMASS_SCSI, ("scbus%d: abusing xpt_periph\n",
-			cam_sim_path(umass_sim)));
-		periph = xpt_periph;
-	}
-#endif
-	if (periph == NULL) {
-		DPRINTF(UDMASS_SCSI, ("scbus%d: no periph, rescan failed\n",
-			cam_sim_path(umass_sim)));
-		xpt_free_path(path);
-		return;
-	}
-	xpt_free_path(path);
-
-	/* Lookup the path again, but now include the periph in the path */
-	if (xpt_create_path(&path, periph, cam_sim_path(umass_sim),
+	if (xpt_create_path(&path, xpt_periph, cam_sim_path(umass_sim),
 			    UMASS_SCSIID_HOST, 0)
 	    != CAM_REQ_CMP)
 		return;
@@ -2474,7 +2451,7 @@ umass_ufi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 	/* A UFI command is always 12 bytes in length */
 	KASSERT(*rcmdlen < UFI_COMMAND_LENGTH,
 		("rcmdlen = %d < %d, buffer too small",
-		 rcmdlen, UFI_COMMAND_LENGTH));
+		 *rcmdlen, UFI_COMMAND_LENGTH));
 
 	*rcmdlen = UFI_COMMAND_LENGTH;
 	memset(*rcmd, 0, UFI_COMMAND_LENGTH);
@@ -2546,7 +2523,7 @@ umass_atapi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 	/* A ATAPI command is always 12 bytes in length */
 	KASSERT(*rcmdlen < ATAPI_COMMAND_LENGTH,
 		("rcmdlen = %d < %d, buffer too small",
-		 rcmdlen, ATAPI_COMMAND_LENGTH));
+		 *rcmdlen, ATAPI_COMMAND_LENGTH));
 
 	*rcmdlen = ATAPI_COMMAND_LENGTH;
 	memset(*rcmd, 0, ATAPI_COMMAND_LENGTH);
