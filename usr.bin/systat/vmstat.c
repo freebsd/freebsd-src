@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
 #endif
 static const char rcsid[] =
-	"$Id: vmstat.c,v 1.28 1998/10/05 04:04:27 ken Exp $";
+	"$Id: vmstat.c,v 1.29 1998/10/08 09:56:10 obrien Exp $";
 #endif /* not lint */
 
 /*
@@ -340,6 +340,10 @@ labelkre()
 	for (i = 0; i < num_devices && j < MAXDRIVES; i++)
 		if (dev_select[i].selected) {
 			char tmpstr[80];
+#ifndef WANT_FD
+			if (0==strcmp("fd", dev_select[i].device_name))
+				continue;
+#endif
 			sprintf(tmpstr, "%s%d", dev_select[i].device_name,
 				dev_select[i].unit_number);
 			mvprintw(DISKROW, DISKCOL + 5 + 6 * j,
@@ -492,6 +496,10 @@ showkre()
 	for (i = 0, c = 0; i < num_devices && c < MAXDRIVES; i++)
 		if (dev_select[i].selected) {
 			char tmpstr[80];
+#ifndef WANT_FD
+			if (0==strcmp("fd", dev_select[i].device_name))
+				continue;
+#endif
 			sprintf(tmpstr, "%s%d", dev_select[i].device_name,
 				dev_select[i].unit_number);
 			mvprintw(DISKROW, DISKCOL + 5 + 6 * c,
