@@ -19,15 +19,36 @@ please install from:
 
 Many many bugs fixed and security enhancements made.
 
+Table of contents:
+------------------
+1. What's new since 2.2.X-RELEASE
+   1.1 KERNEL CHANGES
+   1.2 SECURITY FIXES
+   1.3 USERLAND CHANGES
+
+2. Supported Configurations
+   2.1 Disk Controllers
+   2.2 Ethernet cards
+   2.3 ATM
+   2.4 Misc
+
+3. Obtaining FreeBSD
+   3.1 FTP/Mail
+   3.2 CDROM
+
+4. Upgrading from previous releases of FreeBSD
+
+5. Reporting problems, making suggestions, submitting code
+6. Acknowledgements
+
 
 1. What's new since 2.2.X-RELEASE
-------------------------------------
-
+---------------------------------
 All changes described here are unique to the 3.0 branch unless
 specifically marked as [MERGED] features.
 
-KERNEL CHANGES:
-
+1.1. KERNEL CHANGES
+-------------------
 o The 2.2.x SCSI subsystem has been almost entirely replaced with 
   a new "CAM" (Common Access Method) SCSI system which offers
   improved performance, better error recovery and support for more
@@ -235,8 +256,8 @@ o Added full bus master DMA support for 3c900 and 3c905 adapters and
   [MERGED: Also in 2.2.8 and later releases on 2.2-STABLE branch]
 
 
-SECURITY CHANGES
-
+1.2. SECURITY FIXES
+-------------------
 [MERGED: all changes soon after specified date in 2.2-STABLE branch]
 
 97/7/29	Lots of lpr/lpd security fixes merged from OpenBSD.
@@ -260,8 +281,8 @@ also believed to be fixed.
 KerberosIV is now merged.
 
 
-USERLAND CHANGES:
-
+1.3. USERLAND CHANGES
+---------------------
 The default binary type (and compiler toolchain) has been
 switched from a.out to ELF.  This gives us access to much
 newer compiler technology (much of which didn't support a.out),
@@ -355,7 +376,6 @@ agent. Several syntax bugs have been fixed.
 
 2. Supported Configurations
 ---------------------------
-
 FreeBSD currently runs on a wide variety of ISA, VLB, EISA and PCI bus
 based PC's, ranging from 386sx to Pentium class machines (though the
 386sx is not recommended).  Support for generic IDE or ESDI drive
@@ -369,7 +389,6 @@ received confirmation of this.
 
 2.1. Disk Controllers
 ---------------------
-
 WD1003 (any generic MFM/RLL)
 WD1007 (any generic IDE/ESDI)
 IDE
@@ -451,7 +470,6 @@ Unmaintained drivers, they might or might not work for your hardware:
 
 2.2. Ethernet cards
 -------------------
-
 Allied-Telesis AT1700 and RE2000 cards
 
 AMD PCnet/PCI (79c970 & 53c974 or 79c974)
@@ -461,10 +479,10 @@ WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
 based clones.  SMC Elite Ultra.  SMC Etherpower II.
 
 Texas Instruments ThunderLAN PCI NICs, including the following:
-Compaq Netelligent 10, 10/100, 10/100 Proliant, 10/100 Dual-Port
-Compaq Netelligent 10/100 TX Embedded UTP, 10 T PCI UTP/Coax, 10/100 TX UTP
-Compaq NetFlex 3P, 3P Integrated, 3P w/ BNC
-Olicom OC-2135/2138, OC-2325, OC-2326 10/100 TX UTP
+  Compaq Netelligent 10, 10/100, 10/100 Proliant, 10/100 Dual-Port
+  Compaq Netelligent 10/100 TX Embedded UTP, 10 T PCI UTP/Coax, 10/100 TX UTP
+  Compaq NetFlex 3P, 3P Integrated, 3P w/ BNC
+  Olicom OC-2135/2138, OC-2325, OC-2326 10/100 TX UTP
 
 DEC EtherWORKS III NICs (DE203, DE204, and DE205)
 DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
@@ -498,7 +516,7 @@ Novell NE1000, NE2000, and NE2100 ethernet interface.
 Toshiba ethernet cards
 
 Crystal Semiconductor CS89x0-based NICs, including:
-IBM Etherjet ISA
+  IBM Etherjet ISA
 
 PCMCIA ethernet cards from IBM and National Semiconductor are also
 supported.
@@ -650,9 +668,48 @@ Should you be dissatisfied for any reason, the CD comes with an
 unconditional return policy.
 
 
-4. Reporting problems, making suggestions, submitting code.
------------------------------------------------------------
+4. Upgrading from previous releases of FreeBSD
+----------------------------------------------
 
+If you're upgrading from a previous release of FreeBSD, most likely
+it's 2.2.x or 2.1.x (in some lesser number of cases) and some of the
+following issues may affect you, depending of course on your chosen
+method of upgrading.  There are two popular ways of upgrading
+FreeBSD distributions:
+
+        o Using sources, via /usr/src
+        o Using sysinstall's (binary) upgrade option.
+
+In the case of using sources, there are simply two targets you need to
+be aware of: The standard ``world'' target, which will upgrade a 2.x
+system to 3.0, or the ``aout-to-elf'' target, which will both upgrade
+and convert the system to ELF binary format.
+In the case of using the binary upgrade option, the system will go
+straight to 3.0/ELF but also populate the /<basepath>/lib/aout
+directories for backwards compatibility with older binaries.
+
+In either case, going to ELF will mean that you'll have somewhat
+smaller binaries and access to a lot more compiler goodies which have
+been already been ported to other ELF environments (our older and
+somewhat crufty a.out format being largely unsupported by most other
+software projects), but on the downside you'll also have access to far
+fewer ports and packages since many of those have not been adapted to
+ELF yet.  This will occur in time, but those who wish to retain access
+to the greatest number of packages and 3rd-party binaries should
+probably stick with a.out.
+
+The kernel is also still in a.out format at this time so that older
+LKMs and library interfaces can continue to work, but a full
+transition to ELF will occur at some point after 3.0-RELEASE.  Those
+wishing to generate dynamic kernel components should therefore use the
+newer KLD mechanism rather than the older LKM format - the LKM format
+is not long for this world and will soon be unsupported!
+
+[ other important upgrading notes should go here]
+
+
+5. Reporting problems, making suggestions, submitting code.
+-----------------------------------------------------------
 Your suggestions, bug reports and contributions of code are always
 valued - please do not hesitate to report any problems you may find
 (preferably with a fix attached, if you can!).
@@ -710,7 +767,7 @@ special interest groups not mentioned here, so send mail to majordomo
 and ask about them!
 
 
-5. Acknowledgements
+6. Acknowledgements
 -------------------
 
 FreeBSD represents the cumulative work of many dozens, if not
