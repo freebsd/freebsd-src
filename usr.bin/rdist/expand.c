@@ -180,12 +180,13 @@ expstr(s)
 			*tail = savec;
 		if (tp != NULL) {
 			for (; tp != NULL; tp = tp->n_next) {
-				sprintf(buf, "%s%s%s", s, tp->n_name, tail);
+				snprintf(buf, sizeof(buf), 
+				    "%s%s%s", s, tp->n_name, tail);
 				expstr(buf);
 			}
 			return;
 		}
-		sprintf(buf, "%s%s", s, tail);
+		snprintf(buf, sizeof(buf), "%s%s", s, tail);
 		expstr(buf);
 		return;
 	}
