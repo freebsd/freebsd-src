@@ -1211,7 +1211,8 @@ pmap_collect(void)
 }
 
 static int
-pmap_remove_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp, vm_offset_t va)
+pmap_remove_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp,
+		vm_offset_t va)
 {
 	vm_page_t m;
 
@@ -1262,7 +1263,8 @@ pmap_remove(pmap_t pm, vm_offset_t start, vm_offset_t end)
 }
 
 static int
-pmap_protect_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp, vm_offset_t va)
+pmap_protect_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp,
+		 vm_offset_t va)
 {
 	vm_page_t m;
 	u_long data;
