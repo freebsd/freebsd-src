@@ -39,8 +39,8 @@
 
 #include <machine/db_machdep.h>		/* type definitions */
 
-typedef void db_cmdfcn_t __P((db_expr_t addr, boolean_t have_addr,
-			      db_expr_t count, char *modif));
+typedef void db_cmdfcn_t(db_expr_t addr, boolean_t have_addr,
+			      db_expr_t count, char *modif);
 
 #define DB_COMMAND(cmd_name, func_name) \
 	DB_SET(cmd_name, func_name, db_cmd_set)
@@ -79,32 +79,32 @@ extern db_expr_t db_tab_stop_width;
 
 struct vm_map;
 
-void		db_check_interrupt __P((void));
-void		db_clear_watchpoints __P((void));
-db_addr_t	db_disasm __P((db_addr_t loc, boolean_t altfmt));
+void		db_check_interrupt(void);
+void		db_clear_watchpoints(void);
+db_addr_t	db_disasm(db_addr_t loc, boolean_t altfmt);
 				/* instruction disassembler */
-void		db_error __P((char *s));
-int		db_expression __P((db_expr_t *valuep));
-int		db_get_variable __P((db_expr_t *valuep));
-void		db_iprintf __P((const char *,...)) __printflike(1, 2);
-struct vm_map	*db_map_addr __P((vm_offset_t));
-boolean_t	db_map_current __P((struct vm_map *));
-boolean_t	db_map_equal __P((struct vm_map *, struct vm_map *));
-void		db_print_loc_and_inst __P((db_addr_t loc));
-void		db_printf __P((const char *fmt, ...)) __printflike(1, 2);
-void		db_read_bytes __P((vm_offset_t addr, size_t size, char *data));
+void		db_error(char *s);
+int		db_expression(db_expr_t *valuep);
+int		db_get_variable(db_expr_t *valuep);
+void		db_iprintf(const char *,...) __printflike(1, 2);
+struct vm_map	*db_map_addr(vm_offset_t);
+boolean_t	db_map_current(struct vm_map *);
+boolean_t	db_map_equal(struct vm_map *, struct vm_map *);
+void		db_print_loc_and_inst(db_addr_t loc);
+void		db_printf(const char *fmt, ...) __printflike(1, 2);
+void		db_read_bytes(vm_offset_t addr, size_t size, char *data);
 				/* machine-dependent */
-int		db_readline __P((char *lstart, int lsize));
-void		db_restart_at_pc __P((boolean_t watchpt));
-void		db_set_watchpoints __P((void));
-void		db_skip_to_eol __P((void));
-boolean_t	db_stop_at_pc __P((boolean_t *is_breakpoint));
+int		db_readline(char *lstart, int lsize);
+void		db_restart_at_pc(boolean_t watchpt);
+void		db_set_watchpoints(void);
+void		db_skip_to_eol(void);
+boolean_t	db_stop_at_pc(boolean_t *is_breakpoint);
 #define		db_strcpy	strcpy
-void		db_trap __P((int type, int code));
-int		db_value_of_name __P((const char *name, db_expr_t *valuep));
-void		db_write_bytes __P((vm_offset_t addr, size_t size, char *data));
+void		db_trap(int type, int code);
+int		db_value_of_name(const char *name, db_expr_t *valuep);
+void		db_write_bytes(vm_offset_t addr, size_t size, char *data);
 				/* machine-dependent */
-void		kdb_init __P((void));
+void		kdb_init(void);
 
 db_cmdfcn_t	db_breakpoint_cmd;
 db_cmdfcn_t	db_continue_cmd;

@@ -63,7 +63,7 @@ db_expr_t	db_tab_stop_width = 8;		/* how wide are tab stops? */
 	((((i) + db_tab_stop_width) / db_tab_stop_width) * db_tab_stop_width)
 db_expr_t	db_max_width = 79;		/* output line width */
 
-static void db_putchar __P((int c, void *arg));
+static void db_putchar(int c, void *arg);
 
 /*
  * Force pending whitespace.

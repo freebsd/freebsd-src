@@ -69,13 +69,13 @@ typedef int		db_strategy_t;	/* search strategy */
 /*
  * Functions exported by the symtable module
  */
-void		db_add_symbol_table __P((char *, char *, char *, char *));
+void		db_add_symbol_table(char *, char *, char *, char *);
 					/* extend the list of symbol tables */
 
-c_db_sym_t	db_search_symbol __P((db_addr_t, db_strategy_t, db_expr_t *));
+c_db_sym_t	db_search_symbol(db_addr_t, db_strategy_t, db_expr_t *);
 					/* find symbol given value */
 
-void		db_symbol_values __P((c_db_sym_t, const char **, db_expr_t *));
+void		db_symbol_values(c_db_sym_t, const char **, db_expr_t *);
 					/* return name and value of symbol */
 
 #define db_find_sym_and_offset(val,namep,offp)	\
@@ -86,25 +86,25 @@ void		db_symbol_values __P((c_db_sym_t, const char **, db_expr_t *));
 	db_symbol_values(db_search_symbol(val,DB_STGY_XTRN,offp),namep,0)
 					/* ditto, but no locals */
 
-int		db_eqname __P((const char *, const char *, int));
+int		db_eqname(const char *, const char *, int);
 					/* strcmp, modulo leading char */
 
-void		db_printsym __P((db_expr_t, db_strategy_t));
+void		db_printsym(db_expr_t, db_strategy_t);
 					/* print closest symbol to a value */
 
-int		db_sym_numargs __P((c_db_sym_t, int *, char **));
+int		db_sym_numargs(c_db_sym_t, int *, char **);
 
-boolean_t	X_db_line_at_pc __P((db_symtab_t *symtab, c_db_sym_t cursym,
+boolean_t	X_db_line_at_pc(db_symtab_t *symtab, c_db_sym_t cursym,
 				     char **filename, int *linenum,
-				     db_expr_t off));
-c_db_sym_t	X_db_lookup __P((db_symtab_t *stab, const char *symstr));
-c_db_sym_t	X_db_search_symbol __P((db_symtab_t *symtab, db_addr_t off,
+				     db_expr_t off);
+c_db_sym_t	X_db_lookup(db_symtab_t *stab, const char *symstr);
+c_db_sym_t	X_db_search_symbol(db_symtab_t *symtab, db_addr_t off,
 					db_strategy_t strategy,
-					db_expr_t *diffp));
-int		X_db_sym_numargs __P((db_symtab_t *, c_db_sym_t, int *,
-				      char **));
-void		X_db_symbol_values __P((db_symtab_t *symtab,
+					db_expr_t *diffp);
+int		X_db_sym_numargs(db_symtab_t *, c_db_sym_t, int *,
+				      char **);
+void		X_db_symbol_values(db_symtab_t *symtab,
 					c_db_sym_t sym, const char **namep,
-					db_expr_t *valuep));
+					db_expr_t *valuep);
 
 #endif /* !_DDB_DB_SYM_H_ */

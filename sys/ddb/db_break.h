@@ -54,14 +54,14 @@ struct db_breakpoint {
 };
 typedef struct db_breakpoint *db_breakpoint_t;
 
-void		db_clear_breakpoints __P((void));
+void		db_clear_breakpoints(void);
 #ifdef SOFTWARE_SSTEP
-void		db_delete_temp_breakpoint __P((db_breakpoint_t));
+void		db_delete_temp_breakpoint(db_breakpoint_t);
 #endif
-db_breakpoint_t	db_find_breakpoint_here __P((db_addr_t addr));
-void		db_set_breakpoints __P((void));
+db_breakpoint_t	db_find_breakpoint_here(db_addr_t addr);
+void		db_set_breakpoints(void);
 #ifdef SOFTWARE_SSTEP
-db_breakpoint_t	db_set_temp_breakpoint __P((db_addr_t));
+db_breakpoint_t	db_set_temp_breakpoint(db_addr_t);
 #endif
 
 #endif /* !_DDB_DB_BREAK_H_ */

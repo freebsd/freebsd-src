@@ -37,11 +37,11 @@
 #include <ddb/db_access.h>
 #include <ddb/db_command.h>
 
-static boolean_t	db_add_expr __P((db_expr_t *valuep));
-static boolean_t	db_mult_expr __P((db_expr_t *valuep));
-static boolean_t	db_shift_expr __P((db_expr_t *valuep));
-static boolean_t	db_term __P((db_expr_t *valuep));
-static boolean_t	db_unary __P((db_expr_t *valuep));
+static boolean_t	db_add_expr(db_expr_t *valuep);
+static boolean_t	db_mult_expr(db_expr_t *valuep);
+static boolean_t	db_shift_expr(db_expr_t *valuep);
+static boolean_t	db_term(db_expr_t *valuep);
+static boolean_t	db_unary(db_expr_t *valuep);
 
 static boolean_t
 db_term(valuep)
