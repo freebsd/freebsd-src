@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: plist.c,v 1.5 1993/08/26 08:13:49 jkh Exp $";
+static const char *rcsid = "$Id: plist.c,v 1.6 1993/09/04 05:06:52 jkh Exp $";
 #endif
 
 /*
@@ -26,7 +26,7 @@ static const char *rcsid = "$Id: plist.c,v 1.5 1993/08/26 08:13:49 jkh Exp $";
 
 /* Add an item to a packing list */
 void
-add_plist(Package *p, int type, char *arg)
+add_plist(Package *p, plist_t type, char *arg)
 {
     PackingList tmp;
 
@@ -40,6 +40,24 @@ add_plist(Package *p, int type, char *arg)
 	tmp->prev = p->tail;
 	p->tail->next = tmp;
 	p->tail = tmp;
+    }
+}
+
+void
+add_plist_top(Package *p, plist_t type, char *arg)
+{
+    PackingList tmp;
+
+    tmp = new_plist_entry();
+    tmp->name = copy_string(arg);
+    tmp->type = type;
+
+    if (!p->head)
+	p->head = p->tail = tmp;
+    else {
+	tmp->next = p->head;
+	p->head->prev = tmp;
+	p->head = tmp;
     }
 }
 
@@ -62,6 +80,20 @@ mark_plist(Package *pkg)
     }
 }
 
+/* Return whether or not there is an item of 'type' in the list */
+Boolean
+in_plist(Package *pkg, plist_t type)
+{
+    PackingList p = pkg->head;
+
+    while (p) {
+	if (p->type == type)
+	    return TRUE;
+	p = p->next;
+    }
+    return FALSE;
+}
+    
 /* Allocate a new packing list entry */
 PackingList
 new_plist_entry(void)
@@ -115,6 +147,8 @@ plist_cmd(char *s, char **arg)
     if (arg)
 	*arg = sp;
     if (!strcmp(cmd, "cwd"))
+	return PLIST_CWD;
+    else if (!strcmp(cmd, "cd"))
 	return PLIST_CWD;
     else if (!strcmp(cmd, "exec"))
 	return PLIST_CMD;
@@ -226,7 +260,7 @@ delete_package(Boolean ign_err, Package *pkg)
 	if (p->type == PLIST_CWD) {
 	    Where = p->name;
 	    if (Verbose)
-		printf("Delete: (CWD to %s)\n", Where);
+		printf("(CWD to %s)\n", Where);
 	}
 	else if (p->type == PLIST_IGNORE)
 	    p = p->next;

@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: pl.c,v 1.4 1993/08/26 08:12:53 jkh Exp $";
+static const char *rcsid = "$Id: pl.c,v 1.5 1993/09/04 05:06:34 jkh Exp $";
 #endif
 
 /*

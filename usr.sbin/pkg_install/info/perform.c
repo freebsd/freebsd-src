@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.3 1993/08/26 08:47:06 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.4 1993/09/04 05:06:43 jkh Exp $";
 #endif
 
 /*
@@ -117,19 +117,19 @@ pkg_do(char *pkg)
     }
     else {
 	/* Start showing the package contents */
-	printf("Information for %s:\n\n", pkg);
+	printf("%sInformation for %s:\n\n", InfoPrefix, pkg);
 	if (Flags & SHOW_COMMENT)
-	    show_file("Comment:\n", COMMENT_FNAME);
+	    show_file("Comment:\n", COMMENT_FNAME);
 	if (Flags & SHOW_DESC)
-	    show_file("Description:\n", DESC_FNAME);
+	    show_file("Description:\n", DESC_FNAME);
 	if (Flags & SHOW_PLIST)
-	    show_plist("Packing list:\n", &plist, (plist_t)-1);
+	    show_plist("Packing list:\n", &plist, (plist_t)-1);
 	if ((Flags & SHOW_INSTALL) && fexists(INSTALL_FNAME))
-	    show_file("Install script:\n", INSTALL_FNAME);
+	    show_file("Install script:\n", INSTALL_FNAME);
 	if ((Flags & SHOW_DEINSTALL) && fexists(DEINSTALL_FNAME))
-	    show_file("De-Install script:\n", DEINSTALL_FNAME);
+	    show_file("De-Install script:\n", DEINSTALL_FNAME);
 	if (Flags & SHOW_PREFIX)
-	    show_plist("Prefix(s):\n", &plist, PLIST_CWD);
+	    show_plist("Prefix(s):\n", &plist, PLIST_CWD);
 	putchar('\014');
     }
     free_plist(&plist);
