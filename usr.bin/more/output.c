@@ -226,7 +226,7 @@ error(s)
 	}
 	lower_left();
 
-	if (strlen(s) + sizeof(return_to_continue) + 
+	if ((s==NULL)?0:(strlen(s)) + sizeof(return_to_continue) + 
 		so_width + se_width + 1 > sc_width)
 		/*
 		 * Printing the message has probably scrolled the screen.
