@@ -1,5 +1,5 @@
 :
-set -ex
+# set -ex
 
 VNDEVICE=vn0
 export BLOCKSIZE=512
