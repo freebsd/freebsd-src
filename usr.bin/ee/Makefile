@@ -20,7 +20,7 @@ ${lang}.ee.cat: ${.CURDIR}/nls/${lang}/ee.msg
 
 beforeinstall:
 .for lang in ${LANGS}
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 	    ${lang}.ee.cat ${DESTDIR}${NLSDIR}/${lang}/ee.cat
 .endfor
 
