@@ -96,7 +96,6 @@ crypto/des/arch/i386/des_enc.S		optional	ipsec ipsec_esp
 crypto/des/des_ecb.c			optional	netsmbcrypto
 crypto/des/arch/i386/des_enc.S		optional	netsmbcrypto
 crypto/des/des_setkey.c			optional	netsmbcrypto
-#dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_cbus.c		optional	aic isa
 dev/ar/if_ar_isa.c		optional	ar isa
 dev/cm/if_cm_isa.c		optional	cm isa
@@ -104,7 +103,6 @@ dev/ct/bshw_machdep.c		optional	ct
 dev/ct/ct.c			optional	ct
 dev/ct/ct_isa.c			optional	ct isa
 dev/ed/if_ed_cbus.c		optional	ed isa
-dev/eisa/eisaconf.c		optional	eisa
 dev/em/if_em.c			optional	em
 dev/em/if_em_fxhw.c		optional	em
 dev/em/if_em_phy.c		optional	em
@@ -259,21 +257,13 @@ i386/isa/isa_compat.c		optional	isa compat_oldisa	\
 i386/isa/istallion.c		optional	stli nowerror
 i386/isa/loran.c		optional	loran
 i386/isa/matcd/matcd.c		count		matcd
-i386/isa/mca_machdep.c		optional	mca
 i386/isa/mcd.c			count		mcd
 i386/isa/npx.c			optional	npx
 i386/isa/pcf.c			optional	pcf
-i386/isa/pcvt/pcvt_drv.c	optional	vt
-i386/isa/pcvt/pcvt_ext.c	optional	vt
-i386/isa/pcvt/pcvt_kbd.c	optional	vt
-i386/isa/pcvt/pcvt_out.c	optional	vt
-i386/isa/pcvt/pcvt_sup.c	optional	vt
-i386/isa/pcvt/pcvt_vtf.c	optional	vt
 i386/isa/pmtimer.c		optional	pmtimer
 i386/isa/prof_machdep.c		optional	profiling-routine
 i386/isa/rc.c			count		rc
 i386/isa/scd.c			count		scd
-i386/isa/spic.c			optional	spic
 i386/isa/spigot.c		count		spigot
 i386/isa/stallion.c		optional	stl nowerror
 i386/isa/tw.c			count		tw
@@ -378,7 +368,6 @@ i4b/layer1/itjc/i4b_itjc_isac.c		optional	itjc
 i4b/layer1/itjc/i4b_itjc_l1.c		optional	itjc
 i4b/layer1/itjc/i4b_itjc_l1fsm.c	optional	itjc
 #
-isa/psm.c			optional	psm
 kern/imgact_aout.c		standard
 kern/imgact_gzip.c		optional	gzip
 kern/link_aout.c		standard

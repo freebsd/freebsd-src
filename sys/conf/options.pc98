@@ -95,10 +95,6 @@ SC_TWOBUTTON_MOUSE	opt_syscons.h
 
 GDC			opt_gdc.h
 
-PSM_HOOKRESUME		opt_psm.h
-PSM_RESETAFTERSUSPEND	opt_psm.h
-PSM_DEBUG		opt_psm.h
-
 PUC_FASTINTR		opt_puc.h
 
 KBD_DISABLE_KEYMAP_LOAD	opt_kbd.h
@@ -107,22 +103,6 @@ KBD_MAXRETRY		opt_kbd.h
 KBD_MAXWAIT		opt_kbd.h
 KBD_RESETDELAY		opt_kbd.h
 KBDIO_DEBUG		opt_kbd.h
-
-EISA_SLOTS		opt_eisa.h
-
-# pcvt(4) has a bunch of options
-FAT_CURSOR		opt_pcvt.h
-XSERVER			opt_pcvt.h
-PCVT_24LINESDEF		opt_pcvt.h
-PCVT_CTRL_ALT_DEL	opt_pcvt.h
-PCVT_META_ESC		opt_pcvt.h
-PCVT_NSCREENS		opt_pcvt.h
-PCVT_PRETTYSCRNS	opt_pcvt.h
-PCVT_SCANSET		opt_pcvt.h
-PCVT_SCREENSAVER	opt_pcvt.h
-PCVT_USEKBDSEC		opt_pcvt.h
-PCVT_VT220KEYB		opt_pcvt.h
-PCVT_GREENSAVER		opt_pcvt.h
 
 # Video spigot
 SPIGOT_UNSECURE		opt_spigot.h
