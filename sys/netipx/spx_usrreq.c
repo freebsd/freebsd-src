@@ -566,8 +566,11 @@ present:
 				cb->s_oobflags &= ~SF_IOOB;
 				if (so->so_rcv.sb_cc)
 					so->so_oobmark = so->so_rcv.sb_cc;
-				else
+				else {
+					SOCKBUF_LOCK(&so->so_rcv);
 					so->so_rcv.sb_state |= SBS_RCVATMARK;
+					SOCKBUF_UNLOCK(&so->so_rcv);
+				}
 			}
 			q = q->si_prev;
 			remque(q->si_next);
@@ -597,7 +600,9 @@ present:
 					MCHTYPE(m, MT_OOBDATA);
 					spx_newchecks[1]++;
 					so->so_oobmark = 0;
+					SOCKBUF_LOCK(&so->so_rcv);
 					so->so_rcv.sb_state &= ~SBS_RCVATMARK;
+					SOCKBUF_UNLOCK(&so->so_rcv);
 				}
 				if (packetp == 0) {
 					m->m_data += SPINC;
