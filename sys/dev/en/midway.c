@@ -108,7 +108,7 @@
 #endif /* EN_DEBUG */
 
 #ifdef __FreeBSD__
-#include "en.h"
+#include "en.h"			/* XXX for midwayvar.h's NEN */
 #include "opt_inet.h"
 #include "opt_natm.h"
 #include "opt_ddb.h"
@@ -118,8 +118,6 @@
 #define	EN_DDBHOOK	1
 #endif
 #endif
-
-#if NEN > 0 || !defined(__FreeBSD__)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -3446,5 +3444,3 @@ int unit, addr, len;
   return(0);
 }
 #endif
-
-#endif /* NEN > 0 || !defined(__FreeBSD__) */
