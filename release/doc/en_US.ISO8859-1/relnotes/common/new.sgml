@@ -1474,6 +1474,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>A race condition in &man.pw.8;, which could expose the
     contents of <filename>/etc/master.passwd</filename>, has been
     eliminated.  (See security advisory FreeBSD-SA-02:02.) &merged;</para>
+
+    <para>A bug in &man.k5su.8; could have allowed a process that had
+    given up superuser privileges to regain them.  This bug has been
+    fixed.  (See security advisory FreeBSD-SA-02:07.) &merged;</para>
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
