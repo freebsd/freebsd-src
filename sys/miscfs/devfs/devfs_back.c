@@ -20,7 +20,7 @@
 
 
 
-devb_p	dev_root;		/* root of the backing tree */
+devnm_p	dev_root;		/* root of the backing tree */
 int	devfs_set_up = 0;	/* note tha we HAVE set up the backing tree */
 
 /*
@@ -33,7 +33,7 @@ int	devfs_set_up = 0;	/* note tha we HAVE set up the backing tree */
 void  devfs_back_init() /*proto*/
 {
 
-	devb_p devbp;
+	devnm_p devbp;
 	dn_p dnp;
 	/* 
 	 * This may be called several times.. only do it if it needs
@@ -44,12 +44,12 @@ void  devfs_back_init() /*proto*/
 		/*
 	 	 * Allocate and fill out a new backing node
 	 	 */
-		if(!(devbp = (devb_p)malloc(sizeof(devb_t),
+		if(!(devbp = (devnm_p)malloc(sizeof(devnm_t),
 					M_DEVFSBACK, M_NOWAIT)))
 		{
 			return ;
 		}
-		bzero(devbp,sizeof(devb_t));
+		bzero(devbp,sizeof(devnm_t));
 		/*
 		 * And the devnode associated with it
 		 */
@@ -72,15 +72,15 @@ void  devfs_back_init() /*proto*/
 		dnp->type = DEV_DIR;
 		dnp->links++; /* for .*/
 		/* root loops to self */
-		dnp->by.BackDir.parent = dnp;
+		dnp->by.Dir.parent = dnp;
 		dnp->links++; /* for ..*/
 		/*
 		 * set up the list of children (none so far)
 		 */
-		dnp->by.BackDir.dirlist = (devb_p)0;
-		dnp->by.BackDir.dirlast =
-				&dnp->by.BackDir.dirlist;
-		dnp->by.BackDir.myname = devbp;
+		dnp->by.Dir.dirlist = (devnm_p)0;
+		dnp->by.Dir.dirlast =
+				&dnp->by.Dir.dirlist;
+		dnp->by.Dir.myname = devbp;
 		/* 
 		 * set up a pointer to directory type ops
 		 */
@@ -96,8 +96,8 @@ void  devfs_back_init() /*proto*/
 		/*
 		 * and the list of layers
 		 */
-		devbp->fronts = NULL;
-		devbp->lastfront = &(devbp->fronts);
+		devbp->next_front = NULL;
+		devbp->prev_frontp = &(devbp->next_front);
 
 
 		/*
@@ -126,7 +126,7 @@ void  devfs_back_init() /*proto*/
 \***********************************************************************/
 int	dev_finddir(char *orig_path, dn_p dirnode, int create, dn_p *dn_pp) /*proto*/
 {
-	devb_p	devbp;
+	devnm_p	devbp;
 	char	pathbuf[DEVMAXPATHSIZE];
 	char	*path;
 	char	*name;
@@ -170,7 +170,7 @@ int	dev_finddir(char *orig_path, dn_p dirnode, int create, dn_p *dn_pp) /*proto*
 	/***************************************\
 	* Start scanning along the linked list	*
 	\***************************************/
-	devbp = dirnode->by.BackDir.dirlist;
+	devbp = dirnode->by.Dir.dirlist;
 	while(devbp && strcmp(devbp->name,name))
 	{
 		devbp = devbp->next;
@@ -207,10 +207,10 @@ int	dev_finddir(char *orig_path, dn_p dirnode, int create, dn_p *dn_pp) /*proto*
 /***********************************************************************\
 * Add a new element to the devfs backing structure. 			*
 \***********************************************************************/
-int	dev_add_node(char *name, dn_p dirnode, int entrytype, union typeinfo *by, devb_p *devb_pp) /*proto*/
+int	dev_add_node(char *name, dn_p dirnode, int entrytype, union typeinfo *by, devnm_p *devnm_pp) /*proto*/
 {
-	devb_p devbp;
-	devb_p realthing;	/* needed to create an alias */
+	devnm_p devbp;
+	devnm_p realthing;	/* needed to create an alias */
 	dn_p	dnp;
 	int	retval;
 
@@ -225,12 +225,12 @@ int	dev_add_node(char *name, dn_p dirnode, int entrytype, union typeinfo *by, de
 	/*
 	 * Allocate and fill out a new backing node
 	 */
-	if(!(devbp = (devb_p)malloc(sizeof(devb_t),
+	if(!(devbp = (devnm_p)malloc(sizeof(devnm_t),
 				M_DEVFSBACK, M_NOWAIT)))
 	{
 		return ENOMEM;
 	}
-	bzero(devbp,sizeof(devb_t));
+	bzero(devbp,sizeof(devnm_t));
 	if(!(dnp = (dn_p)malloc(sizeof(devnode_t),
 				M_DEVFSNODE, M_NOWAIT)))
 	{
@@ -257,17 +257,17 @@ int	dev_add_node(char *name, dn_p dirnode, int entrytype, union typeinfo *by, de
 	/*
 	 * And set up a new 'clones' list (empty)
 	 */
-	devbp->lastfront = &(devbp->fronts);
+	devbp->prev_frontp = &(devbp->next_front);
 
 	/*
 	 * Put it on the END of the linked list of directory entries
 	 */
 	devbp->parent = dirnode;
-	devbp->prevp = dirnode->by.BackDir.dirlast;
+	devbp->prevp = dirnode->by.Dir.dirlast;
 	devbp->next = *(devbp->prevp); /* should be NULL */ /*right?*/
 	*(devbp->prevp) = devbp;
-	dirnode->by.BackDir.dirlast = &(devbp->next);
-	dirnode->by.BackDir.entrycount++;
+	dirnode->by.Dir.dirlast = &(devbp->next);
+	dirnode->by.Dir.entrycount++;
 
 	/*
 	 * return the answer
@@ -277,11 +277,11 @@ int	dev_add_node(char *name, dn_p dirnode, int entrytype, union typeinfo *by, de
 		/*
 		 * As it's a directory, make sure it has a null entries list
 		 */
-		dnp->by.BackDir.dirlast =
-				&(dnp->by.BackDir.dirlist);
-		dnp->by.BackDir.dirlist = (devb_p)0;
-		dnp->by.BackDir.parent = (dn_p)dirnode;
-		dnp->by.BackDir.myname = devbp;
+		dnp->by.Dir.dirlast =
+				&(dnp->by.Dir.dirlist);
+		dnp->by.Dir.dirlist = (devnm_p)0;
+		dnp->by.Dir.parent = (dn_p)dirnode;
+		dnp->by.Dir.myname = devbp;
 		/*
 		 * make sure that the ops associated with it are the ops
 		 * that we use (by default) for directories
@@ -326,19 +326,19 @@ int	dev_add_node(char *name, dn_p dirnode, int entrytype, union typeinfo *by, de
 		 */
 		realthing = by->Alias.realthing;
 		dnp->by.Alias.realthing = realthing;
-		dnp->by.Alias.next = realthing->aliases;
-		realthing->aliases = devbp;
-		realthing->alias_count++;
+		dnp->by.Alias.next = realthing->as.back.aliases;
+		realthing->as.back.aliases = devbp;
+		realthing->as.back.alias_count++;
 		break;
 	}
 
-	if(retval = devfs_add_fronts(dirnode->by.BackDir.myname/*XXX*/,devbp))
+	if(retval = devfs_add_fronts(dirnode->by.Dir.myname/*XXX*/,devbp))
         {
 		/*XXX*//* no idea what to do if it fails... */
 		return retval;
 	}
 
-	*devb_pp = devbp;
+	*devnm_pp = devbp;
 	return 0 ;
 }
 
@@ -348,9 +348,9 @@ int	dev_add_node(char *name, dn_p dirnode, int entrytype, union typeinfo *by, de
  * For now only allow DEVICE nodes to go.. XXX
  * directory nodes are more complicated and may need more work..
  */
-int	dev_remove(devb_p devbp) /*proto*/
+int	dev_remove(devnm_p devbp) /*proto*/
 {
-	devb_p alias;
+	devnm_p alias;
 
 	DBPRINT(("dev_remove\n"));
 	/*
@@ -371,11 +371,11 @@ int	dev_remove(devb_p devbp) /*proto*/
 	/*
 	 * Free each alias
 	 */
-	while ( devbp->alias_count)
+	while ( devbp->as.back.alias_count)
 	{
-		alias = devbp->aliases;
-		devbp->aliases = alias->dnp->by.Alias.next;
-		devbp->alias_count--;
+		alias = devbp->as.back.aliases;
+		devbp->as.back.aliases = alias->dnp->by.Alias.next;
+		devbp->as.back.alias_count--;
 		devfs_dn_free(alias->dnp);
 		free (alias, M_DEVFSBACK);
 	}
@@ -392,7 +392,7 @@ int	dev_remove(devb_p devbp) /*proto*/
 	return 0; 
 }
 
-int	dev_touch(devb_p key)		/* update the node for this dev */ /*proto*/
+int	dev_touch(devnm_p key)		/* update the node for this dev */ /*proto*/
 {
 	DBPRINT(("dev_touch\n"));
 	TIMEVAL_TO_TIMESPEC(&time,&(key->dnp->mtime))
@@ -458,9 +458,9 @@ int get_bdev_major_num(caddr_t addr)	/*proto*/
 * Add the named device entry into the given directory, and make it 	*
 * The appropriate type... (called (sometimes indirectly) by drivers..)	*
 \***********************************************************************/
-devb_p dev_add(char *path,char *name,caddr_t funct,int minor,int chrblk,uid_t uid,gid_t gid, int perms) /*proto*/
+devnm_p dev_add(char *path,char *name,caddr_t funct,int minor,int chrblk,uid_t uid,gid_t gid, int perms) /*proto*/
 {
-	devb_p	new_dev;
+	devnm_p	new_dev;
 	dn_p	dnp;	/* devnode for parent directory */
 	int	retval;
 	int major ;

@@ -1,7 +1,7 @@
-this file is: /sys/miscfs/devfs/README (or soon will be)
+this file is: /sys/miscfs/devfs/README
 
 to enable: add
-options	devfs
+options	DEVFS
 
 to your config file..
 expect it to be highly useless for a while,
@@ -17,7 +17,8 @@ a "devnode" struct, that holds information about the device
 (or directory) and a pointer to the vnode if one has been associated 
 with that node. The back node itself can be considered to be 
 a directory entry, and contains the default name of the device,
-and a link to the directory that holds it.
+and a link to the directory that holds it. The devnode can be
+considered the inode.
 
 When you mount the devfs somewhere (you can mount it multiple times in
 multiple places), a front layer is created that contains a tree of 'front'
@@ -25,6 +26,9 @@ nodes.
 
 Think of this as a Transparency, layed over the top of the blueprint.
 (or possibly a photocopy).
+
+The front and back nodes are identical in type, but the back nodes
+are reserved for kernel use only, and are protected from the user.
 
 To start with there is a 1:1 relationship between the front nodes
 and the backing nodes, however once the front plane has been created
@@ -45,11 +49,6 @@ e.g. remove or rename nodes
 
 Multiple mountings are like multiple transparencies,
 each showing through to the original blueprint.
-
-The nodes on the 'front' plane representing the particular mounting of the
-DEVFS that you are interested in, each have a link back to the 'backing'
-node to which they refer to get information about the node (e.g.
-major/minor) etc.
 
 Information that is to be shared between these mounts is stored
 in the 'backing' node for that object.  Once you have erased 'front'
@@ -97,10 +96,11 @@ effect of 're-propogating' through any backing nodes that find they
 have no front nodes in that plane.
 
 
-NOTES FOR RELEASE 1
+NOTES FOR RELEASE 1.1
 1/ this is very preliminary
 2/ Attempts to unmount a devfs structure while you are 'IN' in will
 result in a message "hanging vnode" and the system will panic.
+(in fact I see this even not being in it :(  )
 3/ 'find /devfs -print' will only find the directories, and the devices
 don't show up.. (?)... find /dev/fs -ls DOES show all the devices.
 4/ the dates of all nodes is '0' i.e. 00:00 1st Jan 1970 UTC.
@@ -115,9 +115,11 @@ ability to unlink and mv nodes.
 them, or alternatively, corrupting things.. I need a vnode specialist
 to look at this.
 7/ The back and front node structures have become very similar with time
-and I have decided to merge them to a single structure, 
-which will be called a "devname" struct, as they can be thought of
+and I decided to merge them to a single structure, 
+which is called a "dev_name" struct, as they can be thought of
 as the analogue of a directory entry, except that they are linked
 together rather than in an array. The "devnode" struct can be considered
 analogous to the inodes of a UFS.
+There may still be artifacts in the code that reflect that the front and
+back nodes were once different structs.
 
