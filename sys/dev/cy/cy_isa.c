@@ -1878,25 +1878,22 @@ comparam(tp, t)
 	int		s;
 	int		unit;
 
-	/* do historical conversions */
-	if (t->c_ispeed == 0)
-		t->c_ispeed = t->c_ospeed;
-
 	unit = DEV_TO_UNIT(tp->t_dev);
 	com = com_addr(unit);
 
 	/* check requested parameters */
 	cy_clock = CY_CLOCK(com->gfrcr_image);
 	idivisor = comspeed(t->c_ispeed, cy_clock, &iprescaler);
-	if (idivisor < 0)
+	if (idivisor <= 0)
 		return (EINVAL);
-	odivisor = comspeed(t->c_ospeed, cy_clock, &oprescaler);
-	if (odivisor < 0)
+	odivisor = comspeed(t->c_ospeed != 0 ? t->c_ospeed : tp->t_ospeed,
+			    cy_clock, &oprescaler);
+	if (odivisor <= 0)
 		return (EINVAL);
 
 	/* parameters are OK, convert them to the com struct and the device */
 	s = spltty();
-	if (odivisor == 0)
+	if (t->c_ospeed == 0)
 		(void)commctl(com, TIOCM_DTR, DMBIC);	/* hang up line */
 	else
 		(void)commctl(com, TIOCM_DTR, DMBIS);
@@ -1905,14 +1902,10 @@ comparam(tp, t)
 
 	/* XXX we don't actually change the speed atomically. */
 
-	if (idivisor != 0) {
-		cd_setreg(com, CD1400_RBPR, idivisor);
-		cd_setreg(com, CD1400_RCOR, iprescaler);
-	}
-	if (odivisor != 0) {
-		cd_setreg(com, CD1400_TBPR, odivisor);
-		cd_setreg(com, CD1400_TCOR, oprescaler);
-	}
+	cd_setreg(com, CD1400_RBPR, idivisor);
+	cd_setreg(com, CD1400_RCOR, iprescaler);
+	cd_setreg(com, CD1400_TBPR, odivisor);
+	cd_setreg(com, CD1400_TCOR, oprescaler);
 
 	/*
 	 * channel control
@@ -1990,18 +1983,14 @@ comparam(tp, t)
 	/*
 	 * Set receive time-out period, normally to max(one char time, 5 ms).
 	 */
-	if (t->c_ispeed == 0)
-		itimeout = cd_getreg(com, CD1400_RTPR);
-	else {
-		itimeout = (1000 * bits + t->c_ispeed - 1) / t->c_ispeed;
+	itimeout = (1000 * bits + t->c_ispeed - 1) / t->c_ispeed;
 #ifdef SOFT_HOTCHAR
 #define	MIN_RTP		1
 #else
 #define	MIN_RTP		5
 #endif
-		if (itimeout < MIN_RTP)
-			itimeout = MIN_RTP;
-	}
+	if (itimeout < MIN_RTP)
+		itimeout = MIN_RTP;
 	if (!(t->c_lflag & ICANON) && t->c_cc[VMIN] != 0 && t->c_cc[VTIME] != 0
 	    && t->c_cc[VTIME] * 10 > itimeout)
 		itimeout = t->c_cc[VTIME] * 10;
