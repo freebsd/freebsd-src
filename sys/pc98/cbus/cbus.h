@@ -123,7 +123,7 @@
 #define	IO_LPTSIZE_EXTENDED	8	/* "Extended" LPT controllers */
 #define	IO_LPTSIZE_NORMAL	4	/* "Normal" LPT controllers */
 #define	IO_MDASIZE	16		/* Monochrome display controllers */
-#define	IO_NPXSIZE	16		/* 80387/80487 NPX registers */
+#define	IO_NPXSIZE	8		/* 80387/80487 NPX registers */
 #define	IO_PMPSIZE	2		/* 82347 power management peripheral */
 #define	IO_PSMSIZE	5		/* 8042 Keyboard controllers */
 #define	IO_RTCSIZE	16		/* CMOS real time clock, NMI control */
