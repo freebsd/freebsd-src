@@ -126,7 +126,6 @@ SUBDIR=	IPXrouted \
 	vnconfig \
 	watch \
 	wicontrol \
-	xten \
 	yp_mkdb \
 	ypbind \
 	yppoll \
