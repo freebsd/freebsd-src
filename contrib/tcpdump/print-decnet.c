@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1992, 1993, 1994, 1995, 1996
+ * Copyright (c) 1992, 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-decnet.c,v 1.24 96/11/05 13:30:38 leres Exp $ (LBL)";
+    "@(#) $Header: print-decnet.c,v 1.26 97/05/28 12:51:29 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -39,6 +39,9 @@ struct rtentry;
 #endif
 
 #include <ctype.h>
+#ifdef HAVE_MALLOC_H
+#include <malloc.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

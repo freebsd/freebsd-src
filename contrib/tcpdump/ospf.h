@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1991, 1993, 1994, 1995, 1996
+ * Copyright (c) 1991, 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,9 @@
 /* ospf_authtype	*/
 #define	OSPF_AUTH_NONE		0	/* No auth-data */
 #define	OSPF_AUTH_SIMPLE	1	/* Simple password */
+#define OSPF_AUTH_MD5		2	/* MD5 authentication */
+#define     OSPF_AUTH_MD5_LEN	16	/* length of MD5 authentication */
+
 
 /* db_flags	*/
 #define	OSPF_DB_INIT		0x04	    /*	*/

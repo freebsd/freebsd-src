@@ -1,4 +1,4 @@
-#  Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996
+#  Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997
 # 	The Regents of the University of California.  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -17,7 +17,7 @@
 #  WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 #  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-# @(#) $Header: Makefile.in,v 1.198 96/12/05 22:12:11 leres Exp $ (LBL)
+# @(#) $Header: Makefile.in,v 1.207 97/08/17 13:53:29 leres Exp $ (LBL)
 
 #
 # Various configurable paths (remember to edit Makefile.in, not Makefile)
@@ -40,12 +40,16 @@ VPATH = @srcdir@
 #
 
 CC = @CC@
+PROG = tcpdump
 CCOPT = @V_CCOPT@
 INCLS = -I. @V_INCLS@
-DEFS = @DEFS@ -DPPP -DHAVE_FDDI
+DEFS = @DEFS@ -DHAVE_FDDI
 
 # Standard CFLAGS
 CFLAGS = $(CCOPT) $(DEFS) $(INCLS)
+
+# Standard LDFLAGS
+LDFLAGS = @LDFLAGS@
 
 # Standard LIBS
 LIBS = @LIBS@
@@ -65,9 +69,10 @@ CSRC =	tcpdump.c \
 	print-ether.c print-fddi.c print-gre.c print-icmp.c \
 	print-igrp.c print-ip.c print-ipx.c print-isoclns.c print-krb.c \
 	print-llc.c print-nfs.c print-ntp.c print-null.c print-ospf.c \
-	print-pim.c print-ppp.c print-rip.c print-sl.c print-snmp.c \
-	print-sunrpc.c print-tcp.c print-tftp.c print-udp.c print-wb.c \
-	addrtoname.c bpf_dump.c machdep.c parsenfsfh.c util.c
+	print-pim.c print-ppp.c print-raw.c print-rip.c print-sl.c \
+	print-snmp.c print-sunrpc.c print-tcp.c print-tftp.c print-udp.c \
+	print-wb.c addrtoname.c bpf_dump.c gmt2local.c machdep.c \
+	parsenfsfh.c util.c savestr.c setsignal.c
 LOCALSRC =
 GENSRC = version.c
 
@@ -77,8 +82,9 @@ SRC =	$(CSRC) $(GENSRC) $(LOCALSRC)
 # hack the extra indirection
 OBJ =	$(CSRC:.c=.o) $(GENSRC:.c=.o) $(LOCALSRC:.c=.o) @LIBOBJS@
 HDR =   addrtoname.h appletalk.h bootp.h decnet.h \
-	ethertype.h extract.h fddi.h interface.h igrp.h ipx.h \
-	llc.h machdep.h mib.h nfsfh.h nfsv2.h ntp.h ospf.h
+	ethertype.h extract.h fddi.h gmt2local.h interface.h igrp.h \
+	ipx.h llc.h machdep.h mib.h nfsfh.h nfsv2.h ntp.h ospf.h \
+	savestr.c setsignal.h
 
 TAGHDR = \
 	/usr/include/arpa/tftp.h \
@@ -93,11 +99,13 @@ TAGHDR = \
 
 TAGFILES = $(SRC) $(HDR) $(TAGHDR)
 
-CLEANFILES = $(OBJ) tcpdump $(GENSRC)
+CLEANFILES = $(PROG) $(OBJ) $(GENSRC)
 
-tcpdump: $(OBJ) @V_PCAPDEP@
+all: $(PROG)
+
+$(PROG): $(OBJ) @V_PCAPDEP@
 	@rm -f $@
-	$(CC) $(CFLAGS) -o $@ $(OBJ) $(LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJ) $(LIBS)
 
 version.o: version.c
 version.c: $(srcdir)/VERSION
@@ -105,13 +113,14 @@ version.c: $(srcdir)/VERSION
 	sed -e 's/.*/char version[] = "&";/' $(srcdir)/VERSION > $@
 
 install: force
-	$(INSTALL) -m 550 -o bin -g @V_GROUP@ tcpdump $(DESTDIR)$(BINDEST)
+	$(INSTALL) -m 550 -o bin -g @V_GROUP@ $(PROG) \
+	    $(DESTDIR)$(BINDEST)/$(PROG)
 
 install-man: force
-	$(INSTALL) -m 444 -o bin -g bin $(srcdir)/tcpdump.1 \
-	    $(DESTDIR)$(MANDEST)/man1
+	$(INSTALL) -m 444 -o bin -g bin $(srcdir)/$(PROG).1 \
+	    $(DESTDIR)$(MANDEST)/man1/$(PROG).1
 
-lint:	$(GENSRC) force
+lint: $(GENSRC) force
 	lint -hbxn $(SRC) | \
 	    grep -v 'struct/union .* never defined' | \
 	    grep -v 'possible pointer alignment problem'
@@ -123,11 +132,11 @@ distclean:
 	rm -f $(CLEANFILES) Makefile config.cache config.log config.status \
 	    gnuc.h os-proto.h
 
-tags:	$(TAGFILES)
+tags: $(TAGFILES)
 	ctags -wtd $(TAGFILES)
 
-tar:	force
-	@cwd=`pwd` ; dir=`basename $$cwd` ; name=tcpdump-`cat VERSION` ; \
+tar: force
+	@cwd=`pwd` ; dir=`basename $$cwd` ; name=$(PROG)-`cat VERSION` ; \
 	    list="" ; tar="tar chFFf" ; \
 	    for i in `cat FILES` ; do list="$$list $$name/$$i" ; done; \
 	    echo \
@@ -140,6 +149,6 @@ tar:	force
 	    "rm -f ../$$name" ; \
 	     rm -f ../$$name
 
-force:	/tmp
-depend:	$(GENSRC) force
+force: /tmp
+depend: $(GENSRC) force
 	./mkdep -c $(CC) $(DEFS) $(INCLS) $(SRC)
