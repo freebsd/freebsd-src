@@ -26,16 +26,24 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.43 1996/09/10 08:26:06 bde Exp $
+ * $Id: soundcard.c,v 1.5 1996/09/12 11:11:59 asami Exp $
  */
 
+#ifdef PC98
+#include <pc98/pc98/sound/sound_config.h>
+#else
 #include <i386/isa/sound/sound_config.h>
+#endif
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
 #ifdef CONFIGURE_SOUNDCARD
 
+#ifdef PC98
+#include <pc98/pc98/sound/dev_table.h>
+#else
 #include <i386/isa/sound/dev_table.h>
+#endif
 #include <i386/isa/isa_device.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>

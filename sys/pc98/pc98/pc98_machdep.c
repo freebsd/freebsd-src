@@ -48,6 +48,7 @@ extern int Maxmem_under16M;
 
 static void init_cpu_accel_mem __P((void));
 void pc98_init_dmac __P((void));
+void pc98_getmemsize __P((void));
 
 #ifdef EPSON_MEMWIN
 static void init_epson_memwin __P((void));

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.8 1996/10/09 21:46:31 asami Exp $
+ *	$Id: pc98.c,v 1.9 1996/10/23 07:25:20 asami Exp $
  */
 
 /*
@@ -739,6 +739,10 @@ void isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 
 #ifndef PC98
 	if ((chan & 4) == 0) {
+		/*
+		 * Program one of DMA channels 0..3.  These are
+		 * byte mode channels.
+		 */
 #endif
 		/* set dma channel mode, and reset address ff */
 
@@ -763,11 +767,11 @@ void isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 		outb(dmapageport[chan], phys>>16);
 
 		/* send count */
-		outb(waport + 2, --nbytes);	/* 0x3, 0x7, 0xb, 0xf */
+		outb(waport + 2, --nbytes);
 		outb(waport + 2, nbytes>>8);
 
 		/* unmask channel */
-		outb(DMA1_SMSK, chan & 3);
+		outb(DMA1_SMSK, chan);
 #ifndef PC98
 	} else {
 		/*
@@ -802,7 +806,7 @@ void isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 		outb(waport + 2, nbytes>>8);
 
 		/* unmask channel */
-		outb(DMA2_SMSK, chan);
+		outb(DMA2_SMSK, chan & 3);
 	}
 #endif
 }
