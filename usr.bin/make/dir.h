@@ -63,11 +63,11 @@ void Dir_Expand(char *, struct Lst *, struct Lst *);
 char *Dir_FindFile(char *, struct Lst *);
 int Dir_MTime(struct GNode *);
 void Dir_AddDir(struct Lst *, const char *);
-char *Dir_MakeFlags(const char *, struct Lst *);
+char *Dir_MakeFlags(const char *, const struct Lst *);
 void Dir_ClearPath(struct Lst *);
 void Dir_Concat(struct Lst *, struct Lst *);
 void Dir_PrintDirectories(void);
-void Dir_PrintPath(struct Lst *);
+void Dir_PrintPath(const struct Lst *);
 void Dir_Destroy(void *);
 void *Dir_CopyDir(void *);
 
