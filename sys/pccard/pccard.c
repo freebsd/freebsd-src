@@ -99,7 +99,6 @@ static void		unregister_device_interrupt(struct pccard_devinfo *);
 static void		disable_slot(struct slot *);
 static int		invalid_io_memory(unsigned long, int);
 static struct pccard_device *find_driver(char *);
-static void		remove_device(struct pccard_devinfo *);
 static ointhand2_t	slot_irq_handler;
 static void		power_off_slot(void *);
 
@@ -240,7 +239,7 @@ pccard_remove_driver(struct pccard_device *drv)
 		for (devi = slt->devices; devi; devi = next) {
 			next = devi->next;
 			if (devi->drv == drv)
-				remove_device(devi);
+				pccard_remove_device(devi);
 		}
 	/*
 	 *	Once all the devices belonging to this driver have been
@@ -285,7 +284,7 @@ pccard_remove_controller(struct slot_ctrl *ctrl)
 			 * Unload the drivers attached to this slot.
 			 */
 			while ((devi = slt->devices) != NULL)
-				remove_device(devi);
+				pccard_remove_device(devi);
 			/*
 			 * Disable the slot and unlink the slot from the 
 			 * slot list.
@@ -593,7 +592,7 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 				    devi->drv->name, desc->unit);
 				return(EBUSY);
 			}
-			remove_device(devi);
+			pccard_remove_device(devi);
 			break;
 		}
 	}
@@ -674,32 +673,12 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 		free(devi, M_DEVBUF);
 		return(err);
 	}
-	snprintf(devnam, sizeof(devnam), "compat %s", desc->name);
-	device_set_desc(devi->isahd.id_device, devnam);
-	BUS_PRINT_CHILD(pccarddev, devi->isahd.id_device);
-
-	devi->next = slt->devices;
-	slt->devices = devi;
-	s = splhigh();
-	err = drv->enable(devi);
-	splx(s);
-	/*
-	 *	If the enable functions returns no error, then the
-	 *	device has been successfully installed. If so, then
-	 *	attach it to the slot, otherwise free it and return
-	 *	the error.  We assume that when we free the device,
-	 *	it will also set 'running' to off.
-	 */
-	if (err) {
-		printf("pccard: %s%d Enable failed %d\n", devi->drv->name,
-		    devi->isahd.id_unit, err);
-		remove_device(devi);
-	}
-	return(err);
+	err = device_probe_and_attach(devi->isahd.id_device);
+	return err;
 }
 
-static void
-remove_device(struct pccard_devinfo *devi)
+void
+pccard_remove_device(struct pccard_devinfo *devi)
 {
 	struct slot *slt = devi->slt;
 	struct pccard_devinfo *list;

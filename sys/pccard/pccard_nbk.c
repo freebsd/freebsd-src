@@ -120,10 +120,22 @@ pccard_print_child(device_t dev, device_t child)
 	return (retval);
 }
 
+/*
+ * Create "connection point"
+ */
+static void
+pccard_identify(driver_t *driver, device_t parent)
+{
+	device_t child;
 
+	child = BUS_ADD_CHILD(parent, 0, "pccard", 0);
+	if (child == NULL)
+		panic("pccard_identify");
+}
 
 static device_method_t pccard_methods[] = {
 	/* Device interface */
+	DEVMETHOD(device_identify,	pccard_identify),
 	DEVMETHOD(device_probe,		pccard_probe),
 	DEVMETHOD(device_attach,	bus_generic_attach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
@@ -155,12 +167,54 @@ DRIVER_MODULE(pccard, nexus, pccard_driver, pccard_devclass, 0, 0);
 
 /* ============================================================ */
 
-static devclass_t	pccnbk_devclass;
-
 static int
 pccnbk_probe(device_t dev)
 {
+	char devnam[128];
+	const char *name;
+	struct pccard_devinfo *devi = device_get_ivars(dev);
+
+	if (devi) {
+		name = device_get_name(dev);
+		snprintf(devnam, sizeof(devnam), "pccard-%s",
+		    devi->drv->name);
+		if (!name || strcmp(name, devnam) != 0)
+			return ENXIO;
+		device_set_desc(dev, devi->drv->name);
+		return 0;
+	}
 	return ENXIO;
+}
+
+static int
+pccnbk_attach(device_t dev)
+{
+	struct pccard_devinfo *devi = device_get_ivars(dev);
+	struct pccard_device *drv;
+	struct slot *slt;
+	int err;
+	int s;
+
+	slt = devi->slt;
+	drv = devi->drv;
+	devi->next = slt->devices;
+	slt->devices = devi;
+	s = splhigh();
+	err = drv->enable(devi);
+	splx(s);
+	/*
+	 *	If the enable functions returns no error, then the
+	 *	device has been successfully installed. If so, then
+	 *	attach it to the slot, otherwise free it and return
+	 *	the error.  We assume that when we free the device,
+	 *	it will also set 'running' to off.
+	 */
+	if (err) {
+		printf("pccard: %s%d Enable failed %d\n", devi->drv->name,
+		    devi->isahd.id_unit, err);
+		pccard_remove_device(devi);
+	}
+	return(err);
 }
 
 /*
@@ -224,7 +278,7 @@ pccnbk_release_resources(device_t dev)
 static device_method_t pccnbk_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pccnbk_probe),
-	DEVMETHOD(device_attach,	bus_generic_attach),
+	DEVMETHOD(device_attach,	pccnbk_attach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
@@ -254,7 +308,7 @@ pccnbk_wrap_old_driver(struct pccard_device *drv)
 	if (!driver)
 		return;
 	bzero(driver, sizeof(driver_t));
-	/* XXX May create a memory leak :-( XXX */
+	/* XXX May create a memory leak for load/unload :-( XXX */
 	nm = malloc(strlen(devnam) + 1, M_DEVBUF, M_NOWAIT);
 	strcpy(nm, devnam);
 	driver->name = nm;
@@ -266,6 +320,8 @@ pccnbk_wrap_old_driver(struct pccard_device *drv)
 }
 
 #if 0
+static devclass_t	pccnbk_devclass;
+
 static driver_t pccnbk_driver = {
 	"pccnbk",
 	pccnbk_methods,
