@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001 Dima Dorfman <dd@FreeBSD.org>
+ * Copyright (c) 2001 Dima Dorfman.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
