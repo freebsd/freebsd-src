@@ -784,8 +784,6 @@ static int wi_cmd(sc, cmd, val)
 	}
 
 	if (i == WI_TIMEOUT) {
-		device_printf(sc->dev, "wi_cmd: device timeout (cmd=%x, val=%x)\n",
-			cmd, val);
 		return(ETIMEDOUT);
 	}
 
