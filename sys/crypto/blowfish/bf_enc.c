@@ -1,7 +1,7 @@
-/*	$FreeBSD$	*/
 /*	$KAME: bf_enc.c,v 1.7 2002/02/27 01:33:59 itojun Exp $	*/
 
 /* crypto/bf/bf_enc.c */
+
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -58,6 +58,9 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <crypto/blowfish/blowfish.h>
