@@ -182,11 +182,7 @@ static const struct explore explore[] = {
 #define	PTON_MAX	4
 #endif
 
-#if PACKETSZ > 1024
-#define MAXPACKET	PACKETSZ
-#else
-#define MAXPACKET	1024
-#endif
+#define MAXPACKET	(64*1024)
 
 typedef union {
 	HEADER hdr;
@@ -1407,7 +1403,7 @@ _dns_getaddrinfo(pai, hostname, res)
 	struct addrinfo **res;
 {
 	struct addrinfo *ai;
-	querybuf buf, buf2;
+	querybuf *buf, *buf2;
 	const char *name;
 	struct addrinfo sentinel, *cur;
 	struct res_target q, q2;
@@ -1417,36 +1413,53 @@ _dns_getaddrinfo(pai, hostname, res)
 	memset(&sentinel, 0, sizeof(sentinel));
 	cur = &sentinel;
 
+	buf = malloc(sizeof(*buf));
+	if (!buf) {
+		h_errno = NETDB_INTERNAL;
+		return EAI_MEMORY;
+	}
+	buf2 = malloc(sizeof(*buf2));
+	if (!buf2) {
+		free(buf);
+		h_errno = NETDB_INTERNAL;
+		return EAI_MEMORY;
+	}
+
 	switch (pai->ai_family) {
 	case AF_UNSPEC:
 		/* prefer IPv6 */
 		q.qclass = C_IN;
 		q.qtype = T_AAAA;
-		q.answer = buf.buf;
-		q.anslen = sizeof(buf);
+		q.answer = buf->buf;
+		q.anslen = sizeof(buf->buf);
 		q.next = &q2;
 		q2.qclass = C_IN;
 		q2.qtype = T_A;
-		q2.answer = buf2.buf;
-		q2.anslen = sizeof(buf2);
+		q2.answer = buf2->buf;
+		q2.anslen = sizeof(buf2->buf);
 		break;
 	case AF_INET:
 		q.qclass = C_IN;
 		q.qtype = T_A;
-		q.answer = buf.buf;
-		q.anslen = sizeof(buf);
+		q.answer = buf->buf;
+		q.anslen = sizeof(buf->buf);
 		break;
 	case AF_INET6:
 		q.qclass = C_IN;
 		q.qtype = T_AAAA;
-		q.answer = buf.buf;
-		q.anslen = sizeof(buf);
+		q.answer = buf->buf;
+		q.anslen = sizeof(buf->buf);
 		break;
 	default:
+		free(buf);
+		free(buf2);
 		return EAI_FAIL;
 	}
-	if (res_searchN(hostname, &q) < 0)
+	if (res_searchN(hostname, &q) < 0) {
+		free(buf);
+		free(buf2);
 		return EAI_NODATA;
+	}
 	ai = getanswer(&buf, q.n, q.name, q.qtype, pai);
 	if (ai) {
 		cur->ai_next = ai;
@@ -1454,10 +1467,12 @@ _dns_getaddrinfo(pai, hostname, res)
 			cur = cur->ai_next;
 	}
 	if (q.next) {
-		ai = getanswer(&buf2, q2.n, q2.name, q2.qtype, pai);
+		ai = getanswer(buf2, q2.n, q2.name, q2.qtype, pai);
 		if (ai)
 			cur->ai_next = ai;
 	}
+	free(buf);
+	free(buf2);
 	if (sentinel.ai_next == NULL)
 		switch (h_errno) {
 		case HOST_NOT_FOUND:
@@ -1662,7 +1677,7 @@ res_queryN(name, target)
 	const char *name;	/* domain name */
 	struct res_target *target;
 {
-	u_char buf[MAXPACKET];
+	u_char *buf;
 	HEADER *hp;
 	int n;
 	struct res_target *t;
@@ -1673,6 +1688,12 @@ res_queryN(name, target)
 	ancount = 0;
 
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
+		h_errno = NETDB_INTERNAL;
+		return (-1);
+	}
+
+	buf = malloc(MAXPACKET);
+	if (!buf) {
 		h_errno = NETDB_INTERNAL;
 		return (-1);
 	}
@@ -1696,14 +1717,15 @@ res_queryN(name, target)
 #endif
 
 		n = res_mkquery(QUERY, name, class, type, NULL, 0, NULL,
-		    buf, sizeof(buf));
+		    buf, MAXPACKET);
 		if (n > 0 && (_res.options & RES_USE_EDNS0) != 0)
-			n = res_opt(n, buf, sizeof(buf), anslen);
+			n = res_opt(n, buf, MAXPACKET, anslen);
 		if (n <= 0) {
 #ifdef DEBUG
 			if (_res.options & RES_DEBUG)
 				printf(";; res_query: mkquery failed\n");
 #endif
+			free(buf);
 			h_errno = NO_RECOVERY;
 			return (n);
 		}
@@ -1714,12 +1736,15 @@ res_queryN(name, target)
 			if (_res.options & RES_DEBUG)
 				printf(";; res_query: send error\n");
 #endif
+			free(buf);
 			h_errno = TRY_AGAIN;
 			return (n);
 		}
 #endif
 
-		if (n < 0 || hp->rcode != NOERROR || ntohs(hp->ancount) == 0) {
+		if (n < 0 || n > anslen)
+			hp->rcode = FORMERR; /* XXX not very informative */
+		if (hp->rcode != NOERROR || ntohs(hp->ancount) == 0) {
 			rcode = hp->rcode;	/* record most recent error */
 #ifdef DEBUG
 			if (_res.options & RES_DEBUG)
@@ -1733,6 +1758,8 @@ res_queryN(name, target)
 
 		t->n = n;
 	}
+
+	free(buf);
 
 	if (ancount == 0) {
 		switch (rcode) {

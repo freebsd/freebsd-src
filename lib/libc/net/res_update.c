@@ -160,6 +160,9 @@ res_update(ns_updrec *rrecp_in) {
 		    fprintf(stderr, "res_update: send error for %s\n",
 			    rrecp->r_dname);
 		    return (n);
+		} else if (n > sizeof(answer)) {
+		    fprintf(stderr, "res_update: buffer too small\n");
+		    return (-1);
 		}
 		if (n < HFIXEDSZ)
 			return (-1);
@@ -499,7 +502,10 @@ ans=%d, auth=%d, add=%d, rcode=%d\n",
 		if (n < 0) {
 			fprintf(stderr, "res_send: send error, n=%d\n", n);
 			break;
-		} else
+		} else if (n > sizeof(answer)) {
+			fprintf(stderr, "res_send: buffer too small\n");
+			break;
+		}
 			numzones++;
 	}
 
