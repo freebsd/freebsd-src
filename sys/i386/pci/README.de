@@ -1,4 +1,4 @@
-$Id: README.de,v 1.1 1994/10/01 20:16:42 wollman Exp $
+$Id: README.de,v 1.2 1994/10/11 18:33:07 thomas Exp $
 
 ----------------
 
@@ -14,7 +14,7 @@ using a eariler pass chip, you may encounter undetected transmit
 corruptions.  This driver also requires that DC21040-AA use a serial
 Ethernet address ROM as described in the DC21040 specification.
 
-The DEC DE425 ESIA NIC based on the DC21040-AA is not support at
+The DEC DE425 EISA NIC based on the DC21040-AA is not support at
 this time.  A future update will include support for it.
 
 The driver includes full support for both BPF and IP Multicast.
@@ -25,7 +25,9 @@ switch the driver to the correct port.
 	ifconfig de0 -altphys	10baseT/UTP port
 
 This driver requires the NCR 53C810 PCI SCSI package to be installed.
-This can be obtained from FTP.Uni-Koeln.DE:~ftp/packages/FreeBSD.
+This can be obtained from FTP.Uni-Koeln.DE:~ftp/packages/FreeBSD/PCI-SCSI.
+Make sure the date of the NCR 53C810 PCI SCSI package is later than 
+October 10th, 1994.
 
 [All paths are relative to the top of sys source area, usually
 /usr/src/sys.]
@@ -39,7 +41,6 @@ directories:
 You will need to apply the following patches:
 
 	pat.files.i386  -->	i386/conf/files.i386
-	pat.pci		-->	i386/pci/pci.c, i386/pci/pci_config.c
 
 After that is done you will need to edit your config file (in
 i386/conf) and lines similar to:
@@ -47,14 +48,17 @@ i386/conf) and lines similar to:
 	controller pci0
 	device de0
 
+The PCI support code will automatically determine and enable the
+correct IRQ.
+
 Now you are ready to rebuild your kernel, reboot, and see if the
 driver can configure your board.  When the system boots, you will
 hopefully something close to:
 
-	on pci0:7 <digital dc21040 ethernet> int a irq 9 as de0
-	          memory size=0x1000 virtual=0xf25e9000 physical=0xc0001000
+	de0 <digital dc21040 ethernet> int a irq 9 on pci0:7
+	    reg20: virtual=0xf290a000 physical=0xc0001000
 	de0: enabling Thinwire/AUI port
-	de0: DC21040 pass 2.3 (TULIP) ethernet address 08:00:2b:e2:1e:09
+	de0: DC21040 [10Mb/s] pass 2.3 ethernet address 08:00:2b:e2:1e:09
 	bpf: de0 attached
 
 in the startup log.  If so, the board configured properly and
