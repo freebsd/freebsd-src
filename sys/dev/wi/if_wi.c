@@ -332,6 +332,13 @@ wi_generic_attach(device_t dev)
 			sc->wi_flags |= WI_FLAGS_HAS_IBSS;
 			sc->wi_flags |= WI_FLAGS_HAS_CREATE_IBSS;
 		}
+		/*
+		 * version 0.8.3 and newer are the only ones that are known
+		 * to currently work.  Earlier versions can be made to work,
+		 * at least according to the Linux driver.
+		 */
+		if (sc->sc_sta_firmware_ver >= 803)
+			sc->wi_flags |= WI_FLAGS_HAS_HOSTAP;
 		sc->wi_ibss_port = htole16(0);
 		break;
 	case WI_SYMBOL:
@@ -384,7 +391,7 @@ wi_generic_attach(device_t dev)
 		if (sc->wi_flags & WI_FLAGS_HAS_CREATE_IBSS)
 			ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS1,
 			    IFM_IEEE80211_IBSSMASTER, 0), 0);
-		if (sc->sc_firmware_type == WI_INTERSIL)
+		if (sc->wi_flags & WI_FLAGS_HAS_HOSTAP)
 			ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS1,
 			    IFM_IEEE80211_HOSTAP, 0), 0);
 	}
@@ -398,7 +405,7 @@ wi_generic_attach(device_t dev)
 		if (sc->wi_flags & WI_FLAGS_HAS_CREATE_IBSS)
 			ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS2,
 			    IFM_IEEE80211_IBSSMASTER, 0), 0);
-		if (sc->sc_firmware_type == WI_INTERSIL)
+		if (sc->wi_flags & WI_FLAGS_HAS_HOSTAP)
 			ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS2,
 			    IFM_IEEE80211_HOSTAP, 0), 0);
 	}
@@ -412,7 +419,7 @@ wi_generic_attach(device_t dev)
 		if (sc->wi_flags & WI_FLAGS_HAS_CREATE_IBSS)
 			ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS5,
 			    IFM_IEEE80211_IBSSMASTER, 0), 0);
-		if (sc->sc_firmware_type == WI_INTERSIL)
+		if (sc->wi_flags & WI_FLAGS_HAS_HOSTAP)
 			ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS5,
 			    IFM_IEEE80211_HOSTAP, 0), 0);
 	}
@@ -426,7 +433,7 @@ wi_generic_attach(device_t dev)
 		if (sc->wi_flags & WI_FLAGS_HAS_CREATE_IBSS)
 			ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS11,
 			    IFM_IEEE80211_IBSSMASTER, 0), 0);
-		if (sc->sc_firmware_type == WI_INTERSIL)
+		if (sc->wi_flags & WI_FLAGS_HAS_HOSTAP)
 			ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS11,
 			    IFM_IEEE80211_HOSTAP, 0), 0);
 		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_MANUAL, 0, 0), 0);
@@ -438,14 +445,12 @@ wi_generic_attach(device_t dev)
 	if (sc->wi_flags & WI_FLAGS_HAS_CREATE_IBSS)
 		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_AUTO,
 		    IFM_IEEE80211_IBSSMASTER, 0), 0);
-	if (sc->sc_firmware_type == WI_INTERSIL)
+	if (sc->wi_flags & WI_FLAGS_HAS_HOSTAP)
 		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_AUTO,
 		    IFM_IEEE80211_HOSTAP, 0), 0);
 	ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_AUTO, 0, 0), 0);
 #undef ADD
-	ifmedia_set(&sc->ifmedia, IFM_MAKEWORD(IFM_IEEE80211, IFM_AUTO,
-	    0, 0));
-
+	ifmedia_set(&sc->ifmedia, IFM_MAKEWORD(IFM_IEEE80211, IFM_AUTO, 0, 0));
 
 	/*
 	 * Call MI attach routine.
