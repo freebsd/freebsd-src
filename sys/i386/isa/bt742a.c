@@ -44,6 +44,10 @@
 #define	NBT 1
 #endif /*KERNEL */
 
+#ifndef NetBSD
+typedef timeout_func_t timeout_t;
+#endif
+
 typedef unsigned long int physaddr;
 
 /*
@@ -717,7 +721,7 @@ btintr(unit)
 		}
 		wmbi->stat = BT_MBI_FREE;
 		if (ccb) {
-			untimeout(bt_timeout, (caddr_t)ccb);
+			untimeout((timeout_t)bt_timeout, (caddr_t)ccb);
 			bt_done(unit, ccb);
 		}
 		/* Set the IN mail Box pointer for next */ bt_nextmbx(wmbi, wmbx, mbi);
@@ -1359,7 +1363,7 @@ bt_scsi_cmd(xs)
 	 */
 	SC_DEBUG(xs->sc_link, SDEV_DB3, ("cmd_sent\n"));
 	if (!(flags & SCSI_NOMASK)) {
-		timeout(bt_timeout, (caddr_t)ccb, (xs->timeout * hz) / 1000);
+		timeout((timeout_t)bt_timeout, (caddr_t)ccb, (xs->timeout * hz) / 1000);
 		return (SUCCESSFULLY_QUEUED);
 	}
 	/*
@@ -1404,13 +1408,13 @@ bt_poll(unit, xs, ccb)
 		 * accounting for the fact that the clock is not running yet
 		 * by taking out the clock queue entry it makes.
 		 */
-		bt_timeout((caddr_t)ccb, 0);
+		bt_timeout((caddr_t)ccb);
 
 		/*
 		 * because we are polling, take out the timeout entry
 		 * bt_timeout made
 		 */
-		untimeout(bt_timeout, (caddr_t)ccb);
+		untimeout((timeout_t)bt_timeout, (caddr_t)ccb);
 		count = 2000;
 		while (count) {
 			/*
@@ -1431,7 +1435,7 @@ bt_poll(unit, xs, ccb)
 			 * We timed out again...  This is bad.  Notice that
 			 * this time there is no clock queue entry to remove.
 			 */
-			bt_timeout((caddr_t)ccb, 0);
+			bt_timeout((caddr_t)ccb);
 		}
 	}
 	if (xs->error)
@@ -1485,7 +1489,7 @@ bt_timeout(caddr_t arg1)
 		bt_send_mbo(unit, ~SCSI_NOMASK,
 		    BT_MBO_ABORT, ccb);
 		/* 2 secs for the abort */
-		timeout(bt_timeout, (caddr_t)ccb, 2 * hz);
+		timeout((timeout_t)bt_timeout, (caddr_t)ccb, 2 * hz);
 		ccb->flags = CCB_ABORTED;
 	}
 	splx(s);

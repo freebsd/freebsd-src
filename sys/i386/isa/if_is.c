@@ -279,7 +279,7 @@ int type=0;
  * Reset of interface.
  */
 static void
-is_reset(int unit, int uban)
+is_reset(int unit)
 {
 	int s;
 	struct is_softc *is = &is_softc[unit];
@@ -395,7 +395,7 @@ is_watchdog(unit)
         int unit;
 {
         log(LOG_ERR, "is%d: device timeout\n", unit);
-        is_reset(unit, 0);
+        is_reset(unit);
 }
 
 
@@ -695,13 +695,13 @@ isintr(unit)
 		if (!(isr&RXON)) {
 			printf("is%d: !(isr&RXON)\n", unit);
 			is->arpcom.ac_if.if_ierrors++;
-			is_reset(unit, 0);
+			is_reset(unit);
 			return;
 		}
 		if (!(isr&TXON)) {
 			printf("is%d: !(isr&TXON)\n", unit);
 			is->arpcom.ac_if.if_oerrors++;
-			is_reset(unit, 0);
+			is_reset(unit);
 			return;
 		}
 
@@ -791,7 +791,7 @@ static inline void is_rint(int unit)
 			is->last_rd = rmd;
 			printf("is%d: Chained buffer\n",unit);
 			if ((cdm->flags & (OWN|ERR|STP|ENP)) != ENP) {
-				is_reset(unit, 0);
+				is_reset(unit);
 				return;
 			}
 		}else

@@ -50,6 +50,10 @@
 #define NUHA 1
 #endif /*KERNEL */
 
+#ifndef NetBSD
+typedef timeout_func_t timeout_t;
+#endif
+
 typedef struct {
 	unsigned char addr[4];
 } physaddr;
@@ -525,7 +529,7 @@ uhaintr(unit)
 			printf("uha: BAD MSCP RETURNED\n");
 			return (0);	/* whatever it was, it'll timeout */
 		}
-		untimeout(uha_timeout, (caddr_t)mscp);
+		untimeout((timeout_t)uha_timeout, (caddr_t)mscp);
 
 		uha_done(unit, mscp);
 	}
@@ -1046,7 +1050,7 @@ uha_scsi_cmd(xs)
 	if (!(flags & SCSI_NOMASK)) {
 		s = splbio();
 		uha_send_mbox(unit, mscp);
-		timeout(uha_timeout, (caddr_t)mscp, (xs->timeout * hz) / 1000);
+		timeout((timeout_t)uha_timeout, (caddr_t)mscp, (xs->timeout * hz) / 1000);
 		splx(s);
 		SC_DEBUG(xs->sc_link, SDEV_DB3, ("cmd_sent\n"));
 		return (SUCCESSFULLY_QUEUED);
@@ -1103,7 +1107,7 @@ uha_timeout(caddr_t arg1)
 		uha_done(unit, mscp, FAIL);
 	} else {		/* abort the operation that has timed out */
 		printf("\n");
-		timeout(uha_timeout, (caddr_t)mscp, 2 * hz);
+		timeout((timeout_t)uha_timeout, (caddr_t)mscp, 2 * hz);
 		mscp->flags = MSCP_ABORTED;
 	}
 	splx(s);
