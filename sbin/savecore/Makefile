@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	savecore
-SRCS=	savecore.c zopen.c
+SRCS=	savecore.c
 MAN=	savecore.8
 
 DPADD+=	${LIBZ}
