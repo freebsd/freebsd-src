@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.57 1995/03/29 03:35:10 jkh Exp $
+#	$Id: rc,v 1.58 1995/03/29 03:42:16 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -118,7 +118,8 @@ fi
 ######################### Start Of Syscons Section #######################
 
 kbdadjust=NO
-[ "X${keymap}" != X"NO" -o "X${keyrate}" != X"NO" ] && kbdadjust=YES
+[ "X${keymap}" != X"NO" -o "X${keyrate}" != X"NO" \
+	-o "X${keychange}" != X"NO" ] && kbdadjust=YES
 vidadjust=NO
 [ "X${scrnmap}" != X"NO" -o "X${font8x16}" != X"NO" -o \
 	"X${font8x14}" != X"NO" -o "X${font8x8}" != X"NO" -o \
@@ -139,6 +140,17 @@ fi
 if [ "X${keyrate}" != X"NO" ]; then
 	echo -n " keyrate"
 	kbdcontrol -r ${keyrate}
+fi
+
+# change function keys
+if [ "X${keychange}" != X"NO" ]; then
+	echo -n " keychange"
+	set - ${keychange}
+	while [ $# -gt 0 ]
+	do
+		kbdcontrol -f "$1" "$2"
+		shift; shift
+	done
 fi
 
 [ "X${kbdadjust}" != X"NO" ] && echo
