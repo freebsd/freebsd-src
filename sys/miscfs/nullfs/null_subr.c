@@ -62,10 +62,10 @@
 static LIST_HEAD(null_node_hashhead, null_node) *null_node_hashtbl;
 static u_long null_node_hash;
 
-static int	null_node_alloc __P((struct mount *mp, struct vnode *lowervp,
-				     struct vnode **vpp));
+static int	null_node_alloc(struct mount *mp, struct vnode *lowervp,
+				     struct vnode **vpp);
 static struct vnode *
-		null_node_find __P((struct mount *mp, struct vnode *lowervp));
+		null_node_find(struct mount *mp, struct vnode *lowervp);
 
 /*
  * Initialise cache headers

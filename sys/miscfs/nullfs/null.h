@@ -57,20 +57,27 @@ struct null_node {
 	struct vnode		*null_vnode;	/* Back pointer */
 };
 
-extern int nullfs_init __P((struct vfsconf *vfsp));
-extern int null_node_create __P((struct mount *mp, struct vnode *target, struct vnode **vpp));
-
 #define	MOUNTTONULLMOUNT(mp) ((struct null_mount *)((mp)->mnt_data))
 #define	VTONULL(vp) ((struct null_node *)(vp)->v_data)
 #define	NULLTOV(xp) ((xp)->null_vnode)
+
+int nullfs_init(struct vfsconf *vfsp);
+int null_node_create(struct mount *mp, struct vnode *target, struct vnode **vpp);
+int null_bypass(struct vop_generic_args *ap);
+
 #ifdef DIAGNOSTIC
-extern struct vnode *null_checkvp __P((struct vnode *vp, char *fil, int lno));
+struct vnode *null_checkvp(struct vnode *vp, char *fil, int lno);
 #define	NULLVPTOLOWERVP(vp) null_checkvp((vp), __FILE__, __LINE__)
 #else
 #define	NULLVPTOLOWERVP(vp) (VTONULL(vp)->null_lowervp)
 #endif
 
-extern int	null_bypass __P((struct vop_generic_args *ap));
-
 extern vop_t **null_vnodeop_p;
+
+#ifdef NULLFS_DEBUG
+#define NULLFSDEBUG(format, args...) printf(format ,## args)
+#else
+#define NULLFSDEBUG(format, args...)
+#endif /* NULLFS_DEBUG */
+
 #endif /* _KERNEL */

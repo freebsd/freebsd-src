@@ -53,29 +53,28 @@
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <miscfs/nullfs/null.h>
-#include <vm/vm_zone.h>
 
 static MALLOC_DEFINE(M_NULLFSMNT, "NULLFS mount", "NULLFS mount structure");
 
-static int	nullfs_fhtovp __P((struct mount *mp, struct fid *fidp,
-				   struct vnode **vpp));
-static int	nullfs_checkexp __P((struct mount *mp, struct sockaddr *nam,
-				    int *extflagsp, struct ucred **credanonp));
-static int	nullfs_mount __P((struct mount *mp, char *path, caddr_t data,
-				  struct nameidata *ndp, struct proc *p));
-static int	nullfs_quotactl __P((struct mount *mp, int cmd, uid_t uid,
-				     caddr_t arg, struct proc *p));
-static int	nullfs_root __P((struct mount *mp, struct vnode **vpp));
-static int	nullfs_start __P((struct mount *mp, int flags, struct proc *p));
-static int	nullfs_statfs __P((struct mount *mp, struct statfs *sbp,
-				   struct proc *p));
-static int	nullfs_sync __P((struct mount *mp, int waitfor,
-				 struct ucred *cred, struct proc *p));
-static int	nullfs_unmount __P((struct mount *mp, int mntflags,
-				    struct proc *p));
-static int	nullfs_vget __P((struct mount *mp, ino_t ino,
-				 struct vnode **vpp));
-static int	nullfs_vptofh __P((struct vnode *vp, struct fid *fhp));
+static int	nullfs_fhtovp(struct mount *mp, struct fid *fidp,
+				   struct vnode **vpp);
+static int	nullfs_checkexp(struct mount *mp, struct sockaddr *nam,
+				    int *extflagsp, struct ucred **credanonp);
+static int	nullfs_mount(struct mount *mp, char *path, caddr_t data,
+				  struct nameidata *ndp, struct proc *p);
+static int	nullfs_quotactl(struct mount *mp, int cmd, uid_t uid,
+				     caddr_t arg, struct proc *p);
+static int	nullfs_root(struct mount *mp, struct vnode **vpp);
+static int	nullfs_start(struct mount *mp, int flags, struct proc *p);
+static int	nullfs_statfs(struct mount *mp, struct statfs *sbp,
+				   struct proc *p);
+static int	nullfs_sync(struct mount *mp, int waitfor,
+				 struct ucred *cred, struct proc *p);
+static int	nullfs_unmount(struct mount *mp, int mntflags, struct proc *p);
+static int	nullfs_vget(struct mount *mp, ino_t ino, struct vnode **vpp);
+static int	nullfs_vptofh(struct vnode *vp, struct fid *fhp);
+static int	nullfs_extattrctl(struct mount *mp, int cmd,
+			const char *attrname, caddr_t arg, struct proc *p);
 
 /*
  * Mount null layer
