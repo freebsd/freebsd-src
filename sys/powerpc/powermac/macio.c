@@ -444,6 +444,22 @@ macio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		break;
 
 	case SYS_RES_IRQ:
+		rle = resource_list_find(&dinfo->mdi_resources, SYS_RES_IRQ,
+		    *rid);
+		if (rle == NULL) {
+			if (dinfo->mdi_ninterrupts >= 5) {
+				device_printf(bus,
+				    "%s has more than 5 interrupts\n",
+				    device_get_nameunit(child));
+				return (NULL);
+			}
+			resource_list_add(&dinfo->mdi_resources, SYS_RES_IRQ,
+			    dinfo->mdi_ninterrupts, start, start, 1);
+
+			dinfo->mdi_interrupts[dinfo->mdi_ninterrupts] = start;
+			dinfo->mdi_ninterrupts++;
+		}
+
 		return (resource_list_alloc(&dinfo->mdi_resources, bus, child,
 		    type, rid, start, end, count, flags));
 		break;
