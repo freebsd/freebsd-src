@@ -1258,8 +1258,11 @@ auth_pam(struct passwd **ppw, const char *pass)
 
 	e = pam_start("ftpd", (*ppw)->pw_name, &conv, &pamh);
 	if (e != PAM_SUCCESS) {
-		/* pamh is NULL, cannot use pam_strerror() */
-		syslog(LOG_ERR, "pam_start failed");
+		/*
+		 * In OpenPAM, it's OK to pass NULL to pam_strerror()
+		 * if context creation has failed in the first place.
+		 */
+		syslog(LOG_ERR, "pam_start: %s", pam_strerror(NULL, e));
 		return -1;
 	}
 
