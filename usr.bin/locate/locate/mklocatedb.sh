@@ -76,14 +76,15 @@ if [ X"$1" = "X-presort" ]; then
 
     $code $bigrams > $filelist || exit 1
     locate -d $filelist / | $bigram | $sort -nr | head -128 |
-    awk '{if (/^[ 	]*[0-9]+[ 	]+..$/) {printf("%s",$2)} else {exit 1}}' > $bigrams || exit 1
+    awk '{if (/^[ 	]*[0-9]+[ 	]+..$/) {printf("%s",$2)} else {exit 1}}' > $bigrams
+	|| exit 1
     locate -d $filelist / | $code $bigrams || exit 1
     exit 	
 
 else
     if $sortcmd $sortopt > $filelist; then
         $bigram < $filelist | $sort -nr | 
-	perl -ne '/^\s*[0-9]+\s(..)$/ && print $1 || exit 1' > $bigrams 
+	awk '{if (/^[ 	]*[0-9]+[ 	]+..$/) {printf("%s",$2)} else {exit 1}}' > $bigrams
 	    || exit 1
         $code $bigrams < $filelist || exit 1
     else
