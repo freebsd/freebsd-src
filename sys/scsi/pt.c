@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pt.c,v 1.24 1997/09/21 22:03:03 gibbs Exp $
+ *      $Id: pt.c,v 1.25 1997/12/02 21:07:00 phk Exp $
  */
 
 #include "opt_bounce.h"
@@ -57,6 +57,10 @@
 
 struct scsi_data {
 	struct buf_queue_head buf_queue;
+#ifdef DEVFS
+	void  *devfs_data_tok;
+	void  *devfs_ctl_tok;
+#endif
 };
 
 static	d_open_t	ptopen;
@@ -105,6 +109,19 @@ ptattach(struct scsi_link *sc_link)
 	struct scsi_data *pt = sc_link->sd;
 
 	bufq_init(&pt->buf_queue);
+
+#ifdef DEVFS
+	pt->devfs_data_tok = devfs_add_devswf(&pt_cdevsw,
+					      sc_link->dev_unit,
+					      DV_CHR,
+					      UID_ROOT, GID_WHEEL, 0600,
+					      "pt%d", sc_link->dev_unit);
+	pt->devfs_ctl_tok = devfs_add_devswf(&pt_cdevsw,
+					     sc_link->dev_unit | SCSI_CONTROL_MASK,
+					     DV_CHR,
+					     UID_ROOT, GID_WHEEL, 0600,
+					     "pt%d.ctl", sc_link->dev_unit);
+#endif
 	return 0;
 }
 
@@ -275,31 +292,16 @@ pt_sense(struct scsi_xfer *xs)
 
 static pt_devsw_installed = 0;
 
-static void 	pt_drvinit(void *unused)
+static void
+pt_drvinit(void *unused)
 {
 	dev_t dev;
-#ifdef DEVFS
-	int unit;
-#endif
 
-	if( ! pt_devsw_installed ) {
+	if ( ! pt_devsw_installed ) {
 		dev = makedev(CDEV_MAJOR, 0);
 		cdevsw_add(&dev,&pt_cdevsw, NULL);
 		pt_devsw_installed = 1;
-#ifdef DEVFS
-		/* XXX only 1 unit. */
-		for (unit = 0; unit < 1; unit++) {
-			/* XXX not saving tokens yet. */
-			devfs_add_devswf(&pt_cdevsw, unit, DV_CHR,
-					 UID_ROOT, GID_WHEEL, 0600,
-					 "pt%d", unit);
-			devfs_add_devswf(&pt_cdevsw, unit | SCSI_CONTROL_MASK,
-					 DV_CHR,
-					 UID_ROOT, GID_WHEEL, 0600,
-					 "pt%d.ctl", unit);
-		}
-#endif
-    	}
+	}
 }
 
 SYSINIT(ptdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,pt_drvinit,NULL)
