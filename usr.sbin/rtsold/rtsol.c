@@ -271,7 +271,7 @@ rtsol_input(int s)
 	}
 
 	if (i < sizeof(struct nd_router_advert)) {
-		warnmsg(LOG_ERR, __func__,
+		warnmsg(LOG_INFO, __func__,
 		    "packet size(%d) is too short", i);
 		return;
 	}
@@ -279,6 +279,10 @@ rtsol_input(int s)
 	icp = (struct icmp6_hdr *)rcvmhdr.msg_iov[0].iov_base;
 
 	if (icp->icmp6_type != ND_ROUTER_ADVERT) {
+		/*
+		 * this should not happen because we configured a filter
+		 * that only passes RAs on the receiving socket.
+		 */
 		warnmsg(LOG_ERR, __func__,
 		    "invalid icmp type(%d) from %s on %s", icp->icmp6_type,
 		    inet_ntop(AF_INET6, &from.sin6_addr, ntopbuf,
@@ -288,7 +292,7 @@ rtsol_input(int s)
 	}
 
 	if (icp->icmp6_code != 0) {
-		warnmsg(LOG_ERR, __func__,
+		warnmsg(LOG_INFO, __func__,
 		    "invalid icmp code(%d) from %s on %s", icp->icmp6_code,
 		    inet_ntop(AF_INET6, &from.sin6_addr, ntopbuf,
 		    INET6_ADDRSTRLEN),
@@ -297,7 +301,7 @@ rtsol_input(int s)
 	}
 
 	if (*hlimp != 255) {
-		warnmsg(LOG_NOTICE, __func__,
+		warnmsg(LOG_INFO, __func__,
 		    "invalid RA with hop limit(%d) from %s on %s",
 		    *hlimp,
 		    inet_ntop(AF_INET6, &from.sin6_addr, ntopbuf,
@@ -307,7 +311,7 @@ rtsol_input(int s)
 	}
 
 	if (pi && !IN6_IS_ADDR_LINKLOCAL(&from.sin6_addr)) {
-		warnmsg(LOG_NOTICE, __func__,
+		warnmsg(LOG_INFO, __func__,
 		    "invalid RA with non link-local source from %s on %s",
 		    inet_ntop(AF_INET6, &from.sin6_addr, ntopbuf,
 		    INET6_ADDRSTRLEN),
@@ -318,7 +322,7 @@ rtsol_input(int s)
 	/* xxx: more validation? */
 
 	if ((ifi = find_ifinfo(pi->ipi6_ifindex)) == NULL) {
-		warnmsg(LOG_NOTICE, __func__,
+		warnmsg(LOG_INFO, __func__,
 		    "received RA from %s on an unexpected IF(%s)",
 		    inet_ntop(AF_INET6, &from.sin6_addr, ntopbuf,
 		    INET6_ADDRSTRLEN),
