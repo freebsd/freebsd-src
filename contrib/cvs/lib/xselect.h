@@ -9,12 +9,12 @@
    GNU General Public License for more details.  */
 
 /* This file simply performs the include magic necessary for using select */
-#include <sys/types.h>
+
+/* select also requires <sys/types.h>, "xtime.h", and <unistd.h> */
+
 #ifdef HAVE_SYS_BSDTYPES_H
 # include <sys/bsdtypes.h>
 #endif
-
-#include "xtime.h"
 
 #if HAVE_SYS_SELECT_H
 # include <sys/select.h>

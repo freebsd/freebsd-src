@@ -241,7 +241,19 @@ VAX:
 
 Building from source code under Unix:
 
-1)  Run "configure":
+1)  Some combinations of Automake and Autoconf versions may break the CVS build
+    if file timestamps aren't set correctly, so you may wish to run
+    noautomake.sh to set the timestamps and avoid attempting to run the
+    autotools on your system, especially if you are building from source
+    checked out from CVS:
+
+	$ ./noautomake.sh --noautoconf
+
+    The CVS Makefiles and configure script were built using Automake 1.5 and
+    Autoconf 2.13, respectively.  Other combinations of autotool versions may
+    or may not work.
+
+2)  Run "configure":
 
 	$ ./configure
 
@@ -332,10 +344,10 @@ Building from source code under Unix:
 
     END OF NOTE FOR NDBM GUNK.
 
-2)  Edit src/options.h.  The defaults should be reasonable, and in fact
+3)  Edit src/options.h.  The defaults should be reasonable, and in fact
     if you are lazy you can safely skip this step.
 
-3)  Try to build it:
+4)  Try to build it:
 
 	$ make
 
@@ -346,7 +358,7 @@ Building from source code under Unix:
     compiler information, make output, and anything else you think
     will be helpful.
 
-3a)  Run the regression tests (optional).
+4a)  Run the regression tests (optional).
 
     You may also wish to validate the correctness of the new binary by
     running the regression tests.  If they succeed, that is nice to
@@ -358,7 +370,7 @@ Building from source code under Unix:
 
     If you want to run the tests, see the file TESTS for more information.
 
-4)  Install the binaries/documentation:
+5)  Install the binaries/documentation:
 
 	$ make install
 
@@ -371,7 +383,8 @@ Detailed information about your interaction with "configure":
 
 The "configure" script and its interaction with its options and the
 environment is described here.  For more detailed documentation about
-"configure", please refer to the GNU Autoconf documentation.
+"configure", please run `./configure --help' or refer to the GNU Autoconf
+documentation.
 
 Supported options are:
 

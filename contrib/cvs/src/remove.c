@@ -235,6 +235,14 @@ remove_fileproc (callerdat, finfo)
 cannot remove file `%s' which has a numeric sticky tag of `%s'",
 	       finfo->fullname, vers->tag);
     }
+    else if (vers->date != NULL)
+    {
+	/* Commit will just give an error, and so there seems to be
+	   little reason to allow the remove.  */
+	error (0, 0, "\
+cannot remove file `%s' which has a sticky date of `%s'",
+	       finfo->fullname, vers->date);
+    }
     else
     {
 	char *fname;

@@ -82,18 +82,18 @@ static const char *const export_usage[] =
 };
 
 static int checkout_prune_dirs;
-static int force_tag_match = 1;
+static int force_tag_match;
 static int pipeout;
 static int aflag;
-static char *options = NULL;
-static char *tag = NULL;
-static int tag_validated = 0;
-static char *date = NULL;
-static char *join_rev1 = NULL;
-static char *join_rev2 = NULL;
-static int join_tags_validated = 0;
-static char *preload_update_dir = NULL;
-static char *history_name = NULL;
+static char *options;
+static char *tag;
+static int tag_validated;
+static char *date;
+static char *join_rev1;
+static char *join_rev2;
+static int join_tags_validated;
+static char *preload_update_dir;
+static char *history_name;
 static enum mtype m_type;
 
 int
@@ -111,6 +111,18 @@ checkout (argc, argv)
     char *where = NULL;
     char *valid_options;
     const char *const *valid_usage;
+
+    /* initialize static options */
+    force_tag_match = 1;
+    if (options)
+    {
+	free (options);
+	options = NULL;
+    }
+    tag = date = join_rev1 = join_rev2 = preload_update_dir = NULL;
+    history_name = NULL;
+    tag_validated = join_tags_validated = 0;
+
 
     /*
      * A smaller subset of options are allowed for the export command, which
@@ -248,7 +260,7 @@ checkout (argc, argv)
     }
 #endif
 
-    if (!cat && !safe_location()) {
+    if (!cat && !pipeout && !safe_location( where )) {
         error(1, 0, "Cannot check out files into the repository itself");
     }
 
@@ -333,7 +345,10 @@ checkout (argc, argv)
     {
 	cat_module (status);
 	if (options)
+	{
 	    free (options);
+	    options = NULL;
+	}
 	return (0);
     }
     db = open_module ();
@@ -351,17 +366,17 @@ checkout (argc, argv)
 
     /* If we will be calling history_write, work out the name to pass
        it.  */
-    if (m_type == CHECKOUT && !pipeout)
+    if (!pipeout)
     {
-	if (tag && date)
+	if (!date)
+	    history_name = tag;
+	else if (!tag)
+	    history_name = date;
+	else
 	{
 	    history_name = xmalloc (strlen (tag) + strlen (date) + 2);
 	    sprintf (history_name, "%s:%s", tag, date);
 	}
-	else if (tag)
-	    history_name = tag;
-	else
-	    history_name = date;
     }
 
 
@@ -371,7 +386,12 @@ checkout (argc, argv)
 			  (char *) NULL);
     close_module (db);
     if (options)
+    {
 	free (options);
+	options = NULL;
+    }
+    if (history_name != tag && history_name != date && history_name != NULL)
+	free (history_name);
     return (err);
 }
 
@@ -379,9 +399,11 @@ checkout (argc, argv)
    reasons, probably want to move them.  */
 
 int
-safe_location ()
+safe_location (where)
+    char *where;
 {
     char *current;
+    char *where_location;
     char hardpath[PATH_MAX+5];
     size_t hardpath_len;
     int  x;
@@ -403,9 +425,68 @@ safe_location ()
     {
         hardpath[x] = '\0';
     }
+
+    /* set current - even if where is set we'll need to cd back... */
     current = xgetwd ();
     if (current == NULL)
 	error (1, errno, "could not get working directory");
+
+    /* if where is set, set current to where, where - last_component( where ),
+     * or fail, depending on whether the directories exist or not.
+     */
+    if( where != NULL )
+    {
+	if( chdir( where ) != -1 )
+	{
+	    /* where */
+	    where_location = xgetwd();
+	    if( where_location == NULL )
+		error( 1, errno, "could not get working directory" );
+
+	    if( chdir( current ) == -1 )
+		error( 1, errno, "could not change directory to `%s'", current );
+
+	    free( current );
+	    current = where_location;
+        }
+	else if( errno == ENOENT )
+	{
+	    if ( last_component( where ) != where )
+	    {
+		/* where - last_component( where ) */
+		char *parent;
+
+		/* strip the last_component */
+		where_location = strdup( where );
+		parent = last_component( where_location );
+		parent[-1] = '\0';
+
+		if( chdir( where_location ) != -1 )
+		{
+		    where_location = xgetwd();
+		    if( where_location == NULL )
+			error( 1, errno, "could not get working directory (nominally `%s')", where_location );
+
+		    if( chdir( current ) == -1 )
+			error( 1, errno, "could not change directory to `%s'", current );
+
+		    free( current );
+		    current = where_location;
+		}
+		else
+		    /* fail */
+		    error( 1, errno, "could not change directory to requested checkout directory `%s'", where_location );
+	    }
+	    /* else: ERRNO == ENOENT & last_component(where) == where
+	     * for example, 'cvs co -d newdir module', where newdir hasn't
+	     * been created yet, so leave current set to '.' and check that
+	     */
+	}
+	else
+	    /* fail */
+	    error( 1, errno, "could not change directory to requested checkout directory `%s'", where );
+    }
+
     hardpath_len = strlen (hardpath);
     if (strlen (current) >= hardpath_len
 	&& strncmp (current, hardpath, hardpath_len) == 0)
@@ -851,7 +932,7 @@ internal error: %s doesn't start with %s in checkout_proc",
 	       build_one_dir whenever the -d command option was specified
 	       to checkout.  */
 
-	    if (! where_is_absolute && top_level_admin)
+	    if (! where_is_absolute && top_level_admin && m_type == CHECKOUT)
 	    {
 		/* It may be argued that we shouldn't set any sticky
 		   bits for the top-level repository.  FIXME?  */
@@ -998,12 +1079,9 @@ internal error: %s doesn't start with %s in checkout_proc",
      */
     if (!(local_specified || argc > 1))
     {
-	if (m_type == CHECKOUT && !pipeout)
-	    history_write ('O', preload_update_dir, history_name, where,
-			   repository);
-	else if (m_type == EXPORT && !pipeout)
-	    history_write ('E', preload_update_dir, tag ? tag : date, where,
-			   repository);
+	if (!pipeout)
+	    history_write (m_type == CHECKOUT ? 'O' : 'E', preload_update_dir,
+			   history_name, where, repository);
 	err += do_update (0, (char **) NULL, options, tag, date,
 			  force_tag_match, 0 /* !local */ ,
 			  1 /* update -d */ , aflag, checkout_prune_dirs,

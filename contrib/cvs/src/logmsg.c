@@ -6,6 +6,8 @@
  * specified in the README file that comes with the CVS source distribution.
  */
 
+#include <assert.h>
+
 #include "cvs.h"
 #include "getline.h"
 
@@ -26,6 +28,15 @@ static char *str_list_format;	/* The format for str_list's contents. */
 static char *editinfo_editor;
 static char *verifymsg_script;
 static Ctype type;
+
+/* 
+ * Should the logmsg be re-read during the do_verify phase?
+ * RereadLogAfterVerify=no|stat|yes
+ * LOGMSG_REREAD_NEVER  - never re-read the logmsg
+ * LOGMSG_REREAD_STAT   - re-read the logmsg only if it has changed
+ * LOGMSG_REREAD_ALWAYS - always re-read the logmsg
+ */
+int RereadLogAfterVerify = LOGMSG_REREAD_ALWAYS;
 
 /*
  * Puts a standard header on the output which is either being prepared for an
@@ -166,7 +177,8 @@ fmt_proc (p, closure)
  * stripped and the log message is stored in the "message" argument.
  * 
  * If REPOSITORY is non-NULL, process rcsinfo for that repository; if it
- * is NULL, use the CVSADM_TEMPLATE file instead.
+ * is NULL, use the CVSADM_TEMPLATE file instead.  REPOSITORY should be
+ * NULL when running in client mode.
  */
 void
 do_editor (dir, messagep, repository, changes)
@@ -182,6 +194,9 @@ do_editor (dir, messagep, repository, changes)
     char *fname;
     struct stat pre_stbuf, post_stbuf;
     int retcode = 0;
+
+    assert (current_parsed_root->isremote && !repository
+	    || !current_parsed_root->isremote && repository);
 
     if (noexec || reuse_log_message)
 	return;
@@ -305,7 +320,7 @@ do_editor (dir, messagep, repository, changes)
 	/* On NT, we might read less than st_size bytes, but we won't
 	   read more.  So this works.  */
 	*messagep = (char *) xmalloc (post_stbuf.st_size + 1);
- 	*messagep[0] = '\0';
+ 	(*messagep)[0] = '\0';
     }
 
     line = NULL;
@@ -338,8 +353,14 @@ do_editor (dir, messagep, repository, changes)
 
     if (pre_stbuf.st_mtime == post_stbuf.st_mtime ||
 	*messagep == NULL ||
+	(*messagep)[0] == '\0' ||
 	strcmp (*messagep, "\n") == 0)
     {
+	if (*messagep)
+	{
+	    free (*messagep);
+	    *messagep = NULL;
+	}
 	for (;;)
 	{
 	    (void) printf ("\nLog message unchanged or not specified\n");
@@ -387,13 +408,15 @@ do_editor (dir, messagep, repository, changes)
    independant of the running of an editor for getting a message.
  */
 void
-do_verify (message, repository)
-    char *message;
+do_verify (messagep, repository)
+    char **messagep;
     char *repository;
 {
     FILE *fp;
     char *fname;
     int retcode = 0;
+
+    struct stat pre_stbuf, post_stbuf;
 
 #ifdef CLIENT_SUPPORT
     if (current_parsed_root->isremote)
@@ -408,7 +431,7 @@ do_verify (message, repository)
 
     /* If there's no message, then we have nothing to verify.  Can this
        case happen?  And if so why would we print a message?  */
-    if (message == NULL)
+    if (*messagep == NULL)
     {
 	cvs_output ("No message to verify\n", 0);
 	return;
@@ -419,46 +442,122 @@ do_verify (message, repository)
 
     if ((fp = cvs_temp_file (&fname)) == NULL)
 	error (1, errno, "cannot create temporary file %s", fname);
-    else
+
+    fprintf (fp, "%s", *messagep);
+    if ((*messagep)[0] == '\0' ||
+	(*messagep)[strlen (*messagep) - 1] != '\n')
+	(void) fprintf (fp, "%s", "\n");
+    if (fclose (fp) == EOF)
+	error (1, errno, "%s", fname);
+
+    if (RereadLogAfterVerify == LOGMSG_REREAD_STAT)
     {
-	fprintf (fp, "%s", message);
-	if ((message)[0] == '\0' ||
-	    (message)[strlen (message) - 1] != '\n')
-	    (void) fprintf (fp, "%s", "\n");
-	if (fclose (fp) == EOF)
-	    error (1, errno, "%s", fname);
+	/* Remember the status of the temp file for later */
+	if ( CVS_STAT (fname, &pre_stbuf) != 0 )
+	    error (1, errno, "cannot stat temp file %s", fname);
 
-	/* Get the name of the verification script to run  */
+	/*
+	 * See if we need to sleep before running the verification
+	 * script to avoid time-stamp races.
+	 */
+	sleep_past (pre_stbuf.st_mtime);
+    }
 
-	if (repository != NULL)
-	    (void) Parse_Info (CVSROOTADM_VERIFYMSG, repository, 
-			       verifymsg_proc, 0);
+    /* Get the name of the verification script to run  */
 
-	/* Run the verification script  */
+    if (repository != NULL)
+	(void) Parse_Info (CVSROOTADM_VERIFYMSG, repository, 
+			   verifymsg_proc, 0);
 
-	if (verifymsg_script)
+    /* Run the verification script  */
+
+    if (verifymsg_script)
+    {
+	run_setup (verifymsg_script);
+	run_arg (fname);
+	if ((retcode = run_exec (RUN_TTY, RUN_TTY, RUN_TTY,
+				 RUN_NORMAL | RUN_SIGIGNORE)) != 0)
 	{
-	    run_setup (verifymsg_script);
-	    run_arg (fname);
-	    if ((retcode = run_exec (RUN_TTY, RUN_TTY, RUN_TTY,
-				     RUN_NORMAL | RUN_SIGIGNORE)) != 0)
-	    {
-		/* Since following error() exits, delete the temp file
-		   now.  */
-		if (unlink_file (fname) < 0)
-		    error (0, errno, "cannot remove %s", fname);
+	    /* Since following error() exits, delete the temp file now.  */
+	    if (unlink_file (fname) < 0)
+		error (0, errno, "cannot remove %s", fname);
 
-		error (1, retcode == -1 ? errno : 0, 
-		       "Message verification failed");
-	    }
+	    error (1, retcode == -1 ? errno : 0, 
+		   "Message verification failed");
+	}
+    }
+
+    /* Get the mod time and size of the possibly new log message
+     * in always and stat modes.
+     */
+    if (RereadLogAfterVerify == LOGMSG_REREAD_ALWAYS ||
+	RereadLogAfterVerify == LOGMSG_REREAD_STAT)
+    {
+	if ( CVS_STAT (fname, &post_stbuf) != 0 )
+	    error (1, errno, "cannot find size of temp file %s", fname);
+    }
+
+    /* And reread the log message in `always' mode or in `stat' mode when it's
+     * changed
+     */
+    if (RereadLogAfterVerify == LOGMSG_REREAD_ALWAYS ||
+	(RereadLogAfterVerify == LOGMSG_REREAD_STAT &&
+	    (pre_stbuf.st_mtime != post_stbuf.st_mtime ||
+	     pre_stbuf.st_size != post_stbuf.st_size)))
+    {
+	/* put the entire message back into the *messagep variable */
+	if ( (fp = open_file (fname, "r")) == NULL )
+	    error (1, errno, "cannot open temporary file %s", fname);
+
+	if (*messagep) free (*messagep);
+
+	if (post_stbuf.st_size == 0)
+	    *messagep = NULL;
+	else
+	{
+	    /* On NT, we might read less than st_size bytes,
+	       but we won't read more.  So this works.  */
+	    *messagep = (char *) xmalloc (post_stbuf.st_size + 1);
+	    *messagep[0] = '\0';
 	}
 
-	/* Delete the temp file  */
+	if (*messagep)
+	{
+	    char *line = NULL;
+	    int line_length;
+	    size_t line_chars_allocated = 0;
+	    char *p = *messagep;
 
-	if (unlink_file (fname) < 0)
-	    error (0, errno, "cannot remove %s", fname);
-	free (fname);
+	    while (1)
+	    {
+		line_length = getline (&line,
+				       &line_chars_allocated,
+				       fp);
+		if (line_length == -1)
+		{
+		    if (ferror (fp))
+			/* Fail in this case because otherwise we will have no
+			 * log message
+			 */
+			error (1, errno, "cannot read %s", fname);
+		    break;
+		}
+		if (strncmp (line, CVSEDITPREFIX, CVSEDITPREFIXLEN) == 0)
+		    continue;
+		(void) strcpy (p, line);
+		p += line_length;
+	    }
+	    if (line) free (line);
+	}
+	if (fclose (fp) < 0)
+	    error (0, errno, "warning: cannot close %s", fname);
     }
+
+    /* Delete the temp file  */
+
+    if (unlink_file (fname) < 0)
+	error (0, errno, "cannot remove %s", fname);
+    free (fname);
 }
 
 /*

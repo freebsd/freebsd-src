@@ -36,7 +36,7 @@
 #include "cvs.h"
 #include "savecwd.h"
 #ifdef SERVER_SUPPORT
-#include "md5.h"
+# include "md5.h"
 #endif
 #include "watch.h"
 #include "fileattr.h"
@@ -1779,7 +1779,7 @@ patch_file (finfo, vers_ts, docheckout, file_info, checksum)
 	}
 	else
 	{
-#define BINARY "Binary"
+# define BINARY "Binary"
 	    char buf[sizeof BINARY];
 	    unsigned int c;
 
@@ -2675,7 +2675,7 @@ special_file_mismatch (finfo, rev1, rev2)
 	    rev1_symlink = xreadlink (finfo->file);
 	else
 	{
-#ifdef HAVE_ST_RDEV
+# ifdef HAVE_ST_RDEV
 	    if (CVS_LSTAT (finfo->file, &sb) < 0)
 		error (1, errno, "could not get file information for %s",
 		       finfo->file);
@@ -2684,10 +2684,10 @@ special_file_mismatch (finfo, rev1, rev2)
 	    rev1_mode = sb.st_mode;
 	    if (S_ISBLK (rev1_mode) || S_ISCHR (rev1_mode))
 		rev1_dev = sb.st_rdev;
-#else
+# else
 	    error (1, 0, "cannot handle device files on this system (%s)",
 		   finfo->file);
-#endif
+# endif
 	}
 	rev1_hardlinks = list_linked_files_on_disk (finfo->file);
     }
@@ -2726,7 +2726,7 @@ special_file_mismatch (finfo, rev1, rev2)
 	    {
 		/* If the size of `ftype' changes, fix the sscanf call also */
 		char ftype[16];
-		if (sscanf (n->data, "%16s %lu", ftype,
+		if (sscanf (n->data, "%15s %lu", ftype,
 			    &dev_long) < 2)
 		    error (1, 0, "%s:%s has bad `special' newphrase %s",
 			   finfo->file, rev1, n->data);
@@ -2753,7 +2753,7 @@ special_file_mismatch (finfo, rev1, rev2)
 	    rev2_symlink = xreadlink (finfo->file);
 	else
 	{
-#ifdef HAVE_ST_RDEV
+# ifdef HAVE_ST_RDEV
 	    if (CVS_LSTAT (finfo->file, &sb) < 0)
 		error (1, errno, "could not get file information for %s",
 		       finfo->file);
@@ -2762,10 +2762,10 @@ special_file_mismatch (finfo, rev1, rev2)
 	    rev2_mode = sb.st_mode;
 	    if (S_ISBLK (rev2_mode) || S_ISCHR (rev2_mode))
 		rev2_dev = sb.st_rdev;
-#else
+# else
 	    error (1, 0, "cannot handle device files on this system (%s)",
 		   finfo->file);
-#endif
+# endif
 	}
 	rev2_hardlinks = list_linked_files_on_disk (finfo->file);
     }
@@ -2804,7 +2804,7 @@ special_file_mismatch (finfo, rev1, rev2)
 	    {
 		/* If the size of `ftype' changes, fix the sscanf call also */
 		char ftype[16];
-		if (sscanf (n->data, "%16s %lu", ftype,
+		if (sscanf (n->data, "%15s %lu", ftype,
 			    &dev_long) < 2)
 		    error (1, 0, "%s:%s has bad `special' newphrase %s",
 			   finfo->file, rev2, n->data);

@@ -65,7 +65,12 @@ Parse_Info (infofile, repository, callproc, all)
     srepos = Short_Repository (repository);
 
     if (trace)
-	(void) fprintf (stderr, " -> ParseInfo(%s, %s, %s)\n",
+	(void) fprintf (stderr, "%s-> Parse_Info (%s, %s, %s)\n",
+#ifdef SERVER_SUPPORT
+			server_active ? "S" : " ",
+#else
+			"",
+#endif
 			infopath, srepos, all ? "ALL" : "not ALL");
 
     /* search the info file for lines that match */
@@ -383,6 +388,15 @@ warning: this CVS does not support PreservePermissions");
 		logHistory=malloc(strlen (p) + 1);
 		strcpy (logHistory, p);
 	    }
+	}
+	else if (strcmp (line, "RereadLogAfterVerify") == 0)
+	{
+	    if (strcmp (p, "no") == 0 || strcmp (p, "never") == 0)
+	      RereadLogAfterVerify = LOGMSG_REREAD_NEVER;
+	    else if (strcmp (p, "yes") == 0 || strcmp (p, "always") == 0)
+	      RereadLogAfterVerify = LOGMSG_REREAD_ALWAYS;
+	    else if (strcmp (p, "stat") == 0)
+	      RereadLogAfterVerify = LOGMSG_REREAD_STAT;
 	}
 	else
 	{

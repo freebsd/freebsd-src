@@ -38,6 +38,7 @@ contrib_SCRIPTS = \
 	log \
 	log_accum \
 	mfpipe \
+	pvcs2rcs \
 	rcs-to-cvs \
 	rcs2log \
 	rcslock \
@@ -72,8 +73,8 @@ CLEANFILES = $(bin_SCRIPTS) $(contrib_SCRIPTS)
 
 # we'd rather have a link here rather than two copies of a script
 install-data-local:
-	# FIXME - this path should be determined dynamically from bindir
-	# & contribdir
+	: FIXME - this path should be determined dynamically from bindir
+	: and contribdir
 	@$(NORMAL_INSTALL)
 	$(mkinstalldirs) $(DESTDIR)$(bindir)
 	@list='$(bin_LINKS)'; for p in $$list; do \

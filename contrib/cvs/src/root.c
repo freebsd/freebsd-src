@@ -387,7 +387,7 @@ parse_cvsroot (root_in)
 
 	if (! (p = strchr (method, ':')))
 	{
-	    error (0, 0, "bad CVSroot: %s", root_in);
+	    error (0, 0, "No closing `:' on method in CVSROOT.");
 	    free (cvsroot_save);
 	    goto error_exit;
 	}
@@ -412,7 +412,7 @@ parse_cvsroot (root_in)
 	    newroot->method = fork_method;
 	else
 	{
-	    error (0, 0, "unknown method in CVSroot: %s", root_in);
+	    error (0, 0, "Unknown method (`%s') in CVSROOT.", method);
 	    free (cvsroot_save);
 	    goto error_exit;
 	}
@@ -420,7 +420,7 @@ parse_cvsroot (root_in)
     else
     {
 	/* If the method isn't specified, assume
-	   SERVER_METHOD/EXT_METHOD if the string contains a colon or
+	   SERVER_METHOD/EXT_METHOD if the string looks like a relative path or
 	   LOCAL_METHOD otherwise.  */
 
 	newroot->method = ((*cvsroot_copy != '/' && strchr (cvsroot_copy, '/'))
@@ -447,8 +447,7 @@ parse_cvsroot (root_in)
 	 */
 	if ((p = strchr (cvsroot_copy, '/')) == NULL)
 	{
-	    error (0, 0, "CVSROOT (\"%s\")", root_in);
-	    error (0, 0, "requires a path spec");
+	    error (0, 0, "CVSROOT requires a path spec:");
 	    error (0, 0, ":(gserver|kserver|pserver):[[user][:password]@]host[:[port]]/path");
 	    error (0, 0, "[:(ext|server):][[user]@]host[:]/path");
 	    free (cvsroot_save);
@@ -497,20 +496,18 @@ parse_cvsroot (root_in)
 		{
 		    if (!isdigit(*q++))
 		    {
-			error(0, 0, "CVSROOT (\"%s\")", root_in);
-			error(0, 0, "may only specify a positive, non-zero, integer port (not \"%s\").",
+			error (0, 0, "CVSROOT may only specify a positive, non-zero, integer port (not `%s').",
 				p);
-			error(0, 0, "perhaps you entered a relative pathname?");
+			error (0, 0, "Perhaps you entered a relative pathname?");
 			free (cvsroot_save);
 			goto error_exit;
 		    }
 		}
 		if ((newroot->port = atoi (p)) <= 0)
 		{
-		    error (0, 0, "CVSROOT (\"%s\")", root_in);
-		    error(0, 0, "may only specify a positive, non-zero, integer port (not \"%s\").",
+		    error (0, 0, "CVSROOT may only specify a positive, non-zero, integer port (not `%s').",
 			    p);
-		    error(0, 0, "perhaps you entered a relative pathname?");
+		    error (0, 0, "Perhaps you entered a relative pathname?");
 		    free (cvsroot_save);
 		    goto error_exit;
 		}
@@ -540,9 +537,8 @@ parse_cvsroot (root_in)
 #if ! defined (CLIENT_SUPPORT) && ! defined (DEBUG)
     if (newroot->method != local_method)
     {
-	error (0, 0, "CVSROOT \"%s\"", root_in);
-	error (0, 0, "is set for a remote access method but your");
-	error (0, 0, "CVS executable doesn't support it");
+	error (0, 0, "CVSROOT is set for a remote access method but your");
+	error (0, 0, "CVS executable doesn't support it.");
 	goto error_exit;
     }
 #endif
@@ -550,16 +546,15 @@ parse_cvsroot (root_in)
 #if ! defined (SERVER_SUPPORT) && ! defined (DEBUG)
     if (newroot->method == fork_method)
     {
-	error (0, 0, "CVSROOT \"%s\"", root_in);
-	error (0, 0, "is set to use the :fork: access method but your");
-	error (0, 0, "CVS executable doesn't support it");
+	error (0, 0, "CVSROOT is set to use the :fork: access method but your");
+	error (0, 0, "CVS executable doesn't support it.");
 	goto error_exit;
      }
 #endif
 
     if (newroot->username && ! newroot->hostname)
     {
-	error (0, 0, "missing hostname in CVSROOT: \"%s\"", root_in);
+	error (0, 0, "Missing hostname in CVSROOT.");
 	goto error_exit;
     }
 
@@ -571,9 +566,8 @@ parse_cvsroot (root_in)
     case local_method:
 	if (newroot->username || newroot->hostname)
 	{
-	    error (0, 0, "can't specify hostname and username in CVSROOT");
-	    error (0, 0, "(\"%s\")", root_in);
-	    error (0, 0, "when using local access method");
+	    error (0, 0, "Can't specify hostname and username in CVSROOT");
+	    error (0, 0, "when using local access method.");
 	    goto error_exit;
 	}
 	/* cvs.texinfo has always told people that CVSROOT must be an
@@ -583,8 +577,9 @@ parse_cvsroot (root_in)
 	   error.  */
 	if (!isabsolute (newroot->directory))
 	{
-	    error (0, 0, "CVSROOT \"%s\" must be an absolute pathname",
+	    error (0, 0, "CVSROOT must be an absolute pathname (not `%s')",
 		   newroot->directory);
+	    error (0, 0, "when using local access method.");
 	    goto error_exit;
 	}
 	no_port = 1;
@@ -596,15 +591,15 @@ parse_cvsroot (root_in)
            name is absolute -- let the server do it.  */
 	if (newroot->username || newroot->hostname)
 	{
-	    error (0, 0, "can't specify hostname and username in CVSROOT");
-	    error (0, 0, "(\"%s\")", root_in);
-	    error (0, 0, "when using fork access method");
+	    error (0, 0, "Can't specify hostname and username in CVSROOT");
+	    error (0, 0, "when using fork access method.");
 	    goto error_exit;
 	}
 	if (!isabsolute (newroot->directory))
 	{
-	    error (0, 0, "CVSROOT \"%s\" must be an absolute pathname",
+	    error (0, 0, "CVSROOT must be an absolute pathname (not `%s')",
 		   newroot->directory);
+	    error (0, 0, "when using fork access method.");
 	    goto error_exit;
 	}
 	no_port = 1;
@@ -612,9 +607,8 @@ parse_cvsroot (root_in)
 	break;
     case kserver_method:
 #ifndef HAVE_KERBEROS
-	error (0, 0, "CVSROOT \"%s\"", root_in);
-       	error (0, 0, "is set for a kerberos access method but your");
-	error (0, 0, "CVS executable doesn't support it");
+       	error (0, 0, "CVSROOT is set for a kerberos access method but your");
+	error (0, 0, "CVS executable doesn't support it.");
 	goto error_exit;
 #else
 	check_hostname = 1;
@@ -622,9 +616,8 @@ parse_cvsroot (root_in)
 #endif
     case gserver_method:
 #ifndef HAVE_GSSAPI
-	error (0, 0, "CVSROOT \"%s\"", root_in);
-	error (0, 0, "is set for a GSSAPI access method but your");
-	error (0, 0, "CVS executable doesn't support it");
+	error (0, 0, "CVSROOT is set for a GSSAPI access method but your");
+	error (0, 0, "CVS executable doesn't support it.");
 	goto error_exit;
 #else
 	check_hostname = 1;
@@ -639,6 +632,8 @@ parse_cvsroot (root_in)
     case pserver_method:
 	check_hostname = 1;
 	break;
+    default:
+	error (1, 0, "Invalid method found in parse_cvsroot");
     }
 
     if (no_password && newroot->password)
@@ -650,7 +645,7 @@ parse_cvsroot (root_in)
 
     if (check_hostname && !newroot->hostname)
     {
-	error (0, 0, "didn't specify hostname in CVSROOT: %s", root_in);
+	error (0, 0, "Didn't specify hostname in CVSROOT.");
 	goto error_exit;
     }
 
@@ -663,7 +658,7 @@ parse_cvsroot (root_in)
 
     if (*newroot->directory == '\0')
     {
-	error (0, 0, "missing directory in CVSROOT: %s", root_in);
+	error (0, 0, "Missing directory in CVSROOT.");
 	goto error_exit;
     }
     
