@@ -585,10 +585,11 @@ again:
 	PROC_LOCK(p1);
 #ifdef KTRACE
 	/*
-	 * Copy traceflag and tracefile if enabled.
-	 * If not inherited, these were zeroed above.
+	 * Copy traceflag and tracefile if enabled.  If not inherited,
+	 * these were zeroed above but we still could have a trace race
+	 * so make sure p2's p_tracep is NULL.
 	 */
-	if (p1->p_traceflag & KTRFAC_INHERIT) {
+	if ((p1->p_traceflag & KTRFAC_INHERIT) && p2->p_tracep == NULL) {
 		p2->p_traceflag = p1->p_traceflag;
 		if ((p2->p_tracep = p1->p_tracep) != NULL) {
 			PROC_UNLOCK(p1);
