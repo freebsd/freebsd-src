@@ -711,23 +711,17 @@ cd9660_strategy(ap)
 	register struct buf *bp = ap->a_bp;
 	register struct vnode *vp = bp->b_vp;
 	register struct iso_node *ip;
-	int error;
 
 	ip = VTOI(vp);
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		panic("cd9660_strategy: spec");
 	if (bp->b_blkno == bp->b_lblkno) {
-		if ((error =
-		    VOP_BMAP(vp, bp->b_lblkno, NULL, &bp->b_blkno, NULL, NULL))) {
-			bp->b_error = error;
-			bp->b_ioflags |= BIO_ERROR;
-			bufdone(bp);
-			return (error);
-		}
-		if ((long)bp->b_blkno == -1)
+		bp->b_blkno = (ip->iso_start + bp->b_lblkno) << 
+		    (ip->i_mnt->im_bshift - DEV_BSHIFT);
+		if ((long)bp->b_blkno == -1)	/* XXX: cut&paste junk ? */
 			clrbuf(bp);
 	}
-	if ((long)bp->b_blkno == -1) {
+	if ((long)bp->b_blkno == -1) {	/* XXX: cut&paste junk ? */
 		bufdone(bp);
 		return (0);
 	}
