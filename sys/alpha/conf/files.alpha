@@ -196,20 +196,5 @@ libkern/alpha/htonl.S		standard
 libkern/alpha/htons.S		standard
 libkern/alpha/ntohl.S		standard
 libkern/alpha/ntohs.S		standard
-libkern/bcd.c			standard
 libkern/bcmp.c			standard
 libkern/ffs.c			standard
-libkern/index.c			standard
-libkern/inet_ntoa.c		standard
-libkern/mcount.c		optional	profiling-routine
-libkern/qsort.c			standard
-libkern/random.c		standard
-libkern/rindex.c		standard
-libkern/scanc.c			standard
-libkern/skpc.c			standard
-libkern/strcat.c		standard
-libkern/strcmp.c		standard
-libkern/strcpy.c		standard
-libkern/strlen.c		standard
-libkern/strncmp.c		standard
-libkern/strncpy.c		standard

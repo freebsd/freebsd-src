@@ -882,7 +882,29 @@ dev/sound/pci/csapcm.c	optional csa pcm
 dev/sound/pci/es137x.c	optional pcm pci
 dev/sound/pci/t4dwave.c	optional pcm pci
 #dev/sound/pci/aureal.c	optional pcm pci
+#
+# These files in libkern/ are those needed by all architectures.  Some
+# of the files in libkern/ are only needed on some architectures, e.g.,
+# libkern/divdi3.c is needed by i386 but not alpha.  Also, some of these
+# routines may be optimized for a particular platform.  In either case,
+# the file should be moved to <arch>/conf/files.<arch> from here.
+#
 libkern/arc4random.c	standard
+libkern/bcd.c		standard
+libkern/index.c		standard
+libkern/inet_ntoa.c	standard
+libkern/mcount.c	optional	profiling-routine
+libkern/qsort.c		standard
+libkern/random.c	standard
+libkern/rindex.c	standard
+libkern/scanc.c		standard
+libkern/skpc.c		standard
+libkern/strcat.c	standard
+libkern/strcmp.c	standard
+libkern/strcpy.c	standard
+libkern/strlen.c	standard
+libkern/strncmp.c	standard
+libkern/strncpy.c	standard
 libkern/strtol.c	standard
 libkern/strtoq.c	standard
 libkern/strtoul.c	standard
