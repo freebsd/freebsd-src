@@ -31,18 +31,20 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)look_up.c	8.1 (Berkeley) 6/6/93";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
 
-#include <errno.h>
+__FBSDID("$FreeBSD$");
+
+#ifndef lint
+static const char sccsid[] = "@(#)look_up.c	8.1 (Berkeley) 6/6/93";
+#endif
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <protocols/talkd.h>
+
+#include <errno.h>
+
 #include "talk_ctl.h"
 #include "talk.h"
 
@@ -53,7 +55,7 @@ int
 check_local()
 {
 	CTL_RESPONSE response;
-	register CTL_RESPONSE *rp = &response;
+	CTL_RESPONSE *rp = &response;
 
 	/* the rest of msg was set up in get_names */
 #ifdef MSG_EOR
@@ -103,8 +105,6 @@ int
 look_for_invite(rp)
 	CTL_RESPONSE *rp;
 {
-	struct in_addr machine_addr;
-
 	current_state = "Checking for invitation on caller's machine";
 	ctl_transact(his_machine_addr, msg, LOOK_UP, rp);
 	/* the switch is for later options, such as multiple invitations */

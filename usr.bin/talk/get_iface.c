@@ -25,18 +25,20 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
+ */
+
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
+/*
  * From:
  *  Id: find_interface.c,v 1.1 1995/08/14 16:08:39 wollman Exp
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
-
 #include <errno.h>
 #include <string.h>
+
 #include "talk.h"
 
 /*
@@ -51,7 +53,6 @@ get_iface(dst, iface)
 {
 	static struct sockaddr_in local;
 	struct sockaddr_in remote;
-	struct hostent *hp;
 	int s, rv, namelen;
 
 	memcpy(&remote.sin_addr, dst, sizeof remote.sin_addr);
