@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.81.2.5 1997/02/03 16:29:29 gibbs Exp $
+ *      $FreeBSD$
  */
 /*
  * TODO:
@@ -255,7 +255,7 @@ restart_sequencer(ahc)
 
 #if defined(__FreeBSD__)
 #define	IS_SCSIBUS_B(ahc, sc_link)	\
-	(((u_int32_t)(sc_link)->fordriver) & SELBUSB)
+	(((u_int32_t)((sc_link)->fordriver) & SELBUSB) != 0)
 #else /* NetBSD/OpenBSD */
 #define	IS_SCSIBUS_B(ahc, sc_link)	\
 	((sc_link)->scsibus == (ahc)->sc_link_b.scsibus)
@@ -278,10 +278,10 @@ static int	ahc_poll __P((struct ahc_softc *ahc, int wait));
 static void	ahc_print_scb __P((struct scb *scb));
 #endif
 static u_int8_t ahc_find_scb __P((struct ahc_softc *ahc, struct scb *scb));
-static int	ahc_search_qinfo __P((struct ahc_softc *ahc, int target,
-				      char channel, u_int8_t tag,
-				      u_int32_t flags, u_int32_t xs_error,
-				      int requeue));
+static int	ahc_search_qinfifo __P((struct ahc_softc *ahc, int target,
+					char channel, u_int8_t tag,
+					u_int32_t flags, u_int32_t xs_error,
+					int requeue));
 static int	ahc_reset_channel __P((struct ahc_softc *ahc, char channel,
 				       u_int32_t xs_error, int initiate_reset));
 static int	ahc_reset_device __P((struct ahc_softc *ahc, int target,
@@ -583,10 +583,10 @@ ahc_scsirate(ahc, scsirate, period, offset, channel, target )
 	sxfrctl0 = ahc_inb(ahc, SXFRCTL0);
 	if (*scsirate != 0 && ahc_syncrates[i].sxfr & ULTRA_SXFR) {
 		ultra_enb |= 0x01 << (target & 0x07);
-		sxfrctl0 |= ULTRAEN;
+		sxfrctl0 |= FAST20;
 	} else {
 		ultra_enb &= ~(0x01 << (target & 0x07));
-		sxfrctl0 &= ~ULTRAEN;
+		sxfrctl0 &= ~FAST20;
 	}
 	ahc_outb(ahc, ultra_enb_addr, ultra_enb);
 	ahc_outb(ahc, SXFRCTL0, sxfrctl0);
@@ -767,6 +767,7 @@ ahc_intr(arg)
 
 		ahc_reset_device(ahc, ALL_TARGETS, ALL_CHANNELS, SCB_LIST_NULL,
 				 XS_DRIVER_STUFFUP);
+		ahc_run_done_queue(ahc);
         }
 	if (intstat & SEQINT)
 		ahc_handle_seqint(ahc, intstat);
@@ -1207,7 +1208,7 @@ ahc_handle_seqint(ahc, intstat)
 				hscb->datalen |= sg->len;
 				hscb->cmdpointer = vtophys(sc);
 				hscb->cmdlen = sizeof(*sc);
-
+				scb->sg_count = hscb->SG_segment_count;
 				scb->flags |= SCB_SENSE;
 				ahc_outb(ahc, RETURN_1, SEND_SENSE);
 
@@ -1343,15 +1344,29 @@ ahc_handle_seqint(ahc, intstat)
 		 * BITBUCKET mode.
 		 */
 		u_int8_t scbindex = ahc_inb(ahc, SCB_TAG);
+		u_int8_t lastphase = ahc_inb(ahc, LASTPHASE);
 		u_int32_t overrun;
+		int i;
 		scb = ahc->scb_data->scbarray[scbindex];
 		overrun = ahc_inb(ahc, STCNT0)
 			| (ahc_inb(ahc, STCNT1) << 8)
 			| (ahc_inb(ahc, STCNT2) << 16);
 		overrun = 0x00ffffff - overrun;
 		sc_print_addr(scb->xs->sc_link);
-		printf("data overrun of %d bytes detected."
-		       "  Forcing a retry.\n", overrun);
+		printf("data overrun of %d bytes detected in %s phase."
+		       "  Tag == 0x%x.  Forcing a retry.\n", overrun,
+		       lastphase == P_DATAIN ? "Data-In" : "Data-Out",
+		       scb->hscb->tag);
+		sc_print_addr(scb->xs->sc_link);
+		printf("%s seen Data Phase.  Length = %d.  NumSGs = %d.\n",
+		       ahc_inb(ahc, FLAGS) & DPHASE ? "Have" : "Haven't",
+		       scb->xs->datalen, scb->sg_count);
+		for (i = 0; i < scb->sg_count; i++) {
+			printf("sg[%d] - Addr 0x%x : Length %d\n",
+			       i,
+			       scb->ahc_dma[i].addr,
+			       scb->ahc_dma[i].len);
+		}
 		/*
 		 * Set this and it will take affect when the
 		 * target does a command complete.
@@ -1548,8 +1563,8 @@ ahc_handle_scsiint(ahc, intstat)
 		}
 		ahc_outb(ahc, SIMODE1, ahc_inb(ahc, SIMODE1) & ~ENBUSFREE);
 		ahc_outb(ahc, CLRSINT1, CLRBUSFREE);
-		ahc_outb(ahc, CLRINT, CLRSCSIINT);
 		restart_sequencer(ahc);
+		ahc_outb(ahc, CLRINT, CLRSCSIINT);
 	} else if (scb == NULL) {
 		printf("%s: ahc_intr - referenced scb not "
 		       "valid during scsiint 0x%x scb(%d)\n",
@@ -1947,7 +1962,7 @@ ahc_init(ahc)
 					|ENSTIMER|ACTNEGEN);
 		ahc_outb(ahc, SIMODE1, ENSELTIMO|ENSCSIRST|ENSCSIPERR);
 		if (ahc->type & AHC_ULTRA)
-			ahc_outb(ahc, SXFRCTL0, DFON|SPIOEN|ULTRAEN);
+			ahc_outb(ahc, SXFRCTL0, DFON|SPIOEN|FAST20);
 		else
 			ahc_outb(ahc, SXFRCTL0, DFON|SPIOEN);
 
@@ -1973,7 +1988,7 @@ ahc_init(ahc)
 				|ENSTIMER|ACTNEGEN);
 	ahc_outb(ahc, SIMODE1, ENSELTIMO|ENSCSIRST|ENSCSIPERR);
 	if (ahc->type & AHC_ULTRA)
-		ahc_outb(ahc, SXFRCTL0, DFON|SPIOEN|ULTRAEN);
+		ahc_outb(ahc, SXFRCTL0, DFON|SPIOEN|FAST20);
 	else
 		ahc_outb(ahc, SXFRCTL0, DFON|SPIOEN);
 
@@ -2284,8 +2299,14 @@ ahc_scsi_cmd(xs)
 		hscb->control |= DISCENB;
 		if (ahc->tagenable & mask)
 			hscb->control |= TAG_ENB;
+		if (ahc->orderedtag & mask) {
+			/* XXX this should be handled by the upper SCSI layer */
+			printf("Ordered Tag sent\n");
+			hscb->control |= MSG_ORDERED_Q_TAG;
+			ahc->orderedtag &= ~mask;
+		}
 	}
-	
+
 	if (flags & SCSI_RESET) {
 		scb->flags |= SCB_DEVICE_RESET|SCB_IMMED;
 		hscb->control |= MK_MESSAGE;		
@@ -2297,11 +2318,6 @@ ahc_scsi_cmd(xs)
 		ahc->sdtrpending |= mask;
 		hscb->control |= MK_MESSAGE;		
 		scb->flags |= SCB_MSGOUT_SDTR;
-	} else if (ahc->orderedtag & mask) {
-		/* XXX this should be handled by the upper SCSI layer */
-		printf("Ordered Tag sent\n");
-		hscb->control |= MSG_ORDERED_Q_TAG;
-		ahc->orderedtag &= ~mask;
 	}
 
 #if 0
@@ -2372,6 +2388,7 @@ ahc_scsi_cmd(xs)
 			sg++;
 		}
 		hscb->SG_segment_count = seg;
+		scb->sg_count = hscb->SG_segment_count;
 
 		/* Copy the first SG into the data pointer area */
 		hscb->data = scb->ahc_dma->addr;
@@ -2393,6 +2410,7 @@ ahc_scsi_cmd(xs)
 		 * No data xfer, use non S/G values
 	 	 */
 		hscb->SG_segment_count = 0;
+		scb->sg_count = hscb->SG_segment_count;
 		hscb->SG_list_pointer = 0;
 		hscb->data = 0;
 		hscb->datalen = (SCB_LIST_NULL << 24);
@@ -2792,9 +2810,14 @@ ahc_timeout(arg)
 		 * try sending an ordered tag command
 		 * to the target we come from.
 		 */
+		u_int16_t mask;
+
+		mask = (0x01 << (scb->xs->sc_link->target
+			 	 | (IS_SCSIBUS_B(ahc, scb->xs->sc_link) ?
+				    SELBUSB : 0)));
 		scb->flags |= SCB_SENTORDEREDTAG;
-		ahc->orderedtag |= 0xFF;
-		timeout(ahc_timeout, (caddr_t)scb, (5 * hz));
+		ahc->orderedtag |= mask;
+		timeout(ahc_timeout, (caddr_t)scb, (1 * hz));
 		unpause_sequencer(ahc, /*unpause_always*/TRUE);
 		printf("Ordered Tag queued\n");
 	} else {
@@ -2879,11 +2902,11 @@ ahc_timeout(arg)
 
 					target = scb->xs->sc_link->target;
 					ahc_unbusy_target(ahc, target, channel);
-					ahc_search_qinfo(ahc, target,
-							 channel,
-							 SCB_LIST_NULL,
-							 0, 0,
-							 /*requeue*/TRUE);
+					ahc_search_qinfifo(ahc, target,
+							   channel,
+							   SCB_LIST_NULL,
+							   0, 0,
+							   /*requeue*/TRUE);
 				}
 				STAILQ_INSERT_HEAD(&ahc->waiting_scbs, scb,
 						   links);
@@ -2930,7 +2953,7 @@ ahc_find_scb(ahc, scb)
 }
 
 static int
-ahc_search_qinfo(ahc, target, channel, tag, flags, xs_error, requeue)
+ahc_search_qinfifo(ahc, target, channel, tag, flags, xs_error, requeue)
 	struct	  ahc_softc *ahc;
 	int	  target;
 	char	  channel;
@@ -2940,13 +2963,14 @@ ahc_search_qinfo(ahc, target, channel, tag, flags, xs_error, requeue)
 	int	  requeue;
 {
 	u_int8_t saved_queue[AHC_SCB_MAX];
-	u_int8_t queued = ahc_inb(ahc, QINCNT) & ahc->qcntmask;
+	int	 queued = ahc_inb(ahc, QINCNT) & ahc->qcntmask;
 	int	 i;
 	int	 found;
 	struct	 scb *scbp;
 	STAILQ_HEAD(, scb) removed_scbs;
 
 	found = 0;
+	STAILQ_INIT(&removed_scbs);
 	for (i = 0; i < (queued - found); i++) {
 		saved_queue[i] = ahc_inb(ahc, QINFIFO);
 		scbp = ahc->scb_data->scbarray[saved_queue[i]];
@@ -3003,9 +3027,9 @@ ahc_reset_device(ahc, target, channel, tag, xs_error)
 	/*
 	 * Remove any entries from the Queue-In FIFO.
 	 */
-	found = ahc_search_qinfo(ahc, target, channel, tag,
-				 SCB_ABORTED|SCB_QUEUED_FOR_DONE, xs_error,
-				 /*requeue*/FALSE);
+	found = ahc_search_qinfifo(ahc, target, channel, tag,
+				   SCB_ABORTED|SCB_QUEUED_FOR_DONE, xs_error,
+				   /*requeue*/FALSE);
 
 	/*
 	 * Search waiting for selection list.
@@ -3275,12 +3299,10 @@ ahc_reset_channel(ahc, channel, xs_error, initiate_reset)
 	u_int32_t offset, offset_max;
 	int	  found;
 	int	  target;
-	int	  maxtarget;
 	u_int8_t  sblkctl;
 	char	  cur_channel;
 
 	pause_sequencer(ahc);
-	maxtarget = 8;
 	/*
 	 * Clean up all the state information for the
 	 * pending transactions on this bus.
@@ -3297,7 +3319,6 @@ ahc_reset_channel(ahc, channel, xs_error, initiate_reset)
 		ahc->needwdtr = ahc->needwdtr_orig;
 		ahc->sdtrpending = 0;
 		ahc->wdtrpending = 0;
-		maxtarget = 16;
 		offset = TARG_SCRATCH;
 		offset_max = TARG_SCRATCH + 16;
 	} else {
@@ -3438,11 +3459,11 @@ ahc_calc_residual(scb)
 		 * SG segments that are after the SG where
 		 * the transfer stopped.
 		 */
-		resid_sgs = hscb->residual_SG_segment_count - 1;
+		resid_sgs = scb->hscb->residual_SG_segment_count - 1;
 		while (resid_sgs > 0) {
 			int sg;
 
-			sg = hscb->SG_segment_count - resid_sgs;
+			sg = scb->sg_count - resid_sgs;
 			xs->resid += scb->ahc_dma[sg].len;
 			resid_sgs--;
 		}
