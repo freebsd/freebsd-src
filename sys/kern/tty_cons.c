@@ -165,10 +165,12 @@ cninit_finish()
 	 * Hook the open and close functions.
 	 */
 	cdp = devsw(cn_tab->cn_dev);
-	cn_phys_close = cdp->d_close;
-	cdp->d_close = cnclose;
-	cn_phys_open = cdp->d_open;
-	cdp->d_open = cnopen;
+	if (cdp != NULL) {
+		cn_phys_close = cdp->d_close;
+		cdp->d_close = cnclose;
+		cn_phys_open = cdp->d_open;
+		cdp->d_open = cnopen;
+	}
 	cn_dev_t = cn_tab->cn_dev;
 	cn_udev_t = dev2udev(cn_dev_t);
 }
@@ -185,9 +187,11 @@ cnuninit(void)
 	 * Unhook the open and close functions.
 	 */
 	cdp = devsw(cn_tab->cn_dev);
-	cdp->d_close = cn_phys_close;
+	if (cdp != NULL) {
+		cdp->d_close = cn_phys_close;
+		cdp->d_open = cn_phys_open;
+	}
 	cn_phys_close = NULL;
-	cdp->d_open = cn_phys_open;
 	cn_phys_open = NULL;
 	cn_dev_t = NODEV;
 	cn_udev_t = NOUDEV;
@@ -250,7 +254,7 @@ cnopen(dev, flag, mode, p)
 	dev_t cndev, physdev;
 	int retval = 0;
 
-	if (cn_tab == NULL)
+	if (cn_tab == NULL || cn_phys_open == NULL)
 		return (0);
 	cndev = cn_tab->cn_dev;
 	physdev = (major(dev) == major(cndev) ? dev : cndev);
@@ -287,7 +291,7 @@ cnclose(dev, flag, mode, p)
 	dev_t cndev;
 	struct tty *cn_tp;
 
-	if (cn_tab == NULL)
+	if (cn_tab == NULL || cn_phys_open == NULL)
 		return (0);
 	cndev = cn_tab->cn_dev;
 	cn_tp = cndev->si_tty;
@@ -327,7 +331,8 @@ cnread(dev, uio, flag)
 	struct uio *uio;
 	int flag;
 {
-	if ((cn_tab == NULL) || cn_mute)
+
+	if (cn_tab == NULL || cn_phys_open == NULL)
 		return (0);
 	dev = cn_tab->cn_dev;
 	return ((*devsw(dev)->d_read)(dev, uio, flag));
@@ -339,7 +344,8 @@ cnwrite(dev, uio, flag)
 	struct uio *uio;
 	int flag;
 {
-	if ((cn_tab == NULL) || cn_mute) {
+
+	if (cn_tab == NULL || cn_phys_open == NULL) {
 		uio->uio_resid = 0; /* dump the data */
 		return (0);
 	}
@@ -360,7 +366,7 @@ cnioctl(dev, cmd, data, flag, p)
 {
 	int error;
 
-	if ((cn_tab == NULL) || cn_mute)
+	if (cn_tab == NULL || cn_phys_open == NULL)
 		return (0);
 	/*
 	 * Superuser can always use this to wrest control of console
