@@ -2243,7 +2243,7 @@ mly_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
     /* build the packet for the controller */
     ss = &mc->mc_packet->scsi_small;
     ss->opcode = MDACMD_SCSI;
-    if (csio->ccb_h.flags * CAM_DIS_DISCONNECT)
+    if (csio->ccb_h.flags & CAM_DIS_DISCONNECT)
 	ss->command_control.disable_disconnect = 1;
     if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT)
 	ss->command_control.data_direction = MLY_CCB_WRITE;
