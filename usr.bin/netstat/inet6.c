@@ -40,6 +40,7 @@ static char sccsid[] = "@(#)inet6.c	8.4 (Berkeley) 4/20/94";
 */
 #endif /* not lint */
 
+#ifdef INET6
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -1045,3 +1046,4 @@ inet6name(in6p)
 				sizeof(ntop_buf)));
 	return (line);
 }
+#endif /*INET6*/
