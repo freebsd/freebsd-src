@@ -435,8 +435,10 @@ g_ctl_req(void *arg, int flag __unused)
 	g_topology_assert();
 	req = arg;
 	mp = gctl_get_class(req, "class");
-	if (mp == NULL)
+	if (mp == NULL) {
+		gctl_error(req, "Class not found");
 		return;
+	}
 	verb = gctl_get_param(req, "verb", NULL);
 	if (mp->ctlreq == NULL)
 		gctl_error(req, "Class takes no requests");
