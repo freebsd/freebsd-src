@@ -242,6 +242,7 @@ displayq(format)
 	savealrm = signal(SIGALRM, alarmhandler);
 	alarm(CT);
 	fd = getport(RM, 0);
+	alarm(0);
 	(void)signal(SIGALRM, savealrm);
 	if (fd < 0) {
 		if (from != host)

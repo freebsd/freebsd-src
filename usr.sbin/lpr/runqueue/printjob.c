@@ -1474,6 +1474,7 @@ opennet(cp)
 		savealrm = signal(SIGALRM, alarmhandler);
 		alarm(CT);
 		pfd = getport(cp, port);
+		alarm(0);
 		(void)signal(SIGALRM, savealrm);
 		if (pfd < 0 && errno == ECONNREFUSED)
 			resp = 1;
@@ -1541,6 +1542,7 @@ openrem()
 		savealrm = signal(SIGALRM, alarmhandler);
 		alarm(CT);
 		pfd = getport(RM, 0);
+		alarm(0);
 		(void)signal(SIGALRM, savealrm);
 		if (pfd >= 0) {
 			(void) snprintf(line, sizeof(line), "\2%s\n", RP);
