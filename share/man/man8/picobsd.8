@@ -1,6 +1,6 @@
 .\" -*- nroff-fill -*-
 .\" $FreeBSD$
-.Dd June 20, 2001
+.Dd March 9, 2002
 .Os
 .Dt PICOBSD 8
 .Sh NAME
@@ -229,7 +229,29 @@ manpage for the syntax.
 .It Pa config
 shell variables, sourced by the
 .Pa picobsd
-script (optional). Again, look at the standard
+script (optional). The most important variables here are
+.Pa MY_DEVS
+which should be set to the list of device which should be
+created in the
+.Pa /dev
+directory of the image (it is really the argument passed to
+.Pa MAKEDEV ,
+so you can refer to that manpage for the names), and the
+.Pa fd_size
+which can override the default size (in kilobytes) of the image.
+By default,
+.Pa fd_size=1440
+which produces an image suitable for a standard floppy.
+.Pp
+If you plan to store the image on a CDROM (e.g. using
+the El Torito floppy emulation), you can set
+.Pa fd_size=2880 .
+Same if you are planning to dump the image onto a hard disk
+(either in a partition or on the whole disk), in which case you
+are not even restricted to use one of the standard floppy sizes.
+Using a large image size per se does not waste RAM at runtime,
+because only the files that are actually loaded from the image
+contribute to the memory usage.
 .Pp
 .It Pa floppy.tree.exclude
 files from the standard floppy tree which are not needed (optional).
@@ -288,17 +310,100 @@ you first need to update them e.g. by running first
 .Pp
 as you would normally do for any change of this kind.
 .Pp
+.Sh INSTALLING PicoBSD
+.Pp
+.Ss Floppy install
+Historically,
+.Nm
+is run from a floppy disk, where it can be installed with a simple
+.Bd -literal -offset indent
+  dd if=picobsd.bin of=/dev/rfd0
+.Ed
+.Pp
+and the floppy is ready to run.
+.Pp
+.Ss Hard disk install
+The same process can be used to store the image on a hard disk
+(entire volume or one of the slices):
+.Bd -literal -offset indent
+  dd if=picobsd.bin of=/dev/ad2
+  dd if=picobsd.bin of=/dev/ad2s3
+  dd if=picobsd.bin of=/dev/ad2 oseek=NN
+.Ed
+.Pp
+The first form will install the image on the entire disk, and it
+should work in the same way as from a floppy.
+.Pp
+The second form will install the
+on slice number 3 (which should be large enough to store the
+content of the image). However the process will only have success if the
+partition does not contain a valid disklabel, otherwise the kernel will
+likely prevent overwriting the label. In this case you can use the
+third form, replacing NN with the actual start of the partition
+(as you can tell from
+.Nm fdisk
+).
+Note that after saving the image to the slice, it will not be
+recognised yet, you have to use the disklabel command to
+properly initialize the label (don't ask why!).
+One way to do this is
+.Bd -literal -offset indent
+  disklabel -w ad0s2 auto
+  disklabel -e ad0s2
+.Ed
+.Pp
+and from the editor enter a line corresponding to the actual partition, e.g.
+if the image has 2.88MB (5760 sectors) you need to enter the following
+line for the partition:
+.Bd -literal -offset indent
+  a: 5760   0    4.2BSD   512   4096
+.Ed
+.Pp
+At this point the partition is bootable.
+Note that the image size can be smaller than the slice size
+(indicated as partition c:).
+.Pp
+.Ss CDROM install
+Another option is to put the image on a CDROM. Assuming your image
+for disk type
+.Pa foo
+is in the directory
+.Pa build_dir-foo
+then you can produce a bootable El Torito image (and burn it) with the
+following command:
+.Bd -literal -offset indent
+mkisofs -b picobsd.bin -c boot.catalog -d -N -D -R -T \\
+    -o cd.img build_dir-foo
+burncd -f /dev/acd0c -s 4 data cd.img fixate
+.Ed
+.Pp
+Note that the image size is restricted to 1.44MB or 2.88MB, other sizes
+most likely will not work.
+.Pp
+.Ss Booting from the network
+Yet another way to use
+.Nm
+is to boot the image off the network.
+For this purpose you should use the uncompressed kernel which is
+available as a byproduct of the compilation. Refer to the documentation
+for network booting for more details, the
+.Nm
+kernel is bootable as a standard
+.Fx
+kernel.
+.Pp
 .Sh BOOTING PicoBSD
 To boot
 .Nm ,
 insert the floppy and reset the machine.  The boot procedure is similar to the
 standard
 .Fx
-boot, but proceeds at a snail's pace.  From the end of the POST
-(BIOS Power On Self Test) until the system is up and running takes
-anywhere between 1 and 3 minutes.
+boot.
+Booting from a floppy is normally rather slow (in the order of 1-2
+minutes), things are much faster if you store your image on
+a hard disk, Compact Flash, or CDROM.
 .Pp
-To speed up booting, you can use
+You can also use
 .Xr etherboot
 to load the preloaded, uncompressed kernel image
 which is a byproduct of the
@@ -307,21 +412,170 @@ build.
 In this case
 the load time is a matter of a few seconds, even on a 10Mbit/s
 ethernet.
-.Ss Swap space
+.Pp
 After booting,
 .Nm
-runs entirely from the memory file system.  The floppies are no longer used, and
-even if there are hard disk drivers in the
-.Nm
-kernel, it does not access the drives.  In particular, there is no swap space,
-so if you run out of memory, unpredictable things can happen.
+loads the root filesystem from memory file system, starts
+.Pa /sbin/init ,
+and passes control to a first startup script,
+.Pa /etc/rc .
+The latter populates the
+.Pa /etc
+and
+.Pa /root
+directories with the default files, then tries to identify the boot
+device (floppy, hard disk partition) and possibly override the content
+of the root filesystem with files read from the boot device.
+This allows you to store local configuration on the same media.
+After this phase the boot device is no longer used, unless the
+user specifically does it.
 .Pp
-If you have a disk driver and a disk with a swap partition on it, and the swap
-partition does not contain a dump you want to keep, you can use this swap with
-.Nm .
-Use the
-.Xr swapon 8
-command.
+After this, control is transferred to a second script,
+.Pa /etc/rc1 ,
+(can be overridden from the boot device).
+This one tries to associate a hostname to the system by using
+the MAC address of the first ethernet interface as a key, and
+.Pa /etc/hosts
+as a lookup table.
+Then control is passed to the main user configuration script,
+.Pa /etc/rc.conf ,
+which is supposed to override the value of a number of configuration
+variables which have been pre-set in
+.Pa /etc/rc.conf.defaults .
+You can use the
+.Pa $hostname
+variable to create different configurations from the same file.
+.Pa
+After taking control back,
+.Pa /etc/rc1 completes the initializations, and as part of this
+it configures network interfaces and optionally calls the
+firewall configuration script,
+.Pa /etc/rc.firewall ,
+where the user can store his own firewall configuration.
+.Pp
+Note that by default
+.Nm
+runs entirely off main memory, and has no swap space, unless you
+explicitly request it.
+The boot device is also not used anymore after
+.Pa /etc/rc1
+takes control, again unless you explicitly request it.
+.Pp
+.Pp
+.Sh CONFIGURING a PicoBSD system
+The operation of a
+.Nm
+system can be configured through a few files which are read at boot
+time, very much like a standard
+.Fx
+system. There are, however, some minor differences to reduce the
+number of files to store and/or customize, thus saving space.
+Among the files to configure we have the following:
+.Pp
+.Bl -tag -width "xxxxx" -compact
+.It Pa /etc/hosts
+Traditionally, this file contains the IP-to-hostname mappings.
+In addition to this, the PicoBSD version of this file also contains
+a mapping between Ethernet (MAC) addresses and hostnames, as follows:
+.Pp
+.Bd -literal -offset indent
+#ethertable     start of the ethernet->hostname mapping
+# mac_address           hostname
+# 00:12:34:56:78:9a     pinco
+# 12:34:56:*            pallino
+# *                     this-matches-all
+.Ed
+.Pp
+where the line containing "#ethertable" marks the start of the table.
+.Pp
+If the MAC address is not found, the script will prompt you to
+enter a hostname and IP address for the system, and these
+informations will be stored in the
+.Pa /etc/hosts
+file (in memory) so you can simply store them on disk later.
+.Pp
+Note that you can use wildcards in the address part, so a line
+like the last one in the example will match any MAC address and
+avoid the request.
+.Et
+.Pp
+.It Pa /etc/rc.conf
+This file contains a number of variables which control the
+operation of the system, such as interface configuration,
+router setup, network service startup, etc. .
+For the exact list and meaning of these variables see
+.Pa /etc/rc.conf.defaults .
+.Pp
+It is worth mentioning that some of the variables let you
+overwrite the content of some files in
+.Pa /etc .
+This option is available at the moment for
+.Pa /etc/host.conf
+and
+.Pa /etc/resolv.conf
+whose content is generally very short and suitable for this
+type of updating.
+In case you use these variables, remember to use newlines
+as appropriate, e.g.
+.Pp
+.Bd -literal -offset indent
+host_conf="# this goes into /etc/host.conf
+hosts
+bind"
+.Ed
+.Pp
+Although not mandatory in this file you should only set the
+variables indicated in
+.Pa /etc/rc.conf.defaults ,
+and avoid starting services which depend on having the network running.
+This can be done at a later time: if you set
+.Pa firewall_enable="YES" ,
+the
+.Pa /etc/rc.firewall
+script will be run after configuring the network interfaces,
+so you can set up your firewall and safely start network services or enable
+things such as routing and bridging.
+.Et
+.Pp
+.It Pa /etc/rc.firewall
+This script can be used to configure the
+.Nm ipfw
+firewall.
+On entry, the
+.Pa $fwcmd
+variable is set to the pathname of the firewall command,
+.Pa $firewall_type
+contains the value set in
+.Pa /etc/rc.conf ,
+and
+.Pa $hostname
+contains the name assigned to the host.
+.El
+.Pp
+There is a small script called
+.Nm update
+which can be used to edit and/or save to disk a copy of the files
+that you have modified after booting.
+The script takes one or more absolute pathnames, runs the
+editor on the files passed as arguments, and then saves a
+compressed copy of the files on the disk (mounting and
+unmounting the latter around the operation).
+.Pp
+If invoked without arguments,
+.Nm update
+edits and saves
+.Pa rc.conf
+.Pa rc.firewall
+and
+.Pa master.passwd .
+.Pp
+If one of the arguments is
+.Pa /etc
+(the directory name alone),
+then the command saves to disk (without editing)
+all the files in the directory for which a copy
+already exists on disk (e.g. as a result of a previous update).
+.Pp
 .Sh SEE ALSO
 .Xr crunchgen 1 ,
 .Xr swapon 8 ,
