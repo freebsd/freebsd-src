@@ -87,7 +87,7 @@ typedef struct {
 	int bsz;		/* default block size. used when the user */
 				/* does not specify a blocksize for writing */
 				/* Appends continue to with the blocksize */
-				/* the archive is currently using.*/
+				/* the archive is currently using. */
 	int hsz;		/* Header size in bytes. this is the size of */
 				/* the smallest header this format supports. */
 				/* Headers are assumed to fit in a BLKMULT. */

@@ -78,7 +78,7 @@ static int tar_nodir;			/* do not write dirs under old tar */
  *	0 if ok, -1 otherwise (what wr_skip returns)
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 tar_endwr(void)
 #else
@@ -96,7 +96,7 @@ tar_endwr()
  *	size of trailer (2 * BLKMULT)
  */
 
-#if __STDC__
+#ifdef __STDC__
 off_t
 tar_endrd(void)
 #else
@@ -118,7 +118,7 @@ tar_endrd()
  *	could never contain a header.
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 tar_trail(register char *buf, register int in_resync, register int *cnt)
 #else
@@ -169,7 +169,7 @@ tar_trail(buf, in_resync, cnt)
  *	0 if the number fit into the string, -1 otherwise
  */
 
-#if __STDC__
+#ifdef __STDC__
 static int
 ul_oct(u_long val, register char *str, register int len, int term)
 #else
@@ -233,7 +233,7 @@ ul_oct(val, str, len, term)
  *	0 if the number fit into the string, -1 otherwise
  */
 
-#if __STDC__
+#ifdef __STDC__
 static int
 uqd_oct(u_quad_t val, register char *str, register int len, int term)
 #else
@@ -296,7 +296,7 @@ uqd_oct(val, str, len, term)
  *	unsigned long checksum
  */
 
-#if __STDC__
+#ifdef __STDC__
 static u_long
 tar_chksm(register char *blk, register int len)
 #else
@@ -344,7 +344,7 @@ tar_chksm(blk, len)
  *	0 if a tar header, -1 otherwise
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 tar_id(register char *blk, int size)
 #else
@@ -385,7 +385,7 @@ tar_id(blk, size)
  *	0 if ok -1 otherwise
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 tar_opt(void)
 #else
@@ -398,9 +398,9 @@ tar_opt()
 	while ((opt = opt_next()) != NULL) {
 		if (strcmp(opt->name, TAR_OPTION) ||
 		    strcmp(opt->value, TAR_NODIR)) {
-			pax_warn(1, "Unknown tar format -o option/value pair %s=%s",
+			paxwarn(1, "Unknown tar format -o option/value pair %s=%s",
 			    opt->name, opt->value);
-			pax_warn(1,"%s=%s is the only supported tar format option",
+			paxwarn(1,"%s=%s is the only supported tar format option",
 			    TAR_OPTION, TAR_NODIR);
 			return(-1);
 		}
@@ -409,7 +409,7 @@ tar_opt()
 		 * we only support one option, and only when writing
 		 */
 		if ((act != APPND) && (act != ARCHIVE)) {
-			pax_warn(1, "%s=%s is only supported when writing.",
+			paxwarn(1, "%s=%s is only supported when writing.",
 			    opt->name, opt->value);
 			return(-1);
 		}
@@ -427,7 +427,7 @@ tar_opt()
  *	0
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 tar_rd(register ARCHD *arcn, register char *buf)
 #else
@@ -550,7 +550,7 @@ tar_rd(arcn, buf)
  *	data to write after the header, -1 if archive write failed
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 tar_wr(register ARCHD *arcn)
 #else
@@ -575,23 +575,23 @@ tar_wr(arcn)
 			return(1);
 		break;
 	case PAX_CHR:
-		pax_warn(1, "Tar cannot archive a character device %s",
+		paxwarn(1, "Tar cannot archive a character device %s",
 		    arcn->org_name);
 		return(1);
 	case PAX_BLK:
-		pax_warn(1, "Tar cannot archive a block device %s", arcn->org_name);
+		paxwarn(1, "Tar cannot archive a block device %s", arcn->org_name);
 		return(1);
 	case PAX_SCK:
-		pax_warn(1, "Tar cannot archive a socket %s", arcn->org_name);
+		paxwarn(1, "Tar cannot archive a socket %s", arcn->org_name);
 		return(1);
 	case PAX_FIF:
-		pax_warn(1, "Tar cannot archive a fifo %s", arcn->org_name);
+		paxwarn(1, "Tar cannot archive a fifo %s", arcn->org_name);
 		return(1);
 	case PAX_SLK:
 	case PAX_HLK:
 	case PAX_HRG:
 		if (arcn->ln_nlen > sizeof(hd->linkname)) {
-			pax_warn(1,"Link name too long for tar %s", arcn->ln_name);
+			paxwarn(1,"Link name too long for tar %s", arcn->ln_name);
 			return(1);
 		}
 		break;
@@ -608,7 +608,7 @@ tar_wr(arcn)
 	if (arcn->type == PAX_DIR)
 		++len;
 	if (len > sizeof(hd->name)) {
-		pax_warn(1, "File name too long for tar %s", arcn->name);
+		paxwarn(1, "File name too long for tar %s", arcn->name);
 		return(1);
 	}
 
@@ -631,7 +631,7 @@ tar_wr(arcn)
 		 * dirs, so no pad.
 		 */
 		hd->linkflag = AREGTYPE;
-		bzero(hd->linkname, sizeof(hd->linkname));
+		memset(hd->linkname, 0, sizeof(hd->linkname));
 		hd->name[len-1] = '/';
 		if (ul_oct((u_long)0L, hd->size, sizeof(hd->size), 1))
 			goto out;
@@ -656,7 +656,7 @@ tar_wr(arcn)
 		 * data follows this file, so set the pad
 		 */
 		hd->linkflag = AREGTYPE;
-		bzero(hd->linkname, sizeof(hd->linkname));
+		memset(hd->linkname, 0, sizeof(hd->linkname));
 #		ifdef NET2_STAT
 		if (ul_oct((u_long)arcn->sb.st_size, hd->size,
 		    sizeof(hd->size), 1)) {
@@ -664,7 +664,7 @@ tar_wr(arcn)
 		if (uqd_oct((u_quad_t)arcn->sb.st_size, hd->size,
 		    sizeof(hd->size), 1)) {
 #		endif
-			pax_warn(1,"File is too large for tar %s", arcn->org_name);
+			paxwarn(1,"File is too large for tar %s", arcn->org_name);
 			return(1);
 		}
 		arcn->pad = TAR_PAD(arcn->sb.st_size);
@@ -699,7 +699,7 @@ tar_wr(arcn)
 	/*
 	 * header field is out of range
 	 */
-	pax_warn(1, "Tar header field is too small for %s", arcn->org_name);
+	paxwarn(1, "Tar header field is too small for %s", arcn->org_name);
 	return(1);
 }
 
@@ -714,7 +714,7 @@ tar_wr(arcn)
  *	0 if ok, -1 otherwise
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 ustar_strd(void)
 #else
@@ -734,7 +734,7 @@ ustar_strd()
  *	0 if ok, -1 otherwise
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 ustar_stwr(void)
 #else
@@ -755,7 +755,7 @@ ustar_stwr()
  *	0 if a ustar header, -1 otherwise
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 ustar_id(char *blk, int size)
 #else
@@ -794,7 +794,7 @@ ustar_id(blk, size)
  *	0
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 ustar_rd(register ARCHD *arcn, register char *buf)
 #else
@@ -952,7 +952,7 @@ ustar_rd(arcn, buf)
  *	data to write after the header, -1 if archive write failed
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 ustar_wr(register ARCHD *arcn)
 #else
@@ -969,7 +969,7 @@ ustar_wr(arcn)
 	 * check for those file system types ustar cannot store
 	 */
 	if (arcn->type == PAX_SCK) {
-		pax_warn(1, "Ustar cannot archive a socket %s", arcn->org_name);
+		paxwarn(1, "Ustar cannot archive a socket %s", arcn->org_name);
 		return(1);
 	}
 
@@ -978,7 +978,7 @@ ustar_wr(arcn)
 	 */
 	if (((arcn->type == PAX_SLK) || (arcn->type == PAX_HLK) ||
 	    (arcn->type == PAX_HRG)) && (arcn->ln_nlen >= sizeof(hd->linkname))){
-		pax_warn(1, "Link name too long for ustar %s", arcn->ln_name);
+		paxwarn(1, "Link name too long for ustar %s", arcn->ln_name);
 		return(1);
 	}
 
@@ -987,7 +987,7 @@ ustar_wr(arcn)
 	 * pt != arcn->name, the name has to be split
 	 */
 	if ((pt = name_split(arcn->name, arcn->nlen)) == NULL) {
-		pax_warn(1, "File name too long for ustar %s", arcn->name);
+		paxwarn(1, "File name too long for ustar %s", arcn->name);
 		return(1);
 	}
 	hd = (HD_USTAR *)hdblk;
@@ -1005,7 +1005,7 @@ ustar_wr(arcn)
 		zf_strncpy(hd->prefix, arcn->name, sizeof(hd->prefix));
 		*pt++ = '/';
 	} else
-		bzero(hd->prefix, sizeof(hd->prefix));
+		memset(hd->prefix, 0, sizeof(hd->prefix));
 
 	/*
 	 * copy the name part. this may be the whole path or the part after
@@ -1019,9 +1019,9 @@ ustar_wr(arcn)
 	switch(arcn->type) {
 	case PAX_DIR:
 		hd->typeflag = DIRTYPE;
-		bzero(hd->linkname, sizeof(hd->linkname));
-		bzero(hd->devmajor, sizeof(hd->devmajor));
-		bzero(hd->devminor, sizeof(hd->devminor));
+		memset(hd->linkname, 0, sizeof(hd->linkname));
+		memset(hd->devmajor, 0, sizeof(hd->devmajor));
+		memset(hd->devminor, 0, sizeof(hd->devminor));
 		if (ul_oct((u_long)0L, hd->size, sizeof(hd->size), 3))
 			goto out;
 		break;
@@ -1031,7 +1031,7 @@ ustar_wr(arcn)
 			hd->typeflag = CHRTYPE;
 		else
 			hd->typeflag = BLKTYPE;
-		bzero(hd->linkname, sizeof(hd->linkname));
+		memset(hd->linkname, 0, sizeof(hd->linkname));
 		if (ul_oct((u_long)MAJOR(arcn->sb.st_rdev), hd->devmajor,
 		   sizeof(hd->devmajor), 3) ||
 		   ul_oct((u_long)MINOR(arcn->sb.st_rdev), hd->devminor,
@@ -1041,9 +1041,9 @@ ustar_wr(arcn)
 		break;
 	case PAX_FIF:
 		hd->typeflag = FIFOTYPE;
-		bzero(hd->linkname, sizeof(hd->linkname));
-		bzero(hd->devmajor, sizeof(hd->devmajor));
-		bzero(hd->devminor, sizeof(hd->devminor));
+		memset(hd->linkname, 0, sizeof(hd->linkname));
+		memset(hd->devmajor, 0, sizeof(hd->devmajor));
+		memset(hd->devminor, 0, sizeof(hd->devminor));
 		if (ul_oct((u_long)0L, hd->size, sizeof(hd->size), 3))
 			goto out;
 		break;
@@ -1055,8 +1055,8 @@ ustar_wr(arcn)
 		else
 			hd->typeflag = LNKTYPE;
 		zf_strncpy(hd->linkname,arcn->ln_name, sizeof(hd->linkname));
-		bzero(hd->devmajor, sizeof(hd->devmajor));
-		bzero(hd->devminor, sizeof(hd->devminor));
+		memset(hd->devmajor, 0, sizeof(hd->devmajor));
+		memset(hd->devminor, 0, sizeof(hd->devminor));
 		if (ul_oct((u_long)0L, hd->size, sizeof(hd->size), 3))
 			goto out;
 		break;
@@ -1070,9 +1070,9 @@ ustar_wr(arcn)
 			hd->typeflag = CONTTYPE;
 		else
 			hd->typeflag = REGTYPE;
-		bzero(hd->linkname, sizeof(hd->linkname));
-		bzero(hd->devmajor, sizeof(hd->devmajor));
-		bzero(hd->devminor, sizeof(hd->devminor));
+		memset(hd->linkname, 0, sizeof(hd->linkname));
+		memset(hd->devmajor, 0, sizeof(hd->devmajor));
+		memset(hd->devminor, 0, sizeof(hd->devminor));
 		arcn->pad = TAR_PAD(arcn->sb.st_size);
 #		ifdef NET2_STAT
 		if (ul_oct((u_long)arcn->sb.st_size, hd->size,
@@ -1081,7 +1081,7 @@ ustar_wr(arcn)
 		if (uqd_oct((u_quad_t)arcn->sb.st_size, hd->size,
 		    sizeof(hd->size), 3)) {
 #		endif
-			pax_warn(1,"File is too long for ustar %s",arcn->org_name);
+			paxwarn(1,"File is too long for ustar %s",arcn->org_name);
 			return(1);
 		}
 		break;
@@ -1122,7 +1122,7 @@ ustar_wr(arcn)
     	/*
 	 * header field is out of range
 	 */
-	pax_warn(1, "Ustar header field is too small for %s", arcn->org_name);
+	paxwarn(1, "Ustar header field is too small for %s", arcn->org_name);
 	return(1);
 }
 
@@ -1138,7 +1138,7 @@ ustar_wr(arcn)
  *	the file name is too long
  */
 
-#if __STDC__
+#ifdef __STDC__
 static char *
 name_split(register char *name, register int len)
 #else

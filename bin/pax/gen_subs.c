@@ -81,7 +81,7 @@ static int d_first = -1;
  *	list the members of an archive in ls format
  */
 
-#if __STDC__
+#ifdef __STDC__
 void
 ls_list(register ARCHD *arcn, time_t now)
 #else
@@ -168,7 +168,7 @@ ls_list(arcn, now)
  * 	print a short summary of file to tty.
  */
 
-#if __STDC__
+#ifdef __STDC__
 void
 ls_tty(register ARCHD *arcn)
 #else
@@ -184,7 +184,7 @@ ls_tty(arcn)
 	if (d_first < 0)
 		d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
 
-	if ((arcn->sb.st_mtime + SIXMONTHS) <= time((time_t *)NULL))
+	if ((arcn->sb.st_mtime + SIXMONTHS) <= time(NULL))
 		timefrmt = d_first ? OLDFRMTD : OLDFRMTM;
 	else
 		timefrmt = d_first ? CURFRMTD : CURFRMTM;
@@ -205,10 +205,10 @@ ls_tty(arcn)
  *	copy src to dest up to len chars (stopping at first '\0'), when src is
  *	shorter than len, pads to len with '\0'. big performance win (and
  *	a lot easier to code) over strncpy(), then a strlen() then a
- *	bzero(). (or doing the bzero() first).
+ *	memset(). (or doing the memset() first).
  */
 
-#if __STDC__
+#ifdef __STDC__
 void
 zf_strncpy(register char *dest, register char *src, int len)
 #else
@@ -237,7 +237,7 @@ zf_strncpy(dest, src, len)
  *	doing a strncpy() then a strlen()
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 l_strncpy(register char *dest, register char *src, int len)
 #else
@@ -270,7 +270,7 @@ l_strncpy(dest, src, len)
  *	unsigned long value
  */
 
-#if __STDC__
+#ifdef __STDC__
 u_long
 asc_ul(register char *str, int len, register int base)
 #else
@@ -321,7 +321,7 @@ asc_ul(str, len, base)
  *	NOTE: the string created is NOT TERMINATED.
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 ul_asc(u_long val, register char *str, register int len, register int base)
 #else
@@ -384,7 +384,7 @@ ul_asc(val, str, len, base)
  *	u_quad_t value
  */
 
-#if __STDC__
+#ifdef __STDC__
 u_quad_t
 asc_uqd(register char *str, int len, register int base)
 #else
@@ -435,7 +435,7 @@ asc_uqd(str, len, base)
  *	NOTE: the string created is NOT TERMINATED.
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 uqd_asc(u_quad_t val, register char *str, register int len, register int base)
 #else

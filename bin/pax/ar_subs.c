@@ -75,7 +75,7 @@ u_long flcnt;				/* number of files processed */
  *	(no pattern matches all).
  */
 
-#if __STDC__
+#ifdef __STDC__
 void
 list(void)
 #else
@@ -103,7 +103,7 @@ list()
 	if (vflag && ((uidtb_start() < 0) || (gidtb_start() < 0)))
 		return;
 
-	now = time((time_t *)NULL);
+	now = time(NULL);
 
 	/*
 	 * step through the archive until the format says it is done
@@ -146,7 +146,7 @@ list()
 	 * the patterns supplied by the user were all matched
 	 */
 	(void)(*frmt->end_rd)();
-	(void)sigprocmask(SIG_BLOCK, &s_mask, (sigset_t *)NULL);
+	(void)sigprocmask(SIG_BLOCK, &s_mask, NULL);
 	ar_close();
 	pat_chk();
 }
@@ -157,7 +157,7 @@ list()
  *	pattern(s) (no patterns extracts all members)
  */
 
-#if __STDC__
+#ifdef __STDC__
 void
 extract(void)
 #else
@@ -333,7 +333,7 @@ extract()
 	 * to avoid chance for multiple entry into the cleanup code.
 	 */
 	(void)(*frmt->end_rd)();
-	(void)sigprocmask(SIG_BLOCK, &s_mask, (sigset_t *)NULL);
+	(void)sigprocmask(SIG_BLOCK, &s_mask, NULL);
 	ar_close();
 	proc_dir();
 	pat_chk();
@@ -345,7 +345,7 @@ extract()
  *	previously written archive.
  */
 
-#if __STDC__
+#ifdef __STDC__
 static void
 wr_archive(register ARCHD *arcn, int is_app)
 #else
@@ -426,7 +426,7 @@ wr_archive(arcn, is_app)
 			 * the link table).
 			 */
 			if ((fd = open(arcn->org_name, O_RDONLY, 0)) < 0) {
-				sys_warn(1,errno, "Unable to open %s to read",
+				syswarn(1,errno, "Unable to open %s to read",
 					arcn->org_name);
 				purg_lnk(arcn);
 				continue;
@@ -519,7 +519,7 @@ wr_archive(arcn, is_app)
 		(*frmt->end_wr)();
 		wr_fin();
 	}
-	(void)sigprocmask(SIG_BLOCK, &s_mask, (sigset_t *)NULL);
+	(void)sigprocmask(SIG_BLOCK, &s_mask, NULL);
 	ar_close();
 	if (tflag)
 		proc_dir();
@@ -548,7 +548,7 @@ wr_archive(arcn, is_app)
  *	over write existing files that it creates.
  */
 
-#if __STDC__
+#ifdef __STDC__
 void
 append(void)
 #else
@@ -573,7 +573,7 @@ append()
 	if (get_arc() < 0)
 		return;
 	if ((orgfrmt != NULL) && (orgfrmt != frmt)) {
-		pax_warn(1, "Cannot mix current archive format %s with %s",
+		paxwarn(1, "Cannot mix current archive format %s with %s",
 		    frmt->name, orgfrmt->name);
 		return;
 	}
@@ -689,7 +689,7 @@ append()
  *	write a new archive
  */
 
-#if __STDC__
+#ifdef __STDC__
 void
 archive(void)
 #else
@@ -720,7 +720,7 @@ archive()
  *	(except the files are forced to be under the destination directory).
  */
 
-#if __STDC__
+#ifdef __STDC__
 void
 copy(void)
 #else
@@ -754,12 +754,12 @@ copy()
 	drem = PAXPATHLEN - dlen;
 
 	if (stat(dirptr, &sb) < 0) {
-		sys_warn(1, errno, "Cannot access destination directory %s",
+		syswarn(1, errno, "Cannot access destination directory %s",
 			dirptr);
 		return;
 	}
 	if (!S_ISDIR(sb.st_mode)) {
-		pax_warn(1, "Destination is not a directory %s", dirptr);
+		paxwarn(1, "Destination is not a directory %s", dirptr);
 		return;
 	}
 
@@ -813,7 +813,7 @@ copy()
 			else
 				res = 0;
 			if ((arcn->nlen - res) > drem) {
-				pax_warn(1, "Destination pathname too long %s",
+				paxwarn(1, "Destination pathname too long %s",
 					arcn->name);
 				continue;
 			}
@@ -918,7 +918,7 @@ copy()
 		 * first open source file and then create the destination file
 		 */
 		if ((fdsrc = open(arcn->org_name, O_RDONLY, 0)) < 0) {
-			sys_warn(1, errno, "Unable to open %s to read",
+			syswarn(1, errno, "Unable to open %s to read",
 			    arcn->org_name);
 			purg_lnk(arcn);
 			continue;
@@ -947,7 +947,7 @@ copy()
 	 * patterns were selected block off signals to avoid chance for
 	 * multiple entry into the cleanup code.
 	 */
-	(void)sigprocmask(SIG_BLOCK, &s_mask, (sigset_t *)NULL);
+	(void)sigprocmask(SIG_BLOCK, &s_mask, NULL);
 	ar_close();
 	proc_dir();
 	ftree_chk();
@@ -972,7 +972,7 @@ copy()
  *	the specs for rd_wrbuf() for more details)
  */
 
-#if __STDC__
+#ifdef __STDC__
 static int
 next_head(register ARCHD *arcn)
 #else
@@ -1010,16 +1010,16 @@ next_head(arcn)
 			 * storage device, better give the user the bad news.
 			 */
 			if ((ret == 0) || (rd_sync() < 0)) {
-				pax_warn(1,"Premature end of file on archive read");
+				paxwarn(1,"Premature end of file on archive read");
 				return(-1);
 			}
 			if (!in_resync) {
 				if (act == APPND) {
-					pax_warn(1,
+					paxwarn(1,
 				          "Archive I/O error, cannot continue");
 					return(-1);
 				}
-				pax_warn(1,"Archive I/O error. Trying to recover.");
+				paxwarn(1,"Archive I/O error. Trying to recover.");
 				++in_resync;
 			}
 
@@ -1080,13 +1080,13 @@ next_head(arcn)
 		 */
 		if (!in_resync) {
 			if (act == APPND) {
-				pax_warn(1,"Unable to append, archive header flaw");
+				paxwarn(1,"Unable to append, archive header flaw");
 				return(-1);
 			}
-			pax_warn(1,"Invalid header, starting valid header search.");
+			paxwarn(1,"Invalid header, starting valid header search.");
 			++in_resync;
 		}
-		bcopy(hdbuf+1, hdbuf, shftsz);
+		memmove(hdbuf, hdbuf+1, shftsz);
 		res = 1;
 		hdend = hdbuf + shftsz;
 	}
@@ -1118,7 +1118,7 @@ next_head(arcn)
  *	0 if archive found -1 otherwise
  */
 
-#if __STDC__
+#ifdef __STDC__
 static int
 get_arc(void)
 #else
@@ -1175,7 +1175,7 @@ get_arc()
 			if (!notice) {
 				if (act == APPND)
 					return(-1);
-				pax_warn(1,"Cannot identify format. Searching...");
+				paxwarn(1,"Cannot identify format. Searching...");
 				++notice;
 			}
 		}
@@ -1210,7 +1210,7 @@ get_arc()
 		if (!notice) {
 			if (act == APPND)
 				return(-1);
-			pax_warn(1, "Cannot identify format. Searching...");
+			paxwarn(1, "Cannot identify format. Searching...");
 			++notice;
 		}
 
@@ -1221,7 +1221,7 @@ get_arc()
 		 * portable manner
 		 */
 		if (--hdsz > 0) {
-			bcopy(hdbuf+1, hdbuf, hdsz);
+			memmove(hdbuf, hdbuf+1, hdsz);
 			res = BLKMULT - hdsz;
 			hdend = hdbuf + hdsz;
 		} else {
@@ -1235,6 +1235,6 @@ get_arc()
 	/*
 	 * we cannot find a header, bow, apologize and quit
 	 */
-	pax_warn(1, "Sorry, unable to determine archive format.");
+	paxwarn(1, "Sorry, unable to determine archive format.");
 	return(-1);
 }
