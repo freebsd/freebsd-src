@@ -24,7 +24,6 @@
  * server-specific functions.
  */
 extern int server_active;
-extern int server_expanding;
 
 /* Server functions exported to the rest of CVS.  */
 

@@ -1,4 +1,4 @@
-# Makefile.in generated automatically by automake 1.4e from Makefile.am.
+# Makefile.in generated automatically by automake 1.5 from Makefile.am.
 
 # Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
 # Free Software Foundation, Inc.
@@ -26,7 +26,6 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-
 SHELL = @SHELL@
 
 srcdir = @srcdir@
@@ -47,11 +46,9 @@ infodir = @infodir@
 mandir = @mandir@
 includedir = @includedir@
 oldincludedir = /usr/include
-
 pkgdatadir = $(datadir)/@PACKAGE@
 pkglibdir = $(libdir)/@PACKAGE@
 pkgincludedir = $(includedir)/@PACKAGE@
-
 top_builddir = .
 
 ACLOCAL = @ACLOCAL@
@@ -65,7 +62,6 @@ INSTALL_DATA = @INSTALL_DATA@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_HEADER = $(INSTALL_DATA)
 transform = @program_transform_name@
-
 NORMAL_INSTALL = :
 PRE_INSTALL = :
 POST_INSTALL = :
@@ -77,29 +73,26 @@ AWK = @AWK@
 CC = @CC@
 CSH = @CSH@
 DEPDIR = @DEPDIR@
-ETAGS = @ETAGS@
-ETAGS_INCLUDE_OPTION = @ETAGS_INCLUDE_OPTION@
+EXEEXT = @EXEEXT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
-INSTALL_STRIP_PROGRAM_ENV = @INSTALL_STRIP_PROGRAM_ENV@
 KRB4 = @KRB4@
 LN_S = @LN_S@
-MAKEINFO = @MAKEINFO@
+OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE@
 PERL = @PERL@
 PR = @PR@
 PS2PDF = @PS2PDF@
 RANLIB = @RANLIB@
 ROFF = @ROFF@
-STRIP = @STRIP@
 TEXI2DVI = @TEXI2DVI@
 VERSION = @VERSION@
 YACC = @YACC@
-_am_include = @_am_include@
-_am_quote = @_am_quote@
+am__include = @am__include@
+am__quote = @am__quote@
 includeopt = @includeopt@
 install_sh = @install_sh@
 
-AUTOMAKE_OPTIONS = 1.4a dist-bzip2
+AUTOMAKE_OPTIONS = 1.5 dist-bzip2
 
 # Unix source subdirs, where we'll want to run lint and etags:
 # This is a legacy variable from b4 Automake
@@ -122,52 +115,47 @@ EXTRA_DIST = \
 	TESTS \
 	build.com \
 	cvs-format.el \
-	cvs.spec \
-	cvs.spec.in \
 	cvsnt.dsp \
 	cvsnt.dsw \
-	cvsnt.mak
+	cvsnt.mak \
+	noautomake.sh
 
-EXEEXT =
-OBJEXT = o
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = config.h $(top_builddir)/src/options.h
-CONFIG_CLEAN_FILES = emx/Makefile os2/Makefile zlib/Makefile
+CONFIG_CLEAN_FILES = cvs.spec emx/Makefile os2/Makefile zlib/Makefile
 DIST_SOURCES =
 
-RECURSIVE_TARGETS = all-recursive install-data-recursive \
+RECURSIVE_TARGETS = info-recursive dvi-recursive install-info-recursive \
+	uninstall-info-recursive all-recursive install-data-recursive \
 	install-exec-recursive installdirs-recursive install-recursive \
 	uninstall-recursive check-recursive installcheck-recursive
 DIST_COMMON = README ./stamp-h1.in AUTHORS COPYING COPYING.LIB \
 	ChangeLog INSTALL Makefile.am Makefile.in NEWS TODO acconfig.h \
-	acinclude.m4 aclocal.m4 config.h.in configure configure.in \
-	depcomp install-sh missing mkinstalldirs
+	acinclude.m4 aclocal.m4 compile config.h.in configure \
+	configure.in cvs.spec.in depcomp install-sh mdate-sh missing \
+	mkinstalldirs
 DIST_SUBDIRS = $(SUBDIRS)
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 
 .SUFFIXES:
-
 $(srcdir)/Makefile.in:  Makefile.am  $(top_srcdir)/configure.in $(ACLOCAL_M4)
 	cd $(top_srcdir) && \
 	  $(AUTOMAKE) --gnu  Makefile
-
 Makefile:  $(srcdir)/Makefile.in  $(top_builddir)/config.status
 	cd $(top_builddir) && \
 	  CONFIG_HEADERS= CONFIG_LINKS= \
 	  CONFIG_FILES=$@ $(SHELL) ./config.status
 
-config.status: $(srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
+$(top_builddir)/config.status: $(srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
 	$(SHELL) ./config.status --recheck
-
 $(srcdir)/configure:  $(srcdir)/configure.in $(ACLOCAL_M4) $(CONFIGURE_DEPENDENCIES)
 	cd $(srcdir) && $(AUTOCONF)
 
 $(ACLOCAL_M4):  configure.in acinclude.m4
 	cd $(srcdir) && $(ACLOCAL) $(ACLOCAL_AMFLAGS)
-
 config.h: stamp-h1
 	@if test ! -f $@; then \
 		rm -f stamp-h1; \
@@ -193,12 +181,15 @@ $(srcdir)/./stamp-h1.in: $(top_srcdir)/configure.in $(ACLOCAL_M4) $(top_srcdir)/
 
 distclean-hdr:
 	-rm -f config.h
+cvs.spec: $(top_builddir)/config.status cvs.spec.in
+	cd $(top_builddir) && CONFIG_FILES=$@ CONFIG_HEADERS= CONFIG_LINKS= $(SHELL) ./config.status
 emx/Makefile: $(top_builddir)/config.status $(top_srcdir)/emx/Makefile.in
 	cd $(top_builddir) && CONFIG_FILES=$@ CONFIG_HEADERS= CONFIG_LINKS= $(SHELL) ./config.status
 os2/Makefile: $(top_builddir)/config.status $(top_srcdir)/os2/Makefile.in
 	cd $(top_builddir) && CONFIG_FILES=$@ CONFIG_HEADERS= CONFIG_LINKS= $(SHELL) ./config.status
 zlib/Makefile: $(top_builddir)/config.status $(top_srcdir)/zlib/Makefile.in
 	cd $(top_builddir) && CONFIG_FILES=$@ CONFIG_HEADERS= CONFIG_LINKS= $(SHELL) ./config.status
+uninstall-info-am:
 
 # This directory's subdirectories are mostly independent; you can cd
 # into them and run `make' without going through this Makefile.
@@ -272,39 +263,44 @@ TAGS: tags-recursive $(HEADERS) $(SOURCES) config.h.in $(TAGS_DEPENDENCIES) \
 	here=`pwd`; \
 	list='$(SUBDIRS)'; for subdir in $$list; do \
 	  if test "$$subdir" = .; then :; else \
-	    test -f $$subdir/TAGS && tags="$$tags $(ETAGS_INCLUDE_OPTION)$$here/$$subdir/TAGS"; \
+	    test -f $$subdir/TAGS && tags="$$tags -i $$here/$$subdir/TAGS"; \
 	  fi; \
 	done; \
 	list='$(SOURCES) $(HEADERS) $(TAGS_FILES)'; \
-	unique=`for i in $$list @CONFIG@; do \
+	unique=`for i in $$list; do \
 	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
 	  done | \
 	  $(AWK) '    { files[$$0] = 1; } \
 	       END { for (i in files) print i; }'`; \
 	test -z "$(ETAGS_ARGS)config.h.in$$unique$(LISP)$$tags" \
-	  || $(ETAGS) $(ETAGS_ARGS) $$tags config.h.in $$unique $(LISP)
+	  || etags $(ETAGS_ARGS) $$tags config.h.in $$unique $(LISP)
 
 GTAGS:
 	here=`CDPATH=: && cd $(top_builddir) && pwd` \
 	  && cd $(top_srcdir) \
-	  && gtags -i $$here
+	  && gtags -i $(GTAGS_ARGS) $$here
 
 distclean-tags:
-	-rm -f TAGS ID
+	-rm -f TAGS ID GTAGS GRTAGS GSYMS GPATH
 
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 
 top_distdir = .
-distdir = $(top_distdir)/$(PACKAGE)-$(VERSION)
+# Avoid unsightly `./'.
+distdir = $(PACKAGE)-$(VERSION)
 
 GZIP_ENV = --best
 
 distdir: $(DISTFILES)
 	-chmod -R a+w $(distdir) >/dev/null 2>&1; rm -rf $(distdir)
 	mkdir $(distdir)
-	$(mkinstalldirs) $(distdir)/contrib $(distdir)/emx $(distdir)/os2 $(distdir)/src $(distdir)/zlib
+	$(mkinstalldirs) $(distdir)/. $(distdir)/contrib $(distdir)/emx $(distdir)/os2 $(distdir)/src $(distdir)/zlib
 	@for file in $(DISTFILES); do \
-	  d=$(srcdir); \
+	  if test -f $$file; then d=.; else d=$(srcdir); fi; \
+	  dir=`echo "$$file" | sed -e 's,/[^/]*$$,,'`; \
+	  if test "$$dir" != "$$file" && test "$$dir" != "."; then \
+	    $(mkinstalldirs) "$(distdir)/$$dir"; \
+	  fi; \
 	  if test -d $$d/$$file; then \
 	    cp -pR $$d/$$file $(distdir) \
 	    || exit 1; \
@@ -359,7 +355,9 @@ distcheck: dist
 	  && $(MAKE) $(AM_MAKEFLAGS) install \
 	  && $(MAKE) $(AM_MAKEFLAGS) installcheck \
 	  && $(MAKE) $(AM_MAKEFLAGS) uninstall \
-	  && test `find $$dc_install_base -type f -print | wc -l` -le 1 \
+	  && (test `find $$dc_install_base -type f -print | wc -l` -le 1 \
+	     || (echo "Error: files left after uninstall" 1>&2; \
+	         exit 1) ) \
 	  && $(MAKE) $(AM_MAKEFLAGS) dist \
 	  && $(MAKE) $(AM_MAKEFLAGS) distclean \
 	  && rm -f $(distdir).tar.gz \
@@ -372,7 +370,6 @@ distcheck: dist
 check-am: all-am
 check: check-recursive
 all-am: Makefile config.h
-
 installdirs: installdirs-recursive
 installdirs-am:
 
@@ -385,38 +382,37 @@ install-am: all-am
 	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
 
 installcheck: installcheck-recursive
-
 install-strip:
 	$(MAKE) $(AM_MAKEFLAGS) INSTALL_PROGRAM="$(INSTALL_STRIP_PROGRAM)" \
-	  INSTALL_PROGRAM_ENV='$(INSTALL_STRIP_PROGRAM_ENV)' install
-
+	  `test -z '$(STRIP)' || \
+	    echo "INSTALL_PROGRAM_ENV=STRIPPROG='$(STRIP)'"` install
 mostlyclean-generic:
 
 clean-generic:
 
 distclean-generic:
-	-rm -f Makefile $(CONFIG_CLEAN_FILES)
-	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
+	-rm -f Makefile $(CONFIG_CLEAN_FILES) stamp-h stamp-h[0-9]*
 
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
-	-rm -f Makefile.in
 clean: clean-recursive
 
 clean-am: clean-generic mostlyclean-am
 
-dist-all: dist dist-bzip2
-
+dist-all: distdir
+	$(AMTAR) chof - $(distdir) | GZIP=$(GZIP_ENV) gzip -c >$(distdir).tar.gz
+	$(AMTAR) chof - $(distdir) | bzip2 -9 -c >$(distdir).tar.bz2
+	-chmod -R a+w $(distdir) >/dev/null 2>&1; rm -rf $(distdir)
 distclean: distclean-recursive
-	-rm -f config.status
+	-rm -f config.status config.cache config.log
 distclean-am: clean-am distclean-generic distclean-hdr distclean-tags
 
-dvi:
+dvi: dvi-recursive
 
 dvi-am:
 
-info:
+info: info-recursive
 
 info-am:
 
@@ -424,56 +420,52 @@ install-data-am:
 
 install-exec-am:
 
-install-info:
+install-info: install-info-recursive
 
 install-man:
 
 installcheck-am:
 
 maintainer-clean: maintainer-clean-recursive
-	-rm -f config.status
+
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
 mostlyclean: mostlyclean-recursive
 
 mostlyclean-am: mostlyclean-generic
 
-.PHONY: $(RECURSIVE_TARGETS) all all-am check check-am clean \
+uninstall-am: uninstall-info-am
+
+uninstall-info: uninstall-info-recursive
+
+.PHONY: $(RECURSIVE_TARGETS) GTAGS all all-am check check-am clean \
 	clean-generic clean-recursive dist dist-all dist-bzip2 \
 	distcheck distclean distclean-generic distclean-hdr \
-	distclean-recursive distclean-tags distdir dvi dvi-am info \
-	info-am install install-am install-data install-data-am \
-	install-data-recursive install-exec install-exec-am \
-	install-exec-recursive install-info install-man \
+	distclean-recursive distclean-tags distdir dvi dvi-am \
+	dvi-recursive info info-am info-recursive install install-am \
+	install-data install-data-am install-data-recursive \
+	install-exec install-exec-am install-exec-recursive \
+	install-info install-info-am install-info-recursive install-man \
 	install-recursive install-strip installcheck installcheck-am \
 	installdirs installdirs-am installdirs-recursive \
 	maintainer-clean maintainer-clean-generic \
 	maintainer-clean-recursive mostlyclean mostlyclean-generic \
 	mostlyclean-recursive tags tags-recursive uninstall \
-	uninstall-am uninstall-recursive
+	uninstall-am uninstall-info-am uninstall-info-recursive \
+	uninstall-recursive
 
 
-.PHONY: remotecheck
-remotecheck: all
+.PHONY: localcheck remotecheck
+localcheck remotecheck: all
 	cd src && $(MAKE) $(AM_MAKEFLAGS) "$@"
 
 .PHONY: doc
 doc:
 	cd doc && $(MAKE) $(AM_MAKEFLAGS) "$@"
 
-# - cvs.spec needs to be updated only once, since it depends on
-#   configure.in, not on the results of a 'configure' run.
-# - It is guaranteed (with GNU Make) that when the version in configure.in
-#   is changed, acversion.m4 is built only after the new version number is
-#   propagated to the Makefile.  (Libtool uses the same guarantee.)
-cvs.spec: $(srcdir)/cvs.spec.in $(top_srcdir)/configure.in
-	sed 's,@VERSION\@,$(VERSION),g' $(srcdir)/cvs.spec.in >cvs.tspec
-	mv cvs.tspec $(srcdir)/cvs.spec
-
 # for backwards compatibility with the old makefiles
 .PHONY: realclean
 realclean: maintainer-clean
-
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

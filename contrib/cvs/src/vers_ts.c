@@ -339,13 +339,22 @@ time_stamp (file)
 {
     struct stat sb;
     char *cp;
-    char *ts;
+    char *ts = NULL;
+    time_t mtime = 0L;
 
-    if (CVS_LSTAT (file, &sb) < 0)
+    if (!CVS_LSTAT (file, &sb))
     {
-	ts = NULL;
+	mtime = sb.st_mtime;
     }
-    else
+    /* If it's a symlink, return whichever is the newest mtime of
+       the link and its target, for safety.
+    */
+    if (!CVS_STAT (file, &sb))
+    {
+        if (mtime < sb.st_mtime)
+	    mtime = sb.st_mtime;
+    }
+    if (mtime)
     {
 	struct tm *tm_p;
         struct tm local_tm;

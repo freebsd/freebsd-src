@@ -11,8 +11,6 @@ To prepare a new cvs dist for import, extract it into a fresh directory;
 The following generated files were deleted:
 doc/*.ps
 doc/*.info*
-doc/*.aux*
-doc/CVSvn.texi
 doc/texinfo.tex
 lib/getdate.c
 cvsnt.*
@@ -21,6 +19,7 @@ build.com
 */*.com
 */*.dsp
 */.cvsignore
+.cvsignore
 README.VMS
 
 The following non-freebsd-specific directories were deleted:
@@ -31,13 +30,13 @@ vms
 zlib
 
 It is imported from it's top level directory something like this:
-  cvs -n import src/contrib/cvs CYCLIC v<version>
+  cvs -n import src/contrib/cvs CVSHOME v<version>
 
 The -n option is "dont do anything" so you can see what is about to happen
 first.  Remove it when it looks ok.
 
 The initial import was done with:
-  cvs import src/contrib/cvs CYCLIC v1_8_1
+  cvs import src/contrib/cvs CVSHOME v1_8_1
 
 When new versions are imported, cvs will give instructions on how to merge
 the local and vendor changes when/if conflicts arise..

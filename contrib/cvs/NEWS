@@ -1,14 +1,51 @@
-Changes since 1.11.1:
+Changes since 1.11.1p1:
+
+* The "log" and "rlog" commands now have a -S option to suppress the
+header information when no revisions are selected.
+
+* A serious error that allowed read-only users to tag files has been
+corrected.
+
+* The "annotate" command will no longer annotate binary files unless
+you specify the new -F option.
+
+* The "tag" and "rtag" commands will no longer move or delete branch
+tags unless you use the new -B option.  (This prevents accidental
+changes to branch tags that are hard to undo.)
+
+* We've standardized on the 1.5 Automake release for the moment.  Again, this
+should only really affect developers.  See the section of the INSTALL file
+about using the autotools if you are compiling CVS yourself.
+
+Changes from 1.11.1 to 1.11.1p1:
 
 * Read only access was broken - now fixed.
 
-Changes since 1.11:
+Changes from 1.11 to 1.11.1:
 
-* There was a bug in the diff code which caused conflicts to be flagged which shouldn't
-have been.  This has been fixed.
+* The "cvs diff" command now accepts the -y/--side=by-side and -T/
+--initial-tab options.  (To use these options with a remote repository,
+both the client and the server must support them.)
+
+* The expansion of the loginfo format string has changed slightly. 
+Previously, the expansion was surrounded by single quotes ('); if a file
+name contained a single quote character, the string would not be parsed
+as a single entity by the Unix shell (and it would not be possible to
+parse it unambiguously).  Now the expansion is surrounded by double
+quotes (") and any embedded dollar signs ($), backticks (`), backslashes
+(\), and double quotes are preceded by a backslash.  This is parsed as a
+single entity by the shell reguardless of content.  This change should
+not be noticable unless you're not using a Unix shell or you have
+embedded the format string inside a double quoted string.
+
+* There was a bug in the diff code which sometimes caused conflicts to
+be flagged which shouldn't have been.  This has been fixed.
 
 * New "cvs rlog" and "cvs rannotate" commands have been added to get log
 messages and annotations without having to have a checked-out copy.
+
+* Exclusive revision ranges have been added to "cvs log" using ::
+(similar to "cvs admin -o").
 
 * The VMS client now accepts wildcards if you're running VMS 7.x.
 
@@ -16,31 +53,36 @@ messages and annotations without having to have a checked-out copy.
 includes mostly some optimizations and minor bug fixes.
 
 * The ~/.cvspass file has a slightly modified format.  CVSROOTs are now
-stored in a new canonical form - hostnames are now case insensitive and port
-numbers are always stored in the new format.  Until a new login for a
-particular CVSROOT is performed with the new version of CVS, new and old
-versions of CVS should interoperate invisibly.  After that point, an extra login
-using the old version of CVS may be necessary to continue to allow the new and
-old versions of CVS to interoperate using the same ~/.cvspass file and CVSROOT.
-The exception to this rule occurs when the CVSROOTs used with the different
-versions use case insensitively different hostnames, for example, "empress",
-and "empress.2-wit.com".
+stored in a new canonical form - hostnames are now case insensitive and
+port numbers are always stored in the new format.  Until a new login for
+a particular CVSROOT is performed with the new version of CVS, new and
+old versions of CVS should interoperate invisibly.  After that point, an
+extra login using the old version of CVS may be necessary to continue to
+allow the new and old versions of CVS to interoperate using the same
+~/.cvspass file and CVSROOT. The exception to this rule occurs when the
+CVSROOTs used with the different versions use case insensitively
+different hostnames, for example, "empress", and "empress.2-wit.com".
 
-* A password and a port number may now be specified in CVSROOT for pserver
-connections.  The new format is:
+* A password and a port number may now be specified in CVSROOT for
+pserver connections.  The new format is:
 
     :pserver:[[user][:password]@]host[:[port]]/path
 
-Note that passwords specified in a checkout command will be saved in the clear
-in the CVS/Root file in each created directory, so this is not recommended,
-except perhaps when accessing anonymous repositories or the like.
+Note that passwords specified in a checkout command will be saved in the
+clear in the CVS/Root file in each created directory, so this is not
+recommended, except perhaps when accessing anonymous repositories or the
+like.
 
-* The distribution has been converted to use Automake.  This shouldn't affect
-most users except to ease some portability concerns, but if you are building
-from the repository and encounter problems with the makefiles, you might try
-running ./noautoconf.sh after a fresh update -AC.
+* The distribution has been converted to use Automake.  This shouldn't
+affect most users except to ease some portability concerns, but if you
+are building from the repository and encounter problems with the
+makefiles, you might try running ./noautomake.sh after a fresh update
+-AC.
 
-Changes since 1.10:
+Changes from 1.10 to 1.11:
+
+* The "cvs update" command has a new -C option to get clean copies from
+the repository, abandoning any local changes.
 
 * The new "cvs version" command gives a short version message.  If
 the repository is remote, both the client and server versions are
@@ -83,6 +125,11 @@ set by the new LockDir option in CVSROOT/config.  The default
 continues to be to put the lock files in the repository itself.
 
 Changes from 1.9 to 1.10:
+
+* A bug was discovered in the -t/-f wrapper support that can cause
+serious data loss.  Because of this (and also the fact that it doesn't
+work at all in client/server mode), the -t/-f wrapper code has been
+disabled until it can be fixed.
 
 * There is a new feature, enabled by TopLevelAdmin in CVSROOT/config,
 which tells CVS to modify the behavior of the "checkout" command.  The

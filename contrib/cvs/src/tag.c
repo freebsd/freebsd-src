@@ -40,7 +40,7 @@ static char *date = NULL;
 static char *symtag;			/* tag to add or delete */
 static int delete_flag;			/* adding a tag by default */
 static int branch_mode;			/* make an automagic "branch" tag */
-static int local;			/* recursive by default */
+static int disturb_branch_tags = 0;	/* allow -F,-d to disturb branch tags */
 static int force_tag_match = 1;		/* force tag to match by default */
 static int force_tag_move;		/* don't force tag to move by default */
 static int check_uptodate;		/* no uptodate-check by default */
@@ -63,12 +63,13 @@ struct master_lists
 static List *mtlist;
 static List *tlist;
 
-static const char rtag_opts[] = "+abdFflnQqRr:D:";
+static const char rtag_opts[] = "+aBbdFflnQqRr:D:";
 static const char *const rtag_usage[] =
 {
     "Usage: %s %s [-abdFflnR] [-r rev|-D date] tag modules...\n",
     "\t-a\tClear tag from removed files that would not otherwise be tagged.\n",
     "\t-b\tMake the tag a \"branch\" tag, allowing concurrent development.\n",
+    "\t-B\tAllows -F and -d to disturb branch tags.  Use with extreme care.\n",
     "\t-d\tDelete the given tag.\n",
     "\t-F\tMove tag if it already exists.\n",
     "\t-f\tForce a head revision match if tag/date not found.\n",
@@ -81,11 +82,12 @@ static const char *const rtag_usage[] =
     NULL
 };
 
-static const char tag_opts[] = "+bcdFflQqRr:D:";
+static const char tag_opts[] = "+BbcdFflQqRr:D:";
 static const char *const tag_usage[] =
 {
     "Usage: %s %s [-bcdFflR] [-r rev|-D date] tag [files...]\n",
     "\t-b\tMake the tag a \"branch\" tag, allowing concurrent development.\n",
+    "\t-B\tAllows -F and -d to disturb branch tags.  Use with extreme care.\n",
     "\t-c\tCheck that working files are unmodified.\n",
     "\t-d\tDelete the given tag.\n",
     "\t-F\tMove tag if it already exists.\n",
@@ -103,6 +105,7 @@ cvstag (argc, argv)
     int argc;
     char **argv;
 {
+    int local = 0;			/* recursive by default */
     int c;
     int err = 0;
     int run_module_prog = 1;
@@ -122,6 +125,9 @@ cvstag (argc, argv)
 		break;
 	    case 'b':
 		branch_mode = 1;
+		break;
+	    case 'B':
+		disturb_branch_tags = 1;
 		break;
 	    case 'c':
 		check_uptodate = 1;
@@ -196,6 +202,8 @@ cvstag (argc, argv)
 	    send_arg("-a");
 	if (branch_mode)
 	    send_arg("-b");
+	if (disturb_branch_tags)
+	    send_arg("-B");
 	if (check_uptodate)
 	    send_arg("-c");
 	if (delete_flag)
@@ -252,14 +260,14 @@ cvstag (argc, argv)
 			   (date ? date : "A"))), symtag, argv[i], "");
 	    err += do_module (db, argv[i], TAG,
 			      delete_flag ? "Untagging" : "Tagging",
-			      rtag_proc, (char *) NULL, 0, 0, run_module_prog,
+			      rtag_proc, (char *) NULL, 0, local, run_module_prog,
 			      0, symtag);
 	}
 	close_module (db);
     }
     else
     {
-	err = rtag_proc (argc + 1, argv - 1, NULL, NULL, NULL, 0, 0, NULL,
+	err = rtag_proc (argc + 1, argv - 1, NULL, NULL, NULL, 0, local, NULL,
 			 NULL);
     }
 
@@ -362,7 +370,7 @@ rtag_proc (argc, argv, xwhere, mwhere, mfile, shorten, local_specified,
 
     if (numtag != NULL && !numtag_validated)
     {
-	tag_check_valid (numtag, argc - 1, argv + 1, local, 0, repository);
+	tag_check_valid (numtag, argc - 1, argv + 1, local_specified, 0, repository);
 	numtag_validated = 1;
     }
 
@@ -372,7 +380,7 @@ rtag_proc (argc, argv, xwhere, mwhere, mfile, shorten, local_specified,
     mtlist = getlist();
     err = start_recursion (check_fileproc, check_filesdoneproc,
                            (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL,
-                           argc - 1, argv + 1, local, which, 0, 1,
+                           argc - 1, argv + 1, local_specified, which, 0, 1,
                            where, 1);
     
     if (err)
@@ -387,13 +395,13 @@ rtag_proc (argc, argv, xwhere, mwhere, mfile, shorten, local_specified,
        cached in do_recursion isn't stale by the time we get around
        to using it to rewrite the RCS file in the callback, and this
        is the easiest way to accomplish that.  */
-    lock_tree_for_write (argc - 1, argv + 1, local, which, 0);
+    lock_tree_for_write (argc - 1, argv + 1, local_specified, which, 0);
 
     /* start the recursion processor */
     err = start_recursion (is_rtag ? rtag_fileproc : tag_fileproc,
 			   (FILESDONEPROC) NULL, tag_dirproc,
 			   (DIRLEAVEPROC) NULL, NULL, argc - 1, argv + 1,
-			   local, which, 0, 0, where, 1);
+			   local_specified, which, 0, 0, where, 1);
     Lock_Cleanup ();
     dellist (&mtlist);
     if (where != NULL)
@@ -738,6 +746,21 @@ rtag_fileproc (callerdat, finfo)
 			       branch_mode ? "branch" : "version", rev);
 		free (oversion);
 		free (version);
+		if (branch_mode) free(rev);
+		return (0);
+	    }
+	    else /* force_tag_move is set and... */
+		if ((isbranch && !disturb_branch_tags) ||
+		    (!isbranch && disturb_branch_tags))
+	    {
+	        error(0,0, "%s: Not moving %s tag `%s' from %s to %s%s.", 
+			finfo->fullname,
+			isbranch ? "branch" : "non-branch",
+			symtag, oversion, rev,
+			isbranch ? "" : " due to `-B' option"); 
+		if (branch_mode) free(rev);
+		free (oversion);
+		free (version);
 		return (0);
 	    }
 	    free (oversion);
@@ -779,7 +802,7 @@ rtag_delete (rcsfile)
     RCSNode *rcsfile;
 {
     char *version;
-    int retcode;
+    int retcode, isbranch;
 
     if (numtag)
     {
@@ -795,6 +818,20 @@ rtag_delete (rcsfile)
     if (version == NULL)
 	return (0);
     free (version);
+
+
+    isbranch = RCS_nodeisbranch (rcsfile, symtag);
+    if ((isbranch && !disturb_branch_tags) || 
+	(!isbranch && disturb_branch_tags))
+    {
+	if (!quiet)
+	    error(0, 0,
+		"Not removing %s tag `%s' from `%s'%s.", 
+		isbranch ? "branch" : "non-branch",
+		symtag, rcsfile->path,
+		isbranch ? "" : " due to `-B' option"); 
+	return (1);
+    }
 
     if ((retcode = RCS_deltag(rcsfile, symtag)) != 0)
     {
@@ -843,6 +880,7 @@ tag_fileproc (callerdat, finfo)
     if (delete_flag)
     {
 
+	int isbranch;
 	/*
 	 * If -d is specified, "force_tag_match" is set, so that this call to
 	 * RCS_getversion() will return a NULL version string if the symbolic
@@ -860,6 +898,20 @@ tag_fileproc (callerdat, finfo)
 	    return (0);
 	}
 	free (version);
+
+	isbranch = RCS_nodeisbranch (finfo->rcs, symtag);
+	if ((isbranch && !disturb_branch_tags) || 
+	    (!isbranch && disturb_branch_tags))
+	{
+	    if (!quiet)
+		error(0, 0,
+		       "Not removing %s tag `%s' from `%s'%s.", 
+			isbranch ? "branch" : "non-branch",
+			symtag, vers->srcfile->path,
+			isbranch ? "" : " due to `-B' option"); 
+	    freevers_ts (&vers);
+	    return (1);
+	}
 
 	if ((retcode = RCS_deltag(vers->srcfile, symtag)) != 0) 
 	{
@@ -970,6 +1022,20 @@ tag_fileproc (callerdat, finfo)
 	    free (oversion);
 	    if (branch_mode)
 		free (rev);
+	    freevers_ts (&vers);
+	    return (0);
+	}
+	else 	/* force_tag_move == 1 and... */
+		if ((isbranch && !disturb_branch_tags) ||
+		    (!isbranch && disturb_branch_tags))
+	{
+	    error(0,0, "%s: Not moving %s tag `%s' from %s to %s%s.", 
+		    finfo->fullname,
+		    isbranch ? "branch" : "non-branch",
+		    symtag, oversion, rev,
+		    isbranch ? "" : " due to `-B' option"); 
+	    free (oversion);
+	    if (branch_mode) free(rev);
 	    freevers_ts (&vers);
 	    return (0);
 	}
