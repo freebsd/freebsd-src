@@ -131,6 +131,8 @@ static struct trapframe frame0;
 struct user *proc0uarea;
 vm_offset_t proc0kstack;
 
+char panic_stack[PANIC_STACK_PAGES * PAGE_SIZE];
+
 struct kva_md_info kmi;
 
 u_long ofw_vec;
