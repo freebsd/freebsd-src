@@ -66,8 +66,8 @@ static const char rcsid[] =
 #include <sys/file.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
-#undef _KERNEL
 #include <sys/mount.h>
+#undef _KERNEL
 #include <nfs/nfsproto.h>
 #include <nfs/rpcv2.h>
 #include <nfs/nfs.h>
