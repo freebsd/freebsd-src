@@ -46,7 +46,9 @@
 .Ft int
 .Fn killpg "pid_t pgrp" "int sig"
 .Sh DESCRIPTION
-.Fn Killpg
+The
+.Fn killpg
+function
 sends the signal
 .Fa sig
 to the process group
@@ -68,7 +70,9 @@ to any process that is a descendant of the current process.
 .Sh RETURN VALUES
 .Rv -std killpg
 .Sh ERRORS
-.Fn Killpg
+The
+.Fn killpg
+function
 will fail and no signal will be sent if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
@@ -92,5 +96,5 @@ of the sending process.
 .Sh HISTORY
 The
 .Fn killpg
-function call appeared in
+function appeared in
 .Bx 4.0 .

@@ -1,5 +1,4 @@
 .\"	$NetBSD: hesiod.3,v 1.1 1999/01/25 03:43:04 lukem Exp $
-.\"	$FreeBSD$
 .\"
 .\" from: #Id: hesiod.3,v 1.9.2.1 1997/01/03 21:02:23 ghudson Exp #
 .\"
@@ -16,6 +15,8 @@
 .\" M.I.T. makes no representations about the suitability of
 .\" this software for any purpose.  It is provided "as is"
 .\" without express or implied warranty.
+.\"
+.\" $FreeBSD$
 .\"
 .Dd November 30, 1996
 .Dt HESIOD 3
@@ -50,15 +51,21 @@ To perform lookups, you must first initialize a
 .Fa context ,
 an opaque object which stores information used internally by the
 library between calls.
+The
 .Fn hesiod_init
+function
 initializes a context, storing a pointer to the context in the
 location pointed to by the
 .Fa context
 argument.
+The
 .Fn hesiod_end
+function
 frees the resources used by a context.
 .Pp
+The
 .Fn hesiod_resolve
+function
 is the primary interface to the library.
 If successful, it returns a
 list of one or more strings giving the records matching
@@ -73,7 +80,9 @@ caller's responsibility to call
 .Fn hesiod_free_list
 to free the resources used by the returned list.
 .Pp
+The
 .Fn hesiod_to_bind
+function
 converts
 .Fa name
 and
@@ -117,19 +126,27 @@ Hesiod calls may fail because of:
 Insufficient memory was available to carry out the requested
 operation.
 .It Bq Er ENOEXEC
+The
 .Fn hesiod_init
+function
 failed because the Hesiod configuration file was invalid.
 .It Bq Er ECONNREFUSED
+The
 .Fn hesiod_resolve
+function
 failed because no name server could be contacted to answer the query.
 .It Bq Er EMSGSIZE
+The
 .Fn hesiod_resolve
 or
 .Fn hesiod_to_bind
+function
 failed because the query or response was too big to fit into the
 packet buffers.
 .It Bq Er ENOENT
+The
 .Fn hesiod_resolve
+function
 failed because the name server had no text records matching
 .Fa name
 and

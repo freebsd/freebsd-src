@@ -108,7 +108,9 @@ or 1 (indicating that the out of range request
 should be silently ignored).
 .El
 .It Fn svc_create
+The
 .Fn svc_create
+function
 creates server handles for all the transports
 belonging to the class
 .Fa nettype .
@@ -125,7 +127,9 @@ is
 it defaults to
 .Qq netpath .
 .Pp
+The
 .Fn svc_create
+function
 registers itself with the rpcbind
 service (see
 .Xr rpcbind 8 ) .
@@ -266,7 +270,9 @@ The server is not registered with the
 .Xr rpcbind 8
 service.
 .It Fn svc_tp_create
+The
 .Fn svc_tp_create
+function
 creates a server handle for the network
 specified by
 .Fa netconf ,
@@ -279,7 +285,9 @@ and
 .Fa versnum ;
 this requires calling
 .Fn svc_run .
+The
 .Fn svc_tp_create
+function
 returns the service handle if it succeeds,
 otherwise a
 .Dv NULL

@@ -19,9 +19,11 @@
 .Ft int
 .Fn bindresvport_sa "int sd" "struct sockaddr *sa"
 .Sh DESCRIPTION
+The
 .Fn bindresvport
 and
 .Fn bindresvport_sa
+functions
 are used to bind a socket descriptor to a privileged
 .Tn IP
 port, that is, a
@@ -65,7 +67,9 @@ Function prototype of
 is biased to
 .Dv AF_INET
 socket.
+The
 .Fn bindresvport_sa
+function
 acts exactly the same, with more neutral function prototype.
 Note that both functions behave exactly the same, and
 both support
@@ -82,7 +86,9 @@ If second argument was supplied,
 and address family did not match between arguments.
 .El
 .Pp
+The
 .Fn bindresvport
+function
 may also fail and set
 .Va errno
 for any of the errors specified for the calls

@@ -116,7 +116,9 @@ adding the signal to be delivered, and
 .Em or Ns 'ing
 in the signal mask associated with the handler to be invoked.
 .Pp
-.Fn Sigvec
+The
+.Fn sigvec
+function
 assigns a handler for a specific signal.  If
 .Fa vec
 is non-zero, it
@@ -258,7 +260,9 @@ hence it should not be used if backward compatibility is needed.
 .Sh RETURN VALUES
 .Rv -std sigvec
 .Sh ERRORS
-.Fn Sigvec
+The
+.Fn sigvec
+function
 will fail and no new signal handler will be installed if one
 of the following occurs:
 .Bl -tag -width Er

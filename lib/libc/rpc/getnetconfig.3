@@ -37,7 +37,9 @@ The library routines described on this page
 provide the application access to
 the system network configuration database,
 .Pa /etc/netconfig .
+The
 .Fn getnetconfig
+function
 returns a pointer to the
 current entry in the
 netconfig
@@ -45,10 +47,14 @@ database, formatted as a
 .Ft "struct netconfig" .
 Successive calls will return successive netconfig
 entries in the netconfig database.
+The
 .Fn getnetconfig
+function
 can be used to search the entire netconfig
 file.
+The
 .Fn getnetconfig
+function
 returns
 .Dv NULL
 at the end of the file.
@@ -63,18 +69,26 @@ has the effect of
 to or
 .Dq rewinding
 the netconfig database.
+The
 .Fn setnetconfig
+function
 must be called before the first call to
 .Fn getnetconfig
 and may be called at any other time.
+The
 .Fn setnetconfig
+function
 need not be called before a call to
 .Fn getnetconfigent .
+The
 .Fn setnetconfig
+function
 returns a unique handle to be used by
 .Fn getnetconfig .
 .Pp
+The
 .Fn endnetconfig
+function
 should be called when processing is complete to release resources for reuse.
 .Fa handlep
 is the handle obtained through
@@ -86,11 +100,15 @@ frees all memory allocated by
 for the
 .Ft "struct netconfig"
 data structure.
+The
 .Fn endnetconfig
+function
 may not be called before
 .Fn setnetconfig .
 .Pp
+The
 .Fn getnetconfigent
+function
 returns a pointer
 to the netconfig structure corresponding
 to
@@ -102,13 +120,17 @@ if
 is invalid
 (that is, does not name an entry in the netconfig database).
 .Pp
+The
 .Fn freenetconfigent
+function
 frees the netconfig structure pointed to by
 .Fa netconfigp
 (previously returned by
 .Fn getnetconfigent ) .
 .Pp
+The
 .Fn nc_perror
+function
 prints a message to the standard error indicating why any of the
 above routines failed.
 The message is prepended with the string
@@ -116,22 +138,28 @@ The message is prepended with the string
 and a colon.
 A newline character is appended at the end of the message.
 .Pp
+The
 .Fn nc_sperror
+function
 is similar to
 .Fn nc_perror
 but instead of sending the message
 to the standard error, will return a pointer to a string that
 contains the error message.
 .Pp
+The
 .Fn nc_perror
 and
 .Fn nc_sperror
+functions
 can also be used with the
 .Ev NETPATH
 access routines defined in
 .Xr getnetpath 3 .
 .Sh RETURN VALUES
+The
 .Fn setnetconfig
+function
 returns a unique handle to be used by
 .Fn getnetconfig .
 In the case of an error,
@@ -144,16 +172,22 @@ or
 .Fn nc_sperror
 can be used to print the reason for failure.
 .Pp
+The
 .Fn getnetconfig
+function
 returns a pointer to the current entry in the netconfig
 database, formatted as a
 .Ft "struct netconfig" .
+The
 .Fn getnetconfig
+function
 returns
 .Dv NULL
 at the end of the file, or upon failure.
 .Pp
+The
 .Fn endnetconfig
+function
 returns 0 on success and \-1 on failure
 (for example, if
 .Fn setnetconfig
@@ -168,7 +202,9 @@ structure corresponding to
 otherwise it returns
 .Dv NULL .
 .Pp
+The
 .Fn nc_sperror
+function
 returns a pointer to a buffer which contains the error message string.
 This buffer is overwritten on each call.
 In multithreaded applications, this buffer is

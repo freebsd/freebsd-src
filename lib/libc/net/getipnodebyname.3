@@ -1,4 +1,3 @@
-.\"	$FreeBSD$
 .\"	$KAME: getipnodebyname.3,v 1.6 2000/08/09 21:16:17 itojun Exp $
 .\"
 .\" Copyright (c) 1983, 1987, 1991, 1993
@@ -33,6 +32,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)gethostbyname.3	8.4 (Berkeley) 5/25/95
+.\" $FreeBSD$
 .\"
 .Dd May 25, 1995
 .Dt GETIPNODEBYNAME 3
@@ -58,6 +58,7 @@
 .Fn freehostent "struct hostent *ptr"
 .\"
 .Sh DESCRIPTION
+The
 .Fn getipnodebyname
 and
 .Fn getipnodebyaddr
@@ -375,18 +376,24 @@ pointer and the value pointed to by
 equals
 .Dv HOST_NOT_FOUND .
 .Pp
+The
 .Fn getipnodebyaddr
+function
 takes almost the same argument as
 .Xr gethostbyaddr 3 ,
 but adds a pointer to return an error number.
 Additionally it takes care of IPv4-mapped IPv6 addresses,
 and IPv4-compatible IPv6 addresses.
 .Pp
+The
 .Fn getipnodebyname
 and
 .Fn getipnodebyaddr
+functions
 dynamically allocate the structure to be returned to the caller.
+The
 .Fn freehostent
+function
 reclaims memory region allocated and returned by
 .Fn getipnodebyname
 or
@@ -400,9 +407,11 @@ or
 .El
 .\"
 .Sh DIAGNOSTICS
+The
 .Fn getipnodebyname
 and
 .Fn getipnodebyaddr
+functions
 returns
 .Dv NULL
 on errors.
@@ -436,17 +445,21 @@ The meanings of each error code are described in
 The implementation first appeared in KAME advanced networking kit.
 .\"
 .Sh STANDARDS
+The
 .Fn getipnodebyname
 and
 .Fn getipnodebyaddr
+functions
 are documented in
 .Dq Basic Socket Interface Extensions for IPv6
 (RFC2553).
 .\"
 .Sh BUGS
+The
 .Fn getipnodebyname
 and
 .Fn getipnodebyaddr
+functions
 do not handle scoped IPv6 address properly.
 If you use these functions,
 your program will not be able to handle scoped IPv6 addresses.

@@ -55,13 +55,17 @@ This interface is made obsolete by:
 .Ef
 .Xr sigprocmask 2 .
 .Pp
-.Fn Sigsetmask
+The
+.Fn sigsetmask
+function
 sets the current signal mask to the specified
 .Fa mask .
 Signals are blocked from delivery if the corresponding bit in
 .Fa mask
 is a 1.
-.Fn Sigblock
+The
+.Fn sigblock
+function
 adds the signals in the specified
 .Fa mask
 to the current signal mask,
@@ -80,9 +84,11 @@ or
 .Dv SIGSTOP
 to be blocked.
 .Sh RETURN VALUES
-.Fn Sigblock
+The
+.Fn sigblock
 and
 .Fn sigsetmask
+functions
 return the previous set of masked signals.
 .Sh SEE ALSO
 .Xr kill 2 ,
@@ -96,6 +102,6 @@ The
 .Fn sigsetmask
 and
 .Fn sigblock
-function calls first appeared in
+functions first appeared in
 .Bx 4.2
 and have been deprecated.

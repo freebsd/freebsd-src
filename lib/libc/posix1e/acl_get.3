@@ -51,14 +51,18 @@ The
 and
 .Fn acl_get_fd_np
 each allow the retrieval of an ACL from a file.
+The
 .Fn acl_get_file
+function
 is a POSIX.1e call that allows the retrieval of a
 specified type of ACL from a file by name;
 .Fn acl_get_fd
 is a POSIX.1e call that allows the retrieval of an ACL of type
 ACL_TYPE_ACCESS
 from a file descriptor.
+The
 .Fn acl_get_fd_np
+function
 is a non-portable form of
 .Fn acl_get_fd
 that allows the retrieval of any type of ACL from a file descriptor.

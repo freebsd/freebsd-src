@@ -116,12 +116,16 @@ functions map ethernet addresses to their corresponding hostnames
 as specified in the
 .Pa /etc/ethers
 database.
+The
 .Fn ether_ntohost
+function
 converts from ethernet address to hostname, and
 .Fn ether_hostton
 converts from hostname to ethernet address.
 .Sh RETURN VALUES
+The
 .Fn ether_line
+function
 returns zero on success and non-zero if it was unable to parse
 any part of the supplied line
 .Ar l .

@@ -140,15 +140,19 @@ Thu Nov 24 18:22:48 1986\en\e0
 .Pp
 All the fields have constant width.
 .Pp
+The
 .Fn ctime_r
+function
 provides the same functionality as
 .Fn ctime
 except the caller must provide the output buffer
 .Fa buf
 to store the result, which must be at least 26 characters long.
+The
 .Fn localtime_r
 and
 .Fn gmtime_r
+functions
 provide the same functionality as
 .Fn localtime
 and
@@ -166,7 +170,9 @@ pointed at by
 to the form
 shown in the example above.
 .Pp
+The
 .Fn asctime_r
+function
 provides the same functionality as
 .Fn asctime
 except the caller provide the output buffer
@@ -183,11 +189,15 @@ values returned by the
 .Xr time 3
 function (that is, seconds from the Epoch,
 .Tn UTC ) .
+The
 .Fn mktime
+function
 interprets the input structure according to the current timezone setting
 (see
 .Xr tzset 3 ) .
+The
 .Fn timegm
+function
 interprets the input structure as representing Universal Coordinated Time
 .Pq Tn UTC .
 .Pp
@@ -240,7 +250,9 @@ is not set until
 and
 .Fa tm_year
 are determined.
-.Fn Mktime
+The
+.Fn mktime
+function
 returns the specified calendar time; if the calendar time cannot be
 represented, it returns \-1;
 .Pp
