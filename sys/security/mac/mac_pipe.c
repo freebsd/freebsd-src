@@ -47,6 +47,7 @@
 
 #include <sys/param.h>
 #include <sys/extattr.h>
+#include <sys/imgact.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -1251,8 +1252,53 @@ mac_setlabel_vnode_extattr(struct ucred *cred, struct vnode *vp,
 	return (error);
 }
 
+int
+mac_execve_enter(struct image_params *imgp, struct mac *mac_p,
+    struct label *execlabelstorage)
+{
+	struct mac mac;
+	char *buffer;
+	int error;
+
+	if (mac_p == NULL)
+		return (0);
+
+	error = copyin(mac_p, &mac, sizeof(mac));
+	if (error)
+		return (error);
+
+	error = mac_check_structmac_consistent(&mac);
+	if (error)
+		return (error);
+
+	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
+	error = copyinstr(mac.m_string, buffer, mac.m_buflen, NULL);
+	if (error) {
+		free(buffer, M_MACTEMP);
+		return (error);
+	}
+
+	mac_init_cred_label(execlabelstorage);
+	error = mac_internalize_cred_label(execlabelstorage, buffer);
+	free(buffer, M_MACTEMP);
+	if (error) {
+		mac_destroy_cred_label(execlabelstorage);
+		return (error);
+	}
+	imgp->execlabel = execlabelstorage;
+	return (0);
+}
+
 void
-mac_execve_transition(struct ucred *old, struct ucred *new, struct vnode *vp)
+mac_execve_exit(struct image_params *imgp)
+{
+	if (imgp->execlabel != NULL)
+		mac_destroy_cred_label(imgp->execlabel);
+}
+
+void
+mac_execve_transition(struct ucred *old, struct ucred *new, struct vnode *vp,
+    struct label *interpvnodelabel, struct image_params *imgp)
 {
 
 	ASSERT_VOP_LOCKED(vp, "mac_execve_transition");
@@ -1260,11 +1306,13 @@ mac_execve_transition(struct ucred *old, struct ucred *new, struct vnode *vp)
 	if (!mac_enforce_process && !mac_enforce_fs)
 		return;
 
-	MAC_PERFORM(execve_transition, old, new, vp, &vp->v_label);
+	MAC_PERFORM(execve_transition, old, new, vp, &vp->v_label,
+	    interpvnodelabel, imgp);
 }
 
 int
-mac_execve_will_transition(struct ucred *old, struct vnode *vp)
+mac_execve_will_transition(struct ucred *old, struct vnode *vp,
+    struct label *interpvnodelabel, struct image_params *imgp)
 {
 	int result;
 
@@ -1274,7 +1322,8 @@ mac_execve_will_transition(struct ucred *old, struct vnode *vp)
 		return (0);
 
 	result = 0;
-	MAC_BOOLEAN(execve_will_transition, ||, old, vp, &vp->v_label);
+	MAC_BOOLEAN(execve_will_transition, ||, old, vp, &vp->v_label,
+	    interpvnodelabel, imgp);
 
 	return (result);
 }
@@ -1369,7 +1418,8 @@ mac_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
 }
 
 int
-mac_check_vnode_exec(struct ucred *cred, struct vnode *vp)
+mac_check_vnode_exec(struct ucred *cred, struct vnode *vp,
+    struct image_params *imgp)
 {
 	int error;
 
@@ -1378,7 +1428,7 @@ mac_check_vnode_exec(struct ucred *cred, struct vnode *vp)
 	if (!mac_enforce_process && !mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_exec, cred, vp, &vp->v_label);
+	MAC_CHECK(check_vnode_exec, cred, vp, &vp->v_label, imgp);
 
 	return (error);
 }
