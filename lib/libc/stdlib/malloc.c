@@ -730,7 +730,7 @@ malloc_bytes(size_t size)
     k <<= bp->shift;
 
     if (malloc_junk)
-	memset((u_char*)bp->page + k, SOME_JUNK, bp->size);
+	memset((u_char *)bp->page + k, SOME_JUNK, bp->size);
 
     return ((u_char *)bp->page + k);
 }
@@ -816,7 +816,7 @@ irealloc(void *ptr, size_t size)
 	  size <= osize && 			/* .. or are too small, */
 	  size > (osize - malloc_pagesize)) {	/* .. or can free a page, */
 	    if (malloc_junk)
-		memset((char *)ptr + size, SOME_JUNK, osize-size);
+		memset((u_char *)ptr + size, SOME_JUNK, osize-size);
 	    return (ptr);			/* ..don't do anything else. */
 	}
 
@@ -844,7 +844,7 @@ irealloc(void *ptr, size_t size)
 	  (size > osize/2 ||	 	/* ..or could use a smaller size, */
 	  osize == malloc_minsize)) {	/* ..(if there is one) */
 	    if (malloc_junk)
-		memset((char *)ptr + size, SOME_JUNK, osize-size);
+		memset((u_char *)ptr + size, SOME_JUNK, osize-size);
 	    return (ptr);		/* ..don't do anything else. */
 	}
 
