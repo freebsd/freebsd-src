@@ -28,7 +28,7 @@
  *
  *	from: @(#)xdr.h 1.19 87/04/22 SMI
  *	from: @(#)xdr.h	2.2 88/07/29 4.0 RPCSRC
- *	$Id: xdr.h,v 1.10 1997/05/28 04:45:15 wpaul Exp $
+ *	$Id: xdr.h,v 1.11 1998/09/08 17:33:12 obrien Exp $
  */
 
 /*
@@ -128,10 +128,15 @@ typedef struct __rpc_xdr {
  * The opaque pointer generally points to a structure of the data type
  * to be decoded.  If this pointer is 0, then the type routines should
  * allocate dynamic storage of the appropriate size and return it.
- *
- * XXX can't actually prototype it, because some take three args!!!
+ */
+#ifdef KERNEL
+typedef	bool_t (*xdrproc_t) __P((XDR *, void *, u_int));
+#else
+/*
+ * XXX can't actually prototype it, because some take two args!!!
  */
 typedef	bool_t (*xdrproc_t) __P((/* XDR *, void *, u_int */));
+#endif
 
 /*
  * Operations defined on a XDR handle
