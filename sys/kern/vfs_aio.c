@@ -1872,73 +1872,7 @@ aio_read(struct proc *p, struct aio_read_args *uap)
 #ifndef VFS_AIO
 	return ENOSYS;
 #else
-	struct filedesc *fdp;
-	struct file *fp;
-	struct uio auio;
-	struct iovec aiov;
-	unsigned int fd;
-	int cnt;
-	struct aiocb iocb;
-	int error, pmodes;
-
-	pmodes = fuword(&uap->aiocbp->_aiocb_private.privatemodes);
-	if ((pmodes & AIO_PMODE_SYNC) == 0)
-		return aio_aqueue(p, (struct aiocb *)uap->aiocbp, LIO_READ);
-
-	/* Get control block. */
-	if ((error = copyin((caddr_t)uap->aiocbp, (caddr_t)&iocb, sizeof iocb))
-	    != 0)
-		return error;
-
-	/* Get the fd info for process. */
-	fdp = p->p_fd;
-
-	/*
-	 * Range check file descriptor.
-	 */
-	fd = iocb.aio_fildes;
-	if (fd >= fdp->fd_nfiles)
-		return EBADF;
-	fp = fdp->fd_ofiles[fd];
-	if ((fp == NULL) || ((fp->f_flag & FREAD) == 0))
-		return EBADF;
-	if (iocb.aio_offset == -1LL)
-		return EINVAL;
-
-	auio.uio_resid = iocb.aio_nbytes;
-	if (auio.uio_resid < 0)
-		return (EINVAL);
-
-	/*
-	 * Process sync simply -- queue async request.
-	 */
-	if ((iocb._aiocb_private.privatemodes & AIO_PMODE_SYNC) == 0)
-		return aio_aqueue(p, (struct aiocb *)uap->aiocbp, LIO_READ);
-
-	aiov.iov_base = (void *)iocb.aio_buf;
-	aiov.iov_len = iocb.aio_nbytes;
-
-	auio.uio_iov = &aiov;
-	auio.uio_iovcnt = 1;
-	auio.uio_offset = iocb.aio_offset;
-	auio.uio_rw = UIO_READ;
-	auio.uio_segflg = UIO_USERSPACE;
-	auio.uio_procp = p;
-
-	cnt = iocb.aio_nbytes;
-	/*
-	 * Temporarily bump the ref count while reading to avoid the
-	 * descriptor being ripped out from under us.
-	 */
-	fhold(fp);
-	error = fo_read(fp, &auio, fp->f_cred, FOF_OFFSET, p);
-	fdrop(fp, p);
-	if (error && (auio.uio_resid != cnt) && (error == ERESTART || error ==
-	    EINTR || error == EWOULDBLOCK))
-		error = 0;
-	cnt -= auio.uio_resid;
-	p->p_retval[0] = cnt;
-	return error;
+	return aio_aqueue(p, (struct aiocb *)uap->aiocbp, LIO_READ);
 #endif /* VFS_AIO */
 }
 
@@ -1948,76 +1882,7 @@ aio_write(struct proc *p, struct aio_write_args *uap)
 #ifndef VFS_AIO
 	return ENOSYS;
 #else
-	struct filedesc *fdp;
-	struct file *fp;
-	struct uio auio;
-	struct iovec aiov;
-	unsigned int fd;
-	int cnt;
-	struct aiocb iocb;
-	int error;
-	int pmodes;
-
-	/*
-	 * Process sync simply -- queue async request.
-	 */
-	pmodes = fuword(&uap->aiocbp->_aiocb_private.privatemodes);
-	if ((pmodes & AIO_PMODE_SYNC) == 0)
-		return aio_aqueue(p, (struct aiocb *)uap->aiocbp, LIO_WRITE);
-
-	if ((error = copyin((caddr_t)uap->aiocbp, (caddr_t)&iocb, sizeof iocb))
-	    != 0)
-		return error;
-
-	/* Get the fd info for process. */
-	fdp = p->p_fd;
-
-	/*
-	 * Range check file descriptor.
-	 */
-	fd = iocb.aio_fildes;
-	if (fd >= fdp->fd_nfiles)
-		return EBADF;
-	fp = fdp->fd_ofiles[fd];
-	if ((fp == NULL) || ((fp->f_flag & FWRITE) == 0))
-		return EBADF;
-	if (iocb.aio_offset == -1LL)
-		return EINVAL;
-
-	aiov.iov_base = (void *)iocb.aio_buf;
-	aiov.iov_len = iocb.aio_nbytes;
-	auio.uio_iov = &aiov;
-	auio.uio_iovcnt = 1;
-	auio.uio_offset = iocb.aio_offset;
-
-	auio.uio_resid = iocb.aio_nbytes;
-	if (auio.uio_resid < 0)
-		return (EINVAL);
-
-	auio.uio_rw = UIO_WRITE;
-	auio.uio_segflg = UIO_USERSPACE;
-	auio.uio_procp = p;
-
-	cnt = iocb.aio_nbytes;
-	/*
-	 * Temporarily bump the ref count while writing to avoid the
-	 * descriptor being ripped out from under us.
-	 */
-	fhold(fp);
-	error = fo_write(fp, &auio, fp->f_cred, FOF_OFFSET, p);
-	fdrop(fp, p);
-	if (error) {
-		if (auio.uio_resid != cnt) {
-			if (error == ERESTART || error == EINTR || error ==
-			    EWOULDBLOCK)
-				error = 0;
-			if (error == EPIPE)
-				psignal(p, SIGPIPE);
-		}
-	}
-	cnt -= auio.uio_resid;
-	p->p_retval[0] = cnt;
-	return error;
+	return aio_aqueue(p, (struct aiocb *)uap->aiocbp, LIO_WRITE);
 #endif /* VFS_AIO */
 }
 
