@@ -323,6 +323,14 @@ legacy_pcib_identify(driver_t *driver, device_t parent)
 		func = 0;
 		hdrtype = legacy_pcib_read_config(0, bus, slot, func,
 						 PCIR_HEADERTYPE, 1);
+		/*
+		 * When enumerating bus devices, the standard says that
+		 * one should check the header type and ignore the slots whose
+		 * header types that the software doesn't know about.  We use
+		 * this to filter out devices.
+		 */
+		if ((hdrtype & ~PCIM_MFDEV) > PCI_MAXHDRTYPE)
+			continue;
 		if ((hdrtype & PCIM_MFDEV) && 
 		    (!found_orion || hdrtype != 0xff))
 			pcifunchigh = 7;
