@@ -1,6 +1,9 @@
+.Dd November 7, 1993
 .TH SPKR 4
+.Os FreeBSD
 .SH NAME
-spkr \- console speaker device driver
+.Nm spkr
+.Nd console speaker device driver
 .SH DESCRIPTION
 The speaker device driver allows applications to control the PC console
 speaker on an IBM-PC-compatible machine running UNIX.
@@ -18,7 +21,7 @@ tones. Other processes may emit beeps while the driver is running.
 .PP
 Applications may call ioctl() on a speaker file descriptor to control the
 speaker driver directly; definitions for the ioctl() interface are in
-sys/spkr.h. The tone_t structure used in these calls has two fields,
+machine/speaker.h. The tone_t structure used in these calls has two fields,
 specifying a frequency (in hz) and a duration (in 1/100ths of a second).
 A frequency of zero is interpreted as a rest.
 .PP
@@ -30,7 +33,8 @@ a zero duration.
 .PP
 The play-string language is modelled on the PLAY statement conventions of
 IBM BASIC 2.0. The MB, MF and X primitives of PLAY are not useful in a UNIX 
-environment and are omitted. The `octave-tracking' feature is also new.
+environment and are omitted. The `octave-tracking' feature and the slur
+mark are new.
 .PP
 There are 84 accessible notes numbered 1-83 in 7 octaves, each running from
 C to B, numbered 0-6; the scale is equal-tempered A440 and octave 3 starts
@@ -45,25 +49,26 @@ current octave. A note letter may optionally be followed by an \fIaccidental
 sign\fR, one of # + or -; the first two of these cause it to be sharped one
 half-tone, the last causes it to be flatted one half-tone. It may also be
 followed by a time value number and by sustain dots (see below). Time values
-are interpreted as for the L command below;.
+are interpreted as for the L command below.
 .PP
 O <n> -- if <n> is numeric, this sets the current octave. <n> may also be one
 of 'L' or 'N' to enable or disable octave-tracking (it is disabled by default).
 When octave-tracking is on, interpretation of a pair of letter notes will
 change octaves if necessary in order to make the smallest possible jump between
 notes. Thus "olbc" will be played as "olb>c", and "olcb" as "olc<b". Octave
-locking is disabled for one letter note following by >, < and O[0123456].
+locking is disabled for one letter note following >, < and O[0123456].
+(The octave-locking feature is not supported in Microsoft Basic.)
 .PP
 > -- bump the current octave up one.
 .PP
 < -- drop the current octave down one.
 .PP
 N <n> -- play note n, n being 1 to 84 or 0 for a rest of current time value.
-May be followedv by sustain dots.
+May be followed by sustain dots.
 .PP
-L <n> -- sets the current time value for notes. The default is L4, quarter
-notes. The lowest possible value is 1; values up to 64 are accepted. L1 sets
-whole notes, L2 sets half notes, L4 sets quarter notes, etc..
+L <n> -- sets the current time value for notes. The default is L4, quarter or
+crotchet notes. The lowest possible value is 1; values up to 64 are accepted.
+L1 sets whole notes, L2 sets half notes, L4 sets quarter notes, etc..
 .PP
 P <n> -- pause (rest), with <n> interpreted as for L. May be followed by
 sustain dots. May also be written '~'.
@@ -101,6 +106,10 @@ sustain dots. Each dot causes the note's value to be lengthened by one-half
 for each one. Thus, a note dotted once is held for 3/2 of its undotted value;
 dotted twice, it is held 9/4, and three times would give 27/8. 
 .PP
+A note and its sustain dots may also be followed by a slur mark (underscore).
+This causes the normal micro-rest after the note to be filled in, slurring it
+to the next one.  (The slur feature is not supported in Microsoft Basic.)
+.PP
 Whitespace in play strings is simply skipped and may be used to separate
 melody sections.
 .SH BUGS
@@ -108,10 +117,19 @@ Due to roundoff in the pitch tables and slop in the tone-generation and timer
 hardware (neither of which was designed for precision), neither pitch accuracy
 nor timings will be mathematically exact. There is no volume control.
 .PP
+The action of two or more sustain dots does not reflect standard musical
+notation, in which each dot adds half the value of the previous dot
+modifier, not half the value of the note as modified.  Thus, a note dotted
+once is held for 3/2 of its undotted value; dotted twice, it is held 7/4,
+and three times would give 15/8.  The multiply-by-3/2 interpretation,
+however, is specified in the IBM BASIC manual and has been retained for
+compatibility.
+.PP
 In play strings which are very long (longer than your system's physical I/O
 blocks) note suffixes or numbers may occasionally be parsed incorrectly due
 to crossing a block boundary.
 .SH FILES
 /dev/speaker -- speaker device file
 .SH AUTHOR
-Eric S. Raymond (esr@snark.thyrsus.com) Feb 1990
+Eric S. Raymond <esr@snark.thyrsus.com) June 1990
+FreeBSD port -- Andrew A. Chernov <ache@astral.msk.su>
