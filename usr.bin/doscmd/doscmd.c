@@ -842,7 +842,7 @@ done (regcontext_t *REGS, int val)
 }
 
 typedef struct COQ {
-    void	(*func)();
+    void	(*func)(void *);
     void	*arg;
     struct COQ	*next;
 } COQ;
