@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/pioctl.h>
 #include <sys/resourcevar.h>
+#include <sys/sched.h>
 #include <sys/sleepqueue.h>
 #include <sys/smp.h>
 #include <sys/stat.h>
@@ -1959,7 +1960,7 @@ tdsigwakeup(struct thread *td, int sig, sig_t action)
 	 */
 	if (action == SIG_DFL && (prop & SA_KILL)) {
 		if (td->td_priority > PUSER)
-			td->td_priority = PUSER;
+			sched_prio(td, PUSER);
 	}
 
 	if (TD_ON_SLEEPQ(td)) {
@@ -1998,7 +1999,7 @@ tdsigwakeup(struct thread *td, int sig, sig_t action)
 			 * Give low priority threads a better chance to run.
 			 */
 			if (td->td_priority > PUSER)
-				td->td_priority = PUSER;
+				sched_prio(td, PUSER);
 		}
 		sleepq_abort(td);
 	} else {
