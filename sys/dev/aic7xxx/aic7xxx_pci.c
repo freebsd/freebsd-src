@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx_pci.c#5 $
+ * $Id: //depot/src/aic7xxx/aic7xxx_pci.c#10 $
  *
  * $FreeBSD$
  */
@@ -117,6 +117,7 @@ ahc_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 #define ID_AHA_29160		0x00809005E2A09005ull
 #define ID_AHA_29160_CPQ	0x00809005E2A00E11ull
 #define ID_AHA_29160N		0x0080900562A09005ull
+#define ID_AHA_29160C		0x0080900562209005ull
 #define ID_AHA_29160B		0x00809005E2209005ull
 #define ID_AHA_19160B		0x0081900562A19005ull
 
@@ -132,6 +133,53 @@ ahc_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 
 #define ID_AIC7810		0x1078900400000000ull
 #define ID_AIC7815		0x7815900400000000ull
+
+#define SUBID_9005_TYPE(id) ((id) & 0xF)
+#define		SUBID_9005_TYPE_MB		0xF	/* On Motherboard */
+#define		SUBID_9005_TYPE_CARD		0x0	/* Standard Card */
+#define		SUBID_9005_TYPE_LCCARD		0x1	/* Low Cost Card */
+#define		SUBID_9005_TYPE_RAID		0x3	/* Combined with Raid */
+
+#define SUBID_9005_MAXRATE(id) (((id) & 0x30) >> 4)
+#define		SUBID_9005_MAXRATE_ULTRA2	0x0
+#define		SUBID_9005_MAXRATE_ULTRA	0x1
+#define		SUBID_9005_MAXRATE_U160		0x2
+#define		SUBID_9005_MAXRATE_RESERVED	0x3
+
+#define SUBID_9005_SEEPTYPE(id)						\
+	((SUBID_9005_TYPE(id) == SUBID_9005_TYPE_MB)			\
+	 ? ((id) & 0xC0) >> 6						\
+	 : ((id) & 0x300) >> 8)
+#define		SUBID_9005_SEEPTYPE_NONE	0x0
+#define		SUBID_9005_SEEPTYPE_1K		0x1
+#define		SUBID_9005_SEEPTYPE_2K_4K	0x2
+#define		SUBID_9005_SEEPTYPE_RESERVED	0x3
+#define SUBID_9005_AUTOTERM(id)						\
+	((SUBID_9005_TYPE(id) == SUBID_9005_TYPE_MB)			\
+	 ? (((id) & 0x400) >> 10) == 0					\
+	 : (((id) & 0x40) >> 6) == 0)
+
+#define SUBID_9005_NUMCHAN(id)						\
+	((SUBID_9005_TYPE(id) == SUBID_9005_TYPE_MB)			\
+	 ? ((id) & 0x300) >> 8						\
+	 : ((id) & 0xC00) >> 10)
+
+#define SUBID_9005_LEGACYCONN(id)					\
+	((SUBID_9005_TYPE(id) == SUBID_9005_TYPE_MB)			\
+	 ? 0								\
+	 : ((id) & 0x80) >> 7)
+
+#define SUBID_9005_MFUNCENB(id)						\
+	((SUBID_9005_TYPE(id) == SUBID_9005_TYPE_MB)			\
+	 ? ((id) & 0x800) >> 11						\
+	 : ((id) & 0x1000) >> 12)
+/*
+ * Informational only. Should use chip register to be
+ * ceratian, but may be use in identification strings.
+ */
+#define SUBID_9005_CARD_SCSIWIDTH_MASK	0x2000
+#define SUBID_9005_CARD_PCIWIDTH_MASK	0x4000
+#define SUBID_9005_CARD_SEDIFF_MASK	0x8000
 
 static ahc_device_setup_t ahc_aic7850_setup;
 static ahc_device_setup_t ahc_aic7855_setup;
@@ -347,6 +395,12 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 		ahc_aic7892_setup
 	},
 	{
+		ID_AHA_29160C,
+		ID_ALL_MASK,
+		"Adaptec 29160C Ultra160 SCSI adapter",
+		ahc_aic7892_setup
+	},
+	{
 		ID_AHA_29160B,
 		ID_ALL_MASK,
 		"Adaptec 29160B Ultra160 SCSI adapter",
@@ -502,7 +556,7 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 	}
 };
 
-const int ahc_num_pci_devs = NUM_ELEMENTS(ahc_pci_ident_table);
+const u_int ahc_num_pci_devs = NUM_ELEMENTS(ahc_pci_ident_table);
 		
 #define AHC_394X_SLOT_CHANNEL_A	4
 #define AHC_394X_SLOT_CHANNEL_B	5
@@ -534,6 +588,16 @@ const int ahc_num_pci_devs = NUM_ELEMENTS(ahc_pci_ident_table);
 #define		CACHESIZE	0x0000003ful	/* only 5 bits */
 #define		LATTIME		0x0000ff00ul
 
+typedef enum
+{
+	AHC_POWER_STATE_D0,
+	AHC_POWER_STATE_D1,
+	AHC_POWER_STATE_D2,
+	AHC_POWER_STATE_D3
+} ahc_power_state;
+
+static void ahc_power_state_change(struct ahc_softc *ahc,
+				   ahc_power_state new_state);
 static int ahc_ext_scbram_present(struct ahc_softc *ahc);
 static void ahc_scbram_config(struct ahc_softc *ahc, int enable,
 				  int pcheck, int fast, int large);
@@ -583,6 +647,12 @@ ahc_find_pci_device(ahc_dev_softc_t pci)
 				 subdevice,
 				 subvendor);
 
+	/* If the second function is not hooked up, ignore it. */
+	if (ahc_get_pci_function(pci) > 0
+	 && subvendor == 0x9005
+	 && SUBID_9005_MFUNCENB(subdevice) == 0)
+		return (NULL);
+
 	for (i = 0; i < ahc_num_pci_devs; i++) {
 		entry = &ahc_pci_ident_table[i];
 		if (entry->full_id == (full_id & entry->id_mask))
@@ -616,6 +686,8 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 	if (error != 0)
 		return (error);
 
+	ahc_power_state_change(ahc, AHC_POWER_STATE_D0);
+
 	/* Ensure busmastering is enabled */
 	command = ahc_pci_read_config(ahc->dev_softc, PCIR_COMMAND, /*bytes*/1);
 	command |= PCIM_CMD_BUSMASTEREN;
@@ -629,13 +701,19 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 		return (error);
 
 	/* Remeber how the card was setup in case there is no SEEPROM */
-	pause_sequencer(ahc);
-	if ((ahc->features & AHC_ULTRA2) != 0)
-		our_id = ahc_inb(ahc, SCSIID_ULTRA2) & OID;
-	else
-		our_id = ahc_inb(ahc, SCSIID) & OID;
-	sxfrctl1 = ahc_inb(ahc, SXFRCTL1) & STPWEN;
-	scsiseq = ahc_inb(ahc, SCSISEQ);
+	if ((ahc_inb(ahc, HCNTRL) & POWRDN) == 0) {
+		pause_sequencer(ahc);
+		if ((ahc->features & AHC_ULTRA2) != 0)
+			our_id = ahc_inb(ahc, SCSIID_ULTRA2) & OID;
+		else
+			our_id = ahc_inb(ahc, SCSIID) & OID;
+		sxfrctl1 = ahc_inb(ahc, SXFRCTL1) & STPWEN;
+		scsiseq = ahc_inb(ahc, SCSISEQ);
+	} else {
+		sxfrctl1 = STPWEN;
+		our_id = 7;
+		scsiseq = 0;
+	}
 
 	error = ahc_reset(ahc);
 	if (error != 0)
@@ -648,14 +726,11 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 		sfunct = ahc_inb(ahc, SFUNCT) & ~ALT_MODE;
 		ahc_outb(ahc, SFUNCT, sfunct | ALT_MODE);
 		ahc_outb(ahc, OPTIONMODE, OPTIONMODE_DEFAULTS);
-		/* Send CRC info in target mode every 4K */
-		ahc_outb(ahc, TARGCRCCNT, 0);
-		ahc_outb(ahc, TARGCRCCNT + 1, 0x10);
 		ahc_outb(ahc, SFUNCT, sfunct);
 
 		/* Normal mode setup */
 		ahc_outb(ahc, CRCCONTROL1, CRCVALCHKEN|CRCENDCHKEN|CRCREQCHKEN
-					  |TARGCRCENDEN|TARGCRCCNTEN);
+					  |TARGCRCENDEN);
 	}
 
 	error = ahc_pci_map_int(ahc);
@@ -753,6 +828,41 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 	ahc_softc_insert(ahc);
 
 	return (0);
+}
+
+static void
+ahc_power_state_change(struct ahc_softc *ahc, ahc_power_state new_state)
+{
+	uint32_t cap;
+	u_int cap_offset;
+
+	/*
+	 * Traverse the capability list looking for
+	 * the power management capability.
+	 */
+	cap = 0;
+	cap_offset = ahc_pci_read_config(ahc->dev_softc,
+					 PCIR_CAP_PTR, /*bytes*/1);
+	while (cap_offset != 0) {
+
+		cap = ahc_pci_read_config(ahc->dev_softc,
+					  cap_offset, /*bytes*/4);
+		if ((cap & 0xFF) == 1
+		 && ((cap >> 16) & 0x3) > 0) {
+			uint32_t pm_control;
+
+			pm_control = ahc_pci_read_config(ahc->dev_softc,
+							 cap_offset + 4,
+							 /*bytes*/4);
+			pm_control &= ~0x3;
+			pm_control |= new_state;
+			ahc_pci_write_config(ahc->dev_softc,
+					     cap_offset + 4,
+					     pm_control, /*bytes*/2);
+			break;
+		}
+		cap_offset = (cap >> 8) & 0xFF;
+	}
 }
 
 /*
