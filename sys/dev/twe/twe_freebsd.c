@@ -729,7 +729,7 @@ twed_dump(dev_t dev)
 	    return(error);
 
 
-	if (dumpstatus(addr, (long)(count * DEV_BSIZE)) < 0)
+	if (dumpstatus(addr, (off_t)count * DEV_BSIZE) < 0)
 	    return(EINTR);
 
 	blkno += blkcnt * dumppages;

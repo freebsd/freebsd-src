@@ -825,7 +825,7 @@ dadump(dev_t dev)
 			return(EIO);
 		}
 		
-		if (dumpstatus(addr, (long)(num * softc->params.secsize)) < 0)
+		if (dumpstatus(addr, (off_t)num * softc->params.secsize) < 0)
 			return (EINTR);
 
 		/* update block count */
