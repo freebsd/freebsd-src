@@ -231,7 +231,7 @@ start_command(cmd, mask, infd, outfd, a0, a1, a2)
 {
 	int pid;
 
-	if ((pid = vfork()) < 0) {
+	if ((pid = fork()) < 0) {
 		perror("fork");
 		return -1;
 	}
