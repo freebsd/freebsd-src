@@ -137,7 +137,7 @@
  *	0x7f ^ 0x1f == 0x60
  *	0x1f == (0x80 - 0x60) - 1
  *
- * Which are the offset and xor value used to resume from mmu faults.
+ * Which are the offset and xor value used to resume from alignment faults.
  */
 
 /*
@@ -164,11 +164,11 @@
  * Instruction offsets in spill and fill trap handlers for handling certain
  * nested traps, and corresponding xor constants for wrpr.
  */
-#define	RSF_OFF_MMU	0x60
-#define	RSF_OFF_ALIGN	0x70
+#define	RSF_OFF_ALIGN	0x60
+#define	RSF_OFF_MMU	0x70
 
-#define	RSF_MMU		RSF_XOR(RSF_OFF_MMU)
 #define	RSF_ALIGN	RSF_XOR(RSF_OFF_ALIGN)
+#define	RSF_MMU		RSF_XOR(RSF_OFF_MMU)
 
 /*
  * Constant to add to %tnpc when taking a fill trap just before returning to
@@ -385,9 +385,9 @@ ENTRY(tl0_sfsr_trap)
 	ldx	[%sp + SPOFF + CCFSZ + MF_SFAR], %g4
 	stx	%g4, [%g3 + KTR_PARM1]
 	ldx	[%sp + SPOFF + CCFSZ + MF_SFSR], %g4
-	stx	%g4, [%g3 + KTR_PARM1]
+	stx	%g4, [%g3 + KTR_PARM2]
 	ldx	[%sp + SPOFF + CCFSZ + MF_TAR], %g4
-	stx	%g4, [%g3 + KTR_PARM1]
+	stx	%g4, [%g3 + KTR_PARM3]
 9:
 #endif
 	rdpr	%pil, %o2
@@ -1514,22 +1514,6 @@ END(tl1_spill_topcb)
 	.endr
 	.endm
 
-	.macro	tl1_breakpoint
-	b,a	%xcc, tl1_breakpoint_trap
-	.align	32
-	.endm
-
-ENTRY(tl1_breakpoint_trap)
-	tl1_kstack
-	sub	%sp, KF_SIZEOF, %sp
-	flushw
-	stx	%fp, [%sp + SPOFF + CCFSZ + KF_FP]
-	mov	T_BREAKPOINT | T_KERNEL, %o0
-	add	%sp, SPOFF + CCFSZ, %o1
-	b	%xcc, tl1_trap
-	 rdpr	%pil, %o2
-END(tl1_breakpoint_trap)
-
 	.macro	tl1_soft	count
 	.rept	\count
 	tl1_gen	T_SOFT | T_KERNEL
@@ -1743,7 +1727,7 @@ tl1_fill_7_n:
 	tl1_fill_bad	8		! 0x2e0-0x2ff fill other
 	tl1_reserved	1		! 0x300 trap instruction
 tl1_breakpoint:
-	tl1_breakpoint			! 0x301 breakpoint
+	tl1_gen		T_BREAKPOINT	! 0x301 breakpoint
 	tl1_gen		T_RSTRWP_PHYS	! 0x302 restore physical watchpoint (debug)
 	tl1_gen		T_RSTRWP_VIRT	! 0x303 restore virtual watchpoint (debug)
 	tl1_soft	124		! 0x304-0x37f trap instruction
@@ -1958,7 +1942,7 @@ ENTRY(tl0_intr)
 	stx	%i6, [%sp + SPOFF + CCFSZ + TF_O6]
 	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
 
-	set	cnt+V_INTR, %l0
+	SET(cnt+V_INTR, %l1, %l0)
 	lduw	[%l0], %l1
 1:	add	%l1, 1, %l2
 	casa	[%l0] ASI_N, %l1, %l2
@@ -1966,7 +1950,7 @@ ENTRY(tl0_intr)
 	bne,pn	%xcc, 1b
 	 mov	%l2, %l1
 
-	set	intr_handlers, %l0
+	SET(intr_handlers, %l1, %l0)
 	sllx	%o1, IH_SHIFT, %l1
 	add	%l0, %l1, %l0
 	ldx	[%l0 + IH_FUNC], %l1
@@ -2162,6 +2146,11 @@ ENTRY(tl1_trap)
 	stx	%g5, [%sp + SPOFF + CCFSZ + TF_G5]
 	stx	%g6, [%sp + SPOFF + CCFSZ + TF_G6]
 
+#ifdef DDB
+	stx	%i6, [%sp + SPOFF + CCFSZ + TF_O6]
+	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
+#endif
+
 	call	trap
 	 add	%sp, CCFSZ + SPOFF, %o0
 
@@ -2173,31 +2162,44 @@ ENTRY(tl1_trap)
 	ldx	[%sp + SPOFF + CCFSZ + TF_G6], %g6
 
 	ldx	[%sp + SPOFF + CCFSZ + TF_PIL], %l0
-	ldx	[%sp + SPOFF + CCFSZ + TF_TSTATE], %l1
-	ldx	[%sp + SPOFF + CCFSZ + TF_TPC], %l2
-	ldx	[%sp + SPOFF + CCFSZ + TF_TNPC], %l3
+	ldx	[%sp + SPOFF + CCFSZ + TF_TPC], %l1
+	ldx	[%sp + SPOFF + CCFSZ + TF_TNPC], %l2
+	ldx	[%sp + SPOFF + CCFSZ + TF_TSTATE], %l3
 
 	wrpr	%g0, PSTATE_ALT, %pstate
 
-	wrpr	%l0, 0, %pil
+	mov	%l0, %g1
+	mov	%l1, %g2
+	mov	%l2, %g3
+
+	andn	%l3, TSTATE_CWP_MASK, %g4
+
+	restore
 
 	wrpr	%g0, 2, %tl
-	wrpr	%l1, 0, %tstate
-	wrpr	%l2, 0, %tpc
-	wrpr	%l3, 0, %tnpc
+
+	wrpr	%g1, 0, %pil
+	wrpr	%g2, 0, %tpc
+	wrpr	%g3, 0, %tnpc
+	rdpr	%cwp, %g1
+	or	%g1, %g4, %g1
+	wrpr	%g1, 0, %tstate
 
 #if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl1_trap: return td=%p pil=%#lx sp=%#lx pc=%#lx"
-	    , %l3, %l4, %l5, 7, 8, 9)
-	ldx	[PCPU(CURTHREAD)], %l4
-	stx	%l4, [%l3 + KTR_PARM1]
-	stx	%l0, [%l3 + KTR_PARM2]
-	stx	%sp, [%l3 + KTR_PARM3]
-	stx	%l2, [%l3 + KTR_PARM4]
+	CATR(KTR_TRAP, "tl1_trap: td=%#lx pil=%#lx ts=%#lx pc=%#lx sp=%#lx"
+	    , %g2, %g3, %g4, 7, 8, 9)
+	ldx	[PCPU(CURTHREAD)], %g3
+	stx	%g3, [%g2 + KTR_PARM1]
+	rdpr	%pil, %g3
+	stx	%g3, [%g2 + KTR_PARM2]
+	rdpr	%tstate, %g3
+	stx	%g3, [%g2 + KTR_PARM3]
+	rdpr	%tpc, %g3
+	stx	%g3, [%g2 + KTR_PARM4]
+	stx	%sp, [%g2 + KTR_PARM5]
 9:
 #endif
 
-	restore
 	retry
 END(tl1_trap)
 
@@ -2248,7 +2250,7 @@ ENTRY(tl1_intr)
 	stx	%g5, [%sp + SPOFF + CCFSZ + TF_G5]
 	stx	%g6, [%sp + SPOFF + CCFSZ + TF_G6]
 
-	set	cnt+V_INTR, %l0
+	SET(cnt+V_INTR, %l1, %l0)
 	lduw	[%l0], %l1
 1:	add	%l1, 1, %l2
 	casa	[%l0] ASI_N, %l1, %l2
@@ -2256,7 +2258,7 @@ ENTRY(tl1_intr)
 	bne,pn	%xcc, 1b
 	 mov	%l2, %l1
 
-	set	intr_handlers, %l0
+	SET(intr_handlers, %l1, %l0)
 	sllx	%o1, IH_SHIFT, %l1
 	add	%l0, %l1, %l0
 	ldx	[%l0 + IH_FUNC], %l1
@@ -2271,31 +2273,44 @@ ENTRY(tl1_intr)
 	ldx	[%sp + SPOFF + CCFSZ + TF_G6], %g6
 
 	ldx	[%sp + SPOFF + CCFSZ + TF_PIL], %l0
-	ldx	[%sp + SPOFF + CCFSZ + TF_TSTATE], %l1
-	ldx	[%sp + SPOFF + CCFSZ + TF_TPC], %l2
-	ldx	[%sp + SPOFF + CCFSZ + TF_TNPC], %l3
+	ldx	[%sp + SPOFF + CCFSZ + TF_TPC], %l1
+	ldx	[%sp + SPOFF + CCFSZ + TF_TNPC], %l2
+	ldx	[%sp + SPOFF + CCFSZ + TF_TSTATE], %l3
 
 	wrpr	%g0, PSTATE_ALT, %pstate
 
-	wrpr	%l0, 0, %pil
+	mov	%l0, %g1
+	mov	%l1, %g2
+	mov	%l2, %g3
+
+	andn	%l3, TSTATE_CWP_MASK, %g4
+
+	restore
 
 	wrpr	%g0, 2, %tl
-	wrpr	%l1, 0, %tstate
-	wrpr	%l2, 0, %tpc
-	wrpr	%l3, 0, %tnpc
 
-#if KTR_COMPILE & KTR_INTR
-	CATR(KTR_INTR, "tl1_intr: return td=%p pil=%#lx sp=%#lx pc=%#lx"
-	    , %l3, %l4, %l5, 7, 8, 9)
-	ldx	[PCPU(CURTHREAD)], %l4
-	stx	%l4, [%l3 + KTR_PARM1]
-	stx	%l0, [%l3 + KTR_PARM2]
-	stx	%sp, [%l3 + KTR_PARM3]
-	stx	%l2, [%l3 + KTR_PARM4]
+	wrpr	%g1, 0, %pil
+	wrpr	%g2, 0, %tpc
+	wrpr	%g3, 0, %tnpc
+	rdpr	%cwp, %g1
+	or	%g1, %g4, %g1
+	wrpr	%g1, 0, %tstate
+
+#if KTR_COMPILE & KTR_TRAP
+	CATR(KTR_TRAP, "tl1_intr: td=%#lx pil=%#lx ts=%#lx pc=%#lx sp=%#lx"
+	    , %g2, %g3, %g4, 7, 8, 9)
+	ldx	[PCPU(CURTHREAD)], %g3
+	stx	%g3, [%g2 + KTR_PARM1]
+	rdpr	%pil, %g3
+	stx	%g3, [%g2 + KTR_PARM2]
+	rdpr	%tstate, %g3
+	stx	%g3, [%g2 + KTR_PARM3]
+	rdpr	%tpc, %g3
+	stx	%g3, [%g2 + KTR_PARM4]
+	stx	%sp, [%g2 + KTR_PARM5]
 9:
 #endif
 
-	restore
 	retry
 END(tl1_intr)
 
