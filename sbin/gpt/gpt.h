@@ -29,25 +29,38 @@
 #ifndef _GPT_H_
 #define	_GPT_H_
 
+struct mbr_part {
+	uint8_t		part_flag;		/* bootstrap flags */
+	uint8_t		part_shd;		/* starting head */
+	uint8_t		part_ssect;		/* starting sector */
+	uint8_t		part_scyl;		/* starting cylinder */
+	uint8_t		part_typ;		/* partition type */
+	uint8_t		part_ehd;		/* end head */
+	uint8_t		part_esect;		/* end sector */
+	uint8_t		part_ecyl;		/* end cylinder */
+	uint16_t	part_start_lo;		/* absolute starting ... */
+	uint16_t	part_start_hi;		/* ... sector number */
+	uint16_t	part_size_lo;		/* partition size ... */
+	uint16_t	part_size_hi;		/* ... in sectors */
+};
+
 struct mbr {
 	uint16_t	mbr_code[223];
-	struct {
-		uint8_t		part_flag;	/* bootstrap flags */
-		uint8_t		part_shd;	/* starting head */
-		uint8_t		part_ssect;	/* starting sector */
-		uint8_t		part_scyl;	/* starting cylinder */
-		uint8_t		part_typ;	/* partition type */
-		uint8_t		part_ehd;	/* end head */
-		uint8_t		part_esect;	/* end sector */
-		uint8_t		part_ecyl;	/* end cylinder */
-		uint16_t	part_start_lo;	/* absolute starting ... */
-		uint16_t	part_start_hi;	/* ... sector number */
-		uint16_t	part_size_lo;	/* partition size ... */
-		uint16_t	part_size_hi;	/* ... in sectors */
-	} mbr_part[4];
+	struct mbr_part	mbr_part[4];
 	uint16_t	mbr_sig;
 #define	MBR_SIG		0xAA55
 };
+
+#ifndef uuid_s_ok
+#define	NEED_UUID_FUNCTIONS
+#define	uuid_s_ok			0
+#define	uuid_s_bad_version		1
+#define	uuid_s_invalid_string_uuid	2
+void	uuid_create(uuid_t *, uint32_t *);
+void	uuid_from_string(const char *, uuid_t *, uint32_t *);
+int32_t	uuid_is_nil(uuid_t *, uint32_t *);
+void	uuid_to_string(uuid_t *, char **, uint32_t *);
+#endif
 
 extern char device_name[];
 extern off_t mediasz;
@@ -62,6 +75,7 @@ void*	gpt_read(int, off_t, size_t);
 int	gpt_write(int, map_t *);
 void	unicode16(short *, const wchar_t *, size_t);
 
+int	cmd_add(int, char *[]);
 int	cmd_create(int, char *[]);
 int	cmd_destroy(int, char *[]);
 int	cmd_migrate(int, char *[]);
