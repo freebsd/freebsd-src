@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.41 1998/09/05 14:30:11 bde Exp $
+ * $Id: sys_generic.c,v 1.42 1998/11/11 10:03:55 truckman Exp $
  */
 
 #include "opt_ktrace.h"
@@ -762,9 +762,11 @@ pollscan(p, fds, nfd)
 	int n = 0;
 
 	for (i = 0; i < nfd; i++, fds++) {
-		if ((u_int)fds->fd >= fdp->fd_nfiles) {
+		if (fds->fd >= fdp->fd_nfiles) {
 			fds->revents = POLLNVAL;
 			n++;
+		} else if (fds->fd < 0) {
+			fds->revents = 0;
 		} else {
 			fp = fdp->fd_ofiles[fds->fd];
 			if (fp == 0) {
