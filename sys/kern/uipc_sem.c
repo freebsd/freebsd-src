@@ -910,6 +910,7 @@ race_lost:
 			if (ku->ku_pid == p1->p_pid) {
 				sem_ref(ks);
 				sem_array[i] = ks;
+				i++;
 				break;
 			}
 		}
@@ -919,13 +920,13 @@ race_lost:
 			if (ku->ku_pid == p1->p_pid) {
 				sem_ref(ks);
 				sem_array[i] = ks;
+				i++;
 				break;
 			}
 		}
 	}
 	mtx_unlock(&sem_lock);
-	KASSERT(i + 1 == count, ("sem_forkhook: i != count (%d, %d)", i,
-	    count));
+	KASSERT(i == count, ("sem_forkhook: i != count (%d, %d)", i, count));
 	/*
 	 * Now cause p2 to enter each of the referenced semaphores, then
 	 * release our temporary reference.  This is pretty inefficient.
