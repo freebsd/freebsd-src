@@ -269,7 +269,7 @@ main(int argc, char *argv[])
 			disk = argv[0];
 		else
 		{
-			snprintf(realname, 12, "/dev/r%s", argv[0]);
+			snprintf(realname, 12, "/dev/%s", argv[0]);
 			disk = realname;
 		}
 		
