@@ -150,6 +150,7 @@ struct iso9660 {
 #define ISO9660_MAGIC   0x96609660
 	int	bid; /* If non-zero, return this as our bid. */
 	struct archive_string pathname;
+	char	seenRockridge; /* Set true if RR extensions are used. */
 
 	uint64_t	previous_offset;
 	uint64_t	previous_size;
@@ -275,7 +276,7 @@ isPVD(struct iso9660 *iso9660, const char *h)
 	iso9660->logical_block_size = toi(&voldesc->logical_block_size, 2);
 
 	/* Store the root directory in the pending list. */
-	file = parse_file_info(iso9660, NULL, 
+	file = parse_file_info(iso9660, NULL,
 	    (struct iso9660_directory_record *)&voldesc->root_directory_record);
 	add_entry(iso9660, file);
 	return (48);
@@ -292,6 +293,14 @@ archive_read_format_iso9660_read_header(struct archive *a,
 	int r;
 
 	iso9660 = *(a->pformat_data);
+
+	if (iso9660->seenRockridge) {
+		a->archive_format = ARCHIVE_FORMAT_ISO9660_ROCKRIDGE;
+		a->archive_format_name = "ISO9660 with Rockridge extensions";
+	} else {
+		a->archive_format = ARCHIVE_FORMAT_ISO9660;
+		a->archive_format_name = "ISO9660";
+	}
 
 	/* Get the next entry that appears after the current offset. */
 	r = next_entry_seek(a, iso9660, &file);
@@ -606,9 +615,10 @@ parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
 			/* FALLTHROUGH */
 		case 'R':
 			if (p[0] == 'R' && p[1] == 'R' && version == 1) {
+				iso9660->seenRockridge = 1;
 				/*
 				 * RR extension comprises:
-				 *
+				 *    one byte flag value
 				 */
 				/* TODO: Handle RR extension. */
 				break;
