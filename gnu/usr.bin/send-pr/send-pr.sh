@@ -230,7 +230,7 @@ if [ -z "$SEVERITY_C" ]; then
 fi
 PRIORITY_C='<[ low | medium | high ] (one line)>'
 CATEGORY_C='<choose from the list of categories above (one line)>'
-CLASS_C='<[ sw-bug | doc-bug | change-request ] (one line)>'
+CLASS_C='<[ sw-bug | doc-bug | change-request | update | maintainer-update ] (one line)>'
 RELEASE_C='<release number or tag (one line)>'
 ENVIRONMENT_C='<machine, os, target, libraries (multiple lines)>'
 DESCRIPTION_C='<precise description of the problem (multiple lines)>'
@@ -426,7 +426,7 @@ while true; do
   PATTERN=">Class:"
   CLASS=`eval sed -n -e "\"/$PATTERN/$SED_CMD\"" $TEMP`
   case "$CLASS" in
-    ""|sw-bug|doc-bug|change-request) CNT=`expr $CNT + 1` ;;
+    ""|sw-bug|doc-bug|change-request|update|maintainer-update) CNT=`expr $CNT + 1` ;;
     *)  echo "$COMMAND: \`$CLASS' is not a valid value for \`Class'."
   esac
   #
