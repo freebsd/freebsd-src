@@ -92,6 +92,11 @@
     hierarchy.  This bug, as well as a fix, is described in security
     advisory FreeBSD-SA-01:40).</para>
 
+    <para>A flaw allowed some signal handlers to remain in effect in a
+    child process after being exec-ed from its parent.  This allowed
+    an attacker to execute arbitrary code in the context of a setuid
+    binary.  More details, as well as a fix, are described in security
+    advisory FreeBSD-SA-01:42).</para>
   </sect1>
 
   <sect1>
