@@ -61,7 +61,7 @@ static int		acpi_pcib_maxslots(device_t dev);
 static u_int32_t	acpi_pcib_read_config(device_t dev, int bus, int slot, int func, int reg, int bytes);
 static void		acpi_pcib_write_config(device_t dev, int bus, int slot, int func, int reg, 
 					       u_int32_t data, int bytes);
-static int		acpi_pcib_route_interrupt(device_t bus, int device, int pin);
+static int		acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin);
 
 static device_method_t acpi_pcib_methods[] = {
     /* Device interface */
@@ -245,7 +245,9 @@ acpi_pcib_write_config(device_t dev, int bus, int slot, int func, int reg, u_int
 }
 
 static int
-acpi_pcib_route_interrupt(device_t bus, int device, int pin)
+acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 {
-    return(255);	/* XXX implement */
+    /* XXX this is not the right way to do this! */
+    pci_cfgregopen();
+    return(pci_cfgintr(pci_get_bus(dev), pci_get_slot(dev), pin));
 }
