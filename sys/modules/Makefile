@@ -1,33 +1,49 @@
 # $FreeBSD$
 
-.if !defined(NOCRYPT) || defined(ALL_MODULES)
-.if exists(${.CURDIR}/../opencrypto)
-_crypto=	crypto
-_cryptodev=	cryptodev
-.endif
-.if exists(${.CURDIR}/../crypto)
-_random=	random
-.endif
-.endif
+# pcic -- currently broken and being worked on out of tree.
+# oldcard -- specialized use for debugging only.
+# owi -- totally unsupported for debugging only.
 
-SUBDIR=	accf_data \
+SUBDIR=	${_3dfx} \
+	${_aac} \
+	accf_data \
 	accf_http \
+	${_acpi} \
+	${_agp} \
 	aha \
+	${_aic} \
 	aic7xxx \
 	aio \
+	${_amd} \
 	amr \
 	an \
+	${_aout} \
+	${_apm} \
+	${_ar} \
+	${_arcnet} \
+	${_asr} \
 	ath \
+	${_ath_hal} \
 	aue \
+	${_awi} \
 	axe \
 	bfe \
 	bge \
+	${_bios} \
+	${_bktr} \
 	bridge \
 	cam \
+	${_canbepm} \
+	${_canbus} \
+	${_cardbus} \
+	${_cbb} \
 	cd9660 \
 	cd9660_iconv \
+	${_ciss} \
+	${_cm} \
 	coda \
 	coda5 \
+	${_coff} \
 	${_crypto} \
 	${_cryptodev} \
 	cue \
@@ -36,18 +52,37 @@ SUBDIR=	accf_data \
 	dcons_crom \
 	de \
 	digi \
+	${_dpt} \
+	${_drm} \
 	dummynet \
+	${_ed} \
+	${_el} \
+	${_elink} \
+	${_em} \
 	en \
+	${_ep} \
+	${_ex} \
+	${_exca} \
+	${_ext2fs} \
 	fatm \
 	fdc \
 	fdescfs \
+	${_fe} \
 	firewire \
 	fxp \
+	${_gem} \
 	geom \
 	gx \
 	harp \
 	hatm \
+	${_hfa} \
 	hifn \
+	${_hme} \
+	${_i2c} \
+	${_ibcs2} \
+	${_ida} \
+	${_idt} \
+	${_ie} \
 	if_disc \
 	if_ef \
 	if_faith \
@@ -59,9 +94,12 @@ SUBDIR=	accf_data \
 	if_tap \
 	if_tun \
 	if_vlan \
+	${_iir} \
 	ip6fw \
-	ip_mroute_mod \
+	${_ipfilter} \
 	ipfw \
+	ip_mroute_mod \
+	${_ips} \
 	isp \
 	ispfw \
 	joy \
@@ -70,6 +108,9 @@ SUBDIR=	accf_data \
 	libiconv \
 	libmbpool \
 	libmchain \
+	${_linprocfs} \
+	${_linux} \
+	${_lnc} \
 	lpt \
 	mac_biba \
 	mac_bsdextended \
@@ -86,20 +127,34 @@ SUBDIR=	accf_data \
 	md \
 	mii \
 	mlx \
+	${_mly} \
 	mpt \
 	msdosfs \
 	msdosfs_iconv \
 	my \
+	${_ncp} \
+	${_ncv} \
+	${_ndis} \
+	${_netgraph} \
 	nfsclient \
 	nfsserver \
 	nge \
 	nmdm \
+	${_nsp} \
 	ntfs \
 	ntfs_iconv \
+	${_null} \
 	nullfs \
+	${_nwfs} \
+	${_oltr} \
+	${_osf1} \
 	patm \
+	${_pccard} \
+	${_pcfclock} \
 	pcn \
+	${_pecoff} \
 	plip \
+	${_pmc} \
 	portalfs \
 	ppbus \
 	ppi \
@@ -109,21 +164,36 @@ SUBDIR=	accf_data \
 	pst \
 	raidframe \
 	${_random} \
+	${_ray} \
 	rc \
 	rc4 \
 	re \
 	rl \
 	rp \
 	rue \
+	${_s3} \
+	${_safe} \
+	${_sbni} \
 	sbsh \
 	scd \
+	${_scsi_low} \
 	sf \
 	sis \
 	sk \
+	${_smbfs} \
 	sn \
+	${_snc} \
 	snp \
+	${_sound} \
+	${_speaker} \
+	${_splash} \
+	${_sppp} \
+	${_sr} \
 	ste \
+	${_stg} \
+	${_streams} \
 	sym \
+	${_syscons} \
 	sysvipc \
 	ti \
 	tl \
@@ -139,6 +209,7 @@ SUBDIR=	accf_data \
 	udf \
 	udf_iconv \
 	ufm \
+	${_ufs} \
 	uftdi \
 	ugen \
 	uhid \
@@ -157,178 +228,186 @@ SUBDIR=	accf_data \
 	utopia \
 	uvisor \
 	uvscom \
+	${_vesa} \
+	${_vinum} \
 	vpo \
 	vr \
 	vx \
 	wb \
+	${_wi} \
 	wlan \
+	${_xe} \
 	xl
 
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "alpha"
-.if defined(WANT_EXT2FS_MODULE) || defined(ALL_MODULES)
-SUBDIR+=ext2fs
+.if ${MACHINE_ARCH} != "sparc64"
+_syscons=	syscons
+.endif
+
+.if defined(ALL_MODULES)
+_null=		null
+_ufs=		ufs
+.endif
+
+.if !defined(NOCRYPT) || defined(ALL_MODULES)
+.if exists(${.CURDIR}/../opencrypto)
+_crypto=	crypto
+_cryptodev=	cryptodev
+.endif
+.if exists(${.CURDIR}/../crypto)
+_random=	random
 .endif
 .endif
 
 .if !defined(NO_IPFILTER) || defined(ALL_MODULES)
-SUBDIR+=ipfilter
+_ipfilter=	ipfilter
 .endif
 
-.if ${MACHINE_ARCH} != "sparc64"
-SUBDIR+=syscons
-.endif
-
+.if ${MACHINE_ARCH} == "i386"
 # XXX some of these can move to the general case when de-i386'ed
 # XXX some of these can move now, but are untested on other architectures.
-.if ${MACHINE_ARCH} == "i386"
-SUBDIR+=3dfx \
-	agp \
-	aic \
-	amd \
-	aout \
-	apm \
-	ar \
-	arcnet \
-	ath_hal \
-	awi \
-	bktr \
-	coff \
-	drm \
-	ed \
-	elink \
-	em \
-	ep \
-	fe \
-	hfa \
-	i2c \
-	ibcs2 \
-	ie \
-	linprocfs \
-	linux \
-	lnc \
-	ncp \
-	ncv \
-	ndis \
-	netgraph \
-	nsp \
-	nwfs \
-	oltr \
-	pccard \
-	pcfclock \
-	pecoff \
-	ray \
-	safe \
-	sbni \
-	scsi_low \
-	smbfs \
-	sound \
-	speaker \
-	splash \
-	sppp \
-	sr \
-	stg \
-	streams \
-	vinum \
-	wi \
-	xe
-
-.if ${MACHINE} == "i386"
-SUBDIR+=aac \
-	acpi \
-	asr \
-	bios \
-	cardbus \
-	cbb \
-	ciss \
-	cm \
-	dpt \
-	el \
-	ex \
-	exca \
-	ida \
-	idt \
-	iir \
-	ips \
-	mly \
-	s3 \
-	vesa
-
-.elif ${MACHINE} == "pc98"
-SUBDIR+=canbepm \
-	canbus \
-	pmc \
-	snc
+_3dfx=		3dfx
+_agp=		agp
+_aic=		aic
+_amd=		amd
+_aout=		aout
+_apm=		apm
+_ar=		ar
+_arcnet=	arcnet
+_ath_hal=	ath_hal
+_awi=		awi
+_bktr=		bktr
+_coff=		coff
+_drm=		drm
+_ed=		ed
+_elink=		elink
+_em=		em
+_ep=		ep
+.if defined(WANT_EXT2FS_MODULE) || defined(ALL_MODULES)
+_ext2fs=	ext2fs
 .endif
+_fe=		fe
+_hfa=		hfa
+_i2c=		i2c
+_ibcs2=		ibcs2
+_ie=		ie
+_linprocfs=	linprocfs
+_linux=		linux
+_lnc=		lnc
+_ncp=		ncp
+_ncv=		ncv
+_ndis=		ndis
+_netgraph=	netgraph
+_nsp=		nsp
+_nwfs=		nwfs
+_oltr=		oltr
+_pccard=	pccard
+_pcfclock=	pcfclock
+_pecoff=	pecoff
+_ray=		ray
+_safe=		safe
+_sbni=		sbni
+_scsi_low=	scsi_low
+_smbfs=		smbfs
+_sound=		sound
+_speaker=	speaker
+_splash=	splash
+_sppp=		sppp
+_sr=		sr
+_stg=		stg
+_streams=	streams
+_vinum=		vinum
+_wi=		wi
+_xe=		xe
+.if ${MACHINE} == "i386"
+_aac=		aac
+_acpi=		acpi
+_asr=		asr
+_bios=		bios
+_cardbus=	cardbus
+_cbb=		cbb
+_ciss=		ciss
+_cm=		cm
+_dpt=		dpt
+_el=		el
+_ex=		ex
+_exca=		exca
+_ida=		ida
+_idt=		idt
+_iir=		iir
+_ips=		ips
+_mly=		mly
+_s3=		s3
+_vesa=		vesa
+.elif ${MACHINE} == "pc98"
+_canbepm=	canbepm
+_canbus=	canbus
+_pmc=		pmc
+_snc=		snc
+.endif
+.endif
+
+.if ${MACHINE_ARCH} == "alpha"
+_agp=		agp
+.if defined(WANT_EXT2FS_MODULE) || defined(ALL_MODULES)
+_ext2fs=	ext2fs
+.endif
+_linprocfs=	linprocfs
+_linux=		linux
+_osf1=		osf1
+_sound=		sound
+_sppp=		sppp
+_vinum=		vinum
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
 # Modules not enabled on ia64 (as compared to i386) include:
 #	aac acpi aout apm atspeaker drm ibcs2 linprocfs linux ncv
 #	nsp oltr pecoff s3 sbni stg vesa
-SUBDIR+=aic \
-	ar \
-	arcnet \
-	asr \
-	bktr \
-	cardbus \
-	cbb \
-	ciss \
-	cm \
-	coff \
-	el \
-	em \
-	ep \
-	exca \
-	fe \
-	hfa \
-	iir \
-	mly \
-	netgraph \
-	pccard \
-	ray \
-	rc \
-	scsi_low \
-	smbfs \
-	sound \
-	splash \
-	sppp \
-	sr \
-	streams \
-	vinum \
-	wi \
-	xe
+_aic=		aic
+_ar=		ar
+_arcnet=	arcnet
+_asr=		asr
+_bktr=		bktr
+_cardbus=	cardbus
+_cbb=		cbb
+_ciss=		ciss
+_cm=		cm
+_coff=		coff
+_el=		el
+_em=		em
+_ep=		ep
+_exca=		exca
+_fe=		fe
+_hfa=		hfa
+_iir=		iir
+_mly=		mly
+_netgraph=	netgraph
+_pccard=	pccard
+_ray=		ray
+_scsi_low=	scsi_low
+_smbfs=		smbfs
+_sound=		sound
+_splash=	splash
+_sppp=		sppp
+_sr=		sr
+_streams=	streams
+_vinum=		vinum
+_wi=		wi
+_xe=		xe
 .endif
 
-.if ${MACHINE_ARCH} == "alpha"
-SUBDIR+=agp \
-	linprocfs \
-	linux \
-	osf1 \
-	sound \
-	sppp \
-	vinum
-.endif
-
-.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "sparc64"
-SUBDIR+=gem
+.if ${MACHINE_ARCH} == "powerpc"
+_gem=		gem
 .endif
 
 .if ${MACHINE_ARCH} == "sparc64"
-SUBDIR+=hme
-.endif
-
-.if defined(ALL_MODULES)
-SUBDIR+=null
-SUBDIR+=ufs
+_gem=		gem
+_hme=		hme
 .endif
 
 .if defined(MODULES_OVERRIDE) && !defined(ALL_MODULES)
 SUBDIR=${MODULES_OVERRIDE}
 .endif
-
-# pcic -- currently broken and being worked on out of tree.
-# oldcard -- specialized use for debugging only.
-# owi -- totally unsupported for debugging only.
 
 # Calling kldxref(8) for each module is expensive.
 .if !defined(NO_XREF)
