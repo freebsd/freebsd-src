@@ -2,11 +2,11 @@
 #
 # @(#)iso3166.tab	1.9
 #
-# From Paul Eggert <eggert@twinsun.com> (2002-05-28):
+# From Paul Eggert <eggert@twinsun.com> (2003-02-04):
 #
 # This file contains a table with the following columns:
 # 1.  ISO 3166-1 alpha-2 country code, current as of
-#     ISO 3166-1 Newsletter No. V-5 (2002-05-20).  See:
+#     ISO 3166-1 Newsletter No. V-7 (2003-01-14).  See:
 #     <a href="http://www.iso.org/iso/en/prods-services/iso3166ma/index.html">
 #     ISO 3166 Maintenance agency (ISO 3166/MA)
 #     </a>.
@@ -256,7 +256,7 @@ WF	Wallis & Futuna
 WS	Samoa (Western)
 YE	Yemen
 YT	Mayotte
-YU	Yugoslavia
+YU	Serbia and Montenegro
 ZA	South Africa
 ZM	Zambia
 ZW	Zimbabwe
