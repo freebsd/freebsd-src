@@ -1967,6 +1967,28 @@ cons25|ansi|ansi80x25:\
         :mb=\E[5m:md=\E[1m:me=\E[m:
 cons50|ansil|ansi80x50:\
         :li#50:tc=cons25:
+# Syscons console with koi8-r russian code table.
+# Some non-standard termcap extentions added at the end (after 'ac')
+# for compatibility with current russian software.
+# You might need to add correct filename to Ct entry
+pc3r|ibmpc3r|FreeBSD console for syscons koi8-r code table:\
+	:li#25:co#80:am:bs:bw:eo:cu=\222:\
+	:UP=\E[%dA:DO=\E[%dB:RI=\E[%dC:LE=\E[%dD:AL=\E[%dL:DL=\E[%dM:\
+	:IC=\E[%d@:DC=\E[%dP:le=^H:ic=\E[@:dc=\E[P:cd=\E[J:ce=\E[K:cl=\E[H\E[J:\
+	:cm=\E[%i%d;%dH:do=^J:ho=\E[H:al=\E[L:dl=\E[M:nd=\E[C:up=\E[A:\
+	:so=\E[7m:se=\E[m:ms:rs=\E[x\E[m\Ec:pt:\
+	:mb=\E[5m:mr=\E[7m:md=\E[1m:mh=\E[30m\E[1m:me=\E[m:\
+	:kb=^H:kh=\E[H:ku=\E[A:kd=\E[B:kl=\E[D:kr=\E[C:\
+	:kN=\E[G:kP=\E[I:kH=\E[F:kI=\E[L:kD=\E[K:kB=\E[Z:\
+	:k1=\E[M:k2=\E[N:k3=\E[O:k4=\E[P:k5=\E[Q:k6=\E[R:k7=\E[S:k8=\E[T:\
+	:k9=\E[U:k0=\E[V:k.=\E[W:k-=\E[X:ko=k.,k-:kC=\E[E:\
+	:sr=\E[T:sf=\E[S:SR=\E[%dT:SF=\E[%dS:\
+	:ac=q\200x\201m\204v\211j\205t\206n\212u\207l\202w\210k\203y\230z\231f\234~\225a\221:\
+	:Nf#16:Nb#8:Cf=\E[=%dF:Cb=\E[=%dG:\
+	:gs=:ge=:g1=\200\201\204\211\205\206\212\207\202\210\203:\
+	:g2=\240\241\253\273\256\261\276\265\245\270\250:\
+	:f1=\E[M:f2=\E[N:f3=\E[O:f4=\E[P:f5=\E[Q:f6=\E[R:f7=\E[S:f8=\E[T:\
+	:f9=\E[U:f0=\E[V:f.=\E[W:f-=\E[X:CY:Cs=:Ce=:Ct=:
 dosansi|ANSI.SYS standard crt:\
         :am:bs:ce=\E[K:cl=\E[2J:cm=\E[%i%d;%dH:co#80:\
         :do=\E[B:li#25:mi:nd=\E[C:\
