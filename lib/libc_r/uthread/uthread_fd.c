@@ -480,14 +480,10 @@ _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 		_SPINUNLOCK(&_thread_fd_table[fd]->lock);
 
 		if (_thread_run->interrupted != 0) {
-			if ((_thread_run->cancelflags & PTHREAD_CANCEL_NEEDED) == 0) {
-				ret = -1;
-				errno = EINTR;
-			} else {
-				_thread_run->cancelflags &= ~PTHREAD_CANCEL_NEEDED;
-				_thread_exit_cleanup();
-				pthread_exit(PTHREAD_CANCELED);
-			}
+			ret = -1;
+			errno = EINTR;
+			if (_thread_run->continuation != NULL)
+				_thread_run->continuation((void *)_thread_run);
 		}
 	}
 
@@ -816,14 +812,10 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 		_SPINUNLOCK(&_thread_fd_table[fd]->lock);
 
 		if (_thread_run->interrupted != 0) {
-			if ((_thread_run->cancelflags & PTHREAD_CANCEL_NEEDED) == 0) {
-				ret = -1;
-				errno = EINTR;
-			} else {
-				_thread_run->cancelflags &= ~PTHREAD_CANCEL_NEEDED;
-				_thread_exit_cleanup();
-				pthread_exit(PTHREAD_CANCELED);
-			}
+			ret = -1;
+			errno = EINTR;
+			if (_thread_run->continuation != NULL)
+				_thread_run->continuation((void *)_thread_run);
 		}
 	}
 

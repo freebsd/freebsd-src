@@ -2,10 +2,11 @@
  * David Leonard <d@openbsd.org>, 1999. Public domain.
  * $FreeBSD$
  */
-
 #include <sys/errno.h>
 #include <pthread.h>
 #include "pthread_private.h"
+
+static void	finish_cancellation(void *arg);
 
 int
 pthread_cancel(pthread_t pthread)
@@ -71,11 +72,13 @@ pthread_cancel(pthread_t pthread)
 				 * queue.  Mark the thread as interrupted and
 				 * needing cancellation, and set the state to
 				 * running.  When the thread resumes, it will
-				 * exit after removing itself from the queue.
+				 * remove itself from the queue and call the
+				 * cancellation completion routine.
 				 */
 				pthread->interrupted = 1;
 				pthread->cancelflags |= PTHREAD_CANCEL_NEEDED;
 				PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+				pthread->continuation = finish_cancellation;
 				break;
 
 			case PS_DEAD:
@@ -172,7 +175,6 @@ pthread_testcancel(void)
 void
 _thread_enter_cancellation_point(void)
 {
-
 	/* Look for a cancellation before we block: */
 	pthread_testcancel();
 	_thread_run->cancelflags |= PTHREAD_AT_CANCEL_POINT;
@@ -181,8 +183,20 @@ _thread_enter_cancellation_point(void)
 void
 _thread_leave_cancellation_point(void)
 {
-
 	_thread_run->cancelflags &= ~PTHREAD_AT_CANCEL_POINT;
 	/* Look for a cancellation after we unblock: */
 	pthread_testcancel();
+}
+
+static void
+finish_cancellation(void *arg)
+{
+	_thread_run->continuation = NULL;
+	_thread_run->interrupted = 0;
+
+	if ((_thread_run->cancelflags & PTHREAD_CANCEL_NEEDED) != 0) {
+		_thread_run->cancelflags &= ~PTHREAD_CANCEL_NEEDED;
+		_thread_exit_cleanup();
+		pthread_exit(PTHREAD_CANCELED);
+	}
 }

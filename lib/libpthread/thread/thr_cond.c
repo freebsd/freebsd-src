@@ -157,7 +157,8 @@ pthread_cond_destroy(pthread_cond_t * cond)
 int
 pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 {
-	int rval = 0;
+	int	rval = 0;
+	int	interrupted = 0;
 
 	if (cond == NULL)
 		rval = EINVAL;
@@ -238,6 +239,12 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 
 					if (_thread_run->interrupted != 0) {
 						/*
+						 * Remember that this thread
+						 * was interrupted:
+						 */
+						interrupted = 1;
+
+						/*
 						 * Lock the condition variable
 						 * while removing the thread.
 						 */
@@ -273,11 +280,8 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 			break;
 		}
 
-		if ((_thread_run->cancelflags & PTHREAD_CANCEL_NEEDED) != 0) {
-			_thread_run->cancelflags &= ~PTHREAD_CANCEL_NEEDED;
-			_thread_exit_cleanup();
-			pthread_exit(PTHREAD_CANCELED);
-		}
+		if (interrupted != 0 && _thread_run->continuation != NULL)
+			_thread_run->continuation((void *) _thread_run);
 
 		_thread_leave_cancellation_point();
 	}
@@ -290,7 +294,8 @@ int
 pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 		       const struct timespec * abstime)
 {
-	int rval = 0;
+	int	rval = 0;
+	int	interrupted = 0;
 
 	if (cond == NULL || abstime == NULL)
 		rval = EINVAL;
@@ -386,6 +391,12 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 						rval = _mutex_cv_lock(mutex);
 
 					} else {
+						/*
+						 * Remember if this thread was
+						 * interrupted:
+						 */
+						interrupted = _thread_run->interrupted;
+
 						/* Lock the condition variable structure: */
 						_SPINLOCK(&(*cond)->lock);
 
@@ -431,11 +442,8 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 			break;
 		}
 
-		if ((_thread_run->cancelflags & PTHREAD_CANCEL_NEEDED) != 0) {
-			_thread_run->cancelflags &= ~PTHREAD_CANCEL_NEEDED;
-			_thread_exit_cleanup();
-			pthread_exit(PTHREAD_CANCELED);
-		}
+		if (interrupted != 0 && _thread_run->continuation != NULL)
+			_thread_run->continuation((void *) _thread_run);
 
 		_thread_leave_cancellation_point();
 	}

@@ -85,7 +85,11 @@
 #define PTHREAD_WAITQ_CLEARACTIVE()	_waitq_clearactive()
 #define PTHREAD_WAITQ_SETACTIVE()	_waitq_setactive()
 #else
-#define PTHREAD_WAITQ_REMOVE(thrd)	TAILQ_REMOVE(&_waitingq,thrd,pqe)
+#define PTHREAD_WAITQ_REMOVE(thrd) do {					\
+	TAILQ_REMOVE(&_waitingq,thrd,pqe);				\
+	(thrd)->flags &= ~PTHREAD_FLAGS_IN_WAITQ;			\
+} while (0)
+
 #define PTHREAD_WAITQ_INSERT(thrd) do {					\
 	if ((thrd)->wakeup_time.tv_sec == -1)				\
 		TAILQ_INSERT_TAIL(&_waitingq,thrd,pqe);			\
@@ -101,6 +105,7 @@
 		else							\
 			TAILQ_INSERT_BEFORE(tid,thrd,pqe);		\
 	}								\
+	(thrd)->flags | PTHREAD_FLAGS_IN_WAITQ;				\
 } while (0)
 #define PTHREAD_WAITQ_CLEARACTIVE()
 #define PTHREAD_WAITQ_SETACTIVE()
@@ -463,6 +468,12 @@ union pthread_wait_data {
 };
 
 /*
+ * Define a continuation routine that can be used to perform a
+ * transfer of control:
+ */
+typedef void	(*thread_continuation_t) (void *);
+
+/*
  * Thread structure.
  */
 struct pthread {
@@ -514,12 +525,35 @@ struct pthread {
 	 * if sig_saved is FALSE.
 	 */
 	jmp_buf	saved_jmp_buf;
+	jmp_buf	*sighandler_jmp_buf;
+
+	/*
+	 * Saved jump buffers for use when doing nested [sig|_]longjmp()s, as
+	 * when doing signal delivery.
+	 */
+	union {
+		jmp_buf		jmp;
+		sigjmp_buf	sigjmp;
+	}	nested_jmp;
+	int	longjmp_val;
+
+#define	JMPFLAGS_NONE		0x00
+#define	JMPFLAGS_LONGJMP	0x01
+#define	JMPFLAGS__LONGJMP	0x02
+#define	JMPFLAGS_SIGLONGJMP	0x04
+#define	JMPFLAGS_DEFERRED	0x08
+	int	jmpflags;
 
 	/*
 	 * TRUE if the last state saved was a signal context. FALSE if the
 	 * last state saved was a jump buffer.
 	 */
 	int	sig_saved;
+
+	/*
+	 * Used for tracking delivery of nested signal handlers.
+	 */
+	int	signal_nest_level;
 
  	/*
 	 * Cancelability flags - the lower 2 bits are used by cancel
@@ -530,14 +564,22 @@ struct pthread {
 #define PTHREAD_CANCEL_NEEDED		0x0010
 	int	cancelflags;
 
+	thread_continuation_t	continuation;
+
 	/*
 	 * Current signal mask and pending signals.
 	 */
 	sigset_t	sigmask;
 	sigset_t	sigpend;
 
+#ifndef _NO_UNDISPATCH
+	/* Non-zero if there are undispatched signals for this thread. */
+	int	undispatched_signals;
+#endif
+	
 	/* Thread state: */
 	enum pthread_state	state;
+	enum pthread_state	oldstate;
 
 	/* Time that this thread was last made active. */
 	struct  timeval		last_active;
@@ -1188,8 +1230,17 @@ pid_t   _thread_sys_wait4(pid_t, int *, int, struct rusage *);
 #ifdef _SYS_POLL_H_
 int 	_thread_sys_poll(struct pollfd *, unsigned, int);
 #endif
+
 /* #include <sys/mman.h> */
+#ifdef _SYS_MMAN_H_
 int	_thread_sys_msync(void *, size_t, int);
+#endif
+
+/* #include <setjmp.h> */
+#ifdef _SETJMP_H_
+extern void	__longjmp(jmp_buf, int);
+extern void	__siglongjmp(sigjmp_buf, int);
+#endif
 __END_DECLS
 
 #endif  /* !_PTHREAD_PRIVATE_H */

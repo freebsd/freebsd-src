@@ -287,7 +287,7 @@ _waitq_insert(pthread_t pthread)
 		TAILQ_INSERT_TAIL(&_waitingq, pthread, pqe);
 	else {
 		tid = TAILQ_FIRST(&_waitingq);
-		while ((tid != NULL) && (tid->wakeup_time.tv_sec != -1) && 
+		while ((tid != NULL) && (tid->wakeup_time.tv_sec != -1) &&
 		    ((tid->wakeup_time.tv_sec < pthread->wakeup_time.tv_sec) ||
 		    ((tid->wakeup_time.tv_sec == pthread->wakeup_time.tv_sec) &&
 		    (tid->wakeup_time.tv_nsec <= pthread->wakeup_time.tv_nsec))))
