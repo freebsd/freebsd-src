@@ -12,16 +12,16 @@ map ::= mapit ifname fromto "->" dstipmask [ mapport ] mapoptions.
 mapblock ::= "map-block" ifname ipmask "->" ipmask [ ports ] mapoptions.
 redir ::= "rdr" ifname ipmask dport "->" ip [ "," ip ] rdrport rdroptions .
 
-dport ::= "port" portnum [ "-" portnum ] .
-ports ::= "ports" numports | "auto" .
-rdrport ::= "port" portnum .
+dport ::= "port" number [ "-" number ] .
+ports ::= "ports" number | "auto" .
+rdrport ::= "port" number .
 mapit ::= "map" | "bimap" .
 fromto ::= "from" object "to" object .
 ipmask ::= ip "/" bits | ip "/" mask | ip "netmask" mask .
 dstipmask ::= ipmask | "range" ip "-" ip .
 mapport ::= "portmap" tcpudp portspec .
 mapoptions ::= [ tcpudp ] [ "frag" ] [ age ] [ clamp ] .
-rdroptions ::= [ tcpudp ] [ rr ] [ "frag" ] [ age ] [ clamp ] .
+rdroptions ::= [ tcpudp | protocol ] [ rr ] [ "frag" ] [ age ] [ clamp ] .
 
 object  :: = addr [ port-comp | port-range ] .
 addr    :: = "any" | nummask | host-name [ "mask" ipaddr | "mask" hexnumber ] .
@@ -31,14 +31,14 @@ port-range :: = "port" port-num range port-num .
 rr ::= "round-robin" .
 age ::= "age" decnumber [ "/" decnumber ] .
 clamp ::= "mssclamp" decnumber .
-tcpudp ::= "tcp/udp" | protocol .
+tcpudp ::= "tcp/udp" | "tcp" | "udp" .
 
 protocol ::= protocol-name | decnumber .
-nummask ::= host-name [ "/" decnumber ] .
-portspec ::= "auto" | portnumber ":" portnumber .
-portnumber ::= number { numbers } .
+nummask ::= host-name [ "/" number ] .
+portspec ::= "auto" | number ":" number .
 ifname ::= 'A' - 'Z' { 'A' - 'Z' } numbers .
 
+number ::= numbers [ number ] .
 numbers ::= '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' .
 .fi
 .PP
@@ -134,9 +134,9 @@ If more refined timeouts are required than those available globally for
 NAT settings, this allows you to set them for \fBnon-TCP\fP use.
 .SH TRANSLATION
 .PP
-To the right of the "->" is the address and port specificaton which will be
+To the right of the "->" is the address and port specification which will be
 written into the packet providing it has already successful matched the
-prior constraints.  The case of redirections (\fBrdr\fP) is the simpliest:
+prior constraints.  The case of redirections (\fBrdr\fP) is the simplest:
 the new destination address is that specified in the rule.  For \fBmap\fP
 rules, the destination address will be one for which the tuple combining
 the new source and destination is known to be unique.  If the packet is
@@ -187,7 +187,7 @@ automatically, as required.  This will not effect the display of rules
 using "ipnat -l", only the internal application order.
 .SH EXAMPLES
 .PP
-This section deals with the \fBmap\fP command and it's variations.
+This section deals with the \fBmap\fP command and its variations.
 .PP
 To change IP#'s used internally from network 10 into an ISP provided 8 bit
 subnet at 209.1.2.0 through the ppp0 interface, the following would be used:
@@ -214,7 +214,7 @@ map ppp0 10.0.0.0/8 -> 209.1.2.0/24
 .fi
 .PP
 so that all TCP/UDP packets were port mapped and only other protocols, such as
-ICMP, only have their IP# changed.  In some instaces, it is more appropriate
+ICMP, only have their IP# changed.  In some instances, it is more appropriate
 to use the keyword \fBauto\fP in place of an actual range of port numbers if
 you want to guarantee simultaneous access to all within the given range.
 However, in the above case, it would default to 1 port per IP address, since
@@ -228,7 +228,7 @@ map ppp0 172.192.0.0/16 -> 209.1.2.0/24 portmap tcp/udp auto
 which would result in each IP address being given a small range of ports to
 use (252).  The problem here is that the \fBmap\fP directive tells the NAT
 code to use the next address/port pair available for an outgoing connection,
-resulting in no easily discernable relation between external addresses/ports
+resulting in no easily discernible relation between external addresses/ports
 and internal ones.  This is overcome by using \fBmap-block\fP as follows:
 .LP
 .nf
