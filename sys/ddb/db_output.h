@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_output.h,v 1.4 1993/11/25 01:30:09 wollman Exp $
+ *	$Id: db_output.h,v 1.5 1994/09/27 03:34:55 phk Exp $
  */
 
 #ifndef _DDB_DB_OUTPUT_H_
@@ -41,5 +41,4 @@
 extern void	db_force_whitespace();
 extern int	db_print_position();
 extern void	db_end_line();
-extern void	db_printf(char *,...);
 #endif /* _DDB_DB_OUTPUT_H_ */
