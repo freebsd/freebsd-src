@@ -45,6 +45,7 @@
 
 /* Prototypes: */
 static void	thread_sig_add(pthread_t pthread, int sig, int has_args);
+static void	thread_sig_check_state(pthread_t pthread, int sig);
 static pthread_t thread_sig_find(int sig);
 static void	thread_sig_handle_special(int sig);
 static void	thread_sig_savecontext(pthread_t pthread, ucontext_t *ucp);
@@ -765,32 +766,131 @@ thread_sig_add(pthread_t pthread, int sig, int has_args)
 	}
 }
 
+static void
+thread_sig_check_state(pthread_t pthread, int sig)
+{
+	/*
+	 * Process according to thread state:
+	 */
+	switch (pthread->state) {
+	/*
+	 * States which do not change when a signal is trapped:
+	 */
+	case PS_DEAD:
+	case PS_DEADLOCK:
+	case PS_STATE_MAX:
+	case PS_SIGTHREAD:
+	case PS_RUNNING:
+	case PS_SUSPENDED:
+	case PS_SPINBLOCK:
+	case PS_COND_WAIT:
+	case PS_JOIN:
+	case PS_MUTEX_WAIT:
+		break;
+
+	case PS_SIGWAIT:
+		/* Wake up the thread if the signal is blocked. */
+		if (sigismember(pthread->data.sigwait, sig)) {
+			/* Change the state of the thread to run: */
+			PTHREAD_NEW_STATE(pthread, PS_RUNNING);
+
+			/* Return the signal number: */
+			pthread->signo = sig;
+		} else
+			/* Increment the pending signal count. */
+			sigaddset(&pthread->sigpend, sig);
+		break;
+
+	/*
+	 * The wait state is a special case due to the handling of
+	 * SIGCHLD signals.
+	 */
+	case PS_WAIT_WAIT:
+		if (sig == SIGCHLD) {
+			/*
+			 * Remove the thread from the wait queue and
+			 * make it runnable:
+			 */
+			PTHREAD_NEW_STATE(pthread, PS_RUNNING);
+
+			/* Return the signal number: */
+			pthread->signo = sig;
+		}
+		break;
+
+	case PS_FDLR_WAIT:
+	case PS_FDLW_WAIT:
+	case PS_SIGSUSPEND:
+	case PS_SLEEP_WAIT:
+		/*
+		 * Remove the thread from the wait queue and make it
+		 * runnable:
+		 */
+		PTHREAD_NEW_STATE(pthread, PS_RUNNING);
+
+		/* Flag the operation as interrupted: */
+		pthread->interrupted = 1;
+		break;
+
+	/*
+	 * These states are additionally in the work queue:
+	 */
+	case PS_FDR_WAIT:
+	case PS_FDW_WAIT:
+	case PS_FILE_WAIT:
+	case PS_POLL_WAIT:
+	case PS_SELECT_WAIT:
+		/*
+		 * Remove the thread from the wait and work queues, and
+		 * make it runnable:
+		 */
+		PTHREAD_WORKQ_REMOVE(pthread);
+		PTHREAD_NEW_STATE(pthread, PS_RUNNING);
+
+		/* Flag the operation as interrupted: */
+		pthread->interrupted = 1;
+		break;
+	}
+}
+
 /*
  * Send a signal to a specific thread (ala pthread_kill):
  */
 void
 _thread_sig_send(pthread_t pthread, int sig)
 {
+	/* Check for signals whose actions are SIG_DFL: */
+	if (_thread_sigact[sig - 1].sa_handler == SIG_DFL) {
+		/*
+		 * Check to see if a temporary signal handler is
+		 * installed for sigwaiters:
+		 */
+		if (_thread_dfl_count[sig] == 0)
+			/*
+			 * Deliver the signal to the process if a handler
+			 * is not installed:
+			 */
+			kill(getpid(), sig);
+		/*
+		 * Assuming we're still running after the above kill(),
+		 * make any necessary state changes to the thread:
+		 */
+		thread_sig_check_state(pthread, sig);
+	}
 	/*
 	 * Check that the signal is not being ignored:
 	 */
-	if (_thread_sigact[sig - 1].sa_handler != SIG_IGN) {
+	else if (_thread_sigact[sig - 1].sa_handler != SIG_IGN) {
 		if (pthread->state == PS_SIGWAIT &&
 		    sigismember(pthread->data.sigwait, sig)) {
 			/* Change the state of the thread to run: */
 			PTHREAD_NEW_STATE(pthread, PS_RUNNING);
-
+	
 			/* Return the signal number: */
 			pthread->signo = sig;
 		} else if (pthread == _thread_run) {
 			/* Add the signal to the pending set: */
 			sigaddset(&pthread->sigpend, sig);
-			/*
-			 * Deliver the signal to the process if a
-			 * handler is not installed:
-			 */
-			if (_thread_sigact[sig - 1].sa_handler == SIG_DFL)
-				kill(getpid(), sig);
 			if (!sigismember(&pthread->sigmask, sig)) {
 				/*
 				 * Call the kernel scheduler which will safely
@@ -798,29 +898,19 @@ _thread_sig_send(pthread_t pthread, int sig)
 				 */
 				_thread_kern_sched_sig();
 			}
-		} else {
-			if (pthread->state != PS_SIGWAIT &&
-		 	   !sigismember(&pthread->sigmask, sig)) {
-				/* Protect the scheduling queues: */
-				_thread_kern_sig_defer();
-				/*
-				 * Perform any state changes due to signal
-				 * arrival:
-				 */
-				thread_sig_add(pthread, sig, /* has args */ 0);
-				/* Unprotect the scheduling queues: */
-				_thread_kern_sig_undefer();
-			}
-			else
-				/* Increment the pending signal count. */
-				sigaddset(&pthread->sigpend,sig);
-
+		} else if (!sigismember(&pthread->sigmask, sig)) {
+			/* Protect the scheduling queues: */
+			_thread_kern_sig_defer();
 			/*
-			 * Deliver the signal to the process if a
-			 * handler is not installed:
+			 * Perform any state changes due to signal
+			 * arrival:
 			 */
-			if (_thread_sigact[sig - 1].sa_handler == SIG_DFL)
-				kill(getpid(), sig);
+			thread_sig_add(pthread, sig, /* has args */ 0);
+			/* Unprotect the scheduling queues: */
+			_thread_kern_sig_undefer();
+		} else {
+			/* Increment the pending signal count. */
+			sigaddset(&pthread->sigpend,sig);
 		}
 	}
 }
