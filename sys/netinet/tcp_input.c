@@ -158,10 +158,15 @@ do { \
 #endif
 
 /*
- * Indicate whether this ack should be delayed.
+ * Indicate whether this ack should be delayed.  We can delay the ack if
+ *	- delayed acks are enabled and
+ *	- there is no delayed ack timer in progress and
+ *	- our last ack wasn't a 0-sized window.  We never want to delay
+ *	  the ack that opens up a 0-sized window.
  */
 #define DELAY_ACK(tp) \
-	(tcp_delack_enabled && !callout_pending(tp->tt_delack))
+	(tcp_delack_enabled && !callout_pending(tp->tt_delack) && \
+	(tp->t_flags & TF_RXWIN0SENT) == 0)
 
 static int
 tcp_reass(tp, th, tlenp, m)
@@ -840,7 +845,7 @@ findpcb:
 #endif
 			tp = intotcpcb(inp);
 			tp->t_state = TCPS_LISTEN;
-			tp->t_flags |= tp0->t_flags & (TF_NOPUSH|TF_NOOPT);
+			tp->t_flags |= tp0->t_flags & (TF_NOPUSH|TF_NOOPT|TF_NODELAY);
 
 			/* Compute proper scaling value from buffer space */
 			while (tp->request_r_scale < TCP_MAX_WINSHIFT &&
