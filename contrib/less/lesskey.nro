@@ -1,4 +1,4 @@
-.TH LESSKEY 1 "Version 354: 23 Mar 2000"
+.TH LESSKEY 1 "Version 358: 08 Jul 2000"
 .SH NAME
 lesskey \- specify key bindings for less
 .SH SYNOPSIS
@@ -218,6 +218,16 @@ default command keys used by less:
 	H		help 
 	h		help 
 	V		version 
+	0		digit
+	1		digit
+	2		digit
+	3		digit
+	4		digit
+	5		digit
+	6		digit
+	7		digit
+	8		digit
+	9		digit
 	q		quit 
 	Q		quit 
 	:q		quit 

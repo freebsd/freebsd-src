@@ -66,5 +66,11 @@
 /* Define HAVE_UPPER_LOWER if you have isupper, islower, toupper, tolower */
 #undef HAVE_UPPER_LOWER
 
+/* Define HAVE_SIGSET_T you have the sigset_t type */
+#undef HAVE_SIGSET_T
+
+/* Define HAVE_SIGEMPTYSET if you have the sigemptyset macro */
+#undef HAVE_SIGEMPTYSET
+
 /* Define EDIT_PGM to your editor. */
 #define EDIT_PGM	"vi"

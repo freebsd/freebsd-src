@@ -139,7 +139,7 @@ void free();
 /*
  * Special types and constants.
  */
-typedef long		POSITION;
+typedef off_t		POSITION;
 #define PR_POSITION	"%ld"
 #define MAX_PRINT_POSITION 20
 #define MAX_PRINT_INT      10
@@ -357,6 +357,20 @@ struct textlist
 #define	LSIGNAL(sig,func)	os9_signal(sig,func)
 #else
 #define	LSIGNAL(sig,func)	signal(sig,func)
+#endif
+
+#if HAVE_SIGPROCMASK
+#if HAVE_SIGSET_T
+#else
+#undef HAVE_SIGPROCMASK
+#endif
+#endif
+#if HAVE_SIGPROCMASK
+#if HAVE_SIGEMPTYSET
+#else
+#undef  sigemptyset
+#define sigemptyset(mp) *(mp) = 0
+#endif
 #endif
 
 #define	S_INTERRUPT	01
