@@ -320,8 +320,9 @@ retry:
 					sp->s_ttyvp = NULL;
 					SESS_UNLOCK(p->p_session);
 					sx_xunlock(&proctree_lock);
+					VOP_LOCK(ttyvp, LK_EXCLUSIVE, td);
 					VOP_REVOKE(ttyvp, REVOKEALL);
-					vrele(ttyvp);
+					vput(ttyvp);
 					sx_xlock(&proctree_lock);
 				}
 			}
