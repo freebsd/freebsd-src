@@ -38,7 +38,11 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)colcrt.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <err.h>
@@ -104,7 +108,7 @@ main(argc, argv)
 			close(0);
 			if (!(f = fopen(argv[0], "r"))) {
 				fflush(stdout);
-				err(1, argv[0]);
+				err(1, "%s", argv[0]);
 			}
 			argc--;
 			argv++;
