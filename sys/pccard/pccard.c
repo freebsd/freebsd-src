@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pccard.c,v 1.79 1999/05/30 16:53:28 phk Exp $
+ *	$Id: pccard.c,v 1.80 1999/05/31 11:28:48 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -578,23 +578,35 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 	 *	but not running, then remove it. If it is running,
 	 *	then reject the request.
 	 */
-	for (devi = slt->devices; devi; devi = devi->next)
+	for (devi = slt->devices; devi; devi = devi->next) {
 		if (devi->drv == drv && devi->isahd.id_unit == desc->unit) {
-			if (devi->running)
+			if (devi->running) {
+				printf("pccard %s%d: still running\n", 
+				    devi->drv->name, desc->unit);
 				return(EBUSY);
+			}
 			remove_device(devi);
 			break;
 		}
+	}
 	/*
 	 *	If an interrupt mask has been given, then check it
 	 *	against the slot interrupt (if one has been allocated).
 	 */
 	if (desc->irqmask && drv->imask) {
-		if ((slt->ctrl->irqs & desc->irqmask) == 0)
+		if ((slt->ctrl->irqs & desc->irqmask) == 0) {
+			printf("pccard: PIOCSDRV requested irq (mask 0x%x) is "
+			    "not free (available mask 0x%x)\n", desc->irqmask,
+			    slt->ctrl->irqs);
 			return(EINVAL);
+		}
 		if (slt->irq) {
-			if (((1 << slt->irq) & desc->irqmask) == 0)
+			if (((1 << slt->irq) & desc->irqmask) == 0) {
+				printf("pccard: PIOSCDRIV irq %d not in "
+				    "available mask 0x%x\n", slt->irq, 
+				    desc->irqmask);
 				return(EINVAL);
+			}
 			slt->irqref++;
 			irq = slt->irq;
 		} else {
@@ -606,8 +618,11 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 			irq = pccard_alloc_intr(desc->irqmask,
 				slot_irq_handler, (int)slt,
 				drv->imask, slt->ctrl->imask);
-			if (irq < 0)
+			if (irq < 0) {
+				printf("pccard_alloc_intr failed for irq %d\n",
+				    irq);
 				return(EINVAL);
+			}
 			slt->irq = irq;
 			slt->irqref = 1;
 			slt->ctrl->mapirq(slt, slt->irq);
@@ -650,8 +665,11 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 	 *	the error.  We assume that when we free the device,
 	 *	it will also set 'running' to off.
 	 */
-	if (err)
+	if (err) {
+		printf("pccard %s%d: Enable failed %d\n", devi->drv->name,
+		    devi->isahd.id_unit, err);
 		remove_device(devi);
+	}
 	return(err);
 }
 
@@ -926,7 +944,7 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 	default:
 		if (slt->ctrl->ioctl)
 			return(slt->ctrl->ioctl(slt, cmd, data));
-		return(EINVAL);
+		return(ENOTTY);
 	/*
 	 * Get slot state.
 	 */

@@ -101,10 +101,12 @@ struct dev_desc {
 	unsigned long mem;	/* Memory address of driver */
 	int	memsize;	/* Memory size (if used) */
 	int	iobase;		/* base of I/O ports */
+	int	iosize;		/* Length of I/O ports */
 	int	irqmask;	/* Interrupt number(s) to allocate */
 	int	flags;		/* Device flags */
 	u_char	misc[128];	/* For any random info */
 };
+#define DEV_DESC_HAS_SIZE 1
 
 struct pcic_reg {
 	unsigned char reg;
