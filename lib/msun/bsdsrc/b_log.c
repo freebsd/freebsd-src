@@ -367,6 +367,7 @@ static double logF_tail[N+1] = {
 	-.00000000000017239444525614834
 };
 
+#if 0
 double
 #ifdef _ANSI_SOURCE
 log(double x)
@@ -437,6 +438,7 @@ log(x) double x;
 	u2 += logF_tail[N]*m;
 	return (u1 + u2);
 }
+#endif
 
 /*
  * Extra precision variant, returning struct {double a, b;};

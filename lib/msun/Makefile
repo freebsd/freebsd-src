@@ -62,13 +62,15 @@ ARCH_SRCS = e_acos.S e_asin.S e_atan2.S e_exp.S e_fmod.S e_log.S e_log10.S \
 # Broken
 # ARCH_SRCS+=	s_log1p.S
 
+.PATH:	${.CURDIR}/bsdsrc
 .PATH:	${.CURDIR}/man
 .PATH:	${.CURDIR}/src
 
 CFLAGS+= -D_IEEE_LIBM -D_ARCH_INDIRECT=${ARCH_PREFIX}
 
 LIB=	m
-COMMON_SRCS =	e_acos.c e_acosf.c e_acosh.c e_acoshf.c e_asin.c e_asinf.c \
+COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
+	e_acos.c e_acosf.c e_acosh.c e_acoshf.c e_asin.c e_asinf.c \
 	e_atan2.c e_atan2f.c e_atanh.c e_atanhf.c e_cosh.c e_coshf.c e_exp.c \
 	e_expf.c e_fmod.c e_fmodf.c e_gamma.c e_gamma_r.c e_gammaf.c \
 	e_gammaf_r.c e_hypot.c e_hypotf.c e_j0.c e_j0f.c e_j1.c e_j1f.c \
@@ -147,7 +149,7 @@ MLINKS+=ieee_test.3 scalb.3 ieee_test.3 scalbf.3
 MLINKS+=ieee_test.3 significand.3 ieee_test.3 significandf.3
 MLINKS+=j0.3 j1.3 j0.3 jn.3 j0.3 y0.3 j0.3 y1.3 j0.3 y1f.3 j0.3 yn.3
 MLINKS+=j0.3 j0f.3 j0.3 j1f.3 j0.3 jnf.3 j0.3 y0f.3 j0.3 ynf.3
-MLINKS+=lgamma.3 gamma.3 lgamma.3 lgammaf.3 lgamma.3 gammaf.3
+MLINKS+=lgamma.3 gamma.3 lgamma.3 gammaf.3 lgamma.3 lgammaf.3 lgamma.3 tgamma.3
 MLINKS+=rint.3 rintf.3
 MLINKS+=sin.3 sinf.3
 MLINKS+=sinh.3 sinhf.3
