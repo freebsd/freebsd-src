@@ -100,11 +100,10 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # I/O device(s).
 #
 # CPU_ELAN enables support for AMDs ElanSC520 CPU.
-#    ELAN_XTAL sets the clock crystal frequency in Hz
-#    ELAN_PPS enables precision timestamp code.
+#    CPU_ELAN_XTAL sets the clock crystal frequency in Hz
+#    CPU_ELAN_PPS enables precision timestamp code.
 #
 # CPU_SOEKRIS enables support www.soekris.com hardware.
-#    For the 45xx series you can also use ELAN_XTAL and ELAN_PPS options.
 #
 # CPU_ENABLE_SSE enables SSE/MMX2 instructions support.  This is default
 # on I686_CPU and above.
@@ -181,8 +180,8 @@ options 	CPU_DIRECT_MAPPED_CACHE
 options 	CPU_DISABLE_5X86_LSSER
 options 	CPU_ELAN
 options 	CPU_SOEKRIS
-#options 	ELAN_XTAL=32768000
-#options 	ELAN_PPS
+options 	CPU_ELAN_XTAL=32768000
+options 	CPU_ELAN_PPS
 options 	CPU_ENABLE_SSE
 #options 	CPU_DISABLE_SSE
 options 	CPU_FASTER_5X86_FPU
