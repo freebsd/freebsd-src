@@ -46,77 +46,186 @@
 #include <machine/pal.h>
 #include <machine/pmap.h>
 #include <machine/clock.h>
+#include <machine/sal.h>
 
-static void ipi_send(u_int64_t, u_int64_t);
+#define	LID_SAPIC_ID(x)		((int)((x) >> 24) & 0xff)
+#define	LID_SAPIC_EID(x)	((int)((x) >> 16) & 0xff)
 
-u_int64_t	cpu_to_lid[MAXCPU];
-int		ncpus;
+void ia64_probe_sapics(void);
+
+static MALLOC_DEFINE(M_SMP, "smp", "SMP structures");
+
+static void ipi_send(u_int64_t, int);
+static void cpu_mp_unleash(void *);
+
+struct mp_cpu {
+	TAILQ_ENTRY(mp_cpu) cpu_next;
+	u_int64_t	cpu_lid;	/* Local processor ID */
+	int32_t		cpu_no;		/* Sequential CPU number */
+	u_int32_t	cpu_bsp:1;	/* 1=BSP; 0=AP */
+	u_int32_t	cpu_awake:1;	/* 1=Awake; 0=sleeping */
+	void		*cpu_stack;
+};
+
+int	mp_hardware = 0;
+int	mp_ipi_vector[IPI_COUNT];
+
+TAILQ_HEAD(, mp_cpu) ia64_cpus = TAILQ_HEAD_INITIALIZER(ia64_cpus);
+
+void *
+ia64_ap_get_stack(void)
+{
+	struct mp_cpu *cpu;
+	u_int64_t lid = ia64_get_lid() & 0xffff0000;
+
+	TAILQ_FOREACH(cpu, &ia64_cpus, cpu_next) {
+		if (cpu->cpu_lid == lid)
+			return (cpu->cpu_stack);
+	}
+
+	/* XXX - Should never reach here */
+	return NULL;
+}
+
+void
+ia64_ap_startup(void)
+{
+	struct mp_cpu *cpu;
+	u_int64_t lid = ia64_get_lid() & 0xffff0000;
+
+	TAILQ_FOREACH(cpu, &ia64_cpus, cpu_next) {
+		if (cpu->cpu_lid == lid) {
+			cpu->cpu_lid = ia64_get_lid();
+			cpu->cpu_awake = 1;
+			printf("SMP: CPU%d is awake!\n", cpu->cpu_no);
+			while (1)
+				ia64_call_pal_static(PAL_HALT_LIGHT, 0, 0, 0);
+		}
+	}
+}
 
 int
 cpu_mp_probe()
 {
-	all_cpus = 1;	/* Needed for MB init code */
-	return (0);
+	ia64_probe_sapics();
+	return (mp_hardware);
 }
 
 void
-cpu_mp_start()
+cpu_mp_add(uint acpiid, uint apicid, uint apiceid)
 {
+	struct mp_cpu *cpu;
+	u_int64_t lid = ia64_get_lid() & 0xffff0000;
+
+	cpu = malloc(sizeof(*cpu), M_SMP, M_WAITOK|M_ZERO);
+	if (cpu == NULL)
+		return;
+
+	TAILQ_INSERT_TAIL(&ia64_cpus, cpu, cpu_next);
+	cpu->cpu_no = acpiid;
+	lid = ((apicid & 0xff) << 8 | (apiceid & 0xff)) << 16;
+	if (lid == (ia64_get_lid() & 0xffff0000L)) {
+		cpu->cpu_lid = ia64_get_lid();
+		cpu->cpu_bsp = 1;
+		cpu->cpu_awake = 1;
+	} else
+		cpu->cpu_lid = lid;
+	all_cpus |= (1 << acpiid);
+	mp_ncpus++;
 }
 
 void
 cpu_mp_announce()
 {
+	struct mp_cpu *cpu;
+
+	TAILQ_FOREACH(cpu, &ia64_cpus, cpu_next) {
+		printf("cpu%d: SAPIC Id=%x, SAPIC Eid=%x (%s)\n", cpu->cpu_no,
+		    LID_SAPIC_ID(cpu->cpu_lid), LID_SAPIC_EID(cpu->cpu_lid),
+		    (cpu->cpu_bsp) ? "BSP" : "AP");
+	}
+}
+
+void
+cpu_mp_start()
+{
+	struct mp_cpu *cpu;
+
+	TAILQ_FOREACH(cpu, &ia64_cpus, cpu_next) {
+		if (!cpu->cpu_bsp) {
+			cpu->cpu_stack = malloc(KSTACK_PAGES * PAGE_SIZE,
+			    M_SMP, M_WAITOK);
+			if (bootverbose)
+				printf("SMP: waking up CPU%d\n", cpu->cpu_no);
+			ipi_send(cpu->cpu_lid, IPI_AP_WAKEUP);
+		}
+	}
+}
+
+static void
+cpu_mp_unleash(void *dummy)
+{
+	struct mp_cpu *cpu;
+	int awake = 0;
+
+	if (!mp_hardware)
+		return;
+
+	TAILQ_FOREACH(cpu, &ia64_cpus, cpu_next) {
+		if (cpu->cpu_awake)
+			awake++;
+	}
+
+	printf("SMP: %d CPUs, %d awake\n", mp_ncpus, awake);
 }
 
 /*
  * send an IPI to a set of cpus.
  */
 void
-ipi_selected(u_int cpus, u_int64_t ipi)
+ipi_selected(u_int64_t cpus, int ipi)
 {
-	u_int mask;
-	int cpu;
+	struct mp_cpu *cpu;
 
-	for (mask = 1, cpu = 0; cpu < ncpus; mask <<= 1, cpu++) {
-		if (cpus & mask)
-			ipi_send(cpu_to_lid[cpu], ipi);
+	TAILQ_FOREACH(cpu, &ia64_cpus, cpu_next) {
+		if (cpus & (1 << cpu->cpu_no))
+			ipi_send(cpu->cpu_lid, ipi);
 	}
 }
 
 /*
- * send an IPI INTerrupt containing 'vector' to all CPUs, including myself
+ * send an IPI to all CPUs, including myself.
  */
 void
-ipi_all(u_int64_t ipi)
+ipi_all(int ipi)
 {
-	int cpu;
+	struct mp_cpu *cpu;
 
-	for (cpu = 0; cpu < ncpus; cpu++)
-		ipi_send(cpu_to_lid[cpu], ipi);
-}
-
-/*
- * send an IPI to all CPUs EXCEPT myself
- */
-void
-ipi_all_but_self(u_int64_t ipi)
-{
-	u_int64_t lid;
-	int cpu;
-
-	for (cpu = 0; cpu < ncpus; cpu++) {
-		lid = cpu_to_lid[cpu];
-		if (lid != ia64_get_lid())
-			ipi_send(lid, ipi);
+	TAILQ_FOREACH(cpu, &ia64_cpus, cpu_next) {
+		ipi_send(cpu->cpu_lid, ipi);
 	}
 }
 
 /*
- * send an IPI to myself
+ * send an IPI to all CPUs EXCEPT myself.
  */
 void
-ipi_self(u_int64_t ipi)
+ipi_all_but_self(int ipi)
+{
+	struct mp_cpu *cpu;
+	u_int64_t lid = ia64_get_lid();
+
+	TAILQ_FOREACH(cpu, &ia64_cpus, cpu_next) {
+		if (cpu->cpu_lid != lid)
+			ipi_send(cpu->cpu_lid, ipi);
+	}
+}
+
+/*
+ * send an IPI to myself.
+ */
+void
+ipi_self(int ipi)
 {
 
 	ipi_send(ia64_get_lid(), ipi);
@@ -128,12 +237,15 @@ ipi_self(u_int64_t ipi)
  * fields are used here.
  */
 static void
-ipi_send(u_int64_t lid, u_int64_t ipi)
+ipi_send(u_int64_t lid, int ipi)
 {
 	volatile u_int64_t *pipi;
+	u_int64_t vector;
 
-	CTR2(KTR_SMP, __func__ ": lid=%lx, ipi=%lx", lid, ipi);
 	pipi = ia64_memory_address(PAL_PIB_DEFAULT_ADDR |
 	    ((lid >> 12) & 0xFFFF0L));
-	*pipi = ipi & 0xFF;
+	vector = (u_int64_t)(mp_ipi_vector[ipi] & 0xff);
+	*pipi = vector;
 }
+
+SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, cpu_mp_unleash, NULL);
