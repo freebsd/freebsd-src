@@ -1,5 +1,5 @@
 /*
- * $Id: panic.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
+ * $Id: panic.c,v 1.2 1998/09/17 23:52:02 msmith Exp $
  * From: $NetBSD: panic.c,v 1.2 1997/03/22 01:48:36 thorpej Exp $
  */
 
@@ -49,8 +49,6 @@ panic(const char *fmt,...)
 	printf(fmt, ap);
 	printf("\n");
 	va_end(ap);
-	printf("Press a key to reboot\n");
-	getchar();
 
 	exit(1);
 }
