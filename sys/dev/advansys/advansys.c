@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: advansys.c,v 1.3 1998/10/07 03:32:56 gibbs Exp $
+ *      $Id: advansys.c,v 1.4 1998/10/15 23:47:14 gibbs Exp $
  */
 /*
  * Ported from:
@@ -1048,7 +1048,9 @@ adv_done(struct adv_softc *adv, union ccb *ccb, u_int done_stat,
 			ccb->ccb_h.status = CAM_SEL_TIMEOUT;
 			break;
 		default:
-			/* QHSTA error occurred */
+			xpt_print_path(ccb->ccb_h.path);
+			printf("adv_done - queue done without error, "
+			       "unknown host status %x\n", host_stat);
 			/* XXX Can I get more explicit information here? */
 			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 			break;
@@ -1084,6 +1086,9 @@ adv_done(struct adv_softc *adv, union ccb *ccb, u_int done_stat,
 			ccb->ccb_h.status = CAM_SEL_TIMEOUT;
 			break;
 		default:
+			xpt_print_path(ccb->ccb_h.path);
+			printf("adv_done - queue done with error, "
+			       "unknown host status %x\n", host_stat);
 			/* XXX Can I get more explicit information here? */
 			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 			break;
@@ -1097,7 +1102,9 @@ adv_done(struct adv_softc *adv, union ccb *ccb, u_int done_stat,
 		break;
 
 	default:
-		printf("adv_done: Unknown done status 0x%x\n", done_stat);
+		xpt_print_path(ccb->ccb_h.path);
+		printf("adv_done - queue done with unknown status %x:%x\n",
+		       done_stat, host_stat);
 		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 		break;
 	}
