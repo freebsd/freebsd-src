@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.36 1998/02/06 12:13:28 eivind Exp $
+ *	$Id: uipc_socket.c,v 1.37 1998/02/19 19:38:20 fenner Exp $
  */
 
 #include <sys/param.h>
@@ -93,6 +93,7 @@ socreate(dom, aso, type, proto, p)
 	TAILQ_INIT(&so->so_incomp);
 	TAILQ_INIT(&so->so_comp);
 	so->so_type = type;
+	so->so_uid = p->p_ucred->cr_uid;;
 	so->so_proto = prp;
 	error = (*prp->pr_usrreqs->pru_attach)(so, proto, p);
 	if (error) {
