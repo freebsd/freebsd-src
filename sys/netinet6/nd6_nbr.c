@@ -967,6 +967,9 @@ nd6_ifptomac(ifp)
 	case IFT_ETHER:
 	case IFT_FDDI:
 	case IFT_IEEE1394:
+#ifdef IFT_L2VLAN
+	case IFT_L2VLAN:
+#endif
 #ifdef IFT_IEEE80211
 	case IFT_IEEE80211:
 #endif
