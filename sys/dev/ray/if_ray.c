@@ -207,7 +207,7 @@
 #define XXX_NETBSDTX	0
 #define XXX_PROM	0
 #define XXX_IOCTL	0
-#define XXX_NETBSD_SJ_NET 0
+#define XXX_NETBSD_SJ_NET 1
 
 /*
  * XXX build options - move to LINT
@@ -219,13 +219,13 @@
  *	2	Recoverable error's
  *	6	Subroutine entry
  *	11	Startup CM dump
- *	15	State transitions for start/join
+ *	16	State transitions for start/join
  *	21	CCS info
  *	31	IOCTL calls
  *	51	MBUFs dumped/packet types reported
  */
 #ifndef RAY_DEBUG
-#define RAY_DEBUG		21
+#define RAY_DEBUG		16
 #endif
 
 #define RAY_CCS_TIMEOUT		(hz/2)	/* Timeout for CCS commands */
@@ -274,15 +274,26 @@
 } } while (0)
 
 #define RAY_DNET_DUMP(sc, s) do { if (RAY_DEBUG) {			\
-    printf("ray%d: Network parameters%s\n", (sc)->unit, (s));		\
-    printf("  bss_id %6D\n", (sc)->sc_bss_id, ":");			\
-    printf("  inited 0x%02x\n", (sc)->sc_inited);			\
-    printf("  def_txrate 0x%02x\n", (sc)->sc_def_txrate);		\
-    printf("  encrypt 0x%02x\n", (sc)->sc_encrypt);			\
-    printf("  net_type 0x%02x\n", (sc)->sc_net_type);			\
-    printf("  ssid \"%.32s\"\n", (sc)->sc_ssid);			\
-    printf("  priv_start 0x%02x\n", (sc)->sc_priv_start);		\
-    printf("  priv_join 0x%02x\n", (sc)->sc_priv_join);			\
+    printf("ray%d: Current network parameters%s\n", (sc)->unit, (s));	\
+    printf("  bss_id %6D\n", (sc)->sc_c.np_bss_id, ":");		\
+    printf("  inited 0x%02x\n", (sc)->sc_c.np_inited);			\
+    printf("  def_txrate 0x%02x\n", (sc)->sc_c.np_def_txrate);		\
+    printf("  encrypt 0x%02x\n", (sc)->sc_c.np_encrypt);		\
+    printf("  net_type 0x%02x\n", (sc)->sc_c.np_net_type);		\
+    printf("  ssid \"%.32s\"\n", (sc)->sc_c.np_ssid);			\
+    printf("  ssid %32D\n", (sc)->sc_c.np_ssid, " ");			\
+    printf("  priv_start 0x%02x\n", (sc)->sc_c.np_priv_start);		\
+    printf("  priv_join 0x%02x\n", (sc)->sc_c.np_priv_join);		\
+    printf("ray%d: Desired network parameters%s\n", (sc)->unit, (s));	\
+    printf("  bss_id %6D\n", (sc)->sc_d.np_bss_id, ":");		\
+    printf("  inited 0x%02x\n", (sc)->sc_d.np_inited);			\
+    printf("  def_txrate 0x%02x\n", (sc)->sc_d.np_def_txrate);		\
+    printf("  encrypt 0x%02x\n", (sc)->sc_d.np_encrypt);		\
+    printf("  net_type 0x%02x\n", (sc)->sc_d.np_net_type);		\
+    printf("  ssid \"%.32s\"\n", (sc)->sc_d.np_ssid);			\
+    printf("  ssid %32D\n", (sc)->sc_d.np_ssid, " ");			\
+    printf("  priv_start 0x%02x\n", (sc)->sc_d.np_priv_start);		\
+    printf("  priv_join 0x%02x\n", (sc)->sc_d.np_priv_join);		\
 } } while (0)
 
 #else
@@ -339,9 +350,10 @@
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
+
+#include <i386/isa/if_ieee80211.h>
 #include <i386/isa/if_rayreg.h>
 #include <i386/isa/if_raymib.h>
-#include <i386/isa/if_ieee80211.h>
 
 #if NCARD > 0
 #include <pccard/cardinfo.h>
@@ -361,6 +373,30 @@ static int ray_debug = RAY_DEBUG;
 
 SYSCTL_NODE(_hw, OID_AUTO, ray, CTLFLAG_RW, 0, "Raylink Driver");
 SYSCTL_INT(_hw_ray, OID_AUTO, debug, CTLFLAG_RW, &ray_debug, RAY_DEBUG, "");
+
+/*
+ * Network parameters, used twice in sotfc to store what we want and what
+ * we have.
+ *
+ * XXX promisc in here too?
+ * XXX sc_station_addr in here too (for changing mac address)
+ */
+struct ray_nw_param {
+    struct ray_cmd_net	p_1;
+    u_int8_t		np_ap_status;
+    struct ray_net_params \
+    			p_2;
+    u_int8_t		np_countrycode;
+};
+#define np_upd_param	p_1.c_upd_param
+#define	np_bss_id	p_1.c_bss_id
+#define	np_inited	p_1.c_inited
+#define	np_def_txrate	p_1.c_def_txrate
+#define	np_encrypt	p_1.c_encrypt
+#define np_net_type	p_2.p_net_type
+#define np_ssid		p_2.p_ssid
+#define np_priv_start	p_2.p_privacy_must_start
+#define np_priv_join	p_2.p_privacy_can_join
 
 /*
  * One of these structures per allocated device
@@ -398,28 +434,15 @@ struct ray_softc {
     struct ray_ecf_startup_v5 \
     			sc_ecf_startup; /* Startup info from card	*/
 
-    struct ray_cmd_net	sc_cnet_1;	/* current network params from	*/
-    struct ray_net_params \
-    			sc_cnet_2;	/* starting/joining a network	*/
-    u_int8_t		sc_ap_status;	/* Current operating mode	*/
+    struct ray_nw_param	sc_c;		/* current network params 	*/
+    struct ray_nw_param sc_d;		/* desired network params	*/
     int			sc_havenet;	/* true if we have a network	*/
-
-#if 0
-    u_int8_t		sc_oap_status;	/* Old operating mode 		*/
-    u_int8_t		sc_cnwid[IEEE80211_NWID_LEN];	/* Last nwid */
-    u_int8_t		sc_dnwid[IEEE80211_NWID_LEN];	/* Desired nwid */
-    u_int8_t		sc_countrycode;	/* Current country code */
-    u_int8_t		sc_dcountrycode;/* Desired country code */
-#endif
-
     int			sc_promisc;	/* current set value		*/
     int			sc_running;	/* things we are doing		*/
     int			sc_scheduled;	/* things we need to do		*/
     int			sc_timoneed;	/* set if timeout is sched	*/
     int			sc_timocheck;	/* set if timeout is sched	*/
     u_int8_t		sc_ccsinuse[64];/* ccss' in use -- not for tx	*/
-    size_t		sc_startccs;	/* ccs of start/join		*/
-    u_int		sc_startcmd;	/* cmd (start | join)		*/
 
     int			sc_checkcounters;
     u_int64_t		sc_rxoverflow;	/* Number of rx overflows	*/
@@ -437,17 +460,6 @@ static struct ray_softc ray_softc[NRAY];
 #define	sc_station_addr	sc_ecf_startup.e_station_addr
 #define	sc_version	sc_ecf_startup.e_fw_build_string
 #define	sc_tibsize	sc_ecf_startup.e_tibsize
-
-#define sc_upd_param	sc_cnet_1.c_upd_param
-#define	sc_bss_id	sc_cnet_1.c_bss_id
-#define	sc_inited	sc_cnet_1.c_inited
-#define	sc_def_txrate	sc_cnet_1.c_def_txrate
-#define	sc_encrypt	sc_cnet_1.c_encrypt
-#define sc_net_type	sc_cnet_2.p_net_type
-#define sc_ssid		sc_cnet_2.p_ssid
-#define sc_priv_start	sc_cnet_2.p_privacy_must_start
-#define sc_priv_join	sc_cnet_2.p_privacy_can_join
-/* Remember to add to the debug macro and ioctl*/
 
 /* Commands -- priority given to LSB */
 #define	SCP_FIRST		0x0001
@@ -906,6 +918,8 @@ ray_attach (dev_p)
 #if XXX
     see the ray_init section for stuff to move
 #endif
+    bzero(&sc->sc_d, sizeof(struct ray_nw_param));
+    bzero(&sc->sc_c, sizeof(struct ray_nw_param));
 
     /*
      * Initialise the network interface structure
@@ -1009,8 +1023,8 @@ ray_init (xsc)
     /*
      * Reset instance variables
      *
-     * The first set are network parameters that are fully initialised
-     * when the card starts or joins the network.
+     * The first set are network parameters that are read back when
+     * the card starts or joins the network.
      *
      * The second set are network parameters that are downloaded to
      * the card.
@@ -1022,18 +1036,18 @@ ray_init (xsc)
 #if XXX
     see the ray_attach section for stuff to move
 #endif
-    sc->sc_upd_param = 0;
-    bzero(sc->sc_bss_id, sizeof(sc->sc_bss_id));
-    sc->sc_inited = 0;
-    sc->sc_def_txrate = 0;
-    sc->sc_encrypt = 0;
+    sc->sc_d.np_upd_param = 0;
+    bzero(sc->sc_d.np_bss_id, sizeof(sc->sc_d.np_bss_id));
+    sc->sc_d.np_inited = 0;
+    sc->sc_d.np_def_txrate = RAY_MIB_BASIC_RATE_SET_2000K;
+    sc->sc_d.np_encrypt = 0;
 
-    sc->sc_net_type = RAY_MIB_NET_TYPE_DEFAULT;
-    sc->sc_ap_status = RAY_MIB_AP_STATUS_DEFAULT;
-    bzero(sc->sc_ssid, sizeof(sc->sc_ssid));
-    strncpy(sc->sc_ssid, RAY_MIB_SSID_DEFAULT, RAY_MAXSSIDLEN);
-    sc->sc_priv_start = RAY_MIB_PRIVACY_MUST_START_DEFAULT;
-    sc->sc_priv_join = RAY_MIB_PRIVACY_CAN_JOIN_DEFAULT;
+    sc->sc_d.np_ap_status = RAY_MIB_AP_STATUS_DEFAULT;
+    sc->sc_d.np_net_type = RAY_MIB_NET_TYPE_DEFAULT;
+    bzero(sc->sc_d.np_ssid, IEEE80211_NWID_LEN);
+    strncpy(sc->sc_d.np_ssid, RAY_MIB_SSID_DEFAULT, IEEE80211_NWID_LEN);
+    sc->sc_d.np_priv_start = RAY_MIB_PRIVACY_MUST_START_DEFAULT;
+    sc->sc_d.np_priv_join = RAY_MIB_PRIVACY_CAN_JOIN_DEFAULT;
     sc->sc_promisc = !!(ifp->if_flags & (IFF_PROMISC|IFF_ALLMULTI));
 
     sc->sc_havenet = 0;
@@ -1041,7 +1055,6 @@ ray_init (xsc)
 
     /* Set all ccs to be free */
     bzero(sc->sc_ccsinuse, sizeof(sc->sc_ccsinuse));
-    sc->sc_startccs = RAY_CCS_LAST + 1;
     ccs = RAY_CCS_ADDRESS(0);
     for (i = 0; i < RAY_CCS_LAST; ccs += RAY_CCS_SIZE, i++)
 	    RAY_CCS_FREE(sc, ccs);
@@ -1296,36 +1309,39 @@ ray_ioctl (ifp, command, data)
 	    error = 0;
 	    break;
 
-case SIOCGIFFLAGS:
-    RAY_DPRINTFN(30, ("ray%d: ioctl called for GIFFLAGS\n", sc->unit));
-    error = EINVAL;
-    break;
-case SIOCGIFMETRIC:
-    RAY_DPRINTFN(30, ("ray%d: ioctl called for GIFMETRIC\n", sc->unit));
-    error = EINVAL;
-    break;
-case SIOCGIFMTU:
-    RAY_DPRINTFN(30, ("ray%d: ioctl called for GIFMTU\n", sc->unit));
-    error = EINVAL;
-    break;
-case SIOCGIFPHYS:
-    RAY_DPRINTFN(30, ("ray%d: ioctl called for GIFPYHS\n", sc->unit));
-    error = EINVAL;
-    break;
-case SIOCSIFMEDIA:
-    RAY_DPRINTFN(30, ("ray%d: ioctl called for SIFMEDIA\n", sc->unit));
-    error = EINVAL;
-    break;
-case SIOCGIFMEDIA:
-    RAY_DPRINTFN(30, ("ray%d: ioctl called for GIFMEDIA\n", sc->unit));
+	case SIOCGIFFLAGS:
+	    RAY_DPRINTFN(30, ("ray%d: ioctl called for GIFFLAGS\n", sc->unit));
+	    error = EINVAL;
+	    break;
+
+	case SIOCGIFMETRIC:
+	    RAY_DPRINTFN(30, ("ray%d: ioctl called for GIFMETRIC\n", sc->unit));
+	    error = EINVAL;
+	    break;
+
+	case SIOCGIFMTU:
+	    RAY_DPRINTFN(30, ("ray%d: ioctl called for GIFMTU\n", sc->unit));
+	    error = EINVAL;
+	    break;
+
+	case SIOCGIFPHYS:
+	    RAY_DPRINTFN(30, ("ray%d: ioctl called for GIFPYHS\n", sc->unit));
+	    error = EINVAL;
+	    break;
+
+	case SIOCSIFMEDIA:
+	    RAY_DPRINTFN(30, ("ray%d: ioctl called for SIFMEDIA\n", sc->unit));
+	    error = EINVAL;
+	break;
+
+	case SIOCGIFMEDIA:
+	    RAY_DPRINTFN(30, ("ray%d: ioctl called for GIFMEDIA\n", sc->unit));
 #if RAY_DUMP_CM_ON_GIFMEDIA
-    RAY_DPRINTFN(10, ("ray%d: RAY_SCB\n", sc->unit));
-    RAY_DHEX8((u_int8_t *)sc->maddr + RAY_SCB_BASE, 0x20);
-    RAY_DPRINTFN(10, ("ray%d: RAY_STATUS\n", sc->unit));
-    RAY_DNET_DUMP(sc, ".");
+	    RAY_DPRINTFN(10, ("ray%d: RAY_STATUS\n", sc->unit));
+	    RAY_DNET_DUMP(sc, ".");
 #endif /* RAY_DUMP_CM_ON_GIFMEDIA */
-    error = EINVAL;
-    break;
+	    error = EINVAL;
+	    break;
 
 	default:
 	    error = EINVAL;
@@ -1456,7 +1472,7 @@ ray_start_sc (sc)
     SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_cmd, RAY_CMD_TX_REQ);
     SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_link, RAY_CCS_LINK_NULL);
     SRAM_WRITE_FIELD_2(sc, ccs, ray_cmd_tx, c_bufp, bufp);
-    SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_tx_rate, sc->sc_def_txrate);
+    SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_tx_rate, sc->sc_c.np_def_txrate);
     SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_apm_mode, 0);
     SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_antenna, 0);
     bufp += sizeof(struct ray_tx_phy_header);
@@ -1715,18 +1731,18 @@ ray_start_wrhdr (sc, eh, bufp)
     bzero(&header, sizeof(struct ieee80211_header));
 
     header.i_fc[0] = (IEEE80211_FC0_VERSION_0 | IEEE80211_FC0_TYPE_DATA);
-    if (sc->sc_net_type == RAY_MIB_NET_TYPE_ADHOC) {
+    if (sc->sc_c.np_net_type == RAY_MIB_NET_TYPE_ADHOC) {
 
 	header.i_fc[1] = IEEE80211_FC1_STA_TO_STA;
 	bcopy(eh->ether_dhost, header.i_addr1, ETHER_ADDR_LEN);
 	bcopy(eh->ether_shost, header.i_addr2, ETHER_ADDR_LEN);
-	bcopy(sc->sc_bss_id, header.i_addr3, ETHER_ADDR_LEN);
+	bcopy(sc->sc_c.np_bss_id, header.i_addr3, ETHER_ADDR_LEN);
 
     } else {
-	if (sc->sc_ap_status == RAY_MIB_AP_STATUS_TERMINAL) {
+	if (sc->sc_c.np_ap_status == RAY_MIB_AP_STATUS_TERMINAL) {
 	    
 	    header.i_fc[1] = IEEE80211_FC1_STA_TO_AP;
-	    bcopy(sc->sc_bss_id, header.i_addr1, ETHER_ADDR_LEN);
+	    bcopy(sc->sc_c.np_bss_id, header.i_addr1, ETHER_ADDR_LEN);
 	    bcopy(eh->ether_shost, header.i_addr2, ETHER_ADDR_LEN);
 	    bcopy(eh->ether_dhost, header.i_addr3, ETHER_ADDR_LEN);
 
@@ -2288,65 +2304,64 @@ done:
 
     return;
 }
+/******************************************************************************
+ * XXX NOT KNF FROM HERE UP
+ ******************************************************************************/
 
 /*
  * Process ECF command request - called from ray_intr
  */
 static void
-ray_rcs_intr (sc, rcs)
-    struct ray_softc	*sc;
-    size_t		rcs;
+ray_rcs_intr(struct ray_softc *sc, size_t rcs)
 {
-    struct ifnet	*ifp;
-    u_int		cmd, status;
+	struct ifnet *ifp;
+	u_int cmd, status;
     
-    RAY_DPRINTFN(5, ("ray%d: ray_rcs_intr\n", sc->unit));
-    RAY_MAP_CM(sc);
+	RAY_DPRINTFN(5, ("ray%d: ray_rcs_intr\n", sc->unit));
+	RAY_MAP_CM(sc);
 
-    ifp = &sc->arpcom.ac_if;
+	ifp = &sc->arpcom.ac_if;
 
-    cmd = SRAM_READ_FIELD_1(sc, rcs, ray_cmd, c_cmd);
-    status = SRAM_READ_FIELD_1(sc, rcs, ray_cmd, c_status);
-    RAY_DPRINTFN(20, ("ray%d: rcs idx %d rcs 0x%x cmd 0x%x status %d\n",
-    		sc->unit, RAY_CCS_INDEX(rcs), rcs, cmd, status));
+	cmd = SRAM_READ_FIELD_1(sc, rcs, ray_cmd, c_cmd);
+	status = SRAM_READ_FIELD_1(sc, rcs, ray_cmd, c_status);
+	RAY_DPRINTFN(20, ("ray%d: rcs idx %d rcs 0x%x cmd 0x%x status %d\n",
+	    sc->unit, RAY_CCS_INDEX(rcs), rcs, cmd, status));
 
-    switch (cmd) {
+	switch (cmd) {
+
 	case RAY_ECMD_RX_DONE:
-	    RAY_DPRINTFN(20, ("ray%d: ray_rcs_intr got RX_DONE\n", sc->unit));
-	    ray_rx(sc, rcs);
-	    break;
+		RAY_DPRINTFN(20, ("ray%d: ray_rcs_intr got RX_DONE\n",
+		    sc->unit));
+		ray_rx(sc, rcs);
+		break;
 
 	case RAY_ECMD_REJOIN_DONE:
-	    RAY_DPRINTFN(20, ("ray%d: ray_rcs_intr got REJOIN_DONE\n",
+		RAY_DPRINTFN(20, ("ray%d: ray_rcs_intr got REJOIN_DONE\n",
 		    sc->unit));
-	    sc->sc_havenet = 1; /* Should not be here but in function */
-	    XXX;
-	    break;
+		sc->sc_havenet = 1; /* Should not be here but in function */
+		XXX;
+		break;
 
 	case RAY_ECMD_ROAM_START:
-	    RAY_DPRINTFN(20, ("ray%d: ray_rcs_intr got ROAM_START\n",
+		RAY_DPRINTFN(20, ("ray%d: ray_rcs_intr got ROAM_START\n",
 		    sc->unit));
-	    sc->sc_havenet = 0; /* Should not be here but in function */
-	    XXX;
-	    break;
+		sc->sc_havenet = 0; /* Should not be here but in function */
+		XXX;
+		break;
 
 	case RAY_ECMD_JAPAN_CALL_SIGNAL:
-	    printf("ray%d: ray_rcs_intr got JAPAN_CALL_SIGNAL - why?\n",
+		printf("ray%d: ray_rcs_intr got JAPAN_CALL_SIGNAL - why?\n",
 		    sc->unit);
-	    break;
+		break;
 
 	default:
-	    printf("ray%d: ray_rcs_intr unknown command 0x%x\n", sc->unit, cmd);
-	    break;
-    }
+		printf("ray%d: ray_rcs_intr unknown command 0x%x\n",
+		    sc->unit, cmd);
+		break;
+	}
 
-    RAY_CCS_FREE(sc, rcs);
-
-    return;
+	RAY_CCS_FREE(sc, rcs);
 }
-/******************************************************************************
- * XXX NOT KNF FROM HERE UP
- ******************************************************************************/
 
 /*
  * process an interrupt
@@ -2815,9 +2830,9 @@ ray_download_params (sc)
      /*
       * Firmware version 4 defaults - see if_raymib.h for details
       */
-     MIB4(mib_net_type)			= sc->sc_net_type;
-     MIB4(mib_ap_status)		= sc->sc_ap_status;
-     strncpy(MIB4(mib_ssid), sc->sc_ssid, RAY_MAXSSIDLEN);
+     MIB4(mib_net_type)			= sc->sc_d.np_net_type;
+     MIB4(mib_ap_status)		= sc->sc_d.np_ap_status;
+     bcopy(sc->sc_d.np_ssid, MIB4(mib_ssid), IEEE80211_NWID_LEN);
      MIB4(mib_scan_mode)		= RAY_MIB_SCAN_MODE_DEFAULT;
      MIB4(mib_apm_mode)			= RAY_MIB_APM_MODE_DEFAULT;
      bcopy(sc->sc_station_addr, MIB4(mib_mac_addr), ETHER_ADDR_LEN);
@@ -2861,9 +2876,9 @@ PUT2(MIB4(mib_uniq_word),		  RAY_MIB_UNIQ_WORD_DEFAULT);
      /*
       * Firmware version 5 defaults - see if_raymib.h for details
       */
-     MIB5(mib_net_type)			= sc->sc_net_type;
-     MIB4(mib_ap_status)		= sc->sc_ap_status;
-     strncpy(MIB5(mib_ssid), sc->sc_ssid, RAY_MAXSSIDLEN);
+     MIB5(mib_net_type)			= sc->sc_d.np_net_type;
+     MIB4(mib_ap_status)		= sc->sc_d.np_ap_status;
+     bcopy(sc->sc_d.np_ssid, MIB5(mib_ssid), IEEE80211_NWID_LEN);
      MIB5(mib_scan_mode)		= RAY_MIB_SCAN_MODE_DEFAULT;
      MIB5(mib_apm_mode)			= RAY_MIB_APM_MODE_DEFAULT;
      bcopy(sc->sc_station_addr, MIB5(mib_mac_addr), ETHER_ADDR_LEN);
@@ -2905,8 +2920,8 @@ PUT2(MIB5(mib_cw_min),			  RAY_MIB_CW_MIN_V5);
      MIB5(mib_test_max_chan)		= RAY_MIB_TEST_MAX_CHAN_DEFAULT;
      MIB5(mib_allow_probe_resp)		= RAY_MIB_ALLOW_PROBE_RESP_DEFAULT;
      MIB5(mib_privacy_must_start)	= RAY_MIB_PRIVACY_MUST_START_DEFAULT;
-     MIB5(mib_privacy_can_join)		= sc->sc_priv_start;
-     MIB5(mib_basic_rate_set[0])	= sc->sc_priv_join;
+     MIB5(mib_privacy_can_join)		= sc->sc_d.np_priv_start;
+     MIB5(mib_basic_rate_set[0])	= sc->sc_d.np_priv_join;
 
     if (!RAY_ECF_READY(sc)) {
     	printf("ray%d: ray_download_params something is already happening\n",
@@ -2941,34 +2956,43 @@ static void
 ray_download_done (sc)
     struct ray_softc	*sc;
 {
+#if XXX_NETBSD_SJ_NET == 0
     size_t ccs;
     int cmd;
+#endif /* XXX_NETBSD_SJ_NET */
 
     RAY_DPRINTFN(5, ("ray%d: ray_download_done\n", sc->unit));
     RAY_MAP_CM(sc);
 
     ray_cmd_done(sc, SCP_UPD_STARTUP);
 
-#if XXX_NETBSD
-    /* start network */
-    ray_cmd_done(sc, SCP_UPD_STARTUP);
-
-    /* ok to start queueing packets */
-    sc->sc_if.if_flags &= ~IFF_OACTIVE;
-
-    sc->sc_omode = sc->sc_mode;
-    memcpy(sc->sc_cnwid, sc->sc_dnwid, sizeof(sc->sc_cnwid));
-
-    rcmd = ray_start_join_net;
-#endif /* XXX_NETBSD */
-	
-    /* XXX use start_join_net when included? */
-
-    /*
-     * Grab a ccs and don't bother updating the network parameters.
-     * Issue the start/join command and we get interrupted back.
+    /* 
+     * Fake the current network parameter settings so start_join_net
+     * will not bother updating them to the card (we would need to
+     * zero these anyway, so we might as well copy).
      */
-    if (sc->sc_net_type == RAY_MIB_NET_TYPE_ADHOC)
+    sc->sc_c.np_net_type = sc->sc_d.np_net_type;
+    bcopy(sc->sc_d.np_ssid, sc->sc_c.np_ssid, IEEE80211_NWID_LEN);
+	
+    /* XXX use start_join_net when included? this will allow us to change
+     * network parameters with ioctl before we ifconfig the card up and
+     * also for the bss to stay when re-initing the card for some reason
+     * i.e. a change of IP address
+     */
+
+#if XXX_NETBSD_SJ_NET
+printf("using start_join_net\n");
+    ray_start_join_net(sc);
+#else
+printf("not using start_join_net\n");
+    /*
+     * Join the network - don't bother updating the network parameters as
+     * we've just downloaded them. Issue the start/join command and we
+     * get interrupted back.
+     */
+    ray_cmd_cancel(sc, SCP_UPD_STARTJOIN);
+
+    if (sc->sc_d.np_net_type == RAY_MIB_NET_TYPE_ADHOC)
 	    cmd = RAY_CMD_START_NET;
     else
 	    cmd = RAY_CMD_JOIN_NET;
@@ -2978,32 +3002,31 @@ ray_download_done (sc)
 		sc->unit);
 	ray_reset(sc);
     }
+    SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_net, c_upd_param, 0);
     if (!ray_issue_cmd(sc, ccs, SCP_UPD_STARTJOIN)) {
     	printf("ray%d: ray_download_done can't issue start/join\n", sc->unit);
 	ray_reset(sc);
     }
+#endif /* XXX_NETBSD_SJ_NET */
     RAY_DPRINTFN(15, ("ray%d: Start-join awaiting interrupt\n",
 	    sc->unit));
 
 #if RAY_NEED_STARTJOIN_TIMO
     sc->sj_timerh = timeout(ray_start_join_timo, sc, RAY_SJ_TIMEOUT);
 #endif /* RAY_NEED_STARTJOIN_TIMO */
-
-    return;
 }
 
 /*
  * start or join a network
  */
 static void
-ray_start_join_net(sc)
-	struct ray_softc *sc;
+ray_start_join_net(struct ray_softc *sc)
 {
 #if XXX_NETBSD_SJ_NET
 	struct ray_net_params np;
 	struct ifnet *ifp;
 	size_t ccs;
-	int cmd;
+	int cmd, update;
 #endif /* XXX_NETBSD_SJ_NET */
 
 	RAY_DPRINTFN(5, ("ray%d: ray_start_join_net\n", sc->unit));
@@ -3022,28 +3045,47 @@ ray_start_join_net(sc)
 		return;
 	}
 
-	if (sc->sc_mode == SC_MODE_ADHOC)
+	if (sc->sc_d.np_net_type == RAY_MIB_NET_TYPE_ADHOC)
 		cmd = RAY_CMD_START_NET;
 	else
 		cmd = RAY_CMD_JOIN_NET;
 
-	if (!ray_alloc_ccs(sc, &ccs, cmd, SCP_UPD_STARTJOIN))
-		return;
-	sc->sc_startccs = ccs;
-	sc->sc_startcmd = cmd;
-	if (!memcmp(sc->sc_cnwid, sc->sc_dnwid, sizeof(sc->sc_cnwid))
-	    && sc->sc_omode == sc->sc_mode)
-		SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_net, c_upd_param, 0);
-	else {
+	if (!ray_alloc_ccs(sc, &ccs, cmd, SCP_UPD_STARTJOIN)) {
+		printf("ray%d: ray_start_join_net can't get a CCS\n", sc->unit);
+		ray_reset(sc);
+	}
+
+	update = 0;
+	if (bcmp(sc->sc_c.np_ssid, sc->sc_d.np_ssid, IEEE80211_NWID_LEN))
+		update++;
+	if (sc->sc_c.np_net_type != sc->sc_d.np_net_type)
+		update++;
+
+	if (update) {
 		sc->sc_havenet = 0;
-		memset(&np, 0, sizeof(np));
-		np.p_net_type = sc->sc_mode;
-		memcpy(np.p_ssid, sc->sc_dnwid, sizeof(np.p_ssid));
+
+		bzero(&np, sizeof(np));
+		np.p_net_type = sc->sc_d.np_net_type;
+		bcopy(sc->sc_d.np_ssid, np.p_ssid,  IEEE80211_NWID_LEN);
+		np.p_privacy_must_start = sc->sc_d.np_priv_start;
+		np.p_privacy_can_join = sc->sc_d.np_priv_join;
+
 		ray_write_region(sc, RAY_HOST_TO_ECF_BASE, &np, sizeof(np));
 		SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_net, c_upd_param, 1);
+	} else
+		SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_net, c_upd_param, 0);
+
+	RAY_DPRINTFN(15, ("ray%d: ray_start_join_net %s updating nw params\n",
+	    sc->unit, update?"is":"not"));
+
+	if (!ray_issue_cmd(sc, ccs, SCP_UPD_STARTJOIN)) {
+	    printf("ray%d: ray_start_join_net can't issue cmd\n", sc->unit);
+	    ray_reset(sc);
 	}
-	if (ray_issue_cmd(sc, ccs, SCP_UPD_STARTJOIN))
-		timeout(ray_start_join_timo, sc, RAY_START_TIMEOUT);
+
+#if RAY_NEED_STARTJOIN_TIMO
+	sc->sj_timerh = timeout(ray_start_join_timo, sc, RAY_SJ_TIMEOUT);
+#endif /* RAY_NEED_STARTJOIN_TIMO */
 #endif /* XXX_NETBSD_SJ_NET */
 }
 
@@ -3137,22 +3179,22 @@ ray_start_join_done (sc, ccs, status)
      * If the command completed correctly, get a few network parameters
      * from the ccs and active the network.
      */
-    ray_read_region(sc, ccs, &sc->sc_cnet_1, sizeof(struct ray_cmd_net));
+    ray_read_region(sc, ccs, &sc->sc_c.p_1, sizeof(struct ray_cmd_net));
 
     /* adjust values for buggy build 4 */
-    if (sc->sc_def_txrate == 0x55)
-	    sc->sc_def_txrate = RAY_MIB_BASIC_RATE_SET_2000K;
-    if (sc->sc_encrypt == 0x55)
-	    sc->sc_encrypt = 0;
+    if (sc->sc_c.np_def_txrate == 0x55)
+	    sc->sc_c.np_def_txrate = sc->sc_d.np_def_txrate;
+    if (sc->sc_c.np_encrypt == 0x55)
+	    sc->sc_c.np_encrypt = sc->sc_d.np_encrypt;
 
     /* card is telling us to update the network parameters */
-    if (sc->sc_upd_param) {
+    if (sc->sc_c.np_upd_param) {
 	RAY_DPRINTFN(1, ("ray%d: sj_done card updating parameters - why?\n",
 		sc->unit));
-	o_net_type = sc->sc_net_type;
+	o_net_type = sc->sc_c.np_net_type; /* XXX this may be wrong? */
 	ray_read_region(sc, RAY_HOST_TO_ECF_BASE,
-		&sc->sc_cnet_2, sizeof(struct ray_net_params));
-	if (sc->sc_net_type != o_net_type) {
+		&sc->sc_c.p_2, sizeof(struct ray_net_params));
+	if (sc->sc_c.np_net_type != o_net_type) {
 	    printf("ray%d: sj_done card changing network type - why?\n",
 	    	sc->unit);
 #if XXX
