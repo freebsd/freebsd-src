@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.460.2.6 1999/02/10 09:15:41 jkh Exp $
+#	$Id: Makefile,v 1.460.2.7 1999/02/10 09:34:23 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -516,7 +516,7 @@ cdrom.1:
 	@for i in ${DISTRIBUTIONS} ; \
 	do \
 		if [ -d ${RD}/trees/$${i} ] ; then \
-			chflags -R noschg ${RD}/trees/$${i} ; \
+			chflags -R noschg ${RD}/trees/$${i} || true ; \
 			( cd ${RD}/trees/$${i} && \
 			find . -depth -print | cpio -dumpl ${CD_DISC2} ) ; \
 		fi \
