@@ -1629,7 +1629,8 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 				oldpte |= (PG_FOR | PG_FOE);
 			}
 			if ((oldpte & PG_FOW) == 0) {
-				m = PHYS_TO_VM_PAGE(pmap_pte_pa(pte));
+				if (m == NULL)
+					m = PHYS_TO_VM_PAGE(pmap_pte_pa(pte));
 				if (pmap_track_modified(sva))
 					vm_page_dirty(m);
 				oldpte |= PG_FOW;
