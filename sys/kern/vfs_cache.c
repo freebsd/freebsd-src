@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.5 (Berkeley) 3/22/95
- * $Id: vfs_cache.c,v 1.28 1997/08/31 07:32:13 phk Exp $
+ * $Id: vfs_cache.c,v 1.29 1997/09/02 20:06:01 bde Exp $
  */
 
 #include <sys/param.h>
@@ -68,10 +68,11 @@
  * Structures associated with name cacheing.
  */
 #define NCHHASH(dvp, cnp) \
-	(&nchashtbl[((dvp)->v_id + (cnp)->cn_hash) % nchash])
+	(&nchashtbl[((dvp)->v_id + (cnp)->cn_hash) & nchash])
 static LIST_HEAD(nchashhead, namecache) *nchashtbl;	/* Hash Table */
 static TAILQ_HEAD(, namecache) ncneg;	/* Hash Table */
 static u_long	nchash;			/* size of hash table */
+SYSCTL_INT(_debug, OID_AUTO, nchash, CTLFLAG_RD, &nchash, 0, "");
 static u_long	ncnegfactor = 16;	/* ratio of negative entries */
 SYSCTL_INT(_debug, OID_AUTO, ncnegfactor, CTLFLAG_RW, &ncnegfactor, 0, "");
 static u_long	numneg;		/* number of cache entries allocated */
@@ -241,6 +242,9 @@ cache_enter(dvp, vp, cnp)
 	if (!vp) {
 		numneg++;
 		ncp->nc_flag = cnp->cn_flags & ISWHITEOUT ? NCF_WHITE : 0;
+	} else if (vp->v_type == VDIR) {
+		vp->v_dd = dvp;
+		vp->v_ddid = dvp->v_id;
 	}
 
 	/*
@@ -277,7 +281,7 @@ nchinit()
 {
 
 	TAILQ_INIT(&ncneg);
-	nchashtbl = phashinit(desiredvnodes, M_CACHE, &nchash);
+	nchashtbl = hashinit(desiredvnodes, M_CACHE, &nchash);
 }
 
 /*
@@ -294,20 +298,14 @@ cache_purge(vp)
 {
 	struct namecache *ncp;
 	struct nchashhead *ncpp;
-	static u_long nextvnodeid;
 
 	while (!LIST_EMPTY(&vp->v_cache_src)) 
 		cache_zap(LIST_FIRST(&vp->v_cache_src));
 	while (!TAILQ_EMPTY(&vp->v_cache_dst)) 
 		cache_zap(TAILQ_FIRST(&vp->v_cache_dst));
 
-	/* Never assign the same v_id, and never assign zero as v_id */
-	do {
-		if (++nextvnodeid == vp->v_id)
-			++nextvnodeid;
-	} while (!nextvnodeid);
-
-	vp->v_id = nextvnodeid;
+	if (!++vp->v_id)
+		vp->v_id++;
 	vp->v_dd = vp;
 	vp->v_ddid = 0;
 }
@@ -326,7 +324,7 @@ cache_purgevfs(mp)
 	struct namecache *ncp, *nnp;
 
 	/* Scan hash tables for applicable entries */
-	for (ncpp = &nchashtbl[nchash - 1]; ncpp >= nchashtbl; ncpp--) {
+	for (ncpp = &nchashtbl[nchash]; ncpp >= nchashtbl; ncpp--) {
 		for (ncp = LIST_FIRST(ncpp); ncp != 0; ncp = nnp) {
 			nnp = LIST_NEXT(ncp, nc_hash);
 			if (ncp->nc_dvp->v_mount == mp) {
