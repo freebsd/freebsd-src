@@ -59,8 +59,7 @@ install.debug reinstall.debug: gdbinit
 gdbinit:
 	grep -v '# XXX' ${S}/../tools/debugscripts/dot.gdbinit | \
 	    sed "s:MODPATH:${.OBJDIR}/modules:" > .gdbinit
-	cp ${S}/../tools/debugscripts/gdbinit.kernel \
-	    ${S}/../tools/debugscripts/gdbinit.vinum ${.CURDIR}
+	cp ${S}/../tools/debugscripts/gdbinit.kernel ${.CURDIR}
 .if exists(${S}/../tools/debugscripts/gdbinit.${MACHINE_ARCH})
 	cp ${S}/../tools/debugscripts/gdbinit.${MACHINE_ARCH} \
 	    ${.CURDIR}/gdbinit.machine
