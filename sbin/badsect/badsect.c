@@ -87,8 +87,8 @@ long	dev_bsize = 1;
 
 char buf[MAXBSIZE];
 
-void	rdfs __P((daddr_t, int, char *));
-int	chkuse __P((daddr_t, int));
+void	rdfs(daddr_t, int, char *);
+int	chkuse(daddr_t, int);
 
 static void
 usage(void)
@@ -98,9 +98,7 @@ usage(void)
 }
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	daddr_t diskbn;
 	daddr_t number;
@@ -163,9 +161,7 @@ main(argc, argv)
 }
 
 int
-chkuse(blkno, cnt)
-	daddr_t blkno;
-	int cnt;
+chkuse(daddr_t blkno, int cnt)
 {
 	int cg;
 	daddr_t fsbn, bn;
@@ -206,10 +202,7 @@ chkuse(blkno, cnt)
  * read a block from the file system
  */
 void
-rdfs(bno, size, bf)
-	daddr_t bno;
-	int size;
-	char *bf;
+rdfs(daddr_t bno, int size, char *bf)
 {
 	int n;
 
