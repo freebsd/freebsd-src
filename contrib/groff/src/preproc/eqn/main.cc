@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -24,8 +24,9 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include "device.h"
 #include "searchpath.h"
 #include "macropath.h"
-#include "htmlindicate.h"
+#include "htmlhint.h"
 #include "pbox.h"
+#include "ctype.h"
 
 #define STARTUP_FILE "eqnrc"
 
@@ -44,9 +45,6 @@ int one_size_reduction_flag = 0;
 int compatible_flag = 0;
 int no_newline_in_delim_flag = 0;
 int html = 0;
-// if we encounter a region marked as an image then we
-// do not mark up inline equations.
-int suppress_html = 0;
                       
 
 int read_line(FILE *fp, string *p)
@@ -54,10 +52,10 @@ int read_line(FILE *fp, string *p)
   p->clear();
   int c = -1;
   while ((c = getc(fp)) != EOF) {
-    if (!illegal_input_char(c))
+    if (!invalid_input_char(c))
       *p += char(c);
     else
-      error("illegal input character code `%1'", c);
+      error("invalid input character code `%1'", c);
     if (c == '\n')
       break;
   }
@@ -81,33 +79,12 @@ void do_file(FILE *fp, const char *filename)
       if (interpret_lf_args(linebuf.contents() + 3))
 	current_lineno--;
     }
-    else if (linebuf.length() >= 12
-	     && linebuf[0] == '.' && linebuf[1] == 'H' && linebuf[2] == 'T'
-	     && linebuf[3] == 'M' && linebuf[4] == 'L' && linebuf[5] == '-'
-	     && linebuf[6] == 'I' && linebuf[7] == 'M' && linebuf[8] == 'A'
-	     && linebuf[9] == 'G' && linebuf[10] == 'E'
-	     && linebuf[11] == '\n') {
-      put_string(linebuf, stdout);
-      suppress_html++;
-    }
-    else if (linebuf.length() >= 16
-	     && linebuf[0] == '.' && linebuf[1] == 'H' && linebuf[2] == 'T'
-	     && linebuf[3] == 'M' && linebuf[4] == 'L' && linebuf[5] == '-'
-	     && linebuf[6] == 'I' && linebuf[7] == 'M' && linebuf[8] == 'A'
-	     && linebuf[9] == 'G' && linebuf[10] == 'E' && linebuf[11] == '-'
-	     && linebuf[12] == 'E' && linebuf[13] == 'N' && linebuf[14] == 'D'
-	     && linebuf[15] == '\n') {
-      put_string(linebuf, stdout);
-      suppress_html--;
-    }
     else if (linebuf.length() >= 4
 	     && linebuf[0] == '.'
 	     && linebuf[1] == 'E'
 	     && linebuf[2] == 'Q'
 	     && (linebuf[3] == ' ' || linebuf[3] == '\n'
 		 || compatible_flag)) {
-      if (html && (suppress_html == 0))
-	graphic_start(0);
       put_string(linebuf, stdout);
       int start_lineno = current_lineno + 1;
       str.clear();
@@ -132,15 +109,13 @@ void do_file(FILE *fp, const char *filename)
       non_empty_flag = 0;
       inline_flag = 0;
       yyparse();
+      restore_compatibility();
       if (non_empty_flag) {
 	printf(".lf %d\n", current_lineno - 1);
 	output_string();
       }
-      restore_compatibility();
       printf(".lf %d\n", current_lineno);
       put_string(linebuf, stdout);
-      if (html && (suppress_html == 0))
-	graphic_end();
     }
     else if (start_delim != '\0' && linebuf.search(start_delim) >= 0
 	     && inline_equation(fp, linebuf, str))
@@ -190,21 +165,22 @@ static int inline_equation(FILE *fp, string &linebuf, string &str)
       }
       str += ptr;
       if (!read_line(fp, &linebuf))
-	fatal("end of file before `%1'", end_delim);
+	fatal("unterminated `%1' at line %2, looking for `%3'",
+	      start_delim, start_lineno, end_delim);
       linebuf += '\0';
       ptr = &linebuf[0];
     }
     str += '\0';
-    if (html && (suppress_html == 0)) {
-      printf(".as %s ", LINE_STRING);
-      graphic_start(1);
+    if (html) {
+      printf(".as1 %s ", LINE_STRING);
+      html_begin_suppress();
       printf("\n");
     }
     init_lex(str.contents(), current_filename, start_lineno);
     yyparse();
-    if (html && (suppress_html == 0)) {
-      printf(".as %s ", LINE_STRING);
-      graphic_end();
+    if (html) {
+      printf(".as1 %s ", LINE_STRING);
+      html_end_suppress();
       printf("\n");
     }
     start = delim_search(ptr, start_delim);
@@ -216,9 +192,9 @@ static int inline_equation(FILE *fp, string &linebuf, string &str)
       break;
     }
   }
+  restore_compatibility();
   printf(".lf %d\n", current_lineno);
   output_string();
-  restore_compatibility();
   printf(".lf %d\n", current_lineno + 1);
   return 1;
 }
@@ -311,9 +287,9 @@ int main(int argc, char **argv)
     case 'd':
       if (optarg[0] == '\0' || optarg[1] == '\0')
 	error("-d requires two character argument");
-      else if (illegal_input_char(optarg[0]))
+      else if (invalid_input_char(optarg[0]))
 	error("bad delimiter `%1'", optarg[0]);
-      else if (illegal_input_char(optarg[1]))
+      else if (invalid_input_char(optarg[1]))
 	error("bad delimiter `%1'", optarg[1]);
       else {
 	start_delim = optarg[0];

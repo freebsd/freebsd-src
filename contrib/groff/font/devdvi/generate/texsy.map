@@ -1,9 +1,9 @@
 0 \- mi
 1 md pc
-2 mu char215
+2 mu tmu
 3 **
-4 di char247
-6 +- char177
+4 di tdi
+6 +- t+-
 7 -+
 8 c+
 10 c*
@@ -39,7 +39,7 @@
 54 slashnot
 56 fa
 57 te
-58 no char172
+58 no
 59 es
 60 Re
 61 Im
@@ -90,10 +90,10 @@
 110 \ rs
 112 sr
 114 gr
-120 sc char167
+120 sc
 121 dg
 122 dd
-123 ps char182
+123 ps
 124 CL
 125 DI
 126 HE

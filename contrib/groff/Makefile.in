@@ -1,4 +1,4 @@
-# Copyright (C) 1989-2000, 2001 Free Software Foundation, Inc.
+# Copyright (C) 1989-2000, 2001, 2002 Free Software Foundation, Inc.
 #      Written by James Clark (jjc@jclark.com)
 # 
 # This file is part of groff.
@@ -20,10 +20,10 @@
 srcdir=@srcdir@
 top_srcdir=@top_srcdir@
 VPATH=@srcdir@
-top_builddir=@top_builddir@
+top_builddir=@groff_top_builddir@
 
 version=`cat $(top_srcdir)/VERSION`
-# No additional number if revision is zero
+# No additional number if revision is zero.
 revision=`sed -e 's/^0$$//' -e 's/^[1-9].*$$/.&/' $(top_srcdir)/REVISION`
 
 # Define `page' to be letter if your PostScript printer uses 8.5x11
@@ -54,18 +54,22 @@ PAGE=@PAGE@
 # with a printer that requires page reversal.
 BROKEN_SPOOLER_FLAGS=@BROKEN_SPOOLER_FLAGS@
 
-# DEVICE is the default device.
+# `DEVICE' is the default device.
 DEVICE=ps
 
-# TTYDEVDIRS is either `font/devascii font/devlatin1 font/devutf8' (for
-# ASCII) or `font/devcp1047' (for EBCDIC).
-TTYDEVDIRS=@TTYDEVDIRS@
+# `TTYDEVDIRS' is either `font/devascii font/devlatin1' (for
+# ASCII) or `font/devcp1047' (for EBCDIC) plus font/devutf8.
+TTYDEVDIRS=@TTYDEVDIRS@ font/devutf8
 
-# PSPRINT is the command to use for printing a PostScript file,
+# `OTHERDEVDIRS' is either `font/devlj4 font/devlbp' (for ASCII) or
+# empty (for EBCDIC).
+OTHERDEVDIRS=@OTHERDEVDIRS@
+
+# `PSPRINT' is the command to use for printing a PostScript file,
 # for example `lpr'.
 PSPRINT=@PSPRINT@
 
-# DVIPRINT is the command to use for printing a TeX dvi file,
+# `DVIPRINT' is the command to use for printing a TeX dvi file,
 # for example `lpr -d'.
 DVIPRINT=@DVIPRINT@
 
@@ -82,44 +86,62 @@ g=@g@
 prefix=@prefix@
 exec_prefix=@exec_prefix@
 
-# bindir says where to install executables.
+# `bindir' says where to install executables.
 bindir=@bindir@
 
-# libdir says where to install platform-dependent data
+# `libdir' says where to install platform-dependent data.
 libdir=@libdir@
 libprogramdir=$(libdir)/groff
 
-# datasubdir says where to install platform-independent data files
+# `datasubdir' says where to install platform-independent data files.
 datadir=@datadir@
 dataprogramdir=$(datadir)/groff
 datasubdir=$(dataprogramdir)/$(version)$(revision)
 
-# fontdir says where to install dev*/*.
+# `infodir' says where to install info files.
+infodir=@infodir@
+
+# `docdir' says where to install documentation files.
+docdir=$(datadir)/doc/groff/$(version)$(revision)
+
+# `exampledir' says where to install example files.
+exampledir=$(docdir)/examples
+
+# `htmldocdir' says where to install documentation in HTML format.
+htmldocdir=$(docdir)/html
+
+# `fontdir' says where to install dev*/*.
 fontdir=$(datasubdir)/font
 
-# fontpath says where to look for dev*/*.
-fontpath=$(fontdir):/usr/lib/font
+# `localfontdir' says where local fonts will be installed (as dev*/*).
+localfontdir=$(dataprogramdir)/site-font
 
-# tmacdir says where to install macros.
+# `legacyfontdir' is for compatibility with non-GNU troff.
+legacyfontdir=/usr/lib/font
+
+# `fontpath' says where to look for dev*/*.
+fontpath=$(localfontdir):$(fontdir):$(legacyfontdir)
+
+# `tmacdir' says where to install macros.
 tmacdir=$(datasubdir)/tmac
 
-# systemtmacdir says where to install platform-dependent macros
+# `systemtmacdir' says where to install platform-dependent macros.
 systemtmacdir=$(libprogramdir)/site-tmac
 
-# localtmacdir says where local files will be installed
+# `localtmacdir' says where local files will be installed.
 localtmacdir=$(dataprogramdir)/site-tmac
 
-# tmacpath says where to look for macro files.
+# `tmacpath' says where to look for macro files.
 # The current directory will be prepended in unsafe mode only; the home
 # directory will be always added.
 # `troffrc' and `troffrc-end' (and `eqnrc') are searched neither in the
 # current nor in the home directory.
 tmacpath=$(systemtmacdir):$(localtmacdir):$(tmacdir)
 
-# sys_tmac_prefix is prefix (if any) for system macro packages
+# `sys_tmac_prefix' is prefix (if any) for system macro packages.
 sys_tmac_prefix=@sys_tmac_prefix@
 
-# tmac_wrap is list of system macro packages that should be made
+# `tmac_wrap' is list of system macro packages that should be made
 # available to groff by creating a corresponding macro package
 # in the groff macro directory that references the system macro
 # package.
@@ -157,51 +179,78 @@ indexname=Ind
 # otherwise the supplied eign file will be used.
 common_words_file=$(datasubdir)/eign
 
-# manroot is the root of the man page directory tree.
+# `manroot' is the root of the man page directory tree.
 mandir=@mandir@
 manroot=$(mandir)
 
-# man1ext is the man section for user commands.
+# `man1ext' is the man section for user commands.
 man1ext=1
 man1dir=$(manroot)/man$(man1ext)
 
-# man5ext is the man section for file formats.
+# `man5ext' is the man section for file formats.
 man5ext=5
 man5dir=$(manroot)/man$(man5ext)
 
-# man7ext is the man section for macros.
+# `man7ext' is the man section for macros.
 man7ext=7
 man7dir=$(manroot)/man$(man7ext)
+
+# The configure script checks whether all necessary utility programs for
+# grohtml are available -- only then we can build the HTML documentation.
+make_html=@make_html@
+make_install_html=@make_install_html@
 
 # DEFINES should include the following:
 # -DHAVE_MMAP			if you have mmap() and <sys/mman.h>
 # -DARRAY_DELETE_NEEDS_SIZE	if your C++ doesn't understand `delete []'
-# -DHAVE_SYS_SIGLIST		if you have sys_siglist[]
+# -DSYS_SIGLIST_DECLARED	if you have sys_siglist[]
 # -DWCOREFLAG=0200		if the 0200 bit of the status returned by
 #				wait() indicates whether a core image was
 #				produced for a process that was terminated
 #				by a signal
-# -DHAVE_UNISTD_H		if you have <unistd.h>
-# -DHAVE_CC_OSFCN_H		if you have a C++ <osfcn.h>
+#
 # -DHAVE_DIRENT_H		if you have <dirent.h>
 # -DHAVE_LIMITS_H		if you have <limits.h>
 # -DHAVE_CC_LIMITS_H		if you have a C++ <limits.h>
-# -DHAVE_SYS_DIR_H		if you have <sys/dir.h>
+# -DHAVE_MATH_H			if you have <math.h>
+# -DHAVE_CC_OSFCN_H		if you have a C++ <osfcn.h>
+# -DHAVE_STDINT_H		if you have <stdint.h>
 # -DHAVE_STDLIB_H		if you have <stdlib.h>
+# -DHAVE_STRING_H		if you have <string.h>
 # -DHAVE_STRINGS_H		if you have <strings.h>
-# -DHAVE_RENAME			if you have rename()
+# -DHAVE_SYS_DIR_H		if you have <sys/dir.h>
+# -DHAVE_SYS_TIME_H		if you have <sys/time.h>
+# -DHAVE_UNISTD_H		if you have <unistd.h>
+#
+# -DHAVE_FMOD			if you have fmod()
+# -DHAVE_GETCWD			if you have getcwd()
+# -DHAVE_GETTIMEOFDAY		if you have gettimeofday()
+# -DHAVE_ISATTY			if you have isatty()
 # -DHAVE_MKSTEMP		if you have mkstemp()
-# -DHAVE_STRDUP			if you have strdup()
-# -DHAVE_STRSEP			if you have strsep()
+# -DHAVE_MMAP			if you have mmap()
+# -DHAVE_PUTENV			if you have putenv()
+# -DHAVE_RENAME			if you have rename()
+# -DHAVE_SNPRINTF		if you have snprintf()
 # -DHAVE_STRCASECMP		if you have strcasecmp()
+# -DHAVE_STRNCASECMP		if you have strncasecmp()
+# -DHAVE_STRERROR		if you have strerror()
+# -DHAVE_STRSEP			if you have strsep()
+# -DHAVE_STRTOL			if you have strtol()
+#
+# -DNEED_DECLARATION_GETTIMEOFTODAY
+#				if your C++ <sys/time.h> doesn't declare
+#				gettimeofday()
 # -DNEED_DECLARATION_HYPOT	if your C++ <math.h> doesn't declare hypot()
-# -DNEED_DECLARATION_PUTENV	if your C++ <stdlib.h> doesn't declare putenv()
-# -DNEED_DECLARATION_POPEN	if your C++ <stdio.h> doesn't declare popen()
 # -DNEED_DECLARATION_PCLOSE	if your C++ <stdio.h> doesn't declare pclose()
+# -DNEED_DECLARATION_POPEN	if your C++ <stdio.h> doesn't declare popen()
+# -DNEED_DECLARATION_PUTENV	if your C++ <stdlib.h> doesn't declare putenv()
+# -DNEED_DECLARATION_STRCASECMP if your C++ <string.h> doesn't declare
+#				strcasecmp()
 # -DNEED_DECLARATION_STRNCASECMP
 #				if your C++ <string.h> doesn't declare
 #				strncasecmp()
-# -DRET_TYPE_SRAND_IS_VOID	if your srand() returns void or int
+#
+# -DRET_TYPE_SRAND_IS_VOID	if srand() returns void not int
 # -DHAVE_SYS_NERR		if you have sysnerr in <errno.h> or <stdio.h>
 # -DHAVE_SYS_ERRLIST		if you have sys_errlist in <errno.h> or
 #				<stdio.h>
@@ -211,13 +260,17 @@ man7dir=$(manroot)/man$(man7ext)
 # -DHAVE_STRUCT_EXCEPTION	if <math.h> defines struct exception
 # -DRETSIGTYPE=int		if signal handlers return int not void	
 # -DIS_EBCDIC_HOST		if the host's encoding is EBCDIC
+# -DPAGEA4			if the the printer's page size is A4
 DEFINES=@DEFS@
 
-# Include fmod.o, strtol.o, getcwd.o, strerror.o, putenv.o in LIBOBJS if
-# your C library is missing the corresponding function.
+# Include
+#
+#   {fmod,getcwd,mkstemp,putenv,snprintf,strerror,strtol}.$(OBJEXT)
+#
+# in LIBOBJS if your C library is missing the corresponding function.
 LIBOBJS=@LIBOBJS@
 
-# CCC is the compiler for C++ (.cc) files.
+# `CCC' is the compiler for C++ (.cc) files.
 CCC=@CXX@
 CC=@CC@
 # CCDEFINES are definitions for C++ compilations.
@@ -231,6 +284,8 @@ LDFLAGS=@LDFLAGS@
 YACC=@YACC@
 YACCFLAGS=-v
 
+EXEEXT=@EXEEXT@
+OBJEXT=@OBJEXT@
 LIBS=@LIBS@
 LIBM=@LIBM@
 RANLIB=@RANLIB@
@@ -238,6 +293,7 @@ INSTALL=@INSTALL@
 INSTALL_PROGRAM=@INSTALL_PROGRAM@
 INSTALL_SCRIPT=@INSTALL_SCRIPT@
 INSTALL_DATA=@INSTALL_DATA@
+INSTALL_INFO=@INSTALL_INFO@
 LN_S=@LN_S@
 AR=ar
 ETAGS=etags
@@ -249,7 +305,7 @@ PERLPATH=@PERLPATH@
 # Sed command with which to edit sh scripts.
 SH_SCRIPT_SED_CMD=@SH_SCRIPT_SED_CMD@
 
-# the program to create directory hierarchies
+# The program to create directory hierarchies.
 mkinstalldirs=$(top_srcdir)/mkinstalldirs
 
 PURIFY=purify
@@ -266,8 +322,11 @@ MDEFINES= \
   "BROKEN_SPOOLER_FLAGS=$(BROKEN_SPOOLER_FLAGS)" \
   "DEVICE=$(DEVICE)" \
   "TTYDEVDIRS=$(TTYDEVDIRS)" \
+  "OTHERDEVDIRS=$(OTHERDEVDIRS)" \
   "PSPRINT=$(PSPRINT)" \
   "DVIPRINT=$(DVIPRINT)" \
+  "version=$(version)" \
+  "revision=$(revision)" \
   "top_srcdir=$(top_srcdir)" \
   "top_builddir=$(top_builddir)" \
   "prefix=$(prefix)" \
@@ -276,10 +335,16 @@ MDEFINES= \
   "datadir=$(datadir)" \
   "dataprogramdir=$(dataprogramdir)" \
   "datasubdir=$(datasubdir)" \
+  "infodir=$(infodir)" \
+  "docdir=$(docdir)" \
+  "exampledir=$(exampledir)" \
+  "htmldocdir=$(htmldocdir)" \
   "libdir=$(libdir)" \
   "libprogramdir=$(libprogramdir)" \
   "bindir=$(bindir)" \
   "fontdir=$(fontdir)" \
+  "localfontdir=$(localfontdir)" \
+  "legacyfontdir=$(legacyfontdir)" \
   "fontpath=$(fontpath)" \
   "tmacdir=$(tmacdir)" \
   "systemtmacdir=$(systemtmacdir)" \
@@ -296,12 +361,16 @@ MDEFINES= \
   "man5dir=$(man5dir)" \
   "man7ext=$(man7ext)" \
   "man7dir=$(man7dir)" \
+  "make_html=$(make_html)" \
+  "make_install_html=$(make_install_html)" \
   "mkinstalldirs=$(mkinstalldirs)" \
   "tmac_wrap=$(tmac_wrap)" \
   "sys_tmac_prefix=$(sys_tmac_prefix)" \
   "tmac_an_prefix=$(tmac_an_prefix)" \
   "tmac_s_prefix=$(tmac_s_prefix)" \
   "tmac_m_prefix=$(tmac_m_prefix)" \
+  "EXEEXT=$(EXEEXT)" \
+  "OBJEXT=$(OBJEXT)" \
   "CCC=$(CCC)" \
   "CC=$(CC)" \
   "CCDEFINES=$(CCDEFINES)" \
@@ -319,6 +388,7 @@ MDEFINES= \
   "INSTALL_PROGRAM=$(INSTALL_PROGRAM)" \
   "INSTALL_SCRIPT=$(INSTALL_SCRIPT)" \
   "INSTALL_DATA=$(INSTALL_DATA)" \
+  "INSTALL_INFO=$(INSTALL_INFO)" \
   "ETAGS=$(ETAGS)" \
   "ETAGSFLAGS=$(ETAGSFLAGS)" \
   "ETAGSCCFLAG=$(ETAGSCCFLAG)" \
@@ -364,9 +434,7 @@ DEVDIRS=\
   font/devX75-12 \
   font/devX100 \
   font/devX100-12 \
-  font/devlj4 \
-  font/devhtml \
-  font/devlbp
+  font/devhtml
 ALLTTYDEVDIRS=\
   font/devascii \
   font/devlatin1 \
@@ -378,16 +446,30 @@ OTHERDIRS=\
   src/utils/afmtodit \
   src/roff/grog \
   src/roff/nroff \
-  contrib/mm
+  contrib/mm \
+  contrib/pic2graph \
+  contrib/eqn2graph \
+  contrib/groffer \
+  contrib/mom \
+  doc
 ALLDIRS=$(INCDIRS) $(LIBDIRS) $(PROGDIRS) \
-  $(DEVDIRS) $(TTYDEVDIRS) $(OTHERDIRS)
+  $(DEVDIRS) $(OTHERDEVDIRS) $(TTYDEVDIRS) $(OTHERDIRS)
 EXTRADIRS=\
   font/devps/generate \
   font/devdvi/generate \
+  font/devlj4/generate \
   src/xditview \
   doc
-DISTDIRS=$(INCDIRS) $(LIBDIRS) $(PROGDIRS) \
-  $(DEVDIRS) $(ALLTTYDEVDIRS) $(OTHERDIRS) $(EXTRADIRS)
+NOMAKEDIRS=\
+  arch/djgpp \
+  contrib/mm/examples \
+  contrib/mm/mm \
+  contrib/mom/examples \
+  contrib/mom/momdoc \
+  src/libs/snprintf
+DISTDIRS=\
+  $(INCDIRS) $(LIBDIRS) $(PROGDIRS) $(DEVDIRS) $(OTHERDEVDIRS) \
+  $(ALLTTYDEVDIRS) $(OTHERDIRS) $(EXTRADIRS) $(NOMAKEDIRS)
 TARGETS=all install install_bin install_data clean distclean mostlyclean \
   realclean extraclean distfiles TAGS depend uninstall_sub
 
@@ -460,7 +542,7 @@ $(CCPROGDIRS): FORCE
 	  -f $(top_srcdir)/Makefile.ccpg \
 	  -f Makefile.dep $(do)
 
-$(DEVDIRS) $(TTYDEVDIRS): FORCE
+$(DEVDIRS) $(OTHERDEVDIRS) $(TTYDEVDIRS): FORCE
 	@$(ENVSETUP); \
 	if test $(srcdir) = .; \
 	then srcdir=.; \
@@ -498,10 +580,14 @@ dist:
 	cd tmp; \
 	$(LN_S) ../Makefile .; \
 	$(LN_S) $$srcdir/* . 2>/dev/null || true; \
+	rm -rf CVS; \
 	for d in $(DISTDIRS); do \
-	  (cd $$d; $(LN_S) $$srcdir/$$d/* . 2>/dev/null || true); \
+	  (cd $$d; \
+	   $(LN_S) $$srcdir/$$d/* . 2>/dev/null; \
+	   rm -rf CVS || true); \
 	done; \
-	$(MAKE) srcdir=$$srcdir VPATH=$$srcdir extraclean; \
+	$(MAKE) srcdir=. VPATH=. distfiles; \
+	$(MAKE) srcdir=. VPATH=. extraclean; \
 	for d in $(EXTRADIRS); do \
 	  (cd $$d; $(MAKE) extraclean); \
 	done; \
@@ -519,6 +605,8 @@ dist:
 
 .PHONY: $(ALLDIRS) dot $(TARGETS) FORCE
 
+# Create a Makefile in $(subdir).  This is useful for development since it
+# avoids running make recursively.
 subdir_Makefile: Makefile.cfg
 	$(MAKE) do=Makefile $(subdir)
 
@@ -536,10 +624,12 @@ uninstall: uninstall_sub uninstall_dirs
 
 .PHONY: uninstall_dirs
 uninstall_dirs:
-# Use rmdir here so that the directories are only removed if they're empty
+# Use `rmdir' here so that the directories are only removed if they are empty.
 	-rmdir $(man1dir) $(man5dir) $(man7dir) $(manroot) \
-	  $(tmacdir) $(systemtmacdir) $(localtmacdir) $(fontdir) $(bindir) \
-	  $(datasubdir) $(dataprogramdir) $(datadir) \
+	  $(tmacdir) $(systemtmacdir) $(localtmacdir) \
+	  $(fontdir) $(localfontdir) $(bindir) \
+	  $(datasubdir) $(dataprogramdir) $(datadir) $(infodir) \
+	  $(exampledir) $(htmldocdir) $(docdir) \
 	  $(libprogramdir) $(libdir)
 
 

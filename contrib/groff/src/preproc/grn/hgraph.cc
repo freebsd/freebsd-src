@@ -4,6 +4,8 @@
  * to troff input.
  */
 
+#include "lib.h"
+
 #include "gprint.h"
 
 #ifdef NEED_DECLARATION_HYPOT
@@ -58,12 +60,13 @@ void tmove2(int px, int py);
 void doarc(POINT cp, POINT sp, int angle);
 void tmove(POINT * ptr);
 void cr();
-void drawwig(POINT * ptr);
+void drawwig(POINT * ptr, int type);
 void HGtline(int x1, int y1);
 void dx(double x);
 void dy(double y);
 void HGArc(register int cx, register int cy, int px, int py, int angle);
 void picurve(register int *x, register int *y, int npts);
+void HGCurve(int *x, int *y, int numpoints);
 void Paramaterize(int x[], int y[], float h[], int n);
 void PeriodicSpline(float h[], int z[],
 		    float dz[], float d2z[], float d3z[],
@@ -126,8 +129,14 @@ HGPrintElt(ELT *element,
 	break;
 
       case CURVE:
-	length = 0;		/* keep track of line length */
-	drawwig(p1);
+	length = 0;	/* keep track of line length */
+	drawwig(p1, CURVE);
+	cr();
+	break;
+
+      case BSPLINE:
+	length = 0;	/* keep track of line length */
+	drawwig(p1, BSPLINE);
 	cr();
 	break;
 
@@ -533,16 +542,17 @@ line(int px,
 
 
 /*----------------------------------------------------------------------------
- | Routine:	drawwig (ptr)
+ | Routine:	drawwig (ptr, type)
  |
  | Results:	The point sequence found in the structure pointed by ptr is
  |		placed in integer arrays for further manipulation by the
- |		existing routing.  With the proper parameters, HGCurve is
- |		called.
+ |		existing routing.  With the corresponding type parameter,
+ |		either picurve or HGCurve are called.
  *----------------------------------------------------------------------------*/
 
 void
-drawwig(POINT * ptr)
+drawwig(POINT * ptr,
+	int type)
 {
   register int npts;			/* point list index */
   int x[MAXPOINTS], y[MAXPOINTS];	/* point list */
@@ -552,8 +562,10 @@ drawwig(POINT * ptr)
     y[npts] = (int) (ptr->y * troffscale);
   }
   if (--npts) {
-    /* HGCurve(&x[0], &y[0], npts); */	/*Gremlin looks different, so... */
-    picurve(&x[0], &y[0], npts);
+    if (type == CURVE) /* Use the 2 different types of curves */
+      HGCurve(&x[0], &y[0], npts);
+    else
+      picurve(&x[0], &y[0], npts);
   }
 }
 

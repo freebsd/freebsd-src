@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2002 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -232,7 +232,7 @@ void start_string()
 
 void output_string()
 {
-  printf("\\*[" LINE_STRING "]\n");
+  printf("\\*(" LINE_STRING "\n");
 }
 
 void restore_compatibility()
@@ -259,7 +259,7 @@ void set_script_size()
   if (script_size_reduction >= 0)
     printf(".ps \\n[.s]-%d>?%d\n", script_size_reduction, minimum_size);
   else
-    printf(".ps (u;\\n[.s]*7+5/10>?%d)*1z\n", minimum_size);
+    printf(".ps (u;\\n[.ps]*7+5/10>?%d)\n", minimum_size);
 }
 
 int box::next_uid = 0;
@@ -281,7 +281,7 @@ void box::top_level()
   printf(".ft\n");
   printf(".nr " SAVED_PREV_FONT_REG " \\n[.f]\n");
   printf(".ft %s\n", get_gfont());
-  printf(".nr " SAVED_SIZE_REG " \\n[.s]z\n");
+  printf(".nr " SAVED_SIZE_REG " \\n[.ps]\n");
   if (gsize > 0) {
     char buf[INT_DIGITS + 1];
     sprintf(buf, "%d", gsize);
@@ -299,7 +299,7 @@ void box::top_level()
     printf(".nr " MARK_WIDTH_REG " 0\\n[" WIDTH_FORMAT "]\n", b->uid);
   }
   else if (r == FOUND_LINEUP)
-    printf(".if r" SAVED_MARK_REG " .as " LINE_STRING " \\h'\\n["
+    printf(".if r" SAVED_MARK_REG " .as1 " LINE_STRING " \\h'\\n["
 	   SAVED_MARK_REG "]u-\\n[" MARK_REG "]u'\n");
   else
     assert(r == FOUND_NOTHING);
@@ -311,9 +311,9 @@ void box::top_level()
 	 "\\R'" SAVED_INLINE_FONT_REG " \\\\n[.f]'"
 	 "\\fP"
 	 "\\R'" SAVED_INLINE_PREV_FONT_REG " \\\\n[.f]'"
-	 "\\R'" SAVED_INLINE_SIZE_REG " \\\\n[.s]z'"
+	 "\\R'" SAVED_INLINE_SIZE_REG " \\\\n[.ps]'"
 	 "\\s0"
-	 "\\R'" SAVED_INLINE_PREV_SIZE_REG " \\\\n[.s]z'"
+	 "\\R'" SAVED_INLINE_PREV_SIZE_REG " \\\\n[.ps]'"
 	 "\n"
 	 ".ds " RESTORE_FONT_STRING " "
 	 "\\f[\\\\n[" SAVED_INLINE_PREV_FONT_REG "]]"
@@ -321,14 +321,14 @@ void box::top_level()
 	 "\\s'\\\\n[" SAVED_INLINE_PREV_SIZE_REG "]u'"
 	 "\\s'\\\\n[" SAVED_INLINE_SIZE_REG "]u'"
 	 "\n");
-  printf(".as " LINE_STRING " \\&\\E*[" SAVE_FONT_STRING "]");
+  printf(".as1 " LINE_STRING " \\&\\E*[" SAVE_FONT_STRING "]");
   printf("\\f[%s]", get_gfont());
   printf("\\s'\\En[" SAVED_SIZE_REG "]u'");
   current_roman_font = get_grfont();
   b->output();
   printf("\\E*[" RESTORE_FONT_STRING "]\n");
   if (r == FOUND_LINEUP)
-    printf(".if r" SAVED_MARK_REG " .as " LINE_STRING " \\h'\\n["
+    printf(".if r" SAVED_MARK_REG " .as1 " LINE_STRING " \\h'\\n["
 	   MARK_WIDTH_REG "]u-\\n[" SAVED_MARK_REG "]u-(\\n["
 	   WIDTH_FORMAT "]u-\\n[" MARK_REG "]u)'\n",
 	   b->uid);
@@ -351,20 +351,20 @@ void box::extra_space()
   if (positive_space >= 0 || negative_space >= 0) {
     if (positive_space > 0)
       printf(".if !\\n[" EQN_NO_EXTRA_SPACE_REG "] "
-	     ".as " LINE_STRING " \\x'-%dM'\n", positive_space);
+	     ".as1 " LINE_STRING " \\x'-%dM'\n", positive_space);
     if (negative_space > 0)
       printf(".if !\\n[" EQN_NO_EXTRA_SPACE_REG "] "
-	     ".as " LINE_STRING " \\x'%dM'\n", negative_space);
+	     ".as1 " LINE_STRING " \\x'%dM'\n", negative_space);
     positive_space = negative_space = -1;
   }
   else {
     printf(".if !\\n[" EQN_NO_EXTRA_SPACE_REG "] "
-	   ".if \\n[" HEIGHT_FORMAT "]>%dM .as " LINE_STRING
+	   ".if \\n[" HEIGHT_FORMAT "]>%dM .as1 " LINE_STRING
 	   " \\x'-(\\n[" HEIGHT_FORMAT
 	   "]u-%dM)'\n",
 	   uid, body_height, uid, body_height);
     printf(".if !\\n[" EQN_NO_EXTRA_SPACE_REG "] "
-	   ".if \\n[" DEPTH_FORMAT "]>%dM .as " LINE_STRING
+	   ".if \\n[" DEPTH_FORMAT "]>%dM .as1 " LINE_STRING
 	   " \\x'\\n[" DEPTH_FORMAT
 	   "]u-%dM'\n",
 	   uid, body_depth, uid, body_depth);
