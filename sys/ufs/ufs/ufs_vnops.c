@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.40 1996/09/03 14:25:27 bde Exp $
+ * $Id: ufs_vnops.c,v 1.41 1996/09/19 18:21:32 nate Exp $
  */
 
 #include "opt_quota.h"
@@ -842,17 +842,30 @@ abortit:
 		return (error);
 	}
 
-	/*
-	 * Check if just deleting a link name.
-	 */
 	if (tvp && ((VTOI(tvp)->i_flags & (IMMUTABLE | APPEND)) ||
 	    (VTOI(tdvp)->i_flags & APPEND))) {
 		error = EPERM;
 		goto abortit;
 	}
+
+	/*
+	 * Check if just deleting a link name or if we've lost a race.
+	 * If another process completes the same rename after we've looked
+	 * up the source and have blocked looking up the target, then the
+	 * source and target inodes may be identical now although the
+	 * names were never linked.
+	 */
 	if (fvp == tvp) {
 		if (fvp->v_type == VDIR) {
-			error = EINVAL;
+			/*
+			 * Linked directories are impossible, so we must
+			 * have lost the race.  Pretend that the rename
+			 * completed before the lookup.
+			 */
+#ifdef UFS_RENAME_DEBUG
+			printf("ufs_rename: fvp == tvp for directories\n");
+#endif
+			error = ENOENT;
 			goto abortit;
 		}
 
@@ -861,7 +874,12 @@ abortit:
 		vput(tdvp);
 		vput(tvp);
 
-		/* Delete source. */
+		/*
+		 * Delete source.  There is another race now that everything
+		 * is unlocked, but this doesn't cause any new complications.
+		 * Relookup() may find a file that is unrelated to the
+		 * original one, or it may fail.  Too bad.
+		 */
 		vrele(fdvp);
 		vrele(fvp);
 		fcnp->cn_flags &= ~MODMASK;
@@ -873,6 +891,12 @@ abortit:
 		error = relookup(fdvp, &fvp, fcnp);
 		if (error == 0)
 			vrele(fdvp);
+		if (fvp == NULL) {
+#ifdef UFS_RENAME_DEBUG
+			printf("ufs_rename: from name disappeared\n");
+#endif
+			return (ENOENT);
+		}
 		return (VOP_REMOVE(fdvp, fvp, fcnp));
 	}
 	error = VOP_LOCK(fvp);
