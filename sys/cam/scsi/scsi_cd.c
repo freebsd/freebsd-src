@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_cd.c,v 1.1 1998/09/15 06:36:34 gibbs Exp $
+ *      $Id: scsi_cd.c,v 1.2 1998/09/20 07:17:11 gibbs Exp $
  */
 /*
  * Portions of this driver taken from the original FreeBSD cd driver.
@@ -2765,7 +2765,7 @@ cdsetmode(struct cam_periph *periph, struct cd_mode_data *data)
 	cam_fill_csio(csio, 
 		      /* retries */ 1, 
 		      /* cbfcnp */ cddone, 
-		      /* flags */ CAM_DIR_IN,
+		      /* flags */ CAM_DIR_OUT,
 		      /* tag_action */ MSG_SIMPLE_Q_TAG,
 		      /* data_ptr */ (u_int8_t *)data,
 		      /* dxfer_len */ sizeof(*data),
@@ -2799,42 +2799,56 @@ cdsetmode(struct cam_periph *periph, struct cd_mode_data *data)
 static int 
 cdplay(struct cam_periph *periph, u_int32_t blk, u_int32_t len)
 {
-	struct scsi_play *scsi_cmd;
-        struct ccb_scsiio *csio;
+	struct ccb_scsiio *csio;
 	union ccb *ccb;
 	int error;
+	u_int8_t cdb_len;
 
 	error = 0;
-
 	ccb = cdgetccb(periph, /* priority */ 1);
-
 	csio = &ccb->csio;
+	/*
+	 * Use the smallest possible command to perform the operation.
+	 */
+	if ((len & 0xffff0000) == 0) {
+		/*
+		 * We can fit in a 10 byte cdb.
+		 */
+		struct scsi_play_10 *scsi_cmd;
 
-	cam_fill_csio(csio, 
-		      /* retries */ 1, 
-		      /* cbfcnp */ cddone, 
-		      /* flags */ CAM_DIR_IN,
-		      /* tag_action */ MSG_SIMPLE_Q_TAG,
-		      /* data_ptr */ NULL,
-		      /* dxfer_len */ 0,
-		      /* sense_len */ SSD_FULL_SIZE,
-		      sizeof(struct scsi_play),
- 		      /* timeout */ 50000);
+		scsi_cmd = (struct scsi_play_10 *)&csio->cdb_io.cdb_bytes;
+		bzero (scsi_cmd, sizeof(*scsi_cmd));
+		scsi_cmd->op_code = PLAY_10;
+		scsi_ulto4b(blk, (u_int8_t *)scsi_cmd->blk_addr);
+		scsi_ulto2b(len, (u_int8_t *)scsi_cmd->xfer_len);
+		cdb_len = sizeof(*scsi_cmd);
+	} else  {
+		struct scsi_play_12 *scsi_cmd;
 
-	scsi_cmd = (struct scsi_play *)&csio->cdb_io.cdb_bytes;
-	bzero (scsi_cmd, sizeof(*scsi_cmd));
-
-	scsi_cmd->op_code = PLAY;
-	scsi_ulto4b(blk, (u_int8_t *)scsi_cmd->blk_addr);
-	scsi_ulto2b(len, (u_int8_t *)scsi_cmd->xfer_len);
+		scsi_cmd = (struct scsi_play_12 *)&csio->cdb_io.cdb_bytes;
+		bzero (scsi_cmd, sizeof(*scsi_cmd));
+		scsi_cmd->op_code = PLAY_12;
+		scsi_ulto4b(blk, (u_int8_t *)scsi_cmd->blk_addr);
+		scsi_ulto4b(len, (u_int8_t *)scsi_cmd->xfer_len);
+		cdb_len = sizeof(*scsi_cmd);
+	}
+	cam_fill_csio(csio,
+		      /*retries*/2,
+		      cddone,
+		      /*flags*/CAM_DIR_NONE,
+		      MSG_SIMPLE_Q_TAG,
+		      /*dataptr*/NULL,
+		      /*datalen*/0,
+		      /*sense_len*/SSD_FULL_SIZE,
+		      cdb_len,
+		      /*timeout*/50 * 1000);
 
 	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-				  /*sense_flags*/SF_RETRY_UA);
+			 /*sense_flags*/SF_RETRY_UA);
 
 	xpt_release_ccb(ccb);
 
 	return(error);
-
 }
 
 static int
@@ -2855,7 +2869,7 @@ cdplaymsf(struct cam_periph *periph, u_int32_t startm, u_int32_t starts,
 	cam_fill_csio(csio, 
 		      /* retries */ 1, 
 		      /* cbfcnp */ cddone, 
-		      /* flags */ CAM_DIR_IN,
+		      /* flags */ CAM_DIR_NONE,
 		      /* tag_action */ MSG_SIMPLE_Q_TAG,
 		      /* data_ptr */ NULL,
 		      /* dxfer_len */ 0,
@@ -2901,7 +2915,7 @@ cdplaytracks(struct cam_periph *periph, u_int32_t strack, u_int32_t sindex,
 	cam_fill_csio(csio, 
 		      /* retries */ 1, 
 		      /* cbfcnp */ cddone, 
-		      /* flags */ CAM_DIR_IN,
+		      /* flags */ CAM_DIR_NONE,
 		      /* tag_action */ MSG_SIMPLE_Q_TAG,
 		      /* data_ptr */ NULL,
 		      /* dxfer_len */ 0,
@@ -2943,7 +2957,7 @@ cdpause(struct cam_periph *periph, u_int32_t go)
 	cam_fill_csio(csio, 
 		      /* retries */ 1, 
 		      /* cbfcnp */ cddone, 
-		      /* flags */ CAM_DIR_IN,
+		      /* flags */ CAM_DIR_NONE,
 		      /* tag_action */ MSG_SIMPLE_Q_TAG,
 		      /* data_ptr */ NULL,
 		      /* dxfer_len */ 0,
