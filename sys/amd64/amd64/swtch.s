@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.78 1999/04/02 17:59:39 alc Exp $
+ *	$Id: swtch.s,v 1.79 1999/04/28 01:03:25 luoqi Exp $
  */
 
 #include "npx.h"
@@ -250,6 +250,7 @@ rem3id:	.asciz	"remrq.id"
  * to wait for something to come ready.
  */
 	ALIGN_TEXT
+	.type	_idle,@function
 _idle:
 	xorl	%ebp,%ebp
 	movl	%ebp,_switchtime
