@@ -67,6 +67,13 @@ returns, causing the file to be automatically deleted when the last
 reference to it is closed.
 The file is opened with the access value
 .Ql w+ .
+The file is created in the directory determined by the environment variable
+.Ev TMPDIR
+if set.
+The default location if
+.Ev TMPDIR
+is not set is
+.Pa /tmp .
 .Pp
 The
 .Fn tmpnam
