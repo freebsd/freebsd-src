@@ -134,7 +134,7 @@ gdcprobe(device_t dev)
 
 	device_set_desc(dev, "Generic GDC");
 	sc = device_get_softc(dev);
-	return gdc_probe_unit(device_get_unit(dev), sc, isa_get_flags(dev));
+	return gdc_probe_unit(device_get_unit(dev), sc, device_get_flags(dev));
 }
 
 static int
@@ -144,7 +144,7 @@ gdc_attach(device_t dev)
 	int error;
 
 	sc = device_get_softc(dev);
-	error = gdc_attach_unit(device_get_unit(dev), sc, isa_get_flags(dev));
+	error = gdc_attach_unit(device_get_unit(dev), sc, device_get_flags(dev));
 	if (error)
 		return error;
 

@@ -971,8 +971,8 @@ card_intr(struct pccard_devinfo *devi)
 }
 #endif /* NCARD > 0 */
 
-#define SET_FLAG(dev, bit)	isa_set_flags(dev, isa_get_flags(dev) | (bit))
-#define CLR_FLAG(dev, bit)	isa_set_flags(dev, isa_get_flags(dev) & ~(bit))
+#define SET_FLAG(dev, bit)	device_set_flags(dev, device_get_flags(dev) | (bit))
+#define CLR_FLAG(dev, bit)	device_set_flags(dev, device_get_flags(dev) & ~(bit))
 
 static int
 sioprobe(dev)
@@ -988,7 +988,7 @@ sioprobe(dev)
 	u_char		mcr_image;
 	int		result;
 	device_t	xdev;
-	u_int		flags = isa_get_flags(dev);
+	u_int		flags = device_get_flags(dev);
 #ifdef PC98
 	int		irqout=0;
 	int		tmp;
@@ -1520,7 +1520,7 @@ sioattach(dev)
 	void		*ih;
 	struct resource *res;
 	int		zero = 0;
-	u_int		flags = isa_get_flags(dev);
+	u_int		flags = device_get_flags(dev);
 #ifdef PC98
 	int		port_shift = 0;
 	u_char		*obuf;
@@ -1572,8 +1572,8 @@ sioattach(dev)
 
 	com->iobase = iobase;
 #ifdef PC98
-	if (pc98_set_ioport(com, isa_get_flags(dev)) == -1) {
-	    com->pc98_if_type = (isa_get_flags(dev) >> 24) & 0xff;
+	if (pc98_set_ioport(com, device_get_flags(dev)) == -1) {
+	    com->pc98_if_type = (device_get_flags(dev) >> 24) & 0xff;
 	    port_shift = if_16550a_type[com->pc98_if_type & 0x0f].port_shift;
 	    com->data_port = iobase + (com_data << port_shift);
 	    com->int_id_port = iobase + (com_iir << port_shift);
@@ -1833,7 +1833,7 @@ determined_type: ;
 				UID_UUCP, GID_DIALER, 0660, "cuaia%r", unit);
 	make_dev(&sio_cdevsw, unit | CALLOUT_MASK | CONTROL_LOCK_STATE, 
 				UID_UUCP, GID_DIALER, 0660, "cuala%r", unit);
-	com->flags = isa_get_flags(dev); /* Heritate id_flags for later */
+	com->flags = device_get_flags(dev); /* Heritate id_flags for later */
 	com->pps.ppscap = PPS_CAPTUREASSERT | PPS_CAPTURECLEAR;
 	pps_init(&com->pps);
 
@@ -4920,7 +4920,7 @@ pc98_check_if_type(device_t dev, struct siodev *iod)
 		{  3, 10, 12, 13,  5,  6,  9, -1}
 	};
 
-	iod->if_type = if_type = (isa_get_flags(dev) >> 24) & 0xff;
+	iod->if_type = if_type = (device_get_flags(dev) >> 24) & 0xff;
 	if ((if_type < 0 || if_type > COM_IF_END1) &&
 	    (if_type < 0x10 || if_type > COM_IF_END2))
 	    return(-1);
@@ -4966,8 +4966,8 @@ pc98_check_if_type(device_t dev, struct siodev *iod)
 	} else {
 	    irr = if_16550a_type[if_type].irr_read;
 #ifdef COM_MULTIPORT
-	    if (!COM_ISMULTIPORT(isa_get_flags(dev)) ||
-		    device_get_unit(dev) == COM_MPMASTER(isa_get_flags(dev)))
+	    if (!COM_ISMULTIPORT(device_get_flags(dev)) ||
+		    device_get_unit(dev) == COM_MPMASTER(device_get_flags(dev)))
 #endif
 	    if (irr != -1) {
 		tmp = inb(io | irr);
