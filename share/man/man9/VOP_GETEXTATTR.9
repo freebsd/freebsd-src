@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 1999, 2000, 2001 Robert N. M. Watson
+.\" Copyright (c) 1999, 2000, 2001, 2003 Robert N. M. Watson
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -123,3 +123,8 @@ The file system does not support
 .Xr extattr 9 ,
 .Xr vnode 9 ,
 .Xr VOP_SETEXTATTR 9
+.Sh BUGS
+By passing in the empty string as the attribute name, some file systems
+will return a list of defined names on the target vnode for the
+requested namespace.
+This is a bad API, and will be replaced by an explicit VOP.
