@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.20 1995/01/25 20:24:01 ache Exp $
+#	$Id: bsd.prog.mk,v 1.21 1995/01/30 07:20:01 jkh Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -127,8 +127,12 @@ _PROGSUBDIR: .USE
 	done
 .endif
 
+# XXX I think MANDEPEND is only used for groff.  It should be named more
+# generally and perhaps not be in the maninstall dependencies now it is
+# here (or does maninstall always work when nothing is made?),
+
 .MAIN: all
-all: ${PROG} _PROGSUBDIR
+all: ${PROG} ${MANDEPEND} _PROGSUBDIR
 
 .if !target(clean)
 clean: _PROGSUBDIR
@@ -224,4 +228,5 @@ tags: ${SRCS} _PROGSUBDIR
 maninstall:
 .endif
 
+_DEPSUBDIR=	_PROGSUBDIR
 .include <bsd.dep.mk>
