@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.46 1997/10/16 06:29:27 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.47 1997/10/16 07:28:49 julian Exp $
  */
 
 #include "opt_devfs.h"
@@ -861,9 +861,11 @@ DBPRINT(("	vntodn "));
 	case VBAD:
 		printf("bad-type2 (VBAD)");
 		return(EINVAL);
+#if 0
 	case VNON:
 		printf("bad-type2 (VNON)");
 		return(EINVAL);
+#endif
 	}
 	*dn_pp = (dn_p)vn_p->v_data;
 
