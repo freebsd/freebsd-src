@@ -55,7 +55,6 @@ static const char rcsid[] =
 #include <stdarg.h>
 #include <signal.h>
 #include <unistd.h>
-#include <utmp.h>
 
 #include "dump.h"
 #include "pathnames.h"
