@@ -93,10 +93,13 @@ _kernel-depend: assym.s vnode_if.h ${BEFORE_DEPEND} \
 	    ${SYSTEM_SFILES} ${MFILES:T:S/.m$/.h/}
 	if [ -f .olddep ]; then mv .olddep .depend; fi
 	rm -f .newdep
-	env MKDEP_CPP="${CC} -E" CC="${CC}" \
-	    mkdep -a -f .newdep ${CFLAGS} ${CFILES} ${SYSTEM_CFILES} ${GEN_CFILES}
-	env MKDEP_CPP="${CC} -E" \
-	    mkdep -a -f .newdep ${ASM_CFLAGS} ${SFILES} ${SYSTEM_SFILES}
+	#
+	# The argument list can be very long, use make -V and xargs to
+	# pass it to mkdep.
+	${MAKE} -V CFILES -V SYSTEM_CFILES -V GEN_CFILES | xargs \
+	    env MKDEP_CPP="${CC} -E" CC="${CC}" mkdep -a -f .newdep ${CFLAGS}
+	${MAKE} -V SFILES -V SYSTEM_SFILES | xargs \
+	    env MKDEP_CPP="${CC} -E" mkdep -a -f .newdep ${ASM_CFLAGS}
 	rm -f .depend
 	mv .newdep .depend
 
@@ -106,7 +109,7 @@ kernel-cleandepend:
 links:
 	egrep '#if' ${CFILES} | sed -f $S/conf/defines | \
 	  sed -e 's/:.*//' -e 's/\.c/.o/' | sort -u > dontlink
-	echo ${CFILES} | tr -s ' ' '\12' | sed 's/\.c/.o/' | \
+	${MAKE} -V CFILES | tr -s ' ' '\12' | sed 's/\.c/.o/' | \
 	  sort -u | comm -23 - dontlink | \
 	  sed 's,../.*/\(.*.o\),rm -f \1;ln -s ../GENERIC/\1 \1,' > makelinks
 	sh makelinks; rm -f dontlink
