@@ -63,8 +63,8 @@ void     setnnames __P((void));
 #define	F_ISDAYVAR	0x04 /* variables day of week, like SundayLast */
 #define	F_EASTER	0x08 /* Easter or easter depending days */
 
-extern f_dayAfter; /* days after current date */
-extern f_dayBefore; /* days bevore current date */
+extern int f_dayAfter; /* days after current date */
+extern int f_dayBefore; /* days bevore current date */
 
 struct fixs {
 	char *name;

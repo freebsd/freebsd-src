@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)process.c	8.6 (Berkeley) 4/20/94";
 #endif
 static const char rcsid[] =
-	"$Id: process.c,v 1.7 1998/04/29 21:58:36 ache Exp $";
+	"$Id: process.c,v 1.8 1998/12/07 05:33:39 archie Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -464,7 +464,7 @@ lputs(s)
 	struct winsize win;
 	static int termwidth = -1;
 
-	if (termwidth == -1)
+	if (termwidth == -1) {
 		if ((p = getenv("COLUMNS")))
 			termwidth = atoi(p);
 		else if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &win) == 0 &&
@@ -472,6 +472,7 @@ lputs(s)
 			termwidth = win.ws_col;
 		else
 			termwidth = 60;
+	}
 
 	for (count = 0; *s; ++s) {
 		if (count >= termwidth) {

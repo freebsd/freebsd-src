@@ -93,13 +93,14 @@ c_regular(fd1, file1, skip1, len1, fd2, file2, skip2, len2)
 	p1 += skip1 - off1;
 	p2 += skip2 - off2;
 	for (byte = line = 1; length--; ++p1, ++p2, ++byte) {
-		if ((ch = *p1) != *p2)
+		if ((ch = *p1) != *p2) {
 			if (lflag) {
 				dfound = 1;
 				(void)printf("%6qd %3o %3o\n", byte, ch, *p2);
 			} else
 				diffmsg(file1, file2, byte, line);
 				/* NOTREACHED */
+		}
 		if (ch == '\n')
 			++line;
 	}

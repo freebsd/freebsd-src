@@ -109,7 +109,7 @@ pw_copy(ffd, tfd, pw)
 		if (ferror(to))
 			goto err;
 	}
-	if (!done)
+	if (!done) {
 #ifdef YP
 	/* Ultra paranoid: shouldn't happen. */
 		if (getuid())  {
@@ -126,6 +126,7 @@ pw_copy(ffd, tfd, pw)
 		    pw->pw_fields & _PWF_CHANGE ? chgstr : "",
 		    pw->pw_fields & _PWF_EXPIRE ? expstr : "",
 		    pw->pw_gecos, pw->pw_dir, pw->pw_shell);
+	}
 
 	if (ferror(to))
 err:		pw_error(NULL, 1, 1);
