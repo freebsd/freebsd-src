@@ -205,7 +205,7 @@ static kbd_get_state_t	atkbd_get_state;
 static kbd_set_state_t	atkbd_set_state;
 static kbd_poll_mode_t	atkbd_poll;
 
-keyboard_switch_t atkbdsw = {
+static keyboard_switch_t atkbdsw = {
 	atkbd_probe,
 	atkbd_init,
 	atkbd_term,

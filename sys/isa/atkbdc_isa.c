@@ -56,7 +56,7 @@ typedef struct atkbdc_device {
 } atkbdc_device_t;
 
 /* kbdc */
-devclass_t atkbdc_devclass;
+static devclass_t atkbdc_devclass;
 
 static int	atkbdc_probe(device_t dev);
 static int	atkbdc_attach(device_t dev);

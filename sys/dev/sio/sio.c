@@ -327,7 +327,7 @@ static struct cdevsw sio_cdevsw = {
 	.d_kqfilter =	ttykqfilter,
 };
 
-int	comconsole = -1;
+static	int			comconsole = -1;
 static	volatile speed_t	comdefaultrate = CONSPEED;
 static	u_long			comdefaultrclk = DEFAULT_RCLK;
 SYSCTL_ULONG(_machdep, OID_AUTO, conrclk, CTLFLAG_RW, &comdefaultrclk, 0, "");

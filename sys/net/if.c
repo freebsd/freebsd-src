@@ -103,7 +103,7 @@ struct	ifindex_entry *ifindex_table = NULL;
 int	ifqmaxlen = IFQ_MAXLEN;
 struct	ifnethead ifnet;	/* depend on static init XXX */
 struct	mtx ifnet_lock;
-int	if_cloners_count;
+static int	if_cloners_count;
 LIST_HEAD(, if_clone) if_cloners = LIST_HEAD_INITIALIZER(if_cloners);
 
 static int	if_indexlim = 8;
