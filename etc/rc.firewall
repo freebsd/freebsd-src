@@ -229,7 +229,7 @@ case ${firewall_type} in
 	;;
 *)
 	if [ -r "${firewall_type}" ]; then
-		${fwcmd} ${firewall_type}
+		${fwcmd} ${firewall_flags} ${firewall_type}
 	fi
 	;;
 esac
