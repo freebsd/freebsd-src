@@ -9,22 +9,18 @@ setup.
 N.B. All references in this document to `complete source' mean the
 complete source tree minus any legally encumbered cryptography code.
 
-The current "canned" installations are as follows:
+The current "canned" installations are provided:
 
 Developer:      Base ("bin") distribution, man pages, dictionary
                 files, profiling libraries and the complete source tree.
 
-
 Kern-Developer: As above, but with only kernel sources instead of
                 the complete source tree.
-
 
 User:           The base distribution, man pages, dictionary files and
                 the FreeBSD 1.x and 2.0 compatibility sets.
 
-
 Minimal:        Only the base distribution.
-
 
 Everything:     The base distribution, man pages, dictionary files,
                 profiling libraries, the FreeBSD 1.x and the FreeBSD 2.0
@@ -32,13 +28,10 @@ Everything:     The base distribution, man pages, dictionary files,
                 games and your choice of XFree86 distribution components.
                 N.B. Still no cryptocraphy source code!
 
-
 Custom:         Allows you to modify or create your distribution set on
                 a piece-by-piece basis.
 
-
 Reset:          Clear all currently selected distributions.
-
 
 ---
 
@@ -50,15 +43,6 @@ obvious, though two possible exceptions may be the "commerce" and
         commercial offerings.  This includes commercial products released
         under special arrangement, limited functionality demos, shareware
         products (you like it, you buy it), etc.
-
-        At the time of this writing, there are unfortunately not enough
-        commercial offerings to justify a fully split distribution set,
-        so each product is available both as a subdirectory and as part
-        of one large archive file.  If you select "commerce" from the
-        distributions submenus then you'll get the big file containing
-        the entire collection copied to your hard disk.  Don't do this
-        unless you've got at least 10MB to devote to it!
-
 
         * The "xperimnt" directory contains, not surprisingly, experimental
         offerings.  Unfinished (or work-in-progress) features, special
@@ -84,7 +68,7 @@ servers!
 A number of "foreign" servers do exist for the benefit of
 non-U.S. sites, one of which is:
 
-	ftp://ftp.internat.freebsd.org/pub/FreeBSD
+        ftp://ftp.internat.freebsd.org/pub/FreeBSD
 
 Please get all such export restricted software from there
 if you are outside the U.S., thanks!

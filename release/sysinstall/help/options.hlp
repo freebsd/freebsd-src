@@ -1,4 +1,5 @@
-The following options may be set from this screen:
+The following options may be set from this screen.  Use the SPACE key
+to toggle an option's value, Q to leave when you're done.
 
 NFS Secure:   NFS server talks only on a secure port
 
@@ -77,14 +78,3 @@ Release Name:  Which release to attempt to load from installation media.
 Clear:        Clear All Option Flags
 
     Reset all option flags back to their default values.
-
-----
-
-Some of these items, like "FTP Active" or "FTP Passive", are actually
-mutually-exclusive even though you can turn all of them on or off at
-once.  This is a limitation of the menuing system, and is compensated
-for by checks that ensure that the various flags are not in conflict.
-If you re-enter the Options menu again after leaving it, you'll see
-the settings it's actually using after checking for any possible
-conflicts.
-

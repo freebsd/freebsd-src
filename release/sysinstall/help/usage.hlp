@@ -50,10 +50,10 @@ it now!) though it's also useful when dealing with sub-shells or other
 "wizard modes" that don't use menus and tend to scroll their output
 off the top of the screen.
 
-Once the system is fully installed and running multi-user, you will
+Once the system is fully installed and running multi-user you will
 also find that you have multiple "virtual consoles" and can use them
 to have several active sessions at once.  Use ALT-F<n> to switch
 between them, where `F<n>' is the function key corresponding to the
 screen you wish to see.  By default, the system comes with 3 virtual
-consoles enabled.  You can create more by editing the /etc/ttys file,
-once the system is up, for a maximum of 12.
+consoles enabled.  You can create more by editing the /etc/ttys file
+(up to a maximum of 12).
