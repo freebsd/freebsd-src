@@ -243,9 +243,6 @@ struct region_descriptor {
 #define NLDT		(LBSDICALLS_SEL + 1)
 
 #ifdef _KERNEL
-#ifndef currentldt
-extern int	currentldt;
-#endif
 extern int	_default_ldt;
 extern union descriptor gdt[];
 extern struct soft_segment_descriptor gdt_segs[];
