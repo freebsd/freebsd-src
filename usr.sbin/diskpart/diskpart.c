@@ -55,6 +55,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #define	for_now			/* show all of `c' partition for disklabel */
 #define	NPARTITIONS	8
@@ -126,22 +127,29 @@ main(argc, argv)
 	int threshhold, numcyls[NPARTITIONS], startcyl[NPARTITIONS];
 	int totsize = 0;
 	char *lp, *tyname;
+	int ch;
 
-	argc--, argv++;
+	while ((ch = getopt(argc, argv, "dps:")) != EOF)
+		switch (ch) {
+			case 'd':
+				dflag++;
+				break;
+				
+			case 'p':
+				pflag++;
+				break;
+
+			case 's':
+				totsize = atoi(optarg);
+				break;
+		}
+	argc -= optind;
+	argv += optind;
+
+	if (dflag && pflag)
+		usage();
 	if (argc < 1)
 		usage();
-	if (argc > 0 && strcmp(*argv, "-p") == 0) {
-		pflag++;
-		argc--, argv++;
-	}
-	if (argc > 0 && strcmp(*argv, "-d") == 0) {
-		dflag++;
-		argc--, argv++;
-	}
-	if (argc > 1 && strcmp(*argv, "-s") == 0) {
-		totsize = atoi(argv[1]);
-		argc += 2, argv += 2;
-	}
 	dp = getdiskbyname(*argv);
 	if (dp == NULL) {
 		if (isatty(0))
