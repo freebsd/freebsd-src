@@ -72,6 +72,8 @@ ckinode(dp, idesc)
 	    (dp->di_size < sblock.fs_maxsymlinklen || dp->di_blocks == 0)))
 		return (KEEPON);
 	dino = *dp;
+	if (!sblock.fs_bsize)
+		errexit("!sblock.fs_bsize\n");
 	ndb = howmany(dino.di_size, sblock.fs_bsize);
 	for (ap = &dino.di_db[0]; ap < &dino.di_db[NDADDR]; ap++) {
 		if (--ndb == 0 && (offset = blkoff(&sblock, dino.di_size)) != 0)
@@ -168,6 +170,8 @@ iblock(idesc, ilevel, isize)
 	ilevel--;
 	for (sizepb = sblock.fs_bsize, i = 0; i < ilevel; i++)
 		sizepb *= NINDIR(&sblock);
+	if (!sizepb)
+		errexit("!sizepb\n");
 	nif = howmany(isize , sizepb);
 	if (nif > NINDIR(&sblock))
 		nif = NINDIR(&sblock);
@@ -234,7 +238,7 @@ chkrange(blk, cnt)
 {
 	register int c;
 
-	if ((unsigned)(blk + cnt) > maxfsblock)
+	if (blk < 0 || blk >= maxfsblock || cnt < 0 || cnt > maxfsblock - blk)
 		return (1);
 	c = dtog(&sblock, blk);
 	if (blk < cgdmin(&sblock, c)) {
@@ -368,6 +372,8 @@ cacheino(dp, inumber)
 	struct inoinfo **inpp;
 	unsigned int blks;
 
+	if (!sblock.fs_bsize)
+		errexit("!sblock.fs_bsize\n");
 	blks = howmany(dp->di_size, sblock.fs_bsize);
 	if (blks > NDADDR)
 		blks = NDADDR + NIADDR;
