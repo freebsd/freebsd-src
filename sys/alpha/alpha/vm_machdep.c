@@ -379,11 +379,12 @@ grow_stack(p, sp)
 	return (1);
 }
 
+SYSCTL_DECL(_vm_stats_misc);
 
 static int cnt_prezero;
 
-SYSCTL_INT(_machdep, OID_AUTO, cnt_prezero, CTLFLAG_RD, &cnt_prezero, 0, "");
-
+SYSCTL_INT(_vm_stats_misc, OID_AUTO,
+	cnt_prezero, CTLFLAG_RD, &cnt_prezero, 0, "");
 /*
  * Implement the pre-zeroed page mechanism.
  * This routine is called from the idle loop.
