@@ -21,7 +21,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.h,v 1.8 1996/09/19 17:28:34 peter Exp $
+ * $Id: ftpio.h,v 1.9 1996/11/14 05:22:12 ache Exp $
  */
 
 /* Internal housekeeping data structure for FTP sessions */
@@ -46,7 +46,7 @@ extern struct	ftperr ftpErrList[];
 extern int	const ftpErrListLength;
 
 /* Exported routines - deal only with FILE* type */
-extern FILE	*ftpLogin(char *host, char *user, char *passwd, int port, int verbose);
+extern FILE	*ftpLogin(char *host, char *user, char *passwd,	int port, int verbose, int *retcode);
 extern int	ftpChdir(FILE *fp, char *dir);
 extern int	ftpErrno(FILE *fp);
 extern off_t	ftpGetSize(FILE *fp, char *file);
@@ -56,8 +56,8 @@ extern int	ftpAscii(FILE *fp);
 extern int	ftpBinary(FILE *fp);
 extern int	ftpPassive(FILE *fp, int status);
 extern void	ftpVerbose(FILE *fp, int status);
-extern FILE	*ftpGetURL(char *url, char *user, char *passwd);
-extern FILE	*ftpPutURL(char *url, char *user, char *passwd);
+extern FILE	*ftpGetURL(char	*url, char *user, char *passwd,	int *retcode);
+extern FILE	*ftpPutURL(char	*url, char *user, char *passwd,	int *retcode);
 extern time_t	ftpGetModtime(FILE *fp, char *s);
 extern const	char *ftpErrString(int errno);
 
