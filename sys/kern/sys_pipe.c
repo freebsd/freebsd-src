@@ -53,11 +53,6 @@
  * SMALL_PIPE_SIZE, rather than PIPE_SIZE.  Big pipe creation will be limited
  * as well.  This value is loader tunable only.
  *
- * kern.ipc.maxpipekvawired - This value limits the amount of memory that may
- * be wired in order to facilitate direct copies using page flipping.
- * Whenever this value is exceeded, pipes will fall back to using regular
- * copies.  This value is sysctl controllable at all times.
- *
  * These values are autotuned in subr_param.c.
  *
  * Memory usage may be monitored through the sysctls
@@ -159,22 +154,17 @@ static int nbigpipe;
 
 static int amountpipes;
 static int amountpipekva;
-static int amountpipekvawired;
 
 SYSCTL_DECL(_kern_ipc);
 
 SYSCTL_INT(_kern_ipc, OID_AUTO, maxpipekva, CTLFLAG_RDTUN,
 	   &maxpipekva, 0, "Pipe KVA limit");
-SYSCTL_INT(_kern_ipc, OID_AUTO, maxpipekvawired, CTLFLAG_RW,
-	   &maxpipekvawired, 0, "Pipe KVA wired limit");
 SYSCTL_INT(_kern_ipc, OID_AUTO, pipes, CTLFLAG_RD,
 	   &amountpipes, 0, "Current # of pipes");
 SYSCTL_INT(_kern_ipc, OID_AUTO, bigpipes, CTLFLAG_RD,
 	   &nbigpipe, 0, "Current # of big pipes");
 SYSCTL_INT(_kern_ipc, OID_AUTO, pipekva, CTLFLAG_RD,
 	   &amountpipekva, 0, "Pipe KVA usage");
-SYSCTL_INT(_kern_ipc, OID_AUTO, pipekvawired, CTLFLAG_RD,
-	   &amountpipekvawired, 0, "Pipe wired KVA usage");
 
 static void pipeinit(void *dummy __unused);
 static void pipeclose(struct pipe *cpipe);
@@ -584,14 +574,12 @@ pipe_read(fp, uio, active_cred, flags, td)
 		 */
 		} else if ((size = rpipe->pipe_map.cnt) &&
 			   (rpipe->pipe_state & PIPE_DIRECTW)) {
-			caddr_t	va;
 			if (size > (u_int) uio->uio_resid)
 				size = (u_int) uio->uio_resid;
 
-			va = (caddr_t) rpipe->pipe_map.kva +
-			    rpipe->pipe_map.pos;
 			PIPE_UNLOCK(rpipe);
-			error = uiomove(va, size, uio);
+			error = uiomove_fromphys(rpipe->pipe_map.ms,
+			    rpipe->pipe_map.pos, size, uio);
 			PIPE_LOCK(rpipe);
 			if (error)
 				break;
@@ -736,22 +724,6 @@ pipe_build_write_buffer(wpipe, uio)
 	wpipe->pipe_map.cnt = size;
 
 /*
- * and map the buffer
- */
-	if (wpipe->pipe_map.kva == 0) {
-		/*
-		 * We need to allocate space for an extra page because the
-		 * address range might (will) span pages at times.
-		 */
-		wpipe->pipe_map.kva = kmem_alloc_nofault(kernel_map,
-			wpipe->pipe_buffer.size + PAGE_SIZE);
-		atomic_add_int(&amountpipekvawired,
-		    wpipe->pipe_buffer.size + PAGE_SIZE);
-	}
-	pmap_qenter(wpipe->pipe_map.kva, wpipe->pipe_map.ms,
-		wpipe->pipe_map.npages);
-
-/*
  * and update the uio data
  */
 
@@ -773,20 +745,7 @@ pipe_destroy_write_buffer(wpipe)
 {
 	int i;
 
-	PIPE_LOCK_ASSERT(wpipe, MA_NOTOWNED);
-	if (wpipe->pipe_map.kva) {
-		pmap_qremove(wpipe->pipe_map.kva, wpipe->pipe_map.npages);
-
-		if (amountpipekvawired > maxpipekvawired / 2) {
-			/* Conserve address space */
-			vm_offset_t kva = wpipe->pipe_map.kva;
-			wpipe->pipe_map.kva = 0;
-			kmem_free(kernel_map, kva,
-			    wpipe->pipe_buffer.size + PAGE_SIZE);
-			atomic_subtract_int(&amountpipekvawired,
-			    wpipe->pipe_buffer.size + PAGE_SIZE);
-		}
-	}
+	PIPE_LOCK_ASSERT(wpipe, MA_OWNED);
 	vm_page_lock_queues();
 	for (i = 0; i < wpipe->pipe_map.npages; i++) {
 		vm_page_unhold(wpipe->pipe_map.ms[i]);
@@ -804,6 +763,8 @@ static void
 pipe_clone_write_buffer(wpipe)
 	struct pipe *wpipe;
 {
+	struct uio uio;
+	struct iovec iov;
 	int size;
 	int pos;
 
@@ -817,10 +778,18 @@ pipe_clone_write_buffer(wpipe)
 	wpipe->pipe_state &= ~PIPE_DIRECTW;
 
 	PIPE_UNLOCK(wpipe);
-	bcopy((caddr_t) wpipe->pipe_map.kva + pos,
-	    wpipe->pipe_buffer.buffer, size);
-	pipe_destroy_write_buffer(wpipe);
+	iov.iov_base = wpipe->pipe_buffer.buffer;
+	iov.iov_len = size;
+	uio.uio_iov = &iov;
+	uio.uio_iovcnt = 1;
+	uio.uio_offset = 0;
+	uio.uio_resid = size;
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_rw = UIO_READ;
+	uio.uio_td = curthread;
+	uiomove_fromphys(wpipe->pipe_map.ms, pos, size, &uio);
 	PIPE_LOCK(wpipe);
+	pipe_destroy_write_buffer(wpipe);
 }
 
 /*
@@ -893,9 +862,7 @@ retry:
 	while (!error && (wpipe->pipe_state & PIPE_DIRECTW)) {
 		if (wpipe->pipe_state & PIPE_EOF) {
 			pipelock(wpipe, 0);
-			PIPE_UNLOCK(wpipe);
 			pipe_destroy_write_buffer(wpipe);
-			PIPE_LOCK(wpipe);
 			pipeselwakeup(wpipe);
 			pipeunlock(wpipe);
 			error = EPIPE;
@@ -920,9 +887,7 @@ retry:
 		 */
 		pipe_clone_write_buffer(wpipe);
 	} else {
-		PIPE_UNLOCK(wpipe);
 		pipe_destroy_write_buffer(wpipe);
-		PIPE_LOCK(wpipe);
 	}
 error2:
 	pipeunlock(wpipe);
@@ -1021,8 +986,7 @@ pipe_write(fp, uio, active_cred, flags, td)
 		 * away on us.
 		 */
 		if ((uio->uio_iov->iov_len >= PIPE_MINDIRECT) &&
-		    (fp->f_flag & FNONBLOCK) == 0 &&
-		    amountpipekvawired + uio->uio_resid < maxpipekvawired) {
+		    (fp->f_flag & FNONBLOCK) == 0) {
 			error = pipe_direct_write(wpipe, uio);
 			if (error)
 				break;
@@ -1436,14 +1400,8 @@ pipe_free_kmem(cpipe)
 		cpipe->pipe_buffer.buffer = NULL;
 	}
 #ifndef PIPE_NODIRECT
-	if (cpipe->pipe_map.kva != 0) {
-		atomic_subtract_int(&amountpipekvawired,
-		    cpipe->pipe_buffer.size + PAGE_SIZE);
-		kmem_free(kernel_map,
-			cpipe->pipe_map.kva,
-			cpipe->pipe_buffer.size + PAGE_SIZE);
+	{
 		cpipe->pipe_map.cnt = 0;
-		cpipe->pipe_map.kva = 0;
 		cpipe->pipe_map.pos = 0;
 		cpipe->pipe_map.npages = 0;
 	}
