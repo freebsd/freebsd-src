@@ -9,7 +9,7 @@ if [ $# -lt 1 ]; then
 	echo "possible subcomponents are:"
 	echo
 	echo "base bin etc games gnu include lib libexec lkm release"
-	echo "sbin share smailcf sys subin susbin"
+	echo "sbin share smailcf sys ubin usbin"
 	echo
 	exit 1
 fi
