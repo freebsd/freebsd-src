@@ -136,8 +136,8 @@ void		kobj_delete(kobj_t obj, struct malloc_type *mtype);
  * Maintain stats on hits/misses in lookup caches.
  */
 #ifdef KOBJ_STATS
-extern int kobj_lookup_hits;
-extern int kobj_lookup_misses;
+extern u_int kobj_lookup_hits;
+extern u_int kobj_lookup_misses;
 #define KOBJOPHIT	do { kobj_lookup_hits++; } while (0)
 #define KOBJOPMISS	do { kobj_lookup_misses++; } while (0)
 #else

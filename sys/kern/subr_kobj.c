@@ -47,12 +47,12 @@ static MALLOC_DEFINE(M_KOBJ, "kobj", "Kernel object structures");
 
 #include <sys/sysctl.h>
 
-int kobj_lookup_hits;
-int kobj_lookup_misses;
+u_int kobj_lookup_hits;
+u_int kobj_lookup_misses;
 
-SYSCTL_INT(_kern, OID_AUTO, kobj_hits, CTLFLAG_RD,
+SYSCTL_UINT(_kern, OID_AUTO, kobj_hits, CTLFLAG_RD,
 	   &kobj_lookup_hits, 0, "")
-SYSCTL_INT(_kern, OID_AUTO, kobj_misses, CTLFLAG_RD,
+SYSCTL_UINT(_kern, OID_AUTO, kobj_misses, CTLFLAG_RD,
 	   &kobj_lookup_misses, 0, "")
 
 #endif
