@@ -110,6 +110,9 @@ procfs_control(curp, p, op)
 {
 	int error;
 
+	/* Can't trace a process that's currently exec'ing. */ 
+	if ((p->p_flag & P_INEXEC) != 0)
+		return EAGAIN;
 	/*
 	 * Authorization check: rely on normal debugging protection, except
 	 * allow processes to disengage debugging on a process onto which
