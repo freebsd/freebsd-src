@@ -82,7 +82,6 @@
 #endif
 
 static void cv_timedwait_end(void *arg);
-static void cv_check_upcall(struct thread *td);
 
 /*
  * Initialize a condition variable.  Must be called before use.
@@ -112,11 +111,10 @@ cv_destroy(struct cv *cvp)
  */
 
 /*
- * Decide if we need to queue an upcall.
- * This is copied from msleep(), perhaps this should be a common function.
+ * Switch context.
  */
-static void
-cv_check_upcall(struct thread *td)
+static __inline void
+cv_switch(struct thread *td)
 {
 
 	/*
@@ -127,8 +125,7 @@ cv_check_upcall(struct thread *td)
 	 * the thread (recursion here might be bad).
 	 * Hence the TDF_INMSLEEP flag.
 	 */
-	if ((td->td_proc->p_flag & P_KSES) && td->td_mailbox &&
-	    (td->td_flags & TDF_INMSLEEP) == 0) {
+	if ((td->td_flags & (TDF_UNBOUND|TDF_INMSLEEP)) == TDF_UNBOUND) {
 		/*
 		 * We don't need to upcall now, just queue it.
 		 * The upcall will happen when other n-kernel work
@@ -139,16 +136,6 @@ cv_check_upcall(struct thread *td)
 		thread_schedule_upcall(td, td->td_kse);
 		td->td_flags &= ~TDF_INMSLEEP;
 	}
-}
-
-/*
- * Switch context.
- */
-static __inline void
-cv_switch(struct thread *td)
-{
-
-	cv_check_upcall(td);
 	TD_SET_SLEEPING(td);
 	td->td_proc->p_stats->p_ru.ru_nvcsw++;
 	mi_switch();

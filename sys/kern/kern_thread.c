@@ -1185,7 +1185,7 @@ thread_user_enter(struct proc *p, struct thread *td)
 	 * but for now do it every time.
 	 */
 	ke = td->td_kse;
-	if (ke->ke_mailbox != NULL) {
+	if ((ke->ke_mailbox) != NULL) {
 #if 0
 		td->td_mailbox = (void *)fuword((caddr_t)ke->ke_mailbox
 		    + offsetof(struct kse_mailbox, km_curthread));
@@ -1445,28 +1445,41 @@ thread_single(int force_exit)
 		p->p_flag &= ~P_SINGLE_EXIT;
 	p->p_flag |= P_STOPPED_SINGLE;
 	p->p_singlethread = td;
+	/* XXXKSE Which lock protects the below values? */
 	while ((p->p_numthreads - p->p_suspcount) != 1) {
 		mtx_lock_spin(&sched_lock);
 		FOREACH_THREAD_IN_PROC(p, td2) {
 			if (td2 == td)
 				continue;
 			if (TD_IS_INHIBITED(td2)) {
-				if (TD_IS_SUSPENDED(td2)) {
-					if (force_exit == SINGLE_EXIT) {
+				if (force_exit == SINGLE_EXIT) {
+					if (TD_IS_SUSPENDED(td2)) {
 						thread_unsuspend_one(td2);
-					} else {
-						continue;
 					}
-				}
-				if (TD_ON_SLEEPQ(td2) &&
-				    (td2->td_flags & TDF_SINTR)) {
-					if (td2->td_flags & TDF_CVWAITQ)
-						cv_abort(td2);
-					else
-						abortsleep(td2);
+					if (TD_ON_SLEEPQ(td2) &&
+					    (td2->td_flags & TDF_SINTR)) {
+						if (td2->td_flags & TDF_CVWAITQ)
+							cv_abort(td2);
+						else
+							abortsleep(td2);
+					}
+				} else {
+					if (TD_IS_SUSPENDED(td2))
+						continue;
+					/* maybe other inhibitted states too? */
+					if (TD_IS_SLEEPING(td2)) 
+						thread_suspend_one(td2);
 				}
 			}
 		}
+		/* 
+		 * Maybe we suspended some threads.. was it enough? 
+		 */
+		if ((p->p_numthreads - p->p_suspcount) == 1) {
+			mtx_unlock_spin(&sched_lock);
+			break;
+		}
+
 		/*
 		 * Wake us up when everyone else has suspended.
 		 * In the mean time we suspend as well.
@@ -1622,6 +1635,7 @@ thread_suspend_one(struct thread *td)
 	 * Hack: If we are suspending but are on the sleep queue
 	 * then we are in msleep or the cv equivalent. We
 	 * want to look like we have two Inhibitors.
+	 * May already be set.. doesn't matter.
 	 */
 	if (TD_ON_SLEEPQ(td))
 		TD_SET_SLEEPING(td);
