@@ -2008,6 +2008,7 @@ _icmp_fqdn_query(const struct in6_addr *addr, int ifindex)
 			return hc->hc_name;	/* XXX: never freed */
 		}
 	}
+	THREAD_UNLOCK();
 
 	ICMP6_FILTER_SETBLOCKALL(&filter);
 	ICMP6_FILTER_SETPASS(ICMP6_FQDN_REPLY, &filter);
