@@ -165,15 +165,11 @@ struct md_page {
 	TAILQ_HEAD(,pv_entry)	pv_list;
 };
 
-#define PV_TABLE_MOD		0x01 /* modified */
-#define PV_TABLE_REF		0x02 /* referenced */
-
 struct pmap {
 	pt_entry_t		*pm_lev1;	/* KVA of lev0map */
 	vm_object_t		pm_pteobj;	/* Container for pte's */
 	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
 	int			pm_count;	/* reference count */
-	int			pm_flags;	/* pmap flags */
 	u_int32_t		pm_active;	/* active cpus */
 	struct {
 		u_int32_t	asn:8;		/* address space number */
