@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: pen.c,v 1.12 1995/04/22 13:58:44 jkh Exp $";
+static const char *rcsid = "$Id: pen.c,v 1.13 1995/04/26 07:43:35 jkh Exp $";
 #endif
 
 /*
@@ -30,6 +30,7 @@ static const char *rcsid = "$Id: pen.c,v 1.12 1995/04/22 13:58:44 jkh Exp $";
 /* For keeping track of where we are */
 static char Cwd[FILENAME_MAX];
 static char Pen[FILENAME_MAX];
+extern char *PlayPen;
 
 /*
  * Make a temporary directory to play in and chdir() to it, returning
@@ -45,6 +46,7 @@ make_playpen(char *pen, size_t sz)
 	    sprintf(Pen, "%s/instmp.XXXXXX", cp);
 	else
 	    strcpy(Pen, "/var/tmp/instmp.XXXXXX");
+	PlayPen = Pen;
     }
     else
 	strcpy(Pen, pen);
@@ -63,6 +65,7 @@ make_playpen(char *pen, size_t sz)
     if (min_free(Pen) < sz) {
 	rmdir(Pen);
 	barf("Not enough free space to create `%s'.\nPlease set your PKG_TMPDIR environment variable to a location with more space and\ntry the command again.", Pen);
+	PlayPen = NULL;
     }
     if (chdir(Pen) == FAIL)
 	barf("Can't chdir to '%s'.", Pen);
