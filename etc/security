@@ -1,7 +1,7 @@
 #!/bin/sh -
 #
 #	@(#)security	5.3 (Berkeley) 5/28/91
-#	$Id: security,v 1.28 1999/01/01 17:37:33 billf Exp $
+#	$Id: security,v 1.29 1999/01/10 11:18:59 danny Exp $
 #
 PATH=/sbin:/bin:/usr/bin
 LC_ALL=C; export LC_ALL
@@ -54,7 +54,7 @@ awk -F: '$3==0 {print $1,$3}' /etc/master.passwd
 
 separator
 echo "checking for passwordless accounts:"
-awk -F: '$2=="" {print $0}' /etc/master.passwd
+awk -F: '$1 !~ /^\+/ && $2=="" {print $0}' /etc/master.passwd
 
 # show denied packets
 if ipfw -a l 2>/dev/null | egrep "deny|reset|unreach" > $TMP; then
