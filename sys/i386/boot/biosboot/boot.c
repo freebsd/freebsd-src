@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.37 1995/04/20 06:08:27 phk Exp $
+ *	$Id: boot.c,v 1.38 1995/04/20 18:36:14 phk Exp $
  */
 
 
@@ -94,25 +94,32 @@ boot(int drive)
 	bootinfo.bi_extmem = memsize(1);
 	bootinfo.bi_memsizes_valid = 1;
 
-	printf("\n>> FreeBSD BOOT @ 0x%x: %d/%d k of memory\n"
-	       "Use hd(1,a)/kernel to boot sd0 when wd0 is also installed.\n"
-	       "Usage: [[%s(%d,a)]%s][-abcCdhrsv]\n"
-	       "Use ? for file list or press Enter for defaults\n\n",
-	       ouraddr, bootinfo.bi_basemem, bootinfo.bi_extmem,
-	       devs[drive & 0x80 ? 0 : 2], drive & 0x7f, name);
-
 	gateA20();
 
-loadstart:
+
 	/***************************************************************\
 	* As a default set it to the first partition of the boot	*
 	* floppy or hard drive						*
+	* Define BOOT_HT to boot sd0 when wd0 is also installed		*
 	\***************************************************************/
 	part = 0;
 	unit = drive & 0x7f;
+#ifdef	BOOT_HD
+	maj = (drive&0x80 ? 0 : 1);		/* a good first bet */
+#else
 	maj = (drive&0x80 ? 0 : 2);		/* a good first bet */
+#endif
 
-	printf("Boot: ");
+loadstart:
+	/* print this all each time.. (saves space to do so) */
+	/* If we have looped, use the previous entries as defaults */
+	printf("\n>> FreeBSD BOOT @ 0x%x: %d/%d k of memory\n"
+	       "Use hd(1,a)/kernel to boot sd0 when wd0 is also installed.\n"
+	       "Usage: [[%s(%d,a)]%s][-abcCdhrsv]\n"
+	       "Use ? for file list or press Enter for defaults\n\nBoot: ",
+	       ouraddr, bootinfo.bi_basemem, bootinfo.bi_extmem,
+	       devs[maj], unit, name);
+
 	/*
 	 * Be paranoid and make doubly sure that the input
 	 * buffer is empty.
