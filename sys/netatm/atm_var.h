@@ -168,7 +168,6 @@ void		atm_initialize(void);
 void *		atm_allocate(struct sp_info *);
 void		atm_free(void *);
 void		atm_release_pool(struct sp_info *);
-void		atm_uma_ctor(void *, int);
 void		atm_timeout(struct atm_time *, int, 
 			void (*)(struct atm_time *) );
 int		atm_untimeout(struct atm_time *);
