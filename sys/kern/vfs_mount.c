@@ -1166,37 +1166,6 @@ dounmount(mp, flags, td)
 }
 
 /*
- * Lookup a filesystem type, and if found allocate and initialize
- * a mount structure for it.
- *
- * Devname is usually updated by mount(8) after booting.
- */
-int
-vfs_rootmountalloc(fstypename, devname, mpp)
-	char *fstypename;
-	char *devname;
-	struct mount **mpp;
-{
-	struct thread *td = curthread;	/* XXX */
-	struct vfsconf *vfsp;
-	struct mount *mp;
-	int error;
-
-	if (fstypename == NULL)
-		return (ENODEV);
-	vfsp = vfs_byname(fstypename);
-	if (vfsp == NULL)
-		return (ENODEV);
-	error = vfs_mount_alloc(NULLVP, vfsp, "/", td, &mp);
-	if (error)
-		return (error);
-	mp->mnt_flag |= MNT_RDONLY | MNT_ROOTFS;
-	strlcpy(mp->mnt_stat.f_mntfromname, devname, MNAMELEN);
-	*mpp = mp;
-	return (0);
-}
-
-/*
  * Find and mount the root filesystem
  */
 void
@@ -1289,6 +1258,8 @@ static int
 vfs_mountroot_try(const char *mountfrom)
 {
         struct mount	*mp;
+	struct thread	*td = curthread;
+	struct vfsconf	*vfsp;
 	char		*vfsname, *path;
 	int		error;
 	char		patt[32];
@@ -1303,7 +1274,7 @@ vfs_mountroot_try(const char *mountfrom)
 		return (error);		/* don't complain */
 
 	s = splcam();			/* Overkill, but annoying without it */
-	printf("Mounting root from %s\n", mountfrom);
+	printf("Trying to mount root from %s\n", mountfrom);
 	splx(s);
 
 	/* parse vfs name and path */
@@ -1314,14 +1285,23 @@ vfs_mountroot_try(const char *mountfrom)
 	if (sscanf(mountfrom, patt, vfsname, path) < 1)
 		goto done;
 
-	/* allocate a root mount */
-	error = vfs_rootmountalloc(vfsname, path[0] != 0 ? path : ROOTNAME,
-	    &mp);
-	if (error != 0) {
-		printf("Can't allocate root mount for filesystem '%s': %d\n",
-		       vfsname, error);
+	if (path[0] == '\0')
+		strcpy(path, ROOTNAME);
+
+	vfsp = vfs_byname(vfsname);
+	if (vfsp == NULL) {
+		printf("Can't find filesystem \"%s\"\n", vfsname);
 		goto done;
 	}
+	error = vfs_mount_alloc(NULLVP, vfsp, "/", td, &mp);
+	if (error) {
+		printf("Could not alloc mountpoint\n");
+		goto done;
+	}
+
+	mp->mnt_flag |= MNT_RDONLY | MNT_ROOTFS;
+
+	strlcpy(mp->mnt_stat.f_mntfromname, path, MNAMELEN);
 
 	/*
 	 * do our best to set rootdev
