@@ -29,6 +29,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <isa/isavar.h>
@@ -56,12 +57,18 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 	struct isa_config *config;
 	int ncfgs = 1;
 	int priorities[1 + MAXDEP];
-	struct isa_config configs[1 + MAXDEP];
+	struct isa_config *configs;
 	char buf[100];
 	int i;
 
 	id = isa_get_logicalid(dev);
-	bzero(configs, sizeof configs);
+	configs = (struct isa_config *)malloc(sizeof(*configs) * (1 + MAXDEP),
+						M_DEVBUF, M_NOWAIT);
+	if (configs == NULL) {
+		device_printf(dev, "No memory to parse PNP data\n");
+		return;
+	}
+	bzero(configs, sizeof(*configs) * (1 + MAXDEP));
 	config = &configs[0];
 	priorities[0] = 0;
 	resp = resources;
@@ -271,7 +278,7 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 				}
 
 				if (config->ic_nmem == ISA_NMEM) {
-					device_printf(parent, "too many memory ranges");
+					device_printf(parent, "too many memory ranges\n");
 					scanning = 0;
 					break;
 				}
@@ -367,6 +374,7 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 	if(ncfgs == 1) {
 		/* Single config without dependants */
 		(void)ISA_ADD_CONFIG(parent, dev, priorities[0], &configs[0]);
+		free(configs, M_DEVBUF);
 		return;
 	}
 	/* Cycle through dependant configs merging primary details */
@@ -376,6 +384,7 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 		for(j = 0; j < configs[0].ic_nmem; j++) {
 			if (config->ic_nmem == ISA_NMEM) {
 				device_printf(parent, "too many memory ranges\n");
+				free(configs, M_DEVBUF);
 				return;
 			}
 			config->ic_mem[config->ic_nmem] = configs[0].ic_mem[j];
@@ -384,6 +393,7 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 		for(j = 0; j < configs[0].ic_nport; j++) {
 			if (config->ic_nport == ISA_NPORT) {
 				device_printf(parent, "too many port ranges\n");
+				free(configs, M_DEVBUF);
 				return;
 			}
 			config->ic_port[config->ic_nport] = configs[0].ic_port[j];
@@ -392,6 +402,7 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 		for(j = 0; j < configs[0].ic_nirq; j++) {
 			if (config->ic_nirq == ISA_NIRQ) {
 				device_printf(parent, "too many irq ranges\n");
+				free(configs, M_DEVBUF);
 				return;
 			}
 			config->ic_irqmask[config->ic_nirq] = configs[0].ic_irqmask[j];
@@ -400,6 +411,7 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 		for(j = 0; j < configs[0].ic_ndrq; j++) {
 			if (config->ic_ndrq == ISA_NDRQ) {
 				device_printf(parent, "too many drq ranges\n");
+				free(configs, M_DEVBUF);
 				return;
 			}
 			config->ic_drqmask[config->ic_ndrq] = configs[0].ic_drqmask[j];
@@ -407,4 +419,5 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 		}
 		(void)ISA_ADD_CONFIG(parent, dev, priorities[i], &configs[i]);
 	}
+	free(configs, M_DEVBUF);
 }
