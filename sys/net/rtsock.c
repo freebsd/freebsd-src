@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.20.2.1 1997/02/21 17:30:17 fenner Exp $
+ *	$Id: rtsock.c,v 1.20.2.2 1997/07/15 23:18:56 julian Exp $
  */
 
 #include <sys/param.h>
@@ -395,6 +395,7 @@ rt_xaddrs(cp, cplim, rtinfo)
 	for (i = 0; i < RTAX_MAX; i++) {
 		if ((rtinfo->rti_addrs & (1 << i)) == 0)
 			continue;
+		sa = (struct sockaddr *)cp;
 		/*
 		 * It won't fit. Pretend it doesn't exist.
 		 * Would return EINVAL if not void
@@ -409,7 +410,7 @@ rt_xaddrs(cp, cplim, rtinfo)
 		 */
 		if (sa->sa_len == 0)
 			return;
-		rtinfo->rti_info[i] = sa = (struct sockaddr *)cp;
+		rtinfo->rti_info[i] = sa;
 		ADVANCE(cp, sa);
 	}
 }
