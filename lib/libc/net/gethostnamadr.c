@@ -190,27 +190,6 @@ gethostbyaddr(const char *addr, int len, int type)
 	return hp;
 }
 
-#ifdef _THREAD_SAFE
-struct hostent_data;
-
-/*
- * Temporary function (not thread safe)
- */
-int gethostbyaddr_r(const char *addr, int len, int type,
-	struct hostent *result, struct hostent_data *buffer)
-{
-	struct hostent *hp;
-	int ret;
-	if ((hp = gethostbyaddr(addr, len, type)) == NULL) {
-		ret = -1;
-	} else {
-		memcpy(result, hp, sizeof(struct hostent));
-		ret = 0;
-	}
-	return(ret);
-}
-#endif
-
 void
 sethostent(stayopen)
 	int stayopen;
