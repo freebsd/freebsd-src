@@ -35,8 +35,10 @@
 .In vm/vm.h
 .In vm/pmap.h
 .Ft void
-.Fn pmap_enter "pmap_t pmap" "vm_offset_t va" "vm_page_t p" "vm_prot_t prot" \
-"boolean_t wired"
+.Fo pmap_enter
+.Fa "pmap_t pmap" "vm_offset_t va" "vm_page_t p" "vm_prot_t prot"
+.Fa "boolean_t wired"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn pmap_enter

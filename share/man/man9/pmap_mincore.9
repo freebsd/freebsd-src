@@ -44,7 +44,7 @@ function determines if the page at the virtual address
 in the physical map
 .Fa pmap
 is resident in physical memory.
-It is the machine-dependent interface used by
+It is the machine-dependent interface used by the
 .Xr mincore 2
 system call.
 .Sh RETURN VALUES
@@ -53,7 +53,7 @@ a mask of flags is returned,
 whose meaning is documented in
 .Xr mincore 2 ;
 otherwise,
-.Ql 0
+0
 is returned.
 .Pp
 The
@@ -64,7 +64,7 @@ must be mapped into the
 .Fa pmap .
 If any error occurs, the machine-dependent implementation should
 return
-.Ql 0 .
+0.
 .Sh SEE ALSO
 .Xr mincore 2 ,
 .Xr pmap 9
