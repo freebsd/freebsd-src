@@ -453,7 +453,7 @@ HelpCmd(int ac, char **av)
  * QuitCmd()
  */
 static int
-QuitCmd(int ac, char **av)
+QuitCmd(int ac __unused, char **av __unused)
 {
 	return(CMDRTN_QUIT);
 }

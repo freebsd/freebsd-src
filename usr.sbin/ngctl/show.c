@@ -105,7 +105,7 @@ ShowCmd(int ac, char **av)
 	printf("  Name: %-15s Type: %-15s ID: %08x   Num hooks: %d\n",
 	    ninfo->name, ninfo->type, ninfo->id, ninfo->hooks);
 	if (!no_hooks && ninfo->hooks > 0) {
-		int k;
+		u_int k;
 
 		printf(FMT, "Local hook", "Peer name",
 		    "Peer type", "Peer ID", "Peer hook");

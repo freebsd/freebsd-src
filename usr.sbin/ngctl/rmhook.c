@@ -55,7 +55,7 @@ static int
 RmHookCmd(int ac, char **av)
 {
 	struct ngm_rmhook rmh;
-	char *path = ".";
+	const char *path = ".";
 
 	/* Get arguments */
 	switch (ac) {

@@ -45,16 +45,18 @@ const struct ngcmd types_cmd = {
 	TypesCmd,
 	"types",
 	"Show information about all installed node types",
-	NULL
+	NULL,
+	{}
 };
 
 static int
-TypesCmd(int ac, char **av)
+TypesCmd(int ac, char **av __unused)
 {
 	u_char rbuf[16 * 1024];
 	struct ng_mesg *const resp = (struct ng_mesg *) rbuf;
 	struct typelist *const tlist = (struct typelist *) resp->data;
-	int k, rtn = CMDRTN_OK;
+	int rtn = CMDRTN_OK;
+	u_int k;
 
 	/* Get arguments */
 	switch (ac) {

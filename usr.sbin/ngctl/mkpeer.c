@@ -49,14 +49,15 @@ const struct ngcmd mkpeer_cmd = {
 	" and connects it to the node at \"path\". The hooks used for the"
 	" connection are \"hook\" on the original node and \"peerhook\""
 	" on the new node."
-	" If \"path\" is omitted then \".\" is assumed."
+	" If \"path\" is omitted then \".\" is assumed.",
+	{}
 };
 
 static int
 MkPeerCmd(int ac, char **av)
 {
 	struct ngm_mkpeer mkp;
-	char *path = ".";
+	const char *path = ".";
 
 	/* Get arguments */
 	switch (ac) {
