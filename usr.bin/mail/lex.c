@@ -188,7 +188,7 @@ commands()
 		 */
 		if (!sourcing && value("interactive") != NOSTR) {
 			reset_on_stop = 1;
-			printf(prompt);
+			printf("%s", prompt);
 		}
 		fflush(stdout);
 		sreset();
