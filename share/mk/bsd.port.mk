@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.183 1995/10/11 09:25:58 asami Exp $
+# $Id: bsd.port.mk,v 1.184 1995/10/16 14:18:22 ache Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -427,6 +427,10 @@ is_depended:	${IS_DEPENDED_TARGET}
 # override from an individual Makefile.
 ################################################################
 
+.if defined(NO_FETCH) && !target(fetch)
+fetch:
+	@${DO_NADA}
+.endif
 .if defined(NO_EXTRACT) && !target(extract)
 extract: checksum
 	@/bin/rm -rf ${WRKDIR}
