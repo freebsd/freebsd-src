@@ -1,7 +1,6 @@
 # $FreeBSD$
 #
-# .cshrc - csh resource script, read at beginning 
-#	   of execution by each shell
+# .cshrc - csh resource script, read at beginning of execution by each shell
 #
 # see also csh(1), environ(7).
 #
@@ -11,6 +10,11 @@ alias j		jobs -l
 alias la	ls -a
 alias lf	ls -FA
 alias ll	ls -lA
+
+# A rightous umask
+umask 22
+
+set path = (/sbin /bin /usr/sbin /usr/bin /usr/games /usr/local/sbin /usr/local/bin /usr/X11R6/bin $HOME/bin)
 
 setenv	EDITOR	vi
 setenv	PAGER	more
