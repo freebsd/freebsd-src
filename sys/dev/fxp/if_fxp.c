@@ -2434,12 +2434,12 @@ fxp_mc_setup(struct fxp_softc *sc)
 		txp->tx_cb->cb_status = 0;
 		txp->tx_cb->cb_command = htole16(FXP_CB_COMMAND_NOP |
 		    FXP_CB_COMMAND_S | FXP_CB_COMMAND_I);
-		bus_dmamap_sync(sc->cbl_tag, sc->cbl_map, BUS_DMASYNC_PREWRITE);
 		/*
 		 * Advance the end of list forward.
 		 */
 		sc->fxp_desc.tx_last->tx_cb->cb_command &=
 		    htole16(~FXP_CB_COMMAND_S);
+		bus_dmamap_sync(sc->cbl_tag, sc->cbl_map, BUS_DMASYNC_PREWRITE);
 		sc->fxp_desc.tx_last = txp;
 		sc->tx_queued++;
 		/*
