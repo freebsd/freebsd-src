@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.39 1997/12/20 03:05:46 sef Exp $
+ * $Id: kern_prot.c,v 1.40 1998/06/10 10:28:29 dfr Exp $
  */
 
 /*
@@ -151,7 +151,7 @@ getsid(p, uap)
 	if ((p == pfind(uap->pid)) == 0)
 		return ESRCH;
 found:
-	p->p_retval[0] = p->p_pgrp->pg_session->s_leader->p_pid;
+	p->p_retval[0] = p->p_session->s_sid;
 	return 0;
 }
 

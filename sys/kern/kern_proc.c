@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $Id: kern_proc.c,v 1.36 1998/02/20 13:52:14 bde Exp $
+ * $Id: kern_proc.c,v 1.37 1998/07/11 07:45:40 bde Exp $
  */
 
 #include <sys/param.h>
@@ -223,6 +223,7 @@ enterpgrp(p, pgid, mksess)
 			MALLOC(sess, struct session *, sizeof(struct session),
 			    M_SESSION, M_WAITOK);
 			sess->s_leader = p;
+			sess->s_sid = p->p_pid;
 			sess->s_count = 1;
 			sess->s_ttyvp = NULL;
 			sess->s_ttyp = NULL;
