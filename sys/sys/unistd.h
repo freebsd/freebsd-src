@@ -218,6 +218,7 @@
 #define RFSIGSHARE	(1<<14)	/* share signal handlers */
 #define RFLINUXTHPN     (1<<16) /* do linux clone exit parent notification */
 #define RFPPWAIT	(1<<31) /* parent sleeps until child exits (vfork) */
+#define	RFKERNELONLY	RFPPWAIT
 
 #endif /* !_POSIX_SOURCE */
 
