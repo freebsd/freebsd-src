@@ -454,7 +454,8 @@ siodetach(dev)
 		return (0);
 	}
 	com->gone = TRUE;
-	ttygone(com->tp);
+	if (com->tp)
+		ttygone(com->tp);
 	for (i = 0 ; i < 6; i++)
 		destroy_dev(com->devs[i]);
 	if (com->irqres) {
