@@ -14,7 +14,7 @@ SUBDIR+=libc libcompat libcom_err libcurses libdisk libedit \
 	libncurses libopie libpcap libresolv librpcsvc \
 	libscsi libskey libss libtermcap libutil libxpg4 liby libz
 	
-.if defined(WANT_LIBC_R)
+.if !defined(NOLIBC_R)
 SUBDIR+= libc_r
 .endif
 
