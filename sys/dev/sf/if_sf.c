@@ -676,7 +676,7 @@ sf_attach(dev)
 
 	mtx_init(&sc->sf_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
-
+#ifndef BURN_BRIDGES
 	/*
 	 * Handle power management nonsense.
 	 */
@@ -699,7 +699,7 @@ sf_attach(dev)
 		pci_write_config(dev, SF_PCI_LOMEM, membase, 4);
 		pci_write_config(dev, SF_PCI_INTLINE, irq, 4);
 	}
-
+#endif
 	/*
 	 * Map control/status registers.
 	 */
