@@ -59,7 +59,7 @@ static MALLOC_DEFINE(M_ATADMA, "ATA DMA", "ATA driver DMA");
 /* misc defines */
 #define MAXSEGSZ	PAGE_SIZE
 #define MAXTABSZ	PAGE_SIZE
-#define MAXWSPCSZ	256
+#define MAXWSPCSZ	PAGE_SIZE
 #define MAXCTLDMASZ	(2 * (MAXTABSZ + MAXPHYS))
 
 struct ata_dc_cb_args {
