@@ -45,8 +45,8 @@ __FBSDID("$FreeBSD$");
 
 size_t
 mbstowcs(pwcs, s, n)
-	wchar_t *pwcs;
-	const char *s;
+	wchar_t *__restrict pwcs;
+	const char *__restrict s;
 	size_t n;
 {
 	char const *e;

@@ -45,8 +45,8 @@ __FBSDID("$FreeBSD$");
 
 size_t
 wcstombs(s, pwcs, n)
-	char *s;
-	const wchar_t *pwcs;
+	char *__restrict s;
+	const wchar_t *__restrict pwcs;
 	size_t n;
 {
 	char buf[MB_LEN_MAX];
