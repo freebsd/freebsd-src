@@ -564,7 +564,6 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		}
 
 		if (addr != (void *)1) {
-			fill_kinfo_proc(p, &p->p_uarea->u_kproc);
 			error = ptrace_set_pc(td2, (u_long)(uintfptr_t)addr);
 			if (error) {
 				_PRELE(p);
