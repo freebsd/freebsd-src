@@ -32,7 +32,7 @@
  */
 
 /* 
- * $Id: kadmin_locl.h,v 1.36 2001/05/07 05:32:04 assar Exp $
+ * $Id: kadmin_locl.h,v 1.40 2001/08/22 20:30:24 assar Exp $
  * $FreeBSD$
  */
 
@@ -76,6 +76,9 @@
 #ifdef HAVE_UTIL_H
 #include <util.h>
 #endif
+#ifdef HAVE_LIBUTIL_H
+#include <libutil.h>
+#endif
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
 #endif
@@ -84,7 +87,7 @@
 #endif
 #include <err.h>
 #include <roken.h>
-#ifdef HAVE_OPENSSL_DES_H
+#ifdef HAVE_OPENSSL
 #include <openssl/des.h>
 #else
 #include <des.h>
@@ -146,6 +149,8 @@ int  edit_deltat (const char *prompt, krb5_deltat *value, int *mask, int bit);
 
 int edit_entry(kadm5_principal_ent_t ent, int *mask,
 	       kadm5_principal_ent_t default_ent, int default_mask);
+void set_defaults(kadm5_principal_ent_t ent, int *mask,
+		  kadm5_principal_ent_t default_ent, int default_mask);
 int set_entry(krb5_context context,
 	      kadm5_principal_ent_t ent,
 	      int *mask,
@@ -159,8 +164,6 @@ foreach_principal(const char *exp,
 		  int (*func)(krb5_principal, void*), 
 		  const char *funcname,
 		  void *data);
-
-void get_response(const char *prompt, const char *def, char *buf, size_t len);
 
 int parse_des_key (const char *key_string,
 		   krb5_key_data *key_data, const char **err);
