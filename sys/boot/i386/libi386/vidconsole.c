@@ -26,7 +26,7 @@
  *
  * 	From Id: probe_keyboard.c,v 1.13 1997/06/09 05:10:55 bde Exp
  *
- *	$Id: vidconsole.c,v 1.8 1998/10/31 02:53:12 msmith Exp $
+ *	$Id: vidconsole.c,v 1.9 1998/12/22 11:51:25 abial Exp $
  */
 
 #include <stand.h>
@@ -120,6 +120,16 @@ vidc_init(int arg)
 }
 
 static void
+vidc_biosputchar(int c)
+{
+    v86.ctl = 0;
+    v86.addr = 0x10;
+    v86.eax = 0xe00 | c;
+    v86.ebx = 0x7;
+    v86int();
+}
+
+static void
 vidc_rawputchar(int c)
 {
     int		i;
@@ -130,14 +140,13 @@ vidc_rawputchar(int c)
 	    vidc_rawputchar(' ');
     else {
 #ifndef TERM_EMU
-	v86.ctl = 0;
-    	v86.addr = 0x10;
-    	v86.eax = 0xe00 | c;
-    	v86.ebx = 0x7;
-    	v86int();
+        vidc_biosputchar(c);
 #else
 	/* Emulate AH=0eh (teletype output) */
 	switch(c) {
+	case '\a':
+		vidc_biosputchar(c);
+		return;
 	case '\r':
 		curx=0;
 		curs_move(curx,cury);
