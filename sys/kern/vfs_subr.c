@@ -539,6 +539,8 @@ vlrureclaim(struct mount *mp, int count)
 {
 	struct vnode *vp;
 
+	if (mp == NULL)
+		return;
 	mtx_lock(&mntvnode_mtx);
 	while (count && (vp = TAILQ_FIRST(&mp->mnt_nvnodelist)) != NULL) {
 		TAILQ_REMOVE(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
