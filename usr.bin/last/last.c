@@ -47,6 +47,7 @@ static const char sccsid[] = "@(#)last.c	8.2 (Berkeley) 4/2/94";
 #include <sys/stat.h>
 
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <langinfo.h>
 #include <locale.h>
@@ -116,7 +117,7 @@ usage(void)
 {
 	(void)fprintf(stderr,
 "usage: last [-#] [-y] [-d [[CC]YY][MMDD]hhmm[.SS]] [-f file] [-h host]\n"
-"\t[-t tty] [-s|w] [user ...]\n");
+"\t[-n maxrec] [-t tty] [-s|w] [user ...]\n");
 	exit(1);
 }
 
@@ -133,7 +134,7 @@ main(argc, argv)
 
 	maxrec = -1;
 	snaptime = 0;
-	while ((ch = getopt(argc, argv, "0123456789d:f:h:st:wy")) != -1)
+	while ((ch = getopt(argc, argv, "0123456789d:f:h:n:st:wy")) != -1)
 		switch (ch) {
 		case '0': case '1': case '2': case '3': case '4':
 		case '5': case '6': case '7': case '8': case '9':
@@ -159,6 +160,13 @@ main(argc, argv)
 		case 'h':
 			hostconv(optarg);
 			addarg(HOST_TYPE, optarg);
+			break;
+		case 'n':
+			errno = 0;
+			maxrec = strtol(optarg, &p, 10);
+			if (p == optarg || *p != '\0' || errno != 0 ||
+			    maxrec <= 0)
+				errx(1, "%s: bad line count", optarg);
 			break;
 		case 's':
 			sflag++;	/* Show delta as seconds */

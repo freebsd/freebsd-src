@@ -32,7 +32,7 @@
 .\"     @(#)last.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd March 1, 2002
+.Dd August 17, 2003
 .Dt LAST 1
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Nd indicate last logins of users and ttys
 .Sh SYNOPSIS
 .Nm
-.Op Fl Ns Ar n
+.Op Fl Ar n | Fl n Ar n
 .Op Fl y
 .Oo
 .Fl d
@@ -78,7 +78,7 @@ will so indicate.
 .Pp
 The following options are available:
 .Bl -tag -width indent-two
-.It Fl Ar n
+.It Fl Ar n | Fl n Ar n
 Limit the report to
 .Ar n
 lines.
