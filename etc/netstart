@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.9 1994/04/18 06:44:43 rgrimes Exp $
+#	$Id: netstart,v 1.10 1994/04/18 11:00:44 rgrimes Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 routedflags=-q
@@ -22,6 +22,9 @@ hostname $hostname
 
 if [ -e /etc/hostname.ed0 ]; then
 	ifconfig ed0 `cat /etc/hostname.ed0`
+fi
+if [ -e /etc/hostname.ed1 ]; then
+	ifconfig ed1 `cat /etc/hostname.ed1`
 fi
 if [ -e /etc/hostname.ie0 ]; then
 	ifconfig ie0 `cat /etc/hostname.ie0`
