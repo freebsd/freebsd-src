@@ -2119,12 +2119,14 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 
 		offidxend = offidxstart + count;
 
-		if ((object == kernel_object) || (object == kmem_object)) {
-			vm_object_lock(object);
+		if (object == kernel_object || object == kmem_object) {
+			if (object == kernel_object)
+				GIANT_REQUIRED;
+			VM_OBJECT_LOCK(object);
 			vm_object_page_remove(object, offidxstart, offidxend, FALSE);
-			vm_object_unlock(object);
+			VM_OBJECT_UNLOCK(object);
 		} else {
-			vm_object_lock(object);
+			mtx_lock(&Giant);
 			vm_page_lock_queues();
 			pmap_remove(map->pmap, s, e);
 			vm_page_unlock_queues();
@@ -2133,7 +2135,9 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 			    (object->flags & (OBJ_NOSPLIT|OBJ_ONEMAPPING)) == OBJ_ONEMAPPING &&
 			    (object->type == OBJT_DEFAULT || object->type == OBJT_SWAP)) {
 				vm_object_collapse(object);
+				VM_OBJECT_LOCK(object);
 				vm_object_page_remove(object, offidxstart, offidxend, FALSE);
+				VM_OBJECT_UNLOCK(object);
 				if (object->type == OBJT_SWAP) {
 					swap_pager_freespace(object, offidxstart, count);
 				}
@@ -2142,7 +2146,7 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 					object->size = offidxstart;
 				}
 			}
-			vm_object_unlock(object);
+			mtx_unlock(&Giant);
 		}
 
 		/*
