@@ -134,7 +134,7 @@ static void snwatchdog(struct ifnet *);
 
 static void sn_setmcast(struct sn_softc *);
 static int sn_getmcf(struct arpcom *ac, u_char *mcf);
-static u_int32_t sn_mchash(caddr_t);
+static uint32_t sn_mchash(const uint8_t *addr);
 
 /* I (GB) have been unlucky getting the hardware padding
  * to work properly.
@@ -1453,13 +1453,13 @@ sn_getmcf(struct arpcom *ac, uint8_t *mcf)
 	return 1;  /* use multicast filter */
 }
 
-static u_int32_t
-sn_mchash(caddr_t addr)
+static uint32_t
+sn_mchash(const uint8_t *addr)
 {
 	const uint32_t poly = 0xedb88320;
-	u_int32_t crc;
+	uint32_t crc;
 	int idx, bit;
-	u_int8_t data;
+	uint8_t data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */
