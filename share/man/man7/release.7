@@ -86,6 +86,11 @@ the entire system in the clean environment with
 The detailed steps that follow are then executed to package up the
 different distributions, build the installation floppy disks, build
 release documentation, and so on.
+.Pp
+This target must be built as root with the
+.Va kern.securelevel
+sysctl set to -1
+.Pq "the default".
 .It Cm rerelease
 Assumes that the output of a release build has been manually modified,
 and performs the minimal number of steps to rebuild the release using
@@ -358,7 +363,8 @@ make release CHROOTDIR=/local3/release BUILDNAME=5.0-CURRENT \\
 .Xr build 7 ,
 .Xr ports 7 ,
 .Xr chroot 8 ,
-.Xr mtree 8
+.Xr mtree 8 ,
+.Xr sysctl 8
 .Rs
 .%T "FreeBSD Release Engineering"
 .%O http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/releng/
@@ -404,3 +410,13 @@ and
 .An Poul-Henning Kamp .
 This manual page was written by
 .An Murray Stokely Aq murray@FreeBSD.org .
+.Sh BUGS
+Infrastructure changes are occassionally made to the FreeBSD
+documentation set in such a way that release builds on security
+branches can fail.
+To work around this, release builds can be made to checkout the
+documentation from the last fully supported release of FreeBSD.
+For example:
+.Bd -literal -offset indent
+make release RELEASETAG=RELENG_4_5 DOCRELEASETAG=RELEASE_4_5_0 ...
+.Ed
