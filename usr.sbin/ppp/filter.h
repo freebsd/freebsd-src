@@ -65,8 +65,8 @@ struct filterent {
   unsigned f_proto : 8;		/* Protocol: P_... */
   unsigned f_srcop : 2;		/* Source port operation: OP_... */
   unsigned f_dstop : 2;		/* Destination port operation: OP_... */
-  unsigned f_srctype : 2;	/* T_ value of src */
-  unsigned f_dsttype : 2;	/* T_ value of dst */
+  unsigned f_srctype : 3;	/* T_ value of src */
+  unsigned f_dsttype : 3;	/* T_ value of dst */
   unsigned f_estab : 1;		/* Check TCP ACK bit */
   unsigned f_syn : 1;		/* Check TCP SYN bit */
   unsigned f_finrst : 1;	/* Check TCP FIN/RST bits */
