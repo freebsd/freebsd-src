@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: var.c,v 1.10 1997/09/29 03:53:53 imp Exp $
+ *	$Id: var.c,v 1.11 1998/06/02 13:11:04 thepish Exp $
  */
 
 #ifndef lint
@@ -166,6 +166,7 @@ static Boolean VarSYSVMatch __P((char *, Boolean, Buffer, ClientData));
 #endif
 static Boolean VarNoMatch __P((char *, Boolean, Buffer, ClientData));
 static Boolean VarSubstitute __P((char *, Boolean, Buffer, ClientData));
+static char *VarQuote __P((char *));
 static char *VarModify __P((char *, Boolean (*)(char *, Boolean, Buffer,
 						ClientData),
 			    ClientData));
@@ -1072,6 +1073,40 @@ VarModify (str, modProc, datum)
 
 /*-
  *-----------------------------------------------------------------------
+ * VarQuote --
+ *	Quote shell meta-characters in the string
+ *
+ * Results:
+ *	The quoted string
+ *
+ * Side Effects:
+ *	None.
+ *
+ *-----------------------------------------------------------------------
+ */
+static char *
+VarQuote(str)
+	char *str;
+{
+
+    Buffer  	  buf;
+    /* This should cover most shells :-( */
+    static char meta[] = "\n \t'`\";&<>()|*?{}[]\\$!#^~";
+
+    buf = Buf_Init (MAKE_BSIZE);
+    for (; *str; str++) {
+	if (strchr(meta, *str) != NULL)
+	    Buf_AddByte(buf, (Byte)'\\');
+	Buf_AddByte(buf, (Byte)*str);
+    }
+    Buf_AddByte(buf, (Byte) '\0');
+    str = (char *)Buf_GetAll (buf, (int *)NULL);
+    Buf_Destroy (buf, FALSE);
+    return str;
+}
+
+/*-
+ *-----------------------------------------------------------------------
  * Var_Parse --
  *	Given the start of a variable invocation, extract the variable
  *	name and find its value, then modify it according to the
@@ -1613,6 +1648,14 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		    free(pattern.rhs);
 		    break;
 		}
+		case 'Q':
+		    if (tstr[1] == endc || tstr[1] == ':') {
+			newStr = VarQuote (str);
+			cp = tstr + 1;
+			termc = *cp;
+			break;
+		    }
+		    /*FALLTHRU*/
 		case 'T':
 		    if (tstr[1] == endc || tstr[1] == ':') {
 			newStr = VarModify (str, VarTail, (ClientData)0);
