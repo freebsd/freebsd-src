@@ -829,6 +829,7 @@ spd_done:
 			 * This could have surprisingly bad results in
 			 * practice, because its content is overwritten
 			 * by subsequent packets.
+			 * XXX: Breaks on SMP and possibly preemption!
 			 */
 			/* There must be a better way to do this next line... */
 			static struct route sro_fwd;
