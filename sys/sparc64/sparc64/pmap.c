@@ -670,6 +670,8 @@ pmap_cache_enter(vm_page_t m, vm_offset_t va)
 	struct tte *tp;
 	int color;
 
+	KASSERT((m->flags & PG_FICTITIOUS) == 0,
+	    ("pmap_cache_enter: fake page"));
 	PMAP_STATS_INC(pmap_ncache_enter);
 
 	/*
@@ -741,6 +743,8 @@ pmap_cache_remove(vm_page_t m, vm_offset_t va)
 
 	CTR3(KTR_PMAP, "pmap_cache_remove: m=%p va=%#lx c=%d", m, va,
 	    m->md.colors[DCACHE_COLOR(va)]);
+	KASSERT((m->flags & PG_FICTITIOUS) == 0,
+	    ("pmap_cache_remove: fake page"));
 	KASSERT(m->md.colors[DCACHE_COLOR(va)] > 0,
 	    ("pmap_cache_remove: no mappings %d <= 0",
 	    m->md.colors[DCACHE_COLOR(va)]));
@@ -1252,20 +1256,22 @@ pmap_remove_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp,
 	u_long data;
 
 	data = atomic_readandclear_long(&tp->tte_data);
-	m = PHYS_TO_VM_PAGE(TD_PA(data));
-	TAILQ_REMOVE(&m->md.tte_list, tp, tte_link);
-	if ((data & TD_WIRED) != 0)
-		pm->pm_stats.wired_count--;
-	if ((data & TD_PV) != 0) {
-		if ((data & TD_W) != 0 && pmap_track_modified(pm, va))
-			vm_page_dirty(m);
-		if ((data & TD_REF) != 0)
-			vm_page_flag_set(m, PG_REFERENCED);
-		if (TAILQ_EMPTY(&m->md.tte_list))
-			vm_page_flag_clear(m, PG_WRITEABLE);
-		pm->pm_stats.resident_count--;
+	if ((data & TD_FAKE) == 0) {
+		m = PHYS_TO_VM_PAGE(TD_PA(data));
+		TAILQ_REMOVE(&m->md.tte_list, tp, tte_link);
+		if ((data & TD_WIRED) != 0)
+			pm->pm_stats.wired_count--;
+		if ((data & TD_PV) != 0) {
+			if ((data & TD_W) != 0 && pmap_track_modified(pm, va))
+				vm_page_dirty(m);
+			if ((data & TD_REF) != 0)
+				vm_page_flag_set(m, PG_REFERENCED);
+			if (TAILQ_EMPTY(&m->md.tte_list))
+				vm_page_flag_clear(m, PG_WRITEABLE);
+			pm->pm_stats.resident_count--;
+		}
+		pmap_cache_remove(m, va);
 	}
-	pmap_cache_remove(m, va);
 	TTE_ZERO(tp);
 	if (PMAP_REMOVE_DONE(pm))
 		return (0);
@@ -1308,7 +1314,7 @@ pmap_remove_all(vm_page_t m)
 	vm_offset_t va;
 
 	KASSERT((m->flags & (PG_FICTITIOUS|PG_UNMANAGED)) == 0,
-	   ("pv_remove_all: illegal for unmanaged page %#lx",
+	   ("pmap_remove_all: illegal for unmanaged/fake page %#lx",
 	   VM_PAGE_TO_PHYS(m)));
 	for (tp = TAILQ_FIRST(&m->md.tte_list); tp != NULL; tp = tpn) {
 		tpn = TAILQ_NEXT(tp, tte_link);
@@ -1395,9 +1401,24 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	struct tte *tp;
 	vm_offset_t pa;
 	u_long data;
+	int i;
 
 	PMAP_STATS_INC(pmap_nenter);
 	pa = VM_PAGE_TO_PHYS(m);
+
+	/*
+	 * If this is a fake page from the device_pager, but it covers actual
+	 * physical memory, convert to the real backing page.
+	 */
+	if ((m->flags & PG_FICTITIOUS) != 0) {
+		for (i = 0; phys_avail[i + 1] != 0; i += 2) {
+			if (pa >= phys_avail[i] && pa <= phys_avail[i + 1]) {
+				m = PHYS_TO_VM_PAGE(pa);
+				break;
+			}
+		}
+	}
+
 	CTR6(KTR_PMAP,
 	    "pmap_enter: ctx=%p m=%p va=%#lx pa=%#lx prot=%#x wired=%d",
 	    pm->pm_context[PCPU_GET(cpuid)], m, va, pa, prot, wired);
@@ -1479,7 +1500,7 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		/*
 		 * Now set up the data and install the new mapping.
 		 */
-		data = TD_V | TD_8K | TD_PA(pa) | TD_CP;
+		data = TD_V | TD_8K | TD_PA(pa);
 		if (pm == kernel_pmap)
 			data |= TD_P;
 		if (prot & VM_PROT_WRITE)
@@ -1585,6 +1606,8 @@ pmap_zero_page(vm_page_t m)
 	vm_offset_t va;
 	struct tte *tp;
 
+	KASSERT((m->flags & PG_FICTITIOUS) == 0,
+	    ("pmap_zero_page: fake page"));
 	PMAP_STATS_INC(pmap_nzero_page);
 	pa = VM_PAGE_TO_PHYS(m);
 	if (m->md.color == -1) {
@@ -1612,6 +1635,8 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	vm_offset_t va;
 	struct tte *tp;
 
+	KASSERT((m->flags & PG_FICTITIOUS) == 0,
+	    ("pmap_zero_page_area: fake page"));
 	KASSERT(off + size <= PAGE_SIZE, ("pmap_zero_page_area: bad off/size"));
 	PMAP_STATS_INC(pmap_nzero_page_area);
 	pa = VM_PAGE_TO_PHYS(m);
@@ -1640,6 +1665,8 @@ pmap_zero_page_idle(vm_page_t m)
 	vm_offset_t va;
 	struct tte *tp;
 
+	KASSERT((m->flags & PG_FICTITIOUS) == 0,
+	    ("pmap_zero_page_idle: fake page"));
 	PMAP_STATS_INC(pmap_nzero_page_idle);
 	pa = VM_PAGE_TO_PHYS(m);
 	if (m->md.color == -1) {
@@ -1669,6 +1696,10 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 	vm_offset_t vsrc;
 	struct tte *tp;
 
+	KASSERT((mdst->flags & PG_FICTITIOUS) == 0,
+	    ("pmap_copy_page: fake dst page"));
+	KASSERT((msrc->flags & PG_FICTITIOUS) == 0,
+	    ("pmap_copy_page: fake src page"));
 	PMAP_STATS_INC(pmap_ncopy_page);
 	pdst = VM_PAGE_TO_PHYS(mdst);
 	psrc = VM_PAGE_TO_PHYS(msrc);
@@ -1777,6 +1808,8 @@ void
 pmap_page_protect(vm_page_t m, vm_prot_t prot)
 {
 
+	KASSERT((m->flags & PG_FICTITIOUS) == 0,
+	    ("pmap_page_protect: fake page"));
 	if ((prot & VM_PROT_WRITE) == 0) {
 		if (prot & (VM_PROT_READ | VM_PROT_EXECUTE))
 			pmap_clear_write(m);

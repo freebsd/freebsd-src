@@ -154,16 +154,20 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, u_long sz, u_long data)
 	}
 
 enter:
-	if ((m->flags & (PG_UNMANAGED | PG_FICTITIOUS)) == 0) {
-		pm->pm_stats.resident_count++;
-		data |= TD_PV;
-	}
-	if (pmap_cache_enter(m, va) != 0)
-		data |= TD_CV;
+	if ((m->flags & PG_FICTITIOUS) == 0) {
+		data |= TD_CP;
+		if ((m->flags & PG_UNMANAGED) == 0) {
+			pm->pm_stats.resident_count++;
+			data |= TD_PV;
+		}
+		if (pmap_cache_enter(m, va) != 0)
+			data |= TD_CV;
+		TAILQ_INSERT_TAIL(&m->md.tte_list, tp, tte_link);
+	} else
+		data |= TD_FAKE | TD_E;
 
 	tp->tte_vpn = TV_VPN(va, sz);
 	tp->tte_data = data;
-	TAILQ_INSERT_TAIL(&m->md.tte_list, tp, tte_link);
 
 	return (tp);
 }
