@@ -9,28 +9,11 @@
  * $FreeBSD$
  */
 
-#if defined(sparc) 
-/* XXX: gross.   netbsd/sparc doesn't have machine/bus.h yet. */
-typedef void * bus_space_tag_t;
-typedef u_int32_t pci_chipset_tag_t;
-typedef caddr_t bus_space_handle_t;
-typedef u_int32_t bus_size_t;
-typedef caddr_t bus_addr_t;
-
-#define bus_space_read_4(t, h, o) ((void) t,                            \
-    (*(volatile u_int32_t *)((h) + (o))))
-#define bus_space_write_4(t, h, o, v)                                   \
-    ((void) t, ((void)(*(volatile u_int32_t *)((h) + (o)) = (v))))
-
-#define vtophys(x) ((u_int32_t)(x))	/* sun4c dvma */
-
-#endif
-
-
 #define MID_SZTOB(X) 	((X) * 256 * 4) /* size to bytes */
 #define MID_BTOSZ(X)	((X) / 256 / 4)	/* bytes to "size" */
 
 #define MID_N_VC	1024		/* # of VCs we can use */
+#define MID_VCI_BITS	10		/* number of bits */
 #define MID_NTX_CH	8		/* 8 transmit channels (shared) */
 #define MID_ATMDATASZ	48		/* need data in 48 byte blocks */
 
@@ -50,6 +33,7 @@ typedef caddr_t bus_addr_t;
  */
 
 /* byte offsets from en_base of various items */
+#define MID_SUNIOFF	0x020000	/* SUNI offset */
 #define MID_PHYOFF	0x030000	/* PHY offset */
 #define MID_MIDOFF	0x040000	/* midway regs offset */
 #define MID_RAMOFF	0x200000	/* RAM offset */
@@ -68,11 +52,11 @@ typedef caddr_t bus_addr_t;
  * prom & phy: not defined here
  */
 #define MID_ADPMACOFF	0xffc0		/* mac address offset (adaptec only) */
+#define MID_NSUNI	256		/* suni registers */
 
 /*
  * midway regs  (byte offsets from en_base)
  */
-
 #define MID_RESID	0x40000		/* write=reset reg, read=ID reg */
 
 #define MID_VER(X)	(((X) & 0xf0000000) >> 28) /* midway version # */
@@ -135,7 +119,7 @@ typedef caddr_t bus_addr_t;
 #define MID_DMA_RDTX	0x4002c		/* read ptr for DMA xmit queue (r/o) */
 					/* (i.e. current host->adaptor xfer) */
 
-	/* xmit channel regs (1 per channel, MID_NTX_CH max channels) */
+/* xmit channel regs (1 per channel, MID_NTX_CH max channels) */
 
 #define MIDX_PLACE(N)	(0x40040+((N)*0x10))	/* xmit place */
 
@@ -143,12 +127,13 @@ typedef caddr_t bus_addr_t;
 #define MIDX_LOC(X)	((X) & 0x7ff)	/* location in obmem */
 #define MIDX_SZ(X)	((X) >> 11)	/* (size of block / 256) in int32_t's*/
 #define MIDX_BASE(X)	\
-	(((MIDX_LOC(X) << MIDV_LOCTOPSHFT) * sizeof(u_int32_t)) + MID_RAMOFF)
+	(((MIDX_LOC(X) << MIDV_LOCTOPSHFT) * sizeof(uint32_t)) + MID_RAMOFF)
 
-  /* the following two regs are word offsets in the block */
-#define MIDX_READPTR(N)	(0x40044+((N)*0x10))	/* xmit read pointer (r/o) */
-#define MIDX_DESCSTART(N) (0x40048+((N)*0x10))	/* seg currently in DMA (r/o) */
-
+/* the following two regs are word offsets in the block */
+/* xmit read pointer (r/o) */
+#define MIDX_READPTR(N)		(0x40044 + ((N) * 0x10))
+/* seg currently in DMA (r/o) */
+#define MIDX_DESCSTART(N)	(0x40048 + ((N) * 0x10))
 
 /*
  * obmem items
@@ -157,8 +142,7 @@ typedef caddr_t bus_addr_t;
 /* 
  * vci table in obmem (offset from MID_VCTOFF)
  */
-
-#define MID_VC(N)	(MID_RAMOFF+((N)*0x10))
+#define MID_VC(N)	(MID_RAMOFF + ((N) * 0x10))
 
 #define MIDV_TRASH	0x00000000	/* ignore VC */
 #define MIDV_AAL5	0x80000000	/* do AAL5 on it */
@@ -196,45 +180,43 @@ typedef caddr_t bus_addr_t;
 /*
  * dma recv q.
  */
+#define MID_DMA_END		(1 << 5)	/* for both tx and rx */
+#define MID_DMA_CNT(X)		(((X) >> 16) & 0xffff)
+#define MID_DMA_TXCHAN(X)	(((X) >> 6) & 0x7)
+#define MID_DMA_RXVCI(X)  	(((X) >> 6) & 0x3ff)
+#define MID_DMA_TYPE(X)		((X) & 0xf)
 
-#define MID_DMA_END	(1 << 5)	/* for both tx and rx */
-#define MID_DMA_CNT(X)	(((X) >> 16) & 0xffff)
-#define MID_DMA_TXCHAN(X) (((X) >> 6) & 0x7)
-#define MID_DMA_RXVCI(X)  (((X) >> 6) & 0x3ff)
-#define MID_DMA_TYPE(X)	((X) & 0xf)
-
-#define MID_DRQ_N	512			/* # of descriptors */
+#define MID_DRQ_N		512		/* # of descriptors */
+/* convert byte offset to reg value */
 #define MID_DRQ_A2REG(N)	(((N) - MID_DRQOFF) >> 3)
-				/* convert byte offset to reg value */
-#define MID_DRQ_REG2A(N)	(((N) << 3) + MID_DRQOFF) /* and back */
+/* and back */
+#define MID_DRQ_REG2A(N)	(((N) << 3) + MID_DRQOFF)
 
 /* note: format of word 1 of RXQ is different beween ENI and ADP cards */
-#define MID_MK_RXQ_ENI(CNT,VC,END,TYPE) \
-	( ((CNT) << 16)|((VC) << 6)|(END)|(TYPE) )
+#define MID_MK_RXQ_ENI(CNT, VC, END, TYPE) \
+	(((CNT) << 16) | ((VC) << 6) | (END) | (TYPE))
 
-#define MID_MK_RXQ_ADP(CNT,VC,END,JK) \
-	( ((CNT) << 12)|((VC) << 2)|((END) >> 4)|(((JK) != 0) ? 1 : 0))
+#define MID_MK_RXQ_ADP(CNT, VC, END, JK) \
+	(((CNT) << 12) | ((VC) << 2) | ((END) >> 4) | (((JK) != 0) ? 1 : 0))
 /*
  * dma xmit q.
  */
-
-#define MID_DTQ_N	512			/* # of descriptors */
+#define MID_DTQ_N		512		/* # of descriptors */
+/* convert byte offset to reg value */
 #define MID_DTQ_A2REG(N)	(((N) - MID_DTQOFF) >> 3)
-				/* convert byte offset to reg value */
-#define MID_DTQ_REG2A(N)	(((N) << 3) + MID_DTQOFF) /* and back */
-
+/* and back */
+#define MID_DTQ_REG2A(N)	(((N) << 3) + MID_DTQOFF)
 
 /* note: format of word 1 of TXQ is different beween ENI and ADP cards */
-#define MID_MK_TXQ_ENI(CNT,CHN,END,TYPE) \
-	( ((CNT) << 16)|((CHN) << 6)|(END)|(TYPE) )
+#define MID_MK_TXQ_ENI(CNT, CHN, END, TYPE) \
+	(((CNT) << 16) | ((CHN) << 6) | (END) | (TYPE))
 
-#define MID_MK_TXQ_ADP(CNT,CHN,END,JK) \
-	( ((CNT) << 12)|((CHN) << 2)|((END) >> 4)|(((JK) != 0) ? 1 : 0) )
+#define MID_MK_TXQ_ADP(CNT, CHN, END, JK) \
+	(((CNT) << 12) | ((CHN) << 2) | ((END) >> 4) | (((JK) != 0) ? 1 : 0))
 
 /*
  * dma types
  */
-
 #define MIDDMA_JK	0x3	/* just kidding */
 #define MIDDMA_BYTE	0x1	/* byte */
 #define MIDDMA_2BYTE	0x2	/* 2 bytes */
@@ -249,25 +231,23 @@ typedef caddr_t bus_addr_t;
 #define MIDDMA_16WMAYBE	0xe	/* 16 words, maybe */
 
 #define MIDDMA_MAYBE	0xc	/* mask to detect WMAYBE dma code */
-#define MIDDMA_MAXBURST	(16 * sizeof(u_int32_t))	/* largest burst */
+#define MIDDMA_MAXBURST	(16 * sizeof(uint32_t))		/* largest burst */
 
 /*
  * service list
  */
-
-#define MID_SL_N	1024	/* max # entries on slist */
-#define MID_SL_A2REG(N)	(((N) - MID_SLOFF) >> 2)
-				/* convert byte offset to reg value */
-#define MID_SL_REG2A(N)	(((N) << 2) + MID_SLOFF) /* and back */
+#define MID_SL_N		1024	/* max # entries on slist */
+/* convert byte offset to reg value */
+#define MID_SL_A2REG(N)		(((N) - MID_SLOFF) >> 2)
+/* and back */
+#define MID_SL_REG2A(N)		(((N) << 2) + MID_SLOFF)
 
 /*
  * data in the buffer area of obmem
  */
-
 /*
- * recv buffer desc. (1 u_int32_t at start of buffer)
+ * recv buffer desc. (1 uint32_t at start of buffer)
  */
-
 #define MID_RBD_SIZE	4			/* RBD size */
 #define MID_CHDR_SIZE	4			/* on aal0, cell header size */
 #define MID_RBD_ID(X)	((X) & 0xfe000000)	/* get ID */
@@ -279,26 +259,24 @@ typedef caddr_t bus_addr_t;
 #define MID_RBD_CNT(X)	((X) & 0x7ff)		/* cell count */
 
 /*
- * xmit buffer desc. (2 u_int32_t's at start of buffer)
- * (note we treat the PR & RATE as a single u_int8_t)
+ * xmit buffer desc. (2 uint32_t's at start of buffer)
+ * (note we treat the PR & RATE as a single uint8_t)
  */
-
 #define MID_TBD_SIZE	8
 #define MID_TBD_MK1(AAL,PR_RATE,CNT) \
-	(MID_TBD_STDID|(AAL)|((PR_RATE) << 19)|(CNT))
+	(MID_TBD_STDID | (AAL) | ((PR_RATE) << 19) | (CNT))
 #define MID_TBD_STDID	0xb0000000	/* standard ID */
 #define MID_TBD_AAL5 	0x08000000	/* AAL 5 */
 #define MID_TBD_NOAAL5	0x00000000	/* not AAL 5 */
 
 #define MID_TBD_MK2(VCI,PTI,CLP) \
-	(((VCI) << 4)|((PTI) << 1)|(CLP))
+	(((VCI) << 4) | ((PTI) << 1) | (CLP))
 
 /*
  * aal5 pdu tail, last 2 words of last cell of AAL5 frame
  * (word 2 is CRC .. handled by hw)
  */
-
-#define MID_PDU_SIZE	8
-#define MID_PDU_MK1(UU,CPI,LEN) \
-	(((UU) << 24)|((CPI) << 16)|(LEN))
+#define MID_PDU_SIZE		8
+#define MID_PDU_MK1(UU, CPI, LEN) \
+	(((UU) << 24) | ((CPI) << 16) | (LEN))
 #define MID_PDU_LEN(X) ((X) & 0xffff)
