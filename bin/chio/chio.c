@@ -382,6 +382,7 @@ static int
 do_params(char *cname, int argc, char **argv)
 {
 	struct changer_params data;
+	int picker;
 
 	/* No arguments to this command. */
 
@@ -405,6 +406,12 @@ do_params(char *cname, int argc, char **argv)
 	if (data.cp_nportals)
 		(void) printf(", %d portal%s", data.cp_nportals,
 		    (data.cp_nportals > 1) ? "s" : "");
+
+	/* Get current picker from changer and display it. */
+	if (ioctl(changer_fd, CHIOGPICKER, &picker))
+		err(1, "%s: CHIOGPICKER", changer_name);
+
+	(void) printf("\n%s: current picker: %d\n", changer_name, picker);
 
 	return (0);
 
