@@ -35,10 +35,8 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 
 /*
- * Synonym for fputwc(wc, stdout). Function call overhead is not an issue here:
- * wchar.h #define's putwchar(wc) to fgetwc(wc, stdout).
+ * Synonym for fputwc(wc, stdout).
  */
-#undef putwchar
 wint_t
 putwchar(wchar_t wc)
 {

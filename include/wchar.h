@@ -186,9 +186,4 @@ size_t	wcslcpy(wchar_t *, const wchar_t *, size_t);
 #endif
 __END_DECLS
 
-#define	getwc(fp)	fgetwc(fp)
-#define	getwchar()	fgetwc(stdin)
-#define	putwc(wc, fp)	fputwc((wc), (fp))
-#define	putwchar(wc)	fputwc((wc), stdout)
-
 #endif /* !_WCHAR_H_ */
