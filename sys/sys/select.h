@@ -54,6 +54,11 @@ typedef	unsigned long	__fd_mask;
 typedef	__fd_mask	fd_mask;
 #endif
 
+#ifndef _SIGSET_T_DECLARED
+#define	_SIGSET_T_DECLARED
+typedef	__sigset_t	sigset_t;
+#endif
+
 /*
  * Select uses bit masks of file descriptors in longs.  These macros
  * manipulate such bit fields (the filesystem macros use chars).
