@@ -29,7 +29,7 @@
 #	signal handling
 # 	add only users who exist
 #
-# $Id: addgroup.tcl,v 1.1 1996/10/29 20:31:43 wosch Exp $
+# $Id: addgroup.tcl,v 1.1.2.1 1997/07/26 17:35:34 wosch Exp $
 
 # set global variables
 set etc_group "/etc/group";        #set etc_group "/usr/tmp/group" 
@@ -102,7 +102,7 @@ switch -glob -- [lindex $argv 0]  {
 	}
 	set g [lindex $argv 1]
 	if {$g < 100 || $g >= $gid_max} {
-	    putsErr "Group id out of range 100 < $g < $gid_max"
+	    putsErr "Group id out of range 100 <= $g < $gid_max"
 	    usage
 	}
 	set gid_start $g
