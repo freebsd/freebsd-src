@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_unix.c 1.1 89/11/07$
  *
  *	@(#)vm_unix.c	8.1 (Berkeley) 6/11/93
- * $Id: vm_unix.c,v 1.5 1995/02/20 17:36:36 davidg Exp $
+ * $Id: vm_unix.c,v 1.6 1995/10/07 19:02:56 davidg Exp $
  */
 
 /*
@@ -53,7 +53,7 @@
 #include <vm/swap_pager.h>
 
 struct obreak_args {
-	char *nsiz;
+	char *nsize;
 };
 
 /* ARGSUSED */
@@ -69,7 +69,7 @@ obreak(p, uap, retval)
 	register int diff;
 
 	old = (vm_offset_t) vm->vm_daddr;
-	new = round_page(uap->nsiz);
+	new = round_page(uap->nsize);
 	if ((int) (new - old) > p->p_rlimit[RLIMIT_DATA].rlim_cur)
 		return (ENOMEM);
 	old = round_page(old + ctob(vm->vm_dsize));
