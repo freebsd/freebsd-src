@@ -118,7 +118,8 @@ valid_shells() {
 }
 
 # fullpath_from_shell shell
-#	Given $shell, the basename component of a valid shell, get the
+#	Given $shell, which is either the full path to a shell or
+#	the basename component of a valid shell, get the
 #	full path to the shell from the /etc/shells file.
 #
 fullpath_from_shell() {
@@ -131,7 +132,8 @@ fullpath_from_shell() {
 		\#*|'')
 			;;
 		*)
-			if [ "`basename $_path`" = "$_shell" ]; then
+			if [ "$_path" = "$_shell" -o \
+			    "`basename $_path`" = "$_shell" ]; then
 				echo $_path
 				return 0
 			fi
@@ -372,7 +374,7 @@ get_gecos() {
 
 # get_shell
 #	Get the account's shell. Works in interactive and batch mode. It
-#	accepts only the base name of the shell, NOT the full path.
+#	accepts either the base name of the shell or the full path.
 #	If an invalid shell is entered it will simply use the default shell.
 #
 get_shell() {
