@@ -31,13 +31,13 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)pr_time.c	8.2 (Berkeley) 4/4/94";
+static const char sccsid[] = "@(#)pr_time.c	8.2 (Berkeley) 4/4/94";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/time.h>
