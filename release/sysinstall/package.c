@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.65 1997/10/15 04:37:16 jkh Exp $
+ * $Id: package.c,v 1.65.2.1 1999/02/05 22:20:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -122,7 +122,12 @@ package_extract(Device *dev, char *name, Boolean depended)
     Mkdir(variable_get(VAR_PKG_TMPDIR));
     vsystem("chmod 1777 %s", variable_get(VAR_PKG_TMPDIR));
 
-    if (!index(name, '/'))
+    if (name[0] == '@') {
+	/* @ at the beginning of the package name means "get latest" */
+	name++;
+	sprintf(path, "packages/Latest/%s.tgz", name);
+    }
+    else if (!index(name, '/'))
 	sprintf(path, "packages/All/%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");
     else
 	sprintf(path, "%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");

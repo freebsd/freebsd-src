@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.115.2.9 1999/03/10 02:51:25 jkh Exp $
+ * $Id: config.c,v 1.115.2.10 1999/04/24 02:02:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -448,8 +448,73 @@ configUsers(dialogMenuItem *self)
     return DITEM_SUCCESS | DITEM_RESTORE;
 }
 
+static void
+write_root_xprofile(char *str)
+{
+    FILE *fp;
+
+    /* take care of both xdm and startx */
+    fp = fopen("/root/.xinitrc", "w");
+    if (fp) {
+	fwrite(str, 1, strlen(str), fp);
+	fclose(fp);
+    }
+    fp = fopen("/root/.xsession", "w");
+    if (fp) {
+	fwrite(str, 1, strlen(str), fp);
+	fclose(fp);
+    }
+}
+
 int
-configXEnvironment(dialogMenuItem *self)
+configXDesktop(dialogMenuItem *self)
+{
+    char *desk;
+    int ret = DITEM_SUCCESS;
+
+    if (!dmenuOpenSimple(&MenuXDesktops, FALSE) ||
+	!(desk = variable_get(VAR_DESKSTYLE)))
+	return DITEM_FAILURE;
+    if (!strcmp(desk, "kde")) {
+	ret = package_add("@kde");
+	if (DITEM_STATUS(ret) != DITEM_FAILURE)
+	    write_root_xprofile("exec startkde\n");
+    }
+    else if (!strcmp(desk, "gnome")) {
+	ret = package_add("@gnomecore");
+	if (DITEM_STATUS(ret) != DITEM_FAILURE) {
+	    ret = package_add("@afterstep");
+	    if (DITEM_STATUS(ret) != DITEM_FAILURE)
+		write_root_xprofile("gnome-session &\nexec afterstep");
+	}
+    }
+    else if (!strcmp(desk, "afterstep")) {
+	ret = package_add("@afterstep");
+	if (DITEM_STATUS(ret) != DITEM_FAILURE)
+	    write_root_xprofile("xterm &\nexec afterstep\n");
+    }
+    else if (!strcmp(desk, "windowmaker")) {
+	ret = package_add("@windowmaker");
+	if (DITEM_STATUS(ret) != DITEM_FAILURE) {
+	    vsystem("/usr/X11R6/bin/wmaker.inst");
+	    write_root_xprofile("xterm &\nexec wmaker\n");
+	}
+    }
+    else if (!strcmp(desk, "enlightenment")) {
+	ret = package_add("@enlightenment");
+	if (DITEM_STATUS(ret) != DITEM_FAILURE)
+	    write_root_xprofile("xterm &\nexec enlightenment\n");
+    }
+    if (DITEM_STATUS(ret) == DITEM_FAILURE)
+	msgConfirm("An error occurred while adding the package(s) required\n"
+		   "by this desktop type.  Please change installation media\n"
+		   "and/or select a different, perhaps simpler, desktop\n"
+		   "environment and try again.");
+    return ret;
+}
+
+int
+configXSetup(dialogMenuItem *self)
 {
     char *config, *execfile;
     char *moused;
@@ -489,6 +554,7 @@ tryagain:
 	systemExecute(execfile);
 	if (!file_readable("/etc/XF86Config") && !msgYesNo("The XFree86 configuration process seems to have\nfailed.  Would you like to try again?"))
 	    goto tryagain;
+	configXDesktop(self);
 	return DITEM_SUCCESS | DITEM_RESTORE;
     }
     else {
@@ -572,7 +638,7 @@ configRouter(dialogMenuItem *self)
 	if (cp && strcmp(cp, "NO")) {
 	    variable_set2(VAR_ROUTER_ENABLE, "YES", 1);
 	    if (!strcmp(cp, "gated")) {
-		if (package_add(variable_get(VAR_GATED_PKG)) != DITEM_SUCCESS) {
+		if (package_add("@gated") != DITEM_SUCCESS) {
 		    msgConfirm("Unable to load gated package.  Falling back to no router.");
 		    variable_unset(VAR_ROUTER);
 		    variable_unset(VAR_ROUTERFLAGS);
@@ -680,16 +746,12 @@ configPackages(dialogMenuItem *self)
 int
 configPCNFSD(dialogMenuItem *self)
 {
-    int ret = DITEM_SUCCESS;
+    int ret;
 
-    if (variable_get(VAR_PCNFSD))
-	variable_unset(VAR_PCNFSD);
-    else {
-	ret = package_add(variable_get(VAR_PCNFSD_PKG));
-	if (DITEM_STATUS(ret) == DITEM_SUCCESS) {
-	    variable_set2(VAR_PCNFSD, "YES", 0);
-	    variable_set2("mountd_flags", "-n", 1);
-	}
+    ret = package_add("@pcnfsd");
+    if (DITEM_STATUS(ret) == DITEM_SUCCESS) {
+	variable_set2(VAR_PCNFSD, "YES", 0);
+	variable_set2("mountd_flags", "-n", 1);
     }
     return ret;
 }
