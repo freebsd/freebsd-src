@@ -1,21 +1,19 @@
 # $FreeBSD$
 
 PROG=	kbdio
+NOMAN=	#true
 SRCS=	kbdio.y lex.l y.tab.h
+
+CFLAGS+= -I${.OBJDIR} -I${.CURDIR} #-g
 
 #YACC=	bison
 #YFLAGS+= -yd	# Bison only
 
 YFLAGS+= -v	# verbose
-
 LFLAGS+= -I
 
 DPADD=	${LIBM} ${LIBY} ${LIBL}
 LDADD=	-lm -ly -ll
-
-NOMAN=
-
-CFLAGS+= -I${.OBJDIR} -I${.CURDIR} #-g
 
 CLEANFILES+= y.output	# comment file from bison
 

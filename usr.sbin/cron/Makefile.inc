@@ -1,9 +1,9 @@
 # $FreeBSD$
 
 .if exists(${.OBJDIR}/../lib)
-LIBCRON=${.OBJDIR}/../lib/libcron.a
+LIBCRON= ${.OBJDIR}/../lib/libcron.a
 .else
-LIBCRON=${.CURDIR}/../lib/libcron.a
+LIBCRON= ${.CURDIR}/../lib/libcron.a
 .endif
 
 .include "../Makefile.inc"

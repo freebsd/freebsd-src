@@ -3,12 +3,13 @@
 
 MAINTAINER=	gshapiro@FreeBSD.org
 
-SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
-.PATH:	${SENDMAIL_DIR}/mailstats
+SENDMAIL_DIR= ${.CURDIR}/../../contrib/sendmail
+.PATH: ${SENDMAIL_DIR}/mailstats
 
 PROG=	mailstats
 MAN=	mailstats.8
-CFLAGS+=-I${SENDMAIL_DIR}/src -I${SENDMAIL_DIR}/include -DNOT_SENDMAIL
+
+CFLAGS+= -I${SENDMAIL_DIR}/src -I${SENDMAIL_DIR}/include -DNOT_SENDMAIL
 
 .if exists(${.OBJDIR}/../../lib/libsmutil)
 LIBSMUTILDIR:=	${.OBJDIR}/../../lib/libsmutil
@@ -21,9 +22,9 @@ DPADD=	${LIBSMUTIL}
 LDADD=	${LIBSMUTIL}
 
 # User customizations to the sendmail build environment
-CFLAGS+=${SENDMAIL_CFLAGS}
-DPADD+=${SENDMAIL_DPADD}
-LDADD+=${SENDMAIL_LDADD}
-LDFLAGS+=${SENDMAIL_LDFLAGS}
+CFLAGS+= ${SENDMAIL_CFLAGS}
+DPADD+=	${SENDMAIL_DPADD}
+LDADD+=	${SENDMAIL_LDADD}
+LDFLAGS+= ${SENDMAIL_LDFLAGS}
 
 .include <bsd.prog.mk>

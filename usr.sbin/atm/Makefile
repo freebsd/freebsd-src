@@ -1,5 +1,3 @@
-#
-#
 # ===================================
 # HARP  |  Host ATM Research Platform
 # ===================================
@@ -24,8 +22,6 @@
 # notice must be reproduced on all copies.
 #
 #	@(#) $FreeBSD$
-#
-#
 
 SUBDIR=	atmarpd \
 	scspd

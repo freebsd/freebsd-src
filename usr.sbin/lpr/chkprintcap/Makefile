@@ -1,9 +1,12 @@
 # $FreeBSD$
 
+.PATH: ${.CURDIR}/../common_source
+
 PROG=	chkprintcap
 MAN=	chkprintcap.8
-CFLAGS+=-I${.CURDIR}/../common_source ${CWARNFLAGS}
-.PATH:	${.CURDIR}/../common_source
+
+CFLAGS+= -I${.CURDIR}/../common_source ${CWARNFLAGS}
+
 DPADD=	${LIBLPR}
 LDADD=	${LIBLPR}
 

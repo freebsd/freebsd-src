@@ -1,10 +1,15 @@
-#
 # $FreeBSD$
-#
 
-.PATH:	${.CURDIR}/../../../contrib/ntp/libparse
+.PATH: ${.CURDIR}/../../../contrib/ntp/libparse
 
-SRCS=	parse.c parse_conf.c \
+LIB= parse
+NOPROFILE=              true
+NOPIC=                  true
+INTERNALLIB=            true
+INTERNALSTATICLIB=      true
+NOMAN=                  true
+
+SRCS=	parse.c 	parse_conf.c \
 	clk_computime.c	clk_dcf7000.c	clk_hopf6021.c \
 	clk_meinberg.c	clk_rawdcf.c	clk_rcc8000.c \
 	clk_schmid.c	clk_trimtaip.c	clk_trimtsip.c \
@@ -12,13 +17,5 @@ SRCS=	parse.c parse_conf.c \
 	info_trimble.c	trim_info.c
 
 CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
-
-NOMAN=                  true
-NOPROFILE=              true
-INTERNALLIB=            true
-NOPIC=                  true
-INTERNALSTATICLIB=      true
-
-LIB= parse
 
 .include <bsd.lib.mk>

@@ -1,7 +1,8 @@
 # $FreeBSD$
 
 PROG=	chkgrp
-WARNS?=	2
 MAN=	chkgrp.8
+
+WARNS?=	2
 
 .include <bsd.prog.mk>

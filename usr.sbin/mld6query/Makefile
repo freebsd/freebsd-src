@@ -15,8 +15,8 @@
 # $FreeBSD$
 
 PROG=	mld6query
-SRCS=	mld6.c
 MAN=	mld6query.8
+SRCS=	mld6.c
 
 CFLAGS+= -DINET6 -DIPSEC
 

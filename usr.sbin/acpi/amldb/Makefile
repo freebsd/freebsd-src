@@ -2,9 +2,11 @@
 # $FreeBSD$
 
 PROG=	amldb
-SRCS=	amldb.c debug.c region.c
-SRCS+=	aml_parse.c aml_name.c aml_amlmem.c aml_memman.c aml_store.c aml_obj.c aml_evalobj.c aml_common.c
 MAN=	amldb.8
+SRCS=	amldb.c debug.c region.c
+SRCS+=	aml_parse.c aml_name.c aml_amlmem.c aml_memman.c aml_store.c \
+	aml_obj.c aml_evalobj.c aml_common.c
+
 #DEBUG_FLAGS= -g
 CFLAGS+= -I${.CURDIR}
 

@@ -1,10 +1,10 @@
 # $FreeBSD$
 
-PROG	 =	isdnphone
-SRCS	 =	main.c display.c audio.c isdn.c
-MAN	 =	isdnphone.8
+PROG=	isdnphone
+MAN=	isdnphone.8
+SRCS=	main.c display.c audio.c isdn.c
 
-DPADD	=	${LIBCURSES}
-LDADD	=	-lcurses
+DPADD=	${LIBCURSES}
+LDADD=	-lcurses
 
 .include <bsd.prog.mk>

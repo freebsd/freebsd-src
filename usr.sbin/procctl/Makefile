@@ -1,7 +1,8 @@
 # $FreeBSD$
 
 PROG=	procctl
-WARNS?=	2
 MAN=	procctl.8
+
+WARNS?=	2
 
 .include <bsd.prog.mk>

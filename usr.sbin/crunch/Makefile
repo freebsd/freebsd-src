@@ -1,4 +1,5 @@
+# $FreeBSD$
 
-SUBDIR=crunchgen crunchide
+SUBDIR=	crunchgen crunchide
 
 .include <bsd.subdir.mk>

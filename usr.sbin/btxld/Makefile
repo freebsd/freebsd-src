@@ -3,7 +3,7 @@
 MAINTAINER=	rnordier
 
 PROG=	btxld
-SRCS=	btxld.c elfh.c
 MAN=	btxld.8
+SRCS=	btxld.c elfh.c
 
 .include <bsd.prog.mk>

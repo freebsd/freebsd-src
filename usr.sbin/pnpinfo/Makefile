@@ -1,10 +1,12 @@
 # $FreeBSD$
 
-PROG=	pnpinfo
+.PATH: ${.CURDIR}/../../contrib/pnpinfo
 
-SRCS=	pnpinfo.c
-CFLAGS+=-I${.CURDIR}/../../sys
+PROG=	pnpinfo
 MAN=	pnpinfo.8
+SRCS=	pnpinfo.c
+
+CFLAGS+= -I${.CURDIR}/../../sys
 
 .if ${MACHINE} == "pc98"
 CFLAGS+= -DPC98
@@ -13,7 +15,5 @@ CFLAGS+= -DPC98
 .if ${MACHINE_ARCH} == "alpha"
 LDADD+=	-lio
 .endif
-
-.PATH:	${.CURDIR}/../../contrib/pnpinfo
 
 .include <bsd.prog.mk>

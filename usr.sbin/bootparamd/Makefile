@@ -1,3 +1,4 @@
+# $FreeBSD$
 
 SUBDIR=	bootparamd callbootd
 

@@ -6,16 +6,15 @@
 # $FreeBSD$
 #
 
-.PATH:		${.CURDIR}/../../../contrib/amd/amq
+.PATH: ${.CURDIR}/../../../contrib/amd/amq
 
-PROG=		amq
-MAN=		amq.8
+PROG=	amq
+MAN=	amq.8
+SRCS=	amq.c amq_clnt.c amq_xdr.c
 
-SRCS=		amq.c amq_clnt.c amq_xdr.c
+CFLAGS+= -I${.CURDIR}/../../../contrib/amd/amq
 
-CFLAGS+=	-I${.CURDIR}/../../../contrib/amd/amq
-
-DPADD+=		${LIBAMU}
-LDADD+=		${LIBAMU}
+DPADD=	${LIBAMU}
+LDADD=	${LIBAMU}
 
 .include <bsd.prog.mk>
