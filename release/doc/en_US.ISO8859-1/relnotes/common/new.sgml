@@ -186,6 +186,10 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
+    <para arch="i386">The &man.acpi.asus.4; driver has been added
+      to use ACPI-controlled hardware features  such as hot keys and
+      LCD on ASUSTek laptops.</para>
+
     <para arch="i386">The &man.acpi.toshiba.4; driver has been added
       to use Toshiba's Hardware Control Interface to manipulate
       certain hardware features on Toshiba laptops.</para>
@@ -358,7 +362,7 @@
 
       <para>The &man.ng.hub.4; Netgraph node type, which supports
         a simple packet distribution that acts like an Ethernet hub
-        has been added.</para>
+        has been added.  &merged;</para>
 
       <para>The &man.ng.vlan.4; Netgraph node type, which supports
         IEEE 802.1Q VLAN tagging has been added.  &merged;</para>
@@ -390,7 +394,7 @@
 	support for USB Ethernet adapters based on the Davicom DM9601
 	chipset.</para>
 
-      <para>The &man.vr.4; driver now supports &man.polling.4;.</para>
+      <para>The &man.vr.4; driver now supports &man.polling.4;.  &merged;</para>
 
       <para>The hardware TX checksum support in the &man.xl.4; driver
 	has been disabled as it does not work correctly and slows down
@@ -401,7 +405,7 @@
 	(&man.dc.4;, &man.fxp.4;, &man.em.4;, &man.nge.4;, &man.re.4;,
 	&man.rl.4;, &man.sis.4;, &man.ste.4;, and &man.vr.4;)
 	now also support this capability and it can be controlled
-	via &man.ifconfig.8;.</para>
+	via &man.ifconfig.8;.  &merged;</para>
     </sect3>
 
     <sect3 id="net-proto">
@@ -413,6 +417,20 @@
 
       <para>The &man.gre.4; tunnel driver now supports WCCP version
 	2.</para>
+
+      <para>&man.ipfw.4; rules now support the <literal>versrcreach</literal>
+        option to verify that a valid route to the source address
+	of a packet exists in the routing table.
+	This option is very useful for routers with a complete view of
+	the Internet (BGP) in the routing table to reject packets with
+	spoofed or unroutable source addresses.  For example,
+
+	<programlisting>deny ip from any to any not versrcreach</programlisting>
+
+	is equivalent to the following in Cisco IOS syntax:
+
+	<programlisting>ip verify unicast source reachable-via any</programlisting>
+      </para>
 
       <para>Some bugs in the IPsec implementation from the KAME
 	Project have been fixed.  These bugs were related to freeing
@@ -455,7 +473,9 @@
 	be increasing, no matter how quickly the port is recycled.</para>
 
       <para>The random ephemeral port allocation, which come from OpenBSD
-	has been implemented.</para>
+	has been implemented.  This is enabled by default and can be disabled
+	using the <varname>net.inet.ip.portrange.randomized</varname>
+	sysctl.  &merged;</para>
     </sect3>
 
     <sect3 id="disks">
@@ -648,6 +668,9 @@
       supported system locales has been added.  This is primarily
       for the benefit of the <filename role="package">misc/utf8locale</filename>
       port.</para>
+
+    <para>An Israel Hebrew locale <literal>he_IL.UTF-8</literal>
+      has been added.</para>
 
     <para>The &man.logins.1; utility has been added to display
       information about user and system accounts.</para>
