@@ -34,9 +34,9 @@ flag (or
 flag for backwards compatability) does the equivalent of a
 .Dq nat enable yes ,
 enabling
-.Nm ppp Ns No s
+.Nm Ns No 's
 network address translation features.  This allows
-.Nm ppp
+.Nm
 to act as a NAT or masquerading engine for all machines on an internal 
 LAN.  Refer to
 .Xr libalias 3
@@ -113,7 +113,7 @@ In foreground mode,
 attempts to establish a connection with the peer immediately, but never
 becomes a daemon.  The link is created in background mode.  This is useful
 if you wish to control
-.Nm ppp Ns No s
+.Nm Ns No 's
 invocation from another process.
 .It Fl direct
 This is used for receiving incoming connections.
@@ -443,7 +443,7 @@ after altering
 .Pa /etc/syslog.conf .
 .It
 Although not strictly relevant to
-.Nm ppp Ns No s
+.Nm Ns No 's
 operation, you should configure your resolver so that it works correctly.
 This can be done by configuring a local DNS
 .Pq using Xr named 8
@@ -510,7 +510,7 @@ description below too - you'll probably need to
 Usually, parity is set to
 .Dq none ,
 and this is
-.Nm ppp Ns No s
+.Nm Ns No 's
 default.  Parity is a rather archaic error checking mechanism that is no
 longer used because modern modems do their own error checking, and most
 link-layer protocols (that's what
@@ -1136,7 +1136,7 @@ commands.  Refer to their descriptions below.
 .Pp
 .Sh RECEIVING INCOMING PPP CONNECTIONS (Method 2)
 This method differs in that we use
-.Nm ppp
+.Nm
 to authenticate the connection rather than
 .Xr login 1 :
 .Bl -enum
@@ -1262,7 +1262,7 @@ may also contain a list of numbers or a
 as if passed to the
 .Dq set cbcp
 command.  The value will be used in
-.Nm ppp Ns No s
+.Nm Ns No 's
 subsequent CBCP phase.
 .Sh PPP OVER TCP and UDP (a.k.a Tunnelling)
 Instead of running
@@ -2278,7 +2278,7 @@ directory.  This socket is used to pass link information (including
 the actual link file descriptor) between different
 .Nm
 invocations.  This facilitates
-.Nm ppp Ns No s
+.Nm Ns No 's
 ability to be run from a
 .Xr getty 8
 or directly from
@@ -2595,7 +2595,7 @@ and wait for the controlling
 .Nm
 to finish with the link and deliver a signal back to the idle process.
 This prevents the confusion that results from
-.Nm ppp Ns No 's
+.Nm Ns No 's
 parent considering the link resource available again.
 .Pp
 For tty devices that have entries in
@@ -3374,7 +3374,7 @@ or
 may make the log file more readable.
 .It resolv Ar command
 This command controls
-.Nm ppp Ns No s
+.Nm Ns No 's
 manipulation of the
 .Xr resolv.conf 5
 file.  When
@@ -3608,7 +3608,7 @@ is the callee, the number should be specified as the fifth field of
 the peers entry in
 .Pa /etc/ppp/ppp.secret .
 .It cbcp
-Microsofts callback control protocol is used.  See
+Microsoft's callback control protocol is used.  See
 .Dq set cbcp
 below.
 .Pp
@@ -3659,7 +3659,7 @@ options) if you wish callback to be optional.
 .Op Ar delay Op Ar retry
 .Oc
 .Xc
-If no arguments are given, CBCP (Microsofts CallBack Control Protocol)
+If no arguments are given, CBCP (Microsoft's CallBack Control Protocol)
 is disabled - ie, configuring CBCP in the
 .Dq set callback
 command will result in
@@ -3720,7 +3720,7 @@ result in a warning when the device is opened.
 .Pp
 Some modems take more than one second after connecting to assert the carrier
 signal.  If this delay isn't increased, this will result in
-.Nm ppp Ns No s
+.Nm Ns No 's
 inability to detect when the link is dropped, as
 .Nm
 assumes that the device isn't asserting carrier.
