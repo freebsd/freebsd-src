@@ -5,7 +5,7 @@ SUBDIR=		libgroff libdriver libbib\
 		refer lookbib indxbib lkbib \
 		tfmtodit addftinfo pfbtops psbb \
 		devX100 devX100-12 devX75 devX75-12 devascii devdvi devlatin1 \
-		devkoi8-r devps tmac mm man
+		devkoi8-r devps tmac mm man xditview
 
 # BSD already provides soelim
 MISC=		soelim
