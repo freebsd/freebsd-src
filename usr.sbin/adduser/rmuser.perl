@@ -117,7 +117,8 @@ if ($#ARGV == 0) {
     $login_name = &get_login_name;
 }
 
-($name, $password, $uid, $gid, $change, $class, $gecos, $home_dir, $shell) = (getpwnam("$login_name"));
+($name, $password, $uid, $gid, $change, $class, $gecos, $home_dir, $shell) =
+    (getpwnam("$login_name"));
 
 if ($?) {
     print STDERR "${whoami}: Error: User ${login_name} not in password database\n";
@@ -316,7 +317,7 @@ sub update_passwd_file {
 	print STDERR "\n${whoami}: Warning: couldn't set mode of $new_passwd_file to 0600 ($!)\n\tcontinuing, but please check mode of /etc/master.passwd!\n";
     $skipped = 0;
     while (<MASTER_PW>) {
-	if (not /^$login_name\:/io) {
+	if (not /^\Q$login_name:/io) {
 	    print NEW_PW;
 	} else {
 	    print STDERR "Dropped entry for $login_name\n" if $debug;
