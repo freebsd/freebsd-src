@@ -52,7 +52,7 @@ SRCS+=		strtofflags.c
 .endif
 
 # Lot of tools need <getopt.h> and getopt_long(3).
-.if ( !exists(/usr/include/getopt.h) || ${BOOTSTRAPPING} < 502104 )
+.if !exists(/usr/include/getopt.h) || ${BOOTSTRAPPING} < 502104
 INCS+=		getopt.h
 .PATH: ${.CURDIR}/../../lib/libc/stdlib
 SRCS+=		getopt_long.c
