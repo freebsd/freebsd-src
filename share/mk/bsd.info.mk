@@ -1,4 +1,4 @@
-#	$Id: bsd.info.mk,v 1.42 1997/10/04 13:00:56 wosch Exp $
+#	$Id: bsd.info.mk,v 1.43 1997/10/09 18:14:18 wosch Exp $
 #
 # The include file <bsd.info.mk> handles installing GNU (tech)info files.
 # Texinfo is a documentation system that uses a single source
@@ -95,8 +95,7 @@ ${DESTDIR}${INFODIR}/${INFODIRFILE}:
 
 .texi.info .texinfo.info:
 	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} -I ${SRCDIR} ${.IMPSRC} \
-		-o ${.TARGET}.new
-	mv -f ${.TARGET}.new ${.TARGET}
+		-o ${.TARGET}
 
 .texi.dvi .texinfo.dvi:
 	env TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
