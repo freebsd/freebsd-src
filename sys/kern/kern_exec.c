@@ -323,6 +323,8 @@ interpret:
 			vrele(p->p_tracep);
 			p->p_tracep = NULL;
 		}
+		/* Close any file descriptors 0..2 that reference procfs */
+		setugidsafety(p);
 		/* Make sure file descriptors 0..2 are in use. */
 		error = fdcheckstd(p);
 		if (error != 0)
@@ -335,7 +337,6 @@ interpret:
 			change_euid(p, attr.va_uid);
 		if (attr.va_mode & VSGID)
 			p->p_ucred->cr_gid = attr.va_gid;
-		setugidsafety(p);
 	} else {
 		if (p->p_ucred->cr_uid == p->p_cred->p_ruid &&
 		    p->p_ucred->cr_gid == p->p_cred->p_rgid)
