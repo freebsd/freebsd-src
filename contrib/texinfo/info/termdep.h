@@ -1,7 +1,7 @@
 /* termdep.h -- System things that terminal.c depends on.
-   $Id: termdep.h,v 1.4 1998/04/13 22:02:57 karl Exp $
+   $Id: termdep.h,v 1.5 2001/09/12 17:26:03 karl Exp $
 
-   Copyright (C) 1993, 96, 97, 98 Free Software Foundation, Inc.
+   Copyright (C) 1993, 96, 97, 98, 2001 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,9 +30,6 @@
 
 #ifdef HAVE_TERMIOS_H
 #  include <termios.h>
-#  ifdef GWINSZ_IN_SYS_IOCTL
-#    include <sys/ioctl.h>
-#  endif
 #else
 #  if defined (HAVE_TERMIO_H)
 #    include <termio.h>
@@ -49,6 +46,10 @@
 #    include <sgtty.h>
 #  endif /* !HAVE_TERMIO_H */
 #endif /* !HAVE_TERMIOS_H */
+
+#ifdef GWINSZ_IN_SYS_IOCTL
+#  include <sys/ioctl.h>
+#endif
 
 #ifdef HAVE_SYS_TTOLD_H
 #  include <sys/ttold.h>

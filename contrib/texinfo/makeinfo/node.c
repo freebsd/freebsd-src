@@ -1,7 +1,7 @@
 /* node.c -- nodes for Texinfo.
-   $Id: node.c,v 1.23 1999/09/20 12:31:21 karl Exp $
+   $Id: node.c,v 1.31 2002/02/23 19:12:15 karl Exp $
 
-   Copyright (C) 1998, 99 Free Software Foundation, Inc.
+   Copyright (C) 1998, 99, 2000, 01, 02 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,8 +24,10 @@
 #include "macro.h"
 #include "makeinfo.h"
 #include "node.h"
+#include "html.h"
 #include "sectioning.h"
 #include "insertion.h"
+#include "xml.h"
 
 
 /* See comments in node.h.  */
@@ -63,6 +65,12 @@ write_tag_table_internal (indirect_p)
 {
   TAG_ENTRY *node;
   int old_indent = no_indent;
+
+  if (xml)
+    {
+      flush_output ();
+      return;
+    }
 
   no_indent = 1;
   filling_enabled = 0;
@@ -211,7 +219,25 @@ find_node (name)
   return tag;
 }
 
-/* Similarly for next etc. references in a @node command, where we
+/* Look in the tag table for a node whose file name is FNAME, and
+   return the associated tag_entry.  If there's no such node in the
+   table, return NULL. */
+TAG_ENTRY *
+find_node_by_fname (fname)
+     char *fname;
+{
+  TAG_ENTRY *tag = tag_table;
+  while (tag)
+    {
+      if (tag->html_fname && FILENAME_CMP (tag->html_fname, fname) == 0)
+	return tag;
+      tag = tag->next_ent;
+    }
+
+  return tag;
+}
+
+/* Remember next, prev, etc. references in a @node command, where we
    don't care about most of the entries. */
 static void
 remember_node_node_reference (node)
@@ -237,8 +263,8 @@ remember_node_node_reference (node)
 
 /* Remember NODE and associates. */
 void
-remember_node (node, prev, next, up, position, line_no, flags)
-     char *node, *prev, *next, *up;
+remember_node (node, prev, next, up, position, line_no, fname, flags)
+     char *node, *prev, *next, *up, *fname;
      int position, line_no, flags;
 {
   /* Check for existence of this tag already. */
@@ -280,6 +306,7 @@ remember_node (node, prev, next, up, position, line_no, flags)
         node_number++;
         new->number = node_number;
       }
+    new->html_fname = fname;
     new->next_ent = tag_table;
     tag_table = new;
   }
@@ -392,7 +419,7 @@ glean_node_from_menu (remember_ref, ref_type)
   char *nodename;
   char *line, *expanded_line;
   char *old_input = input_text;
-  size_t old_size = input_text_length;
+  int old_size = input_text_length;
 
   if (strncmp (&input_text[input_text_offset + 1],
                MENU_STARTER,
@@ -457,9 +484,13 @@ set_current_output_filename (fname)
 void
 cm_node ()
 {
+  static long epilogue_len = 0L;
   char *node, *prev, *next, *up;
   int new_node_pos, defaulting, this_section;
   int no_warn = 0;
+  char *fname_for_this_node = NULL;
+  char *tem;
+  TAG_ENTRY *tag = NULL;
 
   if (strcmp (command, "nwnode") == 0)
     no_warn = TAG_FLAG_NO_WARN;
@@ -473,27 +504,12 @@ cm_node ()
 
   if (!html && !already_outputting_pending_notes)
     {
+      if (!xml)
       close_paragraph ();
       output_pending_notes ();
     }
 
-  if (html && splitting && top_node_seen)
-    {
-      /* End the current split output file. */
-      close_paragraph ();
-      output_pending_notes ();
-      start_paragraph ();
-      /* Fixme: html: need a navigation bar here. */
-      add_word ("</body></html>\n");
-      close_paragraph ();
-      fclose (output_stream);
-      output_stream = NULL;
-    }
-
-  filling_enabled = indented_fill = 0;
   new_node_pos = output_position;
-  if (!html || (html && splitting))
-    current_footnote_number = 1;
 
   if (macro_expansion_output_stream && !executing_string)
     append_to_expansion_output (input_text_offset + 1);
@@ -510,6 +526,70 @@ cm_node ()
   prev = get_node_token (0);
   up = get_node_token (0);
 
+  if (html && splitting
+      /* If there is a Top node, it always goes into index.html.  So
+	 don't start a new HTML file for Top.  */
+      && (top_node_seen || strcasecmp (node, "Top") != 0))
+    {
+      /* We test *node here so that @node without a valid name won't
+	 start a new file name with a bogus name such as ".html".
+	 This could happen if we run under "--force", where we cannot
+	 simply bail out.  Continuing to use the same file sounds like
+	 the best we can do in such cases.  */
+      if (current_output_filename && output_stream && *node)
+	{
+	  char *fname_for_prev_node;
+
+	  if (current_node)
+	    {
+	      /* NOTE: current_node at this point still holds the name
+		 of the previous node.  */
+	      tem = expand_node_name (current_node);
+	      fname_for_prev_node = nodename_to_filename (tem);
+	      free (tem);
+	    }
+	  else /* could happen if their top node isn't named "Top" */
+	    fname_for_prev_node = filename_part (current_output_filename);
+	  tem = expand_node_name (node);
+	  fname_for_this_node = nodename_to_filename (tem);
+	  free (tem);
+	  /* Don't close current output file, if next output file is
+             to have the same name.  This may happen at top level, or
+             if two nodes produce the same file name under --split.  */
+	  if (FILENAME_CMP (fname_for_this_node, fname_for_prev_node) != 0)
+	    {
+	      long pos1 = 0;
+
+	      /* End the current split output file. */
+	      close_paragraph ();
+	      output_pending_notes ();
+	      start_paragraph ();
+	      /* Compute the length of the HTML file's epilogue.  We
+		 cannot know the value until run time, due to the
+		 text/binary nuisance on DOS/Windows platforms, where
+		 2 `\r' characters could be added to the epilogue when
+		 it is written in text mode.  */
+	      if (epilogue_len == 0)
+		{
+		  flush_output ();
+		  pos1 = ftell (output_stream);
+		}
+	      add_word ("</body></html>\n");
+	      close_paragraph ();
+	      if (epilogue_len == 0)
+		epilogue_len = ftell (output_stream) - pos1;
+	      fclose (output_stream);
+	      output_stream = NULL;
+	      tag = find_node_by_fname (fname_for_this_node);
+	    }
+	  free (fname_for_prev_node);
+	}
+    }
+
+  filling_enabled = indented_fill = 0;
+  if (!html || (html && splitting))
+    current_footnote_number = 1;
+  
   if (verbose_mode)
     printf (_("Formatting node %s...\n"), node);
 
@@ -517,7 +597,23 @@ cm_node ()
     remember_itext (input_text, input_text_offset);
 
   no_indent = 1;
-  if (!no_headers && !html)
+  if (xml)
+    {
+      xml_begin_document ();
+      xml_begin_node ();
+      if (!docbook)
+	{
+	  xml_insert_element (NODENAME, START);      
+	  if (macro_expansion_output_stream && !executing_string)
+	    me_execute_string (node);
+	  else
+	    execute_string ("%s", node);
+	  xml_insert_element (NODENAME, END);
+	}
+      else
+	xml_node_id = xml_id (node);
+    }
+  else if (!no_headers && !html)
     {
       add_word_args ("\037\nFile: %s,  Node: ", pretty_output_filename);
 
@@ -729,33 +825,83 @@ cm_node ()
       if (!*next) { free (next); next = NULL; }
       if (!*prev) { free (prev); prev = NULL; }
       if (!*up)   { free (up);   up = NULL;   }
-      remember_node (node, prev, next, up, new_node_pos, line_number, no_warn);
+      remember_node (node, prev, next, up, new_node_pos, line_number,
+		     fname_for_this_node, no_warn);
       outstanding_node = 1;
     }
 
   if (html)
     {
-      char *tem;
+      if (splitting && *node && output_stream == NULL)
+        {
+	  char *dirname;
+	  char filename[PATH_MAX];
 
-      if (splitting)
-        { /* this code not operational, we do not currently split html */
-          char filename[20];
+	  dirname = pathname_part (current_output_filename);
+	  strcpy (filename, dirname);
+	  strcat (filename, fname_for_this_node);
+	  free (dirname);
 
-          sprintf (filename, "node%d.html", number_of_node (node));
-          output_stream = fopen (filename, "w");
+	  /* See if the node name converted to a file name clashes
+	     with other nodes or anchors.  If it clashes with an
+	     anchor, we complain and nuke that anchor's file.  */
+	  if (!tag)
+	    {
+	      output_stream = fopen (filename, "w");
+	      html_output_head_p = 0; /* so that we generate HTML preamble */
+	      html_output_head ();
+	    }
+	  else if ((tag->flags & TAG_FLAG_ANCHOR) != 0)
+	    {
+	      line_error (_("Anchor `%s' and node `%s' map to the same file name"),
+			  tag->node, node);
+	      file_line_error (tag->filename, tag->line_no,
+			       _("This @anchor command ignored; references to it will not work"));
+	      file_line_error (tag->filename, tag->line_no,
+			       _("Rename this anchor or use the `--no-split' option"));
+	      /* Nuke the file name recorded in anchor's tag.
+		 Since we are about to nuke the file itself, we
+		 don't want find_node_by_fname to consider this
+		 anchor anymore.  */
+	      free (tag->html_fname);
+	      tag->html_fname = NULL;
+	      output_stream = fopen (filename, "w");
+	      html_output_head_p = 0; /* so that we generate HTML preamble */
+	      html_output_head ();
+	    }
+	  else
+	    {
+	      /* This node's file name clashes with another node.
+		 We put them both on the same file.  */
+	      output_stream = fopen (filename, "r+");
+	      if (output_stream)
+		{
+		  static char html_end[] = "</body></html>\n";
+		  char end_line[sizeof(html_end)];
+		  int fpos = fseek (output_stream, -epilogue_len,
+				    SEEK_END);
+
+		  if (fpos < 0
+		      || fgets (end_line, sizeof (html_end),
+				output_stream) == NULL
+		      /* Paranoia: did someone change the way HTML
+			 files are finished up?  */
+		      || strcasecmp (end_line, html_end) != 0)
+		    {
+		      line_error (_("Unexpected string at end of split-HTML file `%s'"),
+				  fname_for_this_node);
+		      fclose (output_stream);
+		      xexit (1);
+		    }
+		  fseek (output_stream, -epilogue_len, SEEK_END);
+		}
+	    }
           if (output_stream == NULL)
             {
               fs_error (filename);
               xexit (1);
             }
           set_current_output_filename (filename);
-          /* FIXME: when this code is operational, we will need to
-             expand node, next, prev, and up before output.  */
-          add_word_args ("<html><head><title>%s</title>", node);
-          if (next) add_link (next, "rel=next");
-          if (prev) add_link (prev, "rel=previous");
-          if (up) add_link (up, "rel=up");
-          add_word ("</head>\n<body>\n");
         }
 
       if (!splitting && no_headers)
@@ -779,32 +925,32 @@ cm_node ()
 
           if (next)
             {
-              add_word (",\n");
-              add_word (_("Next:"));
-              add_word ("<a rel=next href=\"");
               tem = expansion (next, 0);
-              add_anchor_name (tem, 1);
-              add_word_args ("\">%s</a>", tem);
+	      add_word (",\n");
+	      add_word (_("Next:"));
+	      add_word ("<a rel=next href=\"");
+	      add_anchor_name (tem, 1);
+	      add_word_args ("\">%s</a>", tem);
               free (tem);
             }
           if (prev)
             {
-              add_word (",\n");
-              add_word (_("Previous:"));
-              add_word ("<a rel=previous href=\"");
               tem = expansion (prev, 0);
-              add_anchor_name (tem, 1);
-              add_word_args ("\">%s</a>", tem);
+	      add_word (",\n");
+	      add_word (_("Previous:"));
+	      add_word ("<a rel=previous href=\"");
+	      add_anchor_name (tem, 1);
+	      add_word_args ("\">%s</a>", tem);
               free (tem);
             }
           if (up)
             {
-              add_word (",\n");
-              add_word (_("Up:"));
-              add_word ("<a rel=up href=\"");
               tem = expansion (up, 0);
-              add_anchor_name (tem, 1);
-              add_word_args ("\">%s</a>", tem);
+	      add_word (",\n");
+	      add_word (_("Up:"));
+	      add_word ("<a rel=up href=\"");
+	      add_anchor_name (tem, 1);
+	      add_word_args ("\">%s</a>", tem);
               free (tem);
             }
           /* html fixxme: we want a `top' or `contents' link here.  */
@@ -812,7 +958,29 @@ cm_node ()
           add_word_args ("\n%s<br>\n", splitting ? "<hr>" : "");
         }
     }
-
+  else if (docbook)
+    ;
+  else if (xml)
+    {
+      if (next)
+	{
+	  xml_insert_element (NODENEXT, START);
+	  execute_string ("%s", next);
+	  xml_insert_element (NODENEXT, END);
+	}
+      if (prev)
+	{
+	  xml_insert_element (NODEPREV, START);
+	  execute_string ("%s", prev);	    
+	  xml_insert_element (NODEPREV, END);
+	}
+      if (up)
+	{
+	  xml_insert_element (NODEUP, START);
+	  execute_string ("%s", up);
+	  xml_insert_element (NODEUP, END);
+	}
+    }
   else if (!no_headers)
     {
       if (macro_expansion_output_stream)
@@ -858,6 +1026,7 @@ cm_anchor (arg)
      int arg;
 {
   char *anchor;
+  char *fname_for_anchor = NULL;
 
   if (arg == END)
     return;
@@ -872,6 +1041,8 @@ cm_anchor (arg)
 	 sure a new paragraph is indeed started.  */
       if (!paragraph_is_open)
 	{
+	  if (!executing_string && html)
+	    html_output_head ();
 	  start_paragraph ();
 	  if (!in_fixed_width_font || in_menu || in_detailmenu)
 	    {
@@ -882,11 +1053,104 @@ cm_anchor (arg)
       add_word ("<a name=\"");
       add_anchor_name (anchor, 0);
       add_word ("\"></a>");
-    }
+      if (splitting)
+	{
+	  /* If we are splitting, cm_xref will produce a reference to
+	     a file whose name is derived from the anchor name.  So we
+	     must create a file when we see an @anchor, otherwise
+	     xref's to anchors won't work.  The file we create simply
+	     redirects to the file of this anchor's node.  */
+	  TAG_ENTRY *tag;
 
+	  fname_for_anchor = nodename_to_filename (anchor);
+	  /* See if the anchor name converted to a file name clashes
+	     with other anchors or nodes.  */
+	  tag = find_node_by_fname (fname_for_anchor);
+	  if (tag)
+	    {
+	      if ((tag->flags & TAG_FLAG_ANCHOR) != 0)
+		line_error (_("Anchors `%s' and `%s' map to the same file name"),
+			    anchor, tag->node);
+	      else
+		line_error (_("Anchor `%s' and node `%s' map to the same file name"),
+			    anchor, tag->node);
+	      line_error (_("@anchor command ignored; references to it will not work"));
+	      line_error (_("Rename this anchor or use the `--no-split' option"));
+	      free (fname_for_anchor);
+	      /* We will not be creating a file for this anchor, so
+		 set its name to NULL, so that remember_node stores a
+		 NULL and find_node_by_fname won't consider this
+		 anchor for clashes.  */
+	      fname_for_anchor = NULL;
+	    }
+	  else
+	    {
+	      char *dirname, *p;
+	      char filename[PATH_MAX];
+	      FILE *anchor_stream;
+
+	      dirname = pathname_part (current_output_filename);
+	      strcpy (filename, dirname);
+	      strcat (filename, fname_for_anchor);
+	      free (dirname);
+
+	      anchor_stream = fopen (filename, "w");
+	      if (anchor_stream == NULL)
+		{
+		  fs_error (filename);
+		  xexit (1);
+		}
+	      /* The HTML magic below will cause the browser to
+		 immediately go to the anchor's node's file.  Lynx
+		 seems not to support this redirection, but it looks
+		 like a bug in Lynx, and they can work around it by
+		 clicking on the link once more.  */
+	      fputs ("<meta http-equiv=\"refresh\" content=\"0; url=",
+		     anchor_stream);
+	      /* Make the indirect link point to the current node's
+		 file and anchor's "<a name" label.  If we don't have
+		 a valid node name, refer to the current output file
+		 instead.  */
+	      if (current_node && *current_node)
+		{
+		  char *fn, *tem;
+
+		  tem = expand_node_name (current_node);
+		  fn = nodename_to_filename (tem);
+		  free (tem);
+		  fputs (fn, anchor_stream);
+		  free (fn);
+		}
+	      else
+		{
+		  char *base = filename_part (current_output_filename);
+
+		  fputs (base, anchor_stream);
+		  free (base);
+		}
+	      fputs ("#", anchor_stream);
+	      for (p = anchor; *p; p++)
+		{
+		  if (*p == '&')
+		    fputs ("&amp;", anchor_stream);
+		  else if (!URL_SAFE_CHAR (*p))
+		    fprintf (anchor_stream, "%%%x", (unsigned char) *p);
+		  else
+		    fputc (*p, anchor_stream);
+		}
+	      fputs ("\">\n", anchor_stream);
+	      fclose (anchor_stream);
+	    }
+	}
+    }
+  else if (xml)
+    {
+      xml_insert_element_with_attribute (ANCHOR, START, "name=\"%s\"", anchor);
+      xml_insert_element (ANCHOR, END);
+    }
   /* Save it in the tag table.  */
   remember_node (anchor, NULL, NULL, NULL, output_position + output_column,
-                 line_number, TAG_FLAG_ANCHOR);
+                 line_number, fname_for_anchor, TAG_FLAG_ANCHOR);
 }
 
 /* Find NODE in REF_LIST. */
@@ -1114,12 +1378,9 @@ validate_file (tag_table)
                 {
                   line_error (_("Next field of node `%s' not pointed to"),
                               tags->node);
-                  line_number = temp_tag->line_no;
-                  input_filename = temp_tag->filename;
-                  line_error (_("This node (%s) has the bad Prev"),
-                              temp_tag->node);
-                  input_filename = tags->filename;
-                  line_number = tags->line_no;
+                  file_line_error (temp_tag->filename, temp_tag->line_no,
+				   _("This node (%s) has the bad Prev"),
+				   temp_tag->node);
                   temp_tag->flags |= TAG_FLAG_PREV_ERROR;
                 }
             }
@@ -1175,12 +1436,10 @@ validate_file (tag_table)
                           line_error
                             (_("Prev field of node `%s' not pointed to"),
                              tags->node);
-                          line_number = temp_tag->line_no;
-                          input_filename = temp_tag->filename;
-                          line_error (_("This node (%s) has the bad Next"),
-                                      temp_tag->node);
-                          input_filename = tags->filename;
-                          line_number = tags->line_no;
+                          file_line_error (temp_tag->filename,
+					   temp_tag->line_no,
+					   _("This node (%s) has the bad Next"),
+					   temp_tag->node);
                           temp_tag->flags |= TAG_FLAG_NEXT_ERROR;
                         }
                     }
@@ -1259,13 +1518,9 @@ validate_file (tag_table)
                   if (!nref && !tref)
                     {
                       temp_tag = find_node (tags->up);
-                      line_number = temp_tag->line_no;
-                      input_filename = temp_tag->filename;
-                      line_error (
+                      file_line_error (temp_tag->filename, temp_tag->line_no,
            _("Node `%s' lacks menu item for `%s' despite being its Up target"),
                                   tags->up, tags->node);
-                      line_number = tags->line_no;
-                      input_filename = tags->filename;
                     }
                 }
             }

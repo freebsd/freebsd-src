@@ -1,5 +1,5 @@
 /* toc.h -- table of contents handling.
-   $Id: toc.h,v 1.4 1999/04/25 19:49:22 karl Exp $
+   $Id: toc.h,v 1.5 2002/02/09 00:54:51 karl Exp $
 
    Copyright (C) 1999 Free Software Foundation, Inc.
 
@@ -32,6 +32,7 @@ extern char *shortcontents_filename;
 typedef struct toc_entry_elt {
   char *name;
   char *containing_node; /* Name of node containing this section.  */
+  char *html_file;       /* Name of HTML node-file in split-HTML mode */
   int number;            /* counting number from 0...n independent from
                             chapter/section can be used for anchors or
                             references to it.  */

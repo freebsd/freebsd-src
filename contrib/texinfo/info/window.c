@@ -1,7 +1,7 @@
 /* window.c -- windows in Info.
-   $Id: window.c,v 1.11 1999/06/25 21:57:40 karl Exp $
+   $Id: window.c,v 1.15 2002/01/19 01:08:20 karl Exp $
 
-   Copyright (C) 1993, 97, 98 Free Software Foundation, Inc.
+   Copyright (C) 1993, 97, 98, 2001, 02 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -826,7 +826,10 @@ calculate_line_starts (window)
 
       while (1)
         {
-          c = node->contents[i];
+	  /* The cast to unsigned char is for 8-bit characters, which
+	     could be passed as negative integers to character_width
+	     and wreak havoc on some naive implementations of iscntrl.  */
+          c = (unsigned char) node->contents[i];
           cwidth = character_width (c, hpos);
 
           /* If this character fits within this line, just do the next one. */
@@ -1298,16 +1301,17 @@ message_buffer_resize (length)
 /* Format MESSAGE_BUFFER with the results of printing FORMAT with ARG1 and
    ARG2. */
 static void
-build_message_buffer (format, arg1, arg2)
+build_message_buffer (format, arg1, arg2, arg3)
      char *format;
-     void *arg1, *arg2;
+     void *arg1, *arg2, *arg3;
 {
   register int i, len;
-  void *args[2];
+  void *args[3];
   int arg_index = 0;
 
   args[0] = arg1;
   args[1] = arg2;
+  args[2] = arg3;
 
   len = strlen (format);
 
@@ -1326,7 +1330,9 @@ build_message_buffer (format, arg1, arg2)
           char *fmt_start = format + i;
           char *fmt;
           int fmt_len, formatted_len;
+	  int paramed = 0;
 
+	format_again:
           i++;
           while (format[i] && strchr ("-. +0123456789", format[i]))
             i++;
@@ -1335,18 +1341,39 @@ build_message_buffer (format, arg1, arg2)
           if (c == '\0')
             abort ();
 
+	  if (c == '$') {
+	    /* position parameter parameter */
+	    /* better to use bprintf from bfox's metahtml? */
+	    arg_index = atoi(fmt_start + 1) - 1;
+	    if (arg_index < 0)
+	      arg_index = 0;
+	    if (arg_index >= 2)
+	      arg_index = 1;
+	    paramed = 1;
+	    goto format_again;
+	  }
+
           fmt_len = format + i - fmt_start + 1;
           fmt = (char *) xmalloc (fmt_len + 1);
           strncpy (fmt, fmt_start, fmt_len);
           fmt[fmt_len] = '\0';
+
+	  if (paramed) {
+	    /* removed positioned parameter */
+	    char *p;
+	    for (p = fmt + 1; *p && *p != '$'; p++) {
+	      ;
+	    }
+	    strcpy(fmt + 1, p + 1);
+	  }
 
           /* If we have "%-98s", maybe 98 calls for a longer string.  */
           if (fmt_len > 2)
             {
               int j;
 
-              for (j = 0; j < fmt_len; j++)
-                if (isdigit (fmt[j]))
+              for (j = fmt_len - 2; j >= 0; j--)
+                if (isdigit (fmt[j]) || fmt[j] == '$')
                   break;
 
               formatted_len = atoi (fmt + j);
@@ -1430,7 +1457,7 @@ build_message_node (format, arg1, arg2)
   NODE *node;
 
   message_buffer_index = 0;
-  build_message_buffer (format, arg1, arg2);
+  build_message_buffer (format, arg1, arg2, 0);
 
   node = message_buffer_to_node ();
   return (node);
@@ -1467,11 +1494,11 @@ initialize_message_buffer ()
 
 /* Print FORMAT with ARG1,2 to the end of the current message buffer. */
 void
-printf_to_message_buffer (format, arg1, arg2)
+printf_to_message_buffer (format, arg1, arg2, arg3)
      char *format;
-     void *arg1, *arg2;
+     void *arg1, *arg2, *arg3;
 {
-  build_message_buffer (format, arg1, arg2);
+  build_message_buffer (format, arg1, arg2, arg3);
 }
 
 /* Return the current horizontal position of the "cursor" on the most

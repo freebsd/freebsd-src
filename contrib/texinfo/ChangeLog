@@ -1,9 +1,1335 @@
-1999-09-28  Karl Berry  <karl@gnu.org>
+2002-03-04    <karl@gnu.org>
 
-	* doc/texinfo.txi: New isbn.
+	* configure.ac: version 4.1.
+	* util/texi2dvi: version.
+
+	* doc/texinfo.txi: @settitle is used in html output (from Eli),
+		various underfull hbox fixes.
+
+2002-03-02    <karl@gnu.org>
+
+	* configure.ac: pretest 4.0k
+
+	* info/info.c: declare add_file_to_directory to avoid warning.
+
+	* doc/info-stnd.texi: info standalone so as not to collide with
+		`standards' in dir.
+
+2002-03-01  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/insertion.c (end_insertion): Insert the /td and /tr
+	directives in lower case.  From Per Bothner <per@bothner.com>.
+
+	* makeinfo/macro.c (cm_alias): Ignore whitespace around the alias
+	name, like the manual promises.
+
+	* doc/texinfo.txi (Invoking Macros, Macro Details): Document that
+	commas in macro arguments don't work in TeX.  Advise texi2dvi -e
+	when macros don't work with TeX.
+
+	* doc/texinfo.txi (Node Line Requirements): Add restrictions about
+	parens and some punctuation characters in node names.
+	(Def Cmd Template): Document that macros are not expanded.
+
+	The following two changes allow to say "info foo" if there's an
+	Info file `foo' somewhere along INFOPATH.
+
+	* info/info.c (add_file_directory_to_path): New function, code
+	moved from `main'.
+	(main): Use add_file_directory_to_path.  
+
+	* info/session.c (info_follow_menus): If the first menu entry
+	couldn't be found as an item in DIR's menu, try it as a file name.
+
+	2001-06-19  Mark Montague  <markmont@umich.edu>
+
+	* info/filesys.c: Fix for sparc64 (offsets should be "long"s).
+
+	* info/session.c: Fix typos in function calls.
+
+	2001-08-23  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/footnote.c (cm_footnote): Don't allow footnotes inside
+	footnotes.
+	(output_pending_notes): Increment already_outputting_pending_notes
+	in the HTML case as well, to protect execute_string from
+	recursively entering output_pending_notes.
+
+2002-03-01    <karl@gnu.org>
+
+	* doc/texinfo.tex: fix mismatched $'s for sake of emacs font-lock.
+	From: Stephen Gildea <gildea@stop.mail-abuse.org>.
+
+2002-02-27    <karl@gnu.org>
+
+	* configure.ac: pretest 4.0j.
+
+	* info/infodoc.c: 1scroll-forward typo.
+
+2002-02-26    <karl@gnu.org>
+
+	* lib/system.h [! ENABLE_NLS]: let's not go const.
+
+2002-02-26  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* djgpp/config.sed: Add tweaking of file names in "install-info"
+	and "uninstall-info" targets.
+
+	* doc/inf-stnd.texi (Custom Key Bindings, Invoking infokey):
+          Add footnotes about DOS file names.
+
+	* info/infokey.c (main) [__MSDOS__]: If HOME is not defined,
+	default to the current directory.
+
+2002-02-26    <karl@gnu.org>
+
+	* lib/system.h (LC_MESSAGES) [! LC_MESSAGES]: need this after all.
+
+2002-02-25    <karl@gnu.org>
+
+	* doc/info-stnd.texi: contents at top, avoid overfull hbox.
+	* lib/Makefile.am (libtxi_a_sources): include gettext.h.
+
+	* lib/system.h (LC_MESSAGES): don't need conditional, Bruno says
+		that locale.h or libintl.h does so.
+
+	* configure.ac: pretest 4.0i.
+
+	* dir-example: infokey.
+	* doc/info-stnd.texi: invoking infokey.
+	* info/infokey.c (short_help): reorganize slightly.
+
+	* lib/system.h: use "gettext.h" instead of <libintl.h> per gettext
+	0.11 recommendation.
+
+2002-02-25  gettextize  <bug-gnu-gettext@gnu.org>
+
+	* Makefile.am (SUBDIRS): Add intl.
+	* configure.ac (AC_CONFIG_FILES): Add intl/Makefile.
+
+2002-02-25    <karl@gnu.org>
+
+	* util/Makefile.am (LDADD):
+	* makeinfo/Makefile.am (LDADD):
+	* info/Makefile.am (LDADD): @LIBINTL@ per gettextize.
+
+	* configure.ac: gettextize changes.
+	* Makefile.am: gettextize changes.
+
+2002-02-25  gettextize  <bug-gnu-gettext@gnu.org>
+
+	* Makefile.am (SUBDIRS): Add m4.
+	(SUBDIRS): Remove intl.
+	(ACLOCAL_AMFLAGS): New variable.
+	(EXTRA_DIST): Add config.rpath.
+	* configure.ac (AC_CONFIG_FILES): Add m4/Makefile.
+	(AC_CONFIG_FILES): Remove intl/Makefile.
+
+2002-02-23    <karl@gnu.org>
+
+	* pretest 4.0h.
+
+	* 2002-02-23  Eli Zaretskii  <eliz@is.elta.co.il>
+	* doc/info-stnd.texi (Invoking Info): Add a reference to the
+	description of index-apropos and index-search.  Document the
+	--raw-escapes option.
+	(Searching Commands): Describe index-search and index-apropos.
+
+	* info/man.c (clean_manpage): If raw_escapes_p is not set, remove
+	ANSI escape sequences from the man page.
+
+	* info/info.h: Declare raw_escapes_p.
+
+	* info/info.c: <raw_escapes_p>: New variable.
+	New option --raw-escapes or -R.
+	(main): Handle it.
+	(info_short_help): Document it.
+	(main): Honor --output together with --usage, by dumping the node
+	we found to the named file.
+
+	2002-02-23  Eli Zaretskii  <eliz@is.elta.co.il>
+	* makeinfo/html.c (nodename_to_filename): Call
+	nodename_to_filename_1 with the last argument 1, not 0.
+
+	* makeinfo/toc.c (shortcontents_update_html) 
+	(contents_update_html): Don't omit the entry for the Top node.
+
+	* 2002-01-30  Eli Zaretskii  <eliz@is.elta.co.il>
+	* makeinfo/node.c (cm_node): Don't condition splitting on
+	top_node_seen being non-zero.  If current_node is NULL, use the
+	current output file name to get at the file name for the previous
+	node.  Don't compute a new file name for a node if we didn't close
+	the current file.
+
+	2002-02-01  Eli Zaretskii  <eliz@is.elta.co.il>
+	* makeinfo/node.c (cm_node): Call html_output_head whenever we
+	create a new split-HTML file.
+
+	* makeinfo/html.c (html_output_head): Make html_title static.
+	Compute it only once, and don't free it.  Output the <h1> title
+	header only once per run.
+
+	2002-02-02  Eli Zaretskii  <eliz@is.elta.co.il>
+	* makeinfo/toc.c (contents_update_html): Fix the condition for
+	omitting duplicate TOC entries.  Fix comparison with the TOC entry
+	for "Top".
+
+2002-02-14    <karl@gnu.org>
+
+	* doc/Makefile.am (DISTCLEANFILES): use this variable instead of
+	the distclean-aminfo target, which apparently is no longer used.
+
+	* pretest 4.0g.
+
+	* doc/texinfo.tex (\appendixentry): new macro for typesetting
+	appendix toc entries.
+	(\appendixzzz, \summarycontents, \pdfoutlines): use it, instead of
+	usurping \chapentry.  This allows the bookmarks in the pdf output
+	to come out right.  Report from: Kurt Hornik
+	<Kurt.Hornik@ci.tuwien.ac.at>.
+
+2002-02-13    <karl@gnu.org>
+
+	* configure.ac: ALL_LINGUAS is deprecated as of gettext 0.11.
+	* doc/texinfo.tex (\image): remove spurious \loggingall.
+
+	* doc/texinfo.txi: @math now implies @tex.
+	* doc/texinfo.tex (\math): imply @tex.
+
+2002-02-11    <karl@gnu.org>
+
+	* makeinfo/insertion.c (handle_verbatim_environment): save and
+	restore filling_enabled and inhibit_paragraph_indentation.  Bug
+	report from: Alexandre Duret-Lutz <duret_g@lrde.epita.fr>.
+
+	* makeinfo/makeinfo.c (reader_loop): don't worry about bare braces
+	inside @math.
+
+2002-02-08    <karl@gnu.org>
+
+	* info/infodoc.c: keep underlines with the text they refer to, for
+		translation purposes.
+	Pointed out by Christian Rose <menthos@menthos.com>, 20 nov 2001.
+
+	* doc/info.texi: recommend setting INFOPATH.
+
+	* doc/Makefile.am (install-tex): need $(srcdir) for install.
+	From: istry <istry@mail.ru>.
+
+	* doc/texinfo.tex: replace $$$ delimiter with $.$, for sake of
+	font-lock in Emacs 21.1.  Suggestion from: Stephen Gildea
+	<gildea@stop.mail-abuse.org>.
+
+	2002-01-26  Eli Zaretskii  <eliz@is.elta.co.il>
+	* info/infomap.c (default_emacs_like_info_keys) 
+	(default_emacs_like_ea_keys, default_vi_like_info_keys) 
+	(default_vi_like_ea_keys): Fix default keybindings to be
+	consistent with non-INFOKEY branch.  Add bindings for Home, End,
+	and Delete keys.
+
+	2002-01-23  Eli Zaretskii  <eliz@is.elta.co.il>
+	* makeinfo/toc.h <TOC_ENTRY_ELT>: New member html_file.
+
+	* makeinfo/toc.c (toc_add_entry): Compute and set the html_file
+	member.
+	(shortcontents_update_html): Produce the toc_* links correctly,
+	without duplicating the link text.  Fix comparison with "Top".
+	Handle the case when there's @shortcontents, but no @contents.
+	(contents_update_html): Fix the way toc_* anchors are produced
+	from toc_entry_alist[i]->name: take only the node name from the
+	string in toc_entry_alist[i]->name.  Fix comparison with "Top".
+
+	* makeinfo/sectioning.c (sectioning_html): Take the toc_anchor
+	substring before closing the anchor with </a>.  Fix the closing
+	</hN> tag--add 2 to level, not 1.  Use sizeof instead of a magic
+	value of 9.
+
+	* makeinfo/cmds.c: Make @summarycontents call cm_shortcontents, as
+	promised by the docs.
+
+	2002-01-19  Eli Zaretskii  <eliz@is.elta.co.il>
+	* djgpp/config.sed: Fix a problem with AC_CONFIG_LINKS that
+	prevented building from a directory on another drive.
+
+	* djgpp/config.bat: Fix problems with long --srcdir diectory names.
+
+	* djgpp/README: Update.
+
+2002-01-31    <karl@gnu.org>
+
+	* doc/texinfo.txi: mention dvips
+
+2002-01-28    <karl@gnu.org>
+
+	* configure.ac (ALL_LINGUAS): add hr.
+
+2002-01-22    <karl@gnu.org>
+
+	* makeinfo/defun.c (defun.c): only warn about ( immediately
+        following a defun name, since the groff manual needs other
+        characters there where whitespace is incorrect.
+	Reported by Werner Lemberg <wl@gnu.org>.
+
+	* doc/info-stnd.texi: alphabetize variable list.
+
+	* doc/texinfo.txi: no :'s in index entries, index @page/@group
+	some more.
+
+	* makeinfo/index.c (index_add_arg): warn if index entry contains a
+	colon.  From: Kenneth Lorber <keni@his.com>.
+
+2002-01-21    <karl@gnu.org>
+
+	* makeinfo/insertion.c: </pre not /<pre, reported by Mike
+	Benefield <mike@duckbrain.com>.
+
+2002-01-18    <karl@gnu.org>
+
+	* configure.ac: pretest 4.0f.
+
+	* util/texindex.c:
+	* util/install-info.c:
+	* makeinfo/makeinfo.c:
+	* info/info.c: it's 2002.
+
+	* info/session.c: pass right args to info_scroll_half_screen_up.
+	From Eli.
+
+2002-01-18  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/multi.c (multitable_item): Always return a value.
+
+	* util/install-info.c (xmalloc, xrealloc, pfatal_with_name)
+	(open_possibly_compressed_file, parse_input): Call `fatal' with 3
+	arguments, to avoid compiler warnings.
+	(main): Call `fatal', `error', and `warning' with the right number
+	of arguments.
+
+	* makeinfo/makeinfo.c (main): Remove extraneous first arg of
+	usage().
+
+	* info/window.c (build_message_node): Supply a 4th argument to
+	build_message_buffer.
+
+
+2002-01-18  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/sectioning.c (sectioning_html): End the anchor properly
+	with a </a>.
+
+	* info/session.c (info_menu_or_ref_item): If we didn't find a
+	cross-reference on this line, try the one before.
+
+	* info/infomap.c (fetch_user_maps): Provide two different
+	translations for ``file too small'' and ``file too big'' error.
+
+	* info/info.c (info_short_help): Print the --speech-friendly
+	option together with the other options, not at the end of the help
+	screen.
+
+2002-01-18  Andreas Schwab  <schwab@suse.de>
+
+	* makeinfo/html.c (escape_string): When string is empty don't read
+	past end of it.
+
+2002-01-17    <karl@gnu.org>
+
+	* doc/info-stnd.texi: overfull box in table.
+
+2002-01-16    <karl@gnu.org>
+
+	* configure.ac: pretest 4.0e.
+
+	* doc/info.texi: update from emacs.
+
+2002-01-03  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/makeinfo.c (file_line_error): New function.
+
+	* makeinfo/insertion.c (discard_insertions): Call file_line_error
+	instead of changing global variables.
+
+	* makeinfo/sectioning.c (cm_top): Ditto.
+
+	* makeinfo/node.c (validate_file): Ditto.
+
+	* makeinfo/makeinfo.c (discard_braces, handle_variable_internal):
+	Ditto.
+
+	* makeinfo/macro.c (define_macro): Ditto.
+
+	2001-12-31  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/node.h (TAG_ENTRY): New struct member html_fname.
+
+	* makeinfo/node.c (find_node_by_fname): New function.
+	(remember_node): Accept an additional argument FNAME, the node's
+	file name, and record it in the list of nodes; callers changed.
+	(cm_node): Call find_node_by_fname to see if this node's file name
+	clashes with another node or anchor.  If it clashes with another
+	node, append the new node to the same file instead of erasing the
+	other node.  If it clashes with an anchor, print an error message
+	and overwrite the anchor's file.
+	(cm_anchor): If this anchor's file name clashes with another
+	anchor or node, print an error message and ignore the anchor.
+
+	* makeinfo/files.c (normalize_filename): New function.
+
+	* makeinfo/files.h <normalize_filename>: Add declaration.
+
+	* makeinfo/html.c (nodename_to_filename_1): Call
+	normalize_filename before returning the file name to the caller.
+	Disable the code which adds #Nodified-filename to the file name we
+	produce.
+
+	* makeinfo/makeinfo.c (add_char): Don't replace whitespace with
+	&nbsp; if we are producing an HTML directive.
+	(add_html_elt): New function.
+	(cm_xref, cm_inforef, cm_uref, cm_email, cm_image): Use
+	add_html_elt instead of add_word, where appropriate.
+
+	* makeinfo/html.c (add_link): Ditto.
+
+	* makeinfo/footnote.c (cm_footnote): Ditto. 
+
+	* makeinfo/defun.c (defun_internal): Ditto.
+
+	2001-12-27  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/node.c (cm_node): Don't omit links to (DIR) from the
+	navigation bar, add_anchor_name will DTRT now.
+
+	* makeinfo/makeinfo.c (cm_xref): Produce a split-HTML file name
+	from arg1, the node name, not from arg3 or arg2, which are the
+	reference name.  Use arg2 or arg3 for the text to be displayed as
+	a link between ">" and "</a>".  Use add_anchor_name instead of
+	add_nodename_to_filename.
+	(cm_inforef): Use add_anchor_name instead of
+	add_nodename_to_filename.  Handle the case of a missing second
+	argument in @inforef.
+
+	* makeinfo/html.c (add_anchor_name): Always add # and the anchor
+	name, even if we are splitting.  If the node is "(dir)", treat it
+	as if it were "dir".
+	(nodename_to_filename_1): Don't append #Top for the Top node.
+	(add_link): Don't punt if nodename is "(dir)".  Output "</a>"
+	after the link.
+
+	2001-12-25  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/makeinfo.c (cm_xref, cm_inforef): Output the target
+	file name via add_nodename_to_filename.
+
+	2001-12-20  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/html.c (nodename_to_filename_1): Make references to Top
+	to refer to index.html#Top.
+	(add_nodename_to_filename): Accept additional argument HREF;
+	callers changed.
+
+	* makeinfo/toc.c (rewrite_top): If the filename to rewrite is
+	stdout or the null device, do nothing.
+
+	* makeinfo/makeinfo.c (insert_toplevel_subdirectory): Use
+	FILENAME_CMP instead of strcmp.  Search for a period forward, not
+	backward.  Make index_name[] a static const array, and its len
+	computed at compile time.
+	(convert_from_loaded_file): If output_filename is the null device,
+	turn off HTML splitting.
+	(cm_xref): Use add_anchor_name, rather than add_escaped_anchor_name,
+	in the 5-argument case in HTML mode.
+	(cm_inforef): Fix external references in HTML mode.
+
+	* makeinfo/node.c (cm_node): Use FILENAME_CMP instead of strcmp.
+	Don't open a new file if the new node's name is empty.  Take the
+	directory part of split-HTML files from current_output_filename,
+	not from toplevel_output_filename (the latter doesn't include the
+	manual's subdirectory part).
+
+	* makeinfo/html.c (nodename_to_filename_1): Use FILENAME_CMPN
+	instead of strncmp.  Support *.inf files in references.
+
+2001-12-11  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* djgpp/config.bat, djgpp/config.sed, djgpp/config.site: Update
+	for Texinfo 4.0d.
+
+	* makeinfo/makeinfo.c (insert_toplevel_subdirectory): Use IS_SLASH
+	instead of literal `/'.
+	(convert_from_loaded_file): Flush the output stream before
+	creating the TOC.
+
+
+2002-01-14    <karl@gnu.org>
+
+	* info/info.c: translate --speech-friendly (from Eli).
+	* makeinfo/index.c: formatting.
+
+	2001-12-24  Eli Zaretskii  <eliz@is.elta.co.il>
+	* info/infomap.c (initialize_info_keymaps): Bind the user-defined
+	keys on top of the default ones, not the other way around.
+
+2002-01-11    <karl@gnu.org>
+
+	* info/info.c: can't do #ifdef inside of printf any more.
+	From: Tyler <tyler@zerodivide.cx>
+
+	* configure.ac (ALL_LINGUAS): add he, from Eli.
+
+2002-01-09  Eli Zaretskii <eliz@is.elta.co.il>
+
+	* info/window.c (calculate_line_starts): Cast node->contents[i] to
+ 	unsigned char.
+
+2002-01-04    <karl@gnu.org>
+
+	* doc/texinfo.tex (\footnotezzz): \noindent=\relax.
+
+2002-01-03    <karl@gnu.org>
+
+	* doc/texinfo.tex (\imagexxx): handle pdf and dvi cases the same.
+        (\dopdfimage): need \immediate to avoid seg fault when including the
+	same image twice.
+	Bug reports from Alexandre Duret-Lutz <duret_g@lrde.epita.fr>.
+
+2001-12-31    <karl@gnu.org>
+
+	* makeinfo/makeinfo.c (cm_image): check *ext_arg as well as
+		ext_arg when computing length of fullname.
+
+	* makeinfo/defun.c: docbook changes.
+	* makeinfo/docbook.c (docbook_punctuation): remove deprecated
+		default: at end of statement.
+
+	* makeinfo/docbook.c: initial.
+	* makeinfo/docbook.h: initial.
+	* makeinfo/Makefile.am (makeinfo_SOURCES): add docbook.[ch].
+	* makeinfo/makeinfo.c (add_char): use &nbsp; in docbook case.
+
+	* doc/texinfo.tex (\footnotezzz): use \everypar={\hang} instead of
+	just \hang in case a footnote extends for multiple paragraphs.
+
+2001-12-18    <karl@gnu.org>
+
+	* info/Makefile.am (BUILT_SOURCES): include $(EXEEXT) on makedoc
+	dependency since automake doesn't do it.
+
+	2001-12-11  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* djgpp/config.bat, djgpp/config.sed, djgpp/config.site: Update
+	for Texinfo 4.0d.
+
+	* info/infomap.c (fetch_user_maps): Initialize `filename' to NULL
+	and don't try to call `open' if `filename' is NULL.
+	[__MSDOS__]: Try the current directory if neither $INFOKEY nor
+	$HOME are defined.
+
+	* makeinfo/makeinfo.c (insert_toplevel_subdirectory): Use IS_SLASH
+	instead of literal `/'.
+	(convert_from_loaded_file): Flush the output stream before
+	creating the TOC.
+
+	2001-12-10  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* info/infokey.c (main): Use FOPEN_WBIN instead of "w".
+
+	* info/infokey.h (INFOKEY_SRCFILE, INFOKEY_FILE) [__MSDOS__]:
+	Special definitions for MS-DOS.
+
+	2001-12-09  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* lib/system.h: Condition inclusion of libintl.h on ENABLE_NLS.
+	(gettext, bindtextdomain, textdomain) [!ENABLE_NLS]: Provide
+	trivial definitions for when NLS is not used.
+	(LC_MESSAGES) [!ENABLE_NLS]: Define if undefined by locale.h.
+
+2001-12-18  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* info/infomap.c (decode_keys): Change the return type to int;
+	callers changed.  Return zero if some of the special keys in SRC
+	are not defined by the terminal; return non-zero otherwise.
+	(section_to_keymaps): If decode_keys returns zero, don't bind the
+	key sequence.
+
+2001-12-18  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/xml.c (xml_insert_element_with_attribute) 
+	(xml_insert_element): Rename the argument `element' to `elt'.
+
+	* info/infokey.c (compile): Use \033 instead of (non-standard) \e.
+
+2001-12-17    <karl@gnu.org>
+
+	2001-12-16  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* info/pcterm.c (pc_initialize_terminal) [INFOKEY]: Store term_kh,
+	term_ke, term_ki, and term_kx sequences.
+	(DJGPP_keytab): Map Home, End, and Insert to escape sequences, not
+	to C-a, C-e, etc.
+
+	* info/infomap.c (default_emacs_like_info_keys) 
+	(default_emacs_like_ea_keys, default_vi_like_info_keys) 
+	(default_vi_like_ea_keys): Add the leading suppress-default flag,
+	to be consistent with the table which comes from a file.
+
+	* info/session.c (info_do_lowercase_version): Add a doc string.
+
+	* info/infodoc.c (describe_key) [INFOKEY]: If keystroke is bound
+	to do-lowercase-version, but its lower-case variant is undefined,
+	say that keystroke is also undefined.
+
+
+2001-12-12    <karl@gnu.org>
+
+	* makeinfo/files.c (find_and_load): remove conditionals on
+		 VMS|O_BINARY, always just read as many bytes as we can.
+
+        2001-12-11  Eli Zaretskii  <eliz@is.elta.co.il>
+        * new files for djgpp/.
+
+        2001-09-09  Eli Zaretskii  <eliz@is.elta.co.il>
+	* info/echo-area.c (build_completions): Look for a candidate
+	completion which matches user's request including the letter-case,
+	use that as the value of LCD_completion.
+
+        2001-12-06  Eli Zaretskii  <eliz@is.elta.co.il>
+	* info/echo-area.c (build_completions): When looking for the best
+	completion candidate, only compare as much characters as the user
+	typed.
+
+
+2001-12-04    <karl@gnu.org>
+
+	* doc/texinfo.tex (\pdfmkpgn): remove trailing @ in link names
+		again.  Also from Kurt.
+
+	* doc/texinfo.tex (\image): need five commas to ignore additional
+	optional args to @image.  From Kurt.Hornik@ci.tuwien.ac.at.
+
+	* doc/texinfo.tex (\afourlatex): reset \globaldefs=0 explicitly.
+	From Trond Endrestøl <trond@ramstind.gtf.ol.no>.
+
+2001-12-01    <karl@gnu.org>
+
+	* makeinfo/files.c (find_and_load): remove O_BINARY from open
+	call, this messes up under Windows.  From eli.
+
+2001-11-20    <karl@gnu.org>
+
+	* makeinfo/makeinfo.c (cm_image): reword error messages.
+
+2001-11-19    <karl@gnu.org>
+
+	* Pretest 4.0d.
+	* doc/texinfo.txi: index ragged right/left.
+
+	* info/window.c (build_message_buffer): handle %1$s as used in
+	ja.po.  From Fumitoshi UKAI <ukai@debian.or.jp>.
+
+	* configure.ac (ALL_LINGUAS): add sv.
+
+2001-11-16    <karl@gnu.org>
+
+	* Makefile.am (EXTRA_DIST): add COPYING.DOC.
+
+        1999-10-30  Andrew Bettison  <andrewb@zip.com.au>
+
+	All these changes are to implement user-configurable key mapping
+	using the new 'infokey' program.  For the time being, the new
+	code is conditional on [INFOKEY] and the old code is still there
+	in case we want to revert.
+
+	* info/session.c (incremental_search): test for printable chars
+	_before_ isearch command keys -- makes a difference if the
+	isearch commands are bound to printable chars.
+
+	* info/doc.h,
+	* info/infodoc.c,
+	* info/infomap.c,
+	* info/m-x.c,
+	* info/session.c: New typedef InfoCommand, plus a bunch of
+	supporting macros, to abstract a "command" away from being a
+	function pointer.
+
+	* info/doc.h (pretty_keyseq),
+	* info/infodoc.c (pretty_keyseq),
+	* info/session.c (pretty_keyseq): Moved definition from
+	session.c into infodoc.c, and rewrote to recognise special
+	terminal sequences (PgUp, PgDn, etc.).
+
+	* info/infodoc.c (create_internal_info_help_node,
+	replace_in_documentation, info_where_is),
+	* info/m-x.c (info_execute_command): Cleaned up references to
+	hardwired keystrokes.
+
+	* info/infodoc.c (replace_in_documentation):
+	Extended the \\[foo] syntax to recognise \\%-X.Y[foo], which
+	causes the replacement text to be inserted using sprintf("%-X.Ys").
+
+	* info/session.c (_scroll_forward, _scroll_backward,
+	scroll_forward_page_only, scroll_backward_page_only,
+	scroll_forward_page_only_set_window,
+	scroll_backward_page_only_set_window): New functions, eliminating
+	need for SPC and DEL hack.
+
+	* info/session.c (scroll_forward, scroll_backward,
+	scroll_forward_set_window, scroll_backward_set_window): Call
+	_scroll_forward and _scroll_backward to do all the work.
+
+	* info/infomap.c (initialize_info_keymaps)[!INFOKEY]: set 'v'
+	and Control('v') key bindings to info_scroll_backward_page_only
+	and info_scroll_forward_page_only respectively.
+
+	* info/Makefile.am (bin_PROGRAMS): Added new executable `infokey'.
+	(infokey_SOURCES): Defined.
+	(EXTRA_DIST): Added `sample_infokey'.
+	(BUILT_SOURCES): Added `key.c'.
+
+	* info/infokey.h,
+	* info/infokey.c: Created, for new program `infokey' which
+	creates a $HOME/.info file by compiling a text source file with
+	syntax very similar to that used by `lesskey' in less 3.4.0.
+
+	* info/makedoc.c: Generate new file `key.c' defining an array to
+	map command names to codes.
+
+	* info/key.h: Created, to define contents of new `key.c' now
+	created by makedoc.
+
+	* info/info.h (INFOKEY): Define, to enable all following changes.
+	(set_variable_to_value)[INFOKEY]: Declare new function.
+
+	* info/makedoc.c [INFOKEY]: Write '#define A_' numeric command
+	code definitions into `funs.h' to support new key binding system.
+
+	* info/session.c (info_dispatch_on_key, info_numeric_arg_digit_loop)
+	[INFOKEY],
+	* info/infomap.c [INFOKEY],
+	* info/infodoc.c (function_documentation, function_name,
+	describe_key, pretty_keyname, pretty_keyseq_internal,
+	where_is_internal)[INFOKEY],
+	* info/terminal.h (term_kh, term_ke, term_kx, term_ki)[INFOKEY],
+	* info/terminal.c (term_kh, term_ke, term_kx, term_ki,
+	terminal_initialize_terminal)[INFOKEY],
+	* info/variables.c (set_variable_to_value)[INFOKEY],
+	* info/sample_infokey: Added infokey functionality, copied more
+	or less wholesale from 'lesskey' in GNU Less 3.4.0.  Added a new
+	typedef struct FUNCTION_KEYSEQ, and a new element `keys' to
+	typedef struct FUNCTION_DOC, to give the user some control over
+	the keystrokes that appear in the documentation node generated
+	by get-help-window, and to improve efficiency a little.
+
+	* info/infodoc.c (info_internal_help_text,
+	create_internal_info_help_node)[INFOKEY]: Rewrote all code that
+	assumes fixed keystrokes, replacing %10s sequences with \\%10[foo]
+	sequences instead.
+
+	* doc/info-stnd.texi: Documented above changes.
+
+2001-09-19    <karl@gnu.org>
+
+	* makeinfo/cmds.c: </ not /<, duh :).  From janneke.
+
+2001-09-12    <karl@gnu.org>
+
+	* configure.ac (AC_SYS_POSIX_TERMIOS, AC_HEADER_TIOCGWINSZ): use
+	 these new autoconf macros instead of the old automake ones.
+
+	* info/terminal.c: remove unconditional include of sys/ioctl.h.
+	* info/termdep.h: <sys/ioctl.h> [GWINSZ_IN_SYS_IOCTL]: include outside of HAVE_TERMIOS_H,
+	per autoconf manual.
+
+	* doc/Makefile.am (install-info-am): remove override of automake's
+	 target, instead enable looking in . for info files within automake.
+
+	* doc/info-stnd.texi: include separate version-stnd.texi
+	* configure.ac: autoconf 2.52, and rename to configure.ac.
+
+2001-09-11    <karl@gnu.org>
+
+	* doc/texinfo.txi: recommend against using - and _ in @set names,
+		* and rearrange that section.
+
+	* info/infodoc.c (replace_in_documentation): free fun_name to fix
+		memory leak.
+	From: "Art Haas" <ahaas@neosoft.com>, Sat, 4 Aug 2001 08:34:31 -0500.
+
+	* makeinfo/lang.c: encoding support for info output from kama.
+	* makeinfo/lang.h: encoding support for info output from kama.
+
+	* makeinfo/html.c: include document encoding code unless
+	no_encoding.
+	* makeinfo/insertion.c (cm_direntry): don't call begin_insertion
+	if ignoring.
+	(cm_documentdescription): moved here, and likewise.
+	(begin_insertion): don't need output format conditionals here.
+
+	* makeinfo/cmds.c (cm_documentdescription): move to insertion.c.
+	* makeinfo/makeinfo.h (enable_encoding): new global.
+	* makeinfo/makeinfo.c: new option --enable-encoding, rearrange help.
+
+	Sun Oct 31 18:44:24 UTC 1999 Karl Heinz Marbaise <kama@hippo.fido.de>
+
+	    - lang.{c,h}:
+	      o added translation map between HTML markups and 8-Bit
+		(ISO-8859-1 codes; supplemental is Unicode for the future).
+	      o added cm_search_iso_map:
+		search for characters based on HTML markup names for
+		translation 8-Bit code.
+	      o recognizing of @documentencoding improved.
+		now we can recognize things like ISO-8859-{1...15}
+
+	    - makeinfo.{c,h}:
+	      o added two command line switches.
+		+ info-encoding to activate the encoding for info output
+		  which is correctly shown by info. Default is NOT to
+		  encode the output to be compatible with earlier versions.
+		+ no-encoding to suppress encoding e.g. while producing
+		  ASCII output (--no-headers) results in that you get
+		  "A for &Auml; as before.
+	      o help output changed to document the switches.
+
+	    - html.c:
+	      charset encoding in html based on @documentencoding.
+
+
+2001-07-31    <karl@gnu.org>
+
+	* doc/texinfo.txi: mention pdfcolor.tex.
+	* doc/texinfo.tex: doc.
+	* doc/Makefile.am (install-tex): install pdfcolor.tex too.
+	* doc/pdfcolor.tex: new file, since Kurt.Hornik@ci.tuwien.ac.at
+		reports that not all pdftex installations include it.
+
+2001-07-25    <karl@gnu.org>
+
+	* doc/texinfo.tex (\Etitlepage): need \HEADINGSon before the
+	\...aftertitlepage checks to get page numbers. Report from
+	3diff@gnu.org.
+
+2001-07-06    <karl@gnu.org>
+
+	* doc/texinfo.txi: mention http://docbook2X.sourceforge.net/.
+
+2001-06-29    <karl@gnu.org>
+
+	* makeinfo/makeinfo.c: make output to stdout imply --no-split for
+		HTML, too.
+
+	* makeinfo/html.c (html_output_head): use documentdescription if set.
+	* makeinfo/insertion.h (insertion_type): new case documentdescription.
+	* makeinfo/insertion.c (begin_insertion, end_insertion,
+	insertion_type_names): new case for documentdescription.
+	* makeinfo/cmds.c (cm_documentdescription): new fn.
+	* makeinfo/makeinfo.h (document_description): new global.
+	* doc/texinfo.txi: @documentdescription.
+	@documentdescription implementation from patches by Will Estes.
+
+2001-06-26    <karl@gnu.org>
+
+	* doc/texinfo.txi: documentdescription
+	* doc/texinfo.tex: Ignore @documentdescription ... @end
+	documentdescription.
+
+	* doc/texinfo.txi: document sequential punctuation in @footnote is
+	normal, suggested by rms.
+
+2001-06-21    <karl@gnu.org>
+
+	* doc/texinfo.tex (\textfonts): call \setleading here, so that we can
+	switch font sizes back and forth inside @tex with \globaldefs=1
+	and not lose the leading.
+
+	* doc/texinfo.txi: allow @smallbook to run without overfull or
+		underfull boxes.
+
+2001-06-19    <karl@gnu.org>
+
+	* doc/texinfo.tex (\imagexxx): ignore new optional args to @image.
+
+	* makeinfo/html.c (html_output_head): include <h1>title</h1> at
+	beginning of document.
+	* makeinfo/sectioning.c (cm_top): don't include explicit links in
+	HTML output, the regular code for @node will do it.
+	(sectioning_html): use <h2> for chapter instead of <h1>, etc.
+	* makeinfo/node.c (cm_node): do not include code to output the
+	HTML <head>, we do that elsewhere now.
+	
+	1999-11-26 W. L. Estes <will@fumblers.org>
+	* makeinfo/insertion.c (begin_insertion): add an explicit <br>
+	before beginning a <pre> block. for flushleft and flushright, use
+	<div> tag with an align attribute set.
+	* makeinfo/insertion.c (end_insertion): for flushleft and
+	flushright, end the </div> block.
+
+	* makeinfo/makeinfo.c (cm_image): new variable, alt_arg now allows
+	user-supplied alt attribute value and
+	ext_arg allows user-supplied extension for image files.
+
+	* makeinfo/toc.c (contents_update_html): add anchors at chapter
+	level entries
+	(shortcontents_update_html): hrefs in shortcontents point to the
+	above anchors in the detailed contents
+
+	* doc/texinfo.txi: document changes to @image and the new behavior
+	of shortcontents entries
+
+2001-06-14    <karl@gnu.org>
+
+	* makeinfo/node.c: no need for size_t.
+
+2001-06-13    <karl@gnu.org>
+
+	* texinfo.tex (\pdfmkdest): \normalturnoffactive, so refs and 
+	defs match.
+	(\xrefX): pdf link defs no longer use @, so link refs shouldn't use @
+	either. (All xrefs in pdf were failing.)
+	(\mkpgn): remove redundant second definition.
+
+	* texinfo.tex (\smallerfonts): new font size.
+	(\smallexample, et al.): use it, in all cases, not just @smallbook.
+	
+	1999-11-30 Andreas Schwab <schwab@suse.de>
+	* doc/texinfo.tex (\xrefX): Turn off active characters when writing
+	out the link name for pdf.
+
+2001-06-13    <karl@gnu.org>
+
+	* doc/texinfo.txi: document that @smallexample is smaller in all
+		page formats now.
+
+2001-06-11    <karl@gnu.org>
+
+	* 4.0c.
+	* util/Makefile.am: Don't need automake patch any more, with
+		automake 1.4p4.
+
+	* configure.in (AC_FUNC_SETVBUF_REVERSED): only needed on
+	pre-sysvr3 systems that nobody has anymore?  Or so Russ Allbery
+	informs me ...
+
+2001-06-08    <karl@gnu.org>
+
+	* makeinfo/Makefile.am (EXTRA_DIST): include texinfo.{dtd,xsl}.
+
+	* util/Makefile.am: automake-1.4p3 now.
+
+2001-06-07    <karl@gnu.org>
+
+	* util/texi2dvi: comment out conditional text, from Werner LEMBERG
+	       <wl@gnu.org>.
+
+       2001-06-02  Eli Zaretskii  <eliz@is.elta.co.il>
+	* info/echo-area.c (info_read_completing_internal): If there are
+	no completions, say that instead of "Not complete".
+
+	* configure.in (ALL_LINGUAS): add da
+
+	* makeinfo/Makefile.am (pkgdata_DATA): include texinfo.xsl.
+
+	* configure.in: update for autoconf 2.50.
+
+2001-06-04    <karl@gnu.org>
+
+	* util/Makefile.am (EXTRA_DIST): automake-14p2.patch now.
+	* util/automake-14p2.patch: rename from 14p1.
+
+2001-05-22    <karl@gnu.org>
+
+	* changes from feloy for lowercase xml names, etc.
+
+2001-05-21    <karl@gnu.org>
+
+	* util/Makefile.am (EXTRA_DIST): add automake-14p1.patch.
+	* makeinfo/Makefile.am (pkgdata_DATA): define to install
+	        texinfo.dtd.
+
+        2001-05-17  Eli Zaretskii  <eliz@is.elta.co.il>
+	* makeinfo/makeinfo.c (cm_xref, cm_inforef): Don't allow empty
+	first arguments in cross references.
+
+	* makeinfo/makeinfo.c: redo --help, basic patch from ke@suse.de.
+
+2001-05-03    <karl@gnu.org>
+
+	* doc/info.texi: move help-cross to be subnode of cross-refs,
+	instead dangling out in space.
+	* doc/info.texi: update from eli
+
+2001-05-02    <karl@gnu.org>
+
+	* makeinfo/xml.c (xml_push_current_element): need to select the
+		`name' member.
+
+2001-05-01    <karl@gnu.org>
+
+	* configure.in: 4.0b
+
+	* doc/info.texi (Help-Cross): subsection of Cross-refs.
+
+	* lib/system.h (va_alist, etc.): moved from makeinfo.c.
+	* makeinfo/makeinfo.c (va_alist, etc.): move to system.h
+
+	* makeinfo/xml.[ch]: new files from Philippe Martin <feloy@free.fr>.
+	* pretty much all files also modified for XML/DocBook output.
+	* doc/texinfo.txi: minimally mention --xml and --docbook.
+	* makeinfo/xml.c: convert to K&R until we can do ansi2knr.
+
+	* util/texindex.c,
+	* util/install-info.c,
+	* info/info.c: it's 2001.
+
+2001-04-15    <karl@gnu.org>
+
+	* doc/info.texi: major update from eli.
+
+2001-04-13    <karl@gnu.org>
+
+        1999-10-16  Eli Zaretskii  <eliz@is.elta.co.il>
+	* makeinfo/node.c (cm_node): Don't generate cross-references to
+	"(DIR)".
+	* makeinfo/html.c (add_link): Likewise.
+
+        1999-10-16  Eli Zaretskii  <eliz@is.elta.co.il>
+	* makeinfo/makeinfo.c (insert): Don't call html_output_head here.
+	(add_char): Call html_output_head here...
+	* makeinfo/cmds.c (cm_sp): ...and here...
+	* makeinfo/toc.c (cm_contents, cm_shortcontents): ...and here...
+	* makeinfo/node.c (cm_anchor): ...and here.
+	
+	* makeinfo/html.c (html_output_head): `free' html_title if
+	expanded.  Make <head> and <body> stand out.
+
+2001-04-12    <karl@gnu.org>
+
+	1999-12-26  Eli Zaretskii  <eliz@is.elta.co.il>
+	* makeinfo/defun.c (defun_internal): Use execute_string instead
+	add_word_args to expand defined_name, type_name and category (in
+	HTML mode).
+
+2001-03-29    <karl@gnu.org>
+
+	* Makefile.am: simple license.
+
+2001-02-27    <karl@gnu.org>
+
+	1999-12-17  Yoshiki Hayashi  <t90553@mail.ecc.u-tokyo.ac.jp>
+		* info/terminal.h, info/terminal.c (term_kh, term_ke, term_kD):
+		New variables to hold Home, End, Delete key sequences.
+		* info/infomap.c (initialize_emacs_like_keymaps,
+		initialize_vi_like_keymaps): Set them.
+
+	* makeinfo/makeinfo.h,
+	* makeinfo/makeinfo.c: --split-size option from Yoshiki:
+	1999-12-09  Yoshiki Hayashi  <t90553@mail.ecc.u-tokyo.ac.jp>
+		* makeinfo/makeinfo.h (split_size): New option.
+		* makeinfo/makeinfo.c (long_options): Add split_size.
+		(usage): Ditto.	Suggested by Richard Y. Kim.
+
+	* util/texi2dvi: -o support from Akim.
+
+2001-02-02    <karl@gnu.org>
+
+	* dir-example: don't need zsh twice.
+
+	From: Nishio Futoshi <fut_nis@d3.dion.ne.jp>, 02 Apr 2000.
+	* doc/texinfo.txi: capitalization fixes.
+	* doc/info.texi: up pointer fixes.
+	* doc/texinfo.txi: installing an info file.
+
+	* makeinfo/makeinfo.c: --output is for split html, not non-split.
+	From: Karl Eichwalder <keichwa@gmx.net>
+
+2001-01-12    <karl@gnu.org>
+
+	1999-10-15  Eli Zaretskii  <eliz@is.elta.co.il>
+		* makeinfo/cmds.c (cm_sc): Don't print the warning about
+		all-uppercase argument in menus under --no-headers.
+
+	* makeinfo/files.c: pass O_BINARY flag to open, suggested by bfox.
+
+2001-01-11    <karl@gnu.org>
+
+	* info/terminal.c [HAVE_TERMIOS_H && TCOON]: tcflow TCOOFF/TCCON
+	to resume output if user presses CTRL-S at the beginning of
+	things.
+	[HAVE_TERMIO_H && TCXONC]: ditto.
+	From Kevin Ryde <user42@zip.com.au>, 16jun2000;
+	cf. emacs/src/sysdep.c.
+
+2001-01-08    <karl@gnu.org>
+
+	* makeinfo/cmds.c: afivepaper, afourwide, afourlatex.
+	* doc/texinfo.txi: afivepaper
+
+2001-01-05    <karl@gnu.org>
+
+	* doc/info.texi: typo from: Martin Buchholz <martin@xemacs.org>.
+	* doc/info.texi: typo fixes from meyering.
+
+2001-01-02    <karl@gnu.org>
+
+	* makeinfo/makeinfo.c (remember_brace_1): don't assume command is
+	 non-null, an (erroneous) input line like \hbox to7in{ passes in a
+	 null.
+
+	* makeinfo/toc.c: fix from jan
+	* makeinfo/html.c: fix from jan for top-level references.
+
+2000-12-22    <karl@gnu.org>
+
+	* makeinfo/makeinfo.c: --help changes.
+	* doc/texinfo.txi: -o means the directory name for HTML output.
+
+2000-12-21    <karl@gnu.org>
+
+	* doc/texinfo.txi: switch to fdl
+
+	* makeinfo/html.c: doc fix.
+	* makeinfo/insertion.c: no space after _ I guess.
+	* makeinfo/cmds.c: no space after _ I guess.
+
+	* makeinfo/html.c (nodename_to_filename_1): fix up external
+	* top-node references.
+
+2000-12-20    <karl@gnu.org>
+
+* HTML table patch from Jan:
+    2000-12-19  Jan Nieuwenhuizen  <janneke@gnu.org>
+
+	    * makeinfo/multi.c (multitable_item),
+	    (cm_tab): close html table columns.  Also, align cell contents to
+	    top, which is probably the most sensible thing to do for text.
+
+
+2000-12-19    <karl@gnu.org>
+
+	* makeinfo/makeinfo.c (insert_toplevel_subdirectory): try
+		name.html if just name doesn't work.
+
+	* doc/texinfo.txi: document html output in .html directory
+		sometimes.
+
+	* util/Makefile.am (EXTRA_DIST): add install-info-html.
+
+	* util/texindex.c: 2000
+	* util/install-info.c: 2000
+	* info/info.c: 2000
+	* configure.in: 4.0a
+
+	* lib/system.h: include limits.h
+
+	* Applied HTML splitting changes from Jan:
+    2000-11-10  Jan Nieuwenhuizen  <janneke@gnu.org>
+
+	    * makeinfo: removed code for numbered split HTML output, removed
+	    SPLIT_JCN conditional.
+
+    2000-11-09  Jan Nieuwenhuizen  <janneke@gnu.org>
+
+	    * makeinfo/html.c: prepared nodifying filename functions for
+	    linking not non-spit HTML documents, by adding ``#anchor'' to
+	    external refernces.
+
+	    * doc/texinfo.txi (Installing HTML info): updated doco for --html
+	    option, added node Installing HTML info.
+
+	    * util/install-info-html.in: new script.  The bare minimum
+	    required for generating HTML index.  
+
+	    * lib/system.h:	compilation fix.
+
+    2000-11-08  Jan Nieuwenhuizen  <janneke@gnu.org>
+
+	    * makeinfo/makeinfo.c (convert_from_loaded_file): [SPLIT_JCN]:
+	    overloaded already way too hairy function with logic to put split
+	    html output into subdirectory with basename of toplevel output
+	    file.
+
+	    * makeinfo/html.c (fix_filename): new function.
+
+    2000-11-07  Jan Nieuwenhuizen  <janneke@gnu.org>
+
+	    * toc.c (toc_add_entry): 
+	    (contents_update_html): 
+	    (shortcontents_update_html): [SPLIT_JCN]: use hrefs for nodename based
+	    html files.
+
+	    * node.c (cm_node): [SPLIT_JCN]: create html filename based on
+	    nodename (instead of a numbered node<num>.html filename).
+
+	    * makeinfo/makeinfo.c (main): [SPLIT_JCN]: enable splitting of
+	    html output.
+
+	    * makeinfo/html.c
+	    (add_url_name,add_nodename_to_filename,nodename_to_filename): new
+	    functions.
+
+2000-12-15    <karl@gnu.org>
+
+	* configure.in (AC_CHECK_HEADERS): add limits.h explicitly.
+
+2000-11-10    <karl@gnu.org>
+
+	* dir-example: update
+	* info/nodes.c: doc fixes, etc.
+
+	* incorporated verbatim patch from janneke:
+    2000-04-14    <janneke@gnu.org>
+
+	    * applied texinfo-3.12s.jcn4 patch
+
+    1999-09-02    <janneke@gnu.org>
+
+	    * makeinfo/cmds.c,
+	    * makeinfo/insertion.c: @verbatiminclude file
+	    * doc/texinfo.tex: @verbatiminclude file
+	    * doc/texinfo.txi: @vebatiminclude file doco
+	    * NEWS: added @verbatiminclude to Language section
+
+    1999-09-01    <janneke@gnu.org>
+
+	    * makeinfo/makeinfo.c: bf: @exdent (urg6.texi) -- Rolled into 4.0
+	    * NEWS: added verb* to Language section
+	    * doc/texinfo.txi: @verb, @verbatim doco
+	    * doc/texinfo.tex: tricky tex-fix for @verb{<char>..<char>}
+	    * doc/texinfo.tex: real tab expansion for @verbatim mode
+	    * doc/texinfo.tex: proper start of environment, no indentation
+
+    1999-08-31    <janneke@gnu.org>
+
+	    * makeinfo/cmds.c: 
+	    * makeinfo/insertion.{c,h},
+	    * makeinfo/makeinfo.{c,h}: redo of @verbatim, @verb{<char>..<char>}
+	    * doc/texinfo.tex: fixed @verb{<char>..<char>}
+
+    1999-08-30  Jan Nieuwenhuizen <janneke@gnu.org>
+
+	    * makeinfo/cmds.c,
+	    * makeinfo/insertion.{c,h},
+	    * makeinfo/makeinfo.{c,h}: added @verbatim (and preliminary @verb)
+	    support
+	    * doc/texinfo.tex: added @verbatim (and preliminary @verb) support
+
+    1999-08-24  Jan Nieuwenhuizen <janneke@gnu.org>
+
+	    * bf: empty node: makeinfo/node.c:cm_node () -- Rolled into 4.0
+
+
+2000-10-18    <karl@gnu.org>
+
+	* doc/info.texi: eli update
+
+2000-09-22    <karl@gnu.org>
+
+	* makeinfo/defun.c: warn if non-whitespace follows @defun'd name
+	  (suggestion from Akim).
+
+  Installed some patches:
+  
+  2000-08-04  Paul Eggert  <eggert@twinsun.com>
+	  * makeinfo/multi.c (find_template_width):
+	  Don't access before start of *PARAMS.
+
+  2000-08-21  Eli Zaretskii  <eliz@is.elta.co.il>
+	  * info/filesys.c (info_file_in_path): Reject FILENAME if it is
+	  empty, or ".", or "..".
+
+  2000-08-23  Eli Zaretskii  <eliz@is.elta.co.il>
+	  * info/session.c (info_menu_or_ref_item): If the user have chosen
+	  menu item or xref that's identical to defentry's label, use
+	  defentry instead of looking for its label.  Otherwise, select the
+	  entry whose position is the closest to the window's point, in
+	  case there's more than a single entry with that label.
+
+2000-09-12    <karl@gnu.org>
+
+	* doc/texinfo.txi: it's 2000 now.
+	* doc/texinfo.txi: document the only real (and rare) reason for not using implicit pointer
+	creation.
+
+2000-09-06    <karl@gnu.org>
+
+	* configure.in: test all termcap variables for existence.  From
+	andy@rz.uni-karlsruhe.de.
+
+	* configure.in (ALL_LINGUAS): include ja.
+	* lib/system.h [HAVE_IO_H]: make #include <io.h> conditional for
+	BeOS.  Reported by Dan Moore, dan@moore.cx.
+	* configure.in (AC_CHECK_HEADERS): add io.h.
+
+2000-06-05    <karl@gnu.org>
+
+	* doc/texinfo.txi: forgot to escape {}.
+
+2000-05-30    <karl@gnu.org>
+
+	* info/filesys.c (is_dir_name): check all info suffixes as well as
+	the compression suffixes.  Fixes segmentation fault on a dir.info
+	file ending after the * Menu.
+
+2000-05-28    <karl@gnu.org>
+
+	* doc/texinfo.txi: Forgot {arg} in @rmacro example.  From Olaf B.
+
+2000-05-27    <karl@gnu.org>
+
+	* doc/txi-cs.tex: update from: Stepan Kasal <kasal@suse.cz>.
+
+	* doc/Makefile.am (install-data-local): reformat warning per
+	François to hopefully make it more noticeable.
+
+	2000-02-08  Eli Zaretskii  <eliz@is.elta.co.il>
+		* info/session.c (incremental_search): Don't retain RET when
+		exiting isearch.  Suggested by Hrvoje Niksic <hniksic@iskon.hr>.
+
+2000-05-22    <karl@gnu.org>
+
+	* doc/texinfo.txi: pageparams -> pagesizes
+
+2000-05-18    <karl@gnu.org>
+
+	* makeinfo/lang.c (cm_accent_tilde): need N in list.
+	From: kama@hippo.fido.de (Karl Heinz Marbaise)
+
+	* makeinfo/files.c (find_and_load): read only the number of bytes
+	available in the buffer.  Also, remove one-byte-at-a-time reading
+	in the WIN32 case.
+	From: "J. David Bryan" <dbryan@bcpl.net>
+
+	* info/man.c: use eli's patch after all, we re-increment j at the
+	top of the loop.
+
+2000-05-16    <karl@gnu.org>
+
+	* info/man.c (clean_manpage): don't write before the beginning of
+	newpage.
+	(based on patch from Eli).
+
+2000-02-03    <karl@gnu.org>
+
+	* doc/texinfo.txi: remove spurious space. from kaja.
+
+1999-10-12  Karl Berry  <karl@gnu.org>
+
+	* doc/Makefile.am (install-tex): install all txi-?? files.
+
+1999-10-01  W. L. Estes  <will@fumblers.org>
+
+	* makeinfo/cmds.c: dont treat @center as separate paragraph,
+	use div element to output center
+
+1999-09-29  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* djgpp/README: Say `dir-example', not DIR.
+
+	* lib/system.h (DEFAULT_INFOPATH) [__DJGPP__]: Define.
+
+1999-09-28  Karl Berry  <karl@gnu.org>
 
 	* configure.in,
 	util/texi2dvi: version 4.0.
+	* doc/texinfo.txi: New isbn.
 
 1999-09-24  Karl Berry  <karl@gnu.org>
 
@@ -6634,3 +7960,2531 @@ Sun Jun 26 18:46:16 1988  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
 
         * util/texindex.c (sort_in_core, sort_offline, parsefile):
         Give up on input file if any line doesn't start with backslash.
+
+/* changelog for texinfo.tex before 19jun01.  */
+
+2001-05-24    <karl@gnu.org>
+
+	* texinfo.tex (\smallbreak, \medbreak, \bigbreak): add check for
+	\ifnum\lastpenalty to plain tex definitions, so that we won't
+	insert space right after a section title.
+	(\aboveenvbreak): similar check of \lastpenalty.
+
+2001-05-21    <karl@gnu.org>
+
+	* texinfo.tex (\pdfurl): \let\value=\expandablevalue, so at least
+	some cases can be properly handled.
+
+2001-03-28    <karl@gnu.org>
+
+	* texinfo.tex: Copyright.
+
+	* texinfo.tex (\pdfmkdest): remove trailing @ in target names;
+	suggestion from: Reiner Schlotte <R.Schlotte@science-computing.de>.
+	(\imagexxx): call \normalturnoffactive so _ (among others) will be
+	allowed in filenames; report from arnold@skeeve.com.
+
+2001-02-02    <karl@gnu.org>
+
+	* texinfo.tex (\secondary): handle pdf case.
+	(\dosubind): secondary index entry not written as separate arg for
+		texindex.
+	From: Trevin Beattie <trevin@eyring.com>
+	Date: Tue, 21 Mar 2000 13:04:06 -0700
+
+2001-01-12    <karl@gnu.org>
+
+	* texinfo.tex (\dopdfimage): different syntax for filename
+	inclusion (foo vs {foo}).  From: <Kurt.Hornik@ci.tuwien.ac.at>,
+	22dec99.
+
+2001-01-08    <karl@gnu.org>
+
+	* texinfo.tex (\afivepaper): new command from Jose Romildo
+	Malaquias <romildo@urano.iceb.ufop.br>.
+
+2000-12-12    <karl@gnu.org>
+
+	* texinfo.tex: oops, had outside page reversed.
+
+2000-12-11    <karl@gnu.org>
+
+	* texinfo.tex (\inmargin): allow lefttext and righttext as args.
+
+2000-11-10    <karl@gnu.org>
+
+	* texinfo.tex: implementation of new commands @verbatim, @verb,
+	and @verbatiminclude from janneke@gnu.org.
+
+2000-11-09    <karl@gnu.org>
+
+	* texinfo.tex (\inmargin): rewrite to allow for placing the
+	material either in the right or left margin.
+
+2000-10-27    <karl@gnu.org>
+
+	* texinfo.tex (\dosynindex): new macro subroutine, do not
+	\closeout twice the index being redirected.
+	(\synindex, \syncodeindex): call it.
+
+2000-10-18    <karl@gnu.org>
+
+	* texinfo.tex (\inmargin): rewrite to allow argument to be vmode
+	material, such as a box from an image.
+
+2000-09-06    <karl@gnu.org>
+
+	* texinfo.tex (\doublecolumnout): must subtract \ht\partialpage
+	here, not in \begindoublecolumns.  Otherwise the \partialpage on
+	the first page of double columns affects every subsequent page,
+	e.g., if @setchapternewpage off.  Reported by Aharon Robbins
+	<arnold@skeeve.com> for standards.texi.
+
+2000-05-28    <karl@gnu.org>
+
+	* texinfo.tex (\linkcolor): replace Cyan with Blue.
+	(\output): do \pdfmkdest at top.
+	(\pdfmakeoutlines): set \_ to \normalunderscore.
+	From: Trevin Beattie <trevin@eyring.com>.
+
+2000-05-27    <karl@gnu.org>
+
+	* texinfo.tex (\today): only define if undefined.
+	From: Stepan Kasal <kasal@suse.cz>.
+
+2000-05-16    <karl@gnu.org>
+
+	* texinfo.tex (\deftypeivarheader): need defheaderxcond.  From:
+	Marcel van der Boom <marcel@hsdev.com>.
+
+1999-10-01  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\afourwide): had hsize and vsize reversed.
+	From: Pascal Obry <pascal_obry@csi.com>
+
+1999-09-25  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\alias): fix from Andreas.
+
+1999-09-19  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\key): rename the \smallrm and \smallsy here.
+
+	* texinfo.tex (\indexfonts): rename to \smallfonts, along with
+		\indrm, etc.
+	Define all the fonts, too.
+	(\footnotezzz): use \smallfonts.
+
+	* texinfo.tex (\needx): get better leading; do nothing if @need
+	       value is less than one linespace.  From Arnold.
+	(\douref, \xrefX, \doemail [pdf]): make spaces normal again, so our
+	\ignorespaces commands are effective even in an @display.
+
+	* texinfo.tex (\finishtitlepage): remove FINISH TITLE debugging
+		message.
+
+	* texinfo.tex (\anchor): rewrite to always \ignorespaces.
+	Bug from esken.
+	
+	* texinfo.tex (\indexnofonts): dummy up \acronym.
+	From: Thomas Esken <esken@nmlab.informatik.fh-dortmund.de>
+
+1999-09-06  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\texinfoversion): update.
+
+	* texinfo.tex: Avoid multiparagraph cells losing linespace between
+	paragraphs.  From: Andreas Schwab <schwab@suse.de>.
+	Bug from: Lalo Martins <lalo@webcom.com>.
+
+1999-08-19  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\shortchaplabel): move computation of width of
+	"Appendix" inside, in case it's been changed by a language.
+
+Mon Aug  9 16:31:55 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex: pdf updates from Han.
+
+Fri Aug  6 13:48:22 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\charcode): remove unused counter. 
+	From: Akira KAKUTO <kakuto@fsci.fuk.kindai.ac.jp>.
+
+Thu Jul 22 19:08:19 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex: Update from Han.
+
+Tue Jul 20 17:13:16 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex: More pdf improvements from Han.
+
+Mon Jul 19 16:33:31 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex: Better pdf support from: Han The Thanh
+ 		<thanh@informatics.muni.cz>.
+
+Sun Jul 18 14:21:03 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex: pdfimage takes braces.
+
+Tue Jul  6 19:40:14 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\deftypeop): New command.
+
+Mon Jul  5 17:17:33 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\contents): call \pdfmakeoutlines here instead of
+ 	inline (!).
+	(\pdfmakeoutlines): call \indexnofonts instead of making a separate
+	attempt at it.
+
+Tue May 25 06:16:06 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (time-stamp-format): use %02H.
+
+	* texinfo.tex: Had PDF and DVI transposed.
+
+Sun Apr 25 15:30:00 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\appendixletter): restore \the, necessary for .toc.
+
+Thu Apr 22 19:22:12 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\emergencystretch): Increase to .15\hsize.
+
+Tue Apr 20 05:11:04 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\defunargs): use \tensl\hyphenchar\font to work
+		better with Gildea's PostScript version.
+
+	* texinfo.tex (\tab): Change back to just &.
+	From: Nathan Sidwell <nathan@acm.org>.
+
+	* texinfo.tex: No \fi.
+
+Mon Apr 19 17:38:54 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\pdflink) [!\ifpdf]: define to ignore arg.
+
+	* texinfo.tex: Add pdf support.  Merge from: Kurt Hornik
+ 		<Kurt.Hornik@ci.tuwien.ac.at>.
+
+Wed Mar 31 13:24:16 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\defopheader): missing word space before `on'.
+  		Report from: Chris Hanson <cph@martigny.ai.mit.edu>.
+
+Fri Mar 26 17:00:41 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\imagexxx): Equalize space above and below if in
+ 		vmode.  From rms.
+
+Thu Mar 25 20:00:00 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\deftypeivar): new command.
+
+Tue Mar 23 17:53:37 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (&): be sure active & is defined for @deftypefn
+		operator&.
+	Report from: Nathan Sidwell <nathan@acm.org>.
+
+Sat Mar 20 12:31:53 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\exampleindent): new command.  From Yoshiki.
+
+	* texinfo.tex: Changes from Andreas to use \sl\$ inside italics
+		and to avoid extra spaces around @anchor.
+
+	* texinfo.tex (\image, \imagexx): move pdf test to imagexxx for
+ 		correct filename parsing.
+
+Mon Mar 15 16:51:20 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\imagexxx): reset catcode ^^M in case we're inside
+ 		in an example.  Report from kama.
+
+	* texinfo.tex (\putwordin): new macro for word `in'.
+	(\xrefX): use it.
+	Report from: "Alexey A. Nikiforov" <A.A.Nikiforov@inp.nsk.su>
+
+Sun Feb 21 16:47:28 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex: Expand tabs.
+
+Sun Feb 14 16:02:29 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\paragraphindent): implement.
+	Suggestion from: Paul DuBois <dubois@primate.wisc.edu>.
+
+Tue Feb  9 07:25:07 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\alias): use def rather than \let.
+	Change timestamp format to include hours.
+
+	* texinfo.tex: New commands @alias and @definfoenclose.
+	From: "Eric S. Raymond" <esr@snark.thyrsus.com>.
+
+Mon Feb  8 14:46:56 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\scanmacro): Use \endinput to avoid spurious space,
+ 		and various other space fixes.  From: Andreas Schwab
+ 		<schwab@ls5.informatik.uni-dortmund.de>.
+
+Thu Feb  4 15:24:40 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\uref): implement optional third arg.
+
+	* texinfo.tex (\dosubind): Include index entry in third arg to
+		\entry instead of writing as bogus fourth arg.
+	Report from: kama@hippo.fido.de (Karl Heinz Marbaise).
+
+	* texinfo.tex (\setemergencystretch): Increase somewhat.
+
+	* texinfo.tex (\putwordof): rename from \putwordOf.
+	* texinfo.tex (defivarhead, \defcvarheader): Use \putwordof.
+
+Tue Feb  2 16:57:00 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\documentlanguage, \documentencoding): new
+	commands.  \documentlanguage based on an implementation by kama.
+
+Sat Jan 30 17:23:45 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\putwordMMai): Should be MMay.  From Trond.
+
+Fri Jan 29 17:52:16 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex: Fix @macro expansion inside @section.  Patch from
+ 	Andreas:
+
+	From: Andreas Schwab <schwab@ls5.informatik.uni-dortmund.de>
+
+	The general idea is to construct a list a all defined macros in
+ 		the form \do\macro1\do\macro2..., then temporarily define
+ 		\do to something appropriate and execute the list to do
+ 		whatever is needed.  Here is a patch, and i have also
+ 		fixed a few other bugs that i found while browsing through
+ 		the @macro implementation.  Additionally i have added a
+ 		check to prevent the user from doing silly things like
+ 		@macro shipout.
+
+Sun Jan 24 09:59:42 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\obstexwarn): Don't use *** in message, it
+ 		interferes with make output parsing.
+
+Thu Jan 21 15:45:20 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex: Internationalization improvements from kama.
+
+Wed Jan 20 17:12:52 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\contents, \shortcontents): Run \contentspagealignmacro.
+ 	From: Trond Endrestol <trond@agamemnon.gtf.ol.no>
+
+Thu Jan 14 16:53:43 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\begindoublecolumns): Ship out \partialpage
+	immediately if it is nonvoid, instead of saving it.  This avoids a
+	bug where the index could end up printing one line per page (see
+	the indexspread.tex test).
+	From: Andreas Schwab <schwab@issan.informatik.uni-dortmund.de>
+
+	* texinfo.tex (\image): If running pdftex, do \pdfimage{imagefile.pdf}.
+ 	From: Samuel Tardieu <sam@inf.enst.fr>
+
+ 	Also, update copyright year.
+
+Tue Jan  5 17:50:45 1999  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\enddoublecolumns): Move \pagegoal reset to after
+ 		the \endgroup so we get the restored single-column \vsize
+ 		as intended.
+
+Sun Dec 20 17:57:22 1998  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\indexdummies): Set \{ and \} to \mylbrace and
+	\mybrace to avoid braces in the index file, which
+	texindex can't handle.
+
+Sat Dec 19 18:13:16 1998  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\pickupwholefraction): Ignore whole-number part.
+	(\setuptable): Always pass whole-number part and decimal point.  This
+	allows leading zeroes.
+	Suggestion from: Ben Bullock <ben@hayamasa.demon.co.uk>.
+	Date: Fri, 21 Aug 1998 14:06:50 +0100 (BST)
+
+Tue Dec 15 16:38:07 1998  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\indexdummies): set \{ and \} to \lbracecmd and
+        \rbracecmd to avoid lossage if @tex is active during \shipout.
+	Report from: "Peter Kabal" <Kabal@ece.mcgill.ca>.
+
+Sun Dec  6 17:11:17 1998  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex: Doc fix.
+
+1998-11-11  Andreas Schwab  <schwab@issan.cs.uni-dortmund.de>
+
+	* doc/texinfo.tex (\onepageout): Put the cropmarks in vboxes of
+	zero height so that they don't contribute space themselves.
+	Compensate for \topandbottommargin.
+	(\internalpagesizes): Advance \outervsize by 2\topandbottommargin,
+	not only 0.6in.
+
+Fri Nov  6 17:27:57 1998  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex: Use standard time-stamp.el package instead of
+ 		update-date.el.
+
+Sat Oct 31 19:23:02 1998  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\indexnofonts,\indexdummies): add \url and \uref to
+ 		list.
+
+Fri Oct 30 08:16:23 1998  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (\expandablevalue): Delete spurious `v' character.
+
+Tue Oct 27 11:18:40 1998  Karl Berry  <karl@gnu.org>
+
+	* texinfo.tex (@env, @command, @option): Must disable for index
+ 		and xref commands.  Also, \input plain if necessary before
+ 		using {} in the version number.
+
+Wed Sep 30 11:40:36 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex: Use date as version number instead of RCS, and
+ 		update-date to update it.
+
+Thu Sep 17 13:22:44 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex: Fix @macro expansion of @code with _ in the
+ 		argument.
+ 	From: Zack Weinberg <zack@rabi.columbia.edu>.
+
+Fri Aug 28 10:30:29 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\itemzzz): take \itemmargin into account when
+ 		unhboxing.  Reported by Bob.
+
+Fri Aug 14 16:56:58 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex: Change @defun environments so that right margin is
+ 		not changed, and instead the defun type label is outdented
+ 		into the margin.
+
+Thu Aug 13 13:31:41 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\smartslanted): define this separately from
+ 	\smartitalic.
+	(\emph, \i): use \smartitalic for true italics.
+
+Mon Aug 10 11:51:13 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\value): handle active _ or - in argument (happens
+ 		if called from @code).
+ 	Report from: Dave Love <d.love@dl.ac.uk>.
+
+Sun Jul 19 09:49:23 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\dosubind): Don't do \vskip to preserve \lastskip
+ 		unless we are in vertical mode.  Otherwise we might end a
+ 		paragraph prematurely, and \folio won't get expanded by
+ 		\output.
+ 	Report from: "Richard E. Stone" <res@rstone.mn.org>
+
+Thu Jul 16 15:33:37 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex: Keep track of how negative the page numbers have
+ 	gotten:
+	(\lastnegativepageno): New \count register.
+	(\startcontents): Use it.
+	(\contents, \summarycontents): set it.
+
+Mon Jul 13 16:58:11 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\imagexxx): Add some space around the image if it's
+ 		by itself.
+
+1998-07-09  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* texinfo.tex (chapterzzz): Put a space before the chapter number
+	in the message.
+	(appendixzzz): Use \putwordAppendix in the message.
+
+Thu Jul  9 08:39:53 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\macro): Globalize assignments since it's done
+		inside a group.  From Zack.
+
+Mon Jul  6 17:21:25 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\comment): Speed up.
+	(\loggingall): Turn on eTeX's extended tracing.
+	More macro fixes.
+	Date: Sat, 04 Jul 1998 14:51:49 -0400
+	From: Zack Weinberg <zack@rabi.phys.columbia.edu>
+
+Thu Jul  2 10:20:32 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\contents, \summarycontents, \startcontents): Use
+ 		roman numerals for toc, arabic outside, even when toc is
+ 		at the beginning.
+
+Mon Jun 29 10:05:28 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\anchor): New command @anchor.
+	(\xrefX): Avoid double space when xref to an @anchor or an @unnumbered.
+
+	* texinfo.tex (\itemzzz): Use kerns and \unhbox when item text
+		fits in the space, so footnotes can work.
+
+	* texinfo.tex (\setref): Take additional argument for the -snt
+ 	xref.  Call \indexdummies.
+	(\donoderef, \appendixnoderef, \unnumbnoderef): Change \setref calls.
+
+Sat Jun 27 19:16:34 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\contents, \summarycontents): Must not be \outer.
+
+Fri Jun 26 16:15:14 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\writetocentry): New macro.
+	(\chapternofonts): No longer needed.
+	(\chapter, ..., \unnumberedsubsubsec): Change all the sectioning
+		commands to call \writetocentry instead of doing it inline.
+	Also, do not call \chapternofonts, we avoid expansion with
+		\the\toks instead.
+	(\opencontents): No longer needed, instead \writetocentry opens
+		the file when necessary.
+	(\setfilename): Don't call \opencontents.
+	(\ifsetcontentsaftertitlepage, \ifsetshortcontentsaftertitlepage):
+		New conditionals.
+	(\Etitlepage): Call \contents and/or \shortcontents if
+		conditionals are set.
+
+	Global: use \nobreak instead of \penalty 10000 for epsilon efficiency.
+
+Thu Jun 25 08:29:32 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\option,\env,\command): New markup commands.
+	Suggested by arnold@gnu.org.
+
+	* texinfo.tex (\afourpaper): More reasonable margins.
+	From: Wilhelm Mueller <muewi@hb.senbvs43.uni-bremen.de>
+	Date: Thu, 25 Jun 1998 10:48:13 +0200 (MET DST)
+
+Wed Jun 24 17:46:43 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\acronym): New Texinfo command.
+
+Tue Jun 23 17:36:39 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\dots, \enddots): Missing \leavevmode.
+	Report from: Thomas Esken <esken@nmlab.informatik.fh-dortmund.de>
+	Date: Tue, 23 Jun 1998 14:22:27 +0200 (MET DST)
+
+Mon Jun 22 16:00:53 1998  Karl Berry  <karl@north>
+
+	* texinfo.tex: Rewrite of index stuff to do better column breaking
+	and balancing.
+	The old code failed miserably when the index was just the wrong size,
+	e.g., the Autoconf manual with @afourpaper.
+	Bug report from: Wilhelm Mueller <muewi@hb.senbvs43.uni-bremen.de>
+	Date: Fri, 12 Jun 1998 16:34:49 +0200 (MET DST)
+	(\initial): Add more glue around the initial, and make it a
+		multiple of \baselineskip.
+	(\entry): Add glue before each entry so the columns can always be the
+	 same height.
+	(\doublecolumnout): Available space no longer needs to handle
+	 \partialpage specially.
+	(\pagesofar): Take \ht\partialpage into account with \vsize.
+	(\enddoublecolumns): Reset \output to avoid calling
+		\balancecolumns twice
+	(\balancecolumns): Format for readability.
+	(\initialskipamount): No longer needed, remove.
+
+	(\hbadness): Increase a bit, boxes that are a little underfull look ok.
+
+Sun Jun 21 16:48:38 1998  Karl Berry  <karl@north>
+
+	* texinfo.tex (\ninettsl): cmsltt10 is not standard, so use
+		cmsltt10 scaled 900.
+ 	Date: Mon, 15 Jun 1998 12:35:41 +0200 (MET DST)
+ 	From: Werner Struckmann <struck@ips.cs.tu-bs.de>.
+
+Thu Jun 18 08:32:15 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex: @macro fixes from Zack Weinberg
+  	     <zack@rabi.phys.columbia.edu>.
+ 	- @ifblah did not work inside @macro
+        - spaces in parameter lists in macro definitions caused errors
+        - leading spaces in parameter lists in macro invocations were
+	  preserved inappropriately.
+
+Wed Jun 10 16:50:53 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\smallformatx, \smalldisplayx): New macros.
+	(\smallbook): Arrange to use them.
+	(\display, \flushleft, etc.): Rewrite to avoid duplication.
+
+Sun Jun  7 18:13:45 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\pagesizes): Rename to \internalpagesizes.
+	(\custompaper): Rename to \pagesizes.
+
+Sat Jun  6 13:16:32 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex: Rewrite paper size definitions, add @custompaper.
+
+	* texinfo.tex: Fix for macros in arguments to other commands.
+  		From Zack.
+
+Thu Jun  4 11:21:07 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex: Better @macro implementation.
+	From: Zack Weinberg <zack@rabi.phys.columbia.edu>.
+
+Tue May 26 17:43:21 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\imagexxx): Center image if it is not part of a
+ 		paragraph.
+
+Tue May 19 17:17:12 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex: \linkstrue by default.
+	Also, first implementation of @macro; can only handle some cases,
+ 		but that is better than nothing.
+	From: Zack Weinberg <zack@rabi.phys.columbia.edu>
+
+Thu May 14 17:32:47 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex: New command @novalidate along the lines of makeinfo
+		--no-validate.
+	Date: Sun, 26 Oct 1997 18:54:47 -0500
+	From: Zack Weinberg <zack@rabi.phys.columbia.edu>
+
+Tue May 12 16:19:35 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\valuexxx): Split up into expandable and
+ 		non-expandable parts.
+	(\expandablevalue): New macro.
+	(\indexdummies): \let\value = \expandable value.
+
+	* texinfo.tex: Doc fixes.
+
+	* texinfo.tex (\doind): Just call \dosubind with empty third arg.
+	(\dosubind): Replace with \doind definition and suitable code to handle
+	possible third arg.  And propagate glue past the whatsit from the
+ 	\write so index entries don't cause extra space between
+ 	@defuns (for example).
+
+Wed May  6 12:51:27 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\deftypemethparsebody): Handle the extra arg in
+ 	@deftypemethodx, too.
+	(\deftypefunx): Error definition was misspelled as \deftypeunx.
+
+Fri May  1 17:31:58 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo/texinfo.tex (\putwordon, \putwordMethodon): New macros.
+  	Use in \def... commands.
+	(\indexdummies): make `\ ' be just ` ' for sorting.
+	(\deftypemethparsebody): New macro.
+	(\defmethod): Call it.
+	Various doc fixes.
+	Repored by: KHMarbaise@p69.ks.fido.de (Karl Heinz Marbaise)
+	Date: Wed, 07 Jan 1998 10:19:42 +0100
+
+Fri Apr 10 16:54:48 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex: @cartouche: Align right side correctly.
+	From: dale.smith@bellhow.com (Dale Smith)
+	Date: Fri, 06 Mar 1998 14:47:02 GMT
+
+Sun Apr  5 17:19:03 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\dosetq): Use \normalturnoffactive instead of just
+ 	\turnoffactive, so \'s in node names are handled properly.
+	(\tie): Move definition to more rational position in the file.
+	(\@, \{, etc.): Use decimal numbers in all cases, to avoid use of '.
+	Paranoia only.
+	(\+): Turn off once and for all at the beginning, and define as
+	\tabalign in @tex.
+
+Tue Mar 31 19:33:31 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\synindex, \syncodeindex): \closeout the redirected
+		index.
+	From: Jakob Stoklund Olesen <stoklund@mi.aau.dk>
+
+	* texinfo.tex (\doignore): Ignore everything after `c', so @end
+ 	ifinfo and the like can be commented out.
+	(\macrocsname): New macro.
+	Reported by: "James A. Lupo" <lupoja@feynman.ml.wpafb.af.mil>
+
+Wed Feb 25 15:48:51 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\doprintindex): Change catcode of @ before \read,
+		in case of \initial{@} being the line that is read.
+	Reported by: Drew Csillag <drew_csillag@geocities.com>
+
+	* texinfo.tex (\dotable): Add \leftskip to \hsize in the first column.
+	Don't inherit \rightskip from surrounding environment.
+	Set \item to \crcr to avoid empty first row.
+        Prepend \parskip glue before table.
+        Set \everycr locally outside of alignment, don't reset it
+	        explicitly in \Emultitable.
+	All from Andreas Schwab, to avoid overfull hboxes.
+
+	Also, work on leading commentary in file a bit.
+
+Tue Feb 24 17:48:29 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex: \!: Save and restore this for @tex.
+	From: Jean-Pierre Moreau <jpmoreau@ciframedical.com>
+	Date: Fri, 22 Aug 1997 16:47:36 -0400
+
+	* texinfo.tex (\angleleft, \angleright): New macros.
+	(\refx, \email, \key): Use them.
+	From: Stephen Gildea <gildea@intouchsys.com>
+	Date: Fri, 26 Dec 1997 11:43:32 EST
+
+Mon Feb 23 17:34:23 1998  Karl Berry  <karl@cs.umb.edu>
+
+	1997-08-28 Andreas Schwab <schwab@issan.informatik.uni-dortmund.de>
+	* doc/texinfo.tex (xrdef): Read the second argument with \
+ 	as an escape character.
+
+1998-01-22  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* texinfo.tex (\tocentry): Don't \turnoffactive before typesetting
+		the arguments, it causes special characters to be printed
+		incorrectly.
+
+Mon Jan 19 10:58:25 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texi2html: Correct version number, home page reference.
+
+Sat Jan 17 15:12:03 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* texi2html: Version 1.54.  Handle @image better, etc.
+	* From: Bob Friesenhahn <bfriesen@simple.dallas.tx.us>.
+
+Wed Dec 24 13:59:07 1997  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\dots, \enddots): Use current font instead of
+ 		always using math italic.  From Stephen Gildea.
+
+Tue Dec 23 11:33:07 1997  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex: Spurious xepsf.tex should be epsf.tex.
+
+Mon Oct 13 15:49:28 1997  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\titlefont): Explicitly set \rm.
+
+Sat Jul 26 15:12:37 1997  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\email): Let to \uref instead of \code, as a second
+ 		optional argument makes sense for this, too.
+
+Mon Jul 14 13:43:43 1997  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\indexdummies): Add \value.
+
+Thu Jul 10 13:34:30 1997  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\authorrm): Must use \def instead of \let, as
+ 		\secrm is not yet defined.
+
+1997-07-09  Richard Stallman  <rms@psilocin.gnu.ai.mit.edu>
+
+	* texinfo.tex (\titlefont): Define again, using \titlefonts.
+
+Wed Jul  9 16:45:30 1997  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\startcontents): Leave ^ catcode as other.
+
+Sat Jul  5 17:16:40 1997  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\titlefonts): New macro to set title font styles,
+ 	so italic etc. work in @title.
+	(\titlefont): No longer needed.
+	(\titlepage): Call \titlefonts instead of \titlefont.
+	(\chapsf, \ssecsy, \ssecttsl): Correct magstep values.
+	From: Stephen Gildea <gildea@intouchsys.com>.
+
+	* texinfo.tex (\onepageout): Back up to 2\baselineskip per Stephen.
+	(\kbdinputstyle): New command.
+
+1997-04-03  00:07:28 1997  Richard Stallman  <rms@gnu.ai.mit.edu>
+
+	* texinfo.tex (\kbdfont, \kbdexamplefont): New macros, parms that
+	tell @@kbd what to do.
+	(\setkbdinputdistinct, \setkbdinputexample): New commands set them.
+	(\kbd): Use those parms.
+
+Thu Jul  3 16:52:39 1997  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\onepageout): Leave only one line space above the
+ 	footline, to be more like plain.  Suggested by Stephen Gildea.
+	(\evenfootline): Left one too many line spaces here, so reduce by two.
+
+	(\ifnottex): Another ignore command.
+	(\ifnothtml,\ifnotinfo): New commands.
+	(\doignore): Ignore brace characters, so mismatched braces in ignored
+	text do not cause complaints.
+
+Fri Jun 27 15:09:16 1997  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\image): New definition for new @image command.
+
+Wed Jun 18 15:58:20 1997  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\oddfootingxxx),
+	(\onepageout): Leave space for the footline if present.
+	(\everyfootingxxx, \everyheadingxxx): Call \oddfootingxxx and
+	\evenfootingxxx instead of repeating their code.  From: Stephen
+ 	Gildea <gildea@intouchsys.com>.
+
+	(\setfilename): Read texinfo.cnf if present.
+
+	(\indexdummies, \indexnofonts): No-op additional commands @result @equiv
+	@expansion @print @error @point.  From: Dave Bodenstab
+ 		<imdave@ais.net> (for texi2www doc).
+
+Fri Jun  6 10:31:34 1997  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\setmultitablespacing): Restore bad typing mistake
+ 		from yesterday.
+
+Thu Jun  5 18:04:26 1997  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\uref): Write real definition, taking one mandatory
+		argument and one optional one.
+
+Wed Jun  4 17:16:09 1997  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\mainmagstep): Define this as a \count variable
+ 	instead of with \let, to make changing to \magstep1 more transparent.
+ 	From: HERBERT@boevm4.vnet.ibm.com.
+	(\uref): New command a la \url.
+
+Sat May 24 18:06:41 1997  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\deftypemethod, \deftypemethodheader): New macros
+		to implement new commands @deftypemethod and @deftypemethodx.
+	Suggestion from: KHMarbaise@p69.ks.fido.de (Karl Heinz Marbaise).
+
+Wed May 21 17:17:52 1997  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\opnr, \clnr): Increment/decrement \parencount, for
+   	  @defun lines with nested parens.  From Bill Schelter
+ 	  <wfs@fireant.ma.utexas.edu>.
+	(\itemizeitem): Correct \errmessage.
+
+Mon May 19 17:34:40 1997  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\codeunder): Use \_ and \ifusingtt to avoid
+ 	dotaccent from _ in roman fonts, e.g., @deftypefn.
+	(\tex): Remove spurious spaces at the end of subdefinitions.
+	From: "John W. Eaton" <jwe@bevo.che.wisc.edu>.
+	(\url, \email): \let to \code; no quotes or angle brackets.
+
+Mon May  5 17:06:35 1997  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\onepageout): \ifcropmarks, center the page body.
+  	Lost this when merged \croppageout with \onepageout.  Found by
+ 	Arnold.
+
+	(\doprintindex): Do not bother to go into double column mode unless
+	there actually is a non-empty index.
+
+	(\begindoublecolumns): Include any existing \partialpage in the new one,
+	lest we lose a whole page of output.  Found by M J Morley
+ 	<mjm@scs.leeds.ac.uk>.
+
+	(\chapternofonts): Remove spurious spaces, both in the definitions that
+	get output to the aux file(s) and in this macro.
+
+	Fix comments and rationalize whitespace in various other places.
+
+Sun Apr 27 15:41:16 1997  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\chapter, etc.): Avoid expansion of section title
+        when writing the toc.
+
+Thu Apr 24 16:35:46 1997  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\onepageout): Integrate cropmarks case here,
+	instead of having a completely different routine.
+	(\croppageout): Remove this.
+
+Sun Jun  9 14:26:42 1996  Karl Berry  <karl@cs.umb.edu>
+
+	* texinfo.tex (\ignoremorecommands): Ignore \defcodeindex, and do
+        not ignore \message.
+
+Thu Apr 11 12:59:42 1996  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* texinfo.tex (\macro): New macro.
+	(\enddots, \endldots): New macros.
+	(\centerchap, \centerchapyyy): New macros.
+	(\centerchfplain, \centerchfopen): New macros.
+	(\CHAPFplain, \CHAPFopen): Set \centerchapmacro.
+
+Wed Mar 13 11:42:17 1996  Karl Berry  <karl@cs.umb.edu>
+
+        * texinfo.tex (\url): New macro, like \samp for now.
+
+Sun Mar 10 13:05:08 1996  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* texinfo.tex: Changes in @multitable code.
+	Change meaning of @multitablelinespace.
+
+Tue Mar  5 18:56:08 1996  Dave Love  <d.love@dl.ac.uk>
+
+	* texinfo.tex (\set): Set catcode of space explicitly (inside a
+ 	group) to avoid losing inside @example, say.
+
+Sun Mar  3 17:01:27 1996  Karl Berry  <karl@cs.umb.edu>
+
+        * texinfo.tex (\itemxpar): Protect the \vskip here with \nobreak,
+        to avoid a possible page break at an @itemx.
+
+Sun Feb 25 14:53:15 1996  Karl Berry  <karl@cs.umb.edu>
+
+        * texinfo.tex (\obstexwarn): Use \global to avoid ever getting the
+        warning twice.
+
+        * texinfo.tex (\include): Allow underscores and other such
+        characters we made active in the file name argument.
+
+Tue Feb  6 15:06:27 1996  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* texinfo.tex (\afourlatex): Delete the old duplicate definition
+	of \afourlatex.
+
+Sun Feb  4 15:20:16 1996  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* texinfo.tex (\tab): New definition.
+	(\setuptable): Fix previous change.
+	(\multitablecolspace): Renamed from \multitablecolmargin.
+	(\multitablelinespace): Renamed from \multitablelineskip.
+
+Fri Feb  2 02:20:16 1996  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* texinfo.tex (\multitableparskip): Renamed from \intableparskip.
+	Allocate with \newskip.
+	(\multitableparindent): Renamed from \intableparindent.  Use \newskip.
+	(\multitablelineskip): Renamed from \spacebetweenlines.  Use \newskip.
+	(\multitablecolmargin): Renamed from \spacebetweencols.
+	(\columnfractions): Renamed from \percentofhsize.
+	(xcolumnfractions): Renamed from \xpercentofhsize.
+
+	* texinfo.tex (\setuptable): Handle >1 digits after @percentofsize.
+	(\pickupwholepercent): New macro.
+
+Sun Jan 28 21:14:46 1996  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* texinfo.tex (\key, \kbdfoo): Use \ttsl unconditionally.
+	(\setkeyfont): Definition deleted.
+
+Tue Jan 23 14:57:23 1996  Karl Berry  <karl@cs.umb.edu>
+
+        * texinfo.tex: @kbd within @example selects slanted tty font:
+	(\ttsl, \ttslshape): Define this new font shape.
+        (\kbdfoo): Set the font to \ttsl if already using \tt.
+        (\setkeyfont, \ifmonospace): New macros.
+
+Wed Jan 17 23:57:48 1996  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* texinfo.tex (\changepagesizes): Additional arg for topskip.
+	(\afourlatex): Total rewrite.
+	(\afourwide): Pass new arg to \changepagesizes.
+
+Wed Jan  3 17:15:00 1996  Stephen Gildea  <gildea@x.org>
+
+        * texinfo.tex (\slbshape, \itbshape): Use bold slant and and
+	bold italic in titles to match the bold roman.  Do not use
+        bold sf or bold tt, which would be too heavy.
+
+        * texinfo.tex (\setfont): Pass font name in more pieces.
+        (\*shape): New macros defining symbolic names for all font
+	shapes so can use other font families with different naming
+	conventions.
+
+Wed Jan  3 15:52:18 1996  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* texinfo.tex (\ignoremorecommands): Turn off @everyheading and
+	friends, @headings, @setchapternewpage, @setchapterstyle.
+
+Sat Dec 30 17:20:48 1995  Karl Berry  <karl@cs.umb.edu>
+
+        * texinfo.tex (\inmargin): Don't allow a break before the vertical
+        kern.  Do allow a whole paragraph of marginal text, not just one line.
+	Use \inmarginspacing.
+
+Thu Dec 28 23:22:08 1995  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* texinfo.tex (\inmargin): New command @inmargin.
+	(\dircategory): Ignore @dircategory.
+
+Tue Dec 12 17:25:36 1995  Karl Berry  <karl@cs.umb.edu>
+
+        * texinfo.tex (\lvvmode): Remove this; use \leavevmode as usual,
+        so spaces/underscores at beginnings of lines inside @example work.
+        Bogus index entries should be (and now are, I think) handled in
+        other ways.
+
+Mon Nov 13 16:07:09 1995  Karl Berry  <karl@cs.umb.edu>
+
+        * texinfo.tex (\xrefX): Test for xref-automatic-section-title
+        being @set correctly, and remove spurious redefinition of
+        \printednodename in that case.
+
+Mon Oct 16 15:16:34 1995  Karl Berry  <karl@cs.umb.edu>
+
+        * texinfo.tex (\unsepspaces): New macro to make active space
+        expand into a normal space char in index entries.
+	(\indexdummies): Use \unsepspaces.
+
+Thu Oct 12 14:56:52 1995  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* texinfo.tex (\tie): Use \lvvmode, not \leavevmode.
+	Don't use \@M directly either.
+
+Sun Aug 27 21:17:09 1995  Paul Eggert  <eggert@twinsun.com>
+
+	* texinfo.tex (\appendixsection): Fix misspelled defn.
+
+Mon Jul 31 23:57:57 1995  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* texinfo.tex (\ttfont): Don't call \nohyphenation.
+
+Sun Jul 30 18:30:47 1995  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* texinfo.tex (\tocentry): Use \turnoffactive.
+
+Sun Feb  5 05:34:13 1995  Richard Stallman  <rms@pogo.gnu.ai.mit.edu>
+
+	* texinfo.tex (\boldbraxnoamp): New function.
+	(\deftypefunargs): Use that, not \boldbrax.
+
+Tue Jan 31 12:15:28 1995  Karl Berry  <karl@cs.umb.edu>
+
+        * texinfo.tex (\set): Use \gdef, not \xdef.
+
+Sat Jan 21 16:39:36 1995  Richard Stallman  <rms@pogo.gnu.ai.mit.edu>
+
+	* texinfo.tex: Initially make _ and + \active,
+	then later make them \other.
+	(\otherifyactive): New command.
+
+Thu Jan 19 21:59:22 1995  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* texinfo.tex (\afourwide): New command.
+
+Mon Jan 16 09:29:38 1995  Stephen Gildea  <gildea@x.org>
+
+	* texinfo.tex: Initially make + and _ "other" characters.
+	(\fixbackslash, \everyjob): Make + and _ active characters.
+
+Tue Jan 10 19:16:09 1995  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* texinfo.tex: At beginning, \input plain if necessary.
+	(\deftypefunargs): Use \boldbrax, not \functionparens.
+
+Sun Dec 18 16:40:11 1994  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* texinfo.tex (\indsc): Use csc10 (at 9pt), not indrm.
+
+Mon Oct 31 00:51:20 1994  Richard Stallman  <rms@pogo.gnu.ai.mit.edu>
+
+	* texinfo.tex (\changepapersizes): Fix definition syntax.
+	(\fontprefix): Define only if not yet defined.
+
+	* texinfo.tex (\margin): Define a new insert.
+	(\SETmarginindex): Initialize to \relax.
+	(\doindex): Optionally put the entry in the margin.
+	(\pagecontents): Print the index entries put in the margin.
+
+Sat Oct 29 19:50:10 1994  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* texinfo.tex (\auxhat): New macro.
+	(\dosetq): Use \auxhat.
+	(reading the aux file): Give ^ catcode 7.
+
+Wed Oct 26 03:28:04 1994  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* texinfo.tex (\setfont): New macro.  Use it for specifying
+	most of the fonts that are normally cm fonts.
+	(\fontprefix): New macro, normally `cm'.
+
+Mon Oct 24 01:27:09 1994  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* texinfo.tex (\startcontents): Set catcode of ^.
+
+Thu Oct 13 02:19:43 1994  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* texinfo.tex (\ifhtml, \html, \enddots, \?, \!): New commands.
+
+Fri Sep 16 16:30:52 1994  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* texinfo.tex (\defheaderxcond): New macro.
+	(\deftypefnheaderx): Use defheaderxcond when calling defname.
+	(\deftypefunheaderx, \deftypevarheader, \deftypevrheader): Likewise.
+
+Fri Aug 26 03:08:08 1994  Amy Hendickson  <amyh@ai.mit.edu>
+
+	* texinfo.tex (\multitable): New command.
+
+Mon Aug  1 14:28:57 1994  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
+
+	* texinfo.tex (\changepagesizes, \afourlatex): New macros.
+
+Tue Jul 12 11:45:58 1994  Karl Berry  (karl@cs.umb.edu)
+
+        * texinfo.tex (\quotation): Set \parskip to zero to avoid extra
+        space below the environment.
+	(\quotation): Clean up comments and indentation.
+
+Wed Jul 13 05:36:40 1994  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\xrefX): Put back, and correct, the test of
+	SETxref-automatic-section-title.
+
+Thu Jul  7 15:57:52 1994  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* Set catcodes of chars 128-255 to \other.
+
+Mon Jul  4 15:32:41 1994  Karl Berry  (karl@cs.umb.edu)
+
+        * texinfo.tex (\tie): Set \catcode of @ to 11 before using \@M.
+
+        * texinfo.tex (\xrefX): Undo \turnoffactive while printing the node
+        name, so _ in node names doesn't come out as the dot accent.
+
+Sat Jul  2 14:49:26 1994  Karl Berry  (karl@cs.umb.edu)
+
+        * texinfo.tex (\tie): Ensure we're in horizontal mode before the
+        \penalty.
+
+Tue May 10 01:21:28 1994  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\donoderef, \unnumbnoderef, \appendixnoderef):
+	Set \lastnode globally.
+
+Sun Apr 17 15:35:43 1994  Karl Berry  (karl@ra.cs.umb.edu)
+
+        * texinfo.tex (\~): Define to be a tie.
+        (\ptextilde): New defn to save the plain's tilde accent.
+        (\tex): Restore plain tilde.
+
+Sun Mar 27 23:35:17 1994  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\smallbook): Set \defbodyindent and \deftypemargin.
+
+Sun Mar 20 19:47:59 1994  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\xrefX): Define and use \correctnodename.
+	(@turnoffactive): Move after @ becomes available
+	and turn off backslash as well as other chars.  Use @realbackslash.
+	(@normalturnoffactive): Like @turnoffactive but use @normalbackslash.
+
+Sat Mar 19 12:26:25 1994  Karl Berry  (karl@cs.umb.edu)
+
+        * texinfo.tex (\singlespaceskip): Increase to 12.5pt.
+        (\singlespace): Call \setleading instead of just assigning to
+        \baselineskip, so the strut box will be reset.
+        (\smalllispx): Likewise.
+
+Sun Mar 13 20:32:28 1994  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\dots): Change back to \ldots.
+
+Sat Mar 12 22:34:10 1994  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\indexnofonts): Add %'s to suppress newlines after \def.
+
+Sat Feb 26 15:51:37 1994  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\deftexinfoversion): New macro.
+	(\texinfoversion): Define using \deftexinfoversion.
+
+Wed Jan 26 12:40:52 1994  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\putwordSee, \putwordInfo, \putwordfile)
+	(\putwordChapter, \putwordAppendix, \putwordSection)
+	(\putwordsection, \putwordpage)
+	(\putwordTableofContents, \putwordShortContents): New macros.
+	Used in various places instead of fixed words.
+
+Mon Jan 24 22:51:36 1994  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\ignoremorecommands): Turn off @item and @message.
+
+Thu Jan 20 17:01:53 1994  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\indexnofonts): Treat accents as dummies.
+	Turn modified European letters into one or more ordinary letters.
+
+Tue Jan 18 14:54:32 1994  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\indexdummies): Handle tex accents and European letters.
+
+Wed Nov 24 16:11:51 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\dots): Use $\,$ for spacing.
+
+Sun Nov 21 22:16:21 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\dots): Avoid using \ldots; use periods and kern.
+	(\indexdotfill): Use italic periods.
+
+Fri Nov 19 20:50:31 1993  Roland H. Pesch  (pesch@apple-gunkies.gnu.ai.mit.edu)
+
+        * texinfo.tex (\deftypefunargs): use \tclose rather than \code to
+        avoid side effects on active chars
+
+Tue Sep 28 16:01:58 1993  Roland H. Pesch  (pesch@apple-gunkies.gnu.ai.mit.edu)
+
+	* texinfo.tex (\obeyedspace defn): remove blank after \sepspaces
+	(left destructive penalty in vertical list)
+
+Mon Aug 30 14:17:27 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* texinfo.tex (\setref, \unnumbsetref, \appendixsetref): Uncomment
+	\dosetq for title.
+	(\Ytitle): Define as \thissection instead of \thischapter.
+	(\xrefX): If there is no printed-title arg given, and @ifset
+	xref-automatic-section-title, try to use the real section title.
+
+Tue Jul 27 12:47:24 1993  Charles Hannym  (mycroft@trinity.gnu.ai.mit.edu)
+
+	* texinfo.tex (\ifitemxneedsnegativevskip): New \if; set immediately
+	following a short \item.
+	(\itemxpar): \par and then if \ifitemxneedsnegativevskip is set, do
+	a \vskip-\parskip.
+	(\internalBitemx, \internalBxitemx, \internalBkitemx): Use \itemxpar
+	rather than \par.
+	(\itemzzz): Set \ifitemxneedsnegativevskip as appropriate.
+
+Thu Jul 22 16:08:33 1993  Charles Hannum  (mycroft@trinity.gnu.ai.mit.edu)
+
+	* texinfo.tex (\titlezzz, \finishtitlepage): Explicitly make hrules
+	have a width of \hsize so they aren't too long in smallbook format.
+
+Tue Jun 29 15:56:19 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* texinfo.tex (\deftypefnheaderx): call \normalparens to permit
+	normal typesetting of strings (e.g. for C++ docn) containing `&'
+
+Fri Jun 25 14:08:44 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* texinfo.tex (\nestedignore): turn off \ind... fonts too
+	(primarily for use within @smallexample)
+
+Wed Jun 23 11:58:48 1993  Jim Kingdon  (kingdon@wombat.gnu.ai.mit.edu)
+
+	* longopts.table: Update GDB options.
+
+Sun Jun 20 22:00:11 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* lgpl.texinfo: Use @smallexample instead of @example.  Reformat
+	example disclaimer to avoid overfull \hbox.
+
+Mon Jun 14 04:09:47 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\entry): Don't make a line of dots
+	if there are no page numbers.
+
+Fri Jun 11 16:35:23 1993  Karl Berry  (karl@cs.umb.edu)
+
+	* texinfo.tex (\defparsebodycommon): New macro from \defvrparsebody.
+	(\deftpparsebody): Call it; can't use \defvrparsebody.
+	(\deftpheaderline, \removeemptybraces): New macros.
+
+Sat May  8 10:49:25 1993  Karl Berry  (karl@cs.umb.edu)
+
+	* texinfo.tex (\itemzzz): Only change \parskip temporarily, and
+	unskip by it later if the item text is on its own line.
+
+	* texinfo.tex (\tablez): Do \afterenvbreak before the \endgroup,
+	so the \parskip value is the table's, not the surrounding text's.
+	(\vtable, \ftable, \itemizey): Likewise.
+	Note: for most environments, \nonfillfinish deals with this.
+
+	* texinfo.tex (\smalllisp): New definition for non-small case, a
+	la @smallexample.
+
+	* texinfo.tex: Delete \message{} at beginning; it does nothing.
+
+	(These changes are all trying to make space above and below
+	environments more equal.)
+	* texinfo.tex (\singlespace): Don't insert a kern.
+	(\group): Do \offinterlineskip, and reset \par to insert a blank
+	line's worth of space.
+	(\lisppar): Delete meaningless call to \obeyspaces before making
+	the definition.
+	(\Elisp [the outer one]): Rename to \nonfillfinish, and end the
+	paragraph before the group.
+	(\lisp): Set \Elisp (the inner one) to \nonfillfinish
+	(\example, \smallexample, \display, \format, \flushleft,
+	\flushright, \quotation): Use \nonfillfinish.
+	(\lineskipfactor, \strut{height,depth}percent): Set to more exact
+	values.
+	(\setleading): Set \normallineskip and call \normalbaselines, for
+	cleanliness.
+
+Thu May  6 16:00:59 1993  Jeffrey Osier  (jeffrey@deneb.cygnus.com)
+
+	* texinfo.tex (\ignoremorecommands): Turn off \set and \clear.
+
+Tue Apr 20 17:02:34 1993  Roland H. Pesch  (pesch@apple-gunkies.gnu.ai.mit.edu)
+
+	* texinfo.tex (\codex): Delete space.
+
+Thu Apr 15 14:59:04 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* texinfo.tex (\ignoremorecommands): Turn off @raisesections, @up,
+	@lowersections, @down within false conditionals.
+
+Sun Apr 18 04:33:13 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\code): Define - and _ to permit line-breaking
+	despite the fact that hyphenation is disabled.
+	(\codex, \codedash, \codeunder): New macros.
+
+Tue Mar 16 18:19:16 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* texinfo.tex (\ignoremorecommands): Turn off @printindex within
+	false conditionals.
+
+Sun Mar 14 10:47:36 1993  Karl Berry  (karl@cs.umb.edu)
+
+	* texinfo.tex (\footnote): Don't bother to take the footnote text
+	as an argument, and hence don't define as \long.
+        (\footnotezzz): Do \footstrut after we start the paragraph.
+        (Also reformat these macros to make them easier to read.)
+
+Fri Feb 26 13:02:44 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* texinfo.tex (@include): Use \thisfile rather than #1 as \input arg.
+
+	* texinfo.tex (\readauxfile): Call \warnedobstrue to turn off warning
+		      re TeX 3.0 on second and subsequent runs.
+
+Thu Feb 25 18:03:38 1993  Karl Berry  (karl@cs.umb.edu)
+
+	* texinfo.tex (\realeverypar): Delete, as it was unused.
+
+	* texinfo.tex (\group): Do a \strut in \everypar.
+
+Mon Feb 22 17:10:06 1993  Karl Berry  (karl@claude.cs.umb.edu)
+
+	* texinfo.tex (\obeyedspace): Define to be whatever \sepspaces
+	does (and move the definition to after \sepspaces).
+
+Wed Feb 17 01:55:20 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\nonfillstart): Do \singlespaces and \let\par
+	before \obeylines.
+
+Fri Feb 12 12:32:56 1993  Roland H. Pesch  (pesch at el_bosque.cygnus.com)
+
+	* texinfo.tex (\obstexwarn): issue message re bug in TeX 3.0.
+          (\nullfont): commented-out redefinition, to enable w/TeX 3.0.
+          (\nestedignore): call \obstexwarn for manuals that may trip bug
+
+	* texinfo.tex (\nestedignore): avoid @tex contents with \doignore
+
+Thu Feb 11 15:41:06 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* texinfo.tex (\indexdummies): enable @dfn and @emph in index entries
+
+Thu Feb 11 13:32:32 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* texinfo.tex (\ignoremorecommands): ignore @include within
+          failing conditionals
+
+Sat Feb  6 19:44:28 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\nestedignore): Set \globaldefs--make all defs local.
+
+Tue Feb  2 15:57:37 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* texinfo.tex (@raisesections, @lowersections): new commands.
+	* (@up, down): original BFox synonyms for above.
+        * (\numhead, \apphead, \unnmhead): internal macros to map headings
+	to appropriate level
+	* (@nwnode): new synonym for @node, used in newest
+	makeinfo
+
+Tue Jan 26 17:05:02 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* texinfo.tex (\include): avoid group around file contents
+
+Tue Jan 19 18:58:56 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* texinfo.tex (\ignoremorecommands, used in \nestedignore): also
+	ignore cross-ref commands and \settitle
+        (\setyyy, used in @set): make definitions global
+        (\clearxxx, used in @clear): clear definitions globally
+
+Thu Jan 14 17:43:32 1993  Michael I Bushnell  (mib@geech.gnu.ai.mit.edu)
+
+	* texinfo.tex: Added \shorttitlepage.
+
+Sat Jan  2 15:01:45 1993  Karl Berry  (karl@cs.umb.edu)
+
+	* texinfo.tex (\tclose): Use \spaceskip instead of modifying
+	\fontdimen's to normalize the interword space.
+
+	* texinfo.tex (\t, \key, \tclose): Use \hyphenchar instead of
+	\exhyphenpenalty, to turn off hyphenation for real.
+        (\{no,restore}hyphenation): New macros.
+
+Sat Jan  2 15:01:45 1993  Karl Berry  (karl@cs.umb.edu)
+
+	* texinfo.tex (\t, \key, \tclose): Use \hyphenchar instead of
+	\exhyphenpenalty, to turn off hyphenation for real.
+        (\{no,restore}hyphenation): New macros.
+
+Tue Jan  5 19:15:46 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\deftpparsebody): Make synonymous with \defvrparsebody.
+
+Sun Dec 27 09:40:08 1992  Karl Berry  (karl@cs.umb.edu)
+
+	* texinfo.tex (\inforef, \inforefzzz): Use the \ignorespaces
+	primitive instead of \losespace.
+        (\losespace): Delete.
+
+	* texinfo.tex (\menu, \direntry): Handle like \ifinfo.
+
+	* texinfo.tex (\unmatchedenderror, \defineunmatchedend): New macros.
+        (\endxxx): Call it, instead of just doing it inline.
+        (\conditionalsucceed, \nece): More new macros.
+        (\iftex): Call \conditionalsucceed.
+        (\Eiftex): Define to give an error at the outer level.
+
+	* texinfo.tex (\ignoremorecommands, \nestedignore): New macros.
+        (\ifset, \ifclear): Expand a macro on success as well as failure;
+        also switch to using expansion instead of assignments to act after
+        the conditional.
+        (\if{set,clear}succeed): Call \conditionalsucceed.
+        (\if{set,clear}fail): Call \nestedignore instead of \doignore.
+
+	* texinfo.tex (\clear): Don't insert a spurious space.
+
+	* texinfo.tex (\value): Put comment next to definition.
+
+	* texinfo.tex (\setyyy): Call \setzzz, and define the variable as
+	simply the parameter, no \unskip.
+        (\setzzz): New macro; do not globally define the variable.
+
+Thu Dec  3 17:24:05 1992  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* texinfo.tex (croppageout): use same escape-char switching as
+	default output routine.  Permits using _ in TOC entries.
+
+Fri Nov 13 17:35:38 1992  Charles Hannum  (mycroft@gnu.ai.mit.edu)
+
+	* texinfo.tex (indexing): Rewrote double-column mode to fix a
+	rare breakage.
+
+Sun Oct 25 07:13:31 1992  Karl Berry  (karl@cs.umb.edu)
+
+	* texinfo.tex (\obeyedspace): No need to define with \gdef, we're
+	at the outer level.
+
+Fri Oct 16 18:04:40 1992  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* lgpl.texinfo: Change "This program" to "This library" in example
+	copying notice.
+
+Sat Oct 10 09:43:45 1992  Karl Berry  (karl@cs.umb.edu)
+
+	* texinfo.tex (\bullet, \minus): Use \implicitmath instead of $.
+
+Fri Oct  2 08:35:51 1992  Karl Berry  (karl@cs.umb.edu)
+
+	* texinfo.tex (\Egroup): Don't do the \strut and \nointerlineskip.
+
+Sat Sep 26 09:08:59 1992  Karl Berry  (karl@cs.umb.edu)
+
+        * texinfo.tex (\doignore, \enddoignore): New macros.
+        (\ifinfo): Call \doignore.
+        (\ifxinfoxxx): Deleted.
+	(\ignore, \ifsetfail, \ifclearfail): use \doignore.
+
+        * texinfo.tex (\unnumbered): Expand the arg only once for the \message.
+
+        * texinfo.tex (\deftpparsebody, \parsetpheaderline): New macros.
+        (\deftp): Call \deftpparsebody.
+
+Thu Sep 24 10:12:45 1992  Karl Berry  (karl@cs.umb.edu)
+
+        * texinfo.tex (\entry): Do \par first; add comments.
+        (\short{chap,unnumbered}entry,\do{chap,sec,subsec,subsubsec}entry):
+          Call \tocentry, instead of using \vbox.
+        (\tocentry): New macro.
+
+Sat Sep 19 14:36:11 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\`, \'): Definitions deleted.
+
+Fri Sep 18 14:33:09 1992  Roland H. Pesch  (pesch@cygnus.com)
+
+	* texinfo.tex (\ifset, \ifclear): Standardize catcode of space as
+	for \ignore.
+
+Fri Sep 11 15:25:01 1992  Karl Berry  (karl@hayley)
+
+        * texinfo.tex (\finalout): Move out of final section of file,
+          which claims not to define new control words.
+
+        * texinfo.tex (\setleading): New macro.
+        (outer level, @smallbook, @afourpaper): Call it, instead of
+        setting \baselineskip directly.
+
+        * texinfo.tex (\|): New definition for changebars.
+
+Tue Sep  1 17:32:48 1992  Karl Berry  (karl@hayley)
+
+        * texinfo.tex (\begindoublecolumns): Exactly double \vsize.
+
+Sat Aug 29 10:12:16 1992  Karl Berry  (karl@hayley)
+
+        * texinfo.tex (\group): Define \Egroup to use struts instead of
+          letting TeX do its own interline spacing.
+
+        * texinfo.tex (\{remove,ignore}activespaces): New macros.
+        (\end): Call \removeactivespaces; give the correct error messages;
+          don't try to expand a nonexistent \E... macro.
+
+        * texinfo.tex (\EMsimple): End the help message with a period.
+
+        * texinfo.tex (\gobble): New macro.
+        (\lisp): Call it (instead of defining it every time).
+        (\example, \smallexample): Define \E... within the macro.
+
+Tue Aug 25 11:56:26 1992  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* texinfo.tex (\readauxfile): Make + normal while reading aux file.
+
+Thu Aug 20 21:32:34 1992  Karl Berry  (karl@hayley)
+
+        * texinfo.tex (\doublecolumnhsize): Compute value in
+          \begindoublecolumns.
+        (\afourpaper, \smallbook, <outer level>): Remove these (virtually
+          identical) computations.
+
+        * texinfo.tex (\doublecolumnvsize): Deleted.
+        (\afourpaper, \smallbook): Don't compute it.
+        (\begindoublecolumns): Just double \vsize here (thus decreasing
+          the value considerably from the old value of 19.1in, which was far
+          too large.)
+
+Fri Aug 14 10:16:42 1992  Karl Berry  (karl@hayley)
+
+        * texinfo.tex (\parseargx): Use \expandafter instead of
+        \aftergroup to continue the processing.
+        (\parsearglinex): Renamed to \parseargline, since the former
+        \parseargline is no longer needed.
+
+	* texinfo.tex (\parseargline) Remove a trailing @c or @comment.
+        (\argremovec, \argremovecomment): New macros.
+
+Thu Aug  6 11:28:55 1992  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* texinfo.tex: extended @set to define expandable vars;
+	  @value expands same.  Auxiliary macros \setxxx, \setyyy
+	  used for @set.
+
+Sun Aug  2 14:34:48 1992  Karl Berry  (karl@hayley)
+
+        * texinfo.tex (\entry): do line-breaking on the index entry.
+
+Wed Jul  1 17:05:26 1992  Karl Berry  (karl@claude.cs.umb.edu)
+
+        * texinfo.tex (\lparen, \rparen): new definitions.
+        ((,[,],)): new global definitions for these four active
+          characters, so parens and brackets can be used in @deffn names.
+
+Sat Jun 27 11:32:58 1992  Karl Berry  (karl@hayley)
+
+        * texinfo.tex (\shortchaplabel): new macro to align chapter and
+          appendix labels.
+        (\shortchapentry): call it.
+        (\shortappendixwidth): new dimen register.
+
+Wed Jun 24 09:45:34 1992  Karl Berry  (karl@hayley)
+
+        * texinfo.tex (\afterenvbreak): make the same as \aboveenvbreak,
+          so space below environments doesn't get lost.
+        (\aboveenvskipamount): rename to \envskipamount, since it's used
+          both above and below.
+
+Wed Jun 24 09:45:34 1992  Karl Berry  (karl@hayley)
+
+        * texinfo.tex (\group): do @comment at the end, to avoid excessive
+          white space when called inside @group.
+
+Wed Jun 24 16:36:04 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\startcontents): End page before setting pageno.
+
+Thu May 28 20:27:25 1992  Robert J. Chassell  (bob@hill.gnu.ai.mit.edu)
+
+        * texinfo.tex (\vtable): Like @ftable, but for variables.
+
+Fri May 22 07:04:32 1992  Karl Berry  (karl@hayley)
+
+        * texinfo.tex (\w): do \leavevmode before the \hbox.
+
+Sat May 16 11:16:27 1992  Karl Berry  (karl@hayley)
+
+        * texinfo.tex (\smallbook): decrease \topskip somewhat.
+
+        * texinfo.tex (\group): use \vtop instead of \vbox.
+
+        * texinfo.tex (\newlinechar): define for use in help strings.
+        (\groupinvalidhelp): define this for use with \errhelp.
+        (\group): set \errhelp to above.
+
+Thu Apr 30 16:19:17 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\need): Rewritten by karl.
+
+Sat Apr 18 16:24:00 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\exdentamount): New var, set by environments.
+	(\exdent, \exdentyyy): Define suitably for filled environments.
+	Always exdent by innermost indentation step.
+	(\nofillexdent, \nofillexdentyyy): Alternates for nofill envs.
+	(\lisp, \smalllispx, \display): Set \exdent to \nofillexdent.
+
+Thu Apr  2 15:04:15 1992  Robert J. Chassell  (bob@kropotkin.gnu.ai.mit.edu)
+
+        * texinfo.tex (\Esmalllisp): Smaller baseline skip for smallexamples.
+
+Sun Mar 29 20:44:49 1992  Brendan Kehoe  (brendan@cs.widener.edu)
+
+	* texinfo.tex (\startcontents): Always close contentsfile and
+	adjust the page.
+
+Fri Mar 27 17:41:52 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\chapternofonts): Deal with \result, \equiv, etc.
+
+Sat Mar 21 08:22:29 1992  Karl Berry  (karl at hayley)
+
+        * texinfo.tex (\entry): format entries better if the page number
+          and entry text don't fit on one line.
+
+        * texinfo.tex (\loggingall, \gloggingall): new macros to help with
+          debugging.
+
+Fri Mar 20 15:35:42 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\result, \expansion, \print, \equiv):
+	Don't copy prefabricated boxes; must adapt to current font.
+	(\dblarrowbox, \longdblarrowbox, \pushcharbox, \equivbox): Deleted.
+	(\bullbox): Deleted.
+
+Thu Mar 19 22:17:14 1992  Robert J. Chassell  (bob@kropotkin.gnu.ai.mit.edu)
+
+	* texinfo.tex (\widowpenalty, \clubpenalty): Set them to 10000, since
+          8000 did not work.
+
+Fri Mar  6 13:26:36 1992  Robert J. Chassell  (bob@kropotkin.gnu.ai.mit.edu)
+
+	* texinfo.tex (\widowpenalty, \clubpenalty): Set them to 8000, since
+          2000 did not work (but \widowpenalty at 20000 did work).
+
+Thu Feb 27 12:27:14 1992  Karl Berry  (karl@wombat.gnu.ai.mit.edu)
+
+        * texinfo.tex (\widowpenalty): set to 2000, not 20000.
+
+Sat Feb  8 14:34:45 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\widowpenalty, \clubpenalty): Set them to 2000.
+	(\itemizeitem): Use penalty 1200.
+	(\itemzzz): Add \nobreak near beginning.
+
+	* texinfo.tex (\quotation): Increase right margin, instead of
+	left margin twice.
+
+Wed Feb  5 12:08:30 1992  Karl Berry  (karl at hayley)
+
+        * texinfo.tex (\alphaenumerate, \capsenumerate): redefine as a call
+          to \enumerate.
+        (\{lower,upper}caseenumerate): Rename from \{alpha,caps}enumerate.
+
+Sun Feb  2 21:07:19 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\itemzzz): Compensate in line-by-itself case for
+	a table that is indented.
+
+Mon Jan 13 21:04:07 1992  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* texinfo.tex: Use 26 instead of control-z as character constant.
+
+Sat Jan 11 02:20:58 1992  Roland McGrath  (roland@albert.gnu.ai.mit.edu)
+
+	* gpl.texinfo: Unfilled Yoyodyne example.
+
+Sat Dec  7 16:16:54 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\cartouche): Set \nonarrowing.
+	(\lisp, \smalllisp, \quotation, \display): If set, don't narrow.
+
+Mon Dec  2 08:15:08 1991  Karl Berry  (karl at hayley)
+
+        * texinfo.tex (\itemzzz): don't start a paragraph if the item text
+          is on a line by itself; don't allow a page break after that
+          line; always do \par before typesetting anything.
+
+Tue Nov 26 15:13:13 1991  Roland McGrath  (roland@albert.gnu.ai.mit.edu)
+
+	* lgpl.texinfo: @ifset lgpl-appendix, use @appendix instead of
+	@unnumbered.
+
+Sun Nov 10 12:00:06 1991  Karl Berry  (karl at hayley)
+
+        * texinfo.tex (\doprintindex): only \read if the file existed;
+          \closein the test stream in all cases.
+        (\initial, \entry): do not \outer, so that \read does not get an
+          error if the index exists.
+
+Fri Nov  8 18:13:28 1991  Michael Bushnell  (roland@churchy.gnu.ai.mit.edu)
+
+	* texinfo.tex (\itemizey): missing %'s in macro defn.
+	  Also, add \begingroup; accidentally deleted by Karl Berry.
+
+Thu Nov  7 11:41:25 1991  Karl Berry  (karl at hayley)
+
+        * texinfo.tex (\doprintindex): \read from the index file to make
+          \ifeof true when the file exists but is empty.
+
+Tue Nov  5 08:29:13 1991  Robert J. Chassell  (bob at grackle)
+
+        * texinfo.tex (@thischaptername): Provide default value for when
+          @chapter not defined.
+
+Sat Nov  2 17:59:02 1991  Karl Berry  (karl at hayley)
+
+        * texinfo.tex (\itemizezzz): do \begingroup here, since \itemizey
+          can't any longer.
+
+Tue Oct 29 12:17:41 1991  Robert J. Chassell  (bob at grackle)
+
+        * texinfo.tex: @paragraphindent defined as a no op.
+
+Fri Oct 25 15:19:47 1991  Karl Berry  (karl at hayley)
+
+        * texinfo.tex (\enumeratey): allow any lowercase letter, uppercase
+          letter, or number as argument; initialize \itemno and begin the
+          environment's group here.
+          (\itemizey): don't initialize \itemno here.
+          (\numericenumerate, \startenumeration): new macro.
+
+Wed Oct 23 16:26:30 1991  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\ifclear, \ifset): Remove \outer.
+
+	* texinfo.tex (\afourpaper): Set various parameters.
+
+Tue Oct 22 18:42:31 1991  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\alphaenumerate, \capsenumerate):
+	Let @end enumerate end these.
+	(\Ealphaenumerate, \Ecapsenumerate): Aliases for \Eenumerate.
+
+Sun Oct 20 18:23:18 1991  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\mainmagstep): New parameter macro.
+	(Defining fonts): Use that parameter to scale them.
+	If \bigger is defined, use 12 point fonts.
+
+Tue Sep 24 00:30:07 1991  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* texi2dvi: Iterate over the right variable to look for new idx files.
+
+	* texi2dvi: GPL 2.
+
+	* texi2dvi: Fix 2nd invocation of texindex to pass right args.
+
+Wed Sep 11 20:52:42 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\cartouche): New macro.
+
+Fri Aug 23 16:13:46 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\section, \subsection, \subsubsection):
+	Initially define for numbered chapters.
+
+Fri Aug  2 01:46:09 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\footnote): Use \unskip instead of \removelastskip.
+
+Mon Jul 29 14:06:54 1991  Roland H. Pesch  (pesch at cygint.cygnus.com)
+
+	* texinfo.tex (\majorheadingzzz, \chapheadingzzz, \chfplain,
+	\unnchfplain, \unnchfopen, \secheadingi, \subsecheadingi,
+	\subsubsecheadingi): allow line breaks in headings.
+	(\shortchapentry, \shortunnumberedentry, \dochapentry, \dosecentry,
+	\dosubsecentry, \dosubsubsecentry): allow line breaks in table of
+	contents entries.
+
+Thu Jul 18 19:01:53 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\secfonts, \indexfonts): Fix typos.
+
+Sun Jul  7 16:36:28 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\afourpaper): New command.
+
+	* texinfo.tex (\numberedsec): Renamed from \section.
+	(\numberedsubsec): Renamed from \subsection.
+	(\numberedsubsubsec): Renamed from \subsubsection.
+	(\chapter, \appendix, \unnumbered): Define \section, \subsection,
+	and \subsubsection here according to type of chapter.
+
+Thu Jul  4 14:19:32 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\defvarparsebody, \defvrparsebody, \defopvarparsebody):
+	New functions.
+	(\defvar, \defvr, \defopt, \defcv, \defivar): Use them.
+	(\deftypevar, \deftypevr): Likewise.
+
+Mon Jul  1 13:49:25 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\group): Report error if used outside @example, etc.
+
+	* texinfo.tex (\defname): Reduce \leftskip
+	to cancel temporarily the increase made in \defparsebody.
+
+	* texinfo.tex (\enumerate): Allow optional arg to specify type
+	of counting.
+
+	* texinfo.tex (\set, \clear): New commands.
+
+Mon Jun 24 12:22:44 1991  Roland McGrath  (roland@albert.gnu.ai.mit.edu)
+
+	* texinfo.tex (\eleterate): Renamed to \alphaenumerate.  Sigh.
+	(\ecapitate): Likewise \capsenumerate.
+
+Thu Jun  6 20:02:48 1991  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* lgpl.texinfo: Created from /fsf/rms/gnuorg/lgpl.text.
+
+	* gpl.texinfo: Created from /fsf/rms/gnuorg/gpl.text (GPL v2).
+
+	* texinfo.tex (\eleterate, \ecapitate): New commands, like @itemize,
+	but with [a..z] or [A..Z] instead of [1..n].
+
+Tue May 21 15:46:32 1991  Karl Berry  (karl at hayley)
+
+        * texinfo.tex (\dmn): new command to typeset a dimension.
+
+Tue May 21 20:58:22 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\doind, \dosubind): Make new group around \indexdummies
+	and most of body, excluding the \penalty commands.
+
+Mon May 20 21:16:32 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\tex): Typo in redefining \@.
+
+	* texinfo.tex (\_): Use \lvvmode, not \leavevmode.
+	(\lvvmode): New macro.
+
+	* texinfo.tex (\authorrm, \titlerm): Move to after section fonts.
+
+Tue May 14 21:13:29 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\defunargs): Set \hyphenchar in \tensl, not \sl.
+
+Thu May  9 17:07:08 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\ignore): Standardize catcode of space.
+
+Wed May  8 13:49:45 1991  Karl Berry  (karl at hayley)
+
+        * texinfo.tex (\sffam, \sf): New macros; support sans serif
+	type style in math.
+        (top level): Set up \textfonts early on, so we can create boxes w/ it.
+        (\tenrm...\tensf): Define these to be \textrm...\textsf instead.
+        (\df, \textfonts, \chapfonts, \secfonts, \subsecfonts):
+        (\indexfonts): Redefine \tenrm (etc.) instead of just \rm, so that
+	the math family assignment doesn't get lost; call \resetmathfonts.
+        (\resetmathfonts): New macro; redefines \textfont of each math family.
+        (\indsc, \indi, \indsy \chapsc, \chapi, \chapsy, \secsc, \seci):
+        (\secsy, \ssecsc, \sseci, \ssecsy): New font definitions.
+
+Mon May  6 21:30:19 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\indexdummies): Write \_ when an _ is seen.
+
+Mon Apr 29 01:41:44 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\defname): Use \dimen2, \dimen3 for outer margins.
+	Use outer margins for influencing \rightline.
+	(\tclose, \key, \t): Turn off line breaks at hyphens.
+
+Fri Apr 12 03:12:14 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\authorrm): Move definition to top level; copy \secrm.
+
+Tue Apr  2 22:48:39 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\defname): Adjust size of \rlap box, not \dimen0
+	or \dimen1, for current width.
+
+	* texinfo.tex (\Yappendixletterandtype): End with {}.
+
+Sat Mar 30 16:13:25 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\xrefX): Really use \cite.
+	(\inforefzzz): Use \samp for node name.
+
+	* texinfo.tex (\defname): Use current width for \dimen0, \dimen1.
+
+	* texinfo.tex (\doprintindex): Put lots of whitespace before index.
+
+Fri Mar 29 17:00:58 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\xrdef): Take out last change.
+
+	* texinfo.tex (\needx): Turn off \baselineskip.  Use kern, and no glue.
+
+	* texinfo.tex (\shortcontrm): Renamed from \truesecrm.
+	(\shortcontbf, \shortcontsl): New fonts for short contents lines.
+	(\summarycontents): Use them.
+
+	* texinfo.tex (\defname): Don't set \leftskip to 0; just decrease by
+	one indent level.
+	(\defparsebody, \def*parsebody): Increment both margins by one level.
+
+Tue Mar 26 22:41:38 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* texinfo.tex (\xrdef): Change catcode before reading args.
+
+Wed Mar 20 14:21:57 1991  Roland McGrath  (roland at geech.gnu.ai.mit.edu)
+
+	* texi2dvi: Use p modifier in sed -n command, so it works.
+	Duplicate code to find the index files, instead of being smart in
+	one place and dumb in another.
+
+Thu Mar  7 17:08:32 1991  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* texinfo.tex (\defaultparindent): New variable.
+	(\footnotezzz): Reset \parindent to default.
+	(\xrefX): Use \cite for printed manual and node names.
+
+Tue Mar  5 13:39:34 1991  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* texinfo.tex (\emergencystretch feature): Use \thisisundefined.
+
+Mon Mar  4 00:35:57 1991  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* texinfo.tex (\ftablex): Define \Eftable; undefine \Etable.
+
+	* texinfo.tex (\footnote): Discard preceding whitespace.
+
+	* texinfo.tex: Use the \emergencystretch feature if available.
+
+Fri Feb 22 03:50:58 1991  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* texinfo.tex (\tex): Make + not active.
+
+Fri Feb 15 10:05:24 1991  Roland McGrath  (mcgrath at cygint.cygnus.com)
+
+	* texi2dvi: Use $TEXINFO in place of $TEX (falling back to $TEX
+	if $TEXINFO is undefined).
+
+	* texi2dvi: Renamed from texinfo.  Bob (I believe) did this at some
+	point at and didn't make a ChangeLog entry.  I'd shoot him myself if
+	he weren't the person who signs my paychecks.
+
+Sun Feb 10 22:51:52 1991  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* texinfo.tex (\doprintindex): If index is empty, print a dummy.
+	(\need): Use vskips and penalties; don't use \pagetotal.
+
+Fri Feb  8 17:36:53 1991  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* texinfo.tex (\ignoresections):
+	Turn off \contents, \smallbook and \titlepage.
+
+	* texinfo.tex (\Etitlepage): Do a page break before ending the group.
+
+	* texinfo.tex (\setref, \unnumbsetref, \appendixsetref):
+	Comment out recording the chapter title.
+
+Thu Jan 24 23:28:41 1991  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* texinfo.tex (\top): Synonym for \unnumbered.
+	(\infotop): Synonym for \infounnumbered.
+	(\ignoresections): Handle \top.
+
+Thu Jan 24 12:41:33 1991  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* texinfo.tex: Delete spurious character at beginning.
+
+Thu Jan 17 16:34:25 1991  Roland McGrath  (roland at cygint.cygnus.com)
+
+	* texinfo: Check the exit status of tex and texindex.  Don't procede
+	after a failing run.
+
+Thu Jan 10 15:16:47 1991  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* texinfo.tex (\xrefX): Get rid of blank line.
+
+Wed Jan  9 18:06:20 1991  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* texinfo.tex (\entry, \secondary): Use \indexdotfill.
+	(\indexdotfill): New macro.
+
+Tue Jan  8 17:44:01 1991  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* texinfo.tex (\donoderef): Define a ...-title cross-reference.
+	(Ytitle): Subroutine for that.
+	(xrefX): Use the real title by default (but this is commented out).
+
+Tue Jan  1 23:18:21 1991  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* texinfo.tex (\indexnofonts): Delete troublemaking blank line.
+
+Sat Dec 22 00:47:21 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* texinfo.tex (\xrefX): Prevent extra space.
+
+Fri Dec 21 21:14:50 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* texinfo.tex (\comment, \commentxxx): Ignore @ in comment.
+
+Thu Dec 13 22:38:31 1990  Chris Hanson  (cph at kleph)
+
+	* texinfo.tex (\defivarheader): Capitalize "Variable".
+
+Sun Dec  2 01:46:04 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* texinfo.tex (\indexdummies, \indexnofonts): Handle \t like \r.
+
+	* texinfo.tex (heading fonts): New fonts based on cm...12.
+
+Tue Nov 27 16:59:35 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* texinfo.tex (\indexnofonts): Also supersede \TeX and \dots.
+
+Sun Nov 18 16:18:14 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* texinfo.tex (\*): End with \ignorespaces.
+
+Fri Nov  2 17:41:48 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* texinfo.tex (\*): Output empty hbox to avoid losing whitespace.
+	(\deftypevarheader, \deftypevrheader): End the paragraph
+	with suitable penalties.
+	(\deftypevrheader): Do print the data type.
+
+Thu Nov  1 12:04:52 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* texinfo.tex (\defmethodheader): Print `method', not `operation'.
+
+Fri Oct 26 17:11:08 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* texinfo.tex (\indexdummies): Temporarily redefine \_.
+	(\ptexdots): Copy of plain tex \dots.
+	(\tex): Temporarily reinstall that.
+
+Fri Oct 19 16:57:48 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* texinfo.tex (\subsubsecheadingi, \subsecheadingi): New subroutines.
+
+Mon Oct  8 13:34:19 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* texinfo.tex (active _): Use \normalunderscore.
+
+Tue Sep 25 22:32:55 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* texinfo.tex (\deftypefn, \deftypevar, \deftypevr): New macros.
+	Their subroutines also new.
+
+Tue Sep 25 16:42:52 1990  Roland McGrath  (roland at geech.ai.mit.edu)
+
+	* texinfo: Recognize `.tex' as a suffix.
+
+Tue Sep 25 01:46:54 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* texinfo.tex (\deftypefun): New macro.
+	(\deftypefunheader, \deftypefunheaderx, \deftypefunargs): Also new.
+
+Fri Sep 14 00:38:28 1990  Roland McGrath  (roland at churchy.ai.mit.edu)
+
+	* texinfo: Weed out files that have two-letter extensions but don't
+	start with a backslash, and therefore aren't index files.
+
+	* texinfo: Handle index files that have any two-letter extension,
+	rather than using a static list of extensions.
+
+	* texinfo: Handle .texi extension as well as .texinfo.
+
+	* texinfo: New file, a sh script to do .texinfo -> .dvi.
+
+Mon Sep 10 13:14:39 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* texinfo.tex (\math): New macro.
+
+Tue Sep  4 07:43:33 1990  Karl Berry  (karl at hayley)
+
+        * texinfo.tex (\chfplain): Do not print a period after the chapter
+        number, for consistency with sections et al.
+
+        * texinfo.tex (\refX): hyphenate `undefined' so that the ligature
+        is not lost.
+
+        * texinfo.tex (_): use \_ unless we're in tt.
+        (\ifusingtt): new macro for such conditionalization.
+
+        * texinfo.tex (\xrefX): don't use \unhbox to print the node names,
+        since that loses on hyphens.
+	Use \ignorespaces rather than \losespace.
+
+Thu Aug  2 07:03:26 1990  Karl Berry  (karl at hayley)
+
+        * texinfo.tex (\linenumber): new macro.
+        (\refx): give the line number in the message.
+
+Tue Jul 31 09:13:32 1990  Karl Berry  (karl at hayley)
+
+        * texinfo.tex (\refx): improve warning messages, remove
+        unnecessary groups, and improve logic.
+
+Thu Jul 26 20:53:38 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\subheading, \subsubheading): Missing macros defined.
+
+Thu Jul 19 22:48:26 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\titlepage): Don't print rule for \page unless already
+	printed a rule.
+	(\abstract): Deleted.
+	(\direntry): New command, much like \ignore.
+
+Sun Jul 15 16:28:42 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\abstract): New construct; trivial in tex.
+
+Sun Jun 17 01:03:16 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\defcv): Protect space before `of'.
+	(\defspec): Capitalize `Form'.
+
+Sat Jun 16 19:36:56 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\kbd, \kbdfoo): Use \par to term. arg to \kbdfoo.
+
+Fri Jun 15 10:47:12 1990  Robert J. Chassell  (bob at pogo.ai.mit.edu)
+
+	* texinfo.tex (\defcv): Use \defcvarheader instead of (undefined)
+	\defcvheader.
+
+Fri May 25 18:04:31 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\xrefX): Use \turnoffactive.
+
+Mon May 21 21:17:34 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\turnoffactive): New command.
+	(\normaldoublequote, ...): New commands.
+	(\dosetq): Use \turnoffactive.
+
+Sat May 19 12:31:17 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\indit): Use slanted font, not italic.
+	(\smalllispx): Do \indexfonts.
+
+Fri May	 4 17:35:04 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\footnote, \footnotezzz): Make it \long.
+
+Wed May	 2 01:19:55 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\titlerm): Go back to cmbx10 scaled \magstep5.
+	(\hsize): Don't set it, use the default.
+
+Fri Mar 23 21:07:02 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\footnote): Read arg in braces, not as a line.
+
+Mon Mar 19 19:30:08 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\unnumbsubsubsecentry): Typo in name being defined.
+
+Tue Mar 13 18:49:27 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\defvarargs): Add penalty at end.
+
+	* texinfo.tex (\synindex, \syncodeindex): Copy one index file name
+	into the other.
+
+Tue Mar	 6 16:58:54 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\deftt): Make this a distinct font.
+
+	* texinfo.tex (\initial): Define \tt like \tentt.
+
+	* texinfo.tex (\ifinfo): End with \losespace.
+	(\ignore, \ifsetfailxxx, \ifclearfailxxx): Likewise.
+
+Sun Mar	 4 19:55:57 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\lbrb, \rbrb): Use \bf.
+
+Sat Mar	 3 17:53:22 1990  Richard Stallman  (rms at geech)
+
+	* texinfo.tex (\onepageout): Set \escapechar here.
+
+	* texinfo.tex (\rawbackslash): Define using \chardef.
+
+	* texinfo.tex (\@): Use ttfont.
+
+Thu Mar	 1 16:37:46 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (Ysectionnumberandtype, Yappendixletterandtype):
+	Capitalize "chapter", "appendix" and "section".
+
+Mon Feb 19 20:26:22 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\xkey): Attempt to eliminate spurious space from
+	output.	 Look at y-or-n-p.
+
+Mon Feb 12 16:34:00 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\errorbox): Get \dimen0 from \tentt.
+
+Sun Feb 11 15:11:57 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\defunargs): Use ragged right for args.
+	Add large penalty at end.
+
+	* texinfo.tex: Make active definition for = using \tt, but disable.
+	(\defparsebody): Make = active.
+	(\defunheader, etc.): Make inactive again.
+
+	* texinfo.tex (\errorbox): Try to equalize outside space to both sides.
+
+Fri Feb	 2 14:47:21 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\appendix): Don't use \the before \appendixletter.
+
+Sat Dec 16 14:02:56 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\chapter, \appendix): Make defn of \thischapter
+	refer to \thischaptername, and store actual name there.
+	(\chapternofonts): Turn off more macros.
+	(\indexdummies): Likewise.
+
+Sun Nov 19 15:29:47 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\titlerm): There were two definitions of this command.
+	Put them together and commented out one of them.
+	(\subtitlerm): Was same as \tenrm, so just copy that.
+	(\ninett): Always define this.
+	(\indtt): Copy from \ninett.
+
+Sat Nov 18 22:57:37 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\ssecrm, etc.): Scale by 1315, rather than to 13pt.
+
+Wed Nov	 8 18:38:33 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\titlepage): Turn on iffinishedtitlepage so
+	bottom rule is not printed.
+	(\titlezzz): Turn it off, so bottom rule is printed.
+
+Mon Nov	 6 09:23:29 1989  Karl Berry  (karl at hayley)
+
+	* texinfo.tex (\chapterzzz, \appendixzzz): include `Chapter
+	\the\chapno' and `Appendix \appendixletter' in \thischapter; use
+	\xdef instead of \gdef to define \thischapter, to avoid timing
+	problems with \chapno or \appendixletter.
+	(\startcontents): don't bother putting `Table of Contents' or
+	`Short Contents' in the headline.
+
+Fri Oct 20 09:11:35 1989  Karl Berry  (karl at hayley)
+
+	* texinfo.tex (\titlepage): remove obsolete code for subtitles.
+	(\titlezzz): end with \relax, to avoid misinterpretation of a
+	following `plus' or `minus'
+	(\page (inside \titlepage)): call \finishtitlepage.
+	(\Etitlepage): call \finishtitlepage, if it hasn't been.
+	(\finishtitlepage): new macro to print a rule and leave some space
+	at the bottom of the title page.
+	(\iffinishedtitlepage): new; says whether \finishtitlepage has been
+	called.
+
+Mon Nov	 6 21:35:34 1989  Robert J. Chassell  (bob at rice-chex)
+
+	* texinfo.tex: Replaced `GNU CC' in the copyleft of this file with
+	  the phrase `this texinfo.tex file'.
+
+Fri Oct 27 10:36:32 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\setfilename): Do nothing except 1st time used.
+	(\titlepage): Brace misplaced in \titlezzz.
+	(\indexdummies, \indexnofonts): Handle @w.
+
+	(\readauxfile): Set \ifhavexrefs true.
+	(\refX): Warn for every use of an undefined xref,
+	but if no xref values are known, warn just once that none are known.
+
+Tue Sep 19 04:12:51 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\xrefX): Go back to `section N [Foo], page M'.
+	(\exp): Delete it.
+
+Mon Sep 18 15:29:30 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\chapentryfonts): Try using \rm for chap title.
+
+Tue Sep 12 03:41:10 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\titlepage): Missing closeparen after \title.
+	Delete excess paren after \page.
+
+	* texinfo.tex (\samp): Use \tclose.
+
+Mon Sep 11 23:28:04 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\tclose): Make `@ ' a full-width space.
+
+Sat Sep	 9 20:11:29 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\balancecolumns): Handle properly the case where
+	the index ends before one page is output, so \partialpage is nonempty.
+	In this case we may need to output two pages if the data
+	would just barely fit if not for \partialpage.
+
+Wed Aug 30 22:45:31 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\refx): New 2nd operand, output if xref is non-null.
+	(\xrefX): Use that to output the comma after the section number.
+	(\appendixnoderef, \appendixsetref, \Yappendixletterandtype):
+	Define xrefs for appendices that say "Appendix N".
+	Used in \appendix, \appendixsec, etc.
+
+	* texinfo.tex (\smartitalic): The actual italic correction was omitted.
+
+Mon Aug 28 00:21:33 1989  Richard Stallman  (rms at apple-gunkies.ai.mit.edu)
+
+	* texinfo.tex (\ref): New kind of cross-reference.
+	(\xrefX): Put single quotes around section name.
+	(\refx): Allow hyphenation in `undefined'.
+
+	* texinfo.tex (+): Make it active.
+	(Altmode): Delete active defn.
+
+	* texinfo.tex (\defunargs): Prevent hyphenation at `-' in args.
+	Move the penalty at the end so that it works.
+	(\defvarargs): Move the penalty at the end so that it works.
+
+	* texinfo.tex (\defparsebody): Do increase right margin.
+
+	* texinfo.tex (\defbodyindent): Now .4 inch.
+
+	* texinfo.tex (\point, \result, \expansion, \print, \equiv, \error):
+	New macros for Lisp manual.
+
+	* texinfo.tex (\tex): Set = to code 12.
+
+	* texinfo.tex (\entry): Hairier way to output dots.
+
+	* texinfo.tex (\kbd): If arg consists of one \key command, be a no op.
+
+	* texinfo.tex (\sc): Delete spurious \.
+
+	* texinfo.tex (\smartitalic): New macro, does italic correction at end.
+	(\i, \var, \dfn, \emph, \cite): Use that.
+
+	* texinfo.tex (\node): Do \ENVcheck.
+
+	* texinfo.tex (\initial): Infinite penalty at end.
+
+	* texinfo.tex (\chapternofonts): New macro, sets \code, etc. to
+	output selves into file.  Also undef \frenchspacing and \rawbackslash.
+	(\xhapterzzz, etc.): Call that.	 Make a group to undo it.
+	(\indexdummies): Do like \chapternofonts.
+
+Sun Aug 27 16:05:23 1989  Richard Stallman  (rms at apple-gunkies.ai.mit.edu)
+
+	* texinfo.tex (\frenchspacing): Our own definition, using
+	decimal numbers for all character codes.  The standard one fails.
+
+	* texinfo.tex (\indexnofonts): Handle \file, \tt, and many more.
+
+Fri Aug 25 22:05:24 1989  Richard Stallman  (rms at apple-gunkies.ai.mit.edu)
+
+	* texinfo.tex (\chapter, etc.): Undefine \tclose around \edef\temp.
+
+Mon Aug 21 15:42:47 1989  Richard Stallman  (rms at apple-gunkies.ai.mit.edu)
+
+	* texinfo.tex (\tclose): Like \t but make space same width
+	as in surrounding text.
+	(\code, \kbd): Use \tclose.
+
+Tue Jul	 4 20:53:52 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (titlepage): Don't set \everypar; start just one group.
+	See comments in the code.
+
+	* texinfo.tex (defop,defcv): Use defopparsebody.
+	* texinfo.tex (defopparsebody): Like defmethparsebody but defines
+	def...x for more arguments.
+
+Sat Jun 17 13:49:13 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\titlepage): Rename @subtext, etc., to @subtitle, etc.
+
+	* texinfo.tex (\titlepage): Don't print the title automatically.
+	Define @title to print it, and the rule underneath it.
+	This should make @titlepage upward compatible with the old one.
+
+	* texinfo.tex (\titlepage): Revert local definition of @page
+	to previous.  Don't print a rule.
+
+Mon Jun 12 20:49:17 1989  Karl Berry.  (karl at mote)
+
+	* texinfo.tex (\titlepage): allow intensional definition of the
+	items on the title page.  New control sequences (allowed only
+	within the titlepage environment:)
+	 (@subtext): may take either a paragraph (e.g., a brief
+	 description of the program) or just a line (e.g., the date).
+	 May appear more than once.
+	 (@author): must come after all the @subtext's.	 Can appear more
+	 than once, also.
+	 Also, use the title defined by @settitle.
+	 (\subtextfont, \authorfont): switch to using the appropriate
+	 fonts with appropriate leading.
+	 (\titlepagetopglue, \titlepagebottomglue): define space that
+	 never stretches or shrinks.
+	 (\realeverypar): formatting for the @subtext's.
+
+Sun Jun	 4 15:04:59 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (\shortchapentry, \shortunnumberedentry):
+	Use dots, right justify page numbers.  Don't use italics.
+
+Fri Jun	 2 14:40:28 1989  Karl Berry.  (karl at mote)
+
+	* texinfo.tex (\entry, \secondary): use plain TeX \dotfill for
+	better leaders than the homegrown one.
+	(\Dotsbox): Deleted.
+	(\dotfill): Deleted; use Plain TeX definition.
+
+Wed May 31 17:19:30 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (ignore): Undefine the chapter/section macros
+	while reading the args, since they are \outer.
+	(ifinfo): Likewise
+	(ifsetxxx, ifclearxxx): Call another macro to parse the
+	conditionalized text, and do to that macro as with \ignore.
+
+Tue May 30 15:04:37 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex (unnumbered): Change back from \long to \outer.
+
+	* texinfo.tex: Changes by Karl Berry for toc format.
+	Rewrite the table of contents for appearance's sake.  Add a
+	synonym for \summarycontents, \shortcontents, since that is the
+	traditional name.  Two subroutines are now shared by \contents and
+	\summarycontents: \prepareforcontents, to reset the page number
+	and such; and \startcontents, which begins the \unnumbered and
+	resets catcodes before \input \jobname.toc.  Some other macros --
+	\labelspace, \dopageno, \shortpageno -- are shared by the printing
+	macros.
+
+	* texinfo.tex (\truesecrm): New font, section-size roman, used in the
+	new toc. (cmr12)
+
+Sun May 28 07:25:42 1989  Karl Berry.  (karl at mote)
+
+	* texinfo.tex (\eatinput): Do not print the `\input texinfo' if a
+	.fmt file is being used; ignore it, instead.  This is the initial
+	definition for `\' now.
+	(\fixbackslash): on the other hand, subsequent backslashes should
+	be printed, and if the file does not have an `\input texinfo', the
+	first one should be printed.  This new macro makes the definition
+	for `\' be \normalbackslash, if it is \eatinput.
+	(\setfilename): use \fixbackslash.
+
+Wed May 24 15:34:59 1989  Joseph Arceneaux  (jla at apple-gunkies.ai.mit.edu)
+
+	* texinfo.tex: Changed def of unnumbered from \outer to \long.
+
+Tue May 23 12:27:59 1989  Karl Berry.  (karl at mote)
+
+	* texinfo.tex: Allow one to make a texinfo.fmt file (with the
+	invocation:
+	   initex \&plain texinfo
+	and then saying
+	   @dump
+	after texinfo.tex has been read.
+	Changes:
+	(\setfilename): Instead of being a no-op, read the xref info, and
+	open the contents and index files.  These actions were done as
+	texinfo.tex was read before.
+	(\opencontents, \openindices): new macros to open those files.
+	(\readauxfile): and one to read the aux file.
+
+Sat Apr 29 22:28:02 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex: `@headings on' no longer does a page break.
+
+Sun Apr	 2 11:22:29 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex: Defined `@headings single' and `@headings double'.
+	`@headings on' picks one of them: `@setchapternewpage odd'
+	says `@headings	on' means double; otherwise it means single.
+
+Mon Jan 30 22:00:35 1989  Robert J. Chassell  (bob at rice-krispies.ai.mit.edu)
+
+	* texinfo.tex: Changed the size of the subsection fonts so they
+	are scaled at13pt rather than at magstep 2. This makes them
+	smaller than the section fonts, which are scaled at magstep 2.
+	In addition, changed the ssecrm font from cmbx to cmb.
+
+Fri Jan	 6 15:00:44 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* texinfo.tex: Changed @lisp, @smalllisp, @display not to change
+	the right margin.
+
+Mon Dec	 5 22:01:49 1988  Robert J. Chassell  (bob at rice-krispies.ai.mit.edu)
+
+	* texinfo.tex: Tested the use of `cmbx10' vrs `cmb10' font and
+	stayed with cmb10 font since cmb10 looks better when the bold face
+	is part of a sentence although the cmbx10 font looks better on its own.
+
+Mon Aug 15 14:33:51 1988  Robert J. Chassell  (bob at spiff)
+
+	* texinfo.tex:	Changed the (undocumented) @today command from a
+	Month Day, Year format to a Day Month Year format.  Left old
+	version commented out.
+
+
+Local Variables:
+mode: indented-text
+left-margin: 8
+fill-column: 76
+version-control: never
+End:
