@@ -37,7 +37,7 @@
 4	MNOPROTO { int write(int fd, char *buf, u_int nbytes); }
 5	STD	{ int ibcs2_open(char *path, int flags, int mode); }
 6	MNOPROTO { int close(int fd); }
-7	STD	{ int ibcs2_wait(int a1, int a2, int a3); }
+7	MSTD	{ int ibcs2_wait(int a1, int a2, int a3); }
 8	STD	{ int ibcs2_creat(char *path, int mode); }
 9	NOPROTO	{ int link(char *path, char *link); }
 10	STD	{ int ibcs2_unlink(char *path); }
