@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.62 1996/07/30 03:08:21 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.63 1996/08/21 21:56:23 dyson Exp $
  */
 
 /*
@@ -375,9 +375,16 @@ vnode_pager_uncache(vp)
 		return;
 
 	vm_object_reference(object);
-	VOP_UNLOCK(vp);
+
+	/*
+	 * XXX We really should handle locking on
+	 * VBLK devices...
+	 */
+	if (vp->v_type != VBLK)
+		VOP_UNLOCK(vp);
 	pager_cache(object, FALSE);
-	VOP_LOCK(vp);
+	if (vp->v_type != VBLK)
+		VOP_LOCK(vp);
 	return;
 }
 
