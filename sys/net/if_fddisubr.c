@@ -340,12 +340,6 @@ fddi_input(ifp, m)
 	fh = mtod(m, struct fddi_header *);
 
 	/*
-	 * Update interface statistics.
-	 */
-	ifp->if_ibytes += m->m_pkthdr.len;
-	getmicrotime(&ifp->if_lastchange);
-
-	/*
 	 * Discard packet if interface is not up.
 	 */
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
@@ -354,6 +348,12 @@ fddi_input(ifp, m)
 #ifdef MAC
 	mac_create_mbuf_from_ifnet(ifp, m);
 #endif
+
+	/*
+	 * Update interface statistics.
+	 */
+	ifp->if_ibytes += m->m_pkthdr.len;
+	getmicrotime(&ifp->if_lastchange);
 
 	/*
 	 * Discard non local unicast packets when interface
