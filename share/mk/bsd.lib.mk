@@ -339,6 +339,7 @@ realinstall:
 	done; true
 .endif
 
+.include <bsd.files.mk>
 .include <bsd.incs.mk>
 
 .if !defined(NOMAN)
