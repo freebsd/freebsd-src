@@ -734,7 +734,7 @@ cvs_temp_name ()
     char *retval;
 
     value = xmalloc (strlen (Tmpdir) + 40);
-    sprintf (value, "%s/%s", Tmpdir, "cvsXXXXXXXXXX" );
+    sprintf (value, "%s/%s", Tmpdir, "cvsXXXXXX" );
     retval = mktemp (value);
 
     if (retval == NULL)

@@ -199,17 +199,11 @@ lock_simple_remove (lock)
        existence_error here.  */
     if (readlock != NULL)
     {
-#ifdef __GNUC__
-	tmp = alloca (strlen (lock->repository) + strlen (readlock) + 10);
-#else
 	tmp = xmalloc (strlen (lock->repository) + strlen (readlock) + 10);
-#endif
 	(void) sprintf (tmp, "%s/%s", lock->repository, readlock);
 	if ( CVS_UNLINK (tmp) < 0 && ! existence_error (errno))
 	    error (0, errno, "failed to remove lock %s", tmp);
-#ifndef __GNUC__
 	free (tmp);
-#endif
     }
 
     /* If writelock is set, the lock directory *might* have been created, but
@@ -218,35 +212,23 @@ lock_simple_remove (lock)
        existence_error here.  */
     if (writelock != NULL)
     {
-#ifdef __GNUC__
-	tmp = alloca (strlen (lock->repository) + strlen (writelock) + 10);
-#else
 	tmp = xmalloc (strlen (lock->repository) + strlen (writelock) + 10);
-#endif
 	(void) sprintf (tmp, "%s/%s", lock->repository, writelock);
 	if ( CVS_UNLINK (tmp) < 0 && ! existence_error (errno))
 	    error (0, errno, "failed to remove lock %s", tmp);
-#ifndef __GNUC__
 	free (tmp);
-#endif
     }
 
     if (lock->have_lckdir)
     {
-#ifdef __GNUC__
-	tmp = alloca (strlen (lock->repository) + sizeof (CVSLCK) + 10);
-#else
 	tmp = xmalloc (strlen (lock->repository) + sizeof (CVSLCK) + 10);
-#endif
 	(void) sprintf (tmp, "%s/%s", lock->repository, CVSLCK);
 	SIG_beginCrSect ();
 	if (CVS_RMDIR (tmp) < 0)
 	    error (0, errno, "failed to remove lock dir %s", tmp);
 	lock->have_lckdir = 0;
 	SIG_endCrSect ();
-#ifndef __GNUC__
 	free (tmp);
-#endif
     }
 }
 
