@@ -412,7 +412,7 @@ main(int argc, char *argv[])
 		argv += optind;
 	}
 finish_option:
-	if (haltcpu != -1 || enable != -1 || delta || sleep || standby)
+	if (haltcpu != -1 || enable != -1 || display != -1 || delta || sleep || standby)
 		fd = open(APMDEV, O_RDWR);
 	else
 		fd = open(APMDEV, O_RDONLY);
