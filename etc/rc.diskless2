@@ -56,7 +56,7 @@ elif [ -r /etc/rc.conf ]; then
 fi
 
 echo "+++ mount_md of /var"
-mount_md ${varsize:=65536} /var 1
+mount_md ${varsize:=32m} /var 1
 
 echo "+++ populate /var using /etc/mtree/BSD.var.dist"
 /usr/sbin/mtree -deU -f /etc/mtree/BSD.var.dist -p /var
@@ -83,7 +83,7 @@ mount -a       # chown and chgrp are in /usr
 # so if /var/tmp == /tmp, then you don't get a vi.recover.
 #
 if [ ! -h /tmp ]; then
-	mount_md ${tmpsize:=20480} /tmp 2
+	mount_md ${tmpsize:=64m} /tmp 2
 	chmod 01777 /tmp
 fi
 

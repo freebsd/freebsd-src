@@ -92,13 +92,14 @@ for i in ${iflist} ; do
 done
 echo "Interface ${bootp_ifc} IP-Address ${bootp_ipa} Broadcast ${bootp_ipbca}"
 
+if [ -d /conf/default/etc ]; then
+	mount_md 4096 /etc 0
+	chkerr $? "MFS mount on /etc"
+	/bin/chmod 755 /etc
 
-mount_md 4096 /etc 0
-chkerr $? "MFS mount on /etc"
-/bin/chmod 755 /etc
-
-/bin/cp -Rp /conf/default/etc/* /etc
-chkerr $? "cp /conf/default/etc to /etc MFS"
+	/bin/cp -Rp /conf/default/etc/* /etc
+	chkerr $? "cp /conf/default/etc to /etc MFS"
+fi
 
 # Allow for override files to replace files in /etc.  Use /conf/*/etc to find
 # the override files.  First choice is default files that # always override,
@@ -113,6 +114,11 @@ for i in ${bootp_ipbca} ${bootp_ipa} ; do
 		cp -Rp /conf/${i}/etc/* /etc
 	fi
 done
+
+# Since we are starting with a very fresh /etc on an MFS:
+if [ -d /conf/default/etc ]; then
+	newaliases
+if
 
 # Tell /etc/rc to run the specified script after it does its mounts but
 # before it does anything else.
