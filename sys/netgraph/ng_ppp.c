@@ -362,6 +362,13 @@ NETGRAPH_INIT(ppp, &ng_ppp_typestruct);
 
 static int *compareLatencies;			/* hack for ng_ppp_intcmp() */
 
+/*
+ * XXXRW: An ugly synchronization hack to protect an ugly hack.
+ */
+static struct mtx	ng_ppp_latencies_mtx;
+MTX_SYSINIT(ng_ppp_latencies, &ng_ppp_latencies_mtx, "ng_ppp_latencies",
+    MTX_DEF);
+
 /* Address and control field header */
 static const u_char ng_ppp_acf[2] = { 0xff, 0x03 };
 
@@ -1764,10 +1771,12 @@ ng_ppp_mp_strategy(node_p node, int len, int *distrib)
 	}
 
 	/* Sort active links by latency */
+	mtx_lock(&ng_ppp_latencies_mtx);
 	compareLatencies = latency;
 	qsort(sortByLatency,
 	    priv->numActiveLinks, sizeof(*sortByLatency), ng_ppp_intcmp);
 	compareLatencies = NULL;
+	mtx_unlock(&ng_ppp_latencies_mtx);
 
 	/* Find the interval we need (add links in sortByLatency[] order) */
 	for (numFragments = 1;
@@ -1857,6 +1866,8 @@ ng_ppp_intcmp(const void *v1, const void *v2)
 {
 	const int index1 = *((const int *) v1);
 	const int index2 = *((const int *) v2);
+
+	mtx_assert(&ng_ppp_latencies_mtx, MA_OWNED);
 
 	return compareLatencies[index1] - compareLatencies[index2];
 }
