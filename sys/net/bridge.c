@@ -95,10 +95,12 @@
 #include "opt_ipfw.h" 
 #include "opt_ipdn.h" 
 
-#if defined(DUMMYNET)
+#if defined(IPFIREWALL)
 #include <net/route.h>
 #include <netinet/ip_fw.h>
+#if defined(DUMMYNET)
 #include <netinet/ip_dummynet.h>
+#endif
 #endif
 
 #include <net/bridge.h>
@@ -480,6 +482,7 @@ bdg_forward (struct mbuf **m0, struct ifnet *dst)
 	ifp = dst ;
 	once = 1 ; /* and also canfree */
     }
+#ifdef IPFIREWALL
     /*
      * do filtering in a very similar way to what is done
      * in ip_output. Only for IP packets, and only pass/fail/dummynet
@@ -581,6 +584,7 @@ bdg_forward (struct mbuf **m0, struct ifnet *dst)
 	return 0 ;
     }
 forward:
+#endif /* IPFIREWALL */
     if (canfree && once)
 	m = *m0 ;
     else
