@@ -199,23 +199,16 @@ printcpuinfo(void)
 				        strcat(cpu_model, "Pentium Pro");
 					break;
 				case 0x30:
-				        strcat(cpu_model, "Pentium II");
-					cpu = CPU_PII;
-					break;
 				case 0x50:
-				        strcat(cpu_model, "Pentium II/Xeon/Celeron");
-					cpu = CPU_PII;
-					break;
 				case 0x60:
-				        strcat(cpu_model, "Pentium II/Celeron");
+				        strcat(cpu_model,
+				"Pentium II/Pentium II Xeon/Celeron");
 					cpu = CPU_PII;
 					break;
 				case 0x70:
-				        strcat(cpu_model, "Pentium III/Xeon");
-					cpu = CPU_PIII;
-					break;
 				case 0x80:
-				        strcat(cpu_model, "Pentium III");
+				        strcat(cpu_model,
+					"Pentium III/Pentium III Xeon");
 					cpu = CPU_PIII;
 					break;
 				default:
