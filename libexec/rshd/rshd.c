@@ -42,7 +42,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)rshd.c	8.2 (Berkeley) 4/6/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rshd.c,v 1.9.2.5 1998/02/18 11:52:20 markm Exp $";
 #endif /* not lint */
 
 /*
@@ -527,7 +527,7 @@ fail:
 			    "%s@%s as %s: permission denied (%s). cmd='%.80s'",
 			    remuser, hostname, locuser, __rcmd_errstr,
 			    cmdbuf);
-			error("Permission denied.\n");
+			error("Login incorrect.\n");
 			exit(1);
 		}
 		if (!auth_timeok(lc, time(NULL))) {
