@@ -108,9 +108,15 @@ static int			mlx_check(struct mlx_softc *sc, int drive);
 static int			mlx_rebuild(struct mlx_softc *sc, int channel, int target);
 static int			mlx_wait_command(struct mlx_command *mc);
 static int			mlx_poll_command(struct mlx_command *mc);
+void				mlx_startio_cb(void *arg,
+					       bus_dma_segment_t *segs,
+					       int nsegments, int error);
 static void			mlx_startio(struct mlx_softc *sc);
 static void			mlx_completeio(struct mlx_command *mc);
-static int			mlx_user_command(struct mlx_softc *sc, struct mlx_usercommand *mu);
+static int			mlx_user_command(struct mlx_softc *sc,
+						 struct mlx_usercommand *mu);
+void				mlx_user_cb(void *arg, bus_dma_segment_t *segs,
+					    int nsegments, int error);
 
 /*
  * Command buffer allocation.
@@ -123,7 +129,9 @@ static void			mlx_freecmd(struct mlx_command *mc);
  * Command management.
  */
 static int			mlx_getslot(struct mlx_command *mc);
-static void			mlx_mapcmd(struct mlx_command *mc);
+static void			mlx_setup_dmamap(struct mlx_command *mc,
+						 bus_dma_segment_t *segs,
+						 int nsegments, int error);
 static void			mlx_unmapcmd(struct mlx_command *mc);
 static int			mlx_start(struct mlx_command *mc);
 static int			mlx_done(struct mlx_softc *sc);
@@ -271,8 +279,8 @@ mlx_sglist_map(struct mlx_softc *sc)
 	device_printf(sc->mlx_dev, "can't allocate s/g table\n");
 	return(ENOMEM);
     }
-    bus_dmamap_load(sc->mlx_sg_dmat, sc->mlx_sg_dmamap, sc->mlx_sgtable,
-		    segsize, mlx_dma_map_sg, sc, 0);
+    (void)bus_dmamap_load(sc->mlx_sg_dmat, sc->mlx_sg_dmamap, sc->mlx_sgtable,
+			  segsize, mlx_dma_map_sg, sc, 0);
     return(0);
 }
 
@@ -371,14 +379,14 @@ mlx_attach(struct mlx_softc *sc)
     /*
      * Create DMA tag for mapping buffers into controller-addressable space.
      */
-    error = bus_dma_tag_create(sc->mlx_parent_dmat, 		/* parent */
-			       1, 0, 				/* alignment, boundary */
-			       BUS_SPACE_MAXADDR,		/* lowaddr */
-			       BUS_SPACE_MAXADDR, 		/* highaddr */
-			       NULL, NULL, 			/* filter, filterarg */
-			       MAXBSIZE, MLX_NSEG,		/* maxsize, nsegments */
-			       BUS_SPACE_MAXSIZE_32BIT,		/* maxsegsize */
-			       0,				/* flags */
+    error = bus_dma_tag_create(sc->mlx_parent_dmat, 	/* parent */
+			       1, 0, 			/* align, boundary */
+			       BUS_SPACE_MAXADDR,	/* lowaddr */
+			       BUS_SPACE_MAXADDR, 	/* highaddr */
+			       NULL, NULL, 		/* filter, filterarg */
+			       MAXBSIZE, MLX_NSEG,	/* maxsize, nsegments */
+			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
+			       0,			/* flags */
 			       busdma_lock_mutex,	/* lockfunc */
 			       &Giant,			/* lockarg */
 			       &sc->mlx_buffer_dmat);
@@ -389,7 +397,8 @@ mlx_attach(struct mlx_softc *sc)
     }
 
     /*
-     * Create some initial scatter/gather mappings so we can run the probe commands.
+     * Create some initial scatter/gather mappings so we can run the probe
+     * commands.
      */
     error = mlx_sglist_map(sc);
     if (error != 0) {
@@ -1175,6 +1184,29 @@ mlx_periodic_enquiry(struct mlx_command *mc)
     mlx_releasecmd(mc);
 }
 
+static void
+mlx_eventlog_cb(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
+{
+    struct mlx_command *mc;
+
+    mc = (struct mlx_command *)arg;
+    mlx_setup_dmamap(mc, segs, nsegments, error);
+
+    /* build the command to get one entry */
+    mlx_make_type3(mc, MLX_CMD_LOGOP, MLX_LOGOP_GET, 1,
+		   mc->mc_sc->mlx_lastevent, 0, 0, mc->mc_dataphys, 0);
+    mc->mc_complete = mlx_periodic_eventlog_respond;
+    mc->mc_private = mc;
+
+    /* start the command */
+    if (mlx_start(mc) != 0) {
+	mlx_releasecmd(mc);
+	free(mc->mc_data, M_DEVBUF);
+	mc->mc_data = NULL;
+    }
+    
+}
+
 /********************************************************************************
  * Instigate a poll for one event log message on (sc).
  * We only poll for one message at a time, to keep our command usage down.
@@ -1184,7 +1216,7 @@ mlx_periodic_eventlog_poll(struct mlx_softc *sc)
 {
     struct mlx_command	*mc;
     void		*result = NULL;
-    int			error;
+    int			error = 0;
 
     debug_called(1);
 
@@ -1192,9 +1224,12 @@ mlx_periodic_eventlog_poll(struct mlx_softc *sc)
     error = 1;
     if ((mc = mlx_alloccmd(sc)) == NULL)
 	goto out;
+
     /* allocate the response structure */
-    if ((result = malloc(/*sizeof(struct mlx_eventlog_entry)*/1024, M_DEVBUF, M_NOWAIT)) == NULL)
+    if ((result = malloc(/*sizeof(struct mlx_eventlog_entry)*/1024, M_DEVBUF,
+			 M_NOWAIT)) == NULL)
 	goto out;
+
     /* get a command slot */
     if (mlx_getslot(mc))
 	goto out;
@@ -1202,23 +1237,14 @@ mlx_periodic_eventlog_poll(struct mlx_softc *sc)
     /* map the command so the controller can see it */
     mc->mc_data = result;
     mc->mc_length = /*sizeof(struct mlx_eventlog_entry)*/1024;
-    mlx_mapcmd(mc);
+    error = bus_dmamap_load(sc->mlx_buffer_dmat, mc->mc_dmamap, mc->mc_data,
+			    mc->mc_length, mlx_eventlog_cb, mc, BUS_DMA_NOWAIT);
 
-    /* build the command to get one entry */
-    mlx_make_type3(mc, MLX_CMD_LOGOP, MLX_LOGOP_GET, 1, sc->mlx_lastevent, 0, 0, mc->mc_dataphys, 0);
-    mc->mc_complete = mlx_periodic_eventlog_respond;
-    mc->mc_private = mc;
-
-    /* start the command */
-    if ((error = mlx_start(mc)) != 0)
-	goto out;
-    
-    error = 0;			/* success */
  out:
     if (error != 0) {
 	if (mc != NULL)
 	    mlx_releasecmd(mc);
-	if (result != NULL)
+	if ((result != NULL) && (mc->mc_data != NULL))
 	    free(result, M_DEVBUF);
     }
 }
@@ -1447,6 +1473,41 @@ mlx_pause_done(struct mlx_command *mc)
  ********************************************************************************
  ********************************************************************************/
 
+static void
+mlx_enquire_cb(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
+{
+    struct mlx_softc *sc;
+    struct mlx_command *mc;
+
+    mc = (struct mlx_command *)arg;
+    if (error)
+	return;
+
+    mlx_setup_dmamap(mc, segs, nsegments, error);
+
+    /* build an enquiry command */
+    sc = mc->mc_sc;
+    mlx_make_type2(mc, mc->mc_command, 0, 0, 0, 0, 0, 0, mc->mc_dataphys, 0);
+
+    /* do we want a completion callback? */
+    if (mc->mc_complete != NULL) {
+	if ((error = mlx_start(mc)) != 0)
+	    return;
+    } else {
+	/* run the command in either polled or wait mode */
+	if ((sc->mlx_state & MLX_STATE_INTEN) ? mlx_wait_command(mc) :
+						mlx_poll_command(mc))
+	    return;
+    
+	/* command completed OK? */
+	if (mc->mc_status != 0) {
+	    device_printf(sc->mlx_dev, "ENQUIRY failed - %s\n",
+			  mlx_diagnose_command(mc));
+	    return;
+	}
+    }
+}
+
 /********************************************************************************
  * Perform an Enquiry command using a type-3 command buffer and a return a single
  * linear result buffer.  If the completion function is specified, it will
@@ -1479,37 +1540,24 @@ mlx_enquire(struct mlx_softc *sc, int command, size_t bufsize, void (* complete)
     /* map the command so the controller can see it */
     mc->mc_data = result;
     mc->mc_length = bufsize;
-    mlx_mapcmd(mc);
+    mc->mc_command = command;
 
-    /* build an enquiry command */
-    mlx_make_type2(mc, command, 0, 0, 0, 0, 0, 0, mc->mc_dataphys, 0);
-
-    /* do we want a completion callback? */
     if (complete != NULL) {
 	mc->mc_complete = complete;
 	mc->mc_private = mc;
-	if ((error = mlx_start(mc)) != 0)
-	    goto out;
-    } else {
-	/* run the command in either polled or wait mode */
-	if ((sc->mlx_state & MLX_STATE_INTEN) ? mlx_wait_command(mc) : mlx_poll_command(mc))
-	    goto out;
-    
-	/* command completed OK? */
-	if (mc->mc_status != 0) {
-	    device_printf(sc->mlx_dev, "ENQUIRY failed - %s\n", mlx_diagnose_command(mc));
-	    goto out;
-	}
     }
-    error = 0;			/* success */
+
+    error = bus_dmamap_load(sc->mlx_buffer_dmat, mc->mc_dmamap, mc->mc_data,
+			    mc->mc_length, mlx_enquire_cb, mc, BUS_DMA_NOWAIT);
+
  out:
     /* we got a command, but nobody else will free it */
-    if ((complete == NULL) && (mc != NULL))
+    if ((mc->mc_complete == NULL) && (mc != NULL))
 	mlx_releasecmd(mc);
     /* we got an error, and we allocated a result */
-    if ((error != 0) && (result != NULL)) {
-	free(result, M_DEVBUF);
-	result = NULL;
+    if ((error != 0) && (mc->mc_data != NULL)) {
+	free(mc->mc_data, M_DEVBUF);
+	mc->mc_data = NULL;
     }
     return(result);
 }
@@ -1711,6 +1759,72 @@ mlx_poll_command(struct mlx_command *mc)
     return(EIO);
 }
 
+void
+mlx_startio_cb(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
+{
+    struct mlx_command	*mc;
+    struct mlxd_softc	*mlxd;
+    struct mlx_softc	*sc;
+    mlx_bio		*bp;
+    int			blkcount;
+    int			driveno;
+    int			cmd;
+
+    mc = (struct mlx_command *)arg;
+    mlx_setup_dmamap(mc, segs, nsegments, error);
+
+    sc = mc->mc_sc;
+    bp = mc->mc_private;
+
+    if (MLX_BIO_IS_READ(bp)) {
+	mc->mc_flags |= MLX_CMD_DATAIN;
+	cmd = MLX_CMD_READSG;
+    } else {
+	mc->mc_flags |= MLX_CMD_DATAOUT;
+	cmd = MLX_CMD_WRITESG;
+    }
+
+    /* build a suitable I/O command (assumes 512-byte rounded transfers) */
+    mlxd = (struct mlxd_softc *)MLX_BIO_SOFTC(bp);
+    driveno = mlxd->mlxd_drive - sc->mlx_sysdrive;
+    blkcount = (MLX_BIO_LENGTH(bp) + MLX_BLKSIZE - 1) / MLX_BLKSIZE;
+
+    if ((MLX_BIO_LBA(bp) + blkcount) > sc->mlx_sysdrive[driveno].ms_size)
+	device_printf(sc->mlx_dev,
+		      "I/O beyond end of unit (%lld,%d > %lu)\n", 
+		      (long long)MLX_BIO_LBA(bp), blkcount,
+		      (u_long)sc->mlx_sysdrive[driveno].ms_size);
+
+    /*
+     * Build the I/O command.  Note that the SG list type bits are set to zero,
+     * denoting the format of SG list that we are using.
+     */
+    if (sc->mlx_iftype == MLX_IFTYPE_2) {
+	mlx_make_type1(mc, (cmd == MLX_CMD_WRITESG) ? MLX_CMD_WRITESG_OLD :
+						      MLX_CMD_READSG_OLD,
+		       blkcount & 0xff, 	/* xfer length low byte */
+		       MLX_BIO_LBA(bp),		/* physical block number */
+		       driveno,			/* target drive number */
+		       mc->mc_sgphys,		/* location of SG list */
+		       mc->mc_nsgent & 0x3f);	/* size of SG list */
+	} else {
+	mlx_make_type5(mc, cmd, 
+		       blkcount & 0xff, 	/* xfer length low byte */
+		       (driveno << 3) | ((blkcount >> 8) & 0x07),
+						/* target+length high 3 bits */
+		       MLX_BIO_LBA(bp),		/* physical block number */
+		       mc->mc_sgphys,		/* location of SG list */
+		       mc->mc_nsgent & 0x3f);	/* size of SG list */
+    }
+
+    /* try to give command to controller */
+    if (mlx_start(mc) != 0) {
+	/* fail the command */
+	mc->mc_status = MLX_STATUS_WEDGED;
+	mlx_completeio(mc);
+    }
+}
+
 /********************************************************************************
  * Pull as much work off the softc's work queue as possible and give it to the
  * controller.  Leave a couple of slots free for emergencies.
@@ -1722,12 +1836,9 @@ static void
 mlx_startio(struct mlx_softc *sc)
 {
     struct mlx_command	*mc;
-    struct mlxd_softc	*mlxd;
     mlx_bio		*bp;
-    int			blkcount;
-    int			driveno;
-    int			cmd;
     int			s;
+    int			error;
 
     /* avoid reentrancy */
     if (mlx_lock_tas(sc, MLX_LOCK_STARTING))
@@ -1758,54 +1869,14 @@ mlx_startio(struct mlx_softc *sc)
 	mc->mc_private = bp;
 	mc->mc_data = MLX_BIO_DATA(bp);
 	mc->mc_length = MLX_BIO_LENGTH(bp);
-	if (MLX_BIO_IS_READ(bp)) {
-	    mc->mc_flags |= MLX_CMD_DATAIN;
-	    cmd = MLX_CMD_READSG;
-	} else {
-	    mc->mc_flags |= MLX_CMD_DATAOUT;
-	    cmd = MLX_CMD_WRITESG;
-	}
 	
 	/* map the command so the controller can work with it */
-	mlx_mapcmd(mc);
-	
-	/* build a suitable I/O command (assumes 512-byte rounded transfers) */
-	mlxd = (struct mlxd_softc *)MLX_BIO_SOFTC(bp);
-	driveno = mlxd->mlxd_drive - sc->mlx_sysdrive;
-	blkcount = (MLX_BIO_LENGTH(bp) + MLX_BLKSIZE - 1) / MLX_BLKSIZE;
-
-	if ((MLX_BIO_LBA(bp) + blkcount) > sc->mlx_sysdrive[driveno].ms_size)
-	    device_printf(sc->mlx_dev,
-			  "I/O beyond end of unit (%lld,%d > %lu)\n", 
-			  (long long)MLX_BIO_LBA(bp), blkcount,
-			  (u_long)sc->mlx_sysdrive[driveno].ms_size);
-
-	/*
-	 * Build the I/O command.  Note that the SG list type bits are set to zero,
-	 * denoting the format of SG list that we are using.
-	 */
-	if (sc->mlx_iftype == MLX_IFTYPE_2) {
-	    mlx_make_type1(mc, (cmd == MLX_CMD_WRITESG) ? MLX_CMD_WRITESG_OLD : MLX_CMD_READSG_OLD,
-			   blkcount & 0xff, 				/* xfer length low byte */
-			   MLX_BIO_LBA(bp),				/* physical block number */
-			   driveno,					/* target drive number */
-			   mc->mc_sgphys,				/* location of SG list */
-			   mc->mc_nsgent & 0x3f);			/* size of SG list (top 3 bits clear) */
-	} else {
-	    mlx_make_type5(mc, cmd, 
-			   blkcount & 0xff, 				/* xfer length low byte */
-			   (driveno << 3) | ((blkcount >> 8) & 0x07),	/* target and length high 3 bits */
-			   MLX_BIO_LBA(bp),				/* physical block number */
-			   mc->mc_sgphys,				/* location of SG list */
-			   mc->mc_nsgent & 0x3f);			/* size of SG list (top 3 bits clear) */
+	error = bus_dmamap_load(sc->mlx_buffer_dmat, mc->mc_dmamap, mc->mc_data,
+				mc->mc_length, mlx_startio_cb, mc, 0);
+	if (error == EINPROGRESS) { 
+		break;
 	}
 	
-	/* try to give command to controller */
-	if (mlx_start(mc) != 0) {
-	    /* fail the command */
-	    mc->mc_status = MLX_STATUS_WEDGED;
-	    mlx_completeio(mc);
-	}
 	s = splbio();
     }
     splx(s);
@@ -1846,6 +1917,51 @@ mlx_completeio(struct mlx_command *mc)
     mlxd_intr(bp);
 }
 
+void
+mlx_user_cb(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
+{
+    struct mlx_usercommand *mu;
+    struct mlx_command *mc;
+    struct mlx_dcdb	*dcdb;
+
+    mc = (struct mlx_command *)arg;
+    if (error)
+	return;
+
+    mlx_setup_dmamap(mc, segs, nsegments, error);
+
+    mu = (struct mlx_usercommand *)mc->mc_private;
+    dcdb = NULL;
+
+    /* 
+     * If this is a passthrough SCSI command, the DCDB is packed at the 
+     * beginning of the data area.  Fix up the DCDB to point to the correct
+     * physical address and override any bufptr supplied by the caller since
+     * we know what it's meant to be.
+     */
+    if (mc->mc_mailbox[0] == MLX_CMD_DIRECT_CDB) {
+	dcdb = (struct mlx_dcdb *)mc->mc_data;
+	dcdb->dcdb_physaddr = mc->mc_dataphys + sizeof(*dcdb);
+	mu->mu_bufptr = 8;
+    }
+    
+    /* 
+     * If there's a data buffer, fix up the command's buffer pointer.
+     */
+    if (mu->mu_datasize > 0) {
+	mc->mc_mailbox[mu->mu_bufptr    ] =  mc->mc_dataphys        & 0xff;
+	mc->mc_mailbox[mu->mu_bufptr + 1] = (mc->mc_dataphys >> 8)  & 0xff;
+	mc->mc_mailbox[mu->mu_bufptr + 2] = (mc->mc_dataphys >> 16) & 0xff;
+	mc->mc_mailbox[mu->mu_bufptr + 3] = (mc->mc_dataphys >> 24) & 0xff;
+    }
+    debug(0, "command fixup");
+
+    /* submit the command and wait */
+    if (mlx_wait_command(mc) != 0)
+	return;
+
+}
+
 /********************************************************************************
  * Take a command from user-space and try to run it.
  *
@@ -1857,7 +1973,6 @@ static int
 mlx_user_command(struct mlx_softc *sc, struct mlx_usercommand *mu)
 {
     struct mlx_command	*mc;
-    struct mlx_dcdb	*dcdb;
     void		*kbuf;
     int			error;
     
@@ -1865,7 +1980,6 @@ mlx_user_command(struct mlx_softc *sc, struct mlx_usercommand *mu)
     
     kbuf = NULL;
     mc = NULL;
-    dcdb = NULL;
     error = ENOMEM;
 
     /* get ourselves a command and copy in from user space */
@@ -1874,7 +1988,10 @@ mlx_user_command(struct mlx_softc *sc, struct mlx_usercommand *mu)
     bcopy(mu->mu_command, mc->mc_mailbox, sizeof(mc->mc_mailbox));
     debug(0, "got command buffer");
 
-    /* if we need a buffer for data transfer, allocate one and copy in its initial contents */
+    /*
+     * if we need a buffer for data transfer, allocate one and copy in its
+     * initial contents
+     */
     if (mu->mu_datasize > 0) {
 	if (mu->mu_datasize > MAXPHYS)
 	    return (EINVAL);
@@ -1888,52 +2005,32 @@ mlx_user_command(struct mlx_softc *sc, struct mlx_usercommand *mu)
     if (mlx_getslot(mc))
 	goto out;
     debug(0, "got a slot");
-    
-    /* map the command so the controller can see it */
-    mc->mc_data = kbuf;
-    mc->mc_length = mu->mu_datasize;
-    mlx_mapcmd(mc);
-    debug(0, "mapped");
 
-    /* 
-     * If this is a passthrough SCSI command, the DCDB is packed at the 
-     * beginning of the data area.  Fix up the DCDB to point to the correct physical
-     * address and override any bufptr supplied by the caller since we know
-     * what it's meant to be.
-     */
-    if (mc->mc_mailbox[0] == MLX_CMD_DIRECT_CDB) {
-	dcdb = (struct mlx_dcdb *)kbuf;
-	dcdb->dcdb_physaddr = mc->mc_dataphys + sizeof(*dcdb);
-	mu->mu_bufptr = 8;
-    }
-    
-    /* 
-     * If there's a data buffer, fix up the command's buffer pointer.
-     */
     if (mu->mu_datasize > 0) {
 
 	/* range check the pointer to physical buffer address */
-	if ((mu->mu_bufptr < 0) || (mu->mu_bufptr > (sizeof(mu->mu_command) - sizeof(u_int32_t)))) {
+	if ((mu->mu_bufptr < 0) || (mu->mu_bufptr > (sizeof(mu->mu_command) -
+						     sizeof(u_int32_t)))) {
 	    error = EINVAL;
 	    goto out;
 	}
-	mc->mc_mailbox[mu->mu_bufptr    ] =  mc->mc_dataphys        & 0xff;
-	mc->mc_mailbox[mu->mu_bufptr + 1] = (mc->mc_dataphys >> 8)  & 0xff;
-	mc->mc_mailbox[mu->mu_bufptr + 2] = (mc->mc_dataphys >> 16) & 0xff;
-	mc->mc_mailbox[mu->mu_bufptr + 3] = (mc->mc_dataphys >> 24) & 0xff;
     }
-    debug(0, "command fixup");
 
-    /* submit the command and wait */
-    if ((error = mlx_wait_command(mc)) != 0)
-	goto out;
+    /* map the command so the controller can see it */
+    mc->mc_data = kbuf;
+    mc->mc_length = mu->mu_datasize;
+    mc->mc_private = mu;
+    error = bus_dmamap_load(sc->mlx_buffer_dmat, mc->mc_dmamap, mc->mc_data,
+			    mc->mc_length, mlx_user_cb, mc, BUS_DMA_NOWAIT);
 
     /* copy out status and data */
     mu->mu_status = mc->mc_status;
-    if ((mu->mu_datasize > 0) && ((error = copyout(kbuf, mu->mu_buf, mu->mu_datasize))))
+    if ((mu->mu_datasize > 0) &&
+	((error = copyout(kbuf, mu->mu_buf, mu->mu_datasize))))
 	goto out;
+
     error = 0;
-    
+
  out:
     mlx_releasecmd(mc);
     if (kbuf != NULL)
@@ -2002,9 +2099,9 @@ mlx_getslot(struct mlx_command *mc)
  * Map/unmap (mc)'s data in the controller's addressable space.
  */
 static void
-mlx_setup_dmamap(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
+mlx_setup_dmamap(struct mlx_command *mc, bus_dma_segment_t *segs, int nsegments,
+		 int error)
 {
-    struct mlx_command	*mc = (struct mlx_command *)arg;
     struct mlx_softc	*sc = mc->mc_sc;
     struct mlx_sgentry	*sg;
     int			i;
@@ -2013,14 +2110,16 @@ mlx_setup_dmamap(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
 
     /* XXX should be unnecessary */
     if (sc->mlx_enq2 && (nsegments > sc->mlx_enq2->me_max_sg))
-	panic("MLX: too many s/g segments (%d, max %d)", nsegments, sc->mlx_enq2->me_max_sg);
+	panic("MLX: too many s/g segments (%d, max %d)", nsegments,
+	      sc->mlx_enq2->me_max_sg);
 
     /* get base address of s/g table */
     sg = sc->mlx_sgtable + (mc->mc_slot * MLX_NSEG);
 
     /* save s/g table information in command */
     mc->mc_nsgent = nsegments;
-    mc->mc_sgphys = sc->mlx_sgbusaddr + (mc->mc_slot * MLX_NSEG * sizeof(struct mlx_sgentry));
+    mc->mc_sgphys = sc->mlx_sgbusaddr +
+		   (mc->mc_slot * MLX_NSEG * sizeof(struct mlx_sgentry));
     mc->mc_dataphys = segs[0].ds_addr;
 
     /* populate s/g table */
@@ -2028,26 +2127,14 @@ mlx_setup_dmamap(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
 	sg->sg_addr = segs[i].ds_addr;
 	sg->sg_count = segs[i].ds_len;
     }
-}
 
-static void
-mlx_mapcmd(struct mlx_command *mc)
-{
-    struct mlx_softc	*sc = mc->mc_sc;
-
-    debug_called(1);
-
-    /* if the command involves data at all */
-    if (mc->mc_data != NULL) {
-	
-	/* map the data buffer into bus space and build the s/g list */
-	bus_dmamap_load(sc->mlx_buffer_dmat, mc->mc_dmamap, mc->mc_data, mc->mc_length, 
-			mlx_setup_dmamap, mc, 0);
-	if (mc->mc_flags & MLX_CMD_DATAIN)
-	    bus_dmamap_sync(sc->mlx_buffer_dmat, mc->mc_dmamap, BUS_DMASYNC_PREREAD);
-	if (mc->mc_flags & MLX_CMD_DATAOUT)
-	    bus_dmamap_sync(sc->mlx_buffer_dmat, mc->mc_dmamap, BUS_DMASYNC_PREWRITE);
-    }
+    /* Make sure the buffers are visible on the bus. */
+    if (mc->mc_flags & MLX_CMD_DATAIN)
+	bus_dmamap_sync(sc->mlx_buffer_dmat, mc->mc_dmamap,
+			BUS_DMASYNC_PREREAD);
+    if (mc->mc_flags & MLX_CMD_DATAOUT)
+	bus_dmamap_sync(sc->mlx_buffer_dmat, mc->mc_dmamap,
+			BUS_DMASYNC_PREWRITE);
 }
 
 static void
