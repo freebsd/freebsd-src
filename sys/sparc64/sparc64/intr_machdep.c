@@ -159,9 +159,10 @@ intr_init()
 
 	mtx_init(&intr_table_lock, "ithread table lock", MTX_SPIN);
 	/* Mark all interrupts as being stray. */
-	for (i = 0; i < NIV; i++)
+	for (i = 0; i < NIV; i++) {
 		intr_setup(PIL_LOW, intr_dequeue, i, intr_stray,
-		    (void *)(uintptr_t)i);
+		    (void *)&intr_vectors[i]);
+	}
 }
 
 /* Schedule a heavyweight interrupt process. */
