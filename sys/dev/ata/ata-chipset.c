@@ -101,6 +101,7 @@ static int ata_sii_chipinit(device_t);
 static int ata_sii_mio_allocate(device_t, struct ata_channel *);
 static void ata_sii_intr(void *);
 static void ata_cmd_intr(void *);
+static void ata_cmd_old_intr(void *);
 static void ata_sii_setmode(struct ata_device *, int);
 static void ata_cmd_setmode(struct ata_device *, int);
 static int ata_sis_chipinit(device_t);
@@ -1639,7 +1640,7 @@ ata_sii_chipinit(device_t dev)
     else {
 	if ((bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS,
 			    ctlr->chip->cfg2 & SIIINTR ? 
-			    ata_cmd_intr : ata_generic_intr,
+			    ata_cmd_intr : ata_cmd_old_intr,
 			    ctlr, &ctlr->handle))) {
 	    device_printf(dev, "unable to setup interrupt\n");
 	    return ENXIO;
@@ -1743,6 +1744,30 @@ ata_cmd_intr(void *data)
 }
 
 static void
+ata_cmd_old_intr(void *data)
+{
+    struct ata_pci_controller *ctlr = data;
+    struct ata_channel *ch;
+    int unit;
+
+    /* implement this as a toggle instead to balance load XXX */
+    for (unit = 0; unit < 2; unit++) {
+	if (!(ch = ctlr->interrupt[unit].argument))
+	    continue;
+	if (ch->dma && (ch->dma->flags & ATA_DMA_ACTIVE)) {
+	    int bmstat = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
+
+	    if ((bmstat & (ATA_BMSTAT_ACTIVE | ATA_BMSTAT_INTERRUPT)) !=
+		ATA_BMSTAT_INTERRUPT)
+		continue;
+	    ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, bmstat & ~ATA_BMSTAT_ERROR);
+	    DELAY(1);
+	}
+	ctlr->interrupt[unit].function(ch);
+    }
+}
+
+static void
 ata_sii_setmode(struct ata_device *atadev, int mode)
 {
     device_t parent = device_get_parent(atadev->channel->dev);
@@ -1823,7 +1848,7 @@ ata_cmd_setmode(struct ata_device *atadev, int mode)
 		   (error) ? "FAILURE " : "",
 		   ata_mode2str(mode), ctlr->chip->text);
     if (!error) {
-	int treg = 0x54 + (devno < 3) ? (devno << 1) : 7;
+	int treg = 0x54 + ((devno < 3) ? (devno << 1) : 7);
 	int ureg = atadev->channel->unit ? 0x7b : 0x73;
 
 	if (mode >= ATA_UDMA0) {	
