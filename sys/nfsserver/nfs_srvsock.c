@@ -119,11 +119,13 @@ static int proct[NFS_NPROCS] = {
 
 static int nfs_realign_test;
 static int nfs_realign_count;
+static int nfs_bufpackets = 4;
 
 SYSCTL_DECL(_vfs_nfs);
 
-SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_test, CTLFLAG_RD, &nfs_realign_test, 0, "");
-SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_count, CTLFLAG_RD, &nfs_realign_count, 0, "");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_test, CTLFLAG_RW, &nfs_realign_test, 0, "");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_count, CTLFLAG_RW, &nfs_realign_count, 0, "");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, bufpackets, CTLFLAG_RW, &nfs_bufpackets, 0, "");
 
 
 /*
@@ -201,6 +203,7 @@ nfs_connect(nmp, rep)
 {
 	register struct socket *so;
 	int s, error, rcvreserve, sndreserve;
+	int pktscale;
 	struct sockaddr *saddr;
 	struct sockaddr_in *sin;
 	struct proc *p = &proc0; /* only used for socreate and sobind */
@@ -301,14 +304,25 @@ nfs_connect(nmp, rep)
 		so->so_rcv.sb_timeo = 0;
 		so->so_snd.sb_timeo = 0;
 	}
+
+	/*
+	 * Get buffer reservation size from sysctl, but impose reasonable
+	 * limits.
+	 */
+	pktscale = nfs_bufpackets;
+	if (pktscale < 2)
+		pktscale = 2;
+	if (pktscale > 64)
+		pktscale = 64;
+
 	if (nmp->nm_sotype == SOCK_DGRAM) {
-		sndreserve = (nmp->nm_wsize + NFS_MAXPKTHDR) * 2;
+		sndreserve = (nmp->nm_wsize + NFS_MAXPKTHDR) * pktscale;
 		rcvreserve = (max(nmp->nm_rsize, nmp->nm_readdirsize) +
-		    NFS_MAXPKTHDR) * 2;
+		    NFS_MAXPKTHDR) * pktscale;
 	} else if (nmp->nm_sotype == SOCK_SEQPACKET) {
-		sndreserve = (nmp->nm_wsize + NFS_MAXPKTHDR) * 2;
+		sndreserve = (nmp->nm_wsize + NFS_MAXPKTHDR) * pktscale;
 		rcvreserve = (max(nmp->nm_rsize, nmp->nm_readdirsize) +
-		    NFS_MAXPKTHDR) * 2;
+		    NFS_MAXPKTHDR) * pktscale;
 	} else {
 		if (nmp->nm_sotype != SOCK_STREAM)
 			panic("nfscon sotype");
@@ -337,9 +351,9 @@ nfs_connect(nmp, rep)
 			sosetopt(so, &sopt);
 		}
 		sndreserve = (nmp->nm_wsize + NFS_MAXPKTHDR +
-		    sizeof (u_int32_t)) * 2;
+		    sizeof (u_int32_t)) * pktscale;
 		rcvreserve = (nmp->nm_rsize + NFS_MAXPKTHDR +
-		    sizeof (u_int32_t)) * 2;
+		    sizeof (u_int32_t)) * pktscale;
 	}
 	error = soreserve(so, sndreserve, rcvreserve);
 	if (error)
