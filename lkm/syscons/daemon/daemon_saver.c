@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: daemon_saver.c,v 1.1 1997/05/21 14:18:27 yokota Exp $
+ *	$Id: daemon_saver.c,v 1.2 1997/05/24 01:44:39 yokota Exp $
  */
 
 #include <sys/param.h>
@@ -165,7 +165,7 @@ static void
 daemon_saver(int blank)
 {
 #ifndef DAEMON_ONLY
-	static const char message[] = {"FreeBSD 3.0 CURRENT"};
+	static const char message[] = {"FreeBSD 2.2 STABLE"};
 	static int txpos = 10, typos = 10;
 	static int txdir = -1, tydir = -1;
 #endif
@@ -249,6 +249,6 @@ daemon_saver_unload(struct lkm_table *lkmtp, int cmd)
 int
 daemon_saver_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
-	MOD_DISPATCH(daemon_saver, lkmtp, cmd, ver,
-		daemon_saver_load, daemon_saver_unload, lkm_nullcmd);
+	DISPATCH(lkmtp, cmd, ver, daemon_saver_load, daemon_saver_unload,
+		 lkm_nullcmd);
 }
