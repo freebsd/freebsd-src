@@ -1,11 +1,16 @@
-#	@(#)Makefile.inc	8.1 (Berkeley) 6/4/93
+#	from @(#)Makefile.inc	8.1 (Berkeley) 6/4/93
+#	$Id$
 
 # gmon sources
-.PATH: ${.CURDIR}/gmon
+.PATH: ${.CURDIR}/../libc/gmon
 
 SRCS+=	gmon.c mcount.c
+
+# Only build man pages with libc.
+.if ${LIB} == "c"
 MAN3+=	gmon/moncontrol.3
 MLINKS+= moncontrol.3 monstartup.3
+.endif
 
 # mcount cannot be compiled with profiling
 mcount.po: mcount.o

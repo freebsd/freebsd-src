@@ -1,9 +1,12 @@
-#	@(#)Makefile	5.11 (Berkeley) 9/6/90
+#	from @(#)Makefile	5.11 (Berkeley) 9/6/90
+#	$Id$
 
-.PATH: ${.CURDIR}/xdr ${.CURDIR}/.
+.PATH: ${.CURDIR}/../libc/xdr ${.CURDIR}/.
 SRCS+=	xdr.c xdr_array.c xdr_float.c xdr_mem.c \
 	xdr_rec.c xdr_reference.c xdr_stdio.c
 
+# Only build man pages with libc.
+.if ${LIB} == "c"
 MAN3+=	xdr/xdr.3
 
 MLINKS+=	xdr.3 xdr_array.3 \
@@ -38,3 +41,4 @@ MLINKS+=	xdr.3 xdr_array.3 \
 		xdr.3 xdr_vector.3 \
 		xdr.3 xdr_void.3 \
 		xdr.3 xdr_wrapstring.3
+.endif

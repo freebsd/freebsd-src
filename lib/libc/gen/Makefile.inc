@@ -2,7 +2,7 @@
 #	$Id: Makefile.inc,v 1.31 1997/04/13 15:12:14 davidn Exp $
 
 # machine-independent gen sources
-.PATH: ${.CURDIR}/${MACHINE}/gen ${.CURDIR}/gen
+.PATH: ${.CURDIR}/../libc/${MACHINE}/gen ${.CURDIR}/../libc/gen
 
 SRCS+=	alarm.c assert.c clock.c closedir.c config.c confstr.c crypt.c \
 	ctermid.c daemon.c devname.c disklabel.c err.c errlst.c \
@@ -27,16 +27,18 @@ SRCS+=	_rand48.c drand48.c erand48.c jrand48.c lcong48.c lrand48.c \
 	mrand48.c nrand48.c seed48.c srand48.c
 
 # machine-dependent gen sources
-.include "${.CURDIR}/${MACHINE}/gen/Makefile.inc"
+.include "${.CURDIR}/../libc/${MACHINE}/gen/Makefile.inc"
 
 .if (${MACHINE} == "tahoe" || ${MACHINE} == "vax")
 errlst.o errlst.po:
 	${CC} -S ${CFLAGS} ${.IMPSRC}
-	ed - < ${.CURDIR}/${MACHINE}/:errfix errlst.s
+	ed - < ${.CURDIR}/../libc/${MACHINE}/:errfix errlst.s
 	${AS} -o ${.TARGET} errlst.s
 	rm -f errlst.s
 .endif
 
+# Only build man pages with libc.
+.if ${LIB} == "c"
 MAN3+=	gen/alarm.3 gen/clock.3 gen/confstr.3 gen/config_open.3 \
 	gen/crypt.3 gen/ctermid.3 \
 	gen/daemon.3 gen/devname.3 gen/directory.3 gen/err.3 gen/exec.3 \
@@ -123,3 +125,4 @@ MLINKS+=vis.3 strvis.3 vis.3 strvisx.3
 MLINKS+=unvis.3 strunvis.3 
 MLINKS+=fts.3 fts_open.3 fts.3 fts_read.3 fts.3 fts_children.3 \
 	fts.3 fts_close.3 fts.3 fts_set.3
+.endif
