@@ -41,6 +41,8 @@ void init_igmp()
     k_set_loop(FALSE);		/* disable multicast loopback     */
 
     ip         = (struct ip *)send_buf;
+    ip->ip_hl  = sizeof(struct ip) >> 2;
+    ip->ip_v   = IPVERSION;
     ip->ip_tos = 0;
     ip->ip_off = 0;
     ip->ip_p   = IPPROTO_IGMP;
@@ -255,7 +257,7 @@ void send_igmp(src, dst, type, code, group, datalen)
     u_long group;
     int datalen;
 {
-    static struct sockaddr_in sdst = {AF_INET};
+    static struct sockaddr_in sdst = {AF_INET, sizeof sdst};
     struct ip *ip;
     struct igmp *igmp;
 

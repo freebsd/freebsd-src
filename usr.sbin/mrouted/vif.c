@@ -569,6 +569,7 @@ void accept_neighbor_request(src, dst)
 	int addrlen = sizeof(addr);
 
 	addr.sin_family = AF_INET;
+	addr.sin_len = sizeof addr;
 	addr.sin_addr.s_addr = dst;
 	addr.sin_port = htons(2000); /* any port over 1024 will do... */
 	if ((udp = socket(AF_INET, SOCK_DGRAM, 0)) < 0
@@ -652,6 +653,7 @@ void accept_neighbor_request2(src, dst)
 	int addrlen = sizeof(addr);
 
 	addr.sin_family = AF_INET;
+	addr.sin_len = sizeof addr;
 	addr.sin_addr.s_addr = dst;
 	addr.sin_port = htons(2000); /* any port over 1024 will do... */
 	if ((udp = socket(AF_INET, SOCK_DGRAM, 0)) < 0
