@@ -115,6 +115,7 @@ static struct ac97_codecid ac97codecid[] = {
 	{ 0x83847608, 0, "SigmaTel STAC9708/9711",	0 },
 	{ 0x83847609, 0, "SigmaTel STAC9721/9723",	0 },
 	{ 0x83847644, 0, "SigmaTel STAC9744",		0 },
+	{ 0x83847650, 0, "SigmaTel STAC9750",		0 },
 	{ 0x83847656, 0, "SigmaTel STAC9756/9757",	0 },
 	{ 0x53494c22, 0, "Silicon Laboratory Si3036",	0 },
 	{ 0x53494c23, 0, "Silicon Laboratory Si3038",	0 },
