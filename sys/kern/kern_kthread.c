@@ -149,6 +149,7 @@ kthread_suspend(struct proc *p, int timo)
 		return (EINVAL);
 	}
 	SIGADDSET(p->p_siglist, SIGSTOP);
+	wakeup(p);
 	return msleep(&p->p_siglist, &p->p_mtx, PPAUSE | PDROP, "suspkt", timo);
 }
 
