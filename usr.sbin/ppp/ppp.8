@@ -3390,7 +3390,7 @@ in the CHAP response packet.
 .Pp
 When configuring
 .Nm
-in this manner, it's expected that the host challenge is a series of ascii
+in this manner, it's expected that the host challenge is a series of ASCII
 digits or characters.  An encryption device or Secure ID card is usually
 required to calculate the secret appropriate for the given challenge.
 .It set authname Ar id
