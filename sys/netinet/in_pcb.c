@@ -461,6 +461,9 @@ in_pcbconnect(inp, nam, cred)
 	in_addr_t laddr, faddr;
 	int anonport, error;
 
+	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
+	INP_LOCK_ASSERT(inp);
+
 	lport = inp->inp_lport;
 	laddr = inp->inp_laddr.s_addr;
 	anonport = (lport == 0);
@@ -529,6 +532,9 @@ in_pcbconnect_setup(inp, nam, laddrp, lportp, faddrp, fportp, oinpp, cred)
 	struct in_addr laddr, faddr;
 	u_short lport, fport;
 	int error;
+
+	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
+	INP_LOCK_ASSERT(inp);
 
 	if (oinpp != NULL)
 		*oinpp = NULL;
