@@ -791,7 +791,7 @@ findsym(const char *str)
 	if (cp == str)
 		return -1;
 	if (symlist)
-		printf("%.*s\n", cp-str, str);
+		printf("%.*s\n", (int)(cp-str), str);
 	for (symind = 0; symind < nsyms; ++symind) {
 		if (strlcmp(symname[symind], str, cp-str) == 0) {
 			debug("findsym %s %s", symname[symind],
