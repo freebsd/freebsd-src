@@ -31,10 +31,13 @@
  * $FreeBSD$
  */
 
-#include <stdio.h>
 #include <sys/types.h>
-#include <stdlib.h>
+#include <sys/uio.h>
 #include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
 #include "doscmd.h"
 
 /* exports */
@@ -45,7 +48,6 @@ int	curpsp = 0;
 static int		psp_s[10] = { 0 };
 static int		env_s[10];
 static regcontext_t	frames[10];
-static char		*env_block;
 
 static int
 make_environment (char *cmdname, char **env)
@@ -361,12 +363,6 @@ load_overlay(int fd, int start_segment, int reloc_segment)
 	load_com(fd, start_segment);
     else
 	load_exe(fd, start_segment, reloc_segment, &hdr, text_size);
-}
-
-static int
-get_psp(void)
-{
-    return(psp_s[curpsp]);
 }
 
 int

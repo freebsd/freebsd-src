@@ -32,10 +32,12 @@
  * $FreeBSD$
  */
 
-#include "doscmd.h"
 #include <sys/param.h>
 #include <ctype.h>
+#include <unistd.h>
 
+#include "doscmd.h"
+#include "cwd.h"
 #include "dispatch.h"
 
 static LOL	*lol = 0;		/* DOS list-of-lists */
@@ -695,17 +697,15 @@ int2f11_validate(regcontext_t *REGS)
 int 
 int2f_11(regcontext_t *REGS)
 {
-    int		index;
+    int		idx;
     int		error;
-    char	*fname;
-	
     
     if (!sda) {		/* not initialised yet */
 	error = FUNC_NUM_IVALID;
     } else {
 
-	index = intfunc_find(int2f11_table, int2f11_fastlookup, R_AL, 0);
-	if (index == -1) {
+	idx = intfunc_find(int2f11_table, int2f11_fastlookup, R_AL, 0);
+	if (idx == -1) {
 	    debug(D_ALWAYS,"no handler for int2f:11:%x\n", R_AL);
 	    return(0);
 	}
@@ -716,9 +716,9 @@ int2f_11(regcontext_t *REGS)
 	    error = -1;				/* not handled by us */
 	} else {
 	    debug(D_REDIR, "REDIR: %02x (%s)\n", 
-		      int2f11_table[index].func, int2f11_table[index].desc);
+		      int2f11_table[idx].func, int2f11_table[idx].desc);
 	    /* call the handler */
-	    error = int2f11_table[index].handler(REGS);
+	    error = int2f11_table[idx].handler(REGS);
 	    if (error != -1)
 		debug(D_REDIR, "REDIR: returns %d (%s)\n", 
 		      error, ((error >= 0) && (error <= dos_ret_size)) ? dos_return[error] : "unknown");
@@ -782,7 +782,7 @@ init_drives(void)
 
     /* for all possible drives */
     for (drive = 0; drive < 26; ++drive) {
-	if (path = dos_getpath(drive))		/* assigned to a path? */
+	if ((path = dos_getpath(drive)) != 0)	/* assigned to a path? */
 	    install_drive(drive, path);		/* make it visible to DOS */
     }	
 }

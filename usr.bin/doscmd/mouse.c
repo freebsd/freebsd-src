@@ -37,7 +37,7 @@
 
 mouse_t		mouse_status;
 u_char		*mouse_area = 0;
-int 		nmice = 0;
+int 		nmice = 1;
 
 static void 
 mouse_probe(void) 
@@ -49,7 +49,6 @@ int33(regcontext_t *REGS)
 {
     u_long vec;
     u_short mask;
-    void *addr;
     int i;
 
     if (!nmice) {
@@ -145,8 +144,6 @@ int33(regcontext_t *REGS)
 	mouse_probe();
 	R_CX = mouse_status.x - mouse_status.lastx;
 	R_DX = mouse_status.y - mouse_status.lasty;
-	mouse_status.lastx - mouse_status.x;
-	mouse_status.lasty - mouse_status.y;
 	break;
 
     case 0x0c:	/* Set event handler */
@@ -231,7 +228,7 @@ int33(regcontext_t *REGS)
 	mouse_status.doubling = R_DX;
 	break;
 
-    case 0x1b:	/* set mouse sensitivity */
+    case 0x1b:	/* get mouse sensitivity */
 	R_BX = mouse_status.hmickey;
 	R_CX = mouse_status.vmickey;
 	R_DX = mouse_status.doubling;

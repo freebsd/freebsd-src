@@ -32,14 +32,14 @@
  * $FreeBSD$
  */
 
+#include <sys/ioctl.h>
+#include <machine/sysarch.h>
+
 #include "doscmd.h"
+#include "tty.h"
 
 #define	MINPORT		0x000
 #define	MAXPORT_MASK	(MAXPORT - 1)
-
-#include <sys/ioctl.h>
-#include <machine/sysarch.h>
-static int consfd = -1;
 
 #define in(port) \
 ({ \

@@ -441,7 +441,6 @@ ems_entry(regcontext_t *REGS)
 	 */
 	case PAGE_MAP_PARTIAL:
 	{
-	    u_long addr;
 	    int subfunction;
 	    EMScontext *src, *dest;
 
@@ -1077,7 +1076,6 @@ ems_entry(regcontext_t *REGS)
 	    R_AH = EMS_FUNCTION_DISABLED;
 	    break;
 
-unknown:
 	default:
 	    debug(D_ALWAYS, "EMS: Unknown function called: %02x\n", R_AH);
 	    R_AH = EMS_FUNC_NOSUP;
@@ -1095,7 +1093,7 @@ init_mapfile()
 
     /* Sanity */
     if (ems_max_size == 0)
-	return;
+	return 0;
     strcpy(path, EMS_MAP_PATH);
     strcat(path, EMS_MAP_FILE);
 
@@ -1251,6 +1249,8 @@ find_next_free_handle()
 	    return (i);
     }
     fatal("EMS handle count garbled, should not happen\n");
+    /* quiet 'gcc -Wall' */
+    return (-1);
 }
 
 /* Look for a named handle, returns 0 if not found, else handle */
