@@ -240,7 +240,9 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 	}
 
 	if ((flags & (LK_NOWAIT|LK_RELEASE)) == 0)
-		WITNESS_SLEEP(1, &lkp->lk_interlock->mtx_object);
+		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
+		    &lkp->lk_interlock->mtx_object,
+		    "Acquiring lockmgr lock \"%s\"", lkp->lk_wmesg);
 
 	if (panicstr != NULL) {
 		mtx_unlock(lkp->lk_interlock);

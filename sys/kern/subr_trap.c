@@ -157,10 +157,7 @@ ast(struct trapframe *framep)
 	CTR3(KTR_SYSC, "ast: thread %p (pid %d, %s)", td, p->p_pid,
             p->p_comm);
 	KASSERT(TRAPF_USERMODE(framep), ("ast in kernel mode"));
-#ifdef WITNESS
-	if (witness_list(td))
-		panic("Returning to user mode with mutex(s) held");
-#endif
+	WITNESS_WARN(WARN_PANIC, NULL, "Returning to user mode");
 	mtx_assert(&Giant, MA_NOTOWNED);
 	mtx_assert(&sched_lock, MA_NOTOWNED);
 	td->td_frame = framep;

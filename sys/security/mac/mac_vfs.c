@@ -264,7 +264,7 @@ static int mac_policy_list_busy;
 } while (0)
 
 /*
- * We manually invoke WITNESS_SLEEP() to allow Witness to generate
+ * We manually invoke WITNESS_WARN() to allow Witness to generate
  * warnings even if we don't end up ever triggering the wait at
  * run-time.  The consumer of the exclusive interface must not hold
  * any locks (other than potentially Giant) since we may sleep for
@@ -273,7 +273,8 @@ static int mac_policy_list_busy;
  * be made.
  */
 #define	MAC_POLICY_LIST_EXCLUSIVE() do {				\
-	WITNESS_SLEEP(1, NULL);						\
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,			\
+ 	    "mac_policy_list_exclusive() at %s:%d", __FILE__, __LINE__);\
 	mtx_lock(&mac_policy_list_lock);				\
 	while (mac_policy_list_busy != 0)				\
 		cv_wait(&mac_policy_list_not_busy,			\
