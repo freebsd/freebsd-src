@@ -1,0 +1,67 @@
+#!/bin/sh
+# $FreeBSD$
+############################################
+### Special setup for one floppy PICOBSD ###
+### THIS IS NOT THE NORMAL /etc/rc !!!!! ###
+############################################
+mount -a -t nonfs
+# before calling rc.conf, try to identify the system by using the
+# ethernet address and name of the first interface. This is available
+# to rc.conf and others as $main_eth $main_if for further processing.
+
+main_ether=""
+for main_if in `ifconfig -l` ; do
+    set `ifconfig $main_if`
+    while [ "$1" != "" ] ; do
+	if [ $1 = "ether" ] ; then
+	    main_ether=$2
+	    break 2
+	else
+	    shift
+	fi
+    done
+done
+
+if [ -f /etc/rc.conf ]; then
+    . /etc/rc.conf
+fi
+rm -f /var/run/*
+if [ "x$swapfile" != "xNO" -a -w "$swapfile" -a -b /dev/vn0b ]; then
+	echo "Adding $swapfile as additional swap."
+	vnconfig /dev/vn0b $swapfile && swapon /dev/vn0b
+fi
+# configure serial devices
+if [ -f /etc/rc.serial ]; then
+	. /etc/rc.serial
+fi
+# start up the initial network configuration.
+if [ -f /etc/rc.network ]; then
+	. /etc/rc.network
+	network_pass1
+fi
+mount -a -t nfs
+chmod 666 /dev/tty[pqrsPQRS]*
+# clean up left-over files
+(cd /var/run && { cp /dev/null utmp; chmod 644 utmp; })
+if [ -n "$network_pass1_done" ]; then
+    network_pass2
+fi
+if [ -n "$network_pass2_done" ]; then
+    network_pass3
+fi
+if [ "X${inetd_enable}" = X"YES" -a -f /stand/inetd ]; then
+	echo "Starting inetd."; inetd ${inetd_flags}
+fi
+
+[ "X${sshd_enable}" = "XYES" ] && [ -f /stand/sshd ] && \
+	sshd -f /etc/sshd_config
+
+dev_mkdb
+
+echo ''
+if [ "x$swapfile" = "xNO" ]; then
+	echo "WARNING: no swap partition!"
+	echo "Don't run too many programs at the same time..."
+fi
+cat /etc/motd
+exit 0

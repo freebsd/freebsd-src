@@ -1,0 +1,1101 @@
+.\"  -*- nroff -*-
+.\"
+.\" Author: Tatu Ylonen <ylo@cs.hut.fi>
+.\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
+.\"                    All rights reserved
+.\"
+.\" As far as I am concerned, the code I have written for this software
+.\" can be used freely for any purpose.  Any derived versions of this
+.\" software must be clearly marked as such, and if the derived work is
+.\" incompatible with the protocol description in the RFC file, it must be
+.\" called by a name other than "ssh" or "Secure Shell".
+.\"
+.\" Copyright (c) 1999,2000 Markus Friedl. All rights reserved.
+.\" Copyright (c) 1999 Aaron Campbell. All rights reserved.
+.\" Copyright (c) 1999 Theo de Raadt. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 25, 1999
+.Dt SSHD 8
+.Os
+.Sh NAME
+.Nm sshd
+.Nd secure shell daemon
+.Sh SYNOPSIS
+.Nm sshd
+.Op Fl diqQ46
+.Op Fl b Ar bits
+.Op Fl f Ar config_file
+.Op Fl g Ar login_grace_time
+.Op Fl h Ar host_key_file
+.Op Fl k Ar key_gen_time
+.Op Fl p Ar port
+.Op Fl u Ar len
+.Op Fl V Ar client_protocol_id
+.Sh DESCRIPTION
+.Nm
+(Secure Shell Daemon) is the daemon program for
+.Xr ssh 1 .
+Together these programs replace rlogin and rsh, and
+provide secure encrypted communications between two untrusted hosts
+over an insecure network.
+The programs are intended to be as easy to
+install and use as possible.
+.Pp
+.Nm
+is the daemon that listens for connections from clients.
+It is normally started at boot from 
+.Pa /etc/rc.network .
+It forks a new
+daemon for each incoming connection.
+The forked daemons handle
+key exchange, encryption, authentication, command execution,
+and data exchange.
+This implementation of
+.Nm
+supports both SSH protocol version 1 and 2 simultaneously.
+.Nm
+works as follows.
+.Pp
+.Ss SSH protocol version 1
+.Pp
+Each host has a host-specific RSA key
+(normally 1024 bits) used to identify the host.
+Additionally, when
+the daemon starts, it generates a server RSA key (normally 768 bits).
+This key is normally regenerated every hour if it has been used, and
+is never stored on disk.
+.Pp
+Whenever a client connects the daemon responds with its public
+host and server keys.
+The client compares the
+RSA host key against its own database to verify that it has not changed.
+The client then generates a 256 bit random number.
+It encrypts this
+random number using both the host key and the server key, and sends
+the encrypted number to the server.
+Both sides then use this
+random number as a session key which is used to encrypt all further
+communications in the session.
+The rest of the session is encrypted
+using a conventional cipher, currently Blowfish or 3DES, with 3DES
+being used by default.
+The client selects the encryption algorithm
+to use from those offered by the server.
+.Pp
+Next, the server and the client enter an authentication dialog.
+The client tries to authenticate itself using
+.Pa .rhosts
+authentication,
+.Pa .rhosts
+authentication combined with RSA host
+authentication, RSA challenge-response authentication, or password
+based authentication.
+.Pp
+Rhosts authentication is normally disabled
+because it is fundamentally insecure, but can be enabled in the server
+configuration file if desired.
+System security is not improved unless
+.Xr rshd 8 ,
+.Xr rlogind 8 ,
+.Xr rexecd 8 ,
+and
+.Xr rexd 8
+are disabled (thus completely disabling
+.Xr rlogin 1
+and
+.Xr rsh 1
+into the machine).
+.Pp
+.Ss SSH protocol version 2
+.Pp
+Version 2 works similarly:
+Each host has a host-specific DSA key used to identify the host.
+However, when the daemon starts, it does not generate a server key.
+Forward security is provided through a Diffie-Hellman key agreement.
+This key agreement results in a shared session key.
+The rest of the session is encrypted
+using a symmetric cipher, currently
+Blowfish, 3DES or CAST128 in CBC mode or Arcfour.
+The client selects the encryption algorithm
+to use from those offered by the server.
+Additionally, session integrity is provided
+through a cryptographic message authentication code
+(hmac-sha1 or hmac-md5).
+.Pp
+Protocol version 2 provides a public key based
+user authentication method (DSAAuthentication)
+and conventional password authentication.
+.Pp
+.Ss Command execution and data forwarding
+.Pp
+If the client successfully authenticates itself, a dialog for
+preparing the session is entered.
+At this time the client may request
+things like allocating a pseudo-tty, forwarding X11 connections,
+forwarding TCP/IP connections, or forwarding the authentication agent
+connection over the secure channel.
+.Pp
+Finally, the client either requests a shell or execution of a command.
+The sides then enter session mode.
+In this mode, either side may send
+data at any time, and such data is forwarded to/from the shell or
+command on the server side, and the user terminal in the client side.
+.Pp
+When the user program terminates and all forwarded X11 and other
+connections have been closed, the server sends command exit status to
+the client, and both sides exit.
+.Pp
+.Nm
+can be configured using command-line options or a configuration
+file.
+Command-line options override values specified in the
+configuration file.
+.Pp
+.Nm
+rereads its configuration file when it receives a hangup signal,
+.Dv SIGHUP .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl b Ar bits
+Specifies the number of bits in the server key (default 768).
+.Pp
+.It Fl d
+Debug mode.
+The server sends verbose debug output to the system
+log, and does not put itself in the background.
+The server also will not fork and will only process one connection.
+This option is only intended for debugging for the server.
+Multiple -d options increases the debugging level.
+Maximum is 3.
+.It Fl f Ar configuration_file
+Specifies the name of the configuration file.
+The default is
+.Pa /etc/ssh/sshd_config .
+.Nm
+refuses to start if there is no configuration file.
+.It Fl g Ar login_grace_time
+Gives the grace time for clients to authenticate themselves (default
+300 seconds).
+If the client fails to authenticate the user within
+this many seconds, the server disconnects and exits.
+A value of zero indicates no limit.
+.It Fl h Ar host_key_file
+Specifies the file from which the RSA host key is read (default
+.Pa /etc/ssh/ssh_host_key ) .
+This option must be given if
+.Nm
+is not run as root (as the normal
+host file is normally not readable by anyone but root).
+.It Fl i
+Specifies that
+.Nm
+is being run from inetd.
+.Nm
+is normally not run
+from inetd because it needs to generate the server key before it can
+respond to the client, and this may take tens of seconds.
+Clients would have to wait too long if the key was regenerated every time.
+However, with small key sizes (e.g., 512) using
+.Nm
+from inetd may
+be feasible.
+.It Fl k Ar key_gen_time
+Specifies how often the server key is regenerated (default 3600
+seconds, or one hour).
+The motivation for regenerating the key fairly
+often is that the key is not stored anywhere, and after about an hour,
+it becomes impossible to recover the key for decrypting intercepted
+communications even if the machine is cracked into or physically
+seized.
+A value of zero indicates that the key will never be regenerated.
+.It Fl p Ar port
+Specifies the port on which the server listens for connections
+(default 22).
+.It Fl q
+Quiet mode.
+Nothing is sent to the system log.
+Normally the beginning,
+authentication, and termination of each connection is logged.
+.It Fl u Ar len
+This option is used to specify the size of the field
+in the
+.Li utmp
+structure that holds the remote host name.
+If the resolved host name is longer than
+.Ar len ,
+the dotted decimal value will be used instead.
+This allows hosts with very long host names that
+overflow this field to still be uniquely identified.
+Specifying
+.Fl u0
+indicates that only dotted decimal addresses
+should be put into the
+.Pa utmp
+file.
+.It Fl Q
+Do not print an error message if RSA support is missing.
+.It Fl V Ar client_protocol_id
+SSH-2 compatibility mode.
+When this option is specified
+.Nm
+assumes the client has sent the supplied version string
+and skips the
+Protocol Version Identification Exchange.
+This option is not intended to be called directly.
+.It Fl 4
+Forces
+.Nm
+to use IPv4 addresses only.
+.It Fl 6
+Forces
+.Nm
+to use IPv6 addresses only.
+.El
+.Sh CONFIGURATION FILE
+.Nm
+reads configuration data from
+.Pa /etc/ssh/sshd_config
+(or the file specified with
+.Fl f
+on the command line).
+The file contains keyword-value pairs, one per line.
+Lines starting with
+.Ql #
+and empty lines are interpreted as comments.
+.Pp
+The following keywords are possible.
+.Bl -tag -width Ds
+.It Cm AFSTokenPassing
+Specifies whether an AFS token may be forwarded to the server.
+Default is
+.Dq yes .
+.It Cm AllowGroups
+This keyword can be followed by a number of group names, separated
+by spaces.
+If specified, login is allowed only for users whose primary
+group matches one of the patterns.
+.Ql \&*
+and
+.Ql ?
+can be used as
+wildcards in the patterns.
+Only group names are valid; a numerical group ID isn't recognized.
+By default login is allowed regardless of the primary group.
+.Pp
+.It Cm AllowTcpForwarding
+Specifies whether TCP forwarding is permitted.
+The default is
+.Dq yes .
+Note that disabling TCP forwarding does not improve security unless
+users are also denied shell access, as they can always install their
+own forwarders.
+.Pp
+.It Cm AllowUsers
+This keyword can be followed by a number of user names, separated
+by spaces.
+If specified, login is allowed only for users names that
+match one of the patterns.
+.Ql \&*
+and
+.Ql ?
+can be used as
+wildcards in the patterns.
+Only user names are valid; a numerical user ID isn't recognized.
+By default login is allowed regardless of the user name.
+.Pp
+.It Cm Ciphers
+Specifies the ciphers allowed for protocol version 2.
+Multiple ciphers must be comma-separated.
+The default is
+.Dq 3des-cbc,blowfish-cbc,arcfour,cast128-cbc .
+.It Cm CheckMail
+Specifies whether
+.Nm
+should check for new mail for interactive logins.
+The default is
+.Dq yes .
+.It Cm DenyGroups
+This keyword can be followed by a number of group names, separated
+by spaces.
+Users whose primary group matches one of the patterns
+aren't allowed to log in.
+.Ql \&*
+and
+.Ql ?
+can be used as
+wildcards in the patterns.
+Only group names are valid; a numerical group ID isn't recognized.
+By default login is allowed regardless of the primary group.
+.Pp
+.It Cm DenyUsers
+This keyword can be followed by a number of user names, separated
+by spaces.
+Login is disallowed for user names that match one of the patterns.
+.Ql \&*
+and
+.Ql ?
+can be used as wildcards in the patterns.
+Only user names are valid; a numerical user ID isn't recognized.
+By default login is allowed regardless of the user name.
+.It Cm DSAAuthentication
+Specifies whether DSA authentication is allowed.
+The default is
+.Dq yes .
+Note that this option applies to protocol version 2 only.
+.It Cm GatewayPorts
+Specifies whether remote hosts are allowed to connect to ports
+forwarded for the client.
+The argument must be
+.Dq yes
+or
+.Dq no .
+The default is
+.Dq no .
+.It Cm HostDSAKey
+Specifies the file containing the private DSA host key (default
+.Pa /etc/ssh/ssh_host_dsa_key )
+used by SSH protocol 2.0.
+Note that
+.Nm
+disables protocol 2.0 if this file is group/world-accessible.
+.It Cm HostKey
+Specifies the file containing the private RSA host key (default
+.Pa /etc/ssh/ssh_host_key )
+used by SSH protocols 1.3 and 1.5.
+Note that
+.Nm
+disables protocols 1.3 and 1.5 if this file is group/world-accessible.
+.It Cm IgnoreRhosts
+Specifies that
+.Pa .rhosts
+and
+.Pa .shosts
+files will not be used in authentication.
+.Pa /etc/hosts.equiv
+and
+.Pa /etc/ssh/shosts.equiv 
+are still used.
+The default is
+.Dq yes .
+.It Cm IgnoreUserKnownHosts
+Specifies whether
+.Nm
+should ignore the user's
+.Pa $HOME/.ssh/known_hosts
+during
+.Cm RhostsRSAAuthentication .
+The default is
+.Dq no .
+.It Cm KeepAlive
+Specifies whether the system should send keepalive messages to the
+other side.
+If they are sent, death of the connection or crash of one
+of the machines will be properly noticed.
+However, this means that
+connections will die if the route is down temporarily, and some people
+find it annoying.
+On the other hand, if keepalives are not sent,
+sessions may hang indefinitely on the server, leaving
+.Dq ghost
+users and consuming server resources.
+.Pp
+The default is
+.Dq yes
+(to send keepalives), and the server will notice
+if the network goes down or the client host reboots.
+This avoids infinitely hanging sessions.
+.Pp
+To disable keepalives, the value should be set to
+.Dq no
+in both the server and the client configuration files.
+.It Cm KerberosAuthentication
+Specifies whether Kerberos authentication is allowed.
+This can be in the form of a Kerberos ticket, or if
+.Cm PasswordAuthentication
+is yes, the password provided by the user will be validated through
+the Kerberos KDC.
+To use this option, the server needs a
+Kerberos servtab which allows the verification of the KDC's identity.
+Default is
+.Dq yes .
+.It Cm KerberosOrLocalPasswd
+If set then if password authentication through Kerberos fails then
+the password will be validated via any additional local mechanism
+such as
+.Pa /etc/passwd .
+Default is
+.Dq yes .
+.It Cm KerberosTgtPassing
+Specifies whether a Kerberos TGT may be forwarded to the server.
+Default is
+.Dq no ,
+as this only works when the Kerberos KDC is actually an AFS kaserver.
+.It Cm KerberosTicketCleanup
+Specifies whether to automatically destroy the user's ticket cache
+file on logout.
+Default is
+.Dq yes .
+.It Cm KeyRegenerationInterval
+The server key is automatically regenerated after this many seconds
+(if it has been used).
+The purpose of regeneration is to prevent
+decrypting captured sessions by later breaking into the machine and
+stealing the keys.
+The key is never stored anywhere.
+If the value is 0, the key is never regenerated.
+The default is 3600 (seconds).
+.It Cm ListenAddress
+Specifies what local address
+.Nm
+should listen on.
+The default is to listen to all local addresses.
+Multiple options of this type are permitted.
+Additionally, the
+.Cm Ports
+options must precede this option.
+.It Cm LoginGraceTime
+The server disconnects after this time if the user has not
+successfully logged in.
+If the value is 0, there is no time limit.
+The default is 120 (seconds).
+.It Cm LogLevel
+Gives the verbosity level that is used when logging messages from
+.Nm sshd .
+The possible values are:
+QUIET, FATAL, ERROR, INFO, VERBOSE and DEBUG.
+The default is INFO.
+Logging with level DEBUG violates the privacy of users
+and is not recommended.
+.It Cm MaxStartups
+Specifies the maximum number of concurrent unauthenticated connections to the
+.Nm
+daemon.
+Additional connections will be dropped until authentication succeeds or the
+.Cm LoginGraceTime
+expires for a connection.
+The default is 10.
+.Pp
+Alternatively, random early drop can be enabled by specifying
+the three colon separated values
+.Dq start:rate:full
+(e.g., "10:30:60").
+.Nm
+will refuse connection attempts with a probabillity of
+.Dq rate/100
+(30%)
+if there are currently
+.Dq start
+(10)
+unauthenticated connections.
+The probabillity increases linearly and all connection attempts
+are refused if the number of unauthenticated connections reaches
+.Dq full
+(60).
+.It Cm PasswordAuthentication
+Specifies whether password authentication is allowed.
+The default is
+.Dq yes .
+Note that this option applies to both protocol versions 1 and 2.
+.It Cm PermitEmptyPasswords
+When password authentication is allowed, it specifies whether the
+server allows login to accounts with empty password strings.
+The default is
+.Dq no .
+.It Cm PermitRootLogin
+Specifies whether the root can log in using
+.Xr ssh 1 .
+The argument must be
+.Dq yes ,
+.Dq without-password
+or
+.Dq no .
+The default is
+.Dq no .
+If this options is set to
+.Dq without-password
+only password authentication is disabled for root.
+.Pp
+Root login with RSA authentication when the
+.Ar command
+option has been
+specified will be allowed regardless of the value of this setting
+(which may be useful for taking remote backups even if root login is
+normally not allowed).
+.It Cm PidFile
+Specifies the file that contains the process identifier of the
+.Nm
+daemon.
+The default is
+.Pa /var/run/sshd.pid .
+.It Cm Port
+Specifies the port number that
+.Nm
+listens on.
+The default is 22.
+Multiple options of this type are permitted.
+.It Cm PrintMotd
+Specifies whether
+.Nm
+should print
+.Pa /etc/motd
+when a user logs in interactively.
+(On some systems it is also printed by the shell,
+.Pa /etc/profile ,
+or equivalent.)
+The default is
+.Dq yes .
+.It Cm Protocol
+Specifies the protocol versions
+.Nm
+should support.
+The possible values are
+.Dq 1
+and
+.Dq 2 .
+Multiple versions must be comma-separated.
+The default is
+.Dq 1 .
+.It Cm RandomSeed
+Obsolete - accepted and ignored with a warning.
+Random number generation uses other techniques.
+.It Cm RhostsAuthentication
+Specifies whether authentication using rhosts or
+.Pa /etc/hosts.equiv
+files is sufficient.
+Normally, this method should not be permitted because it is insecure.
+.Cm RhostsRSAAuthentication
+should be used
+instead, because it performs RSA-based host authentication in addition
+to normal rhosts or
+.Pa /etc/hosts.equiv
+authentication.
+The default is
+.Dq no .
+.It Cm RhostsRSAAuthentication
+Specifies whether rhosts or
+.Pa /etc/hosts.equiv
+authentication together
+with successful RSA host authentication is allowed.
+The default is
+.Dq no .
+.It Cm RSAAuthentication
+Specifies whether pure RSA authentication is allowed.
+The default is
+.Dq yes .
+Note that this option applies to protocol version 1 only.
+.It Cm ServerKeyBits
+Defines the number of bits in the server key.
+The minimum value is 512, and the default is 768.
+.It Cm SkeyAuthentication
+Specifies whether
+.Xr skey 1
+authentication is allowed.
+The default is
+.Dq yes .
+Note that OPIE authentication is enabled only if
+.Cm PasswordAuthentication
+is allowed, too.
+.It Cm StrictModes
+Specifies whether
+.Nm
+should check file modes and ownership of the
+user's files and home directory before accepting login.
+This is normally desirable because novices sometimes accidentally leave their
+directory or files world-writable.
+The default is
+.Dq yes .
+.It Cm Subsystem
+Configures an external subsystem (e.g., file transfer daemon).
+Arguments should be a subsystem name and a command to execute upon subsystem
+request.
+The command
+.Xr sftp-server 8
+implements the
+.Dq sftp
+file transfer subsystem.
+By default no subsystems are defined.
+Note that this option applies to protocol version 2 only.
+.It Cm SyslogFacility
+Gives the facility code that is used when logging messages from
+.Nm sshd .
+The possible values are: DAEMON, USER, AUTH, LOCAL0, LOCAL1, LOCAL2,
+LOCAL3, LOCAL4, LOCAL5, LOCAL6, LOCAL7.
+The default is AUTH.
+.It Cm UseLogin
+Specifies whether
+.Xr login 1
+is used for interactive login sessions.
+Note that
+.Xr login 1
+is never used for remote command execution.
+The default is
+.Dq no .
+.It Cm X11DisplayOffset
+Specifies the first display number available for
+.Nm sshd Ns 's
+X11 forwarding.
+This prevents
+.Nm
+from interfering with real X11 servers.
+The default is 10.
+.It Cm X11Forwarding
+Specifies whether X11 forwarding is permitted.
+The default is
+.Dq no .
+Note that disabling X11 forwarding does not improve security in any
+way, as users can always install their own forwarders.
+.It Cm XAuthLocation
+Specifies the location of the
+.Xr xauth 1
+program.
+The default is
+.Pa /usr/X11R6/bin/xauth .
+.El
+.Sh LOGIN PROCESS
+When a user successfully logs in,
+.Nm
+does the following:
+.Bl -enum -offset indent
+.It
+If the login is on a tty, and no command has been specified,
+prints last login time and
+.Pa /etc/motd
+(unless prevented in the configuration file or by
+.Pa $HOME/.hushlogin ;
+see the
+.Sx FILES
+section).
+.It
+If the login is on a tty, records login time.
+.It
+Checks
+.Pa /etc/nologin and
+.Pa /var/run/nologin ;
+if one exists, it prints the contents and quits
+(unless root).
+.It
+Changes to run with normal user privileges.
+.It
+Sets up basic environment.
+.It
+Reads
+.Pa $HOME/.ssh/environment
+if it exists.
+.It
+Changes to user's home directory.
+.It
+If
+.Pa $HOME/.ssh/rc
+exists, runs it; else if
+.Pa /etc/ssh/sshrc
+exists, runs
+it; otherwise runs
+.Xr xauth 1 .
+The
+.Dq rc
+files are given the X11
+authentication protocol and cookie (if applicable) in standard input.
+.It
+Runs user's shell or command.
+.El
+.Sh AUTHORIZED_KEYS FILE FORMAT
+The
+.Pa $HOME/.ssh/authorized_keys
+file lists the RSA keys that are
+permitted for RSA authentication in SSH protocols 1.3 and 1.5
+Similarly, the
+.Pa $HOME/.ssh/authorized_keys2
+file lists the DSA keys that are
+permitted for DSA authentication in SSH protocol 2.0.
+Each line of the file contains one
+key (empty lines and lines starting with a
+.Ql #
+are ignored as
+comments).
+Each line consists of the following fields, separated by
+spaces: options, bits, exponent, modulus, comment.
+The options field
+is optional; its presence is determined by whether the line starts
+with a number or not (the option field never starts with a number).
+The bits, exponent, modulus and comment fields give the RSA key; the
+comment field is not used for anything (but may be convenient for the
+user to identify the key).
+.Pp
+Note that lines in this file are usually several hundred bytes long
+(because of the size of the RSA key modulus).
+You don't want to type them in; instead, copy the
+.Pa identity.pub
+file and edit it.
+.Pp
+The options (if present) consist of comma-separated option
+specifications.
+No spaces are permitted, except within double quotes.
+The following option specifications are supported:
+.Bl -tag -width Ds
+.It Cm from="pattern-list"
+Specifies that in addition to RSA authentication, the canonical name
+of the remote host must be present in the comma-separated list of
+patterns
+.Pf ( Ql *
+and
+.Ql ?
+serve as wildcards).
+The list may also contain
+patterns negated by prefixing them with
+.Ql ! ;
+if the canonical host name matches a negated pattern, the key is not accepted.
+The purpose
+of this option is to optionally increase security: RSA authentication
+by itself does not trust the network or name servers or anything (but
+the key); however, if somebody somehow steals the key, the key
+permits an intruder to log in from anywhere in the world.
+This additional option makes using a stolen key more difficult (name
+servers and/or routers would have to be compromised in addition to
+just the key).
+.It Cm command="command"
+Specifies that the command is executed whenever this key is used for
+authentication.
+The command supplied by the user (if any) is ignored.
+The command is run on a pty if the connection requests a pty;
+otherwise it is run without a tty.
+A quote may be included in the command by quoting it with a backslash.
+This option might be useful
+to restrict certain RSA keys to perform just a specific operation.
+An example might be a key that permits remote backups but nothing else.
+Note that the client may specify TCP/IP and/or X11
+forwarding unless they are explicitly prohibited.
+.It Cm environment="NAME=value"
+Specifies that the string is to be added to the environment when
+logging in using this key.
+Environment variables set this way
+override other default environment values.
+Multiple options of this type are permitted.
+.It Cm no-port-forwarding
+Forbids TCP/IP forwarding when this key is used for authentication.
+Any port forward requests by the client will return an error.
+This might be used, e.g., in connection with the
+.Cm command
+option.
+.It Cm no-X11-forwarding
+Forbids X11 forwarding when this key is used for authentication.
+Any X11 forward requests by the client will return an error.
+.It Cm no-agent-forwarding
+Forbids authentication agent forwarding when this key is used for
+authentication.
+.It Cm no-pty
+Prevents tty allocation (a request to allocate a pty will fail).
+.El
+.Ss Examples
+.Bd -literal
+1024 33 12121...312314325 ylo@foo.bar
+from="*.niksula.hut.fi,!pc.niksula.hut.fi" 1024 35 23...2334 ylo@niksula
+command="dump /home",no-pty,no-port-forwarding 1024 33 23...2323 backup.hut.fi
+.Ed
+.Sh SSH_KNOWN_HOSTS FILE FORMAT
+The
+.Pa /etc/ssh/ssh_known_hosts ,
+.Pa /etc/ssh/ssh_known_hosts2 ,
+.Pa $HOME/.ssh/known_hosts ,
+and
+.Pa $HOME/.ssh/known_hosts2
+files contain host public keys for all known hosts.
+The global file should
+be prepared by the administrator (optional), and the per-user file is
+maintained automatically: whenever the user connects from an unknown host
+its key is added to the per-user file.
+.Pp
+Each line in these files contains the following fields: hostnames,
+bits, exponent, modulus, comment.
+The fields are separated by spaces.
+.Pp
+Hostnames is a comma-separated list of patterns ('*' and '?' act as
+wildcards); each pattern in turn is matched against the canonical host
+name (when authenticating a client) or against the user-supplied
+name (when authenticating a server).
+A pattern may also be preceded by
+.Ql !
+to indicate negation: if the host name matches a negated
+pattern, it is not accepted (by that line) even if it matched another
+pattern on the line.
+.Pp
+Bits, exponent, and modulus are taken directly from the RSA host key; they
+can be obtained, e.g., from
+.Pa /etc/ssh/ssh_host_key.pub .
+The optional comment field continues to the end of the line, and is not used.
+.Pp
+Lines starting with
+.Ql #
+and empty lines are ignored as comments.
+.Pp
+When performing host authentication, authentication is accepted if any
+matching line has the proper key.
+It is thus permissible (but not
+recommended) to have several lines or different host keys for the same
+names.
+This will inevitably happen when short forms of host names
+from different domains are put in the file.
+It is possible
+that the files contain conflicting information; authentication is
+accepted if valid information can be found from either file.
+.Pp
+Note that the lines in these files are typically hundreds of characters
+long, and you definitely don't want to type in the host keys by hand.
+Rather, generate them by a script
+or by taking
+.Pa /etc/ssh/ssh_host_key.pub
+and adding the host names at the front.
+.Ss Examples
+.Bd -literal
+closenet,closenet.hut.fi,...,130.233.208.41 1024 37 159...93 closenet.hut.fi
+.Ed
+.Sh FILES
+.Bl -tag -width Ds
+.It Pa /etc/ssh/sshd_config
+Contains configuration data for
+.Nm sshd .
+This file should be writable by root only, but it is recommended
+(though not necessary) that it be world-readable.
+.It Pa /etc/ssh/ssh_host_key
+Contains the private part of the host key.
+This file should only be owned by root, readable only by root, and not
+accessible to others.
+Note that
+.Nm
+does not start if this file is group/world-accessible.
+.It Pa /etc/ssh/ssh_host_key.pub
+Contains the public part of the host key.
+This file should be world-readable but writable only by
+root.
+Its contents should match the private part.
+This file is not
+really used for anything; it is only provided for the convenience of
+the user so its contents can be copied to known hosts files.
+These two files are created using
+.Xr ssh-keygen 1 .
+.It Pa /var/run/sshd.pid
+Contains the process ID of the
+.Nm
+listening for connections (if there are several daemons running
+concurrently for different ports, this contains the pid of the one
+started last).
+The content of this file is not sensitive; it can be world-readable.
+.It Pa $HOME/.ssh/authorized_keys
+Lists the RSA keys that can be used to log into the user's account.
+This file must be readable by root (which may on some machines imply
+it being world-readable if the user's home directory resides on an NFS
+volume).
+It is recommended that it not be accessible by others.
+The format of this file is described above.
+Users will place the contents of their
+.Pa identity.pub
+files into this file, as described in
+.Xr ssh-keygen 1 .
+.It Pa $HOME/.ssh/authorized_keys2
+Lists the DSA keys that can be used to log into the user's account.
+This file must be readable by root (which may on some machines imply
+it being world-readable if the user's home directory resides on an NFS
+volume).
+It is recommended that it not be accessible by others.
+The format of this file is described above.
+Users will place the contents of their
+.Pa id_dsa.pub
+files into this file, as described in
+.Xr ssh-keygen 1 .
+.It Pa "/etc/ssh/ssh_known_hosts" and "$HOME/.ssh/known_hosts"
+These files are consulted when using rhosts with RSA host
+authentication to check the public key of the host.
+The key must be listed in one of these files to be accepted.
+The client uses the same files
+to verify that the remote host is the one it intended to connect.
+These files should be writable only by root/the owner.
+.Pa /etc/ssh/ssh_known_hosts
+should be world-readable, and
+.Pa $HOME/.ssh/known_hosts
+can but need not be world-readable.
+.It Pa /etc/nologin
+If this file exists,
+.Nm
+refuses to let anyone except root log in.
+The contents of the file
+are displayed to anyone trying to log in, and non-root connections are
+refused.
+The file should be world-readable.
+.It Pa /etc/hosts.allow
+If compiled with
+.Sy LIBWRAP
+support, tcp-wrappers access controls may be defined here as described in
+.Xr hosts_access 5 .
+.It Pa $HOME/.rhosts
+This file contains host-username pairs, separated by a space, one per
+line.
+The given user on the corresponding host is permitted to log in
+without password.
+The same file is used by rlogind and rshd.
+The file must
+be writable only by the user; it is recommended that it not be
+accessible by others.
+.Pp
+If is also possible to use netgroups in the file.
+Either host or user
+name may be of the form +@groupname to specify all hosts or all users
+in the group.
+.It Pa $HOME/.shosts
+For ssh,
+this file is exactly the same as for
+.Pa .rhosts .
+However, this file is
+not used by rlogin and rshd, so using this permits access using SSH only.
+.It Pa /etc/hosts.equiv
+This file is used during
+.Pa .rhosts
+authentication.
+In the simplest form, this file contains host names, one per line.
+Users on
+those hosts are permitted to log in without a password, provided they
+have the same user name on both machines.
+The host name may also be
+followed by a user name; such users are permitted to log in as
+.Em any
+user on this machine (except root).
+Additionally, the syntax
+.Dq +@group
+can be used to specify netgroups.
+Negated entries start with
+.Ql \&- .
+.Pp
+If the client host/user is successfully matched in this file, login is
+automatically permitted provided the client and server user names are the
+same.
+Additionally, successful RSA host authentication is normally required.
+This file must be writable only by root; it is recommended
+that it be world-readable.
+.Pp
+.Sy "Warning: It is almost never a good idea to use user names in"
+.Pa hosts.equiv .
+Beware that it really means that the named user(s) can log in as
+.Em anybody ,
+which includes bin, daemon, adm, and other accounts that own critical
+binaries and directories.
+Using a user name practically grants the user root access.
+The only valid use for user names that I can think
+of is in negative entries.
+.Pp
+Note that this warning also applies to rsh/rlogin.
+.It Pa /etc/ssh/shosts.equiv
+This is processed exactly as
+.Pa /etc/hosts.equiv .
+However, this file may be useful in environments that want to run both
+rsh/rlogin and ssh.
+.It Pa $HOME/.ssh/environment
+This file is read into the environment at login (if it exists).
+It can only contain empty lines, comment lines (that start with
+.Ql # ) ,
+and assignment lines of the form name=value.
+The file should be writable
+only by the user; it need not be readable by anyone else.
+.It Pa $HOME/.ssh/rc
+If this file exists, it is run with
+.Pa /bin/sh
+after reading the
+environment files but before starting the user's shell or command.
+If X11 spoofing is in use, this will receive the "proto cookie" pair in
+standard input (and
+.Ev DISPLAY
+in environment).
+This must call
+.Xr xauth 1
+in that case.
+.Pp
+The primary purpose of this file is to run any initialization routines
+which may be needed before the user's home directory becomes
+accessible; AFS is a particular example of such an environment.
+.Pp
+This file will probably contain some initialization code followed by
+something similar to:
+.Bd -literal -offset indent
+if [ -n "$DISPLAY" ] && read proto cookie; then
+    echo add $DISPLAY $proto $cookie | xauth -q -
+fi
+.Ed
+.Pp
+If this file does not exist,
+.Pa /etc/ssh/sshrc
+is run, and if that
+does not exist either,
+.Xr xauth 1
+is used to store the cookie.
+.Pp
+This file should be writable only by the user, and need not be
+readable by anyone else.
+.It Pa /etc/ssh/sshrc
+Like
+.Pa $HOME/.ssh/rc .
+This can be used to specify
+machine-specific login-time initializations globally.
+This file should be writable only by root, and should be world-readable.
+.El
+.Sh AUTHOR
+OpenSSH
+is a derivative of the original (free) ssh 1.2.12 release by Tatu Ylonen,
+but with bugs removed and newer features re-added.
+Rapidly after the
+1.2.12 release, newer versions of the original ssh bore successively
+more restrictive licenses, and thus demand for a free version was born.
+.Pp
+This version of OpenSSH
+.Bl -bullet
+.It
+has all components of a restrictive nature (i.e., patents, see
+.Xr ssl 8 )
+directly removed from the source code; any licensed or patented components
+are chosen from
+external libraries.
+.It
+has been updated to support SSH protocol 1.5 and 2, making it compatible with
+all other SSH clients and servers.
+.It
+contains added support for
+.Xr kerberos 8
+authentication and ticket passing.
+.It
+supports one-time password authentication with
+.Xr skey 1 .
+.El
+.Pp
+OpenSSH has been created by Aaron Campbell, Bob Beck, Markus Friedl,
+Niels Provos, Theo de Raadt, and Dug Song.
+.Pp
+The support for SSH protocol 2 was written by Markus Friedl.
+.Sh SEE ALSO
+.Xr scp 1 ,
+.Xr sftp-server 8 ,
+.Xr ssh 1 ,
+.Xr ssh-add 1 ,
+.Xr ssh-agent 1 ,
+.Xr ssh-keygen 1 ,
+.Xr ssl 8 ,
+.Xr rlogin 1 ,
+.Xr rsh 1

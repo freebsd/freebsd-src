@@ -1,0 +1,32 @@
+while ($i--) {
+    foo();
+}
+exit
+
+    PP code			if i an int register	if i an int but not a
+				(i.e. can't be		register (i.e. can be
+				implicitly invalidated)	implicitly invalidated)
+    nextstate
+    enterloop
+
+							
+  loop:
+    gvsv  GV (0xe6078) *i	validates i		validates i
+    postdec			invalidates $i		invalidates $i
+    and if_false goto out;
+				i valid; $i invalid	i valid; $i invalid
+
+				i valid; $i invalid	i valid; $i invalid
+    nextstate
+    pushmark
+    gv  GV (0xe600c) *foo
+    entersub						validates $i; invals i
+
+    unstack
+    goto loop:
+
+				i valid; $i invalid
+  out:
+    leaveloop
+    nextstate
+    exit

@@ -1,0 +1,93 @@
+.\" Copyright (c) 1998 Jonathan Lemon
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 27, 1998
+.Os
+.Dt I386_VM86 2
+.Sh NAME
+.Nm i386_vm86
+.Nd control vm86-related functions
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.Fd #include <sys/types.h>
+.Fd #include <machine/sysarch.h>
+.Fd #include <machine/vm86.h>
+.Ft int
+.Fn i386_vm86 "int function" "void *data"
+.Sh DESCRIPTION
+.Fn i386_vm86
+is used to call various vm86 related functions.
+.Fa function
+can be one of the following values:
+.Bl -tag -offset indent -width VM86_SET_VME
+.It Dv VM86_INIT
+This will initialize the kernel's vm86 parameter area for the
+process, and permit the process to make vm86 calls.
+.Fa data
+points to the following structure:
+.Bd -literal
+struct vm86_init_args {
+        int     debug;
+        int     cpu_type;
+        u_char  int_map[32];
+};
+.Ed
+.Pp
+.Fa debug
+is used to turn on debugging code.
+.Fa cpu_type
+controls the type of CPU being emulated, and is currently unimplemented.
+.Fa int_map
+is a bitmap which determines whether vm86 interrupts should be handled
+in vm86 mode, or reflected back to the process.  If the
+.Em Nth
+bit is set, the interrupt will be reflected to the process, otherwise
+it will be dispatched by the vm86 interrupt table.
+.\" .It Dv VM86_SET_VME
+.\" .It Dv VM86_GET_VME
+.\" .It Dv VM86_INTCALL
+.El
+.Pp
+vm86 mode is entered by calling
+.Xr sigreturn 2
+with the correct machine context for vm86, and with the
+.Em PSL_VM
+bit set.  Control returns to the process upon delivery of a signal.
+.Sh RETURN VALUES
+.Rv -std i386_vm86
+.Sh ERRORS
+.Fn i386_vm86
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The kernel does not have vm86 support, or an invalid function was specified.
+.It Bq Er ENOMEM
+There is not enough memory to initialize the kernel data structures.
+.El
+.Sh AUTHORS
+This man page was written by
+.An Jonathan Lemon .

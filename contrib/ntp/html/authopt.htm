@@ -1,0 +1,281 @@
+<HTML><HEAD><TITLE>
+Authentication Options
+</TITLE></HEAD><BODY><H3>
+Authentication Options
+</H3><HR>
+
+<H4>Authentication Support</H4>
+
+Authentication support allows the NTP client to verify that the server
+is in fact known and trusted and not an intruder intending accidentally
+or on purpose to masquerade as that server. The NTPv3 specification RFC-1305
+defines an scheme which provides cryptographic authentication of received
+NTP packets. Originally, this was done using the Data Encryption Standard
+(DES) operating in Cipher Block Chaining (CBC) mode, commonly called DES-CBC.
+Subsequently, this was augmented by the RSA Message Digest 5 (MD5) using
+a private key, commonly called keyed-MD5. Either algorithm computes a message
+digest, or one-way hash, which can be used to verify the server has the
+correct private key and key identifier. NTPv4 retains this scheme and,
+in addition, provides a new <I>autokey </I>scheme based on reverse hashing
+and public key cryptography. Authentication can be configured separately
+for each association using the <TT>key </TT>or <TT>autokey </TT>subcommands
+on the <TT>peer</TT>, <TT>server</TT>, <TT>broadcast</TT> and <TT>manycastclient</TT>
+commands as described in the&nbsp; <A HREF="config.htm">Configuration Options</A>
+page.
+
+<P>The authentication options specify the suite of keys, select the key
+for each configured association and manage the configuration operations,
+as described below. The <TT>auth</TT> flag which controls these functions
+can be set or reset by the <TT>enable</TT> and <TT>disable</TT> configuration
+commands and also by remote configuration commands sent by a <TT>ntpdc</TT>
+program running in another machine. If this flag is set, persistent peer
+associations and remote configuration commands are effective only if cryptographically
+authenticated. If this flag is disabled, these operations are effective
+even if not cryptographic authenticated. It should be understood that operating
+in the latter mode invites a significant vulnerability where a rogue hacker
+can seriously disrupt client operations.
+
+<P>The <TT>auth</TT> flag affects all authentication procedures described
+below; however, it operates differently if cryptographic support is compiled
+in the distribution. If this support is available and the flag is enabled,
+then persistent associations are mobilized and remote configuration commands
+are effective only if successfully authenticated. If the support is unavailable
+and the flag is enabled, then it is not possible under any conditions to
+mobilize persistent associations or respond to remote configuration commands.
+The <TT>auth </TT>flag normally defaults to set if cryptographic support
+is available and to reset otherwise.
+
+<P>With the above vulnerabilities in mind, it is desirable to set the auth
+flag in all cases. One aspect which is often confusing is the name resolution
+process which maps server names in the configuration file to IP addresses.
+In order to protect against bogus name server messages, this process is
+authenticated using an internally generated key which is normally invisible
+to the user. However, if cryptographic support is unavailable and the <TT>auth</TT>
+flag is enabled, the name resolution process will fail. This can be avoided
+either by specifying IP addresses instead of host names, which is generally
+inadvisable, or by leaving the flag disabled and enabling it once the name
+resolution process is complete.
+<H4>
+Private Key Scheme</H4>
+The original RFC-1305 specification allows any one of possibly 65,536 keys,
+each distinguished a 32-bit key identifier, to authenticate an association.
+The servers involved must agree on the key and key identifier to authenticate
+their messages. Keys and related information are specified in a key file,
+usually called <TT>ntp.key</TT>s, which should be exchanged and stored
+using secure procedures beyond the scope of the NTP protocol itself. Besides
+the keys used for ordinary NTP associations, additional ones can be used
+as passwords for the <TT><A HREF="ntpq.htm">ntpq</A></TT> and <TT><A HREF="ntpdc.htm">ntpdc</A></TT>
+utility programs.
+
+<P>When <TT>ntpd </TT>is first started, it reads the key file and installs
+the keys in the key cache. However, the keys must be activated before they
+can be used with the <TT>trusted </TT>command. This allows, for instance,
+the installation of possibly several batches of keys and then activating
+or inactivating each batch remotely using <TT>ntpdc</TT>. This also provides
+a revocation capability that can be used if a key becomes compromised.
+The <TT>requestkey </TT>command selects the key used as the password for
+the <TT>ntpdc </TT>utility, while the <TT>controlkey </TT>command selects
+the key used as the password for the the <TT>ntpq </TT>utility.
+<H4>
+Autokey Scheme</H4>
+The original NTPv3 authentication scheme described in RFC-1305 continues
+to be supported. In NTPv4, an additional authentication scheme called <I>autokey
+</I>is available. It operates much like the S-KEY scheme, in that a session
+key list is constructed and the entries used in reverse order. A description
+of the scheme, along with a comprehensive security analysis, is contained
+in a technical report available from the IETF web page <A HREF="www.ietf.org">www.ietf.org</A>
+.
+
+<P>The autokey scheme is specifically designed for multicast modes, where
+clients normally do not send messages to the server. In these modes, the
+server uses the scheme to generate a key list by repeated hashing of a
+secret value. The list is used in reverse order to generate a unique session
+key for each message sent. The client regenerates the session key and verifies
+the hash matches the previous session key. Each message contains the public
+values binding the session key to the secret value, but these values need
+to be verified only when the server generates a new key list or more than
+four server messages have been lost.
+
+<P>The scheme is appropriate for client/server and symmetric-peer modes
+as well. In these modes, the client generates a session key as in multicast
+modes. The server regenerates the session key and uses it to formulates
+a reply using its own public values. The client verifies the key identifier
+of the reply matches the request, verifies the public values and validates
+the message. In peer mode, each peer independently generates a key list
+and operates as in the multicast mode.
+
+<P>The autokey scheme requires no change to the NTP packet header format
+or message authentication code (MAC), which is appended to the header;
+however, if autokey is in use, an extensions field is inserted between
+the header and MAC. The extensions field contains a random public value
+which is updated at intervals specified by the revoke command, together
+with related cryptographic values used in the signing algorithm. The format
+of the extensions field is defined in Internet Draft draft-NTP- auth-coexist-00.txt.
+The MAC itself is constructed in the same way as NTPv3, but using the original
+NTP header and the extensions field padded to a 64-bit boundary. Each new
+public value is encrypted by the host private value. It is the intent of
+the design, not yet finalized, that the public value, encrypted public
+value, public key and certificate be embedded in the extensions field where
+the client can decrypt as needed. However, the relatively expensive encryption
+and decryption operations are necessary only when the public value is changed.
+
+<P>Note that both the original NTPv3 authentication scheme and the new
+NTPv4 autokey scheme operate separately for each configured association,
+so there may be several session key lists operating independently at the
+same time. Since all keys, including session keys, occupy the same key
+cache, provisions have been made to avoid collisions, where some random
+roll happens to collide with another already generated. Since something
+like four billion different session key identifiers are available, the
+chances are small that this might happen. If it happens during generation,
+the generator terminates the current session key list. By the time the
+next list is generated, the collided key will probably have been expired
+or revoked.
+
+<P>While permanent keys have lifetimes that expire only when manually revoked,
+random session keys have a lifetime specified at the time of generation.
+When generating a key list for an association, the lifetime of each key
+is set to expire one poll interval later than it is scheduled to be used.
+The maximum lifetime of any key in the list is specified by the <TT>autokey</TT>
+command. Lifetime enforcement is a backup to the normal procedure that
+revokes the last-used key at the time the next key on the key list is used.
+<H4>
+Authentication Commands</H4>
+
+<DL>
+<DT>
+<TT>keys <I>keyfile</I></TT></DT>
+
+<DD>
+Specifies the file name containing the encryption keys and key identifiers
+used by <TT>ntpd</TT>, <TT>ntpq</TT> and <TT>ntpdc</TT> when operating
+in authenticated mode. The format of this file is described later in this
+document.</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DT>
+<TT>trustedkey <I>key</I> [...]</TT></DT>
+
+<DD>
+Specifies the encryption key identifiers which are trusted for the purposes
+of authenticating peers suitable for synchronization, as well as keys used
+by the <TT>ntpq </TT>and <TT>ntpdc </TT>programs. The authentication procedures
+require that both the local and remote servers share the same key and key
+identifier for this purpose, although different keys can be used with different
+servers. The <I><TT>key</TT></I> arguments are 32-bit unsigned integers
+with values less than 65,536. Note that NTP key 0 is used to indicate an
+invalid key and/or key identifier, so should not be used for any other
+purpose.</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DT>
+<TT>requestkey <I>key</I></TT></DT>
+
+<DD>
+Specifies the key identifier to use with the <TT>ntpdc</TT> program, which
+uses a proprietary protocol specific to this implementation of <TT>ntpd</TT>.
+This program is useful to diagnose and repair problems that affect <TT>ntpd</TT>
+operation. The <I><TT>key</TT></I> argument to this command is a 32-bit
+key identifier for a previously defined trusted key.&nbsp; If no <TT>requestkey
+</TT>command is included in the configuration file, or if the keys don't
+match, any request to change a server variable with be denied.</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DT>
+<TT>controlkey <I>key</I></TT></DT>
+
+<DD>
+Specifies the key identifier to use with the <TT>ntpq</TT> program, which
+uses the standard protocol defined in RFC-1305. This program is useful
+to diagnose and repair problems that affect <TT>ntpd</TT> operation. The
+<I><TT>key</TT></I> argument to this command is a 32-bit key identifier
+for a trusted key in the key cache. If no <TT>controlkey </TT>command is
+included in the configuration file, or if the keys don't match, any request
+to change a server variable with be denied.</DD>
+</DL>
+
+<H4>
+Authentication Key File Format</H4>
+In the case of DES, the keys are 56 bits long with, depending on type,
+a parity check on each byte. In the case of MD5, the keys are 64 bits (8
+bytes). <TT>ntpd</TT> reads its keys from a file specified using the <TT>-k</TT>
+command line option or the <TT>keys</TT> statement in the configuration
+file. While key number 0 is fixed by the NTP standard (as 56 zero bits)
+and may not be changed, one or more of the keys numbered 1 through 15 may
+be arbitrarily set in the keys file.
+
+<P>The key file uses the same comment conventions as the configuration
+file. Key entries use a fixed format of the form
+
+<P><I><TT>keyno type key</TT></I>
+
+<P>where <I><TT>keyno</TT></I> is a positive integer, <I><TT>type</TT></I>
+is a single character which defines the key format, and <I><TT>key</TT></I>
+is the key itself.
+
+<P>The key may be given in one of three different formats, controlled by
+the <I><TT>type</TT></I> character. The three key types, and corresponding
+formats, are listed following.
+<DL>
+<DT>
+<TT>S</TT></DT>
+
+<DD>
+The key is a 64-bit hexadecimal number in the format specified in the DES
+specification; that is, the high order seven bits of each octet are used
+to form the 56-bit key while the low order bit of each octet is given a
+value such that odd parity is maintained for the octet. Leading zeroes
+must be specified (i.e., the key must be exactly 16 hex digits long) and
+odd parity must be maintained. Hence a zero key, in standard format, would
+be given as <TT>0101010101010101</TT>.</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DT>
+<TT>N</TT></DT>
+
+<DD>
+The key is a 64-bit hexadecimal number in the format specified in the NTP
+standard. This is the same as the DES format, except the bits in each octet
+have been rotated one bit right so that the parity bit is now the high
+order bit of the octet. Leading zeroes must be specified and odd parity
+must be maintained. A zero key in NTP format would be specified as <TT>8080808080808080</TT>.</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DT>
+<TT>A</TT></DT>
+
+<DD>
+The key is a 1-to-8 character ASCII string. A key is formed from this by
+using the low order 7 bits of each ASCII character in the string, with
+zeroes added on the right when necessary to form a full width 56-bit key,
+in the same way that encryption keys are formed from Unix passwords.</DD>
+
+<DD>
+&nbsp;</DD>
+
+<DT>
+<TT>M</TT></DT>
+
+<DD>
+The key is a 1-to-8 character ASCII string, using the MD5 authentication
+scheme. Note that both the keys and the authentication schemes (DES or
+MD5) must be identical between a set of peers sharing the same key number.</DD>
+</DL>
+Note that the keys used by the <TT>ntpq</TT> and <TT>ntpdc</TT> programs
+are checked against passwords requested by the programs and entered by
+hand, so it is generally appropriate to specify these keys in ASCII format.&nbsp;
+<HR>
+<ADDRESS>
+David L. Mills (mills@udel.edu)</ADDRESS>
+
+</BODY>
+</HTML>

@@ -1,0 +1,12 @@
+#       $FreeBSD$ 
+
+MAINTAINER	 = n_hibma@freebsd.org
+
+.PATH:  	 ${.CURDIR}/../../dev/usb
+KMOD		 = uscanner
+SRCS		 = bus_if.h device_if.h vnode_if.h opt_usb.h uscanner.c
+NOMAN		 =
+
+CFLAGS		+= -g
+
+.include <bsd.kmod.mk>

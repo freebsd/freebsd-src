@@ -1,0 +1,201 @@
+/*
+ * Judaic
+ *
+ * $FreeBSD$
+ *
+ */
+
+#ifndef _calendar_judaic_
+#define _calendar_judaic_
+
+/*
+ * Jewish calendar for the CE year 2001
+ * 6 Tevet 5761 - 16 Tevet 5762
+ */
+
+01/05*	Fast of Tevet
+01/06*	Parashat Vayigash
+01/13*	Parashat Vayechil
+01/20*	Parashat Shemoth
+01/25*	Rosh Chodesh Shevat (Beginning of the month of Shevat)
+01/27*	Parashat Va-Era
+02/03*	Parashat Bo
+02/08*	Tu bi-Shevat
+02/10*	Parashat Beshalach 
+02/17*	Parashat Yitro
+02/24*	Be happy, It's AdarI !
+02/24*	Parashat Mishpatim
+02/24*	Rosh Chodesh AdarI (Beginning of the month of AdarI) 
+02/24*	Shekalim
+03/03*	Parashat Terumah
+03/03*	Zaklor
+03/08*	Fast of Esther (Battle of Purim; 1 day before Purim; fast day)
+03/09*	Purim (Feast of Lots; 30 days before Pesach)
+03/10*	Parashat Tezavveh
+03/10*	Shushan Purim
+03/17*	Parashat Ki Tissa
+03/24*	Parah
+03/24*	Parashat Va-Yakhel
+03/24*	Parashat Pekudei
+03/25*	Rosh Chodesh Nisan (Beginning of the month of Nisan)
+03/31*	Parashat Va-Yikra
+04/07*	Fast of the First born
+04/07*	Parashat Zav
+04/07*	Erev Pesah
+04/07*	Haggadol
+04/08*	Pesach (First Day of Passover; sabbatical)
+04/09*	Pesach (Second Day of Passover; sabbatical)
+04/09*	Sefirat ha-Omer begins (Counting of the Omer)
+04/10*	Hol ha-Mo'ed
+04/10*	Omer 2nd day
+04/11*	Hol ha-Mo'ed
+04/11*	Omer 3rd day
+04/12*	Hol ha-Mo'ed
+04/12*	Omer 4th day
+04/13*	Hol Ha-Mo'ed
+04/13*	Omer 5th day
+04/14*	Omer 6th day
+04/14*	Pesach (Seventh Day of Passover; sabbatical)
+04/15*	Pesach (Last Day of Passover; 8th day of Pesach; sabbatical)
+04/15*	Omer 7th day
+04/16*	Omer 8th day
+04/17*	Omer 9th day
+04/18*	Omer 10th day
+04/19*	Omer 11th day
+04/20*	Yom ha-Sho'ah (Remembrance of the Holocaust)
+04/20*	Omer 12th day
+04/21*	Parashat Shemini
+04/21*	Omer 13th day
+04/22*	Omer 14th day
+04/23*	Omer 15th day
+04/24*	Rosh Chodesh Iyar (Beginning of the month of Iyar)
+04/24*	Omer 16th day
+04/25*	Yom ha-Zikaron (Israeli Memorial Day)
+04/25*	Omer 17th day
+04/26*	Yom ha-Atzmaut (Israel Independence Day)
+04/26*	Omer 18th day
+04/27*	Yizkor
+04/27*	Omer 19th day
+04/28*	Parashat Tazria
+04/28*	Omer 20th day
+04/28*	Parashat Mezora
+04/29*	Omer 21th day
+04/30*	Omer 22th day
+05/01*	Omer 23th day
+05/02*	Omer 24th day
+05/03*	Omer 25th day
+05/04*	Omer 26th day
+05/05*	Parashat Aharei Mot
+05/05*	Omer 27th day
+05/05*	Parashat Kedoshim
+05/06*	Omer 28th day
+05/07*	Omer 29th day
+05/08*	Omer 30th day
+05/09*	Omer 31th day
+05/10*	Omer 32th day
+05/11*	Lag Ba`omer (Commemoration of the Great Rebellion)
+05/11*	Omer 33th day
+05/12*	Parashat Emor
+05/12*	Omer 34th day
+05/13*	Omer 35th day
+05/14*	Omer 36th day
+05/15*	Omer 37th day
+05/16*	Omer 38th day
+05/17*	Omer 39th day
+05/18*	Omer 40th day
+05/19*	Parashat Be-Har
+05/19*	Omer 41th day
+05/19*	Parashat Be-Hukkotai
+05/20*	Omer 42th day
+05/21*	Yom Yerushalayim (Reunification of Jerusalem)
+05/21*	Omer 43th day
+05/22*	Omer 44th day
+05/23*	Rosh Chodesh Sivan (Beginning of the month of Sivan)
+05/23*	Omer 45th day
+05/24*	Omer 46th day
+05/25*	Omer 47th day
+05/26*	Parashat Be-Midbar
+05/26*	Omer 48th day
+05/27*	Erev Shavout
+05/27*	Omer 49th day
+05/28*	Shavuot (Festival of Weeks; 50 days after Pesach; sabbatical)
+05/29*	Shavuot (Festival of Weeks; sabbatical)
+06/02*	Parashat Naso
+06/09*	Parashat Be-Ha'alotkha
+06/16*	Parashat Shelah
+06/21*	Rosh Chodesh Tammuz (Beginning of the month of Tammuz)
+06/22*	Rosh Chodesh Tammuz (Beginning of the month of Tammuz)
+06/23*	Parashat Korah
+06/30*	Parashat Hukkat
+07/07*	Parashat Balak
+07/08*	Fast of Shiv'a Asar B'Tammuz (Romans breach Wall of Jerusalem; fast day)
+07/14*	Parashat Pinhas
+07/21*	Parashat Mattot
+07/21*	Rosh Chodesh Av (Beginning of the month of Av)
+07/21*	Parashat Masei
+07/28*	Parashat Devarim
+07/28*	Shabbat Hazon
+07/29*	Fast of Tish'a B'Av (Babylon/Rome destroys Holy Temple; fast day)
+08/08*	Parashat Va-Ethannan
+08/11*	Parashat Ekev
+08/18*	Parashat Re'eh
+08/20*	First sounding of the Shofar
+08/20*	Rosh Chodesh Elul (Beginning of the month of Elul)
+08/25*	Parashat Shofetim
+09/01*	Parashat Ki Teze
+09/08*	Parashat Ki Tavo
+09/15*	Parashat Nizzavim
+09/17*	Erev Rosh ha-Shanah (Jewish Lunar New Year; 5762; sabbatical)
+09/18*	First Day of Rosh ha-Shanah (Jewish Lunar New Year; 5762; sabbatical)
+09/18*	Rosh Chodesh Tishri (Beginning of the month of Tishri)
+09/20*	Fast of Gedalya (Murder of Gedalya and subsequent Exile; 1 day after Rosh Hashanah; fast day)
+09/22*	Parashat Va-Yelekh
+09/26*	Erev Yom Kippur (Kol Nidra)
+09/27*	Yom Kippur (Day of Atonement; 9 days after Rosh Hashanah; sabbatical, fast day)
+09/29*	Parashat Ha'azinu
+10/01*	Erev Sucot
+10/02*	Sucot (Festival of Tabernacles; 14 days after Rosh Hashanah; sabbatical)
+10/03*	Sucot (sabbatical)
+10/04*	Hol ha-Mo'ed
+10/05*	Hol ha-Mo'ed
+10/06*	Hol ha-Mo'ed
+10/06*	Parashat Hol Hamoed
+10/07*	Hol ha-Mo'ed
+10/08*	Hoshana Rabba (7th day of Sucot)
+10/09*	Shmini Atzeret (8th Day of Gathering; 1 day after Sucot; sabbatical)
+10/10*	Simchas Torah (Rejoicing of the Law; sabbatical)
+10/13*	Parashat Bereshit
+10/18*	Rosh Chodesh Heshvan (Beginning of the month of Heshvan)
+10/20*	Parashat No'ah
+10/27*	Parashat Lekh Lekha
+11/03*	Parashat Va-Yera
+11/10*	Parashat Hayyei Sarah
+11/16*	Rosh Chodesh Kislev (Beginning of the month of Kislev)
+11/17*	Parashat Toledot
+11/24*	Parashat Va-Yeze
+12/01*	Parashat Va-Yishlah
+12/08*	Parashat Va-Yeshev
+12/09*	Erev Hanukkah
+12/09*	Light 1st candle
+12/10*	Hanukkah (First day)					
+12/10*	Light 2nd candle
+12/11*	Hanukkah (Second day)
+12/11*	Light 3rd candle
+12/12*	Hanukkah (Third day)
+12/12*	Light 4th candle
+12/13*	Hanukkah (Fourth day)
+12/13*	Light 5th candle
+12/14*	Hanukkah (Fifth day)
+12/14*	Light 6th candle
+12/15*	Hanukkah (Sixth day)
+12/15*	Parashat Mi-Kez
+12/15*	Light 7th candle
+12/16*	Hanukkah (Seventh day)
+12/16*	Rosh Chodesh Tevet (Beginning of the month of Tevet)
+12/16*	Light 8th candle
+12/17*	Hanukkah (Eighth day)
+12/22*	Parashat Vayigash
+12/25*	Asarah B'Tevet
+12/29*	Parashat Vayechi
+
+#endif /* !_calendar_judaic_ */

@@ -1,0 +1,28 @@
+#!/bin/sh -
+#
+# $FreeBSD$
+#	Do alpha specific processing
+#
+
+echo -n 'Initial rc.alpha initialization:'
+
+# Start the Alpha OSF/1 binary compatibility if requested.
+#
+case ${osf1_enable} in
+[Yy][Ee][Ss])
+	echo -n ' OSF/1'
+	if ! kldstat -v | grep osf1_ecoff > /dev/null; then
+		kldload osf1 > /dev/null 2>&1
+	fi
+	;;
+esac
+
+# knob for wether or not we should print out unaligned access warnings
+#
+case ${unaligned_print} in
+[Nn][Oo])
+       sysctl -w machdep.unaligned_print=0
+       ;;
+esac
+
+echo '.'

@@ -1,0 +1,960 @@
+<html>
+<! $FreeBSD$ >
+<body>
+<h1><center>		Unified Configuration Interface Project
+</center></h1>
+
+<p>The idea behind this project is to completely replace currently
+used configuration approach, which is based on several shell scripts, and to
+provide ability to change system behaviour basing on set of well-defined
+parameters' hierarchy. One of the goals is also to provide an object
+oriented model of the OS management and structure, instead of currently
+used (inconsistent) procedural model of system/service startup/shutdown.</p>
+
+<p>This project involves such issues as:
+<ul>
+<li>
+providing consistent view of the system and its functional subsystems as
+a set of interrelated objects equipped with certain properties.
+</li>
+<li>
+providing global approach to user interface, either command-line or with GUI
+front-ends.
+</li>
+<li>
+managing system resources and subsystems. This includes managing
+static and dynamic interdependencies between subsystems, ability to
+upgrade/downgrade specific subsystems on-the-fly.
+</li>
+</ul>
+</p>
+
+<p><i><b>This is work in progress</b> - I'm aware that many pieces
+are either completely missing or misplaced. Please send any comments and
+changes you seem appropriate either directly to me, or better to
+freebsd-small@freebsd.org. I'll gladly welcome anyone who can help with
+design and/or implementation.</i></p>
+
+
+<hr>
+
+<h1><center>		Unified Configuration Interface
+</center></h1>
+
+<ul>
+<li>
+<p>Let's first introduce the following terms:
+<ul>
+<li>
+<b>management base</b> - the actual structure holding configuration and
+information data according to defined structure. This structure will most
+probably have a form of tree (possibly with cross-branch links or some other
+mechanism representing mutual dependencies) - the way it's stored is
+something which needs to be discussed.
+</li>
+<li>
+<b>user interface</b> - a method (and agent) for presenting data stored in
+management base in such a way that it can be viewed and modified by
+legitimate users.
+</li>
+<li>
+<b>system monitor</b> - an entity performing actual configuration and monitoring
+tasks, from one side dealing with management base, and from the other
+dealing with the system resources and subsystems, and from yet another dealing
+either directly with the user (thus acting as a user interface),
+or passing requests to other entity which acts as user interface.
+</li>
+<li>
+<b>subsystem</b> - a package containing programs, configuration data, as well
+as installing/deinstalling/start/stop stubs, which form together one logical
+entity performing specific services on behalf of the system. Each subsystem
+is viewed as an object with specific properties, dependencies, which is able
+to generate events, service general requests common to all such subsystems,
+and provide specific services to other subsystems.
+</li>
+</ul>
+</li>
+<li>
+<p>One possible approach to storing the management data is to use already
+existing framework known as MIB, as defined in applicable RFCs.</p>
+
+<p>This approach has several advantages: it represents well thought-out work
+of many experienced individuals and teams, it has already proven to be
+useful, it's widely used and accepted, it's easily extensible, it's able to
+represent quite complicated objects, etc.</p>
+
+<p>It has some drawbacks, as well: e.g. there is no standard mechanism for
+representing events and indirectly related objects, it tends to create
+deep and narrow trees which require to descent several levels to change some
+commonly used parameters, it doesn't say anything about the mutual
+dependencies between objects and parameters (except parent-child-sibling),
+and about required sequence to properly set their parameters, etc.</p>
+
+<p>These issues are not directly addressed in standards, and real
+implementations (known to me) have to implement these additional mechanisms
+"behind the scenes", so that their workings are not obvious nor easily
+accessible (let alone changeable).</p>
+
+<p>So, if we decide to use it, we need to address these issues somehow.
+The next point presents one possible approach to this dilemma.</p>
+</li>
+<li>
+<p>The term "object" used in the following discussion represents a functional
+subsystem, such as system service, usually performed by some specific
+process (or, a set of global system parameters, in which case the system
+monitor agent is the service itself). </p>
+
+<p>Each object represented in management base can be characterized by
+following properties:
+<ul>
+<li>
+its internal state, possibly consisting of several parameters and currently
+performed functions, but represented to the rest of the system as a symbolic
+state, one of set of states common to all objects.
+</li>
+<li>
+a temporary space for new sets of parameters, which are being supplied by
+other subsystems, prior to their actual application,
+</li>
+<li>
+FSM definition, describing state transitions in reaction to received events,
+</li>
+<li>
+list of events it can generate and accept,
+</li>
+<li>
+list of dependencies on other objects' states and services,
+</li>
+<li>
+list of requests it can handle,
+</li>
+<li>
+list of parameters it can accept and/or provide, with their valid ranges.
+</li>
+</ul>
+</p>
+
+<p>A few words on system startup: the system startup routines should ensure
+that dependencies can be unwound into linear, ordered list. If it's not
+possible, they should detect possible deadlocks at runtime, and act as an
+arbiter between conflicting parties (or signal an error). In case of
+unsatisfied dependency on some missing subsystem, the system monitor will
+act appropriately as described below (in paragraph on request handling).</p>
+
+<p>The <b>set of symbolic states</b> may consist of the following states,
+depicting object's current internal state (as described by its FSM):
+
+<center><table border>
+<tr><th>Name</th><th>Meaning</th></tr>
+<tr>
+<td>INIT</td><td>the subsystem is initializing itself, possibly loading
+necessary data and binaries from permanent storage.</td>
+</tr>
+<tr>
+<td>CHECK</td><td>performing consistency check on newly supplied parameter values</td>
+</tr>
+<tr>
+<td>READY</td><td>ready to start performing its primary function, but not started</td>
+</tr>
+<tr>
+<td>START</td><td>start-up tasks (related to its primary function, as opposed
+to INIT which is related to its own initialization)</td>
+</tr>
+<tr>
+<td>STOP</td><td>stop (shutdown) tasks (when the object intends to stop
+performing its function). This can involve unloading data and binaries from
+main memory.</td>
+</tr>
+<tr>
+<td>RUN</td><td>primary (work) phase</td>
+</tr>
+<tr>
+<td>IDLE</td><td>waiting for some external event to happen</td>
+</tr>
+<tr>
+<td>BUSY</td><td>the subsystem is busy (either with performing some
+high-priority task, or just simply hung), and cannot be interrupted without
+complete restart,</td>
+</tr>
+<tr>
+<td>ERROR</td><td>this object is either improperly configured, or
+malfunctioning</td>
+</tr>
+<tr>
+<td>(other...)</td><td>(other...)</td>
+</tr>
+</table></center>
+</p>
+
+<p>The <b>set of possible actions</b> may include the following actions:</p>
+
+<center><table border>
+<tr><th>Name</th><th>Meaning</th></tr>
+<tr>
+<td>LIST_EV_REQ</td><td>get list of events the subsystem can generate</td>
+</tr>
+<tr>
+<td>LIST_ACT_REQ</td><td>get list of actions the subsystem can respond to</td>
+</tr>
+<tr>
+<td>GET_DEF_REQ</td><td>get definition of given parameter (the arguments, and
+valid ranges)</td>
+</tr>
+<tr>
+<td>SET_REQ</td><td>set given parameter to given value (this value will
+be used only after COMMIT_REQ)</td>
+</tr>
+<tr>
+<td>GET_REQ</td><td>get currently used value of given parameter</td>
+</tr>
+<tr>
+<td>COMMIT_REQ</td><td>commit changes supplied in last transaction to currently
+used set of parameters</td>
+</tr>
+<tr>
+<td>ROLLBACK_REQ</td><td>revert last commit</td>
+</tr>
+<tr>
+<td>INIT_REQ</td><td>perform initialization tasks</td>
+</tr>
+<tr>
+<td>START_REQ</td><td>start performing primary function</td>
+</tr>
+<tr>
+<td>STOP_REQ</td><td>stop performing primary function</td>
+</tr>
+<tr>
+<td>RESTART_REQ</td><td>restart operation, possibly forcefully</td>
+</tr>
+<tr>
+<td>NOTIFY_REQ</td><td>notify me of any changes in your state</td>
+</tr>
+<tr>
+<td>CHECK_REQ</td><td>perform self-consistency check</td>
+</tr>
+<tr>
+<td>UPGRADE_REQ</td><td>upgrade the subsystem - this possibly involves
+downloading necessary pieces via network to permanent storage area. The
+upgrade process should be transactional, and should save the older version
+of the subsystem in case the DOWNGRADE_REQ should be issued.</td>
+</tr>
+<tr>
+<td>DOWNGRADE_REQ</td><td>downgrade the subsystem - restore the previous
+version of the subsystem from the copy on permanent storage.</td>
+</tr>
+<tr>
+<td>UNINSTALL_REQ</td><td>uninstall the subsystem completely - possibly
+freeing the space on permanent storage.</td>
+</tr>
+<tr>
+<td>(other...)</td><td>(other...)</td>
+</tr>
+</table></center>
+<p><i>(Each request includes source service identifier and credentials of
+the sender)</i></p>
+
+<p>The <b>set of events</b> which can be generated by subsystems may include
+the following:</p>
+
+<center><table border>
+<tr><th>Name</th><th>Meaning</th></tr>
+<tr>
+<td>EV_ACK</td><td>positive acknowledge of the last operation</td>
+</tr>
+<tr>
+<td>EV_NACK</td><td>negative acknowledge of the last operation</td>
+</tr>
+<tr>
+<td>EV_CHANGE</td><td>change notification (includes the name of changed
+parameter, and/or FSM state change)</td>
+</tr>
+<tr>
+<td>EV_DEP</td><td>signal the dependency on another subsystem - ask for
+existence of the service. Probably there should be two types of the dependency:
+a soft one (where the subsystem can still function even if the dependency is
+unresolved) and a hard one (when the existence and proper functioning of the
+other subsystem is mandatory for its function).</td>
+</tr>
+<tr>
+<td>(other...)</td><td>(other...)</td>
+</tr>
+</table></center>
+
+<p>One of event attributes can be a flag which says that this particular event
+is a directed, or broadcast message. In case of directed message, it should
+be forwarded only to interested parties. Broadcast message is sent to all
+subsystems.</p>
+
+<p>System monitor agent will process these events and route them to
+appropriate subsystems which are registered with it. Generally, if some
+subsystem is dependent on some other, it will want to also receive all events
+generated by the other subsystem.</p>
+
+<p>In case the subsystem
+is missing, and the system monitor received events signalling that some other
+subsystem is depending on it, the system monitor should arrange either for
+installing necessary pieces from some media (be it permanent storage, or the
+network), or to send an EV_NACK to the requesting subsystem. It's the
+responsibility of the requesting subsystem to deal with such case
+appropriately to the type of dependency (i.e. either "hard" or "soft").
+
+<p>Ideally, the system monitor agent will be equipped with routines to
+serialize the management data into human-readable form, so that it's easily
+stored, backed up, and repaired in case of inconsistencies.</p>
+</li>
+<li>
+<p>Actual user interface is still quite another story: I've seen UIs which
+merely followed the standard MIBs, and menus were composed of actual OID
+numbers plus DESCRIPTION field. In my experience, they are (barely)
+acceptable, though due to the usual width and depth of MIB trees you had to
+traverse several levels down and up in order to change some (protocol-wise)
+related parameters.</p>
+
+<p>More acceptable UI would collect interrelated items under common menu
+entries, irrespectibly of their actual position in the MIB tree.</p>
+
+<p>A worthwhile goal to pursue is to create such an UI which could guide
+you through the most common configuration tasks, while at the same time
+allowing for unrestricted and quick use by power users. This can be done
+either as a set of configuration "wizards" or extensive hinting, command
+completion, etc.</p>
+</li>
+<li>
+<p>The management database should be easily exportable via standard
+protocols, such as SNMP or LDAP.</p>
+
+<p>Most known to me (if not all) implementations of agents for these
+protocols are (contrary to their name) quite heavy-weight - so their use
+should be either optional, or replaced with some other light-weight
+protocol and a proxy agent running on other machine. One example of
+such proxy agent is existing UCD-SNMP implementation which in
+significant part follows the sysctl(3) tree, merely exporting it as
+a part of the MIB trees.</p>
+
+<p>It's worthwhile to consider also use of other protocols such as
+DHCP (and BOOTP), Service Location Protocol (SLP - RFC2165) for easy
+integration with LAN resources, easy initial configuration, and peer
+discovery.</p>
+</li>
+<li>
+<p>All operations performed by system monitor agent should be transactional,
+i.e. it should be possible to commit a set of changes as one logical entity,
+and be sure that either it's applied in whole, or not at all. This includes
+also ability to abort processing in the middle.</p>
+
+<p>This probably means that each object (subsystem) should be able to store
+not only its current configuration data, but also the newly supplied config
+data that are to be applied after the transaction ends successfuly.</p>
+
+<p>Operations should be verified against allowed values, as well as against
+allowed credentials, and basing on this either committed or aborted.</p>
+</li>
+<li>
+<p>A few notes on possible implementation of system monitor:</p>
+<ul>
+<li>
+let's assume that all configuration information is read on startup
+by some specialized daemon (this can be part of init(8) as well),
+which then performs role of communication agent through which passes
+all configuration information, be it request for change, request
+for info, request for start / shutdown, or notification about the change.
+</li>
+<li>
+configuration information itself is stored either in binary database, or as
+a filesystem hierachy mimicking configuration items hierarchy.
+</li>
+<li>
+each user-level program performing some task (such as routing daemon, inetd
+etc) is either equipped with the ability to communicate with config agent, or
+is relinked with special stub which fakes to the program necessary config
+files and events (such as signals to reread configuration).
+<p>This probably means also that some libc routines would have to be replaced,
+because they assume reading configuration from certain disk files.</p>
+
+<p>Since each such subsystem needs to implement some common actions such as
+installing, deinstalling, start/stop etc, we could use already present
+system of packages (with some minor modifications) to easily achieve
+part of the goals (i.e. install/deinstall/upgrade/downgrade/stop/start).</p>
+</li>
+<li>
+each subsystem performing some task requests its initial config data
+from system monitor, at the same time registering with it to receive
+configuration events, such as request to re-read data, to provide currently
+used config data, return status, react for signals, restarts, etc...
+</li>
+<li>
+system monitor acts as a meeting point for all producers and consumers
+of events and config data. It needs to maintain a table of registered
+subsystems, set of events they provide, set of events they want to receive,
+etc.. Basing on this table, it  routes appropriate information to
+appropriate parties.
+</li>
+<li>
+user interface is then just one of clients of system monitor, albeit possessing
+special privileges.
+</li>
+<li>
+one of important tasks of system monitor, in case given
+object (subsystem) registers with it to be notified about certain events, is
+to ensure that such type of event can be possibly generated. This is to
+prevent subsystems from waiting for events coming from other non-existent
+subsystems. See the discussion above on satisfying dependencies.
+</li>
+</ul>
+<i><p>NOTE: this is one possible approach - a centralized one. It's worth to
+consider other approach, distributed, in which case each object (subsystem)
+sends and listens to the data at a meeting point specific to each other
+object. This eliminates (or drastically minimizes) the role of system
+monitor which is a single point of failure in centralized case.</p></i>
+</li>
+</ul>
+
+<hr>
+
+<p>Here is my initial proposal for the User Interface hierarchy:</p>
+
+<ul>
+<li>
+System configuration.
+	<ol>
+	<li>
+	Boot device and file <br>
+	<small>Name of the boot device (possibly networked) and boot
+	image.</small>
+		<ol>
+		<li>
+		(Enumeration of available devices)
+			<ol>
+			<li>
+			(Enumeration of available files)
+			</li>
+			</ol>
+		</li>
+		</ol>
+	</li>
+	<li>
+	Config file <br>
+	<small>Configuration file management - loading and saving, either
+	local or remote (if applicable). </small>
+		<ol>
+		<li>
+		Load / Save
+			<ol>
+			<li>
+			Source / Destination <br>
+			(Enumeration of available storage places, possibly
+			networked)
+			</li>
+			</ol>
+		</li>
+		<li>
+		Edit directly (geek mode)
+		</li>
+		</ol>
+	</li>
+	<li>
+	Subsystems <br>
+		<ol>
+		<li>
+		Module management <br>
+		<small>Optional hardware drivers and protocol modules
+		management.</small>
+			<ol>
+			<li>
+			(Enumeration of available loadable modules)
+				<ol>
+				<li>
+				Load / unload / status
+				</li>
+				</ol>
+			</li>
+			</ol>
+		</li>
+		<li>
+		Package management<br>
+		<small>Management of basic and optional system services.</small>
+			<ol>
+			<li>
+			(Enumeration of locally available packages)
+				<ol>
+				<li>
+				Start / Stop / Status / Configure
+				</li>
+				</ol>
+			</li>
+			</ol>
+		</li>
+		<li>
+		Default source of service packages<br>
+		<small>Where to automatically get the missing packages from.
+		</small>
+			<ol>
+			<li>
+			(Enumeration of available media) <br>
+			(local and remote disks, ftp, http)
+			</li>
+			</ol>
+		</li>
+		</ol>
+	</li>
+	<li>
+	Resource management
+		<ol>
+		<li>
+		Memory consumption <br>
+		<small>This is entry point to a subtree, which allows to set
+		up various resource limits for subsystems, services and
+		processes.</small>
+		</li>
+		<li>
+		Space consumption<br>
+		<small>(Things like minimal free space on permanent storage..)
+		</small>
+		</li>
+		<li>
+		Task priorities
+		<small>This includes not only currently running tasks, but all
+		which can possibly be started.</small>
+			<ol>
+			<li>
+			List / Modify
+			</li>
+			</ol>
+		</li>
+		</ol>
+	</li>
+	<li>
+	System console
+	</li>
+	<li>
+	Virtual consoles (if applicable)
+	</li>
+	<li>
+	System Date / Time Zone
+	</li>
+	<li>
+	Banner
+	</li>
+	<li>
+	Logging
+		<ol>
+		<li>
+		Local logging
+		</li>
+		<li>
+		Remote logging
+		</li>
+		</ol>
+	</li>
+	</ol>
+</li>
+<li>
+Network configuration.
+	<ol>
+	<li>
+	Hostname and Domain
+	</li>
+	<li>
+	Interfaces
+		<ol>
+		<li>
+		(Enumeration of physical interfaces) <br>
+		(Enumeration of virtual interfaces, if applicable) <br>
+		(Options for creating virtual interfaces, if applicable)
+			<ol>
+			<li>
+			Interface options (speed, media, encapsulation,
+			description, etc.)
+			</li>
+			<li>
+			ARP
+			</li>
+			<li>
+			Bridging
+			</li>
+			<li>
+			IP
+				<ol>
+				<li>
+				Adress / netmask / alias
+				</li>
+				</ol>
+			</li>
+			<li>
+			IPX
+			</li>
+			<li>
+			AppleTalk
+			</li>
+			</ol>
+		</li>
+		</ol>
+	</li>
+	<li>
+	Protocol Options
+		<ol>
+		<li>
+		IP, UDP, TCP, ARP, IPX, ATM ... <br>
+		(Enumeration of available protocols)
+			<ol>
+			<li>
+			(Enumeration of protocol specific options, such as
+			buffer sizes, algorithms, ARP tables etc)
+				<ol>
+				<li>
+				List / Add / Delete / Modify / Set (where
+				applicable)
+				</li>
+				</ol>
+			</li>
+			</ol>
+		</li>
+		</ol>
+	</li>
+	<li>
+	Routes
+		<ol>
+		<li>
+		List
+		</li>
+		<li>
+		Static
+			<ol>
+			<li>
+			Add / Delete / List
+				<ol>
+				<li>
+				(route expression)
+				</li>
+				</ol>
+			</li>
+			</ol>
+		</li>
+		<li>
+		Dynamic
+			<ol>
+			<li>
+			(Enumeration of available routing protocols)
+				<ol>
+				<li>
+				Add / Delete / List
+					<ol>
+					<li>
+					(route expression)
+					</li>
+					</ol>
+				</li>
+				</ol>
+			</li>
+			</ol>
+		</li>
+		</ol>
+	</li>
+	<li>
+	Network services
+		<ol>
+		<li>
+		DNS
+			<ol>
+			<li>
+			Hosts
+				<ol>
+				<li>
+				Add / Delete / List
+					<ol>
+					<li>
+					(hosts definitions)
+					</li>
+					</ol>
+				</li>
+				</ol>
+			</li>
+			<li>
+			Resolvers
+				<ol>
+				<li>
+				Add / Delete / List
+					<ol>
+					<li>
+					(hosts addresses)
+					</li>
+					</ol>
+				</li>
+				</ol>
+			</li>
+			<li>
+			Local DNS server config
+			</li>
+			</ol>
+		</li>
+		<li>
+		PPP
+			<ol>
+			<li>
+			Server
+			</li>
+			<li>
+			Client
+			</li>
+			</ol>
+		</li>
+		<li>
+		NFS
+			<ol>
+			<li>
+			Server
+			</li>
+			<li>
+			Client
+			</li>
+			</ol>
+		</li>
+		<li>
+		NIS
+		</li>
+		<li>
+		DHCP
+			<ol>
+			<li>
+			Add / Delete / Reserve / List
+				<ol>
+				<li>
+				(IP address expressions)
+				</li>
+				</ol>
+			</li>
+			</ol>
+		</li>
+		<li>
+		SNMP
+			<ol>
+			<li>
+			Protocol version
+			</li>
+			<li>
+			Send traps to...
+			</li>
+			<li>
+			Access Control Lists <br>
+			<small>(This is either full-blown ACL system in case
+			of SNMPv2, or a community string for SNMPv1.)</small>
+			</li>
+			</ol>
+		</li>
+		<li>
+		Printing
+			<ol>
+			<li>
+			Local / Remote
+				<ol>
+				<li>
+				Printers
+					<ol>
+					<li>
+					Add / Modify / Delete / List
+					</li>
+					</ol>
+				</li>
+				<li>
+				Queues
+					<ol>
+					<li>
+					Priority / Delete / List
+					</li>
+					</ol>
+				</li>
+				</ol>
+			</li>
+			</ol>
+		</li>
+		<li>
+		SMB services
+		</li>
+		<li>
+		Network Address Translation
+		</li>
+		<li>
+		Packet filters
+		</li>
+		<li>
+		Bandwidth Manager
+		</li>
+		<li>
+		NTP
+		</li>
+		<li>
+		Remote Access
+		</li>
+		</ol>
+	</li>
+	</ol>
+<li>
+User management.
+	<ol>
+	<li>
+	User accounts
+		<ol>
+		<li>
+		Add / Delete / Modify / List
+			<ol>
+			<li>
+			Name / Password / ACL
+			</li>
+			</ol>
+		</li>
+		</ol>
+	</li>
+	<li>
+	User profiles
+		<ol>
+		<li>
+		Access Control Lists.
+			<ol>
+			<li>
+			Add / Delete / Modify / List
+				<ol>
+				<li>
+				Name / Template / Definition
+				</li>
+				</ol>
+			</li>
+			</ol>
+		</li>
+		<li>
+		ACL Templates
+			<ol>
+			<li>
+			Add / Delete / Modify / List
+				<ol>
+				<li>
+				Name
+					<ol>
+					<li>
+					Command restrictions list
+					</li>
+					<li>
+					Location restrictions list
+					</li>
+					<li>
+					Resources restrictions list
+					</li>
+					<li>
+					Time restrictions list
+					</li>
+					<li>
+					Authentication methods
+						<ol>
+						<li>
+						Unix passwd
+						</li>
+						<li>
+						S/Key
+						</li>
+						<li>
+						Kerberos
+						</li>
+						<li>
+						Radius
+						</li>
+						<li>
+						TACACS
+						</li>
+						</ol>
+					</li>
+					</ol>
+				</li>
+				</ol>
+			</li>
+			</ol>
+		</li>
+		</ol>
+	</li>
+	</ol>
+</li>
+<li>
+Other services
+	<ol>
+	<li>
+	Cron tasks
+	</li>
+	</ol>
+</li>
+<li>
+Filesystems.
+	<ol>
+	<li>
+	Local / Remote
+		<ol>
+		<li>
+		(Enumeration of available FS-s)
+			<ol>
+			<li>
+			FS / Mounting point / Options
+			</li>
+			</ol>
+		</li>
+		<li>
+		Swap Partition / Swap File
+			<ol>
+			<li>
+			Create / Turn on
+			</li>
+			</ol>
+		</ol>
+	</li>
+	</ol>
+</li>
+<li>
+Environment
+	<ol>
+	<li>
+	Set / Unset / List
+	</li>
+	</ol>
+</li>
+<li>
+System status
+	<ol>
+	<li>
+	(Enumeration of available status items)
+	</li>
+	</ol>
+</li>
+<li>
+Diagnostics
+	<ol>
+	<li>
+	Debug
+		<ol>
+		<li>
+		(Enumeration of subsystems hierarchy, those of which can
+		provide debugging data)
+			<ol>
+			<li>
+			Set / Clear / Level
+			</li>
+			</ol>
+		</li>
+		</ol>
+	</li>
+	<li>
+	System messages
+	</li>
+	<li>
+	Ping / traceroute / rtquery
+	</li>
+	</ol>
+</li>
+</ul>
+
+<hr>
+<i>
+<p>Please send your comments to <A HREF="mailto:abial@freebsd.org">
+Andrzej Bialecki</a></p>
+<p>Last modified:
+@DATE@
+</p>
+</i>
+
+</body>
+</html>

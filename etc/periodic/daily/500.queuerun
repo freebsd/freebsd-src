@@ -1,0 +1,34 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$daily_queuerun_enable" in
+    [Yy][Ee][Ss])
+	if [ ! -x /usr/sbin/sendmail ]
+	then
+	    echo '$daily_queuerun_enable is set but /usr/sbin/sendmail' \
+		"isn't executable"
+	    rc=2
+	elif [ ! -d /var/spool/mqueue ]
+	then
+	    echo '$daily_queuerun_enable is set but /var/spool/mqueue' \
+		"doesn't exist"
+	    rc=2
+	else
+	    /usr/sbin/sendmail -q >/dev/null 2>&1 &
+	    rc=0
+	fi;;
+
+    *)  rc=0;;
+esac
+
+exit $rc

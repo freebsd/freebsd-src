@@ -1,0 +1,126 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgment:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     From: @(#)swapon.8	8.1 (Berkeley) 6/5/93
+.\" $FreeBSD$
+.\"
+.Dd May 12, 1995
+.Dt DUMPON 8
+.Os
+.Sh NAME
+.Nm dumpon
+.Nd "specify a device for crash dumps"
+.Sh SYNOPSIS
+.Nm
+.Op Fl v
+.Ar special_file
+.Nm
+.Op Fl v
+.Ar off
+.Sh DESCRIPTION
+.Nm Dumpon
+is used to specify a device where the kernel can save a crash dump in
+the case of a panic.
+.Pp
+Calls to
+.Nm
+normally occur from the system multi-user initialization file
+.Pa /etc/rc ,
+controlled by the
+.Dq dumpdev
+variable in the boot time configuration file
+.Pa /etc/rc.conf .
+.Pp
+The size of the specified dump device must be at least 64 KB greater the
+size of physical memory.
+.Pp
+The
+.Fl v
+flag causes
+.Nm
+to be verbose about its activity.
+.Sh NOTES
+Since a
+.Xr panic 9
+condition may occur in a situation
+where the kernel cannot trust its internal representation
+of the state of any given filesystem,
+one of the system swap devices,
+and
+.Em not
+a device containing a filesystem,
+should be used as the dump device.
+.Pp
+The
+.Nm
+program operates by setting the
+.Xr sysctl 3
+MIB variable
+.Dq kern.dumpdev
+to the device number of the designated
+.Ar special_file
+or to
+.Dv NODEV
+(meaning that no dumps are to be taken) if
+.Ar special_file
+is the text string:
+.Dq Li off .
+.Sh SEE ALSO
+.Xr sysctl 3 ,
+.Xr fstab 5 ,
+.Xr rc.conf 5 ,
+.Xr config 8 ,
+.Xr init 8 ,
+.Xr rc 8 ,
+.Xr savecore 8 ,
+.Xr swapon 8 ,
+.Xr panic 9
+.Sh FILES
+.Bl -tag -width "/dev/{ad,da}?s?b" -compact
+.It Pa /dev/{ad,da}?s?b
+standard swap areas
+.It Pa /etc/rc.conf
+boot-time system configuration
+.El
+.Sh BUGS
+Because the filesystem layer is already dead by the time a crash dump
+is taken, it is not possible to send crash dumps directly to a file.
+.Pp
+Since
+.Nm
+can only be called after the system enters single-user mode,
+it can not be used to create dumps
+for system panics during kernel initialization.
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Fx 2.1 .

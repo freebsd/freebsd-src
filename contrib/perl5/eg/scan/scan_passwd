@@ -1,0 +1,30 @@
+#!/usr/bin/perl
+
+# $RCSfile: scan_passwd,v $$Revision: 4.1 $$Date: 92/08/07 17:20:38 $
+
+# This scans passwd file for security holes.
+
+open(Pass,'/etc/passwd') || die "Can't open passwd file: $!\n";
+# $dotriv = (`date` =~ /^Mon/);
+$dotriv = 1;
+
+while (<Pass>) {
+    ($login,$pass,$uid,$gid,$gcos,$home,$shell) = split(/:/);
+    if ($shell eq '') {
+	print "Short: $_";
+    }
+    next if /^[+]/;
+    if ($pass eq '') {
+	if (index(":sync:lpq:+:", ":$login:") < 0) {
+	    print "No pass: $login\t$gcos\n";
+	}
+    }
+    elsif ($dotriv && crypt($login,substr($pass,0,2)) eq $pass) {
+	print "Trivial: $login\t$gcos\n";
+    }
+    if ($uid == 0) {
+	if ($login !~ /^.?root$/ && $pass ne '*') {
+	    print "Extra root: $_";
+	}
+    }
+}

@@ -1,0 +1,107 @@
+.\"
+.\"----------------------------------------------------------------------------
+.\""THE BEER-WARE LICENSE" (Revision 42):
+.\"<phk@FreeBSD.ORG> wrote this file.  As long as you retain this notice you
+.\"can do whatever you want with this stuff. If we meet some day, and you think
+.\"this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
+.\"----------------------------------------------------------------------------
+.\"
+.\"$FreeBSD$
+.\"
+.Dd April 28, 1999
+.Dt JAIL 2
+.Os
+.Sh NAME
+.Nm jail
+.Nd imprison current process and future decendants
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.Fd #include <sys/types.h>
+.Fd #include <sys/jail.h>
+.Ft int
+.Fn jail "struct jail *jail"
+.Sh DESCRIPTION
+The
+.Nm
+system call sets up a jail and locks the current process in it.
+.Pp
+The argument is a pointer to a structure describing the prison:
+.Bd -literal -offset indent
+struct jail {
+	u_int32_t	version;
+        char 		*path;
+        char 		*hostname;
+        u_int32_t	ip_number;
+};
+.Ed
+.Pp
+.Dq Li version
+defines the version of the API in use.  It should be set to zero at this time.
+.Pp
+The
+.Dq Li path
+pointer should be set to the directory which is to be the root of the
+prison.
+.Pp
+The
+.Dq Li hostname
+pointer can be set to the hostname of the prison.  This can be changed
+from the inside of the prison.
+.Pp
+The
+.Dq Li ip_number
+can be set to the IP number assigned to the prison.
+.Sh PRISON\ ?
+Once a process has been put in a prison, it and its decendants cannot escape
+the prison.  It is not possible to add a process to a preexisting prison.
+.Pp
+Inside the prison, the concept of "superuser" is very diluted.  In general,
+it can be assumed that nothing can be mangled from inside a prison which
+does not exist entirely inside that prison.  For instance the directory
+tree below
+.Dq Li path
+can be manipulated all the ways a root can normally do it, including
+.Dq Li "rm -rf /*"
+but new device special nodes cannot be created because they reference
+shared resources (the device drivers in the kernel).
+.Pp
+All IP activity will be forced to happen to/from the IP number specified,
+which should be an alias on one of the network interfaces.
+.Pp
+It is possible to identify a process as jailed by examining
+.Dq Li /proc/<pid>/status :
+it will show a field near the end of the line, either as
+a single hyphen for a process at large, or the hostname currently
+set for the prison for jailed processes.
+.Sh ERRORS
+.Fn jail
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The version number of the argument is not correct.
+.El
+.Pp
+Further
+.Fn Jail
+calls
+.Xr chroot 2
+internally, so the it can fail for all the same reasons.
+Please consult the
+.Xr chroot 2
+manual page for details.
+.Sh SEE ALSO
+.Xr chdir 2 ,
+.Xr chroot 2
+.Sh HISTORY
+The
+.Fn jail
+function call appeared in
+.Fx 4.0 .
+.Sh AUTHORS
+The jail feature was written by
+.An Poul-Henning Kamp
+for R&D Associates
+.Dq Li http://www.rndassociates.com/
+who contributed it to
+.Fx .

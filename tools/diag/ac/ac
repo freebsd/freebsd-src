@@ -1,0 +1,25 @@
+#!/bin/sh
+# Copyright (c) March 1997. Wolfram Schneider <wosch@FreeBSD.ORG>. Berlin.
+#           (c) 1999, Alexey Zelkin <phantom@FreeBSD.org>
+# This script is dedicated to the FreeBSD core team.
+#
+# ac - check if the FreeBSD handbook is in sync with the committers list
+#
+# $FreeBSD$
+
+: ${CVSROOT=/home/ncvs}
+contrib=doc/en_US.ISO_8859-1/books/handbook/staff/chapter.sgml
+access=CVSROOT/access
+cvs='cvs -Q co -p'
+tmp=${TMPDIR-/tmp}/_committers
+
+$cvs $contrib |
+	perl -ne 'print "$1\n" if /<para>\&a\.([^;]+)/' |
+	sort -u > $tmp.contrib
+
+$cvs $access |
+	sed 's/^\#.*//g' |
+	sort -u > $tmp.access
+
+diff -u $tmp.access $tmp.contrib
+rm -f $tmp.access $tmp.contrib

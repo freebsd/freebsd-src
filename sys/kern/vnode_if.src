@@ -1,0 +1,573 @@
+#
+# Copyright (c) 1992, 1993
+#	The Regents of the University of California.  All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. All advertising materials mentioning features or use of this software
+#    must display the following acknowledgement:
+#	This product includes software developed by the University of
+#	California, Berkeley and its contributors.
+# 4. Neither the name of the University nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+#	@(#)vnode_if.src	8.12 (Berkeley) 5/14/95
+# $FreeBSD$
+#
+
+#
+# Above each of the vop descriptors is a specification of the locking
+# protocol used by each vop call.  The first column is the name of
+# the variable, the remaining three columns are in, out and error
+# respectively.  The "in" column defines the lock state on input,
+# the "out" column defines the state on succesful return, and the
+# "error" column defines the locking state on error exit.
+#
+# The locking value can take the following values:
+# L: locked; not converted to type of lock.
+# A: any lock type.
+# S: locked with shared lock.
+# E: locked with exclusive lock for this process.
+# O: locked with exclusive lock for other process.
+# U: unlocked.
+# -: not applicable.  vnode does not yet (or no longer) exists.
+# =: the same on input and output, may be either L or U.
+# X: locked if not nil.
+#
+
+#
+#% islocked	vp	= = =
+#
+vop_islocked {
+	IN struct vnode *vp;
+	IN struct proc *p;
+};
+
+#
+#% lookup	dvp	L ? ?
+#% lookup	vpp	- L -
+#
+# XXX - the lookup locking protocol defies simple description and depends
+#	on the flags and operation fields in the (cnp) structure.  Note
+#	especially that *vpp may equal dvp and both may be locked.
+#
+vop_lookup {
+	IN struct vnode *dvp;
+	INOUT struct vnode **vpp;
+	IN struct componentname *cnp;
+};
+
+#
+#% cachedlookup	dvp	L ? ?
+#% cachedlookup	vpp	- L -
+#
+# This must be an exact copy of lookup.  See kern/vfs_cache.c for details.
+#
+vop_cachedlookup {
+	IN struct vnode *dvp;
+	INOUT struct vnode **vpp;
+	IN struct componentname *cnp;
+};
+
+#
+#% create	dvp	L L L
+#% create	vpp	- L -
+#
+vop_create {
+	IN struct vnode *dvp;
+	OUT struct vnode **vpp;
+	IN struct componentname *cnp;
+	IN struct vattr *vap;
+};
+
+#
+#% whiteout	dvp	L L L
+#
+vop_whiteout {
+	IN struct vnode *dvp;
+	IN struct componentname *cnp;
+	IN int flags;
+};
+
+#
+#% mknod	dvp	L L L
+#% mknod	vpp	- X -
+#
+vop_mknod {
+	IN struct vnode *dvp;
+	OUT struct vnode **vpp;
+	IN struct componentname *cnp;
+	IN struct vattr *vap;
+};
+
+#
+#% open		vp	L L L
+#
+vop_open {
+	IN struct vnode *vp;
+	IN int mode;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+#
+#% close	vp	U U U
+#
+vop_close {
+	IN struct vnode *vp;
+	IN int fflag;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+#
+#% access	vp	L L L
+#
+vop_access {
+	IN struct vnode *vp;
+	IN int mode;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+#
+#% getattr	vp	= = =
+#
+vop_getattr {
+	IN struct vnode *vp;
+	OUT struct vattr *vap;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+#
+#% setattr	vp	L L L
+#
+vop_setattr {
+	IN struct vnode *vp;
+	IN struct vattr *vap;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+#
+#% read		vp	L L L
+#
+vop_read {
+	IN struct vnode *vp;
+	INOUT struct uio *uio;
+	IN int ioflag;
+	IN struct ucred *cred;
+};
+
+#
+#% write	vp	L L L
+#
+vop_write {
+	IN struct vnode *vp;
+	INOUT struct uio *uio;
+	IN int ioflag;
+	IN struct ucred *cred;
+};
+
+#
+#% lease	vp	= = =
+#
+vop_lease {
+	IN struct vnode *vp;
+	IN struct proc *p;
+	IN struct ucred *cred;
+	IN int flag;
+};
+
+#
+#% ioctl	vp	U U U
+#
+vop_ioctl {
+	IN struct vnode *vp;
+	IN u_long command;
+	IN caddr_t data;
+	IN int fflag;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+#
+#% poll	vp	U U U
+#
+vop_poll {
+	IN struct vnode *vp;
+	IN int events;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+#
+#% kqfilter	vp	U U U
+#
+vop_kqfilter {
+	IN struct vnode *vp;
+	IN struct knote *kn;
+};
+
+#
+#% revoke	vp	U U U
+#
+vop_revoke {
+	IN struct vnode *vp;
+	IN int flags;
+};
+
+#
+# XXX - not used
+#
+vop_mmap {
+	IN struct vnode *vp;
+	IN int fflags;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+#
+#% fsync	vp	L L L
+#
+vop_fsync {
+	IN struct vnode *vp;
+	IN struct ucred *cred;
+	IN int waitfor;
+	IN struct proc *p;
+};
+
+#
+#% remove	dvp	L L L
+#% remove	vp	L L L
+#
+vop_remove {
+	IN struct vnode *dvp;
+	IN struct vnode *vp;
+	IN struct componentname *cnp;
+};
+
+#
+#% link		tdvp	L L L
+#% link		vp	U U U
+#
+vop_link {
+	IN struct vnode *tdvp;
+	IN struct vnode *vp;
+	IN struct componentname *cnp;
+};
+
+#
+#% rename	fdvp	U U U
+#% rename	fvp	U U U
+#% rename	tdvp	L U U
+#% rename	tvp	X U U
+#
+vop_rename {
+	IN WILLRELE struct vnode *fdvp;
+	IN WILLRELE struct vnode *fvp;
+	IN struct componentname *fcnp;
+	IN WILLRELE struct vnode *tdvp;
+	IN WILLRELE struct vnode *tvp;
+	IN struct componentname *tcnp;
+};
+
+#
+#% mkdir	dvp	L L L
+#% mkdir	vpp	- L -
+#
+vop_mkdir {
+	IN struct vnode *dvp;
+	OUT struct vnode **vpp;
+	IN struct componentname *cnp;
+	IN struct vattr *vap;
+};
+
+#
+#% rmdir	dvp	L L L
+#% rmdir	vp	L L L
+#
+vop_rmdir {
+	IN struct vnode *dvp;
+	IN struct vnode *vp;
+	IN struct componentname *cnp;
+};
+
+#
+#% symlink	dvp	L L L
+#% symlink	vpp	- U -
+#
+vop_symlink {
+	IN struct vnode *dvp;
+	OUT struct vnode **vpp;
+	IN struct componentname *cnp;
+	IN struct vattr *vap;
+	IN char *target;
+};
+
+#
+#% readdir	vp	L L L
+#
+vop_readdir {
+	IN struct vnode *vp;
+	INOUT struct uio *uio;
+	IN struct ucred *cred;
+	INOUT int *eofflag;
+	OUT int *ncookies;
+	INOUT u_long **cookies;
+};
+
+#
+#% readlink	vp	L L L
+#
+vop_readlink {
+	IN struct vnode *vp;
+	INOUT struct uio *uio;
+	IN struct ucred *cred;
+};
+
+#
+#% inactive	vp	L U U
+#
+vop_inactive {
+	IN struct vnode *vp;
+	IN struct proc *p;
+};
+
+#
+#% reclaim	vp	U U U
+#
+vop_reclaim {
+	IN struct vnode *vp;
+	IN struct proc *p;
+};
+
+#
+#% lock		vp	? ? ?
+#
+vop_lock {
+	IN struct vnode *vp;
+	IN int flags;
+	IN struct proc *p;
+};
+
+#
+#% unlock	vp	L U L
+#
+vop_unlock {
+	IN struct vnode *vp;
+	IN int flags;
+	IN struct proc *p;
+};
+
+#
+#% bmap		vp	L L L
+#% bmap		vpp	- U -
+#
+vop_bmap {
+	IN struct vnode *vp;
+	IN daddr_t bn;
+	OUT struct vnode **vpp;
+	IN daddr_t *bnp;
+	OUT int *runp;
+	OUT int *runb;
+};
+
+#
+#% strategy	vp	L L L
+#
+vop_strategy {
+	IN struct vnode *vp;
+	IN struct buf *bp;
+};
+
+#
+#% print	vp	= = =
+#
+vop_print {
+	IN struct vnode *vp;
+};
+
+#
+#% pathconf	vp	L L L
+#
+vop_pathconf {
+	IN struct vnode *vp;
+	IN int name;
+	OUT register_t *retval;
+};
+
+#
+#% advlock	vp	U U U
+#
+vop_advlock {
+	IN struct vnode *vp;
+	IN caddr_t id;
+	IN int op;
+	IN struct flock *fl;
+	IN int flags;
+};
+
+#
+#% balloc	vp	L L L
+#
+vop_balloc {
+	IN struct vnode *vp;
+	IN off_t startoffset;
+	IN int size;
+	IN struct ucred *cred;
+	IN int flags;
+	OUT struct buf **bpp;
+};
+
+#
+#% reallocblks	vp	L L L
+#
+vop_reallocblks {
+	IN struct vnode *vp;
+	IN struct cluster_save *buflist;
+};
+
+#
+#% getpages	vp	L L L
+#
+vop_getpages {
+	IN struct vnode *vp;
+	IN vm_page_t *m;
+	IN int count;
+	IN int reqpage;
+	IN vm_ooffset_t offset;
+};
+
+#
+#% putpages	vp	L L L
+#
+vop_putpages {
+	IN struct vnode *vp;
+	IN vm_page_t *m;
+	IN int count;
+	IN int sync;
+	IN int *rtvals;
+	IN vm_ooffset_t offset;
+};
+
+#
+#% freeblks	vp	- - -
+#
+# This call is used by the filesystem to release blocks back to 
+# device-driver.  This is useful if the driver has a lengthy 
+# erase handling or similar.
+#
+
+vop_freeblks {
+	IN struct vnode *vp;
+	IN daddr_t addr;
+	IN daddr_t length;
+};
+
+#
+#% bwrite	vp	L L L
+#
+vop_bwrite {
+	IN struct vnode *vp;
+	IN struct buf *bp;
+};
+
+#
+#% getacl	vp	= = =
+#
+vop_getacl {
+	IN struct vnode *vp;
+	IN acl_type_t type;
+	OUT struct acl *aclp;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+#
+#% setacl	vp	L L L
+#
+vop_setacl {
+	IN struct vnode *vp;
+	IN acl_type_t type;
+	IN struct acl *aclp;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+#
+#% aclcheck	vp	= = =
+#
+vop_aclcheck {
+	IN struct vnode *vp;
+	IN acl_type_t type;
+	IN struct acl *aclp;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+#
+#% getextattr	vp	L L L
+#
+vop_getextattr {
+	IN struct vnode *vp;
+	IN char *name;
+	INOUT struct uio *uio;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+#
+#% setextattr	vp	L L L
+#
+vop_setextattr {
+	IN struct vnode *vp;
+	IN char *name;
+	INOUT struct uio *uio;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+#
+#% createvobject	vp	L L L
+#
+vop_createvobject {
+	IN struct vnode *vp;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+#
+#% destroyvobject	vp	L L L
+#
+vop_destroyvobject {
+	IN struct vnode *vp;
+};
+
+#
+#% getvobject	vp	L L L
+#
+vop_getvobject {
+	IN struct vnode *vp;
+	OUT struct vm_object **objpp;
+};

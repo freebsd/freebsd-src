@@ -1,0 +1,174 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1996 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 24, 1996
+.Os
+.Dt VOP_LOCK 9
+.Sh NAME
+.Nm VOP_LOCK ,
+.Nm VOP_UNLOCK ,
+.Nm VOP_ISLOCKED ,
+.Nm vn_lock
+.Nd serialize access to a vnode
+.Sh SYNOPSIS
+.Fd #include <sys/param.h>
+.Fd #include <sys/lock.h>
+.Fd #include <sys/vnode.h>
+.Ft int
+.Fn VOP_LOCK "struct vnode *vp" "int flags" "struct proc *p"
+.Ft int
+.Fn VOP_UNLOCK "struct vnode *vp" "int flags" "struct proc *p"
+.Ft int
+.Fn VOP_ISLOCKED "struct vnode *vp" "struct proc *p"
+.Ft int
+.Fn vn_lock "struct vnode *vp" "int flags" "struct proc *p"
+.Sh DESCRIPTION
+These calls are used to serialize access to the filesystem, such as
+to prevent two writes to the same file from happening at the
+same time.
+.Pp
+The arguments are:
+.Bl -tag -width flags
+.It Ar vp
+the vnode being locked or unlocked
+.It Ar flags
+One of the lock request types:
+.Bl -column LK_EXCLUPGRADE -offset indent
+.It Dv LK_SHARED Ta "Shared lock"
+.It Dv LK_EXCLUSIVE Ta "Exclusive lock"
+.It Dv LK_UPGRADE Ta "Shared-to-exclusive upgrade"
+.It Dv LK_EXCLUPGRADE Ta "First shared-to-exclusive upgrade"
+.It Dv LK_DOWNGRADE Ta "Exclusive-to-shared downgrade"
+.It Dv LK_RELEASE Ta "Release any type of lock"
+.It Dv LK_DRAIN Ta "Wait for all lock activity to end"
+.El
+.Pp
+The lock type may be
+.Em or Ns 'ed
+with these lock flags:
+.Bl -column LK_CANRECURSE -offset indent
+.It Dv LK_NOWAIT Ta "Do not sleep to wait for lock"
+.It Dv LK_SLEEPFAIL Ta "Sleep, then return failure"
+.It Dv LK_CANRECURSE Ta "Allow recursive exclusive lock"
+.It Dv LK_REENABLE Ta "Lock is to be reenabled after drain"
+.It Dv LK_NOPAUSE Ta "No spinloop"
+.El
+.Pp
+The lock type may be
+.Em or Ns 'ed
+with these control flags:
+.Bl -column LK_INTERLOCK -offset indent
+.It Dv LK_INTERLOCK Ta "Specify when the caller already has a simple lock \
+(VOP_LOCK will unlock the simple lock after getting the lock)"
+.It Dv LK_RETRY Ta "Retry until locked"
+.It Dv LK_NOOBJ Ta "Don't create object"
+.El
+.It Ar p
+process context to use for the locks
+.El
+.Pp
+Kernel code should use
+.Fn vn_lock
+to lock a vnode rather than calling
+.Fn VOP_LOCK
+directly.
+.Sh RETURN VALUES
+Zero is returned on success, otherwise an error is returned.
+.Sh PSEUDOCODE
+.Bd -literal
+struct vopnode {
+    int von_flag;
+    /*
+     * Other filesystem specific data.
+     */
+    ...;
+};
+#define VON_LOCKED	1
+#define VON_WANTED	2
+#define VTOVON(vp)	((struct vopnode *) (vp)->v_data)
+
+int
+vop_lock(struct vnode *vp)
+{
+    struct vopnode* vop;
+
+start:
+    while (vp->v_flag & VXLOCK) {
+	vp->v_flag |= VXWANT;
+	tsleep((caddr_t)vp, PINOD, "voplk1", 0);
+    }
+    if (vp->v_tag == VT_NON)
+	return ENOENT;
+
+    vop = VTOVON(vp);
+    if (vop->von_flag & VON_LOCKED) {
+	vop->von_flag |= VON_WANTED;
+	tsleep((caddr_t) vop, PINOD, "voplk2", 0);
+	goto start;
+    }
+
+    vop->von_flag |= VON_LOCKED;
+
+    return 0;
+}
+
+int
+vop_unlock(struct vnode *vp)
+{
+    struct vopnode *vop = VTOVON(vp);
+
+    if ((vop->von_flag & VON_LOCKED) == 0) {
+	panic("vop_unlock not locked");
+    }
+    vop->von_flag &= ~VON_LOCKED;
+    if (vop->von_flag & VON_WANTED) {
+	vop->von_flag &= ~VON_WANTED;
+	wakeup((caddr_t) vop);
+    }
+
+    return 0;
+}
+
+int
+vop_islocked(struct vnode *vp)
+{
+    struct vopnode *vop = VTOVON(vp);
+
+    if (vop->von_flag & VON_LOCKED)
+	return 1;
+    else
+	return 0;
+}
+.Ed
+.Sh SEE ALSO
+.Xr vnode 9
+.Sh AUTHORS
+This man page was written by
+.An Doug Rabson .

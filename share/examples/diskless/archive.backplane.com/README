@@ -1,0 +1,21 @@
+
+    aliases, forward.map, and ndomain.map are typically softlinks to some
+    other common directory such as HT.STD.  Also syslog.conf and ttys.
+
+    You can create machine classifications, which I call 'HT.XXX' directories,
+    to hold common files for a particular functional machine class.
+
+total 8
+drwxr-xr-x  3 root  wheel  512 Jan 26 10:56 .
+drwxr-xr-x  7 root  wheel  512 Jan 26 10:58 ..
+drwxr-xr-x  2 root  wheel  512 Jan 26 10:56 CVS
+lrwxr-xr-x  1 root  wheel   17 Jan 25 10:27 aliases -> ../HT.STD/aliases
+lrwxr-xr-x  1 root  wheel   21 Jan 25 10:27 forward.map -> ../HT.STD/forward.map
+-rw-r--r--  1 root  wheel  263 Jan 24 18:27 fstab
+-rw-r--r--  1 root  wheel  750 Jan 24 18:29 ipfw.conf
+-rw-r--r--  1 root  wheel  100 Jan 24 18:35 motd
+lrwxr-xr-x  1 root  wheel   21 Jan 25 10:27 ndomain.map -> ../HT.STD/ndomain.map
+-rw-------  1 root  wheel  464 Jan 25 13:53 rc.conf.local
+-rw-r--r--  1 root  wheel  283 Jan 24 18:33 resolv.conf
+lrwxr-xr-x  1 root  wheel   21 Feb  9 01:09 syslog.conf -> ../HT.STD/syslog.conf
+lrwxr-xr-x  1 root  wheel   14 Feb  9 01:08 ttys -> ../HT.STD/ttys

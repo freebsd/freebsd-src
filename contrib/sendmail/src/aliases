@@ -1,0 +1,33 @@
+#
+#	$Id: aliases,v 8.1.36.1 2000/10/16 20:18:39 gshapiro Exp $
+#	@(#)aliases	8.2 (Berkeley) 3/5/94
+#
+#  Aliases in this file will NOT be expanded in the header from
+#  Mail, but WILL be visible over networks or from /bin/mail.
+#
+#	>>>>>>>>>>	The program "newaliases" must be run after
+#	>> NOTE >>	this file is updated for any changes to
+#	>>>>>>>>>>	show through to sendmail.
+#
+
+# Basic system aliases -- these MUST be present.
+MAILER-DAEMON:	postmaster
+postmaster:	root
+
+# General redirections for pseudo accounts.
+bin:		root
+daemon:		root
+games:		root
+ingres:		root
+nobody:		root
+system:		root
+toor:		root
+uucp:		root
+
+# Well-known aliases.
+manager:	root
+dumper:		root
+operator:	root
+
+# trap decode to catch security attacks
+decode:		root

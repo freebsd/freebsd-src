@@ -1,0 +1,127 @@
+.\" Copyright (c) 1996-1998 Greg Ungerer (gerg@stallion.oz.au).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Greg Ungerer.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 8, 1998
+.Os
+.Dt STLLOAD 8 i386
+.Sh NAME
+.Nm stlload
+.Nd "Stallion Technologies multiport serial board down loader"
+.Sh SYNOPSIS
+.Nm
+.Op Fl vhVR
+.Op Fl i Ar image-file
+.Op Fl c Ar control-device
+.Op Fl r Ar rx-buf-size
+.Op Fl t Ar tx-buf-size
+.Op Fl B Ar boot-banner
+.Op Fl b Ar unit-number
+.Sh DESCRIPTION
+.Nm Stlload
+is used to download the firmware code to Stallion Technologies intelligent
+multiport serial boards.
+A firmware download is only required for those boards that use the Stallion
+.Nm stli
+driver.
+This includes the EasyConnection 8/64, ONboard and Brumby families of boards.
+.Pp
+Different board types require different firmware images.
+If the wrong firmware is loaded into a board it will fail to operate.
+.Pp
+The download process is achieved through the Stallion
+.Nm stli
+driver control device,
+.Pa /dev/staliomem? .
+This device implements a file type device that can read and write into the
+boards shared memory region.
+It also implements a number of special
+.Em ioctls
+that reset and restart the board.
+.Pp
+The options are:
+.Bl -tag -width indent
+.It Fl v
+Verbose output generation.
+Trace is generated at each phase of the download and startup process.
+.It Fl h
+Output usage information.
+.It Fl V
+Output version information.
+.It Fl R
+Reset the board only.
+Does not proceed to download firmware to the board.
+.It Fl i Ar image-file
+Specify the firmware image file to download.
+The default firmware image is
+.Pa /usr/libdata/stallion/cdk.sys .
+.It Fl c Ar control-device
+Specify the board control device through which to download the firmware
+and start up the board.
+The default is
+.Pa /dev/staliomem0 .
+.It Fl r Ar rx-buf-size
+Specify the size of the boards shared memory Receive Data buffer.
+By default the buffer is dynamically sized to use the maximum
+available shared memory.
+.It Fl t Ar tx-buf-size
+Specify the size of the boards shared memory Transmit Data buffer.
+By default the buffer is dynamically sized to use the maximum
+available shared memory.
+.It Fl B Ar boot-banner
+Enable the slave debug trace flag during download.
+This enables debug trace output from the firmware code.
+This trace is output on port 0 of the board,
+and the port is set to 9600 baud, 8 data bits, no parity and 1 stop bit.
+.It Fl b Ar unit-number
+Specify the unit (board) number to be downloaded.  The default is to
+download board 0.
+.El
+.Pp
+.Nm Stlload
+would typically be run from
+.Pa /etc/rc.serial .
+.Sh FILES
+.Bl -tag -width /usr/libdata/stallion/2681.sys
+.It Pa /usr/libdata/stallion/cdk.sys
+firmware code to EasyConnection 8/64 class boards
+.It Pa /usr/libdata/stallion/2681.sys
+firmware code to ONboard and Brumby class boards
+.It Pa /dev/staliomem?
+driver board control device
+.El
+.Sh SEE ALSO
+.Xr stl 4 ,
+.Xr stli 4 ,
+.Xr stlstats 8
+.Sh HISTORY
+This program was originally developed by
+.An Greg Ungerer Aq gerg@stallion.com .

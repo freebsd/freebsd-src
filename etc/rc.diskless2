@@ -1,0 +1,82 @@
+# Copyright (c) 1999  Matt Dillon
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+#
+# rc.diskless2
+#
+
+# Provide a function for normalizing the mounting of memory
+# filesystems.  This should allow the rest of the code here to remain
+# as close as possible between 5-current and 4-stable.
+#   $1 = size
+#   $2 = mount point
+#   $3 = md unit number (ignored in pre 5.0 systems)
+#   $4 = (optional) bytes-per-inode
+mount_md() {
+	if [ -n "$4" ]; then
+		bpi="-i $4"
+	fi
+	/sbin/mount_mfs -s $1 -T qp120at $bpi dummy $2
+}
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/rc.conf ]; then
+	. /etc/defaults/rc.conf
+	source_rc_confs
+elif [ -r /etc/rc.conf ]; then
+	. /etc/rc.conf
+fi
+
+echo "+++ mfs_mount of /var"
+mount_md ${varsize:=65536} /var 1
+
+echo "+++ populate /var using /etc/mtree/BSD.var.dist"
+/usr/sbin/mtree -deU -f /etc/mtree/BSD.var.dist -p /var
+
+echo "+++ create log files based on the contents of /etc/newsyslog.conf"
+LOGFILES=`/usr/bin/awk '$1 != "#" { printf "%s ", $1 } ' /etc/newsyslog.conf`
+if [ -n "$LOGFILES" ]; then
+	/usr/bin/touch $LOGFILES
+fi
+
+mount -a       # chown and chgrp are in /usr
+
+#
+# XXX make sure to create one dir for each printer as requested by lpd
+#
+
+# If /tmp is a symlink, assume it points to somewhere writable, like
+# /var/tmp, otherwise, use a small memory filesystem for /tmp.
+if [ ! -h /tmp ]; then
+	mount_md ${tmpsize:=20480} /tmp 2
+fi
+
+# extract a list of device entries, then copy them to a writable fs
+(cd /; find -x dev | cpio -o -H newc) > /tmp/dev.tmp
+mount_md 4096 /dev 3 512
+(cd /; cpio -i -H newc -d < /tmp/dev.tmp)

@@ -1,0 +1,6 @@
+$ $Id: set25,v 1.1 2000/01/14 22:57:33 christos Exp $
+$ tc.sig.c
+$set 25 
+1 our wait %d\n
+2 virhe: bsd_signal(%d) signaali on sallitun arvoalueen ulkopuolella\n
+3 virhe: bsd_signal(%d) - sigaction epäonnistui, errno %d\n

@@ -1,0 +1,94 @@
+This text is copied from the TeXinfo manual for pcl-cvs.
+
+Installation of the pcl-cvs program
+===================================
+
+  1. Possibly edit the file `Makefile' to reflect the situation at your
+     site.  We say "possibly" because the version of pcl-cvs included
+     with CVS uses a configuration mechanism integrated with the overall
+     mechanisms used by the CVS build and install procedures.  Thus the
+     file `Makefile' will be generated automatically from the file
+     `Makefile.in', and it should not be necessary to edit it further.
+
+     If you do have to edit the `Makefile', the only things you have to
+     change is the definition of `lispdir' and `infodir'.  The elisp
+     files will be copied to `lispdir', and the info file(s) to
+     `infodir'.
+
+  2. Configure pcl-cvs.el
+
+     There are a couple of pathnames that you have to check to make
+     sure that they match your system.  They appear early in the file
+     `pcl-cvs.el'.
+
+     *NOTE:*  If your system is running emacs 18.57 or earlier you MUST
+     uncomment the line that says:
+          (setq delete-exited-processes nil)
+
+     Setting `delete-exited-processes' to `nil' works around a bug in
+     emacs that causes it to dump core.  The bug was fixed in emacs
+     18.58.
+
+  3. Release 1.05 and later of pcl-cvs requires parts of the Elib
+     library, version 1.0 or later.  Elib is available via anonymous
+     ftp from prep.ai.mit.edu in `pub/gnu/elib-1.0.tar.gz', and from a
+     lot of other sites that mirror prep.  Get Elib, and install it,
+     before proceeding.
+
+     *NOTE:* The version of pcl-cvs included with CVS includes a copy
+     of Elib in the sub-directory `elib' under the `contrib/elib'
+     directory.
+
+  4. Type `make install' in the source directory.  This will
+     byte-compile all `.el' files and copy the `*.elc' files into the
+     directory you specified in step 1.
+
+     If you want to install the `*.el' files too, you can type `make
+     install-el' to do so.
+
+     If you only want to create the compiled elisp files, but don't
+     want to install them, you can type `make' without parameters.
+
+  5. Edit the file `default.el' in your emacs lisp directory (usually
+     `/usr/gnu/lib/emacs/site-lisp' or something similar) and enter the
+     contents of the file `pcl-cvs-startup.el' into it.  It contains a
+     couple of `auto-load's that facilitates the use of pcl-cvs.
+
+
+Installation of the on-line manual.
+===================================
+
+  1. Create the info file(s) `pcl-cvs.info*' from `pcl-cvs.texinfo' by
+     typing `make info'.  If you don't have the program `makeinfo' you
+     can get it by anonymous ftp from e.g. `prep.ai.mit.edu' as
+     `pub/gnu/texinfo-3.7.tar.gz' (there might be a newer version there
+     when you read this).
+
+  2. Install the info file(s) `pcl-cvs.info*' into your standard `info'
+     directory.  You should be able to do this by typing `make
+     install-info'.
+
+  3. Edit the file `dir' in the `info' directory and enter one line to
+     contain a pointer to the info file(s) `pcl-cvs.info*'.  The line
+     can, for instance, look like this:
+
+          * Pcl-cvs: (pcl-cvs).           An Emacs front-end to CVS.
+
+How to make typeset documentation from pcl-cvs.texinfo
+======================================================
+
+   If you have TeX installed at your site, you can make a typeset manual
+from `pcl-cvs.texinfo'.
+
+  1. Run TeX by typing ``make pcl-cvs.dvi''.  You will not get the
+     indices unless you have the `texindex' program.
+
+  2. Convert the resulting device independent file `pcl-cvs.dvi' to a
+     form which your printer can output and print it.  If you have a
+     postscript printer there is a program, `dvi2ps', which does.  There
+     is also a program which comes together with TeX, `dvips', which
+     you can use.
+
+
+-- 
+#ident	"@(#)cvs/contrib/pcl-cvs:$Name:  $Id: INSTALL,v 1.2 1996/04/15 06:33:16 kfogel Exp $"

@@ -1,0 +1,168 @@
+#
+# $Id: README,v 1.14 1997/04/05 07:04:46 morgan Exp $
+# $FreeBSD$
+#
+
+Hello!
+
+Thanks for downloading Linux-PAM-0.65.
+
+--------------------------------------------------------------------
+Before you begin:
+
+  * This distribution requires GNU's Make
+  * It requires GNU's C-compiler: gcc (and 'ld')
+  * it also requires the GNU shell: bash
+  * some of the modules require the presence of libpwdb see redhat
+  * two modules have some need for libcrack too..
+
+--------------------------------------------------------------------
+[
+Zeroth (optional) thing to do: check the detatched "pgp" signature for
+this distribution file, it should be signed by
+
+Type Bits/KeyID    Date       User ID
+pub  1024/2A398175 1996/11/17 Andrew G. Morgan <morgan@linux.kernel.org>
+]
+
+First thing to do (I assume you have successfully unpacked it!) is to
+run:
+
+    make check                           [ requires md5sum to be present ]
+
+This will also check that the distribution has arrived intact. [
+Later, If you change some things, running this command from this
+directory will show you what files you have altered. ]
+
+If you choose to get and install the RCS files that accompany this
+release, you may also run
+
+	make RCScheck
+
+from this directory.
+
+Next, you should check the symbolic link
+
+	.../Linux-PAM-X.YY/default.defs
+
+points to the file that best describes your system. The various *.defs
+files that are included in this distribution are to be found in the
+directory:
+
+	.../Linux-PAM-X.YY/defs/
+
+This should configure the distribution to compile on your system. The
+default is the version I use for maintaining the distribution. [If you
+don't find one that suits your needs, please try to create one, email
+it to me and I will include it in a future release.]
+
+If you are running an ELF based Linux system you should be able to
+compile the distribution straight from the box. If you are running an
+a.out based system, then some of the functionality of Linux-PAM will
+be unavailable to you. Instead, you must switch the DYNAMIC variables
+*off* in your "defs" file: comment out the DYNAMIC and DYNAMIC_LIBPAM
+defines and uncomment the STATIC and STATIC_LIBPAM defines. NOTE, for
+ELF based systems, almost any combination of these four definitions is
+legal... If you have ELF, I recommend the default however.
+
+Second, try to compile it. Use the following command in *this*
+directory:
+
+	make
+
+[ or 'make all' if you prefer ]. The first time you type make, it is
+likely to complain. This is to remind you to remove any libraries from
+previous versions of the distribution that are likely to confuse this
+make... Type 'make' again.
+
+Before you do the third thing. You should think about whether you want
+the default configuration scripts to be installed or not. If you have
+a working PAM based system you probably do *not* want this.. Whatever,
+before Linux-PAM installs the default scripts you will be prompted as
+to whether it is a good idea. Be sure to say NO if you are worried!
+** You have been warned. **
+
+Third, to install the stuff you need to be root. Do the following:
+
+	su -c "make install"
+
+If everything has worked as intended there should now be
+
+	some executables		in	./bin/
+	some filters for pam_filter	in	/usr/sbin/pam_filter/
+	some configuration files:
+		/etc/pam.conf
+		/etc/security/*.conf
+	libpam_misc.a (static library)	in	/usr/lib/
+
+In addition:
+
+    if dynamically linked:
+
+	libpam.so.XXX (shared library)	        in	/usr/lib/
+	libpam_misc.so.XXX (shared library)	in	/usr/lib/
+	pam_*.so (modules)		        in	/usr/lib/security/
+
+    if statically linked:
+
+	libpam.a (static library)	in	/usr/lib/
+
+[These are the default directories that I use. Your own system may
+differ as specified in your XXX.defs file.]
+
+NOTES:
+
+* The documentation, what there is of it, is in ./doc. I am only
+including the sgml format source-files. But try to make .ps files
+available from the above http address. To locally use these sgml files
+you should have linuxdoc-sgml installed. Sorry, but I'm conserving net
+bandwidth by only including sources!
+
+* The source for each module is to be found in ./modules/XXX. If you
+want to add a new one, make a directory like XXX for it. Add the name
+(XXX) to MODDIRS in ./modules/Makefile and hopefully it will become
+part of the overall make. Note, the Makefile in ./modules/ is now
+smart enough to check if the directory is there before it changes into
+it; If you want to start working on a module, send me its name and I
+will add it to the "official" Makefile.. This way, you should be able
+to insert your developing module into any new release, and not have to
+worry at first about letting it out to the public. This may also give
+other people some idea about whether a module is currently being
+worked on or not.
+
+* Currently, you have to 'make' binaries from this directory. 'make
+clean', however, works in any directory that has a Makefile.
+
+* Also, you can 'make remove' (as root) from *this* directory and it
+will delete the various installed files dotted around the system. THIS
+IS A VERY BAD IDEA IF YOUR SYSTEM DEPENDS ON PAM TO WORK!!!
+
+* 'make sterile' does 'make remove' and then 'make extraclean', this
+might be required if you are alternating your choice of
+STATIC(_LIBPAM) and DYNAMIC(_LIBPAM) compilation. SEE COMMENT IN
+UPPERCASE IN PARAGRAPH ABOVE!!!!
+
+Best wishes
+
+Andrew Morgan
+
+Email bugs/comments to: the Linux-PAM list <pam-list@redhat.com>
+or me <morgan@linux.kernel.org>
+
+To see about joining the mailing list, send the following email:
+--------------------------------
+To: pam-list-request@redhat.com
+Subject: help
+<empty text>
+--------------------------------
+
+Additionally, some Linux-PAM files have been known to be found at one
+or more of the following places (they are not always the most up to
+date...):
+
+http://www.redhat.com/linux-info/pam/
+
+ftp://bach.cis.temple.edu/pub/People/Alex/private/PAM
+ftp://ftp.redhat.com/pub/misc/
+ftp://linux.nrao.edu/pub/linux/ALPHA/PAM/
+ftp://tsx-11.mit.edu/pub/linux/ALPHA/PAM/

@@ -1,0 +1,157 @@
+<html><head><title>
+Reference Clock Drivers
+</title></head><body><h3>
+Reference Clock Drivers
+</H3>
+
+<IMG ALIGN=LEFT SRC=pic/tardisa.gif>From top:
+
+<UL>
+
+<LI>Austron 2100A GPS Receiver with LORAN-C assist</LI>
+<LI>Austron 2000 LORAN-C Receiver></LI>
+<LI>Spectracom 8170 WWVB Receiver</LI>
+<LI>Hewlett Packard 5061A Cesium Beam Standard</LI>
+
+</UL>
+
+<br clear=left>
+The Tardis
+<hr>
+
+Support for most of the commonly available radio and modem reference
+clocks is included in the default configuration of the NTP daemon for
+Unix <TT>ntpd</TT>. Individual clocks can be activated by configuration
+file commands, specifically the <TT>server</TT> and <TT>fudge</TT>
+commands described in the <A HREF=ntpd.htm><TT>ntpd</TT> program manual
+page</A>. The following discussion presents Information on how to select
+and configure the device drivers in a running Unix system.
+
+<P>Radio and modem clocks by convention have addresses in the form
+127.127.<I>t.u</I>, where <I>t</I> is the clock type and <I>u</I> is a
+unit number in the range 0-3 used to distinguish multiple instances of
+clocks of the same type. Most of these clocks require support in the
+form of a serial port or special bus peripheral, but some can work
+directly from the audio codec found in some workstations. The particular
+device is normally specified by adding a soft link
+<TT>/dev/device<I>u</I></TT> to the particular hardware device involved,
+where <I><TT>u</TT></I> correspond to the unit number above.
+
+<p>Most clock drivers communicate with the reference clock using a
+serial port, usually at 9600 bps. There are several application program
+interfaces (API) used in the various Unix and NT systems, most of which
+can be detected at configuration time. Thus, it is important that the
+NTP daemon and utilities be compiled on the target system or clone. In
+some cases special features are available, such as timestamping in the
+kernel or pulse-per-second (PPS) interface. In most cases these features
+can be detected at configuration time as well; however, the kernel may
+have to be recompiled in order for them to work.
+
+<p>The audio drivers are a special case. These include support for the
+NIST time/frequency stations WWV and WWVH, the Canadian time/frequency
+station CHU and generic IRIG signals. Currently, support for the Solaris
+and SunOS audio API is included in the distribution. It is left to the
+volunteer corps to extend this support to other systems. Further
+information on hookup, debugging and monitoring is given in the <a
+href=audio.htm>Audio Drivers</a> page.
+
+<p>Some drivers depending on longwave and shortwave radio services need
+to know the radio propagation time from the transmitter to the receiver,
+which can amount to some tens of milliseconds. This must be calculated
+for each specific receiver location and requires the geographic
+coordinates of both the transmitter and receiver. The transmitter
+coordinates for various radio services are given in the <a
+href=qth.htm>Stations, Frequencies and Geographic Coordinates</a> page.
+Receiver coordinates can be obtained or estimated from various sources.
+The actual calculations are beyond the scope of this document.
+
+<P>Following is a list showing the type and title of each driver
+currently implemented. The compile-time identifier for each is shown in
+parentheses. Click on a selected type for specific description and
+configuration documentation, including the clock address, reference ID,
+driver ID, device name and serial line speed, and features (line
+disciplines, etc.). For those drivers without specific documentation,
+please contact the author listed in the <A HREF=copyright.htm>Copyright
+Notice</A> page.
+
+<P><A HREF=driver1.htm>Type 1</A> Undisciplined Local Clock
+(<TT>LOCAL</TT>)
+<BR><A HREF=driver2.htm>Type 2</A> Trak 8820 GPS Receiver
+(<TT>GPS_TRAK</TT>)
+<BR><A HREF=driver3.htm>Type 3</A> PSTI/Traconex 1020 WWV/WWVH
+Receiver
+(<TT>WWV_PST</TT>)
+<BR><A HREF=driver4.htm>Type 4</A> Spectracom WWVB and GPS Receivers
+(<TT>WWVB_SPEC</TT>)
+<BR><A HREF=driver5.htm>Type 5</A> TrueTime GPS/GOES/OMEGA Receivers
+(<TT>TRUETIME</TT>)
+<BR><A HREF=driver6.htm>Type 6</A> IRIG Audio Decoder
+(<TT>IRIG_AUDIO</TT>)
+<BR><A HREF=driver7.htm>Type 7</A> Radio CHU Audio Demodulator/Decoder
+(<TT>CHU</TT>)
+<BR><A HREF=driver8.htm>Type 8</A> Generic Reference Driver
+(<TT>PARSE</TT>)
+<BR><A HREF=driver9.htm>Type 9</A> Magnavox MX4200 GPS Receiver
+(<TT>GPS_MX4200</TT>)
+<BR><A HREF=driver10.htm>Type 10</A> Austron 2200A/2201A GPS Receivers
+(<TT>GPS_AS2201</TT>)
+<BR><A HREF=driver11.htm>Type 11</A> Arbiter 1088A/B GPS Receiver
+(<TT>GPS_ARBITER</TT>)
+<BR><A HREF=driver12.htm>Type 12</A> KSI/Odetics TPRO/S IRIG Interface
+(<TT>IRIG_TPRO</TT>)
+<BR>Type 13 Leitch CSD 5300 Master Clock Controller
+(<TT>ATOM_LEITCH</TT>)
+<BR>Type 14 EES M201 MSF Receiver (<TT>MSF_EES</TT>)
+<BR><A HREF=driver5.htm>Type 15</A> * TrueTime generic receivers
+<BR>Type 16 Bancomm GPS/IRIG Receiver (<TT>GPS_BANCOMM</TT>)
+<BR>Type 17 Datum Precision Time System (<TT>GPS_DATUM</TT>)
+<BR><A HREF=driver18.htm>Type 18</A> NIST Modem Time Service
+(<TT>ACTS_NIST</TT>)
+<BR><A HREF=driver19.htm>Type 19</A> Heath WWV/WWVH Receiver
+(<TT>WWV_HEATH</TT>)
+<BR><A HREF=driver20.htm>Type 20</A> Generic NMEA GPS Receiver
+(<TT>NMEA</TT>)
+<BR>Type 21 TrueTime GPS-VME Interface (<TT>GPS_VME</TT>)
+<BR><A HREF=driver22.htm>Type 22</A> PPS Clock Discipline
+(<TT>PPS</TT>)
+<BR><A HREF=driver23.htm>Type 23</A> PTB Modem Time Service
+(<TT>ACTS_PTB</TT>)
+<BR><A HREF=driver24.htm>Type 24</A> USNO Modem Time Service
+(<TT>ACTS_USNO</TT>)
+<BR><A HREF=driver5.htm>Type 25</A> * TrueTime generic receivers
+<BR><A HREF=driver26.htm>Type 26</A> Hewlett Packard 58503A GPS
+Receiver (<TT>GPS_HP</TT>)
+<BR><A HREF=driver27.htm>Type 27</A> Arcron MSF Receiver
+(<TT>MSF_ARCRON</TT>)
+<BR><A HREF=driver28.htm>Type 28</A> Shared Memory Driver
+(<TT>SHM</TT>)
+<BR><A HREF=driver29.htm>Type 29</A> Trimble Navigation Palisade GPS
+(<TT>GPS_PALISADE</TT>)
+<BR><A HREF=driver30.htm>Type 30</A> Motorola UT Oncore GPS
+(<TT>GPS_ONCORE</TT>)
+<BR>Type 31 Rockwell Jupiter GPS (<TT>GPS_JUPITER</TT>)
+<BR><A HREF=driver34.htm>Type 34</A> Ultralink WWVB Receivers
+<BR><A HREF=driver35.htm>Type 35</A> Conrad Parallel Port Radio Clock
+(<TT>PCF</TT>)
+<BR><A HREF=driver36.htm>Type 36</A> Radio WWV/H Audio
+Demodulator/Decoder(<TT>WWV</TT>)
+<BR><A HREF=driver37.htm>Type 37</A> Forum Graphic GPS Dating station
+(<TT>FG</TT>)
+
+<P>* All TrueTime receivers are now supported by one driver, type 5.
+Types 15 and 25 will be retained only for a limited time and may be
+reassigned in future.
+<P>Additional Information
+<P><A HREF=prefer.htm>Mitigation Rules and the <TT>prefer</TT>
+Keyword</A>
+<BR><A HREF=rdebug.htm>Debugging Hints for Reference Clock Drivers</A>
+<BR><A HREF=ldisc.htm>Line Disciplines and Streams Drivers</A>
+<BR><A HREF=audio.htm>Reference Clock Audio Drivers</A>
+<BR><A HREF=pps.htm>Pulse-per-second (PPS) Signal Interfacing</A>
+<BR><A HREF=howto.htm>How To Write a Reference Clock Driver</A>
+<BR><A HREF=index.htm>The Network Time Protocol (NTP)
+Distribution&nbsp;</A>&nbsp;
+
+<hr><a href=index.htm><img align=left src=pic/home.gif></a><address><a
+href=mailto:mills@udel.edu> David L. Mills &lt;mills@udel.edu&gt;</a>
+</address></a></body></html>

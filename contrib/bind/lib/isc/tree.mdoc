@@ -1,0 +1,154 @@
+.\" $Id: tree.mdoc,v 8.2 1999/01/08 19:25:48 vixie Exp $
+.\"
+.\"Copyright (c) 1995-1999 by Internet Software Consortium
+.\"
+.\"Permission to use, copy, modify, and distribute this software for any
+.\"purpose with or without fee is hereby granted, provided that the above
+.\"copyright notice and this permission notice appear in all copies.
+.\"
+.\"THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+.\"ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+.\"OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+.\"CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+.\"DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+.\"PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+.\"ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+.\"SOFTWARE.
+.\"
+.Dd April 5, 1994
+.Dt TREE 3
+.Os BSD 4
+.Sh NAME
+.Nm tree_init ,
+.Nm tree_mung ,
+.Nm tree_srch ,
+.Nm tree_add ,
+.Nm tree_delete ,
+.Nm tree_trav
+.Nd balanced binary tree routines
+.Sh SYNOPSIS
+.Ft void
+.Fn tree_init "void **tree"
+.Ft void *
+.Fn tree_srch "void **tree" "int (*compare)()" "void *data"
+.Ft void
+.Fn tree_add(tree, compare, data, del_uar) "void **tree" "int (*compare)()" \
+"void *data" "void (*del_uar)()"
+.Ft int
+.Fn tree_delete(tree, compare, data, del_uar) "void **tree" "int (*compare)()" \
+"void *data" "void (*del_uar)()"
+.Ft int
+.Fn tree_trav(tree, trav_uar) "void **tree" "int (*trav_uar)()"
+.Ft void
+.Fn tree_mung(tree, del_uar) "void **tree" "void (*del_uar)()"
+.Sh DESCRIPTION
+These functions create and manipulate a balanced binary (AVL) tree.  Each node
+of the tree contains the expected left & right subtree pointers, a short int
+balance indicator, and a pointer to the user data.  On a 32 bit system, this
+means an overhead of 4+4+2+4 bytes per node (or, on a RISC or otherwise
+alignment constrained system with implied padding, 4+4+4+4 bytes per node).
+There is no key data type enforced by this package; a caller supplied
+compare routine is used to compare user data blocks.
+.Pp
+Balanced binary trees are very fast on searches and replacements, but have a
+moderately high cost for additions and deletions.  If your application does a
+lot more searches and replacements than it does additions and deletions, the
+balanced (AVL) binary tree is a good choice for a data structure.
+.Pp
+.Fn Tree_init
+creates an empty tree and binds it to
+.Dq Fa tree
+(which for this and all other routines in this package should be declared as
+a pointer to void or int, and passed by reference), which can then be used by
+other routines in this package.  Note that more than one
+.Dq Fa tree
+variable can exist at once; thus multiple trees can be manipulated
+simultaneously.
+.Pp
+.Fn Tree_srch
+searches a tree for a specific node and returns either
+.Fa NULL
+if no node was found, or the value of the user data pointer if the node
+was found.
+.Fn compare
+is the address of a function to compare two user data blocks.  This routine
+should work much the way 
+.Xr strcmp 3
+does; in fact,
+.Xr strcmp
+could be used if the user data was a \s-2NUL\s+2 terminated string.
+.Dq Fa Data
+is the address of a user data block to be used by
+.Fn compare
+as the search criteria.  The tree is searched for a node where
+.Fn compare
+returns 0.
+.Pp
+.Fn Tree_add
+inserts or replaces a node in the specified tree.  The tree specified by
+.Dq Fa tree
+is searched as in
+.Fn tree_srch,
+and if a node is found to match
+.Dq Fa data,
+then the
+.Fn del_uar
+function, if non\-\s-2NULL\s+2, is called with the address of the user data
+block for the node (this routine should deallocate any dynamic memory which
+is referenced exclusively by the node); the user data pointer for the node
+is then replaced by the value of
+.Dq Fa data.
+If no node is found to match, a new node is added (which may or may not
+cause a transparent rebalance operation), with a user data pointer equal to
+.Dq Fa data.
+A rebalance may or may not occur, depending on where the node is added
+and what the rest of the tree looks like.
+.Fn Tree_add
+will return the
+.Dq Fa data
+pointer unless catastrophe occurs in which case it will return \s-2NULL\s+2.
+.Pp
+.Fn Tree_delete
+deletes a node from
+.Dq Fa tree.
+A rebalance may or may not occur, depending on where the node is removed from
+and what the rest of the tree looks like.
+.Fn Tree_delete
+returns TRUE if a node was deleted, FALSE otherwise.
+.Pp
+.Fn Tree_trav
+traverses all of
+.Dq Fa tree,
+calling
+.Fn trav_uar
+with the address of each user data block.  If
+.Fn trav_uar
+returns FALSE at any time,
+.Fn tree_trav
+will immediately return FALSE to its caller.  Otherwise all nodes will be 
+reached and
+.Fn tree_trav
+will return TRUE.
+.Pp
+.Fn Tree_mung
+deletes every node in
+.Dq Fa tree,
+calling
+.Fn del_uar
+(if it is not \s-2NULL\s+2) with the user data address from each node (see
+.Fn tree_add
+and
+.Fn tree_delete
+above).  The tree is left in the same state that
+.Fn tree_init
+leaves it in \- i.e., empty.
+.Sh BUGS
+Should have a way for the caller to specify application-specific
+.Xr malloc
+and
+.Xr free
+functions to be used internally when allocating meta data.
+.Sh AUTHOR
+Paul Vixie, converted and augumented from Modula\-2 examples in
+.Dq Algorithms & Data Structures ,
+Niklaus Wirth, Prentice\-Hall, ISBN 0\-13\-022005\-1.

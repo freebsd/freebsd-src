@@ -1,0 +1,445 @@
+.\" Copyright (c) 1983, 1987, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     $Id: inet6_option_space.3,v 1.4 2000/02/05 10:32:24 jinmei Exp $
+.\" $FreeBSD$
+.\"
+.Dd December 10, 1999
+.Dt INET6_OPTION_SPACE 3
+.Os
+.\"
+.Sh NAME
+.Nm inet6_option_space ,
+.Nm inet6_option_init ,
+.Nm inet6_option_append ,
+.Nm inet6_option_alloc ,
+.Nm inet6_option_next ,
+.Nm inet6_option_find
+.Nd IPv6 Hop-by-Hop and Destination Options manipulation
+.\"
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.Fd #include <sys/types.h>
+.Fd #include <netinet/in.h>
+.Ft "int"
+.Fn inet6_option_space "int nbytes"
+.Ft "int"
+.Fn inet6_option_init "void *bp" "struct cmsghdr **cmsgp" "int type"
+.Ft "int"
+.Fn inet6_option_append "struct cmsghdr *cmsg" "const u_int8_t *typep" "int multx" "int plusy"
+.Ft "u_int8_t *"
+.Fn inet6_option_alloc "struct cmsghdr *cmsg" "int datalen" "int multx" "int plusy"
+.Ft "int"
+.Fn inet6_option_next "const struct cmsghdr *cmsg" "u_int8_t **tptrp"
+.Ft "int"
+.Fn inet6_option_find "const struct cmsghdr *cmsg" "u_int8_t **tptrp" "int type"
+.\"
+.Sh DESCRIPTION
+.\"
+Building and parsing the Hop-by-Hop and Destination options is
+complicated due to alignment constranints, padding and
+ancillary data manipulation.
+RFC2292 defines a set of functions to help the application.
+The function prototypes for
+these functions are all in the
+.Aq Li netinet/in.h
+header.
+.\"
+.Ss inet6_option_space
+.Fn inet6_option_space
+returns the number of bytes required to hold an option when it is stored as
+ancillary data, including the
+.Li cmsghdr
+structure at the beginning,
+and any padding at the end
+(to make its size a multiple of 8 bytes).
+The argument is the size of the structure defining the option,
+which must include any pad bytes at the beginning
+(the value
+.Li y
+in the alignment term
+.Dq Li "xn + y" ) ,
+the type byte, the length byte, and the option data.
+.Pp
+Note: If multiple options are stored in a single ancillary data
+object, which is the recommended technique, this function
+overestimates the amount of space required by the size of
+.Li N-1
+.Li cmsghdr
+structures,
+where
+.Li N
+is the number of options to be stored in the object.
+This is of little consequence, since it is assumed that most
+Hop-by-Hop option headers and Destination option headers carry only
+one option
+(appendix B of [RFC-2460]).
+.\"
+.Ss inet6_option_init
+.Fn inet6_option_init
+is called once per ancillary data object that will
+contain either Hop-by-Hop or Destination options.
+It returns
+.Li 0
+on success or
+.Li -1
+on an error.
+.Pp
+.Fa bp
+is a pointer to previously allocated space that will contain the
+ancillary data object.
+It must be large enough to contain all the
+individual options to be added by later calls to
+.Fn inet6_option_append
+and
+.Fn inet6_option_alloc .
+.Pp
+.Fa cmsgp
+is a pointer to a pointer to a
+.Li cmsghdr
+structure.
+.Fa *cmsgp
+is initialized by this function to point to the
+.Li cmsghdr
+structure constructed by this function in the buffer pointed to by
+.Fa bp .
+.Pp
+.Fa type
+is either
+.Dv IPV6_HOPOPTS
+or
+.Dv IPV6_DSTOPTS .
+This
+.Fa type
+is stored in the
+.Li cmsg_type
+member of the
+.Li cmsghdr
+structure pointed to by
+.Fa *cmsgp .
+.\"
+.Ss inet6_option_append
+This function appends a Hop-by-Hop option or a Destination option
+into an ancillary data object that has been initialized by
+.Fn inet6_option_init .
+This function returns
+.Li 0
+if it succeeds or
+.Li -1
+on an error.
+.Pp
+.Fa cmsg
+is a pointer to the
+.Li cmsghdr
+structure that must have been
+initialized by
+.Fn inet6_option_init .
+.Pp
+.Fa typep
+is a pointer to the 8-bit option type.
+It is assumed that this
+field is immediately followed by the 8-bit option data length field,
+which is then followed immediately by the option data.
+The caller
+initializes these three fields
+(the type-length-value, or TLV)
+before calling this function.
+.Pp
+The option type must have a value from
+.Li 2
+to
+.Li 255 ,
+inclusive.
+.Li ( 0
+and
+.Li 1
+are reserved for the
+.Li Pad1
+and
+.Li PadN
+options, respectively.)
+.Pp
+The option data length must have a value between
+.Li 0
+and
+.Li 255 ,
+inclusive, and is the length of the option data that follows.
+.Pp
+.Fa multx
+is the value
+.Li x
+in the alignment term
+.Dq Li xn + y .
+It must have a value of
+.Li 1 ,
+.Li 2 ,
+.Li 4 ,
+or
+.Li 8 .
+.Pp
+.Fa plusy
+is the value
+.Li y
+in the alignment term
+.Dq Li xn + y .
+It must have a value between
+.Li 0
+and
+.Li 7 ,
+inclusive.
+.\"
+.Ss inet6_option_alloc
+This function appends a Hop-by-Hop option or a Destination option
+into an ancillary data object that has been initialized by
+.Fn inet6_option_init .
+This function returns a pointer to the 8-bit
+option type field that starts the option on success, or
+.Dv NULL
+on an error.
+.Pp
+The difference between this function and
+.Fn inet6_option_append
+is that the latter copies the contents of a previously built option into
+the ancillary data object while the current function returns a
+pointer to the space in the data object where the option's TLV must
+then be built by the caller.
+.Pp
+.Fa cmsg
+is a pointer to the
+.Li cmsghdr
+structure that must have been
+initialized by
+.Fn inet6_option_init .
+.Pp
+.Fa datalen
+is the value of the option data length byte for this option.
+This value is required as an argument to allow the function to
+determine if padding must be appended at the end of the option.
+(The
+.Fn inet6_option_append
+function does not need a data length argument
+since the option data length must already be stored by the caller.)
+.Pp
+.Fa multx
+is the value
+.Li x
+in the alignment term
+.Dq Li xn + y .
+It must have a value of
+.Li 1 ,
+.Li 2 ,
+.Li 4 ,
+or
+.Li 8 .
+.Pp
+.Fa plusy
+is the value
+.Li y
+in the alignment term
+.Dq Li xn + y .
+It must have a value between
+.Li 0
+and
+.Li 7 ,
+inclusive.
+.\"
+.Ss inet6_option_next
+This function processes the next Hop-by-Hop option or Destination
+option in an ancillary data object.
+If another option remains to be
+processed, the return value of the function is
+.Li 0
+and
+.Fa *tptrp
+points to
+the 8-bit option type field
+(which is followed by the 8-bit option
+data length, followed by the option data).
+If no more options remain
+to be processed, the return value is
+.Li -1
+and
+.Fa *tptrp
+is
+.Dv NULL .
+If an error occurs, the return value is
+.Li -1
+and
+.Fa *tptrp
+is not
+.Dv NULL .
+.Pp
+.Fa cmsg
+is a pointer to
+.Li cmsghdr
+structure of which
+.Li cmsg_level
+equals
+.Dv IPPROTO_IPV6
+and
+.Li cmsg_type
+equals either
+.Dv IPV6_HOPOPTS
+or
+.Dv IPV6_DSTOPTS .
+.Pp
+.Fa tptrp
+is a pointer to a pointer to an 8-bit byte and
+.Fa *tptrp
+is used
+by the function to remember its place in the ancillary data object
+each time the function is called.
+The first time this function is
+called for a given ancillary data object,
+.Fa *tptrp
+must be set to
+.Dv NULL .
+.Pp
+Each time this function returns success,
+.Fa *tptrp
+points to the 8-bit
+option type field for the next option to be processed.
+.\"
+.Ss inet6_option_find
+This function is similar to the previously described
+.Fn inet6_option_next
+function, except this function lets the caller
+specify the option type to be searched for, instead of always
+returning the next option in the ancillary data object.
+.Fa cmsg
+is a
+pointer to
+.Li cmsghdr
+structure of which
+.Li cmsg_level
+equals
+.Dv IPPROTO_IPV6
+and
+.Li cmsg_type
+equals either
+.Dv IPV6_HOPOPTS
+or
+.Dv IPV6_DSTOPTS .
+.Pp
+.Fa tptrp
+is a pointer to a pointer to an 8-bit byte and
+.Fa *tptrp
+is used
+by the function to remember its place in the ancillary data object
+each time the function is called.
+The first time this function is
+called for a given ancillary data object,
+.Fa *tptrp
+must be set to
+.Dv NULL .
+.Pa
+This function starts searching for an option of the specified type
+beginning after the value of
+.Fa *tptrp .
+If an option of the specified
+type is located, this function returns
+.Li 0
+and
+.Fa *tptrp
+points to the 8-
+bit option type field for the option of the specified type.
+If an
+option of the specified type is not located, the return value is
+.Li -1
+and
+.Fa *tptrp
+is
+.Dv NULL .
+If an error occurs, the return value is
+.Li -1
+and
+.Fa *tptrp
+is not
+.Dv NULL .
+.\"
+.Sh DIAGNOSTICS
+.Fn inet6_option_init
+and
+.Fn inet6_option_append
+return
+.Li 0
+on success or
+.Li -1
+on an error.
+.Pp
+.Fn inet6_option_alloc
+returns
+.Dv NULL
+on an error.
+.Pp
+On errors,
+.Fn inet6_option_next
+and
+.Fn inet6_option_find
+return
+.Li -1
+setting
+.Fa *tptrp
+to non
+.Dv NULL
+value.
+.\"
+.Sh EXAMPLES
+RFC2292 gives comprehensive examples in chapter 6.
+.\"
+.Sh SEE ALSO
+.Rs
+.%A W. Stevens
+.%A M. Thomas
+.%T "Advanced Sockets API for IPv6"
+.%N RFC2292
+.%D February 1998
+.Re
+.Rs
+.%A S. Deering
+.%A R. Hinden
+.%T "Internet Protocol, Version 6 (IPv6) Specification"
+.%N RFC2460
+.%D December 1998
+.Re
+.\"
+.Sh HISTORY
+The implementation first appeared in KAME advanced networking kit.
+.\"
+.Sh STANDARDS
+The functions
+are documented in
+.Dq Advanced Sockets API for IPv6
+(RFC2292).
+.\"
+.Sh BUGS
+The text was shamelessly copied from RFC2292.

@@ -1,0 +1,236 @@
+.\" $Id: kadmin.8,v 1.2 2000/09/19 12:29:48 assar Exp $
+.\"
+.Dd September 10, 2000
+.Dt KADMIN 8
+.Os HEIMDAL
+.Sh NAME
+.Nm kadmin
+.Nd Kerberos administration utility
+.Sh SYNOPSIS
+.Nm
+.Oo Fl p Ar string \*(Ba Xo
+.Fl -principal= Ns Ar string Oc
+.Xc
+.Oo Fl c Ar file \*(Ba Xo
+.Fl -config-file= Ns Ar file Oc
+.Xc
+.Oo Fl k Ar file \*(Ba Xo
+.Fl -key-file= Ns Ar file Oc
+.Xc
+.Oo Fl r Ar realm \*(Ba Xo
+.Fl -realm= Ns Ar realm Oc
+.Xc
+.Oo Fl a Ar host \*(Ba Xo
+.Fl -admin-server= Ns Ar host Oc
+.Xc
+.Oo Fl s Ar port number \*(Ba Xo
+.Fl -server-port= Ns Ar port number Oc
+.Xc
+.Op Fl l | Fl -local
+.Op Fl h | Fl -help
+.Op Fl v | Fl -version
+.Op Ar command
+.Sh DESCRIPTION
+The
+.Nm
+program is used to make modification to the Kerberos database, either remotely via the 
+.Xr kadmind 8
+daemon, or locally (with the 
+.Fl l 
+option).
+.Pp
+Supported options:
+.Bl -tag -width Ds
+.It Xo
+.Fl p Ar string Ns ,
+.Fl -principal= Ns Ar string
+.Xc
+principal to authenticate as
+.It Xo
+.Fl c Ar file Ns ,
+.Fl -config-file= Ns Ar file
+.Xc
+location of config file
+.It Xo
+.Fl k Ar file Ns ,
+.Fl -key-file= Ns Ar file
+.Xc
+location of master key file
+.It Xo
+.Fl r Ar realm Ns ,
+.Fl -realm= Ns Ar realm
+.Xc
+realm to use
+.It Xo
+.Fl a Ar host Ns ,
+.Fl -admin-server= Ns Ar host
+.Xc
+server to contact
+.It Xo
+.Fl s Ar port number Ns ,
+.Fl -server-port= Ns Ar port number
+.Xc
+port to use
+.It Xo
+.Fl l Ns ,
+.Fl -local
+.Xc
+local admin mode
+.El
+.Pp
+If no 
+.Ar command
+is given on the command line,
+.Nm 
+will prompt for commands to process. Commands include:
+.\" not using a list here, since groff apparently gets confused 
+.\" with nested Xo/Xc
+.Bd -ragged -offset indent
+.Nm add
+.Op Fl r | Fl -random-key
+.Op Fl -random-password
+.Oo Fl p Ar string \*(Ba Xo
+.Fl -password= Ns Ar string Oc
+.Xc
+.Op Fl -key= Ns Ar string
+.Op Fl -max-ticket-life= Ns Ar lifetime
+.Op Fl -max-renewable-life= Ns Ar lifetime
+.Op Fl -attributes= Ns Ar attributes
+.Op Fl -expiration-time= Ns Ar time
+.Op Fl -pw-expiration-time= Ns Ar time
+.Ar principal...
+.Pp
+.Bd -ragged -offset indent
+creates a new principal
+.Ed
+.Pp
+.Nm passwd
+.Op Fl r | Fl -random-key
+.Op Fl -random-password
+.Oo Fl p Ar string \*(Ba Xo
+.Fl -password= Ns Ar string Oc
+.Xc
+.Op Fl -key= Ns Ar string
+.Ar principal...
+.Pp
+.Bd -ragged -offset indent
+changes the password of an existing principal
+.Ed
+.Pp
+.Nm delete
+.Ar principal...
+.Pp
+.Bd -ragged -offset indent
+removes a principal
+.Ed
+.Pp
+.Nm del_enctype
+.Ar principal enctypes...
+.Pp
+.Bd -ragged -offset indent
+removes some enctypes from a principal, this can be useful the service
+belonging to the principal is known to not handle certain enctypes
+.Ed
+.Pp
+.Nm ext_keytab
+.Oo Fl k Ar string \*(Ba Xo
+.Fl -keytab= Ns Ar string Oc
+.Xc
+.Ar principal...
+.Pp
+.Bd -ragged -offset indent
+creates a keytab with the keys of the specified principals
+.Ed
+.Pp
+.Nm get
+.Op Fl l | Fl -long
+.Op Fl s | Fl -short
+.Op Fl t | Fl -terse
+.Ar expression...
+.Pp
+.Bd -ragged -offset indent
+lists the principals that match the expressions (which are shell glob
+like), long format gives more information, and terse just prints the
+names
+.Ed
+.Pp
+.Nm rename
+.Ar from to
+.Pp
+.Bd -ragged -offset indent
+renames a principal
+.Ed
+.Pp
+.Nm modify
+.Oo Fl a Ar attributes \*(Ba Xo
+.Fl -attributes= Ns Ar attributes Oc
+.Xc
+.Op Fl -max-ticket-life= Ns Ar lifetime
+.Op Fl -max-renewable-life= Ns Ar lifetime
+.Op Fl -expiration-time= Ns Ar time
+.Op Fl -pw-expiration-time= Ns Ar time
+.Op Fl -kvno= Ns Ar number
+.Ar principal
+.Pp
+.Bd -ragged -offset indent
+modifies certain attributes of a principal
+.Ed
+.Pp
+.Nm privileges
+.Pp
+.Bd -ragged -offset indent
+lists the operations you are allowd to perform
+.Ed
+.Pp
+.Ed
+.Pp
+When running in local mode, the following commands can also be used.
+.Bd -ragged -offset indent
+.Nm dump
+.Op Fl d | Fl -decrypt
+.Op Ar dump-file
+.Pp
+.Bd -ragged -offset indent
+writes the database in
+.Dq human readable
+form to the specified file, or standard out
+.Ed
+.Pp
+.Nm init
+.Op Fl -realm-max-ticket-life= Ns Ar string
+.Op Fl -realm-max-renewable-life= Ns Ar string
+.Ar realm
+.Pp
+.Bd -ragged -offset indent
+initialises the Kerberos database with entries for a new realm, it's
+possible to have more than one realm served by one server
+.Ed
+.Pp
+.Nm load
+.Ar file
+.Pp
+.Bd -ragged -offset indent
+reads a previously dumped database, and re-creates that database from scratch
+.Ed
+.Pp
+.Nm merge
+.Ar file
+.Pp
+.Bd -ragged -offset indent
+similar to 
+.Nm list
+but just modifies the database with the entries in the dump file
+.Ed
+.Pp
+.Ed
+.\".Sh ENVIRONMENT
+.\".Sh FILES
+.\".Sh EXAMPLES
+.\".Sh DIAGNOSTICS
+.Sh SEE ALSO
+.Xr kadmind 8 ,
+.Xr kdc 8
+.\".Sh STANDARDS
+.\".Sh HISTORY
+.\".Sh AUTHORS
+.\".Sh BUGS

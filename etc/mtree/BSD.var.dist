@@ -1,0 +1,97 @@
+# $FreeBSD$
+#
+# Please see the file src/etc/mtree/README before making changes to this file.
+#
+
+/set type=dir uname=root gname=wheel mode=0755
+.
+    account
+    ..
+    at
+/set uname=daemon
+        jobs
+        ..
+        spool
+        ..
+/set uname=root
+    ..
+/set mode=0750
+    backups
+    ..
+    crash
+    ..
+    cron
+        tabs            mode=0700
+        ..
+    ..
+/set mode=0755
+    db
+        pkg
+        ..
+    ..
+/set gname=games mode=0775
+    games
+        hackdir         mode=0770
+            save            mode=0770
+            ..
+        ..
+        larn
+        ..
+        phantasia
+        ..
+    ..
+/set gname=wheel mode=0700
+    heimdal
+    ..
+/set mode=0755
+    log
+    ..
+    mail            gname=mail mode=0775
+    ..
+    msgs            uname=daemon
+    ..
+    preserve
+    ..
+    run
+    ..
+    rwho            gname=daemon mode=0775
+    ..
+    spool
+        lock            uname=uucp gname=dialer mode=0775
+        ..
+/set gname=daemon
+        lpd
+        ..
+        mqueue
+        ..
+        opielocks       mode=0700
+        ..
+        output
+            lpd
+            ..
+        ..
+/set gname=wheel
+/set uname=uucp gname=uucp mode=0775
+        uucp
+            .Preserve
+            ..
+            .Sequence
+            ..
+            .Status
+            ..
+            .Temp
+            ..
+            .Xqtdir
+            ..
+        ..
+        uucppublic      mode=0777
+        ..
+/set uname=root gname=wheel mode=0755
+    ..
+    tmp             mode=01777
+        vi.recover      mode=01777
+        ..
+    ..
+    yp
+    ..
+..

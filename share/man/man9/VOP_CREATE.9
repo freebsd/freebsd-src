@@ -1,0 +1,185 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1996 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 24, 1996
+.Os
+.Dt VOP_CREATE 9
+.Sh NAME
+.Nm VOP_CREATE ,
+.Nm VOP_MKNOD ,
+.Nm VOP_MKDIR ,
+.Nm VOP_SYMLINK
+.Nd create a file, socket, fifo, device, directory or symlink
+.Sh SYNOPSIS
+.Fd #include <sys/param.h>
+.Fd #include <sys/vnode.h>
+.Fd #include <sys/namei.h>
+.Ft int
+.Fn VOP_CREATE "struct vnode *dvp" "struct vnode **vpp" "struct componentname *cnp" "struct vattr *vap"
+.Ft int
+.Fn VOP_MKNOD "struct vnode *dvp" "struct vnode **vpp" "struct componentname *cnp" "struct vattr *vap"
+.Ft int
+.Fn VOP_MKDIR "struct vnode *dvp" "struct vnode **vpp" "struct componentname *cnp" "struct vattr *vap"
+.Ft int
+.Fn VOP_SYMLINK "struct vnode *dvp" "struct vnode **vpp" "struct componentname *cnp" "struct vattr *vap" "char *target"
+.Sh DESCRIPTION
+These entry points create a new file, socket, fifo, device, directory or symlink
+in a given directory.
+.Pp
+The arguments are:
+.Bl -tag -width target
+.It Ar dvp
+the locked vnode of the directory
+.It Ar vpp
+the address of a variable where the resulting locked vnode should be stored
+.It Ar cnp
+the pathname component created
+.It Ar vap
+the attributes that the new object should be created with
+.It Ar target
+the pathname of the target of the symlink
+.El
+.Pp
+These entry points are called after
+.Xr VOP_LOOKUP 9
+when an object is being created.
+Normally,
+.Xr VOP_LOOKUP 9
+will have set the
+.Dv SAVENAME
+flag in
+.Fa cnp->cn_flags
+to keep the memory pointed to by
+.Fa cnp->cn_pnbuf
+valid.
+If an error is detected when creating the file,
+then this memory will be freed.
+If the file is created successfully, then it will be freed unless the
+.Dv SAVESTART
+flag is specified in
+.Fa cnp .
+.Sh LOCKS
+The directory,
+.Fa dvp
+will be locked on entry and must remain locked on return.
+If the call is successful, the new object will be returned locked.
+.Sh RETURN VALUES
+If successful, the vnode for the new object is placed in
+.Fa *vpp
+and zero is returned.  Otherwise, an appropriate error is returned.
+.Sh PSEUDOCODE
+.Bd -literal
+int
+vop_create(struct vnode *dvp,
+	   struct vnode **vpp,
+	   struct componentname *cnp
+	   struct vattr *vap)
+{
+    int mode = MAKEIMODE(vap->va_type, vap->va_mode);
+    struct vnode *vp;
+    int error;
+
+    *vpp = NULL;
+    if ((mode & IFMT) == 0)
+	mode |= IFREG;
+
+    error = SOMEFS_VALLOC(dvp, mode, cnp->cn_cred, &vp);
+    if (error) {
+	free(cnp->cn_pnbuf, M_NAMEI);
+	vput(dvp);
+	return error;
+    }
+
+    /*
+     * Update the permissions for the new vnode, including
+     * copying the group from the directory.
+     */
+    ...;
+
+#ifdef QUOTA
+    /*
+     * Possibly check quota information.
+     */
+    ...;
+#endif
+
+    /*
+     * Enter new vnode in directory, taking care that the vnode
+     * hits the disk before the directory contents are changed.
+     */
+    error = ...;
+
+    if (error)
+	goto bad;
+
+    if ((cnp->cn_flags & SAVESTART) == 0)
+	free(cnp->cn_pnbuf, M_NAMEI);
+    vput(dvp);
+    *vpp = vp;
+
+    return 0;
+
+bad:
+    /*
+     * Write error occurred trying to update the inode
+     * or the directory so must deallocate the inode.
+     */
+    free(cnp->cn_pnbuf, M_NAMEI);
+    vput(vp);
+
+    /*
+     * Deallocate filesystem resources for vp.
+     */
+    ...;
+
+    vput(dvp);
+
+    return error;
+}
+.Ed
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er ENOSPC
+The filesystem is full.
+.It Bq Er EDQUOT
+Quota exceeded.
+.El
+.Sh SEE ALSO
+.Xr VOP_LOOKUP 9
+.Sh HISTORY
+The function
+.Nm
+appeared in
+.Bx 4.3 .
+.Sh SEE ALSO
+.Xr vnode 9
+.Sh AUTHORS
+This man page was written by
+.An Doug Rabson .

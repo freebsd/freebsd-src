@@ -1,0 +1,317 @@
+VI_MESSAGE_CATALOG
+För långa raderX
+kan inte ta bort rad %luX
+kan inte lägga till på rad %luX
+kan inte sätta in på rad %luX
+kan inte lagra rad %luX
+kan inte hämta sista radenX
+Fel: kan inte hämta rad %luX
+LoggningsfilX
+Loggning utförs inte, ångra är inte möjligtX
+Inga ändringar att ångraX
+Loggning utförs inte, ångra är inte möjligtX
+Loggning utförs inte, ångra ångra är inte möjligtX
+Inga ändringar att återgöraX
+%s/%d: fel vid loggningX
+Vi:s standard in och ut måste gå till en terminalX
+Markering %s: inte sattX
+Markering %s: raden har tagits bortX
+Markering %s: markörpositionen finns inte längreX
+Fel: X
+ny filX
+namnet ändradesX
+ändradX
+oförändradX
+OLÅSTX
+inte skrivbarX
+rad %lu av %lu [%ld%%]X
+tom filX
+rad %luX
+Filen %s är ingen meddelandekatalogX
+Kan inte sätta standardvärde för %s flagganX
+Användning: %sX
+set: %s är en okänd flagga: "set all" visar alla flaggorX
+set: [no]%s flaggan kan inte ges ett värdeX
+set: %s flaggan är inte boleanskX
+set: %s flaggan: %sX
+set: %s flaggan: %s: för stort värdeX
+set: %s flaggan: %s är ett otillåtet talX
+set: %s flaggan är inte boleanskX
+Fönsterkolumnerna är för få, mindre än %dX
+Fönsterkolumnerna är för många, fler än %dX
+Fönsterraderna är för få, mindre än %dX
+Fönsterraderna är för många, fler än %dX
+Lisp flaggan är inte implementeradX
+meddelanden är inte avslagna: %sX
+meddelanden är inte påslagna: %sX
+
+Paragraph flaggan måste ges i teckengrupper om tvåX
+Section flaggan måste ges i teckengrupper om tvåX
+
+
+
+Standardbufferten är tomX
+Buffer %s är tomX
+Filer med radmatning i namnet kan inte återskapasX
+Ändringar kan inte återskapas om programmet krascharX
+Kopierar filen för återskapning...X
+Säkerhetskopiering misslyckades: %sX
+Ändringar kan inte återskapas om programmet krascharX
+Misslyckades att säkerhetskopiera filen: %sX
+Kopierar filen för återskapning...X
+Kan inte hitta information om användaridentitet %uX
+Kan inte låsa återskapningsfilenX
+Återskapningsfilens buffer överskrivenX
+ÅterskapningsfilX
+%s: Återskapningsfilen är korruptX
+%s: Återskapningsfilen är korruptX
+Det finns ingen fil %s, läsbar av dig, att återskapaX
+Det finns äldre versioner av denna fil som du kan återskapaX
+Det finns andra filer du kan återskapaX
+skickar inte email: %sX
+Filen är tom; inget att söka iX
+Kom till slutet på filen utan att hitta söksträngenX
+Ingen tidigare söksträngX
+Hittar inte söksträngenX
+Kom till början av filen utan att hitta söksträngenX
+Sökningen slog runtX
+Söker...X
+Inga icke skrivbara tecken funnaX
+Okänt kommandonamnX
+
+%s: kommandot är inte tillgängligt i "ex" lägeX
+Talet får inte vara nollX
+%s: Ogiltig radspecifikationX
+Fel i intern syntaxtabell (%s: %s)X
+Användning: %sX
+%s: temporärbuffert inte frisläpptX
+Offset är före rad 1X
+Offset är efter slutet på filenX
+@ med intervall exekverades när filen/fönstret ändradesX
+Global/v kommando exekverades när filen/fönstret ändradesX
+Ex kommando misslyckades: efterföljande kommandon ignoreradeX
+Ex kommando misslyckades: omdefinierade tangenter ignoreradeX
+Den andra adressen är mindre än den förstaX
+Inget namn på markering givetX
+\\ följs inte av / eller ?X
+Referens till ett radnummer mindre än 0X
+%s kommandot är inte käntX
+Värdet på adressen är för stortX
+Värdet på adressen är för litetX
+Otillåten adresskombinationX
+Otillåten adress: bara %lu rader finns i filenX
+Otillåten adress: filen är tomX
+%s kommandot tillåter inte en adress som är 0X
+Inga förkortningar att visaX
+Förkortningar måste sluta med ett "ord" teckenX
+Förkortningar kan inte innehålla mellanslag eller tabX
+Förkortningar kan inte blanda "ord"/"icke ord" tecken, utom i slutetX
+"%s" är ingen förkortningX
+Vi kommando misslyckades: omdefinierade tangenter ignoreradeX
+Inga fler filer att editeraX
+Inga tidigare filer att editeraX
+Inga tidigare filer att spela tillbakaX
+Ingen fillista att visaX
+Inget tidigare kommando att ersätta "!" medX
+Inget filnamn att ersätta %% medX
+Inget filnamn att ersätta # medX
+Fel: execl: %sX
+I/O fel: %sX
+Filen ändrad efter sista skrivning; spara eller använd !X
+Kan inte hitta hemkatalogX
+Ny nuvarande katalog: %sX
+Inga "cut buffers" att visaX
+%s kommandot kan inte används som del i ett "global" eller v kommandoX
+%s/%s: inte läst: varken du eller root är ägareX
+%s/%s: inte läst: du är inte ägareX
+%s/%s: inte läst: skrivbar av annan än ägarenX
+%s: inte läst: varken du eller root är ägareX
+%s: inte läst: du är inte ägareX
+%s: inte läst: skrivbar av annan än ägarenX
+Ingen nästa rad att sätta ihop medX
+Det finns inget i inmatningsmappningenX
+Det finns inget i kommandomappningenX
+%s tecknet kan inte mappas omX
+"%s" är inte ommappat just nuX
+Namn på markeringar måste vara ett tecken långaX
+%s finns, inget sparat; använd ! för att sparaX
+Ny exrc fil: %sX
+Målraden ligger inne i området som ska flyttasX
+Open kommandot kräver att open flaggan är sattX
+Open kommandot är inte implementerat ännuX
+Säkerhetskopiering av filen är inte möjligtX
+Filen säkerhetskopieradX
+%s expanderade till för många filnamnX
+Endast vanliga filer och namngivna rör kan läsasX
+%s: läslåset är otillgängligtX
+Läser...X
+%s: %lu rader, %lu teckenX
+Inga bakgrundsfönster att visaX
+Script kommandot finns bara i "vi" lägeX
+Inget kommando att exekveraX
+shiftwidth flaggan satt till 0X
+Talet har för stort värdeX
+Talet har för litet värdeX
+Reguljärt uttryck är givet; r flaggan är meningslösX
+#, l och p flaggorna kan inte kombineras med c flaggan i "vi" lägeX
+Ingen matchande text funnenX
+Inget tidigare märke har givitsX
+Det är färre än %s märken i stacken; använd :display t[ags]X
+Det finns ingen fil %s i märkesstacken; använd :display t[ags]X
+Tryck Enter för att fortsätta: X
+%s: märke inte funnetX
+%s: korrupt märke i %sX
+%s: märkets radnummer är bortom filslutetX
+Märkesstacken är tomX
+%s: söksträngen inte funnenX
+%d filer till att editeraX
+Buffert %s är tomX
+Bekräfta ändring? [n]X
+AvbrutenX
+Ingen tidigare buffert att exekveraX
+Inget tidigare reguljärt uttryckX
+%s kommandot kräver att en fil redan lästs inX
+Användning: %sX
+Visual kommandot kräver att open flaggan är sattX
+
+Tom filX
+Ingen tidigare F, f, T eller t sökningX
+%s inte funnenX
+Ingen tidigare fil att editeraX
+Markören är inte i ett talX
+Det resulterande talet är för stortX
+Det resulterande talet är för litetX
+Inget matchande tecken på denna radX
+Matchande tecken inte funnetX
+Det finns inga tecken att ersättaX
+Det finns inget fönster att byta tillX
+Tecken efter söksträng, radoffset och/eller z kommandotX
+Ingen tidigare söksträngX
+Sökningen slog runt till ursprungliga positionenX
+Förkortning överskred expanderingsgränsen: tecken har tagits bortX
+Ogiltigt tecken; använd "quote" för att sätta inX
+Redan i början på insättningenX
+Inga fler tecken att ta bortX
+Försök att gå bortom slutet på filenX
+Försök att gå bortom slutet på radenX
+Ingen förflyttning gjordX
+Redan i början på filenX
+Försök att gå före början på filenX
+Redan i första kolumnenX
+Buffertar måste anges före kommandotX
+Redan i slutet av filenX
+Redan på slutet av radenX
+%s är inte ett "vi" kommandoX
+Användning: %sX
+Inga tecken att ta bortX
+Q kommandot kräver "ex" i terminallägeX
+Inget kommando att repeteraX
+Filen är tomX
+%s kan inte användas som ett förflyttningskommandoX
+Redan i kommando lägeX
+Markören är inte i ett ordX
+
+Windows flaggans värde är för stor, största värde är %uX
+Lägg tillX
+ÄndraX
+KommandoX
+Sätt inX
+ErsättX
+Förflyttning bortom fönsterslutX
+Förflyttning till före fönstrets börjanX
+Fönstret måste vara större än %d rader för delningX
+Det finns inga fönster i bakgrundenX
+Det finns inget fönster i bakgrunden som editerar filen %sX
+Du får inte sätta ditt enda synliga fönster i bakgrundenX
+Fönstret kan bara krympa till %d raderX
+Fönstret kan inte krympaX
+Fönstret kan inte växaX
+
+Detta fönster kan inte pausasX
+Avbrutet: omdefinierade tangenter ignoreradeX
+vi: temporärbuffertar inte frisläpptaX
+Denna terminal har ingen %s tangentX
+Endast en buffert kan angesX
+Talet är större än %luX
+AvbrutetX
+Kan inte skapa temporär filX
+Warning: %s är inte en normal filX
+%s är redan låst, detta blir en icke skrivbar sessionX
+%s: ta bortX
+%s: stängX
+%s: ta bortX
+%s: ta bortX
+Ej skrivbar fil, filen inte sparad; använd ! för att skriva överX
+Ej skrivbar fil, filen inte sparadX
+%s finns, ej sparad; använd ! för att utföra operationenX
+%s finns, filen inte sparadX
+Ofullständig fil, filen inte sparad, använd ! för att skriva överX
+Ofullständig fil, filen inte sparadX
+%s: filen ändrad efter denna kopia togs; använd ! för att utföra operationenX
+%s: filen ändrad efter denna kopia togsX
+%s: skrivlåset är otillgängligtX
+Skriver...X
+%s: VARNING: FILEN TRUNKERADX
+Redan vid första märket i denna gruppX
+%s: ny fil: %lu rader, %lu teckenX
+%s: %lu rader, %lu teckenX
+%s expanderade till för många filnamnX
+%s är inte en normal filX
+%s ägs inte av digX
+%s är åtkomstbar av andra än ägarenX
+Filen har ändrats efter den sparats; spara eller använd !X
+Filen har ändrats efter den sparats; spara eller använd :edit!X
+Filen har ändrats efter den sparats; spara eller använd !X
+Filen är temporär; exit kastar bort ändringarnaX
+Ej skrivbar fil, ändringar har inte automatsparatsX
+Loggningen startar omX
+bekräfta? [ynq]X
+Tryck på en tangent för att fortsätta: X
+Tryck på en tangent för att fortsätta [: för att ge fler kommandon]: X
+Tryck på en tangent för att fortsätta [q för att avsluta]: X
+Den formen av %s kräver "ex" i terminallägeX
+Går till "ex" inmatningsläge.X
+Kommandot misslyckades, ingen fil inläst ännu.X
+ forts?X
+Oväntad teckenhändelseX
+Oväntad filslutshändelseX
+Sökningen hittade ingentingX
+Oväntad avbrottshändelseX
+Oväntad avslutningshändelseX
+Oväntad omritningshändelseX
+Redan vid sista märket i denna gruppX
+%s kommandot kräver "ex" i terminallägeX
+Den formen av %s är inte tillgänglig när secure edit flaggan är sattX
+Oväntad stränghändelseX
+Oväntad tidshändelseX
+Oväntad skrivhändelseX
+
+Skalexpansion är inte tillgänglig när secure edit flaggan är sattX
+%s kommandot är inte tillgänglig när secure edit flaggan är sattX
+set: %s kan inte slås avX
+Fönstret för litet.X
+tillagdaX
+ändradeX
+borttagnaX
+ihopsattaX
+flyttadeX
+flyttadeX
+inklistradeX
+radX
+raderX
+Vi har inte länkats med en Tcl tolkX
+Filen har ändrats efter den sparats.X
+Skalexpansion misslyckadesX
+Ingen %s edit flagga givenX
+Vi har inte länkats med en Perl tolkX
+Inga "ex" kommandon att exekveraX
+Tryck <CR> för att exekvera kommando, :q för att avslutaX
+Gör "cscope help" för hjälpX
+Inga cscope kopplingar körsX
+%s: okänd söktyp: använd en av %sX
+%d: ingen sådan cscope sessionX
+set: %s flaggan får aldrig slås påX
+set: %s flaggan får aldrig sättas till 0X
+%s: tillagt: %lu rader, %lu teckenX
+Oväntad storleksändringX
+%d filer att editeraX

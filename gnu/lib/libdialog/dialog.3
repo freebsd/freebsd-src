@@ -1,0 +1,776 @@
+.\"
+.\" Copyright (c) 1995, Jordan Hubbard
+.\"
+.\" All rights reserved.
+.\"
+.\" This manual page may be used, modified, copied, distributed, and
+.\" sold, in both source and binary form provided that the above
+.\" copyright and these terms are retained, verbatim, as the first
+.\" lines of this file.  Under no circumstances is the author
+.\" responsible for the proper functioning of the software described herein
+.\" nor does the author assume any responsibility for damages incurred with
+.\" its use.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 1, 2000
+.Dt DIALOG 3
+.Os
+.Sh NAME
+.Nm draw_shadow ,
+.Nm draw_box ,
+.Nm line_edit ,
+.Nm strheight ,
+.Nm strwidth ,
+.Nm dialog_create_rc ,
+.Nm dialog_yesno ,
+.Nm dialog_noyes ,
+.Nm dialog_prgbox ,
+.Nm dialog_msgbox ,
+.Nm dialog_textbox ,
+.Nm dialog_menu ,
+.Nm dialog_checklist ,
+.Nm dialog_radiolist ,
+.Nm dialog_inputbox ,
+.Nm dialog_clear_norefresh ,
+.Nm dialog_clear ,
+.Nm dialog_update ,
+.Nm dialog_fselect ,
+.Nm dialog_notify ,
+.Nm dialog_mesgbox ,
+.Nm dialog_gauge ,
+.Nm init_dialog ,
+.Nm end_dialog ,
+.Nm use_helpfile ,
+.Nm use_helpline ,
+.Nm get_helpline ,
+.Nm restore_helpline ,
+.Nm dialog_ftree ,
+.Nm dialog_tree
+.Nd provide a simple ncurses-based GUI interface
+.Sh SYNOPSIS
+.Fd #include <dialog.h>
+.Ft "void"
+.Fn draw_shadow "WINDOW *win" "int y" "int x" "int height" "int width"
+.Ft "void"
+.Fn draw_box "WINDOW *win" "int y" "int x" "int height" "int width" "chtype box" "chtype border"
+.Ft "int"
+.Fo line_edit
+.Fa "WINDOW *dialog"
+.Fa "int box_y"
+.Fa "int box_x"
+.Fa "int flen"
+.Fa "int box_width"
+.Fa "chtype attr"
+.Fa "int first"
+.Fa "unsigned char *result"
+.Fa "int attr_mask"
+.Fc
+.Ft "int"
+.Fn strheight "const char *p"
+.Ft "int"
+.Fn strwidth "const char *p"
+.Ft "void"
+.Fn dialog_create_rc "unsigned char *filename"
+.Ft "int"
+.Fn dialog_yesno "unsigned char *title" "unsigned char *prompt" "int height" "int width"
+.Fn dialog_noyes "unsigned char *title" "unsigned char *prompt" "int height" "int width"
+.Ft "int"
+.Fn dialog_prgbox "unsigned char *title" "const unsigned char *line" "int height" "int width" "int pause" "int use_shell"
+.Ft "int"
+.Fn dialog_textbox "unsigned char *title" "unsigned char *file" "int height" "int width"
+.Ft "int"
+.Fo dialog_menu
+.Fa "unsigned char *title"
+.Fa "unsigned char *prompt"
+.Fa "int height"
+.Fa "int width"
+.Fa "int menu_height"
+.Fa "int cnt"
+.Fa "void *it"
+.Fa "unsigned char *result"
+.Fa "int *ch"
+.Fa "int *sc"
+.Fc
+.Ft "int"
+.Fn dialog_checklist "unsigned char *title" "unsigned char *prompt" "int height" "int width" "int list_height" "int cnt" "void *it" "unsigned char *result"
+.Ft "int"
+.Fn dialog_radiolist "unsigned char *title" "unsigned char *prompt" "int height" "int width" "int list_height" "int cnt" "void *it" "unsigned char *result"
+.Ft "int"
+.Fn dialog_inputbox "unsigned char *title" "unsigned char *prompt" "int height" "int width" "unsigned char *result"
+.Ft "char *"
+.Fn dialog_fselect "char *dir" "char *fmask"
+.Ft "int"
+.Fn dialog_dselect "char *dir" "char *fmask"
+.Ft "void"
+.Fn dialog_notify "char *msg"
+.Ft "int"
+.Fn dialog_mesgbox "unsigned char *title" "unsigned char *prompt" "int height" "int width"
+.Ft "void"
+.Fn dialog_gauge "char *title" "char *prompt" "int y" "int x" "int height" "int width" "int perc"
+.Ft "void"
+.Fn use_helpfile "char *hfile"
+.Ft "void"
+.Fn use_helpline "char *hline"
+.Ft "char *"
+.Fn get_helpline "void"
+.Ft "void"
+.Fn dialog_clear_norefresh "void"
+.Ft "void"
+.Fn dialog_clear "void"
+.Ft "void"
+.Fn dialog_update "void"
+.Ft "void"
+.Fn init_dialog "void"
+.Ft "void"
+.Fn end_dialog "void"
+.Ft "int"
+.Fn dialog_ftree "unsigned char *filename" "unsigned char FS" "unsigned char *title" "unsigned char *prompt" "int height" "int width" "int menu_height" "unsigned char **result"
+.Ft "int" 
+.Fo dialog_tree 
+.Fa "unsigned char **names" 
+.Fa "int size"
+.Fa "unsigned char FS" 
+.Fa "unsigned char *title" 
+.Fa "unsigned char *prompt"
+.Fa "int height" 
+.Fa "int width" 
+.Fa "int menu_height"
+.Fa "unsigned char **result"
+.Fc
+.Sh DESCRIPTION
+The dialog library attempts to provide a fairly simplistic set of
+fixed-presentation menus, input boxes, gauges, file requestors and
+other general purpose GUI (a bit of a stretch, since it uses
+ncurses) objects.  Since the library also had its roots in a
+shell-script writer's utility (see the
+.Xr dialog 1
+command), the
+early API was somewhat primitively based on strings being passed in or
+out and parsed.  This API was later extended to take either the
+original arguments or arrays of
+.Va dialogMenuItem
+structures,
+giving the user much more control over the internal behavior of each
+control.  The
+.Va dialogMenuItem
+structure internals are public:
+.Bd -literal -offset indent
+typedef struct _dmenu_item {
+   char *prompt;
+   char *title;
+   int (*checked)(struct _dmenu_item *self);
+   int (*fire)(struct _dmenu_item *self);
+   int (*selected)(struct _dmenu_item *self, int is_selected);
+   void *data;
+   char lbra, mark, rbra;
+   long aux;
+} dialogMenuItem;
+.Ed
+.Pp
+The
+.Dv prompt
+and
+.Dv title
+strings are pretty much self-explanatory,
+and the
+.Va checked
+and
+.Va fire
+function pointers provide optional
+display and action hooks (the
+.Dv data
+variable being available for
+the convenience of those hooks) when more tightly coupled feedback between
+a menu object and user code is required.  The
+.Va selected
+hook also
+allows you to verify whether or not a given item is selected (the cursor is
+over it) for implementing pretty much any possible context-sensitive
+behavior. A number of clever tricks for simulating various kinds of item
+types can also be done by adjusting the values of
+.Va lbra
+(default: '['),
+.Va mark
+(default: '*' for radio menus, 'X' for check menus)
+and
+.Va rbra
+(default: ']') and declaring a reasonable
+.Va checked
+hook,
+which should return TRUE for the
+.Dq marked
+state and FALSE for
+.Dq unmarked .
+The
+.Va aux
+field is not used internally, and is available for miscellaneous usage.
+If an item has a
+.Va fire
+hook associated with it, it will also be called
+whenever the item is "toggled" in some way and should return one of the
+following codes:
+.Bd -literal -offset 4n
+#define DITEM_SUCCESS           0    /* Successful completion */
+#define DITEM_FAILURE           1    /* Failed to "fire" */
+.Ed
+.Pp
+The following flags are in the upper 16 bits of return status:
+.Bd -literal -offset 4n
+#define DITEM_LEAVE_MENU        (1 << 16)
+#define DITEM_REDRAW            (1 << 17)
+#define DITEM_RECREATE          (1 << 18)
+#define DITEM_RESTORE           (1 << 19)
+#define DITEM_CONTINUE          (1 << 20)
+.Ed
+.Pp
+Two special globals also exist for putting a dialog at any arbitrary
+X,Y location (the early designers rather short-sightedly made no provisions
+for this).  If set to zero, the default centering behavior will be in
+effect.
+.Pp
+Below is a short description of the various functions:
+.Pp
+.Fn draw_shadow
+draws a shadow in curses window
+.Va win
+using the dimensions of
+.Va x , y , width
+and
+.Va height .
+.Pp
+.Fn draw_box
+draws a bordered box using the dimensions of
+.Va x , y , width
+and
+.Va height .
+The attributes from
+.Va box
+and
+.Va border
+are used, if specified, while painting the box and border regions of the
+object.
+.Pp
+.Fn line_edit
+invoke a simple line editor with an edit box of dimensions
+.Va box_x , box_y
+and
+.Va box_width .
+The field length is constrained by
+.Va flen ,
+starting at the
+.Va first
+character specified and
+optionally displayed with character attributes
+.Va attr .
+The string being edited is stored in
+.Va result .
+Returns 0 on success, 1 on Cancel, and -1 on failure or ESC.
+.Pp
+.Fn strheight
+returns the height of string in
+.Va p ,
+counting newlines.
+.Pp
+.Fn strwidth
+returns the width of string in
+.Va p ,
+counting newlines.
+.Pp
+.Fn dialog_create_rc
+dump dialog library settings into
+.Pa filename
+for later retrieval as defaults.  Returns 0 on success, -1 on failure.
+.Pp
+.Fn dialog_yesno
+display a text box using
+.Va title
+and
+.Va prompt
+strings of dimensions
+.Va height
+and
+.Va width .
+Also paint a pair of
+.Em Yes
+and
+.Em \&No
+buttons at the bottom.
+The default selection is
+.Em Yes .
+If the
+.Em Yes
+button is chosen, return FALSE.  If
+.Em \&No ,
+return TRUE.
+.Pp
+.Fn dialog_noyes
+is the same as
+.Fn dialog_yesno ,
+except the default selection is
+.Em \&No .
+.Pp
+.Fn dialog_prgbox
+display a text box of dimensions
+.Va height
+and
+.Va width
+containing the output of command
+.Va line .
+If
+.Va use_shell
+is TRUE,
+.Va line
+is passed as an argument to
+.Xr sh 1 ,
+otherwise it is simply passed to
+.Xr exec 3 .
+If
+.Va pause
+is TRUE, a final confirmation requestor will be put up when execution
+terminates.  Returns 0 on success, -1 on failure.
+.Pp
+.Fn dialog_textbox
+display a text box containing the contents of
+.Va file
+with dimensions of
+.Va height
+and
+.Va width .
+.Pp
+.Fn dialog_menu
+display a menu of dimensions
+.Va height
+and
+.Va width
+with an optional internal menu height of
+.Va menu_height .
+The
+.Va cnt
+and
+.Va it
+arguments are of particular importance since they,
+together, determine which of the 2 available APIs to use.  To use the
+older and traditional interface,
+.Va cnt
+should be a positive
+integer representing the number of string pointer pairs to find in
+.Va it
+(which should be of type
+.Ft char "**" ) ,
+the strings are
+expected to be in prompt and title order for each item and the
+.Va result
+parameter is expected to point to an array where the
+prompt string of the item selected will be copied.  To use the newer
+interface,
+.Va cnt
+should be a
+.Va negative
+integer representing the number of
+.Va dialogMenuItem
+structures pointed to by
+.Va it
+(which should be of type
+.Vt dialogMenuItem "*" ) ,
+one structure per item.  In the new interface, the
+.Va result
+variable is used as a simple boolean (not a pointer) and should be NULL if
+.Va it
+only points to menu items and the default OK and Cancel buttons are desired.  If
+.Va result
+is non-NULL, then
+.Va it
+is actually expected to point 2 locations
+.Va past
+the start of the menu item list.
+.Va it
+is then expected to
+point to an item representing the Cancel button, from which the
+.Va prompt
+and
+.Va fire
+actions are used to override the default behavior, and
+.Va it
+to the same for the OK button.
+.Pp
+Using either API behavior, the
+.Va ch
+and
+.Va sc
+values may be passed in to preserve current
+item selection and scroll position values across calls.
+.Pp
+.Fn dialog_checklist
+display a menu of dimensions
+.Va height
+and
+.Va width
+with an
+optional internal menu height of
+.Va list_height .
+The
+.Va cnt
+and
+.Va it
+arguments are of particular importance since they,
+together, determine which of the 2 available APIs to use.  To use the
+older and traditional interface,
+.Va cnt
+should be a positive
+integer representing the number of string pointer tuples to find in
+.Va it
+(which should be of type
+.Ft "char **" ) ,
+the strings are
+expected to be in prompt, title and state ("on" or "off") order for
+each item and the
+.Va result
+parameter is expected to point to an
+array where the prompt string of the item(s) selected will be
+copied.  To use the newer interface,
+.Va cnt
+should be a
+.Em negative
+integer representing the number of
+.Ft dialogMenuItem
+structures pointed to by
+.Va it
+(which should be of type
+.Ft "dialogMenuItem *" ) ,
+one structure per item. In the new interface,
+the
+.Va result
+variable is used as a simple boolean (not a pointer)
+and should be NULL if
+.Va it
+only points to menu items and the default OK and Cancel
+buttons are desired.  If
+.Va result
+is non-NULL, then
+.Va it
+is actually expected to
+point 2 locations
+.Va past
+the start of the menu item list.
+.Va it
+is then expected to point to an item representing the Cancel
+button, from which the
+.Va prompt
+and
+.Va fire
+actions are used to override the default behavior, and
+.Va it
+to the same for the OK button.
+.Pp
+In the standard API model, the menu supports the selection of multiple items,
+each of which is marked with an `X' character to denote selection.  When
+the OK button is selected, the prompt values for all items selected are
+concatenated into the
+.Va result
+string.
+.Pp
+In the new API model, it is not actually necessary to preserve
+"checklist" semantics at all since practically everything about how
+each item is displayed or marked as "selected" is fully configurable.
+You could have a single checklist menu that actually contained a group
+of items with "radio" behavior, "checklist" behavior and standard menu
+item behavior.  The only reason to call
+.Fn dialog_checklist
+over
+.Fn dialog_radiolist
+in the new API model is to inherit the base
+behavior, you're no longer constrained by it.
+.Pp
+Returns 0 on success, 1 on Cancel, and -1 on failure or ESC.
+.Pp
+.Fn dialog_radiolist
+display a menu of dimensions
+.Va height
+and
+.Va width
+with an
+optional internal menu height of
+.Va list_height .
+The
+.Va cnt
+and
+.Va it
+arguments are of particular importance since they,
+together, determine which of the 2 available APIs to use.  To use the
+older and traditional interface,
+.Va cnt
+should be a positive
+integer representing the number of string pointer tuples to find in
+.Va it
+(which should be of type
+.Ft "char **" ) ,
+the strings are
+expected to be in prompt, title and state ("on" or "off") order for
+each item and the
+.Va result
+parameter is expected to point to an
+array where the prompt string of the item(s) selected will be
+copied.  To use the newer interface,
+.Va cnt
+should be a
+.Dv negative
+integer representing the number of
+.Ft dialogMenuItem
+structures pointed to by
+.Va it
+(which should be of type
+.Ft "dialogMenuItem *" ,
+one structure per item. In the new interface,
+the
+.Va result
+variable is used as a simple boolean (not a pointer)
+and should be NULL if
+.Va it
+only points to menu items and the default OK and Cancel
+buttons are desired.  If
+.Va result
+is non-NULL, then
+.Va it
+is actually expected to point 2 locations
+.Va past
+the start of the menu item list.
+.Va it
+is then expected to point to an item representing the Cancel
+button, from which the
+.Va prompt
+and
+.Va fire
+actions are used to override the default behavior, and
+.Va it
+does the same for the traditional OK button.
+.Pp
+In the standard API model, the menu supports the selection of only one
+of multiple items, the currently active item marked with an `*'
+character to denote selection.  When the OK button is selected, the
+prompt value for this item is copied into the
+.Va result
+string.
+.Pp
+In the new API model, it is not actually necessary to preserve
+"radio button" semantics at all since practically everything about how
+each item is displayed or marked as "selected" is fully configurable.
+You could have a single radio menu that actually contained a group
+of items with "checklist" behavior, "radio" behavior and standard menu
+item behavior.  The only reason to call
+.Fn dialog_radiolist
+over
+.Fn dialog_checklistlist
+in the new API model is to inherit the base
+behavior.
+.Pp
+Returns 0 on success, 1 on Cancel and -1 on failure or ESC.
+.Pp
+.Fn dialog_inputbox
+displays a single-line text input field in a box displaying
+.Va title
+and
+.Va prompt
+of dimensions
+.Va height
+and
+.Va width .
+The field entered is stored in
+.Va result .
+.Pp
+Returns 0 on success, -1 on failure or ESC.
+.Pp
+.Fn dialog_fselect
+brings up a file selector dialog starting at
+.Va dir
+and showing only those file names
+matching
+.Va fmask .
+.Pp
+Returns filename selected or NULL.
+.Pp
+.Fn dialog_dselect
+brings up a directory selector dialog starting at
+.Va dir
+and showing only those directory names
+matching
+.Va fmask .
+.Pp
+Returns directory name selected or NULL.
+.Pp
+.Fn dialog_notify
+brings up a generic "hey, you!" notifier dialog containing
+.Va msg .
+.Pp
+.Fn dialog_mesgbox
+like a notifier dialog, but with more control over
+.Va title ,
+.Va prompt ,
+.Va width
+and
+.Va height .
+This object will also wait for user confirmation, unlike
+.Fn dialog_notify .
+.Pp
+Returns 0 on success, -1 on failure.
+.Pp
+.Fn dialog_gauge
+displays a horizontal bar-graph style gauge.  A value of
+.Em 100
+for
+.Em perc
+constitutes a full gauge, a value of
+.Em 0
+an empty one.
+.Pp
+.Fn use_helpfile
+for any menu supporting context sensitive help, invoke the text box
+object on this file whenever the
+.Em F1
+key is pressed.
+.Pp
+.Fn use_helpline
+displays this line of helpful text below any menu being displayed.
+.Pp
+.Fn get_helpline
+get the current value of the helpful text line.
+.Pp
+.Fn dialog_clear_norefresh
+clear the screen back to the dialog background color, but don't refresh the
+contents just yet.
+.Pp
+.Fn dialog_clear
+clear the screen back to the dialog background color immediately.
+.Pp
+.Fn dialog_update
+do any pending screen refreshes now.
+.Pp
+.Fn init_dialog
+initialize the dialog library (call this routine before any other dialog
+API calls).
+.Pp
+.Fn end_dialog
+shut down the dialog library (call this if you need to get back to sanity).
+.Pp
+.Fn dialog_ftree
+shows a tree described by the data from the file
+.Pa filename .
+The data in the file should look like
+.Xr find 1
+output.
+For the
+.Xr find 1
+output, the field separator
+.Va FS
+will be
+.Dq \&/ .
+If
+.Va height
+and
+.Va width
+are positive numbers, they set the absolute
+size of the whole
+.Fn dialog_ftree
+box. If
+.Va height
+and
+.Va width
+are negative numbers, the size of the
+.Fn dialog_ftree
+box will be calculated automatically.
+.Va menu_height
+sets the height of the tree subwindow inside the
+.Fn dialog_ftree
+box and must be set. 
+.Va title
+is shown centered on the upper border of the
+.Fn dialog_ftree
+box.
+.Va prompt
+is shown inside the
+.Fn dialog_ftree
+box above the tree subwindow and can contain
+.Ql \e\&n
+to split lines.  One can navigate in
+the tree by pressing UP/DOWN or
+.Sm off
+.So \&+ Sc \&/ So \&- Sc ,
+.Sm on
+PG_UP/PG_DOWN or
+.Sm off
+.So b Sc \&/SPACE
+.Sm on
+and
+HOME/END or
+.Sm off
+.So g Sc \&/ So G Sc .
+.Sm on
+A leaf of the
+tree is selected by pressing TAB or LEFT/RIGHT the OK
+button and pressing ENTER. filename may contain data like
+.Xr find 1
+output, as well as like the output of
+.Xr find 1
+with
+.Fl d
+option. Some of the transient paths to the leaves of the tree may
+be absent. Such data is corrected when fed from filename.
+.Pp
+The function returns 0 and a pointer to the selected leaf (to the path to
+the leaf from the root of the tree) into result, if the OK button was
+selected. The memory allocated for the building of the tree is freed on
+exiting
+.Fn dialog_ftree .
+The memory for the result line should be freed
+later manually, if necessary. If the Cancel button was selected, the
+function returns 1. In case of exiting
+.Fn dialog_ftree
+on ESC, the function returns -1.
+.Pp
+.Fn dialog_tree 
+function returns the same results as
+.Fn dialog_ftree .
+If 0 is returned, result will contain a pointer from the array
+.Va names .
+.\" \fBdialog_tree\fR displays the tree very much like \fBdialog_ftree\fR does,
+.\" with some exceptions. The source data for the building of the tree is an
+.\" array \fBnames\fR of paths to the leaves (should be similar to \fBfind(1)\fR
+.\" output) of the size \fBsize\fR. However, there is no correction of data like
+.\" in \fBdialog_ftree\fR. Thus, to display a correct tree, the array must
+.\" already contain correct data. Besides, in each session every unique use of
+.\" \fBdialog_tree\fR is kept in memory, and later, when calling
+.\" \fBdialog_tree\fR with the same \fBnames\fR, \fBsize\fR, \fBFS\fR,
+.\" \fBheight\fR, \fBwidth\fR and \fBmenu_height\fR the position of the cursor
+.\" in the tree subwindow is restored.
+.Sh SEE ALSO
+.Xr dialog 1 ,
+.Xr ncurses 3
+.Sh AUTHORS
+The primary author would appear to be
+.An Savio Lam Aq lam836@cs.cuhk.hk
+with contributions over the years by
+.An Stuart Herbert Aq S.Herbert@sheffield.ac.uk ,
+.An Marc van Kempen Aq wmbfmk@urc.tue.nl ,
+.An Andrey Chernov Aq ache@FreeBSD.org ,
+.An Jordan Hubbard Aq jkh@FreeBSD.org
+and
+.An Anatoly A. Orehovsky Aq tolik@mpeks.tomsk.su .
+.Sh HISTORY
+These functions appeared in
+.Fx 2.0
+as the
+.Xr dialog 1
+command and were soon split into a separate library
+and command by
+.An Andrey Chernov .
+.An Marc van Kempen implemented most of the
+extra controls and objects,
+.An Jordan Hubbard
+added the dialogMenuItem renovations and this man page and
+.An Anatoly A. Orehovsky
+implemented
+.Fn dialog_ftree
+and
+.Fn dialog_tree .
+.Sh BUGS
+Sure!

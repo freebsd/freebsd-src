@@ -1,0 +1,326 @@
+.\" Copyright (c) 1989 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Guido van Rossum.
+.\"
+.\" Redistribution and use in source and binary forms are permitted provided
+.\" that: (1) source distributions retain this entire copyright notice and
+.\" comment, and (2) distributions including binaries display the following
+.\" acknowledgement:  ``This product includes software developed by the
+.\" University of California, Berkeley and its contributors'' in the
+.\" documentation or other materials provided with the distribution and in
+.\" all advertising materials mentioning features or use of this software.
+.\" Neither the name of the University nor the names of its contributors may
+.\" be used to endorse or promote products derived from this software without
+.\" specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+.\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.\"	@(#)glob.3	5.3 (Berkeley) 3/19/91
+.\"
+.TH GLOB 3 "March 19, 1991"
+.UC 7
+.SH NAME
+glob, globfree \- generate pathnames matching a pattern
+.SH SYNOPSIS
+.nf
+#include <glob.h>
+
+glob(const char *pattern, int flags,
+	const int (*errfunc)(char *, int), glob_t *pglob);
+
+void globfree(glob_t *pglob);
+.fi
+.SH DESCRIPTION
+.I Glob
+is a pathname generator that implements the rules for file name pattern
+matching used by the shell.
+.PP
+The include file
+.I glob.h
+defines the structure type
+.IR glob_t ,
+which contains at least the following fields:
+.sp
+.RS
+.nf
+.ta .5i +\w'char **gl_pathv;\0\0\0'u
+typedef struct {
+	int gl_pathc;		/* count of total paths so far */
+	int gl_matchc;		/* count of paths matching pattern */
+	int gl_offs;		/* reserved at beginning of gl_pathv */
+	int gl_flags;		/* returned flags */
+	char **gl_pathv;	/* list of paths matching pattern */
+} glob_t;
+.fi
+.RE
+.PP
+The argument
+.I pattern
+is a pointer to a pathname pattern to be expanded.
+.I Glob
+matches all accessible pathnames against the pattern and creates
+a list of the pathnames that match.
+In order to have access to a pathname,
+.I glob
+requires search permission on every component of a path except the last
+and read permission on each directory of any filename component of
+.I pattern
+that contains any of the special characters ``*'', ``?'' or ``[''.
+.PP
+.I Glob
+stores the number of matched pathnames into the
+.I gl_pathc
+field, and a pointer to a list of pointers to pathnames into the
+.I gl_pathv
+field.
+The first pointer after the last pathname is NULL.
+If the pattern does not match any pathnames, the returned number of
+matched paths is set to zero.
+.PP
+It is the caller's responsibility to create the structure pointed to by
+.IR pglob .
+The
+.I glob
+function allocates other space as needed, including the memory pointed
+to by
+.IR gl_pathv .
+.PP
+The argument
+.I flags
+is used to modify the behavior of
+.IR glob .
+The value of
+.I flags
+is the bitwise inclusive OR of any of the following
+values defined in
+.IR glob.h :
+.TP
+GLOB_APPEND
+Append pathnames generated to the ones from a previous call (or calls)
+to
+.IR glob .
+The value of
+.I gl_pathc
+will be the total matches found by this call and the previous call(s).
+The pathnames are appended to, not merged with the pathnames returned by
+the previous call(s).
+Between calls, the caller must not change the setting of the
+GLOB_DOOFFS flag, nor change the value of
+.I gl_offs
+when
+GLOB_DOOFFS is set, nor (obviously) call
+.I globfree
+for
+.I pglob.
+.TP
+GLOB_DOOFFS
+Make use of the
+.I gl_offs
+field.
+If this flag is set,
+.I gl_offs
+is used to specify how many NULL pointers to prepend to the beginning
+of the
+.I gl_pathv
+field.
+In other words,
+.I gl_pathv
+will point to
+.I gl_offs
+NULL pointers,
+followed by
+.I gl_pathc
+pathname pointers, followed by a NULL pointer.
+.TP
+GLOB_ERR
+Causes
+.I glob
+to return when it encounters a directory that it cannot open or read.
+Ordinarily,
+.I glob
+continues to find matches.
+.TP
+GLOB_MARK
+Each pathname that is a directory that matches
+.I pattern
+has a slash
+appended.
+.TP
+GLOB_NOSORT
+By default, the pathnames are sorted in ascending ASCII order;
+this flag prevents that sorting (speeding up
+.IR glob ).
+.TP
+GLOB_NOCHECK
+If
+.I pattern
+does not match any pathname, then
+.I glob
+returns a list
+consisting of only
+.IR pattern ,
+with the number of total pathnames is set to 1, and the number of matched
+pathnames set to 0.
+If
+.I GLOB_QUOTE
+is set, its effect is present in the pattern returned.
+.TP
+GLOB_QUOTE
+Use the backslash (``\e'') character for quoting: every occurrence of
+a backslash followed by a character in the pattern is replaced by that
+character, avoiding any special interpretation of the character.
+.TP
+GLOB_NOMAGIC
+Is the same as GLOB_NOCHECK but it only appends the
+.IR pattern
+if it does not contain any of the special characters ``*'', ``?'' or ``[''.
+GLOB_NOMAGIC is used to simplify implementing the globbing behavior in
+.IR csh(1).
+.PP
+If, during the search, a directory is encountered that cannot be opened
+or read and
+.I errfunc
+is non-NULL,
+.I glob
+calls (*\fIerrfunc\fP)(\fIpath\fP, \fIerrno\fP).
+This may be unintuitive: a pattern like ``*/Makefile'' will try to
+.IR stat (2)
+``foo/Makefile'' even if ``foo'' is not a directory, resulting in a
+call to
+.IR errfunc .
+The error routine can suppress this action by testing for ENOENT and
+ENOTDIR; however, the GLOB_ERR flag will still cause an immediate
+return when this happens.
+.PP
+If
+.I errfunc
+returns non-zero,
+.I glob
+stops the scan and returns
+.I GLOB_ABEND
+after setting
+.I gl_pathc
+and
+.I gl_pathv
+to reflect any paths already matched.
+This also happens if an error is encountered and
+.I GLOB_ERR
+is set in
+.IR flags ,
+regardless of the return value of
+.IR errfunc ,
+if called.
+If
+.I GLOB_ERR
+is not set and either
+.I errfunc
+is NULL or
+.I errfunc
+returns zero, the error is ignored.
+.PP
+The
+.I globfree
+function frees any space associated with
+.I pglob
+from a previous call(s) to
+.IR glob .
+.SH RETURNS
+On successful completion,
+.I glob
+returns zero.
+In addition the fields of
+.I pglob
+contain the values described below:
+.TP
+.I gl_pathc
+contains the total number of matched pathnames so far.
+This includes other matches from previous invocations of 
+.I glob 
+if 
+.I GLOB_APPEND 
+was specified.
+.TP
+.I gl_matchc
+contains the number of matched pathnames in the current invocation of
+.I glob.
+.TP
+.I gl_flags
+contains a copy of the 
+.I flags 
+parameter with the bit GLOB_MAGCHAR set if
+.I pattern
+contained any of the special characters ``*'', ``?'' or ``['', cleared
+if not.
+.TP
+.I gl_pathv
+contains a pointer to a NULL-terminated list of matched pathnames.
+However, if
+.I gl_pathc
+is zero, the contents of
+.I gl_pathv
+are undefined.
+.PP
+If
+.I glob
+terminates due to an error, it sets errno and returns one of the
+following non-zero constants, which are defined in the include
+file <glob.h>:
+.TP
+GLOB_NOSPACE
+An attempt to allocate memory failed.
+.TP
+GLOB_ABEND
+The scan was stopped because an error was encountered and either
+GLOB_ERR was set or (*\fIerrfunc\fR)() returned non-zero.
+.PP
+The arguments
+.I pglob->gl_pathc
+and
+.I pglob->gl_pathv
+are still set as specified above.
+.SH STANDARDS
+The
+.I glob
+function is expected to be POSIX 1003.2 compatible with the exception
+that the flag 
+.I GLOB_QUOTE 
+and the fields 
+.I gl_matchc 
+and 
+.I gl_flags 
+should not be used by applications striving for strict POSIX conformance.
+.SH EXAMPLE
+A rough equivalent of ``ls -l *.c *.h'' can be obtained with the
+following code:
+.sp
+.nf
+.RS
+glob_t g;
+
+g.gl_offs = 2;
+glob("*.c", GLOB_DOOFFS, NULL, &g);
+glob("*.h", GLOB_DOOFFS | GLOB_APPEND, NULL, &g);
+g.gl_pathv[0] = "ls";
+g.gl_pathv[1] = "-l";
+execvp("ls", g.gl_pathv);
+.RE
+.fi
+.SH SEE ALSO
+sh(1), fnmatch(3), wordexp(3), regexp(3)
+.SH BUGS
+Patterns longer than MAXPATHLEN may cause unchecked errors.
+.PP
+.I Glob
+may fail and set errno for any of the errors specified for the
+library routines
+.I stat (2),
+.I closedir (3),
+.I opendir (3),
+.I readdir (3),
+.I malloc (3),
+and
+.I free (3).
+

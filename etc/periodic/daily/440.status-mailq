@@ -1,0 +1,47 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$daily_status_mailq_enable" in
+    [Yy][Ee][Ss])
+	if [ ! -x /usr/bin/mailq ]
+	then
+	    echo '$daily_status_mailq_enable is set but /usr/bin/mailq' \
+		"isn't executable"
+	    rc=2
+	elif [ ! -d /var/spool/mqueue ]
+	then
+	    echo '$daily_status_mailq_enable is set but /var/spool/mqueue' \
+		"doesn't exist"
+	    rc=2
+	else
+	    echo ""
+	    echo "Mail in local queue:"
+
+	    rc=$(case "$daily_status_mailq_shorten" in
+		[Yy][Ee][Ss])
+		    rc=$(mailq |
+			perl -ne  'print if /^\s+\S+@/' |
+			sort |
+			uniq -c |
+			sort -nr |
+			awk '$1 > 1 {print $1, $2}');;
+		*)
+		    mailq;;
+	    esac | tee /dev/stderr | fgrep -v 'mqueue is empty' | wc -l)
+	    [ $rc -gt 1 ] && rc=1
+	fi;;
+
+    *)  rc=0;;
+esac
+
+exit $rc

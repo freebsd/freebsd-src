@@ -1,0 +1,116 @@
+.\" Copyright (c) 1994, Henrik Vestergaard Draboel
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\" 	This product includes software developed by Henrik Vestergaard Draboel.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 23, 1994
+.Dt RTPRIO 2
+.Os
+.Sh NAME
+.Nm rtprio
+.Nd examine or modify a process realtime or idle priority
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.Fd #include <sys/types.h>
+.Fd #include <sys/rtprio.h>
+.Ft int
+.Fn rtprio "int function" "pid_t pid" "struct rtprio *rtp"
+.Sh DESCRIPTION
+.Fn rtprio
+is used to lookup or change the realtime or idle priority of a process.
+.Pp
+.Fa function
+specifies the operation to be performed.
+RTP_LOOKUP to lookup the current priority,
+and RTP_SET to set the priority.
+.Fa pid
+specifies the process to be used, 0 for the current process.
+.Pp
+.Fa *rtp
+is a pointer to a struct rtprio which is used to specify the priority and priority type.
+This structure has the following form:
+.Bd -literal
+struct rtprio {
+	u_short	type;
+	u_short prio;
+};
+.Ed
+.Pp
+The value of the
+.Nm type
+field may be RTP_PRIO_REALTIME for realtime priorities,
+RTP_PRIO_NORMAL for normal priorities, and RTP_PRIO_IDLE for idle priorities.
+The priority specified by the
+.Nm prio
+field ranges between 0 and
+.Dv RTP_PRIO_MAX (usually 31) .
+0 is the highest possible priority.
+.Pp
+Realtime and idle priority is inherited through fork() and exec().
+.Pp
+A realtime process can only be preempted by a process of equal or
+higher priority, or by an interrupt; idle priority processes will run only
+when no other real/normal priority process is runnable.
+Higher real/idle priority processes
+preempt lower real/idle priority processes.
+Processes of equal real/idle priority are run round-robin.
+.Sh RETURN VALUES
+.Rv -std rtprio
+.Sh ERRORS
+.Fn rtprio
+will fail if
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The specified
+.Fa prio
+was out of range.
+.It Bq Er EPERM
+The calling process is not allowed to set the realtime priority.
+Only
+root is allowed to change the realtime priority of any process, and non-root
+may only change the idle priority of the current process.
+.It Bq Er ESRCH
+The specified process was not found.
+.El
+.Sh AUTHORS
+.An -nosplit
+The original author was
+.An Henrik Vestergaard Draboel Aq hvd@terry.ping.dk .
+This implementation in
+.Fx
+was substantially rewritten by
+.An David Greenman .
+.Sh SEE ALSO
+.Xr nice 1 ,
+.Xr ps 1 ,
+.Xr rtprio 1 ,
+.Xr setpriority 2 ,
+.Xr nice 3 ,
+.Xr renice 8

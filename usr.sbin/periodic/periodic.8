@@ -1,0 +1,233 @@
+.\" Copyright (c) 1997 FreeBSD, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 13, 1997
+.Os
+.Dt PERIODIC 8
+.Sh NAME
+.Nm periodic
+.Nd run periodic system functions
+.Sh SYNOPSIS
+.Nm
+.Ar directory Ns No ...
+.Sh DESCRIPTION
+The
+.Nm
+program is intended to be called by
+.Xr cron 8
+to execute shell scripts
+located in the specified directory.
+.Pp
+One or more of the following arguments must be specified:
+.Bl -tag -width Fl
+.It Cm daily
+Perform the standard daily periodic executable run.
+This usually occurs early in the morning (local time).
+.It Cm weekly
+Perform the standard weekly periodic executable run.
+This usually occurs on Sunday mornings.
+.It Cm monthly
+Perform the standard monthly periodic executable run.
+This usually occurs on the first day of the month.
+.It Ar path
+An arbitrary directory containing a set of executables to be run.
+.El
+.Pp
+If an argument is an absolute directory name it is used as is, otherwise
+it is searched for under
+.Pa /etc/periodic
+and any other directories specified by the
+.Va local_periodic
+setting in
+.Xr periodic.conf 5
+(see below).
+.Pp
+The
+.Nm
+program will run each executable file in the directory or directories
+specified.
+If a file does not have the executable bit set,  it is silently ignored.
+.Pp
+Each script is required to exit with one of the following values:
+.Bl -tag -width XXXX
+.It 0
+The script has produced nothing notable in its output.
+The
+.Va <basedir>_show_success
+variable controls the masking of this output.
+.It 1
+The script has produced some notable information in its output.
+The
+.Va <basedir>_show_info
+variable controls the masking of this output.
+.It 2
+The script has produced some warnings due to invalid configuration settings.
+The
+.Va <basedir>_show_badconfig
+variable controls the masking of this output.
+.It >2
+The script has produced output that must not be masked.
+.El
+.Pp
+If the relevant variable (where
+.Ar <basedir>
+is the base directory in which the script resides) is set to
+.Dq NO
+in
+.Pa periodic.conf ,
+.Nm
+will mask the script output.
+If the variable is not set to either
+.Dq YES
+or
+.Dq NO ,
+it will be given a default value as described in
+.Xr periodic.conf 5 .
+.Pp
+All remaining script output is delivered based on the value of the
+.Va <basedir>_output
+setting.
+.Pp
+If this is set to a path name (beginning with a
+.Dq /
+Character), output is simply logged to that file.
+.Xr newsyslog 8
+knows about the files
+.Pa /var/log/daily.log ,
+.Pa /var/log/weekly.log
+and
+.Pa /var/log/monthly.log ,
+and if they exist, it will rotate them at the appropriate times.
+These are therefore good values if you wish to log
+.Nm
+output.
+.Pp
+If the
+.Va <basedir>_output
+value does not begin with a
+.Dq /
+and is not empty, it is assumed to contain a list of email addresses, and
+the output is mailed to them.
+.Pp
+If
+.Va <basedir>_output
+is not set or is empty, output is sent to standard output.
+.Sh ENVIRONMENT
+The
+.Nm
+command sets the
+.Ev PATH
+environment to include all standard system directories, but no additional
+directories, such as
+.Pa /usr/local/bin .
+If executables are added which depend upon other path components, each
+executable must be responsible for configuring its own appropriate environment.
+.Sh FILES
+.Bl -tag -width /etc/periodic
+.It Pa /etc/crontab
+The
+.Nm
+program is typically called via entries in the system default cron table.
+.It Pa /etc/periodic
+The top level directory containing
+.Pa daily ,
+.Pa weekly ,
+and
+.Pa monthly
+subdirectories which contain standard system periodic executables.
+.It Pa /etc/defaults/periodic.conf
+The
+.Pa periodic.conf
+system registry contains variables that control the behaviour of
+.Nm
+and the standard
+.Pa daily ,
+.Pa weekly ,
+and
+.Pa monthly
+scripts.
+.It Pa /etc/periodic.conf
+This file contains local overrides for the default periodic configuration.
+.El
+.Sh EXAMPLES
+The system crontab should have entries for
+.Nm
+similar to the following example:
+.Pp
+.Dl # do daily/weekly/monthly maintenance
+.Dl 0      2       *       *       *       root    periodic daily
+.Dl 0      3       *       *       6       root    periodic weekly
+.Dl 0      5       1       *       *       root    periodic monthly
+.Pp
+The
+.Pa /etc/defaults/periodic.conf
+system registry will typically have a
+.Va local_periodic
+variable reading:
+.Pp
+.Dl local_periodic="/usr/local/etc/periodic /usr/X11R6/etc/periodic"
+.Pp
+To log
+.Nm
+output instead of receiving it as email, add the following lines to
+.Pa /etc/periodic.conf :
+.Pp
+.Dl daily_output=/var/log/daily.log
+.Dl weekly_output=/var/log/weekly.log
+.Dl monthly_output=/var/log/monthly.log
+.Pp
+To only see important information from daily periodic jobs, add the
+following lines to
+.Pa /etc/periodic.conf :
+.Pp
+.Dl daily_show_success=NO
+.Dl daily_show_info=NO
+.Dl daily_show_badconfig=NO
+.Sh SEE ALSO
+.Xr sh 1 ,
+.Xr crontab 5 ,
+.Xr periodic.conf 5 ,
+.Xr cron 8 ,
+.Xr newsyslog 8
+.Sh DIAGNOSTICS
+Exit status is 0 on success and 1 if the command
+fails for one of the following reasons:
+.Bl -diag
+.It usage: periodic <directory of files to execute>
+No directory path argument was passed to
+.Nm
+to specify where the script fragments reside.
+.It <directory> not found
+Self explanatory.
+.El
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+.An Paul Traina Aq pst@FreeBSD.org
+.An Brian Somers Aq brian@Awfulhak.org

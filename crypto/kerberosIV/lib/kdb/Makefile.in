@@ -1,0 +1,94 @@
+#
+# $Id: Makefile.in,v 1.40.4.1 2000/06/23 03:20:00 assar Exp $
+#
+
+SHELL = /bin/sh
+
+srcdir = @srcdir@
+VPATH = @srcdir@
+
+CC = @CC@
+LINK = @LINK@
+AR = ar
+RANLIB = @RANLIB@
+LN_S = @LN_S@
+DEFS = @DEFS@ -DROKEN_RENAME
+CFLAGS = @CFLAGS@ $(WFLAGS)
+WFLAGS = @WFLAGS@
+
+INSTALL = @INSTALL@
+INSTALL_DATA	= @INSTALL_DATA@
+MKINSTALLDIRS = @top_srcdir@/mkinstalldirs
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+libdir = @libdir@
+
+PICFLAGS = @PICFLAGS@
+ 
+LIB_DBM  = @LIB_DBM@
+LIB_DEPS = @lib_deps_yes@ $(LIB_DBM) -lc
+build_symlink_command   = @build_symlink_command@
+install_symlink_command = @install_symlink_command@
+
+LIBNAME = $(LIBPREFIX)kdb
+LIBEXT = @LIBEXT@
+SHLIBEXT = @SHLIBEXT@
+LIBPREFIX = @LIBPREFIX@
+LDSHARED = @LDSHARED@
+LIB = $(LIBNAME).$(LIBEXT)
+
+SOURCES = krb_cache.c krb_kdb_utils.c copykey.c krb_lib.c \
+	krb_dbm.c print_princ.c
+
+OBJECTS = krb_cache.o krb_kdb_utils.o copykey.o krb_lib.o \
+	krb_dbm.o print_princ.o
+
+all: $(LIB)
+
+Wall:
+		make CFLAGS="-g -Wall -Wno-comment -Wmissing-prototypes -Wmissing-declarations -D__USE_FIXED_PROTOTYPES__"
+
+.c.o:
+	$(CC) -c $(DEFS) -I../../include -I$(srcdir) -I. $(CFLAGS) $(CPPFLAGS) $(PICFLAGS) $<
+
+install: all
+	$(MKINSTALLDIRS) $(DESTDIR)$(libdir)
+	$(INSTALL_DATA)  $(LIB) $(DESTDIR)$(libdir)/$(LIB)
+	@install_symlink_command@
+
+uninstall:
+	rm -f $(DESTDIR)$(libdir)/$(LIB)
+
+TAGS: $(SOURCES)
+	etags $(SOURCES)
+
+check:
+
+clean:
+	rm -f $(LIB) *.o *.a *.so *.so.* so_locations
+
+mostlyclean: clean
+
+distclean: clean
+	rm -f Makefile *.tab.c *~ roken_rename.h
+
+realclean: distclean
+	rm -f TAGS
+
+$(LIBNAME).a: $(OBJECTS)
+	rm -f $@
+	$(AR) cr $@ $(OBJECTS)
+	-$(RANLIB) $@
+
+$(LIBNAME).$(SHLIBEXT): $(OBJECTS)
+	rm -f $@
+	$(LDSHARED) -o $@ $(OBJECTS) $(LIB_DEPS)
+	@build_symlink_command@
+
+$(OBJECTS): ../../include/config.h roken_rename.h
+
+roken_rename.h:
+	$(LN_S) $(srcdir)/../krb/roken_rename.h .
+
+.PHONY: all Wall install uninstall check clean mostlyclean distclean realclean

@@ -1,0 +1,282 @@
+# Mappings from configurations to GDB target definitions.  This is
+# invoked from the autoconf generated configure script.
+
+# This file sets the following shell variables:
+#  gdb_target_cpu	generic name of CPU
+#  gdb_target		name of GDB target definition to use
+
+# This file may also modify configdirs.
+
+# Map target cpu into the config cpu subdirectory name.
+# The default is $target_cpu.
+
+case "${target_cpu}" in
+
+alpha*)			gdb_target_cpu=alpha ;;
+c[12])			gdb_target_cpu=convex ;;
+hppa*)			gdb_target_cpu=pa ;;
+i[3456]86*)		gdb_target_cpu=i386 ;;
+m68*)			gdb_target_cpu=m68k ;;
+m88*)			gdb_target_cpu=m88k ;;
+mips*)			gdb_target_cpu=mips ;;
+# OBSOLETE np1)			gdb_target_cpu=gould ;;
+powerpc*)		gdb_target_cpu=powerpc ;;
+# OBSOLETE pn)			gdb_target_cpu=gould ;;
+pyramid)		gdb_target_cpu=pyr ;;
+sparc*)			gdb_target_cpu=sparc ;;
+thumb*)			gdb_target_cpu=arm ;;
+strongarm*)		gdb_target_cpu=arm ;;
+v850*)			gdb_target_cpu=v850 ;;
+*)			gdb_target_cpu=$target_cpu ;;
+
+esac
+
+# map target info into gdb names.
+
+case "${target}" in
+
+a29k-*-aout*)		gdb_target=a29k ;;
+a29k-*-coff*)		gdb_target=a29k ;;
+a29k-*-elf*)		gdb_target=a29k ;;
+a29k-*-ebmon*)		gdb_target=a29k ;;
+a29k-*-kern*)		gdb_target=a29k-kern ;;
+a29k-*-none*)		gdb_target=a29k ;;
+a29k-*-sym1*)		gdb_target=ultra3 ;;
+a29k-*-udi*)		gdb_target=a29k-udi ;;
+a29k-*-vxworks*)        gdb_target=vx29k ;;
+
+alpha*-*-osf*)		gdb_target=alpha-osf1 ;;
+alpha*-*-linux*)	gdb_target=alpha-linux ;;
+
+arc-*-*)		gdb_target=arc ;;
+
+arm-*-* | thumb-*-* | strongarm-*-*)	gdb_target=arm
+
+			# rdi doesn't work for wingdb yet
+			case $gdb_host in
+			windows) ;;
+			*)
+			    configdirs="$configdirs rdi-share"
+			    CONFIG_OBS="$CONFIG_OBS remote-rdi.o rdi-share/libangsd.a"
+			    ;;
+			esac
+			;;
+
+c1-*-*)			gdb_target=convex ;;
+c2-*-*)			gdb_target=convex ;;
+
+d10v-*-*)		gdb_target=d10v ;;
+d30v-*-*)		gdb_target=d30v ;;
+
+h8300-*-*)		gdb_target=h8300 ;;
+h8500-*-*)		gdb_target=h8500 ;;
+
+sh-*-*)			gdb_target=sh ;;
+
+fr30-*-elf*)		gdb_target=fr30 ;;
+
+hppa*-*-bsd*)		gdb_target=hppabsd ;;
+hppa*-*-pro*)		gdb_target=hppapro ;;
+hppa*-*-hpux*)		gdb_target=hppahpux ;;
+hppa*-*-hiux*)		gdb_target=hppahpux ;;
+hppa*-*-osf*)		gdb_target=hppaosf ;;
+
+i[3456]86-sequent-bsd*)	gdb_target=symmetry ;;
+i[3456]86-sequent-sysv4*) gdb_target=ptx4 ;;
+i[3456]86-sequent-sysv*) gdb_target=ptx ;;
+i[3456]86-ncr-*)	gdb_target=ncr3000 ;;
+i[3456]86-*-aout*)	gdb_target=i386aout ;;
+i[3456]86-*-coff*)	gdb_target=i386v ;;
+i[3456]86-*-elf*)	gdb_target=i386v ;;
+i[3456]86-*-aix*)	gdb_target=i386aix ;;
+i[3456]86-*-bsd*)	gdb_target=i386bsd ;;
+i[3456]86-*-freebsd*)	gdb_target=fbsd ;;
+i[3456]86-*-netbsd*)	gdb_target=nbsd ;;
+i[3456]86-*-os9k)	gdb_target=i386os9k ;;
+i[3456]86-*-go32*)	gdb_target=i386aout ;;
+i[3456]86-*-lynxos*)	gdb_target=i386lynx
+		configdirs="${configdirs} gdbserver" ;;
+i[3456]86-*-solaris*)	gdb_target=i386sol2 ;;
+i[3456]86-*-sunos*)	gdb_target=sun386 ;;
+i[3456]86-*-sysv4.2MP)	gdb_target=i386v42mp ;;
+i[3456]86-*-sysv4.2uw2*)	gdb_target=i386v42mp ;;
+i[3456]86-*-sysv4*)	gdb_target=i386v4 ;;
+i[3456]86-*-unixware2*)	gdb_target=i386v42mp ;;
+i[3456]86-*-unixware*)	gdb_target=i386v4 ;;
+i[3456]86-*-sco3.2v4*)	gdb_target=i386sco4 ;;
+i[3456]86-*-sco3.2v5*)	gdb_target=i386sco5 ;;
+i[3456]86-*-sco*)	gdb_target=i386v ;;
+i[3456]86-*-sysv*)	gdb_target=i386v ;;
+i[3456]86-*-linux*)	gdb_target=linux
+		configdirs="${configdirs} gdbserver" ;;
+i[3456]86-pc-linux-gnu)	gdb_target=linux
+		configdirs="${configdirs} gdbserver" ;;
+i[3456]86-*-isc*)	gdb_target=i386v ;;
+i[3456]86-*-mach3*)	gdb_target=i386m3 ;;
+i[3456]86-*-gnu*)	gdb_target=i386gnu ;;
+i[3456]86-*-netware*)	gdb_target=i386nw
+		configdirs="${configdirs} nlm" ;;
+i[3456]86-*-osf1mk*)	gdb_target=i386mk ;;
+i[3456]86-*-cygwin*)	gdb_target=cygwin  ;;
+i960-*-bout*)		gdb_target=vxworks960 ;;
+i960-nindy-coff*)	gdb_target=nindy960 ;;
+i960-*-coff*)		gdb_target=mon960 ;;
+i960-nindy-elf*)	gdb_target=nindy960 ;;
+i960-*-elf*)		gdb_target=mon960 ;;
+
+i960-*-nindy*)		gdb_target=nindy960 ;;
+i960-*-vxworks*)	gdb_target=vxworks960 ;;
+
+m32r-*-elf*)		gdb_target=m32r ;;
+
+m68000-*-sunos3*)	gdb_target=sun2os3 ;;
+m68000-*-sunos4*)	gdb_target=sun2os4 ;;
+
+m68*-apollo*-bsd*)	gdb_target=apollo68b ;;
+m68*-bull-sysv*)	gdb_target=dpx2 ;;
+m68*-hp-bsd*)		gdb_target=hp300bsd ;;
+m68*-hp-hpux*)		gdb_target=hp300hpux ;;
+m68*-altos-*)		gdb_target=altos ;;
+m68*-att-*)		gdb_target=3b1 ;;
+m68*-cisco*-*)		gdb_target=cisco ;;
+m68*-ericsson-*)	gdb_target=es1800 ;;
+m68*-isi-*)		gdb_target=isi ;;
+m68*-motorola-*)	gdb_target=delta68 ;;
+m68*-netx-*)		gdb_target=vxworks68 ;;
+m68*-sony-*)		gdb_target=news ;;
+m68*-tandem-*)		gdb_target=st2000 ;;
+m68*-rom68k-*)          gdb_target=monitor ;;
+m68*-*bug-*)            gdb_target=monitor ;;
+m68*-monitor-*)         gdb_target=monitor ;;
+m68*-est-*)		gdb_target=monitor ;;
+m68*-*-aout*)		gdb_target=monitor ;;
+m68*-*-coff*)		gdb_target=monitor ;;
+m68*-*-elf*)		gdb_target=monitor ;;
+m68*-*-linux*)		gdb_target=linux
+		configdirs="${configdirs} gdbserver" ;;
+m68*-*-lynxos*)		gdb_target=m68klynx
+		configdirs="${configdirs} gdbserver" ;;
+m68*-*-netbsd*)		gdb_target=nbsd ;;
+m68*-*-os68k*)		gdb_target=os68k ;;
+m68*-*-sunos3*)		gdb_target=sun3os3 ;;
+m68*-*-sunos4*)		gdb_target=sun3os4 ;;
+m68*-*-sysv4*)		gdb_target=m68kv4 ;;
+m68*-*-vxworks*)	gdb_target=vxworks68 ;;
+
+m88*-harris-cxux*)	gdb_target=cxux ;;
+m88*-motorola-sysv4*)	gdb_target=delta88v4 ;;
+m88*-motorola-*)	gdb_target=delta88 ;;
+m88*-*-*)		gdb_target=m88k ;;
+
+mips64*-big-*)		gdb_target=bigmips64 ;;
+mips*-big-*)		gdb_target=bigmips ;;
+mips*-dec-mach3*)	gdb_target=mach3 ;;
+mips*-dec-*)		gdb_target=decstation ;;
+mips64*el-*-ecoff*)	gdb_target=embedl64 ;;
+mips64*-*-ecoff*)	gdb_target=embed64 ;;
+mips64*vr4300*el-*-elf*)	gdb_target=vr4300el ;;
+mips64*vr4300*-*-elf*)	gdb_target=vr4300 ;;
+mips64*vr4100*el-*-elf*)	gdb_target=vr4300el ;;
+mips64*vr4100*-*-elf*)	gdb_target=vr4100 ;;
+mips64*vr5000*el-*-elf*)	gdb_target=vr5000el ;;
+mips64*vr5000*-*-elf*)	gdb_target=vr5000
+		configdirs="${configdirs} gdbserver" ;;
+mips*tx39*el*-elf*)	gdb_target=tx39l ;;
+mips*tx39*-elf*)	gdb_target=tx39 ;;
+mips64*el-*-elf*)	gdb_target=embedl64 ;;
+mips64*-*-elf*)		gdb_target=embed64 ;;
+mips*el-*-ecoff*)	gdb_target=embedl ;;
+mips*-*-ecoff*)		gdb_target=embed ;;
+mips*el-*-elf*)		gdb_target=embedl ;;
+mips*-*-elf*)		gdb_target=embed ;;
+mips*-little-*)		gdb_target=littlemips ;;
+mips*-*-lnews*)		gdb_target=embedl ;;
+mips*-sgi-irix5*)	gdb_target=irix5 ;;
+mips*-sgi-irix6*)	gdb_target=irix5 ;;
+mips*-sgi-*)		gdb_target=irix3 ;;
+mips*-sony-*)		gdb_target=bigmips ;;
+mips*-*-mach3*)		gdb_target=mipsm3 ;;
+mips*-*-sysv4*)		gdb_target=mipsv4 ;;
+mips*-*-sysv*)		gdb_target=bigmips ;;
+mips*-*-riscos*)	gdb_target=bigmips ;;
+mips*-*-vxworks*)       gdb_target=vxmips ;;
+
+mn10200-*-*)		gdb_target=mn10200 ;;
+mn10300-*-*)		gdb_target=mn10300 ;;
+
+none-*-*)		gdb_target=none ;;
+
+# OBSOLETE np1-*-*)		gdb_target=np1 ;;
+
+ns32k-*-mach3*)		gdb_target=ns32km3 ;;
+ns32k-*-netbsd*)	gdb_target=nbsd ;;
+ns32k-utek-sysv*)	gdb_target=merlin ;;
+ns32k-utek-*)		gdb_target=umax ;;
+
+# OBSOLETE pn-*-*)			gdb_target=pn ;;
+
+powerpc-*-macos*)	gdb_target=macos ;;
+powerpc-*-netware*)	gdb_target=ppc-nw
+			configdirs="${configdirs} nlm" ;;
+
+powerpc-*-aix*)		gdb_target=aix ;;
+powerpcle-*-cygwin*)	gdb_target=cygwin ;;
+powerpcle-*-solaris*)	gdb_target=solaris ;;
+powerpc-*-eabi* | powerpc-*-linux* | powerpc-*-sysv* | powerpc-*-elf*)
+			if test -f ../sim/ppc/Makefile; then
+			  gdb_target=ppc-sim
+			else
+			  gdb_target=ppc-eabi
+			fi ;;
+powerpcle-*-eabi* | powerpcle-*-sysv* | powerpcle-*-elf*)
+			if test -f ../sim/ppc/Makefile; then
+			  gdb_target=ppcle-sim
+			else
+			  gdb_target=ppcle-eabi
+			fi ;;
+
+pyramid-*-*)		gdb_target=pyramid ;;
+
+rs6000-*-lynxos*)	gdb_target=rs6000lynx ;;
+rs6000-*-aix4*)		gdb_target=aix4 ;;
+rs6000-*-*)		gdb_target=rs6000 ;;
+
+sparc-*-aout*)		gdb_target=sparc-em ;;
+sparc-*-coff*)		gdb_target=sparc-em ;;
+sparc-*-elf*)		gdb_target=sparc-em ;;
+sparc-*-linux*)		gdb_target=linux ;;
+sparc-*-lynxos*)	gdb_target=sparclynx
+		configdirs="${configdirs} gdbserver" ;;
+sparc-*-netbsd*)	gdb_target=nbsd ;;
+sparc-*-solaris2*)	gdb_target=sun4sol2 ;;
+sparc-*-sunos4*)	gdb_target=sun4os4 ;;
+sparc-*-sunos5*)	gdb_target=sun4sol2 ;;
+sparc-*-vxworks*)	gdb_target=vxsparc ;;
+sparc-*-*)		gdb_target=sun4os4 ;;
+sparclet-*-*)		gdb_target=sparclet;;
+sparclite-*-*)		gdb_target=sparclite ;;
+sparc86x-*-*)		gdb_target=sparclite ;;
+# It's not clear what the right solution for "v8plus" systems is yet.
+# For now, stick with sparc-sun-solaris2 since that's what config.guess
+# should return.  Work is still needed to get gdb to print the 64 bit
+# regs (some of which are usable in v8plus) so sp64sol.mt hasn't been
+# deleted though presumably it should be eventually.
+#sparc64-*-solaris2*)	gdb_target=sp64sol2 ;;
+sparc64-*-*)		gdb_target=sp64 ;;
+
+tahoe-*-*)		gdb_target=tahoe ;;
+
+
+vax-*-*)		gdb_target=vax ;;
+
+fr30-*-*)		gdb_target=fr30
+			;;
+
+v850*-*-*)		gdb_target=v850
+			;;
+
+w65-*-*)		gdb_target=w65 ;;
+
+z8k-*-coff*)		gdb_target=z8k ;;
+
+esac

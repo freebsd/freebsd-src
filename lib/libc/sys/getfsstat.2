@@ -1,0 +1,174 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)getfsstat.2	8.3 (Berkeley) 5/25/95
+.\" $FreeBSD$
+.\"
+.Dd May 25, 1995
+.Dt GETFSSTAT 2
+.Os
+.Sh NAME
+.Nm getfsstat
+.Nd get list of all mounted filesystems
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.Fd #include <sys/param.h>
+.Fd #include <sys/ucred.h>
+.Fd #include <sys/mount.h>
+.Ft int
+.Fn getfsstat "struct statfs *buf" "long bufsize" "int flags"
+.Sh DESCRIPTION
+.Fn Getfsstat
+returns information about all mounted filesystems.
+.Fa Buf
+is a pointer to
+.Xr statfs
+structures defined as follows:
+.Bd -literal
+typedef struct fsid { int32_t val[2]; } fsid_t;	/* file system id type */
+
+/*
+ * file system statistics
+ */
+
+#define MFSNAMELEN 16	/* length of fs type name, including null */
+#define MNAMELEN   90	/* length of buffer for returned name */
+
+struct statfs {
+    long    f_spare2;		/* placeholder */
+    long    f_bsize;		/* fundamental file system block size */
+    long    f_iosize;		/* optimal transfer block size */
+    long    f_blocks;		/* total data blocks in file system */
+    long    f_bfree;		/* free blocks in fs */
+    long    f_bavail;		/* free blocks avail to non-superuser */
+    long    f_files;		/* total file nodes in file system */
+    long    f_ffree;		/* free file nodes in fs */
+    fsid_t  f_fsid;		/* file system id */
+    uid_t   f_owner;		/* user that mounted the filesystem */
+    int     f_type;		/* type of filesystem (see below) */
+    int     f_flags;		/* copy of mount flags */
+    long    f_spare[2];		/* spare for later */
+    char    f_fstypename[MFSNAMELEN];/* fs type name */
+    char    f_mntonname[MNAMELEN];/* directory on which mounted */
+    char    f_mntfromname[MNAMELEN];/* mounted filesystem */
+};
+.Ed
+.Pp
+The flags that may be returned include:
+.Bl -tag -width MNT_ASYNCHRONOUS
+.It Dv MNT_RDONLY
+The filesystem is mounted read-only;
+Even the super-user may not write on it.
+.It Dv MNT_NOEXEC
+Files may not be executed from the filesystem.
+.It Dv MNT_NOSUID
+Setuid and setgid bits on files are not honored when they are executed.
+.It Dv MNT_NODEV
+Special files in the filesystem may not be opened.
+.It Dv MNT_SYNCHRONOUS
+All I/O to the filesystem is done synchronously.
+.It Dv MNT_ASYNCHRONOUS
+No filesystem I/O is done synchronously.
+.It Dv MNT_LOCAL
+The filesystem resides locally.
+.It Dv MNT_QUOTA
+The filesystem has quotas enabled on it.
+.It Dv MNT_ROOTFS
+Identifies the root filesystem.
+.It Dv MNT_EXRDONLY
+The filesystem is exported read-only.
+.It Dv MNT_EXPORTED
+The filesystem is exported for both reading and writing.
+.It Dv MNT_DEFEXPORTED
+The filesystem is exported for both reading and writing to any Internet host.
+.It Dv MNT_EXPORTANON
+The filesystem maps all remote accesses to the anonymous user.
+.It Dv MNT_EXKERB
+The filesystem is exported with Kerberos uid mapping.
+.El
+.Pp
+Fields that are undefined for a particular filesystem are set to -1.
+The buffer is filled with an array of
+.Fa fsstat
+structures, one for each mounted filesystem
+up to the size specified by
+.Fa bufsize .
+.Pp
+If
+.Fa buf
+is given as NULL,
+.Fn getfsstat
+returns just the number of mounted filesystems.
+.Pp
+Normally
+.Fa flags
+should be specified as
+.Dv MNT_WAIT .
+If
+.Fa flags
+is set to
+.Dv MNT_NOWAIT ,
+.Fn getfsstat
+will return the information it has available without requesting
+an update from each filesystem.
+Thus, some of the information will be out of date, but
+.Fn getfsstat
+will not block waiting for information from a filesystem that is
+unable to respond.
+.Sh RETURN VALUES
+Upon successful completion, the number of
+.Fa fsstat
+structures is returned.
+Otherwise, -1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Fn Getfsstat
+fails if one or more of the following are true:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+.Fa Buf
+points to an invalid address.
+.It Bq Er EIO
+An
+.Tn I/O
+error occurred while reading from or writing to the filesystem.
+.El
+.Sh SEE ALSO
+.Xr statfs 2 ,
+.Xr fstab 5 ,
+.Xr mount 8
+.Sh HISTORY
+The
+.Fn getfsstat
+function first appeared in
+.Bx 4.4 .

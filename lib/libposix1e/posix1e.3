@@ -1,0 +1,110 @@
+.\"-
+.\" Copyright (c) 2000 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"       $FreeBSD$
+.\"
+.Dd January 17, 2000
+.Dt POSIX1E 3
+.Os FreeBSD
+.Sh NAME
+.Nm posix1e
+.Nd introduction to the POSIX.1e security API
+.Sh LIBRARY
+.Lb libposix1e
+.Sh SYNOPSIS
+.Fd #include <sys/types.h>
+.Fd #include <sys/acl.h>
+.Fd #include <sys/audit.h>
+.Fd #include <sys/capability.h>
+.Fd #include <sys/mac.h>
+.Sh DESCRIPTION
+The IEEE POSIX.1e specification never left draft form, but the interfaces
+it describes are now widely used despite inherent limitations.  Currently,
+only a few of the interfaces and features are implemented in
+.Fx ,
+although efforts are underway to complete the integration at this time.
+.Pp
+POSIX.1e describes five security extensions to the base POSIX.1 API:
+Access Control Lists (ACLs), Auditing, Capabilities, Mandatory Access
+Control, and Information Flow Labels.  Of these, the ACL interfaces are
+currently included with
+.Fx ,
+Auditing, Capabilities, and Mandatory
+Access Control are in the wings, and Information Flow Labels are not on
+the calendar.
+.Pp
+POSIX.1e defines both syntax and semantics for these features, but fairly
+substantial changes are required to implement these features in the 
+operating system.  As shipped,
+.Fx 4.0
+permits file systems to export
+Access Control Lists via the VFS, and provides a library for userland
+access to and manipulation of these ACLs, but support for ACLs is not
+provided by any file systems shipped in the base operating system.
+Available API calls relating to ACLs are described in detail in
+.Xr acl 3 .
+.Pp
+The patches supporting other POSIX.1e features are not available in the
+base operating system at this time--however, more information on them
+may be found on the FreeBSD POSIX.1e implementation web page:
+.Pp
+http://www.watson.org/fbsd-hardening/posix1e/
+.Sh IMPLEMENTATION NOTES
+.Fx Ns 's
+support for POSIX.1e interfaces and features is still under
+development at this time.
+.Sh ENVIRONMENT
+POSIX.1e assigns security labels to all objects, extending the security
+functionality described in POSIX.1.  These additional labels provide
+fine-grained discretionary access control, fine-grained capabilities,
+and labels necessary for mandatory access control.  POSIX.2c describes
+a set of userland utilities for manipulating these labels.  These userland
+utilities are not bundled with
+.Fx 4.0
+so as to discourage their
+use in the short term.
+.Sh FILES
+.Sh SEE ALSO
+.Xr acl 3 ,
+.Xr acl 9 ,
+.Xr extattr 9
+.Sh STANDARDS
+POSIX.1e is described in IEEE POSIX.1e draft 17.  Discussion
+of the draft continues on the cross-platform POSIX.1e implementation
+mailing list.  To join this list, see the
+.Fx
+POSIX.1e implementation
+page for more information.
+.Sh HISTORY
+POSIX.1e support was introduced in
+.Fx 4.0 ,
+and development continues.
+.Sh AUTHORS
+.An Robert N M Watson ,
+.An Ilmar S Habibulin
+.Sh BUGS
+These features are not yet fully implemented.  In particular, the shipped
+version of UFS/FFS does not support storage of additional security labels,
+and so is unable to (easily) provide support for most of these features.

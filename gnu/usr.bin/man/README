@@ -1,0 +1,134 @@
+README file for man(1).
+
+This is a replacement for Un*x man(1), apropos(1), whatis(1), and
+manpath(1).  It has all kinds of neat features that other versions of
+man don't, including support for multiple man page directory trees,
+preformatted man pages, and troff.  It is provided without any
+warranty whatever.  I hope you find it useful.
+
+This program is not a GNU product but it is distributed under the
+terms of the GNU copyleft which is described in the file COPYING.
+
+There is a solution written in perl which is probably superior in
+every way, but, like me, you may prefer this one anyway.
+:-)
+
+If you compile with support for preformatted man pages, man(1) will
+try to update the preformatted page if the man page source is newer.
+
+If you compile with support for troff, you can say things like
+`man -t foo | psdit > foo.ps' and have fabulous printed documentation
+as well.
+
+I have resisted the temptation to handle all the bizarre ways various
+vendors have of organizing man pages.  This version of man assumes
+that directory trees have the structure:
+
+   .../man
+          /manSect
+              /foo.Sect*
+               ...
+          /catSect
+              /foo.Sect*
+               ...
+
+where Sect is some number or string and should be listed in the set of
+sections to be searched.  It is not necessary to have both the cat*
+and man* subdirectories, but you must have at least one. :-)
+
+
+INSTALLATION
+
+1. Run configure.  This will grope around your system a bit and then
+   ask you a number of questions.  It will create a Makefile from the
+   file Makefile.in, and a config.h file from config.h.in.  You may
+   have to do some fine tuning to get things to work exactly right on
+   your system.  If you do, I'd like to know what changes you had to
+   make to get things working.
+
+2. Edit the manpath.config file.  This determines the system-wide
+   mappings for bin directories and man page directories.
+
+3. Do a `make all', try it out, and then if you're happy with that, do
+   a `make install'.  You don't need to be root to use this set of
+   programs.
+
+4. Install the whatis database(s) by running makewhatis.  If you want
+   to keep things absolutely current, you'll need to run this whenever
+   you add new man pages.  You might want to add an entry in your
+   crontab. 
+
+BUGS
+
+If you find one of these, please tell me about it.  If you have a fix,
+that's even better.  If not, I can't guarantee that I'll fix it, but I
+would like to know about them.
+
+John Eaton
+jwe@che.utexas.edu
+Department of Chemical Engineering
+The University of Texas at Austin
+Austin, Texas  78712
+
+
+CHANGES
+
+Partial list of changes since version 1.0:
+
+Installation made easier (this was the intent anyway) with the
+introduction of a configure script.
+
+Commands like `man 3f intro' handled properly when the name of the
+file we want is something like .../man3/intro.3f.
+
+Man can now run set uid to a special user so formatted man pages don't
+have to be world writable.
+
+Man now works with compressed (.Z) frozen (.F) and yabba (.Y) cat
+files.  Frozen files are compressed files using freeze/melt, some
+combination of LZW and tree coding.  Sources for it came out on
+comp.sources.misc or alt.sources or ... a few months ago.  Yabba files
+are compressed using yabba/unyabba, a data compression scheme posted
+to alt.sources by Dan Bernstein.
+
+Man now uses a more reasonable default for the search order:
+1, n, l, 6, 8, 2, 3, 4, 5, 7, p, o
+
+Man now allows for user-definable section search order via -S or
+MANSECT.
+
+Glob.c can work even if you don't have alloca, and works properly on
+Suns with the Sun C compiler.
+
+There is now a way to automatically to run preprocessors like the Sun
+man program.  The first line of the man page indicates which
+preprocessors should be run:
+
+      If the first line is a string of the form:
+
+          '\"  X
+
+      where  X is separated from the the `"' by a single SPACE and
+      consists of any combination of characters in  the  following
+      list,  man  pipes  its input to troff(1) or nroff(1) through
+      the corresponding preprocessors.
+
+          e    eqn(1), or neqn for nroff
+          g    grap(1)
+          p    pic(1)
+          r    refer(1)
+          t    tbl(1), and col(1V) for nroff
+          v    vgrind(1)
+
+Preprocessors may also be set on the command line with -p or from the
+environment with MANROFFSEQ.
+
+The tbl preprocessor is run by default.
+
+Manpath now stat()'s the directories in MANPATH to avoid including
+directories that don't exist.
+
+The output of apropos and whatis are now piped through PAGER.
+
+There is a new option to show where you would find a man page
+(-w option) and in what order (-w with -a).

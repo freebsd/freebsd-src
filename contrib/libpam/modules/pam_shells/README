@@ -1,0 +1,11 @@
+$FreeBSD$
+pam_shells:
+	Authentication is granted if the users shell is listed in
+	/etc/shells. If no shell is in /etc/passwd (empty), the
+	/bin/sh is used (following ftpd's convention).
+
+	Also checks to make sure that /etc/shells is a plain
+	file and not world writable.
+
+	- Erik Troan <ewt@redhat.com>, Red Hat Software.
+		August 5, 1996.

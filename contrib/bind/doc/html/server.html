@@ -1,0 +1,71 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+  <TITLE>BIND server Statement</TITLE>
+</HEAD>
+
+<BODY>
+<H2>BIND Configuration File Guide--<CODE>server</CODE> Statement</H2>
+
+<HR>
+
+<A NAME="Syntax"><H3>Syntax</H3></A>
+
+<PRE>
+server <VAR><A HREF="docdef.html">ip_addr</A></VAR> {
+  [ bogus <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
+  [ support-ixfr <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
+  [ transfers <VAR><A HREF="docdef.html">number</A></VAR>; ]
+  [ transfer-format ( one-answer | many-answers ); ]
+  [ keys { <VAR><A HREF="key.html">key_id</A></VAR> [<VAR>key_id</VAR> ... ] }; ]
+};
+</PRE>
+
+<HR>
+
+<A NAME="Usage"><H3>Definition and Usage</H3></A>
+
+<P>The server statement defines the characteristics to be
+associated with a remote name server.</P>
+
+<P>If you discover that a server is giving out bad data, marking it as
+<CODE>bogus</CODE> will prevent further queries to it.  The default value of
+<CODE>bogus</CODE> is <CODE>no</CODE>.  Marking a server as <CODE>bogus</CODE>
+will mark all other addresses for that server as <CODE>bogus</CODE> when
+a match is made when looking up a server's address by name. 
+
+<P>The server supports two zone transfer methods.  The first,
+<CODE>one-answer</CODE>, uses one DNS message per resource record
+transferred.  <CODE>many-answers</CODE> packs as many resource records
+as possible into a message.  <CODE>many-answers</CODE> is more
+efficient, but is only known to be understood by BIND 8.1 and patched
+versions of BIND 4.9.5.  You can specify which method to use for a
+server with the <CODE>transfer-format</CODE> option.  If
+<CODE>transfer-format</CODE> is not specified, the <CODE>transfer-format</CODE>
+specified by the <CODE>options</CODE> statement will be used.
+
+<P>The <CODE>transfers</CODE> will be used in a future release of the server
+to limit the number of concurrent in-bound zone transfers from the specified
+server.  It is checked for syntax but is otherwise ignored.
+
+<P>The <CODE>keys</CODE> clause is used to identify a
+<VAR>key_id</VAR> defined by the <CODE>key</CODE> statement, to be
+used for transaction security when talking to the remote server.
+The <CODE>key</CODE> statememnt must come before the <CODE>server</CODE>
+statement that references it.  When a request is sent to the remote server,
+a request signature will be generated using the key specified here and
+appended to the message.  A request originating from the remote server is not
+required to be signed by this key.
+
+<HR>
+
+<CENTER><P>[ <A HREF="config.html">BIND Config. File</A>
+| <A HREF="http://www.isc.org/products/BIND/">BIND Home</A>
+|&nbsp;<A HREF="http://www.isc.org/">ISC</A> ]</P></CENTER>
+
+<HR>
+<ADDRESS>
+Last Updated: $Id: server.html,v 1.11 2000/11/08 04:15:07 marka Exp $
+</ADDRESS>
+</BODY>
+</HTML>

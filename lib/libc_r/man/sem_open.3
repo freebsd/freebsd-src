@@ -1,0 +1,81 @@
+.\" Copyright (C) 2000 Jason Evans <jasone@FreeBSD.org>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd February 15, 2000
+.Dt SEM_OPEN 3
+.Os
+.Sh NAME
+.Nm sem_open ,
+.Nm sem_close ,
+.Nm sem_unlink
+.Nd named semaphore operations
+.Sh LIBRARY
+.Lb libc_r
+.Sh SYNOPSIS
+.Fd #include <semaphore.h>
+.Ft sem_t *
+.Fn sem_open "const char *name" "int oflag" "..."
+.Ft int
+.Fn sem_close "sem_t *sem"
+.Ft int
+.Fn sem_unlink "const char *name"
+.Sh DESCRIPTION
+The
+.Fn sem_open ,
+.Fn sem_close ,
+and
+.Fn sem_unlink
+functions are not supported by this implementation.
+.Sh RETURN VALUES
+.Fn sem_open
+returns SEM_FAILED and sets
+.Va errno
+to indicate an error.
+.Fn sem_close
+and
+.Fn sem_unlink
+return -1 and set
+.Va errno
+to indicate an error.
+.Sh ERRORS
+.Fn sem_open ,
+.Fn sem_close ,
+and
+.Fn sem_unlink
+will fail:
+.Bl -tag -width Er
+.It Bq Er ENOSYS
+Function not supported by this implementation.
+.El
+.Sh STANDARDS
+.Fn sem_open ,
+.Fn sem_close ,
+and
+.Fn sem_unlink
+conform to
+.St -p1003.1-96 .

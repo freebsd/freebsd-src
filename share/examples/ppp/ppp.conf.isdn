@@ -1,0 +1,98 @@
+#
+# Copyright (c) 1997 Brian Somers <brian@Awfulhak.org>
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+# This is an example ppp profile for bringing up a multilink ppp connection
+# over ISDN.  It needs at least version 0.83.0 of the i4b code.  An example
+# isdnd configuration file is also supplied in this directory (isdnd.rc)
+#
+# NOTE: This is for use with i4b-supported ISDN cards.  If you have an
+# external Terminal Adapter (TA) plugged into a serial port on your
+# machine, you should use the TA example in ppp.conf.sample.
+#
+isdn:
+ set phone 12345678	# Replace this with your ISPs phone number
+
+ set authname somename	# Replace these with your login name & password.
+ set authkey somepasswd	# This profile assumes you're using PAP or CHAP.
+
+ set enddisc mac	# Assuming you have a LAN
+
+ enable lqr
+ set reconnect 3 5
+ set redial 3 10
+ set lqrperiod 45
+ disable pred1 deflate mppe
+ deny pred1 deflate mppe
+
+ set timeout 60 300	# The minimum charge period is 5 minutes, so don't
+			# hangup before then
+
+ # We have no chat scripts in the ISDN world (yet)
+ set dial
+ set login
+ set logout
+ set hangup
+
+ set device /dev/i4brbch0 /dev/i4brbch1		# Raw B-channel devices
+ set speed sync					# ISDN is synchronous
+
+ enable dns			# Ask the peer what to put in resolv.conf
+
+ # Take a wild guess at an IP number and let the other side decide
+ set ifaddr 172.16.0.1/0 212.0.0.0/0 0 0
+ add! default hisaddr
+
+ set mrru 1500				# Multilink mode please
+ set mru 1504				# Room for the MP header
+
+ clone 1,2				# Two new links
+ link deflink rm			# And get rid of the original one
+
+ link * set mode auto			# Automatically manage the second link
+ set autoload 10 80 30			# Down @10% usage, up at 80%, 30s sample
+
+ set server /tmp/ppp-isdn "" 0177	# The diagnostic port (-rw-------)
+
+#
+# When phone calls become free (say 0:00 Saturday morning), we may want
+# this in crontab (``crontab -l'', not /etc/crontab):
+#
+#     1 0 0 0 6 /usr/sbin/pppctl /tmp/ppp-isdn link \* set mode ddial
+#
+# and when we have to pay again (say 23:59 Sunday night), we may want
+# this:
+#
+#     54 23 0 0 0 /usr/sbin/pppctl /tmp/ppp-isdn link \* set mode auto
+#
+# And of course just in case of a weekend reboot, add
+# /usr/local/etc/rc.d/ppp.sh:
+#
+#   #! /bin/sh
+#   [ ."$1" != .start ] && exit 0
+#   case `date +%w` in
+#   6|0) /usr/sbin/pppctl /tmp/ppp-isdn link \* set mode ddial;;
+#   esac
