@@ -115,17 +115,16 @@ struct acpi_device {
  * ACPI CA does not define layers for non-ACPI CA drivers.
  * We define some here within the range provided.
  */
-#define	ACPI_BUS		0x00010000
-#define	ACPI_SYSTEM		0x00020000
-#define	ACPI_POWER		0x00040000
-#define	ACPI_EC			0x00080000
-#define	ACPI_AC_ADAPTER		0x00100000
-#define	ACPI_BATTERY		0x00200000
-#define	ACPI_BUTTON		0x00400000
+#define	ACPI_AC_ADAPTER		0x00010000
+#define	ACPI_BATTERY		0x00020000
+#define	ACPI_BUS		0x00040000
+#define	ACPI_BUTTON		0x00080000
+#define	ACPI_EC			0x00100000
+#define	ACPI_FAN		0x00200000
+#define	ACPI_POWERRES		0x00400000
 #define	ACPI_PROCESSOR		0x00800000
 #define	ACPI_THERMAL		0x01000000
-#define	ACPI_FAN		0x02000000
-#define	ACPI_TOSHIBA		0x04000000
+#define	ACPI_TIMER		0x02000000
 
 /*
  * Constants for different interrupt models used with acpi_SetIntrModel().
