@@ -44,10 +44,9 @@ void
 yelp(char *str)
 {
     standout();
-    mvprintw(24, 0, "Validation Error: %s.  Press return to continue", str);
+    mvprintw(24, 0, "%s", str);
     standend();
     beep();
-    (void)getch();
 }
 
 void
@@ -615,10 +614,7 @@ DiskLabel()
 	    flag=0; 
 	    if (ioctl(Dfd[diskno], DIOCWLABEL, &flag) < 0)
 		Fatal("Couldn't disable writing of labels");
-	    
-	    mvprintw(24, 0,
-		     "Label written successfully.  Press return to continue.");
-	    (void)getch();
+	    yip = "Label written successfully.";
 	    break;
 
 	case 'q': case 'Q':
