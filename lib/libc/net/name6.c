@@ -2082,7 +2082,7 @@ _dns_ghbyaddr(void *rval, void *cb_data, va_list ap)
 	querybuf *buf;
 	char qbuf[MAXDNAME+1];
 	char *hlist[2];
-	char *tld6[] = { "ip6.arpa", "ip6.int", NULL };
+	char *tld6[] = { "ip6.arpa", NULL };
 	char *tld4[] = { "in-addr.arpa", NULL };
 	char **tld;
 
