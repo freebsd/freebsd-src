@@ -226,13 +226,18 @@ fifo_open(ap)
 		}
 	}
 	if ((ap->a_mode & FREAD) && (ap->a_mode & O_NONBLOCK) == 0) {
-		while (fip->fi_writers == 0) {
+		if (fip->fi_writers == 0) {
 			VOP_UNLOCK(vp, 0, td);
 			error = tsleep(&fip->fi_readers,
 			    PCATCH | PSOCK, "fifoor", 0);
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 			if (error)
 				goto bad;
+			/*
+			 * We must have got woken up because we had a writer.
+			 * That (and not still having one) is the condition
+			 * that we must wait for.
+			 */
 		}
 	}
 	if (ap->a_mode & FWRITE) {
@@ -242,18 +247,18 @@ fifo_open(ap)
 				goto bad;
 			}
 		} else {
-			while (fip->fi_readers == 0) {
+			if (fip->fi_readers == 0) {
 				VOP_UNLOCK(vp, 0, td);
-				/*
-				 * XXX: Some race I havn't located is solved
-				 * by timing out after a sec.  Race seen when
-				 * sendmail hangs here during boot /phk
-				 */
 				error = tsleep(&fip->fi_writers,
-				    PCATCH | PSOCK, "fifoow", hz);
+				    PCATCH | PSOCK, "fifoow", 0);
 				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 				if (error)
 					goto bad;
+				/*
+				 * We must have got woken up because we had
+				 * a reader.  That (and not still having one)
+				 * is the condition that we must wait for.
+				 */
 			}
 		}
 	}
