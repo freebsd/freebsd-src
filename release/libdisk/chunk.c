@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: chunk.c,v 1.10 1995/05/07 01:28:16 jkh Exp $
+ * $Id: chunk.c,v 1.11 1995/05/08 02:08:25 phk Exp $
  *
  */
 
@@ -200,6 +200,8 @@ Add_Chunk(struct disk *d, long offset, u_long size, char *name, chunk_e type,
 		c1->subtype = subtype;
 		return 0; 
 	}
+	if (type == freebsd)
+		subtype = 0xa5;
 	c1 = 0;
 	if(!c1 && (type == freebsd || type == fat || type == unknown))
 		c1 = Find_Mother_Chunk(d->chunks,offset,end,extended);
@@ -380,6 +382,7 @@ Collapse_Chunk(struct disk *d, struct chunk *c1)
 	}
 	if(c3->type == unused) {
 		c2 = new_chunk();
+		if (!c2) err(1,"malloc failed");	
 		*c2 = *c1;
 		c1->next = c2;
 		c1->name = strdup("-");
