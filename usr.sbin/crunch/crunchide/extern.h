@@ -1,4 +1,5 @@
 /*	$NetBSD: extern.h,v 1.5 1998/05/06 13:16:57 mycroft Exp $	*/
+/* $FreeBSD$ */
 
 /*
  * Copyright (c) 1997 Christopher G. Demetriou.  All rights reserved.
@@ -30,14 +31,14 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifdef __alpha__
+#ifdef arch_alpha
 #define	NLIST_ECOFF
 #define	NLIST_ELF64
 #else
-#ifdef __mips__
+#ifdef arch_mips
 #define NLIST_ELF32
 #else
-#ifdef __powerpc__
+#ifdef arch_powerpc
 #define	NLIST_ELF32
 #else
 #define	NLIST_AOUT

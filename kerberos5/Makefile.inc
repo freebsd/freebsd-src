@@ -1,8 +1,6 @@
 # $FreeBSD$
 
-.if !defined(DISTRIBUTION)
-
-DISTRIBUTION=	krb5
+DISTRIBUTION?=	krb5
 
 .if !defined(INCLUDEOBJDIR)
 
@@ -13,8 +11,7 @@ TELNETDIR=	${.CURDIR}/../../../crypto/telnet
 
 CFLAGS+=-Wall -I${INCLUDEOBJDIR} -DHAVE_CONFIG_H
 
-.if defined(MAKE_KERBEROS4) && \
-	(${MAKE_KERBEROS4} == "YES" || ${MAKE_KERBEROS4} == "yes")
+.if defined(MAKE_KERBEROS4)
 CFLAGS+=-DKRB5_KRB4_COMPAT -DKRB4
 .endif
 
@@ -142,7 +139,7 @@ kadm5_err.c kadm5_err.h: \
 
 CLEANFILES+=kadm5_err.h kadm5_err.c kadm5_err.et
 
-.ORDER:	k524_err.c k524_err.h
+.ORDER: k524_err.c k524_err.h
 k524_err.c k524_err.h: \
 	${KRB5DIR}/lib/krb5/k524_err.et
 	test -e ${.OBJDIR}/k524_err.et || ln -sf ${.ALLSRC}
@@ -165,7 +162,5 @@ CLEANFILES+=	make-roken.c make-roken roken.h
 KRB4DIR=	${.CURDIR}/../../crypto/kerberosIV
 KRB5DIR=	${.CURDIR}/../../crypto/heimdal
 ROKENDIR=	${.CURDIR}/../../lib/libroken
-
-.endif
 
 .endif

@@ -1,8 +1,6 @@
 # $FreeBSD$
 
-.if !defined(DISTRIBUTION)
-
-DISTRIBUTION=	krb4
+DISTRIBUTION?=	krb4
 
 .if !defined(INCLUDEOBJDIR)
 
@@ -96,7 +94,5 @@ CLEANFILES+=${KRBOBJDIR}/krb_err.h ${KRBOBJDIR}/krb_err.c ${KRBOBJDIR}/krb_err.e
 .else
 
 KRB4DIR=	${.CURDIR}/../../crypto/kerberosIV
-
-.endif
 
 .endif

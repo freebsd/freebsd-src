@@ -64,4 +64,4 @@ INCS=	roken.h ${KRB5DIR}/lib/roken/roken-common.h
 
 .PATH:		${KRB5DIR}/lib/roken
 
-build-tools:	make-roken
+build-tools: make-roken

@@ -94,10 +94,10 @@ the intermediate output of the previous
 .It Cm floppies
 Generate a new set of boot floppies.
 This will call the
-.Cm release.4 ,
-.Cm release.8 ,
+.Cm release.5 ,
+.Cm release.9 ,
 and
-.Cm release.9
+.Cm release.10
 targets to re-generate the floppy images of a previous
 .Dq Li "make release" .
 This is most often used to build custom boot floppies.
@@ -105,7 +105,7 @@ This is most often used to build custom boot floppies.
 .Pp
 Targets called by
 .Dq Li "make release" :
-.Bl -tag -width ".Cm release.9"
+.Bl -tag -width ".Cm release.10"
 .It Cm release.1
 Cleans out the
 .Pa ${CHROOTDIR}/R
@@ -115,27 +115,34 @@ to build the directory hierarchy for the system.
 .It Cm release.2
 Installs the system into the distribution directories.
 .It Cm release.3
+Builds and installs
+.Dq crypto ,
+.Dq krb4
+and
+.Dq krb5
+distributions.
+.It Cm release.4
 .\" XXX: We build more than one kernel.  We build a stripped down
 .\" kernel for the boot media in addition to a full GENERIC kernel.
 Makes and installs the
 .Pa GENERIC
 kernel.
-.It Cm release.4
+.It Cm release.5
 Uses
 .Xr crunchgen 1
 to build
 .Dq crunched
 binaries to live on the installation floppies.
-.It Cm release.5
+.It Cm release.6
 Builds synthetic distributions, and cleans up the previously built
 distribution trees.
-.It Cm release.6
-Creates tarballs of the assembled distribution trees.
 .It Cm release.7
-Makes source distributions.
+Creates tarballs of the assembled distribution trees.
 .It Cm release.8
-Creates the boot and MFS root floppies.
+Makes source distributions.
 .It Cm release.9
+Creates the boot and MFS root floppies.
+.It Cm release.10
 Creates the fixit floppy.
 .It Cm ftp.1
 Sets up a suitable area for FTP installations in
@@ -274,6 +281,22 @@ If this variable is defined for
 .Dq Li "make rerelease" ,
 the source code will not be updated with
 .Dq Li "cvs update" .
+.It Va TARGET_ARCH
+The target machine processor architecture.
+This is analogous to the
+.Dq Nm uname Fl p
+output.
+Set this to cross-build for a different architecture.
+.It Va TARGET
+The target hardware platform.
+This is analogous to the
+.Dq Nm uname Fl m
+output.
+This is necessary to cross-build some target architectures.
+For example, cross-building for PC98 machines requires
+.Va TARGET_ARCH Ns = Ns Li i386
+and
+.Va TARGET Ns = Ns Li pc98 .
 .El
 .Sh FILES
 .Bl -tag -compact
