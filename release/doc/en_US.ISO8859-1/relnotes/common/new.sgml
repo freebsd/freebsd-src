@@ -1403,6 +1403,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	been added.  This code supports the TI113X, TI12XX, TI125X,
 	Ricoh 5C46/5C47, Topic 95/97/100 and Cirrus Logic PD683X
 	bridges.  16-bit PC Card support is not yet functional.</para>
+
+      <para arch="i386">NEWCARD is now the default pccard/cardbus
+        system in the <filename>GENERIC</filename> kernel.</para>
+
     </sect3>
 
     <sect3>
@@ -2163,7 +2167,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       aliases, via the &man.finger.conf.5; file. &merged;</para>
 
     <para>&man.finger.1; now has support for a
-      <filename>.pubkey</filename> file.</para>
+      <filename>.pubkey</filename> file. &merged;</para>
+
+    <para>&man.finger.1; now supports a <option>-g</option> flag to
+      restrict the printing of GECOS information to the user's full
+      name only. &merged;</para>
 
     <para role="historic">&man.fmt.1; has been rewritten; the rewrite fixes a number
       of bugs compared to its prior behavior. &merged;</para>
@@ -3471,9 +3479,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para role="historic">The timezone database has been updated to the
 	<filename>tzdata2002c</filename> release. &merged;</para>
 
-      <para>&man.whereis.1; has been imported from NetBSD as of 1 July
-	2002.  This version, written in C, replaces the former Perl
-	implementation.</para>
+      <para>&man.whereis.1;, formerly a Perl script, has been
+        rewritten in C.  It now supports a <option>-x</option> flag to
+        suppress the run of &man.locate.1;, and a <option>-q</option>
+        flag suppresses the leading name of the query.</para>
 
       <sect4>
 	<title>CVS</title>
