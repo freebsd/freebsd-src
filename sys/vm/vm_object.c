@@ -1262,7 +1262,7 @@ vm_object_split(vm_map_entry_t entry)
 #define	OBSC_COLLAPSE_NOWAIT	0x0002
 #define	OBSC_COLLAPSE_WAIT	0x0004
 
-static __inline int
+static int
 vm_object_backing_scan(vm_object_t object, int op)
 {
 	int s;
