@@ -42,7 +42,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)rlogind.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id: rlogind.c,v 1.23 1999/04/25 22:23:37 imp Exp $";
+	"$Id: rlogind.c,v 1.24 1999/08/21 18:15:55 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -549,11 +549,11 @@ cleanup(signo)
 	p = line + sizeof(_PATH_DEV) - 1;
 	if (logout(p))
 		logwtmp(p, "", "");
-	(void)cflags(line, 0);
+	(void)chflags(line, 0);
 	(void)chmod(line, 0666);
 	(void)chown(line, 0, 0);
 	*p = 'p';
-	(void)cflags(line, 0);
+	(void)chflags(line, 0);
 	(void)chmod(line, 0666);
 	(void)chown(line, 0, 0);
 	shutdown(netf, 2);
