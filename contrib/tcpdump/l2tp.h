@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/l2tp.h,v 1.4 2000/12/17 23:07:49 guy Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/l2tp.h,v 1.5 2001/11/05 10:03:27 guy Exp $ (LBL) */
 /*
  * Copyright (c) 1991, 1993, 1994, 1995, 1996, 1997
  *      The Regents of the University of California.  All rights reserved.
@@ -55,29 +55,8 @@
 #define L2TP_AUTHEN_TYPE_CHAP		0x0002	/* PPP CHAP */
 #define L2TP_AUTHEN_TYPE_PAP		0x0003	/* PPP PAP */
 #define L2TP_AUTHEN_TYPE_NO_AUTH	0x0004	/* No Authentication */
-#define L2TP_AUTHEN_TYPE_MSCHAP		0x0005	/* MSCHAPv1 */
+#define L2TP_AUTHEN_TYPE_MSCHAPv1	0x0005	/* MSCHAPv1 */
 
 #define L2TP_PROXY_AUTH_ID_MASK		0x00ff
 
-
-struct l2tp_avp_vec {
-	const char *name;
-	void (*print)(const u_char *, u_int32_t);	
-};
-		
-struct l2tp_call_errors {
-	u_int16_t	reserved;
-	u_int32_t	crc_errs;
-	u_int32_t	framing_errs;	
-	u_int32_t	hardware_overruns;	
-	u_int32_t	buffer_overruns;
-	u_int32_t	timeout_errs;	
-	u_int32_t	alignment_errs;	
-};
-
-struct l2tp_accm {
-	u_int16_t 	reserved;
-	u_int32_t	send_accm;
-	u_int32_t	recv_accm;
-};
 

@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-udp.c,v 1.90 2000/12/23 20:55:22 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-udp.c,v 1.101 2001/10/08 21:25:24 fenner Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -54,12 +54,6 @@ static const char rcsid[] =
 #include "ip6.h"
 #endif
 
-#ifdef NOERROR
-#undef NOERROR					/* Solaris sucks */
-#endif
-#ifdef T_UNSPEC
-#undef T_UNSPEC					/* SINIX does too */
-#endif
 #include "nameser.h"
 #include "nfs.h"
 #include "bootp.h"
@@ -120,14 +114,14 @@ vat_print(const void *hdr, u_int len, register const struct udphdr *up)
 	u_int ts = *(u_int16_t *)hdr;
 	if ((ts & 0xf060) != 0) {
 		/* probably vt */
-		(void)printf(" udp/vt %u %d / %d",
+		(void)printf("udp/vt %u %d / %d",
 			     (u_int32_t)(ntohs(up->uh_ulen) - sizeof(*up)),
 			     ts & 0x3ff, ts >> 10);
 	} else {
 		/* probably vat */
 		u_int32_t i0 = (u_int32_t)ntohl(((u_int *)hdr)[0]);
 		u_int32_t i1 = (u_int32_t)ntohl(((u_int *)hdr)[1]);
-		printf(" udp/vat %u c%d %u%s",
+		printf("udp/vat %u c%d %u%s",
 			(u_int32_t)(ntohs(up->uh_ulen) - sizeof(*up) - 8),
 			i0 & 0xffff,
 			i1, i0 & 0x800000? "*" : "");
@@ -171,7 +165,7 @@ rtp_print(const void *hdr, u_int len, register const struct udphdr *up)
 		ip += 1;
 		len -= 1;
 	}
-	printf(" udp/%s %d c%d %s%s %d %u",
+	printf("udp/%s %d c%d %s%s %d %u",
 		ptype,
 		dlen,
 		contype,
@@ -294,7 +288,6 @@ static int udp_cksum(register const struct ip *ip,
 		     register const struct udphdr *up,
 		     register int len)
 {
-	int i, tlen;
 	union phu {
 		struct phdr {
 			u_int32_t src;
@@ -306,33 +299,17 @@ static int udp_cksum(register const struct ip *ip,
 		u_int16_t pa[6];
 	} phu;
 	register const u_int16_t *sp;
-	u_int32_t sum;
-	tlen = ntohs(ip->ip_len) - ((const char *)up-(const char*)ip);
 
 	/* pseudo-header.. */
-	phu.ph.len = htons(tlen);
+	phu.ph.len = htons(len);
 	phu.ph.mbz = 0;
 	phu.ph.proto = IPPROTO_UDP;
 	memcpy(&phu.ph.src, &ip->ip_src.s_addr, sizeof(u_int32_t));
 	memcpy(&phu.ph.dst, &ip->ip_dst.s_addr, sizeof(u_int32_t));
 
 	sp = &phu.pa[0];
-	sum = sp[0]+sp[1]+sp[2]+sp[3]+sp[4]+sp[5];
-
-	sp = (const u_int16_t *)up;
-
-	for (i=0; i<(tlen&~1); i+= 2)
-		sum += *sp++;
-
-	if (tlen & 1) {
-		sum += htons( (*(const u_int8_t *)sp) << 8);
-	}
-
-	while (sum > 0xffff)
-		sum = (sum & 0xffff) + (sum >> 16);
-	sum = ~sum & 0xffff;
-
-	return (sum);
+	return in_cksum((u_short *)up, len,
+			sp[0]+sp[1]+sp[2]+sp[3]+sp[4]+sp[5]);
 }
 
 #ifdef INET6
@@ -396,8 +373,8 @@ static int udp6_cksum(const struct ip6_hdr *ip6, const struct udphdr *up,
 #define RIP_PORT 520		/*XXX*/
 #define KERBEROS_SEC_PORT 750	/*XXX*/
 #define L2TP_PORT 1701		/*XXX*/
-#define ISAKMP_PORT_USER1 7500	/*??? - nonstandard*/
-#define ISAKMP_PORT_USER2 8500	/*??? - nonstandard*/
+#define ISAKMP_PORT_USER1 7500	/*XXX - nonstandard*/
+#define ISAKMP_PORT_USER2 8500	/*XXX - nonstandard*/
 #define RX_PORT_LOW 7000	/*XXX*/
 #define RX_PORT_HIGH 7009	/*XXX*/
 #define NETBIOS_NS_PORT   137
@@ -407,6 +384,10 @@ static int udp6_cksum(const struct ip6_hdr *ip6, const struct udphdr *up,
 #define RADIUS_NEW_PORT 1812
 #define RADIUS_ACCOUNTING_PORT 1646
 #define RADIUS_NEW_ACCOUNTING_PORT 1813
+#define HSRP_PORT 1985		/*XXX*/
+#define LWRES_PORT		921
+#define ZEPHYR_SRV_PORT		2103
+#define ZEPHYR_CLT_PORT		2104
 
 #ifdef INET6
 #define RIPNG_PORT 521		/*XXX*/
@@ -468,7 +449,7 @@ udp_print(register const u_char *bp, u_int length,
 		switch (packettype) {
 
 		case PT_VAT:
-			(void)printf("%s.%s > %s.%s:",
+			(void)printf("%s.%s > %s.%s: ",
 				ipaddr_string(&ip->ip_src),
 				udpport_string(sport),
 				ipaddr_string(&ip->ip_dst),
@@ -477,7 +458,7 @@ udp_print(register const u_char *bp, u_int length,
 			break;
 
 		case PT_WB:
-			(void)printf("%s.%s > %s.%s:",
+			(void)printf("%s.%s > %s.%s: ",
 				ipaddr_string(&ip->ip_src),
 				udpport_string(sport),
 				ipaddr_string(&ip->ip_dst),
@@ -497,7 +478,7 @@ udp_print(register const u_char *bp, u_int length,
 			break;
 
 		case PT_RTP:
-			(void)printf("%s.%s > %s.%s:",
+			(void)printf("%s.%s > %s.%s: ",
 				ipaddr_string(&ip->ip_src),
 				udpport_string(sport),
 				ipaddr_string(&ip->ip_dst),
@@ -569,11 +550,6 @@ udp_print(register const u_char *bp, u_int length,
 			return;
 		}
 	}
-#if 0
-	(void)printf("%s.%s > %s.%s:",
-		ipaddr_string(&ip->ip_src), udpport_string(sport),
-		ipaddr_string(&ip->ip_dst), udpport_string(dport));
-#else
 #ifdef INET6
 	if (ip6) {
 		if (ip6->ip6_nxt == IPPROTO_UDP) {
@@ -600,18 +576,17 @@ udp_print(register const u_char *bp, u_int length,
 				udpport_string(sport), udpport_string(dport));
 		}
 	}
-#endif
 
 	if (IP_V(ip) == 4 && vflag && !fragmented) {
 		int sum = up->uh_sum;
 		if (sum == 0) {
-			(void)printf(" [no cksum]");
+			(void)printf("[no cksum] ");
 		} else if (TTEST2(cp[0], length)) {
-			sum = udp_cksum(ip, up, length);
+			sum = udp_cksum(ip, up, length + sizeof(struct udphdr));
 			if (sum != 0)
-				(void)printf(" [bad udp cksum %x!]", sum);
+				(void)printf("[bad udp cksum %x!] ", sum);
 			else
-				(void)printf(" [udp sum ok]");
+				(void)printf("[udp sum ok] ");
 		}
 	}
 #ifdef INET6
@@ -621,9 +596,9 @@ udp_print(register const u_char *bp, u_int length,
 		if (TTEST2(cp[0], length)) {
 			sum = udp6_cksum(ip6, up, length);
 			if (sum != 0)
-				(void)printf(" [bad udp cksum %x!]", sum);
+				(void)printf("[bad udp cksum %x!] ", sum);
 			else
-				(void)printf(" [udp sum ok]");
+				(void)printf("[udp sum ok] ");
 		}
 	}
 #endif
@@ -655,14 +630,16 @@ udp_print(register const u_char *bp, u_int length,
 			krb_print((const void *)(up + 1), length);
 		else if (ISPORT(L2TP_PORT))
 			l2tp_print((const u_char *)(up + 1), length);
- 		else if (ISPORT(NETBIOS_NS_PORT)) {
+#ifdef TCPDUMP_DO_SMB
+ 		else if (ISPORT(NETBIOS_NS_PORT))
 			nbt_udp137_print((const u_char *)(up + 1), length);
- 		}
- 		else if (ISPORT(NETBIOS_DGRAM_PORT)) {
+ 		else if (ISPORT(NETBIOS_DGRAM_PORT))
  			nbt_udp138_print((const u_char *)(up + 1), length);
- 		}
+#endif
 		else if (dport == 3456)
 			vat_print((const void *)(up + 1), length, up);
+		else if (ISPORT(ZEPHYR_SRV_PORT) || ISPORT(ZEPHYR_CLT_PORT))
+			zephyr_print((const void *)(up + 1), length);
  		/*
  		 * Since there are 10 possible ports to check, I think
  		 * a <> test would be more efficient
@@ -687,14 +664,18 @@ udp_print(register const u_char *bp, u_int length,
 		else if (ISPORT(CISCO_AUTORP_PORT))
 			cisco_autorp_print((const void *)(up + 1), length);
 		else if (ISPORT(RADIUS_PORT) ||
-		         ISPORT(RADIUS_NEW_PORT) ||
-		         ISPORT(RADIUS_ACCOUNTING_PORT) || 
-		         ISPORT(RADIUS_NEW_ACCOUNTING_PORT) )
-		         radius_print((const u_char *)(up+1), length);
+			 ISPORT(RADIUS_NEW_PORT) ||
+			 ISPORT(RADIUS_ACCOUNTING_PORT) || 
+			 ISPORT(RADIUS_NEW_ACCOUNTING_PORT) )
+			radius_print((const u_char *)(up+1), length);
+		else if (dport == HSRP_PORT)
+ 			hsrp_print((const u_char *)(up + 1), length);
+		else if (ISPORT(LWRES_PORT))
+			lwres_print((const u_char *)(up + 1), length);
 		else
-			(void)printf(" udp %u",
+			(void)printf("udp %u",
 			    (u_int32_t)(ulen - sizeof(*up)));
 #undef ISPORT
 	} else
-		(void)printf(" udp %u", (u_int32_t)(ulen - sizeof(*up)));
+		(void)printf("udp %u", (u_int32_t)(ulen - sizeof(*up)));
 }

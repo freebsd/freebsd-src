@@ -25,7 +25,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ntp.c,v 1.31 2000/10/06 04:23:13 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ntp.c,v 1.32 2001/08/20 15:36:57 fenner Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -61,7 +61,6 @@ ntp_print(register const u_char *cp, u_int length)
 {
 	register const struct ntpdata *bp;
 	int mode, version, leapind;
-	static char rclock[5];
 
 	bp = (struct ntpdata *)cp;
 	/* Note funny sized packets */
@@ -156,9 +155,7 @@ ntp_print(register const u_char *cp, u_int length)
 		break;
 
 	case PRIM_REF:
-		strncpy(rclock, (char *)&(bp->refid), 4);
-		rclock[4] = '\0';
-		fputs(rclock, stdout);
+		fn_printn((char *)&(bp->refid), 4, NULL);
 		break;
 
 	case INFO_QUERY:

@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/bootp.h,v 1.10 2000/12/03 23:42:23 fenner Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/bootp.h,v 1.11 2001/01/09 07:39:13 fenner Exp $ (LBL) */
 /*
  * Bootstrap Protocol (BOOTP).  RFC951 and RFC1048.
  *
@@ -148,6 +148,9 @@ struct bootp {
 #define	TAG_NDS_SERVERS		((u_int8_t)  85)
 #define	TAG_NDS_TREE_NAME	((u_int8_t)  86)
 #define	TAG_NDS_CONTEXT		((u_int8_t)  87)
+/* RFC 2242 */
+#define	TAG_NDS_IPDOMAIN	((u_int8_t)  62)
+#define	TAG_NDS_IPINFO		((u_int8_t)  63)
 /* RFC 2485 */
 #define	TAG_OPEN_GROUP_UAP	((u_int8_t)  98)
 /* RFC 2563 */

@@ -1,4 +1,62 @@
-$Header: /tcpdump/master/tcpdump/CHANGES,v 1.79 2001/01/10 20:13:58 mcr Exp $
+$Header: /tcpdump/master/tcpdump/CHANGES,v 1.81 2002/01/21 11:03:33 mcr Exp $
+
+Monday, January 21, 2002. mcr@sandelman.ottawa.on.ca. Summary for 3.7 release
+see http://www.tcpdump.org/cvs-log/2002-01-21.10:16:48.html for commit log.
+	keyword "ipx" added.
+	Better OSI/802.2 support on Linux.
+	IEEE 802.11 support, from clenahan@fortresstech.com, achirica@ttd.net.
+	LLC SAP support for FDDI/token ring/RFC-1483 style ATM
+	BXXP protocol was replaced by the BEEP protocol; 
+	improvements to SNAP demux.
+	Changes to "any" interface documentation.
+	Documentation on pcap_stats() counters.
+	Fix a memory leak found by Miklos Szeredi - pcap_ether_aton().
+	Added MPLS encapsulation decoding per RFC3032.
+	DNS dissector handles TKEY, TSIG and IXFR.
+	adaptive SLIP interface patch from Igor Khristophorov <igor@atdot.org> 
+	SMB printing has much improved bounds checks 
+	OUI 0x0000f8 decoded as encapsulated ethernet for Cisco-custom bridging
+	Zephyr support, from Nickolai Zeldovich <kolya@MIT.EDU>.
+	Solaris - devices with digits in them. Stefan Hudson <hudson@mbay.net> 
+	IPX socket 0x85be is for Cisco EIGRP over IPX.
+	Improvements to fragmented ESP handling.
+	SCTP support from Armando L. Caro Jr. <acaro@mail.eecis.udel.edu>
+	Linux ARPHDR_ATM support fixed.
+	Added a "netbeui" keyword, which selects NetBEUI packets.
+	IPv6 ND improvements, MobileIP dissector, 2292bis-02 for RA option.
+	Handle ARPHDR_HDLC from Marcus Felipe Pereira <marcus@task.com.br>.
+	Handle IPX socket 0x553 -> NetBIOS-over-IPX socket, "nwlink-dgm" 
+	Better Linux libc5 compat.
+	BIND9 lwres dissector added.
+	MIPS and SPARC get strict alignment macros (affects print-bgp.c)
+	Apple LocalTalk LINKTYPE_ reserved.
+	New time stamp formats documented.
+	DHCP6 updated to draft-22.txt spec.
+	ICMP types/codes now accept symbolic names.
+	Add SIGINFO handler from LBL
+	encrypted CIPE tunnels in IRIX, from Franz Schaefer <schaefer@mond.at>.
+	now we are -Wstrict-prototype clean.
+	NetBSD DLT_PPP_ETHER; adapted from Martin Husemann <martin@netbsd.org>.
+	PPPoE dissector cleaned up.
+	Support for LocalTalk hardware, from Uns Lider <unslider@miranda.org>.
+	In dissector, now the caller prints the IP addresses rather than proto.
+	cjclark@alum.mit.edu: print the IP proto for non-initial fragments.
+	LLC frames with a DSAP and LSAP of 0xe0 are IPX frames.
+	Linux cooked frames with a type value of LINUX_SLL_P_802_3 are IPX.
+	captures on the "any" device won't be done in promiscuous mode	
+	Token Ring support on DLPI - Onno van der Linden <onno@simplex.nl> 
+	ARCNet support, from NetBSD.
+	HSRP dissector, from Julian Cowley <julian@lava.net>.
+	Handle (GRE-encapsulated) PPTP
+	added -C option to rotate save file every optarg * 1,000,000 bytes.
+	support for "vrrp" name - NetBSD, by Klaus Klein <kleink@netbsd.org>.
+	PPTP support, from Motonori Shindo <mshindo@mshindo.net>.
+	IS-IS over PPP support, from Hannes Gredler <hannes@juniper.net>.
+	CNFP support for IPv6,format. Harry Raaymakers <harryr@connect.com.au>.
+	ESP printing updated to RFC2406.
+	HP-UX can now handle large number of PPAs.
+	MSDP printer added.
+	L2TP dissector improvements from Motonori Shindo.
 
 Tuesday January 9, 2001. mcr@sandelman.ottawa.on.ca. Summary for 3.6 release
 	Cleaned up documentation.
@@ -595,4 +653,4 @@ v2.0 Sun Jan 13 12:20:40 PST 1991
 
 - Initial public release.
 
-@(#) $Header: /tcpdump/master/tcpdump/CHANGES,v 1.79 2001/01/10 20:13:58 mcr Exp $ (LBL)
+@(#) $Header: /tcpdump/master/tcpdump/CHANGES,v 1.81 2002/01/21 11:03:33 mcr Exp $ (LBL)

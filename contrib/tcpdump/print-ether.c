@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997
+ * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ether.c,v 1.61 2000/12/22 22:45:10 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ether.c,v 1.65 2001/07/04 22:03:14 fenner Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -82,6 +82,7 @@ ether_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 	u_short ether_type;
 	u_short extracted_ethertype;
 
+	++infodelay;
 	ts_print(&h->ts);
 
 	if (caplen < ETHER_HDRLEN) {
@@ -137,6 +138,9 @@ ether_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 		default_print(p, caplen);
  out:
 	putchar('\n');
+	--infodelay;
+	if (infoprint)
+		info(0);
 }
 
 /*
@@ -226,6 +230,19 @@ ether_encap_print(u_short ethertype, const u_char *p,
 		pppoe_print(p, length);
  		return (1);
  
+	case ETHERTYPE_PPP:
+		printf("ppp");
+		if (length) {
+			printf(": ");
+			ppp_print(p, length);
+		}
+		return (1);
+
+	case ETHERTYPE_MPLS:
+	case ETHERTYPE_MPLS_MULTI:
+		mpls_print(p, length);
+		return (1);
+
 	case ETHERTYPE_LAT:
 	case ETHERTYPE_SCA:
 	case ETHERTYPE_MOPRC:

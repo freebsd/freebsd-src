@@ -1,4 +1,25 @@
 /*
+ * Copyright (C) 2000 Alfredo Andres Omella.  All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *  
+ *   1. Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *   2. Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in
+ *      the documentation and/or other materials provided with the
+ *      distribution.
+ *   3. The names of the authors may not be used to endorse or promote
+ *      products derived from this software without specific prior
+ *      written permission.
+ *  
+ * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ */
+/*
  * Radius printer routines as specified on:
  *
  * RFC 2865:
@@ -23,12 +44,14 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "$Id: print-radius.c,v 1.5 2000/12/18 08:16:58 guy Exp $";
+    "$Id: print-radius.c,v 1.10 2001/10/22 06:58:33 itojun Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
+
+#include <string.h>
 
 #include <sys/param.h>
 
@@ -115,6 +138,7 @@ struct radius_hdr { u_int8_t  code; /* Radius packet code  */
                     u_int8_t  auth[16]; /* Authenticator   */
                   };
 
+#define MIN_RADIUS_LEN	20
 
 struct radius_attr { u_int8_t type; /* Attribute type   */
                      u_int8_t len;  /* Attribute length */
@@ -495,7 +519,6 @@ print_attr_num(register u_char *data, u_int length, u_short attr_code )
       }
       else
       {
-      	 data++;
          data_value = EXTRACT_32BITS(data);
       }
       if ( data_value <= (attr_type[attr_code].siz_subtypes - 1 +
@@ -638,7 +661,7 @@ static void print_attr_time(register u_char *data, u_int length, u_short attr_co
    TCHECK2(data[0],4);
    
    attr_time = EXTRACT_32BITS(data);
-   strcpy(string, ctime(&attr_time));
+   strlcpy(string, ctime(&attr_time), sizeof(string));
    /* Get rid of the newline */
    string[24] = '\0';
    printf("{%.24s}", string);
@@ -730,7 +753,7 @@ static void print_attr_strange(register u_char *data, u_int length, u_short attr
 
 
 static void
-radius_attr_print(register u_char *attr, u_int length)
+radius_attr_print(register const u_char *attr, u_int length)
 {
    register const struct radius_attr *rad_attr = (struct radius_attr *)attr;
    
@@ -743,6 +766,11 @@ radius_attr_print(register u_char *attr, u_int length)
    printf(" Attr[ ");
    while (length > 0)
    {
+     if (rad_attr->len == 0)
+     {
+     	printf("(zero-length attribute)");
+     	return;
+     }
      if ( rad_attr->len <= length )
      {
         if ( !rad_attr->type || (rad_attr->type > (TAM_SIZE(attr_type)-1))  )
@@ -778,17 +806,30 @@ radius_print(const u_char *dat, u_int length)
 {
    register const struct radius_hdr *rad;
    register int i;
+   int len;
    
-   i = min(length, snapend - dat) - sizeof(*rad);
+   i = min(length, snapend - dat);
 
-   if (i < 0) 
+   if (i < MIN_RADIUS_LEN)
    {
 	  printf(" [|radius]");
 	  return;
    }
 
    rad = (struct radius_hdr *)dat;
- 
+   len = ntohs(rad->len);
+
+   if (len < MIN_RADIUS_LEN)
+   {
+	  printf(" [|radius]");
+	  return;
+   }
+
+   if (len < i)
+	  i = len;
+   
+   i -= MIN_RADIUS_LEN;
+
    switch (rad->code) 
    {
      case RADCMD_ACCESS_REQ:
@@ -834,5 +875,5 @@ radius_print(const u_char *dat, u_int length)
    printf(" [id %d]", rad->id);
  
    if (i)
-      radius_attr_print( ((u_char *)(rad+1)), i);  
+      radius_attr_print( dat + MIN_RADIUS_LEN, i);  
 }

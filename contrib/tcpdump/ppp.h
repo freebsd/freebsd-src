@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/ppp.h,v 1.11 2000/10/09 01:53:19 guy Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/ppp.h,v 1.12 2001/02/04 02:17:55 fenner Exp $ (LBL) */
 /*
  * Point to Point Protocol (PPP) RFC1331
  *
@@ -33,6 +33,7 @@
 #define PPP_STII	0x0033	/* Stream Protocol (ST-II) */
 #define PPP_VINES	0x0035	/* Banyan Vines */
 #define PPP_IPV6	0x0057	/* IPv6 */
+#define	PPP_COMP	0x00fd	/* Compressed Datagram */
 
 #define PPP_HELLO	0x0201	/* 802.1d Hello Packets */
 #define PPP_LUXCOM	0x0231	/* Luxcom */

@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-wb.c,v 1.25 1999/11/21 09:37:03 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-wb.c,v 1.26 2001/06/27 05:37:19 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -76,6 +76,10 @@ struct pkt_hdr {
 #define PT_KILL		4	/* terminate participation */
 #define PT_PREQ         5       /* page vector request */
 #define PT_PREP         7       /* page vector reply */
+
+#ifdef PF_USER
+#undef PF_USER			/* {Digital,Tru64} UNIX define this, alas */
+#endif
 
 /* flags */
 #define PF_USER		0x01	/* hint that packet has interactive data */
