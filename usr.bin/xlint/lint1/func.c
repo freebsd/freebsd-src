@@ -1,4 +1,4 @@
-/* $NetBSD: func.c,v 1.7 1995/10/02 17:31:40 jpo Exp $	*/
+/*	$NetBSD: func.c,v 1.7 1995/10/02 17:31:40 jpo Exp $	*/
 
 /*
  * Copyright (c) 1994, 1995 Jochen Pohl

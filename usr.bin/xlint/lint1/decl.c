@@ -1,4 +1,4 @@
-/* $NetBSD: decl.c,v 1.11 1995/10/02 17:34:16 jpo Exp $	*/
+/*	$NetBSD: decl.c,v 1.11 1995/10/02 17:34:16 jpo Exp $	*/
 
 /*
  * Copyright (c) 1994, 1995 Jochen Pohl
