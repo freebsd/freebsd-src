@@ -151,6 +151,14 @@ checkdpadd:
 
 cleandir: cleanobj
 
+DISTRIBUTION?=	base
+.if !target(distribute)
+distribute:
+.for dist in ${DISTRIBUTION}
+	cd ${.CURDIR}; ${MAKE} install DESTDIR=${DISTDIR}/${dist} SHARED=copies
+.endfor
+.endif
+
 .include <bsd.subdir.mk>
 
 .endif !target(__<bsd.obj.mk>__)
