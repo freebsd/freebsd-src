@@ -185,7 +185,7 @@ printf( "ddp_route: oops\n" );
 	elh = mtod( m, struct elaphdr *);
 	elh->el_snode = satosat( &aa->aa_addr )->sat_addr.s_node;
 	elh->el_type = ELAP_DDPEXTEND;
-	elh->el_dnode = gate->sat_addr.s_node;
+	elh->el_dnode = gate.sat_addr.s_node;
     }
     ro->ro_rt->rt_use++;
 
