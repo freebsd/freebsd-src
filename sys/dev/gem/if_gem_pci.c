@@ -143,15 +143,13 @@ gem_pci_attach(dev)
 {
 	struct gem_pci_softc *gsc = device_get_softc(dev);
 	struct gem_softc *sc = &gsc->gsc_gem;
-	u_int16_t csr;
 
 	/*
-	 * Enable bus master access. The firmware does in some cases not do
-	 * this for us on sparc64 machines.
+	 * Enable bus master and memory access. The firmware does in some
+	 * cases not do this for us on sparc64 machines.
 	 */
-	csr = pci_read_config(dev, PCIR_COMMAND, 2);
-	csr |= PCIM_CMD_PORTEN | PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN;
-	pci_write_config(dev, PCIR_COMMAND, csr, 2);
+	pci_enable_busmaster(dev);
+	pci_enable_io(dev, SYS_RES_MEMORY);
 
 	sc->sc_dev = dev;
 	sc->sc_pci = 1;		/* XXX */
