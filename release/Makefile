@@ -821,7 +821,7 @@ doMFSKERN:
 	mv ${RD}/kernels/BOOTMFS ${RD}/image.${FSIMAGE}/kernel
 	@echo "Setting up /boot directory for ${FSIMAGE} floppy"
 	@mkdir -p ${RD}/image.${FSIMAGE}/boot
-	@cp /boot/boot[12] /boot/loader ${RD}/image.${FSIMAGE}/boot
+	@cp /boot/loader ${RD}/image.${FSIMAGE}/boot
 	@[ -r ${RD}/kernels/BOOTMFS.${FSIMAGE}.hints ] && \
 	  sed -e '/^hint/s/^/set /' -e '/^#/d' \
 	    ${RD}/kernels/BOOTMFS.${FSIMAGE}.hints > \
