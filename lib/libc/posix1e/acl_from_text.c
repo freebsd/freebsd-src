@@ -117,15 +117,12 @@ acl_from_text(const char *buf_p)
 
 	/* Local copy we can mess up. */
 	mybuf_p = strdup(buf_p);
-	if (!mybuf_p) {
-		errno = ENOMEM;
+	if (!mybuf_p)
 		return(0);
-	}
 
 	acl = acl_init(3);
 	if (!acl) {
 		free(mybuf_p);
-		errno = ENOMEM;
 		return(0);
 	}
 

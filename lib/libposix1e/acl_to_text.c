@@ -60,6 +60,8 @@ acl_to_text(acl_t acl, ssize_t *len_p)
 	acl_perm_t	ae_perm, effective_perm, mask_perm;
 
 	buf = strdup("");
+	if (!buf)
+		return(0);
 
 	mask_perm = ACL_PERM_BITS;	/* effective is regular if no mask */
 	for (i = 0; i < acl->acl_cnt; i++)
@@ -79,10 +81,8 @@ acl_to_text(acl_t acl, ssize_t *len_p)
 				goto error_label;
 			len = asprintf(&tmpbuf, "%suser::%s\n", buf,
 			    perm_buf);
-			if (len == -1) {
-				errno = ENOMEM;
+			if (len == -1)
 				goto error_label;
-			}
 			free(buf);
 			buf = tmpbuf;
 			break;
@@ -113,10 +113,8 @@ acl_to_text(acl_t acl, ssize_t *len_p)
 				len = asprintf(&tmpbuf, "%suser:%s:%s\n", buf,
 				    name_buf, perm_buf);
 			}
-			if (len == -1) {
-				errno = ENOMEM;
+			if (len == -1)
 				goto error_label;
-			}
 			free(buf);
 			buf = tmpbuf;
 			break;
@@ -141,10 +139,8 @@ acl_to_text(acl_t acl, ssize_t *len_p)
 				len = asprintf(&tmpbuf, "%sgroup::%s\n", buf,
 				    perm_buf);
 			}
-			if (len == -1) {
-				errno = ENOMEM;
+			if (len == -1)
 				goto error_label;
-			}
 			free(buf);
 			buf = tmpbuf;
 			break;
@@ -174,10 +170,8 @@ acl_to_text(acl_t acl, ssize_t *len_p)
 				len = asprintf(&tmpbuf, "%sgroup:%s:%s\n", buf,
 				    name_buf, perm_buf);
 			}
-			if (len == -1) {
-				errno = ENOMEM;
+			if (len == -1)
 				goto error_label;
-			}
 			free(buf);
 			buf = tmpbuf;
 			break;
@@ -190,10 +184,8 @@ acl_to_text(acl_t acl, ssize_t *len_p)
 
 			len = asprintf(&tmpbuf, "%smask::%s\n", buf,
 			    perm_buf);
-			if (len == -1) {
-				errno = ENOMEM;
+			if (len == -1)
 				goto error_label;
-			}
 			free(buf);
 			buf = tmpbuf;
 			break;
@@ -206,18 +198,15 @@ acl_to_text(acl_t acl, ssize_t *len_p)
 
 			len = asprintf(&tmpbuf, "%sother::%s\n", buf,
 			    perm_buf);
-			if (len == -1) {
-				errno = ENOMEM;
+			if (len == -1)
 				goto error_label;
-			}
 			free(buf);
 			buf = tmpbuf;
 			break;
 
 		default:
-			free(buf);
 			errno = EINVAL;
-			return (0);
+			goto error_label;
 		}
 	}
 
