@@ -2840,6 +2840,8 @@
       </itemizedlist>
     </para>
 
+    <para arch="i386">Creative Sound Blaster Live! (emu10k1 driver)</para>
+
   </sect2>
   <sect2>
     <title>Camera and Video Capture Devices</title>
