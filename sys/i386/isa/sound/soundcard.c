@@ -437,7 +437,7 @@ sndattach(struct isa_device * dev)
     if (strcmp(dname, "uart0") == 0)
 	dev->id_ointr = m6850intr;
 #endif
-#if NMPU > 0
+#if NMPU > 0 && defined(CONFIG_MIDI)
     if (strcmp(dname, "mpu") == 0)
 	dev->id_ointr = mpuintr;
 #endif
