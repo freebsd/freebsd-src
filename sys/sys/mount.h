@@ -146,6 +146,7 @@ struct mount {
 	int		mnt_kern_flag;		/* kernel only flags */
 	int		mnt_maxsymlinklen;	/* max size of short symlink */
 	struct statfs	mnt_stat;		/* cache of filesystem stats */
+	struct ucred	*mnt_cred;		/* credentials of mounter */
 	qaddr_t		mnt_data;		/* private data */
 	time_t		mnt_time;		/* last time written*/
 	u_int		mnt_iosize_max;		/* max IO request size */
