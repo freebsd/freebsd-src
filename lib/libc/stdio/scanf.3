@@ -36,7 +36,7 @@
 .\"     @(#)scanf.3	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd December 11, 1993
+.Dd December 20, 2002
 .Dt SCANF 3
 .Os
 .Sh NAME
@@ -486,8 +486,11 @@ the number of conversions which were successfully completed is returned.
 The functions
 .Fn fscanf ,
 .Fn scanf ,
+.Fn sscanf ,
+.Fn vfscanf ,
+.Fn vscanf
 and
-.Fn sscanf
+.Fn vsscanf
 conform to
 .St -isoC-99 .
 .Sh BUGS
