@@ -215,7 +215,7 @@ static int	start_ap(int apic_id);
 static void	release_aps(void *dummy);
 
 static int	hlt_cpus_mask;
-static int	hlt_logical_cpus = 1;
+static int	hlt_logical_cpus;
 static struct	sysctl_ctx_list logical_cpu_clist;
 
 /*
