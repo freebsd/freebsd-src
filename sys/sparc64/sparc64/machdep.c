@@ -513,17 +513,47 @@ freebsd4_sigreturn(struct thread *td, struct freebsd4_sigreturn_args *uap)
 #endif
 
 int
-get_mcontext(struct thread *td, mcontext_t *mcp)
+get_mcontext(struct thread *td, mcontext_t *mc)
 {
+	struct trapframe *tf;
+	struct pcb *pcb;
 
-	return (ENOSYS);
+	if (((uintptr_t)mc & (64 - 1)) != 0)
+		return (EINVAL);
+	tf = td->td_frame;
+	pcb = td->td_pcb;
+	bcopy(tf, mc, sizeof(*tf));
+	critical_enter();
+	if ((tf->tf_fprs & FPRS_FEF) != 0)
+		savefpctx(mc->mc_fp);
+	else if ((pcb->pcb_flags & PCB_FEF) != 0) {
+		bcopy(pcb->pcb_ufp, mc->mc_fp, sizeof(*mc->mc_fp));
+		mc->mc_fprs |= FPRS_FEF;
+	}
+	critical_exit();
+	return (0);
 }
 
 int
-set_mcontext(struct thread *td, const mcontext_t *mcp)
+set_mcontext(struct thread *td, const mcontext_t *mc)
 {
+	struct trapframe *tf;
+	struct pcb *pcb;
+	uint64_t wstate;
 
-	return (ENOSYS);
+	if (!TSTATE_SECURE(mc->mc_tstate))
+		return (EINVAL);
+	tf = td->td_frame;
+	pcb = td->td_pcb;
+	wstate = tf->tf_wstate;
+	bcopy(mc, tf, sizeof(*tf));
+	tf->tf_wstate = wstate;
+	if ((mc->mc_fprs & FPRS_FEF) != 0) {
+		tf->tf_fprs = 0;
+		bcopy(mc->mc_fp, pcb->pcb_ufp, sizeof(*pcb->pcb_ufp));
+		pcb->pcb_flags |= PCB_FEF;
+	}
+	return (0);
 }
 
 /*
