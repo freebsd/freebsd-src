@@ -187,8 +187,7 @@ fire(Option opt)
 	int (*cp)(char *) = opt.data, rcode;
 
 	rcode = cp(NULL);
-	if (rcode & (DITEM_RECREATE | DITEM_RESTORE))
-	    status = 1;
+	status = 1;
     }
     else if (opt.type == OPT_IS_VAR) {
 	if (opt.data) {
