@@ -10,13 +10,13 @@ CFLAGS+=	-DFREEBSD_ELF
 CFLAGS+=	-DFREEBSD_AOUT
 .endif
 
-LINKS+= /usr/bin/objformat /usr/bin/ar
-LINKS+= /usr/bin/objformat /usr/bin/as
-LINKS+= /usr/bin/objformat /usr/bin/ld
-LINKS+= /usr/bin/objformat /usr/bin/nm
-LINKS+= /usr/bin/objformat /usr/bin/ranlib
-LINKS+= /usr/bin/objformat /usr/bin/size
-LINKS+= /usr/bin/objformat /usr/bin/strings
-LINKS+= /usr/bin/objformat /usr/bin/strip
+LINKS+=	${BINDIR}/objformat ${BINDIR}/ar
+LINKS+=	${BINDIR}/objformat ${BINDIR}/as
+LINKS+=	${BINDIR}/objformat ${BINDIR}/ld
+LINKS+=	${BINDIR}/objformat ${BINDIR}/nm
+LINKS+=	${BINDIR}/objformat ${BINDIR}/ranlib
+LINKS+=	${BINDIR}/objformat ${BINDIR}/size
+LINKS+=	${BINDIR}/objformat ${BINDIR}/strings
+LINKS+=	${BINDIR}/objformat ${BINDIR}/strip
 
 .include <bsd.prog.mk>
