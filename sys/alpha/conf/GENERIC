@@ -80,7 +80,7 @@ options 	SMP			# Symmetric MultiProcessor Kernel
 
 # Standard busses
 device		isa
-device		pci
+device		pci	1		# Unit count is for ahc/ahd
 
 # Floppy drives
 device		fdc
