@@ -33,6 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: vinumext.h,v 1.21 1999/10/12 04:34:22 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -185,7 +186,7 @@ void setstate(struct vinum_ioctl_msg *msg);
 void setstate_by_force(struct vinum_ioctl_msg *msg);
 void vinum_label(int);
 int vinum_writedisklabel(struct volume *, struct disklabel *);
-int initsd(int);
+int initsd(int, int);
 enum requeststatus sddownstate(struct request *rq);
 
 int restart_plex(int plexno);
