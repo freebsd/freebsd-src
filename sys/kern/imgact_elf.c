@@ -201,7 +201,9 @@ __elfN(check_header)(const Elf_Ehdr *hdr)
 	if (!IS_ELF(*hdr) ||
 	    hdr->e_ident[EI_CLASS] != ELF_TARG_CLASS ||
 	    hdr->e_ident[EI_DATA] != ELF_TARG_DATA ||
-	    hdr->e_ident[EI_VERSION] != EV_CURRENT)
+	    hdr->e_ident[EI_VERSION] != EV_CURRENT ||
+	    hdr->e_phentsize != sizeof(Elf_Phdr) ||
+	    hdr->e_version != ELF_TARG_VER)
 		return (ENOEXEC);
 
 	/*
@@ -214,9 +216,6 @@ __elfN(check_header)(const Elf_Ehdr *hdr)
 			break;
 	}
 	if (i == MAX_BRANDS)
-		return (ENOEXEC);
-
-	if (hdr->e_version != ELF_TARG_VER)
 		return (ENOEXEC);
 
 	return (0);
@@ -585,9 +584,10 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 		goto fail;
 	}
 
-	/* Only support headers that fit within first page for now */
+	/* Only support headers that fit within first page for now      */
+	/*    (multiplication of two Elf_Half fields will not overflow) */
 	if ((hdr->e_phoff > PAGE_SIZE) ||
-	    (hdr->e_phoff + hdr->e_phentsize * hdr->e_phnum) > PAGE_SIZE) {
+	    (hdr->e_phentsize * hdr->e_phnum) > PAGE_SIZE - hdr->e_phoff) {
 		error = ENOEXEC;
 		goto fail;
 	}
