@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.67 1998/05/31 19:20:44 peter Exp $
+ * $Id: nfs_vfsops.c,v 1.68 1998/05/31 19:49:31 peter Exp $
  */
 
 #include <sys/param.h>
@@ -253,8 +253,8 @@ nfs_statfs(mp, sbp, p)
 	register struct vnode *vp;
 	register struct nfs_statfs *sfp;
 	register caddr_t cp;
-	register u_long *tl;
-	register long t1, t2;
+	register u_int32_t *tl;
+	register int32_t t1, t2;
 	caddr_t bpos, dpos, cp2;
 	struct nfsmount *nmp = VFSTONFS(mp);
 	int error = 0, v3 = (nmp->nm_flag & NFSMNT_NFSV3), retattr;
@@ -297,15 +297,15 @@ nfs_statfs(mp, sbp, p)
 		sbp->f_bfree = (long)(tquad / ((u_quad_t)NFS_FABLKSIZE));
 		fxdr_hyper(&sfp->sf_abytes, &tquad);
 		sbp->f_bavail = (long)(tquad / ((u_quad_t)NFS_FABLKSIZE));
-		sbp->f_files = (fxdr_unsigned(long, sfp->sf_tfiles.nfsuquad[1])
-			& 0x7fffffff);
-		sbp->f_ffree = (fxdr_unsigned(long, sfp->sf_ffiles.nfsuquad[1])
-			& 0x7fffffff);
+		sbp->f_files = (fxdr_unsigned(int32_t,
+		    sfp->sf_tfiles.nfsuquad[1]) & 0x7fffffff);
+		sbp->f_ffree = (fxdr_unsigned(int32_t,
+		    sfp->sf_ffiles.nfsuquad[1]) & 0x7fffffff);
 	} else {
-		sbp->f_bsize = fxdr_unsigned(long, sfp->sf_bsize);
-		sbp->f_blocks = fxdr_unsigned(long, sfp->sf_blocks);
-		sbp->f_bfree = fxdr_unsigned(long, sfp->sf_bfree);
-		sbp->f_bavail = fxdr_unsigned(long, sfp->sf_bavail);
+		sbp->f_bsize = fxdr_unsigned(int32_t, sfp->sf_bsize);
+		sbp->f_blocks = fxdr_unsigned(int32_t, sfp->sf_blocks);
+		sbp->f_bfree = fxdr_unsigned(int32_t, sfp->sf_bfree);
+		sbp->f_bavail = fxdr_unsigned(int32_t, sfp->sf_bavail);
 		sbp->f_files = 0;
 		sbp->f_ffree = 0;
 	}
@@ -331,8 +331,8 @@ nfs_fsinfo(nmp, vp, cred, p)
 {
 	register struct nfsv3_fsinfo *fsp;
 	register caddr_t cp;
-	register long t1, t2;
-	register u_long *tl, pref, max;
+	register int32_t t1, t2;
+	register u_int32_t *tl, pref, max;
 	caddr_t bpos, dpos, cp2;
 	int error = 0, retattr;
 	struct mbuf *mreq, *mrep, *md, *mb, *mb2;
@@ -345,27 +345,27 @@ nfs_fsinfo(nmp, vp, cred, p)
 	nfsm_postop_attr(vp, retattr);
 	if (!error) {
 		nfsm_dissect(fsp, struct nfsv3_fsinfo *, NFSX_V3FSINFO);
-		pref = fxdr_unsigned(u_long, fsp->fs_wtpref);
+		pref = fxdr_unsigned(u_int32_t, fsp->fs_wtpref);
 		if (pref < nmp->nm_wsize && pref >= NFS_FABLKSIZE)
 			nmp->nm_wsize = (pref + NFS_FABLKSIZE - 1) &
 				~(NFS_FABLKSIZE - 1);
-		max = fxdr_unsigned(u_long, fsp->fs_wtmax);
+		max = fxdr_unsigned(u_int32_t, fsp->fs_wtmax);
 		if (max < nmp->nm_wsize) {
 			nmp->nm_wsize = max & ~(NFS_FABLKSIZE - 1);
 			if (nmp->nm_wsize == 0)
 				nmp->nm_wsize = max;
 		}
-		pref = fxdr_unsigned(u_long, fsp->fs_rtpref);
+		pref = fxdr_unsigned(u_int32_t, fsp->fs_rtpref);
 		if (pref < nmp->nm_rsize && pref >= NFS_FABLKSIZE)
 			nmp->nm_rsize = (pref + NFS_FABLKSIZE - 1) &
 				~(NFS_FABLKSIZE - 1);
-		max = fxdr_unsigned(u_long, fsp->fs_rtmax);
+		max = fxdr_unsigned(u_int32_t, fsp->fs_rtmax);
 		if (max < nmp->nm_rsize) {
 			nmp->nm_rsize = max & ~(NFS_FABLKSIZE - 1);
 			if (nmp->nm_rsize == 0)
 				nmp->nm_rsize = max;
 		}
-		pref = fxdr_unsigned(u_long, fsp->fs_dtpref);
+		pref = fxdr_unsigned(u_int32_t, fsp->fs_dtpref);
 		if (pref < nmp->nm_readdirsize)
 			nmp->nm_readdirsize = pref;
 		if (max < nmp->nm_readdirsize) {
@@ -591,7 +591,7 @@ nfs_mountdiskless(path, which, mountflag, sin, args, p, vpp, mpp)
 	return (0);
 }
 
-static void    
+static void
 nfs_decode_args(nmp, argp)
 	struct nfsmount *nmp;
 	struct nfs_args *argp;
@@ -722,7 +722,7 @@ nfs_decode_args(nmp, argp)
 			while (nfs_connect(nmp, (struct nfsreq *)0)) {
 				printf("nfs_args: retrying connect\n");
 				(void) tsleep((caddr_t)&lbolt,
-					PSOCK, "nfscon", 0);
+					      PSOCK, "nfscon", 0);
 			}
 	}
 }
@@ -825,7 +825,7 @@ mountnfs(argp, mp, nam, pth, hst, vpp)
 {
 	register struct nfsmount *nmp;
 	struct nfsnode *np;
-	int error, maxio;
+	int error;
 	struct vattr attrs;
 
 	if (mp->mnt_flag & MNT_UPDATE) {

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nqnfs.h	8.3 (Berkeley) 3/30/95
- * $Id: nqnfs.h,v 1.14 1997/08/16 19:16:05 wollman Exp $
+ * $Id: nqnfs.h,v 1.15 1998/03/30 09:54:45 phk Exp $
  */
 
 
@@ -88,18 +88,18 @@
 struct nqhost {
 	union {
 		struct {
-			u_short udp_flag;
-			u_short	udp_port;
+			u_int16_t udp_flag;
+			u_int16_t udp_port;
 			union nethostaddr udp_haddr;
 		} un_udp;
 		struct {
-			u_short connless_flag;
-			u_short connless_spare;
+			u_int16_t connless_flag;
+			u_int16_t connless_spare;
 			union nethostaddr connless_haddr;
 		} un_connless;
 		struct {
-			u_short conn_flag;
-			u_short conn_spare;
+			u_int16_t conn_flag;
+			u_int16_t conn_spare;
 			struct nfssvc_sock *conn_slp;
 		} un_conn;
 	} lph_un;
@@ -201,7 +201,7 @@ extern u_long nqfhhash;
 #if defined(KERNEL) || defined(_KERNEL)
 void	nqnfs_lease_check __P((struct vnode *, struct proc *, struct ucred *, int));
 void	nqnfs_lease_updatetime __P((int));
-int	nqsrv_getlease __P((struct vnode *, u_long *, int,
+int	nqsrv_getlease __P((struct vnode *, u_int32_t *, int,
 			    struct nfssvc_sock *, struct proc *,
 			    struct sockaddr *, int *, u_quad_t *,
 			    struct ucred *));

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_syscalls.c,v 1.39 1998/05/31 17:27:53 peter Exp $
+ * $Id: nfs_syscalls.c,v 1.40 1998/05/31 18:46:06 peter Exp $
  */
 
 #include <sys/param.h>
@@ -75,7 +75,7 @@
 static MALLOC_DEFINE(M_NFSSVC, "NFS srvsock", "Nfs server structure");
 
 /* Global defs. */
-extern int (*nfsrv3_procs[NFS_NPROCS]) __P((struct nfsrv_descript *nd,
+extern int32_t (*nfsrv3_procs[NFS_NPROCS]) __P((struct nfsrv_descript *nd,
 					    struct nfssvc_sock *slp,
 					    struct proc *procp,
 					    struct mbuf **mreqp));
@@ -401,15 +401,15 @@ nfssvc_addsock(fp, mynam, p)
 	 */
 	if (so->so_type == SOCK_STREAM) {
 		MGET(m, M_WAIT, MT_SOOPTS);
-		*mtod(m, int *) = 1;
-		m->m_len = sizeof(int);
+		*mtod(m, int32_t *) = 1;
+		m->m_len = sizeof(int32_t);
 		sosetopt(so, SOL_SOCKET, SO_KEEPALIVE, m, p);
 	}
 	if (so->so_proto->pr_domain->dom_family == AF_INET &&
 	    so->so_proto->pr_protocol == IPPROTO_TCP) {
 		MGET(m, M_WAIT, MT_SOOPTS);
-		*mtod(m, int *) = 1;
-		m->m_len = sizeof(int);
+		*mtod(m, int32_t *) = 1;
+		m->m_len = sizeof(int32_t);
 		sosetopt(so, IPPROTO_TCP, TCP_NODELAY, m, p);
 	}
 	so->so_rcv.sb_flags &= ~SB_NOINTR;
@@ -677,7 +677,7 @@ nfssvc_nfsd(nsd, argp, p)
 			 */
 			if (sotype == SOCK_STREAM) {
 				M_PREPEND(m, NFSX_UNSIGNED, M_WAIT);
-				*mtod(m, u_long *) = htonl(0x80000000 | siz);
+				*mtod(m, u_int32_t *) = htonl(0x80000000 | siz);
 			}
 			if (solockp)
 				(void) nfs_sndlock(solockp, solockp, 
@@ -1064,7 +1064,7 @@ nfs_getnickauth(nmp, cred, auth_str, auth_len, verf_str, verf_len)
 	int verf_len;
 {
 	register struct nfsuid *nuidp;
-	register u_long *nickp, *verfp;
+	register u_int32_t *nickp, *verfp;
 	struct timeval ktvin, ktvout;
 
 #ifdef DIAGNOSTIC
@@ -1085,7 +1085,7 @@ nfs_getnickauth(nmp, cred, auth_str, auth_len, verf_str, verf_len)
 	TAILQ_REMOVE(&nmp->nm_uidlruhead, nuidp, nu_lru);
 	TAILQ_INSERT_TAIL(&nmp->nm_uidlruhead, nuidp, nu_lru);
 
-	nickp = (u_long *)malloc(2 * NFSX_UNSIGNED, M_TEMP, M_WAITOK);
+	nickp = (u_int32_t *)malloc(2 * NFSX_UNSIGNED, M_TEMP, M_WAITOK);
 	*nickp++ = txdr_unsigned(RPCAKN_NICKNAME);
 	*nickp = txdr_unsigned(nuidp->nu_nickname);
 	*auth_str = (char *)nickp;
@@ -1094,7 +1094,7 @@ nfs_getnickauth(nmp, cred, auth_str, auth_len, verf_str, verf_len)
 	/*
 	 * Now we must encrypt the verifier and package it up.
 	 */
-	verfp = (u_long *)verf_str;
+	verfp = (u_int32_t *)verf_str;
 	*verfp++ = txdr_unsigned(RPCAKN_NICKNAME);
 	if (time_second > nuidp->nu_timestamp.tv_sec ||
 	    (time_second == nuidp->nu_timestamp.tv_sec &&
@@ -1133,19 +1133,19 @@ nfs_savenickauth(nmp, cred, len, key, mdp, dposp, mrep)
 	struct mbuf *mrep;
 {
 	register struct nfsuid *nuidp;
-	register u_long *tl;
-	register long t1;
+	register u_int32_t *tl;
+	register int32_t t1;
 	struct mbuf *md = *mdp;
 	struct timeval ktvin, ktvout;
-	u_long nick;
+	u_int32_t nick;
 	char *dpos = *dposp, *cp2;
 	int deltasec, error = 0;
 
 	if (len == (3 * NFSX_UNSIGNED)) {
-		nfsm_dissect(tl, u_long *, 3 * NFSX_UNSIGNED);
+		nfsm_dissect(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
 		ktvin.tv_sec = *tl++;
 		ktvin.tv_usec = *tl++;
-		nick = fxdr_unsigned(u_long, *tl);
+		nick = fxdr_unsigned(u_int32_t, *tl);
 
 		/*
 		 * Decrypt the timestamp in ecb mode.

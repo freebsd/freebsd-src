@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsrvcache.h	8.3 (Berkeley) 3/30/95
- * $Id: nfsrvcache.h,v 1.9 1997/06/03 17:22:47 dfr Exp $
+ * $Id: nfsrvcache.h,v 1.10 1998/02/03 22:15:04 bde Exp $
  */
 
 
@@ -52,7 +52,7 @@
 struct nfsrvcache {
 	TAILQ_ENTRY(nfsrvcache) rc_lru;		/* LRU chain */
 	LIST_ENTRY(nfsrvcache) rc_hash;		/* Hash chain */
-	u_long	rc_xid;				/* rpc id number */
+	u_int32_t rc_xid;			/* rpc id number */
 	union {
 		struct mbuf *ru_repmb;		/* Reply mbuf list OR */
 		int ru_repstat;			/* Reply status */

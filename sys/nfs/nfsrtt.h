@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsrtt.h	8.2 (Berkeley) 3/30/95
- * $Id: nfsrtt.h,v 1.7 1997/02/22 09:42:50 peter Exp $
+ * $Id: nfsrtt.h,v 1.8 1997/06/03 17:22:47 dfr Exp $
  */
 
 
@@ -95,7 +95,7 @@ struct nfsdrt {
 	struct drt {
 		int	flag;		/* Bits as defined above */
 		u_int32_t proc;		/* NFS procedure number */
-		u_long	ipadr;		/* IP address of client */
+		u_int32_t ipadr;	/* IP address of client */
 		int	resptime;	/* Response time (usec) */
 		struct timeval tstamp;	/* Timestamp of log entry */
 	} drt[NFSRTTLOGSIZ];

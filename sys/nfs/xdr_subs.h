@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)xdr_subs.h	8.3 (Berkeley) 3/30/95
- * $Id$
+ * $Id: xdr_subs.h,v 1.9 1997/02/22 09:42:53 peter Exp $
  */
 
 
@@ -52,8 +52,8 @@
  * but we cannot count on their alignment anyway.
  */
 
-#define	fxdr_unsigned(t, v)	((t)ntohl((long)(v)))
-#define	txdr_unsigned(v)	(htonl((long)(v)))
+#define	fxdr_unsigned(t, v)	((t)ntohl((int32_t)(v)))
+#define	txdr_unsigned(v)	(htonl((int32_t)(v)))
 
 #define	fxdr_nfsv2time(f, t) { \
 	(t)->tv_sec = ntohl(((struct nfsv2_time *)(f))->nfsv2_sec); \
@@ -80,12 +80,12 @@
 }
 
 #define	fxdr_hyper(f, t) { \
-	((long *)(t))[_QUAD_HIGHWORD] = ntohl(((long *)(f))[0]); \
-	((long *)(t))[_QUAD_LOWWORD] = ntohl(((long *)(f))[1]); \
+	((int32_t *)(t))[_QUAD_HIGHWORD] = ntohl(((int32_t *)(f))[0]); \
+	((int32_t *)(t))[_QUAD_LOWWORD] = ntohl(((int32_t *)(f))[1]); \
 }
 #define	txdr_hyper(f, t) { \
-	((long *)(t))[0] = htonl(((long *)(f))[_QUAD_HIGHWORD]); \
-	((long *)(t))[1] = htonl(((long *)(f))[_QUAD_LOWWORD]); \
+	((int32_t *)(t))[0] = htonl(((int32_t *)(f))[_QUAD_HIGHWORD]); \
+	((int32_t *)(t))[1] = htonl(((int32_t *)(f))[_QUAD_LOWWORD]); \
 }
 
 #endif
