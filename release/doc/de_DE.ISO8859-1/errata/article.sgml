@@ -8,7 +8,7 @@
 	(If we didn't do this, then the file with the datestamp might
 	not be the one that received the last change in the document.)
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.4.2.2 2002/03/11 23:10:05 ue Exp $
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.4.2.3 2002/03/17 10:38:44 ue Exp $
 	$Id: article.sgml,v 1.6 2002/03/10 16:43:21 ue Exp $
 	basiert auf: 1.1.2.57
 -->
@@ -22,7 +22,7 @@
 %translators;
 <!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//DE">
 %mlists;
-<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//DE">
 %release;
 ]>
 
