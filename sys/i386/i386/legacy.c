@@ -314,8 +314,7 @@ cpu_add_child(device_t bus, int order, const char *name, int unit)
 		return (NULL);
 
 	resource_list_init(&cd->cd_rl);
-	pc = pcpu_find(unit);
-	KASSERT(pc != NULL, ("pcpu_find failed"));
+	pc = pcpu_find(device_get_unit(bus));
 	cd->cd_pcpu = pc;
 
 	child = device_add_child_ordered(bus, order, name, unit);
@@ -343,7 +342,7 @@ cpu_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 
 	if (index != CPU_IVAR_PCPU)
 		return (ENOENT);
-	cpdev = device_get_ivars(dev);
+	cpdev = device_get_ivars(child);
 	*result = (uintptr_t)cpdev->cd_pcpu;
 	return (0);
 }
