@@ -274,7 +274,6 @@ bmp_SetPix(BMP_INFO *info, int x, int y, u_char val)
     switch(info->sdepth) {
 #ifdef PC98
     case 4:
-	x += (info->swidth - info->width) / 2;
 	sofs += (x >> 3);
 	bofs = x & 0x7;				/* offset within byte */
 
