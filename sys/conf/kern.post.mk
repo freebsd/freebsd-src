@@ -120,7 +120,7 @@ GEN_M_CFILES=	${MFILES:T:S/.m$/.c/}
 
 # The argument list can be very long, so use make -V and xargs to
 # pass it to mkdep.
-_kernel-depend: assym.s vnode_if.h miidevs.h ${BEFORE_DEPEND} \
+_kernel-depend: assym.s miidevs.h vnode_if.h ${BEFORE_DEPEND} \
 	    ${CFILES} ${SYSTEM_CFILES} ${GEN_CFILES} ${GEN_M_CFILES} \
 	    ${SFILES} ${MFILES:T:S/.m$/.h/}
 	if [ -f .olddep ]; then mv .olddep .depend; fi
