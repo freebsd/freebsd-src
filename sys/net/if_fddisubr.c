@@ -89,7 +89,7 @@ extern u_char	at_org_code[ 3 ];
 extern u_char	aarp_org_code[ 3 ];
 #endif /* NETATALK */
 
-static u_char fddibroadcastaddr[FDDI_ADDR_LEN] =
+static const u_char fddibroadcastaddr[FDDI_ADDR_LEN] =
 			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 static int fddi_resolvemulti(struct ifnet *, struct sockaddr **,
