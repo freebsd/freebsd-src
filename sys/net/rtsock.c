@@ -483,13 +483,19 @@ flush:
 	}
 	if (rtm) {
 		m_copyback(m, 0, rtm->rtm_msglen, (caddr_t)rtm);
+		if (m->m_pkthdr.len < rtm->rtm_msglen) {
+			m_freem(m);
+			m = NULL;
+		} else if (m->m_pkthdr.len > rtm->rtm_msglen)
+			m_adj(m, rtm->rtm_msglen - m->m_pkthdr.len);
 		Free(rtm);
 	}
 	if (rp)
 		rp->rcb_proto.sp_family = 0; /* Avoid us */
 	if (dst)
 		route_proto.sp_protocol = dst->sa_family;
-	raw_input(m, &route_proto, &route_src, &route_dst);
+	if (m)
+		raw_input(m, &route_proto, &route_src, &route_dst);
 	if (rp)
 		rp->rcb_proto.sp_family = PF_ROUTE;
     }
