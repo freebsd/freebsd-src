@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.59 1998/03/30 12:36:16 kato Exp $
+#	$Id: files.pc98,v 1.60 1998/04/07 09:08:27 kato Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -38,6 +38,7 @@ i386/eisa/eisaconf.c		optional	eisa
 i386/eisa/if_vx_eisa.c		optional	vx	device-driver
 i386/eisa/if_fea.c		optional	fea	device-driver
 i386/i386/autoconf.c		standard	device-driver
+i386/i386/mountroot.c		optional	slice
 i386/i386/bios.c		standard
 i386/i386/bioscall.s		standard
 i386/i386/busdma_machdep.c	standard
