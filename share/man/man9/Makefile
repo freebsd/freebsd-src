@@ -40,7 +40,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	domain.9 \
 	extattr.9 \
 	fetch.9 \
-	get_cyclecounter.9 \
+	get_cyclecount.9 \
 	getnewvnode.9 \
 	groupmember.9 \
 	ifnet.9 inittodr.9 intro.9 ithread.9 \
@@ -62,7 +62,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	vaccess.9 vaccess_acl_posix1e.9 \
 	vcount.9 \
 	vfs_busy.9 vfs_getnewfsid.9 vfs_getvfs.9 \
-	vfs_mount.9 vfs_mountedon.9  vfs_rootmountalloc.9 \
+	vfs_mount.9 vfs_mountedon.9 vfs_rootmountalloc.9 \
 	vfs_timestamp.9 vfs_unbusy.9 vfs_unmountall.9 \
 	vfsconf.9 \
 	vget.9 vgone.9 vhold.9 vinvalbuf.9 \
