@@ -13,7 +13,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: bininst,v 1.29 1994/11/11 10:55:02 jkh Exp $
+# $Id: bininst,v 1.30 1994/11/11 23:29:26 jkh Exp $
 
 # Some useful constants.
 PATH=/usr/bin:/usr/sbin:/bin:/sbin:/stand
@@ -325,8 +325,8 @@ setup_network_slip()
 
 	if dialog $clear --title "Dial" --yesno "Do you need to dial the phone or otherwise talk to the modem?"; then
 		mkdir -p /var/log
-		touch -f /var/log/aculog	>& /dev/null
-		chmod 666 /var/log/aculog	>& /dev/null
+		touch -f /var/log/aculog	> /dev/null 2>&1
+		chmod 666 /var/log/aculog	> /dev/null 2>&1
 		confirm "You may now dialog with your modem and set up the slip connection.\nBe sure to disable DTR sensitivity (usually with AT&D0) or the modem may\nhang up when you exit 'cu'.  Use ~. to exit cu and continue."
 		dialog --clear
 		cu -l $serial_interface -s $serial_speed
