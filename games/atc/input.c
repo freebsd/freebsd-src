@@ -59,7 +59,7 @@ static const char rcsid[] =
 #define MAXRULES	6
 #define MAXDEPTH	15
 
-#define RETTOKEN	'\n'
+#define RETTOKEN	'\r'
 #ifdef SYSV
 #define CRTOKEN		'\r'
 #endif
