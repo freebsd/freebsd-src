@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.14 1995/03/18 07:06:51 davidg Exp $
+ * $Id: ufs_disksubr.c,v 1.15 1995/05/30 08:15:33 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -142,12 +142,13 @@ disksort(ap, bp)
 	 * Neither a second list nor a larger request... we go at the end of
 	 * the first list, which is the same as the end of the whole schebang.
 	 */
-insert:	bp->b_actf = bq->b_actf;
+insert:
+	bp->b_actf = bq->b_actf;
 	bq->b_actf = bp;
 }
 
 /*
- * Attempt to read a disk label from a device using the indicated stategy
+ * Attempt to read a disk label from a device using the indicated strategy
  * routine.  The label must be partly set up before this: secpercyl and
  * anything required in the strategy routine (e.g., sector size) must be
  * filled in before calling us.  Returns NULL on success and an error
@@ -211,7 +212,7 @@ correct_readdisklabel(dev, strat, lp)
 
 #ifdef PRE_DISKSLICE_COMPAT
 /*
- * Attempt to read a disk label from a device using the indicated stategy
+ * Attempt to read a disk label from a device using the indicated strategy
  * routine.  The label must be partly set up before this: secpercyl and
  * anything required in the strategy routine (e.g., sector size) must be
  * filled in before calling us.  Returns NULL on success and an error
@@ -223,7 +224,7 @@ correct_readdisklabel(dev, strat, lp)
 char *
 readdisklabel(dev, strat, lp, dp, bdp)
 	dev_t dev;
-	void (*strat)();
+	d_strategy_t *strat;
 	register struct disklabel *lp;
 	struct dos_partition *dp;
 	struct dkbad *bdp;
@@ -417,7 +418,7 @@ correct_writedisklabel(dev, strat, lp)
 	bp->b_dev = dkmodpart(dev, labelpart);
 	bp->b_blkno = LABELSECTOR;
 	bp->b_bcount = lp->d_secsize;
-	bp->b_flags = B_READ;
+	bp->b_flags = B_BUSY | B_READ;
 	(*strat)(bp);
 	error = biowait(bp);
 	if (error)
@@ -429,7 +430,7 @@ correct_writedisklabel(dev, strat, lp)
 		if (dlp->d_magic == DISKMAGIC && dlp->d_magic2 == DISKMAGIC &&
 		    dkcksum(dlp) == 0) {
 			*dlp = *lp;
-			bp->b_flags = B_WRITE;
+			bp->b_flags = B_BUSY | B_WRITE;
 			(*strat)(bp);
 			error = biowait(bp);
 			goto done;
@@ -437,6 +438,7 @@ correct_writedisklabel(dev, strat, lp)
 	}
 	error = ESRCH;
 done:
+	bp->b_flags = B_INVAL | B_AGE;
 	brelse(bp);
 	return (error);
 }
@@ -458,7 +460,7 @@ done:
 int
 writedisklabel(dev, strat, lp)
 	dev_t dev;
-	void (*strat)();
+	d_strategy_t *strat;
 	register struct disklabel *lp;
 {
 	struct buf *bp = NULL;
@@ -536,7 +538,7 @@ writedisklabel(dev, strat, lp)
 	 * Note that you can't write a label out over a corrupted label!
 	 * (also stupid.. how do you write the first one? by raw writes?)
 	 */
-	bp->b_flags = B_READ;
+	bp->b_flags = B_BUSY | B_READ;
 	(*strat)(bp);
 	error = biowait(bp);
 	if (error)
@@ -548,7 +550,7 @@ writedisklabel(dev, strat, lp)
 		if (dlp->d_magic == DISKMAGIC && dlp->d_magic2 == DISKMAGIC &&
 		    dkcksum(dlp) == 0) {
 			bcopy(&label,dlp,sizeof(label));
-			bp->b_flags = B_WRITE;
+			bp->b_flags = B_BUSY | B_WRITE;
 			(*strat)(bp);
 			error = biowait(bp);
 			goto done;
@@ -558,14 +560,16 @@ writedisklabel(dev, strat, lp)
 #else	/* Stupid */
 	dlp = (struct disklabel *)bp->b_data;
 	bcopy(&label,dlp,sizeof(label));
-	bp->b_flags = B_WRITE;
+	bp->b_flags = B_BUSY | B_WRITE;
 	(*strat)(bp);
 	error = biowait(bp);
 #endif 	/* Stupid */
 done:
 	bcopy(&label,lp,sizeof(label)); /* start using the new label again */
-	if(bp)
+	if (bp) {
+		bp->b_flags = B_INVAL | B_AGE;
 		brelse(bp);
+	}
 	return (error);
 }
 #endif /* PRE_DISKSLICE_COMPAT */
