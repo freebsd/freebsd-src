@@ -966,7 +966,7 @@ _Xrendezvous:
 	movl	$KPSEL, %eax
 	movl	%ax, %fs
 
-	call	smp_rendezvous_action
+	call	_smp_rendezvous_action
 
 	movl	$0, lapic_eoi		/* End Of Interrupt to APIC */
 	POP_FRAME
