@@ -52,19 +52,21 @@
 .Sh DESCRIPTION
 The
 .Fn physio
-is a helper function typically called from character device read and write
+is a helper function typically called from character device
+.Fn read
+and
+.Fn write
 routines to start I/O on a user process buffer.
-The maximum amount of data to transfer with each call 
-is determined by: 
-.Bd -literal 
-dev->si_iosize_max 
-.Ed
+The maximum amount of data to transfer with each call
+is determined by
+.Fa dev->si_iosize_max .
 .Pp
 Since
 .Fa uio
 normally describes user space addresses,
 .Fn physio
-needs to lock the process into memory.  This is done by setting the
+needs to lock the process into memory.
+This is done by setting the
 .Dv P_PHYSIO
 flag on the process.
 .Fn physio
@@ -80,9 +82,9 @@ The description of the entire transfer as requested by the user process.
 Currently, the results of passing a
 .Fa uio
 structure with the
-.Sq uio_segflg
+.Va uio_segflg
 set to anything other than
-.Dv UIO_USERSPACE ,
+.Dv UIO_USERSPACE
 are undefined.
 .El
 .Sh RETURN VALUES
@@ -103,16 +105,20 @@ field.
 Note that the actual transfer size may be less than requested by
 .Fa uio
 if the device signals an
-.Dq end of file
+.Dq "end of file"
 condition.
 .Sh SEE ALSO
 .Xr read 2 ,
 .Xr write 2
 .Sh HISTORY
-The 
-.Xr physio 9 
-manual page is originally from NetBSD with minor changes for applicability 
-with FreeBSD.
+The
+.Nm
+manual page is originally from
+.Nx
+with minor changes for applicability with
+.Fx .
 .Pp
-The physio(9) call has been completely re-written for providing higher
+The
+.Nm
+call has been completely re-written for providing higher
 I/O performance, and better paging performance.
