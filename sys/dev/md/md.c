@@ -104,7 +104,10 @@ static u_char mfs_root[MD_ROOT_SIZE*1024] = "MFS Filesystem goes here";
 static u_char end_mfs_root[] __unused = "MFS Filesystem had better STOP here";
 #endif
 
-static g_init_t md_drvinit;
+static g_init_t g_md_init;
+static g_fini_t g_md_fini;
+static g_start_t g_md_start;
+static g_access_t g_md_access;
 
 static int	mdunits;
 static struct cdev *status_dev = 0;
@@ -117,6 +120,16 @@ static struct cdevsw mdctl_cdevsw = {
 	.d_ioctl =	mdctlioctl,
 	.d_name =	MD_NAME,
 };
+
+struct g_class g_md_class = {
+	.name = "MD",
+	.init = g_md_init,
+	.fini = g_md_fini,
+	.start = g_md_start,
+	.access = g_md_access,
+};
+
+DECLARE_GEOM_CLASS(g_md_class, g_md);
 
 
 static LIST_HEAD(, md_s) md_softc_list = LIST_HEAD_INITIALIZER(&md_softc_list);
@@ -335,11 +348,6 @@ s_write(struct indir *ip, off_t offset, uintptr_t ptr)
 }
 
 
-struct g_class g_md_class = {
-	.name = "MD",
-	.init = md_drvinit,
-};
-
 static int
 g_md_access(struct g_provider *pp, int r, int w, int e)
 {
@@ -375,7 +383,6 @@ g_md_start(struct bio *bp)
 	wakeup(sc);
 }
 
-DECLARE_GEOM_CLASS(g_md_class, g_md);
 
 
 static int
@@ -719,8 +726,6 @@ mdinit(struct md_s *sc)
 	DROP_GIANT();
 	g_topology_lock();
 	gp = g_new_geomf(&g_md_class, "md%d", sc->unit);
-	gp->start = g_md_start;
-	gp->access = g_md_access;
 	gp->softc = sc;
 	pp = g_new_providerf(gp, "md%d", sc->unit);
 	pp->mediasize = (off_t)sc->nsect * sc->secsize;
@@ -1182,7 +1187,7 @@ md_preloaded(u_char *image, unsigned length)
 }
 
 static void
-md_drvinit(struct g_class *mp __unused)
+g_md_init(struct g_class *mp __unused)
 {
 
 	caddr_t mod;
@@ -1217,36 +1222,10 @@ md_drvinit(struct g_class *mp __unused)
 	g_topology_lock();
 }
 
-static int
-md_modevent(module_t mod, int type, void *data)
+static void
+g_md_fini(struct g_class *mp __unused)
 {
-	int error;
-	struct md_s *sc;
 
-	switch (type) {
-	case MOD_LOAD:
-		break;
-	case MOD_UNLOAD:
-		LIST_FOREACH(sc, &md_softc_list, list) {
-			error = mddetach(sc->unit, curthread);
-			if (error != 0)
-				return (error);
-		}
-		if (status_dev)
-			destroy_dev(status_dev);
-		status_dev = 0;
-		break;
-	default:
-		return (EOPNOTSUPP);
-		break;
-	}
-	return (0);
+	if (status_dev != NULL)
+		destroy_dev(status_dev);
 }
-
-static moduledata_t md_mod = {
-	MD_NAME,
-	md_modevent,
-	NULL
-};
-DECLARE_MODULE(md, md_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
-MODULE_VERSION(md, MD_MODVER);
