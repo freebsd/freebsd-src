@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.47 1997/04/30 11:16:25 dfr Exp $
+ *	$Id: vn.c,v 1.48 1997/06/14 13:56:09 bde Exp $
  */
 
 /*
@@ -276,11 +276,12 @@ vnstrategy(struct buf *bp)
 			auio.uio_rw = UIO_WRITE;
 		auio.uio_resid = bp->b_bcount;
 		auio.uio_procp = curproc;
+		vn_lock(vn->sc_vp, LK_EXCLUSIVE | LK_RETRY, curproc);
 		if( bp->b_flags & B_READ)
 			error = VOP_READ(vn->sc_vp, &auio, 0, vn->sc_cred);
 		else
 			error = VOP_WRITE(vn->sc_vp, &auio, 0, vn->sc_cred);
-
+		VOP_UNLOCK(vn->sc_vp, 0, curproc);
 		bp->b_resid = auio.uio_resid;
 
 		if( error )
@@ -304,8 +305,10 @@ vnstrategy(struct buf *bp)
 			int off, s, nra;
 
 			nra = 0;
+			vn_lock(vn->sc_vp, LK_EXCLUSIVE | LK_RETRY, curproc);
 			error = VOP_BMAP(vn->sc_vp, (daddr_t)(byten / bsize),
 					 &vp, &nbn, &nra, NULL);
+			VOP_UNLOCK(vn->sc_vp, 0, curproc);
 			if (error == 0 && nbn == -1)
 				error = EIO;
 
@@ -553,7 +556,9 @@ vnsetcred(struct vn_softc *vn, struct ucred *cred)
 	auio.uio_rw = UIO_READ;
 	auio.uio_segflg = UIO_SYSSPACE;
 	auio.uio_resid = aiov.iov_len;
+	vn_lock(vn->sc_vp, LK_EXCLUSIVE | LK_RETRY, curproc);
 	error = VOP_READ(vn->sc_vp, &auio, 0, vn->sc_cred);
+	VOP_UNLOCK(vn->sc_vp, 0, curproc);
 
 	free(tmpbuf, M_TEMP);
 	return (error);
