@@ -47,7 +47,7 @@ struct fw_isochreq {
 };
 
 struct fw_isobufreq {
-	struct {
+	struct fw_bufspec {
 		unsigned int nchunk;
 		unsigned int npacket;
 		unsigned int psize;
@@ -393,9 +393,10 @@ struct fw_crom_buf {
 #define unit2minor(x)	(((x) & 0xff) | (((x) << 8) & ~0xffff))
 #endif
 
-#define UNIT2MIN(x)	(((x) & 0xff) << 8)
+#define MAKEMINOR(f, u, s)	\
+	unit2minor((f) | (((u) & 0xff) << 8) | (s & 0xff))
 #define DEV2UNIT(x)	((dev2unit(x) & 0xff00) >> 8)
-#define DEV2DMACH(x)	(dev2unit(x) & 0xff)
+#define DEV2SUB(x)	(dev2unit(x) & 0xff)
 
 #define FWMEM_FLAG	0x10000
 #define DEV_FWMEM(x)	(dev2unit(x) & FWMEM_FLAG)

@@ -341,7 +341,7 @@ all)
 	sh MAKEDEV agpgart				# cdev, AGP
 	sh MAKEDEV nsmb0				# cdev, SMB/CIFS
 	sh MAKEDEV crypto				# cdev, crypto
-	sh MAKEDEV fw0 fw1 fw2 fw3 fwmem0		# cdev, firewire
+	sh MAKEDEV fw0					# cdev, firewire
 	;;
 
 # a much restricted set of the above, to save precious i-nodes on the
@@ -1165,16 +1165,18 @@ crypto)
 	chmod 666 crypto
 	;;
 
-fwmem*)
-	unit=`expr $i : 'fwmem\(.*\)'`
-	mknod fwmem$unit c 127 $((1<<24 | $unit)) root:operator
-	chmod 660 fwmem$unit
-	;;
-
-fw*)
-	unit=`expr $i : 'fw\(.*\)'`
-	mknod fw$unit c 127 $unit root:operator
-	chmod 660 fw$unit
+fw?)
+	unit=`expr $i : 'fw\(.\)$'`
+	for sub in 0 1 2 3
+	do
+		minor=$(($unit << 16 | $sub))
+		mknod fw$unit.$sub c 127 $minor root:operator
+		chmod 660 fw$unit.$sub
+		mknod fwmem$unit.$sub c 127 $((1<<24 | $minor)) root:operator
+		chmod 660 fwmem$unit.$sub
+	done
+	ln -sf fw$unit.0 fw$unit
+	ln -sf fwmem$unit.0 fwmem$unit
 	;;
 
 tty?|tty0?|ttyd?|ttyd??)

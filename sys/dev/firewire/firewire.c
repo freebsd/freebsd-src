@@ -124,8 +124,6 @@ char linkspeed[7][0x10]={"S100","S200","S400","S800","S1600","S3200","Unknown"};
 u_int gap_cnt[] = { 5,  5,  7,  8, 10, 13, 16, 18,
 		   21, 24, 26, 29, 32, 35, 37, 40};
 
-extern struct cdevsw firewire_cdevsw;
-
 static driver_t firewire_driver = {
 	"firewire",
 	firewire_methods,
@@ -356,44 +354,22 @@ firewire_watchdog(void *arg)
  * The attach routine.
  */
 static int
-firewire_attach( device_t dev )
+firewire_attach(device_t dev)
 {
-	int i, unitmask, mn;
+	int unit;
 	struct firewire_softc *sc = device_get_softc(dev);
 	device_t pa = device_get_parent(dev);
 	struct firewire_comm *fc;
-	dev_t d;
 
 	fc = (struct firewire_comm *)device_get_softc(pa);
 	sc->fc = fc;
 	fc->status = FWBUSNOTREADY;
 
-	unitmask = UNIT2MIN(device_get_unit(dev));
-
+	unit = device_get_unit(dev);
 	if( fc->nisodma > FWMAXNDMA) fc->nisodma = FWMAXNDMA;
-	for ( i = 0 ; i < fc->nisodma ; i++ ){
-		mn = unitmask | i;
-		/* XXX device name should be improved */
-		d = make_dev(&firewire_cdevsw, unit2minor(mn),
-			UID_ROOT, GID_OPERATOR, 0660,
-			"fw%x", mn);
-#if __FreeBSD_version >= 500000
-		if (i == 0)
-			sc->dev = d;
-		else
-			dev_depends(sc->dev, d);
-#else
-		sc->dev[i] = d;
-#endif
-	}
-	d = make_dev(&firewire_cdevsw, unit2minor(unitmask | FWMEM_FLAG),
-			UID_ROOT, GID_OPERATOR, 0660,
-			"fwmem%d", device_get_unit(dev));
-#if __FreeBSD_version >= 500000
-	dev_depends(sc->dev, d);
-#else
-	sc->dev[i] = d;
-#endif
+
+	fwdev_makedev(sc);
+
 	CALLOUT_INIT(&sc->fc->timeout_callout);
 	CALLOUT_INIT(&sc->fc->bmr_callout);
 	CALLOUT_INIT(&sc->fc->retry_probe_callout);
@@ -450,30 +426,25 @@ firewire_resume(device_t dev)
  * Dettach it.
  */
 static int
-firewire_detach( device_t dev )
+firewire_detach(device_t dev)
 {
 	struct firewire_softc *sc;
 	struct csrdir *csrd, *next;
 	struct fw_device *fwdev, *fwdev_next;
+	int err;
 
 	sc = (struct firewire_softc *)device_get_softc(dev);
+	if ((err = fwdev_destroydev(sc)) != 0)
+		return err;
 
-	bus_generic_detach(dev);
+	if ((err = bus_generic_detach(dev)) != 0)
+		return err;
 
 	callout_stop(&sc->fc->timeout_callout);
 	callout_stop(&sc->fc->bmr_callout);
 	callout_stop(&sc->fc->retry_probe_callout);
 	callout_stop(&sc->fc->busprobe_callout);
 
-#if __FreeBSD_version >= 500000
-	destroy_dev(sc->dev);
-#else
-	{
-		int j;
-		for (j = 0 ; j < sc->fc->nisodma + 1; j++)
-			destroy_dev(sc->dev[j]);
-	}
-#endif
 	/* XXX xfree_free and untimeout on all xfers */
 	for (fwdev = STAILQ_FIRST(&sc->fc->devices); fwdev != NULL;
 							fwdev = fwdev_next) {
@@ -2197,5 +2168,33 @@ fw_bmr(struct firewire_comm *fc)
 	return 0;
 }
 
-DRIVER_MODULE(firewire,fwohci,firewire_driver,firewire_devclass,0,0);
+static int
+fw_modevent(module_t mode, int type, void *data)
+{
+	int err = 0;
+#if __FreeBSD_version >= 500000
+	static eventhandler_tag fwdev_ehtag = NULL;
+#endif
+
+	switch (type) {
+	case MOD_LOAD:
+#if __FreeBSD_version >= 500000
+		fwdev_ehtag = EVENTHANDLER_REGISTER(dev_clone,
+						fwdev_clone, 0, 1000);
+#endif
+		break;
+	case MOD_UNLOAD:
+#if __FreeBSD_version >= 500000
+		if (fwdev_ehtag != NULL)
+			EVENTHANDLER_DEREGISTER(dev_clone, fwdev_ehtag);
+#endif
+		break;
+	case MOD_SHUTDOWN:
+		break;
+	}
+	return (err);
+}
+
+
+DRIVER_MODULE(firewire,fwohci,firewire_driver,firewire_devclass,fw_modevent,0);
 MODULE_VERSION(firewire, 1);

@@ -70,8 +70,6 @@ struct fw_device{
 struct firewire_softc {
 #if __FreeBSD_version >= 500000
 	dev_t dev;
-#else
-	dev_t dev[FWMAXNDMA+1];
 #endif
 	struct firewire_comm *fc;
 };
@@ -191,8 +189,8 @@ struct fw_xferq {
 
 #define FWXFERQ_HANDLER (1 << 16)
 #define FWXFERQ_WAKEUP (1 << 17)
-
 	void (*start) __P((struct firewire_comm*));
+	int dmach;
 	STAILQ_HEAD(, fw_xfer) q;
 	u_int queued;
 	u_int maxq;
@@ -290,7 +288,9 @@ struct fw_device *fw_noderesolve_nodeid __P((struct firewire_comm *, int));
 struct fw_device *fw_noderesolve_eui64 __P((struct firewire_comm *, struct fw_eui64 *));
 struct fw_bind *fw_bindlookup __P((struct firewire_comm *, u_int32_t, u_int32_t));
 void fw_drain_txq __P((struct firewire_comm *));
-
+int fwdev_makedev __P((struct firewire_softc *));
+int fwdev_destroydev __P((struct firewire_softc *));
+void fwdev_clone __P((void *, char *, int, dev_t *));
 
 extern int firewire_debug;
 extern devclass_t firewire_devclass;

@@ -584,6 +584,11 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 	device_printf(dev, "OHCI version %x.%x (ROM=%d)\n",
 			(reg>>16) & 0xff, reg & 0xff, (reg>>24) & 1);
 
+	if (((reg>>16) & 0xff) < 1) {
+		device_printf(dev, "invalid OHCI version\n");
+		return (ENXIO);
+	}
+
 /* Available Isochrounous DMA channel probe */
 	OWRITE(sc, OHCI_IT_MASK, 0xffffffff);
 	OWRITE(sc, OHCI_IR_MASK, 0xffffffff);
@@ -595,6 +600,8 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 			break;
 	sc->fc.nisodma = i;
 	device_printf(dev, "No. of Isochronous channel is %d.\n", i);
+	if (i == 0)
+		return (ENXIO);
 
 	sc->fc.arq = &sc->arrq.xferq;
 	sc->fc.ars = &sc->arrs.xferq;
@@ -616,6 +623,11 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 	sc->atrq.xferq.buf = NULL;
 	sc->atrs.xferq.buf = NULL;
 
+	sc->arrq.xferq.dmach = -1;
+	sc->arrs.xferq.dmach = -1;
+	sc->atrq.xferq.dmach = -1;
+	sc->atrs.xferq.dmach = -1;
+
 	sc->arrq.ndesc = 1;
 	sc->arrs.ndesc = 1;
 	sc->atrq.ndesc = 8;	/* equal to maximum of mbuf chains */
@@ -629,6 +641,8 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 	for( i = 0 ; i < sc->fc.nisodma ; i ++ ){
 		sc->fc.it[i] = &sc->it[i].xferq;
 		sc->fc.ir[i] = &sc->ir[i].xferq;
+		sc->it[i].xferq.dmach = i;
+		sc->ir[i].xferq.dmach = i;
 		sc->it[i].ndb = 0;
 		sc->ir[i].ndb = 0;
 	}
@@ -1683,7 +1697,8 @@ fwohci_stop(struct fwohci_softc *sc, device_t dev)
 			| OHCI_INT_DMA_ARRQ | OHCI_INT_DMA_ARRS 
 			| OHCI_INT_PHY_BUS_R);
 
-	fw_drain_txq(&sc->fc);
+	if (sc->fc.arq !=0 && sc->fc.arq->maxq > 0)
+		fw_drain_txq(&sc->fc);
 
 /* XXX Link down?  Bus reset? */
 	return 0;

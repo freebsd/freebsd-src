@@ -32,6 +32,7 @@
 .Nd FireWire control utility
 .Sh SYNOPSIS
 .Nm
+.Op Fl u Ar bus_num
 .Op Fl rt
 .Op Fl c Ar node
 .Op Fl d Ar node
@@ -54,6 +55,8 @@ will output a list of devices that are/were connected to the bus.
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl u Ar bus_num
+Specify the FireWire bus number to be operated.
 .It Fl r
 Initiate bus reset.
 .It Fl t
@@ -123,7 +126,7 @@ with
 .Dq Li bs=144000 .
 .Sh FILES
 .Bl -tag
-.It Pa /dev/fw0
+.It Pa /dev/fw0.0
 .El
 .Sh SEE ALSO
 .Xr firewire 4 ,
