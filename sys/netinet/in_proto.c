@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- *	$Id: in_proto.c,v 1.22 1995/11/20 12:28:16 phk Exp $
+ *	$Id: in_proto.c,v 1.23 1995/12/02 19:37:53 bde Exp $
  */
 
 #include <sys/param.h>
@@ -182,13 +182,14 @@ struct domain inetdomain =
 
 DOMAIN_SET(inet);
 
-SYSCTL_NODE(_net,PF_INET,	   inet,CTLFLAG_RW,0,	"InterNet Protocols");
+SYSCTL_NODE(_net,      PF_INET,		inet,	CTLFLAG_RW, 0,
+	"Internet Family");
 
-SYSCTL_NODE(_net_inet,IPPROTO_IP,  ip,	CTLFLAG_RW,0,	"IP");
-SYSCTL_NODE(_net_inet,IPPROTO_ICMP,icmp,CTLFLAG_RW,0,	"ICMP");
-SYSCTL_NODE(_net_inet,IPPROTO_UDP, udp,	CTLFLAG_RW,0,	"UDP");
-SYSCTL_NODE(_net_inet,IPPROTO_TCP, tcp,	CTLFLAG_RW,0,	"TCP");
-SYSCTL_NODE(_net_inet,IPPROTO_IGMP,igmp,CTLFLAG_RW,0,	"IGMP");
+SYSCTL_NODE(_net_inet, IPPROTO_IP,	ip,	CTLFLAG_RW, 0,	"IP");
+SYSCTL_NODE(_net_inet, IPPROTO_ICMP,	icmp,	CTLFLAG_RW, 0,	"ICMP");
+SYSCTL_NODE(_net_inet, IPPROTO_UDP,	udp,	CTLFLAG_RW, 0,	"UDP");
+SYSCTL_NODE(_net_inet, IPPROTO_TCP,	tcp,	CTLFLAG_RW, 0,	"TCP");
+SYSCTL_NODE(_net_inet, IPPROTO_IGMP,	igmp,	CTLFLAG_RW, 0,	"IGMP");
 
 #include "imp.h"
 #if NIMP > 0

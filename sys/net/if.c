@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.23 1995/12/05 02:01:36 davidg Exp $
+ * $Id: if.c,v 1.24 1995/12/09 20:47:08 phk Exp $
  */
 
 #include <sys/param.h>
@@ -45,6 +45,7 @@
 #include <sys/ioctl.h>
 #include <sys/errno.h>
 #include <sys/syslog.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -756,3 +757,5 @@ sprint_d(n, buf, buflen)
 	} while (n != 0);
 	return (cp);
 }
+
+SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");

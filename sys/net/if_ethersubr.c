@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.11 1995/10/29 15:32:03 phk Exp $
+ * $Id: if_ethersubr.c,v 1.12 1995/12/09 20:47:11 phk Exp $
  */
 
 #include <sys/param.h>
@@ -44,6 +44,7 @@
 #include <sys/ioctl.h>
 #include <sys/errno.h>
 #include <sys/syslog.h>
+#include <sys/sysctl.h>
 
 #include <machine/cpu.h>
 
@@ -712,3 +713,5 @@ ether_delmulti(ifr, ac)
 	 */
 	return (ENETRESET);
 }
+
+SYSCTL_NODE(_net_link, IFT_ETHER, ether, CTLFLAG_RW, 0, "Ethernet");
