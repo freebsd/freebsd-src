@@ -77,7 +77,6 @@ struct vop_vector default_vnodeops = {
 	.vop_advlock =		VOP_EINVAL,
 	.vop_bmap =		vop_stdbmap,
 	.vop_close =		VOP_NULL,
-	.vop_destroyvobject =	vop_stddestroyvobject,
 	.vop_fsync =		VOP_NULL,
 	.vop_getpages =		vop_stdgetpages,
 	.vop_getwritemount = 	vop_stdgetwritemount,
@@ -356,18 +355,6 @@ vop_stdgetwritemount(ap)
 {
 
 	*(ap->a_mpp) = ap->a_vp->v_mount;
-	return (0);
-}
-
-/* Destroy the VM system object associated with this vnode */
-int
-vop_stddestroyvobject(ap)
-	struct vop_destroyvobject_args /* {
-		struct vnode *vp;
-	} */ *ap;
-{
-
-	vnode_destroy_vobject(ap->a_vp);
 	return (0);
 }
 
