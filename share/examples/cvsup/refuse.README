@@ -23,8 +23,22 @@ and you do not want CVSup to overwrite it:
     src/etc/sendmail/freebsd.mc*
 
 If you are an English speaker and don't wish to receive the
-foreign-language ports, use the following patterns:
+foreign-language documentation or ports, use the following patterns:
 
+    doc/de
+    doc/de_*
+    doc/es
+    doc/es_*
+    doc/fr
+    doc/fr_*
+    doc/ja
+    doc/ja_*
+    doc/nl
+    doc/nl_*
+    doc/ru
+    doc/ru_*
+    doc/zh
+    doc/zh_*
     ports/chinese
     ports/german
     ports/hebrew
