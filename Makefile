@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.168 1998/03/26 17:32:24 markm Exp $
+#	$Id: Makefile,v 1.169 1998/04/19 13:44:52 dt Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -73,7 +73,8 @@ SUBDIR+= games
 .if exists(gnu)
 SUBDIR+= gnu
 .endif
-.if exists(kerberosIV) && exists(crypto) && !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
+.if exists(kerberosIV) && exists(crypto) && !defined(NOCRYPT) && \
+    defined(MAKE_KERBEROS4)
 SUBDIR+= kerberosIV
 .endif
 .if exists(libexec)
@@ -144,9 +145,9 @@ SUPFLAGS?=	-v
 # XXX actually, we do need to waste time building shared libraries.
 #
 .if defined(NOCLEAN)
-MK_FLAGS=	-DNOINFO -DNOMAN -DNOPROFILE
+MK_FLAGS=	-DNOINFO -DNOMAN         -DNOPROFILE
 .else
-MK_FLAGS=	-DNOINFO -DNOMAN -DNOPROFILE -DNOSHARED
+MK_FLAGS=	-DNOINFO -DNOMAN -DNOPIC -DNOPROFILE -DNOSHARED
 .endif
 
 #
@@ -211,11 +212,11 @@ XMAKEENV=	PATH=${STRICTTMPPATH} ${COMPILER_ENV} \
 MAKETMP=	${WORLDTMP}/make
 IBMAKE=	${BMAKEENV} MAKEOBJDIR=${MAKETMP} ${MAKE} DESTDIR=${WORLDTMP}
 # bootstrap make
-BMAKE=	${BMAKEENV} ${WORLDTMP}/usr/bin/${MAKE} DESTDIR=${WORLDTMP}
+BMAKE=	${BMAKEENV} ${WORLDTMP}/usr/bin/make DESTDIR=${WORLDTMP}
 # cross make used for compilation
-XMAKE=	${XMAKEENV} ${WORLDTMP}/usr/bin/${MAKE} DESTDIR=${WORLDTMP}
+XMAKE=	${XMAKEENV} ${WORLDTMP}/usr/bin/make DESTDIR=${WORLDTMP}
 # cross make used for final installation
-IXMAKE=	${XMAKEENV} ${WORLDTMP}/usr/bin/${MAKE}
+IXMAKE=	${XMAKEENV} ${WORLDTMP}/usr/bin/make
 
 #
 # buildworld
@@ -286,15 +287,15 @@ buildworld:
 .if !defined(NOTOOLS)
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding tools needed to build the libraries"
+	@echo " Rebuilding tools needed to build the bootstrap libraries"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR} && ${BMAKE} lib-tools
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding ${DESTDIR}/usr/lib"
+	@echo " Rebuilding bootstrap libraries"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${BMAKE} libraries
+	cd ${.CURDIR} && ${BMAKE} bootstrap-libraries
 .if !defined(NOTOOLS)
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -307,6 +308,11 @@ buildworld:
 	@echo " Rebuilding dependencies"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR} && ${XMAKE} par-depend
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Building libraries"
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR} && ${XMAKE} libraries
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Building everything.."
@@ -574,29 +580,10 @@ lib-tools:
 .endfor
 
 #
-# libraries - build and install the libraries
+# We have to know too much about ordering and subdirs in the lib trees:
 #
-
-# We have to know too much about botches in the lib tree:
-.if exists(csu/${MACHINE}.pcc)
-_csu=csu/${MACHINE}.pcc
-.else
-_csu=csu/${MACHINE}
-.endif
-
-.if defined(WANT_CSRG_LIBM)
-_libm=	libm
-.else
-_libm=	msun
-.endif
-
-libraries:
-#
-# Build csu early so that some tools get linked to the new version (too
-# late for the main tools, however).
-#
-# To satisfy shared library or ELF linkage when only the libraries being
-# built are visible:
+# To satisfy shared library linkage when only the libraries being built
+# are visible:
 #
 # libcom_err must be built before libss.
 # libcrypt and libmd must be built before libskey.
@@ -605,16 +592,45 @@ libraries:
 # libncurses must be built before libdialog.
 # libtermcap must be built before libcurses, libedit and libreadline.
 #
-.for _lib in ${_csu} libcom_err libcrypt ${_libm} libmytinfo \
-	     libncurses libtermcap
-.if exists(${.CURDIR}/lib/${_lib})
-	cd ${.CURDIR}/lib/${_lib} && \
-		${MAKE} ${MK_FLAGS:S/-DNOPIC//} depend && \
-		${MAKE} ${MK_FLAGS:S/-DNOPIC//} all && \
-		${MAKE} ${MK_FLAGS:S/-DNOPIC//} -B install
+# Some libraries are built conditionally and/or are in inconsistently
+# named directories:
+#
+.if exists(lib/csu/${MACHINE}.pcc)
+_csu=lib/csu/${MACHINE}.pcc
+.else
+_csu=lib/csu/${MACHINE}
 .endif
-.endfor
-.for _lib in gnu/lib lib usr.bin/lex/lib usr.sbin/pcvt/keycap
+
+_libcrypt=	lib/libcrypt
+.if !defined(NOSECURE) && !defined(NOCRYPT)
+_libcrypt+=	secure/lib/libcrypt
+.endif
+
+.if defined(WANT_CSRG_LIBM)
+_libm=	lib/libm
+.else
+_libm=	lib/msun
+.endif
+
+#
+# bootstrap-libraries - build just enough libraries for the bootstrap
+# tools, and install them under ${WORLDTMP}.
+#
+# Build csu and libgcc early so that some tools get linked to the new
+# versions (too late for the main tools, however).  Then build the
+# necessary prerequisite libraries (libtermcap just needs to be before
+# libcurses, and this only matters for the NOCLEAN case when NOPIC is
+# not set).
+#
+# This is mostly wrong.  The build tools must run on the host system,
+# so they should use host libraries.  We depend on the target being
+# similar enough to the host for new target libraries to work on the
+# host.
+#
+bootstrap-libraries:
+.for _lib in ${_csu} gnu/usr.bin/cc/libgcc lib/libtermcap \
+    gnu/lib/libregex lib/libc lib/libcurses lib/libedit ${_libm} \
+    lib/libmd lib/libutil lib/libz usr.bin/lex/lib
 .if exists(${.CURDIR}/${_lib})
 	cd ${.CURDIR}/${_lib} && \
 		${MAKE} ${MK_FLAGS} depend && \
@@ -622,16 +638,28 @@ libraries:
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
 .endfor
+
+#
+# libraries - build all libraries, and install them under ${DESTDIR}.
+#
+# The ordering is not as special as for bootstrap-libraries.  Build
+# the prerequisites first, then build almost everything else in
+# alphabetical order.
+#
+libraries:
+.for _lib in lib/libcom_err ${_libcrypt} ${_libm} lib/libmytinfo \
+    lib/libncurses lib/libtermcap \
+    gnu/lib gnu/usr.bin/cc/libgcc lib usr.bin/lex/lib usr.sbin/pcvt/keycap
+.if exists(${.CURDIR}/${_lib})
+	cd ${.CURDIR}/${_lib} && ${MAKE} all && ${MAKE} -B install
+.endif
+.endfor
 .if exists(${.CURDIR}/secure/lib) && !defined(NOCRYPT) && !defined(NOSECURE)
-	cd ${.CURDIR}/secure/lib && ${MAKE} ${MK_FLAGS} depend && \
-		${MAKE} ${MK_FLAGS} all && \
-		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/secure/lib && ${MAKE} all && ${MAKE} -B install
 .endif
 .if exists(${.CURDIR}/kerberosIV/lib) && !defined(NOCRYPT) && \
     defined(MAKE_KERBEROS4)
-	cd ${.CURDIR}/kerberosIV/lib && ${MAKE} ${MK_FLAGS} depend && \
-		${MAKE} ${MK_FLAGS} all && \
-		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/kerberosIV/lib && ${MAKE} all && ${MAKE} -B install
 .endif
 
 #
