@@ -622,6 +622,7 @@ in6_pcbdetach(inp)
 	ip_freemoptions(inp->inp_moptions);
 
 	inp->inp_vflag = 0;
+	INP_LOCK_DESTROY(inp);
 	uma_zfree(ipi->ipi_zone, inp);
 }
 
