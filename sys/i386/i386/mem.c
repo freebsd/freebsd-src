@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.14 1995/09/20 13:01:17 davidg Exp $
+ *	$Id: mem.c,v 1.15 1995/10/28 16:57:55 markm Exp $
  */
 
 /*
@@ -54,6 +54,7 @@
 #include <sys/proc.h>
 
 #include <machine/cpu.h>
+#include <machine/random.h>
 #include <machine/psl.h>
 
 #include <vm/vm.h>
@@ -61,8 +62,6 @@
 #include <vm/lock.h>
 #include <vm/vm_prot.h>
 #include <vm/pmap.h>
-
-#include <machine/random.h>
 
 #ifdef	DEVFS
 #include <sys/devfsext.h>
@@ -339,16 +338,19 @@ int memmmap(dev_t dev, int offset, int nprot)
 	}
 }
 
-#ifdef DEVRANDOM
-
 /*
  * Allow userland to select which interrupts will be used in the muck
  * gathering business.
  */
-
 int
-mmioctl(dev_t dev, int cmd, caddr_t cmdarg, int flags, struct proc *p)
+mmioctl(dev, cmd, cmdarg, flags, p)
+	dev_t dev;
+	int cmd;
+	caddr_t cmdarg;
+	int flags;
+	struct proc *p;
 {
+#ifdef DEVRANDOM
 	if (minor(dev) != 3 && minor(dev) != 4)
 		return (ENODEV);
 
@@ -373,7 +375,7 @@ mmioctl(dev_t dev, int cmd, caddr_t cmdarg, int flags, struct proc *p)
 			return (ENOTTY);
 	}
 	return (0);
-}
 #else
-d_ioctl_t *mmioctl = enodev;
-#endif
+	return (ENODEV);
+#endif /* DEVRANDOM */
+}
