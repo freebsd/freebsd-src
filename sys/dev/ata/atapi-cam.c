@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sema.h>
 #include <machine/bus.h>
 
 #include <cam/cam.h>
