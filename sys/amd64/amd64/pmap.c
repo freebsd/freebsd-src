@@ -1871,24 +1871,21 @@ pmap_remove_all(vm_page_t m)
 
 #if defined(PMAP_DIAGNOSTIC)
 	/*
-	 * XXX this makes pmap_page_protect(NONE) illegal for non-managed
-	 * pages!
+	 * XXX This makes pmap_remove_all() illegal for non-managed pages!
 	 */
 	if (!pmap_initialized || (m->flags & PG_FICTITIOUS)) {
-		panic("pmap_page_protect: illegal for unmanaged page, va: 0x%x", VM_PAGE_TO_PHYS(m));
+		panic("pmap_remove_all: illegal for unmanaged page, va: 0x%x",
+		    VM_PAGE_TO_PHYS(m));
 	}
 #endif
-
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	s = splvm();
 	while ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 		pv->pv_pmap->pm_stats.resident_count--;
-
 		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
-
 		tpte = atomic_readandclear_int(pte);
 		if (tpte & PG_W)
 			pv->pv_pmap->pm_stats.wired_count--;
-
 		if (tpte & PG_A)
 			vm_page_flag_set(m, PG_REFERENCED);
 
@@ -1907,16 +1904,13 @@ pmap_remove_all(vm_page_t m)
 				vm_page_dirty(m);
 		}
 		pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
-
 		TAILQ_REMOVE(&pv->pv_pmap->pm_pvlist, pv, pv_plist);
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
 		m->md.pv_list_count--;
 		pmap_unuse_pt(pv->pv_pmap, pv->pv_va, pv->pv_ptem);
 		free_pv_entry(pv);
 	}
-
 	vm_page_flag_clear(m, PG_WRITEABLE);
-
 	splx(s);
 }
 
