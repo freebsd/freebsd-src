@@ -24,7 +24,7 @@
  * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
- * $Id$
+ * $Id: ioctl_fd.h,v 1.5 1994/09/17 16:55:59 davidg Exp $
  */
 
 #ifndef _IOCTL_FD_H
@@ -103,5 +103,19 @@ struct fd_type {
 #define FD_SOPTS  _IOW('F', 65, int)
 
 #define FDOPT_NORETRY 0x0001	/* no retries on failure (cleared on close) */
+
+/*
+ * The following definitions duplicate those in sys/i386/isa/fdreg.h
+ * They are here since their values are to be used in the above
+ * structure when formatting a floppy. For very obvious reasons, both
+ * definitions must match ;-)
+ */
+#ifndef FDC_500KBPS
+#define	FDC_500KBPS	0x00	/* 500KBPS MFM drive transfer rate */
+#define	FDC_300KBPS	0x01	/* 300KBPS MFM drive transfer rate */
+#define	FDC_250KBPS	0x02	/* 250KBPS MFM drive transfer rate */
+#define	FDC_125KBPS	0x03	/* 125KBPS FM drive transfer rate */
+				/* for some controllers 1MPBS instead */
+#endif /* FDC_500KBPS */
 
 #endif  /* !def _IOCTL_FD_H */
