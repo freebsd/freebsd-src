@@ -39,7 +39,8 @@
 .Nm
 is a self-contained, position independent program image providing run-time
 support for loading and link-editing shared objects into a process'
-address space. It uses the data structures
+address space.
+It uses the data structures
 (see
 .Xr link 5 )
 contained within dynamically linked programs to determine which shared
@@ -51,7 +52,8 @@ system call.
 After all shared libraries have been successfully loaded,
 .Nm
 proceeds to resolve external references from both the main program and
-all objects loaded. A mechanism is provided for initialization routines
+all objects loaded.
+A mechanism is provided for initialization routines
 to be called, on a per-object basis, giving a shared object an opportunity
 to perform any extra set-up, before execution of the program proper begins.
 This is useful for C++ libraries that contain static constructors.
@@ -66,7 +68,8 @@ process,
 .Em crt0
 uses the special symbol
 .Va _DYNAMIC
-to determine whether a program is in fact dynamically linked or not. Whenever
+to determine whether a program is in fact dynamically linked or not.
+Whenever
 the linker
 .Xr ld 1
 has relocated this symbol to a location other than 0,
@@ -82,7 +85,8 @@ passes control to
 .Nm Ns 's
 entry point before the program's
 .Fn main
-routine is called. Thus,
+routine is called.
+Thus,
 .Nm
 can complete the link-editing process before the dynamic program calls upon
 services of any dynamic library.
@@ -108,7 +112,8 @@ for shared libraries.
 This is ignored for set-user-ID and set-group-ID programs.
 .It Ev LD_PRELOAD
 A colon separated list of shared libraries, to be linked in before any
-other shared libraries.  If the directory is not specified then
+other shared libraries.
+If the directory is not specified then
 the directories specified by LD_LIBRARY_PATH will be searched first
 followed by the set of built-in standard directories.
 This is ignored for set-user-ID and set-group-ID programs.
@@ -116,7 +121,8 @@ This is ignored for set-user-ID and set-group-ID programs.
 When set to a nonempty string, causes
 .Nm
 to relocate all external function calls before starting execution of the
-program.  Normally, function calls are bound lazily, at the first call
+program.
+Normally, function calls are bound lazily, at the first call
 of each function.
 .Ev LD_BIND_NOW
 increases the start-up time of a program, but it avoids run-time
@@ -124,10 +130,12 @@ surprises caused by unexpectedly undefined functions.
 .It Ev LD_WARN_NON_PURE_CODE
 When set to a nonempty string, issue a warning whenever a link-editing
 operation requires modification of the text segment of some loaded
-object. This is usually indicative of an incorrectly built library.
+object.
+This is usually indicative of an incorrectly built library.
 .It Ev LD_SUPPRESS_WARNINGS
 When set to a nonempty string, no warning messages of any kind are
-issued. Normally, a warning is given if satisfactorily versioned
+issued.
+Normally, a warning is given if satisfactorily versioned
 library could not be found.
 .It Ev LD_IGNORE_MISSING_OBJECTS
 When set to a nonempty string, makes it a nonfatal condition if
