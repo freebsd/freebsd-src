@@ -51,7 +51,8 @@ netgraph node type allows the emulation of
 networking subsystem.
 Moreover it includes protection of the PDU against duplication and
 desequencement.
-It supports up to 65535 VCs and up to 255 VPs. AAL0, AAL3/4 and AAL5
+It supports up to 65535 VCs and up to 255 VPs.
+AAL0, AAL3/4 and AAL5
 emulation are provided.
 In order to optimize CPU, this node does not emulate the SAR layer.
 .Pp
@@ -66,8 +67,10 @@ It is named hvaX.
 It has the same features as any other HARP devices.
 The PIF is removed when the node is removed.
 .Sh HOOKS
-There is only one hook: link. This hook can be connected to any other
-Netgraph node. For example, in order
+There is only one hook: link.
+This hook can be connected to any other
+Netgraph node.
+For example, in order
 to test the HARP stack over UDP, it can be connected on a
 .Xr ksocket 4
 node.

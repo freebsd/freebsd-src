@@ -68,7 +68,7 @@ bits.
 These bits are generally set and cleared in groups based on the device
 block size of the device backing the page.
 Complete page's worth are often
-referred to using the VM_PAGE_BITS_ALL bitmask (i.e. 0xFF if the hardware page
+referred to using the VM_PAGE_BITS_ALL bitmask (i.e., 0xFF if the hardware page
 size is 4096).
 .Pp
 VM buffers also keep track of a byte-granular dirty range and valid range.
@@ -111,9 +111,10 @@ This
 can create confusion within file system devices that use delayed-writes because
 you wind up with pages marked clean that are actually still dirty.
 If not
-treated carefully, these pages could be thrown away!  Indeed, a number of
+treated carefully, these pages could be thrown away!
+Indeed, a number of
 serious bugs related to this hack were not fixed until the 2.2.8/3.0 release.
-The kernel uses an instantiated VM buffer (i.e. struct buf) to place-mark pages
+The kernel uses an instantiated VM buffer (i.e., struct buf) to place-mark pages
 in this special state.
 The buffer is typically flagged B_DELWRI.
 When a

@@ -44,7 +44,8 @@ Any process that holds a file descriptor on
 open will get its
 .Em IOPL
 bits in the flag register set, thus allowing it to perform direct
-I/O operations.  This can be useful in order to write userland
+I/O operations.
+This can be useful in order to write userland
 programs that handle some hardware directly.
 Note that even read-only access will grant the full I/O privileges.
 .Pp

@@ -49,8 +49,10 @@ argument may be determined by running
 .Pp
 The status fields are partially common (first byte only, which must
 have a value of 0x80 contained in it), but otherwise quite device
-specific. A complete discussion of the possible values is impractical
-here. Please refer to the ANSI SCSI specification (available on
+specific.
+A complete discussion of the possible values is impractical
+here.
+Please refer to the ANSI SCSI specification (available on
 the FTP site ftp.t10.org).
 .Pp
 Note that devices may simply and silently ignore the setting of these values.

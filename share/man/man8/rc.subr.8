@@ -95,8 +95,10 @@ The
 functions were mostly imported from
 .Nx
 and it is intended that they remain synced between the
-two projects. With that in mind there are several variable
-definitions that can help in this regard. They are:
+two projects.
+With that in mind there are several variable
+definitions that can help in this regard.
+They are:
 .Bl -tag -width 4n
 .It Ic OSTYPE
 Its value will be either
@@ -251,7 +253,8 @@ followed by
 and then
 .Ar message .
 This function is intended to be used by developers
-as an aid to debugging scripts. It can be turned on or off
+as an aid to debugging scripts.
+It can be turned on or off
 by the
 .Xr rc.conf 5
 variable
@@ -276,14 +279,16 @@ and then
 .It Ic force_depend name
 Output an advisory message and force the
 .Ar name
-service to start. The
+service to start.
+The
 .Ar name
 argument is the
 .Xr basename 1 ,
 component of the path to the script, usually
 .Em /etc/rc.d/name .
 If the script fails for any reason it will output a warning
-and return with a return value of 1. If it was successful
+and return with a return value of 1.
+If it was successful
 it will return 0.
 .It Ic info Ar message
 Display an informational message to
@@ -727,7 +732,8 @@ otherwise source
 into the current shell.
 .El
 .It Ic set_rcvar Op Ar base
-Set the variable name required to start a service. In
+Set the variable name required to start a service.
+In
 .Fx
 a daemon is usually controlled by an
 .Xr rc.conf 5
@@ -743,7 +749,8 @@ This function will use the value of the
 .Sy $name
 variable, which should be defined by the calling script, to construct the appropriate
 .Xr rc.conf 5
-knob. If the
+knob.
+If the
 .Ar base
 argument is set it will use
 .Ar base

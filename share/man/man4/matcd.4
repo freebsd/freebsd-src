@@ -75,16 +75,19 @@ Packard Bell and many other brands.
 The drives are compatible with the major the Compact Disc standards,
 including CD-DA (Red Book - Digital Audio on pressed media), CD-WO (Orange
 Book Part II - Write-Once media), CD-ROM (Yellow Book - Data Storage), and
-the Kodak Photo-CD system.  The drives have some support related to
+the Kodak Photo-CD system.
+The drives have some support related to
 CD-ROM XA and CD-I (Green Book) audio and data requirements.
 .Pp
 These drives connect to the PC ISA bus through a simple (but proprietary) host
-interface.  The host interface has been manufactured as a stand-alone adapter
+interface.
+The host interface has been manufactured as a stand-alone adapter
 card, or included on a sound card or other multi-function adapter card.
 The
 .Nm
 driver supports up to four host interfaces with up to four drives on each
-interface.  CD-DA (digital audio) activity may occur on all drives
+interface.
+CD-DA (digital audio) activity may occur on all drives
 simultaneously.
 .Pp
 The drive hardware supports a "bus disconnect" system similar to that found
@@ -102,13 +105,15 @@ driver can be directly linked into the
 kernel, or exist
 as a loadable
 .Fx
-kernel module.  The kernel module can be loaded or unloaded at any time
+kernel module.
+The kernel module can be loaded or unloaded at any time
 using the \fBkldload\fR(8)/\fBkldunload\fR(8) commands.
 .Pp
 For most configurations, the
 .Nm
 driver should be used as a loadable kernel module and need not be linked into
-the kernel.  However, if you are attempting to do an install from a
+the kernel.
+However, if you are attempting to do an install from a
 CD-ROM/CD-WO disc that is initiated from a non-FreeBSD operating system or
 you have a BIOS boot capability for this type of Compact Disc drive, having
 the driver already in the kernel can simplify the installation process.
@@ -116,27 +121,31 @@ the driver already in the kernel can simplify the installation process.
 if you determine that you need to have the
 .Nm
 driver linked into the kernel, it is necessary to add an entry to the kernel
-configuration file and generate a new kernel.  The
+configuration file and generate a new kernel.
+The
 .Fx
 kernel source tree comes
 with the file \fI/usr/src/sys/i386/conf/GENERIC\fR.
 You should make a copy of this file and give the copy the name of your system,
-such as "MYSYSTEM".  You can then edit the new file to include devices you
+such as "MYSYSTEM".
+You can then edit the new file to include devices you
 want the system to include in the basic kernel and delete the device entries
-for drivers that you don't want included.  Eliminating drivers for hardware
+for drivers that you don't want included.
+Eliminating drivers for hardware
 that you don't have can reduce the size of the finished kernel.
 .Pp
 To include the
 .Nm
 driver to the configuration file, you will need to add this entry:
 .Bd -literal -offset indent
-device  matcd
+device matcd
 .Ed
 .Pp
 and after making any other adjustments, save the file.
 .Pp
 Then generate a new kernel by using the \fBconfig\fR(8) command and follow
-all of the instructions that are displayed.  If the kernel completely
+all of the instructions that are displayed.
+If the kernel completely
 builds, use the "make install" command and then reboot the system for that
 new kernel to become operational.
 .Sh DRIVER CONFIGURATION
@@ -145,7 +154,8 @@ Regardless of whether the
 driver is linked into the kernel or is used as a loadable kernel module,
 the number of host interfaces that the driver will expect (or search for)
 is dictated by the number of entries present in the file
-\fI/boot/device\.hints\fR.  For example, in order to support two host
+\fI/boot/device\.hints\fR.
+For example, in order to support two host
 interfaces, you would include entries like:
 .Bd -literal -offset indent
 hint.matcd.0.at="isa"
@@ -183,7 +193,8 @@ using this mechanism has the potential to cause problems when your system has
 other devices that are located at the I/O ports that the driver will
 check for potential
 .Nm
-host interfaces.  The automatic search also significantly increases the
+host interfaces.
+The automatic search also significantly increases the
 amount of time it takes to boot or to load the kernel module.
 .Pp
 If you are having problems with the
@@ -220,7 +231,8 @@ Matsushita CR-563-x
 Most resellers leave these original markings on the drives since the label
 also has the FCC, VDE, CSA and RU certification marks.
 .Pp
-Both of these drive models have motorized trays.  There is also a custom
+Both of these drive models have motorized trays.
+There is also a custom
 version of these drives that does not have the volume control or headphone
 jack (seen on some Tandy computers), but this drive also works with
 .Nm .
@@ -238,12 +250,14 @@ as \fBata\fR(4).
 .Pp
 The TEAC CD-55 4X Compact Disc drive also uses the same Creative/Panasonic
 electrical interface, but the TEAC drive is not command set compatible with
-the Matsushita CR-56x drives.  The TEAC drive cannot be used with
+the Matsushita CR-56x drives.
+The TEAC drive cannot be used with
 .Nm .
 .Pp
 The most common source of host interface adapters for the Panasonic drives
 was found in products from Creative Labs, including SoundBlaster sound
-cards.   There are numerous models of SoundBlaster sound cards, and most
+cards.
+There are numerous models of SoundBlaster sound cards, and most
 of the newer cards provide the appropriate interface, sometimes labeled as
 the "Creative/Panasonic" interface.
 .Pp
@@ -260,7 +274,7 @@ Sound Blaster 16 - cost-reduced (CT1740)
 .It Creative
 OmniCD upgrade kit adapter card - stand-alone CD (CT1810)
 .It Creative
-Sound Blaster 16 - 2-layer, cost-reduced  (CT2230)
+Sound Blaster 16 - 2-layer, cost-reduced (CT2230)
 .It Creative
 Sound Blaster 16 (Vibra16) - 2-layer, single-chip (CT2260)
 .It Creative
@@ -281,16 +295,20 @@ that produce sound cards with an identical Creative/Panasonic drive
 interface released many versions of compatible adapters.
 .Pp
 In addition to Creative Labs adapters, adapters that are compatible with
-Media Vision, IBM and Lasermate adapters are also supported.   However,
+Media Vision, IBM and Lasermate adapters are also supported.
+However,
 these adapters use a wide range of I/O port addresses, so the driver
 must be reconfigured to locate these adapters, at least initially.
 .Pp
 .Sh SUPPORTED OPERATIONS
 The
 .Nm
-driver supports block and character access.  Partition "a" returns
-2048-byte User Data blocks from data CDs.  Partition "c" returns the full
-2352-byte Frames from any type of CD, including audio CDs.  (Partition
+driver supports block and character access.
+Partition "a" returns
+2048-byte User Data blocks from data CDs.
+Partition "c" returns the full
+2352-byte Frames from any type of CD, including audio CDs.
+(Partition
 "c" cannot be "mounted" with cd9660 or other standard file system emulators.)
 No other partitions are supported.
 .Pp
@@ -305,7 +323,8 @@ remain locked until all of the devs on that drive are closed.
 accepts numerous
 .Fn ioctl
 commands, including functions related to Compact Disc audio and
-drive tray control features.  The commands are:
+drive tray control features.
+The commands are:
 .Pp
 .Bl -tag -width CDIOCREADSUBCHANNELXXX -compact -offset indent
 .It DIOCGDINFO
@@ -325,7 +344,8 @@ plays audio starting at a particular time offset.
 .It CDIOCPAUSE
 pauses a playing disc.
 .It CDIOCRESUME
-resumes playing a previously paused disc.  Ignored if the drive is
+resumes playing a previously paused disc.
+Ignored if the drive is
 already playing.
 .It CDIOCSTOP
 stops playing a disc.
@@ -337,7 +357,8 @@ closes the disc tray.
 blocks further attempts to open the drive door until all devices close
 or a CDIOCALLOW ioctl is issued.
 .It CDIOCALLOW
-unlocks the drive door if it was locked.  This ioctl is rejected if
+unlocks the drive door if it was locked.
+This ioctl is rejected if
 any locking devices are open, so it must be issued via a non-locking
 device.
 .It CDIOCGETVOL
@@ -346,13 +367,15 @@ returns the current volume settings of the drive.
 sets the volume settings of the drive.
 .It CDIOCSETSTEREO
 the left channel audio is sent to the left channel output and the
-right channel audio is sent to the right channel output.  This is the
+right channel audio is sent to the right channel output.
+This is the
 default state.
 (Note that the drive does not have a documented "Mono" mode,
 where L combined with R audio from the disc is sent to both the left and right
 output channels.)
 .It CDIOCSETMUTE
-the audio output is to be turned off.  The drive continues to read
+the audio output is to be turned off.
+The drive continues to read
 the audio on the disc and that audio is discarded until the audio routing is
 turned back on.
 .It CDIOCSETLEFT
@@ -366,9 +389,11 @@ The left channel audio signal is discarded.
 the audio is to be routed as specified in the provided bit maps.
 .It CDIOCSETPITCH
 the playback speed of the audio is increased or decreased
-(for Karaoke "off-key" applications).  Speed can be adjusted +/-13%.
+(for Karaoke "off-key" applications).
+Speed can be adjusted +/-13%.
 .It CDIOCCAPABILITY
-report the capabilities of the drive and driver.  Results are returned
+report the capabilities of the drive and driver.
+Results are returned
 as shown in \fI/usr/include/sys/cdio.h\fR.
 .El
 .Pp
@@ -410,11 +435,13 @@ or DMA although the drives themselves are equipped to allow both to be used.
 .Pp
 If the disc tray is opened while one or more partitions are open, further
 I/O to all partitions on the drive will be rejected until all partitions
-are closed.  This prevents a disc change from going undetected by higher
+are closed.
+This prevents a disc change from going undetected by higher
 levels of the operating system.
 .Pp
 There must be a drive on each host interface that is addressed as
-physical drive 0.  (Jumpers on the back of the drive control this setting.)
+physical drive 0.
+(Jumpers on the back of the drive control this setting.)
 If there is no physical drive 0, the
 .Nm
 driver will be unable to detect that host interface or any of the drives
@@ -427,7 +454,8 @@ drive 0.
 .Pp
 Drives on a second host interface are considered logical
 drive numbers 4 through 7, drives 8 through 11 are on the third interface
-and 12 through 15 are on the fourth.  The first drive on the second host
+and 12 through 15 are on the fourth.
+The first drive on the second host
 interface is always logical drive 4 regardless of how many drives are
 present on the first host interface.
 .Pp
@@ -447,7 +475,8 @@ All rights reserved.
 The
 .Nm
 driver originally appeared in
-.Fx 2.0.5 .  The
+.Fx 2.0.5 .
+The
 .Fx
 5.1.x compatible implementation described here appeared in
 .Fx

@@ -46,7 +46,8 @@
 .Sh DESCRIPTION
 The
 .Nm lmi
-node type performs the frame relay LMI protocol. It supports
+node type performs the frame relay LMI protocol.
+It supports
 the ITU Annex A, ANSI Annex D, and Group-of-four LMI types.
 It also supports auto-detection of the LMI type.
 .Pp
@@ -65,7 +66,8 @@ To enable LMI type auto-detection, connect the
 .Dv auto0
 hook to DLCI 0 and the
 .Dv auto1023
-hook to DLCI 1023. The node will attempt to automatically determine
+hook to DLCI 1023.
+The node will attempt to automatically determine
 which LMI type is running at the switch, and go into that mode.
 .Pp
 Only one fixed LMI type, or auto-detection, can be active at any given time.
@@ -73,7 +75,8 @@ Only one fixed LMI type, or auto-detection, can be active at any given time.
 The
 .Dv NGM_LMI_GET_STATUS
 control message can be used at any time to query the current status
-of the LMI protocol and each DLCI channel. This node also supports the
+of the LMI protocol and each DLCI channel.
+This node also supports the
 .Dv NGM_TEXT_STATUS
 control message.
 .Sh HOOKS

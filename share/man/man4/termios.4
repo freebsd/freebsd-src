@@ -153,7 +153,8 @@ most one session.
 The controlling terminal for a session is allocated by
 the session leader by issuing the
 .Dv TIOCSCTTY
-ioctl.  A controlling terminal
+ioctl.
+A controlling terminal
 is never acquired by merely opening a terminal device file.
 When a controlling terminal becomes
 associated with a session, its foreground process group is set to
@@ -189,7 +190,7 @@ causes a
 signal to be sent to
 the process's group
 unless one of the
-following special cases apply:  If the reading process is ignoring or
+following special cases apply: if the reading process is ignoring or
 blocking the
 .Dv SIGTTIN
 signal, or if the process group of the reading
@@ -199,7 +200,8 @@ returns -1 with
 .Va errno set to
 .Er EIO
 and no
-signal is sent.  The default action of the
+signal is sent.
+The default action of the
 .Dv SIGTTIN
 signal is to stop the
 process to which it is sent.
@@ -209,7 +211,7 @@ terminal, write operations are allowed.
 Attempts by a process in a background process group to write to its
 controlling terminal will cause the process group to be sent a
 .Dv SIGTTOU
-signal unless one of the following special cases apply:  If
+signal unless one of the following special cases apply: if
 .Dv TOSTOP
 is not
 set, or if
@@ -244,7 +246,8 @@ A terminal device associated with a terminal device file may operate in
 full-duplex mode, so that data may arrive even while output is occurring.
 Each terminal device file has associated with it an input queue, into
 which incoming data is stored by the system before being read by a
-process.  The system imposes a limit,
+process.
+The system imposes a limit,
 .Pf \&{ Dv MAX_INPUT Ns \&} ,
 on the number of
 bytes that may be stored in the input queue.
@@ -269,7 +272,8 @@ input characters are processed according to the
 .Fa c_iflag
 and
 .Fa c_lflag
-fields.  Such processing can include echoing, which
+fields.
+Such processing can include echoing, which
 in general means transmitting input characters immediately back to the
 terminal when they are received from the terminal.
 This is useful for terminals that can operate in full-duplex mode.
@@ -311,13 +315,15 @@ When data is available depends on whether the input processing mode is
 canonical or noncanonical.
 .Ss Canonical Mode Input Processing
 In canonical mode input processing, terminal input is processed in units
-of lines.  A line is delimited by a newline
+of lines.
+A line is delimited by a newline
 .Ql \&\en
 character, an end-of-file
 .Pq Dv EOF
 character, or an end-of-line
 .Pq Dv EOL
-character.  See the
+character.
+See the
 .Sx "Special Characters"
 section for
 more information on
@@ -355,7 +361,8 @@ delimited by a newline
 .Dv EOF ,
 or
 .Dv EOL
-character.  This un-delimited
+character.
+This un-delimited
 data makes up the current line.
 The
 .Dv ERASE
@@ -396,7 +403,8 @@ function successfully returns.
 .Dv TIME
 is a timer of 0.1 second
 granularity that is used to time out bursty and short term data
-transmissions.  If
+transmissions.
+If
 .Dv MIN
 is greater than
 .Dv \&{ Dv MAX_INPUT Ns \&} ,
@@ -420,8 +428,9 @@ The interaction between
 and
 .Dv TIME
 is as
-follows:  as soon as one byte is received, the inter-byte timer is
-started.  If
+follows: as soon as one byte is received, the inter-byte timer is
+started.
+If
 .Dv MIN
 bytes are received before the inter-byte timer expires
 (remember that the timer is reset upon receipt of each byte), the read is
@@ -500,7 +509,8 @@ are processed according to the
 .Fa c_oflag
 field (see the
 .Sx "Output Modes
-section).  The
+section).
+The
 implementation may provide a buffering mechanism; as such, when a call to
 .Fn write
 completes, all of the bytes written have been scheduled for
@@ -523,7 +533,8 @@ Generates a
 .Dv SIGINT
 signal which is sent to all processes in the foreground
 process group for which the terminal is the controlling
-terminal.  If
+terminal.
+If
 .Dv ISIG
 is set, the
 .Dv INTR
@@ -653,7 +664,8 @@ recognized if the
 control) flag is set.
 Can be used to resume output that has been suspended by a
 .Dv STOP
-character.  If
+character.
+If
 .Dv IXON
 is set, the
 .Dv START
@@ -688,7 +700,8 @@ termios.
 .It Dv EOL2
 Secondary
 .Dv EOL
-character.  Same function as
+character.
+Same function as
 .Dv EOL .
 .It Dv WERASE
 Special character on input and is recognized if the
@@ -928,7 +941,8 @@ X, where
 .Ql \&\e0
 is a two-character
 flag preceding each sequence and X is the data of the character received
-in error.  To avoid ambiguity in this case, if
+in error.
+To avoid ambiguity in this case, if
 .Dv ISTRIP
 is not set, a valid
 character of
@@ -973,12 +987,14 @@ is set, a received
 .Dv NL
 character is translated into a
 .Dv CR
-character.  If
+character.
+If
 .Dv IGNCR
 is set, a received
 .Dv CR
 character is ignored (not
-read).  If
+read).
+If
 .Dv IGNCR
 is not set and
 .Dv ICRNL
@@ -1402,7 +1418,8 @@ received or the timeout value
 .Dv TIME
 expired between bytes.
 The time value
-represents tenths of seconds.  See
+represents tenths of seconds.
+See
 .Sx "Noncanonical Mode Input Processing"
 for more details.
 .Pp
@@ -1502,7 +1519,7 @@ the system defaults, consult the header file
 .It Dv VEOL Ta EOL Ta _POSIX_VDISABLE
 .It Dv VEOL2 Ta EOL2 Ta _POSIX_VDISABLE
 .It Dv VERASE Ta ERASE Ta \&^? Ql \&\e177
-.It Dv VWERASE  Ta WERASE Ta \&^W
+.It Dv VWERASE Ta WERASE Ta \&^W
 .It Dv VKILL Ta KILL Ta \&^U
 .It Dv VREPRINT Ta REPRINT Ta \&^R
 .It Dv VINTR Ta INTR Ta \&^C

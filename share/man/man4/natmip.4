@@ -10,7 +10,8 @@
 .Cd "device atm"
 .Cd "options NATM"
 .Sh DESCRIPTION
-The NATM protocol stack includes support for IP over ATM. Without any
+The NATM protocol stack includes support for IP over ATM.
+Without any
 additional signalling stacks or other modules it is possible to build
 a CLIP (classical IP over ATM) network based on PVCs.
 .Pp
@@ -27,12 +28,14 @@ destination and the ATM characteristics of this channel.
 The address part of the link layer address (see
 .Xr link_addr 3 )
 consists of a fixed part (the first 5 bytes) and a part that
-depends on the kind of the PVC (UBR, CBR, VBR, ABR). Multi-byte values
+depends on the kind of the PVC (UBR, CBR, VBR, ABR).
+Multi-byte values
 are big-endian encoded: the bytes with the lower numbers contain the
 higher order bits.
 .Bl -tag -width "bytes 12...12" -offset indent
 .It byte 0
-Is a flag byte. Currently only flag 0x20 is used.
+Is a flag byte.
+Currently only flag 0x20 is used.
 When set, all IP frames are LLC/SNAP encapsulated before putting them into
 an AAL5 frame.
 Setting this flag is recommended and allows interoperability with other
@@ -41,9 +44,11 @@ Note that BPF works only with LLC/SNAP encapsulation.
 .It byte 1
 This is the VPI of the channel.
 .It bytes 2...3
-VCI of the channel. Must not be zero.
+VCI of the channel.
+Must not be zero.
 .It byte 4
-Traffic type. One of 0 (UBR), 1 (CBR), 2 (ABR), 3 (VBR).
+Traffic type.
+One of 0 (UBR), 1 (CBR), 2 (ABR), 3 (VBR).
 .El
 .Pp
 The variable part for UBR connections may be either empty or three bytes:
@@ -111,7 +116,8 @@ can be reached and
 .Ar <lladdr>
 is the link layer address as a string of dot-separated, hexadecimal bytes.
 .Pp
-NATM also supports the old, original format. This consists of 4 byte
+NATM also supports the old, original format.
+This consists of 4 byte
 link layer addresses (and the channels are implicit UBR):
 .Bl -tag -width "bytes 12...12" -offset indent
 .It byte 0

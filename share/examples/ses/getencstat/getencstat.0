@@ -44,21 +44,25 @@
 .Sh DESCRIPTION
 .Nm
 gets summary and detailed SCSI Environmental Services (or SAF-TE) device
-enclosure status. The overall status is printed out. If the overall status
+enclosure status.
+The overall status is printed out.
+If the overall status
 is considered okay, nothing else is printed out (unless the
 .Fl v
 option is used).
 .Pp
 A SCSI Environmental Services device enclosure may be either in the state
 of being \fBOK\fR, or in one or more of the states of \fBINFORMATIONAL\fR,
-\fBNON-CRITICAL\fR, \fBCRITICAL\fB or \fBUNRECOVERABLE\fR states. These
+\fBNON-CRITICAL\fR, \fBCRITICAL\fB or \fBUNRECOVERABLE\fR states.
+These
 overall states reflect a summary of the states of each object within
 such a device (such as power supplies or disk drives).
 .Pp
 With the
 .Fl v
 option, the status of all objects within the device is printed, whether
-\fBOK\fR or not. Along with the status of each object is the object identifier.
+\fBOK\fR or not.
+Along with the status of each object is the object identifier.
 .Pp
 The user may then use
 .Xr setencstat 8

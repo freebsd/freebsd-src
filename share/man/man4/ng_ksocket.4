@@ -84,7 +84,8 @@ and
 are the decimal equivalent of the same arguments to
 .Xr socket 2 .
 Alternately, aliases for the commonly used values are accepted as
-well.  For example
+well.
+For example
 .Dv inet/dgram/udp
 is a more readable but equivalent version of
 .Dv 2/2/17 .
@@ -95,7 +96,7 @@ connected (an
 .Dv NGM_KSOCKET_CONNECT
 was sent to node before).
 If socket is not connected, destination
-.Dv "struct sockaddr"
+.Vt "struct sockaddr"
 must be supplied in an mbuf tag with cookie
 .Dv NGM_KSOCKET_COOKIE
 and type
@@ -104,7 +105,7 @@ attached to data.
 Otherwise
 .Nm
 will return
-.Dv ENOTCONN
+.Er ENOTCONN
 to sender.
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
@@ -114,7 +115,7 @@ This functions exactly like the
 .Xr bind 2
 system call.
 The
-.Dv "struct sockaddr"
+.Vt "struct sockaddr"
 socket address parameter should be supplied as an argument.
 .It Dv NGM_KSOCKET_LISTEN
 This functions exactly like the
@@ -128,7 +129,7 @@ This functions exactly like the
 .Xr connect 2
 system call.
 The
-.Dv "struct sockaddr"
+.Vt "struct sockaddr"
 destination address parameter should be supplied as an argument.
 .It Dv NGM_KSOCKET_ACCEPT
 Currently unimplemented.
@@ -137,25 +138,25 @@ Equivalent to the
 .Xr getsockname 2
 system call.
 The name is returned as a
-.Dv "struct sockaddr"
+.Vt "struct sockaddr"
 in the arguments field of the reply.
 .It Dv NGM_KSOCKET_GETPEERNAME
 Equivalent to the
 .Xr getpeername 2
 system call.
 The name is returned as a
-.Dv "struct sockaddr"
+.Vt "struct sockaddr"
 in the arguments field of the reply.
 .It Dv NGM_KSOCKET_SETOPT
 Equivalent to the
 .Xr setsockopt 2
 system call, except that the option name, level, and value are passed in a
-.Dv "struct ng_ksocket_sockopt" .
+.Vt "struct ng_ksocket_sockopt" .
 .It Dv NGM_KSOCKET_GETOPT
 Equivalent to the
 .Xr getsockopt 2
 system call, except that the option is passed in a
-.Dv "struct ng_ksocket_sockopt" .
+.Vt "struct ng_ksocket_sockopt" .
 When sending this command, the
 .Dv value
 field should be empty; upon return, it will contain the
@@ -163,7 +164,7 @@ retrieved value.
 .El
 .Sh ASCII FORM CONTROL MESSAGES
 For control messages that pass a
-.Dv "struct sockaddr"
+.Vt "struct sockaddr"
 in the argument field, the normal
 .Tn ASCII
 equivalent of the C structure
@@ -193,7 +194,7 @@ inet/192.168.1.1:1234
 .El
 .Pp
 For control messages that pass a
-.Dv "struct ng_ksocket_sockopt" ,
+.Vt "struct ng_ksocket_sockopt" ,
 the normal
 .Tn ASCII
 form for that structure is used.

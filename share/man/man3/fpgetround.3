@@ -100,9 +100,11 @@ New code should use the functionality provided by
 When a floating point exception is detected, the exception sticky flag is
 set and the exception mask is tested.
 If the mask is set, then a trap
-occurs.  These routines allow both setting the floating point exception
-masks, and  resetting the exception sticky flags after an exception is
-detected.  In addition, they allow setting the floating point rounding mode
+occurs.
+These routines allow both setting the floating point exception
+masks, and resetting the exception sticky flags after an exception is
+detected.
+In addition, they allow setting the floating point rounding mode
 and precision.
 .Pp
 The
@@ -170,7 +172,8 @@ At present, they are implemented only on the i386 and amd64 platforms.
 .Xr isnan 3
 .Sh CAVEAT
 After a floating point exception and before a mask is set, the sticky
-flags must be reset.  If another exception occurs before the sticky
+flags must be reset.
+If another exception occurs before the sticky
 flags are reset, then a wrong exception type may be signaled.
 .Sh HISTORY
 These routines are based on SysV/386 routines of the same name.

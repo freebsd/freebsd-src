@@ -41,7 +41,8 @@
 .Sh DESCRIPTION
 The file
 .Pa /etc/mail/mailer.conf
-contains a series of pairs. The first member of each pair is the name
+contains a series of pairs.
+The first member of each pair is the name
 of a program invoking
 .Xr mailwrapper 8
 which is typically a symbolic link to
@@ -52,7 +53,8 @@ and
 .Xr mailq 1
 would be set up this way.)
 The second member of each pair is the name of the program to
-actually execute when the first name is invoked. The file may also
+actually execute when the first name is invoked.
+The file may also
 contain comments, denoted by a # mark in the first column of any line.
 .Sh EXAMPLES
 The following is an example of how to set up an
@@ -88,9 +90,10 @@ newaliases	/usr/local/sbin/sendmail
 appeared in
 .Nx 1.4 .
 .Sh AUTHORS
-Perry E. Metzger <perry@piermont.com>
+.An Perry E. Metzger Aq perry@piermont.com
 .Sh BUGS
-The entire reason this program exists is a crock. Instead, a command
+The entire reason this program exists is a crock.
+Instead, a command
 for how to submit mail should be standardized, and all the "behave
 differently if invoked with a different name" behavior of things like
 .Xr mailq 1

@@ -49,7 +49,8 @@ In
 The
 .Nm
 driver is a generic video card driver which provides access to
-video cards.  This driver is required for the console driver
+video cards.
+This driver is required for the console driver
 .Xr syscons 4 .
 The console driver will call the
 .Nm
@@ -121,7 +122,8 @@ This option removes this feature.
 Note that if you use this option and
 still wish to use the mouse on the console then you must also use the
 .Dv SC_ALT_MOUSE_IMAGE
-option.  See
+option.
+See
 .Xr syscons 4 .
 .It Dv VGA_NO_MODE_CHANGE
 This option prevents the driver from changing video modes.
@@ -146,7 +148,8 @@ in order to enable the VESA BIOS Extension support.
 If you do not want VESA support included in the kernel, but
 want to use occasionally, do not add the
 .Dv VESA
-option.  And load the
+option.
+And load the
 .Nm vesa
 module as desired:
 .Pp

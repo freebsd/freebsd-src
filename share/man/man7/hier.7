@@ -285,7 +285,7 @@ mail filter API
 .It Pa machine/
 machine-specific C include files
 .It Pa net/
-misc network C include files
+miscellaneous network C include files
 .It Pa netatalk/
 Appletalk protocol
 .It Pa netatm/
@@ -378,7 +378,7 @@ a.out backward compatibility libraries
 .El
 .Pp
 .It Pa libdata/
-misc. utility data files
+miscellaneous utility data files
 .Bl -tag -width Fl -compact
 .It Pa gcc/
 .Xr gcc 1
@@ -425,7 +425,8 @@ ports framework.
 Within local/, the general layout sketched out by
 .Nm
 for /usr
-should be used.  Exceptions are the man directory (directly under local/
+should be used.
+Exceptions are the man directory (directly under local/
 rather than under local/share/), ports documentation (in share/doc/<port>/),
 and /usr/local/etc (mimics /etc).
 .It Pa obj/
@@ -529,7 +530,7 @@ macros for use with the me macro package;
 see
 .Xr me 7
 .It Pa misc/
-misc system-wide ASCII text files
+miscellaneous system-wide ASCII text files
 .Bl -tag -width Fl -compact
 .It Pa fonts/
 ???
@@ -561,7 +562,9 @@ data files for security policies such as
 .Xr sendmail 8
 configuration files
 .It Pa skel/
-example . (dot) files for new accounts
+example
+.Pa .\&
+(dot) files for new accounts
 .It Pa snmp/
 MIBs, example files and tree definitions for the SNMP daemon.
 .Bl -tag -width Fl -compact
@@ -699,7 +702,7 @@ directory containing output spool files
 .El
 .Pp
 .It Pa backups/
-misc. backup files
+miscellaneous backup files
 .It Pa crash/
 default directory to store kernel crash dumps; see
 .Xr crash 8
@@ -717,19 +720,19 @@ see
 .El
 .Pp
 .It Pa db/
-misc. automatically generated system-specific database files
+miscellaneous automatically generated system-specific database files
 .It Pa empty/
 empty directory for use by programs that need a specifically empty directory.
 Used for instance by
 .Xr sshd 8
 for privilege separation.
 .It Pa games/
-misc. game status and score files
+miscellaneous game status and score files
 .It Pa heimdal/
 kerberos server databases; see
 .Xr kdc 8
 .It Pa log/
-misc. system log files
+miscellaneous system log files
 .Pp
 .Bl -tag -width Fl -compact
 .It Pa wtmp
@@ -780,7 +783,7 @@ see
 and
 .Xr ruptime 1
 .It Pa spool/
-misc. printer and mail system spooling directories
+miscellaneous printer and mail system spooling directories
 .Pp
 .Bl -tag -width Fl -compact
 .It Pa clientmqueue/

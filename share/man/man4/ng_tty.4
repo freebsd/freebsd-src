@@ -75,7 +75,8 @@ The default hot character is 0x7e, consistent with
 .Dv hook
 being connected to a
 .Xr ng_async 4
-type node. The hot character has no effect on the transmission of data.
+type node.
+The hot character has no effect on the transmission of data.
 .Pp
 The node will attempt to give itself the same netgraph name as the name
 of the tty device.
@@ -103,7 +104,8 @@ This node type supports the generic control messages, plus the following:
 .Bl -tag -width foo
 .It Dv NGM_TTY_SET_HOTCHAR
 This command takes an integer argument and sets the hot character
-from the lower 8 bits. A hot character of zero disables queueing,
+from the lower 8 bits.
+A hot character of zero disables queueing,
 so that all received data is forwarded immediately.
 .It Dv NGM_TTY_GET_HOTCHAR
 Returns an integer containing the current hot character in the lower

@@ -69,7 +69,7 @@ for managing dynamically created oids.
 The sysctl context is responsible for keeping track of created oids,
 as well as their proper removal when needed.
 It adds a simple transactional aspect to oid removal operations;
-i.e. if a removal operation fails part way,
+i.e., if a removal operation fails part way,
 it is possible to roll back the sysctl tree
 to its previous state.
 .Pp
@@ -145,7 +145,7 @@ maintain their original positions in the tree.
 The second step actually performs the deletion of the dynamic oids.
 .Xr sysctl_remove_oid 9
 iterates through the context list,
-starting from beginning (i.e. the newest entries).
+starting from beginning (i.e., the newest entries).
 .Em Important :
 this time, the function not only deletes the oids from the tree,
 but also frees their memory (provided that oid_refcnt == 0),

@@ -40,14 +40,17 @@ comprising of system wakeup time and elapsed time during suspended mode.
 .It
 .Nm
 slows CPU clock when there are no system activities (runnable processes,
-interrupts, etc.).  This function is available only on systems whose APM
+interrupts, etc.).
+This function is available only on systems whose APM
 supports CPU idling.
 .It
 .Nm
-exports an application interface as a character device.  Applications
+exports an application interface as a character device.
+Applications
 can control APM, or retrieve APM status information via this interface.
 .Nm
-exports the following interfaces.  These symbols are defined in
+exports the following interfaces.
+These symbols are defined in
 .In machine/apm_bios.h .
 .Bl -tag -width 4n -offset indent
 .It Sy APMIO_SUSPEND
@@ -67,11 +70,13 @@ Some APM implementations execute the HLT
 (Halt CPU until an interrupt occurs)
 instruction in the
 .Dq Em Idle CPU
-call, while others do not.  Thus enabling this may result in
+call, while others do not.
+Thus enabling this may result in
 redundant HLT executions because
 .Dq Em Idle CPU
 is called from the kernel context switch routine that inherently executes
-HLT. This may reduce peak system performance.
+HLT.
+This may reduce peak system performance.
 .Pp
 Also the system hangs up if HLT instruction is disabled in the kernel
 context switch routine, and if the APM implementation of the machine
@@ -89,7 +94,8 @@ The current version of
 does not call
 .Dq Em Idle CPU
 from the kernel context switch routine if clock slowdown is not supported,
-and it executes HLT instruction by default.  Therefore, there is
+and it executes HLT instruction by default.
+Therefore, there is
 no need to use these two operations in most cases.
 .El
 .Pp
@@ -112,10 +118,14 @@ polls APM events and handles the following events.
 .El
 .El
 .Sh BUGS
-WARNING!  Many, if not most, of the implementations of APM-bios in laptops
-today are buggy.  You may be putting your LCD-display and batteries at
-a risk by using this interface.  (The reason this isn't a problem for
-MS-windows is that they use the real-mode interface.)  If you see any
+WARNING!
+Many, if not most, of the implementations of APM-bios in laptops
+today are buggy.
+You may be putting your LCD-display and batteries at
+a risk by using this interface.
+(The reason this isn't a problem for
+MS-windows is that they use the real-mode interface.)
+If you see any
 weird behavior from your system with this code in use, unplug the
 power and batteries ASAP, if not immediately, and disable this code.
 .Pp
@@ -129,7 +139,8 @@ may cause serious trouble when resuming the system.
 BIOS setup programs should be called during bootstrap, or from DOS.
 .Pp
 Some APM implementations cannot handle events such as pushing the
-power button or closing the cover.  On such implementations, the system
+power button or closing the cover.
+On such implementations, the system
 .Ar must
 be suspended
 .Ar only

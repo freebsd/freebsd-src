@@ -351,7 +351,8 @@ file has no section header table this member holds zero.
 .It Dv e_flags
 This member holds processor-specific flags associated with the file.
 Flag
-names take the form EF_`machine_flag'. Currently no flags have been defined.
+names take the form EF_`machine_flag'.
+Currently no flags have been defined.
 .It Dv e_ehsize
 This member holds the ELF header's size in bytes.
 .It Dv e_phentsize
@@ -475,7 +476,8 @@ The array element specifies dynamic linking information.
 The array element specifies the location and size of a null-terminated
 path name to invoke as an interpreter.
 This segment type is meaningful
-only for executable files (though it may occur for shared objects). However
+only for executable files (though it may occur for shared objects).
+However
 it may not occur more than once in a file.
 If it is present it must precede
 any loadable segment entry.

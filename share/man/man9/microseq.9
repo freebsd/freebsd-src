@@ -59,7 +59,8 @@ Thus, any register described later has the same semantic than its counterpart
 in a PC parallel port.
 For more info about ISA/ECP programming, get the
 Microsoft standard referenced as "Extended Capabilities Port Protocol and
-ISA interface Standard". Registers described later are standard parallel port
+ISA interface Standard".
+Registers described later are standard parallel port
 registers.
 .Pp
 Mask macros are defined in the standard ppbus include files for each valid
@@ -467,7 +468,8 @@ and then execute the microsequence.
 .Ss The microsequencer
 The microsequencer is executed either at ppbus or adapter level (see
 .Xr ppbus 4
-for info about ppbus system layers). Most of the microsequencer is executed
+for info about ppbus system layers).
+Most of the microsequencer is executed
 at ppc level to avoid ppbus to adapter function call overhead.
 But some
 actions like deciding whereas the transfer is IEEE1284-1994 compliant are

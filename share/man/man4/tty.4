@@ -95,7 +95,8 @@ calls.
 For each existing terminal file, there is a software processing module
 called a
 .Em "line discipline"
-is associated with it.  The
+is associated with it.
+The
 .Em "line discipline"
 essentially glues the low level device driver code with the high
 level generic interface routines (such as
@@ -150,7 +151,8 @@ The following section lists the available ioctl requests.
 The name of the request, a description of its purpose, and the typed
 .Em argp
 parameter (if any)
-are listed.  For example, the first entry says
+are listed.
+For example, the first entry says
 .Pp
 .D1 Em "TIOCSETD int *ldisc"
 .Pp
@@ -322,7 +324,7 @@ If the value of the integer is zero, then it behaves as if both the
 .Dv FREAD
 and
 .Dv FWRITE
-bits were set (i.e. clears both queues).
+bits were set (i.e., clears both queues).
 .It Dv TIOCGWINSZ Fa struct winsize *ws
 Put the window size information associated with the terminal in the
 .Va winsize

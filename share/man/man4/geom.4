@@ -54,15 +54,18 @@ Compared to traditional "volume management", GEOM differs from most
 and in some cases all previous implementations in the following ways:
 .Bl -bullet
 .It
-GEOM is extensible.  It is trivially simple to write a new class
-of transformation and it will not be given stepchild treatment.  If
+GEOM is extensible.
+It is trivially simple to write a new class
+of transformation and it will not be given stepchild treatment.
+If
 someone for some reason wanted to mount IBM MVS diskpacks, a class
 recognizing and configuring their VTOC information would be a trivial
 matter.
 .It
-GEOM is topologically agnostic.  Most volume management implementations
+GEOM is topologically agnostic.
+Most volume management implementations
 have very strict notions of how classes can fit together, very often
-one fixed hierarchy is provided for instance  subdisk - plex -
+one fixed hierarchy is provided for instance subdisk - plex -
 volume.
 .El
 .Pp
@@ -83,11 +86,13 @@ GEOM is quite object oriented and consequently the terminology
 borrows a lot of context and semantics from the OO vocabulary:
 .Pp
 A "class", represented by the data structure g_class implements one
-particular kind of transformation.  Typical examples are MBR disk
+particular kind of transformation.
+Typical examples are MBR disk
 partition, BSD disklabel, and RAID5 classes.
 .Pp
 An instance of a class is called a "geom" and represented by the
-data structure "g_geom".  In a typical i386 FreeBSD system, there
+data structure "g_geom".
+In a typical i386 FreeBSD system, there
 will be one geom of class MBR for each disk.
 .Pp
 A "provider", represented by the data structure "g_provider", is
@@ -116,7 +121,8 @@ A provider can have zero or more consumers attached.
 .El
 .Pp
 All geoms have a rank-number assigned, which is used to detect and
-prevent loops in the acyclic directed graph.  This rank number is
+prevent loops in the acyclic directed graph.
+This rank number is
 assigned as follows:
 .Bl -enum
 .It
@@ -161,7 +167,8 @@ is the process by which a provider is removed while
 it potentially is still being used.
 .Pp
 When a geom orphans a provider, all future I/O requests will
-"bounce" on the provider with an error code set by the geom.  Any
+"bounce" on the provider with an error code set by the geom.
+Any
 consumers attached to the provider will receive notification about
 the orphanization when the eventloop gets around to it, and they
 can take appropriate action at that time.
@@ -226,7 +233,7 @@ Imagine a disk, "da0" on top of which a MBR geom provides
 "da0s1a" through "da0s1e", both the MBR and BSD geoms have
 autoconfigured based on data structures on the disk media.
 Now imagine the case where "da0" is opened for writing and those
-data structures are modified or overwritten:  Now the geoms would
+data structures are modified or overwritten: Now the geoms would
 be operating on stale metadata unless some notification system
 can inform them otherwise.
 .Pp
@@ -273,7 +280,8 @@ again, it has served its purpose.
 .Pp
 .Em CONFIGURE
 is the process where the administrator issues instructions
-for a particular class to instantiate itself.  There are multiple
+for a particular class to instantiate itself.
+There are multiple
 ways to express intent in this case, a particular provider can be
 specified with a level of override forcing for instance a BSD
 disklabel module to attach to a provider which was not found palatable
@@ -311,7 +319,8 @@ range to reduce the amount of data available for attack.
 It is important to recognize that a delete indication is not a
 request and consequently there is no guarantee that the data actually
 will be erased or made unavailable unless guaranteed by specific
-geoms in the graph.  If "secure delete" semantics are required, a
+geoms in the graph.
+If "secure delete" semantics are required, a
 geom should be pushed which converts delete indications into (a
 sequence of) write requests.
 .Pp
@@ -328,7 +337,8 @@ under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
 DARPA CHATS research program.
 .Pp
 The first precursor for GEOM was a gruesome hack to Minix 1.2 and was
-never distributed.  An earlier attempt to implement a less general scheme
+never distributed.
+An earlier attempt to implement a less general scheme
 in FreeBSD never succeeded.
 .Sh AUTHORS
 .An "Poul-Henning Kamp" Aq phk@FreeBSD.org

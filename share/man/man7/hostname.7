@@ -50,11 +50,11 @@ subdomain of the EDU subdomain of the Internet would be represented as
 Hostnames are often used with network client and server programs,
 which must generally translate the name to an address for use.
 (This function is generally performed by the library routine
-.Xr gethostbyname  3  . )
+.Xr gethostbyname 3 . )
 Hostnames are resolved by the Internet name resolver in the following
 fashion.
 .Pp
-If the name consists of a single component, i.e. contains no dot,
+If the name consists of a single component, i.e., contains no dot,
 and if the environment variable
 .Dq Ev HOSTALIASES
 is set to the name of a file,
@@ -82,7 +82,7 @@ Lithium.CChem.EDU will not be tried, as there is only one component
 remaining from the local domain.
 The search path can be changed from the default
 by a system-wide configuration file (see
-.Xr resolver  5  ) .
+.Xr resolver 5 ) .
 .Sh SEE ALSO
 .Xr gethostbyname 3 ,
 .Xr resolver 5 ,

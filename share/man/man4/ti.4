@@ -208,9 +208,11 @@ header file.
 .Bl -tag -width ".Dv ALT_WRITE_TG_MEM"
 .It Dv TIIOCGETSTATS
 Return card statistics DMAed from the card into kernel memory approximately
-every 2 seconds.  (That time interval can be changed via the
+every 2 seconds.
+(That time interval can be changed via the
 .Dv TIIOCSETPARAMS
-ioctl.)  The argument is
+ioctl.)
+The argument is
 .Vt "struct ti_stats" .
 .It Dv TIIOCGETPARAMS
 Get various performance-related firmware parameters that largely affect how
@@ -219,7 +221,8 @@ The argument is
 .Vt "struct ti_params" .
 .It Dv TIIOCSETPARAMS
 Set various performance-related firmware parameters that largely affect how
-interrupts are coalesced.  The argument is
+interrupts are coalesced.
+The argument is
 .Vt "struct ti_params" .
 .It Dv TIIOCSETTRACE
 Tell the NIC to trace the requested types of information.
