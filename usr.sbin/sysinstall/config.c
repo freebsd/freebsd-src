@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.52 1997/06/11 08:39:26 jkh Exp $
+ * $Id: config.c,v 1.99 1997/06/11 08:41:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -482,12 +482,13 @@ configNTP(dialogMenuItem *self)
 {
     int status;
 
-    status = variable_get_value(VAR_NTPDATE, "Enter the name of an NTP server") ? DITEM_SUCCESS : DITEM_FAILURE;
+    status = variable_get_value("ntpdate_flags", "Enter the name of an NTP server") ? DITEM_SUCCESS : DITEM_FAILURE;
     if (status == DITEM_SUCCESS) {
 	static char tmp[255];
 
-	snprintf(tmp, 255, "%s=%s", VAR_NTPDATE, variable_get(VAR_NTPDATE));
-	self->aux = (int)tmp;
+	snprintf(tmp, 255, "ntpdate_enable=YES,ntpdate_flags=%s", variable_get("ntpdate_flags"));
+	self->data = tmp;
+	dmenuSetVariables(self);
     }
     return status | DITEM_RESTORE;
 }
