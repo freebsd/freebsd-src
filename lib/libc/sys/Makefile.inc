@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.64 1999/07/30 10:08:21 mpp Exp $
+#	$Id: Makefile.inc,v 1.65 1999/07/30 11:32:06 mpp Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/sys ${.CURDIR}/../libc/sys
@@ -103,12 +103,12 @@ MAN2+=	sched_get_priority_max.2 sched_setparam.2 \
 .endif
 
 MLINKS+=brk.2 sbrk.2
-MLINKS+=dup.2 dup2.2
 MLINKS+=chdir.2 fchdir.2
 MLINKS+=chflags.2 fchflags.2
 MLINKS+=chmod.2 fchmod.2 chmod.2 lchmod.2
 MLINKS+=chown.2 fchown.2 chown.2 lchown.2
 MLINKS+=clock_gettime.2 clock_getres.2 clock_gettime.2 clock_settime.2
+MLINKS+=dup.2 dup2.2
 MLINKS+=getdirentries.2 getdents.2
 MLINKS+=getgid.2 getegid.2
 MLINKS+=getitimer.2 setitimer.2
@@ -135,7 +135,7 @@ MLINKS+=stat.2 fstat.2 stat.2 lstat.2
 MLINKS+=statfs.2 fstatfs.2
 MLINKS+=syscall.2 __syscall.2
 MLINKS+=truncate.2 ftruncate.2
-MLINKS+=utimes.2 lutimes.2 utimes.2 futimes.2
+MLINKS+=utimes.2 futimes.2 utimes.2 lutimes.2
 MLINKS+=wait.2 wait3.2 wait.2 wait4.2 wait.2 waitpid.2
 MLINKS+=write.2 pwrite.2 write.2 writev.2
 .if !defined(NO_P1003_1B)
