@@ -46,11 +46,11 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility outputs the value of
+utility prints the value of a
 .Tn POSIX
 or
 .Tn X/Open
-system or path configuration variable on the standard output.
+system or path configuration variable to the standard output.
 If the specified variable is undefined, the string
 .Dq Li undefined
 is output.
@@ -142,20 +142,5 @@ The
 .Nm
 command first appeared in
 .Fx 5.0 .
-.Sh BUGS
-The original
-.Tn X/Open
-specification erroneously requires the return values of
-.Xr pathconf 2
-and
-.Xr sysconf 3
-to be printed using the
-.Xr printf 3
-format specifier
-.Li \&"%d" .
-We ignore that aspect of the specification and use the
-correct
-.Li \&"%ld"
-format.
 .Sh AUTHORS
 .An Garrett A. Wollman Aq wollman@lcs.mit.edu
