@@ -155,7 +155,7 @@ ngt_constructor(node_p node)
 	if (privdata == NULL)
 		return (ENOMEM);
 
-	node->private = privdata;
+	NG_NODE_SET_PRIVATE(node, privdata);
 	privdata->node = node;
 	return (0);
 }
@@ -166,24 +166,24 @@ ngt_constructor(node_p node)
 static int
 ngt_newhook(node_p node, hook_p hook, const char *name)
 {
-	const sc_p sc = node->private;
+	const sc_p sc = NG_NODE_PRIVATE(node);
 
 	if (strcmp(name, NG_TEE_HOOK_RIGHT) == 0) {
 		sc->right.hook = hook;
 		bzero(&sc->right.stats, sizeof(sc->right.stats));
-		hook->private = &sc->right;
+		NG_HOOK_SET_PRIVATE(hook, &sc->right);
 	} else if (strcmp(name, NG_TEE_HOOK_LEFT) == 0) {
 		sc->left.hook = hook;
 		bzero(&sc->left.stats, sizeof(sc->left.stats));
-		hook->private = &sc->left;
+		NG_HOOK_SET_PRIVATE(hook, &sc->left);
 	} else if (strcmp(name, NG_TEE_HOOK_RIGHT2LEFT) == 0) {
 		sc->right2left.hook = hook;
 		bzero(&sc->right2left.stats, sizeof(sc->right2left.stats));
-		hook->private = &sc->right2left;
+		NG_HOOK_SET_PRIVATE(hook, &sc->right2left);
 	} else if (strcmp(name, NG_TEE_HOOK_LEFT2RIGHT) == 0) {
 		sc->left2right.hook = hook;
 		bzero(&sc->left2right.stats, sizeof(sc->left2right.stats));
-		hook->private = &sc->left2right;
+		NG_HOOK_SET_PRIVATE(hook, &sc->left2right);
 	} else
 		return (EINVAL);
 	return (0);
@@ -195,7 +195,7 @@ ngt_newhook(node_p node, hook_p hook, const char *name)
 static int
 ngt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	const sc_p sc = node->private;
+	const sc_p sc = NG_NODE_PRIVATE(node);
 	struct ng_mesg *resp = NULL;
 	int error = 0;
 	struct ng_mesg *msg;
@@ -249,15 +249,15 @@ ngt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			if (lasthook == sc->left.hook) {
 				if (sc->right.hook) {
 					NGI_MSG(item) = msg;
-					NG_FWD_MSG_HOOK(error, node, item,
-						sc->right.hook, 0);
+					NG_FWD_ITEM_HOOK(error, item,
+							sc->right.hook);
 					return (error);
 				}
 			} else {
 				if (sc->left.hook) {
 					NGI_MSG(item) = msg;
-					NG_FWD_MSG_HOOK(error, node, item, 
-						sc->left.hook, 0);
+					NG_FWD_ITEM_HOOK(error, item, 
+							sc->left.hook);
 					return (error);
 				}
 			}
@@ -286,8 +286,8 @@ done:
 static int
 ngt_rcvdata(hook_p hook, item_p item)
 {
-	const sc_p sc = hook->node->private;
-	struct hookinfo *const hinfo = (struct hookinfo *) hook->private;
+	const sc_p sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
+	struct hookinfo *const hinfo = NG_HOOK_PRIVATE(hook);
 	struct hookinfo *dest;
 	struct hookinfo *dup;
 	int error = 0;
@@ -350,7 +350,7 @@ ngt_rcvdata(hook_p hook, item_p item)
 	dest->stats.outOctets += m->m_pkthdr.len;
 	dest->stats.outFrames++;
 	if (dest->hook)
-		NG_FWD_DATA(error, item, dest->hook);
+		NG_FWD_ITEM_HOOK(error, item, dest->hook);
 	else
 		NG_FREE_ITEM(item);
 	return (0);
@@ -370,15 +370,14 @@ ngt_rcvdata(hook_p hook, item_p item)
 static int
 ngt_shutdown(node_p node)
 {
-	const sc_p privdata = node->private;
+	const sc_p privdata = NG_NODE_PRIVATE(node);
 
-	node->flags |= NG_INVALID;
 #if 0 /* can never happen as cutlinks is already called */
 	if (privdata->left.hook && privdata->right.hook)
 		ng_bypass(privdata->left.hook, privdata->right.hook);
 #endif
-	node->private = NULL;
-	ng_unref(privdata->node);
+	NG_NODE_SET_PRIVATE(node, NULL);
+	NG_NODE_UNREF(privdata->node);
 	FREE(privdata, M_NETGRAPH);
 	return (0);
 }
@@ -389,13 +388,13 @@ ngt_shutdown(node_p node)
 static int
 ngt_disconnect(hook_p hook)
 {
-	struct hookinfo *const hinfo = (struct hookinfo *) hook->private;
+	struct hookinfo *const hinfo = NG_HOOK_PRIVATE(hook);
 
 	KASSERT(hinfo != NULL, ("%s: null info", __FUNCTION__));
 	hinfo->hook = NULL;
-	if ((hook->node->numhooks == 0)
-	&& ((hook->node->flags & NG_INVALID) == 0))
-		ng_rmnode_self(hook->node);
+	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
+	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook))))
+		ng_rmnode_self(NG_HOOK_NODE(hook));
 	return (0);
 }
 

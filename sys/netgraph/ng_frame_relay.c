@@ -222,7 +222,7 @@ ngfrm_constructor(node_p node)
 	sc->addrlen = 2;	/* default */
 
 	/* Link the node and our private info */
-	node->private = sc;
+	NG_NODE_SET_PRIVATE(node, sc);
 	sc->node = node;
 	return (0);
 }
@@ -237,7 +237,7 @@ ngfrm_constructor(node_p node)
 static int
 ngfrm_newhook(node_p node, hook_p hook, const char *name)
 {
-	const sc_p sc = node->private;
+	const sc_p sc = NG_NODE_PRIVATE(node);
 	const char *cp;
 	char *eptr;
 	int dlci = 0;
@@ -245,7 +245,7 @@ ngfrm_newhook(node_p node, hook_p hook, const char *name)
 
 	/* Check if it's our friend the control hook */
 	if (strcmp(name, NG_FRAMERELAY_HOOK_DEBUG) == 0) {
-		hook->private = NULL;	/* paranoid */
+		NG_HOOK_SET_PRIVATE(hook, NULL);	/* paranoid */
 		return (0);
 	}
 
@@ -266,7 +266,7 @@ ngfrm_newhook(node_p node, hook_p hook, const char *name)
 			return (EADDRINUSE);
 
 		/* OK add it */
-		hook->private = &sc->downstream;
+		NG_HOOK_SET_PRIVATE(hook, &sc->downstream);
 		sc->downstream.hook = hook;
 		sc->downstream.dlci = -1;
 		sc->downstream.flags |= CHAN_ACTIVE;
@@ -303,7 +303,7 @@ ngfrm_newhook(node_p node, hook_p hook, const char *name)
 	 * Put our hooks into it (pun not intended)
 	 */
 	sc->channel[ctxnum].flags |= CHAN_ACTIVE;
-	hook->private = sc->channel + ctxnum;
+	NG_HOOK_SET_PRIVATE(hook, sc->channel + ctxnum);
 	sc->channel[ctxnum].hook = hook;
 	sc->datahooks++;
 	return (0);
@@ -332,7 +332,7 @@ ngfrm_addrlen(char *hdr)
 static int
 ngfrm_rcvdata(hook_p hook, item_p item)
 {
-	struct	ctxinfo *const ctxp = hook->private;
+	struct	ctxinfo *const ctxp = NG_HOOK_PRIVATE(hook);
 	int     error = 0;
 	int     dlci;
 	sc_p    sc;
@@ -349,11 +349,11 @@ ngfrm_rcvdata(hook_p hook, item_p item)
 	/* If coming from downstream, decode it to a channel */
 	dlci = ctxp->dlci;
 	if (dlci == -1)
-		return (ngfrm_decode(hook->node, item));
+		return (ngfrm_decode(NG_HOOK_NODE(hook), item));
 
 	NGI_GET_M(item, m);
 	/* Derive the softc we will need */
-	sc = hook->node->private;
+	sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 
 	/* If there is no live channel, throw it away */
 	if ((sc->downstream.hook == NULL)
@@ -419,7 +419,7 @@ bad:
 static int
 ngfrm_decode(node_p node, item_p item)
 {
-	const sc_p  sc = node->private;
+	const sc_p  sc = NG_NODE_PRIVATE(node);
 	char       *data;
 	int         alen;
 	u_int	    dlci = 0;
@@ -482,12 +482,11 @@ out:
 static int
 ngfrm_shutdown(node_p node)
 {
-	const sc_p sc = node->private;
+	const sc_p sc = NG_NODE_PRIVATE(node);
 
-	node->flags |= NG_INVALID;
-	node->private = NULL;
+	NG_NODE_SET_PRIVATE(node, NULL);
 	FREE(sc, M_NETGRAPH);
-	ng_unref(node);
+	NG_NODE_UNREF(node);
 	return (0);
 }
 
@@ -500,8 +499,8 @@ ngfrm_shutdown(node_p node)
 static int
 ngfrm_disconnect(hook_p hook)
 {
-	const sc_p sc = hook->node->private;
-	struct ctxinfo *const cp = hook->private;
+	const sc_p sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
+	struct ctxinfo *const cp = NG_HOOK_PRIVATE(hook);
 	int dlci;
 
 	/* If it's a regular dlci hook, then free resources etc.. */
@@ -513,8 +512,8 @@ ngfrm_disconnect(hook_p hook)
 		cp->flags = 0;
 		sc->datahooks--;
 	}
-	if ((hook->node->numhooks == 0)
-	&& ((hook->node->flags & NG_INVALID) == 0))
-		ng_rmnode_self(hook->node);
+	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
+	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook))))
+		ng_rmnode_self(NG_HOOK_NODE(hook));
 	return (0);
 }

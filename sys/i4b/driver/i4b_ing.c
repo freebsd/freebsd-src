@@ -280,11 +280,11 @@ i4bingattach(void *dummy)
 		if((ret = ng_name_node(sc->node, sc->nodename)))
 		{
 			printf("ing: ng_name node, ret = %d\n!", ret);
-			ng_unref(sc->node);
+			NG_NODE_UNREF(sc->node);
 			break;
 		}
 
-		sc->node->private = sc;
+		NG_NODE_SET_PRIVATE(sc->node, sc);
 
 		sc->xmitq.ifq_maxlen = IFQ_MAXLEN;
 		sc->xmitq_hipri.ifq_maxlen = IFQ_MAXLEN;
@@ -587,14 +587,14 @@ ng_ing_constructor(node_p node)
 static int
 ng_ing_newhook(node_p node, hook_p hook, const char *name)
 {
-	struct ing_softc *sc = node->private;
+	struct ing_softc *sc = NG_NODE_PRIVATE(node);
 
 	/*
 	 * check if it's our friend the debug hook
 	 */
 	if(strcmp(name, NG_ING_HOOK_DEBUG) == 0)
 	{
-		hook->private = NULL; /* paranoid */
+		NG_HOOK_SET_PRIVATE(hook, NULL); /* paranoid */
 		sc->debughook = hook;
 		return (0);
 	}
@@ -603,7 +603,7 @@ ng_ing_newhook(node_p node, hook_p hook, const char *name)
 	 */
 	if(strcmp(name, NG_ING_HOOK_RAW) == 0)
 	{
-		hook->private = sc;
+		NG_HOOK_SET_PRIVATE(hook, sc);
 		sc->hook = hook;
 		return (0);
 	}
@@ -628,7 +628,7 @@ ng_ing_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 		struct ng_mesg **rptr)
 #endif
 {
-	struct ing_softc *sc = node->private;
+	struct ing_softc *sc = NG_NODE_PRIVATE(node);
 
 	struct ng_mesg *resp = NULL;
 	int error = 0;
@@ -746,7 +746,7 @@ static int
 ng_ing_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 #endif
 {
-	struct ing_softc *sc = hook->node->private;
+	struct ing_softc *sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	struct ifqueue  *xmitq_p;
 	int s;
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 500000
@@ -757,7 +757,7 @@ ng_ing_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 	NGI_GET_META(item, meta);
 	NG_FREE_ITEM(item);
 #endif
-	if(hook->private == NULL)
+	if(NG_HOOK_PRIVATE(hook) == NULL)
 	{
 		NG_FREE_M(m);
 		NG_FREE_META(meta);
@@ -815,11 +815,10 @@ ng_ing_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 static int
 ng_ing_shutdown(node_p node)
 {
-	struct ing_softc *sc = node->private;
+	struct ing_softc *sc = NG_NODE_PRIVATE(node);
 	int	ret;
 
-	node->flags |= NG_INVALID;
-	ng_unref(node);
+	NG_NODE_UNREF(node);
 
 	sc->packets_in = 0;		/* reset stats */
 	sc->packets_out = 0;
@@ -834,11 +833,11 @@ ng_ing_shutdown(node_p node)
 	if((ret = ng_name_node(sc->node, sc->nodename)))
 	{
 		printf("ing: ng_name node, ret = %d\n!", ret);
-		ng_unref(sc->node);
+		NG_NODE_UNREF(sc->node);
 		return (0);
 	}
 
-	sc->node->private = sc;
+	NG_NODE_SET_PRIVATE(sc->node, sc);
 
 	return (0);
 }
@@ -850,7 +849,7 @@ static int
 ng_ing_connect(hook_p hook)
 {
 	/* probably not at splnet, force outward queueing */
-	hook->peer->flags |= HK_QUEUE;
+	NG_HOOK_FORCE_QUEUE(NG_HOOK_PEER(hook));
 	return (0);
 }
 
@@ -862,10 +861,10 @@ ng_ing_connect(hook_p hook)
 static int
 ng_ing_disconnect(hook_p hook)
 {
-	struct ing_softc *sc = hook->node->private;
+	struct ing_softc *sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	int s;
 	
-	if(hook->private)
+	if(NG_HOOK_PRIVATE(hook))
 	{
 		s = splimp();
 		splx(s);

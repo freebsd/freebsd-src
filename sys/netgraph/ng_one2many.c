@@ -196,7 +196,7 @@ ng_one2many_constructor(node_p node)
 	priv->conf.xmitAlg = NG_ONE2MANY_XMIT_ROUNDROBIN;
 	priv->conf.failAlg = NG_ONE2MANY_FAIL_MANUAL;
 
-	node->private = priv;
+	NG_NODE_SET_PRIVATE(node, priv);
 
 	/* Done */
 	return (0);
@@ -208,7 +208,7 @@ ng_one2many_constructor(node_p node)
 static	int
 ng_one2many_newhook(node_p node, hook_p hook, const char *name)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_one2many_link *link;
 	int linkNum;
 	u_long i;
@@ -238,7 +238,7 @@ ng_one2many_newhook(node_p node, hook_p hook, const char *name)
 		return (EISCONN);
 
 	/* Setup private info for this link */
-	LINK_NUM(hook) = linkNum;
+	NG_HOOK_SET_PRIVATE(hook, (void *)linkNum);
 	link->hook = hook;
 	bzero(&link->stats, sizeof(link->stats));
 	if (linkNum != NG_ONE2MANY_ONE_LINKNUM) {
@@ -256,7 +256,7 @@ ng_one2many_newhook(node_p node, hook_p hook, const char *name)
 static int
 ng_one2many_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_mesg *resp = NULL;
 	int error = 0;
 	struct ng_mesg *msg;
@@ -375,8 +375,8 @@ ng_one2many_rcvmsg(node_p node, item_p item, hook_p lasthook)
 static int
 ng_one2many_rcvdata(hook_p hook, item_p item)
 {
-	const node_p node = hook->node;
-	const priv_p priv = node->private;
+	const node_p node = NG_HOOK_NODE(hook);
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_one2many_link *src;
 	struct ng_one2many_link *dst;
 	int error = 0;
@@ -385,7 +385,7 @@ ng_one2many_rcvdata(hook_p hook, item_p item)
 
 	m = NGI_M(item); /* just peaking, mbuf still owned by item */
 	/* Get link number */
-	linkNum = LINK_NUM(hook);
+	linkNum = (int)NG_HOOK_PRIVATE(hook);
 	KASSERT(linkNum == NG_ONE2MANY_ONE_LINKNUM
 	    || (linkNum >= 0 && linkNum < NG_ONE2MANY_MAX_LINKS),
 	    ("%s: linkNum=%d", __FUNCTION__, linkNum));
@@ -415,7 +415,7 @@ ng_one2many_rcvdata(hook_p hook, item_p item)
 	dst->stats.xmitOctets += m->m_pkthdr.len;
 
 	/* Deliver packet */
-	NG_FWD_DATA(error, item, dst->hook);
+	NG_FWD_ITEM_HOOK(error, item, dst->hook);
 	return (error);
 }
 
@@ -425,13 +425,13 @@ ng_one2many_rcvdata(hook_p hook, item_p item)
 static int
 ng_one2many_shutdown(node_p node)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	KASSERT(priv->numActiveMany == 0,
 	    ("%s: numActiveMany=%d", __FUNCTION__, priv->numActiveMany));
 	FREE(priv, M_NETGRAPH);
-	node->private = NULL;
-	ng_unref(node);
+	NG_NODE_SET_PRIVATE(node, NULL);
+	NG_NODE_UNREF(node);
 	return (0);
 }
 
@@ -441,11 +441,11 @@ ng_one2many_shutdown(node_p node)
 static int
 ng_one2many_disconnect(hook_p hook)
 {
-	const priv_p priv = hook->node->private;
+	const priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	int linkNum;
 
 	/* Get link number */
-	linkNum = LINK_NUM(hook);
+	linkNum = (int)NG_HOOK_PRIVATE(hook);
 	KASSERT(linkNum == NG_ONE2MANY_ONE_LINKNUM
 	    || (linkNum >= 0 && linkNum < NG_ONE2MANY_MAX_LINKS),
 	    ("%s: linkNum=%d", __FUNCTION__, linkNum));
@@ -460,9 +460,9 @@ ng_one2many_disconnect(hook_p hook)
 	}
 
 	/* If no hooks left, go away */
-	if ((hook->node->numhooks == 0)
-	&& ((hook->node->flags & NG_INVALID) == 0))
-		ng_rmnode_self(hook->node);
+	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
+	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook))))
+		ng_rmnode_self(NG_HOOK_NODE(hook));
 	return (0);
 }
 

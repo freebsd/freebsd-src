@@ -936,10 +936,10 @@ srattach(struct sr_hardc *hc)
 			return (0);
 		sprintf(sc->nodename, "%s%d", NG_SR_NODE_TYPE, sc->unit);
 		if (ng_name_node(sc->node, sc->nodename)) {
-			ng_unref(sc->node); /* make it go away again */
+			NG_NODE_UNREF(sc->node); /* make it go away again */
 			return (0);
 		}
-		sc->node->private = sc;
+		NG_NODE_SET_PRIVATE(sc->node, sc);
 		callout_handle_init(&sc->handle);
 		sc->xmitq.ifq_maxlen = IFQ_MAXLEN;
 		sc->xmitq_hipri.ifq_maxlen = IFQ_MAXLEN;
@@ -3139,13 +3139,13 @@ ngsr_constructor(node_p node)
 static int
 ngsr_newhook(node_p node, hook_p hook, const char *name)
 {
-	struct sr_softc *	sc = node->private;
+	struct sr_softc *	sc = NG_NODE_PRIVATE(node);
 
 	/*
 	 * check if it's our friend the debug hook
 	 */
 	if (strcmp(name, NG_SR_HOOK_DEBUG) == 0) {
-		hook->private = NULL; /* paranoid */
+		NG_HOOK_SET_PRIVATE(hook, NULL); /* paranoid */
 		sc->debug_hook = hook;
 		return (0);
 	}
@@ -3156,7 +3156,7 @@ ngsr_newhook(node_p node, hook_p hook, const char *name)
 	if (strcmp(name, NG_SR_HOOK_RAW) != 0) {
 		return (EINVAL);
 	}
-	hook->private = sc;
+	NG_HOOK_SET_PRIVATE(hook, sc);
 	sc->hook = hook;
 	sc->datahooks++;
 	sr_up(sc);
@@ -3176,7 +3176,7 @@ ngsr_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	struct ng_mesg *msg;
 
 	NGI_GET_MSG(item,msg);
-	sc = node->private;
+	sc = NG_NODE_PRIVATE(node);
 	switch (msg->header.typecookie) {
 	case	NG_SR_COOKIE: 
 		error = EINVAL;
@@ -3236,7 +3236,7 @@ ngsr_rcvdata(hook_p hook, item_p item)
 {
 	int s;
 	int error = 0;
-	struct sr_softc * sc = hook->node->private;
+	struct sr_softc * sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	struct ifqueue	*xmitq_p;
 	struct mbuf *m;
 	meta_p meta;
@@ -3247,7 +3247,7 @@ ngsr_rcvdata(hook_p hook, item_p item)
 	/*
 	 * data doesn't come in from just anywhere (e.g control hook)
 	 */
-	if ( hook->private == NULL) {
+	if ( NG_HOOK_PRIVATE(hook) == NULL) {
 		error = ENETDOWN;
 		goto bad;
 	}
@@ -3293,10 +3293,10 @@ bad:
 static	int
 ngsr_shutdown(node_p node)
 {
-	struct sr_softc * sc = node->private;
+	struct sr_softc * sc = NG_NODE_PRIVATE(node);
 
 	sr_down(sc);
-	ng_unref(node);
+	NG_NODE_UNREF(node);
 /* XXX should drain queues! */
 	if (ng_make_node_common(&typestruct, &sc->node) != 0)
 		return (0);
@@ -3304,10 +3304,10 @@ ngsr_shutdown(node_p node)
 	if (ng_name_node(sc->node, sc->nodename)) {
 		printf("node naming failed\n");
 		sc->node = NULL;
-		ng_unref(sc->node); /* drop it again */
+		NG_NODE_UNREF(sc->node); /* drop it again */
 		return (0);
 	}
-	sc->node->private = sc;
+	NG_NODE_SET_PRIVATE(sc->node, sc);
 	callout_handle_init(&sc->handle); /* should kill timeout */
 	sc->running = 0;
 	return (0);
@@ -3318,7 +3318,7 @@ static	int
 ngsr_connect(hook_p hook)
 {
 	/* probably not at splnet, force outward queueing */
-	hook->peer->flags |= HK_QUEUE;
+	NG_HOOK_FORCE_QUEUE(NG_HOOK_PEER(hook));
 	/* be really amiable and just say "YUP that's OK by me! " */
 	return (0);
 }
@@ -3337,12 +3337,12 @@ ngsr_connect(hook_p hook)
 static	int
 ngsr_disconnect(hook_p hook)
 {
-	struct sr_softc * sc = hook->node->private;
+	struct sr_softc * sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	int	s;
 	/*
 	 * If it's the data hook, then free resources etc.
 	 */
-	if (hook->private) {
+	if (NG_HOOK_PRIVATE(hook)) {
 		s = splimp();
 		sc->datahooks--;
 		if (sc->datahooks == 0)

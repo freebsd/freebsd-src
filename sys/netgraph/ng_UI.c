@@ -101,7 +101,7 @@ NETGRAPH_INIT(UI, &typestruct);
  */
 
 static int
-ng_UI_constructor(node_p nodep)
+ng_UI_constructor(node_p node)
 {
 	priv_p  priv;
 
@@ -110,7 +110,7 @@ ng_UI_constructor(node_p nodep)
 	if (priv == NULL) {
 		return (ENOMEM);
 	}
-	nodep->private = priv;
+	NG_NODE_SET_PRIVATE(node, priv);
 	return (0);
 }
 
@@ -120,7 +120,7 @@ ng_UI_constructor(node_p nodep)
 static int
 ng_UI_newhook(node_p node, hook_p hook, const char *name)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	if (!strcmp(name, NG_UI_HOOK_DOWNSTREAM)) {
 		if (priv->downlink)
@@ -142,27 +142,25 @@ static int
 ng_UI_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	int	error;
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_mesg *msg;
 
 	msg = NGI_MSG(item); /* only peeking */
 	if ((msg->header.typecookie == NGM_FLOW_COOKIE) && lasthook)  {
 		if (lasthook == priv->downlink) {
 			if (priv->uplink) {
-				NG_FWD_MSG_HOOK(error, node, item,
-					priv->uplink, 0);
+				NG_FWD_ITEM_HOOK(error, item, priv->uplink);
 				return (error);
 			}
 		} else {
 			if (priv->downlink) {
-				NG_FWD_MSG_HOOK(error, node, item, 
-					priv->downlink, 0);
+				NG_FWD_ITEM_HOOK(error, item, priv->downlink);
 				return (error);
 			}
 		}
 	}
 		
-	NG_FREE_MSG(msg);
+	NG_FREE_ITEM(item);
 	return (EINVAL);
 }
 
@@ -175,8 +173,8 @@ ng_UI_rcvmsg(node_p node, item_p item, hook_p lasthook)
 static int
 ng_UI_rcvdata(hook_p hook, item_p item)
 {
-	const node_p node = hook->node;
-	const priv_p priv = node->private;
+	const node_p node = NG_HOOK_NODE(hook);
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct mbuf *m;
 	int error = 0;
 
@@ -217,12 +215,12 @@ done:
 static int
 ng_UI_shutdown(node_p node)
 {
-	const priv_p priv = node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	/* Take down netgraph node */
 	FREE(priv, M_NETGRAPH);
-	node->private = NULL;
-	ng_unref(node);
+	NG_NODE_SET_PRIVATE(node, NULL);
+	NG_NODE_UNREF(node);
 	return (0);
 }
 
@@ -232,7 +230,7 @@ ng_UI_shutdown(node_p node)
 static int
 ng_UI_disconnect(hook_p hook)
 {
-	const priv_p priv = hook->node->private;
+	const priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 
 	if (hook == priv->downlink)
 		priv->downlink = NULL;
@@ -244,9 +242,9 @@ ng_UI_disconnect(hook_p hook)
 	 * If we are not already shutting down,
 	 * and we have no more hooks, then DO shut down.
 	 */
-	if ((hook->node->numhooks == 0)
-	&& ((hook->node->flags & NG_INVALID) == 0)) {
-			ng_rmnode_self(hook->node);
+	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
+	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))) {
+			ng_rmnode_self(NG_HOOK_NODE(hook));
 	}
 	return (0);
 }

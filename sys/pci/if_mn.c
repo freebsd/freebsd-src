@@ -291,7 +291,7 @@ ngmn_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	struct ng_mesg *msg;
 
 	NGI_GET_MSG(item, msg);
-	sc = node->private;
+	sc = NG_NODE_PRIVATE(node);
 
 	if (msg->header.typecookie != NGM_GENERIC_COOKIE ||
 	    msg->header.cmd != NGM_TEXT_STATUS) {
@@ -340,7 +340,7 @@ ngmn_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		sch = sc->ch[i];
 
 		pos += sprintf(arg + pos, "  Chan %d <%s> ",
-		    i, sch->hook->name);
+		    i, NG_HOOK_NAME(sch->hook));
 
 		pos += sprintf(arg + pos, "  Last Rx: ");
 		if (sch->last_recv)
@@ -389,7 +389,7 @@ ngmn_newhook(node_p node, hook_p hook, const char *name)
 	struct softc *sc;
 	int nbit;
 
-	sc = node->private;
+	sc = NG_NODE_PRIVATE(node);
 
 	if (name[0] != 't' || name[1] != 's')
 		return (EINVAL);
@@ -405,7 +405,7 @@ ngmn_newhook(node_p node, hook_p hook, const char *name)
 	sc->ch[chan]->ts = ts;
 	sc->ch[chan]->hook = hook;
 	sc->ch[chan]->tx_limit = nbit * 8;
-	hook->private = sc->ch[chan];
+	NG_HOOK_SET_PRIVATE(hook, sc->ch[chan]);
 	return(0);
 }
 
@@ -510,7 +510,7 @@ ngmn_rcvdata(hook_p hook, item_p item)
 	int chan, pitch, len;
 	struct mbuf *m;
 
-	sch = hook->private;
+	sch = NG_HOOK_PRIVATE(hook);
 	sc = sch->sc;
 	chan = sch->chan;
 
@@ -589,7 +589,7 @@ ngmn_connect(hook_p hook)
 	struct schan *sch;
 	u_int32_t u;
 
-	sch = hook->private;
+	sch = NG_HOOK_PRIVATE(hook);
 	chan = sch->chan;
 	sc = sch->sc;
 
@@ -684,7 +684,7 @@ ngmn_connect(hook_p hook)
 		printf("%s: init chan %d stat %08x\n", sc->name, chan, u);
 	sc->m32x->stat = 1; 
 	/* probably not at splnet, force outward queueing */
-	hook->peer->flags |= HK_QUEUE;
+	NG_HOOK_FORCE_QUEUE(NG_HOOK_PEER(hook));
 
 	return (0);
 }
@@ -701,7 +701,7 @@ ngmn_disconnect(hook_p hook)
 	struct trxd *dp, *dp2;
 	u_int32_t u;
 
-	sch = hook->private;
+	sch = NG_HOOK_PRIVATE(hook);
 	chan = sch->chan;
 	sc = sch->sc;
 	
@@ -1345,10 +1345,10 @@ mn_attach (device_t self)
 		printf("ng_make_node_common failed\n");
 		return (0);
 	}
-	sc->node->private = sc;
+	NG_NODE_SET_PRIVATE(sc->node, sc);
 	sprintf(sc->nodename, "%s%d", NG_MN_NODE_TYPE, sc->unit);
 	if (ng_name_node(sc->node, sc->nodename)) {
-		ng_unref(sc->node);
+		NG_NODE_UNREF(sc->node);
 		return (0);
 	}
 	

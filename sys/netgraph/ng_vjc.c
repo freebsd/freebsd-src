@@ -254,7 +254,7 @@ ng_vjc_constructor(node_p node)
 	if (priv == NULL)
 		return (ENOMEM);
 
-	node->private = priv;
+	NG_NODE_SET_PRIVATE(node, priv);
 
 	/* Done */
 	return (0);
@@ -266,7 +266,7 @@ ng_vjc_constructor(node_p node)
 static int
 ng_vjc_newhook(node_p node, hook_p hook, const char *name)
 {
-	const priv_p priv = (priv_p) node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	hook_p *hookp;
 
 	/* Get hook */
@@ -296,7 +296,7 @@ ng_vjc_newhook(node_p node, hook_p hook, const char *name)
 static int
 ng_vjc_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	const priv_p priv = (priv_p) node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_mesg *resp = NULL;
 	int error = 0;
 	struct ng_mesg *msg;
@@ -403,8 +403,8 @@ done:
 static int
 ng_vjc_rcvdata(hook_p hook, item_p item)
 {
-	const node_p node = hook->node;
-	const priv_p priv = (priv_p) node->private;
+	const node_p node = NG_HOOK_NODE(hook);
+	const priv_p priv = NG_NODE_PRIVATE(node);
 	int error = 0;
 	struct mbuf *m;
 
@@ -549,13 +549,12 @@ ng_vjc_rcvdata(hook_p hook, item_p item)
 static int
 ng_vjc_shutdown(node_p node)
 {
-	const priv_p priv = (priv_p) node->private;
+	const priv_p priv = NG_NODE_PRIVATE(node);
 
-	node->flags |= NG_INVALID;
 	bzero(priv, sizeof(*priv));
 	FREE(priv, M_NETGRAPH);
-	node->private = NULL;
-	ng_unref(node);
+	NG_NODE_SET_PRIVATE(node, NULL);
+	NG_NODE_UNREF(node);
 	return (0);
 }
 
@@ -565,8 +564,8 @@ ng_vjc_shutdown(node_p node)
 static int
 ng_vjc_disconnect(hook_p hook)
 {
-	const node_p node = hook->node;
-	const priv_p priv = node->private;
+	const node_p node = NG_HOOK_NODE(hook);
+	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	/* Zero out hook pointer */
 	if (hook == priv->ip)
@@ -581,8 +580,8 @@ ng_vjc_disconnect(hook_p hook)
 		panic("%s: unknown hook", __FUNCTION__);
 
 	/* Go away if no hooks left */
-	if ((node->numhooks == 0)
-	&& ((node->flags & NG_INVALID) == 0))
+	if ((NG_NODE_NUMHOOKS(node) == 0)
+	&& (NG_NODE_IS_VALID(node)))
 		ng_rmnode_self(node);
 	return (0);
 }

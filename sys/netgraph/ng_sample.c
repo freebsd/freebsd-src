@@ -140,7 +140,7 @@ typedef struct XXX *xxx_p;
  * to creatednodes that depend on hardware (unless you can add the hardware :)
  */
 static int
-ng_xxx_constructor(node_p nodep)
+ng_xxx_constructor(node_p node)
 {
 	xxx_p privdata;
 	int i, error;
@@ -156,8 +156,8 @@ ng_xxx_constructor(node_p nodep)
 	}
 
 	/* Link structs together; this counts as our one reference to *nodep */
-	(*nodep)->private = privdata;
-	privdata->node = *nodep;
+	NG_NODE_PRIVATE(node) = privdata;
+	privdata->node = node;
 	return (0);
 }
 
@@ -176,7 +176,7 @@ ng_xxx_constructor(node_p nodep)
 static int
 ng_xxx_newhook(node_p node, hook_p hook, const char *name)
 {
-	const xxx_p xxxp = node->private;
+	const xxx_p xxxp = NG_NODE_PRIVATE(node);
 	const char *cp;
 	int dlci = 0;
 	int chan;
@@ -216,18 +216,18 @@ ng_xxx_newhook(node_p node, hook_p hook, const char *name)
 		}
 		if (xxxp->channel[chan].hook != NULL)
 			return (EADDRINUSE);
-		hook->private = xxxp->channel + chan;
+		NG_HOOK_SET_PRIVATE(hook, xxxp->channel + chan);
 		xxxp->channel[chan].hook = hook;
 		return (0);
 	} else if (strcmp(name, NG_XXX_HOOK_DOWNSTREAM) == 0) {
 		/* Example of simple predefined hooks. */
 		/* do something specific to the downstream connection */
 		xxxp->downstream_hook.hook = hook;
-		hook->private = &xxxp->downstream_hook;
+		NG_HOOK_SET_PRIVATE(hook, &xxxp->downstream_hook);
 	} else if (strcmp(name, NG_XXX_HOOK_DEBUG) == 0) {
 		/* do something specific to a debug connection */
 		xxxp->debughook = hook;
-		hook->private = NULL;
+		NG_HOOK_SET_PRIVATE(hook, NULL);
 	} else
 		return (EINVAL);	/* not a hook we know about */
 	return(0);
@@ -252,7 +252,7 @@ ng_xxx_newhook(node_p node, hook_p hook, const char *name)
 static int
 ng_xxx_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	const xxx_p xxxp = node->private;
+	const xxx_p xxxp = NG_NODE_PRIVATE(node);
 	struct ng_mesg *resp = NULL;
 	int error = 0;
 	struct ng_mesg *msg;
@@ -318,7 +318,7 @@ ng_xxx_rcvmsg(node_p node, item_p item, hook_p lasthook)
 static int
 ng_xxx_rcvdata(hook_p hook, item_p item )
 {
-	const xxx_p xxxp = hook->node->private;
+	const xxx_p xxxp = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	int chan = -2;
 	int dlci = -2;
 	int error;
@@ -327,9 +327,9 @@ ng_xxx_rcvdata(hook_p hook, item_p item )
 
 
 	NGI_GET_M(item, m);
-	if (hook->private) {
-		dlci = ((struct XXX_hookinfo *) hook->private)->dlci;
-		chan = ((struct XXX_hookinfo *) hook->private)->channel;
+	if (NG_HOOK_PRIVATE(hook)) {
+		dlci = ((struct XXX_hookinfo *) NG_HOOK_PRIVATE(hook))->dlci;
+		chan = ((struct XXX_hookinfo *) NG_HOOK_PRIVATE(hook))->channel;
 		if (dlci != -1) {
 			/* If received on a DLCI hook process for this
 			 * channel and pass it to the downstream module.
@@ -406,12 +406,11 @@ devintr()
 static int
 ng_xxx_shutdown(node_p node)
 {
-	const xxx_p privdata = node->private;
+	const xxx_p privdata = NG_NODE_PRIVATE(node);
 	int error;
 
-	node->flags |= NG_INVALID;
-	node->private = NULL;
-	ng_unref(privdata->node);
+	NG_NODE_SET_PRIVATE(node, NULL);
+	NG_NODE_UNREF(privdata->node);
 #ifndef PERSISTANT_NODE
 	FREE(privdata, M_NETGRAPH);
 #else
@@ -426,7 +425,7 @@ ng_xxx_shutdown(node_p node)
 	}
 	if ( ng_name_node(node, "name")) {	/* whatever name is needed */
 		printf("something informative");
-		ng_unref(node);			/* drop it again */
+		NG_NODE_UNREF(node);			/* drop it again */
 		return (0);
 	}
 	privdata->packets_in = 0;		/* reset stats */
@@ -438,8 +437,8 @@ ng_xxx_shutdown(node_p node)
 
 	/* Link structs together; this counts as our one reference to node */
 	privdata->node = node;
-	node->private = privdata;
-	node->flags &= ~NG_INVALID;		/* reset invalid flag */
+	NG_NODE_SET_PRIVATE(node, privdata);
+	node->nd_flags &= ~NG_INVALID;		/* reset invalid flag */
 #endif /* PERSISTANT_NODE */
 	return (0);
 }
@@ -458,7 +457,7 @@ ng_xxx_connect(hook_p hook)
 	 * will deliver by queing.
 	 */
 	if /*it is the upstream hook */
-	hook->peer->flags |= HK_QUEUE;
+	NG_HOOK_FORCE_QUEUE(NG_HOOK_PEER(hook));
 #endif
 #if 0
 	/*
@@ -467,16 +466,16 @@ ng_xxx_connect(hook_p hook)
 	 * OUR hook. (maybe to allow unwinding of the stack)
 	 */
 
-	if (hook->private) {
+	if (NG_HOOK_PRIVATE(hook)) {
 		int dlci;
 		/* 
 		 * If it's dlci 1023, requeue it so that it's handled
 		 * at a lower priority. This is how a node decides to
 		 * defer a data message.
 		 */
-		dlci = ((struct XXX_hookinfo *) hook->private)->dlci;
+		dlci = ((struct XXX_hookinfo *) NG_HOOK_PRIVATE(hook))->dlci;
 		if (dlci == 1023) {
-			hook->flags |= HK_QUEUE;
+			NG_HOOK_FORCE_QUEUE(hook);
 		}
 #endif
 	/* otherwise be really amiable and just say "YUP that's OK by me! " */
@@ -491,11 +490,11 @@ ng_xxx_connect(hook_p hook)
 static int
 ng_xxx_disconnect(hook_p hook)
 {
-	if (hook->private)
-		((struct XXX_hookinfo *) (hook->private))->hook = NULL;
-	if ((hook->node->numhooks == 0)
-	&& ((hook->node->flags & NG_INVALID) == 0)) /* already shutting down? */
-		ng_rmnode_self(hook->node);
+	if (NG_HOOK_PRIVATE(hook))
+		((struct XXX_hookinfo *) (NG_HOOK_PRIVATE(hook)))->hook = NULL;
+	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
+	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))) /* already shutting down? */
+		ng_rmnode_self(NG_HOOK_NODE(hook));
 	return (0);
 }
 
