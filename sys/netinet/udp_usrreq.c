@@ -804,6 +804,11 @@ udp_output(inp, m, addr, control, td)
 		/* Commit the local port if newly assigned. */
 		if (inp->inp_laddr.s_addr == INADDR_ANY &&
 		    inp->inp_lport == 0) {
+			/*
+			 * Remember addr if jailed, to prevent rebinding.
+			 */
+			if (jailed(td->td_ucred))
+				inp->inp_laddr = laddr;
 			inp->inp_lport = lport;
 			if (in_pcbinshash(inp) != 0) {
 				inp->inp_lport = 0;
