@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SRCDIR=	${.CURDIR}/../../../contrib/egcs/libf2c
+SRCDIR=	${.CURDIR}/../../../contrib/libf2c
 
 .PATH: ${SRCDIR} ${SRCDIR}/libU77 ${SRCDIR}/libF77 ${SRCDIR}/libI77
 

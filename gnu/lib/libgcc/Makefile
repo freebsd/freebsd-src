@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-GCCDIR=	${.CURDIR}/../../../contrib/egcs/gcc
+GCCDIR=	${.CURDIR}/../../../contrib/gcc
 
 .PATH: ${GCCDIR}/cp ${GCCDIR}
 
@@ -86,14 +86,22 @@ config.h:
 	echo '#include <xm-freebsd.h>'				>> ${.TARGET}
 
 tconfig.h:
-	echo '#include "${MACHINE_ARCH}/xm-${MACHINE_ARCH}.h"'	> ${.TARGET}
+	echo '#include "gansidecl.h"'				> ${.TARGET}
+	echo '#include "${MACHINE_ARCH}/xm-${MACHINE_ARCH}.h"'	>> ${.TARGET}
 
+#	KEEP THIS IN SYNC with src/gcc/usr.bin/cc/cc_tools/Makefile !!
 tm.h:
 	echo '#include "${MACHINE_ARCH}/${MACHINE_ARCH}.h"'	> ${.TARGET}
 .if ${MACHINE_ARCH} == "i386"
 	echo '#include "${MACHINE_ARCH}/att.h"'			>> ${.TARGET}
+	echo '#include "svr4.h"'				>> ${.TARGET}
 .endif
+	echo '#include <freebsd.h>'				>> ${.TARGET}
+.if ${MACHINE_ARCH} == "alpha"
+	echo '#include "${MACHINE_ARCH}/freebsd4.h"'		>> ${.TARGET}
+.else
 	echo '#include "${MACHINE_ARCH}/freebsd.h"'		>> ${.TARGET}
+.endif
 .if ${MACHINE_ARCH} == "i386"
 	echo '#include "${MACHINE_ARCH}/perform.h"'		>> ${.TARGET}
 .endif

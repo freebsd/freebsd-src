@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-GCCDIR=	${.CURDIR}/../../../contrib/egcs/gcc
+GCCDIR=	${.CURDIR}/../../../contrib/gcc
 
 .PATH:	${GCCDIR}/objc
 

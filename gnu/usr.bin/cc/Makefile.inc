@@ -4,7 +4,7 @@
 
 # Sometimes this is .include'd several times...
 .if !defined(GCCDIR)
-GCCDIR=		${.CURDIR}/../../../../contrib/egcs/gcc
+GCCDIR=		${.CURDIR}/../../../../contrib/gcc
 
 .if ${MACHINE_ARCH} == "mipsel" || ${MACHINE_ARCH} == "mipseb"
 GCC_ARCH=mips
@@ -26,7 +26,7 @@ USE_EGCS_HAIFA=1
 version!=	sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/' < ${GCCDIR}/version.c
 #version!=	sed -e 's/.*\(egcs-[0-9\.]*\).*/\1/' < ${GCCDIR}/version.c 
 
-CFLAGS+=	-DFREEBSD_NATIVE -DHAVE_CONFIG_H
+CFLAGS+=	-DFREEBSD_NATIVE -DIN_GCC -DHAVE_CONFIG_H
 CFLAGS+=	-DDEFAULT_TARGET_VERSION=\"$(version)\"
 CFLAGS+=	-DDEFAULT_TARGET_MACHINE=\"$(target)\"
 
