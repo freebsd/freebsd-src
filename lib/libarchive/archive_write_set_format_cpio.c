@@ -99,7 +99,7 @@ archive_write_cpio_header(struct archive *a, struct archive_entry *entry)
 {
 	struct cpio *cpio;
 	const char *p, *path;
-	int pathlength, ret, written;
+	int pathlength, ret;
 	const struct stat	*st;
 	struct cpio_header	 h;
 
@@ -142,19 +142,19 @@ archive_write_cpio_header(struct archive *a, struct archive_entry *entry)
 	else
 		format_octal(st->st_size, &h.c_filesize, sizeof(h.c_filesize));
 
-	written = (a->compression_write)(a, &h, sizeof(h));
-	if (written < (int)sizeof(h))
+	ret = (a->compression_write)(a, &h, sizeof(h));
+	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
-	written = (a->compression_write)(a, path, pathlength);
-	if (written < (int)pathlength)
+	ret = (a->compression_write)(a, path, pathlength);
+	if (ret != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
 	cpio->entry_bytes_remaining = st->st_size;
 
 	/* Write the symlink now. */
 	if (p != NULL  &&  *p != '\0')
-		(a->compression_write)(a, p, strlen(p));
+		ret = (a->compression_write)(a, p, strlen(p));
 
 	return (ret);
 }
@@ -233,13 +233,13 @@ archive_write_cpio_finish_entry(struct archive *a)
 	int to_write, ret;
 
 	cpio = a->format_data;
-	ret = 0;
+	ret = ARCHIVE_OK;
 	while (cpio->entry_bytes_remaining > 0) {
 		to_write = cpio->entry_bytes_remaining < a->null_length ?
 		    cpio->entry_bytes_remaining : a->null_length;
 		ret = (a->compression_write)(a, a->nulls, to_write);
-		if (ret < to_write)
-			return (-1);
+		if (ret != ARCHIVE_OK)
+			return (ret);
 		cpio->entry_bytes_remaining -= to_write;
 	}
 	return (ret);
