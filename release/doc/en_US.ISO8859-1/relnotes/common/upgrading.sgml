@@ -32,9 +32,9 @@
   <para>Finally, if you want to use one of various means to track the
   -STABLE or -CURRENT branches of &os;, please be sure to consult the
   <ulink
-  url="http://www.freebsd.org/handbook/current-stable.html"><quote>-CURRENT
+  url="http://www.FreeBSD.org/handbook/current-stable.html"><quote>-CURRENT
   vs. -STABLE</quote></ulink> section of the <ulink
-  url="http://www.freebsd.org/handbook/">FreeBSD
+  url="http://www.FreeBSD.org/handbook/">FreeBSD
   Handbook</ulink>.</para>
 
 </sect1>
