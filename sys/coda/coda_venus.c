@@ -39,6 +39,7 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sx.h>
 
 #include <coda/coda.h>
 #include <coda/cnode.h>
