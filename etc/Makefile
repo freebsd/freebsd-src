@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.79 1994/09/08 09:33:38 rgrimes Exp $
+#	$Id: Makefile,v 1.80 1994/09/09 13:34:27 rgrimes Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -228,9 +228,9 @@ distribution: distrib-dirs
 .endif
 
 crunch:
-	crunchgen ${.CURDIR}/../contrib/crunch/examples/kcopy.conf
+	crunchgen ${.CURDIR}/../usr.sbin/crunch/examples/kcopy.conf
 	${MAKE} -f kcopy.mk objs exe
-	crunchgen ${.CURDIR}/../contrib/crunch/examples/filesystem.conf
+	crunchgen ${.CURDIR}/../usr.sbin/crunch/examples/filesystem.conf
 	${MAKE} -f filesystem.mk objs exe
 
 extract:
@@ -450,11 +450,6 @@ srcbin-tarball:
 		tar --exclude CVS -cf - usr/src/bin | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/srcbin.)
 
-srccontrib-tarball:
-	(cd ${DESTDIR}; \
-		tar --exclude CVS -cf - usr/src/contrib | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/contrib.)
-
 srcetc-tarball:
 	(cd ${DESTDIR}; \
 		tar --exclude CVS -cf - usr/src/etc | \
@@ -516,7 +511,7 @@ srcusrsbin-tarball:
 		tar --exclude CVS -cf - usr/src/usr.sbin | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/usrsbin.)
 
-src-tarball: src-clean srcbase-tarball srcbin-tarball srccontrib-tarball \
+src-tarball: src-clean srcbase-tarball srcbin-tarball \
 	srcetc-tarball srcgames-tarball srcgnu-tarball srcinclude-tarball \
 	srclib-tarball srclibcrypt-tarball srclibexec-tarball srcsbin-tarball \
 	srcshare-tarball srcsys-tarball srcusrbin-tarball srcusrsbin-tarball
