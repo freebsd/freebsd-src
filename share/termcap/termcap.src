@@ -2285,6 +2285,28 @@ cons60r|cons60u|cons60-koi8:\
 	:li#60:tc=cons25r:
 cons60r-m|cons60u-m|cons60-koi8-mono:\
 	:li#60:tc=cons25r-m:
+# Syscons console with 90 characters (VGA modes)
+# KOI8-R/KOI8-U FreeBSD console with ACS support.
+cons25r-v|cons25u-v|pc3r-v|ibmpc3r-vga|cons25-koi8-vga:\
+	:co#90:tc=cons25r:
+cons25r-mv|cons25u-mv|pc3r-mv|ibmpc3r-monovga|cons25-koi8-monovga:\
+	:co#90:tc=cons25r-m:
+cons30r-v|cons30u-v|cons30-koi8-vga:\
+	:co#90:tc=cons30r:
+cons30r-mv|cons30u-mv|cons30-koi8-monovga:\
+	:co#90:tc=cons30r-m:
+cons43r-v|cons43u-v|cons43-koi8-vga:\
+	:co#90:tc=cons43r:
+cons43r-mv|cons43u-mv|cons43-koi8-monovga:\
+	:co#90:tc=cons43r-m:
+cons50r-v|cons50u-v|cons50-koi8-vga:\
+	:co#90:tc=cons50r:
+cons50r-mv|cons50u-mv|cons50-koi8-monovga:\
+	:co#90:tc=cons50r-m:
+cons60r-v|cons60u-v|cons60-koi8-vga:\
+	:co#90:tc=cons60r:
+cons60r-mv|cons60u-mv|cons60-koi8-monovga:\
+	:co#90:tc=cons60r-m:
 # ISO 8859-2 FreeBSD console with ACS support
 cons25l2|cons25-iso8859-2:\
 	:ac=f\260i\247:\
