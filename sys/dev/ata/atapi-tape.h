@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998,1999,2000,2001,2002 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -144,14 +144,14 @@ struct ast_readposition {
 };
 
 struct ast_softc {
-    struct atapi_softc		*atp;		/* controller structure */
+    struct ata_device		*device;	/* device softc */
     int				lun;		/* logical device unit */
     int				flags;		/* device state flags */
 #define		F_CTL_WARN		0x0001	/* warned about CTL wrong? */
-#define 	F_WRITEPROTECT		0x0002	/* media is writeprotected */
-#define 	F_DATA_WRITTEN		0x0004	/* data has been written */
-#define 	F_FM_WRITTEN		0x0008	/* filemark has been written */
-#define 	F_ONSTREAM		0x0100	/* OnStream ADR device */
+#define		F_WRITEPROTECT		0x0002	/* media is writeprotected */
+#define		F_DATA_WRITTEN		0x0004	/* data has been written */
+#define		F_FM_WRITTEN		0x0008	/* filemark has been written */
+#define		F_ONSTREAM		0x0100	/* OnStream ADR device */
 
     int				blksize;	/* block size (512 | 1024) */
     struct bio_queue_head	queue;		/* queue of i/o requests */

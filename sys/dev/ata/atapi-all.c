@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998,1999,2000,2001,2002 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,125 +52,117 @@ static char *atapi_type(int);
 static char *atapi_cmd2str(u_int8_t);
 static char *atapi_skey2str(u_int8_t);
 
+/* misc defines */
+#define ATAPI_MAX_RETRIES	3
+
 /* internal vars */
-static MALLOC_DEFINE(M_ATAPI, "ATAPI generic", "ATAPI driver generic layer");
 static int atapi_dma = 0;
 TUNABLE_INT("hw.ata.atapi_dma", &atapi_dma);
+static MALLOC_DEFINE(M_ATAPI, "ATAPI generic", "ATAPI driver generic layer");
 
 /* systcl vars */
 SYSCTL_DECL(_hw_ata);
 SYSCTL_INT(_hw_ata, OID_AUTO, atapi_dma, CTLFLAG_RD, &atapi_dma, 0,
 	   "ATAPI device DMA mode control");
 
-/* defines */
-#define ATAPI_MAX_RETRIES  	3
-#define ATP_PARAM		ATA_PARAM(atp->controller, atp->unit)
-
 void
-atapi_attach(struct ata_softc *scp, int device)
+atapi_attach(struct ata_device *atadev)
 {
-    struct atapi_softc *atp;
-
-    if (!(atp = malloc(sizeof(struct atapi_softc), M_ATAPI, M_NOWAIT|M_ZERO))) {
-	ata_printf(scp, device, "failed to allocate driver storage\n");
-	return;
-    }
-    atp->controller = scp;
-    atp->unit = device;
     if (bootverbose) 
-	ata_printf(scp, device, 
-		   "piomode=%d dmamode=%d udmamode=%d dmaflag=%d\n",
-		   ata_pmode(ATP_PARAM), ata_wmode(ATP_PARAM),
-		   ata_umode(ATP_PARAM), ATP_PARAM->support_dma);
+	ata_prtdev(atadev, "piomode=%d dmamode=%d udmamode=%d dmaflag=%d\n",
+		   ata_pmode(atadev->param), ata_wmode(atadev->param),
+		   ata_umode(atadev->param), atadev->param->support_dma);
 
-    if (atapi_dma && !(ATP_PARAM->drq_type == ATAPI_DRQT_INTR)) {
-	ata_dmainit(atp->controller, atp->unit,
-		    (ata_pmode(ATP_PARAM) < 0) ? 
-		    (ATP_PARAM->support_dma ? 4 : 0) : ata_pmode(ATP_PARAM),
-		    (ata_wmode(ATP_PARAM) < 0) ? 
-		    (ATP_PARAM->support_dma ? 2 : 0) : ata_wmode(ATP_PARAM),
-		    ata_umode(ATP_PARAM));
+    if (atapi_dma && !(atadev->param->drq_type == ATAPI_DRQT_INTR)) {
+	ata_dmainit(atadev->channel, atadev->unit,
+		    (ata_pmode(atadev->param) < 0) ? 
+		    (atadev->param->support_dma ? 4:0):ata_pmode(atadev->param),
+		    (ata_wmode(atadev->param) < 0) ? 
+		    (atadev->param->support_dma ? 2:0):ata_wmode(atadev->param),
+		    ata_umode(atadev->param));
     }
     else
-	ata_dmainit(atp->controller, atp->unit,
-		    ata_pmode(ATP_PARAM) < 0 ? 0 : ata_pmode(ATP_PARAM), -1,-1);
+	ata_dmainit(atadev->channel, atadev->unit,
+		    ata_pmode(atadev->param) < 0 ? 0 : ata_pmode(atadev->param),
+		    -1, -1);
 
-    switch (ATP_PARAM->type) {
+    if (!(atadev->result = malloc(sizeof(struct atapi_reqsense), M_ATAPI,
+				  M_NOWAIT | M_ZERO)))
+	ata_prtdev(atadev, "no memory for sense data\n");
+
+    switch (atadev->param->type) {
 #ifdef DEV_ATAPICD
     case ATAPI_TYPE_CDROM:
-	if (acdattach(atp))
+	if (acdattach(atadev))
 	    goto notfound;
 	break; 
 #endif
 #ifdef DEV_ATAPIFD
     case ATAPI_TYPE_DIRECT:
-	if (afdattach(atp))
+	if (afdattach(atadev))
 	    goto notfound;
 	break; 
 #endif
 #ifdef DEV_ATAPIST
     case ATAPI_TYPE_TAPE:
-	if (astattach(atp))
+	if (astattach(atadev))
 	    goto notfound;
 	break; 
 #endif
 notfound:
     default:
-	ata_printf(scp, device, "<%.40s/%.8s> %s device - NO DRIVER!\n",
-		   ATP_PARAM->model, ATP_PARAM->revision, 
-		   atapi_type(ATP_PARAM->type));
-	free(atp, M_ATAPI);
-	atp = NULL;
+	ata_prtdev(atadev, "<%.40s/%.8s> %s device - NO DRIVER!\n",
+		   atadev->param->model, atadev->param->revision, 
+		   atapi_type(atadev->param->type));
+	free(atadev->result, M_ATAPI);
+	atadev->driver = NULL;
     }
-
-    /* store our softc signalling we are ready to go */
-    scp->dev_softc[ATA_DEV(device)] = atp;
 }
 
 void
-atapi_detach(struct atapi_softc *atp)
+atapi_detach(struct ata_device *atadev)
 {
     struct atapi_request *request;
 
-    atp->flags |= ATAPI_F_DETACHING;
-    ata_printf(atp->controller, atp->unit, "removed from configuration\n");
-    switch (ATP_PARAM->type) {
+    atadev->flags |= ATA_D_DETACHING;
+    ata_prtdev(atadev, "removed from configuration\n");
+    switch (atadev->param->type) {
 #ifdef DEV_ATAPICD
     case ATAPI_TYPE_CDROM:
-	acddetach(atp);
+	acddetach(atadev);
 	break; 
 #endif
 #ifdef DEV_ATAPIFD
     case ATAPI_TYPE_DIRECT:
-	afddetach(atp);
+	afddetach(atadev);
 	break; 
 #endif
 #ifdef DEV_ATAPIST
     case ATAPI_TYPE_TAPE:
-	astdetach(atp);
+	astdetach(atadev);
 	break; 
 #endif
     default:
 	return;
     }
-    TAILQ_FOREACH(request, &atp->controller->atapi_queue, chain) {
-	if (request->device != atp)
+    TAILQ_FOREACH(request, &atadev->channel->atapi_queue, chain) {
+	if (request->device != atadev)
 	    continue;
-	TAILQ_REMOVE(&atp->controller->atapi_queue, request, chain);
+	TAILQ_REMOVE(&atadev->channel->atapi_queue, request, chain);
 	if (request->driver) {
 	    struct bio *bp = (struct bio *) request->driver;
 	    biofinish(bp, NULL, ENXIO);
 	}
 	if (request->dmatab)
 	    free(request->dmatab, M_DEVBUF);
-        free(request, M_ATAPI);
+	free(request, M_ATAPI);
     }
-    atp->controller->dev_softc[ATA_DEV(atp->unit)] = NULL;
-    free(atp, M_ATAPI);
+    free(atadev->result, M_ATAPI);
+    atadev->driver = NULL;	/* XXX SOS safetybelt */
 }
 
 int	  
-atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, caddr_t data, 
+atapi_queue_cmd(struct ata_device *atadev, int8_t *ccb, caddr_t data, 
 		int count, int flags, int timeout,
 		atapi_callback_t callback, void *driver)
 {
@@ -181,35 +173,34 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, caddr_t data,
 			   M_NOWAIT | M_ZERO)))
 	return ENOMEM;
 
-    request->device = atp;
+    request->device = atadev;
     request->data = data;
     request->bytecount = count;
     request->flags = flags;
     request->timeout = timeout * hz;
-    request->ccbsize = (ATP_PARAM->packet_size) ? 16 : 12;
+    request->ccbsize = atadev->param->packet_size ? 16 : 12;
     bcopy(ccb, request->ccb, request->ccbsize);
     if (callback) {
 	request->callback = callback;
 	request->driver = driver;
     }
-    if (atp->controller->mode[ATA_DEV(atp->unit)] >= ATA_DMA) {
-	if (!(request->dmatab = ata_dmaalloc(atp->controller, atp->unit)))
-	    atp->controller->mode[ATA_DEV(atp->unit)] = ATA_PIO;
+    if (atadev->mode >= ATA_DMA) {
+	if (!(request->dmatab = ata_dmaalloc(atadev->channel, atadev->unit)))
+	    atadev->mode = ATA_PIO;
     }
 
     s = splbio();
 
     /* append onto controller queue and try to start controller */
 #ifdef ATAPI_DEBUG
-    ata_printf(atp->controller, atp->unit, "queueing %s ", 
-	       atapi_cmd2str(request->ccb[0]));
+    ata_prtdev(atadev, "queueing %s ", atapi_cmd2str(request->ccb[0]));
     atapi_dump("ccb = ", &request->ccb[0], sizeof(request->ccb));
 #endif
     if (flags & ATPR_F_AT_HEAD)
-	TAILQ_INSERT_HEAD(&atp->controller->atapi_queue, request, chain);
+	TAILQ_INSERT_HEAD(&atadev->channel->atapi_queue, request, chain);
     else
-	TAILQ_INSERT_TAIL(&atp->controller->atapi_queue, request, chain);
-    ata_start(atp->controller);
+	TAILQ_INSERT_TAIL(&atadev->channel->atapi_queue, request, chain);
+    ata_start(atadev->channel);
 
     /* if callback used, then just return, gets called from interrupt context */
     if (callback) {
@@ -222,7 +213,7 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, caddr_t data,
     splx(s);
     error = request->error;
     if (error)
-	 atp->sense = request->sense;
+	 bcopy(&request->sense, atadev->result, sizeof(struct atapi_reqsense));
     if (request->dmatab)
 	free(request->dmatab, M_DEVBUF);
     free(request, M_ATAPI);
@@ -230,22 +221,22 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, caddr_t data,
 }
     
 void
-atapi_start(struct atapi_softc *atp)
+atapi_start(struct ata_device *atadev)
 {
-    switch (ATP_PARAM->type) {
+    switch (atadev->param->type) {
 #ifdef DEV_ATAPICD
     case ATAPI_TYPE_CDROM:
-	acd_start(atp);
+	acd_start(atadev);
 	break; 
 #endif
 #ifdef DEV_ATAPIFD
     case ATAPI_TYPE_DIRECT:
-	afd_start(atp);
+	afd_start(atadev);
 	break; 
 #endif
 #ifdef DEV_ATAPIST
     case ATAPI_TYPE_TAPE:
-	ast_start(atp);
+	ast_start(atadev);
 	break; 
 #endif
     default:
@@ -256,20 +247,19 @@ atapi_start(struct atapi_softc *atp)
 int
 atapi_transfer(struct atapi_request *request)
 {
-    struct atapi_softc *atp = request->device;
+    struct ata_device *atadev = request->device;
     int timout;
     u_int8_t reason;
 
 #ifdef ATAPI_DEBUG
-    ata_printf(atp->controller, atp->unit, "starting %s ", 
-	       atapi_cmd2str(request->ccb[0]));
+    ata_prtdev(atadev, "starting %s ", atapi_cmd2str(request->ccb[0]));
     atapi_dump("ccb = ", &request->ccb[0], sizeof(request->ccb));
 #endif
     /* is this just a POLL DSC command ? */
     if (request->ccb[0] == ATAPI_POLL_DSC) {
-	ATA_OUTB(atp->controller->r_io, ATA_DRIVE, ATA_D_IBM | atp->unit);
+	ATA_OUTB(atadev->channel->r_io, ATA_DRIVE, ATA_D_IBM | atadev->unit);
 	DELAY(10);
-	if (ATA_INB(atp->controller->r_altio, ATA_ALTSTAT) & ATA_S_DSC)
+	if (ATA_INB(atadev->channel->r_altio, ATA_ALTSTAT) & ATA_S_DSC)
 	    request->error = 0;
 	else
 	    request->error = EBUSY;
@@ -282,53 +272,49 @@ atapi_transfer(struct atapi_request *request)
 				      request, request->timeout);
 
     if (!(request->flags & ATPR_F_INTERNAL))
-	atp->cmd = request->ccb[0];
+	atadev->cmd = request->ccb[0];
 
     /* if DMA enabled setup DMA hardware */
     request->flags &= ~ATPR_F_DMA_USED; 
-    if ((atp->controller->mode[ATA_DEV(atp->unit)] >= ATA_DMA) &&
-	(request->ccb[0] == ATAPI_READ ||
-	 request->ccb[0] == ATAPI_READ_BIG ||
+    if ((atadev->mode >= ATA_DMA) &&
+	(request->ccb[0] == ATAPI_READ || request->ccb[0] == ATAPI_READ_BIG ||
 	 ((request->ccb[0] == ATAPI_WRITE ||
 	   request->ccb[0] == ATAPI_WRITE_BIG) &&
-	  !(atp->controller->flags & ATA_ATAPI_DMA_RO))) &&
-	!ata_dmasetup(atp->controller, atp->unit, request->dmatab,
+	  !(atadev->channel->flags & ATA_ATAPI_DMA_RO))) &&
+	!ata_dmasetup(atadev->channel, atadev->unit, request->dmatab,
 		      (void *)request->data, request->bytecount)) {
 	request->flags |= ATPR_F_DMA_USED;
     }
 
     /* start ATAPI operation */
-    if (ata_command(atp->controller, atp->unit, ATA_C_PACKET_CMD, 
-		    (request->bytecount << 8), 0,
+    if (ata_command(atadev, ATA_C_PACKET_CMD, (request->bytecount << 8), 0,
 		    (request->flags & ATPR_F_DMA_USED) ? ATA_F_DMA : 0,
 		    ATA_IMMEDIATE))
-	ata_printf(atp->controller, atp->unit,
-		   "failure to send ATAPI packet command\n");
+	ata_prtdev(atadev, "failure to send ATAPI packet command\n");
 
     if (request->flags & ATPR_F_DMA_USED)
-	ata_dmastart(atp->controller, atp->unit, 
+	ata_dmastart(atadev->channel, atadev->unit, 
 		     request->dmatab, request->flags & ATPR_F_READ);
 
     /* command interrupt device ? just return */
-    if (ATP_PARAM->drq_type == ATAPI_DRQT_INTR)
+    if (atadev->param->drq_type == ATAPI_DRQT_INTR)
 	return ATA_OP_CONTINUES;
 
     /* ready to write ATAPI command */
     timout = 5000; /* might be less for fast devices */
     while (timout--) {
-	reason = ATA_INB(atp->controller->r_io, ATA_IREASON);
-	atp->controller->status = ATA_INB(atp->controller->r_io, ATA_STATUS);
+	reason = ATA_INB(atadev->channel->r_io, ATA_IREASON);
+	atadev->channel->status = ATA_INB(atadev->channel->r_io, ATA_STATUS);
 	if (((reason & (ATA_I_CMD | ATA_I_IN)) |
-	     (atp->controller->status&(ATA_S_DRQ|ATA_S_BUSY)))==ATAPI_P_CMDOUT)
+	     (atadev->channel->status&(ATA_S_DRQ|ATA_S_BUSY)))==ATAPI_P_CMDOUT)
 	    break;
 	DELAY(20);
     }
     if (timout <= 0) {
-	ata_printf(atp->controller, atp->unit,
-		   "failure to execute ATAPI packet command\n");
+	ata_prtdev(atadev, "failure to execute ATAPI packet command\n");
 	untimeout((timeout_t *)atapi_timeout, request, request->timeout_handle);
 	request->error = EIO;
-        atapi_finish(request);	
+	atapi_finish(request);	
 	return ATA_OP_FINISHED;
     }
 
@@ -336,7 +322,7 @@ atapi_transfer(struct atapi_request *request)
     DELAY(10);
 
     /* send actual command */
-    ATA_OUTSW(atp->controller->r_io, ATA_DATA, (int16_t *)request->ccb,
+    ATA_OUTSW(atadev->channel->r_io, ATA_DATA, (int16_t *)request->ccb,
 	      request->ccbsize / sizeof(int16_t));
     return ATA_OP_CONTINUES;
 }
@@ -344,32 +330,31 @@ atapi_transfer(struct atapi_request *request)
 int
 atapi_interrupt(struct atapi_request *request)
 {
-    struct atapi_softc *atp = request->device;
+    struct ata_device *atadev = request->device;
     int reason, dma_stat = 0;
 
-    reason = (ATA_INB(atp->controller->r_io, ATA_IREASON)&(ATA_I_CMD|ATA_I_IN))|
-	     (atp->controller->status & ATA_S_DRQ);
+    reason = (ATA_INB(atadev->channel->r_io, ATA_IREASON)&(ATA_I_CMD|ATA_I_IN))|
+	     (atadev->channel->status & ATA_S_DRQ);
 
     if (reason == ATAPI_P_CMDOUT) {
-	if (!(atp->controller->status & ATA_S_DRQ)) {
-	    ata_printf(atp->controller, atp->unit,
-		       "command interrupt without DRQ\n");
+	if (!(atadev->channel->status & ATA_S_DRQ)) {
+	    ata_prtdev(atadev, "command interrupt without DRQ\n");
 	    untimeout((timeout_t *)atapi_timeout,
 		      request, request->timeout_handle);
 	    request->error = EIO;
-            atapi_finish(request);	
+	    atapi_finish(request);	
 	    return ATA_OP_FINISHED;
 	}
-	ATA_OUTSW(atp->controller->r_io, ATA_DATA, (int16_t *)request->ccb,
+	ATA_OUTSW(atadev->channel->r_io, ATA_DATA, (int16_t *)request->ccb,
 		  request->ccbsize / sizeof(int16_t));
 	return ATA_OP_CONTINUES;
     }
 
     if (request->flags & ATPR_F_DMA_USED) {
-	dma_stat = ata_dmadone(atp->controller);
-	if ((atp->controller->status & (ATA_S_ERROR | ATA_S_DWF)) ||
+	dma_stat = ata_dmadone(atadev->channel);
+	if ((atadev->channel->status & (ATA_S_ERROR | ATA_S_DWF)) ||
 	    dma_stat & ATA_BMSTAT_ERROR) {
-	    request->result = ATA_INB(atp->controller->r_io, ATA_ERROR);
+	    request->result = ATA_INB(atadev->channel->r_io, ATA_ERROR);
 	}
 	else {
 	    request->result = 0;
@@ -378,16 +363,15 @@ atapi_interrupt(struct atapi_request *request)
 	}
     }
     else {
-	int length = ATA_INB(atp->controller->r_io, ATA_CYL_LSB) |
-		     ATA_INB(atp->controller->r_io, ATA_CYL_MSB) << 8;
+	int length = ATA_INB(atadev->channel->r_io, ATA_CYL_LSB) |
+		     ATA_INB(atadev->channel->r_io, ATA_CYL_MSB) << 8;
 
 	switch (reason) {
 	case ATAPI_P_WRITE:
 	    if (request->flags & ATPR_F_READ) {
-		request->result = ATA_INB(atp->controller->r_io, ATA_ERROR);
-		ata_printf(atp->controller, atp->unit,
-			   "%s trying to write on read buffer\n",
-			   atapi_cmd2str(atp->cmd));
+		request->result = ATA_INB(atadev->channel->r_io, ATA_ERROR);
+		ata_prtdev(atadev, "%s trying to write on read buffer\n",
+			   atapi_cmd2str(atadev->cmd));
 		break;
 	    }
 	    atapi_write(request, length);
@@ -395,18 +379,16 @@ atapi_interrupt(struct atapi_request *request)
 	
 	case ATAPI_P_READ:
 	    if (!(request->flags & ATPR_F_READ)) {
-		request->result = ATA_INB(atp->controller->r_io, ATA_ERROR);
-		ata_printf(atp->controller, atp->unit,
-			   "%s trying to read on write buffer\n",
-			   atapi_cmd2str(atp->cmd));
+		request->result = ATA_INB(atadev->channel->r_io, ATA_ERROR);
+		ata_prtdev(atadev, "%s trying to read on write buffer\n",
+			   atapi_cmd2str(atadev->cmd));
 		break;
 	    }
 	    atapi_read(request, length);
 	    return ATA_OP_CONTINUES;
 
 	case ATAPI_P_DONEDRQ:
-	    ata_printf(atp->controller, atp->unit, "%s DONEDRQ\n",
-		       atapi_cmd2str(atp->cmd));
+	    ata_prtdev(atadev, "%s DONEDRQ\n", atapi_cmd2str(atadev->cmd));
 	    if (request->flags & ATPR_F_READ)
 		atapi_read(request, length);
 	    else
@@ -415,16 +397,15 @@ atapi_interrupt(struct atapi_request *request)
 
 	case ATAPI_P_ABORT:
 	case ATAPI_P_DONE:
-	    if (atp->controller->status & (ATA_S_ERROR | ATA_S_DWF))
-		request->result = ATA_INB(atp->controller->r_io, ATA_ERROR);
+	    if (atadev->channel->status & (ATA_S_ERROR | ATA_S_DWF))
+		request->result = ATA_INB(atadev->channel->r_io, ATA_ERROR);
 	    else 
 		if (!(request->flags & ATPR_F_INTERNAL))
 		    request->result = 0;
 	    break;
 
 	default:
-	    ata_printf(atp->controller, atp->unit,
-		       "unknown transfer phase %d\n", reason);
+	    ata_prtdev(atadev, "unknown transfer phase %d\n", reason);
 	}
     }
     untimeout((timeout_t *)atapi_timeout, request, request->timeout_handle);
@@ -438,19 +419,18 @@ atapi_interrupt(struct atapi_request *request)
 	request->bytecount = sizeof(struct atapi_reqsense);
 	request->flags &= ATPR_F_QUIET;
 	request->flags |= ATPR_F_READ | ATPR_F_INTERNAL;
-	TAILQ_INSERT_HEAD(&atp->controller->atapi_queue, request, chain);
+	TAILQ_INSERT_HEAD(&atadev->channel->atapi_queue, request, chain);
     }
     else {
-    	if (request->result) {
+	if (request->result) {
 	    switch ((request->result & ATAPI_SK_MASK)) {
 	    case ATAPI_SK_NO_SENSE:
 		request->error = 0;
 		break;
 
 	    case ATAPI_SK_RECOVERED_ERROR:
-		ata_printf(atp->controller, atp->unit,
-			   "%s - recovered error\n",
-			   atapi_cmd2str(atp->cmd));
+		ata_prtdev(atadev, "%s - recovered error\n",
+			   atapi_cmd2str(atadev->cmd));
 		request->error = 0;
 		break;
 
@@ -459,7 +439,7 @@ atapi_interrupt(struct atapi_request *request)
 		break;
 
 	    case ATAPI_SK_UNIT_ATTENTION:
-		atp->flags |= ATAPI_F_MEDIA_CHANGED;
+		atadev->flags |= ATA_D_MEDIA_CHANGED;
 		request->error = EIO;
 		break;
 
@@ -469,9 +449,8 @@ atapi_interrupt(struct atapi_request *request)
 		if (request->flags & ATPR_F_QUIET)
 		    break;
 
-		ata_printf(atp->controller, atp->unit,
-			   "%s - %s asc=0x%02x ascq=0x%02x ",
-			   atapi_cmd2str(atp->cmd), 
+		ata_prtdev(atadev, "%s - %s asc=0x%02x ascq=0x%02x ",
+			   atapi_cmd2str(atadev->cmd), 
 			   atapi_skey2str(request->sense.sense_key), 
 			   request->sense.asc, request->sense.ascq);
 		if (request->sense.sksv)
@@ -484,38 +463,39 @@ atapi_interrupt(struct atapi_request *request)
 	}
 	else
 	    request->error = 0;
-        atapi_finish(request);	
+	atapi_finish(request);	
     }
     return ATA_OP_FINISHED;
 }
 
 void
-atapi_reinit(struct atapi_softc *atp)
+atapi_reinit(struct ata_device *atadev)
 {
     /* reinit device parameters */
-     if (atp->controller->mode[ATA_DEV(atp->unit)] >= ATA_DMA)
-	ata_dmainit(atp->controller, atp->unit,
-		    (ata_pmode(ATP_PARAM) < 0) ?
-		    (ATP_PARAM->support_dma ? 4 : 0) : ata_pmode(ATP_PARAM),
-		    (ata_wmode(ATP_PARAM) < 0) ? 
-		    (ATP_PARAM->support_dma ? 2 : 0) : ata_wmode(ATP_PARAM),
-		    ata_umode(ATP_PARAM));
+     if (atadev->mode >= ATA_DMA)
+	ata_dmainit(atadev->channel, atadev->unit,
+		    (ata_pmode(atadev->param) < 0) ?
+		    (atadev->param->support_dma ? 4:0):ata_pmode(atadev->param),
+		    (ata_wmode(atadev->param) < 0) ? 
+		    (atadev->param->support_dma ? 2:0):ata_wmode(atadev->param),
+		    ata_umode(atadev->param));
     else
-	ata_dmainit(atp->controller, atp->unit,
-		    ata_pmode(ATP_PARAM)<0 ? 0 : ata_pmode(ATP_PARAM), -1, -1);
+	ata_dmainit(atadev->channel, atadev->unit,
+		    ata_pmode(atadev->param)<0 ? 0 : ata_pmode(atadev->param),
+		    -1, -1);
 }
 
 int
-atapi_test_ready(struct atapi_softc *atp)
+atapi_test_ready(struct ata_device *atadev)
 {
     int8_t ccb[16] = { ATAPI_TEST_UNIT_READY, 0, 0, 0, 0,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 	
-    return atapi_queue_cmd(atp, ccb, NULL, 0, 0, 30, NULL, NULL);
+    return atapi_queue_cmd(atadev, ccb, NULL, 0, 0, 30, NULL, NULL);
 }
 	
 int
-atapi_wait_dsc(struct atapi_softc *atp, int timeout)
+atapi_wait_dsc(struct ata_device *atadev, int timeout)
 {
     int error = 0;
     int8_t ccb[16] = { ATAPI_POLL_DSC, 0, 0, 0, 0,
@@ -523,7 +503,7 @@ atapi_wait_dsc(struct atapi_softc *atp, int timeout)
 
     timeout *= hz;
     while (timeout > 0) {
-	error = atapi_queue_cmd(atp, ccb, NULL, 0, 0, 0, NULL, NULL);
+	error = atapi_queue_cmd(atadev, ccb, NULL, 0, 0, 0, NULL, NULL);
 	if (error != EBUSY)
 	    break;
 	tsleep((caddr_t)&error, PRIBIO, "atpwt", hz / 2);
@@ -548,24 +528,24 @@ atapi_read(struct atapi_request *request, int length)
 {
     int8_t **buffer = (int8_t **)&request->data;
     int size = min(request->bytecount, length);
-    struct ata_softc *scp = request->device->controller;
+    struct ata_channel *ch = request->device->channel;
     int resid;
 
     if (request->flags & ATPR_F_INTERNAL)
 	*buffer = (int8_t *)&request->sense;
 
-    if (scp->flags & ATA_USE_16BIT || (size % sizeof(int32_t)))
-	ATA_INSW(scp->r_io, ATA_DATA, (void *)((uintptr_t)*buffer), 
+    if (ch->flags & ATA_USE_16BIT || (size % sizeof(int32_t)))
+	ATA_INSW(ch->r_io, ATA_DATA, (void *)((uintptr_t)*buffer), 
 		 size / sizeof(int16_t));
     else
-	ATA_INSL(scp->r_io, ATA_DATA, (void *)((uintptr_t)*buffer),
+	ATA_INSL(ch->r_io, ATA_DATA, (void *)((uintptr_t)*buffer),
 		 size / sizeof(int32_t));
 
     if (request->bytecount < length) {
-	ata_printf(scp, request->device->unit, "read data overrun %d/%d\n",
+	ata_prtdev(request->device, "read data overrun %d/%d\n",
 		   length, request->bytecount);
 	for (resid=request->bytecount; resid<length; resid+=sizeof(int16_t))
-	     ATA_INW(scp->r_io, ATA_DATA);
+	     ATA_INW(ch->r_io, ATA_DATA);
     }
     *buffer += size;
     request->bytecount -= size;
@@ -577,24 +557,24 @@ atapi_write(struct atapi_request *request, int length)
 {
     int8_t **buffer = (int8_t **)&request->data;
     int size = min(request->bytecount, length);
-    struct ata_softc *scp = request->device->controller;
+    struct ata_channel *ch = request->device->channel;
     int resid;
 
     if (request->flags & ATPR_F_INTERNAL)
 	*buffer = (int8_t *)&request->sense;
 
-    if (scp->flags & ATA_USE_16BIT || (size % sizeof(int32_t)))
-	ATA_OUTSW(scp->r_io, ATA_DATA, (void *)((uintptr_t)*buffer),
+    if (ch->flags & ATA_USE_16BIT || (size % sizeof(int32_t)))
+	ATA_OUTSW(ch->r_io, ATA_DATA, (void *)((uintptr_t)*buffer),
 		  size / sizeof(int16_t));
     else
-	ATA_OUTSL(scp->r_io, ATA_DATA, (void *)((uintptr_t)*buffer),
+	ATA_OUTSL(ch->r_io, ATA_DATA, (void *)((uintptr_t)*buffer),
 		  size / sizeof(int32_t));
 
     if (request->bytecount < length) {
-	ata_printf(scp, request->device->unit, "write data underrun %d/%d\n",
+	ata_prtdev(request->device, "write data underrun %d/%d\n",
 		   length, request->bytecount);
 	for (resid=request->bytecount; resid<length; resid+=sizeof(int16_t))
-	    ATA_OUTW(scp->r_io, ATA_DATA, 0);
+	    ATA_OUTW(ch->r_io, ATA_DATA, 0);
     }
     *buffer += size;
     request->bytecount -= size;
@@ -605,8 +585,8 @@ static void
 atapi_finish(struct atapi_request *request)
 {
 #ifdef ATAPI_DEBUG
-    ata_printf(request->device->controller, request->device->unit,
-	       "finished %s%s\n", request->callback ? "callback " : "",
+    ata_prtdev(atadev->device->device, "finished %s%s\n",
+	       request->callback ? "callback " : "",
 	       atapi_cmd2str(request->ccb[0]));
 #endif
     if (request->callback) {
@@ -623,33 +603,33 @@ atapi_finish(struct atapi_request *request)
 static void 
 atapi_timeout(struct atapi_request *request)
 {
-    struct atapi_softc *atp = request->device;
+    struct ata_device *atadev = request->device;
     int s = splbio();
 
-    atp->controller->running = NULL;
-    ata_printf(atp->controller, atp->unit, "%s command timeout - resetting\n", 
+    atadev->channel->running = NULL;
+    ata_prtdev(atadev, "%s command timeout - resetting\n", 
 	       atapi_cmd2str(request->ccb[0]));
 
     if (request->flags & ATPR_F_DMA_USED) {
-	ata_dmadone(atp->controller);
+	ata_dmadone(atadev->channel);
 	if (request->retries == ATAPI_MAX_RETRIES) {
-	    ata_dmainit(atp->controller, atp->unit,
-		        (ata_pmode(ATP_PARAM)<0)?0:ata_pmode(ATP_PARAM),-1,-1);
-	    ata_printf(atp->controller, atp->unit, 
-		       "trying fallback to PIO mode\n");
+	    ata_dmainit(atadev->channel, atadev->unit,
+			(ata_pmode(atadev->param) < 0) ? 0 :
+			 ata_pmode(atadev->param), -1, -1);
+	    ata_prtdev(atadev, "trying fallback to PIO mode\n");
 	    request->retries = 0;
 	}
     }
 
     /* if retries still permit, reinject this request */
     if (request->retries++ < ATAPI_MAX_RETRIES)
-        TAILQ_INSERT_HEAD(&atp->controller->atapi_queue, request, chain);
+	TAILQ_INSERT_HEAD(&atadev->channel->atapi_queue, request, chain);
     else {
-        /* retries all used up, return error */
+	/* retries all used up, return error */
 	request->error = EIO;
 	wakeup((caddr_t)request);
     } 
-    ata_reinit(atp->controller);
+    ata_reinit(atadev->channel);
     splx(s);
 }
 

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998,1999,2000,2001,2002 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -305,13 +305,13 @@ struct acd_devlist {
 
 /* Structure describing an ATAPI CDROM device */
 struct acd_softc {
-    struct atapi_softc		*atp;		/* controller structure */
+    struct ata_device		*device;	/* device softc */
     int				lun;		/* logical device unit */
     int				flags;		/* device state flags */
-#define 	F_LOCKED		0x0001	/* this unit is locked */
+#define		F_LOCKED		0x0001	/* this unit is locked */
 
     struct bio_queue_head	queue;		/* queue of i/o requests */
-    TAILQ_HEAD(, acd_devlist)   dev_list;	/* list of "track" devices */
+    TAILQ_HEAD(, acd_devlist)	dev_list;	/* list of "track" devices */
     struct toc			toc;		/* table of disc contents */
     struct audiopage		au;		/* audio page info */
     struct audiopage		aumask;		/* audio page mask */

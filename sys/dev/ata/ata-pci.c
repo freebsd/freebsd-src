@@ -50,7 +50,7 @@
 #include <dev/ata/ata-all.h>
 
 /* device structures */
-struct ata_pci_softc {
+struct ata_pci_controller {
     struct resource *bmio;
     int bmaddr;
     struct resource *irq;
@@ -246,12 +246,12 @@ ata_pci_match(device_t dev)
 	    /* we belive we are on a TX4, now do our (simple) magic */
 	    if (pci_get_slot(dev) == 1) {
 		bus_get_resource(dev, SYS_RES_IRQ, 0, &start, &end);
-	    	return "Promise TX4 ATA100 controller (channel 0+1)";
+		return "Promise TX4 ATA100 controller (channel 0+1)";
 	    }
 	    else if (pci_get_slot(dev) == 2 && start && end) {
 		bus_set_resource(dev, SYS_RES_IRQ, 0, start, end);
 		start = end = 0;
-	    	return "Promise TX4 ATA100 controller (channel 2+3)";
+		return "Promise TX4 ATA100 controller (channel 2+3)";
 	    }
 	    else
 		start = end = 0;
@@ -317,8 +317,9 @@ ata_pci_add_child(device_t dev, int unit)
 	    return ENOMEM;
     }
     else {
-	if (!(child = device_add_child(dev, "ata",
-			   devclass_find_free_unit(devclass_find("ata"), 2))))
+	if (!(child =
+	      device_add_child(dev, "ata",
+			       devclass_find_free_unit(ata_devclass, 2))))
 	    return ENOMEM;
     }
     return 0;
@@ -327,7 +328,7 @@ ata_pci_add_child(device_t dev, int unit)
 static int
 ata_pci_attach(device_t dev)
 {
-    struct ata_pci_softc *sc = device_get_softc(dev);
+    struct ata_pci_controller *controller = device_get_softc(dev);
     u_int8_t class, subclass;
     u_int32_t type, cmd;
     int rid;
@@ -349,9 +350,9 @@ ata_pci_attach(device_t dev)
 
 	/* is there a valid port range to connect to ? */
 	rid = 0x20;
-	sc->bmio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				      0, ~0, 1, RF_ACTIVE);
-	if (!sc->bmio)
+	controller->bmio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+					      0, ~0, 1, RF_ACTIVE);
+	if (!controller->bmio)
 	    device_printf(dev, "Busmastering DMA not configured\n");
     }
     else
@@ -367,11 +368,11 @@ ata_pci_attach(device_t dev)
     case 0x4d38105a: /* Promise 66 & 100 (before TX2) need the clock changed */
     case 0x4d30105a:
     case 0x0d30105a:
-	ATA_OUTB(sc->bmio, 0x11, ATA_INB(sc->bmio, 0x11) | 0x0a);
+	ATA_OUTB(controller->bmio, 0x11, ATA_INB(controller->bmio, 0x11)|0x0a);
 	/* FALLTHROUGH */
 
     case 0x4d33105a: /* Promise (before TX2) need burst mode turned on */
-	ATA_OUTB(sc->bmio, 0x1f, ATA_INB(sc->bmio, 0x1f) | 0x01);
+	ATA_OUTB(controller->bmio, 0x1f, ATA_INB(controller->bmio, 0x1f)|0x01);
 	break;
 
     case 0x00041103: /* HighPoint HPT 366/368/370/372 */
@@ -380,7 +381,7 @@ ata_pci_attach(device_t dev)
 	case 0x01:
 	    /* turn off interrupt prediction */
 	    pci_write_config(dev, 0x51, 
-	    		     (pci_read_config(dev, 0x51, 1) & ~0x80), 1);
+			     (pci_read_config(dev, 0x51, 1) & ~0x80), 1);
 	    break;
 
 	case 0x02:	/* HPT 368 */
@@ -389,12 +390,12 @@ ata_pci_attach(device_t dev)
 	case 0x05:	/* HPT 372 */
 	    /* turn off interrupt prediction */
 	    pci_write_config(dev, 0x51, 
-	    		     (pci_read_config(dev, 0x51, 1) & ~0x03), 1);
+			     (pci_read_config(dev, 0x51, 1) & ~0x03), 1);
 	    pci_write_config(dev, 0x55, 
-	    		     (pci_read_config(dev, 0x55, 1) & ~0x03), 1);
+			     (pci_read_config(dev, 0x55, 1) & ~0x03), 1);
 	    /* turn on interrupts */
 	    pci_write_config(dev, 0x5a, 
-	    		     (pci_read_config(dev, 0x5a, 1) & ~0x10), 1);
+			     (pci_read_config(dev, 0x5a, 1) & ~0x10), 1);
 
 	}
 	break;
@@ -404,7 +405,7 @@ ata_pci_attach(device_t dev)
 	if ((ata_find_dev(dev, 0x06861106, 0x10) && 
 	     !ata_find_dev(dev, 0x06861106, 0x40)) || 
 	    ata_find_dev(dev, 0x05961106, 0x12))
-	    pci_write_config(dev, 0x50, 0x030b030b, 4);   
+	    pci_write_config(dev, 0x50, 0x030b030b, 4);	  
 
 	/* the southbridge might need the data corruption fix */
 	if (ata_find_dev(dev, 0x06861106, 0x40) ||
@@ -437,15 +438,15 @@ ata_pci_attach(device_t dev)
     case 0x10001042:   /* RZ 100? known bad, no DMA */
     case 0x10011042:
     case 0x06401095:   /* CMD 640 known bad, no DMA */
-	sc->bmio = NULL;
+	controller->bmio = NULL;
 	device_printf(dev, "Busmastering DMA disabled\n");
     }
 
-    if (sc->bmio) {
-	sc->bmaddr = rman_get_start(sc->bmio);
+    if (controller->bmio) {
+	controller->bmaddr = rman_get_start(controller->bmio);
 	BUS_RELEASE_RESOURCE(device_get_parent(dev), dev,
-			     SYS_RES_IOPORT, rid, sc->bmio);
-	sc->bmio = NULL;
+			     SYS_RES_IOPORT, rid, controller->bmio);
+	controller->bmio = NULL;
     }
 
     /*
@@ -467,7 +468,7 @@ ata_pci_attach(device_t dev)
 }
 
 static int
-ata_pci_intr(struct ata_softc *scp)
+ata_pci_intr(struct ata_channel *ch)
 {
     u_int8_t dmastat;
 
@@ -476,19 +477,19 @@ ata_pci_intr(struct ata_softc *scp)
      * cases with our twin channel, we only want to process interrupts
      * that we know this channel generated.
      */
-    switch (scp->chiptype) {
-    case 0x00041103:    /* HighPoint HPT366/368/370/372 */
-	if (((dmastat = ata_dmastatus(scp)) &
+    switch (ch->chiptype) {
+    case 0x00041103:	/* HighPoint HPT366/368/370/372 */
+	if (((dmastat = ata_dmastatus(ch)) &
 	    (ATA_BMSTAT_ACTIVE | ATA_BMSTAT_INTERRUPT)) != ATA_BMSTAT_INTERRUPT)
 	    return 1;
-	ATA_OUTB(scp->r_bmio, ATA_BMSTAT_PORT, dmastat | ATA_BMSTAT_INTERRUPT);
+	ATA_OUTB(ch->r_bmio, ATA_BMSTAT_PORT, dmastat | ATA_BMSTAT_INTERRUPT);
 	DELAY(1);
 	return 0;
 
     case 0x06481095:	/* CMD 648 */
     case 0x06491095:	/* CMD 649 */
-        if (!(pci_read_config(device_get_parent(scp->dev), 0x71, 1) &
-	      (scp->channel ? 0x08 : 0x04)))
+	if (!(pci_read_config(device_get_parent(ch->dev), 0x71, 1) &
+	      (ch->unit ? 0x08 : 0x04)))
 	    return 1;
 	break;
 
@@ -496,24 +497,24 @@ ata_pci_intr(struct ata_softc *scp)
     case 0x4d38105a:	/* Promise Ultra/Fasttrak 66 */
     case 0x4d30105a:	/* Promise Ultra/Fasttrak 100 */
     case 0x0d30105a:	/* Promise OEM ATA100 */
-	if (!(ATA_INL(scp->r_bmio, (scp->channel ? 0x14 : 0x1c)) &
-	      (scp->channel ? 0x00004000 : 0x00000400)))
+	if (!(ATA_INL(ch->r_bmio, (ch->unit ? 0x14 : 0x1c)) &
+	      (ch->unit ? 0x00004000 : 0x00000400)))
 	    return 1;
-    	break;
+	break;
 
     case 0x4d68105a:	/* Promise TX2 ATA100 */
     case 0x6268105a:	/* Promise TX2 ATA100 */
     case 0x4d69105a:	/* Promise TX2 ATA133 */
-	ATA_OUTB(scp->r_bmio, ATA_BMDEVSPEC_0, 0x0b);
-	if (!(ATA_INB(scp->r_bmio, ATA_BMDEVSPEC_1) & 0x20))
+	ATA_OUTB(ch->r_bmio, ATA_BMDEVSPEC_0, 0x0b);
+	if (!(ATA_INB(ch->r_bmio, ATA_BMDEVSPEC_1) & 0x20))
 	    return 1;
 	break;
     }
 
-    if (scp->flags & ATA_DMA_ACTIVE) {
-	if (!((dmastat = ata_dmastatus(scp)) & ATA_BMSTAT_INTERRUPT))
+    if (ch->flags & ATA_DMA_ACTIVE) {
+	if (!((dmastat = ata_dmastatus(ch)) & ATA_BMSTAT_INTERRUPT))
 	    return 1;
-	ATA_OUTB(scp->r_bmio, ATA_BMSTAT_PORT, dmastat | ATA_BMSTAT_INTERRUPT);
+	ATA_OUTB(ch->r_bmio, ATA_BMSTAT_PORT, dmastat | ATA_BMSTAT_INTERRUPT);
 	DELAY(1);
     }
     return 0;
@@ -522,14 +523,14 @@ ata_pci_intr(struct ata_softc *scp)
 static int
 ata_pci_print_child(device_t dev, device_t child)
 {
-    struct ata_softc *scp = device_get_softc(child);
+    struct ata_channel *ch = device_get_softc(child);
     int retval = 0;
 
     retval += bus_print_child_header(dev, child);
-    retval += printf(": at 0x%lx", rman_get_start(scp->r_io));
+    retval += printf(": at 0x%lx", rman_get_start(ch->r_io));
 
     if (ATA_MASTERDEV(dev))
-	retval += printf(" irq %d", 14 + scp->channel);
+	retval += printf(" irq %d", 14 + ch->unit);
     
     retval += bus_print_child_footer(dev, child);
 
@@ -540,9 +541,9 @@ static struct resource *
 ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		       u_long start, u_long end, u_long count, u_int flags)
 {
-    struct ata_pci_softc *sc = device_get_softc(dev);
+    struct ata_pci_controller *controller = device_get_softc(dev);
     struct resource *res = NULL;
-    int channel = ((struct ata_softc *)device_get_softc(child))->channel;
+    int unit = ((struct ata_channel *)device_get_softc(child))->unit;
     int myrid;
 
     if (type == SYS_RES_IOPORT) {
@@ -550,7 +551,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	case ATA_IOADDR_RID:
 	    if (ATA_MASTERDEV(dev)) {
 		myrid = 0;
-		start = (channel ? ATA_SECONDARY : ATA_PRIMARY);
+		start = (unit ? ATA_SECONDARY : ATA_PRIMARY);
 		end = start + ATA_IOSIZE - 1;
 		count = ATA_IOSIZE;
 		res = BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
@@ -558,7 +559,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 					 start, end, count, flags);
 	    }
 	    else {
-		myrid = 0x10 + 8 * channel;
+		myrid = 0x10 + 8 * unit;
 		res = BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
 					 SYS_RES_IOPORT, &myrid,
 					 start, end, count, flags);
@@ -568,7 +569,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	case ATA_ALTADDR_RID:
 	    if (ATA_MASTERDEV(dev)) {
 		myrid = 0;
-		start = (channel ? ATA_SECONDARY : ATA_PRIMARY) + ATA_ALTOFFSET;
+		start = (unit ? ATA_SECONDARY : ATA_PRIMARY) + ATA_ALTOFFSET;
 		end = start + ATA_ALTIOSIZE - 1;
 		count = ATA_ALTIOSIZE;
 		res = BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
@@ -576,8 +577,8 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 					 start, end, count, flags);
 	    }
 	    else {
-		myrid = 0x14 + 8 * channel;
-	    	res = BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
+		myrid = 0x14 + 8 * unit;
+		res = BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
 					 SYS_RES_IOPORT, &myrid,
 					 start, end, count, flags);
 		if (res) {
@@ -586,7 +587,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			count = ATA_ALTIOSIZE;
 			BUS_RELEASE_RESOURCE(device_get_parent(dev), dev,
 					     SYS_RES_IOPORT, myrid, res);
-	    		res = BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
+			res = BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
 						 SYS_RES_IOPORT, &myrid,
 						 start, end, count, flags);
 		}
@@ -594,14 +595,15 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	    break;
 
 	case ATA_BMADDR_RID:
-	    if (sc->bmaddr) {
+	    if (controller->bmaddr) {
 		myrid = 0x20;
-		start = (channel == 0 ? sc->bmaddr : sc->bmaddr + ATA_BMIOSIZE);
+		start = (unit == 0 ? 
+			 controller->bmaddr : controller->bmaddr+ATA_BMIOSIZE);
 		end = start + ATA_BMIOSIZE - 1;
 		count = ATA_BMIOSIZE;
 		res = BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
-					  SYS_RES_IOPORT, &myrid,
-					  start, end, count, flags);
+					 SYS_RES_IOPORT, &myrid,
+					 start, end, count, flags);
 	    }
 	}
 	return res;
@@ -610,9 +612,9 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
     if (type == SYS_RES_IRQ && *rid == ATA_IRQ_RID) {
 	if (ATA_MASTERDEV(dev)) {
 #ifdef __alpha__
-	    return alpha_platform_alloc_ide_intr(channel);
+	    return alpha_platform_alloc_ide_intr(unit);
 #else
-	    int irq = (channel == 0 ? 14 : 15);
+	    int irq = (unit == 0 ? 14 : 15);
 
 	    return BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
 				      SYS_RES_IRQ, rid, irq, irq, 1, flags);
@@ -620,11 +622,12 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	}
 	else {
 	    /* primary and secondary channels share interrupt, keep track */
-	    if (!sc->irq)
-		sc->irq = BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
-					     SYS_RES_IRQ, rid, 0, ~0, 1, flags);
-	    sc->irqcnt++;
-	    return sc->irq;
+	    if (!controller->irq)
+		controller->irq = BUS_ALLOC_RESOURCE(device_get_parent(dev), 
+						     dev, SYS_RES_IRQ,
+						     rid, 0, ~0, 1, flags);
+	    controller->irqcnt++;
+	    return controller->irq;
 	}
     }
     return 0;
@@ -634,8 +637,8 @@ static int
 ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 			 struct resource *r)
 {
-    struct ata_pci_softc *sc = device_get_softc(dev);
-    int channel = ((struct ata_softc *)device_get_softc(child))->channel;
+    struct ata_pci_controller *controller = device_get_softc(dev);
+    int unit = ((struct ata_channel *)device_get_softc(child))->unit;
 
     if (type == SYS_RES_IOPORT) {
 	switch (rid) {
@@ -645,7 +648,7 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 					    SYS_RES_IOPORT, 0x0, r);
 	    else
 		return BUS_RELEASE_RESOURCE(device_get_parent(dev), dev,
-					    SYS_RES_IOPORT, 0x10+8*channel, r);
+					    SYS_RES_IOPORT, 0x10 + 8 * unit, r);
 	    break;
 
 	case ATA_ALTADDR_RID:
@@ -654,7 +657,7 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 					    SYS_RES_IOPORT, 0x0, r);
 	    else
 		return BUS_RELEASE_RESOURCE(device_get_parent(dev), dev,
-					    SYS_RES_IOPORT, 0x14+8*channel, r);
+					    SYS_RES_IOPORT, 0x14 + 8 * unit, r);
 	    break;
 
 	case ATA_BMADDR_RID:
@@ -670,7 +673,7 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 
 	if (ATA_MASTERDEV(dev)) {
 #ifdef __alpha__
-	    return alpha_platform_release_ide_intr(channel, r);
+	    return alpha_platform_release_ide_intr(unit, r);
 #else
 	    return BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
 					SYS_RES_IRQ, rid, r);
@@ -678,9 +681,9 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 	}
 	else {
 	    /* primary and secondary channels share interrupt, keep track */
-	    if (--sc->irqcnt)
+	    if (--controller->irqcnt)
 		return 0;
-	    sc->irq = 0;
+	    controller->irq = 0;
 	    return BUS_RELEASE_RESOURCE(device_get_parent(dev), dev,
 					SYS_RES_IRQ, rid, r);
 	}
@@ -743,7 +746,7 @@ static device_method_t ata_pci_methods[] = {
 static driver_t ata_pci_driver = {
     "atapci",
     ata_pci_methods,
-    sizeof(struct ata_pci_softc),
+    sizeof(struct ata_pci_controller),
 };
 
 static devclass_t ata_pci_devclass;
@@ -753,7 +756,7 @@ DRIVER_MODULE(atapci, pci, ata_pci_driver, ata_pci_devclass, 0, 0);
 static int
 ata_pcisub_probe(device_t dev)
 {
-    struct ata_softc *scp = device_get_softc(dev);
+    struct ata_channel *ch = device_get_softc(dev);
     device_t *children;
     int count, i;
 
@@ -761,11 +764,11 @@ ata_pcisub_probe(device_t dev)
     device_get_children(device_get_parent(dev), &children, &count);
     for (i = 0; i < count; i++) {
 	if (children[i] == dev)
-	    scp->channel = i;
+	    ch->unit = i;
     }
     free(children, M_TEMP);
-    scp->chiptype = pci_get_devid(device_get_parent(dev));
-    scp->intr_func = ata_pci_intr;
+    ch->chiptype = pci_get_devid(device_get_parent(dev));
+    ch->intr_func = ata_pci_intr;
     return ata_probe(dev);
 }
 
@@ -781,7 +784,7 @@ static device_method_t ata_pcisub_methods[] = {
 static driver_t ata_pcisub_driver = {
     "ata",
     ata_pcisub_methods,
-    sizeof(struct ata_softc),
+    sizeof(struct ata_channel),
 };
 
 DRIVER_MODULE(ata, atapci, ata_pcisub_driver, ata_devclass, 0, 0);

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998,1999,2000,2001,2002 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,7 +69,7 @@ struct afd_cappage {
 };
 
 struct afd_softc {
-    struct atapi_softc		*atp;		/* controller structure */
+    struct ata_device		*device;	/* device softc */
     int				lun;		/* logical device unit */
     int				transfersize;	/* max size of each transfer */
     struct bio_queue_head	queue;		/* queue of i/o requests */
