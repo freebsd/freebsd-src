@@ -646,6 +646,8 @@ set_mcontext(struct thread *td, const mcontext_t *mc)
 		return (EINVAL);
 	tf = td->td_frame;
 	pcb = td->td_pcb;
+	/* Make sure the windows are spilled first. */
+	flushw();
 	wstate = tf->tf_wstate;
 	bcopy(mc, tf, sizeof(*tf));
 	tf->tf_wstate = wstate;
