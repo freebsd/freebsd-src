@@ -1,11 +1,41 @@
 Updating Information for FreeBSD current users
 
-This file is maintainted by imp@village.org.  Please send new entries
-in it to him.  It contains a list, in reverse chronologocal order, of
-major breakages in tracking -current.  Not all things will be listed
-here, and it only starts on Novemeber 18, 1998.  If you have an
-earlier version of FreeBSD, you are on your own to get to November 18,
-1998.
+This file is maintained by imp@village.org.  Please send new entries
+directly to him.  See end of file for further details.
+
+19990214:
+	The nlpt driver has changed names back to be the lpt driver.
+	See ppbus(4) or http://www.freebsd.org/~nsouch/ppbus.html
+	for proper configuration details.
+
+19990209:
+	New devstat API requires recompilation of libdevstat, systat,
+	iostat, vmstat and rpc.rstatd.  A new kernel is also required.
+	make world + building a kernel should do all of this.  Any
+	ports that use devstat need to be recompiled as well.
+
+19990125:
+	Linux threads options has gone away (they are now standard in
+	the FreeBSD kernel).  A recompile of all libkvm using programs
+	is in order (or better yet a make world).
+
+19990122:
+	On or about this date there was a small window when the boot
+	blocks had some minor problems which seemed to force one to
+	edit /etc/fstab.  This has been corrected, if you are seeing this
+	problem, please rebuild and reinstall your boot blocks.
+
+19990121:
+	Vinum has changed.  The "vinum read" command has changed.  For
+	updates, please see
+
+http://www.freebsd.org/cgi/getmsg.cgi?fetch=800363+0+current/freebsd-current
+
+	for details.  
+
+19990120:
+	Stable branch created.  You might want to consider using this
+	branch.  It is tagged with RELENG_3.
 
 19990119:
 	More work on the syscons driver has been committed.  Since
@@ -85,4 +115,12 @@ earlier version of FreeBSD, you are on your own to get to November 18,
 	to silence warnings from authentication programs (login, etc).
 	See src/etc/pam.conf for a sample.
 
-$Id: UPDATING,v 1.13 1999/01/17 17:39:32 imp Exp $
+This file contains a list, in reverse chronologocal order, of major
+breakages in tracking -current.  Not all things will be listed here,
+and it only starts on Novemeber 18, 1998.  If you have an earlier
+version of FreeBSD, you are on your own to get to November 18, 1998.
+
+Please filter your entries through Warner (imp@village.org) so that
+the style, formatting, etc of this file can be maintained.
+
+$Id: UPDATING,v 1.31 1999/04/28 05:18:46 imp Exp $
