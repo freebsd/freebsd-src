@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.72 1999/05/06 13:51:26 n_hibma Exp $
+$Id: majors.i386,v 1.73 1999/05/09 05:02:10 yokota Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -173,5 +173,6 @@ chrdev	name		comments
 121	onew		Dallas Semiconductor One-Wire bus <phk@freebsd.org>
 122	uhid		USB HID devices <hibma@skylink.it>
 123	fb		frame buffer
+124	ucdc		USB Communication Class Driver <hibma@skylink.it>
 200	??		entries from 200-255 are reserved for local use
 255	??		entries from 200-255 are reserved for local use
