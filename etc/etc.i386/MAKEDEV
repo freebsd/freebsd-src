@@ -99,7 +99,7 @@
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #	perfmon	CPU performance-monitoring counters
 #
-#	$Id: MAKEDEV,v 1.115 1996/03/19 03:48:53 jkh Exp $
+#	$Id: MAKEDEV,v 1.116 1996/03/26 21:04:54 wollman Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -171,7 +171,7 @@ case $i in
 all)
 	sh MAKEDEV std						# standard
 	sh MAKEDEV wd0 wd1 wd2 wd3 fd0 fd1 sd0 sd1 sd2 sd3	# bdev, disk
-	sh MAKEDEV cd0 mcd0 scd0 matcd0				# bdev, cdrom
+	sh MAKEDEV cd0 mcd0 scd0 matcd0 wcd0			# bdev, cdrom
 	sh MAKEDEV ft0 wt0 st0					# bdev, tape
 	sh MAKEDEV ttyd0 ttyd1 ttyd2 ttyd3			# cdev, serial
 	sh MAKEDEV cuaa0 cuaa1 cuaa2 cuaa3			# cdev, serial
