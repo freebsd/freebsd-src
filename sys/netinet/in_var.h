@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: in_var.h,v 1.15 1996/01/09 08:26:07 davidg Exp $
+ *	$Id: in_var.h,v 1.16 1996/02/05 20:35:59 wollman Exp $
  */
 
 #ifndef _NETINET_IN_VAR_H_
@@ -137,10 +137,10 @@ extern	int rtq_toomany;	/* XXX */
  */
 
 struct router_info {
-	struct ifnet *ifp;
-	int    type; /* type of router which is querier on this interface */
-	int    time; /* # of slow timeouts since last old query */
-	struct router_info *next;
+	struct ifnet *rti_ifp;
+	int    rti_type; /* type of router which is querier on this interface */
+	int    rti_time; /* # of slow timeouts since last old query */
+	struct router_info *rti_next;
 };
 
 /*
