@@ -39,6 +39,40 @@
 
 extern struct netif_driver efi_net;
 
+#ifdef EFINET_DEBUG
+static void
+dump_mode(EFI_SIMPLE_NETWORK_MODE *mode)
+{
+	int i;
+
+	printf("State                 = %x\n", mode->State);
+	printf("HwAddressSize         = %u\n", mode->HwAddressSize);
+	printf("MediaHeaderSize       = %u\n", mode->MediaHeaderSize);
+	printf("MaxPacketSize         = %u\n", mode->MaxPacketSize);
+	printf("NvRamSize             = %u\n", mode->NvRamSize);
+	printf("NvRamAccessSize       = %u\n", mode->NvRamAccessSize);
+	printf("ReceiveFilterMask     = %x\n", mode->ReceiveFilterMask);
+	printf("ReceiveFilterSetting  = %u\n", mode->ReceiveFilterSetting);
+	printf("MaxMCastFilterCount   = %u\n", mode->MaxMCastFilterCount);
+	printf("MCastFilterCount      = %u\n", mode->MCastFilterCount);
+	printf("MCastFilter           = {");
+	for (i = 0; i < mode->MCastFilterCount; i++)
+		printf(" %s", ether_sprintf(mode->MCastFilter[i].Addr));
+	printf(" }\n");
+	printf("CurrentAddress        = %s\n",
+	    ether_sprintf(mode->CurrentAddress.Addr));
+	printf("BroadcastAddress      = %s\n",
+	    ether_sprintf(mode->BroadcastAddress.Addr));
+	printf("PermanentAddress      = %s\n",
+	    ether_sprintf(mode->PermanentAddress.Addr));
+	printf("IfType                = %u\n", mode->IfType);
+	printf("MacAddressChangeable  = %d\n", mode->MacAddressChangeable);
+	printf("MultipleTxSupported   = %d\n", mode->MultipleTxSupported);
+	printf("MediaPresentSupported = %d\n", mode->MediaPresentSupported);
+	printf("MediaPresent          = %d\n", mode->MediaPresent);
+}
+#endif
+
 int
 efinet_match(struct netif *nif, void *machdep_hint)
 {
@@ -107,12 +141,44 @@ efinet_init(struct iodesc *desc, void *machdep_hint)
 {
 	struct netif *nif = desc->io_netif;
 	EFI_SIMPLE_NETWORK *net;
+	EFI_STATUS status;
 
 	net = nif->nif_driver->netif_ifs[nif->nif_unit].dif_private;
 	nif->nif_devdata = net;
 
-	net->Start(net);
-	net->Initialize(net, 0, 0);
+	if (net->Mode->State == EfiSimpleNetworkStopped) {
+		status = net->Start(net);
+		if (status != EFI_SUCCESS) {
+			printf("net%d: cannot start interface (status=%d)\n",
+			    nif->nif_unit, status);
+			return;
+		}
+	}
+
+	if (net->Mode->State != EfiSimpleNetworkInitialized) {
+		status = net->Initialize(net, 0, 0);
+		if (status != EFI_SUCCESS) {
+			printf("net%d: cannot init. interface (status=%d)\n",
+			    nif->nif_unit, status);
+			return;
+		}
+	}
+
+	if (net->Mode->ReceiveFilterSetting == 0) {
+		UINT32 mask = EFI_SIMPLE_NETWORK_RECEIVE_UNICAST |
+		    EFI_SIMPLE_NETWORK_RECEIVE_BROADCAST;
+
+		status = net->ReceiveFilters(net, mask, 0, FALSE, 0, 0);
+		if (status != EFI_SUCCESS) {
+			printf("net%d: cannot set rx. filters (status=%d)\n",
+			    nif->nif_unit, status);
+			return;
+		}
+	}
+
+#ifdef EFINET_DEBUG
+	dump_mode(net->Mode);
+#endif
 
 	bcopy(net->Mode->CurrentAddress.Addr, desc->myea, 6);
 	desc->xid = 1;
