@@ -810,9 +810,9 @@ find_library(const char *name, const Obj_Entry *refobj)
 
     dbg(" Searching for \"%s\"", name);
 
-    if ((refobj != NULL &&
+    if ((pathname = search_library_path(name, ld_library_path)) != NULL ||
+      (refobj != NULL &&
       (pathname = search_library_path(name, refobj->rpath)) != NULL) ||
-      (pathname = search_library_path(name, ld_library_path)) != NULL ||
       (pathname = search_library_path(name, gethints())) != NULL ||
       (pathname = search_library_path(name, STANDARD_LIBRARY_PATH)) != NULL)
 	return pathname;
