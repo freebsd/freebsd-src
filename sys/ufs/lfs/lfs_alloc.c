@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_alloc.c	8.7 (Berkeley) 5/14/95
- * $Id: lfs_alloc.c,v 1.15 1997/08/02 14:33:19 bde Exp $
+ * $Id: lfs_alloc.c,v 1.16 1997/10/14 14:22:29 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -223,8 +223,6 @@ lfs_vfree(ap)
 
 	/* Get the inode number and file system. */
 	ip = VTOI(ap->a_pvp);
-	/* Remove the inode from its hash chain */
-	ufs_ihashrem(ip);
 	fs = ip->i_lfs;
 	ino = ip->i_number;
 	if (ip->i_flag & IN_MODIFIED) {

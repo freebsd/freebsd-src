@@ -538,8 +538,6 @@ ext2_vfree(ap)
 	int	mode;
 
 	pip = VTOI(ap->a_pvp);
-	/* Remove the inode from its hash chain */
-	ufs_ihashrem(pip);
 	fs = pip->i_e2fs;
 	if ((u_int)ino >= fs->s_inodes_per_group * fs->s_groups_count)
 		panic("ifree: range: dev = 0x%x, ino = %d, fs = %s",
