@@ -40,7 +40,7 @@ typedef struct device bdevice;			/* base device */
 /* XXX can't we put this somehow into a typedef? */
 #define bdevice	device_t			/* base device */
 
-
+#endif
 
 
 /*
