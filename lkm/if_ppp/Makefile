@@ -1,8 +1,8 @@
-#       $Id: Makefile,v 1.2 1995/03/20 19:33:35 wollman Exp $
+#       $Id: Makefile,v 1.3 1995/04/15 17:36:53 ats Exp $
 
 .PATH:  ${.CURDIR}/../../sys/net
 KMOD=   if_ppp_mod
-SRCS=   if_ppp.c pppcompress.c bpfilter.h ppp.h vnode_if.h
+SRCS=	bsd_comp.c if_ppp.c ppp_tty.c slcompress.c bpfilter.h ppp.h
 NOMAN=
 PSEUDO_LKM=
 CFLAGS+= -I.
@@ -12,7 +12,7 @@ NPPP?=		2
 PROTOS?=	-DINET
 
 CFLAGS+= ${PROTOS}
-CLEANFILES+=	bpfilter.h ppp.h vnode_if.h vnode_if.c
+CLEANFILES+=	bpfilter.h ppp.h
 
 bpfilter.h:
 	echo "#define NBPFILTER ${NBPFILTER}" > bpfilter.h
