@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.295 1996/11/16 01:09:19 gibbs Exp $
+#	$Id: LINT,v 1.296 1996/11/27 22:52:09 ache Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -14,7 +14,7 @@
 # configured for; in this case, the 386 family.  You must also specify
 # at least one CPU (the one you intend to run on); deleting the
 # specification for CPUs you don't need to use may make parts of the
-# system run faster
+# system run faster.  This is especially true removing I386_CPU.
 #
 machine		"i386"
 cpu		"I386_CPU"
