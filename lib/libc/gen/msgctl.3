@@ -58,18 +58,24 @@ The data structure is defined in
 and contains (amongst others) the following members:
 .Bd -literal
 struct msqid_ds {
-    struct ipc_perm msg_perm;	/* msg queue permission bits */
-    u_long msg_cbytes; /* # of bytes in use on the queue */
-    u_long msg_qnum;   /* # of msgs in the queue */
-    u_long msg_qbytes; /* max # of bytes on the queue */
-    pid_t  msg_lspid;  /* pid of last msgsnd() */
-    pid_t  msg_lrpid;  /* pid of last msgrcv() */
-    time_t msg_stime;  /* time of last msgsnd() */
-    time_t msg_rtime;  /* time of last msgrcv() */
-    time_t msg_ctime;  /* time of last msgctl() */
+	struct	ipc_perm msg_perm;	/* msg queue permission bits */
+	struct	msg *msg_first;	/* first message in the queue */
+	struct	msg *msg_last;	/* last message in the queue */
+	u_long	msg_cbytes;	/* number of bytes in use on the queue */
+	u_long	msg_qnum;	/* number of msgs in the queue */
+	u_long	msg_qbytes;	/* max # of bytes on the queue */
+	pid_t	msg_lspid;	/* pid of last msgsnd() */
+	pid_t	msg_lrpid;	/* pid of last msgrcv() */
+	time_t	msg_stime;	/* time of last msgsnd() */
+	long	msg_pad1;
+	time_t	msg_rtime;	/* time of last msgrcv() */
+	long	msg_pad2;
+	time_t	msg_ctime;	/* time of last msgctl() */
+	long	msg_pad3;
+	long	msg_pad4[4];
 };
 .Ed
-
+.Pp
 The
 .Bf -literal
 ipc_perm
@@ -83,16 +89,16 @@ structure is defined in
 and looks like this:
 .Bd -literal
 struct ipc_perm {
-    ushort cuid; /* creator user id */
-    ushort cgid; /* creator group id */
-    ushort uid;	 /* user id */
-    ushort gid;	 /* group id */
-    ushort mode; /* permission (9 bits, see chmod(2)) */
-    ushort seq;	 /* sequence # (to generate unique id) */
-    key_t key;	 /* user specified msg/sem/shm key */
+	ushort	cuid;	/* creator user id */
+	ushort	cgid;	/* creator group id */
+	ushort	uid;	/* user id */
+	ushort	gid;	/* group id */
+	ushort	mode;	/* r/w permission */
+	ushort	seq;	/* sequence # (to generate unique msg/sem/shm id) */
+	key_t	key;	/* user specified msg/sem/shm key */
 };
 .Ed
-
+.Pp
 The operation to be performed by
 .Fn msgctl
 is specified in
