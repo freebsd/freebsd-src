@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.4 (Berkeley) 1/9/95
- *	$Id: in.c,v 1.32 1997/02/22 09:41:27 peter Exp $
+ *	$Id: in.c,v 1.33 1997/03/24 11:33:25 bde Exp $
  */
 
 #include <sys/param.h>
@@ -40,6 +40,7 @@
 #include <sys/sockio.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/kernel.h>
@@ -140,11 +141,12 @@ static int in_interfaces;	/* number of external internet interfaces */
  */
 /* ARGSUSED */
 int
-in_control(so, cmd, data, ifp)
+in_control(so, cmd, data, ifp, p)
 	struct socket *so;
 	int cmd;
 	caddr_t data;
 	register struct ifnet *ifp;
+	struct proc *p;
 {
 	register struct ifreq *ifr = (struct ifreq *)data;
 	register struct in_ifaddr *ia = 0, *iap;
@@ -200,8 +202,8 @@ in_control(so, cmd, data, ifp)
 	case SIOCSIFADDR:
 	case SIOCSIFNETMASK:
 	case SIOCSIFDSTADDR:
-		if ((so->so_state & SS_PRIV) == 0)
-			return (EPERM);
+		if (p && (error = suser(p->p_ucred, &p->p_acflag)) != 0)
+			return error;
 
 		if (ifp == 0)
 			panic("in_control");
@@ -237,8 +239,8 @@ in_control(so, cmd, data, ifp)
 		break;
 
 	case SIOCSIFBRDADDR:
-		if ((so->so_state & SS_PRIV) == 0)
-			return (EPERM);
+		if (p && (error = suser(p->p_ucred, &p->p_acflag)) != 0)
+			return error;
 		/* FALLTHROUGH */
 
 	case SIOCGIFADDR:

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socketvar.h	8.3 (Berkeley) 2/19/95
- * $Id$
+ * $Id: socketvar.h,v 1.18 1997/02/22 09:45:56 peter Exp $
  */
 
 #ifndef _SYS_SOCKETVAR_H_
@@ -115,7 +115,7 @@ struct socket {
 #define	SS_CANTRCVMORE		0x0020	/* can't receive more data from peer */
 #define	SS_RCVATMARK		0x0040	/* at mark on input */
 
-#define	SS_PRIV			0x0080	/* privileged for broadcast, raw... */
+/*efine	SS_PRIV			0x0080	   privileged for broadcast, raw... */
 #define	SS_NBIO			0x0100	/* non-blocking ops */
 #define	SS_ASYNC		0x0200	/* async i/o notify */
 #define	SS_ISCONFIRMING		0x0400	/* deciding to accept connection req */
@@ -241,24 +241,24 @@ int	sbwait __P((struct sockbuf *sb));
 int	sb_lock __P((struct sockbuf *sb));
 int	soabort __P((struct socket *so));
 int	soaccept __P((struct socket *so, struct mbuf *nam));
-int	sobind __P((struct socket *so, struct mbuf *nam));
+int	sobind __P((struct socket *so, struct mbuf *nam, struct proc *p));
 void	socantrcvmore __P((struct socket *so));
 void	socantsendmore __P((struct socket *so));
 int	soclose __P((struct socket *so));
-int	soconnect __P((struct socket *so, struct mbuf *nam));
+int	soconnect __P((struct socket *so, struct mbuf *nam, struct proc *p));
 int	soconnect2 __P((struct socket *so1, struct socket *so2));
 int	socreate __P((int dom, struct socket **aso, int type, int proto,
 	    struct proc *p));
 int	sodisconnect __P((struct socket *so));
 void	sofree __P((struct socket *so));
 int	sogetopt __P((struct socket *so, int level, int optname,
-	    struct mbuf **mp));
+	    struct mbuf **mp, struct proc *p));
 void	sohasoutofband __P((struct socket *so));
 void	soisconnected __P((struct socket *so));
 void	soisconnecting __P((struct socket *so));
 void	soisdisconnected __P((struct socket *so));
 void	soisdisconnecting __P((struct socket *so));
-int	solisten __P((struct socket *so, int backlog));
+int	solisten __P((struct socket *so, int backlog, struct proc *p));
 struct socket *
 	sodropablereq __P((struct socket *head));
 struct socket *
@@ -267,10 +267,11 @@ int	soreceive __P((struct socket *so, struct mbuf **paddr, struct uio *uio,
 	    struct mbuf **mp0, struct mbuf **controlp, int *flagsp));
 int	soreserve __P((struct socket *so, u_long sndcc, u_long rcvcc));
 void	sorflush __P((struct socket *so));
+int	soselect __P((struct socket *so, int which, struct proc *p));
 int	sosend __P((struct socket *so, struct mbuf *addr, struct uio *uio,
 	    struct mbuf *top, struct mbuf *control, int flags));
 int	sosetopt __P((struct socket *so, int level, int optname,
-	    struct mbuf *m0));
+	    struct mbuf *m0, struct proc *p));
 int	soshutdown __P((struct socket *so, int how));
 void	sowakeup __P((struct socket *so, struct sockbuf *sb));
 #endif /* KERNEL */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.24 1997/03/31 12:30:01 davidg Exp $
+ * $Id: uipc_syscalls.c,v 1.25 1997/04/09 16:53:40 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -130,7 +130,7 @@ bind(p, uap, retval)
 	error = sockargs(&nam, uap->name, uap->namelen, MT_SONAME);
 	if (error)
 		return (error);
-	error = sobind((struct socket *)fp->f_data, nam);
+	error = sobind((struct socket *)fp->f_data, nam, p);
 	m_freem(nam);
 	return (error);
 }
@@ -151,7 +151,7 @@ listen(p, uap, retval)
 	error = getsock(p->p_fd, uap->s, &fp);
 	if (error)
 		return (error);
-	return (solisten((struct socket *)fp->f_data, uap->backlog));
+	return (solisten((struct socket *)fp->f_data, uap->backlog, p));
 }
 
 static int
@@ -312,7 +312,7 @@ connect(p, uap, retval)
 	error = sockargs(&nam, uap->name, uap->namelen, MT_SONAME);
 	if (error)
 		return (error);
-	error = soconnect(so, nam);
+	error = soconnect(so, nam, p);
 	if (error)
 		goto bad;
 	if ((so->so_state & SS_NBIO) && (so->so_state & SS_ISCONNECTING)) {
@@ -420,6 +420,7 @@ sendit(p, s, mp, flags, retsize)
 	register int i;
 	struct mbuf *to, *control;
 	int len, error;
+	struct socket *so;
 #ifdef KTRACE
 	struct iovec *ktriov = NULL;
 #endif
@@ -485,8 +486,9 @@ sendit(p, s, mp, flags, retsize)
 	}
 #endif
 	len = auio.uio_resid;
-	error = sosend((struct socket *)fp->f_data, to, &auio,
-	    (struct mbuf *)0, control, flags);
+	so = (struct socket *)fp->f_data;
+	error = so->so_proto->pr_usrreqs->pru_sosend(so, to, &auio, 0, control,
+						     flags);
 	if (error) {
 		if (auio.uio_resid != len && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
@@ -659,6 +661,7 @@ recvit(p, s, mp, namelenp, retsize)
 	int len, error;
 	struct mbuf *m, *from = 0, *control = 0;
 	caddr_t ctlbuf;
+	struct socket *so;
 #ifdef KTRACE
 	struct iovec *ktriov = NULL;
 #endif
@@ -687,7 +690,8 @@ recvit(p, s, mp, namelenp, retsize)
 	}
 #endif
 	len = auio.uio_resid;
-	error = soreceive((struct socket *)fp->f_data, &from, &auio,
+	so = (struct socket *)fp->f_data;
+	error = so->so_proto->pr_usrreqs->pru_soreceive(so, &from, &auio,
 	    (struct mbuf **)0, mp->msg_control ? &control : (struct mbuf **)0,
 	    &mp->msg_flags);
 	if (error) {
@@ -1012,7 +1016,7 @@ setsockopt(p, uap, retval)
 		m->m_len = uap->valsize;
 	}
 	return (sosetopt((struct socket *)fp->f_data, uap->level,
-	    uap->name, m));
+	    uap->name, m, p));
 }
 
 /* ARGSUSED */
@@ -1043,7 +1047,7 @@ getsockopt(p, uap, retval)
 	} else
 		valsize = 0;
 	if ((error = sogetopt((struct socket *)fp->f_data, uap->level,
-	    uap->name, &m)) == 0 && uap->val && valsize && m != NULL) {
+	    uap->name, &m, p)) == 0 && uap->val && valsize && m != NULL) {
 		op = 0;
 		while (m && !error && op < valsize) {
 			i = min(m->m_len, (valsize - op));

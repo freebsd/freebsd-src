@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_cb.h	8.1 (Berkeley) 6/10/93
- * $Id: raw_cb.h,v 1.7 1997/02/22 09:41:13 peter Exp $
+ * $Id: raw_cb.h,v 1.8 1997/04/14 18:23:23 phk Exp $
  */
 
 #ifndef _NET_RAW_CB_H_
@@ -67,8 +67,8 @@ void	 raw_disconnect __P((struct rawcb *));
 void	 raw_init __P((void));
 void	 raw_input __P((struct mbuf *,
 	    struct sockproto *, struct sockaddr *, struct sockaddr *));
-int	 raw_usrreq __P((struct socket *,
-	    int, struct mbuf *, struct mbuf *, struct mbuf *));
+
+extern	struct pr_usrreqs raw_usrreqs;
 #endif
 
 #endif

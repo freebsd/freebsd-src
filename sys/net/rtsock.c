@@ -31,8 +31,9 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id$
+ *	$Id: rtsock.c,v 1.26 1997/02/22 09:41:15 peter Exp $
  */
+
 
 #include <sys/param.h>
 #include <sys/queue.h>
@@ -69,8 +70,6 @@ static void	rt_xaddrs __P((caddr_t, caddr_t, struct rt_addrinfo *));
 static int	sysctl_dumpentry __P((struct radix_node *rn, void *vw));
 static int	sysctl_iflist __P((int af, struct walkarg *w));
 static int	 route_output __P((struct mbuf *, struct socket *));
-static int	 route_usrreq __P((struct socket *,
-	    int, struct mbuf *, struct mbuf *, struct mbuf *));
 static void	 rt_setmetrics __P((u_long, struct rt_metrics *, struct rt_metrics *));
 
 /* Sleazy use of local variables throughout file, warning!!!! */
@@ -82,61 +81,190 @@ static void	 rt_setmetrics __P((u_long, struct rt_metrics *, struct rt_metrics *
 #define ifaaddr	info.rti_info[RTAX_IFA]
 #define brdaddr	info.rti_info[RTAX_BRD]
 
-/*ARGSUSED*/
+/*
+ * It really doesn't make any sense at all for this code to share much
+ * with raw_usrreq.c, since its functionality is so restricted.  XXX
+ */
 static int
-route_usrreq(so, req, m, nam, control)
-	register struct socket *so;
-	int req;
-	struct mbuf *m, *nam, *control;
+rts_abort(struct socket *so)
 {
-	register int error = 0;
-	register struct rawcb *rp = sotorawcb(so);
-	int s;
+	int s, error;
+	s = splnet();
+	error = raw_usrreqs.pru_abort(so);
+	splx(s);
+	return error;
+}
 
-	if (req == PRU_ATTACH) {
-		MALLOC(rp, struct rawcb *, sizeof(*rp), M_PCB, M_WAITOK);
-		so->so_pcb = (caddr_t)rp;
-		if (so->so_pcb)
-			bzero(so->so_pcb, sizeof(*rp));
+/* pru_accept is EOPNOTSUPP */
+
+static int
+rts_attach(struct socket *so, int proto, struct proc *p)
+{
+	struct rawcb *rp;
+	int s, error;
+
+	if (sotorawcb(so) != 0)
+		return EISCONN;	/* XXX panic? */
+	MALLOC(rp, struct rawcb *, sizeof *rp, M_PCB, M_WAITOK); /* XXX */
+	if (rp == 0)
+		return ENOBUFS;
+	bzero(rp, sizeof *rp);
+
+	/*
+	 * The splnet() is necessary to block protocols from sending
+	 * error notifications (like RTM_REDIRECT or RTM_LOSING) while
+	 * this PCB is extant but incompletely initialized.
+	 * Probably we should try to do more of this work beforehand and
+	 * eliminate the spl.
+	 */
+	s = splnet();
+	so->so_pcb = (caddr_t)rp;
+	error = raw_usrreqs.pru_attach(so, proto, p);
+	rp = sotorawcb(so);
+	if (error) {
+		splx(s);
+		free(rp, M_PCB);
+		return error;
 	}
-	if (req == PRU_DETACH && rp) {
-		int af = rp->rcb_proto.sp_protocol;
-		if (af == AF_INET)
+	switch(rp->rcb_proto.sp_protocol) {
+	case AF_INET:
+		route_cb.ip_count++;
+		break;
+	case AF_IPX:
+		route_cb.ipx_count++;
+		break;
+	case AF_NS:
+		route_cb.ns_count++;
+		break;
+	case AF_ISO:
+		route_cb.iso_count++;
+		break;
+	}
+	rp->rcb_faddr = &route_src;
+	route_cb.any_count++;
+	soisconnected(so);
+	so->so_options |= SO_USELOOPBACK;
+	splx(s);
+	return 0;
+}
+
+static int
+rts_bind(struct socket *so, struct mbuf *nam, struct proc *p)
+{
+	int s, error;
+	s = splnet();
+	error = raw_usrreqs.pru_bind(so, nam, p); /* xxx just EINVAL */
+	splx(s);
+	return error;
+}
+
+static int
+rts_connect(struct socket *so, struct mbuf *nam, struct proc *p)
+{
+	int s, error;
+	s = splnet();
+	error = raw_usrreqs.pru_connect(so, nam, p); /* XXX just EINVAL */
+	splx(s);
+	return error;
+}
+
+/* pru_connect2 is EOPNOTSUPP */
+/* pru_control is EOPNOTSUPP */
+
+static int
+rts_detach(struct socket *so)
+{
+	struct rawcb *rp = sotorawcb(so);
+	int s, error;
+
+	s = splnet();
+	if (rp != 0) {
+		switch(rp->rcb_proto.sp_protocol) {
+		case AF_INET:
 			route_cb.ip_count--;
-		else if (af == AF_IPX)
+			break;
+		case AF_IPX:
 			route_cb.ipx_count--;
-		else if (af == AF_NS)
+			break;
+		case AF_NS:
 			route_cb.ns_count--;
-		else if (af == AF_ISO)
+			break;
+		case AF_ISO:
 			route_cb.iso_count--;
+			break;
+		}
 		route_cb.any_count--;
 	}
-	s = splnet();
-	error = raw_usrreq(so, req, m, nam, control);
-	rp = sotorawcb(so);
-	if (req == PRU_ATTACH && rp) {
-		int af = rp->rcb_proto.sp_protocol;
-		if (error) {
-			free((caddr_t)rp, M_PCB);
-			splx(s);
-			return (error);
-		}
-		if (af == AF_INET)
-			route_cb.ip_count++;
-		else if (af == AF_IPX)
-			route_cb.ipx_count++;
-		else if (af == AF_NS)
-			route_cb.ns_count++;
-		else if (af == AF_ISO)
-			route_cb.iso_count++;
-		rp->rcb_faddr = &route_src;
-		route_cb.any_count++;
-		soisconnected(so);
-		so->so_options |= SO_USELOOPBACK;
-	}
+	error = raw_usrreqs.pru_detach(so);
 	splx(s);
-	return (error);
+	return error;
 }
+
+static int
+rts_disconnect(struct socket *so)
+{
+	int s, error;
+	s = splnet();
+	error = raw_usrreqs.pru_disconnect(so);
+	splx(s);
+	return error;
+}
+
+/* pru_listen is EOPNOTSUPP */
+
+static int
+rts_peeraddr(struct socket *so, struct mbuf *nam)
+{
+	int s, error;
+	s = splnet();
+	error = raw_usrreqs.pru_peeraddr(so, nam);
+	splx(s);
+	return error;
+}
+
+/* pru_rcvd is EOPNOTSUPP */
+/* pru_rcvoob is EOPNOTSUPP */
+
+static int
+rts_send(struct socket *so, int flags, struct mbuf *m, struct mbuf *nam,
+	 struct mbuf *control, struct proc *p)
+{
+	int s, error;
+	s = splnet();
+	error = raw_usrreqs.pru_send(so, flags, m, nam, control, p);
+	splx(s);
+	return error;
+}
+
+/* pru_sense is null */
+
+static int
+rts_shutdown(struct socket *so)
+{
+	int s, error;
+	s = splnet();
+	error = raw_usrreqs.pru_shutdown(so);
+	splx(s);
+	return error;
+}
+
+static int
+rts_sockaddr(struct socket *so, struct mbuf *nam)
+{
+	int s, error;
+	s = splnet();
+	error = raw_usrreqs.pru_sockaddr(so, nam);
+	splx(s);
+	return error;
+}
+
+static struct pr_usrreqs route_usrreqs = {
+	rts_abort, pru_accept_notsupp, rts_attach, rts_bind, rts_connect,
+	pru_connect2_notsupp, pru_control_notsupp, rts_detach, rts_disconnect,
+	pru_listen_notsupp, rts_peeraddr, pru_rcvd_notsupp, pru_rcvoob_notsupp,
+	rts_send, pru_sense_null, rts_shutdown, rts_sockaddr,
+	sosend, soreceive, soselect
+};
 
 /*ARGSUSED*/
 static int
@@ -811,7 +939,7 @@ sysctl_rtsock SYSCTL_HANDLER_ARGS
 	return (error);
 }
 
-SYSCTL_NODE(_net, PF_ROUTE, routetable, CTLFLAG_RD, sysctl_rtsock,"");
+SYSCTL_NODE(_net, PF_ROUTE, routetable, CTLFLAG_RD, sysctl_rtsock, "");
 
 /*
  * Definitions of protocols supported in the ROUTE domain.
@@ -822,8 +950,9 @@ extern struct domain routedomain;		/* or at least forward */
 static struct protosw routesw[] = {
 { SOCK_RAW,	&routedomain,	0,		PR_ATOMIC|PR_ADDR,
   0,		route_output,	raw_ctlinput,	0,
-  route_usrreq,
-  raw_init
+  0,
+  raw_init,	0,		0,		0,
+  &route_usrreqs
 }
 };
 

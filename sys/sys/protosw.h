@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)protosw.h	8.1 (Berkeley) 6/2/93
- *	$Id: protosw.h,v 1.15 1997/02/22 09:45:42 peter Exp $
+ *	$Id: protosw.h,v 1.16 1997/03/14 16:51:28 wollman Exp $
  */
 
 #ifndef _SYS_PROTOSW_H_
@@ -81,12 +81,10 @@ struct protosw {
 	void	(*pr_ctlinput)__P((int, struct sockaddr *, void *));
 					/* control input (from below) */
 	int	(*pr_ctloutput)__P((int, struct socket *, int, int,
-				    struct mbuf **));
+				    struct mbuf **, struct proc *));
 					/* control output (from above) */
 /* user-protocol hook */
-	int	(*pr_ousrreq) __P((struct socket *, int, struct mbuf *,
-				   struct mbuf *, struct mbuf *));
-					/* user request: see list below */
+	void	*pr_ousrreq;
 /* utility hooks */
 	void	(*pr_init) __P((void));	/* initialization hook */
 	void	(*pr_fasttimo) __P((void));
@@ -172,28 +170,32 @@ char *prurequests[] = {
 
 /*
  * If the ordering here looks odd, that's because it's alphabetical.
- * Having this structure separated out from the main protoswitch is actually
+ * Having this structure separated out from the main protoswitch is allegedly
  * a big (12 cycles per call) lose on high-end CPUs.  We will eventually
  * migrate this stuff back into the main structure.
  */
 struct pr_usrreqs {
 	int	(*pru_abort) __P((struct socket *so));
 	int	(*pru_accept) __P((struct socket *so, struct mbuf *nam));
-	int	(*pru_attach) __P((struct socket *so, int proto));
-	int	(*pru_bind) __P((struct socket *so, struct mbuf *nam));
-	int	(*pru_connect) __P((struct socket *so, struct mbuf *nam));
+	int	(*pru_attach) __P((struct socket *so, int proto,
+				   struct proc *p));
+	int	(*pru_bind) __P((struct socket *so, struct mbuf *nam,
+				 struct proc *p));
+	int	(*pru_connect) __P((struct socket *so, struct mbuf *nam,
+				    struct proc *p));
 	int	(*pru_connect2) __P((struct socket *so1, struct socket *so2));
 	int	(*pru_control) __P((struct socket *so, int cmd, caddr_t data,
-				    struct ifnet *ifp));
+				    struct ifnet *ifp, struct proc *p));
 	int	(*pru_detach) __P((struct socket *so));
 	int	(*pru_disconnect) __P((struct socket *so));
-	int	(*pru_listen) __P((struct socket *so));
+	int	(*pru_listen) __P((struct socket *so, struct proc *p));
 	int	(*pru_peeraddr) __P((struct socket *so, struct mbuf *nam));
 	int	(*pru_rcvd) __P((struct socket *so, int flags));
 	int	(*pru_rcvoob) __P((struct socket *so, struct mbuf *m,
 				   int flags));
 	int	(*pru_send) __P((struct socket *so, int flags, struct mbuf *m, 
-			      struct mbuf *addr, struct mbuf *control));
+				 struct mbuf *addr, struct mbuf *control,
+				 struct proc *p));
 #define	PRUS_OOB	0x1
 #define	PRUS_EOF	0x2
 	int	(*pru_sense) __P((struct socket *so, struct stat *sb));
@@ -201,9 +203,12 @@ struct pr_usrreqs {
 	int	(*pru_sockaddr) __P((struct socket *so, struct mbuf *nam));
 	 
 	/*
-	 * These two added later, so they are out of order.  They are used
+	 * These three added later, so they are out of order.  They are used
 	 * for shortcutting (fast path input/output) in some protocols.
 	 * XXX - that's a lie, they are not implemented yet
+	 * Rather than calling sosend() etc. directly, calls are made
+	 * through these entry points.  For protocols which still use
+	 * the generic code, these just point to those routines.
 	 */
 	int	(*pru_sosend) __P((struct socket *so, struct mbuf *addr,
 				   struct uio *uio, struct mbuf *top,
@@ -211,25 +216,18 @@ struct pr_usrreqs {
 	int	(*pru_soreceive) __P((struct socket *so, struct mbuf **paddr,
 				      struct uio *uio, struct mbuf **mp0,
 				      struct mbuf **controlp, int *flagsp));
+	int	(*pru_soselect) __P((struct socket *so, int which,
+				     struct proc *p));
 };
 
 int	pru_accept_notsupp __P((struct socket *so, struct mbuf *nam));
 int	pru_connect2_notsupp __P((struct socket *so1, struct socket *so2));
-int	pru_listen_notsupp __P((struct socket *so));
+int	pru_control_notsupp __P((struct socket *so, int cmd, caddr_t data,
+				 struct ifnet *ifp, struct proc *p));
+int	pru_listen_notsupp __P((struct socket *so, struct proc *p));
 int	pru_rcvd_notsupp __P((struct socket *so, int flags));
 int	pru_rcvoob_notsupp __P((struct socket *so, struct mbuf *m, int flags));
 int	pru_sense_null __P((struct socket *so, struct stat *sb));
-
-#define	PRU_OLDSTYLE
-
-#ifdef PRU_OLDSTYLE
-/*
- * Protocols which don't yet implement pr_usrreqs can point it to this
- * structure, which will call the old pr_usrreq() entry point with the
- * appropriate arguments.
- */
-extern	struct pr_usrreqs pru_oldstyle;
-#endif /* PRU_OLDSTYLE */
 
 #endif /* KERNEL */
 
@@ -279,7 +277,7 @@ char	*prcrequests[] = {
 
 /*
  * The arguments to ctloutput are:
- *	(*protosw[].pr_ctloutput)(req, so, level, optname, optval);
+ *	(*protosw[].pr_ctloutput)(req, so, level, optname, optval, p);
  * req is one of the actions listed below, so is a (struct socket *),
  * level is an indication of which protocol layer the option is intended.
  * optname is a protocol dependent socket option request,

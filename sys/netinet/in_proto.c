@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- *	$Id$
+ *	$Id: in_proto.c,v 1.38 1997/02/18 20:46:22 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -96,12 +96,14 @@ void	iplinit();
 
 
 extern	struct domain inetdomain;
+static	struct pr_usrreqs nousrreqs;
 
 struct protosw inetsw[] = {
 { 0,		&inetdomain,	0,		0,
   0,		0,		0,		0,
   0,
-  ip_init,	0,		ip_slowtimo,	ip_drain
+  ip_init,	0,		ip_slowtimo,	ip_drain,
+  &nousrreqs
 },
 { SOCK_DGRAM,	&inetdomain,	IPPROTO_UDP,	PR_ATOMIC|PR_ADDR,
   udp_input,	0,		udp_ctlinput,	ip_ctloutput,
