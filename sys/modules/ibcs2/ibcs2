@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id$
+#	$Id: ibcs2,v 1.7 1997/02/22 12:47:59 peter Exp $
 
 
 PATH=/bin:/sbin:/usr/bin:/usr/sbin; export PATH
@@ -35,18 +35,9 @@ fi
 
 set -e
 
-kernelfile=`sysctl -n kern.bootfile`
-kernelfile=`basename $kernelfile`
-newkernelfile="/tmp/_${kernelfile}+ibcs2$$"
-
-trap 'rm -f $newkernelfile; exit 1' 1 2 3 13 15
-
-rm -f $newkernelfile
-modload -e ibcs2_mod -o $newkernelfile -q /lkm/ibcs2_mod.o
+kldload ibcs2
 
 for loader in $LOADERS; do
-	modload -e ibcs2_${loader}_mod -o/tmp/ibcs2_${loader} -q -u \
-		-A${newkernelfile} /lkm/ibcs2_${loader}_mod.o
+	kldload ibcs2_${loader} 
 done
-rm -f ${newkernelfile}
 set +e
