@@ -69,9 +69,12 @@ static struct glue uglue = { NULL, FOPEN_MAX - 3, usual };
 
 static struct __sFILEX __sFX[3];
 
-#if LIBC_MAJOR >= 6
-static
-#endif
+/*
+ * We can't make this 'static' until 6.0-current due to binary
+ * compatibility concerns.  This also means we cannot change the
+ * sizeof(FILE) until that time either and must continue to use the
+ * __sFILEX stuff to add to FILE.
+ */
 FILE __sF[3] = {
 	std(__SRD, STDIN_FILENO),
 	std(__SWR, STDOUT_FILENO),
