@@ -10,6 +10,7 @@ SRCS=	pam_ssh.c
 WARNS?=	0
 CFLAGS+= -I${SSHSRC}
 
+DISTRIBUTION= crypto
 DPADD=	${LIBSSH} ${LIBCRYPTO} ${LIBCRYPT}
 LDADD=	-lssh -lcrypto -lcrypt
 

@@ -28,6 +28,7 @@ LIB=	pam_ksu
 SRCS=	pam_ksu.c
 MAN=	pam_ksu.8
 
+DISTRIBUTION= crypto
 DPADD=	${LIBKRB5} ${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} \
 	${LIBCOM_ERR} ${LIBROKEN}
 LDADD=	-lkrb5 -lasn1 -lcrypto -lcrypt -lcom_err -lroken
