@@ -13,6 +13,7 @@ DPADD+=		$(LIBUNIX) $(LIBUUCONF) $(LIBUUCP)
 CFLAGS+=	-I$(.CURDIR)/../common_sources\
 		-DOWNER=\"$(owner)\"\
 		-DVERSION=\"$(VERSION)\"
+INSTALLFLAGS+= -fschg
 
 .include <bsd.prog.mk>
 .PATH: $(.CURDIR)/../common_sources
