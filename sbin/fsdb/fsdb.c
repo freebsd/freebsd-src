@@ -26,30 +26,22 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- *
- *		$Id$
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: fsdb.c,v 1.8 1997/04/15 09:02:45 joerg Exp $";
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/param.h>
 #include <sys/time.h>
-#include <sys/mount.h>
 #include <ctype.h>
-#include <fcntl.h>
+#include <err.h>
 #include <grp.h>
 #include <histedit.h>
-#include <limits.h>
 #include <pwd.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <err.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
@@ -244,7 +236,7 @@ cmdloop()
 
     while ((elline = el_gets(elptr, &scratch)) != NULL && scratch != 0) {
 	if (debug)
-	    printf("command `%s'\n", line);
+	    printf("command `%s'\n", elline);
 
 	history(hist, H_ENTER, elline);
 
@@ -776,7 +768,7 @@ CMDFUNCSTART(chowner)
     uid = strtoul(argv[1], &cp, 0);
     if (cp == argv[1] || *cp != '\0' ) { 
 	/* try looking up name */
-	if (pwd = getpwnam(argv[1])) {
+	if ((pwd = getpwnam(argv[1]))) {
 	    uid = pwd->pw_uid;
 	} else {
 	    warnx("bad uid `%s'", argv[1]);
@@ -802,7 +794,7 @@ CMDFUNCSTART(chgroup)
 
     gid = strtoul(argv[1], &cp, 0);
     if (cp == argv[1] || *cp != '\0' ) { 
-	if (grp = getgrnam(argv[1])) {
+	if ((grp = getgrnam(argv[1]))) {
 	    gid = grp->gr_gid;
 	} else {
 	    warnx("bad gid `%s'", argv[1]);
