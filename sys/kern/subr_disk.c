@@ -141,9 +141,9 @@ diskclose(dev_t dev, int fflag, int devtype, struct proc *p)
 
 	error = 0;
 	dp = dev->si_disk;
-	if (dsisopen(dp->d_slice))
-		error = dp->d_devsw->d_close(dev, fflag, devtype, p);
 	dsclose(dev, devtype, dp->d_slice);
+	if (!dsisopen(dp->d_slice))
+		error = dp->d_devsw->d_close(dev, fflag, devtype, p);
 	return (error);
 }
 
