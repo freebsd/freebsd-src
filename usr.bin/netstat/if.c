@@ -152,6 +152,15 @@ intpr(interval, ifnetaddr, pfunc)
 	u_long ifaddraddr;
 	u_long ifaddrfound;
 	u_long ifnetfound;
+	u_long opackets;
+	u_long ipackets;
+	u_long obytes;
+	u_long ibytes;
+	u_long oerrors;
+	u_long ierrors;
+	u_long collisions;
+	short timer;
+	int drops;
 	struct sockaddr *sa = NULL;
 	char name[32], tname[16];
 
@@ -217,6 +226,21 @@ intpr(interval, ifnetaddr, pfunc)
 		}
 		printf("%-5.5s %-5lu ", name, ifnet.if_mtu);
 		ifaddrfound = ifaddraddr;
+
+		/*
+		 * Get the interface stats.  These may get
+		 * overriden below on a per-interface basis.
+		 */
+		opackets = ifnet.if_opackets;
+		ipackets = ifnet.if_ipackets;
+		obytes = ifnet.if_obytes;
+		ibytes = ifnet.if_ibytes;
+		oerrors = ifnet.if_oerrors;
+		ierrors = ifnet.if_ierrors;
+		collisions = ifnet.if_collisions;
+		timer = ifnet.if_timer;
+		drops = ifnet.if_snd.ifq_drops;
+
 		if (ifaddraddr == 0) {
 			printf("%-13.13s ", "none");
 			printf("%-15.15s ", "none");
@@ -327,21 +351,35 @@ intpr(interval, ifnetaddr, pfunc)
 					putchar(' ');
 				break;
 			}
+
+			/*
+			 * Fixup the statistics for interfaces that
+			 * update stats for their network addresses
+			 */
+			if (sa->sa_family == AF_INET ||
+			    sa->sa_family == AF_INET6) {
+				opackets = ifaddr.in.ia_ifa.if_opackets;
+				ipackets = ifaddr.in.ia_ifa.if_ipackets;
+				obytes = ifaddr.in.ia_ifa.if_obytes;
+				ibytes = ifaddr.in.ia_ifa.if_ibytes;
+				oerrors = ierrors = 0;
+				collisions = timer = drops = 0;
+			}
+
 			ifaddraddr = (u_long)ifaddr.ifa.ifa_link.tqe_next;
 		}
-		printf("%8lu %5lu ",
-		    ifnet.if_ipackets, ifnet.if_ierrors);
+
+		printf("%8lu %5lu ", ipackets, ierrors);
 		if (bflag)
-			printf("%10lu ", ifnet.if_ibytes);
-		printf("%8lu %5lu ",
-		    ifnet.if_opackets, ifnet.if_oerrors);
+			printf("%10lu ", ibytes);
+		printf("%8lu %5lu ", opackets, oerrors);
 		if (bflag)
-			printf("%10lu ", ifnet.if_obytes);
-		printf("%5lu", ifnet.if_collisions);
+			printf("%10lu ", obytes);
+		printf("%5lu", collisions);
 		if (tflag)
-			printf(" %3d", ifnet.if_timer);
+			printf(" %3d", timer);
 		if (dflag)
-			printf(" %3d", ifnet.if_snd.ifq_drops);
+			printf(" %3d", drops);
 		putchar('\n');
 		if (aflag && ifaddrfound) {
 			/*
