@@ -1,3 +1,5 @@
+#	$OpenBSD: hanoi.m4,v 1.2 1996/06/26 05:36:19 deraadt Exp $
+#	$NetBSD: hanoi.m4,v 1.4 1995/09/28 05:37:56 tls Exp $
 #
 # Copyright (c) 1989, 1993
 #	The Regents of the University of California.  All rights reserved.
