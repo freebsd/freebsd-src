@@ -66,7 +66,9 @@ isofs_filestat(struct vnode *vp, struct filestat *fsp)
 		    (void *)VTOI(vp), Pid);
 		return 0;
 	}
+#if 0
 	fsp->fsid = dev2udev(isonode.i_dev);
+#endif
 	fsp->mode = (mode_t)isonode.inode.iso_mode;
 	fsp->rdev = isonode.inode.iso_rdev;
 
