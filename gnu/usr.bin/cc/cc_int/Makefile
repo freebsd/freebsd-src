@@ -21,7 +21,7 @@ SRCS=	c-aux-info.c c-common.c c-convert.c c-iterate.c \
 	toplev.c tree.c unroll.c varasm.c version.c xcoffout.c \
 	alias.c bitmap.c dwarf2out.c dyn-string.c except.c \
 	gcse.c genrtl.c profile.c regmove.c varray.c \
-	${OUT_FILE}
+	${GCC_ARCH}.c
 .if defined(USE_EGCS_HAIFA) && ${USE_EGCS_HAIFA} == 1
 SRCS+=	haifa-sched.c
 .else
@@ -47,7 +47,5 @@ CFLAGS+=	-DTARGET_NAME=\"${target}\" -DIN_GCC
 
 install:
 	@true
-
-${OUT_OBJ}.o ${OUT_OBJ}.So:	${OUT_FILE}
 
 .include <bsd.lib.mk>
