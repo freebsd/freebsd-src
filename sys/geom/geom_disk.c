@@ -261,15 +261,6 @@ disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, struct 
 	return (dev);
 }
 
-void disk_dev_synth(dev_t dev);
-
-void
-disk_dev_synth(dev_t dev)
-{
-
-	return;
-}
-
 void
 disk_destroy(dev_t dev)
 {
