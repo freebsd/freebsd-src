@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: local_passwd.c,v 1.9.2.1 1996/11/05 20:13:31 phk Exp $
+ * $Id: local_passwd.c,v 1.9.2.2 1997/05/10 21:32:33 davidn Exp $
  */
 
 #ifndef lint
@@ -195,8 +195,6 @@ local_passwd(uname)
 		errx(1, "%s", strerror(EACCES));
 
 	pw_init();
-	pfd = pw_lock();
-	tfd = pw_tmp();
 
 	/*
 	 * Get the new password.  Reset passwd change time to zero by
@@ -207,6 +205,9 @@ local_passwd(uname)
 	 */
 	pw->pw_change = 0;
 	pw->pw_passwd = getnewpasswd(pw, 0);
+
+	pfd = pw_lock();
+	tfd = pw_tmp();
 	pw_copy(pfd, tfd, pw);
 
 	if (!pw_mkdb(uname))
