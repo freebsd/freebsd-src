@@ -1,4 +1,4 @@
-/*	$NetBSD: uhci.c,v 1.138 2001/10/02 17:59:38 pooka Exp $	*/
+/*	$NetBSD: uhci.c,v 1.140 2001/10/24 20:20:03 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -1238,7 +1238,8 @@ uhci_softintr(void *v)
 	uhci_softc_t *sc = v;
 	uhci_intr_info_t *ii;
 
-	DPRINTFN(10,("%s: uhci_softintr\n", USBDEVNAME(sc->sc_bus.bdev)));
+	DPRINTFN(10,("%s: uhci_softintr (%d)\n", USBDEVNAME(sc->sc_bus.bdev),
+		     sc->sc_bus.intr_context));
 
 	sc->sc_bus.intr_context++;
 
@@ -1376,8 +1377,7 @@ uhci_idone(uhci_intr_info_t *ii)
 		upipe->u.iso.inuse -= nframes;
 		xfer->actlen = actlen;
 		xfer->status = USBD_NORMAL_COMPLETION;
-		usb_transfer_complete(xfer);
-		return;
+		goto end;
 	}
 
 #ifdef UHCI_DEBUG
@@ -1404,7 +1404,7 @@ uhci_idone(uhci_intr_info_t *ii)
 		upipe->nexttoggle = UHCI_TD_GET_DT(le32toh(std->td.td_token));
 
 	status &= UHCI_TD_ERROR;
-	DPRINTFN(10, ("uhci_check_intr: actlen=%d, status=0x%x\n",
+	DPRINTFN(10, ("uhci_idone: actlen=%d, status=0x%x\n", 
 		      actlen, status));
 	xfer->actlen = actlen;
 	if (status != 0) {
@@ -1431,6 +1431,8 @@ uhci_idone(uhci_intr_info_t *ii)
 	} else {
 		xfer->status = USBD_NORMAL_COMPLETION;
 	}
+
+end:
 	usb_transfer_complete(xfer);
 	DPRINTFN(12, ("uhci_idone: ii=%p done\n", ii));
 }
