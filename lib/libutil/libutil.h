@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file providing the above
  *    conditions are met.
  *
- * $Id: libutil.h,v 1.1.4.2 1997/05/12 10:37:17 brian Exp $
+ * $Id: libutil.h,v 1.1.4.3 1997/07/07 04:21:01 peter Exp $
  */
 
 #ifndef _LIBUTIL_H_
@@ -45,6 +45,7 @@ const char *uu_lockerr __P((int _uu_lockresult));
 int	uu_lock __P((const char *_ttyname));
 int	uu_unlock __P((const char *_ttyname));
 int	_secure_path __P((const char *_path, uid_t _uid, gid_t _gid));
+int	login_progok __P((uid_t _uid, const char *prog));
 __END_DECLS
 
 #define UU_LOCK_INUSE (1)
