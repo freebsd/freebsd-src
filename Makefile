@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.84 1996/06/22 17:58:44 pst Exp $
+#	$Id: Makefile,v 1.85 1996/06/24 04:22:10 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -238,6 +238,7 @@ includes:
 	cd ${.CURDIR}/lib/libc &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcurses &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libedit &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libftpio &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libmd &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libmytinfo &&		${MAKE}	beforeinstall
 	cd ${.CURDIR}/lib/libncurses &&		${MAKE}	beforeinstall
