@@ -322,3 +322,61 @@ process_lines(struct bsdtar *bsdtar, const char *pathname,
 		fclose(f);
 	return (ret);
 }
+
+/*-
+ * The logic here for -C <dir> attempts to avoid
+ * chdir() as long as possible.  For example:
+ * "-C /foo -C /bar file"          needs chdir("/bar") but not chdir("/foo")
+ * "-C /foo -C bar file"           needs chdir("/foo/bar")
+ * "-C /foo -C bar /file1"         does not need chdir()
+ * "-C /foo -C bar /file1 file2"   needs chdir("/foo/bar") before file2
+ *
+ * The only correct way to handle this is to record a "pending" chdir
+ * request and combine multiple requests intelligently until we
+ * need to process a non-absolute file.  set_chdir() adds the new dir
+ * to the pending list; do_chdir() actually executes any pending chdir.
+ *
+ * This way, programs that build tar command lines don't have to worry
+ * about -C with non-existent directories; such requests will only
+ * fail if the directory must be accessed.
+ */
+void
+set_chdir(struct bsdtar *bsdtar, const char *newdir)
+{
+	if (newdir[0] == '/') {
+		/* The -C /foo -C /bar case; dump first one. */
+		free(bsdtar->pending_chdir);
+		bsdtar->pending_chdir = NULL;
+	}
+	if (bsdtar->pending_chdir == NULL)
+		/* Easy case: no previously-saved dir. */
+		bsdtar->pending_chdir = strdup(newdir);
+	else {
+		/* The -C /foo -C bar case; concatenate */
+		char *old_pending = bsdtar->pending_chdir;
+		size_t old_len = strlen(old_pending);
+		bsdtar->pending_chdir = malloc(old_len + strlen(newdir) + 2);
+		if (old_pending[old_len - 1] == '/')
+			old_pending[old_len - 1] = '\0';
+		if (bsdtar->pending_chdir != NULL)
+			sprintf(bsdtar->pending_chdir, "%s/%s",
+			    old_pending, newdir);
+		free(old_pending);
+	}
+	if (bsdtar->pending_chdir == NULL)
+		bsdtar_errc(bsdtar, 1, errno, "No memory");
+}
+
+void
+do_chdir(struct bsdtar *bsdtar)
+{
+	if (bsdtar->pending_chdir == NULL)
+		return;
+
+	if (chdir(bsdtar->pending_chdir) != 0) {
+		bsdtar_errc(bsdtar, 1, 0, "could not chdir to '%s'\n",
+		    bsdtar->pending_chdir);
+	}
+	free(bsdtar->pending_chdir);
+	bsdtar->pending_chdir = NULL;
+}
