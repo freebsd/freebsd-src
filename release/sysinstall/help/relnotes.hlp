@@ -210,7 +210,7 @@ o An interrupt driven configuration hook mechanism has been implemented.
 o The timeout(9) system in the kernel has been overhauled.  This gives
   O(1) insertion and removal of callouts and an O(hash chain length)
   amount of work to be performed in softclock.  The original paper is at:
-	http://www.cs.berkeley.edu/~amc/research/timer/ 
+        http://www.cs.berkeley.edu/~amc/research/timer/ 
 
 o Changes in driver buffer queuing to deal with ordered transactions.  This
   is intended for sequencing data and metadata writes in the filesystem code
@@ -263,19 +263,19 @@ o Added full bus master DMA support for 3c900 and 3c905 adapters and
 -------------------
 [MERGED: all changes soon after specified date in 2.2-STABLE branch]
 
-97/7/29	Lots of lpr/lpd security fixes merged from OpenBSD.
-97/8/22	buffer overflows in tip corrected (benign since tip isn't
-	set[ug]id)
-97/8/26	buffer overflow in glob fixed, no know exploits
-97/8/27	vacation security problem with sendmail corrected (SNI)
-97/8/29	inetd sleeps less when children exit, making DoS attacks much
-	harder.
-97/8/29	fts now race-proof and find -execdir added (-current only)
-97/8/31	games setuid -> setgid.  Makes any games exploits benign (only
-	score files vulnerable).  Please report any problems to
-	eivind@FreeBSD.org (score-file ownership problems are known)
-97/12/3	Add Intel's suggested fix for the F00F bug.  If you don't have
-	a Pentium, the NO_F00F_HACK kernel option will disable it.
+97/7/29 Lots of lpr/lpd security fixes merged from OpenBSD.
+97/8/22 buffer overflows in tip corrected (benign since tip isn't
+        set[ug]id)
+97/8/26 buffer overflow in glob fixed, no know exploits
+97/8/27 vacation security problem with sendmail corrected (SNI)
+97/8/29 inetd sleeps less when children exit, making DoS attacks much
+        harder.
+97/8/29 fts now race-proof and find -execdir added (-current only)
+97/8/31 games setuid -> setgid.  Makes any games exploits benign (only
+        score files vulnerable).  Please report any problems to
+        eivind@FreeBSD.org (score-file ownership problems are known)
+97/12/3 Add Intel's suggested fix for the F00F bug.  If you don't have
+        a Pentium, the NO_F00F_HACK kernel option will disable it.
 98/1/20 More robust protection against LAND attacks now incorporated.
 
 The suidperl vulnerability mentioned in the CERT advisory CA-97.17 is
@@ -423,12 +423,12 @@ Buslogic 956c PCI SCSI controller
 
 SymBios (formerly NCR) 53C810, 53C825, 53c860 and 53c875 PCI SCSI
 controllers:
-	ASUS SC-200
-  	Data Technology DTC3130 (all variants)
-	NCR cards (all)
-	Symbios cards (all)
-	Tekram DC390W, 390U and 390F
-	Tyan S1365
+        ASUS SC-200
+        Data Technology DTC3130 (all variants)
+        NCR cards (all)
+        Symbios cards (all)
+        Tekram DC390W, 390U and 390F
+        Tyan S1365
 
 Tekram DC390 and DC390T controllers (maybe other cards based on the
 AMD 53c974 as well).
