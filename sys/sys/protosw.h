@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)protosw.h	8.1 (Berkeley) 6/2/93
- *	$Id: protosw.h,v 1.24 1998/06/07 17:13:03 dfr Exp $
+ *	$Id: protosw.h,v 1.25 1998/08/23 03:07:17 wollman Exp $
  */
 
 #ifndef _SYS_PROTOSW_H_
@@ -203,6 +203,7 @@ struct pr_usrreqs {
 				 struct proc *p));
 #define	PRUS_OOB	0x1
 #define	PRUS_EOF	0x2
+#define	PRUS_MORETOCOME	0x4
 	int	(*pru_sense) __P((struct socket *so, struct stat *sb));
 	int	(*pru_shutdown) __P((struct socket *so));
 	int	(*pru_sockaddr) __P((struct socket *so, 

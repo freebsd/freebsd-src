@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.4 (Berkeley) 5/24/95
- *	$Id: tcp_output.c,v 1.30 1998/05/24 18:41:04 fenner Exp $
+ *	$Id: tcp_output.c,v 1.31 1998/07/13 11:53:59 bde Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -223,7 +223,8 @@ again:
 	if (len) {
 		if (len == tp->t_maxseg)
 			goto send;
-		if ((idle || tp->t_flags & TF_NODELAY) &&
+		if (!(tp->t_flags & TF_MORETOCOME) &&
+		    (idle || tp->t_flags & TF_NODELAY) &&
 		    (tp->t_flags & TF_NOPUSH) == 0 &&
 		    len + off >= so->so_snd.sb_cc)
 			goto send;

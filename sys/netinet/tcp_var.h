@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.4 (Berkeley) 5/24/95
- * 	$Id: tcp_var.h,v 1.47 1998/08/23 03:07:15 wollman Exp $
+ * 	$Id: tcp_var.h,v 1.48 1998/08/24 07:47:39 dfr Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -54,22 +54,23 @@ struct tcpcb {
 	struct	inpcb *t_inpcb;		/* back pointer to internet pcb */
 	int	t_state;		/* state of this connection */
 	u_int	t_flags;
-#define	TF_ACKNOW	0x0001		/* ack peer immediately */
-#define	TF_DELACK	0x0002		/* ack, but try to delay it */
-#define	TF_NODELAY	0x0004		/* don't delay packets to coalesce */
-#define	TF_NOOPT	0x0008		/* don't use tcp options */
-#define	TF_SENTFIN	0x0010		/* have sent FIN */
-#define	TF_REQ_SCALE	0x0020		/* have/will request window scaling */
-#define	TF_RCVD_SCALE	0x0040		/* other side has requested scaling */
-#define	TF_REQ_TSTMP	0x0080		/* have/will request timestamps */
-#define	TF_RCVD_TSTMP	0x0100		/* a timestamp was received in SYN */
-#define	TF_SACK_PERMIT	0x0200		/* other side said I could SACK */
-#define TF_NEEDSYN	0x0400		/* send SYN (implicit state) */
-#define TF_NEEDFIN	0x0800		/* send FIN (implicit state) */
-#define TF_NOPUSH	0x1000		/* don't push */
-#define TF_REQ_CC	0x2000		/* have/will request CC */
-#define	TF_RCVD_CC	0x4000		/* a CC was received in SYN */
-#define TF_SENDCCNEW	0x8000		/* send CCnew instead of CC in SYN */
+#define	TF_ACKNOW	0x00001		/* ack peer immediately */
+#define	TF_DELACK	0x00002		/* ack, but try to delay it */
+#define	TF_NODELAY	0x00004		/* don't delay packets to coalesce */
+#define	TF_NOOPT	0x00008		/* don't use tcp options */
+#define	TF_SENTFIN	0x00010		/* have sent FIN */
+#define	TF_REQ_SCALE	0x00020		/* have/will request window scaling */
+#define	TF_RCVD_SCALE	0x00040		/* other side has requested scaling */
+#define	TF_REQ_TSTMP	0x00080		/* have/will request timestamps */
+#define	TF_RCVD_TSTMP	0x00100		/* a timestamp was received in SYN */
+#define	TF_SACK_PERMIT	0x00200		/* other side said I could SACK */
+#define	TF_NEEDSYN	0x00400		/* send SYN (implicit state) */
+#define	TF_NEEDFIN	0x00800		/* send FIN (implicit state) */
+#define	TF_NOPUSH	0x01000		/* don't push */
+#define	TF_REQ_CC	0x02000		/* have/will request CC */
+#define	TF_RCVD_CC	0x04000		/* a CC was received in SYN */
+#define	TF_SENDCCNEW	0x08000		/* send CCnew instead of CC in SYN */
+#define	TF_MORETOCOME	0x10000		/* More data to be appended to sock */
 	int	t_force;		/* 1 if forcing out a byte */
 
 	tcp_seq	snd_una;		/* send unacknowledged */
