@@ -390,7 +390,7 @@ diskPartition(Device *dev)
 
 	case 'A':
 	case 'F':	/* Undocumented magic Dangerously Dedicated mode */
-#ifndef __i386__
+#if !defined(__i386__) && !defined(__amd64__) && !defined(__ia64__)
 	    rv = 1;
 #else	    /* The rest is only relevant on x86 */
 	    cp = variable_get(VAR_DEDICATE_DISK);
