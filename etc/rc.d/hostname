@@ -39,12 +39,20 @@ stop_cmd=":"
 
 hostname_start()
 {
-	# Set the host name if it is not already set
+	# If we are not inside a jail, set the host name if it is not already set.
+	# If we are inside a jail, set the host name even if it is already set,
+	# but first check if it is permitted.
 	#
-	if [ -z "`hostname -s`" ]; then
-		hostname ${hostname}
-		echo "Setting hostname: `hostname`."
+	if [ `$SYSCTL_N security.jail.jailed` -eq 1 ]; then
+		if [ `$SYSCTL_N security.jail.set_hostname_allowed` -eq 0 ]; then
+			return
+		fi
+	elif [ -n "`hostname -s`" ]; then
+			return
 	fi
+
+	hostname ${hostname}
+	echo "Setting hostname: `hostname`."
 }
 
 load_rc_config $name
