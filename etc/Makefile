@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.53.2.3 1994/04/10 20:19:37 rgrimes Exp $
+#	$Id: Makefile,v 1.56 1994/04/18 04:23:33 rgrimes Exp $
 
 NOOBJ=	noobj
 
@@ -389,112 +389,112 @@ bin-tarball:
 		tar cf - . | \
 		gzip --no-name -9 -c | \
 		split -b 240640 - \
-		${RELEASEDIR}/tarballs/bin_tgz.)
+		${RELEASEDIR}/tarballs/bindist/bin_tgz.)
 
 srcbase-tarball:
 	(cd ${DESTDIR}; \
 		tar -cf - usr/src/[A-Z]* | \
 		gzip --no-name -9 -c | \
 		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srcbase_tgz.)
+		${RELEASEDIR}/tarballs/srcdist/base.)
 
 srcbin-tarball:
 	(cd ${DESTDIR}; \
 		tar -cf - usr/src/bin | \
 		gzip --no-name -9 -c | \
 		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srcbin_tgz.)
+		${RELEASEDIR}/tarballs/srcdist/bin.)
 
 srccontrib-tarball:
 	(cd ${DESTDIR}; \
 		tar -cf - usr/src/contrib | \
 		gzip --no-name -9 -c | \
 		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srccontrib_tgz.)
+		${RELEASEDIR}/tarballs/srcdist/contrib.)
 
 srcetc-tarball:
 	(cd ${DESTDIR}; \
 		tar -cf - usr/src/etc | \
 		gzip --no-name -9 -c | \
 		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srcetc_tgz.)
+		${RELEASEDIR}/tarballs/srcdist/etc.)
 
 srcgames-tarball:
 	(cd ${DESTDIR}; \
 		tar -cf - usr/src/games | \
 		gzip --no-name -9 -c | \
 		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srcgames_tgz.)
+		${RELEASEDIR}/tarballs/srcdist/games.)
 
 srcgnu-tarball:
 	(cd ${DESTDIR}; \
 		tar -cf - usr/src/gnu | \
 		gzip --no-name -9 -c | \
 		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srcgnu_tgz.)
+		${RELEASEDIR}/tarballs/srcdist/gnu.)
 
 srcinclude-tarball:
 	(cd ${DESTDIR}; \
 		tar -cf - usr/src/include | \
 		gzip --no-name -9 -c | \
 		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srcinclude_tgz.)
+		${RELEASEDIR}/tarballs/srcdist/include.)
 
 srclib-tarball:
 	(cd ${DESTDIR}; \
 		tar --exclude usr/src/${CRYPT_LIB} -cf - usr/src/lib | \
 		gzip --no-name -9 -c | \
 		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srclib_tgz.)
+		${RELEASEDIR}/tarballs/srcdist/lib.)
 
 srclibcrypt-tarball:
 	(cd ${DESTDIR}; \
 		tar -cf - usr/src/${CRYPT_LIB} | \
 		gzip --no-name -9 -c | \
 		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srclibcrypt_tgz.)
+		${RELEASEDIR}/tarballs/secrdist/libcrypt.)
 
 srclibexec-tarball:
 	(cd ${DESTDIR}; \
 		tar -cf - usr/src/libexec | \
 		gzip --no-name -9 -c | \
 		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srclibexec_tgz.)
+		${RELEASEDIR}/tarballs/srcdist/libexec.)
 
 srcsbin-tarball:
 	(cd ${DESTDIR}; \
 		tar -cf - usr/src/sbin | \
 		gzip --no-name -9 -c | \
 		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srcsbin_tgz.)
+		${RELEASEDIR}/tarballs/srcdist/sbin.)
 
 srcshare-tarball:
 	(cd ${DESTDIR}; \
 		tar -cf - usr/src/share | \
 		gzip --no-name -9 -c | \
 		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srcshare_tgz.)
+		${RELEASEDIR}/tarballs/srcdist/share.)
 
 srcsys-tarball:
 	(cd ${DESTDIR}; \
 		tar -cf - usr/src/sys | \
 		gzip --no-name -9 -c | \
 		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srcsys_tgz.)
+		${RELEASEDIR}/tarballs/srcdist/sys.)
 
 srcusrbin-tarball:
 	(cd ${DESTDIR}; \
 		tar -cf - usr/src/usr.bin | \
 		gzip --no-name -9 -c | \
 		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srcusrbin_tgz.)
+		${RELEASEDIR}/tarballs/srcdist/usrbin.)
 
 srcusrsbin-tarball:
 	(cd ${DESTDIR}; \
 		tar -cf - usr/src/usr.sbin | \
 		gzip --no-name -9 -c | \
 		split -b 240640 - \
-		${RELEASEDIR}/tarballs/srcusrsbin_tgz.)
+		${RELEASEDIR}/tarballs/srcdist/usrsbin.)
 
 src-tarball: srcbase-tarball srcbin-tarball srccontrib-tarball srcetc-tarball \
 	srcgames-tarball srcgnu-tarball srcinclude-tarball srclib-tarball \
@@ -532,7 +532,7 @@ des-tarball:
 		tar cf - . | \
 			gzip --no-name -9 -c | \
 			split -b 240640 - \
-			${RELEASEDIR}/tarballs/des_tgz.)
+			${RELEASEDIR}/tarballs/secrdist/des_tgz.)
 	rm -rf ${RELEASEDIR}/tmpdes
 
 distrib-dirs:
@@ -557,8 +557,12 @@ release-dirs:
 	chmod 755 ${RELEASEDIR}/filesys
 	rm -rf ${RELEASEDIR}/tarballs
 	mkdir ${RELEASEDIR}/tarballs
-	chown root.wheel ${RELEASEDIR}/tarballs
-	chmod 755 ${RELEASEDIR}/tarballs
+	mkdir ${RELEASEDIR}/tarballs/bindist
+	mkdir ${RELEASEDIR}/tarballs/objdist
+	mkdir ${RELEASEDIR}/tarballs/secrdist
+	mkdir ${RELEASEDIR}/tarballs/srcdist
+	chown -R root.wheel ${RELEASEDIR}/tarballs
+	chmod -R 755 ${RELEASEDIR}/tarballs
 	rm -rf ${RELEASEDIR}/floppies
 	mkdir ${RELEASEDIR}/floppies
 	chown root.wheel ${RELEASEDIR}/floppies
