@@ -371,10 +371,6 @@ KRNLSRCDIR=	${.CURDIR}/sys
 KRNLCONFDIR=	${KRNLSRCDIR}/${MACHINE}/conf
 KRNLOBJDIR=	${OBJTREE}${KRNLSRCDIR}
 
-.if !defined(NOCLEAN)
-CONFIGARGS+=	-r
-.endif
-
 BUILDKERNELS=
 INSTALLKERNEL=
 .for _kernel in ${KERNCONF}
@@ -407,6 +403,10 @@ buildkernel:
 	cd ${KRNLCONFDIR}; \
 		PATH=${TMPPATH} \
 		    config ${CONFIGARGS} -d ${KRNLOBJDIR}/${_kernel} ${_kernel}
+.endif
+.if !defined(NOCLEAN) && defined(NO_KERNELDEPEND)
+	cd ${KRNLOBJDIR}/${_kernel}; \
+	    ${KMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} clean
 .endif
 	cd ${KRNLOBJDIR}/${_kernel}; \
 		MAKESRCPATH=${KRNLSRCDIR}/dev/aic7xxx/aicasm \
