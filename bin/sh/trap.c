@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)trap.c	8.5 (Berkeley) 6/5/95";
 #endif
 static const char rcsid[] =
-	"$Id: trap.c,v 1.14 1998/08/25 09:33:34 cracauer Exp $";
+	"$Id: trap.c,v 1.15 1998/09/08 13:16:52 cracauer Exp $";
 #endif /* not lint */
 
 #include <signal.h>
@@ -347,7 +347,6 @@ void
 onsig(signo)
 	int signo;
 {
-	int i;
 
 #ifndef BSD
 	signal(signo, onsig);
@@ -368,13 +367,9 @@ onsig(signo)
 	 * If a trap is set, we need to make sure it is executed even
 	 * when a childs blocks all signals.
 	 */
-	for (i = 0; i < NSIG; i++) {
-		if (signo == i && trap[i] != NULL && 
-		    ! (trap[i][0] == ':' && trap[i][1] == '\0')) {
-			breakwaitcmd = 1;
-			break;
-		}
-	}
+	if (trap[signo] != NULL && 
+	    ! (trap[signo][0] == ':' && trap[signo][1] == '\0'))
+		breakwaitcmd = 1;
 }
 
 
