@@ -47,7 +47,6 @@
 #include <sys/mutex.h>
 #include <sys/sx.h>
 #include <sys/sbuf.h>
-#include <sys/errno.h>
 #include <geom/geom.h>
 #include <geom/geom_int.h>
 
@@ -86,7 +85,7 @@ g_up_procbody(void)
 
 	mtx_init(&mymutex, "g_up", MTX_DEF, 0);
 	mtx_lock(&mymutex);
-	curthread->td_base_pri = PRIBIO;
+	tp->td_base_pri = PRIBIO;
 	for(;;) {
 		g_io_schedule_up(tp);
 		msleep(&g_wait_up, &mymutex, PRIBIO, "g_up", hz/10);
@@ -110,7 +109,7 @@ g_down_procbody(void)
 
 	mtx_init(&mymutex, "g_down", MTX_DEF, 0);
 	mtx_lock(&mymutex);
-	curthread->td_base_pri = PRIBIO;
+	tp->td_base_pri = PRIBIO;
 	for(;;) {
 		g_io_schedule_down(tp);
 		msleep(&g_wait_down, &mymutex, PRIBIO, "g_down", hz/10);
@@ -128,8 +127,10 @@ static struct proc *g_event_proc;
 static void
 g_event_procbody(void)
 {
+	struct proc *p = g_down_proc;
+	struct thread *tp = FIRST_THREAD_IN_PROC(p);
 
-	curthread->td_base_pri = PRIBIO;
+	tp->td_base_pri = PRIBIO;
 	for(;;) {
 		g_run_events();
 		tsleep(&g_wait_event, PRIBIO, "g_events", hz/10);

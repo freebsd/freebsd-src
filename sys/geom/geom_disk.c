@@ -35,8 +35,6 @@
  * $FreeBSD$
  */
 
-#include "opt_geom.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -50,7 +48,6 @@
 #include <sys/sysctl.h>
 #include <sys/stdint.h>
 #include <machine/md_var.h>
-#include <sys/ctype.h>
 
 
 #include <sys/lock.h>

@@ -60,19 +60,20 @@ static d_ioctl_t	g_dev_ioctl;
 static d_psize_t	g_dev_psize;
 
 static struct cdevsw g_dev_cdevsw = {
-        /* open */      g_dev_open,
-        /* close */     g_dev_close,
-        /* read */      physread,
-        /* write */     physwrite,
-        /* ioctl */     g_dev_ioctl,
-        /* poll */      nopoll,
-        /* mmap */      nommap,
-        /* strategy */  g_dev_strategy,
-        /* name */      "g_dev",
-        /* maj */       CDEV_MAJOR,
-        /* dump */      nodump,
-        /* psize */     g_dev_psize,
-        /* flags */     D_DISK | D_CANFREE | D_TRACKCLOSE,
+	/* open */      g_dev_open,
+	/* close */     g_dev_close,
+	/* read */      physread,
+	/* write */     physwrite,
+	/* ioctl */     g_dev_ioctl,
+	/* poll */      nopoll,
+	/* mmap */      nommap,
+	/* strategy */  g_dev_strategy,
+	/* name */      "g_dev",
+	/* maj */       CDEV_MAJOR,
+	/* dump */      nodump,
+	/* psize */     g_dev_psize,
+	/* flags */     D_DISK | D_CANFREE | D_TRACKCLOSE,
+	/* kqfilter */	nokqfilter
 };
 
 static g_taste_t g_dev_taste;
@@ -86,7 +87,7 @@ static struct g_class g_dev_class	= {
 };
 
 static void
-g_dev_clone(void *arg, char *name, int namelen __unused, dev_t *dev)
+g_dev_clone(void *arg __unused, char *name, int namelen __unused, dev_t *dev)
 {
 	struct g_geom *gp;
 

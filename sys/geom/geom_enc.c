@@ -60,7 +60,6 @@
 #include <sys/systm.h>
 #endif
 #include <geom/geom.h>
-#include <geom/geom_int.h>
 
 uint16_t
 g_dec_be2(u_char *p)

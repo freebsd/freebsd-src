@@ -52,7 +52,6 @@
 #include <sys/mutex.h>
 #endif
 
-#include <sys/errno.h>
 #include <sys/disklabel.h>
 #include <sys/sbuf.h>
 #include <geom/geom.h>
@@ -196,7 +195,7 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		error = g_getattr("GEOM::sectorsize", cp, &sectorsize);
 		if (error)
 			break;
-		if (!error && sectorsize != 512)
+		if (sectorsize != 512)
 			break;
 		gsp->frontstuff = sectorsize * fwsectors;
 #ifdef GEOM_GPT
@@ -358,7 +357,7 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 		error = g_getattr("GEOM::sectorsize", cp, &sectorsize);
 		if (error)
 			break;
-		if (!error && sectorsize != 512)
+		if (sectorsize != 512)
 			break;
 		gsp->frontstuff = sectorsize * fwsectors;
 		for (;;) {
