@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
 
 int	bflag;
 int	cflag;
@@ -239,15 +240,18 @@ b_n_cut(FILE *fp, const char *fname)
 	size_t col, i, lbuflen;
 	char *lbuf;
 	int canwrite, clen, warned;
+	mbstate_t mbs;
 
+	memset(&mbs, 0, sizeof(mbs));
 	warned = 0;
 	while ((lbuf = fgetln(fp, &lbuflen)) != NULL) {
 		for (col = 0; lbuflen > 0; col += clen) {
-			if ((clen = mblen(lbuf, lbuflen)) < 0) {
+			if ((clen = mbrlen(lbuf, lbuflen, &mbs)) < 0) {
 				if (!warned) {
 					warn("%s", fname);
 					warned = 1;
 				}
+				memset(&mbs, 0, sizeof(mbs));
 				clen = 1;
 			}
 			if (clen == 0 || *lbuf == '\n')
