@@ -227,7 +227,7 @@ sem_post(sem_t *sem)
 
 	pthread_mutex_unlock(&(*sem)->lock);
 
-	_thread_kern_sig_defer();
+	_thread_kern_sig_undefer();
 	retval = 0;
   RETURN:
 	return retval;
