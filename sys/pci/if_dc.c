@@ -1641,7 +1641,6 @@ static void dc_decode_leaf_sia(sc, l)
 
 	m->dc_next = sc->dc_mi;
 	sc->dc_mi = m;
-	free(sc->dc_srom, M_DEVBUF);
 
 	sc->dc_pmode = DC_PMODE_SIA;
 
@@ -2170,6 +2169,7 @@ static int dc_detach(dev)
 		free(sc->dc_mi, M_DEVBUF);
 		sc->dc_mi = m;
 	}
+	free(sc->dc_srom, M_DEVBUF);
 
 	splx(s);
 
