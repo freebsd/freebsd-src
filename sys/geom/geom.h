@@ -61,8 +61,6 @@ struct g_event;
 struct thread;
 struct bio;
 struct sbuf;
-struct g_magicspaces;
-
 
 typedef struct g_geom * g_create_geom_t (struct g_class *mp,
     struct g_provider *pp, char *name);
@@ -123,7 +121,6 @@ struct g_geom {
 	void			*softc;
 	struct g_event		*event;
 	unsigned		flags;
-	struct g_magicspaces	*magicspaces;
 #define	G_GEOM_WITHER		1
 };
 
@@ -174,33 +171,6 @@ struct g_provider {
 	off_t			mediasize;
 };
 
-/*
- * Some methods may implement various "magic spaces", this is reserved
- * or magic areas on the disk, set a side for various and sundry purposes.
- * A good example is the BSD disklabel and boot code on i386 which occupies
- * a total of four magic spaces: boot1, the disklabel, the padding behind
- * the disklabel and boot2.  The reason we don't simply tell people to
- * write the appropriate stuff on the underlying device is that (some of)
- * the magic spaces might be real-time modifiable.  It is for instance 
- * possible to change a disklabel while partitions are open, provided
- * the open partitions do not get trampled in the process.
- */
-
-struct g_magicspace {
-	char			name[8];
-	off_t			offset;
-	u_int			len;
-	u_int			flags;
-};
-
-struct g_magicspaces {
-	uintptr_t		geom_id;
-	char			class[8];
-	uint			nmagic;
-	uint			nspace;
-	struct g_magicspace	*magicspace;
-};
-
 /* geom_dump.c */
 void g_hexdump(void *ptr, int length);
 void g_trace(int level, char *, ...);
@@ -224,7 +194,6 @@ void g_silence(void);
 int g_access_abs(struct g_consumer *cp, int read, int write, int exclusive);
 int g_access_rel(struct g_consumer *cp, int read, int write, int exclusive);
 void g_add_class(struct g_class *mp);
-int g_add_magicspace(struct g_geom *gp, const char *name, off_t start, u_int len, u_int flags);
 int g_attach(struct g_consumer *cp, struct g_provider *pp);
 struct g_geom *g_create_geomf(char *class, struct g_provider *, char *fmt, ...);
 void g_destroy_consumer(struct g_consumer *cp);
