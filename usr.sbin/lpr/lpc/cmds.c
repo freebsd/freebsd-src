@@ -1052,7 +1052,7 @@ doarg(job)
 	 * Look for a job item consisting of system name, colon, number
 	 * (example: ucbarpa:114)
 	 */
-	if ((cp = index(job, ':')) != NULL) {
+	if ((cp = strchr(job, ':')) != NULL) {
 		machine = job;
 		*cp++ = '\0';
 		job = cp;
