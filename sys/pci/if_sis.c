@@ -655,7 +655,7 @@ static int sis_attach(dev)
 	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	sc->sis_ldata = contigmalloc(sizeof(struct sis_list_data), M_DEVBUF,
-	    M_NOWAIT, 0x100000, 0xffffffff, PAGE_SIZE, 0);
+	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc->sis_ldata == NULL) {
 		printf("sis%d: no memory for list buffers!\n", unit);

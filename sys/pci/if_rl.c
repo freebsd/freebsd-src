@@ -912,7 +912,7 @@ static int rl_attach(dev)
 	}
 
 	sc->rl_cdata.rl_rx_buf = contigmalloc(RL_RXBUFLEN + 32, M_DEVBUF,
-		M_NOWAIT, 0x100000, 0xffffffff, PAGE_SIZE, 0);
+		M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc->rl_cdata.rl_rx_buf == NULL) {
 		printf("rl%d: no memory for list buffers!\n", unit);
