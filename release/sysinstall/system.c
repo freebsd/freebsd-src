@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.29 1995/05/23 02:41:18 jkh Exp $
+ * $Id: system.c,v 1.30 1995/05/24 22:37:44 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -95,6 +95,8 @@ systemInitialize(int argc, char **argv)
 	ioctl(0, TIOCSCTTY, (char *)NULL);
 	dup2(0, 1);
 	dup2(0, 2);
+	execlp(sh, "-sh", 0);
+	exit(1);
     }
 
     /* XXX - libdialog has particularly bad return value checking */
