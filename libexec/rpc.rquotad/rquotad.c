@@ -6,7 +6,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rquotad.c,v 1.1.1.1.2.1 1997/12/17 07:31:28 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -266,7 +266,7 @@ getfsquota(id, path, dqblk)
 			continue;
 
 		/* find the specified filesystem. get and return quota */
-		if (quotactl(fs->fs_file, qcmd, id, dqblk) == 0)
+		if (quotactl(fs->fs_file, qcmd, id, (char *)dqblk) == 0)
 			return (1);
 
 		if ((fd = open(fs->qfpathname, O_RDONLY)) < 0) {
