@@ -54,7 +54,7 @@
 	mtx_assert((mp), MA_OWNED | MA_NOTRECURSED);			\
 } while (0)
 
-#ifdef CV_DEBUG
+#ifdef INVARIANTS
 #define	CV_WAIT_VALIDATE(cvp, mp) do {					\
 	if (TAILQ_EMPTY(&(cvp)->cv_waitq)) {				\
 		/* Only waiter. */					\
