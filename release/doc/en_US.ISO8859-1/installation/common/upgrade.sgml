@@ -28,12 +28,8 @@
     this regard is the use of an old copy of &man.sysinstall.8; from
     an existing installation to upgrade to a newer version of
     &os;.  This is <emphasis>not</emphasis> recommended.</para>
-
-    <para>Furthermore, if you are upgrading from &os; 2.2.5 or
-    earlier, see <xref linkend="fstab"> for important details regarding changes
-    to the <filename>/etc/fstab</filename> file required during the upgrade procedure.</para>
   </important>
-  
+
   <sect2>
     <title>Introduction</title>
 
@@ -58,6 +54,7 @@
       restoring the previous version of the following files:</para>
 
       <para><filename>Xaccel.ini</filename>,
+<filename>XF86Config</filename>,
 <filename>adduser.conf</filename>,
 <filename>aliases</filename>,
 <filename>aliases.db</filename>,
@@ -66,9 +63,10 @@
 <filename>csh.cshrc</filename>,
 <filename>csh.login</filename>,
 <filename>csh.logout</filename>,
-<filename>daily</filename>,
+<filename>cvsupfile</filename>,
 <filename>disktab</filename>,
 <filename>dm.conf</filename>,
+<filename>dumpdates</filename>,
 <filename>exports</filename>,
 <filename>fbtab</filename>,
 <filename>fstab</filename>,
@@ -77,51 +75,50 @@
 <filename>gnats</filename>,
 <filename>group</filename>,
 <filename>hosts</filename>,
+<filename>host.conf</filename>,
 <filename>hosts.equiv</filename>,
 <filename>hosts.lpd</filename>,
 <filename>inetd.conf</filename>,
 <filename>kerberosIV</filename>,
 <filename>localtime</filename>,
 <filename>login.access</filename>,
+<filename>login.conf</filename>,
+<filename>mail</filename>,
 <filename>mail.rc</filename>,
 <filename>make.conf</filename>,
 <filename>manpath.config</filename>,
 <filename>master.passwd</filename>,
-<filename>mib.txt</filename>,
 <filename>modems</filename>,
-<filename>monthly</filename>,
 <filename>motd</filename>,
 <filename>namedb</filename>,
 <filename>networks</filename>,
+<filename>newsyslog.conf</filename>,
 <filename>nsswitch.conf</filename>,
+<filename>pam.conf</filename>,
 <filename>passwd</filename>,
-<filename>phones</filename>,
+<filename>periodic</filename>,
 <filename>ppp</filename>,
 <filename>printcap</filename>,
 <filename>profile</filename>,
-<filename>protocols</filename>,
 <filename>pwd.db</filename>,
-<filename>rc</filename>,
-<filename>rc.firewall</filename>,
-<filename>rc.i386</filename>,
-<filename>rc.local</filename>,
-<filename>rc.network</filename>,
 <filename>rc.conf</filename>,
+<filename>rc.conf.local</filename>,
+<filename>rc.firewall</filename>,
+<filename>rc.local</filename>,
 <filename>remote</filename>,
 <filename>resolv.conf</filename>,
 <filename>rmt</filename>,
-<filename>security</filename>,
 <filename>sendmail.cf</filename>,
+<filename>sendmail.cw</filename>,
 <filename>services</filename>,
 <filename>shells</filename>,
 <filename>skeykeys</filename>,
 <filename>spwd.db</filename>,
-<filename>supfile,</filename>
+<filename>ssh</filename>,
 <filename>syslog.conf</filename>,
-<filename>termcap</filename>,
 <filename>ttys</filename>,
-<filename>uucp</filename>,
-<filename>weekly</filename></para>
+<filename>uucp</filename>
+</para>
 
       <para>The versions of these files which correspond to the new
       version are moved to <filename>/etc/upgrade/</filename>.  The
@@ -188,56 +185,6 @@
       system configuration is valid.  In particular, the
       <filename>/etc/rc.conf</filename> and
       <filename>/etc/fstab</filename> files should be checked.</para>
-
-      <para>Read the following, but <emphasis>do not</emphasis> update
-      <filename>/etc/fstab</filename> as described below until the new
-      system has booted correctly.  The upgrade procedure replaces the
-      previous &os; kernel with a <filename>GENERIC</filename> kernel,
-      and a custom kernel may need to be generated to suit the local
-      system configuration.</para>
-
-      <important>
-	<para>&os; 2.2.6 introduced a change in the naming of the
-	device from which the root filesystem is mounted.  This
-	change affects all systems, however user intervention is
-	only required for systems undergoing an upgrade installation
-	from a version prior to &os; 2.2.6.</para>
-
-	<para>Previously, the root filesystem was always mounted from
-	the compatibility slice, while other partitions on the same
-	disk were mounted from their true slice.  This might, for
-	example, have resulted in an <filename>/etc/fstab</filename>
-	file like:</para>
-
-<screen># Device      Mountpoint      FStype  Options         Dump    Pass#
-/dev/wd0s2b   none            swap    sw              0       0
-/dev/wd0a     /               ufs     rw              1       1
-/dev/wd0s2f   /local0         ufs     rw              1       1
-/dev/wd0s2e   /usr            ufs     rw              1       1</screen>
-
-        <para>For &os; 2.2.6 and later, this format changes so that
-        the device for <filename>/</filename> is consistent with
-        others.  Also, the driver for the ATA-drives has changed from
-        &man.wd.4; to &man.ad.4;, so the new file could look something
-        like:</para>
-
-<screen># Device      Mountpoint      FStype  Options         Dump    Pass#
-/dev/ad0s2b   none            swap    sw              0       0
-/dev/ad0s2a   /               ufs     rw              1       1
-/dev/ad0s2f   /local0         ufs     rw              1       1
-/dev/ad0s2e   /usr            ufs     rw              1       1</screen>
-
-	<para>If <filename>/etc/fstab</filename> is not updated
-	manually in this case, the system will issue a warning message
-	whenever <filename>/</filename> is mounted (normally at
-	startup) indicating the change that must be made.  In
-	addition, trouble may be experienced if the root filesystem is
-	not correctly unmounted, whereby the root filesystem will not
-	be marked clean at the next reboot.</para>
-
-	<para>This change should be made as soon as the upgraded
-	system has been successfully rebooted.</para>
-      </important>
     </sect3>
   </sect2>
 
