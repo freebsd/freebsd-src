@@ -61,7 +61,7 @@
 
 extern void initializecpu(void);
 
-struct region_descriptor	r_idt, r_gdt, *p_gdt;
+static struct region_descriptor	r_idt, r_gdt, *p_gdt;
 static u_int16_t	r_ldt;
 
 static u_int32_t	r_eax, r_ebx, r_ecx, r_edx, r_ebp, r_esi, r_edi,

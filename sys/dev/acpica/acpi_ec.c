@@ -308,7 +308,7 @@ static driver_t acpi_ec_driver = {
     sizeof(struct acpi_ec_softc),
 };
 
-devclass_t acpi_ec_devclass;
+static devclass_t acpi_ec_devclass;
 DRIVER_MODULE(acpi_ec, acpi, acpi_ec_driver, acpi_ec_devclass, 0, 0);
 
 /*

@@ -57,7 +57,7 @@ AcpiOsInstallInterruptHandler(UINT32 InterruptNumber, OSD_HANDLER ServiceRoutine
 
     FUNCTION_TRACE(__func__);
 
-    if ((sc = devclass_get_softc(acpi_devclass, 0)) == NULL)
+    if ((sc = devclass_get_softc(devclass_find("acpi"), 0)) == NULL)
 	panic("can't find ACPI device to register interrupt");
     if (sc->acpi_dev == NULL)
 	panic("acpi softc has invalid device");
@@ -108,7 +108,7 @@ AcpiOsRemoveInterruptHandler (UINT32 InterruptNumber, OSD_HANDLER ServiceRoutine
     if (ServiceRoutine == NULL)
 	return_ACPI_STATUS(AE_BAD_PARAMETER);
 
-    if ((sc = devclass_get_softc(acpi_devclass, 0)) == NULL)
+    if ((sc = devclass_get_softc(find_devclass("acpi"), 0)) == NULL)
 	panic("can't find ACPI device to deregister interrupt");
 
     if (sc->acpi_irq == NULL)
