@@ -22,7 +22,7 @@
 # optimizations provided by Justin T. Gibbs (gibbs@FreeBSD.org)
 #
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.9 1995/03/07 09:00:44 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.10 1995/03/17 23:54:17 gibbs Exp $"
 
 SCBMASK		= 0x1f
 
@@ -56,6 +56,9 @@ SINDIR		= 0x6c
 DINDIR		= 0x6d
 FUNCTION1	= 0x6e
 HADDR		= 0x88
+HADDR+1		= 0x89
+HADDR+2		= 0x8a
+HADDR+3		= 0x8b
 HCNT		= 0x8c
 HCNT+0		= 0x8c
 HCNT+1		= 0x8d
@@ -113,8 +116,12 @@ SCBARRAY+23	= 0xb7
 SCBARRAY+24	= 0xb8
 SCBARRAY+25	= 0xb9
 SCBARRAY+26	= 0xba
+SCBARRAY+27	= 0xbb
+SCBARRAY+28	= 0xbc
+SCBARRAY+29	= 0xbd
 
 BAD_PHASE	= 0x01				# unknown scsi bus phase
+CMDCMPLT	= 0x02
 SEND_REJECT	= 0x11				# sending a message reject
 NO_IDENT	= 0x21				# no IDENTIFY after reconnect
 NO_MATCH	= 0x31				# no cmd match for reconnect
@@ -122,6 +129,7 @@ MSG_SDTR	= 0x41				# SDTR message recieved
 MSG_WDTR	= 0x51				# WDTR message recieved
 MSG_REJECT	= 0x61				# Reject message recieved
 BAD_STATUS	= 0x71				# Bad status from target
+RESIDUAL	= 0x81				# Residual byte count != 0
 
 #  The host adapter card (at least the BIOS) uses 20-2f for SCSI
 #  device information, 32-33 and 5a-5f as well. As it turns out, the
@@ -164,7 +172,7 @@ MSG_START+2	= 0x37
 MSG_START+3	= 0x38
 MSG_START+4	= 0x39
 MSG_START+5	= 0x3a
--MSG_START+0	= 0xcb				# 2's complement of MSG_START+0
+-MSG_START+0	= 0xcc				# 2's complement of MSG_START+0
 
 ARG_1		= 0x4a				# sdtr conversion args & return
 BUS_16_BIT	= 0x01
@@ -189,6 +197,7 @@ SCBCOUNT	= 0x52				# the actual number of SCBs
 FLAGS		= 0x53				# Device configuration flags
 TWIN_BUS	= 0x01
 WIDE_BUS	= 0x02
+MAX_SYNC	= 0x08
 SENSE		= 0x10
 ACTIVE_MSG	= 0x20
 IDENTIFY_SEEN	= 0x40
@@ -236,34 +245,16 @@ test	SCBARRAY+0,NEEDDMA	jz test_busy
 #  Wait for DMA from host memory to data FIFO to complete, then disable
 #  DMA and wait for it to acknowledge that it's off.
 #
-scb_load1:
-	test	DFSTATUS,0x8	jz scb_load1	# HDONE
-
-	clr	DFCNTRL				# disable DMA
-scb_load2:
-	test	DFCNTRL,0x8	jnz scb_load2	# HDMAENACK
+	call	dma_finish
 
 # Copy the SCB from the FIFO to  the SCBARRAY
 
-	mov	SCBARRAY+0, DFDAT
-	mov	SCBARRAY+1, DFDAT
-	mov	SCBARRAY+2, DFDAT
-	mov	SCBARRAY+3, DFDAT
-	mov	SCBARRAY+4, DFDAT
-	mov	SCBARRAY+5, DFDAT
-	mov	SCBARRAY+6, DFDAT
-	mov	SCBARRAY+7, DFDAT
-	mov	SCBARRAY+8, DFDAT
-	mov	SCBARRAY+9, DFDAT
-	mov	SCBARRAY+10, DFDAT
-	mov	SCBARRAY+11, DFDAT
-	mov	SCBARRAY+12, DFDAT
-	mov	SCBARRAY+13, DFDAT
-	mov	SCBARRAY+14, DFDAT
-	mov	SCBARRAY+15, DFDAT
-	mov	SCBARRAY+16, DFDAT
-	mov	SCBARRAY+17, DFDAT
-	mov	SCBARRAY+18, DFDAT
+	mvi	DINDEX, SCBARRAY+0
+	call	bcopy_3_dfdat
+	call	bcopy_4_dfdat
+	call	bcopy_4_dfdat
+	call	bcopy_4_dfdat
+	call	bcopy_4_dfdat
    
 # See if there is not already an active SCB for this target.  This code
 # locks out on a per target basis instead of target/lun.  Although this
@@ -338,7 +329,6 @@ mk_tag:
 	mov	DINDIR,SCBPTR
 
 	add	MSG_LEN,-MSG_START+0,DINDEX	# update message length
-	jmp	!message			# Can't do DTR when taged
 
 mk_tag_done:
 
@@ -441,9 +431,17 @@ p_dataout:
 	mvi	DINDEX,STCNT
 	mvi	SCBARRAY+23	call bcopy_3
 
+# If we are the last SG block, don't set wideodd.
+	test    SCBARRAY+18,0xff jnz p_dataout_wideodd
 	mvi	0x3d		call dma	# SCSIEN|SDMAEN|HDMAEN|
 						#   DIRECTION|FIFORESET
+	jmp	p_dataout_rest
 
+p_dataout_wideodd:
+	mvi	0xbd		call dma	# WIDEODD|SCSIEN|SDMAEN|HDMAEN|
+						#   DIRECTION|FIFORESET
+
+p_dataout_rest:
 #  After a DMA finishes, save the final transfer pointer and count
 #  back into the SCB, in case a device disconnects in the middle of
 #  a transfer.  Use SHADDR and STCNT instead of HADDR and HCNT, since
@@ -475,8 +473,15 @@ p_datain:
 	mvi	DINDEX,STCNT
 	mvi	SCBARRAY+23	call bcopy_3
 
+# If we are the last SG block, don't set wideodd.
+	test	SCBARRAY+18,0xff jnz p_datain_wideodd
 	mvi	0x39		call dma	# SCSIEN|SDMAEN|HDMAEN|
 						#   !DIRECTION|FIFORESET
+	jmp	p_datain_rest
+p_datain_wideodd:
+	mvi	0xb9		call dma	# WIDEODD|SCSIEN|SDMAEN|HDMAEN|
+						#   !DIRECTION|FIFORESET
+p_datain_rest:
 	mvi	DINDEX,SCBARRAY+23
 	mvi	STCNT		call bcopy_3
 
@@ -611,21 +616,25 @@ p_mesgin:
 #  This allows the driver to interpret errors only when they occur
 #  instead of always uploading the scb.  If the status is SCSI_CHECK,
 #  the driver will download a new scb requesting sense, to replace 
-#  the old one and the sequencer code will imediately jump to start 
-#  working on it.  If the kernel driver does not wish to request sense, 
-#  the sequencer program counter is incremented by 1, preventing another run 
-#  on the current SCB and the command is allowed to complete.  We don't 
+#  the old one and set the SENSE sequencer flag.  If the sense flag is
+#  set, the sequencer imediately jumps to start working on the sense
+#  command.  If the kernel driver does not wish to request sense, it need
+#  do nothing, and the command is allowed to complete.  We don't 
 #  bother to post to the QOUTFIFO in the error case since it would require 
 #  extra work in the kernel driver to ensure that the entry was removed 
 #  before the command complete code tried processing it.
 
+	test	SCBARRAY+15,0xff	jnz resid
+	test	SCBARRAY+16,0xff	jnz resid
+	test	SCBARRAY+17,0xff	jnz resid
+
+check_status:
 	test	SCBARRAY+14,0xff	jz status_ok	# 0 Status?
 	mvi	INTSTAT,BAD_STATUS			# let driver know
 	test	FLAGS,SENSE	jz status_ok
 	jmp	p_mesgin_done
 
 status_ok:
-
 #  First, mark this target as free.
 	test	SCBARRAY+0,0x20	jnz complete		# Tagged command
 	and	FUNCTION1,0x70,SCBARRAY+1
@@ -639,8 +648,19 @@ clear_a:
 
 complete:
 	mov	QOUTFIFO,SCBPTR
-	mvi	INTSTAT,0x02			# CMDCMPLT
+	mvi	INTSTAT,CMDCMPLT
 	jmp	p_mesgin_done
+
+# If we have a residual count, interrupt and tell the host.  Other
+# alternatives are to pause the sequencer on all command completes (yuck),
+# dma the resid directly to the host (slick, but a ton of instructions), or
+# have the sequencer pause itself when it encounters a non-zero resid 
+# (unecessary pause just to flag the command -- yuck, but takes few instructions
+# and since it shouldn't happen that offten is good enough for our purposes).  
+
+resid:
+	mvi	INTSTAT,RESIDUAL
+	jmp	check_status
 
 #  Is it an extended message?  We only support the synchronous and wide data
 #  transfer request messages, which will probably be in response to
@@ -836,6 +856,16 @@ bcopy_4:
 	mov	DINDIR,SINDIR
 	mov	DINDIR,SINDIR	ret
 	
+bcopy_3_dfdat:
+	mov	DINDIR,DFDAT
+	mov	DINDIR,DFDAT
+	mov	DINDIR,DFDAT	ret
+
+bcopy_4_dfdat:
+	mov	DINDIR,DFDAT
+	mov	DINDIR,DFDAT
+	mov	DINDIR,DFDAT
+	mov	DINDIR,DFDAT	ret
 
 #  Locking the driver out, build a one-byte message passed in SINDEX
 #  if there is no active message already.  SINDEX is returned intact.
@@ -966,6 +996,14 @@ dma6:
 
 	ret
 
+dma_finish:
+	test	DFSTATUS,0x8	jz dma_finish	# HDONE
+
+	clr	DFCNTRL				# disable DMA
+dma_finish2:
+	test	DFCNTRL,0x8	jnz dma_finish2	# HDMAENACK
+	ret
+
 #  Common SCSI initialization for selection and reselection.  Expects
 #  the target SCSI ID to be in the upper four bits of SINDEX, and A's
 #  contents are stomped on return.
@@ -1003,13 +1041,10 @@ initialize:
 #  message.
 #
 assert:
-	test	FLAGS,RESELECTED	jz assert1	# reselected?
-	test	FLAGS,IDENTIFY_SEEN	jnz assert1	# seen IDENTIFY?
+	test	FLAGS,RESELECTED	jz return	# reselected?
+	test	FLAGS,IDENTIFY_SEEN	jnz return	# seen IDENTIFY?
 
-	mvi	INTSTAT,NO_IDENT		# no - cause a kernel panic
-
-assert1:
-	ret
+	mvi	INTSTAT,NO_IDENT 	ret	# no - cause a kernel panic
 
 #  Find out if disconnection is ok from the information the BIOS has left
 #  us.  The tcl from SCBARRAY+1 should be in SINDEX; A will
@@ -1067,11 +1102,8 @@ sg_scb2ram:
 	mvi	SCBARRAY+3	call bcopy_4
 
 	mvi	SG_NOLOAD,0x80
-	test	SCBARRAY+0,0x10	jnz sg_scb2ram1	# don't reload s/g?
-	clr	SG_NOLOAD
-
-sg_scb2ram1:
-	ret
+	test	SCBARRAY+0,0x10	jnz return	# don't reload s/g?
+	clr	SG_NOLOAD	 ret
 
 #  Copying RAM values back to SCB, for Save Data Pointers message.
 #
@@ -1082,11 +1114,8 @@ sg_ram2scb:
 	mvi	SG_NEXT		call bcopy_4
 
 	and	SCBARRAY+0,0xef,SCBARRAY+0
-	test	SG_NOLOAD,0x80	jz sg_ram2scb1	# reload s/g?
-	or	SCBARRAY+0,SG_LOAD
-
-sg_ram2scb1:
-	ret
+	test	SG_NOLOAD,0x80	jz return	# reload s/g?
+	or	SCBARRAY+0,SG_LOAD	 ret
 
 #  Load a struct scatter if needed and set up the data address and
 #  length.  If the working value of the SG count is nonzero, then
@@ -1095,8 +1124,8 @@ sg_ram2scb1:
 #  This, like the above DMA, assumes a little-endian host data storage.
 #
 sg_load:
-	test	SG_COUNT,0xff	jz sg_load3	# SG being used?
-	test	SG_NOLOAD,0x80	jnz sg_load3	# don't reload s/g?
+	test	SG_COUNT,0xff	jz return	# SG being used?
+	test	SG_NOLOAD,0x80	jnz return	# don't reload s/g?
 
 	clr	HCNT+2
 	clr	HCNT+1
@@ -1110,12 +1139,8 @@ sg_load:
 #  Wait for DMA from host memory to data FIFO to complete, then disable
 #  DMA and wait for it to acknowledge that it's off.
 #
-sg_load1:
-	test	DFSTATUS,0x8	jz sg_load1	# HDONE
 
-	clr	DFCNTRL				# disable DMA
-sg_load2:
-	test	DFCNTRL,0x8	jnz sg_load2	# HDMAENACK
+	call	dma_finish
 
 #  Copy data from FIFO into SCB data pointer and data count.  This assumes
 #  that the struct scatterlist has this structure (this and sizeof(struct
@@ -1128,7 +1153,7 @@ sg_load2:
 #	}
 #
 
-# Not in FreeBSD.  the scatter list is only 8 bytes.
+# Not in FreeBSD.  the scatter list entry is only 8 bytes.
 # 
 # struct ahc_dma_seg {
 #       physaddr addr;                  /* four bytes, little-endian order */
@@ -1136,10 +1161,8 @@ sg_load2:
 # };
 #
 
-	mov	SCBARRAY+19,DFDAT		# new data address
-	mov	SCBARRAY+20,DFDAT
-	mov	SCBARRAY+21,DFDAT
-	mov	SCBARRAY+22,DFDAT
+	mvi	DINDEX, SCBARRAY+19
+	call	bcopy_4_dfdat
 
 # For Linux, we must throw away four bytes since there is a 32bit gap
 # in the middle of a struct scatterlist
@@ -1148,11 +1171,7 @@ sg_load2:
 #	mov	NONE,DFDAT
 #	mov	NONE,DFDAT
 
-	mov	SCBARRAY+23,DFDAT
-	mov	SCBARRAY+24,DFDAT
-	mov	SCBARRAY+25,DFDAT		#Only support 24 bit length.
-
-sg_load3:
+	call	bcopy_3_dfdat		#Only support 24 bit length.
 	ret
 
 #  Advance the scatter-gather pointers only IF NEEDED.  If SG is enabled,
@@ -1163,7 +1182,7 @@ sg_load3:
 #  next time.
 #
 sg_advance:
-	test	SG_COUNT,0xff	jz sg_advance2	# s/g enabled?
+	test	SG_COUNT,0xff	jz return	# s/g enabled?
 
 	test	STCNT+0,0xff	jnz sg_advance1	# SCSI transfer count nonzero?
 	test	STCNT+1,0xff	jnz sg_advance1
@@ -1179,9 +1198,7 @@ sg_advance:
 	adc	SG_NEXT+3,A,SG_NEXT+3	ret
 
 sg_advance1:
-	mvi	SG_NOLOAD,0x80			# don't reload s/g next time
-sg_advance2:
-	ret
+	mvi	SG_NOLOAD,0x80	ret		# don't reload s/g next time
 
 #  Add the array base SYNCNEG to the target offset (the target address
 #  is in SCSIID), and return the result in SINDEX.  The accumulator
@@ -1204,10 +1221,27 @@ ndx_dtr_2:
 #  reject, you wouldn't be able to tell which message was the culpret.
 #
 mk_dtr:
-	mov	DINDEX,SINDEX			# save SINDEX
-
+	test	SCBARRAY+0,0xc0 jz return	# NEEDWDTR|NEEDSDTR
 	test	SCBARRAY+0,NEEDWDTR jnz  mk_wdtr_16bit
-	jmp	mk_sdtr
+	or	FLAGS, MAX_SYNC		 # Force an offset of 15
+
+mk_sdtr:
+	mvi	DINDIR,1			# extended message
+	mvi	DINDIR,3			# extended message length = 3
+	mvi	DINDIR,1			# SDTR code
+	call	sdtr_to_rate
+	mov	DINDIR,RETURN_1			# REQ/ACK transfer period
+	test	FLAGS, MAX_SYNC	jnz mk_sdtr_max_sync
+	and	DINDIR,0xf,SINDIR		# Sync Offset
+
+mk_sdtr_done:
+	add	MSG_LEN,-MSG_START+0,DINDEX ret	# update message length
+
+mk_sdtr_max_sync:
+# We're initiating sync negotiation, so request the max offset we can (15)
+	mvi	DINDIR, 0x0f
+	xor	FLAGS, MAX_SYNC
+	jmp	mk_sdtr_done
 
 mk_wdtr_16bit:
 	mvi	ARG_1,BUS_16_BIT
@@ -1219,16 +1253,6 @@ mk_wdtr:
 
 	add	MSG_LEN,-MSG_START+0,DINDEX ret	# update message length
 	
-mk_sdtr:
-	mvi	DINDIR,1			# extended message
-	mvi	DINDIR,3			# extended message length = 3
-	mvi	DINDIR,1			# SDTR code
-	call	sdtr_to_rate
-	mov	DINDIR,RETURN_1			# REQ/ACK transfer period
-	and	DINDIR,0xf,SINDIR		# Sync Offset
-
-	add	MSG_LEN,-MSG_START+0,DINDEX ret	# update message length
-
 #  Set SCSI bus control signal state.  This also saves the last-written
 #  value into a location where the higher-level driver can read it - if
 #  it has to send an ABORT or RESET message, then it needs to know this
@@ -1254,3 +1278,6 @@ sdtr_to_rate_loop:
 sdtr_to_rate_done:
 	shr	RETURN_1,0x2
 	add	RETURN_1,0x18	ret
+
+return:
+	ret
