@@ -19,7 +19,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.11 1994/09/16 13:33:51 davidg Exp $
+ * $Id: wt.c,v 1.12 1994/10/23 21:27:42 wollman Exp $
  *
  */
 
@@ -722,12 +722,15 @@ static int wtpoll (wtinfo_t *t, int mask, int bits)
 /* execute QIC command */
 static int wtcmd (wtinfo_t *t, int cmd)
 {
-	int s;
+	int s, x;
 
 	DEBUG (("wtcmd() cmd=0x%x\n", cmd));
+	x = splbio();
 	s = wtpoll (t, t->BUSY | t->NOEXCEP, t->BUSY | t->NOEXCEP); /* ready? */
-	if (! (s & t->NOEXCEP))                         /* error */
+	if (! (s & t->NOEXCEP)) {                       /* error */
+	        splx(x);
 		return (0);
+	}
 	
 	outb (t->CMDPORT, cmd);                         /* output the command */
 
@@ -735,6 +738,7 @@ static int wtcmd (wtinfo_t *t, int cmd)
 	wtpoll (t, t->BUSY, t->BUSY);                   /* wait for ready */
 	outb (t->CTLPORT, t->IEN | t->ONLINE);          /* reset request */
 	wtpoll (t, t->BUSY, 0);                         /* wait for not ready */
+	splx(x);
 	return (1);
 }
 
@@ -769,12 +773,14 @@ static void wtdma (wtinfo_t *t)
 /* start i/o operation */
 static int wtstart (wtinfo_t *t, unsigned flags, void *vaddr, unsigned len)
 {
-	int s;
+	int s, x;
 
 	DEBUG (("wtstart()\n"));
+	x = splbio();
 	s = wtpoll (t, t->BUSY | t->NOEXCEP, t->BUSY | t->NOEXCEP); /* ready? */
 	if (! (s & t->NOEXCEP)) {
 		t->flags |= TPEXCEP;            /* error */
+		splx(x);
 		return (0);
 	}
 	t->flags &= ~TPEXCEP;                   /* clear exception flag */
@@ -783,6 +789,7 @@ static int wtstart (wtinfo_t *t, unsigned flags, void *vaddr, unsigned len)
 	t->dmacount = 0;
 	t->dmaflags = flags;
 	wtdma (t);
+	splx(x);
 	return (1);
 }
 
@@ -896,7 +903,9 @@ static int wtsense (wtinfo_t *t, int verb, int ignor)
 static int wtstatus (wtinfo_t *t)
 {
 	char *p;
+	int x;
 
+	x = splbio();
 	wtpoll (t, t->BUSY | t->NOEXCEP, t->BUSY | t->NOEXCEP); /* ready? */
 	outb (t->CMDPORT, QIC_RDSTAT);  /* send `read status' command */
 
@@ -908,8 +917,10 @@ static int wtstatus (wtinfo_t *t)
 	p = (char*) &t->error;
 	while (p < (char*)&t->error + 6) {
 		int s = wtpoll (t, t->BUSY | t->NOEXCEP, t->BUSY | t->NOEXCEP);
-		if (! (s & t->NOEXCEP))                 /* error */
+		if (! (s & t->NOEXCEP)) {               /* error */
+		        splx(x);
 			return (0);
+		}
 
 		*p++ = inb (t->DATAPORT);               /* read status byte */
 
@@ -917,6 +928,7 @@ static int wtstatus (wtinfo_t *t)
 		wtpoll (t, t->BUSY, 0);                 /* wait for not ready */
 		outb (t->CTLPORT, t->ONLINE);           /* unset request */
 	}
+	splx(x);
 	return (1);
 }
 #endif /* NWT */
