@@ -4,5 +4,6 @@
 KMOD		= snd_fm801
 SRCS		= device_if.h bus_if.h isa_if.h pci_if.h
 SRCS		+= fm801.c
+KMODDEPS 	= snd_pcm
 
 .include <bsd.kmod.mk>
