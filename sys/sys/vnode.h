@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.72 1998/08/27 02:34:30 jkh Exp $
+ * $Id: vnode.h,v 1.73 1998/09/10 02:27:52 tegge Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -62,7 +62,7 @@ enum vtype	{ VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO, VBAD };
 enum vtagtype	{
 	VT_NON, VT_UFS, VT_NFS, VT_MFS, VT_PC, VT_LFS, VT_LOFS, VT_FDESC,
 	VT_PORTAL, VT_NULL, VT_UMAP, VT_KERNFS, VT_PROCFS, VT_AFS, VT_ISOFS,
-	VT_UNION, VT_MSDOSFS, VT_DEVFS, VT_TFS, VT_VFS, VT_CFS
+	VT_UNION, VT_MSDOSFS, VT_DEVFS, VT_TFS, VT_VFS, VT_CODA
 };
 
 /*

@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/cfs/cfsnc.h,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $ 
- *  $Id: $
+ *  $Id: cfsnc.h,v 1.2 1998/09/02 19:09:53 rvb Exp $
  * 
  */
 
@@ -47,6 +47,9 @@
 /* 
  * HISTORY
  * $Log: cfsnc.h,v $
+ * Revision 1.2  1998/09/02 19:09:53  rvb
+ * Pass2 complete
+ *
  * Revision 1.1.1.1  1998/08/29 21:14:52  rvb
  * Very Preliminary Coda
  *
@@ -63,7 +66,7 @@
  * Sync the code for NetBSD -current; test on 1.3 later
  *
  * Revision 1.5  98/01/23  11:53:51  rvb
- * Bring RVB_CFS1_1 to HEAD
+ * Bring RVB_CODA1_1 to HEAD
  * 
  * Revision 1.4.2.1  97/12/16  12:40:23  rvb
  * Sync with 1.3
@@ -81,7 +84,7 @@
  * don't include headers in headers
  * 
  * Revision 1.3  97/08/05  11:08:19  lily
- * Removed cfsnc_replace, replaced it with a cfs_find, unhash, and
+ * Removed cfsnc_replace, replaced it with a coda_find, unhash, and
  * rehash.  This fixes a cnode leak and a bug in which the fid is
  * not actually replaced.  (cfs_namecache.c, cfsnc.h, cfs_subr.c)
  * 
@@ -89,7 +92,7 @@
  * Added support for Coda MiniCache and raw inode calls (final commit)
  * 
  * Revision 1.1.2.1  1995/12/20 01:57:45  bnoble
- * Added CFS-specific files
+ * Added CODA-specific files
  *
  * Revision 3.1.1.1  1995/03/04  19:08:22  bnoble
  * Branch for NetBSD port revisions
@@ -98,20 +101,20 @@
  * Bump to major revision 3 to prepare for NetBSD port
  *
  * Revision 2.2  1994/08/28  19:37:39  luqi
- * Add a new CFS_REPLACE call to allow venus to replace a ViceFid in the
+ * Add a new CODA_REPLACE call to allow venus to replace a ViceFid in the
  * mini-cache.
  *
  * In "cfs.h":
- * Add CFS_REPLACE decl.
+ * Add CODA_REPLACE decl.
  *
  * In "cfs_namecache.c":
  * Add routine cfsnc_replace.
  *
  * In "cfs_subr.c":
- * Add case-statement to process CFS_REPLACE.
+ * Add case-statement to process CODA_REPLACE.
  *
  * In "cfsnc.h":
- * Add decl for CFSNC_REPLACE.
+ * Add decl for CODA_NC_REPLACE.
  *
  * Revision 2.1  94/07/21  16:25:27  satya
  * Conversion to C++ 3.0; start of Coda Release 2.0
@@ -128,15 +131,15 @@
  * 
  * 
  */
-#ifndef _CFSNC_HEADER_
-#define _CFSNC_HEADER_
+#ifndef _CODA_NC_HEADER_
+#define _CODA_NC_HEADER_
 
 /*
- * Cfs constants
+ * Coda constants
  */
-#define CFSNC_NAMELEN	15		/* longest name stored in cache */
-#define CFSNC_CACHESIZE 256		/* Default cache size */
-#define CFSNC_HASHSIZE	64		/* Must be multiple of 2 */
+#define CODA_NC_NAMELEN	15		/* longest name stored in cache */
+#define CODA_NC_CACHESIZE 256		/* Default cache size */
+#define CODA_NC_HASHSIZE	64		/* Must be multiple of 2 */
 
 /*
  * Hash function for the primary hash.
@@ -148,14 +151,14 @@
  */
 
 #ifdef	oldhash
-#define CFSNC_HASH(name, namelen, cp) \
-	((name[0] + name[namelen-1] + namelen + (int)(cp)) & (cfsnc_hashsize-1))
+#define CODA_NC_HASH(name, namelen, cp) \
+	((name[0] + name[namelen-1] + namelen + (int)(cp)) & (coda_nc_hashsize-1))
 #else
-#define CFSNC_HASH(name, namelen, cp) \
-	((name[0] + (name[namelen-1]<<4) + namelen + (((int)cp)>>8)) & (cfsnc_hashsize-1))
+#define CODA_NC_HASH(name, namelen, cp) \
+	((name[0] + (name[namelen-1]<<4) + namelen + (((int)cp)>>8)) & (coda_nc_hashsize-1))
 #endif
 
-#define CFS_NAMEMATCH(cp, name, namelen, dcp) \
+#define CODA_NAMEMATCH(cp, name, namelen, dcp) \
 	((namelen == cp->namelen) && (dcp == cp->dcp) && \
 		 (bcmp(cp->name,name,namelen) == 0))
 
@@ -165,82 +168,82 @@
  * in the list node, thus the trickery for lru.
  */
 
-#define CFSNC_HSHINS(elem, pred)	insque(elem,pred)
-#define CFSNC_HSHREM(elem)		remque(elem)
-#define CFSNC_HSHNUL(elem)		(elem)->hash_next = \
+#define CODA_NC_HSHINS(elem, pred)	insque(elem,pred)
+#define CODA_NC_HSHREM(elem)		remque(elem)
+#define CODA_NC_HSHNUL(elem)		(elem)->hash_next = \
 					(elem)->hash_prev = (elem)
 
-#define CFSNC_LRUINS(elem, pred)	insque(LRU_PART(elem), LRU_PART(pred))
-#define CFSNC_LRUREM(elem)		remque(LRU_PART(elem));
-#define CFSNC_LRUGET(lruhead)		LRU_TOP((lruhead).lru_prev)
+#define CODA_NC_LRUINS(elem, pred)	insque(LRU_PART(elem), LRU_PART(pred))
+#define CODA_NC_LRUREM(elem)		remque(LRU_PART(elem));
+#define CODA_NC_LRUGET(lruhead)		LRU_TOP((lruhead).lru_prev)
 
-#define CFSNC_VALID(cncp)	(cncp->dcp != (struct cnode *)0)
+#define CODA_NC_VALID(cncp)	(cncp->dcp != (struct cnode *)0)
  
-#define LRU_PART(cncp)			(struct cfscache *) \
-				((char *)cncp + (2*sizeof(struct cfscache *)))
-#define LRU_TOP(cncp)				(struct cfscache *) \
-			((char *)cncp - (2*sizeof(struct cfscache *)))
-#define DATA_PART(cncp)				(struct cfscache *) \
-			((char *)cncp + (4*sizeof(struct cfscache *)))
-#define DATA_SIZE	(sizeof(struct cfscache)-(4*sizeof(struct cfscache *)))
+#define LRU_PART(cncp)			(struct coda_cache *) \
+				((char *)cncp + (2*sizeof(struct coda_cache *)))
+#define LRU_TOP(cncp)				(struct coda_cache *) \
+			((char *)cncp - (2*sizeof(struct coda_cache *)))
+#define DATA_PART(cncp)				(struct coda_cache *) \
+			((char *)cncp + (4*sizeof(struct coda_cache *)))
+#define DATA_SIZE	(sizeof(struct coda_cache)-(4*sizeof(struct coda_cache *)))
 
 /*
- * Structure for an element in the CFS Name Cache.
+ * Structure for an element in the CODA Name Cache.
  * NOTE: I use the position of arguments and their size in the
- * implementation of the functions CFSNC_LRUINS, CFSNC_LRUREM, and
+ * implementation of the functions CODA_NC_LRUINS, CODA_NC_LRUREM, and
  * DATA_PART.
  */
 
-struct cfscache {	
-	struct cfscache	*hash_next,*hash_prev;	/* Hash list */
-	struct cfscache	*lru_next, *lru_prev;	/* LRU list */
+struct coda_cache {	
+	struct coda_cache	*hash_next,*hash_prev;	/* Hash list */
+	struct coda_cache	*lru_next, *lru_prev;	/* LRU list */
 	struct cnode	*cp;			/* vnode of the file */
 	struct cnode	*dcp;			/* parent's cnode */
 	struct ucred	*cred;			/* user credentials */
-	char		name[CFSNC_NAMELEN];	/* segment name */
+	char		name[CODA_NC_NAMELEN];	/* segment name */
 	int		namelen;		/* length of name */
 };
 
-struct	cfslru {		/* Start of LRU chain */
+struct	coda_lru {		/* Start of LRU chain */
 	char *dummy1, *dummy2;			/* place holders */
-	struct cfscache *lru_next, *lru_prev;   /* position of pointers is important */
+	struct coda_cache *lru_next, *lru_prev;   /* position of pointers is important */
 };
 
 
-struct cfshash {		/* Start of Hash chain */
-	struct cfscache *hash_next, *hash_prev; /* NOTE: chain pointers must be first */
+struct coda_hash {		/* Start of Hash chain */
+	struct coda_cache *hash_next, *hash_prev; /* NOTE: chain pointers must be first */
         int length;                             /* used for tuning purposes */
 };
 
 
 /* 
  * Symbols to aid in debugging the namecache code. Assumes the existence
- * of the variable cfsnc_debug, which is defined in cfs_namecache.c
+ * of the variable coda_nc_debug, which is defined in cfs_namecache.c
  */
-#define CFSNC_DEBUG(N, STMT)     { if (cfsnc_debug & (1 <<N)) { STMT } }
+#define CODA_NC_DEBUG(N, STMT)     { if (coda_nc_debug & (1 <<N)) { STMT } }
 
 /* Prototypes of functions exported within cfs */
-extern void cfsnc_init(void);
-extern void cfsnc_enter(struct cnode *, const char *, int, struct ucred *, struct cnode *);
-extern struct cnode *cfsnc_lookup(struct cnode *, const char *, int, struct ucred *);
+extern void coda_nc_init(void);
+extern void coda_nc_enter(struct cnode *, const char *, int, struct ucred *, struct cnode *);
+extern struct cnode *coda_nc_lookup(struct cnode *, const char *, int, struct ucred *);
 
-extern void cfsnc_zapParentfid(ViceFid *, enum dc_status);
-extern void cfsnc_zapfid(ViceFid *, enum dc_status);
-extern void cfsnc_zapvnode(ViceFid *, struct ucred *, enum dc_status);
-extern void cfsnc_zapfile(struct cnode *, const char *, int);
-extern void cfsnc_purge_user(vuid_t, enum dc_status);
-extern void cfsnc_flush(enum dc_status);
+extern void coda_nc_zapParentfid(ViceFid *, enum dc_status);
+extern void coda_nc_zapfid(ViceFid *, enum dc_status);
+extern void coda_nc_zapvnode(ViceFid *, struct ucred *, enum dc_status);
+extern void coda_nc_zapfile(struct cnode *, const char *, int);
+extern void coda_nc_purge_user(vuid_t, enum dc_status);
+extern void coda_nc_flush(enum dc_status);
 
-extern void print_cfsnc(void);
-extern void cfsnc_gather_stats(void);
-extern int  cfsnc_resize(int, int, enum dc_status);
-extern void cfsnc_name(struct cnode *cp);
+extern void print_coda_nc(void);
+extern void coda_nc_gather_stats(void);
+extern int  coda_nc_resize(int, int, enum dc_status);
+extern void coda_nc_name(struct cnode *cp);
 
 /*
  * Structure to contain statistics on the cache usage
  */
 
-struct cfsnc_statistics {
+struct coda_nc_statistics {
 	unsigned	hits;
 	unsigned	misses;
 	unsigned	enters;
@@ -261,18 +264,18 @@ struct cfsnc_statistics {
 	unsigned        Search_len;
 };
 
-#define CFSNC_FIND		((u_long) 1)
-#define CFSNC_REMOVE		((u_long) 2)
-#define CFSNC_INIT		((u_long) 3)
-#define CFSNC_ENTER		((u_long) 4)
-#define CFSNC_LOOKUP		((u_long) 5)
-#define CFSNC_ZAPPFID		((u_long) 6)
-#define CFSNC_ZAPFID		((u_long) 7)
-#define CFSNC_ZAPVNODE		((u_long) 8)
-#define CFSNC_ZAPFILE		((u_long) 9)
-#define CFSNC_PURGEUSER		((u_long) 10)
-#define CFSNC_FLUSH		((u_long) 11)
-#define CFSNC_PRINTCFSNC	((u_long) 12)
-#define CFSNC_PRINTSTATS	((u_long) 13)
+#define CODA_NC_FIND		((u_long) 1)
+#define CODA_NC_REMOVE		((u_long) 2)
+#define CODA_NC_INIT		((u_long) 3)
+#define CODA_NC_ENTER		((u_long) 4)
+#define CODA_NC_LOOKUP		((u_long) 5)
+#define CODA_NC_ZAPPFID		((u_long) 6)
+#define CODA_NC_ZAPFID		((u_long) 7)
+#define CODA_NC_ZAPVNODE		((u_long) 8)
+#define CODA_NC_ZAPFILE		((u_long) 9)
+#define CODA_NC_PURGEUSER		((u_long) 10)
+#define CODA_NC_FLUSH		((u_long) 11)
+#define CODA_NC_PRINTCODA_NC	((u_long) 12)
+#define CODA_NC_PRINTSTATS	((u_long) 13)
 
 #endif

@@ -69,7 +69,7 @@
  * First version that works on FreeBSD 2.2.5
  * 
  * Revision 1.7  98/01/23  11:53:39  rvb
- * Bring RVB_CFS1_1 to HEAD
+ * Bring RVB_CODA1_1 to HEAD
  * 
  * Revision 1.6.2.4  98/01/23  11:21:02  rvb
  * Sync with 2.2.5
@@ -109,7 +109,7 @@
  * >64Meg; venus can be killed!
  * 
  * Revision 1.5  97/08/05  11:08:01  lily
- * Removed cfsnc_replace, replaced it with a cfs_find, unhash, and
+ * Removed cfsnc_replace, replaced it with a coda_find, unhash, and
  * rehash.  This fixes a cnode leak and a bug in which the fid is
  * not actually replaced.  (cfs_namecache.c, cfsnc.h, cfs_subr.c)
  * 
@@ -125,7 +125,7 @@
  * Added support for Coda MiniCache and raw inode calls (final commit)
  *
  * Revision 1.1.2.1  1995/12/20 01:57:15  bnoble
- * Added CFS-specific files
+ * Added CODA-specific files
  *
  * Revision 3.1.1.1  1995/03/04  19:07:57  bnoble
  * Branch for NetBSD port revisions
@@ -137,20 +137,20 @@
  * Made changes 'cause sun4s have braindead compilers
  *
  * Revision 2.2  94/08/28  19:37:35  luqi
- * Add a new CFS_REPLACE call to allow venus to replace a ViceFid in the
+ * Add a new CODA_REPLACE call to allow venus to replace a ViceFid in the
  * mini-cache. 
  * 
  * In "cfs.h":
- * Add CFS_REPLACE decl.
+ * Add CODA_REPLACE decl.
  * 
  * In "cfs_namecache.c":
  * Add routine cfsnc_replace.
  * 
  * In "cfs_subr.c":
- * Add case-statement to process CFS_REPLACE.
+ * Add case-statement to process CODA_REPLACE.
  * 
  * In "cfsnc.h":
- * Add decl for CFSNC_REPLACE.
+ * Add decl for CODA_NC_REPLACE.
  * 
  * 
  * Revision 2.1  94/07/21  16:25:15  satya
@@ -160,7 +160,7 @@
  * merge kernel/latest and alpha/src/cfs
  * 
  * Revision 2.3  92/09/30  14:16:20  mja
- * 	call cfs_flush instead of calling inode_uncache_try directly 
+ * 	call coda_flush instead of calling inode_uncache_try directly 
  * 	(from dcs). Also...
  * 
  * 	Substituted rvb's history blurb so that we agree with Mach 2.5 sources.
@@ -180,7 +180,7 @@
  */
 
 /*
- * This module contains the routines to implement the CFS name cache. The
+ * This module contains the routines to implement the CODA name cache. The
  * purpose of this cache is to reduce the cost of translating pathnames 
  * into Vice FIDs. Each entry in the cache contains the name of the file,
  * the vnode (FID) of the parent directory, and the cred structure of the
@@ -203,8 +203,8 @@
  * NOTES: rvb@cs
  * 1.	The name cache holds a reference to every vnode in it.  Hence files can not be
  *	 closed or made inactive until they are released.
- * 2.	cfsnc_name(cp) was added to get a name for a cnode pointer for debugging.
- * 3.	cfsnc_find() has debug code to detect when entries are stored with different
+ * 2.	coda_nc_name(cp) was added to get a name for a cnode pointer for debugging.
+ * 3.	coda_nc_find() has debug code to detect when entries are stored with different
  *	 credentials.  We don't understand yet, if/how entries are NOT EQ but still
  *	 EQUAL
  * 4.	I wonder if this name cache could be replace by the vnode name cache.
@@ -227,82 +227,78 @@
 #include <cfs/coda.h>
 #include <cfs/cnode.h>
 #include <cfs/cfsnc.h>
-#ifdef	DEBUG
-/* for printcred */
-#include <cfs/cfs_vnodeops.h>
-#endif
 
 /* 
  * Declaration of the name cache data structure.
  */
 
-int 	cfsnc_use = 1;			 /* Indicate use of CFS Name Cache */
-int	cfsnc_size = CFSNC_CACHESIZE;	 /* size of the cache */
-int	cfsnc_hashsize = CFSNC_HASHSIZE; /* size of the primary hash */
+int 	coda_nc_use = 1;			 /* Indicate use of CODA Name Cache */
+int	coda_nc_size = CODA_NC_CACHESIZE;	 /* size of the cache */
+int	coda_nc_hashsize = CODA_NC_HASHSIZE; /* size of the primary hash */
 
-struct 	cfscache *cfsncheap;	/* pointer to the cache entries */
-struct	cfshash  *cfsnchash;	/* hash table of cfscache pointers */
-struct	cfslru   cfsnc_lru;	/* head of lru chain */
+struct 	coda_cache *coda_nc_heap;	/* pointer to the cache entries */
+struct	coda_hash  *coda_nc_hash;	/* hash table of coda_cache pointers */
+struct	coda_lru   coda_nc_lru;		/* head of lru chain */
 
-struct cfsnc_statistics cfsnc_stat;	/* Keep various stats */
+struct coda_nc_statistics coda_nc_stat;	/* Keep various stats */
 
 /* 
  * for testing purposes
  */
-int cfsnc_debug = 0;
+int coda_nc_debug = 0;
 
 /*
- * Entry points for the CFS Name Cache
+ * Entry points for the CODA Name Cache
  */
-static struct cfscache *cfsnc_find(struct cnode *dcp, const char *name, int namelen,
+static struct coda_cache *coda_nc_find(struct cnode *dcp, const char *name, int namelen,
 	struct ucred *cred, int hash);
-static void cfsnc_remove(struct cfscache *cncp, enum dc_status dcstat);
+static void coda_nc_remove(struct coda_cache *cncp, enum dc_status dcstat);
 
 /*  
  * Initialize the cache, the LRU structure and the Hash structure(s)
  */
 
-#define TOTAL_CACHE_SIZE 	(sizeof(struct cfscache) * cfsnc_size)
-#define TOTAL_HASH_SIZE 	(sizeof(struct cfshash)  * cfsnc_hashsize)
+#define TOTAL_CACHE_SIZE 	(sizeof(struct coda_cache) * coda_nc_size)
+#define TOTAL_HASH_SIZE 	(sizeof(struct coda_hash)  * coda_nc_hashsize)
 
-int cfsnc_initialized = 0;      /* Initially the cache has not been initialized */
+int coda_nc_initialized = 0;      /* Initially the cache has not been initialized */
 
 void
-cfsnc_init(void)
+coda_nc_init(void)
 {
     int i;
 
     /* zero the statistics structure */
     
-    bzero(&cfsnc_stat, (sizeof(struct cfsnc_statistics)));
+    bzero(&coda_nc_stat, (sizeof(struct coda_nc_statistics)));
 
-    printf("CFS NAME CACHE: CACHE %d, HASH TBL %d\n", CFSNC_CACHESIZE, CFSNC_HASHSIZE);
-    CFS_ALLOC(cfsncheap, struct cfscache *, TOTAL_CACHE_SIZE);
-    CFS_ALLOC(cfsnchash, struct cfshash *, TOTAL_HASH_SIZE);
+    printf("CODA NAME CACHE: CACHE %d, HASH TBL %d\n", CODA_NC_CACHESIZE, CODA_NC_HASHSIZE);
+    CODA_ALLOC(coda_nc_heap, struct coda_cache *, TOTAL_CACHE_SIZE);
+    CODA_ALLOC(coda_nc_hash, struct coda_hash *, TOTAL_HASH_SIZE);
     
-    cfsnc_lru.lru_next = 
-	cfsnc_lru.lru_prev = (struct cfscache *)LRU_PART(&cfsnc_lru);
+    coda_nc_lru.lru_next = 
+	coda_nc_lru.lru_prev = (struct coda_cache *)LRU_PART(&coda_nc_lru);
     
     
-    for (i=0; i < cfsnc_size; i++) {	/* initialize the heap */
-	CFSNC_LRUINS(&cfsncheap[i], &cfsnc_lru);
-	CFSNC_HSHNUL(&cfsncheap[i]);
-	cfsncheap[i].cp = cfsncheap[i].dcp = (struct cnode *)0;
+    for (i=0; i < coda_nc_size; i++) {	/* initialize the heap */
+	CODA_NC_LRUINS(&coda_nc_heap[i], &coda_nc_lru);
+	CODA_NC_HSHNUL(&coda_nc_heap[i]);
+	coda_nc_heap[i].cp = coda_nc_heap[i].dcp = (struct cnode *)0;
     }
     
-    for (i=0; i < cfsnc_hashsize; i++) {	/* initialize the hashtable */
-	CFSNC_HSHNUL((struct cfscache *)&cfsnchash[i]);
+    for (i=0; i < coda_nc_hashsize; i++) {	/* initialize the hashtable */
+	CODA_NC_HSHNUL((struct coda_cache *)&coda_nc_hash[i]);
     }
     
-    cfsnc_initialized++;
+    coda_nc_initialized++;
 }
 
 /*
  * Auxillary routines -- shouldn't be entry points
  */
 
-static struct cfscache *
-cfsnc_find(dcp, name, namelen, cred, hash)
+static struct coda_cache *
+coda_nc_find(dcp, name, namelen, cred, hash)
 	struct cnode *dcp;
 	const char *name;
 	int namelen;
@@ -313,28 +309,28 @@ cfsnc_find(dcp, name, namelen, cred, hash)
 	 * hash to find the appropriate bucket, look through the chain
 	 * for the right entry (especially right cred, unless cred == 0) 
 	 */
-	struct cfscache *cncp;
+	struct coda_cache *cncp;
 	int count = 1;
 
-	CFSNC_DEBUG(CFSNC_FIND, 
-		    myprintf(("cfsnc_find(dcp %p, name %s, len %d, cred %p, hash %d\n",
+	CODA_NC_DEBUG(CODA_NC_FIND, 
+		    myprintf(("coda_nc_find(dcp %p, name %s, len %d, cred %p, hash %d\n",
 			   dcp, name, namelen, cred, hash));)
 
-	for (cncp = cfsnchash[hash].hash_next; 
-	     cncp != (struct cfscache *)&cfsnchash[hash];
+	for (cncp = coda_nc_hash[hash].hash_next; 
+	     cncp != (struct coda_cache *)&coda_nc_hash[hash];
 	     cncp = cncp->hash_next, count++) 
 	{
 
-	    if ((CFS_NAMEMATCH(cncp, name, namelen, dcp)) &&
+	    if ((CODA_NAMEMATCH(cncp, name, namelen, dcp)) &&
 		((cred == 0) || (cncp->cred == cred))) 
 	    { 
 		/* compare cr_uid instead */
-		cfsnc_stat.Search_len += count;
+		coda_nc_stat.Search_len += count;
 		return(cncp);
 	    }
 #ifdef	DEBUG
-	    else if (CFS_NAMEMATCH(cncp, name, namelen, dcp)) {
-	    	printf("cfsnc_find: name %s, new cred = %p, cred = %p\n",
+	    else if (CODA_NAMEMATCH(cncp, name, namelen, dcp)) {
+	    	printf("coda_nc_find: name %s, new cred = %p, cred = %p\n",
 			name, cred, cncp->cred);
 		printf("nref %d, nuid %d, ngid %d // oref %d, ocred %d, ogid %d\n",
 			cred->cr_ref, cred->cr_uid, cred->cr_gid,
@@ -345,7 +341,7 @@ cfsnc_find(dcp, name, namelen, cred, hash)
 #endif
 	}
 
-	return((struct cfscache *)0);
+	return((struct coda_cache *)0);
 }
 
 /*
@@ -353,52 +349,52 @@ cfsnc_find(dcp, name, namelen, cred, hash)
  * LRU and Hash as needed.
  */
 void
-cfsnc_enter(dcp, name, namelen, cred, cp)
+coda_nc_enter(dcp, name, namelen, cred, cp)
     struct cnode *dcp;
     const char *name;
     int namelen;
     struct ucred *cred;
     struct cnode *cp;
 {
-    struct cfscache *cncp;
+    struct coda_cache *cncp;
     int hash;
     
-    if (cfsnc_use == 0)			/* Cache is off */
+    if (coda_nc_use == 0)			/* Cache is off */
 	return;
     
-    CFSNC_DEBUG(CFSNC_ENTER, 
+    CODA_NC_DEBUG(CODA_NC_ENTER, 
 		myprintf(("Enter: dcp %p cp %p name %s cred %p \n",
 		       dcp, cp, name, cred)); )
 	
-    if (namelen > CFSNC_NAMELEN) {
-	CFSNC_DEBUG(CFSNC_ENTER, 
+    if (namelen > CODA_NC_NAMELEN) {
+	CODA_NC_DEBUG(CODA_NC_ENTER, 
 		    myprintf(("long name enter %s\n",name));)
-	    cfsnc_stat.long_name_enters++;	/* record stats */
+	    coda_nc_stat.long_name_enters++;	/* record stats */
 	return;
     }
     
-    hash = CFSNC_HASH(name, namelen, dcp);
-    cncp = cfsnc_find(dcp, name, namelen, cred, hash);
-    if (cncp != (struct cfscache *) 0) {	
-	cfsnc_stat.dbl_enters++;		/* duplicate entry */
+    hash = CODA_NC_HASH(name, namelen, dcp);
+    cncp = coda_nc_find(dcp, name, namelen, cred, hash);
+    if (cncp != (struct coda_cache *) 0) {	
+	coda_nc_stat.dbl_enters++;		/* duplicate entry */
 	return;
     }
     
-    cfsnc_stat.enters++;		/* record the enters statistic */
+    coda_nc_stat.enters++;		/* record the enters statistic */
     
     /* Grab the next element in the lru chain */
-    cncp = CFSNC_LRUGET(cfsnc_lru);
+    cncp = CODA_NC_LRUGET(coda_nc_lru);
     
-    CFSNC_LRUREM(cncp);	/* remove it from the lists */
+    CODA_NC_LRUREM(cncp);	/* remove it from the lists */
     
-    if (CFSNC_VALID(cncp)) {
+    if (CODA_NC_VALID(cncp)) {
 	/* Seems really ugly, but we have to decrement the appropriate
 	   hash bucket length here, so we have to find the hash bucket
 	   */
-	cfsnchash[CFSNC_HASH(cncp->name, cncp->namelen, cncp->dcp)].length--;
+	coda_nc_hash[CODA_NC_HASH(cncp->name, cncp->namelen, cncp->dcp)].length--;
 	
-	cfsnc_stat.lru_rm++;	/* zapped a valid entry */
-	CFSNC_HSHREM(cncp);
+	coda_nc_stat.lru_rm++;	/* zapped a valid entry */
+	CODA_NC_HSHREM(cncp);
 	vrele(CTOV(cncp->dcp)); 
 	vrele(CTOV(cncp->cp));
 	crfree(cncp->cred);
@@ -419,11 +415,11 @@ cfsnc_enter(dcp, name, namelen, cred, cp)
     
     /* Insert into the lru and hash chains. */
     
-    CFSNC_LRUINS(cncp, &cfsnc_lru);
-    CFSNC_HSHINS(cncp, &cfsnchash[hash]);
-    cfsnchash[hash].length++;                      /* Used for tuning */
+    CODA_NC_LRUINS(cncp, &coda_nc_lru);
+    CODA_NC_HSHINS(cncp, &coda_nc_hash[hash]);
+    coda_nc_hash[hash].length++;                      /* Used for tuning */
     
-    CFSNC_DEBUG(CFSNC_PRINTCFSNC, print_cfsnc(); )
+    CODA_NC_DEBUG(CODA_NC_PRINTCODA_NC, print_coda_nc(); )
 }
 
 /*
@@ -431,22 +427,22 @@ cfsnc_enter(dcp, name, namelen, cred, cp)
  * matches the input, return it, otherwise return 0
  */
 struct cnode *
-cfsnc_lookup(dcp, name, namelen, cred)
+coda_nc_lookup(dcp, name, namelen, cred)
 	struct cnode *dcp;
 	const char *name;
 	int namelen;
 	struct ucred *cred;
 {
 	int hash;
-	struct cfscache *cncp;
+	struct coda_cache *cncp;
 
-	if (cfsnc_use == 0)			/* Cache is off */
+	if (coda_nc_use == 0)			/* Cache is off */
 		return((struct cnode *) 0);
 
-	if (namelen > CFSNC_NAMELEN) {
-	        CFSNC_DEBUG(CFSNC_LOOKUP, 
+	if (namelen > CODA_NC_NAMELEN) {
+	        CODA_NC_DEBUG(CODA_NC_LOOKUP, 
 			    myprintf(("long name lookup %s\n",name));)
-		cfsnc_stat.long_name_lookups++;		/* record stats */
+		coda_nc_stat.long_name_lookups++;		/* record stats */
 		return((struct cnode *) 0);
 	}
 
@@ -455,25 +451,25 @@ cfsnc_lookup(dcp, name, namelen, cred)
 	   the correct cred.
  	 */
 
-	hash = CFSNC_HASH(name, namelen, dcp);
-	cncp = cfsnc_find(dcp, name, namelen, cred, hash);
-	if (cncp == (struct cfscache *) 0) {
-		cfsnc_stat.misses++;			/* record miss */
+	hash = CODA_NC_HASH(name, namelen, dcp);
+	cncp = coda_nc_find(dcp, name, namelen, cred, hash);
+	if (cncp == (struct coda_cache *) 0) {
+		coda_nc_stat.misses++;			/* record miss */
 		return((struct cnode *) 0);
 	}
 
-	cfsnc_stat.hits++;
+	coda_nc_stat.hits++;
 
 	/* put this entry at the end of the LRU */
-	CFSNC_LRUREM(cncp);
-	CFSNC_LRUINS(cncp, &cfsnc_lru);
+	CODA_NC_LRUREM(cncp);
+	CODA_NC_LRUINS(cncp, &coda_nc_lru);
 
 	/* move it to the front of the hash chain */
 	/* don't need to change the hash bucket length */
-	CFSNC_HSHREM(cncp);
-	CFSNC_HSHINS(cncp, &cfsnchash[hash]);
+	CODA_NC_HSHREM(cncp);
+	CODA_NC_HSHINS(cncp, &coda_nc_hash[hash]);
 
-	CFSNC_DEBUG(CFSNC_LOOKUP, 
+	CODA_NC_DEBUG(CODA_NC_LOOKUP, 
 		printf("lookup: dcp %p, name %s, cred %p = cp %p\n",
 			dcp, name, cred, cncp->cp); )
 
@@ -481,8 +477,8 @@ cfsnc_lookup(dcp, name, namelen, cred)
 }
 
 static void
-cfsnc_remove(cncp, dcstat)
-	struct cfscache *cncp;
+coda_nc_remove(cncp, dcstat)
+	struct coda_cache *cncp;
 	enum dc_status dcstat;
 {
 	/* 
@@ -490,14 +486,14 @@ cfsnc_remove(cncp, dcstat)
 	 * remove it from it's hash chain, and
 	 * place it at the head of the lru list.
 	 */
-        CFSNC_DEBUG(CFSNC_REMOVE,
-		    myprintf(("cfsnc_remove %s from parent %lx.%lx.%lx\n",
+        CODA_NC_DEBUG(CODA_NC_REMOVE,
+		    myprintf(("coda_nc_remove %s from parent %lx.%lx.%lx\n",
 			   cncp->name, (cncp->dcp)->c_fid.Volume,
 			   (cncp->dcp)->c_fid.Vnode, (cncp->dcp)->c_fid.Unique));)
 
-  	CFSNC_HSHREM(cncp);
+  	CODA_NC_HSHREM(cncp);
 
-	CFSNC_HSHNUL(cncp);		/* have it be a null chain */
+	CODA_NC_HSHNUL(cncp);		/* have it be a null chain */
 	if ((dcstat == IS_DOWNCALL) && (CTOV(cncp->dcp)->v_usecount == 1)) {
 		cncp->dcp->c_flags |= C_PURGING;
 	}
@@ -513,15 +509,15 @@ cfsnc_remove(cncp, dcstat)
 
 	/* Put the null entry just after the least-recently-used entry */
 	/* LRU_TOP adjusts the pointer to point to the top of the structure. */
-	CFSNC_LRUREM(cncp);
-	CFSNC_LRUINS(cncp, LRU_TOP(cfsnc_lru.lru_prev));
+	CODA_NC_LRUREM(cncp);
+	CODA_NC_LRUINS(cncp, LRU_TOP(coda_nc_lru.lru_prev));
 }
 
 /*
  * Remove all entries with a parent which has the input fid.
  */
 void
-cfsnc_zapParentfid(fid, dcstat)
+coda_nc_zapParentfid(fid, dcstat)
 	ViceFid *fid;
 	enum dc_status dcstat;
 {
@@ -530,34 +526,34 @@ cfsnc_zapParentfid(fid, dcstat)
 	   appropriate entries. The later may be acceptable since I don't
 	   think callbacks or whatever Case 1 covers are frequent occurences.
 	 */
-	struct cfscache *cncp, *ncncp;
+	struct coda_cache *cncp, *ncncp;
 	int i;
 
-	if (cfsnc_use == 0)			/* Cache is off */
+	if (coda_nc_use == 0)			/* Cache is off */
 		return;
 
-	CFSNC_DEBUG(CFSNC_ZAPPFID, 
+	CODA_NC_DEBUG(CODA_NC_ZAPPFID, 
 		myprintf(("ZapParent: fid 0x%lx, 0x%lx, 0x%lx \n",
 			fid->Volume, fid->Vnode, fid->Unique)); )
 
-	cfsnc_stat.zapPfids++;
+	coda_nc_stat.zapPfids++;
 
-	for (i = 0; i < cfsnc_hashsize; i++) {
+	for (i = 0; i < coda_nc_hashsize; i++) {
 
 		/*
 		 * Need to save the hash_next pointer in case we remove the
 		 * entry. remove causes hash_next to point to itself.
 		 */
 
-		for (cncp = cfsnchash[i].hash_next; 
-		     cncp != (struct cfscache *)&cfsnchash[i];
+		for (cncp = coda_nc_hash[i].hash_next; 
+		     cncp != (struct coda_cache *)&coda_nc_hash[i];
 		     cncp = ncncp) {
 			ncncp = cncp->hash_next;
 			if ((cncp->dcp->c_fid.Volume == fid->Volume) &&
 			    (cncp->dcp->c_fid.Vnode == fid->Vnode)   &&
 			    (cncp->dcp->c_fid.Unique == fid->Unique)) {
-			        cfsnchash[i].length--;      /* Used for tuning */
-				cfsnc_remove(cncp, dcstat); 
+			        coda_nc_hash[i].length--;      /* Used for tuning */
+				coda_nc_remove(cncp, dcstat); 
 			}
 		}
 	}
@@ -568,35 +564,35 @@ cfsnc_zapParentfid(fid, dcstat)
  * Remove all entries which have the same fid as the input
  */
 void
-cfsnc_zapfid(fid, dcstat)
+coda_nc_zapfid(fid, dcstat)
 	ViceFid *fid;
 	enum dc_status dcstat;
 {
 	/* See comment for zapParentfid. This routine will be used
 	   if attributes are being cached. 
 	 */
-	struct cfscache *cncp, *ncncp;
+	struct coda_cache *cncp, *ncncp;
 	int i;
 
-	if (cfsnc_use == 0)			/* Cache is off */
+	if (coda_nc_use == 0)			/* Cache is off */
 		return;
 
-	CFSNC_DEBUG(CFSNC_ZAPFID, 
+	CODA_NC_DEBUG(CODA_NC_ZAPFID, 
 		myprintf(("Zapfid: fid 0x%lx, 0x%lx, 0x%lx \n",
 			fid->Volume, fid->Vnode, fid->Unique)); )
 
-	cfsnc_stat.zapFids++;
+	coda_nc_stat.zapFids++;
 
-	for (i = 0; i < cfsnc_hashsize; i++) {
-		for (cncp = cfsnchash[i].hash_next; 
-		     cncp != (struct cfscache *)&cfsnchash[i];
+	for (i = 0; i < coda_nc_hashsize; i++) {
+		for (cncp = coda_nc_hash[i].hash_next; 
+		     cncp != (struct coda_cache *)&coda_nc_hash[i];
 		     cncp = ncncp) {
 			ncncp = cncp->hash_next;
 			if ((cncp->cp->c_fid.Volume == fid->Volume) &&
 			    (cncp->cp->c_fid.Vnode == fid->Vnode)   &&
 			    (cncp->cp->c_fid.Unique == fid->Unique)) {
-			        cfsnchash[i].length--;     /* Used for tuning */
-				cfsnc_remove(cncp, dcstat); 
+			        coda_nc_hash[i].length--;     /* Used for tuning */
+				coda_nc_remove(cncp, dcstat); 
 			}
 		}
 	}
@@ -606,7 +602,7 @@ cfsnc_zapfid(fid, dcstat)
  * Remove all entries which match the fid and the cred
  */
 void
-cfsnc_zapvnode(fid, cred, dcstat)	
+coda_nc_zapvnode(fid, cred, dcstat)	
 	ViceFid *fid;
 	struct ucred *cred;
 	enum dc_status dcstat;
@@ -615,10 +611,10 @@ cfsnc_zapvnode(fid, cred, dcstat)
 	   want to zap a file with a specific cred from the kernel.
 	   We'll leave this one unimplemented.
 	 */
-	if (cfsnc_use == 0)			/* Cache is off */
+	if (coda_nc_use == 0)			/* Cache is off */
 		return;
 
-	CFSNC_DEBUG(CFSNC_ZAPVNODE, 
+	CODA_NC_DEBUG(CODA_NC_ZAPVNODE, 
 		myprintf(("Zapvnode: fid 0x%lx, 0x%lx, 0x%lx cred %p\n",
 			  fid->Volume, fid->Vnode, fid->Unique, cred)); )
 
@@ -628,7 +624,7 @@ cfsnc_zapvnode(fid, cred, dcstat)
  * Remove all entries which have the (dir vnode, name) pair
  */
 void
-cfsnc_zapfile(dcp, name, namelen)
+coda_nc_zapfile(dcp, name, namelen)
 	struct cnode *dcp;
 	const char *name;
 	int namelen;
@@ -636,31 +632,31 @@ cfsnc_zapfile(dcp, name, namelen)
 	/* use the hash function to locate the file, then zap all
  	   entries of it regardless of the cred.
 	 */
-	struct cfscache *cncp;
+	struct coda_cache *cncp;
 	int hash;
 
-	if (cfsnc_use == 0)			/* Cache is off */
+	if (coda_nc_use == 0)			/* Cache is off */
 		return;
 
-	CFSNC_DEBUG(CFSNC_ZAPFILE, 
+	CODA_NC_DEBUG(CODA_NC_ZAPFILE, 
 		myprintf(("Zapfile: dcp %p name %s \n",
 			  dcp, name)); )
 
-	if (namelen > CFSNC_NAMELEN) {
-		cfsnc_stat.long_remove++;		/* record stats */
+	if (namelen > CODA_NC_NAMELEN) {
+		coda_nc_stat.long_remove++;		/* record stats */
 		return;
 	}
 
-	cfsnc_stat.zapFile++;
+	coda_nc_stat.zapFile++;
 
-	hash = CFSNC_HASH(name, namelen, dcp);
-	cncp = cfsnc_find(dcp, name, namelen, 0, hash);
+	hash = CODA_NC_HASH(name, namelen, dcp);
+	cncp = coda_nc_find(dcp, name, namelen, 0, hash);
 
 	while (cncp) {
-	  cfsnchash[hash].length--;                 /* Used for tuning */
+	  coda_nc_hash[hash].length--;                 /* Used for tuning */
 
-	  cfsnc_remove(cncp, NOT_DOWNCALL);
-	  cncp = cfsnc_find(dcp, name, namelen, 0, hash);
+	  coda_nc_remove(cncp, NOT_DOWNCALL);
+	  cncp = coda_nc_find(dcp, name, namelen, 0, hash);
 	}
 }
 
@@ -669,7 +665,7 @@ cfsnc_zapfile(dcp, name, namelen)
  * A user is determined by his/her effective user id (id_uid).
  */
 void
-cfsnc_purge_user(uid, dcstat)
+coda_nc_purge_user(uid, dcstat)
 	vuid_t	uid;
 	enum dc_status  dcstat;
 {
@@ -681,30 +677,30 @@ cfsnc_purge_user(uid, dcstat)
 	 * always be full and LRU is more straightforward.  
 	 */
 
-	struct cfscache *cncp, *ncncp;
+	struct coda_cache *cncp, *ncncp;
 	int hash;
 
-	if (cfsnc_use == 0)			/* Cache is off */
+	if (coda_nc_use == 0)			/* Cache is off */
 		return;
 
-	CFSNC_DEBUG(CFSNC_PURGEUSER, 
+	CODA_NC_DEBUG(CODA_NC_PURGEUSER, 
 		myprintf(("ZapDude: uid %lx\n", uid)); )
-	cfsnc_stat.zapUsers++;
+	coda_nc_stat.zapUsers++;
 
-	for (cncp = CFSNC_LRUGET(cfsnc_lru);
-	     cncp != (struct cfscache *)(&cfsnc_lru);
+	for (cncp = CODA_NC_LRUGET(coda_nc_lru);
+	     cncp != (struct coda_cache *)(&coda_nc_lru);
 	     cncp = ncncp) {
-		ncncp = CFSNC_LRUGET(*cncp);
+		ncncp = CODA_NC_LRUGET(*cncp);
 
-		if ((CFSNC_VALID(cncp)) &&
+		if ((CODA_NC_VALID(cncp)) &&
 		   ((cncp->cred)->cr_uid == uid)) {
 		        /* Seems really ugly, but we have to decrement the appropriate
 			   hash bucket length here, so we have to find the hash bucket
 			   */
-		        hash = CFSNC_HASH(cncp->name, cncp->namelen, cncp->dcp);
-			cfsnchash[hash].length--;     /* For performance tuning */
+		        hash = CODA_NC_HASH(cncp->name, cncp->namelen, cncp->dcp);
+			coda_nc_hash[hash].length--;     /* For performance tuning */
 
-			cfsnc_remove(cncp, dcstat); 
+			coda_nc_remove(cncp, dcstat); 
 		}
 	}
 }
@@ -713,7 +709,7 @@ cfsnc_purge_user(uid, dcstat)
  * Flush the entire name cache. In response to a flush of the Venus cache.
  */
 void
-cfsnc_flush(dcstat)
+coda_nc_flush(dcstat)
 	enum dc_status dcstat;
 {
 	/* One option is to deallocate the current name cache and
@@ -727,21 +723,21 @@ cfsnc_flush(dcstat)
 	 * I don't use remove since that would rebuild the lru chain
 	 * as it went and that seemed unneccesary.
 	 */
-	struct cfscache *cncp;
+	struct coda_cache *cncp;
 	int i;
 
-	if (cfsnc_use == 0)			/* Cache is off */
+	if (coda_nc_use == 0)			/* Cache is off */
 		return;
 
-	cfsnc_stat.Flushes++;
+	coda_nc_stat.Flushes++;
 
-	for (cncp = CFSNC_LRUGET(cfsnc_lru);
-	     cncp != (struct cfscache *)&cfsnc_lru;
-	     cncp = CFSNC_LRUGET(*cncp)) {
-		if (CFSNC_VALID(cncp)) {
+	for (cncp = CODA_NC_LRUGET(coda_nc_lru);
+	     cncp != (struct coda_cache *)&coda_nc_lru;
+	     cncp = CODA_NC_LRUGET(*cncp)) {
+		if (CODA_NC_VALID(cncp)) {
 
-			CFSNC_HSHREM(cncp);	/* only zero valid nodes */
-			CFSNC_HSHNUL(cncp);
+			CODA_NC_HSHREM(cncp);	/* only zero valid nodes */
+			CODA_NC_HSHNUL(cncp);
 			if ((dcstat == IS_DOWNCALL) 
 			    && (CTOV(cncp->dcp)->v_usecount == 1))
 			{
@@ -750,9 +746,9 @@ cfsnc_flush(dcstat)
 			vrele(CTOV(cncp->dcp)); 
 
 			if (CTOV(cncp->cp)->v_flag & VTEXT) {
-			    if (cfs_vmflush(cncp->cp))
-				CFSDEBUG(CFS_FLUSH, 
-					 myprintf(("cfsnc_flush: (%lx.%lx.%lx) busy\n", cncp->cp->c_fid.Volume, cncp->cp->c_fid.Vnode, cncp->cp->c_fid.Unique)); )
+			    if (coda_vmflush(cncp->cp))
+				CODADEBUG(CODA_FLUSH, 
+					 myprintf(("coda_nc_flush: (%lx.%lx.%lx) busy\n", cncp->cp->c_fid.Volume, cncp->cp->c_fid.Vnode, cncp->cp->c_fid.Unique)); )
 			}
 
 			if ((dcstat == IS_DOWNCALL) 
@@ -767,8 +763,8 @@ cfsnc_flush(dcstat)
 		}
 	}
 
-	for (i = 0; i < cfsnc_hashsize; i++)
-	  cfsnchash[i].length = 0;
+	for (i = 0; i < coda_nc_hashsize; i++)
+	  coda_nc_hash[i].length = 0;
 }
 
 /*
@@ -779,16 +775,16 @@ cfsnc_flush(dcstat)
  * This routine should print out all the hash chains to the console.
  */
 void
-print_cfsnc(void)
+print_coda_nc(void)
 {
 	int hash;
-	struct cfscache *cncp;
+	struct coda_cache *cncp;
 
-	for (hash = 0; hash < cfsnc_hashsize; hash++) {
+	for (hash = 0; hash < coda_nc_hashsize; hash++) {
 		myprintf(("\nhash %d\n",hash));
 
-		for (cncp = cfsnchash[hash].hash_next; 
-		     cncp != (struct cfscache *)&cfsnchash[hash];
+		for (cncp = coda_nc_hash[hash].hash_next; 
+		     cncp != (struct coda_cache *)&coda_nc_hash[hash];
 		     cncp = cncp->hash_next) {
 			myprintf(("cp %p dcp %p cred %p name %s\n",
 				  cncp->cp, cncp->dcp,
@@ -798,42 +794,42 @@ print_cfsnc(void)
 }
 
 void
-cfsnc_gather_stats(void)
+coda_nc_gather_stats(void)
 {
     int i, max = 0, sum = 0, temp, zeros = 0, ave, n;
 
-	for (i = 0; i < cfsnc_hashsize; i++) {
-	  if (cfsnchash[i].length) {
-	    sum += cfsnchash[i].length;
+	for (i = 0; i < coda_nc_hashsize; i++) {
+	  if (coda_nc_hash[i].length) {
+	    sum += coda_nc_hash[i].length;
 	  } else {
 	    zeros++;
 	  }
 
-	  if (cfsnchash[i].length > max)
-	    max = cfsnchash[i].length;
+	  if (coda_nc_hash[i].length > max)
+	    max = coda_nc_hash[i].length;
 	}
 
 	/*
 	 * When computing the Arithmetic mean, only count slots which 
 	 * are not empty in the distribution.
 	 */
-        cfsnc_stat.Sum_bucket_len = sum;
-        cfsnc_stat.Num_zero_len = zeros;
-        cfsnc_stat.Max_bucket_len = max;
+        coda_nc_stat.Sum_bucket_len = sum;
+        coda_nc_stat.Num_zero_len = zeros;
+        coda_nc_stat.Max_bucket_len = max;
 
-	if ((n = cfsnc_hashsize - zeros) > 0) 
+	if ((n = coda_nc_hashsize - zeros) > 0) 
 	  ave = sum / n;
 	else
 	  ave = 0;
 
 	sum = 0;
-	for (i = 0; i < cfsnc_hashsize; i++) {
-	  if (cfsnchash[i].length) {
-	    temp = cfsnchash[i].length - ave;
+	for (i = 0; i < coda_nc_hashsize; i++) {
+	  if (coda_nc_hash[i].length) {
+	    temp = coda_nc_hash[i].length - ave;
 	    sum += temp * temp;
 	  }
 	}
-        cfsnc_stat.Sum2_bucket_len = sum;
+        coda_nc_stat.Sum2_bucket_len = sum;
 }
 
 /*
@@ -843,7 +839,7 @@ cfsnc_gather_stats(void)
  * is in an improper state (except by turning the cache off).
  */
 int
-cfsnc_resize(hashsize, heapsize, dcstat)
+coda_nc_resize(hashsize, heapsize, dcstat)
      int hashsize, heapsize;
      enum dc_status dcstat;
 {
@@ -851,46 +847,49 @@ cfsnc_resize(hashsize, heapsize, dcstat)
 	return(EINVAL);
     }                 
     
-    cfsnc_use = 0;                       /* Turn the cache off */
+    coda_nc_use = 0;                       /* Turn the cache off */
     
-    cfsnc_flush(dcstat);                 /* free any cnodes in the cache */
+    coda_nc_flush(dcstat);                 /* free any cnodes in the cache */
     
     /* WARNING: free must happen *before* size is reset */
-    CFS_FREE(cfsncheap,TOTAL_CACHE_SIZE);
-    CFS_FREE(cfsnchash,TOTAL_HASH_SIZE);
+    CODA_FREE(coda_nc_heap,TOTAL_CACHE_SIZE);
+    CODA_FREE(coda_nc_hash,TOTAL_HASH_SIZE);
     
-    cfsnc_hashsize = hashsize;
-    cfsnc_size = heapsize;
+    coda_nc_hashsize = hashsize;
+    coda_nc_size = heapsize;
     
-    cfsnc_init();                        /* Set up a cache with the new size */
+    coda_nc_init();                        /* Set up a cache with the new size */
     
-    cfsnc_use = 1;                       /* Turn the cache back on */
+    coda_nc_use = 1;                       /* Turn the cache back on */
     return(0);
 }
 
-char cfsnc_name_buf[CFS_MAXNAMLEN+1];
+#define DEBUG
+#ifdef	DEBUG
+char coda_nc_name_buf[CODA_MAXNAMLEN+1];
 
 void
-cfsnc_name(struct cnode *cp)
+coda_nc_name(struct cnode *cp)
 {
-	struct cfscache *cncp, *ncncp;
+	struct coda_cache *cncp, *ncncp;
 	int i;
 
-	if (cfsnc_use == 0)			/* Cache is off */
+	if (coda_nc_use == 0)			/* Cache is off */
 		return;
 
-	for (i = 0; i < cfsnc_hashsize; i++) {
-		for (cncp = cfsnchash[i].hash_next; 
-		     cncp != (struct cfscache *)&cfsnchash[i];
+	for (i = 0; i < coda_nc_hashsize; i++) {
+		for (cncp = coda_nc_hash[i].hash_next; 
+		     cncp != (struct coda_cache *)&coda_nc_hash[i];
 		     cncp = ncncp) {
 			ncncp = cncp->hash_next;
 			if (cncp->cp == cp) {
-				bcopy(cncp->name, cfsnc_name_buf, cncp->namelen);
-				cfsnc_name_buf[cncp->namelen] = 0;
+				bcopy(cncp->name, coda_nc_name_buf, cncp->namelen);
+				coda_nc_name_buf[cncp->namelen] = 0;
 				printf(" is %s (%p,%p)@%p",
-					cfsnc_name_buf, cncp->cp, cncp->dcp, cncp);
+					coda_nc_name_buf, cncp->cp, cncp->dcp, cncp);
 			}
 
 		}
 	}
 }
+#endif

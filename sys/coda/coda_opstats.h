@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/cfs/coda_opstats.h,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $ 
- *  $Id: $
+ *  $Id: coda_opstats.h,v 1.2 1998/09/02 19:09:53 rvb Exp $
  * 
  */
 
@@ -46,13 +46,13 @@
  *          vget: all
  */
 
-#define CFS_MOUNT_STATS  0
-#define CFS_UMOUNT_STATS 1
-#define CFS_ROOT_STATS   2
-#define CFS_STATFS_STATS 3
-#define CFS_SYNC_STATS   4
-#define CFS_VGET_STATS   5
-#define CFS_VFSOPS_SIZE  6
+#define CODA_MOUNT_STATS  0
+#define CODA_UMOUNT_STATS 1
+#define CODA_ROOT_STATS   2
+#define CODA_STATFS_STATS 3
+#define CODA_SYNC_STATS   4
+#define CODA_VGET_STATS   5
+#define CODA_VFSOPS_SIZE  6
 
 /* vnodeops:
  *            open: all to venus
@@ -81,33 +81,33 @@
  *                     may cause an "internal" open/close
  */
 
-#define CFS_OPEN_STATS     0
-#define CFS_CLOSE_STATS    1
-#define CFS_RDWR_STATS     2
-#define CFS_IOCTL_STATS    3
-#define CFS_SELECT_STATS   4
-#define CFS_GETATTR_STATS  5
-#define CFS_SETATTR_STATS  6
-#define CFS_ACCESS_STATS   7
-#define CFS_READLINK_STATS 8
-#define CFS_FSYNC_STATS    9
-#define CFS_INACTIVE_STATS 10
-#define CFS_LOOKUP_STATS   11
-#define CFS_CREATE_STATS   12
-#define CFS_REMOVE_STATS   13
-#define CFS_LINK_STATS     14
-#define CFS_RENAME_STATS   15
-#define CFS_MKDIR_STATS    16
-#define CFS_RMDIR_STATS    17
-#define CFS_SYMLINK_STATS  18
-#define CFS_READDIR_STATS  19
-#define CFS_VNODEOPS_SIZE  20
+#define CODA_OPEN_STATS     0
+#define CODA_CLOSE_STATS    1
+#define CODA_RDWR_STATS     2
+#define CODA_IOCTL_STATS    3
+#define CODA_SELECT_STATS   4
+#define CODA_GETATTR_STATS  5
+#define CODA_SETATTR_STATS  6
+#define CODA_ACCESS_STATS   7
+#define CODA_READLINK_STATS 8
+#define CODA_FSYNC_STATS    9
+#define CODA_INACTIVE_STATS 10
+#define CODA_LOOKUP_STATS   11
+#define CODA_CREATE_STATS   12
+#define CODA_REMOVE_STATS   13
+#define CODA_LINK_STATS     14
+#define CODA_RENAME_STATS   15
+#define CODA_MKDIR_STATS    16
+#define CODA_RMDIR_STATS    17
+#define CODA_SYMLINK_STATS  18
+#define CODA_READDIR_STATS  19
+#define CODA_VNODEOPS_SIZE  20
 
 /*
  * I propose the following structres:
  */
 
-struct cfs_op_stats {
+struct coda_op_stats {
     int opcode;       /* vfs opcode */
     long entries;     /* number of times call attempted */
     long sat_intrn;   /* number of times call satisfied by cache */
