@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_rrip.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_rrip.c,v 1.3 1994/09/09 11:10:58 dfr Exp $
+ * $Id: cd9660_rrip.c,v 1.4 1994/09/15 19:46:01 bde Exp $
  */
 
 #include <sys/param.h>
@@ -471,7 +471,6 @@ cd9660_rrip_loop(isodir,ana,table)
 	register ISO_SUSP_HEADER *phead;
 	register ISO_SUSP_HEADER *pend;
 	struct buf *bp = NULL;
-	int i;
 	char *pwhead;
 	int result;
 	
