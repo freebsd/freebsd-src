@@ -57,11 +57,13 @@ or idletime scheduling priority
 .Fl t
 .Fl Ar pid
 .Sh DESCRIPTION
-.Nm Rtprio
-is used for controlling realtime process scheduling.
+The
+.Nm
+utility is used for controlling realtime process scheduling.
 .Pp
-.Nm Idprio
-is used for controlling idletime process scheduling, and can be called
+The
+.Nm idprio
+utility is used for controlling idletime process scheduling, and can be called
 with the same options as
 .Nm .
 .Pp
@@ -73,7 +75,8 @@ A process with an idle priority will run only when no other
 process is runnable and then only if its idle priority is equal or
 greater than all other runnable idle priority processes.
 .Pp
-.Nm Rtprio
+Both
+.Nm
 or
 .Nm idprio
 when called without arguments will return the realtime priority

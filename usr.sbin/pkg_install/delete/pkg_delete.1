@@ -124,7 +124,9 @@ Recursive removal.  In addition to specified packages, delete all
 packages that depend on those packages as well.
 .El
 .Sh TECHNICAL DETAILS
+The
 .Nm
+utility
 does pretty much what it says.  It examines installed package records in
 .Pa /var/db/pkg/<pkg-name> ,
 deletes the package contents, and finally removes the package records.
