@@ -13,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.12.4.5 1996/03/13 00:42:47 nate Exp $
+ *	$Id: apm.c,v 1.12.4.6 1996/03/18 21:24:32 nate Exp $
  */
 
 #include "apm.h"
@@ -36,6 +36,7 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <sys/syslog.h>
+#include <sys/devconf.h>
 #include "apm_setup.h"
 
 static int apm_display_off __P((void));
@@ -55,9 +56,20 @@ struct apm_softc {
 	struct apmhook sc_resume;
 };
 
-static struct apm_softc apm_softc[NAPM];
-static struct apm_softc *master_softc = NULL; 	/* XXX */
-struct apmhook	*hook[NAPM_HOOK];		/* XXX */
+static struct kern_devconf kdc_apm = {
+	0, 0, 0,		/* filled in by dev_attach */
+	"apm", 0, { MDDT_ISA, 0 },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_UNCONFIGURED,	/* state */
+	"APM BIOS",
+	DC_CLS_MISC		/* class */
+};
+
+
+static struct apm_softc apm_softc;
+static struct apmhook	*hook[NAPM_HOOK];		/* XXX */
 
 #define is_enabled(foo) ((foo) ? "enabled" : "disabled")
 
@@ -65,6 +77,18 @@ struct apmhook	*hook[NAPM_HOOK];		/* XXX */
 #define INTVERSION(major, minor)	((major)*100 + (minor))
 
 static timeout_t apm_timeout;
+
+static void
+apm_registerdev(struct isa_device *id)
+{
+	if (kdc_apm.kdc_isa)
+		return;
+	kdc_apm.kdc_state = DC_UNCONFIGURED;
+	kdc_apm.kdc_description = "APM BIOS";
+	kdc_apm.kdc_unit = 0;
+	kdc_apm.kdc_isa = id;
+	dev_attach(&kdc_apm);
+}
 
 /* setup APM GDT discriptors */
 static void
@@ -387,9 +411,6 @@ apm_default_suspend(void *arg)
 	microtime(&suspend_time);
 	timevalsub(&diff_time, &suspend_time);
 	splx(pl);
-#if 0
-	printf("diff_time = %d:%d\n", diff_time.tv_sec, diff_time.tv_usec);
-#endif
 	return 0;
 }
 
@@ -405,9 +426,8 @@ static void apm_processevent(struct apm_softc *);
 void
 apm_suspend(void)
 {
-	struct apm_softc *sc;
+	struct apm_softc *sc = &apm_softc;
 
-	sc = master_softc;      /* XXX */
 	if (!sc)
 		return;
 
@@ -421,9 +441,8 @@ apm_suspend(void)
 void
 apm_resume(void)
 {
-	struct apm_softc *sc;
+	struct apm_softc *sc = &apm_softc;
 
-	sc = master_softc;      /* XXX */
 	if (!sc)
 		return;
 
@@ -461,7 +480,7 @@ apm_get_info(struct apm_softc *sc, apm_info_t aip)
 void
 apm_cpu_idle(void)
 {
-	struct apm_softc *sc = master_softc;    /* XXX */
+	struct apm_softc *sc = &apm_softc;
 
 	if (sc->idle_cpu) {
 		if (sc->active) {
@@ -487,7 +506,7 @@ apm_cpu_idle(void)
 void
 apm_cpu_busy(void)
 {
-	struct apm_softc *sc = master_softc;	/* XXX */
+	struct apm_softc *sc = &apm_softc;
 
 	if (sc->idle_cpu && sc->active) {
 		__asm("movw $0x5306, %ax; lcall _apm_addr");
@@ -572,23 +591,20 @@ struct isa_driver apmdriver = {
 static int
 apmprobe(struct isa_device *dvp)
 {
-	int     unit = dvp->id_unit;
-
-	/*
-	 * XXX - This is necessary here so that we don't panic in the idle
-	 * loop because master_softc is unitialized.
-	 */
-	master_softc = &apm_softc[unit];
-
+	if ( dvp->id_unit > 0 ) {
+		printf("apm: Only one APM driver supported.\n");
+		return 0;
+	}
+	apm_registerdev(dvp);
 	switch (apm_version) {
 	case APMINI_CANTFIND:
 		/* silent */
 		return 0;
 	case APMINI_NOT32BIT:
-		printf("apm%d: 32bit connection is not supported.\n", unit);
+		printf("apm: 32bit connection is not supported.\n");
 		return 0;
 	case APMINI_CONNECTERR:
-		printf("apm%d: 32-bit connection error.\n", unit);
+		printf("apm: 32-bit connection error.\n");
 		return 0;
 	}
 
@@ -657,39 +673,18 @@ apm_processevent(struct apm_softc *sc)
  * Attach APM:
  *
  * Initialize APM driver (APM BIOS itself has been initialized in locore.s)
- *
- * Now, unless I'm mad, (not quite ruled out yet), the APM-1.1 spec is bogus:
- *
- * Appendix C says under the header "APM 1.0/APM 1.1 Modal BIOS Behavior"
- * that "When an APM Driver connects with an APM 1.1 BIOS, the APM 1.1 BIOS
- * will default to an APM 1.0 connection.  After an APM Driver calls the APM
- * Driver Version function, specifying that it supports APM 1.1, and [sic!]
- * APM BIOS will change its behavior to an APM 1.1 connection.  If the APM
- * BIOS is an APM 1.0 BIOS, the APM Driver Version function call will fail,
- * and the connection will remain an APM 1.0 connection."
- *
- * OK so I can establish a 1.0 connection, and then tell that I'm a 1.1
- * and maybe then the BIOS will tell that it too is a 1.1.
- * Fine.
- * Now how will I ever get the segment-limits for instance ?  There is no
- * way I can see that I can get a 1.1 response back from an "APM Protected
- * Mode 32-bit Interface Connect" function ???
- *
- * Who made this,  Intel and Microsoft ?  -- How did you guess !
- *
- * /phk
  */
 
 static int
 apmattach(struct isa_device *dvp)
 {
-	int	unit = dvp->id_unit;
 #define APM_KERNBASE	KERNBASE
-	struct apm_softc	*sc = &apm_softc[unit];
+	struct apm_softc	*sc = &apm_softc;
 
 	sc->initialized = 0;
+
+	/* Must be externally enabled */
 	sc->active = 0;
-	sc->halt_cpu = 1;
 
 	/* setup APM parameters */
 	sc->cs16_base = (apm_cs32_base << 4) + APM_KERNBASE;
@@ -699,6 +694,7 @@ apmattach(struct isa_device *dvp)
 	sc->ds_limit = apm_ds_limit;
 	sc->cs_entry = apm_cs_entry;
 
+	sc->halt_cpu = 1;
 	sc->idle_cpu = ((apm_flags & APM_CPUIDLE_SLOW) != 0);
 	sc->disabled = ((apm_flags & APM_DISABLED) != 0);
 	sc->disengaged = ((apm_flags & APM_DISENGAGED) != 0);
@@ -706,15 +702,15 @@ apmattach(struct isa_device *dvp)
 	/* print bootstrap messages */
 #ifdef APM_DEBUG
 	printf(" found APM BIOS version %04x\n",  apm_version);
-	printf("apm%d: Code32 0x%08x, Code16 0x%08x, Data 0x%08x\n",
-		unit, sc->cs32_base, sc->cs16_base, sc->ds_base);
-	printf("apm%d: Code entry 0x%08x, Idling CPU %s, Management %s\n",
-		unit, sc->cs_entry, is_enabled(sc->idle_cpu),
+	printf("apm: Code32 0x%08x, Code16 0x%08x, Data 0x%08x\n",
+		sc->cs32_base, sc->cs16_base, sc->ds_base);
+	printf("apm: Code entry 0x%08x, Idling CPU %s, Management %s\n",
+		sc->cs_entry, is_enabled(sc->idle_cpu),
 		is_enabled(!sc->disabled));
-	printf("apm%d: CS_limit=%x, DS_limit=%x\n",
-		unit, sc->cs_limit, sc->ds_limit);
+	printf("apm: CS_limit=%x, DS_limit=%x\n", sc->cs_limit, sc->ds_limit);
 #endif /* APM_DEBUG */
 
+	/* Workaround for some buggy APM BIOS implementations */
 	sc->cs_limit = 0xffff;
 	sc->ds_limit = 0xffff;
 
@@ -736,13 +732,12 @@ apmattach(struct isa_device *dvp)
 	sc->intversion = INTVERSION(sc->majorversion, sc->minorversion);
 
 	if (sc->intversion >= INTVERSION(1, 1)) {
-		printf("apm%d: Engaged control %s\n",
-			unit, is_enabled(!sc->disengaged));
+		printf("apm: Engaged control %s\n", is_enabled(!sc->disengaged));
 	}
 
 	printf(" found APM BIOS version %d.%d\n",
 		sc->majorversion, sc->minorversion);
-	printf("apm%d: Idling CPU %s\n", unit, is_enabled(sc->idle_cpu));
+	printf("apm: Idling CPU %s\n", is_enabled(sc->idle_cpu));
 
 	/* enable power management */
 	if (sc->disabled) {
@@ -776,6 +771,7 @@ apmattach(struct isa_device *dvp)
         apm_hook_establish(APM_HOOK_RESUME , &sc->sc_resume);
 
 	apm_event_enable(sc);
+	kdc_apm.kdc_state = DC_IDLE;
 
 	sc->initialized = 1;
 
@@ -785,14 +781,11 @@ apmattach(struct isa_device *dvp)
 int
 apmopen(dev_t dev, int flag, int fmt, struct proc *p)
 {
-	struct apm_softc *sc = &apm_softc[minor(dev)];
+	struct apm_softc *sc = &apm_softc;
 
-	if (minor(dev) >= NAPM) {
+	if (minor(dev) != 0 || !sc->initialized)
 		return (ENXIO);
-	}
-	if (!sc->initialized) {
-		return ENXIO;
-	}
+
 	return 0;
 }
 
@@ -805,20 +798,14 @@ apmclose(dev_t dev, int flag, int fmt, struct proc *p)
 int
 apmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 {
-	struct apm_softc *sc = &apm_softc[minor(dev)];
+	struct apm_softc *sc = &apm_softc;
 	int error = 0;
-	int pl;
 
+	if (minor(dev) != 0 || !sc->initialized)
+		return (ENXIO);
 #ifdef APM_DEBUG
-	printf("APM ioctl: minor = %d, cmd = 0x%x\n", minor(dev), cmd);
+	printf("APM ioctl: cmd = 0x%x\n", cmd);
 #endif
-
-	if (minor(dev) >= NAPM) {
-		return ENXIO;
-	}
-	if (!sc->initialized) {
-		return ENXIO;
-	}
 	switch (cmd) {
 	case APMIO_SUSPEND:
 		apm_suspend();
@@ -829,9 +816,11 @@ apmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 		}
 		break;
 	case APMIO_ENABLE:
+		kdc_apm.kdc_state = DC_BUSY;
 		apm_event_enable(sc);
 		break;
 	case APMIO_DISABLE:
+		kdc_apm.kdc_state = DC_IDLE;
 		apm_event_disable(sc);
 		break;
 	case APMIO_HALTCPU:
