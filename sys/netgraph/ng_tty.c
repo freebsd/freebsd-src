@@ -166,9 +166,17 @@ static struct ng_type typestruct = {
 };
 NETGRAPH_INIT(tty, &typestruct);
 
+/*
+ * XXXRW: ngt_unit is protected by ng_tty_mtx.  ngt_ldisc is constant once
+ * ng_tty is initialized.  ngt_nodeop_ok is untouched, and might want to be a
+ * sleep lock in the future?
+ */
 static int ngt_unit;
 static int ngt_nodeop_ok;	/* OK to create/remove node */
 static int ngt_ldisc;
+
+static struct mtx	ng_tty_mtx;
+MTX_SYSINIT(ng_tty, &ng_tty_mtx, "ng_tty", MTX_DEF);
 
 /******************************************************************
 		    LINE DISCIPLINE METHODS
@@ -214,7 +222,9 @@ ngt_open(struct cdev *dev, struct tty *tp)
 		FREE(sc, M_NETGRAPH);
 		goto done;
 	}
+	mtx_lock(&ng_tty_mtx);
 	snprintf(name, sizeof(name), "%s%d", typestruct.name, ngt_unit++);
+	mtx_unlock(&ng_tty_mtx);
 
 	/* Assign node its name */
 	if ((error = ng_name_node(sc->node, name))) {
