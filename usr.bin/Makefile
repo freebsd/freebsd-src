@@ -18,6 +18,7 @@ SUBDIR=	alias \
 	brandelf \
 	bzip2 \
 	c89 \
+	c99 \
 	calendar \
 	cap_mkdb \
 	catman \
