@@ -454,6 +454,8 @@ hint.mse.0.irq="5"
 #       Intel EtherExpress
 # le:   Digital Equipment EtherWorks 2 and EtherWorks 3 (DEPCA, DE100,
 #       DE101, DE200, DE201, DE202, DE203, DE204, DE205, DE422)
+# lnc:  Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL, AMD Am7990 and
+#       Am79C960)
 # oltr: Olicom ISA token-ring adapters OC-3115, OC-3117, OC-3118 and OC-3133
 #       (no hints needed).
 #       Olicom PCI token-ring adapters OC-3136, OC-3137, OC-3139, OC-3140,
@@ -498,6 +500,11 @@ hint.le.0.at="isa"
 hint.le.0.port="0x300"
 hint.le.0.irq="5"
 hint.le.0.maddr="0xd0000"
+device		lnc
+hint.lnc.0.at="isa"
+hint.lnc.0.port="0x280"
+hint.lnc.0.irq="10"
+hint.lnc.0.drq="0"
 device		rdp	1
 hint.rdp.0.at="isa"
 hint.rdp.0.port="0x378"

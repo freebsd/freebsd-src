@@ -1501,8 +1501,6 @@ device		miibus
 # lge:	Support for PCI gigabit ethernet adapters based on the Level 1
 #	LXT1001 NetCellerator chipset. This includes the D-Link DGE-500SX,
 #	SMC TigerCard 1000 (SMC9462SX), and some Addtron cards.
-# lnc:  Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL, AMD Am7990 and
-#       Am79C960)
 # my:	Myson Fast Ethernet (MTD80X, MTD89X)
 # nge:	Support for PCI gigabit ethernet adapters based on the National
 #	Semiconductor DP83820 and DP83821 chipset. This includes the
@@ -1587,11 +1585,6 @@ device		fe
 hint.fe.0.at="isa"
 hint.fe.0.port="0x300"
 device		fea
-device		lnc
-hint.lnc.0.at="isa"
-hint.lnc.0.port="0x280"
-hint.lnc.0.irq="10"
-hint.lnc.0.drq="0"
 device		sr
 hint.sr.0.at="isa"
 hint.sr.0.port="0x300"
