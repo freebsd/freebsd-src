@@ -1907,7 +1907,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       command line.  This allows the user to run an arbitrary program
       as if it were written to be a daemon.</para>
 
-    <para>devinfo, a simple tool to print the device tree and resource
+    <para>&man.devinfo.8;, a simple tool to print the device tree and resource
       usage by devices, has been added.</para>
 
     <para>&man.df.1; now takes a <option>-l</option> option to only
@@ -3036,7 +3036,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	certain common misconfigurations. &merged;</para>
 
       <para><application>BIND</application> has been updated to
-	8.3.1-REL. &merged;</para>
+	8.3.2-T1B.</para>
 
       <para><application>Binutils</application> has been updated to
 	2.12.0.</para>
@@ -3053,9 +3053,14 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	3.37.</para>
 
       <para><application>gcc</application> has been updated to
-	a snapshot of the 2.95 development branch from 20 March 2002
-	(this snapshot includes changes made after the release of
-	<application>gcc</application> 2.95.3).</para>
+	a snapshot of <application>gcc</application> 3.1.
+	<warning>
+	  <para>The integration of <application>gcc</application> is
+	    very new.  Some applications and programs in the base
+	    system require fixes or compiler flags to build
+	    correctly.  Work to address these problems is ongoing.</para>
+	</warning>
+	</para>
 
       <para>&man.gcc.1; now uses a unified <filename>libgcc</filename>
 	rather than a separate one for threaded and non-threaded
