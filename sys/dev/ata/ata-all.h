@@ -246,6 +246,7 @@ struct ata_dma {
     struct ata_dmaentry		*dmatab;	/* DMA transfer table */
     bus_addr_t			mdmatab;	/* bus address of dmatab */
     u_int32_t			alignment;	/* DMA engine alignment */
+    u_int32_t			boundary;	/* DMA engine boundary */
     u_int32_t			max_iosize;	/* DMA engine max IO size */
     u_int32_t			cur_iosize;	/* DMA engine current IO size */
     int				flags;
