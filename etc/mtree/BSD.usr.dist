@@ -320,8 +320,6 @@
             meteor
             ..
             mdoc
-		locale
-		..
             ..
             more
             ..
@@ -774,6 +772,8 @@
 	    locale
             ..
             mdoc
+		locale
+		..
             ..
             mm
             ..
