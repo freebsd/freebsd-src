@@ -2,14 +2,18 @@
 
 #CFLAGS+=-DKERBEROS
 PROG=	login
-SRCS=	login.c
+MAN1=	login.1
+MAN5=	login.access.5
+SRCS=	login.c login_access.c login_skey.c
 #klogin.c
-DPADD=	${LIBUTIL}
+DPADD=	${LIBUTIL} ${LIBSKEY}
 #${LIBKRB} ${LIBDES}
-LDADD=	-lutil -lcrypt
+LDADD=	-lutil -lcrypt -lskey
 #-lkrb -ldes
 BINOWN=	root
 BINMODE=4555
+CFLAGS+=	-DLOGIN_ACCESS -DSKEY -DLOGALL
 INSTALLFLAGS=-fschg
 
 .include <bsd.prog.mk>
+
