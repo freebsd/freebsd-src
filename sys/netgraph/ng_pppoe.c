@@ -210,7 +210,7 @@ enum state {
 struct sess_neg {
 	struct mbuf 		*m; /* holds cluster with last sent packet */
 	union	packet		*pkt; /* points within the above cluster */
-	struct callout_handle	timeout_handle;   /* see timeout(9) */
+	struct callout		handle;   /* see timeout(9) */
 	u_int			timeout; /* 0,1,2,4,8,16 etc. seconds */
 	u_int			numtags;
 	const struct pppoe_tag	*tags[NUMTAGS];
@@ -325,7 +325,7 @@ union uniq {
 #define	LEAVE(x) do { error = x; goto quit; } while(0)
 static void	pppoe_start(sessp sp);
 static void	sendpacket(sessp sp);
-static void	pppoe_ticker(void *arg);
+static void	pppoe_ticker(node_p node, hook_p hook, void *arg1, int arg2);
 static const	struct pppoe_tag *scan_tags(sessp sp,
 			const struct pppoe_hdr* ph);
 static	int	pppoe_send_event(sessp sp, enum cmd cmdid);
@@ -791,7 +791,7 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				LEAVE(ENOBUFS);
 			}
 			sp->neg = neg;
-			callout_handle_init( &neg->timeout_handle);
+			ng_callout_init(&neg->handle);
 			neg->m->m_len = sizeof(struct pppoe_full_hdr);
 			neg->pkt = mtod(neg->m, union packet*);
 			memcpy((void *)&neg->pkt->pkt_header.eh,
@@ -1173,8 +1173,7 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 					LEAVE(ENETUNREACH);
 				}
 				neg = sp->neg;
-				untimeout(pppoe_ticker, sendhook,
-				    neg->timeout_handle);
+				ng_uncallout(&neg->handle, node);
 
 				/*
 				 * This is the first time we hear
@@ -1240,8 +1239,7 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 					break;
 				}
 				neg = sp->neg;
-				untimeout(pppoe_ticker, sendhook,
-				    neg->timeout_handle);
+				ng_uncallout(&neg->handle, node);
 				neg->pkt->pkt_header.ph.code = PADS_CODE;
 				if (sp->Session_ID == 0)
 					neg->pkt->pkt_header.ph.sid =
@@ -1314,8 +1312,7 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 					LEAVE(ENETUNREACH);
 				}
 				neg = sp->neg;
-				untimeout(pppoe_ticker, sendhook,
-				    neg->timeout_handle);
+				ng_uncallout(&neg->handle, node);
 				neg->pkt->pkt_header.ph.sid = wh->ph.sid;
 				sp->Session_ID = ntohs(wh->ph.sid);
 				send_sessionid(sp);
@@ -1393,8 +1390,7 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 					 * whether there may be a timeout.
 					 */
 					m_freem(sp->neg->m);
-					untimeout(pppoe_ticker, sendhook,
-				    		sp->neg->timeout_handle);
+					ng_uncallout(&sp->neg->handle, node);
 					FREE(sp->neg, M_NETGRAPH_PPPOE);
 					sp->neg = NULL;
 				} else {
@@ -1474,8 +1470,7 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 			if ( code != PADI_CODE) {
 				LEAVE(EINVAL);
 			};
-			untimeout(pppoe_ticker, hook,
-				    neg->timeout_handle);
+			ng_uncallout(&neg->handle, node);
 
 			/*
 			 * This is the first time we hear
@@ -1650,7 +1645,7 @@ ng_pppoe_disconnect(hook_p hook)
 		 * we may have a timeout pending.. get rid of it.
 		 */
 		if (sp->neg) {
-			untimeout(pppoe_ticker, hook, sp->neg->timeout_handle);
+			ng_uncallout(&sp->neg->handle, node);
 			if (sp->neg->m)
 				m_freem(sp->neg->m);
 			FREE(sp->neg, M_NETGRAPH_PPPOE);
@@ -1672,10 +1667,8 @@ ng_pppoe_disconnect(hook_p hook)
  * timeouts come here.
  */
 static void
-pppoe_ticker(void *arg)
+pppoe_ticker(node_p node, hook_p hook, void *arg1, int arg2)
 {
-	int s = splnet();
-	hook_p hook = arg;
 	sessp	sp = NG_HOOK_PRIVATE(hook);
 	negp	neg = sp->neg;
 	int	error = 0;
@@ -1694,8 +1687,8 @@ pppoe_ticker(void *arg)
 		/* timeouts on these produce resends */
 		m0 = m_copypacket(sp->neg->m, M_DONTWAIT);
 		NG_SEND_DATA_ONLY( error, privp->ethernet_hook, m0);
-		neg->timeout_handle = timeout(pppoe_ticker,
-					hook, neg->timeout * hz);
+		ng_callout(&neg->handle, node, hook, neg->timeout * hz,
+		    pppoe_ticker, NULL, 0);
 		if ((neg->timeout <<= 1) > PPPOE_TIMEOUT_LIMIT) {
 			if (sp->state == PPPOE_SREQ) {
 				/* revert to SINIT mode */
@@ -1714,18 +1707,18 @@ pppoe_ticker(void *arg)
 		/* timeouts have no meaning in other states */
 		printf("pppoe: unexpected timeout\n");
 	}
-	splx(s);
 }
 
 
 static void
 sendpacket(sessp sp)
 {
-	int	error = 0;
-	struct mbuf *m0 = NULL;
-	hook_p hook = sp->hook;
+	struct	mbuf *m0 = NULL;
+	hook_p	hook = sp->hook;
+	node_p	node = NG_HOOK_NODE(hook);
+	priv_p	privp = NG_NODE_PRIVATE(node);
 	negp	neg = sp->neg;
-	priv_p	privp = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
+	int	error = 0;
 
 	DBG;
 	switch(sp->state) {
@@ -1744,8 +1737,8 @@ sendpacket(sessp sp)
 
 	case	PPPOE_PRIMED:
 		/* No packet to send, but set up the timeout */
-		neg->timeout_handle = timeout(pppoe_ticker,
-					hook, PPPOE_OFFER_TIMEOUT * hz);
+		ng_callout(&neg->handle, node, hook, PPPOE_OFFER_TIMEOUT * hz,
+		    pppoe_ticker, NULL, 0);
 		break;
 
 	case	PPPOE_SOFFER:
@@ -1755,16 +1748,16 @@ sendpacket(sessp sp)
 		 */
 		m0 = m_copypacket(sp->neg->m, M_DONTWAIT);
 		NG_SEND_DATA_ONLY( error, privp->ethernet_hook, m0);
-		neg->timeout_handle = timeout(pppoe_ticker,
-					hook, PPPOE_OFFER_TIMEOUT * hz);
+		ng_callout(&neg->handle, node, hook, PPPOE_OFFER_TIMEOUT * hz,
+		    pppoe_ticker, NULL, 0);
 		break;
 
 	case	PPPOE_SINIT:
 	case	PPPOE_SREQ:
 		m0 = m_copypacket(sp->neg->m, M_DONTWAIT);
 		NG_SEND_DATA_ONLY( error, privp->ethernet_hook, m0);
-		neg->timeout_handle = timeout(pppoe_ticker, hook,
-					(hz * PPPOE_INITIAL_TIMEOUT));
+		ng_callout(&neg->handle, node, hook, PPPOE_INITIAL_TIMEOUT * hz,
+		    pppoe_ticker, NULL, 0);
 		neg->timeout = PPPOE_INITIAL_TIMEOUT * 2;
 		break;
 
