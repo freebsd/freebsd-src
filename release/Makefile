@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.7 1994/10/29 12:48:12 phk Exp $
+#	$Id: Makefile,v 1.8 1994/11/05 06:02:18 phk Exp $
 #
 
 FLOPPY=		fd0
@@ -10,7 +10,7 @@ MNT=		/mnt
 CPIO1= cat chmod cp date dd df echo ed expr hostname kill ln ls mkdir
 CPIO1+= mt mv pwd rcp rm rmdir sh sleep stty sync test [ -sh
 CPIO1+= badsect chown clri disklabel dump dmesg fdisk fsck ifconfig init
-CPIO1+= mknod mount newfs ping reboot restore swapon umount route
+CPIO1+= mknod mount newfs ping reboot restore slattach swapon umount route
 CPIO1+= rdump rrestore halt
 CPIO1+= ftp rsh sed telnet rlogin 
 
