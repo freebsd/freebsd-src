@@ -287,7 +287,7 @@ or 1.44M) handy, on which you will put the kernel-copy image and the
 install (or upgrade) floppy images.
 
 The images are available from the directory "floppies", under the root
-of the FreeBSD/FreeBSD-1.0-EPSILON tree at your favorite archive site.
+of the FreeBSD/FreeBSD-1.0 tree at your favorite archive site.
 They're available both as raw disk images, and gzipped, to save time
 downloading.
 
@@ -1052,4 +1052,4 @@ THANKS FOR USING THIS; that's what makes it all worthwhile.
  as they will end up in our personal mail spools.  We will be
  happy to make other arrangements]
 
-This is $Id: install_notes,v 1.9 1993/10/01 19:22:43 rgrimes Exp $
+This is $Id: install_notes,v 1.10 1993/10/16 12:05:51 rgrimes Exp $
