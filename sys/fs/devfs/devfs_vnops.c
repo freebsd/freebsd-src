@@ -199,7 +199,7 @@ loop:
 		dev_lock();
 		dev_ref(dev);
 		vp->v_rdev = dev;
-		SLIST_INSERT_HEAD(&dev->si_hlist, vp, v_specnext);
+		LIST_INSERT_HEAD(&dev->si_alist, de, de_alias);
 		dev->si_usecount += vp->v_usecount;
 		dev_unlock();
 		VI_UNLOCK(vp);
@@ -1041,19 +1041,23 @@ devfs_reclaim(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct devfs_dirent *de;
-	int i;
+	struct cdev *dev;
 
 	de = vp->v_data;
 	if (de != NULL)
 		de->de_vnode = NULL;
 	vp->v_data = NULL;
-	if (vp->v_rdev != NULL) {
-		i = vcount(vp);
-		if ((vp->v_rdev->si_flags & SI_CHEAPCLONE) && i == 0 &&
-		    (vp->v_rdev->si_flags & SI_NAMED))
-			destroy_dev(vp->v_rdev);
-	}
 	vnode_destroy_vobject(vp);
+
+	dev = vp->v_rdev;
+	vp->v_rdev = NULL;
+
+	dev_lock();
+	if (de != NULL)
+		LIST_REMOVE(de, de_alias);
+	dev->si_usecount -= vp->v_usecount;
+	dev_unlock();
+	dev_rel(dev);
 	return (0);
 }
 
@@ -1101,13 +1105,10 @@ devfs_revoke(ap)
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
-	struct vnode *vq;
-	struct devfs_dirent *de;
 	struct cdev *dev;
+	struct devfs_dirent *de;
 
 	KASSERT((ap->a_flags & REVOKEALL) != 0, ("devfs_revoke !REVOKEALL"));
-	de = vp->v_data;
-	de->de_vnode = NULL;
 
 	/*
 	 * If a vgone (or vclean) is already in progress,
@@ -1115,15 +1116,15 @@ devfs_revoke(ap)
 	 */
 	if (vx_wait(vp))
 		return (0);
-	
+
 	dev = vp->v_rdev;
 	for (;;) {
 		dev_lock();
-		vq = SLIST_FIRST(&dev->si_hlist);
+		de = LIST_FIRST(&dev->si_alist);
 		dev_unlock();
-		if (vq == NULL)
+		if (de == NULL)
 			break;
-		vgone(vq);
+		vgone(de->de_vnode);
 	}
 	return (0);
 }
