@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.45 1995/11/06 05:21:13 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.46 1995/11/07 05:32:47 gibbs Exp $
  */
 /*
  * TODO:
@@ -1324,7 +1324,7 @@ ahc_done(unit, scb)
 				unit, xs->sc_link->target);
 			ahc->tagenable |= mask;
 #ifdef QUEUE_FULL_SUPPORTED
-			xs->sc_link->opennings += 2; */
+			xs->sc_link->opennings += 2;
 #endif
 		}
 	}
