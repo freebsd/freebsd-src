@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.12 1994/10/30 00:30:27 ats Exp $
+**  $Id: ncr.c,v 1.13 1994/11/28 23:18:46 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1222,7 +1222,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.12 1994/10/30 00:30:27 ats Exp $\n";
+	"\n$Id: ncr.c,v 1.13 1994/11/28 23:18:46 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -1258,6 +1258,7 @@ static u_char rs_cmd  [6] =
 */
 
 #define	NCR_810_ID	(0x00011000ul)
+#define	NCR_815_ID	(0x00041000ul)
 #define	NCR_825_ID	(0x00031000ul)
 
 #ifdef __NetBSD__
@@ -3118,6 +3119,7 @@ ncr_probe(parent, self, aux)
 	if (!pci_targmatch(cf, pa))
 		return 0;
 	if (pa->pa_id != NCR_810_ID &&
+	    pa->pa_id != NCR_815_ID &&
 	    pa->pa_id != NCR_825_ID)
   		return 0;
 
@@ -3133,6 +3135,9 @@ static	char* ncr_probe (pcici_t tag, pcidi_t type)
 
 	case NCR_810_ID:
 		return ("ncr 53c810 scsi");
+
+	case NCR_815_ID:
+		return ("ncr 53c815 scsi");
 
 	case NCR_825_ID:
 		return ("ncr 53c825 wide scsi");
@@ -3242,6 +3247,7 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	case NCR_810_ID:
 		np->maxwide = 0;
 		break;
+	case NCR_815_ID:
 	case NCR_825_ID:
 		np->maxwide = 1;
 		break;
@@ -3327,7 +3333,7 @@ static	void ncr_attach (pcici_t config_id, int unit)
 		ncr_name (np));
 	DELAY (1000000);
 #endif
-	printf ("%s scanning for targets 0..%d ($Revision: 1.12 $)\n",
+	printf ("%s scanning for targets 0..%d ($Revision: 1.13 $)\n",
 		ncr_name (np), MAX_TARGET-1);
 
 	/*
