@@ -312,12 +312,12 @@ mac_biba_contains_equal(struct mac_biba *mac_biba)
 }
 
 static int
-mac_biba_subject_equal_ok(struct mac_biba *mac_biba)
+mac_biba_subject_privileged(struct mac_biba *mac_biba)
 {
 
 	KASSERT((mac_biba->mb_flags & MAC_BIBA_FLAGS_BOTH) ==
 	    MAC_BIBA_FLAGS_BOTH,
-	    ("mac_biba_subject_equal_ok: subject doesn't have both labels"));
+	    ("mac_biba_subject_privileged: subject doesn't have both labels"));
 
 	/* If the single is EQUAL, it's ok. */
 	if (mac_biba->mb_single.mbe_type == MAC_BIBA_TYPE_EQUAL)
@@ -1476,7 +1476,7 @@ mac_biba_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 		 * their label.
 		 */
 		if (mac_biba_contains_equal(new)) {
-			error = mac_biba_subject_equal_ok(subj);
+			error = mac_biba_subject_privileged(subj);
 			if (error)
 				return (error);
 		}
@@ -1673,7 +1673,7 @@ mac_biba_check_pipe_relabel(struct ucred *cred, struct pipe *pipe,
 		 * subject must have appropriate privilege.
 		 */
 		if (mac_biba_contains_equal(new)) {
-			error = mac_biba_subject_equal_ok(subj);
+			error = mac_biba_subject_privileged(subj);
 			if (error)
 				return (error);
 		}
@@ -1835,7 +1835,7 @@ mac_biba_check_socket_relabel(struct ucred *cred, struct socket *socket,
 		 * the subject must have appropriate privilege.
 		 */
 		if (mac_biba_contains_equal(new)) {
-			error = mac_biba_subject_equal_ok(subj);
+			error = mac_biba_subject_privileged(subj);
 			if (error)
 				return (error);
 		}
@@ -2221,7 +2221,7 @@ mac_biba_check_vnode_relabel(struct ucred *cred, struct vnode *vp,
 		 * the subject must have appropriate privilege.
 		 */
 		if (mac_biba_contains_equal(new)) {
-			error = mac_biba_subject_equal_ok(subj);
+			error = mac_biba_subject_privileged(subj);
 			if (error)
 				return (error);
 		}
