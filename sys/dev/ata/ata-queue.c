@@ -238,8 +238,16 @@ ata_completed(void *context, int dummy)
     ATA_DEBUG_RQ(request, "completed called");
 
     if (request->flags & ATA_R_TIMEOUT) {
-	/* workaround for devices failing to interrupt */
-	if (request->status == (ATA_S_READY | ATA_S_DSC)) {
+	/* workarounds for devices failing to interrupt */
+	if (!request->status) {
+		ata_prtdev(request->device,
+			   "FAILURE - %s no interrupt\n",
+			   ata_cmd2str(request));
+	    request->result = ENXIO;
+	    ATA_UNLOCK_CH(channel);
+	    channel->locking(channel, ATA_LF_UNLOCK);
+	}
+	else if (request->status == (ATA_S_READY | ATA_S_DSC)) {
 		ata_prtdev(request->device,
 			   "WARNING - %s no interrupt but good status\n",
 			   ata_cmd2str(request));
