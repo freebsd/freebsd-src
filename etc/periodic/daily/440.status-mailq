@@ -24,12 +24,12 @@ case "$daily_status_mailq_enable" in
 
 	    rc=$(case "$daily_status_mailq_shorten" in
 		[Yy][Ee][Ss])
-		    rc=$(mailq |
+		    mailq |
 			perl -ne  'print if /^\s+\S+@/' |
 			sort |
 			uniq -c |
 			sort -nr |
-			awk '$1 > 1 {print $1, $2}');;
+			awk '$1 > 1 {print $1, $2}';;
 		*)
 		    mailq;;
 	    esac | tee /dev/stderr | fgrep -v 'mqueue is empty' | wc -l)
@@ -44,12 +44,12 @@ case "$daily_status_mailq_enable" in
 
 		    rc=$(case "$daily_status_mailq_shorten" in
 			[Yy][Ee][Ss])
-			    rc=$(mailq -Ac |
+			    mailq -Ac |
 				perl -ne  'print if /^\s+\S+@/' |
 				sort |
 				uniq -c |
 				sort -nr |
-				awk '$1 > 1 {print $1, $2}');;
+				awk '$1 > 1 {print $1, $2}';;
 			*)
 			    mailq -Ac;;
 		    esac | tee /dev/stderr | fgrep -v 'mqueue is empty' | wc -l)
