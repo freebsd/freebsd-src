@@ -59,7 +59,9 @@ RST, ignore incoming ICMP REDIRECT messages, and also set to log incoming
 ICMP REDIRECT messages.  See rc.conf(5) for details on how to utilize these
 new features.
 
-Netgraph ???.
+netgraph(4) has been added.  Netgraph provides a uniform and modular system
+for the implementation of kernel objects which perform various networking
+functions.  To enable it, ``options NETGRAPH'' must be added to the kernel.
 
 
 1.2. SECURITY FIXES
@@ -68,6 +70,16 @@ Netgraph ???.
 
 1.3. USERLAND CHANGES
 ---------------------
+
+ppp(8) now supports PPPoE (PPP over Ethernet) compliments of the pppoe
+netgraph node.  ppp(8) now uses the -nat command line argument and the ``nat''
+command to control network address translation.  The old [-]alias command
+still works, but produces a warning and will soon be removed.  Additionally,
+ppp(8) now loads the tun module as required, allows a tun unit specification
+on the command line, supports a -foreground command line option, allows
+fast-queue configuration, provides a functional ``set autoload'' command
+(for on-demand multi-link ppp), allows GRE packet filtering and has had
+many bugs fixed.
 
 inetd updated to have ....... new fetures ???.
 
