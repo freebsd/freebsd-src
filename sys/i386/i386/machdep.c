@@ -533,10 +533,9 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	else {
 		/* Old FreeBSD-style arguments. */
 		sf.sf_arg2 = code;
+		sf.sf_addr = (char *)regs->tf_err;
 		sf.sf_ahu.sf_handler = catcher;
 	}
-
-	sf.sf_addr = (char *) regs->tf_err;
 
 	/* save scratch registers */
 	sf.sf_siginfo.si_sc.sc_eax = regs->tf_eax;
@@ -687,6 +686,7 @@ sendsig(catcher, sig, mask, code)
 	else {
 		/* Old FreeBSD-style arguments. */
 		sf.sf_siginfo = code;
+		sf.sf_addr = (char *)regs->tf_err;
 		sf.sf_ahu.sf_handler = catcher;
 	}
 
