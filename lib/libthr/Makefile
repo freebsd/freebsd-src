@@ -13,6 +13,7 @@ DEBUG_FLAGS=-g
 CFLAGS+=-DPTHREAD_KERNEL -D_THREAD_SAFE 
 CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/thread \
 	-I${.CURDIR}/../../include
+CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf
 
 # enable extra internal consistancy checks
 CFLAGS+=-D_PTHREADS_INVARIANTS
