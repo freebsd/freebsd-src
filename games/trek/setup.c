@@ -85,7 +85,7 @@ setup()
 	while (1)
 	{
 		r = getcodpar("What length game", Lentab);
-		Game.length = (int) r->value;
+		Game.length = (long) r->value;
 		if (Game.length == 0)
 		{
 			if (restartgame())
@@ -95,7 +95,7 @@ setup()
 		break;
 	}
 	r = getcodpar("What skill game", Skitab);
-	Game.skill = (int) r->value;
+	Game.skill = (long) r->value;
 	Game.tourn = 0;
 	getstrpar("Enter a password", Game.passwd, 14, 0);
 	if (sequal(Game.passwd, "tournament"))
