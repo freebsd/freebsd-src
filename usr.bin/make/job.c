@@ -132,6 +132,167 @@ __FBSDID("$FreeBSD$");
 #define STATIC static
 
 /*
+ * Job Table definitions.
+ *
+ * The job "table" is kept as a linked Lst in 'jobs', with the number of
+ * active jobs maintained in the 'nJobs' variable. At no time will this
+ * exceed the value of 'maxJobs', initialized by the Job_Init function.
+ *
+ * When a job is finished, the Make_Update function is called on each of the
+ * parents of the node which was just remade. This takes care of the upward
+ * traversal of the dependency graph.
+ */
+#define	JOB_BUFSIZE	1024
+typedef struct Job {
+	int		pid;	/* The child's process ID */
+
+	/* Temporary file to use for job */
+	char		tfile[sizeof(TMPPAT)];
+
+	struct GNode	*node;	/* The target the child is making */
+
+	/*
+	 * A LstNode for the first command to be saved after the job completes.
+	 * This is NULL if there was no "..." in the job's commands.
+	 */
+	LstNode		*tailCmds;
+
+	/*
+	 * An FILE* for writing out the commands. This is only
+	 * used before the job is actually started.
+	 */
+	FILE		*cmdFILE;
+
+	/*
+	 * A word of flags which determine how the module handles errors,
+	 * echoing, etc. for the job
+	 */
+	short		flags;	/* Flags to control treatment of job */
+#define	JOB_IGNERR	0x001	/* Ignore non-zero exits */
+#define	JOB_SILENT	0x002	/* no output */
+#define	JOB_SPECIAL	0x004	/* Target is a special one. i.e. run it locally
+				 * if we can't export it and maxLocal is 0 */
+#define	JOB_IGNDOTS	0x008  	/* Ignore "..." lines when processing
+				 * commands */
+#define	JOB_FIRST	0x020	/* Job is first job for the node */
+#define	JOB_RESTART	0x080	/* Job needs to be completely restarted */
+#define	JOB_RESUME	0x100	/* Job needs to be resumed b/c it stopped,
+				 * for some reason */
+#define	JOB_CONTINUING	0x200	/* We are in the process of resuming this job.
+				 * Used to avoid infinite recursion between
+				 * JobFinish and JobRestart */
+
+	/* union for handling shell's output */
+	union {
+		/*
+		 * This part is used when usePipes is true.
+ 		 * The output is being caught via a pipe and the descriptors
+		 * of our pipe, an array in which output is line buffered and
+		 * the current position in that buffer are all maintained for
+		 * each job.
+		 */
+		struct {
+			/*
+			 * Input side of pipe associated with
+			 * job's output channel
+			 */
+			int	op_inPipe;
+
+			/*
+			 * Output side of pipe associated with job's
+			 * output channel
+			 */
+			int	op_outPipe;
+
+			/*
+			 * Buffer for storing the output of the
+			 * job, line by line
+			 */
+			char	op_outBuf[JOB_BUFSIZE + 1];
+
+			/* Current position in op_outBuf */
+			int	op_curPos;
+		}	o_pipe;
+
+		/*
+		 * If usePipes is false the output is routed to a temporary
+		 * file and all that is kept is the name of the file and the
+		 * descriptor open to the file.
+		 */
+		struct {
+			/* Name of file to which shell output was rerouted */
+			char	of_outFile[sizeof(TMPPAT)];
+
+			/*
+			 * Stream open to the output file. Used to funnel all
+			 * from a single job to one file while still allowing
+			 * multiple shell invocations
+			 */
+			int	of_outFd;
+		}	o_file;
+
+	}       output;	    /* Data for tracking a shell's output */
+} Job;
+
+#define	outPipe	  	output.o_pipe.op_outPipe
+#define	inPipe	  	output.o_pipe.op_inPipe
+#define	outBuf		output.o_pipe.op_outBuf
+#define	curPos		output.o_pipe.op_curPos
+#define	outFile		output.o_file.of_outFile
+#define	outFd	  	output.o_file.of_outFd
+
+/*
+ * Shell Specifications:
+ *
+ * Some special stuff goes on if a shell doesn't have error control. In such
+ * a case, errCheck becomes a printf template for echoing the command,
+ * should echoing be on and ignErr becomes another printf template for
+ * executing the command while ignoring the return status. If either of these
+ * strings is empty when hasErrCtl is FALSE, the command will be executed
+ * anyway as is and if it causes an error, so be it.
+ */
+#define	DEF_SHELL_STRUCT(TAG, CONST)					\
+struct TAG {								\
+	/*								\
+	 * the name of the shell. For Bourne and C shells, this is used	\
+	 * only to find the shell description when used as the single	\
+	 * source of a .SHELL target. For user-defined shells, this is	\
+	 * the full path of the shell.					\
+	 */								\
+	CONST char	*name;						\
+									\
+	/* True if both echoOff and echoOn defined */			\
+	Boolean		hasEchoCtl;					\
+									\
+	CONST char	*echoOff;	/* command to turn off echo */	\
+	CONST char	*echoOn;	/* command to turn it back on */\
+									\
+	/*								\
+	 * What the shell prints, and its length, when given the	\
+	 * echo-off command. This line will not be printed when		\
+	 * received from the shell. This is usually the command which	\
+	 * was executed to turn off echoing				\
+	 */								\
+	CONST char	*noPrint;					\
+	int		noPLen;		/* length of noPrint command */	\
+									\
+	/* set if can control error checking for individual commands */	\
+	Boolean		hasErrCtl;					\
+									\
+	/* string to turn error checking on */				\
+	CONST char	*errCheck;					\
+									\
+	/* string to turn off error checking */				\
+	CONST char	*ignErr;					\
+									\
+	CONST char	*echo;	/* command line flag: echo commands */	\
+	CONST char	*exit;	/* command line flag: exit on error */	\
+}
+
+DEF_SHELL_STRUCT(Shell,);
+DEF_SHELL_STRUCT(CShell, const);
+
+/*
  * error handling variables
  */
 static int	errors = 0;	/* number of errors reported */
@@ -176,7 +337,7 @@ static char	tfile[sizeof(TMPPAT)];
 /*
  * Descriptions for various shells.
  */
-static const DEF_SHELL_STRUCT(CShell, const) shells[] = {
+static const struct CShell shells[] = {
 	/*
 	 * CSH description. The csh can do echo control by playing
 	 * with the setting of the 'echo' shell variable. Sadly,
@@ -217,7 +378,7 @@ static const DEF_SHELL_STRUCT(CShell, const) shells[] = {
  * This is the shell to which we pass all commands in the Makefile.
  * It is set by the Job_ParseShell function.
  */
-static Shell	*commandShell = NULL;
+static struct Shell *commandShell = NULL;
 char		*shellPath = NULL;	/* full pathname of executable image */
 char		*shellName = NULL;	/* last component of shell */
 
@@ -304,7 +465,7 @@ static void JobRestart(Job *);
 static int JobStart(GNode *, int, Job *);
 static char *JobOutput(Job *, char *, char *, int);
 static void JobDoOutput(Job *, Boolean);
-static Shell *JobMatchShell(const char *);
+static struct Shell *JobMatchShell(const char *);
 static void JobInterrupt(int, int);
 static void JobRestartJobs(void);
 
@@ -2037,10 +2198,10 @@ Job_Make(GNode *gn)
  * Returns:
  *	The function returns a pointer to the new shell structure.
  */
-static Shell *
-JobCopyShell(const Shell *osh)
+static struct Shell *
+JobCopyShell(const struct Shell *osh)
 {
-	Shell *nsh;
+	struct Shell *nsh;
 
 	nsh = emalloc(sizeof(*nsh));
 	nsh->name = estrdup(osh->name);
@@ -2089,7 +2250,7 @@ JobCopyShell(const Shell *osh)
  *	Free a shell structure and all associated strings.
  */
 static void
-JobFreeShell(Shell *sh)
+JobFreeShell(struct Shell *sh)
 {
 
 	if (sh != NULL) {
@@ -2337,11 +2498,11 @@ Job_Empty(void)
  *	of the static structure or NULL if no shell with the given name
  *	is found.
  */
-static Shell *
+static struct Shell *
 JobMatchShell(const char *name)
 {
 	const struct CShell	*sh;	      /* Pointer into shells table */
-	struct Shell *nsh;
+	struct Shell		*nsh;
 
 	for (sh = shells; sh < shells + sizeof(shells)/sizeof(shells[0]); sh++)
 		if (strcmp(sh->name, name) == 0)
@@ -2416,9 +2577,9 @@ Job_ParseShell(char *line)
 	char	**argv;
 	int	argc;
 	char	*path;
-	Shell	newShell;
-	Shell	*sh;
 	Boolean	fullSpec = FALSE;
+	struct Shell	newShell;
+	struct Shell	*sh;
 
 	while (isspace((unsigned char)*line)) {
 		line++;
