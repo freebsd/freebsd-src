@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_subr.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_subr.c,v 1.20 1998/06/07 17:11:36 dfr Exp $
+ * $Id: kern_subr.c,v 1.21 1998/07/15 02:32:10 bde Exp $
  */
 
 #include <sys/param.h>
@@ -224,9 +224,7 @@ uioread(n, uio, obj, nread)
 				break;
 
 			tcnt = npagesmoved * PAGE_SIZE;
-			if (tcnt != cnt) {
-				cnt = tcnt;
-			}
+			cnt = tcnt;
 
 			if (error)
 				break;
