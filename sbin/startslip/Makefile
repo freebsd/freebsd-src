@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	startslip
-WARNS?=	0
+WARNS?=	3
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
 

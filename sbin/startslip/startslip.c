@@ -103,16 +103,16 @@ int	debug = 0;
 int carrier(void);
 void down(int);
 int getline(char *, int, int, time_t);
+void sighup(int);
+void sigterm(int);
+void sigurg(int);
 static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	char *cp, **ap;
 	int ch, disc;
-	void sighup(), sigterm(), sigurg();
 	FILE *wfd = NULL;
 	char *dialerstring = 0, buf[BUFSIZ];
 	int unitnum, keepal = 0, outfill = 0;
@@ -210,7 +210,8 @@ main(argc, argv)
 		dvname = devicename;
 	else
 		dvname++;
-	if (snprintf(pidfile, sizeof(pidfile), PIDFILE, _PATH_VARRUN, dvname) >= sizeof(pidfile))
+	if (snprintf(pidfile, sizeof(pidfile), PIDFILE, _PATH_VARRUN, dvname)
+	    >= (int)sizeof(pidfile))
 		usage();
 
 	if ((pfd = fopen(pidfile, "r")) != NULL) {
@@ -474,7 +475,7 @@ restart:
 }
 
 void
-sighup()
+sighup(int sig __unused)
 {
 
 	printd("hup\n");
@@ -484,7 +485,7 @@ sighup()
 }
 
 void
-sigurg()
+sigurg(int sig __unused)
 {
 
 	printd("urg\n");
@@ -494,7 +495,7 @@ sigurg()
 }
 
 void
-sigterm()
+sigterm(int sig __unused)
 {
 
 	printd("terminate\n");
@@ -504,10 +505,7 @@ sigterm()
 }
 
 int
-getline(buf, size, fd, fintimeout)
-	char *buf;
-	int size, fd;
-	time_t fintimeout;
+getline(char *buf, int size, int fd, time_t fintimeout)
 {
 	int i;
 	int ret;
@@ -561,7 +559,7 @@ getline(buf, size, fd, fintimeout)
 }
 
 int
-carrier()
+carrier(void)
 {
 	int comstate;
 
@@ -574,7 +572,7 @@ carrier()
 }
 
 void
-down(code)
+down(int code)
 {
 	if (fd > -1)
 		close(fd);
@@ -586,7 +584,7 @@ down(code)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",  
 "usage: startslip [-d] [-b speed] [-s string1 [-s string2 [...]]] [-h] [-l]",
