@@ -71,7 +71,7 @@
 #	tw*	xten power controller
 #	snd*	various sound cards
 #
-#	$Id: MAKEDEV,v 1.21 1993/12/24 11:36:28 rgrimes Exp $
+#	$Id: MAKEDEV,v 1.22 1994/01/10 18:11:30 ache Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -289,9 +289,6 @@ pty*)
 					rm -f pty%s%x; mknod pty%s%x c 6 %d; ", \
 					n, i, n, i, b+i, n, i, n, i, b+i); }'`
 		umask 77
-		if [ $class = 1 ]; then
-			mv ttyqf ttyv0; mv ptyqf ptyv0
-		fi
 		;;
 	esac
 	;;
@@ -395,8 +392,8 @@ tw*)
 pc*)
 	chr=12
 	minor=0
- 	name=vga
-	rm -f ${name} kbd kbdco vgaco ttyv[0-9][0-9]
+ 	name=ttyv0
+	rm -f ${name} vga kbd kbdco vgaco ttyv[0-9][0-9]
 	mknod ${name} c ${chr} ${minor}
 	chown root.wheel $name
 	;;
