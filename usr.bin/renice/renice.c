@@ -156,7 +156,7 @@ getnum(const char *com, const char *str, int *val)
 	char *ep;
 
 	errno = 0;
-	v = strtol(str, &ep, NULL);
+	v = strtol(str, &ep, 10);
 	if (v < INT_MIN || v > INT_MAX || errno == ERANGE) {
 		warnx("%s argument %s is out of range.", com, str);
 		return (1);
