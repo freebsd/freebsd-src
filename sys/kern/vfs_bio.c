@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.144 1998/01/22 17:29:51 dyson Exp $
+ * $Id: vfs_bio.c,v 1.145 1998/01/24 02:01:20 dyson Exp $
  */
 
 /*
@@ -639,7 +639,11 @@ brelse(struct buf * bp)
 		}
 		if (bp->b_flags & (B_INVAL | B_RELBUF))
 			vfs_vmio_release(bp);
+	} else if (bp->b_flags & B_VMIO) {
+		if (bp->b_flags && (B_INVAL | B_RELBUF))
+			vfs_vmio_release(bp);
 	}
+			
 #if !defined(MAX_PERF)
 	if (bp->b_qindex != QUEUE_NONE)
 		panic("brelse: free buffer onto another queue???");
