@@ -113,7 +113,7 @@ ParseAddr(struct ipcp *ipcp, const char *data,
     strncpy(s, data, len);
     s[len] = '\0';
     *paddr = GetIpAddr(s);
-    if (paddr->s_addr == INADDR_ANY || paddr->s_addr == INADDR_NONE) {
+    if (paddr->s_addr == INADDR_NONE) {
       log_Printf(LogWARN, "ParseAddr: %s: Bad address\n", s);
       return 0;
     }
