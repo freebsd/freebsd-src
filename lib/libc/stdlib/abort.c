@@ -66,7 +66,7 @@ abort()
 	 */
 	sigdelset(&mask, SIGABRT);
 #ifdef _THREAD_SAFE
-	(void) _thread_sys_sigprocmask(SIG_SETMASK, &mask, (sigset_t *)NULL);
+	(void) __sys_sigprocmask(SIG_SETMASK, &mask, (sigset_t *)NULL);
 #else
 	(void)sigprocmask(SIG_SETMASK, &mask, (sigset_t *)NULL);
 #endif
@@ -78,7 +78,7 @@ abort()
 	 */
 	(void)signal(SIGABRT, SIG_DFL);
 #ifdef _THREAD_SAFE
-	(void) _thread_sys_sigprocmask(SIG_SETMASK, &mask, (sigset_t *)NULL);
+	(void) __sys_sigprocmask(SIG_SETMASK, &mask, (sigset_t *)NULL);
 #else
 	(void)sigprocmask(SIG_SETMASK, &mask, (sigset_t *)NULL);
 #endif

@@ -53,7 +53,7 @@
  */
 
 #ifdef _THREAD_SAFE
-ENTRY(_thread_sys_vfork)
+ENTRY(__sys_vfork)
 #else
 ENTRY(vfork)
 #endif

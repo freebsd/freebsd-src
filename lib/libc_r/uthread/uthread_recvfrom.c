@@ -46,7 +46,7 @@ _recvfrom(int fd, void *buf, size_t len, int flags, struct sockaddr * from,
 	int             ret;
 
 	if ((ret = _FD_LOCK(fd, FD_READ, NULL)) == 0) {
-		while ((ret = _thread_sys_recvfrom(fd, buf, len, flags, from, from_len)) < 0) {
+		while ((ret = __sys_recvfrom(fd, buf, len, flags, from, from_len)) < 0) {
 			if (((_thread_fd_getflags(fd) & O_NONBLOCK) == 0)
 			    && ((errno == EWOULDBLOCK) || (errno == EAGAIN))) {
 				_thread_run->data.fd.fd = fd;

@@ -56,8 +56,8 @@ _execve(const char *name, char *const * argv, char *const * envp)
 	setitimer(_ITIMER_SCHED_TIMER, &itimer, NULL);
 
 	/* Close the pthread kernel pipe: */
-	_thread_sys_close(_thread_kern_pipe[0]);
-	_thread_sys_close(_thread_kern_pipe[1]);
+	__sys_close(_thread_kern_pipe[0]);
+	__sys_close(_thread_kern_pipe[1]);
 
 	/*
 	 * Enter a loop to set all file descriptors to blocking
@@ -68,9 +68,9 @@ _execve(const char *name, char *const * argv, char *const * envp)
 		if (_thread_fd_table[i] != NULL &&
 		    (_thread_fd_getflags(i) & O_NONBLOCK) == 0) {
 			/* Get the current flags: */
-			flags = _thread_sys_fcntl(i, F_GETFL, NULL);
+			flags = __sys_fcntl(i, F_GETFL, NULL);
 			/* Clear the nonblocking file descriptor flag: */
-			_thread_sys_fcntl(i, F_SETFL, flags & ~O_NONBLOCK);
+			__sys_fcntl(i, F_SETFL, flags & ~O_NONBLOCK);
 		}
 	}
 
@@ -94,15 +94,15 @@ _execve(const char *name, char *const * argv, char *const * envp)
 			act.sa_flags = _thread_sigact[i - 1].sa_flags;
 
 			/* Change the signal action for the process: */
-			_thread_sys_sigaction(i, &act, &oact);
+			__sys_sigaction(i, &act, &oact);
 		}
 	}
 
 	/* Set the signal mask: */
-	_thread_sys_sigprocmask(SIG_SETMASK, &_thread_run->sigmask, NULL);
+	__sys_sigprocmask(SIG_SETMASK, &_thread_run->sigmask, NULL);
 
 	/* Execute the process: */
-	ret = _thread_sys_execve(name, argv, envp);
+	ret = __sys_execve(name, argv, envp);
 
 	/* Return the completion status: */
 	return (ret);

@@ -117,7 +117,7 @@ _thread_fd_table_init(int fd)
 
 		/* Get the flags for the file: */
 		if (((fd >= 3) || (_pthread_stdio_flags[fd] == -1)) &&
-		    (entry->flags = _thread_sys_fcntl(fd, F_GETFL, 0)) == -1) {
+		    (entry->flags = __sys_fcntl(fd, F_GETFL, 0)) == -1) {
 			ret = -1;
 		}
 		else {
@@ -140,7 +140,7 @@ _thread_fd_table_init(int fd)
 			 * driver is naturally non-blocking.
 			 */
 			saved_errno = errno;
-			_thread_sys_fcntl(fd, F_SETFL,
+			__sys_fcntl(fd, F_SETFL,
 			    entry->flags | O_NONBLOCK);
 			errno = saved_errno;
 

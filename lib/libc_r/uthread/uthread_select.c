@@ -142,7 +142,7 @@ _select(int numfds, fd_set * readfds, fd_set * writefds, fd_set * exceptfds,
 				pfd_index--;
 			}
 		}
-		if (((ret = _thread_sys_poll(data.fds, data.nfds, 0)) == 0) &&
+		if (((ret = __sys_poll(data.fds, data.nfds, 0)) == 0) &&
 		   (f_wait != 0)) {
 			_thread_run->data.poll_data = &data;
 			_thread_run->interrupted = 0;

@@ -90,17 +90,17 @@ END(label);
  */
 #ifdef _THREAD_SAFE
 /*
- * For the thread_safe versions, we prepend _thread_sys_ to the function
+ * For the thread_safe versions, we prepend __sys_ to the function
  * name so that the 'C' wrapper can go around the real name.
  */
 #define	PCALL(name)						\
-	CALL(___CONCAT(_thread_sys_,name))
+	CALL(___CONCAT(__sys_,name))
 
 #define	PLEAF(name, args)					\
-LEAF(___CONCAT(_thread_sys_,name),args)
+LEAF(___CONCAT(__sys_,name),args)
 
 #define	PEND(name)						\
-END(___CONCAT(_thread_sys_,name))
+END(___CONCAT(__sys_,name))
 
 #define	PSYSCALL(name)						\
 PLEAF(name,0);				/* XXX # of args? */	\

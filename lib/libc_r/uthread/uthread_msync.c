@@ -17,7 +17,7 @@ _msync(void *addr, size_t len, int flags)
 {
 	int ret;
 
-	ret = _thread_sys_msync(addr, len, flags);
+	ret = __sys_msync(addr, len, flags);
 
 	return (ret);
 }

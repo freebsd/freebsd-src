@@ -48,7 +48,7 @@ _thread_sys_signal(int s, sig_t a)
 	sa.sa_flags = SA_SIGINFO;
 
 	/* Perform the sigaction syscall: */
-	if (_thread_sys_sigaction(s, &sa, &osa) < 0) {
+	if (__sys_sigaction(s, &sa, &osa) < 0) {
 		/* Return an error: */
 		return (SIG_ERR);
 	}

@@ -58,8 +58,8 @@ void __exit(int status)
 	setitimer(_ITIMER_SCHED_TIMER, &itimer, NULL);
 
 	/* Close the pthread kernel pipe: */
-	_thread_sys_close(_thread_kern_pipe[0]);
-	_thread_sys_close(_thread_kern_pipe[1]);
+	__sys_close(_thread_kern_pipe[0]);
+	__sys_close(_thread_kern_pipe[1]);
 
 	/*
 	 * Enter a loop to set all file descriptors to blocking
@@ -70,14 +70,14 @@ void __exit(int status)
 		if (_thread_fd_table[i] != NULL &&
 		    (_thread_fd_getflags(i) & O_NONBLOCK) == 0) {
 			/* Get the current flags: */
-			flags = _thread_sys_fcntl(i, F_GETFL, NULL);
+			flags = __sys_fcntl(i, F_GETFL, NULL);
 			/* Clear the nonblocking file descriptor flag: */
-			_thread_sys_fcntl(i, F_SETFL, flags & ~O_NONBLOCK);
+			__sys_fcntl(i, F_SETFL, flags & ~O_NONBLOCK);
 		}
 	}
 
 	/* Call the _exit syscall: */
-	_thread_sys__exit(status);
+	__sys__exit(status);
 }
 
 __strong_reference(__exit, _exit);
@@ -97,7 +97,7 @@ _thread_exit(char *fname, int lineno, char *string)
 	strcat(s, ")\n");
 
 	/* Write the string to the standard error file descriptor: */
-	_thread_sys_write(2, s, strlen(s));
+	__sys_write(2, s, strlen(s));
 
 	/* Force this process to exit: */
 	/* XXX - Do we want abort to be conditional on _PTHREADS_INVARIANTS? */

@@ -63,12 +63,12 @@ _fcntl(int fd, int cmd,...)
 			oldfd = va_arg(ap, int);
 
 			/* Initialise the file descriptor table entry: */
-			if ((ret = _thread_sys_fcntl(fd, cmd, oldfd)) < 0) {
+			if ((ret = __sys_fcntl(fd, cmd, oldfd)) < 0) {
 			}
 			/* Initialise the file descriptor table entry: */
 			else if (_thread_fd_table_init(ret) != 0) {
 				/* Quietly close the file: */
-				_thread_sys_close(ret);
+				__sys_close(ret);
 
 				/* Reset the file descriptor: */
 				ret = -1;
@@ -83,10 +83,10 @@ _fcntl(int fd, int cmd,...)
 			break;
 		case F_SETFD:
 			flags = va_arg(ap, int);
-			ret = _thread_sys_fcntl(fd, cmd, flags);
+			ret = __sys_fcntl(fd, cmd, flags);
 			break;
 		case F_GETFD:
-			ret = _thread_sys_fcntl(fd, cmd, 0);
+			ret = __sys_fcntl(fd, cmd, 0);
 			break;
 		case F_GETFL:
 			ret = _thread_fd_getflags(fd);
@@ -105,10 +105,10 @@ _fcntl(int fd, int cmd,...)
 			nonblock = flags & O_NONBLOCK;
 
 			/* Set the file descriptor flags: */
-			if ((ret = _thread_sys_fcntl(fd, cmd, flags | O_NONBLOCK)) != 0) {
+			if ((ret = __sys_fcntl(fd, cmd, flags | O_NONBLOCK)) != 0) {
 
 			/* Get the flags so that we behave like the kernel: */
-			} else if ((flags = _thread_sys_fcntl(fd,
+			} else if ((flags = __sys_fcntl(fd,
 			    F_GETFL, 0)) == -1) {
 				/* Error getting flags: */
 				ret = -1;
@@ -126,7 +126,7 @@ _fcntl(int fd, int cmd,...)
 			break;
 		default:
 			/* Might want to make va_arg use a union */
-			ret = _thread_sys_fcntl(fd, cmd, va_arg(ap, void *));
+			ret = __sys_fcntl(fd, cmd, va_arg(ap, void *));
 			break;
 		}
 

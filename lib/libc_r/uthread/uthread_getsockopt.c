@@ -44,7 +44,7 @@ _getsockopt(int fd, int level, int optname, void *optval, socklen_t
 	int             ret;
 
 	if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
-		ret = _thread_sys_getsockopt(fd, level, optname, optval, optlen);
+		ret = __sys_getsockopt(fd, level, optname, optval, optlen);
 		_FD_UNLOCK(fd, FD_RDWR);
 	}
 	return ret;

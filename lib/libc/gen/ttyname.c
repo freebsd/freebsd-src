@@ -87,7 +87,7 @@ __ttyname_r_basic(int fd, char *buf, size_t len)
 	if (!isatty(fd))
 		return (rval);
 	/* Must be a character device. */
-	if (_thread_sys_fstat(fd, &sb) || !S_ISCHR(sb.st_mode))
+	if (__sys_fstat(fd, &sb) || !S_ISCHR(sb.st_mode))
 		return (rval);
 	/* Must have enough room */
 	if (len <= sizeof(_PATH_DEV))

@@ -55,12 +55,12 @@ _fork(void)
 	_thread_kern_sig_defer();
 
 	/* Fork a new process: */
-	if ((ret = _thread_sys_fork()) != 0) {
+	if ((ret = __sys_fork()) != 0) {
 		/* Parent process or error. Nothing to do here. */
 	} else {
 		/* Close the pthread kernel pipe: */
-		_thread_sys_close(_thread_kern_pipe[0]);
-		_thread_sys_close(_thread_kern_pipe[1]);
+		__sys_close(_thread_kern_pipe[0]);
+		__sys_close(_thread_kern_pipe[1]);
 
 		/* Reset signals pending for the running thread: */
 		sigemptyset(&_thread_run->sigpend);
@@ -68,29 +68,29 @@ _fork(void)
 		/*
 		 * Create a pipe that is written to by the signal handler to
 		 * prevent signals being missed in calls to
-		 * _thread_sys_select: 
+		 * __sys_select: 
 		 */
-		if (_thread_sys_pipe(_thread_kern_pipe) != 0) {
+		if (__sys_pipe(_thread_kern_pipe) != 0) {
 			/* Cannot create pipe, so abort: */
 			PANIC("Cannot create pthread kernel pipe for forked process");
 		}
 		/* Get the flags for the read pipe: */
-		else if ((flags = _thread_sys_fcntl(_thread_kern_pipe[0], F_GETFL, NULL)) == -1) {
+		else if ((flags = __sys_fcntl(_thread_kern_pipe[0], F_GETFL, NULL)) == -1) {
 			/* Abort this application: */
 			abort();
 		}
 		/* Make the read pipe non-blocking: */
-		else if (_thread_sys_fcntl(_thread_kern_pipe[0], F_SETFL, flags | O_NONBLOCK) == -1) {
+		else if (__sys_fcntl(_thread_kern_pipe[0], F_SETFL, flags | O_NONBLOCK) == -1) {
 			/* Abort this application: */
 			abort();
 		}
 		/* Get the flags for the write pipe: */
-		else if ((flags = _thread_sys_fcntl(_thread_kern_pipe[1], F_GETFL, NULL)) == -1) {
+		else if ((flags = __sys_fcntl(_thread_kern_pipe[1], F_GETFL, NULL)) == -1) {
 			/* Abort this application: */
 			abort();
 		}
 		/* Make the write pipe non-blocking: */
-		else if (_thread_sys_fcntl(_thread_kern_pipe[1], F_SETFL, flags | O_NONBLOCK) == -1) {
+		else if (__sys_fcntl(_thread_kern_pipe[1], F_SETFL, flags | O_NONBLOCK) == -1) {
 			/* Abort this application: */
 			abort();
 		}

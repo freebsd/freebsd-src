@@ -43,7 +43,7 @@ _getsockname(int s, struct sockaddr * name, socklen_t *namelen)
 	int             ret;
 
 	if ((ret = _FD_LOCK(s, FD_READ, NULL)) == 0) {
-		ret = _thread_sys_getsockname(s, name, namelen);
+		ret = __sys_getsockname(s, name, namelen);
 		_FD_UNLOCK(s, FD_READ);
 	}
 	return ret;

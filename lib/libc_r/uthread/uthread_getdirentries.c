@@ -43,7 +43,7 @@ _getdirentries(int fd, char *buf, int nbytes, long *basep)
 	int             ret;
 
 	if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
-		ret = _thread_sys_getdirentries(fd, buf, nbytes, basep);
+		ret = __sys_getdirentries(fd, buf, nbytes, basep);
 		_FD_UNLOCK(fd, FD_RDWR);
 	}
 	return (ret);

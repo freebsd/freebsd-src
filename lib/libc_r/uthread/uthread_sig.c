@@ -140,7 +140,7 @@ _thread_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 		 * be ready to read when this signal handler returns.
 		 */
 		if (_queue_signals != 0) {
-			_thread_sys_write(_thread_kern_pipe[1], &c, 1);
+			__sys_write(_thread_kern_pipe[1], &c, 1);
 			DBG_MSG("Got signal %d, queueing to kernel pipe\n", sig);
 		}
 		if (_thread_sigq[sig - 1].blocked == 0) {
@@ -508,7 +508,7 @@ thread_sig_handle_special(int sig)
 				/*
 				 * Set the file descriptor to non-blocking:
 				 */
-				_thread_sys_fcntl(i, F_SETFL,
+				__sys_fcntl(i, F_SETFL,
 				    _thread_fd_getflags(i) | O_NONBLOCK);
 			}
 		}

@@ -61,7 +61,7 @@ _readv(int fd, const struct iovec * iov, int iovcnt)
 		}
 
 		/* Perform a non-blocking readv syscall: */
-		while ((ret = _thread_sys_readv(fd, iov, iovcnt)) < 0) {
+		while ((ret = __sys_readv(fd, iov, iovcnt)) < 0) {
 			if ((_thread_fd_getflags(fd) & O_NONBLOCK) == 0 &&
 			    (errno == EWOULDBLOCK || errno == EAGAIN)) {
 				_thread_run->data.fd.fd = fd;

@@ -188,7 +188,7 @@ _thread_kern_scheduler(void)
 		 * the current thread.  Restore the process signal
 		 * mask.
 		 */
-		if (_thread_sys_sigprocmask(SIG_SETMASK,
+		if (__sys_sigprocmask(SIG_SETMASK,
 		    &_process_sigmask, NULL) != 0)
 			PANIC("Unable to restore process mask after signal");
 
@@ -196,7 +196,7 @@ _thread_kern_scheduler(void)
 		 * Since the signal handler didn't return normally, we
 		 * have to tell the kernel to reuse the signal stack.
 		 */
-		if (_thread_sys_sigaltstack(&_thread_sigstack, NULL) != 0)
+		if (__sys_sigaltstack(&_thread_sigstack, NULL) != 0)
 			PANIC("Unable to restore alternate signal stack");
 	}
 
@@ -826,7 +826,7 @@ thread_kern_poll(int wait_reqd)
 	 * Wait for a file descriptor to be ready for read, write, or
 	 * an exception, or a timeout to occur:
 	 */
-	count = _thread_sys_poll(_thread_pfd_table, nfds, timeout_ms);
+	count = __sys_poll(_thread_pfd_table, nfds, timeout_ms);
 
 	if (kern_pipe_added != 0)
 		/*
@@ -1101,7 +1101,7 @@ dequeue_signals(void)
 	/*
 	 * Enter a loop to clear the pthread kernel pipe:
 	 */
-	while (((num = _thread_sys_read(_thread_kern_pipe[0], bufr,
+	while (((num = __sys_read(_thread_kern_pipe[0], bufr,
 	    sizeof(bufr))) > 0) || (num == -1 && errno == EINTR)) {
 	}
 	if ((num < 0) && (errno != EAGAIN)) {

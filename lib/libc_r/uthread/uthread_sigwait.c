@@ -115,7 +115,7 @@ sigwait(const sigset_t *set, int *sig)
 			_thread_dfl_count[i]++;
 			sigaddset(&tempset, i);
 			if (_thread_dfl_count[i] == 1) {
-				if (_thread_sys_sigaction(i,&act,NULL) != 0)
+				if (__sys_sigaction(i,&act,NULL) != 0)
 					ret = -1;
 			}
 		}
@@ -157,7 +157,7 @@ sigwait(const sigset_t *set, int *sig)
 			_thread_dfl_count[i]--;
 			if ((_thread_sigact[i - 1].sa_handler == SIG_DFL) &&
 			    (_thread_dfl_count[i] == 0)) {
-				if (_thread_sys_sigaction(i,&act,NULL) != 0)
+				if (__sys_sigaction(i,&act,NULL) != 0)
 					ret = -1;
 			}
 		}

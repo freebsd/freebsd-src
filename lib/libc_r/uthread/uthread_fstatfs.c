@@ -49,7 +49,7 @@ _fstatfs(int fd, struct statfs * buf)
 	/* Lock the file descriptor for read: */
 	if ((ret = _FD_LOCK(fd, FD_READ, NULL)) == 0) {
 		/* Get the file system status: */
-		ret = _thread_sys_fstatfs(fd, buf);
+		ret = __sys_fstatfs(fd, buf);
 		/* Unlock the file descriptor: */
 		_FD_UNLOCK(fd, FD_READ);
 	}

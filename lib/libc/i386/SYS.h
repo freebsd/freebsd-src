@@ -68,14 +68,14 @@
  */
 #ifdef _THREAD_SAFE
 /*
- * For the thread_safe versions, we prepend _thread_sys_ to the function
+ * For the thread_safe versions, we prepend __sys_ to the function
  * name so that the 'C' wrapper can go around the real name.
  */
 #define	PSYSCALL(x)	2: PIC_PROLOGUE; jmp PIC_PLT(HIDENAME(cerror));	\
-			ENTRY(__CONCAT(_thread_sys_,x));		\
+			ENTRY(__CONCAT(__sys_,x));			\
 			lea __CONCAT(SYS_,x),%eax; KERNCALL; jb 2b
 #define	PRSYSCALL(x)	PSYSCALL(x); ret
-#define	PPSEUDO(x,y)	ENTRY(__CONCAT(_thread_sys_,x));		\
+#define	PPSEUDO(x,y)	ENTRY(__CONCAT(__sys_,x));			\
 			lea __CONCAT(SYS_,y), %eax; KERNCALL; ret
 #else
 /*

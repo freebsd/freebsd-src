@@ -12,6 +12,6 @@ NOASM=	__semctl.o break.o exit.o ftruncate.o getdomainname.o getlogin.o \
 
 PSEUDO=	_getlogin.o
 
-# Pseudo syscalls that are renamed as _thread_sys_{pseudo} when
+# Pseudo syscalls that are renamed as __sys_{pseudo} when
 # building libc_r.
 PSEUDOR= _exit.o

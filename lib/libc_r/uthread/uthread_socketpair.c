@@ -44,11 +44,11 @@ int
 _socketpair(int af, int type, int protocol, int pair[2])
 {
 	int             ret;
-	if (!((ret = _thread_sys_socketpair(af, type, protocol, pair)) < 0))
+	if (!((ret = __sys_socketpair(af, type, protocol, pair)) < 0))
 		if (_thread_fd_table_init(pair[0]) != 0 ||
 		    _thread_fd_table_init(pair[1]) != 0) {
-			_thread_sys_close(pair[0]);
-			_thread_sys_close(pair[1]);
+			__sys_close(pair[0]);
+			__sys_close(pair[1]);
 			ret = -1;
 		}
 	return (ret);

@@ -42,7 +42,7 @@ _flock(int fd, int operation)
 	int             ret;
 
 	if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
-		ret = _thread_sys_flock(fd, operation);
+		ret = __sys_flock(fd, operation);
 		_FD_UNLOCK(fd, FD_RDWR);
 	}
 	return (ret);
