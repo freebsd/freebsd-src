@@ -163,7 +163,8 @@ void foo(char *fmt, ...)
 			printf("int %d\en", d);
 			break;
 		case 'c':			/* char */
-			c = va_arg(ap, char);
+			/* Note: char is promoted to int. */
+			c = va_arg(ap, int);
 			printf("char %c\en", c);
 			break;
 		}
