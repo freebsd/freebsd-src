@@ -87,8 +87,7 @@ SUBDIR+=ipf \
 .if ${MACHINE_ARCH} == "i386"
 SUBDIR+=cxconfig \
 	mount_nwfs \
-	mount_smbfs \
-	nextboot
+	mount_smbfs
 .if ${MACHINE} == "pc98"
 SUBDIR+=fdisk_pc98
 .else
