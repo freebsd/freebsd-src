@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.267 1996/12/29 05:51:33 jkh Exp $
+#	$Id: Makefile,v 1.268 1996/12/30 02:57:33 jkh Exp $
 #
 # How to roll a release:
 #
@@ -243,8 +243,6 @@ release.5:
 	fi
 	# Create the catpages
 	if [ -d ${RD}/trees/manpages/usr/share/man ] ; then \
-		mtree -U -f ${.CURDIR}/man.mtree -d -e \
-			-p ${RD}/trees/manpages/usr/share; \
 		su -m man -c 'catman ${RD}/trees/manpages/usr/share/man'; \
 		( cd ${RD}/trees/manpages/usr/share/man; \
 		find cat* | cpio -dumpl ${RD}/trees/catpages/usr/share/man ) && \
