@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.160 1996/12/03 13:38:40 obrien Exp $ -->
+<!-- $Id: contrib.sgml,v 1.161 1996/12/04 08:07:44 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -284,6 +284,7 @@
 	  <item>Michael Butschky &lt;butsch@computi.erols.com&gt;
 	  <item>Michael Elbel &lt;me@FreeBSD.ORG&gt;
 	  <item>Michael Searle &lt;searle@longacre.demon.co.uk&gt;
+	  <item>Miguel Angel Sagreras &lt;msagre@cactus.fi.uba.ar&gt;
 	  <item>Mikael Hybsch &lt;micke@dynas.se&gt;
 	  <item>Mike Peck &lt;mike@binghamton.edu&gt;
 	  <item>MITA Yoshio &lt;mita@jp.FreeBSD.ORG&gt;
