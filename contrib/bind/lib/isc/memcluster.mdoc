@@ -1,4 +1,4 @@
-.\" $Id: memcluster.mdoc,v 8.2 1999/01/08 19:25:46 vixie Exp $
+.\" $Id: memcluster.mdoc,v 8.3 2001/08/08 07:50:27 marka Exp $
 .\"
 .\"Copyright (c) 1995-1999 by Internet Software Consortium
 .\"
@@ -20,7 +20,7 @@
 .\"Os OPERATING_SYSTEM [version/release]
 .Os BSD 4
 .\"Dt DOCUMENT_TITLE [section number] [volume]
-.Dt memcluster 3
+.Dt MEMCLUSTER 3
 .Sh NAME
 .Nm meminit ,
 .Nm memget ,
@@ -192,7 +192,8 @@ the the value
 as mentioned in the 
 .Sx INTERNALS 
 subsection, above, the block is placed at the head of the free list of 
-.Va new_size Ns No -sized blocks.
+.Va new_size Ns -sized
+blocks.
 If the given
 .Fa size
 is zero or negative, then 
@@ -276,7 +277,7 @@ is generally
 equal to
 .Fa size , 
 which has these implications:
-.Bl -enum -offset -indent means that, for 
+.Bl -enum -offset indent
 .It
 For
 .Fa size

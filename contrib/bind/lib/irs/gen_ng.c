@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: gen_ng.c,v 1.14 1999/10/13 16:39:29 vixie Exp $";
+static const char rcsid[] = "$Id: gen_ng.c,v 1.15 2001/05/29 05:48:38 marka Exp $";
 #endif
 
 /* Imports */
@@ -52,7 +52,8 @@ struct pvt {
 /* Forward */
 
 static void		ng_close(struct irs_ng *);
-static int		ng_next(struct irs_ng *, char **, char **, char **);
+static int		ng_next(struct irs_ng *, const char **,
+				const char **, const char **);
 static int 		ng_test(struct irs_ng *, const char *,
 				const char *, const char *,
 				const char *);
@@ -103,7 +104,9 @@ ng_close(struct irs_ng *this) {
 }
 
 static int
-ng_next(struct irs_ng *this, char **host, char **user, char **domain) {
+ng_next(struct irs_ng *this, const char **host, const char **user,
+	const char **domain)
+{
 	struct pvt *pvt = (struct pvt *)this->private;
 	struct irs_ng *ng;
 	

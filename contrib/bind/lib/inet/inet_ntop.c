@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: inet_ntop.c,v 1.10 2001/01/25 20:21:10 vixie Exp $";
+static const char rcsid[] = "$Id: inet_ntop.c,v 1.11 2001/09/27 15:12:57 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "port_before.h"
@@ -175,8 +175,9 @@ inet_ntop6(src, dst, size)
 		if (i != 0)
 			*tp++ = ':';
 		/* Is this address an encapsulated IPv4? */
-		if (i == 6 && best.base == 0 &&
-		    (best.len == 6 || (best.len == 5 && words[5] == 0xffff))) {
+		if (i == 6 && best.base == 0 && (best.len == 6 ||
+		    (best.len == 7 && words[7] != 0x0001) ||
+		    (best.len == 5 && words[5] == 0xffff))) {
 			if (!inet_ntop4(src+12, tp, sizeof tmp - (tp - tmp)))
 				return (NULL);
 			tp += strlen(tp);

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: res_findzonecut.c,v 8.12 2000/11/22 01:20:44 marka Exp $";
+static const char rcsid[] = "$Id: res_findzonecut.c,v 8.15 2001/11/01 05:21:22 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -78,13 +78,13 @@ static void	free_nsrr(rrset_ns *, rr_ns *);
 static rr_ns *	find_ns(rrset_ns *, const char *);
 static int	do_query(res_state, const char *, ns_class, ns_type,
 			 u_char *, ns_msg *);
-static void	dprintf(const char *, ...);
+static void	res_dprintf(const char *, ...) ISC_FORMAT_PRINTF(1, 2);
 
 /* Macros. */
 
 #define DPRINTF(x) do {\
 		int save_errno = errno; \
-		if ((statp->options & RES_DEBUG) != 0) dprintf x; \
+		if ((statp->options & RES_DEBUG) != 0) res_dprintf x; \
 		errno = save_errno; \
 	} while (0)
 
@@ -527,12 +527,14 @@ free_nsrrset(rrset_ns *nsrrsp) {
 static void
 free_nsrr(rrset_ns *nsrrsp, rr_ns *nsrr) {
 	rr_a *arr;
+	char *tmp;
 
 	while ((arr = HEAD(nsrr->addrs)) != NULL) {
 		UNLINK(nsrr->addrs, arr, link);
 		free(arr);
 	}
-	free((char *)nsrr->name);
+	DE_CONST(nsrr->name, tmp);
+	free(tmp);
 	UNLINK(*nsrrsp, nsrr, link);
 	free(nsrr);
 }
@@ -590,7 +592,7 @@ do_query(res_state statp, const char *dname, ns_class class, ns_type qtype,
 }
 
 static void
-dprintf(const char *fmt, ...) {
+res_dprintf(const char *fmt, ...) {
 	va_list ap;
 
 	va_start(ap, fmt);

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ctl_srvr.c,v 8.24 2000/11/14 01:10:37 vixie Exp $";
+static const char rcsid[] = "$Id: ctl_srvr.c,v 8.25 2001/05/29 05:49:27 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -92,7 +92,7 @@ struct ctl_sess {
 	struct ctl_buf		outbuf;
 	const struct ctl_verb *	verb;
 	u_int			helpcode;
-	void *			respctx;
+	const void *		respctx;
 	u_int			respflags;
 	ctl_srvrdone		donefunc;
 	void *			uap;
@@ -139,7 +139,7 @@ static void			ctl_morehelp(struct ctl_sctx *,
 					     struct ctl_sess *,
 					     const struct ctl_verb *,
 					     const char *,
-					     u_int, void *, void *);
+					     u_int, const void *, void *);
 static void			ctl_signal_done(struct ctl_sctx *,
 						struct ctl_sess *);
 
@@ -152,7 +152,9 @@ static const char *		state_names[] = {
 
 static const char		space[] = " ";
 
-static const struct ctl_verb	fakehelpverb = { "fakehelp", ctl_morehelp };
+static const struct ctl_verb	fakehelpverb = {
+	"fakehelp", ctl_morehelp , NULL
+};
 
 /* Public. */
 
@@ -225,7 +227,7 @@ ctl_server(evContext lev, const struct sockaddr *sap, size_t sap_len,
 	if (sap->sa_family != AF_UNIX)
 #endif
 		if (setsockopt(ctx->sock, SOL_SOCKET, SO_REUSEADDR,
-			       (char *)&on, sizeof on) != 0) {
+			       (const char *)&on, sizeof on) != 0) {
 			(*ctx->logger)(ctl_warning,
 				       "%s: setsockopt(REUSEADDR): %s",
 				       me, strerror(errno));
@@ -234,7 +236,7 @@ ctl_server(evContext lev, const struct sockaddr *sap, size_t sap_len,
 		char tmp[MAX_NTOP];
 		save_errno = errno;
 		(*ctx->logger)(ctl_error, "%s: bind: %s: %s",
-			       me, ctl_sa_ntop((struct sockaddr *)sap,
+			       me, ctl_sa_ntop((const struct sockaddr *)sap,
 			       tmp, sizeof tmp, ctx->logger),
 			       strerror(save_errno));
 		close(ctx->sock);
@@ -295,8 +297,8 @@ ctl_endserver(struct ctl_sctx *ctx) {
  */
 void
 ctl_response(struct ctl_sess *sess, u_int code, const char *text,
-	     u_int flags, void *respctx, ctl_srvrdone donefunc, void *uap,
-	     const char *body, size_t bodylen)
+	     u_int flags, const void *respctx, ctl_srvrdone donefunc,
+	     void *uap, const char *body, size_t bodylen)
 {
 	static const char me[] = "ctl_response";
 	struct iovec iov[3], *iovp = iov;
@@ -327,13 +329,18 @@ ctl_response(struct ctl_sess *sess, u_int code, const char *text,
 	sess->outbuf.used = SPRINTF((sess->outbuf.text, "%03d%c%s\r\n",
 				     code, (flags & CTL_MORE) != 0 ? '-' : ' ',
 				     text));
-	for (pc = sess->outbuf.text, n = 0; n < sess->outbuf.used-2; pc++, n++)
-		if (!isascii(*pc) || !isprint(*pc))
+	for (pc = sess->outbuf.text, n = 0;
+	     n < (int)sess->outbuf.used-2; pc++, n++)
+		if (!isascii((unsigned char)*pc) ||
+		    !isprint((unsigned char)*pc))
 			*pc = '\040';
 	*iovp++ = evConsIovec(sess->outbuf.text, sess->outbuf.used);
 	if (body != NULL) {
-		*iovp++ = evConsIovec((char *)body, bodylen);
-		*iovp++ = evConsIovec(".\r\n", 3);
+		char *tmp;
+		DE_CONST(body, tmp);
+		*iovp++ = evConsIovec(tmp, bodylen);
+		DE_CONST(".\r\n", tmp);
+		*iovp++ = evConsIovec(tmp, 3);
 	}
 	(*ctx->logger)(ctl_debug, "%s: [%d] %s", me,
 		       sess->outbuf.used, sess->outbuf.text);
@@ -369,7 +376,8 @@ ctl_sendhelp(struct ctl_sess *sess, u_int code) {
 
 	sess->helpcode = code;
 	sess->verb = &fakehelpverb;
-	ctl_morehelp(ctx, sess, NULL, me, CTL_MORE, (void *)ctx->verbs, NULL);
+	ctl_morehelp(ctx, sess, NULL, me, CTL_MORE,
+		     (const void *)ctx->verbs, NULL);
 }
 
 void *
@@ -397,6 +405,10 @@ ctl_accept(evContext lev, void *uap, int fd,
 	struct ctl_sess *sess = NULL;
 	char tmp[MAX_NTOP];
 
+	UNUSED(lev);
+	UNUSED(lalen);
+	UNUSED(ralen);
+
 	if (fd < 0) {
 		(*ctx->logger)(ctl_error, "%s: accept: %s",
 			       me, strerror(errno));
@@ -404,7 +416,7 @@ ctl_accept(evContext lev, void *uap, int fd,
 	}
 	if (ctx->cur_sess == ctx->max_sess) {
 		(*ctx->logger)(ctl_error, "%s: %s: too many control sessions",
-			       me, ctl_sa_ntop((struct sockaddr *)rav,
+			       me, ctl_sa_ntop((const struct sockaddr *)rav,
 					       tmp, sizeof tmp,
 					       ctx->logger));
 		(void) close(fd);
@@ -432,11 +444,11 @@ ctl_accept(evContext lev, void *uap, int fd,
 	sess->rdtiID.opaque = NULL;
 	sess->respctx = NULL;
 	sess->csctx = NULL;
-	if (((struct sockaddr *)rav)->sa_family == AF_UNIX)
-		ctl_sa_copy((struct sockaddr *)lav,
+	if (((const struct sockaddr *)rav)->sa_family == AF_UNIX)
+		ctl_sa_copy((const struct sockaddr *)lav,
 			    (struct sockaddr *)&sess->sa);
 	else
-		ctl_sa_copy((struct sockaddr *)rav,
+		ctl_sa_copy((const struct sockaddr *)rav,
 			    (struct sockaddr *)&sess->sa);
 	sess->donefunc = NULL;
 	buffer_init(sess->inbuf);
@@ -447,7 +459,7 @@ ctl_accept(evContext lev, void *uap, int fd,
 	(*ctx->logger)(ctl_debug, "%s: %s: accepting (fd %d)",
 		       me, address_expr, sess->sock);
 	(*ctx->connverb->func)(ctx, sess, ctx->connverb, "", 0,
-			       (struct sockaddr *)rav, ctx->uctx);
+			       (const struct sockaddr *)rav, ctx->uctx);
 }
 
 static void
@@ -614,6 +626,10 @@ ctl_wrtimeout(evContext lev, void *uap,
 	struct ctl_sess *sess = uap;
 	struct ctl_sctx *ctx = sess->ctx;
 	char tmp[MAX_NTOP];
+	
+	UNUSED(lev);
+	UNUSED(due);
+	UNUSED(itv);
 
 	REQUIRE(sess->state == writing);
 	sess->wrtiID.opaque = NULL;
@@ -637,6 +653,10 @@ ctl_rdtimeout(evContext lev, void *uap,
 	struct ctl_sess *sess = uap;
 	struct ctl_sctx *ctx = sess->ctx;
 	char tmp[MAX_NTOP];
+
+	UNUSED(lev);
+	UNUSED(due);
+	UNUSED(itv);
 
 	REQUIRE(sess->state == reading);
 	sess->rdtiID.opaque = NULL;
@@ -699,6 +719,9 @@ ctl_writedone(evContext lev, void *uap, int fd, int bytes) {
 	char tmp[MAX_NTOP];
 	int save_errno = errno;
 
+	UNUSED(lev);
+	UNUSED(uap);
+
 	REQUIRE(sess->state == writing);
 	REQUIRE(fd == sess->sock);
 	REQUIRE(sess->wrtiID.opaque != NULL);
@@ -731,9 +754,14 @@ ctl_writedone(evContext lev, void *uap, int fd, int bytes) {
 static void
 ctl_morehelp(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	     const struct ctl_verb *verb, const char *text,
-	     u_int respflags, void *respctx, void *uctx)
+	     u_int respflags, const void *respctx, void *uctx)
 {
-	struct ctl_verb *this = respctx, *next = this + 1;
+	const struct ctl_verb *this = respctx, *next = this + 1;
+
+	UNUSED(ctx);
+	UNUSED(verb);
+	UNUSED(text);
+	UNUSED(uctx);
 
 	REQUIRE(!lastverb_p(this));
 	REQUIRE((respflags & CTL_MORE) != 0);

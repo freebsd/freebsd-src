@@ -16,16 +16,24 @@
  */
 
 /*
- * $Id: misc.h,v 8.4 2000/12/23 08:14:52 vixie Exp $
+ * $Id: misc.h,v 8.5 2001/06/18 06:40:43 marka Exp $
  */
 
 #ifndef _ISC_MISC_H
 #define _ISC_MISC_H
+
+#include <stdio.h>
 
 #define	bitncmp		__bitncmp
 /*#define isc_movefile	__isc_movefile */
 
 extern int		bitncmp(const void *l, const void *r, int n);
 extern int		isc_movefile(const char *, const char *);
+
+extern int		isc_gethexstring(unsigned char *, size_t, int, FILE *,
+					 int *);
+extern void		isc_puthexstring(FILE *, const unsigned char *, size_t,
+					 size_t, size_t, const char *);
+extern void		isc_tohex(const unsigned char *, size_t, char *);
 
 #endif /*_ISC_MISC_H*/

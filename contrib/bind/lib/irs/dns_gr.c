@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: dns_gr.c,v 1.19 1999/01/18 07:46:48 vixie Exp $";
+static const char rcsid[] = "$Id: dns_gr.c,v 1.20 2001/05/29 05:48:27 marka Exp $";
 #endif
 
 /*
@@ -146,6 +146,9 @@ gr_close(struct irs_gr *this) {
 
 static struct group *
 gr_next(struct irs_gr *this) {
+
+	UNUSED(this);
+
 	return (NULL);
 }
 
@@ -164,6 +167,9 @@ gr_bygid(struct irs_gr *this, gid_t gid) {
 
 static void
 gr_rewind(struct irs_gr *this) {
+
+	UNUSED(this);
+
 	/* NOOP */
 }
 
@@ -171,6 +177,11 @@ static int
 gr_list(struct irs_gr *this, const char *name,
 	gid_t basegid, gid_t *groups, int *ngroups)
 {
+	UNUSED(this);
+	UNUSED(name);
+	UNUSED(basegid);
+	UNUSED(groups);
+
 	*ngroups = 0;
 	/* There's some way to do this in Hesiod. */
 	return (-1);
@@ -178,6 +189,8 @@ gr_list(struct irs_gr *this, const char *name,
 
 static void
 gr_minimize(struct irs_gr *this) {
+
+	UNUSED(this);
 	/* NOOP */
 }
 

@@ -1,5 +1,5 @@
 #ifndef lint
-static const char rcsid[] = "$Id: dig.c,v 8.46 2001/04/01 17:35:01 vixie Exp $";
+static const char rcsid[] = "$Id: dig.c,v 8.51 2001/12/19 02:25:17 marka Exp $";
 #endif
 
 /*
@@ -188,9 +188,15 @@ static const char rcsid[] = "$Id: dig.c,v 8.46 2001/04/01 17:35:01 vixie Exp $";
 #define VERSION 83
 #define VSTRING "8.3"
 
-#define PRF_DEF		0x2ff9
-#define PRF_MIN		0xA930
-#define PRF_ZONE        0x24f9
+#define PRF_DEF		(RES_PRF_STATS | RES_PRF_CMD | RES_PRF_QUES | \
+			 RES_PRF_ANS | RES_PRF_AUTH | RES_PRF_ADD | \
+			 RES_PRF_HEAD1 | RES_PRF_HEAD2 | RES_PRF_TTLID | \
+			 RES_PRF_HEADX | RES_PRF_REPLY | RES_PRF_TRUNC)
+#define PRF_MIN		(RES_PRF_QUES | RES_PRF_ANS | RES_PRF_HEAD1 | \
+			 RES_PRF_HEADX | RES_PRF_REPLY | RES_PRF_TRUNC)
+#define PRF_ZONE        (RES_PRF_STATS | RES_PRF_CMD | RES_PRF_QUES | \
+			 RES_PRF_ANS | RES_PRF_AUTH | RES_PRF_ADD | \
+			 RES_PRF_TTLID | RES_PRF_REPLY | RES_PRF_TRUNC)
 
 #ifndef MAXHOSTNAMELEN
 #define MAXHOSTNAMELEN 256
@@ -219,7 +225,7 @@ int		queryType, queryClass;
 extern int	StringToClass(), StringToType();	/* subr.c */
 #if defined(BSD) && BSD >= 199006 && !defined(RISCOS_BSD)
 FILE		*yyin = NULL;
-void		yyrestart(FILE *f) { }
+void		yyrestart(FILE *f) { UNUSED(f); }
 #endif
 char		*pager = NULL;
 /* end of nslookup stuff */
@@ -448,13 +454,21 @@ main(int argc, char **argv) {
 						printf("; no arg for -t?\n");
 					else if ((tmp = atoi(*argv))
 					    || *argv[0]=='0') {
-						queryType = tmp;
-						qtypeSet++;
+						if (ns_t_xfr_p(tmp)) {
+							xfr = tmp;
+						} else {
+							queryType = tmp;
+							qtypeSet++;
+						}
 					} else if ((tmp = StringToType(*argv,
 								      0, NULL)
 						   ) != 0) {
-						queryType = tmp;
-						qtypeSet++;
+						if (ns_t_xfr_p(tmp)) {
+							xfr = tmp;
+						} else {
+							queryType = tmp;
+							qtypeSet++;
+						}
 					} else {
 						printf(
 						   "; invalid type specified\n"
@@ -832,6 +846,7 @@ main(int argc, char **argv) {
 		if (n < 0) {
 			fflush(stderr);
 			printf(";; res_nmkquery: buffer too small\n\n");
+			fflush(stdout);
 			continue;
 		}
 		if (queryType == T_IXFR) {
@@ -856,6 +871,13 @@ main(int argc, char **argv) {
 			PUTLONG(0x1776, cpp); /* Min TTL */
 			bytes_out = n = cpp - packet;
 		};	
+
+#if defined(RES_USE_EDNS0) && defined(RES_USE_DNSSEC)
+		if (n > 0 &&
+		    (res.options & (RES_USE_EDNS0|RES_USE_DNSSEC)) != 0)
+			bytes_out = n = res_nopt(&res, n, packet,
+						 sizeof(packet), 4096);
+#endif
 
 		eecode = 0;
 		if (res.pfcode & RES_PRF_HEAD1)
@@ -954,14 +976,15 @@ where:	server,\n\
 	d-opt	is of the form ``+keyword=value'' where keyword is one of:\n\
 		[no]debug [no]d2 [no]recurse retry=# time=# [no]ko [no]vc\n\
 		[no]defname [no]search domain=NAME [no]ignore [no]primary\n\
-		[no]aaonly [no]cmd [no]stats [no]Header [no]header\n\
+		[no]aaonly [no]cmd [no]stats [no]Header [no]header [no]trunc\n\
 		[no]ttlid [no]cl [no]qr [no]reply [no]ques [no]answer\n\
-		[no]author [no]addit pfdef pfmin pfset=# pfand=# pfor=#\n\
+		[no]author [no]addit [no]dnssec pfdef pfmin\n\
+		pfset=# pfand=# pfor=#\n\
 ", stderr);
 	fputs("\
 notes:	defname and search don't work; use fully-qualified names.\n\
 	this is DiG version " VSTRING "\n\
-	$Id: dig.c,v 8.46 2001/04/01 17:35:01 vixie Exp $\n\
+	$Id: dig.c,v 8.51 2001/12/19 02:25:17 marka Exp $\n\
 ", stderr);
 }
 
@@ -1000,6 +1023,10 @@ setopt(const char *string) {
 		res.options |= RES_DEFNAMES;
 	} else if (strncmp(option, "nodef", 5) == 0) {
 		res.options &= ~RES_DEFNAMES;
+	} else if (strncmp(option, "dn", 2) == 0) {	/* dnssec */
+		res.options |= RES_USE_DNSSEC;
+	} else if (strncmp(option, "nodn", 4) == 0) {
+		res.options &= ~RES_USE_DNSSEC;
 	} else if (strncmp(option, "sea", 3) == 0) {	/* search list */
 		res.options |= RES_DNSRCH;
 	} else if (strncmp(option, "nosea", 5) == 0) {
@@ -1075,6 +1102,10 @@ setopt(const char *string) {
 		res.pfcode |= RES_PRF_TTLID;
 	} else if (strncmp(option, "nott", 4) == 0) {  
 		res.pfcode &= ~RES_PRF_TTLID;
+	} else if (strncmp(option, "tr", 2) == 0) {  /* TTL & ID */
+		res.pfcode |= RES_PRF_TRUNC;
+	} else if (strncmp(option, "notr", 4) == 0) {  
+		res.pfcode &= ~RES_PRF_TRUNC;
 	} else if (strncmp(option, "he", 2) == 0) {  /* head flags stats */
 		res.pfcode |= RES_PRF_HEAD2;
 	} else if (strncmp(option, "nohe", 4) == 0) {  
@@ -1191,14 +1222,14 @@ printZone(ns_type xfr, const char *zone, const struct sockaddr_in *sin,
 	static int answerLen = 0;
 
 	querybuf buf;
-	int msglen, amtToRead, numRead, result = 0, sockFD, len;
+	int msglen, amtToRead, numRead, result, sockFD, len;
 	int count, type, class, rlen, done, n;
-	int numAnswers = 0, numRecords = 0, soacnt = 0;
+	int numAnswers, numRecords, soacnt;
 	u_char *cp, tmp[NS_INT16SZ];
 	char dname[2][NS_MAXDNAME];
 	enum { NO_ERRORS, ERR_READING_LEN, ERR_READING_MSG, ERR_PRINTING }
-		error = NO_ERRORS;
-	pid_t zpid;
+		error;
+	pid_t zpid = -1;
 	u_char *newmsg;
 	int newmsglen;
 	ns_tcp_tsig_state tsig_state;
@@ -1302,7 +1333,7 @@ printZone(ns_type xfr, const char *zone, const struct sockaddr_in *sin,
 		sockFD = -1;
 		return (e);
 	}
-	if (connect(sockFD, (struct sockaddr *)sin, sizeof *sin) < 0) {
+	if (connect(sockFD, (const struct sockaddr *)sin, sizeof *sin) < 0) {
 		int e = errno;
 
 		perror(";; connect");
@@ -1325,7 +1356,8 @@ printZone(ns_type xfr, const char *zone, const struct sockaddr_in *sin,
 		(void) close(sockFD);
 		sockFD = -1;
 		return (e);
-	}
+	} else if (key)
+		free (newmsg);
 
 	/*
 	 * If we're compressing, push a gzip into the pipeline.
@@ -1336,8 +1368,6 @@ printZone(ns_type xfr, const char *zone, const struct sockaddr_in *sin,
 
 		if (pipe(z) < 0) {
 			int e = errno;
-			if (key)
-				free (newmsg);
 
 			perror(";; pipe");
 			(void) close(sockFD);
@@ -1347,8 +1377,6 @@ printZone(ns_type xfr, const char *zone, const struct sockaddr_in *sin,
 		zpid = vfork();
 		if (zpid < 0) {
 			int e = errno;
-			if (key)
-				free (newmsg);
 
 			perror(";; fork");
 			(void) close(sockFD);
@@ -1370,6 +1398,11 @@ printZone(ns_type xfr, const char *zone, const struct sockaddr_in *sin,
 		(void) dup2(z[rd], sockFD);
 		(void) close(z[rd]);
 	}
+	result = 0;
+	numAnswers = 0;
+	numRecords = 0;
+	soacnt = 0;
+	error = NO_ERRORS;
 
 	dname[0][0] = '\0';
 	for (done = 0; !done; (void)NULL) {
@@ -1538,10 +1571,6 @@ printZone(ns_type xfr, const char *zone, const struct sockaddr_in *sin,
 		       WCOREDUMP(status) ? 't' : 'f');
 	}
 
-	/* XXX This should probably happen sooner than here */
-	if (key)
-		free (newmsg);
-
 	switch (error) {
 	case NO_ERRORS:
 		return (0);
@@ -1604,9 +1633,12 @@ print_axfr(FILE *file, const u_char *msg, size_t msglen) {
 			fprintf(file, "$ORIGIN %s.\n", origin);
 			if (strcmp(name, ".") == 0)
 				strcpy(origin, name);
-			strcpy(name_ctx, "@");
+			if (res.pfcode & RES_PRF_TRUNC)
+				strcpy(name_ctx, "@");
 		}
-		if (ns_sprintrr(&handle, &rr, name_ctx, origin,
+		if (ns_sprintrr(&handle, &rr,
+				(res.pfcode & RES_PRF_TRUNC) ? name_ctx : NULL,
+				(res.pfcode & RES_PRF_TRUNC) ? origin : NULL,
 				buf, sizeof buf) < 0) {
 			fprintf(file, ";; ns_sprintrr: %s\n", strerror(errno));
 			return (FORMERR);

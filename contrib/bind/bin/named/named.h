@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: named.h,v 8.28 2001/02/12 05:56:15 marka Exp $
+ * $Id: named.h,v 8.31 2002/02/01 00:05:38 marka Exp $
  */
 
 /* Options. Change them at your peril. */
@@ -28,7 +28,7 @@
 #define TRACEROOT
 #define XFRNETS
 #define QRYLOG
-#define YPKLUDGE
+#undef YPKLUDGE
 #define	RENICE
 #define BIND_IXFR
 #define BIND_NOTIFY
@@ -45,6 +45,8 @@
 #define STRICT_RFC2308
 #undef BIND_ZXFR
 #undef LOG_TSIG_BUG
+#define NOADDITIONAL
+#undef FORWARD_ALLOWS	/* enable allow-query for forward zones. */
 
 #include <isc/assertions.h>
 #include <isc/list.h>

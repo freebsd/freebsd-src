@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_lexer.c,v 8.22 2000/11/29 06:55:58 marka Exp $";
+static const char rcsid[] = "$Id: ns_lexer.c,v 8.28 2001/12/28 04:07:47 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -142,6 +142,10 @@ static char message[20480];
 
 static void
 parser_complain(int is_warning, int print_last_token, const char *format,
+		va_list args) ISC_FORMAT_PRINTF(3, 0);
+
+static void
+parser_complain(int is_warning, int print_last_token, const char *format,
 		va_list args)
 {
 	LexerFileContext lf;
@@ -199,7 +203,7 @@ parser_error(int print_last_token, const char *format, ...) {
 
 void
 yyerror(const char *message) {
-	parser_error(1, message);
+	parser_error(1, "%s", message);
 }
 
 /*
@@ -207,7 +211,7 @@ yyerror(const char *message) {
  */
 
 struct keyword {
-        char *name;
+        const char *name;
 	int token;
 };
 
@@ -265,6 +269,7 @@ static struct keyword keywords[] = {
 #endif /* HITCOUNTS */
 	{"host-statistics", T_HOSTSTATS},
 	{"host-statistics-max", T_HOSTSTATSMAX},
+	{"hostname", T_HOSTNAME},
 	{"if-no-answer", T_IF_NO_ANSWER},
 	{"if-no-domain", T_IF_NO_DOMAIN},
 	{"ignore", T_IGNORE},
@@ -303,6 +308,7 @@ static struct keyword keywords[] = {
 	{"perm", T_PERM},
 	{"pid-file", T_PIDFILE},
 	{"port", T_PORT},
+	{"preferred-glue", T_PREFERRED_GLUE},
 	{"print-category", T_PRINT_CATEGORY},
 	{"print-severity", T_PRINT_SEVERITY},
 	{"print-time", T_PRINT_TIME},
@@ -324,6 +330,9 @@ static struct keyword keywords[] = {
 	{"statistics-interval", T_STATS_INTERVAL},
 	{"stub", T_STUB},
 	{"support-ixfr", T_SUPPORT_IXFR},
+#ifdef BIND_NOTIFY
+	{"suppress-initial-notify", T_NOTIFY_INITIAL},
+#endif
 	{"syslog", T_SYSLOG}, 
 	{"topology", T_TOPOLOGY},
 	{"transfer-format", T_TRANSFER_FORMAT}, 
@@ -474,7 +483,7 @@ scan_to_comment_end(int c_plus_plus_style) {
 	}
 }
 
-int
+static int
 get_next_char(int comment_ok) {
 	int c, nc;
 
@@ -518,7 +527,7 @@ get_next_char(int comment_ok) {
 	return (c);
 }
 
-void
+static void
 put_back_char(int c) {
 	if (c == EOF)
 		current_file->flags |= LEX_EOF;

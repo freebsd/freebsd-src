@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: gethostent.c,v 1.28 2001/03/01 05:47:44 marka Exp $";
+static const char rcsid[] = "$Id: gethostent.c,v 1.29 2001/05/29 05:48:44 marka Exp $";
 #endif
 
 /* Imports */
@@ -215,10 +215,6 @@ endhostent_p(struct net_data *net_data) {
 		(*ho->minimize)(ho);
 }
 
-#if !defined(HAS_INET6_STRUCTS) || defined(MISSING_IN6ADDR_ANY)
-static const struct in6_addr in6addr_any;
-#endif
-
 #ifndef IN6_IS_ADDR_V4COMPAT
 static const unsigned char in6addr_compat[12] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -299,7 +295,7 @@ getipnodebyname(const char *name, int af, int flags, int *error_num) {
 		char *addr_list[2];
 		char *aliases[1];
 
-		he.h_name = (char *)name;
+		DE_CONST(name, he.h_name);
 		he.h_addr_list = addr_list;
 		he.h_addr_list[0] = (v4 == 1) ? (char *)&in4 : (char *)&in6;
 		he.h_addr_list[1] = NULL;
@@ -379,8 +375,10 @@ getipnodebyaddr(const void *src, size_t len, int af, int *error_num) {
 	/*
 	 * Lookup IPv4 and IPv4 mapped/compatible addresses
 	 */
-	if ((af == AF_INET6 && IN6_IS_ADDR_V4COMPAT((struct in6_addr *)src)) ||
-	    (af == AF_INET6 && IN6_IS_ADDR_V4MAPPED((struct in6_addr *)src)) ||
+	if ((af == AF_INET6 &&
+	     IN6_IS_ADDR_V4COMPAT((const struct in6_addr *)src)) ||
+	    (af == AF_INET6 &&
+	     IN6_IS_ADDR_V4MAPPED((const struct in6_addr *)src)) ||
 	    (af == AF_INET)) {
 		const char *cp = src;
 
@@ -405,7 +403,7 @@ getipnodebyaddr(const void *src, size_t len, int af, int *error_num) {
 	/*
 	 * Lookup IPv6 address.
 	 */
-	if (memcmp((struct in6_addr *)src, &in6addr_any, 16) == 0) {
+	if (memcmp((const struct in6_addr *)src, &in6addr_any, 16) == 0) {
 		*error_num = HOST_NOT_FOUND;
 		return (NULL);
 	}
@@ -491,7 +489,7 @@ scan_interfaces(int *have_v4, int *have_v6) {
 	struct in_addr in4;
 	struct in6_addr in6;
 	char *buf = NULL, *cp, *cplim;
-	static int bufsiz = 4095;
+	static unsigned int bufsiz = 4095;
 	int s, cpsize, n;
 
 	/* Set to zero.  Used as loop terminators below. */
@@ -571,7 +569,7 @@ scan_interfaces(int *have_v4, int *have_v6) {
 #else
 		cpsize = sizeof lifreq.lifr_name;
 		/* XXX maybe this should be a hard error? */
-		if (ioctl(s, SOICGLIFADDR, (char *)&lifreq) < 0)
+		if (ioctl(s, SIOCGLIFADDR, (char *)&lifreq) < 0)
 			continue;
 #endif
 		switch (lifreq.lifr_addr.ss_family) {
@@ -816,6 +814,7 @@ fakeaddr(const char *name, int af, struct net_data *net_data) {
 		return (NULL);
 	}
 	pvt = net_data->ho_data;
+#ifndef __bsdi__
 	/*
 	 * Unlike its forebear(inet_aton), our friendly inet_pton() is strict
 	 * in its interpretation of its input, and it will only return "1" if
@@ -825,6 +824,15 @@ fakeaddr(const char *name, int af, struct net_data *net_data) {
 	 * This means "telnet 0xdeadbeef" and "telnet 127.1" are dead now.
 	 */
 	if (inet_pton(af, name, pvt->addr) != 1) {
+#else
+	/* BSDI XXX
+	 * We put this back to inet_aton -- we really want the old behavior
+	 * Long live 127.1...
+	 */
+	if ((af != AF_INET ||
+	    inet_aton(name, (struct in_addr *)pvt->addr) != 1) &&
+	    inet_pton(af, name, pvt->addr) != 1) {
+#endif
 		RES_SET_H_ERRNO(net_data->res, HOST_NOT_FOUND);
 		return (NULL);
 	}

@@ -1,6 +1,6 @@
 /*
  *	from ns.h	4.33 (Berkeley) 8/23/90
- *	$Id: ns_glob.h,v 8.56 2000/12/02 18:39:25 vixie Exp $
+ *	$Id: ns_glob.h,v 8.57 2001/11/12 21:22:26 marka Exp $
  */
 
 /*
@@ -342,3 +342,4 @@ DECL	int			loading			INIT(0);
 DECL	int			xfers_running		INIT(0);
 DECL	int			xfers_deferred		INIT(0);
 DECL	int			qserials_running	INIT(0);
+DECL	int			initial_configuration	INIT(1);
