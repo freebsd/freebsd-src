@@ -105,6 +105,7 @@ kthread_create(void (*func)(void *), void *arg,
 void
 kthread_exit(int ecode)
 {
+	proc_reparent(curproc, initproc);
 	exit1(curproc, W_EXITCODE(ecode, 0));
 }
 
