@@ -9,7 +9,7 @@
 # under the terms and conditions stated by the XFree86 Project, Inc.
 # copyright, which should also be in the file COPYRIGHT in this distribution.
 #
-# $Id: extract_xf86311.sh,v 1.6 1995/02/10 05:05:41 jkh Exp $
+# $Id: extract_xf86311.sh,v 1.7 1995/02/10 06:52:16 jkh Exp $
 
 PATH=/usr/X11R6/bin:/usr/X386/bin:.:$PATH
 
@@ -61,7 +61,7 @@ unpacking on your system.  Most people will typically need only one\n\
 server, and the most reasonable choices have already been set for you by\n\
 default.  When everything looks good, select OK to continue.\n\n\
 Server notation: 4 bit = 16 color, 8 bit = 256 color,\n\
-16 bit = 16k colors, 24 bit = true color." \
+16 bit = 64k colors, 24 bit = true color." \
 -1 -1 8 \
 "X311bin" "client applications and shared libs" ON \
 "X311fnts" "the misc and 75 dpi fonts" ON \
