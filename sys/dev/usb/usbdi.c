@@ -1010,6 +1010,12 @@ usbd_do_request_async(usbd_device_handle dev, usb_device_request_t *req,
 const struct usbd_quirks *
 usbd_get_quirks(usbd_device_handle dev)
 {
+#ifdef DIAGNOSTIC
+	if (dev == NULL) {
+		printf("usbd_get_quirks: dev == NULL\n");
+		return 0;
+	}
+#endif
 	return (dev->quirks);
 }
 
