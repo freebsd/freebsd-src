@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.17 1994/09/14 23:09:06 ache Exp $
+ *	$Id: clock.c,v 1.18 1994/09/18 20:39:42 wollman Exp $
  */
 
 /*
@@ -44,13 +44,17 @@
 #include <sys/systm.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
-#include <machine/segments.h>
 #include <machine/frame.h>
 #include <i386/isa/icu.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/rtc.h>
 #include <i386/isa/timerreg.h>
-#include <machine/cpu.h>
+
+/*
+ * 32-bit time_t's can't reach leap years before 1904 or after 2036, so we
+ * can use a simple formula for leap years.
+ */
+#define	LEAPYEAR(y) ((u_int)(y) % 4 == 0)
 
 /* X-tals being what they are, it's nice to be able to fudge this one... */
 /* Note, the name changed here from XTALSPEED to TIMER_FREQ rgrimes 4/26/93 */
@@ -58,9 +62,8 @@
 #define	TIMER_FREQ	1193182	/* XXX - should be in isa.h */
 #endif
 #define TIMER_DIV(x) ((TIMER_FREQ+(x)/2)/(x))
-#define	LEAPYEAR(y) (!((y)%4) && ((y)%100) || !((y)%400))
 
-static 	int beeping;
+static	int beeping;
 int 	timer0_divisor = TIMER_DIV(100);	/* XXX should be hz */
 u_int 	timer0_prescale;
 int	adjkerntz = 0;	/* offset from CMOS clock */
@@ -258,7 +261,7 @@ calibrate_cyclecounter(void)
 void
 DELAY(int n)
 {
-	int counter_limit, prev_tick, tick, ticks_left, sec, usec;
+	int prev_tick, tick, ticks_left, sec, usec;
 
 #ifdef DELAYDEBUG
 	int getit_calls = 1;
@@ -314,7 +317,8 @@ DELAY(int n)
 
 
 static void
-sysbeepstop()
+sysbeepstop(chan)
+	void	*chan;
 {
 	outb(IO_PPI, inb(IO_PPI)&0xFC);	/* disable counter2 output to speaker */
 	release_timer2();
@@ -335,7 +339,7 @@ sysbeep(int pitch, int period)
 	if (!beeping) {
 	outb(IO_PPI, inb(IO_PPI) | 3);	/* enable counter2 output to speaker */
 		beeping = period;
-		timeout(sysbeepstop, 0, period);
+		timeout(sysbeepstop, (void *)NULL, period);
 	}
 	return 0;
 }
@@ -487,16 +491,6 @@ enablertclock()
 	INTREN(IRQ8);
 	outb(IO_RTC, RTC_STATUSB);
 	outb(IO_RTC+1, RTCSB_PINTR | RTCSB_24HR);
-}
-
-
-/*
- * Delay for some number of milliseconds.
- */
-void
-spinwait(int millisecs)
-{
-	DELAY(1000 * millisecs);
 }
 
 void
