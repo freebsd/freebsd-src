@@ -67,7 +67,6 @@
 ASSYM(GD_CURPROC, offsetof(struct globaldata, gd_curproc));
 ASSYM(GD_CURPCB, offsetof(struct globaldata, gd_curpcb));
 ASSYM(GD_SWITCHTIME, offsetof(struct globaldata, gd_switchtime));
-ASSYM(GD_ASTPENDING, offsetof(struct globaldata, gd_astpending));
 
 ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
 ASSYM(MTX_RECURSECNT, offsetof(struct mtx, mtx_recurse));
