@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.36 1997/03/09 20:03:39 ache Exp $
+ * $Id: main.c,v 1.37 1997/03/10 06:21:01 ache Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -49,6 +49,7 @@
 #include "systems.h"
 #include "ip.h"
 #include "alias.h"
+#include "sig.h"
 
 #define LAUTH_M1 "Warning: No password entry for this host in ppp.secret\n"
 #define LAUTH_M2 "Warning: All manipulation is allowed by anyone in the world\n"
@@ -213,8 +214,8 @@ int signo;
 static void
 TerminalCont()
 {
-  (void)signal(SIGCONT, SIG_DFL);
-  (void)signal(SIGTSTP, TerminalStop);
+  pending_signal(SIGCONT, SIG_DFL);
+  pending_signal(SIGTSTP, TerminalStop);
   TtyCommandMode(getpgrp() == tcgetpgrp(0));
 }
 
@@ -222,9 +223,9 @@ static void
 TerminalStop(signo)
 int signo;
 {
-  (void)signal(SIGCONT, TerminalCont);
+  pending_signal(SIGCONT, TerminalCont);
   TtyOldMode();
-  signal(SIGTSTP, SIG_DFL);
+  pending_signal(SIGTSTP, SIG_DFL);
   kill(getpid(), signo);
 }
 
@@ -349,9 +350,9 @@ char **argv;
   tcgetattr(0, &oldtio);		/* Save original tty mode */
 
   signal(SIGHUP, Hangup);
-  signal(SIGTERM, CloseSession);
-  signal(SIGINT, CloseSession);
-  signal(SIGQUIT, CloseSession);
+  pending_signal(SIGTERM, CloseSession);
+  pending_signal(SIGINT, CloseSession);
+  pending_signal(SIGQUIT, CloseSession);
 #ifdef SIGSEGV
   signal(SIGSEGV, Hangup);
 #endif
@@ -359,18 +360,18 @@ char **argv;
   signal(SIGPIPE, Hangup);
 #endif
 #ifdef SIGALRM
-  signal(SIGALRM, SIG_IGN);
+  pending_signal(SIGALRM, SIG_IGN);
 #endif
   if(mode & MODE_INTER)
     {
 #ifdef SIGTSTP
-      signal(SIGTSTP, TerminalStop);
+      pending_signal(SIGTSTP, TerminalStop);
 #endif
 #ifdef SIGTTIN
-      signal(SIGTTIN, TerminalStop);
+      pending_signal(SIGTTIN, TerminalStop);
 #endif
 #ifdef SIGTTOU
-      signal(SIGTTOU, SIG_IGN);
+      pending_signal(SIGTTOU, SIG_IGN);
 #endif
     }
 
@@ -796,6 +797,8 @@ DoLoop()
 #ifndef SIGALRM
     usleep(TICKUNIT);
     TimerService();
+#else
+    handle_signals();
 #endif
 
     /* If there are aren't many packets queued, look for some more. */
@@ -836,7 +839,8 @@ DoLoop()
 
     if ( i < 0 ) {
        if ( errno == EINTR ) {
-          continue;            /* Got a signal - should have been dealt with */
+          handle_signals();
+          continue;
        }
        perror("select");
        break;
