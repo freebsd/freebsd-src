@@ -1,0 +1,196 @@
+gzip was written by Jean-loup Gailly <jloup@chorus.fr>, with
+portions written by Mark Adler (inflate.c) and Peter Jannesen
+(unlzw.c). The zip deflate format was defined by Phil Katz.
+Thanks to those who reported problems and suggested
+various improvements.  Here is a partial list of them:
+
+Mark Adler              madler@cco.caltech.edu
+Edwin Allum             edwin@csri.toronto.edu
+Joseph Arceneaux	jla@gnu.ai.mit.edu
+Tim Auckland            tda10@cus.cam.ac.uk
+Ken-ichiro Aoki         aoki@madonna.physics.ucla.edu
+David Ascher            da@marlowe.cog.brown.edu
+Eric Backus             ericb@lsid.hp.com
+Becky A. Badgett        badgett@cs.utexas.edu
+Dave Barber             dbarber@apocalypse.bbn.com
+Rene Beaulieu           reneb@distri.hydro.qc.ca
+Neal Becker             neal@ctd.comsat.com 
+Dieter Becker           becker@med-in.uni-sb.de
+Nelson H. F. Beebe      beebe@geronimo.math.utah.edu
+Jeff Beadles		jeff@onion.rain.com
+David J. N. Begley      dbegley@st.nepean.uws.edu.au
+Jim Bernard             jbernard@iola.mines.colorado.edu
+Karl Berry              karl@cs.umb.edu
+James W. Birdsall       jwbirdsa@picarefy.picarefy.com
+Wayne E. Bouchard       web@paladine.hacks.arizona.edu
+Marc Boucher            marc@cam.org
+Ola Brahammar           pt90ob@pt.hk-r.se
+Dave Brennan            brennan@hal.com
+Alan Brown              dogbowl@dogbox.acme.gen.nz
+Rodney Brown            rdb@mel.cocam.oz.au
+Bruce                   bde@runx.oz.au
+Leila Burrell-Davis     leilabd@syma.sussex.ac.uk
+Roger Butenuth          butenuth@ira.uka.de
+Bud Carlson             bud@isle.pegasus.com
+Lim Fung Chai           fclim@i1sin.daq.semi.harris.com
+Wes Chalfant            wes@kofax.com
+Paul Close              pdc@lunch.wpd.sgi.com
+Kevin Cosgrove          kevinc@tekig6.pen.tek.com
+Stephen J Cowley        s.j.cowley@amtp.cam.ac.uk
+Frank Crawford          frank@photon.ansto.gov.au
+James R. Crawford       qralston@cislabs.pitt.edu
+Lawrence Crowl          crowl@research.cs.orst.edu 
+Klaus Dahlenburg        kdburg@incoahe.hanse.de
+William E Davidsen      davidsen@ariel.crd.ge.com
+Jeff Deifik             jdeifik@isi.edu
+Vince DeMarco           vince@whatnxt.cuc.ab.ca
+Michael De La Rue       p91152@cplab.physics.edinburgh.ac.uk
+Lawrence R. Dodd        dodd@roebling.poly.edu
+Matthew Donadio         donadio@mxd120.rh.psu.edu
+Andy Dougherty          andy@crystal.phys.lafayette.edu
+John Eaton              jwe@che.utexas.edu
+Brian Edmonds           edmonds@edmonds.home.cs.ubc.ca
+Paul Eggert             eggert@twinsun.com
+Enami                   enami@sys.ptg.sony.co.jp
+Kristoffer Eriksson     ske@pkmab.se
+Daniel Eriksson         m91der@bellatrix.tdb.uu.se
+Rik Faith               faith@cs.unc.edu
+Larry Fahnoe            fahnoe@c1mpls.mn.org 
+Cristian Ferretti       cfs@poincare.mat.puc.cl
+Karl-Jose Filler        pla_jfi@pki-nbg.philips.de
+Per Foreby              perf@efd.lth.se
+Alexander Fraser        alex@cs.umb.edu
+Noah Friedman		friedman@gnu.ai.mit.edu
+Bob Friesenhahn         bfriesen@iphase.com
+Andy Fyfe               andy@scp.caltech.edu
+Geoff                   geoff@frs.faxon.com
+Kaveh R. Ghazi          ghazi@staccato.rutgers.edu
+Torbjorn Granlund       tege@sics.se
+Carl Greco              cgreco@parrot.creighton.edu
+Bruno Haible            haible@ma2s2.mathematik.uni-karlsruhe.de
+Junio Hamano            junio@shadow.twinsun.com
+Harald Hanche-Olsen     hanche@ams.sunysb.edu
+Darrel R. Hankerson     hankedr@mail.auburn.edu
+Ruediger Helsch         ruediger@ramz.ing.tu-bs.de
+Mark C. Henderson       mch@sqwest.wimsey.bc.ca
+Karl Heuer              karl@kelp.boston.ma.us
+Thomas Hiller           hiller@fzi.de
+Eiji Hirai              hirai@cc.swarthmore.edu
+Kjetil Torgrim Homme    kjetilho@ifi.uio.no
+Preston Hunt            gt5708a@prism.gatech.edu
+Shane C Hutchins        sch@nymph.msel.unh.edu
+Hutch			hutchinson@wrair-emh1.army.mil
+Lester Ingber		ingber@alumni.caltech.edu
+Ken Ishii               ishii@sni-usa.com
+Per Steinar Iversen     iversen@vsfys1.fi.uib.no
+Michal Jaegermann       ntomczak@vm.ucs.ualberta.ca
+Brian Jones             brianj@skat.usc.edu
+Denny de Jonge          witaddj@dutrex.tudelft.nl
+Arne H. Juul            arnej@lise.unit.no
+Dana Jacobsen           jacobsd@solar.cor2.epa.gov
+Peter Jannesen		peter@ncs.nl
+Sarantos Kapidakis      sarantos%manteion@ics.forth.gr
+Amir J. Katz            amir@matis.ingr.com
+Steve Kelem             kelem@castor.xilinx.com
+Randy Kirchhof          rkk@posms.aus.tx.us
+Ned Kittlitz            kittlitz@seagoon.sw.stratus.com
+Pete Klammer            pklammer@ouray.denver.colorado.edu
+Fritz Kleemann          kleemann@informatik.uni-wuerzburg.dbp.de
+Tom Kloos               tk@sequent.com
+Carsten Koch            carsten.koch@icem.de
+Winfried Koenig         win@in.rhein-main.de
+Steph Konigsdorfer      s.konigsdorfer@frmy.bull.fr
+Michael D. Lawler       mdlawler@bsu-cs.bsu.edu
+Kevin Layer             layer@franz.com
+Howard D. Leadmon       howardl@wb3ffv.ampr.org
+Alexander Lehmann       alex@hal.rhein-main.de
+Simon Leinen            simon@lia.di.epfl.ch
+Hugues Leroy            hugues.leroy@irisa.fr 
+Charles Levert          charles@aramis.comm.polymtl.ca
+Torbj|rn Lindh          toobii@elixir.e.kth.se
+David R. Linn		drl@vuse.vanderbilt.edu
+Antonio Lioy            cat@athena.polito.it
+Jamie Lokier            u90jl@ecs.oxford.ac.uk
+David J. MacKenzie	djm@eng.umd.edu
+John R MacMillan        john@chance.gts.org
+Ron Male                male@eso.mc.xerox.com
+Steeve McCauley         steeve@pooh.geophys.mcgill.ca
+Tod McQuillin           mcquill@ccit05.duq.edu
+Tye McQueen             tye@spillman.com
+Bernd Melchers          melchers@chemie.fu-berlin.de
+Jason Merrill           jason@jarthur.claremont.edu
+Dean S. Messing         deanm@medulla.labs.tek.com
+Luke Mewburn            zak@rmit.edu.au
+Jim Meyering		meyering@cs.utexas.edu 
+Frederic Miserey        miserey@laguna.ics.uci.edu
+Marcel J.E. Mol         marcel@duteca.et.tudelft.nl
+Chris Moore             moore@src.bae.co.uk
+Helmut Muelner          hmuelner@fiicmds04.tu-graz.ac.at
+Urban D Mueller         umueller@amiga.physik.unizh.ch
+Timothy Murphy          tim@maths.tcd.ie
+Greg Naber              greg@squally.halcyon.com
+Karl L. Noell           noell@informatik.fh-wiesbaden.dbp.de
+Arthur David Olson      ado@elsie.nci.nih.gov
+Piet van Oostrum        piet@cs.ruu.nl
+Rafael R. Pappalardo    rafapa@obelix.cica.es 
+Hal Peterson            hrp@pecan.cray.com
+Pascal Petit            petit@cadillac.ibp.fr
+Bruno Pillard		bp@chorus.fr
+Franc,ois Pinard        pinard@iro.umontreal.ca
+Jay Pinkos              pinkos@butyng.bu.edu
+Thomas Plass            thomas@cogsci.ed.ac.uk
+Mike Polo               mikep@cfsmo.honeywell.com
+Francesco Potorti       pot@fly.cnuce.cnr.it
+David Purves            purves@apogee.com
+Andreas Raab            ar@nvmr.robin.de
+Eric S. Raymond         esr@snark.thyrsus.com
+Klaus Reimann           kr@cip.physik.uni-stuttgart.de
+Michael Rendell         michael@mercury.cs.mun.ca
+Roland B Roberts        roberts@nsrl31.nsrl.rochester.edu
+Kevin Rodgers           kevin@rolling-stone.den.mmc.com
+Kai Uwe Rommel          rommel@informatik.tu-muenchen.de
+Paul Rubin              phr@america.telebit.com
+Wolfgang Rupprecht      wolfgang@wsrcc.com
+Jonathan Ryshpan        jon@amito.hitachi.com
+Paul A Sand             pas@unh.edu
+Tony Sanders            sanders@bsdi.com
+Mike Sangrey            mike@sojurn.lns.pa.us
+Niimi Satoshi           a01309@cfi.waseda.ac.jp
+Marc Schaefer           sysadm@alphanet.ch
+Andreas Schwab          schwab@lamothe.informatik.uni-dortmund.de
+Eric Schenk             schenk@cs.toronto.edu
+Rick Sladkey            jrs@world.std.com
+Daniel L Smith          dls@autodesk.com
+Fred Smith              fredex%fcshome@merk.merk.com
+Paul Southworth         pauls@css.itd.umich.edu
+Rob Spencer             robbie@winkle.bhpese.oz.au
+Richard Stallman	rms@gnu.ai.mit.edu
+Carsten Steger          carsten.steger@informatik.tu-muenchen.de
+Ed Sznyter              ews@babel.babel.com
+Hideaki Tanabe          arctanx@iyeyasu.ynl.t.u-tokyo.ac.jp
+Andrew Telford          ajt@peregrin.resmel.bhp.com.au
+Glenn E. Thobe          thobe@getunx.info.com
+Kei Thomsen             kt@keihh.hanse.de
+Karsten Thygesen        karthy@dannug.dk
+Mark Towfiq             towfiq@microdyne.com
+Jeff Treece             treece@sabbagh.com
+Oliver Trepte           oliver@ikaros.fysik4.kth.se
+Stephane Tsacas         slt@is21.isoft.fr
+Stephen Tweedie         sct@dcs.ed.ac.uk
+Sotiris Vassilopoulos   vassilopoulos@virginia.edu
+Pedro A. M. Vazquez     vazquez@iqm.unicamp.br
+Arjan de Vet            devet@win.tue.nl
+Vadim V. Vlasov         vvlasov@inucres.msk.su
+Eduard Vopicka          eduard.vopicka@vse.cs 
+Theo Vosse              vosse@ruls41.leidenuniv.nl
+Marcel Waldvogel        marcel@nice.usergroup.ethz.ch
+Stephen J. Walick       steve@nshore.org
+Gray Watson		gray@antaire.com
+Scott Weikart           scott@igc.apc.org
+Ivo Welch               iwelch@agsm.ucla.edu
+Gijsb. Wiesenekker      wiesenecker@sara.nl 
+Wietze van Winden       wietze@swi.psy.uva.nl
+Larry W. Virden         lwv26@cas.org 
+Bill Wohler             wohler@sap-ag.de
+Jamie Zawinski          jwz@lucid.com
+Christos Zoulas         christos@deshaw.com

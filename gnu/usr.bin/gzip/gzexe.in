@@ -1,0 +1,135 @@
+:
+#!/bin/sh
+# gzexe: compressor for Unix executables.
+# Use this only for binaries that you do not use frequently.
+#
+# The compressed version is a shell script which decompresses itself after
+# skipping $skip lines of shell commands.  We try invoking the compressed
+# executable with the original name (for programs looking at their name).
+# We also try to retain the original file permissions on the compressed file.
+# For safety reasons, gzexe will not create setuid or setgid shell scripts.
+
+# Warning: the first line of this file must be either : or #!/bin/sh
+# The : is required for some old versions of csh.
+
+x=`basename $0`
+if test $# = 0; then
+  echo compress executables. original file foo is renamed to foo~
+  echo usage: ${x} [-d] files...
+  echo   "   -d  decompress the executables"
+  exit 1
+fi
+
+tmp=gz$$
+trap "rm -f $tmp; exit 1" 1 2 3 5 10 13 15
+
+decomp=0
+res=0
+test "$x" = "ungzexe" && decomp=1
+if test "x$1" = "x-d"; then
+  decomp=1
+  shift
+fi
+
+echo hi > zfoo1$$
+echo hi > zfoo2$$
+if test -z "`(${CPMOD-cpmod} zfoo1$$ zfoo2$$) 2>&1`"; then
+  cpmod=${CPMOD-cpmod}
+fi
+rm -f zfoo[12]$$
+
+for i do
+  if test ! -f "$i" ; then
+    echo ${x}: $i not a file
+    res=1
+    continue
+  fi
+  if test $decomp -eq 0; then
+    if sed -e 1d -e 2q "$i" | grep "^skip=[0-9]*$" >/dev/null; then
+      echo "${x}: $i is already gzexe'd"
+      continue
+    fi
+  fi
+  if ls -l "$i" | grep '^...[sS]' > /dev/null; then
+    echo "${x}: $i has setuid permission, unchanged"
+    continue
+  fi
+  if ls -l "$i" | grep '^......[sS]' > /dev/null; then
+    echo "${x}: $i has setgid permission, unchanged"
+    continue
+  fi
+  if test "`basename $i`" = gzip; then
+    echo "${x}: cannot compress gzip itself"
+    continue
+  fi
+  if test -z "$cpmod"; then
+    cp -p "$i" $tmp 2>/dev/null || cp "$i" $tmp
+    if test -w $tmp 2>/dev/null; then
+      writable=1
+    else
+      writable=0
+      chmod u+w $tmp 2>/dev/null
+    fi
+  fi
+  if test $decomp -eq 0; then
+    sed 1q $0 > $tmp
+    cat >> $tmp <<'EOF'
+skip=18
+if tail +$skip $0 | gzip -cd > /tmp/gztmp$$; then
+  chmod 755 /tmp/gztmp$$
+  prog="`basename $0`"
+  if ln /tmp/gztmp$$ "/tmp/$prog" 2>/dev/null; then
+    trap '/bin/rm -f /tmp/gztmp$$ "/tmp/$prog"; exit $res' 0
+    (sleep 5; /bin/rm -f /tmp/gztmp$$ "/tmp/$prog") 2>/dev/null &
+    /tmp/"$prog" ${1+"$@"}; res=$?
+  else
+    trap '/bin/rm -f /tmp/gztmp$$; exit $res' 0
+    (sleep 5; /bin/rm -f /tmp/gztmp$$) 2>/dev/null &
+    /tmp/gztmp$$ ${1+"$@"}; res=$?
+  fi
+else
+  echo Cannot decompress $0; exit 1
+fi; exit $res
+EOF
+    gzip -cv9 "$i" >> $tmp || {
+      /bin/rm -f $tmp
+      echo ${x}: compression not possible for $i, file unchanged.
+      res=1
+      continue
+    }
+
+  else
+    # decompression
+    skip=18
+    if sed -e 1d -e 2q "$i" | grep "^skip=[0-9]*$" >/dev/null; then
+      eval `sed -e 1d -e 2q "$i"`
+    fi
+    if tail +$skip "$i" | gzip -cd > $tmp; then
+      :
+    else
+      echo ${x}: $i probably not in gzexe format, file unchanged.
+      res=1
+      continue
+    fi
+  fi
+  rm -f "$i~"
+  mv "$i" "$i~" || {
+    echo ${x}: cannot backup $i as $i~
+    rm -f $tmp
+    res=1
+    continue
+  }
+  mv $tmp "$i" || cp -p $tmp "$i" 2>/dev/null || cp $tmp "$i" || {
+    echo ${x}: cannot create $i
+    rm -f $tmp
+    res=1
+    continue
+  }
+  rm -f $tmp
+  if test -n "$cpmod"; then
+    $cpmod "$i~" "$i" 2>/dev/null
+  elif test $writable -eq 0; then
+    chmod u-w $i 2>/dev/null
+  fi
+done
+exit $res
