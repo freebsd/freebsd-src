@@ -273,6 +273,7 @@ bundle_LayerDown(void *v, struct fsm *fp)
    * If it's our last NCP, stop the autoload timer
    * If it's an LCP, adjust our phys_type.open value and any timers.
    * If it's an LCP and we're in multilink mode, adjust our tun
+   * If it's the last LCP, down all NCPs
    * speed and make sure our minimum sequence number is adjusted.
    */
 
@@ -283,16 +284,22 @@ bundle_LayerDown(void *v, struct fsm *fp)
     bundle->upat = 0;
     mp_StopAutoloadTimer(&bundle->ncp.mp);
   } else if (fp->proto == PROTO_LCP) {
+    struct datalink *dl;
+    struct datalink *lost;
+    int others_active;
+
     bundle_LinksRemoved(bundle);  /* adjust timers & phys_type values */
+
+    lost = NULL;
+    others_active = 0;
+    for (dl = bundle->links; dl; dl = dl->next) {
+      if (fp == &dl->physical->link.lcp.fsm)
+        lost = dl;
+      else if (dl->state != DATALINK_CLOSED && dl->state != DATALINK_HANGUP)
+        others_active++;
+    }
+
     if (bundle->ncp.mp.active) {
-      struct datalink *dl;
-      struct datalink *lost;
-
-      lost = NULL;
-      for (dl = bundle->links; dl; dl = dl->next)
-        if (fp == &dl->physical->link.lcp.fsm)
-          lost = dl;
-
       bundle_CalculateBandwidth(bundle);
 
       if (lost)
@@ -301,6 +308,10 @@ bundle_LayerDown(void *v, struct fsm *fp)
         log_Printf(LogALERT, "Oops, lost an unrecognised datalink (%s) !\n",
                    fp->link->name);
     }
+
+    if (!others_active)
+      /* Down the NCPs.  We don't expect to get fsm_Close()d ourself ! */
+      fsm2initial(&bundle->ncp.ipcp.fsm);
   }
 }
 
@@ -319,14 +330,10 @@ bundle_LayerFinish(void *v, struct fsm *fp)
     if (bundle_Phase(bundle) != PHASE_DEAD)
       bundle_NewPhase(bundle, PHASE_TERMINATE);
     for (dl = bundle->links; dl; dl = dl->next)
-      datalink_Close(dl, CLOSE_STAYDOWN);
+      if (dl->state == DATALINK_OPEN)
+        datalink_Close(dl, CLOSE_STAYDOWN);
     fsm2initial(fp);
   }
-  /*
-   * If it's an LCP, don't try to murder any NCPs, let bundle_LinkClosed()
-   * do that side of things (at a time when a call to fsm2initial() on the
-   * NCP isn't going to take charge of bringing down this link).
-   */
 }
 
 int
