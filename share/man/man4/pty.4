@@ -39,7 +39,7 @@
 .Nm pty
 .Nd pseudo terminal driver
 .Sh SYNOPSIS
-.Cd "pseudo-device pty" Op Ar count
+.Cd "pseudo-device pty"
 .Sh DESCRIPTION
 The
 .Nm pty
@@ -63,12 +63,6 @@ That is, anything written on the master device is
 given to the slave device as input and anything written
 on the slave device is presented as input on the master
 device.
-.Pp
-In configuring, if an optional
-.Ar count
-is given in
-the specification, that number of pseudo terminal pairs are configured;
-the default count is 32.
 .Pp
 The following 
 .Xr ioctl 2
