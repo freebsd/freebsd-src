@@ -2,6 +2,9 @@
 .\" Must use --  eqn -- with this one
 .\"
 .\" @(#)xdr.nts.ms	2.2 88/08/05 4.0 RPCSRC
+.\" $FreeBSD$
+.\"
+.so stubs
 .EQ
 delim $$
 .EN
@@ -13,7 +16,7 @@ delim $$
 .if n .fp 2 R
 .OH 'External Data Representation: Sun Technical Notes''Page %'
 .EH 'Page %''External Data Representation: Sun Technical Notes'
-.if \\n%=1 .bp
+.if \n%=1 .bp
 .SH
 \&External Data Representation: Sun Technical Notes
 .IX XDR "Sun technical notes"
@@ -82,11 +85,11 @@ Consider the following two programs,
 .el .DS L
 .ft CW
 #include <stdio.h>
-.sp.5
+.sp .5
 main()			/* \fIwriter.c\fP */
 {
 	long i;
-.sp.5
+.sp .5
 	for (i = 0; i < 8; i++) {
 		if (fwrite((char *)&i, sizeof(i), 1, stdout) != 1) {
 			fprintf(stderr, "failed!\en");
@@ -102,11 +105,11 @@ and
 .el .DS L
 .ft CW
 #include <stdio.h>
-.sp.5
+.sp .5
 main()			/* \fIreader.c\fP */
 {
 	long i, j;
-.sp.5
+.sp .5
 	for (j = 0; j < 8; j++) {
 		if (fread((char *)&i, sizeof (i), 1, stdin) != 1) {
 			fprintf(stderr, "failed!\en");
@@ -182,12 +185,12 @@ Here are the revised versions of
 .ft CW
 #include <stdio.h>
 #include <rpc/rpc.h>	/* \fIxdr is a sub-library of rpc\fP */
-.sp.5
+.sp .5
 main()		/* \fIwriter.c\fP */
 {
 	XDR xdrs;
 	long i;
-.sp.5
+.sp .5
 	xdrstdio_create(&xdrs, stdout, XDR_ENCODE);
 	for (i = 0; i < 8; i++) {
 		if (!xdr_long(&xdrs, &i)) {
@@ -205,12 +208,12 @@ and
 .ft CW
 #include <stdio.h>
 #include <rpc/rpc.h>	/* \fIxdr is a sub-library of rpc\fP */
-.sp.5
+.sp .5
 main()		/* \fIreader.c\fP */
 {
 	XDR xdrs;
 	long i, j;
-.sp.5
+.sp .5
 	xdrstdio_create(&xdrs, stdin, XDR_DECODE);
 	for (j = 0; j < 8; j++) {
 		if (!xdr_long(&xdrs, &i)) {
@@ -503,31 +506,31 @@ Specifically, the eight primitives are:
 bool_t xdr_char(xdrs, cp)
 	XDR *xdrs;
 	char *cp;
-.sp.5
+.sp .5
 bool_t xdr_u_char(xdrs, ucp)
 	XDR *xdrs;
 	unsigned char *ucp;
-.sp.5
+.sp .5
 bool_t xdr_int(xdrs, ip)
 	XDR *xdrs;
 	int *ip;
-.sp.5
+.sp .5
 bool_t xdr_u_int(xdrs, up)
 	XDR *xdrs;
 	unsigned *up;
-.sp.5
+.sp .5
 bool_t xdr_long(xdrs, lip)
 	XDR *xdrs;
 	long *lip;
-.sp.5
+.sp .5
 bool_t xdr_u_long(xdrs, lup)
 	XDR *xdrs;
 	u_long *lup;
-.sp.5
+.sp .5
 bool_t xdr_short(xdrs, sip)
 	XDR *xdrs;
 	short *sip;
-.sp.5
+.sp .5
 bool_t xdr_u_short(xdrs, sup)
 	XDR *xdrs;
 	u_short *sup;
@@ -553,7 +556,7 @@ for C's floating point types:
 bool_t xdr_float(xdrs, fp)
 	XDR *xdrs;
 	float *fp;
-.sp.5
+.sp .5
 bool_t xdr_double(xdrs, dp)
 	XDR *xdrs;
 	double *dp;
@@ -593,13 +596,13 @@ The external representation of a boolean is always
 #define bool_t	int
 #define FALSE	0
 #define TRUE	1
-.sp.5
+.sp .5
 #define enum_t int
-.sp.5
+.sp .5
 bool_t xdr_enum(xdrs, ep)
 	XDR *xdrs;
 	enum_t *ep;
-.sp.5
+.sp .5
 bool_t xdr_bool(xdrs, bp)
 	XDR *xdrs;
 	bool_t *bp;
@@ -872,7 +875,7 @@ struct netuser {
 };
 #define NLEN 255    /* \fImachine names < 256 chars\fP */
 #define NGRPS 20    /* \fIuser can't be in > 20 groups\fP */
-.sp.5
+.sp .5
 bool_t
 xdr_netuser(xdrs, nup)
     XDR *xdrs;
@@ -901,7 +904,7 @@ struct party {
     struct netuser *p_nusers;
 };
 #define PLEN 500    /* \fImax number of users in a party\fP */
-.sp.5
+.sp .5
 bool_t
 xdr_party(xdrs, pp)
     XDR *xdrs;
@@ -1022,20 +1025,20 @@ for fixed-length arrays.
 .ft CW
 #define NLEN 255    /* \fImachine names must be < 256 chars\fP */
 #define NGRPS 20    /* \fIuser belongs to exactly 20 groups\fP */
-.sp.5
+.sp .5
 struct netuser {
     char *nu_machinename;
     int nu_uid;
     int nu_gids[NGRPS];
 };
-.sp.5
+.sp .5
 bool_t
 xdr_netuser(xdrs, nup)
     XDR *xdrs;
     struct netuser *nup;
 {
     int i;
-.sp.5
+.sp .5
     if (!xdr_string(xdrs, &nup->nu_machinename, NLEN))
         return(FALSE);
     if (!xdr_int(xdrs, &nup->nu_uid))
@@ -1061,7 +1064,7 @@ struct xdr_discrim {
     enum_t value;
     bool_t (*proc)();
 };
-.sp.5
+.sp .5
 bool_t xdr_union(xdrs, dscmp, unp, arms, defaultarm)
     XDR *xdrs;
     enum_t *dscmp;
@@ -1112,7 +1115,7 @@ The declaration is:
 .el .DS L
 .ft CW
 enum utype { INTEGER=1, STRING=2, GNUMBERS=3 };
-.sp.5
+.sp .5
 struct u_tag {
     enum utype utype;   /* \fIthe union's discriminant\fP */
     union {
@@ -1134,7 +1137,7 @@ struct xdr_discrim u_tag_arms[4] = {
     { __dontcare__, NULL }
     /* \fIalways terminate arms with a NULL xdr_proc\fP */
 }
-.sp.5
+.sp .5
 bool_t
 xdr_u_tag(xdrs, utp)
     XDR *xdrs;
@@ -1326,11 +1329,11 @@ the primitives discussed in this section.
 .ft CW
 u_int xdr_getpos(xdrs)
     XDR *xdrs;
-.sp.5
+.sp .5
 bool_t xdr_setpos(xdrs, pos)
     XDR *xdrs;
     u_int pos;
-.sp.5
+.sp .5
 xdr_destroy(xdrs)
     XDR *xdrs;
 .DE
@@ -1408,7 +1411,7 @@ routine as follows:
 .ft CW
 #include <stdio.h>
 #include <rpc/rpc.h>    /* \fIxdr streams part of rpc\fP */
-.sp.5
+.sp .5
 void
 xdrstdio_create(xdrs, fp, x_op)
     XDR *xdrs;
@@ -1434,7 +1437,7 @@ a specified area of memory:
 .DS
 .ft CW
 #include <rpc/rpc.h>
-.sp.5
+.sp .5
 void
 xdrmem_create(xdrs, addr, len, x_op)
     XDR *xdrs;
@@ -1472,7 +1475,7 @@ UNIX file or 4.2 BSD connection interface.
 .DS
 .ft CW
 #include <rpc/rpc.h>    /* \fIxdr streams part of rpc\fP */
-.sp.5
+.sp .5
 xdrrec_create(xdrs,
   sendsize, recvsize, iohandle, readproc, writeproc)
     XDR *xdrs;
@@ -1551,11 +1554,11 @@ bool_t
 xdrrec_endofrecord(xdrs, flushnow)
     XDR *xdrs;
     bool_t flushnow;
-.sp.5
+.sp .5
 bool_t
 xdrrec_skiprecord(xdrs)
     XDR *xdrs;
-.sp.5
+.sp .5
 bool_t
 xdrrec_eof(xdrs)
     XDR *xdrs;
@@ -1605,7 +1608,7 @@ The following structure defines the interface to an XDR stream:
 .el .DS L
 .ft CW
 enum xdr_op { XDR_ENCODE=0, XDR_DECODE=1, XDR_FREE=2 };
-.sp.5
+.sp .5
 typedef struct {
     enum xdr_op x_op;            /* \fIoperation; fast added param\fP */
     struct xdr_ops {
@@ -1748,7 +1751,7 @@ struct gnumbers {
 	long g_assets;
 	long g_liabilities;
 };
-.sp.5
+.sp .5
 bool_t
 xdr_gnumbers(xdrs, gp)
 	XDR *xdrs;
