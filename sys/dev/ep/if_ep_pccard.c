@@ -149,7 +149,6 @@ ep_pccard_identify(u_short id)
 	case 0x0035:
 		return ("3Com 3CCEM556");
 	default:
-		printf("Unknown ID: 0x%x\n", id);
 		return (NULL);
 	}
 }
@@ -161,7 +160,7 @@ ep_pccard_card_attach(struct ep_board * epb)
 	switch (epb->prod_id) {
 	case 0x6055:		/* 3C556 */
 	case 0x2b57:		/* 3C572BT */
-	case 0x4057:		/* 3C574 */
+	case 0x4057:		/* 3C574, 3C574-TX */
 	case 0x4b57:		/* 3C574B */
 		epb->mii_trans = 1;
 		return (1);
