@@ -160,7 +160,6 @@
 172	mided		LSI MegaRAID IDE (disk device)
 173	*devctl		Devd control device <imp>
 174	pciwd		Berkshire Watchdog PCI <marcel@progressix.com>
-175	ips		IBM/Adaptec ServeRAID (control device)
 180	nvidia		NVIDIA (nvidiaN/nvidiactl) <mdodd>
 181	casm		HP/Compaq ProLiant Advanced Server Management <peter>
 183	*smapi		SMAPI BIOS interface <mdodd>
