@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.11 1998/11/04 12:49:31 peter Exp $
+# $Id: Makefile,v 1.12 1999/02/12 17:20:10 dcs Exp $
 #
 # Originally from	$NetBSD: Makefile,v 1.21 1997/10/26 22:08:38 lukem Exp $
 #
@@ -13,7 +13,7 @@ NOPIC=		YES
 MAN3=		libstand.3
 
 # Mostly OK, some of the libc imports are a bit noisy
-CFLAGS+=	-Wall -g
+CFLAGS+=	-Wall
 
 .if ${MACHINE_ARCH} == "alpha"
 CFLAGS+=	-mno-fp-regs
