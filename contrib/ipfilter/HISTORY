@@ -22,6 +22,29 @@
 # and especially those who have found the time to port IP Filter to new
 # platforms.
 #
+3.4.29	28/8/2002 - Released
+
+Make substantial changes to the FTP proxy to improve reliability, security
+and functionality.
+
+don't send ICMP errors/TCP RST's in response to blocked proxy packets
+
+fix potential memory leaks when unloading ipfilter from kernel
+
+fix bug in SIOCGNATL handler that did not preserve the expected
+byte order from earlier versions in the port number
+
+set do not fragment flag in generated packets according to system flags,
+where available.
+
+preserve filter rule number and group number in state structure
+
+fix bug in ipmon printing of p/P/b/B
+
+make some changes to the kmem.c code for IRIX compatibility
+
+add code to specifically handle ip.tun* interfaces on Solaris
+
 3.4.28	6/6/2002 - Released
 
 Fix for H.323 proxy to work on little endian boxes
