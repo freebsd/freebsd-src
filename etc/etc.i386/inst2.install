@@ -22,6 +22,9 @@ esac
 
 echo
 echo "Please wait.  Copying to disk..."
+# remove /.profile so that the right things happen when it gets
+# over written
+rm /.profile
 cd /
 mnt/usr/bin/gunzip < mnt/inst2.cpio.gz | cpio -idmu${cpioverbose}
 cd /mnt
