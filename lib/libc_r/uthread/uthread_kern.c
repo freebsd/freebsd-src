@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_kern.c,v 1.12 1998/09/07 21:55:01 alex Exp $
+ * $Id: uthread_kern.c,v 1.13 1998/09/30 06:36:56 jb Exp $
  *
  */
 #include <errno.h>
@@ -206,10 +206,12 @@ __asm__("fnsave %0": :"m"(*fdata));
 			 * Accumulate the number of microseconds that this
 			 * thread has run for: 
 			 */
-			_thread_run->slice_usec += (_thread_run->last_inactive.tv_sec -
-				_thread_run->last_active.tv_sec) * 1000000 +
-				_thread_run->last_inactive.tv_usec -
-				_thread_run->last_active.tv_usec;
+			if (_thread_run->slice_usec != -1) {
+ 			        _thread_run->slice_usec += (_thread_run->last_inactive.tv_sec -
+				        _thread_run->last_active.tv_sec) * 1000000 +
+				        _thread_run->last_inactive.tv_usec -
+				        _thread_run->last_active.tv_usec;
+                        }
 
 			/*
 			 * Check if this thread has reached its allocated
@@ -242,7 +244,7 @@ __asm__("fnsave %0": :"m"(*fdata));
 				 * the last incremental priority check was
 				 * made: 
 				 */
-				else if (timercmp(&_thread_run->last_inactive, &kern_inc_prio_time, <)) {
+				else if (timercmp(&pthread->last_inactive, &kern_inc_prio_time, <)) {
 					/*
 					 * Increment the incremental priority
 					 * for this thread in the hope that
@@ -582,6 +584,7 @@ __asm__("fnsave %0": :"m"(*fdata));
 				 * Do a sigreturn to restart the thread that
 				 * was interrupted by a signal: 
 				 */
+		                _thread_kern_in_sched = 0;
 				_thread_sys_sigreturn(&_thread_run->saved_sigcontext);
 			} else
 				/*
