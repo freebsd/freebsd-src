@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.30 1998/02/24 21:55:14 pst Exp $";
+	"$Id: inetd.c,v 1.31 1998/05/07 18:32:00 guido Exp $";
 #endif /* not lint */
 
 /*
@@ -310,7 +310,7 @@ main(argc, argv, envp)
 	struct servtab *sep;
 	struct passwd *pwd;
 	struct group *grp;
-	struct sigvec sv;
+	struct sigaction sa, sapipe;
 	int tmpint, ch, dofork;
 	pid_t pid;
 	char buf[50];
@@ -400,17 +400,17 @@ main(argc, argv, envp)
 			syslog(LOG_WARNING, "%s: %m", pid_file);
 		}
 	}
-	memset(&sv, 0, sizeof(sv));
-	sv.sv_mask = SIGBLOCK;
-	sv.sv_handler = retry;
-	sigvec(SIGALRM, &sv, (struct sigvec *)0);
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_mask = SIGBLOCK;
+	sa.sa_handler = retry;
+	sigaction(SIGALRM, &sa, (struct sigaction *)0);
 	config(SIGHUP);
-	sv.sv_handler = config;
-	sigvec(SIGHUP, &sv, (struct sigvec *)0);
-	sv.sv_handler = reapchild;
-	sigvec(SIGCHLD, &sv, (struct sigvec *)0);
-	sv.sv_handler = SIG_IGN;
-	sigvec(SIGPIPE, &sv, (struct sigvec *)0);
+	sa.sa_handler = config;
+	sigaction(SIGHUP, &sa, (struct sigaction *)0);
+	sa.sa_handler = reapchild;
+	sigaction(SIGCHLD, &sa, (struct sigaction *)0);
+	sa.sa_handler = SIG_IGN;
+	sigaction(SIGPIPE, &sa, (struct sigaction *)0);
 
 	{
 		/* space for daemons to overwrite environment for ps */
@@ -622,6 +622,8 @@ main(argc, argv, envp)
 					}
 				}
 #endif
+				sigaction(SIGCHLD, &sapipe,
+					  (struct sigaction *)0);
 				execv(sep->se_server, sep->se_argv);
 				if (sep->se_socktype != SOCK_STREAM)
 					recv(0, buf, sizeof (buf), 0);
@@ -1741,11 +1743,11 @@ getline(fd, buf, len)
 	int len;
 {
 	int count = 0, n;
-	struct sigvec sv;
+	struct sigaction sa;
 
-	memset(&sv, 0, sizeof(sv));
-	sv.sv_handler = SIG_DFL;
-	sigvec(SIGALRM, &sv, (struct sigvec *)0);
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = SIG_DFL;
+	sigaction(SIGALRM, &sa, (struct sigaction *)0);
 	do {
 		alarm(10);
 		n = read(fd, buf, len-count);
