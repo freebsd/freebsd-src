@@ -730,8 +730,8 @@ cbb_attach(device_t brdev)
 		goto err;
 	}
 
-	if (bus_setup_intr(brdev, sc->irq_res, INTR_TYPE_AV, cbb_intr, sc,
-	    &sc->intrhand)) {
+	if (bus_setup_intr(brdev, sc->irq_res, INTR_TYPE_AV | INTR_MPSAFE,
+	    cbb_intr, sc, &sc->intrhand)) {
 		device_printf(brdev, "couldn't establish interrupt");
 		goto err;
 	}
@@ -866,6 +866,7 @@ cbb_setup_intr(device_t dev, device_t child, struct resource *irq,
 	*cookiep = ih;
 	ih->intr = intr;
 	ih->arg = arg;
+	ih->flags = flags & INTR_MPSAFE;
 	STAILQ_INSERT_TAIL(&sc->intr_handlers, ih, entries);
 	/*
 	 * XXX need to turn on ISA interrupts, if we ever support them, but
@@ -937,24 +938,17 @@ cbb_event_thread(void *arg)
 	uint32_t status;
 	int err;
 
-	/*
-	 * We take out Giant here because we need it deep, down in
-	 * the bowels of the vm system for mapping the memory we need
-	 * to read the CIS.  We also need it for kthread_exit, which
-	 * drops it.
-	 */
 	sc->flags |= CBB_KTHREAD_RUNNING;
-	while (1) {
+	while ((sc->flags & CBB_KTHREAD_DONE) == 0) {
 		/*
-		 * Check to see if we have anything first so that
-		 * if there's a card already inserted, we do the
-		 * right thing.
+		 * We take out Giant here because we need it deep,
+		 * down in the bowels of the vm system for mapping the
+		 * memory we need to read the CIS.  In addition, since
+		 * we are adding/deleting devices from the dev tree,
+		 * and that code isn't MP safe, we have to hold Giant.
 		 */
-		if (sc->flags & CBB_KTHREAD_DONE)
-			break;
-
-		status = cbb_get(sc, CBB_SOCKET_STATE);
 		mtx_lock(&Giant);
+		status = cbb_get(sc, CBB_SOCKET_STATE);
 		if ((status & CBB_SOCKET_STAT_CD) == 0)
 			cbb_insert(sc);
 		else
@@ -962,20 +956,32 @@ cbb_event_thread(void *arg)
 		mtx_unlock(&Giant);
 
 		/*
+		 * In our ISR, we turn off the card changed interrupt.  Turn
+		 * them back on here before we wait for them to happen.  We
+		 * turn them on/off so that we can tolerate a large latency
+		 * between the time we signal cbb_event_thread and it gets
+		 * a chance to run.
+		 */
+		cbb_setb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_CD);
+
+		/*
 		 * Wait until it has been 1s since the last time we
 		 * get an interrupt.  We handle the rest of the interrupt
-		 * at the top of the loop.
+		 * at the top of the loop.  Although we clear the bit in the
+		 * ISR, we signal sc->cv from the detach path after we've
+		 * set the CBB_KTHREAD_DONE bit, so we can't do a simple
+		 * 1s sleep here.
 		 */
 		mtx_lock(&sc->mtx);
 		cv_wait(&sc->cv, &sc->mtx);
 		err = 0;
-		while (err != EWOULDBLOCK && 
+		while (err != EWOULDBLOCK &&
 		    (sc->flags & CBB_KTHREAD_DONE) == 0)
 			err = cv_timedwait(&sc->cv, &sc->mtx, 1 * hz);
 		mtx_unlock(&sc->mtx);
 	}
 	sc->flags &= ~CBB_KTHREAD_RUNNING;
-	mtx_lock(&Giant);
+	mtx_lock(&Giant);	/* kthread_exit drops */
 	kthread_exit(0);
 }
 
@@ -1063,6 +1069,7 @@ cbb_intr(void *arg)
 		 * excellent results.
 		 */
 		if (sockevent & CBB_SOCKET_EVENT_CD) {
+			cbb_clrb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_CD);
 			mtx_lock(&sc->mtx);
 			sc->flags &= ~CBB_CARD_OK;
 			cv_signal(&sc->cv);
@@ -1080,7 +1087,11 @@ cbb_intr(void *arg)
 	}
 	if (sc->flags & CBB_CARD_OK) {
 		STAILQ_FOREACH(ih, &sc->intr_handlers, entries) {
+			if ((ih->flags & INTR_MPSAFE) != 0)
+				mtx_lock(&Giant);
 			(*ih->intr)(ih->arg);
+			if ((ih->flags & INTR_MPSAFE) != 0)
+				mtx_lock(&Giant);
 		}
 	}
 }
@@ -1877,7 +1888,7 @@ cbb_suspend(device_t self)
 	int			error = 0;
 	struct cbb_softc	*sc = device_get_softc(self);
 
-	cbb_setb(sc, CBB_SOCKET_MASK, 0);	/* Quiet hardware */
+	cbb_set(sc, CBB_SOCKET_MASK, 0);	/* Quiet hardware */
 	bus_teardown_intr(self, sc->irq_res, sc->intrhand);
 	sc->flags &= ~CBB_CARD_OK;		/* Card is bogus now */
 	error = bus_generic_suspend(self);
