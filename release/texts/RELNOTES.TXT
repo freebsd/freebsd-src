@@ -66,7 +66,7 @@ the Alteon AceNIC, 3Com 3c985 and Netgear GA620.
 
 Driver support has been added for IEEE 802.11 PCMCIA wireless network
 adapters based on the Lucent Hermes chipset, including the Lucent
-WaveLAN/IEEE 802.11 and the Cabletron RoamAbout. Both 2Mbps and
+WaveLAN/IEEE 802.11 and the Cabletron RoamAbout.  Both 2Mbps and
 6Mbps Turbo adapters are supported.
 
 Driver support has been added for PCI fast ethernet cards based
