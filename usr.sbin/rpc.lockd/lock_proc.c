@@ -743,7 +743,7 @@ nlm_lock_res_1_svc(arg, rqstp)
  */
 void *
 nlm_cancel_res_1_svc(arg, rqstp)
-	nlm_res *arg;
+	nlm_res *arg __unused;
 	struct svc_req *rqstp;
 {
 	if (debug_level)
@@ -776,7 +776,7 @@ nlm_unlock_res_1_svc(arg, rqstp)
  */
 void *
 nlm_granted_res_1_svc(arg, rqstp)
-	nlm_res *arg;
+	nlm_res *arg __unused;
 	struct svc_req *rqstp;
 {
 	if (debug_level)
@@ -875,7 +875,7 @@ nlm_nm_lock_3_svc(arg, rqstp)
  */
 void *
 nlm_free_all_3_svc(arg, rqstp)
-	nlm_notify *arg;
+	nlm_notify *arg __unused;
 	struct svc_req *rqstp;
 {
 	static char dummy;
@@ -1234,7 +1234,7 @@ nlm4_lock_res_4_svc(arg, rqstp)
  */
 void *
 nlm4_cancel_res_4_svc(arg, rqstp)
-	nlm4_res *arg;
+	nlm4_res *arg __unused;
 	struct svc_req *rqstp;
 {
 	if (debug_level)
@@ -1249,7 +1249,7 @@ nlm4_cancel_res_4_svc(arg, rqstp)
  */
 void *
 nlm4_unlock_res_4_svc(arg, rqstp)
-	nlm4_res *arg;
+	nlm4_res *arg __unused;
 	struct svc_req *rqstp;
 {
 	if (debug_level)
@@ -1264,7 +1264,7 @@ nlm4_unlock_res_4_svc(arg, rqstp)
  */
 void *
 nlm4_granted_res_4_svc(arg, rqstp)
-	nlm4_res *arg;
+	nlm4_res *arg __unused;
 	struct svc_req *rqstp;
 {
 	if (debug_level)
@@ -1363,7 +1363,7 @@ nlm4_nm_lock_4_svc(arg, rqstp)
  */
 void *
 nlm4_free_all_4_svc(arg, rqstp)
-	struct nlm4_notify *arg;
+	struct nlm4_notify *arg __unused;
 	struct svc_req *rqstp;
 {
 	static char dummy;
@@ -1381,7 +1381,7 @@ nlm4_free_all_4_svc(arg, rqstp)
 void *
 nlm_sm_notify_0_svc(arg, rqstp)
 	struct nlm_sm_status *arg;
-	struct svc_req *rqstp;
+	struct svc_req *rqstp __unused;
 {
 	static char dummy;
 	notify(arg->mon_name, arg->state);
