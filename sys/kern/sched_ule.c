@@ -674,10 +674,13 @@ sched_slice(struct kse *ke)
 static void
 sched_interact_update(struct ksegrp *kg)
 {
-	/* XXX Fixme, use a linear algorithm and not a while loop. */
-	while ((kg->kg_runtime + kg->kg_slptime) >  SCHED_SLP_RUN_MAX) {
-		kg->kg_runtime = (kg->kg_runtime / 5) * 4;
-		kg->kg_slptime = (kg->kg_slptime / 5) * 4;
+        int ratio;
+
+	if ((kg->kg_runtime + kg->kg_slptime) > SCHED_SLP_RUN_MAX) {
+		ratio = ((SCHED_SLP_RUN_MAX * 15) / (kg->kg_runtime +
+		    kg->kg_slptime ));
+		kg->kg_runtime = (kg->kg_runtime * ratio) / 16;
+		kg->kg_slptime = (kg->kg_slptime * ratio) / 16;
 	}
 }
 
@@ -775,13 +778,28 @@ sched_pickcpu(void)
 void
 sched_prio(struct thread *td, u_char prio)
 {
+	struct kse *ke;
 
+	ke = td->td_kse;
 	mtx_assert(&sched_lock, MA_OWNED);
 	if (TD_ON_RUNQ(td)) {
+		/*
+		 * If the priority has been elevated due to priority
+		 * propagation, we may have to move ourselves to a new
+		 * queue.  We still call adjustrunqueue below in case kse
+		 * needs to fix things up.
+		 */
+		if ((td->td_ksegrp->kg_pri_class == PRI_TIMESHARE &&
+		    prio < td->td_ksegrp->kg_user_pri) ||
+		    (td->td_ksegrp->kg_pri_class == PRI_IDLE &&
+		    prio < PRI_MIN_IDLE)) {
+			runq_remove(ke->ke_runq, ke);
+			ke->ke_runq = KSEQ_CPU(ke->ke_cpu)->ksq_curr;
+			runq_add(ke->ke_runq, ke);
+		}
 		adjustrunqueue(td, prio);
-	} else {
+	} else
 		td->td_priority = prio;
-	}
 }
 
 void
@@ -806,12 +824,16 @@ sched_switch(struct thread *td)
 			setrunqueue(td);
 		} else {
 			/*
-			 * This queue is always correct except for idle threads which
-			 * have a higher priority due to priority propagation.
+			 * This queue is always correct except for idle threads
+			 * which have a higher priority due to priority
+			 * propagation.
 			 */
-			if (ke->ke_ksegrp->kg_pri_class == PRI_IDLE &&
-			    ke->ke_thread->td_priority > PRI_MIN_IDLE)
-				ke->ke_runq = KSEQ_SELF()->ksq_curr;
+			if (ke->ke_ksegrp->kg_pri_class == PRI_IDLE) {
+				if (td->td_priority < PRI_MIN_IDLE)
+					ke->ke_runq = KSEQ_SELF()->ksq_curr;
+				else
+					ke->ke_runq = &KSEQ_SELF()->ksq_idle;
+			}
 			runq_add(ke->ke_runq, ke);
 			/* setrunqueue(td); */
 		}
@@ -1017,9 +1039,6 @@ sched_clock(struct thread *td)
 	struct kseq *kseq;
 	struct ksegrp *kg;
 	struct kse *ke;
-#if 0
-	struct kse *nke;
-#endif
 
 	/*
 	 * sched_setup() apparently happens prior to stathz being set.  We
@@ -1058,27 +1077,17 @@ sched_clock(struct thread *td)
 	    ke, ke->ke_slice, kg->kg_slptime >> 10, kg->kg_runtime >> 10);
 
 	/*
+	 * Idle tasks should always resched.
+	 */
+	if (kg->kg_pri_class == PRI_IDLE) {
+		td->td_flags |= TDF_NEEDRESCHED;
+		return;
+	}
+	/*
 	 * We only do slicing code for TIMESHARE ksegrps.
 	 */
 	if (kg->kg_pri_class != PRI_TIMESHARE)
 		return;
-	/*
-	 * Check for a higher priority task on the run queue.  This can happen
-	 * on SMP if another processor woke up a process on our runq.
-	 */
-	kseq = KSEQ_SELF();
-#if 0
-	if (kseq->ksq_load > 1 && (nke = kseq_choose(kseq, 0)) != NULL) {
-		if (sched_strict &&
-		    nke->ke_thread->td_priority < td->td_priority)
-			td->td_flags |= TDF_NEEDRESCHED;
-		else if (nke->ke_thread->td_priority <
-		    td->td_priority SCHED_PRIO_SLOP)
-		    
-		if (nke->ke_thread->td_priority < td->td_priority)
-			td->td_flags |= TDF_NEEDRESCHED;
-	}
-#endif
 	/*
 	 * We used a tick charge it to the ksegrp so that we can compute our
 	 * interactivity.
@@ -1090,6 +1099,7 @@ sched_clock(struct thread *td)
 	 * We used up one time slice.
 	 */
 	ke->ke_slice--;
+	kseq = KSEQ_SELF();
 #ifdef SMP
 	kseq->ksq_rslices--;
 #endif
@@ -1121,8 +1131,12 @@ sched_runnable(void)
 	mtx_lock_spin(&sched_lock);
 	kseq = KSEQ_SELF();
 
-	if (kseq->ksq_load)
-		goto out;
+	if ((curthread->td_flags & TDF_IDLETD) != 0) {
+		if (kseq->ksq_load > 0)
+			goto out;
+	} else
+		if (kseq->ksq_load - 1 > 0)
+			goto out;
 #ifdef SMP
 	/*
 	 * For SMP we may steal other processor's KSEs.  Just search until we
@@ -1150,32 +1164,12 @@ void
 sched_userret(struct thread *td)
 {
 	struct ksegrp *kg;
-#if 0
-	struct kseq *kseq;
-	struct kse *ke;
-#endif
-	
-	kg = td->td_ksegrp;
 
+	kg = td->td_ksegrp;
+	
 	if (td->td_priority != kg->kg_user_pri) {
 		mtx_lock_spin(&sched_lock);
 		td->td_priority = kg->kg_user_pri;
-		/*
-		 * This optimization is temporarily disabled because it
-		 * breaks priority propagation.
-		 */
-#if 0
-		kseq = KSEQ_SELF();
-		if (td->td_ksegrp->kg_pri_class == PRI_TIMESHARE &&
-#ifdef SMP
-		    kseq->ksq_load > kseq->ksq_cpus &&
-#else
-		    kseq->ksq_load > 1 &&
-#endif
-		    (ke = kseq_choose(kseq, 0)) != NULL &&
-		    ke->ke_thread->td_priority < td->td_priority)
-#endif
-			curthread->td_flags |= TDF_NEEDRESCHED;
 		mtx_unlock_spin(&sched_lock);
 	}
 }
@@ -1267,7 +1261,7 @@ sched_add(struct thread *td)
 		/*
 		 * This is for priority prop.
 		 */
-		if (ke->ke_thread->td_priority > PRI_MIN_IDLE)
+		if (ke->ke_thread->td_priority < PRI_MIN_IDLE)
 			ke->ke_runq = kseq->ksq_curr;
 		else
 			ke->ke_runq = &kseq->ksq_idle;
