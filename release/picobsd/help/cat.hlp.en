@@ -1,0 +1,5 @@
+[1mcat[m	concatenate and print files
+
+	Usage:
+
+	cat [-benstuv] [-] [file ...]

@@ -1,0 +1,16 @@
+# $FreeBSD$
+
+.PATH:	${.CURDIR}/../../contrib/ipfilter ${.CURDIR}/../../contrib/ipfilter/man
+
+PROG=	ipmon
+MAN=	ipl.4 ipmon.8
+SRCS=	ipmon.c
+
+CFLAGS+=-DUSE_INET6 -DIPL_NAME=\"/dev/ipl\"
+CFLAGS+=-I- -I${.CURDIR}/../../sys/contrib/ipfilter
+CFLAGS+=-I${.CURDIR}/../../sys
+CFLAGS+=-I${.CURDIR}/../../contrib/ipfilter
+
+MAINTAINER=	guido@freebsd.org
+
+.include <bsd.prog.mk>

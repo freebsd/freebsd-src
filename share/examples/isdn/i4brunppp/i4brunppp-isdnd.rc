@@ -1,0 +1,65 @@
+#------------------------------------------------------------------------------
+#
+#    sample isdnd.rc for taking incoming calls with userland ppp
+#    -----------------------------------------------------------
+#
+# $FreeBSD$
+#
+#    last edit-date: [Sat Jul 21 13:40:50 2001]
+#
+#------------------------------------------------------------------------------
+#==============================================================================
+# SYSTEM section: global configuration parameters
+#==============================================================================
+system
+
+ratesfile	= /etc/isdn/isdnd.rates	# name & location of rates file
+
+useacctfile	= yes			# generate accouting info to file
+acctall		= on			# generate info for everything
+acctfile	= /var/log/isdnd.acct	# name & location of accounting file
+
+rtprio		= 25			# modify isdnd's priority
+
+regexpr	= "ULPPP.*call active"		# look for matches in log messages
+regprog	= i4brunppp			# execute program when match is found
+
+#==============================================================================
+# ENTRY: Userland PPP over ISDN
+#==============================================================================
+entry				
+                                
+name        		= ULPPP		# name for reference
+				
+usrdevicename		= rbch		# ipr, tel, rbch
+usrdeviceunit		= 0		# unit number
+				
+isdncontroller		= 0		# contoller to use or -1 to use any
+isdnchannel		= -1		# channel (1/2) to use or 0 or -1 for any
+
+					# numbers used to verify at DIAL IN
+local-phone-incoming	= 567		# this is my number
+remote-phone-incoming	= 123		# this one can call in
+
+					# numbers used to DIAL OUT
+local-phone-dialout	= 567		# this is my number
+remote-phone-dialout	= 123		# i call this number
+
+remdial-handling	= first		# first, last or next
+				
+dialin-reaction		= accept	# accept, reject, ignore, answer
+
+dialout-type		= normal	# normal / calledback
+
+b1protocol		= hdlc		# hdlc, raw
+
+idletime-incoming	= 30		# 3 seconds idle timeout
+idletime-outgoing	= 30		# 3 seconds idle timeout
+
+ratetype		= 0		# ratesfile entry to use
+unitlength		= 60		# unitlength to assume
+
+dialretries		= 2		# # of dial retries
+recoverytime		= 5		# time to wait between 2 dial tries
+
+# EOF #########################################################################

@@ -1,0 +1,32 @@
+.\" $Id: kdb_destroy.8,v 1.3 1997/04/02 21:09:54 assar Exp $
+.\" Copyright 1989 by the Massachusetts Institute of Technology.
+.\"
+.\" For copying and distribution information,
+.\" please see the file <mit-copyright.h>.
+.\"
+.TH KDB_DESTROY 8 "Kerberos Version 4.0" "MIT Project Athena"
+.SH NAME
+kdb_destroy \- destroy Kerberos key distribution center database
+.SH SYNOPSIS
+kdb_destroy
+.SH DESCRIPTION
+.I kdb_destroy
+deletes a Kerberos key distribution center database.
+.PP
+The user is prompted to verify that the database should be destroyed.  A
+response beginning with `y' or `Y' confirms deletion.
+Any other response aborts deletion.
+.SH DIAGNOSTICS
+.TP 20n
+"Database cannot be deleted at /var/kerberos/principal"
+The attempt to delete the database failed (probably due to a system or
+access permission error).
+.TP
+"Database not deleted."
+The user aborted the deletion.
+.SH FILES
+.TP 20n
+/var/kerberos/principal.pag, /var/kerberos/principal.dir
+DBM files containing database
+.SH SEE ALSO
+kdb_init(8)

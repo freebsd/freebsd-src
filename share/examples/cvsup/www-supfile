@@ -1,0 +1,61 @@
+# $FreeBSD$
+#
+# This file contains all of the "CVSup collections" that make up the
+# source of the FreeBSD www tree
+#
+# CVSup (CVS Update Protocol) allows you to download the latest CVS
+# tree (or any branch of development therefrom) to your system easily
+# and efficiently (far more so than with sup, which CVSup is aimed
+# at replacing).  If you're running CVSup interactively, and are
+# currently using an X display server, you should run CVSup as follows
+# to keep your CVS tree up-to-date:
+#
+#	cvsup www-supfile
+#
+# If not running X, or invoking cvsup from a non-interactive script, then
+# run it as follows:
+#
+#	cvsup -g -L 2 www-supfile
+#
+# You may wish to change some of the settings in this file to better
+# suit your system:
+#
+# host=CHANGE_THIS.FreeBSD.org
+#		This specifies the server host which will supply the
+#		file updates.  You must change it to one of the CVSup
+#		mirror sites listed in the FreeBSD Handbook at
+#		http://www.freebsd.org/doc/handbook/mirrors.html.
+#		You can	override this setting on the command line
+#		with cvsup's "-h host" option.
+#
+# base=/usr
+#		This specifies the root where CVSup will store information
+#		about the collections you have transferred to your system.
+#		A setting of "/usr" will generate this information in
+#		/usr/sup.  Even if you are CVSupping a large number of
+#		collections, you will be hard pressed to generate more than
+#		~1MB of data in this directory.  You can override the
+#		"base" setting on the command line with cvsup's "-b base"
+#		option.  This directory must exist in order to run CVSup.
+#
+# prefix=/usr
+#		This specifies where to place the requested files.  A
+#		setting of "/usr" will place all of the files requested
+#		in "/usr/www" (e.g., "/usr/www/en", "/usr/www/ja").
+#		The prefix directory must exist in order to run CVSup.
+
+# Defaults that apply to all the collections
+#
+# IMPORTANT: Change the next line to use one of the CVSup mirror sites
+# listed at http://www.freebsd.org/doc/handbook/mirrors.html.
+*default host=CHANGE_THIS.FreeBSD.org
+*default base=/usr
+*default prefix=/usr
+*default release=cvs tag=.
+*default delete use-rel-suffix
+
+# If your network link is a T1 or faster, comment out the following line.
+*default compress
+
+# This collection retrieves the www/ tree of the FreeBSD repository
+www

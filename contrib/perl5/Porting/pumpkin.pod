@@ -1,0 +1,1323 @@
+=head1 NAME
+
+Pumpkin - Notes on handling the Perl Patch Pumpkin
+
+=head1 SYNOPSIS
+
+There is no simple synopsis, yet.
+
+=head1 DESCRIPTION
+
+This document attempts to begin to describe some of the
+considerations involved in patching and maintaining perl.
+
+This document is still under construction, and still subject to
+significant changes.  Still, I hope parts of it will be useful,
+so I'm releasing it even though it's not done.
+
+For the most part, it's a collection of anecdotal information that
+already assumes some familiarity with the Perl sources.  I really need
+an introductory section that describes the organization of the sources
+and all the various auxiliary files that are part of the distribution.
+
+=head1 Where Do I Get Perl Sources and Related Material?
+
+The Comprehensive Perl Archive Network (or CPAN) is the place to go.
+There are many mirrors, but the easiest thing to use is probably
+http://www.perl.com/CPAN/README.html , which automatically points you to a
+mirror site "close" to you.
+
+=head2 Perl5-porters mailing list
+
+The mailing list perl5-porters@perl.org
+is the main group working with the development of perl.  If you're
+interested in all the latest developments, you should definitely
+subscribe.  The list is high volume, but generally has a
+fairly low noise level.
+
+Subscribe by sending the message (in the body of your letter)
+
+	subscribe perl5-porters
+
+to perl5-porters-request@perl.org .
+
+Archives of the list are held at:
+
+    http://www.rosat.mpe-garching.mpg.de/mailing-lists/perl-porters/
+
+=head1 How are Perl Releases Numbered?
+
+Perl version numbers are floating point numbers, such as 5.004.
+(Observations about the imprecision of floating point numbers for
+representing reality probably have more relevance than you might
+imagine :-) The major version number is 5 and the '004' is the
+patchlevel.  (Questions such as whether or not '004' is really a minor
+version number can safely be ignored.:)
+
+The version number is available as the magic variable $],
+and can be used in comparisons, e.g.
+
+	print "You've got an old perl\n" if $] < 5.002;
+
+You can also require particular version (or later) with
+
+	use 5.002;
+
+At some point in the future, we may need to decide what to call the
+next big revision.  In the .package file used by metaconfig to
+generate Configure, there are two variables that might be relevant:
+$baserev=5.0 and $package=perl5.   At various times, I have suggested
+we might change them to $baserev=5.1 and $package=perl5.1 if want
+to signify a fairly major update.  Or, we might want to jump to perl6.
+Let's worry about that problem when we get there.
+
+=head2 Subversions
+
+In addition, there may be "developer" sub-versions available.  These
+are not official releases.  They may contain unstable experimental
+features, and are subject to rapid change.  Such developer
+sub-versions are numbered with sub-version numbers.  For example,
+version 5.003_04 is the 4'th developer version built on top of
+5.003.  It might include the _01, _02, and _03 changes, but it
+also might not.  Sub-versions are allowed to be subversive. (But see
+the next section for recent changes.)
+
+These sub-versions can also be used as floating point numbers, so
+you can do things such as
+
+	print "You've got an unstable perl\n" if $] == 5.00303;
+
+You can also require particular version (or later) with
+
+	use 5.003_03;    # the "_" is optional
+
+Sub-versions produced by the members of perl5-porters are usually
+available on CPAN in the F<src/5.0/unsupported> directory.
+
+=head2 Maintenance and Development Subversions
+
+As an experiment, starting with version 5.004, subversions _01 through
+_49 will be reserved for bug-fix maintenance releases, and subversions
+_50 through _99 will be available for unstable development versions.
+
+The separate bug-fix track is being established to allow us an easy
+way to distribute important bug fixes without waiting for the
+developers to untangle all the other problems in the current
+developer's release.
+
+Trial releases of bug-fix maintenance releases are announced on
+perl5-porters. Trial releases use the new subversion number (to avoid
+testers installing it over the previous release) and include a 'local
+patch' entry in patchlevel.h.
+
+Watch for announcements of maintenance subversions in
+comp.lang.perl.announce.
+
+The first rule of maintenance work is "First, do no harm."
+
+=head2 Why such a complicated scheme?
+
+Two reasons, really.  At least.
+
+First, we need some way to identify and release collections of patches
+that are known to have new features that need testing and exploration.  The
+subversion scheme does that nicely while fitting into the
+C<use 5.004;> mold.
+
+Second, since most of the folks who help maintain perl do so on a
+free-time voluntary basis, perl development does not proceed at a
+precise pace, though it always seems to be moving ahead quickly.
+We needed some way to pass around the "patch pumpkin" to allow
+different people chances to work on different aspects of the
+distribution without getting in each other's way.  It wouldn't be
+constructive to have multiple people working on incompatible
+implementations of the same idea.  Instead what was needed was
+some kind of "baton" or "token" to pass around so everyone knew
+whose turn was next.
+
+=head2 Why is it called the patch pumpkin?
+
+Chip Salzenberg gets credit for that, with a nod to his cow orker,
+David Croy.  We had passed around various names (baton, token, hot
+potato) but none caught on.  Then, Chip asked:
+
+[begin quote]
+
+   Who has the patch pumpkin?
+
+To explain:  David Croy once told me once that at a previous job,
+there was one tape drive and multiple systems that used it for backups.
+But instead of some high-tech exclusion software, they used a low-tech
+method to prevent multiple simultaneous backups: a stuffed pumpkin.
+No one was allowed to make backups unless they had the "backup pumpkin".
+
+[end quote]
+
+The name has stuck.
+
+=head1 Philosophical Issues in Patching Perl
+
+There are no absolute rules, but there are some general guidelines I
+have tried to follow as I apply patches to the perl sources.
+(This section is still under construction.)
+
+=head2 Solve problems as generally as possible
+
+Never implement a specific restricted solution to a problem when you
+can solve the same problem in a more general, flexible way.
+
+For example, for dynamic loading to work on some SVR4 systems, we had
+to build a shared libperl.so library.  In order to build "FAT" binaries
+on NeXT 4.0 systems, we had to build a special libperl library.  Rather
+than continuing to build a contorted nest of special cases, I
+generalized the process of building libperl so that NeXT and SVR4 users
+could still get their work done, but others could build a shared
+libperl if they wanted to as well.
+
+=head2 Seek consensus on major changes
+
+If you are making big changes, don't do it in secret.  Discuss the
+ideas in advance on perl5-porters.
+
+=head2 Keep the documentation up-to-date
+
+If your changes may affect how users use perl, then check to be sure
+that the documentation is in sync with your changes.  Be sure to
+check all the files F<pod/*.pod> and also the F<INSTALL> document.
+
+Consider writing the appropriate documentation first and then
+implementing your change to correspond to the documentation.
+
+=head2 Avoid machine-specific #ifdef's
+
+To the extent reasonable, try to avoid machine-specific #ifdef's in
+the sources.  Instead, use feature-specific #ifdef's.  The reason is
+that the machine-specific #ifdef's may not be valid across major
+releases of the operating system.  Further, the feature-specific tests
+may help out folks on another platform who have the same problem.
+
+=head2 Allow for lots of testing
+
+We should never release a main version without testing it as a
+subversion first.
+
+=head2 Test popular applications and modules.
+
+We should never release a main version without testing whether or not
+it breaks various popular modules and applications.  A partial list of
+such things would include majordomo, metaconfig, apache, Tk, CGI,
+libnet, and libwww, to name just a few.  Of course it's quite possible
+that some of those things will be just plain broken and need to be fixed,
+but, in general, we ought to try to avoid breaking widely-installed
+things.
+
+=head2 Automate generation of derivative files
+
+The F<embed.h>, F<keywords.h>, F<opcode.h>, and F<perltoc.pod> files
+are all automatically generated by perl scripts.  In general, don't
+patch these directly; patch the data files instead.
+
+F<Configure> and F<config_h.SH> are also automatically generated by
+B<metaconfig>.  In general, you should patch the metaconfig units
+instead of patching these files directly.  However, very minor changes to
+F<Configure> may be made in between major sync-ups with the metaconfig
+units, which tends to be complicated operations.  But be careful, this
+can quickly spiral out of control.  Running metaconfig is not really
+hard.
+
+Finally, the sample files in the F<Porting/> subdirectory are
+generated automatically by the script F<U/mksample> included 
+with the metaconfig units.  See L<"run metaconfig"> below for
+information on obtaining the metaconfig units.
+
+=head1 How to Make a Distribution
+
+There really ought to be a 'make dist' target, but there isn't.
+The 'dist' suite of tools also contains a number of tools that I haven't
+learned how to use yet.  Some of them may make this all a bit easier.
+
+Here are the steps I go through to prepare a patch & distribution.
+
+Lots of it could doubtless be automated but isn't.  The Porting/makerel
+(make release) perl script does now help automate some parts of it.
+
+=head2 Announce your intentions
+
+First, you should volunteer out loud to take the patch pumpkin.  It's
+generally counter-productive to have multiple people working in secret
+on the same thing.
+
+At the same time, announce what you plan to do with the patch pumpkin,
+to allow folks a chance to object or suggest alternatives, or do it for
+you.  Naturally, the patch pumpkin holder ought to incorporate various
+bug fixes and documentation improvements that are posted while he or
+she has the pumpkin, but there might also be larger issues at stake.
+
+One of the precepts of the subversion idea is that we shouldn't give
+the patch pumpkin to anyone unless we have some idea what he or she
+is going to do with it.
+
+=head2 refresh pod/perltoc.pod
+
+Presumably, you have done a full C<make> in your working source
+directory.  Before you C<make spotless> (if you do), and if you have
+changed any documentation in any module or pod file, change to the
+F<pod> directory and run C<make toc>.
+
+=head2 run installhtml to check the validity of the pod files
+
+=head2 update patchlevel.h
+
+Don't be shy about using the subversion number, even for a relatively
+modest patch.  We've never even come close to using all 99 subversions,
+and it's better to have a distinctive number for your patch.  If you
+need feedback on your patch, go ahead and issue it and promise to
+incorporate that feedback quickly (e.g. within 1 week) and send out a
+second patch.
+
+=head2 run metaconfig
+
+If you need to make changes to Configure or config_h.SH, it may be best to
+change the appropriate metaconfig units instead, and regenerate Configure.
+
+	metaconfig -m
+
+will regenerate Configure and config_h.SH.  Much more information
+on obtaining and running metaconfig is in the F<U/README> file
+that comes with Perl's metaconfig units.  Perl's metaconfig units
+should be available on CPAN.  A set of units that will work with
+perl5.005 is in the file F<mc_units-5.005_00-01.tar.gz> under
+http://www.perl.com/CPAN/authors/id/ANDYD/ .  The mc_units tar file
+should be unpacked in your main perl source directory.  Note: those
+units were for use with 5.005.  There may have been changes since then.
+Check for later versions or contact perl5-porters@perl.org to obtain a
+pointer to the current version.
+
+Alternatively, do consider if the F<*ish.h> files might be a better
+place for your changes.
+
+=head2 MANIFEST
+
+Make sure the MANIFEST is up-to-date.  You can use dist's B<manicheck>
+program for this.  You can also use
+
+    perl -w -MExtUtils::Manifest=fullcheck -e fullcheck
+
+Both commands will also list extra files in the directory that are not
+listed in MANIFEST.
+
+The MANIFEST is normally sorted.
+
+If you are using metaconfig to regenerate Configure, then you should note
+that metaconfig actually uses MANIFEST.new, so you want to be sure
+MANIFEST.new is up-to-date too.  I haven't found the MANIFEST/MANIFEST.new
+distinction particularly useful, but that's probably because I still haven't
+learned how to use the full suite of tools in the dist distribution.
+
+=head2 Check permissions
+
+All the tests in the t/ directory ought to be executable.  The
+main makefile used to do a 'chmod t/*/*.t', but that resulted in
+a self-modifying distribution--something some users would strongly
+prefer to avoid.  The F<t/TEST> script will check for this
+and do the chmod if needed, but the tests still ought to be
+executable.
+
+In all, the following files should probably be executable:
+
+    Configure
+    configpm
+    configure.gnu
+    embed.pl
+    installperl
+    installman
+    keywords.pl
+    myconfig
+    opcode.pl
+    perly.fixer
+    t/TEST
+    t/*/*.t
+    *.SH
+    vms/ext/Stdio/test.pl
+    vms/ext/filespec.t
+    x2p/*.SH
+
+Other things ought to be readable, at least :-).
+
+Probably, the permissions for the files could be encoded in MANIFEST
+somehow, but I'm reluctant to change MANIFEST itself because that
+could break old scripts that use MANIFEST.
+
+I seem to recall that some SVR3 systems kept some sort of file that listed
+permissions for system files; something like that might be appropriate.
+
+=head2 Run Configure
+
+This will build a config.sh and config.h.  You can skip this if you haven't
+changed Configure or config_h.SH at all.  I use the following command
+
+    sh Configure -Dprefix=/opt/perl -Doptimize=-O -Dusethreads \
+	-Dcf_by='yourname' \
+	-Dcf_email='yourname@yourhost.yourplace.com' \
+	-Dperladmin='yourname@yourhost.yourplace.com' \
+	-Dmydomain='.yourplace.com' \
+	-Dmyhostname='yourhost' \
+	-des
+
+=head2 Update Porting/config.sh and Porting/config_H
+
+[XXX 
+This section needs revision.  We're currently working on easing
+the task of keeping the vms, win32, and plan9 config.sh info
+up-to-date.  The plan is to use keep up-to-date 'canned' config.sh
+files in the appropriate subdirectories and then generate 'canned'
+config.h files for vms, win32, etc. from the generic config.sh file.
+This is to ease maintenance.  When Configure gets updated, the parts
+sometimes get scrambled around, and the changes in config_H can
+sometimes be very hard to follow.  config.sh, on the other hand, can
+safely be sorted, so it's easy to track (typically very small) changes
+to config.sh and then propoagate them to a canned 'config.h' by any
+number of means, including a perl script in win32/ or carrying 
+config.sh and config_h.SH to a Unix system and running sh
+config_h.SH.)
+XXX]
+
+The Porting/config.sh and Porting/config_H files are provided to
+help those folks who can't run Configure.  It is important to keep
+them up-to-date.  If you have changed config_h.SH, those changes must
+be reflected in config_H as well.  (The name config_H was chosen to
+distinguish the file from config.h even on case-insensitive file systems.)
+Simply edit the existing config_H file; keep the first few explanatory
+lines and then copy your new config.h below.
+
+It may also be necessary to update win32/config.?c, vms/config.vms and
+plan9/config.plan9, though you should be quite careful in doing so if
+you are not familiar with those systems.  You might want to issue your
+patch with a promise to quickly issue a follow-up that handles those
+directories.
+
+=head2 make run_byacc
+
+If you have byacc-1.8.2 (available from CPAN), and if there have been
+changes to F<perly.y>, you can regenerate the F<perly.c> file.  The
+run_byacc makefile target does this by running byacc and then applying
+some patches so that byacc dynamically allocates space, rather than
+having fixed limits.  This patch is handled by the F<perly.fixer>
+script.  Depending on the nature of the changes to F<perly.y>, you may
+or may not have to hand-edit the patch to apply correctly.  If you do,
+you should include the edited patch in the new distribution.  If you
+have byacc-1.9, the patch won't apply cleanly.  Changes to the printf
+output statements mean the patch won't apply cleanly.  Long ago I
+started to fix F<perly.fixer> to detect this, but I never completed the
+task.
+
+Some additional notes from Larry on this:
+
+Don't forget to regenerate perly_c.diff.
+
+    byacc -d perly.y
+    mv y.tab.c perly.c
+    patch perly.c <perly_c.diff
+    # manually apply any failed hunks
+    diff -c2 perly.c.orig perly.c >perly_c.diff
+
+One chunk of lines that often fails begins with
+
+    #line 29 "perly.y"
+
+and ends one line before
+
+    #define YYERRCODE 256
+
+This only happens when you add or remove a token type.  I suppose this
+could be automated, but it doesn't happen very often nowadays.
+
+Larry
+
+=head2 make regen_headers
+
+The F<embed.h>, F<keywords.h>, and F<opcode.h> files are all automatically
+generated by perl scripts.  Since the user isn't guaranteed to have a
+working perl, we can't require the user to generate them.  Hence you have
+to, if you're making a distribution.
+
+I used to include rules like the following in the makefile:
+
+    # The following three header files are generated automatically
+    # The correct versions should be already supplied with the perl kit,
+    # in case you don't have perl or 'sh' available.
+    # The - is to ignore error return codes in case you have the source
+    # installed read-only or you don't have perl yet.
+    keywords.h: keywords.pl
+	    @echo "Don't worry if this fails."
+	    - perl keywords.pl
+
+
+However, I got B<lots> of mail consisting of people worrying because the
+command failed.  I eventually decided that I would save myself time
+and effort by manually running C<make regen_headers> myself rather
+than answering all the questions and complaints about the failing
+command.
+
+=head2 global.sym, interp.sym and perlio.sym
+
+Make sure these files are up-to-date.  Read the comments in these
+files and in perl_exp.SH to see what to do.
+
+=head2 Binary compatibility
+
+If you do change F<global.sym> or F<interp.sym>, think carefully about
+what you are doing.  To the extent reasonable, we'd like to maintain
+souce and binary compatibility with older releases of perl.  That way,
+extensions built under one version of perl will continue to work with
+new versions of perl.
+
+Of course, some incompatible changes may well be necessary.  I'm just
+suggesting that we not make any such changes without thinking carefully
+about them first.  If possible, we should provide
+backwards-compatibility stubs.  There's a lot of XS code out there.
+Let's not force people to keep changing it.
+
+=head2 Changes
+
+Be sure to update the F<Changes> file.  Try to include both an overall
+summary as well as detailed descriptions of the changes.  Your
+audience will include other developers and users, so describe
+user-visible changes (if any) in terms they will understand, not in
+code like "initialize foo variable in bar function".
+
+There are differing opinions on whether the detailed descriptions
+ought to go in the Changes file or whether they ought to be available
+separately in the patch file (or both).  There is no disagreement that
+detailed descriptions ought to be easily available somewhere.
+
+=head2 Todo
+
+The F<Todo> file contains a roughly-catgorized unordered list of
+aspects of Perl that could use enhancement, features that could be
+added, areas that could be cleaned up, and so on.  During your term as
+pumpkin-holder, you will probably address some of these issues, and
+perhaps identify others which, while you decide not to address them
+this time around, may be tackled in the future.  Update the file
+reflect the situation as it stands when you hand over the pumpkin.
+
+You might like, early in your pumpkin-holding career, to see if you
+can find champions for partiticular issues on the to-do list: an issue
+owned is an issue more likely to be resolved.
+
+There are also some more porting-specific L<Todo> items later in this
+file.
+
+=head2 OS/2-specific updates
+
+In the os2 directory is F<diff.configure>, a set of OS/2-specific
+diffs against B<Configure>.  If you make changes to Configure, you may
+want to consider regenerating this diff file to save trouble for the
+OS/2 maintainer.
+
+You can also consider the OS/2 diffs as reminders of portability
+things that need to be fixed in Configure.
+
+=head2 VMS-specific updates
+
+If you have changed F<perly.y>, then you may want to update
+F<vms/perly_{h,c}.vms> by running C<perl vms/vms_yfix.pl>.
+
+The Perl version number appears in several places under F<vms>.
+It is courteous to update these versions.  For example, if you are
+making 5.004_42, replace "5.00441" with "5.00442".
+
+=head2 Making the new distribution
+
+Suppose, for example, that you want to make version 5.004_08.  Then you can
+do something like the following
+
+	mkdir ../perl5.004_08
+	awk '{print $1}' MANIFEST | cpio -pdm ../perl5.004_08
+	cd ../
+	tar cf perl5.004_08.tar perl5.004_08
+	gzip --best perl5.004_08.tar
+
+These steps, with extra checks, are automated by the Porting/makerel
+script.
+
+=head2 Making a new patch
+
+I find the F<makepatch> utility quite handy for making patches.
+You can obtain it from any CPAN archive under
+http://www.perl.com/CPAN/authors/Johan_Vromans/ .  There are a couple
+of differences between my version and the standard one. I have mine do
+a
+
+	# Print a reassuring "End of Patch" note so people won't
+	# wonder if their mailer truncated patches.
+	print "\n\nEnd of Patch.\n";
+
+at the end.  That's because I used to get questions from people asking
+if their mail was truncated.
+
+It also writes Index: lines which include the new directory prefix
+(change Index: print, approx line 294 or 310 depending on the version,
+to read:  print PATCH ("Index: $newdir$new\n");).  That helps patches
+work with more POSIX conformant patch programs.
+
+Here's how I generate a new patch.  I'll use the hypothetical
+5.004_07 to 5.004_08 patch as an example.
+
+	# unpack perl5.004_07/
+	gzip -d -c perl5.004_07.tar.gz | tar -xof -
+	# unpack perl5.004_08/
+	gzip -d -c perl5.004_08.tar.gz | tar -xof -
+	makepatch perl5.004_07 perl5.004_08 > perl5.004_08.pat
+
+Makepatch will automatically generate appropriate B<rm> commands to remove
+deleted files.  Unfortunately, it will not correctly set permissions
+for newly created files, so you may have to do so manually.  For example,
+patch 5.003_04 created a new test F<t/op/gv.t> which needs to be executable,
+so at the top of the patch, I inserted the following lines:
+
+	# Make a new test
+	touch t/op/gv.t
+	chmod +x t/opt/gv.t
+
+Now, of course, my patch is now wrong because makepatch didn't know I
+was going to do that command, and it patched against /dev/null.
+
+So, what I do is sort out all such shell commands that need to be in the
+patch (including possible mv-ing of files, if needed) and put that in the
+shell commands at the top of the patch.  Next, I delete all the patch parts
+of perl5.004_08.pat, leaving just the shell commands.  Then, I do the
+following:
+
+	cd perl5.004_07
+	sh ../perl5.004_08.pat
+	cd ..
+	makepatch perl5.004_07 perl5.004_08 >> perl5.004_08.pat
+
+(Note the append to preserve my shell commands.)
+Now, my patch will line up with what the end users are going to do.
+
+=head2 Testing your patch
+
+It seems obvious, but be sure to test your patch.  That is, verify that
+it produces exactly the same thing as your full distribution.
+
+	rm -rf perl5.004_07
+	gzip -d -c perl5.004_07.tar.gz | tar -xf -
+	cd perl5.004_07
+	sh ../perl5.004_08.pat
+	patch -p1 -N < ../perl5.004_08.pat
+	cd ..
+	gdiff -r perl5.004_07 perl5.004_08
+
+where B<gdiff> is GNU diff.  Other diff's may also do recursive checking.
+
+=head2 More testing
+
+Again, it's obvious, but you should test your new version as widely as you
+can.  You can be sure you'll hear about it quickly if your version doesn't
+work on both ANSI and pre-ANSI compilers, and on common systems such as
+SunOS 4.1.[34], Solaris, and Linux.
+
+If your changes include conditional code, try to test the different
+branches as thoroughly as you can.  For example, if your system
+supports dynamic loading, you can also test static loading with
+
+	sh Configure -Uusedl
+
+You can also hand-tweak your config.h to try out different #ifdef
+branches.
+
+=head1 Common Gotcha's
+
+=over 4
+
+=item #elif
+
+The '#elif' preprocessor directive is not understood on all systems.
+Specifically, I know that Pyramids don't understand it.  Thus instead of the
+simple
+
+	#if defined(I_FOO)
+	#  include <foo.h>
+	#elif defined(I_BAR)
+	#  include <bar.h>
+	#else
+	#  include <fubar.h>
+	#endif
+
+You have to do the more Byzantine
+
+	#if defined(I_FOO)
+	#  include <foo.h>
+	#else
+	#  if defined(I_BAR)
+	#    include <bar.h>
+	#  else
+	#    include <fubar.h>
+	#  endif
+	#endif
+
+Incidentally, whitespace between the leading '#' and the preprocessor
+command is not guaranteed, but is very portable and you may use it freely.
+I think it makes things a bit more readable, especially once things get
+rather deeply nested.  I also think that things should almost never get
+too deeply nested,  so it ought to be a moot point :-)
+
+=item Probably Prefer POSIX
+
+It's often the case that you'll need to choose whether to do
+something the BSD-ish way or the POSIX-ish way.  It's usually not
+a big problem when the two systems use different names for similar
+functions, such as memcmp() and bcmp().  The perl.h header file
+handles these by appropriate #defines, selecting the POSIX mem*()
+functions if available, but falling back on the b*() functions, if
+need be.
+
+More serious is the case where some brilliant person decided to
+use the same function name but give it a different meaning or
+calling sequence :-).  getpgrp() and setpgrp() come to mind.
+These are a real problem on systems that aim for conformance to
+one standard (e.g. POSIX), but still try to support the other way
+of doing things (e.g. BSD).  My general advice (still not really
+implemented in the source) is to do something like the following.
+Suppose there are two alternative versions, fooPOSIX() and
+fooBSD().
+
+    #ifdef HAS_FOOPOSIX
+	/* use fooPOSIX(); */
+    #else
+    #  ifdef HAS_FOOBSD
+	/* try to emulate fooPOSIX() with fooBSD();
+	   perhaps with the following:  */
+    #    define fooPOSIX fooBSD
+    #  else
+    #  /* Uh, oh.  We have to supply our own. */
+    #    define fooPOSIX Perl_fooPOSIX
+    #  endif
+    #endif
+
+=item Think positively
+
+If you need to add an #ifdef test, it is usually easier to follow if you
+think positively, e.g.
+
+	#ifdef HAS_NEATO_FEATURE
+	    /* use neato feature */
+	#else
+	    /* use some fallback mechanism */
+	#endif
+
+rather than the more impenetrable
+
+	#ifndef MISSING_NEATO_FEATURE
+	    /* Not missing it, so we must have it, so use it */
+	#else
+	    /* Are missing it, so fall back on something else. */
+	#endif
+
+Of course for this toy example, there's not much difference.  But when
+the #ifdef's start spanning a couple of screen fulls, and the #else's
+are marked something like
+
+	#else /* !MISSING_NEATO_FEATURE */
+
+I find it easy to get lost.
+
+=item Providing Missing Functions -- Problem
+
+Not all systems have all the neat functions you might want or need, so
+you might decide to be helpful and provide an emulation.  This is
+sound in theory and very kind of you, but please be careful about what
+you name the function.  Let me use the C<pause()> function as an
+illustration.
+
+Perl5.003 has the following in F<perl.h>
+
+    #ifndef HAS_PAUSE
+    #define pause() sleep((32767<<16)+32767)
+    #endif
+
+Configure sets HAS_PAUSE if the system has the pause() function, so
+this #define only kicks in if the pause() function is missing.
+Nice idea, right?
+
+Unfortunately, some systems apparently have a prototype for pause()
+in F<unistd.h>, but don't actually have the function in the library.
+(Or maybe they do have it in a library we're not using.)
+
+Thus, the compiler sees something like
+
+    extern int pause(void);
+    /* . . . */
+    #define pause() sleep((32767<<16)+32767)
+
+and dies with an error message.  (Some compilers don't mind this;
+others apparently do.)
+
+To work around this, 5.003_03 and later have the following in perl.h:
+
+    /* Some unistd.h's give a prototype for pause() even though
+       HAS_PAUSE ends up undefined.  This causes the #define
+       below to be rejected by the compiler.  Sigh.
+    */
+    #ifdef HAS_PAUSE
+    #  define Pause	pause
+    #else
+    #  define Pause() sleep((32767<<16)+32767)
+    #endif
+
+This works.
+
+The curious reader may wonder why I didn't do the following in
+F<util.c> instead:
+
+    #ifndef HAS_PAUSE
+    void pause()
+    {
+    sleep((32767<<16)+32767);
+    }
+    #endif
+
+That is, since the function is missing, just provide it.
+Then things would probably be been alright, it would seem.
+
+Well, almost.  It could be made to work.  The problem arises from the
+conflicting needs of dynamic loading and namespace protection.
+
+For dynamic loading to work on AIX (and VMS) we need to provide a list
+of symbols to be exported.  This is done by the script F<perl_exp.SH>,
+which reads F<global.sym> and F<interp.sym>.  Thus, the C<pause>
+symbol would have to be added to F<global.sym>  So far, so good.
+
+On the other hand, one of the goals of Perl5 is to make it easy to
+either extend or embed perl and link it with other libraries.  This
+means we have to be careful to keep the visible namespace "clean".
+That is, we don't want perl's global variables to conflict with
+those in the other application library.  Although this work is still
+in progress, the way it is currently done is via the F<embed.h> file.
+This file is built from the F<global.sym> and F<interp.sym> files,
+since those files already list the globally visible symbols.  If we
+had added C<pause> to global.sym, then F<embed.h> would contain the
+line
+
+    #define pause	Perl_pause
+
+and calls to C<pause> in the perl sources would now point to
+C<Perl_pause>.  Now, when B<ld> is run to build the F<perl> executable,
+it will go looking for C<perl_pause>, which probably won't exist in any
+of the standard libraries.  Thus the build of perl will fail.
+
+Those systems where C<HAS_PAUSE> is not defined would be ok, however,
+since they would get a C<Perl_pause> function in util.c.  The rest of
+the world would be in trouble.
+
+And yes, this scenario has happened.  On SCO, the function C<chsize>
+is available.  (I think it's in F<-lx>, the Xenix compatibility
+library.)  Since the perl4 days (and possibly before), Perl has
+included a C<chsize> function that gets called something akin to
+
+    #ifndef HAS_CHSIZE
+    I32 chsize(fd, length)
+    /*  . . . */
+    #endif
+
+When 5.003 added
+
+    #define chsize	Perl_chsize
+
+to F<embed.h>, the compile started failing on SCO systems.
+
+The "fix" is to give the function a different name.  The one
+implemented in 5.003_05 isn't optimal, but here's what was done:
+
+    #ifdef HAS_CHSIZE
+    # ifdef my_chsize  /* Probably #defined to Perl_my_chsize in embed.h */
+    #   undef my_chsize
+    # endif
+    # define my_chsize chsize
+    #endif
+
+My explanatory comment in patch 5.003_05 said:
+
+     Undef and then re-define my_chsize from Perl_my_chsize to
+     just plain chsize if this system HAS_CHSIZE.  This probably only
+     applies to SCO.  This shows the perils of having internal
+     functions with the same name as external library functions :-).
+
+Now, we can safely put C<my_chsize> in F<global.sym>, export it, and
+hide it with F<embed.h>.
+
+To be consistent with what I did for C<pause>, I probably should have
+called the new function C<Chsize>, rather than C<my_chsize>.
+However, the perl sources are quite inconsistent on this (Consider
+New, Mymalloc, and Myremalloc, to name just a few.)
+
+There is a problem with this fix, however, in that C<Perl_chsize>
+was available as a F<libperl.a> library function in 5.003, but it
+isn't available any more (as of 5.003_07).  This means that we've
+broken binary compatibility.  This is not good.
+
+=item Providing missing functions -- some ideas
+
+We currently don't have a standard way of handling such missing
+function names.  Right now, I'm effectively thinking aloud about a
+solution.  Some day, I'll try to formally propose a solution.
+
+Part of the problem is that we want to have some functions listed as
+exported but not have their names mangled by embed.h or possibly
+conflict with names in standard system headers.  We actually already
+have such a list at the end of F<perl_exp.SH> (though that list is
+out-of-date):
+
+    # extra globals not included above.
+    cat <<END >> perl.exp
+    perl_init_ext
+    perl_init_fold
+    perl_init_i18nl14n
+    perl_alloc
+    perl_construct
+    perl_destruct
+    perl_free
+    perl_parse
+    perl_run
+    perl_get_sv
+    perl_get_av
+    perl_get_hv
+    perl_get_cv
+    perl_call_argv
+    perl_call_pv
+    perl_call_method
+    perl_call_sv
+    perl_requirepv
+    safecalloc
+    safemalloc
+    saferealloc
+    safefree
+
+This still needs much thought, but I'm inclined to think that one
+possible solution is to prefix all such functions with C<perl_> in the
+source and list them along with the other C<perl_*> functions in
+F<perl_exp.SH>.
+
+Thus, for C<chsize>, we'd do something like the following:
+
+    /* in perl.h */
+    #ifdef HAS_CHSIZE
+    #  define perl_chsize chsize
+    #endif
+
+then in some file (e.g. F<util.c> or F<doio.c>) do
+
+    #ifndef HAS_CHSIZE
+    I32 perl_chsize(fd, length)
+    /* implement the function here . . . */
+    #endif
+
+Alternatively, we could just always use C<chsize> everywhere and move
+C<chsize> from F<global.sym> to the end of F<perl_exp.SH>.  That would
+probably be fine as long as our C<chsize> function agreed with all the
+C<chsize> function prototypes in the various systems we'll be using.
+As long as the prototypes in actual use don't vary that much, this is
+probably a good alternative.  (As a counter-example, note how Configure
+and perl have to go through hoops to find and use get Malloc_t and
+Free_t for C<malloc> and C<free>.)
+
+At the moment, this latter option is what I tend to prefer.
+
+=item All the world's a VAX
+
+Sorry, showing my age:-).  Still, all the world is not BSD 4.[34],
+SVR4, or POSIX.  Be aware that SVR3-derived systems are still quite
+common (do you have any idea how many systems run SCO?)  If you don't
+have a bunch of v7 manuals handy, the metaconfig units (by default
+installed in F</usr/local/lib/dist/U>) are a good resource to look at
+for portability.
+
+=back
+
+=head1 Miscellaneous Topics
+
+=head2 Autoconf
+
+Why does perl use a metaconfig-generated Configure script instead of an
+autoconf-generated configure script?
+
+Metaconfig and autoconf are two tools with very similar purposes.
+Metaconfig is actually the older of the two, and was originally written
+by Larry Wall, while autoconf is probably now used in a wider variety of
+packages.  The autoconf info file discusses the history of autoconf and
+how it came to be.  The curious reader is referred there for further
+information.
+
+Overall, both tools are quite good, I think, and the choice of which one
+to use could be argued either way.  In March, 1994, when I was just
+starting to work on Configure support for Perl5, I considered both
+autoconf and metaconfig, and eventually decided to use metaconfig for the
+following reasons:
+
+=over 4
+
+=item Compatibility with Perl4
+
+Perl4 used metaconfig, so many of the #ifdef's were already set up for
+metaconfig.  Of course metaconfig had evolved some since Perl4's days,
+but not so much that it posed any serious problems.
+
+=item Metaconfig worked for me
+
+My system at the time was Interactive 2.2, a SVR3.2/386 derivative that
+also had some POSIX support.  Metaconfig-generated Configure scripts
+worked fine for me on that system.  On the other hand, autoconf-generated
+scripts usually didn't.  (They did come quite close, though, in some
+cases.)  At the time, I actually fetched a large number of GNU packages
+and checked.  Not a single one configured and compiled correctly
+out-of-the-box with the system's cc compiler.
+
+=item Configure can be interactive
+
+With both autoconf and metaconfig, if the script works, everything is
+fine.  However, one of my main problems with autoconf-generated scripts
+was that if it guessed wrong about something, it could be B<very> hard to
+go back and fix it.  For example, autoconf always insisted on passing the
+-Xp flag to cc (to turn on POSIX behavior), even when that wasn't what I
+wanted or needed for that package.  There was no way short of editing the
+configure script to turn this off.  You couldn't just edit the resulting
+Makefile at the end because the -Xp flag influenced a number of other
+configure tests.
+
+Metaconfig's Configure scripts, on the other hand, can be interactive.
+Thus if Configure is guessing things incorrectly, you can go back and fix
+them.  This isn't as important now as it was when we were actively
+developing Configure support for new features such as dynamic loading,
+but it's still useful occasionally.
+
+=item GPL
+
+At the time, autoconf-generated scripts were covered under the GNU Public
+License, and hence weren't suitable for inclusion with Perl, which has a
+different licensing policy.  (Autoconf's licensing has since changed.)
+
+=item Modularity
+
+Metaconfig builds up Configure from a collection of discrete pieces
+called "units".  You can override the standard behavior by supplying your
+own unit.  With autoconf, you have to patch the standard files instead.
+I find the metaconfig "unit" method easier to work with.  Others
+may find metaconfig's units clumsy to work with.
+
+=back
+
+=head2 @INC search order
+
+By default, the list of perl library directories in @INC is the
+following:
+
+    $archlib
+    $privlib
+    $sitearch
+    $sitelib
+
+Specifically, on my Solaris/x86 system, I run
+B<sh Configure -Dprefix=/opt/perl> and I have the following
+directories:
+
+    /opt/perl/lib/i86pc-solaris/5.00307
+    /opt/perl/lib
+    /opt/perl/lib/site_perl/i86pc-solaris
+    /opt/perl/lib/site_perl
+
+That is, perl's directories come first, followed by the site-specific
+directories.
+
+The site libraries come second to support the usage of extensions
+across perl versions.  Read the relevant section in F<INSTALL> for
+more information.  If we ever make $sitearch version-specific, this
+topic could be revisited.
+
+=head2 Why isn't there a directory to override Perl's library?
+
+Mainly because no one's gotten around to making one.  Note that
+"making one"  involves changing perl.c, Configure, config_h.SH (and
+associated files, see above), and I<documenting> it all in the
+INSTALL file.
+
+Apparently, most folks who want to override one of the standard library
+files simply do it by overwriting the standard library files.
+
+=head2 APPLLIB
+
+In the perl.c sources, you'll find an undocumented APPLLIB_EXP
+variable, sort of like PRIVLIB_EXP and ARCHLIB_EXP (which are
+documented in config_h.SH).  Here's what APPLLIB_EXP is for, from
+a mail message from Larry:
+
+    The main intent of APPLLIB_EXP is for folks who want to send out a
+    version of Perl embedded in their product.  They would set the symbol
+    to be the name of the library containing the files needed to run or to
+    support their particular application.  This works at the "override"
+    level to make sure they get their own versions of any library code that
+    they absolutely must have configuration control over.
+
+    As such, I don't see any conflict with a sysadmin using it for a
+    override-ish sort of thing, when installing a generic Perl.  It should
+    probably have been named something to do with overriding though.  Since
+    it's undocumented we could still change it...  :-)
+
+Given that it's already there, you can use it to override
+distribution modules.  If you do
+
+	sh Configure -Dccflags='-DAPPLLIB_EXP=/my/override'
+
+then perl.c will put /my/override ahead of ARCHLIB and PRIVLIB.
+
+=head2 Shared libperl.so location
+
+Why isn't the shared libperl.so installed in /usr/lib/ along
+with "all the other" shared libraries?  Instead, it is installed
+in $archlib, which is typically something like
+
+	/usr/local/lib/perl5/archname/5.00404
+
+and is architecture- and version-specific.
+
+The basic reason why a shared libperl.so gets put in $archlib is so that
+you can have more than one version of perl on the system at the same time,
+and have each refer to its own libperl.so.
+
+Three examples might help.  All of these work now; none would work if you
+put libperl.so in /usr/lib.
+
+=over
+
+=item 1.
+
+Suppose you want to have both threaded and non-threaded perl versions
+around.  Configure will name both perl libraries "libperl.so" (so that
+you can link to them with -lperl).  The perl binaries tell them apart
+by having looking in the appropriate $archlib directories.
+
+=item 2.
+
+Suppose you have perl5.004_04 installed and you want to try to compile
+it again, perhaps with different options or after applying a patch.
+If you already have libperl.so installed in /usr/lib/, then it may be
+either difficult or impossible to get ld.so to find the new libperl.so
+that you're trying to build.  If, instead, libperl.so is tucked away in
+$archlib, then you can always just change $archlib in the current perl
+you're trying to build so that ld.so won't find your old libperl.so.
+(The INSTALL file suggests you do this when building a debugging perl.)
+
+=item 3.
+
+The shared perl library is not a "well-behaved" shared library with
+proper major and minor version numbers, so you can't necessarily
+have perl5.004_04 and perl5.004_05 installed simultaneously.  Suppose
+perl5.004_04 were to install /usr/lib/libperl.so.4.4, and perl5.004_05
+were to install /usr/lib/libperl.so.4.5.  Now, when you try to run
+perl5.004_04, ld.so might try to load libperl.so.4.5, since it has
+the right "major version" number.  If this works at all, it almost
+certainly defeats the reason for keeping perl5.004_04 around.  Worse,
+with development subversions, you certaily can't guarantee that
+libperl.so.4.4 and libperl.so.4.55 will be compatible.
+
+Anyway, all this leads to quite obscure failures that are sure to drive
+casual users crazy.  Even experienced users will get confused :-).  Upon
+reflection, I'd say leave libperl.so in $archlib.
+
+=back
+
+=head1 Upload Your Work to CPAN
+
+You can upload your work to CPAN if you have a CPAN id.  Check out
+http://www.perl.com/CPAN/modules/04pause.html for information on
+_PAUSE_, the Perl Author's Upload Server.
+
+I typically upload both the patch file, e.g. F<perl5.004_08.pat.gz>
+and the full tar file, e.g. F<perl5.004_08.tar.gz>.
+
+If you want your patch to appear in the F<src/5.0/unsupported>
+directory on CPAN, send e-mail to the CPAN master librarian.  (Check
+out http://www.perl.com/CPAN/CPAN.html ).
+
+=head1 Help Save the World
+
+You should definitely announce your patch on the perl5-porters list.
+You should also consider announcing your patch on
+comp.lang.perl.announce, though you should make it quite clear that a
+subversion is not a production release, and be prepared to deal with
+people who will not read your disclaimer.
+
+=head1 Todo
+
+Here, in no particular order, are some Configure and build-related
+items that merit consideration.  This list isn't exhaustive, it's just
+what I came up with off the top of my head.
+
+=head2 Good ideas waiting for round tuits
+
+=over 4
+
+=item installprefix
+
+I think we ought to support
+
+    Configure -Dinstallprefix=/blah/blah
+
+Currently, we support B<-Dprefix=/blah/blah>, but the changing the install
+location has to be handled by something like the F<config.over> trick
+described in F<INSTALL>.  AFS users also are treated specially.
+We should probably duplicate the metaconfig prefix stuff for an
+install prefix.
+
+=item Configure -Dsrc=/blah/blah
+
+We should be able to emulate B<configure --srcdir>.  Tom Tromey
+tromey@creche.cygnus.com has submitted some patches to
+the dist-users mailing list along these lines.  They have been folded
+back into the main distribution, but various parts of the perl
+Configure/build/install process still assume src='.'.
+
+=item Directory for vendor-supplied modules?
+
+If a vendor supplies perl, but wants to leave $siteperl and $sitearch
+for the local user to use, where should the vendor put vendor-supplied
+modules (such as Tk.so?)  If the vendor puts them in $archlib, then
+they need to be updated each time the perl version is updated.
+Perhaps we need a set of libries $vendorperl and $vendorarch that
+track $apiversion (like the $sitexxx directories do) rather than
+just $version (like the main perl directory).
+
+=item Hint file fixes
+
+Various hint files work around Configure problems.  We ought to fix
+Configure so that most of them aren't needed.
+
+=item Hint file information
+
+Some of the hint file information (particularly dynamic loading stuff)
+ought to be fed back into the main metaconfig distribution.
+
+=item Catch GNU Libc "Stub" functions
+
+Some functions (such as lchown()) are present in libc, but are
+unimplmented.  That is, they always fail and set errno=ENOSYS.
+
+Thomas Bushnell provided the following sample code and the explanation
+that follows:
+
+    /* System header to define __stub macros and hopefully few prototypes,
+	which can conflict with char FOO(); below.  */
+    #include <assert.h>
+    /* Override any gcc2 internal prototype to avoid an error.  */
+    /* We use char because int might match the return type of a gcc2
+	builtin and then its argument prototype would still apply.  */
+    char FOO();
+
+    int main() {
+
+    /* The GNU C library defines this for functions which it implements
+	to always fail with ENOSYS.  Some functions are actually named
+	something starting with __ and the normal name is an alias.  */
+    #if defined (__stub_FOO) || defined (__stub___FOO)
+    choke me
+    #else
+    FOO();
+    #endif
+
+    ; return 0; }
+
+The choice of <assert.h> is essentially arbitrary.  The GNU libc
+macros are found in <gnu/stubs.h>.  You can include that file instead
+of <assert.h> (which itself includes <gnu/stubs.h>) if you test for
+its existence first.  <assert.h> is assumed to exist on every system,
+which is why it's used here.  Any GNU libc header file will include
+the stubs macros.  If either __stub_NAME or __stub___NAME is defined,
+then the function doesn't actually exist.  Tests using <assert.h> work
+on every system around.
+
+The declaration of FOO is there to override builtin prototypes for
+ANSI C functions.
+
+=back
+
+=head2 Probably good ideas waiting for round tuits
+
+=over 4
+
+=item GNU configure --options
+
+I've received sensible suggestions for --exec_prefix and other
+GNU configure --options.  It's not always obvious exactly what is
+intended, but this merits investigation.
+
+=item make clean
+
+Currently, B<make clean> isn't all that useful, though
+B<make realclean> and B<make distclean> are.  This needs a bit of
+thought and documentation before it gets cleaned up.
+
+=item Try gcc if cc fails
+
+Currently, we just give up.
+
+=item bypassing safe*alloc wrappers
+
+On some systems, it may be safe to call the system malloc directly
+without going through the util.c safe* layers.  (Such systems would
+accept free(0), for example.)  This might be a time-saver for systems
+that already have a good malloc.  (Recent Linux libc's apparently have
+a nice malloc that is well-tuned for the system.)
+
+=back
+
+=head2 Vague possibilities
+
+=over 4
+
+=item MacPerl
+
+Get some of the Macintosh stuff folded back into the main distribution.
+
+=item gconvert replacement
+
+Maybe include a replacement function that doesn't lose data in rare
+cases of coercion between string and numerical values.
+
+=item Improve makedepend
+
+The current makedepend process is clunky and annoyingly slow, but it
+works for most folks.  Alas, it assumes that there is a filename
+$firstmakefile that the B<make> command will try to use before it uses
+F<Makefile>.  Such may not be the case for all B<make> commands,
+particularly those on non-Unix systems.
+
+Probably some variant of the BSD F<.depend> file will be useful.
+We ought to check how other packages do this, if they do it at all.
+We could probably pre-generate the dependencies (with the exception of
+malloc.o, which could probably be determined at F<Makefile.SH>
+extraction time.
+
+=item GNU Makefile standard targets
+
+GNU software generally has standardized Makefile targets.  Unless we
+have good reason to do otherwise, I see no reason not to support them.
+
+=item File locking
+
+Somehow, straighten out, document, and implement lockf(), flock(),
+and/or fcntl() file locking.  It's a mess.
+
+=back
+
+=head1 AUTHORS
+
+Original author:  Andy Dougherty doughera@lafcol.lafayette.edu .
+Additions by Chip Salzenberg chip@perl.com and 
+Tim Bunce Tim.Bunce@ig.co.uk .
+
+All opinions expressed herein are those of the authorZ<>(s).
+
+=head1 LAST MODIFIED
+
+$Id: pumpkin.pod,v 1.22 1998/07/22 16:33:55 doughera Released $

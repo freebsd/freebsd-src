@@ -1,0 +1,80 @@
+<html>
+<head><title>smfi_addrcpt</title></head>
+<body>
+<h1>smfi_addrcpt</h1>
+
+<table border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<tr><th valign="top" align=left width=150>SYNOPSIS</th><td>
+<pre>
+#include &lt;libmilter/mfapi.h&gt;
+int smfi_addrcpt(
+	SMFICTX *ctx,
+	char *rcpt
+);
+</pre>
+Add a recipient for the current message.
+</td></tr>
+
+<!----------- Description ---------->
+<tr><th valign="top" align=left>DESCRIPTION</th><td>
+<table border="1" cellspacing=1 cellpadding=4>
+<tr align="left" valign=top>
+<th width="80">Called When</th>
+<td>Called only from <a href="xxfi_eom.html">xxfi_eom</a>.</td>
+</tr>
+<tr align="left" valign=top>
+<th width="80">Effects</th>
+<td>Add a recipient to the message envelope.</td>
+</tr>
+</table>
+
+<!----------- Arguments ---------->
+<tr><th valign="top" align=left>ARGUMENTS</th><td>
+    <table border="1" cellspacing=0>
+    <tr bgcolor="#dddddd"><th>Argument</th><th>Description</th></tr>
+    <tr valign="top"><td>ctx</td>
+	<td>Opaque context structure.
+	</td></tr>
+    <tr valign="top"><td>rcpt</td>
+	<td>The new recipient's address.
+	</td></tr>
+    </table>
+</td></tr>
+
+<!----------- Return values ---------->
+<tr>
+<th valign="top" align=left>RETURN VALUES</th> 
+
+<td>smfi_addrcpt will fail and return MI_FAILURE if:
+<ul><li>rcpt is NULL.
+    <li>Adding headers in the current connection state is invalid.
+    <li>A network error occurs.
+    <li>SMFIF_ADDRCPT was not set when <a href="smfi_register.html">smfi_register</a> was called.
+</ul>
+Otherwise, it will return MI_SUCCESS.
+</td>
+</tr>
+
+<!----------- Notes ---------->
+<tr align="left" valign=top>
+<th>NOTES</th> 
+<td>
+A filter which calls smfi_addrcpt must have set the SMFIF_ADDRCPT flag
+in the smfiDesc_str passed to 
+<a href="smfi_register.html">smfi_register</a>.
+</td>
+</tr>
+
+</table>
+
+<hr size="1">
+<font size="-1">
+Copyright (c) 2000 Sendmail, Inc. and its suppliers.
+All rights reserved.
+<br>
+By using this file, you agree to the terms and conditions set
+forth in the <a href="LICENSE.txt">LICENSE</a>.
+</font>
+</body>
+</html>

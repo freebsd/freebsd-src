@@ -1,0 +1,224 @@
+<!--
+     The FreeBSD Documentation Project
+     The FreeBSD French Documentation Project
+
+     $Id$
+     $FreeBSD$
+     Original revision: 1.1.2.90
+
+	FreeBSD errata document.  Unlike some of the other RELNOTESng
+	files, this file should remain as a single SGML file, so that
+	the dollar FreeBSD dollar header has a meaningful modification
+	time.  This file is all but useless without a datestamp on it,
+	so we'll take some extra care to make sure it has one.
+
+	(If we didn't do this, then the file with the datestamp might
+	not be the one that received the last change in the document.)
+
+-->
+
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
+%man;
+<!ENTITY % authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
+%authors;
+<!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//FR">
+ %mlists;
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+]>
+
+<article>
+  <articleinfo>
+
+<!-- XXX Change release.current to release.prev when there's -->
+<!-- XXX a release on this branch. -->
+    <title>&os;
+<![ %release.type.snapshot [
+    &release.prev;
+]]>
+<![ %release.type.release [
+    &release.current;
+]]>
+    Errata</title>
+    <corpauthor>
+    Le projet &os;
+    </corpauthor>
+
+    <pubdate>$FreeBSD$</pubdate>
+
+    <copyright>
+      <year>2000</year>
+      <year>2001</year>
+      <year>2002</year>
+      <holder role="mailto:doc@FreeBSD.org">Projet de Documentation &os;</holder>
+    </copyright>
+  </articleinfo>
+
+  <abstract>
+
+<!-- XXX Change release.current to release.prev when there's -->
+<!-- XXX a release on this branch. -->
+
+<para>Ce document &eacute;num&egrave;re les errata pour &os; 
+<![ %release.type.snapshot [
+      &release.prev;,
+]]>
+<![ %release.type.release [
+      &release.current;,
+]]>
+, contenant des informations importantes d&eacute;couvertes
+apr&egrave;s la sortie de cette version. Ces informations incluent les
+bulletins de s&eacute;curit&eacute;, aussi bien que des informations
+sur les logiciels ou sur les documentations qui pourraient affecter
+son &eacute;x&eacute;cution ou son utilisation. Une version &agrave;
+jour de ce document devrait toujours &ecirc;tre consult&eacute;e avant
+d'installer cette version de &os;.  
+</para>
+
+
+<![ %release.type.snapshot [
+
+<para>Cet errata de &os; 
+<![ %release.type.snapshot [
+      &release.prev;
+]]>
+<![ %release.type.release [
+      &release.current;
+]]>
+ sera maintenu jusqu'a  &os; &release.next;.</para>
+
+]]>
+
+<![ %release.type.release [
+
+<para>Ceci est la version final du errata pour &os;
+&release.prev;. Les errata suivants de la branche &release.branch; se
+r&eacute;f&eacute;reront a &os; &release.current; et les version
+suivantes.</para>
+]]>
+  </abstract>
+
+  <sect1>
+    <title>Introduction</title>
+    
+    <para>Ce document contient les <quote>derni&egrave;res
+    informations importantes</quote> &agrave; propos 
+    de &os;
+<![ %release.type.snapshot [
+      &release.prev;.
+]]>
+<![ %release.type.release [
+      &release.current;.
+]]>. Avant d'installer cette version, il est important de consulter 
+    ce document pour se renseigner sur les probl&egrave;mes qui
+    peuvent avoir d&eacute;j&agrave; &eacute;t&eacute;
+    rencontr&eacute;s et  corrig&eacute;s.</para>
+
+
+    <para>Toute version de ce document actuellement distribu&eacute;
+    avec une version finale (par exemple sur la distrtibution en
+    CDROM) est obsol&egrave;te par d&eacute;finition, mais les autres
+    copies sont gard&eacute;es et mis a jour sur Internet et peuvent
+    etre consult&eacute;es comment <quote>errata</quote> pour cette
+    version finale. Les autres copies de cet errata se trouvent <ulink
+    url="http://www.FreeBSD.org/releases/">la</ulink> et sur les
+    autres sites mirroirs de ce site</para>
+
+
+    <para>Les snapshots binaires ou en source de la version
+    &release.branch; de &os; contiennent toute une version a jour de
+    ce document (au moment de la creation du snapshot).</para>
+
+    <para>Pour une list de tous les avis de securit&eacute; du CERT
+    sur &os;, voyez <ulink
+    url="http://www.FreeBSD.org/security/"></ulink> ou <ulink
+    url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
+
+  </sect1>
+
+  <sect1>
+    <title>Avis de securit&eacute;</title>
+
+<![ %release.type.release [
+    <para>Aucun d'avis de s&eacute;curit&eacute;.</para>
+]]>
+<![ %release.type.snapshot [
+
+    <para>Les dépassements de tampons dans  &man.kadmind.8; et
+    k5admin ont été corrigés. Plus de détails sont fournis dans l'avis
+    de sécurité 
+    <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:40.kadmind.asc">
+    FreeBSD-SA-02:40</ulink>.</para>
+
+    <para>Des erreurs dans &man.smrsh.8;, permettant aux utilisateurs
+    de passer outre les restrictions d'exécution de certains
+    programmes, ont été fixées dans &os; &release.prev;. Comme l'avis
+    de sécurité applicable (<ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:41.smrsh.asc">FreeBSD-SA-02:41</ulink>)
+      n'était pas disponible lors de la génération de la version, ceci
+      n'a pas été inclus dans les notes de version.</para>
+
+    <para>Des dépassements de tampons dans l'application DNS
+    &man.resolver.3;, résultants dans des erreurs d'applications, ont
+    été corrigés. Ce changement n'a pas été mentionné dans les notes
+    de version, car l'avis de sécurité applicable  (<ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:42.resolv.asc">FreeBSD-SA-02:42</ulink>)
+      n'a été mis en ligne qu'après la génération de la version.</para>
+
+    <para>Les multiples vulnérabilités dans <application>BIND</application>
+      ont été corrigées comme décrit dans <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:43.bind.asc">FreeBSD-SA-02:43</ulink>.</para>
+
+]]>
+  </sect1>
+
+  <sect1>
+    <title>Informations de derni&egrave;re minute</title>
+
+<![ %release.type.release [
+    <para>Aucune informations.</para>
+]]>
+
+<![ %release.type.snapshot [
+
+    <para>Du &agrave; certains probl&egrave;mes de license non
+    r&eacute;solus lors du cycle de confection de la version de &os;
+    &release.prev;, le gestionnaire de p&eacute;riph&eacute;rique
+    &man.matcd.4; a &eacute;t&eacute; retir&eacute;.</para>
+
+    <para>La distribution <filename>srelease</filename> contient des
+    fichiers objets pour &man.sysinstall.8; du r&eacute;pertoire
+    <filename>release/sysinstall</filename>. Ces fichiers ont
+    &eacute;t&eacute; g&eacute;n&eacute;r&eacute;s lors de la
+    confection de la version, mais pour d'obscures raisons, ils n'ont
+    pas &eacute;t&eacute; effac&eacute;s. Ils ne servent &agrave;
+    rien et peuvent donc &ecirc;tre effac&eacute;s.</para>
+
+    <para> Les paquetages  <filename
+    role="package">databases/rdfdb</filename>   et <filename
+    role="package">mail/ssmtp</filename> incluent dans &release.prev;
+    ne peuvent pas &ecirc;tre install&eacute;s correctement. La solution
+    consiste &agrave; les compiler et &agrave; les install&eacute;s depuis la
+    collection des ports.</para>
+
+    <para>Le paquetage <filename
+    role="package">net/gnomeicu</filename> inclu dans  &release.prev;
+    ne peut pas fonctionner correctement du &agrave; une d&eacute;pendance
+    manquante dans le paquetage <filename
+    role="package">net/gnet</filename>. Pour r&eacute;soudre ce
+    probl&egrave;me, installez <filename
+    role="package">net/gnet</filename> via un paquetage ou via la
+    collection des ports, si possible avant d'installer <filename
+    role="package">net/gnomeicu</filename>.</para>
+    
+    <para>Les notes de version de &os;&release.prev;  affiche que
+    l'option<option>-J</option> de &man.xargs.1; est
+    d&eacute;pr&eacute;ci&eacute;e. En fait, il n'y a aucune raison
+    pour qu'elle soit retir&eacute;e dans une prochaine version.</para>    
+
+]]>
+
+  </sect1>
+</article>
+

@@ -1,0 +1,7 @@
+# Host: Intel 386 running Mach3
+
+XDEPFILES= i387-tdep.o core-aout.o
+NATDEPFILES= i386m3-nat.o m3-nat.o fork-child.o
+NAT_CLIBS= -lmachid -lnetname -lmach
+XM_FILE= xm-i386m3.h
+NAT_FILE= nm-m3.h

@@ -1,0 +1,5 @@
+#!../../miniperl -w -I../../lib
+
+use ExtUtils::MakeMaker;
+&mkbootstrap(join(" ",@ARGV));
+exit;

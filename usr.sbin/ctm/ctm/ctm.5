@@ -1,0 +1,181 @@
+.\"----------------------------------------------------------------------------
+.\""THE BEER-WARE LICENSE" (Revision 42):
+.\"<joerg@FreeBSD.org> wrote this file.  As long as you retain this notice you
+.\"can do whatever you want with this stuff. If we meet some day, and you think
+.\"this stuff is worth it, you can buy me a beer in return.       Joerg Wunsch
+.\"----------------------------------------------------------------------------
+.\"
+.\" This manual page is partially obtained from Poul-Hennings CTM README
+.\" file.
+.\"
+.\" CTM and ctm(1) by <phk@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 25, 1995
+.Os
+.Dt CTM 5
+.Sh NAME
+.Nm ctm
+.Nd source code mirror system
+.Sh DESCRIPTION
+The
+.Nm
+transfers data in a specific file format, called a CTM delta.
+.Pp
+CTM deltas consist of control lines and data chunks.  Each control
+line starts with the letters
+.Dq CTM ,
+followed by a CTM statement and control data, and ends with a '\en'
+character.
+.Pp
+Data chunks always belong to the preceding control line, and the
+last field on that control line is the number of bytes in the data
+chunk.
+A trailing newline '\en' character follows each data chunk, this
+newline is not part of the chunk and isn't included in the count.
+.Pp
+The CTM statements are as follows.
+.Bl -tag -width indent
+.It _BEGIN Ar version name number timestamp prefix
+This is the overall begin of a CTM delta file.  The
+.Ar version
+field must match the program version
+(currently 2.0).
+.Ar Name
+is the name and
+.Ar number
+the sequence number of the CTM service, it is matched against the file
+.Pa .ctm_status
+to see if the delta has already been applied.
+.Ar Timestamp
+contains the year, month, day, hour, minute, and second of the
+time of delta creation for reference
+(followed by the letter
+.Sq Z
+meaning this is a UTC timestamp).
+The
+.Ar prefix
+field is currently not implemented.
+.It _END Ar md5
+This statement ends the CTM delta, the global
+.Ar md5
+checksum is matched against the MD5 checksum of the entire delta, up to
+and including the space (0x20) character following ``_END''.
+.It \&FM Ar name uid gid mode md5 count
+Make the file
+.Ar name ,
+the original file had the uid
+.Ar uid
+(numerical, decimal),
+the gid
+.Ar gid
+(numerical, decimal),
+mode
+.Ar mode
+(numerical, octal),
+and the MD5 checksum
+.Ar md5 .
+.Pp
+The following
+.Ar count
+bytes data are the contents of the new file.
+.It \&FS Ar name uid gid mode md5before md5after count
+Substitute the contents of file
+.Ar name ,
+the original file had the new uid
+.Ar uid
+(numerical, decimal),
+the new gid
+.Ar gid
+(numerical, decimal),
+new mode
+.Ar mode
+(numerical, octal),
+the old MD5 checksum
+.Ar md5before ,
+and the new MD5 checksum
+.Ar md5after .
+.Pp
+The following
+.Ar count
+bytes data are the contents of the new file.
+.Pp
+File substitution is used if the commands to edit a file would exceed
+the total file length, so substituting it is more efficient.
+.It \&FN Ar name uid gid mode md5before md5after count
+Edit the file
+.Ar name .
+The arguments are as above, but the data sections contains an
+.Xr diff 1
+-n script which should be applied to the file in question.
+.It \&FR Ar name md5
+Remove the file
+.Ar name ,
+which must match the MD5 checksum
+.Ar md5 .
+.It \&AS Ar name uid gid mode
+The original file
+.Ar name
+changed its owner to
+.Ar uid ,
+its group to
+.Ar gid ,
+and/or its mode to
+.Ar mode .
+.It \&DM Ar name uid gid mode
+The directory
+.Ar name
+is to be created, it had originally the owner
+.Ar uid ,
+group
+.Ar gid ,
+and mode
+.Ar mode .
+.It \&DR Ar name
+The directory
+.Ar name
+is to be removed.
+.El
+.Sh EXAMPLES
+In the following example, long lines have been folded to make them
+printable
+(marked by backslashes).
+.Bd -literal
+CTM_BEGIN 2.0 cvs-cur 485 19950324214652Z .
+CTMFR src/sys/gnu/i386/isa/scd.c,v 5225f13aa3c7e458f9dd0d4bb637b18d
+CTMFR src/sys/gnu/i386/isa/scdreg.h,v e5af42b8a06f2c8030b93a7d71afb223
+CTMDM src/sys/gnu/i386/isa/Attic 0 552 775
+CTMFS .ctm_status 545 552 664 d9ccd2a84a9dbb8db56ba85663adebf0 \\
+e2a10c6f66428981782a0a18a789ee2e 12
+cvs-cur 485
+
+CTMFN CVSROOT/commitlogs/gnu 545 552 664 \\
+5d7bc3549140d860bd9641b5782c002d 7fb04ed84b48160c9b8eea84b4c0b6e3 394
+a6936 21
+ache        95/03/24 09:59:50
+
+  Modified:    gnu/lib/libdialog kernel.c prgbox.c
+  Log:
+[...]
+CTM_END 74ddd298d76215ae45a077a4b6a74e9c
+.Ed
+.Sh SEE ALSO
+.Xr ctm 1 ,
+.Xr ctm_rmail 1 ,
+.Xr ed 1
+.Sh HISTORY
+Initial trials ran during the
+.Fx 1.1.5 ,
+and many bugs and
+methods were hashed out.
+The CTM system has been made publicly available in
+.Fx 2.1 .
+.Sh AUTHORS
+The CTM system has been designed and implemented by
+.An Poul-Henning Kamp
+.Aq phk@FreeBSD.org .
+.Pp
+.An Joerg Wunsch
+.Aq joerg@FreeBSD.org
+wrote this man-page.

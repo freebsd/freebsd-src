@@ -1,0 +1,130 @@
+.\" @(#)man/man8/savelog.an	1.2 24 Oct 1990 05:18:46
+.de pP
+.if n .sp 1
+.if t .sp .4
+..
+.de tP
+.pP
+.ta \\n(pDu
+.ti -\\n(pDu
+..
+.TH SAVELOG X_MAN8_EXT_X "31 January 1988" "Local"
+.SH NAME
+savelog \- cycle and truncate log files
+.SH SYNOPSIS
+.na
+.B X_UTIL_BIN_DIR_X/savelog
+[
+.B \-m
+.I mode
+] [
+.B \-u
+.I user
+] [
+.B \-g
+.I group
+] [
+.B \-c
+.I cycle
+] [
+.B \-t
+] [
+.B \-l
+]
+.I logfile
+.br
+.ad
+.SH DESCRIPTION
+The
+.I savelog
+command renames and optionally compresses a log file and cycles it
+through a set of names based on the original log file, removing the
+last name in the cycle.
+.SH OPTIONS
+The
+.I savelog
+command accepts the following options:
+.TP
+\fB\-m\fP \fImode\fP
+Change the permissions mode for renamed log files to
+.IR mode .
+By default the mode is unchanged.
+.TP
+\fB\-u\fP \fIuser\fP
+Change the owner for renamed log files to
+.IR user .
+By default the owner is unchanged.
+.TP
+\fB\-g\fP \fIgroup\fP
+Change the group for renamed log files to
+.IR group .
+By default the group is unchanged.
+.TP
+\fB\-c\fP \fIcycle\fP
+Save
+.I cycle
+versions of the logfile, where
+.I cycle
+is a decimal number.  The default value is 7.
+.TP
+.B \-l
+Do not compress log files.  By default, a compression program is used,
+if one is available.
+.TP
+.B \-t
+Ensure that a new logfile exists when the savelog operation is
+complete.  Use of
+.BR \-m ,
+.BR \-u
+or
+.BR \-g
+imply this, ensuring that the logfile will have the designated mode.
+.SH "OPERATION"
+The given logfile is cycled through files named:
+.RS
+
+OLD/\fIfile\fP.\fInumber\fP
+
+.RE
+where
+.I file
+is the basename for the logfile and where
+.I number
+ranges from 0 to one less then the
+.I cycle
+count specified for the command.
+The
+.I OLD
+dirctory is created, as necessary, and is under the same directory as
+the logfile itself.
+.PP
+This cycle operation is accomplished by renaming the file numbered
+.IR cycle -2
+to a file numbered
+.IR cycle -1
+and so on until the file numbered 0 is renamed to the file numbered 1.
+If compression is being used, the first cycle file is compressed after
+being renamed to cycle 1.  After the cycle files are moved through the
+various names, the filefile itself is moved to the cycle 0 file.
+This cycle normally occurs once every time
+.I savelog
+is executed.
+If the log file does not exist, savelog ignores it and does
+not cycle the OLD files.
+.PP
+If compression is being used, then compressed log files will have an
+additional suffix appropriate for the compression program that is
+used.
+.SH "SEE ALSO"
+.IR smail (X_MAN5_EXT_X)
+and
+.IR smail (X_MAN8_EXT_X).
+.SH COPYRIGHT
+Copyright(C)1987, 1988 Ronald S. Karr and Landon Curt Noll
+.br
+See a file COPYING,
+distributed with the source code,
+or type
+.I "smail \-bc"
+for distribution rights and restrictions
+associated with this software.

@@ -1,0 +1,138 @@
+.\" $Id: kadmin.8,v 1.6 1998/12/18 16:56:29 assar Exp $
+.\" Copyright 1989 by the Massachusetts Institute of Technology.
+.\"
+.\" For copying and distribution information,
+.\" please see the file <mit-copyright.h>.
+.\"
+.Dd February  3, 1998
+.Dt KADMIN 8
+.Os "KTH-KRB"
+.Sh NAME
+.Nm kadmin
+.Nd "network utility for Kerberos database administration"
+.Sh SYNOPSIS
+.Nm
+.Op Fl p Ar principal
+.Op Fl u Ar username
+.Op Fl r Ar realm
+.Op Fl m
+.Op Fl T Ar timeout
+.Op Fl t
+.Op Fl -version
+.Op Fl h
+.Op Fl -help
+.Op Ar command
+.Sh DESCRIPTION
+This utility provides a unified administration interface to the
+Kerberos master database.  Kerberos administrators use
+.Nm
+to register new users and services to the master database, and to
+change information about existing database entries, such as changing a
+user's Kerberos password. A Kerberos administrator is a user with an
+.Dq admin
+instance whose name appears on one of the Kerberos administration
+access control lists.
+.Pp
+Supported options:
+.Bl -tag -width Ds
+.It Fl p Ar principal
+This is the adminstrator principal to use when talking to the Kadmin
+server. The default is taken from the users environment.
+.It Fl r Ar realm
+This is the default realm to use for transactions. Default is the
+local realm.
+.It Fl u Ar username
+This is similar to 
+.Fl p ,
+but specifies a name, that gets appended with a
+.Dq admin
+instance.
+.It Fl T Ar timeout
+To prevent someone from walking up to an unguarded terminal and doing
+malicious things, administrator tickets are destroyed after a period
+of inactivity. This flag changes the timeout from the default of one
+minute. A timeout of zero seconds disables this functionality.
+.It Fl m
+Historically
+.Nm
+destroyed tickets after every command; this flag used to stop this
+behaviour (only destroying tickets upon exit). Now it's just a synonym
+for
+.Fl T Ar 0 .
+.It Fl t
+Use existing tickets (if any are available), this also disbles
+timeout, and doesn't destroy any tickets upon exit.
+.Pp
+These tickets have to be for the changepw.kerberos service.  Use
+.Nm kinit -p
+to acquire them.
+.El
+.Pp
+The
+.Nm
+program communicates over the network with the
+.Nm kadmind
+program, which runs on the machine housing the Kerberos master
+database, and does the actual modifications to the database.
+.Pp
+When you enter the
+.Nm
+command, the program displays a message that welcomes you and explains
+how to ask for help.  Then
+.Nm
+waits for you to enter commands (which are described below).  It then
+asks you for your administrator's password before accessing the
+database.
+.Pp
+All commands can be abbreviated as long as they are unique.  Some
+short versions of the commands are also recognized for backwards
+compatibility.
+.Pp
+Recognised commands:
+.Bl -tag -width Ds
+.It add_new_key Ar principal
+Creates a new principal in the Kerberos database. You give the name of
+the new principal as an argument. You will then be asked for a maximum
+ticket lifetime, attributes, the expiration date of the principal, and
+finally the password of the principal.
+.It change_password Ar principal
+Changes a principal's password. You will be prompted for the new
+password.
+.It change_key Ar principal
+This is the same as change_password, but the password is given as a
+raw DES key (for the few occations when you need this).
+.It change_admin_password
+Changes your own admin password. It will prompt you for you old and
+new passwords.
+.It del_entry Ar principal
+Removes principal from the database.
+.It get_entry Ar principal
+Show various information for the given principal. Note that the key is
+shown as zeros.
+.It mod_entry Ar principal
+Modifies a particular entry, for instance to change the expiration
+date.  
+.It destroy_tickets
+Destroys your admin tickets explicitly.
+.It quit
+Obvious.
+.El
+.\".Sh ENVIRONMENT
+.\".Sh FILES
+.\".Sh EXAMPLES
+.\".Sh DIAGNOSTICS
+.Sh SEE ALSO
+.Xr kerberos 1 ,
+.Xr kadmind 8 ,
+.Xr kpasswd 1 ,
+.Xr kinit 1 ,
+.Xr ksrvutil 8
+.\".Sh STANDARDS
+.\".Sh HISTORY
+.Sh AUTHORS
+Jeffrey I. Schiller, MIT Project Athena
+.Pp
+Emanuel Jay Berkenbilt, MIT Project Athena
+.Sh BUGS
+The user interface is primitive, and the command names could be
+better.

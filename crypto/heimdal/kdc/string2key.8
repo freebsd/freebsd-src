@@ -1,0 +1,79 @@
+.\" $Id: string2key.8,v 1.5 2002/08/20 16:37:16 joda Exp $
+.\"
+.Dd March  4, 2000
+.Dt STRING2KEY 8
+.Os HEIMDAL
+.Sh NAME
+.Nm string2key
+.Nd map a password into a key
+.Sh SYNOPSIS
+.Nm
+.Op Fl 5 | Fl -version5
+.Op Fl 4 | Fl -version4
+.Op Fl a | Fl -afs
+.Oo Fl c Ar cell \*(Ba Xo
+.Fl -cell= Ns Ar cell
+.Xc
+.Oc
+.Oo Fl w Ar password \*(Ba Xo
+.Fl -password= Ns Ar password
+.Xc
+.Oc
+.Oo Fl p Ar principal \*(Ba Xo
+.Fl -principal= Ns Ar principal
+.Xc
+.Oc
+.Oo Fl k Ar string \*(Ba Xo
+.Fl -keytype= Ns Ar string
+.Xc
+.Oc
+.Ar password
+.Sh DESCRIPTION
+.Nm
+performs the string-to-key function.
+This is useful when you want to handle the raw key instead of the password.
+Supported options:
+.Bl -tag -width Ds
+.It Xo
+.Fl 5 ,
+.Fl -version5
+.Xc
+Output Kerberos v5 string-to-key
+.It Xo
+.Fl 4 ,
+.Fl -version4
+.Xc
+Output Kerberos v4 string-to-key
+.It Xo
+.Fl a ,
+.Fl -afs
+.Xc
+Output AFS string-to-key
+.It Xo
+.Fl c Ar cell ,
+.Fl -cell= Ns Ar cell
+.Xc
+AFS cell to use
+.It Xo
+.Fl w Ar password ,
+.Fl -password= Ns Ar password
+.Xc
+Password to use
+.It Xo
+.Fl p Ar principal ,
+.Fl -principal= Ns Ar principal
+.Xc
+Kerberos v5 principal to use
+.It Xo
+.Fl k Ar string ,
+.Fl -keytype= Ns Ar string
+.Xc
+Keytype
+.It Xo
+.Fl -version
+.Xc
+print version
+.It Xo
+.Fl -help
+.Xc
+.El

@@ -1,0 +1,18 @@
+Changes from the earlier BETA releases.
+
+o dbm_prep does everything now, so dbm_open is just a simple
+  wrapper that builds the default filenames. dbm_prep no longer
+  requires a (DBM *) db parameter: it allocates one itself. It
+  returns (DBM *) db or (DBM *) NULL.
+
+o makroom is now reliable. In the common-case optimization of the page
+  split, the page into which the incoming key/value pair is to be inserted
+  is write-deferred (if the split is successful), thereby saving a cosly
+  write.  BUT, if the split does not make enough room (unsuccessful), the
+  deferred page is written out, as the failure-window is now dependent on
+  the number of split attempts.
+
+o if -DDUFF is defined, hash function will also use the DUFF construct.
+  This may look like a micro-performance tweak (maybe it is), but in fact,
+  the hash function is the third most-heavily used function, after read
+  and write.

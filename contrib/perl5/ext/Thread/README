@@ -1,0 +1,20 @@
+See the README.threads in the main perl 5.004_xx development
+distribution (x >= 50) for details of how to build and use this.
+If all else fails, read on.
+
+If your version of patch can't create a file from scratch, then you'll
+need to create an empty thread.h manually first.  Perl itself will need
+to be built with -DUSE_THREADS yet. If you're using MIT pthreads or
+another threads package that needs pthread_init() to be called, then
+add -DNEED_PTHREAD_INIT. If you're using a threads library that only
+follows one of the old POSIX drafts, then you'll probably need to add
+-DOLD_PTHREADS_API. I haven't tested -DOLD_PTHREADS_API properly yet
+and I think you may still have to tweak a couple of the mutex calls
+to follow the old API.
+
+This extension is copyright Malcolm Beattie 1995-1997 and is freely
+distributable under your choice of the GNU Public License or the
+Artistic License (see the main perl distribution).
+
+Malcolm Beattie
+mbeattie@sable.ox.ac.uk

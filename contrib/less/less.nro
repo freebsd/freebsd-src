@@ -1,0 +1,1515 @@
+.TH LESS 1 "Version 358: 08 Jul 2000"
+.SH NAME
+less \- opposite of more
+.SH SYNOPSIS
+.B "less -?"
+.br
+.B "less --help"
+.br
+.B "less -V"
+.br
+.B "less --version"
+.br
+.B "less [-[+]aBcCdeEfgGiImMnNqQrsSuUVwX]"
+.br
+.B "     [-b \fIbufs\fP] [-h \fIlines\fP] [-j \fIline\fP] [-k \fIkeyfile\fP]"
+.br
+.B "     [-{oO} \fIlogfile\fP] [-p \fIpattern\fP] [-P \fIprompt\fP] [-t \fItag\fP]"
+.br
+.B "     [-T \fItagsfile\fP] [-x \fItab\fP] [-y \fIlines\fP] [-[z] \fIlines\fP]"
+.br
+.B "     [+[+]\fIcmd\fP] [--] [\fIfilename\fP]..."
+.br
+(See the OPTIONS section for alternate option syntax with long option names.)
+
+.SH DESCRIPTION
+.I Less
+is a program similar to 
+.I more
+(1), but which allows backward movement
+in the file as well as forward movement.
+Also,
+.I less
+does not have to read the entire input file before starting,
+so with large input files it starts up faster than text editors like
+.I vi
+(1).
+.I Less
+uses termcap (or terminfo on some systems),
+so it can run on a variety of terminals.
+There is even limited support for hardcopy terminals.
+(On a hardcopy terminal, lines which should be printed at the top
+of the screen are prefixed with a caret.)
+.PP
+Commands are based on both
+.I more
+and
+.I vi.
+Commands may be preceded by a decimal number, 
+called N in the descriptions below.
+The number is used by some commands, as indicated.
+
+.SH COMMANDS
+In the following descriptions, ^X means control-X.
+ESC stands for the ESCAPE key; for example ESC-v means the
+two character sequence "ESCAPE", then "v".
+.IP "h or H"
+Help: display a summary of these commands.
+If you forget all the other commands, remember this one.
+.IP "SPACE or ^V or f or ^F"
+Scroll forward N lines, default one window (see option -z below).
+If N is more than the screen size, only the final screenful is displayed.
+Warning: some systems use ^V as a special literalization character.
+.IP "z"
+Like SPACE, but if N is specified, it becomes the new window size.
+.IP "ESC-SPACE"
+Like SPACE, but scrolls a full screenful, even if it reaches
+end-of-file in the process.
+.IP "RETURN or ^N or e or ^E or j or ^J"
+Scroll forward N lines, default 1.
+The entire N lines are displayed, even if N is more than the screen size.
+.IP "d or ^D"
+Scroll forward N lines, default one half of the screen size.
+If N is specified, it becomes the new default for 
+subsequent d and u commands.
+.IP "b or ^B or ESC-v"
+Scroll backward N lines, default one window (see option -z below).
+If N is more than the screen size, only the final screenful is displayed.
+.IP "w"
+Like ESC-v, but if N is specified, it becomes the new window size.
+.IP "y or ^Y or ^P or k or ^K"
+Scroll backward N lines, default 1.
+The entire N lines are displayed, even if N is more than the screen size.
+Warning: some systems use ^Y as a special job control character.
+.IP "u or ^U"
+Scroll backward N lines, default one half of the screen size.
+If N is specified, it becomes the new default for 
+subsequent d and u commands.
+.IP "ESC-) or RIGHTARROW"
+Scroll horizontally right N characters, default half the screen width
+(see the -# option).
+While the text is scrolled, it acts as though the -S option
+(chop lines) were in effect.
+Note that if you wish to enter a number N, you must use ESC-), not RIGHTARROW,
+because the arrow is taken to be a line editing command
+(see the LINE EDITING section).
+.IP "ESC-( or LEFTARROW"
+Scroll horizontally left N characters, default half the screen width
+(see the -# option).
+.IP "r or ^R or ^L"
+Repaint the screen.
+.IP R
+Repaint the screen, discarding any buffered input.
+Useful if the file is changing while it is being viewed.
+.IP "F"
+Scroll forward, and keep trying to read when the
+end of file is reached.
+Normally this command would be used when already at the end of the file.
+It is a way to monitor the tail of a file which is growing
+while it is being viewed.
+(The behavior is similar to the "tail -f" command.)
+.IP "g or < or ESC-<"
+Go to line N in the file, default 1 (beginning of file).
+(Warning: this may be slow if N is large.)
+.IP "G or > or ESC->"
+Go to line N in the file, default the end of the file.
+(Warning: this may be slow if N is large,
+or if N is not specified and
+standard input, rather than a file, is being read.)
+.IP "p or %"
+Go to a position N percent into the file.
+N should be between 0 and 100.
+.IP "{"
+If a left curly bracket appears in the top line displayed
+on the screen,
+the { command will go to the matching right curly bracket.
+The matching right curly bracket is positioned on the bottom
+line of the screen.
+If there is more than one left curly bracket on the top line,
+a number N may be used to specify the N-th bracket on the line.
+.IP "}"
+If a right curly bracket appears in the bottom line displayed
+on the screen,
+the } command will go to the matching left curly bracket.
+The matching left curly bracket is positioned on the top
+line of the screen.
+If there is more than one right curly bracket on the top line,
+a number N may be used to specify the N-th bracket on the line.
+.IP "("
+Like {, but applies to parentheses rather than curly brackets.
+.IP ")"
+Like }, but applies to parentheses rather than curly brackets.
+.IP "["
+Like {, but applies to square brackets rather than curly brackets.
+.IP "]"
+Like }, but applies to square brackets rather than curly brackets.
+.IP "ESC-^F"
+Followed by two characters,
+acts like {, but uses the two characters as open and close brackets,
+respectively.
+For example, "ESC ^F < >" could be used to 
+go forward to the > which matches the < in the top displayed line.
+.IP "ESC-^B"
+Followed by two characters,
+acts like }, but uses the two characters as open and close brackets,
+respectively.
+For example, "ESC ^B < >" could be used to 
+go backward to the < which matches the > in the bottom displayed line.
+.IP m
+Followed by any lowercase letter, 
+marks the current position with that letter.
+.IP "'"
+(Single quote.)
+Followed by any lowercase letter, returns to the position which
+was previously marked with that letter.
+Followed by another single quote, returns to the position at
+which the last "large" movement command was executed.
+Followed by a ^ or $, jumps to the beginning or end of the
+file respectively.
+Marks are preserved when a new file is examined,
+so the ' command can be used to switch between input files.
+.IP "^X^X"
+Same as single quote.
+.IP /pattern
+Search forward in the file for the N-th line containing the pattern.
+N defaults to 1.
+The pattern is a regular expression, as recognized by
+.I ed.
+The search starts at the second line displayed
+(but see the -a and -j options, which change this).
+.sp
+Certain characters are special
+if entered at the beginning of the pattern;
+they modify the type of search rather than become part of the pattern:
+.RS
+.IP "^N or !"
+Search for lines which do NOT match the pattern.
+.IP "^E or *"
+Search multiple files.
+That is, if the search reaches the END of the current file 
+without finding a match,
+the search continues in the next file in the command line list.
+.IP "^F or @"
+Begin the search at the first line of the FIRST file
+in the command line list,
+regardless of what is currently displayed on the screen
+or the settings of the -a or -j options.
+.IP "^K"
+Highlight any text which matches the pattern on the current screen, 
+but don't move to the first match (KEEP current position).
+.IP "^R"
+Don't interpret regular expression metacharacters;
+that is, do a simple textual comparison.
+.RE
+.IP ?pattern
+Search backward in the file for the N-th line containing the pattern.
+The search starts at the line immediately before the top line displayed.
+.sp
+Certain characters are special as in the / command:
+.RS
+.IP "^N or !"
+Search for lines which do NOT match the pattern.
+.IP "^E or *"
+Search multiple files.
+That is, if the search reaches the beginning of the current file 
+without finding a match,
+the search continues in the previous file in the command line list.
+.IP "^F or @"
+Begin the search at the last line of the last file
+in the command line list,
+regardless of what is currently displayed on the screen
+or the settings of the -a or -j options.
+.IP "^K"
+As in forward searches.
+.IP "^R"
+As in forward searches.
+.RE
+.IP "ESC-/pattern"
+Same as "/*".
+.IP "ESC-?pattern"
+Same as "?*".
+.IP n
+Repeat previous search, for N-th line containing the last pattern.
+If the previous search was modified by ^N, the search is made for the
+N-th line NOT containing the pattern.
+If the previous search was modified by ^E, the search continues
+in the next (or previous) file if not satisfied in the current file.
+If the previous search was modified by ^R, the search is done
+without using regular expressions.
+There is no effect if the previous search was modified by ^F or ^K.
+.IP N
+Repeat previous search, but in the reverse direction.
+.IP "ESC-n"
+Repeat previous search, but crossing file boundaries.
+The effect is as if the previous search were modified by *.
+.IP "ESC-N"
+Repeat previous search, but in the reverse direction
+and crossing file boundaries.
+.IP "ESC-u"
+Undo search highlighting.
+Turn off highlighting of strings matching the current search pattern. 
+If highlighting is already off because of a previous ESC-u command,
+turn highlighting back on.
+Any search command will also turn highlighting back on.
+(Highlighting can also be disabled by toggling the -G option;
+in that case search commands do not turn highlighting back on.)
+.IP ":e [filename]"
+Examine a new file.
+If the filename is missing, the "current" file (see the :n and :p commands
+below) from the list of files in the command line is re-examined.
+A percent sign (%) in the filename is replaced by the name of the
+current file.  
+A pound sign (#) is replaced by the name of the previously examined file.
+However, two consecutive percent signs are simply 
+replaced with a single percent sign.  
+This allows you to enter a filename that contains a percent sign
+in the name.
+Similarly, two consecutive pound signs are replaced with a single pound sign.
+The filename is inserted into the command line list of files
+so that it can be seen by subsequent :n and :p commands.
+If the filename consists of several files, they are all inserted into
+the list of files and the first one is examined.
+If the filename contains one or more spaces,
+the entire filename should be enclosed in double quotes
+(also see the -" option).
+.IP "^X^V or E"
+Same as :e.
+Warning: some systems use ^V as a special literalization character.
+On such systems, you may not be able to use ^V.
+.IP ":n"
+Examine the next file (from the list of files given in the command line).
+If a number N is specified, the N-th next file is examined.
+.IP ":p"
+Examine the previous file in the command line list.
+If a number N is specified, the N-th previous file is examined.
+.IP ":x"
+Examine the first file in the command line list.
+If a number N is specified, the N-th file in the list is examined.
+.IP ":d"
+Remove the current file from the list of files.
+.IP "= or ^G or :f"
+Prints some information about the file being viewed,
+including its name
+and the line number and byte offset of the bottom line being displayed.
+If possible, it also prints the length of the file,
+the number of lines in the file
+and the percent of the file above the last displayed line.
+.IP \-
+Followed by one of the command line option letters (see OPTIONS below),
+this will change the setting of that option
+and print a message describing the new setting.
+If a ^P (CONTROL-P) is entered immediately after the dash,
+the setting of the option is changed but no message is printed.
+If the option letter has a numeric value (such as -b or -h),
+or a string value (such as -P or -t),
+a new value may be entered after the option letter.
+If no new value is entered, a message describing
+the current setting is printed and nothing is changed.
+.IP \-\-
+Like the \- command, but takes a long option name (see OPTIONS below)
+rather than a single option letter.
+You must press RETURN after typing the option name.
+A ^P immediately after the second dash suppresses printing of a 
+message describing the new setting, as in the \- command.
+.IP \-+
+Followed by one of the command line option letters
+this will reset the option to its default setting
+and print a message describing the new setting.
+(The "\-+\fIX\fP" command does the same thing
+as "\-+\fIX\fP" on the command line.)
+This does not work for string-valued options.
+.IP \-\-+
+Like the \-+ command, but takes a long option name
+rather than a single option letter.
+.IP \-!
+Followed by one of the command line option letters,
+this will reset the option to the "opposite" of its default setting
+and print a message describing the new setting.
+This does not work for numeric or string-valued options.
+.IP \-\-!
+Like the \-! command, but takes a long option name
+rather than a single option letter.
+.IP _
+(Underscore.)
+Followed by one of the command line option letters,
+this will print a message describing the current setting of that option.
+The setting of the option is not changed.
+.IP __
+(Double underscore.)
+Like the _ (underscore) command, but takes a long option name
+rather than a single option letter.
+You must press RETURN after typing the option name.
+.IP +cmd
+Causes the specified cmd to be executed each time a new file is examined.
+For example, +G causes 
+.I less
+to initially display each file starting at the end 
+rather than the beginning.
+.IP V
+Prints the version number of 
+.I less 
+being run.
+.IP "q or Q or :q or :Q or ZZ"
+Exits
+.I less.
+.PP
+The following 
+four
+commands may or may not be valid, depending on your particular installation.
+.PP
+.IP v
+Invokes an editor to edit the current file being viewed.
+The editor is taken from the environment variable VISUAL if defined,
+or EDITOR if VISUAL is not defined,
+or defaults to "vi" if neither VISUAL nor EDITOR is defined.
+See also the discussion of LESSEDIT under the section on PROMPTS below.
+.IP "! shell-command"
+Invokes a shell to run the shell-command given.
+A percent sign (%) in the command is replaced by the name of the
+current file.  
+A pound sign (#) is replaced by the name of the previously examined file.
+"!!" repeats the last shell command.
+"!" with no shell command simply invokes a shell.
+On Unix systems, the shell is taken from the environment variable SHELL,
+or defaults to "sh".
+On MS-DOS and OS/2 systems, the shell is the normal command processor.
+.IP "| <m> shell-command"
+<m> represents any mark letter.
+Pipes a section of the input file to the given shell command.
+The section of the file to be piped is between the first line on
+the current screen and the position marked by the letter.
+<m> may also be ^ or $ to indicate beginning or end of file respectively.
+If <m> is . or newline, the current screen is piped.
+.IP "s filename"
+Save the input to a file.
+This only works if the input is a pipe, not an ordinary file.
+.PP
+.SH OPTIONS
+Command line options are described below.
+Most options may be changed while
+.I less 
+is running, via the "\-" command.
+.PP
+Most options may be given in one of two forms: 
+either a dash followed by a single letter,
+or two dashes followed by a long option name.
+A long option name may be abbreviated as long as
+the abbreviation is unambiguous.
+For example, --quit-at-eof may be abbreviated --quit, but not
+--qui, since both --quit-at-eof and --quiet begin with --qui.
+Some long option names are in uppercase, such as --QUIT-AT-EOF, as
+distinct from --quit-at-eof.
+Such option names need only have their first letter capitalized;
+the remainder of the name may be in either case.
+For example, --Quit-at-eof is equivalent to --QUIT-AT-EOF.
+.PP
+Options are also taken from the environment variable "LESS".
+For example, 
+to avoid typing "less -options ..." each time 
+.I less 
+is invoked, you might tell 
+.I csh:
+.sp
+setenv LESS "-options"
+.sp
+or if you use 
+.I sh:
+.sp
+LESS="-options"; export LESS
+.sp
+On MS-DOS, you don't need the quotes, but you should replace any 
+percent signs in the options string by double percent signs.
+.sp
+The environment variable is parsed before the command line,
+so command line options override the LESS environment variable.
+If an option appears in the LESS variable, it can be reset
+to its default value on the command line by beginning the command
+line option with "\-+".
+.sp
+For options like -P or -D which take a following string,
+a dollar sign ($) must be used to signal the end of the string.
+For example, to set two -D options on MS-DOS, you must have
+a dollar sign between them, like this:
+.sp
+LESS="-Dn9.1$-Ds4.1"
+.sp
+.IP "-? or --help"
+This option displays a summary of the commands accepted by
+.I less
+(the same as the h command).
+(Depending on how your shell interprets the question mark,
+it may be necessary to quote the question mark, thus: "-\\?".)
+.IP "-a or --search-skip-screen"
+Causes searches to start after the last line
+displayed on the screen, 
+thus skipping all lines displayed on the screen.
+By default, searches start at the second line on the screen
+(or after the last found line; see the -j option).
+.IP "-b\fIn\fP or --buffers=\fIn\fP"
+Specifies the number of buffers
+.I less
+will use for each file.
+Buffers are 1K, and by default 10 buffers are used for each file
+(except if the file is a pipe; see the -B option).
+The number \fIn\fP specifies a different number of buffers to use.
+.IP "-B or --auto-buffers"
+By default, when data is read from a pipe,
+buffers are allocated automatically as needed.
+If a large amount of data is read from the pipe, this can cause
+a large amount of memory to be allocated.
+The -B option disables this automatic allocation of buffers for pipes,
+so that only the number of buffers specified by the -b option are used.
+Warning: use of -B can result in erroneous display, since only the
+most recently viewed part of the file is kept in memory; 
+any earlier data is lost.
+.IP "-c or --clear-screen"
+Causes full screen repaints to be painted from the top line down.
+By default,
+full screen repaints are done by scrolling from the bottom of the screen.
+.IP "-C or --CLEAR-SCREEN"
+The -C option is like -c, but the screen is cleared before it is repainted.
+.IP "-d or --dumb"
+The -d option suppresses the error message
+normally displayed if the terminal is dumb;
+that is, lacks some important capability,
+such as the ability to clear the screen or scroll backward.
+The -d option does not otherwise change the behavior of
+.I less
+on a dumb terminal).
+.IP "-D\fBx\fP\fIcolor\fP or --color=\fBx\fP\fIcolor\fP"
+[MS-DOS only]
+Sets the color of the text displayed.
+\fBx\fP is a single character which selects the type of text whose color is 
+being set: n=normal, s=standout, d=bold, u=underlined, k=blink.
+\fIcolor\fP is a pair of numbers separated by a period.  
+The first number selects the foreground color and the second selects 
+the background color of the text.
+A single number \fIN\fP is the same as \fIN.0\fP.
+.IP "-e or --quit-at-eof"
+Causes 
+.I less 
+to automatically exit
+the second time it reaches end-of-file.
+By default, the only way to exit 
+.I less
+is via the "q" command.
+.IP "-E or --QUIT-AT-EOF"
+Causes 
+.I less
+to automatically exit the first time it reaches end-of-file.
+.IP "-f or --force"
+Forces non-regular files to be opened.
+(A non-regular file is a directory or a device special file.)
+Also suppresses the warning message when a binary file is opened.
+By default,
+.I less
+will refuse to open non-regular files.
+.IP "-F or --quit-if-one-screen"
+Causes
+.I less
+to automatically exit
+if the entire file can be displayed on the first screen.
+.IP "-g or --hilite-search"
+Normally, 
+.I less 
+will highlight ALL strings which match the last search command.
+The -g option changes this behavior to highlight only the particular string 
+which was found by the last search command.
+This can cause 
+.I less 
+to run somewhat faster than the default.
+.IP "-G or --HILITE-SEARCH"
+The -G option suppresses all highlighting of strings found by search commands.
+.IP "-h\fIn\fP or ---max-back-scroll=\fIn\fP"
+Specifies a maximum number of lines to scroll backward.
+If it is necessary to scroll backward more than \fIn\fP lines,
+the screen is repainted in a forward direction instead.
+(If the terminal does not have the ability to scroll
+backward, -h0 is implied.)
+.IP "-i or --ignore-case"
+Causes searches to ignore case; that is,
+uppercase and lowercase are considered identical.
+This option is ignored if any uppercase letters
+appear in the search pattern; 
+in other words,
+if a pattern contains uppercase letters, then that search does not ignore case.
+.IP "-I or --IGNORE-CASE"
+Like -i, but searches ignore case even if 
+the pattern contains uppercase letters.
+.IP "-j\fIn\fP or --jump-target=\fIn\fP"
+Specifies a line on the screen where the "target" line
+is to be positioned.
+A target line is the object of a text search, 
+tag search, jump to a line number,
+jump to a file percentage, or jump to a marked position.
+The screen line is specified by a number: the top line on the screen
+is 1, the next is 2, and so on.
+The number may be negative to specify a line relative to the bottom
+of the screen: the bottom line on the screen is -1, the second
+to the bottom is -2, and so on.
+If the -j option is used, searches begin at the line immediately
+after the target line.
+For example, if "-j4" is used, the target line is the
+fourth line on the screen, so searches begin at the fifth line
+on the screen.
+.IP "-J or --status-column"
+Displays a status column at the left edge of the screen.
+The status column is used only if the -w or -W option is in effect.
+.IP "-k\fIfilename\fP or --lesskey-file=\fIfilename\fP"
+Causes
+.I less
+to open and interpret the named file as a
+.I lesskey
+(1) file.
+Multiple -k options may be specified.
+If the LESSKEY or LESSKEY_SYSTEM environment variable is set, or
+if a lesskey file is found in a standard place (see KEY BINDINGS),
+it is also used as a 
+.I lesskey
+file.
+.IP "-m or --long-prompt"
+Causes 
+.I less
+to prompt verbosely (like \fImore\fP),
+with the percent into the file.
+By default,
+.I less
+prompts with a colon.
+.IP "-M or --LONG-PROMPT"
+Causes 
+.I less
+to prompt even more verbosely than 
+.I more.
+.IP "-n or --line-numbers"
+Suppresses line numbers.
+The default (to use line numbers) may cause
+.I less
+to run more slowly in some cases, especially with a very large input file.
+Suppressing line numbers with the -n option will avoid this problem.
+Using line numbers means: the line number will be displayed in the verbose
+prompt and in the = command,
+and the v command will pass the current line number to the editor
+(see also the discussion of LESSEDIT in PROMPTS below).
+.IP "-N or --LINE-NUMBERS"
+Causes a line number to be displayed at the beginning of
+each line in the display.
+.IP "-o\fIfilename\fP or --log-file=\fIfilename\fP"
+Causes
+.I less
+to copy its input to the named file as it is being viewed.
+This applies only when the input file is a pipe,
+not an ordinary file.
+If the file already exists, 
+.I less
+will ask for confirmation before overwriting it.
+.IP "-O\fIfilename\fP or --LOG-FILE=\fIfilename\fP"
+The -O option is like -o, but it will overwrite an existing
+file without asking for confirmation.
+.sp
+If no log file has been specified,
+the -o and -O options can be used from within 
+.I less
+to specify a log file.
+Without a file name, they will simply report the name of the log file.
+The "s" command is equivalent to specifying -o from within
+.I less.
+.IP "-p\fIpattern\fP or --pattern=\fIpattern\fP"
+The -p option on the command line is equivalent to 
+specifying +/\fIpattern\fP;
+that is, it tells
+.I less
+to start at the first occurrence of \fIpattern\fP in the file.
+.IP "-P\fIprompt\fP or --prompt=\fIprompt\fP"
+Provides a way to tailor the three prompt
+styles to your own preference.
+This option would normally be put in the LESS environment
+variable, rather than being typed in with each 
+.I less
+command.
+Such an option must either be the last option in the LESS variable,
+or be terminated by a dollar sign.
+-Ps followed by a string changes the default (short) prompt 
+to that string.
+-Pm changes the medium (-m) prompt.
+-PM changes the long (-M) prompt.
+-Ph changes the prompt for the help screen.
+-P= changes the message printed by the = command.
+All prompt strings consist of a sequence of 
+letters and special escape sequences.
+See the section on PROMPTS for more details.
+.IP "-q or --quiet or --silent"
+Causes moderately "quiet" operation:
+the terminal bell is not rung 
+if an attempt is made to scroll past the end of the file
+or before the beginning of the file.
+If the terminal has a "visual bell", it is used instead.
+The bell will be rung on certain other errors,
+such as typing an invalid character.
+The default is to ring the terminal bell in all such cases.
+.IP "-Q or --QUIET or --SILENT"
+Causes totally "quiet" operation:
+the terminal bell is never rung.
+.IP "-r or --raw-control-chars"
+Causes "raw" control characters to be displayed.
+The default is to display control characters using the caret notation;
+for example, a control-A (octal 001) is displayed as "^A".
+Warning: when the -r option is used,
+.I less
+cannot keep track of the actual appearance of the screen
+(since this depends on how the screen responds to
+each type of control character).
+Thus, various display problems may result,
+such as long lines being split in the wrong place.
+.IP "-R or --RAW-CONTROL-CHARS"
+Like -r, but tries to keep track of the screen appearance where possible.
+This works only if the input consists of normal text and possibly some
+ANSI "color" escape sequences, which are sequences of the form:
+.sp
+	ESC [ ... m
+.sp
+where the "..." is zero or more characters other than "m".
+For the purpose of keeping track of screen appearance,
+all control characters and all ANSI color escape sequences are
+assumed to not move the cursor.
+You can make
+.I less
+think that characters other than "m" can end ANSI color escape sequences
+by setting the environment variable LESSANSIENDCHARS to the list of
+characters which can end a color escape sequence.
+.IP "-s or --squeeze-blank-lines"
+Causes consecutive blank lines to be squeezed into a single blank line.
+This is useful when viewing
+.I nroff
+output.
+.IP "-S or --chop-long-lines"
+Causes lines longer than the screen width to be
+chopped rather than folded.
+That is, the remainder of a long line is simply discarded.
+The default is to fold long lines; that is, display the remainder
+on the next line.
+.IP "-t\fItag\fP or --tag=\fItag\fP"
+The -t option, followed immediately by a TAG,
+will edit the file containing that tag.
+For this to work, there must be a file called "tags" in the
+current directory, which was previously built by the 
+.I ctags
+(1) command.
+This option may also be specified from within 
+.I less 
+(using the \- command) as a way of examining a new file.
+The command ":t" is equivalent to specifying -t from within
+.I less.
+.IP "-T\fItagsfile\fP or --tag-file=\fItagsfile\fP"
+Specifies a tags file to be used instead of "tags".
+.IP "-u or --underline-special"
+Causes backspaces and carriage returns to be treated as printable characters;
+that is, they are sent to the terminal when they appear in the input.
+.IP "-U or --UNDERLINE-SPECIAL"
+Causes backspaces, tabs and carriage returns to be 
+treated as control characters;
+that is, they are handled as specified by the -r option.
+.sp
+By default, if neither -u nor -U is given,
+backspaces which appear adjacent to an underscore character
+are treated specially:
+the underlined text is displayed 
+using the terminal's hardware underlining capability.
+Also, backspaces which appear between two identical characters
+are treated specially: 
+the overstruck text is printed 
+using the terminal's hardware boldface capability.
+Other backspaces are deleted, along with the preceding character.
+Carriage returns immediately followed by a newline are deleted.
+other carriage returns are handled as specified by the -r option.
+Text which is overstruck or underlined can be searched for
+if neither -u nor -U is in effect.
+.IP "-V or --version"
+Displays the version number of 
+.I less.
+.IP "-w or --hilite-unread"
+Temporarily highlights the first "new" line after a forward movement
+of a full page.
+The first "new" line is the line immediately following the line previously
+at the bottom of the screen.
+Also highlights the target line after a g or p command.
+The highlight is removed at the next command which causes movement.
+The entire line is highlighted, unless the -J option is in effect,
+in which case only the status column is highlighted.
+.IP "-W or --HILITE-UNREAD"
+Like -w, but temporarily highlights the first new line after any 
+forward movement command larger than one line.
+.IP "-x\fIn\fP or --tabs=\fIn\fP"
+Sets tab stops every \fIn\fP positions.
+The default for \fIn\fP is 8.
+.IP "-X or --no-init"
+Disables sending the termcap initialization and deinitialization strings
+to the terminal.
+This is sometimes desirable if the deinitialization string does
+something unnecessary, like clearing the screen.
+.IP "-y\fIn\fP or --max-forw-scroll=\fIn\fP"
+Specifies a maximum number of lines to scroll forward.
+If it is necessary to scroll forward more than \fIn\fP lines,
+the screen is repainted instead.
+The -c or -C option may be used to repaint from the top of
+the screen if desired.
+By default, any forward movement causes scrolling.
+.IP "-[z]\fIn\fP or --window=\fIn\fP"
+Changes the default scrolling window size to \fIn\fP lines.
+The default is one screenful.
+The z and w commands can also be used to change the window size.
+The "z" may be omitted for compatibility with
+.I more.
+If the number
+.I n
+is negative, it indicates 
+.I n
+lines less than the current screen size.
+For example, if the screen is 24 lines, \fI-z-4\fP sets the 
+scrolling window to 20 lines.  If the screen is resized to 40 lines,
+the scrolling window automatically changes to 36 lines.
+.IP -"\fIcc\fP\ or\ --quotes=\fIcc\fP
+Changes the filename quoting character.
+This may be necessary if you are trying to name a file
+which contains both spaces and quote characters.
+Followed by a single character, this changes the quote character to that
+character.
+Filenames containing a space should then be surrounded by that character
+rather than by double quotes.
+Followed by two characters, changes the open quote to the first character,
+and the close quote to the second character.
+Filenames containing a space should then be preceded by the open quote
+character and followed by the close quote character.
+Note that even after the quote characters are changed, this option
+remains -" (a dash followed by a double quote).
+.IP "-~ or --tilde"
+Normally lines after end of file are displayed as a single tilde (~).
+This option causes lines after end of file to be displayed as blank lines.
+.IP "-# or --shift"
+Specifies the default number of positions to scroll horizontally
+in the RIGHTARROW and LEFTARROW commands.
+If the number specified is zero, it sets the default number of
+positions to one half of the screen width.
+.IP --
+A command line argument of "--" marks the end of option arguments.
+Any arguments following this are interpreted as filenames.
+This can be useful when viewing a file whose name begins with a "-" or "+".
+.IP +
+If a command line option begins with \fB+\fP,
+the remainder of that option is taken to be an initial command to
+.I less.
+For example, +G tells
+.I less
+to start at the end of the file rather than the beginning,
+and +/xyz tells it to start at the first occurrence of "xyz" in the file.
+As a special case, +<number> acts like +<number>g; 
+that is, it starts the display at the specified line number
+(however, see the caveat under the "g" command above).
+If the option starts with ++, the initial command applies to
+every file being viewed, not just the first one.
+The + command described previously
+may also be used to set (or change) an initial command for every file.
+
+.SH "LINE EDITING"
+When entering command line at the bottom of the screen
+(for example, a filename for the :e command,
+or the pattern for a search command),
+certain keys can be used to manipulate the command line.
+Most commands have an alternate form in [ brackets ] which can be used if
+a key does not exist on a particular keyboard. 
+(The bracketed forms do not work in the MS-DOS version.)
+Any of these special keys may be entered literally by preceding
+it with the "literal" character, either ^V or ^A.
+A backslash itself may also be entered literally by entering two backslashes.
+.IP "LEFTARROW [ ESC-h ]"
+Move the cursor one space to the left.
+.IP "RIGHTARROW [ ESC-l ]"
+Move the cursor one space to the right.
+.IP "^LEFTARROW [ ESC-b or ESC-LEFTARROW ]"
+(That is, CONTROL and LEFTARROW simultaneously.)
+Move the cursor one word to the left.
+.IP "^RIGHTARROW [ ESC-w or ESC-RIGHTARROW ]"
+(That is, CONTROL and RIGHTARROW simultaneously.)
+Move the cursor one word to the right.
+.IP "HOME [ ESC-0 ]"
+Move the cursor to the beginning of the line.
+.IP "END [ ESC-$ ]"
+Move the cursor to the end of the line.
+.IP "BACKSPACE"
+Delete the character to the left of the cursor,
+or cancel the command if the command line is empty.
+.IP "DELETE or [ ESC-x ]"
+Delete the character under the cursor.
+.IP "^BACKSPACE [ ESC-BACKSPACE ]"
+(That is, CONTROL and BACKSPACE simultaneously.)
+Delete the word to the left of the cursor.
+.IP "^DELETE [ ESC-X or ESC-DELETE ]"
+(That is, CONTROL and DELETE simultaneously.)
+Delete the word under the cursor.
+.IP "UPARROW [ ESC-k ]"
+Retrieve the previous command line.
+.IP "DOWNARROW [ ESC-j ]"
+Retrieve the next command line.
+.IP "TAB"
+Complete the partial filename to the left of the cursor.
+If it matches more than one filename, the first match
+is entered into the command line.
+Repeated TABs will cycle thru the other matching filenames.
+If the completed filename is a directory, a "/" is appended to the filename.
+(On MS-DOS systems, a "\\" is appended.)
+The environment variable LESSSEPARATOR can be used to specify a 
+different character to append to a directory name.
+.IP "BACKTAB [ ESC-TAB ]"
+Like, TAB, but cycles in the reverse direction thru the matching filenames.
+.IP "^L"
+Complete the partial filename to the left of the cursor.
+If it matches more than one filename, all matches are entered into
+the command line (if they fit).
+.IP "^U (Unix) or ESC (MS-DOS)"
+Delete the entire command line,
+or cancel the command if the command line is empty.
+If you have changed your line-kill character in Unix to something
+other than ^U, that character is used instead of ^U.
+
+.SH "KEY BINDINGS"
+You may define your own 
+.I less
+commands by using the program 
+.I lesskey
+(1)
+to create a lesskey file.
+This file specifies a set of command keys and an action
+associated with each key.
+You may also use
+.I lesskey
+to change the line-editing keys (see LINE EDITING),
+and to set environment variables.
+If the environment variable LESSKEY is set,
+.I less
+uses that as the name of the lesskey file.
+Otherwise, 
+.I less
+looks in a standard place for the lesskey file:
+On Unix systems,
+.I less
+looks for a lesskey file called "$HOME/.less".
+On MS-DOS and Windows systems,
+.I less
+looks for a lesskey file called "$HOME/_less", and if it is not found there,
+then looks for a lesskey file called "_less" in any directory specified
+in the PATH environment variable.
+On OS/2 systems,
+.I less
+looks for a lesskey file called "$HOME/less.ini", and if it is not found,
+then looks for a lesskey file called "less.ini" in any directory specified
+in the INIT environment variable, and if it not found there,
+then looks for a lesskey file called "less.ini" in any directory specified
+in the PATH environment variable.
+See the
+.I lesskey
+manual page for more details.
+.P
+A system-wide lesskey file may also be set up to provide key bindings.
+If a key is defined in both a local lesskey file and in the
+system-wide file, key bindings in the local file take precedence over 
+those in the system-wide file.
+If the environment variable LESSKEY_SYSTEM is set,
+.I less
+uses that as the name of the system-wide lesskey file.
+Otherwise,
+.I less 
+looks in a standard place for the system-wide lesskey file:
+On Unix systems, the system-wide lesskey file is /usr/local/bin/.sysless.
+(However, if 
+.I less 
+was built with a different binary directory than /usr/local/bin,
+that directory is where the .sysless file is found.)
+On MS-DOS and Windows systems, the system-wide lesskey file is c:\\_sysless.
+On OS/2 systems, the system-wide lesskey file is c:\\sysless.ini.
+
+.SH "INPUT PREPROCESSOR"
+You may define an "input preprocessor" for 
+.I less.
+Before
+.I less
+opens a file, it first gives your input preprocessor a chance to modify the
+way the contents of the file are displayed.
+An input preprocessor is simply an executable program (or shell script),
+which writes the contents of the file to a different file,
+called the replacement file.
+The contents of the replacement file are then displayed 
+in place of the contents of the original file.
+However, it will appear to the user as if the original file is opened;
+that is, 
+.I less
+will display the original filename as the name of the current file.
+.PP
+An input preprocessor receives one command line argument, the original filename,
+as entered by the user.
+It should create the replacement file, and when finished,
+print the name of the replacement file to its standard output.
+If the input preprocessor does not output a replacement filename, 
+.I less
+uses the original file, as normal.
+The input preprocessor is not called when viewing standard input.
+To set up an input preprocessor, set the LESSOPEN environment variable
+to a command line which will invoke your input preprocessor.
+This command line should include one occurrence of the string "%s", 
+which will be replaced by the filename
+when the input preprocessor command is invoked.
+.PP
+When 
+.I less
+closes a file opened in such a way, it will call another program,
+called the input postprocessor,
+which may perform any desired clean-up action (such as deleting the
+replacement file created by LESSOPEN).
+This program receives two command line arguments, the original filename
+as entered by the user, and the name of the replacement file.
+To set up an input postprocessor, set the LESSCLOSE environment variable 
+to a command line which will invoke your input postprocessor.
+It may include two occurrences of the string "%s"; 
+the first is replaced with the original name of the file and 
+the second with the name of the replacement file, 
+which was output by LESSOPEN.
+.PP
+For example, on many Unix systems, these two scripts will allow you
+to keep files in compressed format, but still let
+.I less
+view them directly:
+.PP
+lessopen.sh:
+.br
+	#! /bin/sh
+.br
+	case "$1" in
+.br
+	*.Z)	uncompress -c $1  >/tmp/less.$$  2>/dev/null
+.br
+		if [ -s /tmp/less.$$ ]; then 
+.br
+			echo /tmp/less.$$
+.br
+		else
+.br
+			rm -f /tmp/less.$$
+.br
+		fi
+.br
+		;;
+.br
+	esac
+.PP
+lessclose.sh:
+.br
+	#! /bin/sh
+.br
+	rm $2
+.PP
+To use these scripts, put them both where they can be executed and
+set LESSOPEN="lessopen.sh\ %s", and
+LESSCLOSE="lessclose.sh\ %s\ %s".
+More complex LESSOPEN and LESSCLOSE scripts may be written
+to accept other types of compressed files, and so on.
+.PP
+It is also possible to set up an input preprocessor to
+pipe the file data directly to 
+.I less,
+rather than putting the data into a replacement file.
+This avoids the need to decompress the entire file before 
+starting to view it.
+An input preprocessor that works this way is called an input pipe.
+An input pipe, instead of writing the name of a replacement file on
+its standard output,
+writes the entire contents of the replacement file on its standard output.
+If the input pipe does not write any characters on its standard output,
+then there is no replacement file and 
+.I less
+uses the original file, as normal.
+To use an input pipe,
+make the first character in the LESSOPEN environment variable a 
+vertical bar (|) to signify that the input preprocessor is an input pipe.
+.PP
+For example, on many Unix systems, this script will work like the
+previous example scripts:
+.PP
+lesspipe.sh:
+.br
+	#! /bin/sh
+.br
+	case "$1" in
+.br
+	*.Z)	uncompress -c $1  2>/dev/null
+.br
+		;;
+.br
+	esac
+.br
+.PP
+To use this script, put it where it can be executed and set
+LESSOPEN="|lesspipe.sh %s".
+When an input pipe is used, a LESSCLOSE postprocessor can be used,
+but it is usually not necessary since there is no replacement file
+to clean up.
+In this case, the replacement file name passed to the LESSCLOSE
+postprocessor is "-".
+
+.SH "NATIONAL CHARACTER SETS"
+There are three types of characters in the input file:
+.IP "normal characters"
+can be displayed directly to the screen.
+.IP "control characters"
+should not be displayed directly, but are expected to be found
+in ordinary text files (such as backspace and tab).
+.IP "binary characters"
+should not be displayed directly and are not expected to be found
+in text files.
+.PP
+A "character set" is simply a description of which characters are to
+be considered normal, control, and binary.
+The LESSCHARSET environment variable may be used to select a character set.
+Possible values for LESSCHARSET are:
+.IP ascii
+BS, TAB, NL, CR, and formfeed are control characters,
+all chars with values between 32 and 126 are normal,
+and all others are binary.
+.IP iso8859
+Selects an ISO 8859 character set.
+This is the same as ASCII, except characters between 160 and 255 are
+treated as normal characters.
+.IP latin1
+Same as iso8859.
+.IP dos
+Selects a character set appropriate for MS-DOS.
+.IP ebcdic
+Selects an EBCDIC character set.
+.IP koi8-r
+Selects a Russian character set.
+.IP next
+Selects a character set appropriate for NeXT computers.
+.IP utf-8
+Selects the UTF-8 encoding of the ISO 10646 character set.
+.PP
+If the LESSCHARSET environment variable is not set,
+the default character set is latin1.
+However, if the string "UTF-8" is found in the LC_ALL, LC_CTYPE or LANG
+environment variables, then the default character set is utf-8 instead.
+.PP
+In special cases, it may be desired to tailor
+.I less
+to use a character set other than the ones definable by LESSCHARSET.
+In this case, the environment variable LESSCHARDEF can be used
+to define a character set.
+It should be set to a string where each character in the string represents
+one character in the character set.
+The character "." is used for a normal character, "c" for control,
+and "b" for binary.
+A decimal number may be used for repetition.
+For example, "bccc4b." would mean character 0 is binary,
+1, 2 and 3 are control, 4, 5, 6 and 7 are binary, and 8 is normal.
+All characters after the last are taken to be the same as the last,
+so characters 9 through 255 would be normal.
+(This is an example, and does not necessarily 
+represent any real character set.)
+.PP
+This table shows the value of LESSCHARDEF which is equivalent
+to each of the possible values for LESSCHARSET:
+.sp
+	ascii\ 	8bcccbcc18b95.b
+.br
+	dos\ \ \ 	8bcccbcc12bc5b95.b.
+.br
+	ebcdic	5bc6bcc7bcc41b.9b7.9b5.b..8b6.10b6.b9.7b
+.br
+	\ \ \ \ \ \ 	9.8b8.17b3.3b9.7b9.8b8.6b10.b.b.b.
+.br
+	iso8859	8bcccbcc18b95.33b.
+.br
+	koi8-r	8bcccbcc18b95.b128.
+.br
+	latin1	8bcccbcc18b95.33b.
+.br
+	next\ \ 	8bcccbcc18b95.bb125.bb
+.PP
+If neither LESSCHARSET nor LESSCHARDEF is set, 
+but your system supports the 
+.I setlocale
+interface,
+.I less
+will use setlocale to determine the character set.
+setlocale is controlled by setting the LANG or LC_CTYPE environment variables.
+.PP
+Control and binary characters are displayed in standout (reverse video).
+Each such character is displayed in caret notation if possible
+(e.g. ^A for control-A).  Caret notation is used only if 
+inverting the 0100 bit results in a normal printable character.
+Otherwise, the character is displayed as a hex number in angle brackets.
+This format can be changed by 
+setting the LESSBINFMT environment variable.
+LESSBINFMT may begin with a "*" and one character to select 
+the display attribute:
+"*k" is blinking, "*d" is bold, "*u" is underlined, "*s" is standout,
+and "*n" is normal.
+If LESSBINFMT does not begin with a "*", normal attribute is assumed.
+The remainder of LESSBINFMT is a string which may include one
+printf-style escape sequence (a % followed by x, X, o, d, etc.).
+For example, if LESSBINFMT is "*u[%x]", binary characters
+are displayed in underlined hexadecimal surrounded by brackets.
+The default if no LESSBINFMT is specified is "*s<%X>".
+
+.SH "PROMPTS"
+The -P option allows you to tailor the prompt to your preference.
+The string given to the -P option replaces the specified prompt string.
+Certain characters in the string are interpreted specially.
+The prompt mechanism is rather complicated to provide flexibility,
+but the ordinary user need not understand the details of constructing
+personalized prompt strings.
+.sp
+A percent sign followed by a single character is expanded
+according to what the following character is:
+.IP "%b\fIX\fP"
+Replaced by the byte offset into the current input file.
+The b is followed by a single character (shown as \fIX\fP above)
+which specifies the line whose byte offset is to be used.
+If the character is a "t", the byte offset of the top line in the
+display is used,
+an "m" means use the middle line,
+a "b" means use the bottom line,
+a "B" means use the line just after the bottom line,
+and a "j" means use the "target" line, as specified by the -j option.
+.IP "%B"
+Replaced by the size of the current input file.
+.IP "%c"
+Replaced by the column number of the text appearing in the first
+column of the screen.
+.IP "%d\fIX\fP"
+Replaced by the page number of a line in the input file.
+The line to be used is determined by the \fIX\fP, as with the %b option.
+.IP "%D"
+Replaced by the number of pages in the input file,
+or equivalently, the page number of the last line in the input file.
+.IP "%E"
+Replaced by the name of the editor (from the VISUAL environment variable,
+or the EDITOR environment variable if VISUAL is not defined).
+See the discussion of the LESSEDIT feature below.
+.IP "%f"
+Replaced by the name of the current input file.
+.IP "%i"
+Replaced by the index of the current file in the list of
+input files.
+.IP "%l\fIX\fP"
+Replaced by the line number of a line in the input file.
+The line to be used is determined by the \fIX\fP, as with the %b option.
+.IP "%L"
+Replaced by the line number of the last line in the input file.
+.IP "%m"
+Replaced by the total number of input files.
+.IP "%p\fIX\fP"
+Replaced by the percent into the current input file, based on byte offsets.
+The line used is determined by the \fIX\fP as with the %b option.
+.IP "%P\fIX\fP"
+Replaced by the percent into the current input file, based on line numbers.
+The line used is determined by the \fIX\fP as with the %b option.
+.IP "%s"
+Same as %B.
+.IP "%t"
+Causes any trailing spaces to be removed.
+Usually used at the end of the string, but may appear anywhere.
+.IP "%x"
+Replaced by the name of the next input file in the list.
+.PP
+If any item is unknown (for example, the file size if input
+is a pipe), a question mark is printed instead.
+.PP
+The format of the prompt string can be changed
+depending on certain conditions.
+A question mark followed by a single character acts like an "IF":
+depending on the following character, a condition is evaluated.
+If the condition is true, any characters following the question mark
+and condition character, up to a period, are included in the prompt.
+If the condition is false, such characters are not included.
+A colon appearing between the question mark and the
+period can be used to establish an "ELSE": any characters between
+the colon and the period are included in the string if and only if
+the IF condition is false.
+Condition characters (which follow a question mark) may be:
+.IP "?a"
+True if any characters have been included in the prompt so far.
+.IP "?b\fIX\fP"
+True if the byte offset of the specified line is known.
+.IP "?B"
+True if the size of current input file is known.
+.IP "?c"
+True if the text is horizontally shifted (%c is not zero).
+.IP "?d\fIX\fP"
+True if the page number of the specified line is known.
+.IP "?e"
+True if at end-of-file.
+.IP "?f"
+True if there is an input filename
+(that is, if input is not a pipe).
+.IP "?l\fIX\fP"
+True if the line number of the specified line is known.
+.IP "?L"
+True if the line number of the last line in the file is known.
+.IP "?m"
+True if there is more than one input file.
+.IP "?n"
+True if this is the first prompt in a new input file.
+.IP "?p\fIX\fP"
+True if the percent into the current input file, based on byte offsets,
+of the specified line is known.
+.IP "?P\fIX\fP"
+True if the percent into the current input file, based on line numbers,
+of the specified line is known.
+.IP "?s"
+Same as "?B".
+.IP "?x"
+True if there is a next input file
+(that is, if the current input file is not the last one).
+.PP
+Any characters other than the special ones
+(question mark, colon, period, percent, and backslash)
+become literally part of the prompt.
+Any of the special characters may be included in the prompt literally
+by preceding it with a backslash.
+.PP
+Some examples:
+.sp
+?f%f:Standard input.
+.sp
+This prompt prints the filename, if known;
+otherwise the string "Standard input".
+.sp
+?f%f .?ltLine %lt:?pt%pt\\%:?btByte %bt:-...
+.sp
+This prompt would print the filename, if known.
+The filename is followed by the line number, if known,
+otherwise the percent if known, otherwise the byte offset if known.
+Otherwise, a dash is printed.
+Notice how each question mark has a matching period,
+and how the % after the %pt
+is included literally by escaping it with a backslash.
+.sp
+?n?f%f\ .?m(file\ %i\ of\ %m)\ ..?e(END)\ ?x-\ Next\\:\ %x..%t
+.sp
+This prints the filename if this is the first prompt in a file,
+followed by the "file N of N" message if there is more
+than one input file.
+Then, if we are at end-of-file, the string "(END)" is printed
+followed by the name of the next file, if there is one.
+Finally, any trailing spaces are truncated.
+This is the default prompt.
+For reference, here are the defaults for
+the other two prompts (-m and -M respectively).
+Each is broken into two lines here for readability only.
+.nf
+.sp
+?n?f%f\ .?m(file\ %i\ of\ %m)\ ..?e(END)\ ?x-\ Next\\:\ %x.:
+	?pB%pB\\%:byte\ %bB?s/%s...%t
+.sp
+?f%f\ .?n?m(file\ %i\ of\ %m)\ ..?ltlines\ %lt-%lb?L/%L.\ :
+	byte\ %bB?s/%s.\ .?e(END)\ ?x-\ Next\\:\ %x.:?pB%pB\\%..%t
+.sp
+.fi
+And here is the default message produced by the = command:
+.nf
+.sp
+?f%f\ .?m(file\ %i\ of\ %m)\ .?ltlines\ %lt-%lb?L/%L.\ .
+	byte\ %bB?s/%s.\ ?e(END)\ :?pB%pB\\%..%t
+.fi
+.PP
+The prompt expansion features are also used for another purpose:
+if an environment variable LESSEDIT is defined, it is used
+as the command to be executed when the v command is invoked.
+The LESSEDIT string is expanded in the same way as the prompt strings.
+The default value for LESSEDIT is:
+.nf
+.sp
+	%E\ ?lm+%lm.\ %f
+.sp
+.fi
+Note that this expands to the editor name, followed by a + and the
+line number, followed by the file name.
+If your editor does not accept the "+linenumber" syntax, or has other
+differences in invocation syntax, the LESSEDIT variable can be 
+changed to modify this default.
+
+.SH SECURITY
+When the environment variable LESSSECURE is set to 1,
+.I less
+runs in a "secure" mode.
+This means these features are disabled:
+.RS
+.IP "!"
+the shell command
+.IP "|"
+the pipe command
+.IP ":e"
+the examine command.
+.IP "v"
+the editing command
+.IP "s  -o"
+log files
+.IP "-k"
+use of lesskey files
+.IP "-t"
+use of tags files
+.IP " "
+metacharacters in filenames, such as *
+.IP " "
+filename completion (TAB, ^L)
+.RE
+.PP
+Less can also be compiled to be permanently in "secure" mode.
+
+.SH "ENVIRONMENT VARIABLES"
+Environment variables may be specified either in the system environment
+as usual, or in a 
+.I lesskey
+(1) file.
+If environment variables are defined in more than one place, 
+variables defined in a local lesskey file take precedence over
+variables defined in the system environment, which take precedence
+over variables defined in the system-wide lesskey file.
+.IP COLUMNS
+Sets the number of columns on the screen.
+Takes precedence over the number of columns specified by the TERM variable.
+(But if you have a windowing system which supports TIOCGWINSZ or WIOCGETD,
+the window system's idea of the screen size takes precedence over the
+LINES and COLUMNS environment variables.)
+.IP EDITOR
+The name of the editor (used for the v command).
+.IP HOME
+Name of the user's home directory (used to find a lesskey file on Unix systems).
+.IP "HOMEDRIVE, HOMEPATH"
+Concatenation of the HOMEDRIVE and HOMEPATH environment variables is
+the name of the user's home directory if the HOME variable is not set
+(only in the Windows version).
+.IP INIT
+Name of the user's init directory (used to find a lesskey file on OS/2 systems).
+.IP LANG
+Language for determining the character set.
+.IP LC_CTYPE
+Language for determining the character set.
+.IP LESS
+Options which are passed to 
+.I less
+automatically.
+.IP LESSANSIENDCHARS
+Characters which are assumed to end an ANSI color escape sequence
+(default "m").
+.IP LESSBINFMT
+Format for displaying non-printable, non-control characters.
+.IP LESSCHARDEF
+Defines a character set.
+.IP LESSCHARSET
+Selects a predefined character set.
+.IP LESSCLOSE
+Command line to invoke the (optional) input-postprocessor.
+.IP LESSECHO
+Name of the lessecho program (default "lessecho").
+The lessecho program is needed to expand metacharacters, such as * and ?,
+in filenames on Unix systems.
+.IP LESSEDIT
+Editor prototype string (used for the v command).
+See discussion under PROMPTS.
+.IP LESSKEY
+Name of the default lesskey(1) file.
+.IP LESSKEY_SYSTEM
+Name of the default system-wide lesskey(1) file.
+.IP LESSMETACHARS
+List of characters which are considered "metacharacters" by the shell.
+.IP LESSMETAESCAPE
+Prefix which less will add before each metacharacter in a
+command sent to the shell.
+If LESSMETAESCAPE is an empty string, commands containing
+metacharacters will not be passed to the shell.
+.IP LESSOPEN
+Command line to invoke the (optional) input-preprocessor.
+.IP LESSSECURE
+Runs less in "secure" mode.
+See discussion under SECURITY.
+.IP LESSSEPARATOR
+String to be appended to a directory name in filename completion.
+.IP LINES
+Sets the number of lines on the screen.
+Takes precedence over the number of lines specified by the TERM variable.
+(But if you have a windowing system which supports TIOCGWINSZ or WIOCGETD,
+the window system's idea of the screen size takes precedence over the
+LINES and COLUMNS environment variables.)
+.IP PATH
+User's search path (used to find a lesskey file 
+on MS-DOS and OS/2 systems).
+.IP SHELL
+The shell used to execute the ! command, as well as to expand filenames.
+.IP TERM
+The type of terminal on which
+.I less
+is being run.
+.IP VISUAL
+The name of the editor (used for the v command).
+
+.SH "SEE ALSO"
+lesskey(1)
+
+.SH WARNINGS
+The = command and prompts (unless changed by -P)
+report the line numbers of the lines at the top and bottom of the screen,
+but the byte and percent of the line after the one at the bottom of the screen.
+.PP
+If the :e command is used to name more than one file,
+and one of the named files has been viewed previously,
+the new files may be entered into the list in an unexpected order.
+.PP
+On certain older terminals (the so-called "magic cookie" terminals),
+search highlighting will cause an erroneous display.
+On such terminals, search highlighting is disabled by default 
+to avoid possible problems.
+.PP
+In certain cases, when search highlighting is enabled and 
+a search pattern begins with a ^,
+more text than the matching string may be highlighted.
+(This problem does not occur when less is compiled to use the POSIX
+regular expression package.)
+.PP
+On some systems,
+.I setlocale
+claims that ASCII characters 0 thru 31 are control characters 
+rather than binary characters.
+This causes 
+.I less 
+to treat some binary files as ordinary, non-binary files.
+To workaround this problem, set the environment variable
+LESSCHARSET to "ascii" (or whatever character set is appropriate).
+.PP
+See http://www.flash.net/~marknu/less for the latest list of known bugs in this
+version of less.
+
+.SH COPYRIGHT
+Copyright (C) 2000  Mark Nudelman
+.PP
+less is part of the GNU project and is free software.
+You can redistribute it and/or modify it
+under the terms of either
+(1) the GNU General Public License as published by
+the Free Software Foundation; or (2) the Less License.
+See the file README in the less distribution for more details
+regarding redistribution.
+You should have received a copy of the GNU General Public License 
+along with the source for less; see the file COPYING.
+If not, write to the Free Software Foundation, 59 Temple Place,
+Suite 330, Boston, MA  02111-1307, USA.
+You should also have received a copy of the Less License;
+see the file LICENSE.
+.PP
+less is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+or FITNESS FOR A PARTICULAR PURPOSE.
+See the GNU General Public License for more details.
+
+.SH AUTHOR
+.PP
+Mark Nudelman <marknu@flash.net>
+.br
+Send bug reports or comments to the above address or to bug-less@gnu.org.
+

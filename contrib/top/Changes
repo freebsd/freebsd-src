@@ -1,0 +1,632 @@
+Thu Mar 30 2000 - wnl (3.5beta12)
+	Updated modules: m_aix41.c, m_aix43.c, m_mtxinu.c, m_sco5.c,
+	and m_ultrix4.c.
+	Included m_irixsgi.c from some source that's been floating around
+	SGI.  Don't yet know how it compares to m_irix62.
+
+Fri Mar 10 2000 - wnl (3.5beta11)
+	top.c: avoid potential loop if stdout gets closed, use macro
+	for p_active to avoid collision with system macros.
+	m_sunos5: widened some fields to accomodate 5.8.
+	m_decosf1: added ordering support
+	m_irix62_64: provides 64-bit module based on m_irix62.
+	m_irix62: skip bogus files in /proc directory
+	m_svr42MP and m_svr5: complete replacement with updated copies
+	m_mtxinu: complete replacement with updated copies
+	m_aix43: new module for 4.3
+	getans: replaced with a Bourne shell script
+
+Mon Mar  6 2000 - wnl (3.5beta10)
+	m_sunos5.c: workaround for curses bug: ensure that TERMINFO has
+	a value.
+
+Fri Jan 15 1999 - wnl (3.5beta10)
+	top.c: now check return code from read to avoid looping on eof.
+	top.c: delay of 0 now only valid for root.
+	decosf1.c: patches from Rainer Orth should fix most of the
+	problems with this module (including the display of certain
+	processes and runtime errors).
+	sunos5.c: Rainer insisted on putting the slash back in the
+	state field ("run/4") and widened the field to accomodate it.
+	aix.c: widened PID field for 6-digit pids (shortened NICE field)
+	module macosx added, thanks to Andrew Townley.
+
+Fri Dec 18 1998 - wnl (3.5beta9)
+	Configure checks status of "make" and complains if it fails.
+
+Thu Dec 17 1998 - wnl (3.5beta9)
+	Added module sco5 from Mike Hopkirk.
+	Added module netbsd132 from moto kawasaki.
+
+Sun Oct 25 1998 - wnl (3.5beta9)
+	Added Casper's patches for sunos5 for the following:
+	produce same results as swap -s (5.5 and higher),
+	don't use system_pages kstat when /dev/kmem can be opened,
+	skip . and .. when reading /proc, replace use of SOLARIS24
+	with OSREV.
+
+Fri Sep 11 1998 - wnl (3.5beta9)
+	Added workaround to getans for the absence of $< in SCO Unix.
+
+Wed Jul  1 1998 - wnl (3.5beta9)
+	Changed structure member "errno" to "errnum" in commands.c.
+	Replaced hpux10 module with one from John Haxby.
+
+Fri Apr 17 1998 - wnl (3.5beta8)
+	Moved definition of _KMEMUSER earlier in m_sunos5.c.  This should
+	fix the compilation problem with gnu 2.7.2.3, obviating the need
+	for the fixinc.svr4 patch, but hopefully will not affect anything
+	else.
+	Added -DORDER to m_sunos4mp.c
+
+Tue Nov 18 1997 - wnl (3.5beta7)
+	Added gcc 2.7.2.3 patch for fixinc.svr4 and changed INSTALL and
+	FAQ to refer to it.
+	Added NetBSD HP9000 fix.  Hopefully it doesn't break other 
+	NetBSD platforms.
+
+Fri Oct 24 1997 - wnl (3.5beta7)
+	Modified m_dcosx.c to change uses of procdir to xprocdir, avoiding
+	a name clash with an include file (Bryn Parrott)
+
+Sat Oct 11 1997 - wnl (3.5beta6)
+	Incorporated Casper's patches for Solaris 2.6 and for the multi-
+	processor bug ("kstat finds too many cpus").
+
+Sun Jan 20 1996 - wnl (3.5beta5)
+	Fixed Casper's m_sunos5 module: there was a poor interaction with 
+	his use of OSREV and SunOS 5.5.1.
+
+Fri Dec 20 1996 - wnl (3.5beta4)
+	Replaced m_sunos5 with a reworked version by Casper Dik.  This one
+	should work under 2.6 and may not require that top be run setuid
+	to root under 2.5 or 2.6.  This also fixed a bug in m_sunos5 that
+	was introduced in beta3.
+	Fixed calculation of OSREV in Configure.
+
+Wed Nov 20 1996 - wnl (3.5beta3)
+	Incorporated contributed fixes to:  bsdos2, irix62, freebsd20,
+	ultrix4, sunos5.  Changed calculation of swap area in sunos5 (now
+	uses swapctl).  sunos5 now understands idled processors.  Changed
+	Configure to determine os revision using uname (when available)
+	and adding it to machine.c compiliation in Makefile as -DOSREV.
+	Changed calls to "exit" in modules to use "quit" instead.
+
+Oct 20 1996 - wnl (3.5beta3)
+	Removed "time" from list of ordering choices:  there's no easy way
+	to get cpu time for all processes (it's in the u area).
+
+Fri Oct 18 1996 - wnl (3.5beta3)
+	hpux10 and hpux9: using a better means for determining when a
+	process is idle.
+	decosf1 now includes utils.h.
+
+Fri Sep 13 1996 - wnl (3.5beta2)
+	Fixed Configure to build Make.desc in such a way that doesn't
+	require a long argument to sed.
+
+Thu Sep 12 1996 - wnl (3.5beta2)
+	Fixed bug in display.c that affected empty cpustate names.
+	Created hpux1010 module - a variant of hpux10 that does not use
+	struct proc or struct user (suitable for HP/UX 10.10).
+
+Wed Sep 11 1996 - wnl (3.5beta2)
+	Changes to sunos5 module:  Removed WCPU column since it is meaningless
+	on a SVR4-based system.  Added THR column to show number of threads
+	for each process.  This was not straightforward: the information is
+	not stored in prpsinfo but rather in prstatus.
+
+Tue Sep 10 1996 - wnl (3.5beta1)
+	Added patches for sunos4mp to provide order support.
+	Added irix62 module.
+	Changed prime.c to include stdio.h for printf prototype.
+	Added conditional code to os.h and utils.c to handle systems
+	where sys_errlist is defined in stdio.h (such as NetBSD).
+
+Mon Sep 09 1996 - wnl (3.5beta1)
+	Removed tar and shar rules from Makefile.X -- don't need them anymore.
+	Added -v option to display version number.  Updated man page.
+
+Thu Aug 29 1996 - wnl (3.4)
+	Replaced modules (from Tim Pugh): next 32, next40.
+	Fixed bug in username.c: hashing negative uids.
+
+Thu Aug 22 1996 - wnl (3.4beta3)
+	Patched modules:  ultrix4, sunos4, sunos5, utek, decosf1, irix5.
+	Added modules: next40, next32.
+	Fixed procstates update bug in display.c.
+	Fixed divide by zero bug in utils.c.
+	Fixed bad number in layout.h
+	Minor fixes to Configure.
+	Complete overhaul of FAQ.
+
+Tue Feb 13 1996 - wnl (3.4beta3)
+	Added convex module from Warren Vosper (originally written by
+	William Jones).
+
+Tue Feb 13 1996 - wnl (3.4beta2)
+	Fixed format_k in utils.c to calculate K and M values correctly.
+	Added check for gigabyte values ('G').  Changed sumamry_format
+	in display.c to use format_k where appropriate.
+	Changed creation of distribution tar file to place everything in
+	a top level directory.
+
+Tue Jan 30 1996 - wnl (3.4beta2)
+	Added m_aix41 module.  Added new tag type to module comments:
+	TERMCAP, which defined the library to use for a termcap library.
+	If no TERMCAP tag is found in the module's initial comment, then
+	Configure will default to "-ltermcap".  AIX needs this since it
+	put all the termcap routines in libcurses(!)
+
+	Added m_bsdos2 (found lingering in my mailbox).
+	Updated m_svr4 to include support for NCR multiprocessors.
+	Fixed small bug in utils.c
+
+Thu Jan 25 1996 - wnl (3.4beta1)
+	Fixed m_sunos5 invocation of gettimeofday to include "NULL" as
+	second argument.  This provides compatability with the Posix-
+	compliant template provided with SunOS 5.5, but doesn't hurt
+	previous versions since they do bother with a template for that
+	function.
+
+	Made changes (recommended by net users) to hpux10, ultrix4,
+	netbsd10, aux3 (replaced aux31).  Added module for linux.
+
+Fri Oct 10 1995 - wnl (3.4beta1)
+	Added user-contributed modules for SCO Unix, IRIX 5, HP/UX 10,
+	Pyramid DC/OSX.  Changed Configure so that it runs in environments
+	whose c-shells have no 'eval'(!).  Added support for multiple sort
+	ordering methods via the -o switch.  This option requires support
+	from the machine dependent module: such support was added to
+	sunos5 (thus sunos54) and sunos4.
+
+	display.c:  Changed CPU states display line to shorten the leading
+	tag if the data won't fit in the current width.  Fixed a divide-by-
+	zero bug that affected ultrasparc servers (and potentially other
+	systems).
+
+	m_sunos5.c: Now asks the system for the correct pagesize rather than
+	assuming it is 4K.
+
+Thu Mar  2 1995 - wnl (3.3 RELEASE)
+	Added module netbsd10 and renamed netbsd to netbsd08.  Changed
+	Configure so that it does not use an initial default module name.
+	Made other compatability fixes to Configure.  Added comments to
+	decosf1 concerning optimizer bug.  Other documentation changes.
+	Added use of "prime.c" to Configure script.
+
+Tue Feb  7 1995 - wnl (3.3beta6)
+	Still one more beta....
+	Fixes for sunos5 2.4 gcc core dump (it was an alignment problem).
+	Fixed and improvements for decosf1 (including use of format_k
+	for proper SIZE column formatting).  Added modules freebsd20 and
+	ncr3000.
+
+Thu Feb  2 1995 - wnl (3.3beta5)
+	One more beta....
+	Fixed a few bugs in the sunos5 port pertaining to casting and
+	very large memory counts.  Added "ifndef HAVE_GETOPT" to getopt.c
+	to provide for conditional compilation of the getopt function.
+	Those systems that have getopt in libc can add -DHAVE_GETOPT to
+	the CFLAGS line in the module to prevent the function from being
+	compiled.  Added sunos54 module to accomodate SunOS 5.4
+	peculiarities.  Added module for aux3.1.
+
+Wed Jan  4 1995 - wnl (3.3beta4)
+	This is really taking too long......sigh.
+	Fixed SIGWINCH handling	once and for all.  It now remembers the
+        number of processes you	want displayed even thru window resizes.
+	Fixed buffer conflict in utils.c (itoa and itoa7).
+        Lots of small improvements to the various modules were made over
+	the past month: too numberous to list here.  SunOS 5 module made
+	more secure thru use of seteuid calls (other SVR4 modules should
+	be modified similarly).  One final MP fix to sunos5, too.  Module
+	for decosf1 was modified to accomodate V3.0.
+
+Mon Apr 18 1994 - wnl (3.3beta3)
+	I think I finally got a sunos5 module that will work on MP
+	machines.  Fixed cpu states figure in osmp41a so that 
+	percentages never exceed 100%.  Added shell script "install"
+	since Unix vendors can't seem to make up their minds on what
+	options they want to use for the one that comes with the OS.
+	Added netbsd modules from Christos.  Fixed lots of other little
+	things over the past few months that I have long since forgotten.
+
+Wed Dec 15 1993 - wnl (3.3beta2)
+	Added module patches from various users:  hpux9, sunos5.
+	Fixed bug with batch mode (screen_width wasn't getting set).
+	Changes to accomodate 64 bit machines.
+	Fixed some bugs in command parsing ("renice 19 " did something
+	unexpected).
+
+Mon Aug 30 1993 - wnl (3.3beta)
+	Added lots of little patches from various users.
+	Added routines to utils.c for intelligent formatting of kilobytes
+	and time.  These are intended to be used in the modules when
+	formatting a process line.  Added code to "summary_format" in
+	display.c to do intelligent formatting of memory quantities.
+	Redid display.c to allow for varying line widths and dynamic
+	reallocation of the screen buffer.
+	Added a SIGWINCH handler to top.c!
+	Added a constant, MAX_COLS, to top.h which defines the absolute
+	widest line we will ever allow.  Changed allocations of "char fmt"
+	in all machine modules to use this constant rather than an abitrary
+	number.
+
+Fri Aug 13 1993 - wnl (3.3)
+	Changed return value definition of time-related functions in top.c,
+	display.c, and m_ultrix4.c to time_t (stuart@coral.cs.jcu.edu.au).
+	Fixed bug in display.c: line_update when start != 0.
+
+Wed Aug  4 1993 - wnl (3.2 release)
+	Changes to Configure from Paul Vixie.  Added modules for hpux9 and
+	bsd386.
+
+Tue Jul 13 1993 - wnl (3.1 release)
+	More small changes and minor bug fixes.  Brought bsd44 up to date
+	and added a module for svr4.2.  Changed shar packaging to use Rich
+	Salz's cshar stuff.
+
+Wed Jul  7 1993 - wnl (3.1BETA)
+	More changes and bug fixes to Configure.  Applied some other
+	minor bug fixes and suggestions from the beta testers.  Added
+	the "metatop" shell script and the "installmeta" rule to the
+	Makefile to make handling multiple machine models and OS versions
+	easier.  Added INSTALL and FAQ files.
+
+Tue May 18 1993 - wnl (3.1BETA)
+	Changed Configure to be compatible with most SVR4 environments
+	(differing output from "ls -lg").  Also changed Configure,
+	Makefile.X, etc., to look for module files in the subdirectory
+	"machine" (thanks to Christos Zoulas).
+
+Tue Apr 20 1993 - wnl (3.1BETA)
+	Changed both occurences of "ls -1" in Configure to "ls".  This
+	SHOULD produce the same result, and has the advantage that it
+	doesn't produce an error on a system 5 machine.  Integrated other
+	changes recommended in the first round of beta testing.
+
+Wed Mar 10 1993 - wnl (3.1BETA)
+	MAJOR CHANGE:  I have added a required function to all machine
+	dependent modules, called proc_owner.  It takes a pid as an argument
+	and returns the uid of the process's owner.  Such capability is 
+	necessary for top to run securely as a set-uid program, something
+	that is needed for SVR4 implementations to read /proc.  I have
+	retrofitted all modules except dgux with this function, but was
+	not able to test most of them.  Top should now run securely as
+	a setuid program.  Added 386bsd and sunos5 modules.  Added sunos4mp
+	module for MP Suns.
+
+Sat Feb 20 1993 - wnl (3.1ALPHA)
+	Modified top.c and commands.c to compile correctly on System V
+	derived Unixes (especially SVR4), but in a way that doesn't rely
+	on an oracle-like declaration (that is, I don't use "ifdef SYSV").
+	Fixed some bugs in "Configure" and "getans".  Added inspection of
+	env variable "TOP" for options, and made -I default to showing
+	idle processes.  Added "u" command to change username restriction
+	on the fly.  Created shell script "suntop" for poor multi-version
+	SunOS folks (like myself).
+
+Wed Jun  3 1992 - wnl (3.0)
+	"max_topn" wasn't being used everywhere it was supposed to be
+	in top.c.  Many cosmetic changes, including copyright notices in
+	all the .c files.  Version number is now handled by version.c and
+	reflects the current patchlevel (which is initially set to 0).
+	Changed Configure and Makefile to allow configurable variables for
+	certain commands:  shell, cc, awk, install.  Updated README and
+	Porting.  Ready to release to the world!
+
+Mon May 18 1992 - wnl (2.9BETA)
+	Added modules provided by Christos Zoulas.  Replaced screen.c
+	with one modified by Christos and that will appropriately select
+	and handle the sgtty, termio, or termios system.  Integrated many
+	other changes recommended by Christos.  Fixed (I hope) the "-b"
+	batch mode display bug.  Had to change loadavg to load_avg to avoid
+	a conflict with 4.4BSD.  
+
+Mon Apr 27 1992 - wnl (2.8BETA)
+	Added modules provided by Daniel Trinkle.  Added patchlevel.h,
+	but the patch level is not yet reflected in the version number.
+	Cleaned up m_sunos4.c a little.
+
+Wed Apr 22 1992 - wnl (2.8BETA)
+	Major internal reorganization.  All of the system dependent stuff
+	is now really and truly separated from everything else.  The
+	system dependent functions are contained in a separate .c file
+	called a "module".  The Configure script knows how to find and
+	set up these modules, but the human installer still needs to tell
+	Configure which module to use (no automagic determination of 
+	machine type---sorry).  Added -U option to specify one user's
+	processes, but there is no corresponding command...yet.  Other
+	changes and improvements too numerous to mention here.  Currently
+	there are only two modules:  sunos4 and umax.  But after this beta
+	release is sent around, I expect more to be written.  I just hope
+	that the machine-dependent abstractions don't need to change in
+	the process.
+
+Thu Mar 26 1992 - wnl (2.7BETA)
+	Beta release with minimal architecture support.  Updated README
+	and added a first cut at a Porting guide.  Added ioctl TIOCGWINSZ
+	code from top2.5+ (courtesy of David MacKenzie).  I didn't even
+	try porting the Ultrix support since I don't have access to an
+	Ultrix machine.
+
+Fri Oct 11 1991 - wnl (2.6)
+	This version was not widely released.  It contained many changes.
+	Here are the major ones:
+
+	Put in Vixie's idle process hack.
+
+	Enhanced type field in new_message to handle delayed messages.
+
+	Changed u_process to automatically adjust for varying lines of
+	output.  Management of screenbuf should now be completely contained
+	in display.c.  Removed now extraneous code from CMD_number[12]
+	portion of command switch in top.c.  This was the stuff that dealt
+	with zeroing out lines in screenbuf.
+
+	Finally made it all work correctly on a 386i.  Problems I had to
+	overcome: kvm_nlist doesn't return 0 on success as advertised (it
+	returns 1 instead); the results of a kvm_nlist are different
+	(n_type can be zero even for a symbol that exists).
+
+	Serious rearrangement for processor dependent stuff.  All nlists
+	are now in separate files with the suffix ".nlist".  Most machine
+	specific code is in "machine.c" surrounded by appropriate ifdefs---
+	the goal is to eventually have all machine specific code in this
+	file.  Managed to find a way to detect SunOS 4.x at compile-time:
+	this is contained in the include file "sun.h".  Completely changed
+	the memory display line for SunOS 4.x---it now displays a far
+	more appropriate report.
+
+	Created the shell script "Configure" to aid in the configuration
+	step.
+
+	Fixed a bug in init_termcap:  it will now tolerate an environment
+	which does not have TERM defined (thanks to Sam Horrocks for
+	pointing this out).
+
+Tue Aug  9 1988 - wnl (2.5)
+	Added changes to make top work under version 4.0 of the Sun
+	operating system.  Changes were provided by Scott Alexander of the
+	University of Pennsylvania.  Thanks!  Compile with "-Dsunos4" to
+	get them.  Virtual memory statistics are not readily accessible
+	under 4.0, so they don't show up in the output.
+
+Thu Jul 31 1987 - wnl (2.4)
+	Fixed a problem with the 4.0 Pyramid code.  The label "cp_time"
+	doesn't exist in the 4.0 kernel anymore.  I think the code Carl
+	sent me wants "percpu" instead.  That is what I am using and it
+	appears to work.  375 code is still untested (at least by me).
+	Also picked a great deal of lint out of the source.  Lint now only
+	complains about a very few nitpicky things (there are far too many
+	calls to "printf" to put a "(void)" in front of!), at least under
+	SunOS.
+
+Tue Jul 28 1987 - wnl (2.4a)
+	Added changes for a Symmetrics Computer Systems s/375 machine.
+	Changes were provided by Paul Vixie.  Thanks!  According to Mr.
+	Vixie:  "These changes were not made at, by, or for SCS proper.
+	SCS would probably be interested in them, but so far only the
+	users' group has them.  They were made in February, 1987, to
+	version 2.1 of the program, by Paul Vixie
+	(dual!ptsfa!vixie!paul@ucbvax.Berkeley.EDU)."  His changes were
+	integrated into version 2.3 to make version 2.4.
+
+	The SCS peculiarities are summarized in Changes.scs.
+
+Tue Jun  9 1987 - wnl (2.3 for real)
+	Changed the includes for the extra code Carl sent me to only
+	compile on Version 4.0 Pyramid machines.  This makes top still
+	compilable on pre-4.0 Pyramids.  Specifically, this code is only
+	compiled when both "pyr" and "CPUFOUND" are defined.
+
+Wed Jun  3 1987 - wnl (2.3 with Pyramid additions)
+	It's been a month and I still haven't done anything about
+	distributing this version.  However, Carl Gutekunst from Pyramid
+	has sent me some extra patches for some of the Pyramid code.  I
+	just added those and will make them part of 2.3.  This fixes the
+	following Pyramid problems:  adds the inclusion of <sys/systm.h>,
+	uses the correct size for getting the kernel value _ccpu (this bug
+	affected the Vax version as well), sums the elements of the percpu
+	array to calculate a cp_time value (for OSx 4.0).
+
+Fri May  1 1987 - wnl (2.3)
+	I have finally finished all the changes for better support of
+	oddbal terminals.  Added the low-level routine "clear_eol" which
+	makes handling terminals without "ce" easy:  it uses spaces
+	instead.  All direct uses of "clear_line" outside of screen.c have
+	been changed to use this primitive.  A terminal with "os" is now
+	handled in such that all situations that need overwriting are
+	completely avoided (including several commands).  This required
+	some changes to the way commands are translated into action (in
+	"top.c").  Made several important changes to display.c to prevent
+	overflowing of any of the fields.  Specifically, more than 99
+	total processes and a cpu state that reaches 100%.  Had to make a
+	small change to two casts in top.c, because the Sun 3.2 compiler
+	was giving warnings on them.  Added the "-q" option which lets
+	root run top at a nice of -20 (in case he thinks he really needs it).
+
+Tue Dec 30 1986 - wnl (2.2)
+	I think I fixed a bug reported by Julian Onions at Nottingham.
+	Occasionally, top will core dump when the sprintf in either
+	i_process or u_process overflows due to an exceptionally
+	unrealistic time value.  I think it highly unlikely that top can
+	get a bad proc structure (although I suppose it is possible), but
+	the process time is read from the user structure, and that can
+	sometimes be part garbage.  So, "get_ucpu" checks the value it
+	returns to make sure its formatted form will not overflow the
+	sprintf.  If this doesn't fix the bug, then more drastic measures
+	will be necessary.  I plan to make this version the official
+	"top 2.2".  [[ This version was never distributed very widely. ]]
+
+Tue Dec  2 1986 - wnl (2.2c)
+	Added to top.c the notion of a "failed command".  When a command
+	produces a message (on the message line), an update does not
+	follow it.  Before, the message was written and a new display was
+	shown---purposefully not overwriting the message.  But the
+	improvements to handle overstriking terminals and terminals
+	without "ce" clear the screen before every display, which would
+	erase the message.  Now, the message is displayed and top waits
+	another full time interval before updating the display.  This
+	works much better all around.
+
+Mon Nov 24 1986 - wnl (2.2b)
+	Created a new file, utils.c, and made appropriate changes to
+	Makefile.  This new file holds all utility functions that can and
+	may be used by more than one "module".  Improved i_memory and
+	u_memory (display.c) so that screen updates for the values
+	displayed are only changed when necessary.  Also made the line
+	look better:  the last fixes made for a rather ugly display.
+	Added the locally defined constant "LoadMax" and added code to
+	top.c to send the cursor home after a space command is entered if
+	the load average is higher than "LoadMax".  This provides visual
+	feedback on loaded systems.
+
+Mon Nov  3 1986 - wnl (2.2a)
+	Widened the format for memory usage so that it can display 5
+	digits.  This makes that line look a little ugly---maybe I'll fix
+	that later.  Screen handling now understands "os" and a missing
+	"ce".  It treats them identically:  clear the screen between each
+	display.  Screen handling code now uses "cd" when appropriate
+	(i.e.:  when user has shortened the screen).  Made i_loadave clear
+	then screen and took out most of the explicit calls to "clear" in
+	top.c.  This method is cleaner, especially in conjunction with
+	"os" handling.  Added preprocessor variable "RANDOM_PW" for
+	systems that access the passwd file randomly (Sun's yp and 4.3).
+	With "RANDOM_PW" set, "getpwuid" is used instead of "getpwnam",
+	but uid->username mappings are still hashed internally (because
+	that is still faster than going to disk).
+
+Mon Oct  6 1986 - wnl (2.1)
+	A bug with the kill command was pointed out by "dciem!tim"---
+	specifying a signal by name did not work correctly.  This bug has
+	been fixed with a simple change to commands.c.  Another bug made
+	the cpu state percentages incorrect the first time they were
+	displayed.  This bug has also been fixed (changed top.c).
+
+Thu Sep  4 1986 - wnl (2.0, at last)
+	This is the version that will (hopefully) get released to the
+	world as top 2.0.
+	Added the "r" and "k" commands for renice and kill, respectively.
+	This required adding a way to handle system call errors, and the
+	addition of the "e" command.  Help screen and manual page were
+	changed to reflect this change.  Changed all "#ifdef SUN" directives
+	to "#ifdef sun", and changed all "#ifdef PYRAMID" directives to
+	"#ifdef pyr".  As much as I hate those choices of preprocessor
+	names (they too easily conflict with real variable names), it does
+	make automatic compilation possible---people don't have to change
+	the Makefile anymore for specific machines.  The manual page was
+	changed to automatically incorporate the defaults as set in the
+	Makefile (including an infinite value for TOPN) and the way the
+	manual page is generated by the Makefile was changed to make
+	maintenance of this information automatic.
+
+Mon Jul 28 1986 - wnl (still pre 2.0)
+	Real close now.  I put in a new definition for the macro "pagetok"
+	that does an explicit shift of a constant expression involving
+	PGSHIFT.  Appropriate checks are made if PGSHIFT is to small.
+	"pagetok" is now used exclusively everywhere to convert kernel
+	clicks to kilobytes.  I added a full blown interactive mode with
+	the ability to change some of the runtime parameters (how many to
+	display, time delay, etc.) while top is running.  I also
+	incorporated a few ideas from the net:  control characters in the
+	command name are replaced with '?'; the '-S' option makes the
+	swapper and pager visible; options have been added to control the
+	number of displays produced (this makes it easier to make
+	performance snapshots with top).  I have also added the notion of
+	"infinite" values for number of processes and number of displays.
+	I fixed a long-standing bug in the uid to username mapping code
+	that was only aggravated on the pyramids:  it was an ill-defined
+	expression (akin to i = i++).  I tweaked the proc_compar routine
+	for qsort slightly so that stopped processes were more likely to
+	show up.  Manual page was updated to reflect all changes
+	noticeable to the user.
+
+Tue Jul  1 1986 - wnl (pre 2.0 -- 1.9999?)
+	In the process of major revamping on the way to version 2.0.
+	I have completely done away with curses by adding my own screen
+	management routines in a separate file (screen.c).  The rationale
+	for this is that top knows a whole lot more about what is and is
+	not redundant on the screen and can compare simple integer values
+	where curses would have to compare strings.  This has turned out
+	to be a very big win speed-wise.  The proc_compar routine for
+	sorting has been rewritten to include several more keys.  I
+	decided this was necessary when I noticed that the "top" process
+	itself kept disappearing off the top 10 list on a Sun-3.  All the
+	processes had the same percentage (0%) and the sort wasn't really
+	doing anything worthwhile.  I changed the expression that computes
+	memory usage to use the ctob macro instead of just assuming that
+	pages were 512 bytes.  More work still needs to be done before
+	this version is usable.  I changed options-processing to use
+	getopt and added appropriate incantations to the Makefile.
+
+Wed Feb 20 1985 - wnl (still 1.8)
+	Put in the ifdef FOUR_ONE statements to make top still compilable
+	on a 4.1 system.  Apparently, there are some users out there that
+	need this functionality.  Oh well.  I don't guarantee any of it,
+	since I can't test it.  Made appropriate changes to README and
+	final installation related changes to Makefile.
+
+Sat Feb  2 1985 - wnl (1.8)
+	Removed all the ifdef FOUR_TWO statements and made "top" into a
+	4.2 only program.  If someone really wants to still run it on 4.1,
+	then they can do all the work.  We don't have a 4.1 machine
+	anymore, so I don't even know if the thing still works under 4.1.
+	Cleaned up the Makefile and the README.  Added installation rules
+	to the Makefile, as requested by several sites.  Fixed a very
+	obscure divide-by-zero bug.  Added a second "key" to the qsort
+	comparison function (proc_compar) so that comparisons are based on
+	cpu ticks if the percentages are equal (provided by Jonathon
+	Feiber at Sun).
+
+Tue Dec 11 1984 - wnl (1.7)
+	Added the virtual and real memory status line to the header area
+	(provided by Jonathon Feiber at Sun)
+
+Tue Nov 20 1984 - wnl (1.6)
+	Added an "exit" if sbrk's fail.  Added changes from Jonathon
+	Feiber at Sun:  ifdef SUN to make top work on Suns (they don't use
+	doubles in the proc structure), register declarations, check for
+	getting a user structure that has disappeared since the proc array
+	was read (it used to die, now it just shows the process as swapped).
+
+Tue Nov 13 1984 - wnl (1.5)
+	If the number of displayable processes ("active_procs") was less
+	than the number of requested processes ("topn"), top would
+	segmentation fault.  This bug has been fixed.  Thanks to Prentiss
+	Riddle at ut-sally for pointing out the existence of this bug.
+
+Tue Oct 23 1984 - wnl (1.4)
+	Finally fixed the hash table bug that caused processes owned by
+	root to sometimes appear with either no name or a different name
+	that had UID 0 (such as "operator").  Removed all the ifdef DEBUG
+	blocks to make top ready for distribution to the real world.
+
+Sun Apr  8 1984 - wnl (still 1.3)
+	Made some slight changes to the display format.  It now looks more
+	aesthetically pleasing.  Added some preprocessor constants so that
+	the two defaults (number of processes and seconds of delay) easier
+	to change.
+
+Thu Apr  5 1984 - wnl (1.3)
+	Changed the order in which things are done at initialization time.
+	This way, if an error occurs before starting the main loop, curses
+	will never get started.  Also changed other error handlers so that
+	endwin() is called before any flavor of exit.  Specifying a number
+	of processes that is more than the screen can handle is no longer
+	fatal.  It displays a warning message and pretends the user
+	specified the maximum for the screen.  Finally cured all the TSTP
+	blues (well, almost all).  I removed my TSTP handler and convinced
+	the system to always use the one that curses sets up.  Turns out
+	that "sleep" was stepping all over it during a pause.  So, I don't
+	use sleep anymore.  The only problem that remains with it now is
+	redrawing the old display before updating it after a pause.
+
+Tue Apr  3 1984 - wnl (from 1.0 to 1.2)
+	I changed the format of the TIME column from just "seconds" to
+	"minutes:seconds".  I also made pausing work correctly.  Screen
+	redraws with an up to date display.  For compatibility with 4.2, I
+	changed the name of the "zero" function to "bzero".  The makefile
+	has been altered to handle versions for 4.1 and 4.2, and README
+	has been updated to reflect these recent changes.

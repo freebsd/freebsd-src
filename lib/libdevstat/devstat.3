@@ -1,0 +1,553 @@
+.\"
+.\" Copyright (c) 1998, 1999 Kenneth D. Merry.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 21, 1998
+.Dt DEVSTAT 3
+.Os
+.Sh NAME
+.Nm devstat ,
+.Nm getnumdevs ,
+.Nm getgeneration ,
+.Nm getversion ,
+.Nm checkversion ,
+.Nm getdevs ,
+.Nm selectdevs ,
+.Nm buildmatch ,
+.Nm compute_stats ,
+.Nm compute_etime
+.Nd device statistics utility library
+.Sh LIBRARY
+.Lb libdevstat
+.Sh SYNOPSIS
+.In sys/dkstat.h
+.In devstat.h
+.Ft int
+.Fn getnumdevs "void"
+.Ft long
+.Fn getgeneration "void"
+.Ft int
+.Fn getversion "void"
+.Ft int
+.Fn checkversion "void"
+.Ft int
+.Fn getdevs "struct statinfo *stats"
+.Ft int
+.Fo selectdevs
+.Fa "struct device_selection **dev_select"
+.Fa "int *num_selected"
+.Fa "int *num_selections"
+.Fa "long *select_generation"
+.Fa "long current_generation"
+.Fa "struct devstat *devices"
+.Fa "int numdevs"
+.Fa "struct devstat_match *matches"
+.Fa "int num_matches"
+.Fa "char **dev_selections"
+.Fa "int num_dev_selections"
+.Fa "devstat_select_mode select_mode"
+.Fa "int maxshowdevs"
+.Fa "int perf_select"
+.Fc
+.Ft int
+.Fo buildmatch
+.Fa "char *match_str"
+.Fa "struct devstat_match **matches"
+.Fa "int *num_matches"
+.Fc
+.Ft int
+.Fo compute_stats
+.Fa "struct devstat *current"
+.Fa "struct devstat *previous"
+.Fa "long double etime"
+.Fa "u_int64_t *total_bytes"
+.Fa "u_int64_t *total_transfers"
+.Fa "u_int64_t *total_blocks"
+.Fa "long double *kb_per_transfer"
+.Fa "long double *transfers_per_second"
+.Fa "long double *mb_per_second"
+.Fa "long double *blocks_per_second"
+.Fa "long double *ms_per_transaction"
+.Fc
+.Ft long double
+.Fo compute_etime
+.Fa "struct timeval cur_time"
+.Fa "struct timeval prev_time"
+.Fc
+.Sh DESCRIPTION
+The
+.Nm
+library is a library of helper functions for dealing with the kernel
+.Xr devstat 9
+interface, which is accessible to users via
+.Xr sysctl 3 .
+.Pp
+.Fn getnumdevs
+returns the number of devices registered with the
+.Nm
+subsystem in the kernel.
+.Pp
+.Fn getgeneration
+returns the current generation of the
+.Nm
+list of devices in the kernel.
+.Pp
+.Fn getversion
+returns the current kernel
+.Nm
+version.
+.Pp
+.Fn checkversion
+checks the userland devstat version against the kernel devstat version.
+If the two are identical, it returns zero.
+Otherwise, it prints an appropriate error in
+.Va devstat_errbuf
+and returns -1.
+.Pp
+.Fn getdevs
+fetches the current list of devices and statistics into the supplied
+.Va statinfo
+structure.
+The
+.Va statinfo
+structure can be found in
+.Aq Pa devstat.h :
+.Bd -literal -offset indent
+struct statinfo {
+	long            cp_time[CPUSTATES];
+	long            tk_nin;
+	long            tk_nout;
+	struct devinfo  *dinfo;
+	struct timeval  busy_time;
+};
+.Ed
+.Pp
+.Fn getdevs
+expects the
+.Va statinfo
+structure to be allocated, and it also expects the
+.Va dinfo
+subelement to be allocated and zeroed prior to the first invocation of
+.Fn getdevs .
+The
+.Va dinfo
+subelement is used to store state between calls, and should not be modified
+after the first call to
+.Fn getdevs .
+The
+.Va dinfo
+subelement contains the following elements:
+.Bd -literal -offset indent
+struct devinfo {
+	struct devstat	*devices;
+	u_int8_t	*mem_ptr;
+	long		generation;
+	int		numdevs;
+};
+.Ed
+.Pp
+The
+.Va kern.devstat.all
+.Nm sysctl
+variable contains an array of
+.Nm
+structures, but at the head of the array is the current
+.Nm
+generation.
+The reason the generation is at the head of the buffer is so that userland
+software accessing the devstat statistics information can atomically get
+both the statistics information and the corresponding generation number.
+If client software were forced to get the generation number via a separate
+.Nm sysctl
+variable (which is available for convenience), the list of devices could
+change between the time the client gets the generation and the time the
+client gets the device list.
+.Pp
+The
+.Va mem_ptr
+subelement of the
+.Va devinfo
+structure is a pointer to memory that is allocated, and resized if
+necessary, by
+.Fn getdevs .
+The devices subelement of the
+.Va devinfo
+structure is basically a pointer to the beginning of the array of devstat
+structures from the
+.Va kern.devstat.all
+.Nm sysctl
+variable.
+The generation subelement of the
+.Va devinfo
+structure contains the generation number from the
+.Va kern.devstat.all
+.Nm sysctl
+variable.
+The
+.Va numdevs
+subelement of the
+.Va devinfo
+structure contains the current
+number of devices registered with the kernel
+.Nm
+subsystem.
+.Pp
+.Fn selectdevs
+selects devices to display based upon a number of criteria:
+.Bl -tag -width flag
+.It specified devices
+Specified devices are the first selection priority.
+These are generally devices specified by name by the user e.g. da0, da1, cd0.
+.It match patterns
+These are pattern matching expressions generated by
+.Fn buildmatch
+from user input.
+.It performance
+If performance mode is enabled, devices will be sorted based on the
+.Va bytes
+field in the
+.Va device_selection
+structure passed in to
+.Fn selectdevs .
+The
+.Va bytes
+value currently must be maintained by the user.
+In the future, this may be done for him in a
+.Nm
+library routine.
+If no devices have been selected by name or by pattern, the performance
+tracking code will select every device in the system, and sort them by
+performance.
+If devices have been selected by name or pattern, the performance tracking
+code will honor those selections and will only sort among the selected
+devices.
+.It order in the devstat list
+If the selection mode is set to DS_SELECT_ADD, and if there are still less
+than
+.Va maxshowdevs
+devices selected,
+.Fn selectdevs
+will automatically select up to
+.Va maxshowdevs
+devices.
+.El
+.Pp
+.Fn selectdevs
+performs selections in four different modes:
+.Bl -tag -width DS_SELECT_ADDONLY
+.It DS_SELECT_ADD
+In add mode,
+.Fn selectdevs
+will select any unselected devices specified by name or matching pattern.
+It will also select more devices, in devstat list order, until the number
+of selected devices is equal to
+.Va maxshowdevs
+or until all devices are
+selected.
+.It DS_SELECT_ONLY
+In only mode,
+.Fn selectdevs
+will clear all current selections, and will only select devices specified
+by name or by matching pattern.
+.It DS_SELECT_REMOVE
+In remove mode,
+.Fn selectdevs
+will remove devices specified by name or by matching pattern.
+It will not select any additional devices.
+.It DS_SELECT_ADDONLY
+In add only mode,
+.Fn selectdevs
+will select any unselected devices specified by name or matching pattern.
+In this respect it is identical to add mode.
+It will not, however, select any devices other than those specified.
+.El
+.Pp
+In all selection modes,
+.Fn selectdevs
+will not select any more than
+.Va maxshowdevs
+devices.
+One exception to this is when you are in
+.Dq top
+mode and no devices have been selected.
+In this case,
+.Fn selectdevs
+will select every device in the system.
+Client programs must pay attention to selection order when deciding whether
+to pay attention to a particular device.
+This may be the wrong behavior, and probably requires additional thought.
+.Pp
+.Fn selectdevs
+handles allocation and resizing of the
+.Va dev_select
+structure passed in
+by the client.
+.Fn selectdevs
+uses the
+.Va numdevs
+and
+.Va current_generation
+fields to track the
+current
+.Nm
+generation and number of devices.
+If
+.Va num_selections
+is not the same
+as
+.Va numdevs
+or if
+.Va select_generation
+is not the same as
+.Va current_generation ,
+.Fn selectdevs
+will resize the selection list as necessary, and re-initialize the
+selection array.
+.Pp
+.Fn buildmatch
+takes a comma separated match string and compiles it into a
+\fBdevstat_match\fR structure that is understood by
+.Fn selectdevs .
+Match strings have the following format:
+.Pp
+.Bd -literal -offset indent
+device,type,if
+.Ed
+.Pp
+.Fn buildmatch
+takes care of allocating and reallocating the match list as necessary.
+Currently known match types include:
+.Pp
+.Bl -tag -width indent -compact
+.It device type:
+.Bl -tag -width 9n -compact
+.It da
+Direct Access devices
+.It sa
+Sequential Access devices
+.It printer
+Printers
+.It proc
+Processor devices
+.It worm
+Write Once Read Multiple devices
+.It cd
+CD devices
+.It scanner
+Scanner devices
+.It optical
+Optical Memory devices
+.It changer
+Medium Changer devices
+.It comm
+Communication devices
+.It array
+Storage Array devices
+.It enclosure
+Enclosure Services devices
+.It floppy
+Floppy devices
+.El
+.Pp
+.It interface:
+.Bl -tag -width 9n -compact
+.It IDE
+Integrated Drive Electronics devices
+.It SCSI
+Small Computer System Interface devices
+.It other
+Any other device interface
+.El
+.Pp
+.It passthrough:
+.Bl -tag -width 9n -compact
+.It pass
+Passthrough devices
+.El
+.El
+.Pp
+.Fn compute_stats
+provides an easy way to obtain various device statistics.
+Only two arguments are mandatory:
+.Va current
+and
+.Va etime .
+Every other argument is optional.
+For most applications, the user will want to supply both
+.Va current
+and
+.Va previous
+devstat structures so that statistics may be calculated over a given period
+of time.
+In some instances, for instance when calculating statistics since system boot,
+the user may pass in a NULL pointer for the
+.Va previous
+argument.
+In that case,
+.Fn compute_stats
+will use the total stats in the
+.Va current
+structure to calculate statistics over
+.Va etime .
+The various statistics that may be calculated by
+.Fn compute_stats
+should be mostly explained by the function declaration itself, but for
+completeness here is a list of variable names and the statistics that will
+be put in them:
+.Bl -tag -width transfers_per_second
+.It total_bytes
+This is the total number of bytes transferred on the given device, both
+reads and writes, between the acquisition of
+.Va previous
+and the acquisition of
+.Va current .
+If
+.Va previous
+is NULL, the result will be the total reads and writes given in
+.Va current .
+.It total_transfers
+This is the total number of transfers completed between the
+acquisition of
+.Va previous
+and the acquisition of
+.Va current .
+If
+.Va previous
+is NULL, the result will be the total number of transactions listed in
+.Va current .
+.It total_blocks
+This is basically
+.Va total_bytes
+divided by the device blocksize.
+If the device blocksize is listed as
+.Sq 0 ,
+the device blocksize will default to 512 bytes.
+.It kb_per_transfer
+This is the average number of kilobytes per transfer during the measurement
+period.
+.It transfers_per_second
+This is the average number of transfers per second.
+.It mb_per_second
+This is average megabytes per second.
+.It blocks_per_second
+This is average blocks per second.
+If the device blocksize is
+.Sq 0 ,
+a default blocksize of 512 bytes will be used instead.
+.It ms_per_transaction
+The average number of milliseconds per transaction.
+.El
+.Pp
+.Fn compute_etime
+provides an easy way to find the difference in seconds between two
+.Va timeval
+structures.
+This is most commonly used in conjunction with the time recorded by the
+.Fn getdevs
+function (in struct
+.Va statinfo )
+each time it fetches the current
+.Nm
+list.
+.Sh RETURN VALUES
+.Fn getnumdevs ,
+.Fn getgeneration ,
+and
+.Fn getversion
+return the indicated \fBsysctl\fR variable, or -1 if there is an error
+fetching the variable.
+.Pp
+.Fn checkversion
+returns 0 if the kernel and userland
+.Nm
+versions match.
+If they do not match, it returns -1.
+.Pp
+.Fn getdevs
+and
+.Fn selectdevs
+return -1 in case of an error, 0 if there is no error and 1 if the device
+list or selected devices have changed.
+A return value of 1 from
+.Fn getdevs
+is usually a hint to re-run
+.Fn selectdevs
+because the device list has changed.
+.Pp
+.Fn buildmatch
+returns -1 for error, and 0 if there is no error.
+.Pp
+.Fn compute_stats
+returns -1 for error, and 0 for success.
+.Pp
+.Fn compute_etime
+returns the computed elapsed time.
+.Pp
+If an error is returned from one of the
+.Nm
+library functions, the reason for the error is generally printed in
+the global string
+.Va devstat_errbuf
+which is
+.Dv DEVSTAT_ERRBUF_SIZE
+characters long.
+.Sh SEE ALSO
+.Xr systat 1 ,
+.Xr iostat 8 ,
+.Xr rpc.rstatd 8 ,
+.Xr vmstat 8 ,
+.Xr devstat 9
+.Sh HISTORY
+The
+.Nm
+statistics system first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+.An Kenneth Merry Aq ken@FreeBSD.org
+.Sh BUGS
+There should probably be an interface to de-allocate memory allocated by
+.Fn getdevs ,
+.Fn selectdevs ,
+and
+.Fn buildmatch .
+.Pp
+.Fn selectdevs
+should probably not select more than
+.Va maxshowdevs
+devices in
+.Dq top
+mode when no devices have been selected previously.
+.Pp
+There should probably be functions to perform the statistics buffer
+swapping that goes on in most of the clients of this library.
+.Pp
+The
+.Va statinfo
+and
+.Va devinfo
+structures should probably be cleaned up and thought out a little more.

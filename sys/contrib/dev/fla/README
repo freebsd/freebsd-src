@@ -1,0 +1,198 @@
+                README and FAQ for the fla driver.
+		==================================
+
+
+[0]	COPYRIGHT & LICENSE
+
+	Please read the COPYRIGHT file carefully.  If you cannot
+	agree to be bound by the terms of this license, please
+	contact M-systems and make arrangements with them.
+
+[1]	What does this driver do ?
+
+	This driver supports up to eight M-systems DiskOnChip
+	devices.
+
+	The driver has been tested with the following devices:
+
+	DiskOnChip2000 (8, 12, 24, 32, 40, 72, 144 MB)
+	DiskOnChipMillenium (8 MB)
+	DiskOnChipMillenium TSOP (8 MB)
+
+	You can find full details, specs etc on M-systems homepage:
+	http://www.m-sys.com
+
+[2]	Which firmware version ?
+
+	The driver has only been tested with version 1.21.
+
+[3]	How many devices ?
+
+	The driver supports up to 8 devices but have been tested only
+	with 5 due to hardware limitations in my test setup.
+
+[4]	Which FreeBSD versions ?
+
+	The driver is tested for 4.0-CURRENT and 3.3-RELEASE.
+
+	Porting to earlier versions of FreeBSD should be a simple
+	matter of modifying the fla.c file.  [patches are welcome]
+
+[5]	Can I install FreeBSD with sysinstall ?
+
+	Yes, it has been tested in FreeBSD-4.0-CURRENT and it works.
+	You will need to build a kernel with the fla driver since
+	the default "GENERIC" kernel doesn't contain the fla driver.
+
+[6]	How to boot from a fla device ?
+
+	FreeBSD 4.0 and forward find their root device by reading
+	the /etc/fstab, so the DiskOnChip devices will work just
+	like any other device.
+
+	Earlier FreeBSD kernels recognizes the root device using
+	various hacks.  These hacks doesn't recognize the fla device
+	so some "real" hacks are needed to boot from your fla
+	device.
+
+	In pre 4.0 versions specifying the boot device in the kernel
+	config file this way is the easiest way to do it:
+
+		config          kernel  root on major 28 minor 65538
+
+[7]	How to disklabel a fla device ?
+
+	Look at the script in prep.fla.sh, it will do the job for you.
+
+[8]	Who to contact ?
+
+	doc2k@phk.freebsd.dk will offer limited best-effort help
+	to the extent time permits.  Further support for special
+	projects or configurations available at reasonable hourly
+	rates.
+
+[9]	Getting detailed
+
+	The DiskOnChip product gets out in some odd corners of the
+	PC-architecture, and chances are that things don't do what
+	you expect.  Here are some hints and random observations
+	I've made during my work with these devices.
+
+[9a]	Choosing an address for the DOC
+
+	Each DOC needs a 8K memory window starting on an 8K boundary.
+	The lowest possible address is C000:0, the highest is DE00:0
+
+	If your hardware puts the DOC another place, you will need
+	to modify the doc2k_probe() call in fla.c.
+
+	It is important that you set the BIOS to not do "fancy things"
+	with this window, in particular no kind of cache or shadowing
+	can be enabled.
+
+	Be aware that some hardware will decode a 32k memory window 
+	for the DOC device.
+
+	If everything is OK, the DOC will print a message during
+	the BIOS startup.
+
+	For large devices it can take some time to check the flash
+	data structures, but if it takes more than 3 minutes
+	something is wrong.
+
+	If you boot a MSDOS floppy and run FDISK you should be able
+	to see the DOC device.
+
+	If it doesnt work:
+
+	If you machine never gets to the point where it will boot,
+	but just hangs it could be because you have a BIOS which
+	need the "slightly special" DOC firmware.  Obviously you
+	will need to put the DOC in another machine to load this
+	firmware.  You can download the firmware and utilities
+	from M-systems website http://www.m-sys.com
+
+	If the machine boots, but the device isn't visible it can
+	be because some other device uses the same memory window,
+	or because the BIOS prevents it from being used.  If you
+	boot MSDOS and enter DEBUG, you should be able to find a
+	BIOS extension signature at the address using the 'd'
+	command, for instance 'd d800:0'.
+
+	A special case is when the DOC prints the BIOS message
+	but disappears afterwards, this can happen because another
+	card (NCR SCSI controllers for instance) steal the memory
+	window later in the boot process.  In such a case the
+	above check with DEBUG will not show the BIOS signature.
+
+[9b]	So just who is drive 'C' here anyway ?
+
+	Using the DUPDATE program you can choose to have the DOC
+	add itself at the front or the back of the device list.
+
+	This is, unfortunately not the only thing affecting the
+	drive order, the above mentioned NCR SCSI controllers also
+	have some builtin AI, and the result can be very confusing
+	because the DOC will come before even the floppy as a result.
+
+	There is no simple solution for this case, only variuos
+	work-arounds.  But chances are good that most users will
+	not use both a DOC and a SCSI in the same system, except
+	maybe for initial programming.
+
+[9c]	MBR/fdisk
+
+	The boot firmware in the DOC and/or the FreeBSD bootblocks
+	mandate that the first MBR slice/(partition in FDISK lingo)
+	start exactly at "sector #1, head #1, cylinder #0."  You 
+	will have problems booting from the fla if you don't get this
+	right.  The prep.fla.sh script will do this for you.
+
+	DO NOT WRITE JUNK IN THE MBR!  The DOC firmware relies on
+	various fields and can get utterly confused if they don't
+	make sense.
+
+[9d]	Getting the FreeBSD kernel to use the fla as root
+
+	Please see above under item 6.
+
+[9e]	I turned the machine off while it was running and now my
+	DOC hangs during boot/panics the machine/does weird things.
+
+	If a write operation to the DOC gets interrupted by reset
+	or power-failure, it can happen that the flash data structures
+	are left in a state the sofware cannot cope with.
+
+	Your best chance is to DUPDATE, DFORMAT the device again.
+
+	If it hangs during boot, you can use this particular dirty
+	trick ENTIRELY AT YOUR OWN RISK!  DO NOT COMPLAIN IF THIS
+	DOESN'T WORK FOR YOU OR IF YOU DESTROY YOUR COMPUTER OR
+	DOC DEVICE DOING IT!
+
+	Jumper the DOC for an address which will not work, but which
+	will not interfere with the system either, C000:0 seems to
+	work pretty universally for this.
+
+	Boot MSDOS and rejumper the DOC for its real (working) address.
+
+	Run DUPDATE and use the /win:xxxx argument to point it at the
+	DOC device.
+
+[9f]	Apart from that...
+
+	...the DOC is just like any other disk, but it is silent,
+	has better MTBF and doesn't take up a lot of space.
+
+
+[10]	History
+
+	The fla driver was written by Poul-Henning Kamp <phk@FreeBSD.org>
+	under contract for M-systems, and using their "OSAK"
+	development kit.
+
+Good Luck,
+
+Poul-Henning
+
+$FreeBSD$

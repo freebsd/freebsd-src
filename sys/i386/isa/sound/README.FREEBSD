@@ -1,0 +1,165 @@
+GUSPNP15 8/6//97
+ftp://rah.star-gate.com/pub/guspnp.tar.gz
+
+This sound driver is for FreeBSD 3.0-current .
+
+
+Major enhancement we now support mapping the dma buffer to user
+space for write operations only. This features is useful for 
+games like xquake . So far the mmap features seems to work
+with the GUS PnP Pro and with the SB16. 
+
+For xquake you will need:
+
+1. a few mods to the linux loadable module so just download it and
+ replace yours:
+cd /sys/i386/
+tar -xzf linux_ioctl.tar.gz
+cd /usr/src/lkm/linux
+make 
+make install
+modunload -i 0    (if you have the linux up and running)
+linux
+ftp://rah.star-gate.com/linux_ioctl.tar.gz
+
+2. Install the linux lib 2.4 package:
+pkg_add linux_lib-2.4.tgz
+
+ftp://ftp.freebsd.org/pub/FreeBSD/packages-current/emulators/linux_lib-2.4.tgz
+
+If you don't have xquake you can get it from:
+
+3. ftp://ftp.freebsd.org/pub/idgames/idstuff/unsup/intel_linux_quake101.tgz
+
+
+A simple test program mmap_test.c is provided in the sound driver directory.
+So copy it to your home directory or favorite place and compile it.
+cc -o mmap_test mmap_test.c
+
+record a sample session:
+cat /dev/dsp >smpl
+
+now run mmap_test . You will hear a loud pop thats a test program
+then the sample stream will loop .
+
+
+Phew, now back to sound driver land 8)
+
+
+This is a minor sound driver release for  the GUS PnP Pro , GUS MAX,
+AudioTrix Pro , SB16 and SB16 PnP. There is also an experimental
+AWE sub model.
+
+Included Luigi's clean up work . Tnks!
+
+Randall Hopper's SB16 speed setting fix . Tnks!
+
+Fixed signal handling throught out the sound driver. The problem
+first surfaced with the SB16 not generating an interrupt on the
+last dma request and SB afficionados quickly pointed out the 
+bug in the driver. I had to put back the auto dma feature for
+xquake :(
+
+
+NOTE YOU DON'T NEED THE PNP DRIVER FOR THE GUS PNP SINCE THE DRIVER
+HAS BUILTIN PNP SUPPORT FOR THE GUS.
+
+My P133 Bios supports PnP. To first figured out what my SB16 PnP
+was being configured to I booted win95 and checked out what Win95
+ended up with . Alternatively, if you want to you can also down
+load Sujal Patel's PnP driver:
+
+ ftp://rah.start-gate.com/pub/FreeBSD-ISA_PnP_June8.tar.gz
+
+follow the instructions on how to configure your PnP soundcard or 
+ISA device.
+Lugi also has  Sujal's PnP driver . 
+
+
+---
+
+	http://www.iet.unipi.it/~luigi/pnp.c
+	http://www.iet.unipi.it/~luigi/pnp.h
+
+		the two main files. Follow Sujal Patel's instructions
+		for installing pnp support.
+
+	http://www.iet.unipi.it/~luigi/pnpinfo.tgz
+---
+
+This is my kernel configuration for my SB16 PnP:
+
+controller      snd0
+device sb0      at isa? port 0x220 irq 10 conflicts drq 3
+device sbxvi0   at isa? port? irq? drq 5 conflicts
+device opl0     at isa? port 0x388 conflicts
+device sbmidi0  at isa? port 0x300 irq? conflicts
+
+----
+
+
+The difference between a GUS PnP and a GUS PnP PRO is that the Pro
+comes with 512kb. I went out an got a 1mb 60ns 30pin simm and installed
+it on my GUS PnP. I own a GUS PnP and a GUS PnP PRO.
+
+
+To unpack:
+cd /
+mv /sys/i386/isa/sound /sys/i386/isa/sound.old
+cd /sys/i386/isa/
+tar -xzf guspnp15.tar.gz 
+
+
+cd /sys/i386/conf
+Edit the kernel config file in /sys/i386/conf
+
+IF YOU HAVE A GUS MAX or GUS add the option NOGUSPNP to the config file
+	OPTIONS NOGUSPNP
+  THEN follow the instructions for NONPNP CONFIGURATION
+
+
+PNP CONFIGURATION
+To configure your guspnp PRO if you have a motherboard which supports
+PnP:
+
+	controller snd0
+	device gus0 at isa?
+
+NONPNP CONFIGURATION
+To configure your guspnp PRO if your motherboard does NOT support
+PnP:
+
+device gus0 at isa? port  0x220 irq 11 drq 1 flags 0x3
+
+
+the gus pnp is fully software configurable and the above configuration
+is setup for full duplex audio. The dma channel settings are:
+
+drq 1   	--- DMA channel for playback
+
+flags 0x3	--- DMAN channel for recording
+
+In the event that you have to configure a GUS PnP manually or a GUS MAX:
+
+     Available IRQs for the GUS are:
+     3, 5, 7, 9, 11, 12, 15
+
+     Available DMA channels for the GUS are:
+     1, 3, 5, 6, 7
+
+
+config <kernel-file>
+cd /sys/compile/<kernel-file>
+make 
+make install
+
+THERE IS NO NEED TO BOOT TO DOS TO CONFIGURE YOUR GUS PNP. 
+THE DRIVER HAS BUILTIN SUPPORT FOR PNP WHICH I GOT
+FROM THE  GRAVIS DRIVER DEVELOPMENT KIT
+
+Many thanks to  Brian Litzinger <brian@MediaCity.com> for
+porting the sound driver 3.5 to 2.2-current. Well, thats a while
+ago hence the reference to 2.2. 
+
+	Have fun,
+	Amancio

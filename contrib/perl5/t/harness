@@ -1,0 +1,33 @@
+#!./perl
+
+# We suppose that perl _mostly_ works at this moment, so may use
+# sophisticated testing.
+
+BEGIN {
+    chdir 't' if -d 't';
+    @INC = '../lib';
+    $ENV{PERL5LIB} = '../lib';	# so children will see it too
+}
+use lib '../lib';
+
+use Test::Harness;
+
+$Test::Harness::switches = "";	# Too much noise otherwise
+$Test::Harness::verbose = shift if @ARGV && $ARGV[0] eq '-v';
+
+@tests = @ARGV;
+@tests = <base/*.t comp/*.t cmd/*.t io/*.t op/*.t pragma/*.t lib/*.t> unless @tests;
+
+Test::Harness::runtests @tests;
+
+%infinite = ('comp/require.t', 1, 'op/bop.t', 1, 'lib/hostname.t', 1 );
+
+@tests = grep (!$infinite{$_}, @tests);
+
+if (-e "../testcompile") 
+{ 
+	print "The tests ", join(' ', keys(%infinite)), 
+							" generate infinite loops! Skipping!\n";
+
+	$ENV{'COMPILE_TEST'} = 1; Test::Harness::runtests @tests; 
+}

@@ -1,0 +1,10 @@
+Richard Stallman -- original version and continuing revisions of
+  regex.c and regex.h, and original version of the documentation.
+
+Karl Berry and Kathryn Hargreaves -- extensive modifications to above,
+  and all test files.
+
+Jim Blandy -- original version of re_set_registers, revisions to regex.c.
+
+Joe Arceneaux, David MacKenzie, Mike Haertel, Charles Hannum, and
+probably others -- revisions to regex.c.

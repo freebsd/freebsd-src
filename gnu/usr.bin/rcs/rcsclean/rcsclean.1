@@ -1,0 +1,203 @@
+.de Id
+.ds Rv \\$3
+.ds Dt \\$4
+..
+.Id $FreeBSD$
+.ds r \&\s-1RCS\s0
+.if n .ds - \%--
+.if t .ds - \(em
+.TH RCSCLEAN 1 \*(Dt GNU
+.SH NAME
+rcsclean \- clean up working files
+.SH SYNOPSIS
+.B rcsclean
+.RI [ options "] [ " file " .\|.\|. ]"
+.SH DESCRIPTION
+.B rcsclean
+removes files that are not being worked on.
+.B "rcsclean \-u"
+also unlocks and removes files that are being worked on
+but have not changed.
+.PP
+For each
+.I file
+given,
+.B rcsclean
+compares the working file and a revision in the corresponding
+\*r file.  If it finds a difference, it does nothing.
+Otherwise, it first unlocks the revision if the
+.B \-u
+option is given,
+and then removes the working file
+unless the working file is writable and the revision is locked.
+It logs its actions by outputting the corresponding
+.B "rcs \-u"
+and
+.B "rm \-f"
+commands on the standard output.
+.PP
+Files are paired as explained in
+.BR ci (1).
+If no
+.I file
+is given, all working files in the current directory are cleaned.
+Pathnames matching an \*r suffix denote \*r files;
+all others denote working files.
+.PP
+The number of the revision to which the working file is compared
+may be attached to any of the options
+.BR \-n ,
+.BR \-q ,
+.BR \-r ,
+or
+.BR \-u .
+If no revision number is specified, then if the
+.B \-u
+option is given and the caller has one revision locked,
+.B rcsclean
+uses that revision; otherwise
+.B rcsclean
+uses the latest revision on the default branch, normally the root.
+.PP
+.B rcsclean
+is useful for
+.B clean
+targets in makefiles.
+See also
+.BR rcsdiff (1),
+which prints out the differences,
+and
+.BR ci (1),
+which
+normally reverts to the previous revision
+if a file was not changed.
+.SH OPTIONS
+.TP
+.BI \-k subst
+Use
+.I subst
+style keyword substitution when retrieving the revision for comparison.
+See
+.BR co (1)
+for details.
+.TP
+.BR \-n [\f2rev\fP]
+Do not actually remove any files or unlock any revisions.
+Using this option will tell you what
+.B rcsclean
+would do without actually doing it.
+.TP
+.BR \-q [\f2rev\fP]
+Do not log the actions taken on standard output.
+.TP
+.BR \-r [\f2rev\fP]
+This option has no effect other than specifying the revision for comparison.
+.TP
+.B \-T
+Preserve the modification time on the \*r file
+even if the \*r file changes because a lock is removed.
+This option can suppress extensive recompilation caused by a
+.BR make (1)
+dependency of some other copy of the working file on the \*r file.
+Use this option with care; it can suppress recompilation even when it is needed,
+i.e. when the lock removal
+would mean a change to keyword strings in the other working file.
+.TP
+.BR \-u [\f2rev\fP]
+Unlock the revision if it is locked and no difference is found.
+.TP
+.BI \-V
+Print \*r's version number.
+.TP
+.BI \-V n
+Emulate \*r version
+.IR n .
+See
+.BR co (1)
+for details.
+.TP
+.BI \-x "suffixes"
+Use
+.I suffixes
+to characterize \*r files.
+See
+.BR ci (1)
+for details.
+.TP
+.BI \-z zone
+Use
+.I zone
+as the time zone for keyword substitution;
+see
+.BR co (1)
+for details.
+.SH EXAMPLES
+.LP
+.RS
+.ft 3
+rcsclean  *.c  *.h
+.ft
+.RE
+.LP
+removes all working files ending in
+.B .c
+or
+.B .h
+that were not changed
+since their checkout.
+.LP
+.RS
+.ft 3
+rcsclean
+.ft
+.RE
+.LP
+removes all working files in the current directory
+that were not changed since their checkout.
+.SH FILES
+.B rcsclean
+accesses files much as
+.BR ci (1)
+does.
+.SH ENVIRONMENT
+.TP
+.B \s-1RCSINIT\s0
+options prepended to the argument list, separated by spaces.
+A backslash escapes spaces within an option.
+The
+.B \s-1RCSINIT\s0
+options are prepended to the argument lists of most \*r commands.
+Useful
+.B \s-1RCSINIT\s0
+options include
+.BR \-q ,
+.BR \-V ,
+.BR \-x ,
+and
+.BR \-z .
+.SH DIAGNOSTICS
+The exit status is zero if and only if all operations were successful.
+Missing working files and \*r files are silently ignored.
+.SH IDENTIFICATION
+Author: Walter F. Tichy.
+.br
+Manual Page Revision: \*(Rv; Release Date: \*(Dt.
+.br
+Copyright \(co 1982, 1988, 1989 Walter F. Tichy.
+.br
+Copyright \(co 1990, 1991, 1992, 1993 Paul Eggert.
+.SH "SEE ALSO"
+ci(1), co(1), ident(1), rcs(1), rcsdiff(1), rcsintro(1), rcsmerge(1), rlog(1),
+rcsfile(5)
+.br
+Walter F. Tichy,
+\*r\*-A System for Version Control,
+.I "Software\*-Practice & Experience"
+.BR 15 ,
+7 (July 1985), 637-654.
+.SH BUGS
+At least one
+.I file
+must be given in older Unix versions that
+do not provide the needed directory scanning operations.
+.br

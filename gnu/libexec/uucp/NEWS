@@ -1,0 +1,154 @@
+Changes in version 1.06:
+
+    As usual, many bugs were fixed.
+
+    Support was added for the 'y' protocol, contributed by Jorge Cwik,
+    the designer of the protocol.
+
+    The name of command files was changed when using SPOOLDIR_TAYLOR;
+    they now use a much longer sequence number.  This affects the
+    jobid strings reported by uustat.  The change makes uux and uucp
+    more efficient.
+
+    Added ``called-timegrade'' command to sys file.
+
+    Added --nostop and -E/--escape options to cu.
+
+    Added -s option to uuchk.
+
+    Added ``strip-login'' and ``strip-proto'' commands to config file.
+
+    uux will now create a poll file if invoked as ``uux SYSTEM!''.
+
+    If an execution fails, the data file is saved, if there is enough
+    free disk space.
+
+    uux now uses POSIX file locking, if available, when locking the
+    sequence file.
+
+    The man pages were incorporated into the Texinfo manual.
+
+    The UUCP Internals FAQ was incorporated into the Texinfo manual.
+
+    The spool directory layout is now documented in the Texinfo
+    manual.
+
+Changes in version 1.05:
+
+    As usual, many bugs were fixed.
+
+    Support was added for the UUPC/extended 'v' protocol.
+
+    Initial hardware flow control support was added, contributed by
+    Peter Wemm.
+
+    A new port type, ``pipe'', was added; this sends data to a program
+    such as rlogin, and was contributed by Marc Boucher.
+
+    The programs all now accept long option names with a leading --.
+    They all support --help and --version.
+
+    uuxqt now saves execution files it can not parse in
+    $(SPOOLDIR)/.Corrupt.
+
+    If a received file can not be moved to the final location, and
+    there is enough disk space, it is kept in the spool directory.
+
+    A run-uuxqt command was added to config, to permit specifying when
+    uuxqt should be run.
+
+    The 'i' protocol has a new ack-frequency protocol parameter.  The
+    remote-window protocol parameter was removed, as it did not work
+    correctly.
+
+    Chat scripts now permit /W in an expect string to set the timeout.
+
+    TCP ports now support the ``dialer-sequence'' command.
+
+    Direct ports now support the ``carrier'' command.
+
+    Some support was added to read UUCP passwords from /etc/passwd,
+    and to use encrypted passwords.
+
+    uucico now accepts a -C argument to only call a system named by -S
+    or -s if there is work for it.
+
+    uucico accepts a -i TLI argument to use TLI I/O calls on standard
+    input.
+
+    uucico accepts a -u argument to set the user name.
+
+    uucico accepts a -z argument to try the next alternate if a call
+    fails.
+
+    uustat accepts a -R argument to rejuvenate each listed job.
+    
+    Mailer configuration was moved from configure checking to
+    policy.h.
+
+    Support was added for QNX, contributed by Joe Wells.
+
+Changes in version 1.04:
+
+IMPORTANT: the default when talking to another version of 1.04 is to
+use the new bidirectional 'i' protocol.  If you are using a
+half-duplex modem, such as a Telebit T2500, you will want to either
+mark the port as half-duplex with the ``half-duplex'' command, or
+force use of the 'g' protocol by using the ``protocol'' command in the
+sys or port file or by adding ``,g'' after the port name in the
+Systems or L.sys or Devices file.
+
+    As usual, many bugs were fixed.
+
+    Bidirectional transfers are supported with the new 'i' protocol;
+    it requires an eight-bit clear datapath.
+
+    New programs: uusched, cu, uuto and uupick.
+
+    The 'G' protocol and a new Zmodem protocol were added.
+
+    A number of uustat options were added to support uuclean, and a
+    sample uuclean shell script was added to the contrib directory.
+    The uustat output formats were changed slightly.
+
+    A protocol extension eliminates transfer of the command file for
+    simple commands, such as rmail or rnews, when talking to another
+    version of 1.04.
+
+    Some TLI support was added.
+
+    UUCP forwarding was added, along with the ``forward-to'',
+    ``forward-from'' and ``forward'' commands.
+
+    If a file transfer fails in the middle, the retry will now start
+    from where it left off.  The implementation is compatible with
+    SVR4.
+
+    The work queue is checked every 10 minutes during a conversation;
+    if there is new work and a bidirectional protocol is not in use,
+    the receiving uucico requests the sender to transfer control.
+
+    The amount of free disk space is checked periodically as a file is
+    received, and if it drops too low the call is aborted.
+
+    The UUCP configuration file reading routines were moved into a
+    standalone library, uuconf.  All known bugs in V2 and HDB
+    configuration file reading were fixed.
+
+    The ``half-duplex'' command was added for the port and dialer
+    files.
+
+    The ``max-retries'', ``success-wait'', ``send-request'' and
+    ``receive-request'' commands were added for the sys file.  The
+    ``call-request'' and ``called-request'' commands were eliminated
+    (they did not work correctly anyhow).
+
+    \d in chat scripts now calls sleep (2) rather than sleep (1), so
+    it will sleep longer (on some systems sleep(1) may delay much less
+    than one second).
+
+    SPOOLDIR_SVR4 was added for SVR4 style spool directories.
+
+    Defaults are now permitted in the port and dialer files.
+
+    The ALIAS field is supported in the HDB Permissions file.

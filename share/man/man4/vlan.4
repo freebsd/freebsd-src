@@ -1,0 +1,166 @@
+.\"
+.\" Copyright (c) 2001 Yar Tikhiy
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 25, 2001
+.Dt VLAN 4
+.Os
+.Sh NAME
+.Nm vlan
+.Nd IEEE 802.1Q VLAN network interface
+.Sh SYNOPSIS
+.Cd pseudo-device vlan Op Ar count
+.\"
+.Sh DESCRIPTION
+The
+.Nm
+driver demultiplexes frames tagged according to
+the IEEE 802.1Q standard into logical
+.Nm
+network interfaces, which allows routing/bridging between
+multiple VLANs through a single switch trunk port.
+.Pp
+Each
+.Nm
+interface is created at runtime using interface cloning.
+This is
+most easily done with the
+.Xr ifconfig 8
+.Cm create
+command or using the
+.Va cloned_interfaces
+variable in
+.Xr rc.conf 5 .
+.Pp
+To function, a
+.Nm
+interface must be assigned a parent interface and
+numeric VLAN tag using
+.Xr ifconfig 8 .
+A single parent can be assigned to multiple
+.Nm
+interfaces provided they have different tags.
+The parent interface is likely to be an ethernet card connected
+to a properly configured switch port.
+The VLAN tag should match one of those set up in the switched
+network.
+.Pp
+The
+.Nm
+driver supports physical devices that do
+the VLAN demultiplexing in firmware.
+The
+.Cm link0
+flag should be set on a
+.Nm
+interface
+.Pq Em not on its parent
+using
+.Xr ifconfig 8
+in that case to indicate that hardware support for
+the 802.1Q VLANs is present in its parent.
+.\"
+.Ss "Selecting the Right Network Interface Card to Run VLANs Through"
+By now, the only NICs that have both hardware support and proper
+driver hooks for the 802.1Q VLAN technology in
+.Fx
+are
+.Xr bge 4 ,
+.Xr em 4 ,
+.Xr gx 4 ,
+.Xr nge 4 ,
+.Xr ti 4 ,
+and
+.Xr txp 4 .
+.Pp
+The rest of the ethernet NICs supported by
+.Fx
+can run
+VLANs using software emulation in the
+.Nm
+driver.
+However, most of them lack the capability
+of transmitting and/or receiving oversized frames.
+Using such a NIC as a parent interface
+implies a reduced MTU on the corresponding
+.Nm
+interfaces.
+In the modern Internet, this is likely to cause
+.Xr tcp 4
+connectivity problems due to massive, inadequate
+.Xr icmp 4
+filtering that breaks the Path MTU Discovery mechanism.
+.Pp
+The NICs that support oversized frames are as follows:
+.Bl -tag -width ".Xr fxp 4 " -offset indent
+.It Xr dc 4
+supports long frames for
+.Nm
+natively.
+.It Xr de 4
+requires defining
+.Dv BIG_PACKET
+in the
+.Pa /usr/src/sys/pci/if_de.c
+source file and rebuilding the kernel.
+The hack works only for the 21041, 21140, and 21140A chips.
+.It Xr fxp 4
+supports long frames for
+.Nm
+natively.
+.It Xr sis 4
+supports long frames for
+.Nm
+natively.
+.It Xr ste 4
+supports long frames for
+.Nm
+natively.
+.It Xr tl 4
+has support for long frames.
+.It Xr tx 4
+supports long frames for
+.Nm
+natively.
+.It Xr xl 4
+supports long frames only if the card is built on a newer chip
+(Cyclone and above).
+.El
+.Pp
+Note:
+Unless marked as having native support for
+.Nm ,
+the above drivers don't inform the
+.Nm
+driver about their long frame handling capability.
+Just increase the MTU of a
+.Nm
+interface if it appears to be lower than 1500 bytes after
+attaching to a parent known to support long frames.
+.Sh SEE ALSO
+.Xr ifconfig 8
+.Sh BUGS
+No 802.1Q features except VLAN tagging are implemented.

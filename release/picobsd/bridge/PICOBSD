@@ -1,0 +1,110 @@
+#
+# $FreeBSD$
+#
+# Line starting with #PicoBSD contains PicoBSD build parameters
+#marker         def_sz  init    MFS_inodes      floppy_inodes
+#PicoBSD	2400	init	8192		32768
+options MD_ROOT_SIZE=2400      # same as def_sz
+
+# next to each option there is the approx. space used in the
+# picobsd image.
+
+machine		i386
+cpu		I386_CPU
+cpu		I486_CPU
+cpu		I586_CPU
+cpu		I686_CPU
+ident		PICOBSD
+maxusers	20
+
+options		INET			#InterNETworking
+options		FFS			#Berkeley Fast Filesystem
+options		FFS_ROOT		#FFS usable as root device [keep this!]
+#options		BOOTP
+options		MFS			#Memory Filesystem
+options		MD_ROOT		#MFS as root
+options		COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
+
+#options	MSDOSFS		#MSDOS Filesystem
+#options	CD9660		#ISO 9660 Filesystem, 12KB
+#options	PROCFS		#Process filesystem, 4KB
+#options	USERCONFIG		#boot -c editor, 4KB
+#options	INTRO_USERCONFIG	#imply -c and parse info area
+#options	VISUAL_USERCONFIG	#visual boot -c editor
+
+options		IPFIREWALL
+options		IPFIREWALL_DEFAULT_TO_ACCEPT
+options		IPFW2
+options		IPDIVERT # divert (for natd, 4KB)
+#options	DEVFS
+options		PCI_QUIET
+# Support for bridging and bandwidth limiting
+options	DUMMYNET
+options	BRIDGE
+options	HZ=1000
+options NMBCLUSTERS=4096
+
+#config		kernel	root on fd0a
+
+device	isa0
+device	pci0
+
+device		fdc0	at isa? port IO_FD1 irq 6 drq 2
+device		fd0	at fdc0 drive 0
+
+#device ata0	at isa? port IO_WD1 irq 14
+#device ata1	at isa? port IO_WD2 irq 15
+#device ata
+#device atadisk
+#device	atapicd	# 8KB
+
+# atkbdc0 controls both the keyboard and the PS/2 mouse
+device	atkbdc0	at isa? port IO_KBD
+device		atkbd0	at atkbdc? irq 1
+#device          psm0    at atkbdc? irq 12 # 8KB
+
+device		vga0	at isa?
+
+# syscons is the default console driver, resembling an SCO console
+device		sc0	at isa?
+
+device		npx0	at nexus? port IO_NPX irq 13
+
+device		sio0	at isa? port IO_COM1 flags 0x10 irq 4
+device		sio1	at isa? port IO_COM2 irq 3
+
+# device ppc0	at isa? port? flags 0x40 irq 7
+# device	ppbus0
+# device		nlpt0	at ppbus?
+# device		plip0	at ppbus?
+# device		ppi0	at ppbus?
+
+#
+# The following Ethernet NICs are all PCI devices.
+#
+device	miibus 
+#device de0              # DEC/Intel DC21x4x (``Tulip'')
+device	fxp		# Intel, 4KB
+#device	xl		# 3Com
+#device	ep0
+device rl		# Realtek 8139, 4KB
+device dc		# New Dec/Intel DC21x4x, 8KB
+#device lnc
+device sis		# National
+
+device ed0 at isa? port 0x280 irq 5 iomem 0xd8000
+device ed1 at isa? port 0x300 irq 5 iomem 0xd0000
+
+pseudo-device	loop
+pseudo-device	ether
+pseudo-device	tun	2	# 4KB, for ppp
+#pseudo-device	vn
+pseudo-device	pty	16
+pseudo-device	md		# memory disk
+
+#options	MATH_EMULATE		#Support for x87 emulation, 4KB
+pseudo-device	bpf 4	# 4KB, for tcpdump
+#options	NFS			#Network Filesystem
+#options	NFS_NOSERVER		#Network Filesystem
+options		DDB
+options		DEVICE_POLLING
