@@ -303,7 +303,7 @@ ata_completed(void *context, int dummy)
 
     /* ATA errors */
     default:
-	if (request->status & ATA_S_ERROR) {
+	if (!request->result && request->status & ATA_S_ERROR) {
 	    if (!(request->flags & ATA_R_QUIET)) {
 		ata_prtdev(request->device,
 			   "FAILURE - %s status=%b error=%b", 
