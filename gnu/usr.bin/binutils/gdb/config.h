@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 /* config.h.  Generated automatically by configure.  */
 /* config.in.  Generated automatically from configure.in by autoheader.  */
 
@@ -319,7 +321,9 @@
 /* #undef HAVE_PRRUN_T */
 
 /* Define if <sys/procfs.h> has gregset_t. */
+#ifndef CROSS_COMPILE
 #define HAVE_GREGSET_T 1
+#endif
 
 /* Define if <sys/procfs.h> has fpregset_t. */
 #define HAVE_FPREGSET_T 1
