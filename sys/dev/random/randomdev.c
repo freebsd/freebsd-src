@@ -49,6 +49,8 @@
 #include <dev/random/hash.h>
 #include <dev/random/yarrow.h>
 
+#include "opt_noblockrandom.h"
+
 static d_open_t random_open;
 static d_read_t random_read;
 static d_write_t random_write;
@@ -109,6 +111,8 @@ random_read(dev_t dev, struct uio *uio, int flag)
 	int error = 0;
 	void *random_buf;
 
+/* XXX Temporary ifndef to allow users to have a nonblocking device */
+#ifndef NOBLOCKRANDOM
 	while (!random_state.seeded) {
 		if (flag & IO_NDELAY)
 			error =  EWOULDBLOCK;
@@ -117,6 +121,7 @@ random_read(dev_t dev, struct uio *uio, int flag)
 		if (error != 0)
 			return error;
 	}
+#endif
 	c = min(uio->uio_resid, PAGE_SIZE);
 	random_buf = (void *)malloc(c, M_TEMP, M_WAITOK);
 	while (uio->uio_resid > 0 && error == 0) {

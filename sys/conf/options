@@ -477,3 +477,6 @@ ACPI_NO_ENABLE_ON_BOOT	opt_acpi.h
 # options for DEVFS, see sys/fs/devfs/devfs.h
 NDEVFSINO		opt_devfs.h
 NDEVFSOVERFLOW		opt_devfs.h
+
+# options for device random
+NOBLOCKRANDOM
