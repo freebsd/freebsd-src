@@ -77,31 +77,22 @@ static void	ed_watchdog	__P((struct ifnet *));
 
 static void	ds_getmcaf	__P((struct ed_softc *, u_int32_t *));
 
-static void	ed_get_packet	__P((struct ed_softc *, int, /* u_short */ int));
+static void	ed_get_packet	__P((struct ed_softc *, char *, /* u_short */ int));
 
 static __inline void	ed_rint	__P((struct ed_softc *));
 static __inline void	ed_xmit	__P((struct ed_softc *));
-static __inline int	ed_ring_copy __P((struct ed_softc *, int, char *,
+static __inline char *	ed_ring_copy __P((struct ed_softc *, char *, char *,
 					  /* u_short */ int));
 static void	ed_hpp_set_physical_link __P((struct ed_softc *));
 static void	ed_hpp_readmem	__P((struct ed_softc *, int, unsigned char *,
 				    /* u_short */ int));
+static void	ed_hpp_writemem	__P((struct ed_softc *, unsigned char *,
+				    /* u_short */ int, /* u_short */ int));
 static u_short	ed_hpp_write_mbufs __P((struct ed_softc *, struct mbuf *,
 					int));
 
-static void	ed_pio_readmem	__P((struct ed_softc *, int, unsigned char *,
-				    /* u_short */ int));
-static void	ed_pio_writemem	__P((struct ed_softc *, char *,
-				     /* u_short */ int, /* u_short */ int));
 static u_short	ed_pio_write_mbufs __P((struct ed_softc *, struct mbuf *,
 					int));
-
-static u_char	ed_readb	__P((struct ed_softc *, int));
-static void	ed_writew	__P((struct ed_softc *, int, u_int16_t));
-static u_int16_t ed_readw	__P((struct ed_softc *, int));
-static void	ed_writesw	__P((struct ed_softc *, int, const u_int16_t *,
-				     size_t));
-static void	ed_bcopy_from	__P((struct ed_softc *, caddr_t, int, size_t));
 
 static void	ed_setrcr	__P((struct ed_softc *));
 
@@ -159,62 +150,6 @@ static unsigned short ed_hpp_intr_val[] = {
 };
 
 /*
- * Write one byte to device 
- */
-static void
-ed_writeb(struct ed_softc *sc, int regno, u_char data)
-{
-	bus_space_write_1(sc->bst, sc->bsh, regno, data);
-}
-
-/*
- * Read one byte from device
- */
-static u_char
-ed_readb(struct ed_softc *sc, int regno)
-{
-	return bus_space_read_1(sc->bst, sc->bsh, regno);
-}
-
-/*
- * Write one word to device 
- */
-static void
-ed_writew(struct ed_softc *sc, int regno, u_int16_t data)
-{
-	bus_space_write_2(sc->bst, sc->bsh, regno, data);
-}
-
-/*
- * Read one word from device
- */
-static u_int16_t
-ed_readw(struct ed_softc *sc, int regno)
-{
-	return bus_space_read_2(sc->bst, sc->bsh, regno);
-}
-
-/*
- * Write a whole vector of words to device
- */
-static void
-ed_writesw(struct ed_softc *sc, int regno, const u_int16_t *addr, size_t cnt)
-{
-	bus_space_write_multi_2(sc->bst, sc->bsh, regno,
-	    addr, cnt);
-}
-
-/*
- * bcopy memory from card to buffer
- */
-static void
-ed_bcopy_from(struct ed_softc *sc, caddr_t dst, int regno, size_t cnt)
-{
-	bus_space_read_multi_1(sc->bst, sc->bsh, regno,
-	    dst, cnt);
-}
-
-/*
  * Generic probe routine for testing for the existance of a DS8390.
  *	Must be called after the NIC has just been reset. This routine
  *	works by looking at certain register values that are guaranteed
@@ -241,11 +176,11 @@ int
 ed_probe_generic8390(sc)
 	struct ed_softc *sc;
 {
-	if ((ed_readb(sc, sc->nic_addr + ED_P0_CR) &
+	if ((ed_nic_inb(sc, ED_P0_CR) &
 	     (ED_CR_RD2 | ED_CR_TXP | ED_CR_STA | ED_CR_STP)) !=
 	    (ED_CR_RD2 | ED_CR_STP))
 		return (0);
-	if ((ed_readb(sc, sc->nic_addr + ED_P0_ISR) & ED_ISR_RST) != ED_ISR_RST)
+	if ((ed_nic_inb(sc, ED_P0_ISR) & ED_ISR_RST) != ED_ISR_RST)
 		return (0);
 
 	return (1);
@@ -255,28 +190,23 @@ ed_probe_generic8390(sc)
  * Probe and vendor-specific initialization routine for SMC/WD80x3 boards
  */
 int
-ed_probe_WD80x3(dev)
+ed_probe_WD80x3_generic(dev, flags, intr_vals)
 	device_t dev;
+	int flags;
+	unsigned short *intr_vals[];
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	int	error;
 	int     i;
-	int	flags = device_get_flags(dev);
 	u_int   memsize, maddr;
 	u_char  iptr, isa16bit, sum, totalsum;
 	u_long	conf_maddr, conf_msize, irq, junk;
 
-	error = ed_alloc_port(dev, 0, ED_WD_IO_PORTS);
-	if (error)
-		return (error);
-
-	sc->asic_addr = rman_get_start(sc->port_res);
-	sc->nic_addr = sc->asic_addr + ED_WD_NIC_OFFSET;
 	sc->chip_type = ED_CHIP_TYPE_DP8390;
 
 	if (ED_FLAGS_GETTYPE(flags) == ED_FLAGS_TOSH_ETHER) {
 		totalsum = ED_WD_ROM_CHECKSUM_TOTAL_TOSH_ETHER;
-		ed_writeb(sc, sc->asic_addr + ED_WD_MSR, ED_WD_MSR_POW);
+		ed_asic_outb(sc, ED_WD_MSR, ED_WD_MSR_POW);
 		DELAY(10000);
 	}
 	else
@@ -289,7 +219,7 @@ ed_probe_WD80x3(dev)
 	 * Danpex boards for one.
 	 */
 	for (sum = 0, i = 0; i < 8; ++i)
-		sum += ed_readb(sc, sc->asic_addr + ED_WD_PROM + i);
+		sum += ed_asic_inb(sc, ED_WD_PROM + i);
 
 	if (sum != totalsum) {
 
@@ -298,23 +228,23 @@ ed_probe_WD80x3(dev)
 		 * clones.  In this case, the checksum byte (the eighth byte)
 		 * seems to always be zero.
 		 */
-		if (ed_readb(sc, sc->asic_addr + ED_WD_CARD_ID) != ED_TYPE_WD8003E ||
-		    ed_readb(sc, sc->asic_addr + ED_WD_PROM + 7) != 0)
+		if (ed_asic_inb(sc, ED_WD_CARD_ID) != ED_TYPE_WD8003E ||
+		    ed_asic_inb(sc, ED_WD_PROM + 7) != 0)
 			return (ENXIO);
 	}
 	/* reset card to force it into a known state. */
 	if (ED_FLAGS_GETTYPE(flags) == ED_FLAGS_TOSH_ETHER)
-		ed_writeb(sc, sc->asic_addr + ED_WD_MSR, ED_WD_MSR_RST | ED_WD_MSR_POW);
+		ed_asic_outb(sc, ED_WD_MSR, ED_WD_MSR_RST | ED_WD_MSR_POW);
 	else
-		ed_writeb(sc, sc->asic_addr + ED_WD_MSR, ED_WD_MSR_RST);
+		ed_asic_outb(sc, ED_WD_MSR, ED_WD_MSR_RST);
 
 	DELAY(100);
-	ed_writeb(sc, sc->asic_addr + ED_WD_MSR, ed_readb(sc, sc->asic_addr + ED_WD_MSR) & ~ED_WD_MSR_RST);
+	ed_asic_outb(sc, ED_WD_MSR, ed_asic_inb(sc, ED_WD_MSR) & ~ED_WD_MSR_RST);
 	/* wait in the case this card is reading its EEROM */
 	DELAY(5000);
 
 	sc->vendor = ED_VENDOR_WD_SMC;
-	sc->type = ed_readb(sc, sc->asic_addr + ED_WD_CARD_ID);
+	sc->type = ed_asic_inb(sc, ED_WD_CARD_ID);
 
 	/*
 	 * Set initial values for width/size.
@@ -345,8 +275,7 @@ ed_probe_WD80x3(dev)
 		isa16bit = 1;
 		break;
 	case ED_TYPE_WD8013EP:	/* also WD8003EP */
-		if (ed_readb(sc, sc->asic_addr + ED_WD_ICR)
-		    & ED_WD_ICR_16BIT) {
+		if (ed_asic_inb(sc, ED_WD_ICR) & ED_WD_ICR_16BIT) {
 			isa16bit = 1;
 			memsize = 16384;
 			sc->type_str = "WD8013EP";
@@ -377,9 +306,9 @@ ed_probe_WD80x3(dev)
 			sc->type_str = "SMC8216T";
 		}
 
-		ed_writeb(sc, sc->asic_addr + ED_WD790_HWR,
-		    ed_readb(sc, sc->asic_addr + ED_WD790_HWR) | ED_WD790_HWR_SWH);
-		switch (ed_readb(sc, sc->asic_addr + ED_WD790_RAR) & ED_WD790_RAR_SZ64) {
+		ed_asic_outb(sc, ED_WD790_HWR,
+		    ed_asic_inb(sc, ED_WD790_HWR) | ED_WD790_HWR_SWH);
+		switch (ed_asic_inb(sc, ED_WD790_RAR) & ED_WD790_RAR_SZ64) {
 		case ED_WD790_RAR_SZ64:
 			memsize = 65536;
 			break;
@@ -399,8 +328,8 @@ ed_probe_WD80x3(dev)
 			memsize = 8192;
 			break;
 		}
-		ed_writeb(sc, sc->asic_addr + ED_WD790_HWR,
-		    ed_readb(sc, sc->asic_addr + ED_WD790_HWR) & ~ED_WD790_HWR_SWH);
+		ed_asic_outb(sc, ED_WD790_HWR,
+		    ed_asic_inb(sc, ED_WD790_HWR) & ~ED_WD790_HWR_SWH);
 
 		isa16bit = 1;
 		sc->chip_type = ED_CHIP_TYPE_WD790;
@@ -426,7 +355,7 @@ ed_probe_WD80x3(dev)
 	 */
 	if (isa16bit && (sc->type != ED_TYPE_WD8013EBT)
 	  && (sc->type != ED_TYPE_TOSHIBA1) && (sc->type != ED_TYPE_TOSHIBA4)
-	    && ((ed_readb(sc, sc->asic_addr + ED_WD_ICR) & ED_WD_ICR_16BIT) == 0)) {
+	    && ((ed_asic_inb(sc, ED_WD_ICR) & ED_WD_ICR_16BIT) == 0)) {
 		isa16bit = 0;
 		memsize = 8192;
 	}
@@ -440,7 +369,7 @@ ed_probe_WD80x3(dev)
 	printf("type = %x type_str=%s isa16bit=%d memsize=%d id_msize=%d\n",
 	       sc->type, sc->type_str, isa16bit, memsize, conf_msize);
 	for (i = 0; i < 8; i++)
-		printf("%x -> %x\n", i, ed_readb(sc, sc->asic_addr + i));
+		printf("%x -> %x\n", i, ed_asic_inb(sc, i));
 #endif
 
 	/*
@@ -469,13 +398,14 @@ ed_probe_WD80x3(dev)
 	 * If possible, get the assigned interrupt number from the card and
 	 * use it.
 	 */
-	if ((sc->type & ED_WD_SOFTCONFIG) && (sc->chip_type != ED_CHIP_TYPE_WD790)) {
+	if ((sc->type & ED_WD_SOFTCONFIG) &&
+	    (sc->chip_type != ED_CHIP_TYPE_WD790)) {
 
 		/*
 		 * Assemble together the encoded interrupt number.
 		 */
-		iptr = (ed_readb(sc, sc->asic_addr + ED_WD_ICR) & ED_WD_ICR_IR2) |
-		    ((ed_readb(sc, sc->asic_addr + ED_WD_IRR) &
+		iptr = (ed_asic_inb(sc, ED_WD_ICR) & ED_WD_ICR_IR2) |
+		    ((ed_asic_inb(sc, ED_WD_IRR) &
 		      (ED_WD_IRR_IR0 | ED_WD_IRR_IR1)) >> 5);
 
 		/*
@@ -483,41 +413,45 @@ ed_probe_WD80x3(dev)
 		 */
 		error = bus_get_resource(dev, SYS_RES_IRQ, 0,
 					 &irq, &junk);
-		if (error) {
-			bus_set_resource(dev, SYS_RES_IRQ, 0,
-					 ed_intr_val[iptr], 1);
+		if (error && intr_vals[0] != NULL) {
+			error = bus_set_resource(dev, SYS_RES_IRQ, 0,
+						 intr_vals[0][iptr], 1);
 		}
+		if (error)
+			return (error);
 
 		/*
 		 * Enable the interrupt.
 		 */
-		ed_writeb(sc, sc->asic_addr + ED_WD_IRR,
-		     ed_readb(sc, sc->asic_addr + ED_WD_IRR) | ED_WD_IRR_IEN);
+		ed_asic_outb(sc, ED_WD_IRR,
+		     ed_asic_inb(sc, ED_WD_IRR) | ED_WD_IRR_IEN);
 	}
 	if (sc->chip_type == ED_CHIP_TYPE_WD790) {
-		ed_writeb(sc, sc->asic_addr + ED_WD790_HWR,
-		  ed_readb(sc, sc->asic_addr + ED_WD790_HWR) | ED_WD790_HWR_SWH);
-		iptr = (((ed_readb(sc, sc->asic_addr + ED_WD790_GCR) & ED_WD790_GCR_IR2) >> 4) |
-			(ed_readb(sc, sc->asic_addr + ED_WD790_GCR) &
+		ed_asic_outb(sc, ED_WD790_HWR,
+		  ed_asic_inb(sc, ED_WD790_HWR) | ED_WD790_HWR_SWH);
+		iptr = (((ed_asic_inb(sc, ED_WD790_GCR) & ED_WD790_GCR_IR2) >> 4) |
+			(ed_asic_inb(sc, ED_WD790_GCR) &
 			 (ED_WD790_GCR_IR1 | ED_WD790_GCR_IR0)) >> 2);
-		ed_writeb(sc, sc->asic_addr + ED_WD790_HWR,
-		 ed_readb(sc, sc->asic_addr + ED_WD790_HWR) & ~ED_WD790_HWR_SWH);
+		ed_asic_outb(sc, ED_WD790_HWR,
+		 ed_asic_inb(sc, ED_WD790_HWR) & ~ED_WD790_HWR_SWH);
 
 		/*
 		 * If no interrupt specified (or "?"), use what the board tells us.
 		 */
 		error = bus_get_resource(dev, SYS_RES_IRQ, 0,
 					 &irq, &junk);
-		if (error) {
-			bus_set_resource(dev, SYS_RES_IRQ, 0,
-					 ed_790_intr_val[iptr], 1);
+		if (error && intr_vals[1] != NULL) {
+			error = bus_set_resource(dev, SYS_RES_IRQ, 0,
+						 intr_vals[1][iptr], 1);
 		}
+		if (error)
+			return (error);
 
 		/*
 		 * Enable interrupts.
 		 */
-		ed_writeb(sc, sc->asic_addr + ED_WD790_ICR,
-		  ed_readb(sc, sc->asic_addr + ED_WD790_ICR) | ED_WD790_ICR_EIL);
+		ed_asic_outb(sc, ED_WD790_ICR,
+		  ed_asic_inb(sc, ED_WD790_ICR) | ED_WD790_ICR_EIL);
 	}
 	error = bus_get_resource(dev, SYS_RES_IRQ, 0,
 				 &irq, &junk);
@@ -534,7 +468,7 @@ ed_probe_WD80x3(dev)
 		printf("*** ed_alloc_memory() failed! (%d)\n", error);
 		return (error);
 	}
-	sc->mem_start = rman_get_start(sc->mem_res);
+	sc->mem_start = (caddr_t) rman_get_virtual(sc->mem_res);
 
 	/*
 	 * allocate one xmit buffer if < 16k, two buffers otherwise
@@ -556,31 +490,32 @@ ed_probe_WD80x3(dev)
 	 * Get station address from on-board ROM
 	 */
 	for (i = 0; i < ETHER_ADDR_LEN; ++i)
-		sc->arpcom.ac_enaddr[i] = ed_readb(sc, sc->asic_addr + ED_WD_PROM + i);
+		sc->arpcom.ac_enaddr[i] = ed_asic_inb(sc, ED_WD_PROM + i);
 
 	/*
 	 * Set upper address bits and 8/16 bit access to shared memory.
 	 */
 	if (isa16bit) {
 		if (sc->chip_type == ED_CHIP_TYPE_WD790) {
-			sc->wd_laar_proto = ed_readb(sc,
-			    sc->asic_addr + ED_WD_LAAR);
+			sc->wd_laar_proto = ed_asic_inb(sc, ED_WD_LAAR);
 		} else {
 			sc->wd_laar_proto = ED_WD_LAAR_L16EN |
-			    ((sc->mem_start >> 19) & ED_WD_LAAR_ADDRHI);
+			    ((kvtop(sc->mem_start) >> 19) & ED_WD_LAAR_ADDRHI);
 		}
 		/*
 		 * Enable 16bit access
 		 */
-		ed_writeb(sc, sc->asic_addr + ED_WD_LAAR, sc->wd_laar_proto |
+		ed_asic_outb(sc, ED_WD_LAAR, sc->wd_laar_proto |
 		    ED_WD_LAAR_M16EN);
 	} else {
 		if (((sc->type & ED_WD_SOFTCONFIG) ||
-		    (sc->type == ED_TYPE_TOSHIBA1) || (sc->type == ED_TYPE_TOSHIBA4) ||
-		    (sc->type == ED_TYPE_WD8013EBT)) && (sc->chip_type != ED_CHIP_TYPE_WD790)) {
-			sc->wd_laar_proto = (sc->mem_start >> 19) &
+		     (sc->type == ED_TYPE_TOSHIBA1) ||
+		     (sc->type == ED_TYPE_TOSHIBA4) ||
+		     (sc->type == ED_TYPE_WD8013EBT)) &&
+		    (sc->chip_type != ED_CHIP_TYPE_WD790)) {
+			sc->wd_laar_proto = (kvtop(sc->mem_start) >> 19) &
 			    ED_WD_LAAR_ADDRHI;
-			ed_writeb(sc, sc->asic_addr + ED_WD_LAAR, sc->wd_laar_proto);
+			ed_asic_outb(sc, ED_WD_LAAR, sc->wd_laar_proto);
 		}
 	}
 
@@ -589,24 +524,25 @@ ed_probe_WD80x3(dev)
 	 */
 	if (sc->chip_type != ED_CHIP_TYPE_WD790) {
 		if (ED_FLAGS_GETTYPE(flags) == ED_FLAGS_TOSH_ETHER) {
-			ed_writeb(sc, sc->asic_addr + ED_WD_MSR + 1,
-			    ((sc->mem_start >> 8) & 0xe0) | 4);
-			ed_writeb(sc, sc->asic_addr + ED_WD_MSR + 2,
-			    ((sc->mem_start >> 16) & 0x0f));
-			ed_writeb(sc, sc->asic_addr + ED_WD_MSR,
-			    ED_WD_MSR_MENB | ED_WD_MSR_POW);
+			ed_asic_outb(sc, ED_WD_MSR + 1,
+				     ((kvtop(sc->mem_start) >> 8) & 0xe0) | 4);
+			ed_asic_outb(sc, ED_WD_MSR + 2,
+				     ((kvtop(sc->mem_start) >> 16) & 0x0f));
+			ed_asic_outb(sc, ED_WD_MSR,
+				     ED_WD_MSR_MENB | ED_WD_MSR_POW);
 		} else {
-			ed_writeb(sc, sc->asic_addr + ED_WD_MSR,
-			    ((sc->mem_start >> 13) & 
-			    ED_WD_MSR_ADDR) | ED_WD_MSR_MENB);
+			ed_asic_outb(sc, ED_WD_MSR,
+				     ((kvtop(sc->mem_start) >> 13) &
+				      ED_WD_MSR_ADDR) | ED_WD_MSR_MENB);
 		}
+		sc->cr_proto = ED_CR_RD2;
 	} else {
-		ed_writeb(sc, sc->asic_addr + ED_WD_MSR, ED_WD_MSR_MENB);
-		ed_writeb(sc, sc->asic_addr + ED_WD790_HWR, (ed_readb(sc, sc->asic_addr + ED_WD790_HWR) | ED_WD790_HWR_SWH));
-		ed_writeb(sc, sc->asic_addr + ED_WD790_RAR, ((sc->mem_start >> 13) & 0x0f) |
-		     ((sc->mem_start >> 11) & 0x40) |
-		     (ed_readb(sc, sc->asic_addr + ED_WD790_RAR) & 0xb0));
-		ed_writeb(sc, sc->asic_addr + ED_WD790_HWR, (ed_readb(sc, sc->asic_addr + ED_WD790_HWR) & ~ED_WD790_HWR_SWH));
+		ed_asic_outb(sc, ED_WD_MSR, ED_WD_MSR_MENB);
+		ed_asic_outb(sc, ED_WD790_HWR, (ed_asic_inb(sc, ED_WD790_HWR) | ED_WD790_HWR_SWH));
+		ed_asic_outb(sc, ED_WD790_RAR, ((kvtop(sc->mem_start) >> 13) & 0x0f) |
+		     ((kvtop(sc->mem_start) >> 11) & 0x40) |
+		     (ed_asic_inb(sc, ED_WD790_RAR) & 0xb0));
+		ed_asic_outb(sc, ED_WD790_HWR, (ed_asic_inb(sc, ED_WD790_HWR) & ~ED_WD790_HWR_SWH));
 		sc->cr_proto = 0;
 	}
 
@@ -614,30 +550,28 @@ ed_probe_WD80x3(dev)
 	printf("starting memory performance test at 0x%x, size %d...\n",
 		sc->mem_start, memsize*16384);
 	for (i = 0; i < 16384; i++)
-		bus_space_set_multi_1(sc->bst, sc->bsh, sc->mem_start,
-		    0x0, memsize);
+		bzero(sc->mem_start, memsize);
 	printf("***DONE***\n");
 #endif
 
 	/*
 	 * Now zero memory and verify that it is clear
 	 */
-	bus_space_set_multi_1(sc->bst, sc->bsh, sc->mem_start,
-	    0x0, memsize);
+	bzero(sc->mem_start, memsize);
 
 	for (i = 0; i < memsize; ++i) {
-		if (ed_readb(sc, sc->mem_start + i) != 0) {
+		if (sc->mem_start[i]) {
 			device_printf(dev, "failed to clear shared memory at %lx - check configuration\n",
-				      sc->mem_start + i);
+				      kvtop(sc->mem_start + i));
 
 			/*
 			 * Disable 16 bit access to shared memory
 			 */
 			if (isa16bit) {
 				if (sc->chip_type == ED_CHIP_TYPE_WD790) {
-					ed_writeb(sc, sc->asic_addr + ED_WD_MSR, 0x00);
+					ed_asic_outb(sc, ED_WD_MSR, 0x00);
 				}
-				ed_writeb(sc, sc->asic_addr + ED_WD_LAAR, sc->wd_laar_proto &
+				ed_asic_outb(sc, ED_WD_LAAR, sc->wd_laar_proto &
 				    ~ED_WD_LAAR_M16EN);
 			}
 			return (ENXIO);
@@ -654,25 +588,46 @@ ed_probe_WD80x3(dev)
 	 */
 	if (isa16bit) {
 		if (sc->chip_type == ED_CHIP_TYPE_WD790) {
-			ed_writeb(sc, sc->asic_addr + ED_WD_MSR, 0x00);
+			ed_asic_outb(sc, ED_WD_MSR, 0x00);
 		}
-		ed_writeb(sc, sc->asic_addr + ED_WD_LAAR, sc->wd_laar_proto &
+		ed_asic_outb(sc, ED_WD_LAAR, sc->wd_laar_proto &
 		    ~ED_WD_LAAR_M16EN);
 	}
 	return (0);
+}
+
+int
+ed_probe_WD80x3(dev, port_rid, flags)
+	device_t dev;
+	int port_rid;
+	int flags;
+{
+	struct ed_softc *sc = device_get_softc(dev);
+	int	error;
+	static unsigned short *intr_vals[] = {ed_intr_val, ed_790_intr_val};
+
+	error = ed_alloc_port(dev, port_rid, ED_WD_IO_PORTS);
+	if (error)
+		return (error);
+
+	sc->asic_offset = ED_WD_ASIC_OFFSET;
+	sc->nic_offset  = ED_WD_NIC_OFFSET;
+
+	return ed_probe_WD80x3_generic(dev, flags, intr_vals);
 }
 
 /*
  * Probe and vendor-specific initialization routine for 3Com 3c503 boards
  */
 int
-ed_probe_3Com(dev)
+ed_probe_3Com(dev, port_rid, flags)
 	device_t dev;
+	int port_rid;
+	int flags;
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	int	error;
 	int     i;
-	int	flags = device_get_flags(dev);
 	u_int   memsize;
 	u_char  isa16bit;
 	u_long	conf_maddr, conf_msize, irq, junk;
@@ -681,14 +636,14 @@ ed_probe_3Com(dev)
 	if (error)
 		return (error);
 
-	sc->asic_addr = rman_get_start(sc->port_res) + ED_3COM_ASIC_OFFSET;
-	sc->nic_addr = rman_get_start(sc->port_res) + ED_3COM_NIC_OFFSET;
+	sc->asic_offset = ED_3COM_ASIC_OFFSET;
+	sc->nic_offset  = ED_3COM_NIC_OFFSET;
 
 	/*
 	 * Verify that the kernel configured I/O address matches the board
 	 * configured address
 	 */
-	switch (ed_readb(sc, sc->asic_addr + ED_3COM_BCFR)) {
+	switch (ed_asic_inb(sc, ED_3COM_BCFR)) {
 	case ED_3COM_BCFR_300:
 		if (rman_get_start(sc->port_res) != 0x300)
 			return (ENXIO);
@@ -734,7 +689,7 @@ ed_probe_3Com(dev)
 	 * Verify that the kernel shared memory address matches the board
 	 * configured address.
 	 */
-	switch (ed_readb(sc, sc->asic_addr + ED_3COM_PCFR)) {
+	switch (ed_asic_inb(sc, ED_3COM_PCFR)) {
 	case ED_3COM_PCFR_DC000:
 		if (conf_maddr != 0xdc000)
 			return (ENXIO);
@@ -761,7 +716,7 @@ ed_probe_3Com(dev)
 	 * sequence because it'll lock up if the cable isn't connected if we
 	 * don't.
 	 */
-	ed_writeb(sc, sc->asic_addr + ED_3COM_CR, ED_3COM_CR_RST | ED_3COM_CR_XSEL);
+	ed_asic_outb(sc, ED_3COM_CR, ED_3COM_CR_RST | ED_3COM_CR_XSEL);
 
 	/*
 	 * Wait for a while, then un-reset it
@@ -770,10 +725,10 @@ ed_probe_3Com(dev)
 
 	/*
 	 * The 3Com ASIC defaults to rather strange settings for the CR after
-	 * a reset - it's important to set it again after the following 
-	 * ed_writeb (this is done when we map the PROM below).
+	 * a reset - it's important to set it again after the following outb
+	 * (this is done when we map the PROM below).
 	 */
-	ed_writeb(sc, sc->asic_addr + ED_3COM_CR, ED_3COM_CR_XSEL);
+	ed_asic_outb(sc, ED_3COM_CR, ED_3COM_CR_XSEL);
 
 	/*
 	 * Wait a bit for the NIC to recover from the reset
@@ -799,17 +754,17 @@ ed_probe_3Com(dev)
 	 * First, map ethernet address PROM over the top of where the NIC
 	 * registers normally appear.
 	 */
-	ed_writeb(sc, sc->asic_addr + ED_3COM_CR, ED_3COM_CR_EALO | ED_3COM_CR_XSEL);
+	ed_asic_outb(sc, ED_3COM_CR, ED_3COM_CR_EALO | ED_3COM_CR_XSEL);
 
 	for (i = 0; i < ETHER_ADDR_LEN; ++i)
-		sc->arpcom.ac_enaddr[i] = ed_readb(sc, sc->nic_addr + i);
+		sc->arpcom.ac_enaddr[i] = ed_nic_inb(sc, i);
 
 	/*
 	 * Unmap PROM - select NIC registers. The proper setting of the
 	 * tranceiver is set in ed_init so that the attach code is given a
 	 * chance to set the default based on a compile-time config option
 	 */
-	ed_writeb(sc, sc->asic_addr + ED_3COM_CR, ED_3COM_CR_XSEL);
+	ed_asic_outb(sc, ED_3COM_CR, ED_3COM_CR_XSEL);
 
 	/*
 	 * Determine if this is an 8bit or 16bit board
@@ -818,23 +773,23 @@ ed_probe_3Com(dev)
 	/*
 	 * select page 0 registers
 	 */
-	ed_writeb(sc, sc->nic_addr + ED_P0_CR, ED_CR_RD2 | ED_CR_STP);
+	ed_nic_outb(sc, ED_P0_CR, ED_CR_RD2 | ED_CR_STP);
 
 	/*
 	 * Attempt to clear WTS bit. If it doesn't clear, then this is a 16bit
 	 * board.
 	 */
-	ed_writeb(sc, sc->nic_addr + ED_P0_DCR, 0);
+	ed_nic_outb(sc, ED_P0_DCR, 0);
 
 	/*
 	 * select page 2 registers
 	 */
-	ed_writeb(sc, sc->nic_addr + ED_P0_CR, ED_CR_PAGE_2 | ED_CR_RD2 | ED_CR_STP);
+	ed_nic_outb(sc, ED_P0_CR, ED_CR_PAGE_2 | ED_CR_RD2 | ED_CR_STP);
 
 	/*
 	 * The 3c503 forces the WTS bit to a one if this is a 16bit board
 	 */
-	if (ed_readb(sc, sc->nic_addr + ED_P2_DCR) & ED_DCR_WTS)
+	if (ed_nic_inb(sc, ED_P2_DCR) & ED_DCR_WTS)
 		isa16bit = 1;
 	else
 		isa16bit = 0;
@@ -842,13 +797,13 @@ ed_probe_3Com(dev)
 	/*
 	 * select page 0 registers
 	 */
-	ed_writeb(sc, sc->nic_addr + ED_P2_CR, ED_CR_RD2 | ED_CR_STP);
+	ed_nic_outb(sc, ED_P2_CR, ED_CR_RD2 | ED_CR_STP);
 
 	error = ed_alloc_memory(dev, 0, memsize);
 	if (error)
 		return (error);
 
-	sc->mem_start = rman_get_start(sc->mem_res);
+	sc->mem_start = (caddr_t) rman_get_virtual(sc->mem_res);
 	sc->mem_size = memsize;
 	sc->mem_end = sc->mem_start + memsize;
 
@@ -887,30 +842,29 @@ ed_probe_3Com(dev)
 	 * Initialize GA page start/stop registers. Probably only needed if
 	 * doing DMA, but what the hell.
 	 */
-	ed_writeb(sc, sc->asic_addr + ED_3COM_PSTR, sc->rec_page_start);
-	ed_writeb(sc, sc->asic_addr + ED_3COM_PSPR, sc->rec_page_stop);
+	ed_asic_outb(sc, ED_3COM_PSTR, sc->rec_page_start);
+	ed_asic_outb(sc, ED_3COM_PSPR, sc->rec_page_stop);
 
 	/*
 	 * Set IRQ. 3c503 only allows a choice of irq 2-5.
 	 */
-	error = bus_get_resource(dev, SYS_RES_IRQ, 0,
-				 &irq, &junk);
+	error = bus_get_resource(dev, SYS_RES_IRQ, 0, &irq, &junk);
 	if (error)
 		return (error);
 
 	switch (irq) {
 	case 2:
 	case 9:
-		ed_writeb(sc, sc->asic_addr + ED_3COM_IDCFR, ED_3COM_IDCFR_IRQ2);
+		ed_asic_outb(sc, ED_3COM_IDCFR, ED_3COM_IDCFR_IRQ2);
 		break;
 	case 3:
-		ed_writeb(sc, sc->asic_addr + ED_3COM_IDCFR, ED_3COM_IDCFR_IRQ3);
+		ed_asic_outb(sc, ED_3COM_IDCFR, ED_3COM_IDCFR_IRQ3);
 		break;
 	case 4:
-		ed_writeb(sc, sc->asic_addr + ED_3COM_IDCFR, ED_3COM_IDCFR_IRQ4);
+		ed_asic_outb(sc, ED_3COM_IDCFR, ED_3COM_IDCFR_IRQ4);
 		break;
 	case 5:
-		ed_writeb(sc, sc->asic_addr + ED_3COM_IDCFR, ED_3COM_IDCFR_IRQ5);
+		ed_asic_outb(sc, ED_3COM_IDCFR, ED_3COM_IDCFR_IRQ5);
 		break;
 	default:
 		device_printf(dev, "Invalid irq configuration (%ld) must be 3-5,9 for 3c503\n",
@@ -922,7 +876,7 @@ ed_probe_3Com(dev)
 	 * Initialize GA configuration register. Set bank and enable shared
 	 * mem.
 	 */
-	ed_writeb(sc, sc->asic_addr + ED_3COM_GACFR, ED_3COM_GACFR_RSEL |
+	ed_asic_outb(sc, ED_3COM_GACFR, ED_3COM_GACFR_RSEL |
 	     ED_3COM_GACFR_MBS0);
 
 	/*
@@ -931,19 +885,19 @@ ed_probe_3Com(dev)
 	 * shared memory is disabled. We set them to 0xffff0...allegedly the
 	 * reset vector.
 	 */
-	ed_writeb(sc, sc->asic_addr + ED_3COM_VPTR2, 0xff);
-	ed_writeb(sc, sc->asic_addr + ED_3COM_VPTR1, 0xff);
-	ed_writeb(sc, sc->asic_addr + ED_3COM_VPTR0, 0x00);
+	ed_asic_outb(sc, ED_3COM_VPTR2, 0xff);
+	ed_asic_outb(sc, ED_3COM_VPTR1, 0xff);
+	ed_asic_outb(sc, ED_3COM_VPTR0, 0x00);
 
 	/*
 	 * Zero memory and verify that it is clear
 	 */
-	bus_space_set_multi_1(sc->bst, sc->bsh, sc->mem_start, 0x0, memsize);
+	bzero(sc->mem_start, memsize);
 
 	for (i = 0; i < memsize; ++i)
-		if (ed_readb(sc, sc->mem_start + i) != 0) {
+		if (sc->mem_start[i]) {
 			device_printf(dev, "failed to clear shared memory at %lx - check configuration\n",
-				      sc->mem_start + i);
+				      kvtop(sc->mem_start + i));
 			return (ENXIO);
 		}
 	return (0);
@@ -972,14 +926,14 @@ ed_get_Linksys(sc)
 	 * 0x0B      : Check Sum Register (SR)
 	 */
 	for (sum = 0, i = 0x04; i < 0x0c; i++)
-		sum += ed_readb(sc, sc->asic_addr + i);
+		sum += ed_asic_inb(sc, i);
 	if (sum != 0xff)
 		return (0);		/* invalid DL10019C */
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
-		sc->arpcom.ac_enaddr[i] = ed_readb(sc, sc->asic_addr + 0x04 + i);
+		sc->arpcom.ac_enaddr[i] = ed_asic_inb(sc, 0x04 + i);
 	}
 
-	ed_writeb(sc, sc->nic_addr + ED_P0_DCR, ED_DCR_WTS | ED_DCR_FT1 | ED_DCR_LS);
+	ed_nic_outb(sc, ED_P0_DCR, ED_DCR_WTS | ED_DCR_FT1 | ED_DCR_LS);
 	sc->isa16bit = 1;
 	sc->type = ED_TYPE_NE2000;
 	sc->type_str = "Linksys";
@@ -990,9 +944,8 @@ ed_get_Linksys(sc)
  * Probe and vendor-specific initialization routine for NE1000/2000 boards
  */
 int
-ed_probe_Novell_generic(dev, port_rid, flags)
+ed_probe_Novell_generic(dev, flags)
 	device_t dev;
-	int port_rid;
 	int flags;
 {
 	struct ed_softc *sc = device_get_softc(dev);
@@ -1000,33 +953,25 @@ ed_probe_Novell_generic(dev, port_rid, flags)
 	u_char  romdata[16], tmp;
 	static char test_pattern[32] = "THIS is A memory TEST pattern";
 	char    test_buffer[32];
-	int	error;
-
-	error = ed_alloc_port(dev, port_rid, ED_NOVELL_IO_PORTS);
-	if (error)
-		return (error);
-
-	sc->asic_addr = rman_get_start(sc->port_res) + ED_NOVELL_ASIC_OFFSET;
-	sc->nic_addr = rman_get_start(sc->port_res) + ED_NOVELL_NIC_OFFSET;
 
 	/* XXX - do Novell-specific probe here */
 
 	/* Reset the board */
 	if (ED_FLAGS_GETTYPE(flags) == ED_FLAGS_GWETHER) {
-		ed_writeb(sc, sc->asic_addr + ED_NOVELL_RESET, 0);
+		ed_asic_outb(sc, ED_NOVELL_RESET, 0);
 		DELAY(200);
 	}
-	tmp = ed_readb(sc, sc->asic_addr + ED_NOVELL_RESET);
+	tmp = ed_asic_inb(sc, ED_NOVELL_RESET);
 
 	/*
 	 * I don't know if this is necessary; probably cruft leftover from
 	 * Clarkson packet driver code. Doesn't do a thing on the boards I've
-	 * tested. -DG [note that a ed_writeb(sc, 0x84, 0) seems to work here, and is
+	 * tested. -DG [note that a outb(0x84, 0) seems to work here, and is
 	 * non-invasive...but some boards don't seem to reset and I don't have
 	 * complete documentation on what the 'right' thing to do is...so we
 	 * do the invasive thing for now. Yuck.]
 	 */
-	ed_writeb(sc, sc->asic_addr + ED_NOVELL_RESET, tmp);
+	ed_asic_outb(sc, ED_NOVELL_RESET, tmp);
 	DELAY(5000);
 
 	/*
@@ -1035,7 +980,7 @@ ed_probe_Novell_generic(dev, port_rid, flags)
 	 * - this makes the probe invasive! ...Done against my better
 	 * judgement. -DLG
 	 */
-	ed_writeb(sc, sc->nic_addr + ED_P0_CR, ED_CR_RD2 | ED_CR_STP);
+	ed_nic_outb(sc, ED_P0_CR, ED_CR_RD2 | ED_CR_STP);
 
 	DELAY(5000);
 
@@ -1056,13 +1001,13 @@ ed_probe_Novell_generic(dev, port_rid, flags)
 	 * This prevents packets from being stored in the NIC memory when the
 	 * readmem routine turns on the start bit in the CR.
 	 */
-	ed_writeb(sc, sc->nic_addr + ED_P0_RCR, ED_RCR_MON);
+	ed_nic_outb(sc, ED_P0_RCR, ED_RCR_MON);
 
 	/* Temporarily initialize DCR for byte operations */
-	ed_writeb(sc, sc->nic_addr + ED_P0_DCR, ED_DCR_FT1 | ED_DCR_LS);
+	ed_nic_outb(sc, ED_P0_DCR, ED_DCR_FT1 | ED_DCR_LS);
 
-	ed_writeb(sc, sc->nic_addr + ED_P0_PSTART, 8192 / ED_PAGE_SIZE);
-	ed_writeb(sc, sc->nic_addr + ED_P0_PSTOP, 16384 / ED_PAGE_SIZE);
+	ed_nic_outb(sc, ED_P0_PSTART, 8192 / ED_PAGE_SIZE);
+	ed_nic_outb(sc, ED_P0_PSTOP, 16384 / ED_PAGE_SIZE);
 
 	sc->isa16bit = 0;
 
@@ -1080,9 +1025,9 @@ ed_probe_Novell_generic(dev, port_rid, flags)
 	} else {
 
 		/* neither an NE1000 nor a Linksys - try NE2000 */
-		ed_writeb(sc, sc->nic_addr + ED_P0_DCR, ED_DCR_WTS | ED_DCR_FT1 | ED_DCR_LS);
-		ed_writeb(sc, sc->nic_addr + ED_P0_PSTART, 16384 / ED_PAGE_SIZE);
-		ed_writeb(sc, sc->nic_addr + ED_P0_PSTOP, 32768 / ED_PAGE_SIZE);
+		ed_nic_outb(sc, ED_P0_DCR, ED_DCR_WTS | ED_DCR_FT1 | ED_DCR_LS);
+		ed_nic_outb(sc, ED_P0_PSTART, 16384 / ED_PAGE_SIZE);
+		ed_nic_outb(sc, ED_P0_PSTOP, 32768 / ED_PAGE_SIZE);
 
 		sc->isa16bit = 1;
 
@@ -1114,12 +1059,11 @@ ed_probe_Novell_generic(dev, port_rid, flags)
 
 	/* NIC memory doesn't start at zero on an NE board */
 	/* The start address is tied to the bus width */
-	sc->mem_start = (u_long) ((char *) 8192 + sc->isa16bit * 8192);
+	sc->mem_start = (char *) 8192 + sc->isa16bit * 8192;
 	sc->mem_end = sc->mem_start + memsize;
 	sc->tx_page_start = memsize / ED_PAGE_SIZE;
 
-	if (ED_FLAGS_GETTYPE(flags) == ED_FLAGS_GWETHER)
-	{
+	if (ED_FLAGS_GETTYPE(flags) == ED_FLAGS_GWETHER) {
 		int     x, i, mstart = 0, msize = 0;
 		char    pbuf0[ED_PAGE_SIZE], pbuf[ED_PAGE_SIZE], tbuf[ED_PAGE_SIZE];
 
@@ -1175,8 +1119,8 @@ ed_probe_Novell_generic(dev, port_rid, flags)
 		device_printf(dev, "RAM start at %d, size : %d.\n", mstart, msize);
 
 		sc->mem_size = msize;
-		sc->mem_start = (u_long) mstart;
-		sc->mem_end = (u_long) (msize + mstart);
+		sc->mem_start = (caddr_t) mstart;
+		sc->mem_end = (caddr_t) (msize + mstart);
 		sc->tx_page_start = mstart / ED_PAGE_SIZE;
 	}
 
@@ -1204,16 +1148,28 @@ ed_probe_Novell_generic(dev, port_rid, flags)
 	}
 
 	/* clear any pending interrupts that might have occurred above */
-	ed_writeb(sc, sc->nic_addr + ED_P0_ISR, 0xff);
+	ed_nic_outb(sc, ED_P0_ISR, 0xff);
 
 	return (0);
 }
 
 int
-ed_probe_Novell(dev)
+ed_probe_Novell(dev, port_rid, flags)
 	device_t dev;
+	int port_rid;
+	int flags;
 {
-	return ed_probe_Novell_generic(dev, 0, device_get_flags(dev));
+	struct ed_softc *sc = device_get_softc(dev);
+	int	error;
+
+	error = ed_alloc_port(dev, port_rid, ED_NOVELL_IO_PORTS);
+	if (error)
+		return (error);
+
+	sc->asic_offset = ED_NOVELL_ASIC_OFFSET;
+	sc->nic_offset  = ED_NOVELL_NIC_OFFSET;
+
+	return ed_probe_Novell_generic(dev, flags);
 }
 
 #define	ED_HPP_TEST_SIZE	16
@@ -1241,8 +1197,10 @@ ed_probe_Novell(dev)
  * command line.
  */
 int
-ed_probe_HP_pclanp(dev)
+ed_probe_HP_pclanp(dev, port_rid, flags)
 	device_t dev;
+	int port_rid;
+	int flags;
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	int error;
@@ -1259,8 +1217,9 @@ ed_probe_HP_pclanp(dev)
 		return (error);
 
 	/* Fill in basic information */
-	sc->asic_addr = rman_get_start(sc->port_res) + ED_HPP_ASIC_OFFSET;
-	sc->nic_addr = rman_get_start(sc->port_res) + ED_HPP_NIC_OFFSET;
+	sc->asic_offset = ED_HPP_ASIC_OFFSET;
+	sc->nic_offset  = ED_HPP_NIC_OFFSET;
+
 	sc->chip_type = ED_CHIP_TYPE_DP8390;
 	sc->isa16bit = 0;	/* the 8390 core needs to be in byte mode */
 
@@ -1268,22 +1227,22 @@ ed_probe_HP_pclanp(dev)
 	 * Look for the HP PCLAN+ signature: "0x50,0x48,0x00,0x53" 
 	 */
 	
-	if ((ed_readb(sc, sc->asic_addr + ED_HPP_ID) != 0x50) || 
-	    (ed_readb(sc, sc->asic_addr + ED_HPP_ID + 1) != 0x48) ||
-	    ((ed_readb(sc, sc->asic_addr + ED_HPP_ID + 2) & 0xF0) != 0) ||
-	    (ed_readb(sc, sc->asic_addr + ED_HPP_ID + 3) != 0x53))
+	if ((ed_asic_inb(sc, ED_HPP_ID) != 0x50) || 
+	    (ed_asic_inb(sc, ED_HPP_ID + 1) != 0x48) ||
+	    ((ed_asic_inb(sc, ED_HPP_ID + 2) & 0xF0) != 0) ||
+	    (ed_asic_inb(sc, ED_HPP_ID + 3) != 0x53))
 		return ENXIO;
 
 	/* 
 	 * Read the MAC address and verify checksum on the address.
 	 */
 
-	ed_writew(sc, sc->asic_addr + ED_HPP_PAGING, ED_HPP_PAGE_MAC);
+	ed_asic_outw(sc, ED_HPP_PAGING, ED_HPP_PAGE_MAC);
 	for (n  = 0, checksum = 0; n < ETHER_ADDR_LEN; n++)
 		checksum += (sc->arpcom.ac_enaddr[n] = 
-			ed_readb(sc, sc->asic_addr + ED_HPP_MAC_ADDR + n));
+			ed_asic_inb(sc, ED_HPP_MAC_ADDR + n));
 	
-	checksum += ed_readb(sc, sc->asic_addr + ED_HPP_MAC_ADDR + ETHER_ADDR_LEN);
+	checksum += ed_asic_inb(sc, ED_HPP_MAC_ADDR + ETHER_ADDR_LEN);
 
 	if (checksum != 0xFF)
 		return ENXIO;
@@ -1292,8 +1251,8 @@ ed_probe_HP_pclanp(dev)
 	 * Verify that the software model number is 0.
 	 */
 	
-	ed_writew(sc, sc->asic_addr + ED_HPP_PAGING, ED_HPP_PAGE_ID);
-	if (((sc->hpp_id = ed_readw(sc, sc->asic_addr + ED_HPP_PAGE_4)) & 
+	ed_asic_outw(sc, ED_HPP_PAGING, ED_HPP_PAGE_ID);
+	if (((sc->hpp_id = ed_asic_inw(sc, ED_HPP_PAGE_4)) & 
 		ED_HPP_ID_SOFT_MODEL_MASK) != 0x0000)
 		return ENXIO;
 
@@ -1301,7 +1260,7 @@ ed_probe_HP_pclanp(dev)
 	 * Read in and save the current options configured on card.
 	 */
 
-	sc->hpp_options = ed_readw(sc, sc->asic_addr + ED_HPP_OPTION);
+	sc->hpp_options = ed_asic_inw(sc, ED_HPP_OPTION);
 
 	sc->hpp_options |= (ED_HPP_OPTION_NIC_RESET | 
                         	ED_HPP_OPTION_CHIP_RESET |
@@ -1312,29 +1271,29 @@ ed_probe_HP_pclanp(dev)
 	 * so take care to preserve the other bits.
 	 */
 
-	ed_writew(sc, sc->asic_addr + ED_HPP_OPTION, 
+	ed_asic_outw(sc, ED_HPP_OPTION, 
 		(sc->hpp_options & ~(ED_HPP_OPTION_NIC_RESET | 
 			ED_HPP_OPTION_CHIP_RESET)));
 
 	DELAY(5000);	/* wait for chip reset to complete */
 
-	ed_writew(sc, sc->asic_addr + ED_HPP_OPTION,
+	ed_asic_outw(sc, ED_HPP_OPTION,
 		(sc->hpp_options | (ED_HPP_OPTION_NIC_RESET |
 			ED_HPP_OPTION_CHIP_RESET |
 			ED_HPP_OPTION_ENABLE_IRQ)));
 
 	DELAY(5000);
 
-	if (!(ed_readb(sc, sc->nic_addr + ED_P0_ISR) & ED_ISR_RST))
+	if (!(ed_nic_inb(sc, ED_P0_ISR) & ED_ISR_RST))
 		return ENXIO;	/* reset did not complete */
 
 	/*
 	 * Read out configuration information.
 	 */
 
-	ed_writew(sc, sc->asic_addr + ED_HPP_PAGING, ED_HPP_PAGE_HW);
+	ed_asic_outw(sc, ED_HPP_PAGING, ED_HPP_PAGE_HW);
 
-	irq = ed_readb(sc, sc->asic_addr + ED_HPP_HW_IRQ);
+	irq = ed_asic_inb(sc, ED_HPP_HW_IRQ);
 
 	/*
  	 * Check for impossible IRQ.
@@ -1390,8 +1349,8 @@ ed_probe_HP_pclanp(dev)
 		 * determine the memory address from the board.
 		 */
 		
-		ed_writew(sc, sc->asic_addr + ED_HPP_PAGING, ED_HPP_PAGE_HW);
-		mem_addr = (ed_readw(sc, sc->asic_addr + ED_HPP_HW_MEM_MAP) << 8);
+		ed_asic_outw(sc, ED_HPP_PAGING, ED_HPP_PAGE_HW);
+		mem_addr = (ed_asic_inw(sc, ED_HPP_HW_MEM_MAP) << 8);
 
 		/*
 		 * Check that the kernel specified start of memory and
@@ -1409,7 +1368,7 @@ ed_probe_HP_pclanp(dev)
 		if (error)
 			return (error);
 
-		sc->hpp_mem_start = rman_get_start(sc->mem_res);
+		sc->hpp_mem_start = rman_get_virtual(sc->mem_res);
 	}
 
 	/*
@@ -1452,8 +1411,8 @@ ed_probe_HP_pclanp(dev)
 	 * Set the wrap registers for string I/O reads.
 	 */
 
-	ed_writew(sc, sc->asic_addr + ED_HPP_PAGING, ED_HPP_PAGE_HW);
-	ed_writew(sc, sc->asic_addr + ED_HPP_HW_WRAP,
+	ed_asic_outw(sc, ED_HPP_PAGING, ED_HPP_PAGE_HW);
+	ed_asic_outw(sc, ED_HPP_HW_WRAP,
 		((sc->rec_page_start / ED_PAGE_SIZE) |
 		 (((sc->rec_page_stop / ED_PAGE_SIZE) - 1) << 8)));
 
@@ -1461,7 +1420,7 @@ ed_probe_HP_pclanp(dev)
 	 * Reset the register page to normal operation.
 	 */
 
-	ed_writew(sc, sc->asic_addr + ED_HPP_PAGING, ED_HPP_PAGE_PERF);
+	ed_asic_outw(sc, ED_HPP_PAGING, ED_HPP_PAGE_PERF);
 
 	/*
 	 * Verify that we can read/write from adapter memory.
@@ -1484,9 +1443,9 @@ ed_probe_HP_pclanp(dev)
 
 	for (n = 0; n < (32768 / ED_PAGE_SIZE); n ++) {
 
-		ed_pio_writemem(sc, test_pattern, (n * ED_PAGE_SIZE), 
+		ed_hpp_writemem(sc, test_pattern, (n * ED_PAGE_SIZE), 
 				sizeof(test_pattern));
-		ed_pio_readmem(sc, (n * ED_PAGE_SIZE), 
+		ed_hpp_readmem(sc, (n * ED_PAGE_SIZE), 
 			test_buffer, sizeof(test_pattern));
 
 		if (bcmp(test_pattern, test_buffer, 
@@ -1508,8 +1467,8 @@ ed_hpp_set_physical_link(struct ed_softc *sc)
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	int lan_page;
 
-	ed_writew(sc, sc->asic_addr + ED_HPP_PAGING, ED_HPP_PAGE_LAN);
-	lan_page = ed_readw(sc, sc->asic_addr + ED_HPP_PAGE_0);
+	ed_asic_outw(sc, ED_HPP_PAGING, ED_HPP_PAGE_LAN);
+	lan_page = ed_asic_inw(sc, ED_HPP_PAGE_0);
 
 	if (ifp->if_flags & IFF_ALTPHYS) {
 
@@ -1519,8 +1478,8 @@ ed_hpp_set_physical_link(struct ed_softc *sc)
 
 		lan_page |= ED_HPP_LAN_AUI;
 
-		ed_writew(sc, sc->asic_addr + ED_HPP_PAGING, ED_HPP_PAGE_LAN);
-		ed_writew(sc, sc->asic_addr + ED_HPP_PAGE_0, lan_page);
+		ed_asic_outw(sc, ED_HPP_PAGING, ED_HPP_PAGE_LAN);
+		ed_asic_outw(sc, ED_HPP_PAGE_0, lan_page);
 
 
 	} else {
@@ -1531,8 +1490,8 @@ ed_hpp_set_physical_link(struct ed_softc *sc)
 
 		lan_page &= ~ED_HPP_LAN_AUI;
 
-		ed_writew(sc, sc->asic_addr + ED_HPP_PAGING, ED_HPP_PAGE_LAN);
-		ed_writew(sc, sc->asic_addr + ED_HPP_PAGE_0, lan_page);
+		ed_asic_outw(sc, ED_HPP_PAGING, ED_HPP_PAGE_LAN);
+		ed_asic_outw(sc, ED_HPP_PAGE_0, lan_page);
 
 	}
 
@@ -1546,7 +1505,7 @@ ed_hpp_set_physical_link(struct ed_softc *sc)
 	 * Restore normal pages.
 	 */
 
-	ed_writew(sc, sc->asic_addr + ED_HPP_PAGING, ED_HPP_PAGE_PERF);
+	ed_asic_outw(sc, ED_HPP_PAGING, ED_HPP_PAGE_PERF);
 
 }
 
@@ -1569,8 +1528,9 @@ ed_alloc_port(dev, rid, size)
 		sc->port_res = res;
 		sc->port_used = size;
 		return (0);
-	} else
+	} else {
 		return (ENOENT);
+	}
 }
 
 /*
@@ -1771,7 +1731,7 @@ ed_stop(sc)
 	/*
 	 * Stop everything on the interface, and select page 0 registers.
 	 */
-	ed_writeb(sc, sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STP);
+	ed_nic_outb(sc, ED_P0_CR, sc->cr_proto | ED_CR_STP);
 
 	/*
 	 * Wait for interface to enter stopped state, but limit # of checks to
@@ -1779,7 +1739,7 @@ ed_stop(sc)
 	 * just in case it's an old one.
 	 */
 	if (sc->chip_type != ED_CHIP_TYPE_AX88190)
-		while (((ed_readb(sc, sc->nic_addr + ED_P0_ISR) & ED_ISR_RST) == 0) && --n);
+		while (((ed_nic_inb(sc, ED_P0_ISR) & ED_ISR_RST) == 0) && --n);
 }
 
 /*
@@ -1839,7 +1799,7 @@ ed_init(xsc)
 	/*
 	 * Set interface for page 0, Remote DMA complete, Stopped
 	 */
-	ed_writeb(sc, sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STP);
+	ed_nic_outb(sc, ED_P0_CR, sc->cr_proto | ED_CR_STP);
 
 	if (sc->isa16bit) {
 
@@ -1847,51 +1807,51 @@ ed_init(xsc)
 		 * Set FIFO threshold to 8, No auto-init Remote DMA, byte
 		 * order=80x86, word-wide DMA xfers,
 		 */
-		ed_writeb(sc, sc->nic_addr + ED_P0_DCR, ED_DCR_FT1 | ED_DCR_WTS | ED_DCR_LS);
+		ed_nic_outb(sc, ED_P0_DCR, ED_DCR_FT1 | ED_DCR_WTS | ED_DCR_LS);
 	} else {
 
 		/*
 		 * Same as above, but byte-wide DMA xfers
 		 */
-		ed_writeb(sc, sc->nic_addr + ED_P0_DCR, ED_DCR_FT1 | ED_DCR_LS);
+		ed_nic_outb(sc, ED_P0_DCR, ED_DCR_FT1 | ED_DCR_LS);
 	}
 
 	/*
 	 * Clear Remote Byte Count Registers
 	 */
-	ed_writeb(sc, sc->nic_addr + ED_P0_RBCR0, 0);
-	ed_writeb(sc, sc->nic_addr + ED_P0_RBCR1, 0);
+	ed_nic_outb(sc, ED_P0_RBCR0, 0);
+	ed_nic_outb(sc, ED_P0_RBCR1, 0);
 
 	/*
 	 * For the moment, don't store incoming packets in memory.
 	 */
-	ed_writeb(sc, sc->nic_addr + ED_P0_RCR, ED_RCR_MON);
+	ed_nic_outb(sc, ED_P0_RCR, ED_RCR_MON);
 
 	/*
 	 * Place NIC in internal loopback mode
 	 */
-	ed_writeb(sc, sc->nic_addr + ED_P0_TCR, ED_TCR_LB0);
+	ed_nic_outb(sc, ED_P0_TCR, ED_TCR_LB0);
 
 	/*
 	 * Initialize transmit/receive (ring-buffer) Page Start
 	 */
-	ed_writeb(sc, sc->nic_addr + ED_P0_TPSR, sc->tx_page_start);
-	ed_writeb(sc, sc->nic_addr + ED_P0_PSTART, sc->rec_page_start);
+	ed_nic_outb(sc, ED_P0_TPSR, sc->tx_page_start);
+	ed_nic_outb(sc, ED_P0_PSTART, sc->rec_page_start);
 	/* Set lower bits of byte addressable framing to 0 */
 	if (sc->chip_type == ED_CHIP_TYPE_WD790)
-		ed_writeb(sc, sc->nic_addr + 0x09, 0);
+		ed_nic_outb(sc, 0x09, 0);
 
 	/*
 	 * Initialize Receiver (ring-buffer) Page Stop and Boundry
 	 */
-	ed_writeb(sc, sc->nic_addr + ED_P0_PSTOP, sc->rec_page_stop);
-	ed_writeb(sc, sc->nic_addr + ED_P0_BNRY, sc->rec_page_start);
+	ed_nic_outb(sc, ED_P0_PSTOP, sc->rec_page_stop);
+	ed_nic_outb(sc, ED_P0_BNRY, sc->rec_page_start);
 
 	/*
 	 * Clear all interrupts. A '1' in each bit position clears the
 	 * corresponding flag.
 	 */
-	ed_writeb(sc, sc->nic_addr + ED_P0_ISR, 0xff);
+	ed_nic_outb(sc, ED_P0_ISR, 0xff);
 
 	/*
 	 * Enable the following interrupts: receive/transmit complete,
@@ -1899,24 +1859,24 @@ ed_init(xsc)
 	 *
 	 * Counter overflow and Remote DMA complete are *not* enabled.
 	 */
-	ed_writeb(sc, sc->nic_addr + ED_P0_IMR,
+	ed_nic_outb(sc, ED_P0_IMR,
 	ED_IMR_PRXE | ED_IMR_PTXE | ED_IMR_RXEE | ED_IMR_TXEE | ED_IMR_OVWE);
 
 	/*
 	 * Program Command Register for page 1
 	 */
-	ed_writeb(sc, sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_PAGE_1 | ED_CR_STP);
+	ed_nic_outb(sc, ED_P0_CR, sc->cr_proto | ED_CR_PAGE_1 | ED_CR_STP);
 
 	/*
 	 * Copy out our station address
 	 */
 	for (i = 0; i < ETHER_ADDR_LEN; ++i)
-		ed_writeb(sc, sc->nic_addr + ED_P1_PAR(i), sc->arpcom.ac_enaddr[i]);
+		ed_nic_outb(sc, ED_P1_PAR(i), sc->arpcom.ac_enaddr[i]);
 
 	/*
 	 * Set Current Page pointer to next_packet (initialized above)
 	 */
-	ed_writeb(sc, sc->nic_addr + ED_P1_CURR, sc->next_packet);
+	ed_nic_outb(sc, ED_P1_CURR, sc->next_packet);
 
 	/*
 	 * Program Receiver Configuration Register and multicast filter. CR is
@@ -1927,7 +1887,7 @@ ed_init(xsc)
 	/*
 	 * Take interface out of loopback
 	 */
-	ed_writeb(sc, sc->nic_addr + ED_P0_TCR, 0);
+	ed_nic_outb(sc, ED_P0_TCR, 0);
 
 	/*
 	 * If this is a 3Com board, the tranceiver must be software enabled
@@ -1935,9 +1895,9 @@ ed_init(xsc)
 	 */
 	if (sc->vendor == ED_VENDOR_3COM) {
 		if (ifp->if_flags & IFF_ALTPHYS) {
-			ed_writeb(sc, sc->asic_addr + ED_3COM_CR, 0);
+			ed_asic_outb(sc, ED_3COM_CR, 0);
 		} else {
-			ed_writeb(sc, sc->asic_addr + ED_3COM_CR, ED_3COM_CR_XSEL);
+			ed_asic_outb(sc, ED_3COM_CR, ED_3COM_CR_XSEL);
 		}
 	}
 
@@ -1972,24 +1932,24 @@ ed_xmit(sc)
 	/*
 	 * Set NIC for page 0 register access
 	 */
-	ed_writeb(sc, sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STA);
+	ed_nic_outb(sc, ED_P0_CR, sc->cr_proto | ED_CR_STA);
 
 	/*
 	 * Set TX buffer start page
 	 */
-	ed_writeb(sc, sc->nic_addr + ED_P0_TPSR, sc->tx_page_start +
-	     sc->txb_next_tx * ED_TXBUF_SIZE);
+	ed_nic_outb(sc, ED_P0_TPSR, sc->tx_page_start +
+		    sc->txb_next_tx * ED_TXBUF_SIZE);
 
 	/*
 	 * Set TX length
 	 */
-	ed_writeb(sc, sc->nic_addr + ED_P0_TBCR0, len);
-	ed_writeb(sc, sc->nic_addr + ED_P0_TBCR1, len >> 8);
+	ed_nic_outb(sc, ED_P0_TBCR0, len);
+	ed_nic_outb(sc, ED_P0_TBCR1, len >> 8);
 
 	/*
 	 * Set page 0, Remote DMA complete, Transmit Packet, and *Start*
 	 */
-	ed_writeb(sc, sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_TXP | ED_CR_STA);
+	ed_nic_outb(sc, ED_P0_CR, sc->cr_proto | ED_CR_TXP | ED_CR_STA);
 	sc->xmit_busy = 1;
 
 	/*
@@ -2020,7 +1980,7 @@ ed_start(ifp)
 {
 	struct ed_softc *sc = ifp->if_softc;
 	struct mbuf *m0, *m;
-	u_long buffer;
+	caddr_t buffer;
 	int     len;
 
 	if (sc->gone) {
@@ -2087,8 +2047,8 @@ outloop:
 				 * change pages.
 				 */
 			case ED_VENDOR_3COM:
-				ed_writeb(sc, sc->asic_addr + ED_3COM_GACFR,
-				     ED_3COM_GACFR_RSEL);
+				ed_asic_outb(sc, ED_3COM_GACFR,
+					     ED_3COM_GACFR_RSEL);
 				break;
 
 				/*
@@ -2096,21 +2056,16 @@ outloop:
 				 * WD/SMC boards.
 				 */
 			case ED_VENDOR_WD_SMC:
-				do {
-					ed_writeb(sc,
-					    sc->asic_addr + ED_WD_LAAR,
-					    sc->wd_laar_proto | ED_WD_LAAR_M16EN);
-					if (sc->chip_type == ED_CHIP_TYPE_WD790) {
-						ed_writeb(sc,
-						    sc->asic_addr + ED_WD_MSR, 
-						    ED_WD_MSR_MENB);
-					}
-                                        break;
-				} while(0);
+				ed_asic_outb(sc, ED_WD_LAAR,
+					     sc->wd_laar_proto | ED_WD_LAAR_M16EN);
+				if (sc->chip_type == ED_CHIP_TYPE_WD790) {
+					ed_asic_outb(sc, ED_WD_MSR, ED_WD_MSR_MENB);
+				}
+				break;
 			}
 		}
 		for (len = 0; m != 0; m = m->m_next) {
-			ed_bcopy_from(sc, mtod(m, caddr_t), buffer, m->m_len);
+			bcopy(mtod(m, caddr_t), buffer, m->m_len);
 			buffer += m->m_len;
 			len += m->m_len;
 		}
@@ -2121,20 +2076,16 @@ outloop:
 		if (sc->isa16bit) {
 			switch (sc->vendor) {
 			case ED_VENDOR_3COM:
-				ed_writeb(sc, sc->asic_addr + ED_3COM_GACFR,
-				     ED_3COM_GACFR_RSEL | ED_3COM_GACFR_MBS0);
+				ed_asic_outb(sc, ED_3COM_GACFR,
+					     ED_3COM_GACFR_RSEL | ED_3COM_GACFR_MBS0);
 				break;
 			case ED_VENDOR_WD_SMC:
-				do {
-					if (sc->chip_type == ED_CHIP_TYPE_WD790) {
-						ed_writeb(sc,
-						    sc->asic_addr + ED_WD_MSR,
-						    0x00);
-					}
-					ed_writeb(sc, sc->asic_addr + ED_WD_LAAR,
-					    sc->wd_laar_proto & ~ED_WD_LAAR_M16EN);
-					break;
-				} while(0);
+				if (sc->chip_type == ED_CHIP_TYPE_WD790) {
+					ed_asic_outb(sc, ED_WD_MSR, 0x00);
+				}
+				ed_asic_outb(sc, ED_WD_LAAR,
+					     sc->wd_laar_proto & ~ED_WD_LAAR_M16EN);
+				break;
 			}
 		}
 	} else {
@@ -2191,7 +2142,7 @@ ed_rint(sc)
 	/*
 	 * Set NIC to page 1 registers to get 'current' pointer
 	 */
-	ed_writeb(sc, sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_PAGE_1 | ED_CR_STA);
+	ed_nic_outb(sc, ED_P0_CR, sc->cr_proto | ED_CR_PAGE_1 | ED_CR_STA);
 
 	/*
 	 * 'sc->next_packet' is the logical beginning of the ring-buffer -
@@ -2201,10 +2152,10 @@ ed_rint(sc)
 	 * here until the logical beginning equals the logical end (or in
 	 * other words, until the ring-buffer is empty).
 	 */
-	while (sc->next_packet != ed_readb(sc, sc->nic_addr + ED_P1_CURR)) {
+	while (sc->next_packet != ed_nic_inb(sc, ED_P1_CURR)) {
 
 		/* get pointer to this buffer's header structure */
-		packet_ptr = (char *)sc->mem_ring +
+		packet_ptr = sc->mem_ring +
 		    (sc->next_packet - sc->rec_page_start) * ED_PAGE_SIZE;
 
 		/*
@@ -2262,7 +2213,7 @@ ed_rint(sc)
 			/*
 			 * Go get packet.
 			 */
-			ed_get_packet(sc, (int)(packet_ptr + sizeof(struct ed_ring)),
+			ed_get_packet(sc, packet_ptr + sizeof(struct ed_ring),
 				      len - sizeof(struct ed_ring));
 			ifp->if_ipackets++;
 		} else {
@@ -2293,15 +2244,15 @@ ed_rint(sc)
 		/*
 		 * Set NIC to page 0 registers to update boundry register
 		 */
-		ed_writeb(sc, sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STA);
+		ed_nic_outb(sc, ED_P0_CR, sc->cr_proto | ED_CR_STA);
 
-		ed_writeb(sc, sc->nic_addr + ED_P0_BNRY, boundry);
+		ed_nic_outb(sc, ED_P0_BNRY, boundry);
 
 		/*
 		 * Set NIC to page 1 registers before looping to top (prepare
 		 * to get 'CURR' current pointer)
 		 */
-		ed_writeb(sc, sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_PAGE_1 | ED_CR_STA);
+		ed_nic_outb(sc, ED_P0_CR, sc->cr_proto | ED_CR_PAGE_1 | ED_CR_STA);
 	}
 }
 
@@ -2321,25 +2272,25 @@ edintr(arg)
 	/*
 	 * Set NIC to page 0 registers
 	 */
-	ed_writeb(sc, sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STA);
+	ed_nic_outb(sc, ED_P0_CR, sc->cr_proto | ED_CR_STA);
 
 	/*
 	 * loop until there are no more new interrupts
 	 */
-	while ((isr = ed_readb(sc, sc->nic_addr + ED_P0_ISR)) != 0) {
+	while ((isr = ed_nic_inb(sc, ED_P0_ISR)) != 0) {
 
 		/*
 		 * reset all the bits that we are 'acknowledging' by writing a
 		 * '1' to each bit position that was set (writing a '1'
 		 * *clears* the bit)
 		 */
-		ed_writeb(sc, sc->nic_addr + ED_P0_ISR, isr);
+		ed_nic_outb(sc, ED_P0_ISR, isr);
 
 		/* XXX workaround for AX88190 */
 		if (sc->chip_type == ED_CHIP_TYPE_AX88190) {
-			while(ed_readb(sc, sc->nic_addr + ED_P0_ISR) & isr) {
-				ed_writeb(sc, sc->nic_addr + ED_P0_ISR,0);
-				ed_writeb(sc, sc->nic_addr + ED_P0_ISR,isr);
+			while (ed_nic_inb(sc, ED_P0_ISR) & isr) {
+				ed_nic_outb(sc, ED_P0_ISR,0);
+				ed_nic_outb(sc, ED_P0_ISR,isr);
 			}
 		}
 
@@ -2348,7 +2299,7 @@ edintr(arg)
 		 * the receiver will reset the board under some conditions.
 		 */
 		if (isr & (ED_ISR_PTX | ED_ISR_TXE)) {
-			u_char  collisions = ed_readb(sc, sc->nic_addr + ED_P0_NCR) & 0x0f;
+			u_char  collisions = ed_nic_inb(sc, ED_P0_NCR) & 0x0f;
 
 			/*
 			 * Check for transmit error. If a TX completed with an
@@ -2359,14 +2310,14 @@ edintr(arg)
 			 * flow. Of course, with UDP we're screwed, but this
 			 * is expected when a network is heavily loaded.
 			 */
-			(void) ed_readb(sc, sc->nic_addr + ED_P0_TSR);
+			(void) ed_nic_inb(sc, ED_P0_TSR);
 			if (isr & ED_ISR_TXE) {
 				u_char tsr;
 
 				/*
 				 * Excessive collisions (16)
 				 */
-				tsr = ed_readb(sc, sc->nic_addr + ED_P0_TSR);
+				tsr = ed_nic_inb(sc, ED_P0_TSR);
 				if ((tsr & ED_TSR_ABT)	
 				    && (collisions == 0)) {
 
@@ -2479,7 +2430,7 @@ edintr(arg)
 				 */
 				if (isr & ED_ISR_RXE) {
 					u_char rsr;
-					rsr = ed_readb(sc, sc->nic_addr + ED_P0_RSR);
+					rsr = ed_nic_inb(sc, ED_P0_RSR);
 					if (rsr & ED_RSR_CRC)
 						sc->mibdata.dot3StatsFCSErrors++;
 					if (rsr & ED_RSR_FAE)
@@ -2489,7 +2440,7 @@ edintr(arg)
 					ifp->if_ierrors++;
 #ifdef ED_DEBUG
 					printf("ed%d: receive error %x\n", ifp->if_unit,
-					       ed_readb(sc, sc->nic_addr + ED_P0_RSR));
+					       ed_nic_inb(sc, ED_P0_RSR));
 #endif
 				}
 
@@ -2508,11 +2459,11 @@ edintr(arg)
 				if (sc->isa16bit &&
 				    (sc->vendor == ED_VENDOR_WD_SMC)) {
 
-					ed_writeb(sc, sc->asic_addr + ED_WD_LAAR,
-					     sc->wd_laar_proto | ED_WD_LAAR_M16EN);
+					ed_asic_outb(sc, ED_WD_LAAR,
+						     sc->wd_laar_proto | ED_WD_LAAR_M16EN);
 					if (sc->chip_type == ED_CHIP_TYPE_WD790) {
-						ed_writeb(sc, sc->asic_addr + ED_WD_MSR,
-						     ED_WD_MSR_MENB);
+						ed_asic_outb(sc, ED_WD_MSR,
+							     ED_WD_MSR_MENB);
 					}
 				}
 				ed_rint(sc);
@@ -2522,10 +2473,10 @@ edintr(arg)
 				    (sc->vendor == ED_VENDOR_WD_SMC)) {
 
 					if (sc->chip_type == ED_CHIP_TYPE_WD790) {
-						ed_writeb(sc, sc->asic_addr + ED_WD_MSR, 0x00);
+						ed_asic_outb(sc, ED_WD_MSR, 0x00);
 					}
-					ed_writeb(sc, sc->asic_addr + ED_WD_LAAR,
-					     sc->wd_laar_proto & ~ED_WD_LAAR_M16EN);
+					ed_asic_outb(sc, ED_WD_LAAR,
+						     sc->wd_laar_proto & ~ED_WD_LAAR_M16EN);
 				}
 			}
 		}
@@ -2544,7 +2495,7 @@ edintr(arg)
 		 * set in the transmit routine, is *okay* - it is 'edge'
 		 * triggered from low to high)
 		 */
-		ed_writeb(sc, sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STA);
+		ed_nic_outb(sc, ED_P0_CR, sc->cr_proto | ED_CR_STA);
 
 		/*
 		 * If the Network Talley Counters overflow, read them to reset
@@ -2552,9 +2503,9 @@ edintr(arg)
 		 * otherwise - resulting in an infinite loop.
 		 */
 		if (isr & ED_ISR_CNT) {
-			(void) ed_readb(sc, sc->nic_addr + ED_P0_CNTR0);
-			(void) ed_readb(sc, sc->nic_addr + ED_P0_CNTR1);
-			(void) ed_readb(sc, sc->nic_addr + ED_P0_CNTR2);
+			(void) ed_nic_inb(sc, ED_P0_CNTR0);
+			(void) ed_nic_inb(sc, ED_P0_CNTR1);
+			(void) ed_nic_inb(sc, ED_P0_CNTR2);
 		}
 	}
 }
@@ -2614,9 +2565,9 @@ ed_ioctl(ifp, command, data)
 		 */
 		if (sc->vendor == ED_VENDOR_3COM) {
 			if (ifp->if_flags & IFF_ALTPHYS) {
-				ed_writeb(sc, sc->asic_addr + ED_3COM_CR, 0);
+				ed_asic_outb(sc, ED_3COM_CR, 0);
 			} else {
-				ed_writeb(sc, sc->asic_addr + ED_3COM_CR, ED_3COM_CR_XSEL);
+				ed_asic_outb(sc, ED_3COM_CR, ED_3COM_CR_XSEL);
 			}
 		} else if (sc->vendor == ED_VENDOR_HP) 
 			ed_hpp_set_physical_link(sc);
@@ -2644,10 +2595,10 @@ ed_ioctl(ifp, command, data)
  *	the ring buffer into a linear destination buffer. Takes into account
  *	ring-wrap.
  */
-static __inline int
+static __inline char *
 ed_ring_copy(sc, src, dst, amount)
 	struct ed_softc *sc;
-	int    src;
+	char   *src;
 	char   *dst;
 	u_short amount;
 {
@@ -2659,16 +2610,16 @@ ed_ring_copy(sc, src, dst, amount)
 
 		/* copy amount up to end of NIC memory */
 		if (sc->mem_shared)
-			ed_bcopy_from(sc, dst, src, tmp_amount);
+			bcopy(src, dst, tmp_amount);
 		else
-			ed_pio_readmem(sc, src, dst, tmp_amount);
+			ed_pio_readmem(sc, (int)src, dst, tmp_amount);
 
 		amount -= tmp_amount;
 		src = sc->mem_ring;
 		dst += tmp_amount;
 	}
 	if (sc->mem_shared)
-		ed_bcopy_from(sc, dst, src, amount);
+		bcopy(src, dst, amount);
 	else
 		ed_pio_readmem(sc, (int)src, dst, amount);
 
@@ -2681,8 +2632,8 @@ ed_ring_copy(sc, src, dst, amount)
  */
 static void
 ed_get_packet(sc, buf, len)
-	struct  ed_softc *sc;
-	int     buf;
+	struct ed_softc *sc;
+	char   *buf;
 	u_short len;
 {
 	struct ether_header *eh;
@@ -2760,47 +2711,42 @@ ed_get_packet(sc, buf, len)
  *		are word sized.
  *	This routine is currently Novell-specific.
  */
-static void
+void
 ed_pio_readmem(sc, src, dst, amount)
 	struct ed_softc *sc;
 	int src;
 	unsigned char *dst;
 	unsigned short amount;
 {
-	/* HP cards need special handling */
+	/* HP PC Lan+ cards need special handling */
 	if (sc->vendor == ED_VENDOR_HP && sc->type == ED_TYPE_HP_PCLANPLUS) {
 		ed_hpp_readmem(sc, src, dst, amount);
 		return;
 	}
-		
+
 	/* Regular Novell cards */
 	/* select page 0 registers */
-	ed_writeb(sc, sc->nic_addr + ED_P0_CR, ED_CR_RD2 | ED_CR_STA);
-
+	ed_nic_outb(sc, ED_P0_CR, ED_CR_RD2 | ED_CR_STA);
 
 	/* round up to a word */
 	if (amount & 1)
 		++amount;
 
 	/* set up DMA byte count */
-	ed_writeb(sc, sc->nic_addr + ED_P0_RBCR0, amount);
-	ed_writeb(sc, sc->nic_addr + ED_P0_RBCR1, amount >> 8);
+	ed_nic_outb(sc, ED_P0_RBCR0, amount);
+	ed_nic_outb(sc, ED_P0_RBCR1, amount >> 8);
 
 	/* set up source address in NIC mem */
-	ed_writeb(sc, sc->nic_addr + ED_P0_RSAR0, src);
-	ed_writeb(sc, sc->nic_addr + ED_P0_RSAR1, src >> 8);
+	ed_nic_outb(sc, ED_P0_RSAR0, src);
+	ed_nic_outb(sc, ED_P0_RSAR1, src >> 8);
 
-	ed_writeb(sc, sc->nic_addr + ED_P0_CR, ED_CR_RD0 | ED_CR_STA);
+	ed_nic_outb(sc, ED_P0_CR, ED_CR_RD0 | ED_CR_STA);
 
-	if (sc->isa16bit)
-		bus_space_read_multi_2(sc->bst, sc->bsh,
-		    sc->asic_addr + ED_NOVELL_DATA,
-		    (u_int16_t *) dst, amount / 2);
-	else
-		bus_space_read_multi_1(sc->bst, sc->bsh,
-		    sc->asic_addr + ED_NOVELL_DATA,
-		    (u_int8_t *) dst, amount);
-
+	if (sc->isa16bit) {
+		ed_asic_insw(sc, ED_NOVELL_DATA, dst, amount / 2);
+	} else {
+		ed_asic_insb(sc, ED_NOVELL_DATA, dst, amount);
+	}
 }
 
 /*
@@ -2808,7 +2754,7 @@ ed_pio_readmem(sc, src, dst, amount)
  *	Only used in the probe routine to test the memory. 'len' must
  *	be even.
  */
-static void
+void
 ed_pio_writemem(sc, src, dst, len)
 	struct ed_softc *sc;
 	char   *src;
@@ -2817,88 +2763,37 @@ ed_pio_writemem(sc, src, dst, len)
 {
 	int     maxwait = 200;	/* about 240us */
 
-	if (sc->vendor == ED_VENDOR_NOVELL) {
+	/* select page 0 registers */
+	ed_nic_outb(sc, ED_P0_CR, ED_CR_RD2 | ED_CR_STA);
 
-		/* select page 0 registers */
-		ed_writeb(sc, sc->nic_addr + ED_P0_CR, ED_CR_RD2 | ED_CR_STA);
+	/* reset remote DMA complete flag */
+	ed_nic_outb(sc, ED_P0_ISR, ED_ISR_RDC);
 
-		/* reset remote DMA complete flag */
-		ed_writeb(sc, sc->nic_addr + ED_P0_ISR, ED_ISR_RDC);
+	/* set up DMA byte count */
+	ed_nic_outb(sc, ED_P0_RBCR0, len);
+	ed_nic_outb(sc, ED_P0_RBCR1, len >> 8);
 
-		/* set up DMA byte count */
-		ed_writeb(sc, sc->nic_addr + ED_P0_RBCR0, len);
-		ed_writeb(sc, sc->nic_addr + ED_P0_RBCR1, len >> 8);
+	/* set up destination address in NIC mem */
+	ed_nic_outb(sc, ED_P0_RSAR0, dst);
+	ed_nic_outb(sc, ED_P0_RSAR1, dst >> 8);
 
-		/* set up destination address in NIC mem */
-		ed_writeb(sc, sc->nic_addr + ED_P0_RSAR0, dst);
-		ed_writeb(sc, sc->nic_addr + ED_P0_RSAR1, dst >> 8);
+	/* set remote DMA write */
+	ed_nic_outb(sc, ED_P0_CR, ED_CR_RD1 | ED_CR_STA);
 
-		/* set remote DMA write */
-		ed_writeb(sc, sc->nic_addr + ED_P0_CR, ED_CR_RD1 | ED_CR_STA);
-
-		if (sc->isa16bit)
-			ed_writesw(sc, sc->asic_addr + ED_NOVELL_DATA,
-			    (u_int16_t *) src, len / 2);
-		else
-			bus_space_write_multi_1(sc->bst, sc->bsh,
-			    sc->asic_addr + ED_NOVELL_DATA,
-			    src, len);
-
-		/*
-		 * Wait for remote DMA complete. This is necessary because on the
-		 * transmit side, data is handled internally by the NIC in bursts and
-		 * we can't start another remote DMA until this one completes. Not
-		 * waiting causes really bad things to happen - like the NIC
-		 * irrecoverably jamming the ISA bus.
-		 */
-		while (((ed_readb(sc, sc->nic_addr + ED_P0_ISR) & ED_ISR_RDC) != ED_ISR_RDC) && --maxwait);
-
-	} else if ((sc->vendor == ED_VENDOR_HP) && 
-		   (sc->type == ED_TYPE_HP_PCLANPLUS)) { 
-
-		/* HP PCLAN+ */
-
-		/* reset remote DMA complete flag */
-		ed_writeb(sc, sc->nic_addr + ED_P0_ISR, ED_ISR_RDC);
-
-		/* program the write address in RAM */
-		ed_writew(sc, sc->asic_addr + ED_HPP_PAGE_0, dst);
-
-		if (sc->hpp_mem_start) {
-			u_short *s = (u_short *) src;
-			volatile u_short *d = (u_short *) sc->hpp_mem_start;
-			u_short *const fence = s + (len >> 1);
-
-			/*
-			 * Enable memory mapped access.
-			 */
-
-			ed_writew(sc, sc->asic_addr + ED_HPP_OPTION, 
-			     sc->hpp_options & 
-				~(ED_HPP_OPTION_MEM_DISABLE | 
-				  ED_HPP_OPTION_BOOT_ROM_ENB));
-
-			/*
-			 * Copy to NIC memory.
-			 */
-
-			while (s < fence)
-				*d = *s++;
-
-			/*
-			 * Restore Boot ROM access.
-			 */
-
-			ed_writew(sc, sc->asic_addr + ED_HPP_OPTION,
-			     sc->hpp_options);
-
-		} else {
-			/* write data using I/O writes */
-			ed_writesw(sc, sc->asic_addr + ED_HPP_PAGE_4,
-			    (u_int16_t *) src, len / 2);
-		}
-
+	if (sc->isa16bit) {
+		ed_asic_outsw(sc, ED_NOVELL_DATA, src, len / 2);
+	} else {
+		ed_asic_outsb(sc, ED_NOVELL_DATA, src, len);
 	}
+
+	/*
+	 * Wait for remote DMA complete. This is necessary because on the
+	 * transmit side, data is handled internally by the NIC in bursts and
+	 * we can't start another remote DMA until this one completes. Not
+	 * waiting causes really bad things to happen - like the NIC
+	 * irrecoverably jamming the ISA bus.
+	 */
+	while (((ed_nic_inb(sc, ED_P0_ISR) & ED_ISR_RDC) != ED_ISR_RDC) && --maxwait);
 }
 
 /*
@@ -2916,12 +2811,12 @@ ed_pio_write_mbufs(sc, m, dst)
 	struct mbuf *mp;
 	int     maxwait = 200;	/* about 240us */
 
-	/*  HP PC Lan+ cards need special handling */
-	if ((sc->vendor == ED_VENDOR_HP) && 
-	    (sc->type == ED_TYPE_HP_PCLANPLUS)) {
+	/* HP PC Lan+ cards need special handling */
+	if (sc->vendor == ED_VENDOR_HP && sc->type == ED_TYPE_HP_PCLANPLUS) {
 		return ed_hpp_write_mbufs(sc, m, dst);
 	}
 
+	/* Regular Novell cards */
 	/* First, count up the total number of bytes to copy */
 	for (total_len = 0, mp = m; mp; mp = mp->m_next)
 		total_len += mp->m_len;
@@ -2931,21 +2826,21 @@ ed_pio_write_mbufs(sc, m, dst)
 		dma_len++;
 
 	/* select page 0 registers */
-	ed_writeb(sc, sc->nic_addr + ED_P0_CR, ED_CR_RD2 | ED_CR_STA);
+	ed_nic_outb(sc, ED_P0_CR, ED_CR_RD2 | ED_CR_STA);
 
 	/* reset remote DMA complete flag */
-	ed_writeb(sc, sc->nic_addr + ED_P0_ISR, ED_ISR_RDC);
+	ed_nic_outb(sc, ED_P0_ISR, ED_ISR_RDC);
 
 	/* set up DMA byte count */
-	ed_writeb(sc, sc->nic_addr + ED_P0_RBCR0, dma_len);
-	ed_writeb(sc, sc->nic_addr + ED_P0_RBCR1, dma_len >> 8);
+	ed_nic_outb(sc, ED_P0_RBCR0, dma_len);
+	ed_nic_outb(sc, ED_P0_RBCR1, dma_len >> 8);
 
 	/* set up destination address in NIC mem */
-	ed_writeb(sc, sc->nic_addr + ED_P0_RSAR0, dst);
-	ed_writeb(sc, sc->nic_addr + ED_P0_RSAR1, dst >> 8);
+	ed_nic_outb(sc, ED_P0_RSAR0, dst);
+	ed_nic_outb(sc, ED_P0_RSAR1, dst >> 8);
 
 	/* set remote DMA write */
-	ed_writeb(sc, sc->nic_addr + ED_P0_CR, ED_CR_RD1 | ED_CR_STA);
+	ed_nic_outb(sc, ED_P0_CR, ED_CR_RD1 | ED_CR_STA);
 
   /*
    * Transfer the mbuf chain to the NIC memory.
@@ -2956,10 +2851,10 @@ ed_pio_write_mbufs(sc, m, dst)
 	if (!sc->isa16bit) {
 		/* NE1000s are easy */
 		while (m) {
-			if (m->m_len)
-				bus_space_write_multi_1(sc->bst, sc->bsh,
-				    sc->asic_addr + ED_NOVELL_DATA,
-				    m->m_data, m->m_len);
+			if (m->m_len) {
+				ed_asic_outsb(sc, ED_NOVELL_DATA,
+					      m->m_data, m->m_len);
+			}
 			m = m->m_next;
 		}
 	} else {
@@ -2977,16 +2872,16 @@ ed_pio_write_mbufs(sc, m, dst)
 				/* finish the last word */
 				if (wantbyte) {
 					savebyte[1] = *data;
-					ed_writew(sc, sc->asic_addr + ED_NOVELL_DATA, *(u_short *)savebyte);
+					ed_asic_outw(sc, ED_NOVELL_DATA,
+						     *(u_short *)savebyte);
 					data++;
 					len--;
 					wantbyte = 0;
 				}
 				/* output contiguous words */
 				if (len > 1) {
-					ed_writesw(sc,
-					    sc->asic_addr + ED_NOVELL_DATA,
-					    (u_int16_t *) data, len >> 1);
+					ed_asic_outsw(sc, ED_NOVELL_DATA,
+						      data, len >> 1);
 					data += len & ~1;
 					len &= 1;
 				}
@@ -3000,7 +2895,7 @@ ed_pio_write_mbufs(sc, m, dst)
 		}
 		/* spit last byte */
 		if (wantbyte) {
-			ed_writew(sc, sc->asic_addr + ED_NOVELL_DATA, *(u_short *)savebyte);
+			ed_asic_outw(sc, ED_NOVELL_DATA, *(u_short *)savebyte);
 		}
 	}
 
@@ -3011,7 +2906,7 @@ ed_pio_write_mbufs(sc, m, dst)
 	 * waiting causes really bad things to happen - like the NIC
 	 * irrecoverably jamming the ISA bus.
 	 */
-	while (((ed_readb(sc, sc->nic_addr + ED_P0_ISR) & ED_ISR_RDC) != ED_ISR_RDC) && --maxwait);
+	while (((ed_nic_inb(sc, ED_P0_ISR) & ED_ISR_RDC) != ED_ISR_RDC) && --maxwait);
 
 	if (!maxwait) {
 		log(LOG_WARNING, "ed%d: remote transmit DMA failed to complete\n",
@@ -3043,7 +2938,7 @@ ed_hpp_readmem(sc, src, dst, amount)
 
 
 	/* Program the source address in RAM */
-	ed_writew(sc, sc->asic_addr + ED_HPP_PAGE_2, src);
+	ed_asic_outw(sc, ED_HPP_PAGE_2, src);
 
 	/*
 	 * The HP PC Lan+ card supports word reads as well as
@@ -3054,8 +2949,7 @@ ed_hpp_readmem(sc, src, dst, amount)
 	if (sc->hpp_mem_start) {
 
 		/* Enable memory mapped access.  */
-		ed_writew(sc, sc->asic_addr + ED_HPP_OPTION, 
-		     sc->hpp_options & 
+		ed_asic_outw(sc, ED_HPP_OPTION, sc->hpp_options & 
 			~(ED_HPP_OPTION_MEM_DISABLE | 
 			  ED_HPP_OPTION_BOOT_ROM_ENB));
 
@@ -3108,35 +3002,81 @@ ed_hpp_readmem(sc, src, dst, amount)
 
 		/* Restore Boot ROM access.  */
 
-		ed_writew(sc, sc->asic_addr + ED_HPP_OPTION,
-		     sc->hpp_options);
+		ed_asic_outw(sc, ED_HPP_OPTION, sc->hpp_options);
 
 
 	} else { 
 		/* Read in data using the I/O port */
 		if (use_32bit_access && (amount > 3)) {
-			bus_space_read_multi_4(sc->bst, sc->bsh,
-			    sc->asic_addr + ED_HPP_PAGE_4,
-			    (u_int32_t *) dst, amount >> 2);
+			ed_asic_insl(sc, ED_HPP_PAGE_4, dst, amount >> 2);
 			dst += (amount & ~3);
 			amount &= 3;
 		}
 		if (amount > 1) {
-			bus_space_read_multi_2(sc->bst, sc->bsh,
-			    sc->asic_addr + ED_HPP_PAGE_4,
-			    (u_int16_t *) dst, amount >> 1);
+			ed_asic_insw(sc, ED_HPP_PAGE_4, dst, amount >> 1);
 			dst += (amount & ~1);
 			amount &= 1;
 		}
 		if (amount == 1) { /* read in a short and keep the LSB */
-			*dst = ed_readw(sc, sc->asic_addr + ED_HPP_PAGE_4) & 0xFF;
+			*dst = ed_asic_inw(sc, ED_HPP_PAGE_4) & 0xFF;
 		}
 	}
 }
 
 /*
- * Write to HP PC Lan+ NIC memory.  Access to the NIC can be by using
- * ed_writesw() or via the memory mapped interface to the same register.
+ * HP PC Lan+: Write to NIC memory, using either PIO or memory mapped
+ * IO.
+ *	Only used in the probe routine to test the memory. 'len' must
+ *	be even.
+ */
+void
+ed_hpp_writemem(sc, src, dst, len)
+	struct ed_softc *sc;
+	unsigned char *src;
+	unsigned short dst;
+	unsigned short len;
+{
+	/* reset remote DMA complete flag */
+	ed_nic_outb(sc, ED_P0_ISR, ED_ISR_RDC);
+
+	/* program the write address in RAM */
+	ed_asic_outw(sc, ED_HPP_PAGE_0, dst);
+
+	if (sc->hpp_mem_start) {
+		u_short *s = (u_short *) src;
+		volatile u_short *d = (u_short *) sc->hpp_mem_start;
+		u_short *const fence = s + (len >> 1);
+
+		/*
+		 * Enable memory mapped access.
+		 */
+
+		ed_asic_outw(sc, ED_HPP_OPTION, sc->hpp_options & 
+			~(ED_HPP_OPTION_MEM_DISABLE | 
+			  ED_HPP_OPTION_BOOT_ROM_ENB));
+
+		/*
+		 * Copy to NIC memory.
+		 */
+
+		while (s < fence)
+			*d = *s++;
+
+		/*
+		 * Restore Boot ROM access.
+		 */
+
+		ed_asic_outw(sc, ED_HPP_OPTION, sc->hpp_options);
+
+	} else {
+		/* write data using I/O writes */
+		ed_asic_outsw(sc, ED_HPP_PAGE_4, src, len / 2);
+	}
+}
+
+/*
+ * Write to HP PC Lan+ NIC memory.  Access to the NIC can be by using 
+ * outsw() or via the memory mapped interface to the same register.
  * Writes have to be in word units; byte accesses won't work and may cause
  * the NIC to behave wierdly. Long word accesses are permitted if the ASIC
  * allows it.
@@ -3153,16 +3093,16 @@ ed_hpp_write_mbufs(struct ed_softc *sc, struct mbuf *m, int dst)
 	int use_32bit_accesses = !(sc->hpp_id & ED_HPP_ID_16_BIT_ACCESS);
 
 	/* select page 0 registers */
-	ed_writeb(sc, sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STA);
+	ed_nic_outb(sc, ED_P0_CR, sc->cr_proto | ED_CR_STA);
 
 	/* reset remote DMA complete flag */
-	ed_writeb(sc, sc->nic_addr + ED_P0_ISR, ED_ISR_RDC);
+	ed_nic_outb(sc, ED_P0_ISR, ED_ISR_RDC);
 
 	/* program the write address in RAM */
-	ed_writew(sc, sc->asic_addr + ED_HPP_PAGE_0, dst);
+	ed_asic_outw(sc, ED_HPP_PAGE_0, dst);
 
 	if (sc->hpp_mem_start) 	/* enable memory mapped I/O */
-		ed_writew(sc, sc->asic_addr + ED_HPP_OPTION, sc->hpp_options & 
+		ed_asic_outw(sc, ED_HPP_OPTION, sc->hpp_options & 
 			~(ED_HPP_OPTION_MEM_DISABLE |
 			ED_HPP_OPTION_BOOT_ROM_ENB));
 
@@ -3221,26 +3161,23 @@ ed_hpp_write_mbufs(struct ed_softc *sc, struct mbuf *m, int dst)
 				/* finish the last word of the previous mbuf */
 				if (wantbyte) {
 					savebyte[1] = *data;
-					ed_writew(sc, sc->asic_addr + ED_HPP_PAGE_4, 
-					     *((u_short *)savebyte));
+					ed_asic_outw(sc, ED_HPP_PAGE_4,
+						     *((u_short *)savebyte));
 					data++; 
 					len--; 
 					wantbyte = 0;
 				}
 				/* output contiguous words */
 				if ((len > 3) && use_32bit_accesses) {
-					bus_space_write_multi_4(sc->bst,
-					    sc->bsh,
-					    sc->asic_addr + ED_HPP_PAGE_4,
-					    (u_int32_t *) data, len);
+					ed_asic_outsl(sc, ED_HPP_PAGE_4,
+						      data, len >> 2);
 					data += (len & ~3);
 					len &= 3;
 				}
 				/* finish off remaining 16 bit accesses */
 				if (len > 1) {
-					ed_writesw(sc,
-					    sc->asic_addr + ED_HPP_PAGE_4,
-					    (u_int16_t *) data, len >> 1);
+					ed_asic_outsw(sc, ED_HPP_PAGE_4,
+						      data, len >> 1);
 					data += (len & ~1);
 					len &= 1;
 				}
@@ -3251,14 +3188,12 @@ ed_hpp_write_mbufs(struct ed_softc *sc, struct mbuf *m, int dst)
 			m = m->m_next;
 		}
 		if (wantbyte) /* spit last byte */
-			ed_writew(sc, sc->asic_addr + ED_HPP_PAGE_4, 
-				*(u_short *)savebyte);
+			ed_asic_outw(sc, ED_HPP_PAGE_4, *(u_short *)savebyte);
 
 	}
 
 	if (sc->hpp_mem_start)	/* turn off memory mapped i/o */
-		ed_writew(sc, sc->asic_addr + ED_HPP_OPTION,
-		     sc->hpp_options);
+		ed_asic_outw(sc, ED_HPP_OPTION, sc->hpp_options);
 
 	return (total_len);
 }
@@ -3278,7 +3213,7 @@ ed_setrcr(sc)
 		reg1 = 0x00;
 
 	/* set page 1 registers */
-	ed_writeb(sc, sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_PAGE_1 | ED_CR_STP);
+	ed_nic_outb(sc, ED_P0_CR, sc->cr_proto | ED_CR_PAGE_1 | ED_CR_STP);
 
 	if (ifp->if_flags & IFF_PROMISC) {
 
@@ -3286,17 +3221,17 @@ ed_setrcr(sc)
 		 * Reconfigure the multicast filter.
 		 */
 		for (i = 0; i < 8; i++)
-			ed_writeb(sc, sc->nic_addr + ED_P1_MAR(i), 0xff);
+			ed_nic_outb(sc, ED_P1_MAR(i), 0xff);
 
 		/*
 		 * And turn on promiscuous mode. Also enable reception of
 		 * runts and packets with CRC & alignment errors.
 		 */
 		/* Set page 0 registers */
-		ed_writeb(sc, sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STP);
+		ed_nic_outb(sc, ED_P0_CR, sc->cr_proto | ED_CR_STP);
 
-		ed_writeb(sc, sc->nic_addr + ED_P0_RCR, ED_RCR_PRO | ED_RCR_AM |
-		     ED_RCR_AB | ED_RCR_AR | ED_RCR_SEP | reg1);
+		ed_nic_outb(sc, ED_P0_RCR, ED_RCR_PRO | ED_RCR_AM |
+			    ED_RCR_AB | ED_RCR_AR | ED_RCR_SEP | reg1);
 	} else {
 		/* set up multicast addresses and filter modes */
 		if (ifp->if_flags & IFF_MULTICAST) {
@@ -3312,12 +3247,12 @@ ed_setrcr(sc)
 			 * Set multicast filter on chip.
 			 */
 			for (i = 0; i < 8; i++)
-				ed_writeb(sc, sc->nic_addr + ED_P1_MAR(i), ((u_char *) mcaf)[i]);
+				ed_nic_outb(sc, ED_P1_MAR(i), ((u_char *) mcaf)[i]);
 
 			/* Set page 0 registers */
-			ed_writeb(sc, sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STP);
+			ed_nic_outb(sc, ED_P0_CR, sc->cr_proto | ED_CR_STP);
 
-			ed_writeb(sc, sc->nic_addr + ED_P0_RCR, ED_RCR_AM | ED_RCR_AB | reg1);
+			ed_nic_outb(sc, ED_P0_RCR, ED_RCR_AM | ED_RCR_AB | reg1);
 		} else {
 
 			/*
@@ -3325,77 +3260,19 @@ ed_setrcr(sc)
 			 * not accept multicasts.
 			 */
 			for (i = 0; i < 8; ++i)
-				ed_writeb(sc, sc->nic_addr + ED_P1_MAR(i), 0x00);
+				ed_nic_outb(sc, ED_P1_MAR(i), 0x00);
 
 			/* Set page 0 registers */
-			ed_writeb(sc, sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STP);
+			ed_nic_outb(sc, ED_P0_CR, sc->cr_proto | ED_CR_STP);
 
-			ed_writeb(sc, sc->nic_addr + ED_P0_RCR, ED_RCR_AB | reg1);
+			ed_nic_outb(sc, ED_P0_RCR, ED_RCR_AB | reg1);
 		}
 	}
 
 	/*
 	 * Start interface.
 	 */
-	ed_writeb(sc, sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STA);
-}
-
-void
-ed_ax88190_geteprom(struct ed_softc *sc)
-{
-	int prom[16],i;
-	u_char tmp;
-	struct {
-		unsigned char offset,value;
-	} pg_seq[]={
-		{ED_P0_CR ,ED_CR_RD2|ED_CR_STP}, /* Select Page0 */
-		{ED_P0_DCR,0x01},
-		{ED_P0_RBCR0, 0x00}, /* Clear the count regs. */
-		{ED_P0_RBCR1, 0x00},
-		{ED_P0_IMR, 0x00},   /* Mask completion irq. */
-		{ED_P0_ISR, 0xff},
-		{ED_P0_RCR, ED_RCR_MON|ED_RCR_INTT}, /* Set To Monitor */
-		{ED_P0_TCR, ED_TCR_LB0},             /* loopback mode. */
-		{ED_P0_RBCR0,32},
-		{ED_P0_RBCR1,0x00},
-		{ED_P0_RSAR0,0x00},
-		{ED_P0_RSAR1,0x04},
-		{ED_P0_CR ,ED_CR_RD0|ED_CR_STA},
-	};
-
-	/* Default Set */
-	sc->asic_addr = rman_get_start(sc->port_res) + ED_NOVELL_ASIC_OFFSET;
-	sc->nic_addr = rman_get_start(sc->port_res) + ED_NOVELL_NIC_OFFSET;
-	/* Reset Card */
-	tmp = ed_readb(sc, sc->asic_addr + ED_NOVELL_RESET);
-	ed_writeb(sc, sc->asic_addr + ED_NOVELL_RESET, tmp);
-	DELAY(5000);
-	ed_writeb(sc, sc->nic_addr + ED_P0_CR, ED_CR_RD2 | ED_CR_STP);
-	DELAY(5000);
-
-	/* Card Settings */
-	for(i=0;i<sizeof(pg_seq)/sizeof(pg_seq[0]);i++) {
-		ed_writeb(sc, sc->nic_addr + pg_seq[i].offset , pg_seq[i].value);
-	}
-
-	/* Get Data */
-	for(i=0;i<16;i++) {
-		prom[i] = ed_readw(sc, sc->asic_addr);
-	}
-/*
-	for(i=0;i<16;i++) {
-		printf("ax88190 eprom [%02d] %02x %02x\n",
-			i,prom[i] & 0xff,prom[i] >> 8);
-	}
-*/
-	sc->arpcom.ac_enaddr[0] = prom[0] & 0xff;
-	sc->arpcom.ac_enaddr[1] = prom[0] >> 8;
-	sc->arpcom.ac_enaddr[2] = prom[1] & 0xff;
-	sc->arpcom.ac_enaddr[3] = prom[1] >> 8;
-	sc->arpcom.ac_enaddr[4] = prom[2] & 0xff;
-	sc->arpcom.ac_enaddr[5] = prom[2] >> 8;
-
-	return;
+	ed_nic_outb(sc, ED_P0_CR, sc->cr_proto | ED_CR_STA);
 }
 
 /*
@@ -3420,7 +3297,7 @@ ds_crc(ep)
 				crc = (crc ^ POLYNOMIAL) | carry;
 		}
 	}
-	return (crc & 0xffffffff);
+	return crc;
 #undef POLYNOMIAL
 }
 

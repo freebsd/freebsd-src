@@ -48,16 +48,8 @@ struct ed_softc {
 	struct resource* irq_res; /* resource for irq */
 	void*	irq_handle;	/* handle for irq handler */
 
-	bus_space_tag_t		bst;	/* Bus Space tag */
-	bus_space_handle_t	bsh;	/* Bus Space handle */
-
-#ifdef __alpha__
-	u_int asic_addr;	/* ASIC I/O bus address */
-	u_int nic_addr;		/* NIC (DS8390) I/O bus address */
-#else
-	u_short asic_addr;	/* ASIC I/O bus address */
-	u_short nic_addr;	/* NIC (DS8390) I/O bus address */
-#endif
+	int	nic_offset;	/* NIC (DS8390) I/O bus address offset */
+	int	asic_offset;	/* ASIC I/O bus address offset */
 
 /*
  * The following 'proto' variable is part of a work-around for 8013EBT asics
@@ -74,12 +66,12 @@ struct ed_softc {
 
 	u_short	hpp_options;	/* flags controlling behaviour of the HP card */
 	u_short hpp_id;		/* software revision and other fields */
-	u_long hpp_mem_start;	/* Memory-mapped IO register address */
+	caddr_t hpp_mem_start;	/* Memory-mapped IO register address */
 
-	u_long mem_start;	/* NIC memory start address */
-	u_long mem_end;		/* NIC memory end address */
+	caddr_t mem_start;	/* NIC memory start address */
+	caddr_t mem_end;		/* NIC memory end address */
 	u_int32_t mem_size;	/* total NIC memory size */
-	u_long mem_ring;	/* start of RX ring-buffer (in NIC mem) */
+	caddr_t mem_ring;	/* start of RX ring-buffer (in NIC mem) */
 
 	u_char  mem_shared;	/* NIC memory is shared with host */
 	u_char  xmit_busy;	/* transmitter is busy */
@@ -96,22 +88,123 @@ struct ed_softc {
 	struct	ifmib_iso_8802_3 mibdata; /* stuff for network mgmt */
 };
 
+#define	ed_nic_inb(sc, port) \
+	bus_space_read_1(rman_get_bustag((sc)->port_res), \
+		rman_get_bushandle((sc)->port_res), (sc)->nic_offset + (port))
+
+#define	ed_nic_outb(sc, port, value) \
+	bus_space_write_1(rman_get_bustag((sc)->port_res), \
+		rman_get_bushandle((sc)->port_res), (sc)->nic_offset + (port), \
+		(value))
+
+#define	ed_nic_inw(sc, port) \
+	bus_space_read_2(rman_get_bustag((sc)->port_res), \
+		rman_get_bushandle((sc)->port_res), (sc)->nic_offset + (port))
+
+#define	ed_nic_outw(sc, port, value) \
+	bus_space_write_2(rman_get_bustag((sc)->port_res), \
+		rman_get_bushandle((sc)->port_res), (sc)->nic_offset + (port), \
+		(value))
+
+#define	ed_nic_insb(sc, port, addr, count) \
+	bus_space_read_multi_1(rman_get_bustag((sc)->port_res), \
+		rman_get_bushandle((sc)->port_res), \
+		(sc)->nic_offset + (port), (addr), (count))
+
+#define	ed_nic_outsb(sc, port, addr, count) \
+	bus_space_write_multi_1(rman_get_bustag((sc)->port_res), \
+		rman_get_bushandle((sc)->port_res), \
+		(sc)->nic_offset + (port), (addr), (count))
+
+#define	ed_nic_insw(sc, port, addr, count) \
+	bus_space_read_multi_2(rman_get_bustag((sc)->port_res), \
+		rman_get_bushandle((sc)->port_res), \
+		(sc)->nic_offset + (port), (u_int16_t *)(addr), (count))
+
+#define	ed_nic_outsw(sc, port, addr, count) \
+	bus_space_write_multi_2(rman_get_bustag((sc)->port_res), \
+		rman_get_bushandle((sc)->port_res), \
+		(sc)->nic_offset + (port), (u_int16_t *)(addr), (count))
+
+#define	ed_nic_insl(sc, port, addr, count) \
+	bus_space_read_multi_4(rman_get_bustag((sc)->port_res), \
+		rman_get_bushandle((sc)->port_res), \
+		(sc)->nic_offset + (port), (u_int32_t *)(addr), (count))
+
+#define	ed_nic_outsl(sc, port, addr, count) \
+	bus_space_write_multi_4(rman_get_bustag((sc)->port_res), \
+		rman_get_bushandle((sc)->port_res), \
+		(sc)->nic_offset + (port), (u_int32_t *)(addr), (count))
+
+#define	ed_asic_inb(sc, port) \
+	bus_space_read_1(rman_get_bustag((sc)->port_res), \
+		rman_get_bushandle((sc)->port_res), (sc)->asic_offset + (port))
+
+#define	ed_asic_outb(sc, port, value) \
+	bus_space_write_1(rman_get_bustag((sc)->port_res), \
+		rman_get_bushandle((sc)->port_res), (sc)->asic_offset + (port), \
+		(value))
+
+#define	ed_asic_inw(sc, port) \
+	bus_space_read_2(rman_get_bustag((sc)->port_res), \
+		rman_get_bushandle((sc)->port_res), (sc)->asic_offset + (port))
+
+#define	ed_asic_outw(sc, port, value) \
+	bus_space_write_2(rman_get_bustag((sc)->port_res), \
+		rman_get_bushandle((sc)->port_res), (sc)->asic_offset + (port), \
+		(value))
+
+#define	ed_asic_insb(sc, port, addr, count) \
+	bus_space_read_multi_1(rman_get_bustag((sc)->port_res), \
+		rman_get_bushandle((sc)->port_res), \
+		(sc)->asic_offset + (port), (addr), (count))
+
+#define	ed_asic_outsb(sc, port, addr, count) \
+	bus_space_write_multi_1(rman_get_bustag((sc)->port_res), \
+		rman_get_bushandle((sc)->port_res), \
+		(sc)->asic_offset + (port), (addr), (count))
+
+#define	ed_asic_insw(sc, port, addr, count) \
+	bus_space_read_multi_2(rman_get_bustag((sc)->port_res), \
+		rman_get_bushandle((sc)->port_res), \
+		(sc)->asic_offset + (port), (u_int16_t *)(addr), (count))
+
+#define	ed_asic_outsw(sc, port, addr, count) \
+	bus_space_write_multi_2(rman_get_bustag((sc)->port_res), \
+		rman_get_bushandle((sc)->port_res), \
+		(sc)->asic_offset + (port), (u_int16_t *)(addr), (count))
+
+#define	ed_asic_insl(sc, port, addr, count) \
+	bus_space_read_multi_4(rman_get_bustag((sc)->port_res), \
+		rman_get_bushandle((sc)->port_res), \
+		(sc)->asic_offset + (port), (u_int32_t *)(addr), (count))
+
+#define	ed_asic_outsl(sc, port, addr, count) \
+	bus_space_write_multi_4(rman_get_bustag((sc)->port_res), \
+		rman_get_bushandle((sc)->port_res), \
+		(sc)->asic_offset + (port), (u_int32_t *)(addr), (count))
+
 void	ed_release_resources	__P((device_t));
 int	ed_alloc_port		__P((device_t, int, int));
 int	ed_alloc_memory		__P((device_t, int, int));
 int	ed_alloc_irq		__P((device_t, int, int));
 
 int	ed_probe_generic8390	__P((struct ed_softc *));
-int	ed_probe_WD80x3		__P((device_t));
-int	ed_probe_3Com		__P((device_t));
-int	ed_probe_Novell		__P((device_t));
-int	ed_probe_Novell_generic	__P((device_t, int, int));
-int	ed_probe_HP_pclanp	__P((device_t));
+int	ed_probe_WD80x3		__P((device_t, int, int));
+int	ed_probe_WD80x3_generic	__P((device_t, int, unsigned short *[]));
+int	ed_probe_3Com		__P((device_t, int, int));
+int	ed_probe_Novell		__P((device_t, int, int));
+int	ed_probe_Novell_generic	__P((device_t, int));
+int	ed_probe_HP_pclanp	__P((device_t, int, int));
+
 int	ed_get_Linksys		__P((struct ed_softc *));
-void	ed_ax88190_geteprom	__P((struct ed_softc *));
 
 int	ed_attach		__P((struct ed_softc *, int, int));
 void	ed_stop			__P((struct ed_softc *));
+void	ed_pio_readmem		__P((struct ed_softc *, int, unsigned char *,
+				     unsigned short));
+void	ed_pio_writemem		__P((struct ed_softc *, char *,
+				     unsigned short, unsigned short));
 
 driver_intr_t	edintr;
 
