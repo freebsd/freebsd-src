@@ -62,7 +62,7 @@ main(int argc, char *argv[])
 	char   *p;
 	char	buf[33];
 
-	while ((ch = getopt(argc, argv, "ps:qrtx")) != -1)
+	while ((ch = getopt(argc, argv, "pqrs:tx")) != -1)
 		switch (ch) {
 		case 'p':
 			MDFilter(1);
@@ -101,7 +101,7 @@ main(int argc, char *argv[])
 				else
 					printf("MD5 (%s) = %s\n", *argv, p);
 		} while (*++argv);
-	} else
+	} else if (optind == 1 || qflag || rflag)
 		MDFilter(0);
 
 	return (0);
