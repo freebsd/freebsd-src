@@ -90,43 +90,43 @@
 
 /* ns_func.h - declarations for ns_*.c's externally visible functions
  *
- * $Id: ns_func.h,v 8.105 2001/02/16 04:46:12 marka Exp $
+ * $Id: ns_func.h,v 8.115 2002/01/29 03:59:38 marka Exp $
  */
 
 /* ++from ns_glue.c++ */
 struct in_addr		ina_get(const u_char *data);
 const char *		sin_ntoa(struct sockaddr_in);
 int			ns_wouldlog(int category, int level);
-void			ns_debug(int, int, const char *, ...);
-void			ns_info(int, const char *, ...);
-void			ns_notice(int, const char *, ...);
-void			ns_warning(int, const char *, ...);
-void			ns_error(int, const char *, ...);
-void			ns_critical(int, const char *, ...);
-void			ns_panic(int, int, const char *, ...);
-void			ns_assertion_failed(char *file, int line,
-					    assertion_type type, char *cond,
-					    int print_errno);
+void			ns_debug(int, int, const char *, ...) ISC_FORMAT_PRINTF(3, 4);
+void			ns_info(int, const char *, ...) ISC_FORMAT_PRINTF(2, 3);
+void			ns_notice(int, const char *, ...) ISC_FORMAT_PRINTF(2, 3);
+void			ns_warning(int, const char *, ...) ISC_FORMAT_PRINTF(2, 3);
+void			ns_error(int, const char *, ...) ISC_FORMAT_PRINTF(2, 3);
+void			ns_critical(int, const char *, ...) ISC_FORMAT_PRINTF(2, 3);
+void			ns_panic(int, int, const char *, ...) ISC_FORMAT_PRINTF(3, 4);
+void			ns_assertion_failed(const char *file, int line,
+					    assertion_type type,
+					    const char *cond, int print_errno);
 void			panic(const char *, const void *);
 void			gettime(struct timeval *);
 int			nlabels(const char *);
 int			my_close(int);
 int			my_fclose(FILE *);
-void			__freestr(char *);
+void *			__freestr(char *);
 char *			__newstr(size_t, int);
 char *			__savestr(const char *, int);
-char *			checked_ctime(const time_t *t);
-char *			ctimel(long);
-void			__freestr_record(char *, char *, int);
-char *			__newstr_record(size_t, int, char *, int);
-char *			__savestr_record(const char *, int, char *, int);
+const char *		checked_ctime(const time_t *t);
+const char *		ctimel(long);
+void *			__freestr_record(char *, const char *, int);
+char *			__newstr_record(size_t, int, const char *, int);
+char *			__savestr_record(const char *, int, const char *, int);
 u_char *		ina_put(struct in_addr ina, u_char *data);
 u_char *		savebuf(const u_char *, size_t, int);
-void			dprintf(int level, const char *format, ...);
+void			dprintf(int level, const char *format, ...) ISC_FORMAT_PRINTF(2, 3);
 #ifdef DEBUG_STRINGS
 char *			debug_newstr(size_t, int, const char *, int);
 char *			debug_savestr(const char *, int, const char *, int);
-void			debug_freestr(char *, const char *, int);
+void *			debug_freestr(char *, const char *, int);
 #define newstr(l, n) debug_newstr((l), (n), __FILE__, __LINE__)
 #define savestr(s, n) debug_savestr((s), (n), __FILE__, __LINE__)
 #define freestr(s) debug_freestr((s), __FILE__, __LINE__)
@@ -159,7 +159,8 @@ void			prime_cache(void);
 void			delete_all(struct namebuf *, int, int);
 int			delete_stale(struct namebuf *);
 struct qinfo *		sysquery(const char *, int, int,
-				 struct in_addr *, int, u_int16_t, int);
+				 struct in_addr *, struct dst_key **keys,
+				 int, u_int16_t, int, int);
 int			doupdate(u_char *, u_char *, struct databuf **,
 				 int, int, int, u_int, struct sockaddr_in);
 int			send_msg(u_char *, int, struct qinfo *);
@@ -174,6 +175,14 @@ int			trunc_adjust(u_char *, int, int);
 /* --from ns_resp.c-- */
 
 /* ++from ns_req.c++ */
+int			ns_get_opt(u_char *msg, u_char *eom,
+				   u_int8_t *versionp, u_int16_t *rcodep,
+				   u_int16_t *flagp, u_int16_t *bufsizep,
+				   u_char **optionsp, size_t *optsizep);
+int			ns_add_opt(u_char *msg, u_char *cp, size_t buflen,
+				   u_int8_t version, u_int16_t rcode,
+				   u_int16_t size, u_int16_t flags,
+				   u_char *options, size_t optlen);
 void			ns_req(u_char *, int, int,
 			       struct qstream *,
 			       struct sockaddr_in,
@@ -192,6 +201,7 @@ int			doaddauth(HEADER *, u_char *, int,
 int			findZonePri(const struct zoneinfo *,
 				    const struct sockaddr_in);
 #endif
+int			drop_port(u_int16_t);
 /* --from ns_req.c-- */
 
 /* ++from ns_xfr.c++ */
@@ -212,8 +222,8 @@ void			ns_ctl_shutdown(void);
 void			ns_ctl_defaults(controls *);
 void			ns_ctl_add(controls *, control);
 control			ns_ctl_new_inet(struct in_addr, u_int, ip_match_list);
-#ifndef WINNT
-control			ns_ctl_new_unix(char *, mode_t, uid_t, gid_t);
+#ifndef NO_SOCKADDR_UN
+control			ns_ctl_new_unix(const char *, mode_t, uid_t, gid_t);
 #endif
 void			ns_ctl_install(controls *);
 /* --from ns_ctl.c-- */
@@ -249,10 +259,10 @@ void			unsched(struct qinfo *);
 void			reset_retrytimer(void);
 void			retrytimer(evContext ctx, void *uap,
 				   struct timespec due, struct timespec ival);
-void			retry(struct qinfo *);
+void			retry(struct qinfo *, int);
 void			qflush(void);
 void			qremove(struct qinfo *);
-void			ns_freeqns(struct qinfo *, char *);
+void			ns_freeqns(struct qinfo *);
 void			ns_freeqry(struct qinfo *);
 void			freeComplaints(void);
 void			nsfwdadd(struct qinfo *, struct fwdinfo *);
@@ -267,7 +277,7 @@ void			sq_remove(struct qstream *);
 void			sq_flushw(struct qstream *);
 void			sq_flush(struct qstream *allbut);
 void			dq_remove_gen(time_t gen);
-void			dq_remove_all();
+void			dq_remove_all(void);
 void			sq_done(struct qstream *);
 void			ns_setproctitle(char *, int);
 void			getnetconf(int);
@@ -386,8 +396,7 @@ int			merge_logs(struct zoneinfo *zp, char *logname);
 int			zonedump(struct zoneinfo *zp, int isixfr);
 void			dynamic_about_to_exit(void);
 enum req_action		req_update(HEADER *hp, u_char *cp, u_char *eom,
-				   u_char *msg, struct qstream *qsp,
-				   int dfd, struct sockaddr_in from,
+				   u_char *msg, struct sockaddr_in from,
 				   struct tsig_record *in_tsig);
 void			rdata_dump(struct databuf *dp, FILE *fp);
 /* --from ns_update.c-- */
@@ -422,7 +431,8 @@ int			set_zone_transfer_source(zone_config, struct in_addr);
 int			set_zone_pubkey(zone_config, const int, const int,
 					const int, const char *);
 int 			set_zone_transfer_time_in(zone_config, long);
-int			add_zone_master(zone_config, struct in_addr);
+int			add_zone_master(zone_config, struct in_addr,
+					struct dst_key *);
 #ifdef BIND_NOTIFY
 int			add_zone_notify(zone_config, struct in_addr);
 #endif
@@ -453,8 +463,8 @@ ip_match_element	new_ip_match_localhost(void);
 ip_match_element	new_ip_match_localnets(void);
 void			ip_match_negate(ip_match_element);
 void			add_to_ip_match_list(ip_match_list, ip_match_element);
-void			dprint_ip_match_list(int, ip_match_list, int, char *,
-					     char *);
+void			dprint_ip_match_list(int, ip_match_list, int,
+					     const char *, const char *);
 int			ip_match_address(ip_match_list, struct in_addr);
 int			ip_match_addr_or_key(ip_match_list, struct in_addr,
 					     struct dst_key *key);
@@ -503,10 +513,10 @@ time_t			load_configuration(const char *);
 /* --from ns_config.c-- */
 
 /* ++from parser.y++ */
-ip_match_list		lookup_acl(char *);
-void			define_acl(char *, ip_match_list);
+ip_match_list		lookup_acl(const char *);
+void			define_acl(const char *, ip_match_list);
 struct dst_key		*lookup_key(char *);
-void			define_key(char *, struct dst_key *);
+void			define_key(const char *, struct dst_key *);
 time_t			parse_configuration(const char *);
 void			parser_initialize(void);
 void			parser_shutdown(void);

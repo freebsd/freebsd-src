@@ -53,7 +53,7 @@
 
 #ifndef lint
 static const char sccsid[] = "@(#)send.c	5.18 (Berkeley) 3/2/91";
-static const char rcsid[] = "$Id: send.c,v 8.10 2000/12/23 08:14:47 vixie Exp $";
+static const char rcsid[] = "$Id: send.c,v 8.12 2001/07/03 06:27:12 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -123,14 +123,15 @@ int
 SendRequest(struct in_addr *nsAddrPtr, const u_char *buf, int buflen,
 	    u_char *answer, u_int anslen, int *trueLenPtr)
 {
-	int n, try, v_circuit, resplen, salen;
+	int n, try, v_circuit, resplen;
+	ISC_SOCKLEN_T salen;
 	int gotsomewhere = 0, connected = 0;
 	int connreset = 0;
 	u_short id, len;
 	u_char *cp;
 	fd_set dsmask;
 	struct timeval timeout;
-	const HEADER *hp = (HEADER *) buf;
+	const HEADER *hp = (const HEADER *) buf;
 	HEADER *anhp = (HEADER *) answer;
 	struct iovec iov[2];
 	int terrno = ETIMEDOUT;
@@ -183,7 +184,7 @@ SendRequest(struct in_addr *nsAddrPtr, const u_char *buf, int buflen,
 			__putshort(buflen, (u_char *)&len);
 			iov[0].iov_base = (caddr_t)&len;
 			iov[0].iov_len = INT16SZ;
-			iov[1].iov_base = (caddr_t)buf;
+			DE_CONST(buf, iov[1].iov_base);
 			iov[1].iov_len = buflen;
 			if (writev(s, iov, 2) != INT16SZ + buflen) {
 				terrno = errno;
@@ -224,7 +225,7 @@ SendRequest(struct in_addr *nsAddrPtr, const u_char *buf, int buflen,
 				continue;
 			}
 			cp = answer;
-			if ((resplen = ns_get16((u_char*)cp)) > anslen) {
+			if ((resplen = ns_get16((u_char*)cp)) > (int)anslen) {
 				if (res.options & RES_DEBUG)
 					fprintf(stderr, "response truncated\n");
 				len = anslen;

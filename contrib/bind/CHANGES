@@ -1,4 +1,315 @@
-	--- 8.2.4-REL released --- (Wed May  9 14:36:23 PDT 2001)
+
+	--- 8.3.1-REL released --- (Thu Jan 31 21:28:59 PST 2002)
+
+1332.	[func]		"allow-query" is now supported for forward zones.
+			#define FORWARD_ALLOWS in bin/named/named.h to enable.
+
+1331.	[bug]		rrsetadd() should explictly attach to the databuf
+			rather than inheriting the reference count.
+
+1330.	[bug]		potential reference after free.
+
+1329.	[port]		linux: ensure that CC is correctly propgated to
+			probe_ipv6.
+
+1328.	[port]		linux: res_init.c failed to compile on certian older
+			machines.
+
+1327.	[contrib]	add mysqlBind reference.
+
+1326.	[bug]		named-xfer could incorrectly report a fopen() failure
+			as a fdopen() failure.
+
+1325.	[bug]		if fdopen() failed empty files could be left behind.
+
+1324.	[bug]		certian bad delegations could result in a DNS storm.
+
+1323.   [bug]           cached NXDOMAIN/NODATA responses were being ignored
+			when when fetching missing additional data.
+
+
+	--- 8.3.0-REL released --- (Fri Jan 11 04:00:00 PST 2002)
+
+1323.	[bug]		don't assume statp->_u._ext.ext is valid unless
+			RES_INIT is set when calling res_*init().
+
+1322.	[bug]		call res_ndestroy() if RES_INIT is set when
+			res_*init() is called.
+
+1321.	[cleanup]	YPKLUDGE in no longer default.
+
+1320.	[port]		winnt: namespace collision #undef the system's EV_ERR.
+
+1319.	[port]		winnt: make __res_nopt() visible externally.
+
+1318.	[port]		Tru64 UNIX V5.1 can return spurious EINVAL on
+			close() after connect() failure.
+
+1317.	[bug]		NULL used where zero was required.
+
+	--- 8.3.0-RC2 released --- (Wed Jan  2 17:14:23 PST 2002)
+
+1316.	[bug]		memory leak when a ixfr update or a re-applied update
+			was rejected.
+
+1315.	[bug]		the wrong options level check-names value was used
+			when merging ixfr updates.
+
+1314.	[bug]		corrupt update / ixfr updates should result in
+			merge errors being reported.
+
+1313.	[bug]		set current_serial in db_ixfr.c:ixfr_getdelta().
+
+1312.	[bug]		use serial space arithmetic when selecting deltas for
+			IXFR.
+
+1311.	[contrib]	mdnkit update to 2.2.3
+
+1310.	[bug]		TSIG signed IXFR's wern't correctly verified.
+
+1309.	[port]		winnt: re-order fclose/unlink so that the unlink
+			succeeds.
+
+1308.	[doc]		miscellaneous nroff fixes.
+
+1307.	[func]		preferred-glue can now be used to partially order
+			the additional section.
+
+1306.	[bug]		It was possible to trigger an INSIST failure with
+			certian EDNS responses.
+
+1305.	[bug]		named-xfer could return a false up-to-date status.
+
+1304.	[bug]		"named-xfer -x" didn't attempt to use the specified
+			address for all possible masters if earlier connects
+			failed. 
+
+1303.	[contrib]	nslint upgraded from 2.0.2 to 2.1a3 (by author).
+
+1302.	[bug]		res_nametotype() and res_nametoclass() were broken.
+
+1301.	[bug]		"ndc reload zone" without class was broken.
+
+1300.	[port]		Tru64 UNIX 5.1 does not like __align as a element name.
+
+1299.	[bug]		host failed to handle "." in search list correctly.
+
+1298.	[bug]		max-ixfr-log-size default was unreasonable.
+
+1297.	[bug]		read buffer overflows.
+
+1296.	[protocol]	NAPTR additional section processing.
+
+	--- 8.3.0-RC1 released --- (Wed Nov 21 20:41:32 PST 2001)
+
+1295.	[bug]		be more aggressive at dropping messages from certian
+			well known ports.
+
+1294.	[bug]		hint zones and root stub zones were not being removed
+			correctly.
+
+1293.	[port]		MPE/iX workaround recvfrom() not supporting larger
+			address buffers required for IPv6.
+
+1292.	[bug]		memory leak: free_flushset().
+
+1291.	[func]		accept and generate EDNS0 queries.
+
+1290.	[func]		allow initial notifies on startup to be suppressed.
+			[Kenneth Karoliussen, kenneth@activeisp.com]
+
+1289.	[func]		allow keys to be specified in the masters clause.
+
+1288.	[func]		named-xfer report if response was signed.
+
+1287.	[bug]		named-xfer could report false TSIG failures under
+			certian conditions.
+			
+1286.	[bug]		don't allow rtt estimates to drop to zero.
+
+1285.	[bug]		non-answering servers rtt estimates were not always
+			penalised.
+
+1284.	[bug]		struct __res_state was still broken after #1265.
+
+1283.	[port]		addition platform support for _r functions.
+
+1282.	[port]		pw->pw_class is platform dependant.
+
+1281.	[port]		namespace collision: dprintf -> res_dprintf,
+			ERR -> EV_ERR, OK -> EV_OK.
+
+1280.	[cleanup]	gai_strerror() re-written.
+
+1279.   [bug]           non-glue was not being reported on reload.
+
+1278.	[bug]		Remove the INSIST at the end if zone_maint().
+
+1277.	[func]		hostname.bind/txt/chaos now returns the name of
+			the machine hosting the nameserver.  This is useful
+			in diagnosing problems with anycast servers.
+
+1276.	[bug]		dns_ho.c:add_hostent() was not returning the amount
+			of memory consumed resulting in garbage address
+			being returned.  Alignment calculations were
+			wasting space.  We wern't suppressing duplicate
+			addresses.
+
+1275.	[port]		sunos: old sprintf.
+
+1274.	[port]		MPE/iX C.70
+
+1273.	[bug]		host was sorting multiple RRs into the wrong order
+			prior to verifying.
+
+	--- 8.3.0-T2A released --- (Thu Sep 27 18:15:00 PDT 2001)
+
+1272.	[bug]		"ndc trace 0" should behave like "ndc notrace".
+
+1271.	[func]		inet_{cidr,net}_{pton,ntop}() now have IPv6 support.
+
+1270.	[bug]		AXFR style IXFR responses were not handled properly,
+			transfer-format single-answer.
+
+1269.	[bug]		misc: more string format fixes, open va_end(),
+			call exit() with positive values, include <string.h>.
+
+1268.	[func]		Resolver, dig: "DNSSEC OK" (DO) support.
+
+1267.	[port]		HP e3000 MPE is big-endian.
+
+1266.	[func]		dig +[no]tr: use relative names when printing
+			out a zone transfer ([NO]TRuncate).
+
+1265.	[bug]		struct __res_state to large on 64 bit arch.
+
+1264.	[port]		winnt: pass the root zone as "." to named-xfer
+			rather than "".
+
+1263.	[port]		#1227 broke sunos.
+
+1262.	[func]		log type as well as class for denied queries.
+
+1261.	[bug]		get*by*() failed to check if res_init() had been
+			called.
+
+1260.	[func]		resolver option: no-tld-query.  disables trying
+			unqualified as a tld.  no_tld_query is also supported
+			for FreeBSD compatability.
+
+1259.	[func]		enable NOADDITIONAL code by default.
+
+1258.	[func]		treat class ANY as class IN for access control for
+			non-xfr queries.
+
+1257.	[func]		increase nameserver chaining distance from 1 to 3
+			(NS_MAX_DISTANCE).
+
+1256.	[bug]		increased loop avoidance with well known ports.
+
+1255.	[bug]		cached NXDOMAIN responses were being ignored when
+			selecting servers to query.
+			
+1254.	[support]	improved support for parallel make.
+
+1253.	[port]		winnt: support for change #1218
+
+1252.	[port]		winnt: the stat structure does not have st_blksize.
+
+1251.	[bug]		AXFR style IXFR responses were not handled properly.
+
+1250.	[doc]		document support-ixfr.
+
+1249.	[func]		add support gcc's format string checking.
+
+1248.	[bug]		string formats.
+
+1247.	[bug]		dig -t axfr attempted to use UDP not TCP.
+
+1246.	[doc]		miscellaneous nroff fixes.
+
+1245.	[port]		winnt: named-xfer failures.  improved recvfrom()
+			emulation.
+
+1244.	[port]		winnt: bug in tracking "file" file descriptors
+			extend "file" file descriptors support to 2048.
+
+1243.	[cleanup]	defining REPORT_ERRORS in lib/dst caused compile time
+			errors.
+
+1242.	[bug]		inet_pton() failed to reject octal input.
+
+1241.	[bug]		memory leaks: zone forwarder table, server key list,
+			global forwarder table, query tsig info, unused
+			channels, key names, xfr tsig info. 
+
+1240.	[bug]		restore message if ns_forw() fails.
+
+1239.	[bug]		call res_ndestroy() in net_data_destroy().
+
+1238.	[func]		named-bootconf now supports HP's "no-round-robin".
+
+1237.	[bug]		buffer overrun, access mode read.
+
+1236.	[bug]		ignore white space after address of nameserver.
+
+1235.	[port]		solaris 2.4: use ioctl(FIONBIO) rather than fcntl().
+
+	--- 8.3.0-T1A released --- (Wed Jun 20 19:05:01 PDT 2001)
+
+1234.	[bug]		memory leak with "use-id-pool no;".
+
+1233.	[func]		res_setservers(), res_getservers().
+
+1232.	[bug]		don't assume the forwarder has dropped bogus records.
+
+1231.	[bug]		always restart a query if we dropped records when
+			parsing.
+
+1230.	[func]		report the address the server learnt the record from
+			in lame server messages.
+
+1229.	[func]		opaque rdata support for unknown types.
+
+1228.	[protocol]	IXFR don't test for AA, don't check that the question
+			is returned.
+
+1227.	[port]		solaris: sys_nerr and sys_errlist do not exist when
+			compiling in 64 bit mode.
+
+1226.	[placeholder]
+
+1225.	[bug]		don't send cross class additional records.
+
+1224.	[bug]		use after realloc(), non portable pointer arithmetic in 
+			grmerge().
+
+1223.	[bug]		allow all KEY records in parent zone at bottom of zone
+			cut.
+
+1222.	[bug]		HMAC-MD5 key files are now mode 0600.
+
+1221.	[port]		aix: 4.3.3.0 (4.3.2.0?) and later have strndup().
+
+1220.	[port]		winnt: isc_movefile() and syslog() updated.
+
+1219.	[bug]		winnt: zone transfers could fail.
+
+1218.	[func]		add IPv6 transport support to the resolver from the
+			KAME project.  Includes initial bitstring support.
+
+1217.	[bug]		#1186 broke the command-line programs that relied on
+			the fact that HMAC-MD5 keys have keyid 0.
+
+1216.	[bug]		#1180 completely broke inet_nsap_addr(),
+			inet_nsap_ntoa() still didn't emit the leading 0x.
+
+1215.	[bug]		long UNIX domain control socket names were not being
+			printed in full.
+
+1214.	[bug]		getrgnam()/getgrgid() leaked memory.
+
+1213.	[bug]		#1199 introduced a reference after free bug.
 
 1212.	[bug]		some function declarations wern't protected by
 			__BEGIN_DECL/__END_DECL in resolv.h.
@@ -9,7 +320,8 @@
 
 1209.	[port]		winnt: issues.
 
-	--- 8.2.4-T2B released --- (Thu May  3 05:48:14 PDT 2001)
+1208.	[func]		close "dynamic" file channels when debug is set to
+			zero allowing them to be removed and re-opened.
 
 1207.	[contrib]	new h2n from author.
 
@@ -23,9 +335,20 @@
 
 1202.	[bug]		memory leak: dynamic update was leaking.
 
+1201.	[bug]		ISO/IEC 9945-1 versions of getpwuid_r(), getpwnam_r(),
+		 	getgrgid_r() and getgrnam_r() were not ISO/IEC 9945-1
+			compliant.
+
 1200.	[bug]		memory leak: when following CNAMES from of req_query().
 
 1199.	[bug]		memory leak: when defining keys.
+
+1198.	[func]		reference count all databuf activity.
+
+1197.	[func]		deallocate-on-exit yes; will call abort() if there
+			is still active memory.
+
+1196.	[func]		memactive(): report if there is still active memory.
 
 1195.	[bug]		memory leak: include in named.conf leaked file name.
 
