@@ -392,7 +392,7 @@ static int bs_dmarangecheck(caddr_t va, unsigned length)
 
 	endva = (vm_offset_t)round_page((unsigned long)(va+length));
 	for (; va < (caddr_t)endva; va += PAGE_SIZE) {
-		phys = trunc_page(pmap_extract(pmap_kernel(), (vm_offset_t)va));
+		phys = trunc_page(pmap_extract(kernel_pmap, (vm_offset_t)va));
 		if (phys == 0)
 			panic("bs_dmarangecheck: no physical page present");
 		if (phys >= RAM_END)

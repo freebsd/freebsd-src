@@ -242,7 +242,7 @@ static void isa_dmastart_cb(void *arg, bus_dma_segment_t *segs, int nseg,
 
 #if 0
 	if ((chipset.sgmap == NULL) && 
-	    (pmap_extract(pmap_kernel(), (vm_offset_t)addr)
+	    (pmap_extract(kernel_pmap, (vm_offset_t)addr)
 		> BUS_SPACE_MAXADDR_24BIT)) { 
 		/* we bounced */
 		dma_bounced |= (1 << chan);
