@@ -73,7 +73,7 @@ static const char rcsid[] =
 
 #define	TIMEOUT	15
 
-void quit(), bye(), hi();
+void quit __P((int)), bye __P((int)), hi __P((int));
 static void usage __P((void));
 
 struct timeval	timeout;
@@ -96,7 +96,6 @@ main(argc, argv)
 	int ch, failures, sectimeout, usemine;
 	char *ap, *mypw, *ttynam, *tzn;
 	char hostname[MAXHOSTNAMELEN], s[BUFSIZ], s1[BUFSIZ];
-	char *crypt(), *ttyname();
 
 	openlog("lock", LOG_ODELAY, LOG_AUTH);
 
@@ -149,7 +148,7 @@ main(argc, argv)
 		/* get key and check again */
 		(void)printf("Key: ");
 		if (!fgets(s, sizeof(s), stdin) || *s == '\n')
-			quit();
+			quit(0);
 		(void)printf("\nAgain: ");
 		/*
 		 * Don't need EOF test here, if we get EOF, then s1 != s
@@ -191,7 +190,7 @@ main(argc, argv)
 		(void)printf("Key: ");
 		if (!fgets(s, sizeof(s), stdin)) {
 			clearerr(stdin);
-			hi();
+			hi(0);
 			continue;
 		}
 		if (usemine) {
@@ -213,7 +212,7 @@ main(argc, argv)
 	if (getuid() == 0)
 	    syslog(LOG_NOTICE, "ROOT UNLOCK ON hostname %s port %s",
 		   hostname, ttynam);
-	quit();
+	quit(0);
 	return(0); /* not reached */
 }
 
@@ -226,7 +225,7 @@ usage()
 }
 
 void
-hi()
+hi(int signo __unused)
 {
 	struct timeval timval;
 
@@ -243,7 +242,7 @@ hi()
 }
 
 void
-quit()
+quit(int signo __unused)
 {
 	(void)putchar('\n');
 	(void)ioctl(0, TIOCSETP, &tty);
@@ -251,7 +250,7 @@ quit()
 }
 
 void
-bye()
+bye(int signo __unused)
 {
        if (!no_timeout) {
                (void)ioctl(0, TIOCSETP, &tty);
