@@ -105,6 +105,7 @@ struct socket {
 		u_int	sb_hiwat;	/* max actual char count */
 		u_int	sb_mbcnt;	/* chars of mbufs used */
 		u_int	sb_mbmax;	/* max chars of mbufs to use */
+		u_int	sb_ctl;		/* non-data chars in buffer */
 		int	sb_lowat;	/* low water mark */
 		int	sb_timeo;	/* timeout for read/write */
 		short	sb_flags;	/* flags, see below */
@@ -227,6 +228,8 @@ struct xsocket {
 /* adjust counters in sb reflecting allocation of m */
 #define	sballoc(sb, m) { \
 	(sb)->sb_cc += (m)->m_len; \
+	if ((m)->m_type != MT_DATA) \
+		(sb)->sb_ctl += (m)->m_len; \
 	(sb)->sb_mbcnt += MSIZE; \
 	if ((m)->m_flags & M_EXT) \
 		(sb)->sb_mbcnt += (m)->m_ext.ext_size; \
@@ -235,6 +238,8 @@ struct xsocket {
 /* adjust counters in sb reflecting freeing of m */
 #define	sbfree(sb, m) { \
 	(sb)->sb_cc -= (m)->m_len; \
+	if ((m)->m_type != MT_DATA) \
+		(sb)->sb_ctl -= (m)->m_len; \
 	(sb)->sb_mbcnt -= MSIZE; \
 	if ((m)->m_flags & M_EXT) \
 		(sb)->sb_mbcnt -= (m)->m_ext.ext_size; \
