@@ -34,7 +34,7 @@
 #	@(#)mkdep.gcc.sh	8.1 (Berkeley) 6/6/93
 #
 
-PATH=/bin:/usr/bin:/usr/ucb
+PATH=/bin:/usr/bin
 export PATH
 
 D=.depend			# default dependency file is .depend
