@@ -808,6 +808,7 @@ getcmds()
 	static History *hist = NULL;
 	char line[MAXLINE];
 	int num = 0;
+	int len;
 	const char *bp = NULL;
 
 	for (;;) {
@@ -825,8 +826,9 @@ getcmds()
 			if ((bp = el_gets(el, &num)) == NULL || num == 0)
 				return;
 
-			memcpy(line, bp, (MAXLINE > num ? MAXLINE : num));
-			line[num] = 0;
+			len = (num > MAX_CMDLINE) ? MAX_CMDLINE : num);
+			memcpy(line, bp, len);
+			line[len] = 0;
 			history(hist, H_ENTER, bp);
 
 		} else {

@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)lpc.c	8.3 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: lpc.c,v 1.9 1999/08/19 03:29:13 mdodd Exp $";
+	"$Id: lpc.c,v 1.10 1999/08/19 04:10:32 mdodd Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -153,6 +153,7 @@ cmdscanner()
 	static EditLine *el = NULL;
 	static History *hist = NULL;
 	int num = 0;
+	int len;
 	const char *bp = NULL;
 
 	for (;;) {
@@ -170,8 +171,9 @@ cmdscanner()
 			if ((bp = el_gets(el, &num)) == NULL || num == 0)
 				return;
 
-			memcpy(cmdline, bp, (MAX_CMDLINE > num ? MAX_CMDLINE : num));
-			cmdline[num] = 0; 
+			len = (num > MAX_CMDLINE) ? MAX_CMDLINE : num);
+			memcpy(cmdline, bp, len);
+			cmdline[len] = 0; 
 			history(hist, H_ENTER, bp);
 
 		} else {

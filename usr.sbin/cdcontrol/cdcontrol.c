@@ -20,7 +20,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: cdcontrol.c,v 1.19 1999/08/19 03:29:11 mdodd Exp $";
+	"$Id: cdcontrol.c,v 1.20 1999/08/19 04:10:31 mdodd Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -937,6 +937,7 @@ input (int *cmd)
 	static History *hist = NULL;
 	static char buf[MAXLINE];
 	int num = 0;
+	int len;
 	const char *bp = NULL;
 	char *p;
 
@@ -955,8 +956,9 @@ input (int *cmd)
 			if ((bp = el_gets(el, &num)) == NULL || num == 0)
 				return (0);
 
-			memcpy(buf, bp, (MAXLINE > num ? MAXLINE : num));
-			buf[num] = 0;
+			len = (num > MAXLINE) ? MAXLINE : num;
+			memcpy(buf, bp, len);
+			buf[len] = 0;
 			history(hist, H_ENTER, bp);
 #undef MAXLINE
 
