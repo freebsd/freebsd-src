@@ -408,19 +408,19 @@ static int
 cmp_usrsys(d1, d2)
 	const DBT *d1, *d2;
 {
-	struct cmdinfo *c1, *c2;
+	struct cmdinfo c1, c2;
 	u_quad_t t1, t2;
 
-	c1 = (struct cmdinfo *) d1->data;
-	c2 = (struct cmdinfo *) d2->data;
+	memcpy(&c1, d1->data, sizeof(c1));
+	memcpy(&c2, d2->data, sizeof(c2));
 
-	t1 = c1->ci_utime + c1->ci_stime;
-	t2 = c2->ci_utime + c2->ci_stime;
+	t1 = c1.ci_utime + c1.ci_stime;
+	t2 = c2.ci_utime + c2.ci_stime;
 
 	if (t1 < t2)
 		return -1;
 	else if (t1 == t2)
-		return (cmp_comm(c1->ci_comm, c2->ci_comm));
+		return (cmp_comm(c1.ci_comm, c2.ci_comm));
 	else
 		return 1;
 }
@@ -430,22 +430,22 @@ static int
 cmp_avgusrsys(d1, d2)
 	const DBT *d1, *d2;
 {
-	struct cmdinfo *c1, *c2;
+	struct cmdinfo c1, c2;
 	double t1, t2;
 
-	c1 = (struct cmdinfo *) d1->data;
-	c2 = (struct cmdinfo *) d2->data;
+	memcpy(&c1, d1->data, sizeof(c1));
+	memcpy(&c2, d2->data, sizeof(c2));
 
-	t1 = c1->ci_utime + c1->ci_stime;
-	t1 /= (double) (c1->ci_calls ? c1->ci_calls : 1);
+	t1 = c1.ci_utime + c1.ci_stime;
+	t1 /= (double) (c1.ci_calls ? c1.ci_calls : 1);
 
-	t2 = c2->ci_utime + c2->ci_stime;
-	t2 /= (double) (c2->ci_calls ? c2->ci_calls : 1);
+	t2 = c2.ci_utime + c2.ci_stime;
+	t2 /= (double) (c2.ci_calls ? c2.ci_calls : 1);
 
 	if (t1 < t2)
 		return -1;
 	else if (t1 == t2)
-		return (cmp_comm(c1->ci_comm, c2->ci_comm));
+		return (cmp_comm(c1.ci_comm, c2.ci_comm));
 	else
 		return 1;
 }
@@ -455,15 +455,15 @@ static int
 cmp_dkio(d1, d2)
 	const DBT *d1, *d2;
 {
-	struct cmdinfo *c1, *c2;
+	struct cmdinfo c1, c2;
 
-	c1 = (struct cmdinfo *) d1->data;
-	c2 = (struct cmdinfo *) d2->data;
+	memcpy(&c1, d1->data, sizeof(c1));
+	memcpy(&c2, d2->data, sizeof(c2));
 
-	if (c1->ci_io < c2->ci_io)
+	if (c1.ci_io < c2.ci_io)
 		return -1;
-	else if (c1->ci_io == c2->ci_io)
-		return (cmp_comm(c1->ci_comm, c2->ci_comm));
+	else if (c1.ci_io == c2.ci_io)
+		return (cmp_comm(c1.ci_comm, c2.ci_comm));
 	else
 		return 1;
 }
@@ -473,19 +473,19 @@ static int
 cmp_avgdkio(d1, d2)
 	const DBT *d1, *d2;
 {
-	struct cmdinfo *c1, *c2;
+	struct cmdinfo c1, c2;
 	double n1, n2;
 
-	c1 = (struct cmdinfo *) d1->data;
-	c2 = (struct cmdinfo *) d2->data;
+	memcpy(&c1, d1->data, sizeof(c1));
+	memcpy(&c2, d2->data, sizeof(c2));
 
-	n1 = (double) c1->ci_io / (double) (c1->ci_calls ? c1->ci_calls : 1);
-	n2 = (double) c2->ci_io / (double) (c2->ci_calls ? c2->ci_calls : 1);
+	n1 = (double) c1.ci_io / (double) (c1.ci_calls ? c1.ci_calls : 1);
+	n2 = (double) c2.ci_io / (double) (c2.ci_calls ? c2.ci_calls : 1);
 
 	if (n1 < n2)
 		return -1;
 	else if (n1 == n2)
-		return (cmp_comm(c1->ci_comm, c2->ci_comm));
+		return (cmp_comm(c1.ci_comm, c2.ci_comm));
 	else
 		return 1;
 }
@@ -495,15 +495,15 @@ static int
 cmp_cpumem(d1, d2)
 	const DBT *d1, *d2;
 {
-	struct cmdinfo *c1, *c2;
+	struct cmdinfo c1, c2;
 
-	c1 = (struct cmdinfo *) d1->data;
-	c2 = (struct cmdinfo *) d2->data;
+	memcpy(&c1, d1->data, sizeof(c1));
+	memcpy(&c2, d2->data, sizeof(c2));
 
-	if (c1->ci_mem < c2->ci_mem)
+	if (c1.ci_mem < c2.ci_mem)
 		return -1;
-	else if (c1->ci_mem == c2->ci_mem)
-		return (cmp_comm(c1->ci_comm, c2->ci_comm));
+	else if (c1.ci_mem == c2.ci_mem)
+		return (cmp_comm(c1.ci_comm, c2.ci_comm));
 	else
 		return 1;
 }
@@ -513,23 +513,23 @@ static int
 cmp_avgcpumem(d1, d2)
 	const DBT *d1, *d2;
 {
-	struct cmdinfo *c1, *c2;
+	struct cmdinfo c1, c2;
 	u_quad_t t1, t2;
 	double n1, n2;
 
-	c1 = (struct cmdinfo *) d1->data;
-	c2 = (struct cmdinfo *) d2->data;
+	memcpy(&c1, d1->data, sizeof(c1));
+	memcpy(&c2, d2->data, sizeof(c2));
 
-	t1 = c1->ci_utime + c1->ci_stime;
-	t2 = c2->ci_utime + c2->ci_stime;
+	t1 = c1.ci_utime + c1.ci_stime;
+	t2 = c2.ci_utime + c2.ci_stime;
 
-	n1 = (double) c1->ci_mem / (double) (t1 ? t1 : 1);
-	n2 = (double) c2->ci_mem / (double) (t2 ? t2 : 1);
+	n1 = (double) c1.ci_mem / (double) (t1 ? t1 : 1);
+	n2 = (double) c2.ci_mem / (double) (t2 ? t2 : 1);
 
 	if (n1 < n2)
 		return -1;
 	else if (n1 == n2)
-		return (cmp_comm(c1->ci_comm, c2->ci_comm));
+		return (cmp_comm(c1.ci_comm, c2.ci_comm));
 	else
 		return 1;
 }
@@ -539,15 +539,15 @@ static int
 cmp_calls(d1, d2)
 	const DBT *d1, *d2;
 {
-	struct cmdinfo *c1, *c2;
+	struct cmdinfo c1, c2;
 
-	c1 = (struct cmdinfo *) d1->data;
-	c2 = (struct cmdinfo *) d2->data;
+	memcpy(&c1, d1->data, sizeof(c1));
+	memcpy(&c2, d2->data, sizeof(c2));
 
-	if (c1->ci_calls < c2->ci_calls)
+	if (c1.ci_calls < c2.ci_calls)
 		return -1;
-	else if (c1->ci_calls == c2->ci_calls)
-		return (cmp_comm(c1->ci_comm, c2->ci_comm));
+	else if (c1.ci_calls == c2.ci_calls)
+		return (cmp_comm(c1.ci_comm, c2.ci_comm));
 	else
 		return 1;
 }
