@@ -443,7 +443,7 @@ _conv(n, format, pt, ptlim)
 {
 	char	buf[INT_STRLEN_MAXIMUM(int) + 1];
 
-	(void) sprintf(buf, format, n);
+	(void) snprintf(buf, sizeof(buf), format, n);
 	return _add(buf, pt, ptlim);
 }
 
