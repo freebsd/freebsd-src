@@ -621,11 +621,9 @@ vm_object_terminate(vm_object_t object)
 			("vm_object_terminate: freeing busy page %p "
 			"p->busy = %d, p->flags %x\n", p, p->busy, p->flags));
 		if (p->wire_count == 0) {
-			vm_page_busy(p);
 			vm_page_free(p);
 			cnt.v_pfree++;
 		} else {
-			vm_page_busy(p);
 			vm_page_remove(p);
 		}
 	}
@@ -1803,7 +1801,6 @@ again:
 			if (p->valid & p->dirty)
 				continue;
 		}
-		vm_page_busy(p);
 		pmap_remove_all(p);
 		vm_page_free(p);
 	}

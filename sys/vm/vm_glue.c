@@ -296,7 +296,6 @@ vm_proc_dispose(struct proc *p)
 		panic("vm_proc_dispose: incorrect number of pages in upobj");
 	vm_page_lock_queues();
 	while ((m = TAILQ_FIRST(&upobj->memq)) != NULL) {
-		vm_page_busy(m);
 		vm_page_unwire(m, 0);
 		vm_page_free(m);
 	}
@@ -496,7 +495,6 @@ vm_thread_dispose(struct thread *td)
 		if (m == NULL)
 			panic("vm_thread_dispose: kstack already missing?");
 		vm_page_lock_queues();
-		vm_page_busy(m);
 		vm_page_unwire(m, 0);
 		vm_page_free(m);
 		vm_page_unlock_queues();

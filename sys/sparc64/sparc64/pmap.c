@@ -1087,7 +1087,6 @@ pmap_release(pmap_t pm)
 		vm_page_lock_queues();
 		if (vm_page_sleep_if_busy(m, FALSE, "pmaprl"))
 			continue;
-		vm_page_busy(m);
 		KASSERT(m->hold_count == 0,
 		    ("pmap_release: freeing held tsb page"));
 		m->md.pmap = NULL;
