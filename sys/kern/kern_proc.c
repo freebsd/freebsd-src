@@ -449,7 +449,7 @@ fill_eproc(p, ep)
 		if (p->p_ucred)
 			ep->e_ucred = *p->p_ucred;
 	}
-	if (p->p_procsig){
+	if (p->p_procsig) {
 		ep->e_procsig = *p->p_procsig;
 	}
 	if (p->p_stat != SIDL && p->p_stat != SZOMB && p->p_vmspace != NULL) {
@@ -457,6 +457,8 @@ fill_eproc(p, ep)
 		ep->e_vm = *vm;
 		ep->e_vm.vm_rssize = vmspace_resident_count(vm); /*XXX*/
 	}
+	if ((p->p_flag & P_INMEM) && p->p_stats)
+		ep->e_stats = *p->p_stats;
 	if (p->p_pptr)
 		ep->e_ppid = p->p_pptr->p_pid;
 	if (p->p_pgrp) {
