@@ -52,11 +52,14 @@ static const char rcsid[] =
  * used with uuencode.
  */
 #include <sys/param.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 
+#include <netinet/in.h>
+
 #include <err.h>
-#include <fnmatch.h>
 #include <pwd.h>
+#include <resolv.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -69,6 +72,7 @@ int cflag, iflag, oflag, pflag, sflag;
 static void usage __P((void));
 int	decode __P((void));
 int	decode2 __P((int));
+void	base64_decode __P((const char *));
 
 int
 main(argc, argv)
@@ -155,11 +159,11 @@ decode2(flag)
 	struct passwd *pw;
 	register int n;
 	register char ch, *p;
-	int ignore, mode, n1;
+	int base64, ignore, mode, n1;
 	char buf[MAXPATHLEN];
 	char buffn[MAXPATHLEN]; /* file name buffer */
 
-	ignore = 0;
+	base64 = ignore = 0;
 	/* search for header line */
 	do {
 		if (!fgets(buf, sizeof(buf), stdin)) {
@@ -169,17 +173,26 @@ decode2(flag)
 			warnx("%s: no \"begin\" line", filename);
 			return(1);
 		}
-	} while (strncmp(buf, "begin ", 6) || 
-		 fnmatch("begin [0-7]* *", buf, 0));
+	} while (strncmp(buf, "begin", 5) != 0);
+
+	if (strncmp(buf, "begin-base64", 12) == 0)
+		base64 = 1;
 
 	if (oflag) {
-		(void)sscanf(buf, "begin %o ", &mode);
+		if (base64)
+			(void)sscanf(buf, "begin-base64 %o ", &mode);
+		else
+			(void)sscanf(buf, "begin %o ", &mode);
 		if (strlcpy(buf, outfile, sizeof(buf)) >= sizeof(buf)) {
 			warnx("%s: filename too long", outfile);
 			return (1);
 		}
-	} else
-		(void)sscanf(buf, "begin %o %[^\n\r]", &mode, buf);
+	} else {
+		if (base64)
+			(void)sscanf(buf, "begin-base64 %o %[^\n\r]", &mode, buf);
+		else
+			(void)sscanf(buf, "begin %o %[^\n\r]", &mode, buf);
+	}
 
 	if (!sflag && !pflag) {
 		strncpy(buffn, buf, sizeof(buffn)); 
@@ -230,10 +243,17 @@ decode2(flag)
 	strcpy(buffn, buf); /* store file name from header line */
 
 	/* for each input line */
+next:
 	for (;;) {
 		if (!fgets(p = buf, sizeof(buf), stdin)) {
 			warnx("%s: short file", filename);
 			return(1);
+		}
+		if (base64) {
+			if (strncmp(buf, "====", 4) == 0)
+				return (0);
+			base64_decode(buf);
+			goto next;
 		}
 #define	DEC(c)	(((c) - ' ') & 077)		/* single character decode */
 #define IS_DEC(c) ( (((c) - ' ') >= 0) &&  (((c) - ' ') <= 077 + 1) )
@@ -302,6 +322,19 @@ if (!ignore) \
 		return(1);
 	}
 	return(0);
+}
+
+void
+base64_decode(stream)
+	const char *stream;
+{
+	unsigned char out[MAXPATHLEN * 4];
+	int rv;
+
+	rv = b64_pton(stream, out, (sizeof(out) / sizeof(out[0])));
+	if (rv == -1)
+		errx(1, "b64_pton: error decoding base64 input stream");
+	printf("%s", out);
 }
 
 static void
