@@ -471,6 +471,7 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
     tp = dev->si_tty = ttymalloc(dev->si_tty);
     tp->t_oproc = (SC_VTY(dev) == SC_MOUSE) ? scmousestart : scstart;
     tp->t_param = scparam;
+    tp->t_stop = nottystop;
     tp->t_dev = dev;
     if (!(tp->t_state & TS_ISOPEN)) {
 	ttychars(tp);
