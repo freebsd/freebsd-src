@@ -2,8 +2,8 @@
 # hosts.allow access control file for "tcp wrapped" applications.
 # $FreeBSD$
 #
-# NOTE: The hosts.deny file is no longer used.
-#       Instead, put both 'allow' and 'deny' rules in the hosts.allow file.
+# NOTE: The hosts.deny file is deprecated.
+#       Place both 'allow' and 'deny' rules in the hosts.allow file.
 #	See hosts_options(5) for the format of this file.
 #	hosts_access(5) no longer fully applies.
 
@@ -47,10 +47,9 @@ exim : ALL : allow
 
 # Portmapper is used for all RPC services; protect your NFS!
 # (IP addresses rather than hostnames *MUST* be used here)
-portmap : localhost : allow
-portmap : .nice.guy.example.com : allow
-portmap : .evil.cracker.example.com : deny
-portmap : ALL : allow
+portmap : 192.0.2.32/255.255.255.224 : allow
+portmap : 192.0.2.96/255.255.255.224 : allow
+portmap : ALL : deny
 
 # Provide a small amount of protection for ftpd
 ftpd : localhost : allow
