@@ -1422,8 +1422,7 @@ vm_daemon()
 		 */
 
 		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
-			quad_t limit;
-			vm_offset_t size;
+			vm_pindex_t limit, size;
 
 			/*
 			 * if this is a system process or if we have already
@@ -1442,8 +1441,9 @@ vm_daemon()
 			/*
 			 * get a limit
 			 */
-			limit = qmin(p->p_rlimit[RLIMIT_RSS].rlim_cur,
-			    p->p_rlimit[RLIMIT_RSS].rlim_max);
+			limit = OFF_TO_IDX(
+			    qmin(p->p_rlimit[RLIMIT_RSS].rlim_cur,
+				p->p_rlimit[RLIMIT_RSS].rlim_max));
 
 			/*
 			 * let processes that are swapped out really be
@@ -1453,10 +1453,10 @@ vm_daemon()
 			if ((p->p_flag & P_INMEM) == 0)
 				limit = 0;	/* XXX */
 
-			size = vmspace_resident_count(p->p_vmspace) * PAGE_SIZE;
+			size = vmspace_resident_count(p->p_vmspace);
 			if (limit >= 0 && size >= limit) {
-				vm_pageout_map_deactivate_pages(&p->p_vmspace->vm_map,
-				    (vm_pindex_t)(limit >> PAGE_SHIFT) );
+				vm_pageout_map_deactivate_pages(
+				    &p->p_vmspace->vm_map, limit);
 			}
 		}
 	}
