@@ -658,8 +658,11 @@ main(argc, argv)
 	(void)setuid(rootlogin ? 0 : pwd->pw_uid);
 #endif
 
-	if (*pwd->pw_shell == '\0')
+	if (*pwd->pw_shell == '\0') {
 		pwd->pw_shell = _PATH_BSHELL;
+		if (*shell == '\0')   /* Not overridden */
+			strcpy(shell, pwd->pw_shell);
+	}
 	(void)setenv("SHELL", pwd->pw_shell, 1);
 	(void)setenv("HOME", pwd->pw_dir, 1);
 	if (term[0] != '\0')
