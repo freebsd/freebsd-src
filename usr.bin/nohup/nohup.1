@@ -44,14 +44,15 @@
 .Sh SYNOPSIS
 .Nm
 .Ar command
-.Op Ar arg ...
+.Op Ar arguments
 .Sh DESCRIPTION
 The
 .Nm
 utility invokes
 .Ar command
 with
-its arguments
+its
+.Ar arguments
 and at this time sets the signal
 .Dv SIGHUP
 to be ignored.
@@ -78,7 +79,7 @@ Consult the
 manual page.
 .Sh ENVIRONMENT
 The following variable is utilized by
-.Nm nohup .
+.Nm Ns :
 .Bl -tag -width flag
 .It Ev HOME
 If the output file
