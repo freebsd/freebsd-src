@@ -71,7 +71,7 @@
 #	socksys iBCS2 socket system driver
 #	vat	VAT compatibility audio driver (requires snd*)
 #
-#	$Id: MAKEDEV,v 1.49 1994/11/12 15:48:54 ache Exp $
+#	$Id: MAKEDEV,v 1.50 1994/12/02 16:08:53 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -600,6 +600,28 @@ apm)
 	chown root.wheel apm0
 	chmod 660 apm0
 	;;
+
+ttyx?|ttyy?|ttyz?)
+	case $i in
+	*0) unit=0;;    *1) unit=1;;    *2) unit=2;;    *3) unit=3;;
+	*4) unit=4;;    *5) unit=5;;    *6) unit=6;;    *7) unit=7;;
+	*8) unit=8;;    *9) unit=9;;    *a) unit=10;;   *b) unit=11;;
+	*c) unit=12;;   *d) unit=13;;   *e) unit=14;;   *f) unit=15;;
+	esac
+	case $i in
+	ttyy?)  unit=`expr $unit \+ 16`;;
+	ttyz?)  unit=`expr $unit \+ 32`;;
+	esac
+	rm -f $i
+	mknod $i c 42 $unit
+	chown uucp.wheel $i
+	;;
+
+cronyx)
+	rm -f cronyx
+	mknod cronyx c 42 63
+	chown 444 cronyx
+  	;;
 
 local)
 	umask 0
