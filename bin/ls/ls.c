@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ls.c,v 1.3 1994/09/24 02:55:54 davidg Exp $
+ *	$Id: ls.c,v 1.4 1994/12/18 19:00:01 joerg Exp $
  */
 
 #ifndef lint
@@ -117,7 +117,7 @@ main(argc, argv)
 	} else {
 		f_singlecol = 1;
 		/* retrieve environment variable, in case of explicit -C */
-		if (p = getenv("COLUMNS"))
+		if ((p = getenv("COLUMNS")))
 			termwidth = atoi(p);
 	}
 
@@ -371,6 +371,7 @@ display(p, list)
 	btotal = maxblock = maxinode = maxlen = maxnlink = 0;
 	bcfile = 0;
 	maxuser = maxgroup = maxflags = 0;
+	flags = NULL;
 	maxsize = 0;
 	for (cur = list, entries = 0; cur; cur = cur->fts_link) {
 		if (cur->fts_info == FTS_ERR || cur->fts_info == FTS_NS) {

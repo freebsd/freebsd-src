@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: test.c,v 1.8 1994/11/05 20:24:49 ache Exp $
+ *	$Id: test.c,v 1.9 1994/11/05 20:48:06 ache Exp $
  */
 
 #ifndef lint
@@ -115,7 +115,7 @@ main(argc, argv)
 	struct value *valsp;
 	struct filestat fs;
 	char  c, **ap, *opname, *p;
-	int binary, nest, op, pri, ret_val, skipping;
+	int binary, nest, op = 0, pri, ret_val, skipping;
 
 	if ((p = argv[0]) == NULL)
 		errx(2, "test: argc is zero");
@@ -248,7 +248,7 @@ main(argc, argv)
 						    valsp->u.num);
 #else
 						(void)sprintf(p,
-						    "%d", valsp->u.num);
+						    "%ld", valsp->u.num);
 #endif
 						valsp->u.string = p;
 					} else if (valsp->type == BOOLEAN) {

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rmail.c,v 1.2 1994/09/24 02:57:06 davidg Exp $
+ *	$Id: rmail.c,v 1.3 1995/03/05 08:27:14 joerg Exp $
  */
 
 #ifndef lint
@@ -119,6 +119,8 @@ main(argc, argv)
 	if (argc < 1)
 		usage();
 
+	fplen = fptlen = 0;
+	addrp = "";
 	from_path = from_sys = from_user = NULL;
 	for (offset = 0;;) {
 

@@ -4,7 +4,7 @@
  *
  * Largely rewritten by J.T. Conklin (jtc@wimsey.com)
  *
- * $Id$
+ * $Id: expr.y,v 1.8 1994/09/24 02:55:37 davidg Exp $
  */
 
 #include <stdio.h>
@@ -193,7 +193,6 @@ struct val *vp;
 int
 yylex ()
 {
-	struct val *vp;
 	char *p;
 
 	if (*av == NULL)
@@ -227,6 +226,8 @@ struct val *vp;
 	}
 	/* NOTREACHED */
 }
+
+int yyparse ();
 
 void
 main (argc, argv)

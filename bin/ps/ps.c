@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ps.c,v 1.4 1994/10/02 08:33:31 davidg Exp $
+ *	$Id: ps.c,v 1.5 1994/10/18 04:27:46 davidg Exp $
  */
 
 #ifndef lint
@@ -384,7 +384,7 @@ saveuser(ki)
 	struct user *u_addr = (struct user *)USRSTACK;
 
 	usp = &ki->ki_u;
-	if (kvm_uread(kd, KI_PROC(ki), &u_addr->u_stats,
+	if (kvm_uread(kd, KI_PROC(ki), (unsigned long)&u_addr->u_stats,
 	    (char *)&pstats, sizeof(pstats)) == sizeof(pstats)) {
 		/*
 		 * The u-area might be swapped out, and we can't get
@@ -486,8 +486,9 @@ kludge_oldps_options(s)
 	 * if there's a trailing number, and not a preceding 'p' (pid) or
 	 * 't' (tty) flag, then assume it's a pid and insert a 'p' flag.
 	 */
-	if (isdigit(*cp) && (cp == s || cp[-1] != 't' && cp[-1] != 'p' &&
-	    (cp - 1 == s || cp[-2] != 't')))
+	if (isdigit(*cp) && 
+	    (cp == s || (cp[-1] != 't' && cp[-1] != 'p')) &&
+	    (cp - 1 == s || cp[-2] != 't'))
 		*ns++ = 'p';
 	(void)strcpy(ns, cp);		/* and append the number */
 

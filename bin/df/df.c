@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: df.c,v 1.5 1994/09/24 02:55:11 davidg Exp $
  */
 
 #ifndef lint
@@ -76,29 +76,30 @@ struct typetab {
 	char *str;
 	long types;
 } typetab[] = {
-	"ufs",		MT(MOUNT_UFS),
-	"local",	MT_LOCAL,
-	"all",		MT_ALL,
-	"nfs",		MT(MOUNT_NFS),
-	"mfs",		MT(MOUNT_MFS),
-	"lfs",		MT(MOUNT_LFS),
-	"msdos",	MT(MOUNT_MSDOS),
-	"fdesc",	MT(MOUNT_FDESC),
-	"portal",	MT(MOUNT_PORTAL),
+	{"ufs",		MT(MOUNT_UFS)},
+	{"local",	MT_LOCAL},
+	{"all",		MT_ALL},
+	{"nfs",		MT(MOUNT_NFS)},
+	{"mfs",		MT(MOUNT_MFS)},
+	{"lfs",		MT(MOUNT_LFS)},
+	{"msdos",	MT(MOUNT_MSDOS)},
+	{"fdesc",	MT(MOUNT_FDESC)},
+	{"portal",	MT(MOUNT_PORTAL)},
 #if 0
 	/* return fsid of underlying FS */
-	"lofs",		MT(MOUNT_LOFS),
-	"null",		MT(MOUNT_NULL),
-	"umap",		MT(MOUNT_UMAP),
+	{"lofs",	MT(MOUNT_LOFS)},
+	{"null",	MT(MOUNT_NULL)},
+	{"umap",	MT(MOUNT_UMAP)},
 #endif
-	"kernfs",	MT(MOUNT_KERNFS),
-	"procfs",	MT(MOUNT_PROCFS),
-	"afs",		MT(MOUNT_AFS),
-	"iso9660fs",	MT(MOUNT_CD9660),
-	"cdfs",		MT(MOUNT_CD9660),
-	"misc",		MT(MOUNT_LOFS)|MT(MOUNT_FDESC)|MT(MOUNT_PORTAL)|
-			MT(MOUNT_KERNFS)|MT(MOUNT_PROCFS),
-	NULL,		0
+	{"kernfs",	MT(MOUNT_KERNFS)},
+	{"procfs",	MT(MOUNT_PROCFS)},
+	{"afs",		MT(MOUNT_AFS)},
+	{"iso9660fs",	MT(MOUNT_CD9660)},
+	{"cdfs",	MT(MOUNT_CD9660)},
+	{"misc",	MT(MOUNT_LOFS)|MT(MOUNT_FDESC)|MT(MOUNT_PORTAL)|
+			MT(MOUNT_KERNFS)|MT(MOUNT_PROCFS)},
+	{NULL,		0}
+	
 };
 
 long	addtype __P((long, char *));
@@ -124,6 +125,7 @@ main(argc, argv)
 	char *mntpt;
 
 	iflag = nflag = tflag = 0;
+	fsmask = MT_NONE;
 
 	while ((ch = getopt(argc, argv, "iknt:")) != EOF)
 		switch (ch) {
