@@ -727,8 +727,8 @@ options 	MD_ROOT
 #
 # In order to manage swap, the system must reserve bitmap space that
 # scales with the largest mounted swap device multiplied by NSWAPDEV, 
-# irregardless of whether other swap devices exist or not.  So it
-# is not a good idea to make this value too large.
+# irrespective of whether other swap devices exist.  So it is not a
+# good idea to make this value too large.
 options 	NSWAPDEV=5
 
 # Disk quotas are supported when this option is enabled.
