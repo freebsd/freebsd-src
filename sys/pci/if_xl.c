@@ -54,6 +54,7 @@
  * 3Com 3c980-TX	10/100Mbps server adapter (Hurricane ASIC)
  * 3Com 3c980C-TX	10/100Mbps server adapter (Tornado ASIC)
  * 3Com 3cSOHO100-TX	10/100Mbps/RJ-45 (Hurricane ASIC)
+ * 3Com 3c450-TX	10/100Mbps/RJ-45 (Tornado ASIC)
  * Dell Optiplex GX1 on-board 3c918 10/100Mbps/RJ-45
  * Dell on-board 3c920 10/100Mbps/RJ-45
  * Dell Precision on-board 3c905B 10/100Mbps/RJ-45
@@ -186,6 +187,8 @@ static struct xl_type xl_devs[] = {
 		"3Com 3c980C Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_HURRICANE_SOHO100TX,
 		"3Com 3cSOHO100-TX OfficeConnect" },
+	{ TC_VENDORID, TC_DEVICEID_TORNADO_HOMECONNECT,
+		"3Com 3c450-TX HomeConnect" },
 	{ 0, 0, NULL }
 };
 
@@ -1142,6 +1145,7 @@ static void xl_choose_xcvr(sc, verbose)
 	case TC_DEVICEID_TORNADO_10_100BT_SERV:	/* 3c980C-TX */
 	case TC_DEVICEID_HURRICANE_SOHO100TX:	/* 3cSOHO100-TX */
 	case TC_DEVICEID_TORNADO_10_100BT:	/* 3c905C-TX */
+	case TC_DEVICEID_TORNADO_HOMECONNECT:	/* 3c450-TX */
 		sc->xl_media = XL_MEDIAOPT_BTX;
 		sc->xl_xcvr = XL_XCVR_AUTO;
 		if (verbose)

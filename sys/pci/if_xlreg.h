@@ -640,6 +640,7 @@ struct xl_stats {
 #define TC_DEVICEID_HURRICANE_10_100BT_SERV	0x9800
 #define TC_DEVICEID_TORNADO_10_100BT_SERV	0x9805
 #define TC_DEVICEID_HURRICANE_SOHO100TX		0x7646
+#define TC_DEVICEID_TORNADO_HOMECONNECT		0x4500
 
 /*
  * PCI low memory base and low I/O base register, and
