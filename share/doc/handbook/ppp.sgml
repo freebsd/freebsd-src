@@ -1,4 +1,4 @@
-<!-- $Id: ppp.sgml,v 1.6 1995/12/04 17:58:46 jfieber Exp $ -->
+<!-- $Id: ppp.sgml,v 1.7 1996/05/16 23:18:11 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Setting up kernel PPP<label id="ppp"></heading>
@@ -149,6 +149,60 @@ out ATH0\13
 echo \13
 exit
 </verb>
+
+
+<p>Here is an alternate method using <tt>chat</tt> instead of
+<tt>kermit</tt>.
+
+<em>Contributed by &a.rhuff;.</em>
+
+<p>The following two files are sufficient to accomplish a pppd
+connection.
+
+<p><tt>/etc/ppp/options</tt>:
+<verb>
+ /dev/cuaa1 115200
+
+crtscts		# enable hardware flow control
+modem		# modem control line
+connect "/usr/bin/chat -f /etc/ppp/login.chat.script"
+noipdefault	# remote PPP server must supply your IP address.
+		# if the remote host doesn't send your IP during
+		# IPCP negotiation, remove this option
+passive		# wait for LCP packets
+domain <your.domain>	# put your domain name here
+
+:		# put the IP of remote PPP host here
+		# it will be used to route packets via PPP link
+		# if you didn't specified the noipdefault option
+		# change this line to <local_ip>:<remote_ip>
+
+defaultroute	# put this if you want that PPP server will be
+		# your default router
+</verb>
+
+
+<p><tt>/etc/ppp/login.chat.script</tt>:
+
+(This should actually go into a single line.)
+
+<verb>
+ABORT BUSY ABORT 'NO CARRIER' "" AT OK ATDT<phone.number>
+ CONNECT "" TIMEOUT 10 ogin:-\\r-ogin: <login-id>
+ TIMEOUT 5 sword: <password>
+</verb>
+
+
+Once these are installed and modified correctly, all you need to
+do is
+
+<p><tt>pppd</tt>.
+
+
+<em> This sample based primarily on information provided by: Trev Roydhouse
+&lt;Trev.Roydhouse@f401.n711.z3.fidonet.org&gt; and used by
+permission.</em>
+
 
 <sect1><heading>Working as a PPP server</heading>
 
