@@ -17,7 +17,7 @@
  *
  * From: Version 1.9, Wed Oct  4 18:58:15 MSK 1995
  *
- * $Id: if_spppsubr.c,v 1.22 1997/05/23 20:40:15 joerg Exp $
+ * $Id: if_spppsubr.c,v 1.23 1997/08/06 01:43:09 itojun Exp $
  */
 
 #include <sys/param.h>
@@ -1810,13 +1810,22 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 		rlen += p[1];
 	}
 	if (rlen) {
-		if (debug)
-			addlog(" send conf-nak\n");
-		sppp_cp_send (sp, PPP_LCP, CONF_NAK, h->ident, rlen, buf);
+		if (++sp->fail_counter[IDX_LCP] >= sp->lcp.max_failure) {
+			if (debug)
+				addlog(" max_failure (%d) exceeded, "
+				       "send conf-rej\n",
+				       sp->lcp.max_failure);
+			sppp_cp_send(sp, PPP_LCP, CONF_REJ, h->ident, rlen, buf);
+		} else {
+			if (debug)
+				addlog(" send conf-nak\n");
+			sppp_cp_send (sp, PPP_LCP, CONF_NAK, h->ident, rlen, buf);
+		}
 		return 0;
 	} else {
 		if (debug)
 			addlog(" send conf-ack\n");
+		sp->fail_counter[IDX_LCP] = 0;
 		sp->pp_loopcnt = 0;
 		sppp_cp_send (sp, PPP_LCP, CONF_ACK,
 			      h->ident, origlen, h+1);
