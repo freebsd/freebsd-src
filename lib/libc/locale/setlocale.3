@@ -35,7 +35,7 @@
 .\"	@(#)setlocale.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd June 9, 1993
+.Dd October 5, 2002
 .Dt SETLOCALE 3
 .Os
 .Sh NAME
@@ -163,6 +163,12 @@ struct lconv {
 	char	n_sep_by_space;
 	char	p_sign_posn;
 	char	n_sign_posn;
+	char	int_p_cs_precedes;
+	char	int_n_cs_precedes;
+	char	int_p_sep_by_space;
+	char	int_n_sep_by_space;
+	char	int_p_sign_posn;
+	char	int_n_sign_posn;
 };
 .Ed
 .Pp
@@ -249,6 +255,30 @@ Just after
 Like
 .Fa p_sign_posn
 but for negative currency values.
+.It Fa int_p_cs_precedes
+Same as
+.Fa p_cs_precedes ,
+but for internationally formatted monetary quantities.
+.It Fa int_n_cs_precedes
+Same as
+.Fa n_cs_precedes ,
+but for internationally formatted monetary quantities.
+.It Fa int_p_sep_by_space
+Same as
+.Fa p_sep_by_space ,
+but for internationally formatted monetary quantities.
+.It Fa int_n_sep_by_space
+Same as
+.Fa n_sep_by_space ,
+but for internationally formatted monetary quantities.
+.It Fa int_p_sign_posn
+Same as
+.Fa p_sign_posn ,
+but for internationally formatted monetary quantities.
+.It Fa int_n_sign_posn
+Same as
+.Fa n_sign_posn ,
+but for internationally formatted monetary quantities.
 .El
 .Pp
 Unless mentioned above,
@@ -311,7 +341,7 @@ The
 and
 .Fn localeconv
 functions conform to
-.St -isoC .
+.St -isoC-99 .
 .Sh HISTORY
 The
 .Fn setlocale

@@ -45,6 +45,12 @@ struct lc_monetary_T {
 	const char	*n_sep_by_space;
 	const char	*p_sign_posn;
 	const char	*n_sign_posn;
+	const char	*int_p_cs_precedes;
+	const char	*int_n_cs_precedes;
+	const char	*int_p_sep_by_space;
+	const char	*int_n_sep_by_space;
+	const char	*int_p_sign_posn;
+	const char	*int_n_sign_posn;
 };
 
 struct lc_monetary_T *__get_current_monetary_locale(void);
