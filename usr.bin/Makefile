@@ -246,7 +246,7 @@ SUBDIR+=uac
 .endif
 
 # Things which don't compile on new platforms yet:
-.if ${MACHINE_ARCH} != "sparc64" && ${MACHINE_ARCH} != "ia64"
+.if ${MACHINE_ARCH} != "ia64"
 SUBDIR+=xlint
 .endif
 
