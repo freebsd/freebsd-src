@@ -292,7 +292,7 @@
 216	STD	{ int linux_setfsgid(l_gid_t gid); }
 217	STD	{ int linux_pivot_root(char *new_root, char *put_old); }
 218	STD	{ int linux_mincore(l_ulong start, l_size_t len, u_char *vec); }
-219	STD	{ int linux_madvise(void); }
+219	MNOPROTO { int madvise(void *addr, size_t len, int behav); }
 220	STD	{ int linux_getdents64(l_uint fd, void *dirent, l_uint count); }
 221	STD	{ int linux_fcntl64(l_uint fd, l_uint cmd, l_ulong arg); }
 222	UNIMPL
