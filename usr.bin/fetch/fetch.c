@@ -40,6 +40,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
+#include <termios.h>
 #include <unistd.h>
 
 #include <fetch.h>
@@ -180,6 +181,45 @@ stat_end(struct xferstat *xs)
 }
 
 int
+query_auth(struct url *URL)
+{
+    struct termios tios;
+    tcflag_t saved_flags;
+    int i, nopwd;
+
+    
+    fprintf(stderr, "Authentication required for <%s://%s:%d/>!\n",
+	    URL->scheme, URL->host, URL->port, URL->doc);
+    
+    fprintf(stderr, "Login: ");
+    if (fgets(URL->user, sizeof URL->user, stdin) == NULL)
+	return -1;
+    for (i = 0; URL->user[i]; ++i)
+	if (isspace(URL->user[i]))
+	    URL->user[i] = '\0';
+    
+    fprintf(stderr, "Password: ");
+    if (tcgetattr(STDIN_FILENO, &tios) == 0) {
+	saved_flags = tios.c_lflag;
+	tios.c_lflag &= ~ECHO;
+	tios.c_lflag |= ECHONL|ICANON;
+	tcsetattr(STDIN_FILENO, TCSAFLUSH|TCSASOFT, &tios);
+	nopwd = (fgets(URL->pwd, sizeof URL->pwd, stdin) == NULL);
+	tios.c_lflag = saved_flags;
+	tcsetattr(STDIN_FILENO, TCSANOW|TCSASOFT, &tios);
+    } else {
+	nopwd = (fgets(URL->pwd, sizeof URL->pwd, stdin) == NULL);
+    }
+    if (nopwd)
+	return -1;
+    
+    for (i = 0; URL->pwd[i]; ++i)
+	if (isspace(URL->pwd[i]))
+	    URL->pwd[i] = '\0';
+    return 0;
+}
+
+int
 fetch(char *URL, char *path)
 {
     struct url *url;
@@ -190,7 +230,7 @@ fetch(char *URL, char *path)
     size_t size, wr;
     off_t count;
     char flags[8];
-    int n, r;
+    int r;
     u_int timeout;
     u_char *ptr;
 
@@ -315,10 +355,10 @@ fetch(char *URL, char *path)
     if (v_level > 1) {
 	if (sb.st_size != -1)
 	    fprintf(stderr, "local size / mtime: %lld / %ld\n",
-		    sb.st_size, sb.st_mtime);
+		    sb.st_size, (long)sb.st_mtime);
 	if (us.size != -1)
 	    fprintf(stderr, "remote size / mtime: %lld / %ld\n",
-		    us.size, us.mtime);
+		    us.size, (long)us.mtime);
     }
     
     /* open output file */
@@ -394,13 +434,17 @@ fetch(char *URL, char *path)
 
     /* suck in the data */
     signal(SIGINFO, sig_handler);
-    for (n = 0; !sigint && !sigalrm; ++n) {
+    while (!sigint && !sigalrm) {
 	if (us.size != -1 && us.size - count < B_size)
 	    size = us.size - count;
 	else
 	    size = B_size;
 	if (timeout)
 	    alarm(timeout);
+	if (siginfo) {
+	    stat_end(&xs);
+	    siginfo = 0;
+	}
 	if ((size = fread(buf, 1, size, f)) == 0) {
 	    if (ferror(f) && errno == EINTR && !sigalrm && !sigint)
 		clearerr(f);
@@ -409,10 +453,6 @@ fetch(char *URL, char *path)
 	}
 	if (timeout)
 	    alarm(0);
-	if (siginfo) {
-	    stat_end(&xs);
-	    siginfo = 0;
-	}
 	stat_update(&xs, count += size, 0);
 	for (ptr = buf; size > 0; ptr += wr, size -= wr)
 	    if ((wr = fwrite(ptr, 1, size, of)) < size) {
@@ -713,6 +753,10 @@ main(int argc, char *argv[])
     v_tty = isatty(STDERR_FILENO);
     r = 0;
 
+    /* authentication */
+    if (vtty)
+	fetchAuthMethod = query_auth;
+    
     while (argc) {
 	if ((p = strrchr(*argv, '/')) == NULL)
 	    p = *argv;
