@@ -161,20 +161,20 @@ realpath(const char *path, char resolved_path[PATH_MAX])
 				resolved_len = q - resolved_path;
 			}
 
-			if (symlink[slen - 1] != '/' && p != NULL) {
-				if (slen >= PATH_MAX) {
+			if (p != NULL) {
+				if (symlink[slen - 1] != '/') {
+					if (slen + 1 >= PATH_MAX) {
+						errno = ENAMETOOLONG;
+						return NULL;
+					}
+					symlink[slen] = '/';
+					symlink[slen + 1] = 0;
+				}
+				left_len = strlcat(symlink, left, PATH_MAX);
+				if (left_len >= PATH_MAX) {
 					errno = ENAMETOOLONG;
 					return NULL;
 				}
-
-				symlink[slen] = '/';
-				symlink[slen + 1] = 0;
-			}
-			if (p != NULL)
-				left_len = strlcat(symlink, left, PATH_MAX);
-			if (left_len > PATH_MAX) {
-				errno = ENAMETOOLONG;
-				return NULL;
 			}
 			left_len = strlcpy(left, symlink, PATH_MAX);
 		}
