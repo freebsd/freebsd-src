@@ -1,8 +1,9 @@
 #
-# $Id$
+# $Id: Makefile,v 1.1 1996/10/03 23:00:09 peter Exp $
 #
 
 GPPDIR=	${.CURDIR}/../../../contrib/libg++
+MAN1=	genclass.1
 
 .PATH:	${GPPDIR}/libg++/src ${GPPDIR}/libg++/genclass
 
@@ -46,7 +47,7 @@ beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${GEN:S;^;${GPPDIR}/libg++/src/gen/;} \
 		${DESTDIR}${PROTODIR}
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} genclass \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} genclass \
 		${DESTDIR}${BINDIR}
 
 .include <bsd.prog.mk>
