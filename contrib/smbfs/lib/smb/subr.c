@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: subr.c,v 1.11 2001/04/16 04:33:01 bp Exp $
+ * $Id: subr.c,v 1.12 2001/08/22 03:31:37 bp Exp $
  */
 
 #include <sys/param.h>
@@ -49,6 +49,15 @@
 #include <netsmb/smb_lib.h>
 #include <netsmb/nb_lib.h>
 #include <cflib.h>
+
+#ifdef APPLE
+#include <sysexits.h>
+#include <sys/wait.h>
+#include <mach/mach.h>
+#include <mach/mach_error.h>
+
+uid_t real_uid, eff_uid;
+#endif
 
 extern char *__progname;
 
@@ -174,13 +183,25 @@ smb_dumptree(void)
 	void *p;
 	int error;
 	
+#ifdef APPLE
+	seteuid(eff_uid); /* restore setuid root briefly */
+#endif
 	error = sysctlbyname("net.smb.treedump", NULL, &len, NULL, 0);
+#ifdef APPLE
+	seteuid(real_uid); /* and back to real user */
+#endif
 	if (error)
 		return NULL;
 	p = malloc(len);
 	if (p == NULL)
 		return NULL;
+#ifdef APPLE
+	seteuid(eff_uid); /* restore setuid root briefly */
+#endif
 	error = sysctlbyname("net.smb.treedump", p, &len, NULL, 0);
+#ifdef APPLE
+	seteuid(real_uid); /* and back to real user */
+#endif
 	if (error) {
 		free(p);
 		return NULL;
@@ -188,11 +209,18 @@ smb_dumptree(void)
 	return p;
 }
 
-void
+char *
 smb_simplecrypt(char *dst, const char *src)
 {
 	int ch, pos;
+	char *dp;
 
+	if (dst == NULL) {
+		dst = malloc(4 + 2 * strlen(src));
+		if (dst == NULL)
+			return NULL;
+	}
+	dp = dst;
 	*dst++ = '$';
 	*dst++ = '$';
 	*dst++ = '1';
@@ -208,6 +236,7 @@ smb_simplecrypt(char *dst, const char *src)
 		dst += 2;
 	}
 	*dst = 0;
+	return dp;
 }
 
 int
@@ -241,3 +270,107 @@ smb_simpledecrypt(char *dst, const char *src)
 	*dst = 0;
 	return 0;
 }
+
+
+#ifdef APPLE
+static int
+safe_execv(char *args[])
+{       
+	int	     pid;   
+	union wait      status;
+	
+	pid = fork();  
+	if (pid == 0) {
+		(void)execv(args[0], args);
+		errx(EX_OSERR, "%s: execv %s failed, %s\n", __progname,
+		     args[0], strerror(errno));
+	}
+	if (pid == -1) {
+		fprintf(stderr, "%s: fork failed, %s\n", __progname,
+			strerror(errno));
+		return (1);
+	}
+	if (wait4(pid, (int *)&status, 0, NULL) != pid) {
+		fprintf(stderr, "%s: BUG executing %s command\n", __progname,
+			args[0]);  
+		return (1);
+	} else if (!WIFEXITED(status)) {
+		fprintf(stderr, "%s: %s command aborted by signal %d\n",
+			__progname, args[0], WTERMSIG(status));
+		return (1);
+	} else if (WEXITSTATUS(status)) {
+		fprintf(stderr, "%s: %s command failed, exit status %d: %s\n",
+			__progname, args[0], WEXITSTATUS(status),
+			strerror(WEXITSTATUS(status)));
+		return (1);
+	}       
+	return (0);
+}       
+
+
+void
+dropsuid()
+{
+	/* drop setuid root privs asap */
+	eff_uid = geteuid();
+	real_uid = getuid();
+	seteuid(real_uid);
+	return;
+}
+
+
+static int
+kextisloaded(char * kextname)
+{
+	mach_port_t kernel_port;
+	kmod_info_t *k, *loaded_modules = 0;
+	int err, loaded_count = 0;
+
+	/* on error return not loaded - to make loadsmbvfs fail */
+
+	err = task_for_pid(mach_task_self(), 0, &kernel_port);
+	if (err) {
+		fprintf(stderr, "%s: %s: %s\n", __progname,
+			"unable to get kernel task port",
+			mach_error_string(err));
+		return (0);
+	}
+	err = kmod_get_info(kernel_port, (void *)&loaded_modules,
+			    &loaded_count); /* never freed */
+	if (err) {
+		fprintf(stderr, "%s: %s: %s\n", __progname,
+			"kmod_get_info() failed",
+			mach_error_string(err));
+		return (0);
+	}
+	for (k = loaded_modules; k; k = k->next ? k+1 : 0)
+		if (!strcmp(k->name, kextname))
+			return (1);
+	return (0);
+}
+
+
+#define KEXTLOAD_COMMAND	"/sbin/kextload"
+#define FS_KEXT_DIR		"/System/Library/Extensions/smbfs.kext"
+#define FULL_KEXTNAME		"com.apple.filesystems.smbfs"
+
+
+int
+loadsmbvfs()
+{       
+	const char *kextargs[] = {KEXTLOAD_COMMAND, FS_KEXT_DIR, NULL};
+	int error = 0;
+
+	/*
+	 * temporarily revert to root (required for kextload)
+	 */
+	seteuid(eff_uid);
+	if (!kextisloaded(FULL_KEXTNAME)) {
+		error = safe_execv(kextargs);
+		if (!error)
+			error = !kextisloaded(FULL_KEXTNAME);
+	}
+	seteuid(real_uid); /* and back to real user */
+	return (error);
+}       
+#endif /* APPLE */

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: view.c,v 1.7 2001/01/28 07:35:01 bp Exp $
+ * $Id: view.c,v 1.8 2001/08/22 03:33:38 bp Exp $
  */
 #include <sys/param.h>
 #include <sys/errno.h>
@@ -86,6 +86,10 @@ cmd_view(int argc, char *argv[])
 			/*NOTREACHED*/
 		}
 	}
+#ifdef APPLE
+	if (loadsmbvfs())
+		errx(EX_OSERR, "SMB filesystem is not available");
+#endif
 	smb_ctx_setshare(ctx, "IPC$", SMB_ST_ANY);
 	if (smb_ctx_resolve(ctx) != 0)
 		exit(1);
