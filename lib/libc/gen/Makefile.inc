@@ -54,8 +54,8 @@ MAN+=	alarm.3 arc4random.3 clock.3 \
 	siginterrupt.3 signal.3 sigsetops.3 sleep.3 stringlist.3 \
 	strtofflags.3 sysconf.3 sysctl.3 syslog.3 tcgetpgrp.3 \
 	tcsendbreak.3 tcsetattr.3 tcsetpgrp.3 time.3 times.3 timezone.3 \
-	ttyname.3 tzset.3 ualarm.3 uname.3 unvis.3 usleep.3 utime.3 \
-	valloc.3 vis.3
+	ttyname.3 tzset.3 ualarm.3 ucontext.3 uname.3 \
+	unvis.3 usleep.3 utime.3 valloc.3 vis.3
 
 MLINKS+=arc4random.3 arc4random_addrandom.3 arc4random.3 arc4random_stir.3
 MLINKS+=crypt.3 des_cipher.3 crypt.3 des_setkey.3 crypt.3 encrypt.3 \
