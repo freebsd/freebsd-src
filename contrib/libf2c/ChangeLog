@@ -1,18 +1,270 @@
-2001-10-23  Release Manager
+2002-05-08  Alexandre Oliva  <aoliva@redhat.com>
 
-	* GCC 3.0.2 Released.
+	* configure.in (ORIGINAL_LD_FOR_MULTILIBS): Preserve LD at
+	script entry, and set LD to it when configuring multilibs.
+	* configure: Rebuilt.
 
-2001-08-19  Release Manager
+2002-05-02  Alexandre Oliva  <aoliva@redhat.com>
 
-	* GCC 3.0.1 Released.
+        * Makefile.in: Fix for multilibbed natives.
 
-2001-08-19  Release Manager
+2002-04-15  Loren J. Rittle  <ljrittle@acm.org>
 
-	* GCC 3.0.1 Released.
+	* aclocal.m4 (gcc_version_trigger): Use robust path construction.
+	* configure: Rebuilt.
 
-20010617 Release Manager
+2002-04-01  Phil Edwards  <pme@gcc.gnu.org>
 
-        * GCC 3.0 Released.
+	* libF77/Version.c:  Fix misplaced leading blanks on first line.
+	* libI77/Version.c:  Likewise.
+	* libU77/Version.c:  Likewise.
+
+2002-01-28  Geoffrey Keating  <geoffk@redhat.com>
+
+	* aclocal.m4: Replace with version copied from libstdc++-v3.
+	* configure.in: Update for changes to aclocal and Makefile.
+	* configure: Regenerate.
+	* Makefile.in: Correct install and uninstall for cross targets.
+	* libU77/configure: Regenerate.
+
+2002-01-20  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* Makefile.in: $(MULTISUBDIR) has an implied leading `/';
+	remove duplicates.
+	Use libtool for removing libg2c{a|la|so} for the `uninstall' target.
+
+2002-01-18  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* Makefile.in: Add missing `/' separator in last change.
+
+2002-01-18  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* Makefile.in: Install libg2c.{a|la|so} in $(libdir)$(MULTISUBDIR)
+	instead of $(libsubdir)$(MULTISUBDIR).
+
+2002-01-15  Loren J. Rittle  <ljrittle@acm.org>
+
+	* libI77/configure.in: Remove fcntl.h check; never define
+	_POSIX_SOURCE, NO_FCNTL or OPEN_DECL.  Add check for tmpnam().
+	* libI77/configure: Rebuilt.
+	* libI77/config.h.in: Rebuilt.
+	* libI77/Makefile.in: Remove all traces of rawio.h from
+	dependencies lists.
+	* libI77/fio.h (FSEEK): Unroll -j1.7 -j1.6 made 2002-01-04.
+	* libI77/open.c (f_open): Use HAVE_TMPNAM.
+	* libI77/rawio.h: Remove file.
+
+2002-01-14  John David Anglin  <dave@hiauly1.hia.nrc.ca>
+
+	* libI77/configure.in (_LARGEFILE_SOURCE): AC_DEFINE.
+	* libI77/configure: Rebuilt.
+	* libI77/config.h.in: Rebuilt.
+
+2002-01-04  Loren J. Rittle  <ljrittle@acm.org>
+
+	* libI77/fio.h (FSEEK): Enforce type of second parameter to be
+	off_t when prototype is missing from system headers for the
+	non-standard function.
+
+2002-01-03  Loren J. Rittle  <ljrittle@acm.org>
+
+	* Makefile.in ($(LIBG2C):): Let libtool decide when to add -lc.
+
+2001-12-04  Alexandre Oliva  <aoliva@redhat.com>
+
+	* Makefile.in ($(LIBG2C)): Fix -rpath argument to libtool.
+
+	* Makefile.in (AR, RANLIB): Add, for substitutions.
+	(all-unilib, $(LIBG2C)): Depend on object lists, not
+	convenience libraries.
+	(s-libe77): Renamed from libE77.la; build object list.
+	(install): Do not move libraries to libdir.
+	(mostlyclean, clean): Adjust.
+	* libF77/Makefile.in (RANLIB): Add.
+	(LINK): Remove.
+	(../s-libf77): Renamed from ../libF77.la; build object list.
+	(../libfrtbegin.a): Remove target first.  Don't use $<.
+	(all, clean, distclean): Adjust.
+	* libF77/configure.in: Substitute RANLIB.
+	* libF77/configure: Rebuilt.
+	* libI77/Makefile.in (LINK): Delete.
+	(../s-libi77): Renamed from ../libI77.la; build object list.
+	(all, clean, distclean): Adjust.
+	* libU77/Makefile.in: Likewise.
+
+2001-12-02  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	PR fortran/4885
+	* endfile.c (t_runc): After ftruncate, seek to end-of-file.
+
+2001-11-25  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* libF77/Makefile.in: Fix non-portable use of `$<' in z_log.c's rule.
+
+2001-11-23  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	PR libf2c/4930
+	* libF77/Makefile.in: Compile z_log.c with -ffloat-store.
+
+2001-11-16  John David Anglin  <dave@hiauly1.hia.nrc.ca>
+
+	* Makefile.in: Add MAKEOVERRIDES= to suppress exporting
+	environment to (sub)shells.
+
+2001-11-13  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* Makefile.in: Change dependencies on stamp files
+	into dependencies on the generated .la files.
+	Get rid of objlist.  Update comment.
+	* libF77/Makefile.in: Ditto.
+	* libI77/Makefile.in: Ditto.
+	* libU77/Makefile.in: Ditto.
+
+2001-10-20  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* configure.in: Fake AC_EXEEXT invocation.
+	* configure: Regenerate.
+
+2001-10-20  David Edelsohn  <dje@watson.ibm.com>
+
+	* Makefile.in: Do not include SUBDIRS in objlist.  Create
+	libg2c.so from F2CEXT and SUBDIRS archives.
+	* libF77/Makefile.in: Create archive.
+	* libI77/Makefile.in: Same.
+	* libU77/Makefile.in: Same.
+
+2001-10-05  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* Makefile.in: Move libg2c.so and libg2c.{l}a to
+	the same directory at install.
+
+2001-10-03  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* Makefile.in: Add "AR" reference, change
+	from frtbegin.o to libfrtbegin.a.
+	* libF77/Makefile.in: Ditto.
+
+2001-10-02  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* libF77/Makefile.in: Make .lo the target of compilation.
+	* libI77/Makefile.in: Ditto.
+	* libU77/Makefile.in: Ditto.
+
+2001-10-01  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* Makefile.in: Set major:minor:sub version number
+	of shared libf2c to 0:0:0.
+
+2001-09-29  Juergen Pfeifer  <juergen.pfeifer@gmx.net>
+            Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	Make libf2c a shared library.
+
+	* aclocal.m4: Get definition of libtool.
+	* Makefile.in: Use libtool.
+	* configure.in: Use libtool.
+	* configure: Regenerated.
+	* libF77/Makefile.in: Use libtool; treat main program contained in
+	libF77/main.c specially.
+	* libF77/configure.in: Use libtool.
+	* libF77/configure: Regenerated.
+	* libI77/Makefile.in: Use libtool.
+	* libI77/configure.in: Use libtool.
+	* libI77/configure: Regenerated.
+	* libU77/Makefile.in: Use libtool.
+	* libU77/configure.in: Use libtool.
+	* libU77/configure: Regenerated.
+	* libU77/date_.c: Adapt for -fPIC compiling.
+	* libU77/vxtidate_.c: Ditto.
+
+2001-09-22  Richard Earnshaw  <rearnsha@arm.com>
+
+	* libI77/configure.in (__EXTENSIONS__): Define.
+	* libI77/config.h.in, libI77/conifgure: regenerate.
+	* libU77/configure.in (__EXTENSIONS__): Likewise.
+
+2001-07-18  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* libI77/configure.in (_XOPEN_SOURCE, _FILE_OFFSET_BITS): Move
+	these defines before tests which might be affected by them.
+	(_XOPEN_SOURCE_EXTENDED): Define.
+	* libI77/configure, libI77/config.h.in: Regenerate.
+
+Wed Jul 18 11:14:33 2001  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* libU77/configure.in (_XOPEN_SOURCE, _FILE_OFFSET_BITS): Move
+	these defines before tests which might be affected by them.
+	(_XOPEN_SOURCE_EXTENDED): Define.
+
+	* libU77/configure, libU77/config.hin: Regenerate.
+
+2001-07-10  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* libI77/fio.h: Revert type of url from off_t to int.
+	* libI77/dfe.c (c_dfe): Cast offset expression in FSEEK to off_t.
+	* libI77/due.c (c_due): Ditto.  (e_rdue): Ditto.
+	* libI77/ftell_.c (G77_ftell_0): Cast result of FTELL to integer.
+	(G77_fseek_0): Cast offset argument of FSEEK to off_t.
+
+2001-07-07  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* libI77/Makefile.in: Update config.h dependencies.
+	* libI77/configure.in: Define _XOPEN_SOURCE and
+	_FILE_OFFSET_BITS unconditionally.
+	* libI77/configure: Rebuilt.
+	* libI77/config.h.in: Rebuilt.
+	* libI77/endfile.c (t_runc): Replace rewind by FSEEK.
+	* libI77/err.c (f__nowwriting): The type of `loc' is off_t.
+	* libI77/open.c (f_open): Replace rewind by FSEEK.
+	* libI77/rewind.c: Include config.h.  (f_rew): Replace
+	rewind by FSEEK.
+	* libI77/sfe.c: Include config.h.
+	* libI77/wsfe.c: Ditto.
+	* libU77/configure.in: Define _XOPEN_SOURCE and
+	_FILE_OFFSET_BITS unconditionally.
+	* libU77/configure: Rebuilt.
+	* libU77/config.hin: Rebuilt.
+
+2001-07-07  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* libI77/Makefile.in: Add necessary dependencies on config.h.
+
+2001-07-06  Toon Moene  <toon@moene.indiv.nluug.nl>
+            Pedro Vazquez  <vazquez@penelope.iqm.unicamp.br>
+
+	* libI77/configure.in: Check for fseeko, ftello.
+	* libI77/configure: Rebuilt.
+	* libI77/config.h.in: Rebuilt.
+	* libI77/fio.h: Define FSEEK to be fseek or fseeko, depending
+	on configure's findings.  Ditto for FTELL and ftell / ftello.
+	* libI77/backspace.c (f_back): Use FSEEK for fseek, FTELL for ftell.
+	* libI77/dfe.c (c_dfe): Ditto.
+	* libI77/due.c (c_due, e_rdue): Ditto.
+	* libI77/endfile.c (t_runc): Ditto.
+	* libI77/err.c (f__nowreading, f__nowwriting): Ditto.
+	* libI77/ftell_.c (G77_ftell_0, G77_fseek_0): Ditto.
+	* libI77/inquire.c (f_inqu): Ditto.
+	* libI77/open.c (f_open): Ditto.
+	* libI77/rdfmt.c (rd_ed): Ditto.
+	* libI77/sue.c (s_wsue, e_wsue, e_rsue): Ditto.
+
+2001-07-04  Zack Weinberg  <zackw@stanford.edu>
+
+	* Makefile.in: Take PICFLAG and RUNTESTFLAGS out of FLAGS_TO_PASS.
+
+2001-07-01  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* libI77/fio.h: Include <sys/types.h> for off_t.
+
+2001-07-01  Toon Moene  <toon@moene.indiv.nluug.nl>
+            Pedro Vazquez  <vazquez@penelope.iqm.unicamp.br>
+
+	* libI77/fio.h: Use off_t when appropriate.
+	* libI77/backspace.c (f_back): Ditto.
+	* libI77/endfile.c (t_runc): Ditto.
+	* libI77/err.c (f__nowreading): Ditto.
+	* libI77/ftell_.c (unit_chk): Ditto.
+	* libI77/sue.c (global f__recloc, s_wsue): Ditto.
 
 2001-06-13  Toon Moene  <toon@moene.indiv.nluug.nl>
 
@@ -80,11 +332,16 @@
 	ftruncate() prototype is somehow missing even though autoconf
 	test found it properly.
 
-2001-02-27  Toon Moene  <toon@moene.indiv.nluug.nl>
+2001-02-26  Toon Moene  <toon@moene.indiv.nluug.nl>
 
 	* libI77/configure.in: Test for ftruncate.
 	* libI77/configure: Rebuilt.
 	* libI77/endfile.c: Use fflush/ftruncate when available.
+
+2001-02-19  Joseph S. Myers  <jsm28@cam.ac.uk>
+
+	* libF77/Version.c, libI77/Version.c, libU77/Version.c: Update G77
+	version number to 0.5.27.
 
 2001-02-08  Geoffrey Keating  <geoffk@redhat.com>
 

@@ -23,6 +23,15 @@ AC_PREREQ(2.12.1)
 AC_INIT(access_.c)
 AC_CONFIG_HEADER(config.h:config.hin)
 
+# These defines are necessary to get 64-bit file size support.
+
+AC_DEFINE(_XOPEN_SOURCE, 500L, [Get Single Unix Specification semantics])
+# The following is needed by irix6.2 so that struct timeval is declared.
+AC_DEFINE(_XOPEN_SOURCE_EXTENDED, 1, [Get Single Unix Specification semantics])
+# The following is needed by Solaris2.5.1 so that struct timeval is declared.
+AC_DEFINE(__EXTENSIONS__, 1, [Solaris extensions])
+AC_DEFINE(_FILE_OFFSET_BITS, 64, [Get 64-bit file size support])
+
 dnl Checks for programs.
 
 dnl FIXME AC_PROG_CC wants CC to be able to link things, but it may
@@ -32,6 +41,10 @@ define([AC_PROG_CC_WORKS],[])
 # For g77 we'll set CC to point at the built gcc, but this will get it into
 # the makefiles
 AC_PROG_CC
+
+LIBTOOL='$(SHELL) ../libtool'
+AC_SUBST(LIBTOOL)
+
 dnl AC_C_CROSS
 dnl Gives misleading `(cached)' message from the check.
 if test "$CROSS";then
@@ -107,4 +120,5 @@ AC_SUBST(MAYBES)
 AC_SUBST(CROSS)
 AC_SUBST(RANLIB)
 AC_SUBST(RANLIB_TEST)
+
 AC_OUTPUT(Makefile)
