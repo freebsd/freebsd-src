@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.83 1998/05/23 22:24:44 brian Exp $
+ * $Id: modem.c,v 1.84 1998/05/25 02:22:37 brian Exp $
  *
  *  TODO:
  */
@@ -1051,7 +1051,7 @@ modem2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov)
     timer_Stop(&p->link.ccp.fsm.StoppedTimer);
     if (p->Timer.state != TIMER_STOPPED) {
       timer_Stop(&p->Timer);
-      if (!physical_IsATTY(p) || p->fd != STDIN_FILENO)
+      if (tcgetpgrp(p->fd) == getpgrp())
         p->Timer.state = TIMER_RUNNING;	/* Special - see iov2modem() */
     }
     timer_Stop(&p->link.throughput.Timer);

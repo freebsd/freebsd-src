@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.6 1998/05/23 22:28:19 brian Exp $
+ *	$Id: bundle.c,v 1.7 1998/05/25 02:22:30 brian Exp $
  */
 
 #include <sys/types.h>
@@ -1450,7 +1450,7 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
     msg.msg_iov = iov;
     msg.msg_iovlen = niov;
 
-    if (link_fd == STDIN_FILENO && isatty(link_fd)) {
+    if (tcgetpgrp(link_fd) == getpgrp()) {
       /*
        * We can't transfer this tty descriptor.  If we do, then once the
        * session leader exits, the descriptor becomes unusable by the
@@ -1480,7 +1480,7 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
     /* We must get the ACK before closing the descriptor ! */
     read(s, &ack, 1);
 
-    if (link_fd == STDIN_FILENO && isatty(link_fd)) {
+    if (tcgetpgrp(link_fd) == getpgrp()) {
       /* We use `/bin/cat' to keep the tty session id */
       pid_t pid;
       int status, len, fd;
