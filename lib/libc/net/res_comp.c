@@ -56,7 +56,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_comp.c	8.1 (Berkeley) 6/4/93";
 static char orig_rcsid[] = "From: Id: res_comp.c,v 8.11 1996/12/02 09:17:22 vixie Exp";
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: res_comp.c,v 1.10 1997/02/22 15:00:29 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -95,6 +95,8 @@ dn_expand(msg, eomorig, comp_dn, exp_dn, length)
 
 	dn = exp_dn;
 	cp = comp_dn;
+	if (length > MAXHOSTNAMELEN-1)
+		length = MAXHOSTNAMELEN-1;
 	eom = exp_dn + length;
 	/*
 	 * fetch next label in domain name
