@@ -1,6 +1,8 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 12/15/93
 #	$Id$
 
+DISTRIBUTION=	krb
+
 LIB=	telnet
 SRCS=   encrypt.c genget.c getent.c misc.c
 

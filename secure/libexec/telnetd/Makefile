@@ -4,6 +4,8 @@
 # Do not define -DKLUDGELINEMODE, as it does not interact well with many
 # telnet implementations.
 
+DISTRIBUTION=	krb
+
 PROG=	telnetd
 MAN8=	telnetd.8
 

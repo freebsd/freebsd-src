@@ -34,6 +34,8 @@
 #	$Id$
 #
 
+DISTRIBUTION=	krb
+
 PROG=	telnet
 
 SRCS=	authenc.c commands.c main.c network.c ring.c sys_bsd.c telnet.c \
