@@ -9,6 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
+ * $Id$
  */
 
 
@@ -1440,7 +1441,7 @@ ip_mdq(m, ifp, rt, xmt_vif)
 
 		k_igmpsrc.sin_addr = im->im_src;
 
-		socket_send(ip_mrouter, m, &k_igmpsrc);
+		socket_send(ip_mrouter, mm, &k_igmpsrc);
 	    }
 	}
 	return 0;
