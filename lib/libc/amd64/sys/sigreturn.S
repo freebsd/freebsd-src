@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sigreturn.S,v 1.1 1994/08/05 01:18:53 wollman Exp $
+ *	$Id: sigreturn.S,v 1.2 1995/01/23 01:30:16 davidg Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id$"
+	.asciz "$Id: sigreturn.S,v 1.2 1995/01/23 01:30:16 davidg Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"
@@ -53,5 +53,5 @@
 	.data; 1:; .long 0; .text; movl $1b,%eax; call mcount; popa ; nop
 #endif /* PROF */
 
-SYSCALL(sigreturn)
+PSYSCALL(sigreturn)
 	ret

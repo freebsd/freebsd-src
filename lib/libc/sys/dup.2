@@ -95,6 +95,53 @@ is specified.  If this descriptor is already
 in use, the descriptor is first deallocated as if a
 .Xr close 2
 call had been done first.
+.Sh IMPLEMENTATION NOTES
+.Pp
+In the non-threaded library
+.Fn dup
+is implemented as the
+.Va dup
+syscall.
+.Pp
+In the threaded library, the
+.Va dup
+syscall is assembled to
+.Fn _thread_sys_dup
+and
+.Fn dup
+is implemented as a function which locks
+.Va oldd
+for read and write, then calls
+.Fn _thread_sys_dup .
+Before returning,
+.Fn dup
+unlocks
+.Va oldd .
+.Pp
+In the non-threaded library
+.Fn dup2
+is implemented as the
+.Va dup2
+syscall.
+.Pp
+In the threaded library, the
+.Va dup2
+syscall is assembled to
+.Fn _thread_sys_dup2
+and
+.Fn dup2
+is implemented as a function which locks both
+.Va oldd
+and
+.Va newd
+for read and write, then calls
+.Fn _thread_sys_dup2 .
+Before returning,
+.Fn dup2
+unlocks
+.Va oldd .
+and
+.Va newd .
 .Sh RETURN VALUES
 The value -1 is returned if an error occurs in either call.
 The external variable

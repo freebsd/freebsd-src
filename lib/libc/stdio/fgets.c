@@ -40,6 +40,11 @@ static char sccsid[] = "@(#)fgets.c	8.2 (Berkeley) 12/22/93";
 
 #include <stdio.h>
 #include <string.h>
+#include "local.h"
+#ifdef _THREAD_SAFE
+#include <pthread.h>
+#include "pthread_private.h"
+#endif
 
 /*
  * Read at most n-1 characters from the given file.
@@ -59,6 +64,9 @@ fgets(buf, n, fp)
 	if (n == 0)		/* sanity check */
 		return (NULL);
 
+#ifdef _THREAD_SAFE
+	_thread_flockfile(fp,__FILE__,__LINE__);
+#endif
 	s = buf;
 	n--;			/* leave space for NUL */
 	while (n != 0) {
@@ -68,8 +76,12 @@ fgets(buf, n, fp)
 		if ((len = fp->_r) <= 0) {
 			if (__srefill(fp)) {
 				/* EOF/error: stop with partial or no line */
-				if (s == buf)
+				if (s == buf) {
+#ifdef _THREAD_SAFE
+					_thread_funlockfile(fp);
+#endif
 					return (NULL);
+				}
 				break;
 			}
 			len = fp->_r;
@@ -91,6 +103,9 @@ fgets(buf, n, fp)
 			fp->_p = t;
 			(void)memcpy((void *)s, (void *)p, len);
 			s[len] = 0;
+#ifdef _THREAD_SAFE
+			_thread_funlockfile(fp);
+#endif
 			return (buf);
 		}
 		fp->_r -= len;
@@ -100,5 +115,8 @@ fgets(buf, n, fp)
 		n -= len;
 	}
 	*s = 0;
+#ifdef _THREAD_SAFE
+	_thread_funlockfile(fp);
+#endif
 	return (buf);
 }

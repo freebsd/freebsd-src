@@ -47,12 +47,48 @@ their error returns, and other common definitions and concepts.
 .\".Pp
 .\"<more later...>
 .Sh DIAGNOSTICS
-Nearly all of the system calls provide an error number in the external
-variable
-.Va errno ,
-which is defined as:
+Nearly all of the system calls provide an error number referenced via
+the external identifier errno. This identifier is defined in 
+.Aq Pa sys/errno.h
+for non-threaded programs as:
 .Pp
 .Dl extern int errno
+.Pp
+and for threaded programs as:
+.Pp
+.Dl extern    int *       __error();
+.Dl #define   errno       (* __error())
+.Pp
+A threaded program must be compiled with
+.Va _THREAD_SAFE
+defined so that the preprocessor will output the appropriate errno
+definition to the compiler. Failure to do so will mean that error
+variables will not be thread specific.
+.Pp
+The threaded library implementation of
+.Va __error()
+returns a pointer to a field in the thread specific structure for
+threads other than the initial thread. For the initial thread,
+.Va __error()
+returns a pointer to a global
+.Va errno
+variable that is compatible with that used by non-threaded programs.
+This allows the initial thread to call functions in libraries which have
+not been compiled with
+.Va _THREAD_SAFE .
+Programmers should ensure that threads other than the initial thread only
+call functions in libraries that have been compiled with
+.Va _THREAD_SAFE .
+.Pp
+Programmers should include
+.Aq Pa sys/errno.h to obtain the definition of
+.Va errno
+rather than coding the definition as an external reference directly. It is
+planned that the
+.Va extern int errno
+definition will eventually be replaced by the threaded definition so that
+all libraries will have a thread-aware treatment of
+.Va errno .
 .Pp
 When a system call detects an error,
 it returns an integer value

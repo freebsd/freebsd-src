@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sigprocmask.S,v 1.1 1994/08/05 01:18:52 wollman Exp $
+ *	$Id: sigprocmask.S,v 1.2 1995/01/23 01:30:11 davidg Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id$"
+	.asciz "$Id: sigprocmask.S,v 1.2 1995/01/23 01:30:11 davidg Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"
@@ -46,7 +46,11 @@
 err:
 	jmp	cerror
 
+#ifdef _THREAD_SAFE
+ENTRY(_thread_sys_sigprocmask)
+#else
 ENTRY(sigprocmask)
+#endif
 	movl	8(%esp),%ecx		# fetch new sigset pointer
 	cmpl	$0,%ecx			# check new sigset pointer
 	jne	1f			# if not null, indirect

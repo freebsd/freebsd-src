@@ -180,7 +180,7 @@ dbm_error(db)
 	HTAB *hp;
 
 	hp = (HTAB *)db->internal;
-	return (hp->errno);
+	return (hp->error);
 }
 
 extern int
@@ -190,7 +190,7 @@ dbm_clearerr(db)
 	HTAB *hp;
 
 	hp = (HTAB *)db->internal;
-	hp->errno = 0;
+	hp->error = 0;
 	return (0);
 }
 

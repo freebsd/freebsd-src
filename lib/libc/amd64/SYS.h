@@ -35,7 +35,7 @@
  *
  *	from: @(#)SYS.h	5.5 (Berkeley) 5/7/91
  *
- *	$Id: SYS.h,v 1.3 1993/11/04 00:01:17 paul Exp $
+ *	$Id: SYS.h,v 1.2 1994/08/05 01:17:57 wollman Exp $
  */
 
 #include <sys/syscall.h>
@@ -63,6 +63,21 @@
 
 #define	SYSCALL(x)	2: jmp cerror; ENTRY(x); lea SYS_/**/x,%eax; LCALL(7,0); jb 2b
 #define	RSYSCALL(x)	SYSCALL(x); ret
+
+#ifdef _THREAD_SAFE
+/*
+ * Support for user-space threads which require that some syscalls be
+ * private to the threaded library.
+ */
+#define	PSYSCALL(x)	2: jmp cerror; ENTRY(_thread_sys_/**/x); lea SYS_/**/x,%eax; LCALL(7,0); jb 2b
+#else
+/*
+ * The non-threaded library defaults to traditional syscalls where
+ * the function name matches the syscall name.
+ */
+#define	PSYSCALL(x)	SYSCALL(x)
+#endif
+#define	PRSYSCALL(x)	PSYSCALL(x); ret
 #define	PSEUDO(x,y)	ENTRY(x); lea SYS_/**/y, %eax; ; LCALL(7,0); ret
 #define	CALL(x,y)	call _/**/y; addl $4*x,%esp
 /* gas fucks up offset -- although we don't currently need it, do for BCS */
