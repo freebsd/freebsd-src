@@ -23,13 +23,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.1.2.23 1998/04/07 23:46:06 brian Exp $
+ *	$Id: prompt.c,v 1.1.2.24 1998/04/08 18:27:29 brian Exp $
  */
 
 #include <sys/param.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <sys/un.h>
 
 #include <errno.h>
 #include <stdarg.h>
@@ -170,9 +171,6 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
   static int ttystate;
   char linebuff[LINE_LEN];
 
-  LogPrintf(LogDEBUG, "termode = %p, p->fd_in = %d, mode = %d\n",
-	    p->TermMode, p->fd_in, mode);
-
   if (p->TermMode == NULL) {
     n = read(p->fd_in, linebuff, sizeof linebuff - 1);
     if (n > 0) {
@@ -183,8 +181,7 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
       p->nonewline = 1;		/* Maybe DecodeCommand does a prompt */
       prompt_Required(p);
       if (n)
-        DecodeCommand(bundle, linebuff, n, p,
-                      (mode & MODE_INTER) ? NULL : "Client");
+        DecodeCommand(bundle, linebuff, n, p, p->src.from);
     } else if (n <= 0) {
       LogPrintf(LogPHASE, "Client connection closed.\n");
       prompt_Destroy(p, 0);
@@ -292,14 +289,17 @@ prompt_Create(struct server *s, struct bundle *bundle, int fd)
       p->Term = stdout;
       p->owner = NULL;
       p->auth = LOCAL_AUTH;
-      snprintf(p->who, sizeof p->who, "Controller (%s)", ttyname(p->fd_out));
+      p->src.type = "Controller";
+      strncpy(p->src.from, ttyname(p->fd_out), sizeof p->src.from - 1);
+      p->src.from[sizeof p->src.from - 1] = '\0';
       tcgetattr(p->fd_in, &p->oldtio);	/* Save original tty mode */
     } else {
       p->fd_in = p->fd_out = fd;
       p->Term = fdopen(fd, "a+");
       p->owner = s;
       p->auth = *s->passwd ? LOCAL_NO_AUTH : LOCAL_AUTH;
-      *p->who = '\0';
+      p->src.type = "unknown";
+      *p->src.from = '\0';
     }
     p->TermMode = NULL;
     p->nonewline = 1;
@@ -316,14 +316,6 @@ prompt_Create(struct server *s, struct bundle *bundle, int fd)
 }
 
 void
-prompt_DestroyUnclean(struct prompt *p)
-{
-  log_UnRegisterPrompt(p);
-  bundle_UnRegisterDescriptor(p->bundle, &p->desc);
-  free(p);
-}
-
-void
 prompt_Destroy(struct prompt *p, int verbose)
 {
   if (p->Term != stdout) {
@@ -336,7 +328,9 @@ prompt_Destroy(struct prompt *p, int verbose)
   } else
     prompt_TtyOldMode(p);
 
-  prompt_DestroyUnclean(p);
+  log_UnRegisterPrompt(p);
+  bundle_UnRegisterDescriptor(p->bundle, &p->desc);
+  free(p);
 }
 
 void
@@ -363,32 +357,34 @@ prompt_vPrintf(struct prompt *p, const char *fmt, va_list ap)
 }
 
 void
-prompt_TtyInit(struct prompt *p, int DontWantInt)
+prompt_TtyInit(struct prompt *p)
 {
-  int stat;
+  int stat, fd = p ? p->fd_in : STDIN_FILENO;
+  struct termios newtio;
 
-  stat = fcntl(p->fd_in, F_GETFL, 0);
+  stat = fcntl(fd, F_GETFL, 0);
   if (stat > 0) {
     stat |= O_NONBLOCK;
-    fcntl(p->fd_in, F_SETFL, stat);
+    fcntl(fd, F_SETFL, stat);
   }
 
-  if (p->Term == stdout) {
-    struct termios newtio;
-
+  if (p)
     newtio = p->oldtio;
-    newtio.c_lflag &= ~(ECHO | ISIG | ICANON);
-    newtio.c_iflag = 0;
-    newtio.c_oflag &= ~OPOST;
-    newtio.c_cc[VEOF] = _POSIX_VDISABLE;
-    if (DontWantInt)
-      newtio.c_cc[VINTR] = _POSIX_VDISABLE;
-    newtio.c_cc[VMIN] = 1;
-    newtio.c_cc[VTIME] = 0;
-    newtio.c_cflag |= CS8;
-    tcsetattr(p->fd_in, TCSANOW, &newtio);
+  else
+    tcgetattr(fd, &newtio);
+
+  newtio.c_lflag &= ~(ECHO | ISIG | ICANON);
+  newtio.c_iflag = 0;
+  newtio.c_oflag &= ~OPOST;
+  newtio.c_cc[VEOF] = _POSIX_VDISABLE;
+  if (!p)
+    newtio.c_cc[VINTR] = _POSIX_VDISABLE;
+  newtio.c_cc[VMIN] = 1;
+  newtio.c_cc[VTIME] = 0;
+  newtio.c_cflag |= CS8;
+  tcsetattr(fd, TCSANOW, &newtio);
+  if (p)
     p->comtio = newtio;
-  }
 }
 
 /*

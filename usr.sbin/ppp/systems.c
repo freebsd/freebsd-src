@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.35.2.4 1998/04/03 19:25:58 brian Exp $
+ * $Id: systems.c,v 1.35.2.5 1998/04/06 09:12:37 brian Exp $
  *
  *  TODO:
  */
@@ -157,7 +157,10 @@ DecodeCtrlCommand(char *line, char *arg)
   return CTRL_UNKNOWN;
 }
 
+/* Initialised in ValidSystem(), set in ReadSystem(), used by ValidSystem() */
+static int modeok;
 static int userok;
+static int modereq;
 
 int
 AllowUsers(struct cmdargs const *arg)
@@ -182,17 +185,27 @@ static struct {
   int mode;
   const char *name;
 } modes[] = {
-  { MODE_INTER, "interactive" },
-  { MODE_AUTO, "auto" },
-  { MODE_DIRECT, "direct" },
-  { MODE_DEDICATED, "dedicated" },
-  { MODE_DDIAL, "ddial" },
-  { MODE_BACKGROUND, "background" },
-  { ~0, "*" },
+  { PHYS_MANUAL, "interactive" },
+  { PHYS_DEMAND, "auto" },
+  { PHYS_STDIN, "direct" },
+  { PHYS_DEDICATED, "dedicated" },
+  { PHYS_PERM, "ddial" },
+  { PHYS_1OFF, "background" },
+  { PHYS_ALL, "*" },
   { 0, 0 }
 };
 
-static int modeok;
+const char *
+mode2Nam(int mode)
+{
+  int m;
+
+  for (m = 0; modes[m].mode; m++)
+    if (modes[m].mode == mode)
+      return modes[m].name;
+
+  return "unknown";
+}
 
 int
 AllowModes(struct cmdargs const *arg)
@@ -213,7 +226,7 @@ AllowModes(struct cmdargs const *arg)
       LogPrintf(LogWARN, "allow modes: %s: Invalid mode\n", arg->argv[f]);
   }
 
-  modeok = (mode | allowed) == allowed ? 1 : 0;
+  modeok = modereq & allowed ? 1 : 0;
   return 0;
 }
 
@@ -354,7 +367,7 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
 }
 
 int
-ValidSystem(const char *name, struct prompt *prompt)
+ValidSystem(const char *name, struct prompt *prompt, int mode)
 {
   /*
    * Note:  The ReadSystem() calls only result in calls to the Allow*
@@ -364,6 +377,7 @@ ValidSystem(const char *name, struct prompt *prompt)
     return userok = modeok = 1;
   userok = 0;
   modeok = 1;
+  modereq = mode;
   ReadSystem(NULL, "default", CONFFILE, 0, prompt);
   if (name != NULL)
     ReadSystem(NULL, name, CONFFILE, 0, prompt);
@@ -375,33 +389,6 @@ SelectSystem(struct bundle *bundle, const char *name, const char *file,
              struct prompt *prompt)
 {
   userok = modeok = 1;
+  modereq = PHYS_ALL;
   return ReadSystem(bundle, name, file, 1, prompt);
-}
-
-int
-LoadCommand(struct cmdargs const *arg)
-{
-  const char *name;
-
-  if (arg->argc > 0)
-    name = *arg->argv;
-  else
-    name = "default";
-
-  if (!ValidSystem(name, arg->prompt)) {
-    LogPrintf(LogERROR, "%s: Label not allowed\n", name);
-    return 1;
-  } else if (SelectSystem(arg->bundle, name, CONFFILE, arg->prompt) < 0) {
-    LogPrintf(LogWARN, "%s: label not found.\n", name);
-    return -1;
-  } else
-    SetLabel(arg->argc ? name : NULL);
-  return 0;
-}
-
-int
-SaveCommand(struct cmdargs const *arg)
-{
-  LogPrintf(LogWARN, "save command is not implemented (yet).\n");
-  return 1;
 }

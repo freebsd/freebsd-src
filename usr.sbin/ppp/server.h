@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.h,v 1.4.2.2 1998/04/03 19:25:55 brian Exp $
+ *	$Id: server.h,v 1.4.2.3 1998/04/07 00:54:18 brian Exp $
  */
 
 struct bundle;
@@ -32,6 +32,11 @@ struct server {
   struct descriptor desc;
   int fd;
   char passwd[50];
+
+  struct sockaddr_un ifsun;	/* local socket */
+  char *rm;			/* Points to local socket path */
+
+  u_short port;			/* tcp socket */
 };
 
 #define server2descriptor(s) (&(s)->desc)

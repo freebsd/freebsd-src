@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: throughput.c,v 1.4.4.4 1998/04/06 09:12:37 brian Exp $
+ *	$Id: throughput.c,v 1.4.4.5 1998/04/07 00:54:21 brian Exp $
  */
 
 #include <sys/types.h>
@@ -49,6 +49,7 @@ throughput_init(struct pppThroughput *t)
     t->SampleOctets[f] = 0;
   t->OctetsPerSecond = t->BestOctetsPerSecond = t->nSample = 0;
   t->Timer.name = "throughput";
+  t->uptime = 0;
   throughput_stop(t);
 }
 

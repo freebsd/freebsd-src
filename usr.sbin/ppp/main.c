@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.46 1998/04/07 00:54:07 brian Exp $
+ * $Id: main.c,v 1.121.2.47 1998/04/07 23:46:02 brian Exp $
  *
  *	TODO:
  */
@@ -26,6 +26,7 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <sys/un.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -198,36 +199,34 @@ Usage(void)
 }
 
 static char *
-ProcessArgs(int argc, char **argv)
+ProcessArgs(int argc, char **argv, int *mode)
 {
-  int optc;
+  int optc, labelrequired;
   char *cp;
 
-  optc = 0;
-  mode = MODE_INTER;
+  optc = labelrequired = 0;
+  *mode = PHYS_MANUAL;
   while (argc > 0 && **argv == '-') {
     cp = *argv + 1;
     if (strcmp(cp, "auto") == 0) {
-      mode |= MODE_AUTO;
-      mode &= ~MODE_INTER;
+      *mode = PHYS_DEMAND;
+      labelrequired = 1;
     } else if (strcmp(cp, "background") == 0) {
-      mode |= MODE_BACKGROUND;
-      mode &= ~MODE_INTER;
-    } else if (strcmp(cp, "direct") == 0) {
-      mode |= MODE_DIRECT;
-      mode &= ~MODE_INTER;
-    } else if (strcmp(cp, "dedicated") == 0) {
-      mode |= MODE_DEDICATED;
-      mode &= ~MODE_INTER;
-    } else if (strcmp(cp, "ddial") == 0) {
-      mode |= MODE_DDIAL;
-      mode &= ~MODE_INTER;
-#ifndef NOALIAS
+      *mode = PHYS_1OFF;
+      labelrequired = 1;
+    } else if (strcmp(cp, "direct") == 0)
+      *mode = PHYS_STDIN;
+    else if (strcmp(cp, "dedicated") == 0)
+      *mode = PHYS_DEDICATED;
+    else if (strcmp(cp, "ddial") == 0) {
+      *mode = PHYS_PERM;
+      labelrequired = 1;
     } else if (strcmp(cp, "alias") == 0) {
+#ifndef NOALIAS
       if (loadAliasHandlers() != 0)
+#endif
 	LogPrintf(LogWARN, "Cannot load alias library\n");
       optc--;			/* this option isn't exclusive */
-#endif
     } else
       Usage();
     optc++;
@@ -244,6 +243,12 @@ ProcessArgs(int argc, char **argv)
     exit(EX_START);
   }
 
+  if (labelrequired && argc != 1) {
+    fprintf(stderr, "Destination system must be specified in"
+            " auto, background or ddial mode.\n");
+    exit(EX_START);
+  }
+
   return argc == 1 ? *argv : NULL;	/* Don't SetLabel yet ! */
 }
 
@@ -252,7 +257,7 @@ main(int argc, char **argv)
 {
   FILE *lockfile;
   char *name, *label;
-  int nfds;
+  int nfds, mode;
   struct bundle *bundle;
   struct prompt *prompt;
 
@@ -271,7 +276,7 @@ main(int argc, char **argv)
 
   argc--;
   argv++;
-  label = ProcessArgs(argc, argv);
+  label = ProcessArgs(argc, argv, &mode);
 
 #ifdef __FreeBSD__
   /*
@@ -281,7 +286,7 @@ main(int argc, char **argv)
    * routing table and then run ppp in interactive mode.  The `show route'
    * command will drop chunks of data !!!
    */
-  if (mode & MODE_INTER) {
+  if (mode == PHYS_MANUAL) {
     close(STDIN_FILENO);
     if (open(_PATH_TTY, O_RDONLY) != STDIN_FILENO) {
       fprintf(stderr, "Cannot open %s for input !\n", _PATH_TTY);
@@ -291,21 +296,21 @@ main(int argc, char **argv)
 #endif
 
   /* Allow output for the moment (except in direct mode) */
-  if (mode & MODE_DIRECT)
+  if (mode == PHYS_STDIN)
     prompt = NULL;
   else {
     const char *m;
 
     SignalPrompt = prompt = prompt_Create(NULL, NULL, PROMPT_STD);
-    if (mode & MODE_DDIAL)
+    if (mode == PHYS_PERM)
       m = "direct dial";
-    else if (mode & MODE_BACKGROUND)
+    else if (mode & PHYS_1OFF)
       m = "background";
-    else if (mode & MODE_AUTO)
+    else if (mode & PHYS_DEMAND)
       m = "auto";
-    else if (mode & MODE_DEDICATED)
+    else if (mode & PHYS_DEDICATED)
       m = "dedicated";
-    else if (mode & MODE_INTER)
+    else if (mode & PHYS_MANUAL)
       m = "interactive";
     else
       m = NULL;
@@ -330,9 +335,9 @@ main(int argc, char **argv)
     } while (ptr >= conf);
   }
 
-  if (!ValidSystem(label, prompt)) {
+  if (!ValidSystem(label, prompt, mode)) {
     fprintf(stderr, "You may not use ppp in this mode with this label\n");
-    if (mode & MODE_DIRECT) {
+    if (mode == PHYS_STDIN) {
       const char *l;
       l = label ? label : "default";
       LogPrintf(LogWARN, "Label %s rejected -direct connection\n", l);
@@ -341,22 +346,14 @@ main(int argc, char **argv)
     return 1;
   }
 
-  if ((bundle = bundle_Create("/dev/tun", prompt)) == NULL) {
+  if ((bundle = bundle_Create(TUN_PREFIX, prompt, mode)) == NULL) {
     LogPrintf(LogWARN, "bundle_Create: %s\n", strerror(errno));
     return EX_START;
   }
   SignalBundle = bundle;
 
   if (SelectSystem(bundle, "default", CONFFILE, prompt) < 0)
-    prompt_Printf(prompt,
-                  "Warning: No default entry is given in config file.\n");
-
-  if ((mode & MODE_OUTGOING_DAEMON) && !(mode & MODE_DEDICATED))
-    if (label == NULL) {
-      prompt_Printf(prompt, "Destination system must be specified in"
-		    " auto, background or ddial mode.\n");
-      return EX_START;
-    }
+    prompt_Printf(prompt, "Warning: No default entry found in config file.\n");
 
   pending_signal(SIGHUP, CloseSession);
   pending_signal(SIGTERM, CloseSession);
@@ -364,7 +361,8 @@ main(int argc, char **argv)
   pending_signal(SIGQUIT, CloseSession);
   pending_signal(SIGALRM, SIG_IGN);
   signal(SIGPIPE, SIG_IGN);
-  if (mode & MODE_INTER)
+
+  if (mode == PHYS_MANUAL)
     pending_signal(SIGTSTP, TerminalStop);
 
 #if 0 /* What's our passwd :-O */
@@ -382,20 +380,20 @@ main(int argc, char **argv)
      * embeded load "otherlabel" command.
      */
     SetLabel(label);
-    if (mode & MODE_AUTO &&
+    if (mode == PHYS_DEMAND &&
 	bundle->ncp.ipcp.cfg.peer_range.ipaddr.s_addr == INADDR_ANY) {
-      prompt_Printf(prompt, "You must \"set ifaddr\" in label %s for "
-                    "auto mode.\n", label);
+      prompt_Printf(prompt, "You must \"set ifaddr\" with a peer address "
+                    "in label %s for auto mode.\n", label);
       AbortProgram(EX_START);
     }
   }
 
-  if (mode & MODE_DAEMON) {
-    if (!(mode & MODE_DIRECT)) {
+  if (mode != PHYS_MANUAL) {
+    if (mode != PHYS_STDIN) {
       int bgpipe[2];
       pid_t bgpid;
 
-      if (mode & MODE_BACKGROUND && pipe(bgpipe)) {
+      if (mode == PHYS_1OFF && pipe(bgpipe)) {
         LogPrintf(LogERROR, "pipe: %s\n", strerror(errno));
 	AbortProgram(EX_SOCK);
       }
@@ -409,7 +407,7 @@ main(int argc, char **argv)
       if (bgpid) {
 	char c = EX_NORMAL;
 
-	if (mode & MODE_BACKGROUND) {
+	if (mode == PHYS_1OFF) {
 	  close(bgpipe[1]);
 	  BGPid = bgpid;
           /* If we get a signal, kill the child */
@@ -433,29 +431,27 @@ main(int argc, char **argv)
 	  close(bgpipe[0]);
 	}
 	return c;
-      } else if (mode & MODE_BACKGROUND) {
+      } else if (mode == PHYS_1OFF) {
 	close(bgpipe[0]);
         bundle->notify.fd = bgpipe[1];
       }
-    }
 
-    if (mode & MODE_DIRECT) {
-      /* STDIN_FILENO gets used by modem_Open in DIRECT mode */
-      prompt = prompt_Create(NULL, bundle, PROMPT_STD);
-      prompt_TtyInit(prompt, PROMPT_DONT_WANT_INT);
-      prompt_DestroyUnclean(prompt);
-      close(STDOUT_FILENO);
-      close(STDERR_FILENO);
-    } else if (mode & MODE_DAEMON) {
+      /* -auto, -dedicated, -ddial & -background */
       prompt_Destroy(prompt, 0);
       close(STDOUT_FILENO);
       close(STDERR_FILENO);
       close(STDIN_FILENO);
       setsid();
+    } else {
+      /* -direct: STDIN_FILENO gets used by modem_Open */
+      prompt_TtyInit(NULL);
+      close(STDOUT_FILENO);
+      close(STDERR_FILENO);
     }
   } else {
+    /* Interactive mode */
     close(STDERR_FILENO);
-    prompt_TtyInit(prompt, PROMPT_WANT_INT);
+    prompt_TtyInit(prompt);
     prompt_TtyCommandMode(prompt);
     prompt_Required(prompt);
   }
@@ -473,13 +469,8 @@ main(int argc, char **argv)
               pid_filename, strerror(errno));
 #endif
 
-  LogPrintf(LogPHASE, "PPP Started.\n");
-
-
-  do
-    DoLoop(bundle, prompt);
-  while (mode & MODE_DEDICATED);
-
+  LogPrintf(LogPHASE, "PPP Started (%s mode).\n", mode2Nam(mode));
+  DoLoop(bundle, prompt);
   AbortProgram(EX_NORMAL);
 
   return EX_NORMAL;
@@ -493,10 +484,7 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
   int qlen;
   struct tun_data tun;
 
-  if (mode & (MODE_DIRECT|MODE_DEDICATED|MODE_BACKGROUND))
-    bundle_Open(bundle, NULL);
-
-  while (!bundle_IsDead(bundle)) {
+  do {
     nfds = 0;
     FD_ZERO(&rfds);
     FD_ZERO(&wfds);
@@ -596,9 +584,8 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
          * Note, we must be in AUTO mode :-/ otherwise our interface should
          * *not* be UP and we can't receive data
          */
-        if ((mode & MODE_AUTO) &&
-            (pri = PacketCheck(bundle, tun.data, n, &bundle->filter.dial)) >= 0)
-          bundle_Open(bundle, NULL);
+        if ((pri = PacketCheck(bundle, tun.data, n, &bundle->filter.dial)) >= 0)
+          bundle_Open(bundle, NULL, PHYS_DEMAND);
         else
           /*
            * Drop the packet.  If we were to queue it, we'd just end up with
@@ -620,6 +607,7 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
 	IpEnqueue(pri, tun.data, n);
       }
     }
-  }
-  LogPrintf(LogDEBUG, "Job (DoLoop) done.\n");
+  } while (bundle_CleanDatalinks(bundle), !bundle_IsDead(bundle));
+
+  LogPrintf(LogDEBUG, "DoLoop done.\n");
 }

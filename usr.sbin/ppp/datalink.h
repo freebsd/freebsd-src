@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.h,v 1.1.2.15 1998/04/05 22:48:14 brian Exp $
+ *	$Id: datalink.h,v 1.1.2.16 1998/04/07 00:53:36 brian Exp $
  */
 
 #define DATALINK_CLOSED  (0)
@@ -63,11 +63,15 @@ struct datalink {
     struct {
       char list[SCRIPT_LEN];	/* Telephone Numbers */
     } phone;
-    int max_dial;		/* initially try again this number of times */
-    int dial_timeout;		/* Redial timeout value */
-    int dial_next_timeout;	/* Redial next timeout value */
-    int max_reconnect;		/* initially try again this number of times */
-    int reconnect_timeout;	/* Timeout before reconnect on carrier loss */
+    struct {
+      int max;			/* initially try again this number of times */
+      int next_timeout;		/* Redial next timeout value */
+      int timeout;		/* Redial timeout value (end of phone list) */
+    } dial;
+    struct {
+      int max;			/* initially try again this number of times */
+      int timeout;		/* Timeout before reconnect on carrier loss */
+    } reconnect;
   } cfg;			/* All our config data is in here */
 
   struct {
@@ -99,7 +103,7 @@ struct datalink {
   ((d)->type == DATALINK_DESCRIPTOR ? (struct datalink *)(d) : NULL)
 
 extern struct datalink *datalink_Create(const char *name, struct bundle *,
-                                        const struct fsm_parent *);
+                                        const struct fsm_parent *, int);
 extern struct datalink *datalink_Clone(struct datalink *, const char *);
 extern struct datalink *datalink_Destroy(struct datalink *);
 extern void datalink_Up(struct datalink *, int, int);
@@ -109,3 +113,5 @@ extern void datalink_StayDown(struct datalink *);
 extern void datalink_Show(struct datalink *, struct prompt *);
 extern void datalink_AuthOk(struct datalink *);
 extern void datalink_AuthNotOk(struct datalink *);
+extern int datalink_SetRedial(struct cmdargs const *);
+extern int datalink_SetReconnect(struct cmdargs const *);

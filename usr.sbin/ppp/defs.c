@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: defs.c,v 1.11.4.6 1998/04/03 19:25:29 brian Exp $
+ *	$Id: defs.c,v 1.11.4.7 1998/04/06 09:12:26 brian Exp $
  */
 
 
@@ -34,7 +34,6 @@
 
 #include "defs.h"
 
-int mode = MODE_INTER;
 static char dstsystem[50];
 
 void

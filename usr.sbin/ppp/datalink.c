@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.34 1998/04/06 09:12:26 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.35 1998/04/07 00:53:35 brian Exp $
  */
 
 #include <sys/types.h>
@@ -63,6 +63,7 @@
 #include "lcpproto.h"
 #include "pap.h"
 #include "chap.h"
+#include "command.h"
 #include "datalink.h"
 
 static const char *datalink_State(struct datalink *);
@@ -102,31 +103,31 @@ static void
 datalink_HangupDone(struct datalink *dl)
 {
   modem_Close(dl->physical);
-  dl->phone.chosen = "[N/A]";
+  dl->phone.chosen = "N/A";
 
   if (dl->bundle->CleaningUp ||
-      (mode & MODE_DIRECT) ||
+      (dl->physical->type == PHYS_STDIN) ||
       ((!dl->dial_tries || (dl->dial_tries < 0 && !dl->reconnect_tries)) &&
-       !(mode & (MODE_DDIAL|MODE_DEDICATED)))) {
+       !(dl->physical->type & (PHYS_PERM|PHYS_DEDICATED)))) {
     LogPrintf(LogPHASE, "%s: Entering CLOSED state\n", dl->name);
     dl->state = DATALINK_CLOSED;
     dl->dial_tries = -1;
     dl->reconnect_tries = 0;
     bundle_LinkClosed(dl->bundle, dl);
     if (!dl->bundle->CleaningUp)
-      datalink_StartDialTimer(dl, dl->cfg.dial_timeout);
+      datalink_StartDialTimer(dl, dl->cfg.dial.timeout);
   } else {
     LogPrintf(LogPHASE, "%s: Re-entering OPENING state\n", dl->name);
     dl->state = DATALINK_OPENING;
     if (dl->dial_tries < 0) {
-      datalink_StartDialTimer(dl, dl->cfg.reconnect_timeout);
-      dl->dial_tries = dl->cfg.max_dial;
+      datalink_StartDialTimer(dl, dl->cfg.reconnect.timeout);
+      dl->dial_tries = dl->cfg.dial.max;
       dl->reconnect_tries--;
     } else {
       if (dl->phone.next == NULL)
-        datalink_StartDialTimer(dl, dl->cfg.dial_timeout);
+        datalink_StartDialTimer(dl, dl->cfg.dial.timeout);
       else
-        datalink_StartDialTimer(dl, dl->cfg.dial_next_timeout);
+        datalink_StartDialTimer(dl, dl->cfg.dial.next_timeout);
     }
   }
 }
@@ -195,7 +196,17 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
   result = 0;
   switch (dl->state) {
     case DATALINK_CLOSED:
-      break;
+      if ((dl->physical->type & (PHYS_STDIN|PHYS_DEDICATED|PHYS_1OFF)) &&
+          !bundle_IsDead(dl->bundle))
+        /*
+         * Our first time in - DEDICATED never comes down, and STDIN & 1OFF
+         * get deleted when they enter DATALINK_CLOSED.  Go to
+         * DATALINK_OPENING via datalink_Up() and fall through.
+         */
+        datalink_Up(dl, 1, 1);
+      else
+        break;
+      /* fall through */
 
     case DATALINK_OPENING:
       if (dl->dial_timer.state != TIMER_RUNNING) {
@@ -207,22 +218,24 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
             dl->state = DATALINK_DIAL;
             chat_Init(&dl->chat, dl->physical, dl->cfg.script.dial, 1,
                       datalink_ChoosePhoneNumber(dl));
-            if (!(mode & MODE_DDIAL) && dl->cfg.max_dial)
+            if (!(dl->physical->type & (PHYS_PERM|PHYS_DEDICATED)) &&
+                dl->cfg.dial.max)
               LogPrintf(LogCHAT, "%s: Dial attempt %u of %d\n",
-                        dl->name, dl->cfg.max_dial - dl->dial_tries,
-                        dl->cfg.max_dial);
+                        dl->name, dl->cfg.dial.max - dl->dial_tries,
+                        dl->cfg.dial.max);
           } else
             datalink_LoginDone(dl);
         } else {
-          if (!(mode & MODE_DDIAL) && dl->cfg.max_dial)
+          if (!(dl->physical->type & (PHYS_PERM|PHYS_DEDICATED)) &&
+              dl->cfg.dial.max)
             LogPrintf(LogCHAT, "Failed to open modem (attempt %u of %d)\n",
-                      dl->cfg.max_dial - dl->dial_tries, dl->cfg.max_dial);
+                      dl->cfg.dial.max - dl->dial_tries, dl->cfg.dial.max);
           else
             LogPrintf(LogCHAT, "Failed to open modem\n");
 
           if (dl->bundle->CleaningUp ||
-              (!(mode & (MODE_DDIAL|MODE_DEDICATED)) &&
-               dl->cfg.max_dial && dl->dial_tries == 0)) {
+              (!(dl->physical->type & (PHYS_PERM|PHYS_DEDICATED)) &&
+               dl->cfg.dial.max && dl->dial_tries == 0)) {
             LogPrintf(LogPHASE, "%s: Entering CLOSED state\n", dl->name);
             dl->state = DATALINK_CLOSED;
             dl->reconnect_tries = 0;
@@ -230,7 +243,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
             bundle_LinkClosed(dl->bundle, dl);
           }
           if (!dl->bundle->CleaningUp)
-            datalink_StartDialTimer(dl, dl->cfg.dial_timeout);
+            datalink_StartDialTimer(dl, dl->cfg.dial.timeout);
         }
       }
       break;
@@ -468,7 +481,7 @@ datalink_LayerFinish(void *v, struct fsm *fp)
 
 struct datalink *
 datalink_Create(const char *name, struct bundle *bundle,
-                const struct fsm_parent *parent)
+                const struct fsm_parent *parent, int type)
 {
   struct datalink *dl;
 
@@ -503,13 +516,13 @@ datalink_Create(const char *name, struct bundle *bundle,
   memset(&dl->dial_timer, '\0', sizeof dl->dial_timer);
 
   dl->dial_tries = 0;
-  dl->cfg.max_dial = 1;
-  dl->cfg.dial_timeout = DIAL_TIMEOUT;
-  dl->cfg.dial_next_timeout = DIAL_NEXT_TIMEOUT;
+  dl->cfg.dial.max = 1;
+  dl->cfg.dial.next_timeout = DIAL_NEXT_TIMEOUT;
+  dl->cfg.dial.timeout = DIAL_TIMEOUT;
 
   dl->reconnect_tries = 0;
-  dl->cfg.max_reconnect = 0;
-  dl->cfg.reconnect_timeout = RECONNECT_TIMEOUT;
+  dl->cfg.reconnect.max = 0;
+  dl->cfg.reconnect.timeout = RECONNECT_TIMEOUT;
 
   dl->name = strdup(name);
   dl->parent = parent;
@@ -522,7 +535,7 @@ datalink_Create(const char *name, struct bundle *bundle,
   authinfo_Init(&dl->pap);
   authinfo_Init(&dl->chap.auth);
 
-  if ((dl->physical = modem_Create(dl)) == NULL) {
+  if ((dl->physical = modem_Create(dl, type)) == NULL) {
     free(dl->name);
     free(dl);
     return NULL;
@@ -569,7 +582,7 @@ datalink_Clone(struct datalink *odl, const char *name)
   authinfo_Init(&dl->chap.auth);
   dl->chap.auth.cfg.fsmretry = odl->chap.auth.cfg.fsmretry;
 
-  if ((dl->physical = modem_Create(dl)) == NULL) {
+  if ((dl->physical = modem_Create(dl, PHYS_MANUAL)) == NULL) {
     free(dl->name);
     free(dl);
     return NULL;
@@ -610,6 +623,10 @@ datalink_Destroy(struct datalink *dl)
 void
 datalink_Up(struct datalink *dl, int runscripts, int packetmode)
 {
+  if (dl->physical->type & (PHYS_STDIN|PHYS_DEDICATED))
+    /* Ignore scripts */
+    runscripts = 0;
+
   switch (dl->state) {
     case DATALINK_CLOSED:
       LogPrintf(LogPHASE, "%s: Entering OPENING state\n", dl->name);
@@ -617,8 +634,9 @@ datalink_Up(struct datalink *dl, int runscripts, int packetmode)
           bundle_Phase(dl->bundle) == PHASE_TERMINATE)
         bundle_NewPhase(dl->bundle, PHASE_ESTABLISH);
       dl->state = DATALINK_OPENING;
-      dl->reconnect_tries = dl->cfg.max_reconnect;
-      dl->dial_tries = dl->cfg.max_dial;
+      dl->reconnect_tries =
+        dl->physical->type == PHYS_STDIN ? 0 : dl->cfg.reconnect.max;
+      dl->dial_tries = dl->cfg.dial.max;
       dl->script.run = runscripts;
       dl->script.packetmode = packetmode;
       break;
@@ -697,23 +715,113 @@ datalink_StayDown(struct datalink *dl)
 void
 datalink_Show(struct datalink *dl, struct prompt *prompt)
 {
-  prompt_Printf(prompt, "Link %s: State %s\n", dl->name, datalink_State(dl));
+  prompt_Printf(prompt, "Name: %s\n", dl->name);
+  prompt_Printf(prompt, " State:           %s\n", datalink_State(dl));
 #ifdef HAVE_DES
   prompt_Printf(arg->prompt, "  Encryption = %s\n",
                 dl->chap.using_MSChap ? "MSChap" : "MD5" );
 #endif
+  prompt_Printf(prompt, "\nDefaults:\n");
+  prompt_Printf(prompt, " Phone List:      %s\n", dl->cfg.phone.list);
+  if (dl->cfg.dial.max)
+    prompt_Printf(prompt, " Dial tries:      %d, delay ", dl->cfg.dial.max);
+  else
+    prompt_Printf(prompt, " Dial tries:      infinite, delay ");
+  if (dl->cfg.dial.next_timeout > 0)
+    prompt_Printf(prompt, "%ds/", dl->cfg.dial.next_timeout);
+  else
+    prompt_Printf(prompt, "random/");
+  if (dl->cfg.dial.timeout > 0)
+    prompt_Printf(prompt, "%ds\n", dl->cfg.dial.timeout);
+  else
+    prompt_Printf(prompt, "random\n");
+  prompt_Printf(prompt, " Reconnect tries: %d, delay ", dl->cfg.reconnect.max);
+  if (dl->cfg.reconnect.timeout > 0)
+    prompt_Printf(prompt, "%ds\n", dl->cfg.reconnect.timeout);
+  else
+    prompt_Printf(prompt, "random\n");
+  prompt_Printf(prompt, " Dial Script:     %s\n", dl->cfg.script.dial);
+  prompt_Printf(prompt, " Login Script:    %s\n", dl->cfg.script.login);
+  prompt_Printf(prompt, " Hangup Script:   %s\n", dl->cfg.script.hangup);
+}
+
+int
+datalink_SetReconnect(struct cmdargs const *arg)
+{
+  if (arg->argc == 2) {
+    arg->cx->cfg.reconnect.timeout = atoi(arg->argv[0]);
+    arg->cx->cfg.reconnect.max = atoi(arg->argv[1]);
+    return 0;
+  }
+  return -1;
+}
+
+int
+datalink_SetRedial(struct cmdargs const *arg)
+{
+  int timeout;
+  int tries;
+  char *dot;
+
+  if (arg->argc == 1 || arg->argc == 2) {
+    if (strncasecmp(arg->argv[0], "random", 6) == 0 &&
+	(arg->argv[0][6] == '\0' || arg->argv[0][6] == '.')) {
+      arg->cx->cfg.dial.timeout = -1;
+      randinit();
+    } else {
+      timeout = atoi(arg->argv[0]);
+
+      if (timeout >= 0)
+	arg->cx->cfg.dial.timeout = timeout;
+      else {
+	LogPrintf(LogWARN, "Invalid redial timeout\n");
+	return -1;
+      }
+    }
+
+    dot = strchr(arg->argv[0], '.');
+    if (dot) {
+      if (strcasecmp(++dot, "random") == 0) {
+	arg->cx->cfg.dial.next_timeout = -1;
+	randinit();
+      } else {
+	timeout = atoi(dot);
+	if (timeout >= 0)
+	  arg->cx->cfg.dial.next_timeout = timeout;
+	else {
+	  LogPrintf(LogWARN, "Invalid next redial timeout\n");
+	  return -1;
+	}
+      }
+    } else
+      /* Default next timeout */
+      arg->cx->cfg.dial.next_timeout = DIAL_NEXT_TIMEOUT;
+
+    if (arg->argc == 2) {
+      tries = atoi(arg->argv[1]);
+
+      if (tries >= 0) {
+	arg->cx->cfg.dial.max = tries;
+      } else {
+	LogPrintf(LogWARN, "Invalid retry value\n");
+	return 1;
+      }
+    }
+    return 0;
+  }
+  return -1;
 }
 
 static char *states[] = {
-  "CLOSED",
-  "OPENING",
-  "HANGUP",
-  "DIAL",
-  "LOGIN",
-  "READY",
-  "LCP"
-  "AUTH"
-  "OPEN"
+  "closed",
+  "opening",
+  "hangup",
+  "dial",
+  "login",
+  "ready",
+  "lcp",
+  "auth",
+  "open"
 };
 
 static const char *

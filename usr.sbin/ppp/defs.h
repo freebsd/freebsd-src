@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.29.2.11 1998/04/07 23:45:48 brian Exp $
+ * $Id: defs.h,v 1.29.2.12 1998/04/08 18:27:22 brian Exp $
  *
  *	TODO:
  */
@@ -30,6 +30,8 @@
 #  define MODEM_LIST	"/dev/tty01, /dev/tty00"	/* name of tty device */
 # endif
 #endif
+
+#define TUN_PREFIX	"/dev/tun"	/* tunnel device prefix */
 
 #define MODEM_SPEED	B38400	/* tty speed */
 #define	SERVER_PORT	3000	/* Base server port no. */
@@ -51,19 +53,6 @@
 #define	LINKDOWNFILE 	"ppp.linkdown"
 #define	SECRETFILE	"ppp.secret"
 
-/*
- *  Definition of working mode
- */
-#define MODE_INTER	1	/* Interactive mode */
-#define MODE_AUTO	2	/* Auto calling mode */
-#define	MODE_DIRECT	4	/* Direct connection mode */
-#define	MODE_DEDICATED	8	/* Dedicated line mode */
-#define	MODE_DDIAL	16	/* Dedicated dialing line mode */
-#define MODE_BACKGROUND 32	/* Background mode. */
-
-#define MODE_DAEMON (2|4|8|16|32)
-#define MODE_OUTGOING_DAEMON (2|8|16|32)
-
 #define	EX_SIG		-1
 #define	EX_NORMAL	0
 #define	EX_START	1
@@ -79,7 +68,14 @@
 #define EX_NODIAL	12
 #define EX_NOLOGIN	13
 
-extern int mode;
+/* physical::type values (OR'd in bundle::phys_type) */
+#define PHYS_MANUAL	1	/* Manual link */
+#define PHYS_DEMAND	2	/* Dial-on-demand link (-auto) */
+#define	PHYS_STDIN	4	/* Incoming link (-direct) */
+#define	PHYS_DEDICATED	8	/* Dedicated link (-dedicated) */
+#define	PHYS_PERM	16	/* Dial immediately, stay connected (-ddial) */
+#define PHYS_1OFF	32	/* Dial immediately, delete when done. (-background) */
+#define PHYS_ALL	63
 
 extern void SetLabel(const char *);
 extern const char *GetLabel(void);

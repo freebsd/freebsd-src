@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.55 1998/04/07 00:53:33 brian Exp $
+ * $Id: command.c,v 1.131.2.56 1998/04/07 23:45:45 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -28,6 +28,7 @@
 #include <sys/socket.h>
 #include <net/route.h>
 #include <netdb.h>
+#include <sys/un.h>
 
 #ifndef NOALIAS
 #include <alias.h>
@@ -182,12 +183,41 @@ RemoveCommand(struct cmdargs const *arg)
   return 0;
 }
 
+int
+LoadCommand(struct cmdargs const *arg)
+{
+  const char *name;
+
+  if (arg->argc > 0)
+    name = *arg->argv;
+  else
+    name = "default";
+
+  if (!ValidSystem(name, arg->prompt, arg->bundle->phys_type)) {
+    LogPrintf(LogERROR, "%s: Label not allowed\n", name);
+    return 1;
+  } else if (SelectSystem(arg->bundle, name, CONFFILE, arg->prompt) < 0) {
+    LogPrintf(LogWARN, "%s: label not found.\n", name);
+    return -1;
+  } else
+    SetLabel(arg->argc ? name : NULL);
+  return 0;
+}
+
+int
+SaveCommand(struct cmdargs const *arg)
+{
+  LogPrintf(LogWARN, "save command is not implemented (yet).\n");
+  return 1;
+}
+
 static int
 DialCommand(struct cmdargs const *arg)
 {
   int res;
 
-  if ((mode & MODE_DAEMON) && !(mode & MODE_AUTO)) {
+  if ((arg->cx && !(arg->cx->physical->type & (PHYS_MANUAL|PHYS_DEMAND)))
+      || (!arg->cx && (arg->bundle->phys_type & ~(PHYS_MANUAL|PHYS_DEMAND)))) {
     LogPrintf(LogWARN,
               "Manual dial is only available in auto and interactive mode\n");
     return 1;
@@ -196,7 +226,7 @@ DialCommand(struct cmdargs const *arg)
   if (arg->argc > 0 && (res = LoadCommand(arg)) != 0)
     return res;
 
-  bundle_Open(arg->bundle, arg->cx ? arg->cx->name : NULL);
+  bundle_Open(arg->bundle, arg->cx ? arg->cx->name : NULL, PHYS_ALL);
 
   return 0;
 }
@@ -211,42 +241,32 @@ ShellCommand(struct cmdargs const *arg, int bg)
 
 #ifdef SHELL_ONLY_INTERACTIVELY
   /* we're only allowed to shell when we run ppp interactively */
-  if (mode != MODE_INTER) {
-    LogPrintf(LogWARN, "Can only start a shell in interactive mode\n");
-    return 1;
-  }
-#endif
-#ifdef NO_SHELL_IN_AUTO_INTERACTIVE
-
-  /*
-   * we want to stop shell commands when we've got a telnet connection to an
-   * auto mode ppp
-   */
-  if (arg->prompt && !(mode & MODE_INTER)) {
-    LogPrintf(LogWARN, "Shell is not allowed interactively in auto mode\n");
+  if (arg->prompt && arg->prompt->owner) {
+    LogPrintf(LogWARN, "Can't start a shell from a network connection\n");
     return 1;
   }
 #endif
 
   if (arg->argc == 0)
-    if (!(mode & MODE_INTER)) {
-      if (arg->prompt)
-        LogPrintf(LogWARN, "Can't start an interactive shell from"
-		  " a telnet session\n");
-      else
-        LogPrintf(LogWARN, "Can only start an interactive shell in"
-		  " interactive mode\n");
+    if (!arg->prompt) {
+      LogPrintf(LogWARN, "Can't start an interactive shell from"
+                " a config file\n");
+      return 1;
+    } else if (arg->prompt->owner) {
+      LogPrintf(LogWARN, "Can't start an interactive shell from"
+                " a socket connection\n");
       return 1;
     } else if (bg) {
       LogPrintf(LogWARN, "Can only start an interactive shell in"
 		" the foreground mode\n");
       return 1;
     }
-  if ((shell = getenv("SHELL")) == 0)
-    shell = _PATH_BSHELL;
 
   if ((shpid = fork()) == 0) {
     int dtablesize, i, fd;
+
+    if ((shell = getenv("SHELL")) == 0)
+      shell = _PATH_BSHELL;
 
     TermTimerService();
     signal(SIGINT, SIG_DFL);
@@ -267,7 +287,6 @@ ShellCommand(struct cmdargs const *arg, int bg)
     for (dtablesize = getdtablesize(), i = 3; i < dtablesize; i++)
       close(i);
 
-    prompt_TtyOldMode(arg->prompt);
     setuid(geteuid());
     if (arg->argc > 0) {
       /* substitute pseudo args */
@@ -297,6 +316,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
     } else {
       if (arg->prompt)
         printf("ppp: Pausing until %s finishes\n", shell);
+      prompt_TtyOldMode(arg->prompt);
       execl(shell, shell, NULL);
     }
 
@@ -304,18 +324,18 @@ ShellCommand(struct cmdargs const *arg, int bg)
               arg->argc > 0 ? arg->argv[0] : shell);
     exit(255);
   }
-  if (shpid == (pid_t) - 1) {
-    LogPrintf(LogERROR, "Fork failed: %s\n", strerror(errno));
-  } else {
-    int status;
 
+  if (shpid == (pid_t) - 1)
+    LogPrintf(LogERROR, "Fork failed: %s\n", strerror(errno));
+  else {
+    int status;
     waitpid(shpid, &status, 0);
   }
 
-  if (arg->prompt)
+  if (arg->prompt && !arg->prompt->owner)
     prompt_TtyCommandMode(arg->prompt);
 
-  return (0);
+  return 0;
 }
 
 static int
@@ -367,7 +387,7 @@ static struct cmdtab const Commands[] = {
   "Generate a down event", "down"},
   {"enable", NULL, EnableCommand, LOCAL_AUTH,
   "Enable option", "enable option .."},
-  {"link", NULL, LinkCommand, LOCAL_AUTH,
+  {"link", "datalink", LinkCommand, LOCAL_AUTH,
   "Link specific commands", "link name command ..."},
   {"load", NULL, LoadCommand, LOCAL_AUTH,
   "Load settings", "load [remote]"},
@@ -466,7 +486,7 @@ static int
 ShowVersion(struct cmdargs const *arg)
 {
   static char VarVersion[] = "PPP Version 2.0-beta";
-  static char VarLocalVersion[] = "$Date: 1998/04/07 00:53:33 $";
+  static char VarLocalVersion[] = "$Date: 1998/04/07 23:45:45 $";
 
   prompt_Printf(arg->prompt, "%s - %s \n", VarVersion, VarLocalVersion);
   return 0;
@@ -482,40 +502,6 @@ ShowProtocolStats(struct cmdargs const *arg)
   return 0;
 }
 
-
-static int
-ShowReconnect(struct cmdargs const *arg)
-{
-  prompt_Printf(arg->prompt, "%s: Reconnect Timer:  %d,  %d tries\n",
-                arg->cx->name, arg->cx->cfg.reconnect_timeout,
-                arg->cx->cfg.max_reconnect);
-  return 0;
-}
-
-static int
-ShowRedial(struct cmdargs const *arg)
-{
-  prompt_Printf(arg->prompt, " Redial Timer: ");
-
-  if (arg->cx->cfg.dial_timeout >= 0)
-    prompt_Printf(arg->prompt, " %d seconds, ", arg->cx->cfg.dial_timeout);
-  else
-    prompt_Printf(arg->prompt, " Random 0 - %d seconds, ", DIAL_TIMEOUT);
-
-  prompt_Printf(arg->prompt, " Redial Next Timer: ");
-
-  if (arg->cx->cfg.dial_next_timeout >= 0)
-    prompt_Printf(arg->prompt, " %d seconds, ", arg->cx->cfg.dial_next_timeout);
-  else
-    prompt_Printf(arg->prompt, " Random 0 - %d seconds, ", DIAL_TIMEOUT);
-
-  if (arg->cx->cfg.max_dial)
-    prompt_Printf(arg->prompt, "%d dial tries", arg->cx->cfg.max_dial);
-
-  prompt_Printf(arg->prompt, "\n");
-
-  return 0;
-}
 
 #ifndef NOMSEXT
 static int
@@ -567,10 +553,6 @@ static struct cmdtab const ShowCommands[] = {
 #endif
   {"proto", NULL, ShowProtocolStats, LOCAL_AUTH | LOCAL_CX_OPT,
   "Show protocol summary", "show proto"},
-  {"reconnect", NULL, ShowReconnect, LOCAL_AUTH | LOCAL_CX,
-  "Show reconnect timer", "show reconnect"},
-  {"redial", NULL, ShowRedial, LOCAL_AUTH | LOCAL_CX,
-  "Show Redial timeout", "show redial"},
   {"route", NULL, ShowRoute, LOCAL_AUTH,
   "Show routing table", "show route"},
   {"stopped", NULL, ShowStopped, LOCAL_AUTH | LOCAL_CX,
@@ -834,73 +816,6 @@ SetModemSpeed(struct cmdargs const *arg)
 }
 
 static int
-SetReconnect(struct cmdargs const *arg)
-{
-  if (arg->argc == 2) {
-    arg->cx->cfg.reconnect_timeout = atoi(arg->argv[0]);
-    arg->cx->cfg.max_reconnect = (mode & MODE_DIRECT) ? 0 : atoi(arg->argv[1]);
-    return 0;
-  }
-  return -1;
-}
-
-static int
-SetRedialTimeout(struct cmdargs const *arg)
-{
-  int timeout;
-  int tries;
-  char *dot;
-
-  if (arg->argc == 1 || arg->argc == 2) {
-    if (strncasecmp(arg->argv[0], "random", 6) == 0 &&
-	(arg->argv[0][6] == '\0' || arg->argv[0][6] == '.')) {
-      arg->cx->cfg.dial_timeout = -1;
-      randinit();
-    } else {
-      timeout = atoi(arg->argv[0]);
-
-      if (timeout >= 0)
-	arg->cx->cfg.dial_timeout = timeout;
-      else {
-	LogPrintf(LogWARN, "Invalid redial timeout\n");
-	return -1;
-      }
-    }
-
-    dot = strchr(arg->argv[0], '.');
-    if (dot) {
-      if (strcasecmp(++dot, "random") == 0) {
-	arg->cx->cfg.dial_next_timeout = -1;
-	randinit();
-      } else {
-	timeout = atoi(dot);
-	if (timeout >= 0)
-	  arg->cx->cfg.dial_next_timeout = timeout;
-	else {
-	  LogPrintf(LogWARN, "Invalid next redial timeout\n");
-	  return -1;
-	}
-      }
-    } else
-      /* Default next timeout */
-      arg->cx->cfg.dial_next_timeout = DIAL_NEXT_TIMEOUT;
-
-    if (arg->argc == 2) {
-      tries = atoi(arg->argv[1]);
-
-      if (tries >= 0) {
-	arg->cx->cfg.max_dial = tries;
-      } else {
-	LogPrintf(LogWARN, "Invalid retry value\n");
-	return 1;
-      }
-    }
-    return 0;
-  }
-  return -1;
-}
-
-static int
 SetStoppedTimeout(struct cmdargs const *arg)
 {
   struct link *l = &arg->cx->physical->link;
@@ -940,9 +855,6 @@ SetServer(struct cmdargs const *arg)
       if (!ismask(mask))
         return -1;
     } else if (strcasecmp(port, "none") == 0) {
-      if (mask != NULL || passwd != NULL)
-        return -1;
-
       if (ServerClose(arg->bundle))
         LogPrintf(LogPHASE, "Disabled server port.\n");
       return 0;
@@ -1076,7 +988,8 @@ SetInterfaceAddr(struct cmdargs const *arg)
     ipcp->cfg.peer_range.width = 0;
   }
 
-  if (hisaddr && !UseHisaddr(arg->bundle, hisaddr, mode & MODE_AUTO))
+  if (hisaddr &&
+      !UseHisaddr(arg->bundle, hisaddr, arg->bundle->phys_type & PHYS_DEMAND))
     return 4;
 
   return 0;
@@ -1090,11 +1003,6 @@ SetMSEXT(struct ipcp *ipcp, struct in_addr * pri_addr,
 {
   int dummyint;
   struct in_addr dummyaddr;
-
-  if (!(mode & MODE_DIRECT)) {
-    LogPrintf(LogWARN, "set nbns|ns: Only available in direct mode\n");
-    return;
-  }
 
   pri_addr->s_addr = sec_addr->s_addr = 0L;
 
@@ -1180,16 +1088,12 @@ SetVariable(struct cmdargs const *arg)
     }
     break;
   case VAR_DIAL:
-    if (!(mode & (MODE_DIRECT|MODE_DEDICATED))) {
-      strncpy(cx->cfg.script.dial, argp, sizeof cx->cfg.script.dial - 1);
-      cx->cfg.script.dial[sizeof cx->cfg.script.dial - 1] = '\0';
-    }
+    strncpy(cx->cfg.script.dial, argp, sizeof cx->cfg.script.dial - 1);
+    cx->cfg.script.dial[sizeof cx->cfg.script.dial - 1] = '\0';
     break;
   case VAR_LOGIN:
-    if (!(mode & (MODE_DIRECT|MODE_DEDICATED))) {
-      strncpy(cx->cfg.script.login, argp, sizeof cx->cfg.script.login - 1);
-      cx->cfg.script.login[sizeof cx->cfg.script.login - 1] = '\0';
-    }
+    strncpy(cx->cfg.script.login, argp, sizeof cx->cfg.script.login - 1);
+    cx->cfg.script.login[sizeof cx->cfg.script.login - 1] = '\0';
     break;
   case VAR_WINSIZE:
     if (arg->argc > 0) {
@@ -1267,10 +1171,8 @@ SetVariable(struct cmdargs const *arg)
     cx->cfg.phone.list[sizeof cx->cfg.phone.list - 1] = '\0';
     break;
   case VAR_HANGUP:
-    if (!(mode & (MODE_DIRECT|MODE_DEDICATED))) {
-      strncpy(cx->cfg.script.hangup, argp, sizeof cx->cfg.script.hangup - 1);
-      cx->cfg.script.hangup[sizeof cx->cfg.script.hangup - 1] = '\0';
-    }
+    strncpy(cx->cfg.script.hangup, argp, sizeof cx->cfg.script.hangup - 1);
+    cx->cfg.script.hangup[sizeof cx->cfg.script.hangup - 1] = '\0';
     break;
   case VAR_IDLETIMEOUT:
     if (arg->argc > 1)
@@ -1408,9 +1310,9 @@ static struct cmdtab const SetCommands[] = {
   "Set modem parity", "set parity [odd|even|none]"},
   {"phone", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "Set telephone number(s)",
   "set phone phone1[:phone2[...]]", (const void *)VAR_PHONE},
-  {"reconnect", NULL, SetReconnect, LOCAL_AUTH | LOCAL_CX,
+  {"reconnect", NULL, datalink_SetReconnect, LOCAL_AUTH | LOCAL_CX,
   "Set Reconnect timeout", "set reconnect value ntries"},
-  {"redial", NULL, SetRedialTimeout, LOCAL_AUTH | LOCAL_CX,
+  {"redial", NULL, datalink_SetRedial, LOCAL_AUTH | LOCAL_CX,
   "Set Redial timeout", "set redial value|random[.value|random] [attempts]"},
   {"server", "socket", SetServer, LOCAL_AUTH,
   "Set server port", "set server|socket TcpPort|LocalName|none [mask]"},

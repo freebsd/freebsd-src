@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.h,v 1.1.2.18 1998/04/03 19:21:50 brian Exp $
+ *  $Id: physical.h,v 1.1.2.19 1998/04/07 00:54:14 brian Exp $
  *
  */
 
@@ -25,6 +25,7 @@ struct bundle;
 struct physical {
   struct link link;
   struct descriptor desc;
+  int type;                    /* What sort of link are we ? */
   struct async async;          /* Our async state */
   struct hdlc hdlc;            /* Our hdlc state */
   int fd;                      /* File descriptor for this device */
@@ -49,8 +50,6 @@ struct physical {
       belong in the generic physical struct. It comes from modem.c. */
 
   struct {
-    unsigned is_dedicated : 1; /* Dedicated mode?  XXX-ML - not yet used */
-    unsigned is_direct : 1;    /* Direct mode?  XXX-ML - not yet used */
     unsigned rts_cts : 1;      /* Is rts/cts enabled? */
     unsigned parity;           /* What parity is enabled? (TTY flags) */
     unsigned speed;            /* Modem speed */
@@ -74,8 +73,6 @@ struct physical {
 int Physical_GetFD(struct physical *);
 int Physical_IsATTY(struct physical *);
 int Physical_IsSync(struct physical *);
-int Physical_IsDedicated(struct physical *);
-int Physical_IsDirect(struct physical *);
 const char *Physical_GetDevice(struct physical *);
 
 
@@ -90,12 +87,6 @@ void Physical_SetSync(struct physical *);
 int /* Can this be set?  (Might not be a relevant attribute for this
        device, for instance) */
 Physical_SetRtsCts(struct physical *, int);
-
-void Physical_SetDedicated(struct physical *, int);
-void Physical_SetDirect(struct physical *, int);
-
-void Physical_FD_SET(struct physical *, fd_set *);
-int Physical_FD_ISSET(struct physical *, fd_set *);
 
 void Physical_DupAndClose(struct physical *);
 ssize_t Physical_Read(struct physical *, void *, size_t);

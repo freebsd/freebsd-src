@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.33 1998/04/07 00:53:51 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.34 1998/04/07 23:45:55 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -319,7 +319,7 @@ ipcp_SetIPaddress(struct bundle *bundle, struct in_addr myaddr,
       bundle->ncp.ipcp.peer_ifip.s_addr == hisaddr.s_addr)
     return 0;
 
-  IpcpCleanInterface(&bundle->ncp.ipcp.fsm);
+  IpcpCleanInterface(&bundle->ncp.ipcp);
 
   s = ID0socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {
@@ -461,7 +461,7 @@ IpcpLayerStart(struct fsm * fp)
   /* We're about to start up ! */
   LogPrintf(LogIPCP, "IpcpLayerStart.\n");
 
-  /* This is where we should be setting up the interface in AUTO mode */
+  /* This is where we should be setting up the interface in DEMAND mode */
 }
 
 static void
@@ -472,9 +472,8 @@ IpcpLayerFinish(struct fsm *fp)
 }
 
 void
-IpcpCleanInterface(struct fsm *fp)
+IpcpCleanInterface(struct ipcp *ipcp)
 {
-  struct ipcp *ipcp = fsm2ipcp(fp);
   struct ifaliasreq ifra;
   struct sockaddr_in *me, *peer;
   int s;
@@ -486,12 +485,13 @@ IpcpCleanInterface(struct fsm *fp)
   }
 
   if (Enabled(ConfProxy))
-    cifproxyarp(fp->bundle, ipcp->peer_ifip, s);
+    cifproxyarp(ipcp->fsm.bundle, ipcp->peer_ifip, s);
 
   if (ipcp->my_ifip.s_addr != INADDR_ANY ||
       ipcp->peer_ifip.s_addr != INADDR_ANY) {
     memset(&ifra, '\0', sizeof ifra);
-    strncpy(ifra.ifra_name, fp->bundle->ifname, sizeof ifra.ifra_name - 1);
+    strncpy(ifra.ifra_name, ipcp->fsm.bundle->ifname,
+            sizeof ifra.ifra_name - 1);
     ifra.ifra_name[sizeof ifra.ifra_name - 1] = '\0';
     me = (struct sockaddr_in *)&ifra.ifra_addr;
     peer = (struct sockaddr_in *)&ifra.ifra_broadaddr;
@@ -533,8 +533,8 @@ IpcpLayerDown(struct fsm *fp)
     } else
       SelectSystem(fp->bundle, "MYADDR", LINKDOWNFILE, NULL);
 
-  if (!(mode & MODE_AUTO))
-    IpcpCleanInterface(fp);
+  if (ipcp->fsm.bundle->phys_type & PHYS_DEMAND)
+    IpcpCleanInterface(ipcp);
 }
 
 static void
@@ -634,7 +634,7 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
             if (iplist_ip2pos(&ipcp->cfg.peer_list, ipcp->peer_ifip) >= 0)
               /*
                * If we've already got a valid address configured for the peer
-               * (in AUTO mode), try NAKing with that so that we don't
+               * (in DEMAND mode), try NAKing with that so that we don't
                * have to upset things too much.
                */
               ipcp->peer_ip = ipcp->peer_ifip;

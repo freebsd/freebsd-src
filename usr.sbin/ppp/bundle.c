@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.42 1998/04/07 01:49:24 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.43 1998/04/07 23:45:41 brian Exp $
  */
 
 #include <sys/types.h>
@@ -199,7 +199,7 @@ bundle_LayerUp(struct bundle *bundle, struct fsm *fp)
    * The given fsm is now up
    * If it's an LCP (including MP initialisation), set our mtu
    * (This routine is also called from mp_Init() with it's LCP)
-   * If it's an NCP, tell our background mode parent to go away.
+   * If it's an NCP, tell our -background parent to go away.
    * If it's the first NCP, start the idle timer.
    */
 
@@ -422,7 +422,7 @@ bundle_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
  * (ENXIO) or the third `No such file or directory' (ENOENT) error.
  */
 struct bundle *
-bundle_Create(const char *prefix, struct prompt *prompt)
+bundle_Create(const char *prefix, struct prompt *prompt, int type)
 {
   int s, enoentcount, err;
   struct ifreq ifrq;
@@ -518,8 +518,9 @@ bundle_Create(const char *prefix, struct prompt *prompt)
   bundle.fsm.object = &bundle;
 
   bundle.cfg.idle_timeout = NCP_IDLE_TIMEOUT;
+  bundle.phys_type = type;
 
-  bundle.links = datalink_Create("Modem", &bundle, &bundle.fsm);
+  bundle.links = datalink_Create("default", &bundle, &bundle.fsm, type);
   if (bundle.links == NULL) {
     LogPrintf(LogERROR, "Cannot create data link: %s\n", strerror(errno));
     close(bundle.tun_fd);
@@ -601,9 +602,8 @@ bundle_Destroy(struct bundle *bundle)
   struct datalink *dl;
   struct descriptor *desc, *ndesc;
 
-
-  if (mode & MODE_AUTO) {
-    IpcpCleanInterface(&bundle->ncp.ipcp.fsm);
+  if (bundle->phys_type & PHYS_DEMAND) {
+    IpcpCleanInterface(&bundle->ncp.ipcp);
     bundle_DownInterface(bundle);
   }
   
@@ -744,7 +744,7 @@ failed:
 }
 
 void
-bundle_LinkLost(struct bundle *bundle, struct link *link, int staydown)
+bundle_LinkLost(struct bundle *bundle, struct physical *p, int staydown)
 {
   /*
    * Locate the appropriate datalink, and Down it.
@@ -757,9 +757,9 @@ bundle_LinkLost(struct bundle *bundle, struct link *link, int staydown)
    * and MAY cause a program exit.
    */
 
-  if ((mode & MODE_DIRECT) || bundle->CleaningUp)
+  if (p->type == PHYS_STDIN || bundle->CleaningUp)
     staydown = 1;
-  datalink_Down(bundle->links, staydown);
+  datalink_Down(p->dl, staydown);
 }
 
 void
@@ -767,19 +767,12 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
 {
   /*
    * Our datalink has closed.
-   * If it's DIRECT or BACKGROUND, delete it.
+   * UpdateSet() will remove 1OFF and STDIN links.
    * If it's the last data link, enter phase DEAD.
    */
 
   struct datalink *odl;
   int other_links;
-
-  if (mode & (MODE_DIRECT|MODE_BACKGROUND)) {
-    struct datalink **dlp;
-    for (dlp = &bundle->links; *dlp; dlp = &(*dlp)->next)
-      if (*dlp == dl)
-        *dlp = datalink_Destroy(*dlp);
-  }
 
   other_links = 0;
   for (odl = bundle->links; odl; odl = odl->next)
@@ -787,7 +780,7 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
       other_links++;
 
   if (!other_links) {
-    if (!(mode & MODE_AUTO))
+    if (dl->physical->type != PHYS_DEMAND)
       bundle_DownInterface(bundle);
     bundle_NewPhase(bundle, PHASE_DEAD);
     bundle_DisplayPrompt(bundle);
@@ -795,18 +788,17 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
 }
 
 void
-bundle_Open(struct bundle *bundle, const char *name)
+bundle_Open(struct bundle *bundle, const char *name, int mask)
 {
   /*
    * Please open the given datalink, or all if name == NULL
    */
   struct datalink *dl;
-  int runscripts;
 
-  runscripts = (mode & (MODE_DIRECT|MODE_DEDICATED)) ? 0 : 1;
   for (dl = bundle->links; dl; dl = dl->next)
     if (name == NULL || !strcasecmp(dl->name, name)) {
-      datalink_Up(dl, runscripts, 1);
+      if (mask & dl->physical->type)
+        datalink_Up(dl, 1, 1);
       if (name != NULL)
         break;
     }
@@ -875,7 +867,8 @@ bundle_IdleTimeout(void *v)
 void
 bundle_StartIdleTimer(struct bundle *bundle)
 {
-  if (!(mode & (MODE_DEDICATED | MODE_DDIAL)) && bundle->cfg.idle_timeout) {
+  if (!(bundle->phys_type & (PHYS_DEDICATED|PHYS_PERM)) &&
+      bundle->cfg.idle_timeout) {
     StopTimer(&bundle->idle.timer);
     bundle->idle.timer.func = bundle_IdleTimeout;
     bundle->idle.timer.name = "idle";
@@ -993,6 +986,17 @@ bundle_SetTtyCommandMode(struct bundle *bundle, struct datalink *dl)
         prompt_TtyCommandMode(p);
     }
 }
+
+static void
+bundle_GenPhysType(struct bundle *bundle)
+{
+  struct datalink *dl;
+
+  bundle->phys_type = 0;
+  for (dl = bundle->links; dl; dl = dl->next)
+    bundle->phys_type |= dl->physical->type;
+}
+
 void
 bundle_DatalinkClone(struct bundle *bundle, struct datalink *dl,
                      const char *name)
@@ -1001,6 +1005,7 @@ bundle_DatalinkClone(struct bundle *bundle, struct datalink *dl,
 
   ndl->next = dl->next;
   dl->next = ndl;
+  bundle_GenPhysType(bundle);
 }
 
 void
@@ -1014,4 +1019,19 @@ bundle_DatalinkRemove(struct bundle *bundle, struct datalink *dl)
         *dlp = datalink_Destroy(dl);
         break;
       }
+  bundle_GenPhysType(bundle);
+}
+
+void
+bundle_CleanDatalinks(struct bundle *bundle)
+{
+  struct datalink **dlp = &bundle->links;
+
+  while (*dlp)
+    if ((*dlp)->state == DATALINK_CLOSED &&
+        (*dlp)->physical->type & (PHYS_STDIN|PHYS_1OFF))
+      *dlp = datalink_Destroy(*dlp);
+    else
+      dlp = &(*dlp)->next;
+  bundle_GenPhysType(bundle);
 }

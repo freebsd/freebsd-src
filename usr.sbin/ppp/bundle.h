@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.1.2.25 1998/04/03 19:26:17 brian Exp $
+ *	$Id: bundle.h,v 1.1.2.26 1998/04/05 22:48:02 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -48,6 +48,7 @@ struct bundle {
   char *ifname;               /* The interface name */
   int routing_seq;            /* The current routing sequence number */
   u_int phase;                /* Curent phase */
+  int phys_type;              /* Union of all physical::type's */
 
   unsigned CleaningUp : 1;    /* Going to exit.... */
 
@@ -87,7 +88,7 @@ struct bundle {
 #define descriptor2bundle(d) \
   ((d)->type == BUNDLE_DESCRIPTOR ? (struct bundle *)(d) : NULL)
 
-extern struct bundle *bundle_Create(const char *, struct prompt *);
+extern struct bundle *bundle_Create(const char *, struct prompt *, int);
 extern void bundle_Destroy(struct bundle *);
 extern const char *bundle_PhaseName(struct bundle *);
 #define bundle_Phase(b) ((b)->phase)
@@ -95,9 +96,9 @@ extern void bundle_NewPhase(struct bundle *, u_int);
 extern int  bundle_LinkIsUp(const struct bundle *);
 extern void bundle_SetRoute(struct bundle *, int, struct in_addr,
                             struct in_addr, struct in_addr, int);
-extern void bundle_LinkLost(struct bundle *, struct link *, int);
+extern void bundle_LinkLost(struct bundle *, struct physical *, int);
 extern void bundle_Close(struct bundle *, const char *, int);
-extern void bundle_Open(struct bundle *, const char *name);
+extern void bundle_Open(struct bundle *, const char *, int);
 extern void bundle_LinkClosed(struct bundle *, struct datalink *);
 
 extern int bundle_FillQueues(struct bundle *);
@@ -122,3 +123,4 @@ extern void bundle_SetTtyCommandMode(struct bundle *, struct datalink *);
 extern void bundle_DatalinkClone(struct bundle *, struct datalink *,
                                  const char *);
 extern void bundle_DatalinkRemove(struct bundle *, struct datalink *);
+extern void bundle_CleanDatalinks(struct bundle *);

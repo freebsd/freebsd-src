@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.c,v 1.16.2.13 1998/04/07 00:54:17 brian Exp $
+ *	$Id: server.c,v 1.16.2.14 1998/04/07 23:46:09 brian Exp $
  */
 
 #include <sys/types.h>
@@ -88,8 +88,6 @@ server_IsSet(struct descriptor *d, const fd_set *fdset)
 #define UN_SIZE sizeof(struct sockaddr_in)
 #define ADDRSZ (IN_SIZE > UN_SIZE ? IN_SIZE : UN_SIZE)
 
-static char *rm;
-
 static void
 server_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
@@ -135,10 +133,13 @@ server_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
   } else {
     switch (sa->sa_family) {
       case AF_LOCAL:
-        snprintf(p->who, sizeof p->who, "local (%s)", rm);
+        p->src.type = "local";
+        strncpy(p->src.from, s->rm, sizeof p->src.from - 1);
+        p->src.from[sizeof p->src.from - 1] = '\0';
         break;
       case AF_INET:
-        snprintf(p->who, sizeof p->who, "TCP (%s:%u)",
+        p->src.type = "tcp";
+        snprintf(p->src.from, sizeof p->src.from, "%s:%u",
                  inet_ntoa(sin->sin_addr), sin->sin_port);
         break;
     }
@@ -166,21 +167,25 @@ struct server server = {
   -1
 };
 
-static struct sockaddr_un ifsun;
-
 int
 ServerLocalOpen(struct bundle *bundle, const char *name, mode_t mask)
 {
   int s;
 
-  memset(&ifsun, '\0', sizeof ifsun);
-  ifsun.sun_len = strlen(name);
-  if (ifsun.sun_len > sizeof ifsun.sun_path - 1) {
+  if (server.rm && !strcmp(server.rm, name)) {
+    if (chmod(server.rm, mask))
+      LogPrintf(LogERROR, "Local: chmod: %s\n", strerror(errno));
+    return 0;
+  }
+
+  memset(&server.ifsun, '\0', sizeof server.ifsun);
+  server.ifsun.sun_len = strlen(name);
+  if (server.ifsun.sun_len > sizeof server.ifsun.sun_path - 1) {
     LogPrintf(LogERROR, "Local: %s: Path too long\n", name);
     return 2;
   }
-  ifsun.sun_family = AF_LOCAL;
-  strcpy(ifsun.sun_path, name);
+  server.ifsun.sun_family = AF_LOCAL;
+  strcpy(server.ifsun.sun_path, name);
 
   s = ID0socket(PF_LOCAL, SOCK_STREAM, 0);
   if (s < 0) {
@@ -190,7 +195,7 @@ ServerLocalOpen(struct bundle *bundle, const char *name, mode_t mask)
   setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &s, sizeof s);
   if (mask != (mode_t)-1)
     mask = umask(mask);
-  if (bind(s, (struct sockaddr *)&ifsun, sizeof ifsun) < 0) {
+  if (bind(s, (struct sockaddr *)&server.ifsun, sizeof server.ifsun) < 0) {
     if (mask != (mode_t)-1)
       umask(mask);
     LogPrintf(LogWARN, "Local: bind: %s\n", strerror(errno));
@@ -207,7 +212,7 @@ ServerLocalOpen(struct bundle *bundle, const char *name, mode_t mask)
   }
   ServerClose(bundle);
   server.fd = s;
-  rm = ifsun.sun_path;
+  server.rm = server.ifsun.sun_path;
   LogPrintf(LogPHASE, "Listening at local socket %s.\n", name);
   return 0;
 }
@@ -217,6 +222,9 @@ ServerTcpOpen(struct bundle *bundle, int port)
 {
   struct sockaddr_in ifsin;
   int s;
+
+  if (server.port == port)
+    return 0;
 
   s = ID0socket(PF_INET, SOCK_STREAM, 0);
   if (s < 0) {
@@ -240,6 +248,7 @@ ServerTcpOpen(struct bundle *bundle, int port)
   }
   ServerClose(bundle);
   server.fd = s;
+  server.port = port;
   LogPrintf(LogPHASE, "Listening at port %d.\n", port);
   return 0;
 }
@@ -249,11 +258,12 @@ ServerClose(struct bundle *bundle)
 {
   if (server.fd >= 0) {
     close(server.fd);
-    if (rm) {
-      ID0unlink(rm);
-      rm = 0;
+    if (server.rm) {
+      ID0unlink(server.rm);
+      server.rm = NULL;
     }
     server.fd = -1;
+    server.port = 0;
     /* Drop associated prompts */
     bundle_DelPromptDescriptors(bundle, &server);
     return 1;

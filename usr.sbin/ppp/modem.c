@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.44 1998/04/03 19:26:22 brian Exp $
+ * $Id: modem.c,v 1.77.2.45 1998/04/06 09:12:33 brian Exp $
  *
  *  TODO:
  */
@@ -70,6 +70,7 @@
 #include "auth.h"
 #include "chap.h"
 #include "datalink.h"
+#include "systems.h"
 
 
 #ifndef O_NONBLOCK
@@ -87,7 +88,7 @@ static int modem_UpdateSet(struct descriptor *, fd_set *, fd_set *, fd_set *,
                            int *);
 
 struct physical *
-modem_Create(struct datalink *dl)
+modem_Create(struct datalink *dl, int type)
 {
   struct physical *p;
 
@@ -109,6 +110,7 @@ modem_Create(struct datalink *dl)
   p->desc.IsSet = Physical_IsSet;
   p->desc.Read = modem_DescriptorRead;
   p->desc.Write = modem_DescriptorWrite;
+  p->type = type;
 
   hdlc_Init(&p->hdlc);
   async_Init(&p->async);
@@ -125,8 +127,6 @@ modem_Create(struct datalink *dl)
 
   p->Utmp = 0;
 
-  p->cfg.is_direct = 0;		/* not yet used */
-  p->cfg.is_dedicated = 0;	/* not yet used */
   p->cfg.rts_cts = MODEM_CTSRTS;
   p->cfg.speed = MODEM_SPEED;
   p->cfg.parity = CS8;
@@ -288,7 +288,7 @@ modem_Timeout(void *data)
       if (ioctl(to->modem->fd, TIOCMGET, &to->modem->mbits) < 0) {
 	LogPrintf(LogPHASE, "ioctl error (%s)!\n", strerror(errno));
         modem_Hangup(to->modem, 0);
-        bundle_LinkLost(to->bundle, &to->modem->link, 0);
+        bundle_LinkLost(to->bundle, to->modem, 0);
 	return;
       }
     } else
@@ -298,13 +298,13 @@ modem_Timeout(void *data)
       if (to->modem->mbits & TIOCM_CD) {
         LogPrintf(LogDEBUG, "modem_Timeout: offline -> online\n");
 	/*
-	 * In dedicated mode, start packet mode immediate after we detected
-	 * carrier.
+	 * In -dedicated mode, start packet mode immediately after we've
+         * detected carrier.
 	 */
       } else {
         LogPrintf(LogDEBUG, "modem_Timeout: online -> offline\n");
         modem_Hangup(to->modem, 0);
-        bundle_LinkLost(to->bundle, &to->modem->link, 0);
+        bundle_LinkLost(to->bundle, to->modem, 0);
       }
     }
     else
@@ -433,12 +433,7 @@ modem_lock(struct physical *modem, int tunno)
   if (*modem->name.full != '/')
     return 0;
 
-  if (
-#ifdef notyet
-      !modem->is_direct && 
-#else
-      !(mode & MODE_DIRECT) &&
-#endif
+  if (modem->type != PHYS_STDIN &&
       (res = ID0uu_lock(modem->name.base)) != UU_LOCK_OK) {
     if (res == UU_LOCK_INUSE)
       LogPrintf(LogPHASE, "Modem %s is in use\n", modem->name.full);
@@ -478,13 +473,7 @@ modem_Unlock(struct physical *modem)
   ID0unlink(fn);
 #endif
 
-  if (
-#ifdef notyet
-      !modem->is_direct &&
-#else
-      !(mode & MODE_DIRECT) &&
-#endif
-      ID0uu_unlock(modem->name.base) == -1)
+  if (modem->type != PHYS_STDIN && ID0uu_unlock(modem->name.base) == -1)
     LogPrintf(LogALERT, "Warning: Can't uu_unlock %s\n", fn);
 }
 
@@ -509,13 +498,7 @@ modem_Open(struct physical *modem, struct bundle *bundle)
   if (modem->fd >= 0)
     LogPrintf(LogDEBUG, "modem_Open: Modem is already open!\n");
     /* We're going back into "term" mode */
-  else if (
-#ifdef notyet
-	   modem->is_direct
-#else
-	   mode & MODE_DIRECT
-#endif
-	   ) {
+  else if (modem->type == PHYS_STDIN) {
     if (isatty(STDIN_FILENO)) {
       LogPrintf(LogDEBUG, "modem_Open(direct): Modem is a tty\n");
       modem_SetDevice(modem, ttyname(STDIN_FILENO));
@@ -616,49 +599,28 @@ modem_Open(struct physical *modem, struct bundle *bundle)
       rstio.c_iflag |= IXOFF;
     }
     rstio.c_iflag |= IXON;
-    if (
-#ifdef notyet
-	!modem->is_dedicated
-#else
-	!(mode & MODE_DEDICATED)
-#endif
-	)
+    if (modem->type != PHYS_DEDICATED)
       rstio.c_cflag |= HUPCL;
-    if (
-#ifdef notyet
-	!modem->is_direct
-#else
-	!(mode & MODE_DIRECT)
-#endif
-	) {
-
-      /*
-       * If we are working as direct mode, don't change tty speed.
-       */
+    else if (modem->type != PHYS_STDIN) {
+      /* Change tty speed when we're not in -direct mode */
       rstio.c_cflag &= ~(CSIZE | PARODD | PARENB);
       rstio.c_cflag |= modem->cfg.parity;
-      if (cfsetspeed(&rstio, IntToSpeed(modem->cfg.speed)) == -1) {
+      if (cfsetspeed(&rstio, IntToSpeed(modem->cfg.speed)) == -1)
 	LogPrintf(LogWARN, "Unable to set modem speed (modem %d to %d)\n",
 		  modem->fd, modem->cfg.speed);
-      }
     }
     tcsetattr(modem->fd, TCSADRAIN, &rstio);
     LogPrintf(LogDEBUG, "modem (put): iflag = %x, oflag = %x, cflag = %x\n",
 	      rstio.c_iflag, rstio.c_oflag, rstio.c_cflag);
 
-    if (
-#ifdef notyet
-	!modem->is_direct
-#else
-	!(mode & MODE_DIRECT)
-#endif
-	)
-      if (ioctl(modem->fd, TIOCMGET, &modem->mbits)) {
+    if (ioctl(modem->fd, TIOCMGET, &modem->mbits) == -1)
+      if (modem->type != PHYS_STDIN) {
         LogPrintf(LogERROR, "modem_Open: Cannot get modem status: %s\n",
 		  strerror(errno));
         modem_LogicalClose(modem);
 	return (-1);
-      }
+      } else
+        modem->mbits = TIOCM_CD;
     LogPrintf(LogDEBUG, "modem_Open: modem control = %o\n", modem->mbits);
 
     oldflag = fcntl(modem->fd, F_GETFL, 0);
@@ -668,11 +630,13 @@ modem_Open(struct physical *modem, struct bundle *bundle)
       modem_LogicalClose(modem);
       return (-1);
     }
-    (void) fcntl(modem->fd, F_SETFL, oldflag & ~O_NONBLOCK);
-  }
-  modem_StartTimer(bundle, modem);
+    fcntl(modem->fd, F_SETFL, oldflag & ~O_NONBLOCK);
 
-  return (modem->fd);
+    /* We do the timer only for ttys */
+    modem_StartTimer(bundle, modem);
+  }
+
+  return modem->fd;
 }
 
 int
@@ -699,16 +663,10 @@ modem_Raw(struct physical *modem, struct bundle *bundle)
   if (!isatty(modem->fd) || Physical_IsSync(modem))
     return 0;
 
-  if (
-#ifdef notyet
-      !modem->is_direct &&
-#else
-      !(mode & MODE_DIRECT) &&
-#endif
-      modem->fd >= 0 && !Online(modem)) {
+  if (modem->type != PHYS_STDIN && modem->fd >= 0 && !Online(modem))
     LogPrintf(LogDEBUG, "modem_Raw: modem = %d, mbits = %x\n",
 			  modem->fd, modem->mbits);
-  }
+
   tcgetattr(modem->fd, &rstio);
   cfmakeraw(&rstio);
   if (modem->cfg.rts_cts)
@@ -716,19 +674,14 @@ modem_Raw(struct physical *modem, struct bundle *bundle)
   else
     rstio.c_cflag |= CLOCAL;
 
-  if (
-#ifdef notyet
-      !modem->is_dedicated
-#else
-      !(mode & MODE_DEDICATED)
-#endif
-      )
+  if (modem->type != PHYS_DEDICATED)
     rstio.c_cflag |= HUPCL;
+
   tcsetattr(modem->fd, TCSADRAIN, &rstio);
   oldflag = fcntl(modem->fd, F_GETFL, 0);
   if (oldflag < 0)
     return (-1);
-  (void) fcntl(modem->fd, F_SETFL, oldflag | O_NONBLOCK);
+  fcntl(modem->fd, F_SETFL, oldflag | O_NONBLOCK);
 
   to.modem = modem;
   to.bundle = bundle;
@@ -805,19 +758,16 @@ modem_Close(struct physical *modem)
   if (modem->link.Timer.load)
     modem_Hangup(modem, force_hack);
 
+  *modem->name.full = '\0';
+  modem->name.base = modem->name.full;
+
   if (!isatty(modem->fd)) {
     modem_PhysicalClose(modem);
     return;
   }
 
   if (modem->fd >= 0) {
-    if (force_hack ||
-#ifdef notyet
-	!modem->is_dedicated
-#else
-	!(mode & MODE_DEDICATED)
-#endif
-	) {
+    if (force_hack || modem->type != PHYS_DEDICATED) {
       tcflush(modem->fd, TCIOFLUSH);
       modem_Unraw(modem);
       modem_LogicalClose(modem);
@@ -875,7 +825,7 @@ modem_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
 	LogPrintf(LogERROR, "modem write (%d): %s\n", modem->fd,
 		  strerror(errno));
         modem_Hangup(modem, 0);
-        bundle_LinkLost(bundle, &modem->link, 0);
+        bundle_LinkLost(bundle, modem, 0);
       }
     }
   }
@@ -884,17 +834,40 @@ modem_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
 int
 modem_ShowStatus(struct cmdargs const *arg)
 {
-  const char *dev;
   struct physical *modem = arg->cx->physical;
 #ifdef TIOCOUTQ
   int nb;
 #endif
 
-  dev = *modem->name.full ?
-    modem->name.full : "stdin";
+  prompt_Printf(arg->prompt, "Name: %s\n", modem->link.name);
+  prompt_Printf(arg->prompt, " State:           ");
+  if (modem->fd >= 0)
+    if (isatty(modem->fd))
+      prompt_Printf(arg->prompt, "open, %s carrier\n",
+                    Online(modem) ? "with" : "no");
+    else
+      prompt_Printf(arg->prompt, "open\n");
+  else
+    prompt_Printf(arg->prompt, "closed\n");
+  prompt_Printf(arg->prompt, " Device:          %s\n",
+                *modem->name.full ?  modem->name.full :
+                modem->type == PHYS_STDIN ? "stdin" : "N/A");
 
-  prompt_Printf(arg->prompt, "device list:   %s\n", modem->cfg.devlist);
-  prompt_Printf(arg->prompt, "device:        %s\n               ", dev);
+  prompt_Printf(arg->prompt, " Link Type:       %s\n", mode2Nam(modem->type));
+  prompt_Printf(arg->prompt, " Connect Count:   %d\n",
+                modem->connect_count);
+#ifdef TIOCOUTQ
+  if (modem->fd >= 0 && ioctl(modem->fd, TIOCOUTQ, &nb) >= 0)
+      prompt_Printf(arg->prompt, " Physical outq:   %d\n", nb);
+#endif
+
+  prompt_Printf(arg->prompt, " Queued Packets:    %d\n",
+                link_QueueLen(&modem->link));
+  prompt_Printf(arg->prompt, " Phone Number:    %s\n", arg->cx->phone.chosen);
+
+  prompt_Printf(arg->prompt, "\nDefaults:\n");
+  prompt_Printf(arg->prompt, " Device List:     %s\n", modem->cfg.devlist);
+  prompt_Printf(arg->prompt, " Characteristics: ");
   if (Physical_IsSync(arg->cx->physical))
     prompt_Printf(arg->prompt, "sync");
   else
@@ -919,25 +892,6 @@ modem_ShowStatus(struct cmdargs const *arg)
   prompt_Printf(arg->prompt, ", CTS/RTS %s\n",
                 (modem->cfg.rts_cts ? "on" : "off"));
 
-  if (LogIsKept(LogDEBUG))
-    prompt_Printf(arg->prompt, "fd = %d, modem control = %o\n",
-                  modem->fd, modem->mbits);
-  prompt_Printf(arg->prompt, "connect count: %d\n",
-                modem->connect_count);
-#ifdef TIOCOUTQ
-  if (modem->fd >= 0)
-    if (ioctl(modem->fd, TIOCOUTQ, &nb) >= 0)
-      prompt_Printf(arg->prompt, "outq:          %d\n", nb);
-    else
-      prompt_Printf(arg->prompt, "outq: ioctl probe failed: %s\n", strerror(errno));
-#endif
-  prompt_Printf(arg->prompt, "outq packets:  %d\n",
-                link_QueueLen(&modem->link));
-  prompt_Printf(arg->prompt, "Dial Script:   %s\n", arg->cx->cfg.script.dial);
-  prompt_Printf(arg->prompt, "Login Script:  %s\n", arg->cx->cfg.script.login);
-  prompt_Printf(arg->prompt, "Hangup Script: %s\n", arg->cx->cfg.script.hangup);
-  prompt_Printf(arg->prompt, "Phone List:    %s\n", arg->cx->cfg.phone.list);
-  prompt_Printf(arg->prompt, "Phone Number:  %s\n", arg->cx->phone.chosen);
 
   prompt_Printf(arg->prompt, "\n");
   throughput_disp(&modem->link.throughput, arg->prompt);
@@ -957,8 +911,6 @@ int  LogIsKept(int garble) {  return 0; }
 int  Physical_IsSync(struct physical *phys) {return 0;}
 int  DoChat(struct physical *a, char *b) {return 0;}
 
-int mode;
-
 #endif
 
 static void
@@ -974,15 +926,15 @@ modem_DescriptorRead(struct descriptor *d, struct bundle *bundle,
     nointr_usleep(10000);
 
   n = Physical_Read(p, rbuff, sizeof rbuff);
-  if ((mode & MODE_DIRECT) && n <= 0) {
+  if (p->type == PHYS_STDIN && n <= 0) {
     modem_Hangup(p, 0);
-    bundle_LinkLost(bundle, &p->link, 1);
+    bundle_LinkLost(bundle, p, 1);
   } else
     LogDumpBuff(LogASYNC, "ReadFromModem", rbuff, n);
 
   if (p->link.lcp.fsm.state <= ST_CLOSED) {
-    /* In dedicated mode, we just discard input until LCP is started */
-    if (!(mode & MODE_DEDICATED)) {
+    /* In -dedicated mode, we just discard input until LCP is started */
+    if (p->type != PHYS_DEDICATED) {
       cp = HdlcDetect(p, rbuff, n);
       if (cp) {
         /* LCP packet is detected. Turn ourselves into packet mode */

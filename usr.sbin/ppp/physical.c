@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.1.2.21 1998/04/06 09:12:34 brian Exp $
+ *  $Id: physical.c,v 1.1.2.22 1998/04/07 00:54:13 brian Exp $
  *
  */
 
@@ -76,18 +76,6 @@ Physical_IsSync(struct physical *phys) {
    return phys->cfg.speed == 0;
 }
 
-int
-Physical_FD_ISSET(struct physical *phys, fd_set *set) {
-   return phys->fd >= 0 && FD_ISSET(phys->fd, set);
-}
-
-void
-Physical_FD_SET(struct physical *phys, fd_set *set) {
-   assert(phys->fd >= 0);
-   FD_SET(phys->fd, set);
-}
-
-
 const char *Physical_GetDevice(struct physical *phys)
 {
    return phys->name.full;
@@ -124,31 +112,6 @@ Physical_SetRtsCts(struct physical *phys, int enable) {
    phys->cfg.rts_cts = enable;
    return 1;
 }
-
-void
-Physical_SetDedicated(struct physical *phys, int enable) {
-   assert(enable == 0 || enable == 1);
-
-   phys->cfg.is_dedicated = enable;
-}
-
-void
-Physical_SetDirect(struct physical *phys, int enable) {
-   assert(enable == 0 || enable == 1);
-
-   phys->cfg.is_direct = enable;
-}
-
-int
-Physical_IsDirect(struct physical *phys) {
-   return phys->cfg.is_direct;
-}
-
-int
-Physical_IsDedicated(struct physical *phys) {
-   return phys->cfg.is_dedicated;
-}
-
 
 void
 Physical_DupAndClose(struct physical *phys) {
@@ -209,7 +172,7 @@ Physical_IsSet(struct descriptor *d, const fd_set *fdset)
 void
 Physical_Login(struct physical *phys, const char *name)
 {
-  if ((mode & MODE_DIRECT) && Physical_IsATTY(phys) && Enabled(ConfUtmp))
+  if (phys->type == PHYS_STDIN && Physical_IsATTY(phys) && Enabled(ConfUtmp))
     if (phys->Utmp)
       LogPrintf(LogERROR, "Oops, already logged in on %s\n", phys->name.base);
     else {

@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.12 1998/04/03 19:26:26 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.13 1998/04/05 22:48:25 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1685,8 +1685,10 @@ of a loopback route.
 Default: Disabled.  This option allows the use of Microsoft's
 .Em PPP
 extensions, supporting the negotiation of the DNS and the NetBIOS NS.
-Enabling this allows us to pass back the values given in "set ns"
-and "set nbns".
+Enabling this allows us to pass back the values given in
+.Dq set ns
+and
+.Dq set nbns .
 .It passwdauth
 Default: Disabled.  Enabling this option will tell the PAP authentication
 code to use the password file (see
@@ -1842,6 +1844,10 @@ Possible modes are:
 .Sq background
 and
 .Sq * .
+.Pp
+When running in multilink mode, a section can be loaded if it allows
+.Em any
+of the currently existing line modes.
 .El
 .Pp
 .It alias Ar command Op Ar args
@@ -2417,7 +2423,7 @@ will be negotiated.  It is only available in
 mode.
 .It set ns Ar x.x.x.x Op Ar y.y.y.y
 This option allows the setting of the Microsoft DNS servers that
-will be negotiated.  It is only available in
+will be negotiated.  It is only used in
 .Fl direct
 mode.
 .It set openmode active|passive Op Ar delay
@@ -2614,7 +2620,7 @@ Give a summary of available show commands.
 Show the current IPCP statistics.
 .It show lcp
 Show the current LCP statistics.
-.It show link Op Ar name
+.It show [data]link Op Ar name
 Show link information.
 .It show log
 Show the current log values.
@@ -2626,10 +2632,6 @@ Show current modem statistics.
 Show the current Microsoft extension values.
 .It show proto
 Show current protocol totals.
-.It show reconnect
-Show the current reconnect values.
-.It show redial
-Show the current redial values.
 .It show route
 Show the current routing tables.
 .It show stopped

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.h,v 1.1.2.5 1998/04/05 18:25:34 brian Exp $
+ *	$Id: prompt.h,v 1.1.2.6 1998/04/07 00:54:16 brian Exp $
  */
 
 #define LOCAL_AUTH	0x01
@@ -49,7 +49,10 @@ struct prompt {
   unsigned needprompt : 1;	/* Show a prompt at the next UpdateSet() */
   unsigned active : 1;		/* Is the prompt active (^Z) */
 
-  char who[40];			/* Where do I come from */
+  struct {
+    const char *type;		/* Type of connection */
+    char from[40];		/* Source of connection */
+  } src;
 
   struct prompt *lognext;	/* Maintained in log.c */
   u_long logmask;		/* Maintained in log.c */
@@ -65,13 +68,12 @@ struct prompt {
 #define PROMPT_STD (-1)
 extern struct prompt *prompt_Create(struct server *, struct bundle *, int);
 extern void prompt_Destroy(struct prompt *, int);
-extern void prompt_DestroyUnclean(struct prompt *);
 extern void prompt_Required(struct prompt *);
 extern void prompt_Printf(struct prompt *, const char *, ...);
 extern void prompt_vPrintf(struct prompt *, const char *, _BSD_VA_LIST_);
 #define PROMPT_DONT_WANT_INT 1
 #define PROMPT_WANT_INT 0
-extern void prompt_TtyInit(struct prompt *, int);
+extern void prompt_TtyInit(struct prompt *);
 extern void prompt_TtyCommandMode(struct prompt *);
 extern void prompt_TtyTermMode(struct prompt *, struct datalink *);
 extern void prompt_TtyOldMode(struct prompt *);
