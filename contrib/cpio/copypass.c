@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /* copypass.c - cpio copy pass sub-function.
    Copyright (C) 1990, 1991, 1992 Free Software Foundation, Inc.
 
@@ -466,7 +467,7 @@ link_to_name (link_name, link_target)
     }
   else if (link_flag)
     {
-      error (0, errno, "cannot link %s to %s",
+      error (0, errno, "cannot link %s to %s (will copy instead)",
 	     link_target, link_name);
     }
 #endif /* not __MSDOS__ */
