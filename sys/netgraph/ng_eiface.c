@@ -79,9 +79,9 @@ static const struct ng_cmdlist ng_eiface_cmdlist[] = {
 
 /* Node private data */
 struct ng_eiface_private {
+	struct arpcom   arpcom;	/* per-interface network data */
 	struct ifnet   *ifp;	/* This interface */
 	int	unit;		/* Interface unit number */
-	struct arpcom   arpcom;	/* per-interface network data */
 	node_p		node;	/* Our netgraph node */
 	hook_p		ether;	/* Hook for ethernet stream */
 };
