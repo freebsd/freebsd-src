@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.61 1997/10/16 11:59:09 phk Exp $
+ * $Id: ufs_vnops.c,v 1.62 1997/10/16 20:32:39 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -73,9 +73,7 @@ static int ufs_chown __P((struct vnode *, uid_t, gid_t, struct ucred *, struct p
 static int ufs_close __P((struct vop_close_args *));
 static int ufs_create __P((struct vop_create_args *));
 static int ufs_getattr __P((struct vop_getattr_args *));
-static int ufs_islocked __P((struct vop_islocked_args *));
 static int ufs_link __P((struct vop_link_args *));
-static int ufs_lock __P((struct vop_lock_args *));
 static int ufs_makeinode __P((int mode, struct vnode *, struct vnode **, struct componentname *));
 static int ufs_missingop __P((struct vop_generic_args *ap));
 static int ufs_mkdir __P((struct vop_mkdir_args *));
@@ -91,7 +89,6 @@ static int ufs_rmdir __P((struct vop_rmdir_args *));
 static int ufs_setattr __P((struct vop_setattr_args *));
 static int ufs_strategy __P((struct vop_strategy_args *));
 static int ufs_symlink __P((struct vop_symlink_args *));
-static int ufs_unlock __P((struct vop_unlock_args *));
 static int ufs_whiteout __P((struct vop_whiteout_args *));
 static int ufsfifo_close __P((struct vop_close_args *));
 static int ufsfifo_read __P((struct vop_read_args *));
@@ -1719,53 +1716,6 @@ ufs_abortop(ap)
 }
 
 /*
- * Lock an inode. If its already locked, set the WANT bit and sleep.
- */
-int
-ufs_lock(ap)
-	struct vop_lock_args /* {
-		struct vnode *a_vp;
-		int a_flags;
-		struct proc *a_p;
-	} */ *ap;
-{
-	struct vnode *vp = ap->a_vp;
-
-	return (lockmgr(&VTOI(vp)->i_lock, ap->a_flags, &vp->v_interlock,
-		ap->a_p));
-}
-
-/*
- * Unlock an inode.
- */
-int
-ufs_unlock(ap)
-	struct vop_unlock_args /* {
-		struct vnode *a_vp;
-		int a_flags;
-		struct proc *a_p;
-	} */ *ap;
-{
-	struct vnode *vp = ap->a_vp;
-
-	return (lockmgr(&VTOI(vp)->i_lock, ap->a_flags | LK_RELEASE,
-		&vp->v_interlock, ap->a_p));
-}
-
-/*
- * Check for a locked inode.
- */
-int
-ufs_islocked(ap)
-	struct vop_islocked_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
-{
-
-	return (lockstatus(&VTOI(ap->a_vp)->i_lock));
-}
-
-/*
  * Calculate the logical to physical mapping if not done already,
  * then call the device strategy routine.
  */
@@ -2146,9 +2096,9 @@ static struct vnodeopv_entry_desc ufs_vnodeop_entries[] = {
 	{ &vop_create_desc,		(vop_t *) ufs_create },
 	{ &vop_getattr_desc,		(vop_t *) ufs_getattr },
 	{ &vop_inactive_desc,		(vop_t *) ufs_inactive },
-	{ &vop_islocked_desc,		(vop_t *) ufs_islocked },
+	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
 	{ &vop_link_desc,		(vop_t *) ufs_link },
-	{ &vop_lock_desc,		(vop_t *) ufs_lock },
+	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_lookup_desc,		(vop_t *) vfs_cache_lookup },
 	{ &vop_mkdir_desc,		(vop_t *) ufs_mkdir },
 	{ &vop_mknod_desc,		(vop_t *) ufs_mknod },
@@ -2165,7 +2115,7 @@ static struct vnodeopv_entry_desc ufs_vnodeop_entries[] = {
 	{ &vop_setattr_desc,		(vop_t *) ufs_setattr },
 	{ &vop_strategy_desc,		(vop_t *) ufs_strategy },
 	{ &vop_symlink_desc,		(vop_t *) ufs_symlink },
-	{ &vop_unlock_desc,		(vop_t *) ufs_unlock },
+	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ &vop_whiteout_desc,		(vop_t *) ufs_whiteout },
 	{ NULL, NULL }
 };
@@ -2180,13 +2130,13 @@ static struct vnodeopv_entry_desc ufs_specop_entries[] = {
 	{ &vop_close_desc,		(vop_t *) ufsspec_close },
 	{ &vop_getattr_desc,		(vop_t *) ufs_getattr },
 	{ &vop_inactive_desc,		(vop_t *) ufs_inactive },
-	{ &vop_islocked_desc,		(vop_t *) ufs_islocked },
-	{ &vop_lock_desc,		(vop_t *) ufs_lock },
+	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
+	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_print_desc,		(vop_t *) ufs_print },
 	{ &vop_read_desc,		(vop_t *) ufsspec_read },
 	{ &vop_reclaim_desc,		(vop_t *) ufs_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) ufs_setattr },
-	{ &vop_unlock_desc,		(vop_t *) ufs_unlock },
+	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ &vop_write_desc,		(vop_t *) ufsspec_write },
 	{ NULL, NULL }
 };
@@ -2201,13 +2151,13 @@ static struct vnodeopv_entry_desc ufs_fifoop_entries[] = {
 	{ &vop_close_desc,		(vop_t *) ufsfifo_close },
 	{ &vop_getattr_desc,		(vop_t *) ufs_getattr },
 	{ &vop_inactive_desc,		(vop_t *) ufs_inactive },
-	{ &vop_islocked_desc,		(vop_t *) ufs_islocked },
-	{ &vop_lock_desc,		(vop_t *) ufs_lock },
+	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
+	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_print_desc,		(vop_t *) ufs_print },
 	{ &vop_read_desc,		(vop_t *) ufsfifo_read },
 	{ &vop_reclaim_desc,		(vop_t *) ufs_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) ufs_setattr },
-	{ &vop_unlock_desc,		(vop_t *) ufs_unlock },
+	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ &vop_write_desc,		(vop_t *) ufsfifo_write },
 	{ NULL, NULL }
 };
