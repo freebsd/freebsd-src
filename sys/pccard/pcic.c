@@ -782,7 +782,7 @@ pcic_activate_resource(device_t dev, device_t child, int type, int rid,
 	{
 		struct mem_desc *mp = &devi->slt->mem[rid];
 		mp->flags |= IODF_ACTIVE;
-		mp->start = rman_get_start(r);
+		mp->start = (caddr_t) rman_get_start(r);
 		mp->size = rman_get_end(r) - rman_get_start(r) + 1;
 		err = pcic_memory(devi->slt, rid);
 		if (err)
@@ -801,7 +801,6 @@ pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
 	struct pccard_devinfo *devi = device_get_ivars(child);
-	struct io_desc *ip = &devi->slt->io[rid];
 	int err;
 
 	switch (type) {
