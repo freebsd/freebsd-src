@@ -1197,9 +1197,7 @@ dummynet_io(struct mbuf *m, int pipe_nr, int dir, struct ip_fw_args *fwa)
 	pkt->ro = *(fwa->ro);
 	if (pkt->ro.ro_rt) {
 	    RT_LOCK(pkt->ro.ro_rt);
-	    pkt->ro.ro_rt->rt_refcnt++ ;
-	    KASSERT(pkt->ro.ro_rt->rt_refcnt > 0,
-		("bogus refcnt %ld", pkt->ro.ro_rt->rt_refcnt));
+	    RT_ADDREF(pkt->ro.ro_rt) ;
 	    RT_UNLOCK(pkt->ro.ro_rt);
 	}
 	if (fwa->dst == (struct sockaddr_in *)&fwa->ro->ro_dst) /* dst points into ro */
