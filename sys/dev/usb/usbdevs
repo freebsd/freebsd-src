@@ -269,6 +269,7 @@ vendor ENTREGA		0x1645	Entrega
 vendor ACTIONTEC	0x1668	Actiontec Electronics, Inc.
 vendor DLINK		0x2001	D-Link Corp
 vendor INTEL		0x8086	Intel
+vendor HP2		0xf003	Hewlett Packard (2nd)
 
 /*
  * List of known products.  Grouped by vendor.
@@ -470,7 +471,7 @@ product HANDSPRING VISOR	0x0100	Handspring Visor
 
 /* HP products */
 product HP 4100C		0x0101	Scanjet 4100C
-product HP S20			0x0102	Photosmart S20
+product HP S20			0x0102	PhotoSmart S20
 product HP 4200C		0x0105	ScanJet 4200C
 product HP 6200C		0x0201	ScanJet 6200C
 product HP S20b			0x0202	PhotoSmart S20
@@ -478,7 +479,10 @@ product HP 3300C		0x0205	ScanJet 3300C
 product HP 5200			0x0401	Scanjet 5200
 product HP 6300C		0x0601	Scanjet 6300C
 product HP 970CSE		0x1004	Deskjet 970Cse
-product HP P1100		0x3102	Photosmart P1100
+product HP P1100		0x3102	PhotoSmart P1100
+
+/* HP2 products */
+product HP2 C500		0x6002	PhotoSmart C500
 
 /* IBM Corporation */
 product	IBM USBCDROMDRIVE	0x4427	USB CD-ROM Drive
