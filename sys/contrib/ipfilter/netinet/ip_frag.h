@@ -57,14 +57,18 @@ extern	void	ipfr_forget __P((void *));
 extern	void	ipfr_unload __P((void));
 extern	void	ipfr_fragexpire __P((void));
 
-#if     (BSD >= 199306) || SOLARIS || defined(__sgi)
-# if defined(SOLARIS2) && (SOLARIS2 < 7)
+#ifdef _KERNEL
+# if     (BSD >= 199306) || SOLARIS || defined(__sgi)
+#  if defined(SOLARIS2) && (SOLARIS2 < 7)
 extern	void	ipfr_slowtimer __P((void));
-# else
+#  else
 extern	void	ipfr_slowtimer __P((void *));
-# endif
-#else
+#  endif
+# else
 extern	int	ipfr_slowtimer __P((void));
-#endif /* (BSD >= 199306) || SOLARIS */
+# endif /* (BSD >= 199306) || SOLARIS */
+#else
+extern	void	ipfr_slowtimer __P((void));
+#endif /* _KERNEL */
 
 #endif	/* __IP_FIL_H__ */

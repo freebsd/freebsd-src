@@ -2,6 +2,7 @@
  * Simple netbios-dgm transparent proxy for in-kernel use.
  * For use with the NAT code.
  * $Id: ip_netbios_pxy.c,v 1.1.2.3 2002/01/09 09:28:37 darrenr Exp $
+ * $FreeBSD$
  */
 
 /*-
