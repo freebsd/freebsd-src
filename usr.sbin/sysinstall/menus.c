@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.170 1998/09/30 11:49:35 jkh Exp $
+ * $Id: menus.c,v 1.171 1998/09/30 21:39:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -233,11 +233,11 @@ DMenu MenuIndex = {
       { "Distributions, Adding", "Installing additional distribution sets", NULL, distExtractAll },
       { "Distributions, XFree86","XFree86 distribution menu.",		NULL, distSetXF86 },
       { "Documentation",	"Installation instructions, README, etc.", NULL, dmenuSubmenu, NULL, &MenuDocumentation },
-      { "Doc, README",		"The distribution README file.",	NULL, dmenuDisplayFile, NULL, "readme" },
-      { "Doc, Hardware",	"The distribution hardware guide.",	NULL, dmenuDisplayFile,	NULL, "hardware" },
-      { "Doc, Install",		"The distribution installation guide.",	NULL, dmenuDisplayFile,	NULL, "install" },
+      { "Doc, README",		"The distribution README file.",	NULL, dmenuDisplayFile, NULL, "README" },
+      { "Doc, Hardware",	"The distribution hardware guide.",	NULL, dmenuDisplayFile,	NULL, "HARDWARE" },
+      { "Doc, Install",		"The distribution installation guide.",	NULL, dmenuDisplayFile,	NULL, "INSTALL" },
       { "Doc, Copyright",	"The distribution copyright notices.",	NULL, dmenuDisplayFile,	NULL, "COPYRIGHT" },
-      { "Doc, Release",		"The distribution release notes.",	NULL, dmenuDisplayFile, NULL, "relnotes" },
+      { "Doc, Release",		"The distribution release notes.",	NULL, dmenuDisplayFile, NULL, "RELNOTES" },
       { "Doc, HTML",		"The HTML documentation menu.",		NULL, docBrowser },
       { "Emergency shell",	"Start an Emergency Holographic shell.",	NULL, installFixitHoloShell },
       { "Fdisk",		"The disk Partition Editor",		NULL, diskPartitionEditor },
@@ -325,11 +325,11 @@ DMenu MenuDocumentation = {
     "consult the README file.",
     "Confused?  Press F1 for help.",
     "usage",
-    { { "1 README",	"A general description of FreeBSD.  Read this!", NULL, dmenuDisplayFile, NULL, "readme" },
-      { "2 Hardware",	"The FreeBSD survival guide for PC hardware.",	NULL, dmenuDisplayFile,	NULL, "hardware" },
-      { "3 Install",	"A step-by-step guide to installing FreeBSD.",	NULL, dmenuDisplayFile,	NULL, "install" },
+    { { "1 README",	"A general description of FreeBSD.  Read this!", NULL, dmenuDisplayFile, NULL, "README" },
+      { "2 Hardware",	"The FreeBSD survival guide for PC hardware.",	NULL, dmenuDisplayFile,	NULL, "HARDWARE" },
+      { "3 Install",	"A step-by-step guide to installing FreeBSD.",	NULL, dmenuDisplayFile,	NULL, "INSTALL" },
       { "4 Copyright",	"The FreeBSD Copyright notices.",		NULL, dmenuDisplayFile,	NULL, "COPYRIGHT" },
-      { "5 Release"	,"The release notes for this version of FreeBSD.", NULL, dmenuDisplayFile, NULL, "relnotes" },
+      { "5 Release"	,"The release notes for this version of FreeBSD.", NULL, dmenuDisplayFile, NULL, "RELNOTES" },
       { "6 Shortcuts",	"Creating shortcuts to sysinstall.",		NULL, dmenuDisplayFile, NULL, "shortcuts" },
       { "7 HTML Docs",	"Go to the HTML documentation menu (post-install).", NULL, docBrowser },
       { "0 Exit",	"Exit this menu (returning to previous)",	NULL, dmenuExit },
