@@ -1,4 +1,4 @@
-/*	$Id: ppp_deflate.c,v 1.3 1997/08/19 14:10:46 peter Exp $	*/
+/*	$Id: ppp_deflate.c,v 1.4 1997/09/02 01:18:39 bde Exp $	*/
 
 /*
  * ppp_deflate.c - interface the zlib procedures for Deflate compression
@@ -60,8 +60,8 @@ struct deflate_state {
 
 #define DEFLATE_OVHD	2		/* Deflate overhead/packet */
 
-static void	*zalloc __P((void *, u_int items, u_int size));
-static void	zfree __P((void *, void *ptr, u_int nb));
+static void	*z_alloc __P((void *, u_int items, u_int size));
+static void	z_free __P((void *, void *ptr, u_int nb));
 static void	*z_comp_alloc __P((u_char *options, int opt_len));
 static void	*z_decomp_alloc __P((u_char *options, int opt_len));
 static void	z_comp_free __P((void *state));
@@ -103,7 +103,7 @@ struct compressor ppp_deflate = {
  * Space allocation and freeing routines for use by zlib routines.
  */
 void *
-zalloc(notused, items, size)
+z_alloc(notused, items, size)
     void *notused;
     u_int items, size;
 {
@@ -114,7 +114,7 @@ zalloc(notused, items, size)
 }
 
 void
-zfree(notused, ptr, nbytes)
+z_free(notused, ptr, nbytes)
     void *notused;
     void *ptr;
     u_int nbytes;
@@ -148,9 +148,9 @@ z_comp_alloc(options, opt_len)
 	return NULL;
 
     state->strm.next_in = NULL;
-    state->strm.zalloc = zalloc;
-    state->strm.zalloc_init = zalloc;
-    state->strm.zfree = zfree;
+    state->strm.zalloc = z_alloc;
+    state->strm.zalloc_init = z_alloc;
+    state->strm.zfree = z_free;
     if (deflateInit2(&state->strm, Z_DEFAULT_COMPRESSION, DEFLATE_METHOD_VAL,
 		     -w_size, 8, Z_DEFAULT_STRATEGY, DEFLATE_OVHD+2) != Z_OK) {
 	FREE(state, M_DEVBUF);
@@ -380,9 +380,9 @@ z_decomp_alloc(options, opt_len)
 	return NULL;
 
     state->strm.next_out = NULL;
-    state->strm.zalloc = zalloc;
-    state->strm.zalloc_init = zalloc;
-    state->strm.zfree = zfree;
+    state->strm.zalloc = z_alloc;
+    state->strm.zalloc_init = z_alloc;
+    state->strm.zfree = z_free;
     if (inflateInit2(&state->strm, -w_size) != Z_OK) {
 	FREE(state, M_DEVBUF);
 	return NULL;
