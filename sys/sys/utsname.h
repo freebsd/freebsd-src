@@ -41,11 +41,11 @@
 #define	_SYS_UTSNAME_H
 
 #ifdef _KERNEL
-#define SYS_NMLN	32		/* uname(2) is FreeBSD 1.1 compatable */
+#define	SYS_NMLN	32		/* uname(2) for the FreeBSD 1.1 ABI. */
 #endif
 
 #ifndef SYS_NMLN
-#define SYS_NMLN	256		/* Ask and ye shall receive */
+#define	SYS_NMLN	256		/* User can override. */
 #endif
 
 struct utsname {
@@ -60,7 +60,7 @@ struct utsname {
 
 #ifndef _KERNEL
 __BEGIN_DECLS
-int	__xuname(int, void *);		/* Variable record size */
+int	__xuname(int, void *);		/* Variable record size. */
 __END_DECLS
 
 static __inline int
