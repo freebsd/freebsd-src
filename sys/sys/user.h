@@ -97,46 +97,16 @@ void fill_eproc __P((struct proc *, struct eproc *));
 /*
  * Per process structure containing data that isn't needed in core
  * when the process isn't running (esp. when swapped out).
- * This structure may or may not be at the same kernel address
- * in all processes.
  */
-
 struct	user {
 	struct	pcb u_pcb;
 	struct	sigacts u_sigacts;	/* p_sigacts points here (use it!) */
 	struct	pstats u_stats;		/* p_stats points here (use it!) */
 	/*
-	 * Remaining fields only for core dump and/or ptrace--
-	 * not valid at other times!
+	 * Remaining fields for a.out core dumps - not valid at other times!
 	 */
 	struct	kinfo_proc u_kproc;	/* proc + eproc */
 	struct	md_coredump u_md;	/* machine dependent glop */
 };
-
-/*
- * Redefinitions to make the debuggers happy for now...  This subterfuge
- * brought to you by coredump() and trace_req().  These fields are *only*
- * valid at those times!
- */
-#ifdef __i386__
-#define	U_ar0	u_kproc.kp_proc.p_md.md_regs /* copy of curproc->p_md.md_regs */
-#endif
-#ifdef __alpha__
-#define	U_ar0	u_kproc.kp_proc.p_md.md_tf /* copy of curproc->p_md.md_tf */
-#endif
-#define	U_tsize	u_kproc.kp_eproc.e_vm.vm_tsize
-#define	U_dsize	u_kproc.kp_eproc.e_vm.vm_dsize
-#define	U_ssize	u_kproc.kp_eproc.e_vm.vm_ssize
-#define	U_sig	u_kproc.kp_proc.p_sig
-#define	U_code	u_kproc.kp_proc.p_code
-
-#ifndef _KERNEL
-#define	u_ar0	U_ar0
-#define	u_tsize	U_tsize
-#define	u_dsize	U_dsize
-#define	u_ssize	U_ssize
-#define	u_sig	U_sig
-#define	u_code	U_code
-#endif
 
 #endif
