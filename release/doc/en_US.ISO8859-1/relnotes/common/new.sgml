@@ -169,11 +169,6 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para arch="i386">The &man.ctau.4; driver has been added for Cronyx Tau
-      synchronous serial adapters. This driver was known for a long time as "ct"
-      in its previous life outside FreeBSD source tree. Note: only driver name
-      has changed. Network interface still has "ct" name.</para>
-
     <para arch="i386">The &man.acpi.toshiba.4; driver has been added
       to use Toshiba's Hardware Control Interface to manipulate
       certain hardware features on Toshiba laptops.</para>
@@ -181,6 +176,16 @@
     <para>The &man.acpi.video.4; driver has been added to provide
       control display switching and backlight brightness using the
       ACPI Video Extensions.</para>
+
+    <para arch="i386">The &man.ctau.4; driver has been added for Cronyx-Tau
+      synchronous serial adapters. This driver was known for a long time as
+      <quote>ct</quote> in its previous life outside &os; source tree. &merged;
+
+      <note>
+	<para>The driver name has changed, but the network interface still
+	  has <quote>ct</quote> name.</para>
+      </note>
+    </para>
 
     <para>&man.devfs.5; path rules now work correctly on
       directories.</para>
@@ -254,6 +259,10 @@
     <sect3 id="proc">
       <title>Platform-Specific Hardware Support</title>
 
+      <para arch="i386">The entropy device &man.random.4; now
+        supports a hardware random number generator (RNG)
+        in the VIA C3 Nehemiah (Stepping 3 and above) CPU.</para>
+
       <para arch="i386">Several old drivers for ISA cards have been removed,
 	including
 	the asc driver for GI1904-based hand scanners,
@@ -325,12 +334,23 @@
       <para>The &man.ng.vlan.4; NetGraph node type, which supports
         IEEE 802.1Q VLAN tagging has been added.  &merged;</para>
 
+      <para>A bug, which prevents VLAN support in the &man.nge.4; driver
+        from working has been fixed.  &merged;</para>
+
+      <para>Several bugs related to &man.polling.4; support
+        in the &man.rl.4; driver have been fixed.  &merged;</para>
+
       <para>Several bugs related to multicast and promiscuous mode
 	handling in the &man.sk.4; driver have been fixed.</para>
+
+      <para>The &man.ste.4; driver now supports &man.polling.4;.
+        &merged;</para>
 
       <para>The &man.udav.4; driver has been added.  It provides
 	support for USB Ethernet adapters based on the Davicom DM9601
 	chipset.</para>
+
+      <para>The &man.vr.4; driver now supports &man.polling.4;.</para>
 
       <para>The hardware TX checksum support of the &man.xl.4; driver
 	has been disabled as it does not work correctly and slows down
@@ -390,12 +410,18 @@
 	work better, and some problems with timeouts should be
 	resolved.</para>
 
+      <para arch="pc98">A bug of the automatic density selection code
+	in the &man.fd.4; driver has been fixed.</para>
+
       <para>The &man.ips.4; driver now supports the recent
 	Adaptec ServeRAID series SCSI controller cards.</para>
 
       <para arch="sparc64">A bug in the &man.isp.4; driver
         which prevents the cards on SBus from working correctly,
 	has been fixed.</para>
+
+      <para arch="i386">The twa driver, which supports
+	3ware's 9000 series PATA/SATA RAID controllers has been added.  &merged;</para>
 
       <para>The &man.umass.4; driver now supports the missing
 	ATAPI MMC commands and handles the timeout properly.  &merged;</para>
@@ -445,6 +471,23 @@
 
   <sect2 id="userland">
     <title>Userland Changes</title>
+
+    <para>&man.bsdlabel.8; now supports a <option>-f</option> option
+      to work on files instead of disk partitions.</para>
+
+    <para>The <command>bthidcontrol</command> and the
+      <command>bthidd</command> which support Bluetooth
+      HID (Human Interface Device), have been added.</para>
+
+    <para>The <command>doscmd</command> utility has been
+      removed from the &os; base system, and has been available
+      in the &os; Ports Collection instead.</para>
+
+    <para arch="pc98">The &man.fdcontrol.8;, &man.fdformat.1;, and
+      &man.fdread.1; utilities now work on &os;/pc98.</para>
+
+    <para>The &man.find.1; now supports a option
+      <option>-acl</option> to locate files with &man.acl.3;</para>
 
     <para>&man.indent.1; now supports a <option>-ldi</option> option
       to control indentation of local variables.  A number of other
@@ -516,12 +559,20 @@
       </note>
     <para>
 
+    <para>Initial support for UTF-8 versions of all the currently
+      supported system locales has been added.  This is primarily
+      for the benefit of the <filename role="package">misc/utf8locale</filename>
+      port.</para>
+
     <para>The &man.logins.1; utility has been added to display
       information about user and system accounts.</para>
 
     <para>&man.mountd.8; now supports the <option>-p</option> option,
        which allows users to specify a known port for use
        in firewall rulesets.</para>
+
+    <para>&man.netstat.1; now displays the multicast group
+      memberships present in the system.</para>
 
     <para>&man.newfs.8; and &man.mdmfs.8; now support a
       <option>-l</option> flag to enable them to set the MAC
@@ -540,6 +591,22 @@
       problems when using third-party NSS modules (such as <filename
       role="package">net/nss_ldap</filename>) and groups with large
       membership lists.</para>
+
+    <para>The &man.pgrep.1; and &man.pkill.1;, which come from NetBSD
+      have been added.  They also support a <option>-M</option> option
+      to extract values associated with the name list from the
+      specified core instead of the default <filename>/dev/kmem</filename>,
+      and a <option>-N</option> option to extract the name list from
+      the specified system instead of the default kernel.</para>
+
+    <para>&man.ps.1; has been improved in the POSIX/SUSv3 compatibility.
+      The changes include <option>-p</option> for a list of process IDs,
+      <option>-t</option> for a list of terminal names,
+      <option>-A</option> which is equivalent with <option>-ax</option>,
+      <option>-G</option> for a list of group IDs,
+      <option>-X</option> which is the opposite of <option>-x</option>,
+      and some minor improvements.  For more information, see &man.ps.1;.
+      &merged;</para>
 
     <para>&man.pw.8; now supports a <option>-H</option> option, which
       accepts an encrypted password on a file descriptor. &merged;</para>
@@ -604,8 +671,8 @@
 	It saves the current settings of all audio mixers present
 	in the system on shutdown and restores the settings on boot.</para>
 
-      <para>The <filename>pf</filename> script for &man.pf.4;
-        has been added.</para>
+      <para>The <filename>pf</filename> and <filename>pflog</filename>
+        scripts for &man.pf.4; has been added.</para>
     </sect3>
   </sect2>
 
@@ -645,6 +712,12 @@
       <filename>tar</filename> being a link to
       <filename>gtar</filename>.</para>
 
+    <para><application>Heimdal Kerberos</application> has been
+       updated from 0.6 to 0.6.1.
+
+    <para><application>libpcap</application> has been updated from
+      version 0.7.1 to version 0.8.3.</para>
+
     <para><application>OpenPAM</application> has been updated from the
       Dogwood release to the Eelgrass release.</para>
 
@@ -659,6 +732,9 @@
       </note>
 
       </para>
+
+    <para><application>OpenSSL</application> has been updated from
+      0.9.7c to 0.9.7d.  &merged;</para>
 
     <para><application>pf</application>, OpenBSD's packet filter as of
       OpenBSD 3.4, has been imported into &os; source tree and is now installed
@@ -695,6 +771,8 @@
     <para><application>sendmail</application> has been updated from
       version 8.12.10 to version 8.12.11. &merged;</para>
 
+    <para><application>tcpdump</application> has been updated from
+      version 3.7.1 to version 3.8.3.</para>
   </sect2>
 
   <sect2 id="ports">
