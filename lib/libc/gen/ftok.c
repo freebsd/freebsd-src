@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 key_t
 ftok(path, id)
 	const char *path;
-	char id;
+	int id;
 {
 	struct stat st;
 
