@@ -42,16 +42,6 @@ PORTSRELEASETAG?=	${AUXRELEASETAG}
 
 KERNCONF=GENERIC
 
-ISO_DISC1?=${CHROOTDIR}/${_R}/${BUILDNAME}_disc1.iso
-ISO_DISC2?=${CHROOTDIR}/${_R}/${BUILDNAME}_disc2.iso
-ISOTITLE?="${BUILDNAME} ${MACHINE}"
-ISOCOPYRIGHT?="(c)2001 The FreeBSD Project"
-#	for x86, et. al.
-.if ${MACHINE_ARCH} == "i386"
-ISOBOOTABLE=-b floppies/boot.flp -c floppies/boot.catalog
-.endif
-MKISOFLAGS=${ISOBOOTABLE} -d -N -D -R -T -V ${ISOTITLE} -P ${ISOCOPYRIGHT}
-
 # If you want to pass flags to the world build such as -j X, use
 # WORLD_FLAGS.  Similarly, you can specify make flags for kernel
 # builds via KERNEL_FLAGS.
@@ -195,7 +185,7 @@ FIXCRYPTO+=	usr.sbin/sendmail
 
 # Things which may get you into trouble if you change them
 MTREEFILES=		${.CURDIR}/../etc/mtree
-_R=			/R
+_R?=			/R
 RD=			${_R}/stage
 FD=			${_R}/ftp
 CD=			${_R}/cdrom
@@ -793,14 +783,16 @@ cdrom.1:
 iso.1:
 	@if [ -x ${.CURDIR}/${MACHINE_ARCH}/mkisoimages.sh ]; then \
 		echo "Creating ISO images..."; \
-		${.CURDIR}/${MACHINE_ARCH}/mkisoimages.sh -b fbsd_miniboot \
-		  ${CD}/miniboot.iso ${CD_DISC1}; \
+		${.CURDIR}/${MACHINE_ARCH}/mkisoimages.sh -b fbsd_miniinst \
+		  ${CD}/miniinst.iso ${CD_DISC1}; \
 		${.CURDIR}/${MACHINE_ARCH}/mkisoimages.sh -b fbsd_livefs \
 		  ${CD}/disc2.iso ${CD_DISC2}; \
 		if [ "x${CD_EXTRA_BITS}" != "x" ]; then \
 			${.CURDIR}/${MACHINE_ARCH}/mkisoimages.sh -b fbsd_boot \
 			  ${CD}/disc1.iso ${CD_DISC1} ${CD_EXTRA_BITS}; \
 		fi \
+	else \
+		echo "Do not know how to create an ISO for ${MACHINE_ARCH}."; \
 	fi
 	touch iso.1
 
@@ -1026,15 +1018,5 @@ doMFSKERN:
 		${BOOTINODE} ${BOOTLABEL}
 .endif
 	@echo "Created ${RD}/floppies/${FSIMAGE}.flp"
-
-iso:
-	mkisofs ${MKISOFLAGS} -o ${ISO_DISC1} ${CHROOTDIR}${CD_DISC1}
-	mkisofs ${MKISOFLAGS} -o ${ISO_DISC2} ${CHROOTDIR}${CD_DISC2}
-	# post-processing
-.for disc in ${ISO_DISC1} ${ISO_DISC2}
-.if ${MACHINE_ARCH} == "alpha"
-	setcdboot ${disc} /boot/cdboot
-.endif
-.endfor
 
 .include <bsd.prog.mk>
