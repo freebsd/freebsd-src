@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.263
+    Original revision: 1.264
 -->
 
 <articleinfo>
@@ -205,7 +205,7 @@
       デフォルトとなりました. &merged;</para>
 
     <para arch="alpha">カーネルオプション <varname>MAXMEM</varname>
-      と <varname>hw.physmem</varname> 環境変数
+      と <varname>hw.physmem</varname> ローダ変数
       はテスト (やその他の目的) のために, 人工的にマシンのメモリサイズ
       を減らすことに使えるようになりました. &merged;</para>
 
@@ -2304,7 +2304,7 @@ hw.pcic.irq="0"</programlisting>
 
     <para><quote>catpage</quote> (繰り返し表示されるためにあらかじめ
       フォーマットされキャッシュされたマニュアルページ) の生成に
-      関連する弱点を減らすために, &man.nam.1; は
+      関連する弱点を減らすために, &man.man.1; は
       <username>man</username> に SUID された状態で
       インストールされなくなりました.
       その結果, &man.man.1; は一般ユーザの代わりにシステムの catpage
