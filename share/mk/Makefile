@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.13.2.3 1998/05/30 22:40:58 jkh Exp $
+#	$Id: Makefile,v 1.13.2.4 1998/11/11 21:41:55 asami Exp $
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
 
 FILES=	bsd.README
@@ -14,5 +14,6 @@ all clean cleandir depend lint tags:
 afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${SHAREMODE} ${FILES} \
 	    ${DESTDIR}${BINDIR}/mk
+	date '+%Y%m%d' > ${DESTDIR}/var/db/pkg/.mkversion
 
 .include <bsd.prog.mk>
