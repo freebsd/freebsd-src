@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbrsdt - ACPI RSDT table utilities
- *              $Revision: 4 $
+ *              $Revision: 7 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -174,7 +174,7 @@ AcpiTbVerifyRsdp (
     /*
      *  The signature and checksum must both be correct
      */
-    if (ACPI_STRNCMP ((NATIVE_CHAR *) Rsdp, RSDP_SIG, sizeof (RSDP_SIG)-1) != 0)
+    if (ACPI_STRNCMP ((char *) Rsdp, RSDP_SIG, sizeof (RSDP_SIG)-1) != 0)
     {
         /* Nope, BAD Signature */
 
@@ -318,7 +318,7 @@ AcpiTbValidateRsdt (
         ACPI_DEBUG_PRINT_RAW ((ACPI_DB_ERROR,
             "RSDT/XSDT signature at %X (%p) is invalid\n",
             AcpiGbl_RSDP->RsdtPhysicalAddress,
-            (void *) (NATIVE_UINT) AcpiGbl_RSDP->RsdtPhysicalAddress));
+            (void *) (ACPI_NATIVE_UINT) AcpiGbl_RSDP->RsdtPhysicalAddress));
 
         return (AE_BAD_SIGNATURE);
     }

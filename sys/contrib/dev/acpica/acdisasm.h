@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acdisasm.h - AML disassembler
- *       $Revision: 5 $
+ *       $Revision: 8 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -141,10 +141,10 @@ extern const char               *AcpiGbl_SHRDecode[2];
 extern const char               *AcpiGbl_TYPDecode[4];
 extern const char               *AcpiGbl_BMDecode[2];
 extern const char               *AcpiGbl_SIZDecode[4];
-extern const NATIVE_CHAR        *AcpiGbl_LockRule[NUM_LOCK_RULES];
-extern const NATIVE_CHAR        *AcpiGbl_AccessTypes[NUM_ACCESS_TYPES];
-extern const NATIVE_CHAR        *AcpiGbl_UpdateRules[NUM_UPDATE_RULES];
-extern const NATIVE_CHAR        *AcpiGbl_MatchOps[NUM_MATCH_OPS];
+extern const char               *AcpiGbl_LockRule[ACPI_NUM_LOCK_RULES];
+extern const char               *AcpiGbl_AccessTypes[ACPI_NUM_ACCESS_TYPES];
+extern const char               *AcpiGbl_UpdateRules[ACPI_NUM_UPDATE_RULES];
+extern const char               *AcpiGbl_MatchOps[ACPI_NUM_MATCH_OPS];
 
 
 typedef struct acpi_op_walk_info
@@ -210,7 +210,7 @@ AcpiDmDisassemble (
 
 void
 AcpiDmNamestring (
-    NATIVE_CHAR             *Name);
+    char                    *Name);
 
 void
 AcpiDmDisplayPath (

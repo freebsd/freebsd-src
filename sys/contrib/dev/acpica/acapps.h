@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -128,12 +128,12 @@ extern UINT32                   AmlLength;
 
 
 extern int                      AcpiGbl_Optind;
-extern NATIVE_CHAR              *AcpiGbl_Optarg;
+extern char                     *AcpiGbl_Optarg;
 
 int
 AcpiGetopt(
-    int                     argc, 
-    char                    **argv, 
+    int                     argc,
+    char                    **argv,
     char                    *opts);
 
 ACPI_STATUS
@@ -171,16 +171,18 @@ void
 AdDumpTables (void);
 
 ACPI_STATUS
-AdGetTables (
+AdGetLocalTables (
     char                    *Filename,
     BOOLEAN                 GetAllTables);
 
 ACPI_STATUS
-AdParseTables (void);
+AdParseTable (
+    ACPI_TABLE_HEADER       *Table);
 
 ACPI_STATUS
 AdDisplayTables (
-    char                    *Filename);
+    char                    *Filename,
+    ACPI_TABLE_HEADER       *Table);
 
 ACPI_STATUS
 AdDisplayStatistics (void);

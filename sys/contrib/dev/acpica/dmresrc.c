@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmresrc.c - Resource Descriptor disassembly
- *              $Revision: 5 $
+ *              $Revision: 7 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -195,7 +195,7 @@ AcpiDmResourceDescriptor (
     UINT8                   *ByteData,
     UINT32                  ByteCount)
 {
-    NATIVE_UINT             CurrentByteOffset;
+    ACPI_NATIVE_UINT        CurrentByteOffset;
     UINT8                   CurrentByte;
     UINT8                   DescriptorId;
     UINT32                  Length;
@@ -224,7 +224,7 @@ AcpiDmResourceDescriptor (
             CurrentByteOffset += 1;
         }
 
-        CurrentByteOffset += (NATIVE_UINT) Length;
+        CurrentByteOffset += (ACPI_NATIVE_UINT) Length;
 
         /* Determine type of resource */
 
@@ -406,7 +406,7 @@ AcpiDmIsResourceDescriptor (
     UINT8                   *ByteData;
     UINT32                  ByteCount;
     ACPI_PARSE_OBJECT       *NextOp;
-    NATIVE_UINT             CurrentByteOffset;
+    ACPI_NATIVE_UINT        CurrentByteOffset;
     UINT8                   CurrentByte;
     UINT8                   DescriptorId;
     UINT32                  Length;
@@ -463,7 +463,7 @@ AcpiDmIsResourceDescriptor (
             CurrentByteOffset += 1;
         }
 
-        CurrentByteOffset += (NATIVE_UINT) Length;
+        CurrentByteOffset += (ACPI_NATIVE_UINT) Length;
 
         /* Determine type of resource */
 

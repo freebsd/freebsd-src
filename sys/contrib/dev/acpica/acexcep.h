@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acexcep.h - Exception codes returned by the ACPI subsystem
- *       $Revision: 64 $
+ *       $Revision: 67 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -166,8 +166,9 @@
 #define AE_NO_HARDWARE_RESPONSE         (ACPI_STATUS) (0x0019 | AE_CODE_ENVIRONMENTAL)
 #define AE_NO_GLOBAL_LOCK               (ACPI_STATUS) (0x001A | AE_CODE_ENVIRONMENTAL)
 #define AE_LOGICAL_ADDRESS              (ACPI_STATUS) (0x001B | AE_CODE_ENVIRONMENTAL)
+#define AE_ABORT_METHOD                 (ACPI_STATUS) (0x001C | AE_CODE_ENVIRONMENTAL)
 
-#define AE_CODE_ENV_MAX                 0x001B
+#define AE_CODE_ENV_MAX                 0x001C
 
 /*
  * Programmer exceptions
@@ -261,7 +262,7 @@
  * String versions of the exception codes above
  * These strings must match the corresponding defines exactly
  */
-NATIVE_CHAR const   *AcpiGbl_ExceptionNames_Env[] =
+char const   *AcpiGbl_ExceptionNames_Env[] =
 {
     "AE_OK",
     "AE_ERROR",
@@ -290,10 +291,11 @@ NATIVE_CHAR const   *AcpiGbl_ExceptionNames_Env[] =
     "AE_ALREADY_ACQUIRED",
     "AE_NO_HARDWARE_RESPONSE",
     "AE_NO_GLOBAL_LOCK",
-    "AE_LOGICAL_ADDRESS"
+    "AE_LOGICAL_ADDRESS",
+    "AE_ABORT_METHOD"
 };
 
-NATIVE_CHAR const   *AcpiGbl_ExceptionNames_Pgm[] =
+char const   *AcpiGbl_ExceptionNames_Pgm[] =
 {
     "AE_BAD_PARAMETER",
     "AE_BAD_CHARACTER",
@@ -306,7 +308,7 @@ NATIVE_CHAR const   *AcpiGbl_ExceptionNames_Pgm[] =
     "AE_BAD_DECIMAL_CONSTANT"
 };
 
-NATIVE_CHAR const   *AcpiGbl_ExceptionNames_Tbl[] =
+char const   *AcpiGbl_ExceptionNames_Tbl[] =
 {
     "AE_BAD_SIGNATURE",
     "AE_BAD_HEADER",
@@ -316,7 +318,7 @@ NATIVE_CHAR const   *AcpiGbl_ExceptionNames_Tbl[] =
     "AE_INVALID_TABLE_LENGTH"
 };
 
-NATIVE_CHAR const   *AcpiGbl_ExceptionNames_Aml[] =
+char const   *AcpiGbl_ExceptionNames_Aml[] =
 {
     "AE_AML_ERROR",
     "AE_AML_PARSE",
@@ -352,7 +354,7 @@ NATIVE_CHAR const   *AcpiGbl_ExceptionNames_Aml[] =
     "AE_AML_CIRCULAR_REFERENCE"
 };
 
-NATIVE_CHAR const   *AcpiGbl_ExceptionNames_Ctrl[] =
+char const   *AcpiGbl_ExceptionNames_Ctrl[] =
 {
     "AE_CTRL_RETURN_VALUE",
     "AE_CTRL_PENDING",

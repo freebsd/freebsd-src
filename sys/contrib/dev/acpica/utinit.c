@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utinit - Common ACPI subsystem initialization
- *              $Revision: 114 $
+ *              $Revision: 116 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -142,7 +142,7 @@
 
 static void
 AcpiUtFadtRegisterError (
-    NATIVE_CHAR             *RegisterName,
+    char                    *RegisterName,
     UINT32                  Value,
     ACPI_SIZE               Offset)
 {

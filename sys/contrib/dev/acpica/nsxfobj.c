@@ -2,7 +2,7 @@
  *
  * Module Name: nsxfobj - Public interfaces to the ACPI subsystem
  *                         ACPI Object oriented interfaces
- *              $Revision: 114 $
+ *              $Revision: 116 $
  *
  ******************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -242,7 +242,7 @@ AcpiGetParent (
     *RetHandle =
         AcpiNsConvertEntryToHandle (AcpiNsGetParentNode (Node));
 
-    /* Return exeption if parent is null */
+    /* Return exception if parent is null */
 
     if (!AcpiNsGetParentNode (Node))
     {

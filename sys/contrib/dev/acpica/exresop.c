@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exresop - AML Interpreter operand/object resolution
- *              $Revision: 60 $
+ *              $Revision: 62 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -459,13 +459,6 @@ AcpiExResolveOperands (
             TypeNeeded = ACPI_TYPE_EVENT;
             break;
 
-        case ARGI_REGION:
-
-            /* Need an operand of type ACPI_TYPE_REGION */
-
-            TypeNeeded = ACPI_TYPE_REGION;
-            break;
-
         case ARGI_PACKAGE:   /* Package */
 
             /* Need an operand of type ACPI_TYPE_PACKAGE */
@@ -579,6 +572,39 @@ AcpiExResolveOperands (
             goto NextOperand;
 
 
+        case ARGI_BUFFER_OR_STRING:
+
+            /* Need an operand of type STRING or BUFFER */
+
+            switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
+            {
+            case ACPI_TYPE_STRING:
+            case ACPI_TYPE_BUFFER:
+
+                /* Valid operand */
+               break;
+
+            case ACPI_TYPE_INTEGER:
+
+                /* Highest priority conversion is to type Buffer */
+
+                Status = AcpiExConvertToBuffer (ObjDesc, StackPtr, WalkState);
+                if (ACPI_FAILURE (Status))
+                {
+                    return_ACPI_STATUS (Status);
+                }
+                break;
+
+            default:
+                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+                    "Needed [Integer/String/Buffer], found [%s] %p\n",
+                    AcpiUtGetObjectTypeName (ObjDesc), ObjDesc));
+
+                return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
+            }
+            goto NextOperand;
+
+
         case ARGI_DATAOBJECT:
             /*
              * ARGI_DATAOBJECT is only used by the SizeOf operator.
@@ -599,7 +625,7 @@ AcpiExResolveOperands (
 
             default:
                 ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-                    "Needed [Buf/Str/Pkg], found [%s] %p\n",
+                    "Needed [Buffer/String/Package/Reference], found [%s] %p\n",
                     AcpiUtGetObjectTypeName (ObjDesc), ObjDesc));
 
                 return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
@@ -622,7 +648,31 @@ AcpiExResolveOperands (
 
             default:
                 ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-                    "Needed [Buf/Str/Pkg], found [%s] %p\n",
+                    "Needed [Buffer/String/Package], found [%s] %p\n",
+                    AcpiUtGetObjectTypeName (ObjDesc), ObjDesc));
+
+                return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
+            }
+            goto NextOperand;
+
+
+        case ARGI_REGION_OR_FIELD:
+
+            /* Need an operand of type ACPI_TYPE_REGION or a FIELD in a region */
+
+            switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
+            {
+            case ACPI_TYPE_REGION:
+            case ACPI_TYPE_LOCAL_REGION_FIELD:
+            case ACPI_TYPE_LOCAL_BANK_FIELD:
+            case ACPI_TYPE_LOCAL_INDEX_FIELD:
+
+                /* Valid operand */
+                break;
+
+            default:
+                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+                    "Needed [Region/RegionField], found [%s] %p\n",
                     AcpiUtGetObjectTypeName (ObjDesc), ObjDesc));
 
                 return_ACPI_STATUS (AE_AML_OPERAND_TYPE);

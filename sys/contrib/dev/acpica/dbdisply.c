@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbdisply - debug display commands
- *              $Revision: 81 $
+ *              $Revision: 89 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -220,14 +220,14 @@ AcpiDbDumpParserDescriptor (
 
 void
 AcpiDbDecodeAndDisplayObject (
-    NATIVE_CHAR             *Target,
-    NATIVE_CHAR             *OutputType)
+    char                    *Target,
+    char                    *OutputType)
 {
     void                    *ObjPtr;
     ACPI_NAMESPACE_NODE     *Node;
     ACPI_OPERAND_OBJECT     *ObjDesc;
     UINT32                  Display = DB_BYTE_DISPLAY;
-    NATIVE_CHAR             Buffer[80];
+    char                    Buffer[80];
     ACPI_BUFFER             RetBuf;
     ACPI_STATUS             Status;
     UINT32                  Size;
@@ -793,9 +793,15 @@ AcpiDbDisplayLocals (void)
 
     ObjDesc = WalkState->MethodDesc;
     Node = WalkState->MethodNode;
+    if (!Node)
+    {
+        AcpiOsPrintf ("No method node (Executing subtree for buffer or opregion)\n");
+        return;
+    }
+
     AcpiOsPrintf ("Local Variables for method [%4.4s]:\n", Node->Name.Ascii);
 
-    for (i = 0; i < MTH_NUM_LOCALS; i++)
+    for (i = 0; i < ACPI_METHOD_NUM_LOCALS; i++)
     {
         ObjDesc = WalkState->LocalVariables[i].Object;
         AcpiOsPrintf ("Local%d: ", i);
@@ -836,6 +842,11 @@ AcpiDbDisplayArguments (void)
 
     ObjDesc = WalkState->MethodDesc;
     Node    = WalkState->MethodNode;
+    if (!Node)
+    {
+        AcpiOsPrintf ("No method node (Executing subtree for buffer or opregion)\n");
+        return;
+    }
 
     NumArgs     = ObjDesc->Method.ParamCount;
     Concurrency = ObjDesc->Method.Concurrency;
@@ -843,7 +854,7 @@ AcpiDbDisplayArguments (void)
     AcpiOsPrintf ("Method [%4.4s] has %X arguments, max concurrency = %X\n",
             Node->Name.Ascii, NumArgs, Concurrency);
 
-    for (i = 0; i < NumArgs; i++)
+    for (i = 0; i < ACPI_METHOD_NUM_ARGS; i++)
     {
         ObjDesc = WalkState->Arguments[i].Object;
         AcpiOsPrintf ("Arg%d: ", i);
@@ -1004,6 +1015,42 @@ AcpiDbDisplayArgumentObject (
     AcpiOsPrintf ("ArgObj:    ");
     AcpiDbDisplayInternalObject (ObjDesc, WalkState);
 }
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDbDisplayGpes
+ *
+ * PARAMETERS:
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Display the GPE structures
+ *
+ ******************************************************************************/
+
+void
+AcpiDbDisplayGpes (void)
+{
+    ACPI_GPE_BLOCK_INFO     *GpeBlock;
+    UINT32                  i = 0;
+
+
+    GpeBlock = AcpiGbl_GpeBlockListHead;
+    while (GpeBlock)
+    {
+        AcpiOsPrintf ("Block %d - %p\n", i, GpeBlock);
+        AcpiOsPrintf ("    Registers:    %d\n", GpeBlock->RegisterCount);
+        AcpiOsPrintf ("    GPE range:    %d to %d\n", GpeBlock->BlockBaseNumber,
+                        GpeBlock->BlockBaseNumber + (GpeBlock->RegisterCount * 8) -1);
+        AcpiOsPrintf ("    RegisterInfo: %p\n", GpeBlock->RegisterInfo);
+        AcpiOsPrintf ("    EventInfo:    %p\n", GpeBlock->EventInfo);
+        i++;
+
+        GpeBlock = GpeBlock->Next;
+    }
+}
+
 
 #endif /* ACPI_DEBUGGER */
 

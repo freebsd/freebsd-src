@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utdebug - Debug print routines
- *              $Revision: 105 $
+ *              $Revision: 108 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -387,7 +387,7 @@ void
 AcpiUtTraceStr (
     UINT32                  LineNumber,
     ACPI_DEBUG_PRINT_INFO   *DbgInfo,
-    NATIVE_CHAR             *String)
+    char                    *String)
 {
 
     AcpiGbl_NestingLevel++;
@@ -592,8 +592,8 @@ AcpiUtDumpBuffer (
     UINT32                  Display,
     UINT32                  ComponentId)
 {
-    NATIVE_UINT             i = 0;
-    NATIVE_UINT             j;
+    ACPI_NATIVE_UINT        i = 0;
+    ACPI_NATIVE_UINT        j;
     UINT32                  Temp32;
     UINT8                   BufChar;
 

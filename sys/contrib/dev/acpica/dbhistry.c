@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dbhistry - debugger HISTORY command
- *              $Revision: 25 $
+ *              $Revision: 28 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -131,7 +131,7 @@
 
 typedef struct HistoryInfo
 {
-    NATIVE_CHAR             Command[80];
+    char                    Command[80];
     UINT32                  CmdNum;
 
 } HISTORY_INFO;
@@ -158,7 +158,7 @@ static UINT32               AcpiGbl_NextCmdNum = 1;
 
 void
 AcpiDbAddToHistory (
-    NATIVE_CHAR             *CommandLine)
+    char                    *CommandLine)
 {
 
     /* Put command into the next available slot */
@@ -208,7 +208,7 @@ AcpiDbAddToHistory (
 void
 AcpiDbDisplayHistory (void)
 {
-    NATIVE_UINT             i;
+    ACPI_NATIVE_UINT        i;
     UINT16                  HistoryIndex;
 
 
@@ -243,11 +243,11 @@ AcpiDbDisplayHistory (void)
  *
  ******************************************************************************/
 
-NATIVE_CHAR *
+char *
 AcpiDbGetFromHistory (
-    NATIVE_CHAR             *CommandNumArg)
+    char                    *CommandNumArg)
 {
-    NATIVE_UINT             i;
+    ACPI_NATIVE_UINT        i;
     UINT16                  HistoryIndex;
     UINT32                  CmdNum;
 
