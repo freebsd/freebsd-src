@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.271
+    Original revision: 1.272
 -->
 
 <articleinfo>
@@ -2937,10 +2937,11 @@ hw.pcic.irq="0"</programlisting>
 	FSF 2.12 ブランチの 2002/01/27 版スナップショットに
 	更新されました.</para>
 
-      <para><application>bzip2</application> バージョン 1.0.1 が import されました.
+      <para><application>bzip2</application> バージョン 1.0.2 が
+	import されました.
         これによりベースシステムに &man.bzip2.1; プログラムおよび,
         <filename>libbz2</filename> ライブラリが導入されました.
-        &merged;</para>
+      </para>
 
       <para>&man.ee.1; <application>Easy Editor</application>
         がバージョン 1.4.2 に更新されました.
