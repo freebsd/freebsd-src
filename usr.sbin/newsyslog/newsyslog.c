@@ -1006,7 +1006,7 @@ parseDWM(char *s)
 {
 	char *t;
 	struct tm tm, *tmp;
-	u_long ul;
+	long l;
 	int nd;
 	static int mtab[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 	int WMseen = 0;
@@ -1035,10 +1035,10 @@ parseDWM(char *s)
 				return -1;
 			Dseen++;
 			s++;
-			ul = strtoul(s, &t, 10);
-			if (ul > 23)
+			l = strtol(s, &t, 10);
+			if (l < 0 || l > 23)
 				return -1;
-			tm.tm_hour = ul;
+			tm.tm_hour = l;
 			break;
 
 		case 'W':
@@ -1046,17 +1046,17 @@ parseDWM(char *s)
 				return -1;
 			WMseen++;
 			s++;
-			ul = strtoul(s, &t, 10);
-			if (ul > 6)
+			l = strtol(s, &t, 10);
+			if (l < 0 || l > 6)
 				return -1;
-			if (ul != (unsigned)tm.tm_wday) {
+			if (l != tm.tm_wday) {
 				int save;
 
-				if (ul < (unsigned)tm.tm_wday) {
+				if (l < tm.tm_wday) {
 					save = 6 - tm.tm_wday;
-					save += (ul + 1);
+					save += (l + 1);
 				} else {
-					save = ul - tm.tm_wday;
+					save = l - tm.tm_wday;
 				}
 
 				tm.tm_mday += save;
@@ -1078,13 +1078,13 @@ parseDWM(char *s)
 				s++;
 				t = s;
 			} else {
-				ul = strtoul(s, &t, 10);
-				if (ul < 1 || ul > 31)
+				l = strtol(s, &t, 10);
+				if (l < 1 || l > 31)
 					return -1;
 
-				if (ul > (unsigned)nd)
+				if (l > nd)
 					return -1;
-				tm.tm_mday = ul;
+				tm.tm_mday = l;
 			}
 			break;
 
