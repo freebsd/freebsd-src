@@ -367,7 +367,7 @@ madt_setup_io(void)
 	}
 		    
 	/* First, we run through adding I/O APIC's. */
-	if (madt->PCATCompat)
+	if (madt->PCATCompat && !(acpi_quirks & ACPI_Q_MADT_IRQ0))
 		ioapic_enable_mixed_mode();
 	madt_walk_table(madt_parse_apics, NULL);
 
@@ -595,8 +595,14 @@ madt_parse_interrupt_override(MADT_INTERRUPT_OVERRIDE *intr)
 	enum intr_polarity pol;
 	char buf[64];
 
+	if (acpi_quirks & ACPI_Q_MADT_IRQ0 && intr->Source == 0 &&
+	    intr->Interrupt == 2) {
+		if (bootverbose)
+			printf("MADT: Skipping timer override\n");
+		return;
+	}
 	if (bootverbose)
-		printf("MADT: intr override: source %u, irq %u\n",
+		printf("MADT: Interrupt override: source %u, irq %u\n",
 		    intr->Source, intr->Interrupt);
 	KASSERT(intr->Bus == 0, ("bus for interrupt overrides must be zero"));
 	if (madt_find_interrupt(intr->Interrupt, &new_ioapic,
