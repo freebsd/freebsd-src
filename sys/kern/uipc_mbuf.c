@@ -577,6 +577,9 @@ m_getcl(int how, short type, int flags)
 			splx(s);
 			mp->m_nextpkt = NULL;
 			mp->m_data = mp->m_ext.ext_buf;
+			mp->m_flags = M_PKTHDR|M_EXT;
+			mp->m_pkthdr.rcvif = NULL;
+			mp->m_pkthdr.csum_flags = 0;
 			return mp;
 		} else
 			MGETHDR(mp, how, type);
@@ -703,6 +706,16 @@ m_freem(m)
 {
 	int s = splimp();
 
+	/*
+	 * Try to keep a small pool of mbuf+cluster for quick use in
+	 * device drivers. A good candidate is a M_PKTHDR buffer with
+	 * only one cluster attached. Other mbufs, or those exceeding
+	 * the pool size, are just m_free'd in the usual way.
+	 * The following code makes sure that m_next, m_type,
+	 * m_pkthdr.aux and m_ext.* are properly initialized.
+	 * Other fields in the mbuf are initialized in m_getcl()
+	 * upon allocation.
+	 */
         if (mcl_pool_now < mcl_pool_max && m && m->m_next == NULL &&
             (m->m_flags & (M_PKTHDR|M_EXT)) == (M_PKTHDR|M_EXT) &&
             m->m_type == MT_DATA && M_EXT_WRITABLE(m) ) {
