@@ -473,6 +473,7 @@ sk_vpd_read(sc)
 		free(sc->sk_vpd_readonly, M_DEVBUF);
 	sc->sk_vpd_prodname = NULL;
 	sc->sk_vpd_readonly = NULL;
+	sc->sk_vpd_readonly_len = 0;
 
 	sk_vpd_read_res(sc, &res, pos);
 
@@ -505,8 +506,9 @@ sk_vpd_read(sc)
 
 	pos += sizeof(res);
 	sc->sk_vpd_readonly = malloc(res.vr_len, M_DEVBUF, M_NOWAIT);
-	for (i = 0; i < res.vr_len + 1; i++)
+	for (i = 0; i < res.vr_len; i++)
 		sc->sk_vpd_readonly[i] = sk_vpd_readbyte(sc, i + pos);
+	sc->sk_vpd_readonly_len = res.vr_len;
 
 	return;
 }
@@ -1612,9 +1614,36 @@ skc_attach(dev)
 		goto fail;
 	}
 
-	/* Announce the product name. */
+	/* Announce the product name and more VPD data if there. */
 	if (sc->sk_vpd_prodname != NULL)
-	    printf("skc%d: %s\n", sc->sk_unit, sc->sk_vpd_prodname);
+		printf("skc%d: %s\n", sc->sk_unit, sc->sk_vpd_prodname);
+	if (sc->sk_vpd_readonly != NULL && sc->sk_vpd_readonly_len != 0) {
+		char buf[256];
+		char *dp = sc->sk_vpd_readonly;
+		uint16_t l, len = sc->sk_vpd_readonly_len;
+
+		while (len >= 3) {
+			if ( (*dp == 'P' && *(dp+1) == 'N') ||
+				(*dp == 'E' && *(dp+1) == 'C') ||
+				(*dp == 'M' && *(dp+1) == 'N') ||
+				(*dp == 'S' && *(dp+1) == 'N') ) {
+
+				l = 0;
+				while(l < *(dp+2)) {
+					buf[l] = *(dp+3+l);
+					++l;
+				}
+				buf[l] = '\0';
+				printf("skc%d: %c%c: %s\n",
+					sc->sk_unit, *dp, *(dp+1), buf);
+				len -= (3 + l);
+				dp += (3 + l);
+			} else {
+				len -= (3 + *(dp+2));
+				dp += (3 + *(dp+2));
+			}
+		}
+	}
 	sc->sk_devs[SK_PORT_A] = device_add_child(dev, "sk", -1);
 	port = malloc(sizeof(int), M_DEVBUF, M_NOWAIT);
 	*port = SK_PORT_A;
