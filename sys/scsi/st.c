@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.25 1995/01/24 12:04:56 dufault Exp $
+ * $Id: st.c,v 1.26 1995/01/31 11:41:47 dufault Exp $
  */
 
 /*
@@ -1040,7 +1040,7 @@ done:
 	/*
 	 * Correctly set the buf to indicate a completed xfer
 	 */
-	iodone(bp);
+	biodone(bp);
 	return;
 }
 
