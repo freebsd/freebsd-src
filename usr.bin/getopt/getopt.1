@@ -5,12 +5,12 @@
 .Nm getopt
 .Nd parse command options
 .Sh SYNOPSIS
-.Nm set \-\- \`getopt optstring $*\`
+.Nm set \-\- \`getopt Ar optstring $*\`
 .Sh DESCRIPTION
 .Nm Getopt
 is used to break up options in command lines for easy parsing by
 shell procedures, and to check for legal options.
-.Op Optstring
+.Ar Optstring
 is a string of recognized option letters (see
 .Xr getopt 3
 );
@@ -18,27 +18,27 @@ if a letter is followed by a colon, the option
 is expected to have an argument which may or may not be
 separated from it by white space.
 The special option
-.B \-\-
+.Ql \-\-
 is used to delimit the end of the options.
 .Nm Getopt
 will place
-.B \-\-
+.Ql \-\-
 in the arguments at the end of the options,
 or recognize it if used explicitly.
 The shell arguments
 (\fB$1 $2\fR ...) are reset so that each option is
 preceded by a
-.B \-
+.Ql \-
 and in its own shell argument;
 each option argument is also in its own shell argument.
 .Sh EXAMPLE
 The following code fragment shows how one might process the arguments
 for a command that can take the options
-.Op a
+.Fl a
 and
-.Op b ,
+.Fl b ,
 and the option
-.Op o ,
+.Fl o ,
 which requires an argument.
 .Pp
 .Bd -literal -offset indent
@@ -77,7 +77,7 @@ cmd \-a \-oarg \-\- file file
 .Nm Getopt
 prints an error message on the standard error output when it
 encounters an option letter not included in
-.Op optstring .
+.Ar optstring .
 .Sh HISTORY
 Written by Henry Spencer, working from a Bell Labs manual page.
 Behavior believed identical to the Bell version.
