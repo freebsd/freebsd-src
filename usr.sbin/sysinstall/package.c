@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.11 1995/10/22 12:04:11 jkh Exp $
+ * $Id: package.c,v 1.13 1995/10/22 17:39:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -84,7 +84,7 @@ package_extract(Device *dev, char *name)
 
     ret = RET_FAIL;
     sprintf(path, "packages/All/%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");
-    msgNotify("pkg_extract: Attempting to fetch %s from %s", path, dev->name);
+    msgNotify("pkg_extract: Attempting to fetch %s\nfrom %s", path, dev->name);
     fd = dev->get(dev, path, TRUE);
     if (fd >= 0) {
 	pid_t tpid;
@@ -107,14 +107,23 @@ package_extract(Device *dev, char *name)
 		int pstat;
 		
 		tpid = waitpid(tpid, &pstat, 0);
-		if (vsystem("(pwd; cat +CONTENTS) | pkg_add %s-S",
-			    !strcmp(variable_get(VAR_CPIO_VERBOSITY), "high") ? "-v " : "")) {
-		    dialog_clear();
-		    msgConfirm("An error occurred while trying to pkg_add %s.\n"
-			       "Please check debugging screen for possible further details.", path);
+		if (!pstat && file_readable("+CONTENTS")) {
+		    if (vsystem("(pwd; cat +CONTENTS) | pkg_add %s-S",
+				!strcmp(variable_get(VAR_CPIO_VERBOSITY), "high") ? "-v " : "")) {
+			dialog_clear();
+			msgConfirm("An error occurred while trying to pkg_add %s.\n"
+				   "Please check debugging screen for possible further details.", name);
+		    }
+		    else
+			ret = RET_SUCCESS;
 		}
-		else
-		    ret = RET_SUCCESS;
+		else {
+		    dialog_clear();
+		    msgConfirm("The package fetch and extraction phase failed for %s\n"
+			       "and it will not be pkg_add'd.  There was either a media\n"
+			       "error of some sort or the package file itself is corrupted.\n"
+			       "You may wish to look into this and try again.");
+		}
 		close(fd);
 	    }
 	    if (chdir(where) == -1)
