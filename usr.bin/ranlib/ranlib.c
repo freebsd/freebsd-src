@@ -55,9 +55,9 @@ static const char rcsid[] =
 #include <unistd.h>
 #include "archive.h"
 
-extern int build __P(( void ));
-extern int touch __P(( void ));
-static void usage __P((void));
+extern int build( void );
+extern int touch( void );
+static void usage(void);
 
 CHDR chdr;
 u_int options;				/* UNUSED -- keep open_archive happy */

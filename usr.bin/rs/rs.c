@@ -94,16 +94,16 @@ int	propgutter;
 char	isep = ' ', osep = ' ';
 int	owidth = 80, gutter = 2;
 
-void	  getargs __P((int, char *[]));
-void	  getfile __P((void));
-int	  getline __P((void));
-char	 *getlist __P((short **, char *));
-char	 *getnum __P((int *, char *, int));
-char	**getptrs __P((char **));
-void	  prepfile __P((void));
-void	  prints __P((char *, int));
-void	  putfile __P((void));
-static void usage __P((void));
+void	  getargs(int, char *[]);
+void	  getfile(void);
+int	  getline(void);
+char	 *getlist(short **, char *);
+char	 *getnum(int *, char *, int);
+char	**getptrs(char **);
+void	  prepfile(void);
+void	  prints(char *, int);
+void	  putfile(void);
+static void usage(void);
 
 #define	INCR(ep) do {			\
 	if (++ep >= endelem)		\

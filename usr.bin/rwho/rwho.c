@@ -80,8 +80,8 @@ int	nusers;
 time_t	now;
 int	aflg;
 
-static void usage __P((void));
-int utmpcmp __P((const void *, const void *));
+static void usage(void);
+int utmpcmp(const void *, const void *);
 
 int
 main(argc, argv)

@@ -57,8 +57,8 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-static void dofile __P((void));
-static void usage __P((void));
+static void dofile(void);
+static void usage(void);
 
 #define	FILENAME	"nohup.out"
 /*

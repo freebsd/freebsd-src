@@ -84,8 +84,8 @@ struct quotause {
 };
 #define	FOUND	0x01
 
-static char *timeprt	__P((time_t seconds));
-static struct quotause *getprivs __P((long id, int quotatype));
+static char *timeprt(time_t seconds);
+static struct quotause *getprivs(long id, int quotatype);
 static void usage ();
 static void showuid(u_long uid);
 static void showgid(u_long gid);

@@ -115,13 +115,13 @@ typedef struct Arch {
     size_t	  fnamesize;  /* Size of the string table */
 } Arch;
 
-static int ArchFindArchive __P((void *, void *));
-static void ArchFree __P((void *));
-static struct ar_hdr *ArchStatMember __P((char *, char *, Boolean));
-static FILE *ArchFindMember __P((char *, char *, struct ar_hdr *, char *));
+static int ArchFindArchive(void *, void *);
+static void ArchFree(void *);
+static struct ar_hdr *ArchStatMember(char *, char *, Boolean);
+static FILE *ArchFindMember(char *, char *, struct ar_hdr *, char *);
 #if defined(__svr4__) || defined(__SVR4) || defined(__ELF__)
 #define SVR4ARCHIVES
-static int ArchSVR4Entry __P((Arch *, char *, size_t, FILE *));
+static int ArchSVR4Entry(Arch *, char *, size_t, FILE *);
 #endif
 
 /*-

@@ -82,7 +82,7 @@ typedef struct _For {
     Lst  	  lst;			/* List of variables	*/
 } For;
 
-static int ForExec	__P((void *, void *));
+static int ForExec(void *, void *);
 
 
 
@@ -297,6 +297,6 @@ For_Run()
     Lst_ForEach(arg.lst, ForExec, (void *) &arg);
 
     free(arg.var);
-    Lst_Destroy(arg.lst, (void (*) __P((void *))) free);
+    Lst_Destroy(arg.lst, (void (*)(void *)) free);
     Buf_Destroy(arg.buf, TRUE);
 }

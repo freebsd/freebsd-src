@@ -46,7 +46,7 @@ static const char rcsid[] =
 	"$FreeBSD$";
 #endif /* not lint */
 
-static void usage __P((void));
+static void usage(void);
 
 int
 main(int argc, char **argv)

@@ -80,9 +80,9 @@ static char 	    meta[256];
 
 static GNode	    *curTarg = NULL;
 static GNode	    *ENDNode;
-static void CompatInterrupt __P((int));
-static int CompatRunCommand __P((void *, void *));
-static int CompatMake __P((void *, void *));
+static void CompatInterrupt(int);
+static int CompatRunCommand(void *, void *);
+static int CompatMake(void *, void *);
 
 static char *sh_builtin[] = { 
 	"alias", "cd", "eval", "exec", "exit", "read", "set", "ulimit", 

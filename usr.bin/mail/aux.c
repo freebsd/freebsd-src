@@ -50,7 +50,7 @@ static const char rcsid[] =
  * Auxiliary functions.
  */
 
-static char *save2str __P((char *, char *));
+static char *save2str(char *, char *);
 
 /*
  * Return a pointer to a dynamic copy of the argument.

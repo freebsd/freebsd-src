@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -117,16 +119,16 @@ struct commands {
 	{ NULL }
 };
 
-void printreg __P((char *, u_int, char *));
-void status __P((struct mtget *));
-void usage __P((void));
+void printreg(char *, u_int, char *);
+void status(struct mtget *);
+void usage(void);
 void st_status (struct mtget *);
 int stringtodens (const char *s);
 const char *denstostring (int d);
 int denstobp(int d, int bpi);
 u_int32_t stringtocomp(const char *s);
 const char * comptostring(u_int32_t comp);
-void warn_eof __P((void));
+void warn_eof(void);
 
 int
 main(argc, argv)

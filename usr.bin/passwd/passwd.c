@@ -61,7 +61,7 @@ static const char rcsid[] =
 #include <rpcsvc/yp.h>
 int __use_yp = 0;
 int yp_errno = YP_TRUE;
-extern int yp_passwd	__P(( char * ));
+extern int yp_passwd( char * );
 #endif
 
 #ifdef KERBEROS
@@ -70,7 +70,7 @@ extern int yp_passwd	__P(( char * ));
 
 #include "extern.h"
 
-static void usage __P((void));
+static void usage(void);
 
 int use_local_passwd = 0;
 

@@ -89,12 +89,12 @@ static int  	numNodes;   	/* Number of nodes to be processed. If this
 				 * is non-zero when Job_Empty() returns
 				 * TRUE, there's a cycle in the graph */
 
-static int MakeAddChild __P((void *, void *));
-static int MakeAddAllSrc __P((void *, void *));
-static int MakeTimeStamp __P((void *, void *));
-static int MakeHandleUse __P((void *, void *));
-static Boolean MakeStartJobs __P((void));
-static int MakePrintStatus __P((void *, void *));
+static int MakeAddChild(void *, void *);
+static int MakeAddAllSrc(void *, void *);
+static int MakeTimeStamp(void *, void *);
+static int MakeHandleUse(void *, void *);
+static Boolean MakeStartJobs(void);
+static int MakePrintStatus(void *, void *);
 /*-
  *-----------------------------------------------------------------------
  * Make_TimeStamp --

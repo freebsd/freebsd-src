@@ -52,30 +52,8 @@
 #include <string.h>
 #include <ctype.h>
 
-#if !defined(MAKE_BOOTSTRAP) && defined(BSD4_4)
-# include <sys/cdefs.h>
-#else
-# ifndef __P
-#  if defined(__STDC__) || defined(__cplusplus)
-#   define	__P(protos)	protos		/* full-blown ANSI C */
-#  else
-#   define	__P(protos)	()		/* traditional C preprocessor */
-#  endif
-# endif
-# ifndef __STDC__
-#  ifndef const
-#   define const
-#  endif
-#  ifndef volatile
-#   define volatile
-#  endif
-# endif
-#endif
-
-#ifdef __STDC__
 #include <stdlib.h>
 #include <unistd.h>
-#endif
 #include "sprite.h"
 #include "lst.h"
 #include "config.h"
@@ -357,12 +335,7 @@ extern int debug;
 #define DEBUG_FOR	0x0400
 #define DEBUG_LOUD	0x0800
 
-#ifdef __STDC__
 #define CONCAT(a,b)	a##b
-#else
-#define I(a)	  	a
-#define CONCAT(a,b)	I(a)b
-#endif /* __STDC__ */
 
 #define	DEBUG(module)	(debug & CONCAT(DEBUG_,module))
 #define ISDOT(c) ((c)[0] == '.' && (((c)[1] == '\0') || ((c)[1] == '/')))
@@ -374,11 +347,11 @@ extern int debug;
  */
 #include "nonints.h"
 
-int Make_TimeStamp __P((GNode *, GNode *));
-Boolean Make_OODate __P((GNode *));
-int Make_HandleUse __P((GNode *, GNode *));
-void Make_Update __P((GNode *));
-void Make_DoAllVar __P((GNode *));
-Boolean Make_Run __P((Lst));
+int Make_TimeStamp(GNode *, GNode *);
+Boolean Make_OODate(GNode *);
+int Make_HandleUse(GNode *, GNode *);
+void Make_Update(GNode *);
+void Make_DoAllVar(GNode *);
+Boolean Make_Run(Lst);
 
 #endif /* _MAKE_H_ */

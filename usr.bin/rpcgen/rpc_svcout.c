@@ -55,21 +55,21 @@ static char RETVAL[] = "retval";
 
 char _errbuf[256];	/* For all messages */
 
-void internal_proctype __P(( proc_list * ));
-static void write_real_program __P(( definition * ));
-static void write_program __P(( definition *, char * ));
-static void printerr __P(( char *, char * ));
-static void printif __P(( char *, char *, char *, char * ));
-static void write_inetmost __P(( char * ));
-static void print_return __P(( char * ));
-static void print_pmapunset __P(( char * ));
-static void print_err_message __P(( char * ));
-static void write_timeout_func __P(( void ));
-static void write_pm_most __P(( char *, int ));
-static void write_rpc_svc_fg __P(( char *, char * ));
-static void open_log_file __P(( char *, char * ));
-static void write_msg_out __P(( void ));
-int nullproc __P(( proc_list * ));
+void internal_proctype( proc_list * );
+static void write_real_program( definition * );
+static void write_program( definition *, char * );
+static void printerr( char *, char * );
+static void printif( char *, char *, char *, char * );
+static void write_inetmost( char * );
+static void print_return( char * );
+static void print_pmapunset( char * );
+static void print_err_message( char * );
+static void write_timeout_func( void );
+static void write_pm_most( char *, int );
+static void write_rpc_svc_fg( char *, char * );
+static void open_log_file( char *, char * );
+static void write_msg_out( void );
+int nullproc( proc_list * );
 
 
 static void

@@ -37,36 +37,36 @@
  * $FreeBSD$
  */
 
-int	expr __P((char *));
-ndptr	addent __P((char *));
-void	chrsave __P((int));
-void	cleanup __P((int));
-void	dochc __P((char *[], int));
-void	dochq __P((char *[], int));
-void	dodefine __P((char *, char *));
-void	dodefn __P((char *));
-void	dodiv __P((int));
-void	dodump __P((char *[], int));
-void	doifelse __P((char *[], int));
-int	doincl __P((char *));
-int	dopaste __P((char *));
-void	dopushdef __P((char *, char *));
-void	dosub __P((char *[], int));
-void	doundiv __P((char *[], int));
-void	eval __P((char *[], int, int));
-void	expand __P((char *[], int));
-void	getdiv __P((int));
-int	hash __P((char *));
-int	indx __P((char *, char *));
-void	killdiv __P((void));
-ndptr	lookup __P((char *));
-void	map __P((char *, char *, char *, char *));
-void	onintr __P((int));
-void	pbnum __P((int));
-void    pbstr __P((unsigned char *));
-void	putback __P((int));
-void	remhash __P((char *, int));
-void	usage __P((void));
+int	expr(char *);
+ndptr	addent(char *);
+void	chrsave(int);
+void	cleanup(int);
+void	dochc(char *[], int);
+void	dochq(char *[], int);
+void	dodefine(char *, char *);
+void	dodefn(char *);
+void	dodiv(int);
+void	dodump(char *[], int);
+void	doifelse(char *[], int);
+int	doincl(char *);
+int	dopaste(char *);
+void	dopushdef(char *, char *);
+void	dosub(char *[], int);
+void	doundiv(char *[], int);
+void	eval(char *[], int, int);
+void	expand(char *[], int);
+void	getdiv(int);
+int	hash(char *);
+int	indx(char *, char *);
+void	killdiv(void);
+ndptr	lookup(char *);
+void	map(char *, char *, char *, char *);
+void	onintr(int);
+void	pbnum(int);
+void    pbstr(unsigned char *);
+void	putback(int);
+void	remhash(char *, int);
+void	usage(void);
 
 extern ndptr hashtab[];		/* hash table for macros etc. */
 extern stae mstack[];		/* stack of m4 machine */

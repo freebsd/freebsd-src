@@ -58,7 +58,7 @@ static const char rcsid[] =
 #define	BASEMODE	S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | \
 			S_IROTH | S_IWOTH
 
-static void usage __P((void));
+static void usage(void);
 
 static int f_mode;
 

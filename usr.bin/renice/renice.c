@@ -56,8 +56,8 @@ static const char rcsid[] =
 #include <string.h>
 #include <pwd.h>
 
-int donice __P((int, int, int));
-static void usage __P((void));
+int donice(int, int, int);
+static void usage(void);
 
 /*
  * Change the priority (nice) of processes

@@ -87,10 +87,10 @@ int	rfd2;
 
 int family = PF_UNSPEC;
 
-char   *copyargs __P((char **));
-void	sendsig __P((int));
-void	talk __P((int, long, pid_t, int, int));
-void	usage __P((void));
+char   *copyargs(char **);
+void	sendsig(int);
+void	talk(int, long, pid_t, int, int);
+void	usage(void);
 
 int
 main(argc, argv)

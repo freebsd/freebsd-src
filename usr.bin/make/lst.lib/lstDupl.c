@@ -66,7 +66,7 @@ Lst
 Lst_Duplicate (l, copyProc)
     Lst     	  l;	    	 /* the list to duplicate */
     /* A function to duplicate each void * */
-    void *	  (*copyProc) __P((void *));
+    void *	  (*copyProc)(void *);
 {
     register Lst 	nl;
     register ListNode  	ln;

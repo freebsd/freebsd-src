@@ -106,12 +106,12 @@ typedef struct Hash_Search {
 
 #define	Hash_Size(n)	(((n) + sizeof (int) - 1) / sizeof (int))
 
-void Hash_InitTable __P((Hash_Table *, int));
-void Hash_DeleteTable __P((Hash_Table *));
-Hash_Entry *Hash_FindEntry __P((Hash_Table *, char *));
-Hash_Entry *Hash_CreateEntry __P((Hash_Table *, char *, Boolean *));
-void Hash_DeleteEntry __P((Hash_Table *, Hash_Entry *));
-Hash_Entry *Hash_EnumFirst __P((Hash_Table *, Hash_Search *));
-Hash_Entry *Hash_EnumNext __P((Hash_Search *));
+void Hash_InitTable(Hash_Table *, int);
+void Hash_DeleteTable(Hash_Table *);
+Hash_Entry *Hash_FindEntry(Hash_Table *, char *);
+Hash_Entry *Hash_CreateEntry(Hash_Table *, char *, Boolean *);
+void Hash_DeleteEntry(Hash_Table *, Hash_Entry *);
+Hash_Entry *Hash_EnumFirst(Hash_Table *, Hash_Search *);
+Hash_Entry *Hash_EnumNext(Hash_Search *);
 
 #endif /* _HASH */

@@ -116,27 +116,27 @@ struct winsize {
 #endif
 struct	winsize winsize;
 
-void		catch_child __P((int));
-void		copytochild __P((int));
-void		doit __P((long)) __dead2;
-void		done __P((int)) __dead2;
-void		echo __P((char));
-u_int		getescape __P((char *));
-void		lostpeer __P((int));
-void		mode __P((int));
-void		msg __P((char *));
-void		oob __P((int));
-int		reader __P((int));
-void		sendwindow __P((void));
-void		setsignal __P((int));
-void		sigwinch __P((int));
-void		stop __P((char));
-void		usage __P((void)) __dead2;
-void		writer __P((void));
-void		writeroob __P((int));
+void		catch_child(int);
+void		copytochild(int);
+void		doit(long) __dead2;
+void		done(int) __dead2;
+void		echo(char);
+u_int		getescape(char *);
+void		lostpeer(int);
+void		mode(int);
+void		msg(char *);
+void		oob(int);
+int		reader(int);
+void		sendwindow(void);
+void		setsignal(int);
+void		sigwinch(int);
+void		stop(char);
+void		usage(void) __dead2;
+void		writer(void);
+void		writeroob(int);
 
 #ifdef OLDSUN
-int		get_window_size __P((int, struct winsize *));
+int		get_window_size(int, struct winsize *);
 #endif
 
 int
