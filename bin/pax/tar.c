@@ -58,11 +58,11 @@ static const char rcsid[] =
  * Routines for reading, writing and header identify of various versions of tar
  */
 
-static u_long tar_chksm(register char *, register int);
-static char *name_split(register char *, register int);
-static int ul_oct(u_long, register char *, register int, int);
+static u_long tar_chksm(char *, int);
+static char *name_split(char *, int);
+static int ul_oct(u_long, char *, int, int);
 #ifndef NET2_STAT
-static int uqd_oct(u_quad_t, register char *, register int, int);
+static int uqd_oct(u_quad_t, char *, int, int);
 #endif
 
 /*
@@ -109,9 +109,9 @@ tar_endrd(void)
  */
 
 int
-tar_trail(register char *buf, register int in_resync, register int *cnt)
+tar_trail(char *buf, int in_resync, int *cnt)
 {
-	register int i;
+	int i;
 
 	/*
 	 * look for all zero, trailer is two consecutive blocks of zero
@@ -152,9 +152,9 @@ tar_trail(register char *buf, register int in_resync, register int *cnt)
  */
 
 static int
-ul_oct(u_long val, register char *str, register int len, int term)
+ul_oct(u_long val, char *str, int len, int term)
 {
-	register char *pt;
+	char *pt;
 
 	/*
 	 * term selects the appropriate character(s) for the end of the string
@@ -207,9 +207,9 @@ ul_oct(u_long val, register char *str, register int len, int term)
  */
 
 static int
-uqd_oct(u_quad_t val, register char *str, register int len, int term)
+uqd_oct(u_quad_t val, char *str, int len, int term)
 {
-	register char *pt;
+	char *pt;
 
 	/*
 	 * term selects the appropriate character(s) for the end of the string
@@ -261,10 +261,10 @@ uqd_oct(u_quad_t val, register char *str, register int len, int term)
  */
 
 static u_long
-tar_chksm(register char *blk, register int len)
+tar_chksm(char *blk, int len)
 {
-	register char *stop;
-	register char *pt;
+	char *stop;
+	char *pt;
 	u_long chksm = BLNKSUM;	/* initial value is checksum field sum */
 
 	/*
@@ -302,10 +302,10 @@ tar_chksm(register char *blk, register int len)
  */
 
 int
-tar_id(register char *blk, int size)
+tar_id(char *blk, int size)
 {
-	register HD_TAR *hd;
-	register HD_USTAR *uhd;
+	HD_TAR *hd;
+	HD_USTAR *uhd;
 
 	if (size < BLKMULT)
 		return(-1);
@@ -373,10 +373,10 @@ tar_opt(void)
  */
 
 int
-tar_rd(register ARCHD *arcn, register char *buf)
+tar_rd(ARCHD *arcn, char *buf)
 {
-	register HD_TAR *hd;
-	register char *pt;
+	HD_TAR *hd;
+	char *pt;
 
 	/*
 	 * we only get proper sized buffers passed to us
@@ -504,9 +504,9 @@ tar_rd(register ARCHD *arcn, register char *buf)
  */
 
 int
-tar_wr(register ARCHD *arcn)
+tar_wr(ARCHD *arcn)
 {
-	register HD_TAR *hd;
+	HD_TAR *hd;
 	int len;
 	char hdblk[sizeof(HD_TAR)];
 
@@ -698,7 +698,7 @@ ustar_stwr(void)
 int
 ustar_id(char *blk, int size)
 {
-	register HD_USTAR *hd;
+	HD_USTAR *hd;
 
 	if (size < BLKMULT)
 		return(-1);
@@ -728,11 +728,11 @@ ustar_id(char *blk, int size)
  */
 
 int
-ustar_rd(register ARCHD *arcn, register char *buf)
+ustar_rd(ARCHD *arcn, char *buf)
 {
-	register HD_USTAR *hd;
-	register char *dest;
-	register int cnt = 0;
+	HD_USTAR *hd;
+	char *dest;
+	int cnt = 0;
 	dev_t devmajor;
 	dev_t devminor;
 
@@ -885,10 +885,10 @@ ustar_rd(register ARCHD *arcn, register char *buf)
  */
 
 int
-ustar_wr(register ARCHD *arcn)
+ustar_wr(ARCHD *arcn)
 {
-	register HD_USTAR *hd;
-	register char *pt;
+	HD_USTAR *hd;
+	char *pt;
 	char hdblk[sizeof(HD_USTAR)];
 
 	/*
@@ -1067,9 +1067,9 @@ ustar_wr(register ARCHD *arcn)
  */
 
 static char *
-name_split(register char *name, register int len)
+name_split(char *name, int len)
 {
-	register char *start;
+	char *start;
 
 	/*
 	 * check to see if the file name is small enough to fit in the name
