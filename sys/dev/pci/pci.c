@@ -63,7 +63,6 @@ static int		pci_maptype(unsigned mapreg);
 static int		pci_mapsize(unsigned testval);
 static int		pci_maprange(unsigned mapreg);
 static void		pci_fixancient(pcicfgregs *cfg);
-static void		*pci_readpcb(device_t pcib, int b, int s, int f);
 static void		pci_hdrtypedata(device_t pcib, int b, int s, int f, 
 					pcicfgregs *cfg);
 static struct pci_devinfo *pci_read_device(device_t pcib, int b, int s, int f);
