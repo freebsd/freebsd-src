@@ -19,18 +19,10 @@
 #define PUSH_FRAME							\
 	pushl	$0 ;		/* dummy error code */			\
 	pushl	$0 ;		/* dummy trap type */			\
-	pushal ;		/* 8 ints */				\
+	pushal ;							\
 	pushl	%ds ;		/* save data and extra segments ... */	\
 	pushl	%es ;							\
 	pushl	%fs
-
-#define PUSH_DUMMY							\
-	pushfl ;		/* eflags */				\
-	pushl	%cs ;		/* cs */				\
-	pushl	$0 ;		/* dummy eip */				\
-	pushl	$0 ;		/* dummy error code */			\
-	pushl	$0 ;		/* dummy trap type */			\
-	subl	$11*4,%esp ;
 
 #define POP_FRAME							\
 	popl	%fs ;							\
@@ -39,8 +31,37 @@
 	popal ;								\
 	addl	$4+4,%esp
 
-#define POP_DUMMY							\
-	addl	$16*4,%esp
+/*
+ * Macros for interrupt entry, call to handler, and exit.
+ */
+
+#define	FAST_INTR(irq_num, vec_name)					\
+	.text ;								\
+	SUPERALIGN_TEXT ;						\
+IDTVEC(vec_name) ;							\
+	PUSH_FRAME ;							\
+	movl	$KDSEL,%eax ;						\
+	mov	%ax,%ds ;						\
+	mov	%ax,%es ;						\
+	movl	$KPSEL,%eax ;						\
+	mov	%ax,%fs ;						\
+	FAKE_MCOUNT(13*4(%esp)) ;					\
+	call	critical_enter ;					\
+	movl	PCPU(CURTHREAD),%ebx ;					\
+	incl	TD_INTR_NESTING_LEVEL(%ebx) ;				\
+	pushl	intr_unit + (irq_num) * 4 ;				\
+	call	*intr_handler + (irq_num) * 4 ;	/* do the work ASAP */	\
+	addl	$4, %esp ;						\
+	movl	$0, lapic+LA_EOI ;					\
+	lock ; 								\
+	incl	cnt+V_INTR ;	/* book-keeping can wait */		\
+	movl	intr_countp + (irq_num) * 4, %eax ;			\
+	lock ; 								\
+	incl	(%eax) ;						\
+	decl	TD_INTR_NESTING_LEVEL(%ebx) ;				\
+	call	critical_exit ;						\
+	MEXITCOUNT ;							\
+	jmp	doreti
 
 #define IOAPICADDR(irq_num) CNAME(int_to_apicintpin) + 16 * (irq_num) + 8
 #define REDIRIDX(irq_num) CNAME(int_to_apicintpin) + 16 * (irq_num) + 12
@@ -93,9 +114,9 @@
  */
 #define UNMASK_IRQ(irq_num)					\
 	ICU_LOCK ;				/* into critical reg */	\
-	testl	$IRQ_BIT(irq_num), apic_imen ;				\
+	testl	$IRQ_BIT(irq_num), _apic_imen ;				\
 	je	7f ;			/* bit clear, not masked */	\
-	andl	$~IRQ_BIT(irq_num), apic_imen ;/* clear mask bit */	\
+	andl	$~IRQ_BIT(irq_num), _apic_imen ;/* clear mask bit */	\
 	movl	IOAPICADDR(irq_num), %ecx ;	/* ioapic addr */	\
 	movl	REDIRIDX(irq_num), %eax ;	/* get the index */	\
 	movl	%eax, (%ecx) ;			/* write the index */	\
@@ -104,92 +125,6 @@
 	movl	%eax, IOAPIC_WINDOW(%ecx) ;	/* new value */		\
 7: ;						/* already unmasked */	\
 	ICU_UNLOCK
-
-/*
- * Test to see whether we are handling an edge or level triggered INT.
- *  Level-triggered INTs have to be unmasked.
- */
-#define UNMASK_LEVEL_IRQ(irq_num)					\
-	testl	$IRQ_BIT(irq_num), apic_pin_trigger ;			\
-	jz	9f ;			/* edge, don't unmask */	\
-	UNMASK_IRQ(irq_num) ;						\
-9:
-
-/*
- * Macros for interrupt entry, call to handler, and exit.
- */
-
-#define	FAST_INTR(irq_num, vec_name)					\
-	.text ;								\
-	SUPERALIGN_TEXT ;						\
-IDTVEC(vec_name) ;							\
-	PUSH_FRAME ;							\
-	movl	$KDSEL,%eax ;						\
-	mov	%ax,%ds ;						\
-	mov	%ax,%es ;						\
-	movl	$KPSEL,%eax ;						\
-	mov	%ax,%fs ;						\
-	FAKE_MCOUNT(13*4(%esp)) ;					\
-	movl	PCPU(CURTHREAD),%ebx ;					\
-	cmpl	$0,TD_CRITNEST(%ebx) ;					\
-	je	1f ;							\
-;									\
-	movl	$1,PCPU(INT_PENDING) ;					\
-	orl	$IRQ_BIT(irq_num),PCPU(FPENDING) ;			\
-	MASK_LEVEL_IRQ(irq_num) ;					\
-	movl	$0, lapic+LA_EOI ;					\
-	jmp	10f ;							\
-1: ;									\
-	incl	TD_CRITNEST(%ebx) ;					\
-	incl	TD_INTR_NESTING_LEVEL(%ebx) ;				\
-	pushl	intr_unit + (irq_num) * 4 ;				\
-	call	*intr_handler + (irq_num) * 4 ;	/* do the work ASAP */	\
-	addl	$4, %esp ;						\
-	movl	$0, lapic+LA_EOI ;					\
-	lock ; 								\
-	incl	cnt+V_INTR ;	/* book-keeping can wait */		\
-	movl	intr_countp + (irq_num) * 4, %eax ;			\
-	lock ; 								\
-	incl	(%eax) ;						\
-	decl	TD_CRITNEST(%ebx) ;					\
-	cmpl	$0,PCPU(INT_PENDING) ;					\
-	je	2f ;							\
-;									\
-	call	unpend ;						\
-2: ;									\
-	decl	TD_INTR_NESTING_LEVEL(%ebx) ;				\
-10: ;									\
-	MEXITCOUNT ;							\
-	jmp	doreti
-
-/*
- * Restart a fast interrupt that was held up by a critical section.
- * This routine is called from unpend().  unpend() ensures we are
- * in a critical section and deals with the interrupt nesting level
- * for us.  If we previously masked the irq, we have to unmask it.
- *
- * We have a choice.  We can regenerate the irq using the 'int'
- * instruction or we can create a dummy frame and call the interrupt
- * handler directly.  I've chosen to use the dummy-frame method.
- */
-#define	FAST_UNPEND(irq_num, vec_name)					\
-	.text ;								\
-	SUPERALIGN_TEXT ;						\
-IDTVEC(vec_name) ;							\
-;									\
-	PUSH_DUMMY ;							\
-	pushl	intr_unit + (irq_num) * 4 ;				\
-	call	*intr_handler + (irq_num) * 4 ;	/* do the work ASAP */	\
-	addl	$4, %esp ;						\
-	lock ; 								\
-	incl	cnt+V_INTR ;	/* book-keeping can wait */		\
-	movl	intr_countp + (irq_num) * 4, %eax ;			\
-	lock ; 								\
-	incl	(%eax) ;						\
-	UNMASK_LEVEL_IRQ(irq_num) ;					\
-	POP_DUMMY ;							\
-	ret ;								\
-
 
 /* 
  * Slow, threaded interrupts.
@@ -216,27 +151,16 @@ IDTVEC(vec_name) ;							\
 ;									\
 	MASK_LEVEL_IRQ(irq_num) ;					\
 	EOI_IRQ(irq_num) ;						\
-;									\
+0: ;									\
 	movl	PCPU(CURTHREAD),%ebx ;					\
-	cmpl	$0,TD_CRITNEST(%ebx) ;					\
-	je	1f ;							\
-	movl	$1,PCPU(INT_PENDING) ;					\
-	orl	$IRQ_BIT(irq_num),PCPU(IPENDING) ;			\
-	jmp	10f ;							\
-1: ;									\
 	incl	TD_INTR_NESTING_LEVEL(%ebx) ;				\
 ;	 								\
 	FAKE_MCOUNT(13*4(%esp)) ;		/* XXX avoid dbl cnt */ \
-	cmpl	$0,PCPU(INT_PENDING) ;					\
-	je	9f ;							\
-	call	unpend ;						\
-9: ;									\
 	pushl	$irq_num;			/* pass the IRQ */	\
 	call	sched_ithd ;						\
 	addl	$4, %esp ;		/* discard the parameter */	\
 ;									\
 	decl	TD_INTR_NESTING_LEVEL(%ebx) ;				\
-10: ;									\
 	MEXITCOUNT ;							\
 	jmp	doreti
 
@@ -380,16 +304,9 @@ Xhardclock:
 	movl	$0, lapic+LA_EOI	/* End Of Interrupt to APIC */
 
 	movl	PCPU(CURTHREAD),%ebx
-	cmpl	$0,TD_CRITNEST(%ebx)
-	je	1f
-	movl	$1,PCPU(INT_PENDING)
-	orl	$1,PCPU(SPENDING);
-	jmp	10f
-1:
 	incl	TD_INTR_NESTING_LEVEL(%ebx)
 	call	forwarded_hardclock
 	decl	TD_INTR_NESTING_LEVEL(%ebx)
-10:
 	MEXITCOUNT
 	jmp	doreti
 
@@ -411,18 +328,10 @@ Xstatclock:
 	movl	$0, lapic+LA_EOI	/* End Of Interrupt to APIC */
 
 	FAKE_MCOUNT(13*4(%esp))
-
 	movl	PCPU(CURTHREAD),%ebx
-	cmpl	$0,TD_CRITNEST(%ebx)
-	je	1f
-	movl	$1,PCPU(INT_PENDING)
-	orl	$2,PCPU(SPENDING);
-	jmp	10f
-1:
 	incl	TD_INTR_NESTING_LEVEL(%ebx)
 	call	forwarded_statclock
 	decl	TD_INTR_NESTING_LEVEL(%ebx)
-10:
 	MEXITCOUNT
 	jmp	doreti
 
@@ -585,39 +494,6 @@ MCOUNT_LABEL(bintr)
 	INTR(29,intr29,)
 	INTR(30,intr30,)
 	INTR(31,intr31,)
-
-	FAST_UNPEND(0,fastunpend0)
-	FAST_UNPEND(1,fastunpend1)
-	FAST_UNPEND(2,fastunpend2)
-	FAST_UNPEND(3,fastunpend3)
-	FAST_UNPEND(4,fastunpend4)
-	FAST_UNPEND(5,fastunpend5)
-	FAST_UNPEND(6,fastunpend6)
-	FAST_UNPEND(7,fastunpend7)
-	FAST_UNPEND(8,fastunpend8)
-	FAST_UNPEND(9,fastunpend9)
-	FAST_UNPEND(10,fastunpend10)
-	FAST_UNPEND(11,fastunpend11)
-	FAST_UNPEND(12,fastunpend12)
-	FAST_UNPEND(13,fastunpend13)
-	FAST_UNPEND(14,fastunpend14)
-	FAST_UNPEND(15,fastunpend15)
-	FAST_UNPEND(16,fastunpend16)
-	FAST_UNPEND(17,fastunpend17)
-	FAST_UNPEND(18,fastunpend18)
-	FAST_UNPEND(19,fastunpend19)
-	FAST_UNPEND(20,fastunpend20)
-	FAST_UNPEND(21,fastunpend21)
-	FAST_UNPEND(22,fastunpend22)
-	FAST_UNPEND(23,fastunpend23)
-	FAST_UNPEND(24,fastunpend24)
-	FAST_UNPEND(25,fastunpend25)
-	FAST_UNPEND(26,fastunpend26)
-	FAST_UNPEND(27,fastunpend27)
-	FAST_UNPEND(28,fastunpend28)
-	FAST_UNPEND(29,fastunpend29)
-	FAST_UNPEND(30,fastunpend30)
-	FAST_UNPEND(31,fastunpend31)
 MCOUNT_LABEL(eintr)
 
 /*

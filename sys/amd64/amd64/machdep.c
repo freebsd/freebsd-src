@@ -138,8 +138,6 @@ static void fill_fpregs_xmm __P((struct savexmm *, struct save87 *));
 #endif /* CPU_ENABLE_SSE */
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
-void unpend(void);	/* note: not static */
-
 int	_udatasel, _ucodesel;
 u_int	atdevbase;
 
@@ -150,9 +148,6 @@ SYSCTL_INT(_debug, OID_AUTO, swtch_optim_stats,
 SYSCTL_INT(_debug, OID_AUTO, tlb_flush_count,
 	CTLFLAG_RD, &tlb_flush_count, 0, "");
 #endif
-int critical_mode = 1;
-SYSCTL_INT(_debug, OID_AUTO, critical_mode,
-	CTLFLAG_RW, &critical_mode, 0, "");
 
 #ifdef PC98
 static int	ispc98 = 1;
@@ -272,121 +267,6 @@ cpu_startup(dummy)
 	/* For SMP, we delay the cpu_setregs() until after SMP startup. */
 	cpu_setregs();
 #endif
-}
-
-/*
- * Critical section handling.
- *
- *	Note that our interrupt code handles any interrupt race that occurs
- *	after we decrement td_critnest.
- */
-void
-critical_enter(void)
-{
-	struct thread *td = curthread;
-
-	if (critical_mode == 0) {
-		if (td->td_critnest == 0)
-			td->td_savecrit = cpu_critical_enter();
-		td->td_critnest++;
-	} else {
-		++td->td_critnest;
-	}
-}
-
-void
-critical_exit(void)
-{
-	struct thread *td = curthread;
-	KASSERT(td->td_critnest > 0, ("bad td_critnest value!"));
-	if (--td->td_critnest == 0) {
-		if (td->td_savecrit != (critical_t)-1) {
-			cpu_critical_exit(td->td_savecrit);
-			td->td_savecrit = (critical_t)-1;
-		} else {
-		/*
-		 * We may have to schedule pending interrupts.  Create
-		 * conditions similar to an interrupt context and call
-		 * unpend().
-		 */
-		if (PCPU_GET(int_pending) && td->td_intr_nesting_level == 0) {
-			critical_t eflags;
-
-			eflags = cpu_critical_enter();
-			if (PCPU_GET(int_pending)) {
-				++td->td_intr_nesting_level;
-				unpend();
-				--td->td_intr_nesting_level;
-			}
-			cpu_critical_exit(eflags);
-		}
-		}
-	}
-}
-
-/*
- * Called from critical_exit() or called from the assembly vector code
- * to process any interrupts which may have occured while we were in
- * a critical section.
- *
- * 	- interrupts must be disabled
- *	- td_intr_nesting_level may not be 0
- *	- td_critnest must be 0
- */
-void
-unpend(void)
-{
-	curthread->td_critnest = 1;
-	for (;;) {
-		u_int32_t mask;
-
-		/*
-		 * Fast interrupts have priority
-		 */
-		if ((mask = PCPU_GET(fpending)) != 0) {
-			int irq = bsfl(mask);
-			PCPU_SET(fpending, mask & ~(1 << irq));
-			call_fast_unpend(irq);
-			continue;
-		}
-
-		/*
-		 * Threaded interrupts come next
-		 */
-		if ((mask = PCPU_GET(ipending)) != 0) {
-			int irq = bsfl(mask);
-			PCPU_SET(ipending, mask & ~(1 << irq));
-			sched_ithd((void *)irq);
-			continue;
-		}
-
-		/*
-		 * Software interrupts and delayed IPIs are last
-		 *
-		 * XXX give the bits #defined names.  see also
-		 * isa/xxx_vector.s
-		 */
-		if ((mask = PCPU_GET(spending)) != 0) {
-			int irq = bsfl(mask);
-			PCPU_SET(spending, mask & ~(1 << irq));
-			switch(irq) {
-			case 0:		/* bit 0 - hardclock */
-				mtx_lock_spin(&sched_lock);
-				hardclock_process(curthread, 0);
-				mtx_unlock_spin(&sched_lock);
-				break;
-			case 1:		/* bit 1 - statclock */
-				mtx_lock_spin(&sched_lock);
-				statclock_process(curthread->td_kse, (register_t)unpend, 0);
-				mtx_unlock_spin(&sched_lock);
-				break;
-			}
-			continue;
-		}
-		break;
-	}
-	PCPU_SET(int_pending, 0);
-	curthread->td_critnest = 0;
 }
 
 /*
@@ -1852,17 +1732,12 @@ init386(first)
 
 	/*
 	 * Initialize mutexes.
-	 *
-	 * icu_lock: in order to allow an interrupt to occur in a critical
-	 * 	     section, to set pcpu->ipending (etc...) properly, we
-	 *	     must be able to get the icu lock, so it can't be
-	 *	     under witness.
 	 */
 	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
 	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
 	mtx_init(&proc0.p_mtx, "process lock", MTX_DEF);
 	mtx_init(&clock_lock, "clk", MTX_SPIN | MTX_RECURSE);
-	mtx_init(&icu_lock, "icu", MTX_SPIN | MTX_NOWITNESS);
+	mtx_init(&icu_lock, "icu", MTX_SPIN);
 	mtx_lock(&Giant);
 
 	/* make ldt memory segments */
