@@ -600,7 +600,7 @@ block_map(struct open_file *f, daddr_t file_block, daddr_t *disk_block_p)
 	struct file *fp = (struct file *)f->f_fsdata;
 	struct ext2fs *fs = fp->f_fs;
 	daddr_t ind_block_num;
-	daddr_t *ind_p;
+	int32_t *ind_p;
 	int idx, level;
 	int error;
 
@@ -674,7 +674,7 @@ block_map(struct open_file *f, daddr_t file_block, daddr_t *disk_block_p)
 			fp->f_blkno[level] = ind_block_num;
 		}
 
-		ind_p = (daddr_t *)fp->f_blk[level];
+		ind_p = (int32_t *)fp->f_blk[level];
 
 		if (level > 0) {
 			idx = file_block / fp->f_nindir[level - 1];
