@@ -85,14 +85,9 @@
 #include <machine/specialreg.h>
 
 #include <i386/isa/icu.h>
-#ifdef PC98
 #include <pc98/pc98/pc98.h>
 #include <pc98/pc98/pc98_machdep.h>
 #include <i386/isa/isa_device.h>
-#else
-#include <i386/isa/isa.h>
-#include <isa/rtc.h>
-#endif
 #ifdef DEV_ISA
 #include <isa/isavar.h>
 #endif
@@ -144,11 +139,7 @@ int	pscnt = 1;
 int	psdiv = 1;
 int	statclock_disable;
 #ifndef TIMER_FREQ
-#ifdef PC98
 #define TIMER_FREQ   2457600
-#else /* IBM-PC */
-#define TIMER_FREQ   1193182
-#endif /* PC98 */
 #endif
 u_int	timer_freq = TIMER_FREQ;
 int	timer0_max_count;
@@ -172,10 +163,6 @@ static	int	i8254_ticked;
  */
 static	void	(*new_function)(struct clockframe *frame);
 static	u_int	new_rate;
-#ifndef PC98
-static	u_char	rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
-static	u_char	rtc_statusb = RTCSB_24HR | RTCSB_PINTR;
-#endif
 static	u_int	timer0_prescaler_count;
 
 /* Values for timerX_state: */
@@ -185,17 +172,13 @@ static	u_int	timer0_prescaler_count;
 #define	ACQUIRE_PENDING	3
 
 static	u_char	timer0_state;
-#ifdef	PC98
 static 	u_char	timer1_state;
-#endif
 static	u_char	timer2_state;
 static	void	(*timer_func)(struct clockframe *frame) = hardclock;
-#ifdef PC98
 static void rtc_serialcombit(int);
 static void rtc_serialcom(int);
 static int rtc_inb(void);
 static void rtc_outb(int);
-#endif
 
 static	unsigned i8254_get_timecount(struct timecounter *tc);
 static	unsigned tsc_get_timecount(struct timecounter *tc);
@@ -331,7 +314,6 @@ acquire_timer0(int rate, void (*function)(struct clockframe *frame))
 	return (0);
 }
 
-#ifdef PC98
 int
 acquire_timer1(int mode)
 {
@@ -351,7 +333,6 @@ acquire_timer1(int mode)
 
 	return (0);
 }
-#endif
 
 int
 acquire_timer2(int mode)
@@ -393,7 +374,6 @@ release_timer0()
 	return (0);
 }
 
-#ifdef PC98
 int
 release_timer1()
 {
@@ -404,7 +384,6 @@ release_timer1()
 	outb(TIMER_MODE, TIMER_SEL1 | TIMER_SQWAVE | TIMER_16BIT);
 	return (0);
 }
-#endif
 
 int
 release_timer2()
@@ -417,58 +396,6 @@ release_timer2()
 	return (0);
 }
 
-#ifndef PC98
-/*
- * This routine receives statistical clock interrupts from the RTC.
- * As explained above, these occur at 128 interrupts per second.
- * When profiling, we receive interrupts at a rate of 1024 Hz.
- *
- * This does not actually add as much overhead as it sounds, because
- * when the statistical clock is active, the hardclock driver no longer
- * needs to keep (inaccurate) statistics on its own.  This decouples
- * statistics gathering from scheduling interrupts.
- *
- * The RTC chip requires that we read status register C (RTC_INTR)
- * to acknowledge an interrupt, before it will generate the next one.
- * Under high interrupt load, rtcintr() can be indefinitely delayed and
- * the clock can tick immediately after the read from RTC_INTR.  In this
- * case, the mc146818A interrupt signal will not drop for long enough
- * to register with the 8259 PIC.  If an interrupt is missed, the stat
- * clock will halt, considerably degrading system performance.  This is
- * why we use 'while' rather than a more straightforward 'if' below.
- * Stat clock ticks can still be lost, causing minor loss of accuracy
- * in the statistics, but the stat clock will no longer stop.
- */
-static void
-rtcintr(struct clockframe frame)
-{
-	while (rtcin(RTC_INTR) & RTCIR_PERIOD) {
-		if (profprocs != 0) {
-			if (--pscnt == 0)
-				pscnt = psdiv;
-			profclock(&frame);
-		}
-		if (pscnt == psdiv)
-			statclock(&frame);
-#ifdef SMP
-		forward_statclock();
-#endif
-	}
-}
-
-#include "opt_ddb.h"
-#ifdef DDB
-#include <ddb/ddb.h>
-
-DB_SHOW_COMMAND(rtc, rtc)
-{
-	printf("%02x/%02x/%02x %02x:%02x:%02x, A = %02x, B = %02x, C = %02x\n",
-	       rtcin(RTC_YEAR), rtcin(RTC_MONTH), rtcin(RTC_DAY),
-	       rtcin(RTC_HRS), rtcin(RTC_MIN), rtcin(RTC_SEC),
-	       rtcin(RTC_STATUSA), rtcin(RTC_STATUSB), rtcin(RTC_INTR));
-}
-#endif /* DDB */
-#endif /* for PC98 */
 
 static int
 getit(void)
@@ -581,13 +508,8 @@ DELAY(int n)
 static void
 sysbeepstop(void *chan)
 {
-#ifdef PC98	/* PC98 */
 	outb(IO_PPI, inb(IO_PPI)|0x08);	/* disable counter1 output to speaker */
 	release_timer1();
-#else
-	outb(IO_PPI, inb(IO_PPI)&0xFC);	/* disable counter2 output to speaker */
-	release_timer2();
-#endif
 	beeping = 0;
 }
 
@@ -596,7 +518,6 @@ sysbeep(int pitch, int period)
 {
 	int x = splclock();
 
-#ifdef PC98
 	if (acquire_timer1(TIMER_SQWAVE|TIMER_16BIT))
 		if (!beeping) {
 			/* Something else owns it. */
@@ -613,71 +534,11 @@ sysbeep(int pitch, int period)
 		beeping = period;
 		timeout(sysbeepstop, (void *)NULL, period);
 	}
-#else
-	if (acquire_timer2(TIMER_SQWAVE|TIMER_16BIT))
-		if (!beeping) {
-			/* Something else owns it. */
-			splx(x);
-			return (-1); /* XXX Should be EBUSY, but nobody cares anyway. */
-		}
-	mtx_lock_spin(&clock_lock);
-	outb(TIMER_CNTR2, pitch);
-	outb(TIMER_CNTR2, (pitch>>8));
-	mtx_unlock_spin(&clock_lock);
-	if (!beeping) {
-		/* enable counter2 output to speaker */
-		outb(IO_PPI, inb(IO_PPI) | 3);
-		beeping = period;
-		timeout(sysbeepstop, (void *)NULL, period);
-	}
-#endif
 	splx(x);
 	return (0);
 }
 
-#ifndef PC98
-/*
- * RTC support routines
- */
 
-int
-rtcin(reg)
-	int reg;
-{
-	int s;
-	u_char val;
-
-	s = splhigh();
-	outb(IO_RTC, reg);
-	inb(0x84);
-	val = inb(IO_RTC + 1);
-	inb(0x84);
-	splx(s);
-	return (val);
-}
-
-static __inline void
-writertc(u_char reg, u_char val)
-{
-	int s;
-
-	s = splhigh();
-	inb(0x84);
-	outb(IO_RTC, reg);
-	inb(0x84);
-	outb(IO_RTC + 1, val);
-	inb(0x84);		/* XXX work around wrong order in rtcin() */
-	splx(s);
-}
-
-static __inline int
-readrtc(int port)
-{
-	return(bcd2bin(rtcin(port)));
-}
-#endif
-
-#ifdef PC98
 unsigned int delaycount;
 #define FIRST_GUESS	0x2000
 static void findcpuspeed(void)
@@ -694,9 +555,7 @@ static void findcpuspeed(void)
 	remainder = getit();
 	delaycount = (FIRST_GUESS * TIMER_DIV(1000)) / (0xffff - remainder);
 }
-#endif
 
-#ifdef PC98
 static u_int
 calibrate_clocks(void)
 {
@@ -769,102 +628,6 @@ fail:
 		       timer_freq);
 	return (timer_freq);
 }
-#else
-static u_int
-calibrate_clocks(void)
-{
-	u_int64_t old_tsc;
-	u_int count, prev_count, tot_count;
-	int sec, start_sec, timeout;
-
-	if (bootverbose)
-	        printf("Calibrating clock(s) ... ");
-	if (!(rtcin(RTC_STATUSD) & RTCSD_PWR))
-		goto fail;
-	timeout = 100000000;
-
-	/* Read the mc146818A seconds counter. */
-	for (;;) {
-		if (!(rtcin(RTC_STATUSA) & RTCSA_TUP)) {
-			sec = rtcin(RTC_SEC);
-			break;
-		}
-		if (--timeout == 0)
-			goto fail;
-	}
-
-	/* Wait for the mC146818A seconds counter to change. */
-	start_sec = sec;
-	for (;;) {
-		if (!(rtcin(RTC_STATUSA) & RTCSA_TUP)) {
-			sec = rtcin(RTC_SEC);
-			if (sec != start_sec)
-				break;
-		}
-		if (--timeout == 0)
-			goto fail;
-	}
-
-	/* Start keeping track of the i8254 counter. */
-	prev_count = getit();
-	if (prev_count == 0 || prev_count > timer0_max_count)
-		goto fail;
-	tot_count = 0;
-
-	if (tsc_present) 
-		old_tsc = rdtsc();
-	else
-		old_tsc = 0;		/* shut up gcc */
-
-	/*
-	 * Wait for the mc146818A seconds counter to change.  Read the i8254
-	 * counter for each iteration since this is convenient and only
-	 * costs a few usec of inaccuracy. The timing of the final reads
-	 * of the counters almost matches the timing of the initial reads,
-	 * so the main cause of inaccuracy is the varying latency from 
-	 * inside getit() or rtcin(RTC_STATUSA) to the beginning of the
-	 * rtcin(RTC_SEC) that returns a changed seconds count.  The
-	 * maximum inaccuracy from this cause is < 10 usec on 486's.
-	 */
-	start_sec = sec;
-	for (;;) {
-		if (!(rtcin(RTC_STATUSA) & RTCSA_TUP))
-			sec = rtcin(RTC_SEC);
-		count = getit();
-		if (count == 0 || count > timer0_max_count)
-			goto fail;
-		if (count > prev_count)
-			tot_count += prev_count - (count - timer0_max_count);
-		else
-			tot_count += prev_count - count;
-		prev_count = count;
-		if (sec != start_sec)
-			break;
-		if (--timeout == 0)
-			goto fail;
-	}
-
-	/*
-	 * Read the cpu cycle counter.  The timing considerations are
-	 * similar to those for the i8254 clock.
-	 */
-	if (tsc_present) 
-		tsc_freq = rdtsc() - old_tsc;
-
-	if (bootverbose) {
-		if (tsc_present)
-		        printf("TSC clock: %ju Hz, ", (intmax_t)tsc_freq);
-	        printf("i8254 clock: %u Hz\n", tot_count);
-	}
-	return (tot_count);
-
-fail:
-	if (bootverbose)
-	        printf("failed, using default i8254 clock of %u Hz\n",
-		       timer_freq);
-	return (timer_freq);
-}
-#endif	/* !PC98 */
 
 static void
 set_timer_freq(u_int freq, int intr_freq)
@@ -894,18 +657,6 @@ i8254_restore(void)
 	mtx_unlock_spin(&clock_lock);
 }
 
-#ifndef PC98
-static void
-rtc_restore(void)
-{
-
-	/* Restore all of the RTC's "status" (actually, control) registers. */
-	/* XXX locking is needed for RTC access. */
-	writertc(RTC_STATUSB, RTCSB_24HR);
-	writertc(RTC_STATUSA, rtc_statusa);
-	writertc(RTC_STATUSB, rtc_statusb);
-}
-#endif
 
 /*
  * Restore all the timers non-atomically (XXX: should be atomically).
@@ -919,9 +670,6 @@ timer_restore(void)
 {
 
 	i8254_restore();		/* restore timer_freq and hz */
-#ifndef PC98
-	rtc_restore();			/* reenable RTC interrupts */
-#endif
 }
 
 /*
@@ -933,23 +681,17 @@ startrtclock()
 {
 	u_int delta, freq;
 
-#ifdef PC98
 	findcpuspeed();
 	if (pc98_machine_type & M_8M)
 		timer_freq = 1996800L; /* 1.9968 MHz */
 	else
 		timer_freq = 2457600L; /* 2.4576 MHz */
-#endif /* PC98 */
 
 	if (cpu_feature & CPUID_TSC)
 		tsc_present = 1;
 	else
 		tsc_present = 0;
 
-#ifndef PC98
-	writertc(RTC_STATUSA, rtc_statusa);
-	writertc(RTC_STATUSB, RTCSB_24HR);
-#endif
 
 	set_timer_freq(timer_freq, hz);
 	freq = calibrate_clocks();
@@ -1045,7 +787,6 @@ startrtclock()
 #endif /* !defined(SMP) */
 }
 
-#ifdef PC98
 static void
 rtc_serialcombit(int i)
 {
@@ -1103,7 +844,6 @@ rtc_inb(void)
 	}
 	return sa;
 }
-#endif /* PC-98 */
 
 /*
  * Initialize the time of day register, based on the time base which is, e.g.
@@ -1116,9 +856,7 @@ inittodr(time_t base)
 	int		year, month;
 	int		y, m, s;
 	struct timespec ts;
-#ifdef PC98
 	int		second, min, hour;
-#endif
 
 	if (base) {
 		s = splclock();
@@ -1128,7 +866,6 @@ inittodr(time_t base)
 		splx(s);
 	}
 
-#ifdef PC98
 	rtc_serialcom(0x03);	/* Time Read */
 	rtc_serialcom(0x01);	/* Register shift command. */
 	DELAY(20);
@@ -1159,46 +896,6 @@ inittodr(time_t base)
 	   in the local	time zone */
 
 	s = splhigh();
-#else	/* IBM-PC */
-	/* Look if we have a RTC present and the time is valid */
-	if (!(rtcin(RTC_STATUSD) & RTCSD_PWR))
-		goto wrong_time;
-
-	/* wait for time update to complete */
-	/* If RTCSA_TUP is zero, we have at least 244us before next update */
-	s = splhigh();
-	while (rtcin(RTC_STATUSA) & RTCSA_TUP) {
-		splx(s);
-		s = splhigh();
-	}
-
-	days = 0;
-#ifdef USE_RTC_CENTURY
-	year = readrtc(RTC_YEAR) + readrtc(RTC_CENTURY) * 100;
-#else
-	year = readrtc(RTC_YEAR) + 1900;
-	if (year < 1970)
-		year += 100;
-#endif
-	if (year < 1970) {
-		splx(s);
-		goto wrong_time;
-	}
-	month = readrtc(RTC_MONTH);
-	for (m = 1; m < month; m++)
-		days += daysinmonth[m-1];
-	if ((month > 2) && LEAPYEAR(year))
-		days ++;
-	days += readrtc(RTC_DAY) - 1;
-	for (y = 1970; y < year; y++)
-		days += DAYSPERYEAR + LEAPYEAR(y);
-	sec = ((( days * 24 +
-		  readrtc(RTC_HRS)) * 60 +
-		  readrtc(RTC_MIN)) * 60 +
-		  readrtc(RTC_SEC));
-	/* sec now contains the number of seconds, since Jan 1 1970,
-	   in the local time zone */
-#endif
 
 	sec += tz_minuteswest * 60 + (wall_cmos_clock ? adjkerntz : 0);
 
@@ -1225,9 +922,7 @@ resettodr()
 {
 	unsigned long	tm;
 	int		y, m, s;
-#ifdef PC98
 	int		wd;
-#endif
 
 	if (disable_rtc_set)
 		return;
@@ -1236,7 +931,6 @@ resettodr()
 	tm = time_second;
 	splx(s);
 
-#ifdef PC98
 	rtc_serialcom(0x01);	/* Register shift command. */
 
 	/* Calculate local time	to put in RTC */
@@ -1273,47 +967,6 @@ resettodr()
 
 	rtc_serialcom(0x02);	/* Time set & Counter hold command. */
 	rtc_serialcom(0x00);	/* Register hold command. */
-#else
-	/* Disable RTC updates and interrupts. */
-	writertc(RTC_STATUSB, RTCSB_HALT | RTCSB_24HR);
-
-	/* Calculate local time to put in RTC */
-
-	tm -= tz_minuteswest * 60 + (wall_cmos_clock ? adjkerntz : 0);
-
-	writertc(RTC_SEC, bin2bcd(tm%60)); tm /= 60;	/* Write back Seconds */
-	writertc(RTC_MIN, bin2bcd(tm%60)); tm /= 60;	/* Write back Minutes */
-	writertc(RTC_HRS, bin2bcd(tm%24)); tm /= 24;	/* Write back Hours   */
-
-	/* We have now the days since 01-01-1970 in tm */
-	writertc(RTC_WDAY, (tm+4)%7);			/* Write back Weekday */
-	for (y = 1970, m = DAYSPERYEAR + LEAPYEAR(y);
-	     tm >= m;
-	     y++,      m = DAYSPERYEAR + LEAPYEAR(y))
-	     tm -= m;
-
-	/* Now we have the years in y and the day-of-the-year in tm */
-	writertc(RTC_YEAR, bin2bcd(y%100));		/* Write back Year    */
-#ifdef USE_RTC_CENTURY
-	writertc(RTC_CENTURY, bin2bcd(y/100));		/* ... and Century    */
-#endif
-	for (m = 0; ; m++) {
-		int ml;
-
-		ml = daysinmonth[m];
-		if (m == 1 && LEAPYEAR(y))
-			ml++;
-		if (tm < ml)
-			break;
-		tm -= ml;
-	}
-
-	writertc(RTC_MONTH, bin2bcd(m + 1));            /* Write back Month   */
-	writertc(RTC_DAY, bin2bcd(tm + 1));             /* Write back Month Day */
-
-	/* Reenable RTC updates and interrupts. */
-	writertc(RTC_STATUSB, rtc_statusb);
-#endif /* PC98 */
 }
 
 
@@ -1323,30 +976,12 @@ resettodr()
 void
 cpu_initclocks()
 {
-#ifndef PC98
-	int diag;
-#endif
 #ifdef APIC_IO
 	int apic_8254_trial;
 	void *clkdesc;
 #endif /* APIC_IO */
 	register_t crit;
 
-#ifndef PC98
-	if (statclock_disable) {
-		/*
-		 * The stat interrupt mask is different without the
-		 * statistics clock.  Also, don't set the interrupt
-		 * flag which would normally cause the RTC to generate
-		 * interrupts.
-		 */
-		rtc_statusb = RTCSB_24HR;
-	} else {
-	        /* Setting stathz to nonzero early helps avoid races. */
-		stathz = RTC_NOPROFRATE;
-		profhz = RTC_PROFRATE;
-        }
-#endif
 
 	/* Finish initializing 8253 timer 0. */
 #ifdef APIC_IO
@@ -1390,40 +1025,7 @@ cpu_initclocks()
 
 #endif /* APIC_IO */
 
-#ifndef PC98
-	/* Initialize RTC. */
-	writertc(RTC_STATUSA, rtc_statusa);
-	writertc(RTC_STATUSB, RTCSB_24HR);
 
-	/* Don't bother enabling the statistics clock. */
-	if (statclock_disable)
-		return;
-	diag = rtcin(RTC_DIAG);
-	if (diag != 0)
-		printf("RTC BIOS diagnostic error %b\n", diag, RTCDG_BITS);
-#endif /* !PC98 */
-
-#ifndef PC98
-#ifdef APIC_IO
-	if (isa_apic_irq(8) != 8)
-		panic("APIC RTC != 8");
-#endif /* APIC_IO */
-
-	inthand_add("rtc", 8, (driver_intr_t *)rtcintr, NULL,
-	    INTR_TYPE_CLK | INTR_FAST, NULL);
-
-	crit = intr_disable();
-	mtx_lock_spin(&icu_lock);
-#ifdef APIC_IO
-	INTREN(APIC_IRQ8);
-#else
-	INTREN(IRQ8);
-#endif /* APIC_IO */
-	mtx_unlock_spin(&icu_lock);
-	intr_restore(crit);
-
-	writertc(RTC_STATUSB, rtc_statusb);
-#endif /* PC98 */
 
 #ifdef APIC_IO
 	if (apic_8254_trial) {
@@ -1507,17 +1109,10 @@ setup_8254_mixed_mode()
 	 *   reset; prog 4 bytes, single ICU, edge triggered
 	 */
 	outb(IO_ICU1, 0x13);
-#ifdef PC98
 	outb(IO_ICU1 + 2, NRSVIDT);	/* start vector (unused) */
 	outb(IO_ICU1 + 2, 0x00);	/* ignore slave */
 	outb(IO_ICU1 + 2, 0x03);	/* auto EOI, 8086 */
 	outb(IO_ICU1 + 2, 0xfe);	/* unmask INT0 */
-#else
-	outb(IO_ICU1 + 1, NRSVIDT);	/* start vector (unused) */
-	outb(IO_ICU1 + 1, 0x00);	/* ignore slave */
-	outb(IO_ICU1 + 1, 0x03);	/* auto EOI, 8086 */
-	outb(IO_ICU1 + 1, 0xfe);	/* unmask INT0 */
-#endif	
 	
 	/* program IO APIC for type 3 INT on INT0 */
 	if (ext_int_setup(0, 0) < 0)
@@ -1528,13 +1123,6 @@ setup_8254_mixed_mode()
 void
 cpu_startprofclock(void)
 {
-#ifndef PC98
-	if (newhz == RTC_PROFRATE)
-		rtc_statusa = RTCSA_DIVIDER | RTCSA_PROF;
-	else
-		rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
-	writertc(RTC_STATUSA, rtc_statusa);
-#endif
 }
 
 void
@@ -1674,7 +1262,4 @@ static driver_t attimer_driver = {
 static devclass_t attimer_devclass;
 
 DRIVER_MODULE(attimer, isa, attimer_driver, attimer_devclass, 0, 0);
-#ifndef PC98
-DRIVER_MODULE(attimer, acpi, attimer_driver, attimer_devclass, 0, 0);
-#endif
 #endif /* DEV_ISA */
