@@ -103,10 +103,8 @@ driver_t miibus_driver = {
  * Helper function used by network interface drivers, attaches PHYs
  * to the network interface driver parent.
  */
-
 int
-miibus_probe(dev)
-	device_t		dev;
+miibus_probe(device_t dev)
 {
 	struct mii_attach_args	ma, *args;
 	struct mii_data		*mii;
@@ -159,8 +157,7 @@ miibus_probe(dev)
 }
 
 int
-miibus_attach(dev)
-	device_t		dev;
+miibus_attach(device_t dev)
 {
 	void			**v;
 	ifm_change_cb_t		ifmedia_upd;
@@ -182,8 +179,7 @@ miibus_attach(dev)
 }
 
 int
-miibus_detach(dev)
-	device_t		dev;
+miibus_detach(device_t dev)
 {
 	struct mii_data		*mii;
 
@@ -196,9 +192,7 @@ miibus_detach(dev)
 }
 
 static int
-miibus_readreg(dev, phy, reg)
-	device_t		dev;
-	int			phy, reg;
+miibus_readreg(device_t dev, int phy, int reg)
 {
 	device_t		parent;
 
@@ -207,9 +201,7 @@ miibus_readreg(dev, phy, reg)
 }
 
 static int
-miibus_writereg(dev, phy, reg, data)
-	device_t		dev;
-	int			phy, reg, data;
+miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	device_t		parent;
 
@@ -218,8 +210,7 @@ miibus_writereg(dev, phy, reg, data)
 }
 
 static void
-miibus_statchg(dev)
-	device_t		dev;
+miibus_statchg(device_t dev)
 {
 	device_t		parent;
 
@@ -229,8 +220,7 @@ miibus_statchg(dev)
 }
 
 static void
-miibus_linkchg(dev)
-	device_t		dev;
+miibus_linkchg(device_t dev)
 {
 	struct mii_data		*mii;
 	device_t		parent;
@@ -255,8 +245,7 @@ miibus_linkchg(dev)
 }
 
 static void
-miibus_mediainit(dev)
-	device_t		dev;
+miibus_mediainit(device_t dev)
 {
 	struct mii_data		*mii;
 	struct ifmedia_entry	*m;
@@ -278,11 +267,8 @@ miibus_mediainit(dev)
 }
 
 int
-mii_phy_probe(dev, child, ifmedia_upd, ifmedia_sts)
-	device_t		dev;
-	device_t		*child;
-	ifm_change_cb_t		ifmedia_upd;
-	ifm_stat_cb_t		ifmedia_sts;
+mii_phy_probe(device_t dev, device_t *child, ifm_change_cb_t ifmedia_upd,
+    ifm_stat_cb_t ifmedia_sts)
 {
 	void			**v;
 	int			bmsr, i;
@@ -321,8 +307,7 @@ mii_phy_probe(dev, child, ifmedia_upd, ifmedia_sts)
  * Media changed; notify all PHYs.
  */
 int
-mii_mediachg(mii)
-	struct mii_data *mii;
+mii_mediachg(struct mii_data *mii)
 {
 	struct mii_softc *child;
 	int rv;
@@ -342,8 +327,7 @@ mii_mediachg(mii)
  * Call the PHY tick routines, used during autonegotiation.
  */
 void
-mii_tick(mii)
-	struct mii_data *mii;
+mii_tick(struct mii_data *mii)
 {
 	struct mii_softc *child;
 
@@ -355,8 +339,7 @@ mii_tick(mii)
  * Get media status from PHYs.
  */
 void
-mii_pollstat(mii)
-	struct mii_data *mii;
+mii_pollstat(struct mii_data *mii)
 {
 	struct mii_softc *child;
 
