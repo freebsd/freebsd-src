@@ -1,17 +1,18 @@
-# ISO 3166 2-letter country codes
+# ISO 3166 alpha-2 country codes
 #
 # @(#)iso3166.tab	1.9
 #
-# From Paul Eggert <eggert@twinsun.com> (1999-10-13):
+# From Paul Eggert <eggert@twinsun.com> (2002-05-28):
 #
 # This file contains a table with the following columns:
-# 1.  ISO 3166-1:1999 2-character country code.  See:
-#	<a href="http://www.din.de/gremien/nas/nabd/iso3166ma/codlstp1.html">
-#	ISO 3166-1: The Code List
-#	</a>.
+# 1.  ISO 3166-1 alpha-2 country code, current as of
+#     ISO 3166-1 Newsletter No. V-5 (2002-05-20).  See:
+#     <a href="http://www.iso.org/iso/en/prods-services/iso3166ma/index.html">
+#     ISO 3166 Maintenance agency (ISO 3166/MA)
+#     </a>.
 # 2.  The usual English name for the country,
-#	chosen so that alphabetic sorting of subsets produces helpful lists.
-#	This is not the same as the English name in the ISO 3166 tables.
+#     chosen so that alphabetic sorting of subsets produces helpful lists.
+#     This is not the same as the English name in the ISO 3166 tables.
 #
 # Columns are separated by a single tab.
 # The table is sorted by country code.
@@ -229,10 +230,10 @@ TG	Togo
 TH	Thailand
 TJ	Tajikistan
 TK	Tokelau
+TL	East Timor
 TM	Turkmenistan
 TN	Tunisia
 TO	Tonga
-TP	East Timor
 TR	Turkey
 TT	Trinidad & Tobago
 TV	Tuvalu
