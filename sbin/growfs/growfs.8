@@ -39,12 +39,12 @@
 .\"
 .Dd September 8, 2000
 .Dt GROWFS 8
-.Os BSD 4.4
+.Os
 .Sh NAME
 .Nm growfs
 .Nd grow size of an existing ufs file system
 .Sh SYNOPSIS
-.Nm growfs
+.Nm
 .Op Fl Ny
 .Op Fl s Ar size
 .Ar special
@@ -75,13 +75,12 @@ Use
 for other changes.
 .Pp
 The following options are available:
-.\".Pp
 .Bl -tag -width indent
 .It Fl N
 Cause the new file system parameters to be printed out without actually growing
 the file system.
 .It Fl y
-.Dq Expert mode
+.Dq Expert mode .
 Normally 
 .Nm 
 will ask you, if you took a backup of your data before and will do some tests
@@ -89,7 +88,7 @@ if
 .Ar special 
 is currently mounted or if there are any active snapshots on the filesystem
 specified.
-This will be supressed.
+This will be suppressed.
 So use this option with great care!
 .It Fl s Ar size
 The
@@ -111,7 +110,7 @@ up to 2GB if there is enough space in
 .Pa /dev/vinum/testvol .
 .Sh BUGS
 In some cases on
-.Bx Free
+.Fx
 3.x it is possible, that
 .Nm
 did not recognize exactly, if the file system is mounted or not and 
@@ -129,7 +128,7 @@ Almost everything works perfect with this relocated structure except the
 .Xr fsck 8
 utility.
 There is a patch available for
-.Xr fsck 8 ) .
+.Xr fsck 8 .
 For growing above certain limits it is essential to have some free blocks
 available in the first cylinder group.
 To avoid the relocation of that structure it is currently recommended to use
@@ -142,24 +141,20 @@ in the CYLINDER SUMMARY (internal cs) of the CYLINDER GROUP
 has enough blocks.
 As a rule of thumb for default filesystem parameters a block is needed for
 every 2 GB of total filesystem size.
-.Pp
 .Sh SEE ALSO
-.Xr vinum 8 ,
 .Xr disklabel 8 ,
+.Xr dumpfs 8 ,
+.Xr ffsinfo 8 ,
 .Xr fsck 8 ,
 .Xr newfs 8 ,
 .Xr tunefs 8 , 
-.Xr dumpfs 8 ,
-.Xr ffsinfo 8 
-.\".Rs
-.\".Re
+.Xr vinum 8
 .Sh AUTHORS
-.An Christoph Herrmann Aq chm@FreeBSD.ORG
-.An Thomas-Henning von Kamptz Aq tomsoft@FreeBSD.ORG
+.An Christoph Herrmann Aq chm@FreeBSD.org
+.An Thomas-Henning von Kamptz Aq tomsoft@FreeBSD.org
 .An The GROWFS team Aq growfs@Tomsoft.COM
 .Sh HISTORY
 The
 .Nm
-command first appeared first in
-.Bx Free 
-5.0.
+command first appeared in
+.Fx 5.0 .
