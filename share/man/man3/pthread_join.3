@@ -59,10 +59,12 @@ by the terminating thread is stored in the location referenced by
 .Fa value_ptr .
 When a
 .Fn pthread_join
-returns successfully, the target thread has been terminated. The results
+returns successfully, the target thread has been terminated.
+The results
 of multiple simultaneous calls to
 .Fn pthread_join
-specifying the same target thread are undefined. If the thread calling
+specifying the same target thread are undefined.
+If the thread calling
 .Fn pthread_join
 is cancelled, then the target thread is not detached.
 .Pp
@@ -72,7 +74,8 @@ A thread that has exited but remains unjoined counts against
 .Sh RETURN VALUES
 If successful,  the
 .Fn pthread_join
-function will return zero. Otherwise an error number will be returned to
+function will return zero.
+Otherwise an error number will be returned to
 indicate the error.
 .Sh ERRORS
 .Fn pthread_join

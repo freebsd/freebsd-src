@@ -50,7 +50,8 @@
 .Fn ttyslot void
 .Sh DESCRIPTION
 These functions operate on the system file descriptors for terminal
-type devices. These descriptors are not related to the standard
+type devices.
+These descriptors are not related to the standard
 .Tn I/O
 .Dv FILE
 typedef, but refer to the special device files found in
@@ -122,6 +123,7 @@ appeared in
 The
 .Fn ttyname
 function leaves its result in an internal static object and returns
-a pointer to that object. Subsequent calls to
+a pointer to that object.
+Subsequent calls to
 .Fn ttyname
 will modify the same object.

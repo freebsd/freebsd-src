@@ -44,7 +44,8 @@
 is used to lookup or change the realtime or idle priority of a process.
 
 .Fa function
-specifies the operation to be performed. RTP_LOOKUP to lookup the current priority, 
+specifies the operation to be performed.
+RTP_LOOKUP to lookup the current priority, 
 and RTP_SET to set the priority.
 .Fa pid
 specifies the process to be used, 0 for the current process.
@@ -73,11 +74,14 @@ Realtime and idle priority is inherited through fork() and exec().
 
 A realtime process can only be preempted by a process of equal or
 higher priority, or by an interrupt; idle priority processes will run only
-when no other real/normal priority process is runnable. Higher real/idle priority processes
-preempt lower real/idle priority processes. Processes of equal real/idle priority are run round-robin.
+when no other real/normal priority process is runnable.
+Higher real/idle priority processes
+preempt lower real/idle priority processes.
+Processes of equal real/idle priority are run round-robin.
 .Sh RETURN VALUES
 .Fn rtprio
-will return 0 for success and -1 for all errors. The global variable
+will return 0 for success and -1 for all errors.
+The global variable
 .Va errno
 will be set to indicate the error.
 .Sh ERRORS
@@ -89,7 +93,8 @@ The specified
 .Fa prio
 was out of range.
 .It Bq Er EPERM
-The calling process is not allowed to set the realtime priority. Only
+The calling process is not allowed to set the realtime priority.
+Only
 root is allowed to change the realtime priority of any process, and non-root
 may only change the idle priority of the current process.
 .It Bq Er ESRCH
