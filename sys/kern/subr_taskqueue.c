@@ -33,11 +33,14 @@
 #include <sys/taskqueue.h>
 #include <sys/interrupt.h>
 #include <sys/malloc.h>
+#include <sys/kthread.h>
+
 #include <machine/ipl.h>
 
 MALLOC_DEFINE(M_TASKQUEUE, "taskqueue", "Task Queues");
 
 static STAILQ_HEAD(taskqueue_list, taskqueue) taskqueue_queues;
+static struct proc *taskqueue_thread_proc;
 
 struct taskqueue {
 	STAILQ_ENTRY(taskqueue)	tq_link;
@@ -199,5 +202,28 @@ taskqueue_swi_run(void)
 	taskqueue_run(taskqueue_swi);
 }
 
+static void
+taskqueue_kthread(void *arg)
+{
+	int s;
+
+	for (;;) {
+		taskqueue_run(taskqueue_thread);
+		s = splhigh();
+		if (STAILQ_EMPTY(&taskqueue_thread->tq_queue))
+			tsleep(&taskqueue_thread, PWAIT, "tqthr", 0);
+		splx(s);
+	}
+}
+
+static void
+taskqueue_thread_enqueue(void *context)
+{
+	wakeup(&taskqueue_thread);
+}
+
 TASKQUEUE_DEFINE(swi, taskqueue_swi_enqueue, 0,
 		 register_swi(SWI_TQ, taskqueue_swi_run));
+TASKQUEUE_DEFINE(thread, taskqueue_thread_enqueue, 0,
+		 kthread_create(taskqueue_kthread, NULL,
+		 &taskqueue_thread_proc, "taskqueue"));

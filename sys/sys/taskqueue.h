@@ -112,4 +112,10 @@ struct __hack
  */
 TASKQUEUE_DECLARE(swi);
 
+/*
+ * This queue is serviced by a kernel thread.  To enqueue a task, call
+ * taskqueue_enqueue(taskqueue_thread, &task).
+ */
+TASKQUEUE_DECLARE(thread);
+
 #endif /* !_SYS_TASKQUEUE_H_ */

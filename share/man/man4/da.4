@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 15, 1998
+.Dd September 2, 2003
 .Dt DA 4
 .Os
 .Sh NAME
@@ -185,6 +185,59 @@ The driver
 .Em will
 write the new disklabel to the disk.
 .El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width 12
+.It kern.cam.da.retry_count
+.Pp
+This variable determines how many times the
+.Nm
+driver will retry a READ or WRITE command.
+This does not affect the number of retries used during probe time or for
+the
+.Nm
+driver dump routine.
+This value currently defaults to 4.
+.It kern.cam.da.default_timeout
+.Pp
+This variable determines how long the
+.Nm
+driver will wait before timing out an outstanding command.
+The units for this value are seconds, and the default is currently 60
+seconds.
+.It kern.cam.da.%d.minimum_cmd_size
+.Pp
+This variable determines what the minimum READ/WRITE CDB size is for a
+given
+.Nm
+unit.
+(The %d above denotes the unit number of the
+.Nm
+driver instance, e.g. 1, 2, 4, 8, etc.)
+Valid minimum command size values are 6, 10, 12 and 16 bytes.
+The default is 6 bytes.
+.Pp
+The
+.Nm
+driver issues a CAM Path Inquiry CCB at probe time to determine whether the
+protocol the device in question speaks (e.g. ATAPI) typically doesn't allow
+6 byte commands.
+If it doesn't, the
+.Nm
+driver will default to using at least 10 byte CDBs.
+If a 6 byte READ or WRITE fails with an ILLEGAL REQUEST error, the
+.Nm
+driver will then increase the default CDB size for the device to 10 bytes and
+retry the command.
+CDB size is always
+chosen as the smallest READ/WRITE CDB that will satisfy the specified minimum
+command size, and the LBA and length of the READ or WRITE in question.
+(e.g., a write to an LBA larger than 2^32 will require a 16 byte CDB.)
+.El
 .Sh NOTES
 If a device becomes invalidated (media is removed, device becomes unresponsive)
 the disklabel and information held within the kernel about the device will
@@ -194,24 +247,8 @@ the last file descriptor referencing the old device is closed.  During this
 period, all new open attempts will be rejected.
 .Sh FILES
 .Bl -tag -width /dev/rsdXXXXX -compact
-.It Pa /dev/rda Ns Ar u
-raw mode
-.Tn SCSI
-disk unit
-.Ar u ,
-accessed as an unpartitioned device
 .Sm off
 .It Pa /dev/da Ar u Pa s Ar n
-.Sm on
-block mode
-.Tn SCSI
-disk unit
-.Ar u ,
-slice
-.Ar n ,
-accessed as an unpartitioned device
-.Sm off
-.It Pa /dev/rda Ar u Pa s Ar n
 .Sm on
 raw mode
 .Tn SCSI
@@ -221,15 +258,6 @@ slice
 .Ar n ,
 accessed as an unpartitioned device
 .It Pa /dev/da Ns Ar u Ns Ar p
-block mode
-.Tn SCSI
-disk unit
-.Ar u ,
-first
-.Fx
-slice, partition
-.Ar p
-.It Pa /dev/rda Ns Ar u Ns Ar p
 raw mode
 .Tn SCSI
 disk unit
@@ -241,22 +269,6 @@ slice, partition
 .Sm off
 .It Xo
 .Pa /dev/da
-.Ar u
-.Pa s
-.Ar n
-.Ar p
-.Xc
-.Sm on
-block mode
-.Tn SCSI
-disk unit
-.Ar u ,
-.Ar n Ns th
-slice, partition
-.Ar p
-.Sm off
-.It Xo
-.Pa /dev/rda
 .Ar u
 .Pa s
 .Ar n

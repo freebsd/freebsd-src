@@ -60,6 +60,7 @@
 #include <sys/dvdio.h>
 #include <sys/devicestat.h>
 #include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -152,6 +153,7 @@ struct cd_softc {
 	int			bufs_left;
 	struct cam_periph	*periph;
 	int			minimum_command_size;
+	struct task		sysctl_task;
 	struct sysctl_ctx_list	sysctl_ctx;
 	struct sysctl_oid	*sysctl_tree;
 	STAILQ_HEAD(, cd_mode_params)	mode_queue;
@@ -614,6 +616,39 @@ cdasync(void *callback_arg, u_int32_t code,
 	}
 }
 
+static void
+cdsysctlinit(void *context, int pending)
+{
+	struct cam_periph *periph;
+	struct cd_softc *softc;
+	char tmpstr[80], tmpstr2[80];
+
+	periph = (struct cam_periph *)context;
+	softc = (struct cd_softc *)periph->softc;
+
+	snprintf(tmpstr, sizeof(tmpstr), "CAM CD unit %d", periph->unit_number);
+	snprintf(tmpstr2, sizeof(tmpstr2), "%d", periph->unit_number);
+
+	sysctl_ctx_init(&softc->sysctl_ctx);
+	softc->sysctl_tree = SYSCTL_ADD_NODE(&softc->sysctl_ctx,
+		SYSCTL_STATIC_CHILDREN(_kern_cam_cd), OID_AUTO,
+		tmpstr2, CTLFLAG_RD, 0, tmpstr);
+
+	if (softc->sysctl_tree == NULL) {
+		printf("cdsysctlinit: unable to allocate sysctl tree\n");
+		return;
+	}
+
+	/*
+	 * Now register the sysctl handler, so the user can the value on
+	 * the fly.
+	 */
+	SYSCTL_ADD_PROC(&softc->sysctl_ctx,SYSCTL_CHILDREN(softc->sysctl_tree),
+		OID_AUTO, "minimum_cmd_size", CTLTYPE_INT | CTLFLAG_RW,
+		&softc->minimum_command_size, 0, cdcmdsizesysctl, "I",
+		"Minimum CDB size");
+}
+
 /*
  * We have a handler function for this so we can check the values when the
  * user sets them, instead of every time we look at them.
@@ -658,7 +693,7 @@ cdregister(struct cam_periph *periph, void *arg)
 	struct ccb_setasync csa;
 	struct ccb_pathinq cpi;
 	struct ccb_getdev *cgd;
-	char tmpstr[80], tmpstr2[80];
+	char tmpstr[80];
 	caddr_t match;
 
 	cgd = (struct ccb_getdev *)arg;
@@ -714,17 +749,7 @@ cdregister(struct cam_periph *periph, void *arg)
 	if (cpi.ccb_h.status == CAM_REQ_CMP && (cpi.hba_misc & PIM_NO_6_BYTE))
 		softc->quirks |= CD_Q_10_BYTE_ONLY;
 
-	snprintf(tmpstr, sizeof(tmpstr), "CAM CD unit %d", periph->unit_number);
-	snprintf(tmpstr2, sizeof(tmpstr2), "%d", periph->unit_number);
-	sysctl_ctx_init(&softc->sysctl_ctx);
-	softc->sysctl_tree = SYSCTL_ADD_NODE(&softc->sysctl_ctx,
-		SYSCTL_STATIC_CHILDREN(_kern_cam_cd), OID_AUTO,
-		tmpstr2, CTLFLAG_RD, 0, tmpstr);
-	if (softc->sysctl_tree == NULL) {
-		printf("cdregister: unable to allocate sysctl tree\n");
-		free(softc, M_DEVBUF);
-		return (CAM_REQ_CMP_ERR);
-	}
+	TASK_INIT(&softc->sysctl_task, 0, cdsysctlinit, periph);
 
 	/* The default is 6 byte commands, unless quirked otherwise */
 	if (softc->quirks & CD_Q_10_BYTE_ONLY)
@@ -744,15 +769,6 @@ cdregister(struct cam_periph *periph, void *arg)
 		softc->minimum_command_size = 6;
 	else if (softc->minimum_command_size > 6)
 		softc->minimum_command_size = 10;
-
-	/*
-	 * Now register the sysctl handler, so the user can the value on
-	 * the fly.
-	 */
-	SYSCTL_ADD_PROC(&softc->sysctl_ctx,SYSCTL_CHILDREN(softc->sysctl_tree),
-		OID_AUTO, "minimum_cmd_size", CTLTYPE_INT | CTLFLAG_RW,
-		&softc->minimum_command_size, 0, cdcmdsizesysctl, "I",
-		"Minimum CDB size");
 
 	/*
 	 * We need to register the statistics structure for this device,
@@ -1891,6 +1907,11 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 			xpt_announce_periph(periph, announce_buf);
 			if (softc->flags & CD_FLAG_CHANGER)
 				cdchangerschedule(softc);
+			/*
+			 * Create our sysctl variables, now that we know
+			 * we have successfully attached.
+			 */
+			taskqueue_enqueue(taskqueue_thread,&softc->sysctl_task);
 		}
 		softc->state = CD_STATE_NORMAL;		
 		/*
