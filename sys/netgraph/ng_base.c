@@ -55,6 +55,7 @@
 #include <sys/queue.h>
 #include <sys/mbuf.h>
 #include <sys/ctype.h>
+#include <sys/sysctl.h>
 #include <machine/limits.h>
 
 #include <net/netisr.h>
@@ -2948,6 +2949,9 @@ static moduledata_t netgraph_mod = {
 	(NULL)
 };
 DECLARE_MODULE(netgraph, netgraph_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
+SYSCTL_NODE(_net, OID_AUTO, graph, CTLFLAG_RW, 0, "netgraph Family");
+SYSCTL_INT(_net_graph, OID_AUTO, abi_version, CTLFLAG_RD, 0, NG_ABI_VERSION,"");
+SYSCTL_INT(_net_graph, OID_AUTO, msg_version, CTLFLAG_RD, 0, NG_VERSION, "");
 
 /************************************************************************
 			Queue element get/free routines
