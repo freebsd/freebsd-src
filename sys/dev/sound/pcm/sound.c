@@ -447,7 +447,7 @@ status_init(char *buf, int size)
 			    	(!(d->flags & SD_F_SIMPLEX))? " duplex" : "");
 			else
 				snprintf(buf + strlen(buf), size - strlen(buf),
-				" (mixer only)");
+				" (mixer only)\n");
 		}
     	}
     	return strlen(buf);
