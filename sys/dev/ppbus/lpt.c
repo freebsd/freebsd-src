@@ -48,7 +48,7 @@
  *	from: unknown origin, 386BSD 0.1
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
  *	From Id: nlpt.c,v 1.14 1999/02/08 13:55:43 des Exp
- *	$Id$
+ *	$Id: lpt.c,v 1.1 1999/02/14 11:59:59 nsouch Exp $
  */
 
 /*
@@ -107,6 +107,40 @@ static int volatile lptflag = 1;
 
 #define	LPTUNIT(s)	((s)&0x03)
 #define	LPTFLAGS(s)	((s)&0xfc)
+
+struct lpt_data {
+	unsigned short lpt_unit;
+
+	struct ppb_device lpt_dev;
+
+	short	sc_state;
+	/* default case: negative prime, negative ack, handshake strobe,
+	   prime once */
+	u_char	sc_control;
+	char	sc_flags;
+#define LP_POS_INIT	0x04	/* if we are a postive init signal */
+#define LP_POS_ACK	0x08	/* if we are a positive going ack */
+#define LP_NO_PRIME	0x10	/* don't prime the printer at all */
+#define LP_PRIMEOPEN	0x20	/* prime on every open */
+#define LP_AUTOLF	0x40	/* tell printer to do an automatic lf */
+#define LP_BYPASS	0x80	/* bypass  printer ready checks */
+	struct	buf *sc_inbuf;
+	struct	buf *sc_statbuf;
+	short	sc_xfercnt ;
+	char	sc_primed;
+	char	*sc_cp ;
+	u_short	sc_irq ;	/* IRQ status of port */
+#define LP_HAS_IRQ	0x01	/* we have an irq available */
+#define LP_USE_IRQ	0x02	/* we are using our irq */
+#define LP_ENABLE_IRQ	0x04	/* enable IRQ on open */
+#define LP_ENABLE_EXT	0x10	/* we shall use advanced mode when possible */
+	u_char	sc_backoff ;	/* time to call lptout() again */
+
+#ifdef DEVFS
+	void	*devfs_token;
+	void	*devfs_token_ctl;
+#endif
+};
 
 static int	nlpt = 0;
 #define MAXLPT	8			/* XXX not much better! */

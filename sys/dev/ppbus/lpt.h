@@ -1,5 +1,11 @@
 /*-
- * Copyright (c) 1997 Nicolas Souchu
+ * Copyright (c) 1990 The Regents of the University of California.
+ * All rights reserved.
+ *
+ * This code is derived from software contributed to Berkeley by
+ * William Jolitz.
+ *
+ * Copyright (c) 1997, 1999 Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,10 +34,21 @@
  *	Id: lptreg.h,v 1.6 1997/02/22 09:36:52 peter Exp 
  *	From Id: nlpt.h,v 1.3 1999/01/10 12:04:54 nsouch Exp
  *
- *	$Id$
+ *	$Id: lpt.h,v 1.1 1999/02/14 11:59:59 nsouch Exp $
  */
-#ifndef __NLPT_H
-#define __NLPT_H
+
+/*
+ * AT Parallel Port (for lineprinter)
+ * Interface port and bit definitions
+ * Written by William Jolitz 12/18/90
+ * Copyright (C) William Jolitz 1990
+ */
+
+#ifndef __LPT_H
+#define __LPT_H
+
+/* machine independent definitions, it shall only depend on the ppbus
+ * parallel port model */
 
 #define	LPS_NERR		0x08	/* printer no error */
 #define	LPS_SEL			0x10	/* printer selected */
@@ -44,39 +61,5 @@
 #define	LPC_NINIT		0x04	/* initialize printer */
 #define	LPC_SEL			0x08	/* printer selected */
 #define	LPC_ENA			0x10	/* enable IRQ */
-
-struct lpt_data {
-	unsigned short lpt_unit;
-
-	struct ppb_device lpt_dev;
-
-	short	sc_state;
-	/* default case: negative prime, negative ack, handshake strobe,
-	   prime once */
-	u_char	sc_control;
-	char	sc_flags;
-#define LP_POS_INIT	0x04	/* if we are a postive init signal */
-#define LP_POS_ACK	0x08	/* if we are a positive going ack */
-#define LP_NO_PRIME	0x10	/* don't prime the printer at all */
-#define LP_PRIMEOPEN	0x20	/* prime on every open */
-#define LP_AUTOLF	0x40	/* tell printer to do an automatic lf */
-#define LP_BYPASS	0x80	/* bypass  printer ready checks */
-	struct	buf *sc_inbuf;
-	struct	buf *sc_statbuf;
-	short	sc_xfercnt ;
-	char	sc_primed;
-	char	*sc_cp ;
-	u_short	sc_irq ;	/* IRQ status of port */
-#define LP_HAS_IRQ	0x01	/* we have an irq available */
-#define LP_USE_IRQ	0x02	/* we are using our irq */
-#define LP_ENABLE_IRQ	0x04	/* enable IRQ on open */
-#define LP_ENABLE_EXT	0x10	/* we shall use advanced mode when possible */
-	u_char	sc_backoff ;	/* time to call lptout() again */
-
-#ifdef DEVFS
-	void	*devfs_token;
-	void	*devfs_token_ctl;
-#endif
-};
 
 #endif
