@@ -187,6 +187,7 @@ sap_supply(dst, flags, ifp, ServType, changesonly)
 		n->hops = htons(metric);
 		n++;
 next:
+		;
 	}
 	if (n != sap_msg->sap) {
 		size = (char *)n - (char *)sap_msg;
