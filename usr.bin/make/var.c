@@ -130,7 +130,6 @@ static Lst	*allVars;      /* List of all variables */
 #define	FIND_GLOBAL	0x2   /* look in VAR_GLOBAL as well */
 #define	FIND_ENV  	0x4   /* look in the environment also */
 
-static int VarCmp(void *, void *);
 static void VarPossiblyExpand(char **, GNode *);
 static Var *VarFind(char *, GNode *, int);
 static void VarAdd(char *, char *, GNode *);
@@ -156,10 +155,10 @@ static int VarPrintVar(void *, void *);
  *-----------------------------------------------------------------------
  */
 static int
-VarCmp(void *v, void *name)
+VarCmp(const void *v, const void *name)
 {
 
-    return (strcmp(name, ((Var *)v)->name));
+    return (strcmp(name, ((const Var *)v)->name));
 }
 
 /*-

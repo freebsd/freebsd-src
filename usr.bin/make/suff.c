@@ -153,12 +153,6 @@ static Suff 	    *emptySuff;	/* The empty suffix required for POSIX
 				 * single-suffix transformation rules */
 
 
-static char *SuffStrIsPrefix(char *, char *);
-static char *SuffSuffIsSuffix(Suff *, char *);
-static int SuffSuffIsSuffixP(void *, void *);
-static int SuffSuffHasNameP(void *, void *);
-static int SuffSuffIsPrefix(void *, void *);
-static int SuffGNHasNameP(void *, void *);
 static void SuffFree(void *);
 static void SuffInsert(Lst *, Suff *);
 static void SuffRemove(Lst *, Suff *);
@@ -191,8 +185,8 @@ static int SuffPrintTrans(void *, void *);
  *	None
  *-----------------------------------------------------------------------
  */
-static char    *
-SuffStrIsPrefix(char *pref, char *str)
+static char *
+SuffStrIsPrefix(const char *pref, char *str)
 {
 
     while (*str && *pref == *str) {
@@ -218,9 +212,9 @@ SuffStrIsPrefix(char *pref, char *str)
  *-----------------------------------------------------------------------
  */
 static char *
-SuffSuffIsSuffix(Suff *s, char *str)
+SuffSuffIsSuffix(const Suff *s, char *str)
 {
-    char	   *p1;	    	/* Pointer into suffix name */
+    const char	   *p1;	    	/* Pointer into suffix name */
     char	   *p2;	    	/* Pointer into string being examined */
 
     p1 = s->name + s->nameLen;
@@ -246,13 +240,24 @@ SuffSuffIsSuffix(Suff *s, char *str)
  * Side Effects:
  *	None.
  *
+ * XXX use the function above once constification is complete.
  *-----------------------------------------------------------------------
  */
 static int
-SuffSuffIsSuffixP(void *s, void *str)
+SuffSuffIsSuffixP(const void *is, const void *str)
 {
+    const Suff *s = is;
+    const char *p1;	    	/* Pointer into suffix name */
+    const char *p2 = str;    	/* Pointer into string being examined */
 
-    return (!SuffSuffIsSuffix(s, str));
+    p1 = s->name + s->nameLen;
+
+    while (p1 >= s->name && *p1 == *p2) {
+	p1--;
+	p2--;
+    }
+
+    return (p1 != s->name - 1);
 }
 
 /*-
@@ -269,10 +274,10 @@ SuffSuffIsSuffixP(void *s, void *str)
  *-----------------------------------------------------------------------
  */
 static int
-SuffSuffHasNameP(void *s, void *sname)
+SuffSuffHasNameP(const void *s, const void *sname)
 {
 
-    return (strcmp(sname, ((Suff *)s)->name));
+    return (strcmp(sname, ((const Suff *)s)->name));
 }
 
 /*-
@@ -288,13 +293,22 @@ SuffSuffHasNameP(void *s, void *sname)
  *
  * Side Effects:
  *	None
+ *
+ * XXX use the function above once constification is complete.
  *-----------------------------------------------------------------------
  */
 static int
-SuffSuffIsPrefix(void *s, void *str)
+SuffSuffIsPrefix(const void *s, const void *istr)
 {
+	const char *pref = ((const Suff *)s)->name;
+	const char *str = istr;
 
-    return (SuffStrIsPrefix(((Suff *)s)->name, str) == NULL ? 1 : 0);
+	while (*str != '\0' && *pref == *str) {
+		pref++;
+		str++;
+	}
+
+	return (*pref != '\0');
 }
 
 /*-
@@ -310,10 +324,10 @@ SuffSuffIsPrefix(void *s, void *str)
  *-----------------------------------------------------------------------
  */
 static int
-SuffGNHasNameP(void *gn, void *name)
+SuffGNHasNameP(const void *gn, const void *name)
 {
 
-    return (strcmp(name, ((GNode *)gn)->name));
+    return (strcmp(name, ((const GNode *)gn)->name));
 }
 
  	    /*********** Maintenance Functions ************/

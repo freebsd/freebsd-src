@@ -113,7 +113,6 @@ typedef struct Arch {
     size_t	  fnamesize;  /* Size of the string table */
 } Arch;
 
-static int ArchFindArchive(void *, void *);
 static void ArchFree(void *);
 static struct ar_hdr *ArchStatMember(char *, char *, Boolean);
 static FILE *ArchFindMember(char *, char *, struct ar_hdr *, char *);
@@ -435,9 +434,10 @@ Arch_ParseArchive(char **linePtr, Lst *nodeLst, GNode *ctxt)
  *-----------------------------------------------------------------------
  */
 static int
-ArchFindArchive(void *ar, void *archName)
+ArchFindArchive(const void *ar, const void *archName)
 {
-    return (strcmp((char *)archName, ((Arch *)ar)->name));
+
+	return (strcmp(archName, ((const Arch *)ar)->name));
 }
 
 /*-
