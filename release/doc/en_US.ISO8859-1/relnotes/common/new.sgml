@@ -542,7 +542,7 @@
     <para>The &man.mksnap.ffs.8; program has been added to allow
       easier creation of FFS snapshots.  It is a
       SUID-<username>root</username> executable designed for use by
-      members of the <groupname>operator</groupname>group.</para>
+      members of the <groupname>operator</groupname> group.</para>
 
     <para>&man.mount.8; and &man.umount.8; now accept a
       <option>-F</option> option to specify an alternate &man.fstab.5;
