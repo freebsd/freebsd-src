@@ -41,20 +41,8 @@
 #include <sys/proc.h>
 #include <sys/ucred.h>
 
-void (*semexit_hook)(struct proc *) = NULL;
 void (*shmfork_hook)(struct proc *, struct proc *) = NULL;
 void (*shmexit_hook)(struct proc *) = NULL;
-
-/* called from kern_exit.c */
-void
-semexit(p)
-	struct proc *p;
-{
-
-	if (semexit_hook != NULL)
-		semexit_hook(p);
-	return;
-}
 
 /* called from kern_fork.c */
 void
