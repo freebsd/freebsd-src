@@ -357,7 +357,7 @@ network_pass1() {
 			case ${firewall_logging} in
 			[Yy][Ee][Ss] | '')
 				echo 'Firewall logging=YES'
-				sysctl -w net.inet.ip.fw.verbose=1 >/dev/null
+				sysctl net.inet.ip.fw.verbose=1 >/dev/null
 				;;
 			*)
 				;;
@@ -400,77 +400,77 @@ network_pass1() {
 		;;
 	*)
 		echo -n ' tcp extensions=NO'
-		sysctl -w net.inet.tcp.rfc1323=0 >/dev/null
+		sysctl net.inet.tcp.rfc1323=0 >/dev/null
 		;;
 	esac
 
 	case ${icmp_bmcastecho} in
 	[Yy][Ee][Ss])
 		echo -n ' broadcast ping responses=YES'
-		sysctl -w net.inet.icmp.bmcastecho=1 >/dev/null
+		sysctl net.inet.icmp.bmcastecho=1 >/dev/null
 		;;
 	esac
 
 	case ${icmp_drop_redirect} in
 	[Yy][Ee][Ss])
 		echo -n ' ignore ICMP redirect=YES'
-		sysctl -w net.inet.icmp.drop_redirect=1 >/dev/null
+		sysctl net.inet.icmp.drop_redirect=1 >/dev/null
 		;;
 	esac
 
 	case ${icmp_log_redirect} in
 	[Yy][Ee][Ss])
 		echo -n ' log ICMP redirect=YES'
-		sysctl -w net.inet.icmp.log_redirect=1 >/dev/null
+		sysctl net.inet.icmp.log_redirect=1 >/dev/null
 		;;
 	esac
 
 	case ${gateway_enable} in
 	[Yy][Ee][Ss])
 		echo -n ' IP gateway=YES'
-		sysctl -w net.inet.ip.forwarding=1 >/dev/null
+		sysctl net.inet.ip.forwarding=1 >/dev/null
 		;;
 	esac
 
 	case ${forward_sourceroute} in
 	[Yy][Ee][Ss])
 		echo -n ' do source routing=YES'
-		sysctl -w net.inet.ip.sourceroute=1 >/dev/null
+		sysctl net.inet.ip.sourceroute=1 >/dev/null
 		;;
 	esac
 
 	case ${accept_sourceroute} in
 	[Yy][Ee][Ss])
 		echo -n ' accept source routing=YES'
-		sysctl -w net.inet.ip.accept_sourceroute=1 >/dev/null
+		sysctl net.inet.ip.accept_sourceroute=1 >/dev/null
 		;;
 	esac
 
 	case ${tcp_keepalive} in
 	[Yy][Ee][Ss])
 		echo -n ' TCP keepalive=YES'
-		sysctl -w net.inet.tcp.always_keepalive=1 >/dev/null
+		sysctl net.inet.tcp.always_keepalive=1 >/dev/null
 		;;
 	esac
 
 	case ${tcp_drop_synfin} in
 	[Yy][Ee][Ss])
 		echo -n ' drop SYN+FIN packets=YES'
-		sysctl -w net.inet.tcp.drop_synfin=1 >/dev/null
+		sysctl net.inet.tcp.drop_synfin=1 >/dev/null
 		;;
 	esac
 
 	case ${ipxgateway_enable} in
 	[Yy][Ee][Ss])
 		echo -n ' IPX gateway=YES'
-		sysctl -w net.ipx.ipx.ipxforwarding=1 >/dev/null
+		sysctl net.ipx.ipx.ipxforwarding=1 >/dev/null
 		;;
 	esac
 
 	case ${arpproxy_all} in
 	[Yy][Ee][Ss])
 		echo -n ' ARP proxyall=YES'
-		sysctl -w net.link.ether.inet.proxyall=1 >/dev/null
+		sysctl net.link.ether.inet.proxyall=1 >/dev/null
 		;;
 	esac
 
@@ -479,7 +479,7 @@ network_pass1() {
 		;;
 	*)
 		echo -n " ip_portrange_first=$ip_portrange_first"
-		sysctl -w net.inet.ip.portrange.first=$ip_portrange_first >/dev/null
+		sysctl net.inet.ip.portrange.first=$ip_portrange_first >/dev/null
 		;;
 	esac
 
@@ -488,7 +488,7 @@ network_pass1() {
 		;;
 	*)
 		echo -n " ip_portrange_last=$ip_portrange_last"
-		sysctl -w net.inet.ip.portrange.last=$ip_portrange_last >/dev/null
+		sysctl net.inet.ip.portrange.last=$ip_portrange_last >/dev/null
 		;;
 	esac
 
@@ -650,14 +650,14 @@ network_pass3() {
 			case ${nfs_reserved_port_only} in
 			[Yy][Ee][Ss])
 				echo -n ' NFS on reserved port only=YES'
-				sysctl -w vfs.nfs.nfs_privport=1 >/dev/null
+				sysctl vfs.nfs.nfs_privport=1 >/dev/null
 				;;
 			esac
 
 			echo -n ' nfsd';	nfsd ${nfs_server_flags}
 
 			if [ -n "${nfs_bufpackets}" ]; then
-				sysctl -w vfs.nfs.bufpackets=${nfs_bufpackets} \
+				sysctl vfs.nfs.bufpackets=${nfs_bufpackets} \
 					> /dev/null
 			fi
 
@@ -698,7 +698,7 @@ network_pass3() {
 		echo -n ' nfsiod';	nfsiod ${nfs_client_flags}
 		if [ -n "${nfs_access_cache}" ]; then
 		echo -n " NFS access cache time=${nfs_access_cache}"
-		sysctl -w vfs.nfs.access_cache_timeout=${nfs_access_cache} \
+		sysctl vfs.nfs.access_cache_timeout=${nfs_access_cache} \
 			>/dev/null
 		fi
 		;;
@@ -814,8 +814,8 @@ network_pass4() {
 		;;
 	*)
 		echo -n ' log_in_vain=YES'
-		sysctl -w net.inet.tcp.log_in_vain=1 >/dev/null
-		sysctl -w net.inet.udp.log_in_vain=1 >/dev/null
+		sysctl net.inet.tcp.log_in_vain=1 >/dev/null
+		sysctl net.inet.udp.log_in_vain=1 >/dev/null
 		;;
 	esac
 

@@ -715,7 +715,7 @@ case ${kern_securelevel_enable} in
 [Yy][Ee][Ss])
 	if [ "${kern_securelevel}" -ge 0 ]; then
 		echo 'Raising kernel security level: '
-		sysctl -w kern.securelevel=${kern_securelevel}
+		sysctl kern.securelevel=${kern_securelevel}
 	fi
 	;;
 esac
