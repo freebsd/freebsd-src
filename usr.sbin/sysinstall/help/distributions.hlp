@@ -31,7 +31,7 @@ Everything:     The base distribution, man pages, dictionary files,
                 profiling libraries, the FreeBSD 1.x and the FreeBSD 2.0
                 compatibility libraries, the complete source tree,
                 games and your choice of XFree86 distribution components.
-                Note that the cryptocraphy source code is NOT included
+                Note that the cryptography source code is NOT included
                 in this collection.  You will need to select that by
                 hand if you're inside the United States.
 
@@ -51,7 +51,7 @@ encryption technology to be on its restricted export list).  Since
 breaking this law only gets the _originating_ site (US!) in trouble,
 please do not load these distributions from U.S. servers!  We don't
 like these restrictions any more than you do, but can't do much about
-it (write your U.S. congressperson!).
+it (write your U.S. congress person!).
 
 A number of "foreign" servers do exist for the benefit of
 non-U.S. sites, the official site being:

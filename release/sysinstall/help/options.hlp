@@ -4,12 +4,12 @@ to toggle an option's value, Q to leave when you're done.
 NFS Secure:   NFS server talks only on a secure port
 
     This is most commonly used when talking to Sun workstations, which
-    will not talk NFS over "non priviledged" ports.
+    will not talk NFS over "non privileged" ports.
 
 
-NFS Slow:     User is using a slow PC or ethernet card
+NFS Slow:     User is using a slow PC or Ethernet card
 
-    Use this option if you have a slow PC (386) or an ethernet card
+    Use this option if you have a slow PC (386) or an Ethernet card
     with poor performance being "fed" by NFS on a higher-performance
     workstation.  This will throttle the workstation back to prevent
     the PC from becoming swamped with data.
@@ -28,7 +28,7 @@ Debugging:    Turn on the extra debugging flag
 Yes To All:   Assume "Yes" answers to all non-critical dialogs
 
     This flag should be used with caution.  It will essentially
-    decide NOT to ask the user about any "boundry" conditions that
+    decide NOT to ask the user about any "boundary" conditions that
     might not constitute actual errors but may be warnings indicative
     of other problems.  It's most useful to those who are doing unattended
     installs.
