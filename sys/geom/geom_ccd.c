@@ -954,16 +954,9 @@ ccdintr(cs, bp)
 	/*
 	 * Request is done for better or worse, wakeup the top half.
 	 */
-	/* Record device statistics */
-	devstat_end_transaction(&cs->device_stats,
-				bp->b_bcount - bp->b_resid,
-				(bp->b_flags & B_ORDERED) ?
-				DEVSTAT_TAG_ORDERED : DEVSTAT_TAG_SIMPLE,
-				(bp->b_flags & B_READ) ? DEVSTAT_READ :
-				DEVSTAT_WRITE);
-
 	if (bp->b_flags & B_ERROR)
 		bp->b_resid = bp->b_bcount;
+	devstat_end_transaction_buf(&cs->device_stats, bp);
 	biodone(bp);
 }
 

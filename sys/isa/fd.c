@@ -1935,12 +1935,7 @@ fdstate(fdc_p fdc)
 			/* ALL DONE */
 			fd->skip = 0;
 			fdc->bp = NULL;
-			/* Tell devstat we have finished with the transaction */
-			devstat_end_transaction(&fd->device_stats,
-						bp->b_bcount - bp->b_resid,
-						DEVSTAT_TAG_NONE,
-						(bp->b_flags & B_READ) ?
-						DEVSTAT_READ : DEVSTAT_WRITE);
+			devstat_end_transaction_buf(&fd->device_stats, bp);
 			biodone(bp);
 			fdc->fd = (fd_p) 0;
 			fdc->fdu = -1;

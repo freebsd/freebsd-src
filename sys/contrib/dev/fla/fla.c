@@ -197,7 +197,6 @@ flastrategy(struct buf *bp)
 	int s;
 	struct fla_s *sc;
 	enum doc2k_work what;
-	devstat_trans_flags dop;
 
 	if (fla_debug > 1)
 		printf("flastrategy(%p) %s %lx, %d, %ld, %p)\n",
@@ -230,11 +229,11 @@ flastrategy(struct buf *bp)
 		unit = dkunit(bp->b_dev);
 
 		if (bp->b_flags & B_FREEBUF)
-			what = DOC2K_ERASE, dop = DEVSTAT_NO_DATA;
+			what = DOC2K_ERASE;
 		else if (bp->b_flags & B_READ)
-			what = DOC2K_READ, dop = DEVSTAT_READ;
+			what = DOC2K_READ;
 		else 
-			what = DOC2K_WRITE, dop = DEVSTAT_WRITE;
+			what = DOC2K_WRITE;
 
 		LEAVE();
 
@@ -254,10 +253,8 @@ flastrategy(struct buf *bp)
 		} else {
 			bp->b_resid = 0;
 		}
+		devstat_end_transaction_buf(&sc->stats, bp);
 		biodone(bp);
-		devstat_end_transaction(&sc->stats, bp->b_bcount,
-		    DEVSTAT_TAG_NONE, dop);
-
 
 		s = splbio();
 	}
