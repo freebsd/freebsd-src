@@ -12,6 +12,7 @@ LIBKZTAIL?=	${DESTDIR}${LIBDIR}/kztail.o
 LIBALIAS?=	${DESTDIR}${LIBDIR}/libalias.a
 LIBATM?=	${DESTDIR}${LIBDIR}/libatm.a
 LIBC?=		${DESTDIR}${LIBDIR}/libc.a
+LIBC_R?=	${DESTDIR}${LIBDIR}/libc_r.a
 LIBC_PIC=	${DESTDIR}${LIBDIR}/libc_pic.a
 LIBCALENDAR?=	${DESTDIR}${LIBDIR}/libcalendar.a
 LIBCAM?=	${DESTDIR}${LIBDIR}/libcam.a
