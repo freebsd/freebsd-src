@@ -144,6 +144,8 @@ soalloc(int mflags)
 			return so;
 		}
 #endif
+		SOCKBUF_LOCK_INIT(&so->so_snd, "so_snd");
+		SOCKBUF_LOCK_INIT(&so->so_rcv, "so_rcv");
 		/* XXX race condition for reentrant kernel */
 		so->so_gencnt = ++so_gencnt;
 		/* sx_init(&so->so_sxlock, "socket sxlock"); */
@@ -245,6 +247,8 @@ sodealloc(struct socket *so)
 	mac_destroy_socket(so);
 #endif
 	crfree(so->so_cred);
+	SOCKBUF_LOCK_DESTROY(&so->so_snd);
+	SOCKBUF_LOCK_DESTROY(&so->so_rcv);
 	/* sx_destroy(&so->so_sxlock); */
 	uma_zfree(socket_zone, so);
 	--numopensockets;
