@@ -78,7 +78,7 @@ extern int witness_spin_check;
 
 int witness_watch;
 
-typedef struct witness {
+struct witness {
 	struct witness	*w_next;
 	char		*w_description;
 	const char	*w_file;
@@ -92,12 +92,12 @@ typedef struct witness {
 	u_char		 w_spin:1;	/* this is a spin mutex */
 	u_int		 w_level;
 	struct witness	*w_children[WITNESS_NCHILDREN];
-} witness_t;
+};
 
-typedef struct witness_blessed {
+struct witness_blessed {
 	char 	*b_lock1;
 	char	*b_lock2;
-} witness_blessed_t;
+};
 
 #ifdef KDEBUG
 /*
@@ -118,27 +118,27 @@ int	witness_kdebug = WITNESS_KDEBUG;
 int	witness_skipspin = WITNESS_SKIPSPIN;
 
 
-static mtx_t	 w_mtx;
-static witness_t *w_free;
-static witness_t *w_all;
-static int	 w_inited;
-static int	 witness_dead;	/* fatal error, probably no memory */
+static struct mtx	 w_mtx;
+static struct witness	*w_free;
+static struct witness	*w_all;
+static int		 w_inited;
+static int		 witness_dead;	/* fatal error, probably no memory */
 
-static witness_t w_data[WITNESS_COUNT];
+static struct witness	 w_data[WITNESS_COUNT];
 
-static witness_t *enroll __P((char *description, int flag));
-static int itismychild __P((witness_t *parent, witness_t *child));
-static void removechild __P((witness_t *parent, witness_t *child));
-static int isitmychild __P((witness_t *parent, witness_t *child));
-static int isitmydescendant __P((witness_t *parent, witness_t *child));
-static int dup_ok __P((witness_t *));
-static int blessed __P((witness_t *, witness_t *));
+static struct witness	 *enroll __P((char *description, int flag));
+static int itismychild __P((struct witness *parent, struct witness *child));
+static void removechild __P((struct witness *parent, struct witness *child));
+static int isitmychild __P((struct witness *parent, struct witness *child));
+static int isitmydescendant __P((struct witness *parent, struct witness *child));
+static int dup_ok __P((struct witness *));
+static int blessed __P((struct witness *, struct witness *));
 static void witness_displaydescendants
-    __P((void(*)(const char *fmt, ...), witness_t *));
-static void witness_leveldescendents __P((witness_t *parent, int level));
+    __P((void(*)(const char *fmt, ...), struct witness *));
+static void witness_leveldescendents __P((struct witness *parent, int level));
 static void witness_levelall __P((void));
-static witness_t * witness_get __P((void));
-static void witness_free __P((witness_t *m));
+static struct witness * witness_get __P((void));
+static void witness_free __P((struct witness *m));
 
 
 static char *ignore_list[] = {
@@ -198,20 +198,20 @@ static char *sleep_list[] = {
  * Pairs of locks which have been blessed
  * Don't complain about order problems with blessed locks
  */
-static witness_blessed_t blessed_list[] = {
+static struct witness_blessed blessed_list[] = {
 };
-static int blessed_count = sizeof (blessed_list) / sizeof (witness_blessed_t);
+static int blessed_count = sizeof(blessed_list) / sizeof(struct witness_blessed);
 
 void
-witness_init(mtx_t *m, int flag)
+witness_init(struct mtx *m, int flag)
 {
 	m->mtx_witness = enroll(m->mtx_description, flag);
 }
 
 void
-witness_destroy(mtx_t *m)
+witness_destroy(struct mtx *m)
 {
-	mtx_t *m1;
+	struct mtx *m1;
 	struct proc *p;
 	p = CURPROC;
 	for ((m1 = LIST_FIRST(&p->p_heldmtx)); m1 != NULL;
@@ -226,10 +226,10 @@ witness_destroy(mtx_t *m)
 }
 
 void
-witness_enter(mtx_t *m, int flags, const char *file, int line)
+witness_enter(struct mtx *m, int flags, const char *file, int line)
 {
-	witness_t *w, *w1;
-	mtx_t *m1;
+	struct witness *w, *w1;
+	struct mtx *m1;
 	struct proc *p;
 	int i;
 #ifdef KDEBUG
@@ -360,9 +360,9 @@ out:
 }
 
 void
-witness_exit(mtx_t *m, int flags, const char *file, int line)
+witness_exit(struct mtx *m, int flags, const char *file, int line)
 {
-	witness_t *w;
+	struct witness *w;
 
 	w = m->mtx_witness;
 
@@ -392,10 +392,10 @@ witness_exit(mtx_t *m, int flags, const char *file, int line)
 }
 
 void
-witness_try_enter(mtx_t *m, int flags, const char *file, int line)
+witness_try_enter(struct mtx *m, int flags, const char *file, int line)
 {
 	struct proc *p;
-	witness_t *w = m->mtx_witness;
+	struct witness *w = m->mtx_witness;
 
 	if (flags & MTX_SPIN) {
 		if (!w->w_spin)
@@ -429,7 +429,7 @@ witness_try_enter(mtx_t *m, int flags, const char *file, int line)
 void
 witness_display(void(*prnt)(const char *fmt, ...))
 {
-	witness_t *w, *w1;
+	struct witness *w, *w1;
 
 	witness_levelall();
 
@@ -456,9 +456,9 @@ witness_display(void(*prnt)(const char *fmt, ...))
 }
 
 int
-witness_sleep(int check_only, mtx_t *mtx, const char *file, int line)
+witness_sleep(int check_only, struct mtx *mtx, const char *file, int line)
 {
-	mtx_t *m;
+	struct mtx *m;
 	struct proc *p;
 	char **sleep;
 	int n = 0;
@@ -485,11 +485,11 @@ witness_sleep(int check_only, mtx_t *mtx, const char *file, int line)
 	return (n);
 }
 
-static witness_t *
+static struct witness *
 enroll(char *description, int flag)
 {
 	int i;
-	witness_t *w, *w1;
+	struct witness *w, *w1;
 	char **ignore;
 	char **order;
 
@@ -549,7 +549,7 @@ enroll(char *description, int flag)
 }
 
 static int
-itismychild(witness_t *parent, witness_t *child)
+itismychild(struct witness *parent, struct witness *child)
 {
 	static int recursed;
 
@@ -589,9 +589,9 @@ itismychild(witness_t *parent, witness_t *child)
 }
 
 static void
-removechild(witness_t *parent, witness_t *child)
+removechild(struct witness *parent, struct witness *child)
 {
-	witness_t *w, *w1;
+	struct witness *w, *w1;
 	int i;
 
 	for (w = parent; w != NULL; w = w->w_morechildren)
@@ -617,9 +617,9 @@ found:
 }
 
 static int
-isitmychild(witness_t *parent, witness_t *child)
+isitmychild(struct witness *parent, struct witness *child)
 {
-	witness_t *w;
+	struct witness *w;
 	int i;
 
 	for (w = parent; w != NULL; w = w->w_morechildren) {
@@ -632,9 +632,9 @@ isitmychild(witness_t *parent, witness_t *child)
 }
 
 static int
-isitmydescendant(witness_t *parent, witness_t *child)
+isitmydescendant(struct witness *parent, struct witness *child)
 {
-	witness_t *w;
+	struct witness *w;
 	int i;
 	int j;
 
@@ -655,7 +655,7 @@ isitmydescendant(witness_t *parent, witness_t *child)
 void
 witness_levelall (void)
 {
-	witness_t *w, *w1;
+	struct witness *w, *w1;
 
 	for (w = w_all; w; w = w->w_next)
 		if (!w->w_spin)
@@ -674,10 +674,10 @@ witness_levelall (void)
 }
 
 static void
-witness_leveldescendents(witness_t *parent, int level)
+witness_leveldescendents(struct witness *parent, int level)
 {
 	int i;
-	witness_t *w;
+	struct witness *w;
 
 	if (parent->w_level < level)
 		parent->w_level = level;
@@ -688,9 +688,10 @@ witness_leveldescendents(witness_t *parent, int level)
 }
 
 static void
-witness_displaydescendants(void(*prnt)(const char *fmt, ...), witness_t *parent)
+witness_displaydescendants(void(*prnt)(const char *fmt, ...),
+			   struct witness *parent)
 {
-	witness_t *w;
+	struct witness *w;
 	int i;
 	int level = parent->w_level;
 
@@ -714,7 +715,7 @@ witness_displaydescendants(void(*prnt)(const char *fmt, ...), witness_t *parent)
     }
 
 static int
-dup_ok(witness_t *w)
+dup_ok(struct witness *w)
 {
 	char **dup;
 	
@@ -725,10 +726,10 @@ dup_ok(witness_t *w)
 }
 
 static int
-blessed(witness_t *w1, witness_t *w2)
+blessed(struct witness *w1, struct witness *w2)
 {
 	int i;
-	witness_blessed_t *b;
+	struct witness_blessed *b;
 
 	for (i = 0; i < blessed_count; i++) {
 		b = &blessed_list[i];
@@ -744,10 +745,10 @@ blessed(witness_t *w1, witness_t *w2)
 	return (0);
 }
 
-static witness_t *
+static struct witness *
 witness_get()
 {
-	witness_t *w;
+	struct witness *w;
 
 	if ((w = w_free) == NULL) {
 		witness_dead = 1;
@@ -756,12 +757,12 @@ witness_get()
 		return (NULL);
 	}
 	w_free = w->w_next;
-	bzero(w, sizeof (*w));
+	bzero(w, sizeof(*w));
 	return (w);
 }
 
 static void
-witness_free(witness_t *w)
+witness_free(struct witness *w)
 {
 	w->w_next = w_free;
 	w_free = w;
@@ -770,7 +771,7 @@ witness_free(witness_t *w)
 void
 witness_list(struct proc *p)
 {
-	mtx_t *m;
+	struct mtx *m;
 
 	for ((m = LIST_FIRST(&p->p_heldmtx)); m != NULL;
 	    m = LIST_NEXT(m, mtx_held)) {
@@ -781,14 +782,14 @@ witness_list(struct proc *p)
 }
 
 void
-witness_save(mtx_t *m, const char **filep, int *linep)
+witness_save(struct mtx *m, const char **filep, int *linep)
 {
 	*filep = m->mtx_witness->w_file;
 	*linep = m->mtx_witness->w_line;
 }
 
 void
-witness_restore(mtx_t *m, const char *file, int line)
+witness_restore(struct mtx *m, const char *file, int line)
 {
 	m->mtx_witness->w_file = file;
 	m->mtx_witness->w_line = line;

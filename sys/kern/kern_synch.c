@@ -416,7 +416,7 @@ sleepinit(void)
 int
 msleep(ident, mtx, priority, wmesg, timo)
 	void *ident;
-	mtx_t *mtx;
+	struct mtx *mtx;
 	int priority, timo;
 	const char *wmesg;
 {

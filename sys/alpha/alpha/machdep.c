@@ -153,8 +153,8 @@ struct bootinfo_kernel bootinfo;
 
 struct cpuhead cpuhead;
 
-mtx_t	sched_lock;
-mtx_t	Giant;
+struct mtx	sched_lock;
+struct mtx	Giant;
 
 struct	user *proc0paddr;
 
