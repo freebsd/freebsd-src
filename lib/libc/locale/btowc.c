@@ -28,28 +28,25 @@
 __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
-#include <string.h>
 #include <wchar.h>
 
 wint_t
 btowc(int c)
 {
+	static const mbstate_t initial;
+	mbstate_t mbs = initial;
 	char cc;
 	wchar_t wc;
 
 	if (c == EOF)
 		return (WEOF);
-	cc = (char)c;
 	/*
 	 * We expect mbrtowc() to return 0 or 1, hence the check for n > 1
 	 * which detects error return values as well as "impossible" byte
 	 * counts.
-	 *
-	 * We pass NULL as the state pointer to mbrtowc() because we don't
-	 * support state-dependent encodings and don't want to waste time
-	 * creating a zeroed mbstate_t that will not be used.
 	 */
-	if (mbrtowc(&wc, &cc, 1, NULL) > 1)
+	cc = (char)c;
+	if (mbrtowc(&wc, &cc, 1, &mbs) > 1)
 		return (WEOF);
 	return (wc);
 }

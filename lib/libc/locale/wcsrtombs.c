@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Tim J. Robbins.
+ * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <errno.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,8 +34,10 @@ __FBSDID("$FreeBSD$");
 
 size_t
 wcsrtombs(char * __restrict dst, const wchar_t ** __restrict src, size_t len,
-    mbstate_t * __restrict ps __unused)
+    mbstate_t * __restrict ps)
 {
+	static mbstate_t mbs;
+	mbstate_t mbsbak;
 	char buf[MB_LEN_MAX];
 	const wchar_t *s;
 	size_t nbytes;
@@ -45,9 +46,11 @@ wcsrtombs(char * __restrict dst, const wchar_t ** __restrict src, size_t len,
 	s = *src;
 	nbytes = 0;
 
+	if (ps == NULL)
+		ps = &mbs;
 	if (dst == NULL) {
 		for (;;) {
-			if ((nb = (int)wcrtomb(buf, *s, NULL)) < 0)
+			if ((nb = (int)wcrtomb(buf, *s, ps)) < 0)
 				/* Invalid character - wcrtomb() sets errno. */
 				return ((size_t)-1);
 			else if (*s == L'\0')
@@ -61,19 +64,28 @@ wcsrtombs(char * __restrict dst, const wchar_t ** __restrict src, size_t len,
 	while (len > 0) {
 		if (len > (size_t)MB_CUR_MAX) {
 			/* Enough space to translate in-place. */
-			if ((nb = (int)wcrtomb(dst, *s, NULL)) < 0) {
+			if ((nb = (int)wcrtomb(dst, *s, ps)) < 0) {
 				*src = s;
 				return ((size_t)-1);
 			}
 		} else {
-			/* May not be enough space; use temp. buffer. */
-			if ((nb = (int)wcrtomb(buf, *s, NULL)) < 0) {
+			/*
+			 * May not be enough space; use temp. buffer.
+			 *
+			 * We need to save a copy of the conversion state
+			 * here so we can restore it if the multibyte
+			 * character is too long for the buffer.
+			 */
+			mbsbak = *ps;
+			if ((nb = (int)wcrtomb(buf, *s, ps)) < 0) {
 				*src = s;
 				return ((size_t)-1);
 			}
-			if (nb > (int)len)
+			if (nb > (int)len) {
 				/* MB sequence for character won't fit. */
+				*ps = mbsbak;
 				break;
+			}
 			memcpy(dst, buf, nb);
 		}
 		if (*s == L'\0') {

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002, 2003 Tim J. Robbins.
+ * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,17 +28,12 @@
 __FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
-#include <string.h>
 #include <wchar.h>
 
 size_t
 wcstombs(char * __restrict s, const wchar_t * __restrict pwcs, size_t n)
 {
+	static mbstate_t mbs;
 
-	/*
-	 * We pass NULL as the state pointer to wcsrtombs() because we don't
-	 * support state-dependent encodings and don't want to waste time
-	 * creating a zeroed mbstate_t that will not be used.
-	 */
-	return (wcsrtombs(s, &pwcs, n, NULL));
+	return (wcsrtombs(s, &pwcs, n, &mbs));
 }

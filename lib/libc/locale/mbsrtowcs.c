@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Tim J. Robbins.
+ * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,8 +34,9 @@ __FBSDID("$FreeBSD$");
 
 size_t
 mbsrtowcs(wchar_t * __restrict dst, const char ** __restrict src, size_t len,
-    mbstate_t * __restrict ps __unused)
+    mbstate_t * __restrict ps)
 {
+	static mbstate_t mbs;
 	const char *s;
 	size_t nchr;
 	wchar_t wc;
@@ -44,9 +45,11 @@ mbsrtowcs(wchar_t * __restrict dst, const char ** __restrict src, size_t len,
 	s = *src;
 	nchr = 0;
 
+	if (ps == NULL)
+		ps = &mbs;
 	if (dst == NULL) {
 		for (;;) {
-			if ((nb = (int)mbrtowc(&wc, s, MB_CUR_MAX, NULL)) < 0)
+			if ((nb = (int)mbrtowc(&wc, s, MB_CUR_MAX, ps)) < 0)
 				/* Invalid sequence - mbrtowc() sets errno. */
 				return ((size_t)-1);
 			else if (nb == 0)
@@ -58,7 +61,7 @@ mbsrtowcs(wchar_t * __restrict dst, const char ** __restrict src, size_t len,
 	}
 
 	while (len-- > 0) {
-		if ((nb = (int)mbrtowc(dst, s, MB_CUR_MAX, NULL)) < 0) {
+		if ((nb = (int)mbrtowc(dst, s, MB_CUR_MAX, ps)) < 0) {
 			*src = s;
 			return ((size_t)-1);
 		} else if (nb == 0) {
