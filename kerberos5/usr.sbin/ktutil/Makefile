@@ -16,12 +16,12 @@ SRCS=		\
 CFLAGS+=	-I${KRB5DIR}/lib/roken \
 		-I${KRB5DIR}/lib/sl \
 
-LDADD=		-lkadm5clnt -lkrb5 -lroken ${LIBVERS} \
-		${LIBSL} -lasn1 -lcrypto -lcrypt -lcom_err \
+LDADD=		-lkadm5clnt -lkrb5 ${LIBSL} -lroken ${LIBVERS} \
+		-lasn1 -lcrypto -lcrypt -lcom_err \
 		-lreadline -lncurses
 
-DPADD=		${LIBKADM5CLNT} ${LIBKRB5} ${LIBROKEN} ${LIBVERS} \
-		${LIBSL} ${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR} \
+DPADD=		${LIBKADM5CLNT} ${LIBKRB5} ${LIBSL} ${LIBROKEN} ${LIBVERS} \
+		${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR} \
 		${LIBREADLINE} ${LIBNCURSES}
 
 MAN=		ktutil.8
