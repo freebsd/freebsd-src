@@ -278,11 +278,12 @@ show_cksum(char *title, Package *plist)
 		warnx("%s doesn't exist\n", tmp);
 	    else if (p->next && p->next->type == PLIST_COMMENT && !strncmp(p->next->name, "MD5:", 4)) {
 		char *cp, buf[33];
-		if ((cp = MD5File(tmp, buf)) != NULL)
+		if ((cp = MD5File(tmp, buf)) != NULL) {
 		    if (strcmp(cp, p->next->name + 4))
 			printf("%s fails the original MD5 checksum\n", tmp);
 		    else if (Verbose)
 			printf("%s matched the original MD5 checksum\n", tmp);
+		}
 	    }
 	}
 }

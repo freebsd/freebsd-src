@@ -59,6 +59,7 @@ extern void	show_plist(char *, Package *, plist_t);
 extern void	show_files(char *, Package *);
 extern void	show_index(char *, char *);
 extern void	show_size(char *, Package *);
+extern void	show_cksum(char *, Package *);
 extern void	show_origin(char *, Package *);
 
 #endif	/* _INST_INFO_H_INCLUDE */
