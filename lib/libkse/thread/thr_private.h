@@ -189,14 +189,15 @@
 	if ((thrd)->state != newstate) {				\
 		if ((thrd)->state == PS_RUNNING) {			\
 			PTHREAD_PRIOQ_REMOVE(thrd);			\
+			PTHREAD_SET_STATE(thrd, newstate);		\
 			PTHREAD_WAITQ_INSERT(thrd);			\
 		} else if (newstate == PS_RUNNING) { 			\
 			PTHREAD_WAITQ_REMOVE(thrd);			\
+			PTHREAD_SET_STATE(thrd, newstate);		\
 			PTHREAD_PRIOQ_INSERT_TAIL(thrd);		\
 		}							\
 	}								\
 	_thread_kern_new_state = 0;					\
-	PTHREAD_SET_STATE(thrd, newstate);				\
 } while (0)
 #else
 #define PTHREAD_ASSERT(cond, msg)
@@ -398,18 +399,6 @@ struct pthread_attr {
  */
 #define PTHREAD_CREATE_RUNNING			0
 #define PTHREAD_CREATE_SUSPENDED		1
-
-/*
- * Additional state for a thread suspended with pthread_suspend_np().
- */
-enum pthread_susp {
-	SUSP_NO,	/* Not suspended. */
-	SUSP_YES,	/* Suspended. */
-	SUSP_JOIN,	/* Suspended, joining. */
-	SUSP_NOWAIT,	/* Suspended, was in a mutex or condition queue. */
-	SUSP_MUTEX_WAIT,/* Suspended, still in a mutex queue. */
-	SUSP_COND_WAIT	/* Suspended, still in a condition queue. */
-};
 
 /*
  * Miscellaneous definitions.
@@ -684,8 +673,6 @@ struct pthread {
 #define PTHREAD_CANCEL_NEEDED		0x0010
 	int	cancelflags;
 
-	enum pthread_susp	suspended;
-
 	thread_continuation_t	continuation;
 
 	/*
@@ -802,7 +789,8 @@ struct pthread {
 #define PTHREAD_FLAGS_IN_FDQ	0x0040	/* in fd lock queue using qe link */
 #define PTHREAD_FLAGS_IN_CONDQ	0x0080	/* in condition queue using sqe link*/
 #define PTHREAD_FLAGS_IN_MUTEXQ	0x0100	/* in mutex queue using sqe link */
-#define PTHREAD_FLAGS_TRACE	0x0200	/* for debugging purposes */
+#define	PTHREAD_FLAGS_SUSPENDED	0x0200	/* thread is suspended */
+#define PTHREAD_FLAGS_TRACE	0x0400	/* for debugging purposes */
 #define PTHREAD_FLAGS_IN_SYNCQ	\
     (PTHREAD_FLAGS_IN_CONDQ | PTHREAD_FLAGS_IN_MUTEXQ)
 
@@ -876,17 +864,6 @@ SCLASS struct pthread   * volatile _thread_run
 SCLASS struct pthread   * volatile _last_user_thread
 #ifdef GLOBAL_PTHREAD_PRIVATE
 = &_thread_kern_thread;
-#else
-;
-#endif
-
-/*
- * Ptr to the thread running in single-threaded mode or NULL if
- * running multi-threaded (default POSIX behaviour).
- */
-SCLASS struct pthread   * volatile _thread_single
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= NULL;
 #else
 ;
 #endif

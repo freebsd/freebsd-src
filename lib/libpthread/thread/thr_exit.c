@@ -202,22 +202,8 @@ _pthread_exit(void *status)
 		pthread = curthread->joiner;
 		curthread->joiner = NULL;
 
-		switch (pthread->suspended) {
-		case SUSP_JOIN:
-			/*
-			 * The joining thread is suspended.  Change the
-			 * suspension state to make the thread runnable when it
-			 * is resumed:
-			 */
-			pthread->suspended = SUSP_NO;
-			break;
-		case SUSP_NO:
-			/* Make the joining thread runnable: */
-			PTHREAD_NEW_STATE(pthread, PS_RUNNING);
-			break;
-		default:
-			PANIC("Unreachable code reached");
-		}
+		/* Make the joining thread runnable: */
+		PTHREAD_NEW_STATE(pthread, PS_RUNNING);
 
 		/* Set the return value for the joining thread: */
 		pthread->join_status.ret = curthread->ret;

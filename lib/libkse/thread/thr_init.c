@@ -201,20 +201,21 @@ _thread_init(void)
 			PANIC("Can't open console");
 		if (setlogin("root") == -1)
 			PANIC("Can't set login to root");
-		if (__sys_ioctl(fd,TIOCSCTTY, (char *) NULL) == -1)
+		if (__sys_ioctl(fd, TIOCSCTTY, (char *) NULL) == -1)
 			PANIC("Can't set controlling terminal");
-		if (__sys_dup2(fd,0) == -1 ||
-		    __sys_dup2(fd,1) == -1 ||
-		    __sys_dup2(fd,2) == -1)
+		if (__sys_dup2(fd, 0) == -1 ||
+		    __sys_dup2(fd, 1) == -1 ||
+		    __sys_dup2(fd, 2) == -1)
 			PANIC("Can't dup2");
 	}
 
 	/* Get the standard I/O flags before messing with them : */
-	for (i = 0; i < 3; i++)
+	for (i = 0; i < 3; i++) {
 		if (((_pthread_stdio_flags[i] =
-		    __sys_fcntl(i,F_GETFL, NULL)) == -1) &&
+		    __sys_fcntl(i, F_GETFL, NULL)) == -1) &&
 		    (errno != EBADF))
 			PANIC("Cannot get stdio flags");
+	}
 
 	/*
 	 * Create a pipe that is written to by the signal handler to prevent
@@ -224,8 +225,21 @@ _thread_init(void)
 		/* Cannot create pipe, so abort: */
 		PANIC("Cannot create kernel pipe");
 	}
+
+	/*
+	 * Make sure the pipe does not get in the way of stdio:
+	 */
+	for (i = 0; i < 2; i++) {
+		if (_thread_kern_pipe[i] < 3) {
+			fd = __sys_fcntl(_thread_kern_pipe[i], F_DUPFD, 3);
+			if (fd == -1)
+			    PANIC("Cannot create kernel pipe");
+			__sys_close(_thread_kern_pipe[i]);
+			_thread_kern_pipe[i] = fd;
+		}
+	}
 	/* Get the flags for the read pipe: */
-	else if ((flags = __sys_fcntl(_thread_kern_pipe[0], F_GETFL, NULL)) == -1) {
+	if ((flags = __sys_fcntl(_thread_kern_pipe[0], F_GETFL, NULL)) == -1) {
 		/* Abort this application: */
 		PANIC("Cannot get kernel read pipe flags");
 	}

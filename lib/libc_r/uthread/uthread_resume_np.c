@@ -35,62 +35,77 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
+static void	resume_common(struct pthread *);
+
 __weak_reference(_pthread_resume_np, pthread_resume_np);
+__weak_reference(_pthread_resume_all_np, pthread_resume_all_np);
 
 /* Resume a thread: */
 int
 _pthread_resume_np(pthread_t thread)
 {
-	int	ret;
-	enum	pthread_susp old_suspended;
+	int ret;
 
 	/* Find the thread in the list of active threads: */
 	if ((ret = _find_thread(thread)) == 0) {
-		/* Cancel any pending suspensions: */
-		old_suspended = thread->suspended;
-		thread->suspended = SUSP_NO;
+		/*
+		 * Defer signals to protect the scheduling queues
+		 * from access by the signal handler:
+		 */
+		_thread_kern_sig_defer();
 
-		/* Is it currently suspended? */
-		if (thread->state == PS_SUSPENDED) {
-			/*
-			 * Defer signals to protect the scheduling queues
-			 * from access by the signal handler:
-			 */
-			_thread_kern_sig_defer();
+		if ((thread->flags & PTHREAD_FLAGS_SUSPENDED) != 0)
+			resume_common(thread);
 
-			switch (old_suspended) {
-			case SUSP_MUTEX_WAIT:
-				/* Set the thread's state back. */
-				PTHREAD_SET_STATE(thread,PS_MUTEX_WAIT);
-				break;
-			case SUSP_COND_WAIT:
-				/* Set the thread's state back. */
-				PTHREAD_SET_STATE(thread,PS_COND_WAIT);
-				break;
-			case SUSP_JOIN:
-				/* Set the thread's state back. */
-				PTHREAD_SET_STATE(thread,PS_JOIN);
-				break;
-			case SUSP_NOWAIT:
-				/* Allow the thread to run. */
-				PTHREAD_SET_STATE(thread,PS_RUNNING);
-				PTHREAD_WAITQ_REMOVE(thread);
-				PTHREAD_PRIOQ_INSERT_TAIL(thread);
-				break;
-			case SUSP_NO:
-			case SUSP_YES:
-				/* Allow the thread to run. */
-				PTHREAD_SET_STATE(thread,PS_RUNNING);
-				PTHREAD_PRIOQ_INSERT_TAIL(thread);
-				break;
-			}
-
-			/*
-			 * Undefer and handle pending signals, yielding if
-			 * necessary:
-			 */
-			_thread_kern_sig_undefer();
-		}
+		/*
+		 * Undefer and handle pending signals, yielding if
+		 * necessary:
+		 */
+		_thread_kern_sig_undefer();
 	}
-	return(ret);
+	return (ret);
+}
+
+void
+_pthread_resume_all_np(void)
+{
+	struct pthread	*curthread = _get_curthread();
+	struct pthread	*thread;
+
+	/*
+	 * Defer signals to protect the scheduling queues from access
+	 * by the signal handler:
+	 */
+	_thread_kern_sig_defer();
+
+	TAILQ_FOREACH(thread, &_thread_list, tle) {
+		if ((thread != curthread) &&
+		    ((thread->flags & PTHREAD_FLAGS_SUSPENDED) != 0))
+			resume_common(thread);
+	}
+
+	/*
+	 * Undefer and handle pending signals, yielding if necessary:
+	 */
+	_thread_kern_sig_undefer();
+}
+
+static void
+resume_common(struct pthread *thread)
+{
+	/* Clear the suspend flag: */
+	thread->flags &= ~PTHREAD_FLAGS_SUSPENDED;
+
+	/*
+	 * If the thread's state is suspended, that means it is
+	 * now runnable but not in any scheduling queue.  Set the
+	 * state to running and insert it into the run queue.
+	 */
+	if (thread->state == PS_SUSPENDED) {
+		PTHREAD_SET_STATE(thread, PS_RUNNING);
+		if (thread->priority_mutex_count > 0)
+			PTHREAD_PRIOQ_INSERT_HEAD(thread);
+		else
+			PTHREAD_PRIOQ_INSERT_TAIL(thread);
+	}
 }
