@@ -373,7 +373,7 @@ login_getcaplist(login_cap_t *lc, const char *cap, const char *chars)
 
     if (chars == NULL)
 	chars = ", \t";
-    if ((lstring = login_getcapstr(lc, (char*)cap, NULL, NULL)) != NULL)
+    if ((lstring = login_getcapstr(lc, cap, NULL, NULL)) != NULL)
 	return arrayize(lstring, chars, NULL);
     return NULL;
 }
