@@ -76,8 +76,6 @@
 
 #include <dev/aha/ahareg.h>
 
-struct aha_softc *aha_softcs[NAHATOT];
-
 #define	PRVERB(x) if (bootverbose) printf x
 
 /* Macro to determine that a rev is potentially a new valid one
@@ -205,21 +203,6 @@ aha_alloc(int unit, bus_space_tag_t tag, bus_space_handle_t bsh)
 {
 	struct  aha_softc *aha;  
 
-	if (unit != AHA_TEMP_UNIT) {
-		if (unit >= NAHATOT) {
-			printf("aha: unit number (%d) too high\n", unit);
-			return NULL;
-		}
-
-		/*
-		 * Allocate a storage area for us
-		 */
-		if (aha_softcs[unit]) {    
-			printf("aha%d: memory already allocated\n", unit);
-			return NULL;    
-		}
-	}
-
 	aha = malloc(sizeof(struct aha_softc), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (!aha) {
 		printf("aha%d: cannot malloc!\n", unit);
@@ -233,10 +216,6 @@ aha_alloc(int unit, bus_space_tag_t tag, bus_space_handle_t bsh)
 	aha->bsh = bsh;
 	aha->ccb_sg_opcode = INITIATOR_SG_CCB_WRESID;
 	aha->ccb_ccb_opcode = INITIATOR_CCB_WRESID;
-
-	if (aha->unit != AHA_TEMP_UNIT) {
-		aha_softcs[unit] = aha;
-	}
 	return (aha);
 }
 
@@ -278,9 +257,6 @@ aha_free(struct aha_softc *aha)
 	case 1:
 		bus_dma_tag_destroy(aha->mailbox_dmat);
 	case 0:
-	}
-	if (aha->unit != AHA_TEMP_UNIT) {
-		aha_softcs[aha->unit] = NULL;
 	}
 	free(aha, M_DEVBUF);
 }
