@@ -45,6 +45,7 @@ static const char rcsid[] =
 #include "namespace.h"
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <unistd.h>
 #include "un-namespace.h"
@@ -92,4 +93,86 @@ __sclose(cookie)
 {
 
 	return (_close(((FILE *)cookie)->_file));
+}
+
+/*
+ * Higher level wrappers.
+ */
+int
+_sread(fp, buf, n)
+	FILE *fp;
+	char *buf;
+	int n;
+{
+	int ret;
+
+	ret = (*fp->_read)(fp->_cookie, buf, n);
+	if (ret > 0) {
+		if (fp->_flags & __SOFF) {
+			if (fp->_offset <= OFF_MAX - ret)
+				fp->_offset += ret;
+			else
+				fp->_flags &= ~__SOFF;
+		}
+	} else if (ret < 0)
+		fp->_flags &= ~__SOFF;
+	return (ret);
+}
+
+int
+_swrite(fp, buf, n)
+	FILE *fp;
+	char const *buf;
+	int n;
+{
+	int ret;
+
+	if ((fp->_flags & __SAPP) && _sseek(fp, (fpos_t)0, SEEK_END) == -1)
+		return (-1);
+	ret = (*fp->_write)(fp->_cookie, buf, n);
+	/* __SOFF removed even on success in case O_APPEND mode is set. */
+	if (ret >= 0) {
+		if ((fp->_flags & (__SAPP|__SOFF)) == (__SAPP|__SOFF) &&
+		    fp->_offset <= OFF_MAX - ret)
+			fp->_offset += ret;
+		else
+			fp->_flags &= ~__SOFF;
+
+	} else if (ret < 0)
+		fp->_flags &= ~__SOFF;
+	return (ret);
+}
+
+fpos_t
+_sseek(fp, offset, whence)
+	FILE *fp;
+	fpos_t offset;
+	int whence;
+{
+	fpos_t ret;
+	int serrno, errret;
+
+	serrno = errno;
+	errno = 0;
+	ret = (*fp->_seek)(fp->_cookie, offset, whence);
+	errret = errno;
+	if (errno == 0)
+		errno = serrno;
+	/*
+	 * Disallow negative seeks per POSIX.
+	 * It is needed here to help upper level caller
+	 * in the cases it can't detect.
+	 */
+	if (ret < 0) {
+		if (errret == 0) {
+			fp->_flags |= __SERR;
+			errno = EINVAL;
+		}
+		fp->_flags &= ~__SOFF;
+		ret = -1;
+	} else if (fp->_flags & __SOPT) {
+		fp->_flags |= __SOFF;
+		fp->_offset = ret;
+	}
+	return (ret);
 }
