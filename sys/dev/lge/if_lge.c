@@ -699,7 +699,6 @@ static int lge_detach(dev)
 
 	contigfree(sc->lge_ldata, sizeof(struct lge_list_data), M_DEVBUF);
 	lge_free_jumbo_mem(sc);
-	contigfree(sc->lge_cdata.lge_jumbo_buf, LGE_JMEM, M_DEVBUF);
 
 	splx(s);
 
