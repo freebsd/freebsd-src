@@ -89,6 +89,21 @@ bioq_remove(struct bio_queue_head *head, struct bio *bp)
 	if (TAILQ_FIRST(&head->queue) == head->switch_point)
 		head->switch_point = NULL;
 }
+
+void
+bioq_flush(struct bio_queue_head *head, struct devstat *stp, int error)
+{
+	struct bio *bp;
+
+	for (;;) {
+		bp = bioq_first(head);
+		if (bp == NULL)
+			break;
+		bioq_remove(head, bp);
+		biofinish(bp, stp, ENXIO);
+	}
+}
+
 void
 bioq_insert_tail(struct bio_queue_head *head, struct bio *bp)
 {
