@@ -57,6 +57,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -82,7 +83,7 @@ main(argc, argv)
 	register char *p, *endp;
 	struct stat sb;
 	int ch;
-	char path[MAXPATHLEN];
+	char path[PATH_MAX];
 
 	while ((ch = getopt(argc, argv, "fiv")) != -1)
 		switch (ch) {
@@ -137,7 +138,7 @@ main(argc, argv)
 		while (p != *argv && p[-1] != '/')
 			--p;
 
-		if ((baselen + (len = strlen(p))) >= MAXPATHLEN) {
+		if ((baselen + (len = strlen(p))) >= PATH_MAX) {
 			warnx("%s: destination pathname too long", *argv);
 			rval = 1;
 		} else {
@@ -201,7 +202,7 @@ do_move(from, to)
 
 	if (errno == EXDEV) {
 		struct statfs sfs;
-		char path[MAXPATHLEN];
+		char path[PATH_MAX];
 
 		/* Can't mv(1) a mount point. */
 		if (realpath(from, path) == NULL) {
