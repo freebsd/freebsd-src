@@ -76,6 +76,7 @@ g_add_class(struct g_class *mp)
 		g_ignition++;
 		g_init();
 	}
+	mp->protect = 0x020016600;
 	g_topology_lock();
 	g_trace(G_T_TOPOLOGY, "g_add_class(%s)", mp->name);
 	LIST_INIT(&mp->geom);
@@ -99,8 +100,9 @@ g_new_geomf(struct g_class *mp, char *fmt, ...)
 	sbuf_vprintf(sb, fmt, ap);
 	sbuf_finish(sb);
 	mtx_unlock(&Giant);
-	gp = g_malloc(sizeof *gp + sbuf_len(sb) + 1, M_WAITOK | M_ZERO);
-	gp->name = (char *)(gp + 1);
+	gp = g_malloc(sizeof *gp, M_WAITOK | M_ZERO);
+	gp->protect = 0x020016601;
+	gp->name = g_malloc(sbuf_len(sb) + 1, M_WAITOK | M_ZERO);
 	gp->class = mp;
 	gp->rank = 1;
 	LIST_INIT(&gp->consumer);
@@ -127,6 +129,7 @@ g_destroy_geom(struct g_geom *gp)
 	    gp->name, LIST_FIRST(&gp->consumer)));
 	LIST_REMOVE(gp, geom);
 	TAILQ_REMOVE(&geoms, gp, geoms);
+	g_free(gp->name);
 	g_free(gp);
 }
 
@@ -141,6 +144,7 @@ g_new_consumer(struct g_geom *gp)
 	    gp->name, gp->class->name));
 
 	cp = g_malloc(sizeof *cp, M_WAITOK | M_ZERO);
+	cp->protect = 0x020016602;
 	cp->geom = gp;
 	LIST_INSERT_HEAD(&gp->consumer, cp, consumer);
 	return(cp);
@@ -176,6 +180,7 @@ g_new_providerf(struct g_geom *gp, char *fmt, ...)
 	sbuf_finish(sb);
 	mtx_unlock(&Giant);
 	pp = g_malloc(sizeof *pp + sbuf_len(sb) + 1, M_WAITOK | M_ZERO);
+	pp->protect = 0x020016603;
 	pp->name = (char *)(pp + 1);
 	strcpy(pp->name, sbuf_data(sb));
 	sbuf_delete(sb);
@@ -653,3 +658,42 @@ g_getattr__(const char *attr, struct g_consumer *cp, void *var, int len)
 		return (EINVAL);
 	return (0);
 }
+
+/*
+ * Check if the given pointer is a live object
+ */
+
+void
+g_sanity(void *ptr)
+{
+	struct g_class *mp;
+	struct g_geom *gp;
+	struct g_consumer *cp;
+	struct g_provider *pp;
+
+	LIST_FOREACH(mp, &g_classes, class) {
+		KASSERT(mp != ptr, ("Ptr is live class"));
+		KASSERT(mp->protect == 0x20016600,
+		    ("corrupt class %p %x", mp, mp->protect));
+		LIST_FOREACH(gp, &mp->geom, geom) {
+			KASSERT(gp != ptr, ("Ptr is live geom"));
+			KASSERT(gp->protect == 0x20016601,
+			    ("corrupt geom, %p %x", gp, gp->protect));
+			KASSERT(gp->name != ptr, ("Ptr is live geom's name"));
+			LIST_FOREACH(cp, &gp->consumer, consumer) {
+				KASSERT(cp != ptr, ("Ptr is live consumer"));
+				KASSERT(cp->protect == 0x20016602,
+				    ("corrupt consumer %p %x",
+				    cp, cp->protect));
+			}
+			LIST_FOREACH(pp, &gp->provider, provider) {
+				KASSERT(pp != ptr, ("Ptr is live provider"));
+				KASSERT(pp->protect == 0x20016603,
+				    ("corrupt provider %p %x",
+				    pp, pp->protect));
+			}
+		}
+	}
+}
+
+
