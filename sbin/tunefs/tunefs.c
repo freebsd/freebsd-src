@@ -165,6 +165,7 @@ main(argc, argv)
 		oflag = 1;
 		break;
 	  case 'p':
+		found_arg = 1;
 		pflag = 1;
 		break;
 	  default:
