@@ -91,7 +91,7 @@ SYSCTL_INT(_debug, OID_AUTO, bpf_maxbufsize, CTLFLAG_RW,
 /*
  *  bpf_iflist is the list of interfaces; each corresponds to an ifnet
  */
-static struct bpf_if	*bpf_iflist;
+static LIST_HEAD(, bpf_if)	bpf_iflist;
 static struct mtx	bpf_mtx;		/* bpf global lock */
 
 static int	bpf_allocbufs(struct bpf_d *);
@@ -256,8 +256,7 @@ bpf_attachd(d, bp)
 	 */
 	BPFIF_LOCK(bp);
 	d->bd_bif = bp;
-	d->bd_next = bp->bif_dlist;
-	bp->bif_dlist = d;
+	LIST_INSERT_HEAD(&bp->bif_dlist, d, bd_next);
 
 	*bp->bif_driverp = bp;
 	BPFIF_UNLOCK(bp);
@@ -271,19 +270,36 @@ bpf_detachd(d)
 	struct bpf_d *d;
 {
 	int error;
-	struct bpf_d **p;
 	struct bpf_if *bp;
+	struct ifnet *ifp;
 
-	/* XXX locking */
 	bp = d->bd_bif;
+	BPFIF_LOCK(bp);
+	BPFD_LOCK(d);
+	ifp = d->bd_bif->bif_ifp;
+
+	/*
+	 * Remove d from the interface's descriptor list.
+	 */
+	LIST_REMOVE(d, bd_next);
+
+	/*
+	 * Let the driver know that there are no more listeners.
+	 */
+	if (LIST_EMPTY(&bp->bif_dlist))
+		*bp->bif_driverp = NULL;
+
 	d->bd_bif = NULL;
+	BPFD_UNLOCK(d);
+	BPFIF_UNLOCK(bp);
+
 	/*
 	 * Check if this descriptor had requested promiscuous mode.
 	 * If so, turn it off.
 	 */
 	if (d->bd_promisc) {
 		d->bd_promisc = 0;
-		error = ifpromisc(bp->bif_ifp, 0);
+		error = ifpromisc(ifp, 0);
 		if (error != 0 && error != ENXIO) {
 			/*
 			 * ENXIO can happen if a pccard is unplugged
@@ -295,21 +311,6 @@ bpf_detachd(d)
 				"bpf_detach: ifpromisc failed (%d)\n", error);
 		}
 	}
-	/* Remove d from the interface's descriptor list. */
-	BPFIF_LOCK(bp);
-	p = &bp->bif_dlist;
-	while (*p != d) {
-		p = &(*p)->bd_next;
-		if (*p == NULL)
-			panic("bpf_detachd: descriptor not in list");
-	}
-	*p = (*p)->bd_next;
-	if (bp->bif_dlist == NULL)
-		/*
-		 * Let the driver know that there are no more listeners.
-		 */
-		*bp->bif_driverp = NULL;
-	BPFIF_UNLOCK(bp);
 }
 
 /*
@@ -332,7 +333,7 @@ bpfopen(dev, flags, fmt, td)
 	 * Each minor can be opened by only one process.  If the requested
 	 * minor is in use, return EBUSY.
 	 */
-	if (d) {
+	if (d != NULL) {
 		mtx_unlock(&bpf_mtx);
 		return (EBUSY);
 	}
@@ -387,7 +388,7 @@ bpfclose(dev, flags, fmt, td)
 #endif /* MAC */
 	knlist_destroy(&d->bd_sel.si_note);
 	bpf_freed(d);
-	dev->si_drv1 = 0;
+	dev->si_drv1 = NULL;
 	free(d, M_BPF);
 
 	return (0);
@@ -404,7 +405,7 @@ bpfclose(dev, flags, fmt, td)
 	(d)->bd_hlen = (d)->bd_slen; \
 	(d)->bd_sbuf = (d)->bd_fbuf; \
 	(d)->bd_slen = 0; \
-	(d)->bd_fbuf = 0;
+	(d)->bd_fbuf = NULL;
 /*
  *  bpfread - read next chunk of packets from buffers
  */
@@ -993,7 +994,7 @@ bpf_setif(d, ifr)
 	 * Look through attached interfaces for the named one.
 	 */
 	mtx_lock(&bpf_mtx);
-	for (bp = bpf_iflist; bp != NULL; bp = bp->bif_next) {
+	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
 		struct ifnet *ifp = bp->bif_ifp;
 
 		if (ifp == NULL || ifp != theywant)
@@ -1149,11 +1150,11 @@ bpf_tap(bp, pkt, pktlen)
 	 * Lockless read to avoid cost of locking the interface if there are
 	 * no descriptors attached.
 	 */
-	if (bp->bif_dlist == NULL)
+	if (LIST_EMPTY(&bp->bif_dlist))
 		return;
 
 	BPFIF_LOCK(bp);
-	for (d = bp->bif_dlist; d != NULL; d = d->bd_next) {
+	LIST_FOREACH(d, &bp->bif_dlist, bd_next) {
 		BPFD_LOCK(d);
 		++d->bd_rcount;
 		slen = bpf_filter(d->bd_filter, pkt, pktlen, pktlen);
@@ -1210,7 +1211,7 @@ bpf_mtap(bp, m)
 	 * Lockless read to avoid cost of locking the interface if there are
 	 * no descriptors attached.
 	 */
-	if (bp->bif_dlist == NULL)
+	if (LIST_EMPTY(&bp->bif_dlist))
 		return;
 
 	pktlen = m_length(m, NULL);
@@ -1220,7 +1221,7 @@ bpf_mtap(bp, m)
 	}
 
 	BPFIF_LOCK(bp);
-	for (d = bp->bif_dlist; d != NULL; d = d->bd_next) {
+	LIST_FOREACH(d, &bp->bif_dlist, bd_next) {
 		if (!d->bd_seesent && (m->m_pkthdr.rcvif == NULL))
 			continue;
 		BPFD_LOCK(d);
@@ -1256,7 +1257,7 @@ bpf_mtap2(bp, data, dlen, m)
 	 * Lockless read to avoid cost of locking the interface if there are
 	 * no descriptors attached.
 	 */
-	if (bp->bif_dlist == NULL)
+	if (LIST_EMPTY(&bp->bif_dlist))
 		return;
 
 	pktlen = m_length(m, NULL);
@@ -1271,7 +1272,7 @@ bpf_mtap2(bp, data, dlen, m)
 	pktlen += dlen;
 
 	BPFIF_LOCK(bp);
-	for (d = bp->bif_dlist; d != NULL; d = d->bd_next) {
+	LIST_FOREACH(d, &bp->bif_dlist, bd_next) {
 		if (!d->bd_seesent && (m->m_pkthdr.rcvif == NULL))
 			continue;
 		BPFD_LOCK(d);
@@ -1436,15 +1437,14 @@ bpfattach2(ifp, dlt, hdrlen, driverp)
 	if (bp == NULL)
 		panic("bpfattach");
 
-	bp->bif_dlist = NULL;
+	LIST_INIT(&bp->bif_dlist);
 	bp->bif_driverp = driverp;
 	bp->bif_ifp = ifp;
 	bp->bif_dlt = dlt;
 	mtx_init(&bp->bif_mtx, "bpf interface lock", NULL, MTX_DEF);
 
 	mtx_lock(&bpf_mtx);
-	bp->bif_next = bpf_iflist;
-	bpf_iflist = bp;
+	LIST_INSERT_HEAD(&bpf_iflist, bp, bif_next);
 	mtx_unlock(&bpf_mtx);
 
 	*bp->bif_driverp = NULL;
@@ -1471,17 +1471,14 @@ void
 bpfdetach(ifp)
 	struct ifnet *ifp;
 {
-	struct bpf_if	*bp, *bp_prev;
+	struct bpf_if	*bp;
 	struct bpf_d	*d;
 
 	/* Locate BPF interface information */
-	bp_prev = NULL;
-
 	mtx_lock(&bpf_mtx);
-	for (bp = bpf_iflist; bp != NULL; bp = bp->bif_next) {
+	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
 		if (ifp == bp->bif_ifp)
 			break;
-		bp_prev = bp;
 	}
 
 	/* Interface wasn't attached */
@@ -1491,14 +1488,10 @@ bpfdetach(ifp)
 		return;
 	}
 
-	if (bp_prev) {
-		bp_prev->bif_next = bp->bif_next;
-	} else {
-		bpf_iflist = bp->bif_next;
-	}
+	LIST_REMOVE(bp, bif_next);
 	mtx_unlock(&bpf_mtx);
 
-	while ((d = bp->bif_dlist) != NULL) {
+	while ((d = LIST_FIRST(&bp->bif_dlist)) != NULL) {
 		bpf_detachd(d);
 		BPFD_LOCK(d);
 		bpf_wakeup(d);
@@ -1525,7 +1518,7 @@ bpf_getdltlist(d, bfl)
 	n = 0;
 	error = 0;
 	mtx_lock(&bpf_mtx);
-	for (bp = bpf_iflist; bp != NULL; bp = bp->bif_next) {
+	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
 		if (bp->bif_ifp != ifp)
 			continue;
 		if (bfl->bfl_list != NULL) {
@@ -1559,7 +1552,7 @@ bpf_setdlt(d, dlt)
 		return (0);
 	ifp = d->bd_bif->bif_ifp;
 	mtx_lock(&bpf_mtx);
-	for (bp = bpf_iflist; bp != NULL; bp = bp->bif_next) {
+	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
 		if (bp->bif_ifp == ifp && bp->bif_dlt == dlt)
 			break;
 	}
@@ -1613,6 +1606,7 @@ bpf_drvinit(unused)
 {
 
 	mtx_init(&bpf_mtx, "bpf global lock", NULL, MTX_DEF);
+	LIST_INIT(&bpf_iflist);
 	EVENTHANDLER_REGISTER(dev_clone, bpf_clone, 0, 1000);
 }
 
