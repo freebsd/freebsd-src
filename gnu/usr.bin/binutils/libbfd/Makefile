@@ -19,16 +19,8 @@ CFLAGS+= -DBFD_VERSION_STRING=\"${VERSION}\"
 INTERNALLIB=	true
 CLEANFILES+=	config.h targmatch.h
 
-# If set, BINUTILSDISTDIR is the path to a directory containing the full GNU
-# binutils release. FreeBSD only distributes the bits that are required to
-# build native architectures. BINUTILSDISTDIR is needed to build cross tools.
-.if defined(BINUTILSDISTDIR) && exists(${BINUTILSDISTDIR})
-.PATH: ${BINUTILSDISTDIR}/bfd ${BINUTILSDISTDIR}/opcodes
-CFLAGS+= -I${BINUTILSDISTDIR}/bfd -I${BINUTILSDISTDIR}/include -I.
-.endif
-
 SELARCH=
-.if ${BINUTIL_ARCH} == "sparc64"
+.if ${TARGET_ARCH} == "sparc64"
 SELARCH= &bfd_sparc_arch
 .else
 .for _a in ${ARCHS}
@@ -55,7 +47,7 @@ targmatch.h: targmatch.sed config.bfd
 	sed -f ${.ALLSRC:M*.sed} ${.ALLSRC:M*.bfd} > ${.TARGET}
 	
 config.h: config.h.fbsd
-.if ${BINUTIL_ARCH} == "i386"
+.if ${TARGET_ARCH} == "i386"
 	sed -e 's,!!TRAD_HEADER!!,"hosts/i386bsd.h",g' ${.ALLSRC} > ${.TARGET}
 .else
 	sed -e 's,!!TRAD_HEADER!!,,g' ${.ALLSRC} > ${.TARGET}

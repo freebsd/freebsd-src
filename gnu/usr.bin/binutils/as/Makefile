@@ -2,7 +2,7 @@
 
 .include "${.CURDIR}/../Makefile.inc0"
 
-GASES=	${BINUTIL_ARCH}
+GASES=	${TARGET_ARCH}
 FORMATS=freebsd
 
 # Only build the cross tools when not cross-compiling.
