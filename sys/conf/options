@@ -1,4 +1,4 @@
-#	$Id: options,v 1.121.2.2 1999/04/09 16:37:21 des Exp $
+#	$Id: options,v 1.121.2.3 1999/04/19 14:27:20 semenu Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -246,7 +246,7 @@ DEBUG_1284		opt_ppb_1284.h
 PERIPH_1284		opt_ppb_1284.h
 DONTPROBE_1284		opt_ppb_1284.h
 VP0_DEBUG		opt_vpo.h
-NLPT_DEBUG		opt_nlpt.h
+LPT_DEBUG		opt_lpt.h
 PLIP_DEBUG		opt_plip.h
 LOCKF_DEBUG		opt_debug_lockf.h
 LOUTB			opt_debug_outb.h
