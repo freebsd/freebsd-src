@@ -99,7 +99,7 @@ atomic	Quantum-state transitions in atoms.
 We can therefore with good fidelity define ``a clock'' to be the
 combination of an oscillator and a counting mechanism:
 .LP
-.PSPIC fig3.eps
+.if t .PSPIC fig3.eps
 .LP
 The standard second is currently defined as
 .QP
@@ -110,7 +110,7 @@ such seconds
 with an error less than ø2 cdot 10 sup{-15}ø [DMK2001] with commercially 
 available products doing better than ø1 cdot 10 sup{-14}ø [AG2002].
 .LP
-Unlike other physical units with a conventionally defined origo,
+Unlike other physical units with a conventionally defined origin,
 longitude for instance, the ephemeral nature of time prevents us
 from putting a stake in the ground, so to speak, and measure from
 there.  For measuring time we have to rely on ``dead reckoning'',
@@ -251,7 +251,7 @@ valuable property than precision, this is probably best explained
 using a graphic illustration of the difference between the two
 concepts:
 .LP
-.PSPIC fig1.eps
+.if t .PSPIC fig1.eps
 .LP
 In the top row we have instability, the bullet holes are spread over
 a large fraction of the target area.
@@ -272,7 +272,7 @@ gets too quantum-mechanical-oid to serve the instructional purpose.
 Transposing these four targets to actual clocks, the situation
 could look like the following plots:
 .LP
-.PSPIC fig2.eps
+.if t .PSPIC fig2.eps
 .LP
 On the x-axis we have time and on the y-axis how wrong the clock
 was at a given point in time.
@@ -712,7 +712,7 @@ suffered an interrupt which resulted in the above periodic processing
 can continue unaware of this afterwards and not suffer corruption
 or miscalculation even though it holds no locks on the shared
 meta-data.
-.PSPIC fig4.eps
+.if t .PSPIC fig4.eps
 .LP
 This scheme has an inherent risk that a process may be de-scheduled for
 so long time that it will not manage to complete the timestamping
@@ -901,7 +901,7 @@ Using a COTS product, ``HOT1'', from Virtual Computers Corporation
 [VCC2002] containing a FPGA chip on a PCI form factor card, a 26
 bit timecounter running at 100MHz was successfully implemented.
 .LP
-.PSPIC fig5.eps
+.if t .PSPIC fig5.eps
 .LP
 .LP
 In order to show that timestamping does not necessarily have to
@@ -925,7 +925,7 @@ This plot shows the timestamps corrected for this ``negative
 sawtooth correction''.
 .FE
 .LP
-.PSPIC gps.ps
+.if t .PSPIC gps.ps
 .LP
 It shold be noted that the author is no hardware wizard and
 a number of issues in the implementation results in less than
@@ -943,7 +943,7 @@ The average quality of crystals used for computers would
 totally obscure the curves due to their temperature coefficient.
 .FE
 .LP
-.PSPIC intr.ps
+.if t .PSPIC intr.ps
 .LP
 It is painfully obvious that the interrupt latency is the
 dominant noise factor in PPS timestamping in the second case.
@@ -1065,7 +1065,7 @@ Genius Who Solved the Greatest Scientific Problem of His
 Time" Penguin USA (Paper); ISBN: 0140258795.
 .LP
 [SAGE]
-This ``gee-wiz'' kind of article in Dr. Jobbs Journal is a goot place to
+This ``gee-wiz'' kind of article in Dr. Jobbs Journal is a good place to
 start:
 .br
 http://www.ddj.com/documents/s=1493/ddj0001hc/0085a.htm
