@@ -115,10 +115,10 @@ sndbuf_free(struct snd_dbuf *b)
 	b->tmpbuf = NULL;
 
 	if (b->dmamap)
-	bus_dmamap_unload(b->dmatag, b->dmamap);
+		bus_dmamap_unload(b->dmatag, b->dmamap);
 
 	if (b->dmamap && b->buf)
-	bus_dmamem_free(b->dmatag, b->buf, b->dmamap);
+		bus_dmamem_free(b->dmatag, b->buf, b->dmamap);
 }
 
 int
@@ -616,7 +616,7 @@ sndbuf_isadmaptr(struct snd_dbuf *b)
 		return 0;
 	i = isa_dmastatus(b->isadmachan);
 	KASSERT(i >= 0, ("isa_dmastatus returned %d", i));
-		return b->bufsize - i;
+	return b->bufsize - i;
 }
 
 void
@@ -625,6 +625,6 @@ sndbuf_isadmabounce(struct snd_dbuf *b)
 	KASSERT(b, ("sndbuf_isadmabounce called with b == NULL"));
 	KASSERT(sndbuf_getflags(b) & SNDBUF_F_ISADMA, ("sndbuf_isadmabounce called on non-ISA buffer"));
 
-		/* tell isa_dma to bounce data in/out */
+	/* tell isa_dma to bounce data in/out */
 }
 

@@ -70,8 +70,8 @@ struct via_chinfo {
 struct via_info {
 	bus_space_tag_t st;
 	bus_space_handle_t sh;
-	bus_dma_tag_t	parent_dmat;
-	bus_dma_tag_t	sgd_dmat;
+	bus_dma_tag_t parent_dmat;
+	bus_dma_tag_t sgd_dmat;
 	bus_dmamap_t sgd_dmamap;
 
 	struct resource *reg, *irq;
@@ -81,7 +81,7 @@ struct via_info {
 
 	struct via_chinfo pch, rch;
 	struct via_dma_op *sgd_table;
-	u_int16_t	codec_caps;
+	u_int16_t codec_caps;
 };
 
 static u_int32_t via_fmt[] = {
@@ -267,7 +267,7 @@ viachan_setformat(kobj_t obj, void *data, u_int32_t format)
 {
 	struct via_chinfo *ch = data;
 	struct via_info *via = ch->parent;
-	int	mode, mode_set;
+	int mode, mode_set;
 
 	mode_set = 0;
 	if (format & AFMT_STEREO)
@@ -277,8 +277,8 @@ viachan_setformat(kobj_t obj, void *data, u_int32_t format)
 
 	DEB(printf("set format: dir = %d, format=%x\n", ch->dir, format));
 	mode = via_rd(via, ch->mode, 1);
-		mode &= ~(VIA_RPMODE_16BIT | VIA_RPMODE_STEREO);
-		mode |= mode_set;
+	mode &= ~(VIA_RPMODE_16BIT | VIA_RPMODE_STEREO);
+	mode |= mode_set;
 	via_wr(via, ch->mode, mode, 1);
 
 	return 0;
@@ -329,9 +329,9 @@ viachan_trigger(kobj_t obj, void *data, int go)
 		return 0;
 
 	ado = ch->sgd_table;
-			DEB(printf("ado located at va=%p pa=%x\n", ado, vtophys(ado)));
+	DEB(printf("ado located at va=%p pa=%x\n", ado, vtophys(ado)));
 
-		if (go == PCMTRIG_START) {
+	if (go == PCMTRIG_START) {
 		via_buildsgdt(ch);
 		via_wr(via, ch->base, vtophys(ado), 4);
 		via_wr(via, ch->ctrl, VIA_RPCTRL_START, 1);
@@ -357,16 +357,16 @@ viachan_getptr(kobj_t obj, void *data)
 	if (base != base1) 	/* Avoid race hazard */
 		len = via_rd(via, ch->count, 4);
 
-		DEB(printf("viachan_getptr: len / base = %x / %x\n", len, base));
+	DEB(printf("viachan_getptr: len / base = %x / %x\n", len, base));
 
 	/* Base points to SGD segment to do, one past current */
 
-		/* Determine how many segments have been done */
-		seg = (base - vtophys(ado)) / sizeof(struct via_dma_op);
+	/* Determine how many segments have been done */
+	seg = (base - vtophys(ado)) / sizeof(struct via_dma_op);
 	if (seg == 0)
 		seg = SEGS_PER_CHAN;
 
-		/* Now work out offset: seg less count */
+	/* Now work out offset: seg less count */
 	ptr = (seg * sndbuf_getsize(ch->buffer) / SEGS_PER_CHAN) - len;
 	if (ch->dir == PCMDIR_REC) {
 		/* DMA appears to operate on memory 'lines' of 32 bytes	*/
@@ -374,8 +374,8 @@ viachan_getptr(kobj_t obj, void *data)
 		ptr = ptr & ~0x1f;
 	}
 
-		DEB(printf("return ptr=%d\n", ptr));
-		return ptr;
+	DEB(printf("return ptr=%d\n", ptr));
+	return ptr;
 }
 
 static struct pcmchan_caps *
@@ -447,8 +447,8 @@ static int
 via_attach(device_t dev)
 {
 	struct via_info *via = 0;
-	char		status[SND_STATUSLEN];
-	u_int32_t	data;
+	char status[SND_STATUSLEN];
+	u_int32_t data;
 
 	if ((via = malloc(sizeof *via, M_DEVBUF, M_NOWAIT)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");

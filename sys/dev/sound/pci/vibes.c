@@ -108,13 +108,13 @@ static struct pcmchan_caps sc_caps = {8000, 48000, sc_fmt, 0};
 #define sv_direct_set(x, y, z) _sv_direct_set(x, y, z, __LINE__)
 
 static u_int8_t
-sv_direct_get(struct sc_info *sc, u_int8_t reg) 
+sv_direct_get(struct sc_info *sc, u_int8_t reg)
 {
 	return bus_space_read_1(sc->enh_st, sc->enh_sh, reg);
 }
 
 static void
-_sv_direct_set(struct sc_info *sc, u_int8_t reg, u_int8_t val, int line) 
+_sv_direct_set(struct sc_info *sc, u_int8_t reg, u_int8_t val, int line)
 {
 	u_int8_t n;
 	bus_space_write_1(sc->enh_st, sc->enh_sh, reg, val);
@@ -126,9 +126,9 @@ _sv_direct_set(struct sc_info *sc, u_int8_t reg, u_int8_t val, int line)
 }
 
 static u_int8_t
-sv_indirect_get(struct sc_info *sc, u_int8_t reg) 
+sv_indirect_get(struct sc_info *sc, u_int8_t reg)
 {
-	if (reg == SV_REG_FORMAT || reg == SV_REG_ANALOG_PWR) 
+	if (reg == SV_REG_FORMAT || reg == SV_REG_ANALOG_PWR)
 		reg |= SV_CM_INDEX_MCE;
 
 	bus_space_write_1(sc->enh_st, sc->enh_sh, SV_CM_INDEX, reg);
@@ -138,9 +138,9 @@ sv_indirect_get(struct sc_info *sc, u_int8_t reg)
 #define sv_indirect_set(x, y, z) _sv_indirect_set(x, y, z, __LINE__)
 
 static void
-_sv_indirect_set(struct sc_info *sc, u_int8_t reg, u_int8_t val, int line) 
+_sv_indirect_set(struct sc_info *sc, u_int8_t reg, u_int8_t val, int line)
 {
-	if (reg == SV_REG_FORMAT || reg == SV_REG_ANALOG_PWR) 
+	if (reg == SV_REG_FORMAT || reg == SV_REG_ANALOG_PWR)
 		reg |= SV_CM_INDEX_MCE;
 
 	bus_space_write_1(sc->enh_st, sc->enh_sh, SV_CM_INDEX, reg);
@@ -156,8 +156,8 @@ _sv_indirect_set(struct sc_info *sc, u_int8_t reg, u_int8_t val, int line)
 	}
 }
 
-static void 
-sv_dma_set_config(bus_space_tag_t st, bus_space_handle_t sh, 
+static void
+sv_dma_set_config(bus_space_tag_t st, bus_space_handle_t sh,
 		  u_int32_t base, u_int32_t count, u_int8_t mode)
 {
 	bus_space_write_4(st, sh, SV_DMA_ADDR, base);
@@ -182,7 +182,7 @@ svchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c
 {
 	struct sc_info		*sc = devinfo;
 	struct sc_chinfo	*ch;
-	ch = (dir == PCMDIR_PLAY) ? &sc->pch : &sc->rch; 
+	ch = (dir == PCMDIR_PLAY) ? &sc->pch : &sc->rch;
 
 	ch->parent = sc;
 	ch->channel = c;
@@ -206,7 +206,7 @@ svchan_getcaps(kobj_t obj, void *data)
         return &sc_caps;
 }
 
-static int 
+static int
 svchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct sc_chinfo *ch = data;
@@ -229,7 +229,7 @@ svchan_setformat(kobj_t obj, void *data, u_int32_t format)
 	return 0;
 }
 
-static int 
+static int
 svchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct sc_chinfo *ch = data;
@@ -241,7 +241,7 @@ svchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 /* ------------------------------------------------------------------------- */
 /* Recording interface */
 
-static int 
+static int
 sv_set_recspeed(struct sc_info *sc, u_int32_t speed)
 {
 	u_int32_t	f_out, f_actual;
@@ -266,12 +266,12 @@ sv_set_recspeed(struct sc_info *sc, u_int32_t speed)
 	/* Search over r, n, m */
 	for (r = rs; r <= re; r++) {
 		r2 = (1 << r);
-		for (n = 3; n < 34; n++) { 
+		for (n = 3; n < 34; n++) {
 			m = f_out * n / (SV_F_REF / r2);
 			ms = (m > 3) ? (m - 1) : 3;
 			me = (m < 129) ? (m + 1) : 129;
 			for (m = ms; m <= me; m++) {
-				f_actual = m * SV_F_REF / (n * r2); 
+				f_actual = m * SV_F_REF / (n * r2);
 				if (f_actual > f_out) {
 					err = f_actual - f_out;
 				} else {
@@ -289,7 +289,7 @@ sv_set_recspeed(struct sc_info *sc, u_int32_t speed)
 	}
 
 	sv_indirect_set(sc, SV_REG_ADC_PLLM, best_m);
-	sv_indirect_set(sc, SV_REG_ADC_PLLN, 
+	sv_indirect_set(sc, SV_REG_ADC_PLLN,
 			SV_ADC_PLLN(best_n) | SV_ADC_PLLR(best_r));
 	DEB(printf("svrchan_setspeed: %d -> PLLM 0x%02x PLLNR 0x%08x\n",
 		   speed,
@@ -298,7 +298,7 @@ sv_set_recspeed(struct sc_info *sc, u_int32_t speed)
 	return 0;
 }
 
-static int 
+static int
 svrchan_trigger(kobj_t obj, void *data, int go)
 {
 	struct sc_chinfo	*ch = data;
@@ -341,7 +341,7 @@ svrchan_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static int 
+static int
 svrchan_getptr(kobj_t obj, void *data)
 {
 	struct sc_chinfo	*ch = data;
@@ -350,7 +350,7 @@ svrchan_getptr(kobj_t obj, void *data)
 
 	sz = sndbuf_getsize(ch->buffer);
 	/* DMAC uses words */
-	remain = (sv_dma_get_count(sc->dmac_st, sc->dmac_sh) + 1) * 2; 
+	remain = (sv_dma_get_count(sc->dmac_st, sc->dmac_sh) + 1) * 2;
 	return sz - remain;
 }
 
@@ -369,7 +369,7 @@ CHANNEL_DECLARE(svrchan);
 /* ------------------------------------------------------------------------- */
 /* Playback interface */
 
-static int 
+static int
 svpchan_trigger(kobj_t obj, void *data, int go)
 {
 	struct sc_chinfo	*ch = data;
@@ -381,7 +381,7 @@ svpchan_trigger(kobj_t obj, void *data, int go)
 	case PCMTRIG_START:
 		/* Set speed */
 		speed = (ch->spd * 65536) / 48000;
-		if (speed > 65535) 
+		if (speed > 65535)
 			speed = 65535;
 		sv_indirect_set(sc, SV_REG_PCM_SAMPLING_HI, speed >> 8);
 		sv_indirect_set(sc, SV_REG_PCM_SAMPLING_LO, speed & 0xff);
@@ -417,14 +417,14 @@ svpchan_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static int 
+static int
 svpchan_getptr(kobj_t obj, void *data)
 {
 	struct sc_chinfo	*ch = data;
 	struct sc_info 		*sc = ch->parent;
 	u_int32_t sz, remain;
 
-	sz = sndbuf_getsize(ch->buffer); 	
+	sz = sndbuf_getsize(ch->buffer);
 	/* DMAA uses bytes */
 	remain = sv_dma_get_count(sc->dmaa_st, sc->dmaa_sh) + 1;
 	return (sz - remain);
@@ -469,7 +469,7 @@ sv_channel_gain(struct sc_info *sc, u_int32_t dev, u_int32_t gain, u_int32_t cha
 {
 	u_int8_t	v;
 	int32_t		g;
-	
+
 	g = mt[dev].max * gain / 100;
 	if (mt[dev].neg)
 		g = mt[dev].max - g;
@@ -484,25 +484,25 @@ sv_channel_gain(struct sc_info *sc, u_int32_t dev, u_int32_t gain, u_int32_t cha
 		}
 	}
 	sv_indirect_set(sc, mt[dev].reg + channel, v);
-}	
+}
 
 static int
 sv_gain(struct sc_info *sc, u_int32_t dev, u_int32_t left, u_int32_t right)
 {
 	sv_channel_gain(sc, dev, left, 0);
-	if (mt[dev].stereo) 
+	if (mt[dev].stereo)
 		sv_channel_gain(sc, dev, right, 1);
 	return 0;
-}	
+}
 
 static void
-sv_mix_mute_all(struct sc_info *sc) 
+sv_mix_mute_all(struct sc_info *sc)
 {
 	int32_t i;
 	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
 		if (mt[i].reg) sv_gain(sc, i, 0, 0);
 	}
-}	
+}
 
 static int
 sv_mix_init(struct snd_mixer *m)
@@ -560,9 +560,9 @@ static void
 sv_power(struct sc_info *sc, int state)
 {
 	u_int8_t v;
-	
+
         switch (state) {
-        case 0: 
+        case 0:
 		/* power on */
 		v = sv_indirect_get(sc, SV_REG_ANALOG_PWR) &~ SV_ANALOG_OFF;
 		v |= SV_ANALOG_OFF_SRS | SV_ANALOG_OFF_SPLL;
@@ -571,7 +571,7 @@ sv_power(struct sc_info *sc, int state)
 		v |= SV_DIGITAL_OFF_SYN | SV_DIGITAL_OFF_MU | SV_DIGITAL_OFF_GP;
 		sv_indirect_set(sc, SV_REG_DIGITAL_PWR, v);
                 break;
-        default: 
+        default:
 		/* power off */
 		v = sv_indirect_get(sc, SV_REG_ANALOG_PWR) | SV_ANALOG_OFF;
 		sv_indirect_set(sc, SV_REG_ANALOG_PWR, v);
@@ -579,7 +579,7 @@ sv_power(struct sc_info *sc, int state)
 		sv_indirect_set(sc, SV_REG_DIGITAL_PWR, SV_DIGITAL_OFF);
                 break;
         }
-        DEB(printf("Power state %d\n", state)); 
+        DEB(printf("Power state %d\n", state));
 }
 
 static int
@@ -596,7 +596,7 @@ sv_init(struct sc_info *sc)
 	v = sv_direct_get(sc, SV_CM_CONTROL) & ~SV_CM_CONTROL_RESET;
 	sv_direct_set(sc, SV_CM_CONTROL, v);
 	DELAY(50);
- 
+
 	/* Set in enhanced mode */
 	v = sv_direct_get(sc, SV_CM_CONTROL);
 	v |= SV_CM_CONTROL_ENHANCED;
@@ -613,11 +613,11 @@ sv_init(struct sc_info *sc)
 
 	/* Disable loopback - binds ADC and DAC rates */
 	v = sv_indirect_get(sc, SV_REG_LOOPBACK) & ~SV_LOOPBACK_ENABLE;
-	sv_indirect_set(sc, SV_REG_LOOPBACK, v);	
+	sv_indirect_set(sc, SV_REG_LOOPBACK, v);
 
 	/* Disable SRS */
 	v = sv_indirect_get(sc, SV_REG_SRS_SPACE) | SV_SRS_DISABLED;
-	sv_indirect_set(sc, SV_REG_SRS_SPACE, v);	
+	sv_indirect_set(sc, SV_REG_SRS_SPACE, v);
 
 	/* Get revision */
 	sc->rev = sv_indirect_get(sc, SV_REG_REVISION);
@@ -660,11 +660,11 @@ sv_resume(device_t dev)
         }
 
 	if (sc->rch.dma_was_active) {
-		svrchan_trigger(0, &sc->rch, PCMTRIG_START); 
+		svrchan_trigger(0, &sc->rch, PCMTRIG_START);
 	}
 
 	if (sc->pch.dma_was_active) {
-		svpchan_trigger(0, &sc->pch, PCMTRIG_START); 
+		svpchan_trigger(0, &sc->pch, PCMTRIG_START);
 	}
 
 	return 0;
@@ -680,13 +680,13 @@ sv_intr(void *data)
 	u_int8_t	status;
 
 	status = sv_direct_get(sc, SV_CM_STATUS);
-	if (status & SV_CM_STATUS_AINT) 
+	if (status & SV_CM_STATUS_AINT)
 		chn_intr(sc->pch.channel);
 
-	if (status & SV_CM_STATUS_CINT) 
+	if (status & SV_CM_STATUS_CINT)
 		chn_intr(sc->rch.channel);
 
-	status &= ~(SV_CM_STATUS_AINT|SV_CM_STATUS_CINT); 
+	status &= ~(SV_CM_STATUS_AINT|SV_CM_STATUS_CINT);
 	DEB(if (status) printf("intr 0x%02x ?\n", status));
 
 	return;
@@ -733,10 +733,10 @@ sv_attach(device_t dev) {
                               "-- setting to D0\n", pci_get_powerstate(dev));
                 pci_set_powerstate(dev, PCI_POWERSTATE_D0);
         }
-#endif 
+#endif
 	sc->enh_rid  = SV_PCI_ENHANCED;
 	sc->enh_type = SYS_RES_IOPORT;
-	sc->enh_reg  = bus_alloc_resource(dev, sc->enh_type, 
+	sc->enh_reg  = bus_alloc_resource(dev, sc->enh_type,
 					  &sc->enh_rid, 0, ~0,
 					  SV_PCI_ENHANCED_SIZE, RF_ACTIVE);
 	if (sc->enh_reg == NULL) {
@@ -759,7 +759,7 @@ sv_attach(device_t dev) {
 	sc->irqid = 0;
         sc->irq   = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid,
 				       0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
-        if (!sc->irq || 
+        if (!sc->irq ||
 	    bus_setup_intr(dev, sc->irq, INTR_TYPE_TTY, sv_intr, sc, &sc->ih)) {
                 device_printf(dev, "sv_attach: Unable to map interrupt\n");
                 goto fail;
@@ -769,8 +769,8 @@ sv_attach(device_t dev) {
                                /*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
                                /*highaddr*/BUS_SPACE_MAXADDR,
                                /*filter*/NULL, /*filterarg*/NULL,
-                               /*maxsize*/SV_MAX_BUFFER, /*nsegments*/1, 
-                               /*maxsegz*/0x3ffff, /*flags*/0, 
+                               /*maxsize*/SV_MAX_BUFFER, /*nsegments*/1,
+                               /*maxsegz*/0x3ffff, /*flags*/0,
                                &sc->parent_dmat) != 0) {
                 device_printf(dev, "sv_attach: Unable to create dma tag\n");
                 goto fail;
@@ -784,7 +784,7 @@ sv_attach(device_t dev) {
 	if (mixer_init(dev, &sv_mixer_class, sc) != 0) {
 		device_printf(dev, "sv_attach: Mixer failed to initialize\n");
 		goto fail;
-	}	
+	}
 
 	/* XXX This is a hack, and it's ugly.  Okay, the deal is this
 	 * card has two more io regions that available for automatic
@@ -792,7 +792,7 @@ sv_attach(device_t dev) {
 	 * to used as control registers for the DMA engines.
 	 * Unfortunately FBSD has no bus_space_foo() functions so we
 	 * have to grab port space in region of existing resources.  Go
-	 * for space between midi and game ports.  
+	 * for space between midi and game ports.
 	 */
 	bus_get_resource(dev, SYS_RES_IOPORT, SV_PCI_MIDI, &midi_start, &count);
 	bus_get_resource(dev, SYS_RES_IOPORT, SV_PCI_GAMES, &games_start, &count);
@@ -805,7 +805,7 @@ sv_attach(device_t dev) {
 
 	sdmaa = games_start + 0x40;
 	sdmac = sdmaa + 0x40;
-	
+
 	/* Add resources to list of pci resources for this device - from here on
 	 * they look like normal pci resources. */
 	bus_set_resource(dev, SYS_RES_IOPORT, SV_PCI_DMAA, sdmaa, SV_PCI_DMAA_SIZE);
@@ -814,7 +814,7 @@ sv_attach(device_t dev) {
 	/* Cache resource short-cuts for dma_a */
 	sc->dmaa_rid = SV_PCI_DMAA;
 	sc->dmaa_type = SYS_RES_IOPORT;
-	sc->dmaa_reg  = bus_alloc_resource(dev, sc->dmaa_type, 
+	sc->dmaa_reg  = bus_alloc_resource(dev, sc->dmaa_type,
 					   &sc->dmaa_rid, 0, ~0,
 					   SV_PCI_ENHANCED_SIZE, RF_ACTIVE);
 	if (sc->dmaa_reg == NULL) {
@@ -830,10 +830,10 @@ sv_attach(device_t dev) {
 	pci_write_config(dev, SV_PCI_DMAA, data, 4);
 	DEB(printf("dmaa: 0x%x 0x%x\n", data, pci_read_config(dev, SV_PCI_DMAA, 4)));
 
-	/* Cache resource short-cuts for dma_c */	
+	/* Cache resource short-cuts for dma_c */
 	sc->dmac_rid = SV_PCI_DMAC;
 	sc->dmac_type = SYS_RES_IOPORT;
-	sc->dmac_reg  = bus_alloc_resource(dev, sc->dmac_type, 
+	sc->dmac_reg  = bus_alloc_resource(dev, sc->dmac_type,
 					   &sc->dmac_rid, 0, ~0,
 					   SV_PCI_ENHANCED_SIZE, RF_ACTIVE);
 	if (sc->dmac_reg == NULL) {
@@ -868,12 +868,12 @@ sv_attach(device_t dev) {
 
 	return 0;
 
- fail: 
-	if (sc->parent_dmat) 
+ fail:
+	if (sc->parent_dmat)
 		bus_dma_tag_destroy(sc->parent_dmat);
-        if (sc->ih) 
+        if (sc->ih)
 		bus_teardown_intr(dev, sc->irq, sc->ih);
-        if (sc->irq) 
+        if (sc->irq)
 		bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
 	if (sc->enh_reg)
 		bus_release_resource(dev, sc->enh_type, sc->enh_rid, sc->enh_reg);

@@ -154,7 +154,7 @@ sb_dspwr(struct sb_info *sb, u_char val)
 		}
     	}
 	if (curproc->p_intr_nesting_level == 0)
-    	printf("sb_dspwr(0x%02x) timed out.\n", val);
+		printf("sb_dspwr(0x%02x) timed out.\n", val);
     	return 0;
 }
 
