@@ -617,6 +617,7 @@ sf_buf_init(void *arg)
 struct sf_buf *
 sf_buf_alloc(struct vm_page *m, int pri)
 {
+	pt_entry_t opte, *ptep;
 	struct sf_head *hash_list;
 	struct sf_buf *sf;
 	int error;
@@ -655,7 +656,20 @@ sf_buf_alloc(struct vm_page *m, int pri)
 	sf->m = m;
 	nsfbufsused++;
 	nsfbufspeak = imax(nsfbufspeak, nsfbufsused);
-	pmap_qenter(sf->kva, &sf->m, 1);
+
+	/*
+	 * Update the sf_buf's virtual-to-physical mapping, flushing the
+	 * virtual address from the TLB only if the PTE implies that the old
+	 * mapping has been used.  Since the reference count for the sf_buf's
+	 * old mapping was zero, that mapping is not currently in use.
+	 * Consequently, there is no need to exchange the old and new PTEs
+	 * atomically, even under PAE.
+	 */
+	ptep = vtopte(sf->kva);
+	opte = *ptep;
+	*ptep = VM_PAGE_TO_PHYS(m) | pgeflag | PG_RW | PG_V;
+	if ((opte & (PG_A | PG_V)) == (PG_A | PG_V))
+		pmap_invalidate_page(kernel_pmap, sf->kva);
 done:
 	mtx_unlock(&sf_buf_lock);
 	return (sf);
