@@ -258,6 +258,7 @@ DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
 int	cdevsw_add __P((struct cdevsw *new));
 int	cdevsw_remove __P((struct cdevsw *old));
 dev_t	chrtoblk __P((dev_t dev));
+void	destroy_dev __P((dev_t dev));
 struct cdevsw *devsw __P((dev_t dev));
 int	devsw_module_handler __P((struct module *mod, int what, void *arg));
 const char *devtoname __P((dev_t dev));
@@ -266,7 +267,6 @@ int	iszerodev __P((dev_t dev));
 dev_t	makebdev __P((int maj, int min));
 dev_t	make_dev __P((struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, char *fmt, ...)) __printflike(6, 7);
 int	lminor __P((dev_t dev));
-void	remove_dev __P((dev_t dev));
 void	setconf __P((void));
 
 extern devfs_create_t *devfs_create_hook;

@@ -164,16 +164,16 @@ streams_modevent(module_t mod, int type, void *unused)
 		return 0;
 	case MOD_UNLOAD:
 	  	/* XXX should check to see if it's busy first */
-		remove_dev(dt_ptm);
-		remove_dev(dt_arp);
-		remove_dev(dt_icmp);
-		remove_dev(dt_ip);
-		remove_dev(dt_tcp);
-		remove_dev(dt_udp);
-		remove_dev(dt_rawip);
-		remove_dev(dt_unix_dgram);
-		remove_dev(dt_unix_stream);
-		remove_dev(dt_unix_ord_stream);
+		destroy_dev(dt_ptm);
+		destroy_dev(dt_arp);
+		destroy_dev(dt_icmp);
+		destroy_dev(dt_ip);
+		destroy_dev(dt_tcp);
+		destroy_dev(dt_udp);
+		destroy_dev(dt_rawip);
+		destroy_dev(dt_unix_dgram);
+		destroy_dev(dt_unix_stream);
+		destroy_dev(dt_unix_ord_stream);
 
 		return 0;
 	default:
