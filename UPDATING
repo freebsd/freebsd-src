@@ -22,6 +22,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	to maximize performance.
 
 20050206:
+	The cpufreq import is complete.  As part of this, the sysctls for
+	acpi(4) throttling have been removed.  The power_profile(8) script
+	has been updated, so you can use performance/economy_cpu_freq in
+	rc.conf(5) to set AC on/offline cpu frequencies.  The acpi
+	throttling support has been merged into acpi_perf(4).
+
+20050206:
 	NG_VERSION has been increased. Recompiling kernel (or ng_socket.ko)
 	requires recompiling libnetgraph and userland netgraph utilities.
 
