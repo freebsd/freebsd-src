@@ -51,7 +51,7 @@ struct adapter *em_adapter_list = NULL;
  *  Driver version
  *********************************************************************/
 
-char em_driver_version[] = "1.3.14";
+char em_driver_version[] = "1.4.7";
 
 
 /*********************************************************************
@@ -74,14 +74,17 @@ static em_vendor_info_t em_vendor_info_array[] =
 	{ 0x8086, 0x100C, PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, 0x100D, PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, 0x100E, PCI_ANY_ID, PCI_ANY_ID, 0},
-	{ 0x8086, 0x100F, PCI_ANY_ID, PCI_ANY_ID, 0},    
+	{ 0x8086, 0x100F, PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, 0x1010, PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, 0x1011, PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, 0x1012, PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, 0x1015, PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, 0x1016, PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, 0x1017, PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, 0x101E, PCI_ANY_ID, PCI_ANY_ID, 0},
 	/* required last entry */
 	{ 0, 0, 0, 0, 0}
 };
-
 
 /*********************************************************************
  *  Table of branding strings for all supported NICs.
@@ -130,7 +133,6 @@ static void em_receive_checksum(struct adapter *,
 				     struct mbuf *);
 static void em_transmit_checksum_setup(struct adapter *,
 					    struct mbuf *,
-					    struct em_tx_buffer *,
 					    u_int32_t *,
 					    u_int32_t *);
 static void em_set_promisc(struct adapter *);
@@ -139,8 +141,9 @@ static void em_set_multi(struct adapter *);
 static void em_print_hw_stats(struct adapter *);
 static void em_print_link_status(struct adapter *);
 static int  em_get_buf(struct em_rx_buffer *, struct adapter *,
-			    struct mbuf *);
+		       struct mbuf *);
 static void em_enable_vlans(struct adapter *adapter);
+static int  em_encap(struct adapter *adapter, struct mbuf *m_head);
 
 /*********************************************************************
  *  FreeBSD Device Interface Entry Points                    
@@ -256,10 +259,10 @@ em_attach(device_t dev)
 	em_identify_hardware(adapter);
 
 	/* Parameters (to be read from user) */
-	adapter->num_tx_desc = MAX_TXD;
-	adapter->num_rx_desc = MAX_RXD;
-	adapter->tx_int_delay = TIDV;
-	adapter->rx_int_delay = RIDV;
+	adapter->num_tx_desc = EM_MAX_TXD;
+	adapter->num_rx_desc = EM_MAX_RXD;
+	adapter->tx_int_delay = EM_TIDV;
+	adapter->rx_int_delay = EM_RDTR;
 	adapter->hw.autoneg = DO_AUTO_NEG;
 	adapter->hw.wait_autoneg_complete = WAIT_FOR_AUTO_NEG_DEFAULT;
 	adapter->hw.autoneg_advertised = AUTONEG_ADV_DEFAULT;
@@ -431,6 +434,12 @@ em_detach(device_t dev)
 	return(0);
 }
 
+/*********************************************************************
+ *
+ *  Shutdown entry point
+ *  
+ **********************************************************************/
+
 static int
 em_shutdown(device_t dev)
 {
@@ -438,7 +447,6 @@ em_shutdown(device_t dev)
 	em_stop(adapter);
 	return(0);
 }
-
 
 /*********************************************************************
  *  Transmit entry point
@@ -454,128 +462,34 @@ static void
 em_start(struct ifnet *ifp)
 {
 	int             s;
-	struct mbuf    *m_head, *mp;
-	vm_offset_t     virtual_addr;
-	u_int32_t       txd_upper; 
-	u_int32_t       txd_lower;
-	struct em_tx_buffer   *tx_buffer;
-	struct em_tx_desc *current_tx_desc = NULL;
-	struct adapter * adapter = ifp->if_softc;
+	struct mbuf    *m_head;
+	struct adapter *adapter = ifp->if_softc;
 
 	if (!adapter->link_active)
 		return;
 
 	s = splimp();      
 	while (ifp->if_snd.ifq_head != NULL) {
-		struct ifvlan *ifv = NULL;
-
+		
 		IF_DEQUEUE(&ifp->if_snd, m_head);
 
 		if (m_head == NULL) break;
 
-		if (adapter->num_tx_desc_avail <= TX_CLEANUP_THRESHOLD)
-			em_clean_transmit_interrupts(adapter);
-
-		if (adapter->num_tx_desc_avail <= TX_CLEANUP_THRESHOLD) {
+		if (em_encap(adapter, m_head)) {
 			ifp->if_flags |= IFF_OACTIVE;
 			IF_PREPEND(&ifp->if_snd, m_head);
-			adapter->no_tx_desc_avail++;
 			break;
 		}
-
-		tx_buffer =  STAILQ_FIRST(&adapter->free_tx_buffer_list);
-		if (!tx_buffer) {
-			adapter->no_tx_buffer_avail1++;
-			/* 
-			 * OK so we should not get here but I've seen it so let 
-			 * us try to clean up and then try to get a tx_buffer 
-			 * again and only break if we still don't get one.
-			 */
-			em_clean_transmit_interrupts(adapter);
-			tx_buffer = STAILQ_FIRST(&adapter->free_tx_buffer_list);
-			if (!tx_buffer) {
-				ifp->if_flags |= IFF_OACTIVE;
-				IF_PREPEND(&ifp->if_snd, m_head);
-				adapter->no_tx_buffer_avail2++;
-				break;
-			}
-		}
-		STAILQ_REMOVE_HEAD(&adapter->free_tx_buffer_list, em_tx_entry);
-
-		tx_buffer->num_tx_desc_used = 0;
-		tx_buffer->m_head = m_head;
-
-		if (ifp->if_hwassist > 0) {
-			em_transmit_checksum_setup(adapter,  m_head, tx_buffer, 
-						   &txd_upper, &txd_lower);
-		} else {
-			txd_upper = 0;
-			txd_lower = 0;
-		}
-
-		/* Find out if we are in vlan mode */
-		if ((m_head->m_flags & (M_PROTO1|M_PKTHDR)) == (M_PROTO1|M_PKTHDR) &&
-		    m_head->m_pkthdr.rcvif != NULL &&
-		    m_head->m_pkthdr.rcvif->if_type == IFT_L2VLAN)
-			ifv = m_head->m_pkthdr.rcvif->if_softc;
-
-
-		for (mp = m_head; mp != NULL; mp = mp->m_next) {
-			if (mp->m_len == 0)
-				continue;
-			current_tx_desc = adapter->next_avail_tx_desc;
-			virtual_addr = mtod(mp, vm_offset_t);
-			current_tx_desc->buffer_addr = vtophys(virtual_addr);
-
-			current_tx_desc->lower.data = (txd_lower | mp->m_len);
-			current_tx_desc->upper.data = (txd_upper);
-
-			if (current_tx_desc == adapter->last_tx_desc)
-				adapter->next_avail_tx_desc =
-				adapter->first_tx_desc;
-			else
-				adapter->next_avail_tx_desc++;
-
-			adapter->num_tx_desc_avail--;
-			tx_buffer->num_tx_desc_used++;
-		}
-
-		/* Put this tx_buffer at the end in the "in use" list */
-		STAILQ_INSERT_TAIL(&adapter->used_tx_buffer_list, tx_buffer, 
-				   em_tx_entry);
-
-		if (ifv != NULL) {
-			/* Tell hardware to add tag */
-			current_tx_desc->lower.data |= E1000_TXD_CMD_VLE;
-
-			/* Set the vlan id */
-			current_tx_desc->upper.fields.special = ifv->ifv_tag;
-		}
-
-		/* 
-		 * Last Descriptor of Packet needs End Of Packet (EOP), Report Status
-		 * (RS) and append Ethernet CRC (IFCS) bits set.
-		 */
-		current_tx_desc->lower.data |= (adapter->txd_cmd | E1000_TXD_CMD_EOP);
 
 		/* Send a copy of the frame to the BPF listener */
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, m_head);
 
-		/* 
-		 * Advance the Transmit Descriptor Tail (Tdt), this tells the E1000
-		 * that this frame is available to transmit.
-		 */
-		E1000_WRITE_REG(&adapter->hw, TDT, 
-				(((uintptr_t) adapter->next_avail_tx_desc -
-				  (uintptr_t) adapter->first_tx_desc) >> 4));
-	} /* end of while loop */
+		/* Set timeout in case hardware has problems transmitting */
+		ifp->if_timer = EM_TX_TIMEOUT;
 
+	}
 	splx(s);
-
-	/* Set timeout in case chip has problems transmitting */
-	ifp->if_timer = EM_TX_TIMEOUT;
-
 	return;
 }
 
@@ -667,107 +581,6 @@ em_ioctl(struct ifnet *ifp, IOCTL_CMD_TYPE command, caddr_t data)
 	return(error);
 }
 
-static void
-em_set_promisc(struct adapter * adapter)
-{
-
-	u_int32_t       reg_rctl;
-	struct ifnet   *ifp = &adapter->interface_data.ac_if;
-
-	reg_rctl = E1000_READ_REG(&adapter->hw, RCTL);
-
-	if (ifp->if_flags & IFF_PROMISC) {
-		reg_rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
-		E1000_WRITE_REG(&adapter->hw, RCTL, reg_rctl);
-	} else if (ifp->if_flags & IFF_ALLMULTI) {
-		reg_rctl |= E1000_RCTL_MPE;
-		reg_rctl &= ~E1000_RCTL_UPE;
-		E1000_WRITE_REG(&adapter->hw, RCTL, reg_rctl);
-	}
-
-	return;
-}
-
-static void
-em_disable_promisc(struct adapter * adapter)
-{
-	u_int32_t       reg_rctl;
-
-	reg_rctl = E1000_READ_REG(&adapter->hw, RCTL);
-
-	reg_rctl &=  (~E1000_RCTL_UPE);
-	reg_rctl &=  (~E1000_RCTL_MPE);
-	E1000_WRITE_REG(&adapter->hw, RCTL, reg_rctl);
-
-	return;
-}
-
-
-/*********************************************************************
- *  Multicast Update
- *
- *  This routine is called whenever multicast address list is updated.
- *
- **********************************************************************/
-
-static void
-em_set_multi(struct adapter * adapter)
-{
-	u_int32_t reg_rctl = 0;
-	u_int8_t  mta[MAX_NUM_MULTICAST_ADDRESSES * ETH_LENGTH_OF_ADDRESS];
-	u_int16_t pci_cmd_word;
-	struct ifmultiaddr  *ifma;
-	int mcnt = 0;
-	struct ifnet   *ifp = &adapter->interface_data.ac_if;
-
-	IOCTL_DEBUGOUT("em_set_multi: begin");
-
-	if (adapter->hw.mac_type == em_82542_rev2_0) {
-		reg_rctl = E1000_READ_REG(&adapter->hw, RCTL);
-		if (adapter->hw.pci_cmd_word & CMD_MEM_WRT_INVALIDATE) {
-			pci_cmd_word = adapter->hw.pci_cmd_word & 
-				       ~CMD_MEM_WRT_INVALIDATE;
-			pci_write_config(adapter->dev, PCIR_COMMAND, pci_cmd_word, 2);
-		}
-		reg_rctl |= E1000_RCTL_RST;
-		E1000_WRITE_REG(&adapter->hw, RCTL, reg_rctl);
-		msec_delay(5);
-	}
-
-#if __FreeBSD_version < 500000 
-	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-#else
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-#endif
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-
-		bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
-		      &mta[mcnt*ETH_LENGTH_OF_ADDRESS], ETH_LENGTH_OF_ADDRESS);
-		mcnt++;
-	}
-
-	if (mcnt > MAX_NUM_MULTICAST_ADDRESSES) {
-		reg_rctl = E1000_READ_REG(&adapter->hw, RCTL);
-		reg_rctl |= E1000_RCTL_MPE;
-		E1000_WRITE_REG(&adapter->hw, RCTL, reg_rctl);
-	} else
-		em_mc_addr_list_update(&adapter->hw, mta, mcnt, 0);
-
-	if (adapter->hw.mac_type == em_82542_rev2_0) {
-		reg_rctl = E1000_READ_REG(&adapter->hw, RCTL);
-		reg_rctl &= ~E1000_RCTL_RST;
-		E1000_WRITE_REG(&adapter->hw, RCTL, reg_rctl);
-		msec_delay(5);
-		if (adapter->hw.pci_cmd_word & CMD_MEM_WRT_INVALIDATE) {
-			pci_write_config(adapter->dev, PCIR_COMMAND, 
-					 adapter->hw.pci_cmd_word, 2);
-		}
-	}
-
-	return;
-}
-
 /*********************************************************************
  *  Watchdog entry point
  *
@@ -797,62 +610,6 @@ em_watchdog(struct ifnet *ifp)
 	em_init(adapter);
 
 	ifp->if_oerrors++;
-	return;
-}
-
-/*********************************************************************
- *  Timer routine
- *
- *  This routine checks for link status and updates statistics.
- *
- **********************************************************************/
-
-static void
-em_local_timer(void *arg)
-{
-	int s;
-	struct ifnet   *ifp;
-	struct adapter * adapter = arg;
-	ifp = &adapter->interface_data.ac_if;
-
-	s = splimp();
-
-	em_check_for_link(&adapter->hw);
-	em_print_link_status(adapter);
-	em_update_stats_counters(adapter);   
-	if (em_display_debug_stats && ifp->if_flags & IFF_RUNNING) {
-		em_print_hw_stats(adapter);
-	}
-	adapter->timer_handle = timeout(em_local_timer, adapter, 2*hz);
-
-	splx(s);
-	return;
-}
-
-static void
-em_print_link_status(struct adapter * adapter)
-{
-	if (E1000_READ_REG(&adapter->hw, STATUS) & E1000_STATUS_LU) {
-		if (adapter->link_active == 0) {
-			em_get_speed_and_duplex(&adapter->hw, 
-						&adapter->link_speed, 
-						&adapter->link_duplex);
-			printf("em%d: Link is up %d Mbps %s\n",
-			       adapter->unit,
-			       adapter->link_speed,
-			       ((adapter->link_duplex == FULL_DUPLEX) ?
-				"Full Duplex" : "Half Duplex"));
-			adapter->link_active = 1;
-		}
-	} else {
-		if (adapter->link_active == 1) {
-			adapter->link_speed = 0;
-			adapter->link_duplex = 0;
-			printf("em%d: Link is Down\n", adapter->unit);
-			adapter->link_active = 0;
-		}
-	}
-
 	return;
 }
 
@@ -929,35 +686,6 @@ em_init(void *arg)
 	em_enable_intr(adapter);
 
 	splx(s);
-	return;
-}
-
-
-/*********************************************************************
- *
- *  This routine disables all traffic on the adapter by issuing a
- *  global reset on the MAC and deallocates TX/RX buffers. 
- *
- **********************************************************************/
-
-static void
-em_stop(void *arg)
-{
-	struct ifnet   *ifp;
-	struct adapter * adapter = arg;
-	ifp = &adapter->interface_data.ac_if;
-
-	INIT_DEBUGOUT("em_stop: begin\n");
-	em_disable_intr(adapter);
-	em_reset_hw(&adapter->hw);
-	untimeout(em_local_timer, adapter, adapter->timer_handle);
-	em_free_transmit_structures(adapter);
-	em_free_receive_structures(adapter);
-
-
-	/* Tell the stack that the interface is no longer active */
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
-
 	return;
 }
 
@@ -1130,7 +858,320 @@ em_media_change(struct ifnet *ifp)
 
 	return(0);
 }
-/* Section end: Other registered entry points */
+
+
+/*********************************************************************
+ *
+ *  This routine maps the mbufs to tx descriptors.
+ *
+ *  return 0 on success, positive on failure
+ **********************************************************************/
+
+static int
+em_encap(struct adapter *adapter, struct mbuf *m_head)
+{
+	vm_offset_t     virtual_addr;
+	u_int32_t       txd_upper; 
+	u_int32_t       txd_lower;
+	u_int16_t       txd_used, count;
+	
+	struct mbuf     *mp;
+	struct ifvlan *ifv = NULL;
+	struct em_tx_buffer   *tx_buffer;
+	struct em_tx_desc *saved_tx_desc = NULL;
+	struct em_tx_desc *current_tx_desc = NULL;
+	struct ifnet   *ifp = &adapter->interface_data.ac_if;
+
+	/* Force a cleanup if number of descriptors available hit the threshold */
+	if (adapter->num_tx_desc_avail <= EM_TX_CLEANUP_THRESHOLD)
+		em_clean_transmit_interrupts(adapter);
+
+	if (adapter->num_tx_desc_avail <= EM_TX_CLEANUP_THRESHOLD) {
+		adapter->no_tx_desc_avail1++;
+		return (ENOBUFS);
+	}
+
+	/* Find out number of fragments in a mbuf chain */
+	count = 0;
+	for (mp = m_head; mp != NULL; mp = mp->m_next) {
+		if (mp->m_len == 0)
+			continue;
+		count++;
+	}
+
+	/* Bail out if we don't have enough descriptors */
+	if (adapter->num_tx_desc_avail <= count) {
+		em_clean_transmit_interrupts(adapter);
+		adapter->no_tx_desc_avail2++;
+		return (ENOBUFS);
+	}
+
+	tx_buffer =  STAILQ_FIRST(&adapter->free_tx_buffer_list);
+	if (!tx_buffer) {
+		adapter->no_tx_buffer_avail1++;
+		return (ENOBUFS);
+	}
+
+	/* Setup checksum context */
+	if (ifp->if_hwassist > 0) {
+		em_transmit_checksum_setup(adapter,  m_head,
+					   &txd_upper, &txd_lower);
+	} else {
+		txd_upper = 0;
+		txd_lower = 0;
+	}
+
+	/* Find out if we are in vlan mode */
+	if ((m_head->m_flags & (M_PROTO1|M_PKTHDR)) == (M_PROTO1|M_PKTHDR) &&
+	    m_head->m_pkthdr.rcvif != NULL &&
+	    m_head->m_pkthdr.rcvif->if_type == IFT_L2VLAN)
+		ifv = m_head->m_pkthdr.rcvif->if_softc;
+
+
+	txd_used = 0;
+	saved_tx_desc = adapter->next_avail_tx_desc;
+	for (mp = m_head; mp != NULL; mp = mp->m_next) {
+		if (mp->m_len == 0)
+			continue;
+		
+		tx_buffer =  STAILQ_FIRST(&adapter->free_tx_buffer_list);
+		if (!tx_buffer) {
+			adapter->no_tx_buffer_avail2++;
+			adapter->next_avail_tx_desc = saved_tx_desc;
+			return (ENOBUFS);
+		}
+
+		current_tx_desc = adapter->next_avail_tx_desc;
+		virtual_addr = mtod(mp, vm_offset_t);
+		current_tx_desc->buffer_addr = vtophys(virtual_addr);
+
+		current_tx_desc->lower.data = (adapter->txd_cmd | txd_lower | mp->m_len);
+		current_tx_desc->upper.data = (txd_upper);
+
+		if (current_tx_desc == adapter->last_tx_desc)
+			adapter->next_avail_tx_desc =
+			adapter->first_tx_desc;
+		else
+			adapter->next_avail_tx_desc++;
+
+		txd_used++;
+		
+		tx_buffer->m_head = NULL;
+		tx_buffer->used_tx_desc = current_tx_desc;
+		STAILQ_REMOVE_HEAD(&adapter->free_tx_buffer_list, em_tx_entry);
+		STAILQ_INSERT_TAIL(&adapter->used_tx_buffer_list, tx_buffer, 
+				   em_tx_entry);
+	}
+	adapter->num_tx_desc_avail-= txd_used;
+
+	if (ifv != NULL) {
+		/* Tell hardware to add tag */
+		current_tx_desc->lower.data |= E1000_TXD_CMD_VLE;
+
+		/* Set the vlan id */
+		current_tx_desc->upper.fields.special = ifv->ifv_tag;
+	}
+
+	/* Last Descriptor of Packet needs End Of Packet (EOP) bit set. */
+	current_tx_desc->lower.data |= E1000_TXD_CMD_EOP;
+
+	/* Save mbuf chain so that we can free it during transmit cleanup */
+	tx_buffer->m_head = m_head;
+
+	/* 
+	 * Advance the Transmit Descriptor Tail (Tdt), this tells the E1000
+	 * that this frame is available to transmit.
+	 */
+	E1000_WRITE_REG(&adapter->hw, TDT, 
+			(((uintptr_t) adapter->next_avail_tx_desc -
+			  (uintptr_t) adapter->first_tx_desc) >> 4));
+
+	return(0);
+}
+
+
+static void
+em_set_promisc(struct adapter * adapter)
+{
+
+	u_int32_t       reg_rctl;
+	struct ifnet   *ifp = &adapter->interface_data.ac_if;
+
+	reg_rctl = E1000_READ_REG(&adapter->hw, RCTL);
+
+	if (ifp->if_flags & IFF_PROMISC) {
+		reg_rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
+		E1000_WRITE_REG(&adapter->hw, RCTL, reg_rctl);
+	} else if (ifp->if_flags & IFF_ALLMULTI) {
+		reg_rctl |= E1000_RCTL_MPE;
+		reg_rctl &= ~E1000_RCTL_UPE;
+		E1000_WRITE_REG(&adapter->hw, RCTL, reg_rctl);
+	}
+
+	return;
+}
+
+static void
+em_disable_promisc(struct adapter * adapter)
+{
+	u_int32_t       reg_rctl;
+
+	reg_rctl = E1000_READ_REG(&adapter->hw, RCTL);
+
+	reg_rctl &=  (~E1000_RCTL_UPE);
+	reg_rctl &=  (~E1000_RCTL_MPE);
+	E1000_WRITE_REG(&adapter->hw, RCTL, reg_rctl);
+
+	return;
+}
+
+
+/*********************************************************************
+ *  Multicast Update
+ *
+ *  This routine is called whenever multicast address list is updated.
+ *
+ **********************************************************************/
+
+static void
+em_set_multi(struct adapter * adapter)
+{
+	u_int32_t reg_rctl = 0;
+	u_int8_t  mta[MAX_NUM_MULTICAST_ADDRESSES * ETH_LENGTH_OF_ADDRESS];
+	struct ifmultiaddr  *ifma;
+	int mcnt = 0;
+	struct ifnet   *ifp = &adapter->interface_data.ac_if;
+
+	IOCTL_DEBUGOUT("em_set_multi: begin");
+
+	if (adapter->hw.mac_type == em_82542_rev2_0) {
+		reg_rctl = E1000_READ_REG(&adapter->hw, RCTL);
+		if (adapter->hw.pci_cmd_word & CMD_MEM_WRT_INVALIDATE) {
+			em_pci_clear_mwi(&adapter->hw);
+		}
+		reg_rctl |= E1000_RCTL_RST;
+		E1000_WRITE_REG(&adapter->hw, RCTL, reg_rctl);
+		msec_delay(5);
+	}
+
+#if __FreeBSD_version < 500000
+	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+#else
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+#endif
+		if (ifma->ifma_addr->sa_family != AF_LINK)
+			continue;
+
+		bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
+		      &mta[mcnt*ETH_LENGTH_OF_ADDRESS], ETH_LENGTH_OF_ADDRESS);
+		mcnt++;
+	}
+
+	if (mcnt > MAX_NUM_MULTICAST_ADDRESSES) {
+		reg_rctl = E1000_READ_REG(&adapter->hw, RCTL);
+		reg_rctl |= E1000_RCTL_MPE;
+		E1000_WRITE_REG(&adapter->hw, RCTL, reg_rctl);
+	} else
+		em_mc_addr_list_update(&adapter->hw, mta, mcnt, 0);
+
+	if (adapter->hw.mac_type == em_82542_rev2_0) {
+		reg_rctl = E1000_READ_REG(&adapter->hw, RCTL);
+		reg_rctl &= ~E1000_RCTL_RST;
+		E1000_WRITE_REG(&adapter->hw, RCTL, reg_rctl);
+		msec_delay(5);
+		if (adapter->hw.pci_cmd_word & CMD_MEM_WRT_INVALIDATE) {
+			em_pci_set_mwi(&adapter->hw);
+		}
+	}
+
+	return;
+}
+
+
+/*********************************************************************
+ *  Timer routine
+ *
+ *  This routine checks for link status and updates statistics.
+ *
+ **********************************************************************/
+
+static void
+em_local_timer(void *arg)
+{
+	int s;
+	struct ifnet   *ifp;
+	struct adapter * adapter = arg;
+	ifp = &adapter->interface_data.ac_if;
+
+	s = splimp();
+
+	em_check_for_link(&adapter->hw);
+	em_print_link_status(adapter);
+	em_update_stats_counters(adapter);   
+	if (em_display_debug_stats && ifp->if_flags & IFF_RUNNING) {
+		em_print_hw_stats(adapter);
+	}
+	adapter->timer_handle = timeout(em_local_timer, adapter, 2*hz);
+
+	splx(s);
+	return;
+}
+
+static void
+em_print_link_status(struct adapter * adapter)
+{
+	if (E1000_READ_REG(&adapter->hw, STATUS) & E1000_STATUS_LU) {
+		if (adapter->link_active == 0) {
+			em_get_speed_and_duplex(&adapter->hw, 
+						&adapter->link_speed, 
+						&adapter->link_duplex);
+			printf("em%d: Link is up %d Mbps %s\n",
+			       adapter->unit,
+			       adapter->link_speed,
+			       ((adapter->link_duplex == FULL_DUPLEX) ?
+				"Full Duplex" : "Half Duplex"));
+			adapter->link_active = 1;
+		}
+	} else {
+		if (adapter->link_active == 1) {
+			adapter->link_speed = 0;
+			adapter->link_duplex = 0;
+			printf("em%d: Link is Down\n", adapter->unit);
+			adapter->link_active = 0;
+		}
+	}
+
+	return;
+}
+
+
+/*********************************************************************
+ *
+ *  This routine disables all traffic on the adapter by issuing a
+ *  global reset on the MAC and deallocates TX/RX buffers. 
+ *
+ **********************************************************************/
+
+static void
+em_stop(void *arg)
+{
+	struct ifnet   *ifp;
+	struct adapter * adapter = arg;
+	ifp = &adapter->interface_data.ac_if;
+
+	INIT_DEBUGOUT("em_stop: begin\n");
+	em_disable_intr(adapter);
+	em_reset_hw(&adapter->hw);
+	untimeout(em_local_timer, adapter, adapter->timer_handle);
+	em_free_transmit_structures(adapter);
+	em_free_receive_structures(adapter);
+
+
+	/* Tell the stack that the interface is no longer active */
+	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+
+	return;
+}
 
 
 /*********************************************************************
@@ -1147,9 +1188,9 @@ em_identify_hardware(struct adapter * adapter)
 	adapter->hw.pci_cmd_word = pci_read_config(dev, PCIR_COMMAND, 2);
 	if (!((adapter->hw.pci_cmd_word & PCIM_CMD_BUSMASTEREN) &&
 	      (adapter->hw.pci_cmd_word & PCIM_CMD_MEMEN))) {
-		printf("em%d: Memory Access and/or Bus Master bits were not set!\n", 
+		printf("em%d: Memory Access and/or Bus Master bits were not set!\n",
 		       adapter->unit);
-		adapter->hw.pci_cmd_word |= 
+		adapter->hw.pci_cmd_word |=
 		(PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN);
 		pci_write_config(dev, PCIR_COMMAND, adapter->hw.pci_cmd_word, 2);
 	}
@@ -1161,37 +1202,10 @@ em_identify_hardware(struct adapter * adapter)
 	adapter->hw.subsystem_vendor_id = pci_read_config(dev, PCIR_SUBVEND_0, 2);
 	adapter->hw.subsystem_id = pci_read_config(dev, PCIR_SUBDEV_0, 2);
 
+	/* Identify the MAC */
+	if (em_set_mac_type(&adapter->hw))
+		printf("em%d: Unknown MAC Type\n", adapter->unit);
 
-	/* Set MacType, etc. based on this PCI info */
-	switch (adapter->hw.device_id) {
-	case E1000_DEV_ID_82542:
-		adapter->hw.mac_type = (adapter->hw.revision_id == 3) ?
-				       em_82542_rev2_1 : em_82542_rev2_0;
-		break;
-	case E1000_DEV_ID_82543GC_FIBER:
-	case E1000_DEV_ID_82543GC_COPPER:
-		adapter->hw.mac_type = em_82543;
-		break;
-	case E1000_DEV_ID_82544EI_FIBER:
-	case E1000_DEV_ID_82544EI_COPPER:
-	case E1000_DEV_ID_82544GC_COPPER:
-	case E1000_DEV_ID_82544GC_LOM:
-		adapter->hw.mac_type = em_82544;
-		break;
-	case E1000_DEV_ID_82540EM:
-		adapter->hw.mac_type = em_82540;
-		break;
-	case E1000_DEV_ID_82545EM_FIBER:
-	case E1000_DEV_ID_82545EM_COPPER:
-		adapter->hw.mac_type = em_82545;
-		break;
-	case E1000_DEV_ID_82546EB_FIBER:
-	case E1000_DEV_ID_82546EB_COPPER:
-		adapter->hw.mac_type = em_82546;
-		break;
-	default:
-		INIT_DEBUGOUT1("Unknown device id 0x%x", adapter->hw.device_id);
-	}
 	return;
 }
 
@@ -1465,7 +1479,6 @@ em_setup_transmit_structures(struct adapter * adapter)
 
 	/* Setup TX descriptor pointers */
 	adapter->next_avail_tx_desc = adapter->first_tx_desc;
-	adapter->oldest_used_tx_desc = adapter->first_tx_desc;
 
 	/* Set number of descriptors available */
 	adapter->num_tx_desc_avail = adapter->num_tx_desc;
@@ -1591,14 +1604,14 @@ em_free_transmit_structures(struct adapter * adapter)
  *
  **********************************************************************/
 static void
-em_transmit_checksum_setup(struct adapter * adapter,
+em_transmit_checksum_setup(struct adapter *adapter,
 			   struct mbuf *mp,
-			   struct em_tx_buffer *tx_buffer,
 			   u_int32_t *txd_upper,
 			   u_int32_t *txd_lower) 
 {
 	struct em_context_desc *TXD;
 	struct em_tx_desc * current_tx_desc;
+	struct em_tx_buffer *tx_buffer;
 
 	if (mp->m_pkthdr.csum_flags) {
 
@@ -1632,8 +1645,9 @@ em_transmit_checksum_setup(struct adapter * adapter,
 	 * needs to be reset.
 	 */
 	current_tx_desc = adapter->next_avail_tx_desc;
-	TXD = (struct em_context_desc *)current_tx_desc;
+	tx_buffer =  STAILQ_FIRST(&adapter->free_tx_buffer_list);
 
+	TXD = (struct em_context_desc *)current_tx_desc;
 	TXD->lower_setup.ip_fields.ipcss = ETHER_HDR_LEN;
 	TXD->lower_setup.ip_fields.ipcso = 
 	ETHER_HDR_LEN + offsetof(struct ip, ip_sum);
@@ -1655,7 +1669,7 @@ em_transmit_checksum_setup(struct adapter * adapter,
 	}
 
 	TXD->tcp_seg_setup.data = 0;
-	TXD->cmd_and_length = E1000_TXD_CMD_DEXT;
+	TXD->cmd_and_length = (adapter->txd_cmd | E1000_TXD_CMD_DEXT);
 
 	if (current_tx_desc == adapter->last_tx_desc)
 		adapter->next_avail_tx_desc = adapter->first_tx_desc;
@@ -1664,7 +1678,80 @@ em_transmit_checksum_setup(struct adapter * adapter,
 
 	adapter->num_tx_desc_avail--;
 
-	tx_buffer->num_tx_desc_used++;
+	tx_buffer->used_tx_desc = current_tx_desc;
+	STAILQ_REMOVE_HEAD(&adapter->free_tx_buffer_list, em_tx_entry);
+	STAILQ_INSERT_TAIL(&adapter->used_tx_buffer_list, tx_buffer, em_tx_entry);
+	return;
+}
+
+/**********************************************************************
+ *
+ *  Examine each tx_buffer in the used queue. If the hardware is done
+ *  processing the packet then free associated resources. The
+ *  tx_buffer is put back on the free queue. 
+ *
+ **********************************************************************/
+static void
+em_clean_transmit_interrupts(struct adapter * adapter)
+{
+	struct em_tx_buffer *tx_buffer;
+	struct em_tx_desc   *tx_desc;
+	int             s;
+	struct ifnet   *ifp;
+
+	s = splimp();
+#ifdef DBG_STATS
+	adapter->clean_tx_interrupts++;
+#endif
+
+	for (tx_buffer = STAILQ_FIRST(&adapter->used_tx_buffer_list);
+	    tx_buffer; 
+	    tx_buffer = STAILQ_FIRST(&adapter->used_tx_buffer_list)) {
+
+		/* 
+		 * Get hold of the next descriptor that the hardware will report status
+		 * back to. There is 1/1 correspondence between a tx descriptor
+		 * and tx_buffer.
+		 */
+
+		tx_desc = tx_buffer->used_tx_desc;
+
+		/* 
+		 * If the descriptor done bit is set, free tx_buffer and associated
+		 * resources
+		 */
+		if (tx_desc->upper.fields.status & E1000_TXD_STAT_DD) {
+
+			tx_desc->upper.data = 0;
+			adapter->num_tx_desc_avail++;
+
+			if (tx_buffer->m_head) {
+				m_freem(tx_buffer->m_head);
+				tx_buffer->m_head = NULL;
+			}
+
+			STAILQ_REMOVE_HEAD(&adapter->used_tx_buffer_list, 
+					   em_tx_entry);
+			/* Return this tx_buffer back to the "free" list */
+			STAILQ_INSERT_TAIL(&adapter->free_tx_buffer_list, 
+					   tx_buffer, em_tx_entry);
+		} else {
+			/* 
+			 * Found a tx_buffer that the em is not done with then there is
+			 * no reason to check the rest of the queue.
+			 */
+			break;
+		}
+	}		      /* end for each tx_buffer */
+
+	ifp = &adapter->interface_data.ac_if;
+
+	/* Tell the stack that it is OK to send packets */
+	if (adapter->num_tx_desc_avail > EM_TX_CLEANUP_THRESHOLD) {
+		ifp->if_timer = 0;
+		ifp->if_flags &= ~IFF_OACTIVE;
+	}
+	splx(s);
 	return;
 }
 
@@ -2136,32 +2223,56 @@ em_disable_intr(struct adapter *adapter)
 	return;
 }
 
-void em_write_pci_cfg(struct em_hw *hw,
-		      uint32_t reg,
-		      uint16_t *value)
+void 
+em_write_pci_cfg(struct em_hw *hw,
+		 uint32_t reg,
+		 uint16_t *value)
 {
 	pci_write_config(((struct em_osdep *)hw->back)->dev, reg, 
 			 *value, 2);
 }
 
-void em_read_pci_cfg(struct em_hw *hw, uint32_t reg,
-		     uint16_t *value)
+void 
+em_read_pci_cfg(struct em_hw *hw, uint32_t reg,
+		uint16_t *value)
 {
 	*value = pci_read_config(((struct em_osdep *)hw->back)->dev,
 				 reg, 2);
 	return;
 }
 
-uint32_t em_io_read(struct em_hw *hw, uint32_t port)
+
+void
+em_pci_set_mwi(struct em_hw *hw)
+{
+	pci_write_config(((struct em_osdep *)hw->back)->dev,
+			 PCIR_COMMAND,
+			 (hw->pci_cmd_word | CMD_MEM_WRT_INVALIDATE), 2);
+	return;
+}
+
+void
+em_pci_clear_mwi(struct em_hw *hw)
+{
+	pci_write_config(((struct em_osdep *)hw->back)->dev,
+			 PCIR_COMMAND,
+			 (hw->pci_cmd_word & ~CMD_MEM_WRT_INVALIDATE), 2);
+	return;
+}
+
+uint32_t 
+em_io_read(struct em_hw *hw, uint32_t port)
 {
 	return(inl(port));
 }
 
-void em_io_write(struct em_hw *hw, uint32_t port, uint32_t value)
+void 
+em_io_write(struct em_hw *hw, uint32_t port, uint32_t value)
 {
 	outl(port, value);
 	return;
 } 
+
 
 /**********************************************************************
  *
@@ -2288,8 +2399,10 @@ em_print_hw_stats(struct adapter *adapter)
 	       adapter->clean_tx_interrupts);
 #endif
 
-	printf("em%d: Tx Descriptors not Avail = %ld\n", unit, 
-	       adapter->no_tx_desc_avail);
+	printf("em%d: Tx Descriptors not avail1 = %ld\n", unit, 
+	       adapter->no_tx_desc_avail1);
+	printf("em%d: Tx Descriptors not avail2 = %ld\n", unit, 
+	       adapter->no_tx_desc_avail2);
 	printf("em%d: Tx Buffer not avail1 = %ld\n", unit, 
 	       adapter->no_tx_buffer_avail1);
 	printf("em%d: Tx Buffer not avail2 = %ld\n", unit, 
@@ -2298,6 +2411,8 @@ em_print_hw_stats(struct adapter *adapter)
 	       adapter->mbuf_alloc_failed);
 	printf("em%d: Std Cluster Failed = %ld\n",unit, 
 	       adapter->mbuf_cluster_failed);
+	printf("em%d: Number of TX desc avail = %d\n", unit,
+	       adapter->num_tx_desc_avail);
 
 	printf("em%d: Symbol errors = %lld\n", unit, 
 	       (long long)adapter->stats.symerrs);
@@ -2337,95 +2452,6 @@ em_print_hw_stats(struct adapter *adapter)
 	printf("em%d: Good Packets Xmtd = %lld\n", unit,
 	       (long long)adapter->stats.gptc);
 
-	return;
-}
-
-
-/**********************************************************************
- *
- *  Examine each tx_buffer in the used queue. If the hardware is done
- *  processing the packet then free associated resources. The
- *  tx_buffer is put back on the free queue. 
- *
- **********************************************************************/
-static void
-em_clean_transmit_interrupts(struct adapter * adapter)
-{
-	struct em_tx_buffer *tx_buffer;
-	struct em_tx_desc   *tx_desc;
-	int             s;
-	struct ifnet   *ifp;
-
-	s = splimp();
-#ifdef DBG_STATS
-	adapter->clean_tx_interrupts++;
-#endif
-
-	for (tx_buffer = STAILQ_FIRST(&adapter->used_tx_buffer_list);
-	    tx_buffer; 
-	    tx_buffer = STAILQ_FIRST(&adapter->used_tx_buffer_list)) {
-
-		/* 
-		 * Get hold of the next descriptor that the em will report status
-		 * back to (this will be the last descriptor of a given tx_buffer). We
-		 * only want to free the tx_buffer (and it resources) if the driver is
-		 * done with ALL of the descriptors.  If the driver is done with the
-		 * last one then it is done with all of them.
-		 */
-
-		tx_desc = adapter->oldest_used_tx_desc +
-			  (tx_buffer->num_tx_desc_used - 1);
-
-		/* Check for wrap case */
-		if (tx_desc > adapter->last_tx_desc)
-			tx_desc -= adapter->num_tx_desc;
-
-
-		/* 
-		 * If the descriptor done bit is set free tx_buffer and associated
-		 * resources
-		 */
-		if (tx_desc->upper.fields.status & E1000_TXD_STAT_DD) {
-
-			STAILQ_REMOVE_HEAD(&adapter->used_tx_buffer_list, 
-					   em_tx_entry);
-
-			if ((tx_desc == adapter->last_tx_desc))
-				adapter->oldest_used_tx_desc =
-				adapter->first_tx_desc;
-			else
-				adapter->oldest_used_tx_desc = (tx_desc + 1);
-
-			/* Make available the descriptors that were previously used */
-			adapter->num_tx_desc_avail +=
-			tx_buffer->num_tx_desc_used;
-
-			tx_buffer->num_tx_desc_used = 0;
-
-			if (tx_buffer->m_head) {
-				m_freem(tx_buffer->m_head);
-				tx_buffer->m_head = NULL;
-			}
-			/* Return this "Software packet" back to the "free" list */
-			STAILQ_INSERT_TAIL(&adapter->free_tx_buffer_list, 
-					   tx_buffer, em_tx_entry);
-		} else {
-			/* 
-			 * Found a tx_buffer that the em is not done with then there is
-			 * no reason to check the rest of the queue.
-			 */
-			break;
-		}
-	}		      /* end for each tx_buffer */
-
-	ifp = &adapter->interface_data.ac_if;
-
-	/* Tell the stack that it is OK to send packets */
-	if (adapter->num_tx_desc_avail > TX_CLEANUP_THRESHOLD) {
-		ifp->if_timer = 0;
-		ifp->if_flags &= ~IFF_OACTIVE;
-	}
-	splx(s);
 	return;
 }
 
