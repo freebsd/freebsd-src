@@ -71,8 +71,10 @@ atapi_attach(struct ata_device *atadev)
 		   ata_pmode(atadev->param), ata_wmode(atadev->param),
 		   ata_umode(atadev->param), atadev->param->support_dma);
 
+    /* use DMA if allowed and if drive/controller supports it */
     ATA_SLEEPLOCK_CH(atadev->channel, ATA_CONTROL);
-    if (atapi_dma && !(atadev->param->drq_type == ATAPI_DRQT_INTR))
+    if (atapi_dma && atadev->channel->dma &&
+	!(atadev->param->drq_type == ATAPI_DRQT_INTR))
 	atadev->setmode(atadev, ATA_DMA_MAX);
     else
 	atadev->setmode(atadev, ATA_PIO_MAX);
