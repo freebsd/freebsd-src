@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrevive.c,v 1.6 1999/01/17 06:20:44 grog Exp grog $
+ * $Id: vinumrevive.c,v 1.7 1999/02/28 02:12:18 grog Exp grog $
  */
 
 #define REALLYKERNEL
@@ -125,8 +125,8 @@ revive_block(int sdno)
 	bp->b_blkno = plexblkno;			    /* start here */
 	if (vol != NULL)				    /* it's part of a volume, */
 	    /*
-	     * First, read the data from the volume.  We don't
-	     * care which plex, that's bre's job 
+	       * First, read the data from the volume.  We don't
+	       * care which plex, that's bre's job 
 	     */
 	    bp->b_dev = VINUMBDEV(plex->volno, 0, 0, VINUM_VOLUME_TYPE); /* create the device number */
 	else						    /* it's an unattached plex */
@@ -159,7 +159,7 @@ revive_block(int sdno)
 	    if (sd->revived >= sd->sectors) {		    /* finished */
 		sd->revived = 0;
 		set_sd_state(sdno, sd_up, setstate_force);  /* bring the sd up */
-		printf("vinum: %s is %s\n", sd->name, sd_state(sd->state));
+		log(LOG_INFO, "vinum: %s is %s\n", sd->name, sd_state(sd->state));
 		save_config();				    /* and save the updated configuration */
 		error = 0;				    /* we're done */
 	    }
@@ -169,7 +169,8 @@ revive_block(int sdno)
 	    struct request *rq = sd->waitlist;
 
 	    if (debug & DEBUG_REVIVECONFLICT)
-		printf("Relaunch revive conflict sd %d: %x\n%s dev 0x%x, offset 0x%x, length %ld\n",
+		log(LOG_DEBUG,
+		    "Relaunch revive conflict sd %d: %x\n%s dev 0x%x, offset 0x%x, length %ld\n",
 		    rq->sdno,
 		    (u_int) rq,
 		    rq->bp->b_flags & B_READ ? "Read" : "Write",

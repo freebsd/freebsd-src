@@ -35,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinuminterrupt.c,v 1.4 1999/01/12 04:30:12 grog Exp grog $
+ * $Id: vinuminterrupt.c,v 1.5 1999/03/16 03:40:25 grog Exp grog $
  */
 
 #define REALLYKERNEL
@@ -74,7 +74,7 @@ complete_rqe(struct buf *bp)
 
 #ifdef VINUMDEBUG
     if (debug & DEBUG_LASTREQS)
-	logrq(loginfo_iodone, rqe, ubp);
+	logrq(loginfo_iodone, (union rqinfou) rqe, ubp);
 #endif
     if ((bp->b_flags & B_ERROR) != 0) {			    /* transfer in error */
 	if (bp->b_error != 0)				    /* did it return a number? */
@@ -83,14 +83,14 @@ complete_rqe(struct buf *bp)
 	    rq->error = EIO;				    /* no: catchall "I/O error" */
 	SD[rqe->sdno].lasterror = rq->error;
 	if (bp->b_flags & B_READ) {
-	    printf("%s: fatal read I/O error\n", SD[rqe->sdno].name);
+	    log(LOG_ERR, "%s: fatal read I/O error\n", SD[rqe->sdno].name);
 	    set_sd_state(rqe->sdno, sd_crashed, setstate_force); /* subdisk is crashed */
 	} else {					    /* write operation */
-	    printf("%s: fatal write I/O error\n", SD[rqe->sdno].name);
+	    log(LOG_ERR, "%s: fatal write I/O error\n", SD[rqe->sdno].name);
 	    set_sd_state(rqe->sdno, sd_stale, setstate_force); /* subdisk is stale */
 	}
 	if (rq->error == ENXIO) {			    /* the drive's down too */
-	    printf("%s: fatal drive I/O error\n", DRIVE[rqe->driveno].label.name);
+	    log(LOG_ERR, "%s: fatal drive I/O error\n", DRIVE[rqe->driveno].label.name);
 	    DRIVE[rqe->driveno].lasterror = rq->error;
 	    set_drive_state(rqe->driveno,		    /* take the drive down */
 		drive_down,
@@ -126,7 +126,8 @@ complete_rqe(struct buf *bp)
 		int i;
 		for (i = 0; i < ubp->b_bcount; i += 512)    /* XXX debug */
 		    if (((char *) ubp->b_data)[i] != '<') { /* and not what we expected */
-			printf("At 0x%x (offset 0x%x): '%c' (0x%x)\n",
+			log(LOG_DEBUG,
+			    "At 0x%x (offset 0x%x): '%c' (0x%x)\n",
 			    (int) (&((char *) ubp->b_data)[i]),
 			    i,
 			    ((char *) ubp->b_data)[i],
@@ -142,7 +143,7 @@ complete_rqe(struct buf *bp)
 		ubp->b_flags |= B_ERROR;		    /* yes, propagate to user */
 		ubp->b_error = rq->error;
 	    } else					    /* try to recover */
-		queue_daemon_request(daemonrq_ioerror, rq); /* let the daemon complete */
+		queue_daemon_request(daemonrq_ioerror, (union daemoninfo) rq); /* let the daemon complete */
 	} else {
 	    ubp->b_resid = 0;				    /* completed our transfer */
 	    if (rq->isplex == 0)			    /* volume request, */
@@ -177,7 +178,7 @@ void
 free_rqg(struct rqgroup *rqg)
 {
     if ((rqg->flags & XFR_GROUPOP)			    /* RAID 5 request */
-    &&(rqg->rqe) /* got a buffer structure */
+&&(rqg->rqe) /* got a buffer structure */
     &&(rqg->rqe->b.b_data))				    /* and it has a buffer allocated */
 	Free(rqg->rqe->b.b_data);			    /* free it */
 }

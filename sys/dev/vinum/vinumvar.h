@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumvar.h,v 1.18 1999/01/15 06:00:24 grog Exp grog $
+ * $Id: vinumvar.h,v 1.19 1999/03/23 02:48:20 grog Exp grog $
  */
 
 #include <sys/time.h>
@@ -119,7 +119,20 @@ enum constants {
 /* extract device type */
 #define DEVTYPE(x) ((x >> VINUM_TYPE_SHIFT) & 7)
 
-    VINUM_SUPERDEV = VINUMBDEV(0, 0, 0, VINUM_SUPERDEV_TYPE), /* superdevice number */
+/*
+ * This mess is used to catch people who compile
+ * a debug vinum(8) and non-debug kernel module,
+ * or the other way round.
+ */
+
+#ifdef VINUMDEBUG
+    VINUM_SUPERDEV = VINUMBDEV(1, 0, 0, VINUM_SUPERDEV_TYPE), /* superdevice number */
+    VINUM_WRONGSUPERDEV = VINUMBDEV(2, 0, 0, VINUM_SUPERDEV_TYPE), /* non-debug superdevice number */
+#else
+    VINUM_SUPERDEV = VINUMBDEV(2, 0, 0, VINUM_SUPERDEV_TYPE), /* superdevice number */
+    VINUM_WRONGSUPERDEV = VINUMBDEV(1, 0, 0, VINUM_SUPERDEV_TYPE), /* debug superdevice number */
+#endif
+    VINUM_DAEMON_DEV = VINUMBDEV(0, 0, 0, VINUM_SUPERDEV_TYPE),	/* daemon superdevice number */
 
 /*
  * the number of object entries to cater for initially, and also the
@@ -185,7 +198,19 @@ struct devcode {
 
 #define VINUM_DIR   "/dev/vinum"
 #define VINUM_RDIR   "/dev/rvinum"
-#define VINUM_SUPERDEV_NAME VINUM_DIR"/control"
+
+/*
+ * These definitions help catch
+ * userland/kernel mismatches.
+ */
+#if VINUMDEBUG
+#define VINUM_WRONGSUPERDEV_NAME VINUM_DIR"/control"	    /* normal super device */
+#define VINUM_SUPERDEV_NAME VINUM_DIR"/Control"		    /* debug super device */
+#else
+#define VINUM_WRONGSUPERDEV_NAME VINUM_DIR"/Control"	    /* debug super device */
+#define VINUM_SUPERDEV_NAME VINUM_DIR"/control"		    /* normal super device */
+#endif
+#define VINUM_DAEMON_DEV_NAME VINUM_DIR"/controld"	    /* super device for daemon only */
 
 /*
  * Flags for all objects.  Most of them only apply to
@@ -195,6 +220,7 @@ struct devcode {
 enum objflags {
     VF_LOCKED = 1,					    /* somebody has locked access to this object */
     VF_LOCKING = 2,					    /* we want access to this object */
+    VF_OPEN = 4,					    /* object has openers */
     VF_WRITETHROUGH = 8,				    /* volume: write through */
     VF_INITED = 0x10,					    /* unit has been initialized */
     VF_WLABEL = 0x20,					    /* label area is writable */
@@ -207,9 +233,12 @@ enum objflags {
     VF_CONFIG_INCOMPLETE = 0x1000,			    /* haven't finished changing the config */
     VF_CONFIG_SETUPSTATE = 0x2000,			    /* set a volume up if all plexes are empty */
     VF_READING_CONFIG = 0x4000,				    /* we're reading config database from disk */
-    VF_KERNELOP = 0x8000,				    /* we're performing ops from kernel space */
+    VF_FORCECONFIG = 0x8000,				    /* configure drives even with different names */
     VF_NEWBORN = 0x10000,				    /* for objects: we've just created it */
     VF_CONFIGURED = 0x20000,				    /* for drives: we read the config */
+    VF_STOPPING = 0x40000,				    /* for vinum_conf: stop on last close */
+    VF_DAEMONOPEN = 0x80000,				    /* the daemon has us open (only superdev) */
+    VF_CREATED = 0x100000,				    /* for volumes: freshly created, more then new */
 };
 
 /* Global configuration information for the vinum subsystem */
@@ -233,7 +262,6 @@ struct _vinum_conf {
     int volumes_used;
 
     int flags;
-    int opencount;					    /* number of times we've been opened */
 #if VINUMDEBUG
     int lastrq;
     struct buf *lastbuf;
@@ -260,14 +288,14 @@ struct _vinum_conf {
  * |--------------------------------------|
  * |   Disk label, maybe                  |      1
  * |--------------------------------------|
- * |   Slice definition  (vinum_hdr)      |      2
+ * |   Slice definition  (vinum_hdr)      |      8
  * |--------------------------------------|
  * |                                      |
- * |   Configuration info, first copy     |      3
+ * |   Configuration info, first copy     |      9
  * |                                      |
  * |--------------------------------------|
  * |                                      |
- * |   Configuration info, second copy    |      3 + size of config
+ * |   Configuration info, second copy    |      9 + size of config
  * |                                      |
  * |--------------------------------------|
  */
@@ -376,7 +404,6 @@ struct sd {
     int sdno;						    /* our index in vinum_conf */
     int plexsdno;					    /* and our number in our plex
 							    * (undefined if no plex) */
-    int pid;						    /* pid of process which opened us */
     u_int64_t reads;					    /* number of reads on this subdisk */
     u_int64_t writes;					    /* number of writes on this subdisk */
     u_int64_t bytes_read;				    /* number of bytes read */
@@ -411,7 +438,6 @@ struct plex {
     int plexno;						    /* index of plex in vinum_conf */
     int volno;						    /* index of volume */
     int volplexno;					    /* number of plex in volume */
-    int pid;						    /* pid of process which opened us */
     /* Lock information */
     int locks;						    /* number of locks used */
     int alloclocks;					    /* number of locks allocated */
@@ -438,14 +464,11 @@ struct volume {
 							    * for round-robin */
     dev_t devno;					    /* device number */
     int flags;						    /* status and configuration flags */
-    int opencount;					    /* number of opens (all the same process) */
     int openflags;					    /* flags supplied to last open(2) */
     u_int64_t size;					    /* size of volume */
-    int disk;						    /* disk index */
     int blocksize;					    /* logical block size */
     int active;						    /* number of outstanding requests active */
     int subops;						    /* and the number of suboperations */
-    pid_t pid;						    /* pid of locker */
     /* Statistics */
     u_int64_t bytes_read;				    /* number of bytes read */
     u_int64_t bytes_written;				    /* number of bytes written */
@@ -480,12 +503,10 @@ struct meminfo {
 };
 
 struct mc {
+    struct timeval time;
     int seq;
     int size;
     short line;
-    short flags;
-#define ALLOC_KVA 1					    /* allocated via kva calls */
-    int *databuf;					    /* really vm_object_t */
     caddr_t address;
     char file[16];
 };
@@ -501,14 +522,14 @@ struct mc {
  * state.c 
  */
 enum volplexstate {
-    volplex_onlyusdown = 0,				    /* we're the only plex, and we're down */
+    volplex_onlyusdown = 0,				    /* 0: we're the only plex, and we're down */
     volplex_alldown,					    /* 1: another plex is down, and so are we */
     volplex_otherup,					    /* 2: another plex is up */
-    volplex_otherupdown,				    /* other plexes are up and down */
+    volplex_otherupdown,				    /* 3: other plexes are up and down */
     volplex_onlyus,					    /* 4: we're up and alone */
-    volplex_onlyusup,					    /* only we are up, others are down */
-    volplex_allup,					    /* all plexes are up */
-    volplex_someup					    /* some plexes are up, including us */
+    volplex_onlyusup,					    /* 5: only we are up, others are down */
+    volplex_allup,					    /* 6: all plexes are up */
+    volplex_someup					    /* 7: some plexes are up, including us */
 };
 
 /* state map for plex */
@@ -544,7 +565,14 @@ enum debugflags {
     DEBUG_RESID = 4,					    /* go into debugger in complete_rqe */
     DEBUG_LASTREQS = 8,					    /* keep a circular buffer of last requests */
     DEBUG_REVIVECONFLICT = 16,				    /* print info about revive conflicts */
+    DEBUG_EOFINFO = 32,					    /* print info about EOF detection */
+    DEBUG_MEMFREE = 64,					    /* keep info about Frees */
+    DEBUG_BIGDRIVE = 128,				    /* pretend our drives are 100 times the size */
     DEBUG_REMOTEGDB = 256,				    /* go into remote gdb */
+    DEBUG_EXITFREE = 512,				    /* log "freeing malloc" on exit  */
 };
 
+#ifdef KERNEL
+#define longjmp LongJmp					    /* test our longjmps */
+#endif
 #endif

@@ -33,27 +33,65 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinummemory.c,v 1.19 1998/12/30 06:22:26 grog Exp grog $
+ * $Id: vinummemory.c,v 1.20 1999/03/19 03:21:08 grog Exp grog $
  */
 
 #define REALLYKERNEL
 #include "opt_vinum.h"
 #include <dev/vinum/vinumhdr.h>
 
-extern jmp_buf command_fail;				    /* return on a failed command */
-
 #ifdef VINUMDEBUG
+jmp_buf command_fail;					    /* return on a failed command */
+#undef longjmp						    /* this was defined as LongJmp */
+void longjmp(jmp_buf, int);				    /* the kernel doesn't define this */
+
 #include <dev/vinum/request.h>
 extern struct rqinfo rqinfo[];
 extern struct rqinfo *rqip;
+
+#ifdef __i386__						    /* check for validity */
+void 
+LongJmp(jmp_buf buf, int retval)
+{
+/*
+   * longjmp is not documented, not even jmp_buf.
+   * This is what's in i386/i386/support.s:
+   * ENTRY(longjmp)
+   *    movl    4(%esp),%eax
+   *    movl    (%eax),%ebx                      restore ebx 
+   *    movl    4(%eax),%esp                     restore esp 
+   *    movl    8(%eax),%ebp                     restore ebp 
+   *    movl    12(%eax),%esi                    restore esi 
+   *    movl    16(%eax),%edi                    restore edi 
+   *    movl    20(%eax),%edx                    get rta 
+   *    movl    %edx,(%esp)                      put in return frame 
+   *    xorl    %eax,%eax                        return(1); 
+   *    incl    %eax
+   *    ret
+   *
+   * from which we deduce the structure of jmp_buf:
+ */
+    struct JmpBuf {
+	int jb_ebx;
+	int jb_esp;
+	int jb_ebp;
+	int jb_esi;
+	int jb_edi;
+	int jb_eip;
+    };
+
+    struct JmpBuf *jb = (struct JmpBuf *) buf;
+
+    if ((jb->jb_esp < 0xd0000000)
+	|| (jb->jb_ebp < 0xd0000000)
+	|| (jb->jb_eip < 0xe0000000))
+	panic("Invalid longjmp");
+    longjmp(buf, retval);
+}
+#else
+#define LongJmp longjmp					    /* just use the kernel function */
 #endif
-
-/* Why aren't these declared anywhere? XXX */
-int setjmp(jmp_buf);
-void longjmp(jmp_buf, int);
-
-void freedatabuf(struct mc *me);
-caddr_t allocdatabuf(struct mc *me);
+#endif
 
 void 
 expand_table(void **table, int oldsize, int newsize)
@@ -63,6 +101,7 @@ expand_table(void **table, int oldsize, int newsize)
 
 	temp = (int *) Malloc(newsize);			    /* allocate a new table */
 	CHECKALLOC(temp, "vinum: Can't expand table\n");
+	bzero((char *) temp, newsize);			    /* clean it all out */
 	if (*table != NULL) {				    /* already something there, */
 	    bcopy((char *) *table, (char *) temp, oldsize); /* copy it to the old table */
 	    Free(*table);
@@ -75,28 +114,30 @@ expand_table(void **table, int oldsize, int newsize)
 #define MALLOCENTRIES 16384
 int malloccount = 0;
 int highwater = 0;					    /* highest index ever allocated */
-static struct mc malloced[MALLOCENTRIES];
+struct mc malloced[MALLOCENTRIES];
 
-static total_malloced;
+#define FREECOUNT 64
+int lastfree = 0;
+struct mc freeinfo[FREECOUNT];
+
+int total_malloced;
+static int mallocseq = 0;
 
 caddr_t 
 MMalloc(int size, char *file, int line)
 {
     caddr_t result;
     int i;
-    static int seq = 0;
     int s;
-    struct mc me;					    /* information to pass to allocdatabuf */
 
     if (malloccount >= MALLOCENTRIES) {			    /* too many */
-	printf("vinum: can't allocate table space to trace memory allocation");
+	log(LOG_ERR, "vinum: can't allocate table space to trace memory allocation");
 	return 0;					    /* can't continue */
     }
-    result = malloc(size, M_DEVBUF, M_WAITOK);		    /* use malloc for smaller and irregular stuff */
+    result = malloc(size, M_DEVBUF, M_WAITOK);
     if (result == NULL)
-	printf("vinum: can't allocate %d bytes from %s:%d\n", size, file, line);
+	log(LOG_ERR, "vinum: can't allocate %d bytes from %s:%d\n", size, file, line);
     else {
-	me.flags = 0;					    /* allocation via malloc */
 	s = splhigh();
 	for (i = 0; i < malloccount; i++) {
 	    if (((result + size) > malloced[i].address)
@@ -112,12 +153,11 @@ MMalloc(int size, char *file, int line)
 		f++;					    /* skip the / */
 	    i = malloccount++;
 	    total_malloced += size;
-	    malloced[i].address = result;
+	    microtime(&malloced[i].time);
+	    malloced[i].seq = mallocseq++;
 	    malloced[i].size = size;
 	    malloced[i].line = line;
-	    malloced[i].seq = seq++;
-	    malloced[i].flags = me.flags;
-	    malloced[i].databuf = me.databuf;		    /* only used with kva alloc */
+	    malloced[i].address = result;
 	    bcopy(f, malloced[i].file, min(strlen(f) + 1, 16));
 	}
 	if (malloccount > highwater)
@@ -140,6 +180,23 @@ FFree(void *mem, char *file, int line)
 	    free(mem, M_DEVBUF);
 	    malloccount--;
 	    total_malloced -= malloced[i].size;
+	    if (debug & DEBUG_MEMFREE) {		    /* keep track of recent frees */
+		char *f = rindex(file, '/');		    /* chop off dirname if present */
+
+		if (f == NULL)
+		    f = file;
+		else
+		    f++;				    /* skip the / */
+
+		microtime(&freeinfo[lastfree].time);
+		freeinfo[lastfree].seq = malloced[i].seq;
+		freeinfo[lastfree].size = malloced[i].size;
+		freeinfo[lastfree].line = line;
+		freeinfo[lastfree].address = mem;
+		bcopy(f, freeinfo[lastfree].file, min(strlen(f) + 1, 16));
+		if (++lastfree == FREECOUNT)
+		    lastfree = 0;
+	    }
 	    if (i < malloccount)			    /* more coming after */
 		bcopy(&malloced[i + 1], &malloced[i], (malloccount - i) * sizeof(struct mc));
 	    splx(s);
@@ -147,7 +204,7 @@ FFree(void *mem, char *file, int line)
 	}
     }
     splx(s);
-    printf("Freeing unallocated data at 0x%08x from %s, line %d\n", (int) mem, file, line);
+    log(LOG_ERR, "Freeing unallocated data at 0x%08x from %s, line %d\n", (int) mem, file, line);
     Debugger("Free");
 }
 

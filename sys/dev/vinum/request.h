@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: request.h,v 1.13 1999/01/14 05:46:22 grog Exp grog $
+ * $Id: request.h,v 1.14 1999/03/16 03:37:50 grog Exp grog $
  */
 
 /* Information needed to set up a transfer */
@@ -213,6 +213,7 @@ union daemoninfo {					    /* and the request information */
     struct request *rq;					    /* for daemonrq_ioerror */
     struct sd *sd;					    /* for daemonrq_revive */
     struct plex *plex;					    /* for daemonrq_init */
+    int nothing;					    /* for passing NULL */
 };
 
 struct daemonq {

@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrequest.c,v 1.22 1999/01/17 06:15:46 grog Exp grog $
+ * $Id: vinumrequest.c,v 1.23 1999/03/20 21:58:38 grog Exp grog $
  */
 
 #define REALLYKERNEL
@@ -55,7 +55,6 @@ enum requeststatus build_read_request(struct request *rq, int volplexno);
 enum requeststatus build_write_request(struct request *rq);
 enum requeststatus build_rq_buffer(struct rqelement *rqe, struct plex *plex);
 void freerq(struct request *rq);
-void free_rqg(struct rqgroup *rqg);
 int find_alternate_sd(struct request *rq);
 int check_range_covered(struct request *);
 void complete_rqe(struct buf *bp);
@@ -174,7 +173,7 @@ vinumstart(struct buf *bp, int reviveok)
 
 #if VINUMDEBUG
     if (debug & DEBUG_LASTREQS)
-	logrq(loginfo_user_bp, bp, bp);
+	logrq(loginfo_user_bp, (union rqinfou) bp, bp);
 #endif
 
     /*
@@ -259,13 +258,8 @@ vinumstart(struct buf *bp, int reviveok)
 	    biodone(bp);
 	    freerq(rq);
 	    return -1;
-	} {						    /* XXX */
-	    int result;
-	    int s = splhigh();
-	    result = launch_requests(rq, reviveok);	    /* now start the requests if we can */
-	    splx(s);
-	    return result;
 	}
+	return launch_requests(rq, reviveok);		    /* now start the requests if we can */
     } else
 	/*
 	 * This is a write operation.  We write to all
@@ -335,7 +329,8 @@ launch_requests(struct request *rq, int reviveok)
 
 #if VINUMDEBUG
 	if (debug & DEBUG_REVIVECONFLICT)
-	    printf("Revive conflict sd %d: %x\n%s dev 0x%x, offset 0x%x, length %ld\n",
+	    log(LOG_DEBUG,
+		"Revive conflict sd %d: %x\n%s dev 0x%x, offset 0x%x, length %ld\n",
 		rq->sdno,
 		(u_int) rq,
 		rq->bp->b_flags & B_READ ? "Read" : "Write",
@@ -348,13 +343,14 @@ launch_requests(struct request *rq, int reviveok)
     rq->active = 0;					    /* nothing yet */
     /* XXX This is probably due to a bug */
     if (rq->rqg == NULL) {				    /* no request */
-	printf("vinum: null rqg");
+	log(LOG_ERR, "vinum: null rqg\n");
 	abortrequest(rq, EINVAL);
 	return -1;
     }
 #if VINUMDEBUG
     if (debug & DEBUG_ADDRESSES)
-	printf("Request: %x\n%s dev 0x%x, offset 0x%x, length %ld\n",
+	log(LOG_DEBUG,
+	    "Request: %x\n%s dev 0x%x, offset 0x%x, length %ld\n",
 	    (u_int) rq,
 	    rq->bp->b_flags & B_READ ? "Read" : "Write",
 	    rq->bp->b_dev,
@@ -363,8 +359,9 @@ launch_requests(struct request *rq, int reviveok)
     vinum_conf.lastrq = (int) rq;
     vinum_conf.lastbuf = rq->bp;
     if (debug & DEBUG_LASTREQS)
-	logrq(loginfo_user_bpl, rq->bp, rq->bp);
+	logrq(loginfo_user_bpl, (union rqinfou) rq->bp, rq->bp);
 #endif
+    s = splbio();
     for (rqg = rq->rqg; rqg != NULL; rqg = rqg->next) {	    /* through the whole request chain */
 	rqg->active = rqg->count;			    /* they're all active */
 	rq->active++;					    /* one more active request group */
@@ -378,7 +375,8 @@ launch_requests(struct request *rq, int reviveok)
 		rqe->b.b_flags |= B_ORDERED;		    /* XXX chase SCSI driver */
 #if VINUMDEBUG
 		if (debug & DEBUG_ADDRESSES)
-		    printf("  %s dev 0x%x, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
+		    log(LOG_DEBUG,
+			"  %s dev 0x%x, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
 			rqe->b.b_flags & B_READ ? "Read" : "Write",
 			rqe->b.b_dev,
 			rqe->sdno,
@@ -386,20 +384,20 @@ launch_requests(struct request *rq, int reviveok)
 			rqe->b.b_blkno,
 			rqe->b.b_bcount);		    /* XXX */
 		if (debug & DEBUG_NUMOUTPUT)
-		    printf("  vinumstart sd %d numoutput %ld\n",
+		    log(LOG_DEBUG,
+			"  vinumstart sd %d numoutput %ld\n",
 			rqe->sdno,
 			rqe->b.b_vp->v_numoutput);
 		if (debug & DEBUG_LASTREQS)
-		    logrq(loginfo_rqe, rqe, rq->bp);
+		    logrq(loginfo_rqe, (union rqinfou) rqe, rq->bp);
 #endif
 		/* fire off the request */
-		s = splbio();
 		(*bdevsw[major(rqe->b.b_dev)]->d_strategy) (&rqe->b);
-		splx(s);
 	    }
 	    /* XXX Do we need caching?  Think about this more */
 	}
     }
+    splx(s);
     return 0;
 }
 
@@ -555,6 +553,21 @@ bre(struct request *rq,
 
 		if (rqe->sdoffset >= sd->sectors) {	    /* starts beyond the end of the subdisk? */
 		    deallocrqg(rqg);
+#if VINUMDEBUG
+		    if (debug & DEBUG_EOFINFO) {	    /* tell on the request */
+			log(LOG_DEBUG,
+			    "vinum: EOF on plex %s, sd %s offset %x (user offset %x)\n",
+			    plex->name,
+			    sd->name,
+			    (u_int) sd->sectors,
+			    bp->b_blkno);
+			log(LOG_DEBUG,
+			    "vinum: stripebase %x, stripeoffset %x, blockoffset %x\n",
+			    stripebase,
+			    stripeoffset,
+			    blockoffset);
+		    }
+#endif
 		    return REQUEST_EOF;
 		} else if (rqe->sdoffset + rqe->datalen > sd->sectors) /* ends beyond the end of the subdisk? */
 		    rqe->datalen = sd->sectors - rqe->sdoffset;	/* yes, truncate */
@@ -578,7 +591,7 @@ bre(struct request *rq,
 
 
     default:
-	printf("vinum: invalid plex type in bre");
+	log(LOG_ERR, "vinum: invalid plex type %d in bre\n", plex->organization);
     }
 
     return status;
@@ -840,7 +853,8 @@ sdio(struct buf *bp)
 	sbp->b.b_vp->v_numoutput++;			    /* one more output going */
 #if VINUMDEBUG
     if (debug & DEBUG_ADDRESSES)
-	printf("  %s dev 0x%x, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
+	log(LOG_DEBUG,
+	    "  %s dev 0x%x, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
 	    sbp->b.b_flags & B_READ ? "Read" : "Write",
 	    sbp->b.b_dev,
 	    sbp->sdno,
@@ -848,7 +862,8 @@ sdio(struct buf *bp)
 	    (int) sbp->b.b_blkno,
 	    sbp->b.b_bcount);				    /* XXX */
     if (debug & DEBUG_NUMOUTPUT)
-	printf("  vinumstart sd %d numoutput %ld\n",
+	log(LOG_DEBUG,
+	    "  vinumstart sd %d numoutput %ld\n",
 	    sbp->sdno,
 	    sbp->b.b_vp->v_numoutput);
 #endif
@@ -951,14 +966,21 @@ deallocrqg(struct rqgroup *rqg)
 {
     struct rqgroup *rqgc = rqg->rq->rqg;		    /* point to the request chain */
 
-    if (rqg->rq->rqg == rqg)				    /* we're first in line */
+    if (rqgc == rqg)					    /* we're first in line */
 	rqg->rq->rqg = rqg->next;			    /* unhook ourselves */
     else {
-	while (rqgc->next != rqg)			    /* find the group */
+	while ((rqgc->next != NULL)			    /* find the group */
+	&&(rqgc->next != rqg))
 	    rqgc = rqgc->next;
-	rqgc->next = rqg->next;
+	if (rqgc->next == NULL)
+	    log(LOG_ERR,
+		"vinum deallocrqg: rqg %p not found in request %p\n",
+		rqg->rq,
+		rqg);
+	else
+	    rqgc->next = rqg->next;			    /* make the chain jump over us */
     }
-    Free(rqgc);
+    Free(rqg);
 }
 
 /* Character device interface */

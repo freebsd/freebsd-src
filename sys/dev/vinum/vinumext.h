@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumext.h,v 1.18 1999/01/15 02:41:16 grog Exp grog $
+ * $Id: vinumext.h,v 1.19 1999/03/23 02:57:04 grog Exp grog $
  */
 
 /* vinumext.h: external definitions */
@@ -41,7 +41,7 @@
 extern struct _vinum_conf vinum_conf;			    /* configuration information */
 
 #ifdef VINUMDEBUG
-extern debug;						    /* debug flags */
+extern int debug;					    /* debug flags */
 #endif
 
 #define CHECKALLOC(ptr, msg) \
@@ -56,6 +56,8 @@ struct proc;
 #endif
 
 #ifdef KERNEL
+int vinum_inactive(int);
+void free_vinum(int);
 int give_sd_to_plex(int plexno, int sdno);
 int give_plex_to_volume(int volno, int plexno);
 struct drive *check_drive(char *);
@@ -74,6 +76,7 @@ int find_drive(const char *name, int create);
 int find_drive_by_dev(const char *devname, int create);
 int get_empty_sd(void);
 int find_subdisk(const char *name, int create);
+void return_drive_space(int driveno, int64_t offset, int length);
 void free_sd(int sdno);
 void free_volume(int volno);
 int get_empty_plex(void);
@@ -94,7 +97,7 @@ void drive_io_done(struct buf *);
 void save_config(void);
 void daemon_save_config(void);
 void write_config(char *, int);
-int start_config(void);
+int start_config(int);
 void finish_config(int);
 void remove(struct vinum_ioctl_msg *msg);
 void remove_drive_entry(int driveno, int force, int recurse);
@@ -102,7 +105,7 @@ void remove_sd_entry(int sdno, int force, int recurse);
 void remove_plex_entry(int plexno, int force, int recurse);
 void remove_volume_entry(int volno, int force, int recurse);
 
-void checkernel(char *);
+void checkdiskconfig(char *);
 int open_drive(struct drive *, struct proc *, int);
 void close_drive(struct drive *drive);
 int driveio(struct drive *, char *, size_t, off_t, int);
@@ -120,7 +123,7 @@ void free_drive(struct drive *drive);
 void down_drive(struct drive *drive);
 void remove_drive(int driveno);
 
-void vinum_scandisk(char *drivename[], int drives);
+int vinum_scandisk(char *drivename[], int drives);
 
 /* I/O */
 d_open_t vinumopen;
@@ -139,11 +142,18 @@ void sdio(struct buf *bp);
 /* XXX Do we need this? */
 int vinumpart(dev_t);
 
+/* Why aren't these declared anywhere? XXX */
+int setjmp(jmp_buf);
+extern jmp_buf command_fail;				    /* return here if config fails */
+
 #ifdef VINUMDEBUG
 /* Memory allocation and request tracing */
 void vinum_meminfo(caddr_t data);
 int vinum_mallocinfo(caddr_t data);
 int vinum_rqinfo(caddr_t data);
+void LongJmp(jmp_buf, int);
+#else
+void longjmp(jmp_buf, int);				    /* the kernel doesn't define this */
 #endif
 
 void expand_table(void **, int, int);
@@ -164,6 +174,7 @@ enum requeststatus checksdstate(struct sd *sd, struct request *rq, daddr_t diska
 int set_plex_state(int plexno, enum plexstate state, enum setstateflags flags);
 int set_volume_state(int volumeno, enum volumestate state, enum setstateflags flags);
 void update_sd_state(int sdno);
+void forceup(int plexno);
 void update_plex_state(int plexno);
 void update_volume_state(int volno);
 void invalidate_subdisks(struct plex *, enum sdstate);

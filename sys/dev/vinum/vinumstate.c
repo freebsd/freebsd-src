@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumstate.c,v 2.10 1999/01/17 06:19:23 grog Exp grog $
+ * $Id: vinumstate.c,v 2.11 1999/03/13 04:47:09 grog Exp grog $
  */
 
 #define REALLYKERNEL
@@ -60,15 +60,17 @@ set_drive_state(int driveno, enum drivestate newstate, enum setstateflags flags)
 	    return 0;					    /* don't do it */
 	drive->state = newstate;			    /* set the state */
 	if (drive->label.name[0] != '\0')		    /* we have a name, */
-	    printf("vinum: drive %s is %s\n",
-		   drive->label.name,
-		   drive_state(drive->state));
+	    log(LOG_INFO,
+		"vinum: drive %s is %s\n",
+		drive->label.name,
+		drive_state(drive->state));
 	if ((drive->state == drive_up)
 	    && (drive->vp == NULL))			    /* should be open, but we're not */
 	    init_drive(drive, 1);			    /* which changes the state again */
 	if (newstate != oldstate) {			    /* state has changed */
-	    for (sdno = 0; sdno < vinum_conf.subdisks_used; sdno++) { /* find this drive's subdisks */
-		if (SD[sdno].driveno == driveno)	    /* belongs to this drive */
+	    for (sdno = 0; sdno < vinum_conf.subdisks_allocated; sdno++) { /* find this drive's subdisks */
+		if ((SD[sdno].state >= sd_referenced)
+		    && (SD[sdno].driveno == driveno))	    /* belongs to this drive */
 		    update_sd_state(sdno);		    /* update the state */
 	    }
 	}
@@ -109,9 +111,15 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
 	}
     } else {						    /*  space allocated */
 	switch (newstate) {
-	case sd_down:
-	    if ((!flags & setstate_force)		    /* but gently */
-	    &&(sd->plexno >= 0))			    /* and we're attached to a plex, */
+	case sd_down:					    /* take it down? */
+	    /*
+	     * If we're attached to a plex, and we're
+	     * not reborn, we won't go down without
+	     * use of force.
+	     */
+	    if ((!flags & setstate_force)
+		&& (sd->plexno >= 0)
+		&& (sd->state != sd_reborn))
 		return 0;				    /* don't do it */
 	    break;
 
@@ -121,9 +129,14 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
 	    switch (sd->state) {
 	    case sd_crashed:
 	    case sd_down:				    /* been down, no data lost */
-		if ((sd->plexno >= 0)			    /* we're associated with a plex */
-		&&(((PLEX[sd->plexno].state < plex_firstup) /* and it's not up */
-		||(PLEX[sd->plexno].subdisks > 1))))	    /* or it's the only one */
+		/*
+		 * If we're associated with a plex, and
+		 * the plex isn't up, or we're the only
+		 * subdisk in the plex, we can do it
+		 */
+		if ((sd->plexno >= 0)
+		    && (((PLEX[sd->plexno].state < plex_firstup)
+			    || (PLEX[sd->plexno].subdisks > 1))))
 		    break;				    /* do it */
 		/*
 		 * XXX Get this right: make sure that other plexes in
@@ -133,10 +146,11 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
 		 * Do we even want this any more?
 		 */
 		sd->state = sd_reborn;			    /* here it is again */
-		printf("vinum: subdisk %s is %s, not %s\n",
-		       sd->name,
-		       sd_state(sd->state),
-		       sd_state(newstate));
+		log(LOG_INFO,
+		    "vinum: subdisk %s is %s, not %s\n",
+		    sd->name,
+		    sd_state(sd->state),
+		    sd_state(newstate));
 		status = -1;
 		break;
 
@@ -147,9 +161,19 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
 		/* FALLTHROUGH */
 
 	    case sd_empty:
-		if ((sd->plexno >= 0)			    /* we're associated with a plex */
-		&&(((PLEX[sd->plexno].state < plex_firstup) /* and it's not up */
-		||(PLEX[sd->plexno].subdisks > 1))))	    /* or it's the only one */
+		/*
+		 * If we're associated with a plex which
+		 * is down, or which is the only one in the
+		 * volume, and we're not a RAID-5 plex, we
+		 * can come up without being inconsistent.
+		 * Internally, we use the force flag to bring
+		 * up a RAID-5 plex after initialization.
+		 */
+		if ((sd->plexno >= 0)
+		    && ((PLEX[sd->plexno].organization != plex_raid5)
+			|| (flags & setstate_force))
+		    && (((PLEX[sd->plexno].state < plex_firstup)
+			    || (PLEX[sd->plexno].subdisks > 1))))
 		    break;
 		/* Otherwise it's just out of date */
 		/* FALLTHROUGH */
@@ -162,11 +186,11 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
 		 * 2.  If the subdisk is part of a one-plex volume or an unattached plex,
 		 *     and it's not RAID-5, we *can't revive*.  The subdisk doesn't
 		 *     change its state.
-		 * 
+		 *
 		 * 3.  If the subdisk is part of a one-plex volume or an unattached plex,
 		 *     and it's RAID-5, but more than one subdisk is down, we *still
 		 *     can't revive*.  The subdisk doesn't change its state.
-		 * 
+		 *
 		 * 4.  If the subdisk is part of a multi-plex volume, we'll change to
 		 *     reviving and let the revive routines find out whether it will work
 		 *     or not.  If they don't, the revive stops with an error message,
@@ -179,10 +203,17 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
 		    vol = &VOL[plex->volno];
 		else
 		    vol = NULL;
-		if (((vol == NULL)			    /* no volume */
-		     ||(vol->plexes == 1))		    /* or only one plex in volume */
-		&&((plex->organization != plex_raid5)	    /* or it's a RAID-5 plex */
-		||(plex->sddowncount > 1)))		    /* with more than one subdisk down, */
+		/*
+		 * We can't do it if:
+		 *
+		 * 1: we don't have a volume
+		 * 2: we're the only plex in the volume
+		 * 3: we're a RAID-5 plex, and more than one subdisk is down.
+		 */
+		if (((vol == NULL)
+			|| (vol->plexes == 1))
+		    && ((plex->organization != plex_raid5)
+			|| (plex->sddowncount > 1)))
 		    return 0;				    /* can't do it */
 		sd->state = sd_reviving;		    /* put in reviving state */
 		sd->revived = 0;			    /* nothing done yet */
@@ -195,7 +226,7 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
 		 * initializing, but not from the user.  We
 		 * use the same ioctl in each case, but Vinum(8)
 		 * doesn't supply the -f flag, so we use that
-		 * to decide whether to do it or not 
+		 * to decide whether to do it or not
 		 */
 	    case sd_initializing:
 		if (flags & setstate_force)
@@ -211,7 +242,7 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
 		/*
 		 * There's no way to bring subdisks up directly from
 		 * other states.  First they need to be initialized
-		 * or revived 
+		 * or revived
 		 */
 		return 0;
 	    }
@@ -224,9 +255,13 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
     }
     if (status == 1) {					    /* we can do it, */
 	sd->state = newstate;
-	printf("vinum: %s is %s\n", sd->name, sd_state(sd->state));
+	log(LOG_INFO, "vinum: %s is %s\n", sd->name, sd_state(sd->state));
     } else						    /* we don't get here with status 0 */
-	printf("vinum: %s is %s, not %s\n", sd->name, sd_state(sd->state), sd_state(newstate));
+	log(LOG_INFO,
+	    "vinum: %s is %s, not %s\n",
+	    sd->name,
+	    sd_state(sd->state),
+	    sd_state(newstate));
     if (sd->plexno >= 0)				    /* we belong to a plex */
 	update_plex_state(sd->plexno);			    /* update plex state */
     if ((flags & setstate_configuring) == 0)		    /* save config now */
@@ -251,9 +286,15 @@ set_plex_state(int plexno, enum plexstate state, enum setstateflags flags)
     plex = &PLEX[plexno];				    /* point to our plex */
     oldstate = plex->state;
 
-    if ((plex->state == plex_unallocated)		    /* or no plex to do anything with, */
-    ||((state == oldstate)				    /* or we're already there */
-    &&(state != plex_up)))				    /* and it's not up */
+    /*
+     * If the plex isn't allocated,
+     * or it's already in the the state we want,
+     * and it's not up, just return.  If it's up,
+     * we still need to do some housekeeping.
+     */
+    if ((plex->state == plex_unallocated)
+	|| ((state == oldstate)
+	    && (state != plex_up)))
 	return 0;
 
     vps = vpstate(plex);				    /* how do we compare with the other plexes? */
@@ -262,16 +303,20 @@ set_plex_state(int plexno, enum plexstate state, enum setstateflags flags)
 	/*
 	 * We can't bring the plex up, even by force,
 	 * unless it's ready.  update_plex_state
-	 * checks that 
+	 * checks that
 	 */
     case plex_up:					    /* bring the plex up */
 	update_plex_state(plex->plexno);		    /* it'll come up if it can */
 	break;
 
     case plex_down:					    /* want to take it down */
-	if (((vps == volplex_onlyus)			    /* we're the only one up */
-	||(vps == volplex_onlyusup))			    /* we're the only one up */
-	&&(!(flags & setstate_force)))			    /* and we don't want to use force */
+	/*
+	 * If we're the only one, or the only one
+	 * which is up, we need force to do it.
+	 */
+	if (((vps == volplex_onlyus)
+		|| (vps == volplex_onlyusup))
+	    && (!(flags & setstate_force)))
 	    return 0;					    /* can't do it */
 	plex->state = state;				    /* do it */
 	invalidate_subdisks(plex, sd_down);		    /* and down all up subdisks */
@@ -279,7 +324,7 @@ set_plex_state(int plexno, enum plexstate state, enum setstateflags flags)
 
 	/*
 	 * This is only requested internally.
-	 * Trust ourselves 
+	 * Trust ourselves
 	 */
     case plex_faulty:
 	plex->state = state;				    /* do it */
@@ -298,10 +343,13 @@ set_plex_state(int plexno, enum plexstate state, enum setstateflags flags)
 	return 0;
     }
     if (plex->state != oldstate)			    /* we've changed, */
-	printf("vinum: %s is %s\n", plex->name, plex_state(plex->state)); /* tell them about it */
+	log(LOG_INFO,					    /* tell them about it */
+	    "vinum: %s is %s\n",
+	    plex->name,
+	    plex_state(plex->state));
     /*
      * Now see what we have left, and whether
-     * we're taking the volume down 
+     * we're taking the volume down
      */
     if (plex->volno >= 0)				    /* we have a volume */
 	update_volume_state(plex->volno);		    /* update its state */
@@ -323,10 +371,13 @@ set_volume_state(int volno, enum volumestate state, enum setstateflags flags)
     if (state == volume_up)				    /* want to come up */
 	update_volume_state(volno);
     else if (state == volume_down) {			    /* want to go down */
-	if ((vol->opencount == 0)			    /* not open */
+	if (((vol->flags & VF_OPEN) == 0)		    /* not open */
 	||((flags & setstate_force) != 0)) {		    /* or we're forcing */
 	    vol->state = volume_down;
-	    printf("vinum: volume %s is %s\n", vol->name, volume_state(vol->state));
+	    log(LOG_INFO,
+		"vinum: volume %s is %s\n",
+		vol->name,
+		volume_state(vol->state));
 	    if ((flags & setstate_configuring) == 0)	    /* save config now */
 		save_config();				    /* yes: save the updated configuration */
 	    return 1;
@@ -370,9 +421,35 @@ update_sd_state(int sdno)
 	}
     }
     if (sd->state != oldstate)				    /* state has changed, */
-	printf("vinum: %s is %s\n", sd->name, sd_state(sd->state)); /* say so */
+	log(LOG_INFO,					    /* say so */
+	    "vinum: %s is %s\n",
+	    sd->name,
+	    sd_state(sd->state));
     if (sd->plexno >= 0)				    /* we're part of a plex, */
 	update_plex_state(sd->plexno);			    /* update its state */
+}
+
+/*
+ * Force a plex and all its subdisks
+ * into an 'up' state.  This is a helper
+ * for update_plex_state.
+ */
+void 
+forceup(int plexno)
+{
+    struct plex *plex;
+    int sdno;
+
+    plex = &PLEX[plexno];				    /* point to the plex */
+    plex->state = plex_up;				    /* and bring it up */
+
+    /* change the subdisks to up state */
+    for (sdno = 0; sdno < plex->subdisks; sdno++) {
+	SD[plex->sdnos[sdno]].state = sd_up;
+	log(LOG_INFO,					    /* tell them about it */
+	    "vinum: %s is up\n",
+	    SD[plex->sdnos[sdno]].name);
+    }
 }
 
 /* Set the state of a plex based on its environment */
@@ -381,72 +458,62 @@ update_plex_state(int plexno)
 {
     struct plex *plex;					    /* point to our plex */
     enum plexstate oldstate;
-    enum volplexstate vps;				    /* how do we compare with the other plexes? */
     enum sdstates statemap;				    /* get a map of the subdisk states */
+    enum volplexstate vps;				    /* how do we compare with the other plexes? */
 
     plex = &PLEX[plexno];				    /* point to our plex */
     oldstate = plex->state;
-
-    vps = vpstate(plex);				    /* how do we compare with the other plexes? */
     statemap = sdstatemap(plex);			    /* get a map of the subdisk states */
+    vps = vpstate(plex);				    /* how do we compare with the other plexes? */
 
-    if (statemap == sd_upstate)				    /* all subdisks ready for action */
+    if ((statemap == sd_emptystate)			    /* all subdisks empty */
+&&((vps & volplex_otherup) == 0)			    /* and no other plex is up */ &&((plex->organization == plex_concat) /* and we're not RAID-5 */
+    ||(plex->organization == plex_striped))) {
+	struct volume *vol = &VOL[plex->volno];		    /* possible volume to which it points */
+
 	/*
-	   * All the subdisks are up.  This also means that
-	   * they are consistent, so we can just bring
-	   * the plex up 
+	 * If we're a striped or concat plex associated with a
+	 * volume, none of whose plexes are up, and we're new and
+	 * untested, and the volume has the setupstate bit set, we
+	 * can pretend to be in a consistent state.
+	 *
+	 * We need to do this in one swell foop: on the next call
+	 * we will no longer be just empty.
+	 *
+	 * This code assumes that all the other plexes are also
+	 * capable of coming up (i.e. all the sds are up), but
+	 * that's OK: we'll come back to this function for the
+	 * remaining plexes in the volume.
 	 */
-	plex->state = plex_up;				    /* go for it */
-    else if (statemap == sd_emptystate) {		    /* nothing done yet */
-	if ((plex->organization == plex_concat)		    /* only change this for concat and struped */
-	||(plex->organization == plex_striped)) {
-	    if (((vps & (volplex_otherup | volplex_onlyus)) == 0) /* nothing is up */
-		&&(plex->state == plex_init)		    /* we're brand spanking new */
-	    &&(plex->volno >= 0)			    /* and we have a volume */
-	    &&(VOL[plex->volno].flags & VF_CONFIG_SETUPSTATE)) { /* and we consider that up */
-		/*
-		 * Conceptually, an empty plex does not contain valid data,
-		 * but normally we'll see this state when we have just
-		 * created a plex, and it's either consistent from earlier,
-		 * or we don't care about the previous contents (we're going
-		 * to create a file system or use it for swap).
-		 *
-		 * We need to do this in one swell foop: on the next call
-		 * we will no longer be just empty.
-		 *
-		 * This code assumes that all the other plexes are also
-		 * capable of coming up (i.e. all the sds are up), but
-		 * that's OK: we'll come back to this function for the remaining
-		 * plexes in the volume. 
-		 */
-		struct volume *vol = &VOL[plex->volno];
-		int plexno;
 
-		for (plexno = 0; plexno < vol->plexes; plexno++)
-		    PLEX[vol->plex[plexno]].state = plex_up;
-	    } else if ((vps & volplex_otherup) == 0) {	    /* no other plexes up */
-		int sdno;
-
-		plex->state = plex_up;			    /* we can call that up */
-		for (sdno = 0; sdno < plex->subdisks; sdno++) {	/* change the subdisks to up state */
-		    SD[plex->sdnos[sdno]].state = sd_up;
-		    printf("vinum: %s is up\n", SD[plex->sdnos[sdno]].name); /* tell them about it */
-		}
-	    } else
-		plex->state = plex_faulty;		    /* no, it's down */
-	} else						    /* invalid or RAID-5 organization */
-	    plex->state = plex_faulty;			    /* it's down */
-    } else if ((statemap & (sd_upstate | sd_rebornstate)) == statemap) /* all up or reborn */
+	if ((plex->state == plex_init)
+	    && (plex->volno >= 0)
+	    && (vol->flags & VF_CONFIG_SETUPSTATE)) {
+	    for (plexno = 0; plexno < vol->plexes; plexno++)
+		forceup(VOL[plex->volno].plex[plexno]);
+	} else
+	    forceup(plexno);				    /* we'll do it */
+    } else if (statemap == sd_upstate)
+	/*
+	 * All the subdisks are up.  This also means that
+	 * they are consistent, so we can just bring
+	 * the plex up
+	 */
+	plex->state = plex_up;
+    else if ((statemap & (sd_upstate | sd_rebornstate)) == statemap) /* all up or reborn */
 	plex->state = plex_flaky;
     else if (statemap & (sd_upstate | sd_rebornstate))	    /* some up or reborn */
 	plex->state = plex_corrupt;			    /* corrupt */
-    else if (statemap & sd_initstate)			    /* some subdisks initializing */
+    else if (statemap & (sd_initstate | sd_emptystate))	    /* some subdisks empty or initializing */
 	plex->state = plex_initializing;
     else						    /* nothing at all up */
 	plex->state = plex_faulty;
 
     if (plex->state != oldstate)			    /* state has changed, */
-	printf("vinum: %s is %s\n", plex->name, plex_state(plex->state)); /* tell them about it */
+	log(LOG_INFO,					    /* tell them about it */
+	    "vinum: %s is %s\n",
+	    plex->name,
+	    plex_state(plex->state));
     if (plex->volno >= 0)				    /* we're part of a volume, */
 	update_volume_state(plex->volno);		    /* update its state */
 }
@@ -473,7 +540,7 @@ update_volume_state(int volno)
 	vol->state = volume_down;
 
     if (vol->state != oldstate) {			    /* state changed */
-	printf("vinum: %s is %s\n", vol->name, volume_state(vol->state));
+	log(LOG_INFO, "vinum: %s is %s\n", vol->name, volume_state(vol->state));
 	save_config();					    /* save the updated configuration */
     }
 }
@@ -483,14 +550,14 @@ update_volume_state(int volno)
  * a subdisk which is not kosher.  Decide whether
  * it warrants changing the state.  Return
  * REQUEST_DOWN if we can't use the subdisk,
- * REQUEST_OK if we can. 
+ * REQUEST_OK if we can.
  */
 /*
  * A prior version of this function checked the plex
  * state as well.  At the moment, consider plex states
  * information for the user only.  We'll ignore them
  * and use the subdisk state only.  The last version of
- * this file with the old logic was 2.7. XXX 
+ * this file with the old logic was 2.7. XXX
  */
 enum requeststatus 
 checksdstate(struct sd *sd, struct request *rq, daddr_t diskaddr, daddr_t diskend)
@@ -516,7 +583,7 @@ checksdstate(struct sd *sd, struct request *rq, daddr_t diskaddr, daddr_t disken
 	 * - if it's striped, we can't do it (we could do some hairy
 	 *   calculations, but it's unlikely to work).
 	 * - if it's RAID-5, we can do it as long as only one
-	 *   subdisk is down 
+	 *   subdisk is down
 	 */
 	if (plex->state == plex_striped)		    /* plex is striped, */
 	    return REQUEST_DOWN;			    /* can't access it now */
@@ -540,7 +607,7 @@ checksdstate(struct sd *sd, struct request *rq, daddr_t diskaddr, daddr_t disken
 	    /*
 	       * Handle the mapping.  We don't want to reject
 	       * a read request to a reborn subdisk if that's
-	       * all we have. XXX 
+	       * all we have. XXX
 	     */
 	    return REQUEST_DOWN;
 
@@ -617,6 +684,7 @@ sdstatemap(struct plex *plex)
 	case sd_unallocated:
 	case sd_uninit:
 	case sd_reviving:
+	case sd_referenced:
 	    statemap |= sd_otherstate;
 	    (plex->sddowncount)++;			    /* another unusable subdisk */
 	}
@@ -638,25 +706,13 @@ vpstate(struct plex *plex)
     vol = &VOL[plex->volno];				    /* point to our volume */
     for (plexno = 0; plexno < vol->plexes; plexno++) {
 	if (&PLEX[vol->plex[plexno]] == plex) {		    /* us */
-#if RAID5
-	    if (PLEX[vol->plex[plexno]].state >= plex_degraded)	/* are we up? */
-		state |= volplex_onlyus;		    /* yes */
-#else
 	    if (PLEX[vol->plex[plexno]].state >= plex_flaky) /* are we up? */
 		state |= volplex_onlyus;		    /* yes */
-#endif
 	} else {
-#if RAID5
-	    if (PLEX[vol->plex[plexno]].state >= plex_degraded)	/* not us */
-		state |= volplex_otherup;		    /* and when they were up, they were up */
-	    else
-		state |= volplex_alldown;		    /* and when they were down, they were down */
-#else
 	    if (PLEX[vol->plex[plexno]].state >= plex_flaky) /* not us */
 		state |= volplex_otherup;		    /* and when they were up, they were up */
 	    else
 		state |= volplex_alldown;		    /* and when they were down, they were down */
-#endif
 	}
     }
     return state;					    /* and when they were only halfway up */
@@ -690,6 +746,7 @@ invalidate_subdisks(struct plex *plex, enum sdstate state)
 	case sd_stale:
 	case sd_crashed:
 	case sd_down:
+	case sd_referenced:
 	    break;
 
 	case sd_reviving:
@@ -768,7 +825,7 @@ start_object(struct vinum_ioctl_msg *data)
     }
     /*
      * There's no point in saying anything here:
-     * the userland program does it better 
+     * the userland program does it better
      */
     ioctl_reply->msg[0] = '\0';
 }
@@ -816,7 +873,7 @@ stop_object(struct vinum_ioctl_msg *data)
 
 /*
  * VINUM_SETSTATE ioctl: set an object state
- * msg is the message passed by the user 
+ * msg is the message passed by the user
  */
 void 
 setstate(struct vinum_ioctl_msg *msg)
@@ -835,8 +892,8 @@ setstate(struct vinum_ioctl_msg *msg)
 	switch (msg->type) {
 	case sd_object:
 	    sd = &SD[msg->index];
-	    if ((msg->index >= vinum_conf.subdisks_used)
-		|| (sd->state == sd_unallocated)) {
+	    if ((msg->index >= vinum_conf.subdisks_allocated)
+		|| (sd->state <= sd_referenced)) {
 		sprintf(ioctl_reply->msg, "Invalid subdisk %d", msg->index);
 		ioctl_reply->error = EFAULT;
 		return;
@@ -851,9 +908,9 @@ setstate(struct vinum_ioctl_msg *msg)
 
 	case plex_object:
 	    plex = &PLEX[msg->index];
-	    if ((msg->index >= vinum_conf.plexes_used)
-		|| (plex->state == plex_unallocated)) {
-		sprintf(ioctl_reply->msg, "Invalid subdisk %d", msg->index);
+	    if ((msg->index >= vinum_conf.plexes_allocated)
+		|| (plex->state <= plex_unallocated)) {
+		sprintf(ioctl_reply->msg, "Invalid plex %d", msg->index);
 		ioctl_reply->error = EFAULT;
 		return;
 	    }
