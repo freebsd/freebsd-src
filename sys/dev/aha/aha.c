@@ -55,7 +55,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aha.c,v 1.21 1999/04/11 02:55:50 eivind Exp $
+ *      $Id: aha.c,v 1.22 1999/05/06 20:16:14 ken Exp $
  */
 
 #include "pnp.h"
@@ -176,7 +176,7 @@ static void	ahaaction(struct cam_sim *sim, union ccb *ccb);
 static void	ahapoll(struct cam_sim *sim);
 
 /* Our timeout handler */
-timeout_t ahatimeout;
+static timeout_t ahatimeout;
 
 u_long aha_unit = 0;
 
