@@ -159,7 +159,7 @@ char const * const
 hci_manufacturer2str(int m)
 {
 	static char const * const	t[] = {
-		/* 0000 */ "Ericsson Mobile Comunications",
+		/* 0000 */ "Ericsson Mobile Communications",
 		/* 0001 */ "Nokia Mobile Phones",
 		/* 0002 */ "Intel Corp.",
 		/* 0003 */ "IBM Corp.",
@@ -317,7 +317,7 @@ hci_status2str(int status)
 		/* 0x0b */ "ACL connection already exists",
 		/* 0x0c */ "Command disallowed",
 		/* 0x0d */ "Host rejected due to limited resources",
-		/* 0x0e */ "Host rejected due to securiity reasons",
+		/* 0x0e */ "Host rejected due to security reasons",
 		/* 0x0f */ "Host rejected due to remote unit is a personal unit",
 		/* 0x10 */ "Host timeout",
 		/* 0x11 */ "Unsupported feature or parameter value",
@@ -344,7 +344,7 @@ hci_status2str(int status)
 		/* 0x26 */ "Unit key used",
 		/* 0x27 */ "QoS is not supported",
 		/* 0x28 */ "Instant passed",
-		/* 0x29 */ "Paring with unit key not supported"
+		/* 0x29 */ "Pairing with unit key not supported"
 	};
 
 	return (status >= SIZE(t)? "Unknown error" : t[status]);

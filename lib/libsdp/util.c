@@ -73,7 +73,7 @@ static sdp_attr_desc_t	sdp_uuids_desc[] = {
 { SDP_SERVICE_CLASS_PUBLIC_BROWSE_GROUP, "Public Browse Group", },
 { SDP_SERVICE_CLASS_SERIAL_PORT, "Serial Port", },
 { SDP_SERVICE_CLASS_LAN_ACCESS_USING_PPP, "LAN Access Using PPP", },
-{ SDP_SERVICE_CLASS_DIALUP_NETWORKING, "DailUp Networking", },
+{ SDP_SERVICE_CLASS_DIALUP_NETWORKING, "Dial-Up Networking", },
 { SDP_SERVICE_CLASS_IR_MC_SYNC, "IrMC Sync", },
 { SDP_SERVICE_CLASS_OBEX_OBJECT_PUSH, "OBEX Object Push", },
 { SDP_SERVICE_CLASS_OBEX_FILE_TRANSFER, "OBEX File Transfer", },
