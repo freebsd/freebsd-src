@@ -61,11 +61,11 @@
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
 #include <sys/linker.h>
+#include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/reboot.h>
 #include <sys/callout.h>
-#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/msgbuf.h>
 #include <sys/sysent.h>
@@ -1019,15 +1019,7 @@ setregs(p, entry, stack, ps_strings)
 
 #ifdef USER_LDT
 	/* was i386_user_cleanup() in NetBSD */
-	if (pcb->pcb_ldt) {
-		if (pcb == curpcb) {
-			lldt(_default_ldt);
-			currentldt = _default_ldt;
-		}
-		kmem_free(kernel_map, (vm_offset_t)pcb->pcb_ldt,
-			pcb->pcb_ldt_len * sizeof(union descriptor));
-		pcb->pcb_ldt_len = (int)pcb->pcb_ldt = 0;
- 	}
+	user_ldt_free(pcb);
 #endif
   
 	bzero((char *)regs, sizeof(struct trapframe));

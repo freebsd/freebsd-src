@@ -120,7 +120,9 @@ main()
 	printf("#define\tPCB_EBX %#x\n", OS(pcb, pcb_ebx));
 	printf("#define\tPCB_EIP %#x\n", OS(pcb, pcb_eip));
 	printf("#define\tTSS_ESP0 %#x\n", OS(i386tss, tss_esp0));
+#ifdef USER_LDT
 	printf("#define\tPCB_USERLDT %#x\n", OS(pcb, pcb_ldt));
+#endif
 	printf("#define\tPCB_GS %#x\n", OS(pcb, pcb_gs));
 	printf("#define\tPCB_DR0 %#x\n", OS(pcb, pcb_dr0));
 	printf("#define\tPCB_DR1 %#x\n", OS(pcb, pcb_dr1));

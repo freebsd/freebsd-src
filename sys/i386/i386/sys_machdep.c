@@ -41,6 +41,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
+#include <sys/malloc.h>
 #include <sys/proc.h>
 
 #include <vm/vm.h>
@@ -65,7 +66,6 @@
 
 
 #ifdef USER_LDT
-void set_user_ldt	__P((struct pcb *pcb));
 static int i386_get_ldt	__P((struct proc *, char *));
 static int i386_set_ldt	__P((struct proc *, char *));
 #endif
@@ -136,7 +136,7 @@ i386_extend_pcb(struct proc *p)
 	p->p_addr->u_pcb.pcb_ext = ext;
 	bzero(ext, sizeof(struct pcb_ext)); 
 	ext->ext_tss.tss_esp0 = (unsigned)p->p_addr + ctob(UPAGES) - 16;
-        ext->ext_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL);
+	ext->ext_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL);
 	/*
 	 * The last byte of the i/o map must be followed by an 0xff byte.
 	 * We arbitrarily allocate 16 bytes here, to keep the starting
@@ -174,8 +174,8 @@ i386_set_ioperm(p, args)
 	if ((error = copyin(args, &ua, sizeof(struct i386_ioperm_args))) != 0)
 		return (error);
 
-        if ((error = suser(p)) != 0)
-                return (error);
+	if ((error = suser(p)) != 0)
+		return (error);
 	if (securelevel > 0)
 		return (EPERM);
 	/*
@@ -247,15 +247,75 @@ done:
 void
 set_user_ldt(struct pcb *pcb)
 {
-	gdt_segs[GUSERLDT_SEL].ssd_base = (unsigned)pcb->pcb_ldt;
-	gdt_segs[GUSERLDT_SEL].ssd_limit = (pcb->pcb_ldt_len * sizeof(union descriptor)) - 1;
+	struct pcb_ldt *pcb_ldt;
+
+	if (pcb != curpcb)
+		return;
+
+	pcb_ldt = pcb->pcb_ldt;
 #ifdef SMP
-	ssdtosd(&gdt_segs[GUSERLDT_SEL], &gdt[cpuid * NGDT + GUSERLDT_SEL].sd);
+	gdt[cpuid * NGDT + GUSERLDT_SEL].sd = pcb_ldt->ldt_sd;
 #else
-	ssdtosd(&gdt_segs[GUSERLDT_SEL], &gdt[GUSERLDT_SEL].sd);
+	gdt[GUSERLDT_SEL].sd = pcb_ldt->ldt_sd;
 #endif
 	lldt(GSEL(GUSERLDT_SEL, SEL_KPL));
 	currentldt = GSEL(GUSERLDT_SEL, SEL_KPL);
+}
+
+struct pcb_ldt *
+user_ldt_alloc(struct pcb *pcb, int len)
+{
+	struct pcb_ldt *pcb_ldt, *new_ldt;
+
+	MALLOC(new_ldt, struct pcb_ldt *, sizeof(struct pcb_ldt),
+		M_SUBPROC, M_WAITOK);
+	if (new_ldt == NULL)
+		return NULL;
+
+	new_ldt->ldt_len = len = NEW_MAX_LD(len);
+	new_ldt->ldt_base = (caddr_t)kmem_alloc(kernel_map,
+		len * sizeof(union descriptor));
+	if (new_ldt->ldt_base == NULL) {
+		FREE(new_ldt, M_SUBPROC);
+		return NULL;
+	}
+	new_ldt->ldt_refcnt = 1;
+	new_ldt->ldt_active = 0;
+
+	gdt_segs[GUSERLDT_SEL].ssd_base = (unsigned)new_ldt->ldt_base;
+	gdt_segs[GUSERLDT_SEL].ssd_limit = len * sizeof(union descriptor) - 1;
+	ssdtosd(&gdt_segs[GUSERLDT_SEL], &new_ldt->ldt_sd);
+
+	if ((pcb_ldt = pcb->pcb_ldt)) {
+		if (len > pcb_ldt->ldt_len)
+			len = pcb_ldt->ldt_len;
+		bcopy(pcb_ldt->ldt_base, new_ldt->ldt_base,
+			len * sizeof(union descriptor));
+	} else {
+		bcopy(ldt, new_ldt->ldt_base, sizeof(ldt));
+	}
+	return new_ldt;
+}
+
+void
+user_ldt_free(struct pcb *pcb)
+{
+	struct pcb_ldt *pcb_ldt = pcb->pcb_ldt;
+
+	if (pcb_ldt == NULL)
+		return;
+
+	if (pcb == curpcb) {
+		lldt(_default_ldt);
+		currentldt = _default_ldt;
+	}
+
+	if (--pcb_ldt->ldt_refcnt == 0) {
+		kmem_free(kernel_map, (vm_offset_t)pcb_ldt->ldt_base,
+			pcb_ldt->ldt_len * sizeof(union descriptor));
+		FREE(pcb_ldt, M_SUBPROC);
+	}
+	pcb->pcb_ldt = NULL;
 }
 
 static int
@@ -265,6 +325,7 @@ i386_get_ldt(p, args)
 {
 	int error = 0;
 	struct pcb *pcb = &p->p_addr->u_pcb;
+	struct pcb_ldt *pcb_ldt = pcb->pcb_ldt;
 	int nldt, num;
 	union descriptor *lp;
 	int s;
@@ -284,10 +345,10 @@ i386_get_ldt(p, args)
 
 	s = splhigh();
 
-	if (pcb->pcb_ldt) {
-		nldt = pcb->pcb_ldt_len;
+	if (pcb_ldt) {
+		nldt = pcb_ldt->ldt_len;
 		num = min(uap->num, nldt);
-		lp = &((union descriptor *)(pcb->pcb_ldt))[uap->start];
+		lp = &((union descriptor *)(pcb_ldt->ldt_base))[uap->start];
 	} else {
 		nldt = sizeof(ldt)/sizeof(ldt[0]);
 		num = min(uap->num, nldt);
@@ -312,8 +373,9 @@ i386_set_ldt(p, args)
 	char *args;
 {
 	int error = 0, i, n;
- 	int largest_ld;
+	int largest_ld;
 	struct pcb *pcb = &p->p_addr->u_pcb;
+	struct pcb_ldt *pcb_ldt = pcb->pcb_ldt;
 	int s;
 	struct i386_ldt_args ua, *uap = &ua;
 
@@ -325,36 +387,37 @@ i386_set_ldt(p, args)
 	    uap->start, uap->num, (void *)uap->descs);
 #endif
 
- 	/* verify range of descriptors to modify */
- 	if ((uap->start < 0) || (uap->start >= MAX_LD) || (uap->num < 0) ||
- 		(uap->num > MAX_LD))
- 	{
- 		return(EINVAL);
- 	}
- 	largest_ld = uap->start + uap->num - 1;
- 	if (largest_ld >= MAX_LD)
-  		return(EINVAL);
-  
-  	/* allocate user ldt */
- 	if (!pcb->pcb_ldt || (largest_ld >= pcb->pcb_ldt_len)) {
- 		union descriptor *new_ldt = (union descriptor *)kmem_alloc(
- 			kernel_map, SIZE_FROM_LARGEST_LD(largest_ld));
- 		if (new_ldt == NULL) {
- 			return ENOMEM;
- 		}
- 		if (pcb->pcb_ldt) {
- 			bcopy(pcb->pcb_ldt, new_ldt, pcb->pcb_ldt_len
- 				* sizeof(union descriptor));
- 			kmem_free(kernel_map, (vm_offset_t)pcb->pcb_ldt,
- 				pcb->pcb_ldt_len * sizeof(union descriptor));
- 		} else {
- 			bcopy(ldt, new_ldt, sizeof(ldt));
- 		}
-  		pcb->pcb_ldt = (caddr_t)new_ldt;
- 		pcb->pcb_ldt_len = NEW_MAX_LD(largest_ld);
- 		if (pcb == curpcb)
- 		    set_user_ldt(pcb);
-  	}
+	/* verify range of descriptors to modify */
+	if ((uap->start < 0) || (uap->start >= MAX_LD) || (uap->num < 0) ||
+		(uap->num > MAX_LD))
+	{
+		return(EINVAL);
+	}
+	largest_ld = uap->start + uap->num - 1;
+	if (largest_ld >= MAX_LD)
+		return(EINVAL);
+
+	/* allocate user ldt */
+	if (!pcb_ldt || largest_ld >= pcb_ldt->ldt_len) {
+		struct pcb_ldt *new_ldt = user_ldt_alloc(pcb, largest_ld);
+		if (new_ldt == NULL)
+			return ENOMEM;
+		if (pcb_ldt) {
+			pcb_ldt->ldt_sd = new_ldt->ldt_sd;
+			kmem_free(kernel_map, (vm_offset_t)pcb_ldt->ldt_base,
+				pcb_ldt->ldt_len * sizeof(union descriptor));
+			pcb_ldt->ldt_base = new_ldt->ldt_base;
+			pcb_ldt->ldt_len = new_ldt->ldt_len;
+			FREE(new_ldt, M_SUBPROC);
+		} else
+			pcb->pcb_ldt = pcb_ldt = new_ldt;
+#ifdef SMP
+		/* signal other cpus to reload ldt */
+		smp_rendezvous(NULL, (void (*)(void *))set_user_ldt, NULL, pcb);
+#else
+		set_user_ldt(pcb);
+#endif
+	}
 
 	/* Check descriptors for access violations */
 	for (i = 0, n = uap->start; i < uap->num; i++, n++) {
@@ -365,70 +428,70 @@ i386_set_ldt(p, args)
 			return(error);
 
 		switch (desc.sd.sd_type) {
- 		case SDT_SYSNULL:	/* system null */ 
- 			desc.sd.sd_p = 0;
-  			break;
- 		case SDT_SYS286TSS: /* system 286 TSS available */
- 		case SDT_SYSLDT:    /* system local descriptor table */
- 		case SDT_SYS286BSY: /* system 286 TSS busy */
- 		case SDT_SYSTASKGT: /* system task gate */
- 		case SDT_SYS286IGT: /* system 286 interrupt gate */
- 		case SDT_SYS286TGT: /* system 286 trap gate */
- 		case SDT_SYSNULL2:  /* undefined by Intel */ 
- 		case SDT_SYS386TSS: /* system 386 TSS available */
- 		case SDT_SYSNULL3:  /* undefined by Intel */
- 		case SDT_SYS386BSY: /* system 386 TSS busy */
- 		case SDT_SYSNULL4:  /* undefined by Intel */ 
- 		case SDT_SYS386IGT: /* system 386 interrupt gate */
- 		case SDT_SYS386TGT: /* system 386 trap gate */
- 		case SDT_SYS286CGT: /* system 286 call gate */ 
- 		case SDT_SYS386CGT: /* system 386 call gate */
- 			/* I can't think of any reason to allow a user proc
- 			 * to create a segment of these types.  They are
- 			 * for OS use only.
- 			 */
-     	    	    	return EACCES;
- 
- 		/* memory segment types */
- 		case SDT_MEMEC:   /* memory execute only conforming */
- 		case SDT_MEMEAC:  /* memory execute only accessed conforming */
- 		case SDT_MEMERC:  /* memory execute read conforming */
- 		case SDT_MEMERAC: /* memory execute read accessed conforming */
-                         /* Must be "present" if executable and conforming. */
-                         if (desc.sd.sd_p == 0)
-                                 return (EACCES);
- 			break;
- 		case SDT_MEMRO:   /* memory read only */
- 		case SDT_MEMROA:  /* memory read only accessed */
- 		case SDT_MEMRW:   /* memory read write */
- 		case SDT_MEMRWA:  /* memory read write accessed */
- 		case SDT_MEMROD:  /* memory read only expand dwn limit */
- 		case SDT_MEMRODA: /* memory read only expand dwn lim accessed */
- 		case SDT_MEMRWD:  /* memory read write expand dwn limit */  
- 		case SDT_MEMRWDA: /* memory read write expand dwn lim acessed */
- 		case SDT_MEME:    /* memory execute only */ 
- 		case SDT_MEMEA:   /* memory execute only accessed */
- 		case SDT_MEMER:   /* memory execute read */
- 		case SDT_MEMERA:  /* memory execute read accessed */
+		case SDT_SYSNULL:	/* system null */ 
+			desc.sd.sd_p = 0;
+			break;
+		case SDT_SYS286TSS: /* system 286 TSS available */
+		case SDT_SYSLDT:    /* system local descriptor table */
+		case SDT_SYS286BSY: /* system 286 TSS busy */
+		case SDT_SYSTASKGT: /* system task gate */
+		case SDT_SYS286IGT: /* system 286 interrupt gate */
+		case SDT_SYS286TGT: /* system 286 trap gate */
+		case SDT_SYSNULL2:  /* undefined by Intel */ 
+		case SDT_SYS386TSS: /* system 386 TSS available */
+		case SDT_SYSNULL3:  /* undefined by Intel */
+		case SDT_SYS386BSY: /* system 386 TSS busy */
+		case SDT_SYSNULL4:  /* undefined by Intel */ 
+		case SDT_SYS386IGT: /* system 386 interrupt gate */
+		case SDT_SYS386TGT: /* system 386 trap gate */
+		case SDT_SYS286CGT: /* system 286 call gate */ 
+		case SDT_SYS386CGT: /* system 386 call gate */
+			/* I can't think of any reason to allow a user proc
+			 * to create a segment of these types.  They are
+			 * for OS use only.
+			 */
+			return EACCES;
+
+		/* memory segment types */
+		case SDT_MEMEC:   /* memory execute only conforming */
+		case SDT_MEMEAC:  /* memory execute only accessed conforming */
+		case SDT_MEMERC:  /* memory execute read conforming */
+		case SDT_MEMERAC: /* memory execute read accessed conforming */
+			 /* Must be "present" if executable and conforming. */
+			 if (desc.sd.sd_p == 0)
+				 return (EACCES);
+			break;
+		case SDT_MEMRO:   /* memory read only */
+		case SDT_MEMROA:  /* memory read only accessed */
+		case SDT_MEMRW:   /* memory read write */
+		case SDT_MEMRWA:  /* memory read write accessed */
+		case SDT_MEMROD:  /* memory read only expand dwn limit */
+		case SDT_MEMRODA: /* memory read only expand dwn lim accessed */
+		case SDT_MEMRWD:  /* memory read write expand dwn limit */  
+		case SDT_MEMRWDA: /* memory read write expand dwn lim acessed */
+		case SDT_MEME:    /* memory execute only */ 
+		case SDT_MEMEA:   /* memory execute only accessed */
+		case SDT_MEMER:   /* memory execute read */
+		case SDT_MEMERA:  /* memory execute read accessed */
 			break;
 		default:
 			return(EINVAL);
 			/*NOTREACHED*/
 		}
- 
- 		/* Only user (ring-3) descriptors may be present. */
- 		if ((desc.sd.sd_p != 0) && (desc.sd.sd_dpl != SEL_UPL))
- 			return (EACCES);
+
+		/* Only user (ring-3) descriptors may be present. */
+		if ((desc.sd.sd_p != 0) && (desc.sd.sd_dpl != SEL_UPL))
+			return (EACCES);
 	}
 
 	s = splhigh();
 
 	/* Fill in range */
- 	error = copyin(uap->descs, 
- 		 &((union descriptor *)(pcb->pcb_ldt))[uap->start],
- 		uap->num * sizeof(union descriptor));
- 	if (!error)
-  		p->p_retval[0] = uap->start;
+	error = copyin(uap->descs, 
+		 &((union descriptor *)(pcb_ldt->ldt_base))[uap->start],
+		uap->num * sizeof(union descriptor));
+	if (!error)
+		p->p_retval[0] = uap->start;
 
 	splx(s);
 	return(error);
