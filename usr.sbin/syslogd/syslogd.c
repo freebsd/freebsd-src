@@ -39,7 +39,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: syslogd.c,v 1.7 1995/10/12 17:18:39 wollman Exp $";
 #endif /* not lint */
 
 /*
@@ -192,6 +192,7 @@ int	Initialized = 0;	/* set when we have initialized ourselves */
 int	MarkInterval = 20 * 60;	/* interval between marks in seconds */
 int	MarkSeq = 0;		/* mark sequence number */
 int     created_lsock = 0;      /* Flag if local socket created */
+char	bootfile[MAXLINE+1];	/* booted kernel file */
 
 void	cfline __P((char *, struct filed *, char *));
 char   *cvthname __P((struct sockaddr_in *));
@@ -259,6 +260,7 @@ main(argc, argv)
 		LocalDomain = p;
 	} else
 		LocalDomain = "";
+	(void)strcpy(bootfile, getbootfile());
 	(void)signal(SIGTERM, die);
 	(void)signal(SIGINT, Debug ? die : SIG_IGN);
 	(void)signal(SIGQUIT, Debug ? die : SIG_IGN);
@@ -442,7 +444,7 @@ printsys(msg)
 	int c, pri, flags;
 	char *lp, *p, *q, line[MAXLINE + 1];
 
-	(void)strcpy(line, getbootfile());
+	(void)strcpy(line, bootfile);
 	(void)strcat(line, ": ");
 	lp = line + strlen(line);
 	for (p = msg; *p != '\0'; ) {
