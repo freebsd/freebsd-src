@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.81.2.27 1997/08/19 04:25:13 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.81.2.28 1997/08/21 21:30:09 gibbs Exp $
  */
 /*
  * TODO:
@@ -1348,6 +1348,11 @@ ahc_handle_seqint(ahc, intstat)
 			xs->error = XS_BUSY;
 			sc_print_addr(xs->sc_link);
 			printf("Target Busy\n");
+			break;
+		case SCSI_RSVD:
+			xs->error = XS_BUSY;	/*XXX*/
+			sc_print_addr(xs->sc_link);
+			printf("Target Reserved\n");
 			break;
 		default:
 			sc_print_addr(xs->sc_link);

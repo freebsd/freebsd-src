@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_all.h,v 1.12 1995/04/14 15:10:29 dufault Exp $
+ *	$Id: scsi_all.h,v 1.16 1997/08/17 14:02:18 itojun Exp $
  */
 
 /*
@@ -346,5 +346,6 @@ struct scsi_mode_header_big
 #define	SCSI_CHECK		0x02
 #define	SCSI_BUSY		0x08
 #define SCSI_INTERM		0x10
+#define SCSI_RSVD		0x18
 #define SCSI_QUEUE_FULL		0x28
 #endif /*_SCSI_SCSI_ALL_H*/
