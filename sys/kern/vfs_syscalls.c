@@ -469,7 +469,14 @@ dounmount(mp, flags, p)
 
 	simple_lock(&mountlist_slock);
 	mp->mnt_kern_flag |= MNTK_UNMOUNT;
-	lockmgr(&mp->mnt_lock, LK_DRAIN | LK_INTERLOCK, &mountlist_slock, p);
+	error = lockmgr(&mp->mnt_lock, LK_DRAIN | LK_INTERLOCK |
+	    ((flags & MNT_FORCE) ? 0 : LK_NOWAIT), &mountlist_slock, p);
+	if (error) {
+		mp->mnt_kern_flag &= ~MNTK_UNMOUNT;
+		if (mp->mnt_kern_flag & MNTK_MWAIT)
+			wakeup((caddr_t)mp);
+		return (error);
+	}
 
 	if (mp->mnt_flag & MNT_EXPUBLIC)
 		vfs_setpublicfs(NULL, NULL, NULL);
