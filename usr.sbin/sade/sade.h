@@ -771,6 +771,7 @@ extern void	variable_unset(char *var);
 extern char	*variable_get_value(char *var, char *prompt, int dirty);
 extern int 	variable_check(char *data);
 extern int	dump_variables(dialogMenuItem *self);
+extern void	free_variables(void);
 
 /* wizard.c */
 extern void	slice_wizard(Disk *d);

@@ -56,7 +56,10 @@ intr_reboot(dialogMenuItem *self)
 static int
 intr_restart(dialogMenuItem *self)
 {
-    execl(StartName, StartName, (char *)NULL);
+    int ret;
+    free_variables();
+    ret = execl(StartName, StartName, (char *)NULL);
+    msgDebug("execl failed (%s)\n", strerror(errno));
     /* NOTREACHED */
     return -1;
 }
