@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: login.c,v 1.12.2.11 1998/07/31 07:42:00 bde Exp $";
+	"$Id: login.c,v 1.12.2.12 1998/08/31 03:27:28 jkoshy Exp $";
 #endif /* not lint */
 
 /*
@@ -157,7 +157,8 @@ main(argc, argv)
 	int changepass;
 	time_t warntime;
 	uid_t uid, euid;
-	char *domain, *p, *ep, *salt, *ttyn;
+	char *domain, *p, *salt, *ttyn;
+	const char *ep;
 	char tbuf[MAXPATHLEN + 2], tname[sizeof(_PATH_TTY) + 10];
 	char localhost[MAXHOSTNAMELEN];
 	char *shell = NULL;
@@ -409,7 +410,7 @@ main(argc, argv)
 		}
 
 		if (!rval) {
-			char * approvp;
+			char * approvep;
 		    
 			/*
 			 * If authentication succeeds, run any approval
@@ -427,7 +428,7 @@ main(argc, argv)
 				/*
 				 * See what the authorize program says
 				 */
-				if (r != AUTH_NONE) {
+				if (r != 0) {
 					rval = 0;
 
 					if (!rootok && (r & AUTH_ROOTOKAY))
