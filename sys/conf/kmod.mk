@@ -99,8 +99,8 @@ CFLAGS+=	-I${DESTDIR}/usr/include
 CFLAGS+=	-I@/../include -I${DESTDIR}/usr/include
 .endif # @
 
-INLINE_LIMIT?=	2500
-CFLAGS+=	--param max-inline-insns-single=${INLINE_LIMIT}
+INLINE_LIMIT?=	15000
+CFLAGS+=	-finline-limit=${INLINE_LIMIT}
 
 # Disallow common variables, and if we end up with commons from
 # somewhere unexpected, allocate storage for them in the module itself.
