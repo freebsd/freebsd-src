@@ -1,6 +1,6 @@
 #
 # hosts.allow access control file for "tcp wrapped" apps.
-# $Id$
+# $Id: hosts.allow,v 1.1 1999/03/28 10:47:26 markm Exp $
 #
 # NOTE: The hosts.deny file is not longer used.  Instead, put both 'allow'
 #       and 'deny' rules in the hosts.allow file.
@@ -12,26 +12,36 @@
 
 # Start by allowing everything (this prevents the rest of the file
 # from working, so remove it when you need protection).
+# The rules here work on a "First match wins" basis.
 ALL : ALL : allow
 
 # Wrapping sshd(8) is not normally a good idea, but if you
 # need to do it, here's how
-#sshd : .evil.hacker.org : deny 
+#sshd : .evil.cracker.example.com : deny 
 
 # Prevent those with no reverse DNS from connecting.
 ALL : PARANOID : RFC931 20 : deny
 
 # Allow anything from localhost
 ALL : localhost : allow
+ALL : my.machine.example.com : allow
 
 # Sendmail can help protect you against spammers and relay-rapers
 sendmail : localhost : allow
-sendmail : .mydomain.com : allow
-sendmail : .evil.spamnest.org : deny
+sendmail : .nice.guy.example.com : allow
+sendmail : .evil.cracker.example.com : deny
 sendmail : ALL : allow
 
+# Portmapper is used for all RPC services; protect your NFS!
+portmap : localhost : allow
+portmap : .nice.guy.example.com : allow
+portmap : .evil.cracker.example.com : deny
+portmap : ALL : allow
+
 # Provide a small amount of protection for ftpd
-ftpd : .warez.d00d.org : deny
+ftpd : localhost : allow
+ftpd : .nice.guy.example.com : allow
+ftpd : .evil.cracker.example.com : deny
 ftpd : ALL : allow
 
 # You need to be clever with finger; do _not_ backfinger!! You can easily
