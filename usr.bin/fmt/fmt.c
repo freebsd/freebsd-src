@@ -43,6 +43,7 @@ static char sccsid[] = "@(#)fmt.c	8.1 (Berkeley) 7/20/93";
 
 #include <stdio.h>
 #include <ctype.h>
+#include <locale.h>
 
 /*
  * fmt -- format the concatenation of input files or standard input
@@ -83,6 +84,8 @@ main(argc, argv)
 	register FILE *fi;
 	register int errs = 0;
 	int number;		/* LIZ@UOM 6/18/85 */
+
+	(void) setlocale(LC_CTYPE, "");
 
 	goal_length = GOAL_LENGTH;
 	max_length = MAX_LENGTH;
