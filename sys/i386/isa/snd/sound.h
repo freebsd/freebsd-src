@@ -28,7 +28,11 @@
  *
  */
 
+#ifdef KERNEL
 #include "pcm.h"
+#else
+#define NPCM 1
+#endif
 #if NPCM > 0
 
 /*
@@ -38,6 +42,7 @@
 #ifndef _OS_H_
 #define _OS_H_
 
+#ifdef KERNEL
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/ioccom.h>
@@ -57,10 +62,20 @@
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
+#include <sys/poll.h>
 #include <i386/isa/isa_device.h>
-
 #include <machine/clock.h>	/* for DELAY */
 
+
+#else
+struct isa_device { int dummy ; } ;
+#define d_open_t void
+#define d_close_t void
+#define d_read_t void
+#define d_write_t void
+#define d_ioctl_t void
+#define d_poll_t void
+#endif /* KERNEL */
 typedef void    (irq_proc_t) (int irq);
 
 #endif	/* _OS_H_ */
@@ -68,19 +83,20 @@ typedef void    (irq_proc_t) (int irq);
 /*      
  * descriptor of a dma buffer. See dmabuf.c for documentation.
  * (rp,rl) and (fp,fl) identify the READY and FREE regions of the
- * buffer. (dp,dl) identify the region currently used by the DMA.
- * Only dmabuf.c should test the value of dl. The reason is that
- * in auto-dma mode looking at dl alone does not make much sense,
- * since the transfer potentially spans the entire buffer.
+ * buffer. dl contains the length used for dma transfer, dl>0 also
+ * means that the channel is busy and there is a DMA transfer in progress.
  */     
         
 typedef struct _snd_dbuf {
         char *buf;
         int     bufsize ;
-        volatile int dp, rp, fp;
-        volatile int dl, rl, fl;
-	volatile int dl0; /* value used last time in dl */
+        volatile int rp, fp; /* pointers to the ready and free area */
+        volatile int dl; /* transfer size */
+	volatile int rl, fl; /* lenght of ready and free areas. */
 	int int_count;
+	int chan;       /* dma channel */
+	int sample_size ; /* 1, 2, 4 */
+	struct selinfo sel;
 } snd_dbuf ;
 
 /*
@@ -125,7 +141,6 @@ struct _snddev_info {
 #define SND_CB_WR       0x200   /* write callback */
 #define SND_CB_REASON_MASK      0xff
 #define SND_CB_START    0x01   /* start dma op */
-#define SND_CB_RESTART  0x02   /* restart dma op */
 #define SND_CB_STOP     0x03   /* stop dma op */
 #define SND_CB_ABORT    0x04   /* abort dma op */
 #define SND_CB_INIT     0x05   /* init board parameters */
@@ -145,8 +160,8 @@ struct _snddev_info {
     int     synth_base ; /* base for the synth */
 
     int     irq ;
-    int     dma1, dma2 ;  /* dma2=dma1 for half-duplex cards */
-
+#define dma1 dbuf_out.chan
+#define dma2 dbuf_in.chan
     int bd_id ;     /* used to hold board-id info, eg. sb version,
 		     * mss codec type, etc. etc.
 		     */
@@ -198,12 +213,14 @@ struct _snddev_info {
      * you might get interrupts, so some manipulations of the
      * descriptors must be done with interrupts blocked.
      */
+#if 0
 #define SND_F_RD_DMA            0x0010  /* read-dma active */
 #define SND_F_WR_DMA            0x0020  /* write-dma active */
 
 #define	SND_F_PENDING_IN	(SND_F_READING | SND_F_RD_DMA)
 #define	SND_F_PENDING_OUT	(SND_F_WRITING | SND_F_WR_DMA)
-#define	SND_F_PENDING_IO	(SND_F_PENDING_IN | SND_F_PENDING_OUT)
+#endif
+#define	SND_F_PENDING_IO	(SND_F_READING | SND_F_WRITING)
 
     /*
      * flag used to mark a pending close.
@@ -242,7 +259,6 @@ struct _snddev_info {
      * be done at the next convenient time.
      */
 #define SND_F_INIT              0x4000  /* changed parameters. need init */
-#define SND_F_AUTO_DMA          0x8000  /* use auto-dma */
 
     u_long  bd_flags;       /* board-specific flags */
     int     play_speed, rec_speed;
@@ -258,8 +274,11 @@ struct _snddev_info {
     u_long  mix_recsrc;	/* current recording source(s) */
     u_short mix_levels[32];
 
-    struct selinfo wsel, rsel, esel ;
+#define wsel dbuf_out.sel
+#define rsel dbuf_in.sel
     u_long	interrupts;	/* counter of interrupts */
+    u_long	magic;
+#define	MAGIC(unit) ( 0xa4d10de0 + unit )
     void    *device_data ;	/* just in case it is needed...*/
 } ;
 
@@ -310,13 +329,20 @@ struct _snddev_info {
 #define MD_CS4232	0xA4
 #define MD_CS4232A	0xA5
 #define MD_CS4236	0xA6
+#define MD_CS4237	0xA7
 #define	MD_OPTI931	0xB1
+#define	MD_GUSPNP	0xB8
+#define	MD_YM0020	0xC1
+#define	MD_VIVO		0xD1
 
 /*
  * TODO: add some card classes rather than specific types.
  */
+#ifdef KERNEL
 #include <i386/isa/snd/soundcard.h>
-
+#else
+#include </sys/i386/isa/snd/soundcard.h>
+#endif
 /*
  * many variables should be reduced to a range. Here define a macro
  */
@@ -327,14 +353,17 @@ struct _snddev_info {
 /*
  * finally, all default parameters
  */
-#define DSP_BUFFSIZE 65536 /* XXX */
+#define DSP_BUFFSIZE (65536 - 256) /* XXX */
+/*
+ * the last 256 bytes are room for buggy soundcard to overflow.
+ */
 
-#if 1 		/* prepare for pnp support! */
+#ifdef KERNEL
 #include "pnp.h"
 #if NPNP > 0
 #include <i386/isa/pnp.h>	/* XXX pnp support */
 #endif
-#endif
+#endif /* KERNEL */
 
 /*
  * Minor numbers for the sound driver.
@@ -395,10 +424,14 @@ struct mixer_def {
 typedef struct mixer_def mixer_ent;
 typedef struct mixer_def mixer_tab[32][2];
 
+#ifdef KERNEL
+
 #define MIX_ENT(name, reg_l, pol_l, pos_l, len_l, reg_r, pol_r, pos_r, len_r) \
     {{reg_l, pol_l, pos_l, len_l}, {reg_r, pol_r, pos_r, len_r}}
 #define PMIX_ENT(name, reg_l, pos_l, len_l, reg_r, pos_r, len_r) \
     {{reg_l, 0, pos_l, len_l}, {reg_r, 0, pos_r, len_r}}
+
+#define MIX_NONE(name) MIX_ENT(name, 0,0,0,0, 0,0,0,0)
 
 #define DDB(x)	x	/* XXX */
 
@@ -431,14 +464,23 @@ void dsp_wrintr(snddev_info *d);
 void dsp_rdintr(snddev_info *d);
 int dsp_write_body(snddev_info *d, struct uio *buf);
 int dsp_read_body(snddev_info *d, struct uio *buf);
-void alloc_dbuf(snd_dbuf *d, int size, int b16);
-void reset_dbuf(snd_dbuf *b);
+void alloc_dbuf(snd_dbuf *d, int size);
+
 int snd_flush(snddev_info *d);
+
+/* the following parameters are used in snd_sync and reset_dbuf
+ * to decide whether or not to restart a channel
+ */
+#define	SND_CHAN_NONE	0x0
+#define	SND_CHAN_WR	0x1
+#define	SND_CHAN_RD	0x2
+
+void reset_dbuf(snd_dbuf *b, int chan);
 int snd_sync(snddev_info *d, int chan, int threshold);
-int dsp_wrabort(snddev_info *d);
-int dsp_rdabort(snddev_info *d);
-void dsp_wr_dmaupdate(snddev_info *d);
-void dsp_rd_dmaupdate(snddev_info *d);
+int dsp_wrabort(snddev_info *d, int restart);
+int dsp_rdabort(snddev_info *d, int restart);
+void dsp_wr_dmaupdate(snd_dbuf *b);
+void dsp_rd_dmaupdate(snd_dbuf *b);
 
 d_poll_t sndpoll;
 
@@ -463,6 +505,7 @@ int sb_reset_dsp (int io_base);
 void sb_setmixer (int io_base, u_int port, u_int value);
 int sb_getmixer (int io_base, u_int port);
 
+#endif /* KERNEL */
 
 /*
  * usage of flags in device config entry (config file)

@@ -143,89 +143,88 @@ ahead.
  * (Actually this is not a mapping but rather some kind of interleaving
  * solution).
  */
-#define GUSMAX_MIXER
-#ifdef GUSMAX_MIXER
-#define MODE1_REC_DEVICES	\
+
+#define MSS_REC_DEVICES	\
     (SOUND_MASK_LINE | SOUND_MASK_MIC | SOUND_MASK_CD|SOUND_MASK_IMIX)
 
-#define MODE1_MIXER_DEVICES	\
-    (SOUND_MASK_SYNTH | SOUND_MASK_MIC | SOUND_MASK_CD | \
-     SOUND_MASK_IGAIN | SOUND_MASK_PCM|SOUND_MASK_IMIX)
-
-#define MODE2_MIXER_DEVICES	\
-    (SOUND_MASK_SYNTH | SOUND_MASK_LINE | SOUND_MASK_MIC | \
-     SOUND_MASK_CD | SOUND_MASK_SPEAKER | SOUND_MASK_IGAIN | \
-     SOUND_MASK_PCM | SOUND_MASK_IMIX)
-
-#else	/* Generic mapping */
-
-#define MODE1_REC_DEVICES	\
-    (SOUND_MASK_LINE3 | SOUND_MASK_MIC | SOUND_MASK_LINE1|SOUND_MASK_IMIX)
-
-#define MODE1_MIXER_DEVICES	\
-    (SOUND_MASK_LINE1 | SOUND_MASK_MIC | SOUND_MASK_LINE2 | \
-     SOUND_MASK_IGAIN | SOUND_MASK_PCM | SOUND_MASK_IMIX)
-
-#define MODE2_MIXER_DEVICES	\
-    (SOUND_MASK_LINE1 | SOUND_MASK_MIC | SOUND_MASK_LINE2 | \
-     SOUND_MASK_LINE3 | SOUND_MASK_SPEAKER | \
-     SOUND_MASK_IGAIN | SOUND_MASK_PCM | SOUND_MASK_IMIX)
-#endif
-
-#define OPTI931_MIXER_DEVICES	\
-    (SOUND_MASK_VOLUME | SOUND_MASK_SYNTH | SOUND_MASK_PCM | \
-     SOUND_MASK_LINE | SOUND_MASK_MIC | SOUND_MASK_CD | SOUND_MASK_IGAIN )
 
 /*
- * Most of the mixer entries work in backwards. Setting the polarity field
- * makes them to work correctly.
+ * Table of mixer registers. There is a default table for the
+ * AD1848/CS423x clones, and one for the OPTI931. As more WSS
+ * clones come out, there ought to be more tables.
+ *
+ * Fields in the table are : polarity, register, offset, bits
  *
  * The channel numbering used by individual soundcards is not fixed.
  * Some cards have assigned different meanings for the AUX1, AUX2
  * and LINE inputs. Some have different features...
- * The current version doesn't try to compensate this.
+ *
+ * Following there is a macro ...MIXER_DEVICES which is a bitmap
+ * of all non-zero fields in the table.
+ * MODE1_MIXER_DEVICES is the basic mixer of the 1848 in mode 1
+ * registers I0..I15)
  *
  */
 
-mixer_ent mix_devices[32][2] = {	/* As used in GUS MAX */
-MIX_ENT(SOUND_MIXER_VOLUME,	 0, 0, 0, 0,	 0, 0, 0, 0),
-MIX_ENT(SOUND_MIXER_BASS,	 0, 0, 0, 0,	 0, 0, 0, 0),
-MIX_ENT(SOUND_MIXER_TREBLE,	 0, 0, 0, 0,	 0, 0, 0, 0),
-MIX_ENT(SOUND_MIXER_SYNTH,	 4, 1, 0, 5,	 5, 1, 0, 5),
+mixer_ent mix_devices[32][2] = {
+MIX_NONE(SOUND_MIXER_VOLUME),
+MIX_NONE(SOUND_MIXER_BASS),
+MIX_NONE(SOUND_MIXER_TREBLE),
+MIX_ENT(SOUND_MIXER_SYNTH,	 2, 1, 0, 5,	 3, 1, 0, 5),
 MIX_ENT(SOUND_MIXER_PCM,	 6, 1, 0, 6,	 7, 1, 0, 6),
 MIX_ENT(SOUND_MIXER_SPEAKER,	26, 1, 0, 4,	 0, 0, 0, 0),
 MIX_ENT(SOUND_MIXER_LINE,	18, 1, 0, 5,	19, 1, 0, 5),
 MIX_ENT(SOUND_MIXER_MIC,	 0, 0, 5, 1,	 1, 0, 5, 1),
-MIX_ENT(SOUND_MIXER_CD,	 	 2, 1, 0, 5,	 3, 1, 0, 5),
+MIX_ENT(SOUND_MIXER_CD,	 	 4, 1, 0, 5,	 5, 1, 0, 5),
 MIX_ENT(SOUND_MIXER_IMIX,	13, 1, 2, 6,	 0, 0, 0, 0),
-MIX_ENT(SOUND_MIXER_ALTPCM,	 0, 0, 0, 0,	 0, 0, 0, 0),
-MIX_ENT(SOUND_MIXER_RECLEV,	 0, 0, 0, 0,	 0, 0, 0, 0),
+MIX_NONE(SOUND_MIXER_ALTPCM),
+MIX_NONE(SOUND_MIXER_RECLEV),
 MIX_ENT(SOUND_MIXER_IGAIN,	 0, 0, 0, 4,	 1, 0, 0, 4),
-MIX_ENT(SOUND_MIXER_OGAIN,	 0, 0, 0, 0,	 0, 0, 0, 0),
-MIX_ENT(SOUND_MIXER_LINE1, 	 2, 1, 0, 5,	 3, 1, 0, 5),
-MIX_ENT(SOUND_MIXER_LINE2,	 4, 1, 0, 5,	 5, 1, 0, 5),
-MIX_ENT(SOUND_MIXER_LINE3,	18, 1, 0, 5,	19, 1, 0, 5)
+MIX_NONE(SOUND_MIXER_OGAIN),
+MIX_NONE(SOUND_MIXER_LINE1),
+MIX_NONE(SOUND_MIXER_LINE2),
+MIX_NONE(SOUND_MIXER_LINE3),
 };
+
+#define MODE2_MIXER_DEVICES	\
+    (SOUND_MASK_SYNTH | SOUND_MASK_PCM    | SOUND_MASK_SPEAKER | \
+     SOUND_MASK_LINE  | SOUND_MASK_MIC    | SOUND_MASK_CD      | \
+     SOUND_MASK_IMIX  | SOUND_MASK_IGAIN                         )
+
+#define MODE1_MIXER_DEVICES	\
+    (SOUND_MASK_SYNTH | SOUND_MASK_PCM    | SOUND_MASK_MIC     | \
+     SOUND_MASK_CD    | SOUND_MASK_IMIX   | SOUND_MASK_IGAIN     )
+
+
+/*
+ * entries for the opti931...
+ */
 
 mixer_ent opti931_devices[32][2] = {	/* for the opti931 */
 MIX_ENT(SOUND_MIXER_VOLUME,	22, 1, 1, 5,	23, 1, 1, 5),
-MIX_ENT(SOUND_MIXER_BASS,	 0, 0, 0, 0,	 0, 0, 0, 0),
-MIX_ENT(SOUND_MIXER_TREBLE,	 0, 0, 0, 0,	 0, 0, 0, 0),
+MIX_NONE(SOUND_MIXER_BASS),
+MIX_NONE(SOUND_MIXER_TREBLE),
 MIX_ENT(SOUND_MIXER_SYNTH,	 4, 1, 1, 4,	 5, 1, 1, 4),
 MIX_ENT(SOUND_MIXER_PCM,	 6, 1, 0, 5,	 7, 1, 0, 5),
-MIX_ENT(SOUND_MIXER_SPEAKER,	 0, 0, 0, 0,	 0, 0, 0, 0),
+MIX_NONE(SOUND_MIXER_SPEAKER),
 MIX_ENT(SOUND_MIXER_LINE,	18, 1, 1, 4,	19, 1, 1, 4),
 MIX_ENT(SOUND_MIXER_MIC,	 0, 0, 5, 1,	 1, 0, 5, 1),
 MIX_ENT(SOUND_MIXER_CD,	 	 2, 1, 1, 4,	 3, 1, 1, 4),
-MIX_ENT(SOUND_MIXER_IMIX,	 0, 0, 0, 0,	 0, 0, 0, 0),
-MIX_ENT(SOUND_MIXER_ALTPCM,	 0, 0, 0, 0,	 0, 0, 0, 0),
-MIX_ENT(SOUND_MIXER_RECLEV,	 0, 0, 0, 0,	 0, 0, 0, 0),
+MIX_NONE(SOUND_MIXER_IMIX),
+MIX_NONE(SOUND_MIXER_ALTPCM),
+MIX_NONE(SOUND_MIXER_RECLEV),
 MIX_ENT(SOUND_MIXER_IGAIN,	 0, 0, 0, 4,	 1, 0, 0, 4),
-MIX_ENT(SOUND_MIXER_OGAIN,	 0, 0, 0, 0,	 0, 0, 0, 0),
-MIX_ENT(SOUND_MIXER_LINE1, 	 2, 1, 0, 5,	 3, 1, 0, 5),
-MIX_ENT(SOUND_MIXER_LINE2,	 4, 1, 0, 5,	 5, 1, 0, 5),
-MIX_ENT(SOUND_MIXER_LINE3,	18, 1, 0, 5,	19, 1, 0, 5)
+MIX_NONE(SOUND_MIXER_OGAIN),
+MIX_ENT(SOUND_MIXER_LINE1, 	16, 1, 1, 4,	17, 1, 1, 4),
+MIX_NONE(SOUND_MIXER_LINE2),
+MIX_NONE(SOUND_MIXER_LINE3),
 };
+
+#define OPTI931_MIXER_DEVICES	\
+    (SOUND_MASK_VOLUME | SOUND_MASK_SYNTH | SOUND_MASK_PCM | \
+     SOUND_MASK_LINE   | SOUND_MASK_MIC   | SOUND_MASK_CD  | \
+     SOUND_MASK_IGAIN  | SOUND_MASK_LINE1                    )
+
 
 static u_short default_mixer_levels[SOUND_MIXER_NRDEVICES] = {
   0x5a5a,			/* Master Volume */

@@ -28,19 +28,34 @@ extern int sbc_major, sbc_minor ;
  * DSP Commands. There are many, and in many cases they are used explicitly
  */
 
+/* these are not used except for programmed I/O (not in this driver) */
 #define	DSP_DAC8		0x10	/* direct DAC output */
+#define	DSP_ADC8		0x20	/* direct ADC input */
+
+/* these should be used in the SB 1.0 */
 #define	DSP_CMD_DAC8		0x14	/* single cycle 8-bit dma out */
+#define	DSP_CMD_ADC8		0x24	/* single cycle 8-bit dma in */
+
+/* these should be used in the SB 2.0 and 2.01 */
+#define	DSP_CMD_DAC8_AUTO	0x1c	/* auto 8-bit dma out */
+#define	DSP_CMD_ADC8_AUTO	0x2c	/* auto 8-bit dma out */
+
+#define	DSP_CMD_HSSIZE		0x48	/* high speed dma count */
+#define	DSP_CMD_HSDAC_AUTO	0x90	/* high speed dac, auto */
+#define DSP_CMD_HSADC_AUTO      0x98    /* high speed adc, auto */
+
+/* SBPro commands. Some cards (JAZZ, SMW) also support 16 bits */
+
+	/* prepare for dma input */
+#define	DSP_CMD_DMAMODE(stereo, bit16) (0xA0 | (stereo ? 8:0) | (bit16 ? 4:0))
+
 #define	DSP_CMD_DAC2		0x16	/* 2-bit adpcm dma out (cont) */
 #define	DSP_CMD_DAC2S		0x17	/* 2-bit adpcm dma out (start) */
 
-#define	DSP_CMD_DAC8_A		0x1c	/* auto 8-bit dma out */
-#define	DSP_CMD_DAC2S_A		0x1f	/* auto 2-bit adpcm dma out (start) */
+#define	DSP_CMD_DAC2S_AUTO	0x1f	/* auto 2-bit adpcm dma out (start) */
 
-#define	DSP_ADC8		0x20	/* direct ADC input */
 
-#define	DSP_CMD_ADC8		0x24	/* single cycle 8-bit dma in */
-#define	DSP_CMD_ADC8_A		0x2c	/* auto 8-bit dma out */
-
+/* SB16 commands */
 #define	DSP_CMD_O16		0xb0
 #define	DSP_CMD_I16		0xb8
 #define	DSP_CMD_O8		0xc0
@@ -54,30 +69,22 @@ extern int sbc_major, sbc_minor ;
 #define DSP_CMD_SPKON		0xD1
 #define DSP_CMD_SPKOFF		0xD3
 #define DSP_CMD_SPKR(on)	(0xD1 | (on ? 0:2))
-#define DSP_CMD_DMAON		0xD0	/* ??? the comment says Halt DMA */
-#define DSP_CMD_DMAOFF		0xD4	/* ??? comment says continue dma */
 
-#define	DSP_CMD_DMAHALT		0xD0
+#define	DSP_CMD_DMAPAUSE_8	0xD0
+#define	DSP_CMD_DMAPAUSE_16	0xD5
+#define	DSP_CMD_DMAEXIT_8	0xDA
+#define	DSP_CMD_DMAEXIT_16	0xD9
 #define	DSP_CMD_TCONST		0x40	/* set time constant */
-#define	DSP_CMD_HSSIZE		0x48	/* high speed dma count */
 #define	DSP_CMD_HSDAC		0x91	/* high speed dac */
-#define	DSP_CMD_HSADC		0x99	/* high speed adc */
+#define DSP_CMD_HSADC           0x99    /* high speed adc */
 
 #define	DSP_CMD_GETVER		0xE1
 #define	DSP_CMD_GETID		0xE7	/* return id bytes */
 
-	/* prepare for dma input */
-#define	DSP_CMD_DMAMODE(stereo, bit16) (0xA0 | (stereo ? 8:0) | (bit16 ? 4:0))
 
 #define	DSP_CMD_OUT16		0x41	/* send parms for dma out on sb16 */
 #define	DSP_CMD_IN16		0x42	/* send parms for dma in on sb16 */
 #if 0 /*** unknown ***/
-	/*
-	 * D9 and D5 are used on the sb16 on close... maybe a reset of
-	 * some subsystem ?
-	 */
-#define	DSP_CMD_D9		0xD9
-#define	DSP_CMD_D5		0xD5
 #define	DSP_CMD_FA		0xFA	/* get version from prosonic*/
 #define	DSP_CMD_FB		0xFB	/* set irq/dma for prosonic*/
 #endif

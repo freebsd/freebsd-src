@@ -1,56 +1,58 @@
 /*
  * snd/dmabuf.c
  * 
- * New DMA routines -- Luigi Rizzo, 19 jul 97
  * This file implements the new DMA routines for the sound driver.
+ * AUTO DMA MODE (ISA DMA SIDE).
  *
  * Copyright by Luigi Rizzo - 1997
  * 
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met: 1. Redistributions of source code must retain the above copyright
- * notice, this list of conditions and the following disclaimer. 2.
- * Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- * 
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer
+ *    in the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+ * USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+ * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
  */
 
 #include <i386/isa/snd/sound.h>
 #include <i386/isa/snd/ulaw.h>
 
 #define MIN_CHUNK_SIZE 256	/* for uiomove etc. */
-#define	DMA_ALIGN_BITS		2			/* i.e. 4 bytes */
-#define	DMA_ALIGN_THRESHOLD	(1<< DMA_ALIGN_BITS)
+#define	DMA_ALIGN_THRESHOLD	4
 #define	DMA_ALIGN_MASK		(~ (DMA_ALIGN_THRESHOLD - 1))
 
 static void dsp_wr_dmadone(snddev_info *d);
 static void dsp_rd_dmadone(snddev_info *d);
 
 /*
- *
-
-SOUND OUTPUT
+ * SOUND OUTPUT
 
 We use a circular buffer to store samples directed to the DAC.
-The buffer is split into three variable-size regions, each identified
-by an offset in the buffer (dp,rp,fp) and a lenght (dl,rl,fl).
+The buffer is split into two variable-size regions, each identified
+by an offset in the buffer (rp,fp) and a lenght (rl,fl). dl contains
+the length of the current DMA transfer, dl=0 means that the dma is
+idle.
 
-      0          dp,dl        rp,rl         fp,fl    bufsize
-      |__________|_____>______|_____________|________|
-	  FREE        DMA          READY      FREE    
+      0          rp,rl        fp,fl    bufsize
+      |__________>____________>________|
+	  FREE   d   READY    w FREE    
 
   READY region: contains data written from the process and ready
       to be sent to the DAC;
@@ -58,190 +60,149 @@ by an offset in the buffer (dp,rp,fp) and a lenght (dl,rl,fl).
   FREE region: is the empty region of the buffer, where a process
       can write new data.
 
-  DMA region: contains data being sent to the DAC by the DMA engine.
-      the actual boundary between the FREE and READY regions is in
-      fact within the DMA region (indicated by the > symbol above),
-      and advances as the DMA engine makes progress.
-
 Both the "READY" and "FREE" regions can wrap around the end of the
-buffer. The "DMA" region can only wrap if AUTO DMA is used, otherwise
-it cannot cross the end of the buffer.
+buffer.  At initialization, READY is empty, FREE takes all the
+available space, and dma is idle.
 
-Since dl can be updated on the fly, dl0 marks the value used when the
-operation was started. When using AUTO DMA, bufsize-(count in the ISA DMA
-register) directly reflects the position of dp.
+The two boundaries (rp,fp) in the buffers are advanced by DMA [d]
+and write() [w] operations.  The first block of the READY region
+is used for DMA transfers. The transfer is started at rp and with
+chunks of length dl. During DMA operations, rp advances and rl,fl
+are updated by dsp_wr_dmaupdate().  When a new block is written,
+fp advances and rl,fl are updated accordingly.
 
-At initialization, DMA and READY are empty, and FREE takes all the
-available space:
-
-    dp = rp = fp = 0 ;	--  beginning of buffer
-    dl0 = dl = 0 ;	-- meaning no dma activity
-    rl = 0 ;		-- meaning no data ready
-    fl = bufsize ;
-
-The DMA region is also empty whenever there is no DMA activity, for
-whatever reason (e.g. no ready data, or output is paused).
 The code works as follows: the user write routine dsp_write_body()
 fills up the READY region with new data (reclaiming space from the
-FREE region) and starts the write DMA engine if inactive (activity
-is indicated by d->flags & SND_F_WR_DMA ). The size of each
-DMA transfer is chosen according to a series of rules which will be
-discussed later. When a DMA transfer is complete, an interrupt causes
-dsp_wrintr() to be called which empties the DMA region, extends
-the FREE region and possibly starts the next transfer.
+FREE region) and starts the write DMA engine if inactive.  When a
+DMA transfer is complete, an interrupt causes dsp_wrintr() to be
+called which extends the FREE region and possibly starts the next
+transfer.
 
 In some cases, the code tries to track the current status of DMA
-operations by calling isa_dmastatus() and advancing the boundary
-between FREE and DMA regions accordingly.
+operations by calling dsp_wr_dmaupdate() which changes rp, rl and fl.
 
-The size of a DMA transfer is selected according to the following
-rules:
+The sistem tries to make all DMA transfers use the same size,
+play_blocksize or rec_blocksize. The size is either selected
+by the user, or computed by the system to correspond to about .25s of
+audio. The blocksize must be within a range which is currently:
 
-  1. when not using AUTO DMA, do not wrap around the end of the
-     buffer, and do not let fp move too close to the end of the
-     buffer;
+	min(5ms, 40 bytes) ... 1/2 buffer size.
 
-  2. do not use more than half of the buffer size.
-     This serves to allow room for a next write operation concurrent
-     with the dma transfer, and to reduce the time which is necessary
-     to wait before a pending dma will end (optionally, the max
-     size could be further limited to a fixed amount of play time,
-     depending on number of channels, sample size and sample speed);
+When there aren't enough data (write) or space (read), a transfer
+is started with a reduced size.
 
-  3. use the current blocksize (either specified by the user, or
-     corresponding roughly to 0.25s of data);
+To reduce problems in case of overruns, the routine which fills up the
+buffer should initialize (e.g. by repeating the last value) a
+reasonably long area after the last block so that no noise is
+produced on overruns.
 
   *
   */
 
 
 /*
- * dsp_wr_dmadone moves the write DMA region into the FREE region.
- * It is assumed to be called at spltty() and with a write dma
- * previously started.
+ * dsp_wr_dmadone() updates pointers and wakes up any process sleeping
+ * or waiting on a select().
+ * Must be called at spltty().
  */
 static void
 dsp_wr_dmadone(snddev_info *d)
 {
     snd_dbuf *b = & (d->dbuf_out) ;
 
-    isa_dmadone(B_WRITE, b->buf + b->dp, b->dl, d->dma1);
-    b->fl += b->dl ;	/* make dl bytes free */
+    dsp_wr_dmaupdate(b);
     /*
      * XXX here it would be more efficient to record if there
      * actually is a sleeping process, but this should still work.
      */
     wakeup(b); 	/* wakeup possible sleepers */
-    if (d->wsel.si_pid &&
+    if (b->sel.si_pid &&
 	    ( !(d->flags & SND_F_HAS_SIZE) || b->fl >= d->play_blocksize ) )
-	selwakeup( & d->wsel );
-    b->dp = b->rp ;
-    b->dl0 = b->dl = 0 ;
+	selwakeup( & b->sel );
 }
 
 /*
- * The following function tracks the status of a (write) dma transfer,
- * and moves the boundary between the FREE and the DMA regions.
- * It works under the following assumptions:
- *   - the DMA engine is running;
- *   - the routine is called with interrupts blocked.
- * BEWARE: when using AUTO DMA, dl can go negative! We assume that it
- * does not wrap!
+ * dsp_wr_dmaupdate() tracks the status of a (write) dma transfer,
+ * updating pointers. It must be called at spltty() and the ISA DMA must
+ * have been started.
+ *
+ * NOTE: when we are using auto dma in the device, rl might become
+ *  negative.
  */
 void
-dsp_wr_dmaupdate(snddev_info *d)
+dsp_wr_dmaupdate(snd_dbuf *b)
 {
-    snd_dbuf *b = & (d->dbuf_out) ;
-    int tmp;
+    int tmp, delta;
 
-    tmp = b->dl - isa_dmastatus1(d->dma1) ;
+    tmp = b->bufsize - isa_dmastatus1(b->chan) ;
     tmp &= DMA_ALIGN_MASK; /* align... */
-    if (tmp > 0) { /* we have some new data */
-	b->dp += tmp;
-	if (b->dp >= b->bufsize)
-	    b->dp -= b->bufsize;
-	b->dl -= tmp ;
-	b->fl += tmp ;
-    }
+    delta = tmp - b->rp;
+    if (delta < 0) /* wrapped */
+	delta += b->bufsize ;
+    b->rp = tmp;
+    b->rl -= delta ;
+    b->fl += delta ;
 }
 
 /*
- * Write interrupt routine. Can be called from other places, but
- * with interrupts disabled.
+ * Write interrupt routine. Can be called from other places (e.g.
+ * to start a paused transfer), but with interrupts disabled.
  */
 void
 dsp_wrintr(snddev_info *d)
 {
     snd_dbuf *b = & (d->dbuf_out) ;
-    int cb_reason = SND_CB_WR ;
 
-    DEB(printf("dsp_wrintr: start on dl %d, rl %d, fl %d\n",
-	b->dl, b->rl, b->fl));
-    if (d->flags & SND_F_WR_DMA) {		/* dma was active */
+    if (b->dl) {		/* dma was active */
 	b->int_count++;
-	d->flags &= ~SND_F_WR_DMA;
-	cb_reason = SND_CB_WR | SND_CB_RESTART ;
 	dsp_wr_dmadone(d);
-    } else
-	cb_reason = SND_CB_WR | SND_CB_START ;
+    }
 
+    DEB(if (b->rl < 0)
+	printf("dsp_wrintr: dl %d, rp:rl %d:%d, fp:fl %d:%d\n",
+	    b->dl, b->rp, b->rl, b->fp, b->fl));
     /*
-     * start another dma operation only if have ready data in the
-     * buffer, there is no pending abort, have a full-duplex device
-     * (dma1 != dma2) or have half duplex device and there is no
-     * pending op on the other side.
+     * start another dma operation only if have ready data in the buffer,
+     * there is no pending abort, have a full-duplex device
+     * (dbuf_out.chan != dbuf_in.chan) or have half duplex device
+     * and there is no * pending op on the other side.
      *
-     * Force transfer to be aligned to a boundary of 4, which is
+     * Force transfers to be aligned to a boundary of 4, which is
      * needed when doing stereo and 16-bit. We could make this
      * adaptive, but why bother for now...
      */
     if (  b->rl >= DMA_ALIGN_THRESHOLD  &&
 	  ! (d->flags & SND_F_ABORTING) &&
-	  ( (d->dma1 != d->dma2) || ! (d->flags & SND_F_READING)  ) ) {
-	b->dl = min(b->rl, b->bufsize - b->rp ) ; /* do not wrap */
-	b->dl = min(b->dl, d->play_blocksize );	/* avoid too large transfer */
-	b->dl &= DMA_ALIGN_MASK ; /* realign things */
-	b->rl -= b->dl ;
-	b->rp += b->dl ;
-	if (b->rp == b->bufsize)
-	    b->rp = 0 ;
-	/*
-         * now try to avoid too small dma transfers in the near future.
-         * This can happen if I let rp start too close to the end of
-         * the buffer. If this happens, and have enough data, try to
-         * split the available block in two approx. equal parts.
-	 * XXX this code can go when we use auto dma.
-         */
-        if (b->bufsize - b->rp < MIN_CHUNK_SIZE &&
-		b->bufsize - b->dp > 2*MIN_CHUNK_SIZE) {
-            b->dl = (b->bufsize - b->dp) / 2;
-	    b->dl &= ~3 ; /* align to a boundary of 4 */
-            b->rl += (b->rp - (b->dp + b->dl) ) ;
-            b->rp = b->dp + b->dl ; /* no need to check for wraps */
-        }
-	/*
-	 * how important is the order of operations ?
-	 */
-	if (b->dl == 0) {
-	    printf("ouch... want to start for 0 bytes!\n");
-	    goto ferma;
+	  ( (d->dbuf_out.chan != d->dbuf_in.chan) ||
+	    ! (d->flags & SND_F_READING)  ) ) {
+	int l = min(b->rl, d->play_blocksize );	/* avoid too large transfer */
+	l &= DMA_ALIGN_MASK ; /* realign things */
+
+	if (l != b->dl) {
+	    /* for any reason, size has changed. Stop and restart */
+	    DEB(printf("wrintr: bsz change from %d to %d, rp %d rl %d\n",
+		b->dl, l, b->rp, b->rl));
+	    b->dl = l; /* record previous transfer size */
+	    d->callback(d, SND_CB_WR | SND_CB_STOP );
+	    d->callback(d, SND_CB_WR | SND_CB_START );
 	}
-	b->dl0 = b->dl ; /* XXX */
-	if (d->callback)
-	    d->callback(d, cb_reason );		/* start/restart dma */
-	isa_dmastart( B_WRITE , b->buf + b->dp, b->dl, d->dma1);
-	d->flags |= SND_F_WR_DMA;
     } else {
-ferma:
-	if (d->callback && (cb_reason & SND_CB_REASON_MASK) == SND_CB_RESTART )
+	/* cannot start a new dma transfer */
+	DEB(printf("cannot start wr-dma flags 0x%08x rp %d rl %d\n",
+		d->flags, b->rp, b->rl));
+	if (b->dl > 0) { /* was active */
+	    b->dl = 0;
 	    d->callback(d, SND_CB_WR | SND_CB_STOP );	/* stop dma */
+	    if (d->flags & SND_F_WRITING)
+		DEB(printf("Race! got wrint while reloading...\n"));
+	    else
+		reset_dbuf(b, SND_CHAN_WR);
+	}
 	/*
 	 * if switching to read, should start the read dma...
 	 */
-	if ( d->dma1 == d->dma2 && (d->flags & SND_F_READING) )
+	if ( d->dbuf_out.chan == d->dbuf_in.chan && (d->flags & SND_F_READING) )
 	    dsp_rdintr(d);
-	DEB(printf("cannot start wr-dma flags 0x%08lx dma_dl %d rl %d\n",
-		d->flags, isa_dmastatus1(d->dma1), b->rl));
     }
 }
 
@@ -259,65 +220,55 @@ ferma:
  * data, we reduce the latency to something proportional to the length
  * of the first piece, while keeping the overhead low and being able
  * to feed the DMA with large blocks.
+ *
+ * assume d->flags |= SND_F_WRITING ; has been done before
  */
 
 int
 dsp_write_body(snddev_info *d, struct uio *buf)
 {
-    int timeout = 1, n, l, bsz, ret = 0 ;
+    int n, l, bsz, ret = 0 ;
     long s;
     snd_dbuf *b = & (d->dbuf_out) ;
 
-    /* assume d->flags |= SND_F_WRITING ; has been done before */
     /*
-     * bsz is the max size for the next transfer. If the dma was
-     * idle, we want it as large as possible. Otherwise, start with
+     * bsz is the max size for the next transfer. If the dma was idle
+     * (dl == 0), we want it as large as possible. Otherwise, start with
      * a small block to avoid underruns if we are close to the end of
      * the previous operation.
      */
-    bsz =  (d->flags & SND_F_WR_DMA) ? MIN_CHUNK_SIZE : b->bufsize ;
+    bsz =  b->dl ? MIN_CHUNK_SIZE : b->bufsize ;
     while (( n = buf->uio_resid )) {
         l = min (n, bsz);       /* at most n bytes ... */
         s = spltty();  /* no interrupts here ... */
-	/*
-	 * if i) the dma engine is running, ii) we do not have enough space
-	 * in the FREE region, and iii) the current DMA transfer might let
-	 * us complete the _whole_ transfer without sleeping, or we are doing
-	 * non-blocking I/O, then try to extend the FREE region.
-	 * Otherwise do not bother, we will need to sleep anyways, and
-	 * make the timeout longer.
-	 */
-
-	if ( d->flags & SND_F_WR_DMA && b->fl < l && 
-	     ( b->fl + b->dl >= n || d->flags & SND_F_NBIO ) )
-	    dsp_wr_dmaupdate(d); /* should really change timeout... */
-	else
-	    timeout = hz;
+	dsp_wr_dmaupdate(b);
         l = min( l, b->fl );    /* no more than avail. space */
-        l = min( l, b->bufsize - b->fp ); /* do not wrap ... */
 	DEB(printf("dsp_write_body: prepare %d bytes out of %d\n", l,n));
 	/*
 	 * at this point, we assume that if l==0 the dma engine
-	 * must (or will, in cause it is paused) be running.
+	 * must be running.
 	 */
         if (l == 0) { /* no space, must sleep */
+	    int timeout;
 	    if (d->flags & SND_F_NBIO) {
 		/* unless of course we are doing non-blocking i/o */
 		splx(s);
 		break;
 	    }
 	    DEB(printf("dsp_write_body: l=0, (fl %d) sleeping\n", b->fl));
+	    if ( b->fl < n )
+		timeout = hz;
+	    else
+		timeout = 1 ;
             ret = tsleep( (caddr_t)b, PRIBIO|PCATCH, "dspwr", timeout);
 	    if (ret == EINTR)
 		d->flags |= SND_F_ABORTING ;
 	    splx(s);
-	    if (ret == ERESTART || ret == EINTR)
+	    if (ret == EINTR)
 		break ;
-	    timeout = min(2*timeout, hz);
             continue;
         }
         splx(s);
-	timeout = 1 ; /* we got some data... */
 
 	/*
 	 * copy data to the buffer, and possibly do format
@@ -325,13 +276,19 @@ dsp_write_body(snddev_info *d, struct uio *buf)
 	 * NOTE: I can use fp here since it is not modified by the
 	 * interrupt routines.
 	 */
-        ret = uiomove(b->buf + b->fp, l, buf) ;
-	if (ret !=0 ) {	/* an error occurred ... */
-	    printf("uiomove error %d\n", ret);
-	    break ;
+	if (b->fp + l > b->bufsize) {
+	    int l1 = b->bufsize - b->fp ;
+	    uiomove(b->buf + b->fp, l1, buf) ;
+	    uiomove(b->buf, l - l1, buf) ;
+	    if (d->flags & SND_F_XLAT8) {
+		translate_bytes(ulaw_dsp, b->buf + b->fp, l1);
+		translate_bytes(ulaw_dsp, b->buf , l - l1);
+	    }
+	} else {
+	    uiomove(b->buf + b->fp, l, buf) ;
+	    if (d->flags & SND_F_XLAT8)
+		translate_bytes(ulaw_dsp, b->buf + b->fp, l);
 	}
-	if (d->flags & SND_F_XLAT8)
-	    translate_bytes(ulaw_dsp, b->buf + b->fp, l);
 
         s = spltty();  /* no interrupts here ... */
         b->rl += l ;    /* this more ready bytes */
@@ -339,17 +296,51 @@ dsp_write_body(snddev_info *d, struct uio *buf)
         b->fp += l ;
         if (b->fp >= b->bufsize)        /* handle wraps */
             b->fp -= b->bufsize ;
-        if ( !(d->flags & SND_F_WR_DMA) ) {/* dma was idle, restart it */
-	    if ( (d->flags & (SND_F_INIT|SND_F_WR_DMA|SND_F_RD_DMA)) ==
-		    SND_F_INIT) {
-		/* want to init but no pending DMA activity */
-		splx(s);
-		d->callback(d, SND_CB_INIT); /* this is slow! */
-		s = spltty();
-	    }
+        if ( b->dl == 0 ) /* dma was idle, restart it */
             dsp_wrintr(d) ;
-	}
         splx(s) ;
+	if (buf->uio_resid == 0 && (b->fp & (b->sample_size - 1)) == 0) {
+	    /*
+	     * If data is correctly aligned, pad the region with
+	     * replicas of the last sample. l0 goes from current to
+	     * the buffer end, l1 is the portion which wraps around.
+	     */
+	    int l0, l1, i;
+
+	    l1 = min(/* b->dl */ d->play_blocksize, b->fl);
+	    l0 = min (l1, b->bufsize - b->fp);
+	    l1 = l1 - l0 ;
+
+	    i = b->fp - b->sample_size;
+	    if (i < 0 ) i += b->bufsize ;
+	    if (b->sample_size == 1) {
+		u_char *p= (u_char *)(b->buf + i), sample = *p;
+		
+		for ( ; l0 ; l0--)
+		    *p++ = sample ;
+		for (p= (u_char *)(b->buf) ; l1 ; l1--)
+		    *p++ = sample ;
+	    } else if (b->sample_size == 2) {
+		u_short *p= (u_short *)(b->buf + i), sample = *p;
+
+		l1 /= 2 ;
+		l0 /= 2 ;
+		for ( ; l0 ; l0--)
+		    *p++ = sample ;
+		for (p= (u_short *)(b->buf) ; l1 ; l1--)
+		    *p++ = sample ;
+	    } else { /* must be 4 ... */
+		u_long *p= (u_long *)(b->buf + i), sample = *p;
+
+		l1 /= 4 ;
+		l0 /= 4 ;
+		for ( ; l0 ; l0--)
+		    *p++ = sample ;
+		for (p= (u_long *)(b->buf) ; l1 ; l1--)
+		    *p++ = sample ;
+	    }
+
+	}
         bsz = min(b->bufsize, bsz*2);
     }
     s = spltty();  /* no interrupts here ... */
@@ -357,7 +348,8 @@ dsp_write_body(snddev_info *d, struct uio *buf)
     if (d->flags & SND_F_ABORTING) {
         d->flags &= ~SND_F_ABORTING;
 	splx(s);
-	dsp_wrabort(d);
+	dsp_wrabort(d, 1 /* restart */);
+	/* XXX return EINTR ? */
     }
     splx(s) ;
     return ret ;
@@ -367,45 +359,29 @@ dsp_write_body(snddev_info *d, struct uio *buf)
  * SOUND INPUT
  *
 
-The input part is similar to the output one. The only difference is in
-the ordering of regions, which is the following:
+The input part is similar to the output one, with a circular buffer
+split in two regions, and boundaries advancing because of read() calls
+[r] or dma operation [d].  At initialization, as for the write
+routine, READY is empty, and FREE takes all the space.
 
-      0          rp,rl        dp,dl         fp,fl    bufsize
-      |__________|____________|______>______|________|
-	  FREE       READY          DMA       FREE    
-
-and the fact that input data are in the READY region.
-
-At initialization, as for the write routine, DMA and READY are empty,
-and FREE takes all the space:
-
-    dp = rp = fp = 0 ;	-- beginning of buffer
-    dl0 = dl = 0 ;	-- meaning no dma activity
-    rl = 0 ;		-- meaning no data ready
-    fl = bufsize ;
+      0          rp,rl        fp,fl    bufsize
+      |__________>____________>________|
+	  FREE   r   READY    d  FREE    
 
 Operation is as follows: upon user read (dsp_read_body()) a DMA read
-is started if not already active (marked by d->flags & SND_F_RD_DMA),
+is started if not already active (marked by b->dl > 0),
 then as soon as data are available in the READY region they are
 transferred to the user buffer, thus advancing the boundary between FREE
 and READY. Upon interrupts, caused by a completion of a DMA transfer,
 the READY region is extended and possibly a new transfer is started.
 
-When necessary, isa_dmastatus() is called to advance the boundary
-between READY and DMA to the real position.
+When necessary, dsp_rd_dmaupdate() is called to advance fp (and update
+rl,fl accordingly). Upon user reads, rp is advanced and rl,fl are
+updated accordingly.
 
 The rules to choose the size of the new DMA area are similar to
-the other case, i.e:
-
-  1. if not using AUTO mode, do not wrap around the end of the
-     buffer, and do not let fp move too close to the end of the
-     buffer;
-
-  2. do not use more than half the buffer size; this serves to
-     leave room for the next dma operation.
-
-  3. use the default blocksize, either user-specified, or
-     corresponding to 0.25s of data;
+the other case, with a preferred constant transfer size equal to
+rec_blocksize, and fallback to smaller sizes if no space is available.
 
  *
  */
@@ -419,14 +395,11 @@ dsp_rd_dmadone(snddev_info *d)
 {
     snd_dbuf *b = & (d->dbuf_in) ;
 
-    isa_dmadone(B_READ, b->buf + b->dp, b->dl, d->dma2);
-    b->rl += b->dl ;	/* make dl bytes available */
+    dsp_rd_dmaupdate(b);
     wakeup(b) ;	/* wakeup possibly sleeping processes */
-    if (d->rsel.si_pid &&
+    if (b->sel.si_pid &&
 	    ( !(d->flags & SND_F_HAS_SIZE) || b->rl >= d->rec_blocksize ) )
-	selwakeup( & d->rsel );
-    b->dp = b->fp ;
-    b->dl0 = b->dl = 0 ;
+	selwakeup( & b->sel );
 }
 
 /*
@@ -437,20 +410,18 @@ dsp_rd_dmadone(snddev_info *d)
  *   - the function is called with interrupts blocked.
  */
 void
-dsp_rd_dmaupdate(snddev_info *d)
+dsp_rd_dmaupdate(snd_dbuf *b)
 {
-    snd_dbuf *b = & (d->dbuf_in) ;
-    int tmp ;
+    int delta, tmp ;
 
-    tmp = b->dl - isa_dmastatus1(d->dma2) ;
+    tmp = b->bufsize - isa_dmastatus1(b->chan) ;
     tmp &= DMA_ALIGN_MASK; /* align... */
-    if (tmp > 0) { /* we have some data */
-	b->dp += tmp;
-	if (b->dp >= b->bufsize)
-	    b->dp -= b->bufsize;
-	b->dl -= tmp ;
-	b->rl += tmp ;
-    }
+    delta = tmp - b->fp;
+    if (delta < 0) /* wrapped */
+	delta += b->bufsize ;
+    b->fp = tmp;
+    b->fl -= delta ;
+    b->rl += delta ;
 }
 
 /*
@@ -460,64 +431,41 @@ void
 dsp_rdintr(snddev_info *d)
 {
     snd_dbuf *b = & (d->dbuf_in) ;
-    int cb_reason = SND_CB_RD ;
 
-    DEB(printf("dsp_rdintr: start dl = %d fp %d blocksize %d\n",
-	b->dl, b->fp, d->rec_blocksize));
-    if (d->flags & SND_F_RD_DMA) {		/* dma was active */
+    if (b->dl) {		/* dma was active */
 	b->int_count++;
-	d->flags &= ~SND_F_RD_DMA;
-	cb_reason = SND_CB_RD | SND_CB_RESTART ;
 	dsp_rd_dmadone(d);
-    } else
-	cb_reason = SND_CB_RD | SND_CB_START ;
+    }
+
+    DEB(printf("dsp_rdintr: start dl %d, rp:rl %d:%d, fp:fl %d:%d\n",
+	b->dl, b->rp, b->rl, b->fp, b->fl));
     /*
-     * Same checks as in the write case (mutatis mutandis) to decide
-     * whether or not to restart a dma transfer.
+     * Restart if have enough free space to absorb overruns;
      */
-    if ( b->fl >= DMA_ALIGN_THRESHOLD &&
-         ((d->flags & (SND_F_ABORTING|SND_F_CLOSING)) == 0) &&
-	 ( (d->dma1 != d->dma2) || ( (d->flags & SND_F_WRITING) == 0) ) ) {
-	b->dl = min(b->fl, b->bufsize - b->fp ) ; /* do not wrap */
-	b->dl = min(b->dl, d->rec_blocksize );
-	b->dl &= DMA_ALIGN_MASK ; /* realign sizes */
-	b->fl -= b->dl ;
-	b->fp += b->dl ;
-	if (b->fp == b->bufsize)
-	    b->fp = 0 ;
-	/*
-         * now try to avoid too small dma transfers in the near future.
-         * This can happen if I let fp start too close to the end of
-         * the buffer. If this happens, and have enough data, try to
-         * split the available block in two approx. equal parts.
-         */
-        if (b->bufsize - b->fp < MIN_CHUNK_SIZE &&
-		b->bufsize - b->dp > 2*MIN_CHUNK_SIZE) {
-            b->dl = (b->bufsize - b->dp) / 2;
-	    b->dl &= DMA_ALIGN_MASK ; /* align to multiples of 3 */
-            b->fl += (b->fp - (b->dp + b->dl) ) ;
-            b->fp = b->dp + b->dl ; /* no need to check that fp wraps */
-        }
-	if (b->dl == 0) {
-	    printf("ouch! want to read 0 bytes\n");
-	    goto ferma;
+    if ( b->fl > 0x200 &&
+         (d->flags & (SND_F_ABORTING|SND_F_CLOSING)) == 0 &&
+	 ( d->dbuf_out.chan != d->dbuf_in.chan ||
+	   (d->flags & SND_F_WRITING) == 0 ) ) {
+	int l = min(b->fl - 0x100, d->rec_blocksize);
+	l &= DMA_ALIGN_MASK ; /* realign sizes */
+	if (l != b->dl) {
+	    /* for any reason, size has changed. Stop and restart */
+	    b->dl = l ;
+	    d->callback(d, SND_CB_RD | SND_CB_STOP );
+	    d->callback(d, SND_CB_RD | SND_CB_START );
 	}
-	b->dl0 = b->dl ; /* XXX */
-	if (d->callback)
-	    d->callback(d, cb_reason);		/* restart_dma(); */
-	isa_dmastart( B_READ , b->buf + b->dp, b->dl, d->dma2);
-	d->flags |= SND_F_RD_DMA;
     } else {
-ferma:
-	if (d->callback && (cb_reason & SND_CB_REASON_MASK) == SND_CB_RESTART)
+	if (b->dl > 0) { /* was active */
+	    b->dl = 0;
 	    d->callback(d, SND_CB_RD | SND_CB_STOP);
+	}
 	/*
 	 * if switching to write, start write dma engine
 	 */
-	if ( d->dma1 == d->dma2 && (d->flags & SND_F_WRITING) )
+	if ( d->dbuf_out.chan == d->dbuf_in.chan && (d->flags & SND_F_WRITING) )
 	    dsp_wrintr(d) ;
-	DEB(printf("cannot start rd-dma flags 0x%08lx dma_dl %d fl %d\n",
-		d->flags, isa_dmastatus1(d->dma2), b->fl));
+	DEB(printf("cannot start rd-dma rl %d fl %d\n",
+		b->rl, b->fl));
     }
 }
 
@@ -549,8 +497,6 @@ dsp_read_body(snddev_info *d, struct uio *buf)
     long s;
     snd_dbuf *b = & (d->dbuf_in) ;
 
-    int timeout = 1 ; /* counter of how many ticks we sleep */
-
     /*
      * "limit" serves to return after at most one blocksize of data
      * (unless more are already available).  Otherwise, things like
@@ -569,116 +515,69 @@ dsp_read_body(snddev_info *d, struct uio *buf)
     bsz = MIN_CHUNK_SIZE ;  /* the current transfer (doubles at each step) */
     while ( (n = buf->uio_resid) > limit ) {
 	DEB(printf("dsp_read_body: start waiting for %d bytes\n", n));
-	/*
-	 * here compute how many bytes to transfer, enforcing various
-	 * limitations:
-	 */
-        l = min (n, bsz);        /* 1': at most bsz bytes ...        */
+        l = min (n, bsz);
         s = spltty();            /* no interrupts here !             */
-	/*
-	 * if i) the dma engine is running, ii) we do not have enough
-	 * ready bytes, and iii) the current DMA transfer could give
-	 * us what we need, or we are doing non-blocking IO, then try
-	 * to extend the READY region.
-	 * Otherwise do not bother, we will need to sleep anyways,
-	 * and make the timeout longer.
-	 */
-
-        if ( d->flags & SND_F_RD_DMA && b->rl < l &&
-	     ( d->flags & SND_F_NBIO || b->rl + b->dl >= n - limit ) )
-	    dsp_rd_dmaupdate(d);
-	else
-	    timeout = hz ;
-        l = min( l, b->rl );     /* 2': no more than avail. data     */
-        l = min( l, b->bufsize - b->rp ); /* 3': do not wrap buffer. */
-	   /* the above limitation can be removed if we use auto DMA
-	    * on the ISA controller. But then we have to make a check
-	    * when doing the uiomove...
-	    */ 
-        if ( !(d->flags & SND_F_RD_DMA) ) { /* dma was idle, start it  */
-	    /*
-	     * There are two reasons the dma can be idle: either this
-	     * is the first read, or the buffer has become full. In
-	     * the latter case, the dma cannot be restarted until
-	     * we have removed some data, which will be true at the
-	     * second round.
-	     *
-	     * Call dsp_rdintr to start the dma. It would be nice to
-	     * have a "need" field in the snd_dbuf, so that we do
-	     * not start a long operation unnecessarily. However,
-	     * the restart code will ask for at most d->blocksize
-	     * bytes, and since we are sure we are the only reader,
-	     * and the routine is not interrupted, we patch and
-	     * restore d->blocksize around the call. A bit dirty,
-	     * but it works, and saves some overhead :)
-	     */
-
-	    int old_bs = d->rec_blocksize;
-
-	    if ( (d->flags & (SND_F_INIT|SND_F_WR_DMA|SND_F_RD_DMA)) ==
-		    SND_F_INIT) {
-		/* want to init but no pending DMA activity */
-		splx(s);
-		d->callback(d, SND_CB_INIT); /* this is slow! */
-		s = spltty();
-	    }
-	    if (l < MIN_CHUNK_SIZE)
-		d->rec_blocksize = MIN_CHUNK_SIZE ;
-	    else if (l < d->rec_blocksize)
-		d->rec_blocksize = l ;
-            dsp_rdintr(d);
-	    d->rec_blocksize = old_bs ;
-	}
-
+	dsp_rd_dmaupdate(b);
+        l = min( l, b->rl );     /* no more than avail. data     */
         if (l == 0) {
+	    int timeout;
 	    /*
-	     * If, after all these efforts, we still have no data ready,
-	     * then we must sleep (unless of course we have doing
-	     * non-blocking i/o. But use exponential delays, starting
-	     * at 1 tick and doubling each time.
+	     * If there is no data ready, then we must sleep (unless
+	     * of course we have doing non-blocking i/o). But also
+	     * consider restarting the DMA engine.
 	     */
+	    if ( b->dl == 0 ) { /* dma was idle, start it  */
+		if ( d->flags & SND_F_INIT && d->dbuf_out.dl == 0 ) {
+		    /* want to init and there is no pending DMA activity */
+		    splx(s);
+		    d->callback(d, SND_CB_INIT); /* this is slow! */
+		    s = spltty();
+		}
+		dsp_rdintr(d);
+	    }
 	    if (d->flags & SND_F_NBIO) {
 		splx(s);
 		break;
 	    }
-	    DEB(printf("dsp_read_body: sleeping %d waiting for %d bytes\n",
-		 timeout, buf->uio_resid));
+	    if (n-limit > b->dl)
+		timeout = hz; /* we need to wait for an int. */
+	    else
+		timeout = 1; /* maybe data will be ready earlier */
             ret = tsleep( (caddr_t)b, PRIBIO | PCATCH , "dsprd", timeout ) ;
 	    if (ret == EINTR)
 		d->flags |= SND_F_ABORTING ;
-	    splx(s); /* necessary before the goto again... */
-	    if (ret == ERESTART || ret == EINTR)
+	    splx(s);
+	    if (ret == EINTR)
 		break ;
-	    DEB(printf("woke up, ret %d, rl %d\n", ret, b->rl));
-	    timeout = min(timeout*2, hz);
             continue;
         }
         splx(s);
 
-	timeout = 1 ; /* we got some data, so reset exp. wait */
 	/*
-	 * if we are using /dev/audio and the device does not
-	 * support it natively, we should do a format conversion.
-	 * (in this case from uLAW to natural format).
-	 * This can be messy in that it can require an intermediate
-	 * buffer, and also screw up the byte count.
-	 */
-	/*
+	 * Do any necessary format conversion, and copy to user space.
 	 * NOTE: I _can_ use rp here because it is not modified by the
 	 * interrupt routines.
 	 */
-	if (d->flags & SND_F_XLAT8)
-	    translate_bytes(dsp_ulaw, b->buf + b->rp, l);
-        ret = uiomove(b->buf + b->rp, l, buf) ;
-	if (ret !=0 )	/* an error occurred ... */
-	    break ;
+	if (b->rp + l > b->bufsize) { /* handle wraparounds */
+	    int l1 = b->bufsize - b->rp ;
+	    if (d->flags & SND_F_XLAT8) {
+		translate_bytes(dsp_ulaw, b->buf + b->rp, l1);
+		translate_bytes(dsp_ulaw, b->buf , l - l1);
+	    }
+	    uiomove(b->buf + b->rp, l1, buf) ;
+	    uiomove(b->buf, l - l1, buf) ;
+	} else {
+	    if (d->flags & SND_F_XLAT8)
+		translate_bytes(dsp_ulaw, b->buf + b->rp, l);
+	    uiomove(b->buf + b->rp, l, buf) ;
+	}
 
         s = spltty();  /* no interrupts here ... */
         b->fl += l ;    /* this more free bytes */
         b->rl -= l ;    /* this less ready bytes */
         b->rp += l ;    /* advance ready pointer */
-        if (b->rp == b->bufsize)        /* handle wraps */
-            b->rp = 0 ;
+        if (b->rp >= b->bufsize)        /* handle wraps */
+            b->rp -= b->bufsize ;
         splx(s) ;
         bsz = min(b->bufsize, bsz*2);
     }
@@ -687,7 +586,8 @@ dsp_read_body(snddev_info *d, struct uio *buf)
     if (d->flags & SND_F_ABORTING) {
         d->flags |= ~SND_F_ABORTING;
 	splx(s);
-	dsp_rdabort(d);
+	dsp_rdabort(d, 1 /* restart */);
+	/* XXX return EINTR ? */
     }
     splx(s) ;
     return ret ;
@@ -697,30 +597,40 @@ dsp_read_body(snddev_info *d, struct uio *buf)
 /*
  * short routine to initialize a dma buffer descriptor (usually
  * located in the XXX_desc structure). The first parameter is
- * the buffer size, the second one specifies the dma channel in use
- * At the moment we do not support more than 64K, since for some
- * cards I need to switch between dma1 and dma2. The channel is
- * unused.
+ * the buffer size, the second one specifies that a 16-bit dma channel
+ * is used (hence the buffer must be properly aligned).
  */
 void
-alloc_dbuf(snd_dbuf *b, int size, int chan)
+alloc_dbuf(snd_dbuf *b, int size)
 {
     if (size > 0x10000)
 	panic("max supported size is 64k");
     b->buf = contigmalloc(size, M_DEVBUF, M_NOWAIT,
 	    0ul, 0xfffffful, 1ul, 0x10000ul);
-    /* should check that it does not fail... */
-    b->dp = b->rp = b->fp = 0 ;
-    b->dl0 = b->dl = b->rl = 0 ;
+    /* should check that malloc does not fail... */
+    b->rp = b->fp = 0 ;
+    b->dl = b->rl = 0 ;
     b->bufsize = b->fl = size ;
 }
 
+/*
+ * this resets a buffer and starts the isa dma on that channel.
+ * Must be called when the dma on the card is disabled (e.g. after init).
+ */
 void
-reset_dbuf(snd_dbuf *b)
+reset_dbuf(snd_dbuf *b, int chan)
 {
-    b->dp = b->rp = b->fp = 0 ;
-    b->dl0 = b->dl = b->rl = 0 ;
+    DEB(printf("reset dbuf for chan %d\n", b->chan));
+    b->rp = b->fp = 0 ;
+    b->dl = b->rl = 0 ;
     b->fl = b->bufsize ;
+    if (chan == SND_CHAN_NONE)
+	return ;
+    if (chan == SND_CHAN_WR)
+	chan = B_WRITE | B_RAW ;
+    else
+	chan = B_READ | B_RAW ;
+    isa_dmastart( chan , b->buf, b->bufsize, b->chan);
 }
 
 /*
@@ -741,9 +651,9 @@ snd_sync(snddev_info *d, int chan, int threshold)
     for (;;) {
 	s=spltty();
         if ( chan==1 )
-	     dsp_wr_dmaupdate(d);
+	     dsp_wr_dmaupdate(b);
 	else
-	     dsp_rd_dmaupdate(d);
+	     dsp_rd_dmaupdate(b);
 	if ( (chan == 1 && b->fl <= threshold) ||
 	     (chan == 2 && b->rl <= threshold) ) {
 		 ret = tsleep((caddr_t)b, PRIBIO|PCATCH, "sndsyn", 1);
@@ -762,61 +672,53 @@ snd_sync(snddev_info *d, int chan, int threshold)
 /*
  * dsp_wrabort(d) and dsp_rdabort(d) are non-blocking functions
  * which abort a pending DMA transfer and flush the buffers.
+ * They return the number of bytes that has not been transferred.
+ * The second parameter is used to restart the engine if needed.
  */
 int
-dsp_wrabort(snddev_info *d)
+dsp_wrabort(snddev_info *d, int restart)
 {
     long s;
     int missing = 0;
     snd_dbuf *b = & (d->dbuf_out) ;
 
     s = spltty();
-    if ( d->flags & SND_F_WR_DMA ) {
-	d->flags &= ~(SND_F_WR_DMA | SND_F_WRITING);
+    if ( b->dl ) {
+	b->dl = 0 ;
+	d->flags &= ~ SND_F_WRITING ;
 	if (d->callback)
 	    d->callback(d, SND_CB_WR | SND_CB_ABORT);
-	missing = isa_dmastop(d->dma1) ; /* this many missing bytes... */
-
-	b->rl += missing ; /* which are part of the ready area */
-	b->rp -= missing ;
-	if (b->rp < 0)
-	    b->rp += b->bufsize;
-	DEB(printf("dsp_wrabort: stopped after %d bytes out of %d\n",
-	    b->dl - missing, b->dl));
-	b->dl -= missing;
+	isa_dmastop(b->chan) ;
 	dsp_wr_dmadone(d);
-	missing = b->rl;
+
+	DEB(printf("dsp_wrabort: stopped, %d bytes left\n", b->rl));
     }
-    reset_dbuf(b);
+    missing = b->rl;
+    isa_dmadone(B_WRITE, b->buf, b->bufsize, b->chan); /*free chan */
+    reset_dbuf(b, restart ? SND_CHAN_WR : SND_CHAN_NONE);
     splx(s);
     return missing;
 }
 
 int
-dsp_rdabort(snddev_info *d)
+dsp_rdabort(snddev_info *d, int restart)
 {
     long s;
     int missing = 0;
     snd_dbuf *b = & (d->dbuf_in) ;
 
     s = spltty();
-    if ( d->flags & SND_F_RD_DMA ) {
-	d->flags &= ~(SND_F_RD_DMA | SND_F_READING);
+    if ( b->dl ) {
+	b->dl = 0 ;
+	d->flags &= ~ SND_F_READING ;
 	if (d->callback)
 	    d->callback(d, SND_CB_RD | SND_CB_ABORT);
-	missing = isa_dmastop(d->dma2) ; /* this many missing bytes... */
-
-	b->fl += missing ; /* which are part of the free area */
-	b->fp -= missing ;
-	if (b->fp < 0)
-	    b->fp += b->bufsize;
-	DEB(printf("dsp_rdabort: stopped after %d bytes out of %d\n",
-	    b->dl - missing, b->dl));
-	b->dl -= missing;
+	isa_dmastop(b->chan) ;
 	dsp_rd_dmadone(d);
-	missing = b->rl ;
     }
-    reset_dbuf(b);
+    missing = b->rl ;
+    isa_dmadone(B_READ, b->buf, b->bufsize, b->chan);
+    reset_dbuf(b, restart ? SND_CHAN_RD : SND_CHAN_NONE);
     splx(s);
     return missing;
 }
@@ -831,31 +733,34 @@ dsp_rdabort(snddev_info *d)
 int
 snd_flush(snddev_info *d)
 {
-    int ret;
-    int count=10;
+    int ret, count=10;
+    u_long s;
+    snd_dbuf *b = &(d->dbuf_out) ;
 
-DEB(printf("snd_flush d->flags 0x%08lx\n", d->flags));
-    dsp_rdabort(d);
-    if ( d->flags & SND_F_WR_DMA ) {
-	/* close write */
-	while ( d->flags & SND_F_WR_DMA ) {
-	    /*
-	     * still pending output data.
-	     */
-	    ret = tsleep( (caddr_t)&(d->dbuf_out), PRIBIO|PCATCH, "dmafl1", hz);
-	    if (ret == ERESTART || ret == EINTR) {
-		printf("tsleep returns %d\n", ret);
-		return -1 ;
-	    }
-	    if ( ret && --count == 0) {
-		printf("timeout flushing dma1, cnt 0x%x flags 0x%08lx\n",
-			isa_dmastatus1(d->dma1), d->flags);
-		return -1 ;
-	    }
+    DEB(printf("snd_flush d->flags 0x%08x\n", d->flags));
+    dsp_rdabort(d, 0 /* no restart */);
+    /* close write */
+    while ( b->dl ) {
+	/*
+	 * still pending output data.
+	 */
+	ret = tsleep( (caddr_t)b, PRIBIO|PCATCH, "dmafl1", hz);
+	dsp_wr_dmaupdate(b);
+	DEB( printf("snd_sync: now rl : fl  %d : %d\n", b->rl, b->fl ) );
+	if (ret == EINTR) {
+	    printf("tsleep returns %d\n", ret);
+	    return -1 ;
 	}
-	d->flags &= ~SND_F_CLOSING ;
+	if ( ret && --count == 0) {
+	    printf("timeout flushing dbuf_out.chan, cnt 0x%x flags 0x%08lx\n",
+		    b->rl, d->flags);
+	    break;
+	}
     }
-    reset_dbuf(& (d->dbuf_out) );
+    s = spltty(); /* should not be necessary... */
+    d->flags &= ~SND_F_CLOSING ;
+    dsp_wrabort(d, 0 /* no restart */);
+    splx(s);
     return 0 ;
 }
 

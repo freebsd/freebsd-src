@@ -1,5 +1,5 @@
 /*
- * sound/sound.c
+ * snd/sound.c
  * 
  * Main sound driver for FreeBSD. This file provides the main
  * entry points for probe/attach and all i/o demultiplexing, including
@@ -31,15 +31,15 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * For each board type a template "snddev_info" structure contains
+ * For each card type a template "snddev_info" structure contains
  * all the relevant parameters, both for configuration and runtime.
  *
  * In this file we build tables of pointers to the descriptors for
- * the various supported boards. The generic probe routine scans
+ * the various supported cards. The generic probe routine scans
  * the table(s) looking for a matching entry, then invokes the
  * board-specific probe routine. If successful, a pointer to the
  * correct snddev_info is stored in snddev_last_probed, for subsequent
- * use in the attach routine.  The generic attach routine copies
+ * use in the attach routine. The generic attach routine copies
  * the template to a permanent descriptor (pcm_info[unit] and
  * friends), initializes all generic parameters, and calls the
  * board-specific attach routine.
@@ -51,14 +51,8 @@
  */
 
 #include <i386/isa/snd/sound.h>
-#include <sys/poll.h>
 
 #if NPCM > 0	/* from "snd.h" */
-
-#include "snd.h"
-#if NSND > 0
-#error Can't have both Luigi's (pcm0) and voxware (snd0) at the same time.
-#endif
 
 #define SNDSTAT_BUF_SIZE        4000
 static char status_buf[SNDSTAT_BUF_SIZE] ;
@@ -97,12 +91,11 @@ u_long nsnd = NPCM ;	/* total number of sound devices */
  */
 snddev_info *snddev_last_probed = NULL ;
 
-static void print_isadev_info(struct isa_device *d, char *s);
 static snddev_info *
 generic_snd_probe(struct isa_device * dev, snddev_info **p[], char *s);
 
 /*
- * here are the lists of known devices. Similar devices (e.g. all
+ * here are the lists of known cards. Similar cards (e.g. all
  * sb clones, all mss clones, ... are in the same array.
  * All lists of devices of the same type (eg. all pcm, all midi...)
  * are in the same array.
@@ -116,19 +109,17 @@ generic_snd_probe(struct isa_device * dev, snddev_info **p[], char *s);
 extern snddev_info sb_op_desc;
 extern snddev_info mss_op_desc;
 
-static snddev_info *sb_devs[] = {
+static snddev_info *sb_devs[] = {	/* all SB clones	 */
     &sb_op_desc,
     NULL,
 } ;
 
-static snddev_info *mss_devs[] = {
-    /* MSS-like devices */
+static snddev_info *mss_devs[] = {	/* all WSS clones	*/
     &mss_op_desc,
     NULL,
 } ;
 
-static snddev_info **pcm_devslist[] = {
-    /* all pcm devices */
+static snddev_info **pcm_devslist[] = {	/* all pcm devices	*/
     mss_devs,
     sb_devs,
     NULL
@@ -142,8 +133,7 @@ pcmprobe(struct isa_device * dev)
     return generic_snd_probe(dev, pcm_devslist, "pcm") ? 1 : 0 ;
 }
 
-static snddev_info **midi_devslist[] = {
-    /* all midi devices */
+static snddev_info **midi_devslist[] = {/* all midi devices	*/
     NULL
 } ;
 
@@ -205,8 +195,8 @@ pcmattach(struct isa_device * dev)
      * revisions, if we see that we have a single dma, we might decide
      * to use a single buffer to save memory.
      */
-    alloc_dbuf( &(d->dbuf_out), d->bufsize, d->dma1 );
-    alloc_dbuf( &(d->dbuf_in), d->bufsize, d->dma2 );
+    alloc_dbuf( &(d->dbuf_out), d->bufsize );
+    alloc_dbuf( &(d->dbuf_in), d->bufsize );
 
     isa_dma_acquire(d->dma1);
     if (d->dma2 != d->dma1)
@@ -237,6 +227,7 @@ pcmattach(struct isa_device * dev)
 	    dev->id_id = dvp->id_id;
     }
 
+    d->magic = MAGIC(dev->id_unit); /* debugging... */
     /*
      * and finally, call the device attach routine
      */
@@ -267,20 +258,6 @@ pcmintr(int unit)
 	synth_info[unit].isr(unit);
 }
 
-static void
-print_isadev_info(struct isa_device *d, char *s)
-{
-    if (d == NULL )
-	return ;
-    printf("%s%d at 0x%x irq %d drq %d mem %p flags 0x%x en %d confl %d\n",
-	d->id_driver ? d->id_driver->name : "NONAME",
-	d->id_unit,
-	(u_short)(d->id_iobase), ffs(d->id_irq) - 1 ,
-	d->id_drq, d->id_maddr, d->id_flags,
-	d->id_enabled, d->id_conflicts);
-}
-
-
 static snddev_info *
 generic_snd_probe(struct isa_device * dev, snddev_info **p[], char *s)
 {
@@ -289,10 +266,11 @@ generic_snd_probe(struct isa_device * dev, snddev_info **p[], char *s)
 
     snddev_last_probed = NULL ;
 
-    print_isadev_info(dev, s);
-
     saved_dev = *dev ; /* the probe routine might alter parameters */
 
+    /*
+     * XXX todo: should try to match flags with device type.
+     */
     for ( ; p[0] != NULL ; p++ )
 	for ( q = *p ; q[0] ; q++ )
 	    if (q[0]->probe && q[0]->probe(dev))
@@ -474,13 +452,13 @@ sndread(dev_t i_dev, struct uio * buf, int flag)
 	    DDB(printf("read denied, half duplex and a writer is in\n"));
             return EBUSY ;
         }
-        while ( d->flags & SND_F_WR_DMA ) {
+        while ( d->dbuf_out.dl ) {
 	    /*
 	     * we have a pending dma operation, post a read request
 	     * and wait for the write to complete.
 	     */
             d->flags |= SND_F_READING ;
-            DDB(printf("sndread: sleeping waiting for write to end\n"));
+            DEB(printf("sndread: sleeping waiting for write to end\n"));
             ret = tsleep( (caddr_t)&(d->dbuf_out),
                  PRIBIO | PCATCH , "sndrdw", hz ) ;
             if (ret == ERESTART || ret == EINTR) {
@@ -545,7 +523,7 @@ sndwrite(dev_t i_dev, struct uio * buf, int flag)
             splx(s);
             return EBUSY ;
         }
-        while ( d->flags & SND_F_RD_DMA ) {
+        while ( d->dbuf_in.dl ) {
 	    /*
 	     * we have a pending read dma. Post a write request
 	     * and wait for the read to complete (in fact I could
@@ -636,8 +614,8 @@ sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
      * we start with the new ioctl interface.
      */
     case AIONWRITE :	/* how many bytes can write ? */
-	if (d->flags & SND_F_WR_DMA)
-	    dsp_wr_dmaupdate(d);
+	if (d->dbuf_out.dl)
+	    dsp_wr_dmaupdate(&(d->dbuf_out));
 	*(int *)arg = d->dbuf_out.fl;
 	break;
 
@@ -647,9 +625,9 @@ sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
 	    if (p->play_size <= 1 && p->rec_size <= 1) { /* means no blocks */
 		d->flags &= ~SND_F_HAS_SIZE ;
 	    } else {
-		RANGE (p->play_size, 40, d->bufsize /4);
+		RANGE (p->play_size, 40, d->dbuf_out.bufsize /4);
 		d->play_blocksize = p->play_size  & ~3 ;
-		RANGE (p->rec_size, 40, d->bufsize /4);
+		RANGE (p->rec_size, 40, d->dbuf_in.bufsize /4);
 		d->rec_blocksize = p->rec_size  & ~3 ;
 		d->flags |= SND_F_HAS_SIZE ;
 	    }
@@ -668,9 +646,6 @@ sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
     case AIOSFMT :
 	{
 	    snd_chan_param *p = (snd_chan_param *)arg;
-	    /*
-	     * at the moment, only support same format on play & rec
-	     */
 	    d->play_speed = p->play_rate;
 	    d->rec_speed = p->play_rate; /* XXX */
 	    if (p->play_format & SND_F_STEREO)
@@ -715,9 +690,9 @@ sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
 
     case AIOSTOP:
 	if (*(int *)arg == AIOSYNC_PLAY) /* play */
-	    *(int *)arg = dsp_wrabort(d);
+	    *(int *)arg = dsp_wrabort(d, 1 /* restart */);
 	else if (*(int *)arg == AIOSYNC_CAPTURE)
-	    *(int *)arg = dsp_rdabort(d);
+	    *(int *)arg = dsp_rdabort(d, 1 /* restart */);
 	else {
 	    splx(s);
 	    printf("AIOSTOP: bad channel 0x%x\n", *(int *)arg);
@@ -734,13 +709,13 @@ sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
      * here follow the standard ioctls (filio.h etc.)
      */
     case FIONREAD : /* get # bytes to read */
-	if ( d->flags & SND_F_RD_DMA )
-	    dsp_rd_dmaupdate(d);
+	if ( d->dbuf_in.dl )
+	    dsp_rd_dmaupdate(&(d->dbuf_in));
 	*(int *)arg = d->dbuf_in.rl;
 	break;
 
-    case FIOASYNC: /* set/clear async i/o */
-	/* do nothing, this is called from kern_descrip.c for fcntl() */
+    case FIOASYNC: /*set/clear async i/o */
+	printf("FIOASYNC\n");
 	break;
 
     case SNDCTL_DSP_NONBLOCK :
@@ -764,7 +739,7 @@ sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
 	    if (t <= 1) { /* means no blocks */
 		d->flags &= ~SND_F_HAS_SIZE ;
 	    } else {
-		RANGE (t, 40, d->bufsize /4);
+		RANGE (t, 40, d->dbuf_out.bufsize /4);
 		d->play_blocksize =
 		d->rec_blocksize = t  & ~3 ; /* align to multiple of 4 */
 		d->flags |= SND_F_HAS_SIZE ;
@@ -774,15 +749,15 @@ sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
 	ask_init(d);
 	break ;
     case SNDCTL_DSP_RESET:
-	DDB(printf("dsp reset\n"));
-	dsp_wrabort(d);
-	dsp_rdabort(d);
+	DEB(printf("dsp reset\n"));
+	dsp_wrabort(d, 1 /* restart */);
+	dsp_rdabort(d, 1 /* restart */);
 	break ;
 
     case SNDCTL_DSP_SYNC:
-	DDB(printf("dsp sync\n"));
+	DEB(printf("dsp sync\n"));
 	splx(s);
-	snd_sync(d, 1, d->bufsize - 4); /* DMA does not start with <4 bytes */
+	snd_sync(d, 1, d->dbuf_out.bufsize - 4); /* DMA does not start with <4 bytes */
 	break ;
 
     case SNDCTL_DSP_SPEED:
@@ -793,6 +768,10 @@ sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
 	break ;
 
     case SNDCTL_DSP_STEREO:
+	if ( *(int *)arg == -1) {
+	    *(int *)arg = (d->flags & SND_F_STEREO) ? 1 : 0 ;
+	    break;
+	}
 	if ( *(int *)arg == 0 )
 	    d->flags &= ~SND_F_STEREO ; /* mono */
 	else if ( *(int *)arg == 1 )
@@ -807,7 +786,6 @@ sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
 	break ;
 
     case SOUND_PCM_WRITE_CHANNELS:
-	printf("dsp write channels %d\n", *(int *)arg);
 	if ( *(int *)arg == 1)
 	    d->flags &= ~SND_F_STEREO ; /* mono */
 	else if ( *(int *)arg == 2)
@@ -875,8 +853,8 @@ sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
 	((audio_buf_info *)arg)->bytes = d->dbuf_in.fl ;
 	((audio_buf_info *)arg)->fragments = 1 ;
 	((audio_buf_info *)arg)->fragstotal = 
-		d->bufsize / d->play_blocksize ;
-	((audio_buf_info *)arg)->fragsize = d->play_blocksize ;
+		d->dbuf_in.bufsize / d->rec_blocksize ;
+	((audio_buf_info *)arg)->fragsize = d->rec_blocksize ;
 	break ;
 
     case SNDCTL_DSP_GETOSPACE:
@@ -884,7 +862,7 @@ sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
 	((audio_buf_info *)arg)->bytes = d->dbuf_out.fl ;
 	((audio_buf_info *)arg)->fragments = 1 ;
 	((audio_buf_info *)arg)->fragstotal = 
-		d->bufsize / d->play_blocksize ;
+		d->dbuf_out.bufsize / d->play_blocksize ;
 	((audio_buf_info *)arg)->fragsize = d->play_blocksize ;
 	break ;
 
@@ -916,6 +894,14 @@ sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
 	*(int *)arg = d->mix_recsrc ;
 	break;
 
+    case SOUND_MIXER_READ_CAPS :
+	/*
+	 * XXX - This needs to be fixed when the sound driver actually
+	 * supports multiple inputs.
+	 */
+	*(int *)arg = SOUND_CAP_EXCL_INPUT ;
+	break;
+	
     default:
 	DEB(printf("default ioctl snd%d subdev %d fn 0x%08x fail\n",
 	    unit, dev & 0xf, cmd));
@@ -926,72 +912,80 @@ sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
     return ret ;
 }
 
+/*
+ * function to poll what is currently available.  Used to be select.
+ */
 int
 sndpoll(dev_t i_dev, int events, struct proc *p)
 {
-    int lim ;
-    int revents = 0;
     int dev, unit, c = 1 /* default: success */ ;
     snddev_info *d ;
     u_long flags;
 
     dev = minor(i_dev);
     d = get_snddev_info(dev, &unit);
-    DEB(printf("sndpoll dev 0x%04x rw 0x%08x\n",i_dev, events));
+    DEB(printf("sndpoll dev 0x%04x events 0x%08x\n",i_dev, events));
     if (d == NULL ) {
-	printf("select: unit %d not configured\n", unit );
-	return ((events & (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM))
-	    | POLLHUP);
+	printf("poll: unit %d not configured\n", unit );
+        return ( (events & (POLLIN|POLLOUT|POLLRDNORM|POLLWRNORM)) | POLLHUP);
     }
     if (d->poll == NULL)
-	/* is this correct hear? */
-	return ((events & (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM))
-	    | POLLHUP);
+        return ( (events & (POLLIN|POLLOUT|POLLRDNORM|POLLWRNORM)) | POLLHUP);
     else if (d->poll != sndpoll )
 	return d->poll(i_dev, events, p);
+    else {
+	/* handle it here with the generic code */
 
-    /* handle it here with the generic code */
+	int lim ;
+	int revents = 0 ;
 
-    /*
-     * if the user selected a block size, then we want to use the
-     * device as a block device, and select will return ready when
-     * we have a full block.
-     * In all other cases, select will return when 1 byte is ready.
-     */
-    lim = 1;
-    flags = spltty();
-    /* XXX fix the test here for half duplex devices */
-    if (events & (POLLOUT | POLLWRNORM)) {
-	if ( d->flags & SND_F_HAS_SIZE )
-	    lim = d->play_blocksize ;
-	if (d->flags & SND_F_WR_DMA)
-	    dsp_wr_dmaupdate(d);
-        c = d->dbuf_out.fl ;
-        if (c < lim) /* no space available */
-	    selrecord(p, & (d->wsel));
-	else
-	    revents |= events & (POLLOUT | POLLWRNORM);
+	/*
+	 * if the user selected a block size, then we want to use the
+	 * device as a block device, and select will return ready when
+	 * we have a full block.
+	 * In all other cases, select will return when 1 byte is ready.
+	 */
+	lim = 1;
+	if (events & (POLLOUT | POLLWRNORM) ) {
+	    if ( d->flags & SND_F_HAS_SIZE )
+		lim = d->play_blocksize ;
+	    /* XXX fix the test here for half duplex devices */
+	    if (1 /* write is compatible with current mode */) {
+		flags = spltty();
+		if (d->dbuf_out.dl)
+		    dsp_wr_dmaupdate(&(d->dbuf_out));
+		c = d->dbuf_out.fl ;
+		if (c < lim) /* no space available */
+		    selrecord(p, & (d->wsel));
+		else
+		    revents |= events & (POLLOUT | POLLWRNORM);
+		splx(flags);
+	    }
+        }
+        if (events & (POLLIN | POLLRDNORM)) {
+	    if ( d->flags & SND_F_HAS_SIZE )
+		lim = d->rec_blocksize ;
+	    /* XXX fix the test here */
+	    if (1 /* read is compatible with current mode */) {
+		flags = spltty();
+		if ( d->dbuf_in.dl == 0 ) /* dma idle, restart it */
+		    dsp_rdintr(d);
+		else
+		    dsp_rd_dmaupdate(&(d->dbuf_in));
+		c = d->dbuf_in.rl ;
+		if (c < lim) /* no data available */
+		    selrecord(p, & (d->rsel));
+		else
+		    revents |= events & (POLLIN | POLLRDNORM);
+		splx(flags);
+	    }
+	    DEB(printf("sndpoll on read: %d >= %d flags 0x%08x\n",
+		c, lim, d->flags));
+	    return c < lim ? 0 : 1 ;
+	}
+	return revents;
     }
-
-    /* XXX fix the test here */
-    if (events & (POLLIN | POLLRDNORM)) {
-	if ( d->flags & SND_F_HAS_SIZE )
-	    lim = d->rec_blocksize ;
-	if ( !(d->flags & SND_F_RD_DMA) ) /* dma idle, restart it */
-	    dsp_rdintr(d);
-	else
-	    dsp_rd_dmaupdate(d);
-	c = d->dbuf_in.rl ;
-	if (c < lim) /* no data available */
-	    selrecord(p, & (d->rsel));
-	else
-	    revents |= events & (POLLIN | POLLRDNORM);
-	DEB(printf("sndpoll on read: %d >= %d flags 0x%08lx\n", c, lim,
-	    d->flags));
-    }
-    splx(flags);
-
-    return revents;
+    return ENXIO ; /* notreached */
 }
 
 /*
@@ -1020,23 +1014,22 @@ sndmmap(dev_t dev, int offset, int nprot)
 {
     snddev_info *d = get_snddev_info(dev, NULL);
 
-    DEB(printf("sndmmap d %p dev 0x%04x ofs 0x%08x nprot 0x%08x\n",
+    DEB(printf("sndmmap d 0x%p dev 0x%04x ofs 0x%08x nprot 0x%08x\n",
 	d, dev, offset, nprot));
     
     if (d == NULL || nprot & PROT_EXEC)
 	return -1 ; /* forbidden */
 
-    if (offset > d->bufsize && (nprot & PROT_WRITE) )
+    if (offset >= d->dbuf_out.bufsize && (nprot & PROT_WRITE) )
 	return -1 ; /* can only write to the first block */
 
-    if (offset < d->bufsize)
+    if (offset < d->dbuf_out.bufsize)
 	return i386_btop(vtophys(d->dbuf_out.buf + offset));
     offset -= 1 << 24;
-    if ( (offset >= 0) && (offset < d->bufsize))
+    if ( (offset >= 0) && (offset < d->dbuf_in.bufsize))
 	return i386_btop(vtophys(d->dbuf_in.buf + offset));
     offset -= 1 << 24;
     if ( (offset >= 0) && (offset < 0x2000)) {
-        printf("name %s\n", d->name);
 	return i386_btop(vtophys( ((int)d & ~0xfff) + offset));
     }
     return -1 ;
@@ -1060,7 +1053,8 @@ ask_init(snddev_info *d)
     if ( d->callback == NULL )
 	return 0 ;
     s = spltty();
-    if ( d->flags & SND_F_PENDING_IO ) {
+    if ( d->flags & SND_F_PENDING_IO ||
+	 d->dbuf_out.dl || d->dbuf_in.dl ) {
 	/* cannot do it now, record the request and return */
 	d->flags |= SND_F_INIT ;
 	splx(s);
@@ -1093,7 +1087,7 @@ init_status(snddev_info *d)
     if (status_len != 0) /* only do init once */
 	return ;
     sprintf(status_buf,
-	"FreeBSD Sound Driver "  __DATE__ " " __TIME__ "\n"
+	"FreeBSD Audio Driver (971023) "  __DATE__ " " __TIME__ "\n"
 	"Installed devices:\n");
 
     for (i = 0; i < NPCM_MAX; i++) {
@@ -1165,22 +1159,28 @@ snd_conflict(int io_base)
 void
 snd_set_blocksize(snddev_info *d)
 {
+    int tmp ;
     /*
-     * now set the blocksize so as to guarantee approx 1/4s
+     * compute the sample size, and possibly
+     * set the blocksize so as to guarantee approx 1/4s
      * between callbacks.
      */
+    tmp = 1 ;
+    if (d->flags & SND_F_STEREO) tmp += tmp;
+    if (d->play_fmt & (AFMT_S16_LE|AFMT_U16_LE)) tmp += tmp;
+    d->dbuf_out.sample_size = tmp ;
+    tmp = tmp * d->play_speed;
     if ( (d->flags & SND_F_HAS_SIZE) == 0) {
-	/* make blocksize adaptive to 250ms or max 1/4 of the buf */
-	int tmp ;
-	tmp = d->play_speed;
-	if (d->flags & SND_F_STEREO) tmp += tmp;
-	if (d->play_fmt & (AFMT_S16_LE|AFMT_U16_LE)) tmp += tmp;
 	d->play_blocksize = (tmp / 4) & ~3; /* 0.25s, aligned to 4 */
 	RANGE (d->play_blocksize, 1024, (d->bufsize / 4) & ~3);
+    }
 
-	tmp = d->rec_speed;
-	if (d->flags & SND_F_STEREO) tmp += tmp;
-	if (d->rec_fmt & (AFMT_S16_LE|AFMT_U16_LE)) tmp += tmp;
+    tmp = 1 ;
+    if (d->flags & SND_F_STEREO) tmp += tmp;
+    if (d->rec_fmt & (AFMT_S16_LE|AFMT_U16_LE)) tmp += tmp;
+    tmp = tmp * d->rec_speed;
+    d->dbuf_in.sample_size = tmp ;
+    if ( (d->flags & SND_F_HAS_SIZE) == 0) {
 	d->rec_blocksize = (tmp / 4) & ~3; /* 0.25s, aligned to 4 */
 	RANGE (d->rec_blocksize, 1024, (d->bufsize / 4) & ~3);
     }
