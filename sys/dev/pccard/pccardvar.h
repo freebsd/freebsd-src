@@ -285,7 +285,10 @@ pccard_get_ether(device_t dev, u_char *enaddr)
 	    PCCARD_IVAR_ETHADDR, (uintptr_t *)enaddr);
 }
 
+/* shared memory flags */
 enum {
-	PCCARD_A_MEM_ATTR = 0x1
+	PCCARD_A_MEM_ATTR=1,    /* attribute */
+	PCCARD_A_MEM_COM,       /* common */
+	PCCARD_A_MEM_8BIT,      /* 8 bit */
+	PCCARD_A_MEM_16BIT      /* 16 bit */
 };
-
