@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.414 1998/03/08 09:56:31 julian Exp $
+#	$Id: LINT,v 1.415 1998/03/09 22:09:10 eivind Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1400,9 +1400,9 @@ options		HW_WDOG
 # If you're tweaking this, you might also want to increase the sysctls
 # "vm.v_free_min", "vm.v_free_reserved", and "vm.v_free_target".
 #
-# The value below is the default.
+# The value below is the one more than the default.
 #
-options         "PMAP_SHPGPERPROC=200"
+options         "PMAP_SHPGPERPROC=201"
 
 # More undocumented options for linting.
 
