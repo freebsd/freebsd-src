@@ -1416,9 +1416,13 @@ device uart0	at isa? port 0x330 irq 5
 # gusc: Gravis UltraSound ISA PnP/non-PnP
 # csa:  Crystal Semiconductor CS461x/428x PCI
 
+# For PnP cards:
 #device		sbc0
 #device		gusc0
 #device		csa0
+
+# For non-PnP cards:
+#device		gusc0 at isa? port 0x220 irq 5 drq 1 flags 0x13
 
 # Not controlled by `snd'
 device		pca0 at isa? port IO_TIMER1
