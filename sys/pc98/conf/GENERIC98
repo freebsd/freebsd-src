@@ -272,7 +272,7 @@ pseudo-device	loop		# Network loopback
 pseudo-device	ether		# Ethernet support
 pseudo-device	sl	1	# Kernel SLIP
 pseudo-device	ppp	1	# Kernel PPP
-pseudo-device	tun	1	# Packet tunnel, for ppp(1)
+pseudo-device	tun	1	# Packet tunnel
 pseudo-device	pty	16	# Pseudo-ttys (telnet etc)
 pseudo-device	gzip		# Exec gzipped a.out's
 
