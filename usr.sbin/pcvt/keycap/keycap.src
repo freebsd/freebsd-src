@@ -31,12 +31,14 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# @(#)keycap.src, 3.20, Last Edit-Date: [Wed Mar  8 20:53:01 1995]
+# $FreeBSD$
 #
 #---------------------------------------------------------------------------
 #
-#	keyboard mappings for vt220 emulator pcvt 3.00
-#	----------------------------------------------
+#	keyboard mappings for the pcvt vt220 emulator
+#	---------------------------------------------
+#
+#	Last Edit-Date: [Tue Apr 30 10:52:50 2002]
 #
 # 	DEC MCS and/or ISO-Latin-1 Characterset used
 #
@@ -44,15 +46,7 @@
 #	AT Keyboards lack a ALTGR Key, so they cannot be handled by
 #		the current driver implementation .... sorry
 #
-#	If you design a new entry for national keyboards, please
-#	send it to hm@hcshh.hcs.de, thank you !
-#
 #	Many entries are taken from the 386BSD patchkit 0.2.4 codrv
-#
-#---------------------------------------------------------------------------
-#
-#	-hm	patch from Thomas Gellekum
-#	-hm	renamed finnish "f8" entry to "f1"
 #
 #---------------------------------------------------------------------------
 
@@ -405,14 +399,14 @@ is:iceland:Island mapping:\
 # from codrv, untested
 i1|italy141|Italian 141 mapping:\
 	:K1=\\:S1=|:\
-	:S3=":S4=\243:S7=&:S8=/:S9=(:S10=):S11==:\
-	:K12=':S12=\077:\
-	:K13=\354:S13=\136:\
+       :S3=":S4=\243:S7=&:S8=/:A8={:S9=(:A9=[:S10=):A10=]:S11==:A11=}:\
+       :K12=':A12=`:S12=\077:\
+       :K13=\354:S13=\136:A13=~:\
 	:K27=\350:S27=\351:\A27=[:\
 	:K28=+:S28=*:A28=]:\
 	:K40=\362:S40=\347:A40=@:\
 	:K41=\340:S41=\260:A41=#:\
-	:K42=\371:S42=\247:\
+       :K29=\371:S29=\247:\
 	:K45=<:S45=>:\
 	:S53=;:S54=\072:\
 	:K55=-:S55=_:\
