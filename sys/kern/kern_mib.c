@@ -183,42 +183,41 @@ int securelevel = -1;
 static int
 sysctl_kern_securelvl(SYSCTL_HANDLER_ARGS)
 {
-		int error, level;
+	int error, level;
 
-		/*
-		 * If the process is in jail, return the maximum of the
-		 * global and local levels; otherwise, return the global
-		 * level.
-		 */
-		if (req->p->p_ucred->cr_prison != NULL)
-			level = imax(securelevel,
-			    req->p->p_ucred->cr_prison->pr_securelevel);
-		else
-			level = securelevel;
-		error = sysctl_handle_int(oidp, &level, 0, req);
-		if (error || !req->newptr)
-			return (error);
-		/*
-		 * Permit update only if the new securelevel exceeds the
-		 * global level, and local level if any.
-		 */
-		if (req->p->p_ucred->cr_prison != NULL) {
-#ifdef REGRESSION
-			if (!regression_securelevel_nonmonotonic)
-#endif /* !REGRESSION */
-			if (level < imax(securelevel,
-			    req->p->p_ucred->cr_prison->pr_securelevel))
-				return (EPERM);
-			req->p->p_ucred->cr_prison->pr_securelevel = level;
-		} else {
-#ifdef REGRESSION
-			if (!regression_securelevel_nonmonotonic)
-#endif /* !REGRESSION */
-			if (level < securelevel)
-				return (EPERM);
-			securelevel = level;
-		}
+	/*
+	 * If the process is in jail, return the maximum of the global and
+	 * local levels; otherwise, return the global level.
+	 */
+	if (req->p->p_ucred->cr_prison != NULL)
+		level = imax(securelevel,
+		    req->p->p_ucred->cr_prison->pr_securelevel);
+	else
+		level = securelevel;
+	error = sysctl_handle_int(oidp, &level, 0, req);
+	if (error || !req->newptr)
 		return (error);
+	/*
+	 * Permit update only if the new securelevel exceeds the
+	 * global level, and local level if any.
+	 */
+	if (req->p->p_ucred->cr_prison != NULL) {
+#ifdef REGRESSION
+		if (!regression_securelevel_nonmonotonic)
+#endif /* !REGRESSION */
+		if (level < imax(securelevel,
+		    req->p->p_ucred->cr_prison->pr_securelevel))
+			return (EPERM);
+			req->p->p_ucred->cr_prison->pr_securelevel = level;
+	} else {
+#ifdef REGRESSION
+		if (!regression_securelevel_nonmonotonic)
+#endif /* !REGRESSION */
+		if (level < securelevel)
+			return (EPERM);
+		securelevel = level;
+	}
+	return (error);
 }
 
 SYSCTL_PROC(_kern, KERN_SECURELVL, securelevel,
