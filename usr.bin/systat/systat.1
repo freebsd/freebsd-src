@@ -88,6 +88,7 @@ flag expects
 .Ar display
 to be one of:
 .Ic icmp ,
+.Ic ifstat ,
 .Ic iostat ,
 .Ic ip ,
 .Ic mbufs ,
@@ -431,6 +432,28 @@ then only the requested information will be displayed.
 .It Cm reset
 Reset the port, host, and protocol matching mechanisms to the default
 (any protocol, port, or host).
+.El
+.It Ic ifstat
+Display the network traffic going through active interfaces on the
+system.  Idle interfaces will not be displayed until they receive some
+traffic.
+.Pp
+For each interface being displayed, the current, peak and total
+statistics are displayed for incoming and outgoing traffic.  By default,
+the
+.Ic ifstat
+display will automatically scale the units being used so that they are
+in a human-readable format.  The scaling units used for the current and
+peak
+traffic columns can be altered by the
+.Ic scale
+command.
+.Pp
+.Bl -tag -width Ar -compact
+.It Cm scale Op Ar units
+Modify the scale used to display the current and peak traffic over all
+interfaces.  The following units are recognised: kbit, kbyte, mbit,
+mbyte, gbit, gbyte and auto.
 .El
 .El
 .Pp

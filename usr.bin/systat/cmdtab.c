@@ -71,6 +71,9 @@ struct	cmdtab cmdtab[] = {
 	{ "tcp",	showtcp,	fetchtcp,	labeltcp,
 	  inittcp,	opentcp,	closetcp,	cmdmode,
 	  resettcp,	0 },
+	{ "ifstat",	showifstat,	fetchifstat,	labelifstat,
+	  initifstat,	openifstat,	closeifstat,	cmdifstat,
+	  0,		CF_LOADAV },
         { NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, 0 }
 };
 struct  cmdtab *curcmd = &cmdtab[0];
