@@ -20,7 +20,7 @@ updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
 20020730:	p11	FreeBSD-SA-02:32.pppd
-	A fix for a race condition in pppd(8) was corrected.
+	A race condition in pppd(8) was corrected.
 
 20020730:	p10	FreeBSD-SA-02:23.stdio.v1.2
 	A bug in the previous patch for the vulnerability described
