@@ -1,5 +1,5 @@
 /*
- * $Id: log.c,v 1.17 1997/10/26 01:03:05 brian Exp $
+ * $Id: log.c,v 1.18 1997/11/04 01:17:00 brian Exp $
  */
 
 #include <sys/param.h>
@@ -25,6 +25,7 @@ static char *LogNames[] = {
   "Connect",
   "Debug",
   "HDLC",
+  "ID0",
   "IPCP",
   "LCP",
   "Link",
