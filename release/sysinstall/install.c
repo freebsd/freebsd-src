@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.134.2.63 1997/12/29 20:07:36 jkh Exp $
+ * $Id: install.c,v 1.134.2.64 1998/02/11 15:43:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1034,6 +1034,8 @@ copySelf(void)
 {
     int i;
 
+    if (file_readable("/boot.help"))
+	vsystem("cp /boot.help /mnt");
     msgWeHaveOutput("Copying the boot floppy to /stand on root filesystem");
     i = vsystem("find -x /stand | cpio %s -pdum /mnt", cpioVerbosity());
     if (i) {
