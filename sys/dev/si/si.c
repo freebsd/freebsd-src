@@ -41,6 +41,7 @@ static const char si_copyright1[] =  "@(#) Copyright (C) Specialix International
 
 #include "opt_compat.h"
 #include "opt_debug_si.h"
+#include "opt_tty.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

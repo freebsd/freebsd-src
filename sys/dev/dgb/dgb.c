@@ -58,6 +58,7 @@
 
 #include "opt_compat.h"
 #include "opt_dgb.h"
+#include "opt_tty.h"
 
 #include "dgb.h"
 
