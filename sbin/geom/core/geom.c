@@ -65,12 +65,14 @@ static int std_available(const char *name);
 
 static void std_help(struct gctl_req *req, unsigned flags);
 static void std_list(struct gctl_req *req, unsigned flags);
+static void std_status(struct gctl_req *req, unsigned flags);
 static void std_load(struct gctl_req *req, unsigned flags);
 static void std_unload(struct gctl_req *req, unsigned flags);
 
 struct g_command std_commands[] = {
 	{ "help", 0, std_help, G_NULL_OPTS },
 	{ "list", 0, std_list, G_NULL_OPTS },
+	{ "status", 0, std_status, G_NULL_OPTS },
 	{ "load", G_FLAG_VERBOSE | G_FLAG_LOADKLD, std_load, G_NULL_OPTS },
 	{ "unload", G_FLAG_VERBOSE, std_unload, G_NULL_OPTS },
 	G_CMD_SENTINEL
@@ -745,6 +747,178 @@ std_list(struct gctl_req *req, unsigned flags __unused)
 }
 
 static int
+std_status_available(void)
+{
+
+	/* 'status' command is available when 'list' command is. */
+	return (std_list_available());
+}
+
+static void
+status_update_len(struct ggeom *gp, size_t *name_len, size_t *status_len)
+{
+	struct gprovider *pp;
+	struct gconfig *conf;
+	size_t len;
+
+	assert(gp != NULL);
+	assert(name_len != NULL);
+	assert(status_len != NULL);
+
+	pp = LIST_FIRST(&gp->lg_provider);
+	if (pp != NULL)
+		len = strlen(pp->lg_name);
+	else
+		len = strlen(gp->lg_name);
+	if (*name_len < len)
+		*name_len = len;
+	LIST_FOREACH(conf, &gp->lg_config, lg_config) {
+		if (strcasecmp(conf->lg_name, "state") == 0) {
+			len = strlen(conf->lg_val);
+			if (*status_len < len)
+				*status_len = len;
+		}
+	}
+}
+
+static int
+status_one_consumer(struct gconsumer *cp)
+{
+	struct gprovider *pp;
+	struct gconfig *conf;
+
+	pp = cp->lg_provider;
+	if (pp == NULL)
+		return (0);
+	printf("  %s", pp->lg_name);
+	LIST_FOREACH(conf, &cp->lg_config, lg_config) {
+		if (strcasecmp(conf->lg_name, "synchronized") == 0)
+			printf(" (%s)", conf->lg_val);
+	}
+	printf("\n");
+	return (1);
+}
+
+static void
+status_one_geom(struct ggeom *gp, size_t name_len, size_t status_len)
+{
+	struct gprovider *pp;
+	struct gconsumer *cp;
+	struct gconfig *conf;
+	const char *name;
+	int newline = 0;
+
+	pp = LIST_FIRST(&gp->lg_provider);
+	if (pp != NULL)
+		name = pp->lg_name;
+	else
+		name = gp->lg_name;
+	printf("%*s", name_len, name);
+	LIST_FOREACH(conf, &gp->lg_config, lg_config) {
+		if (strcasecmp(conf->lg_name, "state") == 0) {
+			printf("  %*s", status_len, conf->lg_val);
+			break;
+		}
+	}
+	if (conf == NULL)
+		printf("  %*s", status_len, "N/A");
+	LIST_FOREACH(cp, &gp->lg_consumer, lg_consumer) {
+		if (cp != LIST_FIRST(&gp->lg_consumer))
+			printf("%*s  %*s", name_len, "", status_len, "");
+		if (status_one_consumer(cp) && !newline)
+			newline = 1;
+	}
+	if (!newline)
+		printf("\n");
+}
+
+static void
+std_status(struct gctl_req *req, unsigned flags __unused)
+{
+	struct gmesh mesh;
+	struct gclass *classp;
+	struct ggeom *gp;
+	size_t name_len, status_len;
+	int error, *nargs;
+
+	error = geom_gettree(&mesh);
+	if (error != 0) {
+		fprintf(stderr, "Cannot get GEOM tree: %s.\n", strerror(error));
+		exit(EXIT_FAILURE);
+	}
+	classp = find_class(&mesh, gclass_name);
+	if (classp == NULL) {
+		fprintf(stderr, "Class %s not found.\n", gclass_name);
+		goto end;
+	}
+	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	if (nargs == NULL) {
+		gctl_error(req, "No '%s' argument.", "nargs");
+		goto end;
+	}
+	name_len = strlen("Name");
+	status_len = strlen("Status");
+	if (*nargs > 0) {
+		int i, n = 0;
+
+		for (i = 0; i < *nargs; i++) {
+			const char *name;
+			char param[16];
+
+			snprintf(param, sizeof(param), "arg%d", i);
+			name = gctl_get_asciiparam(req, param);
+			assert(name != NULL);
+			gp = find_geom(classp, name);
+			if (gp == NULL)
+				fprintf(stderr, "No such geom: %s.\n", name);
+			else {
+				status_update_len(gp, &name_len, &status_len);
+				n++;
+			}
+		}
+		if (n == 0)
+			goto end;
+	} else {
+		int n = 0;
+
+		LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
+			if (LIST_EMPTY(&gp->lg_provider))
+				continue;
+			status_update_len(gp, &name_len, &status_len);
+			n++;
+		}
+		if (n == 0)
+			goto end;
+	}
+	printf("%*s  %*s  %s\n", name_len, "Name", status_len, "Status",
+	    "Components");
+	if (*nargs > 0) {
+		int i;
+
+		for (i = 0; i < *nargs; i++) {
+			const char *name;
+			char param[16];
+
+			snprintf(param, sizeof(param), "arg%d", i);
+			name = gctl_get_asciiparam(req, param);
+			assert(name != NULL);
+			gp = find_geom(classp, name);
+			if (gp != NULL) {
+				status_one_geom(gp, name_len, status_len);
+			}
+		}
+	} else {
+		LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
+			if (LIST_EMPTY(&gp->lg_provider))
+				continue;
+			status_one_geom(gp, name_len, status_len);
+		}
+	}
+end:
+	geom_deletetree(&mesh);
+}
+
+static int
 std_load_available(void)
 {
 	char name[MAXPATHLEN], paths[MAXPATHLEN * 8], *p;
@@ -824,6 +998,8 @@ std_available(const char *name)
 		return (1);
 	else if (strcmp(name, "list") == 0)
 		return (std_list_available());
+	else if (strcmp(name, "status") == 0)
+		return (std_status_available());
 	else if (strcmp(name, "load") == 0)
 		return (std_load_available());
 	else if (strcmp(name, "unload") == 0)
