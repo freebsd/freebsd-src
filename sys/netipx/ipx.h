@@ -33,7 +33,7 @@
  *
  *	@(#)ipx.h
  *
- * $Id: ipx.h,v 1.10 1997/04/05 20:05:07 jhay Exp $
+ * $Id: ipx.h,v 1.11 1997/05/01 06:21:27 jhay Exp $
  */
 
 #ifndef _NETIPX_IPX_H_
@@ -46,31 +46,36 @@
 /*
  * Protocols
  */
-#define IPXPROTO_UNKWN	0		/* Unknown */
-#define IPXPROTO_RI	1		/* RIP Routing Information */
-#define IPXPROTO_ECHO	2		/* Echo Protocol */
-#define IPXPROTO_ERROR	3		/* Error Protocol */
-#define IPXPROTO_PXP	4		/* PXP Packet Exchange */
-#define IPXPROTO_SPX	5		/* SPX Sequenced Packet */
-#define IPXPROTO_NCP	17		/* NCP NetWare Core */
-#define IPXPROTO_RAW	255		/* Placemarker*/
-#define IPXPROTO_MAX	256		/* Placemarker*/
+#define IPXPROTO_UNKWN		0	/* Unknown */
+#define IPXPROTO_RI		1	/* RIP Routing Information */
+#define IPXPROTO_PXP		4	/* IPX Packet Exchange Protocol */
+#define IPXPROTO_SPX		5	/* SPX Sequenced Packet */
+#define IPXPROTO_NCP		17	/* NCP NetWare Core */
+#define IPXPROTO_NETBIOS	20	/* Propagated Packet */
+#define IPXPROTO_RAW		255	/* Placemarker*/
+#define IPXPROTO_MAX		256	/* Placemarker*/
 
 /*
  * Port/Socket numbers: network standard functions
  */
 
-#define IPXPORT_RI	1		/* NS RIP Routing Information */
-#define IPXPORT_ECHO	2		/* NS Echo */
-#define IPXPORT_RE	3		/* NS Router Error */
-#define IPXPORT_FSP	0x0451		/* NW FSP File Service */
-#define IPXPORT_SAP	0x0452		/* NW SAP Service Advertising */
-#define IPXPORT_RIP	0x0453		/* NW RIP Routing Information */
-#define IPXPORT_NETBIOS	0x0455		/* NW NetBIOS */
-#define IPXPORT_DIAGS	0x0456		/* NW Diagnostics */
-#define IPXPORT_WDOG	0x4001		/* NW Watchdog Packets */
-#define IPXPORT_SHELL	0x4003		/* NW Shell Socket */
-#define IPXPORT_MAX	0x8000		/* Maximum User Addressable Port */
+#define IPXPORT_RI		1	/* NS RIP Routing Information */
+#define IPXPORT_ECHO		2	/* NS Echo */
+#define IPXPORT_RE		3	/* NS Router Error */
+#define IPXPORT_NCP		0x0451	/* NW NCP Core Protocol */
+#define IPXPORT_SAP		0x0452	/* NW SAP Service Advertising */
+#define IPXPORT_RIP		0x0453	/* NW RIP Routing Information */
+#define IPXPORT_NETBIOS		0x0455	/* NW NetBIOS */
+#define IPXPORT_DIAGS		0x0456	/* NW Diagnostics */
+/*
+ * Ports < IPXPORT_RESERVED are reserved for priveleged
+ */
+#define IPXPORT_RESERVED	0x4000
+/*
+ * Ports > IPXPORT_WELLKNOWN are reserved for priveleged
+ * processes (e.g. root).
+ */
+#define IPXPORT_WELLKNOWN	0x6000
 
 /* flags passed to ipx_outputfl as last parameter */
 
@@ -127,7 +132,7 @@ struct sockaddr_ipx {
 #define sipx_port sipx_addr.x_port
 
 /*
- * Definitions for IPX Internet Datagram Protocol
+ * Definitions for IPX Internetwork Packet Exchange Protocol
  */
 struct ipx {
 	u_short	ipx_sum;	/* Checksum */
@@ -142,73 +147,25 @@ struct ipx {
 #define ipx_netof(a) (*(long *) & ((a).x_net)) /* XXX - not needed */
 #endif
 #define ipx_neteqnn(a,b) \
-	(((a).s_net[0]==(b).s_net[0]) && ((a).s_net[1]==(b).s_net[1]))
+	(((a).s_net[0] == (b).s_net[0]) && ((a).s_net[1] == (b).s_net[1]))
 #define ipx_neteq(a,b) ipx_neteqnn((a).x_net, (b).x_net)
 #define satoipx_addr(sa) (((struct sockaddr_ipx *)&(sa))->sipx_addr)
 #define ipx_hosteqnh(s,t) ((s).s_host[0] == (t).s_host[0] && \
 	(s).s_host[1] == (t).s_host[1] && (s).s_host[2] == (t).s_host[2])
 #define ipx_hosteq(s,t) (ipx_hosteqnh((s).x_host,(t).x_host))
 #define ipx_nullnet(x) (((x).x_net.s_net[0]==0) && ((x).x_net.s_net[1]==0))
-#define ipx_nullhost(x) (((x).x_host.s_host[0]==0) && \
-	((x).x_host.s_host[1]==0) && ((x).x_host.s_host[2]==0))
-#define ipx_wildnet(x) (((x).x_net.s_net[0]==0xffff) && \
-	((x).x_net.s_net[1]==0xffff))
-#define ipx_wildhost(x) (((x).x_host.s_host[0]==0xffff) && \
-	((x).x_host.s_host[1]==0xffff) && ((x).x_host.s_host[2]==0xffff))
-
-#ifdef KERNEL
-
-extern struct pr_usrreqs ipx_usrreqs;
-extern struct pr_usrreqs ripx_usrreqs;
-extern int ipxcksum;
-extern struct domain ipxdomain;
-extern struct sockaddr_ipx ipx_netmask;
-extern struct sockaddr_ipx ipx_hostmask;
-
-extern union ipx_host ipx_thishost;
-extern union ipx_net ipx_zeronet;
-extern union ipx_host ipx_zerohost;
-extern union ipx_net ipx_broadnet;
-extern union ipx_host ipx_broadhost;
-
-extern long ipx_pexseq;
-extern u_char ipxctlerrmap[];
-extern struct ipxpcb ipxrawpcb;
-
-struct route;
-struct sockaddr;
-struct socket;
-void	ipx_abort __P((struct ipxpcb *ipxp));
-u_short	ipx_cksum __P((struct mbuf *m, int len));
-int	ipx_control __P((struct socket *so, int cmd, caddr_t data,
-			 struct ifnet *ifp, struct proc *p));
-void	ipx_ctlinput __P((int cmd, struct sockaddr *arg_as_sa, void *dummy));
-int	ipx_ctloutput __P((int req, struct socket *so, int level, int name,
-			   struct mbuf **value, struct proc *p));
-int	ipx_do_route __P((struct ipx_addr *src, struct route *ro));
-void	ipx_drop __P((struct ipxpcb *ipxp, int errno));
-void	ipx_forward __P((struct mbuf *m));
-void	ipx_init __P((void));
-void	ipx_input __P((struct mbuf *m, struct ipxpcb *ipxp));
-void	ipxintr __P((void));
-int	ipx_output __P((struct ipxpcb *ipxp, struct mbuf *m0));
-int	ipx_outputfl __P((struct mbuf *m0, struct route *ro, int flags));
-void	ipx_undo_route __P((struct route *ro));
-void	ipx_watch_output __P((struct mbuf *m, struct ifnet *ifp));
-
-int	ipx_peeraddr __P((struct socket *so, struct mbuf *nam));
-int	ipx_sockaddr __P((struct socket *so, struct mbuf *nam));
-
-#else
+#define ipx_nullhost(x) (((x).x_host.s_host[0] == 0) && \
+	((x).x_host.s_host[1] == 0) && ((x).x_host.s_host[2] == 0))
+#define ipx_wildnet(x) (((x).x_net.s_net[0] == 0xffff) && \
+	((x).x_net.s_net[1] == 0xffff))
+#define ipx_wildhost(x) (((x).x_host.s_host[0] == 0xffff) && \
+	((x).x_host.s_host[1] == 0xffff) && ((x).x_host.s_host[2] == 0xffff))
 
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-struct ipx_addr
-	ipx_addr __P((const char *));
+struct	ipx_addr ipx_addr __P((const char *));
 char	*ipx_ntoa __P((struct ipx_addr));
 __END_DECLS
 
-#endif /* KERNEL */
-
-#endif /* !_NETIPX_IPX_H_ */
+#endif /* _NETIPX_IPX_H_ */

@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_error.c
  *
- * $Id$
+ * $Id: ipx_error.c,v 1.7 1997/02/22 09:41:53 peter Exp $
  */
 
 #include <sys/param.h>
@@ -52,6 +52,8 @@
 #include <netipx/spx.h>
 #include <netipx/ipx_pcb.h>
 #include <netipx/ipx_error.h>
+
+#ifdef IPXERRORMSGS
 
 /*
  * IPX_ERR routines: error generation, receive packet processing, and
@@ -108,7 +110,7 @@ ipx_error(om, type, param)
 	 */
 	if (type == IPX_ERR_NOSOCK &&
 	    oip->ipx_dna.x_port == htons(2) &&
-	    (type = ipx_echo(om))==0)
+	    (type = ipx_echo(om)) == 0)
 		return;
 
 	if (ipx_errprintfs)
@@ -164,11 +166,13 @@ ipx_error(om, type, param)
 		nip->ipx_sum = ipx_cksum(m, sizeof(*ep));
 	} else 
 		nip->ipx_sum = 0xffff;
-	(void) ipx_outputfl(m, (struct route *)0, 0);
+	ipx_outputfl(m, (struct route *)NULL, 0);
 
 freeit:
 	m_freem(om);
 }
+
+#endif /* IPXERRORMSGS */
 
 void
 ipx_printhost(addr)
@@ -230,6 +234,8 @@ register struct ipx_addr *addr;
 	printf("%s.%s%s", net, host, cport);
 }
 
+#ifdef IPXERRORMSGS
+
 /*
  * Process a received IPX_ERR message.
  */
@@ -253,9 +259,9 @@ ipx_err_input(m)
 		printf("%d\n", ntohs(epipx->ipx_ep_ipx.ipx_len));
 	}
 
-	i = sizeof (struct ipx_epipx);
+	i = sizeof(struct ipx_epipx);
  	if (((m->m_flags & M_EXT) || m->m_len < i) &&
- 		(m = m_pullup(m, i)) == 0)  {
+ 		(m = m_pullup(m, i)) == NULL)  {
 		ipx_errstat.ipx_es_tooshort++;
 		return;
 	}
@@ -359,10 +365,10 @@ struct mbuf *m;
 	} *ec = (struct echo *)ipx;
 	struct ipx_addr temp;
 
-	if (ipx->ipx_pt!=IPXPROTO_ECHO)
-		return(IPX_ERR_NOSOCK);
-	if (ec->ec_op!=htons(1))
-		return(IPX_ERR_UNSPEC);
+	if (ipx->ipx_pt != IPXPROTO_ECHO)
+		return (IPX_ERR_NOSOCK);
+	if (ec->ec_op != htons(1))
+		return (IPX_ERR_UNSPEC);
 
 	ec->ec_op = htons(2);
 
@@ -373,12 +379,13 @@ struct mbuf *m;
 	if (ipxcksum && ipx->ipx_sum != 0xffff) {
 		ipx->ipx_sum = 0;
 		ipx->ipx_sum = ipx_cksum(m,
-		    (int)(((ntohs(ipx->ipx_len) - 1)|1)+1));
+		    (int)(((ntohs(ipx->ipx_len) - 1) | 1) + 1));
 	}
 	else
 		ipx->ipx_sum = 0xffff;
 
-	(void) ipx_outputfl(m, (struct route *)0, IPX_FORWARDING);
+	ipx_outputfl(m, (struct route *)NULL, IPX_FORWARDING);
 
-	return(0);
+	return (0);
 }
+#endif /* IPXERRORMSGS */

@@ -33,7 +33,7 @@
  * 
  *	@(#)ipx.c
  *
- * $Id: ipx.c,v 1.8 1997/03/24 11:33:31 bde Exp $
+ * $Id: ipx.c,v 1.9 1997/05/01 06:21:27 jhay Exp $
  */
 
 #include <sys/param.h>
@@ -52,16 +52,17 @@
 
 #include <netipx/ipx.h>
 #include <netipx/ipx_if.h>
-
-#ifdef IPX
+#include <netipx/ipx_var.h>
 
 struct ipx_ifaddr *ipx_ifaddr;
-int ipx_interfaces;
+
+static	void ipx_ifscrub(struct ifnet *ifp, struct ipx_ifaddr *ia);
+static	int ipx_ifinit(struct ifnet *ifp, struct ipx_ifaddr *ia,
+		       struct sockaddr_ipx *sipx, int scrub);
 
 /*
  * Generic internet control operations (ioctl's).
  */
-/* ARGSUSED */
 int
 ipx_control(so, cmd, data, ifp, p)
 	struct socket *so;
@@ -81,22 +82,22 @@ ipx_control(so, cmd, data, ifp, p)
 	/*
 	 * Find address for this interface, if it exists.
 	 */
-	if (ifp == 0)
+	if (ifp == NULL)
 		return (EADDRNOTAVAIL);
-	for (ia = ipx_ifaddr; ia; ia = ia->ia_next)
+	for (ia = ipx_ifaddr; ia != NULL; ia = ia->ia_next)
 		if (ia->ia_ifp == ifp)
 			break;
 
 	switch (cmd) {
 
 	case SIOCGIFADDR:
-		if (ia == (struct ipx_ifaddr *)0)
+		if (ia == NULL)
 			return (EADDRNOTAVAIL);
 		*(struct sockaddr_ipx *)&ifr->ifr_addr = ia->ia_addr;
 		return (0);
 
 	case SIOCGIFBRDADDR:
-		if (ia == (struct ipx_ifaddr *)0)
+		if (ia == NULL)
 			return (EADDRNOTAVAIL);
 		if ((ifp->if_flags & IFF_BROADCAST) == 0)
 			return (EINVAL);
@@ -104,7 +105,7 @@ ipx_control(so, cmd, data, ifp, p)
 		return (0);
 
 	case SIOCGIFDSTADDR:
-		if (ia == (struct ipx_ifaddr *)0)
+		if (ia == NULL)
 			return (EADDRNOTAVAIL);
 		if ((ifp->if_flags & IFF_POINTOPOINT) == 0)
 			return (EINVAL);
@@ -119,26 +120,26 @@ ipx_control(so, cmd, data, ifp, p)
 	case SIOCAIFADDR:
 	case SIOCDIFADDR:
 		if (ifra->ifra_addr.sipx_family == AF_IPX)
-		    for (oia = ia; ia; ia = ia->ia_next) {
+		    for (oia = ia; ia != NULL; ia = ia->ia_next) {
 			if (ia->ia_ifp == ifp  &&
 			    ipx_neteq(ia->ia_addr.sipx_addr,
 				  ifra->ifra_addr.sipx_addr))
 			    break;
 		    }
-		if (cmd == SIOCDIFADDR && ia == 0)
+		if (cmd == SIOCDIFADDR && ia == NULL)
 			return (EADDRNOTAVAIL);
 		/* FALLTHROUGH */
 
 	case SIOCSIFADDR:
 	case SIOCSIFDSTADDR:
-		if (ia == (struct ipx_ifaddr *)0) {
+		if (ia == NULL) {
 			oia = (struct ipx_ifaddr *)
-				malloc(sizeof *ia, M_IFADDR, M_WAITOK);
-			if (oia == (struct ipx_ifaddr *)NULL)
+				malloc(sizeof(*ia), M_IFADDR, M_WAITOK);
+			if (oia == NULL)
 				return (ENOBUFS);
 			bzero((caddr_t)oia, sizeof(*oia));
-			if ((ia = ipx_ifaddr)) {
-				for ( ; ia->ia_next; ia = ia->ia_next)
+			if ((ia = ipx_ifaddr) != NULL) {
+				for ( ; ia->ia_next != NULL; ia = ia->ia_next)
 					;
 				ia->ia_next = oia;
 			} else
@@ -157,7 +158,6 @@ ipx_control(so, cmd, data, ifp, p)
 				ia->ia_broadaddr.sipx_len = sizeof(ia->ia_addr);
 				ia->ia_broadaddr.sipx_addr.x_host = ipx_broadhost;
 			}
-			ipx_interfaces++;
 		}
 	}
 
@@ -199,16 +199,11 @@ ipx_control(so, cmd, data, ifp, p)
 				printf("Didn't unlink ipxifadr from list\n");
 		}
 		IFAFREE((&oia->ia_ifa));
-		if (0 == --ipx_interfaces) {
-			/*
-			 * We reset to virginity and start all over again
-			 */
-			ipx_thishost = ipx_zerohost;
-		}
 		return (0);
 	
 	case SIOCAIFADDR:
-		dstIsNew = 0; hostIsNew = 1;
+		dstIsNew = 0;
+		hostIsNew = 1;
 		if (ia->ia_addr.sipx_family == AF_IPX) {
 			if (ifra->ifra_addr.sipx_len == 0) {
 				ifra->ifra_addr = ia->ia_addr;
@@ -230,7 +225,7 @@ ipx_control(so, cmd, data, ifp, p)
 		return (error);
 
 	default:
-		if (ifp->if_ioctl == 0)
+		if (ifp->if_ioctl == NULL)
 			return (EOPNOTSUPP);
 		return ((*ifp->if_ioctl)(ifp, cmd, data));
 	}
@@ -239,7 +234,7 @@ ipx_control(so, cmd, data, ifp, p)
 /*
 * Delete any previous route for an old address.
 */
-void
+static void
 ipx_ifscrub(ifp, ia)
 	register struct ifnet *ifp;
 	register struct ipx_ifaddr *ia; 
@@ -256,7 +251,7 @@ ipx_ifscrub(ifp, ia)
  * Initialize an interface's internet address
  * and routing table entry.
  */
-int
+static int
 ipx_ifinit(ifp, ia, sipx, scrub)
 	register struct ifnet *ifp;
 	register struct ipx_ifaddr *ia;
@@ -264,7 +259,6 @@ ipx_ifinit(ifp, ia, sipx, scrub)
 	int scrub;
 {
 	struct sockaddr_ipx oldaddr;
-	register union ipx_host *h = &ia->ia_addr.sipx_addr.x_host;
 	int s = splimp(), error;
 
 	/*
@@ -272,45 +266,25 @@ ipx_ifinit(ifp, ia, sipx, scrub)
 	 */
 	oldaddr = ia->ia_addr;
 	ia->ia_addr = *sipx;
+
 	/*
 	 * The convention we shall adopt for naming is that
 	 * a supplied address of zero means that "we don't care".
-	 * if there is a single interface, use the address of that
-	 * interface as our 6 byte host address.
-	 * if there are multiple interfaces, use any address already
-	 * used.
+	 * Use the MAC address of the interface. If it is an
+	 * interface without a MAC address, like a serial line, the
+	 * address must be supplied.
 	 *
 	 * Give the interface a chance to initialize
 	 * if this is its first address,
 	 * and to validate the address if necessary.
 	 */
-	if (ipx_hosteqnh(ipx_thishost, ipx_zerohost)) {
-		if (ifp->if_ioctl &&
-		     (error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (void *)ia))) {
-			ia->ia_addr = oldaddr;
-			splx(s);
-			return (error);
-		}
-		ipx_thishost = *h;
-	} else if (ipx_hosteqnh(sipx->sipx_addr.x_host, ipx_zerohost)
-	    || ipx_hosteqnh(sipx->sipx_addr.x_host, ipx_thishost)) {
-		*h = ipx_thishost;
-		if (ifp->if_ioctl &&
-		     (error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (void *)ia))) {
-			ia->ia_addr = oldaddr;
-			splx(s);
-			return (error);
-		}
-		if (!ipx_hosteqnh(ipx_thishost,*h)) {
-			ia->ia_addr = oldaddr;
-			splx(s);
-			return (EINVAL);
-		}
-	} else {
+	if (ifp->if_ioctl != NULL &&
+	    (error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (void *)ia))) {
 		ia->ia_addr = oldaddr;
 		splx(s);
-		return (EINVAL);
+		return (error);
 	}
+	splx(s);
 	ia->ia_ifa.ifa_metric = ifp->if_metric;
 	/*
 	 * Add route for the network.
@@ -340,11 +314,11 @@ ipx_iaonnetof(dst)
 	register struct ipx_ifaddr *ia;
 	register struct ipx_addr *compare;
 	register struct ifnet *ifp;
-	struct ipx_ifaddr *ia_maybe = 0;
+	struct ipx_ifaddr *ia_maybe = NULL;
 	union ipx_net net = dst->x_net;
 
-	for (ia = ipx_ifaddr; ia; ia = ia->ia_next) {
-		if ((ifp = ia->ia_ifp)) {
+	for (ia = ipx_ifaddr; ia != NULL; ia = ia->ia_next) {
+		if ((ifp = ia->ia_ifp) != NULL) {
 			if (ifp->if_flags & IFF_POINTOPOINT) {
 				compare = &satoipx_addr(ia->ia_dstaddr);
 				if (ipx_hosteq(*dst, *compare))
@@ -359,4 +333,3 @@ ipx_iaonnetof(dst)
 	}
 	return (ia_maybe);
 }
-#endif
