@@ -17,7 +17,7 @@
  *
  * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
  *
- * $Id: if_spppsubr.c,v 1.52 1998/12/27 21:30:44 phk Exp $
+ * $Id: if_spppsubr.c,v 1.53 1999/02/19 13:45:09 phk Exp $
  */
 
 #include <sys/param.h>
@@ -2648,11 +2648,11 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 					addlog("%s [not agreed] ",
 						sppp_dotted_quad(desiredaddr));
 
-				p[2] = hisaddr >> 24;
-				p[3] = hisaddr >> 16;
-				p[4] = hisaddr >> 8;
-				p[5] = hisaddr;
 			}
+			p[2] = hisaddr >> 24;
+			p[3] = hisaddr >> 16;
+			p[4] = hisaddr >> 8;
+			p[5] = hisaddr;
 			break;
 		}
 		/* Add the option to nak'ed list. */
