@@ -84,7 +84,7 @@ MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
  */
 #if defined(_KERNEL) && defined(INVARIANTS)
 static void
-_assert_sbuf_integrity(char *fun, struct sbuf *s)
+_assert_sbuf_integrity(const char *fun, struct sbuf *s)
 {
 	KASSERT(s != NULL,
 	    ("%s called with a NULL sbuf pointer", fun));
@@ -95,7 +95,7 @@ _assert_sbuf_integrity(char *fun, struct sbuf *s)
 }
 
 static void
-_assert_sbuf_state(char *fun, struct sbuf *s, int state)
+_assert_sbuf_state(const char *fun, struct sbuf *s, int state)
 {
 	KASSERT((s->s_flags & SBUF_FINISHED) == state,
 	    ("%s called with %sfinished or corrupt sbuf", fun,
