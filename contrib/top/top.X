@@ -240,6 +240,7 @@ command.
 (or
 .BR I)
 Toggle the display of idle processes.
+.TP
 .B t
 Toggle the display of the
 .I top
