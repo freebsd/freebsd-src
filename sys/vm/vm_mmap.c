@@ -1060,10 +1060,6 @@ munlock(td, uap)
 	if (end <= start)
 		return (EINVAL);
 
-	error = suser(td);
-	if (error)
-		return (error);
-
 	error = vm_map_unwire(&td->td_proc->p_vmspace->vm_map, start, end,
 	     VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES);
 	return (error == KERN_SUCCESS ? 0 : ENOMEM);
