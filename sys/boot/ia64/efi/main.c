@@ -386,9 +386,15 @@ command_sal(int argc, char *argv[])
 			       dp->sale_physical_address);
 			printf("Length 0x%x\n",
 			       dp->sale_length);
-		} else {
+		} else if (*p == 5) {
+			struct sal_ap_wakeup_descriptor *dp;
+			dp = (struct sal_ap_wakeup_descriptor *) p;
 			printf("\n");
-		}
+			printf("    Mechanism %d\n", dp->sale_mechanism);
+			printf("    Vector 0x%lx\n", dp->sale_vector);
+		} else
+			printf("\n");
+
 		p += sizes[*p];
 	}
 
@@ -433,14 +439,23 @@ print_trs(int type)
 	else
 		maxtr = (res.pal_result[0] >> 32) & 0xff;
 
+	printf("%d translation registers\n", maxtr);
+
 	pager_open();
-	pager_output("V RID    Virtual Page  Physical Page PgSz ED AR PL D A MA  P KEY\n");
+	pager_output("TR# RID    Virtual Page  Physical Page PgSz ED AR PL D A MA  P KEY\n");
 	for (i = 0; i <= maxtr; i++) {
 		char lbuf[128];
 
 		bzero(&buf, sizeof(buf));
 		res = ia64_call_pal_stacked(PAL_VM_TR_READ, i, type,
 					    (u_int64_t) &buf);
+		if (res.pal_status != 0)
+			break;
+
+		/* Only display valid translations */
+		if ((buf.ifa.ifa_ig & 1) == 0)
+			continue;
+
 		if (!(res.pal_result[0] & 1))
 			buf.pte.pte_ar = 0;
 		if (!(res.pal_result[0] & 2))
@@ -450,8 +465,8 @@ print_trs(int type)
 		if (!(res.pal_result[0] & 8))
 			buf.pte.pte_ma = 0;
 		sprintf(lbuf,
-			"%d %06x %013lx %013lx %4s %d  %d  %d  %d %d %-3s %d %06x\n",
-			buf.ifa.ifa_ig & 1,
+	"%03d %06x %013lx %013lx %4s %d  %d  %d  %d %d %-3s %d %06x\n",
+			i,
 			buf.rr.rr_rid,
 			buf.ifa.ifa_vpn,
 			buf.pte.pte_ppn,
@@ -468,6 +483,10 @@ print_trs(int type)
 	}
 	pager_close();
 
+	if (res.pal_status != 0) {
+		printf("Error while getting TR contents\n");
+		return CMD_ERROR;
+	}
 	return CMD_OK;
 }
 
