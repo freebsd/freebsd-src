@@ -56,8 +56,6 @@ __FBSDID("$FreeBSD$");
  *	elements, if specified, but the elements themselves are not copied.
  *	If the elements should be duplicated to avoid confusion with another
  *	list, the Lst_Duplicate function should be called first.
- *	If LST_CONCLINK is specified, the second list is destroyed since
- *	its pointers have been corrupted and the list is no longer useable.
  *
  * Results:
  *	SUCCESS if all went well. FAILURE otherwise.
@@ -110,7 +108,6 @@ Lst_Concat(Lst *list1, Lst *list2, int flags)
 	    }
 	    list1->lastPtr = list2->lastPtr;
 	}
-	free(list2);
     } else if (list2->firstPtr != NULL) {
 	/*
 	 * We set the nextPtr of the last element of list 2 to be NULL to make
