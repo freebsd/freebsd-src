@@ -152,7 +152,7 @@ IXMAKE=	${XMAKEENV} ${MAKE}
 # Attempt to rebuild the entire system, with reasonable chance of
 # success, regardless of how old your existing system is.
 #
-USRDIRS=	usr/bin usr/lib/compat usr/games usr/libdata/ldscripts \
+USRDIRS=	usr/bin usr/lib/compat/aout usr/games usr/libdata/ldscripts \
 		usr/libexec/${OBJFORMAT} usr/share/misc
 
 INCDIRS=	arpa cam/scsi g++/std isofs/cd9660 machine msdosfs net \
@@ -362,7 +362,7 @@ hierarchy:
 # includes - possibly generate and install the include files.
 #
 includes:
-	cd ${.CURDIR}/include;			${MAKE} -B all install
+	cd ${.CURDIR}/include;		${MAKE} SHARED=symlinks -B all install
 	cd ${.CURDIR}/gnu/include;		${MAKE} install
 	cd ${.CURDIR}/gnu/lib/libmp;		${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libobjc;		${MAKE} beforeinstall
