@@ -103,7 +103,7 @@ unixdomainpr(so, soaddr)
 {
 	struct unpcb unpcb, *unp = &unpcb;
 	struct mbuf mbuf, *m;
-	struct sockaddr_un *sa;
+	struct sockaddr_un *sa = NULL;
 	static int first = 1;
 
 	if (kread((u_long)so->so_pcb, (char *)unp, sizeof (*unp)))
@@ -123,10 +123,10 @@ unixdomainpr(so, soaddr)
 		    "Inode", "Conn", "Refs", "Nextref");
 		first = 0;
 	}
-	printf("%8x %-6.6s %6d %6d %8x %8x %8x %8x",
-	    soaddr, socktype[so->so_type], so->so_rcv.sb_cc, so->so_snd.sb_cc,
-	    unp->unp_vnode, unp->unp_conn,
-	    unp->unp_refs, unp->unp_nextref);
+	printf("%8x %-6.6s %6ld %6ld %8x %8x %8x %8x",
+	    (int)soaddr, socktype[so->so_type], so->so_rcv.sb_cc, so->so_snd.sb_cc,
+	    (int)unp->unp_vnode, (int)unp->unp_conn,
+	    (int)unp->unp_refs, (int)unp->unp_nextref);
 	if (m)
 		printf(" %.*s",
 		    m->m_len - (int)(sizeof(*sa) - sizeof(sa->sun_path)),
