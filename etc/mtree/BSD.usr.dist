@@ -150,6 +150,8 @@
             ru
             ..
         ..
+	sendmail
+	..
         sm.bin
         ..
         uucp
