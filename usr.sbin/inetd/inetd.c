@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 /* from: @(#)inetd.c	8.4 (Berkeley) 4/13/94"; */
 static char inetd_c_rcsid[] =
-	"$Id: inetd.c,v 1.7 1995/10/12 16:43:26 wollman Exp $";
+	"$Id: inetd.c,v 1.8 1995/10/30 14:03:00 adam Exp $";
 #endif /* not lint */
 
 /*
@@ -297,7 +297,18 @@ main(argc, argv, envp)
 		CONFIG = argv[0];
 	if (debug == 0) {
 		FILE *fp;
-		daemon(0, 0);
+		if (daemon(0, 0) < 0) {
+			syslog(LOG_WARNING, "daemon(0,0) failed: %m");
+		}
+		/*
+		 * In case somebody has started inetd manually, we need to
+		 * clear the logname, so that old servers run as root do not
+		 * get the user's logname..
+		 */
+		if (setlogin("") < 0) {
+			syslog(LOG_WARNING, "cannot clear logname: %m");
+			/* no big deal if it fails.. */
+		}
 		pid = getpid();
 		fp = fopen(_PATH_INETDPID, "w");
 		if (fp) {
@@ -440,8 +451,6 @@ main(argc, argv, envp)
 		    }
 		    sigsetmask(0L);
 		    if (pid == 0) {
-			    if (debug && dofork)
-				setsid();
 			    if (dofork) {
 				if (debug)
 					fprintf(stderr, "+ Closing from %d\n",
@@ -469,7 +478,19 @@ main(argc, argv, envp)
 						recv(0, buf, sizeof (buf), 0);
 					_exit(1);
 				}
+				if (setsid() < 0) {
+					syslog(LOG_ERR,
+						"%s: can't setsid(): %m",
+						 sep->se_service);
+					/* _exit(1); not fatal yet */
+				}
 				if (pwd->pw_uid) {
+					if (setlogin(sep->se_user) < 0) {
+						syslog(LOG_ERR,
+						 "%s: can't setlogin(%s): %m",
+						 sep->se_service, sep->se_user);
+						/* _exit(1); not fatal yet */
+					}
 					if (setgid(pwd->pw_gid) < 0) {
 						syslog(LOG_ERR,
 						  "%s: can't set gid %d: %m",
