@@ -128,9 +128,5 @@ int swap_pager_reserve(vm_object_t, vm_pindex_t, vm_size_t);
 
 void swap_pager_page_removed(vm_page_t, vm_object_t);
 
-/* choose underlying swap device and queue up I/O */
-struct buf;
-void swstrategy(struct buf *bp);	/* probably needs to move elsewhere */
-
 #endif				/* _KERNEL */
 #endif				/* _VM_SWAP_PAGER_H_ */
