@@ -1687,9 +1687,9 @@ void
 setatrange(const char *range, int dummy __unused, int s, 
     const struct afswtch *afp)
 {
-	u_short	first = 123, last = 123;
+	u_int	first = 123, last = 123;
 
-	if (sscanf(range, "%hu-%hu", &first, &last) != 2
+	if (sscanf(range, "%u-%u", &first, &last) != 2
 	    || first == 0 || first > 0xffff
 	    || last == 0 || last > 0xffff || first > last)
 		errx(1, "%s: illegal net range: %u-%u", range, first, last);
