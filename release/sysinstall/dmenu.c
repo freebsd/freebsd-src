@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.12.2.1 1995/10/04 12:08:08 jkh Exp $
+ * $Id: dmenu.c,v 1.12.2.2 1995/10/07 11:55:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -68,19 +68,24 @@ dmenuFlagCheck(DMenuItem *item)
 char *
 dmenuVarCheck(DMenuItem *item)
 {
-    char *cp, *cp2, tmp[256];
+    char *w, *cp, *cp2, tmp[256];
 
-    strncpy(tmp, (char *)item->ptr, 256);
+    w = (char *)item->parm;
+    if (!w)
+	w = (char *)item->ptr;
+    if (!w)
+	return "OFF";
+    strncpy(tmp, w, 256);
     if ((cp = index(tmp, '=')) != NULL) {
-	*(cp++) = '\0';
-	cp2 = variable_get(tmp);
-	if (cp2)
-	    return !strcmp(cp, cp2) ? "ON" : "OFF";
-	else
-	    return "OFF";
+        *(cp++) = '\0';
+        cp2 = getenv(tmp);
+        if (cp2)
+            return !strcmp(cp, cp2) ? "ON" : "OFF";
+        else
+            return "OFF";
     }
     else
-	return variable_get(tmp) ? "ON" : "OFF";
+        return getenv(tmp) ? "ON" : "OFF";
 }
 
 char *

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.30 1995/10/14 19:13:25 jkh Exp $
+ * $Id: install.c,v 1.71.2.31 1995/10/15 04:37:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -421,6 +421,9 @@ installCommit(char *str)
     if (i != RET_FAIL && installFixup() == RET_FAIL)
 	i = RET_FAIL;
 
+    if (i != RET_FAIL && installFinal() == RET_FAIL)
+	i = RET_FAIL;
+
     dialog_clear();
     /* Don't print this if we're express installing */
     if (strcmp(str, "express")) {
@@ -498,6 +501,48 @@ installFixup(void)
     /* BOGON #2: We leave /etc in a bad state */
     chmod("/etc", 0755);
     return RET_SUCCESS;
+}
+
+/* Do any final optional hackery */
+int
+installFinal(void)
+{
+    int i;
+
+    i = RET_SUCCESS;
+
+    if (variable_get("gated")) {
+	/* Load gated package and maybe even seek to configure or explain it a little */
+    }
+
+    if (variable_get("anon_ftp")) {
+	/* Set up anonymous FTP access on this system */
+    }
+
+    if (variable_get("apache_httpd")) {
+	/* Load and configure the Apache HTTPD web server */
+    }
+
+    if (variable_get("samba")) {
+	/* Load samba package and add to inetd.conf */
+    }
+
+    if (variable_get("pcnfsd")) {
+	/* Load and configure pcnfsd */
+    }
+
+    /* If we're an NFS server, we need an exports file */
+    if (variable_get("nfs_server") && !file_readable("/etc/exports")) {
+	msgConfirm("You have chosen to be an NFS server but have not yet configured\n"
+		   "the /etc/exports file.  You must configure this information before\n"
+		   "other hosts will be able to mount file systems from your machine.\n"
+		   "Press [ENTER] now to invoke the editor on /etc/exports");
+	vsystem("echo '#The following example exports /usr to 3 machines named after ducks.' > /etc/exports");
+	vsystem("echo '#/usr	huey louie dewie' >> /etc/exports");
+	vsystem("echo >> /etc/exports");
+	systemExecute("ee /etc/exports");
+    }
+    return i;
 }
 
 /* Go newfs and/or mount all the filesystems we've been asked to */
