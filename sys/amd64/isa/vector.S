@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: vector.s,v 1.7 1994/04/02 07:00:50 davidg Exp $
+ *	$Id: vector.s,v 1.8 1994/08/18 05:09:36 davidg Exp $
  */
 
 #include "i386/isa/icu.h"
@@ -248,7 +248,7 @@ ihandlers:			/* addresses of interrupt handlers */
 	.long	Xresume8, Xresume9, Xresume10, Xresume11
 	.long	Xresume12, Xresume13, Xresume14, Xresume15 
 	.long	swi_tty, swi_net, 0, 0, 0, 0, 0, 0
-	.long	0, 0, 0, 0, 0, 0, swi_clock, swi_ast
+	.long	0, 0, 0, 0, 0, 0, _softclock, swi_ast
 imasks:				/* masks for interrupt handlers */
 	.space	NHWI*4		/* padding; HWI masks are elsewhere */
 	.long	SWI_TTY_MASK, SWI_NET_MASK, 0, 0, 0, 0, 0, 0
