@@ -1,3 +1,183 @@
+Sun Oct 24 23:54:10 PDT 1999 Jeff Law  (law@cygnus.com)
+
+	* gcc-2.95.2 Released.
+
+Mon Oct 25 00:43:05 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* loop.c (note_set_pseudo_multiple_uses_retval): New variable.
+	(note_set_pseudo_multiple_uses): New function.
+	(check_dbra_loop): Use not_set_pseudo_multiple_uses to determine
+	if a pseudo set in the loop exit is used elsewhere.
+
+Wed Oct 20 10:46:41 1999  Richard Earnshaw (rearnsha@arm.com)
+
+	* jump.c (jump_optimize_1): More accurately detect casesi insns.
+
+Wed Oct 20 22:57:58 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* toplev.c (main): Do not turn on strict aliasing by default.
+	* invoke.texi: Corresponding changes.
+
+	* sparc.md (movsf_const_intreg): If splitting, length must be > 1.
+	(movdf_const_intreg_sp64): Similarly.
+
+	* local-alloc.c (update_equiv_regs): Check the correct insn
+	for pre-existing REG_EQUIV notes.
+
+Tue Oct 19 02:03:00 1999  Jeffrey A Law  (law@cygnus.com)
+
+	Revert this change.  Gavin's patch to operand_equal_p is a better fix.
+	* fold-const.c (fold_range_test): Do not try to fold the range
+	test if the rhs or lhs has side effects.
+
+	Fri Sep 17 15:05:27 1999  Gavin Romig-Koch  <gavin@cygnus.com>
+	* fold-const.c (operand_equal_p): Pay attention to side effects.
+
+	* reg-stack.c (stack_result): Aggregates are not returned in
+	stack registers.
+
+Mon Oct 18 01:41:35 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* combine.c (get_last_value): If the last set of a register
+	is after subst_low_cuid, then we can not use it to determine
+	the register's last value.
+
+Sat Oct 16 15:20:15 1999  Jeffrey A Law  (law@cygnus.com)
+
+	Sat Oct 16 00:07:01 1999  Richard Henderson  <rth@cygnus.com>
+	* gcse.c (hash_expr_1): Add in MEM_ALIAS_SET.
+	(expr_equiv_p): Reject memories with different alias sets.
+
+Wed Oct 13 01:46:14 1999  Jeffrey A Law  (law@cygnus.com)
+
+	Wed Oct 13 01:44:29 1999  Carol LePage  <carolo@hal.com>
+	* configure.in (sparc-hal-solaris2*): Fix xm_file, xm_defines,
+	float_format and thread_file definitions.
+	* configure: Rebuilt.
+
+Tue Oct 12 17:09:38 1999  David Edelsohn  <edelsohn@gnu.org>
+
+	* collect2.c (main): Do preliminary link on AIX if rflag.
+
+Mon Oct 11 23:35:19 1999  Jeffrey A Law  (law@cygnus.com)
+
+	Fri Sep  3 09:14:32 1999  Marc Espie <espie@tetto.liafa.jussieu.fr>
+	* tlink.c (scan_linker_output): Skip the initial underscore in
+	a mangled name if appropriate.
+
+	Fri Aug 27 19:19:43 CEST 1999	Marc Espie <espie@cvs.openbsd.org>
+	* config/openbsd.h (SET_ASM_OP): Define.
+
+	Mon Oct  4 08:54:12 1999  Alexandre Oliva  <oliva@lsd.ic.unicamp.br>
+	* cppinit.c (is_idchar initializer): Loosen tests to accept
+	gcc 2.>6 and >2.
+
+	Tue Jun 29 01:37:53 1999  Jeffrey A Law  (law@cygnus.com)
+	* pa.h (CPP_SPEC): Conditionally add -D__STDC_EXT__ to the cpp
+	command line.
+
+	Thu Sep  2 20:08:23 1999  J"orn Rennecke <amylaar@cygnus.co.uk>
+	* regmove.c (fixup_match_1): Don't change an unchanging register.
+	(stable_but_for_p): Renamed to:
+	(stable_and_no_regs_but_for_p).  Reject unchanging registers too.
+	Changed all callers.
+
+	Tue Aug 17 22:06:11 1999  Jan Hubicka  <hubicka@freesoft.cz>
+	* haifa-sched.c (insn_unit): Fix typo on out of range test.
+	* sched.c (insn_unit): Likewise.
+
+Sun Oct 10 20:58:27 1999  David Edelsohn  <edelsohn@gnu.org>
+
+	* rs6000.md (scc patterns): Disable most SImode variants if
+	TARGET_POWERPC64.
+	* rs6000.c (expand_block_move): Fix gen_movsi typos.
+
+	Thu Oct  7 23:06:50 1999  Richard Henderson  <rth@cygnus.com>
+	* rs6000.md (fix_truncdfsi2_internal+1): Emit a clobber
+	before the fctiwz insn.
+
+	Thu Oct  7 00:36:17 1999  Diego Novillo  <dnovillo@cygnus.com>
+	* config/rs6000/rs6000.c (secondary_reload_class): For TARGET_ELF
+	make sure that HIGH instructions are copied into BASE_REGS.
+	
+Thu Sep 30 05:40:34 1999  Richard Earnshaw <rearnsha@arm.com>
+
+	* c-lang.c (finish_file case ndef ASM_OUTPUT_{CON,DE}STRUCTOR): 
+	Correctly build argument list to constructor and destructor functions.
+
+Wed Sep 22 17:55:31 1999  David Edelsohn  <edelsohn@gnu.org>
+
+	* rs6000.c (expand_block_move): DImode loads and stores require
+	word-aligned displacements.  Increment address registers with
+	adddi3 on 64-bit platform.  Use TARGET_POWERPC64 not TARGET_64BIT.
+
+Wed Sep 22 07:07:44 1999  Alexandre Oliva  <oliva@lsd.ic.unicamp.br>
+
+	* config/i386/sol2.h (PREFERRED_DEBUGGING_TYPE): Use stabs.
+	(ASM_SPEC): Moved from sol2dbg.h.  Added work-around for gas.
+	* config/i386/sol2dbg.h: Removed.
+	* config/i386/sol2gas.h: New file, to enable gas work-around.
+	* configure.in: Use i386/sol2gas.h on Solaris/x86 --with-gas.
+	Don't use sol2dbg.h.
+	* configure: Rebuilt.
+
+Wed Sep 15 21:20:38 1999  Mark Mitchell  <mark@codesourcery.com>
+
+	* c-typeck.c (qualify_type): Merge qualifiers from both types.
+
+Wed Sep 15 10:07:27 1999  Scott Bambrough <scottb@netwinder.org>
+ 
+	* config/arm/linux-elf.h: define NO_IMPLICIT_EXTERN_C
+
+Tue Sep  7 16:50:59 1999  David Edelsohn  <edelsohn@gnu.org>
+
+	* rs6000.h (ASM_FILE_START): Specify complete filename, including
+	path, in .file directive.
+
+Tue Sep  7 01:27:21 1999  Jeffrey A Law  (law@cygnus.com)
+
+	Thu Sep  2 00:06:43 1999  Jeffrey A Law  (law@cygnus.com)
+	* fold-const.c (fold_range_test): Do not try to fold the range
+	test if the rhs or lhs has side effects.
+
+	Sun Aug 29 03:27:23 1999  Scott Weikart <scott@igc.apc.org>
+	* fix-header.c (main): Do not pass a null pointer to strcmp.
+
+	Thu Aug 19 14:42:38 1999  Mike Stump <mrs@wrs.com>
+				  Mark Mitchell <mark@codesourcery.com>
+	* c-common.c (c_get_alias_set): Fix support for pointers and
+	references.
+
+	Fri Aug 27 01:03:48 1999  Jim Kingdon  <http://developer.redhat.com>
+	with much help from Jeffrey A Law and Richard Henderson
+	* i386.md: In the 6 insns which call output_fix_trunc,
+	earlyclobber operands[0].
+
+	Fri Aug 27 01:01:51 1999  Philip Blundell  <pb@nexus.co.uk>
+	* jump.c (duplicate_loop_exit_test): Call reg_scan_update after
+	creating new registers.
+
+	Fri Aug 27 15:35:24 1999  Jeffrey A Law  (law@cygnus.com)
+	* cse.c (fold_rtx): Work around bug in Sun V5.0 compilers.
+	* pa.c (emit_move_sequence): Do not stop on SUBREG_WORD of an
+	operand.
+
+	Tue Aug 31 11:51:06 1999  Jim Kingdon  <http://developer.redhat.com>
+	* i386.c (output_strlen_unroll): Don't write xops[7]
+	label if it wasn't set.
+
+	Fri Aug 27 09:36:17 1999  Andreas Schwab  <schwab@suse.de>
+	* function.c (assign_stack_temp_for_type): Fix change of Mar 5 for
+	the fact that ALIGN is measured in bits, not bytes.
+
+	Wed Aug 25 14:00:18 1999  Jason Merrill  <jason@yorick.cygnus.com>
+	* c-common.c (combine_strings): Always set TREE_CONSTANT.
+
+Wed Aug 18 01:16:43 1999  David S. Miller  <davem@redhat.com>
+
+	* config/sparc/sparc.c (sparc_block_profiler): Fix typo in Aug 2
+	change.
+
 Mon Aug 16 01:29:24 PDT 1999 Jeff Law  (law@cygnus.com)
 
 	* gcc-2.95.1 Released.
