@@ -39,7 +39,8 @@ options 	NFSSERVER		#Network Filesystem Server
 options 	NFS_ROOT		#NFS usable as root device, requires NFSCLIENT
 options 	MSDOSFS			#MSDOS Filesystem
 options 	CD9660			#ISO 9660 Filesystem
-options 	PROCFS			#Process filesystem
+options 	PROCFS			#Process filesystem (requires PSEUDOFS)
+options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 options 	SCSI_DELAY=15000	#Delay (in ms) before probing SCSI
 options 	UCONSOLE		#Allow users to grab the console
