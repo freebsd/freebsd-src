@@ -132,7 +132,7 @@ checkyesno()
 		return 1
 		;;
 	*)
-		warn "\$${1} is not set properly."
+		warn "\$${1} is not set properly - see rc.conf(5)."
 		return 1
 		;;
 	esac
@@ -839,7 +839,7 @@ load_rc_config()
 #
 rc_usage()
 {
-	echo -n 1>&2 "usage: $0 [fast|force]("
+	echo -n 1>&2 "Usage: $0 [fast|force]("
 
 	_sep=
 	for _elem in $*; do
@@ -851,18 +851,6 @@ rc_usage()
 }
 
 #
-# _echo prefix message
-#	Display message preceded by "$prefix:". Log to syslog as well.
-#	XXX - syslogd may not be listening (especially if this subroutine
-#	      is called at boot before syslogd has had a chance to startup).
-#
-_echo()
-{
-	[ -x /usr/bin/logger ] && /usr/bin/logger "$0: $1: $2"
-	echo "$0: $1: $2"
-}
- 
-#
 # err exitval message
 #	Display message to stderr and log to the syslog, and exit with exitval.
 #
@@ -871,7 +859,10 @@ err()
 	exitval=$1
 	shift
 
-	_echo 1>&2 "ERROR" "$*"
+	if [ -x /usr/bin/logger ]; then
+		logger "$0: ERROR: $*"
+	fi
+	echo 1>&2 "$0: ERROR: $*"
 	exit $exitval
 }
 
@@ -881,7 +872,10 @@ err()
 #
 warn()
 {
-	_echo 1>&2 "WARNING" "$*"
+	if [ -x /usr/bin/logger ]; then
+		logger "$0: WARNING: $*"
+	fi
+	echo 1>&2 "$0: WARNING: $*"
 }
 
 #
@@ -890,12 +884,15 @@ warn()
 #
 info()
 {
-	_echo "INFO" "$*"
+	if [ -x /usr/bin/logger ]; then
+		logger "$0: INFO: $*"
+	fi
+	echo "$0: INFO: $*"
 }
 
 #
 # debug message
-#	If debugging is enabled in rc.conf output message to stderr and syslog.
+#	If debugging is enabled in rc.conf output message to stderr.
 #	BEWARE that you don't call any subroutine that itself calls this
 #	function.
 #
@@ -903,7 +900,7 @@ debug()
 {
 	case ${rc_debug} in
 	[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
-        	_echo 1>&2 "DEBUG" "$*"
+        	echo 1>&2 "$0: DEBUG: $*"
 		return
 		;;
 	esac
