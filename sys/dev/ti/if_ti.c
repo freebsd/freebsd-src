@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ti.c,v 1.2 1999/04/06 22:56:21 wpaul Exp $
+ *	$Id: if_ti.c,v 1.109 1999/04/29 16:22:07 wpaul Exp $
  */
 
 /*
@@ -128,7 +128,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_ti.c,v 1.2 1999/04/06 22:56:21 wpaul Exp $";
+	"$Id: if_ti.c,v 1.109 1999/04/29 16:22:07 wpaul Exp $";
 #endif
 
 /*
@@ -2051,6 +2051,9 @@ static int ti_encap(sc, m_head, txidx)
 	}
 
 	if (m != NULL)
+		return(ENOBUFS);
+
+	if (frag == sc->ti_tx_saved_considx)
 		return(ENOBUFS);
 
 	if (sc->ti_hwrev == TI_HWREV_TIGON)
