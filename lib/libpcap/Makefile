@@ -1,5 +1,5 @@
 # Makefile for libpcap
-# $Id: Makefile,v 1.16 1997/05/27 00:08:01 fenner Exp $
+# $Id: Makefile,v 1.17 1997/10/05 09:39:25 jkh Exp $
 
 LIB=    pcap
 SRCS=	grammar.c tokdefs.h pcap-bpf.c \
@@ -27,7 +27,7 @@ CFLAGS+=-I${PCAP_DISTDIR} -I${PCAP_DISTDIR}/lbl -I${PCAP_DISTDIR}/bpf
 .PATH:	${PCAP_DISTDIR}/bpf/net
 
 beforeinstall:
-.for i in pcap.h pcap-namedb.h
+.for i in pcap.h pcap-int.h pcap-namedb.h
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${PCAP_DISTDIR}/$i \
 		${DESTDIR}/usr/include
 .endfor
