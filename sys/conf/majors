@@ -170,7 +170,9 @@ chrdev	name		comments
 151	aacd		Adaptec FSA RAID (drives)
 152	acpi		ACPI bios support (Takanori Watanabe takawata@shidahara1.planet.sci.kobe-u.ac.jp)
 153	ti		Tigon Gigabit Ethernet driver (ken@FreeBSD.ORG)
+154	asr		Adaptec SCSI RAID <msmith@freebsd.org>
 155	phone		Quicknet PhoneJACK and LineJACK cards for VoIP <roger>
+156	uscanner	USB Scanners <n_hibma>
 157	ar		ATA "pseudo" RAID device
 200	??		entries from 200-252 are reserved for local use
 252	??		entries from 200-252 are reserved for local use
