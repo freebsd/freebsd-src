@@ -1396,7 +1396,7 @@ config_plex(int update)
 	sprintf(plexsuffix, ".p%d", pindex);		    /* form the suffix */
 	strcat(plex->name, plexsuffix);			    /* and add it to the name */
     }
-    if (isparity(plex)) {
+    if (isstriped(plex)) {
 	plex->lock = (struct rangelock *)
 	    Malloc(PLEX_LOCKS * sizeof(struct rangelock));
 	CHECKALLOC(plex->lock, "vinum: Can't allocate lock table\n");
