@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.197 1998/06/06 00:56:23 bde Exp $
+#	$Id: Makefile,v 1.198 1998/06/06 01:13:21 bde Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -11,9 +11,6 @@
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
 #	-DMAKE_KERBEROS4 to build KerberosIV
-#	-DALLLANG to build documentation for all languages
-#	  (where available -- see share/doc/Makefile)
-#
 #	-DNOCLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
 #	-DNOCLEAN do not clean at all
 #	-DNOTOOLS do not rebuild any tools first
