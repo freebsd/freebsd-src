@@ -2,7 +2,6 @@
 
 PROG=	whereis
 MAN=	whereis.1
-WARNS?=	6
-NO_WERROR= true
+WARNS?=	5
 
 .include <bsd.prog.mk>
