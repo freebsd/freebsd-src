@@ -1,7 +1,6 @@
 # $FreeBSD$
 
-BASE=		loader
-PROG=		${BASE}
+PROG=		loader
 STRIP=
 NEWVERSWHAT=	"bootstrap loader" i386
 BINDIR?=	/boot
@@ -46,7 +45,7 @@ CFLAGS+=	-DLOADER_GZIP_SUPPORT
 CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I${.CURDIR}/../../.. -I.
 
-CLEANFILES+=	vers.c vers.o ${BASE}.list ${BASE}.bin ${BASE}.sym ${BASE}.help
+CLEANFILES+=	vers.c vers.o ${PROG}.list ${PROG}.bin ${PROG}.sym ${PROG}.help
 
 CFLAGS+=	-Wall
 LDFLAGS=	-nostdlib -static -Ttext 0x0
@@ -88,21 +87,21 @@ vers.o:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 	${CC} -c vers.c
 
-${BASE}: ${BASE}.bin ${BTXLDR} ${BTXKERN} ${BTXCRT}
+${PROG}: ${PROG}.bin ${BTXLDR} ${BTXKERN} ${BTXCRT}
 	btxld -v -f aout -e ${LOADER_ADDRESS} -o ${.TARGET} -l ${BTXLDR} \
-		-b ${BTXKERN} ${BASE}.bin
+		-b ${BTXKERN} ${PROG}.bin
 #	/usr/bin/kzip ${.TARGET}
 #	mv ${.TARGET}.kz ${.TARGET}
 
-${BASE}.bin: ${BASE}.sym
+${PROG}.bin: ${PROG}.sym
 	cp ${.ALLSRC} ${.TARGET}
 	strip -R .comment -R .note ${.TARGET}
 
-${BASE}.help: help.common help.i386
+${PROG}.help: help.common help.i386
 	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 
 .PATH: ${.CURDIR}/../../forth 
-FILES=	${BASE}.help loader.4th support.4th loader.conf
+FILES=	${PROG}.help loader.4th support.4th loader.conf
 FILESDIR_loader.conf=	/boot/defaults
 
 .if !exists(${DESTDIR}/boot/loader.rc)
@@ -114,7 +113,7 @@ FILES+=	loader.rc
 # Cannot use ${OBJS} above this line
 .include <bsd.prog.mk>
 
-${BASE}.sym: ${OBJS} ${LIBI386} ${LIBSTAND} ${LIBFICL} vers.o
+${PROG}.sym: ${OBJS} ${LIBI386} ${LIBSTAND} ${LIBFICL} vers.o
 	${CC} ${LDFLAGS} -o ${.TARGET} ${BTXCRT} ${OBJS} vers.o \
 		${LIBFICL} ${LIBI386} ${LIBSTAND}
 
