@@ -104,10 +104,10 @@ Set the timeout parameter to 0 for batching calls.
 .It Dv CLGET_FD Ta "int *" Ta "get fd from handle"
 .It Dv CLSET_FD_CLOSE Ta "void" Ta "close fd on destroy"
 .It Dv CLSET_FD_NCLOSE Ta void Ta "don't close fd on destroy"
-.It Dv CLGET_VERS Ta "unsigned long *" Ta "get RPC program version"
-.It Dv CLSET_VERS Ta "unsigned long *" Ta "set RPC program version"
-.It Dv CLGET_XID Ta "unsigned long *" Ta "get XID of previous call"
-.It Dv CLSET_XID Ta "unsigned long *" Ta "set XID of next call"
+.It Dv CLGET_VERS Ta "u_int32_t *" Ta "get RPC program version"
+.It Dv CLSET_VERS Ta "u_int32_t *" Ta "set RPC program version"
+.It Dv CLGET_XID Ta "u_int32_t *" Ta "get XID of previous call"
+.It Dv CLSET_XID Ta "u_int32_t *" Ta "set XID of next call"
 .El
 .Pp
 The following operations are valid for connectionless transports only:
