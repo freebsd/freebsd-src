@@ -1132,9 +1132,6 @@ add(ac,av)
 			else
 				show_usage("illegal %s port", "tee divert");
 		}
-#ifndef IPFW_TEE_IS_FINALLY_IMPLEMENTED
-		err(EX_USAGE, "the ``tee'' action is not implemented");
-#endif
 	} else if (!strncmp(*av,"fwd",strlen(*av)) ||
 		   !strncmp(*av,"forward",strlen(*av))) {
 		struct in_addr dummyip;
