@@ -494,9 +494,9 @@ sendit:
                      * XXX note: if the ifp or ro entry are deleted
                      * while a pkt is in dummynet, we are in trouble!
                      */ 
-                    dummynet_io(off & 0xffff, DN_TO_IP_OUT, m,ifp,ro,dst,rule, 
-				flags);
-			goto done;
+		    error = dummynet_io(off & 0xffff, DN_TO_IP_OUT, m,
+				ifp, ro, dst, rule, flags);
+		    goto done;
 		}
 #endif   
 #ifdef IPDIVERT
