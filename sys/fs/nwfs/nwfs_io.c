@@ -441,15 +441,18 @@ nwfs_getpages(ap)
 
 	if (error && (uio.uio_resid == count)) {
 		printf("nwfs_getpages: error %d\n",error);
+		vm_page_lock_queues();
 		for (i = 0; i < npages; i++) {
 			if (ap->a_reqpage != i)
 				vm_page_free(pages[i]);
 		}
+		vm_page_unlock_queues();
 		return VM_PAGER_ERROR;
 	}
 
 	size = count - uio.uio_resid;
 
+	vm_page_lock_queues();
 	for (i = 0, toff = 0; i < npages; i++, toff = nextoff) {
 		vm_page_t m;
 		nextoff = toff + PAGE_SIZE;
@@ -489,6 +492,7 @@ nwfs_getpages(ap)
 			}
 		}
 	}
+	vm_page_unlock_queues();
 	return 0;
 #endif /* NWFS_RWCACHE */
 }
