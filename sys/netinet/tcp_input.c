@@ -1027,7 +1027,11 @@ after_listen:
 				tcpstat.tcps_rcvackpack++;
 				tcpstat.tcps_rcvackbyte += acked;
 				sbdrop(&so->so_snd, acked);
-				tp->snd_una = th->th_ack;
+				/*
+				 * pull snd_wl2 up to prevent seq wrap relative
+				 * to th_ack.
+				 */
+				tp->snd_wl2 = tp->snd_una = th->th_ack;
 				tp->t_dupacks = 0;
 				m_freem(m);
 				ND6_HINT(tp); /* some progress has been done */
@@ -1067,6 +1071,16 @@ after_listen:
 			 */
 			++tcpstat.tcps_preddat;
 			tp->rcv_nxt += tlen;
+			/*
+			 * Pull snd_wl1 up to prevent seq wrap relative to
+			 * th_seq.
+			 */
+			tp->snd_wl1 = th->th_seq;
+			/*
+			 * Pull rcv_up up to prevent seq wrap relative to
+			 * rcv_nxt.
+			 */
+			tp->rcv_up = tp->rcv_nxt;
 			tcpstat.tcps_rcvpack++;
 			tcpstat.tcps_rcvbyte += tlen;
 			ND6_HINT(tp);	/* some progress has been done */
