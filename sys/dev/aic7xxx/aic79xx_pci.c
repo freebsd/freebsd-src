@@ -38,7 +38,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#66 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#67 $
  *
  * $FreeBSD$
  */
@@ -385,12 +385,10 @@ ahd_pci_config(struct ahd_softc *ahd, struct ahd_pci_identity *entry)
 int
 ahd_pci_test_register_access(struct ahd_softc *ahd)
 {
-	ahd_mode_state	saved_modes;
 	uint32_t	cmd;
 	int		error;
 	uint8_t		hcntrl;
 
-	saved_modes = ahd_save_modes(ahd);
 	error = EIO;
 
 	/*
@@ -456,7 +454,6 @@ fail:
 		ahd_outb(ahd, CLRINT, CLRPCIINT);
 	}
 
-	ahd_restore_modes(ahd, saved_modes);
 	ahd_outb(ahd, SEQCTL0, PERRORDIS|FAILDIS);
 	ahd_pci_write_config(ahd->dev_softc, PCIR_COMMAND, cmd, /*bytes*/2);
 	return (error);
@@ -886,11 +883,11 @@ ahd_aic7902_setup(struct ahd_softc *ahd)
 			  |  AHD_NLQICRC_DELAYED_BUG|AHD_SCSIRST_BUG
 			  |  AHD_LQO_ATNO_BUG|AHD_AUTOFLUSH_BUG
 			  |  AHD_CLRLQO_AUTOCLR_BUG|AHD_PCIX_MMAPIO_BUG
-			  |  AHD_PCIX_CHIPRST_BUG|AHD_PKTIZED_STATUS_BUG
-			  |  AHD_PKT_LUN_BUG|AHD_MDFF_WSCBPTR_BUG
-			  |  AHD_REG_SLOW_SETTLE_BUG|AHD_SET_MODE_BUG
-			  |  AHD_BUSFREEREV_BUG|AHD_NONPACKFIFO_BUG
-			  |  AHD_PACED_NEGTABLE_BUG;
+			  |  AHD_PCIX_CHIPRST_BUG|AHD_PCIX_SCBRAM_RD_BUG
+			  |  AHD_PKTIZED_STATUS_BUG|AHD_PKT_LUN_BUG
+			  |  AHD_MDFF_WSCBPTR_BUG|AHD_REG_SLOW_SETTLE_BUG
+			  |  AHD_SET_MODE_BUG|AHD_BUSFREEREV_BUG
+			  |  AHD_NONPACKFIFO_BUG|AHD_PACED_NEGTABLE_BUG;
 
 		/*
 		 * IO Cell paramter setup.
