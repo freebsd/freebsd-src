@@ -173,7 +173,7 @@ typedef int l_modem_t(struct tty *tp, int flag);
 	(*devsw((bp)->bio_dev)->d_strategy)(bp);			\
 	} while (0)
 
-#define DEV_STRATEGY(bp, dummy)						\
+#define DEV_STRATEGY(bp)						\
 	do {								\
 	if ((bp)->b_flags & B_PHYS)					\
 		(bp)->b_io.bio_offset = (bp)->b_offset;			\

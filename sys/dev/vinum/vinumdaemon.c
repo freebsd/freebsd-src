@@ -210,7 +210,7 @@ recover_io(struct request *rq)
      *
      * Negotiate with phk to get it fixed.
      */
-    DEV_STRATEGY(rq->bp, 0);				    /* reissue the command */
+    DEV_STRATEGY(rq->bp);				    /* reissue the command */
 }
 
 /* Functions called to interface with the daemon */

@@ -439,7 +439,7 @@ launch_requests(struct request *rq, int reviveok)
 		    logrq(loginfo_rqe, (union rqinfou) rqe, rq->bp);
 #endif
 		/* fire off the request */
-		DEV_STRATEGY(&rqe->b, 0);
+		DEV_STRATEGY(&rqe->b);
 	    }
 	}
     }
@@ -983,7 +983,7 @@ sdio(struct buf *bp)
     if (debug & DEBUG_LASTREQS)
 	logrq(loginfo_sdiol, (union rqinfou) &sbp->b, &sbp->b);
 #endif
-    DEV_STRATEGY(&sbp->b, 0);
+    DEV_STRATEGY(&sbp->b);
     splx(s);
 }
 

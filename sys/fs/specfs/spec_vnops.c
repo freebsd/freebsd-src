@@ -602,10 +602,10 @@ spec_strategy(ap)
 	
 	if (dsw->d_flags & D_NOGIANT) {
 		DROP_GIANT();
-		DEV_STRATEGY(bp, 0);
+		DEV_STRATEGY(bp);
 		PICKUP_GIANT();
 	} else
-		DEV_STRATEGY(bp, 0);
+		DEV_STRATEGY(bp);
 		
 	return (0);
 }
@@ -635,7 +635,7 @@ spec_freeblks(ap)
 	bp->b_offset = dbtob(ap->a_addr);
 	bp->b_bcount = ap->a_length;
 	BUF_KERNPROC(bp);
-	DEV_STRATEGY(bp, 0);
+	DEV_STRATEGY(bp);
 	return (0);
 }
 
