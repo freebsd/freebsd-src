@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: builtins.c,v 1.9 1999/07/24 13:02:09 sheldonh Exp $
+ * $Id: builtins.c,v 1.10 1999/07/24 16:24:03 green Exp $
  *
  */
 
@@ -303,7 +303,14 @@ echo_stream(s, sep)		/* Echo service -- echo data back */
 /*
  * RFC1413 Identification Protocol. Given a TCP port number pair, return a
  * character string which identifies the owner of that connection on the
- * server's system. Extended to allow for ~/.fakeid support.
+ * server's system. Extended to allow for ~/.fakeid support and ~/.noident
+ * support.
+ */
+
+/*
+ * NOTE: If any of the asprintf()s here fail, rest assured that faulting
+ * in the buffers for using snprintf() would have also failed.
+ * Asprintf() is the proper way to do what we do.
  */
 
 /* ARGSUSED */
@@ -316,7 +323,7 @@ iderror(lport, fport, s, er)
 	asprintf(&p, "%d , %d : ERROR : %s\r\n", lport, fport, 
 	    er == -1 ? "HIDDEN-USER" : er ? strerror(er) : "UNKNOWN-ERROR");
 	if (p == NULL) {
-		syslog(LOG_ERR, "Out of memory.");
+		syslog(LOG_ERR, "asprintf: %m");
 		exit(EX_OSERR);
 	}
 	write(s, p, strlen(p));
@@ -340,7 +347,7 @@ ident_stream(s, sep)		/* Ident service */
 	struct passwd *pw;
 	fd_set fdset;
 	char buf[BUFSIZE], *cp = NULL, *p, **av, *osname = NULL;
-	int len, c, rflag = 0, fflag = 0, argc = 0;
+	int len, c, fflag = 0, nflag = 0, rflag = 0, argc = 0;
 	u_short lport, fport;
 
 	inetd_setproctitle(sep->se_service, s);
@@ -351,16 +358,19 @@ ident_stream(s, sep)		/* Ident service */
 	if (argc) {
 		int sec, usec;
 
-		while ((c = getopt(argc, sep->se_argv, "fro:t:")) != -1)
+		while ((c = getopt(argc, sep->se_argv, "fno:rt:")) != -1)
 			switch (c) {
 			case 'f':
 				fflag = 1;
 				break;
-			case 'r':
-				rflag = 1;
+			case 'n':
+				nflag = 1;
 				break;
 			case 'o':
 				osname = optarg;
+				break;
+			case 'r':
+				rflag = 1;
 				break;
 			case 't':
 				switch (sscanf(optarg, "%d.%d", &sec, &usec)) {
@@ -417,15 +427,29 @@ ident_stream(s, sep)		/* Ident service */
 	pw = getpwuid(uc.cr_uid);
 	if (pw == NULL)
 		iderror(lport, fport, s, errno);
-	if (fflag) {
-		FILE *fakeid = NULL;
-		char fakeid_path[PATH_MAX];
+	if (nflag) {
 		struct stat sb;
+		char *noident_path;
 
+		if (asprintf(&noident_path, "%s/.noident", pw->pw_dir) == -1)
+			iderror(lport, fport, s, errno);
+		if (lstat(noident_path, &sb) == 0) {
+			free(noident_path);
+			iderror(lport, fport, s, -1);
+		}
+		free(noident_path);
+	}
+	if (fflag) {
+		struct stat sb;
+		FILE *fakeid = NULL;
+		char *fakeid_path;
+
+		if (asprintf(&fakeid_path, "%s/.fakeid", pw->pw_dir) == -1)
+			iderror(lport, fport, s, errno);
 		seteuid(pw->pw_uid);
 		setegid(pw->pw_gid);
-		snprintf(fakeid_path, sizeof(fakeid_path), "%s/.fakeid",
-		    pw->pw_dir);
+		fakeid = fopen(fakeid_path, "r");
+		free(fakeid_path);
 		if ((fakeid = fopen(fakeid_path, "r")) != NULL &&
 		    fstat(fileno(fakeid), &sb) != -1 && S_ISREG(sb.st_mode)) {
 			buf[sizeof(buf) - 1] = '\0';
@@ -451,7 +475,7 @@ ident_stream(s, sep)		/* Ident service */
 printit:
 	if (asprintf(&p, "%d , %d : USERID : %s : %s\r\n", lport, fport, osname,
 	    cp) == -1) {
-		syslog(LOG_ERR, "Out of memory.");
+		syslog(LOG_ERR, "asprintf: %m");
 		exit(EX_OSERR);
 	}
 	write(s, p, strlen(p));
