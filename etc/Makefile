@@ -137,7 +137,9 @@ distribution:
 	(cd ${.CURDIR}/..; \
 	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FREEBSD} \
 		${DESTDIR}/)
+.if !defined(NOMAN)
 	(cd ${.CURDIR}/../share/man; ${MAKE} makedb; )
+.endif
 
 distrib-dirs:
 	mtree -deU -f ${.CURDIR}/mtree/BSD.root.dist -p ${DESTDIR}/
