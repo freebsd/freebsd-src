@@ -2352,6 +2352,10 @@ _thr_free(struct pthread *curthread, struct pthread *thread)
 	kse_critical_t crit;
 
 	DBG_MSG("Freeing thread %p\n", thread);
+	if (thread->name) {
+		free(thread->name);
+		thread->name = NULL;
+	}
 	if ((curthread == NULL) || (free_thread_count >= MAX_CACHED_THREADS)) {
 		thr_destroy(thread);
 	} else {
