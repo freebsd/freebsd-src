@@ -691,8 +691,9 @@ void fillin_program_objs(prog_t *p, char *path)
 	fprintf(f, ".endif\n");
 	fprintf(f, "loop:\n\t@echo 'OBJS= '${%s}\n", objvar);
 
-	fprintf(f, "crunchgen_objs:\n\t@make -f %s $(BUILDOPTS) $(%s_OPTS)",
-	    tempfname, p->ident);
+	fprintf(f, "crunchgen_objs:\n"
+	    "\t@cd %s && make -f %s $(BUILDOPTS) $(%s_OPTS)",
+	    p->srcdir, tempfname, p->ident);
 	for (s = p->buildopts; s != NULL; s = s->next)
 		fprintf(f, " %s", s->str);
 	fprintf(f, " loop\n");
