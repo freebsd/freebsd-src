@@ -111,7 +111,7 @@ pbstr(s)
 	size_t n;
 
 	n = strlen(s);
-	while (endpbb - bp <= n)
+	while ((size_t)(endpbb - bp) <= n)
 		enlarge_bufspace();
 	while (n > 0)
 		*bp++ = s[--n];
@@ -236,7 +236,7 @@ getdiv(n)
 
 void
 onintr(signo)
-	int signo;
+	int signo __unused;
 {
 #define intrmessage	"m4: interrupted.\n"
 	write(STDERR_FILENO, intrmessage, sizeof(intrmessage)-1);
@@ -375,6 +375,6 @@ dump_buffer(f, m)
 {
 	char *s;
 
-	for (s = bp; s-buf > m;)
+	for (s = bp; s - buf > (int)m;)
 		fputc(*--s, f);
 }
