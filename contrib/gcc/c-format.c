@@ -19,6 +19,8 @@ along with GCC; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 #include "config.h"
 #include "system.h"
 #include "tree.h"
@@ -2112,7 +2114,7 @@ check_format_info_main (status, res, info, format_chars, format_length,
 	  else if (strchr (fci->flags2, '2') != 0)
 	    y2k_level = 2;
 	  if (y2k_level == 3)
-	    status_warning (status, "`%%%c' yields only last 2 digits of year in some locales",
+	    status_warning (status, "`%%%c' yields only last 2 digits of year in some locales on non-BSD systems",
 			    format_char);
 	  else if (y2k_level == 2)
 	    status_warning (status, "`%%%c' yields only last 2 digits of year", format_char);
