@@ -86,10 +86,6 @@ static void	configure_first __P((void *));
 static void	configure __P((void *));
 static void	configure_final __P((void *));
 
-#if defined(FFS) && defined(FFS_ROOT)
-static void	setroot __P((void));
-#endif
-
 #if defined(NFS) && defined(NFS_ROOT)
 static void	pxe_setup_nfsdiskless(void);
 #endif
@@ -233,92 +229,10 @@ cpu_rootconf()
 #endif
 		rootdevnames[0] = "nfs:";
 #endif
-#if defined(FFS) && defined(FFS_ROOT)
-        if (!rootdevnames[0])
-                setroot();
-#endif
 }
 SYSINIT(cpu_rootconf, SI_SUB_ROOT_CONF, SI_ORDER_FIRST, cpu_rootconf, NULL)
 
 u_long	bootdev = 0;		/* not a dev_t - encoding is different */
-
-#if defined(FFS) && defined(FFS_ROOT)
-#define FDMAJOR 	2
-#define FDUNITSHIFT     6
-
-/*
- * Attempt to find the device from which we were booted.
- * If we can do so, and not instructed not to do so,
- * set rootdevs[] and rootdevnames[] to correspond to the
- * boot device(s).
- *
- * This code survives in order to allow the system to be 
- * booted from legacy environments that do not correctly
- * populate the kernel environment. There are significant
- * restrictions on the bootability of the system in this
- * situation; it can only be mounting root from a 'da'
- * 'wd' or 'fd' device, and the root filesystem must be ufs.
- */
-static void
-setroot()
-{
-	int majdev, mindev, unit, slice, part;
-	dev_t newrootdev, dev;
-	char partname[2];
-	char *sname;
-
-	if ((bootdev & B_MAGICMASK) != B_DEVMAGIC) {
-		printf("no B_DEVMAGIC (bootdev=%#lx)\n", bootdev);
-		return;
-	}
-	majdev = B_TYPE(bootdev);
-	dev = makebdev(majdev, 0);
-	if (devsw(dev) == NULL)
-		return;
-	unit = B_UNIT(bootdev);
-	slice = B_SLICE(bootdev);
-	if (slice == WHOLE_DISK_SLICE)
-		slice = COMPATIBILITY_SLICE;
-	if (slice < 0 || slice >= MAX_SLICES) {
-		printf("bad slice\n");
-		return;
-	}
-
-	/*
-	 * XXX kludge for inconsistent unit numbering and lack of slice
-	 * support for floppies.
-	 */
-	if (majdev == FDMAJOR) {
-		slice = COMPATIBILITY_SLICE;
-		part = RAW_PART;
-		mindev = unit << FDUNITSHIFT;
-	} else {
-		part = B_PARTITION(bootdev);
-		mindev = dkmakeminor(unit, slice, part);
-	}
-
-	newrootdev = makebdev(majdev, mindev);
-	sname = dsname(newrootdev, unit, slice, part, partname);
-	rootdevnames[0] = malloc(strlen(sname) + 6, M_DEVBUF, M_NOWAIT);
-	sprintf(rootdevnames[0], "ufs:%s%s", sname, partname);
-
-	/*
-	 * For properly dangerously dedicated disks (ones with a historical
-	 * bogus partition table), the boot blocks will give slice = 4, but
-	 * the kernel will only provide the compatibility slice since it
-	 * knows that slice 4 is not a real slice.  Arrange to try mounting
-	 * the compatibility slice as root if mounting the slice passed by
-	 * the boot blocks fails.  This handles the dangerously dedicated
-	 * case and perhaps others.
-	 */
-	if (slice == COMPATIBILITY_SLICE)
-		return;
-	slice = COMPATIBILITY_SLICE;
-	sname = dsname(newrootdev, unit, slice, part, partname);
-	rootdevnames[1] = malloc(strlen(sname) + 6, M_DEVBUF, M_NOWAIT);
-	sprintf(rootdevnames[1], "ufs:%s%s", sname, partname);
-}
-#endif
 
 #if defined(NFS) && defined(NFS_ROOT)
 
