@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mountd.8	8.4 (Berkeley) 4/28/95
-.\"	$Id: mountd.8,v 1.9 1997/04/09 20:25:43 guido Exp $
+.\"	$Id: mountd.8,v 1.10 1997/04/22 10:37:27 dfr Exp $
 .\"
 .Dd April 28, 1995
 .Dt MOUNTD 8
@@ -42,7 +42,7 @@
 mount requests
 .Sh SYNOPSIS
 .Nm /sbin/mountd
-.Op Fl 2nr
+.Op Fl 2nrl
 .Op Ar exportsfile
 .Sh DESCRIPTION
 .Xr Mountd
@@ -87,6 +87,10 @@ the entire file system in which the swapfiles resides
 will have to be exported with the
 .Fl alldirs
 flag.
+.It Fl l
+The
+.Fl l
+option will cause all succeeded mountd requests to be logged.
 .It Ar exportsfile
 The
 .Ar exportsfile
