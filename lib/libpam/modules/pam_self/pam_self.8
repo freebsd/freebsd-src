@@ -61,7 +61,7 @@ The Self authentication component
 .Pq Fn pam_sm_authenticate ,
 returns success if and only if the target user's user ID is identical
 with the current real user ID.
-If the current real user ID is non-zero, authentication will fail,
+If the current real user ID is zero authentication will fail,
 unless the
 .Cm allow_root
 option was specified.
