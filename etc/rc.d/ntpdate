@@ -12,9 +12,8 @@
 
 name="ntpdate"
 rcvar=`set_rcvar`
-command="/usr/sbin/${name}"
-command_args=">/dev/null 2>&1"
-pidfile="/var/run/${name}.pid"
+stop_cmd=":"
+start_cmd="ntpdate_start"
 
 ntpdate_start()
 {
@@ -26,7 +25,7 @@ ntpdate_start()
 	fi
 	if [ -n "$ntpdate_hosts"  ]; then
 		echo "Setting date via ntp."
-		ntpdate $rc_flags $ntpdate_hosts
+		${ntpdate_command:-ntpdate} $rc_flags $ntpdate_hosts
 	fi
 }
 
