@@ -1935,7 +1935,7 @@ options 	AVM_A1
 #device		isic0	at isa? port 0x398 irq 10 flags 18
 #
 # ELSA PCC-16
-options 	"ELSA_PCC16"
+options 	ELSA_PCC16
 #device		isic0	at isa? port 0x360 irq 10 flags 20
 #
 # ISA bus PnP Cards:
@@ -1966,19 +1966,20 @@ options 	ELSA_QS1ISA
 #device		isic
 #
 # ITK ix1 Micro ( V.3, PnP version ) (not supported yet!)
-#options 	"ITKIX1"
+#options 	ITKIX1
 #device		isic
 #
 # AVM Fritz!Card PnP (not supported yet!)
-#options 	"AVM_PNP"
+#options 	AVM_PNP
 #device 	isic
 #
 # Siemens I-Surf 2.0
-options 	"SIEMENS_ISURF2"
+options 	SIEMENS_ISURF2
 #device		isic
 #
 # Asuscom ISDNlink 128K ISAC - broken
 #options 	ASUSCOM_IPAC
+#device 	isic
 #
 # PCI bus Cards:
 # --------------
@@ -1988,7 +1989,7 @@ options 	ELSA_QS1PCI
 #device		isic
 #
 # AVM Fritz!Card PCI
-options 	"AVM_A1_PCI"
+options 	AVM_A1_PCI
 #device		isic
 #
 # PCMCIA Cards:
