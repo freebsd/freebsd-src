@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: module.c,v 1.8 1999/02/22 13:12:37 dcs Exp $
+ *	$Id: module.c,v 1.7.2.1 1999/02/22 13:19:56 dcs Exp $
  */
 
 /*
@@ -245,6 +245,7 @@ mod_loadobj(char *type, char *name)
     
     if ((fd = open(name, O_RDONLY)) < 0) {
 	sprintf(command_errbuf, "can't open '%s': %s", name, strerror(errno));
+	free(name);
 	return(CMD_ERROR);
     }
 
@@ -309,6 +310,7 @@ mod_loadmodule(char *name, int argc, char *argv[])
 		
 	    /* Fatal error */
 	    sprintf(command_errbuf, "can't load module '%s': %s", name, strerror(err));
+	    free(name);
 	    return(NULL);
 	} else {
 
@@ -329,6 +331,7 @@ mod_loadmodule(char *name, int argc, char *argv[])
     }
     if (err == EFTYPE)
 	sprintf(command_errbuf, "don't know how to load module '%s'", name);
+    free(name);
     return(mp);
 }
 
@@ -437,7 +440,7 @@ mod_findmetadata(struct loaded_module *mp, int type)
 static char *
 mod_searchfile(char *name)
 {
-    static char		*result = NULL;
+    char		*result;
     char		*path, *sp;
     const char		*cp;
     struct stat		sb;
@@ -470,8 +473,7 @@ mod_searchfile(char *name)
     /*
      * Traverse the path, splitting off ';'-delimited components.
      */
-    if (result != NULL)
-	free(result);
+    result = NULL;
     while((cp = strsep(&path, ";")) != NULL) {
 	result = malloc(strlen(cp) + strlen(name) + 5);
 	strcpy(result, cp);
