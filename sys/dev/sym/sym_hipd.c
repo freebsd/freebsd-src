@@ -4305,7 +4305,7 @@ reset_all:
 /*
  *  chip exception handler for selection timeout
  */
-void sym_int_sto (hcb_p np)
+static void sym_int_sto (hcb_p np)
 {
 	u32 dsp	= INL (nc_dsp);
 
@@ -4320,7 +4320,7 @@ void sym_int_sto (hcb_p np)
 /*
  *  chip exception handler for unexpected disconnect
  */
-void sym_int_udc (hcb_p np)
+static void sym_int_udc (hcb_p np)
 {
 	printf ("%s: unexpected disconnect\n", sym_name(np));
 	sym_recover_scsi_int(np, HS_UNEXPECTED);
@@ -6259,7 +6259,7 @@ static void sym_nego_rejected(hcb_p np, tcb_p tp, ccb_p cp)
 /*
  *  chip exception handler for programmed interrupts.
  */
-void sym_int_sir (hcb_p np)
+static void sym_int_sir (hcb_p np)
 {
 	u_char	num	= INB (nc_dsps);
 	u32	dsa	= INL (nc_dsa);
@@ -9622,7 +9622,7 @@ static void sym_pci_free(hcb_p np)
 /*
  *  Allocate CAM resources and register a bus to CAM.
  */
-int sym_cam_attach(hcb_p np)
+static int sym_cam_attach(hcb_p np)
 {
 	struct cam_devq *devq = 0;
 	struct cam_sim *sim = 0;
@@ -9730,7 +9730,7 @@ fail:
 /*
  *  Free everything that deals with CAM.
  */
-void sym_cam_free(hcb_p np)
+static void sym_cam_free(hcb_p np)
 {
 #ifdef FreeBSD_Bus_Io_Abstraction
 	if (np->intr)
@@ -9953,7 +9953,7 @@ static int sym_read_Symbios_nvram (hcb_p np, Symbios_nvram *nvram);
 static int sym_read_Tekram_nvram  (hcb_p np, Tekram_nvram *nvram);
 #endif
 
-int sym_read_nvram(hcb_p np, struct sym_nvram *nvp)
+static int sym_read_nvram(hcb_p np, struct sym_nvram *nvp)
 {
 #ifdef SYM_CONF_NVRAM_SUPPORT
 	/*
