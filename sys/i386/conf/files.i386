@@ -47,6 +47,7 @@ i386/isa/dcfclk.c		optional	dcfclk	device-driver
 i386/isa/fd.c			optional	fd	device-driver
 i386/isa/if_ec.c		optional	ec	device-driver
 i386/isa/if_ed.c		optional	ed	device-driver
+i386/isa/if_we.c		optional	we	device-driver
 i386/isa/if_is.c		optional	is	device-driver
 i386/isa/if_ix.c		optional	ix	device-driver
 i386/isa/if_ne.c		optional	ne	device-driver
