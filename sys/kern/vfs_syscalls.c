@@ -224,11 +224,6 @@ mount(p, uap)
 	if (vfsp == NULL) {
 		linker_file_t lf;
 
-		/* Refuse to load modules if securelevel raised */
-		if (securelevel > 0) {
-			vput(vp);
-			return EPERM; 
-		}
 		/* Only load modules for root (very important!) */
 		if ((error = suser(p)) != 0) {
 			vput(vp);

@@ -247,6 +247,10 @@ linker_load_file(const char* filename, linker_file_t* result)
     int foundfile, error = 0;
     char *koname = NULL;
 
+    /* Refuse to load modules if securelevel raised */
+    if (securelevel > 0)
+	return EPERM; 
+
     lf = linker_find_file_by_name(filename);
     if (lf) {
 	KLD_DPF(FILE, ("linker_load_file: file %s is already loaded, incrementing refs\n", filename));
@@ -388,6 +392,10 @@ linker_file_unload(linker_file_t file)
     struct common_symbol* cp;
     int error = 0;
     int i;
+
+    /* Refuse to unload modules if securelevel raised */
+    if (securelevel > 0)
+	return EPERM; 
 
     KLD_DPF(FILE, ("linker_file_unload: lf->refs=%d\n", file->refs));
     lockmgr(&lock, LK_EXCLUSIVE, 0, curproc);
@@ -646,7 +654,7 @@ kldload(struct proc* p, struct kldload_args* uap)
 
     p->p_retval[0] = -1;
 
-    if (securelevel > 0)
+    if (securelevel > 0)	/* redundant, but that's OK */
 	return EPERM;
 
     if ((error = suser(p)) != 0)
@@ -685,7 +693,7 @@ kldunload(struct proc* p, struct kldunload_args* uap)
     linker_file_t lf;
     int error = 0;
 
-    if (securelevel > 0)
+    if (securelevel > 0)	/* redundant, but that's OK */
 	return EPERM;
 
     if ((error = suser(p)) != 0)
