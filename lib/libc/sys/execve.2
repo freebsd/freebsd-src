@@ -120,6 +120,14 @@ and
 .Xr fcntl 2 ) .
 Descriptors that remain open are unaffected by
 .Fn execve .
+If any of the standard descriptors (0, 1, and/or 2) are closed at the
+time
+.Fn execve
+is called, and the process will gain privilege as a result of set-id
+semantics, those descriptors will be re-opened automatically.
+No programs, whether privileged or not, should assume that these descriptors
+will remain closed across a call to
+.Fn execve .
 .Pp
 Signals set to be ignored in the calling process are set to be ignored in
 the
@@ -278,6 +286,17 @@ of a super-user as well.
 .Xr elf 5 ,
 .Xr environ 7 ,
 .Xr mount 8
+.Sh STANDARDS
+The
+.Fn execve
+function conforms to
+.St -p1003.1-2001 ,
+with the exception of reopening descriptors 0, 1, and/or 2 in certain
+circumstances.
+A future update of the Standard is expected to require this behavior,
+and it may become the default for non-privileged processes as well.
+.\" NB: update this caveat when TC1 is blessed.
+The support for executing interpreted programs is an extension.
 .Sh HISTORY
 The
 .Fn execve
