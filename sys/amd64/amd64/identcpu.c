@@ -80,7 +80,6 @@ static void print_AMD_info(u_int amd_maxregs);
 static void print_AMD_assoc(int i);
 static void print_transmeta_info(void);
 static void setup_tmx86_longrun(void);
-static void do_cpuid(u_int ax, u_int *p);
 
 u_int	cyrix_did;		/* Device ID of Cyrix CPU */
 int cpu_class = CPUCLASS_386;	/* least common denominator */
@@ -111,16 +110,6 @@ static struct cpu_nameclass i386_cpus[] = {
 	{ "Pentium III",	CPUCLASS_686 },		/* CPU_PIII */
 	{ "Pentium 4",		CPUCLASS_686 },		/* CPU_P4 */
 };
-
-static void
-do_cpuid(u_int ax, u_int *p)
-{
-	__asm __volatile(
-	"cpuid"
-	: "=a" (p[0]), "=b" (p[1]), "=c" (p[2]), "=d" (p[3])
-	:  "0" (ax)
-	);
-}
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 int has_f00f_bug = 0;
