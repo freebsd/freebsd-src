@@ -120,6 +120,8 @@ vfs_byname(const char *name)
 {
 	struct vfsconf *vfsp;
 
+	if (!strcmp(name, "ffs"))
+		name = "ufs";
 	TAILQ_FOREACH(vfsp, &vfsconf, vfc_list)
 		if (!strcmp(name, vfsp->vfc_name))
 			return (vfsp);
