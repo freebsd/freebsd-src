@@ -45,7 +45,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumconfig.c,v 1.29 2000/02/29 01:51:31 grog Exp grog $
+ * $Id: vinumconfig.c,v 1.30 2000/05/01 09:45:50 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -285,11 +285,12 @@ give_sd_to_plex(int plexno, int sdno)
     }
 
     /*
-     * The plex doesn't have any subdisk with a larger
-     * offset.  Insert it
+     * The plex doesn't have any subdisk with a
+     * larger offset.  Insert it here.
      */
     plex->sdnos[i] = sdno;
     sd->plexsdno = i;					    /* note where we are in the subdisk */
+    sd->plexno = plex->plexno;				    /* and who we belong to */
     return i;
 }
 
