@@ -29,6 +29,8 @@ RPCFILES=	auth.h auth_unix.h clnt.h pmap_clnt.h pmap_prot.h pmap_rmt.h \
 		rpc.h rpc_com.h rpc_msg.h svc.h svc_auth.h types.h xdr.h \
 		auth_des.h des.h des_crypt.h
 
+NETSMBFILES=	nb_lib.h smb_lib.h smb_rap.h
+
 MFILES=	float.h floatingpoint.h stdarg.h varargs.h
 
 # posix4/aio.h conflicts with dysons and isn't installed:
@@ -117,6 +119,11 @@ copies:
 	cd ${.CURDIR}/../sys/contrib/ipfilter/netinet; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 		${DESTDIR}/usr/include/netinet
+.endif
+.if exists(${.CURDIR}/../sys/contrib/netsmb/include/netsmb)
+	cd ${.CURDIR}/../sys/contrib/netsmb/include/netsmb; \
+		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${NETSMBFILES} \
+		${DESTDIR}/usr/include/netsmb
 .endif
 .if exists(${.CURDIR}/../sys/${MACHINE_ARCH}/include)
 	cd ${.CURDIR}/../sys/${MACHINE_ARCH}/include; \
