@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.3 2001/10/27 04:54:36 assar Exp $
+# $Id: Makefile.am,v 1.4 2002/05/19 18:43:44 joda Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -57,7 +57,7 @@ pam_krb4.so: $(OBJS)
 
 CLEANFILES = $(MOD) $(OBJS)
 
-SUFFIXES = .c .o
+SUFFIXES += .c .o
 
 .c.o:
 	$(COMPILE) -c $<

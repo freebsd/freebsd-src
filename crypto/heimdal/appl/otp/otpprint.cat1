@@ -1,5 +1,4 @@
-
-OTP(1)                       UNIX Reference Manual                      OTP(1)
+OTP(1)                  FreeBSD General Commands Manual                 OTP(1)
 
 NNAAMMEE
      oottpppprriinntt - print lists of one-time passwords
@@ -33,4 +32,4 @@ DDEESSCCRRIIPPTTIIOONN
 SSEEEE AALLSSOO
      otp(1)
 
- KTH-KRB                       November 17, 1996                             1
+KTH-KRB                        November 17, 1996                       KTH-KRB

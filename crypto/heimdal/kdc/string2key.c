@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997, 1998, 1999, 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -34,7 +34,7 @@
 #include "headers.h"
 #include <getarg.h>
 
-RCSID("$Id: string2key.c,v 1.18 1999/12/02 17:05:00 joda Exp $");
+RCSID("$Id: string2key.c,v 1.19 2002/04/18 10:18:07 joda Exp $");
 
 int version5;
 int version4;
@@ -42,7 +42,7 @@ int afs;
 char *principal;
 char *cell;
 char *password;
-char *keytype_str = "des-cbc-md5";
+const char *keytype_str = "des-cbc-md5";
 int version;
 int help;
 

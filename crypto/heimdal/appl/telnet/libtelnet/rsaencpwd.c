@@ -33,7 +33,7 @@
 
 #include <config.h>
 
-RCSID("$Id: rsaencpwd.c,v 1.18 1999/09/16 20:41:34 assar Exp $");
+RCSID("$Id: rsaencpwd.c,v 1.19 2002/08/12 15:09:17 joda Exp $");
 
 #ifdef	RSA_ENCPWD
 /*
@@ -160,7 +160,7 @@ rsaencpwd_init(ap, server)
 		gethostname(lhostname, sizeof(lhostname));
 		if ((cp = strchr(lhostname, '.')) != 0)  *cp = '\0';
 		snprintf(key_file, sizeof(key_file),
-			 "/etc/.%s_privkey", lhostname);
+			 SYSCONFDIR "/.%s_privkey", lhostname);
 		if ((fp=fopen(key_file, "r"))==NULL) return(0);
 		fclose(fp);
 	} else {

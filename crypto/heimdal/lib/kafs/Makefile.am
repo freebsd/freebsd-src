@@ -1,8 +1,8 @@
-# $Id: Makefile.am,v 1.35 2001/11/01 22:33:40 assar Exp $
+# $Id: Makefile.am,v 1.37 2002/08/19 15:08:37 joda Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
-INCLUDES += $(INCLUDE_krb4) $(AFS_EXTRA_DEFS)
+INCLUDES += $(INCLUDE_krb4) $(AFS_EXTRA_DEFS) $(ROKEN_RENAME)
 
 if KRB4
 AFSLIBS = libkafs.la
@@ -48,7 +48,7 @@ libkafs_la_LIBADD = ../roken/libroken.la $(DEPLIB_krb4)
 endif # KRB5
 
 lib_LTLIBRARIES = $(AFSLIBS)
-libkafs_la_LDFLAGS = -version-info 3:3:3
+libkafs_la_LDFLAGS = -version-info 3:4:3
 foodir = $(libdir)
 foo_DATA = $(AFS_EXTRA_LIBS)
 # EXTRA_DATA = afslib.so

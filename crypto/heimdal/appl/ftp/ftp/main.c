@@ -36,15 +36,52 @@
  */
 
 #include "ftp_locl.h"
-RCSID("$Id: main.c,v 1.31 2001/02/20 01:44:43 assar Exp $");
+#include <getarg.h>
+
+RCSID("$Id: main.c,v 1.32 2002/08/23 19:11:03 assar Exp $");
+
+static int help_flag;
+static int version_flag;
+static int debug_flag;
+
+struct getargs getargs[] = {
+    { NULL,	'd', arg_flag, &debug_flag,
+      "debug", NULL },
+    { NULL,	'g', arg_negative_flag, &doglob,
+      "disables globbing", NULL},
+    { NULL,	'i', arg_negative_flag, &interactive,
+      "Turn off interactive prompting", NULL},
+    { NULL,	'l', arg_negative_flag, &lineedit,
+      "Turn off line editing", NULL},
+    { NULL,	'p', arg_flag, &passivemode,
+      "passive mode", NULL},
+    { NULL,	't', arg_counter, &trace,
+      "Packet tracing", NULL},
+    { NULL,	'v', arg_counter, &verbose,
+      "verbosity", NULL},
+    { NULL,	'K', arg_negative_flag, &use_kerberos,
+      "Disable kerberos authentication", NULL},
+    { "version", 0,  arg_flag, &version_flag },
+    { "help",	'h', arg_flag, &help_flag },
+};
+
+static int num_args = sizeof(getargs) / sizeof(getargs[0]);
+
+static void
+usage(int ecode)
+{
+    arg_printusage(getargs, num_args, NULL, "[host [port]]");
+    exit(ecode);
+}
 
 int
 main(int argc, char **argv)
 {
-	int ch, top;
+	int top;
 	struct passwd *pw = NULL;
 	char homedir[MaxPathLen];
 	struct servent *sp;
+	int optind = 0;
 
 	setprogname(argv[0]);
 
@@ -58,50 +95,20 @@ main(int argc, char **argv)
 	passivemode = 0; /* passive mode not active */
         use_kerberos = 1;
 
-	while ((ch = getopt(argc, argv, "dgilnptvK")) != -1) {
-		switch (ch) {
-		case 'd':
-			options |= SO_DEBUG;
-			debug++;
-			break;
-			
-		case 'g':
-			doglob = 0;
-			break;
-
-		case 'i':
-			interactive = 0;
-			break;
-
-		case 'l':
-			lineedit = 0;
-			break;
-		case 'n':
-			autologin = 0;
-			break;
-
-		case 'p':
-		        passivemode = 1;
-			break;
-		case 't':
-			trace++;
-			break;
-
-		case 'v':
-			verbose++;
-			break;
-
-                case 'K':
-                        /* Disable Kerberos authentication */
-                        use_kerberos = 0;
-                        break;
-
-		default:
-		    fprintf(stderr,
-                            "usage: ftp [-dgilnptvK] [host [port]]\n");
-		    exit(1);
-		}
+	if(getarg(getargs, num_args, argc, argv, &optind))
+		usage(1);
+	if(help_flag)
+		usage(0);
+	if(version_flag) {
+		print_version(NULL);
+		exit(0);
 	}
+
+	if (debug_flag) {
+		options |= SO_DEBUG;
+		debug++;
+	}
+
 	argc -= optind;
 	argv += optind;
 

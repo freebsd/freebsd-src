@@ -1,3 +1,37 @@
+2002-08-20  Jacques Vidrine <n@nectar.com>
+
+	* acquire_cred.c, inquire_cred.c, release_cred.c: Use default
+	  credential resolution if gss_acquire_cred is called with
+	  GSS_C_NO_NAME.
+
+2002-06-20  Jacques Vidrine <n@nectar.com>
+
+	* import_name.c: Compare name types by value if pointers do
+	  not match.  Reported by: "Douglas E. Engert" <deengert@anl.gov>
+
+2002-05-20  Jacques Vidrine <n@nectar.com>
+
+	* verify_mic.c (gss_verify_mic), unwrap.c (gss_unwrap): initialize
+	  the qop_state parameter.  from Doug Rabson <dfr@nlsystems.com>
+
+2002-05-09  Jacques Vidrine <n@nectar.com>
+
+	* acquire_cred.c: handle GSS_C_INITIATE/GSS_C_ACCEPT/GSS_C_BOTH
+
+2002-05-08  Jacques Vidrine <n@nectar.com>
+
+	* acquire_cred.c: initialize gssapi; handle null desired_name
+
+2002-03-22  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: remove non-functional stuff accidentally committed
+
+2002-03-11  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libgssapi_la_LDFLAGS): bump version to 3:5:2
+	* 8003.c (gssapi_krb5_verify_8003_checksum): handle zero channel
+	bindings
+
 2001-10-31  Jacques Vidrine <n@nectar.com>
 
 	* get_mic.c (mic_des3): MIC computation using DES3/SHA1

@@ -1,4 +1,4 @@
-dnl $Id: broken-getaddrinfo.m4,v 1.2 2001/08/22 01:05:29 assar Exp $
+dnl $Id: broken-getaddrinfo.m4,v 1.3 2002/08/20 14:09:40 joda Exp $
 dnl
 dnl test if getaddrinfo can handle numeric services
 
@@ -17,7 +17,7 @@ main(int argc, char **argv)
 	hints.ai_flags = AI_PASSIVE;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_family = PF_UNSPEC;
-	if(getaddrinfo(NULL, "17", &hints, &ai) == EAI_SERVICE)
+	if(getaddrinfo(NULL, "17", &hints, &ai) != 0)
 		return 1;
 	return 0;
 }

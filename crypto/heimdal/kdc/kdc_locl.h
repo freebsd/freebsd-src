@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 /* 
- * $Id: kdc_locl.h,v 1.52 2001/08/22 20:30:25 assar Exp $ 
+ * $Id: kdc_locl.h,v 1.54 2002/08/19 12:18:07 joda Exp $ 
  */
 
 #ifndef __KDC_LOCL_H__
@@ -54,7 +54,7 @@ extern struct dbinfo {
 } *databases;
 extern HDB **db;
 extern int num_db;
-extern char *port_str;
+extern const char *port_str;
 extern krb5_addresses explicit_addresses;
 
 extern int enable_http;
@@ -87,7 +87,7 @@ char* kdc_log_msg (int, const char*, ...)
     __attribute__ ((format (printf, 2,3)));
 char* kdc_log_msg_va (int, const char*, va_list)
     __attribute__ ((format (printf, 2,0)));
-void kdc_openlog (krb5_config_section*);
+void kdc_openlog (void);
 void loop (void);
 void set_master_key (EncryptionKey);
 krb5_error_code tgs_rep (KDC_REQ*, krb5_data*, const char*, struct sockaddr *);

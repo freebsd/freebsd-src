@@ -1,6 +1,6 @@
 .\" Copyright (c) 2001 Kungliga Tekniska Högskolan
-.\" $Id: krb5_auth_context.3,v 1.2 2001/05/02 08:59:23 assar Exp $
-.Dd Jan 21, 2001
+.\" $Id: krb5_auth_context.3,v 1.4 2002/08/28 14:46:20 joda Exp $
+.Dd January 21, 2001
 .Dt KRB5_AUTH_CONTEXT 3
 .Os HEIMDAL
 .Sh NAME
@@ -35,6 +35,8 @@
 .Nm krb5_auth_con_initivector ,
 .Nm krb5_auth_con_setivector
 .Nd manage authetication on connection level
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
 .Sh SYNOPSIS
 .Fd #include <krb5.h>
 .Ft krb5_error_code
@@ -119,9 +121,9 @@
 The
 .Nm krb5_auth_context
 structure holds all context related to an authenticated connection, in
-a similar way to 
+a similar way to
 .Nm krb5_context
-that holds the context for the thread or process.  
+that holds the context for the thread or process.
 .Nm krb5_auth_context
 is used by various functions that are directly related to
 authentication between the server/client. Example of data that this
@@ -138,18 +140,18 @@ and
 .Fn krb5_auth_con_setflags .
 The
 .Nm auth_context
-structure must be freed by 
+structure must be freed by
 .Fn krb5_auth_con_free .
 .Pp
 .Fn krb5_auth_con_getflags
 and
 .Fn krb5_auth_con_setflags
-gets and modifies the flags for a 
+gets and modifies the flags for a
 .Nm krb5_auth_context
 structure. Possible flags to set are:
 .Bl -tag -width Ds
 .It Dv KRB5_AUTH_CONTEXT_DO_TIME
-check timestamp on incoming packets. 
+check timestamp on incoming packets.
 .\".It Dv KRB5_AUTH_CONTEXT_RET_TIME
 .It Dv KRB5_AUTH_CONTEXT_DO_SEQUENCE
 Generate and check sequence-number on each packet.
@@ -186,7 +188,7 @@ fetches the addresses from a file descriptor.
 .Pp
 .Fn krb5_auth_con_genaddrs
 fetches the address information from the given file descriptor
-.Fa fd 
+.Fa fd
 depending on the bitmap argument
 .Fa flags .
 .Pp
@@ -219,7 +221,7 @@ and thus no special handling is needed.
 is not a valid keyblock to
 .Fn krb5_auth_con_setkey .
 .Pp
-.Fn krb5_auth_con_setuserkey 
+.Fn krb5_auth_con_setuserkey
 is only useful when doing user to user authentication.
 .Fn krb5_auth_con_setkey
 is equivalent to
@@ -230,7 +232,7 @@ is equivalent to
 .Fn krb5_auth_con_getremotesubkey
 and
 .Fn krb5_auth_con_setremotesubkey
-gets and sets the keyblock for the local and remote subkey. The keyblock returned by 
+gets and sets the keyblock for the local and remote subkey. The keyblock returned by
 .Fn krb5_auth_con_getlocalsubkey
 and
 .Fn krb5_auth_con_getremotesubkey
@@ -259,7 +261,7 @@ gets and gets the keytype of the keyblock in
 .Pp
 .Fn krb5_auth_getauthenticator
 Retrieves the authenticator that was used during mutual
-authentication. The 
+authentication. The
 .Dv authenticator
 returned should be freed by calling
 .Fn krb5_free_authenticator .
@@ -275,7 +277,7 @@ allocates memory for and zeros the initial vector in the
 keyblock.
 .Pp
 .Fn krb5_auth_con_setivector
-sets the i_vector portion of 
+sets the i_vector portion of
 .Fa auth_context
 to
 .Fa ivector .

@@ -33,7 +33,7 @@
 
 #include "telnet_locl.h"
 
-RCSID("$Id: commands.c,v 1.67 2001/08/29 00:45:20 assar Exp $");
+RCSID("$Id: commands.c,v 1.72 2002/08/28 21:04:59 joda Exp $");
 
 #if	defined(IPPROTO_IP) && defined(IP_TOS)
 int tos = -1;
@@ -608,7 +608,7 @@ static struct togglelist Togglelist[] = {
 		&autologin,
 		    "send login name and/or authentication information" },
     { "authdebug",
-	"Toggle authentication debugging",
+	"authentication debugging",
 	    auth_togdebug,
 		0,
 		     "print authentication debugging information" },
@@ -625,17 +625,29 @@ static struct togglelist Togglelist[] = {
 		0,
 		    "automatically decrypt input" },
     { "verbose_encrypt",
-	"Toggle verbose encryption output",
+	"verbose encryption output",
 	    EncryptVerbose,
 		0,
 		    "print verbose encryption output" },
     { "encdebug",
-	"Toggle encryption debugging",
+	"encryption debugging",
 	    EncryptDebug,
 		0,
 		    "print encryption debugging information" },
 #endif
-    { "skiprc",
+#if defined(KRB5)
+    { "forward",
+	"credentials forwarding",
+	    kerberos5_set_forward,
+		0,
+		    "forward credentials" },
+    { "forwardable",
+	"forwardable flag of forwarded credentials",
+	    kerberos5_set_forwardable,
+		0,
+		    "forward forwardable credentials" },
+#endif
+   { "skiprc",
 	"don't read ~/.telnetrc file",
 	    0,
 		&skiprc,
@@ -699,7 +711,7 @@ static struct togglelist Togglelist[] = {
 		&showoptions,
 		    "show option processing" },
     { "termdata",
-	"(debugging) toggle printing of hexadecimal terminal data",
+	"printing of hexadecimal terminal data (debugging)",
 	    0,
 		&termdata,
 		    "print hexadecimal representation of terminal traffic" },
@@ -1086,7 +1098,7 @@ static struct modelist ModeList[] = {
     { "-edit",	"Disable character editing",	tn_clearmode, 1, MODE_EDIT },
     { "softtabs", "Enable tab expansion",	tn_setmode, 1, MODE_SOFT_TAB },
     { "+softtabs", 0,				tn_setmode, 1, MODE_SOFT_TAB },
-    { "-softtabs", "Disable character editing",	tn_clearmode, 1, MODE_SOFT_TAB },
+    { "-softtabs", "Disable tab expansion",	tn_clearmode, 1, MODE_SOFT_TAB },
     { "litecho", "Enable literal character echo", tn_setmode, 1, MODE_LIT_ECHO },
     { "+litecho", 0,				tn_setmode, 1, MODE_LIT_ECHO },
     { "-litecho", "Disable literal character echo", tn_clearmode, 1, MODE_LIT_ECHO },
@@ -1541,7 +1553,7 @@ env_find(unsigned char *var)
 	return(NULL);
 }
 
-#if IRIX == 4
+#ifdef IRIX4
 #define environ _environ
 #endif
 
@@ -2254,6 +2266,7 @@ tn(int argc, char **argv)
 	    return 0;
     }
     cmdrc(hostp, hostname);
+    set_forward_options();
     if (autologin && user == NULL)
 	user = (char *)get_default_username ();
     if (user) {
@@ -2518,14 +2531,14 @@ sourceroute(struct addrinfo *ai,
 	    int *protop,
 	    int *optp)
 {
-	char *cp, *cp2, *lsrp, *lsrep;
+	char *cp, *cp2, *lsrp = NULL, *lsrep = NULL;
 	struct addrinfo hints, *res;
 	int len, error;
 	struct sockaddr_in *sin;
 	register char c;
 	static char lsr[44];
 #ifdef INET6
-	struct cmsghdr *cmsg;
+	struct cmsghdr *cmsg = NULL;
 	struct sockaddr_in6 *sin6;
 	static char rhbuf[1024];
 #endif

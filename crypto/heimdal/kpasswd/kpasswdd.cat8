@@ -1,13 +1,12 @@
-
-KPASSWDD(8)              UNIX System Manager's Manual              KPASSWDD(8)
+KPASSWDD(8)             FreeBSD System Manager's Manual            KPASSWDD(8)
 
 NNAAMMEE
      kkppaasssswwdddd - Kerberos 5 password changing server
 
 SSYYNNOOPPSSIISS
      kkppaasssswwdddd [----cchheecckk--lliibbrraarryy==_l_i_b_r_a_r_y] [----cchheecckk--ffuunnccttiioonn==_f_u_n_c_t_i_o_n] [--kk _k_s_p_e_c
-     | ----kkeeyyttaabb==_k_s_p_e_c] [--rr _r_e_a_l_m | ----rreeaallmm==_r_e_a_l_m] [--pp _s_t_r_i_n_g | ----ppoorrtt==_s_t_r_i_n_g]
-     [----vveerrssiioonn] [----hheellpp]
+              | ----kkeeyyttaabb==_k_s_p_e_c] [--rr _r_e_a_l_m | ----rreeaallmm==_r_e_a_l_m] [--pp _s_t_r_i_n_g |
+              ----ppoorrtt==_s_t_r_i_n_g] [----vveerrssiioonn] [----hheellpp]
 
 DDEESSCCRRIIPPTTIIOONN
      kkppaasssswwdddd serves request for password changes. It listens on UDP port 464
@@ -17,9 +16,9 @@ DDEESSCCRRIIPPTTIIOONN
      Supported options:
 
      ----cchheecckk--lliibbrraarryy==_l_i_b_r_a_r_y
-             If your system has support for dynamic loading of shared li-
-             braries, you can use an external function to check password qual-
-             ity. This option specifies which library to load.
+             If your system has support for dynamic loading of shared
+             libraries, you can use an external function to check password
+             quality. This option specifies which library to load.
 
      ----cchheecckk--ffuunnccttiioonn==_f_u_n_c_t_i_o_n
              This is the function to call in the loaded library. The function
@@ -49,6 +48,6 @@ BBUUGGSS
      The default password quality checks are too basic.
 
 SSEEEE AALLSSOO
-     kdc(8),  kpasswd(1)
+     kpasswd(1), kdc(8)
 
- HEIMDAL                        April 19, 1999                               1
+HEIMDAL                         April 19, 1999                         HEIMDAL

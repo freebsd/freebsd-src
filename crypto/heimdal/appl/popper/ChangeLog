@@ -1,3 +1,17 @@
+2002-07-04  Johan Danielsson  <joda@pdc.kth.se>
+
+	* pop_dropcopy.c: use RESP-CODES
+
+	* pop_get_command.c: implement CAPA
+
+	* popper.c: don't print our version in the greeting string
+
+	* popper.h: add a flags parameter to the pop context
+
+2002-05-02  Johan Danielsson  <joda@pdc.kth.se>
+
+	* pop_debug.c: revert some accidentally commited code in previous
+
 2002-02-07  Johan Danielsson  <joda@pdc.kth.se>
 
 	* pop_debug.c: only claim krb5 support if really present
