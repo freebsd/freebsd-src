@@ -94,10 +94,9 @@
 0	belong		0x2e7261fd	application/x-realaudio
 
 # MPEG Layer 3 sound files
-# Modified the 11/20/97 at 15:59:04 by Christophe Prud'homme <christophe.prudhomme@asci.fr>
-0       belong          0xfffb          audio/x-mp3
+0       beshort		&0xffe0		audio/mpeg
 #MP3 with ID3 tag
-0	string		ID3		audio/x-mp3
+0	string		ID3		audio/mpeg
 # Ogg/Vorbis
 0	string		OggS		audio/x-ogg
 
@@ -541,3 +540,6 @@
 
 #PNG Image Format
 0	string		\x89PNG			image/png
+
+# MNG Video Format, <URL:http://www.libpng.org/pub/mng/spec/>
+0	string		\x8aMNG			video/x-mng

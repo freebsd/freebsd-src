@@ -1,36 +1,31 @@
 #include "file.h"
 
 #ifdef BUILTIN_ELF
-#include <sys/types.h>
 #include <string.h>
-#include <stdio.h>
 #include <ctype.h>
 #include <stdlib.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#include <errno.h>
 
 #include "readelf.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$Id: readelf.c,v 1.17 2000/08/05 19:00:12 christos Exp $")
+FILE_RCSID("@(#)$Id: readelf.c,v 1.22 2002/07/03 18:26:38 christos Exp $")
 #endif
 
 #ifdef	ELFCORE
-static void dophn_core __P((int, int, int, off_t, int, size_t));
+static void dophn_core(int, int, int, off_t, int, size_t);
 #endif
-static void dophn_exec __P((int, int, int, off_t, int, size_t));
-static void doshn __P((int, int, int, off_t, int, size_t));
+static void dophn_exec(int, int, int, off_t, int, size_t);
+static void doshn(int, int, int, off_t, int, size_t);
 
-static uint16_t getu16 __P((int, int));
-static uint32_t getu32 __P((int, uint32_t));
-static uint64_t getu64 __P((int, uint64_t));
+static uint16_t getu16(int, uint16_t);
+static uint32_t getu32(int, uint32_t);
+static uint64_t getu64(int, uint64_t);
 
 static uint16_t
-getu16(swap, value)
-	int swap;
-	uint16_t value;
+getu16(int swap, uint16_t value)
 {
 	union {
 		uint16_t ui;
@@ -49,9 +44,7 @@ getu16(swap, value)
 }
 
 static uint32_t
-getu32(swap, value)
-	int swap;
-	uint32_t value;
+getu32(int swap, uint32_t value)
 {
 	union {
 		uint32_t ui;
@@ -72,9 +65,7 @@ getu32(swap, value)
 }
 
 static uint64_t
-getu64(swap, value)
-	int swap;
-	uint64_t value;
+getu64(int swap, uint64_t value)
 {
 	union {
 		uint64_t ui;
@@ -130,13 +121,7 @@ getu64(swap, value)
 			 : prpsoffsets64[i])
 
 static void
-doshn(class, swap, fd, off, num, size)
-	int class;
-	int swap;
-	int fd;
-	off_t off;
-	int num;
-	size_t size;
+doshn(int class, int swap, int fd, off_t off, int num, size_t size)
 {
 	Elf32_Shdr sh32;
 	Elf64_Shdr sh64;
@@ -161,18 +146,17 @@ doshn(class, swap, fd, off, num, size)
  * otherwise it's statically linked.
  */
 static void
-dophn_exec(class, swap, fd, off, num, size)
-	int class;
-	int swap;
-	int fd;
-	off_t off;
-	int num;
-	size_t size;
+dophn_exec(int class, int swap, int fd, off_t off, int num, size_t size)
 {
 	Elf32_Phdr ph32;
+	Elf32_Nhdr *nh32 = NULL;
 	Elf64_Phdr ph64;
+	Elf64_Nhdr *nh64 = NULL;
 	char *linking_style = "statically";
 	char *shared_libraries = "";
+	char nbuf[BUFSIZ];
+	int bufsize;
+	size_t offset, nameoffset;
 
 	if (lseek(fd, off, SEEK_SET) == -1)
 		error("lseek failed (%s).\n", strerror(errno));
@@ -187,6 +171,112 @@ dophn_exec(class, swap, fd, off, num, size)
 			break;
 		case PT_INTERP:
 			shared_libraries = " (uses shared libs)";
+			break;
+		case PT_NOTE:
+			/*
+			 * This is a PT_NOTE section; loop through all the notes
+			 * in the section.
+			 */
+			if (lseek(fd, (off_t) ph_offset, SEEK_SET) == -1)
+				error("lseek failed (%s).\n", strerror(errno));
+			bufsize = read(fd, nbuf, BUFSIZ);
+			if (bufsize == -1)
+				error(": " "read failed (%s).\n",
+				    strerror(errno));
+			offset = 0;
+			for (;;) {
+				if (offset >= bufsize)
+					break;
+				if (class == ELFCLASS32)
+					nh32 = (Elf32_Nhdr *)&nbuf[offset];
+				else
+					nh64 = (Elf64_Nhdr *)&nbuf[offset];
+				offset += nh_size;
+	
+				if (offset + nh_namesz >= bufsize) {
+					/*
+					 * We're past the end of the buffer.
+					 */
+					break;
+				}
+
+				nameoffset = offset;
+				offset += nh_namesz;
+				offset = ((offset + 3)/4)*4;
+
+				if (offset + nh_descsz >= bufsize)
+					break;
+
+				if (nh_namesz == 4 &&
+				    strcmp(&nbuf[nameoffset], "GNU") == 0 &&
+				    nh_type == NT_GNU_VERSION &&
+				    nh_descsz == 16) {
+					uint32_t *desc =
+					    (uint32_t *)&nbuf[offset];
+
+					printf(", for GNU/");
+					switch (getu32(swap, desc[0])) {
+					case GNU_OS_LINUX:
+						printf("Linux");
+						break;
+					case GNU_OS_HURD:
+						printf("Hurd");
+						break;
+					case GNU_OS_SOLARIS:
+						printf("Solaris");
+						break;
+					default:
+						printf("<unknown>");
+					}
+					printf(" %d.%d.%d",
+					    getu32(swap, desc[1]),
+					    getu32(swap, desc[2]),
+					    getu32(swap, desc[3]));
+				}
+
+				if (nh_namesz == 7 &&
+				    strcmp(&nbuf[nameoffset], "NetBSD") == 0 &&
+				    nh_type == NT_NETBSD_VERSION &&
+				    nh_descsz == 4) {
+					printf(", for NetBSD");
+					/*
+					 * Version number is stuck at 199905,
+					 * and hence is basically content-free.
+					 */
+				}
+
+				if (nh_namesz == 8 &&
+				    strcmp(&nbuf[nameoffset], "FreeBSD") == 0 &&
+				    nh_type == NT_FREEBSD_VERSION &&
+				    nh_descsz == 4) {
+					uint32_t desc = getu32(swap,
+					    *(uint32_t *)&nbuf[offset]);
+					printf(", for FreeBSD");
+					/*
+					 * Contents is __FreeBSD_version,
+					 * whose relation to OS versions is
+					 * defined by a huge table in the
+					 * Porters' Handbook.  Happily, the
+					 * first three digits are the version
+					 * number, at least in versions of
+					 * FreeBSD that use this note.
+					 */
+
+					printf(" %d.%d", desc / 100000,
+					    desc / 10000 % 10);
+					if (desc / 1000 % 10 > 0)
+						printf(".%d",
+						    desc / 1000 % 10);
+				}
+
+				if (nh_namesz == 8 &&
+				    strcmp(&nbuf[nameoffset], "OpenBSD") == 0 &&
+				    nh_type == NT_OPENBSD_VERSION &&
+				    nh_descsz == 4) {
+					printf(", for OpenBSD");
+					/* Content of note is always 0 */
+				}
+			}
 			break;
 		}
 	}
@@ -230,25 +320,30 @@ size_t	prpsoffsets64[] = {
  * *do* have that binary, the debugger will probably tell you what
  * signal it was.)
  */
+
+#define	OS_STYLE_SVR4		0
+#define	OS_STYLE_FREEBSD	1
+#define	OS_STYLE_NETBSD		2
+
+static const char *os_style_names[] = {
+	"SVR4",
+	"FreeBSD",
+	"NetBSD",
+};
+
 static void
-dophn_core(class, swap, fd, off, num, size)
-	int class;
-	int swap;
-	int fd;
-	off_t off;
-	int num;
-	size_t size;
+dophn_core(int class, int swap, int fd, off_t off, int num, size_t size)
 {
 	Elf32_Phdr ph32;
-	Elf32_Nhdr *nh32;
+	Elf32_Nhdr *nh32 = NULL;
 	Elf64_Phdr ph64;
-	Elf64_Nhdr *nh64;
+	Elf64_Nhdr *nh64 = NULL;
 	size_t offset, nameoffset, noffset, reloffset;
 	unsigned char c;
 	int i, j;
 	char nbuf[BUFSIZ];
 	int bufsize;
-	int is_freebsd;
+	int os_style = -1;
 
 	/*
 	 * Loop through all the program headers.
@@ -283,7 +378,7 @@ dophn_core(class, swap, fd, off, num, size)
 
 			/*
 			 * Check whether this note has the name "CORE" or
-			 * "FreeBSD".
+			 * "FreeBSD", or "NetBSD-CORE".
 			 */
 			if (offset + nh_namesz >= bufsize) {
 				/*
@@ -310,17 +405,50 @@ dophn_core(class, swap, fd, off, num, size)
 			 * doesn't include the terminating null in the
 			 * name....
 			 */
-			if ((nh_namesz == 4 &&
-			      strncmp(&nbuf[nameoffset], "CORE", 4) == 0) ||
-			    (nh_namesz == 5 &&
-			      strcmp(&nbuf[nameoffset], "CORE") == 0))
-				is_freebsd = 0;
-			else if ((nh_namesz == 8 &&
-			      strcmp(&nbuf[nameoffset], "FreeBSD") == 0))
-				is_freebsd = 1;
-			else
-				continue;
-			if (nh_type == NT_PRPSINFO) {
+			if (os_style == -1) {
+				if ((nh_namesz == 4 &&
+				     strncmp(&nbuf[nameoffset],
+					    "CORE", 4) == 0) ||
+				    (nh_namesz == 5 &&
+				     strcmp(&nbuf[nameoffset],
+				     	    "CORE") == 0)) {
+					os_style = OS_STYLE_SVR4;
+				} else
+				if ((nh_namesz == 8 &&
+				     strcmp(&nbuf[nameoffset],
+				     	    "FreeBSD") == 0)) {
+					os_style = OS_STYLE_FREEBSD;
+				} else
+				if ((nh_namesz >= 11 &&
+				     strncmp(&nbuf[nameoffset],
+				     	     "NetBSD-CORE", 11) == 0)) {
+					os_style = OS_STYLE_NETBSD;
+				} else
+					continue;
+				printf(", %s-style", os_style_names[os_style]);
+			}
+
+			if (os_style == OS_STYLE_NETBSD &&
+			    nh_type == NT_NETBSD_CORE_PROCINFO) {
+				uint32_t signo;
+
+				/*
+				 * Extract the program name.  It is at
+				 * offset 0x7c, and is up to 32-bytes,
+				 * including the terminating NUL.
+				 */
+				printf(", from '%.31s'", &nbuf[offset + 0x7c]);
+				
+				/*
+				 * Extract the signal number.  It is at
+				 * offset 0x08.
+				 */
+				memcpy(&signo, &nbuf[offset + 0x08],
+				    sizeof(signo));
+				printf(" (signal %u)", getu32(swap, signo));
+			} else
+			if (os_style != OS_STYLE_NETBSD &&
+			    nh_type == NT_PRPSINFO) {
 				/*
 				 * Extract the program name.  We assume
 				 * it to be 16 characters (that's what it
@@ -399,17 +527,20 @@ dophn_core(class, swap, fd, off, num, size)
 #endif
 
 void
-tryelf(fd, buf, nbytes)
-	int fd;
-	unsigned char *buf;
-	int nbytes;
+tryelf(int fd, unsigned char *buf, int nbytes)
 {
 	union {
-		int32 l;
-		char c[sizeof (int32)];
+		int32_t l;
+		char c[sizeof (int32_t)];
 	} u;
 	int class;
 	int swap;
+
+	/*
+	 * If we can't seek, it must be a pipe, socket or fifo.
+	 */
+	if((lseek(fd, (off_t)0, SEEK_SET) == (off_t)-1) && (errno == ESPIPE))
+		fd = pipe2file(fd, buf, nbytes);
 
 	/*
 	 * ELF executables have multiple section headers in arbitrary
@@ -433,7 +564,7 @@ tryelf(fd, buf, nbytes)
 
 		u.l = 1;
 		(void) memcpy(&elfhdr, buf, sizeof elfhdr);
-		swap = (u.c[sizeof(int32) - 1] + 1) != elfhdr.e_ident[5];
+		swap = (u.c[sizeof(int32_t) - 1] + 1) != elfhdr.e_ident[5];
 
 		if (getu16(swap, elfhdr.e_type) == ET_CORE) 
 #ifdef ELFCORE
@@ -470,7 +601,7 @@ tryelf(fd, buf, nbytes)
 
 		u.l = 1;
 		(void) memcpy(&elfhdr, buf, sizeof elfhdr);
-		swap = (u.c[sizeof(int32) - 1] + 1) != elfhdr.e_ident[5];
+		swap = (u.c[sizeof(int32_t) - 1] + 1) != elfhdr.e_ident[5];
 
 		if (getu16(swap, elfhdr.e_type) == ET_CORE) 
 #ifdef ELFCORE

@@ -58,6 +58,8 @@
 >3	byte		>0		8x%d
 # Linux swap file, from Daniel Quinlan <quinlan@yggdrasil.com>
 4086	string		SWAP-SPACE	Linux/i386 swap file
+# according to man page of mkswap (8) March 1999
+4086	string		SWAPSPACE2	Linux/i386 swap file (new style)
 # ECOFF magic for OSF/1 and Linux (only tested under Linux though)
 #
 #	from Erik Troan (ewt@redhat.com) examining od dumps, so this
@@ -99,3 +101,67 @@
 >0x1e9		string	Loading		from prehistoric times
 # LSM entries - Nicolás Lichtmaier <nick@feedback.net.ar>
 0	string	Begin3	Linux Software Map entry text
+
+############################################################################
+# Linux kernel versions
+
+0		string		\xb8\xc0\x07\x8e\xd8\xb8\x00\x90	Linux
+>497		leshort		0		x86 boot sector
+>>514		belong		0x8e	of a kernel from the dawn of time!
+>>514		belong		0x908ed8b4	version 0.99-1.1.42
+>>514		belong		0x908ed8b8	for memtest86
+
+>497		leshort		!0		x86 kernel
+>>504		leshort		>0		RAMdisksize=%u KB
+>>502		leshort		>0		swap=0x%X
+>>508		leshort		>0		root=0x%X
+>>>498		leshort		1		\b-ro
+>>>498		leshort		0		\b-rw
+>>506		leshort		0xFFFF		vga=normal
+>>506		leshort		0xFFFE		vga=extended
+>>506		leshort		0xFFFD		vga=ask
+>>506		leshort		>0		vga=%d
+>>514		belong		0x908ed881	version 1.1.43-1.1.45
+>>514		belong		0x15b281cd
+>>>0xa8e	belong		0x55AA5a5a	version 1.1.46-1.2.13,1.3.0
+>>>0xa99	belong		0x55AA5a5a	version 1.3.1,2
+>>>0xaa3	belong		0x55AA5a5a	version 1.3.3-1.3.30
+>>>0xaa6	belong		0x55AA5a5a	version 1.3.31-1.3.41
+>>>0xb2b	belong		0x55AA5a5a	version 1.3.42-1.3.45
+>>>0xaf7	belong		0x55AA5a5a	version 1.3.46-1.3.72
+>>514		string		HdrS
+>>>518		leshort		>0x1FF
+>>>>529		byte		0		\b, zImage
+>>>>529		byte		1		\b, bzImage
+>>>>(526.s+0x200) string 	>\0		\b, version %s
+
+# Linux boot sector thefts.
+0		belong		0xb8c0078e	Linux
+>0x1e6		belong		0x454c4b53	ELKS Kernel
+>0x1e6		belong		!0x454c4b53	style boot sector
+
+############################################################################
+# Linux 8086 executable
+0	lelong&0xFF0000FF 0xC30000E9	Linux-Dev86 executable, headerless
+>5	string		.		
+>>4	string		>\0		\b, libc version %s
+
+0	lelong&0xFF00FFFF 0x4000301	Linux-8086 executable
+>2	byte&0x01	!0		\b, unmapped zero page
+>2	byte&0x20	0		\b, impure
+>2	byte&0x20	!0
+>>2	byte&0x10	!0		\b, A_EXEC
+>2	byte&0x02	!0		\b, A_PAL
+>2	byte&0x04	!0		\b, A_NSYM
+>2	byte&0x08	!0		\b, A_STAND
+>2	byte&0x40	!0		\b, A_PURE
+>2	byte&0x80	!0		\b, A_TOVLY
+>28     long            !0              \b, not stripped
+>37	string		.		
+>>36	string		>\0		\b, libc version %s
+
+# 0	lelong&0xFF00FFFF 0x10000301	ld86 I80386 executable
+# 0	lelong&0xFF00FFFF 0xB000301	ld86 M68K executable
+# 0	lelong&0xFF00FFFF 0xC000301	ld86 NS16K executable
+# 0	lelong&0xFF00FFFF 0x17000301	ld86 SPARC executable
+
