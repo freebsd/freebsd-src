@@ -87,7 +87,7 @@ Offset in the file at which the mapped pages begin.
 .Pp
 The status of the
 .Fn VOP_PUTPAGES
-method is returned on a page-by-page basis in the array 
+method is returned on a page-by-page basis in the array
 .Fa rtvals[] .
 The possible status values are as follows:
 .Bl -tag -width VM_PAGER_ERROR
@@ -137,7 +137,7 @@ or deactivate it (otherwise), and finally call
 to arouse any threads currently waiting for the page to be faulted in,
 for each page read.
 .Sh RETURN VALUES
-If it successfully reads 
+If it successfully reads
 .Fa m[reqpage] ,
 .Fn VOP_GETPAGES
 returns

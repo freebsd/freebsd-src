@@ -250,7 +250,7 @@ except that the
 ACPI namespace will still be scanned.
 .It Li button
 .Pq Vt device
-Supports ACPI button devices (typically power and sleep buttons.)
+Supports ACPI button devices (typically power and sleep buttons).
 .It Li cmbat
 .Pq Vt device
 Control-method batteries device.
@@ -271,7 +271,7 @@ Supports an ACPI laptop lid switch, which typically puts a
 system to sleep.
 .It Li quirks
 .Pq Vt feature
-Don't honor quirks.
+Do not honor quirks.
 Quirks automatically disable ACPI functionality based on the XSDT table's
 OEM vendor name and revision date.
 .It Li pci
@@ -374,7 +374,7 @@ must be set to 1.
 .It Va hw.acpi.cpu.cx_supported
 List of supported CPU idle states and their transition latency
 in microseconds.
-Each state has a type (e.g., C2.)
+Each state has a type (e.g., C2).
 C1 is equivalent to the ia32 HLT instruction, C2 provides a deeper
 sleep with the same semantics, and C3 provides the deepest sleep
 but additionally requires bus mastering to be disabled.

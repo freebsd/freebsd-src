@@ -121,7 +121,7 @@ supports a number of socket options which can be set with
 .Xr setsockopt 2
 and tested with
 .Xr getsockopt 2 :
-.Bl -tag -width ".Dv TCP_MD5SIG"
+.Bl -tag -width ".Dv TCP_NODELAY"
 .It Dv TCP_NODELAY
 Under most circumstances,
 .Tn TCP
@@ -183,10 +183,14 @@ digests on incoming traffic are not verified.
 The current default behavior for the system is to respond to a system
 advertising this option with TCP-MD5; this may change.
 .Pp
-One common use for this in a FreeBSD router deployment is to enable
+One common use for this in a
+.Fx
+router deployment is to enable
 based routers to interwork with Cisco equipment at peering points.
 Support for this feature conforms to RFC 2385.
-Only IPv4 (AF_INET) sessions are supported.
+Only IPv4
+.Pq Dv AF_INET
+sessions are supported.
 .Pp
 In order for this option to function correctly, it is necessary for the
 administrator to add a tcp-md5 key entry to the system's security

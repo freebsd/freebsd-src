@@ -121,7 +121,9 @@ section for more examples.
 The list of interfaces is rescanned every time the list is
 modified, bridging is enabled, or new interfaces are created or
 destroyed.
-An explicit request to refresh the bridge configuration can also
+An explicit request to refresh the
+.Nm
+configuration can also
 be done by writing any value to
 .Va net.link.ether.bridge.refresh .
 Interfaces that are in the list but cannot be used
@@ -139,7 +141,9 @@ Also, bridging is not compatible with interfaces which
 use hardware loopback, because there is no way to tell locally
 generated packets from externally generated ones.
 .Sh EXAMPLES
-A simple bridge configuration with three interfaces in the same
+A simple
+.Nm
+configuration with three interfaces in the same
 cluster can be set as follows.
 No cluster-ID is specified here, which
 will cause the interfaces to appear as part of cluster #1.

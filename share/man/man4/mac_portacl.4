@@ -96,12 +96,12 @@ these are automatically selected by the IP stack.
 .Pp
 When
 .Nm
-is enabled it will control binding access to ports up to the port
+is enabled, it will control binding access to ports up to the port
 number set in the
 .Va security.mac.portacl.port_high
 .Xr sysctl 8
 variable.
-By default all attempts to bind to
+By default, all attempts to bind to
 .Nm
 controlled ports will fail if not explicitly allowed by the port
 access control list, though binding by the superuser will be allowed,
@@ -198,7 +198,7 @@ entry will not function
 port).
 .El
 .It Va security.mac.portacl.suser_exempt
-Allow superuser (i.e. root) to bind to all
+Allow superuser (i.e., root) to bind to all
 .Nm
 protected ports, even if the port access control list does not
 explicitly allow this.

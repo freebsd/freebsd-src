@@ -46,24 +46,23 @@ and
 drivers but will eventually be required by all 802.11 drivers.
 .Pp
 If the associated interface is marked for debugging with, for example,
-.Bd -literal -offset indent
-ifconfig wi0 debug
-.Ed
+.Pp
+.Dl "ifconfig wi0 debug"
 .Pp
 then messages describing the operation of the 802.11 protocol will
 be sent to the console.
 With the interface marked for debugging, doing:
-.Bd -literal -offset indent
-sysctl debug.ieee80211=1
-.Ed
+.Pp
+.Dl "sysctl debug.ieee80211=1"
 .Pp
 causes additional messages to be generated.
 Many drivers will also display the contents of each 802.11 frame
 sent and received when the interface is marked with
-both debugging and ``link2''; e.g.
-.Bd -literal -offset indent
-ifconfig wi0 debug link2
-.Ed
+both debugging and
+.Cm link2 ;
+e.g.,
+.Pp
+.Dl "ifconfig wi0 debug link2"
 .Pp
 Beware however that some management frames may be processed entirely within
 the device and not be received by the host.

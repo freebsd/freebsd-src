@@ -97,7 +97,7 @@ The
 .Nm
 driver provides access to ATA (IDE) and SerialATA disk drives,
 ATAPI CDROM/DVD drives, ZIP/LS120 ATAPI drives and ATAPI tape drives
-connected to controllers according to the ATA/ATAPI standards. 
+connected to controllers according to the ATA/ATAPI standards.
 .Pp
 The currently supported ATA/SATA controller chips are:
 .Pp
@@ -134,7 +134,7 @@ SIS5513, SIS530, SIS540, SIS550, SIS620, SIS630, SIS630S, SIS633, SIS635, SIS730
 VT82C586, VT82C586B, VT82C596, VT82C596B, VT82C686, VT82C686A, VT82C686B, VT8231, VT8233, VT8233A, VT8233C, VT8235, VT8237.
 .El
 .Pp
-Unknown ATA chipsets are supported in PIO modes, and if the standard 
+Unknown ATA chipsets are supported in PIO modes, and if the standard
 busmaster DMA registers are present and contain valid setup, DMA is
 also enabled, although the max mode is limitted to UDMA33, as it is
 not known what the chipset can do and how to program it.
@@ -147,7 +147,7 @@ See
 .Xr atacontrol 8 .
 .Pp
 The
-.nm
+.Nm
 driver sets the maximum transfer mode supported by the hardware as default.
 However the
 .Nm
@@ -158,7 +158,7 @@ the
 .Nm
 driver has detected that the required 80 conductor cable is not present
 or could not be detected properly,
-or that one of the devices on the channel only accepts up 
+or that one of the devices on the channel only accepts up
 to UDMA2/ATA33.
 .Pp
 ATAPI devices are set to PIO mode by default because severe DMA problems are
@@ -205,7 +205,6 @@ even when not present.
 This is useful in hotswap senarios
 where disks should always show up as the same numbered device,
 and not depend on attach order.
-.Pp
 .Sh SEE ALSO
 .Xr atacontrol 8 ,
 .Xr burncd 8
