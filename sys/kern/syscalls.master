@@ -628,5 +628,6 @@
 		    int attrnamespace, void *data, size_t nbytes); }
 440	MSTD	{ int kse_switchin(const struct __mcontext *mcp, \
 		    long val, long *loc); }
+441	MNOSTD	{ int ksem_timedwait(semid_t id, struct timespec *abstime); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
