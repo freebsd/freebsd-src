@@ -123,6 +123,7 @@ lib_sigtimedwait(const sigset_t *set, siginfo_t *info,
 			}
 		}
 		curthread->timeout = 0;
+		curthread->interrupted = 0;
 		_thr_set_timeout(timeout);
 		/* Wait for a signal: */
 		curthread->oldsigmask = curthread->sigmask;
@@ -134,18 +135,18 @@ lib_sigtimedwait(const sigset_t *set, siginfo_t *info,
 		_thr_sched_switch_unlocked(curthread);
 		/*
 		 * Return the signal number to the caller:
-		 * XXX Here is race, how about a signal come in before
-		 * we reach here? so we might got an incorrect timeout
-		 * status.
 		 */
 		if (siginfo.si_signo > 0) {
 			ret = siginfo.si_signo;
 		} else {
-			if (curthread->timeout)
+			if (curthread->interrupted)
+				errno = EINTR;
+			else if (curthread->timeout)
 				errno = EAGAIN;
 			ret = -1;
 		}
-
+		curthread->timeout = 0;
+		curthread->interrupted = 0;
 		/*
 		 * Probably unnecessary, but since it's in a union struct
 		 * we don't know how it could be used in the future.
