@@ -404,7 +404,6 @@ ffs_reload(mp, cred, td)
 	void *space;
 	struct buf *bp;
 	struct fs *fs, *newfs;
-	dev_t dev;
 	ufs2_daddr_t sblockloc;
 	int i, blks, size, error;
 	int32_t *lp;
@@ -420,8 +419,6 @@ ffs_reload(mp, cred, td)
 	VOP_UNLOCK(devvp, 0, td);
 	if (error)
 		panic("ffs_reload: dirty1");
-
-	dev = devvp->v_rdev;
 
 	/*
 	 * Only VMIO the backing device if the backing device is a real
