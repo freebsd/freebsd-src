@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: aicasm_symbol.c,v 1.1 1997/03/16 07:08:18 gibbs Exp $
  */
 
 
@@ -41,8 +41,8 @@
 #include <string.h>
 #include <sysexits.h>
 
-#include "symbol.h"
-#include "aic7xxx_asm.h"
+#include "aicasm_symbol.h"
+#include "aicasm.h"
 
 static DB *symtable;
 
