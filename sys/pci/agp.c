@@ -344,9 +344,16 @@ agp_generic_alloc_memory(device_t dev, int type, vm_size_t size)
 	if (sc->as_allocated + size > sc->as_maxmem)
 		return 0;
 
+	if (type != 0) {
+		printf("agp_generic_alloc_memory: unsupported type %d\n",
+		       type);
+		return 0;
+	}
+
 	mem = malloc(sizeof *mem, M_AGP, M_WAITOK);
 	mem->am_id = sc->as_nextid++;
 	mem->am_size = size;
+	mem->am_type = 0;
 	mem->am_obj = vm_object_allocate(OBJT_DEFAULT, atop(round_page(size)));
 	mem->am_physical = 0;
 	mem->am_offset = 0;
@@ -592,10 +599,13 @@ agp_allocate_user(device_t dev, agp_allocate *alloc)
 	mem = AGP_ALLOC_MEMORY(dev,
 			       alloc->type,
 			       alloc->pg_count << AGP_PAGE_SHIFT);
-	alloc->key = mem->am_id;
-	alloc->physical = mem->am_physical;
-
-	return 0;
+	if (mem) {
+		alloc->key = mem->am_id;
+		alloc->physical = mem->am_physical;
+		return 0;
+	} else {
+		return ENOMEM;
+	}
 }
 
 static int
