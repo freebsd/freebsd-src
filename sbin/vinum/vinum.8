@@ -34,9 +34,10 @@
 .\" otherwise) arising in any way out of the use of this software, even if
 .\" advised of the possibility of such damage.
 .\"
+.\" $Id: vinum.8,v 1.12 1999/10/13 02:58:57 grog Exp grog $
 .\" $FreeBSD$
 .\"
-.Dd 28 March 1999
+.Dd 13 October 1999
 .Dt vinum 8
 .Os
 .Sh NAME
@@ -90,16 +91,18 @@ Detach a plex or subdisk from the volume or plex to which it is attached.
 .in
 .Cd info
 .Op Fl v
+.Op Fl V
 .in +1i
 List information about volume manager state.
 .in
 .Cd init
+.Op Fl S Ar size
 .Op Fl v
 .Op Fl w
-.Ar plex
+.Ar plex | subdisk
 .in +1i
 .\" XXX
-Initialize a plex by writing zeroes to all its subdisks.
+Initialize the contents of a subdisk or all the subdisks of a plex to all zeros.
 .in
 .Cd label
 .Ar volume
@@ -269,8 +272,9 @@ Set state without influencing other objects, for diagnostic purposes only.
 Read configuration from all vinum drives.
 .in
 .Cd start
+.Op Fl S Ar size
 .Op Fl w
-.Op volume | plex | subdisk
+volume | plex | subdisk
 .in +1i
 Allow the system to access the objects
 .in
@@ -358,12 +362,23 @@ The
 option is used by the list commands to display statistical information.  The
 .Nm mirror
 command also uses this flag to specify that it should create striped plexes.
+.It Fl S Ar size
+The
+.Fl S
+option specifies the transfer size for the
+.Nm init
+and
+.Nm start
+commands.
 .It Fl v
 The
 .Fl v
 .if t (``verbose'')
 .if n ("verbose")
-option can be used to request more detailed information.
+option can be used to request more detailed information.  This flag also means
+``verify'' for the
+.Nm init
+command.
 .It Fl V
 The
 .Fl V
@@ -744,20 +759,30 @@ specifies that a range lock has been released.  The parameters are the same as
 for the range lock.
 .El
 .\" XXX
-.It Nm init Op Fl w
-.Ar plex
+.It Nm init Op Fl S 
+.Ar size Op Fl v 
+.Op Fl w
+.Ar plex | subdisk
 .Pp
 .Nm
 .Ar init
-initializes a plex by writing zeroes to all its subdisks.  This is the only way
-to ensure consistent data in a plex.  You must perform this initialization
-before using a RAID-5 plex.  It is also recommended for other new plexes.
+initializes a subdisk by writing zeroes to it.  You can initialize all subdisks
+in a plex by specifying the plex name.  This is the only way to ensure
+consistent data in a plex.  You must perform this initialization before using a
+RAID-5 plex.  It is also recommended for other new plexes.
 .Nm
 initializes all subdisks of a plex in parallel.  Since this operation can take a
 long time, it is normally performed in the background.  If you want to wait for
 completion of the command, use the
 .Fl w
 (wait) option.
+.Pp
+Specify the
+.Fl S
+option if you want to write blocks of a different size from the default value of
+16 kB.  Specify the
+.Fl v
+if you want to confirm that the initialization is correct.
 .Nm
 prints a console message when the initialization is complete.
 .It Nm label
@@ -1110,6 +1135,7 @@ the usual consistency mechanism of
 and should be used only for recovery purposes.  It is possible to crash the
 system by incorrect use of this command.
 .It Nm start
+.Op Fl S Ar size
 .Op Fl w
 .Op volume | plex | subdisk
 .Pp
@@ -1214,6 +1240,13 @@ done in the background.  If you want to wait for this operation to complete (for
 example, if you are performing this operation in a script), use the
 .Fl w
 flag.
+.Pp
+Copying data doesn't just take a long time, it can also place a significant load
+on the system.  You can specify the transfer size with the
+.Fl S
+flag.  A future change to
+.Nm
+will allow a pause between each block to lessen the load on the system.
 .It Nm stop
 .Op Fl f
 .Op volume | plex | subdisk
