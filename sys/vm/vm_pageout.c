@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.50 1995/05/21 21:39:31 davidg Exp $
+ * $Id: vm_pageout.c,v 1.51 1995/05/30 08:16:18 rgrimes Exp $
  */
 
 /*
@@ -799,8 +799,7 @@ rescan1:
 			}
 		}
 		if (bigproc != NULL) {
-			printf("Process %lu killed by vm_pageout -- out of swap\n", (u_long) bigproc->p_pid);
-			psignal(bigproc, SIGKILL);
+			killproc(bigproc, "out of swap space");
 			bigproc->p_estcpu = 0;
 			bigproc->p_nice = PRIO_MIN;
 			resetpriority(bigproc);
