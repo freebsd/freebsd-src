@@ -5,6 +5,9 @@
  * Copyright (c) 1999 Ilmar S. Habibulin
  * All rights reserved.
  *
+ * This software was developed by Robert Watson and Ilmar Habibulin
+ * for the TrustedBSD Project.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
