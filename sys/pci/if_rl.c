@@ -221,7 +221,7 @@ static device_method_t rl_methods[] = {
 };
 
 static driver_t rl_driver = {
-	"if_rl",
+	"rl",
 	rl_methods,
 	sizeof(struct rl_softc)
 };

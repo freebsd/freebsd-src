@@ -165,7 +165,7 @@ static device_method_t ste_methods[] = {
 };
 
 static driver_t ste_driver = {
-	"if_ste",
+	"ste",
 	ste_methods,
 	sizeof(struct ste_softc)
 };
