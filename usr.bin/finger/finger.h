@@ -34,6 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)finger.h	8.1 (Berkeley) 6/6/93
+ *	$Id$
  */
 
 typedef struct person {
@@ -61,5 +62,10 @@ typedef struct where {
 	char tty[UT_LINESIZE+1];	/* null terminated tty line */
 	char host[UT_HOSTSIZE+1];	/* null terminated remote host name */
 } WHERE;
+
+#define UNPRIV_NAME	"nobody"	/* Preferred privilege level */
+#define UNPRIV_UGID	32767		/* Default uid and gid */
+#define OUTPUT_MAX	100000		/* Do not keep listinging forever */
+#define TIME_LIMIT	360		/* Do not keep listinging forever */
 
 #include "extern.h"

@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)net.c	8.4 (Berkeley) 4/28/95";
 #else
 static const char rcsid[] =
-	"$Id: net.c,v 1.9 1997/08/01 20:10:44 wollman Exp $";
+	"$Id: net.c,v 1.10 1998/06/09 04:30:40 imp Exp $";
 #endif
 #endif /* not lint */
 
@@ -58,12 +58,23 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <string.h>
 #include <sys/uio.h>
+#include <signal.h>
+#include <limits.h>
 #include "finger.h"
+
+void
+cleanup(sig)
+	int sig;
+{
+	exit(0);
+}
 
 void
 netfinger(name)
 	char *name;
 {
+	int cnt;
+	int line_len;
 	extern int lflag;
 	extern int Tflag;
 	register FILE *fp;
@@ -80,6 +91,8 @@ netfinger(name)
 	if (!(host = rindex(name, '@')))
 		return;
 	*host++ = '\0';
+	signal(SIGALRM, cleanup);
+	(void) alarm(TIME_LIMIT);
 	if (isdigit(*host) && (defaddr.s_addr = inet_addr(host)) != -1) {
 		def.h_name = host;
 		def.h_addr_list = alist;
@@ -152,7 +165,14 @@ netfinger(name)
 	 */
 	lastc = 0;
 	if ((fp = fdopen(s, "r")) != NULL) {
+		cnt = 0;
+		line_len = 0;
 		while ((c = getc(fp)) != EOF) {
+			if (++cnt > OUTPUT_MAX) {
+				printf("\n\n Output truncated at %d bytes...\n",
+					cnt - 1);
+				break;
+			}
 			if (c == 0x0d) {
 				if (lastc == '\r')	/* ^M^M - skip dupes */
 					continue;
@@ -171,6 +191,13 @@ netfinger(name)
 				}
 			}
 			putchar(c);
+			if (c != '\n' && ++line_len > _POSIX2_LINE_MAX) {
+				putchar('\\');
+				putchar('\n');
+				lastc = '\r';
+			}
+			if (lastc == '\n' || lastc == '\r')
+				line_len = 0;
 		}
 		if (lastc != '\n')
 			putchar('\n');

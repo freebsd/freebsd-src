@@ -55,7 +55,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)finger.c	8.5 (Berkeley) 5/4/95";
 #else
 static const char rcsid[] =
-	"$Id$";
+	"$Id: finger.c,v 1.12 1997/07/02 06:34:48 charnier Exp $";
 #endif
 #endif /* not lint */
 
@@ -154,6 +154,17 @@ main(argc, argv)
 {
 	int envargc, argcnt;
 	char *envargv[3];
+	struct passwd *pw;
+
+	if (getuid() == 0 || geteuid() == 0) {
+		if ((pw = getpwnam(UNPRIV_NAME)) && pw->pw_uid > 0) {
+			 setgid(pw->pw_gid);
+			 setuid(pw->pw_uid);
+		} else {
+			 setgid(UNPRIV_UGID);
+			 setuid(UNPRIV_UGID);
+		}
+	}
 
 	(void) setlocale(LC_ALL, "");
 
