@@ -45,17 +45,18 @@
 provides a generic method of notifying the user when an event
 happens or a condition holds, based on the results of small
 pieces of kernel code termed filters.
-An kevent is identified by the (ident, filter) pair; there may only
+A kevent is identified by the (ident, filter) pair; there may only
 be one unique kevent per kqueue.
 .Pp
 The filter is executed upon the initial registration of a kevent
-in order to detect a preexisting condition is present, and is also
+in order to detect whether a preexisting condition is present, and is also
 executed whenever an event is passed to the filter for evaluation.
 If the filter determines that the condition should be reported,
 then the kevent is placed on the kqueue for the user to retrieve.
 .Pp
 The filter is also run when the user attempts to retrieve the kevent
-from the kqueue, and if the filter indicates the condition that triggered
+from the kqueue.
+If the filter indicates that the condition that triggered
 the event no longer holds, the kevent is removed from the kqueue and
 is not returned. 
 .Pp
@@ -70,7 +71,11 @@ on a file descriptor will remove any kevents that reference the descriptor.
 creates a new kernel event queue and returns a descriptor.
 The queue is not inherited by a child created with
 .Xr fork 2 .
-However, you can perform a rfork() and share the descriptor table,
+However, if
+.Xr rfork 2
+is called with the
+.Dv RFFDG
+flag, the descriptor table is shared,
 which will allow sharing of the kqueue between two processes.
 .Pp
 .Fn kevent
@@ -407,9 +412,9 @@ The specified process to attach to does not exist.
 .Xr poll 2 ,
 .Xr read 2 ,
 .Xr select 2 ,
-.Xr signal 3 ,
 .Xr sigaction 2 ,
-.Xr write 2
+.Xr write 2 ,
+.Xr signal 3
 .Sh HISTORY
 The
 .Fn kqueue
@@ -423,5 +428,7 @@ The
 system and this manual page were written by
 .An Jonathan Lemon Aq jlemon@FreeBSD.org .
 .Sh BUGS
-It is currently not possible to watch a vnode that resides on anything but
+It is currently not possible to watch a
+.Xr vnode 9
+that resides on anything but
 a UFS file system.
