@@ -977,7 +977,7 @@ smbfs_advlock(ap)
 	struct proc *p = curproc;
 	struct smb_cred scred;
 	u_quad_t size;
-	off_t start, end;
+	off_t start, end, oadd;
 	int error, lkop;
 
 	if (vp->v_type == VDIR) {
@@ -997,7 +997,6 @@ smbfs_advlock(ap)
 		start = fl->l_start;
 		break;
 	    case SEEK_END:
-		/* 'size' is always >= 0 */
 		if ((fl->l_start > 0 && size > OFF_MAX - fl->l_start) ||
 		    (fl->l_start < 0 && size + fl->l_start > OFF_MAX))
 			return EOVERFLOW;
@@ -1018,9 +1017,7 @@ smbfs_advlock(ap)
 	} else if (fl->l_len == 0)
 		end = -1;
 	else {
-		off_t oadd = fl->l_len - 1;
-
-		/* 'oadd' and 'start' are >= 0 */
+		oadd = fl->l_len - 1;
 		if (oadd > OFF_MAX - start)
 			return EOVERFLOW;
 		end = start + oadd;
