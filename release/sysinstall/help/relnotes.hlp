@@ -1,5 +1,17 @@
                                  RELEASE NOTES
-                           FreeBSD 2.2-STABLE BRANCH
+                   FreeBSD 2.2-STABLE BRANCH [now in 2.2.5-BETA]
+
+o The 2.2-stable branch is now in BETA test for 2.2.5. This
+  release should be considered essentially equivalent to a
+  2.2.5 BETA release though, since BETAs now "float", the
+  latest available 2.2-YYMMDD-BETA release should always be your
+  testing target of choice if you wish to avoid bugs which have
+  already been found and fixed during this BETA period.  The
+  2.2.5-BETA cycle commenced on October 1st, 1997 and will
+  end on October 20th, 1997 with a full 2.2.5-RELEASE, barring
+  any unforseen problems.  During that period, the snapshots on
+  the releng22.freebsd.org server (see below) will carry a -BETA
+  suffix instead of the usual -RELENG.
 
 o For information about the layout of the release directory, see
   the ABOUT.TXT file.
