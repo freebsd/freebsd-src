@@ -215,7 +215,7 @@ struct wcd {
 	int lun;                        /* Logical device unit */
 	int flags;                      /* Device state flags */
 	int refcnt;                     /* The number of raw opens */
-	struct buf queue;               /* Queue of i/o requests */
+	struct buf_queue_head buf_queue;               /* Queue of i/o requests */
 	struct atapi_params *param;     /* Drive parameters table */
 	struct toc toc;                 /* Table of disc contents */
 	struct volinfo info;            /* Volume size info */
@@ -437,7 +437,6 @@ wcd_open (dev_t dev, int rawflag)
 {
 	int lun = UNIT(dev);
 	struct wcd *t;
-	struct atapires result;
 
 	/* Check that the device number is legal
 	 * and the ATAPI driver is loaded. */
@@ -534,7 +533,7 @@ void wcdstrategy (struct buf *bp)
 	x = splbio();
 
 	/* Place it in the queue of disk activities for this disk. */
-	disksort (&t->queue, bp);
+	tqdisksort (&t->buf_queue, bp);
 
 	/* Tell the device to get going on the transfer if it's
 	 * not doing anything, otherwise just wait for completion. */
@@ -552,7 +551,7 @@ void wcdstrategy (struct buf *bp)
  */
 static void wcd_start (struct wcd *t)
 {
-	struct buf *bp = t->queue.b_actf;
+	struct buf *bp = TAILQ_FIRST(&t->buf_queue);
 	u_long blkno, nblk;
 
 	/* See if there is a buf to do and we are not already doing one. */
@@ -560,7 +559,7 @@ static void wcd_start (struct wcd *t)
 		return;
 
 	/* Unqueue the request. */
-	t->queue.b_actf = bp->b_actf;
+	TAILQ_REMOVE(&t->buf_queue, bp, b_act);
 
 	/* Should reject all queued entries if media have changed. */
 	if (t->flags & F_MEDIA_CHANGED) {
@@ -668,7 +667,6 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 {
 	int lun = UNIT(dev);
 	struct wcd *t = wcdtab[lun];
-	struct atapires result;
 	int error = 0;
 
 	if (t->flags & F_MEDIA_CHANGED)
@@ -963,7 +961,7 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
  */
 static int wcd_read_toc (struct wcd *t)
 {
-	int ntracks, len, i;
+	int ntracks, len;
 	struct atapires result;
 
 	bzero (&t->toc, sizeof (t->toc));
