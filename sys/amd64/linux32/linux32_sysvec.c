@@ -35,12 +35,11 @@ __FBSDID("$FreeBSD$");
 
 /* XXX we use functions that might not exist. */
 #include "opt_compat.h"
-#include "opt_ia32.h"
 
 #ifndef COMPAT_43
 #error "Unable to compile Linux-emulator due to missing COMPAT_43 option!"
 #endif
-#ifndef IA32
+#ifndef COMPAT_IA32
 #error "Unable to compile Linux-emulator due to missing IA32 option!"
 #endif
 
@@ -366,7 +365,7 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 
 #ifdef DEBUG
 	if (ldebug(rt_sendsig))
-		printf(LMSG("rt_sendsig flags: 0x%x, sp: %p, ss: 0x%x, mask: 0x%x"),
+		printf(LMSG("rt_sendsig flags: 0x%x, sp: %p, ss: 0x%lx, mask: 0x%x"),
 		    frame.sf_sc.uc_stack.ss_flags, td->td_sigstk.ss_sp,
 		    td->td_sigstk.ss_size, frame.sf_sc.uc_mcontext.sc_mask);
 #endif
@@ -709,7 +708,7 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 
 #ifdef DEBUG
 	if (ldebug(rt_sigreturn))
-		printf(LMSG("rt_sigret flags: 0x%x, sp: %p, ss: 0x%x, mask: 0x%x"),
+		printf(LMSG("rt_sigret flags: 0x%x, sp: %p, ss: 0x%lx, mask: 0x%x"),
 		    ss.ss_flags, ss.ss_sp, ss.ss_size, context->sc_mask);
 #endif
 	(void)kern_sigaltstack(td, &ss, NULL);
