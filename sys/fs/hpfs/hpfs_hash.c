@@ -43,8 +43,6 @@
 #include <sys/malloc.h>
 #include <sys/proc.h>
 
-#include <machine/mutex.h>
-
 #include <fs/hpfs/hpfs.h>
 
 MALLOC_DEFINE(M_HPFSHASH, "HPFS hash", "HPFS node hash tables");
@@ -95,7 +93,7 @@ hpfs_hphashlookup(dev, ino)
 	struct hpfsnode *hp;
 
 	simple_lock(&hpfs_hphash_slock);
-	for (hp = HPNOHASH(dev, ino)->lh_first; hp; hp = hp->h_hash.le_next)
+	LIST_FOREACH(hp, HPNOHASH(dev, ino), h_hash)
 		if (ino == hp->h_no && dev == hp->h_dev)
 			break;
 	simple_unlock(&hpfs_hphash_slock);
@@ -113,7 +111,7 @@ hpfs_hphashget(dev, ino)
 
 loop:
 	simple_lock(&hpfs_hphash_slock);
-	for (hp = HPNOHASH(dev, ino)->lh_first; hp; hp = hp->h_hash.le_next) {
+	LIST_FOREACH(hp, HPNOHASH(dev, ino), h_hash) {
 		if (ino == hp->h_no && dev == hp->h_dev) {
 			LOCKMGR(&hp->h_intlock, LK_EXCLUSIVE | LK_INTERLOCK, &hpfs_hphash_slock, NULL);
 			return (hp);
@@ -135,7 +133,7 @@ hpfs_hphashvget(dev, ino, p)
 
 loop:
 	simple_lock(&hpfs_hphash_slock);
-	for (hp = HPNOHASH(dev, ino)->lh_first; hp; hp = hp->h_hash.le_next) {
+	LIST_FOREACH(hp, HPNOHASH(dev, ino), h_hash) {
 		if (ino == hp->h_no && dev == hp->h_dev) {
 			vp = HPTOV(hp);
 			mtx_enter(&vp->v_interlock, MTX_DEF);
