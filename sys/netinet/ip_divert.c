@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.12 1997/06/02 05:02:35 julian Exp $
+ *	$Id: ip_divert.c,v 1.13 1997/08/02 14:32:50 bde Exp $
  */
 
 #include <sys/param.h>
@@ -93,7 +93,7 @@ static struct sockaddr_in divsrc = { sizeof(divsrc), AF_INET };
 /* Internal functions */
 
 static int div_output(struct socket *so,
-		struct mbuf *m, struct mbuf *addr, struct mbuf *control);
+		struct mbuf *m, struct sockaddr *addr, struct mbuf *control);
 
 /*
  * Initialize divert connection block queue.
@@ -205,7 +205,8 @@ static int
 div_output(so, m, addr, control)
 	struct socket *so;
 	register struct mbuf *m;
-	struct mbuf *addr, *control;
+	struct sockaddr *addr;
+	struct mbuf *control;
 {
 	register struct inpcb *const inp = sotoinpcb(so);
 	register struct ip *const ip = mtod(m, struct ip *);
@@ -215,7 +216,7 @@ div_output(so, m, addr, control)
 	if (control)
 		m_freem(control);		/* XXX */
 	if (addr)
-		sin = mtod(addr, struct sockaddr_in *);
+		sin = (struct sockaddr_in *)addr;
 
 	/* Loopback avoidance option */
 	ip_divert_ignore = ntohs(inp->inp_lport);
@@ -316,7 +317,7 @@ div_disconnect(struct socket *so)
 }
 
 static int
-div_bind(struct socket *so, struct mbuf *nam, struct proc *p)
+div_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
 {
 	struct inpcb *inp;
 	int s;
@@ -337,7 +338,7 @@ div_shutdown(struct socket *so)
 }
 
 static int
-div_send(struct socket *so, int flags, struct mbuf *m, struct mbuf *nam,
+div_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	 struct mbuf *control, struct proc *p)
 {
 	/* Packet must have a header (but that's about it) */
@@ -359,4 +360,3 @@ struct pr_usrreqs div_usrreqs = {
 	pru_rcvoob_notsupp, div_send, pru_sense_null, div_shutdown,
 	in_setsockaddr, sosend, soreceive, soselect
 };
-
