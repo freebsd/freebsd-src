@@ -37,6 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: vinumrequest.c,v 1.25 1999/10/12 04:38:20 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -306,10 +307,11 @@ vinumstart(struct buf *bp, int reviveok)
 int
 launch_requests(struct request *rq, int reviveok)
 {
+    int s;
     struct rqgroup *rqg;
     int rqno;						    /* loop index */
     struct rqelement *rqe;				    /* current element */
-    int s;
+    struct drive *drive;
 
     /*
      * First find out whether we're reviving, and the
@@ -361,17 +363,42 @@ launch_requests(struct request *rq, int reviveok)
     if (debug & DEBUG_LASTREQS)
 	logrq(loginfo_user_bpl, (union rqinfou) rq->bp, rq->bp);
 #endif
-    s = splbio();
+
+    /*
+     * We have a potential race condition here: between firing off each
+     * request, we need to check that we're not overloading the system,
+     * and possibly sleep.  But the bottom half releases the request
+     * when the active count goes to 0, so we need to set the total
+     * active count in advance.
+     */
     for (rqg = rq->rqg; rqg != NULL; rqg = rqg->next) {	    /* through the whole request chain */
 	rqg->active = rqg->count;			    /* they're all active */
 	for (rqno = 0; rqno < rqg->count; rqno++) {
 	    rqe = &rqg->rqe[rqno];
 	    if (rqe->flags & XFR_BAD_SUBDISK)		    /* this subdisk is bad, */
 		rqg->active--;				    /* one less active request */
-	    else {					    /* we can do it */
-		if ((rqe->b.b_flags & B_READ) == 0)
-		    rqe->b.b_vp->v_numoutput++;		    /* one more output going */
-		rqe->b.b_flags |= B_ORDERED;		    /* stick to the request order */
+	}
+	if (rqg->active)				    /* we have at least one active request, */
+	    rq->active++;				    /* one more active request group */
+    }
+
+    /* Now fire off the requests */
+    for (rqg = rq->rqg; rqg != NULL; rqg = rqg->next) {	    /* through the whole request chain */
+	for (rqno = 0; rqno < rqg->count; rqno++) {
+	    rqe = &rqg->rqe[rqno];
+	    if ((rqe->flags & XFR_BAD_SUBDISK) == 0) {	    /* this subdisk is good, */
+		/* Check that we're not overloading things */
+		drive = &DRIVE[rqe->driveno];		    /* look at drive */
+		while ((drive->active >= DRIVE_MAXACTIVE)   /* it has too much to do already, */
+		||(vinum_conf.active >= VINUM_MAXACTIVE))   /* or too many requests globally */
+		    tsleep(&launch_requests, PRIBIO | PCATCH, "vinbuf", 0); /* wait for it to subside */
+		drive->active++;
+		if (drive->active >= drive->maxactive)
+		    drive->maxactive = drive->active;
+		vinum_conf.active++;
+		if (vinum_conf.active >= vinum_conf.maxactive)
+		    vinum_conf.maxactive = vinum_conf.active;
+
 #if VINUMDEBUG
 		if (debug & DEBUG_ADDRESSES)
 		    log(LOG_DEBUG,
@@ -391,14 +418,19 @@ launch_requests(struct request *rq, int reviveok)
 		if (debug & DEBUG_LASTREQS)
 		    logrq(loginfo_rqe, (union rqinfou) rqe, rq->bp);
 #endif
+
+		if ((rqe->b.b_flags & B_READ) == 0) {
+		    s = splbio();
+		    rqe->b.b_vp->v_numoutput++;		    /* one more output going */
+		    splx(s);
+		}
+		rqe->b.b_flags |= B_ORDERED;		    /* stick to the request order */
+
 		/* fire off the request */
 		BUF_STRATEGY(&rqe->b, 0);
 	    }
 	}
-	if (rqg->active)				    /* we have at least one active request, */
-	    rq->active++;				    /* one more active request group */
     }
-    splx(s);
     return 0;
 }
 
