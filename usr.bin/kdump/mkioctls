@@ -49,6 +49,7 @@ BEGIN {
 	print "#include <netatm/atm_sap.h>"
 	print "#include <netatm/atm_sys.h>"
 	print "#include <netinet/in.h>"
+	print "#include <netinet/in_systm.h>"
 	print "#include <netinet/ip.h>"
 	print "#include <netinet/ip_mroute.h>"
 	print "#include <netinet6/in6_var.h>"
