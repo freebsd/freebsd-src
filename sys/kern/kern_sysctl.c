@@ -1175,12 +1175,21 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 	if (!oid->oid_handler)
 		return EINVAL;
 
-	if ((oid->oid_kind & CTLTYPE) == CTLTYPE_NODE)
-		error = oid->oid_handler(oid, (int *)arg1 + indx, arg2 - indx,
-		    req);
-	else
-		error = oid->oid_handler(oid, oid->oid_arg1, oid->oid_arg2,
-		    req);
+	if ((oid->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
+		(int *)arg1 += indx;
+		arg2 -= indx;
+	} else {
+		arg1 = oid->oid_arg1;
+		arg2 = oid->oid_arg2;
+	}
+#ifdef MAC
+	error = mac_check_system_sysctl(req->td->td_ucred, oid, arg1, arg2,
+	    req);
+	if (error != 0)
+		return (error);
+#endif
+	error = oid->oid_handler(oid, arg1, arg2, req);
+
 	return (error);
 }
 
@@ -1271,15 +1280,6 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	req.lock = REQ_LOCKED;
 
 	SYSCTL_LOCK();
-
-#ifdef MAC
-	error = mac_check_system_sysctl(td->td_ucred, name, namelen, old,
-	    oldlenp, inkernel, new, newlen);
-	if (error) {
-		SYSCTL_UNLOCK();
-		return (error);
-	}
-#endif
 
 	do {
 	    req2 = req;

@@ -63,6 +63,8 @@ struct mount;
 struct pipepair;
 struct sbuf;
 struct socket;
+struct sysctl_oid;
+struct sysctl_req;
 struct ucred;
 struct uio;
 struct vnode;
@@ -362,9 +364,9 @@ struct mac_policy_ops {
 		    struct vnode *vp, struct label *label);
 	int	(*mpo_check_system_swapoff)(struct ucred *cred,
 		    struct vnode *vp, struct label *label);
-	int	(*mpo_check_system_sysctl)(struct ucred *cred, int *name,
-		    u_int namelen, void *old, size_t *oldlenp, int inkernel,
-		    void *new, size_t newlen);
+	int	(*mpo_check_system_sysctl)(struct ucred *cred,
+		    struct sysctl_oid *oidp, void *arg1, int arg2,
+		    struct sysctl_req *req);
 	int	(*mpo_check_vnode_access)(struct ucred *cred,
 		    struct vnode *vp, struct label *label, int acc_mode);
 	int	(*mpo_check_vnode_chdir)(struct ucred *cred,

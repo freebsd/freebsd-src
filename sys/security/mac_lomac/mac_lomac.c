@@ -2063,8 +2063,8 @@ mac_lomac_check_system_swapon(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_lomac_check_system_sysctl(struct ucred *cred, int *name, u_int namelen,
-    void *old, size_t *oldlenp, int inkernel, void *new, size_t newlen)
+mac_lomac_check_system_sysctl(struct ucred *cred, struct sysctl_oid *oidp,
+    void *arg1, int arg2, struct sysctl_req *req)
 {
 	struct mac_lomac *subj;
 
@@ -2074,16 +2074,10 @@ mac_lomac_check_system_sysctl(struct ucred *cred, int *name, u_int namelen,
 	subj = SLOT(cred->cr_label);
 
 	/*
-	 * In general, treat sysctl variables as lomac/high, but also
-	 * require privilege to change them, since they are a
-	 * communications channel between grades.  Exempt MIB
-	 * queries from this due to undocmented sysctl magic.
-	 * XXXMAC: This probably requires some more review.
+	 * Treat sysctl variables without CTLFLAG_ANYBODY flag as
+	 * lomac/high, but also require privilege to change them.
 	 */
-	if (new != NULL) {
-		if (namelen > 0 && name[0] == 0)
-			return (0);
-
+	if (req->newptr != NULL && (oidp->oid_kind & CTLFLAG_ANYBODY) == 0) {
 #ifdef notdef
 		if (!mac_lomac_subject_dominate_high(subj))
 			return (EACCES);
