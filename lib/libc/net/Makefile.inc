@@ -14,8 +14,9 @@ SRCS+=	gethostnamadr.c getnetbyaddr.c getnetbyname.c getnetent.c \
 # machine-dependent net sources
 .include "${.CURDIR}/${MACHINE}/net/Makefile.inc"
 
-MAN3+=	byteorder.0 gethostbyname.0 getnetent.0 getprotoent.0 getservent.0 \
-	inet.0 linkaddr.0 ns.0 rcmd.0 resolver.0 \
+MAN3+=	net/byteorder.3 net/gethostbyname.3 net/getnetent.3 net/getprotoent.3 \
+	net/getservent.3 net/inet.3 net/linkaddr.3 net/ns.3 net/rcmd.3 \
+	net/resolver.3
 
 MLINKS+=byteorder.3 htonl.3 byteorder.3 htons.3 byteorder.3 ntohl.3 \
 	byteorder.3 ntohs.3
