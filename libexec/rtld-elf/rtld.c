@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.16 1999/04/04 06:01:09 peter Exp $
+ *      $Id: rtld.c,v 1.17 1999/04/05 02:36:40 jdp Exp $
  */
 
 /*
@@ -50,6 +50,14 @@
 
 #include "debug.h"
 #include "rtld.h"
+
+/*
+ * Version number queried by dlversion().  The first 3 digits represent
+ * the base FreeBSD release.  The last 3 digits are a serial number.
+ * Increase this when you fix a significant bug or add a significant
+ * feature.
+ */
+#define DL_VERSION	400001
 
 /*
  * Debugging support.
@@ -152,6 +160,7 @@ static func_ptr_type exports[] = {
     (func_ptr_type) &dlopen,
     (func_ptr_type) &dlsym,
     (func_ptr_type) &dladdr,
+    (func_ptr_type) &dlversion,
     NULL
 };
 
@@ -1270,6 +1279,12 @@ dlsym(void *handle, const char *name)
 
     _rtld_error("Undefined symbol \"%s\"", name);
     return NULL;
+}
+
+int
+dlversion(void)
+{
+    return DL_VERSION;
 }
 
 int
