@@ -227,6 +227,7 @@ vendor SIGMATEL		0x066f	Sigmatel
 vendor AIWA		0x0677	Aiwa
 vendor ACARD		0x0678	ACARD Technology
 vendor PROLIFIC		0x067b	Prolific Technology
+vendor SIEMENS		0x067c	Siemens
 vendor ADVANCELOGIC	0x0680	Avance Logic
 vendor HAGIWARA		0x0693  Hagiwara Sys-Com
 vendor CTX		0x0698	Chuntex
@@ -355,19 +356,31 @@ vendor HP2		0xf003	Hewlett Packard
 product 3COM HOMECONN		0x009d	HomeConnect USB Camera
 product 3COM 3C19250		0x03E8	3C19250 Ethernet adapter
 product 3COM USR56K		0x3021	U.S.Robotics 56000 Voice Faxmodem Pro
-product 3COM 3C460		0x11f8	HomeConnect 3C460
 
 product 3COMUSR OFFICECONN	0x0082	3Com OfficeConnect Analog Modem
 product 3COMUSR USRISDN		0x008f	3Com U.S. Robotics Pro ISDN TA
 product 3COMUSR HOMECONN	0x009d	3Com HomeConnect camera
 product 3COMUSR USR56K		0x3021	U.S.Robotics 56000 Voice Faxmodem Pro
+product 3COM 3C460		0x11f8	HomeConnect 3C460
+product 3COM 3C460B		0x4601	HomeConnect 3C460B
 
 /* AboCom products */
+product ABOCOM XX1		0x110c	XX1
+product ABOCOM XX2		0x200c	XX2
 product ABOCOM URE450		0x4000	URE450 Ethernet Adapter
+product	ABOCOM UFE1000		0x4002	UFE1000 Fast Ethernet Adapter
 product ABOCOM DSB650TX_PNA	0x4003	1/10/100 ethernet adapter
+product ABOCOM XX4		0x4004	XX4
+product ABOCOM XX5		0x4007	XX5
+product ABOCOM XX6		0x400b	XX6
+product ABOCOM XX7		0x400c	XX7
+product ABOCOM XX8		0x4102	XX8
+product ABOCOM XX9		0x4104	XX9
+product ABOCOM XX10		0xabc1	XX10
 
 /* Accton products */
 product ACCTON USB320_EC	0x1046	USB320-EC Ethernet Adapter
+product	ACCTON SS1001		0x5046	SpeedStream Ethernet Adapter
 
 /* Acer Peripherals, Inc. products */
 product ACERP ACERSCAN_C310U	0x12a6	Acerscan C310U
@@ -381,6 +394,7 @@ product ACTIVEWIRE IOBOARD_FW1	0x0101	I/O Board, rev. 1 firmware
 
 /* ADMtek products */
 product ADMTEK PEGASUS		0x0986	AN986 USB Ethernet adapter
+product ADMTEK PEGASUSII	0x8511	AN8511 USB Ethernet adapter
 
 /* ADS products */
 product ADS UBS10BT		0x0008	UBS-10BT Ethernet adapter
@@ -402,6 +416,10 @@ product AGFA SNAPSCANE52	0x20fd	SnapScan e52
 
 /* Agiler products */
 product ELECOM MOUSE29UO	0x0002	mouse 29UO
+product ELECOM LDUSBTX0		0x200c	LD-USB/TX
+product ELECOM LDUSBTX1		0x4002	LD-USB/TX
+product ELECOM LDUSBTX2		0x400b	LD-USB/TX
+product ELECOM LDUSBTX3		0xabc1	LD-USB/TX
 
 /* AKS products */
 product AKS USBHASP		0x0001	USB-HASP 0.06
@@ -450,6 +468,9 @@ product BELKIN2 F5U002		0x0002	F5U002 Parallel printer adapter
 
 /* Billionton products */
 product BILLIONTON USB100	0x0986	USB100N 10/100 FastEthernet Adapter
+product BILLIONTON USBLP100	0x0987	USB100LP
+product BILLIONTON USBEL100	0x0988	USB100EL
+product BILLIONTON USBE100	0x8511	USBE100
 
 /* Brother Industries products */
 product BROTHER HL1050		0x0002	HL-1050 laser printer
@@ -491,6 +512,7 @@ product CONNECTIX QUICKCAM	0x0001	QuickCam
 /* Corega products */
 product COREGA ETHER_USB_T	0x0001	Ether USB-T
 product COREGA FETHER_USB_TX	0x0004	FEther USB-TX
+product	COREGA FETHER_USB_TXS	0x000d	FEther USB-TXS
 
 /* Creative products */
 product CREATIVE NOMAD_II	0x1002	Nomad II MP3 player
@@ -505,10 +527,14 @@ product CYPRESS FMRADIO		0x1002	FM Radio
 
 /* D-Link products */
 /*product DLINK DSBS25		0x0100	DSB-S25 serial adapter*/
+product DLINK DSB650TX4		0x200c	10/100 ethernet adapter
 product DLINK DSB650C		0x4000	10Mbps ethernet adapter
+product DLINK DSB650TX1		0x4001	10/100 ethernet adapter
 product DLINK DSB650TX		0x4002	10/100 ethernet adapter
 product DLINK DSB650TX_PNA	0x4003	1/10/100 ethernet adapter
-product DLINK DSB650		0xABC1	10/100 ethernet adapter
+product DLINK DSB650TX3		0x400b	10/100 ethernet adapter
+product DLINK DSB650TX2		0x4102	10/100 ethernet adapter
+product DLINK DSB650		0xabc1	10/100 ethernet adapter
 
 /* Daisy Technology products */
 product DAISY DMC		0x6901	PhotoClip Camera
@@ -530,6 +556,7 @@ product EIZO MONITOR		0x0001	monitor
 
 /* Elsa products */
 product ELSA MODEM1		0x2265	ELSA Modem Board
+product ELSA USB2ETHERNET	0x3000	Microlink USB2Ethernet
 
 /* Entrega products */
 product ENTREGA 1S		0x0001	1S serial connector
@@ -707,6 +734,7 @@ product LEXMARK S2450		0x0009	Optra S 2450
 
 /* Linksys products */
 product LINKSYS MAUSB2		0x0105	Camedia MAUSB-2
+product LINKSYS USB10TX1	0x200c	USB10TX
 product LINKSYS USB10T		0x2202	USB10T Ethernet
 product LINKSYS USB100TX	0x2203	USB100TX Ethernet
 product LINKSYS USB100H1	0x2204	USB100H1 Ethernet/HPNA
@@ -926,6 +954,9 @@ product SHUTTLE EUSCSI_B	0x000b	eUSCSI Bridge
 product SHUTTLE EUSCSI_C	0x000c	eUSCSI Bridge
 product SHUTTLE CDRW		0x0101	CD-RW Device
 
+/* Siemens products */
+product	SIEMENS	SPEEDSTREAM	0x1001	SpeedStream USB
+
 /* SIIG products */
 product SIIG DIGIFILMREADER	0x0004	DigiFilm-Combo Reader
 
@@ -938,12 +969,15 @@ product SIRIUS ROADSTER		0x0001	NetComm Roadster II 56 USB
 
 /* SmartBridges products */
 product SMARTBRIDGES SMARTLINK	0x0001	SmartLink USB ethernet adapter
+product SMARTBRIDGES SMARTNIC	0x0003	smartNIC 2 PnP Adapter
 
 /* SMC products */
 product SMC 2102USB		0x0100	10Mbps ethernet adapter
 product SMC 2202USB		0x0200	10/100 ethernet adapter
-
 product SMC2 2020HUB		0x2020	USB Hub
+
+/* SOHOware products */
+product	SOHOWARE NUB100		0x9100	10/100 USB Ethernet
 
 /* SOLID YEAR products */
 product SOLIDYEAR KEYBOARD	0x2101	Solid Year USB keyboard
