@@ -1215,7 +1215,7 @@ pmap_pinit(pmap)
 	 * allocate the page directory page
 	 */
 	ptdpg = vm_page_grab(pmap->pm_pteobj, PTDPTDI,
-			VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED);
+	    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 	vm_page_flag_clear(ptdpg, PG_MAPPED | PG_BUSY); /* not usually mapped*/
 	ptdpg->valid = VM_PAGE_BITS_ALL;
 
