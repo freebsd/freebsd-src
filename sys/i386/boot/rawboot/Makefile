@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.45 1996/09/07 21:16:44 bde Exp $
+#	$Id: Makefile,v 1.1 1996/09/11 19:25:11 phk Exp $
 #
 
 PROG=	boot
@@ -15,15 +15,27 @@ CFLAGS=         -O2 \
 		-DRAWBOOT \
 		-I${.CURDIR}/../biosboot \
 		-DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
-CFLAGS+=	-DCOMCONSOLE=0x3F8
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 
 # Probe the keyboard and use the serial console if the keyboard isn't found.
-#CFLAGS+=	-DPROBE_KEYBOARD
+.if defined(BOOT_PROBE_KEYBOARD)
+CFLAGS+=	-DPROBE_KEYBOARD
+.endif
 
-# Force use of the serial console (after probing the keyboard if
-# PROBE_KEYBOARD is defined).
-#CFLAGS+=	-DFORCE_COMCONSOLE
+# Probe the keyboard lock and use the serial console if the keyboard is locked.
+.if defined(BOOT_PROBE_KEYBOARD_LOCK)
+CFLAGS+=	-DPROBE_KEYBOARD_LOCK
+.endif
+
+# Force use of the serial console.
+.if defined(BOOT_FORCE_COMCONSOLE)
+CFLAGS+=	-DFORCE_COMCONSOLE
+.endif
+
+# By default, if a serial port is going to be used as console, use COM1 
+# (aka /dev/ttyd0).
+BOOT_COMCONSOLE_PORT?=0x3F8  
+CFLAGS+=        -DCOMCONSOLE=${BOOT_COMCONSOLE_PORT}
 
 # Enable code to take the default boot string from a fixed location on the
 # disk.  See nextboot(8) and README.386BSD for more info.
