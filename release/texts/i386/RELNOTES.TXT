@@ -100,6 +100,8 @@ sound drivers.
 Separate drivers for the SoundBlaster 8 and Soundblaster 16 now
 replace an older, unified driver.
 
+The isp(4) driver has been updated.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -130,6 +132,11 @@ corrected (see security advisory FreeBSD-SA-01:12).
 
 To fix a remotely-exploitable buffer overflow, BIND has been updated
 to 8.2.3 (see security advisory FreeBSD-SA-01:18).
+
+OpenSSH now has code to prevent (instead of just mitigating through
+connection limits) an attack that can lead to guessing the server key
+(not host key) by regenerating the server key when an RSA failure is
+detected (see security advisory FreeBSD-SA-01:24).
 
 
 1.3. USERLAND CHANGES
@@ -223,6 +230,9 @@ geometry in the VESA_800x600 raster text mode.
 The rfork_thread(3) library call has been added as a helper function
 to rfork(2).  Using this function should avoid the need to implement
 complex stack swap code.
+
+The compat3x distribution has been updated to include libraries
+present in FreeBSD 3.5.1-RELEASE.
 
 
 2. Supported Configurations
