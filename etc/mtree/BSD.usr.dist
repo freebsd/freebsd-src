@@ -23,6 +23,8 @@
     ..
     libdata
         doscmd
+            fonts
+            ..
         ..
         gcc
         ..
