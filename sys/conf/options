@@ -4,21 +4,22 @@
 #
 # All kernel options should be listed in NOTES, with suitable
 # descriptions.  Negative options (options that make some code not
-# compile) should be commented out; LINT (generated from NOTES) should compile as much code
-# as possible.  Try to structure option-using code so that a single
-# option only switch code on, or only switch code off, to make it
-# possible to have a full compile-test.  If necessary, you can check
-# for COMPILING_LINT to get maximum code coverage.
+# compile) should be commented out; LINT (generated from NOTES) should
+# compile as much code as possible.  Try to structure option-using
+# code so that a single option only switch code on, or only switch
+# code off, to make it possible to have a full compile-test.  If
+# necessary, you can check for COMPILING_LINT to get maximum code
+# coverage.
 #
 # All new options shall also be listed in either "conf/options" or
-# "conf/options.<machine>".  Options that affect a single
-# source-file <xxx>.[c|s] should be directed into "opt_<xxx>.h", while
-# options that affect multiple files should either go in
-# "opt_global.h" if this is a kernel-wide option (used just about
-# everywhere), or in "opt_<option-name-in-lower-case>.h" if it affect
-# only some files.  Note that the effect of listing only an option
-# without a header-file-name in conf/options (and cousins) is that the
-# last convention is followed.
+# "conf/options.<machine>".  Options that affect a single source-file
+# <xxx>.[c|s] should be directed into "opt_<xxx>.h", while options
+# that affect multiple files should either go in "opt_global.h" if
+# this is a kernel-wide option (used just about everywhere), or in
+# "opt_<option-name-in-lower-case>.h" if it affect only some files.
+# Note that the effect of listing only an option without a
+# header-file-name in conf/options (and cousins) is that the last
+# convention is followed.
 #
 # This handling scheme is not yet fully implemented.
 #
