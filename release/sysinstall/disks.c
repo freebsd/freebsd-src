@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.70.2.12 1997/05/10 17:14:22 pst Exp $
+ * $Id: disks.c,v 1.70.2.13 1997/06/06 13:01:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -598,7 +598,8 @@ static void
 diskPartitionNonInteractive(Device *dev, Disk *d)
 {
     char *cp;
-    int i, sz;
+    int i, sz, all_disk = 0;
+    u_char *mbrContents;
 
     record_chunks(d);
     cp = variable_get(VAR_GEOMETRY);
@@ -638,7 +639,7 @@ diskPartitionNonInteractive(Device *dev, Disk *d)
 	    /* Do really-all-the-disk-space case */
 	    msgDebug("Warning:  Devoting all of disk %s to FreeBSD.\n", d->name);
 
-	    All_FreeBSD(d, TRUE);
+	    All_FreeBSD(d, all_disk = TRUE);
 	}
 	else if ((sz = strtol(cp, &cp, 0))) {
 	    /* Look for sz bytes free */
@@ -674,6 +675,10 @@ diskPartitionNonInteractive(Device *dev, Disk *d)
 	    dialog_clear();
 	    msgConfirm("`%s' is an invalid value for %s - is config file valid?", cp, VAR_PARTITION);
 	    return;
+	}
+	if (!all_disk) {
+	    mbrContents = getBootMgr(d->name);
+	    Set_Boot_Mgr(d, mbrContents);
 	}
 	variable_set2(DISK_PARTITIONED, "yes");
     }
