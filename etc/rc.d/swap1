@@ -12,7 +12,7 @@
 
 name="swap1"
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 FreeBSD)
 	start_cmd='swapon -a'
 	stop_cmd=':'

@@ -13,7 +13,7 @@
 name="ntpdate"
 rcvar=`set_rcvar`
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 FreeBSD)
 	command="/usr/sbin/${name}"
 	command_args=">/dev/null 2>&1"

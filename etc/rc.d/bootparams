@@ -15,7 +15,7 @@ name="bootparamd"
 rcvar=`set_rcvar`
 required_files="/etc/bootparams"
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 FreeBSD)
 	command="/usr/sbin/${name}"
 	;;

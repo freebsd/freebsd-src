@@ -14,7 +14,7 @@
 name="sysctl"
 stop_cmd=":"
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 FreeBSD)
 	start_cmd="FreeBSD_start"
 	extra_commands="reload lastload"

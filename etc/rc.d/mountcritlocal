@@ -16,7 +16,7 @@ stop_cmd=":"
 
 mountcritlocal_start()
 {
-	case `${CMD_OSTYPE}` in
+	case ${OSTYPE} in
 	FreeBSD)
 		# Set up the list of network filesystem types for which mounting
 		# should be delayed until after network initialization.

@@ -16,7 +16,7 @@ rcvar=`set_rcvar`
 command="/usr/sbin/${name}"
 start_precmd="rtadvd_precmd"
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 FreeBSD)
 	IS_GATEWAY="checkyesno ipv6_gateway_enable"
 	;;
@@ -46,7 +46,7 @@ rtadvd_precmd()
         # from another machine, so if you enable this, do it with
         # enough care.)
         #
-	case `${CMD_OSTYPE}` in
+	case ${OSTYPE} in
 	FreeBSD)
 		# If specific interfaces haven't been specified,
 		# get a list of interfaces and enable it on them
