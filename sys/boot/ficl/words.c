@@ -4801,6 +4801,12 @@ void ficlCompileCore(FICL_DICT *dp)
     dictAppendWord(dp, "outb",      ficlOutb,       FW_DEFAULT);
     dictAppendWord(dp, "inb",       ficlInb,        FW_DEFAULT);
 #endif
+    dictAppendWord(dp, "setenv",    ficlSetenv,	    FW_DEFAULT);
+    dictAppendWord(dp, "setenv?",   ficlSetenvq,    FW_DEFAULT);
+    dictAppendWord(dp, "getenv",    ficlGetenv,	    FW_DEFAULT);
+    dictAppendWord(dp, "unsetenv",  ficlUnsetenv,   FW_DEFAULT);
+    dictAppendWord(dp, "copyin",    ficlCopyin,	    FW_DEFAULT);
+    dictAppendWord(dp, "copyout",   ficlCopyout,    FW_DEFAULT);
 #endif
 
 #if defined(__i386__)
