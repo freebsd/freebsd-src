@@ -7,20 +7,25 @@
 @setchapternewpage odd
 
 @ignore
-last change: Thu Mar 21 16:06:39 EST 1996
+last change: Thu Apr  2 14:39:03 EST 1998
 @end ignore
 
-@set EDITION 2.1
-@set VERSION 2.1
-@set UPDATED 21 March 1996
-@set UPDATE-MONTH March 1996
+@set EDITION 2.2
+@set VERSION 2.2
+@set UPDATED 2 April 1998
+@set UPDATE-MONTH April 1998
+
+@dircategory Libraries
+@direntry
+* Readline: (readline).       The GNU readline library API
+@end direntry
 
 @ifinfo
 This document describes the GNU Readline Library, a utility which aids
 in the consistency of user interface across discrete programs that need
 to provide a command line interface.
 
-Copyright (C) 1988, 1991 Free Software Foundation, Inc.
+Copyright (C) 1988, 1991, 1993, 1996, 1998 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice

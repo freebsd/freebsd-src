@@ -454,6 +454,14 @@ Bind @var{key} to the null function in @var{map}.
 Returns non-zero in case of error.
 @end deftypefun
 
+@deftypefun int rl_unbind_function_in_map (Function *function, Keymap map)
+Unbind all keys that execute @var{function} in @var{map}.
+@end deftypefun
+
+@deftypefun int rl_unbind_command_in_map (char *command, Keymap map)
+Unbind all keys that are bound to @var{command} in @var{map}.
+@end deftypefun
+
 @deftypefun int rl_generic_bind (int type, char *keyseq, char *data, Keymap map)
 Bind the key sequence represented by the string @var{keyseq} to the arbitrary
 pointer @var{data}.  @var{type} says what kind of data is pointed to by
@@ -1034,7 +1042,7 @@ unless they also appear within this list.
 
 @deftypevar {char *} rl_filename_quote_characters
 A list of characters that cause a filename to be quoted by the completer
-when they appear in a completed filename.  The default is empty.
+when they appear in a completed filename.  The default is the null string.
 @end deftypevar
 
 @deftypevar {char *} rl_special_prefixes
