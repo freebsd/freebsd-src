@@ -65,7 +65,8 @@ int system(command)
 	(void)sigaction(SIGINT, &ign, &intact);
 	(void)sigaction(SIGQUIT, &ign, &quitact);
 	(void)sigemptyset(&newsigblock);
-	sigprocmask(SIG_BLOCK, &newsigblock, &oldsigblock);
+	(void)sigaddset(&newsigblock, SIGCHLD);
+	(void)sigprocmask(SIG_BLOCK, &newsigblock, &oldsigblock);
 	switch(pid = fork()) {
 	case -1:			/* error */
 		break;
