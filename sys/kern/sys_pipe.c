@@ -766,6 +766,9 @@ pipe_write(fp, uio, cred, flags, p)
 		 * we do process-to-process copies directly.
 		 * If the write is non-blocking, we don't use the
 		 * direct write mechanism.
+		 *
+		 * The direct write mechanism will detect the reader going
+		 * away on us.
 		 */
 		if ((uio->uio_iov->iov_len >= PIPE_MINDIRECT) &&
 		    (fp->f_flag & FNONBLOCK) == 0 &&
@@ -783,7 +786,8 @@ pipe_write(fp, uio, cred, flags, p)
 		 * Pipe buffered writes cannot be coincidental with
 		 * direct writes.  We wait until the currently executing
 		 * direct write is completed before we start filling the
-		 * pipe buffer.
+		 * pipe buffer.  We break out if a signal occurs or the
+		 * reader goes away.
 		 */
 	retrywrite:
 		while (wpipe->pipe_state & PIPE_DIRECTW) {
@@ -791,10 +795,15 @@ pipe_write(fp, uio, cred, flags, p)
 				wpipe->pipe_state &= ~PIPE_WANTR;
 				wakeup(wpipe);
 			}
-			error = tsleep(wpipe,
-					PRIBIO|PCATCH, "pipbww", 0);
+			error = tsleep(wpipe, PRIBIO|PCATCH, "pipbww", 0);
+			if (wpipe->pipe_state & PIPE_EOF)
+				break;
 			if (error)
 				break;
+		}
+		if (wpipe->pipe_state & PIPE_EOF) {
+			error = EPIPE;
+			break;
 		}
 
 		space = wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt;
@@ -818,6 +827,9 @@ pipe_write(fp, uio, cred, flags, p)
 				/* 
 				 * If a process blocked in uiomove, our
 				 * value for space might be bad.
+				 *
+				 * XXX will we be ok if the reader has gone
+				 * away here?
 				 */
 				if (space > wpipe->pipe_buffer.size - 
 				    wpipe->pipe_buffer.cnt) {
