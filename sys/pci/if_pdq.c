@@ -21,9 +21,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_pdq.c,v 1.2 1995/03/17 04:27:17 davidg Exp $
+ * $Id: if_pdq.c,v 1.3 1995/03/21 22:41:19 se Exp $
  *
  * $Log: if_pdq.c,v $
+ * Revision 1.3  1995/03/21  22:41:19  se
+ * Cosmetic changes.
+ *
+ * Submitted by:	Wolfgang Stnglmeier <wolf@kintaro.cologne.de>
+ *
  * Revision 1.2  1995/03/17  04:27:17  davidg
  * Added a new field to the pci_device struct called pd_shutdown to specify
  * a device specific shutdown routine for devconf. Assign the value of this
@@ -375,12 +380,12 @@ pdq_ifioctl(
 		case AF_NS: {
 		    struct ns_addr *ina = &(IA_SNS(ifa)->sns_addr);
 		    if (ns_nullhost(*ina)) {
-			ina->x_host = *(union ns_host *)(sc->pdq_ac.ac_enaddr);
+			ina->x_host = *(union ns_host *)(sc->sc_ac.ac_enaddr);
 		    } else {
 			ifp->if_flags &= ~IFF_RUNNING;
 			bcopy((caddr_t)ina->x_host.c_host,
-			      (caddr_t)sc->pdq_ac.ac_enaddr,
-			      sizeof sc->pdq_ac.ac_enaddr);
+			      (caddr_t)sc->sc_ac.ac_enaddr,
+			      sizeof sc->sc_ac.ac_enaddr);
 		    }
 
 		    (*ifp->if_init)(ifp->if_unit);
