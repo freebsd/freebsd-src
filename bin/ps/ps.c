@@ -104,7 +104,7 @@ static void	 usage __P((void));
 static uid_t	*getuids(const char *, int *);
 
 char dfmt[] = "pid tt state time command";
-char jfmt[] = "user pid ppid pgid sess jobc state tt time command";
+char jfmt[] = "user pid ppid pgid jobc state tt time command";
 char lfmt[] = "uid pid ppid cpu pri nice vsz rss wchan state tt time command";
 char   o1[] = "pid";
 char   o2[] = "tt state time command";
