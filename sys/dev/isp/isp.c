@@ -1,5 +1,5 @@
-/* $Id: isp.c,v 1.11 1999/01/10 11:15:22 mjacob Exp $ */
-/* release_01_29_99 */
+/* $Id: isp.c,v 1.12 1999/01/30 07:28:59 mjacob Exp $ */
+/* release_02_05_99 */
 /*
  * Machine and OS Independent (well, as best as possible)
  * code for the Qlogic ISP SCSI adapters.
@@ -139,6 +139,11 @@ isp_reset(isp)
 	 * here.
 	 */
 	isp->isp_dblev = DFLT_DBLEVEL;
+
+	/*
+	 * After we've fired this chip up, zero out the conf1 register
+	 * for SCSI adapters and other settings for the 2100.
+	 */
 
 	/*
 	 * Get the current running firmware revision out of the
@@ -521,6 +526,11 @@ again:
 	PRINTF("%s: Board Revision %s, %s F/W Revision %d.%d\n",
 		isp->isp_name, revname, dodnld? "loaded" : "resident",
 		mbs.param[1], mbs.param[2]);
+	if (isp->isp_type & ISP_HA_FC) {
+		if (ISP_READ(isp, BIU2100_CSR) & BIU2100_PCI64) {
+			PRINTF("%s: in 64-Bit PCI slot\n", isp->isp_name);
+		}
+	}
 	isp->isp_fwrev = (((u_int16_t) mbs.param[1]) << 10) + mbs.param[2];
 	if (isp->isp_romfw_rev && dodnld) {
 		PRINTF("%s: Last F/W revision was %d.%d\n", isp->isp_name,
@@ -559,6 +569,13 @@ isp_init(isp)
 		return;
 	}
 	sdp = isp->isp_param;
+
+	/*
+	 * If we have fast memory timing enabled, turn it on.
+	 */
+	if (sdp->isp_fast_mttr) {
+		ISP_WRITE(isp, RISC_MTR, 0x1313);
+	}
 
 	/*
 	 * Set (possibly new) Initiator ID.
@@ -632,19 +649,16 @@ isp_init(isp)
 	}
 
 	/*
-	 * Set per-target parameters to a safe minimum.
+	 * Set current per-target parameters to a safe minimum.
 	 */
-
 	for (tgt = 0; tgt < MAX_TARGETS; tgt++) {
 		int maxlun, lun;
+		u_int16_t sdf;
 
 		if (sdp->isp_devparam[tgt].dev_enable == 0)
 			continue;
 
-		mbs.param[0] = MBOX_SET_TARGET_PARAMS;
-		mbs.param[1] = tgt << 8;
-		mbs.param[2] = DPARM_SAFE_DFLT;
-		mbs.param[3] = 0;
+		sdf = DPARM_SAFE_DFLT;
 		/*
 		 * It is not quite clear when this changed over so that
 		 * we could force narrow and async, so assume >= 7.55.
@@ -655,27 +669,19 @@ isp_init(isp)
 		 * Parity.
 		 */
 		if (isp->isp_fwrev >= ISP_FW_REV(7, 55)) {
-			mbs.param[2] |= DPARM_NARROW | DPARM_ASYNC;
+			sdf |= DPARM_NARROW | DPARM_ASYNC;
 		}
-		sdp->isp_devparam[tgt].cur_dflags = mbs.param[2] >> 8;
 
-		IDPRINTF(3, ("\n%s: tgt %d cflags %x offset %x period %x\n",
-		    isp->isp_name, tgt, mbs.param[2], mbs.param[3] >> 8,
-		    mbs.param[3] & 0xff));
+		mbs.param[0] = MBOX_SET_TARGET_PARAMS;
+		mbs.param[1] = tgt << 8;
+		mbs.param[2] = sdf;
+		mbs.param[3] = 0;
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-
-			PRINTF("%s: failed to set parameters for tgt %d\n",
-				isp->isp_name, tgt);
-
-			PRINTF("%s: flags %x offset %x period %x\n",
-				isp->isp_name, sdp->isp_devparam[tgt].dev_flags,
-				sdp->isp_devparam[tgt].sync_offset,
-				sdp->isp_devparam[tgt].sync_period);
-
+			sdf = DPARM_SAFE_DFLT;
 			mbs.param[0] = MBOX_SET_TARGET_PARAMS;
 			mbs.param[1] = tgt << 8;
-			mbs.param[2] = DPARM_SAFE_DFLT;
+			mbs.param[2] = sdf;
 			mbs.param[3] = 0;
 			isp_mboxcmd(isp, &mbs);
 			if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
@@ -684,6 +690,7 @@ isp_init(isp)
 				continue;
 			}
 		}
+		sdp->isp_devparam[tgt].cur_dflags = sdf;
 
 		maxlun = (isp->isp_fwrev >= ISP_FW_REV(7, 55))? 32 : 8;
 		for (lun = 0; lun < maxlun; lun++) {
@@ -742,6 +749,7 @@ isp_init(isp)
 	/*
 	 *  Turn on Fast Posting
 	 */
+#ifndef	ISP_NO_FASTPOST_SCSI
 	if (isp->isp_fwrev >= ISP_FW_REV(7, 55)) {
 		mbs.param[0] = MBOX_SET_FW_FEATURES;
 		mbs.param[1] = FW_FEATURE_FAST_POST;
@@ -751,7 +759,12 @@ isp_init(isp)
 			    isp->isp_name);
 		}
 	}
+#endif
 
+	/*
+	 * Let the outer layers decide whether to issue a SCSI bus reset.
+	 */
+#if	0
 	/*	
 	 * XXX: See whether or not for 7.55 F/W or later we
 	 * XXX: can do without this, and see whether we should
@@ -767,6 +780,7 @@ isp_init(isp)
 	 * This is really important to have set after a bus reset.
 	 */
 	isp->isp_sendmarker = 1;
+#endif
 	isp->isp_state = ISP_INITSTATE;
 }
 
@@ -824,9 +838,12 @@ isp_fibre_init(isp)
 #else
 	fcp->isp_fwoptions = 0;
 #endif
-	fcp->isp_fwoptions |= ICBOPT_INI_ADISC|ICBOPT_FAIRNESS|ICBOPT_FAST_POST;
+	fcp->isp_fwoptions |= ICBOPT_INI_ADISC|ICBOPT_FAIRNESS;
 	fcp->isp_fwoptions |= ICBOPT_PDBCHANGE_AE;
 	fcp->isp_fwoptions |= ICBOPT_HARD_ADDRESS;
+#ifndef	ISP_NO_FASTPOST_FC
+	fcp->isp_fwoptions |= ICBOPT_FAST_POST;
+#endif
 #ifdef	CHECKME
 	fcp->isp_fwoptions |= ICBOPT_USE_PORTNAME;
 #endif
@@ -1164,7 +1181,15 @@ isp_control(isp, ctl, arg)
 
 	case ISPCTL_RESET_BUS:
 		mbs.param[0] = MBOX_BUS_RESET;
-		mbs.param[1] = (isp->isp_type & ISP_HA_FC)? 5: 2;
+		if (isp->isp_type & ISP_HA_SCSI) {
+			mbs.param[1] =
+			    ((sdparam *) isp->isp_param)->isp_bus_reset_delay;
+		} else {
+			/*
+			 * Unparameterized.
+			 */
+			mbs.param[1] = 5;
+		}
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 			isp_dumpregs(isp, "isp_control SCSI bus reset failed");
@@ -1178,18 +1203,12 @@ isp_control(isp, ctl, arg)
 		return (0);
 
         case ISPCTL_RESET_DEV:
-		/*
-		 * Note that under parallel SCSI, this issues a BDR message.
-		 * Under FC, we could probably be using ABORT TASK SET
-		 * command.
-		 */
-
 		mbs.param[0] = MBOX_ABORT_TARGET;
 		mbs.param[1] = ((long)arg) << 8;
-		mbs.param[2] = 2;	/* 'delay', in seconds */
+		mbs.param[2] = 3;	/* 'delay', in seconds */
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-			isp_dumpregs(isp, "SCSI Target  reset failed");
+			isp_dumpregs(isp, "Target Reset Failed");
 			break;
 		}
 		PRINTF("%s: Target %d Reset Succeeded\n", isp->isp_name,
@@ -1256,7 +1275,7 @@ isp_intr(arg)
 	struct ispsoftc *isp = arg;
 	u_int8_t iptr, optr;
 	u_int16_t isr;
-	int i, ndone = 0;
+	int i, nlooked = 0, ndone = 0;
 
 	isr = ISP_READ(isp, BIU_ISR);
 	if (isp->isp_type & ISP_HA_FC) {
@@ -1322,6 +1341,7 @@ isp_intr(arg)
 		sp = (ispstatusreq_t *) ISP_QUEUE_ENTRY(isp->isp_result, optr);
 		oop = optr;
 		optr = ISP_NXT_QENTRY(optr, RESULT_QUEUE_LEN);
+		nlooked++;
 
 		if (sp->req_header.rqs_entry_type != RQSTYPE_RESPONSE) {
 			if (isp_handle_other_response(isp, sp, &optr) == 0) {
@@ -1469,16 +1489,18 @@ isp_intr(arg)
 			PRINTF(" XS_ERR=0x%x\n", (unsigned int) XS_ERR(xs));
 		}
 
-		ISP_WRITE(isp, INMAILBOX5, optr);
 		if (isp->isp_nactive > 0)
 		    isp->isp_nactive--;
 		complist[ndone++] = xs;	/* defer completion call until later */
 	}
+
 	/*
-	 * If we completed any commands, then it's valid to find out
-	 * what the outpointer is.
+	 * If we looked at any commands, then it's valid to find out
+	 * what the outpointer is. It also is a trigger to update the
+	 * ISP's notion of what we've seen so far.
 	 */
 	if (ndone) {
+		ISP_WRITE(isp, INMAILBOX5, optr);
 	 	isp->isp_reqodx = ISP_READ(isp, OUTMAILBOX4);
 	}
 	isp->isp_residx = optr;
@@ -1589,10 +1611,12 @@ isp_parse_async(isp, mbox)
 
 	case ASYNC_LOOP_UP:
 		PRINTF("%s: Loop UP\n", isp->isp_name);
+		isp_async(isp, ISPASYNC_LOOP_UP, NULL);
 		break;
 
 	case ASYNC_LOOP_DOWN:
 		PRINTF("%s: Loop DOWN\n", isp->isp_name);
+		isp_async(isp, ISPASYNC_LOOP_DOWN, NULL);
 		break;
 
 	case ASYNC_LOOP_RESET:
@@ -2881,6 +2905,7 @@ isp_dumpregs(isp, msg)
 	       ISP_READ(isp, BIU_ISR), ISP_READ(isp, BIU_SEMA));
 	PRINTF("risc_hccr=%x\n", ISP_READ(isp, HCCR));
 
+
 	if (isp->isp_type & ISP_HA_SCSI) {
 		ISP_WRITE(isp, HCCR, HCCR_CMD_PAUSE);
 		PRINTF("    cdma_conf=%x cdma_sts=%x cdma_fifostat=%x\n",
@@ -2895,6 +2920,10 @@ isp_dumpregs(isp, msg)
 			ISP_READ(isp, SXP_PINS_CONTROL));
 		ISP_WRITE(isp, HCCR, HCCR_CMD_RELEASE);
 	}
+	PRINTF("    mbox regs: %x %x %x %x %x\n",
+	    ISP_READ(isp, OUTMAILBOX0), ISP_READ(isp, OUTMAILBOX1),
+	    ISP_READ(isp, OUTMAILBOX2), ISP_READ(isp, OUTMAILBOX3),
+	    ISP_READ(isp, OUTMAILBOX4));
 	ISP_DUMPREGS(isp);
 }
 
@@ -3030,7 +3059,7 @@ static void
 isp_setdfltparm(isp)
 	struct ispsoftc *isp;
 {
-	int i, use_nvram;
+	int i;
 	mbreg_t mbs;
 	sdparam *sdp;
 
@@ -3043,8 +3072,8 @@ isp_setdfltparm(isp)
 	}
 	isp->isp_gotdparms = 1;
 
-	use_nvram = (isp_read_nvram(isp) == 0);
-	if (use_nvram) {
+	if ((isp->isp_confopts & ISP_CFG_NONVRAM) == 0 &&
+	    (isp_read_nvram(isp) == 0)) {
 		return;
 	}
 	if (isp->isp_type & ISP_HA_FC) {
@@ -3075,21 +3104,37 @@ isp_setdfltparm(isp)
 		sdp->isp_req_ack_active_neg = (mbs.param[1] >> 4) & 0x1;
 		sdp->isp_data_line_active_neg = (mbs.param[1] >> 5) & 0x1;
 	}
+
 	for (i = 0; i < MAX_TARGETS; i++) {
+		sdp->isp_devparam[i].dev_flags = DPARM_DEFAULT;
+		sdp->isp_devparam[i].cur_dflags = DPARM_SAFE_DFLT;
+		if (isp->isp_type < ISP_HA_SCSI_1040 ||
+		    (sdp->isp_clock && sdp->isp_clock < 60)) {
+			sdp->isp_devparam[i].sync_offset =
+			    ISP_10M_SYNCPARMS >> 8;
+			sdp->isp_devparam[i].sync_period =
+			    ISP_10M_SYNCPARMS & 0xff;
+		} else {
+			sdp->isp_devparam[i].sync_offset =
+			    ISP_20M_SYNCPARMS >> 8;
+			sdp->isp_devparam[i].sync_period =
+			    ISP_20M_SYNCPARMS & 0xff;
+		}
+
+		/*
+		 * Don't get current target parameters if we've been
+		 * told not to use NVRAM- it's really the same thing.
+		 */
+		if (isp->isp_confopts & ISP_CFG_NONVRAM)
+			continue;
 
 		mbs.param[0] = MBOX_GET_TARGET_PARAMS;
 		mbs.param[1] = i << 8;
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-			PRINTF("%s: can't get SCSI parameters for target %d\n",
-			    isp->isp_name, i);
-			sdp->isp_devparam[i].sync_period = 0;
-			sdp->isp_devparam[i].sync_offset = 0;
-			sdp->isp_devparam[i].dev_flags = DPARM_SAFE_DFLT;
 			continue;
 		}
 		sdp->isp_devparam[i].dev_flags = mbs.param[2];
-
 		/*
 		 * The maximum period we can really see
 		 * here is 100 (decimal), or 400 ns.
@@ -3113,11 +3158,10 @@ isp_setdfltparm(isp)
 		    (sdp->isp_devparam[i].sync_period ==
 		    (ISP_20M_SYNCPARMS & 0xff))) {
 			sdp->isp_devparam[i].sync_offset =
-				ISP_10M_SYNCPARMS >> 8;
+			    ISP_10M_SYNCPARMS >> 8;
 			sdp->isp_devparam[i].sync_period =
-				ISP_10M_SYNCPARMS & 0xff;
+			    ISP_10M_SYNCPARMS & 0xff;
 		}
-
 	}
 
 	/*
@@ -3356,13 +3400,38 @@ isp_read_nvram(isp)
 			ISP_NVRAM_MAX_QUEUE_DEPTH(nvram_data);
 
 		sdp->isp_fast_mttr = ISP_NVRAM_FAST_MTTR_ENABLE(nvram_data);
-#if	0
-		PRINTF("%s: fifo_threshold = 0x%x cbena%d dbena%d\n",
-		    isp->isp_name, sdp->isp_fifo_threshold,
-		    sdp->isp_cmd_dma_burst_enable,
-		    sdp->isp_data_dma_burst_enabl);
-#endif
-		for (i = 0; i < 16; i++) {
+		if (isp->isp_dblev > 2) {
+			static char *true = "true";
+			static char *false = "false";
+			PRINTF("%s: NVRAM values:\n", isp->isp_name);
+			PRINTF("             Fifo Threshold = 0x%x\n",
+			    sdp->isp_fifo_threshold);
+			PRINTF("            Bus Reset Delay = %d\n",
+			    sdp->isp_bus_reset_delay);
+			PRINTF("                Retry Count = %d\n",
+			    sdp->isp_retry_count);
+			PRINTF("                Retry Delay = %d\n",
+			    sdp->isp_retry_delay);
+			PRINTF("              Tag Age Limit = %d\n",
+			    sdp->isp_tag_aging);
+			PRINTF("          Selection Timeout = %d\n",
+			    sdp->isp_selection_timeout);
+			PRINTF("            Max Queue Depth = %d\n",
+			    sdp->isp_max_queue_depth);
+			PRINTF("           Async Data Setup = 0x%x\n",
+			    sdp->isp_async_data_setup);
+			PRINTF("    REQ/ACK Active Negation = %s\n",
+			    sdp->isp_req_ack_active_neg? true : false);
+			PRINTF("  Data Line Active Negation = %s\n",
+			    sdp->isp_data_line_active_neg? true : false);
+			PRINTF("      Data DMA Burst Enable = %s\n",
+			    sdp->isp_data_dma_burst_enabl? true : false);
+			PRINTF("       Cmd DMA Burst Enable = %s\n",
+			    sdp->isp_cmd_dma_burst_enable? true : false);
+			PRINTF("                  Fast MTTR = %s\n",
+			    sdp->isp_fast_mttr? true : false);
+		}
+		for (i = 0; i < MAX_TARGETS; i++) {
 			sdp->isp_devparam[i].dev_enable =
 				ISP_NVRAM_TGT_DEVICE_ENABLE(nvram_data, i);
 			sdp->isp_devparam[i].exc_throttle =
@@ -3390,9 +3459,7 @@ isp_read_nvram(isp)
 					sdp->isp_devparam[i].sync_offset = 0x8;
 				}
 			}
-
 			sdp->isp_devparam[i].dev_flags = 0;
-
 			if (ISP_NVRAM_TGT_RENEG(nvram_data, i))
 				sdp->isp_devparam[i].dev_flags |= DPARM_RENEG;
 			if (ISP_NVRAM_TGT_QFRZ(nvram_data, i)) {
@@ -3414,6 +3481,15 @@ isp_read_nvram(isp)
 				sdp->isp_devparam[i].dev_flags |= DPARM_PARITY;
 			if (ISP_NVRAM_TGT_DISC(nvram_data, i))
 				sdp->isp_devparam[i].dev_flags |= DPARM_DISC;
+			if (isp->isp_dblev > 2) {
+				PRINTF("   Target %d: Enabled %d Throttle %d "
+				    "Offset %d Period %d Flags 0x%x\n", i,
+				    sdp->isp_devparam[i].dev_enable,
+				    sdp->isp_devparam[i].exc_throttle,
+				    sdp->isp_devparam[i].sync_offset,
+				    sdp->isp_devparam[i].sync_period,
+				    sdp->isp_devparam[i].dev_flags);
+			}
 		}
 	} else {
 		fcparam *fcp = (fcparam *) isp->isp_param;
@@ -3452,7 +3528,28 @@ isp_read_nvram(isp)
 			ISP2100_NVRAM_HARDLOOPID(nvram_data);
 		fcp->isp_execthrottle =
 			ISP2100_NVRAM_EXECUTION_THROTTLE(nvram_data);
+		fcp->isp_fwoptions = ISP2100_NVRAM_OPTIONS(nvram_data);
+		if (isp->isp_dblev > 2) {
+			PRINTF("%s: NVRAM values:\n", isp->isp_name);
+			PRINTF("  Max IOCB Allocation = %d\n",
+			    fcp->isp_maxalloc);
+			PRINTF("     Max Frame Length = %d\n",
+			    fcp->isp_maxfrmlen);
+			PRINTF("   Execution Throttle = %d\n",
+			    fcp->isp_execthrottle);
+			PRINTF("          Retry Count = %d\n",
+			    fcp->isp_retry_count);
+			PRINTF("          Retry Delay = %d\n",
+			    fcp->isp_retry_delay);
+			PRINTF("         Hard Loop ID = %d\n",
+			    fcp->isp_loopid);
+			PRINTF("              Options = 0x%x\n",
+			    fcp->isp_fwoptions);
+			PRINTF("          HBA Options = 0x%x\n",
+			    ISP2100_NVRAM_HBA_OPTIONS(nvram_data));
+		}
 	}
+	IDPRINTF(3, ("%s: NVRAM is valid\n", isp->isp_name));
 	return (0);
 }
 
