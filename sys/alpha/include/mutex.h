@@ -48,6 +48,7 @@
 
 #define	mtx_legal2block()						\
 	((alpha_pal_rdps() & ALPHA_PSL_IPL_MASK) == ALPHA_PSL_IPL_0)
+#define	mtx_intr_enable(mutex)	(mutex)->mtx_saveintr = ALPHA_PSL_IPL_0
 
 /*
  * Assembly macros (for internal use only)
