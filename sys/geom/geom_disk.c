@@ -143,9 +143,6 @@ g_disk_start(struct bio *bp)
 		else if (g_haveattr_int(bp, "GEOM::fwheads",
 		    dp->d_label.d_ntracks))
 			break;
-		else if (g_haveattr_int(bp, "GEOM::fwcylinders",
-		    dp->d_label.d_ncylinders))
-			break;
 		else if (g_haveattr_off_t(bp, "GEOM::mediasize",
 		    dp->d_label.d_secsize * (off_t)dp->d_label.d_secperunit))
 			break;
