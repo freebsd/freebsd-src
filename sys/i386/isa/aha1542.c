@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.51 1995/12/06 23:50:45 bde Exp $
+ *      $Id: aha1542.c,v 1.52 1995/12/07 12:45:53 davidg Exp $
  */
 
 /*
@@ -322,14 +322,33 @@ static struct aha_data {
 	struct scsi_link sc_link;	/* prototype for subdevs */
 } *ahadata[NAHA];
 
-static struct aha_ccb	*aha_get_ccb();
-static int		ahaprobe();
-static void		aha_done();
-static int		ahaattach();
-static int32		aha_scsi_cmd();
-static timeout_t	aha_timeout;
-static void		ahaminphys();
-static u_int32		aha_adapter_info();
+static u_int32	aha_adapter_info __P((int unit));
+static int	ahaattach __P((struct isa_device *dev));
+static int	aha_bus_speed_check __P((int unit, int speed));
+#ifdef notyet
+static int	aha_cmd __P((int unit, int icnt, int ocnt, int wait,
+			     u_char *retval, unsigned opcode, ...));
+#else
+static int	aha_cmd();
+#endif
+static void	aha_done __P((int unit, struct aha_ccb *ccb));
+static int	aha_escape __P((struct scsi_xfer *xs, struct aha_ccb *ccb));
+static void	aha_free_ccb __P((int unit, struct aha_ccb *ccb, int flags));
+static struct aha_ccb *
+		aha_get_ccb __P((int unit, int flags));
+static int	aha_init __P((int unit));
+static void	ahaminphys __P((struct buf *bp));
+static int	aha_poll __P((int unit, struct scsi_xfer *xs,
+			      struct aha_ccb *ccb));
+static int	ahaprobe __P((struct isa_device *dev));
+static void	aha_registerdev __P((struct isa_device *id));
+static int32	aha_scsi_cmd __P((struct scsi_xfer *xs));
+static int	aha_set_bus_speed __P((int unit));
+static timeout_t
+		aha_timeout;
+static char	*board_rev __P((int unit, int type));
+static int	physcontig __P((int kv, int len));
+static void	put_host_stat __P((int host_stat));
 
 #ifdef	KERNEL
 static struct scsi_adapter aha_switch =
@@ -395,9 +414,6 @@ static int ahaunit = 0;
 	outb(AHA_CMD_DATA_PORT, AHA_START_SCSI);
 
 #define AHA_RESET_TIMEOUT	2000	/* time to wait for reset (mSec) */
-
-static int	aha_poll __P((int, struct scsi_xfer *, struct aha_ccb *));
-static int	aha_init __P((int));
 
 #ifndef	KERNEL
 main()
