@@ -132,6 +132,11 @@ again:
 	looping = False;
 
 	wall_clock = (access(_PATH_CLOCK, F_OK) == 0);
+	if (init && !sleep_mode) {
+		init = False;
+		if (!wall_clock)
+			return 0;
+	}
 
 	mib[0] = CTL_MACHDEP;
 	mib[1] = CPU_ADJKERNTZ;
@@ -335,7 +340,7 @@ recalculate:
 /****** End of critical section ******/
 
 	if (init && wall_clock) {
-		init = False;
+		sleep_mode = False;
 		/* wait for signals and acts like -a */
 		(void) sigsuspend(&emask);
 		goto again;
