@@ -26,7 +26,6 @@ ncurses_def.h:	MKncurses_def.sh ncurses_defs
 # generate MAN
 CLEANFILES+=	panel.3
 MAN=		panel.3
-all-man: panel.3
 panel.3: panel.3x
 	ln -s ${.ALLSRC} ${.TARGET}
 
