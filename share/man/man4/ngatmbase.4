@@ -44,7 +44,7 @@
 .Ft "struct uni_msg *"
 .Fn uni_msg_alloc "size_t len"
 .Ft "struct uni_msg *"
-.Fn uni_msg_build "void *buf" "..."
+.Fn uni_msg_build "void *buf" ...
 .Ft void
 .Fn uni_msg_destroy "struct uni_msg *msg"
 .Ft int
@@ -53,7 +53,9 @@
 This module provides utility functions for the handling of signalling
 messages to the NgATM modules.
 .Pp
+The
 .Fn uni_msg_pack_mbuf
+function
 packs a message into one or several
 .Vt mbuf Ns s
 optionally prepending a header.
@@ -75,14 +77,18 @@ or
 may be
 .Dv NULL
 but not both.
+The
 .Fn uni_msg_pack_mbuf
+function
 returns a pointer to the allocated
 .Vt mbuf
 chain or
 .Dv NULL
 in the case of an error.
 .Pp
+The
 .Fn uni_msg_alloc
+function
 allocates a new message with space for at least
 .Fa len
 bytes.
@@ -90,25 +96,31 @@ In the case of an error
 .Dv NULL
 is returned.
 .Pp
+The
 .Fn uni_msg_build
-constructs a message from pieces. Each piece is given by a pair of
+function constructs a message from pieces.
+Each piece is given by a pair of
 arguments, the first of type
-.Vt "void *
+.Vt "void *"
 and the second a
-.Vt "size_t" .
+.Vt size_t .
 The list of pieces must be terminated by
-.Vt "(void *)" Ns Dv NULL .
+.Po Vt "void *" Pc Ns Dv NULL .
 .Pp
+The
 .Fn uni_msg_destroy
+function
 destroyes the messages and frees all the messages's memory.
 .Pp
+The
 .Fn uni_msg_unpack_mbuf
+function
 unpacks an
 .Vt mbuf
 chain info a
 .Vt uni_msg .
 A pointer to the newly allocated message is stored in
-.Va msgp
+.Fa msgp
 and 0 is returned.
 In the case of an error (either when no packet header is found
 in the first mbuf or memory cannot be allocated) the function
