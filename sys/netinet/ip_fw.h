@@ -275,7 +275,8 @@ typedef struct  _ipfw_insn_log {
  */
 
 struct ip_fw {
-	struct ip_fw	*next;		/* linked list of rules	*/
+	struct ip_fw	*next;		/* linked list of rules		*/
+	struct ip_fw *next_rule;	/* ptr to next [skipto] rule	*/
 	u_int16_t	act_ofs;	/* offset of action in 32-bit units */
 	u_int16_t	cmd_len;	/* # of 32-bit words in cmd	*/
 	u_int16_t	rulenum;	/* rule number			*/
@@ -285,8 +286,6 @@ struct ip_fw {
 	u_int64_t	pcnt;		/* Packet counter		*/
 	u_int64_t	bcnt;		/* Byte counter			*/
 	u_int32_t	timestamp;	/* tv_sec of last match		*/
-
-	struct ip_fw *next_rule;	/* ptr to next rule		*/
 
 	ipfw_insn	cmd[1];		/* storage for commands		*/
 };
@@ -327,6 +326,9 @@ struct _ipfw_dyn_rule {
 	u_int32_t	state;		/* state of this rule (typically a
 					 * combination of TCP flags)
 					 */
+	u_int32_t	ack_fwd;	/* most recent ACKs in forward	*/
+	u_int32_t	ack_rev;	/* and reverse directions (used	*/
+					/* to generate keepalives)	*/
 	u_int16_t	dyn_type;	/* rule type			*/
 	u_int16_t	count;		/* refcount			*/
 };
