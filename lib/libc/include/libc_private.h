@@ -101,9 +101,9 @@ typedef enum {
 	PJT_MAX
 } pjt_index_t;
 
-typedef int (*pthread_func_t)();
+typedef int (*pthread_func_t)(void);
 
-extern pthread_func_t __thr_jtable[][];
+extern pthread_func_t *__thr_jtable[];
 
 /*
  * This is a pointer in the C run-time startup code. It is used
