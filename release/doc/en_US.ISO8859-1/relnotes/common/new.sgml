@@ -2257,6 +2257,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     appropriate server will also be queried, provided that the
     <option>-Q</option> option is not specified. &merged;</para>
 
+    <para>&man.whois.1; supports a <option>-c</option> option to
+    specify a country code to help direct queries towards a particular
+    whois server. &merged;</para>
+
     <para>&man.xargs.1; now supports a <option>-J</option>
     <replaceable>replstr</replaceable> option that allows the user to
     tell &man.xargs.1; to insert the data read from standard input at
@@ -2359,7 +2363,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>The version of <application>IPFilter</application>
       provided with &os; now includes the &man.ipfs.8; program, which
       allows state information created for NAT entries and stateful
-      rules to be saved to disk and restored after a reboot. &merged;</para>
+      rules to be saved to disk and restored after a reboot. 
+      Boot-time configuration of these features is supported by
+      &man.rc.conf.5;. &merged;</para>
 
       <para>The <application>ISC DHCP</application> client has been
       updated to 2.0pl5. &merged;</para>
@@ -2658,6 +2664,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       package names.  In addition, it supports a <option>-a</option>
       option for removing all packages and a <option>-i</option> option
       for &man.rm.1;-style interactive confirmation. &merged;</para>
+
+      <para>&man.pkg.delete.1; now supports a <option>-r</option>
+      option for recursive package removal. &merged;</para>
 
       <para>&man.pkg.info.1; now supports globbing against names of
       installed packages.  The <option>-G</option> option disables this
