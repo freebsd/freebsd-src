@@ -374,15 +374,15 @@ extern struct	mbuf *fr_dequeue(struct ifnet *);
 #else
 static	void	ngsr_watchdog_frame(void * arg);
 static	void	ngsr_init(void* ignored);
-static	int	ngsr_constructor(node_p *nodep);
-static	int	ngsr_rcvmsg(node_p node, struct ng_mesg *msg,
-			const char *retaddr, struct ng_mesg **resp);
-static	int	ngsr_rmnode(node_p node);
-static	int	ngsr_newhook(node_p node, hook_p hook, const char *name);
-/*static	hook_p	ngsr_findhook(node_p node, char *name);*/
-static	int	ngsr_connect(hook_p hook);	/* already PARTLY linked */
-static	int	ngsr_rcvdata(hook_p hook, struct mbuf *m, meta_p meta);
-static	int	ngsr_disconnect(hook_p hook);	/* notify on disconnect */
+
+static ng_constructor_t	ngsr_constructor;
+static ng_rcvmsg_t	ngsr_rcvmsg;
+static ng_shutdown_t	ngsr_rmnode;
+static ng_newhook_t	ngsr_newhook;
+/*static ng_findhook_t	ngsr_findhook; */
+static ng_connect_t	ngsr_connect;
+static ng_rcvdata_t	ngsr_rcvdata;
+static ng_disconnect_t	ngsngsrsconnect;
 
 static struct ng_type typestruct = {
 	NG_VERSION,

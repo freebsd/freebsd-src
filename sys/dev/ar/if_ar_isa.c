@@ -254,16 +254,16 @@ static void ar_timer_intr(struct ar_hardc *hc, int scano, u_char isr);
 #ifdef	NETGRAPH
 static	void	ngar_watchdog_frame(void * arg);
 static	void	ngar_init(void* ignored);
-static	int	ngar_constructor(node_p *nodep);
-static	int	ngar_rcvmsg(node_p node, struct ng_mesg *msg,
-			const char *retaddr, struct ng_mesg **resp);
-static	int	ngar_rmnode(node_p node);
-static	int	ngar_newhook(node_p node, hook_p hook, const char *name);
-/*static	hook_p	ngar_findhook(node_p node, char *name);*/
-static	int	ngar_connect(hook_p hook);	/* already PARTLY linked */
-static	int	ngar_rcvdata(hook_p hook, struct mbuf *m, meta_p meta);
-static	int	ngar_disconnect(hook_p hook);	/* notify on disconnect */
 
+static ng_constructor_t	ngar_constructor;
+static ng_rcvmsg_t	ngar_rcvmsg;
+static ng_shutdown_t	ngar_rmnode;
+static ng_newhook_t	ngar_newhook;
+/*static ng_findhook_t	ngar_findhook; */
+static ng_connect_t	ngar_connect;
+static ng_rcvdata_t	ngar_rcvdata;
+static ng_disconnect_t	ngar_disconnect;
+	
 static struct ng_type typestruct = {
 	NG_VERSION,
 	NG_AR_NODE_TYPE,
