@@ -49,7 +49,7 @@ void db_md_list_watchpoints(void);
 static void db_watch_print(vm_offset_t wp, int bm);
 
 int
-watch_phys_set_mask(vm_offset_t pa, u_long mask)
+watch_phys_set_mask(vm_paddr_t pa, u_long mask)
 {
 	u_long lsucr;
 
@@ -62,7 +62,7 @@ watch_phys_set_mask(vm_offset_t pa, u_long mask)
 }
 
 int
-watch_phys_set(vm_offset_t pa, int sz)
+watch_phys_set(vm_paddr_t pa, int sz)
 {
 	u_long off;
 
@@ -73,10 +73,10 @@ watch_phys_set(vm_offset_t pa, int sz)
 	return (watch_phys_set_mask(pa, ((1 << sz) - 1) << off));
 }
 
-vm_offset_t
+vm_paddr_t
 watch_phys_get(int *bm)
 {
-	u_long pa;
+	vm_paddr_t pa;
 	u_long lsucr;
 	
 	if (!watch_phys_active())
@@ -86,7 +86,7 @@ watch_phys_get(int *bm)
 	lsucr = ldxa(0, ASI_LSU_CTL_REG);
 	*bm = (lsucr & LSU_PM_MASK) >> LSU_PM_SHIFT;
 	
-	return ((vm_offset_t)pa);
+	return (pa);
 }
 
 void
@@ -196,19 +196,20 @@ db_watch_print(vm_offset_t wp, int bm)
 void
 db_md_list_watchpoints(void)
 {
-	vm_offset_t wp;
+	vm_offset_t va;
+	vm_paddr_t pa;
 	int bm;
 
 	db_printf("Physical address watchpoint:\n");
 	if (watch_phys_active()) {
-		wp = watch_phys_get(&bm);
-		db_watch_print(wp, bm);
+		pa = watch_phys_get(&bm);
+		db_watch_print(pa, bm);
 	} else
 		db_printf("\tnot active.\n");
 	db_printf("Virtual address watchpoint:\n");
 	if (watch_virt_active()) {
-		wp = watch_virt_get(&bm);
-		db_watch_print(wp, bm);
+		va = watch_virt_get(&bm);
+		db_watch_print(va, bm);
 	} else
 		db_printf("\tnot active.\n");
 }

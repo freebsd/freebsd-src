@@ -77,7 +77,7 @@ PMAP_STATS_VAR(tsb_nforeach);
 struct tte *tsb_kernel;
 vm_size_t tsb_kernel_mask;
 vm_size_t tsb_kernel_size;
-vm_offset_t tsb_kernel_phys;
+vm_paddr_t tsb_kernel_phys;
 
 struct tte *
 tsb_tte_lookup(pmap_t pm, vm_offset_t va)

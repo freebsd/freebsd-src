@@ -111,20 +111,20 @@
  * Virtual and physical address of message buffer.
  */
 struct msgbuf *msgbufp;
-vm_offset_t msgbuf_phys;
+vm_paddr_t msgbuf_phys;
 
 /*
  * Physical addresses of first and last available physical page.
  */
-vm_offset_t avail_start;
-vm_offset_t avail_end;
+vm_paddr_t avail_start;
+vm_paddr_t avail_end;
 
 int pmap_pagedaemon_waken;
 
 /*
  * Map of physical memory reagions.
  */
-vm_offset_t phys_avail[128];
+vm_paddr_t phys_avail[128];
 static struct ofw_mem_region mra[128];
 struct ofw_mem_region sparc64_memreg[128];
 int sparc64_nmemreg;
@@ -152,7 +152,7 @@ struct pmap kernel_pmap_store;
 /*
  * Allocate physical memory for use in pmap_bootstrap.
  */
-static vm_offset_t pmap_bootstrap_alloc(vm_size_t size);
+static vm_paddr_t pmap_bootstrap_alloc(vm_size_t size);
 
 extern int tl1_immu_miss_patch_1[];
 extern int tl1_immu_miss_patch_2[];
@@ -269,8 +269,8 @@ pmap_bootstrap(vm_offset_t ekva)
 	struct pmap *pm;
 	struct tte *tp;
 	vm_offset_t off;
-	vm_offset_t pa;
 	vm_offset_t va;
+	vm_paddr_t pa;
 	vm_size_t physsz;
 	vm_size_t virtsz;
 	ihandle_t pmem;
@@ -505,7 +505,7 @@ void
 pmap_map_tsb(void)
 {
 	vm_offset_t va;
-	vm_offset_t pa;
+	vm_paddr_t pa;
 	u_long data;
 	u_long s;
 	int i;
@@ -541,10 +541,10 @@ pmap_map_tsb(void)
  * Can only be called from pmap_bootstrap before avail start and end are
  * calculated.
  */
-static vm_offset_t
+static vm_paddr_t
 pmap_bootstrap_alloc(vm_size_t size)
 {
-	vm_offset_t pa;
+	vm_paddr_t pa;
 	int i;
 
 	size = round_page(size);
@@ -601,7 +601,7 @@ pmap_context_alloc(void)
  * Initialize the pmap module.
  */
 void
-pmap_init(vm_offset_t phys_start, vm_offset_t phys_end)
+pmap_init(vm_paddr_t phys_start, vm_paddr_t phys_end)
 {
 	vm_offset_t addr;
 	vm_size_t size;
@@ -644,7 +644,7 @@ pmap_init2(void)
  * Extract the physical page address associated with the given
  * map/virtual_address pair.
  */
-vm_offset_t
+vm_paddr_t
 pmap_extract(pmap_t pm, vm_offset_t va)
 {
 	struct tte *tp;
@@ -662,7 +662,7 @@ pmap_extract(pmap_t pm, vm_offset_t va)
  * Extract the physical page address associated with the given kernel virtual
  * address.
  */
-vm_offset_t
+vm_paddr_t
 pmap_kextract(vm_offset_t va)
 {
 	struct tte *tp;
@@ -815,43 +815,40 @@ pmap_cache_remove(vm_page_t m, vm_offset_t va)
  * Map a wired page into kernel virtual address space.
  */
 void
-pmap_kenter(vm_offset_t va, vm_offset_t pa)
+pmap_kenter(vm_offset_t va, vm_page_t m)
 {
-	vm_offset_t opa;
 	vm_offset_t ova;
 	struct tte *tp;
 	vm_page_t om;
-	vm_page_t m;
 	u_long data;
 
 	PMAP_STATS_INC(pmap_nkenter);
 	tp = tsb_kvtotte(va);
-	m = PHYS_TO_VM_PAGE(pa);
 	CTR4(KTR_PMAP, "pmap_kenter: va=%#lx pa=%#lx tp=%p data=%#lx",
-	    va, pa, tp, tp->tte_data);
+	    va, VM_PAGE_TO_PHYS(m), tp, tp->tte_data);
 	if (m->pc != DCACHE_COLOR(va)) {
 		CTR6(KTR_CT2,
 	"pmap_kenter: off colour va=%#lx pa=%#lx o=%p oc=%#lx ot=%d pi=%#lx",
-		    va, pa, m->object,
+		    va, VM_PAGE_TO_PHYS(m), m->object,
 		    m->object ? m->object->pg_color : -1,
 		    m->object ? m->object->type : -1,
 		    m->pindex);
 		PMAP_STATS_INC(pmap_nkenter_oc);
 	}
 	if ((tp->tte_data & TD_V) != 0) {
-		opa = TTE_GET_PA(tp);
+		om = PHYS_TO_VM_PAGE(TTE_GET_PA(tp));
 		ova = TTE_GET_VA(tp);
-		if (pa == opa && va == ova) {
+		if (m == om && va == ova) {
 			PMAP_STATS_INC(pmap_nkenter_stupid);
 			return;
 		}
-		om = PHYS_TO_VM_PAGE(opa);
 		TAILQ_REMOVE(&om->md.tte_list, tp, tte_link);
 		pmap_cache_remove(om, ova);
 		if (va != ova)
 			tlb_page_demap(kernel_pmap, ova);
 	}
-	data = TD_V | TD_8K | TD_PA(pa) | TD_REF | TD_SW | TD_CP | TD_P | TD_W;
+	data = TD_V | TD_8K | VM_PAGE_TO_PHYS(m) | TD_REF | TD_SW | TD_CP |
+	    TD_P | TD_W;
 	if (pmap_cache_enter(m, va) != 0)
 		data |= TD_CV;
 	tp->tte_vpn = TV_VPN(va, TS_8K);
@@ -867,7 +864,7 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
  * to flush entries that might still be in the cache, if applicable.
  */
 void
-pmap_kenter_flags(vm_offset_t va, vm_offset_t pa, u_long flags)
+pmap_kenter_flags(vm_offset_t va, vm_paddr_t pa, u_long flags)
 {
 	struct tte *tp;
 
@@ -922,7 +919,7 @@ pmap_kremove_flags(vm_offset_t va)
  * unchanged.
  */
 vm_offset_t
-pmap_map(vm_offset_t *virt, vm_offset_t start, vm_offset_t end, int prot)
+pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
 {
 
 	return (TLB_PHYS_TO_DIRECT(start));
@@ -941,7 +938,7 @@ pmap_qenter(vm_offset_t sva, vm_page_t *m, int count)
 	PMAP_STATS_INC(pmap_nqenter);
 	va = sva;
 	while (count-- > 0) {
-		pmap_kenter(va, VM_PAGE_TO_PHYS(*m));
+		pmap_kenter(va, *m);
 		va += PAGE_SIZE;
 		m++;
 	}
@@ -1050,8 +1047,8 @@ pmap_dispose_thread(struct thread *td)
 	vm_object_t ksobj;
 	vm_offset_t ks;
 	vm_page_t m;
-	int i;
 	int pages;
+	int i;
 
 	pages = td->td_kstack_pages;
 	ksobj = td->td_kstack_obj;
@@ -1109,8 +1106,8 @@ pmap_swapout_thread(struct thread *td)
 	vm_object_t ksobj;
 	vm_offset_t ks;
 	vm_page_t m;
-	int i;
 	int pages;
+	int i;
 
 	pages = td->td_kstack_pages;
 	ksobj = td->td_kstack_obj;
@@ -1427,7 +1424,7 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	   boolean_t wired)
 {
 	struct tte *tp;
-	vm_offset_t pa;
+	vm_paddr_t pa;
 	u_long data;
 	int i;
 
@@ -1628,9 +1625,9 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 void
 pmap_zero_page(vm_page_t m)
 {
-	vm_offset_t pa;
-	vm_offset_t va;
 	struct tte *tp;
+	vm_offset_t va;
+	vm_paddr_t pa;
 
 	KASSERT((m->flags & PG_FICTITIOUS) == 0,
 	    ("pmap_zero_page: fake page"));
@@ -1657,9 +1654,9 @@ pmap_zero_page(vm_page_t m)
 void
 pmap_zero_page_area(vm_page_t m, int off, int size)
 {
-	vm_offset_t pa;
-	vm_offset_t va;
 	struct tte *tp;
+	vm_offset_t va;
+	vm_paddr_t pa;
 
 	KASSERT((m->flags & PG_FICTITIOUS) == 0,
 	    ("pmap_zero_page_area: fake page"));
@@ -1687,9 +1684,9 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 void
 pmap_zero_page_idle(vm_page_t m)
 {
-	vm_offset_t pa;
-	vm_offset_t va;
 	struct tte *tp;
+	vm_offset_t va;
+	vm_paddr_t pa;
 
 	KASSERT((m->flags & PG_FICTITIOUS) == 0,
 	    ("pmap_zero_page_idle: fake page"));
@@ -1716,10 +1713,10 @@ pmap_zero_page_idle(vm_page_t m)
 void
 pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 {
-	vm_offset_t pdst;
-	vm_offset_t psrc;
 	vm_offset_t vdst;
 	vm_offset_t vsrc;
+	vm_paddr_t pdst;
+	vm_paddr_t psrc;
 	struct tte *tp;
 
 	KASSERT((mdst->flags & PG_FICTITIOUS) == 0,
