@@ -1,5 +1,7 @@
 # Country Code : City Code : City : Country
 #	@(#)inter.phone	8.1 (Berkeley) 6/9/93
+#	$Id$
+#
 7:095:Moscow:Russia
 20:2:Cairo:Egypt, Arab Rep. of
 20:3:Alexandria:Egypt, Arab Rep. of
@@ -156,16 +158,16 @@
 47:2:Oslo:Norway
 47:5:Bergen:Norway
 47:7:Trondheim:Norway
-48:12:Crakow:Poland, People's Rep. of
-48:22:Warsaw:Poland, People's Rep. of
-48:42:Lodz:Poland, People's Rep. of
-48:58:Gdansk:Poland, People's Rep. of
+48:12:Crakow:Poland
+48:22:Warsaw:Poland
+48:42:Lodz:Poland
+48:58:Gdansk:Poland
 49:201:Essen:Germany, Fed. Rep. of
 49:202:Wuppertal:Germany, Fed. Rep. of
 49:203:Duisburg:Germany, Fed. Rep. of
 49:209:Gelsenkirchen:Germany, Fed. Rep. of
-49:211:Dusseldorf:Germany, Fed. Rep. of
-49:221:Cologne (Koln):Germany, Fed. Rep. of
+49:211:Duesseldorf:Germany, Fed. Rep. of
+49:221:Cologne (Koeln):Germany, Fed. Rep. of
 49:228:Bonn:Germany, Fed. Rep. of
 49:231:Dortmund:Germany, Fed. Rep. of
 49:30:Berlin:Germany, Fed. Rep. of
