@@ -1631,6 +1631,22 @@ vm_object_coalesce(vm_object_t prev_object, vm_pindex_t prev_pindex, vm_size_t p
 	return (TRUE);
 }
 
+void
+vm_object_set_writeable_dirty(vm_object_t object)
+{
+	struct vnode *vp;
+
+	vm_object_set_flag(object, OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY);
+	if (object->type == OBJT_VNODE &&
+	    (vp = (struct vnode *)object->handle) != NULL) {
+		if ((vp->v_flag & VOBJDIRTY) == 0) {
+			mtx_lock(&vp->v_interlock);
+			vp->v_flag |= VOBJDIRTY;
+			mtx_unlock(&vp->v_interlock);
+		}
+	}
+}
+
 #include "opt_ddb.h"
 #ifdef DDB
 #include <sys/kernel.h>
@@ -1703,23 +1719,6 @@ vm_object_in_map(vm_object_t object)
 		return 1;
 	return 0;
 }
-
-void
-vm_object_set_writeable_dirty(vm_object_t object)
-{
-	struct vnode *vp;
-
-	vm_object_set_flag(object, OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY);
-	if (object->type == OBJT_VNODE &&
-	    (vp = (struct vnode *)object->handle) != NULL) {
-		if ((vp->v_flag & VOBJDIRTY) == 0) {
-			mtx_lock(&vp->v_interlock);
-			vp->v_flag |= VOBJDIRTY;
-			mtx_unlock(&vp->v_interlock);
-		}
-	}
-}
-
 
 DB_SHOW_COMMAND(vmochk, vm_object_check)
 {
