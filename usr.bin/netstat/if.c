@@ -67,6 +67,7 @@ static const char rcsid[] =
 
 #include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -403,8 +404,8 @@ intpr(interval, ifnetaddr, pfunc)
 	}
 }
 
-#define	MAXIF	10
 struct	iftot {
+	struct iftot *ift_next;		/* next element list*/
 	char	ift_name[16];		/* interface name */
 	u_long	ift_ip;			/* input packets */
 	u_long	ift_ie;			/* input errors */
@@ -414,7 +415,7 @@ struct	iftot {
 	u_int	ift_dr;			/* drops */
 	u_long	ift_ib;			/* input bytes */
 	u_long	ift_ob;			/* output bytes */
-} iftot[MAXIF];
+};
 
 u_char	signalled;			/* set if alarm goes off "early" */
 
@@ -433,9 +434,8 @@ sidewaysintpr(interval, off)
 	struct ifnet ifnet;
 	u_long firstifnet;
 	struct ifnethead ifnethead;
-	register struct iftot *ip, *total;
+	struct iftot *iftot, *ip, *ipn, *total, *sum, *interesting;
 	register int line;
-	struct iftot *lastif, *sum, *interesting;
 	int oldmask, first;
 	u_long interesting_off;
 
@@ -443,9 +443,12 @@ sidewaysintpr(interval, off)
 		return;
 	firstifnet = (u_long)ifnethead.tqh_first;
 
-	lastif = iftot;
-	sum = iftot + MAXIF - 1;
-	total = sum - 1;
+	if ((iftot = malloc(sizeof(struct iftot))) == NULL) {
+		printf("malloc failed\n");
+		exit(1);
+	}
+	memset(iftot, 0, sizeof(struct iftot));
+
 	interesting = NULL;
 	interesting_off = 0;
 	for (off = firstifnet, ip = iftot; off;) {
@@ -462,26 +465,30 @@ sidewaysintpr(interval, off)
 			interesting_off = off;
 		}
 		snprintf(ip->ift_name, 16, "(%s)", name);;
-		ip++;
-		if (ip >= iftot + MAXIF - 2)
-			break;
+		if ((ipn = malloc(sizeof(struct iftot))) == NULL) {
+			printf("malloc failed\n");
+			exit(1);
+		}
+		memset(ipn, 0, sizeof(struct iftot));
+		ip->ift_next = ipn;
+		ip = ipn;
 		off = (u_long) ifnet.if_link.tqe_next;
 	}
-	lastif = ip;
+	if ((total = malloc(sizeof(struct iftot))) == NULL) {
+		printf("malloc failed\n");
+		exit(1);
+	}
+	memset(total, 0, sizeof(struct iftot));
+	if ((sum = malloc(sizeof(struct iftot))) == NULL) {
+		printf("malloc failed\n");
+		exit(1);
+	}
+	memset(sum, 0, sizeof(struct iftot));
+
 
 	(void)signal(SIGALRM, catchalarm);
 	signalled = NO;
 	(void)alarm(interval);
-	for (ip = iftot; ip < iftot + MAXIF; ip++) {
-		ip->ift_ip = 0;
-		ip->ift_ie = 0;
-		ip->ift_ib = 0;
-		ip->ift_op = 0;
-		ip->ift_oe = 0;
-		ip->ift_ob = 0;
-		ip->ift_co = 0;
-		ip->ift_dr = 0;
-	}
 	first = 1;
 banner:
 	printf("%17s %14s %16s", "input",
@@ -530,7 +537,8 @@ loop:
 		sum->ift_ob = 0;
 		sum->ift_co = 0;
 		sum->ift_dr = 0;
-		for (off = firstifnet, ip = iftot; off && ip < lastif; ip++) {
+		for (off = firstifnet, ip = iftot; off && ip->ift_next != NULL;
+		     ip = ip->ift_next) {
 			if (kread(off, (char *)&ifnet, sizeof ifnet)) {
 				off = 0;
 				continue;
