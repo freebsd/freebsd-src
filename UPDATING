@@ -21,6 +21,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20050227:
+	The on-disk format of LC_CTYPE files was changed to be machine
+	independent.  Please make sure NOT to use NO_CLEAN buildworld
+	when crossing this point.
+
 20050225:
 	The ifi_epoch member of struct if_data has been changed to
 	contain the uptime at which the interface was created or the
