@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.27 1997/10/26 12:42:10 brian Exp $
+ * $Id: ip.c,v 1.28 1997/11/12 19:48:45 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -164,8 +164,10 @@ FilterCheck(struct ip * pip, int direction)
 	  return (A_PERMIT);
 	}
 	LogPrintf(LogDEBUG, "rule = %d\n", n);
-	if ((pip->ip_src.s_addr & fp->smask.s_addr) == fp->saddr.s_addr
-	    && (pip->ip_dst.s_addr & fp->dmask.s_addr) == fp->daddr.s_addr) {
+	if ((pip->ip_src.s_addr & fp->smask.s_addr) ==
+	    (fp->saddr.s_addr & fp->smask.s_addr) &&
+	    (pip->ip_dst.s_addr & fp->dmask.s_addr) ==
+	    (fp->daddr.s_addr & fp->dmask.s_addr)) {
 	  if (fp->proto) {
 	    if (!gotinfo) {
 	      ptop = (char *) pip + (pip->ip_hl << 2);
