@@ -31,11 +31,19 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- *	$Id: if.h,v 1.47 1997/10/12 20:25:11 phk Exp $
+ *	$Id: if.h,v 1.48 1998/01/13 02:56:21 wollman Exp $
  */
 
 #ifndef _NET_IF_H_
 #define	_NET_IF_H_
+
+/*
+ * <net/if.h> does not depend on <sys/time.h> on most other systems.  This
+ * helps userland compatability.  (struct timeval ifi_lastchange)
+ */
+#ifndef KERNEL
+#include <sys/time.h>
+#endif
 
 /*
  * Structure describing information about an interface
