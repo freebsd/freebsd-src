@@ -92,11 +92,15 @@ struct tm {
 __BEGIN_DECLS
 char *asctime __P((const struct tm *));
 clock_t clock __P((void));
+int clock_getres __P((clockid_t, struct timespec *));
+int clock_gettime __P((clockid_t, struct timespec *));
+int clock_settime __P((clockid_t, const struct timespec *));
 char *ctime __P((const time_t *));
 double difftime __P((time_t, time_t));
 struct tm *gmtime __P((const time_t *));
 struct tm *localtime __P((const time_t *));
 time_t mktime __P((struct tm *));
+int nanosleep __P((const struct timespec *, struct timespec *));
 size_t strftime __P((char *, size_t, const char *, const struct tm *));
 time_t time __P((time_t *));
 
