@@ -69,6 +69,7 @@
 #include <sys/reboot.h>
 #include <sys/callout.h>
 #include <sys/msgbuf.h>
+#include <sys/sched.h>
 #include <sys/sysent.h>
 #include <sys/sysctl.h>
 #include <sys/ucontext.h>
@@ -838,7 +839,7 @@ SYSCTL_INT(_machdep, OID_AUTO, cpu_idle_hlt, CTLFLAG_RW,
 
 /*
  * Note that we have to be careful here to avoid a race between checking
- * kserunnable() and actually halting.  If we don't do this, we may waste
+ * sched_runnable() and actually halting.  If we don't do this, we may waste
  * the time between calling hlt and the next interrupt even though there
  * is a runnable process.
  */
@@ -847,7 +848,7 @@ cpu_idle(void)
 {
 	if (cpu_idle_hlt) {
 		disable_intr();
-  		if (kserunnable()) {
+  		if (sched_runnable()) {
 			enable_intr();
 		} else {
 			/*
