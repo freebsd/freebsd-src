@@ -535,10 +535,10 @@ exception_restore_restart:
 	;;
 }
 {	.mmi
-(p15)	mov		r31=ar.bspstore
+	mov		r31=ar.bspstore
 	;;
 	mov		ar.bspstore=r20
-(p15)	dep		r31=0,r31,0,9
+	dep		r31=0,r31,0,13		// 8KB aligned
 	;;
 }
 {	.mmb
