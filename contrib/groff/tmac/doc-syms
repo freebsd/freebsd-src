@@ -228,10 +228,12 @@
 .if \\n(.$==2 \{\
 .	if "\\$1"1.2"  \&\\*(tNOpenBSD\\*(aa 1.2\\*(aa\\$2
 .	if "\\$1"2.0"  \&\\*(tNOpenBSD\\*(aa 2.0\\*(aa\\$2
+.	if "\\$1"2.1"  \&\\*(tNOpenBSD\\*(aa 2.1\\*(aa\\$2
 .\}
 .if \\n(.$==1 \{\
 .	if "\\$1"1.2"  \&\\*(tNOpenBSD\\*(aa 1.2\\*(aa
 .	if "\\$1"2.0"  \&\\*(tNOpenBSD\\*(aa 2.0\\*(aa
+.	if "\\$1"2.1"  \&\\*(tNOpenBSD\\*(aa 2.1\\*(aa
 .\}
 ..
 .\" The Bt macro should go away now
