@@ -1874,7 +1874,7 @@
         <listitem>
           <para>Intel Pro/100 S Desktop, Server and Dual-Port Server Adapters</para>
         </listitem>
-        <listitem>
+        <listitem arch="i386,ia64">
           <para>On-board Ethernet NICs on many Intel motherboards.</para>
         </listitem>
         <listitem arch="pc98">
@@ -1977,16 +1977,16 @@
         <listitem arch="i386,alpha">
 	  <para>3C575TX/575B/XFE575BT/575C/656/656B/656C (Cardbus)</para>
         </listitem>
-        <listitem arch="i386,alpha">
+        <listitem arch="i386">
 	  <para>Dell Optiplex GX1 on-board 3C918</para>
         </listitem>
-        <listitem arch="i386,alpha">
+        <listitem arch="i386">
 	  <para>Dell On-board 3C920</para>
         </listitem>
-        <listitem arch="i386,alpha">
+        <listitem arch="i386">
 	  <para>Dell Precision on-board 3C905B</para>
         </listitem>
-        <listitem arch="i386,alpha">
+        <listitem arch="i386">
 	  <para>Dell Latitude laptop docking station embedded 3C905-TX</para>
         </listitem>
       </itemizedlist>
