@@ -321,7 +321,7 @@
       5.<replaceable>X</replaceable>.  As with any &os; upgrade, it
       is crucial to read the release notes and the errata for the
       version in question, as well as
-      <filename>src/UPGRADING</filename> for source upgrades.</para>
+      <filename>src/UPDATING</filename> for source upgrades.</para>
 
     <sect2>
       <title>Binary Upgrades</title>
