@@ -190,15 +190,18 @@ do_authloop(Authctxt *authctxt)
 				break;
 			} else {
 				/* Try Kerberos authentication. */
-				KTEXT_ST auth;
+				u_int len;
 				char *tkt_user = NULL;
-				char *kdata = packet_get_string((u_int *) &auth.length);
-				packet_integrity_check(plen, 4 + auth.length, type);
+				char *kdata = packet_get_string(&len);
+				packet_integrity_check(plen, 4 + len, type);
 
 				if (!authctxt->valid) {
 					/* Do nothing. */
 				} else if (kdata[0] == 4) {	/* 4 == KRB_PROT_VERSION */
 #ifdef KRB4
+					KTEXT_ST auth;
+
+					auth.length = len;
 					if (auth.length < MAX_KTXT_LEN)
 						memcpy(auth.dat, kdata, auth.length);
 					authenticated = auth_krb4(pw->pw_name, &auth, &tkt_user);
@@ -216,7 +219,7 @@ do_authloop(Authctxt *authctxt)
 					verbose("Kerberos v5 authentication disabled.");
 #else
 				  	krb5_data k5data; 
-					k5data.length = auth.length;
+					k5data.length = len;
 					k5data.data = kdata;
   #if 0	
 					if (krb5_init_context(&ssh_context)) {
