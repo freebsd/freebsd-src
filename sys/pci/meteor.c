@@ -107,9 +107,15 @@
 	2/29/96		<ljo@po.cwru.edu> tested the meteor RGB and supplied
 			me with diffs.  Thanks, we now have a working RGB
 			version of the driver.  Still need to clean up this
-			code and add the 4:1:1, 8:1:1 planer modes.
+			code.
 	3/1/96		Fixed a nasty little bug that was clearing the VTR
-			mode bit when the 7116 status was requested.
+			mode bit when the 7196 status was requested.
+	3/15/96		Fixed bug introduced in previous version that
+			stopped the only fields mode from working.
+			Added METEOR{GS}TS ioctl, still needs work.
+	3/25/96		Added YUV_9 and YUV_12 modes.  Cleaned up some of the
+			code and converted variables to use the new register
+			types.
 */
 
 #include "meteor.h"
@@ -576,6 +582,8 @@ meteor_intr(void *arg)
 	   (mtr->current < mtr->frames)) { /* could be !=, but < is safer */
 		/* next_base is initialized to mtr->bigbuf */
 		next_base += mtr->frame_size * mtr->current;
+		if(mtr->flags & METEOR_WANT_TS)
+			next_base += sizeof(struct timeval) * mtr->current;
 	}
 
 	/*
@@ -614,6 +622,21 @@ meteor_intr(void *arg)
 	 */
 	if(!(mtr->flags & METEOR_WANT_MASK)) {
 		mtr->frames_captured++;
+		/*
+		 * post the completion time. 
+		 */
+		if(mtr->flags & METEOR_WANT_TS) {
+			struct timeval *ts;
+			
+			if(mtr->alloc_pages * PAGE_SIZE <= (mtr->frame_size +
+					sizeof(struct timeval))) {
+				ts =(struct timeval *)mtr->bigbuf +
+							mtr->frame_size;
+			/* doesn't work in synch mode except for first frame */
+			/* XXX */
+				microtime(ts);
+			}
+		}
 		/*
 		 * Wake up the user in single capture mode.
 		 */
@@ -1172,8 +1195,8 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 #ifdef METEOR_TEST_VIDEO
 	struct meteor_video *video;
 #endif
-	mreg_t *p;
 	vm_offset_t buf;
+	struct saa7116_regs *base;
 
 	error = 0;
 
@@ -1183,8 +1206,21 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 		return(ENXIO);
 
 	mtr = &(meteor[unit]);
+	base = mtr->base;
 
 	switch (cmd) {
+	case METEORSTS:
+		if(*arg)
+			mtr->flags |= METEOR_WANT_TS;
+		else
+			mtr->flags &= ~METEOR_WANT_TS;
+		break;
+	case METEORGTS:
+		if(mtr->flags & METEOR_WANT_TS)
+			*arg = 1;
+		else
+			*arg = 0;
+		break;
 #ifdef METEOR_TEST_VIDEO
 	case METEORGVIDEO:
 		video = (struct meteor_video *)arg;
@@ -1216,15 +1252,14 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 		break;
 	case METEORSTATUS:	/* get 7196 status */
 		temp = 0;
-		p = &mtr->base->i2c_read;
 		SAA7196_WRITE(mtr, SAA7196_STDC,
 			SAA7196_REG(mtr, SAA7196_STDC) | 0x02);
 		SAA7196_READ(mtr);
-		temp |= (*p & 0xff000000L) >> 24;
+		temp |= (base->i2c_read & 0xff000000L) >> 24;
 		SAA7196_WRITE(mtr, SAA7196_STDC,
 			SAA7196_REG(mtr, SAA7196_STDC) & ~0x02);
 		SAA7196_READ(mtr);
-		temp |= (*p & 0xff000000L) >> 16;
+		temp |= (base->i2c_read & 0xff000000L) >> 16;
 		*(u_short *)arg = temp;
 		break;
 	case METEORSHUE:	/* set hue */
@@ -1446,7 +1481,7 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 		case METEOR_CAP_STOP_CONT:
 			if (mtr->flags & METEOR_CONTIN) {
 							/* turn off capture */
-				mtr->base->cap_cntl = 0x8ff0;
+				base->cap_cntl = 0x8ff0;
 				mtr->flags &= ~(METEOR_CONTIN|METEOR_WANT_MASK);
 			}
 			break;
@@ -1464,7 +1499,7 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 	    case METEOR_CAP_N_FRAMES:
 		if (mtr->flags & METEOR_CAP_MASK)
 			return(EIO);
-		if (mtr->flags & (METEOR_YUV_PLANER | METEOR_YUV_422)) /* XXX*/
+		if (mtr->flags & (METEOR_YUV_PLANER | METEOR_YUV_422)) /* XXX */
 			return(EINVAL); /* should fix intr so we allow these */
 		if (mtr->bigbuf == NULL)
 			return(ENOMEM);
@@ -1475,13 +1510,12 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 			return(EINVAL);
 			/* meteor_mem structure is on the page after the data */
 		mem = mtr->mem = (struct meteor_mem *) (mtr->bigbuf +
-				((mtr->rows*mtr->cols * mtr->depth *
+				((mtr->frame_size *
 				mtr->frames+PAGE_SIZE-1)/PAGE_SIZE)*PAGE_SIZE);
 		mtr->current = 1;
 		mtr->synch_wait = 0;
         	mem->num_bufs = mtr->frames;
-		mem->frame_size=
-			mtr->frame_size = mtr->rows * mtr->cols * mtr->depth;
+		mem->frame_size= mtr->frame_size;
                 /* user and kernel change these */ 
 		mem->lowat = frame->lowat;
 		mem->hiwat = frame->hiwat;
@@ -1493,13 +1527,13 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 	    case METEOR_CAP_STOP_FRAMES:
 		if (mtr->flags & METEOR_SYNCAP) {
 						/* turn off capture */
-			mtr->base->cap_cntl = 0x8ff0;
+			base->cap_cntl = 0x8ff0;
 			mtr->flags &= ~(METEOR_SYNCAP|METEOR_WANT_MASK);
 		}
 		break;
 	    case METEOR_HALT_N_FRAMES:
 		if(mtr->flags & METEOR_SYNCAP) {
-			mtr->base->cap_cntl = 0x8ff0;
+			base->cap_cntl = 0x8ff0;
 			mtr->flags &= ~(METEOR_WANT_MASK);
 		}
 		break;
@@ -1593,7 +1627,6 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 		mtr->cols = geo->columns;
 		mtr->frames = geo->frames;
 
-		p = &mtr->base->dma1e;
 #ifdef METEOR_TEST_VIDEO
 		if(mtr->video.addr)
 			buf = vtophys(mtr->video.addr);
@@ -1602,30 +1635,32 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 			buf = vtophys(mtr->bigbuf);
 
 		/* set defaults and end of buffer locations */
-		*(p+0)  = buf;	/* DMA 1 even    */
-		*(p+1)  = buf;	/* DMA 2 even    */
-		*(p+2)  = buf;	/* DMA 3 even    */
-		*(p+3)  = buf;	/* DMA 1 odd     */
-		*(p+4)  = buf;	/* DMA 2 odd	 */
-		*(p+5)  = buf;	/* DMA 3 odd     */
-		*(p+6)  = 0;	/* Stride 1 even */
-		*(p+7)  = 0;	/* Stride 2 even */
-		*(p+8)  = 0;	/* Stride 3 even */
-		*(p+9)  = 0;	/* Stride 1 odd  */
-		*(p+10) = 0;	/* Stride 2 odd  */
-		*(p+11) = 0;	/* Stride 3 odd  */
+		base->dma1e = buf;
+		base->dma2e = buf;
+		base->dma3e = buf;
+		base->dma1o = buf;
+		base->dma2o = buf;
+		base->dma3o = buf;
+		base->stride1e = 0;
+		base->stride2e = 0;
+		base->stride3e = 0;
+		base->stride1o = 0;
+		base->stride2o = 0;
+		base->stride3o = 0;
 				/* set end of DMA location, even/odd */
 		if(mtr->range_enable)
-			*(p+35) = *(p+36) = buf + mtr->alloc_pages * PAGE_SIZE;
+			base->dma_end_e =
+			base->dma_end_o = buf + mtr->alloc_pages * PAGE_SIZE;
 		else
-			*(p+35) = *(p+36) = 0xffffffff;
+			base->dma_end_e =
+			base->dma_end_o = 0xffffffff;
 
 		/*
 		 * Determine if we can use the hardware range detect.
 		 */
 		if(mtr->alloc_pages * PAGE_SIZE < RANGE_BOUNDARY &&
-		  ((buf & 0xff000000) | *(p+35)) == (buf + mtr->alloc_pages *
-							PAGE_SIZE) )
+		  ((buf & 0xff000000) | base->dma_end_e) ==
+			(buf + mtr->alloc_pages * PAGE_SIZE) )
                         mtr->range_enable = 0x8000;
 		else
 			mtr->range_enable = 0x0;
@@ -1635,173 +1670,208 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 		case 0:			/* default */
 		case METEOR_GEO_RGB16:
 			mtr->depth = 2;
+			mtr->frame_size = mtr->rows * mtr->cols * mtr->depth;
 			mtr->flags &= ~METEOR_OUTPUT_FMT_MASK;
 			mtr->flags |= METEOR_RGB16;
 			temp = mtr->cols * mtr->depth;
 		      	/* recal stride and starting point */
 			switch(mtr->flags & METEOR_ONLY_FIELDS_MASK) {
 			case METEOR_ONLY_ODD_FIELDS:
-				*(p+3) = buf;		/*dma 1 o */
+				base->dma1o = buf;
 #ifdef METEOR_TEST_VIDEO
 				if(mtr->video.addr && mtr->video.width) 
-					*(p+9) = mtr->video.width - temp;
+					base->stride1o = mtr->video.width-temp;
 #endif
 				SAA7196_WRITE(mtr, 0x20, 0xd0);
 				break;
 			case METEOR_ONLY_EVEN_FIELDS:
-				*(p+0) = buf;		/*dma 1 e */
+				base->dma1e = buf;
 #ifdef METEOR_TEST_VIDEO
 				if(mtr->video.addr && mtr->video.width) 
-					*(p+6) = mtr->video.width - temp;
+					base->stride1e = mtr->video.width-temp;
 #endif
 				SAA7196_WRITE(mtr, 0x20, 0xf0);
 				break;
 			default: /* interlaced even/odd */
-				*(p+0) = buf;		
-				*(p+3) = buf + temp;
-				*(p+6) = *(p+9) = temp;
+				base->dma1e = buf;		
+				base->dma1o = buf + temp;
+				base->stride1e = base->stride1o = temp;
 #ifdef METEOR_TEST_VIDEO
 				if(mtr->video.addr && mtr->video.width) {
-					*(p+3) = buf + mtr->video.width;
-					*(p+6) = *(p+9) = mtr->video.width -
+					base->dma1o = buf + mtr->video.width;
+					base->stride1e = base->stride1o =
+						mtr->video.width -
 						temp + mtr->video.width;
 				}
 #endif
 				SAA7196_WRITE(mtr, 0x20, 0x90);
 				break;
 			}
-	 		*(p+12) = *(p+13) = 0xeeeeee01;	/* routes */
+	 		base->routee = base->routeo  = 0xeeeeee01;
 			break;
 		case METEOR_GEO_RGB24:
 			mtr->depth = 4;
+			mtr->frame_size = mtr->rows * mtr->cols * mtr->depth;
 			mtr->flags &= ~METEOR_OUTPUT_FMT_MASK;
 			mtr->flags |= METEOR_RGB24;
 			temp = mtr->cols * mtr->depth;
 			/* recal stride and starting point */
 			switch(mtr->flags & METEOR_ONLY_FIELDS_MASK) {
 			case METEOR_ONLY_ODD_FIELDS:
-					*(p+3) = buf;		/*dma 1 o */
+				base->dma1o = buf;
 #ifdef METEOR_TEST_VIDEO
 				if(mtr->video.addr && mtr->video.width) 
-					*(p+9) = mtr->video.width - temp;
+					base->stride1o = mtr->video.width-temp;
 #endif
-					SAA7196_WRITE(mtr, 0x20, 0xd2);
+				SAA7196_WRITE(mtr, 0x20, 0xd2);
 				break;
 			case METEOR_ONLY_EVEN_FIELDS:
-					*(p+0) = buf;		/*dma 1 e */
+				base->dma1e = buf;
 #ifdef METEOR_TEST_VIDEO
 				if(mtr->video.addr && mtr->video.width) 
-					*(p+6) = mtr->video.width - temp;
+					base->stride1e = mtr->video.width-temp;
 #endif
-					SAA7196_WRITE(mtr, 0x20, 0xf2);
+				SAA7196_WRITE(mtr, 0x20, 0xf2);
 				break;
 			default: /* interlaced even/odd */
-				*(p+0) = buf;
-				*(p+3) = buf + mtr->cols * mtr->depth;
-				*(p+6) = *(p+9) = mtr->cols * mtr->depth;
+				base->dma1e = buf;
+				base->dma1o = buf + mtr->cols * mtr->depth;
+				base->stride1e = base->stride1o =
+					mtr->cols * mtr->depth;
 #ifdef METEOR_TEST_VIDEO
 				if(mtr->video.addr && mtr->video.width) {
-					*(p+3) = buf + mtr->video.width;
-					*(p+6) = *(p+9) = mtr->video.width -
+					base->dma1o = buf + mtr->video.width;
+					base->stride1e = base->stride1o = 
+						mtr->video.width -
 						temp + mtr->video.width;
 				}
 #endif
 				SAA7196_WRITE(mtr, 0x20, 0x92);
 				break;
 			}
-			*(p+12) = *(p+13) = 0x39393900;	/* routes */
+			base->routee= base->routeo= 0x39393900;
 			break;
 		case METEOR_GEO_YUV_PLANER:
 			mtr->depth = 2;
+			temp = mtr->rows * mtr->cols;	/* compute frame size */
+			mtr->frame_size = temp * mtr->depth;
 			mtr->flags &= ~METEOR_OUTPUT_FMT_MASK;
 			mtr->flags |= METEOR_YUV_PLANER;
 			/* recal stride and starting point */
-			temp = mtr->rows * mtr->cols;	/* compute frame size */
 			switch(mtr->flags & METEOR_ONLY_FIELDS_MASK) {
 			case METEOR_ONLY_ODD_FIELDS:
-				*(p+3) = buf;		/* Y Odd */
-				*(p+4) = buf + temp;	/* U Odd */
+				base->dma1o = buf;		/* Y Odd */
+				base->dma2o = buf + temp;	/* U Odd */
 				temp >>= 1;
-				*(p+5) = *(p+4) + temp; /* V Odd */
+				base->dma3o = base->dma2o + temp; /* V Odd */
 				SAA7196_WRITE(mtr, 0x20, 0xd1);
 				break;
 			case METEOR_ONLY_EVEN_FIELDS:
-				*(p+0) = buf;		/* Y Even */
-				*(p+1) = buf + temp;	/* U Even */
+				base->dma1e = buf;		/* Y Even */
+				base->dma2e = buf + temp;	/* U Even */
 				temp >>= 1;
-				*(p+2) = *(p+1) + temp;	/* V Even */
+				base->dma2e= base->dma2e + temp; /* V Even */
 				SAA7196_WRITE(mtr, 0x20, 0xf1);
 				break;
 			default: /* interlaced even/odd */
-				*(p+0) = buf;			/* Y Even */
-				*(p+1) = buf + temp;		/* U Even */
+				base->dma1e = buf;		/* Y Even */
+				base->dma2e = buf + temp;	/* U Even */
 				temp >>= 2;
-				*(p+2) = *(p+1) + temp;		/* V Even */
-				*(p+3) = *(p+0) + mtr->cols;	/* Y Odd */
-				*(p+4) = *(p+2) + temp;		/* U Odd */
-				*(p+5) = *(p+4) + temp;		/* V Odd */
-				*(p+6) = *(p+9) = mtr->cols;	/* Y Stride */
+				base->dma3e = base->dma2e + temp; /* V Even */
+				base->dma1o = base->dma1e+mtr->cols;/* Y Odd */
+				base->dma2o = base->dma3e + temp; /* U Odd */
+				base->dma3o = base->dma2o + temp; /* V Odd */
+				base->stride1e = base->stride1o = mtr->cols;
 				SAA7196_WRITE(mtr, 0x20, 0x91);
 				break;
 			}
-			*(p+12) = *(p+13) = 0xaaaaffc1;	/* routes */
+			switch (geo->oformat &
+				(METEOR_GEO_YUV_12 | METEOR_GEO_YUV_9)) {
+				case METEOR_GEO_YUV_9:
+					base->routee=base->routeo = 0xaaaaffc3;
+					break;
+				case METEOR_GEO_YUV_12:
+					base->routee=base->routeo = 0xaaaaffc2;
+					break;
+				default:
+					base->routee=base->routeo = 0xaaaaffc1;
+					break;
+			}
 			break;
 		case METEOR_GEO_YUV_422:/* same as planer, different uv order */
 			mtr->depth = 2;
+			temp = mtr->rows * mtr->cols;	/* compute frame size */
+			mtr->frame_size = temp * mtr->depth;
 			mtr->flags &= ~METEOR_OUTPUT_FMT_MASK;
 			mtr->flags |= METEOR_YUV_422;
-			temp = mtr->rows * mtr->cols;	/* compute frame size */
 			switch(mtr->flags & METEOR_ONLY_FIELDS_MASK) {
 			case METEOR_ONLY_ODD_FIELDS:
-				*(p+3) = buf;
-				*(p+4) = buf + temp;
-				*(p+5) = *(p+4) + (temp >> 1);
+				base->dma1o = buf;
+				base->dma2o = buf + temp;
+				base->dma3o = base->dma2o  + (temp >> 1);
 				SAA7196_WRITE(mtr, 0x20, 0xd1);
 				break;
 			case METEOR_ONLY_EVEN_FIELDS:
-				*(p+0) = buf;
-				*(p+1) = buf + temp;
-				*(p+2) = *(p+1) + (temp >> 1);
+				base->dma1e = buf;
+				base->dma2e = buf + temp;
+				base->dma3e = base->dma2e + (temp >> 1);
 				SAA7196_WRITE(mtr, 0x20, 0xf1);
 				break;
 			default: /* interlaced even/odd */
-				*(p+0) = buf;			/* Y even */
-				*(p+1) = buf + temp;		/* U even */
-				*(p+2) = *(p+1) + (temp >> 1);	/* V even */
-				*(p+3) = *(p+0) + mtr->cols;	/* Y odd */
+				base->dma1e = buf;		/* Y even */
+				base->dma2e = buf + temp;	/* U even */
+				base->dma3e =
+					base->dma2e + (temp >> 1);/* V even */
+				base->dma1o = base->dma1e+mtr->cols;/* Y odd */
 				temp = mtr->cols >> 1;
-				*(p+4) = *(p+1) + temp;		/* U odd */
-				*(p+5) = *(p+2) + temp;		/* V odd */
-				*(p+6) = *(p+9)  = mtr->cols;	/* Y stride */
-				*(p+7) = *(p+10) = temp;	/* U stride */
-				*(p+8) = *(p+11) = temp;	/* V stride */
+				base->dma2o = base->dma2e+temp;	/* U odd */
+				base->dma3o = base->dma3e+temp;	/* V odd */
+				base->stride1e =
+				base->stride1o = mtr->cols;	/* Y stride */
+				base->stride2e = 
+				base->stride2o = temp;		/* U stride */
+				base->stride3e =
+				base->stride3o = temp;		/* V stride */
 				SAA7196_WRITE(mtr, 0x20, 0x91);
 				break;
 			}
-			*(p+12) = *(p+13) = 0xaaaaffc1;	/* routes */
+			switch (geo->oformat &
+				(METEOR_GEO_YUV_12 | METEOR_GEO_YUV_9)) {
+				case METEOR_GEO_YUV_9:
+					base->routee=base->routeo = 0xaaaaffc3;
+					break;
+				case METEOR_GEO_YUV_12:
+					base->routee=base->routeo = 0xaaaaffc2;
+					break;
+				default:
+					base->routee=base->routeo = 0xaaaaffc1;
+					break;
+			}
 			break;
 		case METEOR_GEO_YUV_PACKED:
 			mtr->depth = 2;
+			mtr->frame_size = mtr->rows * mtr->cols * mtr->depth;
 			mtr->flags &= ~METEOR_OUTPUT_FMT_MASK;
 			mtr->flags |= METEOR_YUV_PACKED;
 			/* recal stride and odd starting point */
 			switch(mtr->flags & METEOR_ONLY_FIELDS_MASK) {
 			case METEOR_ONLY_ODD_FIELDS:
-				*(p+3) = buf;
+				base->dma1o = buf;
 				SAA7196_WRITE(mtr, 0x20, 0xd1);
 				break;
 			case METEOR_ONLY_EVEN_FIELDS:
-				*(p+0) = buf;
+				base->dma1e = buf;
 				SAA7196_WRITE(mtr, 0x20, 0xf1);
 				break;
 			default: /* interlaced even/odd */
-				*(p+0) = buf;
-				*(p+3) = buf + mtr->cols * mtr->depth;
-				*(p+6) = *(p+9) = mtr->cols * mtr->depth;
+				base->dma1e = buf;
+				base->dma1o = buf + mtr->cols * mtr->depth;
+				base->stride1e = base->stride1o =
+					mtr->cols * mtr->depth;
 				SAA7196_WRITE(mtr, 0x20, 0x91);
 				break;
 			}
-			*(p+12) = *(p+13) = 0xeeeeee41;	/* routes */
+			base->routee = base->routeo = 0xeeeeee41;
 			break;
 		default:
 			error = EINVAL;	/* invalid argument */
@@ -1838,6 +1908,16 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 			       (mtr->flags & METEOR_ONLY_FIELDS_MASK) |
 			       (SAA7196_REG(mtr, 0x30) & 0x10 ? 
 				0:METEOR_GEO_UNSIGNED);
+		switch(base->routee & 0xff) {
+		case	0xc3:
+			geo->oformat |=  METEOR_GEO_YUV_9;
+			break;
+		case	0xc2:
+			geo->oformat |=  METEOR_GEO_YUV_12;
+			break;
+		default:
+			break;
+		}
 		break;
 	case METEORSCOUNT:	/* (re)set error counts */
 		cnt = (struct meteor_counts *) arg;
