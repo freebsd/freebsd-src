@@ -1151,6 +1151,7 @@ vm_pageout_page_stats()
 	int pcount,tpcount;		/* Number of pages to check */
 	static int fullintervalcount = 0;
 	int page_shortage;
+	int s0;
 
 	page_shortage = 
 	    (cnt.v_inactive_target + cnt.v_cache_max + cnt.v_free_min) -
@@ -1158,6 +1159,8 @@ vm_pageout_page_stats()
 
 	if (page_shortage <= 0)
 		return;
+
+	s0 = splvm();
 
 	pcount = cnt.v_active_count;
 	fullintervalcount += vm_pageout_stats_interval;
@@ -1227,6 +1230,7 @@ vm_pageout_page_stats()
 
 		m = next;
 	}
+	splx(s0);
 }
 
 static int
