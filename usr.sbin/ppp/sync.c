@@ -54,6 +54,7 @@ sync_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
 {
   log_DumpBp(LogSYNC, "Write", bp);
   m_settype(bp, MB_SYNCOUT);
+  bp->priv = 0;
   return bp;
 }
 
@@ -62,6 +63,7 @@ sync_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp,
                u_short *proto)
 {
   struct physical *p = link2physical(l);
+  int len;
 
   if (!p)
     log_Printf(LogERROR, "Can't Pull a sync packet from a logical link\n");
@@ -69,8 +71,10 @@ sync_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp,
     log_DumpBp(LogSYNC, "Read", bp);
 
     /* Either done here or by the HDLC layer */
-    p->hdlc.lqm.SaveInOctets += m_length(bp) + 1;
-    p->hdlc.lqm.SaveInPackets++;
+    len = m_length(bp);
+    p->hdlc.lqm.ifInOctets += len + 1;		/* plus 1 flag octet! */
+    p->hdlc.lqm.lqr.InGoodOctets += len + 1;	/* plus 1 flag octet! */
+    p->hdlc.lqm.ifInUniPackets++;
     m_settype(bp, MB_SYNCIN);
   }
 

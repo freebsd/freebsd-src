@@ -85,14 +85,14 @@ acf_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp, u_short *proto)
       /* We expect the packet not to be compressed */
       bp = mbuf_Read(bp, cp, 2);
       if (cp[0] != HDLC_ADDR) {
-        p->hdlc.lqm.SaveInErrors++;
+        p->hdlc.lqm.ifInErrors++;
         p->hdlc.stats.badaddr++;
         log_Printf(LogDEBUG, "acf_LayerPull: addr 0x%02x\n", cp[0]);
         m_freem(bp);
         return NULL;
       }
       if (cp[1] != HDLC_UI) {
-        p->hdlc.lqm.SaveInErrors++;
+        p->hdlc.lqm.ifInErrors++;
         p->hdlc.stats.badcommand++;
         log_Printf(LogDEBUG, "acf_LayerPull: control 0x%02x\n", cp[1]);
         m_freem(bp);
