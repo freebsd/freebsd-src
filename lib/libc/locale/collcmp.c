@@ -41,19 +41,13 @@ __FBSDID("$FreeBSD$");
  * "[a-z]"-type ranges with national characters.
  */
 
-int __collate_range_cmp (c1, c2)
+int __collate_range_cmp(c1, c2)
 	int c1, c2;
 {
 	static char s1[2], s2[2];
-	int ret;
 #ifndef ASCII_COMPATIBLE_COLLATE
 	int as1, as2, al1, al2;
 #endif
-
-	c1 &= UCHAR_MAX;
-	c2 &= UCHAR_MAX;
-	if (c1 == c2)
-		return (0);
 
 #ifndef ASCII_COMPATIBLE_COLLATE
 	as1 = isascii(c1);
@@ -79,7 +73,5 @@ int __collate_range_cmp (c1, c2)
 #endif
 	s1[0] = c1;
 	s2[0] = c2;
-	if ((ret = strcoll(s1, s2)) != 0)
-		return (ret);
-	return (c1 - c2);
+	return (strcoll(s1, s2));
 }
