@@ -105,6 +105,8 @@ ufs_disk_fillout(struct uufsd *disk, const char *name)
 	disk->d_bsize = 1;
 	disk->d_fd = fd;
 	disk->d_inoblock = NULL;
+	disk->d_inomin = 0;
+	disk->d_inomax = 0;
 	disk->d_name = name;
 
 	if (sbread(disk) == -1) {
