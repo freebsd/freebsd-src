@@ -164,7 +164,7 @@ SYSCTL_INT(_vfs, OID_AUTO, getnewbufrestarts, CTLFLAG_RW, &getnewbufrestarts, 0,
     "Number of times getnewbuf has had to restart a buffer aquisition");
 static int dobkgrdwrite = 1;
 SYSCTL_INT(_debug, OID_AUTO, dobkgrdwrite, CTLFLAG_RW, &dobkgrdwrite, 0,
-    "Do background writes (honoring the BX_BKGRDWRITE flag)?");
+    "Do background writes (honoring the BV_BKGRDWRITE flag)?");
 
 /*
  * Wakeup point for bufdaemon, as well as indicator of whether it is already
@@ -223,14 +223,13 @@ static struct mtx bdonelock;
 /*
  * Definitions for the buffer free lists.
  */
-#define BUFFER_QUEUES	6	/* number of free buffer queues */
+#define BUFFER_QUEUES	5	/* number of free buffer queues */
 
 #define QUEUE_NONE	0	/* on no queue */
-#define QUEUE_LOCKED	1	/* locked buffers */
-#define QUEUE_CLEAN	2	/* non-B_DELWRI buffers */
-#define QUEUE_DIRTY	3	/* B_DELWRI buffers */
-#define QUEUE_EMPTYKVA	4	/* empty buffer headers w/KVA assignment */
-#define QUEUE_EMPTY	5	/* empty buffer headers */
+#define QUEUE_CLEAN	1	/* non-B_DELWRI buffers */
+#define QUEUE_DIRTY	2	/* B_DELWRI buffers */
+#define QUEUE_EMPTYKVA	3	/* empty buffer headers w/KVA assignment */
+#define QUEUE_EMPTY	4	/* empty buffer headers */
 
 /* Queues for free buffers with various properties */
 static TAILQ_HEAD(bqueues, buf) bufqueues[BUFFER_QUEUES] = { { 0 } };
@@ -777,17 +776,19 @@ bwrite(struct buf * bp)
 	 * writing this block if it is asynchronous. Otherwise
 	 * wait for the background write to complete.
 	 */
-	if (bp->b_xflags & BX_BKGRDINPROG) {
+	VI_LOCK(bp->b_vp);
+	if (bp->b_vflags & BV_BKGRDINPROG) {
 		if (bp->b_flags & B_ASYNC) {
 			splx(s);
 			bdwrite(bp);
 			return (0);
 		}
-		bp->b_xflags |= BX_BKGRDWAIT;
-		tsleep(&bp->b_xflags, PRIBIO, "bwrbg", 0);
-		if (bp->b_xflags & BX_BKGRDINPROG)
+		bp->b_vflags |= BV_BKGRDWAIT;
+		msleep(&bp->b_xflags, VI_MTX(bp->b_vp), PRIBIO, "bwrbg", 0);
+		if (bp->b_vflags & BV_BKGRDINPROG)
 			panic("bwrite: still writing");
 	}
+	VI_UNLOCK(bp->b_vp);
 
 	/* Mark the buffer clean */
 	bundirty(bp);
@@ -820,8 +821,8 @@ bwrite(struct buf * bp)
 		memcpy(newbp->b_data, bp->b_data, bp->b_bufsize);
 		newbp->b_lblkno = bp->b_lblkno;
 		newbp->b_xflags |= BX_BKGRDMARKER;
-		/* XXX The BX_ flags need to be protected as well */
 		VI_LOCK(bp->b_vp);
+		bp->b_vflags |= BV_BKGRDINPROG;
 		bgetvp(bp->b_vp, newbp);
 		VI_UNLOCK(bp->b_vp);
 		newbp->b_blkno = bp->b_blkno;
@@ -842,8 +843,6 @@ bwrite(struct buf * bp)
 		 * If the reconstituted buffer were written, we could end up
 		 * with two background copies being written at the same time.
 		 */
-		bp->b_xflags |= BX_BKGRDINPROG;
-		bp->b_flags |= B_LOCKED;
 		bqrelse(bp);
 		bp = newbp;
 	}
@@ -906,6 +905,20 @@ vfs_backgroundwritedone(bp)
 	VI_LOCK(bp->b_vp);
 	if ((origbp = gbincore(bp->b_vp, bp->b_lblkno)) == NULL)
 		panic("backgroundwritedone: lost buffer");
+
+	/*
+	 * Clear the BV_BKGRDINPROG flag in the original buffer
+	 * and awaken it if it is waiting for the write to complete.
+	 * If BV_BKGRDINPROG is not set in the original buffer it must
+	 * have been released and re-instantiated - which is not legal.
+	 */
+	KASSERT((origbp->b_vflags & BV_BKGRDINPROG),
+	    ("backgroundwritedone: lost buffer2"));
+	origbp->b_vflags &= ~BV_BKGRDINPROG;
+	if (origbp->b_vflags & BV_BKGRDWAIT) {
+		origbp->b_vflags &= ~BV_BKGRDWAIT;
+		wakeup(&origbp->b_xflags);
+	}
 	VI_UNLOCK(bp->b_vp);
 	/*
 	 * Process dependencies then return any unfinished ones.
@@ -915,29 +928,6 @@ vfs_backgroundwritedone(bp)
 	if (LIST_FIRST(&bp->b_dep) != NULL)
 		buf_movedeps(bp, origbp);
 
-	/* XXX Find out if origbp can disappear or get inconsistent */
-	/*
-	 * Clear the BX_BKGRDINPROG flag in the original buffer
-	 * and awaken it if it is waiting for the write to complete.
-	 * If BX_BKGRDINPROG is not set in the original buffer it must
-	 * have been released and re-instantiated - which is not legal.
-	 */
-	KASSERT((origbp->b_xflags & BX_BKGRDINPROG),
-	    ("backgroundwritedone: lost buffer2"));
-	origbp->b_xflags &= ~BX_BKGRDINPROG;
-	if (origbp->b_xflags & BX_BKGRDWAIT) {
-		origbp->b_xflags &= ~BX_BKGRDWAIT;
-		wakeup(&origbp->b_xflags);
-	}
-	/*
-	 * Clear the B_LOCKED flag and remove it from the locked
-	 * queue if it currently resides there.
-	 */
-	origbp->b_flags &= ~B_LOCKED;
-	if (BUF_LOCK(origbp, LK_EXCLUSIVE | LK_NOWAIT, NULL) == 0) {
-		bremfree(origbp);
-		bqrelse(origbp);
-	}
 	/*
 	 * This buffer is marked B_NOCACHE, so when it is released
 	 * by biodone, it will be tossed. We mark it with BIO_READ
@@ -997,7 +987,7 @@ bdwrite(struct buf * bp)
 		 * Try to find a buffer to flush.
 		 */
 		TAILQ_FOREACH(nbp, &vp->v_dirtyblkhd, b_vnbufs) {
-			if ((nbp->b_xflags & BX_BKGRDINPROG) ||
+			if ((nbp->b_vflags & BV_BKGRDINPROG) ||
 			    buf_countdeps(nbp, 0) ||
 			    BUF_LOCK(nbp, LK_EXCLUSIVE | LK_NOWAIT, NULL))
 				continue;
@@ -1207,9 +1197,6 @@ brelse(struct buf * bp)
 
 	s = splbio();
 
-	if (bp->b_flags & B_LOCKED)
-		bp->b_ioflags &= ~BIO_ERROR;
-
 	if (bp->b_iocmd == BIO_WRITE &&
 	    (bp->b_ioflags & BIO_ERROR) &&
 	    !(bp->b_flags & B_INVAL)) {
@@ -1259,8 +1246,17 @@ brelse(struct buf * bp)
 	 */
 	if (bp->b_flags & B_DELWRI)
 		bp->b_flags &= ~B_RELBUF;
-	else if (vm_page_count_severe() && !(bp->b_xflags & BX_BKGRDINPROG))
-		bp->b_flags |= B_RELBUF;
+	else if (vm_page_count_severe()) {
+		/*
+		 * XXX This lock may not be necessary since BKGRDINPROG
+		 * cannot be set while we hold the buf lock, it can only be
+		 * cleared if it is already pending.
+		 */
+		VI_LOCK(bp->b_vp);
+		if (!(bp->b_vflags & BV_BKGRDINPROG))
+			bp->b_flags |= B_RELBUF;
+		VI_UNLOCK(bp->b_vp);
+	}
 
 	/*
 	 * VMIO buffer rundown.  It is not very necessary to keep a VMIO buffer
@@ -1389,7 +1385,7 @@ brelse(struct buf * bp)
 	if (bp->b_bufsize == 0) {
 		bp->b_flags |= B_INVAL;
 		bp->b_xflags &= ~(BX_BKGRDWRITE | BX_ALTDATA);
-		if (bp->b_xflags & BX_BKGRDINPROG)
+		if (bp->b_vflags & BV_BKGRDINPROG)
 			panic("losing buffer 1");
 		if (bp->b_kvasize) {
 			bp->b_qindex = QUEUE_EMPTYKVA;
@@ -1403,17 +1399,11 @@ brelse(struct buf * bp)
 	    (bp->b_ioflags & BIO_ERROR)) {
 		bp->b_flags |= B_INVAL;
 		bp->b_xflags &= ~(BX_BKGRDWRITE | BX_ALTDATA);
-		if (bp->b_xflags & BX_BKGRDINPROG)
+		if (bp->b_vflags & BV_BKGRDINPROG)
 			panic("losing buffer 2");
 		bp->b_qindex = QUEUE_CLEAN;
 		TAILQ_INSERT_HEAD(&bufqueues[QUEUE_CLEAN], bp, b_freelist);
 		bp->b_dev = NODEV;
-
-	/* buffers that are locked */
-	} else if (bp->b_flags & B_LOCKED) {
-		bp->b_qindex = QUEUE_LOCKED;
-		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_LOCKED], bp, b_freelist);
-
 	/* remaining buffers */
 	} else {
 		if (bp->b_flags & B_DELWRI)
@@ -1447,7 +1437,7 @@ brelse(struct buf * bp)
 	 * if B_INVAL is set ).
 	 */
 
-	if ((bp->b_flags & B_LOCKED) == 0 && !(bp->b_flags & B_DELWRI))
+	if (!(bp->b_flags & B_DELWRI))
 		bufcountwakeup();
 
 	/*
@@ -1493,34 +1483,38 @@ bqrelse(struct buf * bp)
 		return;
 	}
 	mtx_lock(&bqlock);
-	if (bp->b_flags & B_LOCKED) {
-		bp->b_ioflags &= ~BIO_ERROR;
-		bp->b_qindex = QUEUE_LOCKED;
-		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_LOCKED], bp, b_freelist);
-		/* buffers with stale but valid contents */
-	} else if (bp->b_flags & B_DELWRI) {
+	/* buffers with stale but valid contents */
+	if (bp->b_flags & B_DELWRI) {
 		bp->b_qindex = QUEUE_DIRTY;
 		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_DIRTY], bp, b_freelist);
-	} else if (vm_page_count_severe()) {
-		/*
-		 * We are too low on memory, we have to try to free the
-		 * buffer (most importantly: the wired pages making up its
-		 * backing store) *now*.
-		 */
-		mtx_unlock(&bqlock);
-		splx(s);
-		brelse(bp);
-		return;
 	} else {
-		bp->b_qindex = QUEUE_CLEAN;
-		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_CLEAN], bp, b_freelist);
+		/*
+		 * XXX This lock may not be necessary since BKGRDINPROG
+		 * cannot be set while we hold the buf lock, it can only be
+		 * cleared if it is already pending.
+		 */
+		VI_LOCK(bp->b_vp);
+		if (!vm_page_count_severe() || bp->b_vflags & BV_BKGRDINPROG) {
+			VI_UNLOCK(bp->b_vp);
+			bp->b_qindex = QUEUE_CLEAN;
+			TAILQ_INSERT_TAIL(&bufqueues[QUEUE_CLEAN], bp,
+			    b_freelist);
+		} else {
+			/*
+			 * We are too low on memory, we have to try to free
+			 * the buffer (most importantly: the wired pages
+			 * making up its backing store) *now*.
+			 */
+			mtx_unlock(&bqlock);
+			splx(s);
+			brelse(bp);
+			return;
+		}
 	}
 	mtx_unlock(&bqlock);
 
-	if ((bp->b_flags & B_LOCKED) == 0 &&
-	    ((bp->b_flags & B_INVAL) || !(bp->b_flags & B_DELWRI))) {
+	if ((bp->b_flags & B_INVAL) || !(bp->b_flags & B_DELWRI))
 		bufcountwakeup();
-	}
 
 	/*
 	 * Something we can maybe free or reuse.
@@ -1826,6 +1820,14 @@ restart:
 				break;
 			}
 		}
+		if (bp->b_vp) {
+			VI_LOCK(bp->b_vp);
+			if (bp->b_vflags & BV_BKGRDINPROG) {
+				VI_UNLOCK(bp->b_vp);
+				continue;
+			}
+			VI_UNLOCK(bp->b_vp);
+		}
 
 		/*
 		 * Sanity Checks
@@ -1887,7 +1889,7 @@ restart:
 		}
 		if (LIST_FIRST(&bp->b_dep) != NULL)
 			buf_deallocate(bp);
-		if (bp->b_xflags & BX_BKGRDINPROG)
+		if (bp->b_vflags & BV_BKGRDINPROG)
 			panic("losing buffer 3");
 
 		if (bp->b_bufsize)
@@ -2136,10 +2138,13 @@ flushbufqueues(int flushdeps)
 			continue;
 		KASSERT((bp->b_flags & B_DELWRI),
 		    ("unexpected clean buffer %p", bp));
-		if ((bp->b_xflags & BX_BKGRDINPROG) != 0) {
+		VI_LOCK(bp->b_vp);
+		if ((bp->b_vflags & BV_BKGRDINPROG) != 0) {
+			VI_UNLOCK(bp->b_vp);
 			BUF_UNLOCK(bp);
 			continue;
 		}
+		VI_UNLOCK(bp->b_vp);
 		if (bp->b_flags & B_INVAL) {
 			bremfreel(bp);
 			mtx_unlock(&bqlock);
