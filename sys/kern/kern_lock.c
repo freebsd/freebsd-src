@@ -466,8 +466,6 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 		lkp->lk_lockholder = thr;
 		lkp->lk_exclusivecount = 1;
 		COUNT(td, 1);
-		if (td != NULL)
-			td->td_locks++;
 #if defined(DEBUG_LOCKS)
 			lkp->lk_filename = file;
 			lkp->lk_lineno = line;
