@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.50.2.16 1998/07/01 01:38:36 julian Exp $
+ * $Id: ip_input.c,v 1.50.2.17 1998/07/06 08:29:48 julian Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -701,10 +701,12 @@ insert:
 	/*
 	 * Any fragment diverting causes the whole packet to divert
 	 */
-	fp->ipq_divert = frag_divert_port;
+	if (frag_divert_port) {
+		fp->ipq_divert = frag_divert_port;
 #ifdef IPFW_DIVERT_RESTART
-	fp->ipq_div_cookie = ip_divert_cookie;
+		fp->ipq_div_cookie = ip_divert_cookie;
 #endif /* IPFW_DIVERT_RESTART */
+	}
 	frag_divert_port = 0;
 	ip_divert_cookie = 0;
 #endif
