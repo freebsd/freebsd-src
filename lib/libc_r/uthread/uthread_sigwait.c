@@ -95,6 +95,12 @@ sigwait(const sigset_t * set, int *sig)
 	}
 
 	/*
+	 * Access the _thread_dfl_count array under the protection of signal
+	 * deferral.
+	 */
+	_thread_kern_sig_defer();
+
+	/*
 	 * Enter a loop to find the signals that are SIG_DFL.  For
 	 * these signals we must install a dummy signal handler in
 	 * order for the kernel to pass them in to us.  POSIX says
@@ -107,10 +113,16 @@ sigwait(const sigset_t * set, int *sig)
 	for (i = 1; i < NSIG; i++) {
 		if (sigismember(&waitset, i) &&
 		    (_thread_sigact[i - 1].sa_handler == SIG_DFL)) {
-			if (_thread_sys_sigaction(i,&act,NULL) != 0)
-				ret = -1;
+			_thread_dfl_count[i]++;
+			if (_thread_dfl_count[i] == 1) {
+				if (_thread_sys_sigaction(i,&act,NULL) != 0)
+					ret = -1;
+			}
 		}
 	}
+	/* Done accessing _thread_dfl_count for now. */
+	_thread_kern_sig_undefer();
+
 	if (ret == 0) {
 		/*
 		 * Save the wait signal mask.  The wait signal
@@ -132,15 +144,26 @@ sigwait(const sigset_t * set, int *sig)
 		_thread_run->data.sigwait = NULL;
 	}
 
+	/*
+	 * Access the _thread_dfl_count array under the protection of signal
+	 * deferral.
+	 */
+	_thread_kern_sig_defer();
+
 	/* Restore the sigactions: */
 	act.sa_handler = SIG_DFL;
 	for (i = 1; i < NSIG; i++) {
 		if (sigismember(&waitset, i) &&
 		    (_thread_sigact[i - 1].sa_handler == SIG_DFL)) {
-			if (_thread_sys_sigaction(i,&act,NULL) != 0)
-				ret = -1;
+			_thread_dfl_count[i]--;
+			if (_thread_dfl_count == 0) {
+				if (_thread_sys_sigaction(i,&act,NULL) != 0)
+					ret = -1;
+			}
 		}
 	}
+	/* Done accessing _thread_dfl_count. */
+	_thread_kern_sig_undefer();
 
 	_thread_leave_cancellation_point();
 	
