@@ -207,7 +207,13 @@ tco_setscales(struct timecounter *tc)
 
 	/* Sacrifice the lower bit to the deity for code clarity */
 	scale = 1ULL << 63;
-	scale += (tc->tc_adjustment * 4295LL) / 1000LL;
+	/* 
+	 * We get nanoseconds with 32 bit binary fraction and want
+	 * 64 bit binary fraction: x = a * 2^32 / 10^9 = a * 4.294967296
+	 * The range is +/- 500PPM so we can multiply by about 8500
+	 * without overflowing.  4398/1024 = is very close to ideal.
+	 */
+	scale += (tc->tc_adjustment * 4398) >> 10;
 	scale /= tc->tc_tweak->tc_frequency;
 	tc->tc_scale = scale * 2;
 }
