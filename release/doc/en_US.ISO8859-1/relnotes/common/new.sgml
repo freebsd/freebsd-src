@@ -92,7 +92,20 @@
   <sect2 id="security">
     <title>Security Advisories</title>
 
-    <para></para>
+    <para>A bug in the &man.fetch.1; utility which allows
+      a malicious HTTP server to cause arbitrary portions of the client's
+      memory to be overwritten, has been fixed.
+      For more information, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:16.fetch.asc">FreeBSD-SA-04:16.fetch</ulink>.
+      </para>
+
+    <para>A bug in &man.procfs.5; and &man.linprocfs.5;
+      which could cause a malicious local user could perform a local
+      denial of service attack by causing a system panic, or the user
+      could read parts of kernel memory, has been fixed.
+      For more information, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:17.procfs.asc">FreeBSD-SA-04:17.procfs</ulink>.
+      </para>
 
   </sect2>
 
@@ -105,6 +118,12 @@
 
     <para>A number of bugs have been fixed in the ULE
       scheduler.</para>
+
+    <para arch="i386">A bug in Inter-Processor Interrupt (IPI)
+      handling, which could cause SMP systems to crash under heavy
+      load, has been fixed.  More details are contained in errata note
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-05:03.ipi.asc">FreeBSD-EN-05:03.ipi</ulink>.
+      </para>
 
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
@@ -134,6 +153,14 @@
 
 	<para>The &man.sf.4; driver now has support for device polling
 	  and &man.altq.4;.</para>
+
+	<para>Several programming errors in the &man.sk.4; driver have
+	  been corrected.  This bug was particular to SMP systems, and
+	  could cause panics, page faults, aborted SSH connections, or
+	  corrupted file transfers.  More details can be found in
+	  errata note
+	  <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-05:02.sk.asc">FreeBSD-EN-05:02.sk</ulink>.
+	  </para>
 
 	<para>The &man.sk.4; driver now has support for &man.altq.4;.
 	  This driver also now supports jumbo frames on Yukon-based
@@ -175,7 +202,11 @@
     <sect3 id="fs">
       <title>File Systems</title>
 
-      <para></para>
+      <para>A kernel panic in the NFS server has been fixed.  More
+	details can be found in errata note 
+	<ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-05:01.nfs.asc">FreeBSD-EN-05:01.nfs</ulink>.
+	</para>
+
     </sect3>
 
     <sect3>
