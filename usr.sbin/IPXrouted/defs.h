@@ -34,7 +34,7 @@
  *
  *	@(#)defs.h	8.1 (Berkeley) 6/5/93
  *
- *	$Id: defs.h,v 1.5 1995/10/11 18:57:12 jhay Exp $
+ *	$Id: defs.h,v 1.1 1995/10/26 21:28:14 julian Exp $
  */
 
 #include <sys/types.h>
@@ -42,7 +42,6 @@
 
 #include <net/route.h>
 #include <netipx/ipx.h>
-#include <netipx/ipxdp.h>
 #if defined(vax) || defined(pdp11)
 #define xnnet(x) ((u_long) (x)->rip_dst[1] << 16 | (u_long) (x)->rip_dst[0] )
 #else
@@ -88,7 +87,7 @@ extern int	r;			/* Routing socket to install updates with */
 extern int gateway;
 extern struct	sockaddr_ipx ipx_netmask;	/* Used in installing routes */
 
-extern char	packet[MAXPACKETSIZE+sizeof(struct ipxdp)+1];
+extern char	packet[MAXPACKETSIZE+sizeof(struct ipx)+1];
 extern struct	rip *msg;
 
 extern char	**argv0;

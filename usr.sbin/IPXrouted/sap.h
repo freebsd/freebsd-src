@@ -28,10 +28,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: sap.h,v 1.5 1995/10/11 18:57:26 jhay Exp $
+ * $Id: sap.h,v 1.1 1995/10/26 21:28:22 julian Exp $
  */
 #ifndef _SAP_H_
 #define _SAP_H_
+
+#define IPXPROTO_SAP		IPXPROTO_PXP
 
 #define SAP_REQ			1
 #define SAP_RESP		2
