@@ -369,14 +369,15 @@ restart:
 #ifdef POWERFAIL_NMI
 			goto handle_powerfail;
 #else /* !POWERFAIL_NMI */
-#ifdef DDB
-			/* NMI can be hooked up to a pushbutton for debugging */
-			printf ("NMI ... going to debugger\n");
-			if (kdb_trap (type, 0, &frame))
-				return;
-#endif /* DDB */
 			/* machine/parity/power fail/"kitchen sink" faults */
-			if (isa_nmi(code) == 0) return;
+			if (isa_nmi(code) == 0) {
+#ifdef DDB
+				/* NMI can be hooked up to a pushbutton for debugging */
+				printf ("NMI ... going to debugger\n");
+				kdb_trap (type, 0, &frame);
+#endif /* DDB */
+				return;
+			}
 			panic("NMI indicates hardware failure");
 #endif /* POWERFAIL_NMI */
 #endif /* NISA > 0 */
@@ -573,14 +574,15 @@ kernel_trap:
 		  return;
 		}
 #else /* !POWERFAIL_NMI */
-#ifdef DDB
-			/* NMI can be hooked up to a pushbutton for debugging */
-			printf ("NMI ... going to debugger\n");
-			if (kdb_trap (type, 0, &frame))
-				return;
-#endif /* DDB */
 			/* machine/parity/power fail/"kitchen sink" faults */
-			if (isa_nmi(code) == 0) return;
+			if (isa_nmi(code) == 0) {
+#ifdef DDB
+				/* NMI can be hooked up to a pushbutton for debugging */
+				printf ("NMI ... going to debugger\n");
+				kdb_trap (type, 0, &frame);
+#endif /* DDB */
+				return;
+			}
 			/* FALL THROUGH */
 #endif /* POWERFAIL_NMI */
 #endif /* NISA > 0 */
