@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: kerberos.c,v 4.19 89/11/01 17:18:07 qjb Exp $
- *	$Id: kerberos.c,v 1.4 1995/09/07 21:37:27 markm Exp $
+ *	$Id: kerberos.c,v 1.5 1995/09/17 00:39:00 gibbs Exp $
  */
 
 #if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: kerberos.c,v 1.4 1995/09/07 21:37:27 markm Exp $";
+"$Id: kerberos.c,v 1.5 1995/09/17 00:39:00 gibbs Exp $";
 #endif  lint
 #endif
 
@@ -269,6 +269,7 @@ main(argc, argv)
       bzero (master_key_schedule, sizeof (master_key_schedule));
       exit (-1);
     }
+    des_init_random_number_generator(master_key);
 
     master_key_version = (u_char) kerror;
 
@@ -434,7 +435,7 @@ kerberos(client, pkt)
 #ifdef NOENCRYPTION
 	    bzero(session_key, sizeof(C_Block));
 #else
-	    random_key(session_key);
+	    des_new_random_key(session_key);
 #endif
 	    /* unseal server's key from master key */
 	    bcopy(&s_name_data.key_low, key, 4);
@@ -565,7 +566,7 @@ kerberos(client, pkt)
 #ifdef NOENCRYPTION
 	    bzero(session_key, sizeof(C_Block));
 #else
-	    random_key(session_key);
+	    des_new_random_key(session_key);
 #endif
 
 	    krb_create_ticket(tk, k_flags, ad->pname, ad->pinst,

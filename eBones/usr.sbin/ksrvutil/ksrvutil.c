@@ -12,7 +12,7 @@
 static char rcsid_ksrvutil_c[] =
 "BonesHeader: /afs/athena.mit.edu/astaff/project/kerberos/src/kadmin/RCS/ksrvutil.c,v 4.1 89/09/26 09:33:49 jtkohl Exp ";
 static const char rcsid[] =
-	"$Id: ksrvutil.c,v 1.1 1995/07/18 16:40:11 mark Exp $";
+	"$Id: ksrvutil.c,v 1.5 1995/09/07 21:38:40 markm Exp $";
 #endif	lint
 #endif
 
@@ -523,16 +523,20 @@ get_svc_new_key(new_key, sname, sinst, srealm, keyfile)
   char *keyfile;
 {
     int status = KADM_SUCCESS;
+    CREDENTIALS c;
 
     if (((status = krb_get_svc_in_tkt(sname, sinst, srealm, PWSERV_NAME,
 				      KADM_SINST, 1, keyfile)) == KSUCCESS) &&
+	((status = krb_get_cred(PWSERV_NAME, KADM_SINST, srealm, &c)) ==
+	 KSUCCESS) &&
 	((status = kadm_init_link("changepw", KRB_MASTER, srealm)) ==
 	 KADM_SUCCESS)) {
 #ifdef NOENCRYPTION
 	bzero((char *) new_key, sizeof(des_cblock));
 	new_key[0] = (unsigned char) 1;
 #else /* NOENCRYPTION */
-	des_random_key(new_key);
+	des_init_random_number_generator(c.session);
+	(void) des_new_random_key(new_key);
 #endif /* NOENCRYPTION */
 	return(KADM_SUCCESS);
     }
