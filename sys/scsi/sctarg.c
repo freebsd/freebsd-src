@@ -37,13 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: sctarg.c,v 1.15 1996/03/28 14:33:55 scrappy Exp $
- */
-
-/*
- * XXX dufault@hda.com: We need the "kern devconf" stuff, but I'm not
- *     going to add it until it is done in a simple way that provides
- *     base behavior in scsi_driver.c
+ *      $Id: sctarg.c,v 1.16 1996/07/14 10:46:52 joerg Exp $
  */
 
 #include "opt_bounce.h"

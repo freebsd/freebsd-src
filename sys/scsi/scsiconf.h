@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.43 1996/06/23 15:02:02 bde Exp $
+ *	$Id: scsiconf.h,v 1.44 1996/06/24 04:54:31 gibbs Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -122,9 +122,6 @@ struct proc;
  *     instance down in the adapter drivers is removed.
  */
 
-/*
- * XXX <devconf.h> already includes too much; avoid including <conf.h>.
- */
 typedef int yet_another_d_open_t __P((dev_t, int, int, struct proc *));
 
 struct scsi_device
@@ -473,12 +470,7 @@ void sc_print_addr __P((struct scsi_link *));
 void sc_print_start __P((struct scsi_link *));
 void sc_print_finish __P((void));
 
-struct sysctl_req;
-int	scsi_externalize __P((struct scsi_link *, struct sysctl_req *));
-
 void	scsi_device_register __P((struct scsi_device *sd));
-
-extern struct kern_devconf kdc_scbus0; /* XXX should go away */
 
 void scsi_configure_start __P((void));
 void scsi_configure_finish __P((void));
