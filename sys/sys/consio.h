@@ -148,10 +148,12 @@ struct mouse_info {
 #define MOUSE_ACTION	0x07
 #define MOUSE_MOTION_EVENT	0x08
 #define MOUSE_BUTTON_EVENT	0x09
+#define MOUSE_MOUSECHAR	0x0a
 	union {
 		mouse_data_t	data;
 		mouse_mode_t	mode;
 		mouse_event_t	event;
+		int		mouse_char;
 	}		u;
 };
 typedef struct mouse_info mouse_info_t;
