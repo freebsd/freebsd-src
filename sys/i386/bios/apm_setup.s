@@ -12,10 +12,8 @@
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_setup.s,v 1.2 1994/10/01 05:12:24 davidg Exp $
+ *	$Id: apm_setup.s,v 1.3 1994/10/02 01:45:42 phk Exp $
  */
-
-#ifdef APM
 
 #define ASM
 
@@ -69,4 +67,3 @@ _apm_flags:
 	.globl	_apm_flags
 	.word	0
 
-#endif	/* APM */
