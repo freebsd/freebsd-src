@@ -2,7 +2,7 @@
 
 		Filtering out SPAM from your site
 
-Sendmail now includes excellent tools block spam.  These tools are
+Sendmail now includes excellent tools to block spam.  These tools are
 available as FEATUREs that you can add to your site's .mc file.  Proper use
 of these FEATUREs will prevent spammer from using your site as a relay as
 well as significantly decrease the amount of spam that arrives at your
