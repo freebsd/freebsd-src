@@ -94,11 +94,11 @@ u_short	attrib, ch;		/* XXX inefficient interface */
 	{
 		if(!svsp->ss)		/* single shift G2/G3 -> GL ? */
 		{
-			*video = attrib | svsp->GL[ch-0x20];
+			*video = attrib | (*svsp->GL)[ch-0x20];
 		}
 		else
 		{
-			*video = attrib | svsp->Gs[ch-0x20];
+			*video = attrib | (*svsp->Gs)[ch-0x20];
 			svsp->ss = 0;
 		}
 	}
@@ -110,7 +110,7 @@ u_short	attrib, ch;		/* XXX inefficient interface */
 		{
 			if(ch >= 0xA0)		/* use GR if ch >= 0xA0 */
 			{
-				*video = attrib | svsp->GR[ch-0xA0];
+				*video = attrib | (*svsp->GR)[ch-0xA0];
 			}
 			else
 			{
@@ -284,11 +284,11 @@ sput (u_char *s, U_char kernel, int len, int page)
 					break;
 
 				case 0x0e:	/* SO */
-					svsp->GL = svsp->G1;
+					svsp->GL = &svsp->G1;
 					break;
 
 				case 0x0f:	/* SI */
-					svsp->GL = svsp->G0;
+					svsp->GL = &svsp->G0;
 					break;
 
 				case 0x10:	/* DLE */
@@ -469,13 +469,13 @@ sput (u_char *s, U_char kernel, int len, int page)
 						break;
 
 					case 'N':	/* SINGLE SHIFT G2 */
-						svsp->Gs = svsp->G2;
+						svsp->Gs = &svsp->G2;
 						svsp->ss = 1;
 						svsp->state = STATE_INIT;
 						break;
 
 					case 'O':	/* SINGLE SHIFT G3 */
-						svsp->Gs = svsp->G3;
+						svsp->Gs = &svsp->G3;
 						svsp->ss = 1;
 						svsp->state = STATE_INIT;
 						break;
@@ -524,27 +524,27 @@ sput (u_char *s, U_char kernel, int len, int page)
 						break;
 #endif /* PCVT_SETCOLOR */
 					case 'n': /* Lock Shift G2 -> GL */
-						svsp->GL = svsp->G2;
+						svsp->GL = &svsp->G2;
 						svsp->state = STATE_INIT;
 						break;
 
 					case 'o': /* Lock Shift G3 -> GL */
-						svsp->GL = svsp->G3;
+						svsp->GL = &svsp->G3;
 						svsp->state = STATE_INIT;
 						break;
 
 					case '}': /* Lock Shift G2 -> GR */
-						svsp->GR = svsp->G2;
+						svsp->GR = &svsp->G2;
 						svsp->state = STATE_INIT;
 						break;
 
 					case '|': /* Lock Shift G3 -> GR */
-						svsp->GR = svsp->G3;
+						svsp->GR = &svsp->G3;
 						svsp->state = STATE_INIT;
 						break;
 
 					case '~': /* Lock Shift G1 -> GR */
-						svsp->GR = svsp->G1;
+						svsp->GR = &svsp->G1;
 						svsp->state = STATE_INIT;
 						break;
 
@@ -1082,8 +1082,8 @@ vt_coldinit(void)
 		svsp->G1 = csd_ascii;		/* G1 = ascii	*/
 		svsp->G2 = csd_supplemental;	/* G2 = supplemental */
 		svsp->G3 = csd_supplemental;	/* G3 = supplemental */
-		svsp->GL = svsp->G0;		/* GL = G0 */
-		svsp->GR = svsp->G2;		/* GR = G2 */
+		svsp->GL = &svsp->G0;		/* GL = G0 */
+		svsp->GR = &svsp->G2;		/* GR = G2 */
 		svsp->whichi = 0;		/* char set designate init */
 		svsp->which[0] = '\0';		/* char set designate init */
 		svsp->hp_state = SHP_INIT;	/* init HP mode state machine*/
