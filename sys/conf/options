@@ -35,7 +35,6 @@ UNION
 
 # Options used only in param.c.
 EXTRAVNODES	opt_defunct.h
-MSGMAX		opt_param.h
 MSGMNB		opt_param.h
 MSGMNI		opt_param.h
 MSGSEG		opt_param.h
@@ -43,7 +42,6 @@ MSGSSZ		opt_param.h
 MSGTQL		opt_param.h
 NBUF		opt_param.h
 NMBCLUSTERS	opt_param.h
-SEMAEM		opt_param.h
 SEMMAP		opt_param.h
 SEMMNI		opt_param.h
 SEMMNS		opt_param.h
@@ -51,8 +49,6 @@ SEMMNU		opt_param.h
 SEMMSL		opt_param.h
 SEMOPM		opt_param.h
 SEMUME		opt_param.h
-SEMUSZ		opt_param.h
-SEMVMX		opt_param.h
 SHMALL		opt_param.h
 SHMMAX		opt_param.h
 SHMMAXPGS	opt_param.h
