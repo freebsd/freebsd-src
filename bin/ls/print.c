@@ -50,6 +50,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <fts.h>
 #include <grp.h>
+#include <math.h>
 #include <langinfo.h>
 #include <pwd.h>
 #include <stdio.h>
@@ -70,12 +71,33 @@ static int	printaname __P((FTSENT *, u_long, u_long));
 static void	printlink __P((FTSENT *));
 static void	printtime __P((time_t));
 static int	printtype __P((u_int));
+static void	printsize __P((size_t, off_t));
 #ifdef COLORLS
 static void     endcolor __P((int));
 static int      colortype __P((mode_t));
 #endif
 
 #define	IS_NOPRINT(p)	((p)->fts_number == NO_PRINT)
+#define UNITS_2 2
+
+#define KILO_SZ(n) (n)
+#define MEGA_SZ(n) ((n) * (n))
+#define GIGA_SZ(n) ((n) * (n) * (n))
+#define TERA_SZ(n) ((n) * (n) * (n) * (n))
+#define PETA_SZ(n) ((n) * (n) * (n) * (n) * (n))
+
+#define KILO_2_SZ (KILO_SZ(1024ULL))
+#define MEGA_2_SZ (MEGA_SZ(1024ULL))
+#define GIGA_2_SZ (GIGA_SZ(1024ULL))
+#define TERA_2_SZ (TERA_SZ(1024ULL))
+#define PETA_2_SZ (PETA_SZ(1024ULL))
+
+unsigned long long vals_base2[] = {1, KILO_2_SZ, MEGA_2_SZ, GIGA_2_SZ, TERA_2_SZ, PETA_2_SZ};
+
+typedef enum { NONE, KILO, MEGA, GIGA, TERA, PETA, UNIT_MAX } unit_t;
+static unit_t   unit_adjust __P((off_t *));
+
+int unitp [] = { NONE, KILO, MEGA, GIGA, TERA, PETA };
 
 #ifdef COLORLS
 /* Most of these are taken from <sys/stat.h> */
@@ -178,7 +200,7 @@ printlong(dp)
 			(void)printf("%*s%*qd ",
 			    8 - dp->s_size, "", dp->s_size, sp->st_size);
 		else
-			(void)printf("%*qd ", dp->s_size, sp->st_size);
+			printsize(dp->s_size, sp->st_size);
 		if (f_accesstime)
 			printtime(sp->st_atime);
 		else if (f_statustime)
@@ -549,4 +571,52 @@ printlink(p)
 	path[lnklen] = '\0';
 	(void)printf(" -> ");
 	printname(path);
+}
+
+static void
+printsize(width, bytes)
+	size_t width;
+	off_t bytes;
+{
+	unit_t unit;
+	
+	if (f_humanval) {
+		unit = unit_adjust(&bytes);
+
+		if (bytes == 0)
+			(void)printf("%*s ", width, "0B");
+		else
+			(void)printf("%*qd%c ", width - 1, bytes, 
+				"BKMGTPE"[unit]);
+	}
+	else
+		(void)printf("%*qd ", width, bytes);
+}
+
+/*
+ * Output in "human-readable" format.  Uses 3 digits max and puts
+ * unit suffixes at the end.  Makes output compact and easy to read,
+ * especially on huge disks.
+ *
+ */
+unit_t
+unit_adjust(val)
+       off_t *val;
+{
+       double abval;
+       unit_t unit;
+       unsigned int unit_sz;
+
+       abval = fabs(*val);
+
+       unit_sz = abval ? ilogb(abval) / 10 : 0;
+
+       if (unit_sz >= UNIT_MAX) {
+               unit = NONE;
+       } else {
+               unit = unitp[unit_sz];
+               *val /= (double)vals_base2[unit_sz];
+       }
+
+       return (unit);
 }
