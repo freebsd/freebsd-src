@@ -547,13 +547,13 @@ lookup_host (host, addr, family)
 	char *host;
 	u_char *addr;
 {
-	struct hostent *he = gethostbyname2(host, family);
+	struct hostent *he;
 
-	if (!he)
-		return(-1);
-
-	memcpy(addr, he->h_addr_list[0], he->h_length);
-
+	if (inet_pton(family, host, addr) != 1) {
+		if ((he = gethostbyname2(host, family)) == NULL)
+			return(-1);
+		memcpy(addr, he->h_addr_list[0], he->h_length);
+	}	
 	return(0);
 }
 
