@@ -141,7 +141,7 @@ defined.
 .Ss "Card Identifiers"
 The syntax for card identifiers is:
 .Pp
-.Dl card Ar manufacturer version
+.Dl card Ar manufacturer version [ add_info1 [ add_info2 ]]
 .Dl config Ar index driver interrupt [ flags ]
 .Dl ether Ar offset
 .Dl insert Ar command
@@ -155,8 +155,14 @@ There may be multiple
 lines.
 The
 .Em card
-parameters are the Manufacturer name and card version that
+parameters are the Manufacturer name, card version and
+additional information add_info1, add_info2 that
 is used to match the values from the card's CIS memory.
+These parameter can be described in extended regular expression
+.Xr regex 3
+if the string is enclosed by '/' like "/.*/".
+Each of the expressions is evaluated with a character '^' at top.
+.Pp
 The
 .Em config
 parameters select the particular card's configuration index

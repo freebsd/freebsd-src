@@ -36,6 +36,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <fcntl.h>
 #include <ctype.h>
+#include <regex.h>
 #include <sys/ioctl.h>
 #include "cardd.h"
 
@@ -206,6 +207,48 @@ card_removed(struct slot *sp)
 		pool_irq[sp->irq] = 1;
 }
 
+/* CIS string comparison */
+
+#define	REGCOMP_FLAGS	(REG_EXTENDED | REG_NOSUB)
+#define	REGEXEC_FLAGS	(0)
+
+static int
+cis_strcmp(char *db, char *cis)
+{
+	int     res, err;
+	char    buf[256];
+	regex_t rx;
+	char *	p;
+	size_t	n;
+
+	if (!db || !cis) {
+		return -1;
+	}
+	n = strlen(db);
+	if (n > 2 && db[0] == '/' && db[n-1] == '/') {
+		/* matching by regex */
+		db++;
+	} else {
+		/* otherwise, matching by strncmp() */
+		return strncmp(db, cis, n);
+	}
+	p = xmalloc(n);
+	strncpy(p + 1, db, n-2);
+	*p = '^';
+	db = p;
+	if ((err = regcomp(&rx, p, REGCOMP_FLAGS))) {
+		regerror(err, &rx, buf, sizeof buf);
+		logmsg("Warning: REGEX error for\"%s\" -- %s\n", p, buf);
+		regfree(&rx);
+		free(p);
+		return -1;
+	}
+	res = regexec(&rx, cis, 0, NULL, REGEXEC_FLAGS);
+	regfree(&rx);
+	free(p);
+	return res;
+}
+
 /*
  * card_inserted - Card has been inserted;
  *	- Read the CIS
@@ -235,13 +278,25 @@ card_inserted(struct slot *sp)
 	for (cp = cards; cp; cp = cp->next) {
 		switch (cp->deftype) {
 		case DT_VERS:
-			if (strncmp(cp->manuf, sp->cis->manuf, CIS_MAXSTR) == 0 &&
-			    strncmp(cp->version, sp->cis->vers, CIS_MAXSTR) == 0) {
+			if (cis_strcmp(cp->manuf, sp->cis->manuf) == 0 &&
+			    cis_strcmp(cp->version, sp->cis->vers) == 0) {
+				if (cp->add_info1 != NULL &&
+				    cis_strcmp(cp->add_info1, sp->cis->add_info1) != 0) {
+					break;
+				}
+				if (cp->add_info2 != NULL &&
+				    cis_strcmp(cp->add_info2, sp->cis->add_info2) != 0) {
+					break;
+				}
+
 				logmsg("Card \"%s\"(\"%s\") "
-					"matched \"%s\" (\"%s\") ",
-					sp->cis->manuf, sp->cis->vers,
-					cp->manuf, cp->version
-					);
+					"[%s] [%s] "
+					"matched \"%s\" (\"%s\") "
+					"[%s] [%s] ",
+				    sp->cis->manuf, sp->cis->vers,
+				    sp->cis->add_info1, sp->cis->add_info2,
+				    cp->manuf, cp->version,
+				    cp->add_info1, cp->add_info2);
 				goto escape;
 			}
 			break;
@@ -271,6 +326,13 @@ escape:
 			sp->cis->manuf, sp->cis->vers);
 		return;
 	}
+	if (sp->cis->lan_nid && sp->cis->lan_nid[0] == sizeof(sp->eaddr)) {
+		bcopy(sp->cis->lan_nid + 1, sp->eaddr, sizeof(sp->eaddr));
+		sp->flags |= EADDR_CONFIGED;
+	} else {
+		bzero(sp->eaddr, sizeof(sp->eaddr));
+	}
+
 	if (cp->ether) {
 		struct ether *e = 0;
 		e = cp->ether;
@@ -311,7 +373,9 @@ static void
 read_ether(struct slot *sp)
 {
 	unsigned char net_addr[12];
+	int flags = MDF_ATTR;	/* attribute memory */
 
+	ioctl(sp->fd, PIOCRWFLAG, &flags);
 	lseek(sp->fd, (off_t)sp->card->ether->value, SEEK_SET);
 	if (read(sp->fd, net_addr, sizeof(net_addr)) != sizeof(net_addr)) {
 		logerr("read err on net addr");
@@ -326,6 +390,7 @@ read_ether(struct slot *sp)
 	logmsg("Ether=%02x:%02x:%02x:%02x:%02x:%02x\n",
 	    sp->eaddr[0], sp->eaddr[1], sp->eaddr[2],
 	    sp->eaddr[3], sp->eaddr[4], sp->eaddr[5]);
+	sp->flags |= EADDR_CONFIGED;
 }
 
 /*
@@ -494,7 +559,9 @@ assign_io(struct slot *sp)
 	 * Found a matching configuration. Now look at the I/O, memory and IRQ
 	 * to create the desired parameters. Look at memory first.
 	 */
-	if (cisconf->memspace || (defconf && defconf->memspace)) {
+	if (!(strncmp(sp->config->driver->name, "ed", 2) == 0
+		&& (sp->config->flags & 0x10))
+		&& (cisconf->memspace || (defconf && defconf->memspace))) {
 		struct cis_memblk *mp;
 
 		mp = cisconf->mem;
@@ -528,6 +595,9 @@ assign_io(struct slot *sp)
 	if (cisconf->iospace || (defconf && defconf->iospace) 
 	    || sp->card->iosize) {
 		struct cis_config *cp;
+		struct cis_ioblk *cio;
+		struct allocblk *sio;
+		int     x, xmax;
 		int iosize;
 
 		cp = cisconf;
@@ -551,49 +621,61 @@ assign_io(struct slot *sp)
  		* If no address (but a length) is available, allocate
  		* from the pool.
  		*/
-		if (iosize) {
-			sp->io.addr = 0;
-			sp->io.size = iosize;
-		}
-		else if (cp->io) {
-			sp->io.addr = cp->io->addr;
-			sp->io.size = cp->io->size;
-		} else {
-			/*
-			 * No I/O block, assume the address lines
-			 * decode gives the size.
-			 */
-			sp->io.size = 1 << cp->io_addr;
-		}
-		if (sp->io.addr == 0) {
-			int     i = bit_fns(io_avail, IOPORTS, sp->io.size);
+		cio = cp->io;
+		sio = &(sp->io);
+		xmax = 1;
+		if (cio)
+			xmax = cisconf->io_blks;
+		for (x = 0; x < xmax; x++) {
+			if (iosize) {
+				sio->addr = 0;
+				sio->size = iosize;
+			} else if (cio) {
+				sio->addr = cio->addr;
+				sio->size = cio->size;
+			} else {
+				/*
+				 * No I/O block, assume the address lines
+				 * decode gives the size.
+				 */
+				sio->size = 1 << cp->io_addr;
+			}
+			if (sio->addr == 0) {
+				int i = bit_fns(io_avail, IOPORTS,
+						sio->size, sio->size);
+				if (i < 0) {
+					return (-1);
+				}
+				sio->addr = i;
+			}
+			bit_nclear(io_avail, sio->addr,
+				   sio->addr + sio->size - 1);
+			sp->flags |= IO_ASSIGNED;
 
-			if (i < 0)
-				return (-1);
-			sp->io.addr = i;
-		}
-		bit_nclear(io_avail, sp->io.addr,
-			   sp->io.addr + sp->io.size - 1);
-		sp->flags |= IO_ASSIGNED;
-
-		/* Set up the size to take into account the decode lines. */
-		sp->io.cardaddr = cp->io_addr;
-		switch (cp->io_bus) {
-		case 0:
-			break;
-		case 1:
-			sp->io.flags = IODF_WS;
-			break;
-		case 2:
-			sp->io.flags = IODF_WS | IODF_CS16;
-			break;
-		case 3:
-			sp->io.flags = IODF_WS | IODF_CS16 | IODF_16BIT;
-			break;
-		}
-		if (debug_level > 0) {
-			logmsg("Using I/O addr 0x%x, size %d\n",
-			    sp->io.addr, sp->io.size);
+			/* Set up the size to take into account the decode lines. */
+			sio->cardaddr = cp->io_addr;
+			switch (cp->io_bus) {
+			case 0:
+				break;
+			case 1:
+				sio->flags = IODF_WS;
+				break;
+			case 2:
+				sio->flags = IODF_WS | IODF_CS16;
+				break;
+			case 3:
+				sio->flags = IODF_WS | IODF_CS16 | IODF_16BIT;
+				break;
+			}
+			if (debug_level > 0) {
+				logmsg("Using I/O addr 0x%x, size %d\n",
+				    sio->addr, sio->size);
+			}
+			if (cio && cio->next) {
+				sio->next = xmalloc(sizeof(*sio));
+				sio = sio->next;
+				cio = cio->next;
+			}
 		}
 	}
 	sp->irq = sp->config->irq;
@@ -612,10 +694,12 @@ setup_slot(struct slot *sp)
 	struct io_desc io;
 	struct dev_desc drv;
 	struct driver *drvp = sp->config->driver;
+	struct allocblk *sio;
 	char    *p;
 	char    c;
 	off_t   offs;
 	int     rw_flags;
+	int	iowin;
 
 	memset(&io, 0, sizeof io);
 	memset(&drv, 0, sizeof drv);
@@ -665,11 +749,14 @@ setup_slot(struct slot *sp)
 			return (0);
 		}
 	}
-	io.window = 0;
 	if (sp->flags & IO_ASSIGNED) {
-		io.flags = sp->io.flags;
-		io.start = sp->io.addr;
-		io.size = sp->io.size;
+	    for (iowin = 0, sio = &(sp->io); iowin <= 1; iowin++) {
+		io.window = iowin;
+		if (sio->size) {
+			io.flags = sio->flags;
+			io.start = sio->addr;
+			io.size = sio->size;
+		}
 #if 0
 		io.start = sp->io.addr & ~((1 << sp->io.cardaddr) - 1);
 		io.size = 1 << sp->io.cardaddr;
@@ -688,6 +775,21 @@ setup_slot(struct slot *sp)
 			logerr("ioctl (PIOCSIO)");
 			return (0);
 		}
+		if (ioctl(sp->fd, PIOCGIO, &io))
+		{
+		    logerr("ioctl (PIOCGIO)");
+		    return(0);
+		}
+		if (io.start != sio->addr){
+		    logmsg("I/O base address changed from 0x%x to 0x%x\n",
+			   sio->addr, io.start);
+		    sio->addr = io.start;
+		}
+		if (sio->next)
+			sio = sio->next;
+		else
+			break;
+	    }
 	}
 	strcpy(drv.name, drvp->kernel);
 	drv.unit = drvp->unit;
