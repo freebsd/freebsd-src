@@ -8,6 +8,11 @@
 #CVSup "base" directory, your sup directory is /usr/sup.  If you have
 #changed your base directory, your sup directory is /path/to/base/sup.
 #
+#NOTE:  CVSup currently does not understand comments (lines beginning
+#with a `#' character) in refuse files, so please remember to remove all
+#such comments if you intend to use this file as a starting point for
+#creating your own refuse file.
+#
 #Use this example if you have modified /usr/src/etc/sendmail/freebsd.mc
 #to reflect your local configuration, and you do not want CVSup to
 #overwrite it:
