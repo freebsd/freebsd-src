@@ -717,7 +717,6 @@ includes:
 	cd ${.CURDIR}/lib/libradius;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/librpcsvc;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libsbuf;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libskey;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libstand;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libtacplus;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcom_err;		${MAKE} beforeinstall
@@ -743,10 +742,9 @@ includes:
 # libkrb: libcrypt
 # libopie: libmd
 # libpam: libcom_err libcrypt libcrypto libkrb libopie libradius \
-#	  libskey libtacplus libutil libz libssh
+#	  libtacplus libutil libz libssh
 # libradius: libmd
 # libreadline: libncurses
-# libskey: libcrypt libmd
 # libss: libcom_err
 # libstc++: libm
 # libtacplus: libmd
@@ -797,7 +795,7 @@ libraries:
 .for _lib in ${_csu} gnu/lib/csu gnu/lib/libgcc lib/libmd lib/libcrypt \
     ${_secure_lib} ${_kerberosIV_lib} \
     ${_kerberos5_lib} lib/libcom_err ${_libm} lib/libncurses \
-    lib/libopie lib/libradius lib/libsbuf lib/libskey lib/libtacplus \
+    lib/libopie lib/libradius lib/libsbuf lib/libtacplus \
     lib/libutil lib/libz lib gnu/lib ${_libperl} usr.bin/lex/lib ${_libkeycap}
 .if exists(${.CURDIR}/${_lib})
 	cd ${.CURDIR}/${_lib}; \
