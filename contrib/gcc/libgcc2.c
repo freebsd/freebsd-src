@@ -43,10 +43,11 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 #include "libgcc2.h"
 
-#if defined (L_negdi2) || defined (L_divdi3) || defined (L_moddi3)
-#if defined (L_divdi3) || defined (L_moddi3)
-static inline
+#ifdef DECLARE_LIBRARY_RENAMES
+  DECLARE_LIBRARY_RENAMES
 #endif
+
+#if defined (L_negdi2)
 DWtype
 __negdi2 (DWtype u)
 {
@@ -149,9 +150,9 @@ __mulvsi3 (Wtype a, Wtype b)
 Wtype
 __negvsi2 (Wtype a)
 {
-   Wtype w;
+  Wtype w;
 
-   w  = -a;
+  w  = -a;
 
   if (a >= 0 ? w > 0 : w < 0)
     abort ();
@@ -164,14 +165,14 @@ __negvsi2 (Wtype a)
 DWtype
 __negvdi2 (DWtype a)
 {
-   DWtype w;
+  DWtype w;
 
-   w  = -a;
+  w  = -a;
 
   if (a >= 0 ? w > 0 : w < 0)
     abort ();
 
-   return w;
+  return w;
 }
 #endif
 
@@ -179,16 +180,16 @@ __negvdi2 (DWtype a)
 Wtype
 __absvsi2 (Wtype a)
 {
-   Wtype w = a;
+  Wtype w = a;
 
-   if (a < 0)
+  if (a < 0)
 #ifdef L_negvsi2
-     w = __negvsi2 (a);
+    w = __negvsi2 (a);
 #else
-     w = -a;
+    w = -a;
 
-   if (w < 0)
-     abort ();
+  if (w < 0)
+    abort ();
 #endif
 
    return w;
@@ -199,19 +200,19 @@ __absvsi2 (Wtype a)
 DWtype
 __absvdi2 (DWtype a)
 {
-   DWtype w = a;
+  DWtype w = a;
 
-   if (a < 0)
+  if (a < 0)
 #ifdef L_negvsi2
-     w = __negvsi2 (a);
+    w = __negvsi2 (a);
 #else
-     w = -a;
+    w = -a;
 
-   if (w < 0)
-     abort ();
+  if (w < 0)
+    abort ();
 #endif
 
-   return w;
+  return w;
 }
 #endif
 
@@ -219,7 +220,7 @@ __absvdi2 (DWtype a)
 DWtype
 __mulvdi3 (DWtype u, DWtype v)
 {
-   DWtype w;
+  DWtype w;
 
   w = u * v;
 
@@ -365,8 +366,19 @@ __muldi3 (DWtype u, DWtype v)
 }
 #endif
 
+#if (defined (L_udivdi3) || defined (L_divdi3) || \
+     defined (L_umoddi3) || defined (L_moddi3))
+#if defined (sdiv_qrnnd)
+#define L_udiv_w_sdiv
+#endif
+#endif
+
 #ifdef L_udiv_w_sdiv
 #if defined (sdiv_qrnnd)
+#if (defined (L_udivdi3) || defined (L_divdi3) || \
+     defined (L_umoddi3) || defined (L_moddi3))
+static inline __attribute__ ((__always_inline__))
+#endif
 UWtype
 __udiv_w_sdiv (UWtype *rp, UWtype a1, UWtype a0, UWtype d)
 {
@@ -499,7 +511,7 @@ const UQItype __clz_tab[] =
 
 #if (defined (L_udivdi3) || defined (L_divdi3) || \
      defined (L_umoddi3) || defined (L_moddi3))
-static inline
+static inline __attribute__ ((__always_inline__))
 #endif
 UDWtype
 __udivmoddi4 (UDWtype n, UDWtype d, UDWtype *rp)
@@ -732,14 +744,14 @@ __divdi3 (DWtype u, DWtype v)
 
   if (uu.s.high < 0)
     c = ~c,
-    uu.ll = __negdi2 (uu.ll);
+    uu.ll = -uu.ll;
   if (vv.s.high < 0)
     c = ~c,
-    vv.ll = __negdi2 (vv.ll);
+    vv.ll = -vv.ll;
 
   w = __udivmoddi4 (uu.ll, vv.ll, (UDWtype *) 0);
   if (c)
-    w = __negdi2 (w);
+    w = -w;
 
   return w;
 }
@@ -758,13 +770,13 @@ __moddi3 (DWtype u, DWtype v)
 
   if (uu.s.high < 0)
     c = ~c,
-    uu.ll = __negdi2 (uu.ll);
+    uu.ll = -uu.ll;
   if (vv.s.high < 0)
-    vv.ll = __negdi2 (vv.ll);
+    vv.ll = -vv.ll;
 
   (void) __udivmoddi4 (uu.ll, vv.ll, &w);
   if (c)
-    w = __negdi2 (w);
+    w = -w;
 
   return w;
 }
@@ -1063,35 +1075,10 @@ __floatdidf (DWtype u)
 #define WORD_SIZE (sizeof (Wtype) * BITS_PER_UNIT)
 #define HIGH_HALFWORD_COEFF (((UDWtype) 1) << (WORD_SIZE / 2))
 #define HIGH_WORD_COEFF (((UDWtype) 1) << WORD_SIZE)
+
 #define DI_SIZE (sizeof (DWtype) * BITS_PER_UNIT)
-
-/* Define codes for all the float formats that we know of.  Note
-   that this is copied from real.h.  */
-
-#define UNKNOWN_FLOAT_FORMAT 0
-#define IEEE_FLOAT_FORMAT 1
-#define VAX_FLOAT_FORMAT 2
-#define IBM_FLOAT_FORMAT 3
-
-/* Default to IEEE float if not specified.  Nearly all machines use it.  */
-#ifndef HOST_FLOAT_FORMAT
-#define	HOST_FLOAT_FORMAT	IEEE_FLOAT_FORMAT
-#endif
-
-#if HOST_FLOAT_FORMAT == IEEE_FLOAT_FORMAT
-#define DF_SIZE 53
-#define SF_SIZE 24
-#endif
-
-#if HOST_FLOAT_FORMAT == IBM_FLOAT_FORMAT
-#define DF_SIZE 56
-#define SF_SIZE 24
-#endif
-
-#if HOST_FLOAT_FORMAT == VAX_FLOAT_FORMAT
-#define DF_SIZE 56
-#define SF_SIZE 24
-#endif
+#define DF_SIZE DBL_MANT_DIG
+#define SF_SIZE FLT_MANT_DIG
 
 SFtype
 __floatdisf (DWtype u)
@@ -1264,14 +1251,13 @@ __eprintf (const char *string, const char *expression,
 
 #ifdef L_bb
 
-#if LONG_TYPE_SIZE == GCOV_TYPE_SIZE
-typedef long gcov_type;
-#else
-typedef long long gcov_type;
-#endif
+struct bb_function_info {
+  long checksum;
+  int arc_count;
+  const char *name;
+};
 
-
-/* Structure emitted by -a  */
+/* Structure emitted by --profile-arcs  */
 struct bb
 {
   long zero_word;
@@ -1279,26 +1265,19 @@ struct bb
   gcov_type *counts;
   long ncounts;
   struct bb *next;
-  const unsigned long *addresses;
 
   /* Older GCC's did not emit these fields.  */
-  long nwords;
-  const char **functions;
-  const long *line_nums;
-  const char **filenames;
-  char *flags;
+  long sizeof_bb;
+  struct bb_function_info *function_infos;
 };
 
 #ifndef inhibit_libc
 
-/* Simple minded basic block profiling output dumper for
-   systems that don't provide tcov support.  At present,
-   it requires atexit and stdio.  */
+/* Arc profile dumper. Requires atexit and stdio.  */
 
 #undef NULL /* Avoid errors if stdio.h and our stddef.h mismatch.  */
 #include <stdio.h>
 
-#include "gbl-ctors.h"
 #include "gcov-io.h"
 #include <string.h>
 #ifdef TARGET_HAS_F_SETLKW
@@ -1306,162 +1285,272 @@ struct bb
 #include <errno.h>
 #endif
 
+/* Chain of per-object file bb structures.  */
 static struct bb *bb_head;
+
+/* Dump the coverage counts. We merge with existing counts when
+   possible, to avoid growing the .da files ad infinitum.  */
 
 void
 __bb_exit_func (void)
 {
-  FILE *da_file;
-  int i;
   struct bb *ptr;
+  int i;
+  gcov_type program_sum = 0;
+  gcov_type program_max = 0;
+  long program_arcs = 0;
+  gcov_type merged_sum = 0;
+  gcov_type merged_max = 0;
+  long merged_arcs = 0;
+  
+#if defined (TARGET_HAS_F_SETLKW)
+  struct flock s_flock;
 
-  if (bb_head == 0)
-    return;
+  s_flock.l_type = F_WRLCK;
+  s_flock.l_whence = SEEK_SET;
+  s_flock.l_start = 0;
+  s_flock.l_len = 0; /* Until EOF.  */
+  s_flock.l_pid = getpid ();
+#endif
 
-  i = strlen (bb_head->filename) - 3;
-
-
-  for (ptr = bb_head; ptr != (struct bb *) 0; ptr = ptr->next)
+  /* Non-merged stats for this program.  */
+  for (ptr = bb_head; ptr; ptr = ptr->next)
     {
-      int firstchar;
+      for (i = 0; i < ptr->ncounts; i++)
+	{
+	  program_sum += ptr->counts[i];
 
-      /* Make sure the output file exists -
-         but don't clobber exiting data.  */
-      if ((da_file = fopen (ptr->filename, "a")) != 0)
-	fclose (da_file);
-
-      /* Need to re-open in order to be able to write from the start.  */
+	  if (ptr->counts[i] > program_max)
+	    program_max = ptr->counts[i];
+	}
+      program_arcs += ptr->ncounts;
+    }
+  
+  for (ptr = bb_head; ptr; ptr = ptr->next)
+    {
+      FILE *da_file;
+      gcov_type object_max = 0;
+      gcov_type object_sum = 0;
+      long object_functions = 0;
+      int merging = 0;
+      int error = 0;
+      struct bb_function_info *fn_info;
+      gcov_type *count_ptr;
+      
+      /* Open for modification */
       da_file = fopen (ptr->filename, "r+b");
-      /* Some old systems might not allow the 'b' mode modifier.
-         Therefore, try to open without it.  This can lead to a race
-         condition so that when you delete and re-create the file, the
-         file might be opened in text mode, but then, you shouldn't
-         delete the file in the first place.  */
-      if (da_file == 0)
-	da_file = fopen (ptr->filename, "r+");
-      if (da_file == 0)
+      
+      if (da_file)
+	merging = 1;
+      else
+	{
+	  /* Try for appending */
+	  da_file = fopen (ptr->filename, "ab");
+	  /* Some old systems might not allow the 'b' mode modifier.
+             Therefore, try to open without it.  This can lead to a
+             race condition so that when you delete and re-create the
+             file, the file might be opened in text mode, but then,
+             you shouldn't delete the file in the first place.  */
+	  if (!da_file)
+	    da_file = fopen (ptr->filename, "a");
+	}
+      
+      if (!da_file)
 	{
 	  fprintf (stderr, "arc profiling: Can't open output file %s.\n",
 		   ptr->filename);
+	  ptr->filename = 0;
 	  continue;
 	}
 
+#if defined (TARGET_HAS_F_SETLKW)
       /* After a fork, another process might try to read and/or write
          the same file simultanously.  So if we can, lock the file to
          avoid race conditions.  */
-#if defined (TARGET_HAS_F_SETLKW)
-      {
-	struct flock s_flock;
-
-	s_flock.l_type = F_WRLCK;
-	s_flock.l_whence = SEEK_SET;
-	s_flock.l_start = 0;
-	s_flock.l_len = 1;
-	s_flock.l_pid = getpid ();
-
-	while (fcntl (fileno (da_file), F_SETLKW, &s_flock)
-	       && errno == EINTR);
-      }
+      while (fcntl (fileno (da_file), F_SETLKW, &s_flock)
+	     && errno == EINTR)
+	continue;
 #endif
+      for (fn_info = ptr->function_infos; fn_info->arc_count != -1; fn_info++)
+	object_functions++;
 
-      /* If the file is not empty, and the number of counts in it is the
-         same, then merge them in.  */
-      firstchar = fgetc (da_file);
-      if (firstchar == EOF)
+      if (merging)
 	{
-	  if (ferror (da_file))
+	  /* Merge data from file.  */
+	  long tmp_long;
+	  gcov_type tmp_gcov;
+	  
+	  if (/* magic */
+	      (__read_long (&tmp_long, da_file, 4) || tmp_long != -123l)
+	      /* functions in object file.  */
+	      || (__read_long (&tmp_long, da_file, 4)
+		  || tmp_long != object_functions)
+	      /* extension block, skipped */
+	      || (__read_long (&tmp_long, da_file, 4)
+		  || fseek (da_file, tmp_long, SEEK_CUR)))
 	    {
-	      fprintf (stderr, "arc profiling: Can't read output file ");
-	      perror (ptr->filename);
-	    }
-	}
-      else
-	{
-	  long n_counts = 0;
-
-	  if (ungetc (firstchar, da_file) == EOF)
-	    rewind (da_file);
-	  if (__read_long (&n_counts, da_file, 8) != 0)
-	    {
-	      fprintf (stderr, "arc profiling: Can't read output file %s.\n",
+	    read_error:;
+	      fprintf (stderr, "arc profiling: Error merging output file %s.\n",
 		       ptr->filename);
-	      continue;
+	      clearerr (da_file);
 	    }
-
-	  if (n_counts == ptr->ncounts)
+	  else
 	    {
-	      int i;
-
-	      for (i = 0; i < n_counts; i++)
+	      /* Merge execution counts for each function.  */
+	      count_ptr = ptr->counts;
+	      
+	      for (fn_info = ptr->function_infos; fn_info->arc_count != -1;
+		   fn_info++)
 		{
-		  gcov_type v = 0;
+		  if (/* function name delim */
+		      (__read_long (&tmp_long, da_file, 4)
+		       || tmp_long != -1)
+		      /* function name length */
+		      || (__read_long (&tmp_long, da_file, 4)
+			  || tmp_long != (long) strlen (fn_info->name))
+		      /* skip string */
+		      || fseek (da_file, ((tmp_long + 1) + 3) & ~3, SEEK_CUR)
+		      /* function name delim */
+		      || (__read_long (&tmp_long, da_file, 4)
+			  || tmp_long != -1))
+		    goto read_error;
 
-		  if (__read_gcov_type (&v, da_file, 8) != 0)
-		    {
-		      fprintf (stderr,
-			       "arc profiling: Can't read output file %s.\n",
-			       ptr->filename);
-		      break;
-		    }
-		  ptr->counts[i] += v;
+		  if (/* function checksum */
+		      (__read_long (&tmp_long, da_file, 4)
+		       || tmp_long != fn_info->checksum)
+		      /* arc count */
+		      || (__read_long (&tmp_long, da_file, 4)
+			  || tmp_long != fn_info->arc_count))
+		    goto read_error;
+		  
+		  for (i = fn_info->arc_count; i > 0; i--, count_ptr++)
+		    if (__read_gcov_type (&tmp_gcov, da_file, 8))
+		      goto read_error;
+		    else
+		      *count_ptr += tmp_gcov;
 		}
 	    }
-
+	  fseek (da_file, 0, SEEK_SET);
 	}
-
-      rewind (da_file);
-
-      /* ??? Should first write a header to the file.  Preferably, a 4 byte
-         magic number, 4 bytes containing the time the program was
-         compiled, 4 bytes containing the last modification time of the
-         source file, and 4 bytes indicating the compiler options used.
-
-         That way we can easily verify that the proper source/executable/
-         data file combination is being used from gcov.  */
-
-      if (__write_gcov_type (ptr->ncounts, da_file, 8) != 0)
+      
+      /* Calculate the per-object statistics.  */
+      for (i = 0; i < ptr->ncounts; i++)
 	{
+	  object_sum += ptr->counts[i];
 
+	  if (ptr->counts[i] > object_max)
+	    object_max = ptr->counts[i];
+	}
+      merged_sum += object_sum;
+      if (merged_max < object_max)
+	merged_max = object_max;
+      merged_arcs += ptr->ncounts;
+      
+      /* Write out the data.  */
+      if (/* magic */
+	  __write_long (-123, da_file, 4)
+	  /* number of functions in object file.  */
+	  || __write_long (object_functions, da_file, 4)
+	  /* length of extra data in bytes.  */
+	  || __write_long ((4 + 8 + 8) + (4 + 8 + 8), da_file, 4)
+
+	  /* whole program statistics. If merging write per-object
+	     now, rewrite later */
+	  /* number of instrumented arcs.  */
+	  || __write_long (merging ? ptr->ncounts : program_arcs, da_file, 4)
+	  /* sum of counters.  */
+	  || __write_gcov_type (merging ? object_sum : program_sum, da_file, 8)
+	  /* maximal counter.  */
+	  || __write_gcov_type (merging ? object_max : program_max, da_file, 8)
+
+	  /* per-object statistics.  */
+	  /* number of counters.  */
+	  || __write_long (ptr->ncounts, da_file, 4)
+	  /* sum of counters.  */
+	  || __write_gcov_type (object_sum, da_file, 8)
+	  /* maximal counter.  */
+	  || __write_gcov_type (object_max, da_file, 8))
+	{
+	write_error:;
 	  fprintf (stderr, "arc profiling: Error writing output file %s.\n",
 		   ptr->filename);
+	  error = 1;
 	}
       else
 	{
-	  int j;
-	  gcov_type *count_ptr = ptr->counts;
-	  int ret = 0;
-	  for (j = ptr->ncounts; j > 0; j--)
+	  /* Write execution counts for each function.  */
+	  count_ptr = ptr->counts;
+
+	  for (fn_info = ptr->function_infos; fn_info->arc_count != -1;
+	       fn_info++)
 	    {
-	      if (__write_gcov_type (*count_ptr, da_file, 8) != 0)
-		{
-		  ret = 1;
-		  break;
-		}
-	      count_ptr++;
+	      if (__write_gcov_string (fn_info->name,
+				       strlen (fn_info->name), da_file, -1)
+		  || __write_long (fn_info->checksum, da_file, 4)
+		  || __write_long (fn_info->arc_count, da_file, 4))
+		goto write_error;
+	      
+	      for (i = fn_info->arc_count; i > 0; i--, count_ptr++)
+		if (__write_gcov_type (*count_ptr, da_file, 8))
+		  goto write_error; /* RIP Edsger Dijkstra */
 	    }
-	  if (ret)
-	    fprintf (stderr, "arc profiling: Error writing output file %s.\n",
-		     ptr->filename);
 	}
 
-      if (fclose (da_file) == EOF)
-	fprintf (stderr, "arc profiling: Error closing output file %s.\n",
-		 ptr->filename);
+      if (fclose (da_file))
+	{
+	  fprintf (stderr, "arc profiling: Error closing output file %s.\n",
+		   ptr->filename);
+	  error = 1;
+	}
+      if (error || !merging)
+	ptr->filename = 0;
     }
 
-  return;
+  /* Upate whole program statistics.  */
+  for (ptr = bb_head; ptr; ptr = ptr->next)
+    if (ptr->filename)
+      {
+	FILE *da_file;
+	
+	da_file = fopen (ptr->filename, "r+b");
+	if (!da_file)
+	  {
+	    fprintf (stderr, "arc profiling: Cannot reopen %s.\n",
+		     ptr->filename);
+	    continue;
+	  }
+	
+#if defined (TARGET_HAS_F_SETLKW)
+	while (fcntl (fileno (da_file), F_SETLKW, &s_flock)
+	       && errno == EINTR)
+	  continue;
+#endif
+	
+	if (fseek (da_file, 4 * 3, SEEK_SET)
+	    /* number of instrumented arcs.  */
+	    || __write_long (merged_arcs, da_file, 4)
+	    /* sum of counters.  */
+	    || __write_gcov_type (merged_sum, da_file, 8)
+	    /* maximal counter.  */
+	    || __write_gcov_type (merged_max, da_file, 8))
+	  fprintf (stderr, "arc profiling: Error updating program header %s.\n",
+		   ptr->filename);
+	if (fclose (da_file))
+	  fprintf (stderr, "arc profiling: Error reclosing %s\n",
+		   ptr->filename);
+      }
 }
+
+/* Add a new object file onto the bb chain.  Invoked automatically
+   when running an object file's global ctors.  */
 
 void
 __bb_init_func (struct bb *blocks)
 {
-  /* User is supposed to check whether the first word is non-0,
-     but just in case....  */
-
   if (blocks->zero_word)
     return;
 
-  /* Initialize destructor.  */
+  /* Initialize destructor and per-thread data.  */
   if (!bb_head)
     atexit (__bb_exit_func);
 
@@ -1474,6 +1563,7 @@ __bb_init_func (struct bb *blocks)
 /* Called before fork or exec - write out profile information gathered so
    far and reset it to zero.  This avoids duplication or loss of the
    profile information gathered so far.  */
+
 void
 __bb_fork_func (void)
 {
@@ -1656,102 +1746,6 @@ mprotect (char *addr, int len, int prot)
 TRANSFER_FROM_TRAMPOLINE
 #endif
 
-#if defined (NeXT) && defined (__MACH__)
-
-/* Make stack executable so we can call trampolines on stack.
-   This is called from INITIALIZE_TRAMPOLINE in next.h.  */
-#ifdef NeXTStep21
- #include <mach.h>
-#else
- #include <mach/mach.h>
-#endif
-
-void
-__enable_execute_stack (char *addr)
-{
-  kern_return_t r;
-  char *eaddr = addr + TRAMPOLINE_SIZE;
-  vm_address_t a = (vm_address_t) addr;
-
-  /* turn on execute access on stack */
-  r = vm_protect (task_self (), a, TRAMPOLINE_SIZE, FALSE, VM_PROT_ALL);
-  if (r != KERN_SUCCESS)
-    {
-      mach_error("vm_protect VM_PROT_ALL", r);
-      exit(1);
-    }
-
-  /* We inline the i-cache invalidation for speed */
-
-#ifdef CLEAR_INSN_CACHE
-  CLEAR_INSN_CACHE (addr, eaddr);
-#else
-  __clear_cache ((int) addr, (int) eaddr);
-#endif
-}
-
-#endif /* defined (NeXT) && defined (__MACH__) */
-
-#ifdef __convex__
-
-/* Make stack executable so we can call trampolines on stack.
-   This is called from INITIALIZE_TRAMPOLINE in convex.h.  */
-
-#include <sys/mman.h>
-#include <sys/vmparam.h>
-#include <machine/machparam.h>
-
-void
-__enable_execute_stack (void)
-{
-  int fp;
-  static unsigned lowest = USRSTACK;
-  unsigned current = (unsigned) &fp & -NBPG;
-
-  if (lowest > current)
-    {
-      unsigned len = lowest - current;
-      mremap (current, &len, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE);
-      lowest = current;
-    }
-
-  /* Clear instruction cache in case an old trampoline is in it.  */
-  asm ("pich");
-}
-#endif /* __convex__ */
-
-#ifdef __sysV88__
-
-/* Modified from the convex -code above.  */
-
-#include <sys/param.h>
-#include <errno.h>
-#include <sys/m88kbcs.h>
-
-void
-__enable_execute_stack (void)
-{
-  int save_errno;
-  static unsigned long lowest = USRSTACK;
-  unsigned long current = (unsigned long) &save_errno & -NBPC;
-
-  /* Ignore errno being set. memctl sets errno to EINVAL whenever the
-     address is seen as 'negative'. That is the case with the stack.  */
-
-  save_errno=errno;
-  if (lowest > current)
-    {
-      unsigned len=lowest-current;
-      memctl(current,len,MCT_TEXT);
-      lowest = current;
-    }
-  else
-    memctl(current,NBPC,MCT_TEXT);
-  errno=save_errno;
-}
-
-#endif /* __sysV88__ */
-
 #ifdef __sysV68__
 
 #include <sys/signal.h>
@@ -1796,57 +1790,6 @@ __clear_insn_cache (void)
 }
 
 #endif /* __sysV68__ */
-
-#ifdef __pyr__
-
-#undef NULL /* Avoid errors if stdio.h and our stddef.h mismatch.  */
-#include <stdio.h>
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/vmmac.h>
-
-/* Modified from the convex -code above.
-   mremap promises to clear the i-cache.  */
-
-void
-__enable_execute_stack (void)
-{
-  int fp;
-  if (mprotect (((unsigned int)&fp/PAGSIZ)*PAGSIZ, PAGSIZ,
-		PROT_READ|PROT_WRITE|PROT_EXEC))
-    {
-      perror ("mprotect in __enable_execute_stack");
-      fflush (stderr);
-      abort ();
-    }
-}
-#endif /* __pyr__ */
-
-#if defined (sony_news) && defined (SYSTYPE_BSD)
-
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/param.h>
-#include <syscall.h>
-#include <machine/sysnews.h>
-
-/* cacheflush function for NEWS-OS 4.2.
-   This function is called from trampoline-initialize code
-   defined in config/mips/mips.h.  */
-
-void
-cacheflush (char *beg, int size, int flag)
-{
-  if (syscall (SYS_sysnews, NEWS_CACHEFLUSH, beg, size, FLUSH_BCACHE))
-    {
-      perror ("cache_flush");
-      fflush (stderr);
-      abort ();
-    }
-}
-
-#endif /* sony_news */
 #endif /* L_trampoline */
 
 #ifndef __CYGWIN__
