@@ -471,6 +471,12 @@ static void
 ulpt_input(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 {
 	struct ulpt_softc *sc = priv;
+	u_int32_t count;
+
+	/* Don't loop on errors or 0-length input. */
+	usbd_get_xfer_status(xfer, NULL, NULL, &count, NULL);
+	if (status != USBD_NORMAL_COMPLETION || count == 0)
+		return;
 
 	DPRINTFN(2,("ulpt_input: got some data\n"));
 	/* Do it again. */
