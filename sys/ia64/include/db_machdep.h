@@ -46,7 +46,7 @@ struct ia64_bundle;
 typedef	vm_offset_t	db_addr_t;	/* address - unsigned */
 typedef	long		db_expr_t;	/* expression - signed */
 typedef struct trapframe db_regs_t;
-db_regs_t		ddb_regs;	/* register state */
+extern db_regs_t	ddb_regs;	/* register state */
 #define	DDB_REGS	(&ddb_regs)
 
 #define	PC_REGS(regs)	((db_addr_t)(regs)->tf_cr_iip \
