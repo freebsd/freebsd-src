@@ -33,6 +33,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <sys/param.h>
 #include <ctype.h>
 #include <dirent.h>
 #include <errno.h>
@@ -45,10 +46,17 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <utmp.h>
 #ifndef __FreeBSD__
 #include <getopt.h>
 #else
 #include <locale.h>
+#endif
+
+#if (MAXLOGNAME-1) > UT_NAMESIZE
+#define LOGNAMESIZE UT_NAMESIZE
+#else
+#define LOGNAMESIZE (MAXLOGNAME-1)
 #endif
 
 /* Local headers */
@@ -306,7 +314,7 @@ writefile(time_t runtimer, char queue)
 	mailname = getenv("LOGNAME");
 
     if ((mailname == NULL) || (mailname[0] == '\0') 
-	|| (strlen(mailname) > 8) || (getpwnam(mailname)==NULL))
+	|| (strlen(mailname) > LOGNAMESIZE) || (getpwnam(mailname)==NULL))
     {
 	pass_entry = getpwuid(real_uid);
 	if (pass_entry != NULL)
@@ -319,8 +327,8 @@ writefile(time_t runtimer, char queue)
 	if (fpin == NULL)
 	    perr("Cannot open input file");
     }
-    fprintf(fp, "#!/bin/sh\n# atrun uid=%ld gid=%ld\n# mail %8s %d\n",
-	(long) real_uid, (long) real_gid, mailname, send_mail);
+    fprintf(fp, "#!/bin/sh\n# atrun uid=%ld gid=%ld\n# mail %*s %d\n",
+	(long) real_uid, (long) real_gid, LOGNAMESIZE, mailname, send_mail);
 
     /* Write out the umask at the time of invocation
      */
