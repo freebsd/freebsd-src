@@ -30,8 +30,10 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id$
+ *	$Id: si.h,v 1.8 1997/02/22 09:35:10 peter Exp $
  */
+
+#include <sys/callout.h>
 
 /*
  * Macro to turn a device number into various parameters, and test for
@@ -358,6 +360,7 @@ struct si_port {
 	/* Lock state. */
 	struct termios	sp_lin;
 	struct termios	sp_lout;
+	struct callout_handle lstart_ch;/* For canceling our timeout */
 #ifdef	SI_DEBUG
 	int		sp_debug;	/* debug mask */
 #endif
