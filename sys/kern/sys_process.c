@@ -365,10 +365,11 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	struct iovec iov;
 	struct uio uio;
 	struct proc *curp, *p, *pp;
-	struct thread *td2;
+	struct thread *td2 = NULL;
 	struct ptrace_io_desc *piod;
 	int error, write, tmp;
 	int proctree_locked = 0;
+	lwpid_t tid = 0;
 
 	curp = td->td_proc;
 
@@ -393,10 +394,35 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		p = td->td_proc;
 		PROC_LOCK(p);
 	} else {
-		if ((p = pfind(pid)) == NULL) {
-			if (proctree_locked)
-				sx_xunlock(&proctree_lock);
-			return (ESRCH);
+		if (pid <= PID_MAX) {
+			if ((p = pfind(pid)) == NULL) {
+				if (proctree_locked)
+					sx_xunlock(&proctree_lock);
+				return (ESRCH);
+			}
+		} else {
+			/* this is slow, should be optimized */
+			sx_slock(&allproc_lock);
+			FOREACH_PROC_IN_SYSTEM(p) {
+				PROC_LOCK(p);
+				mtx_lock_spin(&sched_lock);
+				FOREACH_THREAD_IN_PROC(p, td2) {
+					if (td2->td_tid == pid)
+						break;
+				}
+				mtx_unlock_spin(&sched_lock);
+				if (td2 != NULL)
+					break; /* proc lock held */
+				PROC_UNLOCK(p);
+			}
+			sx_sunlock(&allproc_lock);
+			if (p == NULL) {
+				if (proctree_locked)
+					sx_xunlock(&proctree_lock);
+				return (ESRCH);
+			}
+			tid = pid;
+			pid = p->p_pid;
 		}
 	}
 	if ((error = p_cansee(td, p)) != 0)
@@ -411,6 +437,11 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	if ((p->p_flag & P_SYSTEM) != 0) {
 		error = EINVAL;
 		goto fail;
+	}
+
+	if (tid == 0) {
+		td2 = FIRST_THREAD_IN_PROC(p);
+		tid = td2->td_tid;
 	}
 
 	/*
@@ -471,7 +502,6 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		break;
 	}
 
-	td2 = FIRST_THREAD_IN_PROC(p);
 #ifdef FIX_SSTEP
 	/*
 	 * Single step fixup ala procfs
