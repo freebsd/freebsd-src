@@ -453,7 +453,7 @@
 	</para>
 
       <para><application>OpenSSL</application> has been updated to
-	0.9.6e.</para>
+	0.9.6g.</para>
 
       <para><application>sendmail</application> has been updated 
 	from version 8.12.3 to version 8.12.5.</para>
@@ -461,11 +461,17 @@
       <para><application>GNU tar</application> has been updated to
 	1.13.25.</para>
 
+      <para><application>tcsh</application> has been updated to version
+	6.12.</para>
+
       <para><application>texinfo</application> has been updated to
 	4.2.</para>
 
       <para><application>tcpdump</application> has been updated to
 	3.7.1.</para>
+
+      <para><application>top</application> has been updated to version
+	3.5b12.</para>
 
     </sect3>
 
