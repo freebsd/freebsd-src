@@ -1,7 +1,8 @@
 <!--
     $FreeBSD$
-    Original revision: 1.12
+    Original revision: 1.13
 -->
+
 <sect1 id="proc">
   <title>対応プロセッサおよびマザーボード</title>
 
@@ -42,9 +43,9 @@
     同じ CPU 内の論理プロセッサ間で共有されている資源に対して、
     スケジューリング決定を最適化しません。
     このスケジューリング方法では最適な性能を得ることができないため、
-    デフォルトでは、起動時に論理 CPU を停止させています。
+    状況によっては、論理 CPU を停止させた方が良いかも知れません。
     論理 CPU は <varname>machdep.hlt_logical_cpus</varname>
-    sysctl 変数で有効にすることができます。また、
+    sysctl 変数で制御にすることができます。また、
     <varname>machdep.hlt_cpus</varname> sysctl 変数を使って、
     CPU をアイドルループにすることも可能です。
     詳しくは、&man.smp.4; のマニュアルページをご覧ください。</para>
