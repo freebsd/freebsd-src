@@ -1363,11 +1363,6 @@ do { \
 						error = EINVAL;
 						break;
 					}
-					/*
-					 * XXX: BINDV6ONLY should be integrated
-					 * into V6ONLY.
-					 */
-					OPTSET(IN6P_BINDV6ONLY);
 					OPTSET(IN6P_IPV6_V6ONLY);
 					break;
 				}
@@ -1555,8 +1550,7 @@ do { \
 					break;
 
 				case IPV6_V6ONLY:
-					/* XXX: see the setopt case. */
-					optval = OPTBIT(IN6P_BINDV6ONLY);
+					optval = OPTBIT(IN6P_IPV6_V6ONLY);
 					break;
 
 				case IPV6_PORTRANGE:
