@@ -1,6 +1,21 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.6 1995/09/14 04:33:35 gibbs Exp $
+/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.7 1996/04/11 10:13:40 markm Exp $
  *
  * $Log: pch.c,v $
+ * Revision 1.7  1996/04/11 10:13:40  markm
+ * Priorities were broken. If there was an Index: line and *** /--- lines
+ * with valid names, the *** /---names were taken first.
+ * this broke eg:
+ * Index: foo/Makefile
+ * ==========
+ * RCS <blah>
+ * Retrieving <blah>
+ * diff <blah>
+ * *** Makefile <blah>
+ * --- Makefile <blah>
+ *
+ * By trying to patch the Makefile in the _curent_ directory, rather than
+ * the one in the foo/ directory.
+ *
  * Revision 1.6  1995/09/14 04:33:35  gibbs
  * Give "Index" specified filenames preference over other filenames specified
  * in the diff.  This makes it so that diffs containing files in different
