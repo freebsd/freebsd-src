@@ -25,47 +25,52 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: snake_saver.c,v 1.13 1997/02/22 12:49:19 peter Exp $
+ *	$Id: snake_saver.c,v 1.14 1997/04/06 10:49:22 dufault Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
 #include <sys/exec.h>
 #include <sys/sysent.h>
 #include <sys/lkm.h>
-#include <sys/errno.h>
+#include <sys/malloc.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 
 #include <machine/md_var.h>
+#include <i386/include/pc/display.h>
 
-#include "saver.h"
+#include <saver.h>
 
 MOD_MISC(snake_saver);
 
-void (*current_saver)(int blank);
-void (*old_saver)(int blank);
+static char	*message;
+static u_char	**messagep;
+static int	messagelen;
 
 static void
 snake_saver(int blank)
 {
-	const char	saves[] = {"FreeBSD-3.0-CURRENT"};
-	static u_char	*savs[sizeof(saves)-1];
 	static int	dirx, diry;
 	int		f;
 	scr_stat	*scp = cur_console;
 
+/* XXX hack for minimal changes. */
+#define	save	message
+#define	savs	messagep
+
 	if (blank) {
-		if (!scrn_blanked) {
+		if (scrn_blanked <= 0) {
 			fillw((FG_LIGHTGREY|BG_BLACK)<<8 | scr_map[0x20],
 			      Crtat, scp->xsize * scp->ysize);
 			set_border(0);
 			dirx = (scp->xpos ? 1 : -1);
 			diry = (scp->ypos ?
 				scp->xsize : -scp->xsize);
-			for (f=0; f< sizeof(saves)-1; f++)
+			for (f=0; f< messagelen; f++)
 				savs[f] = (u_char *)Crtat + 2 *
 					  (scp->xpos+scp->ypos*scp->xsize);
-			*(savs[0]) = scr_map[*saves];
+			*(savs[0]) = scr_map[*save];
 			f = scp->ysize * scp->xsize + 5;
 			outb(crtc_addr, 14);
 			outb(crtc_addr+1, f >> 8);
@@ -76,8 +81,8 @@ snake_saver(int blank)
 		if (scrn_blanked++ < 4)
 			return;
 		scrn_blanked = 1;
-		*(savs[sizeof(saves)-2]) = scr_map[0x20];
-		for (f=sizeof(saves)-2; f > 0; f--)
+		*(savs[messagelen-1]) = scr_map[0x20];
+		for (f=messagelen-1; f > 0; f--)
 			savs[f] = savs[f-1];
 		f = (savs[0] - (u_char *)Crtat) / 2;
 		if ((f % scp->xsize) == 0 ||
@@ -89,15 +94,13 @@ snake_saver(int blank)
 		    (random() % 20) == 0)
 			diry = -diry;
 		savs[0] += 2*dirx + 2*diry;
-		for (f=sizeof(saves)-2; f>=0; f--)
-			*(savs[f]) = scr_map[saves[f]];
+		for (f=messagelen-1; f>=0; f--)
+			*(savs[f]) = scr_map[save[f]];
 	}
 	else {
-		if (scrn_blanked) {
+		if (scrn_blanked > 0) {
 			set_border(scp->border);
 			scrn_blanked = 0;
-			scp->start = 0;
-			scp->end = scp->xsize * scp->ysize;
 		}
 	}
 }
@@ -105,18 +108,32 @@ snake_saver(int blank)
 static int
 snake_saver_load(struct lkm_table *lkmtp, int cmd)
 {
-	(*current_saver)(0);
-	old_saver = current_saver;
-	current_saver = snake_saver;
-	return 0;
+	int err;
+
+	messagelen = strlen(ostype) + 1 + strlen(osrelease);
+	message = malloc(messagelen + 1, M_DEVBUF, M_WAITOK);
+	sprintf(message, "%s %s", ostype, osrelease);
+	messagep = malloc(messagelen * sizeof *messagep, M_DEVBUF, M_WAITOK);
+
+	err = add_scrn_saver(snake_saver);
+	if (err != 0) {
+		free(message, M_DEVBUF);
+		free(messagep, M_DEVBUF);
+	}
+	return err;
 }
 
 static int
 snake_saver_unload(struct lkm_table *lkmtp, int cmd)
 {
-	(*current_saver)(0);
-	current_saver = old_saver;
-	return 0;
+	int err;
+
+	err = remove_scrn_saver(snake_saver);
+	if (err == 0) {
+		free(message, M_DEVBUF);
+		free(messagep, M_DEVBUF);
+	}
+	return err;
 }
 
 int

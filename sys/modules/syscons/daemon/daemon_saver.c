@@ -25,28 +25,22 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: daemon_saver.c,v 1.4 1997/05/26 01:02:41 yokota Exp $
+ *	$Id: daemon_saver.c,v 1.5 1997/06/24 12:43:18 yokota Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
 #include <sys/exec.h>
 #include <sys/sysent.h>
 #include <sys/lkm.h>
-#include <sys/errno.h>
+#include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#include <sys/malloc.h>
 
 #include <machine/md_var.h>
+#include <i386/include/pc/display.h>
 
-#include "saver.h"
-
-MOD_MISC(daemon_saver);
-
-void (*current_saver)(int blank);
-void (*old_saver)(int blank);
+#include <saver.h>
 
 #define CONSOLE_VECT(x, y) \
 	*((u_short*)(Crtat + (y)*cur_console->xsize + (x)))
@@ -54,10 +48,10 @@ void (*old_saver)(int blank);
 #define DAEMON_MAX_WIDTH	32
 #define DAEMON_MAX_HEIGHT	19
 
-/*
- * Define this to disable the bouncing text.
- */
-#undef DAEMON_ONLY
+MOD_MISC(daemon_saver);
+
+static char *message;
+static int messagelen;
 
 /* Who is the author of this ASCII pic? */
 
@@ -152,10 +146,6 @@ draw_daemon(int xpos, int ypos, int dxdir)
 		}
 }
 
-#ifndef DAEMON_ONLY
-static char *message;
-static int messagelen;
-
 static void
 draw_string(int xpos, int ypos, char *s, int len)
 {
@@ -165,15 +155,12 @@ draw_string(int xpos, int ypos, char *s, int len)
 		CONSOLE_VECT(xpos + x, ypos) =
 			scr_map[s[x]]|(FG_LIGHTGREEN|BG_BLACK)<<8;
 }
-#endif
 
 static void
 daemon_saver(int blank)
 {
-#ifndef DAEMON_ONLY
 	static int txpos = 10, typos = 10;
 	static int txdir = -1, tydir = -1;
-#endif
 	static int dxpos = 0, dypos = 0;
 	static int dxdir = 1, dydir = 1;
 	static int moved_daemon = 0;
@@ -204,7 +191,6 @@ daemon_saver(int blank)
 			dxpos += dxdir; dypos += dydir;
 		}
 
-#ifndef DAEMON_ONLY
 		if (txdir > 0) {
 			if (txpos == scp->xsize - messagelen)
 				txdir = -1;
@@ -218,18 +204,13 @@ daemon_saver(int blank)
 			if (typos == 0) tydir = 1;
 		}
 		txpos += txdir; typos += tydir;
-#endif
 
  		draw_daemon(dxpos, dypos, dxdir);
-#ifndef DAEMON_ONLY
 		draw_string(txpos, typos, (char *)message, messagelen);
-#endif
 	} else {
-		if (scrn_blanked) {
+		if (scrn_blanked > 0) {
 			set_border(scp->border);
 			scrn_blanked = 0;
-			scp->start = 0;
-			scp->end = scp->xsize * scp->ysize;
 		}
 	}
 }
@@ -237,36 +218,28 @@ daemon_saver(int blank)
 static int
 daemon_saver_load(struct lkm_table *lkmtp, int cmd)
 {
-#ifdef SHOW_HOSTNAME
-	static const char *freebsd = " - FreeBSD ";
-#else
-	static const char *freebsd = "FreeBSD ";
-#endif /* SHOW_HOSTNAME */
+	int err;
 
-	(*current_saver)(0);
-	old_saver = current_saver;
-	current_saver = daemon_saver;
+	messagelen = strlen(hostname) + 3 + strlen(ostype) + 1 + 
+	    strlen(osrelease);
+	message = malloc(messagelen + 1, M_DEVBUF, M_WAITOK);
+	sprintf(message, "%s - %s %s", hostname, ostype, osrelease);
 
-#ifdef SHOW_HOSTNAME
-	messagelen = strlen(hostname) + strlen(freebsd) + strlen(osrelease);
-	message = malloc(messagelen + 1, M_DEVBUF, M_NOWAIT);
-	sprintf(message, "%s%s%s", hostname, freebsd, osrelease);
-#else
-	messagelen = strlen(freebsd) + strlen(osrelease);
-	message = malloc(messagelen + 1, M_DEVBUF, M_NOWAIT);
-	sprintf(message, "%s%s", freebsd, osrelease);
-#endif /* SHOW_HOSTNAME */
-	return 0;
+	err = add_scrn_saver(daemon_saver);
+	if (err != 0)
+		free(message, M_DEVBUF);
+	return err;
 }
 
 static int
 daemon_saver_unload(struct lkm_table *lkmtp, int cmd)
 {
-	(*current_saver)(0);
-	current_saver = old_saver;
+	int err;
 
-	free(message, M_DEVBUF);
-	return 0;
+	err = remove_scrn_saver(daemon_saver);
+	if (err == 0)
+		free(message, M_DEVBUF);
+	return err;
 }
 
 int

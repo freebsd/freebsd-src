@@ -25,18 +25,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: saver.h,v 1.7 1997/02/22 12:49:00 peter Exp $
+ *  $Id: saver.h,v 1.8 1997/05/21 14:18:00 yokota Exp $
  */
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/tty.h>
-#include <i386/include/pc/display.h>
-#include <i386/include/console.h>
-#include <i386/include/apm_bios.h>
-#include <i386/i386/cons.h>
-#include <i386/isa/isa.h>
-#include <i386/isa/isa_device.h>
+#include <machine/apm_bios.h>
+#include <machine/console.h>
+
 #include <i386/isa/syscons.h>
 
 extern scr_stat	*cur_console;

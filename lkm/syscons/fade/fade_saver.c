@@ -25,22 +25,20 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: fade_saver.c,v 1.9 1997/02/22 12:49:10 peter Exp $
+ *	$Id: fade_saver.c,v 1.10 1997/04/06 10:48:18 dufault Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
 #include <sys/exec.h>
 #include <sys/sysent.h>
 #include <sys/lkm.h>
-#include <sys/errno.h>
+
+#include <i386/isa/isa.h>
+
 #include <saver.h>
 
 MOD_MISC(fade_saver);
-
-void (*current_saver)(int blank);
-void (*old_saver)(int blank);
 
 static void
 fade_saver(int blank)
@@ -76,18 +74,15 @@ fade_saver(int blank)
 static int
 fade_saver_load(struct lkm_table *lkmtp, int cmd)
 {
-	(*current_saver)(0);
-	old_saver = current_saver;
-	current_saver = fade_saver;
-	return 0;
+	if (!crtc_vga)
+		return EINVAL;
+	return add_scrn_saver(fade_saver);
 }
 
 static int
 fade_saver_unload(struct lkm_table *lkmtp, int cmd)
 {
-	(*current_saver)(0);
-	current_saver = old_saver;
-	return 0;
+	return remove_scrn_saver(fade_saver);
 }
 
 int
