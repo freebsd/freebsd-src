@@ -165,7 +165,7 @@ struct mbuf {
 #define	M_PROTO3	0x0040	/* protocol-specific */
 #define	M_PROTO4	0x0080	/* protocol-specific */
 #define	M_PROTO5	0x0100	/* protocol-specific */
-#define	M_PROTO6	0x4000	/* protocol-specific (avoid M_BCAST conflict) */
+#define	M_SKIP_FIREWALL	0x4000	/* skip firewall processing */
 #define	M_FREELIST	0x8000	/* mbuf is on the free list */
 
 /*
@@ -192,7 +192,7 @@ struct mbuf {
  * Flags copied when copying m_pkthdr.
  */
 #define	M_COPYFLAGS	(M_PKTHDR|M_EOR|M_RDONLY|M_PROTO1|M_PROTO1|M_PROTO2|\
-			    M_PROTO3|M_PROTO4|M_PROTO5|M_PROTO6|\
+			    M_PROTO3|M_PROTO4|M_PROTO5|M_SKIP_FIREWALL|\
 			    M_BCAST|M_MCAST|M_FRAG|M_FIRSTFRAG|M_LASTFRAG)
 
 /*
