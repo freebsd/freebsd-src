@@ -318,6 +318,7 @@ MALLOC_DECLARE(M_SONAME);
 MALLOC_DECLARE(M_ACCF);
 #endif
 
+extern int    maxsockets;
 extern u_long	sb_max;
 extern uma_zone_t	socket_zone;
 extern so_gen_t so_gencnt;
