@@ -1,3 +1,268 @@
+----------------------------------------
+19 June 2003.  Summary of changes for version 20030619:
+
+1) ACPI CA Core Subsystem:
+
+Fix To/FromBCD, eliminating the need for an arch-specific
+#define.
+
+Do not acquire a semaphore in the S5 shutdown path.
+
+Fix ex_digits_needed for 0. (Takayoshi Kochi)
+
+Fix sleep/stall code reversal. (Andi Kleen)
+
+Revert a change having to do with control method calling
+semantics.
+
+2) Linux:
+
+acpiphp update (Takayoshi Kochi)
+
+Export acpi_disabled for sonypi (Stelian Pop)
+
+Mention acpismp=force in config help
+
+Re-add acpitable.c and acpismp=force. This improves backwards
+compatibility and also cleans up the code to a significant
+degree.
+
+Add ASUS Value-add driver (Karol Kozimor and Julien Lerouge)
+
+
+
+----------------------------------------
+22 May 2003.  Summary of changes for version 20030522:
+
+1) ACPI CA Core Subsystem:
+
+Found and fixed a reported problem where an AE_NOT_FOUND error
+occurred occasionally during _BST evaluation.  This turned out to
+be an Owner ID allocation issue where a called method did not get
+a new ID assigned to it.  Eventually, (after 64k calls), the
+Owner ID UINT16 would wraparound so that the ID would be the same
+as the caller's and the called method would delete the caller's
+namespace.
+
+Implemented extended error reporting for control methods that are
+aborted due to a run-time exception.  Output includes the exact
+AML instruction that caused the method abort, a dump of the
+method locals and arguments at the time of the abort, and a trace
+of all nested control method calls.
+
+Modified the interpreter to allow the creation of buffers of zero
+length from the AML code. Implemented new code to ensure that no
+attempt is made to actually allocate a memory buffer (of length
+zero) - instead, a simple buffer object with a NULL buffer
+pointer and length zero is created.  A warning is no longer
+issued when the AML attempts to create a zero-length buffer.
+
+Implemented a workaround for the "leading asterisk issue" in
+_HIDs, _UIDs, and _CIDs in the AML interpreter.  One leading
+asterisk is automatically removed if present in any HID, UID, or
+CID strings.  The iASL compiler will still flag this asterisk as
+an error, however.
+
+Implemented full support for _CID methods that return a package
+of multiple CIDs (Compatible IDs).  The AcpiGetObjectInfo()
+interface now additionally returns a device _CID list if present.
+This required a change to the external interface in order to pass
+an ACPI_BUFFER object as a parameter since the _CID list is of
+variable length.
+
+Fixed a problem with the new AE_SAME_HANDLER exception where
+handler initialization code did not know about this exception.
+
+Code and Data Size: Current and previous core subsystem library
+sizes are shown below.  These are the code and data sizes for the
+acpica.lib produced by the Microsoft Visual C++ 6.0 compiler, and
+these values do not include any ACPI driver or OSPM code.  The
+debug version of the code includes the debug output trace
+mechanism and has a much larger code and data size.  Note that
+these values will vary depending on the efficiency of the
+compiler and the compiler options used during generation.
+
+  Previous Release (20030509):
+    Non-Debug Version:  73.4K Code,   9.7K Data,   83.1K Total
+    Debug Version:     156.1K Code,  63.9K Data,  220.0K Total
+  Current Release:
+    Non-Debug Version:  73.7K Code,   9.7K Data,   83.4K Total
+    Debug Version:     156.9K Code,  64.2K Data,  221.1K Total
+
+
+2) Linux:
+
+Fixed a bug in which we would reinitialize the ACPI interrupt
+after it was already working, thus disabling all ACPI and the
+IRQs for any other device sharing the interrupt. (Thanks to Stian
+Jordet)
+
+Toshiba driver update (John Belmonte)
+
+Return only 0 or 1 for our interrupt handler status (Andrew
+Morton)
+
+
+3) iASL Compiler:
+
+Fixed a reported problem where multiple (nested) ElseIf()
+statements were not handled correctly by the compiler, resulting
+in incorrect warnings and incorrect AML code.  This was a problem
+in both the ASL parser and the code generator.
+
+
+4) Documentation:
+
+Added changes to existing interfaces, new exception codes, and
+new text concerning reference count object management versus
+garbage collection.
+
+----------------------------------------
+09 May 2003.  Summary of changes for version 20030509.
+
+
+1) ACPI CA Core Subsystem:
+
+Changed the subsystem initialization sequence to hold off
+installation of address space handlers until the hardware has
+been initialized and the system has entered ACPI mode.  This is
+because the installation of space handlers can cause _REG methods
+to be run.  Previously, the _REG methods could potentially be run
+before ACPI mode was enabled.
+
+Fixed some memory leak issues related to address space handler
+and notify handler installation.  There were some problems with
+the reference count mechanism caused by the fact that the handler
+objects are shared across several namespace objects.
+
+Fixed a reported problem where reference counts within the
+namespace were not properly updated when named objects created by
+method execution were deleted.
+
+Fixed a reported problem where multiple SSDTs caused a deletion
+issue during subsystem termination.  Restructured the table data
+structures to simplify the linked lists and the related code.
+
+Fixed a problem where the table ID associated with secondary
+tables (SSDTs) was not being propagated into the namespace
+objects created by those tables.  This would only present a
+problem for tables that are unloaded at run-time, however.
+
+Updated AcpiOsReadable and AcpiOsWritable to use the ACPI_SIZE
+type as the length parameter (instead of UINT32).
+
+Solved a long-standing problem where an ALREADY_EXISTS error
+appears on various systems.  This problem could happen when there
+are multiple PCI_Config operation regions under a single PCI root
+bus.  This doesn't happen very frequently, but there are some
+systems that do this in the ASL.
+
+Fixed a reported problem where the internal DeleteNode function
+was incorrectly handling the case where a namespace node was the
+first in the parent's child list, and had additional peers (not
+the only child, but first in the list of children.)
+
+Code and Data Size: Current core subsystem library sizes are
+shown below.  These are the code and data sizes for the
+acpica.lib produced by the Microsoft Visual C++ 6.0 compiler, and
+these values do not include any ACPI driver or OSPM code.  The
+debug version of the code includes the debug output trace
+mechanism and has a much larger code and data size.  Note that
+these values will vary depending on the efficiency of the
+compiler and the compiler options used during generation.
+
+  Previous Release
+    Non-Debug Version:  73.7K Code,   9.5K Data,   83.2K Total
+    Debug Version:     156.1K Code,  63.6K Data,  219.7K Total
+  Current Release:
+    Non-Debug Version:  73.4K Code,   9.7K Data,   83.1K Total
+    Debug Version:     156.1K Code,  63.9K Data,  220.0K Total
+
+
+2) Linux:
+
+Allow ":" in OS override string (Ducrot Bruno)
+
+Kobject fix (Greg KH)
+
+
+3 iASL Compiler/Disassembler:
+
+Fixed a problem in the generation of the C source code files (AML
+is emitted in C source statements for BIOS inclusion) where the
+Ascii dump that appears within a C comment at the end of each
+line could cause a compile time error if the AML sequence happens
+to have an open comment or close comment sequence embedded.
+
+
+----------------------------------------
+24 April 2003.  Summary of changes for version 20030424.
+
+
+1) ACPI CA Core Subsystem:
+
+Support for big-endian systems has been implemented.  Most of the
+support has been invisibly added behind big-endian versions of
+the ACPI_MOVE_* macros.
+
+Fixed a problem in AcpiHwDisableGpeBlock() and
+AcpiHwClearGpeBlock() where an incorrect offset was passed to the
+low level hardware write routine.  The offset parameter was
+actually eliminated from the low level read/write routines
+because they had become obsolete.
+
+Fixed a problem where a handler object was deleted twice during
+the removal of a fixed event handler.
+
+
+2) Linux:
+
+A fix for SMP systems with link devices was contributed by
+Compaq's Dan Zink.
+
+(2.5) Return whether we handled the interrupt in our IRQ handler.
+(Linux ISRs no longer return void, so we can propagate the
+handler return value from the ACPI CA core back to the OS.)
+
+
+3) Documentation:
+
+The ACPI CA Programmer Reference has been updated to reflect new
+interfaces and changes to existing interfaces.
+
+----------------------------------------
+28 March 2003.  Summary of changes for version 20030328.
+
+1) ACPI CA Core Subsystem:
+
+The GPE Block Device support has been completed.  New interfaces
+are AcpiInstallGpeBlock and AcpiRemoveGpeBlock.  The Event
+interfaces (enable, disable, clear, getstatus) have been split
+into separate interfaces for Fixed Events and General Purpose
+Events (GPEs) in order to support GPE Block Devices properly.
+
+Fixed a problem where the error message "Failed to acquire
+semaphore" would appear during operations on the embedded
+controller (EC).
+
+Code and Data Size: Current core subsystem library sizes are
+shown below.  These are the code and data sizes for the
+acpica.lib produced by the Microsoft Visual C++ 6.0 compiler, and
+these values do not include any ACPI driver or OSPM code.  The
+debug version of the code includes the debug output trace
+mechanism and has a much larger code and data size.  Note that
+these values will vary depending on the efficiency of the
+compiler and the compiler options used during generation.
+
+  Previous Release
+    Non-Debug Version:  72.3K Code,   9.5K Data,   81.8K Total
+    Debug Version:     154.0K Code,  63.4K Data,  217.4K Total
+  Current Release:
+    Non-Debug Version:  73.7K Code,   9.5K Data,   83.2K Total
+    Debug Version:     156.1K Code,  63.6K Data,  219.7K Total
+
+
+----------------------------------------
 28 February 2003.  Summary of changes for version 20030228.
 
 
@@ -82,6 +347,7 @@ opened.
 Added support for the _PDC reserved name.
 
 
+----------------------------------------
 22 January 2003.  Summary of changes for version 20030122.
 
 

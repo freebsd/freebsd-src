@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acdebug.h - ACPI/AML debugger
- *       $Revision: 70 $
+ *       $Revision: 72 $
  *
  *****************************************************************************/
 
@@ -305,10 +305,6 @@ AcpiDbDecodeAndDisplayObject (
     char                    *OutputType);
 
 void
-AcpiDbDecodeNode (
-    ACPI_NAMESPACE_NODE     *Node);
-
-void
 AcpiDbDisplayResultObject (
     ACPI_OPERAND_OBJECT     *ObjDesc,
     ACPI_WALK_STATE         *WalkState);
@@ -316,11 +312,6 @@ AcpiDbDisplayResultObject (
 ACPI_STATUS
 AcpiDbDisplayAllMethods (
     char                    *DisplayCountArg);
-
-void
-AcpiDbDisplayInternalObject (
-    ACPI_OPERAND_OBJECT     *ObjDesc,
-    ACPI_WALK_STATE         *WalkState);
 
 void
 AcpiDbDisplayArguments (
@@ -339,6 +330,10 @@ AcpiDbDisplayCallingTree (
     void);
 
 void
+AcpiDbDisplayObjectType (
+    char                    *ObjectArg);
+
+void
 AcpiDbDisplayArgumentObject (
     ACPI_OPERAND_OBJECT     *ObjDesc,
     ACPI_WALK_STATE         *WalkState);
@@ -350,10 +345,6 @@ AcpiDbDumpParserDescriptor (
 void *
 AcpiDbGetPointer (
     void                    *Target);
-
-void
-AcpiDbDecodeInternalObject (
-    ACPI_OPERAND_OBJECT     *ObjDesc);
 
 
 /*

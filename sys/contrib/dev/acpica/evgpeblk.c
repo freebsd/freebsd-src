@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evgpeblk - GPE block creation and initialization.
- *              $Revision: 4 $
+ *              $Revision: 23 $
  *
  *****************************************************************************/
 
@@ -119,7 +119,118 @@
 #include "acnamesp.h"
 
 #define _COMPONENT          ACPI_EVENTS
-        ACPI_MODULE_NAME    ("evgpe")
+        ACPI_MODULE_NAME    ("evgpeblk")
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiEvValidGpeEvent
+ *
+ * PARAMETERS:  GpeEventInfo - Info for this GPE
+ *
+ * RETURN:      TRUE if the GpeEvent is valid
+ *
+ * DESCRIPTION: Validate a GPE event.  DO NOT CALL FROM INTERRUPT LEVEL.
+ *              Should be called only when the GPE lists are semaphore locked
+ *              and not subject to change.
+ *
+ ******************************************************************************/
+
+BOOLEAN
+AcpiEvValidGpeEvent (
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo)
+{
+    ACPI_GPE_XRUPT_INFO     *GpeXruptBlock;
+    ACPI_GPE_BLOCK_INFO     *GpeBlock;
+
+
+    ACPI_FUNCTION_ENTRY ();
+
+
+    /* No need for spin lock since we are not changing any list elements */
+
+    /* Walk the GPE interrupt levels */
+
+    GpeXruptBlock = AcpiGbl_GpeXruptListHead;
+    while (GpeXruptBlock)
+    {
+        GpeBlock = GpeXruptBlock->GpeBlockListHead;
+
+        /* Walk the GPE blocks on this interrupt level */
+
+        while (GpeBlock)
+        {
+            if ((&GpeBlock->EventInfo[0] <= GpeEventInfo) &&
+                (&GpeBlock->EventInfo[((ACPI_SIZE) GpeBlock->RegisterCount) * 8] > GpeEventInfo))
+            {
+                return (TRUE);
+            }
+
+            GpeBlock = GpeBlock->Next;
+        }
+
+        GpeXruptBlock = GpeXruptBlock->Next;
+    }
+
+    return (FALSE);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiEvWalkGpeList
+ *
+ * PARAMETERS:  GpeWalkCallback     - Routine called for each GPE block
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Walk the GPE lists.
+ *              FUNCTION MUST BE CALLED WITH INTERRUPTS DISABLED
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiEvWalkGpeList (
+    ACPI_GPE_CALLBACK       GpeWalkCallback)
+{
+    ACPI_GPE_BLOCK_INFO     *GpeBlock;
+    ACPI_GPE_XRUPT_INFO     *GpeXruptInfo;
+    ACPI_STATUS             Status = AE_OK;
+
+
+    ACPI_FUNCTION_TRACE ("EvWalkGpeList");
+
+
+    AcpiOsAcquireLock (AcpiGbl_GpeLock, ACPI_ISR);
+
+    /* Walk the interrupt level descriptor list */
+
+    GpeXruptInfo = AcpiGbl_GpeXruptListHead;
+    while (GpeXruptInfo)
+    {
+        /* Walk all Gpe Blocks attached to this interrupt level */
+
+        GpeBlock = GpeXruptInfo->GpeBlockListHead;
+        while (GpeBlock)
+        {
+            /* One callback per GPE block */
+
+            Status = GpeWalkCallback (GpeXruptInfo, GpeBlock);
+            if (ACPI_FAILURE (Status))
+            {
+                goto UnlockAndExit;
+            }
+
+            GpeBlock = GpeBlock->Next;
+        }
+
+        GpeXruptInfo = GpeXruptInfo->Next;
+    }
+
+UnlockAndExit:
+    AcpiOsReleaseLock (AcpiGbl_GpeLock, ACPI_ISR);
+    return_ACPI_STATUS (Status);
+}
 
 
 /*******************************************************************************
@@ -128,7 +239,7 @@
  *
  * PARAMETERS:  Callback from WalkNamespace
  *
- * RETURN:      None
+ * RETURN:      Status
  *
  * DESCRIPTION: Called from AcpiWalkNamespace.  Expects each object to be a
  *              control method under the _GPE portion of the namespace.
@@ -137,10 +248,10 @@
  *
  *              The name of each GPE control method is of the form:
  *                  "_Lnn" or "_Enn"
- *              Where:
- *                  L      - means that the GPE is level triggered
- *                  E      - means that the GPE is edge triggered
- *                  nn     - is the GPE number [in HEX]
+ *                  Where:
+ *                      L      - means that the GPE is level triggered
+ *                      E      - means that the GPE is edge triggered
+ *                      nn     - is the GPE number [in HEX]
  *
  ******************************************************************************/
 
@@ -159,17 +270,18 @@ AcpiEvSaveMethodInfo (
     ACPI_STATUS             Status;
 
 
-    ACPI_FUNCTION_NAME ("EvSaveMethodInfo");
+    ACPI_FUNCTION_TRACE ("EvSaveMethodInfo");
 
 
     /* Extract the name from the object and convert to a string */
 
-    ACPI_MOVE_UNALIGNED32_TO_32 (Name,
-                &((ACPI_NAMESPACE_NODE *) ObjHandle)->Name.Integer);
+    ACPI_MOVE_32_TO_32 (Name,
+                        &((ACPI_NAMESPACE_NODE *) ObjHandle)->Name.Integer);
     Name[ACPI_NAME_SIZE] = 0;
 
     /*
-     * Edge/Level determination is based on the 2nd character of the method name
+     * Edge/Level determination is based on the 2nd character 
+     * of the method name
      */
     switch (Name[1])
     {
@@ -187,7 +299,7 @@ AcpiEvSaveMethodInfo (
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
             "Unknown GPE method type: %s (name not of form _Lnn or _Enn)\n",
             Name));
-        return (AE_OK);
+        return_ACPI_STATUS (AE_OK);
     }
 
     /* Convert the last two characters of the name to the GPE Number */
@@ -200,19 +312,20 @@ AcpiEvSaveMethodInfo (
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
             "Could not extract GPE number from name: %s (name is not of form _Lnn or _Enn)\n",
             Name));
-        return (AE_OK);
+        return_ACPI_STATUS (AE_OK);
     }
 
     /* Ensure that we have a valid GPE number for this GPE block */
 
     if ((GpeNumber < GpeBlock->BlockBaseNumber) ||
-        (GpeNumber - GpeBlock->BlockBaseNumber >= (GpeBlock->RegisterCount * 8)))
+        (GpeNumber >= (GpeBlock->BlockBaseNumber + (GpeBlock->RegisterCount * 8))))
     {
-        /* Not valid, all we can do here is ignore it */
-
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "GPE number associated with method %s is not valid\n", Name));
-        return (AE_OK);
+        /*
+         * Not valid for this GPE block, just ignore it
+         * However, it may be valid for a different GPE block, since GPE0 and GPE1
+         * methods both appear under \_GPE.
+         */
+        return_ACPI_STATUS (AE_OK);
     }
 
     /*
@@ -221,21 +334,171 @@ AcpiEvSaveMethodInfo (
      */
     GpeEventInfo = &GpeBlock->EventInfo[GpeNumber - GpeBlock->BlockBaseNumber];
 
-    GpeEventInfo->Type       = Type;
+    GpeEventInfo->Flags      = Type;
     GpeEventInfo->MethodNode = (ACPI_NAMESPACE_NODE *) ObjHandle;
 
-    /*
-     * Enable the GPE (SCIs should be disabled at this point)
-     */
+    /* Enable the GPE (SCIs should be disabled at this point) */
+
     Status = AcpiHwEnableGpe (GpeEventInfo);
     if (ACPI_FAILURE (Status))
     {
-        return (Status);
+        return_ACPI_STATUS (Status);
     }
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Registered GPE method %s as GPE number %2.2X\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_LOAD,
+        "Registered GPE method %s as GPE number 0x%.2X\n",
         Name, GpeNumber));
-    return (AE_OK);
+    return_ACPI_STATUS (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiEvGetGpeXruptBlock
+ *
+ * PARAMETERS:  InterruptLevel      - Interrupt for a GPE block
+ *
+ * RETURN:      A GPE interrupt block
+ *
+ * DESCRIPTION: Get or Create a GPE interrupt block.  There is one interrupt
+ *              block per unique interrupt level used for GPEs.
+ *              Should be called only when the GPE lists are semaphore locked
+ *              and not subject to change.
+ *
+ ******************************************************************************/
+
+static ACPI_GPE_XRUPT_INFO *
+AcpiEvGetGpeXruptBlock (
+    UINT32                  InterruptLevel)
+{
+    ACPI_GPE_XRUPT_INFO     *NextGpeXrupt;
+    ACPI_GPE_XRUPT_INFO     *GpeXrupt;
+    ACPI_STATUS             Status;
+
+
+    ACPI_FUNCTION_TRACE ("EvGetGpeXruptBlock");
+
+
+    /* No need for spin lock since we are not changing any list elements here */
+
+    NextGpeXrupt = AcpiGbl_GpeXruptListHead;
+    while (NextGpeXrupt)
+    {
+        if (NextGpeXrupt->InterruptLevel == InterruptLevel)
+        {
+            return_PTR (NextGpeXrupt);
+        }
+
+        NextGpeXrupt = NextGpeXrupt->Next;
+    }
+
+    /* Not found, must allocate a new xrupt descriptor */
+
+    GpeXrupt = ACPI_MEM_CALLOCATE (sizeof (ACPI_GPE_XRUPT_INFO));
+    if (!GpeXrupt)
+    {
+        return_PTR (NULL);
+    }
+
+    GpeXrupt->InterruptLevel = InterruptLevel;
+
+    /* Install new interrupt descriptor with spin lock */
+
+    AcpiOsAcquireLock (AcpiGbl_GpeLock, ACPI_NOT_ISR);
+    if (AcpiGbl_GpeXruptListHead)
+    {
+        NextGpeXrupt = AcpiGbl_GpeXruptListHead;
+        while (NextGpeXrupt->Next)
+        {
+            NextGpeXrupt = NextGpeXrupt->Next;
+        }
+
+        NextGpeXrupt->Next = GpeXrupt;
+        GpeXrupt->Previous = NextGpeXrupt;
+    }
+    else
+    {
+        AcpiGbl_GpeXruptListHead = GpeXrupt;
+    }
+    AcpiOsReleaseLock (AcpiGbl_GpeLock, ACPI_NOT_ISR);
+
+    /* Install new interrupt handler if not SCI_INT */
+
+    if (InterruptLevel != AcpiGbl_FADT->SciInt)
+    {
+        Status = AcpiOsInstallInterruptHandler (InterruptLevel,
+                    AcpiEvGpeXruptHandler, GpeXrupt);
+        if (ACPI_FAILURE (Status))
+        {
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+                "Could not install GPE interrupt handler at level 0x%X\n",
+                InterruptLevel));
+            return_PTR (NULL);
+        }
+    }
+
+    return_PTR (GpeXrupt);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiEvDeleteGpeXrupt
+ *
+ * PARAMETERS:  GpeXrupt        - A GPE interrupt info block
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Remove and free a GpeXrupt block.  Remove an associated
+ *              interrupt handler if not the SCI interrupt.
+ *
+ ******************************************************************************/
+
+static ACPI_STATUS
+AcpiEvDeleteGpeXrupt (
+    ACPI_GPE_XRUPT_INFO     *GpeXrupt)
+{
+    ACPI_STATUS             Status;
+
+
+    ACPI_FUNCTION_TRACE ("EvDeleteGpeXrupt");
+
+
+    /* We never want to remove the SCI interrupt handler */
+
+    if (GpeXrupt->InterruptLevel == AcpiGbl_FADT->SciInt)
+    {
+        GpeXrupt->GpeBlockListHead = NULL;
+        return_ACPI_STATUS (AE_OK);
+    }
+
+    /* Disable this interrupt */
+
+    Status = AcpiOsRemoveInterruptHandler (GpeXrupt->InterruptLevel,
+                                    AcpiEvGpeXruptHandler);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    /* Unlink the interrupt block with lock */
+
+    AcpiOsAcquireLock (AcpiGbl_GpeLock, ACPI_NOT_ISR);
+    if (GpeXrupt->Previous)
+    {
+        GpeXrupt->Previous->Next = GpeXrupt->Next;
+    }
+
+    if (GpeXrupt->Next)
+    {
+        GpeXrupt->Next->Previous = GpeXrupt->Previous;
+    }
+    AcpiOsReleaseLock (AcpiGbl_GpeLock, ACPI_NOT_ISR);
+
+    /* Free the block */
+
+    ACPI_MEM_FREE (GpeXrupt);
+    return_ACPI_STATUS (AE_OK);
 }
 
 
@@ -243,7 +506,8 @@ AcpiEvSaveMethodInfo (
  *
  * FUNCTION:    AcpiEvInstallGpeBlock
  *
- * PARAMETERS:  GpeBlock    - New GPE block
+ * PARAMETERS:  GpeBlock        - New GPE block
+ *              InterruptLevel  - Level to be associated with this GPE block
  *
  * RETURN:      Status
  *
@@ -251,25 +515,38 @@ AcpiEvSaveMethodInfo (
  *
  ******************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AcpiEvInstallGpeBlock (
-    ACPI_GPE_BLOCK_INFO     *GpeBlock)
+    ACPI_GPE_BLOCK_INFO     *GpeBlock,
+    UINT32                  InterruptLevel)
 {
     ACPI_GPE_BLOCK_INFO     *NextGpeBlock;
+    ACPI_GPE_XRUPT_INFO     *GpeXruptBlock;
     ACPI_STATUS             Status;
+
+
+    ACPI_FUNCTION_TRACE ("EvInstallGpeBlock");
 
 
     Status = AcpiUtAcquireMutex (ACPI_MTX_EVENTS);
     if (ACPI_FAILURE (Status))
     {
-        return (Status);
+        return_ACPI_STATUS (Status);
     }
 
-    /* Install the new block at the end of the global list */
-
-    if (AcpiGbl_GpeBlockListHead)
+    GpeXruptBlock = AcpiEvGetGpeXruptBlock (InterruptLevel);
+    if (!GpeXruptBlock)
     {
-        NextGpeBlock = AcpiGbl_GpeBlockListHead;
+        Status = AE_NO_MEMORY;
+        goto UnlockAndExit;
+    }
+
+    /* Install the new block at the end of the list for this interrupt with lock */
+
+    AcpiOsAcquireLock (AcpiGbl_GpeLock, ACPI_NOT_ISR);
+    if (GpeXruptBlock->GpeBlockListHead)
+    {
+        NextGpeBlock = GpeXruptBlock->GpeBlockListHead;
         while (NextGpeBlock->Next)
         {
             NextGpeBlock = NextGpeBlock->Next;
@@ -280,11 +557,90 @@ AcpiEvInstallGpeBlock (
     }
     else
     {
-        AcpiGbl_GpeBlockListHead = GpeBlock;
+        GpeXruptBlock->GpeBlockListHead = GpeBlock;
     }
 
+    GpeBlock->XruptBlock = GpeXruptBlock;
+    AcpiOsReleaseLock (AcpiGbl_GpeLock, ACPI_NOT_ISR);
+
+UnlockAndExit:
     Status = AcpiUtReleaseMutex (ACPI_MTX_EVENTS);
-    return (Status);
+    return_ACPI_STATUS (Status);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiEvDeleteGpeBlock
+ *
+ * PARAMETERS:  GpeBlock        - Existing GPE block
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Install new GPE block with mutex support
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiEvDeleteGpeBlock (
+    ACPI_GPE_BLOCK_INFO     *GpeBlock)
+{
+    ACPI_STATUS             Status;
+
+
+    ACPI_FUNCTION_TRACE ("EvInstallGpeBlock");
+
+
+    Status = AcpiUtAcquireMutex (ACPI_MTX_EVENTS);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    /* Disable all GPEs in this block */
+
+    Status = AcpiHwDisableGpeBlock (GpeBlock->XruptBlock, GpeBlock);
+
+    if (!GpeBlock->Previous && !GpeBlock->Next)
+    {
+        /* This is the last GpeBlock on this interrupt */
+
+        Status = AcpiEvDeleteGpeXrupt (GpeBlock->XruptBlock);
+        if (ACPI_FAILURE (Status))
+        {
+            goto UnlockAndExit;
+        }
+    }
+    else
+    {
+        /* Remove the block on this interrupt with lock */
+
+        AcpiOsAcquireLock (AcpiGbl_GpeLock, ACPI_NOT_ISR);
+        if (GpeBlock->Previous)
+        {
+            GpeBlock->Previous->Next = GpeBlock->Next;
+        }
+        else
+        {
+            GpeBlock->XruptBlock->GpeBlockListHead = GpeBlock->Next;
+        }
+
+        if (GpeBlock->Next)
+        {
+            GpeBlock->Next->Previous = GpeBlock->Previous;
+        }
+        AcpiOsReleaseLock (AcpiGbl_GpeLock, ACPI_NOT_ISR);
+    }
+
+    /* Free the GpeBlock */
+
+    ACPI_MEM_FREE (GpeBlock->RegisterInfo);
+    ACPI_MEM_FREE (GpeBlock->EventInfo);
+    ACPI_MEM_FREE (GpeBlock);
+
+UnlockAndExit:
+    Status = AcpiUtReleaseMutex (ACPI_MTX_EVENTS);
+    return_ACPI_STATUS (Status);
 }
 
 
@@ -300,7 +656,7 @@ AcpiEvInstallGpeBlock (
  *
  ******************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AcpiEvCreateGpeInfoBlocks (
     ACPI_GPE_BLOCK_INFO     *GpeBlock)
 {
@@ -342,12 +698,16 @@ AcpiEvCreateGpeInfoBlocks (
         goto ErrorExit;
     }
 
+    /* Save the new Info arrays in the GPE block */
+
+    GpeBlock->RegisterInfo = GpeRegisterInfo;
+    GpeBlock->EventInfo    = GpeEventInfo;
+
     /*
      * Initialize the GPE Register and Event structures.  A goal of these
      * tables is to hide the fact that there are two separate GPE register sets
      * in a given gpe hardware block, the status registers occupy the first half,
-     * and the enable registers occupy the second half.  Another goal is to hide
-     * the fact that there may be multiple GPE hardware blocks.
+     * and the enable registers occupy the second half.
      */
     ThisRegister = GpeRegisterInfo;
     ThisEvent    = GpeEventInfo;
@@ -390,14 +750,14 @@ AcpiEvCreateGpeInfoBlocks (
          * by writing a '0'.
          */
         Status = AcpiHwLowLevelWrite (ACPI_GPE_REGISTER_WIDTH, 0x00,
-                    &ThisRegister->EnableAddress, 0);
+                    &ThisRegister->EnableAddress);
         if (ACPI_FAILURE (Status))
         {
             goto ErrorExit;
         }
 
         Status = AcpiHwLowLevelWrite (ACPI_GPE_REGISTER_WIDTH, 0xFF,
-                    &ThisRegister->StatusAddress, 0);
+                    &ThisRegister->StatusAddress);
         if (ACPI_FAILURE (Status))
         {
             goto ErrorExit;
@@ -406,14 +766,10 @@ AcpiEvCreateGpeInfoBlocks (
         ThisRegister++;
     }
 
-    GpeBlock->RegisterInfo = GpeRegisterInfo;
-    GpeBlock->EventInfo    = GpeEventInfo;
-
     return_ACPI_STATUS (AE_OK);
 
 
 ErrorExit:
-
     if (GpeRegisterInfo)
     {
         ACPI_MEM_FREE (GpeRegisterInfo);
@@ -423,7 +779,7 @@ ErrorExit:
         ACPI_MEM_FREE (GpeEventInfo);
     }
 
-    return_ACPI_STATUS (AE_OK);
+    return_ACPI_STATUS (Status);
 }
 
 
@@ -431,7 +787,12 @@ ErrorExit:
  *
  * FUNCTION:    AcpiEvCreateGpeBlock
  *
- * PARAMETERS:  TBD
+ * PARAMETERS:  GpeDevice           - Handle to the parent GPE block
+ *              GpeBlockAddress     - Address and SpaceID
+ *              RegisterCount       - Number of GPE register pairs in the block
+ *              GpeBlockBaseNumber  - Starting GPE number for the block
+ *              InterruptLevel      - H/W interrupt for the block
+ *              ReturnGpeBlock      - Where the new block descriptor is returned
  *
  * RETURN:      Status
  *
@@ -441,15 +802,15 @@ ErrorExit:
 
 ACPI_STATUS
 AcpiEvCreateGpeBlock (
-    char                    *Pathname,
+    ACPI_NAMESPACE_NODE     *GpeDevice,
     ACPI_GENERIC_ADDRESS    *GpeBlockAddress,
     UINT32                  RegisterCount,
     UINT8                   GpeBlockBaseNumber,
-    UINT32                  InterruptLevel)
+    UINT32                  InterruptLevel,
+    ACPI_GPE_BLOCK_INFO     **ReturnGpeBlock)
 {
     ACPI_GPE_BLOCK_INFO     *GpeBlock;
     ACPI_STATUS             Status;
-    ACPI_HANDLE             ObjHandle;
 
 
     ACPI_FUNCTION_TRACE ("EvCreateGpeBlock");
@@ -458,14 +819,6 @@ AcpiEvCreateGpeBlock (
     if (!RegisterCount)
     {
         return_ACPI_STATUS (AE_OK);
-    }
-
-    /* Get a handle to the parent object for this GPE block */
-
-    Status = AcpiGetHandle (NULL, Pathname, &ObjHandle);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
     }
 
     /* Allocate a new GPE block */
@@ -493,9 +846,8 @@ AcpiEvCreateGpeBlock (
     }
 
     /* Install the new block in the global list(s) */
-    /* TBD: Install block in the interrupt handler list */
 
-    Status = AcpiEvInstallGpeBlock (GpeBlock);
+    Status = AcpiEvInstallGpeBlock (GpeBlock, InterruptLevel);
     if (ACPI_FAILURE (Status))
     {
         ACPI_MEM_FREE (GpeBlock);
@@ -504,21 +856,28 @@ AcpiEvCreateGpeBlock (
 
     /* Dump info about this GPE block */
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_INIT, "GPE Block: %X registers at %8.8X%8.8X\n",
-        GpeBlock->RegisterCount,
-        ACPI_HIDWORD (ACPI_GET_ADDRESS (GpeBlock->BlockAddress.Address)),
-        ACPI_LODWORD (ACPI_GET_ADDRESS (GpeBlock->BlockAddress.Address))));
-
-    ACPI_DEBUG_PRINT ((ACPI_DB_INIT, "GPE Block defined as GPE%d to GPE%d\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_INIT, "GPE %02d to %02d [%4.4s] %d regs at %8.8X%8.8X on int %d\n",
         GpeBlock->BlockBaseNumber,
         (UINT32) (GpeBlock->BlockBaseNumber +
-                ((GpeBlock->RegisterCount * ACPI_GPE_REGISTER_WIDTH) -1))));
+                ((GpeBlock->RegisterCount * ACPI_GPE_REGISTER_WIDTH) -1)),
+        GpeDevice->Name.Ascii,
+        GpeBlock->RegisterCount,
+        ACPI_HIDWORD (ACPI_GET_ADDRESS (GpeBlock->BlockAddress.Address)),
+        ACPI_LODWORD (ACPI_GET_ADDRESS (GpeBlock->BlockAddress.Address)),
+        InterruptLevel));
 
     /* Find all GPE methods (_Lxx, _Exx) for this block */
 
-    Status = AcpiWalkNamespace (ACPI_TYPE_METHOD, ObjHandle,
-                                ACPI_UINT32_MAX, AcpiEvSaveMethodInfo,
+    Status = AcpiNsWalkNamespace (ACPI_TYPE_METHOD, GpeDevice,
+                                ACPI_UINT32_MAX, ACPI_NS_WALK_NO_UNLOCK, AcpiEvSaveMethodInfo,
                                 GpeBlock, NULL);
+
+    /* Return the new block */
+
+    if (ReturnGpeBlock)
+    {
+        (*ReturnGpeBlock) = GpeBlock;
+    }
 
     return_ACPI_STATUS (AE_OK);
 }
@@ -542,10 +901,20 @@ AcpiEvGpeInitialize (void)
     UINT32                  RegisterCount0 = 0;
     UINT32                  RegisterCount1 = 0;
     UINT32                  GpeNumberMax = 0;
+    ACPI_HANDLE             GpeDevice;
+    ACPI_STATUS             Status;
 
 
     ACPI_FUNCTION_TRACE ("EvGpeInitialize");
 
+
+    /* Get a handle to the predefined _GPE object */
+
+    Status = AcpiGetHandle (NULL, "\\_GPE", &GpeDevice);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
     /*
      * Initialize the GPE Blocks defined in the FADT
@@ -568,6 +937,7 @@ AcpiEvGpeInitialize (void)
      *
      * Note: both GPE0 and GPE1 are optional, and either can exist without
      * the other.
+     *
      * If EITHER the register length OR the block address are zero, then that
      * particular block is not supported.
      */
@@ -580,8 +950,16 @@ AcpiEvGpeInitialize (void)
 
         GpeNumberMax = (RegisterCount0 * ACPI_GPE_REGISTER_WIDTH) - 1;
 
-        AcpiEvCreateGpeBlock ("\\_GPE", &AcpiGbl_FADT->XGpe0Blk,
-            RegisterCount0, 0, AcpiGbl_FADT->SciInt);
+        /* Install GPE Block 0 */
+
+        Status = AcpiEvCreateGpeBlock (GpeDevice, &AcpiGbl_FADT->XGpe0Blk,
+                    RegisterCount0, 0, AcpiGbl_FADT->SciInt, &AcpiGbl_GpeFadtBlocks[0]);
+        if (ACPI_FAILURE (Status))
+        {
+            ACPI_REPORT_ERROR ((
+                "Could not create GPE Block 0, %s\n",
+                AcpiFormatException (Status)));
+        }
     }
 
     if (AcpiGbl_FADT->Gpe1BlkLen &&
@@ -608,12 +986,21 @@ AcpiEvGpeInitialize (void)
         }
         else
         {
-            AcpiEvCreateGpeBlock ("\\_GPE", &AcpiGbl_FADT->XGpe1Blk,
-                RegisterCount1, AcpiGbl_FADT->Gpe1Base, AcpiGbl_FADT->SciInt);
+            /* Install GPE Block 1 */
+
+            Status = AcpiEvCreateGpeBlock (GpeDevice, &AcpiGbl_FADT->XGpe1Blk,
+                        RegisterCount1, AcpiGbl_FADT->Gpe1Base,
+                        AcpiGbl_FADT->SciInt, &AcpiGbl_GpeFadtBlocks[1]);
+            if (ACPI_FAILURE (Status))
+            {
+                ACPI_REPORT_ERROR ((
+                    "Could not create GPE Block 1, %s\n",
+                    AcpiFormatException (Status)));
+            }
 
             /*
-             * GPE0 and GPE1 do not have to be contiguous in the GPE number space,
-             * But, GPE0 always starts at zero.
+             * GPE0 and GPE1 do not have to be contiguous in the GPE number
+             * space. However, GPE0 always starts at GPE number zero.
              */
             GpeNumberMax = AcpiGbl_FADT->Gpe1Base +
                                 ((RegisterCount1 * ACPI_GPE_REGISTER_WIDTH) - 1);

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psargs - Parse AML opcode arguments
- *              $Revision: 69 $
+ *              $Revision: 73 $
  *
  *****************************************************************************/
 
@@ -436,6 +436,11 @@ AcpiPsGetNextNamepath (
                 (Status != AE_NOT_FOUND))
             {
                 ACPI_REPORT_NSERROR (Path, Status);
+
+                AcpiOsPrintf ("SearchNode %p StartNode %p ReturnNode %p\n",
+                    ScopeInfo.Scope.Node, ParserState->StartNode, Node);
+
+
             }
             else
             {
@@ -500,7 +505,7 @@ AcpiPsGetNextSimpleArg (
 
         /* Get 2 bytes from the AML stream */
 
-        ACPI_MOVE_UNALIGNED16_TO_32 (&Arg->Common.Value.Integer, ParserState->Aml);
+        ACPI_MOVE_16_TO_32 (&Arg->Common.Value.Integer, ParserState->Aml);
         ParserState->Aml += 2;
         break;
 
@@ -511,7 +516,7 @@ AcpiPsGetNextSimpleArg (
 
         /* Get 4 bytes from the AML stream */
 
-        ACPI_MOVE_UNALIGNED32_TO_32 (&Arg->Common.Value.Integer, ParserState->Aml);
+        ACPI_MOVE_32_TO_32 (&Arg->Common.Value.Integer, ParserState->Aml);
         ParserState->Aml += 4;
         break;
 
@@ -522,7 +527,7 @@ AcpiPsGetNextSimpleArg (
 
         /* Get 8 bytes from the AML stream */
 
-        ACPI_MOVE_UNALIGNED64_TO_64 (&Arg->Common.Value.Integer, ParserState->Aml);
+        ACPI_MOVE_64_TO_64 (&Arg->Common.Value.Integer, ParserState->Aml);
         ParserState->Aml += 8;
         break;
 
@@ -625,7 +630,7 @@ AcpiPsGetNextField (
 
         /* Get the 4-character name */
 
-        ACPI_MOVE_UNALIGNED32_TO_32 (&Name, ParserState->Aml);
+        ACPI_MOVE_32_TO_32 (&Name, ParserState->Aml);
         AcpiPsSetName (Field, Name);
         ParserState->Aml += ACPI_NAME_SIZE;
 
@@ -649,9 +654,9 @@ AcpiPsGetNextField (
          * Get AccessType and AccessAttrib and merge into the field Op
          * AccessType is first operand, AccessAttribute is second
          */
-        Field->Common.Value.Integer32 = (ACPI_GET8 (ParserState->Aml) << 8);
+        Field->Common.Value.Integer = (ACPI_GET8 (ParserState->Aml) << 8);
         ParserState->Aml++;
-        Field->Common.Value.Integer32 |= ACPI_GET8 (ParserState->Aml);
+        Field->Common.Value.Integer |= ACPI_GET8 (ParserState->Aml);
         ParserState->Aml++;
         break;
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbutils - Table manipulation utilities
- *              $Revision: 58 $
+ *              $Revision: 60 $
  *
  *****************************************************************************/
 
@@ -140,10 +140,10 @@
 ACPI_STATUS
 AcpiTbHandleToObject (
     UINT16                  TableId,
-    ACPI_TABLE_DESC         **TableDesc)
+    ACPI_TABLE_DESC         **ReturnTableDesc)
 {
     UINT32                  i;
-    ACPI_TABLE_DESC         *ListHead;
+    ACPI_TABLE_DESC         *TableDesc;
 
 
     ACPI_FUNCTION_NAME ("TbHandleToObject");
@@ -151,18 +151,17 @@ AcpiTbHandleToObject (
 
     for (i = 0; i < ACPI_TABLE_MAX; i++)
     {
-        ListHead = &AcpiGbl_AcpiTables[i];
-        do
+        TableDesc = AcpiGbl_TableLists[i].Next;
+        while (TableDesc)
         {
-            if (ListHead->TableId == TableId)
+            if (TableDesc->TableId == TableId)
             {
-                *TableDesc = ListHead;
+                *ReturnTableDesc = TableDesc;
                 return (AE_OK);
             }
 
-            ListHead = ListHead->Next;
-
-        } while (ListHead != &AcpiGbl_AcpiTables[i]);
+            TableDesc = TableDesc->Next;
+        }
     }
 
     ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "TableId=%X does not exist\n", TableId));
@@ -211,7 +210,7 @@ AcpiTbValidateTableHeader (
 
     /* Ensure that the signature is 4 ASCII characters */
 
-    ACPI_MOVE_UNALIGNED32_TO_32 (&Signature, TableHeader->Signature);
+    ACPI_MOVE_32_TO_32 (&Signature, TableHeader->Signature);
     if (!AcpiUtValidAcpiName (Signature))
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,

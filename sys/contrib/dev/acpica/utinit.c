@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utinit - Common ACPI subsystem initialization
- *              $Revision: 116 $
+ *              $Revision: 117 $
  *
  *****************************************************************************/
 
@@ -250,20 +250,44 @@ AcpiUtValidateFadt (
  *
  * RETURN:      none
  *
- * DESCRIPTION: free memory allocated for table storage.
+ * DESCRIPTION: free global memory
  *
  ******************************************************************************/
 
 void
 AcpiUtTerminate (void)
 {
+    ACPI_GPE_BLOCK_INFO     *GpeBlock;
+    ACPI_GPE_BLOCK_INFO     *NextGpeBlock;
+    ACPI_GPE_XRUPT_INFO     *GpeXruptInfo;
+    ACPI_GPE_XRUPT_INFO     *NextGpeXruptInfo;
+
 
     ACPI_FUNCTION_TRACE ("UtTerminate");
 
 
     /* Free global tables, etc. */
 
-    /* Nothing to do at this time */
+
+    /* Free global GPE blocks and related info structures */
+
+    GpeXruptInfo = AcpiGbl_GpeXruptListHead;
+    while (GpeXruptInfo)
+    {
+        GpeBlock = GpeXruptInfo->GpeBlockListHead;
+        while (GpeBlock)
+        {
+            NextGpeBlock = GpeBlock->Next;
+            ACPI_MEM_FREE (GpeBlock->EventInfo);
+            ACPI_MEM_FREE (GpeBlock->RegisterInfo);
+            ACPI_MEM_FREE (GpeBlock);
+
+            GpeBlock = NextGpeBlock;
+        }
+        NextGpeXruptInfo = GpeXruptInfo->Next;
+        ACPI_MEM_FREE (GpeXruptInfo);
+        GpeXruptInfo = NextGpeXruptInfo;
+    }
 
     return_VOID;
 }

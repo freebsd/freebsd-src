@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmresrc.c - Resource Descriptor disassembly
- *              $Revision: 7 $
+ *              $Revision: 8 $
  *
  ******************************************************************************/
 
@@ -430,7 +430,7 @@ AcpiDmIsResourceDescriptor (
 
     /* Extract the data pointer and data length */
 
-    ByteCount = NextOp->Common.Value.Integer32;
+    ByteCount = (UINT32) NextOp->Common.Value.Integer;
     ByteData = NextOp->Named.Data;
 
     /* The list must have a valid END_TAG */
