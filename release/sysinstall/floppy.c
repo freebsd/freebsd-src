@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.2 1995/05/27 23:39:29 phk Exp $
+ * $Id: floppy.c,v 1.3 1995/05/28 03:04:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -150,7 +150,7 @@ void
 mediaShutdownFloppy(Device *dev)
 {
     if (floppyMounted) {
-	if (vsystem("umount /mnt") != 0)
+	if (unmount("/mnt", 0) != 0)
 	    msgDebug("Umount of floppy on /mnt failed: %s (%d)\n", strerror(errno), errno);
 	else {
 	    floppyMounted = FALSE;
