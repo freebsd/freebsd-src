@@ -98,7 +98,7 @@ el_parse(el, argc, argv)
     int i;
 
     if (argc < 1)
-	return argc;
+	return 0;
 
     for (ptr = argv[0]; *ptr && *ptr != ':'; ptr++)
 	continue;
