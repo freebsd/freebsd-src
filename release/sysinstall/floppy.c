@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.6.2.9 1995/06/05 12:03:55 jkh Exp $
+ * $Id: floppy.c,v 1.6.2.10 1995/06/05 12:15:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -131,6 +131,7 @@ mediaInitFloppy(Device *dev)
     memset(&dosargs, 0, sizeof dosargs);
     dosargs.fspec = dev->devname;
     dosargs.uid = dosargs.gid = 0;
+    dosargs.mask = 0777;
     if (mount(MOUNT_MSDOS, "/mnt", 0, (caddr_t)&dosargs) == -1) {
 	msgConfirm("Error mounting floppy %s (%s) on /mnt : %s", dev->name, dev->devname, strerror(errno));
 	return FALSE;
@@ -150,20 +151,28 @@ mediaGetFloppy(Device *dev, char *file, Attribs *dist_attrs)
     char		attrib[10];
     u_long		cval1, clen1, cval2, clen2;
     int			fd;
+    int			nretries = 5;
 
     snprintf(buf, PATH_MAX, "/mnt/%s", file);
 
-    if (access(buf, R_OK))
+    if (access(buf, R_OK)) {
 	if (dev->flags & OPT_EXPLORATORY_GET)
 	    return -1;
-	else while (access(buf, R_OK) != 0) {
-	    mediaShutdownFloppy(mediaDevice);
-	    if (!mediaInitFloppy(mediaDevice))
-		return -1;
+	else {
+	    while (access(buf, R_OK) != 0) {
+		if (!--nretries) {
+		    msgConfirm("GetFloppy: Failed to get %s after retries;\ngiving up.", file);
+		    return -1;
+		}
+		(*dev->shutdown)(dev);
+		if (!(dev->init)(dev))
+		    return -1;
+	    }
 	}
+    }
 
     fd = open(buf, O_RDONLY);
-    if (dist_attrs!=NULL) {
+    if (dist_attrs != NULL) {
 	extn = rindex(buf, '.');
 	snprintf(attrib, 10, "cksum%s", extn);
 	val = attr_match(dist_attrs, attrib);

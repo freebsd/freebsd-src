@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.31 1995/06/05 12:04:01 jkh Exp $
+ * $Id: install.c,v 1.70.2.32 1995/06/05 15:17:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -256,6 +256,8 @@ installInitial(void)
 int
 installCommit(char *str)
 {
+    Device *dev;
+
     if (!Dists) {
 	msgConfirm("You haven't told me what distributions to load yet!\nPlease select a distribution from the Distributions menu.");
 	return 0;
@@ -287,9 +289,26 @@ installCommit(char *str)
 	msgConfirm("MAKEDEV returned non-zero status");
 
     msgNotify("Resurrecting /dev entries for slices..");
-    /* This gives us our slice entries back, which we saved for this */
-    if (!SystemWasInstalled && vsystem("mv -f /tmp/dev/* /dev; rmdir /tmp/dev"))
-	msgConfirm("Unable to move all the old devs back.  Hmmm!");
+    dev = deviceFind(NULL, DEVICE_TYPE_DISK);
+    if (!dev)
+	msgFatal("Couldn't get a disk device list!");
+    /* Resurrect the slices that the former clobbered */
+    for (i = 0; devs[i]; i++) {
+	Disk *disk = (Disk *)devs[i]->private;
+	Chunk *c1;
+
+	if (!disk->chunks)
+	    msgFatal("No chunk list found for %s!", disk->name);
+	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
+	    if (c1->type == freebsd) {
+		msgNotify("Making slice entries for %s", c1->name);
+		if (vsystem("cd /dev; sh MAKEDEV %sh", c1->name))
+		    msgConfirm("Unable to make slice entries for %s!", c1->name);
+	    }
+	}
+    }
+    
+
     dialog_clear();
     if (Dists)
 	msgConfirm("Installation completed with some errors.  You may wish\nto scroll through the debugging messages on ALT-F2 with the scroll-lock\nfeature.  Press [ENTER] to return to the installation menu.");
@@ -401,11 +420,6 @@ make_filesystems(void)
     /* Copy the boot floppy's dev files */
     if (vsystem("find -x /dev | cpio -pdmv /mnt")) {
 	msgConfirm("Couldn't clone the /dev files!");
-	return FALSE;
-    }
-    Mkdir("/mnt/tmp", NULL);
-    if (vsystem("find -x /dev | cpio -pdmv /mnt/tmp")) {
-	msgConfirm("Couldn't create a backup copy of the /dev files!");
 	return FALSE;
     }
     
