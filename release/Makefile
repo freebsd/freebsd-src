@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.286 1997/03/14 08:21:09 joerg Exp $
+#	$Id: Makefile,v 1.287 1997/03/15 19:51:16 joerg Exp $
 #
 # How to roll a release:
 #
@@ -132,7 +132,10 @@ rerelease release:
 	echo "set -ex"				>> ${CHROOTDIR}/mk
 	echo "CFLAGS='-O2 -pipe'"		>> ${CHROOTDIR}/mk
 	echo "export CFLAGS"			>> ${CHROOTDIR}/mk
+	echo "export BUILDNAME=${BUILDNAME}"	>> ${CHROOTDIR}/mk
+.if defined(RELEASETAG)
 	echo "export RELEASETAG=${RELEASETAG}"	>> ${CHROOTDIR}/mk
+.endif
 .if defined(NO_PORTS)
 	echo "export NO_PORTS=${NO_PORTS}"	>> ${CHROOTDIR}/mk
 .endif
