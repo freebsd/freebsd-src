@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/segments.h>
 
+#include <dev/ic/i8259.h>
 #include <i386/isa/icu.h>
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
@@ -63,26 +64,34 @@ __FBSDID("$FreeBSD$");
 #define	MASTER	0
 #define	SLAVE	1
 
-/* XXX: Magic numbers */
+/*
+ * Determine the base master and slave modes not including auto EOI support.
+ * All machines that FreeBSD supports use 8086 mode.
+ */
 #ifdef PC98
-#ifdef AUTO_EOI_1
-#define	MASTER_MODE	0x1f	/* Master auto EOI, 8086 mode */
+/*
+ * PC-98 machines do not support auto EOI on the second PIC.  Also, it
+ * seems that PC-98 machine PICs use buffered mode, and the master PIC
+ * uses special fully nested mode.
+ */
+#define	BASE_MASTER_MODE	(ICW4_SFNM | ICW4_BUF | ICW4_MS | ICW4_8086)
+#define	BASE_SLAVE_MODE		(ICW4_BUF | ICW4_8086)
 #else
-#define	MASTER_MODE	0x1d	/* Master 8086 mode */
+#define	BASE_MASTER_MODE	ICW4_8086
+#define	BASE_SLAVE_MODE		ICW4_8086
 #endif
-#define	SLAVE_MODE	9	/* 8086 mode */
-#else /* IBM-PC */
+
+/* Enable automatic EOI if requested. */
 #ifdef AUTO_EOI_1
-#define	MASTER_MODE	(ICW4_8086 | ICW4_AEOI)
+#define	MASTER_MODE		(BASE_MASTER_MODE | ICW4_AEOI)
 #else
-#define	MASTER_MODE	ICW4_8086
+#define	MASTER_MODE		BASE_MASTER_MODE
 #endif
 #ifdef AUTO_EOI_2
-#define	SLAVE_MODE	(ICW4_8086 | ICW4_AEOI)
+#define	SLAVE_MODE		(BASE_SLAVE_MODE | ICW4_AEOI)
 #else
-#define	SLAVE_MODE	ICW4_8086
+#define	SLAVE_MODE		BASE_SLAVE_MODE
 #endif
-#endif /* PC98 */
 
 static void	atpic_init(void *dummy);
 
