@@ -38,16 +38,21 @@
 network_pass1() {
 	echo -n 'Doing initial network setup:'
 
+	# Generate host.conf for compatibility
+	#
+	if [ -f "/etc/nsswitch.conf" ]; then
+	        echo ''
+		echo 'Generating /etc/host.conf for compatibility'
+		generate_host_conf /etc/nsswitch.conf /etc/host.conf
+	fi
+
 	# Convert host.conf to nsswitch.conf if necessary
-	if [ -f "/etc/host.conf" ]; then
+	#
+	if [ -f "/etc/host.conf" -a ! -f "/etc/nsswitch.conf" ]; then
 		echo ''
 		echo 'Warning: /etc/host.conf is no longer used'
-		if [ -f "/etc/nsswitch.conf" ]; then
-		    echo '  /etc/nsswitch.conf will be used instead'
-		else
-		    echo '  /etc/nsswitch.conf will be created for you'
-		    convert_host_conf /etc/host.conf /etc/nsswitch.conf
-		fi
+		echo '  /etc/nsswitch.conf will be created for you'
+		convert_host_conf /etc/host.conf /etc/nsswitch.conf
 	fi
 
 	# Set the host name if it is not already set
@@ -866,3 +871,25 @@ convert_host_conf() {
         }' < $host_conf > $nsswitch_conf
 }
 
+generate_host_conf() {
+    nsswitch_conf=$1; shift;
+    host_conf=$1; shift;
+    
+    awk '
+BEGIN {
+    xlat["files"] = "hosts";
+    xlat["dns"] = "bind";
+    xlat["nis"] = "nis";
+}
+/^hosts:/ {
+    print "# Auto-generated, do not edit";
+    for (n = 2; n <= NF; ++n)
+        if ($n in xlat)
+            print xlat[$n];
+    quit;
+}
+// {
+    next;
+}
+' <$nsswitch_conf >$host_conf
+}
