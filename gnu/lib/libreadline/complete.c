@@ -468,7 +468,7 @@ rl_complete_internal (what_to_do)
 	    }
 	}
 
-      if (rl_point == end)
+      if (rl_point == end && found_quote == 0)
 	{
 	  int quoted = 0;
 	  /* We didn't find an unclosed quoted substring upon which to do
@@ -668,7 +668,7 @@ rl_complete_internal (what_to_do)
 		 not be checked, add !matches[1] to the if clause. */
 	      should_quote = rl_strpbrk (matches[0], rl_completer_word_break_characters) != 0;
 #if defined (SHELL)
-	      should_quote = should_quote || rl_strpbrk (matches[0], "#$`?*[") != 0;
+	      should_quote = should_quote || rl_strpbrk (matches[0], "#$`?*[!") != 0;
 #endif
 
 	      if (should_quote)

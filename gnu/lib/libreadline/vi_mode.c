@@ -275,7 +275,7 @@ rl_vi_complete (ignore, key)
   if (key == '*' || key == '\\')
     {
       _rl_vi_set_last (key, 1, rl_arg_sign);
-      rl_vi_insertion_mode ();
+      rl_vi_insertion_mode (1, key);
     }
   return (0);
 }
@@ -286,7 +286,7 @@ rl_vi_tilde_expand (ignore, key)
 {
   rl_tilde_expand (0, key);
   _rl_vi_set_last (key, 1, rl_arg_sign);	/* XXX */
-  rl_vi_insertion_mode ();
+  rl_vi_insertion_mode (1, key);
   return (0);
 }
 
@@ -507,8 +507,8 @@ rl_vi_eword (count)
 rl_vi_insert_beg (count, key)
      int count, key;
 {
-  rl_beg_of_line ();
-  rl_vi_insertion_mode ();
+  rl_beg_of_line (1, key);
+  rl_vi_insertion_mode (1, key);
   return (0);
 }
 
@@ -517,15 +517,15 @@ rl_vi_append_mode (count, key)
 {
   if (rl_point < rl_end)
     rl_point++;
-  rl_vi_insertion_mode ();
+  rl_vi_insertion_mode (1, key);
   return (0);
 }
 
 rl_vi_append_eol (count, key)
      int count, key;
 {
-  rl_end_of_line ();
-  rl_vi_append_mode ();
+  rl_end_of_line (1, key);
+  rl_vi_append_mode (1, key);
   return (0);
 }
 
@@ -836,7 +836,7 @@ rl_vi_change_to (count, key)
   rl_begin_undo_group ();
   _rl_vi_doing_insert = 1;
   _rl_vi_set_last (key, count, rl_arg_sign);
-  rl_vi_insertion_mode ();
+  rl_vi_insertion_mode (1, key);
 
   return (0);
 }
@@ -1157,7 +1157,7 @@ rl_vi_subst (count, key)
 
   rl_begin_undo_group ();
   _rl_vi_doing_insert = 1;
-  rl_vi_insertion_mode ();
+  rl_vi_insertion_mode (1, key);
 
   return (0);
 }
