@@ -248,6 +248,7 @@ main(int argc, char **argv)
 		int chan;
 
 		if (!strcmp(argv[1], "delete") ||
+		    !strcmp(argv[1], "status") ||
 		    !strcmp(argv[1], "rebuild")) {
 			if (!(sscanf(argv[2], "%d", &chan) == 1 ||
 			      sscanf(argv[2], "ar%d", &chan) == 1))
@@ -300,16 +301,6 @@ main(int argc, char **argv)
 			warn("ioctl(ATAREINIT)");
 		info_print(fd, iocmd.channel, 0);
 	}
-	else if (!strcmp(argv[1], "rebuild") && argc == 3) {
-		iocmd.cmd = ATARAIDREBUILD;
-		if (ioctl(fd, IOCATA, &iocmd) < 0)
-			warn("ioctl(ATARAIDREBUILD)");
-	}
-	else if (!strcmp(argv[1], "delete") && argc == 3) {
-		iocmd.cmd = ATARAIDDELETE;
-		if (ioctl(fd, IOCATA, &iocmd) < 0)
-			warn("ioctl(ATARAIDDELETE)");
-	}
 	else if (!strcmp(argv[1], "create")) {
 		int disk, dev, offset;
 
@@ -342,9 +333,63 @@ main(int argc, char **argv)
 		}
 		iocmd.u.raid_setup.total_disks = disk;
 		if (ioctl(fd, IOCATA, &iocmd) < 0)
-			warn("ioctl(ATARAIDCREATE)");
+			err(1, "ioctl(ATARAIDCREATE)");
 		else
 			printf("ar%d created\n", iocmd.u.raid_setup.unit);
+	}
+	else if (!strcmp(argv[1], "delete") && argc == 3) {
+		iocmd.cmd = ATARAIDDELETE;
+		if (ioctl(fd, IOCATA, &iocmd) < 0)
+			warn("ioctl(ATARAIDDELETE)");
+	}
+	else if (!strcmp(argv[1], "rebuild") && argc == 3) {
+		iocmd.cmd = ATARAIDREBUILD;
+		if (ioctl(fd, IOCATA, &iocmd) < 0)
+			warn("ioctl(ATARAIDREBUILD)");
+	}
+	else if (!strcmp(argv[1], "status") && argc == 3) {
+		int i;
+
+		iocmd.cmd = ATARAIDSTATUS;
+		if (ioctl(fd, IOCATA, &iocmd) < 0)
+			err(1, "ioctl(ATARAIDSTATUS)");
+		printf("ar%d: ATA ", iocmd.channel);
+		switch (iocmd.u.raid_status.type) {
+		case AR_RAID0:
+			printf("RAID0");
+			break;
+		case AR_RAID1:
+			printf("RAID1");
+			break;
+		case AR_RAID0 | AR_RAID1:
+			printf("RAID0+1");
+			break;
+		case AR_SPAN:
+			printf("SPAN");
+			break;
+		}
+		printf(" subdisks: ");
+		for (i = 0; i < iocmd.u.raid_status.total_disks; i++) {
+			if (iocmd.u.raid_status.disks[i] >= 0)
+				printf("ad%d ", iocmd.u.raid_status.disks[i]);
+			else
+				printf("DOWN ");
+		}
+		printf("status: ");
+		switch (iocmd.u.raid_status.status) {
+		case AR_READY:
+			printf("READY\n");
+			break;
+		case AR_READY | AR_DEGRADED:
+			printf("DEGRADED\n");
+			break;
+		case AR_READY | AR_DEGRADED | AR_REBUILDING:
+			printf("REBUILDING %d%% completed\n",
+				iocmd.u.raid_status.progress);
+			break;
+		default:
+			printf("BROKEN\n");
+		}
 	}
 	else if (!strcmp(argv[1], "mode") && (argc == 3 || argc == 5)) {
 		if (argc == 5) {
