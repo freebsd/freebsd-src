@@ -48,7 +48,9 @@ If the same name is present in multiple namespaces, the extended attributes
 associated with the names are stored and manipulated independently.
 The following two namespaces are defined universally, although individual
 file systems may implement additional namespaces, or not implement
-these namespaces: EXTATTR_NAMESPACE_USER, EXTATTR_NAMESPACE_SYSTEM.
+these namespaces:
+.Dv EXTATTR_NAMESPACE_USER ,
+.Dv EXTATTR_NAMESPACE_SYSTEM .
 The semantics of these attributes are intended to be as follows: user
 attribute data is protected according the the normal discretionary
 and mandatory protections associated with the data in the file or
@@ -88,5 +90,7 @@ the total size of the attribute, or indicate that the buffer space provided
 by the caller is insufficient to hold all available data.
 In addition, the interface does not provide a mechanism to retrieve
 the current set of available attributes; it has been suggested that
-providing a NULL attribute name should cause a list of defined attributes
-for the passed file or directory, but this is not currently implemented.
+providing a
+.Dv NULL
+attribute name should cause a list of defined attributes for the passed file
+or directory, but this is not currently implemented.
