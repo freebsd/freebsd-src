@@ -39,7 +39,11 @@
 
 #include <sys/types.h>
 #include <sys/time.h>
+#ifdef _KERNEL
 #include <sys/systm.h>
+#else
+#include <string.h>
+#endif
 #include <machine/endian.h>
 #include <crypto/sha2/sha2.h>
 
