@@ -1,5 +1,5 @@
 /*
- * Structure and function declartaions for Processor type devices.
+ * Structure and function declarations for Processor type devices.
  *
  * Copyright (c) 1998 Justin T. Gibbs
  * All rights reserved.
