@@ -45,21 +45,11 @@ is a POSIX.1e call that sets the permissions of ACL entry
 with the permissions contained in
 .Fa permset_d .
 .Sh RETURN VALUES
-Upon successful completion, the function will return a value of
-.Va 0 .
-Otherwise, a value of
-.Va -1
-will be returned, and
-.Va errno
-will be set to indicate the error.
+.Rv -std acl_set_permset
 .Sh ERRORS
-If the following condition occurs, the
+The
 .Fn acl_set_permset
-function will return a value of
-.Va -1
-and set
-.Va errno
-to the corresponding value:
+function fails if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 Argument
