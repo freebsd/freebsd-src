@@ -1,4 +1,4 @@
-<!-- $Id: ports.sgml,v 1.3 1995/06/23 13:59:37 jfieber Exp $ -->
+<!-- $Id: ports.sgml,v 1.4 1995/06/30 17:37:45 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>The Ports collection<label id="ports"></heading>
@@ -16,49 +16,58 @@ back of your computer!).
 
 <sect1><heading>What is the FreeBSD Ports Collection?</heading>
 
-<p>    People who (allegedly) know what they are doing have automated the
-process of ``porting'' software to FreeBSD, and the result is the
-Ports Collection.  The general idea is that a combination of various
-programming tools available in the base FreeBSD installation will
-allow you to fetch the port from a FreeBSD mirror site, type ``make''
-and get the fully working program.
+<p> When 2.0 was released, the FreeBSD Project decided to attempt to
+automate the process of ``porting'' such software to FreeBSD, and the
+result is the Ports Collection.  The general idea was that a
+combination of various programming tools already available in the base
+FreeBSD installation would allow you to simply type `make' for a given
+port and have the underlying ports mechanism automatically fetch the
+port from a FreeBSD mirror site, apply any special configuration
+knowledge to it and then build it to result in a fully working version
+of the program.
 
     The ports collection itself normally doesn't have any of the
 original source code necessary for the compilation in the tree, just
 those shell scripts, Makefiles and source code ``diffs'' that are
-necessary to compile the program under FreeBSD.  This is meant to keep
-the entire system down to a manageable size, and the current system
-has over 100 ports in the master source tree, and yet a compressed tar
-file of that tree is about 2 megabytes (all the source code needed is
-over 100Mb's!).
+necessary to configure and compile the program under FreeBSD.  This
+keeps the entire system down to a manageable size, with the current
+system having over 300 ports in the master source tree and yet taking
+up no more than a few tens of megabytes.
 
 
 <sect1><heading>How does the system compile with no source code?</heading>
 
-<p>    A ports' Makefile automatically looks in a central location on
-your system (usually /usr/ports/distfiles, though this value can be
+<p> The Makefile for a port automatically looks in a central location
+on your system (usually /usr/ports/distfiles, though this value can be
 customized) for the associated set of original distribution files that
-have been ``ported''.  These are generally provided at various places
-on the Internet, though if you have a CDROM distribution of FreeBSD
-then you've already got them available on your CD for ease of use.
-See section 3.1 if you have such a CD distribution, otherwise skip to
-section 3.2.
+have been ``ported''.  Those not found locally are searched for
+wherever they're generally provided on the Internet.  If you have a
+CDROM distribution of FreeBSD then you've already got them available
+on your CD for ease of use.  See <ref id="ports:cd"
+name="Compiling ports from CD"> if you have such a CDROM
+distribution, otherwise skip to <ref id="ports:inet" 
+name="Compiling ports using an Internet connection">.
 
-<!--
-3.1  Compiling ports from CD
+<sect1><heading>Compiling ports from CDROM<label id="ports:cd"></heading>
 
-    Type something profound here.
--->
+<p>The ports collection is easy to use from CDROM, and all you need do
+is create a "link tree" to it using the ``lndir'' command that comes
+with the <em>XFree86</em> distribution.  Find a location with some
+free space and create a directory there, then invoking the lndir
+command with the full pathname of the ``ports'' directory on the CDROM
+as an argument (this might be, for example, something like: ``lndir
+/cdrom/ports'').  Then you can build ports directly off the CDROM by
+building them in the link tree you've created.
 
-<sect2><heading>Compiling ports using an Internet connection</heading>
+<sect1><heading>Compiling ports using an Internet connection<label id="ports:inet"></heading>
 
 <p>    The ports collection can also use an auto-fetch system to keep
 your ports collection source tree up to date, updating the central
 ``distfiles'' version for you the next time you compile the port.
 
-    Of course, this always assumes you have a permanent network link,
-or don't mind heavy usage of your telephone.  If you don't want heavy
-network usage when you compile your ports tree, you can pre-fetch the
+    Of course, this assumes you have a permanent network link or don't
+mind heavy usage of your telephone.  If you don't want heavy network
+usage when you compile your ports tree, you can pre-fetch the
 necessary tarballs beforehand and put them into /usr/ports/distfiles
 (or wherever DISTDIR points) by hand.  A good way to see what files a
 port is going to need is to cd to that port's directory and do a
@@ -131,18 +140,6 @@ all-volunteer `ports committee' will (hopefully) look it over and
 commit it to the ports collection if they like the looks of it.
 
 
-<sect1><heading>Things go funny during the fetch stage of compilation!</heading>
-
-<p>   We know.  Please don't blame us. There is a program called `ncftp'
-which is used instead of the normal ftp as it can do so-called
-``background'' or ``batch'' transfers, ideal for this situation.
-Unfortunately it can do strange things, and has crashed at least one
-machine (during circumstances stranger than most, I'll admit, but it
-was still responsible). Hopefully a future release of ncftp will fix
-these problems (it is not maintained by the main FreeBSD team, but a
-third party, who is I believe aware of its shortcomings)
-
-
 <sect1><heading>I want to leave the compile going overnight, but some ports don't like this.</heading>
 
 <p>   There is a way around this. Before starting the compilation, type:
@@ -150,9 +147,7 @@ third party, who is I believe aware of its shortcomings)
 	setenv BATCH yes # (if you use csh/tcsh) or
 	BATCH=yes; export BATCH # (for sh/bash)
 </verb>
-    This should miss out ports which need user interaction. Unfortunately,
-ncftp doesn't know about this trick, and can often screw up and ask
-stupid questions in unattended batch mode. See (7).
+    This should skip ports which need user interaction to build.
 
     To compile those ports left out by doing the above, using a
 different login shell (or unsetting the above BATCH variable), set the
@@ -195,15 +190,11 @@ time now! :-)
 <sect1><heading>How do I get more information on all the ports?</heading>
 
 <p>    One good method is to cd to the top of the ports tree (say /usr/ports)
-and type something like:
+and type:
 <verb>
-	make describe | sed -e '/===/D' -e 's;/usr/ports/;;' | expand -40
+	make print-index
 </verb>
-The ``make describe'' will try to extract the one-line description from
-each port, and the ``sed'' will delete the extraneous output.  ``expand''
-just makes it a little more readable (sort of - you may want to season
-the output of this more to taste).
-
+This will print a summary of all ports in the tree.
 
 <sect1><heading>I've heard of a new checksum system. What is this for?</heading>
 
