@@ -22,7 +22,7 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: killall.1,v 1.4 1996/05/30 22:04:05 smpatel Exp $
+.\" $Id: killall.1,v 1.5 1996/08/23 00:56:12 mpp Exp $
 .\"
 .Dd June 25, 1995
 .Os FreeBSD 2.2 
@@ -132,15 +132,3 @@ The program has been contributed by Wolfram Schneider, this manual
 page has been written by
 .if n Joerg Wunsch.
 .if t J\(:org Wunsch.
-
-.\" Fixed in FreeBSD-current, Feb 1996
-.\"
-.\" .Sh BUGS
-.\" Due to limitations in the current implementation of
-.\" .Xr procfs 5 ,
-.\" it is only possible to figure out the effective UID of a process.
-.\" Hence it is impossible to find processes that run setuid, thus a
-.\" regular user will not be able to use
-.\" .Nm
-.\" to send signals to such processes.
-
