@@ -227,7 +227,7 @@ writectl5(int pmc)
 			newval |= P5FLAG_USR << 16;
 		if (ctl_shadow[1] & (PMCF_OS << 16))
 			newval |= P5FLAG_OS << 16;
-		if (ctl_shadow[1] & (PMCF_E << 16))
+		if (!(ctl_shadow[1] & (PMCF_E << 16)))
 			newval |= P5FLAG_E << 16;
 		newval |= (ctl_shadow[1] & 0x3f) << 16;
 	}
@@ -236,7 +236,7 @@ writectl5(int pmc)
 			newval |= P5FLAG_USR;
 		if (ctl_shadow[0] & (PMCF_OS << 16))
 			newval |= P5FLAG_OS;
-		if (ctl_shadow[0] & (PMCF_E << 16))
+		if (!(ctl_shadow[0] & (PMCF_E << 16)))
 			newval |= P5FLAG_E;
 		newval |= ctl_shadow[0] & 0x3f;
 	}
