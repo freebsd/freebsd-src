@@ -53,7 +53,7 @@ static char sccsid[] = "@(#)mkdir.c	8.2 (Berkeley) 1/25/94";
 #include <string.h>
 #include <unistd.h>
 
-int	build __P((char *));
+int	build __P((char *, mode_t));
 void	usage __P((void));
 
 int
@@ -61,9 +61,9 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	int ch, exitval, oct, omode, pflag;
+	int ch, exitval, omode, pflag;
 	mode_t *set = (mode_t *)NULL;
-	char *ep, *mode;
+	char *mode;
 
 	omode = pflag = 0;
 	mode = NULL;
@@ -87,53 +87,49 @@ main(argc, argv)
 
 	if (mode == NULL) {
 		omode = S_IRWXU | S_IRWXG | S_IRWXO;
-		oct = 1;
-	} else if (*mode >= '0' && *mode <= '7') {
-		omode = (int)strtol(mode, &ep, 8);
-		if (omode < 0 || *ep)
-			errx(1, "invalid file mode: %s", mode);
-		oct = 1;
 	} else {
 		if ((set = setmode(mode)) == NULL)
 			errx(1, "invalid file mode: %s", mode);
-		oct = 0;
+		omode = getmode(set, S_IRWXU | S_IRWXG | S_IRWXO);
 	}
 
 	for (exitval = 0; *argv != NULL; ++argv) {
-		if (pflag && build(*argv)) {
-			exitval = 1;
+		if (pflag) {
+			if (build(*argv, omode))
+				exitval = 1;
 			continue;
 		}
-		if (mkdir(*argv, oct ?
-		    omode : getmode(set, S_IRWXU | S_IRWXG | S_IRWXO)) < 0) {
-			if (!pflag) {
-				warn("%s", *argv);
-				exitval = 1;
-			}
+		if (mkdir(*argv, omode) < 0) {
+			warn("%s", *argv);
+			exitval = 1;
 		}
 	}
 	exit(exitval);
 }
 
 int
-build(path)
+build(path, omode)
 	char *path;
+	mode_t omode;
 {
 	struct stat sb;
 	mode_t numask, oumask;
-	int first;
+	int first, last, retval;
 	char *p;
 
 	p = path;
 	oumask = 0;
+	retval = 0;
 	if (p[0] == '/')		/* Skip leading '/'. */
 		++p;
-	for (first = 1;; ++p) {
-		if (p[0] == '\0' || (p[0] == '/' && p[1] == '\0'))
-			break;
-		if (p[0] != '/')
+	for (first = 1, last = 0; !last ; ++p) {
+		if (p[0] == '\0')
+			last = 1;
+		else if (p[0] != '/')
 			continue;
 		*p = '\0';
+		if (p[1] == '\0')
+			last = 1;
 		if (first) {
 			/*
 			 * POSIX 1003.2:
@@ -152,18 +148,31 @@ build(path)
 			(void)umask(numask);
 			first = 0;
 		}
+		if (last)
+			(void)umask(oumask);
 		if (stat(path, &sb)) {
 			if (errno != ENOENT ||
-			    mkdir(path, S_IRWXU | S_IRWXG | S_IRWXO) < 0) {
+			    mkdir(path, last ? omode : 
+				  S_IRWXU | S_IRWXG | S_IRWXO) < 0) {
 				warn("%s", path);
-				return (1);
+				retval = 1;
+				break;
 			}
+		}
+		else if ((sb.st_mode & S_IFMT) != S_IFDIR) {
+			if (last)
+				errno = EEXIST;
+			else
+				errno = ENOTDIR;
+			warn("%s", path);
+			retval = 1;
+			break;
 		}
 		*p = '/';
 	}
-	if (!first)
+	if (!first && !last)
 		(void)umask(oumask);
-	return (0);
+	return (retval);
 }
 
 void
