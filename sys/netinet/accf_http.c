@@ -169,7 +169,7 @@ static void
 sohashttpget(struct socket *so, void *arg, int waitflag)
 {
 
-	if ((so->so_state & SS_CANTRCVMORE) == 0 || !sbfull(&so->so_rcv)) {
+	if ((so->so_state & SS_CANTRCVMORE) == 0 && !sbfull(&so->so_rcv)) {
 		struct mbuf *m;
 		char *cmp;
 		int	cmplen, cc;
