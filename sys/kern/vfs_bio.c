@@ -540,7 +540,6 @@ bufinit(void)
 		bp = &buf[i];
 		bzero(bp, sizeof *bp);
 		bp->b_flags = B_INVAL;	/* we're just an empty header */
-		bp->b_dev = NULL;
 		bp->b_rcred = NOCRED;
 		bp->b_wcred = NOCRED;
 		bp->b_qindex = QUEUE_EMPTY;
@@ -1422,7 +1421,6 @@ brelse(struct buf *bp)
 			bp->b_qindex = QUEUE_EMPTY;
 		}
 		TAILQ_INSERT_HEAD(&bufqueues[bp->b_qindex], bp, b_freelist);
-		bp->b_dev = NULL;
 	/* buffers with junk contents */
 	} else if (bp->b_flags & (B_INVAL | B_NOCACHE | B_RELBUF) ||
 	    (bp->b_ioflags & BIO_ERROR)) {
@@ -1432,7 +1430,6 @@ brelse(struct buf *bp)
 			panic("losing buffer 2");
 		bp->b_qindex = QUEUE_CLEAN;
 		TAILQ_INSERT_HEAD(&bufqueues[QUEUE_CLEAN], bp, b_freelist);
-		bp->b_dev = NULL;
 	/* remaining buffers */
 	} else {
 		if (bp->b_flags & B_DELWRI)
@@ -1925,7 +1922,6 @@ restart:
 		bp->b_ioflags = 0;
 		bp->b_xflags = 0;
 		bp->b_vflags = 0;
-		bp->b_dev = NULL;
 		bp->b_vp = NULL;
 		bp->b_blkno = bp->b_lblkno = 0;
 		bp->b_offset = NOOFFSET;
@@ -3873,10 +3869,9 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 	db_printf("b_flags = 0x%b\n", (u_int)bp->b_flags, PRINT_BUF_FLAGS);
 	db_printf(
 	    "b_error = %d, b_bufsize = %ld, b_bcount = %ld, b_resid = %ld\n"
-	    "b_dev = (%d,%d), b_data = %p, b_blkno = %jd\n",
+	    "b_bufobj = (%p), b_data = %p, b_blkno = %jd\n",
 	    bp->b_error, bp->b_bufsize, bp->b_bcount, bp->b_resid,
-	    major(bp->b_dev), minor(bp->b_dev), bp->b_data,
-	    (intmax_t)bp->b_blkno);
+	    bp->b_bufobj, bp->b_data, (intmax_t)bp->b_blkno);
 	if (bp->b_npages) {
 		int i;
 		db_printf("b_npages = %d, pages(OBJ, IDX, PA): ", bp->b_npages);

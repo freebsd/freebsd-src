@@ -1133,9 +1133,8 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 		cnt.v_intrans++;
 		if (msleep(mreq, &vm_page_queue_mtx, PSWP, "swread", hz*20)) {
 			printf(
-"swap_pager: indefinite wait buffer: device: %s, blkno: %jd, size: %ld\n",
-			    bp->b_dev == NULL ? "[NULL]" : devtoname(bp->b_dev),
-			    (intmax_t)bp->b_blkno, bp->b_bcount);
+"swap_pager: indefinite wait buffer: bufobj: %p, blkno: %jd, size: %ld\n",
+			    bp->b_bufobj, (intmax_t)bp->b_blkno, bp->b_bcount);
 		}
 	}
 	vm_page_unlock_queues();
@@ -2537,7 +2536,6 @@ swapdev_strategy(struct buf *bp, struct swdevt *sp)
 	int s;
 	struct vnode *vp2;
 
-	bp->b_dev = NULL;
 	bp->b_blkno = ctodb(bp->b_blkno - sp->sw_first);
 
 	vp2 = sp->sw_id;

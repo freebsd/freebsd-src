@@ -1378,7 +1378,6 @@ bgetvp(struct vnode *vp, struct buf *bp)
 	vholdl(vp);
 	bp->b_vp = vp;
 	bp->b_bufobj = &vp->v_bufobj;
-	bp->b_dev = vn_todev(vp);
 	/*
 	 * Insert onto list for new vnode.
 	 */
@@ -1699,7 +1698,6 @@ pbgetvp(vp, bp)
 
 	bp->b_vp = vp;
 	bp->b_flags |= B_PAGING;
-	bp->b_dev = vn_todev(vp);
 	bp->b_bufobj = &vp->v_bufobj;
 }
 

@@ -1110,7 +1110,6 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	/*
 	 * Get a copy of the kva from the physical buffer.
 	 */
-	bp->b_dev = vp->v_rdev;
 	error = 0;
 
 	bp->b_bcount = cb->aio_nbytes;
