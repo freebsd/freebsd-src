@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.101 1998/05/11 03:55:28 dyson Exp $
+ * $Id: vfs_syscalls.c,v 1.102 1998/06/07 17:11:47 dfr Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -84,11 +84,6 @@ static int setfown __P((struct proc *, struct vnode *, uid_t, gid_t));
 static int setfmode __P((struct proc *, struct vnode *, int));
 static int setfflags __P((struct proc *, struct vnode *, int));
 static int setutimes __P((struct proc *, struct vnode *, struct timeval *, int));
-	struct proc *p;
-	struct vnode *vp;
-	struct timeval *tv;
-	int nullflag;
-
 static int	usermount = 0;	/* if 1, non-root can mount fs. */
 
 SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0, "");
