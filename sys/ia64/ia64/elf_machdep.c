@@ -36,13 +36,57 @@
 #include <sys/linker.h>
 #include <machine/elf.h>
 
+Elf_Addr link_elf_get_gp(linker_file_t);
+
+extern Elf_Addr fptr_storage[];
+
+static Elf_Addr
+lookup_fdesc(linker_file_t lf, const char *sym)
+{
+	Elf_Addr addr;
+	int i;
+	static int eot = 0;
+
+	addr = (Elf_Addr)linker_file_lookup_symbol(lf, sym, 0);
+	if (addr == NULL) {
+		for (i = 0; i < lf->ndeps; i++) {
+			addr = lookup_fdesc(lf->deps[i], sym);
+			if (addr != NULL)
+				return (addr);
+		}
+		return (NULL);
+	}
+
+	if (eot)
+		return (NULL);
+
+	/*
+	 * Lookup and/or construct OPD
+	 */
+	for (i = 0; i < 8192; i += 2) {
+		if (fptr_storage[i] == addr)
+			return (Elf_Addr)(fptr_storage + i);
+
+		if (fptr_storage[i] == 0) {
+			fptr_storage[i] = addr;
+			fptr_storage[i+1] = link_elf_get_gp(lf);
+			return (Elf_Addr)(fptr_storage + i);
+		}
+	}
+
+	printf("%s: fptr table full\n", __func__);
+	eot = 1;
+
+	return (NULL);
+}
+
 /* Process one elf relocation with addend. */
 int
 elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
 {
-	Elf_Addr relocbase = (Elf_Addr) lf->address;
+	Elf_Addr relocbase = (Elf_Addr)lf->address;
 	Elf_Addr *where;
-	Elf_Addr addend;
+	Elf_Addr addend, addr;
 	Elf_Word rtype;
 	const Elf_Rel *rel;
 	const Elf_Rela *rela;
@@ -50,26 +94,70 @@ elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
 	switch (type) {
 	case ELF_RELOC_REL:
 		rel = (const Elf_Rel *)data;
-		where = (Elf_Addr *) (relocbase + rel->r_offset);
-		addend = *where;
+		where = (Elf_Addr *)(relocbase + rel->r_offset);
 		rtype = ELF_R_TYPE(rel->r_info);
+		switch (rtype) {
+		case R_IA64_DIR64LSB:
+		case R_IA64_FPTR64LSB:
+		case R_IA64_REL64LSB:
+			addend = *where;
+			break;
+		default:
+			addend = 0;
+			break;
+		}
 		break;
 	case ELF_RELOC_RELA:
 		rela = (const Elf_Rela *)data;
-		where = (Elf_Addr *) (relocbase + rela->r_offset);
-		addend = rela->r_addend;
+		where = (Elf_Addr *)(relocbase + rela->r_offset);
 		rtype = ELF_R_TYPE(rela->r_info);
+		addend = rela->r_addend;
 		break;
 	default:
-		panic("elf_reloc: unknown relocation mode %d\n", type);
+		panic("%s: invalid ELF relocation (0x%x)\n", __func__, type);
 	}
 
 	switch (rtype) {
-
-		default:
-			printf("kldload: unexpected relocation type %d\n",
-			       (int) rtype);
+	case R_IA64_NONE:
+		break;
+	case R_IA64_DIR64LSB:	/* word64 LSB	S + A */
+		if (sym == NULL)
 			return -1;
+		addr = (Elf_Addr)linker_file_lookup_symbol(lf, sym, 1);
+		if (addr == 0)
+			return -1;
+		*where = addr + addend;
+		break;
+	case R_IA64_FPTR64LSB:	/* word64 LSB	@fptr(S + A) */
+		if (sym == NULL)
+			return -1;
+		if (addend != 0) {
+			printf("%s: addend ignored for OPD relocation\n",
+			    __func__);
+		}
+		addr = lookup_fdesc(lf, sym);
+		if (addr == 0)
+			return -1;
+		*where = addr;
+		break;
+	case R_IA64_REL64LSB:	/* word64 LSB	BD + A */
+		*where = relocbase + addend;
+		break;
+	case R_IA64_IPLTLSB:
+		if (sym == NULL)
+			return -1;
+		/* lookup_fdesc() returns the address of the OPD. */
+		addr = lookup_fdesc(lf, sym);
+		if (addr == 0)
+			return -1;
+		where[0] = *((Elf_Addr*)addr) + addend;
+		where[1] = *((Elf_Addr*)addr + 1);
+		break;
+	default:
+		printf("%s: unknown relocation (0x%x)\n", __func__,
+		    (int)rtype);
+		return -1;
 	}
+
 	return(0);
 }
