@@ -594,7 +594,7 @@ int	sysctl_find_oid(int *name, u_int namelen, struct sysctl_oid **noid,
 __BEGIN_DECLS
 int	sysctl __P((int *, u_int, void *, size_t *, void *, size_t));
 int	sysctlbyname __P((const char *, void *, size_t *, void *, size_t));
-int	sysctlnametomib __P((const char *name, int *mibp, size_t *sizep));
+int	sysctlnametomib __P((const char *, int *, size_t *));
 __END_DECLS
 #endif	/* _KERNEL */
 
