@@ -1707,6 +1707,7 @@ scrn_update(scr_stat *scp, int show_cursor)
 	if ((scp->status & (MOUSE_MOVED | MOUSE_HIDDEN))
 	    || and_region(&s, &e, scp->start, scp->end)
 	    || ((scp->status & CURSOR_ENABLED) && 
+		(scp->cursor_pos != scp->cursor_oldpos) &&
 		(and_region(&s, &e, scp->cursor_pos, scp->cursor_pos)
 		 || and_region(&s, &e, scp->cursor_oldpos, scp->cursor_oldpos)))) {
 	    sc_remove_mouse_image(scp);
