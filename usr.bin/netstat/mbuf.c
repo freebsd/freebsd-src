@@ -104,7 +104,7 @@ mbpr(u_long mbaddr, u_long mbtaddr, u_long nmbcaddr, u_long nmbufaddr,
 {
 	int i, nmbufs, nmbclusters, page_size, num_objs;
 	u_int mbuf_limit, clust_limit;
-	u_long totspace, totnum, totfree;
+	u_long totspace[2], totused[2], totnum, totfree;
 	size_t mlen;
 	struct mbstat *mbstat = NULL;
 	struct mbpstat **mbpstat = NULL;
@@ -250,22 +250,22 @@ mbpr(u_long mbaddr, u_long mbtaddr, u_long nmbcaddr, u_long nmbufaddr,
 	    (mbpstat[GENLST]->mb_mbpgs * MBPERPG));
 	totnum = mbpstat[GENLST]->mb_mbpgs * MBPERPG;
 	totfree = mbpstat[GENLST]->mb_mbfree;
-	totspace = mbpstat[GENLST]->mb_mbpgs * page_size;
+	totspace[0] = mbpstat[GENLST]->mb_mbpgs * page_size;
 	for (i = 0; i < (num_objs - 1); i++) {
 		if (mbpstat[i]->mb_active == 0)
 			continue;
 		printf("\tCPU #%d list:\t%lu/%lu (in use/in pool)\n", i,
 		    (mbpstat[i]->mb_mbpgs * MBPERPG - mbpstat[i]->mb_mbfree),
 		    (mbpstat[i]->mb_mbpgs * MBPERPG));
-		totspace += mbpstat[i]->mb_mbpgs * page_size;
+		totspace[0] += mbpstat[i]->mb_mbpgs * page_size;
 		totnum += mbpstat[i]->mb_mbpgs * MBPERPG;
 		totfree += mbpstat[i]->mb_mbfree;
 	}
-	printf("\tTotal:\t\t%lu/%lu (in use/in pool)\n", (totnum - totfree),
-	    totnum);
+	totused[0] = totnum - totfree;
+	printf("\tTotal:\t\t%lu/%lu (in use/in pool)\n", totused[0], totnum);
 	printf("\tMaximum number allowed on each CPU list: %d\n", mbuf_limit);
 	printf("\tMaximum possible: %d\n", nmbufs);
-	printf("\t%lu%% of mbuf map consumed\n", ((totspace * 100) / (nmbufs
+	printf("\t%lu%% of mbuf map consumed\n", ((totspace[0] * 100) / (nmbufs
 	    * MSIZE)));
 
 	printf("mbuf cluster usage:\n");
@@ -274,24 +274,27 @@ mbpr(u_long mbaddr, u_long mbtaddr, u_long nmbcaddr, u_long nmbufaddr,
 	    (mbpstat[GENLST]->mb_clpgs * CLPERPG));
 	totnum = mbpstat[GENLST]->mb_clpgs * CLPERPG;
 	totfree = mbpstat[GENLST]->mb_clfree;
-	totspace = mbpstat[GENLST]->mb_clpgs * page_size;
+	totspace[1] = mbpstat[GENLST]->mb_clpgs * page_size;
 	for (i = 0; i < (num_objs - 1); i++) {
 		if (mbpstat[i]->mb_active == 0)
 			continue;
 		printf("\tCPU #%d list:\t%lu/%lu (in use/in pool)\n", i,
 		    (mbpstat[i]->mb_clpgs * CLPERPG - mbpstat[i]->mb_clfree),
 		    (mbpstat[i]->mb_clpgs * CLPERPG));
-		totspace += mbpstat[i]->mb_clpgs * page_size;
+		totspace[1] += mbpstat[i]->mb_clpgs * page_size;
 		totnum += mbpstat[i]->mb_clpgs * CLPERPG;
 		totfree += mbpstat[i]->mb_clfree;
 	}
-	printf("\tTotal:\t\t%lu/%lu (in use/in pool)\n", (totnum - totfree),
-	    totnum);
+	totused[1] = totnum - totfree;
+	printf("\tTotal:\t\t%lu/%lu (in use/in pool)\n", totused[1], totnum);
 	printf("\tMaximum number allowed on each CPU list: %d\n", clust_limit);
 	printf("\tMaximum possible: %d\n", nmbclusters);
-	printf("\t%lu%% of cluster map consumed\n", ((totspace * 100) /
+	printf("\t%lu%% of cluster map consumed\n", ((totspace[1] * 100) /
 	    (nmbclusters * MCLBYTES)));
 
+	printf("%lu KBytes of wired memory reserved (%lu%% in use)\n",
+	    (totspace[0] + totspace[1]) / 1024, ((totused[0] * MSIZE +
+	    totused[1] * MCLBYTES) * 100) / (totspace[0] + totspace[1]));
 	printf("%lu requests for memory denied\n", mbstat->m_drops);
 	printf("%lu requests for memory delayed\n", mbstat->m_wait);
 	printf("%lu calls to protocol drain routines\n", mbstat->m_drain);
