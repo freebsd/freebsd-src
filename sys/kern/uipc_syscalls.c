@@ -101,6 +101,40 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufsused, CTLFLAG_RD, &nsfbufsused, 0,
     "Number of sendfile(2) sf_bufs in use");
 
 /*
+ * Convert a user file descriptor to a kernel file entry.  A reference on the
+ * file entry is held upon returning.  This is lighter weight than
+ * fgetsock(), which bumps the socket reference drops the file reference
+ * count instead, as this approach avoids several additional mutex operations
+ * associated with the additional reference count.
+ */
+static int
+getsock(struct filedesc *fdp, int fd, struct file **fpp)
+{
+	struct file *fp;
+	int error;
+
+	fp = NULL;
+	if (fdp == NULL)
+		error = EBADF;
+	else {
+		FILEDESC_LOCK(fdp);
+		if ((u_int)fd >= fdp->fd_nfiles ||
+		    (fp = fdp->fd_ofiles[fd]) == NULL)
+			error = EBADF;
+		else if (fp->f_type != DTYPE_SOCKET) {
+			fp = NULL;
+			error = ENOTSOCK;
+		} else {
+			fhold(fp);
+			error = 0;
+		}
+		FILEDESC_UNLOCK(fdp);
+	}
+	*fpp = fp;
+	return (error);
+}
+
+/*
  * System call interface to the socket abstraction.
  */
 #if defined(COMPAT_43)
@@ -184,11 +218,14 @@ kern_bind(td, fd, sa)
 	struct sockaddr *sa;
 {
 	struct socket *so;
+	struct file *fp;
 	int error;
 
 	NET_LOCK_GIANT();
-	if ((error = fgetsock(td, fd, &so, NULL)) != 0)
+	error = getsock(td->td_proc->p_fd, fd, &fp);
+	if (error)
 		goto done2;
+	so = fp->f_data;
 #ifdef MAC
 	SOCK_LOCK(so);
 	error = mac_check_socket_bind(td->td_ucred, so, sa);
@@ -200,7 +237,7 @@ kern_bind(td, fd, sa)
 #ifdef MAC
 done1:
 #endif
-	fputsock(so);
+	fdrop(fp, td);
 done2:
 	NET_UNLOCK_GIANT();
 	FREE(sa, M_SONAME);
@@ -220,10 +257,13 @@ listen(td, uap)
 	} */ *uap;
 {
 	struct socket *so;
+	struct file *fp;
 	int error;
 
 	NET_LOCK_GIANT();
-	if ((error = fgetsock(td, uap->s, &so, NULL)) == 0) {
+	error = getsock(td->td_proc->p_fd, uap->s, &fp);
+	if (error == 0) {
+		so = fp->f_data;
 #ifdef MAC
 		SOCK_LOCK(so);
 		error = mac_check_socket_listen(td->td_ucred, so);
@@ -235,7 +275,7 @@ listen(td, uap)
 #ifdef MAC
 done:
 #endif
-		fputsock(so);
+		fdrop(fp, td);
 	}
 	NET_UNLOCK_GIANT();
 	return(error);
@@ -476,12 +516,15 @@ kern_connect(td, fd, sa)
 	struct sockaddr *sa;
 {
 	struct socket *so;
+	struct file *fp;
 	int error, s;
 	int interrupted = 0;
 
 	NET_LOCK_GIANT();
-	if ((error = fgetsock(td, fd, &so, NULL)) != 0)
+	error = getsock(td->td_proc->p_fd, fd, &fp);
+	if (error)
 		goto done2;
+	so = fp->f_data;
 	if (so->so_state & SS_ISCONNECTING) {
 		error = EALREADY;
 		goto done1;
@@ -523,7 +566,7 @@ bad:
 	if (error == ERESTART)
 		error = EINTR;
 done1:
-	fputsock(so);
+	fdrop(fp, td);
 done2:
 	NET_UNLOCK_GIANT();
 	FREE(sa, M_SONAME);
@@ -695,6 +738,7 @@ kern_sendit(td, s, mp, flags, control)
 	int flags;
 	struct mbuf *control;
 {
+	struct file *fp;
 	struct uio auio;
 	struct iovec *iov;
 	struct socket *so;
@@ -705,8 +749,10 @@ kern_sendit(td, s, mp, flags, control)
 #endif
 
 	NET_LOCK_GIANT();
-	if ((error = fgetsock(td, s, &so, NULL)) != 0)
+	error = getsock(td->td_proc->p_fd, s, &fp);
+	if (error)
 		goto bad2;
+	so = (struct socket *)fp->f_data;
 
 #ifdef MAC
 	SOCK_LOCK(so);
@@ -757,7 +803,7 @@ kern_sendit(td, s, mp, flags, control)
 	}
 #endif
 bad:
-	fputsock(so);
+	fdrop(fp, td);
 bad2:
 	NET_UNLOCK_GIANT();
 	return (error);
@@ -901,6 +947,7 @@ recvit(td, s, mp, namelenp)
 	int error;
 	struct mbuf *m, *control = 0;
 	caddr_t ctlbuf;
+	struct file *fp;
 	struct socket *so;
 	struct sockaddr *fromsa = 0;
 #ifdef KTRACE
@@ -908,17 +955,19 @@ recvit(td, s, mp, namelenp)
 #endif
 
 	NET_LOCK_GIANT();
-	if ((error = fgetsock(td, s, &so, NULL)) != 0) {
+	error = getsock(td->td_proc->p_fd, s, &fp);
+	if (error) {
 		NET_UNLOCK_GIANT();
 		return (error);
 	}
+	so = fp->f_data;
 
 #ifdef MAC
 	SOCK_LOCK(so);
 	error = mac_check_socket_receive(td->td_ucred, so);
 	SOCK_UNLOCK(so);
 	if (error) {
-		fputsock(so);
+		fdrop(fp, td);
 		NET_UNLOCK_GIANT();
 		return (error);
 	}
@@ -934,7 +983,7 @@ recvit(td, s, mp, namelenp)
 	iov = mp->msg_iov;
 	for (i = 0; i < mp->msg_iovlen; i++, iov++) {
 		if ((auio.uio_resid += iov->iov_len) < 0) {
-			fputsock(so);
+			fdrop(fp, td);
 			NET_UNLOCK_GIANT();
 			return (EINVAL);
 		}
@@ -1035,7 +1084,7 @@ recvit(td, s, mp, namelenp)
 		mp->msg_controllen = ctlbuf - (caddr_t)mp->msg_control;
 	}
 out:
-	fputsock(so);
+	fdrop(fp, td);
 	NET_UNLOCK_GIANT();
 	if (fromsa)
 		FREE(fromsa, M_SONAME);
@@ -1216,15 +1265,18 @@ shutdown(td, uap)
 	} */ *uap;
 {
 	struct socket *so;
+	struct file *fp;
 	int error;
 
 	NET_LOCK_GIANT();
-	if ((error = fgetsock(td, uap->s, &so, NULL)) == 0) {
+	error = getsock(td->td_proc->p_fd, uap->s, &fp);
+	if (error == 0) {
+		so = fp->f_data;
 		error = soshutdown(so, uap->how);
-		fputsock(so);
+		fdrop(fp, td);
 	}
 	NET_UNLOCK_GIANT();
-	return(error);
+	return (error);
 }
 
 /*
@@ -1259,6 +1311,7 @@ kern_setsockopt(td, s, level, name, val, valseg, valsize)
 {
 	int error;
 	struct socket *so;
+	struct file *fp;
 	struct sockopt sopt;
 
 	if (val == NULL && valsize != 0)
@@ -1283,9 +1336,11 @@ kern_setsockopt(td, s, level, name, val, valseg, valsize)
 	}
 
 	NET_LOCK_GIANT();
-	if ((error = fgetsock(td, s, &so, NULL)) == 0) {
+	error = getsock(td->td_proc->p_fd, s, &fp);
+	if (error == 0) {
+		so = fp->f_data;
 		error = sosetopt(so, &sopt);
-		fputsock(so);
+		fdrop(fp, td);
 	}
 	NET_UNLOCK_GIANT();
 	return(error);
@@ -1339,6 +1394,7 @@ kern_getsockopt(td, s, level, name, val, valseg, valsize)
 {
 	int error;
 	struct  socket *so;
+	struct file *fp;
 	struct	sockopt sopt;
 
 	if (val == NULL)
@@ -1363,10 +1419,12 @@ kern_getsockopt(td, s, level, name, val, valseg, valsize)
 	}
 
 	NET_LOCK_GIANT();
-	if ((error = fgetsock(td, s, &so, NULL)) == 0) {
+	error = getsock(td->td_proc->p_fd, s, &fp);
+	if (error == 0) {
+		so = fp->f_data;
 		error = sogetopt(so, &sopt);
 		*valsize = sopt.sopt_valsize;
-		fputsock(so);
+		fdrop(fp, td);
 	}
 	NET_UNLOCK_GIANT();
 	return (error);
@@ -1390,12 +1448,15 @@ getsockname1(td, uap, compat)
 {
 	struct socket *so;
 	struct sockaddr *sa;
+	struct file *fp;
 	socklen_t len;
 	int error;
 
 	NET_LOCK_GIANT();
-	if ((error = fgetsock(td, uap->fdes, &so, NULL)) != 0)
+	error = getsock(td->td_proc->p_fd, uap->fdes, &fp);
+	if (error)
 		goto done2;
+	so = fp->f_data;
 	error = copyin(uap->alen, &len, sizeof (len));
 	if (error)
 		goto done1;
@@ -1425,7 +1486,7 @@ bad:
 	if (sa)
 		FREE(sa, M_SONAME);
 done1:
-	fputsock(so);
+	fdrop(fp, td);
 done2:
 	NET_UNLOCK_GIANT();
 	return (error);
@@ -1475,12 +1536,15 @@ getpeername1(td, uap, compat)
 {
 	struct socket *so;
 	struct sockaddr *sa;
+	struct file *fp;
 	socklen_t len;
 	int error;
 
 	NET_LOCK_GIANT();
-	if ((error = fgetsock(td, uap->fdes, &so, NULL)) != 0)
+	error = getsock(td->td_proc->p_fd, uap->fdes, &fp);
+	if (error)
 		goto done2;
+	so = fp->f_data;
 	if ((so->so_state & (SS_ISCONNECTED|SS_ISCONFIRMING)) == 0) {
 		error = ENOTCONN;
 		goto done1;
@@ -1515,7 +1579,7 @@ bad:
 	if (sa)
 		FREE(sa, M_SONAME);
 done1:
-	fputsock(so);
+	fdrop(fp, td);
 done2:
 	NET_UNLOCK_GIANT();
 	return (error);
