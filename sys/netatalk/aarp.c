@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Robert N. M. Watson
+ * Copyright (c) 2004-2005 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -82,13 +82,8 @@ static void at_aarpinput(struct ifnet *ifp, struct mbuf *m);
 #define AARPTAB_SIZE	(AARPTAB_BSIZ * AARPTAB_NB)
 static struct aarptab	aarptab[AARPTAB_SIZE];
 
-static struct mtx aarptab_mtx;
+struct mtx aarptab_mtx;
 MTX_SYSINIT(aarptab_mtx, &aarptab_mtx, "aarptab_mtx", MTX_DEF);
-
-#define	AARPTAB_LOCK()		mtx_lock(&aarptab_mtx)
-#define	AARPTAB_UNLOCK()	mtx_unlock(&aarptab_mtx)
-#define	AARPTAB_LOCK_ASSERT()	mtx_assert(&aarptab_mtx, MA_OWNED)
-#define	AARPTAB_UNLOCK_ASSERT()	mtx_assert(&aarptab_mtx, MA_NOTOWNED)
 
 #define AARPTAB_HASH(a) \
     ((((a).s_net << 8) + (a).s_node) % AARPTAB_NB)
@@ -418,7 +413,7 @@ at_aarpinput(struct ifnet *ifp, struct mbuf *m)
 	     * probed for the same address we'd like to use. Change the
 	     * address we're probing for.
 	     */
-	    untimeout(aarpprobe, ifp, aa->aa_ch);
+	    callout_stop(&aa->aa_callout);
 	    wakeup(aa);
 	    m_freem(m);
 	    return;
@@ -593,6 +588,7 @@ aarpprobe(void *arg)
      * interface with the same address as we're looking for. If the
      * net is phase 2, generate an 802.2 and SNAP header.
      */
+    AARPTAB_LOCK();
     for (aa = (struct at_ifaddr *)TAILQ_FIRST(&ifp->if_addrhead); aa;
 	    aa = (struct at_ifaddr *)aa->aa_ifa.ifa_link.tqe_next) {
 	if (AA_SAT(aa)->sat_family == AF_APPLETALK &&
@@ -601,6 +597,7 @@ aarpprobe(void *arg)
 	}
     }
     if (aa == NULL) {		/* serious error XXX */
+	AARPTAB_UNLOCK();
 	printf("aarpprobe why did this happen?!\n");
 	return;
     }
@@ -608,10 +605,12 @@ aarpprobe(void *arg)
     if (aa->aa_probcnt <= 0) {
 	aa->aa_flags &= ~AFA_PROBING;
 	wakeup(aa);
+	AARPTAB_UNLOCK();
 	return;
     } else {
-	aa->aa_ch = timeout(aarpprobe, (caddr_t)ifp, hz / 5);
+	callout_reset(&aa->aa_callout, hz / 5, aarpprobe, ifp);
     }
+    AARPTAB_UNLOCK();
 
     if ((m = m_gethdr(M_DONTWAIT, MT_DATA)) == NULL) {
 	return;

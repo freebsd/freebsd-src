@@ -35,6 +35,13 @@ extern int	aarpresolve	(struct ifnet *,
 					struct sockaddr_at *,
 					u_char *);
 extern int	at_broadcast	(struct sockaddr_at  *);
+
+extern struct mtx aarptab_mtx;
+
+#define	AARPTAB_LOCK()		mtx_lock(&aarptab_mtx)
+#define	AARPTAB_UNLOCK()	mtx_unlock(&aarptab_mtx)
+#define	AARPTAB_LOCK_ASSERT()	mtx_assert(&aarptab_mtx, MA_OWNED)
+#define	AARPTAB_UNLOCK_ASSERT()	mtx_assert(&aarptab_mtx, MA_NOTOWNED)
 #endif
 
 #ifdef _NETATALK_AARP_H_

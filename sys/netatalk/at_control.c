@@ -158,6 +158,7 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		if (aa == NULL) {
 			aa0 = malloc(sizeof(struct at_ifaddr), M_IFADDR,
 			    M_WAITOK | M_ZERO);
+			callout_init(&aa0->aa_callout, CALLOUT_MPSAFE);
 			if ((aa = at_ifaddr_list) != NULL) {
 				/*
 				 * Don't let the loopback be first, since the
@@ -517,10 +518,12 @@ at_ifinit(struct ifnet *ifp, struct at_ifaddr *aa, struct sockaddr_at *sat)
 				 * start off the probes as an asynchronous
 				 * activity.  though why wait 200mSec?
 				 */
-				aa->aa_ch = timeout(aarpprobe, (caddr_t)ifp,
-				    hz / 5);
-				if (tsleep(aa, PPAUSE|PCATCH, "at_ifinit",
-				    0)) {
+				AARPTAB_LOCK();
+				callout_reset(&aa->aa_callout, hz / 5,
+				    aarpprobe, ifp);
+				if (msleep(aa, &aarptab_mtx, PPAUSE|PCATCH,
+				    "at_ifinit", 0)) {
+					AARPTAB_UNLOCK();
 					/*
 					 * theoretically we shouldn't time
 					 * out here so if we returned with an
@@ -533,6 +536,7 @@ at_ifinit(struct ifnet *ifp, struct at_ifaddr *aa, struct sockaddr_at *sat)
 					aa->aa_lastnet = onr.nr_lastnet;
 					return (EINTR);
 				}
+				AARPTAB_UNLOCK();
 
 				/* 
 				 * The async activity should have woken us
