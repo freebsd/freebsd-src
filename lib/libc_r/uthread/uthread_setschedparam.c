@@ -43,14 +43,16 @@ pthread_setschedparam(pthread_t pthread, int policy,
 {
 	int old_prio, in_readyq = 0, ret = 0;
 
-	if ((param == NULL) || (param->sched_priority < PTHREAD_MIN_PRIORITY) ||
-	    (param->sched_priority > PTHREAD_MAX_PRIORITY) ||
-	    (policy < SCHED_FIFO) || (policy > SCHED_RR))
+	if ((param == NULL) || (policy < SCHED_FIFO) || (policy > SCHED_RR)) {
 		/* Return an invalid argument error: */
 		ret = EINVAL;
+	} else if ((param->sched_priority < PTHREAD_MIN_PRIORITY) ||
+	    (param->sched_priority > PTHREAD_MAX_PRIORITY)) {
+		/* Return an unsupported value error. */
+		ret = ENOTSUP;
 
 	/* Find the thread in the list of active threads: */
-	else if ((ret = _find_thread(pthread)) == 0) {
+	} else if ((ret = _find_thread(pthread)) == 0) {
 		/*
 		 * Defer signals to protect the scheduling queues from
 		 * access by the signal handler:

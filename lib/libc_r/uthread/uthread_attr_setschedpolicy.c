@@ -41,10 +41,11 @@ pthread_attr_setschedpolicy(pthread_attr_t *attr, int policy)
 {
 	int ret = 0;
 
-	if ((attr == NULL) || (*attr == NULL) || (policy < SCHED_FIFO) ||
-	    (policy > SCHED_RR))
+	if ((attr == NULL) || (*attr == NULL))
 		ret = EINVAL;
-	else
+	else if ((policy < SCHED_FIFO) || (policy > SCHED_RR)) {
+		ret = ENOTSUP;
+	} else
 		(*attr)->sched_policy = policy;
 
 	return(ret);
