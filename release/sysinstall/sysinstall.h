@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.61 1996/06/14 14:33:59 jkh Exp $
+ * $Id: sysinstall.h,v 1.62 1996/06/16 21:57:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -297,6 +297,7 @@ extern DMenu		MenuMBRType;		/* Type of MBR to write on the disk		*/
 extern DMenu		MenuConfigure;		/* Final configuration menu			*/
 extern DMenu		MenuDocumentation;	/* Documentation menu				*/
 extern DMenu		MenuFTPOptions;		/* FTP Installation options			*/
+extern DMenu		MenuIndex;		/* Index menu					*/
 extern DMenu		MenuOptions;		/* Installation options				*/
 extern DMenu		MenuOptionsLanguage;	/* Language options menu			*/
 extern DMenu		MenuMedia;		/* Media type menu				*/
