@@ -317,20 +317,16 @@ main(int argc, char *argv[])
 			msg("WARNING: %s\n",
 			    "should use -L when dumping live filesystems!");
 		} else {
-			struct ufs_args args;
-			char snapname[BUFSIZ];
+			char snapname[BUFSIZ], snapcmd[BUFSIZ];
 
-			snprintf(snapname, sizeof snapname, "%s/.dump_snapshot",
-			    mntpt);
-			args.fspec = snapname;
-			while (mount("ffs", mntpt,
-			    mntflags | MNT_UPDATE | MNT_SNAPSHOT,
-			    &args) < 0) {
-				if (errno == EEXIST && unlink(snapname) == 0)
-					continue;
+			snprintf(snapname, sizeof snapname,
+			    "%s/.snap/dump_snapshot", mntpt);
+			snprintf(snapcmd, sizeof snapcmd,
+			    "mksnap_ffs %s %s", mntpt, snapname);
+			unlink(snapname);
+			if (system(snapcmd) != 0)
 				errx(X_STARTUP, "Cannot create %s: %s\n",
 				    snapname, strerror(errno));
-			}
 			if ((diskfd = open(snapname, O_RDONLY)) < 0) {
 				unlink(snapname);
 				errx(X_STARTUP, "Cannot open %s: %s\n",
