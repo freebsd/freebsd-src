@@ -93,7 +93,7 @@ static int acpi_cmbat_units = 0;
 	default:							\
 		goto label;						\
 	}								\
-	dest[length-1] = '\0';						\
+	dest[sizeof(dest)-1] = '\0';					\
 } while(0)
 
 static void
