@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.57 1998/03/07 09:09:18 jkh Exp $
+ * $Id: config.c,v 1.51.2.58 1998/03/07 14:33:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -104,15 +104,7 @@ check_rootdev(Chunk **list, int n)
 static char *
 name_of(Chunk *c1)
 {
-    static char rootname[32];
-
-    /* Our boot blocks can't deal with root partitions on slices - need the compatbility name */
-    if (c1->type == part && c1->flags & CHUNK_IS_ROOT) {
-        sprintf(rootname, "%sa", c1->disk->name);
-        return rootname;
-    }
-    else
-        return c1->name;
+    return c1->name;
 }
 
 static char *
