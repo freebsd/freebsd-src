@@ -233,7 +233,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			cnf->groups[i++] = NULL;
 	}
 	if ((arg = getarg(args, 'k')) != NULL) {
-		if (stat(cnf->dotdir = arg->val, &st) == -1 || S_ISDIR(st.st_mode))
+		if (stat(cnf->dotdir = arg->val, &st) == -1 || !S_ISDIR(st.st_mode))
 			cmderr(EX_OSFILE, "skeleton `%s' is not a directory or does not exist\n", cnf->dotdir);
 	}
 	if ((arg = getarg(args, 's')) != NULL)
