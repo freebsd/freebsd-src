@@ -32,13 +32,12 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.14 1997/08/24 11:09:36 kato Exp $
+ *	$Id: microtime.s,v 1.15 1997/09/01 10:42:43 kato Exp $
  */
 
 #include "opt_cpu.h"
 
 #include <machine/asmacros.h>
-#include <machine/param.h>
 
 #include <i386/isa/icu.h>
 #ifdef PC98
