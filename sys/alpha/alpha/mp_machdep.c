@@ -55,31 +55,26 @@
 #define CHECKSTATE_SYS	1
 #define CHECKSTATE_INTR	2
 
-volatile u_int		stopped_cpus;
-volatile u_int		started_cpus;
-volatile u_int		checkstate_probed_cpus;
-volatile u_int		checkstate_need_ast;
-volatile u_int		checkstate_pending_ast;
-struct proc*		checkstate_curproc[MAXCPU];
-int			checkstate_cpustate[MAXCPU];
-u_long			checkstate_pc[MAXCPU];
-volatile u_int		resched_cpus;
+volatile u_int	stopped_cpus;
+volatile u_int	started_cpus;
+volatile u_int	checkstate_probed_cpus;
+volatile u_int	checkstate_need_ast;
+volatile u_int	checkstate_pending_ast;
+struct proc*	checkstate_curproc[MAXCPU];
+int		checkstate_cpustate[MAXCPU];
+u_long		checkstate_pc[MAXCPU];
+volatile u_int	resched_cpus;
 void (*cpustop_restartfunc) __P((void));
-int			mp_ncpus;
+int		mp_ncpus;
 
-int			smp_started;
-int			boot_cpu_id;
-u_int32_t		all_cpus;
+int		smp_started;
+int		boot_cpu_id;
+u_int32_t	all_cpus;
 
-static struct globaldata	*cpuno_to_globaldata[MAXCPU];
+static struct globaldata	*cpuid_to_globaldata[MAXCPU];
 
 int smp_active = 0;	/* are the APs allowed to run? */
 SYSCTL_INT(_machdep, OID_AUTO, smp_active, CTLFLAG_RW, &smp_active, 0, "");
-
-/* Is forwarding of a interrupt to the CPU holding the ISR lock enabled ? */
-int forward_irq_enabled = 1;
-SYSCTL_INT(_machdep, OID_AUTO, forward_irq_enabled, CTLFLAG_RW,
-	   &forward_irq_enabled, 0, "");
 
 /* Enable forwarding of a signal to a process running on a different CPU */
 static int forward_signal_enabled = 1;
@@ -96,10 +91,10 @@ SYSCTL_INT(_machdep, OID_AUTO, forward_roundrobin_enabled, CTLFLAG_RW,
  * Return 1 on failure.
  */
 static int
-smp_send_secondary_command(const char *command, int cpuno)
+smp_send_secondary_command(const char *command, int cpuid)
 {
-	u_int64_t mask = 1L << cpuno;
-	struct pcs *cpu = LOCATE_PCS(hwrpb, cpuno);
+	u_int64_t mask = 1L << cpuid;
+	struct pcs *cpu = LOCATE_PCS(hwrpb, cpuid);
 	int i, len;
 
 	/*
@@ -176,8 +171,8 @@ smp_init_secondary(void)
 	 * Add to mask.
 	 */
 	smp_started = 1;
-	if (PCPU_GET(cpuno) + 1 > mp_ncpus)
-		mp_ncpus = PCPU_GET(cpuno) + 1;
+	if (PCPU_GET(cpuid) + 1 > mp_ncpus)
+		mp_ncpus = PCPU_GET(cpuid) + 1;
 	spl0();
 	smp_ipi_all(0);
 
@@ -187,9 +182,9 @@ smp_init_secondary(void)
 extern void smp_init_secondary_glue(void);
 
 static int
-smp_start_secondary(int cpuno)
+smp_start_secondary(int cpuid)
 {
-	struct pcs *cpu = LOCATE_PCS(hwrpb, cpuno);
+	struct pcs *cpu = LOCATE_PCS(hwrpb, cpuid);
 	struct pcs *bootcpu = LOCATE_PCS(hwrpb, hwrpb->rpb_primary_cpu_id);
 	struct alpha_pcb *pcb = (struct alpha_pcb *) cpu->pcs_hwpcb;
 	struct globaldata *globaldata;
@@ -197,11 +192,11 @@ smp_start_secondary(int cpuno)
 	size_t sz;
 
 	if ((cpu->pcs_flags & PCS_PV) == 0) {
-		printf("smp_start_secondary: cpu %d PALcode invalid\n", cpuno);
+		printf("smp_start_secondary: cpu %d PALcode invalid\n", cpuid);
 		return 0;
 	}
 
-	printf("smp_start_secondary: starting cpu %d\n", cpuno);
+	printf("smp_start_secondary: starting cpu %d\n", cpuid);
 
 	sz = round_page(UPAGES * PAGE_SIZE);
 	globaldata = malloc(sz, M_TEMP, M_NOWAIT);
@@ -210,7 +205,7 @@ smp_start_secondary(int cpuno)
 		return 0;
 	}
 	
-	globaldata_init(globaldata, cpuno, sz);
+	globaldata_init(globaldata, cpuid, sz);
 
 	/*
 	 * Copy the idle pcb and setup the address to start executing.
@@ -239,7 +234,7 @@ smp_start_secondary(int cpuno)
 	/*
 	 * Fire it up and hope for the best.
 	 */
-	if (!smp_send_secondary_command("START\r\n", cpuno)) {
+	if (!smp_send_secondary_command("START\r\n", cpuid)) {
 		printf("smp_init_secondary: can't send START command\n");
 		free(globaldata, M_TEMP);
 		return 0;
@@ -262,34 +257,24 @@ smp_start_secondary(int cpuno)
 	 * It worked (I think).
 	 */
 	/* if (bootverbose) */
-		printf("smp_init_secondary: cpu %d started\n", cpuno);
+		printf("smp_init_secondary: cpu %d started\n", cpuid);
 
 	return 1;
 }
 
 /*
- * Initialise a struct globaldata.
+ * Register a struct globaldata.
  */
 void
-globaldata_init(struct globaldata *globaldata, int cpuno, size_t sz)
+globaldata_register(struct globaldata *globaldata)
 {
-	bzero(globaldata, sz);
-	globaldata->gd_idlepcbphys = vtophys((vm_offset_t) &globaldata->gd_idlepcb);
-	globaldata->gd_idlepcb.apcb_ksp = (u_int64_t)
-		((caddr_t) globaldata + sz - sizeof(struct trapframe));
-	globaldata->gd_idlepcb.apcb_ptbr = proc0.p_addr->u_pcb.pcb_hw.apcb_ptbr;
-	globaldata->gd_cpuno = cpuno;
-	globaldata->gd_other_cpus = all_cpus & ~(1 << cpuno);
-	globaldata->gd_next_asn = 0;
-	globaldata->gd_current_asngen = 1;
-	globaldata->gd_cpuid = cpuno;
-	cpuno_to_globaldata[cpuno] = globaldata;
+	cpuid_to_globaldata[globaldata->cpuid] = globaldata;
 }
 
 struct globaldata *
-globaldata_find(int cpuno)
+globaldata_find(int cpuid)
 {
-	return cpuno_to_globaldata[cpuno];
+	return cpuid_to_globaldata[cpuid];
 }
 
 /* Implementation of simplelocks */
@@ -384,18 +369,18 @@ void
 mp_start()
 {
 	int i;
-	int cpuno = PCPU_GET(cpuno);
+	int cpuid = PCPU_GET(cpuid);
 
 	init_locks();
 
-	if (cpuno + 1 > mp_ncpus)
-		mp_ncpus = cpuno + 1;
+	if (cpuid + 1 > mp_ncpus)
+		mp_ncpus = cpuid + 1;
 
-	all_cpus = 1<<cpuno;
+	all_cpus = 1<<cpuid;
 	for (i = 0; i < hwrpb->rpb_pcs_cnt; i++) {
 		struct pcs *pcsp;
 
-		if (i == cpuno)
+		if (i == cpuid)
 			continue;
 		pcsp = (struct pcs *)((char *)hwrpb + hwrpb->rpb_pcs_off +
 		    (i * hwrpb->rpb_pcs_size));
@@ -404,12 +389,12 @@ mp_start()
 			break;	/* only one for now */
 		}
 	}
-	PCPU_SET(other_cpus, all_cpus & ~(1<<cpuno));
+	PCPU_SET(other_cpus, all_cpus & ~(1<<cpuid));
 
 	for (i = 0; i < hwrpb->rpb_pcs_cnt; i++) {
 		struct pcs *pcsp;
 
-		if (i == cpuno)
+		if (i == cpuid)
 			continue;
 		pcsp = (struct pcs *)((char *)hwrpb + hwrpb->rpb_pcs_off +
 		    (i * hwrpb->rpb_pcs_size));
@@ -436,7 +421,7 @@ smp_invltlb()
             (u_quad_t)((prof)->pr_scale)) >> 16) & ~1)
 
 static void
-addugd_intr_forwarded(struct proc *p, int id, int *astmap)
+addupc_intr_forwarded(struct proc *p, int id, int *astmap)
 {
 	int i;
 	struct uprof *prof;
@@ -446,10 +431,10 @@ addugd_intr_forwarded(struct proc *p, int id, int *astmap)
 	prof = &p->p_stats->p_prof;
 	if (pc >= prof->pr_off &&
 	    (i = GD_TO_INDEX(pc, prof)) < prof->pr_size) {
-		if ((p->p_flag & P_OWEUPC) == 0) {
+		if ((p->p_sflag & PS_OWEUPC) == 0) {
 			prof->pr_addr = pc;
 			prof->pr_ticks = 1;
-			p->p_flag |= P_OWEUPC;
+			p->p_sflag |= PS_OWEUPC;
 		}
 		*astmap |= (1 << id);
 	}
@@ -472,10 +457,16 @@ forwarded_statclock(int id, int pscnt, int *astmap)
 	p = checkstate_curproc[id];
 	cpustate = checkstate_cpustate[id];
 
+	/* XXX */
+	if (p->p_ithd)
+		cpustate = CHECKSTATE_INTR;
+	else if (p == cpuid_to_globaldata[id]->gd_idleproc)
+		cpustate = CHECKSTATE_SYS;
+
 	switch (cpustate) {
 	case CHECKSTATE_USER:
-		if (p->p_flag & P_PROFIL)
-			addugd_intr_forwarded(p, id, astmap);
+		if (p->p_sflag & PS_PROFIL)
+			addupc_intr_forwarded(p, id, astmap);
 		if (pscnt > 1)
 			return;
 		p->p_uticks++;
@@ -487,7 +478,7 @@ forwarded_statclock(int id, int pscnt, int *astmap)
 	case CHECKSTATE_SYS:
 #ifdef GPROF
 		/*
-		 * Kernel statistics are just like addugd_intr, only easier.
+		 * Kernel statistics are just like addupc_intr, only easier.
 		 */
 		g = &_gmonparam;
 		if (g->state == GMON_PROF_ON) {
@@ -501,18 +492,17 @@ forwarded_statclock(int id, int pscnt, int *astmap)
 		if (pscnt > 1)
 			return;
 
-		if (!p)
+		p->p_sticks++;
+		if (p == cpuid_to_globaldata[id]->gd_idleproc)
 			cp_time[CP_IDLE]++;
-		else {
-			p->p_sticks++;
+		else
 			cp_time[CP_SYS]++;
-		}
 		break;
 	case CHECKSTATE_INTR:
 	default:
 #ifdef GPROF
 		/*
-		 * Kernel statistics are just like addugd_intr, only easier.
+		 * Kernel statistics are just like addupc_intr, only easier.
 		 */
 		g = &_gmonparam;
 		if (g->state == GMON_PROF_ON) {
@@ -525,25 +515,24 @@ forwarded_statclock(int id, int pscnt, int *astmap)
 #endif
 		if (pscnt > 1)
 			return;
-		if (p)
-			p->p_iticks++;
+		KASSERT(p != NULL, ("NULL process in interrupt state"));
+		p->p_iticks++;
 		cp_time[CP_INTR]++;
 	}
-	if (p != NULL) {
-		schedclock(p);
+
+	schedclock(p);
 		
-		/* Update resource usage integrals and maximums. */
-		if ((pstats = p->p_stats) != NULL &&
-		    (ru = &pstats->p_ru) != NULL &&
-		    (vm = p->p_vmspace) != NULL) {
-			ru->ru_ixrss += pgtok(vm->vm_tsize);
-			ru->ru_idrss += pgtok(vm->vm_dsize);
-			ru->ru_isrss += pgtok(vm->vm_ssize);
-			rss = pgtok(vmspace_resident_count(vm));
-			if (ru->ru_maxrss < rss)
-				ru->ru_maxrss = rss;
-        	}
-	}
+	/* Update resource usage integrals and maximums. */
+	if ((pstats = p->p_stats) != NULL &&
+	    (ru = &pstats->p_ru) != NULL &&
+	    (vm = p->p_vmspace) != NULL) {
+		ru->ru_ixrss += pgtok(vm->vm_tsize);
+		ru->ru_idrss += pgtok(vm->vm_dsize);
+		ru->ru_isrss += pgtok(vm->vm_ssize);
+		rss = pgtok(vmspace_resident_count(vm));
+		if (ru->ru_maxrss < rss)
+			ru->ru_maxrss = rss;
+       	}
 }
 
 #define BETTER_CLOCK_DIAGNOSTIC
@@ -686,12 +675,12 @@ forward_hardclock(int pscnt)
 			if (checkstate_cpustate[id] == CHECKSTATE_USER &&
 			    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value) &&
 			    itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0) {
-				psignal(p, SIGVTALRM);
+				p->p_sflag |= PS_ALRMPEND;
 				map |= (1 << id);
 			}
 			if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value) &&
 			    itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0) {
-				psignal(p, SIGPROF);
+				p->p_sflag |= PS_PROFPEND;
 				map |= (1 << id);
 			}
 		}
@@ -741,10 +730,14 @@ forward_signal(struct proc *p)
 		return;
 	if (!forward_signal_enabled)
 		return;
+	mtx_enter(&sched_lock, MTX_SPIN);
 	while (1) {
-		if (p->p_stat != SRUN)
+		if (p->p_stat != SRUN) {
+			mtx_exit(&sched_lock, MTX_SPIN);
 			return;
+		}
 		id = p->p_oncpu;
+		mtx_exit(&sched_lock, MTX_SPIN);
 		if (id == 0xff)
 			return;
 		map = (1<<id);
@@ -762,8 +755,11 @@ forward_signal(struct proc *p)
 				break;
 			}
 		}
-		if (id == p->p_oncpu)
+		mtx_enter(&sched_lock, MTX_SPIN);
+		if (id == p->p_oncpu) {
+			mtx_exit(&sched_lock, MTX_SPIN);
 			return;
+		}
 	}
 }
 
@@ -957,15 +953,15 @@ smp_ipi_selected(u_int32_t cpus, u_int64_t ipi)
 	CTR2(KTR_SMP, "smp_ipi_selected: cpus: %x ipi: %lx", cpus, ipi);
 	alpha_mb();
 	while (cpus) {
-		int cpuno = ffs(cpus) - 1;
-		cpus &= ~(1 << cpuno);
+		int cpuid = ffs(cpus) - 1;
+		cpus &= ~(1 << cpuid);
 
-		globaldata = cpuno_to_globaldata[cpuno];
+		globaldata = cpuid_to_globaldata[cpuid];
 		if (globaldata) {
 			atomic_set_64(&globaldata->gd_pending_ipis, ipi);
 			alpha_mb();
-			CTR1(KTR_SMP, "calling alpha_pal_wripir(%d)", cpuno);
-			alpha_pal_wripir(cpuno);
+			CTR1(KTR_SMP, "calling alpha_pal_wripir(%d)", cpuid);
+			alpha_pal_wripir(cpuid);
 		}
 	}
 }
@@ -994,7 +990,7 @@ smp_ipi_all_but_self(u_int64_t ipi)
 void
 smp_ipi_self(u_int64_t ipi)
 {
-	smp_ipi_selected(1 << PCPU_GET(cpuno), ipi);
+	smp_ipi_selected(1 << PCPU_GET(cpuid), ipi);
 }
 
 static u_int64_t
@@ -1024,7 +1020,9 @@ smp_handle_ipi(struct trapframe *frame)
 {
 	u_int64_t ipis = atomic_readandclear(PCPU_PTR(pending_ipis));
 	u_int64_t ipi;
-	int cpuno = PCPU_GET(cpuno);
+	int cpumask;
+
+	cpumask = 1 << PCPU_GET(cpuid);
 
 	CTR1(KTR_SMP, "smp_handle_ipi(), ipis=%lx", ipis);
 	while (ipis) {
@@ -1032,6 +1030,7 @@ smp_handle_ipi(struct trapframe *frame)
 		 * Find the lowest set bit.
 		 */
 		ipi = ipis & ~(ipis - 1);
+		ipis &= ~ipi;
 		switch (ipi) {
 		case IPI_INVLTLB:
 			break;
@@ -1043,8 +1042,8 @@ smp_handle_ipi(struct trapframe *frame)
 
 		case IPI_AST:
 			CTR0(KTR_SMP, "IPI_AST");
-			atomic_clear_int(&checkstate_need_ast, 1<<cpuno);
-			atomic_set_int(&checkstate_pending_ast, 1<<cpuno);
+			atomic_clear_int(&checkstate_need_ast, cpumask);
+			atomic_set_int(&checkstate_pending_ast, cpumask);
 			if (frame->tf_regs[FRAME_PS] & ALPHA_PSL_USERMODE)
 				ast(frame); /* XXX */
 			break;
@@ -1052,22 +1051,22 @@ smp_handle_ipi(struct trapframe *frame)
 		case IPI_CHECKSTATE:
 			CTR0(KTR_SMP, "IPI_CHECKSTATE");
 			if (frame->tf_regs[FRAME_PS] & ALPHA_PSL_USERMODE)
-				checkstate_cpustate[cpuno] = CHECKSTATE_USER;
+				checkstate_cpustate[cpuid] = CHECKSTATE_USER;
 			else if (curproc->p_intr_nesting_level == 1)
-				checkstate_cpustate[cpuno] = CHECKSTATE_SYS;
+				checkstate_cpustate[cpuid] = CHECKSTATE_SYS;
 			else
-				checkstate_cpustate[cpuno] = CHECKSTATE_INTR;
-			checkstate_curproc[cpuno] = PCPU_GET(curproc);
-			atomic_set_int(&checkstate_probed_cpus, 1<<cpuno);
+				checkstate_cpustate[cpuid] = CHECKSTATE_INTR;
+			checkstate_curproc[cpuid] = PCPU_GET(curproc);
+			atomic_set_int(&checkstate_probed_cpus, cpumask);
 			break;
 
 		case IPI_STOP:
 			CTR0(KTR_SMP, "IPI_STOP");
-			atomic_set_int(&stopped_cpus, 1<<cpuno);
-			while ((started_cpus & (1<<cpuno)) == 0)
+			atomic_set_int(&stopped_cpus, cpumask);
+			while ((started_cpus & cpumask) == 0)
 				alpha_mb();
-			atomic_clear_int(&started_cpus, 1<<cpuno);
-			atomic_clear_int(&stopped_cpus, 1<<cpuno);
+			atomic_clear_int(&started_cpus, cpumask);
+			atomic_clear_int(&stopped_cpus, cpumask);
 			break;
 		}
 	}
@@ -1075,7 +1074,7 @@ smp_handle_ipi(struct trapframe *frame)
 	/*
 	 * Drop console messages on the floor.
 	 */
-	if (PCPU_GET(cpuno) == hwrpb->rpb_primary_cpu_id
+	if (PCPU_GET(cpuid) == hwrpb->rpb_primary_cpu_id
 	    && hwrpb->rpb_txrdy != 0) {
 		hwrpb->rpb_txrdy = 0;
 		alpha_mb();
