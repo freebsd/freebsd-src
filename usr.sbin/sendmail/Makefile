@@ -36,7 +36,7 @@ CSTD?=	c89
 CFLAGS+= -I${SMDIR} -I${SENDMAIL_DIR}/include -I.
 CFLAGS+= ${DBMDEF} ${NIS} -DTCPWRAPPERS ${MAPS}
 
-.if !defined(NOINET6)
+.if !defined(NO_INET6)
 CFLAGS+= -DNETINET6
 .endif
 

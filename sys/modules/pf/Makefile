@@ -20,7 +20,7 @@ opt_inet.h:
 	echo "#define INET 1" > opt_inet.h
 
 opt_inet6.h:
-.if defined(NOINET6)
+.if defined(NO_INET6)
 	echo > opt_inet6.h
 .else
 	echo "#define INET6 1" > opt_inet6.h
