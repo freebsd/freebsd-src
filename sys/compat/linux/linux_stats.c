@@ -44,6 +44,8 @@
 #include <machine/../linux/linux_proto.h>
 #include <compat/linux/linux_util.h>
 
+#include <sys/sysctl.h>
+
 struct linux_newstat {
 #ifdef __alpha__
 	u_int	stat_dev;
@@ -112,6 +114,18 @@ newstat_copyout(struct stat *buf, void *ubuf)
 	tbuf.stat_ctime = buf->st_ctime;
 	tbuf.stat_blksize = buf->st_blksize;
 	tbuf.stat_blocks = buf->st_blocks;
+	if (tbuf.stat_mode & S_IFCHR &&
+		(umajor(buf->st_rdev) == 116 ||
+		 umajor(buf->st_rdev) == 13)) {
+
+		tbuf.stat_mode &= ~S_IFCHR;
+		tbuf.stat_mode |= S_IFBLK;
+
+		/* XXX this may not be quite right */
+		/* Map major number to 0 */
+		tbuf.stat_dev = uminor(buf->st_dev) & 0xf;
+		tbuf.stat_rdev = buf->st_rdev & 0xff;
+	}
 
 	return (copyout(&tbuf, ubuf, sizeof(tbuf)));
 }
