@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.17 1995/04/26 18:10:44 pst Exp $
+ * $Id: if.h,v 1.18 1995/05/30 08:07:59 rgrimes Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -78,16 +78,49 @@ struct	rtentry;
 struct	socket;
 struct	ether_header;
 #endif
-/*
- * Structure describing information about an interface
- * which may be of interest to management entities.
- */
+
+struct if_data {
+	/* generic interface information */
+	u_char	ifi_type;		/* ethernet, tokenring, etc */
+	u_char	ifi_physical;		/* e.g., AUI, Thinnet, 10base-T, etc */
+	u_char	ifi_addrlen;		/* media address length */
+	u_char	ifi_hdrlen;		/* media header length */
+	u_long	ifi_mtu;		/* maximum transmission unit */
+	u_long	ifi_metric;		/* routing metric (external only) */
+	u_long	ifi_baudrate;		/* linespeed */
+	/* volatile statistics */
+	u_long	ifi_ipackets;		/* packets received on interface */
+	u_long	ifi_ierrors;		/* input errors on interface */
+	u_long	ifi_opackets;		/* packets sent on interface */
+	u_long	ifi_oerrors;		/* output errors on interface */
+	u_long	ifi_collisions;		/* collisions on csma interfaces */
+	u_long	ifi_ibytes;		/* total number of octets received */
+	u_long	ifi_obytes;		/* total number of octets sent */
+	u_long	ifi_imcasts;		/* packets received via multicast */
+	u_long	ifi_omcasts;		/* packets sent via multicast */
+	u_long	ifi_iqdrops;		/* dropped on input, this interface */
+	u_long	ifi_noproto;		/* destined for unsupported protocol */
+	struct	timeval ifi_lastchange;	/* last updated */
+};
+
 /*
  * Structure defining a queue for a network interface.
  *
  * (Would like to call this struct ``if'', but C isn't PL/1.)
  */
 
+struct	ifqueue {
+	struct	mbuf *ifq_head;
+	struct	mbuf *ifq_tail;
+	int	ifq_len;
+	int	ifq_maxlen;
+	int	ifq_drops;
+};
+
+/*
+ * Structure describing information about an interface
+ * which may be of interest to management entities.
+ */
 struct ifnet {
 	char	*if_name;		/* name, e.g. ``en'' or ``lo'' */
 	struct	ifnet *if_next;		/* all struct ifnets are chained */
@@ -98,29 +131,7 @@ struct ifnet {
 	short	if_unit;		/* sub-unit for lower level driver */
 	short	if_timer;		/* time 'til if_watchdog called */
 	short	if_flags;		/* up/down, broadcast, etc. */
-	struct	if_data {
-/* generic interface information */
-		u_char	ifi_type;	/* ethernet, tokenring, etc */
-		u_char	ifi_physical; 	/* e.g., AUI, Thinnet, 10base-T, etc */
-		u_char	ifi_addrlen;	/* media address length */
-		u_char	ifi_hdrlen;	/* media header length */
-		u_long	ifi_mtu;	/* maximum transmission unit */
-		u_long	ifi_metric;	/* routing metric (external only) */
-		u_long	ifi_baudrate;	/* linespeed */
-/* volatile statistics */
-		u_long	ifi_ipackets;	/* packets received on interface */
-		u_long	ifi_ierrors;	/* input errors on interface */
-		u_long	ifi_opackets;	/* packets sent on interface */
-		u_long	ifi_oerrors;	/* output errors on interface */
-		u_long	ifi_collisions;	/* collisions on csma interfaces */
-		u_long	ifi_ibytes;	/* total number of octets received */
-		u_long	ifi_obytes;	/* total number of octets sent */
-		u_long	ifi_imcasts;	/* packets received via multicast */
-		u_long	ifi_omcasts;	/* packets sent via multicast */
-		u_long	ifi_iqdrops;	/* dropped on input, this interface */
-		u_long	ifi_noproto;	/* destined for unsupported protocol */
-		struct	timeval ifi_lastchange;/* last updated */
-	}	if_data;
+	struct	if_data if_data;
 /* procedure handles */
 	void	(*if_init)		/* init routine */
 		__P((int));
@@ -137,13 +148,7 @@ struct ifnet {
 		__P((int));		/* new autoconfig will permit removal */
 	void	(*if_watchdog)		/* timer routine */
 		__P((int));
-	struct	ifqueue {
-		struct	mbuf *ifq_head;
-		struct	mbuf *ifq_tail;
-		int	ifq_len;
-		int	ifq_maxlen;
-		int	ifq_drops;
-	} if_snd;			/* output queue */
+	struct	ifqueue if_snd;		/* output queue */
 };
 #define	if_mtu		if_data.ifi_mtu
 #define	if_type		if_data.ifi_type
