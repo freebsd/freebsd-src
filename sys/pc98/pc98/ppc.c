@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997, 1998 Nicolas Souchu
+ * Copyright (c) 1997-2000 Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,41 +30,98 @@
 
 #if NPPC > 0
 
+#include "opt_ppc.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
-
-#include <machine/clock.h>
-
+#include <sys/bus.h>
+#include <sys/malloc.h>
+  
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
+#include <machine/clock.h>
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <machine/vmparam.h>
+#include <sys/rman.h>
 
-#include <i386/isa/isa_device.h>
+#ifdef PC98
 #include <pc98/pc98/pc98.h>
+#else
+#include <isa/isareg.h>
+#endif
+#include <isa/isavar.h>
 
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/ppb_msq.h>
 
+#ifdef PC98
 #include <pc98/pc98/ppcreg.h>
+#else
+#include <i386/isa/ppcreg.h>
+#endif
 
-#include "opt_ppc.h"
+#include "ppbus_if.h"
 
 #define LOG_PPC(function, ppc, string) \
 		if (bootverbose) printf("%s: %s\n", function, string)
 
-static int	ppcprobe(struct isa_device *);
-static int	ppcattach(struct isa_device *);
 
-struct isa_driver ppcdriver = {
-	ppcprobe, ppcattach, "ppc"
+#define DEVTOSOFTC(dev) ((struct ppc_data *)device_get_softc(dev))
+  
+devclass_t ppc_devclass;
+
+static int ppc_probe(device_t dev);
+static int ppc_attach(device_t dev);
+static int ppc_read_ivar(device_t bus, device_t dev, int index, uintptr_t *val);
+
+static void ppc_reset_epp(device_t);
+static void ppc_ecp_sync(device_t);
+static void ppcintr(void *arg);
+
+static int ppc_exec_microseq(device_t, struct ppb_microseq **);
+static int ppc_setmode(device_t, int);
+
+static int ppc_read(device_t, char *, int, int);
+static int ppc_write(device_t, char *, int, int);
+
+static u_char ppc_io(device_t, int, u_char *, int, u_char);
+
+static int ppc_setup_intr(device_t, device_t, struct resource *, int,
+		void (*)(void *), void *, void **);
+static int ppc_teardown_intr(device_t, device_t, struct resource *, void *);
+
+static device_method_t ppc_methods[] = {
+	/* device interface */
+	DEVMETHOD(device_probe,         ppc_probe),
+	DEVMETHOD(device_attach,        ppc_attach),
+
+	/* bus interface */
+	DEVMETHOD(bus_read_ivar,	ppc_read_ivar),
+	DEVMETHOD(bus_setup_intr,	ppc_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	ppc_teardown_intr),
+	DEVMETHOD(bus_alloc_resource,   bus_generic_alloc_resource),
+
+	/* ppbus interface */
+	DEVMETHOD(ppbus_io,		ppc_io),
+	DEVMETHOD(ppbus_exec_microseq,	ppc_exec_microseq),
+	DEVMETHOD(ppbus_reset_epp,	ppc_reset_epp),
+	DEVMETHOD(ppbus_setmode,	ppc_setmode),
+	DEVMETHOD(ppbus_ecp_sync,	ppc_ecp_sync),
+	DEVMETHOD(ppbus_read,		ppc_read),
+	DEVMETHOD(ppbus_write,		ppc_write),
+
+        { 0, 0 }
+  };
+  
+static driver_t ppc_driver = {
+	"ppc",
+	ppc_methods,
+	sizeof(struct ppc_data),
 };
-
-static struct ppc_data *ppcdata[NPPC];
-static int nppc = 0;
-
-static char *ppc_types[] = {
+  
+static char *ppc_models[] = {
 	"SMC-like", "SMC FDC37C665GT", "SMC FDC37C666GT", "PC87332", "PC87306",
 	"82091AA", "Generic", "W83877F", "W83877AF", "Winbond", "PC87334", 0
 };
@@ -97,91 +154,13 @@ static char *ppc_epp_protocol[] = { " (EPP 1.9)", " (EPP 1.7)", 0 };
 #define	BIOS_MAX_PPC	4
 
 /*
- * All these functions are default actions for IN/OUT operations.
- * They may be redefined if needed.
- */
-static void ppc_outsb_epp(int unit, char *addr, int cnt) {
-	outsb(ppcdata[unit]->ppc_base + PPC_EPP_DATA, addr, cnt); }
-static void ppc_outsw_epp(int unit, char *addr, int cnt) {
-	outsw(ppcdata[unit]->ppc_base + PPC_EPP_DATA, addr, cnt); }
-static void ppc_outsl_epp(int unit, char *addr, int cnt) {
-	outsl(ppcdata[unit]->ppc_base + PPC_EPP_DATA, addr, cnt); }
-static void ppc_insb_epp(int unit, char *addr, int cnt) {
-	insb(ppcdata[unit]->ppc_base + PPC_EPP_DATA, addr, cnt); }
-static void ppc_insw_epp(int unit, char *addr, int cnt) {
-	insw(ppcdata[unit]->ppc_base + PPC_EPP_DATA, addr, cnt); }
-static void ppc_insl_epp(int unit, char *addr, int cnt) {
-	insl(ppcdata[unit]->ppc_base + PPC_EPP_DATA, addr, cnt); }
-
-static u_char ppc_rdtr(int unit) { return r_dtr(ppcdata[unit]); }
-static u_char ppc_rstr(int unit) { return r_str(ppcdata[unit]); }
-static u_char ppc_rctr(int unit) { return r_ctr(ppcdata[unit]); }
-static u_char ppc_repp_A(int unit) { return r_epp_A(ppcdata[unit]); }
-static u_char ppc_repp_D(int unit) { return r_epp_D(ppcdata[unit]); }
-static u_char ppc_recr(int unit) { return r_ecr(ppcdata[unit]); }
-static u_char ppc_rfifo(int unit) { return r_fifo(ppcdata[unit]); }
-
-static void ppc_wdtr(int unit, char byte) { w_dtr(ppcdata[unit], byte); }
-static void ppc_wstr(int unit, char byte) { w_str(ppcdata[unit], byte); }
-static void ppc_wctr(int unit, char byte) { w_ctr(ppcdata[unit], byte); }
-static void ppc_wepp_A(int unit, char byte) { w_epp_A(ppcdata[unit], byte); }
-static void ppc_wepp_D(int unit, char byte) { w_epp_D(ppcdata[unit], byte); }
-static void ppc_wecr(int unit, char byte) { w_ecr(ppcdata[unit], byte); }
-static void ppc_wfifo(int unit, char byte) { w_fifo(ppcdata[unit], byte); }
-
-static void ppc_reset_epp_timeout(int);
-static void ppc_ecp_sync(int);
-static ointhand2_t ppcintr;
-
-static int ppc_exec_microseq(int, struct ppb_microseq **);
-static int ppc_generic_setmode(int, int);
-static int ppc_smclike_setmode(int, int);
-
-static int ppc_read(int, char *, int, int);
-static int ppc_write(int, char *, int, int);
-
-static struct ppb_adapter ppc_smclike_adapter = {
-
-	0,	/* no intr handler, filled by chipset dependent code */
-
-	ppc_reset_epp_timeout, ppc_ecp_sync,
-
-	ppc_exec_microseq,
-
-	ppc_smclike_setmode, ppc_read, ppc_write,
-
-	ppc_outsb_epp, ppc_outsw_epp, ppc_outsl_epp,
-	ppc_insb_epp, ppc_insw_epp, ppc_insl_epp,
-
-	ppc_rdtr, ppc_rstr, ppc_rctr, ppc_repp_A, ppc_repp_D, ppc_recr, ppc_rfifo,
-	ppc_wdtr, ppc_wstr, ppc_wctr, ppc_wepp_A, ppc_wepp_D, ppc_wecr, ppc_wfifo
-};
-
-static struct ppb_adapter ppc_generic_adapter = {
-
-	0,	/* no intr handler, filled by chipset dependent code */
-
-	ppc_reset_epp_timeout, ppc_ecp_sync,
-
-	ppc_exec_microseq,
-
-	ppc_generic_setmode, ppc_read, ppc_write,
-
-	ppc_outsb_epp, ppc_outsw_epp, ppc_outsl_epp,
-	ppc_insb_epp, ppc_insw_epp, ppc_insl_epp,
-
-	ppc_rdtr, ppc_rstr, ppc_rctr, ppc_repp_A, ppc_repp_D, ppc_recr, ppc_rfifo,
-	ppc_wdtr, ppc_wstr, ppc_wctr, ppc_wepp_A, ppc_wepp_D, ppc_wecr, ppc_wfifo
-};
-
-/*
  * ppc_ecp_sync()		XXX
  */
 static void
-ppc_ecp_sync(int unit) {
+ppc_ecp_sync(device_t dev) {
 
-	struct ppc_data *ppc = ppcdata[unit];
 	int i, r;
+	struct ppc_data *ppc = DEVTOSOFTC(dev);
 
 	if (!(ppc->ppc_avm & PPB_ECP))
 		return;
@@ -198,7 +177,7 @@ ppc_ecp_sync(int unit) {
 	}
 
 	printf("ppc%d: ECP sync failed as data still " \
-		"present in FIFO.\n", unit);
+		"present in FIFO.\n", ppc->ppc_unit);
 
 	return;
 }
@@ -327,6 +306,121 @@ ppc_detect_port(struct ppc_data *ppc)
 }
 
 /*
+ * EPP timeout, according to the PC87332 manual
+ * Semantics of clearing EPP timeout bit.
+ * PC87332	- reading SPP_STR does it...
+ * SMC		- write 1 to EPP timeout bit			XXX
+ * Others	- (?) write 0 to EPP timeout bit
+ */
+static void
+ppc_reset_epp_timeout(struct ppc_data *ppc)
+{
+	register char r;
+
+	r = r_str(ppc);
+	w_str(ppc, r | 0x1);
+	w_str(ppc, r & 0xfe);
+
+	return;
+}
+
+static int
+ppc_check_epp_timeout(struct ppc_data *ppc)
+{
+	ppc_reset_epp_timeout(ppc);
+
+	return (!(r_str(ppc) & TIMEOUT));
+}
+
+/*
+ * Configure current operating mode
+ */
+static int
+ppc_generic_setmode(struct ppc_data *ppc, int mode)
+{
+	u_char ecr = 0;
+
+	/* check if mode is available */
+	if (mode && !(ppc->ppc_avm & mode))
+		return (EINVAL);
+
+	/* if ECP mode, configure ecr register */
+	if (ppc->ppc_avm & PPB_ECP) {
+		/* return to byte mode (keeping direction bit),
+		 * no interrupt, no DMA to be able to change to
+		 * ECP
+		 */
+		w_ecr(ppc, PPC_ECR_RESET);
+		ecr = PPC_DISABLE_INTR;
+
+		if (mode & PPB_EPP)
+			return (EINVAL);
+		else if (mode & PPB_ECP)
+			/* select ECP mode */
+			ecr |= PPC_ECR_ECP;
+		else if (mode & PPB_PS2)
+			/* select PS2 mode with ECP */
+			ecr |= PPC_ECR_PS2;
+		else
+			/* select COMPATIBLE/NIBBLE mode */
+			ecr |= PPC_ECR_STD;
+
+		w_ecr(ppc, ecr);
+	}
+
+	ppc->ppc_mode = mode;
+
+	return (0);
+}
+
+/*
+ * The ppc driver is free to choose options like FIFO or DMA
+ * if ECP mode is available.
+ *
+ * The 'RAW' option allows the upper drivers to force the ppc mode
+ * even with FIFO, DMA available.
+ */
+static int
+ppc_smclike_setmode(struct ppc_data *ppc, int mode)
+{
+	u_char ecr = 0;
+
+	/* check if mode is available */
+	if (mode && !(ppc->ppc_avm & mode))
+		return (EINVAL);
+
+	/* if ECP mode, configure ecr register */
+	if (ppc->ppc_avm & PPB_ECP) {
+		/* return to byte mode (keeping direction bit),
+		 * no interrupt, no DMA to be able to change to
+		 * ECP or EPP mode
+		 */
+		w_ecr(ppc, PPC_ECR_RESET);
+		ecr = PPC_DISABLE_INTR;
+
+		if (mode & PPB_EPP)
+			/* select EPP mode */
+			ecr |= PPC_ECR_EPP;
+		else if (mode & PPB_ECP)
+			/* select ECP mode */
+			ecr |= PPC_ECR_ECP;
+		else if (mode & PPB_PS2)
+			/* select PS2 mode with ECP */
+			ecr |= PPC_ECR_PS2;
+		else
+			/* select COMPATIBLE/NIBBLE mode */
+			ecr |= PPC_ECR_STD;
+
+		w_ecr(ppc, ecr);
+	}
+
+	ppc->ppc_mode = mode;
+
+	return (0);
+}
+
+#ifdef PPC_PROBE_CHIPSET
+/*
  * ppc_pc873xx_detect
  *
  * Probe for a Natsemi PC873xx-family part.
@@ -380,11 +474,11 @@ ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never for
 	outb(idport, PC873_SID);
 	val = inb(idport + 1);
 	if ((val & 0xf0) == 0x10) {
-	    ppc->ppc_type = NS_PC87332;
+	    ppc->ppc_model = NS_PC87332;
 	} else if ((val & 0xf8) == 0x70) {
-	    ppc->ppc_type = NS_PC87306;
+	    ppc->ppc_model = NS_PC87306;
 	} else if ((val & 0xf8) == 0x50) {
-	    ppc->ppc_type = NS_PC87334;
+	    ppc->ppc_model = NS_PC87334;
 	} else {
 	    if (bootverbose && (val != 0xff))
 		printf("PC873xx probe at 0x%x got unknown ID 0x%x\n", idport, val);
@@ -483,7 +577,7 @@ ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never for
 		else
 			ppc->ppc_epp = EPP_1_7;
 
-		if ((ppc->ppc_type == NS_PC87332) && bootverbose) {
+		if ((ppc->ppc_model == NS_PC87332) && bootverbose) {
 			outb(idport, PC873_PTR);
 			ptr = inb(idport + 1);
 			if (ptr & PC873_EPPRDIR)
@@ -538,7 +632,7 @@ ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never for
 				printf(", EPP1.9");
 
 			/* enable automatic direction turnover */
-			if (ppc->ppc_type == NS_PC87332) {
+			if (ppc->ppc_model == NS_PC87332) {
 				outb(idport, PC873_PTR);
 				ptr = inb(idport + 1);
 				ptr &= ~PC873_EPPRDIR;
@@ -580,20 +674,12 @@ ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never for
 	if (bootverbose)
 		printf("\n");
 
-	ppc->ppc_link.adapter = &ppc_generic_adapter;
-	ppc_generic_setmode(ppc->ppc_unit, chipset_mode);
+	ppc->ppc_type = PPC_TYPE_GENERIC;
+	ppc_generic_setmode(ppc, chipset_mode);
 
 	return(chipset_mode);
     }
     return(-1);
-}
-
-static int
-ppc_check_epp_timeout(struct ppc_data *ppc)
-{
-	ppc_reset_epp_timeout(ppc->ppc_unit);
-
-	return (!(r_str(ppc) & TIMEOUT));
 }
 
 /*
@@ -660,7 +746,7 @@ config:
 	if (port_address[(int)r] != ppc->ppc_base)
 		return (-1);
 
-	ppc->ppc_type = type;
+	ppc->ppc_model = type;
 
 	/*
 	 * CR1 and CR4 registers bits 3 and 0/1 for mode configuration
@@ -799,8 +885,8 @@ end_detect:
 	/* end config mode */
 	outb(csr, 0xaa);
 
-	ppc->ppc_link.adapter = &ppc_smclike_adapter;
-	ppc_smclike_setmode(ppc->ppc_unit, chipset_mode);
+	ppc->ppc_type = PPC_TYPE_SMCLIKE;
+	ppc_smclike_setmode(ppc, chipset_mode);
 
 	return (chipset_mode);
 }
@@ -865,15 +951,15 @@ found:
 
 	switch (inb(efdr) & WINB_CHIPID) {
 		case WINB_W83877F_ID:
-			ppc->ppc_type = WINB_W83877F;
+			ppc->ppc_model = WINB_W83877F;
 			break;
 
 		case WINB_W83877AF_ID:
-			ppc->ppc_type = WINB_W83877AF;
+			ppc->ppc_model = WINB_W83877AF;
 			break;
 
 		default:
-			ppc->ppc_type = WINB_UNKNOWN;
+			ppc->ppc_model = WINB_UNKNOWN;
 	}
 
 	if (bootverbose) {
@@ -897,7 +983,7 @@ found:
 		printf("ppc%d:", ppc->ppc_unit);
 	}
 
-	ppc->ppc_link.adapter = &ppc_generic_adapter;
+	ppc->ppc_type = PPC_TYPE_GENERIC;
 
 	if (!chipset_mode) {
 		/* autodetect mode */
@@ -939,7 +1025,7 @@ found:
 
 		case (WINB_PARALLEL | WINB_ECP_EPP):
 			ppc->ppc_avm |= PPB_ECP | PPB_EPP | PPB_SPP;
-			ppc->ppc_link.adapter = &ppc_smclike_adapter;
+			ppc->ppc_type = PPC_TYPE_SMCLIKE;
 
 			if (bootverbose)
 				printf(" ECP+EPP SPP");
@@ -965,7 +1051,7 @@ found:
 				if (bootverbose)
 					printf(" ECP+EPP");
 
-				ppc->ppc_link.adapter = &ppc_smclike_adapter;
+				ppc->ppc_type = PPC_TYPE_SMCLIKE;
 
 			} else {
 				outb(efdr, inb(efdr) | WINB_ECP);
@@ -987,10 +1073,18 @@ found:
 	/* exit configuration mode */
 	outb(efer, 0xaa);
 
-	ppc->ppc_link.adapter->setmode(ppc->ppc_unit, chipset_mode);
+	switch (ppc->ppc_type) {
+	case PPC_TYPE_SMCLIKE:
+		ppc_smclike_setmode(ppc, chipset_mode);
+		break;
+	default:
+		ppc_generic_setmode(ppc, chipset_mode);
+		break;
+	}
 
 	return (chipset_mode);
 }
+#endif
 
 /*
  * ppc_generic_detect
@@ -999,7 +1093,7 @@ static int
 ppc_generic_detect(struct ppc_data *ppc, int chipset_mode)
 {
 	/* default to generic */
-	ppc->ppc_link.adapter = &ppc_generic_adapter;
+	ppc->ppc_type = PPC_TYPE_GENERIC;
 
 	if (bootverbose)
 		printf("ppc%d:", ppc->ppc_unit);
@@ -1022,8 +1116,8 @@ ppc_generic_detect(struct ppc_data *ppc, int chipset_mode)
 
 			if (ppc->ppc_avm & PPB_ECP) {
 				/* SMC like chipset found */
-				ppc->ppc_type = SMC_LIKE;
-				ppc->ppc_link.adapter = &ppc_smclike_adapter;
+				ppc->ppc_model = SMC_LIKE;
+				ppc->ppc_type = PPC_TYPE_SMCLIKE;
 
 				if (bootverbose)
 					printf(" ECP+EPP");
@@ -1049,7 +1143,14 @@ ppc_generic_detect(struct ppc_data *ppc, int chipset_mode)
 	if (bootverbose)
 		printf("\n");
 
-	ppc->ppc_link.adapter->setmode(ppc->ppc_unit, chipset_mode);
+	switch (ppc->ppc_type) {
+	case PPC_TYPE_SMCLIKE:
+		ppc_smclike_setmode(ppc, chipset_mode);
+		break;
+	default:
+		ppc_generic_setmode(ppc, chipset_mode);
+		break;
+	}
 
 	return (chipset_mode);
 }
@@ -1062,6 +1163,7 @@ ppc_generic_detect(struct ppc_data *ppc, int chipset_mode)
 static int
 ppc_detect(struct ppc_data *ppc, int chipset_mode) {
 
+#ifdef PPC_PROBE_CHIPSET
 	int i, mode;
 
 	/* list of supported chipsets */
@@ -1072,6 +1174,7 @@ ppc_detect(struct ppc_data *ppc, int chipset_mode) {
 		ppc_generic_detect,
 		NULL
 	};
+#endif
 
 	/* if can't find the port and mode not forced return error */
 	if (!ppc_detect_port(ppc) && chipset_mode == 0)
@@ -1080,6 +1183,7 @@ ppc_detect(struct ppc_data *ppc, int chipset_mode) {
 	/* assume centronics compatible mode is supported */
 	ppc->ppc_avm = PPB_COMPATIBLE;
 
+#ifdef PPC_PROBE_CHIPSET
 	/* we have to differenciate available chipset modes,
 	 * chipset running modes and IEEE-1284 operating modes
 	 *
@@ -1088,9 +1192,11 @@ ppc_detect(struct ppc_data *ppc, int chipset_mode) {
 	if (ppc->ppc_flags & 0x40) {
 		if (bootverbose)
 			printf("ppc: chipset forced to generic\n");
+#endif
 
 		ppc->ppc_mode = ppc_generic_detect(ppc, chipset_mode);
 
+#ifdef PPC_PROBE_CHIPSET
 	} else {
 		for (i=0; chipset_detect[i] != NULL; i++) {
 			if ((mode = chipset_detect[i](ppc, chipset_mode)) != -1) {
@@ -1099,6 +1205,7 @@ ppc_detect(struct ppc_data *ppc, int chipset_mode) {
 			}
 		}
 	}
+#endif
 
 	/* configure/detect ECP FIFO */
 	if ((ppc->ppc_avm & PPB_ECP) && !(ppc->ppc_flags & 0x80))
@@ -1114,9 +1221,9 @@ ppc_detect(struct ppc_data *ppc, int chipset_mode) {
  * Microsequence mechanism is supposed to handle fast I/O operations.
  */
 static int
-ppc_exec_microseq(int unit, struct ppb_microseq **p_msq)
+ppc_exec_microseq(device_t dev, struct ppb_microseq **p_msq)
 {
-	struct ppc_data	*ppc = ppcdata[unit];
+	struct ppc_data *ppc = DEVTOSOFTC(dev);
 	struct ppb_microseq *mi;
 	char cc, *p;
 	int i, iter, len;
@@ -1325,9 +1432,10 @@ ppc_exec_microseq(int unit, struct ppb_microseq **p_msq)
 }
 
 static void
-ppcintr(int unit)
+ppcintr(void *arg)
 {
-	struct ppc_data *ppc = ppcdata[unit];
+	device_t dev = (device_t)arg;
+	struct ppc_data *ppc = (struct ppc_data *)device_get_softc(dev);
 	u_char ctr, ecr, str;
 
 	str = r_str(ppc);
@@ -1340,8 +1448,6 @@ ppcintr(int unit)
 
 	/* don't use ecp mode with IRQENABLE set */
 	if (ctr & IRQENABLE) {
-		/* call upper code */
-		ppb_intr(&ppc->ppc_link);
 		return;
 	}
 
@@ -1355,8 +1461,7 @@ ppcintr(int unit)
 			w_ecr(ppc, ecr | PPC_nFAULT_INTR);
 			ppc->ppc_irqstat &= ~PPC_IRQ_nFAULT;
 		} else {
-			/* call upper code */
-			ppb_intr(&ppc->ppc_link);
+			/* shall be handled by underlying layers XXX */
 			return;
 		}
 	}
@@ -1396,14 +1501,13 @@ ppcintr(int unit)
 
 		/* classic interrupt I/O */
 		ppc->ppc_irqstat &= ~PPC_IRQ_FIFO;
-
 	}
 
 	return;
 }
 
 static int
-ppc_read(int unit, char *buf, int len, int mode)
+ppc_read(device_t dev, char *buf, int len, int mode)
 {
 	return (EINVAL);
 }
@@ -1416,9 +1520,9 @@ ppc_read(int unit, char *buf, int len, int mode)
  * EINVAL is returned
  */
 static int
-ppc_write(int unit, char *buf, int len, int how)
+ppc_write(device_t dev, char *buf, int len, int how)
 {
-	struct ppc_data	*ppc = ppcdata[unit];
+	struct ppc_data *ppc = DEVTOSOFTC(dev);
 	char ecr, ecr_sav, ctr, ctr_sav;
 	int s, error = 0;
 	int spin;
@@ -1433,7 +1537,7 @@ ppc_write(int unit, char *buf, int len, int how)
 	/*
 	 * Send buffer with DMA, FIFO and interrupts
 	 */
-	if (ppc->ppc_avm & PPB_ECP) {
+	if ((ppc->ppc_avm & PPB_ECP) && (ppc->ppc_registered)) {
 
 	    if (ppc->ppc_dmachan >= 0) {
 
@@ -1567,120 +1671,43 @@ error:
 	return (error);
 }
 
-/*
- * Configure current operating mode
- */
-static int
-ppc_generic_setmode(int unit, int mode)
-{
-	struct ppc_data *ppc = ppcdata[unit];
-	u_char ecr = 0;
-
-	/* check if mode is available */
-	if (mode && !(ppc->ppc_avm & mode))
-		return (EINVAL);
-
-	/* if ECP mode, configure ecr register */
-	if (ppc->ppc_avm & PPB_ECP) {
-		/* return to byte mode (keeping direction bit),
-		 * no interrupt, no DMA to be able to change to
-		 * ECP
-		 */
-		w_ecr(ppc, PPC_ECR_RESET);
-		ecr = PPC_DISABLE_INTR;
-
-		if (mode & PPB_EPP)
-			return (EINVAL);
-		else if (mode & PPB_ECP)
-			/* select ECP mode */
-			ecr |= PPC_ECR_ECP;
-		else if (mode & PPB_PS2)
-			/* select PS2 mode with ECP */
-			ecr |= PPC_ECR_PS2;
-		else
-			/* select COMPATIBLE/NIBBLE mode */
-			ecr |= PPC_ECR_STD;
-
-		w_ecr(ppc, ecr);
-	}
-
-	ppc->ppc_mode = mode;
-
-	return (0);
-}
-
-/*
- * The ppc driver is free to choose options like FIFO or DMA
- * if ECP mode is available.
- *
- * The 'RAW' option allows the upper drivers to force the ppc mode
- * even with FIFO, DMA available.
- */
-int
-ppc_smclike_setmode(int unit, int mode)
-{
-	struct ppc_data *ppc = ppcdata[unit];
-	u_char ecr = 0;
-
-	/* check if mode is available */
-	if (mode && !(ppc->ppc_avm & mode))
-		return (EINVAL);
-
-	/* if ECP mode, configure ecr register */
-	if (ppc->ppc_avm & PPB_ECP) {
-		/* return to byte mode (keeping direction bit),
-		 * no interrupt, no DMA to be able to change to
-		 * ECP or EPP mode
-		 */
-		w_ecr(ppc, PPC_ECR_RESET);
-		ecr = PPC_DISABLE_INTR;
-
-		if (mode & PPB_EPP)
-			/* select EPP mode */
-			ecr |= PPC_ECR_EPP;
-		else if (mode & PPB_ECP)
-			/* select ECP mode */
-			ecr |= PPC_ECR_ECP;
-		else if (mode & PPB_PS2)
-			/* select PS2 mode with ECP */
-			ecr |= PPC_ECR_PS2;
-		else
-			/* select COMPATIBLE/NIBBLE mode */
-			ecr |= PPC_ECR_STD;
-
-		w_ecr(ppc, ecr);
-	}
-
-	ppc->ppc_mode = mode;
-
-	return (0);
-}
-
-/*
- * EPP timeout, according to the PC87332 manual
- * Semantics of clearing EPP timeout bit.
- * PC87332	- reading SPP_STR does it...
- * SMC		- write 1 to EPP timeout bit			XXX
- * Others	- (?) write 0 to EPP timeout bit
- */
 static void
-ppc_reset_epp_timeout(int unit)
+ppc_reset_epp(device_t dev)
 {
-	struct ppc_data *ppc = ppcdata[unit];
-	register char r;
-
-	r = r_str(ppc);
-	w_str(ppc, r | 0x1);
-	w_str(ppc, r & 0xfe);
+	struct ppc_data *ppc = DEVTOSOFTC(dev);
+	
+	ppc_reset_epp_timeout(ppc);
 
 	return;
 }
 
 static int
-ppcprobe(struct isa_device *dvp)
+ppc_setmode(device_t dev, int mode)
+{
+	struct ppc_data *ppc = DEVTOSOFTC(dev);
+
+	switch (ppc->ppc_type) {
+	case PPC_TYPE_SMCLIKE:
+		return (ppc_smclike_setmode(ppc, mode));
+		break;
+
+	case PPC_TYPE_GENERIC:
+	default:
+		return (ppc_generic_setmode(ppc, mode));
+		break;
+	}
+
+	/* not reached */
+	return (ENXIO);
+}
+
+static int
+ppc_probe(device_t dev)
 {
 	static short next_bios_ppc = 0;
 	struct ppc_data *ppc;
+	device_t parent;
+	int port;
 #ifdef PC98
 #define PC98_IEEE_1284_DISABLE 0x100
 #define PC98_IEEE_1284_PORT    0x140
@@ -1689,73 +1716,85 @@ ppcprobe(struct isa_device *dvp)
 	unsigned int tmp;
 #endif
 
-	/*
-	 * If port not specified, use bios list.
-	 */
-	if(dvp->id_iobase < 0) {
-#ifndef PC98
-		if((next_bios_ppc < BIOS_MAX_PPC) &&
-				(*(BIOS_PORTS+next_bios_ppc) != 0) ) {
-			dvp->id_iobase = *(BIOS_PORTS+next_bios_ppc++);
-			if (bootverbose)
-				printf("ppc: parallel port found at 0x%x\n",
-					dvp->id_iobase);
-		} else
-#else
-		if(next_bios_ppc == 0) {
-			/* Use default IEEE-1284 port of NEC PC-98x1 */
-			dvp->id_iobase = PC98_IEEE_1284_PORT;
-			next_bios_ppc += 1;
-			if (bootverbose)
-				printf("ppc: parallel port found at 0x%x\n",
-					dvp->id_iobase);
-		} else
-#endif
-			return (0);
-	}
+	/* If we are a PNP device, abort.  Otherwise we attach to *everthing* */
+	if (isa_get_logicalid(dev))
+                return ENXIO;
 
-	/*
-	 * Port was explicitly specified.
-	 * This allows probing of ports unknown to the BIOS.
-	 */
+	parent = device_get_parent(dev);
+
+	/* XXX shall be set after detection */
+	device_set_desc(dev, "Parallel port");
 
 	/*
 	 * Allocate the ppc_data structure.
 	 */
-	ppc = malloc(sizeof(struct ppc_data), M_DEVBUF, M_NOWAIT);
-	if (!ppc) {
-		printf("ppc: cannot malloc!\n");
-		goto error;
-	}
+	ppc = DEVTOSOFTC(dev);
 	bzero(ppc, sizeof(struct ppc_data));
 
-	ppc->ppc_base = dvp->id_iobase;
-	ppc->ppc_unit = dvp->id_unit;
-	ppc->ppc_type = GENERIC;
+	ppc->rid_irq = ppc->rid_drq = ppc->rid_ioport = 0;
+	ppc->res_irq = ppc->res_drq = ppc->res_ioport = 0;
 
-	/* store boot flags */
-	ppc->ppc_flags = dvp->id_flags;
+	/* retrieve ISA parameters */
+	BUS_READ_IVAR(parent, dev, ISA_IVAR_PORT, &port);
+
+	/*
+	 * If port not specified, use bios list.
+	 */
+	if (port < 0) {
+#ifndef PC98
+		if((next_bios_ppc < BIOS_MAX_PPC) &&
+				(*(BIOS_PORTS+next_bios_ppc) != 0) ) {
+			port = *(BIOS_PORTS+next_bios_ppc++);
+			if (bootverbose)
+			  device_printf(dev, "parallel port found at 0x%x\n",
+					port);
+		} else {
+			device_printf(dev, "parallel port not found.\n");
+			return ENXIO;
+		}
+#else
+		if (next_bios_ppc == 0) {
+			/* Use default IEEE-1284 port of NEC PC-98x1 */
+			port = PC98_IEEE_1284_PORT;
+			next_bios_ppc += 1;
+			if (bootverbose)
+				device_printf(dev, "parallel port found at 0x%x\n",
+				    port);
+		}
+#endif
+	}
+	ppc->ppc_base = port;
+
+	/* IO port is mandatory */
+	ppc->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,
+					     &ppc->rid_ioport, port, port,
+					     IO_LPTSIZE, RF_ACTIVE);
+	if (ppc->res_ioport == 0) {
+		device_printf(dev, "cannot reserve I/O port range\n");
+		goto error;
+	}
+
+	ppc->ppc_flags = device_get_flags(dev);
+
+	if (!(ppc->ppc_flags & 0x20)) {
+		ppc->res_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &ppc->rid_irq,
+						  0ul, ~0ul, 1, RF_SHAREABLE);
+		ppc->res_drq = bus_alloc_resource(dev, SYS_RES_DRQ, &ppc->rid_drq,
+						  0ul, ~0ul, 1, RF_ACTIVE);
+	}
+
+	if (ppc->res_irq)
+		BUS_READ_IVAR(parent, dev, ISA_IVAR_IRQ, &ppc->ppc_irq);
+	if (ppc->res_drq)
+		BUS_READ_IVAR(parent, dev, ISA_IVAR_DRQ, &ppc->ppc_dmachan);
+
+	ppc->ppc_unit = device_get_unit(dev);
+	ppc->ppc_model = GENERIC;
 
 	ppc->ppc_mode = PPB_COMPATIBLE;
-	ppc->ppc_epp = (dvp->id_flags & 0x10) >> 4;
+	ppc->ppc_epp = (ppc->ppc_flags & 0x10) >> 4;
 
-	/*
-	 * XXX Try and detect if interrupts are working
-	 */
-	if (!(dvp->id_flags & 0x20) && dvp->id_irq)
-		ppc->ppc_irq = ffs(dvp->id_irq) - 1;
-
-	ppc->ppc_dmachan = dvp->id_drq;
-
-	ppcdata[ppc->ppc_unit] = ppc;
-	nppc ++;
-
-	/*
-	 * Link the Parallel Port Chipset (adapter) to
-	 * the future ppbus. Default to a generic chipset
-	 */
-	ppc->ppc_link.adapter_unit = ppc->ppc_unit;
-	ppc->ppc_link.adapter = &ppc_generic_adapter;
+	ppc->ppc_type = PPC_TYPE_GENERIC;
 
 #ifdef PC98
 	/*
@@ -1763,7 +1802,7 @@ ppcprobe(struct isa_device *dvp)
 	 * for default IEEE-1284 port of NEC PC-98x1
 	 */
 	if ((ppc->ppc_base == PC98_IEEE_1284_PORT) &&
-			!(dvp->id_flags & PC98_IEEE_1284_DISABLE)) {
+			!(ppc->ppc_flags & PC98_IEEE_1284_DISABLE)) {
 		tmp = inb(ppc->ppc_base + PPC_1284_ENABLE);
 		pc98_ieee_mode = tmp;
 		if ((tmp & 0x10) == 0x10) {
@@ -1784,62 +1823,231 @@ ppcprobe(struct isa_device *dvp)
 	/*
 	 * Try to detect the chipset and its mode.
 	 */
-	if (ppc_detect(ppc, dvp->id_flags & 0xf))
+	if (ppc_detect(ppc, ppc->ppc_flags & 0xf))
 		goto error;
 
-	return (IO_LPTSIZE);
+	return (0);
 
 error:
 #ifdef PC98
 	if ((ppc->ppc_base == PC98_IEEE_1284_PORT) &&
-			!(dvp->id_flags & PC98_IEEE_1284_DISABLE)) {
+			!(ppc->ppc_flags & PC98_IEEE_1284_DISABLE)) {
 		outb(ppc->ppc_base + PPC_1284_ENABLE, pc98_ieee_mode);
 	}
 #endif
-	return (0);
+	if (ppc->res_irq != 0) {
+		bus_release_resource(dev, SYS_RES_IRQ, ppc->rid_irq,
+				     ppc->res_irq);
+	}
+	if (ppc->res_ioport != 0) {
+		bus_deactivate_resource(dev, SYS_RES_IOPORT, ppc->rid_ioport,
+					ppc->res_ioport);
+		bus_release_resource(dev, SYS_RES_IOPORT, ppc->rid_ioport,
+				     ppc->res_ioport);
+	}
+	if (ppc->res_drq != 0) {
+		bus_deactivate_resource(dev, SYS_RES_DRQ, ppc->rid_drq,
+					ppc->res_drq);
+		bus_release_resource(dev, SYS_RES_DRQ, ppc->rid_drq,
+				     ppc->res_drq);
+	}
+	return (ENXIO);
 }
 
 static int
-ppcattach(struct isa_device *isdp)
+ppc_attach(device_t dev)
 {
-	struct ppc_data *ppc = ppcdata[isdp->id_unit];
-	struct ppb_data *ppbus;
+	struct ppc_data *ppc = DEVTOSOFTC(dev);
 
-	printf("ppc%d: %s chipset (%s) in %s mode%s\n", ppc->ppc_unit,
-		ppc_types[ppc->ppc_type], ppc_avms[ppc->ppc_avm],
-		ppc_modes[ppc->ppc_mode], (PPB_IS_EPP(ppc->ppc_mode)) ?
-			ppc_epp_protocol[ppc->ppc_epp] : "");
+	device_t ppbus;
+	device_t parent = device_get_parent(dev);
 
+	device_printf(dev, "%s chipset (%s) in %s mode%s\n",
+		      ppc_models[ppc->ppc_model], ppc_avms[ppc->ppc_avm],
+		      ppc_modes[ppc->ppc_mode], (PPB_IS_EPP(ppc->ppc_mode)) ?
+		      ppc_epp_protocol[ppc->ppc_epp] : "");
+	
 	if (ppc->ppc_fifo)
-		printf("ppc%d: FIFO with %d/%d/%d bytes threshold\n",
-			ppc->ppc_unit, ppc->ppc_fifo, ppc->ppc_wthr,
-			ppc->ppc_rthr);
-
-	isdp->id_ointr = ppcintr;
-
-	/*
-	 * Prepare ppbus data area for upper level code.
-	 */
-	ppbus = ppb_alloc_bus();
-
-	if (!ppbus)
-		return (0);
-
-	ppc->ppc_link.ppbus = ppbus;
-	ppbus->ppb_link = &ppc->ppc_link;
+		device_printf(dev, "FIFO with %d/%d/%d bytes threshold\n",
+			      ppc->ppc_fifo, ppc->ppc_wthr, ppc->ppc_rthr);
 
 	if ((ppc->ppc_avm & PPB_ECP) && (ppc->ppc_dmachan > 0)) {
-
-		/* acquire the DMA channel forever */
+		/* acquire the DMA channel forever */	/* XXX */
 		isa_dma_acquire(ppc->ppc_dmachan);
-		isa_dmainit(ppc->ppc_dmachan, 1024);	/* nlpt.BUFSIZE */
+		isa_dmainit(ppc->ppc_dmachan, 1024); /* nlpt.BUFSIZE */
 	}
+
+	/* add ppbus as a child of this isa to parallel bridge */
+	ppbus = device_add_child(dev, "ppbus", -1);
 
 	/*
 	 * Probe the ppbus and attach devices found.
 	 */
-	ppb_attachdevs(ppbus);
+	device_probe_and_attach(ppbus);
 
-	return (1);
+	/* register the ppc interrupt handler as default */
+	if (ppc->res_irq) {
+		/* default to the tty mask for registration */	/* XXX */
+		if (BUS_SETUP_INTR(parent, dev, ppc->res_irq, INTR_TYPE_TTY,
+					    ppcintr, dev, &ppc->intr_cookie) == 0) {
+
+			/* remember the ppcintr is registered */
+			ppc->ppc_registered = 1;
+		}
+	}
+
+	return (0);
 }
+
+static u_char
+ppc_io(device_t ppcdev, int iop, u_char *addr, int cnt, u_char byte)
+{
+	struct ppc_data *ppc = DEVTOSOFTC(ppcdev);
+	switch (iop) {
+	case PPB_OUTSB_EPP:
+		outsb(ppc->ppc_base + PPC_EPP_DATA, addr, cnt);
+		break;
+	case PPB_OUTSW_EPP:
+		outsw(ppc->ppc_base + PPC_EPP_DATA, addr, cnt);
+		break;
+	case PPB_OUTSL_EPP:
+		outsl(ppc->ppc_base + PPC_EPP_DATA, addr, cnt);
+		break;
+	case PPB_INSB_EPP:
+		insb(ppc->ppc_base + PPC_EPP_DATA, addr, cnt);
+		break;
+	case PPB_INSW_EPP:
+		insw(ppc->ppc_base + PPC_EPP_DATA, addr, cnt);
+		break;
+	case PPB_INSL_EPP:
+		insl(ppc->ppc_base + PPC_EPP_DATA, addr, cnt);
+		break;
+	case PPB_RDTR:
+		return (r_dtr(ppc));
+		break;
+	case PPB_RSTR:
+		return (r_str(ppc));
+		break;
+	case PPB_RCTR:
+		return (r_ctr(ppc));
+		break;
+	case PPB_REPP_A:
+		return (r_epp_A(ppc));
+		break;
+	case PPB_REPP_D:
+		return (r_epp_D(ppc));
+		break;
+	case PPB_RECR:
+		return (r_ecr(ppc));
+		break;
+	case PPB_RFIFO:
+		return (r_fifo(ppc));
+		break;
+	case PPB_WDTR:
+		w_dtr(ppc, byte);
+		break;
+	case PPB_WSTR:
+		w_str(ppc, byte);
+		break;
+	case PPB_WCTR:
+		w_ctr(ppc, byte);
+		break;
+	case PPB_WEPP_A:
+		w_epp_A(ppc, byte);
+		break;
+	case PPB_WEPP_D:
+		w_epp_D(ppc, byte);
+		break;
+	case PPB_WECR:
+		w_ecr(ppc, byte);
+		break;
+	case PPB_WFIFO:
+		w_fifo(ppc, byte);
+		break;
+	default:
+		panic("%s: unknown I/O operation", __FUNCTION__);
+		break;
+	}
+
+	return (0);	/* not significative */
+}
+
+static int
+ppc_read_ivar(device_t bus, device_t dev, int index, uintptr_t *val)
+{
+	struct ppc_data *ppc = (struct ppc_data *)device_get_softc(bus);
+
+	switch (index) {
+	case PPC_IVAR_EPP_PROTO:
+		*val = (u_long)ppc->ppc_epp;
+		break;
+	case PPC_IVAR_IRQ:
+		BUS_READ_IVAR(device_get_parent(bus), bus, ISA_IVAR_IRQ, val);
+		break;
+	default:
+		return (ENOENT);
+	}
+
+	return (0);
+}
+
+/*
+ * Resource is useless here since ppbus devices' interrupt handlers are
+ * multiplexed to the same resource initially allocated by ppc
+ */
+static int
+ppc_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
+			void (*ihand)(void *), void *arg, void **cookiep)
+{
+	int error;
+	struct ppc_data *ppc = DEVTOSOFTC(bus);
+
+	if (ppc->ppc_registered) {
+		/* XXX refuse registration if DMA is in progress */
+
+		/* first, unregister the default interrupt handler */
+		if ((error = BUS_TEARDOWN_INTR(device_get_parent(bus),
+				bus, ppc->res_irq, ppc->intr_cookie)))
+			return (error);
+
+/* 		bus_deactivate_resource(bus, SYS_RES_IRQ, ppc->rid_irq, */
+/* 					ppc->res_irq); */
+
+		/* DMA/FIFO operation won't be possible anymore */
+		ppc->ppc_registered = 0;
+	}
+
+	/* pass registration to the upper layer, ignore the incoming resource */
+	return (BUS_SETUP_INTR(device_get_parent(bus), child,
+			       r, flags, ihand, arg, cookiep));
+}
+
+/*
+ * When no underlying device has a registered interrupt, register the ppc
+ * layer one
+ */
+static int
+ppc_teardown_intr(device_t bus, device_t child, struct resource *r, void *ih)
+{
+	int error;
+	struct ppc_data *ppc = DEVTOSOFTC(bus);
+	device_t parent = device_get_parent(bus);
+
+	/* pass unregistration to the upper layer */
+	if ((error = BUS_TEARDOWN_INTR(parent, child, r, ih)))
+		return (error);
+
+	/* default to the tty mask for registration */		/* XXX */
+	if (ppc->ppc_irq &&
+		!(error = BUS_SETUP_INTR(parent, bus, ppc->res_irq,
+			INTR_TYPE_TTY, ppcintr, bus, &ppc->intr_cookie))) {
+
+		/* remember the ppcintr is registered */
+		ppc->ppc_registered = 1;
+	}
+
+	return (error);
+}
+
+DRIVER_MODULE(ppc, isa, ppc_driver, ppc_devclass, 0, 0);
 #endif
