@@ -207,8 +207,6 @@ typedef struct
     UINT8                   Data;
 } EC_REQUEST;
 
-static struct acpi_ec_softc	acpi_ec_default;	/* for the default EC handler */
-
 static void		EcGpeHandler(void *Context);
 static ACPI_STATUS	EcSpaceSetup(ACPI_HANDLE Region, UINT32 Function, 
 					   void *Context, void **return_Context);
