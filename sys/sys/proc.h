@@ -425,7 +425,6 @@ int	suser_xxx __P((struct ucred *cred, struct proc *proc, int flag));
 void	remrunqueue __P((struct proc *));
 void	cpu_switch __P((struct proc *));
 void	unsleep __P((struct proc *));
-void	wakeup_one __P((void *chan));
 
 void	cpu_exit __P((struct proc *)) __dead2;
 void	exit1 __P((struct proc *, int)) __dead2;
