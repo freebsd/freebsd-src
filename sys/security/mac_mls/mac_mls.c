@@ -96,11 +96,10 @@ SYSCTL_INT(_security_mac_mls, OID_AUTO, ptys_equal, CTLFLAG_RW,
     &ptys_equal, 0, "Label pty devices as mls/equal on create");
 TUNABLE_INT("security.mac.mls.ptys_equal", &ptys_equal);
 
-static int	mac_mls_revocation_enabled = 0;
+static int	revocation_enabled = 0;
 SYSCTL_INT(_security_mac_mls, OID_AUTO, revocation_enabled, CTLFLAG_RW,
-    &mac_mls_revocation_enabled, 0, "Revoke access to objects on relabel");
-TUNABLE_INT("security.mac.mls.revocation_enabled",
-    &mac_mls_revocation_enabled);
+    &revocation_enabled, 0, "Revoke access to objects on relabel");
+TUNABLE_INT("security.mac.mls.revocation_enabled", &revocation_enabled);
 
 static int	mac_mls_slot;
 #define	SLOT(l)	((struct mac_mls *)LABEL_TO_SLOT((l), mac_mls_slot).l_ptr)
@@ -1643,7 +1642,7 @@ mac_mls_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
 	 * Rely on the use of open()-time protections to handle
 	 * non-revocation cases.
 	 */
-	if (!mac_mls_enabled || !mac_mls_revocation_enabled)
+	if (!mac_mls_enabled || !revocation_enabled)
 		return (0);
 
 	subj = SLOT(&cred->cr_label);
@@ -1692,7 +1691,7 @@ mac_mls_check_vnode_poll(struct ucred *active_cred, struct ucred *file_cred,
 {
 	struct mac_mls *subj, *obj;
 
-	if (!mac_mls_enabled || !mac_mls_revocation_enabled)
+	if (!mac_mls_enabled || !revocation_enabled)
 		return (0);
 
 	subj = SLOT(&active_cred->cr_label);
@@ -1710,7 +1709,7 @@ mac_mls_check_vnode_read(struct ucred *active_cred, struct ucred *file_cred,
 {
 	struct mac_mls *subj, *obj;
 
-	if (!mac_mls_enabled || !mac_mls_revocation_enabled)
+	if (!mac_mls_enabled || !revocation_enabled)
 		return (0);
 
 	subj = SLOT(&active_cred->cr_label);
@@ -2013,7 +2012,7 @@ mac_mls_check_vnode_write(struct ucred *active_cred, struct ucred *file_cred,
 {
 	struct mac_mls *subj, *obj;
 
-	if (!mac_mls_enabled || !mac_mls_revocation_enabled)
+	if (!mac_mls_enabled || !revocation_enabled)
 		return (0);
 
 	subj = SLOT(&active_cred->cr_label);
