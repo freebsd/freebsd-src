@@ -145,7 +145,7 @@ SYSCTL_OPAQUE(_vfs_nfs, OID_AUTO, diskless_rootaddr, CTLFLAG_RD,
 void		nfsargs_ntoh(struct nfs_args *);
 static int	nfs_mountdiskless(char *, char *, int,
 		    struct sockaddr_in *, struct nfs_args *,
-		    struct thread *, struct vnode **, struct mount **);
+		    struct thread *, struct vnode **, struct mount *);
 static void	nfs_convert_diskless(void);
 static void	nfs_convert_oargs(struct nfs_args *args,
 		    struct onfs_args *oargs);
@@ -458,14 +458,11 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 		(l >>  8) & 0xff, (l >>  0) & 0xff, nd->root_hostnam);
 	printf("NFS ROOT: %s\n", buf);
 	if ((error = nfs_mountdiskless(buf, "/", MNT_RDONLY,
-	    &nd->root_saddr, &nd->root_args, td, &vp, &mp)) != 0) {
+	    &nd->root_saddr, &nd->root_args, td, &vp, mp)) != 0) {
 		return (error);
 	}
 
-	mp->mnt_flag |= MNT_ROOTFS;
-	mp->mnt_vnodecovered = NULLVP;
 	rootvp = vp;
-	vfs_unbusy(mp, td);
 
 	/*
 	 * This is not really an nfs issue, but it is much easier to
@@ -487,22 +484,10 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 static int
 nfs_mountdiskless(char *path, char *which, int mountflag,
     struct sockaddr_in *sin, struct nfs_args *args, struct thread *td,
-    struct vnode **vpp, struct mount **mpp)
+    struct vnode **vpp, struct mount *mp)
 {
-	struct mount *mp;
 	struct sockaddr *nam;
 	int error;
-	int didalloc = 0;
-
-	mp = *mpp;
-
-	if (mp == NULL) {
-		if ((error = vfs_rootmountalloc("nfs", path, &mp)) != 0) {
-			printf("nfs_mountroot: NFS not configured");
-			return (error);
-		}
-		didalloc = 1;
-	}
 
 	mp->mnt_kern_flag = 0;
 	mp->mnt_flag = mountflag;
@@ -510,15 +495,10 @@ nfs_mountdiskless(char *path, char *which, int mountflag,
 	if ((error = mountnfs(args, mp, nam, which, path, vpp,
 	    td->td_ucred)) != 0) {
 		printf("nfs_mountroot: mount %s on %s: %d", path, which, error);
-		mp->mnt_vfc->vfc_refcount--;
-		vfs_unbusy(mp, td);
-		if (didalloc)
-			free(mp, M_MOUNT);
 		FREE(nam, M_SONAME);
 		return (error);
 	}
 	(void) copystr(which, mp->mnt_stat.f_mntonname, MNAMELEN - 1, 0);
-	*mpp = mp;
 	return (0);
 }
 
