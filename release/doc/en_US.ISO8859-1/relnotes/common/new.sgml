@@ -1509,7 +1509,7 @@
     &man.logger.1; are now all IPv6-capable. &merged;</para>
 
     <para arch="i386"><filename>libdisk</filename> can now do
-    install-time configuration of the &arch; <filename>boot0</filename>
+    install-time configuration of the <filename>boot0</filename>
     boot loader. &merged;</para>
 
     <para>The <option>-v</option> option to &man.rm.1; now displays
