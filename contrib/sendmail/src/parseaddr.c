@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: parseaddr.c,v 8.359.2.3 2002/09/26 23:03:39 gshapiro Exp $")
+SM_RCSID("@(#)$Id: parseaddr.c,v 8.359.2.4 2003/01/18 00:41:48 gshapiro Exp $")
 
 static void	allocaddr __P((ADDRESS *, int, char *, ENVELOPE *));
 static int	callsubr __P((char**, int, ENVELOPE *));
@@ -2509,7 +2509,7 @@ remotename(name, m, flags, pstat, e)
 	if (bitset(RF_CANONICAL, flags) || bitnset(M_NOCOMMENT, m->m_flags))
 		fancy = "\201g";
 	else
-		fancy = crackaddr(name);
+		fancy = crackaddr(name, e);
 
 	/*
 	**  Turn the name into canonical form.

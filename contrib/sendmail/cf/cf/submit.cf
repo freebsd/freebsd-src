@@ -32,7 +32,7 @@
 #####  $Id: no_default_msa.m4,v 8.2 2001/02/14 05:03:22 gshapiro Exp $  #####
 
 
-#####  $Id: proto.m4,v 8.649.2.13 2002/12/04 00:12:18 ca Exp $  #####
+#####  $Id: proto.m4,v 8.649.2.14 2002/12/30 15:46:02 ca Exp $  #####
 
 # level 10 config file format
 V10/Berkeley
@@ -110,7 +110,7 @@ D{MTAHost}[127.0.0.1]
 
 
 # Configuration version number
-DZ8.12.7/Submit
+DZ8.12.8/Submit
 
 
 ###############

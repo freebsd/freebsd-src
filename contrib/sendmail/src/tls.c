@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: tls.c,v 8.79.4.1 2002/09/03 17:31:45 gshapiro Exp $")
+SM_RCSID("@(#)$Id: tls.c,v 8.79.4.2 2003/01/23 23:16:24 ca Exp $")
 
 #if STARTTLS
 #  include <openssl/err.h>
@@ -19,9 +19,6 @@ SM_RCSID("@(#)$Id: tls.c,v 8.79.4.1 2002/09/03 17:31:45 gshapiro Exp $")
 #  ifndef HASURANDOMDEV
 #   include <openssl/rand.h>
 #  endif /* ! HASURANDOMDEV */
-#  if SM_CONF_SHM
-#   include <sm/shm.h>
-#  endif /* SM_CONF_SHM */
 # if !TLS_NO_RSA
 static RSA *rsa_tmp = NULL;	/* temporary RSA key */
 static RSA *tmp_rsa_key __P((SSL *, int, int));

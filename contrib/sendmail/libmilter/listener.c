@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2002 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: listener.c,v 8.85.2.7 2002/12/10 04:02:25 ca Exp $")
+SM_RCSID("@(#)$Id: listener.c,v 8.85.2.9 2003/01/03 22:14:40 ca Exp $")
 
 /*
 **  listener.c -- threaded network listener
@@ -17,7 +17,6 @@ SM_RCSID("@(#)$Id: listener.c,v 8.85.2.7 2002/12/10 04:02:25 ca Exp $")
 
 #include "libmilter.h"
 #include <sm/errstring.h>
-#include <sm/fdset.h>
 
 
 # if NETINET || NETINET6
@@ -74,6 +73,7 @@ mi_opensocket(conn, backlog, dbg, smfi)
 		(void) smutex_unlock(&L_Mutex);
 		return MI_FAILURE;
 	}
+#if !_FFR_USE_POLL
 	if (!SM_FD_OK_SELECT(listenfd))
 	{
 		smi_log(SMI_LOG_ERR, "%s: fd %d is larger than FD_SETSIZE %d",
@@ -81,6 +81,7 @@ mi_opensocket(conn, backlog, dbg, smfi)
 		(void) smutex_unlock(&L_Mutex);
 		return MI_FAILURE;
 	}
+#endif /* !_FFR_USE_POLL */
 	return MI_SUCCESS;
 }
 
@@ -669,7 +670,7 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 	_SOCK_ADDR cliaddr;
 	SOCKADDR_LEN_T clilen;
 	SMFICTX_PTR ctx;
-	fd_set readset, excset;
+	FD_RD_VAR(rds, excs);
 	struct timeval chktime;
 
 	if (mi_opensocket(conn, backlog, dbg, smfi) == MI_FAILURE)
@@ -687,13 +688,10 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 		}
 
 		/* select on interface ports */
-		FD_ZERO(&readset);
-		FD_ZERO(&excset);
-		FD_SET((unsigned int) listenfd, &readset);
-		FD_SET((unsigned int) listenfd, &excset);
+		FD_RD_INIT(listenfd, rds, excs);
 		chktime.tv_sec = MI_CHK_TIME;
 		chktime.tv_usec = 0;
-		r = select(listenfd + 1, &readset, NULL, &excset, &chktime);
+		r = FD_RD_READY(listenfd, rds, excs, &chktime);
 		if (r == 0)		/* timeout */
 		{
 			(void) smutex_unlock(&L_Mutex);
@@ -718,14 +716,14 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 			}
 			continue;
 		}
-		if (!FD_ISSET(listenfd, &readset))
+		if (!FD_IS_RD_RDY(listenfd, rds, excs))
 		{
 			/* some error: just stop for now... */
 			ret = MI_FAILURE;
 			(void) smutex_unlock(&L_Mutex);
 			smi_log(SMI_LOG_ERR,
-				"%s: select() returned exception for socket, abort",
-				smfi->xxfi_name);
+				"%s: %s() returned exception for socket, abort",
+				smfi->xxfi_name, MI_POLLSELECT);
 			break;
 		}
 		scnt = 0;	/* reset error counter for select() */
@@ -754,6 +752,7 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 			save_errno = EINVAL;
 		}
 
+#if !_FFR_USE_POLL
 		/* check if acceptable for select() */
 		if (ValidSocket(connfd) && !SM_FD_OK_SELECT(connfd))
 		{
@@ -761,6 +760,7 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 			connfd = INVALID_SOCKET;
 			save_errno = ERANGE;
 		}
+#endif /* !_FFR_USE_POLL */
 
 		if (!ValidSocket(connfd))
 		{

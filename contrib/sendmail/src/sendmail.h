@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -48,7 +48,7 @@
 
 #ifdef _DEFINE
 # ifndef lint
-SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.919.2.15 2002/12/12 22:46:35 ca Exp $";
+SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.919.2.16 2003/01/18 00:41:50 gshapiro Exp $";
 # endif /* ! lint */
 #endif /* _DEFINE */
 
@@ -325,7 +325,7 @@ extern ADDRESS	NullAddress;	/* a null (template) address [main.c] */
 
 /* functions */
 extern void	cataddr __P((char **, char **, char *, int, int));
-extern char	*crackaddr __P((char *));
+extern char	*crackaddr __P((char *, ENVELOPE *));
 extern bool	emptyaddr __P((ADDRESS *));
 extern ADDRESS	*getctladdr __P((ADDRESS *));
 extern int	include __P((char *, bool, ADDRESS *, ADDRESS **, int, ENVELOPE *));
