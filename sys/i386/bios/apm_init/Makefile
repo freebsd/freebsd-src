@@ -1,7 +1,7 @@
 #
 # APM (Advanced Power Management) BIOS Device Driver
 #
-# Copyright (c) 1994-1995 by HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
+# Copyright (c) 1994-1995 by HOSOKAWA, Tatsumi <hosokawa@jp.FreeBSD.org>
 #
 # This software may be used, modified, copied, and distributed, in
 # both source and binary form provided that the above copyright and
@@ -12,7 +12,7 @@
 #
 # Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
 #
-#	$Id: Makefile,v 1.6 1997/02/22 09:29:51 peter Exp $
+#	$Id: Makefile,v 1.7 1997/03/09 16:46:04 kato Exp $
 #
 
 OBJS = apm_init.o real_prot.o table.o
