@@ -51,7 +51,6 @@
 #endif
 #endif
 #include <sys/malloc.h>
-#include <sys/proc.h>
 
 #include <machine/bus.h>
 
