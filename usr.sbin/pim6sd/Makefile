@@ -36,7 +36,8 @@ CLEANFILES+= lex.yy.c y.tab.h y.tab.c
 CFLAGS+= -g
 CFLAGS+=-DINET6 -DPIM -DIOCTL_OK_ON_RAW_SOCKET -I${.OBJDIR}
 CFLAGS+=-DHAVE_STDARG_H
-LDADD+=	-ly -ll
+DPADD=	${LIBY} ${LIBL}
+LDADD=	-ly -ll
 
 MAN1=	pim6stat.1
 MAN5=	pim6sd.conf.5
