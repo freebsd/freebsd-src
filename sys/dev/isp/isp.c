@@ -113,7 +113,7 @@ isp_reset(isp)
 	struct ispsoftc *isp;
 {
 	mbreg_t mbs;
-	int loops, i, dodnld = 1;
+	int loops, i, touched, dodnld = 1;
 	char *revname;
 
 	isp->isp_state = ISP_NILSTATE;
@@ -138,7 +138,7 @@ isp_reset(isp)
 	 * case, we don't really use this yet, but we may in
 	 * the future.
 	 */
-	if (isp->isp_touched == 0) {
+	if ((touched = isp->isp_touched) == 0) {
 		/*
 		 * Just in case it was paused...
 		 */
@@ -576,6 +576,8 @@ again:
 	else
 		mbs.param[1] = 0x1000;
 	isp_mboxcmd(isp, &mbs);
+	/* give it a chance to start */
+	DELAY(500);
 
 	if (IS_SCSI(isp)) {
 		/*
@@ -636,6 +638,46 @@ again:
 		return;
 	}
 	isp->isp_state = ISP_RESETSTATE;
+
+	/*
+	 * Okay- now that we have new firmware running, we now (re)set our
+	 * notion of how many luns we support. This is somewhat tricky because
+	 * if we haven't loaded firmware, we don't have an easy way of telling
+	 * how many luns we support.
+	 *
+	 * We'll make a simplifying assumption- if we loaded firmware, we
+	 * are running with expanded lun firmware, otherwise not.
+	 *
+	 * Expanded lun firmware gives you 32 luns for SCSI cards and
+	 * 65536 luns for Fibre Channel cards.
+	 *
+	 * Because the lun is in a a different position in the Request Queue
+	 * Entry structure for Fibre Channel with expanded lun firmware, we
+	 * can only support one lun (lun zero) when we don't know what kind
+	 * of firmware we're running.
+	 *
+	 * Note that we only do this once (the first time thru isp_reset)
+	 * because we may be called again after firmware has been loaded once
+	 * and released.
+	 */
+	if (touched == 0) {
+		if (dodnld) {
+			if (IS_SCSI(isp)) {
+				isp->isp_maxluns = 32;
+			} else {
+				isp->isp_maxluns = 65536;
+			}
+		} else {
+			if (IS_SCSI(isp)) {
+				isp->isp_maxluns = 8;
+			} else {
+				PRINTF("%s: WARNING- cannot determine Expanded "
+				    "LUN capability- limiting to one LUN\n",
+				    isp->isp_name);
+				isp->isp_maxluns = 1;
+			}
+		}
+	}
 }
 
 /*
@@ -861,7 +903,7 @@ isp_scsi_channel_init(isp, channel)
 	 * Set current per-target parameters to a safe minimum.
 	 */
 	for (tgt = 0; tgt < MAX_TARGETS; tgt++) {
-		int maxlun, lun;
+		int lun;
 		u_int16_t sdf;
 
 		if (sdp->isp_devparam[tgt].dev_enable == 0) {
@@ -952,13 +994,7 @@ isp_scsi_channel_init(isp, channel)
 		 * seen yet.
 		 */
 		sdp->isp_devparam[tgt].cur_dflags &= ~DPARM_TQING;
-		if ((ISP_FW_REV(4, 55, 0) <= ISP_FW_REVX(isp->isp_fwrev) &&
-		    (ISP_FW_REV(5, 0, 0) > ISP_FW_REVX(isp->isp_fwrev))) ||
-		    (ISP_FW_REVX(isp->isp_fwrev) >= ISP_FW_REV(7, 55, 0)))
-			maxlun = 32;
-		else
-			maxlun = 8;
-		for (lun = 0; lun < maxlun; lun++) {
+		for (lun = 0; lun < isp->isp_maxluns; lun++) {
 			mbs.param[0] = MBOX_SET_DEV_QUEUE_PARAMS;
 			mbs.param[1] = (channel << 15) | (tgt << 8) | lun;
 			mbs.param[2] = sdp->isp_max_queue_depth;
@@ -2182,11 +2218,10 @@ ispscsicmd(xs)
 		reqp->req_lun_trn = XS_LUN(xs);
 		reqp->req_cdblen = XS_CDBLEN(xs);
 	} else {
-#ifdef	ISP2100_SCCLUN
-		t2reqp->req_scclun = XS_LUN(xs);
-#else
-		t2reqp->req_lun_trn = XS_LUN(xs);
-#endif
+		if (isp->isp_maxluns > 16)
+			t2reqp->req_scclun = XS_LUN(xs);
+		else
+			t2reqp->req_lun_trn = XS_LUN(xs);
 	}
 	MEMCPY(reqp->req_cdb, XS_CDBP(xs), XS_CDBLEN(xs));
 
@@ -2311,14 +2346,14 @@ isp_control(isp, ctl, arg)
 		bus = XS_CHANNEL(xs);
 		mbs.param[0] = MBOX_ABORT;
 		if (IS_FC(isp)) {
-#ifdef	ISP2100_SCCLUN
-			mbs.param[1] = XS_TGT(xs) << 8;
-			mbs.param[4] = 0;
-			mbs.param[5] = 0;
-			mbs.param[6] = XS_LUN(xs);
-#else
-			mbs.param[1] = XS_TGT(xs) << 8 | XS_LUN(xs);
-#endif
+			if (isp->isp_maxluns > 16) {
+				mbs.param[1] = XS_TGT(xs) << 8;
+				mbs.param[4] = 0;
+				mbs.param[5] = 0;
+				mbs.param[6] = XS_LUN(xs);
+			} else {
+				mbs.param[1] = XS_TGT(xs) << 8 | XS_LUN(xs);
+			}
 		} else {
 			mbs.param[1] =
 			    (bus << 15) | (XS_TGT(xs) << 8) | XS_LUN(xs);
@@ -2389,13 +2424,15 @@ isp_intr(arg)
 	isr = ISP_READ(isp, BIU_ISR);
 	sema = ISP_READ(isp, BIU_SEMA) & 0x1;
 	IDPRINTF(5, ("%s: isp_intr isr %x sem %x\n", isp->isp_name, isr, sema));
-	if (isr == 0) {
+	if (isr == 0 && sema == 0) {
 		return (0);
 	}
+#if	0
 	if (!INT_PENDING(isp, isr)) {
 		IDPRINTF(4, ("%s: isp_intr isr=%x\n", isp->isp_name, isr));
 		return (0);
 	}
+#endif
 	if (isp->isp_state != ISP_RUNSTATE) {
 		IDPRINTF(3, ("%s: interrupt (isr=%x,sema=%x) when not ready\n",
 		    isp->isp_name, isr, sema));
@@ -2419,10 +2456,12 @@ isp_intr(arg)
 				isp_fastpost_complete(isp, fhandle);
 			}
 		}
-		ISP_WRITE(isp, BIU_SEMA, 0);
-		ISP_WRITE(isp, HCCR, HCCR_CMD_CLEAR_RISC_INT);
-		ENABLE_INTS(isp);
-		return (1);
+		if (IS_FC(isp)) {
+			ISP_WRITE(isp, BIU_SEMA, 0);
+			ISP_WRITE(isp, HCCR, HCCR_CMD_CLEAR_RISC_INT);
+			ENABLE_INTS(isp);
+			return (1);
+		}
 	}
 
 	/*
@@ -2430,10 +2469,13 @@ isp_intr(arg)
 	 */
 	optr = isp->isp_residx;
 	iptr = ISP_READ(isp, OUTMAILBOX5);
+	if (sema) {
+		ISP_WRITE(isp, BIU_SEMA, 0);
+	}
 	ISP_WRITE(isp, HCCR, HCCR_CMD_CLEAR_RISC_INT);
-	if (optr == iptr) {
-		IDPRINTF(4, ("why intr? isr %x iptr %x optr %x\n",
-		    isr, optr, iptr));
+	if (optr == iptr && sema == 0) {
+		IDPRINTF(1, ("%s: why intr? isr %x iptr %x optr %x\n",
+		    isp->isp_name, isr, optr, iptr));
 	}
 
 	while (optr != iptr) {
@@ -3371,8 +3413,7 @@ isp_mboxcmd(isp, mbp)
 	/*
 	 * Check for variants
 	 */
-#ifdef	ISP2100_SCCLUN
-	if (IS_FC(isp)) {
+	if (IS_FC(isp) && isp->isp_maxluns > 16) {
 		switch (mbp->param[0]) {
 		case MBOX_ABORT:
 			inparam = 7;
@@ -3392,7 +3433,6 @@ isp_mboxcmd(isp, mbp)
 			break;
 		}
 	}
-#endif
 
 command_known:
 
