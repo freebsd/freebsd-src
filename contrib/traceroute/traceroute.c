@@ -275,6 +275,7 @@ struct outdata {
 	u_char seq;		/* sequence number of this packet */
 	u_char ttl;		/* ttl packet left with */
 	struct timeval tv;	/* time packet left */
+	int    optlen;		/* length of ip options */
 };
 
 /* Descriptor structure for each outgoing protocol we support */
@@ -326,6 +327,7 @@ extern char *optarg;
 
 /* Forwards */
 double	deltaT(struct timeval *, struct timeval *);
+u_short	in_cksum(u_short *, int);
 char	*inetname(struct in_addr);
 int	main(int, char **);
 int	packet_ok(u_char *, int, struct sockaddr_in *, int);
@@ -350,6 +352,8 @@ void	gre_prep(struct outdata *);
 int	gre_check(const u_char *, int);
 void	gen_prep(struct outdata *);
 int	gen_check(const u_char *, int);
+void	icmp_prep(struct outdata *);
+int	icmp_check(const u_char *, int);
 
 /* List of supported protocols. The first one is the default. The last
    one is the handler for generic protocols not explicitly listed. */
@@ -377,6 +381,14 @@ struct	outproto protos[] = {
 		GRE_PPTP_PROTO,
 		gre_prep,
 		gre_check
+	},
+	{
+		"icmp",
+		IPPROTO_ICMP,
+		sizeof(struct icmp),
+		0,
+		icmp_prep,
+		icmp_check
 	},
 	{
 		NULL,
@@ -785,6 +797,7 @@ main(int argc, char **argv)
 			/* Prepare outgoing data */
 			outdata.seq = ++seq;
 			outdata.ttl = ttl;
+			outdata.optlen = optlen;
 
 			/* Avoid alignment problems by copying bytewise: */
 			(void)gettimeofday(&t1, &tz);
@@ -820,9 +833,21 @@ main(int argc, char **argv)
 #endif
 					precis = 3;
 				Printf("  %.*f ms", precis, T);
+				if (i == -2) {
+#ifdef ARCHAIC
+					ip = (struct ip *)packet;
+					if (ip->ip_ttl <= 1)
+						Printf(" !");
+#endif
+
+					++got_there;
+					break;
+				}
+
 				/* time exceeded in transit */
 				if (i == -1)
 					break;
+					
 				code = i - 1;
 				switch (code) {
 
@@ -1030,6 +1055,10 @@ packet_ok(register u_char *buf, int cc, register struct sockaddr_in *from,
 #endif
 	type = icp->icmp_type;
 	code = icp->icmp_code;
+	if (type == ICMP_ECHOREPLY
+	    && proto->num == IPPROTO_ICMP
+	    && (*proto->check)((u_char *)icp,seq))
+		return -2;
 	if ((type == ICMP_TIMXCEED && code == ICMP_TIMXCEED_INTRANS) ||
 	    type == ICMP_UNREACH) {
 		struct ip *hip;
@@ -1056,6 +1085,32 @@ packet_ok(register u_char *buf, int cc, register struct sockaddr_in *from,
 	}
 #endif
 	return(0);
+}
+
+void
+icmp_prep(struct outdata *outdata)
+{
+	struct icmp *const icmpheader = (struct icmp *) outprot;
+
+	icmpheader->icmp_type = ICMP_ECHO;
+	icmpheader->icmp_id = htons(ident);
+	icmpheader->icmp_seq = htons(outdata->seq);
+
+	icmpheader->icmp_cksum = 0;
+	icmpheader->icmp_cksum = in_cksum((u_short *)icmpheader,
+	    packlen - (sizeof(*outip) + outdata->optlen));
+	if (icmpheader->icmp_cksum == 0)
+		icmpheader->icmp_cksum = 0xffff;
+
+}
+
+int
+icmp_check(const u_char *data, int seq)
+{
+	struct icmp *const icmpheader = (struct icmp *) data;
+
+	return (icmpheader->icmp_id == htons(ident)
+	    && icmpheader->icmp_seq == htons(seq));
 }
 
 void
@@ -1157,11 +1212,10 @@ print(register u_char *buf, register int cc, register struct sockaddr_in *from)
 		Printf(" %d bytes to %s", cc, inet_ntoa (ip->ip_dst));
 }
 
-
-#ifdef notyet
 /*
  * Checksum routine for Internet Protocol family headers (C Version)
  */
+u_short
 in_cksum(register u_short *addr, register int len)
 {
 	register int nleft = len;
@@ -1192,7 +1246,6 @@ in_cksum(register u_short *addr, register int len)
 	answer = ~sum;				/* truncate to 16 bits */
 	return (answer);
 }
-#endif
 
 /*
  * Subtract 2 timeval structs:  out = out - in.
