@@ -27,6 +27,14 @@
  *	$FreeBSD$
  */
 
+/*
+ * The scheme for the driver version is:
+ * <major change>.<external release>.<3ware internal release>.<development release>
+ */
+#define TWE_DRIVER_VERSION_STRING	"1.50.00.000"
+#define TWE_CDEV_MAJOR			146
+#define TWED_CDEV_MAJOR			147
+
 #ifdef TWE_DEBUG
 #define debug(level, fmt, args...)							\
 	do {										\
@@ -51,7 +59,8 @@ struct twe_drive
     int			td_cylinders;
     int			td_heads;
     int			td_sectors;
-    int			td_unit;
+    int			td_sys_unit; /* device unit number */
+    int			td_twe_unit; /* index into sc->twe_drive[] */
 
     /* unit state and type */
     u_int8_t		td_state;
@@ -151,9 +160,9 @@ extern void	twe_print_controller(struct twe_softc *sc);
 extern void	twe_enable_interrupts(struct twe_softc *sc);	/* enable controller interrupts */
 extern void	twe_disable_interrupts(struct twe_softc *sc);	/* disable controller interrupts */
 
-extern void	twe_attach_drive(struct twe_softc *sc,
+extern int	twe_attach_drive(struct twe_softc *sc,
 					 struct twe_drive *dr); /* attach drive when found in twe_init */
-extern void	twe_detach_drive(struct twe_softc *sc,
+extern int	twe_detach_drive(struct twe_softc *sc,
 					 int unit);		/* detach drive */
 extern void	twe_clear_pci_parity_error(struct twe_softc *sc);
 extern void	twe_clear_pci_abort(struct twe_softc *sc);
@@ -175,11 +184,20 @@ extern void	twe_unmap_request(struct twe_request *tr);	/* cleanup after transfer
 		qs->q_max = qs->q_length;			\
 	} while(0)
 
-#define TWEQ_REMOVE(sc, qname)    (sc)->twe_qstat[qname].q_length--
-#define TWEQ_INIT(sc, qname)			\
-	do {					\
-	    sc->twe_qstat[qname].q_length = 0;	\
-	    sc->twe_qstat[qname].q_max = 0;	\
+#define TWEQ_REMOVE(sc, qname)					\
+	do {							\
+	    struct twe_qstat *qs = &(sc)->twe_qstat[qname];	\
+								\
+	    qs->q_length--;					\
+	    if (qs->q_length < qs->q_min)			\
+		qs->q_min = qs->q_length;			\
+	} while(0);
+
+#define TWEQ_INIT(sc, qname)					\
+	do {							\
+	    sc->twe_qstat[qname].q_length = 0;			\
+	    sc->twe_qstat[qname].q_max = 0;			\
+	    sc->twe_qstat[qname].q_min = 0xFFFFFFFF;		\
 	} while(0)
 
 
