@@ -35,6 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)defs.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 /*
@@ -71,6 +72,19 @@ struct s_subst {
 	char *new;				/* Replacement text */
 };
 
+/*
+ * Translate command.
+ */
+struct s_tr {
+	unsigned char bytetab[256];
+	struct trmulti {
+		int fromlen;
+		char from[MB_LEN_MAX];
+		int tolen;
+		char to[MB_LEN_MAX];
+	} *multis;
+	int nmultis;
+};
 
 /*
  * An internally compiled command.
@@ -84,7 +98,7 @@ struct s_command {
 	union {
 		struct s_command *c;		/* Command(s) for b t { */
 		struct s_subst *s;		/* Substitute command */
-		u_char *y;			/* Replace command array */
+		struct s_tr *y;			/* Replace command array */
 		int fd;				/* File descriptor for w */
 	} u;
 	char code;				/* Command code */
