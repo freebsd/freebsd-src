@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mount.c	8.25 (Berkeley) 5/8/95";
 #else
 static const char rcsid[] =
-	"$Id: mount.c,v 1.23 1998/03/08 09:56:02 julian Exp $";
+	"$Id: mount.c,v 1.24 1998/03/27 10:52:13 peter Exp $";
 #endif
 #endif /* not lint */
 
@@ -91,6 +91,7 @@ static struct opt {
 	{ MNT_NODEV,		"nodev" },
 	{ MNT_NOEXEC,		"noexec" },
 	{ MNT_NOSUID,		"nosuid" },
+	{ MNT_NOSYMFOLLOW,	"nosymfollow" },
 	{ MNT_QUOTA,		"with quotas" },
 	{ MNT_RDONLY,		"read-only" },
 	{ MNT_SYNCHRONOUS,	"synchronous" },
@@ -607,6 +608,8 @@ putfsent(ent)
 		printf(",noclusterr");
 	if (ent->f_flags & MNT_NOCLUSTERW)
 		printf(",noclusterw");
+	if (ent->f_flags & MNT_NOSYMFOLLOW)
+		printf (",nosymfollow");
 	if (ent->f_flags & MNT_SUIDDIR)
 		printf(",suiddir");
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mntopts.h	8.7 (Berkeley) 3/29/95
- *	$Id: mntopts.h,v 1.11 1997/09/27 13:44:08 kato Exp $
+ *	$Id: mntopts.h,v 1.12 1997/11/13 00:28:48 julian Exp $
  */
 
 struct mntopt {
@@ -47,6 +47,7 @@ struct mntopt {
 #define MOPT_NODEV		{ "dev",	1, MNT_NODEV, 0 }
 #define MOPT_NOEXEC		{ "exec",	1, MNT_NOEXEC, 0 }
 #define MOPT_NOSUID		{ "suid",	1, MNT_NOSUID, 0 }
+#define MOPT_NOSYMFOLLOW	{ "symfollow",  1, MNT_NOSYMFOLLOW, 0 }
 #define MOPT_RDONLY		{ "rdonly",	0, MNT_RDONLY, 0 }
 #define MOPT_SYNC		{ "sync",	0, MNT_SYNCHRONOUS, 0 }
 #define MOPT_UNION		{ "union",	0, MNT_UNION, 0 }
@@ -80,6 +81,7 @@ struct mntopt {
 	MOPT_NOEXEC,							\
 	MOPT_SUIDDIR,		/* must be before MOPT_NOSUID */	\
 	MOPT_NOSUID,							\
+	MOPT_NOSYMFOLLOW,						\
 	MOPT_RDONLY,							\
 	MOPT_UNION,							\
 	MOPT_NOCLUSTERR,						\
