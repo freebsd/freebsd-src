@@ -134,12 +134,16 @@ static int
 nsp_alloc_resource(DEVPORT_PDEVICE dev)
 {
 	struct nsp_softc	*sc = device_get_softc(dev);
-	u_long			maddr, msize;
+	u_long			ioaddr, iosize, maddr, msize;
 	int			error;
+
+	error = bus_get_resource(dev, SYS_RES_IOPORT, 0, &ioaddr, &iosize);
+	if (error || iosize < NSP_IOSIZE)
+		return(ENOMEM);
 
 	sc->port_rid = 0;
 	sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->port_rid,
-					  0, ~0, NSP_IOSIZE,RF_ACTIVE);
+					  0, ~0, 0, RF_ACTIVE);
 	if (sc->port_res == NULL) {
 		nsp_release_resource(dev);
 		return(ENOMEM);
@@ -153,18 +157,19 @@ nsp_alloc_resource(DEVPORT_PDEVICE dev)
 		return(ENOMEM);
 	}
 
-	/* no need to allocate memory if PIO mode */
-	if ((DEVPORT_PDEVFLAGS(dev) & PIO_MODE) != 0) {
-		return(0);
-	}
-
 	error = bus_get_resource(dev, SYS_RES_MEMORY, 0, &maddr, &msize);
 	if (error) {
 		return(0);	/* XXX */
 	}
 
-	/* no need to allocate memory if not configured */
+	/* No need to allocate memory if not configured and it's in PIO mode */
 	if (maddr == 0 || msize == 0) {
+		if ((DEVPORT_PDEVFLAGS(dev) & PIO_MODE) == 0) {
+			printf("Memory window was not configured. Configure or use in PIO mode.");
+			nsp_release_resource(dev);
+			return(ENOMEM);
+		}
+		/* no need to allocate memory if PIO mode */
 		return(0);
 	}
 
