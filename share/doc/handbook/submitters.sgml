@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.51 1997/04/23 02:54:28 jkh Exp $ -->
+<!-- $Id: submitters.sgml,v 1.52 1997/04/23 18:36:37 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -488,7 +488,7 @@ before we can accept delivery of new hardware.
 
 <sect2><heading>Donating Internet access</heading>
 
-<p>We can always use new mirror sites for FTP, WWW or sup.
+<p>We can always use new mirror sites for FTP, WWW or cvsup.
 If you would like to be such a mirror, please contact
 <url url="mailto:admin@FreeBSD.ORG" name="the FreeBSD project
 administrators"> for more information.
