@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.76 1995/03/28 12:26:40 ache Exp $
+ *	$Id: sio.c,v 1.77 1995/03/28 19:22:11 ache Exp $
  */
 
 #include "sio.h"
@@ -85,8 +85,6 @@ termioschars(t)
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
 #define	RB_I_HIGH_WATER	(TTYHOG - 2 * RS_IBUFSIZE)
 #define	RS_IBUFSIZE	256
-#define	TTY_BI		TTY_FE		/* XXX */
-#define	TTY_OE		TTY_PE		/* XXX */
 
 #define	CALLOUT_MASK		0x80
 #define	CONTROL_MASK		0x60
