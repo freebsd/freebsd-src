@@ -85,7 +85,9 @@ AcpiEnterSleepStateS4Bios (
 
     /* flush caches */
 
+#ifdef __i386__
     wbinvd();
+#endif
 
     /* write the value to command port and wait until we enter sleep state */
     do
