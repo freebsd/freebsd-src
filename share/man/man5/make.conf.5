@@ -1,0 +1,505 @@
+.\" Copyright (c) 2000
+.\"	Mike W. Meyer
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd Nov 3, 2000
+.Dt MAKE.CONF 5
+.Os
+.Sh NAME
+.Nm make.conf
+.Nd system build information.
+.Sh DESCRIPTION
+The file
+.Nm
+contains settings that control the compilation of the FreeBSD sources
+and ported applications. The file 
+.Nm
+is generally created by the system administrator when the values need
+to be changed from their defaults.
+.Pp
+The purpose of
+.Nm
+is not to run commands or perform compilation actions
+directly.  Instead, it is included by the
+various makefiles in
+.Pa /usr/src,
+.Pa /usr/ports
+and
+.Pa /usr/doc
+which conditionalize their
+internal actions according to the settings found there.
+.Pp
+The
+.Pa /etc/make.conf
+file is included from the the appropriate Makefile
+which specifies the default settings for all the available options.
+Options need only be specified in 
+.Pa /etc/make.conf
+when the system administrator wishes to override these defaults.
+.Pp
+The build procedures occur in four broad areas: the world, the kernel,
+documentations and ports. Variables set in
+.Nm
+may be applicable during builds in one, two, or all four of these
+areas. They may be specified for a particular build via the
+.Op -D
+option of
+.Xr make 1 .
+.Pp
+The following lists provides a name and short description for each
+variable you can use during the indicated builds. The values of
+variables flagged as
+bool
+are ignored; the variable being
+set at all (even to 
+.Li Dq FALSE
+or
+.Li Dq NO )
+cause it to
+be treated as if it were set.
+.Pp
+The following list provides a name and short description for variables
+that are used for all builds, or are used by the
+makefiles for things other than builds.
+.Bl -tag -width Ar
+.It Ar CFLAGS
+(str) Controls the compiler setting when compiling C code.
+Optimization levels above
+.Op -O ( -O2 , ...)
+are not supported. BDECFLAGS
+is provided as a set of gcc settings suggested by Bruce Evans
+for developgin and testing changs. They can be used by:
+.Bd -literal -offset indent
+CXFLAGS+=${BDECFLAGS}
+.Ed
+.It Ar CVS_UPDATE
+(bool) Set this to use cvs to update your ports with
+.Cm "make update" .
+.It Ar CXXFLAGS
+(str) Controls the compiler settings when compiling C++ code.
+CXXFLAGS is initially set to the value of CFLAGS. If you want to
+add to the CXXFLAGS value, use 
+.Dq Li +=
+instead of
+.Dq Li = .
+.It Ar INSTALL
+(str) the default install command. To have commands compared before doing
+the install, use
+.Bd -literal -offset indent
+INSTALL="install -C"
+.Ed
+.It Ar LOCAL_DIRS
+(str) List any directories that should be entered when doing
+make's in
+.Pa /usr/src 
+in this variable.
+.It Ar MTREE_FOLLOWS_SYMLINKS
+(str) Set this to
+.Dq Li -L
+to cause mtree to follow symlinks.
+.It Ar NO_DOCUPDATE
+(bool) Set this to not update the doc tree during
+.Cm "make update" .
+.It Ar NO_PORTSUPDATE
+(bool) Set this to not update the ports tree during
+.Cm "make update" .
+.It Ar SUP_UPDATE
+(bool) Set this to use cvsup to update your ports with
+.Cm "make update" .
+.It Ar SUP
+(str) The location of the cvsup command for
+.Cm "make update" .
+.It Ar SUPFLAGS
+(str) The flag for the sup command when doing
+.Cm "make update" .
+This defaults to 
+.Op "-g -L 2" .
+.It Ar SUPHOST
+(str) The hostname of the sup server to use when doing
+.Cm "make update" .
+.It Ar SUPFILE
+(str) The first supfile to use when doing a
+.Cm "make update" .
+This defaults to
+.Pa /usr/share/examples/cvsup/standard-supfile .
+.It Ar SUPFILE1
+(str) The second supfile to use when doing a
+.Cm "make update" .
+This defaults to
+.Pa /usr/share/examples/cvsup/secure-supfile .
+.It Ar SUPFILE2
+(str) The third supfile to use when doing a
+.Cm "make update" .
+This defaults to
+.Pa /usr/share/examples/cvsup/secure-supfile .
+.It Ar PORTSSUPFILE
+(str) The ports supfile to use when doing a
+.Cm "make update" .
+This defaults to
+.Pa /usr/share/examples/cvsup/ports-supfile .
+.It Ar DOCSUPFILE
+(str) The documentation supfile to use when doing a
+.Cm "make update" .
+This defaults to
+.Pa /usr/share/examples/cvsup/doc-supfile .
+.El
+.Pp
+The following list provides a name and short description for variables
+that are only used doing a kernel build:
+.Bl -tag -width Ar
+.It Ar BOOT_COMCONSOLE_PORT
+(str) The port address to use for the console if the boot blocks have
+been configured to use a serial console instead of the keyboard/video card.
+.It Ar BOOT_COMCONSOLE_SPEED
+(int) The baud rate to use for the console if the boot blocks have
+been configured to use a serial console instead of the keyboard/video card.
+.It Ar BOOTWAIT
+(int) Controls the amount of time the kernel waits for a console keypress
+before booting the default kernel. The value is approximately
+milliseconds. Keypresses are accepted by the BIOS before booting from disk,
+making it possible to give custom boot parameters even when this is
+set to 0.
+.It Ar COPTFLAGS
+(str) Controls the compiler settings when building the
+kernel. Optimization levels above
+.Op -O 
+.Op -O2 ,
+...) are not supported.
+.It Ar NO_KERNELCONFIG
+(bool) Set this to skip running
+.Xr config 8
+during
+.Cm "${MAKE} buildkernel" .
+.It Ar NO_KERNELDEPEND
+(bool) Set this to skip running 
+.Cm "${MAKE} depend"
+during
+.Cm "${MAKE} buildkernel" .
+.It Ar NO_MODULES
+(bool) Set to  not build modules with the kernel.
+.El
+.Pp
+The following list provides a name and short description for variables
+that are used during the world build:
+.Bl -tag -width Ar
+.It Ar COMPAT1X
+(bool) Set to install the 
+.Fx
+1 compatibility libraries.
+.It Ar COMPAT20
+(bool) Set to install the
+.Fx 2.0
+compatibility libraries.
+.It Ar COMPAT21
+(bool) Set to install the
+.Fx 2.1
+compatibility libraries.
+.It Ar COMPAT22
+(bool) Set to install the
+.Fx 2.2
+compatibility libraries.
+.It Ar COMPAT3X
+(bool) Set to install the
+.Fx
+3 compatibility libraries.
+.It Ar ENABLE_SUIDPERL
+(bool) Set to enable the installation of an suid perl binary.
+.It Ar FETCH_CMD
+(str) Command to use to fetch files. Normally
+.Xr fetch 1 .
+.It Ar MAKE_IDEA
+(bool) Set to build the IDEA encryption code. This code is patented in
+the USA and many european countries. It is 
+.Em "YOUR RESPONSIBILITY"
+to determine if you can legally use IDEA.
+.It Ar MAKE_KERBEROS4
+(bool) Set this to build KerberosIV (KTH eBones).
+.It Ar MAKE_KERBEROS5
+(bool) Set this to build Kerberos5 (KTH Heimdal).
+.Em WARNING!
+This is still experimental code. If you need stable Kerberos5, use the
+port(s).
+.It Ar MODULES_WITH_WORLD
+(bool) Set to build modules with the system instead of the kernel.
+.It Ar NO_CVS
+(bool) Set to not build CVS.
+.It Ar NO_BIND
+(bool) Set to  not build BIND.
+.It Ar NO_FORTRAN
+(bool) Set to  not build g77 and related libraries.
+.It Ar NO_LPR
+(bool) Set to  not build lpr and related programs.
+.It Ar NO_MAILWRAPPER
+(bool) Set to  not build the mailwrapper(8) MTA selector.
+.It Ar NO_MAKEDEV
+(bool) Set to avoid running MAKEDEV all on /dev during install.
+.It Ar NO_OBJC
+(bool) Set to  not build Objective C support.
+.It Ar NO_OPENSSH
+(bool) Set to  not build OpenSSH.
+.It Ar NO_OPENSSL
+(bool) Set to  not build OpenSSL (implies NO_OPENSSH).
+.It Ar NO_SENDMAIL
+(bool) Set to  not build sendmail and related programs.
+.It Ar NO_SHAREDOCS
+(bool) Set to  not build the 4.4BSD legacy docs.
+.It Ar NO_TCSH
+(bool) Set to  not build and install /bin/csh (which is tcsh).
+.It Ar NO_X
+(bool) Set to  not compile in XWindows support (e.g. doscmd).
+.It Ar NOCLEAN
+(bool) Set this to disable cleaning during
+.Cm "make buildworld" .
+This should not be set unless you know what you are doing.
+.It Ar NOCLEANDIR
+(bool) Set this to run
+.Cm "${MAKE} clean"
+instead of
+.Cm "${MAKE} cleandir" .
+.It Ar NOCRYPT
+(bool) Set to not build any crypto code.
+.It Ar NODESCRYPTLINKS
+(bool) Set to not replace 
+.Pa libcrypt -> libscrypt
+links.
+.It Ar NOGAMES
+(bool) Set to not build games.
+.It Ar NOINFO
+(bool) Set to not make or install info files.
+.It Ar NOLIBC_R
+(bool) Set to not build libc_r (re-entrant version of libc).
+.It Ar NOMANCOMPRESS
+(bool) Set to install man pages uncompressed.
+.It Ar NOPERL
+(bool) Set to avoid building perl.
+.It Ar NOPROFILE
+(bool) Set to avoid compiling profiled libraries.
+.It Ar NOSECURE
+(bool) set to not build crypto code in secure subdir.
+.It Ar NOSHARE
+(bool) Set to not build in the share subdir.
+.It Ar NOUUCP
+(bool) Set to not build uucp related programs.
+.It Ar PERL_THREADED
+(bool) Set to enable the building and installation of perl with thread
+support.
+.It Ar PPP_NOSUID
+(bool) Set to disable the installation of ppp as an suid root program.
+.It Ar SENDMAIL_CFLAGS
+(str) Flags to pass to the compile command when building sendmail. The
+sendmail flags can be used to provide SASL support with setting such as:
+.Bd -literal -offset indent
+SENDMAIL_CFLAGS=-I/usr/local/include -DSASL
+SENDMAIL_LDFLAGS=-L/usr/local/lib
+SENDMAIL_LDADD=-lsasl
+.Ed
+.It Ar SENDMAIL_LDFLAGS
+(str) Flags to pass to the ld command when building sendmail.
+.It Ar SENDMAIL_LDADD
+(str) Flags to add to the end of the ld command when building sendmail.
+.It Ar SENDMAIL_DPADD
+(str) This variable is undocumented.
+.El
+.Pp
+The following list provides a name and short description for variables
+that are used when building documentation.
+.Bl -tag -width Ar
+.It Ar DISTDIR
+(str) Where distfiles are kept. Normally, this is
+.Pa distfiles
+in
+.Ev PORTSDIR .
+.It Ar DOC_LANG
+(str) The list of languages and encodings to build and install.
+.It Ar PRINTERDEVICE
+(str) The default format for system documentation, depends on your
+printer. This can be set to 
+.Dq Li ascii
+for simple printers or
+.Dq Li ps
+for postscript or graphics printers with a ghostscript
+filter.
+.El
+.Pp
+The following list provides a name and short description for variables
+that are used when building ports:
+.Bl -tag -width Ar
+.It Ar FORCE_PKG_RESIDENT
+(bool) Set this to override any existing package registration.
+.It Ar HAVE_MOTIF
+(bool) Set this if you have Motif on your system.
+.It Ar KRB5_HOME
+(str) Set this if you want to install the MIT Kerberos5 port somewhere
+other than
+.Pa /usr/local .
+.It Ar LOCALBASE
+(str) Set this to the base directory that non-X ports should be
+installed in. It provides the default for PREFIX when building in
+.Pa /usr/ports .
+.It Ar MASTER_SITE_AFTERSTEP
+(str) Set this to change the master site for AfterStep ports. The last
+part of the path must be
+.Dq Li /%SUBDIR%/ .
+.It Ar MASTER_SITE_BACKUP
+(str) Controls the site location that ports check for distfiles if the
+locations listed in their 
+.Pa Makefile
+do not work. The last part of the path must be
+.Dq Li /${DIST_SUBDIR}/ .
+.It Ar MASTER_SITE_COMP_SOURCES
+(str) Controls the master site location for comp.sources ports. The
+last part of the path must be
+.Dq Li %SUBDIR%/
+.It Ar MASTER_SITE_GNOME
+(str) Controls the master site location for GNOME ports. The
+last part of the path must be
+.Dq Li /%SUBDIR%/
+.It Ar MASTER_SITE_GNU
+(str) Controls the master site location for GNU ports. The
+last part of the path must be
+.Dq Li /%SUBDIR%/
+.It Ar MASTER_SITE_KDE
+(str) Controls the master site location for KDE ports. The
+last part of the path must be
+.Dq Li /%SUBDIR%/
+.It Ar MASTER_SITE_FREEBSD
+(bool) If set, go to the master
+.Fx
+site for all files.
+.It Ar MASTER_SITE_MOZILLA
+(str) Controls the master site location for Mozilla ports. The
+last part of the path must be
+.Dq Li /%SUBDIR%/
+.It Ar MASTER_SITE_OVERRIDE
+(str) If set, this site is checked before the sites listed in the ports
+.Pa Makefile .
+You can have it check the backup site first by like so:
+.Bd -literal -offset indent
+MASTER_SITE_OVERRIDE?=	${MASTER_SITE_BACKUP}
+.Ed
+.It Ar MASTER_SITE_PERL_CPAN
+(str) Controls the master site location for Perl ports. The
+last part of the path must be
+.Bd -literal -offset indent
+/%SUBDIR%/
+.Ed
+.It Ar MASTER_SORT_REGEX
+(str) Set this to control the sort order for mirror sets. To set it to
+prefer mirrors in the .jp domain, use:
+.Bd -literal -offset indent
+MASTER_SORT_REGEX?=	^file: ^ftp://ftp\.FreeBSD\.org/pub/FreeBSD/ports/local-distfiles/ ://[^/]*\.jp/ ://[^/]*\.jp\.
+.Ed
+Users of other ccTLD domins should change the 
+.Dq Li jp
+to the
+appropriate domain.
+.It Ar MASTER_SITE_RINGSERVER
+(str) Controls the master site location for Ringserver ports. The last
+part of the path must be
+.Dq Li /%SUBDIR%/ .
+.It Ar MASTER_SITE_RUBY
+(str) Controls the master site location for Ruby ports. The last
+part of the path must be
+.Dq Li /%SUBDIR%/ .
+.It Ar MASTER_SITE_SUNSITE
+(str) Controls the master site location for Sunsite ports. The last
+part of the path must be
+.Dq Li /%SUBDIR%/ .
+.It Ar MASTER_SITE_TCLTK
+(str) Controls the master site location for Tcl and Tk ports. The last
+part of the path must be
+.Dq Li /%SUBDIR%/ .
+.It Ar MASTER_SITE_TEX_CTAN
+(str) Controls the master site location for TeX ports. The last
+part of the path must be
+.Dq Li /%SUBDIR%/ .
+.It Ar MASTER_SITE_WINDOWMAKER
+(str) Controls the master site location for WindowMaker ports. The last
+part of the path must be
+.Dq Li /%SUBDIR%/ .
+.It Ar MASTER_SITE_XCONTRIB
+(str) Controls the master site location for contributed X ports. The last
+part of the path must be
+.Dq Li /%SUBDIR%/ .
+.It Ar MASTER_SITE_XEMACS
+(str) Controls the master site location for Xemacs ports. The last
+part of the path must be
+.Dq Li /%SUBDIR%/ .
+.It Ar MASTER_SITE_XFREE
+(str) Controls the master site location for XFree ports. The last
+part of the path must be
+.Dq Li /%SUBDIR%/ .
+.It Ar MOTIFLIB
+(str) Location of
+.Pa libXm.a
+and
+.Pa libXm.so .
+.It Ar MOTIF_STATIC
+(bool) Set this if you want ports that use Motif to be built so they
+can be run on systems without the Motif shared libraries.
+.It Ar NOCLEANDEPENDS
+(bool) Set this to prevent 
+.Cm "make clean"
+from cleaning the ports that the one being cleaned depends on.
+.It Ar NOPORTDOCS
+(bool) Set this to disable installing additional documentation with ports.
+.It Ar PACKAGES
+(str) Used only for the package target; the directory for the package tree.
+.It Ar PATCH_SITES
+(str) Primary location(s) for the distribution of patch files.
+.It Ar PORTSDIR
+(str) The location of the ports tree.
+.It Ar USA_RESIDENT
+(bool) Set this if you are a resident of the USA so that ports that
+need to can attemp to comply with U.S. export regulations.
+.It Ar WRKDIRPREFIX
+(str) Where to create temporary files used when building ports.
+.It Ar X11BASE
+(str) Should be set to where the X11 distribution has been
+installed if it is installed anywhere other than /usr/X11R6.
+.Sh FILES
+.Bl -tag -width /etc/defaults/make.conf -compact
+.It Pa /etc/defaults/make.conf
+.It Pa /etc/make.conf
+.It Pa /usr/doc/Makefile
+.It Pa /usr/src/Makefile
+.It Pa /usr/src/Makefile.inc1
+.It Pa /usr/ports/Mk/bsd.port.mk
+.It Pa /usr/ports/Mk/bsd.sites.mk
+.Sh SEE ALSO
+.Xr gcc 1 ,
+.Xr install 1 ,
+.Xr lpd 8 ,
+.Xr make 1 ,
+.Xr make 7 ,
+.Xr ports 7 ,
+.Xr sendmail 8
+.Sh HISTORY
+The
+.Nm
+file appeared sometime before
+.Fx 4.0 .
+.Sh AUTHORS
+.An Mike W. Meyer Aq mwm@mired.org .

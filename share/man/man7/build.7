@@ -1,0 +1,127 @@
+.\" Copyright (c) 2000
+.\"	Mike W. Meyer
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd Nov 4, 2000
+.Dt BUILD 7
+.Os
+.Sh NAME
+.Nm build
+.Nd information on how to build the system.
+.Sh DESCRIPTION
+The source for the
+.Os FreeBSD
+system and applications are contained in three different directories,
+normally
+.Pa /usr/src ,
+.Pa /usr/doc ,
+and
+.Pa /usr/ports .
+.Pa /usr/src
+contains the
+.Dq "base system"
+sources, which is loosely defined as the things required to rebuild
+the system to a useful state.
+.Pa /usr/doc
+contains the source for the system documentation, excluding the manual
+pages.
+.Pa /usr/ports
+is a tree that provides a consistent interface for building and
+installing third party applications.
+.Pp
+The
+.Xr make 1
+command is used in each of these directories to build and install the
+things in that directory. Issuing the make command in any directory or
+subdirectory of those directories has the same effect as issuing the
+same command in all subdirectories of that directory. With no target
+specified, the things in that directory are just built. The following
+list provides the names and actions for other targets:
+.Bl -tag -width Ar
+.It Ar clean
+Removes any files created during the build process.
+.It Ar install
+Installs the results of the build for this directory.
+.It Ar update
+Gets updated sources as configured in
+.Pa /etc/make.conf .
+.El
+.Pp
+The other
+.Pa /usr/src
+make targets are:
+.Bl -tag -width Ar
+.It Ar buildworld
+Rebuild everything but the kernel, configure files in
+.Pa /etc ,
+and release.
+.It Ar installworld
+Install everything built by
+.Dq buildworld .
+.It Ar world
+buildworld + installworld.
+.It Ar buildkernel
+Rebuild the kernel and the kernel-modules.
+.It Ar installkernel
+Install the kernel and the kernel-modules.
+.It Ar reinstallkernel
+Reinstall the kernel and the kernel-modules.
+.It Ar upgrade 
+Upgrade a.out (2.2.x/3.0) system to the new ELF way
+.It Ar most
+Build user commands, no libraries or include files.
+.It Ar installmost
+Install user commands, no libraries or include files.
+.It Ar aout-to-elf
+Upgrade an system from a.out to elf format.
+.It Ar aout-to-elf-build
+Build everything required to upgrade a system from a.out to elf format.
+.It Ar aout-to-elf-install
+Install everything built by aout-to-elf-build.
+.It Ar move-aout-libs
+Move the a.out libraries into an aout sub-directory of each elf
+library sub-directory.
+.El
+.Pp
+For more information about the ports build process, see
+.Xr ports 7 .
+.Sh FILES
+.Bl -tag -width /etc/defaults/make.conf -compact
+.It Pa /etc/defaults/make.conf
+.It Pa /etc/make.conf
+.It Pa /usr/doc/Makefile
+.It Pa /usr/doc/share/mk/doc.project.mk
+.It Pa /usr/src/Makefile
+.It Pa /usr/src/Makefile.inc1
+.It Pa /usr/ports/Mk/bsd.port.mk
+.It Pa /usr/ports/Mk/bsd.sites.mk
+.Sh SEE ALSO
+.Xr gcc 1 ,
+.Xr install 1 ,
+.Xr make 1 ,
+.Xr make.conf 5 ,
+.Xr ports 7
+.Sh AUTHORS
+.An Mike W. Meyer Aq mwm@mired.org .
