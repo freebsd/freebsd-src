@@ -967,11 +967,7 @@ struct __res_type_list {
         int     rtl_type;
 };
 
-#if PACKETSZ > 1024
-#define	MAXPACKET	PACKETSZ
-#else
-#define	MAXPACKET	1024
-#endif
+#define	MAXPACKET	65536
 
 typedef union {
 	HEADER hdr;
