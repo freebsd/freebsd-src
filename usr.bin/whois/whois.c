@@ -52,6 +52,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <netdb.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -80,16 +81,18 @@ static const char rcsid[] =
 const char *ip_whois[] = { RNICHOST, PNICHOST, NULL };
 
 static char *choose_server(char *);
+static struct addrinfo *gethostinfo(char const *host, int exit_on_error);
+static void s_asprintf(char **ret, const char *format, ...);
 static void usage(void);
 static void whois(char *, struct addrinfo *, int);
 
 int
 main(int argc, char *argv[])
 {
-	struct addrinfo hints, *res;
+	struct addrinfo *res;
 	const char *host;
 	char *qnichost;
-	int ch, error, flags, use_qnichost;
+	int ch, flags, use_qnichost;
 
 #ifdef	SOCKS
 	SOCKSinit(argv[0]);
@@ -159,29 +162,11 @@ main(int argc, char *argv[])
 			flags |= WHOIS_INIC_FALLBACK | WHOIS_RECURSE;
 	}
 	while (argc--) {
-		if (use_qnichost) {
-			if ((qnichost = choose_server(*argv)) != NULL) {
-				memset(&hints, 0, sizeof(hints));
-				hints.ai_flags = 0;
-				hints.ai_family = AF_UNSPEC;
-				hints.ai_socktype = SOCK_STREAM;
-				error = getaddrinfo(qnichost, "whois",
-				    &hints, &res);
-				if (error != 0)
-					errx(EX_NOHOST, "%s: %s", qnichost,
-					    gai_strerror(error));
-			}
-		}
-		if (qnichost == NULL) {
-			memset(&hints, 0, sizeof(hints));
-			hints.ai_flags = 0;
-			hints.ai_family = AF_UNSPEC;
-			hints.ai_socktype = SOCK_STREAM;
-			error = getaddrinfo(host, "whois", &hints, &res);
-			if (error != 0)
-				errx(EX_NOHOST, "%s: %s", host,
-				   gai_strerror(error));
-		}
+		if (use_qnichost)
+			if ((qnichost = choose_server(*argv)) != NULL)
+				res = gethostinfo(qnichost, 1);
+		if (qnichost == NULL)
+			res = gethostinfo(host, 1);
 
 		free(qnichost);
 		qnichost = NULL;
@@ -208,23 +193,56 @@ choose_server(char *domain)
 		errx(EX_USAGE, "can't search for a null string");
 	while (pos > domain && *pos != '.')
 		--pos;
-	if (isdigit(*++pos)) {
-		if (asprintf(&retval, "%s", ANICHOST) == -1)
-			err(1, "asprintf()");
-	} else {
-		if (asprintf(&retval, "%s%s", pos, QNICHOST_TAIL) == -1)
-			err(1, "asprintf()");
-	}
+	if (isdigit((unsigned char)*++pos))
+		s_asprintf(&retval, "%s", ANICHOST);
+	else
+		s_asprintf(&retval, "%s%s", pos, QNICHOST_TAIL);
 	return (retval);
+}
+
+static struct addrinfo * 
+gethostinfo(char const *host, int exit_on_error)
+{
+	struct addrinfo hints, *res;
+	int error;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_flags = 0;
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	error = getaddrinfo(host, "whois", &hints, &res);
+	if (error) {
+		warnx("%s: %s", host, gai_strerror(error));
+		if (exit_on_error)
+			exit(EX_NOHOST);
+		return (NULL);
+	}
+	return (res);
+} 
+
+/*
+ * Wrapper for asprintf(3) that exits on error.
+ */
+static void
+s_asprintf(char **ret, const char *format, ...)
+{
+	va_list ap;
+
+	va_start(ap, format);
+	if (vasprintf(ret, format, ap) == -1) {
+		va_end(ap);
+		err(EX_OSERR, "vasprintf()");
+	}
+	va_end(ap);
 }
 
 static void
 whois(char *name, struct addrinfo *res, int flags)
 {
 	FILE *sfi, *sfo;
-	struct addrinfo hints, *res2;
+	struct addrinfo *res2;
 	char *buf, *nhost, *p;
-	int i, nomatch, error, s;
+	int i, nomatch, s;
 	size_t len;
 
 	for (; res; res = res->ai_next) {
@@ -255,17 +273,13 @@ whois(char *name, struct addrinfo *res, int flags)
 			if (p != NULL) {
 				p += sizeof(WHOIS_SERVER_ID) - 1;
 				if ((len = strcspn(p, " \t\n\r")) != 0) {
-					asprintf(&nhost, "%s", p);
-					if (nhost == NULL)
-						err(1, "asprintf()");
+					s_asprintf(&nhost, "%s", p);
 				}
 			} else {
 				for (i = 0; ip_whois[i] != NULL; i++) {
 					if (strstr(buf, ip_whois[i]) == NULL)
 						continue;
-					nhost = strdup(ip_whois[i]);
-					if (nhost == NULL)
-						err(1, "strdup()");
+					s_asprintf(&nhost, "%s", ip_whois[i]);
 				}
 			}
 		}
@@ -285,18 +299,11 @@ whois(char *name, struct addrinfo *res, int flags)
 	/* Do second lookup as needed. */
 	if (nomatch && nhost == NULL) {
 		printf("Looking up %s at %s.\n\n", name, INICHOST);
-		if ((nhost = strdup(INICHOST)) == NULL)
-			err(1, "strdup()");
+		s_asprintf(&nhost, "%s", INICHOST);
 	}
 
 	if (nhost != NULL) {
-		memset(&hints, 0, sizeof(hints));
-		hints.ai_flags = 0;
-		hints.ai_family = AF_UNSPEC;
-		hints.ai_socktype = SOCK_STREAM;
-		error = getaddrinfo(nhost, "whois", &hints, &res2);
-		if (error != 0) {
-			warnx("%s: %s", nhost, gai_strerror(error));
+		if ((res2 = gethostinfo(nhost, 0)) == NULL) {
 			free(nhost);
 			return;
 		}
