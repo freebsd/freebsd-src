@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.66 1996/06/20 08:07:30 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.67 1996/07/12 04:11:10 bde Exp $
  */
 
 #include "npx.h"
@@ -825,14 +825,18 @@ grow(p, sp)
 int
 vm_page_zero_idle() {
 	vm_page_t m;
+	static int free_rover = 0;
 	if ((cnt.v_free_count > cnt.v_interrupt_free_min) &&
-		(m = TAILQ_FIRST(&vm_page_queue_free))) {
-		TAILQ_REMOVE(&vm_page_queue_free, m, pageq);
+		(m = vm_page_list_find(PQ_FREE, free_rover))) {
+		--(*vm_page_queues[m->queue].lcnt);
+		TAILQ_REMOVE(vm_page_queues[m->queue].pl, m, pageq);
 		enable_intr();
 		pmap_zero_page(VM_PAGE_TO_PHYS(m));
 		disable_intr();
-		TAILQ_INSERT_HEAD(&vm_page_queue_zero, m, pageq);
-		m->queue = PQ_ZERO;
+		m->queue = PQ_ZERO + m->pc;
+		++(*vm_page_queues[m->queue].lcnt);
+		TAILQ_INSERT_HEAD(vm_page_queues[m->queue].pl, m, pageq);
+		free_rover = (free_rover + PQ_PRIME3) & PQ_L2_MASK;
 		++vm_page_zero_count;
 		return 1;
 	}

@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.83 1996/07/27 03:24:08 dyson Exp $
+ * $Id: vm_pageout.c,v 1.84 1996/07/30 03:08:19 dyson Exp $
  */
 
 /*
@@ -256,7 +256,8 @@ vm_pageout_clean(m, sync)
 			}
 			p = vm_page_lookup(object, pindex + i);
 			if (p) {
-				if ((p->queue == PQ_CACHE) || (p->flags & PG_BUSY) || p->busy) {
+				if (((p->queue - p->pc) == PQ_CACHE) ||
+					(p->flags & PG_BUSY) || p->busy) {
 					forward_okay = FALSE;
 					goto do_backward;
 				}
@@ -290,7 +291,8 @@ do_backward:
 			}
 			p = vm_page_lookup(object, pindex - i);
 			if (p) {
-				if ((p->queue == PQ_CACHE) || (p->flags & PG_BUSY) || p->busy) {
+				if (((p->queue - p->pc) == PQ_CACHE) ||
+					(p->flags & PG_BUSY) || p->busy) {
 					backward_okay = FALSE;
 					continue;
 				}
@@ -831,9 +833,11 @@ rescan0:
 	 * code to be guaranteed space.
 	 */
 	while (cnt.v_free_count < cnt.v_free_reserved) {
-		m = TAILQ_FIRST(&vm_page_queue_cache);
+		static int cache_rover = 0;
+		m = vm_page_list_find(PQ_CACHE, cache_rover);
 		if (!m)
 			break;
+		cache_rover = (cache_rover + PQ_PRIME2) & PQ_L2_MASK;
 		vm_page_free(m);
 		cnt.v_dfree++;
 	}
@@ -928,7 +932,7 @@ vm_size_t count;
 		cnt.v_interrupt_free_min;
 	cnt.v_free_reserved = vm_pageout_page_count +
 		cnt.v_pageout_free_min + (count / 768);
-	cnt.v_free_min += cnt.v_free_reserved;
+	cnt.v_free_min += cnt.v_free_reserved + PQ_L2_SIZE;
 	return 1;
 }
 

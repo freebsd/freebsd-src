@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.69 1996/07/27 03:23:51 dyson Exp $
+ * $Id: swap_pager.c,v 1.70 1996/07/30 03:08:05 dyson Exp $
  */
 
 /*
@@ -566,7 +566,8 @@ swap_pager_reclaim()
 			 * see if any blocks associated with a pager has been
 			 * allocated but not used (written)
 			 */
-			if (object->paging_in_progress == 0) {
+			if ((object->flags & OBJ_DEAD) == 0 &&
+				(object->paging_in_progress == 0)) {
 				for (i = 0; i < object->un_pager.swp.swp_nblocks; i++) {
 					sw_blk_t swb = &object->un_pager.swp.swp_blocks[i];
 

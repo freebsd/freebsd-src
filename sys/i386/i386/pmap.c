@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.114 1996/07/30 03:08:49 dyson Exp $
+ *	$Id: pmap.c,v 1.115 1996/09/08 16:57:34 dyson Exp $
  */
 
 /*
@@ -1105,8 +1105,7 @@ pmap_growkernel(vm_offset_t addr)
 		if (!nkpg) {
 			vm_offset_t ptpkva = (vm_offset_t) vtopte(addr);
 			/*
-			 * This index is bogus, but out of the way, the old
-			 * value of zero is bad for page coloring.
+			 * This index is bogus, but out of the way
 			 */
 			vm_pindex_t ptpidx = (ptpkva >> PAGE_SHIFT); 
 			nkpg = vm_page_alloc(kernel_object,
@@ -1977,7 +1976,7 @@ pmap_object_init_pt(pmap, addr, object, pindex, size, limit)
 			if (((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
 			    (p->busy == 0) &&
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
-				if (p->queue == PQ_CACHE)
+				if ((p->queue - p->pc) == PQ_CACHE)
 					vm_page_deactivate(p);
 				p->flags |= PG_BUSY;
 				mpte = pmap_enter_quick(pmap, 
@@ -1998,7 +1997,7 @@ pmap_object_init_pt(pmap, addr, object, pindex, size, limit)
 			    ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
 			    (p->busy == 0) &&
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
-				if (p->queue == PQ_CACHE)
+				if ((p->queue - p->pc) == PQ_CACHE)
 					vm_page_deactivate(p);
 				p->flags |= PG_BUSY;
 				mpte = pmap_enter_quick(pmap, 
@@ -2091,7 +2090,7 @@ pmap_prefault(pmap, addra, entry, object)
 		    (m->busy == 0) &&
 		    (m->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
 
-			if (m->queue == PQ_CACHE) {
+			if ((m->queue - m->pc) == PQ_CACHE) {
 				vm_page_deactivate(m);
 			}
 			m->flags |= PG_BUSY;
