@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/ahc_pci.c#9 $
+ * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/ahc_pci.c#11 $
  *
  * $FreeBSD$
  */
@@ -145,13 +145,31 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 	u_int	command;
 	int	regs_type;
 	int	regs_id;
+	int	allow_memio;
 
 	command = ahc_pci_read_config(ahc->dev_softc, PCIR_COMMAND, /*bytes*/1);
 	regs = NULL;
 	regs_type = 0;
 	regs_id = 0;
+
+	/* Retrieve the per-device 'allow_memio' hint */
+	if (resource_int_value(device_get_name(ahc->dev_softc),
+			       device_get_unit(ahc->dev_softc),
+			       "allow_memio", &allow_memio) != 0) {
+		if (bootverbose)
+			device_printf(ahc->dev_softc, "Defaulting to MEMIO ");
 #ifdef AHC_ALLOW_MEMIO
-	if ((command & PCIM_CMD_MEMEN) != 0) {
+		if (bootverbose)
+			printf("on\n");
+		allow_memio = 1;
+#else
+		if (bootverbose)
+			printf("off\n");
+		allow_memio = 0;
+#endif
+	}
+
+	if ((allow_memio != 0) && (command & PCIM_CMD_MEMEN) != 0) {
 
 		regs_type = SYS_RES_MEMORY;
 		regs_id = AHC_PCI_MEMADDR;
@@ -165,7 +183,7 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 			 * Do a quick test to see if memory mapped
 			 * I/O is functioning correctly.
 			 */
-			if (ahc_inb(ahc, HCNTRL) == 0xFF) {
+			if (ahc_pci_test_register_access(ahc) != 0) {
 				device_printf(ahc->dev_softc,
 				       "PCI Device %d:%d:%d failed memory "
 				       "mapped test.  Using PIO.\n",
@@ -183,7 +201,7 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 			}
 		}
 	}
-#endif
+
 	if (regs == NULL && (command & PCIM_CMD_PORTEN) != 0) {
 		regs_type = SYS_RES_IOPORT;
 		regs_id = AHC_PCI_IOADDR;
