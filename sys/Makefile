@@ -1,8 +1,10 @@
 # $FreeBSD$
 
 # The boot loader
+.if !defined(NO_BOOT)
 .if ${MACHINE_ARCH} != "arm"
 SUBDIR=	boot
+.endif
 .endif
 
 # Loadable kernel modules
