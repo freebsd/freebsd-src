@@ -29,18 +29,21 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $id$
+ *
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1988, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "From: @(#)passwd.c	8.3 (Berkeley) 4/2/94";
+static const char sccsid[] = "From: @(#)passwd.c	8.3 (Berkeley) 4/2/94";
 static const char rcsid[] =
-	"$Id: passwd.c,v 1.5 1995/08/13 16:07:35 wpaul Exp $";
+	"$Id$";
 #endif /* not lint */
 
 #include <err.h>
@@ -48,12 +51,14 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 
 #ifdef YP
 #include <pwd.h>
 #include <pw_yp.h>
 char *prog_name;
 int __use_yp = 0;
+int yp_passwd(char *user);
 #endif
 
 #ifdef KERBEROS

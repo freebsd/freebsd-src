@@ -29,10 +29,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id$
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)local_passwd.c	8.3 (Berkeley) 4/2/94";
+static const char sccsid[] = "@(#)local_passwd.c	8.3 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -124,11 +126,21 @@ getnewpasswd(pw, nis)
 	salt[9] = '\0';
 #else
 	/* Make a good size salt for algoritms that can use it. */
-	to64(&salt[0], random(), 3);
 	gettimeofday(&tv,0);
-	to64(&salt[3], tv.tv_usec, 3);
-	to64(&salt[6], tv.tv_sec, 2);
-	salt[8] = '\0';
+	if (strncmp(pw->pw_passwd, "$1$", 3)) {
+	    /* DES Salt */
+	    to64(&salt[0], random(), 3);
+	    to64(&salt[3], tv.tv_usec, 3);
+	    to64(&salt[6], tv.tv_sec, 2);
+	    salt[8] = '\0';
+	}
+	else {
+	    /* MD5 Salt */
+	    strncpy(&salt[0], "$1$", 3);
+	    to64(&salt[3], random(), 3);
+	    to64(&salt[6], tv.tv_usec, 3);
+	    salt[8] = '\0';
+	}
 #endif
 	return (crypt(buf, salt));
 }
