@@ -37,6 +37,12 @@
 #define	_DLFCN_H_
 #include <sys/cdefs.h>
 
+/*
+ * Modes for dlopen().
+ */
+#define RTLD_LAZY	1	/* Bind function calls lazily */
+#define RTLD_NOW	2	/* Bind function calls immediately */
+
 __BEGIN_DECLS
 void *dlopen __P((char *, int));
 void *dlsym __P((void *, char *));
