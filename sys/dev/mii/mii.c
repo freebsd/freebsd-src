@@ -60,7 +60,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mii.c,v 1.1 1999/08/21 17:40:41 wpaul Exp $";
 #endif
 
 static int miibus_readreg	__P((device_t, int, int));
@@ -106,7 +106,7 @@ int miibus_probe(dev)
 {
 	struct mii_attach_args	ma, *args;
 	struct mii_data		*mii;
-	device_t		child, parent;
+	device_t		child = 0, parent;
 	int			bmsr, capmask = 0xFFFFFFFF;
 
 	mii = device_get_softc(dev);
@@ -143,11 +143,9 @@ int miibus_probe(dev)
 		    M_DEVBUF, M_NOWAIT);
 		bcopy((char *)&ma, (char *)args, sizeof(ma));
 		child = device_add_child(dev, NULL, -1, args);
-
-		break;
 	}
 
-	if (ma.mii_phyno == MII_NPHY)
+	if (child == NULL)
 		return(ENXIO);
 
 	device_set_desc(dev, "MII bus");
