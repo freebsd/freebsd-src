@@ -53,6 +53,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
+#include <string.h>
 #include "include.h"
 #include "pathnames.h"
 
