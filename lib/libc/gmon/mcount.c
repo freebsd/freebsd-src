@@ -38,7 +38,14 @@ static char sccsid[] = "@(#)mcount.c	8.1 (Berkeley) 6/4/93";
 #include <sys/param.h>
 #include <sys/gmon.h>
 #ifdef KERNEL
-#include <i386/include/cpufunc.h>
+#include <sys/systm.h>
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+void	bintr __P((void));
+void	btrap __P((void));
+void	eintr __P((void));
+void	user __P((void));
 #endif
 
 /*
@@ -57,39 +64,127 @@ static char sccsid[] = "@(#)mcount.c	8.1 (Berkeley) 6/4/93";
  * perform this optimization.
  */
 _MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
-	register u_long frompc, selfpc;
+	register fptrint_t frompc, selfpc;
 {
+#ifdef GUPROF
+	u_int delta;
+#endif
+	register fptrdiff_t frompci;
 	register u_short *frompcindex;
 	register struct tostruct *top, *prevtop;
 	register struct gmonparam *p;
 	register long toindex;
 #ifdef KERNEL
-	register int s;
-	u_long save_eflags;
+	register int s;		/* XXX */
+	u_long save_eflags;	/* XXX */
 #endif
 
 	p = &_gmonparam;
+#ifndef GUPROF			/* XXX */
 	/*
 	 * check that we are profiling
 	 * and that we aren't recursively invoked.
 	 */
 	if (p->state != GMON_PROF_ON)
 		return;
+#endif
 #ifdef KERNEL
 	MCOUNT_ENTER;
 #else
 	p->state = GMON_PROF_BUSY;
 #endif
+	frompci = frompc - p->lowpc;
+
+#ifdef KERNEL
 	/*
-	 * check that frompcindex is a reasonable pc value.
+	 * When we are called from an exception handler, frompci may be
+	 * for a user address.  Convert such frompci's to the index of
+	 * user() to merge all user counts.
+	 */
+	if (frompci >= p->textsize) {
+		if (frompci + p->lowpc
+		    >= (fptrint_t)(VM_MAXUSER_ADDRESS + UPAGES * NBPG))
+			goto done;
+		frompci = (fptrint_t)user - p->lowpc;
+		if (frompci >= p->textsize)
+		    goto done;
+	}
+#endif /* KERNEL */
+
+#ifdef GUPROF
+	if (p->state != GMON_PROF_HIRES)
+		goto skip_guprof_stuff;
+	/*
+	 * Look at the clock and add the count of clock cycles since the
+	 * clock was last looked at to a counter for frompc.  This
+	 * solidifies the count for the function containing frompc and
+	 * effectively starts another clock for the current function.
+	 * The count for the new clock will be solidified when another
+	 * function call is made or the function returns.
+	 *
+	 * We use the usual sampling counters since they can be located
+	 * efficiently.  4-byte counters are usually necessary.
+	 *
+	 * There are many complications for subtracting the profiling
+	 * overheads from the counts for normal functions and adding
+	 * them to the counts for mcount(), mexitcount() and cputime().
+	 * We attempt to handle fractional cycles, but the overheads
+	 * are usually underestimated because they are calibrated for
+	 * a simpler than usual setup.
+	 */
+	delta = cputime() - p->mcount_overhead;
+	p->cputime_overhead_resid += p->cputime_overhead_frac;
+	p->mcount_overhead_resid += p->mcount_overhead_frac;
+	if ((int)delta < 0)
+		*p->mcount_count += delta + p->mcount_overhead
+				    - p->cputime_overhead;
+	else if (delta != 0) {
+		if (p->cputime_overhead_resid >= CALIB_SCALE) {
+			p->cputime_overhead_resid -= CALIB_SCALE;
+			++*p->cputime_count;
+			--delta;
+		}
+		if (delta != 0) {
+			if (p->mcount_overhead_resid >= CALIB_SCALE) {
+				p->mcount_overhead_resid -= CALIB_SCALE;
+				++*p->mcount_count;
+				--delta;
+			}
+			KCOUNT(p, frompci) += delta;
+		}
+		*p->mcount_count += p->mcount_overhead_sub;
+	}
+	*p->cputime_count += p->cputime_overhead;
+skip_guprof_stuff:
+#endif /* GUPROF */
+
+#ifdef KERNEL
+	/*
+	 * When we are called from an exception handler, frompc is faked
+	 * to be for where the exception occurred.  We've just solidified
+	 * the count for there.  Now convert frompci to the index of btrap()
+	 * for trap handlers and bintr() for interrupt handlers to make
+	 * exceptions appear in the call graph as calls from btrap() and
+	 * bintr() instead of calls from all over.
+	 */
+	if ((fptrint_t)selfpc >= (fptrint_t)btrap
+	    && (fptrint_t)selfpc < (fptrint_t)eintr) {
+		if ((fptrint_t)selfpc >= (fptrint_t)bintr)
+			frompci = (fptrint_t)bintr - p->lowpc;
+		else
+			frompci = (fptrint_t)btrap - p->lowpc;
+	}
+#endif /* KERNEL */
+
+	/*
+	 * check that frompc is a reasonable pc value.
 	 * for example:	signal catchers get called from the stack,
 	 *		not from text space.  too bad.
 	 */
-	frompc -= p->lowpc;
-	if (frompc > p->textsize)
+	if (frompci >= p->textsize)
 		goto done;
 
-	frompcindex = &p->froms[frompc / (p->hashfraction * sizeof(*p->froms))];
+	frompcindex = &p->froms[frompci / (p->hashfraction * sizeof(*p->froms))];
 	toindex = *frompcindex;
 	if (toindex == 0) {
 		/*
@@ -180,3 +275,48 @@ overflow:
  * which is included by <sys/gmon.h>.
  */
 MCOUNT
+
+#ifdef GUPROF
+void
+mexitcount(selfpc)
+	fptrint_t selfpc;
+{
+	struct gmonparam *p;
+	fptrint_t selfpcdiff;
+
+	p = &_gmonparam;
+	selfpcdiff = selfpc - (fptrint_t)p->lowpc;
+	if (selfpcdiff < p->textsize) {
+		u_int delta;
+
+		/*
+		 * Solidify the count for the current function.
+		 */
+		delta = cputime() - p->mexitcount_overhead;
+		p->cputime_overhead_resid += p->cputime_overhead_frac;
+		p->mexitcount_overhead_resid += p->mexitcount_overhead_frac;
+		if ((int)delta < 0)
+			*p->mexitcount_count += delta + p->mexitcount_overhead
+						- p->cputime_overhead;
+		else if (delta != 0) {
+			if (p->cputime_overhead_resid >= CALIB_SCALE) {
+				p->cputime_overhead_resid -= CALIB_SCALE;
+				++*p->cputime_count;
+				--delta;
+			}
+			if (delta != 0) {
+				if (p->mexitcount_overhead_resid
+				    >= CALIB_SCALE) {
+					p->mexitcount_overhead_resid
+					    -= CALIB_SCALE;
+					++*p->mexitcount_count;
+					--delta;
+				}
+				KCOUNT(p, selfpcdiff) += delta;
+			}
+			*p->mexitcount_count += p->mexitcount_overhead_sub;
+		}
+		*p->cputime_count += p->cputime_overhead;
+	}
+}
+#endif /* GUPROF */

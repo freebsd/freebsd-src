@@ -39,7 +39,7 @@
 .Nd generate a dump of the operating system's profile buffers
 .Sh SYNOPSIS
 .Nm kgmon
-.Op Fl bhpr
+.Op Fl Bbhpr
 .Op Fl M core
 .Op Fl N system
 .Sh DESCRIPTION
@@ -62,8 +62,10 @@ file suitable for later analysis by
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl B
+Resume the collection of high resolution profile data.
 .It Fl b
-Resume the collection of profile data.
+Resume the collection of low resolution profile data.
 .It Fl h
 Stop the collection of profile data.
 .It Fl p
@@ -86,6 +88,8 @@ default ``/kernel''.
 .El
 .Pp
 If neither 
+.Fl B
+nor
 .Fl b
 nor
 .Fl h
@@ -96,6 +100,9 @@ flag is specified and profile data is being collected,
 profiling will be momentarily suspended,
 the operating system profile buffers will be dumped,
 and profiling will be immediately resumed.
+.Pp
+The profile buffers should be reset when the resolution
+of the profile data is changed.
 .Sh FILES
 .Bl -tag -width /dev/kmemx -compact
 .It Pa /kernel
