@@ -313,6 +313,7 @@ gv_sync_td(void *arg)
 	g_topology_lock();
 	g_access(from, -1, 0, 0);
 	g_access(to, 0, -1, 0);
+	gv_save_config_all(p->vinumconf);
 	g_topology_unlock();
 
 	/* Successful initialization. */
