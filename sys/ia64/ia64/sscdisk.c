@@ -72,14 +72,9 @@ ssc(u_int64_t in0, u_int64_t in1, u_int64_t in2, u_int64_t in3, int which)
 #define SSC_NSECT 409600
 #endif
 
-MALLOC_DEFINE(M_SSC, "SSC disk", "Memory Disk");
-MALLOC_DEFINE(M_SSCSECT, "SSC sectors", "Memory Disk Sectors");
-
-static int ssc_debug;
-SYSCTL_INT(_debug, OID_AUTO, sscdebug, CTLFLAG_RW, &ssc_debug, 0, "");
+MALLOC_DEFINE(M_SSC, "SSC disk", "Simulator Disk");
 
 static int sscrootready;
-
 
 static d_strategy_t sscstrategy;
 
@@ -92,7 +87,6 @@ struct ssc_s {
 	struct disk disk;
 	dev_t dev;
 	int busy;
-	unsigned nsect;
 	int fd;
 };
 
@@ -103,18 +97,11 @@ sscstrategy(struct bio *bp)
 {
 	struct ssc_s *sc;
 	int s;
-	devstat_trans_flags dop;
-	unsigned sscop = 0;
 	struct disk_req req;
 	struct disk_stat stat;
 	u_long len, va, off;
 
-	if (ssc_debug > 1)
-		printf("sscstrategy(%p) %s %x, %ld, %ld, %p)\n",
-		    bp, devtoname(bp->bio_dev), bp->bio_flags, bp->bio_blkno, 
-		    bp->bio_bcount / DEV_BSIZE, bp->bio_data);
-
-	sc = bp->bio_dev->si_drv1;
+	sc = bp->bio_disk->d_drv1;
 
 	s = splbio();
 
@@ -135,13 +122,6 @@ sscstrategy(struct bio *bp)
 		if (!bp)
 			break;
 
-		if (bp->bio_cmd == BIO_READ) {
-			dop = DEVSTAT_READ;
-			sscop = SSC_READ;
-		} else {
-			dop = DEVSTAT_WRITE;
-			sscop = SSC_WRITE;
-		}
 		va = (u_long) bp->bio_data;
 		len = bp->bio_bcount;
 		off = bp->bio_pblkno << DEV_BSHIFT;
@@ -153,10 +133,8 @@ sscstrategy(struct bio *bp)
 				t = len;
 			req.len = t;
 			req.addr = ia64_tpa(va);
-			if (ssc_debug > 1)
-				printf("sscstrategy: reading %d bytes from 0x%ld into 0x%lx\n",
-				       req.len, off, req.addr);
-			ssc(sc->fd, 1, ia64_tpa((long) &req), off, sscop);
+			ssc(sc->fd, 1, ia64_tpa((long) &req), off,
+			    (bp->bio_cmd == BIO_READ) ? SSC_READ : SSC_WRITE);
 			stat.fd = sc->fd;
 			ssc(ia64_tpa((long)&stat), 0, 0, 0,
 			    SSC_WAIT_COMPLETION);
@@ -196,42 +174,20 @@ ssccreate(int unit)
 	sc->unit = unit;
 	bioq_init(&sc->bio_queue);
 
-	sc->disk.d_strategy = sscstrategy;
+	sc->disk.d_drv1 = sc;
+	sc->disk.d_fwheads = 0;
+	sc->disk.d_fwsectors = 0;
+	sc->disk.d_maxsize = DFLTPHYS;
+	sc->disk.d_mediasize = (off_t)SSC_NSECT * DEV_BSIZE;
 	sc->disk.d_name = "sscdisk";
 	sc->disk.d_sectorsize = DEV_BSIZE;
-	sc->disk.d_mediasize = (off_t)SSC_NSECT * DEV_BSIZE;
-	sc->disk.d_fwsectors = 0;
-	sc->disk.d_fwheads = 0;
-	sc->dev = disk_create(sc->unit, &sc->disk, 0, NULL, NULL);
-	sc->dev->si_drv1 = sc;
-	sc->nsect = SSC_NSECT;
+	sc->disk.d_strategy = sscstrategy;
+	disk_create(sc->unit, &sc->disk, 0, NULL, NULL);
 	sc->fd = fd;
 	if (sc->unit == 0) 
 		sscrootready = 1;
 	return (sc);
 }
-
-#if 0
-static void
-ssc_clone (void *arg, char *name, int namelen, dev_t *dev)
-{
-	int i, u;
-
-	if (*dev != NODEV)
-		return;
-	i = dev_stdclone(name, NULL, "ssc", &u);
-	if (i == 0)
-		return;
-	/* XXX: should check that next char is [\0sa-h] */
-	/*
-	 * Now we cheat: We just create the disk, but don't match.
-	 * Since we run before it, subr_disk.c::disk_clone() will
-	 * find our disk and match the sought for device.
-	 */
-	ssccreate(u);
-	return;
-}
-#endif
 
 static void
 ssc_drvinit(void *unused)
