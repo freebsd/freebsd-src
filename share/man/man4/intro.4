@@ -72,9 +72,7 @@ They are usually located under the directory
 in the file system hierarchy
 .Pq see also Xr hier 7 .
 .Pp
-Until
-.Xr devfs 5
-is fully functional, each device node must be created statically and
+Each device node must be created statically and
 independently of the existence of the associated device driver,
 usually by running
 .Xr MAKEDEV 8 .
@@ -160,7 +158,6 @@ architecture
 .Xr select 2 ,
 .Xr socket 2 ,
 .Xr write 2 ,
-.Xr devfs 5 ,
 .Xr hier 7 ,
 .Xr config 8 ,
 .Xr MAKEDEV 8

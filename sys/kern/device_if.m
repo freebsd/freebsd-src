@@ -86,8 +86,8 @@ STATICMETHOD void identify {
 #
 # Attach a device to the system.  The probe method will have been
 # called and will have indicated that the device exists.  This routine
-# should initialise the hardware and allocate other system resources
-# (such as devfs entries).  Returns 0 on success.
+# should initialise the hardware and allocate other system resources.
+# Returns 0 on success.
 #
 METHOD int attach {
 	device_t dev;

@@ -62,18 +62,6 @@
 #include <net/if.h>
 
 #ifdef __FreeBSD__
-
-#if defined(__FreeBSD__) && __FreeBSD__ == 3
-#include "opt_devfs.h"
-#endif
-
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
-
-#endif /* __FreeBSD__ */
-
-#ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
 #elif defined(__bsdi__)
@@ -136,12 +124,6 @@ PSEUDO_SET(i4bctlattach, i4b_i4bctldrv);
 
 #define PDEVSTATIC	static
 #endif /* __FreeBSD__ */
-
-#if defined(__FreeBSD__) && __FreeBSD__ == 3
-#ifdef DEVFS
-static void *devfs_token;
-#endif
-#endif
 
 #ifndef __FreeBSD__
 #define PDEVSTATIC	/* */
@@ -217,17 +199,7 @@ i4bctlattach()
 #endif
 
 #if defined(__FreeBSD__)
-#if __FreeBSD__ == 3
-
-#ifdef DEVFS
-	devfs_token = devfs_add_devswf(&i4bctl_cdevsw, 0, DV_CHR,
-				       UID_ROOT, GID_WHEEL, 0600,
-				       "i4bctl");
-#endif
-
-#else
 	make_dev(&i4bctl_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "i4bctl");
-#endif
 #endif
 }
 

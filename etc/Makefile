@@ -12,7 +12,7 @@ BIN1=   amd.map apmd.conf auth.conf \
 	inetd.conf login.access login.conf \
 	motd modems networks newsyslog.conf \
 	pam.conf phones printcap profile protocols \
-	rc rc.atm rc.devfs rc.diskless1 rc.diskless2 rc.firewall rc.firewall6 \
+	rc rc.atm rc.diskless1 rc.diskless2 rc.firewall rc.firewall6 \
 	rc.network rc.network6 rc.pccard rc.serial rc.shutdown \
 	rc.syscons rc.sysctl remote rpc security services shells syslog.conf \
 	usbd.conf \

@@ -56,18 +56,6 @@ extern cc_t ttydefchars;
 #define termioschars(t) memcpy((t)->c_cc, &ttydefchars, sizeof((t)->c_cc))
 #endif
 
-#ifdef __FreeBSD__
-
-#if defined(__FreeBSD__) && __FreeBSD__ == 3
-#include "opt_devfs.h"
-#endif
-
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
-
-#endif /* __FreeBSD__ */
-
 #ifdef __NetBSD__
 #include <sys/filio.h>
 #define bootverbose 0
@@ -135,12 +123,6 @@ static struct rbch_softc {
 #define I4BRBCHMAXQLEN	10
 
 	struct selinfo selp;		/* select / poll	*/
-
-#if defined(__FreeBSD__) && __FreeBSD__ == 3
-#ifdef DEVFS
-	void *devfs_token;		/* device filesystem	*/
-#endif	
-#endif
 
 #if I4BRBCHACCT
 #if defined(__FreeBSD__)
@@ -296,19 +278,8 @@ i4brbchattach()
 	for(i=0; i < NI4BRBCH; i++)
 	{
 #if defined(__FreeBSD__)
-#if __FreeBSD__ == 3
-
-#ifdef DEVFS
-		rbch_softc[i].devfs_token =
-			devfs_add_devswf(&i4brbch_cdevsw, i, DV_CHR,
-				     UID_ROOT, GID_WHEEL, 0600,
-				     "i4brbch%d", i);
-#endif
-
-#else
 		make_dev(&i4brbch_cdevsw, i,
 			UID_ROOT, GID_WHEEL, 0600, "i4brbch%d", i);
-#endif
 #endif
 
 #if I4BRBCHACCT

@@ -68,9 +68,6 @@ static LIST_HEAD(, specinfo) dev_hash[DEVT_HASH];
 
 static LIST_HEAD(, specinfo) dev_free;
 
-devfs_create_t *devfs_create_hook;
-devfs_remove_t *devfs_remove_hook;
-
 static int free_devt;
 SYSCTL_INT(_debug, OID_AUTO, free_devt, CTLFLAG_RW, &free_devt, 0, "");
 
@@ -305,16 +302,12 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, char 
 	va_end(ap);
 	dev->si_devsw = devsw;
 
-	if (devfs_create_hook)
-		devfs_create_hook(dev, uid, gid, perms);
 	return (dev);
 }
 
 void
 destroy_dev(dev_t dev)
 {
-	if (devfs_remove_hook)
-		devfs_remove_hook(dev);
 	dev->si_drv1 = 0;
 	dev->si_drv2 = 0;
 	dev->si_devsw = 0;

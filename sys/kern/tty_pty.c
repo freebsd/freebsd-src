@@ -178,6 +178,7 @@ ptsopen(dev, flag, devtype, p)
 
 	/*
 	 * XXX: Gross hack for DEVFS:
+	 * XXX: DEVFS is no more, should this be removed?
 	 * If we openned this device, ensure we have the
 	 * next one too, so people can open it.
 	 */
@@ -826,6 +827,7 @@ ptc_drvinit(unused)
 	cdevsw_add(&pts_cdevsw);
 	cdevsw_add(&ptc_cdevsw);
 	/* XXX: Gross hack for DEVFS */
+	/* XXX: DEVFS is no more, should this be removed? */
 	ptyinit(0);
 }
 

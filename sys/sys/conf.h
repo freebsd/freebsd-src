@@ -59,8 +59,6 @@ struct specinfo {
 	char		si_name[SPECNAMELEN + 1];
 	void		*si_drv1, *si_drv2;
 	struct cdevsw	*si_devsw;
-	void 		*si_devfs;	/* save cookie for devfs operations */
-	void 		*si_bdevfs;	/* XXX block device (should go away) */
 	int		si_iosize_max;	/* maximum I/O size (for physio &al) */
 	union {
 		struct {
@@ -126,10 +124,6 @@ typedef int l_ioctl_t __P((struct tty *tp, u_long cmd, caddr_t data,
 typedef int l_rint_t __P((int c, struct tty *tp));
 typedef int l_start_t __P((struct tty *tp));
 typedef int l_modem_t __P((struct tty *tp, int flag));
-
-/* This is type of the function DEVFS uses to hook into the kernel with */
-typedef void devfs_create_t __P((dev_t dev, uid_t uid, gid_t gid, int perms));
-typedef void devfs_remove_t __P((dev_t dev));
 
 /*
  * XXX: The dummy argument can be used to do what strategy1() never
@@ -274,8 +268,6 @@ dev_t	makebdev __P((int maj, int min));
 dev_t	make_dev __P((struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, char *fmt, ...)) __printflike(6, 7);
 int	lminor __P((dev_t dev));
 void	setconf __P((void));
-
-extern devfs_create_t *devfs_create_hook;
 
 /*
  * XXX: This included for when DEVFS resurfaces 

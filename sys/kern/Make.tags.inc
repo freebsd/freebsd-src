@@ -32,7 +32,6 @@ COMM=	${SYS}/conf/*.[ch] \
 	${SYS}/isofs/cd9660/*.[ch] \
 	${SYS}/kern/*.[ch] \
 	${SYS}/miscfs/deadfs/*.[ch] \
-	${SYS}/miscfs/devfs/*.[ch] \
 	${SYS}/miscfs/fdesc/*.[ch] \
 	${SYS}/miscfs/fifofs/*.[ch] \
 	${SYS}/miscfs/kernfs/*.[ch] \
@@ -97,7 +96,6 @@ COMMDIR2= ${SYS}/contrib/softupdates \
 	${SYS}/dev/vx \
 	${SYS}/isofs/cd9660 \
 	${SYS}/miscfs/deadfs \
-	${SYS}/miscfs/devfs \
 	${SYS}/miscfs/fdesc \
 	${SYS}/miscfs/fifofs \
 	${SYS}/miscfs/kernfs \

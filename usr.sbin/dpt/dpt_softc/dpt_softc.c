@@ -54,7 +54,6 @@
  * If you build a kernel without these options, edit here and recompile.
  */
 #define DPT_MEASURE_PERFORMANCE
-#define DEVFS
 
 #include <sys/dpt.h>
 
