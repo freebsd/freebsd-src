@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.18 1997/10/26 01:02:07 brian Exp $
+ * $Id: auth.c,v 1.19 1997/11/09 14:18:32 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -62,8 +62,17 @@ LocalAuthInit()
     /* We're allowed in interactive and direct */
     VarLocalAuth = LOCAL_AUTH;
   else
-    VarLocalAuth = LocalAuthValidate(SECRETFILE, VarShortHost, "")
-      == NOT_FOUND ?  LOCAL_DENY : LOCAL_NO_AUTH;
+    switch (LocalAuthValidate(SECRETFILE, VarShortHost, "")) {
+    case NOT_FOUND:
+      VarLocalAuth = LOCAL_DENY;
+      break;
+    case VALID:
+      VarLocalAuth = LOCAL_AUTH;
+      break;
+    case INVALID:
+      VarLocalAuth = LOCAL_NO_AUTH;
+      break;
+    }
 }
 
 LOCAL_AUTH_VALID

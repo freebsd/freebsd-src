@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.89 1997/11/09 06:22:43 brian Exp $
+ * $Id: main.c,v 1.90 1997/11/09 14:18:45 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -560,7 +560,7 @@ ReadTty()
         Prompt();
     } else {
       LogPrintf(LogPHASE, "client connection closed.\n");
-      VarLocalAuth = LOCAL_NO_AUTH;
+      LocalAuthInit();
       mode &= ~MODE_INTER;
       oVarTerm = VarTerm;
       VarTerm = 0;
