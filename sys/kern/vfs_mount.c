@@ -1585,7 +1585,7 @@ __vfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 
 	error = mp->mnt_op->vfs_statfs(mp, &mp->mnt_stat, td);
 	if (sbp != &mp->mnt_stat)
-		memcpy(sbp, &mp->mnt_stat, sizeof sbp);
+		*sbp = mp->mnt_stat;
 	return (error);
 }
 
