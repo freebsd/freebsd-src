@@ -50,10 +50,8 @@ static const char rcsid[] =
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
-#ifdef __STDC__
 #include <stdlib.h>
 #include <string.h>
-#endif
 
 #include "dump.h"
 
@@ -66,13 +64,13 @@ struct	dumpdates **ddatev = 0;
 int	nddates = 0;
 int	ddates_in = 0;
 
-static	void dumprecout __P((FILE *, struct dumpdates *));
-static	int getrecord __P((FILE *, struct dumpdates *));
-static	int makedumpdate __P((struct dumpdates *, char *));
-static	void readdumptimes __P((FILE *));
+static	void dumprecout(FILE *, const struct dumpdates *);
+static	int getrecord(FILE *, struct dumpdates *);
+static	int makedumpdate(struct dumpdates *, const char *);
+static	void readdumptimes(FILE *);
 
 void
-initdumptimes()
+initdumptimes(void)
 {
 	FILE *df;
 
@@ -104,8 +102,7 @@ initdumptimes()
 }
 
 static void
-readdumptimes(df)
-	FILE *df;
+readdumptimes(FILE *df)
 {
 	int i;
 	struct	dumptime *dtwalk;
@@ -131,7 +128,7 @@ readdumptimes(df)
 }
 
 void
-getdumptime()
+getdumptime(void)
 {
 	struct dumpdates *ddp;
 	int i;
@@ -163,7 +160,7 @@ getdumptime()
 }
 
 void
-putdumptime()
+putdumptime(void)
 {
 	FILE *df;
 	struct dumpdates *dtwalk;
@@ -225,24 +222,18 @@ putdumptime()
 }
 
 static void
-dumprecout(file, what)
-	FILE *file;
-	struct dumpdates *what;
+dumprecout(FILE *file, const struct dumpdates *what)
 {
 
-	if (fprintf(file, DUMPOUTFMT,
-		    what->dd_name,
-		    what->dd_level,
-		    ctime(&what->dd_ddate)) < 0)
+	if (fprintf(file, DUMPOUTFMT, what->dd_name,
+	      what->dd_level, ctime(&what->dd_ddate)) < 0)
 		quit("%s: %s\n", dumpdates, strerror(errno));
 }
 
 int	recno;
 
 static int
-getrecord(df, ddatep)
-	FILE *df;
-	struct dumpdates *ddatep;
+getrecord(FILE *df, struct dumpdates *ddatep)
 {
 	char tbuf[BUFSIZ];
 
@@ -262,9 +253,7 @@ getrecord(df, ddatep)
 }
 
 static int
-makedumpdate(ddp, tbuf)
-	struct dumpdates *ddp;
-	char *tbuf;
+makedumpdate(struct dumpdates *ddp, const char *tbuf)
 {
 	char un_buf[128];
 

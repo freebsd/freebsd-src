@@ -47,11 +47,8 @@ static const char rcsid[] =
  *
  * Return -1 if the string is not in ctime format.
  */
-
-
 time_t
-unctime(str)
-	char *str;
+unctime(char *str)
 {
 	struct tm then;
 
