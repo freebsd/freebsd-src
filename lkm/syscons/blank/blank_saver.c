@@ -25,22 +25,20 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: blank_saver.c,v 1.9 1997/04/06 10:48:10 dufault Exp $
+ *	$Id: blank_saver.c,v 1.6.2.1 1997/06/29 08:51:37 obrien Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
 #include <sys/exec.h>
 #include <sys/sysent.h>
 #include <sys/lkm.h>
-#include <sys/errno.h>
+
+#include <i386/isa/isa.h>
+
 #include <saver.h>
 
 MOD_MISC(blank_saver);
-
-void (*current_saver)(int blank);
-void (*old_saver)(int blank);
 
 static void
 blank_saver(int blank)
@@ -61,18 +59,15 @@ blank_saver(int blank)
 static int
 blank_saver_load(struct lkm_table *lkmtp, int cmd)
 {
-	(*current_saver)(0);
-	old_saver = current_saver;
-	current_saver = blank_saver;
-	return 0;
+	if (!crtc_vga)
+		return EINVAL;
+	return add_scrn_saver(blank_saver);
 }
 
 static int
 blank_saver_unload(struct lkm_table *lkmtp, int cmd)
 {
-	(*current_saver)(0);
-	current_saver = old_saver;
-	return 0;
+	return remove_scrn_saver(blank_saver);
 }
 
 int

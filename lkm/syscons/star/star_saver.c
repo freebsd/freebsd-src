@@ -25,25 +25,21 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: star_saver.c,v 1.11 1997/04/06 11:07:01 dufault Exp $
+ *	$Id: star_saver.c,v 1.8.2.1 1997/06/29 08:51:44 obrien Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
 #include <sys/exec.h>
 #include <sys/sysent.h>
 #include <sys/lkm.h>
-#include <sys/errno.h>
 
 #include <machine/md_var.h>
+#include <i386/include/pc/display.h>
 
-#include "saver.h"
+#include <saver.h>
 
 MOD_MISC(star_saver);
-
-void (*current_saver)(int blank);
-void (*old_saver)(int blank);
 
 #define NUM_STARS	50
 
@@ -62,7 +58,7 @@ star_saver(int blank)
 	static u_short 	stars[NUM_STARS][2];
 
 	if (blank) {
-		if (!scrn_blanked) {
+		if (scrn_blanked <= 0) {
 			scrn_blanked = 1;
 			fillw((FG_LIGHTGREY|BG_BLACK)<<8|scr_map[0x20], Crtat,
 			      scp->xsize * scp->ysize);
@@ -83,11 +79,9 @@ star_saver(int blank)
 		}
 	}
 	else {
-		if (scrn_blanked) {
+		if (scrn_blanked > 0) {
 			set_border(scp->border);
 			scrn_blanked = 0;
-			scp->start = 0;
-			scp->end = scp->xsize * scp->ysize;
 		}
 	}
 }
@@ -95,18 +89,13 @@ star_saver(int blank)
 static int
 star_saver_load(struct lkm_table *lkmtp, int cmd)
 {
-	(*current_saver)(0);
-	old_saver = current_saver;
-	current_saver = star_saver;
-	return 0;
+	return add_scrn_saver(star_saver);
 }
 
 static int
 star_saver_unload(struct lkm_table *lkmtp, int cmd)
 {
-	(*current_saver)(0);
-	current_saver = old_saver;
-	return 0;
+	return remove_scrn_saver(star_saver);
 }
 
 int
