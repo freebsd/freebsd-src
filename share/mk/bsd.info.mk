@@ -1,4 +1,4 @@
-#	$Id: bsd.info.mk,v 1.35 1997/03/29 12:39:52 peter Exp $
+#	$Id: bsd.info.mk,v 1.36 1997/04/07 16:46:40 bde Exp $
 #
 # The include file <bsd.info.mk> handles installing GNU (tech)info files.
 # Texinfo is a documentation system that uses a single source
@@ -122,6 +122,10 @@ ${x:S/$/${ICOMPRESS_EXT}/}:	${x}
 # What to do if there's no dir file there.  This is really gross!!!
 ${DESTDIR}${INFODIR}/${INFODIRFILE}:
 	cd /usr/src/share/info; ${MAKE} install
+
+# What to do if there's no dir file there.  This is really gross!!!
+${DESTDIR}${INFODIR}/${INFODIRFILE}:
+	@(cd /usr/src/share/info; make install)
 
 .for x in ${INFO}
 INSTALLINFODIRS+= ${x:S/$/-install/}
