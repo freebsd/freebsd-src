@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.25 1995/03/18 01:04:36 davidg Exp $
+ *	$Id: vm_page.c,v 1.26 1995/03/19 14:29:26 davidg Exp $
  */
 
 /*
@@ -886,6 +886,44 @@ vm_page_unwire(mem)
 }
 
 /*
+ *	vm_page_activate:
+ *
+ *	Put the specified page on the active list (if appropriate).
+ *
+ *	The page queues must be locked.
+ */
+void 
+vm_page_activate(m)
+	register vm_page_t m;
+{
+	int s;
+
+	VM_PAGE_CHECK(m);
+
+	s = splhigh();
+	if (m->flags & PG_ACTIVE)
+		panic("vm_page_activate: already active");
+
+	if (m->flags & PG_CACHE)
+		cnt.v_reactivated++;
+
+	vm_page_unqueue(m);
+
+	if (m->wire_count == 0) {
+		TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
+		m->flags |= PG_ACTIVE;
+		TAILQ_REMOVE(&m->object->memq, m, listq);
+		TAILQ_INSERT_TAIL(&m->object->memq, m, listq);
+		if (m->act_count < 5)
+			m->act_count = 5;
+		else if( m->act_count < ACT_MAX)
+			m->act_count += 1;
+		cnt.v_active_count++;
+	}
+	splx(s);
+}
+
+/*
  *	vm_page_deactivate:
  *
  *	Returns the given page to the inactive list,
@@ -914,6 +952,8 @@ vm_page_deactivate(m)
 	if (!(m->flags & PG_INACTIVE) && m->wire_count == 0 &&
 	    m->hold_count == 0) {
 		pmap_clear_reference(VM_PAGE_TO_PHYS(m));
+		if (m->flags & PG_CACHE)
+			cnt.v_reactivated++;
 		vm_page_unqueue(m);
 		TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
 		m->flags |= PG_INACTIVE;
@@ -928,7 +968,6 @@ vm_page_deactivate(m)
  *
  * Put the specified page onto the page cache queue (if appropriate).
  */
-
 void 
 vm_page_cache(m)
 	register vm_page_t m;
@@ -960,49 +999,12 @@ vm_page_cache(m)
 }
 
 /*
- *	vm_page_activate:
- *
- *	Put the specified page on the active list (if appropriate).
- *
- *	The page queues must be locked.
- */
-
-void 
-vm_page_activate(m)
-	register vm_page_t m;
-{
-	int s;
-
-	VM_PAGE_CHECK(m);
-
-	s = splhigh();
-	if (m->flags & PG_ACTIVE)
-		panic("vm_page_activate: already active");
-
-	vm_page_unqueue(m);
-
-	if (m->wire_count == 0) {
-		TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
-		m->flags |= PG_ACTIVE;
-		TAILQ_REMOVE(&m->object->memq, m, listq);
-		TAILQ_INSERT_TAIL(&m->object->memq, m, listq);
-		if (m->act_count < 5)
-			m->act_count = 5;
-		else if( m->act_count < ACT_MAX)
-			m->act_count += 1;
-		cnt.v_active_count++;
-	}
-	splx(s);
-}
-
-/*
  *	vm_page_zero_fill:
  *
  *	Zero-fill the specified page.
  *	Written as a standard pagein routine, to
  *	be used by the zero-fill object.
  */
-
 boolean_t
 vm_page_zero_fill(m)
 	vm_page_t m;
