@@ -1,4 +1,5 @@
 #! /bin/sh
+# ex:ts=8
 
 # Copyright (c) 2003 David E. O'Brien
 # All rights reserved.
@@ -40,7 +41,11 @@ case $# in
 esac
 
 PKG_LIST=$(basename `ls $3/*.${PKG_EXT}` | sed -e "s/\.${PKG_EXT}$//")
-REGEX=$(echo ${PKG_LIST} | sed -e 's/ /|/g' -e 's/\./\\\./g')
+REGEX=$(echo ${PKG_LIST} | sed \
+	-e 's/ /|/g' \
+	-e 's/\./\\\./g' \
+	-e 's/\+/\\\+/g' \
+	-e 's/\^/\\\^/g')
 
 egrep "^(${REGEX})" $1 > $2
 
