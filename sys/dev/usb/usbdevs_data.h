@@ -244,6 +244,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "Zip 100",
 	},
 	{
+	    USB_VENDOR_OMNIVISION, USB_PRODUCT_OMNIVISION_OV511,
+	    0,
+	    "OmniVision",
+	    "OV511 Camera",
+	},
+	{
 	    USB_VENDOR_BELKIN, USB_PRODUCT_BELKIN_F5U002,
 	    0,
 	    "Belkin",
@@ -475,6 +481,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_IOMEGA, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Iomega",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_OMNIVISION, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "OmniVision",
 	    NULL,
 	},
 	{
