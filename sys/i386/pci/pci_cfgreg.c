@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcibus.c,v 1.39 1997/05/26 21:52:41 se Exp $
+ * $Id: pcibus.c,v 1.40 1997/07/20 14:10:08 bde Exp $
  *
  */
 
@@ -162,7 +162,7 @@ pci_cfgcheck(int maxdev)
 		class = inl(pci_cfgenable(0, device, 0, 8, 4)) >> 8;
 		if (bootverbose)
 			printf("[class=%06x] ", class);
-		if (class == 0 || (class & 0xf8f0ff) != 0)
+		if (class == 0 || (class & 0xf870ff) != 0)
 			continue;
 
 		header = inb(pci_cfgenable(0, device, 0, 14, 1));
