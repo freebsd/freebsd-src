@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.c,v 1.8 1998/02/06 12:13:11 eivind Exp $
+ *	$Id: vm86.c,v 1.9 1998/03/23 19:52:38 jlemon Exp $
  */
 
 #include "opt_vm86.h"
@@ -446,6 +446,7 @@ initial_bioscalls(u_int *basemem, u_int *extmem)
 	bzero(&vmf, sizeof(struct vm86frame));		/* safety */
 	vm86_initialize();
 
+#ifndef PC98
 	vm86_intcall(0x12, &vmf);
 	*basemem = vmf.vmf_ax;
 	*extmem = 0;
@@ -506,7 +507,7 @@ initial_bioscalls(u_int *basemem, u_int *extmem)
 done:
 	printf("BIOS basemem: %dK, extmem: %dK (from %p call)\n",
 	    *basemem, *extmem, method);
-
+#endif /* !PC98 */
 #if 0
 	/* VESA setup -- ? */
 	vmf.vmf_ax = 0x4f02;
