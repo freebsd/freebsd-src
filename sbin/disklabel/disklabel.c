@@ -106,22 +106,22 @@ static const char rcsid[] =
 #error	I do not know about this architecture.
 #endif
 
-void	makelabel	__P((char *, char *, struct disklabel *));
-int	writelabel	__P((int, char *, struct disklabel *));
-void	l_perror	__P((char *));
-struct disklabel * readlabel __P((int));
-struct disklabel * makebootarea __P((char *, struct disklabel *, int));
-void	display		__P((FILE *, struct disklabel *));
-int	edit		__P((struct disklabel *, int));
-int	editit		__P((void));
-char *	skip		__P((char *));
-char *	word		__P((char *));
-int	getasciilabel	__P((FILE *, struct disklabel *));
-int	checklabel	__P((struct disklabel *));
-void	setbootflag	__P((struct disklabel *));
-void	Warning		(char *, ...) __printflike(1, 2);
-void	usage		__P((void));
-struct disklabel * getvirginlabel __P((void));
+void	makelabel(const char *, const char *, struct disklabel *);
+int	writelabel(int, const char *, struct disklabel *);
+void	l_perror(const char *);
+struct disklabel *readlabel(int);
+struct disklabel *makebootarea(char *, struct disklabel *, int);
+void	display(FILE *, const struct disklabel *);
+int	edit(struct disklabel *, int);
+int	editit(void);
+char	*skip(char *);
+char	*word(char *);
+int	getasciilabel(FILE *, struct disklabel *);
+int	checklabel(struct disklabel *);
+void	setbootflag(struct disklabel *);
+void	Warning(const char *, ...) __printflike(1, 2);
+void	usage(void);
+struct disklabel *getvirginlabel(void);
 
 #define	DEFEDITOR	_PATH_VI
 #define	streq(a,b)	(strcmp(a,b) == 0)
@@ -167,9 +167,7 @@ int	debug;
 #endif
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	register struct disklabel *lp;
 	FILE *t;
@@ -364,11 +362,9 @@ main(argc, argv)
  * if specified.
  */
 void
-makelabel(type, name, lp)
-	char *type, *name;
-	register struct disklabel *lp;
+makelabel(const char *type, const char *name, struct disklabel *lp)
 {
-	register struct disklabel *dp;
+	struct disklabel *dp;
 
 	if (strcmp(type, "auto") == 0)
 		dp = getvirginlabel();
@@ -411,10 +407,7 @@ makelabel(type, name, lp)
 }
 
 int
-writelabel(f, boot, lp)
-	int f;
-	char *boot;
-	register struct disklabel *lp;
+writelabel(int f, const char *boot, struct disklabel *lp)
 {
 	int flag;
 #ifdef __alpha__
@@ -533,8 +526,7 @@ writelabel(f, boot, lp)
 }
 
 void
-l_perror(s)
-	char *s;
+l_perror(const char *s)
 {
 	switch (errno) {
 
@@ -568,10 +560,9 @@ l_perror(s)
  * Use ioctl to get label unless -r flag is given.
  */
 struct disklabel *
-readlabel(f)
-	int f;
+readlabel(int f)
 {
-	register struct disklabel *lp;
+	struct disklabel *lp;
 
 	if (rflag) {
 		if (read(f, bootarea, BBSIZE) < BBSIZE)
@@ -600,13 +591,10 @@ readlabel(f)
  * Returns a pointer to the disklabel portion of the bootarea.
  */
 struct disklabel *
-makebootarea(boot, dp, f)
-	char *boot;
-	register struct disklabel *dp;
-	int f;
+makebootarea(char *boot, struct disklabel *dp, int f)
 {
 	struct disklabel *lp;
-	register char *p;
+	char *p;
 	int b;
 #if NUMBOOT > 0
 	char *dkbasename;
@@ -772,12 +760,10 @@ makebootarea(boot, dp, f)
 }
 
 void
-display(f, lp)
-	FILE *f;
-	register struct disklabel *lp;
+display(FILE *f, const struct disklabel *lp)
 {
-	register int i, j;
-	register struct partition *pp;
+	int i, j;
+	const struct partition *pp;
 
 	fprintf(f, "# %s:\n", specname);
 	if ((unsigned) lp->d_type < DKMAXTYPES)
@@ -875,11 +861,9 @@ display(f, lp)
 }
 
 int
-edit(lp, f)
-	struct disklabel *lp;
-	int f;
+edit(struct disklabel *lp, int f)
 {
-	register int c, fd;
+	int c, fd;
 	struct disklabel label;
 	FILE *fp;
 
@@ -921,10 +905,11 @@ edit(lp, f)
 }
 
 int
-editit()
+editit(void)
 {
-	register int pid, xpid;
+	int pid, xpid;
 	int stat, omask;
+	char *ed;
 
 	omask = sigblock(sigmask(SIGINT)|sigmask(SIGQUIT)|sigmask(SIGHUP));
 	while ((pid = fork()) < 0) {
@@ -939,8 +924,6 @@ editit()
 		sleep(1);
 	}
 	if (pid == 0) {
-		register char *ed;
-
 		sigsetmask(omask);
 		setgid(getgid());
 		setuid(getuid());
@@ -957,22 +940,20 @@ editit()
 }
 
 char *
-skip(cp)
-	register char *cp;
+skip(char *cp)
 {
 
 	while (*cp != '\0' && isspace(*cp))
 		cp++;
 	if (*cp == '\0' || *cp == '#')
-		return ((char *)NULL);
+		return (NULL);
 	return (cp);
 }
 
 char *
-word(cp)
-	register char *cp;
+word(char *cp)
 {
-	register char c;
+	char c;
 
 	while (*cp != '\0' && !isspace(*cp) && *cp != '#')
 		cp++;
@@ -981,7 +962,7 @@ word(cp)
 		if (c != '#')
 			return (skip(cp));
 	}
-	return ((char *)NULL);
+	return (NULL);
 }
 
 /*
@@ -990,15 +971,14 @@ word(cp)
  * and fill in lp.
  */
 int
-getasciilabel(f, lp)
-	FILE	*f;
-	register struct disklabel *lp;
+getasciilabel(FILE *f, struct disklabel *lp)
 {
-	register char **cpp, *cp;
-	register struct partition *pp;
+	char **cpp, *cp;
+	struct partition *pp;
 	unsigned int part;
 	char *tp, *s, line[BUFSIZ];
 	int v, lineno = 0, errors = 0;
+	int i;
 
 	lp->d_bbsize = BBSIZE;				/* XXX */
 	lp->d_sbsize = SBSIZE;				/* XXX */
@@ -1052,8 +1032,6 @@ getasciilabel(f, lp)
 			continue;
 		}
 		if (streq(cp, "drivedata")) {
-			register int i;
-
 			for (i = 0; (cp = tp) && *cp != '\0' && i < NDDATA;) {
 				lp->d_drivedata[i++] = atoi(cp);
 				tp = word(cp);
@@ -1360,10 +1338,9 @@ getasciilabel(f, lp)
  * derived fields according to supplied values.
  */
 int
-checklabel(lp)
-	register struct disklabel *lp;
+checklabel(struct disklabel *lp)
 {
-	register struct partition *pp;
+	struct partition *pp;
 	int i, errors = 0;
 	char part;
 	unsigned long total_size, total_percent, current_offset;
@@ -1688,10 +1665,9 @@ getvirginlabel(void)
  * clobber bootstrap code.
  */
 void
-setbootflag(lp)
-	register struct disklabel *lp;
+setbootflag(struct disklabel *lp)
 {
-	register struct partition *pp;
+	struct partition *pp;
 	int i, errors = 0;
 	char part;
 	u_long boffset;
@@ -1726,7 +1702,7 @@ setbootflag(lp)
 
 /*VARARGS1*/
 void
-Warning(char *fmt, ...)
+Warning(const char *fmt, ...)
 {
 	va_list ap;
 
@@ -1738,7 +1714,7 @@ Warning(char *fmt, ...)
 }
 
 void
-usage()
+usage(void)
 {
 #if NUMBOOT > 0
 	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
