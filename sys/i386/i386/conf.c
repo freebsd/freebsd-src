@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.74 1995/03/02 07:38:12 jkh Exp $
+ *	$Id: conf.c,v 1.75 1995/03/04 20:52:38 dufault Exp $
  */
 
 #include <sys/param.h>
@@ -1139,6 +1139,10 @@ struct cdevsw	cdevsw[] =
 	{ wormopen,	wormclose,	rawread,	rawwrite,	/*62*/
 	  wormioctl,	nostop,		nullreset,	nodevtotty,/* worm */
 	  seltrue,	nommap,		wormstrategy },
+	{ nxopen, nxclose, nxread,					/*63*/
+	  nxwrite, nxioctl, nxstop,				   /* Talisman*/
+	  nxreset, nxdevtotty, nxselect,
+	  nxmmap, NULL },
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
 
