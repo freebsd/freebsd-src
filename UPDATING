@@ -27,6 +27,21 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	effects of this bug (hang on boot when starting devd), some
 	allowances are made.
 
+20030329:
+	Alphas with libc from between 20030312 and 20030329 exhibit
+	floating point exceptions (FPEs), most notably in awk(1)
+	while upgrading the system through a buildworld.
+
+	So, to successfully upgrade your Alpha, you must either
+	downgrade your libc.so to a pre-20030312 version, or update
+	/usr/share/mk/bsd.cpu.mk to revision 1.26 which adds -mieee
+	to CFLAGS, then forcibly rebuild and install libc:
+
+	cd /usr/src/lib/libc && \
+	    make cleandir && make obj && \
+	    make -DNOMAN -DNOPROFILE all && \
+	    make -DNOMAN -DNOPROFILE install
+
 20030208:
 	sendmail 8.12.7 has been imported.  It has one important
 	change for IPv6 users.  The default submit.mc now uses
