@@ -483,10 +483,10 @@ again:
 	 * The p_stats and p_sigacts substructs are set in vm_forkproc.
 	 */
 	p2->p_flag = 0;
+	if (p1->p_flag & P_PROFIL)
+		startprofclock(p2);
 	mtx_lock_spin(&sched_lock);
 	p2->p_sflag = PS_INMEM;
-	if (p1->p_sflag & PS_PROFIL)
-		startprofclock(p2);
 	/*
 	 * Allow the scheduler to adjust the priority of the child and
 	 * parent while we hold the sched_lock.
@@ -580,7 +580,7 @@ again:
 	PROC_LOCK(p1);
 
 	/*
-	 * Preserve some more flags in subprocess.  PS_PROFIL has already
+	 * Preserve some more flags in subprocess.  P_PROFIL has already
 	 * been preserved.
 	 */
 	p2->p_flag |= p1->p_flag & (P_SUGID | P_ALTSTACK);

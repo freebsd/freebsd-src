@@ -115,11 +115,8 @@ userret(td, frame, oticks)
 
 	/*
 	 * Charge system time if profiling.
-	 *
-	 * XXX should move PS_PROFIL to a place that can obviously be
-	 * accessed safely without sched_lock.
 	 */
-	if (p->p_sflag & PS_PROFIL) {
+	if (p->p_flag & P_PROFIL) {
 		quad_t ticks;
 
 		mtx_lock_spin(&sched_lock);
@@ -182,7 +179,7 @@ ast(struct trapframe *framep)
 	    TDF_NEEDRESCHED | TDF_OWEUPC);
 	cnt.v_soft++;
 	prticks = 0;
-	if (flags & TDF_OWEUPC && sflag & PS_PROFIL) {
+	if (flags & TDF_OWEUPC && p->p_flag & P_PROFIL) {
 		prticks = p->p_stats->p_prof.pr_ticks;
 		p->p_stats->p_prof.pr_ticks = 0;
 	}
@@ -197,7 +194,7 @@ ast(struct trapframe *framep)
 
 	if (td->td_ucred != p->p_ucred) 
 		cred_update_thread(td);
-	if (flags & TDF_OWEUPC && sflag & PS_PROFIL)
+	if (flags & TDF_OWEUPC && p->p_flag & P_PROFIL)
 		addupc_task(td, p->p_stats->p_prof.pr_addr, prticks);
 	if (sflag & PS_ALRMPEND) {
 		PROC_LOCK(p);
