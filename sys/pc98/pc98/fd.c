@@ -366,10 +366,6 @@ static void fd_turnon(struct fd_data *);
 static void fdc_reset(fdc_p);
 static int fd_in(struct fdc_data *, int *);
 static int out_fdc(struct fdc_data *, int);
-/*
- * The open function is named fdopen() to avoid confusion with fdopen()
- * in fd(4).  The difference is now only meaningful for debuggers.
- */
 static	d_open_t	fdopen;
 static	d_close_t	fdclose;
 static	d_strategy_t	fdstrategy;
@@ -918,8 +914,6 @@ fdc_add_child(device_t dev, const char *name, int unit)
 	device_set_ivars(child, ivar);
 	ivar->fdunit = unit;
 	ivar->fdtype = FDT_NONE;
-	if (resource_int_value(name, unit, "flags", &flags) == 0)
-		device_set_flags(child, flags);
 	if (resource_disabled(name, unit))
 		device_disable(child);
 	return (child);

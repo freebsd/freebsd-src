@@ -421,19 +421,15 @@ npx_attach(dev)
 	int flags;
 	register_t s;
 
-	if (resource_int_value("npx", 0, "flags", &flags) != 0)
-		flags = 0;
+	flags = device_get_flags(dev);
 
-	if (flags)
-		device_printf(dev, "flags 0x%x ", flags);
-	if (npx_irq13) {
-		device_printf(dev, "using IRQ 13 interface\n");
-	} else {
-		if (npx_ex16)
-			device_printf(dev, "INT 16 interface\n");
-		else
-			device_printf(dev, "WARNING: no FPU!\n");
-	}
+	if (npx_irq13)
+		device_printf(dev, "IRQ 13 interface\n");
+	else if (npx_ex16)
+		device_printf(dev, "INT 16 interface\n");
+	else
+		device_printf(dev, "WARNING: no FPU!\n");
+
 	npxinit(__INITIAL_NPXCW__);
 
 	if (npx_cleanstate_ready == 0) {

@@ -1656,7 +1656,6 @@ fdc_detach(device_t dev)
 device_t
 fdc_add_child(device_t dev, const char *name, int unit)
 {
-	int flags;
 	struct fdc_ivars *ivar;
 	device_t child;
 
@@ -1671,8 +1670,6 @@ fdc_add_child(device_t dev, const char *name, int unit)
 	device_set_ivars(child, ivar);
 	ivar->fdunit = unit;
 	ivar->fdtype = FDT_NONE;
-	if (resource_int_value(name, unit, "flags", &flags) == 0)
-		device_set_flags(child, flags);
 	if (resource_disabled(name, unit))
 		device_disable(child);
 	return (child);
