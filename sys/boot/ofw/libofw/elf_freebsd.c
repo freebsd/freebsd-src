@@ -42,7 +42,7 @@ extern char		end[];
 extern vm_offset_t	reloc;	/* From <arch>/conf.c */
 
 int
-__elfN(ofw_loadfile)(char *filename, vm_offset_t dest,
+__elfN(ofw_loadfile)(char *filename, u_int64_t dest,
     struct preloaded_file **result)
 {
 	int	r;
@@ -52,6 +52,9 @@ __elfN(ofw_loadfile)(char *filename, vm_offset_t dest,
 	if (r != 0)
 		return (r);
 
+#if defined(__powerpc__)
+	__syncicache((void *) (*result)->f_addr, (*result)->f_size);
+#endif
 	return (0);
 }
 
