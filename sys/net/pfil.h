@@ -68,7 +68,7 @@ int	pfil_remove_hook __P((int (*func) __P((void *, int,
 
 /* XXX */
 #if defined(_KERNEL) && !defined(_LKM)
-#include "ipfilter.h"
+#include "opt_ipfilter.h"
 #endif
 
 #if NIPFILTER > 0
