@@ -3266,6 +3266,8 @@ static void dc_stop(sc)
 
 	untimeout(dc_tick, sc, sc->dc_stat_ch);
 
+	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+
 	DC_CLRBIT(sc, DC_NETCFG, (DC_NETCFG_RX_ON|DC_NETCFG_TX_ON));
 	CSR_WRITE_4(sc, DC_IMR, 0x00000000);
 	CSR_WRITE_4(sc, DC_TXADDR, 0x00000000);
@@ -3301,8 +3303,6 @@ static void dc_stop(sc)
 
 	bzero((char *)&sc->dc_ldata->dc_tx_list,
 		sizeof(sc->dc_ldata->dc_tx_list));
-
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 
 	return;
 }
