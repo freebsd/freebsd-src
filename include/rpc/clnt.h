@@ -28,7 +28,7 @@
  *
  *	from: @(#)clnt.h 1.31 88/02/08 SMI
  *	from: @(#)clnt.h	2.1 88/07/29 4.0 RPCSRC
- *	$Id: clnt.h,v 1.3 1995/05/30 04:55:14 rgrimes Exp $
+ *	$Id: clnt.h,v 1.4 1996/01/30 23:31:48 mpp Exp $
  */
 
 /*
@@ -94,12 +94,12 @@ struct rpc_err {
 		int RE_errno;		/* related system error */
 		enum auth_stat RE_why;	/* why the auth error occurred */
 		struct {
-			u_long low;	/* lowest verion supported */
-			u_long high;	/* highest verion supported */
+			u_int32_t low;	/* lowest verion supported */
+			u_int32_t high;	/* highest verion supported */
 		} RE_vers;
 		struct {		/* maybe meaningful if RPC_FAILED */
-			long s1;
-			long s2;
+			int32_t s1;
+			int32_t s2;
 		} RE_lb;		/* life boot & debugging only */
 	} ru;
 #define	re_errno	ru.RE_errno
@@ -114,15 +114,26 @@ struct rpc_err {
  * Created by individual implementations, see e.g. rpc_udp.c.
  * Client is responsible for initializing auth, see e.g. auth_none.c.
  */
-typedef struct {
+typedef struct __rpc_client {
 	AUTH	*cl_auth;			/* authenticator */
 	struct clnt_ops {
-		enum clnt_stat	(*cl_call)();	/* call remote procedure */
-		void		(*cl_abort)();	/* abort a call */
-		void		(*cl_geterr)();	/* get specific error code */
-		bool_t		(*cl_freeres)(); /* frees results */
-		void		(*cl_destroy)();/* destroy this structure */
-		bool_t          (*cl_control)();/* the ioctl() of rpc */
+		/* call remote procedure */
+		enum clnt_stat	(*cl_call) __P((struct __rpc_client *,
+					u_long, xdrproc_t, caddr_t, xdrproc_t,
+					caddr_t, struct timeval));
+		/* abort a call */
+		void		(*cl_abort) __P((struct __rpc_client *));
+		/* get specific error code */
+		void		(*cl_geterr) __P((struct __rpc_client *,
+					struct rpc_err *));
+		/* frees results */
+		bool_t		(*cl_freeres) __P((struct __rpc_client *,
+					xdrproc_t, caddr_t));
+		/* destroy this structure */
+		void		(*cl_destroy) __P((struct __rpc_client *));
+		/* the ioctl() of rpc */
+		bool_t          (*cl_control) __P((struct __rpc_client *, u_int,
+					void *));
 	} *cl_ops;
 	caddr_t			cl_private;	/* private stuff */
 } CLIENT;
@@ -147,9 +158,11 @@ typedef struct {
  *	struct timeval timeout;
  */
 #define	CLNT_CALL(rh, proc, xargs, argsp, xres, resp, secs)	\
-	((*(rh)->cl_ops->cl_call)(rh, proc, xargs, argsp, xres, resp, secs))
+	((*(rh)->cl_ops->cl_call)(rh, proc, xargs, (caddr_t)argsp, \
+		xres, (caddr_t)resp, secs))
 #define	clnt_call(rh, proc, xargs, argsp, xres, resp, secs)	\
-	((*(rh)->cl_ops->cl_call)(rh, proc, xargs, argsp, xres, resp, secs))
+	((*(rh)->cl_ops->cl_call)(rh, proc, xargs, (caddr_t)argsp, \
+		xres, (caddr_t)resp, secs))
 
 /*
  * void
