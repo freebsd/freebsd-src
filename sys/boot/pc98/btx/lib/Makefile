@@ -5,6 +5,9 @@ AFLAGS+=	-elf
 LDFLAGS+=	-elf
 CLEANFILES+=	crt0.o
 INTERNALLIB=	true
+NOMAN=		true
+NOPIC=		true
+NOPROFILE=	true
 
 all: crt0.o
 

@@ -1,7 +1,10 @@
 # $FreeBSD$
 #
 LIB=			pc98
+NOPIC=
+NOPROFILE=
 INTERNALLIB=		true
+INTERNALSTATICLIB=	true
 
 .PATH:	${.CURDIR}/../../i386/libi386
 
