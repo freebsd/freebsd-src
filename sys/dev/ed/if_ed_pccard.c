@@ -88,10 +88,12 @@ ed_pccard_detach(device_t dev)
 		device_printf(dev, "already unloaded\n");
 		return (0);
 	}
+	ed_stop(sc);
 	ifp->if_flags &= ~IFF_RUNNING;
 	if_detach(ifp);
-	bus_teardown_intr(dev, sc->irq_res, &sc->irq_handle);
 	sc->gone = 1;
+	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
+	ed_release_resources(dev);
 	device_printf(dev, "unload\n");
 	return (0);
 }
