@@ -29,18 +29,21 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1991, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)csh.c	8.2 (Berkeley) 10/12/93";
+#else
+static const char rcsid[] =
+	"$Id: csh.c,v 1.8 1997/02/22 14:01:41 peter Exp $";
+#endif
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -114,10 +117,10 @@ main(argc, argv)
     int     argc;
     char  **argv;
 {
-    register Char *cp;
-    register char *tcp;
-    register int f;
-    register char **tempv;
+    Char *cp;
+    char *tcp;
+    int f;
+    char **tempv;
     struct sigvec osv;
 
     cshin = stdin;
@@ -603,9 +606,9 @@ void
 importpath(cp)
     Char   *cp;
 {
-    register int i = 0;
-    register Char *dp;
-    register Char **pv;
+    int i = 0;
+    Char *dp;
+    Char **pv;
     int     c;
 
     for (dp = cp; *dp; dp++)
@@ -623,7 +626,7 @@ importpath(cp)
 	    if ((c = *dp) == ':' || c == 0) {
 		*dp = 0;
 		if (*cp != '/' && (euid == 0 || uid == 0) &&
-		    (intact || intty && isatty(SHOUT)))
+		    (intact || (intty && isatty(SHOUT))))
 		    (void) fprintf(csherr,
 	    "Warning: imported path contains relative components\n");
 		pv[i++] = Strsave(*cp ? cp : STRdot);
@@ -647,7 +650,7 @@ static int
 srccat(cp, dp)
     Char   *cp, *dp;
 {
-    register Char *ep = Strspl(cp, dp);
+    Char *ep = Strspl(cp, dp);
     char   *ptr = short2str(ep);
 
     xfree((ptr_t) ep);
@@ -662,7 +665,7 @@ srcfile(f, onlyown, flag)
     char   *f;
     bool    onlyown, flag;
 {
-    register int unit;
+    int unit;
 
     if ((unit = open(f, O_RDONLY)) == -1)
 	return 0;
@@ -680,7 +683,7 @@ srcfile(f, onlyown, flag)
 int     insource;
 static void
 srcunit(unit, onlyown, hflg)
-    register int unit;
+    int unit;
     bool    onlyown, hflg;
 {
     /* We have to push down a lot of state here */
@@ -731,7 +734,7 @@ srcunit(unit, onlyown, hflg)
     if (setintr)
 	omask = sigblock(sigmask(SIGINT));
     /* Setup the new values of the state stuff saved above */
-    bcopy((char *) &B, (char *) &(saveB), sizeof(B));
+    memcpy((char *) &(saveB), (char *) &B, sizeof(B));
     fbuf = NULL;
     fseekp = feobp = fblocks = 0;
     oSHIN = SHIN, SHIN = unit, arginp = 0, onelflg = 0;
@@ -756,7 +759,7 @@ srcunit(unit, onlyown, hflg)
     if (setintr)
 	(void) sigsetmask(omask);
     if (oSHIN >= 0) {
-	register int i;
+	int i;
 
 	/* We made it to the new state... free up its storage */
 	/* This code could get run twice but xfree doesn't care */
@@ -765,7 +768,7 @@ srcunit(unit, onlyown, hflg)
 	xfree((ptr_t) fbuf);
 
 	/* Reset input arena */
-	bcopy((char *) &(saveB), (char *) &B, sizeof(B));
+	memcpy((char *) &B, (char *) &(saveB), sizeof(B));
 
 	(void) close(SHIN), SHIN = oSHIN;
 	arginp = oarginp, onelflg = oonelflg;
@@ -1120,7 +1123,7 @@ dosource(v, t)
     struct command *t;
 
 {
-    register Char *f;
+    Char *f;
     bool    hflg = 0;
     Char    buf[BUFSIZ];
 
@@ -1150,8 +1153,8 @@ dosource(v, t)
 static void
 mailchk()
 {
-    register struct varent *v;
-    register Char **vp;
+    struct varent *v;
+    Char **vp;
     time_t  t;
     int     intvl, cnt;
     struct stat stb;
@@ -1338,7 +1341,7 @@ defaultpath()
 void
 printprompt()
 {
-    register Char *cp;
+    Char *cp;
 
     if (!whyles) {
 	for (cp = value(STRprompt); *cp; cp++)

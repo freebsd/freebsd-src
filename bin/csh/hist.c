@@ -29,12 +29,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)hist.c	8.1 (Berkeley) 5/31/93";
+#else
+static const char rcsid[] =
+	"$Id: hist.c,v 1.4 1997/02/22 14:01:59 peter Exp $";
+#endif
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -56,8 +59,8 @@ void
 savehist(sp)
     struct wordent *sp;
 {
-    register struct Hist *hp, *np;
-    register int histlen = 0;
+    struct Hist *hp, *np;
+    int histlen = 0;
     Char   *cp;
 
     /* throw away null lines */
@@ -65,7 +68,7 @@ savehist(sp)
 	return;
     cp = value(STRhistory);
     if (*cp) {
-	register Char *p = cp;
+	Char *p = cp;
 
 	while (*p) {
 	    if (!Isdigit(*p)) {
@@ -86,10 +89,10 @@ savehist(sp)
 struct Hist *
 enthist(event, lp, docopy)
     int     event;
-    register struct wordent *lp;
+    struct wordent *lp;
     bool    docopy;
 {
-    register struct Hist *np;
+    struct Hist *np;
 
     np = (struct Hist *) xmalloc((size_t) sizeof(*np));
     np->Hnum = np->Href = event;
@@ -109,7 +112,7 @@ enthist(event, lp, docopy)
 
 static void
 hfree(hp)
-    register struct Hist *hp;
+    struct Hist *hp;
 {
 
     freelex(&hp->Hlex);
@@ -177,7 +180,7 @@ dohist1(hp, np, rflg, hflg)
 
 static void
 phist(hp, hflg)
-    register struct Hist *hp;
+    struct Hist *hp;
     int     hflg;
 {
     if (hflg == 0)

@@ -29,12 +29,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)proc.c	8.1 (Berkeley) 5/31/93";
+#else
+static const char rcsid[] =
+	"$Id: proc.c,v 1.4 1997/02/22 14:02:06 peter Exp $";
+#endif
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -82,9 +85,9 @@ void
 pchild(notused)
 	int notused;
 {
-    register struct process *pp;
-    register struct process *fp;
-    register int pid;
+    struct process *pp;
+    struct process *fp;
+    int pid;
     extern int insource;
     union wait w;
     int     jobflags;
@@ -201,7 +204,7 @@ found:
 void
 pnote()
 {
-    register struct process *pp;
+    struct process *pp;
     int     flags;
     sigset_t omask;
 
@@ -225,7 +228,7 @@ pnote()
 void
 pwait()
 {
-    register struct process *fp, *pp;
+    struct process *fp, *pp;
     sigset_t omask;
 
     /*
@@ -253,9 +256,9 @@ pwait()
  */
 void
 pjwait(pp)
-    register struct process *pp;
+    struct process *pp;
 {
-    register struct process *fp;
+    struct process *fp;
     int     jobflags, reason;
     sigset_t omask;
 
@@ -345,7 +348,7 @@ dowait(v, t)
     Char **v;
     struct command *t;
 {
-    register struct process *pp;
+    struct process *pp;
     sigset_t omask;
 
     pjobs++;
@@ -367,7 +370,7 @@ loop:
 static void
 pflushall()
 {
-    register struct process *pp;
+    struct process *pp;
 
     for (pp = proclist.p_next; pp != NULL; pp = pp->p_next)
 	if (pp->p_pid)
@@ -381,10 +384,10 @@ pflushall()
  */
 static void
 pflush(pp)
-    register struct process *pp;
+    struct process *pp;
 {
-    register struct process *np;
-    register int idx;
+    struct process *np;
+    int idx;
 
     if (pp->p_pid == 0) {
 	(void) fprintf(csherr, "BUG: process flushed twice");
@@ -415,7 +418,7 @@ pflush(pp)
  */
 static void
 pclrcurr(pp)
-    register struct process *pp;
+    struct process *pp;
 {
 
     if (pp == pcurrent)
@@ -443,9 +446,9 @@ static Char *cmdp;
 void
 palloc(pid, t)
     int     pid;
-    register struct command *t;
+    struct command *t;
 {
-    register struct process *pp;
+    struct process *pp;
     int     i;
 
     pp = (struct process *) xcalloc(1, (size_t) sizeof(struct process));
@@ -509,7 +512,7 @@ palloc(pid, t)
 
 static void
 padd(t)
-    register struct command *t;
+    struct command *t;
 {
     Char  **argp;
 
@@ -570,7 +573,7 @@ static void
 pads(cp)
     Char   *cp;
 {
-    register int i;
+    int i;
 
     /*
      * Avoid the Quoted Space alias hack! Reported by:
@@ -626,7 +629,7 @@ prestjob()
 void
 pendjob()
 {
-    register struct process *pp, *tp;
+    struct process *pp, *tp;
 
     if (pcurrjob && (pcurrjob->p_flags & (PFOREGND | PSTOPPED)) == 0) {
 	pp = pcurrjob;
@@ -648,10 +651,10 @@ pendjob()
  */
 static int
 pprint(pp, flag)
-    register struct process *pp;
+    struct process *pp;
     bool    flag;
 {
-    register status, reason;
+    int status, reason;
     struct process *tp;
     int     jobflags, pstatus;
     bool hadnl = 1;	/* did we just have a newline */
@@ -814,13 +817,13 @@ prcomd:
 
 static void
 ptprint(tp)
-    register struct process *tp;
+    struct process *tp;
 {
     struct timeval tetime, diff;
     static struct timeval ztime;
     struct rusage ru;
     static struct rusage zru;
-    register struct process *pp = tp;
+    struct process *pp = tp;
 
     ru = zru;
     tetime = ztime;
@@ -842,8 +845,8 @@ dojobs(v, t)
     Char **v;
     struct command *t;
 {
-    register struct process *pp;
-    register int flag = NUMBER | NAME | REASON;
+    struct process *pp;
+    int flag = NUMBER | NAME | REASON;
     int     i;
 
     if (chkstop)
@@ -872,7 +875,7 @@ dofg(v, t)
     Char **v;
     struct command *t;
 {
-    register struct process *pp;
+    struct process *pp;
 
     okpcntl();
     ++v;
@@ -892,7 +895,7 @@ dofg1(v, t)
     Char **v;
     struct command *t;
 {
-    register struct process *pp;
+    struct process *pp;
 
     okpcntl();
     pp = pfind(v[0]);
@@ -909,7 +912,7 @@ dobg(v, t)
     Char **v;
     struct command *t;
 {
-    register struct process *pp;
+    struct process *pp;
 
     okpcntl();
     ++v;
@@ -928,7 +931,7 @@ dobg1(v, t)
     Char **v;
     struct command *t;
 {
-    register struct process *pp;
+    struct process *pp;
 
     pp = pfind(v[0]);
     pstart(pp, 0);
@@ -955,8 +958,8 @@ dokill(v, t)
     Char **v;
     struct command *t;
 {
-    register int signum = SIGTERM;
-    register char *name;
+    int signum = SIGTERM;
+    char *name;
 
     v++;
     if (v[0] && v[0][0] == '-') {
@@ -998,8 +1001,8 @@ pkill(v, signum)
     Char  **v;
     int     signum;
 {
-    register struct process *pp, *np;
-    register int jobflags = 0;
+    struct process *pp, *np;
+    int jobflags = 0;
     int     pid, err1 = 0;
     sigset_t omask;
     Char   *cp;
@@ -1081,10 +1084,10 @@ cont:
  */
 void
 pstart(pp, foregnd)
-    register struct process *pp;
+    struct process *pp;
     int     foregnd;
 {
-    register struct process *np;
+    struct process *np;
     sigset_t omask;
     long    jobflags = 0;
 
@@ -1115,7 +1118,7 @@ void
 panystop(neednl)
     bool    neednl;
 {
-    register struct process *pp;
+    struct process *pp;
 
     chkstop = 2;
     for (pp = proclist.p_next; pp; pp = pp->p_next)
@@ -1127,7 +1130,7 @@ struct process *
 pfind(cp)
     Char   *cp;
 {
-    register struct process *pp, *np;
+    struct process *pp, *np;
 
     if (cp == 0 || cp[1] == 0 || eq(cp, STRcent2) || eq(cp, STRcentplus)) {
 	if (pcurrent == NULL)
@@ -1151,7 +1154,7 @@ pfind(cp)
     for (pp = proclist.p_next; pp; pp = pp->p_next)
 	if (pp->p_pid == pp->p_jobid) {
 	    if (cp[1] == '?') {
-		register Char *dp;
+		Char *dp;
 
 		for (dp = pp->p_command; *dp; dp++) {
 		    if (*dp != cp[2])
@@ -1169,7 +1172,7 @@ pfind(cp)
 	}
     if (np)
 	return (np);
-    stderror(ERR_NAME | cp[1] == '?' ? ERR_JOBPAT : ERR_NOSUCHJOB);
+    stderror((ERR_NAME | cp[1]) == '?' ? ERR_JOBPAT : ERR_NOSUCHJOB);
     /* NOTREACHED */
     return (0);
 }
@@ -1180,10 +1183,10 @@ pfind(cp)
  */
 static struct process *
 pgetcurr(pp)
-    register struct process *pp;
+    struct process *pp;
 {
-    register struct process *np;
-    register struct process *xp = NULL;
+    struct process *np;
+    struct process *xp = NULL;
 
     for (np = proclist.p_next; np; np = np->p_next)
 	if (np != pcurrent && np != pp && np->p_pid &&
@@ -1205,7 +1208,7 @@ donotify(v, t)
     Char **v;
     struct command *t;
 {
-    register struct process *pp;
+    struct process *pp;
 
     pp = pfind(*++v);
     pp->p_flags |= PNOTIFY;
@@ -1228,7 +1231,7 @@ pfork(t, wanttty)
     struct command *t;		/* command we are forking for */
     int     wanttty;
 {
-    register int pid;
+    int pid;
     bool    ignint = 0;
     int     pgrp;
     sigset_t omask;

@@ -29,12 +29,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)str.c	8.1 (Berkeley) 5/31/93";
+#else
+static const char rcsid[] =
+	"$Id: str.c,v 1.5 1997/02/22 14:02:09 peter Exp $";
+#endif
 #endif /* not lint */
 
 #define MALLOC_INCR	128
@@ -59,10 +62,10 @@ static char sccsid[] = "@(#)str.c	8.1 (Berkeley) 5/31/93";
 
 Char  **
 blk2short(src)
-    register char **src;
+    char **src;
 {
     size_t     n;
-    register Char **sdst, **dst;
+    Char **sdst, **dst;
 
     /*
      * Count
@@ -79,10 +82,10 @@ blk2short(src)
 
 char  **
 short2blk(src)
-    register Char **src;
+    Char **src;
 {
     size_t     n;
-    register char **sdst, **dst;
+    char **sdst, **dst;
 
     /*
      * Count
@@ -99,11 +102,11 @@ short2blk(src)
 
 Char   *
 str2short(src)
-    register char *src;
+    char *src;
 {
     static Char *sdst;
     static size_t dstsize = 0;
-    register Char *dst, *edst;
+    Char *dst, *edst;
 
     if (src == NULL)
 	return (NULL);
@@ -131,11 +134,11 @@ str2short(src)
 
 char   *
 short2str(src)
-    register Char *src;
+    Char *src;
 {
     static char *sdst = NULL;
     static size_t dstsize = 0;
-    register char *dst, *edst;
+    char *dst, *edst;
 
     if (src == NULL)
 	return (NULL);
@@ -162,9 +165,9 @@ short2str(src)
 
 Char   *
 s_strcpy(dst, src)
-    register Char *dst, *src;
+    Char *dst, *src;
 {
-    register Char *sdst;
+    Char *sdst;
 
     sdst = dst;
     while ((*dst++ = *src++) != '\0')
@@ -174,10 +177,10 @@ s_strcpy(dst, src)
 
 Char   *
 s_strncpy(dst, src, n)
-    register Char *dst, *src;
-    register size_t n;
+    Char *dst, *src;
+    size_t n;
 {
-    register Char *sdst;
+    Char *sdst;
 
     if (n == 0)
 	return(dst);
@@ -195,9 +198,9 @@ s_strncpy(dst, src, n)
 
 Char   *
 s_strcat(dst, src)
-    register Char *dst, *src;
+    Char *dst, *src;
 {
-    register short *sdst;
+    short *sdst;
 
     sdst = dst;
     while (*dst++)
@@ -211,10 +214,10 @@ s_strcat(dst, src)
 #ifdef NOTUSED
 Char   *
 s_strncat(dst, src, n)
-    register Char *dst, *src;
-    register size_t n;
+    Char *dst, *src;
+    size_t n;
 {
-    register Char *sdst;
+    Char *sdst;
 
     if (n == 0)
 	return (dst);
@@ -239,7 +242,7 @@ s_strncat(dst, src, n)
 
 Char   *
 s_strchr(str, ch)
-    register Char *str;
+    Char *str;
     int ch;
 {
     do
@@ -251,10 +254,10 @@ s_strchr(str, ch)
 
 Char   *
 s_strrchr(str, ch)
-    register Char *str;
+    Char *str;
     int ch;
 {
-    register Char *rstr;
+    Char *rstr;
 
     rstr = NULL;
     do
@@ -266,9 +269,9 @@ s_strrchr(str, ch)
 
 size_t
 s_strlen(str)
-    register Char *str;
+    Char *str;
 {
-    register size_t n;
+    size_t n;
 
     for (n = 0; *str++; n++)
 	continue;
@@ -277,7 +280,7 @@ s_strlen(str)
 
 int
 s_strcmp(str1, str2)
-    register Char *str1, *str2;
+    Char *str1, *str2;
 {
     for (; *str1 && *str1 == *str2; str1++, str2++)
 	continue;
@@ -298,8 +301,8 @@ s_strcmp(str1, str2)
 
 int
 s_strncmp(str1, str2, n)
-    register Char *str1, *str2;
-    register size_t n;
+    Char *str1, *str2;
+    size_t n;
 {
     if (n == 0)
 	return (0);
@@ -327,10 +330,10 @@ s_strncmp(str1, str2, n)
 
 Char   *
 s_strsave(s)
-    register Char *s;
+    Char *s;
 {
     Char   *n;
-    register Char *p;
+    Char *p;
 
     if (s == 0)
 	s = STRNULL;
@@ -347,7 +350,7 @@ s_strspl(cp, dp)
     Char   *cp, *dp;
 {
     Char   *ep;
-    register Char *p, *q;
+    Char *p, *q;
 
     if (!cp)
 	cp = STRNULL;
@@ -368,7 +371,7 @@ s_strspl(cp, dp)
 
 Char   *
 s_strend(cp)
-    register Char *cp;
+    Char *cp;
 {
     if (!cp)
 	return (cp);
@@ -379,11 +382,11 @@ s_strend(cp)
 
 Char   *
 s_strstr(s, t)
-    register Char *s, *t;
+    Char *s, *t;
 {
     do {
-	register Char *ss = s;
-	register Char *tt = t;
+	Char *ss = s;
+	Char *tt = t;
 
 	do
 	    if (*tt == '\0')
@@ -396,11 +399,11 @@ s_strstr(s, t)
 
 char   *
 short2qstr(src)
-    register Char *src;
+    Char *src;
 {
     static char *sdst = NULL;
     static size_t dstsize = 0;
-    register char *dst, *edst;
+    char *dst, *edst;
 
     if (src == NULL)
 	return (NULL);
