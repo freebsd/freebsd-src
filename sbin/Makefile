@@ -60,6 +60,7 @@ SUBDIR=	adjkerntz \
 	ping \
 	ping6 \
 	quotacheck \
+	rcorder \
 	reboot \
 	restore \
 	route \
