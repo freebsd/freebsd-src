@@ -14,14 +14,18 @@
 #
 # WELL KNOWN PORT NUMBERS
 #
+rtmp		  1/ddp	   #Routing Table Maintenance Protocol
 tcpmux		  1/tcp	   #TCP Port Service Multiplexer
 tcpmux		  1/udp	   #TCP Port Service Multiplexer
+nbp		  2/ddp	   #Name Binding Protocol
 compressnet	  2/tcp	   #Management Utility
 compressnet	  2/udp	   #Management Utility
 compressnet	  3/tcp	   #Compression Process
 compressnet	  3/udp	   #Compression Process
+echo		  4/ddp	   #AppleTalk Echo Protocol
 rje		  5/tcp	   #Remote Job Entry
 rje		  5/udp	   #Remote Job Entry
+zip		  6/ddp	   #Zone Information Protocol
 echo		  7/tcp
 echo		  7/udp
 discard		  9/tcp	   sink null
