@@ -73,7 +73,7 @@ k       - kill processes; send a signal to a list of processes\n\
 n or #  - change number of processes to display\n", stdout);
 #ifdef ORDER
 	fputs("\
-o       - specify sort order (size, res, cpu, time)\n", stdout);
+o       - specify sort order (pri, size, res, cpu, time)\n", stdout);
 #endif
 	fputs("\
 r       - renice a process\n\
