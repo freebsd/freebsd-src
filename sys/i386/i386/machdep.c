@@ -2161,14 +2161,12 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 static void f00f_hack(void *unused);
-SYSINIT(f00f_hack, SI_SUB_INTRINSIC, SI_ORDER_FIRST, f00f_hack, NULL);
+SYSINIT(f00f_hack, SI_SUB_INTRINSIC, SI_ORDER_FIRST, f00f_hack, NULL)
 
 static void
-f00f_hack(void *unused) {
+f00f_hack(void *unused)
+{
 	struct gate_descriptor *new_idt;
-#ifndef SMP
-	struct region_descriptor r_idt;
-#endif
 	vm_offset_t tmp;
 
 	if (!has_f00f_bug)
@@ -2178,29 +2176,27 @@ f00f_hack(void *unused) {
 
 	printf("Intel Pentium detected, installing workaround for F00F bug\n");
 
-	r_idt.rd_limit = sizeof(idt0) - 1;
-
 	tmp = kmem_alloc(kernel_map, PAGE_SIZE * 2);
 	if (tmp == 0)
 		panic("kmem_alloc returned 0");
-	if (((unsigned int)tmp & (PAGE_SIZE-1)) != 0)
-		panic("kmem_alloc returned non-page-aligned memory");
-	/* Put the first seven entries in the lower page */
-	new_idt = (struct gate_descriptor*)(tmp + PAGE_SIZE - (7*8));
+
+	/* Put the problematic entry (#6) at the end of the lower page. */
+	new_idt = (struct gate_descriptor*)
+	    (tmp + PAGE_SIZE - 7 * sizeof(struct gate_descriptor));
 	bcopy(idt, new_idt, sizeof(idt0));
-	r_idt.rd_base = (int)new_idt;
+	r_idt.rd_base = (u_int)new_idt;
 	lidt(&r_idt);
 	idt = new_idt;
 	if (vm_map_protect(kernel_map, tmp, tmp + PAGE_SIZE,
 			   VM_PROT_READ, FALSE) != KERN_SUCCESS)
 		panic("vm_map_protect failed");
-	return;
 }
 #endif /* defined(I586_CPU) && !NO_F00F_HACK */
 
 int
-ptrace_set_pc(struct thread *td, unsigned long addr)
+ptrace_set_pc(struct thread *td, u_long addr)
 {
+
 	td->td_frame->tf_eip = addr;
 	return (0);
 }
