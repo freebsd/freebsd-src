@@ -180,7 +180,7 @@ MMAKE=		${MMAKEENV} make \
 make:
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Upgrading make(1)"
+	@echo " Building an up-to-date make(1)"
 	@echo "--------------------------------------------------------------"
 	@cd ${.CURDIR}/usr.bin/make; \
 		${MMAKE} obj && \
