@@ -1317,14 +1317,10 @@ _pmap_allocpte(pmap, ptepindex)
 	 * Find or fabricate a new pagetable page
 	 */
 	m = vm_page_grab(pmap->pm_pteobj, ptepindex,
-			VM_ALLOC_ZERO | VM_ALLOC_RETRY);
+	    VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_RETRY);
 
 	KASSERT(m->queue == PQ_NONE,
 		("_pmap_allocpte: %p->queue != PQ_NONE", m));
-
-	if (m->wire_count == 0)
-		cnt.v_wire_count++;
-	m->wire_count++;
 
 	/*
 	 * Increment the hold count for the page table page
