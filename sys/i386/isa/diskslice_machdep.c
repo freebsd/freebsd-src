@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.12 1995/05/01 00:45:33 phk Exp $
+ *	$Id: diskslice_machdep.c,v 1.13 1995/05/07 07:06:36 bde Exp $
  */
 
 #include <stddef.h>
@@ -48,6 +48,7 @@
 #include <sys/malloc.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
+#include <machine/cpu.h>
 
 #define TRACE(str)	do { if (dsi_debug) printf str; } while (0)
 
@@ -131,14 +132,15 @@ check_part(sname, dp, offset, nsectors, ntracks, mbr_offset )
 	}
 
 	error = (ssector == ssector1 && esector == esector1) ? 0 : EINVAL;
-	printf("%s: type 0x%x, start %lu, end = %lu, size %lu %s\n",
-	       sname, dp->dp_typ, ssector1, esector1, dp->dp_size,
-	       error ? "" : ": OK");
-	if (ssector != ssector1)
+	if (bootverbose)
+		printf("%s: type 0x%x, start %lu, end = %lu, size %lu %s\n",
+		       sname, dp->dp_typ, ssector1, esector1, dp->dp_size,
+		       error ? "" : ": OK");
+	if (ssector != ssector1 && bootverbose)
 		printf("%s: C/H/S start %d/%d/%d (%lu) != start %lu: invalid\n",
 		       sname, chs_scyl, dp->dp_shd, chs_ssect,
 		       ssector, ssector1);
-	if (esector != esector1)
+	if (esector != esector1 && bootverbose)
 		printf("%s: C/H/S end %d/%d/%d (%lu) != end %lu: invalid\n",
 		       sname, chs_ecyl, dp->dp_ehd, chs_esect,
 		       esector, esector1);
@@ -214,14 +216,15 @@ reread_mbr:
 	}
 	dp0 = (struct dos_partition *)(cp + DOSPARTOFF);
 
-	/* Check for "OnTrack Diskmanager". */
+	/* Check for "Ontrack Diskmanager". */
 	for (dospart = 0, dp = dp0; dospart < NDOSPART; dospart++, dp++) {
 		if (dp->dp_typ == DOSPTYP_ONTRACK) {
-			printf("%s: Detected \"Ontrack Disk Manager\"\n",
-			       sname);
+			if (bootverbose)
+				printf(
+	    "%s: Found \"Ontrack Disk Manager\" on this disk.\n", sname);
 			bp->b_flags = B_INVAL | B_AGE;
 			brelse(bp);
-			mbr_offset = 63;  /* XXX this might be nsect instead */
+			mbr_offset = 63;
 			goto reread_mbr;
 		}
 	}
