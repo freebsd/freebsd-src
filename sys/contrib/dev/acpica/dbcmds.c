@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbcmds - debug commands and output routines
- *              $Revision: 66 $
+ *              $Revision: 67 $
  *
  ******************************************************************************/
 
@@ -193,7 +193,7 @@ AcpiDbWalkForReferences (
 
     /* Check for match against the object attached to the node */
 
-    if (Node->Object == ObjDesc)
+    if (AcpiNsGetAttachedObject (Node) == ObjDesc)
     {
         AcpiOsPrintf ("Reference at Node->Object %p [%4.4s]\n", Node, &Node->Name);
     }
@@ -769,7 +769,7 @@ AcpiDbWalkForSpecificObjects (
     NATIVE_CHAR             Buffer[64];
 
 
-    ObjDesc = ((ACPI_NAMESPACE_NODE *)ObjHandle)->Object;
+    ObjDesc = AcpiNsGetAttachedObject ((ACPI_NAMESPACE_NODE *) ObjHandle);
     BufSize = sizeof (Buffer) / sizeof (*Buffer);
 
     /* Get and display the full pathname to this object */

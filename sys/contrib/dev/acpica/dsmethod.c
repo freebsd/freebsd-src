@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsmethod - Parser/Interpreter interface - control method parsing
- *              $Revision: 69 $
+ *              $Revision: 73 $
  *
  *****************************************************************************/
 
@@ -177,7 +177,7 @@ AcpiDsParseMethod (
     /* Extract the method object from the method Node */
 
     Node = (ACPI_NAMESPACE_NODE *) ObjHandle;
-    ObjDesc = Node->Object;
+    ObjDesc = AcpiNsGetAttachedObject (Node);
     if (!ObjDesc)
     {
         return_ACPI_STATUS (AE_NULL_OBJECT);
@@ -221,11 +221,11 @@ AcpiDsParseMethod (
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
-    Status = AcpiDsInitAmlWalk (WalkState, Op, Node, ObjDesc->Method.AmlStart, 
+    Status = AcpiDsInitAmlWalk (WalkState, Op, Node, ObjDesc->Method.AmlStart,
                     ObjDesc->Method.AmlLength, NULL, NULL, 1);
     if (ACPI_FAILURE (Status))
     {
-        /* TBD: delete walk state */
+        AcpiDsDeleteWalkState (WalkState);
         return_ACPI_STATUS (Status);
     }
 
@@ -351,7 +351,7 @@ AcpiDsBeginMethodExecution (
 
 ACPI_STATUS
 AcpiDsCallControlMethod (
-    ACPI_WALK_LIST          *WalkList,
+    ACPI_THREAD_STATE       *Thread,
     ACPI_WALK_STATE         *ThisWalkState,
     ACPI_PARSE_OBJECT       *Op)  /* TBD: This operand is obsolete */
 {
@@ -411,12 +411,12 @@ AcpiDsCallControlMethod (
         goto Cleanup;
     }
 
-    Status = AcpiDsInitAmlWalk (NextWalkState, Op, MethodNode, 
-                    ObjDesc->Method.AmlStart,  ObjDesc->Method.AmlLength, 
+    Status = AcpiDsInitAmlWalk (NextWalkState, Op, MethodNode,
+                    ObjDesc->Method.AmlStart,  ObjDesc->Method.AmlLength,
                     NULL, NULL, 1);
     if (ACPI_FAILURE (Status))
     {
-        /* TBD: delete walk state */
+        AcpiDsDeleteWalkState (NextWalkState);
         goto Cleanup;
     }
 
@@ -429,7 +429,7 @@ AcpiDsCallControlMethod (
     /* 2) Execute: Create a new state for the preempting walk */
 
     NextWalkState = AcpiDsCreateWalkState (ObjDesc->Method.OwningId,
-                                            NULL, ObjDesc, WalkList);
+                                            NULL, ObjDesc, Thread);
     if (!NextWalkState)
     {
         Status = AE_NO_MEMORY;
@@ -440,12 +440,12 @@ AcpiDsCallControlMethod (
      * The resolved arguments were put on the previous walk state's operand
      * stack.  Operands on the previous walk state stack always
      * start at index 0.
-     * Null terminate the list of arguments 
+     * Null terminate the list of arguments
      */
     ThisWalkState->Operands [ThisWalkState->NumOperands] = NULL;
 
-    Status = AcpiDsInitAmlWalk (NextWalkState, NULL, MethodNode, 
-                    ObjDesc->Method.AmlStart, ObjDesc->Method.AmlLength, 
+    Status = AcpiDsInitAmlWalk (NextWalkState, NULL, MethodNode,
+                    ObjDesc->Method.AmlStart, ObjDesc->Method.AmlLength,
                     &ThisWalkState->Operands[0], NULL, 3);
     if (ACPI_FAILURE (Status))
     {

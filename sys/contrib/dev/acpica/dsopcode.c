@@ -2,7 +2,7 @@
  *
  * Module Name: dsopcode - Dispatcher Op Region support and handling of
  *                         "control" opcodes
- *              $Revision: 56 $
+ *              $Revision: 66 $
  *
  *****************************************************************************/
 
@@ -132,6 +132,114 @@
 
 /*****************************************************************************
  *
+ * FUNCTION:    AcpiDsExecuteArguments
+ *
+ * PARAMETERS:  Node                - Parent NS node
+ *              ExtraDesc           - Has AML pointer and length
+ *
+ * RETURN:      Status.
+ *
+ * DESCRIPTION: Late execution of region or field arguments
+ *
+ ****************************************************************************/
+
+ACPI_STATUS
+AcpiDsExecuteArguments (
+    ACPI_NAMESPACE_NODE     *Node,
+    ACPI_OPERAND_OBJECT     *ExtraDesc)
+{
+    ACPI_STATUS             Status;
+    ACPI_PARSE_OBJECT       *Op;
+    ACPI_WALK_STATE         *WalkState;
+    ACPI_PARSE_OBJECT       *Arg;
+
+
+    FUNCTION_TRACE ("AcpiDsExecuteArguments");
+
+
+    /*
+     * Allocate a new parser op to be the root of the parsed
+     * BufferField tree
+     */
+    Op = AcpiPsAllocOp (AML_SCOPE_OP);
+    if (!Op)
+    {
+        return_ACPI_STATUS (AE_NO_MEMORY);
+    }
+
+    /* Save the Node for use in AcpiPsParseAml */
+
+    Op->Node = AcpiNsGetParentObject (Node);
+
+    /* Create and initialize a new parser state */
+
+    WalkState = AcpiDsCreateWalkState (TABLE_ID_DSDT, NULL, NULL, NULL);
+    if (!WalkState)
+    {
+        return_ACPI_STATUS (AE_NO_MEMORY);
+    }
+
+    Status = AcpiDsInitAmlWalk (WalkState, Op, NULL, ExtraDesc->Extra.AmlStart,
+                    ExtraDesc->Extra.AmlLength, NULL, NULL, 1);
+    if (ACPI_FAILURE (Status))
+    {
+        AcpiDsDeleteWalkState (WalkState);
+        return_ACPI_STATUS (Status);
+    }
+
+    WalkState->ParseFlags = 0;
+
+    /* Pass1: Parse the entire BufferField declaration */
+
+    Status = AcpiPsParseAml (WalkState);
+    if (ACPI_FAILURE (Status))
+    {
+        AcpiPsDeleteParseTree (Op);
+        return_ACPI_STATUS (Status);
+    }
+
+    /* Get and init the actual FieldUnit Op created above */
+
+    Arg = Op->Value.Arg;
+    Op->Node = Node;
+    Arg->Node = Node;
+    AcpiPsDeleteParseTree (Op);
+
+    /* Evaluate the address and length arguments for the Buffer Field */
+
+    Op = AcpiPsAllocOp (AML_SCOPE_OP);
+    if (!Op)
+    {
+        return_ACPI_STATUS (AE_NO_MEMORY);
+    }
+
+    Op->Node = AcpiNsGetParentObject (Node);
+
+    /* Create and initialize a new parser state */
+
+    WalkState = AcpiDsCreateWalkState (TABLE_ID_DSDT, NULL, NULL, NULL);
+    if (!WalkState)
+    {
+        return_ACPI_STATUS (AE_NO_MEMORY);
+    }
+
+    Status = AcpiDsInitAmlWalk (WalkState, Op, NULL, ExtraDesc->Extra.AmlStart,
+                    ExtraDesc->Extra.AmlLength, NULL, NULL, 3);
+    if (ACPI_FAILURE (Status))
+    {
+        AcpiDsDeleteWalkState (WalkState);
+        return_ACPI_STATUS (Status);
+    }
+
+    Status = AcpiPsParseAml (WalkState);
+    AcpiPsDeleteParseTree (Op);
+
+    return_ACPI_STATUS (Status);
+}
+
+
+/*****************************************************************************
+ *
  * FUNCTION:    AcpiDsGetBufferFieldArguments
  *
  * PARAMETERS:  ObjDesc         - A valid BufferField object
@@ -149,11 +257,7 @@ AcpiDsGetBufferFieldArguments (
 {
     ACPI_OPERAND_OBJECT     *ExtraDesc;
     ACPI_NAMESPACE_NODE     *Node;
-    ACPI_PARSE_OBJECT       *Op;
-    ACPI_PARSE_OBJECT       *FieldOp;
     ACPI_STATUS             Status;
-    ACPI_TABLE_DESC         *TableDesc;
-    ACPI_WALK_STATE         *WalkState;
 
 
     FUNCTION_TRACE_PTR ("DsGetBufferFieldArguments", ObjDesc);
@@ -164,116 +268,18 @@ AcpiDsGetBufferFieldArguments (
         return_ACPI_STATUS (AE_OK);
     }
 
-
     /* Get the AML pointer (method object) and BufferField node */
 
-    ExtraDesc = ObjDesc->BufferField.Extra;
+    ExtraDesc = AcpiNsGetSecondaryObject (ObjDesc);
     Node = ObjDesc->BufferField.Node;
 
     DEBUG_EXEC(AcpiUtDisplayInitPathname (Node, "  [Field]"));
     ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[%4.4s] BufferField JIT Init\n",
-        (char*)&Node->Name));
+        (char *) &Node->Name));
 
+    /* Execute the AML code for the TermArg arguments */
 
-    /*
-     * Allocate a new parser op to be the root of the parsed
-     * OpRegion tree
-     */
-    Op = AcpiPsAllocOp (AML_SCOPE_OP);
-    if (!Op)
-    {
-        return (AE_NO_MEMORY);
-    }
-
-    /* Save the Node for use in AcpiPsParseAml */
-
-    Op->Node = AcpiNsGetParentObject (Node);
-
-    /* Get a handle to the parent ACPI table */
-
-    Status = AcpiTbHandleToObject (Node->OwnerId, &TableDesc);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
-    /* Create and initialize a new parser state */
-
-    WalkState = AcpiDsCreateWalkState (TABLE_ID_DSDT,
-                                    NULL, NULL, NULL);
-    if (!WalkState)
-    {
-        return_ACPI_STATUS (AE_NO_MEMORY);
-    }
-
-    Status = AcpiDsInitAmlWalk (WalkState, Op, NULL, ExtraDesc->Extra.AmlStart, 
-                    ExtraDesc->Extra.AmlLength, NULL, NULL, 1);
-    if (ACPI_FAILURE (Status))
-    {
-        /* TBD: delete walk state */
-        return_ACPI_STATUS (Status);
-    }
-
-    /* TBD: No Walk flags?? */
-
-    WalkState->ParseFlags = 0;
-
-    /* Pass1: Parse the entire BufferField declaration */
-
-    Status = AcpiPsParseAml (WalkState);
-    if (ACPI_FAILURE (Status))
-    {
-        AcpiPsDeleteParseTree (Op);
-        return_ACPI_STATUS (Status);
-    }
-
-    /* Get and init the actual FieldUnit Op created above */
-
-    FieldOp = Op->Value.Arg;
-    Op->Node = Node;
-
-
-    FieldOp = Op->Value.Arg;
-    FieldOp->Node = Node;
-    AcpiPsDeleteParseTree (Op);
-
-    /* Evaluate the address and length arguments for the OpRegion */
-
-    Op = AcpiPsAllocOp (AML_SCOPE_OP);
-    if (!Op)
-    {
-        return (AE_NO_MEMORY);
-    }
-
-    Op->Node = AcpiNsGetParentObject (Node);
-
-    /* Create and initialize a new parser state */
-
-    WalkState = AcpiDsCreateWalkState (TABLE_ID_DSDT,
-                                    NULL, NULL, NULL);
-    if (!WalkState)
-    {
-        return_ACPI_STATUS (AE_NO_MEMORY);
-    }
-
-    Status = AcpiDsInitAmlWalk (WalkState, Op, NULL, ExtraDesc->Extra.AmlStart,
-                    ExtraDesc->Extra.AmlLength, NULL, NULL, 3);
-    if (ACPI_FAILURE (Status))
-    {
-        /* TBD: delete walk state */
-        return_ACPI_STATUS (Status);
-    }
-
-    Status = AcpiPsParseAml (WalkState);
-    AcpiPsDeleteParseTree (Op);
-
-    /*
-     * The pseudo-method object is no longer needed since the region is
-     * now initialized
-     */
-    AcpiUtRemoveReference (ObjDesc->BufferField.Extra);
-    ObjDesc->BufferField.Extra = NULL;
-
+    Status = AcpiDsExecuteArguments (Node, ExtraDesc);
     return_ACPI_STATUS (Status);
 }
 
@@ -295,13 +301,9 @@ ACPI_STATUS
 AcpiDsGetRegionArguments (
     ACPI_OPERAND_OBJECT     *ObjDesc)
 {
-    ACPI_OPERAND_OBJECT     *ExtraDesc = NULL;
     ACPI_NAMESPACE_NODE     *Node;
-    ACPI_PARSE_OBJECT       *Op;
-    ACPI_PARSE_OBJECT       *RegionOp;
     ACPI_STATUS             Status;
-    ACPI_TABLE_DESC         *TableDesc;
-    ACPI_WALK_STATE         *WalkState;
+    ACPI_OPERAND_OBJECT     *RegionObj2;
 
 
     FUNCTION_TRACE_PTR ("DsGetRegionArguments", ObjDesc);
@@ -312,108 +314,23 @@ AcpiDsGetRegionArguments (
         return_ACPI_STATUS (AE_OK);
     }
 
+    RegionObj2 = AcpiNsGetSecondaryObject (ObjDesc);
+    if (!RegionObj2)
+    {
+        return_ACPI_STATUS (AE_NOT_EXIST);
+    }
 
     /* Get the AML pointer (method object) and region node */
 
-    ExtraDesc = ObjDesc->Region.Extra;
     Node = ObjDesc->Region.Node;
 
     DEBUG_EXEC(AcpiUtDisplayInitPathname (Node, "  [Operation Region]"));
 
     ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[%4.4s] OpRegion Init at AML %p\n",
-        (char*)&Node->Name, ExtraDesc->Extra.AmlStart));
-
-    /*
-     * Allocate a new parser op to be the root of the parsed
-     * OpRegion tree
-     */
-    Op = AcpiPsAllocOp (AML_SCOPE_OP);
-    if (!Op)
-    {
-        return (AE_NO_MEMORY);
-    }
-
-    /* Save the Node for use in AcpiPsParseAml */
-
-    Op->Node = AcpiNsGetParentObject (Node);
-
-    /* Get a handle to the parent ACPI table */
-
-    Status = AcpiTbHandleToObject (Node->OwnerId, &TableDesc);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
-    /* Create and initialize a new parser state */
-
-    WalkState = AcpiDsCreateWalkState (TABLE_ID_DSDT,
-                                    Op, NULL, NULL);
-    if (!WalkState)
-    {
-        return_ACPI_STATUS (AE_NO_MEMORY);
-    }
-
-    Status = AcpiDsInitAmlWalk (WalkState, Op, NULL, ExtraDesc->Extra.AmlStart, 
-                    ExtraDesc->Extra.AmlLength, NULL, NULL, 1);
-    if (ACPI_FAILURE (Status))
-    {
-        /* TBD: delete walk state */
-        return_ACPI_STATUS (Status);
-    }
-
-    /* TBD: No Walk flags?? */
-
-    WalkState->ParseFlags = 0;
-
-    /* Parse the entire OpRegion declaration, creating a parse tree */
-
-    Status = AcpiPsParseAml (WalkState);
-    if (ACPI_FAILURE (Status))
-    {
-        AcpiPsDeleteParseTree (Op);
-        return_ACPI_STATUS (Status);
-    }
-
-    /* Get and init the actual RegionOp created above */
-
-    RegionOp = Op->Value.Arg;
-    Op->Node = Node;
+        (char *) &Node->Name, RegionObj2->Extra.AmlStart));
 
 
-    RegionOp = Op->Value.Arg;
-    RegionOp->Node = Node;
-    AcpiPsDeleteParseTree (Op);
-
-    /* Evaluate the address and length arguments for the OpRegion */
-
-    Op = AcpiPsAllocOp (AML_SCOPE_OP);
-    if (!Op)
-    {
-        return (AE_NO_MEMORY);
-    }
-
-    Op->Node = AcpiNsGetParentObject (Node);
-
-    /* Create and initialize a new parser state */
-
-    WalkState = AcpiDsCreateWalkState (TABLE_ID_DSDT,
-                                    Op, NULL, NULL);
-    if (!WalkState)
-    {
-        return_ACPI_STATUS (AE_NO_MEMORY);
-    }
-
-    Status = AcpiDsInitAmlWalk (WalkState, Op, NULL, ExtraDesc->Extra.AmlStart,
-                    ExtraDesc->Extra.AmlLength, NULL, NULL, 3);
-    if (ACPI_FAILURE (Status))
-    {
-        /* TBD: delete walk state */
-        return_ACPI_STATUS (Status);
-    }
-
-    Status = AcpiPsParseAml (WalkState);
-    AcpiPsDeleteParseTree (Op);
+    Status = AcpiDsExecuteArguments (Node, RegionObj2);
 
     return_ACPI_STATUS (Status);
 }
@@ -459,21 +376,6 @@ AcpiDsInitializeRegion (
  *
  * DESCRIPTION: Get BufferField Buffer and Index
  *              Called from AcpiDsExecEndOp during BufferField parse tree walk
- *
- * ACPI SPECIFICATION REFERENCES:
- *  Each of the Buffer Field opcodes is defined as specified in in-line
- *  comments below. For each one, use the following definitions.
- *
- *  DefBitField     :=  BitFieldOp      SrcBuf  BitIdx  Destination
- *  DefByteField    :=  ByteFieldOp     SrcBuf  ByteIdx Destination
- *  DefCreateField  :=  CreateFieldOp   SrcBuf  BitIdx  NumBits  NameString
- *  DefDWordField   :=  DWordFieldOp    SrcBuf  ByteIdx Destination
- *  DefWordField    :=  WordFieldOp     SrcBuf  ByteIdx Destination
- *  BitIndex        :=  TermArg=>Integer
- *  ByteIndex       :=  TermArg=>Integer
- *  Destination     :=  NameString
- *  NumBits         :=  TermArg=>Integer
- *  SourceBuf       :=  TermArg=>Buffer
  *
  ****************************************************************************/
 
@@ -523,7 +425,6 @@ AcpiDsEvalBufferFieldOperands (
         return_ACPI_STATUS (AE_NOT_EXIST);
     }
 
-
     /* Resolve the operands */
 
     Status = AcpiExResolveOperands (Op->Opcode, WALK_OPERANDS, WalkState);
@@ -552,10 +453,7 @@ AcpiDsEvalBufferFieldOperands (
 
     OffDesc = WalkState->Operands[1];
     SrcDesc = WalkState->Operands[0];
-
-
-
-    Offset = (UINT32) OffDesc->Integer.Value;
+    Offset  = (UINT32) OffDesc->Integer.Value;
 
     /*
      * If ResDesc is a Name, it will be a direct name pointer after
@@ -576,19 +474,14 @@ AcpiDsEvalBufferFieldOperands (
     switch (Op->Opcode)
     {
 
-    /* DefCreateField   */
-
     case AML_CREATE_FIELD_OP:
 
         /* Offset is in bits, count is in bits */
 
         BitOffset   = Offset;
         BitCount    = (UINT32) CntDesc->Integer.Value;
-        FieldFlags  = ACCESS_BYTE_ACC;
+        FieldFlags  = AML_FIELD_ACCESS_BYTE;
         break;
-
-
-    /* DefCreateBitField */
 
     case AML_CREATE_BIT_FIELD_OP:
 
@@ -596,11 +489,8 @@ AcpiDsEvalBufferFieldOperands (
 
         BitOffset   = Offset;
         BitCount    = 1;
-        FieldFlags  = ACCESS_BYTE_ACC;
+        FieldFlags  = AML_FIELD_ACCESS_BYTE;
         break;
-
-
-    /* DefCreateByteField */
 
     case AML_CREATE_BYTE_FIELD_OP:
 
@@ -608,11 +498,8 @@ AcpiDsEvalBufferFieldOperands (
 
         BitOffset   = 8 * Offset;
         BitCount    = 8;
-        FieldFlags  = ACCESS_BYTE_ACC;
+        FieldFlags  = AML_FIELD_ACCESS_BYTE;
         break;
-
-
-    /* DefCreateWordField  */
 
     case AML_CREATE_WORD_FIELD_OP:
 
@@ -620,11 +507,8 @@ AcpiDsEvalBufferFieldOperands (
 
         BitOffset   = 8 * Offset;
         BitCount    = 16;
-        FieldFlags  = ACCESS_WORD_ACC;
+        FieldFlags  = AML_FIELD_ACCESS_WORD;
         break;
-
-
-    /* DefCreateDWordField */
 
     case AML_CREATE_DWORD_FIELD_OP:
 
@@ -632,11 +516,8 @@ AcpiDsEvalBufferFieldOperands (
 
         BitOffset   = 8 * Offset;
         BitCount    = 32;
-        FieldFlags  = ACCESS_DWORD_ACC;
+        FieldFlags  = AML_FIELD_ACCESS_DWORD;
         break;
-
-
-    /* DefCreateQWordField */
 
     case AML_CREATE_QWORD_FIELD_OP:
 
@@ -644,9 +525,8 @@ AcpiDsEvalBufferFieldOperands (
 
         BitOffset   = 8 * Offset;
         BitCount    = 64;
-        FieldFlags  = ACCESS_QWORD_ACC;
+        FieldFlags  = AML_FIELD_ACCESS_QWORD;
         break;
-
 
     default:
 
@@ -656,7 +536,6 @@ AcpiDsEvalBufferFieldOperands (
         Status = AE_AML_BAD_OPCODE;
         goto Cleanup;
     }
-
 
     /*
      * Setup field according to the object type
@@ -678,12 +557,11 @@ AcpiDsEvalBufferFieldOperands (
             goto Cleanup;
         }
 
-
         /*
          * Initialize areas of the field object that are common to all fields
          * For FieldFlags, use LOCK_RULE = 0 (NO_LOCK), UPDATE_RULE = 0 (UPDATE_PRESERVE)
          */
-        Status = AcpiExPrepCommonFieldObject (ObjDesc, FieldFlags,
+        Status = AcpiExPrepCommonFieldObject (ObjDesc, FieldFlags, 0,
                                                 BitOffset, BitCount);
         if (ACPI_FAILURE (Status))
         {
@@ -696,7 +574,6 @@ AcpiDsEvalBufferFieldOperands (
 
         SrcDesc->Common.ReferenceCount = (UINT16) (SrcDesc->Common.ReferenceCount +
                                                    ObjDesc->Common.ReferenceCount);
-
         break;
 
 
@@ -704,7 +581,7 @@ AcpiDsEvalBufferFieldOperands (
 
     default:
 
-        if ((SrcDesc->Common.Type > (UINT8) INTERNAL_TYPE_REFERENCE) || !AcpiUtValidObjectType (SrcDesc->Common.Type)) /* TBD: This line MUST be a single line until AcpiSrc can handle it (block deletion) */
+        if ((SrcDesc->Common.Type > (UINT8) INTERNAL_TYPE_REFERENCE) || !AcpiUtValidObjectType (SrcDesc->Common.Type)) /* This line MUST be a single line until AcpiSrc can handle it (block deletion) */
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
                 "Tried to create field in invalid object type %X\n",
@@ -915,10 +792,7 @@ AcpiDsExecBeginControlOp (
          */
         WalkState->ControlState->Control.AmlPredicateStart =
                     WalkState->ParserState.Aml - 1;
-                    /* TBD: can this be removed? */
-                    /*AcpiPsPkgLengthEncodingSize (GET8 (WalkState->ParserState->Aml));*/
         break;
-
 
     case AML_ELSE_OP:
 
@@ -932,11 +806,9 @@ AcpiDsExecBeginControlOp (
 
         break;
 
-
     case AML_RETURN_OP:
 
         break;
-
 
     default:
         break;
@@ -957,7 +829,6 @@ AcpiDsExecBeginControlOp (
  *
  * DESCRIPTION: Handles all control ops encountered during control method
  *              execution.
- *
  *
  ******************************************************************************/
 
@@ -1077,11 +948,11 @@ AcpiDsExecEndControlOp (
                 ((WalkState->Results->Results.ObjDesc [0])->Common.Type == INTERNAL_TYPE_REFERENCE) &&
                 ((WalkState->Results->Results.ObjDesc [0])->Reference.Opcode != AML_INDEX_OP))
             {
-                    Status = AcpiExResolveToValue (&WalkState->Results->Results.ObjDesc [0], WalkState);
-                    if (ACPI_FAILURE (Status))
-                    {
-                        return (Status);
-                    }
+                Status = AcpiExResolveToValue (&WalkState->Results->Results.ObjDesc [0], WalkState);
+                if (ACPI_FAILURE (Status))
+                {
+                    return (Status);
+                }
             }
 
             WalkState->ReturnDesc = WalkState->Results->Results.ObjDesc [0];
@@ -1165,7 +1036,6 @@ AcpiDsExecEndControlOp (
         Status = AE_AML_BAD_OPCODE;
         break;
     }
-
 
     return (Status);
 }

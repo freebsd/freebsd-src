@@ -2,7 +2,7 @@
  *
  * Module Name: nsutils - Utilities for accessing ACPI namespace, accessing
  *                        parents and siblings and Scope manipulation
- *              $Revision: 92 $
+ *              $Revision: 93 $
  *
  *****************************************************************************/
 
@@ -690,6 +690,9 @@ AcpiNsExternalizeName (
  *
  * DESCRIPTION: Convert a namespace handle to a real Node
  *
+ * Note: Real integer handles allow for more verification
+ *       and keep all pointers within this subsystem.
+ *
  ******************************************************************************/
 
 ACPI_NAMESPACE_NODE *
@@ -701,9 +704,7 @@ AcpiNsMapHandleToNode (
 
 
     /*
-     * Simple implementation for now;
-     * TBD: [Future] Real integer handles allow for more verification
-     * and keep all pointers within this subsystem!
+     * Simple implementation.
      */
     if (!Handle)
     {
@@ -714,7 +715,6 @@ AcpiNsMapHandleToNode (
     {
         return (AcpiGbl_RootNode);
     }
-
 
     /* We can at least attempt to verify the handle */
 
@@ -747,8 +747,6 @@ AcpiNsConvertEntryToHandle (
 
     /*
      * Simple implementation for now;
-     * TBD: [Future] Real integer handles allow for more verification
-     * and keep all pointers within this subsystem!
      */
     return ((ACPI_HANDLE) Node);
 

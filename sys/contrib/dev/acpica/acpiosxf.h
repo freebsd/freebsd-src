@@ -294,7 +294,7 @@ AcpiOsReadPort (
 ACPI_STATUS
 AcpiOsWritePort (
     ACPI_IO_ADDRESS         Address,
-    NATIVE_UINT             Value,
+    ACPI_INTEGER            Value,
     UINT32                  Width);
 
 
@@ -312,7 +312,7 @@ AcpiOsReadMemory (
 ACPI_STATUS
 AcpiOsWriteMemory (
     ACPI_PHYSICAL_ADDRESS   Address,
-    NATIVE_UINT             Value,
+    ACPI_INTEGER            Value,
     UINT32                  Width);
 
 
@@ -332,7 +332,7 @@ ACPI_STATUS
 AcpiOsWritePciConfiguration (
     ACPI_PCI_ID             *PciId,
     UINT32                  Register,
-    NATIVE_UINT             Value,
+    ACPI_INTEGER            Value,
     UINT32                  Width);
 
 

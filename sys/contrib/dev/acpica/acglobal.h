@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acglobal.h - Declarations for global variables
- *       $Revision: 106 $
+ *       $Revision: 109 $
  *
  *****************************************************************************/
 
@@ -221,7 +221,6 @@ ACPI_EXTERN BOOLEAN                     AcpiGbl_AcpiHardwarePresent;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_GlobalLockPresent;
 
 extern BOOLEAN                          AcpiGbl_Shutdown;
-extern UINT32                           AcpiGbl_SystemFlags;
 extern UINT32                           AcpiGbl_StartupFlags;
 extern const UINT8                      AcpiGbl_DecodeTo8bit[8];
 extern const NATIVE_CHAR                *AcpiGbl_DbSleepStates[ACPI_NUM_SLEEP_STATES];
@@ -259,11 +258,7 @@ ACPI_EXTERN UINT32                      AcpiGbl_DeepestNesting;
  ****************************************************************************/
 
 
-ACPI_EXTERN ACPI_WALK_LIST             *AcpiGbl_CurrentWalkList;
-
-/* Address Space handlers */
-
-ACPI_EXTERN ACPI_ADR_SPACE_INFO         AcpiGbl_AddressSpaces[ACPI_NUM_ADDRESS_SPACES];
+ACPI_EXTERN ACPI_THREAD_STATE           *AcpiGbl_CurrentWalkList;
 
 /* Control method single step flag */
 

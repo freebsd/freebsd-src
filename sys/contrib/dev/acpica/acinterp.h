@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acinterp.h - Interpreter subcomponent prototypes and defines
- *       $Revision: 116 $
+ *       $Revision: 122 $
  *
  *****************************************************************************/
 
@@ -118,24 +118,7 @@
 #define __ACINTERP_H__
 
 
-#define WALK_OPERANDS       &(WalkState->Operands [WalkState->NumOperands -1])
-
-
-/* Interpreter constants */
-
-#define AML_END_OF_BLOCK            -1
-#define PUSH_PKG_LENGTH             1
-#define DO_NOT_PUSH_PKG_LENGTH      0
-
-
-#define STACK_TOP                   0
-#define STACK_BOTTOM                (UINT32) -1
-
-/* Constants for global "WhenToParseMethods" */
-
-#define METHOD_PARSE_AT_INIT        0x0
-#define METHOD_PARSE_JUST_IN_TIME   0x1
-#define METHOD_DELETE_AT_COMPLETION 0x2
+#define WALK_OPERANDS       (&(WalkState->Operands [WalkState->NumOperands -1]))
 
 
 ACPI_STATUS
@@ -208,52 +191,49 @@ AcpiExInsertIntoField (
     UINT32                  BufferLength);
 
 ACPI_STATUS
-AcpiExSetupField (
+AcpiExSetupRegion (
     ACPI_OPERAND_OBJECT     *ObjDesc,
-    UINT32                  FieldByteOffset);
+    UINT32                  FieldDatumByteOffset);
 
 ACPI_STATUS
-AcpiExReadFieldDatum (
+AcpiExAccessRegion (
     ACPI_OPERAND_OBJECT     *ObjDesc,
-    UINT32                  FieldByteOffset,
-    UINT32                  *Value);
+    UINT32                  FieldDatumByteOffset,
+    ACPI_INTEGER            *Value,
+    UINT32                  ReadWrite);
+
+BOOLEAN
+AcpiExRegisterOverflow (
+    ACPI_OPERAND_OBJECT     *ObjDesc,
+    ACPI_INTEGER            Value);
 
 ACPI_STATUS
-AcpiExCommonAccessField (
-    UINT32                  Mode,
+AcpiExFieldDatumIo (
     ACPI_OPERAND_OBJECT     *ObjDesc,
+    UINT32                  FieldDatumByteOffset,
+    ACPI_INTEGER            *Value,
+    UINT32                  ReadWrite);
+
+ACPI_STATUS
+AcpiExWriteWithUpdateRule (
+    ACPI_OPERAND_OBJECT     *ObjDesc,
+    ACPI_INTEGER            Mask,
+    ACPI_INTEGER            FieldValue,
+    UINT32                  FieldDatumByteOffset);
+
+void
+AcpiExGetBufferDatum(
+    ACPI_INTEGER            *Datum,
     void                    *Buffer,
-    UINT32                  BufferLength);
+    UINT32                  ByteGranularity,
+    UINT32                  Offset);
 
-
-ACPI_STATUS
-AcpiExAccessIndexField (
-    UINT32                  Mode,
-    ACPI_OPERAND_OBJECT     *ObjDesc,
+void
+AcpiExSetBufferDatum (
+    ACPI_INTEGER            MergedDatum,
     void                    *Buffer,
-    UINT32                  BufferLength);
-
-ACPI_STATUS
-AcpiExAccessBankField (
-    UINT32                  Mode,
-    ACPI_OPERAND_OBJECT     *ObjDesc,
-    void                    *Buffer,
-    UINT32                  BufferLength);
-
-ACPI_STATUS
-AcpiExAccessRegionField (
-    UINT32                  Mode,
-    ACPI_OPERAND_OBJECT     *ObjDesc,
-    void                    *Buffer,
-    UINT32                  BufferLength);
-
-
-ACPI_STATUS
-AcpiExAccessBufferField (
-    UINT32                  Mode,
-    ACPI_OPERAND_OBJECT     *ObjDesc,
-    void                    *Buffer,
-    UINT32                  BufferLength);
+    UINT32                  ByteGranularity,
+    UINT32                  Offset);
 
 ACPI_STATUS
 AcpiExReadDataFromField (
@@ -370,12 +350,16 @@ AcpiExReleaseMutex (
 
 ACPI_STATUS
 AcpiExReleaseAllMutexes (
-    ACPI_OPERAND_OBJECT     *MutexList);
+    ACPI_THREAD_STATE       *Thread);
 
 void
 AcpiExUnlinkMutex (
     ACPI_OPERAND_OBJECT     *ObjDesc);
 
+void
+AcpiExLinkMutex (
+    ACPI_OPERAND_OBJECT     *ObjDesc,
+    ACPI_THREAD_STATE       *Thread);
 
 /*
  * amprep - ACPI AML (p-code) execution - prep utilities
@@ -385,35 +369,9 @@ ACPI_STATUS
 AcpiExPrepCommonFieldObject (
     ACPI_OPERAND_OBJECT     *ObjDesc,
     UINT8                   FieldFlags,
-    UINT32                  FieldPosition,
-    UINT32                  FieldLength);
-
-ACPI_STATUS
-AcpiExPrepRegionFieldValue (
-    ACPI_NAMESPACE_NODE     *Node,
-    ACPI_HANDLE             Region,
-    UINT8                   FieldFlags,
-    UINT32                  FieldPosition,
-    UINT32                  FieldLength);
-
-ACPI_STATUS
-AcpiExPrepBankFieldValue (
-    ACPI_NAMESPACE_NODE     *Node,
-    ACPI_NAMESPACE_NODE     *RegionNode,
-    ACPI_NAMESPACE_NODE     *BankRegisterNode,
-    UINT32                  BankVal,
-    UINT8                   FieldFlags,
-    UINT32                  FieldPosition,
-    UINT32                  FieldLength);
-
-ACPI_STATUS
-AcpiExPrepIndexFieldValue (
-    ACPI_NAMESPACE_NODE     *Node,
-    ACPI_NAMESPACE_NODE     *IndexReg,
-    ACPI_NAMESPACE_NODE     *DataReg,
-    UINT8                   FieldFlags,
-    UINT32                  FieldPosition,
-    UINT32                  FieldLength);
+    UINT8                   FieldAttribute,
+    UINT32                  FieldBitPosition,
+    UINT32                  FieldBitLength);
 
 ACPI_STATUS
 AcpiExPrepFieldValue (
@@ -523,11 +481,6 @@ ACPI_STATUS
 AcpiExResolveObjectToValue (
     ACPI_OPERAND_OBJECT     **StackPtr,
     ACPI_WALK_STATE         *WalkState);
-
-ACPI_STATUS
-AcpiExGetBufferFieldValue (
-    ACPI_OPERAND_OBJECT     *FieldDesc,
-    ACPI_OPERAND_OBJECT     *ResultDesc);
 
 
 /*
@@ -733,7 +686,7 @@ AcpiExSystemMemorySpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    UINT32                  *Value,
+    ACPI_INTEGER            *Value,
     void                    *HandlerContext,
     void                    *RegionContext);
 
@@ -742,7 +695,7 @@ AcpiExSystemIoSpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    UINT32                  *Value,
+    ACPI_INTEGER            *Value,
     void                    *HandlerContext,
     void                    *RegionContext);
 
@@ -751,7 +704,7 @@ AcpiExPciConfigSpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    UINT32                  *Value,
+    ACPI_INTEGER            *Value,
     void                    *HandlerContext,
     void                    *RegionContext);
 
@@ -760,7 +713,7 @@ AcpiExCmosSpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    UINT32                  *Value,
+    ACPI_INTEGER            *Value,
     void                    *HandlerContext,
     void                    *RegionContext);
 
@@ -769,7 +722,7 @@ AcpiExPciBarSpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    UINT32                  *Value,
+    ACPI_INTEGER            *Value,
     void                    *HandlerContext,
     void                    *RegionContext);
 
@@ -778,7 +731,7 @@ AcpiExEmbeddedControllerSpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    UINT32                  *Value,
+    ACPI_INTEGER            *Value,
     void                    *HandlerContext,
     void                    *RegionContext);
 
@@ -787,7 +740,7 @@ AcpiExSmBusSpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    UINT32                  *Value,
+    ACPI_INTEGER            *Value,
     void                    *HandlerContext,
     void                    *RegionContext);
 

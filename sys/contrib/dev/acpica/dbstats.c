@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbstats - Generation and display of ACPI table statistics
- *              $Revision: 47 $
+ *              $Revision: 49 $
  *
  ******************************************************************************/
 
@@ -169,6 +169,7 @@ void
 AcpiDbEnumerateObject (
     ACPI_OPERAND_OBJECT     *ObjDesc)
 {
+    ACPI_OPERAND_OBJECT     *ObjDesc2;
     UINT32                  Type;
     UINT32                  i;
 
@@ -210,7 +211,16 @@ AcpiDbEnumerateObject (
         AcpiDbEnumerateObject (ObjDesc->Device.AddrHandler);
         break;
 
+    case ACPI_TYPE_BUFFER_FIELD:
+        ObjDesc2 = AcpiNsGetSecondaryObject (ObjDesc);
+        if (ObjDesc2)
+        {
+            AcpiGbl_ObjTypeCount [INTERNAL_TYPE_EXTRA]++;
+        }
+        break;
+
     case ACPI_TYPE_REGION:
+        AcpiGbl_ObjTypeCount [INTERNAL_TYPE_EXTRA]++;
         AcpiDbEnumerateObject (ObjDesc->Region.AddrHandler);
         break;
 
@@ -264,7 +274,7 @@ AcpiDbClassifyOneObject (
     AcpiGbl_NumNodes++;
 
     Node = (ACPI_NAMESPACE_NODE *) ObjHandle;
-    ObjDesc = ((ACPI_NAMESPACE_NODE *) ObjHandle)->Object;
+    ObjDesc = AcpiNsGetAttachedObject (Node);
 
     AcpiDbEnumerateObject (ObjDesc);
 
@@ -517,6 +527,7 @@ AcpiDbDisplayStatistics (
         AcpiOsPrintf ("NotifyHandler    %3d\n", sizeof (ACPI_OBJECT_NOTIFY_HANDLER));
         AcpiOsPrintf ("AddrHandler      %3d\n", sizeof (ACPI_OBJECT_ADDR_HANDLER));
         AcpiOsPrintf ("Extra            %3d\n", sizeof (ACPI_OBJECT_EXTRA));
+        AcpiOsPrintf ("Data             %3d\n", sizeof (ACPI_OBJECT_DATA));
 
         AcpiOsPrintf ("\n");
 
