@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
-.\"	$Id: sh.1,v 1.9.2.9 1998/06/30 06:42:53 charnier Exp $
+.\"	$Id: sh.1,v 1.9.2.10 1998/07/28 14:47:36 thepish Exp $
 .\"
 .Dd May 5, 1995
 .Dt SH 1
@@ -141,7 +141,12 @@ single letter option in the descriptions below.  Specifying a dash
 .Dq -
 enables the option, while using a plus
 .Dq +
-disables the option.
+disables the option.  A 
+.Dq --
+or plain
+.Dq -
+will stop option processing and will force the remaining
+words on the command line to be treated as arguments.
 .Bl -tag -width Ds
 .It Fl a Li allexport
 Export all variables assigned to.
