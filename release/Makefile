@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.105 1995/02/10 05:51:01 jkh Exp $
+#	$Id: Makefile,v 1.106 1995/02/10 06:04:58 phk Exp $
 #
 
 FLOPPY=		fd0
@@ -222,6 +222,9 @@ beforetarballs:
 	rm -rf ${RELEASEDIR}/games/usr/games
 	mv ${RELEASEDIR}/bin/usr/games \
 		${RELEASEDIR}/games/usr/games
+	rm -rf ${RELEASEDIR}/games/var/games
+	mv ${RELEASEDIR}/bin/var/games \
+		${RELEASEDIR}/games/var/games
 	rm -rf ${RELEASEDIR}/games/usr/share/games
 	mv ${RELEASEDIR}/bin/usr/share/games \
 		${RELEASEDIR}/games/usr/share/games
