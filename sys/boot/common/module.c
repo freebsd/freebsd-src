@@ -98,7 +98,7 @@ command_load(int argc, char *argv[])
      * Request to load a raw file?
      */
     if (dofile) {
-	if ((typestr == NULL) || (*typestr == 0)) {
+	if (argc != 2 || (typestr == NULL) || (*typestr == 0)) {
 	    command_errmsg = "invalid load type";
 	    return(CMD_ERROR);
 	}
