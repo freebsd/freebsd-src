@@ -113,6 +113,7 @@ char atfile[] = ATJOB_DIR "12345678901234";
 char *atinput = (char*)0;	/* where to get input from */
 char atqueue = 0;		/* which queue to examine for jobs (atq) */
 char atverify = 0;		/* verify time instead of queuing job */
+char *namep;
 
 /* Function declarations */
 
@@ -135,14 +136,18 @@ static void sigc(int signo)
 	PRIV_END
     }
 
-    exit(EXIT_FAILURE);
+    _exit(EXIT_FAILURE);
 }
 
 static void alarmc(int signo)
 {
-/* Time out after some seconds
- */
-    panic("file locking timed out");
+    char buf[1024];
+
+    /* Time out after some seconds. */
+    strlcpy(buf, namep, sizeof(buf));
+    strlcat(buf, ": file locking timed out\n", sizeof(buf));
+    write(STDERR_FILENO, buf, strlen(buf));
+    sigc(0);
 }
 
 /* Local functions */
@@ -611,6 +616,8 @@ main(int argc, char **argv)
     else
         pgm++;
 
+    namep = pgm;
+
     /* find out what this program is supposed to do
      */
     if (strcmp(pgm, "atq") == 0) {
@@ -695,8 +702,9 @@ main(int argc, char **argv)
      */
 
     if (disp_version)
-	fprintf(stderr, "at version " VERSION "\n"
-			"Bug reports to: ig25@rz.uni-karlsruhe.de (Thomas Koenig)\n");
+	fprintf(stderr, "%s version " VERSION "\n"
+	    "Bug reports to: ig25@rz.uni-karlsruhe.de (Thomas Koenig)\n",
+	    namep);
 
     /* select our program
      */
