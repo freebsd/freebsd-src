@@ -118,7 +118,7 @@ _pfs_fixup_dir(struct pfs_node *parent)
  * Create a directory
  */
 struct pfs_node	*
-pfs_create_dir(struct pfs_node *parent, char *name,
+pfs_create_dir(struct pfs_node *parent, const char *name,
 	       pfs_attr_t attr, pfs_vis_t vis, int flags)
 {
 	struct pfs_node *dir;
@@ -151,7 +151,7 @@ pfs_create_dir(struct pfs_node *parent, char *name,
  * Create a file
  */
 struct pfs_node	*
-pfs_create_file(struct pfs_node *parent, char *name, pfs_fill_t fill,
+pfs_create_file(struct pfs_node *parent, const char *name, pfs_fill_t fill,
 		pfs_attr_t attr, pfs_vis_t vis, int flags)
 {
 	struct pfs_node *node;
@@ -180,7 +180,7 @@ pfs_create_file(struct pfs_node *parent, char *name, pfs_fill_t fill,
  * Create a symlink
  */
 struct pfs_node	*
-pfs_create_link(struct pfs_node *parent, char *name, pfs_fill_t fill,
+pfs_create_link(struct pfs_node *parent, const char *name, pfs_fill_t fill,
 		pfs_attr_t attr, pfs_vis_t vis, int flags)
 {
 	struct pfs_node *node;
@@ -190,6 +190,20 @@ pfs_create_link(struct pfs_node *parent, char *name, pfs_fill_t fill,
 		return (NULL);
 	node->pn_type = pfstype_symlink;
 	return (node);
+}
+
+/*
+ * Locate a node by name
+ */
+struct pfs_node *
+pfs_find_node(struct pfs_node *parent, const char *name)
+{
+	struct pfs_node *node;
+
+	for (node = parent->pn_nodes; node != NULL; node = node->pn_next)
+		if (strcmp(node->pn_name, name) == 0)
+			return (node);
+	return (NULL);
 }
 
 /*
