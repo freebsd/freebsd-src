@@ -1330,13 +1330,12 @@ spx_attach(so, proto, p)
 	}
 	ipxp = sotoipxpcb(so);
 
-	MALLOC(cb, struct spxpcb *, sizeof *cb, M_PCB, M_NOWAIT);
+	MALLOC(cb, struct spxpcb *, sizeof *cb, M_PCB, M_NOWAIT | M_ZERO);
 
 	if (cb == NULL) {
 		error = ENOBUFS;
 		goto spx_attach_end;
 	}
-	bzero(cb, sizeof *cb);
 	sb = &so->so_snd;
 
 	mm = m_getclr(M_DONTWAIT, MT_HEADER);

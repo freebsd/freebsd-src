@@ -126,8 +126,8 @@ ipx_input(m, ipxp)
 	if (ipx_neteqnn(ipx->ipx_sna.x_net, ipx_zeronet) && ifp != NULL) {
 		register struct ifaddr *ifa;
 
-		for (ifa = ifp->if_addrhead.tqh_first; ifa != NULL; 
-		     ifa = ifa->ifa_link.tqe_next) {
+		for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa != NULL; 
+		     ifa = TAILQ_NEXT(ifa, ifa_link)) {
 			if (ifa->ifa_addr->sa_family == AF_IPX) {
 				ipx_ipx.sipx_addr.x_net =
 					IA_SIPX(ifa)->sipx_addr.x_net;
