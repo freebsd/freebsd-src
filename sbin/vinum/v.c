@@ -36,7 +36,7 @@
  *
  */
 
-/* $Id: v.c,v 1.24 1999/01/17 02:53:38 grog Exp grog $ */
+/* $Id: v.c,v 1.25 1999/03/21 01:18:23 grog Exp grog $ */
 
 #include <ctype.h>
 #include <errno.h>
@@ -182,7 +182,7 @@ main(int argc, char *argv[])
 
 	    setjmp(command_fail);			    /* come back here on catastrophic failure */
 
-	    while (wait4(-1, &childstatus, WNOHANG, NULL) >= 0); /* wait for all dead children */
+	    while (wait4(-1, &childstatus, WNOHANG, NULL) > 0);	/* wait for all dead children */
 	    c = readline(VINUMMOD " -> ");		    /* get an input */
 	    if (c == NULL) {				    /* EOF or error */
 		if (ferror(stdin)) {
