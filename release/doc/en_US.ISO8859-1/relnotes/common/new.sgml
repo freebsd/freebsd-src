@@ -620,7 +620,7 @@
         devices. &merged;</para>
 
       <para><application>sendmail</application> has been updated to
-        version 8.12.8. &merged;</para>
+        version 8.12.9. &merged;</para>
 
       <para>&man.tcpdump.1; has been updated to version 3.7.2.  &merged;
 	It also now supports a <option>-L</option> flag to
