@@ -445,6 +445,7 @@ while [ $installing -eq 1 ]; do
 		installing=0
 	fi
 done
-echo; echo "Exiting to shell"
+echo; echo "Spawning shell.  Exit shell to continue with new bindist."
 echo "Progress <installation completed>" > /dev/ttyv1
-exec /stand/sh
+/stand/sh
+exit 20
