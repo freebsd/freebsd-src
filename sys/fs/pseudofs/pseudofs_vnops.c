@@ -75,13 +75,13 @@ pfs_visible(struct thread *td, struct pfs_node *pn, pid_t pid)
 {
 	struct proc *proc;
 	int r;
-	
+
 	PFS_TRACE(("%s (pid: %d, req: %d)",
 	    pn->pn_name, pid, td->td_proc->p_pid));
 
 	if (pn->pn_flags & PFS_DISABLED)
 		PFS_RETURN (0);
-	
+
 	r = 1;
 	if (pid != NO_PID) {
 		if ((proc = pfind(pid)) == NULL)
@@ -103,9 +103,9 @@ pfs_access(struct vop_access_args *va)
 	struct vnode *vn = va->a_vp;
 	struct vattr vattr;
 	int error;
-	
+
 	PFS_TRACE((((struct pfs_vdata *)vn->v_data)->pvd_pn->pn_name));
-	
+
 	error = VOP_GETATTR(vn, &vattr, va->a_cred, va->a_td);
 	if (error)
 		PFS_RETURN (error);
@@ -139,12 +139,12 @@ pfs_close(struct vop_close_args *va)
 		proc = pfind(pvd->pvd_pid);
 	else
 		proc = NULL;
-	
+
 	error = (pn->pn_close)(va->a_td, proc, pn);
-	
+
 	if (proc != NULL)
 		PROC_UNLOCK(proc);
-	
+
 	PFS_RETURN (error);
 }
 
@@ -162,7 +162,7 @@ pfs_getattr(struct vop_getattr_args *va)
 	int error = 0;
 
 	PFS_TRACE((pn->pn_name));
-	
+
 	VATTR_NULL(vap);
 	vap->va_type = vn->v_type;
 	vap->va_fileid = pn->pn_fileno;
@@ -202,7 +202,7 @@ pfs_getattr(struct vop_getattr_args *va)
 		vap->va_uid = 0;
 		vap->va_gid = 0;
 	}
-		
+
 	PFS_RETURN (error);
 }
 
@@ -219,20 +219,20 @@ pfs_ioctl(struct vop_ioctl_args *va)
 	int error;
 
 	PFS_TRACE(("%s: %lx", pn->pn_name, va->a_command));
-	
+
 	if (vn->v_type != VREG)
 		PFS_RETURN (EINVAL);
 
 	if (pn->pn_ioctl == NULL)
 		PFS_RETURN (ENOTTY);
-	
+
 	/*
 	 * This is necessary because either process' privileges may
 	 * have changed since the open() call.
 	 */
 	if (!pfs_visible(curthread, pn, pvd->pvd_pid))
 		PFS_RETURN (EIO);
-	
+
 	/* XXX duplicates bits of pfs_visible() */
 	if (pvd->pvd_pid != NO_PID) {
 		if ((proc = pfind(pvd->pvd_pid)) == NULL)
@@ -240,12 +240,12 @@ pfs_ioctl(struct vop_ioctl_args *va)
 		_PHOLD(proc);
 		PROC_UNLOCK(proc);
 	}
-	
+
 	error = (pn->pn_ioctl)(curthread, proc, pn, va->a_command, va->a_data);
 
 	if (proc != NULL)
 		PRELE(proc);
-	
+
 	PFS_RETURN (error);
 }
 
@@ -265,14 +265,14 @@ pfs_getextattr(struct vop_getextattr_args *va)
 
 	if (pn->pn_getextattr == NULL)
 		PFS_RETURN (EOPNOTSUPP);
-	
+
 	/*
 	 * This is necessary because either process' privileges may
 	 * have changed since the open() call.
 	 */
 	if (!pfs_visible(curthread, pn, pvd->pvd_pid))
 		PFS_RETURN (EIO);
-	
+
 	/* XXX duplicates bits of pfs_visible() */
 	if (pvd->pvd_pid != NO_PID) {
 		if ((proc = pfind(pvd->pvd_pid)) == NULL)
@@ -280,13 +280,13 @@ pfs_getextattr(struct vop_getextattr_args *va)
 		_PHOLD(proc);
 		PROC_UNLOCK(proc);
 	}
-	
+
 	error = (pn->pn_getextattr)(curthread, proc, pn, va->a_attrnamespace,
 	    va->a_name, va->a_uio, va->a_size, va->a_cred);
 
 	if (proc != NULL)
 		PRELE(proc);
-	
+
 	PFS_RETURN (error);
 }
 
@@ -316,10 +316,10 @@ pfs_lookup(struct vop_lookup_args *va)
 	int error, i, namelen;
 
 	PFS_TRACE(("%.*s", (int)cnp->cn_namelen, cnp->cn_nameptr));
-	
+
 	if (vn->v_type != VDIR)
 		PFS_RETURN (ENOTDIR);
-	
+
 	/*
 	 * Don't support DELETE or RENAME.  CREATE is supported so
 	 * that O_CREAT will work, but the lookup will still fail if
@@ -335,7 +335,7 @@ pfs_lookup(struct vop_lookup_args *va)
 	/* check that parent directory is visisble... */
 	if (!pfs_visible(curthread, pd, pvd->pvd_pid))
 		PFS_RETURN (ENOENT);
-	
+
 	/* self */
 	namelen = cnp->cn_namelen;
 	pname = cnp->cn_nameptr;
@@ -383,7 +383,7 @@ pfs_lookup(struct vop_lookup_args *va)
 		if (i == cnp->cn_namelen)
 			goto got_pnode;
 	}
-		
+
 	PFS_RETURN (ENOENT);
  got_pnode:
 	if (pn != pd->pn_parent && !pn->pn_parent)
@@ -418,15 +418,15 @@ pfs_open(struct vop_open_args *va)
 	 * check if the file is visible to the caller
 	 *
 	 * XXX Not sure if this is necessary, as the VFS system calls
-         * XXX pfs_lookup() and pfs_access() first, and pfs_lookup()
-         * XXX calls pfs_visible().  There's a race condition here, but
+	 * XXX pfs_lookup() and pfs_access() first, and pfs_lookup()
+	 * XXX calls pfs_visible().  There's a race condition here, but
 	 * XXX calling pfs_visible() from here doesn't really close it,
 	 * XXX and the only consequence of that race is an EIO further
 	 * XXX down the line.
 	 */
 	if (!pfs_visible(va->a_td, pn, pvd->pvd_pid))
 		PFS_RETURN (ENOENT);
-	
+
 	/* check if the requested mode is permitted */
 	if (((mode & FREAD) && !(mode & PFS_RD)) ||
 	    ((mode & FWRITE) && !(mode & PFS_WR)))
@@ -435,7 +435,7 @@ pfs_open(struct vop_open_args *va)
 	/* we don't support locking */
 	if ((mode & O_SHLOCK) || (mode & O_EXLOCK))
 		PFS_RETURN (EOPNOTSUPP);
-	
+
 	PFS_RETURN (0);
 }
 
@@ -455,7 +455,7 @@ pfs_read(struct vop_read_args *va)
 	int error, xlen;
 
 	PFS_TRACE((pn->pn_name));
-	
+
 	if (vn->v_type != VREG)
 		PFS_RETURN (EINVAL);
 
@@ -464,14 +464,14 @@ pfs_read(struct vop_read_args *va)
 
 	if (pn->pn_func == NULL)
 		PFS_RETURN (EIO);
-	
+
 	/*
 	 * This is necessary because either process' privileges may
 	 * have changed since the open() call.
 	 */
 	if (!pfs_visible(curthread, pn, pvd->pvd_pid))
 		PFS_RETURN (EIO);
-	
+
 	/* XXX duplicates bits of pfs_visible() */
 	if (pvd->pvd_pid != NO_PID) {
 		if ((proc = pfind(pvd->pvd_pid)) == NULL)
@@ -486,7 +486,7 @@ pfs_read(struct vop_read_args *va)
 			PRELE(proc);
 		PFS_RETURN (error);
 	}
-	
+
 	sb = sbuf_new(sb, NULL, uio->uio_offset + uio->uio_resid, 0);
 	if (sb == NULL) {
 		if (proc != NULL)
@@ -503,7 +503,7 @@ pfs_read(struct vop_read_args *va)
 		sbuf_delete(sb);
 		PFS_RETURN (error);
 	}
-	
+
 	/* XXX we should possibly detect and handle overflows */
 	sbuf_finish(sb);
 	ps = sbuf_data(sb) + uio->uio_offset;
@@ -519,7 +519,7 @@ pfs_read(struct vop_read_args *va)
  */
 static int
 pfs_iterate(struct thread *td, pid_t pid, struct pfs_node *pd,
-            struct pfs_node **pn, struct proc **p)
+	    struct pfs_node **pn, struct proc **p)
 {
 	if ((*pn) == NULL)
 		*pn = pd->pn_nodes;
@@ -527,7 +527,7 @@ pfs_iterate(struct thread *td, pid_t pid, struct pfs_node *pd,
  again:
 	if ((*pn)->pn_type != pfstype_procdir)
 		*pn = (*pn)->pn_next;
-	
+
 	while (*pn != NULL && (*pn)->pn_type == pfstype_procdir) {
 		if (*p == NULL)
 			*p = LIST_FIRST(&allproc);
@@ -537,13 +537,13 @@ pfs_iterate(struct thread *td, pid_t pid, struct pfs_node *pd,
 			break;
 		*pn = (*pn)->pn_next;
 	}
-	
+
 	if ((*pn) == NULL)
 		return (-1);
 
 	if (!pfs_visible(td, *pn, *p ? (*p)->p_pid : pid))
 		goto again;
-	
+
 	return (0);
 }
 
@@ -566,7 +566,7 @@ pfs_readdir(struct vop_readdir_args *va)
 	int error, i, resid;
 
 	PFS_TRACE((pd->pn_name));
-	
+
 	if (vn->v_type != VDIR)
 		PFS_RETURN (ENOTDIR);
 	uio = va->a_uio;
@@ -574,7 +574,7 @@ pfs_readdir(struct vop_readdir_args *va)
 	/* check if the directory is visible to the caller */
 	if (!pfs_visible(curthread, pd, pid))
 		PFS_RETURN (ENOENT);
-	
+
 	/* only allow reading entire entries */
 	offset = uio->uio_offset;
 	resid = uio->uio_resid;
@@ -589,7 +589,7 @@ pfs_readdir(struct vop_readdir_args *va)
 			sx_sunlock(&allproc_lock);
 			PFS_RETURN (0);
 		}
-	
+
 	/* fill in entries */
 	entry.d_reclen = PFS_DELEN;
 	while (pfs_iterate(curthread, pid, pd, &pn, &p) != -1 && resid > 0) {
@@ -660,20 +660,20 @@ pfs_readlink(struct vop_readlink_args *va)
 	int error, xlen;
 
 	PFS_TRACE((pn->pn_name));
-	
+
 	if (vn->v_type != VLNK)
 		PFS_RETURN (EINVAL);
 
 	if (pn->pn_func == NULL)
 		PFS_RETURN (EIO);
-	
+
 	if (pvd->pvd_pid != NO_PID) {
 		if ((proc = pfind(pvd->pvd_pid)) == NULL)
 			PFS_RETURN (EIO);
 		_PHOLD(proc);
 		PROC_UNLOCK(proc);
 	}
-	
+
 	/* sbuf_new() can't fail with a static buffer */
 	sbuf_new(&sb, buf, sizeof buf, 0);
 
@@ -681,12 +681,12 @@ pfs_readlink(struct vop_readlink_args *va)
 
 	if (proc != NULL)
 		PRELE(proc);
-	
+
 	if (error) {
 		sbuf_delete(&sb);
 		PFS_RETURN (error);
 	}
-	
+
 	/* XXX we should detect and handle overflows */
 	sbuf_finish(&sb);
 	ps = sbuf_data(&sb) + uio->uio_offset;
@@ -734,7 +734,7 @@ pfs_write(struct vop_read_args *va)
 	int error;
 
 	PFS_TRACE((pn->pn_name));
-	
+
 	if (vn->v_type != VREG)
 		PFS_RETURN (EINVAL);
 
@@ -743,7 +743,7 @@ pfs_write(struct vop_read_args *va)
 
 	if (pn->pn_func == NULL)
 		PFS_RETURN (EIO);
-	
+
 	/*
 	 * This is necessary because either process' privileges may
 	 * have changed since the open() call.
@@ -769,12 +769,12 @@ pfs_write(struct vop_read_args *va)
 	sbuf_uionew(&sb, uio, &error);
 	if (error)
 		PFS_RETURN (error);
-	
+
 	error = (pn->pn_func)(curthread, proc, pn, &sb, uio);
 
 	if (proc != NULL)
 		PRELE(proc);
-	
+
 	sbuf_delete(&sb);
 	PFS_RETURN (error);
 }

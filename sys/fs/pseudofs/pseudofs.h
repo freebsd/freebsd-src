@@ -187,7 +187,7 @@ struct pfs_node {
 	pfs_getextattr_t	 pn_getextattr;
 	void			*pn_data;
 	int			 pn_flags;
-	
+
 	struct pfs_info		*pn_info;
 	struct pfs_node		*pn_parent;
 	struct pfs_node		*pn_next;
@@ -197,15 +197,15 @@ struct pfs_node {
 /*
  * VFS interface
  */
-int	 	 pfs_mount	(struct pfs_info *pi, struct mount *mp,
+int		 pfs_mount	(struct pfs_info *pi, struct mount *mp,
 				 struct nameidata *ndp, struct thread *td);
-int	 	 pfs_unmount	(struct mount *mp, int mntflags,
+int		 pfs_unmount	(struct mount *mp, int mntflags,
 				 struct thread *td);
 int		 pfs_root	(struct mount *mp, struct vnode **vpp);
-int	 	 pfs_statfs	(struct mount *mp, struct statfs *sbp,
+int		 pfs_statfs	(struct mount *mp, struct statfs *sbp,
 				 struct thread *td);
-int	 	 pfs_init	(struct pfs_info *pi, struct vfsconf *vfc);
-int	 	 pfs_uninit	(struct pfs_info *pi, struct vfsconf *vfc);
+int		 pfs_init	(struct pfs_info *pi, struct vfsconf *vfc);
+int		 pfs_uninit	(struct pfs_info *pi, struct vfsconf *vfc);
 
 /*
  * Directory structure construction and manipulation
@@ -236,17 +236,17 @@ static struct pfs_info name##_info = {					\
 static int								\
 _##name##_mount(struct mount *mp, struct nameidata *ndp,		\
 	     struct thread *td) {					\
-        return pfs_mount(&name##_info, mp, ndp, td);			\
+	return pfs_mount(&name##_info, mp, ndp, td);			\
 }									\
 									\
 static int								\
 _##name##_init(struct vfsconf *vfc) {					\
-        return pfs_init(&name##_info, vfc);				\
+	return pfs_init(&name##_info, vfc);				\
 }									\
 									\
 static int								\
 _##name##_uninit(struct vfsconf *vfc) {					\
-        return pfs_uninit(&name##_info, vfc);				\
+	return pfs_uninit(&name##_info, vfc);				\
 }									\
 									\
 static struct vfsops name##_vfsops = {					\
