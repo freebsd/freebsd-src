@@ -20,7 +20,6 @@
 
 #include "opt_devfs.h"
 #include "opt_vm86.h"
-#include "opt_smp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -51,10 +50,6 @@
 #ifdef VM86
 #include <machine/psl.h>
 #include <machine/vm86.h>
-#endif
-
-#ifdef SMP
-#include <machine/smp.h>
 #endif
 
 static int apm_display __P((int newstate));
@@ -127,10 +122,6 @@ static struct cdevsw apm_cdevsw =
 static void
 setup_apm_gdt(u_int code32_base, u_int code16_base, u_int data_base, u_int code32_limit, u_int code16_limit, u_int data_limit)
 {
-#ifdef SMP
-	int x;
-#endif
-
 	/* setup 32bit code segment */
 	gdt_segs[GAPMCODE32_SEL].ssd_base  = code32_base;
 	gdt_segs[GAPMCODE32_SEL].ssd_limit = code32_limit;
@@ -147,14 +138,6 @@ setup_apm_gdt(u_int code32_base, u_int code16_base, u_int data_base, u_int code3
 	ssdtosd(gdt_segs + GAPMCODE32_SEL, &gdt[GAPMCODE32_SEL].sd);
 	ssdtosd(gdt_segs + GAPMCODE16_SEL, &gdt[GAPMCODE16_SEL].sd);
 	ssdtosd(gdt_segs + GAPMDATA_SEL  , &gdt[GAPMDATA_SEL  ].sd);
-
-#ifdef SMP
-	for (x = 1; x < NCPU; x++) {
-		gdt[x * NGDT + GAPMCODE32_SEL].sd = gdt[GAPMCODE32_SEL].sd;
-		gdt[x * NGDT + GAPMCODE16_SEL].sd = gdt[GAPMCODE16_SEL].sd;
-		gdt[x * NGDT + GAPMDATA_SEL  ].sd = gdt[GAPMDATA_SEL  ].sd;
-	}
-#endif
 }
 
 /* 48bit far pointer. Do not staticize - used from apm_setup.s */
