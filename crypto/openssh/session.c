@@ -9,7 +9,7 @@
  * called by a name other than "ssh" or "Secure Shell".
  *
  * SSH2 support by Markus Friedl.
- * Copyright (c) 2000 Markus Friedl.  All rights reserved.
+ * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,7 +33,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: session.c,v 1.80 2001/06/04 21:59:43 markus Exp $");
+RCSID("$OpenBSD: session.c,v 1.142 2002/06/26 13:49:26 deraadt Exp $");
 RCSID("$FreeBSD$");
 
 #include "ssh.h"
@@ -47,7 +47,6 @@ RCSID("$FreeBSD$");
 #include "uidswap.h"
 #include "compat.h"
 #include "channels.h"
-#include "nchan.h"
 #include "bufaux.h"
 #include "auth.h"
 #include "auth-options.h"
@@ -58,60 +57,36 @@ RCSID("$FreeBSD$");
 #include "serverloop.h"
 #include "canohost.h"
 #include "session.h"
+#include "monitor_wrap.h"
 
-#ifdef __FreeBSD__
-#define _PATH_CHPASS "/usr/bin/passwd"
-#endif /* __FreeBSD__ */
-
-#ifdef HAVE_LOGIN_CAP
-#include <login_cap.h>
+#ifdef HAVE_CYGWIN
+#include <windows.h>
+#include <sys/cygwin.h>
+#define is_winnt       (GetVersion() < 0x80000000)
 #endif
-
-#ifdef KRB5
-extern krb5_context ssh_context;
-#endif
-
-/* types */
-
-#define TTYSZ 64
-typedef struct Session Session;
-struct Session {
-	int	used;
-	int	self;
-	struct	passwd *pw;
-	pid_t	pid;
-	/* tty */
-	char	*term;
-	int	ptyfd, ttyfd, ptymaster;
-	int	row, col, xpixel, ypixel;
-	char	tty[TTYSZ];
-	/* X11 */
-	char	*display;
-	int	screen;
-	char	*auth_proto;
-	char	*auth_data;
-	int	single_connection;
-	/* proto 2 */
-	int	chanid;
-	int	is_subsystem;
-};
 
 /* func */
 
 Session *session_new(void);
-void	session_set_fds(Session *s, int fdin, int fdout, int fderr);
-void	session_pty_cleanup(Session *s);
-void	session_proctitle(Session *s);
-void	do_exec_pty(Session *s, const char *command);
-void	do_exec_no_pty(Session *s, const char *command);
-void	do_login(Session *s, const char *command);
-void	do_child(Session *s, const char *command);
+void	session_set_fds(Session *, int, int, int);
+void	session_pty_cleanup(void *);
+void	session_proctitle(Session *);
+int	session_setup_x11fwd(Session *);
+void	do_exec_pty(Session *, const char *);
+void	do_exec_no_pty(Session *, const char *);
+void	do_exec(Session *, const char *);
+void	do_login(Session *, const char *);
+#ifdef LOGIN_NEEDS_UTMPX
+static void	do_pre_login(Session *s);
+#endif
+void	do_child(Session *, const char *);
 void	do_motd(void);
-int	check_quietlogin(Session *s, const char *command);
-void	xauthfile_cleanup_proc(void *pw);
+int	check_quietlogin(Session *, const char *);
 
-void	do_authenticated1(Authctxt *authctxt);
-void	do_authenticated2(Authctxt *authctxt);
+static void do_authenticated1(Authctxt *);
+static void do_authenticated2(Authctxt *);
+
+static int session_pty_req(Session *);
 
 /* import */
 extern ServerOptions options;
@@ -122,19 +97,107 @@ extern u_int utmp_len;
 extern int startup_pipe;
 extern void destroy_sensitive_data(void);
 
-/* Local Xauthority file. */
-static char *xauthfile;
-
 /* original command from peer. */
-char *original_command = NULL;
+const char *original_command = NULL;
 
 /* data */
 #define MAX_SESSIONS 10
 Session	sessions[MAX_SESSIONS];
 
+#ifdef WITH_AIXAUTHENTICATE
+char *aixloginmsg;
+#endif /* WITH_AIXAUTHENTICATE */
+
 #ifdef HAVE_LOGIN_CAP
-static login_cap_t *lc;
+login_cap_t *lc;
 #endif
+
+/* Name and directory of socket for authentication agent forwarding. */
+static char *auth_sock_name = NULL;
+static char *auth_sock_dir = NULL;
+
+/* removes the agent forwarding socket */
+
+static void
+auth_sock_cleanup_proc(void *_pw)
+{
+	struct passwd *pw = _pw;
+
+	if (auth_sock_name != NULL) {
+		temporarily_use_uid(pw);
+		unlink(auth_sock_name);
+		rmdir(auth_sock_dir);
+		auth_sock_name = NULL;
+		restore_uid();
+	}
+}
+
+static int
+auth_input_request_forwarding(struct passwd * pw)
+{
+	Channel *nc;
+	int sock;
+	struct sockaddr_un sunaddr;
+
+	if (auth_sock_name != NULL) {
+		error("authentication forwarding requested twice.");
+		return 0;
+	}
+
+	/* Temporarily drop privileged uid for mkdir/bind. */
+	temporarily_use_uid(pw);
+
+	/* Allocate a buffer for the socket name, and format the name. */
+	auth_sock_name = xmalloc(MAXPATHLEN);
+	auth_sock_dir = xmalloc(MAXPATHLEN);
+	strlcpy(auth_sock_dir, "/tmp/ssh-XXXXXXXX", MAXPATHLEN);
+
+	/* Create private directory for socket */
+	if (mkdtemp(auth_sock_dir) == NULL) {
+		packet_send_debug("Agent forwarding disabled: "
+		    "mkdtemp() failed: %.100s", strerror(errno));
+		restore_uid();
+		xfree(auth_sock_name);
+		xfree(auth_sock_dir);
+		auth_sock_name = NULL;
+		auth_sock_dir = NULL;
+		return 0;
+	}
+	snprintf(auth_sock_name, MAXPATHLEN, "%s/agent.%ld",
+		 auth_sock_dir, (long) getpid());
+
+	/* delete agent socket on fatal() */
+	fatal_add_cleanup(auth_sock_cleanup_proc, pw);
+
+	/* Create the socket. */
+	sock = socket(AF_UNIX, SOCK_STREAM, 0);
+	if (sock < 0)
+		packet_disconnect("socket: %.100s", strerror(errno));
+
+	/* Bind it to the name. */
+	memset(&sunaddr, 0, sizeof(sunaddr));
+	sunaddr.sun_family = AF_UNIX;
+	strlcpy(sunaddr.sun_path, auth_sock_name, sizeof(sunaddr.sun_path));
+
+	if (bind(sock, (struct sockaddr *) & sunaddr, sizeof(sunaddr)) < 0)
+		packet_disconnect("bind: %.100s", strerror(errno));
+
+	/* Restore the privileged uid. */
+	restore_uid();
+
+	/* Start listening on the socket. */
+	if (listen(sock, 5) < 0)
+		packet_disconnect("listen: %.100s", strerror(errno));
+
+	/* Allocate a channel for the authentication agent socket. */
+	nc = channel_new("auth socket",
+	    SSH_CHANNEL_AUTH_SOCKET, sock, sock, -1,
+	    CHAN_X11_WINDOW_DEFAULT, CHAN_X11_PACKET_DEFAULT,
+	    0, xstrdup("auth socket"), 1);
+	strlcpy(nc->path, auth_sock_name, sizeof(nc->path));
+	return 1;
+}
+
 
 void
 do_authenticated(Authctxt *authctxt)
@@ -148,18 +211,14 @@ do_authenticated(Authctxt *authctxt)
 		close(startup_pipe);
 		startup_pipe = -1;
 	}
-#ifdef HAVE_LOGIN_CAP
-	if ((lc = login_getpwclass(authctxt->pw)) == NULL) {
-		error("unable to get login class");
-		return;
-	}
-#ifdef BSD_AUTH
-	if (auth_approval(NULL, lc, authctxt->pw->pw_name, "ssh") <= 0) {
-		packet_disconnect("Approval failure for %s",
-		    authctxt->pw->pw_name);
-	}
-#endif
-#endif
+#ifdef WITH_AIXAUTHENTICATE
+	/* We don't have a pty yet, so just label the line as "ssh" */
+	if (loginsuccess(authctxt->user,
+	    get_canonical_hostname(options.verify_reverse_mapping),
+	    "ssh", &aixloginmsg) < 0)
+		aixloginmsg = NULL;
+#endif /* WITH_AIXAUTHENTICATE */
+
 	/* setup the channel layer */
 	if (!no_port_forwarding_flag && options.allow_tcp_forwarding)
 		channel_permit_all_opens();
@@ -169,56 +228,17 @@ do_authenticated(Authctxt *authctxt)
 	else
 		do_authenticated1(authctxt);
 
-	/* remote user's local Xauthority file and agent socket */
-	if (xauthfile)
-		xauthfile_cleanup_proc(authctxt->pw);
-	if (auth_get_socket_name())
+	/* remove agent socket */
+	if (auth_sock_name != NULL)
 		auth_sock_cleanup_proc(authctxt->pw);
-}
-
-/*
- * Remove local Xauthority file.
- */
-void
-xauthfile_cleanup_proc(void *_pw)
-{
-	struct passwd *pw = _pw;
-	char *p;
-
-	debug("xauthfile_cleanup_proc called");
-	if (xauthfile != NULL) {
-		temporarily_use_uid(pw);
-		unlink(xauthfile);
-		p = strrchr(xauthfile, '/');
-		if (p != NULL) {
-			*p = '\0';
-			rmdir(xauthfile);
-		}
-		xfree(xauthfile);
-		xauthfile = NULL;
-		restore_uid();
-	}
-}
-
-/*
- * Function to perform cleanup if we get aborted abnormally (e.g., due to a
- * dropped connection).
- */
-void
-pty_cleanup_proc(void *session)
-{
-	Session *s=session;
-	if (s == NULL)
-		fatal("pty_cleanup_proc: no session");
-	debug("pty_cleanup_proc: %s", s->tty);
-
-	if (s->pid != 0) {
-		/* Record that the user has logged out. */
-		record_logout(s->pid, s->tty);
-	}
-
-	/* Release the pseudo-tty. */
-	pty_release(s->tty);
+#ifdef KRB4
+	if (options.kerberos_ticket_cleanup)
+		krb4_cleanup_proc(authctxt);
+#endif
+#ifdef KRB5
+	if (options.kerberos_ticket_cleanup)
+		krb5_cleanup_proc(authctxt);
+#endif
 }
 
 /*
@@ -227,17 +247,17 @@ pty_cleanup_proc(void *session)
  * terminals are allocated, X11, TCP/IP, and authentication agent forwardings
  * are requested, etc.
  */
-void
+static void
 do_authenticated1(Authctxt *authctxt)
 {
 	Session *s;
 	char *command;
-	int success, type, fd, n_bytes, plen, screen_flag, have_pty = 0;
-	int compression_level = 0, enable_compression_after_reply = 0;
-	u_int proto_len, data_len, dlen;
-	struct stat st;
+	int success, type, screen_flag;
+	int enable_compression_after_reply = 0;
+	u_int proto_len, data_len, dlen, compression_level = 0;
 
 	s = session_new();
+	s->authctxt = authctxt;
 	s->pw = authctxt->pw;
 
 	/*
@@ -248,16 +268,20 @@ do_authenticated1(Authctxt *authctxt)
 		success = 0;
 
 		/* Get a packet from the client. */
-		type = packet_read(&plen);
+		type = packet_read();
 
 		/* Process the packet. */
 		switch (type) {
 		case SSH_CMSG_REQUEST_COMPRESSION:
-			packet_integrity_check(plen, 4, type);
 			compression_level = packet_get_int();
+			packet_check_eom();
 			if (compression_level < 1 || compression_level > 9) {
 				packet_send_debug("Received illegal compression level %d.",
-				     compression_level);
+				    compression_level);
+				break;
+			}
+			if (!options.compression) {
+				debug2("compression disabled");
 				break;
 			}
 			/* Enable compression after we have responded with SUCCESS. */
@@ -266,71 +290,10 @@ do_authenticated1(Authctxt *authctxt)
 			break;
 
 		case SSH_CMSG_REQUEST_PTY:
-			if (no_pty_flag) {
-				debug("Allocating a pty not permitted for this authentication.");
-				break;
-			}
-			if (have_pty)
-				packet_disconnect("Protocol error: you already have a pty.");
-
-			debug("Allocating pty.");
-
-			/* Allocate a pty and open it. */
-			if (!pty_allocate(&s->ptyfd, &s->ttyfd, s->tty,
-			    sizeof(s->tty))) {
-				error("Failed to allocate pty.");
-				break;
-			}
-			fatal_add_cleanup(pty_cleanup_proc, (void *)s);
-			pty_setowner(s->pw, s->tty);
-
-			/* Get TERM from the packet.  Note that the value may be of arbitrary length. */
-			s->term = packet_get_string(&dlen);
-			packet_integrity_check(dlen, strlen(s->term), type);
-			/* packet_integrity_check(plen, 4 + dlen + 4*4 + n_bytes, type); */
-			/* Remaining bytes */
-			n_bytes = plen - (4 + dlen + 4 * 4);
-
-			if (strcmp(s->term, "") == 0) {
-				xfree(s->term);
-				s->term = NULL;
-			}
-			/* Get window size from the packet. */
-			s->row = packet_get_int();
-			s->col = packet_get_int();
-			s->xpixel = packet_get_int();
-			s->ypixel = packet_get_int();
-			pty_change_window_size(s->ptyfd, s->row, s->col, s->xpixel, s->ypixel);
-
-			/* Get tty modes from the packet. */
-			tty_parse_modes(s->ttyfd, &n_bytes);
-			packet_integrity_check(plen, 4 + dlen + 4 * 4 + n_bytes, type);
-
-			session_proctitle(s);
-
-			/* Indicate that we now have a pty. */
-			success = 1;
-			have_pty = 1;
+			success = session_pty_req(s);
 			break;
 
 		case SSH_CMSG_X11_REQUEST_FORWARDING:
-			if (!options.x11_forwarding) {
-				packet_send_debug("X11 forwarding disabled in server configuration file.");
-				break;
-			}
-			if (!options.xauth_location ||
-			    (stat(options.xauth_location, &st) == -1)) {
-				packet_send_debug("No xauth program; cannot forward with spoofing.");
-				break;
-			}
-			if (no_x11_forwarding_flag) {
-				packet_send_debug("X11 forwarding not permitted for this authentication.");
-				break;
-			}
-			debug("Received request for X11 forwarding with auth spoofing.");
-			if (s->display != NULL)
-				packet_disconnect("Protocol error: X11 display already set.");
-
 			s->auth_proto = packet_get_string(&proto_len);
 			s->auth_data = packet_get_string(&data_len);
 
@@ -342,39 +305,18 @@ do_authenticated1(Authctxt *authctxt)
 				if (!screen_flag)
 					debug2("Buggy client: "
 					    "X11 screen flag missing");
-				packet_integrity_check(plen,
-				    4 + proto_len + 4 + data_len + 4, type);
 				s->screen = packet_get_int();
 			} else {
-				packet_integrity_check(plen,
-				    4 + proto_len + 4 + data_len, type);
 				s->screen = 0;
 			}
-			s->display = x11_create_display_inet(s->screen, options.x11_display_offset);
-
-			if (s->display == NULL)
-				break;
-
-			/* Setup to always have a local .Xauthority. */
-			xauthfile = xmalloc(MAXPATHLEN);
-			strlcpy(xauthfile, "/tmp/ssh-XXXXXXXX", MAXPATHLEN);
-			temporarily_use_uid(s->pw);
-			if (mkdtemp(xauthfile) == NULL) {
-				restore_uid();
-				error("private X11 dir: mkdtemp %s failed: %s",
-				    xauthfile, strerror(errno));
-				xfree(xauthfile);
-				xauthfile = NULL;
-				/* XXXX remove listening channels */
-				break;
+			packet_check_eom();
+			success = session_setup_x11fwd(s);
+			if (!success) {
+				xfree(s->auth_proto);
+				xfree(s->auth_data);
+				s->auth_proto = NULL;
+				s->auth_data = NULL;
 			}
-			strlcat(xauthfile, "/cookies", MAXPATHLEN);
-			fd = open(xauthfile, O_RDWR|O_CREAT|O_EXCL, 0600);
-			if (fd >= 0)
-				close(fd);
-			restore_uid();
-			fatal_add_cleanup(xauthfile_cleanup_proc, s->pw);
-			success = 1;
 			break;
 
 		case SSH_CMSG_AGENT_REQUEST_FORWARDING:
@@ -405,28 +347,70 @@ do_authenticated1(Authctxt *authctxt)
 				success = 1;
 			break;
 
+#if defined(AFS) || defined(KRB5)
+		case SSH_CMSG_HAVE_KERBEROS_TGT:
+			if (!options.kerberos_tgt_passing) {
+				verbose("Kerberos TGT passing disabled.");
+			} else {
+				char *kdata = packet_get_string(&dlen);
+				packet_check_eom();
+
+				/* XXX - 0x41, see creds_to_radix version */
+				if (kdata[0] != 0x41) {
+#ifdef KRB5
+					krb5_data tgt;
+					tgt.data = kdata;
+					tgt.length = dlen;
+
+					if (auth_krb5_tgt(s->authctxt, &tgt))
+						success = 1;
+					else
+						verbose("Kerberos v5 TGT refused for %.100s", s->authctxt->user);
+#endif /* KRB5 */
+				} else {
+#ifdef AFS
+					if (auth_krb4_tgt(s->authctxt, kdata))
+						success = 1;
+					else
+						verbose("Kerberos v4 TGT refused for %.100s", s->authctxt->user);
+#endif /* AFS */
+				}
+				xfree(kdata);
+			}
+			break;
+#endif /* AFS || KRB5 */
+
+#ifdef AFS
+		case SSH_CMSG_HAVE_AFS_TOKEN:
+			if (!options.afs_token_passing || !k_hasafs()) {
+				verbose("AFS token passing disabled.");
+			} else {
+				/* Accept AFS token. */
+				char *token = packet_get_string(&dlen);
+				packet_check_eom();
+
+				if (auth_afs_token(s->authctxt, token))
+					success = 1;
+				else
+					verbose("AFS token refused for %.100s",
+					    s->authctxt->user);
+				xfree(token);
+			}
+			break;
+#endif /* AFS */
+
 		case SSH_CMSG_EXEC_SHELL:
 		case SSH_CMSG_EXEC_CMD:
 			if (type == SSH_CMSG_EXEC_CMD) {
 				command = packet_get_string(&dlen);
 				debug("Exec command '%.500s'", command);
-				packet_integrity_check(plen, 4 + dlen, type);
-			} else {
-				command = NULL;
-				packet_integrity_check(plen, 0, type);
-			}
-			if (forced_command != NULL) {
-				original_command = command;
-				command = forced_command;
-				debug("Forced command '%.500s'", forced_command);
-			}
-			if (have_pty)
-				do_exec_pty(s, command);
-			else
-				do_exec_no_pty(s, command);
-
-			if (command != NULL)
+				do_exec(s, command);
 				xfree(command);
+			} else {
+				do_exec(s, NULL);
+			}
+			packet_check_eom();
+			session_close(s);
 			return;
 
 		default:
@@ -456,7 +440,7 @@ do_authenticated1(Authctxt *authctxt)
 void
 do_exec_no_pty(Session *s, const char *command)
 {
-	int pid;
+	pid_t pid;
 
 #ifdef USE_PIPES
 	int pin[2], pout[2], perr[2];
@@ -477,8 +461,12 @@ do_exec_no_pty(Session *s, const char *command)
 
 	session_proctitle(s);
 
-#ifdef USE_PAM
-	do_pam_setcred();
+#if defined(USE_PAM)
+	do_pam_session(s->pw->pw_name, NULL);
+	do_pam_setcred(1);
+	if (is_pam_password_change_required())
+		packet_disconnect("Password change required but no "
+		    "TTY available");
 #endif /* USE_PAM */
 
 	/* Fork the child. */
@@ -534,6 +522,10 @@ do_exec_no_pty(Session *s, const char *command)
 		do_child(s, command);
 		/* NOTREACHED */
 	}
+#ifdef HAVE_CYGWIN
+	if (is_winnt)
+		cygwin_set_impersonation_token(INVALID_HANDLE_VALUE);
+#endif
 	if (pid < 0)
 		packet_disconnect("fork failed: %.100s", strerror(errno));
 	s->pid = pid;
@@ -587,45 +579,51 @@ do_exec_pty(Session *s, const char *command)
 	ptyfd = s->ptyfd;
 	ttyfd = s->ttyfd;
 
-#ifdef USE_PAM
+#if defined(USE_PAM)
 	do_pam_session(s->pw->pw_name, s->tty);
-	do_pam_setcred();
-#endif /* USE_PAM */
+	do_pam_setcred(1);
+#endif
 
 	/* Fork the child. */
 	if ((pid = fork()) == 0) {
+
 		/* Child.  Reinitialize the log because the pid has changed. */
 		log_init(__progname, options.log_level, options.log_facility, log_stderr);
-
 		/* Close the master side of the pseudo tty. */
 		close(ptyfd);
 
 		/* Make the pseudo tty our controlling tty. */
 		pty_make_controlling_tty(&ttyfd, s->tty);
 
-		/* Redirect stdin from the pseudo tty. */
-		if (dup2(ttyfd, fileno(stdin)) < 0)
-			error("dup2 stdin failed: %.100s", strerror(errno));
-
-		/* Redirect stdout to the pseudo tty. */
-		if (dup2(ttyfd, fileno(stdout)) < 0)
-			error("dup2 stdin failed: %.100s", strerror(errno));
-
-		/* Redirect stderr to the pseudo tty. */
-		if (dup2(ttyfd, fileno(stderr)) < 0)
-			error("dup2 stdin failed: %.100s", strerror(errno));
+		/* Redirect stdin/stdout/stderr from the pseudo tty. */
+		if (dup2(ttyfd, 0) < 0)
+			error("dup2 stdin: %s", strerror(errno));
+		if (dup2(ttyfd, 1) < 0)
+			error("dup2 stdout: %s", strerror(errno));
+		if (dup2(ttyfd, 2) < 0)
+			error("dup2 stderr: %s", strerror(errno));
 
 		/* Close the extra descriptor for the pseudo tty. */
 		close(ttyfd);
 
 		/* record login, etc. similar to login(1) */
+#ifndef HAVE_OSF_SIA
 		if (!(options.use_login && command == NULL))
 			do_login(s, command);
+# ifdef LOGIN_NEEDS_UTMPX
+		else
+			do_pre_login(s);
+# endif
+#endif
 
 		/* Do common processing for the child, such as execing the command. */
 		do_child(s, command);
 		/* NOTREACHED */
 	}
+#ifdef HAVE_CYGWIN
+	if (is_winnt)
+		cygwin_set_impersonation_token(INVALID_HANDLE_VALUE);
+#endif
 	if (pid < 0)
 		packet_disconnect("fork failed: %.100s", strerror(errno));
 	s->pid = pid;
@@ -655,31 +653,16 @@ do_exec_pty(Session *s, const char *command)
 	} else {
 		server_loop(pid, ptyfd, fdout, -1);
 		/* server_loop _has_ closed ptyfd and fdout. */
-		session_pty_cleanup(s);
 	}
 }
 
-/* administrative, login(1)-like work */
-void
-do_login(Session *s, const char *command)
+#ifdef LOGIN_NEEDS_UTMPX
+static void
+do_pre_login(Session *s)
 {
-	FILE *f;
-	char *time_string, *newcommand;
-	char buf[256];
-	char hostname[MAXHOSTNAMELEN];
 	socklen_t fromlen;
 	struct sockaddr_storage from;
-	time_t last_login_time;
-	struct passwd * pw = s->pw;
 	pid_t pid = getpid();
-#ifdef HAVE_LOGIN_CAP
-	char *fname;
-#endif /* HAVE_LOGIN_CAP */
-#ifdef __FreeBSD__
-#define DEFAULT_WARN  (2L * 7L * 86400L)  /* Two weeks */
-	struct timeval tv;
-	time_t warntime = DEFAULT_WARN;
-#endif /* __FreeBSD__ */
 
 	/*
 	 * Get IP address of client. If the connection is not a socket, let
@@ -689,145 +672,106 @@ do_login(Session *s, const char *command)
 	if (packet_connection_is_on_socket()) {
 		fromlen = sizeof(from);
 		if (getpeername(packet_get_connection_in(),
-		     (struct sockaddr *) & from, &fromlen) < 0) {
+		    (struct sockaddr *) & from, &fromlen) < 0) {
 			debug("getpeername: %.100s", strerror(errno));
 			fatal_cleanup();
 		}
 	}
 
-	/* Get the time and hostname when the user last logged in. */
-	if (options.print_lastlog) {
-		hostname[0] = '\0';
-		last_login_time = get_last_login_time(pw->pw_uid, pw->pw_name,
-		    hostname, sizeof(hostname));
+	record_utmp_only(pid, s->tty, s->pw->pw_name,
+	    get_remote_name_or_ip(utmp_len, options.verify_reverse_mapping),
+	    (struct sockaddr *)&from);
+}
+#endif
+
+/*
+ * This is called to fork and execute a command.  If another command is
+ * to be forced, execute that instead.
+ */
+void
+do_exec(Session *s, const char *command)
+{
+	if (forced_command) {
+		original_command = command;
+		command = forced_command;
+		debug("Forced command '%.900s'", command);
+	}
+
+	if (s->ttyfd != -1)
+		do_exec_pty(s, command);
+	else
+		do_exec_no_pty(s, command);
+
+	original_command = NULL;
+}
+
+
+/* administrative, login(1)-like work */
+void
+do_login(Session *s, const char *command)
+{
+	char *time_string;
+	socklen_t fromlen;
+	struct sockaddr_storage from;
+	struct passwd * pw = s->pw;
+	pid_t pid = getpid();
+
+	/*
+	 * Get IP address of client. If the connection is not a socket, let
+	 * the address be 0.0.0.0.
+	 */
+	memset(&from, 0, sizeof(from));
+	if (packet_connection_is_on_socket()) {
+		fromlen = sizeof(from);
+		if (getpeername(packet_get_connection_in(),
+		    (struct sockaddr *) & from, &fromlen) < 0) {
+			debug("getpeername: %.100s", strerror(errno));
+			fatal_cleanup();
+		}
 	}
 
 	/* Record that there was a login on that tty from the remote host. */
-	record_login(pid, s->tty, pw->pw_name, pw->pw_uid,
-	    get_remote_name_or_ip(utmp_len, options.reverse_mapping_check),
-	    (struct sockaddr *)&from);
+	if (!use_privsep)
+		record_login(pid, s->tty, pw->pw_name, pw->pw_uid,
+		    get_remote_name_or_ip(utmp_len,
+		    options.verify_reverse_mapping),
+		    (struct sockaddr *)&from);
 
 #ifdef USE_PAM
 	/*
 	 * If password change is needed, do it now.
 	 * This needs to occur before the ~/.hushlogin check.
 	 */
-	if (pam_password_change_required()) {
+	if (is_pam_password_change_required()) {
 		print_pam_messages();
 		do_pam_chauthtok();
 	}
 #endif
 
+	if (check_quietlogin(s, command))
+		return;
+
 #ifdef USE_PAM
-	if (!check_quietlogin(s, command) && !pam_password_change_required())
+	if (!is_pam_password_change_required())
 		print_pam_messages();
 #endif /* USE_PAM */
+#ifdef WITH_AIXAUTHENTICATE
+	if (aixloginmsg && *aixloginmsg)
+		printf("%s\n", aixloginmsg);
+#endif /* WITH_AIXAUTHENTICATE */
 
-#ifdef __FreeBSD__
-	if (pw->pw_change || pw->pw_expire)
-		(void)gettimeofday(&tv, NULL);
-#ifdef HAVE_LOGIN_CAP
-	warntime = login_getcaptime(lc, "warnpassword",
-				    DEFAULT_WARN, DEFAULT_WARN);
-#endif /* HAVE_LOGIN_CAP */
-	/*
-	 * If the password change time is set and has passed, give the
-	 * user a password expiry notice and chance to change it.
-	 */
-	if (pw->pw_change != 0) {
-		if (tv.tv_sec >= pw->pw_change) {
-			(void)printf(
-			    "Sorry -- your password has expired.\n");
-			log("%s Password expired - forcing change",
-			    pw->pw_name);
-			if (newcommand != NULL)
-				xfree(newcommand);
-			newcommand = xstrdup(_PATH_CHPASS);
-		} else if (pw->pw_change - tv.tv_sec < warntime &&
-			   !check_quietlogin(s, command))
-			(void)printf(
-			    "Warning: your password expires on %s",
-			     ctime(&pw->pw_change));
-	}
-#ifdef HAVE_LOGIN_CAP
-	warntime = login_getcaptime(lc, "warnexpire",
-				    DEFAULT_WARN, DEFAULT_WARN);
-#endif /* HAVE_LOGIN_CAP */
-#ifndef USE_PAM
-	if (pw->pw_expire) {
-		if (tv.tv_sec >= pw->pw_expire) {
-			(void)printf(
-			    "Sorry -- your account has expired.\n");
-			log(
-	   "LOGIN %.200s REFUSED (EXPIRED) FROM %.200s ON TTY %.200s",
-				pw->pw_name, get_remote_name_or_ip(utmp_len,
-				options.reverse_mapping_check), s->tty);
-			exit(254);
-		} else if (pw->pw_expire - tv.tv_sec < warntime &&
-			   !check_quietlogin(s, command))
-			(void)printf(
-			    "Warning: your account expires on %s",
-			     ctime(&pw->pw_expire));
-	}
-#endif /* !USE_PAM */
-#endif /* __FreeBSD__ */
-
-#ifdef HAVE_LOGIN_CAP
-	if (!auth_ttyok(lc, s->tty)) {
-		(void)printf("Permission denied.\n");
-		log(
-	       "LOGIN %.200s REFUSED (TTY) FROM %.200s ON TTY %.200s",
-		    pw->pw_name, get_remote_name_or_ip(utmp_len,
-			options.reverse_mapping_check), s->tty);
-		exit(254);
-	}
-#endif /* HAVE_LOGIN_CAP */
-
-	/*
-	 * If the user has logged in before, display the time of last
-	 * login. However, don't display anything extra if a command
-	 * has been specified (so that ssh can be used to execute
-	 * commands on a remote machine without users knowing they
-	 * are going to another machine). Login(1) will do this for
-	 * us as well, so check if login(1) is used
-	 */
-	if (command == NULL && options.print_lastlog &&
-	    last_login_time != 0 && !check_quietlogin(s, command) &&
-	    !options.use_login) {
-		time_string = ctime(&last_login_time);
-		/* Remove the trailing newline. */
+	if (options.print_lastlog && s->last_login_time != 0) {
+		time_string = ctime(&s->last_login_time);
 		if (strchr(time_string, '\n'))
 			*strchr(time_string, '\n') = 0;
-		if (strcmp(hostname, "") == 0)
+		if (strcmp(s->hostname, "") == 0)
 			printf("Last login: %s\r\n", time_string);
 		else
-			printf("Last login: %s from %s\r\n", time_string, hostname);
+			printf("Last login: %s from %s\r\n", time_string,
+			    s->hostname);
 	}
 
-#ifdef HAVE_LOGIN_CAP
-	if (command == NULL && !check_quietlogin(s, command) &&
-	    !options.use_login) {
-		fname = login_getcapstr(lc, "copyright", NULL, NULL);
-		if (fname != NULL && (f = fopen(fname, "r")) != NULL) {
-			while (fgets(buf, sizeof(buf), f) != NULL)
-				fputs(buf, stdout);
-				fclose(f);
-		} else
-			(void)printf("%s\n\t%s %s\n",
-		"Copyright (c) 1980, 1983, 1986, 1988, 1990, 1991, 1993, 1994",
-		"The Regents of the University of California. ",
-		"All rights reserved.");
-	}
-#endif /* HAVE_LOGIN_CAP */
-
-	/*
-	 * Print /etc/motd unless a command was specified or printing
-	 * it was disabled in server options or login(1) will be
-	 * used.  Note that some machines appear to print it in
-	 * /etc/profile or similar.
-	 */
-	if (command == NULL && !check_quietlogin(s, command) && !options.use_login)
-		do_motd();
+	do_motd();
 }
 
 /*
@@ -843,9 +787,9 @@ do_motd(void)
 #ifdef HAVE_LOGIN_CAP
 		f = fopen(login_getcapstr(lc, "welcome", "/etc/motd",
 		    "/etc/motd"), "r");
-#else /* !HAVE_LOGIN_CAP */
+#else
 		f = fopen("/etc/motd", "r");
-#endif /* HAVE_LOGIN_CAP */
+#endif
 		if (f) {
 			while (fgets(buf, sizeof(buf), f))
 				fputs(buf, stdout);
@@ -854,6 +798,7 @@ do_motd(void)
 	}
 }
 
+
 /*
  * Check for quiet login, either .hushlogin or command given.
  */
@@ -861,7 +806,7 @@ int
 check_quietlogin(Session *s, const char *command)
 {
 	char buf[256];
-	struct passwd * pw = s->pw;
+	struct passwd *pw = s->pw;
 	struct stat st;
 
 	/* Return 1 if .hushlogin exists or a command given. */
@@ -882,9 +827,9 @@ check_quietlogin(Session *s, const char *command)
  * Sets the value of the given variable in the environment.  If the variable
  * already exists, its value is overriden.
  */
-void
+static void
 child_set_env(char ***envp, u_int *envsizep, const char *name,
-	      const char *value)
+	const char *value)
 {
 	u_int i, namelen;
 	char **env;
@@ -905,6 +850,9 @@ child_set_env(char ***envp, u_int *envsizep, const char *name,
 	} else {
 		/* New variable.  Expand if necessary. */
 		if (i >= (*envsizep) - 1) {
+			if (*envsizep >= 1000)
+				fatal("child_set_env: too many env vars,"
+				    " skipping: %.100s", name);
 			(*envsizep) += 50;
 			env = (*envp) = xrealloc(env, (*envsizep) * sizeof(char *));
 		}
@@ -923,19 +871,22 @@ child_set_env(char ***envp, u_int *envsizep, const char *name,
  * Otherwise, it must consist of empty lines, comments (line starts with '#')
  * and assignments of the form name=value.  No other forms are allowed.
  */
-void
+static void
 read_environment_file(char ***env, u_int *envsize,
-		      const char *filename)
+	const char *filename)
 {
 	FILE *f;
 	char buf[4096];
 	char *cp, *value;
+	u_int lineno = 0;
 
 	f = fopen(filename, "r");
 	if (!f)
 		return;
 
 	while (fgets(buf, sizeof(buf), f)) {
+		if (++lineno > 1000)
+			fatal("Too many lines in environment file %s", filename);
 		for (cp = buf; *cp == ' ' || *cp == '\t'; cp++)
 			;
 		if (!*cp || *cp == '#' || *cp == '\n')
@@ -944,7 +895,8 @@ read_environment_file(char ***env, u_int *envsize,
 			*strchr(cp, '\n') = '\0';
 		value = strchr(cp, '=');
 		if (value == NULL) {
-			fprintf(stderr, "Bad line in %.100s: %.200s\n", filename, buf);
+			fprintf(stderr, "Bad line %u in %.100s\n", lineno,
+			    filename);
 			continue;
 		}
 		/*
@@ -958,220 +910,118 @@ read_environment_file(char ***env, u_int *envsize,
 	fclose(f);
 }
 
-#ifdef USE_PAM
-/*
- * Sets any environment variables which have been specified by PAM
- */
-void do_pam_environment(char ***env, int *envsize)
+void copy_environment(char **source, char ***env, u_int *envsize)
 {
-	char *equals, var_name[512], var_val[512];
-	char **pam_env;
+	char *var_name, *var_val;
 	int i;
 
-	if ((pam_env = fetch_pam_environment()) == NULL)
+	if (source == NULL)
 		return;
-	
-	for(i = 0; pam_env[i] != NULL; i++) {
-		if ((equals = strstr(pam_env[i], "=")) == NULL)
+
+	for(i = 0; source[i] != NULL; i++) {
+		var_name = xstrdup(source[i]);
+		if ((var_val = strstr(var_name, "=")) == NULL) {
+			xfree(var_name);
 			continue;
-			
-		if (strlen(pam_env[i]) < (sizeof(var_name) - 1)) {
-			memset(var_name, '\0', sizeof(var_name));
-			memset(var_val, '\0', sizeof(var_val));
-
-			strncpy(var_name, pam_env[i], equals - pam_env[i]);
-			strcpy(var_val, equals + 1);
-
-			child_set_env(env, envsize, var_name, var_val);
 		}
+		*var_val++ = '\0';
+
+		debug3("Copy environment: %s=%s", var_name, var_val);
+		child_set_env(env, envsize, var_name, var_val);
+		
+		xfree(var_name);
 	}
 }
-#endif /* USE_PAM */
 
-
-/*
- * Performs common processing for the child, such as setting up the
- * environment, closing extra file descriptors, setting the user and group
- * ids, and executing the command or shell.
- */
-void
-do_child(Session *s, const char *command)
+static char **
+do_setup_env(Session *s, const char *shell)
 {
-	const char *shell, *hostname = NULL, *cp = NULL;
-	struct passwd * pw = s->pw;
 	char buf[256];
-	char cmd[1024];
-	FILE *f = NULL;
-	u_int envsize, i;
-	char **env = NULL;
+	u_int i, envsize;
+	char **env;
+#ifdef HAVE_LOGIN_CAP
 	extern char **environ;
-	struct stat st;
-	char *argv[10];
-	int do_xauth = s->auth_proto != NULL && s->auth_data != NULL;
-
-	/* remove hostkey from the child's memory */
-	destroy_sensitive_data();
-
-	/* login(1) is only called if we execute the login shell */
-	if (options.use_login && command != NULL)
-		options.use_login = 0;
-
-#ifndef USE_PAM
-	if (!options.use_login) {
-#ifdef HAVE_LOGIN_CAP
-	if (!login_getcapbool(lc, "ignorenologin", 0) && pw->pw_uid)
-		f = fopen(login_getcapstr(lc, "nologin", _PATH_NOLOGIN,
-		    _PATH_NOLOGIN), "r");
-#else
-		if (pw->pw_uid)
-			f = fopen(_PATH_NOLOGIN, "r");
+	char **senv, **var;
 #endif
-		if (f) {
-			/* /etc/nologin exists.  Print its contents and exit. */
-			while (fgets(buf, sizeof(buf), f))
-				fputs(buf, stderr);
-			fclose(f);
-			exit(254);
-		}
-	}
-#endif /* !USE_PAM */
-	/* Set login name, uid, gid, and groups. */
-	/* Login(1) does this as well, and it needs uid 0 for the "-h"
-	   switch, so we let login(1) to this for us. */
-	if (!options.use_login) {
-#ifdef HAVE_LOGIN_CAP
-		char **tmpenv;
-
-		/* Initialize temp environment */
-		envsize = 64;
-		env = xmalloc(envsize * sizeof(char *));
-		env[0] = NULL;
-
-		child_set_env(&env, &envsize, "PATH",
-			      (pw->pw_uid == 0) ?
-			      _PATH_STDPATH : _PATH_DEFPATH);
-
-		snprintf(buf, sizeof buf, "%.200s/%.50s",
-			 _PATH_MAILDIR, pw->pw_name);
-		child_set_env(&env, &envsize, "MAIL", buf);
-
-		if (getenv("TZ"))
-			child_set_env(&env, &envsize, "TZ", getenv("TZ"));
-
-		/* Save parent environment */
-		tmpenv = environ;
-		environ = env;
-
-		if (setusercontext(lc, pw, pw->pw_uid, LOGIN_SETALL) < 0)
-			fatal("setusercontext failed: %s", strerror(errno));
-
-		/* Restore parent environment */
-		env = environ;
-		environ = tmpenv;
-
-		for (envsize = 0; env[envsize] != NULL; ++envsize)
-			;
-		envsize = (envsize < 100) ? 100 : envsize + 16;
-		env = xrealloc(env, envsize * sizeof(char *));
-
-#endif /* !HAVE_LOGIN_CAP */
-		if (getuid() == 0 || geteuid() == 0) {
-#ifdef HAVE_LOGIN_CAP
-			if (setusercontext(lc, pw, pw->pw_uid,
-			    (LOGIN_SETALL & ~LOGIN_SETPATH)) < 0) {
-				perror("unable to set user context");
-				exit(1);
-			}
-#else
-			if (setlogin(pw->pw_name) < 0)
-				error("setlogin failed: %s", strerror(errno));
-			if (setgid(pw->pw_gid) < 0) {
-				perror("setgid");
-				exit(1);
-			}
-			/* Initialize the group list. */
-			if (initgroups(pw->pw_name, pw->pw_gid) < 0) {
-				perror("initgroups");
-				exit(1);
-			}
-			endgrent();
-
-			/* Permanently switch to the desired uid. */
-			permanently_set_uid(pw);
-#endif /* HAVE_LOGIN_CAP */
-		}
-		if (getuid() != pw->pw_uid || geteuid() != pw->pw_uid)
-			fatal("Failed to set uids to %u.", (u_int) pw->pw_uid);
-	}
-	/*
-	 * Get the shell from the password data.  An empty shell field is
-	 * legal, and means /bin/sh.
-	 */
-	shell = (pw->pw_shell[0] == '\0') ? _PATH_BSHELL : pw->pw_shell;
-#ifdef HAVE_LOGIN_CAP
-	shell = login_getcapstr(lc, "shell", (char *)shell, (char *)shell);
-#endif
-
-#ifdef AFS
-	/* Try to get AFS tokens for the local cell. */
-	if (k_hasafs()) {
-		char cell[64];
-
-		if (k_afs_cell_of_file(pw->pw_dir, cell, sizeof(cell)) == 0)
-			krb_afslog(cell, 0);
-
-		krb_afslog(0, 0);
-	}
-#endif /* AFS */
+	struct passwd *pw = s->pw;
 
 	/* Initialize the environment. */
-	if (env == NULL) {
-		envsize = 100;
-		env = xmalloc(envsize * sizeof(char *));
-		env[0] = NULL;
-	}
+	envsize = 100;
+	env = xmalloc(envsize * sizeof(char *));
+	env[0] = NULL;
 
+#ifdef HAVE_CYGWIN
+	/*
+	 * The Windows environment contains some setting which are
+	 * important for a running system. They must not be dropped.
+	 */
+	copy_environment(environ, &env, &envsize);
+#endif
+
+	if (getenv("TZ"))
+		child_set_env(&env, &envsize, "TZ", getenv("TZ"));
 	if (!options.use_login) {
 		/* Set basic environment. */
 		child_set_env(&env, &envsize, "USER", pw->pw_name);
 		child_set_env(&env, &envsize, "LOGNAME", pw->pw_name);
 		child_set_env(&env, &envsize, "HOME", pw->pw_dir);
-#ifdef HAVE_LOGIN_CAP
-		(void) setusercontext(lc, pw, pw->pw_uid, LOGIN_SETPATH);
-		child_set_env(&env, &envsize, "PATH", getenv("PATH"));
-#else
-		child_set_env(&env, &envsize, "PATH", _PATH_STDPATH);
-#endif
-
 		snprintf(buf, sizeof buf, "%.200s/%.50s",
 			 _PATH_MAILDIR, pw->pw_name);
 		child_set_env(&env, &envsize, "MAIL", buf);
+#ifdef HAVE_LOGIN_CAP
+		child_set_env(&env, &envsize, "PATH", _PATH_STDPATH);
+		child_set_env(&env, &envsize, "TERM", "su");
+		senv = environ;
+		environ = xmalloc(sizeof(char *));
+		*environ = NULL;
+		(void) setusercontext(lc, pw, pw->pw_uid,
+		    LOGIN_SETENV|LOGIN_SETPATH);
+		copy_environment(environ, &env, &envsize);
+		for (var = environ; *var != NULL; ++var)
+			xfree(*var);
+		xfree(environ);
+		environ = senv;
+#else /* HAVE_LOGIN_CAP */
+# ifndef HAVE_CYGWIN
+		/*
+		 * There's no standard path on Windows. The path contains
+		 * important components pointing to the system directories,
+		 * needed for loading shared libraries. So the path better
+		 * remains intact here.
+		 */
+#  ifdef SUPERUSER_PATH
+		child_set_env(&env, &envsize, "PATH", 
+		    s->pw->pw_uid == 0 ? SUPERUSER_PATH : _PATH_STDPATH);
+#  else 
+		child_set_env(&env, &envsize, "PATH", _PATH_STDPATH);
+#  endif /* SUPERUSER_PATH */
+# endif /* HAVE_CYGWIN */
+#endif /* HAVE_LOGIN_CAP */
 
 		/* Normal systems set SHELL by default. */
 		child_set_env(&env, &envsize, "SHELL", shell);
 	}
-	if (getenv("TZ"))
-		child_set_env(&env, &envsize, "TZ", getenv("TZ"));
 
 	/* Set custom environment options from RSA authentication. */
 	if (!options.use_login) {
-	while (custom_environment) {
-		struct envstring *ce = custom_environment;
-		char *s = ce->s;
-		int i;
-		for (i = 0; s[i] != '=' && s[i]; i++);
-		if (s[i] == '=') {
-			s[i] = 0;
-			child_set_env(&env, &envsize, s, s + i + 1);
+		while (custom_environment) {
+			struct envstring *ce = custom_environment;
+			char *s = ce->s;
+
+			for (i = 0; s[i] != '=' && s[i]; i++)
+				;
+			if (s[i] == '=') {
+				s[i] = 0;
+				child_set_env(&env, &envsize, s, s + i + 1);
+			}
+			custom_environment = ce->next;
+			xfree(ce->s);
+			xfree(ce);
 		}
-		custom_environment = ce->next;
-		xfree(ce->s);
-		xfree(ce);
-	}
 	}
 
 	snprintf(buf, sizeof buf, "%.50s %d %d",
-		 get_remote_ipaddr(), get_remote_port(), get_local_port());
+	    get_remote_ipaddr(), get_remote_port(), get_local_port());
 	child_set_env(&env, &envsize, "SSH_CLIENT", buf);
 
 	if (s->ttyfd != -1)
@@ -1184,50 +1034,35 @@ do_child(Session *s, const char *command)
 		child_set_env(&env, &envsize, "SSH_ORIGINAL_COMMAND",
 		    original_command);
 
-#ifdef KRB4
+#ifdef _AIX
 	{
-		extern char *ticket;
+		char *cp;
 
-		if (ticket)
-			child_set_env(&env, &envsize, "KRBTKFILE", ticket);
+		if ((cp = getenv("AUTHSTATE")) != NULL)
+			child_set_env(&env, &envsize, "AUTHSTATE", cp);
+		if ((cp = getenv("KRB5CCNAME")) != NULL)
+			child_set_env(&env, &envsize, "KRB5CCNAME", cp);
+		read_environment_file(&env, &envsize, "/etc/environment");
 	}
-#endif /* KRB4 */
+#endif
+#ifdef KRB4
+	if (s->authctxt->krb4_ticket_file)
+		child_set_env(&env, &envsize, "KRBTKFILE",
+		    s->authctxt->krb4_ticket_file);
+#endif
 #ifdef KRB5
-{
-	  extern krb5_ccache mem_ccache;
-
-	   if (mem_ccache) {
-	     krb5_error_code problem;
-	      krb5_ccache ccache;
-#ifdef AFS
-	      if (k_hasafs())
-		krb5_afslog(ssh_context, mem_ccache, NULL, NULL);
-#endif /* AFS */
-
-	      problem = krb5_cc_default(ssh_context, &ccache);
-	      if (problem) {}
-	      else {
-		problem = krb5_cc_copy_cache(ssh_context, mem_ccache, ccache);
-		 if (problem) {}
-	      }
-
-	      krb5_cc_close(ssh_context, ccache);
-	   }
-
-	   krb5_cleanup_proc(NULL);
-	}
-#endif /* KRB5 */
-
+	if (s->authctxt->krb5_ticket_file)
+		child_set_env(&env, &envsize, "KRB5CCNAME",
+		    s->authctxt->krb5_ticket_file);
+#endif
 #ifdef USE_PAM
 	/* Pull in any environment variables that may have been set by PAM. */
-	do_pam_environment(&env, &envsize);
+	copy_environment(fetch_pam_environment(), &env, &envsize);
 #endif /* USE_PAM */
 
-	if (xauthfile)
-		child_set_env(&env, &envsize, "XAUTHORITY", xauthfile);
-	if (auth_get_socket_name() != NULL)
+	if (auth_sock_name != NULL)
 		child_set_env(&env, &envsize, SSH_AUTHSOCKET_ENV_NAME,
-			      auth_get_socket_name());
+		    auth_sock_name);
 
 	/* read $HOME/.ssh/environment. */
 	if (!options.use_login) {
@@ -1241,10 +1076,237 @@ do_child(Session *s, const char *command)
 		for (i = 0; env[i]; i++)
 			fprintf(stderr, "  %.200s\n", env[i]);
 	}
+	return env;
+}
+
+/*
+ * Run $HOME/.ssh/rc, /etc/ssh/sshrc, or xauth (whichever is found
+ * first in this order).
+ */
+static void
+do_rc_files(Session *s, const char *shell)
+{
+	FILE *f = NULL;
+	char cmd[1024];
+	int do_xauth;
+	struct stat st;
+
+	do_xauth =
+	    s->display != NULL && s->auth_proto != NULL && s->auth_data != NULL;
+
+	/* ignore _PATH_SSH_USER_RC for subsystems */
+	if (!s->is_subsystem && (stat(_PATH_SSH_USER_RC, &st) >= 0)) {
+		snprintf(cmd, sizeof cmd, "%s -c '%s %s'",
+		    shell, _PATH_BSHELL, _PATH_SSH_USER_RC);
+		if (debug_flag)
+			fprintf(stderr, "Running %s\n", cmd);
+		f = popen(cmd, "w");
+		if (f) {
+			if (do_xauth)
+				fprintf(f, "%s %s\n", s->auth_proto,
+				    s->auth_data);
+			pclose(f);
+		} else
+			fprintf(stderr, "Could not run %s\n",
+			    _PATH_SSH_USER_RC);
+	} else if (stat(_PATH_SSH_SYSTEM_RC, &st) >= 0) {
+		if (debug_flag)
+			fprintf(stderr, "Running %s %s\n", _PATH_BSHELL,
+			    _PATH_SSH_SYSTEM_RC);
+		f = popen(_PATH_BSHELL " " _PATH_SSH_SYSTEM_RC, "w");
+		if (f) {
+			if (do_xauth)
+				fprintf(f, "%s %s\n", s->auth_proto,
+				    s->auth_data);
+			pclose(f);
+		} else
+			fprintf(stderr, "Could not run %s\n",
+			    _PATH_SSH_SYSTEM_RC);
+	} else if (do_xauth && options.xauth_location != NULL) {
+		/* Add authority data to .Xauthority if appropriate. */
+		if (debug_flag) {
+			fprintf(stderr,
+			    "Running %.500s add "
+			    "%.100s %.100s %.100s\n",
+			    options.xauth_location, s->auth_display,
+			    s->auth_proto, s->auth_data);
+		}
+		snprintf(cmd, sizeof cmd, "%s -q -",
+		    options.xauth_location);
+		f = popen(cmd, "w");
+		if (f) {
+			fprintf(f, "add %s %s %s\n",
+			    s->auth_display, s->auth_proto,
+			    s->auth_data);
+			pclose(f);
+		} else {
+			fprintf(stderr, "Could not run %s\n",
+			    cmd);
+		}
+	}
+}
+
+static void
+do_nologin(struct passwd *pw)
+{
+	FILE *f = NULL;
+	char buf[1024];
+
+#ifdef HAVE_LOGIN_CAP
+	if (!login_getcapbool(lc, "ignorenologin", 0) && pw->pw_uid)
+		f = fopen(login_getcapstr(lc, "nologin", _PATH_NOLOGIN,
+		    _PATH_NOLOGIN), "r");
+#else
+	if (pw->pw_uid)
+		f = fopen(_PATH_NOLOGIN, "r");
+#endif
+	if (f) {
+		/* /etc/nologin exists.  Print its contents and exit. */
+		while (fgets(buf, sizeof(buf), f))
+			fputs(buf, stderr);
+		fclose(f);
+		exit(254);
+	}
+}
+
+/* Set login name, uid, gid, and groups. */
+void
+do_setusercontext(struct passwd *pw)
+{
+	char tty='\0';
+
+#ifdef HAVE_CYGWIN
+	if (is_winnt) {
+#else /* HAVE_CYGWIN */
+	if (getuid() == 0 || geteuid() == 0) {
+#endif /* HAVE_CYGWIN */
+#ifdef HAVE_SETPCRED
+		setpcred(pw->pw_name);
+#endif /* HAVE_SETPCRED */
+#ifdef HAVE_LOGIN_CAP
+#ifdef __bsdi__
+		setpgid(0, 0);
+#endif
+		if (setusercontext(lc, pw, pw->pw_uid,
+		    (LOGIN_SETALL & ~(LOGIN_SETENV|LOGIN_SETPATH))) < 0) {
+			perror("unable to set user context");
+			exit(1);
+		}
+#else
+# if defined(HAVE_GETLUID) && defined(HAVE_SETLUID)
+		/* Sets login uid for accounting */
+		if (getluid() == -1 && setluid(pw->pw_uid) == -1)
+			error("setluid: %s", strerror(errno));
+# endif /* defined(HAVE_GETLUID) && defined(HAVE_SETLUID) */
+
+		if (setlogin(pw->pw_name) < 0)
+			error("setlogin failed: %s", strerror(errno));
+		if (setgid(pw->pw_gid) < 0) {
+			perror("setgid");
+			exit(1);
+		}
+		/* Initialize the group list. */
+		if (initgroups(pw->pw_name, pw->pw_gid) < 0) {
+			perror("initgroups");
+			exit(1);
+		}
+		endgrent();
+# ifdef USE_PAM
+		/*
+		 * PAM credentials may take the form of supplementary groups. 
+		 * These will have been wiped by the above initgroups() call.
+		 * Reestablish them here.
+		 */
+		do_pam_setcred(0);
+# endif /* USE_PAM */
+# if defined(WITH_IRIX_PROJECT) || defined(WITH_IRIX_JOBS) || defined(WITH_IRIX_ARRAY)
+		irix_setusercontext(pw);
+#  endif /* defined(WITH_IRIX_PROJECT) || defined(WITH_IRIX_JOBS) || defined(WITH_IRIX_ARRAY) */
+# ifdef _AIX
+		/* XXX: Disable tty setting.  Enabled if required later */
+		aix_usrinfo(pw, &tty, -1);
+# endif /* _AIX */
+		/* Permanently switch to the desired uid. */
+		permanently_set_uid(pw);
+#endif
+	}
+	if (getuid() != pw->pw_uid || geteuid() != pw->pw_uid)
+		fatal("Failed to set uids to %u.", (u_int) pw->pw_uid);
+}
+
+static void
+launch_login(struct passwd *pw, const char *hostname)
+{
+	/* Launch login(1). */
+
+	execl(LOGIN_PROGRAM, "login", "-h", hostname,
+#ifdef xxxLOGIN_NEEDS_TERM
+		    (s->term ? s->term : "unknown"),
+#endif /* LOGIN_NEEDS_TERM */
+#ifdef LOGIN_NO_ENDOPT
+	    "-p", "-f", pw->pw_name, (char *)NULL);
+#else
+	    "-p", "-f", "--", pw->pw_name, (char *)NULL);
+#endif
+
+	/* Login couldn't be executed, die. */
+
+	perror("login");
+	exit(1);
+}
+
+/*
+ * Performs common processing for the child, such as setting up the
+ * environment, closing extra file descriptors, setting the user and group
+ * ids, and executing the command or shell.
+ */
+void
+do_child(Session *s, const char *command)
+{
+	extern char **environ;
+	char **env;
+	char *argv[10];
+	const char *shell, *shell0, *hostname = NULL;
+	struct passwd *pw = s->pw;
+	u_int i;
+
+	/* remove hostkey from the child's memory */
+	destroy_sensitive_data();
+
+	/* login(1) is only called if we execute the login shell */
+	if (options.use_login && command != NULL)
+		options.use_login = 0;
+
+	/*
+	 * Login(1) does this as well, and it needs uid 0 for the "-h"
+	 * switch, so we let login(1) to this for us.
+	 */
+	if (!options.use_login) {
+#ifdef HAVE_OSF_SIA
+		session_setup_sia(pw->pw_name, s->ttyfd == -1 ? NULL : s->tty);
+		if (!check_quietlogin(s, command))
+			do_motd();
+#else /* HAVE_OSF_SIA */
+		do_nologin(pw);
+		do_setusercontext(pw);
+#endif /* HAVE_OSF_SIA */
+	}
+
+	/*
+	 * Get the shell from the password data.  An empty shell field is
+	 * legal, and means /bin/sh.
+	 */
+	shell = (pw->pw_shell[0] == '\0') ? _PATH_BSHELL : pw->pw_shell;
+#ifdef HAVE_LOGIN_CAP
+	shell = login_getcapstr(lc, "shell", (char *)shell, (char *)shell);
+#endif
+
+	env = do_setup_env(s, shell);
+
 	/* we have to stash the hostname before we close our socket. */
 	if (options.use_login)
 		hostname = get_remote_name_or_ip(utmp_len,
-		    options.reverse_mapping_check);
+		    options.verify_reverse_mapping);
 	/*
 	 * Close the connection descriptors; note that this is the child, and
 	 * the server will still have the socket open, and it is important
@@ -1272,137 +1334,58 @@ do_child(Session *s, const char *command)
 	endpwent();
 
 	/*
-	 * Restore any signal handlers set by sshd previously that should
-	 * be restored to their initial state.
-	 */
-	signal(SIGPIPE, SIG_DFL);
-
-	/* Change current directory to the user\'s home directory. */
-	if (
-#ifdef __FreeBSD__
-		!*pw->pw_dir ||
-#endif /* __FreeBSD__ */
-		chdir(pw->pw_dir) < 0
-	   ) {
-#ifdef HAVE_LOGIN_CAP
-		if (login_getcapbool(lc, "requirehome", 0)) {
-			(void)printf("Home directory not available\n");
-			log("LOGIN %.200s REFUSED (HOMEDIR) ON TTY %.200s",
-				pw->pw_name, ttyname);
-			exit(254);
-		}
-#endif /* HAVE_LOGIN_CAP */
-#ifdef __FreeBSD__
-		if (chdir("/") < 0) {
-			(void)printf("Cannot find root directory\n");
-			log("LOGIN %.200s REFUSED (ROOTDIR) ON TTY %.200s",
-				pw->pw_name, ttyname);
-			exit(254);
-		}
-		if (!check_quietlogin(s, command) || *pw->pw_dir)
-			(void)printf(
-		       "No home directory.\nLogging in with home = \"/\".\n");
-
-#else /* !__FreeBSD__ */
-
-		fprintf(stderr, "Could not chdir to home directory %s: %s\n",
-			pw->pw_dir, strerror(errno));
-#endif /* __FreeBSD__ */
-	}
-
-	/*
 	 * Close any extra open file descriptors so that we don\'t have them
 	 * hanging around in clients.  Note that we want to do this after
 	 * initgroups, because at least on Solaris 2.3 it leaves file
 	 * descriptors open.
 	 */
-	for (i = 3; i < getdtablesize(); i++)
+	for (i = 3; i < 64; i++)
 		close(i);
 
 	/*
-	 * Must take new environment into use so that .ssh/rc, /etc/sshrc and
-	 * xauth are run in the proper environment.
+	 * Must take new environment into use so that .ssh/rc,
+	 * /etc/ssh/sshrc and xauth are run in the proper environment.
 	 */
 	environ = env;
 
-	/*
-	 * Run $HOME/.ssh/rc, /etc/sshrc, or xauth (whichever is found first
-	 * in this order).
-	 */
-	if (!options.use_login) {
-		/* ignore _PATH_SSH_USER_RC for subsystems */
-		if (!s->is_subsystem && (stat(_PATH_SSH_USER_RC, &st) >= 0)) {
-			snprintf(cmd, sizeof cmd, "%s -c '%s %s'",
-			    shell, _PATH_BSHELL, _PATH_SSH_USER_RC);
-			if (debug_flag)
-				fprintf(stderr, "Running %s\n", cmd);
-			f = popen(cmd, "w");
-			if (f) {
-				if (do_xauth)
-					fprintf(f, "%s %s\n", s->auth_proto,
-					    s->auth_data);
-				pclose(f);
-			} else
-				fprintf(stderr, "Could not run %s\n",
-				    _PATH_SSH_USER_RC);
-		} else if (stat(_PATH_SSH_SYSTEM_RC, &st) >= 0) {
-			if (debug_flag)
-				fprintf(stderr, "Running %s %s\n", _PATH_BSHELL,
-				    _PATH_SSH_SYSTEM_RC);
-			f = popen(_PATH_BSHELL " " _PATH_SSH_SYSTEM_RC, "w");
-			if (f) {
-				if (do_xauth)
-					fprintf(f, "%s %s\n", s->auth_proto,
-					    s->auth_data);
-				pclose(f);
-			} else
-				fprintf(stderr, "Could not run %s\n",
-				    _PATH_SSH_SYSTEM_RC);
-		} else if (do_xauth && options.xauth_location != NULL) {
-			/* Add authority data to .Xauthority if appropriate. */
-			char *screen = strchr(s->display, ':');
+#ifdef AFS
+	/* Try to get AFS tokens for the local cell. */
+	if (k_hasafs()) {
+		char cell[64];
 
-			if (debug_flag) {
-				fprintf(stderr,
-				    "Running %.100s add "
-				    "%.100s %.100s %.100s\n",
-				    options.xauth_location, s->display,
-				    s->auth_proto, s->auth_data);
-				if (screen != NULL)
-					fprintf(stderr,
-					    "Adding %.*s/unix%s %s %s\n",
-					    (int)(screen - s->display),
-					    s->display, screen,
-					    s->auth_proto, s->auth_data);
-			}
-			snprintf(cmd, sizeof cmd, "%s -q -",
-			    options.xauth_location);
-			f = popen(cmd, "w");
-			if (f) {
-				fprintf(f, "add %s %s %s\n", s->display,
-				    s->auth_proto, s->auth_data);
-				if (screen != NULL)
-					fprintf(f, "add %.*s/unix%s %s %s\n",
-					    (int)(screen - s->display),
-					    s->display, screen,
-					    s->auth_proto,
-					    s->auth_data);
-				pclose(f);
-			} else {
-				fprintf(stderr, "Could not run %s\n",
-				    cmd);
-			}
-		}
-		/* Get the last component of the shell name. */
-		cp = strrchr(shell, '/');
-		if (cp)
-			cp++;
-		else
-			cp = shell;
+		if (k_afs_cell_of_file(pw->pw_dir, cell, sizeof(cell)) == 0)
+			krb_afslog(cell, 0);
+
+		krb_afslog(0, 0);
 	}
+#endif /* AFS */
+
+	/* Change current directory to the user\'s home directory. */
+	if (chdir(pw->pw_dir) < 0) {
+		fprintf(stderr, "Could not chdir to home directory %s: %s\n",
+		    pw->pw_dir, strerror(errno));
+#ifdef HAVE_LOGIN_CAP
+		if (login_getcapbool(lc, "requirehome", 0))
+			exit(1);
+#endif
+	}
+
+	if (!options.use_login)
+		do_rc_files(s, shell);
 
 	/* restore SIGPIPE for child */
 	signal(SIGPIPE,  SIG_DFL);
+
+	if (options.use_login) {
+		launch_login(pw, hostname);
+		/* NEVERREACHED */
+	}
+
+	/* Get the last component of the shell name. */
+	if ((shell0 = strrchr(shell, '/')) != NULL)
+		shell0++;
+	else
+		shell0 = shell;
 
 	/*
 	 * If we have no command, execute the shell.  In this case, the shell
@@ -1410,63 +1393,32 @@ do_child(Session *s, const char *command)
 	 * this is a login shell.
 	 */
 	if (!command) {
-		if (!options.use_login) {
-			char buf[256];
+		char argv0[256];
 
-			/*
-			 * Check for mail if we have a tty and it was enabled
-			 * in server options.
-			 */
-			if (s->ttyfd != -1 && options.check_mail) {
-				char *mailbox;
-				struct stat mailstat;
+		/* Start the shell.  Set initial character to '-'. */
+		argv0[0] = '-';
 
-				mailbox = getenv("MAIL");
-				if (mailbox != NULL) {
-					if (stat(mailbox, &mailstat) != 0 ||
-					    mailstat.st_size == 0)
-#ifdef __FreeBSD__
-						;
-#else /* !__FreeBSD__ */
-						printf("No mail.\n");
-#endif /* __FreeBSD__ */
-					else if (mailstat.st_mtime < mailstat.st_atime)
-						printf("You have mail.\n");
-					else
-						printf("You have new mail.\n");
-				}
-			}
-			/* Start the shell.  Set initial character to '-'. */
-			buf[0] = '-';
-			strncpy(buf + 1, cp, sizeof(buf) - 1);
-			buf[sizeof(buf) - 1] = 0;
-
-			/* Execute the shell. */
-			argv[0] = buf;
-			argv[1] = NULL;
-			execve(shell, argv, env);
-
-			/* Executing the shell failed. */
+		if (strlcpy(argv0 + 1, shell0, sizeof(argv0) - 1)
+		    >= sizeof(argv0) - 1) {
+			errno = EINVAL;
 			perror(shell);
 			exit(1);
-
-		} else {
-			/* Launch login(1). */
-
-			execl("/usr/bin/login", "login", "-h", hostname,
-			     "-p", "-f", "--", pw->pw_name, NULL);
-
-			/* Login couldn't be executed, die. */
-
-			perror("login");
-			exit(1);
 		}
+
+		/* Execute the shell. */
+		argv[0] = argv0;
+		argv[1] = NULL;
+		execve(shell, argv, env);
+
+		/* Executing the shell failed. */
+		perror(shell);
+		exit(1);
 	}
 	/*
 	 * Execute the command using the user's shell.  This uses the -c
 	 * option to execute the command.
 	 */
-	argv[0] = (char *) cp;
+	argv[0] = (char *) shell0;
 	argv[1] = "-c";
 	argv[2] = (char *) command;
 	argv[3] = NULL;
@@ -1482,13 +1434,12 @@ session_new(void)
 	static int did_init = 0;
 	if (!did_init) {
 		debug("session_new: init");
-		for(i = 0; i < MAX_SESSIONS; i++) {
+		for (i = 0; i < MAX_SESSIONS; i++) {
 			sessions[i].used = 0;
-			sessions[i].self = i;
 		}
 		did_init = 1;
 	}
-	for(i = 0; i < MAX_SESSIONS; i++) {
+	for (i = 0; i < MAX_SESSIONS; i++) {
 		Session *s = &sessions[i];
 		if (! s->used) {
 			memset(s, 0, sizeof(*s));
@@ -1496,6 +1447,7 @@ session_new(void)
 			s->ptyfd = -1;
 			s->ttyfd = -1;
 			s->used = 1;
+			s->self = i;
 			debug("session_new: session %d", i);
 			return s;
 		}
@@ -1503,23 +1455,23 @@ session_new(void)
 	return NULL;
 }
 
-void
+static void
 session_dump(void)
 {
 	int i;
-	for(i = 0; i < MAX_SESSIONS; i++) {
+	for (i = 0; i < MAX_SESSIONS; i++) {
 		Session *s = &sessions[i];
-		debug("dump: used %d session %d %p channel %d pid %d",
+		debug("dump: used %d session %d %p channel %d pid %ld",
 		    s->used,
 		    s->self,
 		    s,
 		    s->chanid,
-		    s->pid);
+		    (long)s->pid);
 	}
 }
 
 int
-session_open(int chanid)
+session_open(Authctxt *authctxt, int chanid)
 {
 	Session *s = session_new();
 	debug("session_open: channel %d", chanid);
@@ -1527,7 +1479,8 @@ session_open(int chanid)
 		error("no more sessions");
 		return 0;
 	}
-	s->pw = auth_get_user();
+	s->authctxt = authctxt;
+	s->pw = authctxt->pw;
 	if (s->pw == NULL)
 		fatal("no user for session %d", s->self);
 	debug("session_open: session %d: link with channel %d", s->self, chanid);
@@ -1536,10 +1489,26 @@ session_open(int chanid)
 }
 
 Session *
+session_by_tty(char *tty)
+{
+	int i;
+	for (i = 0; i < MAX_SESSIONS; i++) {
+		Session *s = &sessions[i];
+		if (s->used && s->ttyfd != -1 && strcmp(s->tty, tty) == 0) {
+			debug("session_by_tty: session %d tty %s", i, tty);
+			return s;
+		}
+	}
+	debug("session_by_tty: unknown tty %.100s", tty);
+	session_dump();
+	return NULL;
+}
+
+static Session *
 session_by_channel(int id)
 {
 	int i;
-	for(i = 0; i < MAX_SESSIONS; i++) {
+	for (i = 0; i < MAX_SESSIONS; i++) {
 		Session *s = &sessions[i];
 		if (s->used && s->chanid == id) {
 			debug("session_by_channel: session %d channel %d", i, id);
@@ -1551,46 +1520,63 @@ session_by_channel(int id)
 	return NULL;
 }
 
-Session *
+static Session *
 session_by_pid(pid_t pid)
 {
 	int i;
-	debug("session_by_pid: pid %d", pid);
-	for(i = 0; i < MAX_SESSIONS; i++) {
+	debug("session_by_pid: pid %ld", (long)pid);
+	for (i = 0; i < MAX_SESSIONS; i++) {
 		Session *s = &sessions[i];
 		if (s->used && s->pid == pid)
 			return s;
 	}
-	error("session_by_pid: unknown pid %d", pid);
+	error("session_by_pid: unknown pid %ld", (long)pid);
 	session_dump();
 	return NULL;
 }
 
-int
+static int
 session_window_change_req(Session *s)
 {
 	s->col = packet_get_int();
 	s->row = packet_get_int();
 	s->xpixel = packet_get_int();
 	s->ypixel = packet_get_int();
-	packet_done();
+	packet_check_eom();
 	pty_change_window_size(s->ptyfd, s->row, s->col, s->xpixel, s->ypixel);
 	return 1;
 }
 
-int
+static int
 session_pty_req(Session *s)
 {
 	u_int len;
 	int n_bytes;
 
-	if (no_pty_flag)
+	if (no_pty_flag) {
+		debug("Allocating a pty not permitted for this authentication.");
 		return 0;
-	if (s->ttyfd != -1)
+	}
+	if (s->ttyfd != -1) {
+		packet_disconnect("Protocol error: you already have a pty.");
 		return 0;
+	}
+	/* Get the time and hostname when the user last logged in. */
+	if (options.print_lastlog) {
+		s->hostname[0] = '\0';
+		s->last_login_time = get_last_login_time(s->pw->pw_uid,
+		    s->pw->pw_name, s->hostname, sizeof(s->hostname));
+	}
+
 	s->term = packet_get_string(&len);
-	s->col = packet_get_int();
-	s->row = packet_get_int();
+
+	if (compat20) {
+		s->col = packet_get_int();
+		s->row = packet_get_int();
+	} else {
+		s->row = packet_get_int();
+		s->col = packet_get_int();
+	}
 	s->xpixel = packet_get_int();
 	s->ypixel = packet_get_int();
 
@@ -1598,9 +1584,12 @@ session_pty_req(Session *s)
 		xfree(s->term);
 		s->term = NULL;
 	}
+
 	/* Allocate a pty and open it. */
-	if (!pty_allocate(&s->ptyfd, &s->ttyfd, s->tty, sizeof(s->tty))) {
-		xfree(s->term);
+	debug("Allocating pty.");
+	if (!PRIVSEP(pty_allocate(&s->ptyfd, &s->ttyfd, s->tty, sizeof(s->tty)))) {
+		if (s->term)
+			xfree(s->term);
 		s->term = NULL;
 		s->ptyfd = -1;
 		s->ttyfd = -1;
@@ -1608,151 +1597,109 @@ session_pty_req(Session *s)
 		return 0;
 	}
 	debug("session_pty_req: session %d alloc %s", s->self, s->tty);
+
+	/* for SSH1 the tty modes length is not given */
+	if (!compat20)
+		n_bytes = packet_remaining();
+	tty_parse_modes(s->ttyfd, &n_bytes);
+
 	/*
 	 * Add a cleanup function to clear the utmp entry and record logout
 	 * time in case we call fatal() (e.g., the connection gets closed).
 	 */
-	fatal_add_cleanup(pty_cleanup_proc, (void *)s);
-	pty_setowner(s->pw, s->tty);
-	/* Get window size from the packet. */
+	fatal_add_cleanup(session_pty_cleanup, (void *)s);
+	if (!use_privsep)
+		pty_setowner(s->pw, s->tty);
+
+	/* Set window size from the packet. */
 	pty_change_window_size(s->ptyfd, s->row, s->col, s->xpixel, s->ypixel);
 
-	/* Get tty modes from the packet. */
-	tty_parse_modes(s->ttyfd, &n_bytes);
-	packet_done();
-
+	packet_check_eom();
 	session_proctitle(s);
-
 	return 1;
 }
 
-int
+static int
 session_subsystem_req(Session *s)
 {
+	struct stat st;
 	u_int len;
 	int success = 0;
-	char *subsys = packet_get_string(&len);
+	char *cmd, *subsys = packet_get_string(&len);
 	int i;
 
-	packet_done();
-	log("subsystem request for %s", subsys);
+	packet_check_eom();
+	log("subsystem request for %.100s", subsys);
 
 	for (i = 0; i < options.num_subsystems; i++) {
-		if(strcmp(subsys, options.subsystem_name[i]) == 0) {
-			debug("subsystem: exec() %s", options.subsystem_command[i]);
+		if (strcmp(subsys, options.subsystem_name[i]) == 0) {
+			cmd = options.subsystem_command[i];
+			if (stat(cmd, &st) < 0) {
+				error("subsystem: cannot stat %s: %s", cmd,
+				    strerror(errno));
+				break;
+			}
+			debug("subsystem: exec() %s", cmd);
 			s->is_subsystem = 1;
-			do_exec_no_pty(s, options.subsystem_command[i]);
+			do_exec(s, cmd);
 			success = 1;
+			break;
 		}
 	}
 
 	if (!success)
-		log("subsystem request for %s failed, subsystem not found", subsys);
+		log("subsystem request for %.100s failed, subsystem not found",
+		    subsys);
 
 	xfree(subsys);
 	return success;
 }
 
-int
+static int
 session_x11_req(Session *s)
 {
-	int fd;
-	struct stat st;
-	if (no_x11_forwarding_flag) {
-		debug("X11 forwarding disabled in user configuration file.");
-		return 0;
-	}
-	if (!options.x11_forwarding) {
-		debug("X11 forwarding disabled in server configuration file.");
-		return 0;
-	}
-	if (!options.xauth_location ||
-	    (stat(options.xauth_location, &st) == -1)) {
-		packet_send_debug("No xauth program; cannot forward with spoofing.");
-		return 0;
-	}
-	if (xauthfile != NULL) {
-		debug("X11 fwd already started.");
-		return 0;
-	}
-
-	debug("Received request for X11 forwarding with auth spoofing.");
-	if (s->display != NULL)
-		packet_disconnect("Protocol error: X11 display already set.");
+	int success;
 
 	s->single_connection = packet_get_char();
 	s->auth_proto = packet_get_string(NULL);
 	s->auth_data = packet_get_string(NULL);
 	s->screen = packet_get_int();
-	packet_done();
+	packet_check_eom();
 
-	s->display = x11_create_display_inet(s->screen, options.x11_display_offset);
-	if (s->display == NULL) {
+	success = session_setup_x11fwd(s);
+	if (!success) {
 		xfree(s->auth_proto);
 		xfree(s->auth_data);
-		return 0;
+		s->auth_proto = NULL;
+		s->auth_data = NULL;
 	}
-	xauthfile = xmalloc(MAXPATHLEN);
-	strlcpy(xauthfile, "/tmp/ssh-XXXXXXXX", MAXPATHLEN);
-	temporarily_use_uid(s->pw);
-	if (mkdtemp(xauthfile) == NULL) {
-		restore_uid();
-		error("private X11 dir: mkdtemp %s failed: %s",
-		    xauthfile, strerror(errno));
-		xfree(xauthfile);
-		xauthfile = NULL;
-		xfree(s->auth_proto);
-		xfree(s->auth_data);
-		/* XXXX remove listening channels */
-		return 0;
-	}
-	strlcat(xauthfile, "/cookies", MAXPATHLEN);
-	fd = open(xauthfile, O_RDWR|O_CREAT|O_EXCL, 0600);
-	if (fd >= 0)
-		close(fd);
-	restore_uid();
-	fatal_add_cleanup(xauthfile_cleanup_proc, s->pw);
-	return 1;
+	return success;
 }
 
-int
+static int
 session_shell_req(Session *s)
 {
-	/* if forced_command == NULL, the shell is execed */
-	char *shell = forced_command;
-	packet_done();
-	if (s->ttyfd == -1)
-		do_exec_no_pty(s, shell);
-	else
-		do_exec_pty(s, shell);
+	packet_check_eom();
+	do_exec(s, NULL);
 	return 1;
 }
 
-int
+static int
 session_exec_req(Session *s)
 {
 	u_int len;
 	char *command = packet_get_string(&len);
-	packet_done();
-	if (forced_command) {
-		original_command = command;
-		command = forced_command;
-		debug("Forced command '%.500s'", forced_command);
-	}
-	if (s->ttyfd == -1)
-		do_exec_no_pty(s, command);
-	else
-		do_exec_pty(s, command);
-	if (forced_command == NULL)
-		xfree(command);
+	packet_check_eom();
+	do_exec(s, command);
+	xfree(command);
 	return 1;
 }
 
-int
+static int
 session_auth_agent_req(Session *s)
 {
 	static int called = 0;
-	packet_done();
+	packet_check_eom();
 	if (no_agent_forwarding_flag) {
 		debug("session_auth_agent_req: no_agent_forwarding_flag");
 		return 0;
@@ -1765,28 +1712,18 @@ session_auth_agent_req(Session *s)
 	}
 }
 
-void
-session_input_channel_req(int id, void *arg)
+int
+session_input_channel_req(Channel *c, const char *rtype)
 {
-	u_int len;
-	int reply;
 	int success = 0;
-	char *rtype;
 	Session *s;
-	Channel *c;
 
-	rtype = packet_get_string(&len);
-	reply = packet_get_char();
-
-	s = session_by_channel(id);
-	if (s == NULL)
-		fatal("session_input_channel_req: channel %d: no session", id);
-	c = channel_lookup(id);
-	if (c == NULL)
-		fatal("session_input_channel_req: channel %d: bad channel", id);
-
-	debug("session_input_channel_req: session %d channel %d request %s reply %d",
-	    s->self, id, rtype, reply);
+	if ((s = session_by_channel(c->self)) == NULL) {
+		log("session_input_channel_req: no session %d req %.100s",
+		    c->self, rtype);
+		return 0;
+	}
+	debug("session_input_channel_req: session %d req %s", s->self, rtype);
 
 	/*
 	 * a session is in LARVAL state until a shell, a command
@@ -1810,14 +1747,7 @@ session_input_channel_req(int id, void *arg)
 	if (strcmp(rtype, "window-change") == 0) {
 		success = session_window_change_req(s);
 	}
-
-	if (reply) {
-		packet_start(success ?
-		    SSH2_MSG_CHANNEL_SUCCESS : SSH2_MSG_CHANNEL_FAILURE);
-		packet_put_int(c->remote_id);
-		packet_send();
-	}
-	xfree(rtype);
+	return success;
 }
 
 void
@@ -1834,25 +1764,35 @@ session_set_fds(Session *s, int fdin, int fdout, int fderr)
 	channel_set_fds(s->chanid,
 	    fdout, fdin, fderr,
 	    fderr == -1 ? CHAN_EXTENDED_IGNORE : CHAN_EXTENDED_READ,
-	    1);
+	    1,
+	    CHAN_SES_WINDOW_DEFAULT);
 }
 
+/*
+ * Function to perform pty cleanup. Also called if we get aborted abnormally
+ * (e.g., due to a dropped connection).
+ */
 void
-session_pty_cleanup(Session *s)
+session_pty_cleanup2(void *session)
 {
-	if (s == NULL || s->ttyfd == -1)
+	Session *s = session;
+
+	if (s == NULL) {
+		error("session_pty_cleanup: no session");
+		return;
+	}
+	if (s->ttyfd == -1)
 		return;
 
 	debug("session_pty_cleanup: session %d release %s", s->self, s->tty);
 
-	/* Cancel the cleanup function. */
-	fatal_remove_cleanup(pty_cleanup_proc, (void *)s);
-
 	/* Record that the user has logged out. */
-	record_logout(s->pid, s->tty);
+	if (s->pid != 0)
+		record_logout(s->pid, s->tty, s->pw->pw_name);
 
 	/* Release the pseudo-tty. */
-	pty_release(s->tty);
+	if (getuid() == 0)
+		pty_release(s->tty);
 
 	/*
 	 * Close the server side of the socket pairs.  We must do this after
@@ -1860,32 +1800,41 @@ session_pty_cleanup(Session *s)
 	 * while we're still cleaning up.
 	 */
 	if (close(s->ptymaster) < 0)
-		error("close(s->ptymaster): %s", strerror(errno));
+		error("close(s->ptymaster/%d): %s", s->ptymaster, strerror(errno));
+
+	/* unlink pty from session */
+	s->ttyfd = -1;
 }
 
 void
+session_pty_cleanup(void *session)
+{
+	PRIVSEP(session_pty_cleanup2(session));
+}
+
+static void
 session_exit_message(Session *s, int status)
 {
 	Channel *c;
-	if (s == NULL)
-		fatal("session_close: no session");
-	c = channel_lookup(s->chanid);
-	if (c == NULL)
-		fatal("session_close: session %d: no channel %d",
+
+	if ((c = channel_lookup(s->chanid)) == NULL)
+		fatal("session_exit_message: session %d: no channel %d",
 		    s->self, s->chanid);
-	debug("session_exit_message: session %d channel %d pid %d",
-	    s->self, s->chanid, s->pid);
+	debug("session_exit_message: session %d channel %d pid %ld",
+	    s->self, s->chanid, (long)s->pid);
 
 	if (WIFEXITED(status)) {
-		channel_request_start(s->chanid,
-		    "exit-status", 0);
+		channel_request_start(s->chanid, "exit-status", 0);
 		packet_put_int(WEXITSTATUS(status));
 		packet_send();
 	} else if (WIFSIGNALED(status)) {
-		channel_request_start(s->chanid,
-		    "exit-signal", 0);
+		channel_request_start(s->chanid, "exit-signal", 0);
 		packet_put_int(WTERMSIG(status));
+#ifdef WCOREDUMP
 		packet_put_char(WCOREDUMP(status));
+#else /* WCOREDUMP */
+		packet_put_char(0);
+#endif /* WCOREDUMP */
 		packet_put_cstring("");
 		packet_put_cstring("");
 		packet_send();
@@ -1909,25 +1858,24 @@ session_exit_message(Session *s, int status)
 }
 
 void
-session_free(Session *s)
+session_close(Session *s)
 {
-	debug("session_free: session %d pid %d", s->self, s->pid);
+	debug("session_close: session %d pid %ld", s->self, (long)s->pid);
+	if (s->ttyfd != -1) {
+		fatal_remove_cleanup(session_pty_cleanup, (void *)s);
+		session_pty_cleanup(s);
+	}
 	if (s->term)
 		xfree(s->term);
 	if (s->display)
 		xfree(s->display);
+	if (s->auth_display)
+		xfree(s->auth_display);
 	if (s->auth_data)
 		xfree(s->auth_data);
 	if (s->auth_proto)
 		xfree(s->auth_proto);
 	s->used = 0;
-}
-
-void
-session_close(Session *s)
-{
-	session_pty_cleanup(s);
-	session_free(s);
 	session_proctitle(s);
 }
 
@@ -1936,7 +1884,8 @@ session_close_by_pid(pid_t pid, int status)
 {
 	Session *s = session_by_pid(pid);
 	if (s == NULL) {
-		debug("session_close_by_pid: no session for pid %d", s->pid);
+		debug("session_close_by_pid: no session for pid %ld",
+		    (long)pid);
 		return;
 	}
 	if (s->chanid != -1)
@@ -1953,34 +1902,51 @@ session_close_by_channel(int id, void *arg)
 {
 	Session *s = session_by_channel(id);
 	if (s == NULL) {
-		debug("session_close_by_channel: no session for channel %d", id);
+		debug("session_close_by_channel: no session for id %d", id);
 		return;
 	}
-	/* disconnect channel */
+	debug("session_close_by_channel: channel %d child %ld",
+	    id, (long)s->pid);
+	if (s->pid != 0) {
+		debug("session_close_by_channel: channel %d: has child", id);
+		/*
+		 * delay detach of session, but release pty, since
+		 * the fd's to the child are already closed
+		 */
+		if (s->ttyfd != -1) {
+			fatal_remove_cleanup(session_pty_cleanup, (void *)s);
+			session_pty_cleanup(s);
+		}
+		return;
+	}
+	/* detach by removing callback */
 	channel_cancel_cleanup(s->chanid);
 	s->chanid = -1;
+	session_close(s);
+}
 
-	debug("session_close_by_channel: channel %d kill %d", id, s->pid);
-	if (s->pid == 0) {
-		/* close session immediately */
-		session_close(s);
-	} else {
-		/* notify child, delay session cleanup */
-		if (s->pid <= 1) 
-			fatal("session_close_by_channel: Unsafe s->pid = %d", s->pid);
-		if (kill(s->pid, (s->ttyfd == -1) ? SIGTERM : SIGHUP) < 0)
-			error("session_close_by_channel: kill %d: %s",
-			    s->pid, strerror(errno));
+void
+session_destroy_all(void (*closefunc)(Session *))
+{
+	int i;
+	for (i = 0; i < MAX_SESSIONS; i++) {
+		Session *s = &sessions[i];
+		if (s->used) {
+			if (closefunc != NULL)
+				closefunc(s);
+			else
+				session_close(s);
+		}
 	}
 }
 
-char *
+static char *
 session_tty_list(void)
 {
 	static char buf[1024];
 	int i;
 	buf[0] = '\0';
-	for(i = 0; i < MAX_SESSIONS; i++) {
+	for (i = 0; i < MAX_SESSIONS; i++) {
 		Session *s = &sessions[i];
 		if (s->used && s->ttyfd != -1) {
 			if (buf[0] != '\0')
@@ -2002,9 +1968,84 @@ session_proctitle(Session *s)
 		setproctitle("%s@%s", s->pw->pw_name, session_tty_list());
 }
 
-void
+int
+session_setup_x11fwd(Session *s)
+{
+	struct stat st;
+	char display[512], auth_display[512];
+	char hostname[MAXHOSTNAMELEN];
+
+	if (no_x11_forwarding_flag) {
+		packet_send_debug("X11 forwarding disabled in user configuration file.");
+		return 0;
+	}
+	if (!options.x11_forwarding) {
+		debug("X11 forwarding disabled in server configuration file.");
+		return 0;
+	}
+	if (!options.xauth_location ||
+	    (stat(options.xauth_location, &st) == -1)) {
+		packet_send_debug("No xauth program; cannot forward with spoofing.");
+		return 0;
+	}
+	if (options.use_login) {
+		packet_send_debug("X11 forwarding disabled; "
+		    "not compatible with UseLogin=yes.");
+		return 0;
+	}
+	if (s->display != NULL) {
+		debug("X11 display already set.");
+		return 0;
+	}
+	if (x11_create_display_inet(options.x11_display_offset,
+	    options.x11_use_localhost, s->single_connection,
+	    &s->display_number) == -1) {
+		debug("x11_create_display_inet failed.");
+		return 0;
+	}
+
+	/* Set up a suitable value for the DISPLAY variable. */
+	if (gethostname(hostname, sizeof(hostname)) < 0)
+		fatal("gethostname: %.100s", strerror(errno));
+	/*
+	 * auth_display must be used as the displayname when the
+	 * authorization entry is added with xauth(1).  This will be
+	 * different than the DISPLAY string for localhost displays.
+	 */
+	if (options.x11_use_localhost) {
+		snprintf(display, sizeof display, "localhost:%u.%u",
+		    s->display_number, s->screen);
+		snprintf(auth_display, sizeof auth_display, "unix:%u.%u",
+		    s->display_number, s->screen);
+		s->display = xstrdup(display);
+		s->auth_display = xstrdup(auth_display);
+	} else {
+#ifdef IPADDR_IN_DISPLAY
+		struct hostent *he;
+		struct in_addr my_addr;
+
+		he = gethostbyname(hostname);
+		if (he == NULL) {
+			error("Can't get IP address for X11 DISPLAY.");
+			packet_send_debug("Can't get IP address for X11 DISPLAY.");
+			return 0;
+		}
+		memcpy(&my_addr, he->h_addr_list[0], sizeof(struct in_addr));
+		snprintf(display, sizeof display, "%.50s:%u.%u", inet_ntoa(my_addr),
+		    s->display_number, s->screen);
+#else
+		snprintf(display, sizeof display, "%.400s:%u.%u", hostname,
+		    s->display_number, s->screen);
+#endif
+		s->display = xstrdup(display);
+		s->auth_display = xstrdup(display);
+	}
+
+	return 1;
+}
+
+static void
 do_authenticated2(Authctxt *authctxt)
 {
-
-	server_loop2();
+	server_loop2(authctxt);
 }

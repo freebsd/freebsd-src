@@ -1,5 +1,3 @@
-/*	$OpenBSD: uuencode.c,v 1.12 2001/03/01 02:27:18 deraadt Exp $	*/
-
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -27,10 +25,7 @@
 #include "includes.h"
 #include "xmalloc.h"
 #include "uuencode.h"
-
-#include <resolv.h>
-
-RCSID("$OpenBSD: uuencode.c,v 1.12 2001/03/01 02:27:18 deraadt Exp $");
+RCSID("$OpenBSD: uuencode.c,v 1.15 2002/03/04 17:27:39 stevesk Exp $");
 
 int
 uuencode(u_char *src, u_int srclength,
@@ -52,7 +47,7 @@ uudecode(const char *src, u_char *target, size_t targsize)
 		;
 	for (; *p != '\0' && *p != ' ' && *p != '\t'; p++)
 		;
-	/* and remote trailing whitespace because __b64_pton needs this */
+	/* and remove trailing whitespace because __b64_pton needs this */
 	*p = '\0';
 	len = __b64_pton(encoded, target, targsize);
 	xfree(encoded);
@@ -60,7 +55,7 @@ uudecode(const char *src, u_char *target, size_t targsize)
 }
 
 void
-dump_base64(FILE *fp, u_char *data, int len)
+dump_base64(FILE *fp, u_char *data, u_int len)
 {
 	u_char *buf = xmalloc(2*len);
 	int i, n;
