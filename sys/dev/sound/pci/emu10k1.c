@@ -889,7 +889,7 @@ emurchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 		break;
 	}
 	sc->rnum++;
-	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, sc->bufsz) == -1)
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, sc->bufsz) != 0)
 		return NULL;
 	else {
 		snd_mtxlock(sc->lock);
