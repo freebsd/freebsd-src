@@ -345,7 +345,9 @@ RetryFault:;
 			 * around with a vm_page_t->busy page except, perhaps,
 			 * to pmap it.
 			 */
+			vm_page_lock_queues();
 			if ((fs.m->flags & PG_BUSY) || fs.m->busy) {
+				vm_page_unlock_queues();
 				unlock_things(&fs);
 				(void)vm_page_sleep_busy(fs.m, TRUE, "vmpfw");
 				cnt.v_intrans++;
@@ -360,6 +362,7 @@ RetryFault:;
 
 			if ((queue - fs.m->pc) == PQ_CACHE && vm_page_count_severe()) {
 				vm_page_activate(fs.m);
+				vm_page_unlock_queues();
 				unlock_and_deallocate(&fs);
 				VM_WAITPFAULT;
 				goto RetryFault;
@@ -372,6 +375,7 @@ RetryFault:;
 			 * found the page ).
 			 */
 			vm_page_busy(fs.m);
+			vm_page_unlock_queues();
 			if (((fs.m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) &&
 				fs.m->object != kernel_object && fs.m->object != kmem_object) {
 				goto readrest;
@@ -1072,6 +1076,7 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		 */
 		vm_page_flag_clear(dst_m, PG_ZERO);
 		pmap_enter(dst_map->pmap, vaddr, dst_m, prot, FALSE);
+		vm_page_lock_queues();
 		vm_page_flag_set(dst_m, PG_WRITEABLE|PG_MAPPED);
 
 		/*
@@ -1079,6 +1084,7 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		 */
 		vm_page_activate(dst_m);
 		vm_page_wakeup(dst_m);
+		vm_page_unlock_queues();
 	}
 }
 
