@@ -533,6 +533,12 @@
     <para>&man.fmtcheck.3;, a function for checking consistency of
     format string arguments, has been added.</para>
 
+    <para>&man.apmd.8; now has the ability to monitor battery levels and
+    execute commands based on percentage or minutes of battery life
+    remaining via the <literal>apm_battery</literal> configuration
+    directive.  See the commented out examples in
+    <filename>/etc/apmd.conf<filename> for the syntax.</para>
+
     <sect3>
       <title>Contributed Software</title>
 
