@@ -39,7 +39,7 @@ struct trussinfo
 	int in_fork;
 	FILE *outfile;
 
-	struct timeval start_time;
-	struct timeval before;
-	struct timeval after;
+	struct timespec start_time;
+	struct timespec before;
+	struct timespec after;
 };
