@@ -115,11 +115,13 @@ static LIST_HEAD (ip6_fw_head, ip6_fw_chain) ip6_fw_chain;
 
 #ifdef SYSCTL_NODE
 SYSCTL_DECL(_net_inet6_ip6);
-SYSCTL_NODE(_net_inet6_ip6, OID_AUTO, fw, CTLFLAG_RW, 0, "Firewall");
-SYSCTL_INT(_net_inet6_ip6_fw, OID_AUTO, enable, CTLFLAG_RW,
+SYSCTL_NODE(_net_inet6_ip6, OID_AUTO, fw, CTLFLAG_RW | CTLFLAG_SECURE,
+    0, "Firewall");
+SYSCTL_INT(_net_inet6_ip6_fw, OID_AUTO, enable, CTLFLAG_RW | CTLFLAG_SECURE,
 	&ip6_fw_enable, 0, "Enable ip6fw");
 SYSCTL_INT(_net_inet6_ip6_fw, OID_AUTO, debug, CTLFLAG_RW, &fw6_debug, 0, "");
-SYSCTL_INT(_net_inet6_ip6_fw, OID_AUTO, verbose, CTLFLAG_RW, &fw6_verbose, 0, "");
+SYSCTL_INT(_net_inet6_ip6_fw, OID_AUTO, verbose, CTLFLAG_RW | CTLFLAG_SECURE,
+    &fw6_verbose, 0, "");
 SYSCTL_INT(_net_inet6_ip6_fw, OID_AUTO, verbose_limit, CTLFLAG_RW, &fw6_verbose_limit, 0, "");
 #endif
 
