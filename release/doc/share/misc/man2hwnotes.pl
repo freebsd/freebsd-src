@@ -199,11 +199,18 @@ sub parse {
 		$cur_mansection = $2;
 
 	    } elsif (/^It ?(.*)$/) {
+		my $txt = $1;
+
 		# Flush last item
 		if ($mdocvars{parabuf} ne "") {
 		    add_listitem(\%mdocvars);
 		}
-		parabuf_addline(\%mdocvars, normalize($1));
+		# Only extract the first column of column lists.
+		if ($mdocvars{listtype} eq "column") {
+		    $txt =~ s/ Ta /\t/g;
+		    $txt =~ s/([^\t]+)\t.*/$1/;
+		}
+		parabuf_addline(\%mdocvars, normalize($txt));
 	    } elsif (/^Bl/) {
 		$mdocvars{isin_list} = 1;
 		flush_out(\%mdocvars);
@@ -217,6 +224,8 @@ sub parse {
 		    }
 		} elsif (/-bullet/) {
 		    $mdocvars{listtype} = "bullet";
+		} elsif (/-column/) {
+		    $mdocvars{listtype} = "column";
 		} else {
 		    $mdocvars{listtype} = "unknown";
 		}
