@@ -612,7 +612,7 @@ int atapi_wait_cmd (struct atapi *ata, struct atapicmd *ac)
 		ireason = inb (ata->port + AR_IREASON);
 		ac->result.status = inb (ata->port + AR_STATUS);
 		phase = (ireason & (ARI_CMD | ARI_IN)) |
-			(ac->result.status & ARS_DRQ);
+			(ac->result.status & (ARS_DRQ | ARS_BSY));
 		if (phase == PHASE_CMDOUT)
 			break;
 		DELAY (10);
@@ -929,9 +929,11 @@ struct atapires atapi_request_immediate (struct atapi *ata, int unit,
 		/* Do all needed i/o. */
 		while (atapi_io (ata, ac))
 			/* Wait for DRQ deassert. */
-			for (cnt=2000; cnt>0; --cnt)
+			for (cnt=2000; cnt>0; --cnt) {
 				if (! (inb (ata->port + AR_STATUS) & ARS_DRQ))
 					break;
+				DELAY(10);
+			}
 	}
 	return (ac->result);
 }
