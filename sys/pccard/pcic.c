@@ -919,3 +919,71 @@ pcic_do_stat_delta(struct pcic_slot *sp)
 	else
 		pccard_event(sp->slt, card_inserted);
 }
+/*
+ * Wrapper function for pcicintr so that signatures match.
+ */
+void
+pcic_isa_intr(void *arg)
+{
+	pcic_isa_intr1(arg);
+}
+
+/*
+ *	PCIC timer.  If the controller doesn't have a free IRQ to use
+ *	or if interrupt steering doesn't work, poll the controller for
+ *	insertion/removal events.
+ */
+void
+pcic_timeout(void *chan)
+{
+	struct pcic_softc *sc = (struct pcic_softc *) chan;
+
+	if (pcic_isa_intr1(chan) != 0) {
+		device_printf(sc->dev, 
+		    "Static bug detected, ignoring hardware.");
+		sc->slot_poll = 0;
+		return;
+	}
+	sc->timeout_ch = timeout(sc->slot_poll, chan, hz/2);
+}
+
+/*
+ *	PCIC Interrupt handler.
+ *	Check each slot in turn, and read the card status change
+ *	register. If this is non-zero, then a change has occurred
+ *	on this card, so send an event to the main code.
+ */
+int
+pcic_isa_intr1(void *arg)
+{
+	int	slot, s;
+	u_int8_t chg;
+	struct pcic_softc *sc = (struct pcic_softc *) arg;
+	struct pcic_slot *sp = &sc->slots[0];
+
+	s = splhigh();
+	for (slot = 0; slot < PCIC_CARD_SLOTS; slot++, sp++) {
+		if (sp->slt == NULL)
+			continue;
+		if ((chg = sp->getb(sp, PCIC_STAT_CHG)) != 0) {
+			/*
+			 * if chg is 0xff, then we know that we've hit
+			 * the famous "static bug" for some desktop
+			 * pcmcia cards.  This is caused by static
+			 * discharge frying the poor card's mind and
+			 * it starts return 0xff forever.  We return
+			 * an error and stop polling the card.  When
+			 * we're interrupt based, we never see this.
+			 * The card just goes away silently.
+			 */
+			if (chg == 0xff) {
+				splx(s);
+				return (EIO);
+			}
+			if (chg & PCIC_CDTCH)
+				pcic_do_stat_delta(sp);
+		}
+	}
+	splx(s);
+	return (0);
+}
