@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa_dma.c,v 1.1 1999/04/18 14:42:17 kato Exp $
+ *	$Id: isa_dma.c,v 1.2 1999/04/21 12:17:00 kato Exp $
  */
 
 /*
@@ -53,30 +53,18 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/buf.h>
+#include <sys/buf.h>		/* B_READ and B_RAW */
 #include <sys/malloc.h>
-#include <machine/ipl.h>
-#include <machine/md_var.h>
-#ifdef APIC_IO
-#include <machine/smp.h>
-#endif /* APIC_IO */
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
-#include <i386/isa/isa_device.h>
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
 #else
 #include <i386/isa/isa.h>
 #endif
+#include <i386/isa/isa_dma.h>
 #include <i386/isa/ic/i8237.h>
-
-#include <sys/interrupt.h>
-
-#include "pnp.h"
-#if NPNP > 0
-#include <i386/isa/pnp.h>
-#endif
 
 /*
 **  Register definitions for DMA controller 1 (channels 0..3):
