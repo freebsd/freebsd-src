@@ -104,17 +104,22 @@ main(int argc, char *argv[])
 		if (which == PRIO_USER) {
 			if ((pwd = getpwnam(*argv)) != NULL)
 				who = pwd->pw_uid;
-			else if (getnum("uid", *argv, &who))
+			else if (getnum("uid", *argv, &who)) {
+				errs++;
 				continue;
-			else if (who < 0) {
+			} else if (who < 0) {
 				warnx("%s: bad value", *argv);
+				errs++;
 				continue;
 			}
 		} else {
-			if (getnum("pid", *argv, &who))
+			if (getnum("pid", *argv, &who)) {
+				errs++;
 				continue;
+			}
 			if (who < 0) {
 				warnx("%s: bad value", *argv);
+				errs++;
 				continue;
 			}
 		}
