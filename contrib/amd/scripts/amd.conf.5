@@ -121,62 +121,94 @@ then amd's top-level mount points will be browsable to
 calls.  This means you could run for example
 .Xr ls 1
 and see what keys are available to mount in that directory.  Not all entries
-are made visible to readdir(3): the "/default" entry, wildcard
-entries, and those with a "/" in them are not included.  If you specify
-"full" to this option, all but "/default" will be visible.
-Note that if you run a command which will attempt to
-.BR stat (2)
-the entries, such as often done by "ls -l" or "ls -F", amd will attempt to
-mount
-.I every
-entry in that map.  This is often called a ``mount storm''.
-
-.TP
-.BR map_options " (string, default no options)"
-This option is the same as specifying map options on the command line to
-amd, such as "cache:=all".
-
-.TP
-.BR map_type " (string, default search all map types)"
-If specified, amd will initialize the map only for the type given.  This is
-useful to avoid the default map search type used by amd which takes longer
-and can have undesired side-effects such as initializing NIS even if not
-used.  Possible values are
-
-.nf
-\fBfile\fR      plain files
-\fBhesiod\fR    Hesiod name service from MIT
-\fBldap\fR      Lightweight Directory Access Protocol
-\fBndbm\fR      (New) dbm style hash files
-\fBnis\fR       Network Information Services (version 2)
-\fBnisplus\fR   Network Information Services Plus (version 3)
-\fBpasswd\fR    local password files
-\fBunion\fR     union maps
-.fi
-
-.TP
-.BR mount_type " (string, default=nfs)"
-All amd mount types must be NFS.  That is, amd is an NFS server on the
-map mount points, for the local host it is running on.  If "autofs" is
-specified, amd will log an error and convert it to NFS.
-
-.TP
-.BR search_path " (string, default no search path)"
-This provides a (colon-delimited) search path for file maps.  Using a search
-path, sites can allow for local map customizations and overrides, and can
-distributed maps in several locations as needed.
-
-.\" **************************************************************************
-.SS Parameters applicable to the global section only
-
-.TP
-.BR arch " (string, default to compiled in value)"
+are made visible to 
+.Xr readdir 3 :
+the 
+.Qq Pa /default
+entry, wildcard entries, and those with a 
+.Qq Pa / 
+in them are not included.  If you specify 
+.Qq full
+to this option, all but 
+.Qq Pa /default
+will be visible.  Note that if you run a command which will attempt to
+.Xr stat 2
+the entries, such as often done by 
+.Qq ls -l
+or
+.Qq ls -F ,
+.Nm amd
+will attempt to mount 
+.Em every
+entry in that map.  This is often called a 
+.Dq mount storm .
+.It Ic map_options Xo
+(string, default no options)
+.Xc
+This option is the same as specifying map options on the command line to 
+.Nm amd ,
+such as
+.Ql cache\&:\&=all .
+.It Ic map_type Xo
+(string, default search all map types)
+.Xc
+If specified, amd will initialize the map only for the type given.   
+This is useful to avoid the default map search type used by
+.Nm amd
+which takes longer and can have undesired side-effects such as initializing
+.Tn NIS
+even if not used.  Possible values are:
+.Pp
+.Bl -tag -width "nisplus" -compact
+.It Ic file
+plain files
+.It Ic hesiod
+Hesiod name service from MIT
+.It Ic ldap
+Lightweight Directory Access Protocol
+.It Ic ndbm
+(New) dbm style hash files
+.It Ic nis
+Network Information Services (version 2)
+.It Ic nisplus
+Network Information Services Plus (version 3)
+.It Ic passwd
+local password files
+.It Ic union 
+union maps
+.El
+.It Ic mount_type Xo
+(string, default=nfs)
+.Xc
+All amd mount types must be
+.Tn NFS .
+That is,
+.Nm amd
+is an
+.Tn NFS
+server on the map mount points, for the local host it is running on.  If 
+.Qq autofs 
+is specified, amd will log an error and convert it to
+.Tn NFS .
+.It Ic search_path Xo
+(string, default no search path)
+.Xc
+This provides a 
+(colon-delimited)
+search path for file maps.  Using a search path, sites can allow for 
+local map customizations and overrides, and can query distributed maps in
+several locations as needed.
+.El
+.Ss "Parameters applicable to the global section only"
+.Bl -tag -width 4n
+.It Ic arch Xo
+(string, default to compiled in value)
+.Xc
 Allows you to override the value of the
 .Va arch
 .Nm amd
 variable.
-.It Ic auto_dir Xo
-(string, default=/a)
+.It Ic auto_dir Xo (string, default= Ns Pa /a )
 .Xc
 Same as the 
 .Fl a
@@ -241,7 +273,7 @@ program trace
 .It Ic info
 info service specific debugging
 (hesiod, nis, etc.)
-.It mem
+.It Ic mem 
 trace memory allocations
 .It Ic mtab
 use local
@@ -268,7 +300,7 @@ have exceeded their cached times.
 .Xc
 If
 .Qq yes ,
-.Nm Amd
+.Nm amd
 will perform RPC authentication using fully-qualified host names.  This is
 necessary for some systems, and especially when performing cross-domain
 mounting.  For this function to work, the
@@ -331,8 +363,7 @@ option to
 Specify the local domain name.  If this option is not given the domain name is
 determined from the hostname by removing the first component of the
 fully-qualified host name.
-.It Ic log_file Xo
-(string, default=/dev/stderr)
+.It Ic log_file Xo (string, default= Ns Pa /dev/stderr )
 .Xc
 Same as the
 .Fl l
@@ -380,8 +411,8 @@ to negate their meaning.  The
 .Dq debug
 logging option is only available if am-utils was configured with
 .Fl -enable-debug .
-You can get the list of supported debugging options by running
-.Nm amd Fl v .
+You can get the list of supported debugging and logging options by running
+.Nm amd Fl H .
 Possible values are:
 .Pp
 .Bl -tag -width "warning" -compact
@@ -406,6 +437,16 @@ warnings
 .It Ic warning
 warnings
 .El
+.It Ic nfs_proto Xo
+(string, default to trying version tcp then udp)
+.Xc
+By default, amd tries TCP and then UDP.  This option forces the overall
+.Tn NFS
+protocol used to TCP or UDP.  It overrides what is in the amd maps, and is
+useful when amd is compiled with NFSv3 support that may not be stable.  With
+this option you can turn off the complete usage of NFSv3 dynamically
+(without having to recompile amd) until such time as NFSv3 support is
+desired again.
 .It Ic nfs_retransmit_counter Xo
 (numeric, default=110)
 .Xc
@@ -420,95 +461,75 @@ Specifies the retransmit counter's value in tenths of seconds.
 (numeric, default=8)
 .Xc
 Same as the
-.B \-x
-option to amd.  Specify any logging options for amd.  Options are comma
-delimited, and can be preceded by the string "no" to negate their meaning.
-The "debug" logging option is only available if am-utils was configured with
---enable-debug.  You can get the list of supported debugging and logging
-options by running amd \-H.  Possible values are:
-
-.nf
-\fBall\fR       all messages
-\fBdebug\fR     debug messages
-\fBerror\fR     non-fatal system errors
-\fBfatal\fR     fatal errors
-\fBinfo\fR      information
-\fBmap\fR       map errors
-\fBstats\fR     additional statistical information
-\fBuser\fR      non-fatal user errors
-\fBwarn\fR      warnings
-\fBwarning\fR   warnings
-.fi
-
-.TP
-.BR nfs_vers " (numeric, default to trying version 3 then 2)"
+.Ic interval
+part of the 
+.Fl t Ar interval.counter
+option to
+.Nm amd .
+Specifies the
+.Tn NFS
+timeout interval, in tenths of seconds, between NFS/RPC retries (for UDP only).
+This is the value that the kernel will use to
+communicate with amd.
+.Pp
+.Nm Amd
+relies on the kernel RPC retransmit mechanism to trigger mount retries.
+The values of the
+.Ic nfs_retransmit_counter
+and the
+.Ic nfs_retry_interval
+parameters change the overall retry interval.  Too long an interval gives
+poor interactive response; too short an interval causes excessive retries.
+.It Ic nfs_vers Xo
+(numeric, default to trying version 3 then 2)
+.Xc
 By default, amd tries version 3 and then version 2.  This option forces the
-overall NFS protocol used to version 3 or 2.  It overrides what is in the
+overall
+.Tn NFS
+protocol used to version 3 or 2.  It overrides what is in the
 amd maps, and is useful when amd is compiled with NFSv3 support that may not
 be stable.  With this option you can turn off the complete usage of NFSv3
 dynamically (without having to recompile amd) until such time as NFSv3
 support is desired again.
-
-.TP
-.BR nfs_retransmit_counter " (numeric, default=11)"
+.It Ic nis_domain Xo
+(string, default to local
+.Tn NIS
+domain name)
+.Xc
 Same as the
-.I retransmit
-part of the
-.BI \-t " timeout.retransmit"
-option to amd.
-Specifies the number of NFS retransmissions that the kernel will use to
-communicate with amd.
-
-.TP
-.BR nfs_retry_interval " (numeric, default=8)"
+.Fl y
+option to
+.Nm amd .
+Specify an alternative
+.Tn NIS
+domain from which to fetch the
+.Tn NIS
+maps.  The default is the system domain name.  This option is ignored if
+.Tn NIS
+support is not available.
+.It Ic normalize_hostnames Xo
+(boolean, default=no)
+.Xc
 Same as the
-.I timeout
-part of the
-.BI \-t " timeout.retransmit"
-option to amd.  Specifies the NFS timeout interval, in
-.I tenths
-of seconds, between NFS/RPC retries (for UDP only).
-This is the value that the kernel will use to
-communicate with amd.
-
-Amd relies on the kernel RPC retransmit mechanism to trigger mount retries.
-The values of the
-.B nfs_retransmit_counter
-and the
-.B nfs_retry_interval
-parameters change the overall retry interval.  Too long an interval gives
-poor interactive response; too short an interval causes excessive retries.
-
-.TP
-.BR nfs_proto " (string, default to trying version tcp then udp)"
-By default, amd tries TCP and then UDP.  This option forces the overall NFS
-protocol used to TCP or UDP.  It overrides what is in the amd maps, and is
-useful when amd is compiled with NFSv3 support that may not be stable.  With
-this option you can turn off the complete usage of NFSv3 dynamically
-(without having to recompile amd) until such time as NFSv3 support is
-desired again.
-
-.TP
-.BR nis_domain " (string, default to local NIS domain name)"
+.Fl n
+option to
+.Nm amd .
+If
+.Dq yes ,
+then the name refered to by
+.Va ${rhost}
+is normalized relative to the host database before being used.  The effect is
+to translate aliases into
+.Qq official
+names.
+.It Ic os Xo
+(string, default to compiled in value)
+.Xc
 Same as the
-.B \-y
-option to amd.  Specify an alternative NIS domain from which to fetch the
-NIS maps.  The default is the system domain name.  This option is ignored if
-NIS support is not available.
-
-.TP
-.BR normalize_hostnames " (boolean, default=no)"
-Same as the
-.B \-n
-option to amd.  If "yes", then the name refereed to by ${rhost} is
-normalized relative to the host database before being used.  The effect is
-to translate aliases into ``official'' names.
-
-.TP
-.BR os " (string, default to compiled in value)"
-Same as the
-.B \-O
-option to amd.  Allows you to override the compiled-in name of the operating
+.Fl O
+option to
+.Nm amd .
+Allows you to override the compiled-in name of the operating
 system.  Useful when the built-in name is not desired for backward
 compatibility reasons.  For example, if the build in name is
 .Dq sunos5 ,
@@ -529,8 +550,7 @@ compatibility reasons.  For example, if the build in version is
 you can override it to
 .Dq 5.5.1 ,
 and use older maps that were written with the latter in mind.
-.It Ic pid_file Xo
-(string, default=/dev/stdout)
+.It Ic pid_file Xo (string, default= Ns Pa /dev/stdout )
 .Xc
 Specify a file to store the process ID of the running daemon into.  If not
 specified,
