@@ -96,6 +96,7 @@ LIBPANEL?=	${DESTDIR}${LIBDIR}/libpanel.a
 LIBPC?=		${DESTDIR}${LIBDIR}/libpc.a	# XXX doesn't exist
 LIBPCAP?=	${DESTDIR}${LIBDIR}/libpcap.a
 LIBPLOT?=	${DESTDIR}${LIBDIR}/libplot.a	# XXX doesn't exist
+LIBPTHREAD?=	${DESTDIR}${LIBDIR}/libpthread.a
 LIBRADIUS?=	${DESTDIR}${LIBDIR}/libradius.a
 LIBREADLINE?=	${DESTDIR}${LIBDIR}/libreadline.a
 LIBROKEN?=	${DESTDIR}${LIBDIR}/libroken.a
