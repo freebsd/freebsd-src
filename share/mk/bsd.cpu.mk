@@ -94,12 +94,6 @@ _CPUCFLAGS = -mcpu=ev4
 .  endif
 . endif
 
-# NB: COPTFLAGS is handled in /usr/src/sys/conf/Makefile.<arch>
-
-.if !defined(NO_CPU_CFLAGS)
-CFLAGS += ${_CPUCFLAGS}
-.endif
-
 # Set up the list of CPU features based on the CPU type.  This is an
 # unordered list to make it easy for client makefiles to test for the
 # presence of a CPU feature.
@@ -161,4 +155,10 @@ MACHINE_CPU = x86-64 sse2 sse
 MACHINE_CPU = itanium
 . endif
 .endif
+.endif
+
+# NB: COPTFLAGS is handled in /usr/src/sys/conf/Makefile.<arch>
+
+.if !defined(NO_CPU_CFLAGS)
+CFLAGS += ${_CPUCFLAGS}
 .endif
