@@ -1,5 +1,7 @@
-#	@(#)Makefile	8.1 (Berkeley) 6/6/93
+MAN1=	whereis.1
 
-PROG=	whereis
+beforeinstall:
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	    ${.CURDIR}/whereis.pl ${DESTDIR}${BINDIR}/whereis
 
 .include <bsd.prog.mk>
