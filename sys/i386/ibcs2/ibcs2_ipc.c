@@ -23,8 +23,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "opt_sysvipc.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/namei.h>
@@ -122,7 +120,6 @@ struct msqid_ds *bp;
 	return;
 }
 
-#ifdef SYSVMSG
 int
 ibcs2_msgsys(p, uap, retval)
 	struct proc *p;
@@ -171,7 +168,6 @@ ibcs2_msgsys(p, uap, retval)
 		return EINVAL;
 	}
 }
-#endif
 
 /*
  * iBCS2 semsys call
@@ -227,7 +223,6 @@ struct semid_ds *bp;
 	return;
 }
 
-#ifdef SYSVSEM
 int
 ibcs2_semsys(p, uap, retval)
 	struct proc *p;
@@ -286,7 +281,7 @@ ibcs2_semsys(p, uap, retval)
 	}
 	return EINVAL;
 }
-#endif
+
 
 /*
  * iBCS2 shmsys call
@@ -326,7 +321,6 @@ struct shmid_ds *bp;
 	return;
 }
 
-#ifdef SYSVSHM
 int
 ibcs2_shmsys(p, uap, retval)
 	struct proc *p;
@@ -388,4 +382,3 @@ ibcs2_shmsys(p, uap, retval)
 	}
 	return EINVAL;
 }
-#endif

@@ -25,10 +25,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ipc.c,v 1.4 1995/12/29 22:12:14 sos Exp $
+ *  $Id: linux_ipc.c,v 1.5 1996/01/05 19:52:49 wollman Exp $
  */
 
-#include "opt_sysvipc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
