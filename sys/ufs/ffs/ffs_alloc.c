@@ -31,8 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.8 (Berkeley) 2/21/94
- * $Id: ffs_alloc.c,v 1.21 1995/12/15 03:36:25 peter Exp $
+ * $Id: ffs_alloc.c,v 1.22 1995/12/17 21:09:29 phk Exp $
  */
+
+#include "opt_quota.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

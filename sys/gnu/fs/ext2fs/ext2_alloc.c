@@ -42,6 +42,8 @@
 #if !defined(__FreeBSD__)
 #include "quota.h"
 #include "diagnostic.h"
+#else
+#include "opt_quota.h"
 #endif
 
 #include <sys/param.h>

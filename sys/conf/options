@@ -5,6 +5,7 @@ KTRACE
 NULLFS		opt_staticfs.h
 PORTAL		opt_staticfs.h
 PROCFS		opt_staticfs.h
+QUOTA
 SYSVSHM		opt_sysvipc.h
 SYSVSEM		opt_sysvipc.h
 SYSVMSG		opt_sysvipc.h

@@ -31,8 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_alloc.c	8.4 (Berkeley) 1/4/94
- * $Id: lfs_alloc.c,v 1.8 1995/04/16 11:25:47 davidg Exp $
+ * $Id: lfs_alloc.c,v 1.9 1995/12/07 12:47:55 davidg Exp $
  */
+
+#include "opt_quota.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
