@@ -47,6 +47,18 @@
     that could affect its operation or usability.  An up-to-date
     version of this document should always be consulted before
     installing this version of &os;.</para>
+
+<![ %release.type.snapshot [
+    <para>This errata document for &os; &release.prev; will be
+    maintained until the release of &os; &release.next;.</para>
+]]>
+
+<![ %release.type.release [
+    <para>This is the final version of the errata document for &os; &release.prev;.  Future errata documents along the 
+    &release.branch; branch will address &os; &release.current; and
+    later releases.</para>
+]]>
+
   </abstract>
 
   <sect1>
