@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_input.c
  *
- * $Id: ipx_input.c,v 1.16 1998/03/30 09:53:09 phk Exp $
+ * $Id: ipx_input.c,v 1.17 1998/04/06 09:30:42 phk Exp $
  */
 
 #include <sys/param.h>
@@ -320,7 +320,8 @@ ipx_ctlinput(cmd, arg_as_sa, dummy)
 		break;
 
 	default:
-		printf("ipx_ctlinput: cmd %d.\n", cmd);
+		if (ipxprintfs)
+			printf("ipx_ctlinput: cmd %d.\n", cmd);
 		break;
 	}
 }
