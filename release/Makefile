@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.192 1995/05/30 08:27:59 rgrimes Exp $
+#	$Id: Makefile,v 1.192.2.1 1995/05/31 22:36:51 jkh Exp $
 #
 # How to roll a release:
 #
@@ -22,7 +22,7 @@ EXPORT_DISTS=	games manpages proflibs dict info
 EXTRA_DISTS=	des ${EXPORT_DISTS}
 ALL_DISTS=	bin ${EXTRA_DISTS}
 
-BOOT1=	etc/services etc/protocols etc/sysconfig
+BOOT1=	etc/protocols etc/sysconfig
 
 FAQS=	README MIRROR.SITES
 
@@ -325,6 +325,10 @@ release.8: write_mfs_in_kernel
 	cpio -dump ${RD}/mfsfd/dev )
 	( cd ${RD}/mfsfd/dev && rm -f *[sw]d*[bdefgh] )
 	cd ${RD}/trees/bin && ls ${BOOT1} | cpio -dump ${RD}/mfsfd/stand
+	echo "nameserver      42/tcp name"	> ${RD}/mfsfd/stand/etc/services
+	echo "ftp             21/tcp"		>> ${RD}/mfsfd/stand/etc/services
+	echo "domain          53/tcp          nameserver" >> ${RD}/mfsfd/stand/etc/services
+	echo "domain          53/udp          nameserver" >> ${RD}/mfsfd/stand/etc/services
 	tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
 		tar xvf - -C ${RD}/mfsfd/stand
 	install -c ${.CURDIR}/../COPYRIGHT ${RD}/mfsfd/stand/help/en_US.ISO8859-1/COPYRIGHT
