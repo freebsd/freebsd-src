@@ -27,7 +27,6 @@ SIZE=		ia64-unknown-freebsd5.0-size
 OBJCOPY=	ia64-unknown-freebsd5.0-objcopy
 OBJDUMP=	ia64-unknown-freebsd5.0-objdump
 MACHINE_ARCH=	ia64
-FMT=				# Needs to be blank for cross tools.
 
 # Which version of config(8) is required.
 %VERSREQ=	500010
