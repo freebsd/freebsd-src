@@ -34,13 +34,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
 #if 0
 #ifndef lint
-__RCSID("$NetBSD: stat.c,v 1.9 2002/10/19 20:33:19 provos Exp $");
+__RCSID("$NetBSD: stat.c,v 1.10 2003/05/08 13:05:38 atatat Exp $");
 #endif
 #endif
 
-#include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
@@ -58,14 +58,14 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #define DEF_FORMAT \
-	"%d %i %Sp %l %Su %Sg %r %z \"%Sa\" \"%Sm\" \"%Sc\" %k %b %N"
-#define RAW_FORMAT	"%d %i %#p %l %u %g %r %z %a %m %c %k %b %N"
+	"%d %i %Sp %l %Su %Sg %r %z \"%Sa\" \"%Sm\" \"%Sc\" \"%SB\" %k %b %N"
+#define RAW_FORMAT	"%d %i %#p %l %u %g %r %z %a %m %c %B %k %b %N"
 #define LS_FORMAT	"%Sp %l %Su %Sg %Z %Sm %N%SY"
 #define LSF_FORMAT	"%Sp %l %Su %Sg %Z %Sm %N%T%SY"
 #define SHELL_FORMAT \
 	"st_dev=%d st_ino=%i st_mode=%#p st_nlink=%l " \
 	"st_uid=%u st_gid=%g st_rdev=%r st_size=%z " \
-	"st_atimespec=%a st_mtimespec=%m st_ctimespec=%c " \
+	"st_atime=%a st_mtime=%m st_ctime=%c st_birthtime=%B " \
 	"st_blksize=%k st_blocks=%b"
 #define LINUX_FORMAT \
 	"  File: \"%N\"%n" \
@@ -129,6 +129,7 @@ __FBSDID("$FreeBSD$");
 #define SHOW_st_atime	'a'
 #define SHOW_st_mtime	'm'
 #define SHOW_st_ctime	'c'
+#define SHOW_st_btime	'B'
 #define SHOW_st_size	'z'
 #define SHOW_st_blocks	'b'
 #define SHOW_st_blksize	'k'
@@ -453,6 +454,7 @@ output(const struct stat *st, const char *file,
 			fmtcase(what, SHOW_st_atime);
 			fmtcase(what, SHOW_st_mtime);
 			fmtcase(what, SHOW_st_ctime);
+			fmtcase(what, SHOW_st_btime);
 			fmtcase(what, SHOW_st_size);
 			fmtcase(what, SHOW_st_blocks);
 			fmtcase(what, SHOW_st_blksize);
@@ -629,6 +631,10 @@ format1(const struct stat *st,
 	case SHOW_st_ctime:
 		if (tsp == NULL)
 			tsp = &st->st_ctimespec;
+		/* FALLTHROUGH */
+	case SHOW_st_btime:
+		if (tsp == NULL)
+			tsp = &st->st_birthtimespec;
 		ts = *tsp;		/* copy so we can muck with it */
 		small = (sizeof(ts.tv_sec) == 4);
 		data = ts.tv_sec;
