@@ -16,10 +16,7 @@
 # after which config should be rerun for all machines.
 #
 
-# The cross tools don't understand -fformat-extensions
-CWARNFLAGS=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
-		-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
-		-Wno-format -ffreestanding
+GCC3=	you bet
 
 # Which version of config(8) is required.
 %VERSREQ=	500010
