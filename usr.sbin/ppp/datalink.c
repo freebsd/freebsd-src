@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.31 1999/02/17 02:11:28 brian Exp $
+ *	$Id: datalink.c,v 1.32 1999/02/18 00:52:13 brian Exp $
  */
 
 #include <sys/param.h>
@@ -86,16 +86,19 @@ datalink_OpenTimeout(void *v)
     log_Printf(LogPHASE, "%s: Redial timer expired.\n", dl->name);
 }
 
-static void
+static int
 datalink_StartDialTimer(struct datalink *dl, int Timeout)
 {
+  int result = Timeout;
+
   timer_Stop(&dl->dial_timer);
- 
   if (Timeout) {
     if (Timeout > 0)
       dl->dial_timer.load = Timeout * SECTICKS;
-    else
-      dl->dial_timer.load = (random() % DIAL_TIMEOUT) * SECTICKS;
+    else {
+      result = (random() % DIAL_TIMEOUT) + 1;
+      dl->dial_timer.load = result * SECTICKS;
+    }
     dl->dial_timer.func = datalink_OpenTimeout;
     dl->dial_timer.name = "dial";
     dl->dial_timer.arg = dl;
@@ -104,6 +107,7 @@ datalink_StartDialTimer(struct datalink *dl, int Timeout)
       log_Printf(LogPHASE, "%s: Enter pause (%d) for redialing.\n",
                 dl->name, Timeout);
   }
+  return result;
 }
 
 static void
@@ -133,6 +137,7 @@ datalink_HangupDone(struct datalink *dl)
     if (!physical_SetMode(dl->physical, PHYS_BACKGROUND))
       log_Printf(LogERROR, "Oops - can't change mode to BACKGROUND (gulp) !\n");
     bundle_LinksRemoved(dl->bundle);
+    /* if dial.timeout is < 0 (random), don't override fsm.delay */
     if (dl->cbcp.fsm.delay < dl->cfg.dial.timeout)
       dl->cbcp.fsm.delay = dl->cfg.dial.timeout;
     datalink_StartDialTimer(dl, dl->cbcp.fsm.delay);
@@ -281,9 +286,9 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
             bundle_LinkClosed(dl->bundle, dl);
           }
           if (!dl->bundle->CleaningUp) {
+            int timeout = datalink_StartDialTimer(dl, dl->cfg.dial.timeout);
             log_WritePrompts(dl, "Failed to open %s, pause %d seconds\n",
-                             dl->physical->name.full, dl->cfg.dial.timeout);
-            datalink_StartDialTimer(dl, dl->cfg.dial.timeout);
+                             dl->physical->name.full, timeout);
           }
         }
       }
@@ -976,11 +981,11 @@ datalink_Show(struct cmdargs const *arg)
                   arg->cx->cfg.dial.max);
   else
     prompt_Printf(arg->prompt, " Dial tries:         infinite, delay ");
-  if (arg->cx->cfg.dial.next_timeout > 0)
+  if (arg->cx->cfg.dial.next_timeout >= 0)
     prompt_Printf(arg->prompt, "%ds/", arg->cx->cfg.dial.next_timeout);
   else
     prompt_Printf(arg->prompt, "random/");
-  if (arg->cx->cfg.dial.timeout > 0)
+  if (arg->cx->cfg.dial.timeout >= 0)
     prompt_Printf(arg->prompt, "%ds\n", arg->cx->cfg.dial.timeout);
   else
     prompt_Printf(arg->prompt, "random\n");
