@@ -71,7 +71,8 @@ int
 main(int ac, char *av[])
 {
 	struct ngm_connect ngc;
-	char   *path = NULL, *hook = DEFAULT_HOOKNAME;
+	const char *path = NULL;
+	const char *hook = DEFAULT_HOOKNAME;
 	int     csock, dsock;
 	int     asciiFlag = 0;
 	int     loopFlag = 0;
