@@ -1244,28 +1244,7 @@
     </para>
 
     <para arch="i386,pc98,alpha">VIA Technologies VT3043 <quote>Rhine I</quote>, VT86C100A
-    <quote>Rhine II</quote>, and VT6105/VT6105M <quote>Rhine III</quote> Fast Ethernet NICs (&man.vr.4; driver)
-      <itemizedlist>
-        <listitem arch="i386,alpha">
-	  <para>AOpen/Acer ALN-320</para>
-        </listitem>
-        <listitem arch="i386,alpha">
-	  <para>D-Link DFE-530TX</para>
-        </listitem>
-        <listitem arch="i386,alpha">
-	  <para>Hawking Technologies PN102TX</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>MELCO LGY-PCI-TXR (PCI)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>CO-100MV (PCI)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>Corega FastEtherII PCI-TX (PCI)</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    <quote>Rhine II</quote>, and VT6105/VT6105M <quote>Rhine III</quote> Fast Ethernet NICs (&man.vr.4; driver)</para>
 
     <para arch="i386,pc98,alpha">Silicon Integrated Systems SiS 900 and SiS 7016 PCI Fast
     Ethernet NICs (&man.sis.4; driver)
@@ -1458,19 +1437,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98">CATC USB-EL1210A-based USB Ethernet NICs (&man.cue.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>Belkin F5U011, F5U111</para>
-        </listitem>
-        <listitem>
-	  <para>CATC Netmate, Netmate II</para>
-        </listitem>
-        <listitem>
-	  <para>SmartBridges SmartLink</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    <para arch="i386,pc98">CATC USB-EL1210A-based USB Ethernet NICs (&man.cue.4; driver)</para>
 
     <para arch="i386,pc98">Kawasaki LSI KU5KUSB101B-based USB Ethernet NICs
     (&man.kue.4; driver)
