@@ -94,7 +94,7 @@ vpn-in:
   enable chap
   disable lqr
   set ifaddr 127.0.0.2 127.0.0.3
-  set server /var/tmp/vpn-in "" 0177
+  set server /var/run/ppp/vpn-in "" 0177
 
 
 isp-in-7:
