@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.49 1998/04/06 18:18:50 peter Exp $
+ * $Id: ufs_readwrite.c,v 1.50 1998/06/04 17:04:44 dfr Exp $
  */
 
 #define	BLKSIZE(a, b, c)	blksize(a, b, c)
@@ -210,7 +210,8 @@ READ(ap)
 		if (error)
 			break;
 
-		if (ioflag & IO_VMIO) {
+		if ((ioflag & IO_VMIO) &&
+		   (LIST_FIRST(&bp->b_dep) == NULL)) {
 			bp->b_flags |= B_RELBUF;
 			brelse(bp);
 		} else {
@@ -219,7 +220,8 @@ READ(ap)
 	}
 
 	if (bp != NULL) {
-		if (ioflag & IO_VMIO) {
+		if ((ioflag & IO_VMIO) &&
+		   (LIST_FIRST(&bp->b_dep) == NULL)) {
 			bp->b_flags |= B_RELBUF;
 			brelse(bp);
 		} else {
@@ -355,7 +357,8 @@ WRITE(ap)
 
 		error =
 		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
-		if (ioflag & IO_VMIO)
+		if ((ioflag & IO_VMIO) &&
+		   (LIST_FIRST(&bp->b_dep) == NULL))
 			bp->b_flags |= B_RELBUF;
 
 		if (ioflag & IO_SYNC) {
