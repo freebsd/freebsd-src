@@ -91,7 +91,7 @@ static void fwip_stream_input (struct fw_xferq *);
 static void fwip_unicast_input(struct fw_xfer *);
 
 static int fwipdebug = 0;
-static int broadcast_channel = 31; /* XXX */
+static int broadcast_channel = 0xc0 | 0x1f; /*  tag | channel(XXX) */
 static int tx_speed = 2;
 static int rx_queue_len = FWMAXQUEUE;
 
