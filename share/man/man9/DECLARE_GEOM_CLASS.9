@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 16, 2004
+.Dd January 6, 2005
 .Dt DECLARE_GEOM_CLASS 9
 .Os
 .Sh NAME
@@ -49,13 +49,13 @@ modules GEOM classes and it is the only official way for class registration.
 The arguments to
 .Fn DECLARE_GEOM_CLASS
 are:
-.Bl -inset -offset indent
+.Bl -tag -offset indent
 .It Fa class
-is the
+The
 .Vt g_class
 structure which describes a GEOM class.
 .It Fa mod_name
-is a kernel module name (not a class name!).
+A kernel module name (not a class name!).
 .El
 .Pp
 Structure
@@ -97,13 +97,16 @@ Pointer to a function which is called for every geom on class unload.
 If this field is not set, the class can not be unloaded.
 .El
 .Pp
-Only field
+Only a
 .Fa name
-is required, the rest is optional.
+field is required; the rest are optional.
 .Sh RESTRICTIONS/CONDITIONS
-In the
+The fields of
 .Vt g_class
-initialization one must use C99 initialization (just like in the example below).
+should always be initialized using C99-style field naming
+(see the initialization of
+.Dv example_class
+below).
 .Sh EXAMPLES
 Example class declaration.
 .Bd -literal -offset indent
