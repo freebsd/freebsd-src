@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 30, 1998
+.Dd February 8, 2005
 .Dt PTHREAD_MUTEX_LOCK 3
 .Os
 .Sh NAME
@@ -58,6 +58,10 @@ The
 .Fn pthread_mutex_lock
 function will fail if:
 .Bl -tag -width Er
+.It Bq Er EBUSY
+Currently
+.Fa mutex
+is locked by another thread.
 .It Bq Er EINVAL
 The value specified by
 .Fa mutex
