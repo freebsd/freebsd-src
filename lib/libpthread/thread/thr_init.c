@@ -224,6 +224,9 @@ _thread_init(void)
 	/* Allocate memory for the scheduler stack: */
 	else if ((_thread_kern_sched_stack = malloc(sched_stack_size)) == NULL)
 		PANIC("Failed to allocate stack for scheduler");
+	/* Allocate memory for the idle stack: */
+	else if ((_idle_thr_stack = malloc(sched_stack_size)) == NULL)
+		PANIC("Failed to allocate stack for scheduler");
 	else {
 		/* Zero the global kernel thread structure: */
 		memset(&_thread_kern_thread, 0, sizeof(struct pthread));
@@ -272,6 +275,15 @@ _thread_init(void)
 		_thread_kern_kse_mailbox.km_stack.ss_size = sched_stack_size;
 		_thread_kern_kse_mailbox.km_func =
 		    (void *)_thread_kern_scheduler;
+
+		/* Initialize the idle context. */
+		bzero(&_idle_thr_mailbox, sizeof(struct kse_thr_mailbox));
+		getcontext(&_idle_thr_mailbox.tm_context);
+		_idle_thr_mailbox.tm_context.uc_stack.ss_sp = _idle_thr_stack;
+		_idle_thr_mailbox.tm_context.uc_stack.ss_size =
+		    sched_stack_size;
+		makecontext(&_idle_thr_mailbox.tm_context, _thread_kern_idle,
+		    1);
 
 		/*
 		 * Write a magic value to the thread structure
