@@ -86,7 +86,7 @@ bios_mcabus_present(void * dummy)
 		return;
 	}
 
-	if ((vmf.vmf_ah != 0) && (vmf.vmf_flags != 0)) {
+	if ((vmf.vmf_ah != 0) && (vmf.vmf_flags & 0x01)) {
 		if (bootverbose) {
 			printf("BIOS SDT: Not supported.  Not PS/2?\n");
 			printf("BIOS SDT: AH 0x%02x, Flags 0x%04x\n",
