@@ -1,6 +1,13 @@
 /*-
  * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * All rights reserved.
+ *
+ * Portions of this software were developed for the FreeBSD Project by
+ * ThinkSec AS and NAI Labs, the Security Research Division of Network
+ * Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+ * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -52,7 +59,10 @@ static const char rcsid[] =
 #include <sys/wait.h>
 
 #include <err.h>
+#include <ctype.h>
 #include <fcntl.h>
+#include <inttypes.h>
+#include <libgen.h>
 #include <paths.h>
 #include <pwd.h>
 #include <signal.h>
@@ -61,18 +71,14 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-#include "pw_util.h"
+#include <libutil.h>
 
-extern char *tempname;
 static pid_t editpid = -1;
-static int lockfd;
-static char _default_editor[] = _PATH_VI;
-static char _default_mppath[] = _PATH_PWD;
-static char _default_masterpasswd[] = _PATH_MASTERPASSWD;
-char *mppath = _default_mppath;
-char *masterpasswd = _default_masterpasswd;
-
-void		 pw_cont(int);
+static int lockfd = -1;
+static char masterpasswd[PATH_MAX];
+static char passwd_dir[PATH_MAX];
+static char tempname[PATH_MAX];
+static int initialized;
 
 void
 pw_cont(int sig)
@@ -82,11 +88,52 @@ pw_cont(int sig)
 		kill(editpid, sig);
 }
 
-void
-pw_init(void)
+/*
+ * Initialize statics and set limits, signals & umask to try to avoid
+ * interruptions, crashes etc. that might expose passord data.
+ */
+int
+pw_init(const char *dir, const char *master)
 {
+#if 0
 	struct rlimit rlim;
+#endif
 
+	if (dir == NULL) {
+		strcpy(passwd_dir, _PATH_ETC);
+	} else {
+		if (strlen(dir) >= sizeof passwd_dir) {
+			errno = ENAMETOOLONG;
+			return (-1);
+		}
+		strcpy(passwd_dir, dir);
+	}
+
+	if (master == NULL) {
+		if (dir == NULL) {
+			strcpy(masterpasswd, _PATH_MASTERPASSWD);
+		} else if (snprintf(masterpasswd, sizeof masterpasswd, "%s/%s",
+		    passwd_dir, _MASTERPASSWD) > sizeof masterpasswd) {
+			errno = ENAMETOOLONG;
+			return (-1);
+		}
+	} else {
+		if (strlen(master) >= sizeof masterpasswd) {
+			errno = ENAMETOOLONG;
+			return (-1);
+		}
+		strcpy(masterpasswd, master);
+	}
+
+	/*
+	 * The code that follows is extremely disruptive to the calling
+	 * process, and is therefore disabled until someone can conceive
+	 * of a realistic scenario where it would fend off a compromise.
+	 * Race conditions concerning the temporary files can be guarded
+	 * against in other ways than masking signals (by checking stat(2)
+	 * results after creation).
+	 */
+#if 0
 	/* Unlimited resource limits. */
 	rlim.rlim_cur = rlim.rlim_max = RLIM_INFINITY;
 	(void)setrlimit(RLIMIT_CPU, &rlim);
@@ -110,11 +157,21 @@ pw_init(void)
 
 	/* Create with exact permissions. */
 	(void)umask(0);
+#endif
+	initialized = 1;
+	return (0);
 }
 
+/*
+ * Lock the master password file.
+ */
 int
 pw_lock(void)
 {
+
+	if (*masterpasswd == '\0')
+		return (-1);
+
 	/*
 	 * If the master password file doesn't exist, the system is hosed.
 	 * Might as well try to build one.  Set the close-on-exec bit so
@@ -127,6 +184,7 @@ pw_lock(void)
 		lockfd = open(masterpasswd, O_RDONLY, 0);
 		if (lockfd < 0 || fcntl(lockfd, F_SETFD, 1) == -1)
 			err(1, "%s", masterpasswd);
+		/* XXX vulnerable to race conditions */
 		if (flock(lockfd, LOCK_EX|LOCK_NB))
 			errx(1, "the password db file is busy");
 
@@ -145,114 +203,378 @@ pw_lock(void)
 	return (lockfd);
 }
 
+/*
+ * Create and open a presumably safe temp file for editing the password
+ * data, and copy the master password file into it.
+ */
 int
-pw_tmp(void)
+pw_tmp(int mfd)
 {
-	static char path[MAXPATHLEN];
-	int fd;
-	char *p;
+	char buf[8192];
+	ssize_t nr, nw;
+	const char *p;
+	int tfd;
 
-	strncpy(path, masterpasswd, MAXPATHLEN - 1);
-	path[MAXPATHLEN] = '\0';
-
-	if ((p = strrchr(path, '/')))
+	if (*masterpasswd == '\0')
+		return (-1);
+	if ((p = strrchr(masterpasswd, '/')))
 		++p;
 	else
-		p = path;
-	strcpy(p, "pw.XXXXXX");
-	if ((fd = mkstemp(path)) == -1)
-		err(1, "%s", path);
-	tempname = path;
-	return (fd);
+		p = masterpasswd;
+	if (snprintf(tempname, sizeof tempname, "%.*spw.XXXXXX",
+		(int)(p - masterpasswd), masterpasswd) >= sizeof tempname) {
+		errno = ENAMETOOLONG;
+		return (-1);
+	}
+	if ((tfd = mkstemp(tempname)) == -1)
+		return (-1);
+	if (mfd != -1) {
+		while ((nr = read(mfd, buf, sizeof buf)) > 0)
+			if ((nw = write(tfd, buf, nr)) != nr)
+				break;
+		if (nr != 0) {
+			unlink(tempname);
+			*tempname = '\0';
+			close(tfd);
+			return (-1);
+		}
+	}
+	return (tfd);
 }
 
+/*
+ * Regenerate the password database.
+ */
 int
-pw_mkdb(const char *username)
+pw_mkdb(const char *user)
 {
 	int pstat;
 	pid_t pid;
 
 	(void)fflush(stderr);
-	if (!(pid = fork())) {
-		if(!username) {
-			warnx("rebuilding the database...");
-			execl(_PATH_PWD_MKDB, "pwd_mkdb", "-p", "-d", mppath,
-			    tempname, (char *)NULL);
-		} else {
-			warnx("updating the database...");
-			execl(_PATH_PWD_MKDB, "pwd_mkdb", "-p", "-d", mppath,
-			    "-u", username, tempname, (char *)NULL);
-		}
-		pw_error(_PATH_PWD_MKDB, 1, 1);
+	switch ((pid = fork())) {
+	case -1:
+		return (-1);
+	case 0:
+		/* child */
+		if (user == NULL)
+			execl(_PATH_PWD_MKDB, "pwd_mkdb", "-p",
+			    "-d", passwd_dir, tempname, NULL);
+		else
+			execl(_PATH_PWD_MKDB, "pwd_mkdb", "-p",
+			    "-d", passwd_dir, "-u", user, tempname, NULL);
+		_exit(1);
+	default:
+		/* parent */
+		break;
 	}
-	pid = waitpid(pid, &pstat, 0);
-	if (pid == -1 || !WIFEXITED(pstat) || WEXITSTATUS(pstat) != 0)
+	if (waitpid(pid, &pstat, 0) == -1)
+		return (-1);
+	if (WIFEXITED(pstat) && WEXITSTATUS(pstat) == 0)
 		return (0);
-	warnx("done");
-	return (1);
+	errno = 0;
+	return (-1);
 }
 
-void
+/*
+ * Edit the temp file.  Return -1 on error, >0 if the file was modified, 0
+ * if it was not.
+ */
+int
 pw_edit(int notsetuid)
 {
+	struct stat st1, st2;
+	const char *editor;
 	int pstat;
-	char *p, *editor;
 
-	if (!(editor = getenv("EDITOR")))
-		editor = _default_editor;
-	if ((p = strrchr(editor, '/')))
-		++p;
-	else
-		p = editor;
-
-	if (!(editpid = fork())) {
+	if ((editor = getenv("EDITOR")) == NULL)
+		editor = _PATH_VI;
+	if (stat(tempname, &st1) == -1)
+		return (-1);
+	switch ((editpid = fork())) {
+	case -1:
+		return (-1);
+	case 0:
+		/* child */
 		if (notsetuid) {
 			(void)setgid(getgid());
 			(void)setuid(getuid());
 		}
 		errno = 0;
-		execlp(editor, p, tempname, (char *)NULL);
+		execlp(editor, basename(editor), tempname, NULL);
 		_exit(errno);
+	default:
+		/* parent */
+		break;
 	}
 	for (;;) {
-		editpid = waitpid(editpid, (int *)&pstat, WUNTRACED);
-		errno = WEXITSTATUS(pstat);
-		if (editpid == -1)
-			pw_error(editor, 1, 1);
-		else if (WIFSTOPPED(pstat))
+		editpid = waitpid(editpid, &pstat, WUNTRACED);
+		if (editpid == -1) {
+			unlink(tempname);
+			return (-1);
+		} else if (WIFSTOPPED(pstat)) {
 			raise(WSTOPSIG(pstat));
-		else if (WIFEXITED(pstat) && errno == 0)
+		} else if (WIFEXITED(pstat) && WEXITSTATUS(pstat) == 0) {
+			editpid = -1;
 			break;
-		else
-			pw_error(editor, 1, 1);
+		} else {
+			unlink(tempname);
+			*tempname = '\0';
+			editpid = -1;
+			return (-1);
+		}
 	}
-	editpid = -1;
+	if (stat(tempname, &st2) == -1)
+		return (-1);
+	return (st1.st_mtime != st2.st_mtime);
 }
 
+/*
+ * Clean up.  Preserve errno for the caller's convenience.
+ */
 void
-pw_prompt(void)
+pw_fini(void)
 {
-	int c, first;
+	int serrno, status;
 
-	(void)printf("re-edit the password file? [y]: ");
-	(void)fflush(stdout);
-	first = c = getchar();
-	while (c != '\n' && c != EOF)
-		c = getchar();
-	if (first == 'n')
-		pw_error(NULL, 0, 0);
+	if (!initialized)
+		return;
+	initialized = 0;
+	serrno = errno;
+	if (editpid != -1) {
+		kill(editpid, SIGTERM);
+		kill(editpid, SIGCONT);
+		waitpid(editpid, &status, 0);
+		editpid = -1;
+	}
+	if (*tempname != '\0') {
+		unlink(tempname);
+		*tempname = '\0';
+	}
+	if (lockfd != -1)
+		close(lockfd);
+	errno = serrno;
 }
 
-void
-pw_error(const char *name, int error, int eval)
+/*
+ * Compares two struct pwds.
+ */
+int
+pw_equal(struct passwd *pw1, struct passwd *pw2)
 {
-	if (error) {
-		if (name != NULL)
-			warn("%s", name);
-		else
-			warn(NULL);
+	return (strcmp(pw1->pw_name, pw2->pw_name) == 0 &&
+	    pw1->pw_uid == pw2->pw_uid &&
+	    pw1->pw_gid == pw2->pw_gid &&
+	    strcmp(pw1->pw_class, pw2->pw_class) == 0 &&
+	    pw1->pw_change == pw2->pw_change &&
+	    pw1->pw_expire == pw2->pw_expire &&
+	    strcmp(pw1->pw_gecos, pw2->pw_gecos) == 0 &&
+	    strcmp(pw1->pw_dir, pw2->pw_dir) == 0 &&
+	    strcmp(pw1->pw_shell, pw2->pw_shell) == 0);
+}
+
+/*
+ * Make a passwd line out of a struct passwd.
+ */
+char *
+pw_make(struct passwd *pw)
+{
+	char *line;
+
+	asprintf(&line, "%s:%s:%ju:%ju:%s:%ju:%ju:%s:%s:%s", pw->pw_name,
+	    pw->pw_passwd, (uintmax_t)pw->pw_uid, (uintmax_t)pw->pw_gid,
+	    pw->pw_class, (uintmax_t)pw->pw_change, (uintmax_t)pw->pw_expire,
+	    pw->pw_gecos, pw->pw_dir, pw->pw_shell);
+	return line;
+}
+
+/*
+ * Copy password file from one descriptor to another, replacing or adding
+ * a single record on the way.
+ */
+int
+pw_copy(int ffd, int tfd, struct passwd *pw, struct passwd *old_pw)
+{
+	char buf[8192], *end, *line, *p, *q, *r, t;
+	struct passwd *fpw;
+	ssize_t len;
+	int eof;
+
+	if ((line = pw_make(pw)) == NULL)
+		return (-1);
+
+	eof = 0;
+	len = 0;
+	p = q = end = buf;
+	for (;;) {
+		/* find the end of the current line */
+		for (p = q; q < end && *q != '\0'; ++q)
+			if (*q == '\n')
+				break;
+
+		/* if we don't have a complete line, fill up the buffer */
+		if (q >= end) {
+			if (eof)
+				break;
+			if (q - p >= sizeof buf) {
+				warnx("passwd line too long");
+				errno = EINVAL; /* hack */
+				goto err;
+			}
+			if (p < end) {
+				q = memmove(buf, p, end - p);
+				end -= p - buf;
+			} else {
+				p = q = end = buf;
+			}
+			len = read(ffd, end, sizeof buf - (end - buf));
+			if (len == -1)
+				goto err;
+			if (len == 0 && p == buf)
+				break;
+			end += len;
+			len = end - buf;
+			if (len < sizeof buf) {
+				eof = 1;
+				if (len > 0 && buf[len - 1] != '\n')
+					++len, *end++ = '\n';
+			}
+			continue;
+		}
+
+		/* is it a blank line or a comment? */
+		for (r = p; r < q && isspace(*r); ++r)
+			/* nothing */ ;
+		if (r == q || *r == '#') {
+			/* yep */
+			if (write(tfd, p, q - p + 1) != q - p + 1)
+				goto err;
+			++q;
+			continue;
+		}
+
+		/* is it the one we're looking for? */
+		t = *q;
+		*q = '\0';
+		fpw = pw_scan(r, PWSCAN_MASTER);
+		*q = t;
+		if (old_pw == NULL || !pw_equal(pw, old_pw)) {
+			/* nope */
+			free(fpw);
+			if (write(tfd, p, q - p + 1) != q - p + 1)
+				goto err;
+			++q;
+			continue;
+		}
+		free(fpw);
+
+		/* it is, replace it */
+		len = strlen(line);
+		if (write(tfd, line, len) != len)
+			goto err;
+
+		/* we're done, just copy the rest over */
+		for (;;) {
+			if (write(tfd, q, end - q) != end - q)
+				goto err;
+			q = buf;
+			len = read(ffd, buf, sizeof buf);
+			if (len == 0)
+				break;
+			if (len == -1)
+				goto err;
+			end = buf + len;
+		}
+		goto done;
 	}
-	warnx("password information unchanged");
-	(void)unlink(tempname);
-	exit(eval);
+
+	/* if we got here, we have a new entry */
+	len = strlen(line);
+	if (write(tfd, line, len) != len)
+		goto err;
+ done:
+	free(line);
+	return (0);
+ err:
+	free(line);
+	return (-1);
+}
+
+/*
+ * Return the current value of tempname.
+ */
+const char *
+pw_tempname(void)
+{
+
+	return (tempname);
+}
+
+/*
+ * Duplicate a struct passwd.
+ */
+struct passwd *
+pw_dup(struct passwd *pw)
+{
+	struct passwd *npw;
+	size_t len;
+
+	len = sizeof *npw +
+	    (pw->pw_name ? strlen(pw->pw_name) + 1 : 0) +
+	    (pw->pw_passwd ? strlen(pw->pw_passwd) + 1 : 0) +
+	    (pw->pw_class ? strlen(pw->pw_class) + 1 : 0) +
+	    (pw->pw_gecos ? strlen(pw->pw_gecos) + 1 : 0) +
+	    (pw->pw_dir ? strlen(pw->pw_dir) + 1 : 0) +
+	    (pw->pw_shell ? strlen(pw->pw_shell) + 1 : 0);
+	if ((npw = malloc(len)) == NULL)
+		return (NULL);
+	memcpy(npw, pw, sizeof *npw);
+	len = sizeof *npw;
+	if (pw->pw_name) {
+		npw->pw_name = ((char *)npw) + len;
+		len += sprintf(npw->pw_name, "%s", pw->pw_name) + 1;
+	}
+	if (pw->pw_passwd) {
+		npw->pw_passwd = ((char *)npw) + len;
+		len += sprintf(npw->pw_passwd, "%s", pw->pw_passwd) + 1;
+	}
+	if (pw->pw_class) {
+		npw->pw_class = ((char *)npw) + len;
+		len += sprintf(npw->pw_class, "%s", pw->pw_class) + 1;
+	}
+	if (pw->pw_gecos) {
+		npw->pw_gecos = ((char *)npw) + len;
+		len += sprintf(npw->pw_gecos, "%s", pw->pw_gecos) + 1;
+	}
+	if (pw->pw_dir) {
+		npw->pw_dir = ((char *)npw) + len;
+		len += sprintf(npw->pw_dir, "%s", pw->pw_dir) + 1;
+	}
+	if (pw->pw_shell) {
+		npw->pw_shell = ((char *)npw) + len;
+		len += sprintf(npw->pw_shell, "%s", pw->pw_shell) + 1;
+	}
+	return (npw);
+}
+
+#include "pw_scan.h"
+
+/*
+ * Wrapper around an internal libc function
+ */
+struct passwd *
+pw_scan(const char *line, int flags)
+{
+	struct passwd pw, *ret;
+	char *bp;
+
+	if ((bp = strdup(line)) == NULL)
+		return (NULL);
+	if (!__pw_scan(bp, &pw, flags)) {
+		free(bp);
+		return (NULL);
+	}
+	ret = pw_dup(&pw);
+	free(bp);
+	return (ret);
 }
