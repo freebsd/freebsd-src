@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.193 1999/05/12 09:48:44 brian Exp $
+ * $Id: command.c,v 1.194 1999/05/15 02:24:16 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -143,7 +143,7 @@
 #define NEG_DNS		52
 
 const char Version[] = "2.21";
-const char VersionDate[] = "$Date: 1999/05/12 09:48:44 $";
+const char VersionDate[] = "$Date: 1999/05/15 02:24:16 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -1312,6 +1312,7 @@ SetInterfaceAddr(struct cmdargs const *arg)
     ipcp->cfg.my_range.width = 0;
   }
   ipcp->my_ip.s_addr = ipcp->cfg.my_range.ipaddr.s_addr;
+  bundle_AdjustFilters(arg->bundle, &ipcp->my_ip, NULL);
 
   if (hisaddr && !ipcp_UseHisaddr(arg->bundle, hisaddr,
                                   arg->bundle->phys_type.all & PHYS_AUTO))

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.20 1998/12/10 18:36:30 brian Exp $
+ *	$Id: bundle.h,v 1.21 1999/01/28 01:56:30 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -189,3 +189,5 @@ extern void bundle_setsid(struct bundle *, int);
 extern void bundle_LockTun(struct bundle *);
 extern int bundle_HighestState(struct bundle *);
 extern int bundle_Exception(struct bundle *, int);
+extern void bundle_AdjustFilters(struct bundle *, struct in_addr *,
+                                 struct in_addr *);
