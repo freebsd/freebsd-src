@@ -649,7 +649,7 @@ v86intn.3:	subl %edi,%esi			# From
 		movzwl 0x2(%eax),%edi		# Load CS
 		movl %edi,0x2c(%ebp)		# Save CS
 		xorl %edi,%edi			# No ESI adjustment
-		andb $~0x3,%dh			# Clear IF and TF
+		andb $~0x1,%dh			# Clear TF
 		jmp v86mon.5			# Finish up
 #
 # Hardware interrupt jump table.
@@ -792,7 +792,7 @@ intusr.4:	shrl $0x4,%eax			# Gives segment
 		stosl				# Set ESP
 		xchgl %eax,%ecx 		# Get flags
 		btsl $0x11,%eax 		# Set VM
-		andb $~0x3,%ah			# Clear IF and TF
+		andb $~0x1,%ah			# Clear TF
 		stosl				# Set EFL
 		xchgl %eax,%ebp 		# Get int no/address
 		testb $0x1,%dl			# Address?
