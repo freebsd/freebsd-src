@@ -316,7 +316,7 @@ static char	*stl_brdnames[] = {
 
 /*
  *	Hardware ID bits for the EasyIO and ECH boards. These defines apply
- *	to the directly accessable io ports of these boards (not the cd1400
+ *	to the directly accessible io ports of these boards (not the cd1400
  *	uarts - they are in scd1400.h).
  */
 #define	EIO_8PORTRS	0x04
