@@ -43,7 +43,9 @@ ENTRY(sigsetjmp)
 	 stx	%o1, [%o0 + _JB_SIGFLAG]
 END(sigsetjmp)
 
-ENTRY(siglongjmp)
+	.weak CNAME(siglongjmp);
+	.set CNAME(siglongjmp),CNAME(__siglongjmp);
+ENTRY(__siglongjmp)
 	PIC_PROLOGUE(%o3, %o2)
 	SET(CNAME(longjmp), %o2, %o3)
 	SET(CNAME(_longjmp), %o2, %o4)
@@ -51,4 +53,4 @@ ENTRY(siglongjmp)
 	movrnz	%o2, %o3, %o4
 	jmp	%o4
 	 nop
-END(siglongjmp)
+END(__siglongjmp)
