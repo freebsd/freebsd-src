@@ -49,12 +49,8 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 
-int main __P((int, char *[]));
-
 int
-main(argc, argv)
-	int argc __unused;
-	char *argv[];
+main(int argc __unused, char *argv[])
 {
 	int nflag;
 

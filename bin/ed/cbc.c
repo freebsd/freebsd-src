@@ -102,7 +102,7 @@ int des_n = 0;			/* index for put_des_char/get_des_char */
 
 /* init_des_cipher: initialize DES */
 void
-init_des_cipher()
+init_des_cipher(void)
 {
 #ifdef DES
 	int i;
@@ -121,8 +121,7 @@ init_des_cipher()
 
 /* get_des_char: return next char in an encrypted file */
 int
-get_des_char(fp)
-	FILE *fp;
+get_des_char(FILE *fp)
 {
 #ifdef DES
 	if (des_n >= des_ct) {
@@ -138,9 +137,7 @@ get_des_char(fp)
 
 /* put_des_char: write a char to an encrypted file; return char written */
 int
-put_des_char(c, fp)
-	int c;
-	FILE *fp;
+put_des_char(int c, FILE *fp)
 {
 #ifdef DES
 	if (des_n == sizeof des_buf) {
@@ -156,8 +153,7 @@ put_des_char(c, fp)
 
 /* flush_des_file: flush an encrypted file's output; return status */
 int
-flush_des_file(fp)
-	FILE *fp;
+flush_des_file(FILE *fp)
 {
 #ifdef DES
 	if (des_n == sizeof des_buf) {
@@ -175,7 +171,7 @@ flush_des_file(fp)
  * get keyword from tty or stdin
  */
 int
-get_keyword()
+get_keyword(void)
 {
 	char *p;			/* used to obtain the key */
 	Desbuf msgbuf;			/* I/O buffer */
@@ -202,8 +198,7 @@ get_keyword()
  * print a warning message and, possibly, terminate
  */
 void
-des_error(s)
-	const char *s;		/* the message */
+des_error(const char *s)
 {
 	errmsg = s ? s : strerror(errno);
 }
@@ -212,9 +207,7 @@ des_error(s)
  * map a hex character to an integer
  */
 int
-hex_to_binary(c, radix)
-	int c;			/* char to be converted */
-	int radix;		/* base (2 to 16) */
+hex_to_binary(int c, int radix)
 {
 	switch(c) {
 	case '0':		return(0x0);
@@ -242,11 +235,11 @@ hex_to_binary(c, radix)
 
 /*
  * convert the key to a bit pattern
+ *	obuf		bit pattern
+ *	kbuf		the key itself
  */
 void
-expand_des_key(obuf, kbuf)
-	char *obuf;			/* bit pattern */
-	char *kbuf;			/* the key itself */
+expand_des_key(char *obuf, char *kbuf)
 {
 	int i, j;			/* counter in a for loop */
 	int nbuf[64];			/* used for hex/key translation */
@@ -312,8 +305,7 @@ expand_des_key(obuf, kbuf)
  * DES ignores the low order bit of each character.
  */
 void
-set_des_key(buf)
-	Desbuf buf;				/* key block */
+set_des_key(Desbuf buf)				/* key block */
 {
 	int i, j;				/* counter in a for loop */
 	int par;				/* parity counter */
@@ -342,10 +334,7 @@ set_des_key(buf)
  * This encrypts using the Cipher Block Chaining mode of DES
  */
 int
-cbc_encode(msgbuf, n, fp)
-	char *msgbuf;
-	int n;
-	FILE *fp;
+cbc_encode(char *msgbuf, int n, FILE *fp)
 {
 	int inverse = 0;	/* 0 to encrypt, 1 to decrypt */
 
@@ -379,11 +368,11 @@ cbc_encode(msgbuf, n, fp)
 
 /*
  * This decrypts using the Cipher Block Chaining mode of DES
+ *	msgbuf	I/O buffer
+ *	fp	input file descriptor
  */
 int
-cbc_decode(msgbuf, fp)
-	char *msgbuf;		/* I/O buffer */
-	FILE *fp;			/* input file descriptor */
+cbc_decode(char *msgbuf, FILE *fp)
 {
 	Desbuf tbuf;	/* temp buffer for initialization vector */
 	int n;			/* number of bytes actually read */

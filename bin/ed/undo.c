@@ -40,10 +40,7 @@ long u_p = 0;					/* undo stack pointer */
 
 /* push_undo_stack: return pointer to initialized undo node */
 undo_t *
-push_undo_stack(type, from, to)
-	int type;
-	long from;
-	long to;
+push_undo_stack(int type, long from, long to)
 {
 	undo_t *t;
 
@@ -87,7 +84,7 @@ long u_addr_last = -1;		/* if >= 0, undo enabled */
 
 /* pop_undo_stack: undo last change to the editor buffer */
 int
-pop_undo_stack()
+pop_undo_stack(void)
 {
 	long n;
 	long o_current_addr = current_addr;
@@ -136,7 +133,7 @@ pop_undo_stack()
 
 /* clear_undo_stack: clear the undo stack */
 void
-clear_undo_stack()
+clear_undo_stack(void)
 {
 	line_t *lp, *ep, *tl;
 
