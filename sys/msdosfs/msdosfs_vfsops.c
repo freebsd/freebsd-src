@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.35 1998/05/06 05:29:38 msmith Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.13.2.2 1998/07/16 02:01:44 jkh Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.51 1997/11/17 15:36:58 ws Exp $	*/
 
 /*-
@@ -259,7 +259,14 @@ msdosfs_mount(mp, path, data, ndp, p)
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
+#ifndef __FreeBSD_version
+			if (vfs_busy(mp))
+				return EBUSY;
+#endif
 			error = vflush(mp, NULLVP, flags);
+#ifndef __FreeBSD_version
+			vfs_unbusy(mp);
+#endif
 		}
 		if (!error && (mp->mnt_flag & MNT_RELOAD))
 			/* not yet implemented */
@@ -269,7 +276,7 @@ msdosfs_mount(mp, path, data, ndp, p)
 #ifdef __FreeBSD_version
 		if ((pmp->pm_flags & MSDOSFSMNT_RONLY) && (mp->mnt_kern_flag & MNTK_WANTRDWR)) {
 #else
-		if ((pmp->pm_flags & MSDOSFSMNT_RONLY) && (mp->mnt_flag & MNT_RDONLY) == 0) {
+		if ((pmp->pm_flags & MSDOSFSMNT_RONLY) && (mp->mnt_flag & MNT_WANTRDWR)) {
 #endif
 			/*
 			 * If upgrade to read-write by non-root, then verify
