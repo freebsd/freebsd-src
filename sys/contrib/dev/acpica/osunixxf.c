@@ -185,7 +185,15 @@ AcpiOsGetRootPointer (
     ACPI_POINTER           *Address)
 {
 
-    return (AeLocalGetRootPointer(Flags, Address));
+#if 0
+    /* The supporting code for this is not yet available.
+     * Return to the old situation for now.
+     */
+    return (AeLocalGetRootPointer(Flags, (ACPI_PHYSICAL_ADDRESS *)Address));
+#else
+    return (AE_OK);
+#endif
+
 }
 
 
