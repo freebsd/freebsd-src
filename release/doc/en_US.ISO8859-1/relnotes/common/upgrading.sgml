@@ -24,7 +24,7 @@
     </itemizedlist>
   </para>
 
-  <para>Please read the <filename>UPGRADE.TXT</filename> file for more
+  <para>Please read the <filename>INSTALL.TXT</filename> file for more
   information, preferably <emphasis>before</emphasis> beginning an
   upgrade.  If you are upgrading from source, please be sure to read
   <filename>/usr/src/UPDATING</filename> as well.</para>
