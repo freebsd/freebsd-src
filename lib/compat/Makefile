@@ -16,10 +16,10 @@ SUBDIR+=	compat21
 SUBDIR+=	compat22
 .endif
 .if defined(COMPAT3X) || defined(RELEASEDIR)
-SUBDIR+=	compat3x
+SUBDIR+=	compat3x.${MACHINE}
 .endif
 .if defined(COMPAT4X) || defined(RELEASEDIR)
-SUBDIR+=	compat4x
+SUBDIR+=	compat4x.${MACHINE}
 .endif
 
 .include <bsd.subdir.mk>
