@@ -1432,30 +1432,18 @@ vm_page_t
 vm_page_grab(vm_object_t object, vm_pindex_t pindex, int allocflags)
 {
 	vm_page_t m;
-	int s, generation;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 retrylookup:
 	if ((m = vm_page_lookup(object, pindex)) != NULL) {
 		vm_page_lock_queues();
 		if (m->busy || (m->flags & PG_BUSY)) {
-			generation = object->generation;
-
-			s = splvm();
-			while ((object->generation == generation) &&
-					(m->busy || (m->flags & PG_BUSY))) {
-				vm_page_flag_set(m, PG_WANTED | PG_REFERENCED);
-				VM_OBJECT_UNLOCK(object);
-				msleep(m, &vm_page_queue_mtx, PDROP | PVM, "pgrbwt", 0);
-				VM_OBJECT_LOCK(object);
-				if ((allocflags & VM_ALLOC_RETRY) == 0) {
-					splx(s);
-					return NULL;
-				}
-				vm_page_lock_queues();
-			}
-			vm_page_unlock_queues();
-			splx(s);
+			vm_page_flag_set(m, PG_WANTED | PG_REFERENCED);
+			VM_OBJECT_UNLOCK(object);
+			msleep(m, &vm_page_queue_mtx, PDROP | PVM, "pgrbwt", 0);
+			VM_OBJECT_LOCK(object);
+			if ((allocflags & VM_ALLOC_RETRY) == 0)
+				return (NULL);
 			goto retrylookup;
 		} else {
 			if (allocflags & VM_ALLOC_WIRED)
