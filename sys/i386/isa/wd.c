@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.51 1994/10/16 05:02:37 wollman Exp $
+ *	$Id: wd.c,v 1.52 1994/10/17 23:34:21 wollman Exp $
  */
 
 /* TODO:
@@ -110,6 +110,8 @@ static int wdtest = 0;
 
 static int wd_goaway(struct kern_devconf *, int);
 static int wdc_goaway(struct kern_devconf *, int);
+static int wd_externalize(struct proc *, struct kern_devconf *, void *, size_t);
+static int wdc_externalize(struct proc *, struct kern_devconf *, void *, size_t);
 
 /*
  * Templates for the kern_devconf structures used when we attach.
@@ -117,13 +119,13 @@ static int wdc_goaway(struct kern_devconf *, int);
 static struct kern_devconf kdc_wd_template = {
 	0, 0, 0,		/* filled in by kern_devconf.c */
 	"wd", 0, { "wdc0", MDDT_DISK, 0 },
-	0, 0, 0, wd_goaway
+	wd_externalize, 0, wd_goaway, DISK_EXTERNALLEN
 };
 
 static struct kern_devconf kdc_wdc_template = {
 	0, 0, 0,		/* filled in by kern_devconf.c */
 	"wdc", 0, { "isa0", MDDT_ISA, 0 },
-	0, 0, 0, wdc_goaway
+	wdc_externalize, 0, wdc_goaway, ISA_EXTERNALLEN
 };
 
 static inline void
@@ -211,6 +213,7 @@ struct disk {
 	long    dk_badsect[127];        /* 126 plus trailing -1 marker */
 };
 
+static struct isa_device *wdcdevs[NWDC];
 static struct disk *wddrives[NWD];	/* table of units */
 static struct buf wdtab[NWDC];
 static struct buf wdutab[NWD];	/* head of queue per drive */
@@ -239,6 +242,21 @@ static timeout_t wdtimeout;
 static int wdunwedge(struct disk *du);
 static int wdwait(struct disk *du, u_char bits_wanted, int timeout);
 
+/*
+ * Provide hw.devconf information.
+ */
+static int
+wd_externalize(struct proc *p, struct kern_devconf *kdc, void *userp, size_t len)
+{
+	return disk_externalize(wddrives[kdc->kdc_unit]->dk_unit, userp, &len);
+}
+
+static int
+wdc_externalize(struct proc *p, struct kern_devconf *kdc, void *userp, size_t len)
+{
+	return isa_externalize(wdcdevs[kdc->kdc_unit], userp, &len);
+}
+
 struct isa_driver wdcdriver = {
 	wdprobe, wdattach, "wdc",
 };
@@ -256,6 +274,8 @@ wdprobe(struct isa_device *dvp)
 
 	if (unit >= NWDC)
 		return (0);
+	wdcdevs[unit] = dvp;
+
 	du = malloc(sizeof *du, M_TEMP, M_NOWAIT);
 	if (du == NULL)
 		return (0);
@@ -401,7 +421,7 @@ wdattach(struct isa_device *dvp)
 		    wd_registerdev(dvp->id_unit, lunit);
 		    if(dk_ndrive < DK_NDRIVE) {
 			    sprintf(dk_names[dk_ndrive], "wd%d", lunit);
-			    dk_wpms[dk_ndrive] = 1048576; /* fake it */
+			    dk_wpms[dk_ndrive] = (8*1024*1024/2);
 			    du->dk_dkunit = dk_ndrive++;
 		    } else {
 			    du->dk_dkunit = -1;
@@ -849,6 +869,8 @@ oops:
 	wdxfer[du->dk_lunit]++;
 	if(du->dk_dkunit >= 0) {
 		dk_xfer[du->dk_dkunit]++;
+		dk_seek[du->dk_dkunit]++; /* bogus, but we don't know the */
+					/*   real number */
 	}
 	
 outt:

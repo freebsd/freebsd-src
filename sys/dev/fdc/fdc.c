@@ -40,7 +40,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.32 1994/09/25 06:04:21 phk Exp $
+ *	$Id: fd.c,v 1.33 1994/10/10 01:12:25 phk Exp $
  *
  */
 
@@ -66,6 +66,8 @@
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/syslog.h>
+#include <sys/devconf.h>
+#include <sys/dkstat.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/fdreg.h>
@@ -75,6 +77,59 @@
 #include <sys/ftape.h>
 #include <i386/isa/ftreg.h>
 #endif
+
+static int fd_goaway(struct kern_devconf *, int);
+static int fdc_goaway(struct kern_devconf *, int);
+static int fd_externalize(struct proc *, struct kern_devconf *, void *, size_t);
+static int fdc_externalize(struct proc *, struct kern_devconf *, void *, size_t);
+
+/*
+ * Templates for the kern_devconf structures used when we attach.
+ */
+static struct kern_devconf kdc_fd_template = {
+	0, 0, 0,		/* filled in by kern_devconf.c */
+	"fd", 0, { "fdc0", MDDT_DISK, 0 },
+	fd_externalize, 0, fd_goaway, DISK_EXTERNALLEN
+};
+
+static struct kern_devconf kdc_fdc_template = {
+	0, 0, 0,		/* filled in by kern_devconf.c */
+	"fdc", 0, { "isa0", MDDT_ISA, 0 },
+	fdc_externalize, 0, fdc_goaway, ISA_EXTERNALLEN
+};
+
+static inline void
+fd_registerdev(int ctlr, int unit)
+{
+	struct kern_devconf *kdc;
+
+	MALLOC(kdc, struct kern_devconf *, sizeof *kdc, M_TEMP, M_NOWAIT);
+	if(!kdc) return;
+	*kdc = kdc_fd_template;
+	kdc->kdc_unit = unit;
+	sprintf(kdc->kdc_md.mddc_parent, "fdc%d", ctlr);
+	dev_attach(kdc);
+}
+
+static int
+fdc_goaway(struct kern_devconf *kdc, int force)
+{
+	if(force) {
+		dev_detach(kdc);
+		FREE(kdc, M_TEMP);
+		return 0;
+	} else {
+		return EBUSY;	/* XXX fix */
+	}
+}
+
+static int
+fd_goaway(struct kern_devconf *kdc, int force)
+{
+	dev_detach(kdc);
+	FREE(kdc, M_TEMP);
+	return 0;
+}
 
 #define RAW_PART 2
 #define b_cylin b_resid
@@ -154,6 +209,7 @@ struct fd_data {
 	int	hddrv;
 	int	track;		/* where we think the head is */
 	int	options;	/* user configurable options, see ioctl_fd.h */
+	int	dkunit;		/* disk stats unit number */
 } fd_data[NFD];
 
 /***********************************************************************\
@@ -247,6 +303,23 @@ int	fd_debug = 0;
 #define TRACE1(arg1, arg2)
 #endif /* DEBUG */
 
+struct isa_device *fdcdevs[NFDC];
+
+/*
+ * Provide hw.devconf information.
+ */
+static int
+fd_externalize(struct proc *p, struct kern_devconf *kdc, void *userp, size_t len)
+{
+	return disk_externalize(fd_data[kdc->kdc_unit].fdsu, userp, &len);
+}
+
+static int
+fdc_externalize(struct proc *p, struct kern_devconf *kdc, void *userp, size_t len)
+{
+	return isa_externalize(fdcdevs[kdc->kdc_unit], userp, &len);
+}
+
 /****************************************************************************/
 /*                      autoconfiguration stuff                             */
 /****************************************************************************/
@@ -268,6 +341,7 @@ fdprobe(dev)
 		return 0;
 	}
 
+	fdcdevs[fdcu] = dev;
 	fdc_data[fdcu].baseport = dev->id_iobase;
 
 	/* First - lets reset the floppy controller */
@@ -299,6 +373,14 @@ fdattach(dev)
 	fd_p	fd;
 	int	fdsu, st0, i;
 	struct isa_device *fdup;
+	struct kern_devconf *kdc;
+
+	MALLOC(kdc, struct kern_devconf *, sizeof *kdc, M_TEMP, M_NOWAIT);
+	if(!kdc)
+		return 0;
+	*kdc = kdc_fdc_template;
+	kdc->kdc_unit = fdcu;
+	dev_attach(kdc);
 
 	fdc->fdcu = fdcu;
 	fdc->flags |= FDC_ATTACHED;
@@ -413,6 +495,14 @@ fdattach(dev)
 			printf("unknown]");
 			fd->type = NO_TYPE;
 			break;
+		}
+		fd_registerdev(fdcu, fdu);
+		if(dk_ndrive < DK_NDRIVE) {
+			sprintf(dk_names[dk_ndrive], "fd%d", fdu);
+			dk_wpms[dk_ndrive] = (500 * 1024 / 2) / 1000;
+			fd->dkunit = dk_ndrive++;
+		} else {
+			fd->dkunit = -1;
 		}
 	}
 	printf("\n");
