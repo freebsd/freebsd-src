@@ -122,7 +122,7 @@ SUBDIR=	alias \
 	ncal \
 	${_ncplist} \
 	${_ncplogin} \
-	${_netcat} \
+	${_nc} \
 	netstat \
 	newgrp \
 	${_newkey} \
@@ -252,7 +252,7 @@ _newkey=	newkey
 .endif
 
 .if !defined(NO_NETCAT)
-_netcat=	nc
+_nc=		nc
 .endif
 
 .if !defined(NO_NIS) 
