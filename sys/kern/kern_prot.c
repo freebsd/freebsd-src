@@ -52,7 +52,6 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
-#include <sys/unistd.h>
 #include <sys/pioctl.h>
 
 static MALLOC_DEFINE(M_CRED, "cred", "credentials");
