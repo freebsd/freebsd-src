@@ -4,7 +4,7 @@
  * You may copy this file verbatim until I find the official 
  * Institute boilerplate.
  *
- * $Id$
+ * $Id: in_rmx.c,v 1.1 1994/11/02 04:42:14 wollman Exp $
  */
 
 /*
@@ -46,30 +46,16 @@
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 
-/*
- * The list of unreferenced IP routes...
- */
-struct in_rtq {
-	TAILQ_ENTRY(in_rtq)	inr_entry;
-	struct rtentry		*inr_rt;
-	time_t			inr_whenadded;
-};
-
-TAILQ_HEAD(, in_rtq) inr_head;
-int inr_nelem = -1;
+#define RTPRF_OURS		0x10000	/* set on routes we manage */
 
 /*
  * Do what we need to do when inserting a route.
- * Note that we don't automatically add the route to the queue, because
- * our caller, rtrequest(), will immediately bump the refcount and give
- * a the route to someone.
  */
 static struct radix_node *
 in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 	    struct radix_node *treenodes)
 {
 	struct rtentry *rt = (struct rtentry *)treenodes;
-	struct radix_node *rn;
 	struct in_rtq *inr;
 
 	/*
@@ -78,81 +64,13 @@ in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 	if(!(rt->rt_flags & RTF_HOST))
 		rt->rt_flags |= RTF_CLONING;
 
-	rn = rn_addroute(v_arg, n_arg, head, treenodes);
-	rt = (struct rtentry *)rn;
-	if(!rt
-	   || !(rt->rt_flags & RTF_HOST)
-	   || (rt->rt_flags & (RTF_LLINFO | RTF_STATIC | RTF_DYNAMIC)))
-		return rn;
-
-	return rn;
-}
-
-static struct radix_node *
-in_delroute(void *v_arg, void *netmask_arg, struct radix_node_head *head)
-{
-#ifdef DIAGNOSTIC
-	int nentries = 0;
-#endif
-	struct rtentry *rt = (struct rtentry *)rn_search(v_arg, 
-							 head->rnh_treetop);
-	if(rt && rt->rt_refcnt <= 0
-	   && ((rt->rt_flags & (RTF_HOST | RTF_LLINFO | RTF_STATIC))
-	       == RTF_HOST)) {
-		struct in_rtq *inr = inr_head.tqh_first;
-
-		while(inr) {
-			if(inr->inr_rt == rt) {
-				TAILQ_REMOVE(&inr_head, inr, inr_entry);
-				inr_nelem--;
-				FREE(inr, M_RTABLE);
-#ifdef DIAGNOSTIC
-				nentries++;
-#else
-				break;
-#endif
-			}
-			inr = inr->inr_entry.tqe_next;
-		}
-
-#ifdef DIAGNOSTIC
-		if(nentries != 1) {
-			log(LOG_DEBUG, "route %p had %d queue entries!\n",
-			    (void *)rt, nentries);
-		}
-#endif
-	}
-
-	return rn_delete(v_arg, netmask_arg, head);
+	return rn_addroute(v_arg, n_arg, head, treenodes);
 }
 
 /*
- * Find something in the queue.
- */
-static inline struct in_rtq *
-inr_findit(struct rtentry *rt)
-{
-	struct in_rtq *inr;
-
-#ifndef DIAGNOSTIC
-	if((rt->rt_flags & (RTF_HOST | RTF_LLINFO | RTF_STATIC)) != RTF_HOST)
-		return 0;
-#endif
-	inr = inr_head.tqh_first;
-
-	while(inr) {
-		if(inr->inr_rt == rt)
-			return inr;
-		inr = inr->inr_entry.tqe_next;
-	}
-
-	return 0;
-}
-	
-
-/*
- * This code is the inverse of in_clsroute: on first reference, we remove the
- * route from our queue (if it's in there)
+ * This code is the inverse of in_clsroute: on first reference, if we
+ * were managing the route, stop doing so and set the expiration timer
+ * back off again.
  */
 static struct radix_node *
 in_matroute(void *v_arg, struct radix_node_head *head)
@@ -161,15 +79,15 @@ in_matroute(void *v_arg, struct radix_node_head *head)
 	struct rtentry *rt = (struct rtentry *)rn;
 
 	if(rt && rt->rt_refcnt == 0) { /* this is first reference */
-		struct in_rtq *inr = inr_findit(rt);
-		if(inr) {
-			TAILQ_REMOVE(&inr_head, inr, inr_entry);
-			inr_nelem--;
-			FREE(inr, M_RTABLE);
+		if(rt->rt_prflags & RTPRF_OURS) {
+			rt->rt_prflags &= ~RTPRF_OURS;
+			rt->rt_rmx.rmx_expire = 0;
 		}
 	}
 	return rn;
 }
+
+#define RTQ_REALLYOLD	4*60*60	/* four hours is ``really old'' */
 
 /*
  * On last reference drop, add the route to the queue so that it can be
@@ -181,26 +99,15 @@ in_clsroute(struct radix_node *rn, struct radix_node_head *head)
 	struct rtentry *rt = (struct rtentry *)rn;
 	struct in_rtq *inr;
 	
-	inr = inr_findit(rt);
-	if(inr) {
-		/*
-		 * In this case, we are probably in the process of deleting
-		 * this route; the code path in route.c results in rnh_close()
-		 * being called when during deletion of unreferenced routes.
-		 * In any case, don't allocate a new queue entry for this
-		 * route because there already is one.
-		 */
+	if((rt->rt_flags & (RTF_LLINFO | RTF_HOST)) != RTF_HOST)
 		return;
-	}
 
-	MALLOC(inr, struct in_rtq *, sizeof *inr, M_RTABLE, M_NOWAIT);
-	if(!inr)		
-		return;		/* oops... no matter */
+	if((rt->rt_prflags & (RTPRF_WASCLONED | RTPRF_OURS)) 
+	   != RTPRF_WASCLONED)
+		return;
 
-	inr->inr_rt = rt;
-	inr->inr_whenadded = time.tv_sec;
-	TAILQ_INSERT_TAIL(&inr_head, inr, inr_entry);
-	inr_nelem++;
+	rt->rt_prflags |= RTPRF_OURS;
+	rt->rt_rmx.rmx_expire = time.tv_sec + RTQ_REALLYOLD;
 }
 
 /*
@@ -213,50 +120,21 @@ in_clsroute(struct radix_node *rn, struct radix_node_head *head)
 void
 in_rtqdrain(void)
 {
-	struct in_rtq *inr;
-
-	while(inr = inr_head.tqh_first) {
-		rtrequest(RTM_DELETE, rt_key(inr->inr_rt), 
-			  inr->inr_rt->rt_gateway, rt_mask(inr->inr_rt),
-			  RTF_HOST, 0);
-		/* KILL! KILL! KILL! */
-	}
+	/* write me! */
+	;
 }
 
 #define RTQ_TIMEOUT	(60*hz)	/* run once a minute */
-#define RTQ_REALLYOLD	4*60*60	/* four hours is ``really old'' */
-#define RTQ_TOOMANY	128	/* > 128 routes is ``too many'' */
 
 /*
- * Get rid of old routes.  We have two strategies here:
- * 1) If there are more than RTQ_TOOMANY routes, delete half of them.
- * 2) Delete all routes older than RTQ_REALLYOLD (the LRU nature of the
- *    queue ensures that these are all at the front).
+ * Get rid of old routes.
  */
 static void
 in_rtqtimo(void *rock)
 {
-	int s = splnet();
-	struct in_rtq *inr = inr_head.tqh_first;
-	
-	if(inr_nelem > RTQ_TOOMANY) {
-		int ntodel = inr_nelem / 2;
+	/* write me! */
 
-		for(; inr && ntodel; inr = inr_head.tqh_first, ntodel--) {
-			rtrequest(RTM_DELETE, rt_key(inr->inr_rt),
-				  inr->inr_rt->rt_gateway, 
-				  rt_mask(inr->inr_rt), RTF_HOST, 0);
-		}
-	}
-
-	while(inr && (time.tv_sec - inr->inr_whenadded) > RTQ_REALLYOLD) {
-		rtrequest(RTM_DELETE, rt_key(inr->inr_rt), 
-			  inr->inr_rt->rt_gateway, rt_mask(inr->inr_rt),
-			  RTF_HOST, 0);
-		inr = inr_head.tqh_first;
-	}
-
-	timeout(in_rtqtimo, (void *)0, RTQ_TIMEOUT);
+	timeout(in_rtqtimo, rock, RTQ_TIMEOUT);
 }
 
 /*
@@ -272,12 +150,9 @@ in_inithead(void **head, int off)
 
 	rnh = *head;
 	rnh->rnh_addaddr = in_addroute;
-	rnh->rnh_deladdr = in_delroute;
 	rnh->rnh_matchaddr = in_matroute;
 	rnh->rnh_close = in_clsroute;
-	TAILQ_INIT(&inr_head);
-	inr_nelem = 0;
-	in_rtqtimo(0);		/* kick off timeout first time */
+	in_rtqtimo(rnh);	/* kick off timeout first time */
 	return 1;
 }
 
