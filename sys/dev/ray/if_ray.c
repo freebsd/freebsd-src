@@ -476,7 +476,6 @@ ray_attach(device_t dev)
 	 *
 	 * Do not update these in ray_init_download's parameter setup
 	 *
-	 * XXX see the ray_init_download section for stuff to move
 	 */
 	RAY_MAP_CM(sc);
 	bzero(&sc->sc_d, sizeof(struct ray_nw_param));
@@ -836,7 +835,6 @@ ray_init_download(struct ray_softc *sc, struct ray_comq_entry *com)
 	 * All of the variables in these sets can be updated by the
 	 * card or ioctls.
 	 *
-	 * XXX see the ray_attach section for stuff to move
 	 */
 	sc->sc_d.np_upd_param = 0;
 	bzero(sc->sc_d.np_bss_id, ETHER_ADDR_LEN);
@@ -1174,7 +1172,7 @@ ray_init_auth(struct ray_softc *sc, struct ray_comq_entry *com)
 	RAY_COM_CHKRUNNING(sc, com, ifp);
 
 	/*
-	 * XXX Don't do anything if we are not in a managed network
+	 * Don't do anything if we are not in a managed network
 	 *
 	 * XXX V4 adhoc does not need this, V5 adhoc unknown
 	 */
@@ -2614,12 +2612,12 @@ ray_intr_rcs(struct ray_softc *sc, u_int8_t cmd, size_t rcs)
 
 	case RAY_ECMD_REJOIN_DONE:
 		RAY_DPRINTF(sc, RAY_DBG_RX, "REJOIN_DONE");
-		sc->sc_c.np_havenet = 1; /* XXX Should not be here but in function */
+		sc->sc_c.np_havenet = 1;
 		break;
 
 	case RAY_ECMD_ROAM_START:
 		RAY_DPRINTF(sc, RAY_DBG_RX, "ROAM_START");
-		sc->sc_c.np_havenet = 0; /* XXX Should not be here but in function */
+		sc->sc_c.np_havenet = 0;
 		break;
 
 	case RAY_ECMD_JAPAN_CALL_SIGNAL:
@@ -3068,11 +3066,11 @@ ray_upparams_user(struct ray_softc *sc, struct ray_param_req *pr)
 /*
  * Runq entry to update a parameter
  *
- * The card and driver are happy for parameters to be updated
- * whenever the card is plugged in
- *
- * XXX the above is a little bit of a lie until _download is sorted out and we
- * XXX keep local copies of things
+ * The card and driver are basically happy for parameters to be updated
+ * whenever the card is plugged in. However, there may be a couple of
+ * network hangs whilst the update is performed. Reading parameters back
+ * straight away may give the wrong answer and some parameters cannot be
+ * read at all. Local copies should be kept.
  */
 static void
 ray_upparams(struct ray_softc *sc, struct ray_comq_entry *com)
