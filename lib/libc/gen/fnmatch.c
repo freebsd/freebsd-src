@@ -121,8 +121,13 @@ fnmatch(pattern, string, flags)
 		case '[':
 			if (*string == EOS)
 				return (FNM_NOMATCH);
-			if (*string == '/' && flags & FNM_PATHNAME)
+			if (*string == '/' && (flags & FNM_PATHNAME))
 				return (FNM_NOMATCH);
+			if (*string == '.' && (flags & FNM_PERIOD) &&
+			    (string == stringstart ||
+			    ((flags & FNM_PATHNAME) && *(string - 1) == '/')))
+				return (FNM_NOMATCH);
+
 			switch (rangematch(pattern, *string, flags, &newp)) {
 			case RANGE_ERROR:
 				goto norm;
@@ -177,10 +182,8 @@ rangematch(pattern, test, flags, newp)
 	 * consistency with the regular expression syntax.
 	 * J.T. Conklin (conklin@ngai.kaleida.com)
 	 */
-	if ( (negate = (*pattern == '!' || *pattern == '^')) ) {
-		first = 0;
+	if ( (negate = (*pattern == '!' || *pattern == '^')) )
 		++pattern;
-	}
 
 	if (flags & FNM_CASEFOLD)
 		test = tolower((unsigned char)test);
@@ -196,6 +199,9 @@ rangematch(pattern, test, flags, newp)
 			c = *pattern++;
 		if (c == EOS)
 			return (RANGE_ERROR);
+
+		if (c == '/' && (flags & FNM_PATHNAME))
+			return (RANGE_NOMATCH);
 
 		if (flags & FNM_CASEFOLD)
 			c = tolower((unsigned char)c);
