@@ -86,11 +86,7 @@ static void tco_setscales __P((struct timecounter *tc));
 static __inline unsigned tco_delta __P((struct timecounter *tc));
 
 /* Some of these don't belong here, but it's easiest to concentrate them. */
-#if defined(SMP) && defined(BETTER_CLOCK)
 long cp_time[CPUSTATES];
-#else
-static long cp_time[CPUSTATES];
-#endif
 
 long tk_cancc;
 long tk_nin;
