@@ -14,16 +14,21 @@ CLEANFILES+=	astosc.OUT astosc.out
 
 DEPSRCS+=	astosc.OUT map3270.c mset.c
 
+.if exists(${.CURDIR}/../tools/mkastosc/obj)
+MKOBJ=${.CURDIR}/../tools/mkastosc/obj
+.else
+MKOBJ=${.CURDIR}/../tools/mkastosc
+.endif
+
 astosc.o: astosc.OUT
 astosc.OUT: ${.CURDIR}/../ctlr/hostctlr.h ${.CURDIR}/../ctlr/function.h
-astosc.OUT: ${.CURDIR}/../ctlr/${KBD} ${.CURDIR}/../tools/mkastosc/obj/mkastosc
-	${.CURDIR}/../tools/mkastosc/obj/mkastosc \
+astosc.OUT: ${.CURDIR}/../ctlr/${KBD} ${MKOBJ}/mkastosc ${MKOBJ}/mkastosc
 	    ${.CURDIR}/../ctlr/hostctlr.h ${.CURDIR}/../ctlr/function.h \
 	    < ${.CURDIR}/../ctlr/${KBD} > ${.TARGET}
 	rm -f astosc.out; ln -s astosc.OUT astosc.out
 
 # astosc.out
-${.CURDIR}/../tools/mkastosc/obj/mkastosc:
+${MKOBJ}/mkastosc:
 	cd ${.CURDIR}/../tools/mkastosc; make
 
 depend:	.depend
