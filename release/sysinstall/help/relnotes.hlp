@@ -60,6 +60,14 @@ post-install scenario (I know, I keep saying this :-).
 
 Many improvements to the NIS code.
 
+The ncftp program is no longer part of the default system - it has been
+replaced by a library (/usr/src/lib/libftpio) and a more powerful program
+which uses it called ``fetch'' (/usr/src/usr.bin/fetch).  You may find
+ncftp as part of the ports collection (in /usr/ports/net/ncftp) if you
+still wish to use it, though fetch is slightly more capable in that
+it can fetch from both FTP and HTTP servers (ftp://... or http://... URLs).
+See the man page for more details.
+
 
 2. Technical overview
 ---------------------
@@ -504,4 +512,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.1.2.18 1996/06/26 02:36:06 jkh Exp $
+$Id: relnotes.hlp,v 1.1.2.20 1996/06/27 07:23:43 jkh Exp $
