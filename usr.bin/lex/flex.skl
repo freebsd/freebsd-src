@@ -313,7 +313,11 @@ extern int yywrap YY_PROTO(( void ));
 
 %-
 #ifndef YY_NO_UNPUT
-static void yyunput YY_PROTO(( int c, char *buf_ptr ));
+static void yyunput YY_PROTO(( int c, char *buf_ptr ))
+#ifdef __GNUC__
+    __attribute__ ((unused))
+#endif
+;
 #endif
 %*
 
