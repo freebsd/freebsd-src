@@ -709,7 +709,7 @@ dsopen(dev, mode, flags, sspp, lp)
 	struct diskslices *ssp;
 	int	unit;
 
-	dev->si_bsize_phys = DEV_BSIZE;
+	dev->si_bsize_phys = lp->d_secsize;
 	dev->si_bsize_best = BLKDEV_IOSIZE;
 	dev->si_bsize_max = MAXBSIZE;
 
