@@ -47,12 +47,25 @@
 #include <sys/time.h>
 #if defined(__FreeBSD__)
 #include <sys/ioctl.h>
-#include <sys/malloc.h>
 #endif
 #include <dev/usb/usb.h>
 
+/* the name of the device spitting out usb attach/detach events as well as
+ * the prefix for the individual busses (used as a semi kernel thread).
+ */
 #define USBDEV "/dev/usb"
+
+/* Maximum number of USB busses expected to be in a system
+ */
 #define MAXUSBDEV 4
+
+/*
+ * Sometimes a device does not respond in time for interrupt
+ * driven explore to find it.  Therefore we run an exploration
+ * at regular intervals to catch those.
+ */
+#define TIMEOUT 30
+
 
 extern char *__progname;
 
@@ -63,35 +76,34 @@ usage(void)
 {
 	fprintf(stderr, "Usage: %s [-d] [-e] [-f dev] [-t timeout] [-v]\n",
 		__progname);
+	fprintf(stderr, "  -d         for debugging\n");
+	fprintf(stderr, "  -e         only do 1 explore\n");
+	fprintf(stderr, "  -f dev     for example /dev/usb0, "
+		"and can be specified multiple times.");
+	fprintf(stderr, "  -t timeout timeout between explores\n");
+	fprintf(stderr, "  -v         verbose output\n");
+
 	exit(1);
 }
-
-#define NDEVS 20		/* maximum number of usb controllers */
-
-/*
- * Sometimes a device does not respond in time for interrupt
- * driven explore to find it.  Therefore we run an exploration
- * at regular intervals to catch those.
- */
-#define TIMEOUT 300
 
 int
 main(int argc, char **argv)
 {
-	int r, i;
-	char *devs[NDEVS];
-	int ndevs = 0;
-	int fds[NDEVS];
+	int error, i;
+	int ch;			/* getopt option */
+	extern char *optarg;	/* from getopt */
+	extern int optind;	/* from getopt */
+	char *devs[MAXUSBDEV];	/* device names */
+	int ndevs = 0;		/* number of devices found */
+	int verbose = 0;	/* print message on what it is doing */
+	int debug = 0;		/* print debugging output */
+	int explore = 0;	/* don't do only explore */
+	int maxfd;		/* maximum fd in use */
+	char buf[50];		/* for creation of the filename */
+	int fds[MAXUSBDEV];	/* open filedescriptors */
 	fd_set fdset;
-	int ch, verbose = 0;
-	int debug = 0;
-	int explore = 0;
-	int itimo = TIMEOUT;
-	int maxfd;
-	char buf[50];
+	int itimo = TIMEOUT;	/* timeout for select */
 	struct timeval timo;
-	extern char *optarg;
-	extern int optind;
 
 	while ((ch = getopt(argc, argv, "def:t:v")) != -1) {
 		switch(ch) {
@@ -102,7 +114,7 @@ main(int argc, char **argv)
 			explore++;
 			break;
 		case 'f':
-			if (ndevs < NDEVS)
+			if (ndevs < MAXUSBDEV)
 				devs[ndevs++] = optarg;
 			break;
 		case 't':
@@ -119,6 +131,7 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
+	/* open all the files /dev/usb\d+ or specified with -f */
 	maxfd = 0;
 	if (ndevs == 0) {
 		for (i = 0; i < MAXUSBDEV; i++) {
@@ -144,38 +157,41 @@ main(int argc, char **argv)
 		}
 	}
 	if (ndevs == 0) {
-		if (verbose)
-			printf("%s: no USB controllers found\n", __progname);
-		exit(0);
+		fprintf(stderr, "No USB host controllers found\n");
+		exit(1);
 	}
 
+
+	/* Do the explore once and exit */
 	if (explore) {
 		for (i = 0; i < ndevs; i++) {
-			r = ioctl(fds[i], USB_DISCOVER);
-			if (r < 0)
+			error = ioctl(fds[i], USB_DISCOVER);
+			if (error < 0)
 				err(1, "USB_DISCOVER");
 		}
 		exit(0);
 	}
 
+	/* move to the background */
 	if (!debug)
 		daemon(0, 0);
 
+	/* start select on all the open file descriptors */
 	for (;;) {
 		FD_ZERO(&fdset);
 		for (i = 0; i < ndevs; i++)
 			FD_SET(fds[i], &fdset);
 		timo.tv_usec = 0;
 		timo.tv_sec = itimo;
-		r = select(maxfd+1, 0, &fdset, 0, itimo ? &timo : 0);
-		if (r < 0)
+		error = select(maxfd+1, 0, &fdset, 0, itimo ? &timo : 0);
+		if (error < 0)
 			warn("select failed\n");
 		for (i = 0; i < ndevs; i++)
-			if (r == 0 || FD_ISSET(fds[i], &fdset)) {
+			if (error == 0 || FD_ISSET(fds[i], &fdset)) {
 				if (verbose)
 					printf("%s: doing %sdiscovery on %s\n", 
-					       __progname, r ? "" : "timeout ",
-					       devs[i]);
+					       __progname,
+					       (error? "":"timeout "), devs[i]);
 				if (ioctl(fds[i], USB_DISCOVER) < 0)
 					err(1, "USB_DISCOVER");
 			}
