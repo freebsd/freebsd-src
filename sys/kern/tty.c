@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.37 1995/03/28 11:09:35 ache Exp $
+ * $Id: tty.c,v 1.38 1995/03/28 15:25:13 ache Exp $
  */
 
 #include "snp.h"
@@ -311,11 +311,6 @@ parmrk:				(void)putc(0377 | TTY_QUOTE, &tp->t_rawq);
 		ttyblock(tp);
 	if (!ISSET(tp->t_state, TS_TYPEN) && ISSET(iflag, ISTRIP))
 		CLR(c, 0x80);
-
-	 if (   c == 0377 && ISSET(iflag, PARMRK) && !ISSET(iflag, ISTRIP)
-	     && ISSET(iflag, IGNBRK|IGNPAR) != (IGNBRK|IGNPAR))
-		(void)putc(0377 | TTY_QUOTE, &tp->t_rawq);
-
 	if (!ISSET(lflag, EXTPROC)) {
 		/*
 		 * Check for literal nexting very first
@@ -518,6 +513,11 @@ parmrk:				(void)putc(0377 | TTY_QUOTE, &tp->t_rawq);
 		}
 		goto endcase;
 	}
+
+	if (   c == 0377 && ISSET(iflag, PARMRK) && !ISSET(iflag, ISTRIP)
+	     && ISSET(iflag, IGNBRK|IGNPAR) != (IGNBRK|IGNPAR))
+		(void)putc(0377 | TTY_QUOTE, &tp->t_rawq);
+
 	/*
 	 * Put data char in q for user and
 	 * wakeup on seeing a line delimiter.
