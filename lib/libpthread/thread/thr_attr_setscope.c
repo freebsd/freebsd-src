@@ -45,12 +45,11 @@ _pthread_attr_setscope(pthread_attr_t *attr, int contentionscope)
 	if ((attr == NULL) || (*attr == NULL)) {
 		/* Return an invalid argument: */
 		ret = EINVAL;
-	} else if ((contentionscope != PTHREAD_SCOPE_PROCESS) ||
-	    (contentionscope == PTHREAD_SCOPE_SYSTEM)) {
-		/* We don't support PTHREAD_SCOPE_SYSTEM. */
-		ret = ENOTSUP;
+	} else if ((contentionscope != PTHREAD_SCOPE_PROCESS) &&
+	    (contentionscope != PTHREAD_SCOPE_SYSTEM)) {
+		ret = EINVAL;
 	} else
 		(*attr)->flags |= contentionscope;
 
-	return(ret);
+	return (ret);
 }

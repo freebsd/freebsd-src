@@ -36,6 +36,7 @@
 #include <sys/signalvar.h>
 #include <errno.h>
 #include <signal.h>
+#include <string.h>
 #include <pthread.h>
 #include "thr_private.h"
 
@@ -44,32 +45,59 @@ __weak_reference(_pthread_sigmask, pthread_sigmask);
 int
 _pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 {
-	int i;
 	struct pthread *curthread = _get_curthread();
+	int ret;
 
+	ret = 0;
 	if (oset != NULL)
-		bcopy(&curthread->mailbox.tm_context.uc_sigmask, oset,
-		    sizeof(sigset_t));
-	if (set == NULL)
-		return (0);
-	switch (how) {
-	case SIG_BLOCK:
-		for (i = 0; i < _SIG_WORDS; i++)
-			curthread->mailbox.tm_context.uc_sigmask.__bits[i] |=
-			    set->__bits[i];
-		break;
-	case SIG_UNBLOCK:
-		for (i = 0; i < _SIG_WORDS; i++)
-			curthread->mailbox.tm_context.uc_sigmask.__bits[i] &=
-			    ~set->__bits[i];
-		break;
-	case SIG_SETMASK:
-		bcopy(set, &curthread->mailbox.tm_context.uc_sigmask,
-		    sizeof(sigset_t));
-		break;
-	default:
-		errno = EINVAL;
-		return (-1);
+		/* Return the current mask: */
+		*oset = curthread->tmbx.tm_context.uc_sigmask;
+
+	/* Check if a new signal set was provided by the caller: */
+	if (set != NULL) {
+		THR_SCHED_LOCK(curthread, curthread);
+
+		/* Process according to what to do: */
+		switch (how) {
+		/* Block signals: */
+		case SIG_BLOCK:
+			/* Add signals to the existing mask: */
+			SIGSETOR(curthread->tmbx.tm_context.uc_sigmask, *set);
+			break;
+
+		/* Unblock signals: */
+		case SIG_UNBLOCK:
+			/* Clear signals from the existing mask: */
+			SIGSETNAND(curthread->tmbx.tm_context.uc_sigmask, *set);
+			break;
+
+		/* Set the signal process mask: */
+		case SIG_SETMASK:
+			/* Set the new mask: */
+			curthread->tmbx.tm_context.uc_sigmask = *set;
+			break;
+
+		/* Trap invalid actions: */
+		default:
+			/* Return an invalid argument: */
+			errno = EINVAL;
+			ret = -1;
+			break;
+		}
+
+		if (ret == 0) {
+			curthread->sigmask =
+			    curthread->tmbx.tm_context.uc_sigmask;
+			curthread->sigmask_seqno++;
+		}
+
+		THR_SCHED_UNLOCK(curthread, curthread);
+
+		/*
+		 * Run down any pending signals:
+		 */
+		if (ret == 0)
+		    _thr_sig_check_pending(curthread);
 	}
-	return (0);
+	return (ret);
 }

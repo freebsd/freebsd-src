@@ -32,22 +32,58 @@
  * $FreeBSD$
  */
 #include <signal.h>
-#include <sys/param.h>
-#include <sys/signalvar.h>
 #include <errno.h>
 #include <pthread.h>
+#include <string.h>
 #include "thr_private.h"
 
 __weak_reference(__sigsuspend, sigsuspend);
 
 int
+_sigsuspend(const sigset_t *set)
+{
+	struct pthread	*curthread = _get_curthread();
+	int             ret = -1;
+
+	/* Check if a new signal set was provided by the caller: */
+	if (set != NULL) {
+		THR_SCHED_LOCK(curthread, curthread);
+
+		/* Change the caller's mask: */
+		memcpy(&curthread->tmbx.tm_context.uc_sigmask,
+		    set, sizeof(sigset_t));
+
+		THR_SET_STATE(curthread, PS_SIGSUSPEND);
+
+		THR_SCHED_UNLOCK(curthread, curthread);
+
+		/* Wait for a signal: */
+		_thr_sched_switch(curthread);
+
+		/* Always return an interrupted error: */
+		errno = EINTR;
+
+		/* Restore the signal mask: */
+		memcpy(&curthread->tmbx.tm_context.uc_sigmask,
+		    &curthread->sigmask, sizeof(sigset_t));
+	} else {
+		/* Return an invalid argument error: */
+		errno = EINVAL;
+	}
+
+	/* Return the completion status: */
+	return (ret);
+}
+
+int
 __sigsuspend(const sigset_t * set)
 {
-	int	ret;
+	struct pthread *curthread = _get_curthread();
+	int		ret;
 
-	_thread_enter_cancellation_point();
-	ret = __sys_sigsuspend(set);
-	_thread_leave_cancellation_point();
+	_thr_enter_cancellation_point(curthread);
+	ret = _sigsuspend(set);
+	_thr_leave_cancellation_point(curthread);
 
-	return ret;
+	return (ret);
 }

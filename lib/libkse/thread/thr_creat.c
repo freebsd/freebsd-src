@@ -38,11 +38,12 @@ __weak_reference(___creat, creat);
 int
 ___creat(const char *path, mode_t mode)
 {
-	int	ret;
+	struct pthread *curthread = _get_curthread();
+	int ret;
 
-	_thread_enter_cancellation_point();
+	_thr_enter_cancellation_point(curthread);
 	ret = __creat(path, mode);
-	_thread_leave_cancellation_point();
+	_thr_leave_cancellation_point(curthread);
 	
 	return ret;
 }

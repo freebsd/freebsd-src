@@ -45,7 +45,7 @@ _pthread_attr_setcreatesuspend_np(pthread_attr_t *attr)
 		errno = EINVAL;
 		ret = -1;
 	} else {
-		(*attr)->suspend = PTHREAD_CREATE_SUSPENDED;
+		(*attr)->suspend = THR_CREATE_SUSPENDED;
 		ret = 0;
 	}
 	return(ret);

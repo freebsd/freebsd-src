@@ -1,4 +1,6 @@
 /*
+ * Copyright (C) 2003 Daniel M. Eischen <deischen@freebsd.org>
+ * Copyright (C) 2002 Jonathon Mini <mini@freebsd.org>
  * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
@@ -32,474 +34,1452 @@
  * $FreeBSD$
  *
  */
-#include <errno.h>
-#include <poll.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/param.h>
-#include <sys/types.h>
-#include <sys/signalvar.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <sys/socket.h>
-#include <sys/uio.h>
-#include <sys/syscall.h>
-#include <fcntl.h>
-#include <pthread.h>
-#include "thr_private.h"
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD");
 
-/* #define DEBUG_THREAD_KERN */
+#include <sys/types.h>
+#include <sys/kse.h>
+#include <sys/signalvar.h>
+#include <sys/queue.h>
+#include <machine/atomic.h>
+
+#include <assert.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <ucontext.h>
+#include <unistd.h>
+
+#include "atomic_ops.h"
+#include "thr_private.h"
+#include "pthread_md.h"
+#include "libc_private.h"
+
+/*#define DEBUG_THREAD_KERN */
 #ifdef DEBUG_THREAD_KERN
 #define DBG_MSG		stdout_debug
 #else
 #define DBG_MSG(x...)
 #endif
 
-static int _kern_idle_running = 0;
-static struct timeval _kern_idle_timeout;
+/*
+ * Define a high water mark for the maximum number of threads that
+ * will be cached.  Once this level is reached, any extra threads
+ * will be free()'d.
+ *
+ * XXX - It doesn't make sense to worry about the maximum number of
+ *       KSEs that we can cache because the system will limit us to
+ *       something *much* less than the maximum number of threads
+ *       that we can have.  Disregarding KSEs in their own group,
+ *       the maximum number of KSEs is the number of processors in
+ *       the system.
+ */
+#define	MAX_CACHED_THREADS	100
+#define	KSE_STACKSIZE		16384
 
-/* Static function prototype definitions: */
-static void
-thread_kern_idle(void);
+#define	KSE_SET_MBOX(kse, thrd) \
+	(kse)->k_mbx.km_curthread = &(thrd)->tmbx
 
-static void
-dequeue_signals(void);
+#define	KSE_SET_EXITED(kse)	(kse)->k_flags |= KF_EXITED
 
-static inline void
-thread_run_switch_hook(pthread_t thread_out, pthread_t thread_in);
+/*
+ * Add/remove threads from a KSE's scheduling queue.
+ * For now the scheduling queue is hung off the KSEG.
+ */
+#define	KSEG_THRQ_ADD(kseg, thr)	\
+	TAILQ_INSERT_TAIL(&(kseg)->kg_threadq, thr, kle)
+#define	KSEG_THRQ_REMOVE(kseg, thr)	\
+	TAILQ_REMOVE(&(kseg)->kg_threadq, thr, kle)
 
-/* Static variables: */
-static int	last_tick = 0;
 
+/*
+ * Macros for manipulating the run queues.  The priority queue
+ * routines use the thread's pqe link and also handle the setting
+ * and clearing of the thread's THR_FLAGS_IN_RUNQ flag.
+ */
+#define	KSE_RUNQ_INSERT_HEAD(kse, thrd)			\
+	_pq_insert_head(&(kse)->k_schedq->sq_runq, thrd)
+#define	KSE_RUNQ_INSERT_TAIL(kse, thrd)			\
+	_pq_insert_tail(&(kse)->k_schedq->sq_runq, thrd)
+#define	KSE_RUNQ_REMOVE(kse, thrd)			\
+	_pq_remove(&(kse)->k_schedq->sq_runq, thrd)
+#define	KSE_RUNQ_FIRST(kse)	_pq_first(&(kse)->k_schedq->sq_runq)
+
+
+/*
+ * We've got to keep track of everything that is allocated, not only
+ * to have a speedy free list, but also so they can be deallocated
+ * after a fork().
+ */
+static TAILQ_HEAD(, kse)	active_kseq;
+static TAILQ_HEAD(, kse)	free_kseq;
+static TAILQ_HEAD(, kse_group)	free_kse_groupq;
+static TAILQ_HEAD(, kse_group)	active_kse_groupq;
+static struct lock		kse_lock;	/* also used for kseg queue */
+static int			free_kse_count = 0;
+static int			free_kseg_count = 0;
+static TAILQ_HEAD(, pthread)	free_threadq;
+static struct lock		thread_lock;
+static int			free_thread_count = 0;
+static int			inited = 0;
+static int			active_kse_count = 0;
+static int			active_kseg_count = 0;
+
+static void	kse_check_completed(struct kse *kse);
+static void	kse_check_waitq(struct kse *kse);
+static void	kse_check_signals(struct kse *kse);
+static void	kse_entry(struct kse_mailbox *mbx);
+static void	kse_fini(struct kse *curkse);
+static void	kse_sched_multi(struct kse *curkse);
+static void	kse_sched_single(struct kse *curkse);
+static void	kse_switchout_thread(struct kse *kse, struct pthread *thread);
+static void	kse_wait(struct kse *kse);
+static void	kseg_free(struct kse_group *kseg);
+static void	kseg_init(struct kse_group *kseg);
+static void	kse_waitq_insert(struct pthread *thread);
+static void	thr_cleanup(struct kse *kse, struct pthread *curthread);
+static void	thr_gc(struct kse *curkse);
+static void	thr_resume_wrapper(int unused_1, siginfo_t *unused_2,
+		    ucontext_t *ucp);
+static void	thr_resume_check(struct pthread *curthread, ucontext_t *ucp,
+		    struct pthread_sigframe *psf);
+static int	thr_timedout(struct pthread *thread, struct timespec *curtime);
+
+/*
+ * This is called after a fork().
+ * No locks need to be taken here since we are guaranteed to be
+ * single threaded.
+ */
 void
-_thread_kern_sched(void)
+_kse_single_thread(struct pthread *curthread)
 {
-	struct timespec	ts;
-	struct timeval	tv;
-	struct pthread	*curthread = _get_curthread();
-	unsigned int	current_tick;
-
-	/* Get the current time of day. */
-	GET_CURRENT_TOD(tv);
-	TIMEVAL_TO_TIMESPEC(&tv, &ts);
-	current_tick = _sched_ticks;
+	struct kse *kse, *kse_next;
+	struct kse_group *kseg, *kseg_next;
+	struct pthread *thread, *thread_next;
+	kse_critical_t crit;
+	int i;
 
 	/*
-	 * Enter a critical section.
+	 * Disable upcalls and clear the threaded flag.
+	 * XXX - I don't think we need to disable upcalls after a fork().
+	 *       but it doesn't hurt.
 	 */
-	_thread_kern_kse_mailbox.km_curthread = NULL;
+	crit = _kse_critical_enter();
+	__isthreaded = 0;
 
 	/*
-	 * If this thread is becoming inactive, make note of the
-	 * time.
+	 * Enter a loop to remove and free all threads other than
+	 * the running thread from the active thread list:
 	 */
-	if (curthread->state != PS_RUNNING) {
+	for (thread = TAILQ_FIRST(&_thread_list); thread != NULL;
+	    thread = thread_next) {
 		/*
-		 * Save the current time as the time that the
-		 * thread became inactive:
-		 */
-		curthread->last_inactive = (long)current_tick;
-		if (curthread->last_inactive <
-		    curthread->last_active) {
-			/* Account for a rollover: */
-			curthread->last_inactive =+
-			    UINT_MAX + 1;
-		}
-	}
-
-	/*
-	 * Place this thread into the appropriate queue(s).
-	 */
-	switch (curthread->state) {
-	case PS_DEAD:
-	case PS_STATE_MAX: /* XXX: silences -Wall */
-	case PS_SUSPENDED:
-		/* Dead or suspended threads are not placed in any queue. */
-		break;
-	case PS_RUNNING:
-		/*
-		 * Save the current time as the time that the
-		 * thread became inactive:
-		 */
-		current_tick = _sched_ticks;
-		curthread->last_inactive = (long)current_tick;
-		if (curthread->last_inactive <
-		    curthread->last_active) {
-			/* Account for a rollover: */
-			curthread->last_inactive =+ UINT_MAX + 1;
-		}
-
-		if ((curthread->slice_usec != -1) &&
-		   (curthread->attr.sched_policy != SCHED_FIFO)) {
-			/*
-			 * Accumulate the number of microseconds for
-			 * which the current thread has run:
-			 */
-			curthread->slice_usec +=
-			    (curthread->last_inactive -
-			    curthread->last_active) *
-			    (long)_clock_res_usec;
-			/* Check for time quantum exceeded: */
-			if (curthread->slice_usec > TIMESLICE_USEC)
-				curthread->slice_usec = -1;
-		}
-
-		if (curthread->slice_usec == -1) {
-			/*
-			 * The thread exceeded its time
-			 * quantum or it yielded the CPU;
-			 * place it at the tail of the
-			 * queue for its priority.
-			 */
-			PTHREAD_PRIOQ_INSERT_TAIL(curthread);
-		} else {
-			/*
-			 * The thread hasn't exceeded its
-			 * interval.  Place it at the head
-			 * of the queue for its priority.
-			 */
-			PTHREAD_PRIOQ_INSERT_HEAD(curthread);
-		}
-		break;
-	case PS_SPINBLOCK:
-		/* Increment spinblock count. */
-		_spinblock_count++;
-
-		/* No timeouts for these states. */
-		curthread->wakeup_time.tv_sec = -1;
-		curthread->wakeup_time.tv_nsec = -1;
-
-		/* Restart the time slice. */
-		curthread->slice_usec = -1;
-
-		/* Insert into the work queue. */
-		PTHREAD_WORKQ_INSERT(curthread);
-		break;
-
-	case PS_DEADLOCK:
-	case PS_JOIN:
-	case PS_MUTEX_WAIT:
-	case PS_WAIT_WAIT:
-		/* No timeouts for these states. */
-		curthread->wakeup_time.tv_sec = -1;
-		curthread->wakeup_time.tv_nsec = -1;
-
-		/* Restart the time slice. */
-		curthread->slice_usec = -1;
-
-		/* Insert into the waiting queue. */
-		PTHREAD_WAITQ_INSERT(curthread);
-		break;
-
-	case PS_COND_WAIT:
-	case PS_SLEEP_WAIT:
-		/* These states can timeout. */
-		/* Restart the time slice. */
-		curthread->slice_usec = -1;
-
-		/* Insert into the waiting queue. */
-		PTHREAD_WAITQ_INSERT(curthread);
-		break;
-	}
-
-	/* Switch into the scheduler's context. */
-	DBG_MSG("Calling _thread_enter_uts()\n");
-	_thread_enter_uts(&curthread->mailbox, &_thread_kern_kse_mailbox);
-	DBG_MSG("Returned from _thread_enter_uts, thread %p\n", curthread);
-
-	/*
-	 * This point is reached when _thread_switch() is called
-	 * to restore the state of a thread.
-	 *
-	 * This is the normal way out of the scheduler (for synchronous
-	 * switches).
-	 */
-
-	/* XXXKSE: Do this inside _thread_kern_scheduler() */
-	if (curthread->sig_defer_count == 0) {
-		if (((curthread->cancelflags &
-		    PTHREAD_AT_CANCEL_POINT) == 0) &&
-		    ((curthread->cancelflags &
-		    PTHREAD_CANCEL_ASYNCHRONOUS) != 0))
-			/*
-			 * Stick a cancellation point at the
-			 * start of each async-cancellable
-			 * thread's resumption.
-			 *
-			 * We allow threads woken at cancel
-			 * points to do their own checks.
-			 */
-			pthread_testcancel();
-	}
-
-	if (_sched_switch_hook != NULL) {
-		/* Run the installed switch hook: */
-		thread_run_switch_hook(_last_user_thread, curthread);
-	}
-}
-
-void
-_thread_kern_scheduler(struct kse_mailbox *km)
-{
-	struct timespec	ts;
-	struct timeval	tv;
-	pthread_t	td, pthread, pthread_h;
-	unsigned int	current_tick;
-	struct kse_thr_mailbox	*tm, *p;
-	sigset_t	sigset;
-	int		i;
-
-	DBG_MSG("entering\n");
-	while (!TAILQ_EMPTY(&_thread_list)) {
-
-		/* Get the current time of day. */
-		ts = km->km_timeofday;
-		TIMESPEC_TO_TIMEVAL(&_sched_tod, &ts);
-		current_tick = _sched_ticks;
+		 * Advance to the next thread before the destroying
+		 * the current thread.
+		*/
+		thread_next = TAILQ_NEXT(thread, tle);
 
 		/*
-		 * Pick up threads that had blocked in the kernel and
-		 * have now completed their trap (syscall, vm fault, etc).
-		 * These threads were PS_RUNNING (and still are), but they
-		 * need to be added to the run queue so that they can be
-		 * scheduled again.
+		 * Remove this thread from the list (the current
+		 * thread will be removed but re-added by libpthread
+		 * initialization.
 		 */
-		DBG_MSG("Picking up km_completed\n");
-		p = km->km_completed;
-		km->km_completed = NULL;	/* XXX: Atomic xchg here. */
-		while ((tm = p) != NULL) {
-			p = tm->tm_next;
-			tm->tm_next = NULL;
-			if (tm->tm_udata == NULL) {
-				DBG_MSG("\tidle context\n");
-				_kern_idle_running = 0;
-				continue;
+		TAILQ_REMOVE(&_thread_list, thread, tle);
+		/* Make sure this isn't the running thread: */
+		if (thread != curthread) {
+			_thr_stack_free(&thread->attr);
+			if (thread->specific != NULL)
+				free(thread->specific);
+			for (i = 0; i < MAX_THR_LOCKLEVEL; i++) {
+				_lockuser_destroy(&thread->lockusers[i]);
 			}
-			DBG_MSG("\tmailbox=%p pthread=%p\n", tm, tm->tm_udata);
-			PTHREAD_PRIOQ_INSERT_TAIL((pthread_t)tm->tm_udata);
+			_lock_destroy(&thread->lock);
+			free(thread);
 		}
-
-		/* Deliver posted signals. */
-		DBG_MSG("Picking up signals\n");
-		bcopy(&km->km_sigscaught, &sigset, sizeof(sigset_t));
-		sigemptyset(&km->km_sigscaught); /* XXX */
-		if (SIGNOTEMPTY(sigset))
-			for (i = 1; i < NSIG; i++)
-				if (sigismember(&sigset, i) != 0)
-					_thread_sig_dispatch(i);
-
-		if (_spinblock_count != 0) {
-			/*
-			 * Enter a loop to look for threads waiting on
-			 * a spinlock that is now available.
-			 */
-			PTHREAD_WAITQ_SETACTIVE();
-			TAILQ_FOREACH(pthread, &_workq, qe) {
-				if (pthread->state == PS_SPINBLOCK) {
-					/*
-					 * If the lock is available, let the
-					 * thread run.
-					 */
-					if (pthread->data.spinlock->
-					    access_lock == 0) {
-						PTHREAD_WAITQ_CLEARACTIVE();
-						PTHREAD_WORKQ_REMOVE(pthread);
-						PTHREAD_PRIOQ_INSERT_TAIL(
-						    pthread);
-						PTHREAD_SET_STATE(pthread,
-						    PS_RUNNING);
-						PTHREAD_WAITQ_SETACTIVE();
-
-						/*
-						 * One less thread in a
-						 * spinblock state:
-						 */
-						_spinblock_count--;
-					}
-				}
-			}
-			PTHREAD_WAITQ_CLEARACTIVE();
-		}
-
-		/* Wake up threads that have timed out.  */
-		DBG_MSG("setactive\n");
-		PTHREAD_WAITQ_SETACTIVE();
-		DBG_MSG("Picking up timeouts (%x)\n", TAILQ_FIRST(&_waitingq));
-		while (((pthread = TAILQ_FIRST(&_waitingq)) != NULL) &&
-		    (pthread->wakeup_time.tv_sec != -1) &&
-		    (((pthread->wakeup_time.tv_sec == 0) &&
-		    (pthread->wakeup_time.tv_nsec == 0)) ||
-		    (pthread->wakeup_time.tv_sec < ts.tv_sec) ||
-		    ((pthread->wakeup_time.tv_sec == ts.tv_sec) &&
-		    (pthread->wakeup_time.tv_nsec <= ts.tv_nsec)))) {
-			DBG_MSG("\t...\n");
-			/*
-			 * Remove this thread from the waiting queue
-			 * (and work queue if necessary) and place it
-			 * in the ready queue.
-			 */
-			PTHREAD_WAITQ_CLEARACTIVE();
-			if (pthread->flags & PTHREAD_FLAGS_IN_WORKQ)
-				PTHREAD_WORKQ_REMOVE(pthread);
-			DBG_MSG("\twaking thread\n");
-			PTHREAD_NEW_STATE(pthread, PS_RUNNING);
-			PTHREAD_WAITQ_SETACTIVE();
-			/*
-			 * Flag the timeout in the thread structure:
-			 */
-			pthread->timeout = 1;
-		}
-		DBG_MSG("clearactive\n");
-		PTHREAD_WAITQ_CLEARACTIVE();
-
-		/*
-		 * Get the highest priority thread in the ready queue.
-		 */
-		DBG_MSG("Selecting thread\n");
-		pthread_h = PTHREAD_PRIOQ_FIRST();
-
-		/* Check if there are no threads ready to run: */
-		if (pthread_h) {
-			DBG_MSG("Scheduling thread\n");
-			/* Remove the thread from the ready queue: */
-			PTHREAD_PRIOQ_REMOVE(pthread_h);
-
-			/* Make the selected thread the current thread: */
-			_set_curthread(pthread_h);
-
-			/*
-			 * Save the current time as the time that the thread
-			 * became active:
-			 */
-			current_tick = _sched_ticks;
-			pthread_h->last_active = (long) current_tick;
-
-			/*
-			 * Check if this thread is running for the first time
-			 * or running again after using its full time slice
-			 * allocation:
-			 */
-			if (pthread_h->slice_usec == -1) {
-				/* Reset the accumulated time slice period: */
-				pthread_h->slice_usec = 0;
-			}
-
-			/*
-			 * If we had a context switch, run any
-			 * installed switch hooks.
-			 */
-			if ((_sched_switch_hook != NULL) &&
-			    (_last_user_thread != pthread_h)) {
-				thread_run_switch_hook(_last_user_thread,
-				    pthread_h);
-			}
-			/*
-			 * Continue the thread at its current frame:
-			 */
-			_last_user_thread = td;
-			DBG_MSG("switch in\n");
-			_thread_switch(&pthread_h->mailbox,
-			    &_thread_kern_kse_mailbox.km_curthread);
-			DBG_MSG("switch out\n");
-		} else {
-			/*
-			 * There is nothing for us to do. Either
-			 * yield, or idle until something wakes up.
-			 */
-			DBG_MSG("No runnable threads, idling.\n");
-			if (_kern_idle_running) {
-				DBG_MSG("kse_release");
-				kse_release(NULL);
-			}
-			_kern_idle_running = 1;
-			if ((pthread == NULL) ||
-			    (pthread->wakeup_time.tv_sec == -1))
-				/*
-				 * Nothing is waiting on a timeout, so
-				 * idling gains us nothing; spin.
-				 */
-				continue;
-			TIMESPEC_TO_TIMEVAL(&_kern_idle_timeout,
-			    &pthread->wakeup_time);
-			_thread_switch(&_idle_thr_mailbox,
-			    &_thread_kern_kse_mailbox.km_curthread);
-		}
-		DBG_MSG("looping\n");
 	}
-	/* There are no threads; exit. */
-	DBG_MSG("No threads, exiting.\n");
-	exit(0);
-}
 
-void
-_thread_kern_sched_state(enum pthread_state state, char *fname, int lineno)
-{
-	struct pthread	*curthread = _get_curthread();
+	TAILQ_INIT(&curthread->mutexq);		/* initialize mutex queue */
+	curthread->joiner = NULL;		/* no joining threads yet */
+	sigemptyset(&curthread->sigpend);	/* clear pending signals */
+	if (curthread->specific != NULL) {
+		free(curthread->specific);
+		curthread->specific = NULL;
+		curthread->specific_data_count = 0;
+	}
+
+	/* Free the free KSEs: */
+	while ((kse = TAILQ_FIRST(&free_kseq)) != NULL) {
+		TAILQ_REMOVE(&free_kseq, kse, k_qe);
+		_ksd_destroy(&kse->k_ksd);
+		free(kse);
+	}
+	free_kse_count = 0;
+
+	/* Free the active KSEs: */
+	for (kse = TAILQ_FIRST(&active_kseq); kse != NULL; kse = kse_next) {
+		kse_next = TAILQ_NEXT(kse, k_qe);
+		TAILQ_REMOVE(&active_kseq, kse, k_qe);
+		for (i = 0; i < MAX_KSE_LOCKLEVEL; i++) {
+			_lockuser_destroy(&kse->k_lockusers[i]);
+		}
+		_lock_destroy(&kse->k_lock);
+		free(kse);
+	}
+	active_kse_count = 0;
+
+	/* Free the free KSEGs: */
+	while ((kseg = TAILQ_FIRST(&free_kse_groupq)) != NULL) {
+		TAILQ_REMOVE(&free_kse_groupq, kseg, kg_qe);
+		_lock_destroy(&kseg->kg_lock);
+		free(kseg);
+	}
+	free_kseg_count = 0;
+
+	/* Free the active KSEGs: */
+	for (kseg = TAILQ_FIRST(&active_kse_groupq);
+	    kseg != NULL; kseg = kseg_next) {
+		kseg_next = TAILQ_NEXT(kseg, kg_qe);
+		TAILQ_REMOVE(&active_kse_groupq, kseg, kg_qe);
+		_lock_destroy(&kseg->kg_lock);
+		free(kseg);
+	}
+	active_kseg_count = 0;
+
+	/* Free the free threads. */
+	while ((thread = TAILQ_FIRST(&free_threadq)) != NULL) {
+		TAILQ_REMOVE(&free_threadq, thread, tle);
+		if (thread->specific != NULL)
+			free(thread->specific);
+		for (i = 0; i < MAX_THR_LOCKLEVEL; i++) {
+			_lockuser_destroy(&thread->lockusers[i]);
+		}
+		_lock_destroy(&thread->lock);
+		free(thread);
+	}
+	free_thread_count = 0;
+
+	/* Free the to-be-gc'd threads. */
+	while ((thread = TAILQ_FIRST(&_thread_gc_list)) != NULL) {
+		TAILQ_REMOVE(&_thread_gc_list, thread, tle);
+		free(thread);
+	}
+
+	if (inited != 0) {
+		/*
+		 * Destroy these locks; they'll be recreated to assure they
+		 * are in the unlocked state.
+		 */
+		_lock_destroy(&kse_lock);
+		_lock_destroy(&thread_lock);
+		_lock_destroy(&_thread_list_lock);
+		inited = 0;
+	}
 
 	/*
-	 * Flag the pthread kernel as executing scheduler code
-	 * to avoid an upcall from interrupting this execution
-	 * and calling the scheduler again.
+	 * After a fork(), the leftover thread goes back to being
+	 * scope process.
 	 */
-	_thread_kern_kse_mailbox.km_curthread = NULL;
-
-	/* Change the state of the current thread: */
-	curthread->state = state;
-	curthread->fname = fname;
-	curthread->lineno = lineno;
-
-	/* Schedule the next thread that is ready: */
-	_thread_kern_sched();
-}
-
-void
-_thread_kern_sched_state_unlock(enum pthread_state state,
-    spinlock_t *lock, char *fname, int lineno)
-{
-	struct pthread	*curthread = _get_curthread();
+	curthread->attr.flags &= ~PTHREAD_SCOPE_SYSTEM;
+	curthread->attr.flags |= PTHREAD_SCOPE_PROCESS;
 
 	/*
-	 * Flag the pthread kernel as executing scheduler code
-	 * to avoid an upcall from interrupting this execution
-	 * and calling the scheduler again.
+	 * After a fork, we are still operating on the thread's original
+	 * stack.  Don't clear the THR_FLAGS_USER from the thread's
+	 * attribute flags.
 	 */
-	_thread_kern_kse_mailbox.km_curthread = NULL;
 
-	/* Change the state of the current thread: */
-	curthread->state = state;
-	curthread->fname = fname;
-	curthread->lineno = lineno;
-
-	_SPINUNLOCK(lock);
-
-	/* Schedule the next thread that is ready: */
-	_thread_kern_sched();
+	/* Initialize the threads library. */
+	curthread->kse = NULL;
+	curthread->kseg = NULL;
+	_kse_initial = NULL;
+	_libpthread_init(curthread);
 }
 
 /*
- * Block until the next timeout.
+ * This is used to initialize housekeeping and to initialize the
+ * KSD for the KSE.
  */
 void
-_thread_kern_idle(void)
+_kse_init(void)
 {
-	struct timespec ts;
-	struct timeval timeout;
+	if (inited == 0) {
+		TAILQ_INIT(&active_kseq);
+		TAILQ_INIT(&active_kse_groupq);
+		TAILQ_INIT(&free_kseq);
+		TAILQ_INIT(&free_kse_groupq);
+		TAILQ_INIT(&free_threadq);
+		if (_lock_init(&kse_lock, LCK_ADAPTIVE,
+		    _kse_lock_wait, _kse_lock_wakeup) != 0)
+			PANIC("Unable to initialize free KSE queue lock");
+		if (_lock_init(&thread_lock, LCK_ADAPTIVE,
+		    _kse_lock_wait, _kse_lock_wakeup) != 0)
+			PANIC("Unable to initialize free thread queue lock");
+		if (_lock_init(&_thread_list_lock, LCK_ADAPTIVE,
+		    _kse_lock_wait, _kse_lock_wakeup) != 0)
+			PANIC("Unable to initialize thread list lock");
+		active_kse_count = 0;
+		active_kseg_count = 0;
+		inited = 1;
+	}
+}
 
-	for (;;) {
-		timersub(&_kern_idle_timeout, &_sched_tod, &timeout);
-		TIMEVAL_TO_TIMESPEC(&timeout, &ts);
+int
+_kse_isthreaded(void)
+{
+	return (__isthreaded != 0);
+}
+
+/*
+ * This is called when the first thread (other than the initial
+ * thread) is created.
+ */
+void
+_kse_setthreaded(int threaded)
+{
+	if ((threaded != 0) && (__isthreaded == 0)) {
+		/*
+		 * Locking functions in libc are required when there are
+		 * threads other than the initial thread.
+		 */
+		__isthreaded = 1;
+
+		/*
+		 * Tell the kernel to create a KSE for the initial thread
+		 * and enable upcalls in it.
+		 */
+		kse_create(&_kse_initial->k_mbx, 0);
+		KSE_SET_MBOX(_kse_initial, _thr_initial);
+	}
+}
+
+/*
+ * Lock wait and wakeup handlers for KSE locks.  These are only used by
+ * KSEs, and should never be used by threads.  KSE locks include the
+ * KSE group lock (used for locking the scheduling queue) and the
+ * kse_lock defined above.
+ *
+ * When a KSE lock attempt blocks, the entire KSE blocks allowing another
+ * KSE to run.  For the most part, it doesn't make much sense to try and
+ * schedule another thread because you need to lock the scheduling queue
+ * in order to do that.  And since the KSE lock is used to lock the scheduling
+ * queue, you would just end up blocking again.
+ */
+void
+_kse_lock_wait(struct lock *lock, struct lockuser *lu)
+{
+	struct kse *curkse = (struct kse *)_LCK_GET_PRIVATE(lu);
+	struct timespec ts;
+	kse_critical_t crit;
+
+	/*
+	 * Enter a loop to wait until we get the lock.
+	 */
+	ts.tv_sec = 0;
+	ts.tv_nsec = 1000000;  /* 1 sec */
+	KSE_SET_WAIT(curkse);
+	while (_LCK_BUSY(lu)) {
+		/*
+		 * Yield the kse and wait to be notified when the lock
+		 * is granted.
+		 */
+		crit = _kse_critical_enter();
 		__sys_nanosleep(&ts, NULL);
+		_kse_critical_leave(crit);
+
+		/*
+		 * Make sure that the wait flag is set again in case
+		 * we wokeup without the lock being granted.
+		 */
+		KSE_SET_WAIT(curkse);
+	}
+	KSE_CLEAR_WAIT(curkse);
+}
+
+void
+_kse_lock_wakeup(struct lock *lock, struct lockuser *lu)
+{
+	struct kse *curkse;
+	struct kse *kse;
+
+	curkse = _get_curkse();
+	kse = (struct kse *)_LCK_GET_PRIVATE(lu);
+
+	if (kse == curkse)
+		PANIC("KSE trying to wake itself up in lock");
+	else if (KSE_WAITING(kse)) {
+		/*
+		 * Notify the owning kse that it has the lock.
+		 */
+		KSE_WAKEUP(kse);
+	}
+}
+
+/*
+ * Thread wait and wakeup handlers for thread locks.  These are only used
+ * by threads, never by KSEs.  Thread locks include the per-thread lock
+ * (defined in its structure), and condition variable and mutex locks.
+ */
+void
+_thr_lock_wait(struct lock *lock, struct lockuser *lu)
+{
+	struct pthread *curthread = (struct pthread *)lu->lu_private;
+	int count;
+
+	/*
+	 * Spin for a bit.
+	 *
+	 * XXX - We probably want to make this a bit smarter.  It
+	 *       doesn't make sense to spin unless there is more
+	 *       than 1 CPU.  A thread that is holding one of these
+	 *       locks is prevented from being swapped out for another
+	 *       thread within the same scheduling entity.
+	 */
+	count = 0;
+	while (_LCK_BUSY(lu) && count < 300)
+		count++;
+	while (_LCK_BUSY(lu)) {
+		THR_SCHED_LOCK(curthread, curthread);
+		if (_LCK_BUSY(lu)) {
+			/* Wait for the lock: */
+			atomic_store_rel_int(&curthread->need_wakeup, 1);
+			THR_SET_STATE(curthread, PS_LOCKWAIT);
+			THR_SCHED_UNLOCK(curthread, curthread);
+			_thr_sched_switch(curthread);
+		}
+		else
+			THR_SCHED_UNLOCK(curthread, curthread);
 	}
 }
 
 void
-_thread_kern_set_timeout(const struct timespec * timeout)
+_thr_lock_wakeup(struct lock *lock, struct lockuser *lu)
+{
+	struct pthread *thread;
+	struct pthread *curthread;
+
+	curthread = _get_curthread();
+	thread = (struct pthread *)_LCK_GET_PRIVATE(lu);
+
+	THR_SCHED_LOCK(curthread, thread);
+	_thr_setrunnable_unlocked(thread);
+	atomic_store_rel_int(&thread->need_wakeup, 0);
+	THR_SCHED_UNLOCK(curthread, thread);
+}
+
+kse_critical_t
+_kse_critical_enter(void)
+{
+	kse_critical_t crit;
+
+	crit = _ksd_readandclear_tmbx;
+	return (crit);
+}
+
+void
+_kse_critical_leave(kse_critical_t crit)
+{
+	struct pthread *curthread;
+
+	_ksd_set_tmbx(crit);
+	if ((crit != NULL) && ((curthread = _get_curthread()) != NULL))
+		THR_YIELD_CHECK(curthread);
+}
+
+void
+_thr_critical_enter(struct pthread *thread)
+{
+	thread->critical_count++;
+}
+
+void
+_thr_critical_leave(struct pthread *thread)
+{
+	thread->critical_count--;
+	THR_YIELD_CHECK(thread);
+}
+
+/*
+ * XXX - We may need to take the scheduling lock before calling
+ *       this, or perhaps take the lock within here before
+ *       doing anything else.
+ */
+void
+_thr_sched_switch(struct pthread *curthread)
+{
+	struct pthread_sigframe psf;
+	kse_critical_t crit;
+	struct kse *curkse;
+	volatile int once = 0;
+
+	/* We're in the scheduler, 5 by 5: */
+	crit = _kse_critical_enter();
+	curkse = _get_curkse();
+
+	curthread->need_switchout = 1;	/* The thread yielded on its own. */
+	curthread->critical_yield = 0;	/* No need to yield anymore. */
+	curthread->slice_usec = -1;	/* Restart the time slice. */
+
+	/*
+	 * The signal frame is allocated off the stack because
+	 * a thread can be interrupted by other signals while
+	 * it is running down pending signals.
+	 */
+	sigemptyset(&psf.psf_sigset);
+	curthread->curframe = &psf;
+
+	_thread_enter_uts(&curthread->tmbx, &curkse->k_mbx);
+
+	/*
+	 * This thread is being resumed; check for cancellations.
+	 */
+	if ((once == 0) && (!THR_IN_CRITICAL(curthread))) {
+		once = 1;
+		thr_resume_check(curthread, &curthread->tmbx.tm_context, &psf);
+	}
+}
+
+/*
+ * This is the entry point of the KSE upcall.
+ */
+static void
+kse_entry(struct kse_mailbox *mbx)
+{
+	struct kse *curkse;
+
+	/* The kernel should always clear this before making the upcall. */
+	assert(mbx->km_curthread == NULL);
+	curkse = (struct kse *)mbx->km_udata;
+
+	/* Check for first time initialization: */
+	if ((curkse->k_flags & KF_INITIALIZED) == 0) {
+		/* Setup this KSEs specific data. */
+		_ksd_setprivate(&curkse->k_ksd);
+		_set_curkse(curkse);
+
+		/* Set this before grabbing the context. */
+		curkse->k_flags |= KF_INITIALIZED;
+	}
+
+	/* Avoid checking the type of KSE more than once. */
+	if ((curkse->k_kseg->kg_flags & KGF_SINGLE_THREAD) != 0) {
+		curkse->k_mbx.km_func = (void *)kse_sched_single;
+		kse_sched_single(curkse);
+	} else {
+		curkse->k_mbx.km_func = (void *)kse_sched_multi;
+		kse_sched_multi(curkse);
+	}
+}
+
+/*
+ * This is the scheduler for a KSE which runs a scope system thread.
+ * The multi-thread KSE scheduler should also work for a single threaded
+ * KSE, but we use a separate scheduler so that it can be fine-tuned
+ * to be more efficient (and perhaps not need a separate stack for
+ * the KSE, allowing it to use the thread's stack).
+ *
+ * XXX - This probably needs some work.
+ */
+static void
+kse_sched_single(struct kse *curkse)
+{
+	struct pthread *curthread;
+	struct timespec ts;
+	int level;
+
+	/* This may have returned from a kse_release(). */
+	if (KSE_WAITING(curkse))
+		KSE_CLEAR_WAIT(curkse);
+
+	curthread = curkse->k_curthread;
+
+	if (curthread->active == 0) {
+		if (curthread->state != PS_RUNNING) {
+			/* Check to see if the thread has timed out. */
+			KSE_GET_TOD(curkse, &ts);
+			if (thr_timedout(curthread, &ts) != 0) {
+				curthread->timeout = 1;
+				curthread->state = PS_RUNNING;
+			}
+		}
+	} else if (curthread->need_switchout != 0) {
+		/*
+		 * This has to do the job of kse_switchout_thread(), only
+		 * for a single threaded KSE/KSEG.
+		 */
+
+		/* This thread no longer needs to yield the CPU: */
+		curthread->critical_yield = 0;
+		curthread->need_switchout = 0;
+
+		/*
+		 * Lock the scheduling queue.
+		 *
+		 * There is no scheduling queue for single threaded KSEs,
+		 * but we need a lock for protection regardless.
+		 */
+		KSE_SCHED_LOCK(curkse, curkse->k_kseg);
+
+		switch (curthread->state) {
+		case PS_DEAD:
+			/* Unlock the scheduling queue and exit the KSE. */
+			KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
+			kse_fini(curkse);	/* does not return */
+			break;
+
+		case PS_COND_WAIT:
+		case PS_SLEEP_WAIT:
+			/* Only insert threads that can timeout: */
+			if (curthread->wakeup_time.tv_sec != -1) {
+				/* Insert into the waiting queue: */
+				KSE_WAITQ_INSERT(curkse, curthread);
+			}
+			break;
+
+		case PS_LOCKWAIT:
+			level = curthread->locklevel - 1;
+			if (_LCK_BUSY(&curthread->lockusers[level]))
+				KSE_WAITQ_INSERT(curkse, curthread);
+			else
+				THR_SET_STATE(curthread, PS_RUNNING);
+			break;
+
+		case PS_JOIN:
+		case PS_MUTEX_WAIT:
+		case PS_RUNNING:
+		case PS_SIGSUSPEND:
+		case PS_SIGWAIT:
+		case PS_SUSPENDED:
+		case PS_DEADLOCK:
+		default:
+			/*
+			 * These states don't timeout and don't need
+			 * to be in the waiting queue.
+			 */
+			break;
+		}
+		if (curthread->state != PS_RUNNING)
+			curthread->active = 0;
+	}
+
+	while (curthread->state != PS_RUNNING) {
+		kse_wait(curkse);
+	}
+
+	/* Remove the frame reference. */
+	curthread->curframe = NULL;
+
+	/* Unlock the scheduling queue. */
+	KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
+
+	/*
+	 * Continue the thread at its current frame:
+	 */
+	_thread_switch(&curthread->tmbx, &curkse->k_mbx.km_curthread);
+}
+
+void
+dump_queues(struct kse *curkse)
+{
+	struct pthread *thread;
+
+	DBG_MSG("Threads in waiting queue:\n");
+	TAILQ_FOREACH(thread, &curkse->k_kseg->kg_schedq.sq_waitq, pqe) {
+		DBG_MSG("  thread %p, state %d, blocked %d\n",
+		    thread, thread->state, thread->blocked);
+	}
+}
+
+
+/*
+ * This is the scheduler for a KSE which runs multiple threads.
+ */
+static void
+kse_sched_multi(struct kse *curkse)
+{
+	struct pthread *curthread;
+	struct pthread_sigframe *curframe;
+	int ret;
+
+	/* This may have returned from a kse_release(). */
+	if (KSE_WAITING(curkse))
+		KSE_CLEAR_WAIT(curkse);
+
+	/* Lock the scheduling lock. */
+	KSE_SCHED_LOCK(curkse, curkse->k_kseg);
+
+	/*
+	 * If the current thread was completed in another KSE, then
+	 * it will be in the run queue.  Don't mark it as being blocked.
+	 */
+	if (((curthread = curkse->k_curthread) != NULL) &&
+	    ((curthread->flags & THR_FLAGS_IN_RUNQ) == 0) &&
+	    (curthread->need_switchout == 0)) {
+		/*
+		 * Assume the current thread is blocked; when the
+		 * completed threads are checked and if the current
+		 * thread is among the completed, the blocked flag
+		 * will be cleared.
+		 */
+		curthread->blocked = 1;
+	}
+
+	/* Check for any unblocked threads in the kernel. */
+	kse_check_completed(curkse);
+
+	/*
+	 * Check for threads that have timed-out.
+	 */
+	kse_check_waitq(curkse);
+
+	/*
+	 * Switchout the current thread, if necessary, as the last step
+	 * so that it is inserted into the run queue (if it's runnable)
+	 * _after_ any other threads that were added to it above.
+	 */
+	if (curthread == NULL)
+		;  /* Nothing to do here. */
+	else if ((curthread->need_switchout == 0) &&
+	    (curthread->blocked == 0) && (THR_IN_CRITICAL(curthread))) {
+		/*
+		 * Resume the thread and tell it to yield when
+		 * it leaves the critical region.
+		 */
+		curthread->critical_yield = 0;
+		curthread->active = 1;
+		if ((curthread->flags & THR_FLAGS_IN_RUNQ) != 0)
+			KSE_RUNQ_REMOVE(curkse, curthread);
+		curkse->k_curthread = curthread;
+		curthread->kse = curkse;
+		KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
+		DBG_MSG("Continuing thread %p in critical region\n",
+		    curthread);
+		ret = _thread_switch(&curthread->tmbx,
+		    &curkse->k_mbx.km_curthread);
+		if (ret != 0)
+			PANIC("Can't resume thread in critical region\n");
+	}
+	else if ((curthread->flags & THR_FLAGS_IN_RUNQ) == 0)
+		kse_switchout_thread(curkse, curthread);
+	curkse->k_curthread = NULL;
+
+	/* This has to be done without the scheduling lock held. */
+	KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
+	kse_check_signals(curkse);
+
+	/* Check for GC: */
+	if (_gc_check != 0)
+		thr_gc(curkse);
+	KSE_SCHED_LOCK(curkse, curkse->k_kseg);
+
+	dump_queues(curkse);
+
+	/* Check if there are no threads ready to run: */
+	while (((curthread = KSE_RUNQ_FIRST(curkse)) == NULL) &&
+	    (curkse->k_kseg->kg_threadcount != 0)) {
+		/*
+		 * Wait for a thread to become active or until there are
+		 * no more threads.
+		 */
+		kse_wait(curkse);
+		kse_check_waitq(curkse);
+		KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
+		kse_check_signals(curkse);
+		if (_gc_check != 0)
+			thr_gc(curkse);
+		KSE_SCHED_LOCK(curkse, curkse->k_kseg);
+	}
+
+	/* Check for no more threads: */
+	if (curkse->k_kseg->kg_threadcount == 0) {
+		/*
+		 * Normally this shouldn't return, but it will if there
+		 * are other KSEs running that create new threads that
+		 * are assigned to this KSE[G].  For instance, if a scope
+		 * system thread were to create a scope process thread
+		 * and this kse[g] is the initial kse[g], then that newly
+		 * created thread would be assigned to us (the initial
+		 * kse[g]).
+		 */
+		KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
+		kse_fini(curkse);
+		KSE_SCHED_LOCK(curkse, curkse->k_kseg);
+		curthread = KSE_RUNQ_FIRST(curkse);
+	}
+
+	THR_ASSERT(curthread != NULL,
+	    "Return from kse_wait/fini without thread.");
+	THR_ASSERT(curthread->state != PS_DEAD,
+	    "Trying to resume dead thread!");
+	KSE_RUNQ_REMOVE(curkse, curthread);
+
+	/*
+	 * Make the selected thread the current thread.
+	 */
+	curkse->k_curthread = curthread;
+
+	/*
+	 * Make sure the current thread's kse points to this kse.
+	 */
+	curthread->kse = curkse;
+
+	/*
+	 * Reset accounting.
+	 */
+	curthread->tmbx.tm_uticks = 0;
+	curthread->tmbx.tm_sticks = 0;
+
+	/*
+	 * Reset the time slice if this thread is running for the first
+	 * time or running again after using its full time slice allocation.
+	 */
+	if (curthread->slice_usec == -1)
+		curthread->slice_usec = 0;
+
+	/* Mark the thread active. */
+	curthread->active = 1;
+
+	/* Remove the frame reference. */
+	curframe = curthread->curframe;
+	curthread->curframe = NULL;
+
+	/* Unlock the scheduling queue: */
+	KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
+
+	/*
+	 * The thread's current signal frame will only be NULL if it
+	 * is being resumed after being blocked in the kernel.  In
+	 * this case, and if the thread needs to run down pending
+	 * signals or needs a cancellation check, we need to add a
+	 * signal frame to the thread's context.
+	 */
+#if 0
+	if ((curframe == NULL) && ((curthread->check_pending != 0) ||
+	    (((curthread->cancelflags & THR_AT_CANCEL_POINT) == 0) &&
+	    ((curthread->cancelflags & PTHREAD_CANCEL_ASYNCHRONOUS) != 0)))) {
+		signalcontext(&curthread->tmbx.tm_context, 0,
+		    (__sighandler_t *)thr_resume_wrapper);
+	}
+#endif
+	/*
+	 * Continue the thread at its current frame:
+	 */
+	DBG_MSG("Continuing thread %p\n", curthread);
+	ret = _thread_switch(&curthread->tmbx, &curkse->k_mbx.km_curthread);
+	if (ret != 0)
+		PANIC("Thread has returned from _thread_switch");
+
+	/* This point should not be reached. */
+	PANIC("Thread has returned from _thread_switch");
+}
+
+static void
+kse_check_signals(struct kse *curkse)
+{
+	sigset_t sigset;
+	int i;
+
+	/* Deliver posted signals. */
+	for (i = 0; i < _SIG_WORDS; i++) {
+		atomic_swap_int(&curkse->k_mbx.km_sigscaught.__bits[i],
+		    0, &sigset.__bits[i]);
+	}
+	if (SIGNOTEMPTY(sigset)) {
+		/*
+		 * Dispatch each signal.
+		 *
+		 * XXX - There is no siginfo for any of these.
+		 *       I think there should be, especially for
+		 *       signals from other processes (si_pid, si_uid).
+		 */
+		for (i = 1; i < NSIG; i++) {
+			if (sigismember(&sigset, i) != 0) {
+				DBG_MSG("Dispatching signal %d\n", i);
+				_thr_sig_dispatch(curkse, i,
+				    NULL /* no siginfo */);
+			}
+		}
+		sigemptyset(&sigset);
+		__sys_sigprocmask(SIG_SETMASK, &sigset, NULL);
+	}
+}
+
+static void
+thr_resume_wrapper(int unused_1, siginfo_t *unused_2, ucontext_t *ucp)
+{
+	struct pthread *curthread = _get_curthread();
+
+	thr_resume_check(curthread, ucp, NULL);
+}
+
+static void
+thr_resume_check(struct pthread *curthread, ucontext_t *ucp,
+    struct pthread_sigframe *psf)
+{
+	/* Check signals before cancellations. */
+	while (curthread->check_pending != 0) {
+		/* Clear the pending flag. */
+		curthread->check_pending = 0;
+
+		/*
+		 * It's perfectly valid, though not portable, for
+		 * signal handlers to munge their interrupted context
+		 * and expect to return to it.  Ensure we use the
+		 * correct context when running down signals.
+		 */
+		_thr_sig_rundown(curthread, ucp, psf);
+	}
+
+	if (((curthread->cancelflags & THR_AT_CANCEL_POINT) == 0) &&
+	    ((curthread->cancelflags & PTHREAD_CANCEL_ASYNCHRONOUS) != 0))
+		pthread_testcancel();
+}
+
+/*
+ * Clean up a thread.  This must be called with the thread's KSE
+ * scheduling lock held.  The thread must be a thread from the
+ * KSE's group.
+ */
+static void
+thr_cleanup(struct kse *curkse, struct pthread *thread)
+{
+	struct pthread *joiner;
+	int free_thread = 0;
+
+	if ((joiner = thread->joiner) != NULL) {
+		thread->joiner = NULL;
+		if ((joiner->state == PS_JOIN) &&
+		    (joiner->join_status.thread == thread)) {
+			joiner->join_status.thread = NULL;
+
+			/* Set the return status for the joining thread: */
+			joiner->join_status.ret = thread->ret;
+
+			/* Make the thread runnable. */
+			if (joiner->kseg == curkse->k_kseg)
+				_thr_setrunnable_unlocked(joiner);
+			else {
+				KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
+				KSE_SCHED_LOCK(curkse, joiner->kseg);
+				_thr_setrunnable_unlocked(joiner);
+				KSE_SCHED_UNLOCK(curkse, joiner->kseg);
+				KSE_SCHED_LOCK(curkse, curkse->k_kseg);
+			}
+		}
+		thread->attr.flags |= PTHREAD_DETACHED;
+	}
+
+	thread->flags |= THR_FLAGS_GC_SAFE;
+	thread->kseg->kg_threadcount--;
+	KSE_LOCK_ACQUIRE(curkse, &_thread_list_lock);
+	_thr_stack_free(&thread->attr);
+	if ((thread->attr.flags & PTHREAD_DETACHED) != 0) {
+		/* Remove this thread from the list of all threads: */
+		THR_LIST_REMOVE(thread);
+		if (thread->refcount == 0) {
+			THR_GCLIST_REMOVE(thread);
+			TAILQ_REMOVE(&thread->kseg->kg_threadq, thread, kle);
+			free_thread = 1;
+		}
+	}
+	KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
+	if (free_thread != 0)
+		_thr_free(curkse, thread);
+}
+
+void
+thr_gc(struct pthread *curthread)
+{
+	struct pthread *td, *joiner;
+	struct kse_group *free_kseg;
+
+	_gc_check = 0;
+	KSE_LOCK_ACQUIRE(curkse, &_thread_list_lock);
+	while ((td = TAILQ_FIRST(&_thread_gc_list)) != NULL) {
+		THR_GCLIST_REMOVE(td);
+		clean = (td->attr.flags & PTHREAD_DETACHED) != 0;
+		KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
+
+		KSE_SCHED_LOCK(curkse, td->kseg);
+		TAILQ_REMOVE(&td->kseg->kg_threadq, td, kle);
+		if (TAILQ_EMPTY(&td->kseg->kg_threadq))
+			free_kseg = td->kseg;
+		else
+			free_kseg = NULL;
+		joiner = NULL;
+		if ((td->joiner != NULL) && (td->joiner->state == PS_JOIN) &&
+		    (td->joiner->join_status.thread == td)) {
+			joiner = td->joiner;
+			joiner->join_status.thread = NULL;
+
+			/* Set the return status for the joining thread: */
+			joiner->join_status.ret = td->ret;
+
+			/* Make the thread runnable. */
+			if (td->kseg == joiner->kseg) {
+				_thr_setrunnable_unlocked(joiner);
+				joiner = NULL;
+			}
+		}
+		td->joiner = NULL;
+		KSE_SCHED_UNLOCK(curkse, td->kseg);
+		if (free_kseg != NULL)
+			kseg_free(free_kseg);
+		if (joiner != NULL) {
+			KSE_SCHED_LOCK(curkse, joiner->kseg);
+			_thr_setrunnable_unlocked(joiner);
+			KSE_SCHED_LOCK(curkse, joiner->kseg);
+		}
+		_thr_free(curkse, td);
+		KSE_LOCK_ACQUIRE(curkse, &_thread_list_lock);
+	}
+	KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
+}
+
+
+/*
+ * Only new threads that are running or suspended may be scheduled.
+ */
+void
+_thr_schedule_add(struct pthread *curthread, struct pthread *newthread)
+{
+	struct kse *curkse;
+	kse_critical_t crit;
+	int need_start;
+
+	/*
+	 * If this is the first time creating a thread, make sure
+	 * the mailbox is set for the current thread.
+	 */
+	if ((newthread->attr.flags & PTHREAD_SCOPE_SYSTEM) != 0) {
+		/*
+		 * No need to lock the scheduling queue since the
+		 * KSE/KSEG pair have not yet been started.
+		 */
+		KSEG_THRQ_ADD(newthread->kseg, newthread);
+		if (newthread->state == PS_RUNNING)
+			THR_RUNQ_INSERT_TAIL(newthread);
+		newthread->kseg->kg_threadcount++;
+		/*
+		 * This thread needs a new KSE and KSEG.
+		 */
+		crit = _kse_critical_enter();
+		curkse = _get_curkse();
+		_ksd_setprivate(&newthread->kse->k_ksd);
+		kse_create(&newthread->kse->k_mbx, 1);
+		_ksd_setprivate(&curkse->k_ksd);
+		_kse_critical_leave(crit);
+	}
+	else {
+		/*
+		 * Lock the KSE and add the new thread to its list of
+		 * assigned threads.  If the new thread is runnable, also
+		 * add it to the KSE's run queue.
+		 */
+		need_start = 0;
+		KSE_SCHED_LOCK(curthread->kse, newthread->kseg);
+		KSEG_THRQ_ADD(newthread->kseg, newthread);
+		if (newthread->state == PS_RUNNING)
+			THR_RUNQ_INSERT_TAIL(newthread);
+		newthread->kseg->kg_threadcount++;
+		if ((newthread->kse->k_flags & KF_STARTED) == 0) {
+			/*
+			 * This KSE hasn't been started yet.  Start it
+			 * outside of holding the lock.
+			 */
+			newthread->kse->k_flags |= KF_STARTED;
+			need_start = 1;
+		}
+		KSE_SCHED_UNLOCK(curthread->kse, newthread->kseg);
+
+	  	if (need_start != 0)
+			kse_create(&newthread->kse->k_mbx, 0);
+		else if ((newthread->state == PS_RUNNING) &&
+		    KSE_WAITING(newthread->kse)) {
+			/*
+			 * The thread is being scheduled on another KSEG.
+			 */
+			KSE_WAKEUP(newthread->kse);
+		}
+	}
+}
+
+void
+kse_waitq_insert(struct pthread *thread)
+{
+	struct pthread *td;
+
+	if (thread->wakeup_time.tv_sec == -1)
+		TAILQ_INSERT_TAIL(&thread->kse->k_schedq->sq_waitq, thread,
+		    pqe);
+	else {
+		td = TAILQ_FIRST(&thread->kse->k_schedq->sq_waitq);
+		while ((td != NULL) && (td->wakeup_time.tv_sec != -1) &&
+		    ((td->wakeup_time.tv_sec < thread->wakeup_time.tv_sec) ||
+		    ((td->wakeup_time.tv_sec == thread->wakeup_time.tv_sec) &&
+		    (td->wakeup_time.tv_nsec <= thread->wakeup_time.tv_nsec))))
+			td = TAILQ_NEXT(td, pqe);
+		if (td == NULL)
+			TAILQ_INSERT_TAIL(&thread->kse->k_schedq->sq_waitq,
+			    thread, pqe);
+		else
+			TAILQ_INSERT_BEFORE(td, thread, pqe);
+	}
+	thread->flags |= THR_FLAGS_IN_WAITQ;
+}
+
+/*
+ * This must be called with the scheduling lock held.
+ */
+static void
+kse_check_completed(struct kse *kse)
+{
+	struct pthread *thread;
+	struct kse_thr_mailbox *completed;
+
+	if ((completed = kse->k_mbx.km_completed) != NULL) {
+		kse->k_mbx.km_completed = NULL;
+		while (completed != NULL) {
+			thread = completed->tm_udata;
+			DBG_MSG("Found completed thread %p, name %s\n",
+			    thread,
+			    (thread->name == NULL) ? "none" : thread->name);
+			thread->blocked = 0;
+			if (thread != kse->k_curthread)
+				KSE_RUNQ_INSERT_TAIL(kse, thread);
+			completed = completed->tm_next;
+		}
+	}
+}
+
+/*
+ * This must be called with the scheduling lock held.
+ */
+static void
+kse_check_waitq(struct kse *kse)
+{
+	struct pthread	*pthread;
+	struct timespec ts;
+
+	KSE_GET_TOD(kse, &ts);
+
+	/*
+	 * Wake up threads that have timedout.  This has to be
+	 * done before adding the current thread to the run queue
+	 * so that a CPU intensive thread doesn't get preference
+	 * over waiting threads.
+	 */
+	while (((pthread = KSE_WAITQ_FIRST(kse)) != NULL) &&
+	    thr_timedout(pthread, &ts)) {
+		/* Remove the thread from the wait queue: */
+		KSE_WAITQ_REMOVE(kse, pthread);
+		DBG_MSG("Found timedout thread %p in waitq\n", pthread);
+
+		/* Indicate the thread timedout: */
+		pthread->timeout = 1;
+
+		/* Add the thread to the priority queue: */
+		THR_SET_STATE(pthread, PS_RUNNING);
+		KSE_RUNQ_INSERT_TAIL(kse, pthread);
+	}
+}
+
+static int
+thr_timedout(struct pthread *thread, struct timespec *curtime)
+{
+	if (thread->wakeup_time.tv_sec < 0)
+		return (0);
+	else if (thread->wakeup_time.tv_sec > curtime->tv_sec)
+		return (0);
+	else if ((thread->wakeup_time.tv_sec == curtime->tv_sec) &&
+	    (thread->wakeup_time.tv_nsec > curtime->tv_nsec))
+		return (0);
+	else
+		return (1);
+}
+
+/*
+ * This must be called with the scheduling lock held.
+ *
+ * Each thread has a time slice, a wakeup time (used when it wants
+ * to wait for a specified amount of time), a run state, and an
+ * active flag.
+ *
+ * When a thread gets run by the scheduler, the active flag is
+ * set to non-zero (1).  When a thread performs an explicit yield
+ * or schedules a state change, it enters the scheduler and the
+ * active flag is cleared.  When the active flag is still seen
+ * set in the scheduler, that means that the thread is blocked in
+ * the kernel (because it is cleared before entering the scheduler
+ * in all other instances).
+ *
+ * The wakeup time is only set for those states that can timeout.
+ * It is set to (-1, -1) for all other instances.
+ *
+ * The thread's run state, aside from being useful when debugging,
+ * is used to place the thread in an appropriate queue.  There
+ * are 2 basic queues:
+ *
+ *   o run queue - queue ordered by priority for all threads
+ *                 that are runnable
+ *   o waiting queue - queue sorted by wakeup time for all threads
+ *                     that are not otherwise runnable (not blocked
+ *                     in kernel, not waiting for locks)
+ *
+ * The thread's time slice is used for round-robin scheduling
+ * (the default scheduling policy).  While a SCHED_RR thread
+ * is runnable it's time slice accumulates.  When it reaches
+ * the time slice interval, it gets reset and added to the end
+ * of the queue of threads at its priority.  When a thread no
+ * longer becomes runnable (blocks in kernel, waits, etc), its
+ * time slice is reset.
+ *
+ * The job of kse_switchout_thread() is to handle all of the above.
+ */
+static void
+kse_switchout_thread(struct kse *kse, struct pthread *thread)
+{
+	int level;
+
+	/*
+	 * Place the currently running thread into the
+	 * appropriate queue(s).
+	 */
+	DBG_MSG("Switching out thread %p, state %d\n", thread, thread->state);
+	if (thread->blocked != 0) {
+		/* This thread must have blocked in the kernel. */
+		/* thread->slice_usec = -1;*/	/* restart timeslice */
+		/*
+		 * XXX - Check for pending signals for this thread to
+		 *       see if we need to interrupt it in the kernel.
+		 */
+		/* if (thread->check_pending != 0) */
+		if ((thread->slice_usec != -1) &&
+		    (thread->attr.sched_policy != SCHED_FIFO))
+			thread->slice_usec += (thread->tmbx.tm_uticks
+			    + thread->tmbx.tm_sticks) * _clock_res_usec;
+	}
+	else {
+		switch (thread->state) {
+		case PS_DEAD:
+			/*
+			 * The scheduler is operating on a different
+			 * stack.  It is safe to do garbage collecting
+			 * here.
+			 */
+			thr_cleanup(kse, thread);
+			return;
+			break;
+
+		case PS_RUNNING:
+			/* Nothing to do here. */
+			break;
+
+		case PS_COND_WAIT:
+		case PS_SLEEP_WAIT:
+			/* Insert into the waiting queue: */
+			KSE_WAITQ_INSERT(kse, thread);
+			break;
+
+		case PS_LOCKWAIT:
+			/*
+			 * This state doesn't timeout.
+			 */
+			thread->wakeup_time.tv_sec = -1;
+			thread->wakeup_time.tv_nsec = -1;
+			level = thread->locklevel - 1;
+			if (_LCK_BUSY(&thread->lockusers[level]))
+				KSE_WAITQ_INSERT(kse, thread);
+			else
+				THR_SET_STATE(thread, PS_RUNNING);
+			break;
+
+		case PS_JOIN:
+		case PS_MUTEX_WAIT:
+		case PS_SIGSUSPEND:
+		case PS_SIGWAIT:
+		case PS_SUSPENDED:
+		case PS_DEADLOCK:
+		default:
+			/*
+			 * These states don't timeout.
+			 */
+			thread->wakeup_time.tv_sec = -1;
+			thread->wakeup_time.tv_nsec = -1;
+
+			/* Insert into the waiting queue: */
+			KSE_WAITQ_INSERT(kse, thread);
+			break;
+		}
+		if (thread->state != PS_RUNNING) {
+			/* Restart the time slice: */
+			thread->slice_usec = -1;
+		} else {
+			if (thread->need_switchout != 0)
+				/*
+				 * The thread yielded on its own;
+				 * restart the timeslice.
+				 */
+				thread->slice_usec = -1;
+			else if ((thread->slice_usec != -1) &&
+	   		    (thread->attr.sched_policy != SCHED_FIFO)) {
+				thread->slice_usec += (thread->tmbx.tm_uticks
+				    + thread->tmbx.tm_sticks) * _clock_res_usec;
+				/* Check for time quantum exceeded: */
+				if (thread->slice_usec > TIMESLICE_USEC)
+					thread->slice_usec = -1;
+			}
+			if (thread->slice_usec == -1) {
+				/*
+				 * The thread exceeded its time quantum or
+				 * it yielded the CPU; place it at the tail
+				 * of the queue for its priority.
+				 */
+				KSE_RUNQ_INSERT_TAIL(kse, thread);
+			} else {
+				/*
+				 * The thread hasn't exceeded its interval
+				 * Place it at the head of the queue for its
+				 * priority.
+				 */
+				KSE_RUNQ_INSERT_HEAD(kse, thread);
+			}
+		}
+	}
+	thread->active = 0;
+	thread->need_switchout = 0;
+}
+
+/*
+ * This function waits for the smallest timeout value of any waiting
+ * thread, or until it receives a message from another KSE.
+ *
+ * This must be called with the scheduling lock held.
+ */
+static void
+kse_wait(struct kse *kse)
+{
+	struct timespec *ts, ts_sleep;
+	struct pthread *td_wait, *td_run;
+
+	ts = &kse->k_mbx.km_timeofday;
+	KSE_SET_WAIT(kse);
+
+	td_wait = KSE_WAITQ_FIRST(kse);
+	td_run = KSE_RUNQ_FIRST(kse);
+	KSE_SCHED_UNLOCK(kse, kse->k_kseg);
+
+	if (td_run == NULL) {
+		if ((td_wait == NULL) || (td_wait->wakeup_time.tv_sec < 0)) {
+			/* Limit sleep to no more than 2 minutes. */
+			ts_sleep.tv_sec = 120;
+			ts_sleep.tv_nsec = 0;
+		} else {
+			TIMESPEC_SUB(&ts_sleep, &td_wait->wakeup_time, ts);
+			if (ts_sleep.tv_sec > 120) {
+				ts_sleep.tv_sec = 120;
+				ts_sleep.tv_nsec = 0;
+			}
+		}
+		if ((ts_sleep.tv_sec >= 0) && (ts_sleep.tv_nsec >= 0)) {
+			/* Don't sleep for negative times. */
+			kse_release(&ts_sleep);
+			/*
+			 * The above never returns.
+			 * XXX - Actually, it would be nice if it did
+			 *       for KSE's with only one thread.
+			 */
+		}
+	}
+	KSE_CLEAR_WAIT(kse);
+}
+
+/*
+ * Avoid calling this kse_exit() so as not to confuse it with the
+ * system call of the same name.
+ */
+static void
+kse_fini(struct kse *kse)
+{
+	struct timespec ts;
+
+	/*
+	 * Check to see if this is the main kse.
+	 */
+	if (kse == _kse_initial) {
+		/*
+		 * Wait for the last KSE/thread to exit, or for more
+		 * threads to be created (it is possible for additional
+		 * scope process threads to be created after the main
+		 * thread exits).
+		 */
+		ts.tv_sec = 120;
+		ts.tv_nsec = 0;
+		KSE_SET_WAIT(kse);
+		KSE_SCHED_LOCK(kse, kse->k_kseg);
+		if ((active_kse_count > 1) &&
+		    (kse->k_kseg->kg_threadcount == 0)) {
+			KSE_SCHED_UNLOCK(kse, kse->k_kseg);
+			/*
+			 * XXX - We need a way for the KSE to do a timed
+			 *       wait.
+			 */
+			kse_release(&ts);
+			/* The above never returns. */
+		}
+		KSE_SCHED_UNLOCK(kse, kse->k_kseg);
+
+		/* There are no more threads; exit this process: */
+		if (kse->k_kseg->kg_threadcount == 0) {
+			/* kse_exit(); */
+			__isthreaded = 0;
+			exit(0);
+		}
+	} else {
+		/* Mark this KSE for GC: */
+		KSE_LOCK_ACQUIRE(kse, &_thread_list_lock);
+		TAILQ_INSERT_TAIL(&free_kseq, kse, k_qe);
+		KSE_LOCK_RELEASE(kse, &_thread_list_lock);
+		kse_exit();
+	}
+}
+
+void
+_thr_sig_add(struct pthread *thread, int sig, siginfo_t *info, ucontext_t *ucp)
+{
+	struct kse *curkse;
+
+	curkse = _get_curkse();
+
+	KSE_SCHED_LOCK(curkse, thread->kseg);
+	/*
+	 * A threads assigned KSE can't change out from under us
+	 * when we hold the scheduler lock.
+	 */
+	if (THR_IS_ACTIVE(thread)) {
+		/* Thread is active.  Can't install the signal for it. */
+		/* Make a note in the thread that it has a signal. */
+		sigaddset(&thread->sigpend, sig);
+		thread->check_pending = 1;
+	}
+	else {
+		/* Make a note in the thread that it has a signal. */
+		sigaddset(&thread->sigpend, sig);
+		thread->check_pending = 1;
+
+		if (thread->blocked != 0) {
+			/* Tell the kernel to interrupt the thread. */
+			kse_thr_interrupt(&thread->tmbx);
+		}
+	}
+	KSE_SCHED_UNLOCK(curkse, thread->kseg);
+}
+
+void
+_thr_set_timeout(const struct timespec *timeout)
 {
 	struct pthread	*curthread = _get_curthread();
-	struct timespec current_time;
-	struct timeval  tv;
+	struct timespec ts;
 
 	/* Reset the timeout flag for the running thread: */
 	curthread->timeout = 0;
@@ -514,94 +1494,311 @@ _thread_kern_set_timeout(const struct timespec * timeout)
 		curthread->wakeup_time.tv_nsec = -1;
 	}
 	/* Check if no waiting is required: */
-	else if (timeout->tv_sec == 0 && timeout->tv_nsec == 0) {
+	else if ((timeout->tv_sec == 0) && (timeout->tv_nsec == 0)) {
 		/* Set the wake up time to 'immediately': */
 		curthread->wakeup_time.tv_sec = 0;
 		curthread->wakeup_time.tv_nsec = 0;
 	} else {
-		/* Get the current time: */
-		GET_CURRENT_TOD(tv);
-		TIMEVAL_TO_TIMESPEC(&tv, &current_time);
-
-		/* Calculate the time for the current thread to wake up: */
-		curthread->wakeup_time.tv_sec = current_time.tv_sec + timeout->tv_sec;
-		curthread->wakeup_time.tv_nsec = current_time.tv_nsec + timeout->tv_nsec;
-
-		/* Check if the nanosecond field needs to wrap: */
-		if (curthread->wakeup_time.tv_nsec >= 1000000000) {
-			/* Wrap the nanosecond field: */
-			curthread->wakeup_time.tv_sec += 1;
-			curthread->wakeup_time.tv_nsec -= 1000000000;
-		}
+		/* Calculate the time for the current thread to wakeup: */
+		KSE_GET_TOD(curthread->kse, &ts);
+		TIMESPEC_ADD(&curthread->wakeup_time, &ts, timeout);
 	}
 }
 
 void
-_thread_kern_sig_defer(void)
+_thr_panic_exit(char *file, int line, char *msg)
 {
-	struct pthread	*curthread = _get_curthread();
+	char buf[256];
 
-	/* Allow signal deferral to be recursive. */
-	curthread->sig_defer_count++;
+	snprintf(buf, sizeof(buf), "(%s:%d) %s\n", file, line, msg);
+	__sys_write(2, buf, strlen(buf));
+	abort();
 }
 
 void
-_thread_kern_sig_undefer(void)
+_thr_setrunnable(struct pthread *curthread, struct pthread *thread)
 {
-	struct pthread	*curthread = _get_curthread();
+	kse_critical_t crit;
 
-	/*
-	 * Perform checks to yield only if we are about to undefer
-	 * signals.
-	 */
-	if (curthread->sig_defer_count > 1) {
-		/* Decrement the signal deferral count. */
-		curthread->sig_defer_count--;
-	}
-	else if (curthread->sig_defer_count == 1) {
-		/* Reenable signals: */
-		curthread->sig_defer_count = 0;
-
-		/*
-		 * Check for asynchronous cancellation before delivering any
-		 * pending signals:
-		 */
-		if (((curthread->cancelflags & PTHREAD_AT_CANCEL_POINT) == 0) &&
-		    ((curthread->cancelflags & PTHREAD_CANCEL_ASYNCHRONOUS) != 0))
-			pthread_testcancel();
-	}
+	crit = _kse_critical_enter();
+	KSE_SCHED_LOCK(curthread->kse, thread->kseg);
+	_thr_setrunnable_unlocked(thread);
+	KSE_SCHED_UNLOCK(curthread->kse, thread->kseg);
+	_kse_critical_leave(crit);
 }
 
-static inline void
-thread_run_switch_hook(pthread_t thread_out, pthread_t thread_in)
+void
+_thr_setrunnable_unlocked(struct pthread *thread)
 {
-	pthread_t tid_out = thread_out;
-	pthread_t tid_in = thread_in;
-
-	if ((tid_out != NULL) &&
-	    (tid_out->flags & PTHREAD_FLAGS_PRIVATE) != 0)
-		tid_out = NULL;
-	if ((tid_in != NULL) &&
-	    (tid_in->flags & PTHREAD_FLAGS_PRIVATE) != 0)
-		tid_in = NULL;
-
-	if ((_sched_switch_hook != NULL) && (tid_out != tid_in)) {
-		/* Run the scheduler switch hook: */
-		_sched_switch_hook(tid_out, tid_in);
+	if ((thread->kseg->kg_flags & KGF_SINGLE_THREAD) != 0)
+		/* No silly queues for these threads. */
+		THR_SET_STATE(thread, PS_RUNNING);
+	else {
+		if ((thread->flags & THR_FLAGS_IN_WAITQ) != 0)
+			KSE_WAITQ_REMOVE(thread->kse, thread);
+		THR_SET_STATE(thread, PS_RUNNING);
+		if ((thread->blocked == 0) &&
+		    (thread->flags & THR_FLAGS_IN_RUNQ) == 0)
+			THR_RUNQ_INSERT_TAIL(thread);
 	}
+        /*
+         * XXX - Threads are not yet assigned to specific KSEs; they are
+         *       assigned to the KSEG.  So the fact that a thread's KSE is
+         *       waiting doesn't necessarily mean that it will be the KSE
+         *       that runs the thread after the lock is granted.  But we
+         *       don't know if the other KSEs within the same KSEG are
+         *       also in a waiting state or not so we err on the side of
+         *       caution and wakeup the thread's last known KSE.  We
+         *       ensure that the threads KSE doesn't change while it's
+         *       scheduling lock is held so it is safe to reference it
+         *       (the KSE).  If the KSE wakes up and doesn't find any more
+         *       work it will again go back to waiting so no harm is done.
+         */
+	if (KSE_WAITING(thread->kse))
+		KSE_WAKEUP(thread->kse);
 }
 
 struct pthread *
 _get_curthread(void)
 {
-	if (_thread_initial == NULL)
-		_thread_init();
+	return (_ksd_curthread);
+}
 
-	return (_thread_run);
+/* This assumes the caller has disabled upcalls. */
+struct kse *
+_get_curkse(void)
+{
+	return (_ksd_curkse);
 }
 
 void
-_set_curthread(struct pthread *newthread)
+_set_curkse(struct kse *kse)
 {
-	_thread_run = newthread;
+	_ksd_setprivate(&kse->k_ksd);
+}
+
+/*
+ * Allocate a new KSEG.
+ *
+ * We allow the current KSE (curkse) to be NULL in the case that this
+ * is the first time a KSEG is being created (library initialization).
+ * In this case, we don't need to (and can't) take any locks.
+ */
+struct kse_group *
+_kseg_alloc(struct kse *curkse)
+{
+	struct kse_group *kseg = NULL;
+
+	if ((curkse != NULL) && (free_kseg_count > 0)) {
+		/* Use the kse lock for the kseg queue. */
+		KSE_LOCK_ACQUIRE(curkse, &kse_lock);
+		if ((kseg = TAILQ_FIRST(&free_kse_groupq)) != NULL) {
+			TAILQ_REMOVE(&free_kse_groupq, kseg, kg_qe);
+			free_kseg_count--;
+			active_kseg_count++;
+			TAILQ_INSERT_TAIL(&active_kse_groupq, kseg, kg_qe);
+		}
+		KSE_LOCK_RELEASE(curkse, &kse_lock);
+	}
+
+	/*
+	 * If requested, attempt to allocate a new KSE group only if the
+	 * KSE allocation was successful and a KSE group wasn't found in
+	 * the free list.
+	 */
+	if ((kseg == NULL) &&
+	    ((kseg = (struct kse_group *)malloc(sizeof(*kseg))) != NULL)) {
+		THR_ASSERT(_pq_alloc(&kseg->kg_schedq.sq_runq,
+		    THR_MIN_PRIORITY, THR_LAST_PRIORITY) == 0,
+		    "Unable to allocate priority queue.");
+		kseg_init(kseg);
+		if (curkse != NULL)
+			KSE_LOCK_ACQUIRE(curkse, &kse_lock);
+		kseg_free(kseg);
+		if (curkse != NULL)
+			KSE_LOCK_RELEASE(curkse, &kse_lock);
+	}
+	return (kseg);
+}
+
+/*
+ * This must be called with the kse lock held and when there are
+ * no more threads that reference it.
+ */
+static void
+kseg_free(struct kse_group *kseg)
+{
+	TAILQ_INSERT_HEAD(&free_kse_groupq, kseg, kg_qe);
+	kseg_init(kseg);
+	free_kseg_count++;
+	active_kseg_count--;
+}
+
+/*
+ * Allocate a new KSE.
+ *
+ * We allow the current KSE (curkse) to be NULL in the case that this
+ * is the first time a KSE is being created (library initialization).
+ * In this case, we don't need to (and can't) take any locks.
+ */
+struct kse *
+_kse_alloc(struct kse *curkse)
+{
+	struct kse *kse = NULL;
+	int need_ksd = 0;
+	int i;
+
+	if ((curkse != NULL) && (free_kse_count > 0)) {
+		KSE_LOCK_ACQUIRE(curkse, &kse_lock);
+		/* Search for a finished KSE. */
+		kse = TAILQ_FIRST(&free_kseq);
+#define KEMBX_DONE	0x01
+		while ((kse != NULL) &&
+		    ((kse->k_mbx.km_flags & KEMBX_DONE) == 0)) {
+			kse = TAILQ_NEXT(kse, k_qe);
+		}
+#undef KEMBX_DONE
+		if (kse != NULL) {
+			TAILQ_REMOVE(&free_kseq, kse, k_qe);
+			free_kse_count--;
+			active_kse_count++;
+			TAILQ_INSERT_TAIL(&active_kseq, kse, k_qe);
+		}
+		KSE_LOCK_RELEASE(curkse, &kse_lock);
+	}
+	if ((kse == NULL) &&
+	    ((kse = (struct kse *)malloc(sizeof(*kse))) != NULL)) {
+		bzero(kse, sizeof(*kse));
+
+		/* Initialize the lockusers. */
+		for (i = 0; i < MAX_KSE_LOCKLEVEL; i++) {
+			_lockuser_init(&kse->k_lockusers[i], (void *)kse);
+			_LCK_SET_PRIVATE2(&kse->k_lockusers[i], NULL);
+		}
+
+		/* We had to malloc a kse; mark it as needing a new ID.*/
+		need_ksd = 1;
+
+		/*
+		 * Create the KSE context.
+		 *
+		 * XXX - For now this is done here in the allocation.
+		 *       In the future, we may want to have it done
+		 *       outside the allocation so that scope system
+		 *       threads (one thread per KSE) are not required
+		 *       to have a stack for an unneeded kse upcall.
+		 */
+		kse->k_mbx.km_func = kse_entry;
+		kse->k_mbx.km_stack.ss_sp = (char *)malloc(KSE_STACKSIZE);
+		kse->k_mbx.km_stack.ss_size = KSE_STACKSIZE;
+		kse->k_mbx.km_udata = (void *)kse;
+		kse->k_mbx.km_quantum = 20000;
+		if (kse->k_mbx.km_stack.ss_size == NULL) {
+			free(kse);
+			kse = NULL;
+		}
+	}
+	if ((kse != NULL) && (need_ksd != 0)) {
+		/* This KSE needs initialization. */
+		if (curkse != NULL)
+			KSE_LOCK_ACQUIRE(curkse, &kse_lock);
+		/* Initialize KSD inside of the lock. */
+		if (_ksd_create(&kse->k_ksd, (void *)kse, sizeof(*kse)) != 0) {
+			if (curkse != NULL)
+				KSE_LOCK_RELEASE(curkse, &kse_lock);
+			free(kse->k_mbx.km_stack.ss_sp);
+			for (i = 0; i < MAX_KSE_LOCKLEVEL; i++) {
+				_lockuser_destroy(&kse->k_lockusers[i]);
+			}
+			free(kse);
+			return (NULL);
+		}
+		kse->k_flags = 0;
+		active_kse_count++;
+		TAILQ_INSERT_TAIL(&active_kseq, kse, k_qe);
+		if (curkse != NULL)
+			KSE_LOCK_RELEASE(curkse, &kse_lock);
+
+	}
+	return (kse);
+}
+
+void
+_kse_free(struct kse *curkse, struct kse *kse)
+{
+	struct kse_group *kseg = NULL;
+
+	if (curkse == kse)
+		PANIC("KSE trying to free itself");
+	KSE_LOCK_ACQUIRE(curkse, &kse_lock);
+	active_kse_count--;
+	if ((kseg = kse->k_kseg) != NULL) {
+		TAILQ_REMOVE(&kseg->kg_kseq, kse, k_qe);
+		/*
+		 * Free the KSEG if there are no more threads associated
+		 * with it.
+		 */
+		if (TAILQ_EMPTY(&kseg->kg_threadq))
+			kseg_free(kseg);
+	}
+	kse->k_kseg = NULL;
+	kse->k_flags &= ~KF_INITIALIZED;
+	TAILQ_INSERT_HEAD(&free_kseq, kse, k_qe);
+	free_kse_count++;
+	KSE_LOCK_RELEASE(curkse, &kse_lock);
+}
+
+static void
+kseg_init(struct kse_group *kseg)
+{
+	TAILQ_INIT(&kseg->kg_kseq);
+	TAILQ_INIT(&kseg->kg_threadq);
+	TAILQ_INIT(&kseg->kg_schedq.sq_waitq);
+	TAILQ_INIT(&kseg->kg_schedq.sq_blockedq);
+	_lock_init(&kseg->kg_lock, LCK_ADAPTIVE, _kse_lock_wait,
+	    _kse_lock_wakeup);
+	kseg->kg_threadcount = 0;
+	kseg->kg_idle_kses = 0;
+	kseg->kg_flags = 0;
+}
+
+struct pthread *
+_thr_alloc(struct pthread *curthread)
+{
+	kse_critical_t crit;
+	struct pthread *thread = NULL;
+
+	if (curthread != NULL) {
+		if (_gc_check != 0)
+			thread_gc(curthread);
+		if (free_thread_count > 0) {
+			crit = _kse_critical_enter();
+			KSE_LOCK_ACQUIRE(curkse, &thread_lock);
+			if ((thread = TAILQ_FIRST(&free_threadq)) != NULL) {
+				TAILQ_REMOVE(&free_threadq, thread, tle);
+				free_thread_count--;
+			}
+			KSE_LOCK_RELEASE(curkse, &thread_lock);
+		}
+	}
+	if (thread == NULL)
+		thread = (struct pthread *)malloc(sizeof(struct pthread));
+	return (thread);
+}
+
+void
+_thr_free(struct pthread *curthread, struct pthread *thread)
+{
+	kse_critical_t crit;
+
+	if ((curthread == NULL) || (free_thread_count >= MAX_CACHED_THREADS))
+		free(thread);
+	else {
+		crit = _kse_critical_enter();
+		KSE_LOCK_ACQUIRE(curkse, &thread_lock);
+		TAILQ_INSERT_HEAD(&free_threadq, thread, tle);
+		free_thread_count++;
+		KSE_LOCK_RELEASE(curkse, &thread_lock);
+		_kse_critical_leave(crit);
+	}
 }

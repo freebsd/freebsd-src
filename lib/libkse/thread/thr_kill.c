@@ -41,8 +41,26 @@ __weak_reference(_pthread_kill, pthread_kill);
 int
 _pthread_kill(pthread_t pthread, int sig)
 {
+	struct pthread *curthread = _get_curthread();
+	int ret;
+
+	/* Check for invalid signal numbers: */
+	if (sig < 0 || sig >= NSIG)
+		/* Invalid signal: */
+		ret = EINVAL;
 	/*
-	 * All signals are unsupported.
+	 * Ensure the thread is in the list of active threads, and the
+	 * signal is valid (signal 0 specifies error checking only) and
+	 * not being ignored:
 	 */
-	return (EINVAL);
+	else if ((ret = _thr_ref_add(curthread, pthread, /*include dead*/0))
+	    == 0) {
+		if ((sig > 0) &&
+		    (_thread_sigact[sig - 1].sa_handler != SIG_IGN))
+			_thr_sig_send(pthread, sig);
+		_thr_ref_delete(curthread, pthread);
+	}
+
+	/* Return the completion status: */
+	return (ret);
 }

@@ -45,11 +45,12 @@ __weak_reference(__read, read);
 ssize_t
 __read(int fd, void *buf, size_t nbytes)
 {
+	struct pthread *curthread = _get_curthread();
 	ssize_t	ret;
 
-	_thread_enter_cancellation_point();
+	_thr_enter_cancellation_point(curthread);
 	ret = __sys_read(fd, buf, nbytes);
-	_thread_leave_cancellation_point();
+	_thr_leave_cancellation_point(curthread);
 
 	return ret;
 }

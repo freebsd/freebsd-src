@@ -41,121 +41,91 @@ int
 _pthread_join(pthread_t pthread, void **thread_return)
 {
 	struct pthread	*curthread = _get_curthread();
-	int ret = 0;
-	pthread_t thread;
+	int		ret = 0;
  
-	_thread_enter_cancellation_point();
+	_thr_enter_cancellation_point(curthread);
 
 	/* Check if the caller has specified an invalid thread: */
-	if (pthread == NULL || pthread->magic != PTHREAD_MAGIC) {
+	if (pthread == NULL || pthread->magic != THR_MAGIC) {
 		/* Invalid thread: */
-		_thread_leave_cancellation_point();
-		return(EINVAL);
+		_thr_leave_cancellation_point(curthread);
+		return (EINVAL);
 	}
 
 	/* Check if the caller has specified itself: */
 	if (pthread == curthread) {
 		/* Avoid a deadlock condition: */
-		_thread_leave_cancellation_point();
-		return(EDEADLK);
+		_thr_leave_cancellation_point(curthread);
+		return (EDEADLK);
 	}
 
 	/*
-	 * Lock the garbage collector mutex to ensure that the garbage
-	 * collector is not using the dead thread list.
+	 * Find the thread in the list of active threads or in the
+	 * list of dead threads:
 	 */
-	if (pthread_mutex_lock(&_gc_mutex) != 0)
-		PANIC("Cannot lock gc mutex");
-
-	/*
-	 * Defer signals to protect the thread list from access
-	 * by the signal handler:
-	 */
-	_thread_kern_sig_defer();
-
-	/*
-	 * Unlock the garbage collector mutex, now that the garbage collector
-	 * can't be run:
-	 */
-	if (pthread_mutex_unlock(&_gc_mutex) != 0)
-		PANIC("Cannot lock gc mutex");
-
-	/*
-	 * Search for the specified thread in the list of active threads.  This
-	 * is done manually here rather than calling _find_thread() because
-	 * the searches in _thread_list and _dead_list (as well as setting up
-	 * join/detach state) have to be done atomically.
-	 */
-	TAILQ_FOREACH(thread, &_thread_list, tle) {
-		if (thread == pthread)
-			break;
-	}
-	if (thread == NULL) {
-		/*
-		 * Search for the specified thread in the list of dead threads:
-		 */
-		TAILQ_FOREACH(thread, &_dead_list, dle) {
-			if (thread == pthread)
-				break;
-		}
-	}
-
-	/* Check if the thread was not found or has been detached: */
-	if (thread == NULL ||
-	    ((pthread->attr.flags & PTHREAD_DETACHED) != 0)) {
-		/* Undefer and handle pending signals, yielding if necessary: */
-		_thread_kern_sig_undefer();
-
+	if ((ret = _thr_ref_add(curthread, pthread, /*include dead*/1)) != 0) {
 		/* Return an error: */
-		ret = ESRCH;
-
-	} else if (pthread->joiner != NULL) {
-		/* Undefer and handle pending signals, yielding if necessary: */
-		_thread_kern_sig_undefer();
-
-		/* Multiple joiners are not supported. */
-		ret = ENOTSUP;
-
-	/* Check if the thread is not dead: */
-	} else if (pthread->state != PS_DEAD) {
-		/* Set the running thread to be the joiner: */
-		pthread->joiner = curthread;
-
-		/* Keep track of which thread we're joining to: */
-		curthread->join_status.thread = pthread;
-
-		while (curthread->join_status.thread == pthread) {
-			/* Schedule the next thread: */
-			_thread_kern_sched_state(PS_JOIN, __FILE__, __LINE__);
-		}
-
-		/*
-		 * The thread return value and error are set by the thread we're
-		 * joining to when it exits or detaches:
-		 */
-		ret = curthread->join_status.error;
-		if ((ret == 0) && (thread_return != NULL))
-			*thread_return = curthread->join_status.ret;
-	} else {
-		/*
-		 * The thread exited (is dead) without being detached, and no
-		 * thread has joined it.
-		 */
-
-		/* Check if the return value is required: */
-		if (thread_return != NULL) {
-			/* Return the thread's return value: */
-			*thread_return = pthread->ret;
-		}
-
-		/* Make the thread collectable by the garbage collector. */
-		pthread->attr.flags |= PTHREAD_DETACHED;
-
-		/* Undefer and handle pending signals, yielding if necessary: */
-		_thread_kern_sig_undefer();
+		_thr_leave_cancellation_point(curthread);
+		return (ESRCH);
 	}
 
-	_thread_leave_cancellation_point();
+	/* Check if this thread has been detached: */
+	if ((pthread->attr.flags & PTHREAD_DETACHED) != 0) {
+		/* Remove the reference and return an error: */
+		_thr_ref_delete(curthread, pthread);
+		ret = ESRCH;
+	} else {
+		/* Lock the target thread while checking its state. */
+		THR_SCHED_LOCK(curthread, pthread);
+		if ((pthread->state == PS_DEAD) ||
+		    ((pthread->flags & THR_FLAGS_EXITING) != 0)) {
+			if (thread_return != NULL)
+				/* Return the thread's return value: */
+				*thread_return = pthread->ret;
+
+			/* Unlock the thread and remove the reference. */
+			THR_SCHED_UNLOCK(curthread, pthread);
+			_thr_ref_delete(curthread, pthread);
+		}
+		else if (pthread->joiner != NULL) {
+			/* Unlock the thread and remove the reference. */
+			THR_SCHED_UNLOCK(curthread, pthread);
+			_thr_ref_delete(curthread, pthread);
+
+			/* Multiple joiners are not supported. */
+			ret = ENOTSUP;
+		}
+		else {
+			/* Set the running thread to be the joiner: */
+			pthread->joiner = curthread;
+
+			/* Keep track of which thread we're joining to: */
+			curthread->join_status.thread = pthread;
+
+			/* Unlock the thread and remove the reference. */
+			THR_SCHED_UNLOCK(curthread, pthread);
+			_thr_ref_delete(curthread, pthread);
+
+			THR_SCHED_LOCK(curthread, curthread);
+			if (curthread->join_status.thread == pthread)
+				THR_SET_STATE(curthread, PS_JOIN);
+			THR_SCHED_UNLOCK(curthread, curthread);
+
+			while (curthread->join_status.thread == pthread) {
+				/* Schedule the next thread: */
+				_thr_sched_switch(curthread);
+			}
+
+			/*
+			 * The thread return value and error are set by the
+			 * thread we're joining to when it exits or detaches:
+			 */
+			ret = curthread->join_status.error;
+			if ((ret == 0) && (thread_return != NULL))
+				*thread_return = curthread->join_status.ret;
+		}
+	}
+	_thr_leave_cancellation_point(curthread);
 
 	/* Return the completion status: */
 	return (ret);

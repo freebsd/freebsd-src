@@ -63,7 +63,7 @@ _pthread_mutexattr_setprotocol(pthread_mutexattr_t *mattr, int protocol)
 		ret = EINVAL;
 	else {
 		(*mattr)->m_protocol = protocol;
-		(*mattr)->m_ceiling = PTHREAD_MAX_PRIORITY;
+		(*mattr)->m_ceiling = THR_MAX_PRIORITY;
 	}
 	return(ret);
 }

@@ -40,11 +40,12 @@ __weak_reference(__fsync, fsync);
 int
 __fsync(int fd)
 {
+	struct pthread *curthread = _get_curthread();
 	int	ret;
 
-	_thread_enter_cancellation_point();
+	_thr_enter_cancellation_point(curthread);
 	ret = __sys_fsync(fd);
-	_thread_leave_cancellation_point();
+	_thr_leave_cancellation_point(curthread);
 
-	return ret;
+	return (ret);
 }

@@ -36,22 +36,18 @@ __weak_reference(_pthread_attr_get_np, pthread_attr_get_np);
 int
 _pthread_attr_get_np(pthread_t pid, pthread_attr_t *dst)
 {
+	struct pthread *curthread;
 	int	ret;
 
 	if (pid == NULL || dst == NULL || *dst == NULL)
 		return (EINVAL);
 
-	if ((ret = _find_thread(pid)) != 0)
+	curthread = _get_curthread();
+	if ((ret = _thr_ref_add(curthread, pid, /*include dead*/0)) != 0)
 		return (ret);
 
 	memcpy(*dst, &pid->attr, sizeof(struct pthread_attr));
-
-	/*
-	 * Special case, if stack address was not provided by caller
-	 * of pthread_create(), then return address allocated internally
-	 */
-	if ((*dst)->stackaddr_attr == NULL)
-		(*dst)->stackaddr_attr = pid->stack;
+	_thr_ref_delete(curthread, pid);
 
 	return (0);
 }

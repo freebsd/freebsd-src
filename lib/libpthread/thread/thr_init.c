@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2003 Daniel M. Eischen <deischen@FreeBSD.org>
  * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
@@ -49,7 +50,6 @@
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/ttycom.h>
-#include <sys/user.h>
 #include <sys/wait.h>
 #include <sys/mman.h>
 #include <dirent.h>
@@ -57,6 +57,7 @@
 #include <fcntl.h>
 #include <paths.h>
 #include <pthread.h>
+#include <pthread_np.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,11 +65,20 @@
 #include <unistd.h>
 #include "un-namespace.h"
 
+#include "libc_private.h"
 #include "thr_private.h"
+#include "ksd.h"
+
+int	__pthread_cond_wait(pthread_cond_t *, pthread_mutex_t *);
+int	__pthread_mutex_lock(pthread_mutex_t *);
+int	__pthread_mutex_trylock(pthread_mutex_t *);
+
+static void init_private(void);
+static void init_main_thread(struct pthread *thread);
 
 /*
  * All weak references used within libc should be in this table.
- * This will is so that static libraries will work.
+ * This is so that static libraries will work.
  */
 static void *references[] = {
 	&_accept,
@@ -145,40 +155,64 @@ static void *libgcc_references[] = {
 	&_pthread_mutex_unlock
 };
 
-int _pthread_guard_default;
-int _pthread_page_size;
+#define	DUAL_ENTRY(entry)	\
+	(pthread_func_t)entry, (pthread_func_t)entry
+
+static pthread_func_t jmp_table[][2] = {
+	{DUAL_ENTRY(_pthread_cond_broadcast)},	/* PJT_COND_BROADCAST */
+	{DUAL_ENTRY(_pthread_cond_destroy)},	/* PJT_COND_DESTROY */
+	{DUAL_ENTRY(_pthread_cond_init)},	/* PJT_COND_INIT */
+	{DUAL_ENTRY(_pthread_cond_signal)},	/* PJT_COND_SIGNAL */
+	{(pthread_func_t)__pthread_cond_wait,
+	 (pthread_func_t)_pthread_cond_wait},	/* PJT_COND_WAIT */
+	{DUAL_ENTRY(_pthread_getspecific)},	/* PJT_GETSPECIFIC */
+	{DUAL_ENTRY(_pthread_key_create)},	/* PJT_KEY_CREATE */
+	{DUAL_ENTRY(_pthread_key_delete)},	/* PJT_KEY_DELETE*/
+	{DUAL_ENTRY(_pthread_main_np)},		/* PJT_MAIN_NP */
+	{DUAL_ENTRY(_pthread_mutex_destroy)},	/* PJT_MUTEX_DESTROY */
+	{DUAL_ENTRY(_pthread_mutex_init)},	/* PJT_MUTEX_INIT */
+	{(pthread_func_t)__pthread_mutex_lock,
+	 (pthread_func_t)_pthread_mutex_lock},	/* PJT_MUTEX_LOCK */
+	{(pthread_func_t)__pthread_mutex_trylock,
+	 (pthread_func_t)_pthread_mutex_trylock},/* PJT_MUTEX_TRYLOCK */
+	{DUAL_ENTRY(_pthread_mutex_unlock)},	/* PJT_MUTEX_UNLOCK */
+	{DUAL_ENTRY(_pthread_mutexattr_destroy)}, /* PJT_MUTEXATTR_DESTROY */
+	{DUAL_ENTRY(_pthread_mutexattr_init)},	/* PJT_MUTEXATTR_INIT */
+	{DUAL_ENTRY(_pthread_mutexattr_settype)}, /* PJT_MUTEXATTR_SETTYPE */
+	{DUAL_ENTRY(_pthread_once)},		/* PJT_ONCE */
+	{DUAL_ENTRY(_pthread_rwlock_destroy)},	/* PJT_RWLOCK_DESTROY */
+	{DUAL_ENTRY(_pthread_rwlock_init)},	/* PJT_RWLOCK_INIT */
+	{DUAL_ENTRY(_pthread_rwlock_rdlock)},	/* PJT_RWLOCK_RDLOCK */
+	{DUAL_ENTRY(_pthread_rwlock_tryrdlock)},/* PJT_RWLOCK_TRYRDLOCK */
+	{DUAL_ENTRY(_pthread_rwlock_trywrlock)},/* PJT_RWLOCK_TRYWRLOCK */
+	{DUAL_ENTRY(_pthread_rwlock_unlock)},	/* PJT_RWLOCK_UNLOCK */
+	{DUAL_ENTRY(_pthread_rwlock_wrlock)},	/* PJT_RWLOCK_WRLOCK */
+	{DUAL_ENTRY(_pthread_self)},		/* PJT_SELF */
+	{DUAL_ENTRY(_pthread_setspecific)},	/* PJT_SETSPECIFIC */
+	{DUAL_ENTRY(_pthread_sigmask)}		/* PJT_SIGMASK */
+};
+
+static int	init_once = 0;
 
 /*
- * Threaded process initialization
+ * Threaded process initialization.
+ *
+ * This is only called under two conditions:
+ *
+ *   1) Some thread routines have detected that the library hasn't yet
+ *      been initialized (_thr_initial == NULL && curthread == NULL), or
+ *
+ *   2) An explicit call to reinitialize after a fork (indicated
+ *      by curthread != NULL)
  */
 void
-_thread_init(void)
+_libpthread_init(struct pthread *curthread)
 {
-	int		fd;
-	int             flags;
-	int             i;
-	size_t		len;
-	int		mib[2];
-	int		sched_stack_size;	/* Size of scheduler stack. */
-
-	struct clockinfo clockinfo;
-	struct sigaction act;
+	int fd;
 
 	/* Check if this function has already been called: */
-	if (_thread_initial)
-		/* Only initialise the threaded application once. */
-		return;
-
-	_pthread_page_size = getpagesize();
-	_pthread_guard_default = getpagesize();
-	sched_stack_size = getpagesize();
-    	
-	pthread_attr_default.guardsize_attr = _pthread_guard_default;
-
-
-	/* Check if this function has already been called: */
-	if (_thread_initial)
-		/* Only initialise the threaded application once. */
+	if ((_thr_initial != NULL) && (curthread == NULL))
+		/* Only initialize the threaded application once. */
 		return;
 
 	/*
@@ -189,10 +223,18 @@ _thread_init(void)
 		PANIC("Failed loading mandatory references in _thread_init");
 
 	/*
+	 * Check the size of the jump table to make sure it is preset
+	 * with the correct number of entries.
+	 */
+	if (sizeof(jmp_table) != (sizeof(pthread_func_t) * PJT_MAX * 2))
+		PANIC("Thread jump table not properly initialized");
+	memcpy(__thr_jtable, jmp_table, sizeof(jmp_table));
+
+	/*
 	 * Check for the special case of this process running as
 	 * or in place of init as pid = 1:
 	 */
-	if (getpid() == 1) {
+	if ((_thr_pid = getpid()) == 1) {
 		/*
 		 * Setup a new session for this process which is
 		 * assumed to be running as root.
@@ -207,200 +249,271 @@ _thread_init(void)
 			PANIC("Can't set login to root");
 		if (__sys_ioctl(fd, TIOCSCTTY, (char *) NULL) == -1)
 			PANIC("Can't set controlling terminal");
-		if (__sys_dup2(fd, 0) == -1 ||
-		    __sys_dup2(fd, 1) == -1 ||
-		    __sys_dup2(fd, 2) == -1)
-			PANIC("Can't dup2");
 	}
 
-	/* Allocate and initialize the ready queue: */
-	if (_pq_alloc(&_readyq, PTHREAD_MIN_PRIORITY, PTHREAD_LAST_PRIORITY) !=
-	    0) {
-		/* Abort this application: */
-		PANIC("Cannot allocate priority ready queue.");
-	}
-	/* Allocate memory for the thread structure of the initial thread: */
-	else if ((_thread_initial = (pthread_t) malloc(sizeof(struct pthread))) == NULL) {
+	/* Initialize pthread private data. */
+	init_private();
+	_kse_init();
+
+	/* Initialize the initial kse and kseg. */
+	_kse_initial = _kse_alloc(NULL);
+	if (_kse_initial == NULL)
+		PANIC("Can't allocate initial kse.");
+	_kse_initial->k_kseg = _kseg_alloc(NULL);
+	if (_kse_initial->k_kseg == NULL)
+		PANIC("Can't allocate initial kseg.");
+	_kse_initial->k_schedq = &_kse_initial->k_kseg->kg_schedq;
+
+	/* Set the initial thread. */
+	if (curthread == NULL) {
+		/* Create and initialize the initial thread. */
+		curthread = _thr_alloc(NULL);
+		if (curthread == NULL)
+			PANIC("Can't allocate initial thread");
+		_thr_initial = curthread;
+		init_main_thread(curthread);
+	} else {
 		/*
-		 * Insufficient memory to initialise this application, so
-		 * abort:
+		 * The initial thread is the current thread.  It is
+		 * assumed that the current thread is already initialized
+		 * because it is left over from a fork().
 		 */
-		PANIC("Cannot allocate memory for initial thread");
+		_thr_initial = curthread;
 	}
-	/* Allocate memory for the scheduler stack: */
-	else if ((_thread_kern_sched_stack = malloc(sched_stack_size)) == NULL)
-		PANIC("Failed to allocate stack for scheduler");
-	/* Allocate memory for the idle stack: */
-	else if ((_idle_thr_stack = malloc(sched_stack_size)) == NULL)
-		PANIC("Failed to allocate stack for scheduler");
-	else {
-		/* Zero the global kernel thread structure: */
-		memset(&_thread_kern_thread, 0, sizeof(struct pthread));
-		_thread_kern_thread.flags = PTHREAD_FLAGS_PRIVATE;
-		memset(_thread_initial, 0, sizeof(struct pthread));
+	_kse_initial->k_kseg->kg_threadcount = 1;
+	_thr_initial->kse = _kse_initial;
+	_thr_initial->kseg = _kse_initial->k_kseg;
+	_thr_initial->active = 1;
 
-		/* Initialize the waiting and work queues: */
-		TAILQ_INIT(&_waitingq);
-		TAILQ_INIT(&_workq);
+	/*
+	 * Add the thread to the thread list and to the KSEG's thread
+         * queue.
+	 */
+	THR_LIST_ADD(_thr_initial);
+	TAILQ_INSERT_TAIL(&_kse_initial->k_kseg->kg_threadq, _thr_initial, kle);
 
-		/* Initialize the scheduling switch hook routine: */
-		_sched_switch_hook = NULL;
+	/* Setup the KSE/thread specific data for the current KSE/thread. */
+	if (_ksd_setprivate(&_thr_initial->kse->k_ksd) != 0)
+		PANIC("Can't set initial KSE specific data");
+	_set_curkse(_thr_initial->kse);
+	_thr_initial->kse->k_curthread = _thr_initial;
+	_thr_initial->kse->k_flags |= KF_INITIALIZED;
+	_kse_initial->k_curthread = _thr_initial;
+}
 
-		/* Give this thread default attributes: */
-		memcpy((void *) &_thread_initial->attr, &pthread_attr_default,
-		    sizeof(struct pthread_attr));
+/*
+ * This function and pthread_create() do a lot of the same things.
+ * It'd be nice to consolidate the common stuff in one place.
+ */
+static void
+init_main_thread(struct pthread *thread)
+{
+	int i;
 
+	/* Zero the initial thread structure. */
+	memset(thread, 0, sizeof(struct pthread));
+
+	/* Setup the thread attributes. */
+	thread->attr = _pthread_attr_default;
+
+	/*
+	 * Set up the thread stack.
+	 *
+	 * Create a red zone below the main stack.  All other stacks
+	 * are constrained to a maximum size by the parameters
+	 * passed to mmap(), but this stack is only limited by
+	 * resource limits, so this stack needs an explicitly mapped
+	 * red zone to protect the thread stack that is just beyond.
+	 */
+	if (mmap((void *)_usrstack - THR_STACK_INITIAL -
+	    _thr_guard_default, _thr_guard_default, 0, MAP_ANON,
+	    -1, 0) == MAP_FAILED)
+		PANIC("Cannot allocate red zone for initial thread");
+
+	/*
+	 * Mark the stack as an application supplied stack so that it
+	 * isn't deallocated.
+	 *
+	 * XXX - I'm not sure it would hurt anything to deallocate
+	 *       the main thread stack because deallocation doesn't
+	 *       actually free() it; it just puts it in the free
+	 *       stack queue for later reuse.
+	 */
+	thread->attr.stackaddr_attr = (void *)_usrstack - THR_STACK_INITIAL;
+	thread->attr.stacksize_attr = THR_STACK_INITIAL;
+	thread->attr.guardsize_attr = _thr_guard_default;
+	thread->attr.flags |= THR_STACK_USER;
+
+	/*
+	 * Write a magic value to the thread structure
+	 * to help identify valid ones:
+	 */
+	thread->magic = THR_MAGIC;
+
+	thread->slice_usec = -1;
+	thread->cancelflags = PTHREAD_CANCEL_ENABLE | PTHREAD_CANCEL_DEFERRED;
+	thread->name = strdup("initial thread");
+
+	/* Initialize the thread for signals: */
+	sigemptyset(&thread->sigmask);
+
+	/*
+	 * Set up the thread mailbox.  The threads saved context
+	 * is also in the mailbox.
+	 */
+	thread->tmbx.tm_udata = thread;
+	thread->tmbx.tm_context.uc_sigmask = thread->sigmask;
+	thread->tmbx.tm_context.uc_stack.ss_size = thread->attr.stacksize_attr;
+	thread->tmbx.tm_context.uc_stack.ss_sp = thread->attr.stackaddr_attr;
+
+	/* Default the priority of the initial thread: */
+	thread->base_priority = THR_DEFAULT_PRIORITY;
+	thread->active_priority = THR_DEFAULT_PRIORITY;
+	thread->inherited_priority = 0;
+
+	/* Initialize the mutex queue: */
+	TAILQ_INIT(&thread->mutexq);
+
+	/* Initialize thread locking. */
+	if (_lock_init(&thread->lock, LCK_ADAPTIVE,
+	    _thr_lock_wait, _thr_lock_wakeup) != 0)
+		PANIC("Cannot initialize initial thread lock");
+	for (i = 0; i < MAX_THR_LOCKLEVEL; i++) {
+		_lockuser_init(&thread->lockusers[i], (void *)thread);
+		_LCK_SET_PRIVATE2(&thread->lockusers[i], (void *)thread);
+	}
+
+	/* Initialize hooks in the thread structure: */
+	thread->specific = NULL;
+	thread->cleanup = NULL;
+	thread->flags = 0;
+	thread->continuation = NULL;
+
+	thread->state = PS_RUNNING;
+	thread->uniqueid = 0;
+}
+
+static void
+init_private(void)
+{
+	struct clockinfo clockinfo;
+	struct sigaction act;
+	size_t len;
+	int mib[2];
+	int i;
+
+	/*
+	 * Avoid reinitializing some things if they don't need to be,
+	 * e.g. after a fork().
+	 */
+	if (init_once == 0) {
 		/* Find the stack top */
 		mib[0] = CTL_KERN;
 		mib[1] = KERN_USRSTACK;
 		len = sizeof (_usrstack);
 		if (sysctl(mib, 2, &_usrstack, &len, NULL, 0) == -1)
-			_usrstack = (void *)USRSTACK;
+			PANIC("Cannot get kern.usrstack from sysctl");
+
 		/*
-		 * Create a red zone below the main stack.  All other stacks are
-		 * constrained to a maximum size by the paramters passed to
-		 * mmap(), but this stack is only limited by resource limits, so
-		 * this stack needs an explicitly mapped red zone to protect the
-		 * thread stack that is just beyond.
+		 * Create a red zone below the main stack.  All other
+		 * stacks are constrained to a maximum size by the
+		 * parameters passed to mmap(), but this stack is only
+		 * limited by resource limits, so this stack needs an
+		 * explicitly mapped red zone to protect the thread stack
+		 * that is just beyond.
 		 */
-		if (mmap(_usrstack - PTHREAD_STACK_INITIAL -
-		    _pthread_guard_default, _pthread_guard_default, 0,
-		    MAP_ANON, -1, 0) == MAP_FAILED)
+		if (mmap((void *)_usrstack - THR_STACK_INITIAL -
+		    _thr_guard_default, _thr_guard_default,
+		    0, MAP_ANON, -1, 0) == MAP_FAILED)
 			PANIC("Cannot allocate red zone for initial thread");
-
-		/* Set the main thread stack pointer. */
-		_thread_initial->stack = _usrstack - PTHREAD_STACK_INITIAL;
-
-		/* Set the stack attributes. */
-		_thread_initial->attr.stackaddr_attr = _thread_initial->stack;
-		_thread_initial->attr.stacksize_attr = PTHREAD_STACK_INITIAL;
-
-		/* Setup the context for the scheduler. */
-		_thread_kern_kse_mailbox.km_stack.ss_sp =
-		    _thread_kern_sched_stack;
-		_thread_kern_kse_mailbox.km_stack.ss_size = sched_stack_size;
-		_thread_kern_kse_mailbox.km_func =
-		    (void *)_thread_kern_scheduler;
-
-		/* Initialize the idle context. */
-		bzero(&_idle_thr_mailbox, sizeof(struct kse_thr_mailbox));
-		getcontext(&_idle_thr_mailbox.tm_context);
-		_idle_thr_mailbox.tm_context.uc_stack.ss_sp = _idle_thr_stack;
-		_idle_thr_mailbox.tm_context.uc_stack.ss_size =
-		    sched_stack_size;
-		makecontext(&_idle_thr_mailbox.tm_context, _thread_kern_idle,
-		    1);
-
-		/*
-		 * Write a magic value to the thread structure
-		 * to help identify valid ones:
-		 */
-		_thread_initial->magic = PTHREAD_MAGIC;
-
-		/* Set the initial cancel state */
-		_thread_initial->cancelflags = PTHREAD_CANCEL_ENABLE |
-		    PTHREAD_CANCEL_DEFERRED;
-
-		/* Setup the context for initial thread. */
-		getcontext(&_thread_initial->mailbox.tm_context);
-		_thread_initial->mailbox.tm_context.uc_stack.ss_sp =
-		    _thread_initial->stack;
-		_thread_initial->mailbox.tm_context.uc_stack.ss_size =
-		    PTHREAD_STACK_INITIAL;
-		_thread_initial->mailbox.tm_udata = (void *)_thread_initial;
-
-		/* Default the priority of the initial thread: */
-		_thread_initial->base_priority = PTHREAD_DEFAULT_PRIORITY;
-		_thread_initial->active_priority = PTHREAD_DEFAULT_PRIORITY;
-		_thread_initial->inherited_priority = 0;
-
-		/* Initialise the state of the initial thread: */
-		_thread_initial->state = PS_RUNNING;
-
-		/* Set the name of the thread: */
-		_thread_initial->name = strdup("_thread_initial");
-
-		/* Initialize joiner to NULL (no joiner): */
-		_thread_initial->joiner = NULL;
-
-		/* Initialize the owned mutex queue and count: */
-		TAILQ_INIT(&(_thread_initial->mutexq));
-		_thread_initial->priority_mutex_count = 0;
-
-		/* Initialize the global scheduling time: */
-		_sched_ticks = 0;
-		gettimeofday((struct timeval *) &_sched_tod, NULL);
-
-		/* Initialize last active: */
-		_thread_initial->last_active = (long) _sched_ticks;
-
-		/* Initialise the rest of the fields: */
-		_thread_initial->sig_defer_count = 0;
-		_thread_initial->specific = NULL;
-		_thread_initial->cleanup = NULL;
-		_thread_initial->flags = 0;
-		_thread_initial->error = 0;
-		TAILQ_INIT(&_thread_list);
-		TAILQ_INSERT_HEAD(&_thread_list, _thread_initial, tle);
-		_set_curthread(_thread_initial);
-
-		/* Clear the pending signals for the process. */
-		sigemptyset(&_thread_sigpending);
-
-		/* Enter a loop to get the existing signal status: */
-		for (i = 1; i < NSIG; i++) {
-			/* Check for signals which cannot be trapped. */
-			if (i == SIGKILL || i == SIGSTOP)
-				continue;
-
-			/* Get the signal handler details. */
-			if (__sys_sigaction(i, NULL,
-			    &_thread_sigact[i - 1]) != 0)
-				PANIC("Cannot read signal handler info");
-		}
-
-		/* Register SIGCHLD (needed for wait(2)). */
-		sigfillset(&act.sa_mask);
-		act.sa_handler = (void (*) ()) _thread_sig_handler;
-		act.sa_flags = SA_SIGINFO | SA_RESTART;
-		if (__sys_sigaction(SIGCHLD, &act, NULL) != 0)
-			PANIC("Can't initialize signal handler");
-
-		/* Get the process signal mask. */
-		__sys_sigprocmask(SIG_SETMASK, NULL, &_thread_sigmask);
 
 		/* Get the kernel clockrate: */
 		mib[0] = CTL_KERN;
 		mib[1] = KERN_CLOCKRATE;
 		len = sizeof (struct clockinfo);
 		if (sysctl(mib, 2, &clockinfo, &len, NULL, 0) == 0)
-			_clock_res_usec = clockinfo.tick > CLOCK_RES_USEC_MIN ?
-			    clockinfo.tick : CLOCK_RES_USEC_MIN;
+			_clock_res_usec = clockinfo.tick;
+		else
+			_clock_res_usec = CLOCK_RES_USEC;
 
-		/* Start KSE. */
-		_thread_kern_kse_mailbox.km_curthread =
-			&_thread_initial->mailbox;
-		if (kse_create(&_thread_kern_kse_mailbox, 0) != 0)
-			PANIC("kse_new failed");
+		_thr_page_size = getpagesize();
+		_thr_guard_default = _thr_page_size;
+
+		init_once = 1;	/* Don't do this again. */
+	} else {
+		/*
+		 * Destroy the locks before creating them.  We don't
+		 * know what state they are in so it is better to just
+		 * recreate them.
+		 */
+		_lock_destroy(&_thread_signal_lock);
+		_lock_destroy(&_mutex_static_lock);
+		_lock_destroy(&_rwlock_static_lock);
+		_lock_destroy(&_keytable_lock);
 	}
 
-	/* Initialise the garbage collector mutex and condition variable. */
-	if (_pthread_mutex_init(&_gc_mutex,NULL) != 0 ||
-	    pthread_cond_init(&_gc_cond,NULL) != 0)
-		PANIC("Failed to initialise garbage collector mutex or condvar");
-}
 
-/*
- * Special start up code for NetBSD/Alpha
- */
-#if	defined(__NetBSD__) && defined(__alpha__)
-int
-main(int argc, char *argv[], char *env);
+	/* Initialize everything else. */
+	TAILQ_INIT(&_thread_list);
+	TAILQ_INIT(&_thread_gc_list);
 
-int
-_thread_main(int argc, char *argv[], char *env)
-{
-	_thread_init();
-	return (main(argc, argv, env));
+	/* Enter a loop to get the existing signal status: */
+	for (i = 1; i < NSIG; i++) {
+		/* Check for signals which cannot be trapped: */
+		if (i == SIGKILL || i == SIGSTOP) {
+		}
+
+		/* Get the signal handler details: */
+		else if (__sys_sigaction(i, NULL,
+		    &_thread_sigact[i - 1]) != 0) {
+			/*
+			 * Abort this process if signal
+			 * initialisation fails:
+			 */
+			PANIC("Cannot read signal handler info");
+		}
+
+		/* Initialize the SIG_DFL dummy handler count. */
+		_thread_dfl_count[i] = 0;
+	}
+
+	/*
+	 * Install the signal handler for SIGINFO.  It isn't
+	 * really needed, but it is nice to have for debugging
+	 * purposes.
+	 */
+	if (__sys_sigaction(SIGINFO, &act, NULL) != 0) {
+		/*
+		 * Abort this process if signal initialisation fails:
+		 */
+		PANIC("Cannot initialize signal handler");
+	}
+	_thread_sigact[SIGINFO - 1].sa_flags = SA_SIGINFO | SA_RESTART;
+
+	/*
+	 * Initialize the lock for temporary installation of signal
+	 * handlers (to support sigwait() semantics) and for the
+	 * process signal mask and pending signal sets.
+	 */
+	if (_lock_init(&_thread_signal_lock, LCK_ADAPTIVE,
+	    _thr_lock_wait, _thr_lock_wakeup) != 0)
+		PANIC("Cannot initialize _thread_signal_lock");
+	if (_lock_init(&_mutex_static_lock, LCK_ADAPTIVE,
+	    _thr_lock_wait, _thr_lock_wakeup) != 0)
+		PANIC("Cannot initialize mutex static init lock");
+	if (_lock_init(&_rwlock_static_lock, LCK_ADAPTIVE,
+	    _thr_lock_wait, _thr_lock_wakeup) != 0)
+		PANIC("Cannot initialize rwlock static init lock");
+	if (_lock_init(&_keytable_lock, LCK_ADAPTIVE,
+	    _thr_lock_wait, _thr_lock_wakeup) != 0)
+		PANIC("Cannot initialize thread specific keytable lock");
+
+	/* Clear pending signals and get the process signal mask. */
+	sigemptyset(&_thr_proc_sigpending);
+	__sys_sigprocmask(SIG_SETMASK, NULL, &_thr_proc_sigmask);
+
+	/*
+	 * _thread_list_lock and _kse_count are initialized
+	 * by _kse_init()
+	 */
 }
-#endif

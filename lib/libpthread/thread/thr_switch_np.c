@@ -43,29 +43,11 @@ __weak_reference(_pthread_switch_delete_np, pthread_switch_delete_np);
 int
 _pthread_switch_add_np(pthread_switch_routine_t routine)
 {
-	int ret = 0;
-
-	if (routine == NULL)
-		/* Return an invalid argument error: */
-		ret = EINVAL;
-	else
-		/* Shouldn't need a lock to protect this assigment. */
-		_sched_switch_hook = routine;
-
-	return(ret);
+	return (ENOTSUP);
 }
 
 int
 _pthread_switch_delete_np(pthread_switch_routine_t routine)
 {
-	int ret = 0;
-
-	if (routine != _sched_switch_hook)
-		/* Return an invalid argument error: */
-		ret = EINVAL;
-	else
-		/* Shouldn't need a lock to protect this assigment. */
-		_sched_switch_hook = NULL;
-
-	return(ret);
+	return (ENOTSUP);
 }
