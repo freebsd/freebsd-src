@@ -46,8 +46,8 @@ static char rcsid[] =
  * gendeskey(deskey) - generate a secure des key
  */
 
-#include "reentrant.h"
 #include "namespace.h"
+#include "reentrant.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>

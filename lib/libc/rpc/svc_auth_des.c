@@ -46,8 +46,8 @@
  *
  */
 
-#include "reentrant.h"
 #include "namespace.h"
+#include "reentrant.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>

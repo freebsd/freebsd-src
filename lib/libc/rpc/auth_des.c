@@ -33,8 +33,8 @@
 /*
  * auth_des.c, client-side implementation of DES authentication
  */
-#include "reentrant.h"
 #include "namespace.h"
+#include "reentrant.h"
 #include <err.h>
 #include <errno.h>
 #include <string.h>

@@ -56,8 +56,8 @@ static char sccsid[] = "@(#)clnt_vc.c 1.19 89/03/16 Copyr 1988 Sun Micro";
  * Now go hang yourself.
  */
 
-#include "reentrant.h"
 #include "namespace.h"
+#include "reentrant.h"
 #include <sys/types.h>
 #include <sys/poll.h>
 #include <sys/syslog.h>
