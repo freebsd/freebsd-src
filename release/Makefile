@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.139 1995/04/19 17:42:32 phk Exp $
+#	$Id: Makefile,v 1.140 1995/04/19 18:00:04 phk Exp $
 #
 # How to roll a release:
 #
@@ -14,6 +14,7 @@
 
 EXPORT_DISTS=	games manpages proflibs dict info
 EXTRA_DISTS=	secure ${EXPORT_DISTS}
+ALL_DISTS=	bin ${EXTRA_DISTS}
 
 CPIO1=	etc/services etc/protocols etc/sysconfig
 CPIO2=  scripts/miscfuncs.sh scripts/instdist.sh scripts/netinst.sh \
@@ -24,14 +25,16 @@ FAQS=	README MIRROR.SITES
 # define this to use a vn device instead of the floppy drive
 VNDEVICE=		vn0
 
-
 # which floppy to use, if VNDEVICE isn't defined.
 FDDEVICE=		fd0
+
 # define FDFORMAT to format physical floppies
 FDFORMAT=		yes
 
 # mountpoint for filesystems.
 MNT=			/mnt
+
+# other floppy parameters.
 FDCYLS=			80
 FDCYLSIZE=		15k
 FDLABEL=		fd1200
@@ -76,8 +79,6 @@ release:
 .endif
 	# To be used in development...
 	#find ${.CURDIR} -print | cpio -dumpv ${CHROOTDIR}
-	#temporary hack to disable slices
-	cp /tmp/sd.c ${CHROOTDIR}/usr/src/sys/scsi
 	chmod 755 ${CHROOTDIR}/mk
 	chroot ${CHROOTDIR} /mk
 
@@ -91,27 +92,10 @@ release.1:
 	chflags -R noschg ${RELEASEDIR}/.
 	rm -rf ${RELEASEDIR}/*
 	mkdir ${RD}
-	mkdir ${RD}/bootfd
-	mkdir ${RD}/bootfd/dev
-	mkdir ${RD}/bootfd/mnt
-	mkdir ${RD}/bootfd/stand
-	mkdir ${RD}/cpiofd
-	mkdir ${RD}/cpiofd/stand
-	mkdir ${RD}/cpiofd/stand/scripts
-	mkdir ${RD}/fixitfd
-	mkdir ${RD}/fixitfd/stand
-	mkdir ${RD}/fixitfd/bin
-	mkdir ${RD}/fixitfd/sbin
-	mkdir ${RD}/fixitfd/mnt
-	mkdir ${RD}/fixitfd/etc
 	mkdir ${RD}/floppies
-	mkdir ${RD}/kernels
 	mkdir ${RD}/trees
-	mkdir ${RD}/trees/bin
 	mkdir ${RD}/dists
-	mkdir ${RD}/dists/bin
-	cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/bin
-	for i in ${EXTRA_DISTS} ; do \
+	for i in ${ALL_DISTS} ; do \
 		mkdir ${RD}/trees/$$i ; \
 		mkdir ${RD}/dists/$$i ; \
 		mtree -deU -f ${MTREEFILES}/BSD.root.dist \
@@ -128,12 +112,15 @@ release.1:
 # Install the system into the various distributions.
 release.2:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
+	cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/bin
 	cd ${.CURDIR}/.. ; make distribute DISTDIR=${RD}/trees
 	chflags -R noschg ${RD}/trees
 	touch release.2
 
 # Make and install a couple of kernels we need.
 release.3:
+	rm -f ${RD}/kernels
+	mkdir -p ${RD}/kernels
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	cd ${.CURDIR}/../sys/i386/conf && \
 		sed 's/GENERIC/BOOTCDROM/g' GENERIC > BOOTCDROM
@@ -148,41 +135,29 @@ release.3:
 	done
 	rm -f ${.CURDIR}/../sys/i386/conf/BOOTCDROM
 	cd ${RD}/kernels && kzip GENERIC
-	ln -f ${RD}/kernels/GENERIC ${RD}/trees/bin/kernel.GENERIC
-	ln -f ${RD}/kernels/GENERIC ${RD}/cpiofd/kernel
-	ln -f ${RD}/kernels/GENERIC.kz ${RD}/bootfd/kernel
-	ln -f ${RD}/kernels/GENERIC.kz ${RD}/fixitfd/kernel
 	touch release.3
 
 # Make and install the three crunched binaries which live on the floppies.
 # You are not supposed to like this :-)
 release.4:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
+	rm -rf ${RD}/crunch
+	mkdir -p ${RD}/crunch
 	for j in boot cpio fixit; do \
+		rm -rf $${j}_crunch && \
+		mkdir $${j}_crunch && \
+		( cd $${j}_crunch && \
+		crunchgen ${.CURDIR}/$${j}_crunch.conf && \
+		${MAKE} -f $${j}_crunch.mk objs exe NOCRYPT=yes ) && \
+		mv $${j}_crunch/$${j}_crunch ${RD}/crunch/$${j} && \
 		rm -rf $${j}_crunch ; \
-		mkdir $${j}_crunch ; \
-		( cd $${j}_crunch ; \
-		crunchgen ${.CURDIR}/$${j}_crunch.conf ; \
-		${MAKE} -f $${j}_crunch.mk objs exe NOCRYPT=yes ) ; \
-		if [ $$j = cpio ] ; then \
-			cat < $${j}_crunch/$${j}_crunch \
-				> ${RD}/$${j}fd/stand/$${j}_crunch ; \
-		else \
-			gzip -9 < $${j}_crunch/$${j}_crunch \
-				> ${RD}/$${j}fd/stand/$${j}_crunch ; \
-		fi ; \
-		rm -rf $${j}_crunch ; \
-		chmod 555 ${RD}/$${j}fd/stand/$${j}_crunch ; \
-		for i in `crunchgen -l ${.CURDIR}/$${j}_crunch.conf` ; do \
-			ln -f ${RD}/$${j}fd/stand/$${j}_crunch \
-				${RD}/$${j}fd/stand/$$i ; \
-		done ; \
 	done
 	touch release.4
 
 # Fix up the distributions.
 release.5:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
+	ln -f ${RD}/kernels/GENERIC ${RD}/trees/bin/kernel.GENERIC
 	if [ -d ${RD}/trees/bin/usr/share/man ] ; then \
 		rm -rf ${RD}/trees/manpages/usr/share/man ;\
 		mv ${RD}/trees/bin/usr/share/man \
@@ -230,6 +205,13 @@ release.5:
 # Complete the bootfd 
 release.6:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
+	rm -rf ${RD}/bootfd
+	mkdir ${RD}/bootfd
+	cd ${RD}/bootfd && \
+		mkdir dev mnt stand
+	ln -f ${RD}/kernels/GENERIC.kz ${RD}/bootfd/kernel
+	@cd ${.CURDIR} ; $(MAKE) installCRUNCH CRUNCH=boot \
+		DIR=${RD}/bootfd/stand ZIP=true
 	( cd ${RD}/trees/bin/dev ; \
 		ls console tty ttyv1 null zero \
 		*[sw]d* fd[01] rfd[01] | \
@@ -247,6 +229,13 @@ release.6:
 # Complete the cpiofd directory
 release.7:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
+	rm -rf ${RD}/cpiofd
+	mkdir ${RD}/cpiofd
+	cd ${RD}/cpiofd && \
+		mkdir stand stand/scripts
+	ln -f ${RD}/kernels/GENERIC ${RD}/cpiofd/kernel
+	@cd ${.CURDIR} ; $(MAKE) installCRUNCH CRUNCH=cpio \
+		DIR=${RD}/cpiofd/stand ZIP=false
 	cd ${RD}/trees/bin ; ls ${CPIO1} | cpio -dump ${RD}/cpiofd/stand
 	cd ${.CURDIR} ; ls ${CPIO2} | cpio -dumpv ${RD}/cpiofd/stand
 	( JUST_TELL_ME=please ; . ${.CURDIR}/../sys/conf/newvers.sh ; \
@@ -312,7 +301,15 @@ release.9:
 # Complete the fixitfd
 release.10:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
-	( cd ${RD}/trees/bin/dev ; \
+	rm -rf ${RD}/fixitfd
+	mkdir ${RD}/fixitfd
+	cd ${RD}/fixitfd && \
+		mkdir stand bin sbin etc mnt mnt1 mnt2 mnt3 mnt4 tmp
+	ln -f ${RD}/kernels/GENERIC.kz ${RD}/fixitfd/kernel
+	@cd ${.CURDIR} ; $(MAKE) installCRUNCH CRUNCH=fixit \
+		DIR=${RD}/fixitfd/stand ZIP=true
+	( cd ${RD}/trees/bin/dev && \
+		sh MAKEDEV wd0s5 wd0s6 wd0s7 wd0s8 && \
 		ls console tty ttyv1 null zero \
 		*[sw]d* fd[01] rfd[01] | \
 	cpio -dump ${RD}/fixitfd/dev )
@@ -399,7 +396,6 @@ doFLOPPY:
 	@vnconfig -u /dev/r${VNDEVICE} 2>/dev/null || true
 	dd of=${RD}/floppies/${FLOPPY}.tmp if=/dev/zero \
 		bs=${FDCYLSIZE} count=${FDCYLS} 2>/dev/null
-	sync && sleep 5
 	vnconfig -c /dev/r${VNDEVICE} ${RD}/floppies/${FLOPPY}.tmp
 	disklabel -w -r -B \
 		-b ${RD}/trees/bin/usr/mdec/fdboot \
@@ -430,4 +426,23 @@ doFLOPPY:
 .endif
 	mv ${RD}/floppies/${FLOPPY}.tmp ${RD}/floppies/${FLOPPY}.flp
 
+installCRUNCH:
+.if !defined(CRUNCH)
+	@echo "CRUNCH undefined in installCRUNCH" ; exit 1
+.endif
+.if !defined(DIR)
+	@echo "DIR undefined in installCRUNCH" ; exit 1
+.endif
+.if !defined(ZIP)
+	@echo "ZIP undefined in installCRUNCH" ; exit 1
+.endif
+	if ${ZIP} ; then \
+		gzip -9 < ${RD}/crunch/${CRUNCH} > ${DIR}/${CRUNCH}_crunch ; \
+	else \
+		ln -f ${RD}/crunch/${CRUNCH} ${DIR}/${CRUNCH}_crunch ; \
+	fi
+	chmod 555 ${DIR}/${CRUNCH}_crunch
+	for i in `crunchgen -l ${.CURDIR}/${CRUNCH}_crunch.conf` ; do \
+		ln -f ${DIR}/${CRUNCH}_crunch ${DIR}/$$i ; \
+	done
 .include <bsd.prog.mk>
