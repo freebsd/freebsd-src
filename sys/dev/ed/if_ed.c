@@ -67,7 +67,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <net/bpf.h>
-#include <net/bridge.h>
 
 #include <machine/md_var.h>
 
@@ -2810,26 +2809,9 @@ ed_get_packet(sc, buf, len)
 	eh = mtod(m, struct ether_header *);
 
 	/*
-	 * Don't read in the entire packet if we know we're going to drop it
-	 * and no bpf is active.
+	 * Get packet, including link layer address, from interface.
 	 */
-	if (!ifp->if_bpf && BDG_ACTIVE( (ifp) ) ) {
-		struct ifnet *bif;
-
-		ed_ring_copy(sc, buf, (char *)eh, ETHER_HDR_LEN);
-		bif = bridge_in_ptr(ifp, eh) ;
-		if (bif == BDG_DROP) {
-			m_freem(m);
-			return;
-		}
-		if (len > ETHER_HDR_LEN)
-			ed_ring_copy(sc, buf + ETHER_HDR_LEN,
-				(char *)(eh + 1), len - ETHER_HDR_LEN);
-	} else
-		/*
-		 * Get packet, including link layer address, from interface.
-		 */
-		ed_ring_copy(sc, buf, (char *)eh, len);
+	ed_ring_copy(sc, buf, (char *)eh, len);
 
 	m->m_pkthdr.len = m->m_len = len;
 
