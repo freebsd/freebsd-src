@@ -55,6 +55,7 @@
 #include <vm/vm_param.h>
 #include <sys/exec.h>
 
+#define DOCHECK() do { if (ps >= psbuf+sizeof(psbuf)) goto bailout; } while (0)
 int
 procfs_dostatus(curp, p, pfs, uio)
 	struct proc *curp;
@@ -71,7 +72,7 @@ procfs_dostatus(curp, p, pfs, uio)
 	int i;
 	int xlen;
 	int error;
-	char psbuf[256+MAXHOSTNAMELEN];	/* XXX - conservative */
+	char psbuf[256];	/* XXX - conservative */
 
 	if (uio->uio_rw != UIO_READ)
 		return (EOPNOTSUPP);
@@ -85,62 +86,85 @@ procfs_dostatus(curp, p, pfs, uio)
 /* comm pid ppid pgid sid maj,min ctty,sldr start ut st wmsg 
                                 euid ruid rgid,egid,groups[1 .. NGROUPS]
 */
+	KASSERT(sizeof(psbuf) > MAXCOMLEN,
+			("Too short buffer for new MAXCOMLEN"));
+
 	ps = psbuf;
 	bcopy(p->p_comm, ps, MAXCOMLEN);
 	ps[MAXCOMLEN] = '\0';
 	ps += strlen(ps);
-	ps += sprintf(ps, " %d %d %d %d ", pid, ppid, pgid, sid);
-
+	DOCHECK();
+	ps += snprintf(ps, psbuf + sizeof(psbuf) - ps,
+	    " %d %d %d %d ", pid, ppid, pgid, sid);
+	DOCHECK();
 	if ((p->p_flag&P_CONTROLT) && (tp = sess->s_ttyp))
-		ps += sprintf(ps, "%d,%d ", major(tp->t_dev), minor(tp->t_dev));
+		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps,
+		    "%d,%d ", major(tp->t_dev), minor(tp->t_dev));
 	else
-		ps += sprintf(ps, "%d,%d ", -1, -1);
+		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps,
+		    "%d,%d ", -1, -1);
+	DOCHECK();
 
 	sep = "";
 	if (sess->s_ttyvp) {
-		ps += sprintf(ps, "%sctty", sep);
+		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps, "%sctty", sep);
 		sep = ",";
+		DOCHECK();
 	}
 	if (SESS_LEADER(p)) {
-		ps += sprintf(ps, "%ssldr", sep);
+		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps, "%ssldr", sep);
 		sep = ",";
+		DOCHECK();
 	}
-	if (*sep != ',')
-		ps += sprintf(ps, "noflags");
+	if (*sep != ',') {
+		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps, "noflags");
+		DOCHECK();
+	}
 
 	if (p->p_flag & P_INMEM) {
 		struct timeval ut, st;
 
 		calcru(p, &ut, &st, (struct timeval *) NULL);
-		ps += sprintf(ps, " %ld,%ld %ld,%ld %ld,%ld",
+		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps,
+		    " %ld,%ld %ld,%ld %ld,%ld",
 		    p->p_stats->p_start.tv_sec,
 		    p->p_stats->p_start.tv_usec,
 		    ut.tv_sec, ut.tv_usec,
 		    st.tv_sec, st.tv_usec);
 	} else
-		ps += sprintf(ps, " -1,-1 -1,-1 -1,-1");
+		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps,
+		    " -1,-1 -1,-1 -1,-1");
+	DOCHECK();
 
-	ps += sprintf(ps, " %s",
+	ps += snprintf(ps, psbuf + sizeof(psbuf) - ps, " %s",
 		(p->p_wchan && p->p_wmesg) ? p->p_wmesg : "nochan");
+	DOCHECK();
 
 	cr = p->p_ucred;
 
-	ps += sprintf(ps, " %lu %lu %lu", 
+	ps += snprintf(ps, psbuf + sizeof(psbuf) - ps, " %lu %lu %lu", 
 		(u_long)cr->cr_uid,
 		(u_long)p->p_cred->p_ruid,
 		(u_long)p->p_cred->p_rgid);
+	DOCHECK();
 
 	/* egid (p->p_cred->p_svgid) is equal to cr_ngroups[0] 
 	   see also getegid(2) in /sys/kern/kern_prot.c */
 
-	for (i = 0; i < cr->cr_ngroups; i++)
-		ps += sprintf(ps, ",%lu", (u_long)cr->cr_groups[i]);
+	for (i = 0; i < cr->cr_ngroups; i++) {
+		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps,
+		    ",%lu", (u_long)cr->cr_groups[i]);
+		DOCHECK();
+	}
 
 	if (p->p_prison)
-		ps += sprintf(ps, " %s", p->p_prison->pr_host);
+		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps,
+		    " %s", p->p_prison->pr_host);
 	else
-		ps += sprintf(ps, " -");
-	ps += sprintf(ps, "\n");
+		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps, " -");
+	DOCHECK();
+	ps += snprintf(ps, psbuf + sizeof(psbuf) - ps, "\n");
+	DOCHECK();
 
 	xlen = ps - psbuf;
 	xlen -= uio->uio_offset;
@@ -152,6 +176,9 @@ procfs_dostatus(curp, p, pfs, uio)
 		error = uiomove(ps, xlen, uio);
 
 	return (error);
+
+bailout:
+	return (ENOMEM);
 }
 
 int
