@@ -2,7 +2,7 @@
 
 #define _main_c_
 
-#define FTP_VERSION "1.9.0 (December 22, 1994)"
+#define FTP_VERSION "1.9.1 (January 1, 1995)"
 
 /* #define BETA 1 */ /* If defined, it prints a little warning message. */
 
