@@ -115,16 +115,9 @@ restore_ic(u_int64_t psr)
  * Entered with psr.ic and psr.i both zero.
  */
 void
-enter_kernel(u_int64_t start, struct bootinfo *bi, UINTN mapkey)
+enter_kernel(u_int64_t start, struct bootinfo *bi)
 {
 	u_int64_t		psr;
-	EFI_STATUS		status;
-
-	status = BS->ExitBootServices(IH, mapkey);
-	if (EFI_ERROR(status)) {
-		printf("ExitBootServices returned 0x%lx\n", status);
-		return;
-	}
 
 	__asm __volatile("srlz.i;;");
 	__asm __volatile("mov cr.ipsr=%0"
@@ -149,6 +142,7 @@ elf_exec(struct preloaded_file *fp)
 	struct bootinfo		*bi;
 	u_int64_t		psr;
 	UINTN			mapkey;
+	EFI_STATUS		status;
 
 	if ((md = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL)
 		return(EFTYPE);			/* XXX actually EFUCKUP */
@@ -164,6 +158,14 @@ elf_exec(struct preloaded_file *fp)
 	bzero(bi, sizeof(struct bootinfo));
 	bi_load(bi, fp, &mapkey);
 
+	status = BS->ExitBootServices(IH, mapkey);
+	if (EFI_ERROR(status)) {
+		printf("ExitBootServices returned 0x%lx\n", status);
+		return;
+	}
+
+	psr = disable_ic();
+
 	/*
 	 * Region 6 is direct mapped UC and region 7 is direct mapped
 	 * WC. The details of this is controlled by the Alt {I,D}TLB
@@ -172,8 +174,6 @@ elf_exec(struct preloaded_file *fp)
 	 */
 	ia64_set_rr(IA64_RR_BASE(6), (6 << 8) | (28 << 2));
 	ia64_set_rr(IA64_RR_BASE(7), (7 << 8) | (28 << 2));
-
-	psr = disable_ic();
 
 	bzero(&pte, sizeof(pte));
 	pte.pte_p = 1;
@@ -191,6 +191,7 @@ elf_exec(struct preloaded_file *fp)
 	__asm __volatile("srlz.i;;");
 	__asm __volatile("itr.i itr[%0]=%1;;"
 			 :: "r"(0), "r"(*(u_int64_t*)&pte));
+	__asm __volatile("srlz.i;;");
 	__asm __volatile("itr.d dtr[%0]=%1;;"
 			 :: "r"(0), "r"(*(u_int64_t*)&pte));
 	__asm __volatile("srlz.i;;");
@@ -212,7 +213,7 @@ elf_exec(struct preloaded_file *fp)
 			 :: "r"(1), "r"(*(u_int64_t*)&pte));
 	__asm __volatile("srlz.i;;");
 
-	enter_kernel(hdr->e_entry, bi, mapkey);
+	enter_kernel(hdr->e_entry, bi);
 
 	restore_ic(psr);
 }
