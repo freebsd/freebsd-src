@@ -57,22 +57,33 @@
 
 /* $FreeBSD$ */
 
-#define SYM_DRIVER_NAME	"sym-1.5.4-20000528"
+#define SYM_DRIVER_NAME	"sym-1.6.1-20000608"
 
 /* #define SYM_DEBUG_GENERIC_SUPPORT */
 
 #include <pci.h>
 #include <stddef.h>	/* For offsetof */
-
 #include <sys/param.h>
+
 /*
  *  Only use the BUS stuff for PCI under FreeBSD 4 and later versions.
  *  Note that the old BUS stuff also works for FreeBSD 4 and spares 
- *  about 1.5KB for the driver object file.
+ *  about 1 KB for the driver object file.
  */
 #if 	__FreeBSD_version >= 400000
-#define	FreeBSD_Bus_Io_Abstraction
 #define	FreeBSD_Bus_Dma_Abstraction
+#define	FreeBSD_Bus_Io_Abstraction
+#define	FreeBSD_Bus_Space_Abstraction
+#endif
+
+/*
+ *  Driver configuration options.
+ */
+#include "opt_sym.h"
+#include <dev/sym/sym_conf.h>
+
+#ifndef FreeBSD_Bus_Io_Abstraction
+#include "ncr.h"	/* To know if the ncr has been configured */
 #endif
 
 #include <sys/systm.h>
@@ -88,9 +99,19 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
+#ifdef	FreeBSD_Bus_Space_Abstraction
 #include <machine/bus_memio.h>
+/*
+ *  Only include bus_pio if needed.
+ *  This avoids bus space primitives to be uselessly bloated 
+ *  by out-of-age PIO operations.
+ */
+#ifdef	SYM_CONF_IOMAPPED
 #include <machine/bus_pio.h>
+#endif
+#endif
 #include <machine/bus.h>
+
 #ifdef FreeBSD_Bus_Io_Abstraction
 #include <machine/resource.h>
 #include <sys/rman.h>
@@ -110,12 +131,6 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
-#if 0
-#include <sys/kernel.h>
-#include <sys/sysctl.h>
-#include <vm/vm_extern.h>
-#endif
-
 /* Short and quite clear integer types */
 typedef int8_t    s8;
 typedef int16_t   s16;
@@ -124,38 +139,74 @@ typedef u_int8_t  u8;
 typedef u_int16_t u16;
 typedef	u_int32_t u32;
 
-/* Driver configuration and definitions */
-#if 1
-#include "opt_sym.h"
-#include <dev/sym/sym_conf.h>
+/*
+ *  Driver definitions.
+ */
 #include <dev/sym/sym_defs.h>
 #include <dev/sym/sym_fw.h>
+
+/*
+ *  IA32 architecture does not reorder STORES and prevents
+ *  LOADS from passing STORES. It is called `program order' 
+ *  by Intel and allows device drivers to deal with memory 
+ *  ordering by only ensuring that the code is not reordered  
+ *  by the compiler when ordering is required.
+ *  Other architectures implement a weaker ordering that 
+ *  requires memory barriers (and also IO barriers when they 
+ *  make sense) to be used.
+ */
+
+#if	defined	__i386__
+#define MEMORY_BARRIER()	do { ; } while(0)
+#elif	defined	__alpha__
+#define MEMORY_BARRIER()	alpha_mb()
+#elif	defined	__powerpc__
+#define MEMORY_BARRIER()	__asm__ volatile("eieio; sync" : : : "memory")
+#elif	defined	__ia64__
+#define MEMORY_BARRIER()	__asm__ volatile("mf.a; mf" : : : "memory")
+#elif	defined	__sparc64__
+#error	"Sorry, but maintainer is ignorant about sparc64 :)"
 #else
-#include "ncr.h"	/* To know if the ncr has been configured */
-#include <pci/sym_conf.h>
-#include <pci/sym_defs.h>
-#include <pci/sym_fw.h>
+#error	"Not supported platform"
 #endif
 
 /*
- *  On x86 architecture, write buffers management does not 
- *  reorder writes to memory. So, preventing compiler from  
- *  optimizing the code is enough to guarantee some ordering 
- *  when the CPU is writing data accessed by the PCI chip.
- *  On Alpha architecture, explicit barriers are to be used.
- *  By the way, the *BSD semantic associates the barrier 
- *  with some window on the BUS and the corresponding verbs 
- *  are for now unused. What a strangeness. The driver must 
- *  ensure that accesses from the CPU to the start and done 
- *  queues are not reordered by either the compiler or the 
- *  CPU and uses 'volatile' for this purpose.
+ *  Portable but silly implemented byte order primitives.
+ *  We define the primitives we need, since FreeBSD doesn't 
+ *  seem to have them yet.
  */
+#if	BYTE_ORDER == BIG_ENDIAN
 
-#ifdef	__alpha__
-#define MEMORY_BARRIER()	alpha_mb()
-#else /*__i386__*/
-#define MEMORY_BARRIER()	do { ; } while(0)
-#endif
+#define __revb16(x) (	(((u16)(x) & (u16)0x00ffU) << 8) | \
+			(((u16)(x) & (u16)0xff00U) >> 8) 	)
+#define __revb32(x) (	(((u32)(x) & 0x000000ffU) << 24) | \
+			(((u32)(x) & 0x0000ff00U) <<  8) | \
+			(((u32)(x) & 0x00ff0000U) >>  8) | \
+			(((u32)(x) & 0xff000000U) >> 24)	)
+
+#define __htole16(v)	__revb16(v)
+#define __htole32(v)	__revb32(v)
+#define __le16toh(v)	__htole16(v)
+#define __le32toh(v)	__htole32(v)
+
+static __inline__ u16	_htole16(u16 v) { return __htole16(v); }
+static __inline__ u32	_htole32(u32 v) { return __htole32(v); }
+#define _le16toh	_htole16
+#define _le32toh	_htole32
+
+#else	/* LITTLE ENDIAN */
+
+#define __htole16(v)	(v)
+#define __htole32(v)	(v)
+#define __le16toh(v)	(v)
+#define __le32toh(v)	(v)
+
+#define _htole16(v)	(v)
+#define _htole32(v)	(v)
+#define _le16toh(v)	(v)
+#define _le32toh(v)	(v)
+
+#endif	/* BYTE_ORDER */
 
 /*
  *  A la VMS/CAM-3 queue management.
@@ -375,15 +426,6 @@ static int sym_debug = 0;
 
 #endif
 #define sym_verbose	(np->verbose)
-
-/*
- *  Copy from main memory to PCI memory space.
- */
-#ifdef	__alpha__
-#define memcpy_to_pci(d, s, n)	memcpy_toio((u32)(d), (void *)(s), (n))
-#else /*__i386__*/
-#define memcpy_to_pci(d, s, n)	bcopy((s), (void *)(d), (n))
-#endif
 
 /*
  *  Insert a delay in micro-seconds and milli-seconds.
@@ -918,29 +960,73 @@ struct sym_nvram {
 #endif
 
 /*
- *  Some provision for a possible big endian support.
- *  By the way some Symbios chips also may support some kind 
- *  of big endian byte ordering.
+ *  Some provision for a possible big endian mode supported by 
+ *  Symbios chips (never seen, by the way).
  *  For now, this stuff does not deserve any comments. :)
  */
 
 #define sym_offb(o)	(o)
 #define sym_offw(o)	(o)
 
+/*
+ *  Some provision for support for BIG ENDIAN CPU.
+ *  Btw, FreeBSD does not seem to be ready yet for big endian.
+ */
+
+#if	BYTE_ORDER == BIG_ENDIAN
+#define cpu_to_scr(dw)	_htole32(dw)
+#define scr_to_cpu(dw)	_le32toh(dw)
+#else
 #define cpu_to_scr(dw)	(dw)
 #define scr_to_cpu(dw)	(dw)
+#endif
 
 /*
- *  Access to the controller chip.
- *
- *  If SYM_CONF_IOMAPPED is defined, the driver will use 
- *  normal IOs instead of the MEMORY MAPPED IO method  
- *  recommended by PCI specifications.
+ *  Access to the chip IO registers and on-chip RAM.
+ *  We use the `bus space' interface under FreeBSD-4 and 
+ *  later kernel versions.
+ */
+
+#ifdef	FreeBSD_Bus_Space_Abstraction
+
+#if defined(SYM_CONF_IOMAPPED)
+
+#define INB_OFF(o)	bus_space_read_1(np->io_tag, np->io_bsh, o)
+#define INW_OFF(o)	bus_space_read_2(np->io_tag, np->io_bsh, o)
+#define INL_OFF(o)	bus_space_read_4(np->io_tag, np->io_bsh, o)
+
+#define OUTB_OFF(o, v)	bus_space_write_1(np->io_tag, np->io_bsh, o, (v))
+#define OUTW_OFF(o, v)	bus_space_write_2(np->io_tag, np->io_bsh, o, (v))
+#define OUTL_OFF(o, v)	bus_space_write_4(np->io_tag, np->io_bsh, o, (v))
+
+#else	/* Memory mapped IO */
+
+#define INB_OFF(o)	bus_space_read_1(np->mmio_tag, np->mmio_bsh, o)
+#define INW_OFF(o)	bus_space_read_2(np->mmio_tag, np->mmio_bsh, o)
+#define INL_OFF(o)	bus_space_read_4(np->mmio_tag, np->mmio_bsh, o)
+
+#define OUTB_OFF(o, v)	bus_space_write_1(np->mmio_tag, np->mmio_bsh, o, (v))
+#define OUTW_OFF(o, v)	bus_space_write_2(np->mmio_tag, np->mmio_bsh, o, (v))
+#define OUTL_OFF(o, v)	bus_space_write_4(np->mmio_tag, np->mmio_bsh, o, (v))
+
+#endif	/* SYM_CONF_IOMAPPED */
+
+#define OUTRAM_OFF(o, a, l)	\
+	bus_space_write_region_1(np->ram_tag, np->ram_bsh, o, (a), (l))
+
+#else	/* not defined FreeBSD_Bus_Space_Abstraction */
+
+#if	BYTE_ORDER == BIG_ENDIAN
+#error	"BIG ENDIAN support requires bus space kernel interface"
+#endif
+
+/*
+ *  Access to the chip IO registers and on-chip RAM.
+ *  We use legacy MMIO and IO interface for FreeBSD 3.X versions.
  */
 
 /*
- *  Define some understable verbs so we will not suffer of 
- *  having to deal with the stupid PC tokens for IO.
+ *  Define some understable verbs for IO and MMIO.
  */
 #define io_read8(p)	 scr_to_cpu(inb((p)))
 #define	io_read16(p)	 scr_to_cpu(inw((p)))
@@ -957,6 +1043,7 @@ struct sym_nvram {
 #define mmio_write8(a, b)    writeb(a, b)
 #define mmio_write16(a, b)   writew(a, b)
 #define mmio_write32(a, b)   writel(a, b)
+#define memcpy_to_pci(d, s, n)	memcpy_toio((u32)(d), (void *)(s), (n))
 
 #else /*__i386__*/
 
@@ -966,6 +1053,7 @@ struct sym_nvram {
 #define mmio_write8(a, b)   (*(volatile unsigned char *) (a)) = cpu_to_scr(b)
 #define mmio_write16(a, b)  (*(volatile unsigned short *) (a)) = cpu_to_scr(b)
 #define mmio_write32(a, b)  (*(volatile unsigned int *) (a)) = cpu_to_scr(b)
+#define memcpy_to_pci(d, s, n)	bcopy((s), (void *)(d), (n))
 
 #endif
 
@@ -996,8 +1084,12 @@ struct sym_nvram {
 
 #endif
 
+#define OUTRAM_OFF(o, a, l) memcpy_to_pci(np->ram_va + (o), (a), (l))
+
+#endif	/* FreeBSD_Bus_Space_Abstraction */
+
 /*
- *  Common to both normal IO and MMIO.
+ *  Common definitions for both bus space and legacy IO methods.
  */
 #define INB(r)		INB_OFF(offsetof(struct sym_reg,r))
 #define INW(r)		INW_OFF(offsetof(struct sym_reg,r))
@@ -1013,6 +1105,23 @@ struct sym_nvram {
 #define OUTOFFW(r, m)	OUTW(r, INW(r) & ~(m))
 #define OUTONL(r, m)	OUTL(r, INL(r) | (m))
 #define OUTOFFL(r, m)	OUTL(r, INL(r) & ~(m))
+
+/*
+ *  We normally want the chip to have a consistent view
+ *  of driver internal data structures when we restart it.
+ *  Thus these macros.
+ */
+#define OUTL_DSP(v)				\
+	do {					\
+		MEMORY_BARRIER();		\
+		OUTL (nc_dsp, (v));		\
+	} while (0)
+
+#define OUTONB_STD()				\
+	do {					\
+		MEMORY_BARRIER();		\
+		OUTONB (nc_dcntl, (STD|NOCOM));	\
+	} while (0)
 
 /*
  *  Command control block states.
@@ -3399,8 +3508,7 @@ static void sym_init (hcb_p np, int reason)
 			printf ("%s: Downloading SCSI SCRIPTS.\n",
 				sym_name(np));
 		if (np->ram_ws == 8192) {
-			memcpy_to_pci(np->ram_va + 4096,
-					np->scriptb0, np->scriptb_sz);
+			OUTRAM_OFF(4096, np->scriptb0, np->scriptb_sz);
 			OUTL (nc_mmws, np->scr_ram_seg);
 			OUTL (nc_mmrs, np->scr_ram_seg);
 			OUTL (nc_sfs,  np->scr_ram_seg);
@@ -3408,16 +3516,15 @@ static void sym_init (hcb_p np, int reason)
 		}
 		else
 			phys = SCRIPTA_BA (np, init);
-		memcpy_to_pci(np->ram_va, np->scripta0, np->scripta_sz);
+		OUTRAM_OFF(0, np->scripta0, np->scripta_sz);
 	}
 	else
 		phys = SCRIPTA_BA (np, init);
 
 	np->istat_sem = 0;
 
-	MEMORY_BARRIER();
 	OUTL (nc_dsa, np->hcb_ba);
-	OUTL (nc_dsp, phys);
+	OUTL_DSP (phys);
 
 	/*
 	 *  Notify the XPT about the RESET condition.
@@ -3956,7 +4063,7 @@ static void sym_intr1 (hcb_p np)
 		if	(sist & PAR)	sym_int_par (np, sist);
 		else if (sist & MA)	sym_int_ma (np);
 		else if (dstat & SIR)	sym_int_sir (np);
-		else if (dstat & SSI)	OUTONB (nc_dcntl, (STD|NOCOM));
+		else if (dstat & SSI)	OUTONB_STD ();
 		else			goto unknown_int;
 		return;
 	};
@@ -4087,14 +4194,14 @@ static void sym_recover_scsi_int (hcb_p np, u_char hsts)
 		 */
 		if (cp) {
 			cp->host_status = hsts;
-			OUTL (nc_dsp, SCRIPTA_BA (np, complete_error));
+			OUTL_DSP (SCRIPTA_BA (np, complete_error));
 		}
 		/*
 		 *  Otherwise just restart the SCRIPTS.
 		 */
 		else {
 			OUTL (nc_dsa, 0xffffff);
-			OUTL (nc_dsp, SCRIPTA_BA (np, start));
+			OUTL_DSP (SCRIPTA_BA (np, start));
 		}
 	}
 	else
@@ -4239,18 +4346,18 @@ static void sym_int_par (hcb_p np, u_short sist)
 	if (phase == 1) {
 		/* Phase mismatch handled by SCRIPTS */
 		if (dsp == SCRIPTB_BA (np, pm_handle))
-			OUTL (nc_dsp, dsp);
+			OUTL_DSP (dsp);
 		/* Phase mismatch handled by the C code */
 		else if (sist & MA)
 			sym_int_ma (np);
 		/* No phase mismatch occurred */
 		else {
 			OUTL (nc_temp, dsp);
-			OUTL (nc_dsp, SCRIPTA_BA (np, dispatch));
+			OUTL_DSP (SCRIPTA_BA (np, dispatch));
 		}
 	}
 	else 
-		OUTL (nc_dsp, SCRIPTA_BA (np, clrack));
+		OUTL_DSP (SCRIPTA_BA (np, clrack));
 	return;
 
 reset_all:
@@ -4528,7 +4635,7 @@ static void sym_int_ma (hcb_p np)
 	 *  Restart the SCRIPTS processor.
 	 */
 	OUTL (nc_temp, newcmd);
-	OUTL (nc_dsp,  nxtdsp);
+	OUTL_DSP (nxtdsp);
 	return;
 
 	/*
@@ -4601,7 +4708,7 @@ unexpected_phase:
 	}
 
 	if (nxtdsp) {
-		OUTL (nc_dsp, nxtdsp);
+		OUTL_DSP (nxtdsp);
 		return;
 	}
 
@@ -4767,7 +4874,7 @@ static void sym_sir_bad_scsi_status(hcb_p np, int num, ccb_p cp)
 		 *  and restart the SCRIPTS processor immediately.
 		 */
 		(void) sym_dequeue_from_squeue(np, i, cp->target, cp->lun, -1);
-		OUTL (nc_dsp, SCRIPTA_BA (np, start));
+		OUTL_DSP (SCRIPTA_BA (np, start));
 
  		/*
 		 *  Save some info of the actual IO.
@@ -5029,7 +5136,7 @@ static void sym_sir_task_recovery(hcb_p np, int num)
 			np->abrt_sel.sel_scntl3 = tp->head.wval;
 			np->abrt_sel.sel_sxfer  = tp->head.sval;
 			OUTL(nc_dsa, np->hcb_ba);
-			OUTL (nc_dsp, SCRIPTB_BA (np, sel_for_abort));
+			OUTL_DSP (SCRIPTB_BA (np, sel_for_abort));
 			return;
 		}
 
@@ -5285,7 +5392,7 @@ static void sym_sir_task_recovery(hcb_p np, int num)
 	/*
 	 *  Let the SCRIPTS processor continue.
 	 */
-	OUTONB (nc_dcntl, (STD|NOCOM));
+	OUTONB_STD ();
 }
 
 /*
@@ -5509,11 +5616,11 @@ static void sym_modify_dp(hcb_p np, tcb_p tp, ccb_p cp, int ofs)
 
 out_ok:
 	OUTL (nc_temp, dp_scr);
-	OUTL (nc_dsp, SCRIPTA_BA (np, clrack));
+	OUTL_DSP (SCRIPTA_BA (np, clrack));
 	return;
 
 out_reject:
-	OUTL (nc_dsp, SCRIPTB_BA (np, msg_bad));
+	OUTL_DSP (SCRIPTB_BA (np, msg_bad));
 }
 
 
@@ -5729,7 +5836,7 @@ static void sym_sync_nego(hcb_p np, tcb_p tp, ccb_p cp)
 		if (chg) 	/* Answer wasn't acceptable. */
 			goto reject_it;
 		sym_setsync (np, cp, ofs, per, div, fak);
-		OUTL (nc_dsp, SCRIPTA_BA (np, clrack));
+		OUTL_DSP (SCRIPTA_BA (np, clrack));
 		return;
 	}
 
@@ -5753,11 +5860,11 @@ static void sym_sync_nego(hcb_p np, tcb_p tp, ccb_p cp)
 
 	np->msgin [0] = M_NOOP;
 
-	OUTL (nc_dsp, SCRIPTB_BA (np, sdtr_resp));
+	OUTL_DSP (SCRIPTB_BA (np, sdtr_resp));
 	return;
 reject_it:
 	sym_setsync (np, cp, 0, 0, 0, 0);
-	OUTL (nc_dsp, SCRIPTB_BA (np, msg_bad));
+	OUTL_DSP (SCRIPTB_BA (np, msg_bad));
 }
 
 /*
@@ -5855,7 +5962,7 @@ static void sym_ppr_nego(hcb_p np, tcb_p tp, ccb_p cp)
 		if (chg) 	/* Answer wasn't acceptable */
 			goto reject_it;
 		sym_setpprot (np, cp, dt, ofs, per, wide, div, fak);
-		OUTL (nc_dsp, SCRIPTA_BA (np, clrack));
+		OUTL_DSP (SCRIPTA_BA (np, clrack));
 		return;
 	}
 
@@ -5882,11 +5989,11 @@ static void sym_ppr_nego(hcb_p np, tcb_p tp, ccb_p cp)
 
 	np->msgin [0] = M_NOOP;
 
-	OUTL (nc_dsp, SCRIPTB_BA (np, ppr_resp));
+	OUTL_DSP (SCRIPTB_BA (np, ppr_resp));
 	return;
 reject_it:
 	sym_setpprot (np, cp, 0, 0, 0, 0, 0, 0);
-	OUTL (nc_dsp, SCRIPTB_BA (np, msg_bad));
+	OUTL_DSP (SCRIPTB_BA (np, msg_bad));
 }
 
 /*
@@ -5961,11 +6068,11 @@ static void sym_wide_nego(hcb_p np, tcb_p tp, ccb_p cp)
 
 			cp->nego_status = NS_SYNC;
 			OUTB (HS_PRT, HS_NEGOTIATE);
-			OUTL (nc_dsp, SCRIPTB_BA (np, sdtr_resp));
+			OUTL_DSP (SCRIPTB_BA (np, sdtr_resp));
 			return;
 		}
 
-		OUTL (nc_dsp, SCRIPTA_BA (np, clrack));
+		OUTL_DSP (SCRIPTA_BA (np, clrack));
 		return;
 	};
 
@@ -5988,10 +6095,10 @@ static void sym_wide_nego(hcb_p np, tcb_p tp, ccb_p cp)
 		sym_print_msg(cp, "wide msgout", np->msgout);
 	}
 
-	OUTL (nc_dsp, SCRIPTB_BA (np, wdtr_resp));
+	OUTL_DSP (SCRIPTB_BA (np, wdtr_resp));
 	return;
 reject_it:
-	OUTL (nc_dsp, SCRIPTB_BA (np, msg_bad));
+	OUTL_DSP (SCRIPTB_BA (np, msg_bad));
 }
 
 /*
@@ -6263,7 +6370,7 @@ void sym_int_sir (hcb_p np)
 	 */
 	case SIR_MSG_WEIRD:
 		sym_print_msg(cp, "WEIRD message received", np->msgin);
-		OUTL (nc_dsp, SCRIPTB_BA (np, msg_weird));
+		OUTL_DSP (SCRIPTB_BA (np, msg_weird));
 		return;
 	/*
 	 *  Negotiation failed.
@@ -6282,13 +6389,13 @@ void sym_int_sir (hcb_p np)
 	};
 
 out:
-	OUTONB (nc_dcntl, (STD|NOCOM));
+	OUTONB_STD ();
 	return;
 out_reject:
-	OUTL (nc_dsp, SCRIPTB_BA (np, msg_bad));
+	OUTL_DSP (SCRIPTB_BA (np, msg_bad));
 	return;
 out_clrack:
-	OUTL (nc_dsp, SCRIPTA_BA (np, clrack));
+	OUTL_DSP (SCRIPTA_BA (np, clrack));
 	return;
 out_stuck:
 }
@@ -6810,7 +6917,7 @@ static int sym_snooptest (hcb_p np)
 	 *  Start script (exchange values)
 	 */
 	OUTL (nc_dsa, np->hcb_ba);
-	OUTL (nc_dsp, pc);
+	OUTL_DSP (pc);
 	/*
 	 *  Wait 'til done (with timeout)
 	 */
@@ -7249,7 +7356,7 @@ static void sym_complete_error (hcb_p np, ccb_p cp)
 	/*
 	 *  Restart the SCRIPTS processor.
 	 */
-	OUTL (nc_dsp, SCRIPTA_BA (np, start));
+	OUTL_DSP (SCRIPTA_BA (np, start));
 
 #ifdef	FreeBSD_Bus_Dma_Abstraction
 	/*
