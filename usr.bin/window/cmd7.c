@@ -38,6 +38,7 @@
 static char sccsid[] = "@(#)cmd7.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
+#include <stdlib.h>
 #include "defs.h"
 #include "string.h"
 

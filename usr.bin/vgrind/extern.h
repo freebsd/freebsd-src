@@ -37,7 +37,7 @@
 typedef int boolean;
 
 extern boolean	 _escaped;             /* if last character was an escape */
-extern char    *_start;                /* start of the current string */
+extern char    *s_start;               /* start of the current string */
 extern char    *l_acmbeg;              /* string introducing a comment */
 extern char    *l_acmend;              /* string ending a comment */
 extern char    *l_blkbeg;              /* string begining of a block */

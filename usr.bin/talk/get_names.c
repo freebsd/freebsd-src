@@ -32,16 +32,27 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)get_names.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
-#include <unistd.h>
+#include <err.h>
+#include <pwd.h>
 #include <string.h>
 #include <sys/param.h>
-#include <pwd.h>
 #include "talk.h"
 
 extern	CTL_MSG msg;
+
+static void
+usage(void)
+{
+	fprintf(stderr, "usage: talk person [ttyname]\n");
+	exit(1);
+}
 
 /*
  * Determine the local and remote user, tty, and machines
@@ -57,21 +68,15 @@ get_names(argc, argv)
 	char *my_tty, *his_tty;
 	register char *cp;
 
-	if (argc < 2 ) {
-		printf("Usage: talk user [ttyname]\n");
-		exit(-1);
-	}
-	if (!isatty(0)) {
-		printf("Standard input must be a tty, not a pipe or a file\n");
-		exit(-1);
-	}
+	if (argc < 2 )
+		usage();
+	if (!isatty(0))
+		errx(1, "standard input must be a tty, not a pipe or a file");
 	if ((my_name = getlogin()) == NULL) {
 		struct passwd *pw;
 
-		if ((pw = getpwuid(getuid())) == NULL) {
-			printf("You don't exist. Go away.\n");
-			exit(-1);
-		}
+		if ((pw = getpwuid(getuid())) == NULL)
+			errx(1, "you don't exist. Go away");
 		my_name = pw->pw_name;
 	}
 	gethostname(hostname, sizeof (hostname));

@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	From: @(#)install.1	8.1 (Berkeley) 6/6/93
-.\"	$Id: install.1,v 1.7 1996/09/29 06:29:53 imp Exp $
+.\"	$Id: install.1,v 1.7.2.1 1997/08/28 06:24:41 charnier Exp $
 .\"
 .Dd September 22, 1996
 .Dt INSTALL 1
@@ -40,14 +40,14 @@
 .Nd install binaries
 .Sh SYNOPSIS
 .Nm install
-.Op Fl CcDps
+.Op Fl CcDMps
 .Op Fl f Ar flags
 .Op Fl g Ar group
 .Op Fl m Ar mode
 .Op Fl o Ar owner
 .Ar file1 file2
 .Nm install
-.Op Fl CcDps
+.Op Fl CcDMps
 .Op Fl f Ar flags
 .Op Fl g Ar group
 .Op Fl m Ar mode
@@ -107,6 +107,9 @@ Specify the target's file flags; see
 for a list of possible flags and their meanings.
 .It Fl g
 Specify a group. A numeric GID is allowed.
+.It Fl M
+Disable all use of
+.Xr mmap 2 .
 .It Fl m
 Specify an alternate mode.
 The default mode is set to rwxr-xr-x (0755).
@@ -162,6 +165,7 @@ are created in the target directory.
 .Xr cp 1 ,
 .Xr mv 1 ,
 .Xr strip 1 ,
+.Xr mmap 2 ,
 .Xr chown 8
 .Sh HISTORY
 The
@@ -172,3 +176,10 @@ utility appeared in
 Temporary files may be left in the target directory if
 .Nm
 exits abnormally.
+.Pp
+File flags cannot be set by
+.Xr fchflags 2
+over a NFS file system.  Other file systems do not have a concept of flags.
+.Nm
+will only warn when flags could not be set on a file system
+that does not support them.

@@ -47,6 +47,7 @@ static char sccsid[] = "@(#)telnet.c	8.2 (Berkeley) 12/15/93";
 
 #include <arpa/telnet.h>
 
+#include <stdlib.h>
 #include <ctype.h>
 
 #include "ring.h"
@@ -847,7 +848,7 @@ suboption()
 
 	    TerminalSpeeds(&ispeed, &ospeed);
 
-	    sprintf((char *)temp, "%c%c%c%c%d,%d%c%c", IAC, SB, TELOPT_TSPEED,
+	    sprintf((char *)temp, "%c%c%c%c%ld,%ld%c%c", IAC, SB, TELOPT_TSPEED,
 		    TELQUAL_IS, ospeed, ispeed, IAC, SE);
 	    len = strlen((char *)temp+4) + 4;	/* temp[3] is 0 ... */
 

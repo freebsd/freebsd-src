@@ -32,17 +32,20 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)invite.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/time.h>
-#include <signal.h>
-#include <netinet/in.h>
-#include <protocols/talkd.h>
+#include <err.h>
 #include <errno.h>
 #include <setjmp.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <protocols/talkd.h>
 #include "talk_ctl.h"
 #include "talk.h"
 
@@ -184,11 +187,11 @@ send_delete()
 	if (sendto(ctl_sockt, &msg, sizeof (msg), 0,
 	    (struct sockaddr *)&daemon_addr,
 	    sizeof (daemon_addr)) != sizeof(msg))
-		perror("send_delete (remote)");
+		warn("send_delete (remote)");
 	msg.id_num = htonl(local_id);
 	daemon_addr.sin_addr = my_machine_addr;
 	if (sendto(ctl_sockt, &msg, sizeof (msg), 0,
 	    (struct sockaddr *)&daemon_addr,
 	    sizeof (daemon_addr)) != sizeof (msg))
-		perror("send_delete (local)");
+		warn("send_delete (local)");
 }

@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";
 #endif
 static const char rcsid[] =
-	"$Id: xinstall.c,v 1.18.2.3 1997/10/30 21:01:18 ache Exp $";
+	"$Id: xinstall.c,v 1.18.2.4 1998/03/08 14:55:04 jkh Exp $";
 #endif /* not lint */
 
 /*-
@@ -84,10 +84,10 @@ static const char rcsid[] =
 
 /* Bootstrap aid - this doesn't exist in most older releases */
 #ifndef MAP_FAILED
-#define MAP_FAILED ((caddr_t)-1)	/* from <sys/mman.h> */
+#define MAP_FAILED ((void *)-1)	/* from <sys/mman.h> */
 #endif
 
-int debug, docompare, docopy, dodir, dopreserve, dostrip, verbose;
+int debug, docompare, docopy, dodir, dopreserve, dostrip, nommap, verbose;
 int mode = S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
 char *group, *owner, pathbuf[MAXPATHLEN];
 char pathbuf2[MAXPATHLEN];
@@ -136,7 +136,7 @@ main(argc, argv)
 	char *flags, *to_name;
 
 	iflags = 0;
-	while ((ch = getopt(argc, argv, "CcdDf:g:m:o:psv")) != -1)
+	while ((ch = getopt(argc, argv, "CcdDf:g:m:Mo:psv")) != -1)
 		switch((char)ch) {
 		case 'C':
 			docompare = docopy = 1;
@@ -164,6 +164,9 @@ main(argc, argv)
 				errx(EX_USAGE, "invalid file mode: %s",
 				     optarg);
 			mode = getmode(set, 0);
+			break;
+		case 'M':
+			nommap = 1;
 			break;
 		case 'o':
 			owner = optarg;
@@ -427,16 +430,15 @@ different:
 				fprintf(stderr,
 					"install: renaming for %s: %s to %s\n",
 					from_name, to_name, old_to_name);
+			if (verbose != 0)
+				printf("install: %s -> %s\n",
+					from_name, old_to_name);
 			if (dopreserve && stat(from_name, &timestamp_sb) == 0) {
 				utb.actime = from_sb.st_atime;
 				utb.modtime = from_sb.st_mtime;
 				(void)utime(to_name, &utb);
 			}
 moveit:
-			if (verbose) {
-				printf("install: %s -> %s\n",
-					from_name, old_to_name);
-			}
 			if (rename(to_name, old_to_name) < 0) {
 				serrno = errno;
 				unlink(to_name);
@@ -493,13 +495,22 @@ moveit:
 	/*
 	 * If provided a set of flags, set them, otherwise, preserve the
 	 * flags, except for the dump flag.
+	 * NFS does not support flags.  Ignore EOPNOTSUPP flags if we're just
+	 * trying to turn off UF_NODUMP.  If we're trying to set real flags,
+	 * then warn if the the fs doesn't support it, otherwise fail.
 	 */
 	if (fchflags(to_fd,
 	    flags & SETFLAGS ? fset : from_sb.st_flags & ~UF_NODUMP)) {
-		serrno = errno;
-		(void)unlink(to_name);
-		errno = serrno;
-		err(EX_OSERR, "%s: chflags", to_name);
+		if (flags & SETFLAGS) {
+			if (errno == EOPNOTSUPP)
+				warn("%s: chflags", to_name);
+			else {
+				serrno = errno;
+				(void)unlink(to_name);
+				errno = serrno;
+				err(EX_OSERR, "%s: chflags", to_name);
+			}
+		}
 	}
 
 	(void)close(to_fd);
@@ -711,7 +722,7 @@ trymmap(fd)
 {
 	struct statfs stfs;
 
-	if (fstatfs(fd, &stfs) < 0)
+	if (nommap || fstatfs(fd, &stfs) < 0)
 		return 0;
 	switch(stfs.f_type) {
 	case MOUNT_UFS:		/* should be safe.. */

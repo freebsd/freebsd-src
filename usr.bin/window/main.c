@@ -48,7 +48,8 @@ static char sccsid[] = "@(#)main.c	8.2 (Berkeley) 4/2/94";
 #include <paths.h>
 #include <locale.h>
 #include <stdio.h>
-#include "string.h"
+#include <string.h> /* System string definitions. */
+#include "string.h" /* Local string definitions. */
 #include "char.h"
 #include "local.h"
 

@@ -42,12 +42,11 @@ static const char copyright[] =
 static char sccsid[] = "@(#)unvis.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: unvis.c,v 1.1.1.1.8.3 1997/08/29 05:30:07 imp Exp $";
+	"$Id: unvis.c,v 1.1.1.1.8.4 1998/03/08 14:29:17 jkh Exp $";
 #endif /* not lint */
 
 #include <err.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <unistd.h>
 #include <vis.h>
 

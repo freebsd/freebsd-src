@@ -39,7 +39,8 @@ static char sccsid[] = "@(#)lcmd2.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 #include "defs.h"
-#include "string.h"
+#include <string.h> /* System string definitions. */
+#include "string.h" /* Local string definitions. */
 #include "value.h"
 #include "var.h"
 #include "lcmd.h"
@@ -221,7 +222,7 @@ struct value *v, *a;
 		error("Can't open variable window: %s.", wwerror());
 		return;
 	}
-	if (var_walk(printvar, (int)w) >= 0)
+	if (var_walk(printvar, (long)w) >= 0)
 		waitnl(w);
 	closeiwin(w);
 }
@@ -304,7 +305,7 @@ l_alias(v, a)
 			error("Can't open alias window: %s.", wwerror());
 			return;
 		}
-		if (alias_walk(printalias, (int)w) >= 0)
+		if (alias_walk(printalias, (long)w) >= 0)
 			waitnl(w);
 		closeiwin(w);
 	} else {

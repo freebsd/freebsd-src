@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: vacation.c	8.2 (Berkeley) 1/26/94";
 #endif
 static const char rcsid[] =
-	"$Id: vacation.c,v 1.3.2.3 1997/12/29 07:09:39 charnier Exp $";
+	"$Id: vacation.c,v 1.3.2.4 1998/03/08 14:22:35 jkh Exp $";
 #endif /* not lint */
 
 /*
@@ -426,11 +426,11 @@ sendmessage(myname)
 		dup2(pvect[0], 0);
 		close(pvect[0]);
 		close(pvect[1]);
-		fclose(mfp);
+		close(fileno(mfp));
 		execl(_PATH_SENDMAIL, "sendmail", "-f", myname, "--", from, NULL);
 		syslog(LOG_ERR, "vacation: can't exec %s: %s",
 			_PATH_SENDMAIL, strerror(errno));
-		exit(1);
+		_exit(1);
 	}
 	close(pvect[0]);
 	sfp = fdopen(pvect[1], "w");

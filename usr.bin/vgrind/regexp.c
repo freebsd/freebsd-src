@@ -54,7 +54,7 @@ static char sccsid[] = "@(#)regexp.c	8.1 (Berkeley) 6/6/93";
 static void	expconv __P((void));
 
 boolean	 _escaped;	/* true if we are currently _escaped */
-char	*_start;	/* start of string */
+char	*s_start;	/* start of string */
 boolean	 l_onecase;	/* true if upper and lower equivalent */
 
 #define makelower(c) (isupper((c)) ? tolower((c)) : (c))
@@ -461,8 +461,6 @@ expmatch (s, re, mstring)
 		    if (!(isalnum(*s1) || *s1 == '_' ||
 			  /* C++ destructor */
 			  *s1 == '~' ||
-			  /* Tcl procedure */
-			  *s1 == '.' ||
 			  /* C++ scope operator */
 			  (strlen(s1) > 1 && *s1 == ':' && s1[1] == ':' &&
 			   (s1++, TRUE))))
@@ -516,7 +514,7 @@ expmatch (s, re, mstring)
 		ptr = s;
 		while (*s == ' ' || *s == '\t')
 		    s++;
-		if (s != ptr || s == _start) {
+		if (s != ptr || s == s_start) {
 
 		    /* match, be happy */
 		    matched = 1;
@@ -568,7 +566,7 @@ expmatch (s, re, mstring)
 
 	    /* check for start of line */
 	    case '^':
-		if (s == _start) {
+		if (s == s_start) {
 
 		    /* match, be happy */
 		    matched = 1;

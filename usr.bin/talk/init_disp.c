@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)init_disp.c	8.2 (Berkeley) 2/16/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -40,14 +44,10 @@ static char sccsid[] = "@(#)init_disp.c	8.2 (Berkeley) 2/16/94";
  * as well as the signal handling routines.
  */
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/termios.h>
-#include <sys/ttydefaults.h>
-
-#include <unistd.h>
-#include <signal.h>
 #include <err.h>
+#include <signal.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "talk.h"
 
 /*
@@ -92,6 +92,7 @@ init_display()
 	my_win.x_nlines = LINES / 2;
 	my_win.x_ncols = COLS;
 	my_win.x_win = newwin(my_win.x_nlines, my_win.x_ncols, 0, 0);
+	idlok(my_win.x_win, TRUE);
 	scrollok(my_win.x_win, TRUE);
 	wclear(my_win.x_win);
 
@@ -99,6 +100,7 @@ init_display()
 	his_win.x_ncols = COLS;
 	his_win.x_win = newwin(his_win.x_nlines, his_win.x_ncols,
 	    my_win.x_nlines+1, 0);
+	idlok(my_win.x_win, TRUE);
 	scrollok(his_win.x_win, TRUE);
 	wclear(his_win.x_win);
 

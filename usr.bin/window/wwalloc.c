@@ -38,6 +38,7 @@
 static char sccsid[] = "@(#)wwalloc.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
+#include <stdlib.h>
 #include "ww.h"
 
 char **

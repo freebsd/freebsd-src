@@ -184,11 +184,13 @@ stime_arg1(arg, tvp)
 	char *arg;
 	struct timeval *tvp;
 {
+	time_t now;
 	struct tm *t;
 	int yearset;
 	char *p;
 					/* Start with the current time. */
-	if ((t = localtime(&tvp[0].tv_sec)) == NULL)
+	now = tvp[0].tv_sec;
+	if ((t = localtime(&now)) == NULL)
 		err(1, "localtime");
 					/* [[CC]YY]MMDDhhmm[.SS] */
 	if ((p = strchr(arg, '.')) == NULL)
@@ -246,9 +248,11 @@ stime_arg2(arg, year, tvp)
 	int year;
 	struct timeval *tvp;
 {
+	time_t now;
 	struct tm *t;
 					/* Start with the current time. */
-	if ((t = localtime(&tvp[0].tv_sec)) == NULL)
+	now = tvp[0].tv_sec;
+	if ((t = localtime(&now)) == NULL)
 		err(1, "localtime");
 
 	t->tm_mon = ATOI2(arg);		/* MMDDhhmm[yy] */

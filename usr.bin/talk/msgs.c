@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)msgs.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -40,9 +44,7 @@ static char sccsid[] = "@(#)msgs.c	8.1 (Berkeley) 6/6/93";
  * if we are slow connecting.
  */
 
-#include <sys/time.h>
 #include <signal.h>
-#include <stdio.h>
 #include "talk.h"
 
 #define MSG_INTERVAL 4
