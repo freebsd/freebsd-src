@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1996/09/11 19:25:11 phk Exp $
+#	$Id: Makefile,v 1.2 1996/10/14 17:25:53 pst Exp $
 #
 
 PROG=	boot
@@ -11,11 +11,12 @@ SRCS+=  probe_keyboard.c io.c disk.c sys.c
 
 BINDIR=		/usr/mdec
 BINMODE=	444
-CFLAGS=         -O2 \
+CFLAGS=		-O2 -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
 		-DRAWBOOT \
 		-I${.CURDIR}/../biosboot \
 		-DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
+CFLAGS+=	${CWARNFLAGS}
 
 # Probe the keyboard and use the serial console if the keyboard isn't found.
 .if defined(BOOT_PROBE_KEYBOARD)
@@ -32,10 +33,10 @@ CFLAGS+=	-DPROBE_KEYBOARD_LOCK
 CFLAGS+=	-DFORCE_COMCONSOLE
 .endif
 
-# By default, if a serial port is going to be used as console, use COM1 
+# By default, if a serial port is going to be used as console, use COM1
 # (aka /dev/ttyd0).
-BOOT_COMCONSOLE_PORT?=0x3F8  
-CFLAGS+=        -DCOMCONSOLE=${BOOT_COMCONSOLE_PORT}
+BOOT_COMCONSOLE_PORT?=0x3F8
+CFLAGS+=	-DCOMCONSOLE=${BOOT_COMCONSOLE_PORT}
 
 # Enable code to take the default boot string from a fixed location on the
 # disk.  See nextboot(8) and README.386BSD for more info.
@@ -86,10 +87,11 @@ boot.nohdr:	boot.strip
 rawboot:	boot.nohdr
 	dd if=boot.nohdr of=rawboot bs=8k count=1 conv=sync
 
-all:		rawboot 
+all:		rawboot
 
 install:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
 		rawboot ${DESTDIR}${BINDIR}/rawboot
 
+.include <bsd.kern.mk>
 .include <bsd.prog.mk>
