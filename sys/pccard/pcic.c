@@ -88,6 +88,12 @@ SYSCTL_INT(_hw_pcic, OID_AUTO, irq, CTLFLAG_RD,
     &pcic_override_irq, 0,
     "Override the IRQ configured by the config system for all pcic devices");
 
+int pcic_boot_deactivated = 0;
+TUNABLE_INT("hw.pcic.boot_deactivated", &pcic_boot_deactivated);
+SYSCTL_INT(_hw_pcic, OID_AUTO, boot_deactivated, CTLFLAG_RD,
+    &pcic_boot_deactivated, 0,
+    "Override the automatic powering up of pccards at boot.");
+
 /*
  * Read a register from the PCIC.
  */
@@ -383,7 +389,14 @@ pcic_attach(device_t dev)
 		/* Check for changes */
 		pcic_setb(sp, PCIC_POWER, PCIC_PCPWRE | PCIC_DISRST);
 		sp->slt->laststate = sp->slt->state = empty;
-		pcic_do_stat_delta(sp);
+		if (pcic_boot_deactivated) {
+			if ((sp->getb(sp, PCIC_STATUS) & PCIC_CD) == PCIC_CD) {
+				sp->slt->state = inactive;
+				pccard_event(sp->slt, card_deactivated);
+			}
+		} else {
+			pcic_do_stat_delta(sp);
+		}
 	}
 
 	return (bus_generic_attach(dev));
