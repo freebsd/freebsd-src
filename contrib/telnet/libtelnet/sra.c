@@ -1,4 +1,5 @@
-/* $FreeBSD$ */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #ifdef	SRA
 #include <sys/types.h>
