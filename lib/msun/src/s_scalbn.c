@@ -31,7 +31,7 @@ huge   = 1.0e+300,
 tiny   = 1.0e-300;
 
 double
-__generic_scalbn (double x, int n)
+scalbn (double x, int n)
 {
 	int32_t k,hx,lx;
 	EXTRACT_WORDS(hx,lx,x);

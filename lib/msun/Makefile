@@ -60,10 +60,6 @@ ARCH_SRCS = e_acos.S e_asin.S e_atan2.S e_exp.S e_fmod.S e_log.S e_log10.S \
 # Broken
 # ARCH_SRCS+=	s_log1p.S
 
-.if defined(ARCH)
-.PATH:	${.CURDIR)/${ARCH}
-ARCH_PREFIX= ${ARCH}_
-.endif
 
 .PATH:	${.CURDIR}/bsdsrc
 .PATH:	${.CURDIR}/man
@@ -105,19 +101,15 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 # FreeBSD's C library supplies these functions:
 #COMMON_SRCS+=	s_fabs.c s_frexp.c s_isnan.c s_ldexp.c s_modf.c
 
-RENAMED_ARCH_SRCS=	${ARCH_SRCS:S/^/${ARCH_PREFIX}/g}
-SRCS=	${COMMON_SRCS} ${RENAMED_ARCH_SRCS}
-CLEANFILES+=	${RENAMED_ARCH_SRCS}
-
-# Generate rules to rename arch-specific sources to avoid conflicts.
-# The path to the arch-specific sources is given explicitly instead of
-# with `.PATH:	${.CURDIR}/${ARCH}' since otherwise bsd.lib.mk would
-# use .S.o rules instead of .c.o rules for the conflicting prefixes
-# (except after `make depend' it uses the correct rules!).
+# Exclude the generic versions of what we provide in the MD area.
+.if defined(ARCH_SRCS)
+.PATH:	${.CURDIR}/${ARCH}
 .for i in ${ARCH_SRCS}
-${ARCH_PREFIX}${i}: ${.CURDIR}/${ARCH}/${i}
-	cp ${.ALLSRC} ${.TARGET}
+COMMON_SRCS:=  ${COMMON_SRCS:N${i:R}.c}
 .endfor
+.endif
+
+SRCS=	${COMMON_SRCS} ${ARCH_SRCS}
 
 INCS=	math.h
 
