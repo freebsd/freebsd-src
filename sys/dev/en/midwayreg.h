@@ -6,9 +6,10 @@
  * this file contains the description of the ENI ATM midway chip
  * data structures.   see midway.c for more details.
  *
+ * $FreeBSD$
  */
 
-#if defined(sparc) || defined(__FreeBSD__)
+#if defined(sparc) 
 /* XXX: gross.   netbsd/sparc doesn't have machine/bus.h yet. */
 typedef void * bus_space_tag_t;
 typedef u_int32_t pci_chipset_tag_t;
