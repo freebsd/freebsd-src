@@ -446,7 +446,7 @@ Var_Set(const char *name, const char *val, GNode *ctxt)
 	} else {
 		Buf_Clear(v->val);
 		Buf_Append(v->val, val);
-  
+
 		DEBUGF(VAR, ("%s:%s = %s\n", ctxt->name, n, val));
 	}
 	/*
