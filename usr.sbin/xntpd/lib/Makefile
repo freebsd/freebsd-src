@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.4 1993/12/22 11:32:23 rgrimes Exp $
+# $Id: Makefile,v 1.5 1994/04/03 20:37:05 wollman Exp $
 #
 
 CFLAGS+= -I${.CURDIR}/../include
@@ -22,9 +22,14 @@ NOPROFILE=
 LIB= ntp
 CLEANFILES+=authdes.c
 
-install:
-
+.if !defined(NOCRYPT) && exists(${.CURDIR}/../../../secure/usr.sbin/xntpd/lib)
+.PATH:	${.CURDIR}/../../../secure/usr.sbin/xntpd/lib
+.else
 authdes.c: authdes.c.export
 	cp ${.CURDIR}/authdes.c.export authdes.c
+.endif
+
+# don't install this anywhere
+install:
 
 .include <bsd.lib.mk>
