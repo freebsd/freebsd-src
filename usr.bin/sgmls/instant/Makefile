@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 PROG=	instant
 SRCS=	browse.c info.c main.c tables.c traninit.c translate.c 

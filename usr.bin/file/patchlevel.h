@@ -3,11 +3,14 @@
 
 /*
  * Patchlevel file for Ian Darwin's MAGIC command.
- * $Id$
+ * $Id: patchlevel.h,v 1.5 1997/02/22 19:29:15 peter Exp $
  *
  * $Log: patchlevel.h,v $
+ * Revision 1.5  1997/02/22 19:29:15  peter
+ * Revert $Id$ to $Id$
+ *
  * Revision 1.4  1997/01/14 06:59:48  jkh
- * Make the long-awaited change from $Id$ to $Id$
+ * Make the long-awaited change from $Id: patchlevel.h,v 1.5 1997/02/22 19:29:15 peter Exp $ to $Id: patchlevel.h,v 1.5 1997/02/22 19:29:15 peter Exp $
  *
  * This will make a number of things easier in the future, as well as (finally!)
  * avoiding the Id-smashing problem which has plagued developers for so long.

@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $Id$
 
 $all = $silent = $found = 0;
 @path = split(/:/, $ENV{'PATH'});

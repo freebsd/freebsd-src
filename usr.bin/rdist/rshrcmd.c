@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char RCSid[] = 
-"$FreeBSD$";
+"$Id$";
 #endif
 
 #include	"defs.h"

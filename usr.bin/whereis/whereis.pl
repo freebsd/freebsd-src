@@ -28,7 +28,7 @@
 #
 # Rewritten from scratch for FreeBSD after the 4.3BSD manual page.
 #
-# $FreeBSD$
+# $Id$
 #
 
 sub usage

@@ -1,7 +1,7 @@
 #
 # Bmakefile for rast
 #
-# $FreeBSD$
+# $Id$
 #
 
 .if exists(${.CURDIR}/../../Makefile.inc)

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$Id$	*/
 
 /*
  * units.c   Copyright (c) 1993 by Adrian Mariano (adrian@cam.cornell.edu)
