@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.5 1997/12/12 04:00:59 dyson Exp $
+ *	$Id: kern_linker.c,v 1.6 1998/01/01 08:56:24 bde Exp $
  */
 
 #include <sys/param.h>
@@ -331,23 +331,26 @@ linker_file_add_dependancy(linker_file_t file, linker_file_t dep)
 caddr_t
 linker_file_lookup_symbol(linker_file_t file, const char* name, int deps)
 {
+    linker_sym_t sym;
+    linker_symval_t symval;
     caddr_t address;
-    size_t size;
     size_t common_size = 0;
     int i;
 
     KLD_DPF(SYM, ("linker_file_lookup_symbol: file=%x, name=%s, deps=%d",
 		  file, name, deps));
 
-    if (file->ops->lookup_symbol(file, name, &address, &size) == 0)
-	if (address == 0)
+    if (file->ops->lookup_symbol(file, name, &sym) == 0) {
+	file->ops->symbol_values(file, sym, &symval);
+	if (symval.value == 0)
 	    /*
 	     * For commons, first look them up in the dependancies and
 	     * only allocate space if not found there.
 	     */
-	    common_size = size;
+	    common_size = symval.size;
 	else
-	    return address;
+	    return symval.value;
+    }
 
     if (deps)
 	for (i = 0; i < file->ndeps; i++) {
