@@ -131,7 +131,7 @@ SUBDIR+=ipftest \
 	iptest
 .endif
 
-.if !defined(NOLIBC_R) && ${MACHINE_ARCH} != "ia64"
+.if !defined(NOLIBC_R) && ${MACHINE_ARCH} != "ia64" && ${MACHINE_ARCH} != "sparc64"
 SUBDIR+=pppctl
 .endif
 
