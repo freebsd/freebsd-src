@@ -321,7 +321,7 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int mgt
 				    IEEE80211_REASON_ASSOC_LEAVE);
 				break;
 			case IEEE80211_M_HOSTAP:
-				mtx_lock(&ic->ic_nodelock);
+				IEEE80211_NODE_LOCK(ic);
 				TAILQ_FOREACH(ni, &ic->ic_node, ni_list) {
 					if (ni->ni_associd == 0)
 						continue;
@@ -329,7 +329,7 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int mgt
 					    IEEE80211_FC0_SUBTYPE_DISASSOC,
 					    IEEE80211_REASON_ASSOC_LEAVE);
 				}
-				mtx_unlock(&ic->ic_nodelock);
+				IEEE80211_NODE_UNLOCK(ic);
 				break;
 			default:
 				break;
@@ -343,13 +343,13 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int mgt
 				    IEEE80211_REASON_AUTH_LEAVE);
 				break;
 			case IEEE80211_M_HOSTAP:
-				mtx_lock(&ic->ic_nodelock);
+				IEEE80211_NODE_LOCK(ic);
 				TAILQ_FOREACH(ni, &ic->ic_node, ni_list) {
 					IEEE80211_SEND_MGMT(ic, ni,
 					    IEEE80211_FC0_SUBTYPE_DEAUTH,
 					    IEEE80211_REASON_AUTH_LEAVE);
 				}
-				mtx_unlock(&ic->ic_nodelock);
+				IEEE80211_NODE_UNLOCK(ic);
 				break;
 			default:
 				break;
