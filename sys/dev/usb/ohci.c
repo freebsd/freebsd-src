@@ -3,6 +3,7 @@
 
 /* Also, already ported:
  *	$NetBSD: ohci.c,v 1.127 2002/08/07 20:03:19 augustss Exp $
+ *	$NetBSD: ohci.c,v 1.138 2003/02/08 03:32:50 ichiro Exp $
  */
 
 /*
@@ -46,7 +47,7 @@
  * USB Open Host Controller driver.
  *
  * OHCI spec: http://www.compaq.com/productinfo/development/openhci.html
- * USB spec: http://www.usb.org/developers/data/usbspec.zip
+ * USB spec: http://www.usb.org/developers/docs/usbspec.zip
  */
 
 #include <sys/param.h>
