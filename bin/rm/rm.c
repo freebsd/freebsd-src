@@ -70,9 +70,9 @@ void	usage(void);
 /*
  * rm --
  *	This rm is different from historic rm's, but is expected to match
- *	POSIX 1003.2 behavior.  The most visible difference is that -f
+ *	POSIX 1003.2 behavior.	The most visible difference is that -f
  *	has two specific effects now, ignore non-existent files and force
- * 	file removal.
+ *	file removal.
  */
 int
 main(int argc, char *argv[])
@@ -434,7 +434,7 @@ check(char *path, char *name, struct stat *sp)
 	else {
 		/*
 		 * If it's not a symbolic link and it's unwritable and we're
-		 * talking to a terminal, ask.  Symbolic links are excluded
+		 * talking to a terminal, ask.	Symbolic links are excluded
 		 * because their permissions are meaningless.  Check stdin_ok
 		 * first because we may not have stat'ed the file.
 		 * Also skip this check if the -P option was specified because
@@ -453,7 +453,7 @@ check(char *path, char *name, struct stat *sp)
 		    modep + 1, modep[9] == ' ' ? "" : " ",
 		    user_from_uid(sp->st_uid, 0),
 		    group_from_gid(sp->st_gid, 0),
-		    *flagsp ? flagsp : "", *flagsp ? " " : "", 
+		    *flagsp ? flagsp : "", *flagsp ? " " : "",
 		    path);
 		free(flagsp);
 	}
