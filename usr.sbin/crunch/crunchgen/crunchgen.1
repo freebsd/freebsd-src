@@ -290,6 +290,12 @@ but some
 might like to use other conventions or
 prepend the program's name to the variable, e.g.\&
 .Va SSHD_OBJS .
+.It Ic special Ar progname Ic lib Ar library-name ...
+Specifies libraries to be linked with object files to produce
+.Ar progname.lo .
+This can be useful with libraries which redefine routines in
+the standard libraries, or poorly written libraries which
+reference symbols in the object files.
 .It Ic special Ar progname Ic keep Ar symbol-name ...
 Add specified list of symbols to the keep list for program
 .Ar progname .
