@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.5 1995/10/20 14:24:52 jkh Exp $
+ * $Id: installUpgrade.c,v 1.7 1995/10/22 17:39:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -311,11 +311,11 @@ installUpgrade(char *str)
     if (extractingBin)
 	configSysconfig();
 
-    if (installFinal("upgrade") == RET_FAIL) {
+    if (installNetworking("upgrade") == RET_FAIL) {
 	dialog_clear();
-	msgConfirm("Some of the final configuration stuff evidently failed, but\n"
-		   "the first stage of the upgrade should otherwise be considered\n"
-		   "a success!\n\n"
+	msgConfirm("Some of the networking configuration stuff evidently failed, but\n"
+		   "the first stage of the upgrade should otherwise be considered a\n"
+		   "success!\n\n"
 		   "Next comes stage 2, where we attempt to resurrect your /etc\n"
 		   "directory!");
     }
