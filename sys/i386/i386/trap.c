@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.131 1998/12/16 15:21:50 bde Exp $
+ *	$Id: trap.c,v 1.132 1998/12/28 23:02:56 msmith Exp $
  */
 
 /*
@@ -665,6 +665,7 @@ trap_pfault(frame, usermode, eva)
 		/*
 		 * Grow the stack if necessary
 		 */
+#ifndef VM_STACK
 		if ((caddr_t)va > vm->vm_maxsaddr && va < USRSTACK) {
 			if (!grow(p, va)) {
 				rv = KERN_FAILURE;
@@ -673,6 +674,20 @@ trap_pfault(frame, usermode, eva)
 			}
 		}
 
+#else
+		/* grow_stack returns false only if va falls into
+		 * a growable stack region and the stack growth
+		 * fails.  It returns true if va was not within
+		 * a growable stack region, or if the stack 
+		 * growth succeeded.
+		 */
+		if (!grow_stack (p, va)) {
+			rv = KERN_FAILURE;
+			--p->p_lock;
+			goto nogo;
+		}
+#endif
+		
 		/* Fault in the user page: */
 		rv = vm_fault(map, va, ftype,
 			(ftype & VM_PROT_WRITE) ? VM_FAULT_DIRTY : 0);
@@ -775,6 +790,7 @@ trap_pfault(frame, usermode, eva)
 		/*
 		 * Grow the stack if necessary
 		 */
+#ifndef VM_STACK
 		if ((caddr_t)va > vm->vm_maxsaddr && va < USRSTACK) {
 			if (!grow(p, va)) {
 				rv = KERN_FAILURE;
@@ -782,6 +798,19 @@ trap_pfault(frame, usermode, eva)
 				goto nogo;
 			}
 		}
+#else
+		/* grow_stack returns false only if va falls into
+		 * a growable stack region and the stack growth
+		 * fails.  It returns true if va was not within
+		 * a growable stack region, or if the stack 
+		 * growth succeeded.
+		 */
+		if (!grow_stack (p, va)) {
+			rv = KERN_FAILURE;
+			--p->p_lock;
+			goto nogo;
+		}
+#endif
 
 		/* Fault in the user page: */
 		rv = vm_fault(map, va, ftype,
@@ -969,12 +998,19 @@ int trapwrite(addr)
 
 	++p->p_lock;
 
+#ifndef VM_STACK
 	if ((caddr_t)va >= vm->vm_maxsaddr && va < USRSTACK) {
 		if (!grow(p, va)) {
 			--p->p_lock;
 			return (1);
 		}
 	}
+#else
+	if (!grow_stack (p, va)) {
+		--p->p_lock;
+		return (1);
+	}
+#endif
 
 	/*
 	 * fault the data page

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.49 1998/12/24 21:21:20 julian Exp $
+ *  $Id: linux_misc.c,v 1.50 1998/12/30 21:01:33 sos Exp $
  */
 
 #include <sys/param.h>
@@ -688,45 +688,44 @@ linux_mmap(struct proc *p, struct linux_mmap_args *args)
     bsd_args.len = linux_args.len;
 #else
 
-    /*#if !defined(USE_VM_STACK) && !defined(USE_VM_STACK_FOR_EXEC)*/
+#ifndef VM_STACK
     /* Linux Threads will map into the proc stack space, unless
-       we prevent it.  This causes problems if we're not using
-       our VM_STACK options.
-    */
+     * we prevent it.  This causes problems if we're not using
+     * our VM_STACK options.
+     */
     if ((unsigned int)linux_args.addr + linux_args.len > (USRSTACK - MAXSSIZ))
-        return (EINVAL);
-    /*#endif*/
+	return (EINVAL);
+#endif
 
     if (linux_args.flags & LINUX_MAP_GROWSDOWN) {
 
-#ifdef USE_VM_STACK
-        /* USE_VM_STACK is defined (or not) in vm/vm_map.h */
-        bsd_args.flags |= MAP_STACK;      
+#ifdef VM_STACK
+	bsd_args.flags |= MAP_STACK;      
 #endif
 
 	/* The linux MAP_GROWSDOWN option does not limit auto
-	   growth of the region.  Linux mmap with this option
-	   takes as addr the inital BOS, and as len, the initial
-	   region size.  It can then grow down from addr without
-	   limit.  However, linux threads has an implicit internal
-	   limit to stack size of STACK_SIZE.  Its just not
-	   enforced explicitly in linux.  But, here we impose
-	   a limit of (STACK_SIZE - GUARD_SIZE) on the stack
-	   region, since we can do this with our mmap.
-
-	   Our mmap with MAP_STACK takes addr as the maximum
-	   downsize limit on BOS, and as len the max size of
-	   the region.  It them maps the top SGROWSIZ bytes,
-	   and autgrows the region down, up to the limit
-	   in addr.
-
-	   If we don't use the MAP_STACK option, the effect
-	   of this code is to allocate a stack region of a
-	   fixed size of (STACK_SIZE - GUARD_SIZE).
-	*/
+	 * growth of the region.  Linux mmap with this option
+	 * takes as addr the inital BOS, and as len, the initial
+	 * region size.  It can then grow down from addr without
+	 * limit.  However, linux threads has an implicit internal
+	 * limit to stack size of STACK_SIZE.  Its just not
+	 * enforced explicitly in linux.  But, here we impose
+	 * a limit of (STACK_SIZE - GUARD_SIZE) on the stack
+	 * region, since we can do this with our mmap.
+	 *
+	 * Our mmap with MAP_STACK takes addr as the maximum
+	 * downsize limit on BOS, and as len the max size of
+	 * the region.  It them maps the top SGROWSIZ bytes,
+	 * and autgrows the region down, up to the limit
+	 * in addr.
+	 *
+	 * If we don't use the MAP_STACK option, the effect
+	 * of this code is to allocate a stack region of a
+	 * fixed size of (STACK_SIZE - GUARD_SIZE).
+	 */
 
 	/* This gives us TOS */
-        bsd_args.addr = linux_args.addr + linux_args.len;
+	bsd_args.addr = linux_args.addr + linux_args.len;
 
 	/* This gives us our maximum stack size */
 	if (linux_args.len > STACK_SIZE - GUARD_SIZE)
@@ -735,15 +734,15 @@ linux_mmap(struct proc *p, struct linux_mmap_args *args)
 	    bsd_args.len  = STACK_SIZE - GUARD_SIZE;
 
 	/* This gives us a new BOS.  If we're using VM_STACK, then
-	   mmap will just map the top SGROWSIZ bytes, and let
-	   the stack grow down to the limit at BOS.  If we're
-	   not using VM_STACK we map the full stack, since we
-	   don't have a way to autogrow it.
-	*/
+	 * mmap will just map the top SGROWSIZ bytes, and let
+	 * the stack grow down to the limit at BOS.  If we're
+	 * not using VM_STACK we map the full stack, since we
+	 * don't have a way to autogrow it.
+	 */
 	bsd_args.addr -= bsd_args.len;
 
     } else {
-        bsd_args.addr = linux_args.addr;
+	bsd_args.addr = linux_args.addr;
 	bsd_args.len  = linux_args.len;
     }
 #endif /* COMPAT_LINUX_THREADS */
@@ -977,11 +976,11 @@ linux_waitpid(struct proc *p, struct linux_waitpid_args *args)
     tmp.options = args->options;
 #else
     /* This filters out the linux option _WCLONE.  I don't
-       think we need it, but I could be wrong.  If we need
-       it, we need to fix wait4, since it will give us an
-       error return of EINVAL if we pass in _WCLONE, and
-       of course, it won't do anything with it.
-    */
+     * think we need it, but I could be wrong.  If we need
+     * it, we need to fix wait4, since it will give us an
+     * error return of EINVAL if we pass in _WCLONE, and
+     * of course, it won't do anything with it.
+     */
     tmp.options = (args->options & (WNOHANG | WUNTRACED));
 #endif /* COMPAT_LINUX_THREADS */
     tmp.rusage = NULL;
@@ -990,7 +989,7 @@ linux_waitpid(struct proc *p, struct linux_waitpid_args *args)
 #ifndef COMPAT_LINUX_THREADS
 	return error;
 #else
-  	return error;
+	return error;
 #endif /* COMPAT_LINUX_THREADS */
     if (args->status) {
 	if (error = copyin(args->status, &tmpstat, sizeof(int)))
@@ -1028,11 +1027,11 @@ linux_wait4(struct proc *p, struct linux_wait4_args *args)
     tmp.options = args->options;
 #else
     /* This filters out the linux option _WCLONE.  I don't
-       think we need it, but I could be wrong.  If we need
-       it, we need to fix wait4, since it will give us an
-       error return of EINVAL if we pass in _WCLONE, and
-       of course, it won't do anything with it.
-    */
+     * think we need it, but I could be wrong.  If we need
+     * it, we need to fix wait4, since it will give us an
+     * error return of EINVAL if we pass in _WCLONE, and
+     * of course, it won't do anything with it.
+     */
     tmp.options = (args->options & (WNOHANG | WUNTRACED));
 #endif /* COMPAT_LINUX_THREADS */
     tmp.rusage = args->rusage;

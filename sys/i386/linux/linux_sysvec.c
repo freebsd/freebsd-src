@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.41 1998/12/19 02:55:33 julian Exp $
+ *  $Id: linux_sysvec.c,v 1.42 1998/12/19 19:05:57 sos Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -50,10 +50,6 @@
 #include <vm/vm_prot.h>
 #include <vm/vm_page.h>
 #include <vm/vm_extern.h>
-#ifdef COMPAT_LINUX_THREADS
-#include <sys/lock.h>             /* needed, for now, by vm_map.h */
-#include <vm/vm_map.h>            /* needed, for now, for VM_STACK defines */
-#endif /* COMPAT_LINUX_THREADS */
 #include <sys/exec.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
@@ -221,24 +217,11 @@ linux_sendsig(sig_t catcher, int sig, int mask, u_long code)
 	 *	and the stack can not be grown. useracc will return FALSE
 	 *	if access is denied.
 	 */
-#ifdef COMPAT_LINUX_THREADS
-#ifdef USE_VM_STACK
-#ifndef USE_VM_STACK_FOR_EXEC
-	if ((((caddr_t)fp > p->p_vmspace->vm_maxsaddr &&
-	      (caddr_t)fp < (caddr_t)USRSTACK &&
-	      grow(p, (int)fp) == FALSE) ||
-	     (((caddr_t)fp <= p->p_vmspace->vm_maxsaddr ||
-	       (caddr_t)fp >= (caddr_t)USRSTACK) &&
-	      grow_stack (p, (int)fp) == FALSE)) ||
-#else
+#ifdef VM_STACK
 	if ((grow_stack (p, (int)fp) == FALSE) ||
-#endif /* USE_VM_STACK_FOR_EXEC */
 #else
 	if ((grow(p, (int)fp) == FALSE) ||
-#endif /* USE_VM_STACK */
-#else
-	if ((grow(p, (int)fp) == FALSE) ||
-#endif /* COMPAT_LINUX_THREADS */
+#endif 
 	    (useracc((caddr_t)fp, sizeof (struct linux_sigframe), B_WRITE) == FALSE)) {
 		/*
 		 * Process has trashed its stack; give it an illegal
