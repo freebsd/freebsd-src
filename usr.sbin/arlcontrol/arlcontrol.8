@@ -102,7 +102,8 @@ Set
 .Ar Device Name . 
 This 
 parameter is used to establish a 15-byte ASCII name
-for the Arlan 655 Client Card. The 
+for the Arlan 655 Client Card.
+The 
 .Ar Device Name 
 is optional and may be left blank.
 .Pp
@@ -116,16 +117,19 @@ Set
 The System Identifier 
 .Ar (SID)
 is a 4-byte, hexadecimal digit value that 
-is attached to each packet sent out over the radio. Establishing a 
+is attached to each packet sent out over the radio.
+Establishing a 
 .Ar SID
 allows you to group nodes into a microcelluar network and exclude 
 those nodes that are whiting radio range on other networks.
 .Pp
 The
 .Ar SID
-value must be an even number, cannot exceed  ts and must start with
-00 or 02. Examples of valid SID values are: 00000102, 0200AA14, 00013A18,
-007F6380. The 
+value must be an even number, cannot exceed ts and must start with
+00 or 02.
+Examples of valid SID values are: 00000102, 0200AA14, 00013A18,
+007F6380.
+The 
 .Ar default 
 SID is 
 .Cm 00000002 .
@@ -140,7 +144,8 @@ parameter to specify whether you are operating in
 .Ar TMA , Non-TMA 
 or
 .Ar PSP
-mode. The 
+mode.
+The 
 .Ar default
 setting is 
 .Cm TMA
@@ -207,7 +212,10 @@ Print internal Arlan 655 statistics block.
 .It Ar iface Cm quality
 Display the cached signal level and quality maintained by the
 .Xr arl 4
-driver . The driver retains information about quality and level for packets received from different hosts. Also the driver extracts values from ACK packets.
+driver.
+The driver retains information about quality and level for packets
+received from different hosts.
+Also the driver extracts values from ACK packets.
 .El
 .Sh EXAMPLES
 .Bd -literal -offset indent
@@ -216,7 +224,8 @@ arlconfig arl0 quality
 arlconfig arl0 stat
 arlconfig arl0
 .Pp
-You can configure the Arlan 655 card from /etc/start_if.arl0. For example: 
+You can configure the Arlan 655 card from /etc/start_if.arl0.
+For example: 
 .Pp
 #!/bin/sh
 /sbin/arlconfig arl0 sid 0x000002 freq 2412 spread 2000 mode 640 
