@@ -25,6 +25,7 @@
 #include <sys/tty.h>
 #include <sys/fcntl.h>
 #include <sys/conf.h>
+#include <sys/poll.h>
 #include <sys/uio.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -39,13 +40,13 @@ static	d_close_t	snpclose;
 static	d_read_t	snpread;
 static	d_write_t	snpwrite;
 static	d_ioctl_t	snpioctl;
-static	d_select_t	snpselect;
+static	d_poll_t	snppoll;
 
 #define CDEV_MAJOR 53
 static struct cdevsw snp_cdevsw = 
 	{ snpopen,	snpclose,	snpread,	snpwrite,	/*53*/
 	  snpioctl,	nostop,		nullreset,	nodevtotty,/* snoop */
-	  snpselect,	nommap,		NULL,	"snp",	NULL,	-1 };
+	  snppoll,	nommap,		NULL,	"snp",	NULL,	-1 };
 
 
 #ifndef MIN
@@ -489,30 +490,28 @@ snpioctl(dev, cmd, data, flags, p)
 
 
 static	int
-snpselect(dev, rw, p)
+snppoll(dev, events, p)
 	dev_t           dev;
-	int             rw;
+	int             events;
 	struct proc    *p;
 {
 	int             unit = minor(dev);
 	struct snoop   *snp = &snoopsw[unit];
+	int		revents = 0;
 
-	if (rw != FREAD)
-		return 1;
-
-	if (snp->snp_len > 0)
-		return 1;
 
 	/*
-	 * If snoop is down,we don't want to select() forever so we return 1.
+	 * If snoop is down,we don't want to poll() forever so we return 1.
 	 * Caller should see if we down via FIONREAD ioctl().The last should
 	 * return -1 to indicate down state.
 	 */
-	if (snp->snp_flags & SNOOP_DOWN)
-		return 1;
+	if (events & (POLLIN | POLLRDNORM))
+		if (snp->snp_flags & SNOOP_DOWN || snp->snp_len > 0)
+			revents |= events & (POLLIN | POLLRDNORM);
+		else
+			selrecord(p, &snp->snp_sel);
 
-	selrecord(p, &snp->snp_sel);
-	return 0;
+	return (revents);
 }
 
 #ifdef DEVFS
