@@ -82,7 +82,7 @@
 extern char cam_errbuf[];
 
 struct cam_device {
-	char 		device_path[MAXPATHLEN+1];/*
+	char 		device_path[MAXPATHLEN];/*
 						   * Pathname of the device 
 						   * given by the user. This
 						   * may be null if the
