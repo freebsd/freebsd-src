@@ -38,6 +38,16 @@ case ${isdn_enable} in
 [Yy][Ee][Ss])
 	echo -n 'ISDN subsystem setup:'
 
+	# Check for pcvt driver (VT100/VT220 emulator)
+	#
+	if [ -x /usr/sbin/ispcvt ]; then
+		if /usr/sbin/ispcvt; then
+			# No vidcontrol if we are using pcvt
+			#
+			isdn_screenflags=NO
+		fi
+	fi
+
 	case ${isdn_flags} in
 	[Nn][Oo])
 		isdn_flags=''
