@@ -34,6 +34,7 @@
 
 #include <sys/bio.h>
 #include <sys/devicestat.h>
+#include <sys/conf.h>
 #include <sys/disk.h>
 
 #include <machine/bus_pio.h>

@@ -126,7 +126,7 @@ chrdev	name		comments
 106	smb		System Management Bus generic i/o
 107	3dfx		3Dfx driver <cokane>
 108	usb		Universal Serial Bus <n_hibma>
-109	ida		Intelligent Disk [Array] (md@doc.ic.ac.uk)
+109
 110	ses		SCSI Environmental Services driver (mjacob@feral.com)
 111	ums		USB Mouse <n_hibma>
 112	kbd		keyboard
