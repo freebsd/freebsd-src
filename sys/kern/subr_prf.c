@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.52 1999/06/01 18:20:29 jlemon Exp $
+ * $Id: subr_prf.c,v 1.53 1999/06/06 02:41:55 archie Exp $
  */
 
 #include <sys/param.h>
@@ -60,20 +60,20 @@
 #define TOTTY	0x02
 #define TOLOG	0x04
 
-/* Max number conversion buffer length: a long in base 8, plus NUL byte */
-#define MAXNBUF	(sizeof(long) * NBBY / 3 + 2)
-
-struct	tty *constty;			/* pointer to console "window" tty */
+/* Max number conversion buffer length: a long in base 2, plus NUL byte. */
+#define MAXNBUF	(sizeof(long) * NBBY + 1)
 
 struct putchar_arg {
-	int flags;
-	struct tty *tty;
+	int	flags;
+	struct	tty *tty;
 };
 
 struct snprintf_arg {
-	char *str;
-	size_t remain;
+	char	*str;
+	size_t	remain;
 };
+
+struct	tty *constty;			/* pointer to console "window" tty */
 
 static void (*v_putc)(int) = cnputc;	/* routine to putc on virtual console */
 static void  logpri __P((int level));
@@ -217,8 +217,8 @@ static void
 logpri(level)
 	int level;
 {
-	register char *p;
 	char nbuf[MAXNBUF];
+	register char *p;
 
 	msglogchar('<', NULL);
 	for (p = ksprintn(nbuf, (u_long)level, 10, NULL); *p;)
@@ -386,25 +386,26 @@ snprintf_func(int ch, void *arg)
 }
 
 /*
- * Put a number (base <= 16) in a buffer in reverse order; return an
- * optional length and a pointer to the NULL terminated (preceded?)
- * buffer. The buffer pointed to by "buf" must have length >= MAXNBUF.
+ * Put a NUL-terminated ASCII number (base <= 16) in a buffer in reverse
+ * order; return an optional length and a pointer to the last character
+ * written in the buffer (i.e., the first character of the string).
+ * The buffer pointed to by `nbuf' must have length >= MAXNBUF.
  */
 static char *
-ksprintn(buf, ul, base, lenp)
-	char *buf;
+ksprintn(nbuf, ul, base, lenp)
+	char *nbuf;
 	register u_long ul;
 	register int base, *lenp;
-{					/* A long in base 8, plus NULL. */
+{
 	register char *p;
 
-	p = buf;
+	p = nbuf;
 	*p = '\0';
 	do {
 		*++p = hex2ascii(ul % base);
 	} while (ul /= base);
 	if (lenp)
-		*lenp = p - buf;
+		*lenp = p - nbuf;
 	return (p);
 }
 
