@@ -129,7 +129,7 @@ ithread_update(struct ithd *ithd)
 	struct intrhand *ih;
 	struct thread *td;
 	struct proc *p;
-	int entropy;
+	int missed;
 
 	mtx_assert(&ithd->it_lock, MA_OWNED);
 	td = ithd->it_td;
@@ -138,6 +138,7 @@ ithread_update(struct ithd *ithd)
 	p = td->td_proc;
 
 	strlcpy(p->p_comm, ithd->it_name, sizeof(p->p_comm));
+	ithd->it_flags &= ~IT_ENTROPY;
 
 	ih = TAILQ_FIRST(&ithd->it_handlers);
 	if (ih == NULL) {
@@ -145,33 +146,32 @@ ithread_update(struct ithd *ithd)
 		td->td_priority = PRI_MAX_ITHD;
 		td->td_base_pri = PRI_MAX_ITHD;
 		mtx_unlock_spin(&sched_lock);
-		ithd->it_flags &= ~IT_ENTROPY;
 		return;
 	}
-	entropy = 0;
 	mtx_lock_spin(&sched_lock);
 	td->td_priority = ih->ih_pri;
 	td->td_base_pri = ih->ih_pri;
 	mtx_unlock_spin(&sched_lock);
+	missed = 0;
 	TAILQ_FOREACH(ih, &ithd->it_handlers, ih_next) {
 		if (strlen(p->p_comm) + strlen(ih->ih_name) + 1 <
 		    sizeof(p->p_comm)) {
 			strcat(p->p_comm, " ");
 			strcat(p->p_comm, ih->ih_name);
-		} else if (strlen(p->p_comm) + 1 == sizeof(p->p_comm)) {
+		} else
+			missed++;
+		if (ih->ih_flags & IH_ENTROPY)
+			ithd->it_flags |= IT_ENTROPY;
+	}
+	while (missed-- > 0) {
+		if (strlen(p->p_comm) + 1 == sizeof(p->p_comm)) {
 			if (p->p_comm[sizeof(p->p_comm) - 2] == '+')
 				p->p_comm[sizeof(p->p_comm) - 2] = '*';
 			else
 				p->p_comm[sizeof(p->p_comm) - 2] = '+';
 		} else
 			strcat(p->p_comm, "+");
-		if (ih->ih_flags & IH_ENTROPY)
-			entropy++;
 	}
-	if (entropy)
-		ithd->it_flags |= IT_ENTROPY;
-	else
-		ithd->it_flags &= ~IT_ENTROPY;
 	CTR2(KTR_INTR, "%s: updated %s", __func__, p->p_comm);
 }
 
