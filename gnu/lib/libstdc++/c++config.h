@@ -2,7 +2,8 @@
 
 // Predefined symbols and macros -*- C++ -*-
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003
+// Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -36,10 +37,9 @@
 #include <bits/os_defines.h>
 
 // The current version of the C++ library in compressed ISO date format.
-#define __GLIBCPP__ 20030205
+#define __GLIBCPP__ 20030513
 
-// This is necessary until GCC supports separate template
-// compilation.  
+// This is necessary until GCC supports separate template compilation.
 #define _GLIBCPP_NO_TEMPLATE_EXPORT 1
 
 // This is a hack around not having either pre-compiled headers or
@@ -50,6 +50,16 @@
 // member functions are only declared, and definitions are not parsed
 // by the compiler, but instead instantiated into the library binary.
 #define _GLIBCPP_FULLY_COMPLIANT_HEADERS 1
+
+// Allow use of the GNU syntax extension, "extern template." This
+// extension is fully documented in the g++ manual, but in a nutshell,
+// it inhibits all implicit instantiations and is used throughout the
+// library to avoid multiple weak definitions for required types that
+// are already explicitly instantiated in the library binary. This
+// substantially reduces the binary size of resulting executables.
+#ifndef _GLIBCPP_EXTERN_TEMPLATE
+#define _GLIBCPP_EXTERN_TEMPLATE 1
+#endif
 
 // To enable older, ARM-style iostreams and other anachronisms use this.
 //#define _GLIBCPP_DEPRECATED 1
@@ -76,13 +86,15 @@
 // so, please report any possible issues to libstdc++@gcc.gnu.org .
 // Do not define __USE_MALLOC on the command line.  Enforce it here:
 #ifdef __USE_MALLOC
-#error __USE_MALLOC should only be defined within \
-libstdc++-v3/include/bits/c++config before full recompilation of the library.
+#error __USE_MALLOC should never be defined.  Read the release notes.
 #endif
-// Define __USE_MALLOC after this point in the file in order to aid debugging
-// or globally change allocation policy.  This breaks the ABI, thus
-// completely recompile the library.  A patch to better support
-// changing the global allocator policy would be probably be accepted.
+
+// Create a boolean flag to be used to determine if --fast-math is set.
+#ifdef __FAST_MATH__
+#define _GLIBCPP_FAST_MATH 1
+#else
+#define _GLIBCPP_FAST_MATH 0
+#endif
 
 // The remainder of the prewritten config is mostly automatic; all the
 // user hooks are listed above.
@@ -129,6 +141,18 @@ libstdc++-v3/include/bits/c++config before full recompilation of the library.
 // Define if gthr-default.h exists (meaning that threading support is enabled).
 #define _GLIBCPP_HAVE_GTHR_DEFAULT 1
 
+// Define if drand48 exists.
+#define _GLIBCPP_HAVE_DRAND48 1
+
+// Define if getpagesize exists.
+#define _GLIBCPP_HAVE_GETPAGESIZE 1
+
+// Define if setenv exists.
+#define _GLIBCPP_HAVE_SETENV 1
+
+// Define if sigsetjmp exists.
+#define _GLIBCPP_HAVE_SIGSETJMP 1
+
 // Define if mbstate_t exists in wchar.h.
 #define _GLIBCPP_HAVE_MBSTATE_T 1
 
@@ -157,13 +181,13 @@ libstdc++-v3/include/bits/c++config before full recompilation of the library.
 #define _GLIBCPP_HAVE___BUILTIN_LABS 1
 
 // Define if the compiler/host combination has __builtin_cos
-/* #undef _GLIBCPP_HAVE___BUILTIN_COS */
+#define _GLIBCPP_HAVE___BUILTIN_COS 1
 
 // Define if the compiler/host combination has __builtin_cosf
-/* #undef _GLIBCPP_HAVE___BUILTIN_COSF */
+#define _GLIBCPP_HAVE___BUILTIN_COSF 1
 
 // Define if the compiler/host combination has __builtin_cosl
-/* #undef _GLIBCPP_HAVE___BUILTIN_COSL */
+#define _GLIBCPP_HAVE___BUILTIN_COSL 1
 
 // Define if the compiler/host combination has __builtin_fabs
 #define _GLIBCPP_HAVE___BUILTIN_FABS 1
@@ -175,13 +199,13 @@ libstdc++-v3/include/bits/c++config before full recompilation of the library.
 #define _GLIBCPP_HAVE___BUILTIN_FABSL 1
 
 // Define if the compiler/host combination has __builtin_sin
-/* #undef _GLIBCPP_HAVE___BUILTIN_SIN */
+#define _GLIBCPP_HAVE___BUILTIN_SIN 1
 
 // Define if the compiler/host combination has __builtin_sinf
-/* #undef _GLIBCPP_HAVE___BUILTIN_SINF */
+#define _GLIBCPP_HAVE___BUILTIN_SINF 1
 
 // Define if the compiler/host combination has __builtin_sinl
-/* #undef _GLIBCPP_HAVE___BUILTIN_SINL */
+#define _GLIBCPP_HAVE___BUILTIN_SINL 1
 
 // Define if the compiler/host combination has __builtin_sqrt
 /* #undef _GLIBCPP_HAVE___BUILTIN_SQRT */
@@ -191,6 +215,15 @@ libstdc++-v3/include/bits/c++config before full recompilation of the library.
 
 // Define if the compiler/host combination has __builtin_sqrtl
 /* #undef _GLIBCPP_HAVE___BUILTIN_SQRTL */
+
+// Define if poll is available in <poll.h>.
+#define _GLIBCPP_HAVE_POLL 1
+
+// Define if S_ISREG (Posix) is available in <sys/stat.h>.
+#define _GLIBCPP_HAVE_S_ISREG 1
+
+// Define if S_IFREG is available in <sys/stat.h>.
+/* #undef _GLIBCPP_HAVE_S_IFREG */
 
 // Define if LC_MESSAGES is available in <locale.h>.
 #define _GLIBCPP_HAVE_LC_MESSAGES 1
@@ -822,6 +855,12 @@ libstdc++-v3/include/bits/c++config before full recompilation of the library.
 /* Define if you have the <string.h> header file.  */
 #define _GLIBCPP_HAVE_STRING_H 1
 
+/* Define if you have the <sys/filio.h> header file.  */
+#define _GLIBCPP_HAVE_SYS_FILIO_H 1
+
+/* Define if you have the <sys/ioctl.h> header file.  */
+#define _GLIBCPP_HAVE_SYS_IOCTL_H 1
+
 /* Define if you have the <sys/isa_defs.h> header file.  */
 /* #undef _GLIBCPP_HAVE_SYS_ISA_DEFS_H */
 
@@ -833,6 +872,9 @@ libstdc++-v3/include/bits/c++config before full recompilation of the library.
 
 /* Define if you have the <sys/stat.h> header file.  */
 #define _GLIBCPP_HAVE_SYS_STAT_H 1
+
+/* Define if you have the <sys/time.h> header file.  */
+#define _GLIBCPP_HAVE_SYS_TIME_H 1
 
 /* Define if you have the <sys/types.h> header file.  */
 #define _GLIBCPP_HAVE_SYS_TYPES_H 1
@@ -853,7 +895,7 @@ libstdc++-v3/include/bits/c++config before full recompilation of the library.
 #define _GLIBCPP_PACKAGE "libstdc++"
 
 /* Version number of package */
-#define _GLIBCPP_VERSION "3.2.2"
+#define _GLIBCPP_VERSION "3.3.1"
 
 /* Define if the compiler is configured for setjmp/longjmp exceptions. */
 /* #undef _GLIBCPP_SJLJ_EXCEPTIONS */
