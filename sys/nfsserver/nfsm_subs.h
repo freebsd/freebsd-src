@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsm_subs.h	8.2 (Berkeley) 3/30/95
- * $Id: nfsm_subs.h,v 1.20 1998/05/31 19:00:19 peter Exp $
+ * $Id: nfsm_subs.h,v 1.21 1998/05/31 20:08:57 peter Exp $
  */
 
 
@@ -235,17 +235,68 @@ struct mbuf *nfsm_rpchead __P((struct ucred *cr, int nmflag, int procid,
 			(f) = ttattrf; \
 		} }
 
-#define nfsm_v3sattr(s, a) \
-		{ (s)->sa_modetrue = nfs_true; \
-		(s)->sa_mode = vtonfsv3_mode((a)->va_mode); \
-		(s)->sa_uidfalse = nfs_false; \
-		(s)->sa_gidfalse = nfs_false; \
-		(s)->sa_sizefalse = nfs_false; \
-		(s)->sa_atimetype = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT); \
-		txdr_nfsv3time(&(a)->va_atime, &(s)->sa_atime); \
-		(s)->sa_mtimetype = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT); \
-		txdr_nfsv3time(&(a)->va_mtime, &(s)->sa_mtime); \
+/* If full is true, set all fields, otherwise just set mode and time fields */
+#define nfsm_v3attrbuild(a, full)						\
+		{ if ((a)->va_mode != (mode_t)VNOVAL) {				\
+			nfsm_build(tl, u_int32_t *, 2 * NFSX_UNSIGNED);		\
+			*tl++ = nfs_true;					\
+			*tl = txdr_unsigned((a)->va_mode);			\
+		} else {							\
+			nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);		\
+			*tl = nfs_false;					\
+		}								\
+		if ((full) && (a)->va_uid != (uid_t)VNOVAL) {			\
+			nfsm_build(tl, u_int32_t *, 2 * NFSX_UNSIGNED);		\
+			*tl++ = nfs_true;					\
+			*tl = txdr_unsigned((a)->va_uid);			\
+		} else {							\
+			nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);		\
+			*tl = nfs_false;					\
+		}								\
+		if ((full) && (a)->va_gid != (gid_t)VNOVAL) {			\
+			nfsm_build(tl, u_int32_t *, 2 * NFSX_UNSIGNED);		\
+			*tl++ = nfs_true;					\
+			*tl = txdr_unsigned((a)->va_gid);			\
+		} else {							\
+			nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);		\
+			*tl = nfs_false;					\
+		}								\
+		if ((full) && (a)->va_size != VNOVAL) {				\
+			nfsm_build(tl, u_int32_t *, 3 * NFSX_UNSIGNED);		\
+			*tl++ = nfs_true;					\
+			txdr_hyper(&(a)->va_size, tl);				\
+		} else {							\
+			nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);		\
+			*tl = nfs_false;					\
+		}								\
+		if ((a)->va_atime.tv_sec != VNOVAL) {				\
+			if ((a)->va_atime.tv_sec != time_second) {		\
+				nfsm_build(tl, u_int32_t *, 3 * NFSX_UNSIGNED);	\
+				*tl++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);	\
+				txdr_nfsv3time(&(a)->va_atime, tl);		\
+			} else {						\
+				nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);	\
+				*tl = txdr_unsigned(NFSV3SATTRTIME_TOSERVER);	\
+			}							\
+		} else {							\
+			nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);		\
+			*tl = txdr_unsigned(NFSV3SATTRTIME_DONTCHANGE);		\
+		}								\
+		if ((a)->va_mtime.tv_sec != VNOVAL) {				\
+			if ((a)->va_mtime.tv_sec != time_second) {		\
+				nfsm_build(tl, u_int32_t *, 3 * NFSX_UNSIGNED);	\
+				*tl++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);	\
+				txdr_nfsv3time(&(a)->va_mtime, tl);		\
+			} else {						\
+				nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);	\
+				*tl = txdr_unsigned(NFSV3SATTRTIME_TOSERVER);	\
+			}							\
+		} else {							\
+			nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);		\
+			*tl = txdr_unsigned(NFSV3SATTRTIME_DONTCHANGE);		\
+		}								\
 		}
+				
 
 #define	nfsm_strsiz(s,m) \
 		{ nfsm_dissect(tl,u_int32_t *,NFSX_UNSIGNED); \
