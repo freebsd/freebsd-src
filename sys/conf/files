@@ -279,7 +279,7 @@ dev/ed/if_ed.c		optional ed
 dev/ed/if_ed_pccard.c	optional ed card
 dev/ed/if_ed_pccard.c	optional ed pccard
 dev/ed/if_ed_pci.c	optional ed pci
-dev/en/midway.c		count en
+dev/en/midway.c		optional en
 dev/ep/if_ep.c		optional ep
 dev/ep/if_ep_eisa.c	optional ep eisa
 dev/ep/if_ep_isa.c	optional ep isa
@@ -335,7 +335,7 @@ dev/isp/isp_target.c	optional isp
 dev/isp/isp_pci.c	optional isp
 dev/ispfw/ispfw.c	optional ispfw
 dev/lmc/if_lmc.c	optional lmc
-dev/lnc/if_lnc.c	count lnc
+dev/lnc/if_lnc.c	optional lnc
 dev/lnc/if_lnc_isa.c	optional lnc isa
 dev/lnc/if_lnc_pc98.c	optional lnc isa
 dev/lnc/if_lnc_pci.c	optional lnc pci
@@ -390,7 +390,7 @@ dev/pci/pcib_if.m	optional pci
 dev/pcic/i82365.c	optional pcic pccard
 dev/pcic/i82365_isa.c	optional pcic pccard
 dev/pdq/if_fea.c	optional fea eisa
-dev/pdq/if_fpa.c	count fpa pci
+dev/pdq/if_fpa.c	optional fpa pci
 dev/pdq/pdq.c		optional fea eisa
 dev/pdq/pdq.c		optional fpa pci
 dev/pdq/pdq_ifsubr.c	optional fea eisa
@@ -792,7 +792,7 @@ net/if_faith.c		count faith
 net/if_fddisubr.c	optional fddi
 net/if_gif.c		count gif
 net/if_iso88025subr.c	optional token
-net/if_loop.c		count loop
+net/if_loop.c		optional loop
 net/if_media.c		standard
 net/if_mib.c		standard
 net/if_ppp.c		count ppp
@@ -1089,7 +1089,7 @@ pci/agp_i810.c		optional agp
 pci/alpm.c		optional alpm
 pci/amd.c		optional amd
 pci/cy_pci.c		optional cy pci
-pci/if_ar_p.c		count ar pci
+pci/if_ar_p.c		optional ar pci
 pci/if_dc.c		optional dc
 pci/if_de.c		optional de
 pci/if_en_pci.c		optional en pci
