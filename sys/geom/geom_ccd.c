@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.30 1998/02/15 08:28:26 jkh Exp $ */
+/* $Id: ccd.c,v 1.31 1998/02/22 10:01:23 jkh Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -893,6 +893,7 @@ ccdbuffer(cb, cs, bp, bn, addr, bcount)
 	cbp->cb_buf.b_blkno = cbn + cboff + CCD_OFFSET;
 	cbp->cb_buf.b_data = addr;
 	cbp->cb_buf.b_vp = ci->ci_vp;
+	LIST_INIT(&cbp->cb_buf.b_dep);
 	if (cs->sc_ileave == 0)
 		cbp->cb_buf.b_bcount = dbtob(ci->ci_size - cbn);
 	else
@@ -924,6 +925,7 @@ ccdbuffer(cb, cs, bp, bn, addr, bcount)
 		*cbp = *cb[0];
 		cbp->cb_buf.b_dev = ci2->ci_dev;
 		cbp->cb_buf.b_vp = ci2->ci_vp;
+		LIST_INIT(&cbp->cb_buf.b_dep);
 		cbp->cb_comp = ci2 - cs->sc_cinfo;
 		cb[1] = cbp;
 		/* link together the ccdbuf's and clear "mirror done" flag */
