@@ -2608,7 +2608,7 @@ xterm-color|xterm-co|xterm with ANSI colors:\
 	:pa#64:Co#8:Sf=\E[3%dm:Sb=\E[4%dm:op=\E[m:tc=xterm:
 # dtterm termcap entry - Obtained from Xinside's CDE with permission
 # from Thomas Roell
-dtterm:\
+dtterm|dtterm-cde10:\
 	:am:km:mi:ms:xn:\
 	:co#80:li#24:Co#8:it#8:lm#0:pa#8:\
  	:ac=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~:\
