@@ -370,8 +370,8 @@ esac
 # after a system crash.
 #
 rm -f /tmp/.X*-lock
-rm -fr /tmp/.X11-unix
-mkdir -m 1777 /tmp/.X11-unix
+rm -fr /tmp/.X11-unix /tmp/.ICE-unix /tmp/.font-unix /tmp/.XIM-unix
+mkdir -m 1777 /tmp/.X11-unix /tmp/.ICE-unix /tmp/.font-unix /tmp/.XIM-unix
 
 # Snapshot any kernel -c changes back to disk here <someday>.
 # This has changed with ELF and /kernel.config.
