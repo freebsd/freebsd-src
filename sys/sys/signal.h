@@ -49,40 +49,75 @@
 /*
  * System defined signals.
  */
+#if __POSIX_VISIBLE || __XSI_VISIBLE
 #define	SIGHUP		1	/* hangup */
+#endif
 #define	SIGINT		2	/* interrupt */
+#if __POSIX_VISIBLE || __XSI_VISIBLE
 #define	SIGQUIT		3	/* quit */
+#endif
 #define	SIGILL		4	/* illegal instr. (not reset when caught) */
+#if __XSI_VISIBLE
 #define	SIGTRAP		5	/* trace trap (not reset when caught) */
+#endif
 #define	SIGABRT		6	/* abort() */
+#if __BSD_VISIBLE
 #define	SIGIOT		SIGABRT	/* compatibility */
 #define	SIGEMT		7	/* EMT instruction */
+#endif
 #define	SIGFPE		8	/* floating point exception */
+#if __POSIX_VISIBLE || __XSI_VISIBLE
 #define	SIGKILL		9	/* kill (cannot be caught or ignored) */
+#endif
+#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
 #define	SIGBUS		10	/* bus error */
+#endif
 #define	SIGSEGV		11	/* segmentation violation */
+#if __BSD_VISIBLE
 #define	SIGSYS		12	/* non-existent system call invoked */
+#endif
+#if __POSIX_VISIBLE || __XSI_VISIBLE
 #define	SIGPIPE		13	/* write on a pipe with no one to read it */
 #define	SIGALRM		14	/* alarm clock */
+#endif
 #define	SIGTERM		15	/* software termination signal from kill */
+#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
 #define	SIGURG		16	/* urgent condition on IO channel */
+#endif
+#if __POSIX_VISIBLE || __XSI_VISIBLE
 #define	SIGSTOP		17	/* sendable stop signal not from tty */
 #define	SIGTSTP		18	/* stop signal from tty */
 #define	SIGCONT		19	/* continue a stopped process */
 #define	SIGCHLD		20	/* to parent on child stop or exit */
 #define	SIGTTIN		21	/* to readers pgrp upon background tty read */
 #define	SIGTTOU		22	/* like TTIN if (tp->t_local&LTOSTOP) */
+#endif
+#if __BSD_VISIBLE
 #define	SIGIO		23	/* input/output possible signal */
+#endif
+#if __XSI_VISIBLE
 #define	SIGXCPU		24	/* exceeded CPU time limit */
 #define	SIGXFSZ		25	/* exceeded file size limit */
 #define	SIGVTALRM	26	/* virtual time alarm */
 #define	SIGPROF		27	/* profiling time alarm */
+#endif
+#if __BSD_VISIBLE
 #define	SIGWINCH	28	/* window size changes */
 #define	SIGINFO		29	/* information request */
+#endif
+#if __POSIX_VISIBLE || __XSI_VISIBLE
 #define	SIGUSR1		30	/* user defined signal 1 */
 #define	SIGUSR2		31	/* user defined signal 2 */
+#endif
 /*
  * XXX missing SIGRTMIN, SIGRTMAX.
+ */
+
+#define	SIG_DFL		((__sighandler_t *)0)
+#define	SIG_IGN		((__sighandler_t *)1)
+#define	SIG_ERR		((__sighandler_t *)-1)
+/*
+ * XXX missing SIG_HOLD.
  */
 
 /*-
@@ -109,13 +144,6 @@ typedef void __sighandler_t(int);
 typedef	__sigset_t	sigset_t;
 #endif
 #endif
-
-#define	SIG_DFL		((__sighandler_t *)0)
-#define	SIG_IGN		((__sighandler_t *)1)
-#define	SIG_ERR		((__sighandler_t *)-1)
-/*
- * XXX missing SIG_HOLD.
- */
 
 #if __POSIX_VISIBLE >= 199309 || __XSI_VISIBLE >= 500
 union sigval {
@@ -173,9 +201,9 @@ typedef struct __siginfo {
 } siginfo_t;
 #endif
 
+#if __POSIX_VISIBLE || __XSI_VISIBLE
 struct __siginfo;
 
-#if __POSIX_VISIBLE || __XSI_VISIBLE
 /*
  * Signal vector "template" used in sigaction call.
  */
@@ -208,6 +236,7 @@ struct sigaction {
 #define	SA_SIGINFO	0x0040	/* signal handler with SA_SIGINFO args */
 #endif
 #if __BSD_VISIBLE
+/* XXX dubious. */
 #ifdef COMPAT_SUNOS
 #define	SA_USERTRAMP	0x0100	/* do not bounce off kernel's sigtramp */
 #endif
@@ -228,9 +257,10 @@ struct sigaction {
 #define SI_UNDEFINED	0
 #endif
 
-typedef void __siginfohandler_t(int, struct __siginfo *, void *);
-
+#if __BSD_VISIBLE
 typedef	__sighandler_t	*sig_t;	/* type of pointer to a signal function */
+typedef	void __siginfohandler_t(int, struct __siginfo *, void *);
+#endif
 
 #if __XSI_VISIBLE
 /*
@@ -250,14 +280,6 @@ typedef	struct {
 #define	SS_DISABLE	0x0004	/* disable taking signals on alternate stack */
 #define	SIGSTKSZ	(MINSIGSTKSZ + 32768)	/* recommended stack size */
 #endif
-
-/*
- * Forward declaration for __ucontext so that sigreturn can use it
- * without having to include <ucontext.h>.
- *
- * XXX the specification requires all of ucontext_t, mcontext_t.
- */
-struct __ucontext;
 
 #if __BSD_VISIBLE
 /*
