@@ -1,3 +1,4 @@
+.\" Copyright (c) 2001 Mike Barcroft <mike@FreeBSD.org>
 .\" Copyright (c) 1990, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -40,7 +41,7 @@
 .Dt STRSTR 3
 .Os
 .Sh NAME
-.Nm strstr
+.Nm strstr , strnstr
 .Nd locate a substring in a string
 .Sh LIBRARY
 .Lb libc
@@ -48,6 +49,8 @@
 .In string.h
 .Ft char *
 .Fn strstr "const char *big" "const char *little"
+.Ft char *
+.Fn strnstr "const char *big" "const char *little" "size_t len"
 .Sh DESCRIPTION
 The
 .Fn strstr
@@ -56,22 +59,58 @@ locates the first occurrence of the null-terminated string
 .Fa little
 in the null-terminated string
 .Fa big .
+.Pp
+The
+.Fn strnstr
+function
+locates the first occurrence of the null-terminated string
+.Fa little
+in the string
+.Fa big ,
+where only the first number of characters, identified by
+.Fa len ,
+are searched.
+.Sh RETURN VALUES
 If
 .Fa little
-is the empty string,
-.Fn strstr
-returns
-.Fa big ;
+is an empty string,
+.Fa big
+is returned;
 if
 .Fa little
 occurs nowhere in
 .Fa big ,
-.Fn strstr
-returns NULL;
-otherwise
-.Fn strstr
-returns a pointer to the first character of the first occurrence of
-.Fa little .
+NULL is returned;
+otherwise a pointer to the first character of the first occurrence of
+.Fa little
+is returned.
+.Sh EXAMPLES
+The following sets the pointer
+.Va ptr
+to the
+.Dq Li Bar Baz
+portion of
+.Va largestring :
+.Bd -literal -offset indent
+const char *largestring = "Foo Bar Baz";
+const char *smallstring = "Bar";
+char *ptr;
+
+ptr = strstr(largestring, smallstring);
+.Ed
+.Pp
+The following sets the pointer
+.Va ptr
+to NULL, because only the first 4 characters of 
+.Va largestring
+are searched:
+.Bd -literal -offset indent
+const char *largestring = "Foo Bar Baz";
+const char *smallstring = "Bar";
+char *ptr;
+
+ptr = strnstr(largestring, smallstring, 4);
+.Ed
 .Sh SEE ALSO
 .Xr memchr 3 ,
 .Xr strchr 3 ,
