@@ -36,15 +36,15 @@
  */
 
 /*
- * Prerequisites: <sys/cdefs.h>, <machine/ansi.h>
+ * Prerequisites: <sys/cdefs.h>, <sys/_types.h>
  */
 
 #ifndef _SYS_TIMESPEC_H_
 #define _SYS_TIMESPEC_H_
 
-#ifdef	_BSD_TIME_T_
-typedef	_BSD_TIME_T_	time_t;
-#undef	_BSD_TIME_T_
+#ifndef _TIME_T_DECLARED
+typedef	__time_t	time_t;
+#define	_TIME_T_DECLARED
 #endif
 
 struct timespec {

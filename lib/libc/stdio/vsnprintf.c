@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 
 int
 vsnprintf(char *__restrict str, size_t n, const char *__restrict fmt,
-    _BSD_VA_LIST_ ap)
+    __va_list ap)
 {
 	size_t on;
 	int ret;

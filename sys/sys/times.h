@@ -42,11 +42,11 @@
 #ifndef	_SYS_TIMES_H_
 #define	_SYS_TIMES_H_
 
-#include <machine/ansi.h>
+#include <sys/_types.h>
 
-#ifdef	_BSD_CLOCK_T_
-typedef	_BSD_CLOCK_T_	clock_t;
-#undef	_BSD_CLOCK_T_
+#ifndef _CLOCK_T_DECLARED
+typedef	__clock_t	clock_t;
+#define	_CLOCK_T_DECLARED
 #endif
 
 struct tms {

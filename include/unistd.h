@@ -42,24 +42,24 @@
 #include <sys/unistd.h>
 #include <sys/_types.h>
 
-#ifdef	_BSD_GID_T_
-typedef	_BSD_GID_T_	gid_t;
-#undef	_BSD_GID_T_
+#ifndef _GID_T_DECLARED
+typedef	__gid_t		gid_t;
+#define	_GID_T_DECLARED
 #endif
 
-#ifdef	_BSD_SIZE_T_
-typedef	_BSD_SIZE_T_	size_t;
-#undef	_BSD_SIZE_T_
+#ifndef _SIZE_T_DECLARED
+typedef	__size_t	size_t;
+#define	_SIZE_T_DECLARED
 #endif
 
-#ifdef	_BSD_SSIZE_T_
-typedef	_BSD_SSIZE_T_	ssize_t;
-#undef	_BSD_SSIZE_T_
+#ifndef _SSIZE_T_DECLARED
+typedef	__ssize_t	ssize_t;
+#define	_SSIZE_T_DECLARED
 #endif
 
-#ifdef	_BSD_UID_T_
-typedef	_BSD_UID_T_	uid_t;
-#undef	_BSD_UID_T_
+#ifndef _UID_T_DECLARED
+typedef	__uid_t_	uid_t;
+#define	_UID_T_DECLARED
 #endif
 
 /*

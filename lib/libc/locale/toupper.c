@@ -40,9 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <rune.h>
 
-_BSD_CT_RUNE_T_
+__ct_rune_t
 ___toupper(c)
-	_BSD_CT_RUNE_T_ c;
+	__ct_rune_t c;
 {
 	int x;
 	_RuneRange *rr = &_CurrentRuneLocale->mapupper_ext;

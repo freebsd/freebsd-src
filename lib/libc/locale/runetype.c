@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 
 unsigned long
 ___runetype(c)
-	_BSD_CT_RUNE_T_ c;
+	__ct_rune_t c;
 {
 	int x;
 	_RuneRange *rr = &_CurrentRuneLocale->runetype_ext;

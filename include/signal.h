@@ -40,7 +40,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/_posix.h>
-#include <machine/ansi.h>
+#include <sys/_types.h>
 #include <sys/signal.h>
 #include <sys/time.h>
 
@@ -53,7 +53,7 @@ extern __const int sys_nsig;
 __BEGIN_DECLS
 int	raise(int);
 #ifndef	_ANSI_SOURCE
-int	kill(_BSD_PID_T_, int);
+int	kill(__pid_t, int);
 int	sigaction(int, const struct sigaction *, struct sigaction *);
 int	sigaddset(sigset_t *, int);
 int	sigdelset(sigset_t *, int);
@@ -69,14 +69,14 @@ int	sigwait(const sigset_t *, int *);
 #ifdef _P1003_1B_VISIBLE
 
 __BEGIN_DECLS
-int sigqueue(_BSD_PID_T_, int, const union sigval);
+int sigqueue(__pid_t, int, const union sigval);
 int sigtimedwait(const sigset_t *, siginfo_t *, const struct timespec *);
 int sigwaitinfo(const sigset_t *, siginfo_t *);
 __END_DECLS
 
 #endif
 #ifndef _POSIX_SOURCE
-int	killpg(_BSD_PID_T_, int);
+int	killpg(__pid_t, int);
 int	sigaltstack(const stack_t *, stack_t *); 
 int	sigblock(int);
 int	siginterrupt(int, int);
