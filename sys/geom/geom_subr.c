@@ -563,6 +563,28 @@ g_std_spoiled(struct g_consumer *cp)
  * are open, regardless of mode, this ends up DTRT.
  */
 
+static void
+g_spoil_event(void *arg, int flag)
+{
+	struct g_provider *pp;
+	struct g_consumer *cp, *cp2;
+
+	g_topology_assert();
+	if (flag == EV_CANCEL)
+		return;
+	pp = arg;
+	for (cp = LIST_FIRST(&pp->consumers); cp != NULL; cp = cp2) {
+		cp2 = LIST_NEXT(cp, consumers);
+		if (!cp->spoiled)
+			continue;
+		cp->spoiled = 0;
+		if (cp->geom->spoiled == NULL)
+			continue;
+		cp->geom->spoiled(cp);
+		g_topology_assert();
+	}
+}
+
 void
 g_spoil(struct g_provider *pp, struct g_consumer *cp)
 {
@@ -582,7 +604,7 @@ g_spoil(struct g_provider *pp, struct g_consumer *cp)
 		KASSERT(cp2->ace == 0, ("spoiling cp->ace = %d", cp2->ace));
 		cp2->spoiled++;
 	}
-	g_post_event(EV_SPOILED, pp, cp, NULL);
+	g_call_me(g_spoil_event, pp, pp, NULL);
 }
 
 int

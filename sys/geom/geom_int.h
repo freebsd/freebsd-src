@@ -60,7 +60,6 @@ extern int g_debugflags;
  */
 enum g_events {
 	EV_NEW_PROVIDER,	/* provider */
-	EV_SPOILED,		/* provider, consumer */
 	EV_CALL_ME,		/* func, arg */
 	EV_LAST
 };
