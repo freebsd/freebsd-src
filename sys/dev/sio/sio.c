@@ -3373,6 +3373,7 @@ siogdbputc(c)
 #endif
 
 DRIVER_MODULE(sio, isa, sio_isa_driver, sio_devclass, 0, 0);
+DRIVER_MODULE(sio, acpi, sio_isa_driver, sio_devclass, 0, 0);
 #if NCARD > 0
 DRIVER_MODULE(sio, pccard, sio_pccard_driver, sio_devclass, 0, 0);
 #endif

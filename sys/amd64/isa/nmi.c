@@ -211,6 +211,7 @@ static driver_t atpic_driver = {
 static devclass_t atpic_devclass;
 
 DRIVER_MODULE(atpic, isa, atpic_driver, atpic_devclass, 0, 0);
+DRIVER_MODULE(atpic, acpi, atpic_driver, atpic_devclass, 0, 0);
 
 /*
  * Handle a NMI, possibly a machine check.
