@@ -354,10 +354,9 @@ disk_destroy(struct disk *dp)
 	gp = dp->d_geom;
 	if (gp == NULL)
 		return;
-	gp->flags |= G_GEOM_WITHER;
 	gp->softc = NULL;
-	g_orphan_provider(LIST_FIRST(&gp->provider), ENXIO);
 	devstat_remove_entry(dp->d_devstat);
+	g_wither_geom(gp, ENXIO);
 }
 
 static void
