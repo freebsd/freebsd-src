@@ -39,11 +39,11 @@ This document presents guidelines for
 adding security considerations sections to manual pages.
 It provides two typical examples.
 .Pp
-The guidelines for writing 
+The guidelines for writing
 .Fx
 manual pages in
 .Xr groff_mdoc 7
-mandate that each manual page describing a feature of the 
+mandate that each manual page describing a feature of the
 .Fx
 system should contain a security considerations section
 describing what security requirements can be broken
@@ -70,7 +70,7 @@ there are four classes of security requirements:
 .Bl -hang -offset indent
 .It Em integrity
 (example: non-administrators should not modify system binaries),
-.It Em confidentiality 
+.It Em confidentiality
 (example: non-administrators should not view the shadow password file),
 .It Em availability
 (example: the web server should respond to client requests in a timely
@@ -187,7 +187,7 @@ the FSA.)
 Avoid using
 .Fn strcpy .
 Instead, use
-.Fn strncpy 
+.Fn strncpy
 and ensure that no more characters are copied to the destination buffer
 than it can hold.
 Do not forget to NUL-terminate the destination buffer,
