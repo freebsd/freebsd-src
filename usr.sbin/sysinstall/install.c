@@ -930,6 +930,11 @@ installFilesystems(dialogMenuItem *self)
 		msgConfirm("Warning: fsck returned status of %d for %s.\n"
 			   "This partition may be unsafe to use.", i, dname);
 	}
+	if (root->soft) {
+	    i = vsystem("tunefs -n enable %s", dname);
+	    if (i)
+		msgConfirm("Warning:  Unable to enable softupdates for root filesystem on %s", dname);
+	}
 
 	/* Switch to block device */
 	sprintf(dname, "/dev/%s", rootdev->name);
@@ -972,6 +977,8 @@ installFilesystems(dialogMenuItem *self)
 			    command_shell_add(tmp->mountpoint, "%s %s/dev/%s", tmp->newfs_cmd, RunningAsInit ? "/mnt" : "", c2->name);
 			else
 			    command_shell_add(tmp->mountpoint, "fsck -y %s/dev/%s", RunningAsInit ? "/mnt" : "", c2->name);
+			if (tmp->soft)
+			    command_shell_add(tmp->mountpoint, "tunefs -n enable %s/dev/%s", RunningAsInit ? "/mnt" : "", c2->name);
 			command_func_add(tmp->mountpoint, Mount, c2->name);
 		    }
 		    else if (c2->type == part && c2->subtype == FS_SWAP) {
