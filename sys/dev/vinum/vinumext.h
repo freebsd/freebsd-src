@@ -132,8 +132,8 @@ d_strategy_t vinumstrategy;
 d_ioctl_t vinumioctl;
 d_dump_t vinumdump;
 d_psize_t vinumsize;
-d_read_t vinumread;
-d_write_t vinumwrite;
+d_read_t physread;
+d_write_t physwrite;
 
 int vinumstart(struct buf *bp, int reviveok);
 int launch_requests(struct request *rq, int reviveok);
