@@ -1,8 +1,8 @@
 #	from @(#)Makefile.inc	8.3 (Berkeley) 2/4/95
-#	$Id: Makefile.inc,v 1.12 1997/10/16 14:58:18 bde Exp $
+#	$Id: Makefile.inc,v 1.13 1997/10/21 08:41:13 bde Exp $
 
 # machine-independent stdlib sources
-.PATH: ${.CURDIR}/../libc/${MACHINE}/stdlib ${.CURDIR}/../libc/stdlib
+.PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/stdlib ${.CURDIR}/../libc/stdlib
 
 MISRCS+=abort.c abs.c atexit.c atof.c atoi.c atol.c bsearch.c calloc.c div.c \
 	exit.c getenv.c getopt.c getsubopt.c heapsort.c labs.c ldiv.c \
@@ -11,7 +11,7 @@ MISRCS+=abort.c abs.c atexit.c atof.c atoi.c atol.c bsearch.c calloc.c div.c \
 	strtouq.c system.c
 
 # machine-dependent stdlib sources
-.include "${.CURDIR}/../libc/${MACHINE}/stdlib/Makefile.inc"
+.include "${.CURDIR}/../libc/${MACHINE_ARCH}/stdlib/Makefile.inc"
 
 .if ${LIB} == "c"
 MAN3+=	abort.3 abs.3 alloca.3 atexit.3 atof.3 atoi.3 atol.3 bsearch.3 \
