@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #endif
 
-#include <crypto/rijndael/rijndael-alg-fst.h>
+#include <crypto/rijndael/rijndael.h>
 #include <crypto/rijndael/rijndael_local.h>
 
 /*

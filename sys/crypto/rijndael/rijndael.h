@@ -30,7 +30,9 @@
 #ifndef __RIJNDAEL_H
 #define	__RIJNDAEL_H
 
-#include <crypto/rijndael/rijndael-alg-fst.h>
+#define RIJNDAEL_MAXKC	(256/32)
+#define RIJNDAEL_MAXKB	(256/8)
+#define RIJNDAEL_MAXNR	14
 
 /* XXX: avoid conflicts with opencrypto */
 #define	rijndael_set_key	_rijndael_set_key
@@ -47,5 +49,14 @@ typedef struct {
 void	rijndael_set_key(rijndael_ctx *, const u_char *, int);
 void	rijndael_decrypt(const rijndael_ctx *, const u_char *, u_char *);
 void	rijndael_encrypt(const rijndael_ctx *, const u_char *, u_char *);
+
+#ifdef _KERNEL
+int	rijndaelKeySetupEnc(u_int32_t [/*4*(Nr+1)*/], const u_int8_t [], int);
+int	rijndaelKeySetupDec(u_int32_t [/*4*(Nr+1)*/], const u_int8_t [], int);
+void	rijndaelEncrypt(const u_int32_t [/*4*(Nr+1)*/], int,
+	const u_int8_t[16], u_int8_t [16]);
+void	rijndaelDecrypt(const u_int32_t [/*4*(Nr+1)*/], int,
+	const u_int8_t [16], u_int8_t [16]);
+#endif
 
 #endif /* __RIJNDAEL_H */
