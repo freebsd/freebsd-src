@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20041201:	p2	FreeBSD-SA-04:17.procfs
+	Fix a tainted pointer dereference in procfs(5) and linprocfs(5)
+	which could allow a local attacker to panic a system and/or read
+	from kernel memory.
+
 20041118:	p1	FreeBSD-SA-04:16.fetch
 	Correct a buffer overflow in fetch(1) which could allow a
 	mallicious server to execute arbitrary code on the client.
