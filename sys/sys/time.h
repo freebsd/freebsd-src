@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
- * $Id: time.h,v 1.22 1998/03/30 09:55:35 phk Exp $
+ * $Id: time.h,v 1.23 1998/04/04 13:26:16 phk Exp $
  */
 
 #ifndef _SYS_TIME_H_
@@ -156,6 +156,7 @@ struct timecounter {
 };
 
 #ifdef KERNEL
+
 /* Operations on timespecs */
 #define	timespecclear(tvp)	(tvp)->tv_sec = (tvp)->tv_nsec = 0
 #define	timespecisset(tvp)	((tvp)->tv_sec || (tvp)->tv_nsec)
@@ -163,40 +164,46 @@ struct timecounter {
 	(((tvp)->tv_sec == (uvp)->tv_sec) ?				\
 	    ((tvp)->tv_nsec cmp (uvp)->tv_nsec) :			\
 	    ((tvp)->tv_sec cmp (uvp)->tv_sec))
-#define timespecadd(vvp, uvp)					\
+#define timespecadd(vvp, uvp)						\
 	do {								\
-		(vvp)->tv_sec += (uvp)->tv_sec;		\
-		(vvp)->tv_nsec += (uvp)->tv_nsec;	\
+		(vvp)->tv_sec += (uvp)->tv_sec;				\
+		(vvp)->tv_nsec += (uvp)->tv_nsec;			\
 		if ((vvp)->tv_nsec >= 1000000000) {			\
 			(vvp)->tv_sec++;				\
 			(vvp)->tv_nsec -= 1000000000;			\
 		}							\
 	} while (0)
-#define timespecsub(vvp, uvp)					\
+#define timespecsub(vvp, uvp)						\
 	do {								\
-		(vvp)->tv_sec -= (uvp)->tv_sec;		\
-		(vvp)->tv_nsec -= (uvp)->tv_nsec;	\
+		(vvp)->tv_sec -= (uvp)->tv_sec;				\
+		(vvp)->tv_nsec -= (uvp)->tv_nsec;			\
 		if ((vvp)->tv_nsec < 0) {				\
 			(vvp)->tv_sec--;				\
 			(vvp)->tv_nsec += 1000000000;			\
 		}							\
 	} while (0)
+
 /* Operations on timevals. */
+
+#define	timevalclear(tvp)		(tvp)->tv_sec = (tvp)->tv_usec = 0
+#define	timevalisset(tvp)		((tvp)->tv_sec || (tvp)->tv_usec)
 #define	timevalcmp(tvp, uvp, cmp)					\
 	(((tvp)->tv_sec == (uvp)->tv_sec) ?				\
 	    ((tvp)->tv_usec cmp (uvp)->tv_usec) :			\
 	    ((tvp)->tv_sec cmp (uvp)->tv_sec))
+
+/* timevaladd and timevalsub are not inlined */
+
 #endif /* KERNEL */
 
-/* Operations on timevals. */
+#ifndef KERNEL			/* NetBSD/OpenBSD compatable interfaces */
+
 #define	timerclear(tvp)		(tvp)->tv_sec = (tvp)->tv_usec = 0
 #define	timerisset(tvp)		((tvp)->tv_sec || (tvp)->tv_usec)
-#define	timercmp(tvp, uvp, cmp)						\
+#define	timercmp(tvp, uvp, cmp)					\
 	(((tvp)->tv_sec == (uvp)->tv_sec) ?				\
 	    ((tvp)->tv_usec cmp (uvp)->tv_usec) :			\
 	    ((tvp)->tv_sec cmp (uvp)->tv_sec))
-#ifndef KERNEL		/* use timevaladd/timevalsub in kernel */
-/* NetBSD/OpenBSD compatable interfaces */
 #define timeradd(tvp, uvp, vvp)						\
 	do {								\
 		(vvp)->tv_sec = (tvp)->tv_sec + (uvp)->tv_sec;		\
@@ -258,7 +265,6 @@ struct clockinfo {
 extern struct timecounter *timecounter;
 extern time_t	time_second;
 
-void	forward_timecounter __P((void));
 void	getmicroruntime __P((struct timeval *tv));
 void	getmicrotime __P((struct timeval *tv));
 void	getnanoruntime __P((struct timespec *tv));

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.35 1998/03/30 09:49:34 phk Exp $
+ *  $Id: linux_misc.c,v 1.36 1998/04/04 18:56:54 phk Exp $
  */
 
 #include <sys/param.h>
@@ -76,19 +76,19 @@ linux_alarm(struct proc *p, struct linux_alarm_args *args)
     s = splclock(); /* XXX Still needed ? */
     old_it = p->p_realtimer;
     getmicrotime(&tv);
-    if (timerisset(&old_it.it_value))
-	if (timercmp(&old_it.it_value, &tv, <))
-	    timerclear(&old_it.it_value);
+    if (timevalisset(&old_it.it_value))
+	if (timevalcmp(&old_it.it_value, &tv, <))
+	    timevalclear(&old_it.it_value);
 	else
 	    timevalsub(&old_it.it_value, &tv);
     splx(s);
     if (itimerfix(&it.it_value) || itimerfix(&it.it_interval))
 	return EINVAL;
     s = splclock(); /* XXX Still needed ? */
-    if (timerisset(&p->p_realtimer.it_value))
+    if (timevalisset(&p->p_realtimer.it_value))
 	    untimeout(realitexpire, (caddr_t)p, p->p_ithandle);
     getmicrotime(&tv);
-    if (timerisset(&it.it_value)) {
+    if (timevalisset(&it.it_value)) {
 	timevaladd(&it.it_value, &tv);
 	p->p_ithandle = timeout(realitexpire, (caddr_t)p, hzto(&it.it_value));
     }
@@ -476,7 +476,7 @@ linux_newselect(struct proc *p, struct linux_newselect_args *args)
 		utv.tv_usec += 1000000;
 	    }
 	    if (utv.tv_sec < 0)
-		timerclear(&utv);
+		timevalclear(&utv);
 	    if ((error = copyout(&utv, tvp, sizeof(utv))))
 		goto select_out;
 	    bsa.tv = tvp;
@@ -512,9 +512,9 @@ linux_newselect(struct proc *p, struct linux_newselect_args *args)
 	    timevalsub(&tv1, &tv0);
 	    timevalsub(&utv, &tv1);
 	    if (utv.tv_sec < 0)
-		timerclear(&utv);
+		timevalclear(&utv);
 	} else
-	    timerclear(&utv);
+	    timevalclear(&utv);
 #ifdef DEBUG
 	printf("Linux-emul(%d): outgoing timeout (%d/%d)\n",
 	       p->p_pid, utv.tv_sec, utv.tv_usec);

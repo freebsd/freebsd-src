@@ -45,7 +45,7 @@
  *
  *	@(#)sun_misc.c	8.1 (Berkeley) 6/18/93
  *
- * $Id: ibcs2_misc.c,v 1.24 1997/11/06 19:28:33 phk Exp $
+ * $Id: ibcs2_misc.c,v 1.25 1997/12/05 19:55:36 bde Exp $
  */
 
 /*
@@ -818,7 +818,7 @@ ibcs2_alarm(p, uap)
 
         itp = stackgap_alloc(&sg, sizeof(*itp));
 	oitp = stackgap_alloc(&sg, sizeof(*oitp));
-        timerclear(&itp->it_interval);
+        timevalclear(&itp->it_interval);
         itp->it_value.tv_sec = SCARG(uap, sec);
         itp->it_value.tv_usec = 0;
 
