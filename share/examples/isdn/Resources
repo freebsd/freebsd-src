@@ -1,22 +1,21 @@
 $FreeBSD$
 
+Download sites for isdn4bsd
+===========================
 
-Download site for isdn4bsd
-==========================
-
-        ftp://i4b.consol.de/pub
+        ftp://i4b.consol.de/pub/
 
 
 Bugfixes, improvements and patches for i4b
 ==========================================
 
-	http://www.freebsd-support.de/i4b
+	http://www.freebsd-support.de/i4b/	(in the "errata" section)
 
 
 Bob's ISDN BRI/PRI Signaling Guide
 ==================================
 
-	http://veda-home.com/Blackshaw
+	http://veda-home.com/Blackshaw/
 
 
 Anwahl von T-Offline mittels i4b und FreeBSD (german)
@@ -36,17 +35,17 @@ Standards:
 
 	ETSI
 	----
-		http://www.etsi.org
+		http://www.etsi.org/
 
 	ITU
 	---
-		http://www-library.itsi.disa.mil/org/ituccitt.html
-		ftp://ftp.leo.org/pub/comp/doc/standards/itu
-		http://www.itu.ch
+		http://www.itu.ch/
+
+		ftp://ftp.leo.org/pub/comp/doc/standards/itu/
 
 	CAPI
 	----
-		http://www.capi.org
+		http://www.capi.org/
 
 
 ISDN Chips
@@ -54,15 +53,15 @@ ISDN Chips
 
 	Infineon (formerly Siemens)
 	---------------------------
-		http://www.infineon.com
+		http://www.infineon.com/
 
 	Cologne Chip Design
 	-------------------
-		http://www.colognechip.de
+		http://www.colognechip.de/
 
 	Winbond
 	-------
-		http://www.winbond.com
+		http://www.winbond.com/
 
 	Motorola
 	--------
@@ -108,3 +107,7 @@ Books:
 	"ISDN - Die Technik",
 		Andreas Kanbach, Andreas Koerber, Huethig Verlag 1999,
 		ISBN 3-7785-2288-4
+
+
+$FreeBSD$
+
