@@ -42,15 +42,11 @@
 #include <vm/pmap.h>
 
 #include <machine/clock.h>
-#include <machine/ipl.h>
 
 #include <i386/isa/icu.h>
 #include <i386/isa/isa_device.h>
 
 #include <pccard/i82365.h>
-#ifdef	PC98
-#include <pccard/pcic98reg.h>
-#endif
 
 #include <pccard/card.h>
 #include <pccard/driver.h>
@@ -64,7 +60,6 @@
 
 #if NPCI > 0
 #include <pci/pcivar.h>
-#include <pci/pcireg.h>
 
 static char *
 pcic_pci_probe(pcici_t tag, pcidi_t type)
@@ -791,7 +786,7 @@ pcic_probe(void)
 		 *	then attempt to get one.
 		 */
 		if (pcic_irq == 0) {
-			pcic_imask = SWI_MASK;
+			pcic_imask = soft_imask;
 			pcic_irq = pccard_alloc_intr(free_irqs,
 				pcicintr, 0, NULL, &pcic_imask);
 			if (pcic_irq < 0)
