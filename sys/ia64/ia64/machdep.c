@@ -117,8 +117,13 @@ u_int64_t ia64_port_base;
 char machine[] = MACHINE;
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
 
-static char cpu_model[128];
-SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, 0, "");
+static char cpu_model[64];
+SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, 0,
+    "The CPU model name");
+
+static char cpu_family[64];
+SYSCTL_STRING(_hw, OID_AUTO, family, CTLFLAG_RD, cpu_family, 0,
+    "The CPU family name");
 
 #ifdef DDB
 /* start and end of kernel symbol table */
@@ -145,6 +150,7 @@ static void
 identifycpu(void)
 {
 	char vendor[17];
+	char *family_name, *model_name;
 	u_int64_t t;
 	int number, revision, model, family, archrev;
 	u_int64_t features;
@@ -163,24 +169,37 @@ identifycpu(void)
 	family = (t >> 24) & 0xff;
 	archrev = (t >> 32) & 0xff;
 
-	if (family == 0x7)
-		strcpy(cpu_model, "Itanium");
-	else if (family == 0x1f)
-		strcpy(cpu_model, "Itanium 2");	/* McKinley */
-	else
-		snprintf(cpu_model, sizeof(cpu_model), "Family=%d", family);
+	family_name = model_name = "unknown";
+	switch (family) {
+	case 0x07:
+		family_name = "Itanium";
+		model_name = "Merced";
+		break;
+	case 0x1f:
+		family_name = "Itanium 2";
+		switch (model) {
+		case 0x00:
+			model_name = "McKinley";
+			break;
+		case 0x01:
+			model_name = "Madison";
+			break;
+		}
+		break;
+	}
+	snprintf(cpu_family, sizeof(cpu_family), "%s", family_name);
+	snprintf(cpu_model, sizeof(cpu_model), "%s", model_name);
 
 	features = ia64_get_cpuid(4);
 
-	printf("CPU: %s", cpu_model);
-	if (processor_frequency)
-		printf(" (%ld.%02ld-Mhz)\n",
-		       (processor_frequency + 4999) / 1000000,
-		       ((processor_frequency + 4999) / 10000) % 100);
-	else
-		printf("\n");
-	printf("  Origin = \"%s\"  Model = %d  Revision = %d\n",
-	       vendor, model, revision);
+	printf("CPU: %s (", model_name);
+	if (processor_frequency) {
+		printf("%ld.%02ld-Mhz ",
+		    (processor_frequency + 4999) / 1000000,
+		    ((processor_frequency + 4999) / 10000) % 100);
+	}
+	printf("%s)\n", family_name);
+	printf("  Origin = \"%s\"  Revision = %d\n", vendor, revision);
 	printf("  Features = 0x%b\n", (u_int32_t) features,
 	    "\020"
 	    "\001LB"	/* long branch (brl) instruction. */
