@@ -16,6 +16,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
+#include <stdio.h>
+#include <stdint.h>
+#include <unistd.h>
+
 #include "extern.h"
 
 #define CRC(crc, ch)	 (crc = (crc >> 8) ^ crctab[(crc ^ (ch)) & 0xff])
@@ -24,7 +28,7 @@ __FBSDID("$FreeBSD$");
  *	x^32 + x^26 + x^23 + x^22 + x^16 +
  *	x^12 + x^11 + x^10 + x^8 + x^7 + x^5 + x^4 + x^2 + x^1 + 1
  */
-static const u_int32_t crctab[256] = {
+static const uint32_t crctab[256] = {
 	0x00000000, 0x77073096, 0xee0e612c, 0x990951ba,
 	0x076dc419, 0x706af48f, 0xe963a535, 0x9e6495a3,
 	0x0edb8832, 0x79dcb8a4, 0xe0d5e91e, 0x97d2d988,
@@ -91,18 +95,15 @@ static const u_int32_t crctab[256] = {
 	0xb40bbe37, 0xc30c8ea1, 0x5a05df1b, 0x2d02ef8d,
 };
 
-#include <stdio.h>
-#include <sys/types.h>
-#include <unistd.h>
-
-u_int32_t crc32_total = 0 ;
+uint32_t crc32_total = 0;
 
 int
-crc32(int fd, u_int32_t *cval, u_int32_t *clen)
+crc32(int fd, uint32_t *cval, off_t *clen)
 {
-    u_int32_t lcrc = ~0;
+    uint32_t lcrc = ~0;
+    int nr ;
+    off_t len ;
     char buf[BUFSIZ], *p ;
-    int len, nr ;
 	
     len = 0 ;
     crc32_total = ~crc32_total ;
