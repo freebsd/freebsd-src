@@ -781,7 +781,7 @@ done2:
 struct semop_args {
 	int	semid;
 	struct	sembuf *sops;
-	int	nsops;
+	u_int	nsops;
 };
 #endif
 
@@ -794,7 +794,7 @@ semop(p, uap)
 	register struct semop_args *uap;
 {
 	int semid = uap->semid;
-	int nsops = uap->nsops;
+	u_int nsops = uap->nsops;
 	struct sembuf sops[MAX_SOPS];
 	register struct semid_ds *semaptr;
 	register struct sembuf *sopptr;
@@ -804,7 +804,7 @@ semop(p, uap)
 	int do_wakeup, do_undos;
 
 #ifdef SEM_DEBUG
-	printf("call to semop(%d, 0x%x, %d)\n", semid, sops, nsops);
+	printf("call to semop(%d, 0x%x, %u)\n", semid, sops, nsops);
 #endif
 
 	mtx_lock(&Giant);
@@ -840,7 +840,7 @@ semop(p, uap)
 
 	if (nsops > MAX_SOPS) {
 #ifdef SEM_DEBUG
-		printf("too many sops (max=%d, nsops=%d)\n", MAX_SOPS, nsops);
+		printf("too many sops (max=%d, nsops=%u)\n", MAX_SOPS, nsops);
 #endif
 		error = E2BIG;
 		goto done2;
@@ -848,7 +848,7 @@ semop(p, uap)
 
 	if ((error = copyin(uap->sops, &sops, nsops * sizeof(sops[0]))) != 0) {
 #ifdef SEM_DEBUG
-		printf("error = %d from copyin(%08x, %08x, %d)\n", error,
+		printf("error = %d from copyin(%08x, %08x, %u)\n", error,
 		    uap->sops, &sops, nsops * sizeof(sops[0]));
 #endif
 		goto done2;
