@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.106 1997/08/31 19:35:52 se Exp $
+**  $Id: ncr.c,v 1.107 1997/08/31 19:36:56 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -323,7 +323,7 @@
 
 #define INB_OFF(o) *( ((u_char *) np->reg) + (o) )
 #define INW_OFF(o) *((u_short *) ( ((u_char *) np->reg) + (o)) )
-#define INL_OFF(o) *((u_long *)  ( ((u_char *) np->reg) + (o)) )
+#define INL_OFF(o) *((u_int32_t *)  ( ((u_char *) np->reg) + (o)) )
 
 #endif
 
@@ -469,8 +469,8 @@ typedef struct lcb * lcb_p;
 typedef struct ccb * ccb_p;
 
 struct link {
-	u_long	l_cmd;
-	u_long	l_paddr;
+	ncrcmd	l_cmd;
+	ncrcmd	l_paddr;
 };
 
 struct	usrcmd {
@@ -732,9 +732,9 @@ struct head {
 	**	the last transfer command.
 	*/
 
-	u_long		savep;
-	u_long		lastp;
-	u_long		goalp;
+	u_int32_t	savep;
+	u_int32_t	lastp;
+	u_int32_t	goalp;
 
 	/*
 	**	The virtual address of the ccb
@@ -910,7 +910,7 @@ struct ccb {
 	**	the rest of the data.
 	*/
 
-	u_long			patch[8];
+	ncrcmd			patch[8];
 
 	/*
 	**	The general SCSI driver provides a
@@ -1102,7 +1102,7 @@ struct ncb {
 	/*
 	**	Start queue.
 	*/
-	u_long		squeue [MAX_START];
+	u_int32_t	squeue [MAX_START];
 	u_short		squeueput;
 	u_short		actccbs;
 
@@ -1148,7 +1148,7 @@ struct ncb {
 	*/
 	u_char		msgout[8];
 	u_char		msgin [8];
-	u_long		lastmsg;
+	u_int32_t	lastmsg;
 
 	/*
 	**	Buffer for STATUS_IN phase.
@@ -1340,7 +1340,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.106 1997/08/31 19:35:52 se Exp $\n";
+	"\n$Id: ncr.c,v 1.107 1997/08/31 19:36:56 se Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -3757,7 +3757,7 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	**	Allocate structure for script relocation.
 	*/
 	if (np->vaddr2 != NULL) {
-		np->script = np->vaddr2;
+		np->script = (struct script *) np->vaddr2;
 		np->p_script = np->paddr2;
 #ifdef __FreeBSD__
 	} else if (sizeof (struct script) > PAGE_SIZE) {
@@ -5590,7 +5590,7 @@ static void ncr_timeout (void *arg)
 
 static void ncr_log_hard_error(ncb_p np, u_short sist, u_char dstat)
 {
-	u_long	dsp;
+	u_int32_t dsp;
 	int	script_ofs;
 	int	script_size;
 	char	*script_name;
@@ -5998,14 +5998,14 @@ void ncr_int_sto (ncb_p np)
 
 static void ncr_int_ma (ncb_p np, u_char dstat)
 {
-	u_long	dbc;
-	u_long	rest;
-	u_long	dsa;
-	u_long	dsp;
-	u_long	nxtdsp;
-	u_long	*vdsp;
-	u_long	oadr, olen;
-	u_long	*tblp, *newcmd;
+	u_int32_t	dbc;
+	u_int32_t	rest;
+	u_int32_t	dsa;
+	u_int32_t	dsp;
+	u_int32_t	nxtdsp;
+	u_int32_t	*vdsp;
+	u_int32_t	oadr, olen;
+	u_int32_t	*tblp, *newcmd;
 	u_char	cmd, sbcl, ss0, ss2, ctest5;
 	u_short	delta;
 	ccb_p	cp;
@@ -6076,10 +6076,10 @@ static void ncr_int_ma (ncb_p np, u_char dstat)
 		nxtdsp = vdsp[3];
 	} else if (dsp > np->p_script &&
 		   dsp <= np->p_script + sizeof(struct script)) {
-		vdsp = (u_long *) ((char*)np->script - np->p_script + dsp -8);
+		vdsp = (u_int32_t *) ((char*)np->script - np->p_script + dsp-8);
 		nxtdsp = dsp;
 	} else {
-		vdsp = (u_long *) ((char*)np->scripth - np->p_scripth+ dsp -8);
+		vdsp = (u_int32_t *) ((char*)np->scripth - np->p_scripth+dsp-8);
 		nxtdsp = dsp;
 	};
 
@@ -6105,11 +6105,11 @@ static void ncr_int_ma (ncb_p np, u_char dstat)
 	oadr = vdsp[1];
 
 	if (cmd & 0x10) {	/* Table indirect */
-		tblp = (u_long*) ((char*) &cp->phys + oadr);
+		tblp = (u_int32_t *) ((char*) &cp->phys + oadr);
 		olen = tblp[0];
 		oadr = tblp[1];
 	} else {
-		tblp = (u_long*) 0;
+		tblp = (u_int32_t *) 0;
 		olen = vdsp[0] & 0xffffff;
 	};
 
@@ -7213,13 +7213,13 @@ static	int	ncr_scatter
 #ifndef NCR_IOMAPPED
 static int ncr_regtest (struct ncb* np)
 {
-	register volatile u_long data, *addr;
+	register volatile u_int32_t data, *addr;
 	/*
 	**	ncr registers may NOT be cached.
 	**	write 0xffffffff to a read only register area,
 	**	and try to read it back.
 	*/
-	addr = (volatile u_long*) &np->reg->nc_dstat;
+	addr = (volatile u_int32_t *) &np->reg->nc_dstat;
 	data = 0xffffffff;
 	*addr= data;
 	data = *addr;
@@ -7238,8 +7238,8 @@ static int ncr_regtest (struct ncb* np)
 
 static int ncr_snooptest (struct ncb* np)
 {
-	u_long	ncr_rd, ncr_wr, ncr_bk, host_rd, host_wr, pc, err=0;
-	int	i;
+	u_int32_t ncr_rd, ncr_wr, ncr_bk, host_rd, host_wr, pc;
+	int	i, err=0;
 #ifndef NCR_IOMAPPED
 	err |= ncr_regtest (np);
 	if (err) return (err);
@@ -7293,9 +7293,9 @@ static int ncr_snooptest (struct ncb* np)
 	*/
 	if (pc != NCB_SCRIPTH_PHYS (np, snoopend)+8) {
 		printf ("CACHE TEST FAILED: script execution failed.\n");
-		printf ("\tstart=%08x, pc=%08x, end=%08x\n", 
-			NCB_SCRIPTH_PHYS (np, snooptest), pc,
-			NCB_SCRIPTH_PHYS (np, snoopend) +8);
+		printf ("start=%08lx, pc=%08lx, end=%08lx\n", 
+			(u_long) NCB_SCRIPTH_PHYS (np, snooptest), (u_long) pc,
+			(u_long) NCB_SCRIPTH_PHYS (np, snoopend) +8);
 		return (0x40);
 	};
 	/*
