@@ -852,7 +852,8 @@ Rule	Russia	1921	only	-	Sep	 1	 0:00	1:00	D
 Rule	Russia	1921	only	-	Oct	 1	 0:00	0	K
 Rule	Russia	1981	1984	-	Apr	 1	 0:00	1:00	D
 Rule	Russia	1981	1983	-	Oct	 1	 0:00	0	K
-Rule	Russia	1984	max	-	Sep	lastSun	 2:00s	0	K
+Rule	Russia	1984	1995	-	Sep	lastSun	 2:00s	0	K
+Rule	Russia	1996	max	-	Oct	lastSun	 2:00s	0	K
 Rule	Russia	1985	max	-	Mar	lastSun	 2:00s	1:00	D
 
 # These are for backward compatibility with older versions.
