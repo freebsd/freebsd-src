@@ -29,7 +29,7 @@
 #
 
 # PROVIDE: network_ipv6
-# REQUIRE: network2
+# REQUIRE: routing
 # KEYWORD: FreeBSD
 
 . /etc/rc.subr
