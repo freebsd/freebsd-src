@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: perform.c,v 1.26 1998/12/16 13:59:31 jkh Exp $";
+	"$Id: perform.c,v 1.27 1999/07/30 23:14:15 jdp Exp $";
 #endif
 
 /*
@@ -28,6 +28,7 @@ static const char rcsid[] =
 
 #include <fts.h>
 #include <signal.h>
+#include <err.h>
 
 static int fname_cmp(const FTSENT **, const FTSENT **);
 static int pkg_do(char *);

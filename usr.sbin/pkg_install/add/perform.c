@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: perform.c,v 1.53 1998/09/11 07:26:54 jkh Exp $";
+	"$Id: perform.c,v 1.54 1998/12/16 13:59:29 jkh Exp $";
 #endif
 
 /*
@@ -131,7 +131,7 @@ pkg_do(char *pkg)
 	    }
 	    Home = make_playpen(playpen, sb.st_size * 4);
 	    if (!Home)
-		errx(1, "unable to make playpen for %d bytes", sb.st_size * 4);
+		errx(1, "unable to make playpen for %qd bytes", sb.st_size * 4);
 	    where_to = Home;
 	    /* Since we can call ourselves recursively, keep notes on where we came from */
 	    if (!getenv("_TOP"))
@@ -185,7 +185,7 @@ pkg_do(char *pkg)
 	     */
 
 	    if (!inPlace && min_free(playpen) < sb.st_size * 4) {
-		warnx("projected size of %d exceeds available free space.\n"
+		warnx("projected size of %qd exceeds available free space.\n"
 "Please set your PKG_TMPDIR variable to point to a location with more\n"
 		       "free space and try again", sb.st_size * 4);
 		warnx("not extracting %s\ninto %s, sorry!",
@@ -330,8 +330,8 @@ pkg_do(char *pkg)
     if (fexists(POST_INSTALL_FNAME)) {
 	new_m = 1;
 	sprintf(post_script, "%s", POST_INSTALL_FNAME);
-	sprintf(pre_arg, "");
-	sprintf(post_arg, "");
+	pre_arg[0] = '\0';
+	post_arg[0] = '\0';
     } else {
 	if (fexists(INSTALL_FNAME)) {
 	    sprintf(post_script, "%s", INSTALL_FNAME);
