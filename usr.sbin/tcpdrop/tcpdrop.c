@@ -38,7 +38,8 @@ int
 main(int argc, char *argv[])
 {
 	struct addrinfo hints, *ail, *aif, *laddr, *faddr;
-	struct tcp_ident_mapping tir;
+	/* addrs[0] is a foreign socket, addrs[1] is a local one. */
+	struct sockaddr_storage addrs[2];
 	int mib[] = { CTL_NET, PF_INET, IPPROTO_TCP, TCPCTL_DROP };
 	int gaierr, rval = 0;
 	char fhbuf[NI_MAXHOST], fsbuf[NI_MAXSERV], lhbuf[NI_MAXHOST],
@@ -61,8 +62,8 @@ main(int argc, char *argv[])
 		for (aif = faddr; aif; aif = aif->ai_next) {
 			if (ail->ai_family != aif->ai_family)
 				continue;
-			memcpy(&tir.faddr, aif->ai_addr, aif->ai_addrlen);
-			memcpy(&tir.laddr, ail->ai_addr, ail->ai_addrlen);
+			memcpy(&addrs[0], aif->ai_addr, aif->ai_addrlen);
+			memcpy(&addrs[1], ail->ai_addr, ail->ai_addrlen);
 			if (getnameinfo(aif->ai_addr, aif->ai_addrlen,
 			    fhbuf, sizeof(fhbuf),
 			    fsbuf, sizeof(fsbuf),
@@ -74,7 +75,7 @@ main(int argc, char *argv[])
 			    NI_NUMERICHOST | NI_NUMERICSERV) == -1)
 				err(1, "getnameinfo");
 			if (sysctl(mib, sizeof (mib) / sizeof (int), NULL,
-			    NULL, &tir, sizeof(tir)) == -1) {
+			    NULL, &addrs, sizeof(addrs)) == -1) {
 				rval = 1;
 				warn("%s %s %s %s", lhbuf, lsbuf, fhbuf, fsbuf);
 			} else
