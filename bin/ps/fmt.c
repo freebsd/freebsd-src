@@ -125,7 +125,7 @@ fmt_argv(char **argv, char *cmd, size_t maxlen)
 	}
 	cp = malloc(len);
 	if (cp == NULL)
-		return (NULL);
+		errx(1, "malloc failed");
 	if (ap == NULL)
 		sprintf(cp, " (%.*s)", (int)maxlen, cmd);
 	else if (strncmp(cmdpart(argv[0]), cmd, maxlen) != 0)
