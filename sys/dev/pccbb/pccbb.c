@@ -950,6 +950,13 @@ pccbb_power(device_t brdev, int volts)
 	sc->sc_socketreg->socket_control = sock_ctrl;
 	status = sc->sc_socketreg->socket_state;
 
+	/* 
+	 * XXX This busy wait is bogus.  We should wait for a power
+	 * interrupt and then whine if the status is bad.  If we're
+	 * worried about the card not coming up, then we should also
+	 * schedule a timeout which we can cacel in the power interrupt.
+	 */
+	   
 	{
 		int timeout = 20;
 		u_int32_t sockevent;
@@ -959,6 +966,7 @@ pccbb_power(device_t brdev, int volts)
 		} while (!(sockevent & PCCBB_SOCKET_EVENT_POWER) &&
 		    --timeout > 0);
 		/* reset event status */
+		/* XXX should only reset EVENT_POWER */
 		sc->sc_socketreg->socket_event = sockevent;
 		if (timeout < 0) {
 			printf ("VCC supply failed.\n");
@@ -968,6 +976,8 @@ pccbb_power(device_t brdev, int volts)
 	/* XXX
 	 * delay 400 ms: thgough the standard defines that the Vcc set-up time
 	 * is 20 ms, some PC-Card bridge requires longer duration.
+	 * XXX Note: We should check the stutus AFTER the delay to give time
+	 * for things to stabilize.
 	 */
 	DELAY(400*1000);
 
