@@ -472,7 +472,21 @@ extern struct mtx *ntoskrnl_dispatchlock;
 __BEGIN_DECLS
 extern int ntoskrnl_libinit(void);
 extern int ntoskrnl_libfini(void);
-extern void ntoskrnl_wakeup(void *);
+__stdcall extern void ntoskrnl_init_dpc(kdpc *, void *, void *);
+__stdcall extern void ntoskrnl_init_timer(ktimer *);
+__stdcall extern void ntoskrnl_init_timer_ex(ktimer *, uint32_t);
+__stdcall extern uint8_t ntoskrnl_set_timer(ktimer *, int64_t, kdpc *);  
+__stdcall extern uint8_t ntoskrnl_set_timer_ex(ktimer *, int64_t,
+	uint32_t, kdpc *);
+__stdcall extern uint8_t ntoskrnl_cancel_timer(ktimer *);
+__stdcall extern uint8_t ntoskrnl_read_timer(ktimer *);
+__stdcall uint32_t ntoskrnl_waitforobj(nt_dispatch_header *, uint32_t,
+	uint32_t, uint8_t, int64_t *);
+__stdcall void ntoskrnl_init_event(nt_kevent *, uint32_t, uint8_t);
+__stdcall void ntoskrnl_clear_event(nt_kevent *);
+__stdcall uint32_t ntoskrnl_read_event(nt_kevent *);
+__stdcall uint32_t ntoskrnl_set_event(nt_kevent *, uint32_t, uint8_t);
+__stdcall uint32_t ntoskrnl_reset_event(nt_kevent *);
 __END_DECLS
 
 #endif /* _NTOSKRNL_VAR_H_ */

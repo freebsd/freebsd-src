@@ -1596,7 +1596,7 @@ ndis_setstate_80211(sc)
 				ic->ic_wep_mode = IEEE80211_WEP_8021X;
 		}
 #endif
-		arg = NDIS_80211_AUTHMODE_AUTO;
+		arg = NDIS_80211_AUTHMODE_OPEN;
 	} else {
 		arg = NDIS_80211_WEPSTAT_DISABLED;
 		len = sizeof(arg);
