@@ -359,7 +359,11 @@ vector()
 	fprintf(fp, "#define\tDEVICE_NAMES \"\\\n");
 	fprintf(fp, "clk0 irqnn\\0\\\n");
 	fprintf(fp, "rtc0 irqnn\\0\\\n");
-	dev_id = 2;
+	fprintf(fp, "pci irqnn\\0\\\n");
+	fprintf(fp, "pci irqnn\\0\\\n");
+	fprintf(fp, "pci irqnn\\0\\\n");
+	fprintf(fp, "pci irqnn\\0\\\n");
+	dev_id = 6;
 	vector_devtab(fp, "bio", &dev_id);
 	vector_devtab(fp, "tty", &dev_id);
 	vector_devtab(fp, "net", &dev_id);
