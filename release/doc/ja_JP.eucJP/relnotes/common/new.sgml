@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.249.2.5
+    Original revision: 1.22.2.249.2.6
 -->
 
 <articleinfo>
@@ -775,6 +775,10 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
       を標準のバイナリパッケージセットとしてインストールするため、
       &man.pkg.info.1; のような通常の package ユーティリティを使って
       それらのコンポーネントを調べたり操作することが可能です。</para>
+
+    <para>&new.461; 新規インストール時に
+      <filename>/usr/share/examples</filename>
+      が展開されないというバグが修正されました。</para>
   </sect2>
 </sect1>
 
