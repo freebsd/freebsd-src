@@ -198,8 +198,8 @@ DMenu MenuIndex = {
     DMENU_NORMAL_TYPE,
     "Glossary of functions",
     "This menu contains an alphabetized index of the top level functions in\n"
-    "this program (sysinstall).  Invoke an option by pressing [ENTER] or\n"
-    "[SPACE].  To exit, use [TAB] to move to the Cancel button.",
+    "this program (sysinstall).  Invoke an option by pressing [SPACE] or\n"
+    "[ENTER].  To exit, use [TAB] to move to the Cancel button.",
     "Use PageUp or PageDown to move through this menu faster!",
     NULL,
     { { " Anon FTP",		"Configure anonymous FTP logins.",	dmenuVarCheck, configAnonFTP, NULL, "anon_ftp" },
@@ -287,7 +287,7 @@ DMenu MenuInitial = {
     "Welcome to the FreeBSD installation and configuration tool.  Please\n" /* prompt */
     "select one of the options below by using the arrow keys or typing the\n"
     "first character of the option name you're interested in.  Invoke an\n"
-    "option with [ENTER] or [SPACE].  To exit, use [TAB] to move to Exit.", 
+    "option with [SPACE] or [ENTER].  To exit, use [TAB] to move to Exit.", 
     "Press F1 for Installation Guide",			/* help line */
     "INSTALL",						/* help file */
     { { "Select" },
