@@ -305,15 +305,13 @@ pccard_get_res_flags(device_t bus, device_t child, int restype, int rid,
 	    rid, value);
 }
 
-#ifdef NOT_YET_XXX
 static int
 pccard_set_memory_offset(device_t bus, device_t child, int rid, 
-    u_int32_t offset, u_int32_t *deltap)
+    u_int32_t offset)
 {
 	return CARD_SET_MEMORY_OFFSET(device_get_parent(bus), child, rid,
-	    offset, deltap);
+	    offset);
 }
-#endif
 
 static int
 pccard_get_memory_offset(device_t bus, device_t child, int rid, 
@@ -378,12 +376,12 @@ static device_method_t pccard_methods[] = {
 	/* Card interface */
 	DEVMETHOD(card_set_res_flags,	pccard_set_res_flags),
 	DEVMETHOD(card_get_res_flags,	pccard_get_res_flags),
+	DEVMETHOD(card_set_memory_offset, pccard_set_memory_offset),
  	DEVMETHOD(card_get_memory_offset, pccard_get_memory_offset),
 #ifdef NOT_YET_XXX
 	DEVMETHOD(card_get_function,	pccard_get_function),
 	DEVMETHOD(card_activate_function, pccard_activate_function),
 	DEVMETHOD(card_deactivate_function, pccard_deactivate_function),
-	DEVMETHOD(card_set_memory_offset, pccard_set_memory_offset),
 	DEVMETHOD(card_compat_do_probe, pccard_compat_do_probe),
 	DEVMETHOD(card_compat_do_attach, pccard_compat_do_attach),
 #endif
