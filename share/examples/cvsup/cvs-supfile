@@ -61,8 +61,7 @@
 ## Main Source Tree.
 #
 # The easiest way to get the main source tree is to use the "src-all"
-# mega-collection.  It includes all of the individual "src-*" collections,
-# except the export-restricted collections.
+# mega-collection.  It includes all of the individual "src-*" collections.
 src-all
 
 # These are the individual collections that make up "src-all".  If you
