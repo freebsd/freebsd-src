@@ -34,7 +34,7 @@
 .\"
 .\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
-.\"	$Id: sio.4,v 1.12 1994/06/04 00:41:25 ache Exp $
+.\"	$Id: sio.4,v 1.13 1994/06/15 23:28:07 jkh Exp $
 .\"
 .Dd June 3, 1994
 .Dt SIO 4 i386
@@ -233,26 +233,16 @@ to avoid certain security holes, but this needs to be done by
 getty if the callin port is used for anything else.
 .Sh FILES
 .Bl -tag -width /dev/ttyi0? -compact
-.It Pa /dev/tty0?
-for hardwired terminals
-.It Pa /dev/ttyi0?
-.It Pa /dev/ttyl0?
-corresponding initial-state and lock-state devices
-.El
-.sp
-or
-.sp
-.Bl -tag -width /dev/ttyi0? -compact
 .It Pa /dev/ttyd?
-for callin ports
+for callin and hardwired terminals ports
 .It Pa /dev/ttyid?
 .It Pa /dev/ttyld?
 corresponding callin initial-state and lock-state devices
 .sp
-.It Pa /dev/cua0?
+.It Pa /dev/cuaa?
 for callout ports
-.It Pa /dev/cuai0?
-.It Pa /dev/cual0?
+.It Pa /dev/cuaia?
+.It Pa /dev/cuala?
 corresponding callout initial-state and lock-state devices
 .El
 .sp
@@ -263,8 +253,6 @@ examples of setting the initial-state and lock-state devices
 .Pp
 The devices numbers are made from the set [0-9a-v] so that more than
 10 ports can be supported.
-/dev/tty0? and /dev/ttyd? are mutually exclusive, if you have
-/dev/tty0? corresponding /dev/ttyd? must be removed and vice versa.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It sio%d: silo overflow.
