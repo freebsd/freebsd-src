@@ -1,0 +1,231 @@
+.\"	$NetBSD: nsdispatch.3,v 1.8 1999/03/22 19:44:53 garbled Exp $
+.\"	$FreeBSD$
+.\"
+.\" Copyright (c) 1997, 1998, 1999 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Luke Mewburn.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"        This product includes software developed by the NetBSD
+.\"        Foundation, Inc. and its contributors.
+.\" 4. Neither the name of The NetBSD Foundation nor the names of its
+.\"    contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd January 19, 1999
+.Dt NSDISPATCH 3
+.Os
+.Sh NAME
+.Nm nsdispatch
+.Nd name-service switch dispatcher routine
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.Fd #include <nsswitch.h>
+.Ft int
+.Fo nsdispatch
+.Fa "void *retval"
+.Fa "const ns_dtab dtab[]"
+.Fa "const char *database"
+.Fa "const char *method"
+.Fa "const ns_src defaults[]"
+.Fa "..."
+.Fc
+.Sh DESCRIPTION
+The
+.Fn nsdispatch
+function invokes the callback functions specified in 
+.Va dtab
+in the order given in
+.Pa /etc/nsswitch.conf
+for the database
+.Va database
+until a successful entry is found.
+.Pp
+.Va retval
+is passed to each callback function to modify as necessary
+(to pass back to the caller of
+.Fn nsdispatch )
+.Pp
+.Va dtab
+is an array of
+.Va ns_dtab
+structures, which have the following format:
+.Bd -literal -offset indent
+typedef struct {
+	const char *src;
+	int (*cb)(void *retval, void *cb_data, va_list ap);
+	void *cb_data;
+} ns_dtab;
+.Ed
+.Pp
+.Bd -ragged -offset indent
+For each source type that is implemented, an entry with
+.Va src
+set to the name of the source,
+.Va cb
+defined as a function which handles that source, and
+.Va cb_data
+is used to pass arbritrary data to the callback function.
+The last entry in
+.Va dtab
+should contain
+.Dv NULL
+values for
+.Va src , 
+.Va cb ,
+and
+.Va cb_data .
+.Ed
+.Pp
+.Va method
+is usually the name of the function calling
+.Fn nsdispatch .
+When dynamic loading is supported, a symbol constructed from
+.Va database ,
+the current source, and
+.Va method
+will be used as the name to invoke the dynamically loaded function.
+.Pp
+.Va defaults
+contains a list of default sources to try in the case of
+a missing or corrupt
+.Xr nsswitch.conf 5 ,
+or if there isn't a relevant entry for
+.Va database .
+It is an array of
+.Va ns_src
+structures, which have the following format:
+.Bd -literal -offset indent
+typedef struct {
+	const char *src;
+	u_int32_t flags;
+} ns_src;
+.Ed
+.Pp
+.Bd -ragged -offset indent
+For each default source type, an entry with
+.Va src
+set to the name of the source, and
+.Va flags
+set to the relevant flags
+(usually 
+.Dv NS_SUCCESS ;
+refer to
+.Sx Callback return values
+for more information).
+The last entry in
+.Va defaults
+should have
+.Va src
+set to
+.Dv NULL
+and
+.Va flags
+set to 0.
+.Pp
+For convenience, a global variable defined as:
+.Dl extern const ns_src __nsdefaultsrc[];
+exists which contains a single default entry for
+.Sq files
+for use by callers which don't require complicated default rules.
+.Ed
+.Pp
+.Va Sq ...
+are optional extra arguments, which
+are passed to the appropriate callback function as a variable argument
+list of the type
+.Va va_list .
+.Ss Valid source types
+Whilst there is support for arbitrary sources, the following
+#defines for commonly implementated sources are available:
+.Bl -column NS_COMPAT COMPAT -offset indent
+.Sy #define	value
+.It NSSRC_FILES	"files"
+.It NSSRC_DNS	"dns"
+.It NSSRC_NIS	"nis"
+.It NSSRC_COMPAT	"compat"
+.El
+.Pp
+Refer to
+.Xr nsswitch.conf 5
+for a complete description of what each source type is.
+.Pp
+.Ss Callback return values
+The callback functions should return one of the following values
+depending upon status of the lookup:
+.Bl -column NS_NOTFOUND -offset indent
+.Sy "Return value"	Status code
+.It NS_SUCCESS	success
+.It NS_NOTFOUND	notfound
+.It NS_UNAVAIL	unavail
+.It NS_TRYAGAIN	tryagain
+.El
+.Pp
+Refer to
+.Xr nsswitch.conf 5
+for a complete description of what each status code is.
+.Pp
+.Nm
+returns the value of the callback that caused the dispatcher to finish,
+or NS_NOTFOUND otherwise.
+.Sh SEE ALSO
+.Xr hesiod 3 ,
+.Xr stdarg 3 ,
+.Xr ypclnt 3 ,
+.Xr nsswitch.conf 5
+.Sh HISTORY
+The
+.Nm
+routines first appeared in
+.Fx 4.1 .
+They were imported from the
+.Nx 
+Project,
+where they appeared first in 
+.Nx 1.4 .
+.Sh AUTHORS
+Luke Mewburn
+.Aq lukem@netbsd.org
+wrote this freely distributable name-service switch implementation,
+using ideas from the
+.Tn ULTRIX
+.Xr svc.conf 5
+and
+.Tn Solaris
+.Xr nsswitch.conf 4
+manual pages.
+.Sh BUGS
+The
+.Nm
+routines are not thread safe.
+This will be rectified in the future.
+.Pp
+Currently there is no support for dynamically loadable dispatcher callback
+functions.
+It is anticipated that this will be added in the future in the back-end
+without requiring changes to code that invokes
+.Fn nsdispatch .

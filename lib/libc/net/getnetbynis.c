@@ -38,6 +38,8 @@ static char rcsid[] = "$FreeBSD$";
 #include <ctype.h>
 #include <errno.h>
 #include <string.h>
+#include <stdarg.h>
+#include <nsswitch.h>
 #include <arpa/nameser.h>
 #ifdef YP
 #include <rpc/rpc.h>
@@ -50,15 +52,10 @@ static char rcsid[] = "$FreeBSD$";
 
 #ifdef YP
 static char *host_aliases[MAXALIASES];
-#endif /* YP */
 
 static struct netent *
-_getnetbynis(name, map, af)
-	const char *name;
-	char *map;
-	int af;
+_getnetbynis(const char *name, char *map, int af)
 {
-#ifdef YP
 	register char *cp, **q;
 	static char *result;
 	int resultlen;
@@ -117,32 +114,45 @@ _getnetbynis(name, map, af)
 	}
 	*q = NULL;
 	return (&h);
-#else
-	return (NULL);
-#endif
 }
+#endif /* YP */
 
-struct netent *
-_getnetbynisname(name)
-	const char *name;
+int
+_nis_getnetbyname(void *rval, void *cb_data, va_list ap)
 {
-	return _getnetbynis(name, "networks.byname", AF_INET);
+#ifdef YP
+	const char *name;
+
+	name = va_arg(ap, const char *);
+	
+	*(struct netent **)rval = _getnetbynis(name, "networks.byname", AF_INET);
+	return (*(struct netent **)rval != NULL) ? NS_SUCCESS : NS_NOTFOUND;
+#else
+	return NS_UNAVAIL;
+#endif
+
 }
 
-struct netent *
-_getnetbynisaddr(addr, af)
+int 
+_nis_getnetbyaddr(void *rval, void *cb_data, va_list ap)
+{
+#ifdef YP
 	unsigned long addr;
 	int af;
-{
 	char *str, *cp;
 	unsigned long net2;
 	int nn;
 	unsigned int netbr[4];
 	char buf[MAXDNAME];
 
+	addr = va_arg(ap, unsigned long);
+	af = va_arg(ap, int);
+
+	*(struct netent **)rval = NULL;
+
 	if (af != AF_INET) {
 		errno = EAFNOSUPPORT;
-		return (NULL);
+		return NS_UNAVAIL;
 	}
 
         for (nn = 4, net2 = addr; net2; net2 >>= 8) {
@@ -173,5 +183,9 @@ _getnetbynisaddr(addr, af)
 		cp = str + (strlen(str) - 2);
 	}
 
-	return _getnetbynis(str, "networks.byaddr", af);
+	*(struct netent **)rval = _getnetbynis(str, "networks.byaddr", af);
+	return (*(struct netent**)rval != NULL) ? NS_SUCCESS : NS_NOTFOUND;
+#else
+	return NS_UNAVAIL;
+#endif /* YP */
 }

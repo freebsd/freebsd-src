@@ -13,6 +13,18 @@
 network_pass1() {
 	echo -n 'Doing initial network setup:'
 
+	# Convert host.conf to nsswitch.conf if necessary
+	if [ -f "/etc/host.conf" ]; then
+		echo ""
+		echo "Warning: /etc/host.conf is no longer used"
+		if [ -f "/etc/nsswitch.conf" ]; then
+		    echo "  /etc/nsswitch.conf will be used instead"
+		else
+		    echo "  /etc/nsswitch.conf will be created for you"
+		    convert_host_conf /etc/host.conf /etc/nsswitch.conf
+		fi
+	fi
+
 	# Set the host name if it is not already set
 	#
 	if [ -z "`hostname -s`" ]; then
@@ -681,3 +693,20 @@ network_pass4() {
 	echo '.'
 	network_pass4_done=YES
 }
+
+convert_host_conf() {
+    host_conf=$1; shift;
+    nsswitch_conf=$1; shift;
+    awk '                                                                   \
+        /^[:blank:]*#/       { next }                                       \
+        /(hosts|local|file)/ { nsswitch[c] = "files"; c++; next }           \
+        /(dns|bind)/         { nsswitch[c] = "dns";   c++; next }           \
+        /nis/                { nsswitch[c] = "nis";   c++; next }           \
+        { printf "Warning: unrecognized line [%s]", $0 > "/dev/stderr" }    \
+        END {                                                               \
+                printf "hosts: ";                                           \
+                for (i in nsswitch) printf "%s ", nsswitch[i];              \
+                printf "\n";                                                \
+        }' < $host_conf > $nsswitch_conf
+}
+

@@ -43,6 +43,9 @@ The
 .Nm hosts
 file contains information regarding
 the known hosts on the network.
+It can be used in conjunction with DNS, and the NIS
+maps `hosts.byaddr' and `hosts.byname', as controlled by
+.Xr nsswitch.conf 5 .
 For each host a single line should be present
 with the following information:
 .Bd -unfilled -offset indent
@@ -98,6 +101,7 @@ file resides in
 .El
 .Sh SEE ALSO
 .Xr gethostbyname 3 ,
+.Xr nsswitch.conf 5 ,
 .Xr ifconfig 8 ,
 .Xr named 8
 .Rs

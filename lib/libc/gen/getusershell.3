@@ -1,3 +1,6 @@
+.\"	$NetBSD: getusershell.3,v 1.6 1999/03/22 19:44:42 garbled Exp $
+.\"	$FreeBSD$
+.\"
 .\" Copyright (c) 1985, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -30,16 +33,15 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)getusershell.3	8.1 (Berkeley) 6/4/93
-.\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd January 16, 1999
 .Dt GETUSERSHELL 3
-.Os BSD 4.3
+.Os
 .Sh NAME
 .Nm getusershell ,
 .Nm setusershell ,
 .Nm endusershell
-.Nd get legal user shells
+.Nd get valid user shells
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -54,18 +56,16 @@
 The
 .Fn getusershell
 function
-returns a pointer to a legal user shell as defined by the
-system manager in the file 
-.Pa /etc/shells .
-If 
-.Pa /etc/shells
-is unreadable or does not exist,
+returns a pointer to a valid user shell as defined by the
+system manager in the shells database as described in
+.Xr shells 5 .
+If the shells database is not available,
 .Fn getusershell
 behaves as if
 .Pa /bin/sh
 and
 .Pa /bin/csh
-were listed in the file.
+were listed.
 .Pp
 The
 .Fn getusershell
@@ -86,6 +86,7 @@ The routine
 returns a null pointer (0) on
 .Dv EOF .
 .Sh SEE ALSO
+.Xr nsswitch.conf 5 ,
 .Xr shells 5
 .Sh HISTORY
 The
@@ -96,7 +97,6 @@ function appeared in
 The
 .Fn getusershell
 function leaves its result in an internal static object and returns
-a pointer to that object.
-Subsequent calls to
+a pointer to that object. Subsequent calls to
 .Fn getusershell
 will modify the same object.

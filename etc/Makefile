@@ -6,7 +6,7 @@ SUBDIR=	sendmail
 BIN1=   amd.map apmd.conf auth.conf \
 	crontab csh.cshrc csh.login csh.logout \
 	dhclient.conf dm.conf fbtab ftpusers gettytab group \
-	hosts hosts.allow host.conf hosts.equiv hosts.lpd \
+	hosts hosts.allow hosts.equiv hosts.lpd \
 	inetd.conf login.access login.conf \
 	motd modems networks newsyslog.conf \
 	pam.conf phones pim6dd.conf pim6sd.conf \

@@ -1,0 +1,53 @@
+.\"	$NetBSD: hesiod.conf.5,v 1.2 1999/01/25 22:37:06 lukem Exp $
+.\"	$FreeBSD$
+.\"
+.\" from: #Id: hesiod.conf.5,v 1.1 1996/12/08 21:36:38 ghudson Exp #
+.\"
+.\" Copyright 1996 by the Massachusetts Institute of Technology.
+.\"
+.\" Permission to use, copy, modify, and distribute this
+.\" software and its documentation for any purpose and without
+.\" fee is hereby granted, provided that the above copyright
+.\" notice appear in all copies and that both that copyright
+.\" notice and this permission notice appear in supporting
+.\" documentation, and that the name of M.I.T. not be used in
+.\" advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.
+.\" M.I.T. makes no representations about the suitability of
+.\" this software for any purpose.  It is provided "as is"
+.\" without express or implied warranty.
+.\"
+.TH HESIOD.CONF 5 "30 November 1996"
+.SH NAME
+hesiod.conf \- Configuration file for the Hesiod library
+.SH DESCRIPTION
+The file hesiod.conf determines the behavior of the Hesiod library.
+Blank lines and lines beginning with a `#' character are ignored.  All
+other lines should be of the form
+.I variable
+=
+.IR value ,
+where the value should be a single word.  Possible variables and
+values are:
+.IP lhs
+Specifies the domain prefix used for Hesiod queries.  In almost all
+cases, you should specify ``lhs=.ns''.  The default value if you do
+not specify an lhs value is no domain prefix, which is not compatible
+with most Hesiod domains.
+.IP rhs
+Specifies the default Hesiod domain; this value may be overridden by
+the
+.B HES_DOMAIN
+environment variable.  You must specify an rhs line for the Hesiod
+library to work properly.
+.IP classes
+Specifies which DNS classes Hesiod should do lookups in.  Possible
+values are IN (the preferred class) and HS (the deprecated class,
+still used by some sites).  You may specify both classes separated by
+a comma to try one class first and then the other if no entry is
+available in the first class.  The default value of the classes
+variable is ``IN,HS''.
+.SH SEE ALSO
+hesiod(3)
+.SH BUGS
+The default value for ``lhs'' should probably be more reasonable.

@@ -39,6 +39,8 @@ static char rcsid[] = "$FreeBSD$";
 #include <ctype.h>
 #include <errno.h>
 #include <string.h>
+#include <stdarg.h>
+#include <nsswitch.h>
 #ifdef YP
 #include <rpc/rpc.h>
 #include <rpcsvc/yp_prot.h>
@@ -52,7 +54,6 @@ static char rcsid[] = "$FreeBSD$";
 static char *host_aliases[MAXALIASES];
 static char hostaddr[MAXADDRS];
 static char *host_addrs[2];
-#endif /* YP */
 
 static struct hostent *
 _gethostbynis(name, map, af)
@@ -60,7 +61,6 @@ _gethostbynis(name, map, af)
 	char *map;
 	int af;
 {
-#ifdef YP
 	register char *cp, **q;
 	char *result;
 	int resultlen,size;
@@ -122,24 +122,64 @@ _gethostbynis(name, map, af)
 	}
 	*q = NULL;
 	return (&h);
-#else
-	return (NULL);
+}
 #endif /* YP */
+
+/* XXX _gethostbynisname/_gethostbynisaddr only used by getaddrinfo */
+struct hostent *
+_gethostbynisname(const char *name, int af)
+{
+#ifdef YP
+	return _gethostbynis(name, "hosts.byname", af);
+#else
+	return NULL;
+#endif
 }
 
 struct hostent *
-_gethostbynisname(name, af)
+_gethostbynisaddr(const char *addr, int len, int af)
+{
+#ifdef YP
+	return _gethostbynis(inet_ntoa(*(struct in_addr *)addr), 
+			     "hosts.byaddr", af);
+#else
+	return NULL;
+#endif
+}
+
+
+int
+_nis_gethostbyname(void *rval, void *cb_data, va_list ap)
+{
+#ifdef YP
 	const char *name;
 	int af;
-{
-	return _gethostbynis(name, "hosts.byname", af);
+
+	name = va_arg(ap, const char *);
+	af = va_arg(ap, int);
+
+	*(struct hostent **)rval = _gethostbynis(name, "hosts.byname", af);
+	return (*(struct hostent **)rval != NULL) ? NS_SUCCESS : NS_NOTFOUND;
+#else
+	return NS_UNAVAIL;
+#endif
 }
 
-struct hostent *
-_gethostbynisaddr(addr, len, af)
+int
+_nis_gethostbyaddr(void *rval, void *cb_data, va_list ap)
+{
+#ifdef YP
 	const char *addr;
 	int len;
 	int af;
-{
-	return _gethostbynis(inet_ntoa(*(struct in_addr *)addr),"hosts.byaddr", af);
+
+	addr = va_arg(ap, const char *);
+	len = va_arg(ap, int);
+	af = va_arg(ap, int);
+	
+	*(struct hostent **)rval =_gethostbynis(inet_ntoa(*(struct in_addr *)addr),"hosts.byaddr", af);
+	return (*(struct hostent **)rval != NULL) ? NS_SUCCESS : NS_NOTFOUND;
+#else
+	return NS_UNAVAIL;
+#endif
 }
