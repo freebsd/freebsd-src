@@ -2129,10 +2129,8 @@ mac_cred_mmapped_drop_perms(struct thread *td, struct ucred *cred)
 {
 
 	/* XXX freeze all other threads */
-	mtx_lock(&Giant);
 	mac_cred_mmapped_drop_perms_recurse(td, cred,
 	    &td->td_proc->p_vmspace->vm_map);
-	mtx_unlock(&Giant);
 	/* XXX allow other threads to continue */
 }
 
@@ -3043,7 +3041,9 @@ __mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
 	crhold(newcred);
 	PROC_UNLOCK(p);
 
+	mtx_lock(&Giant);
 	mac_cred_mmapped_drop_perms(td, newcred);
+	mtx_unlock(&Giant);
 
 	crfree(newcred);	/* Free revocation reference. */
 	crfree(oldcred);
