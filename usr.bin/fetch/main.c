@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.22 1996/09/19 17:31:34 peter Exp $ */
+/* $Id: main.c,v 1.23 1996/09/19 18:07:20 peter Exp $ */
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -159,6 +159,7 @@ main(int argc, char **argv)
 	    
 	case 'h':
 	    host = optarg;
+	    ftp = 1;
 	    break;
 
 	case 'l':
