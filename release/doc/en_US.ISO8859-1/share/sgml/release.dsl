@@ -53,7 +53,7 @@
         (define ($create-refentry-xref-link$ refentrytitle manvolnum)
 	  (string-append "http://www.FreeBSD.org/cgi/man.cgi?query="
 			 refentrytitle "&" "sektion=" manvolnum
-			 "&" "manpath=FreeBSD+4.5-stable"))
+			 "&" "manpath=FreeBSD+4.6-RELEASE"))
       ]]>
 
       (define (toc-depth nd)
