@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_balloc.c	8.4 (Berkeley) 9/23/93
- * $Id: ffs_balloc.c,v 1.5 1995/03/03 22:13:16 davidg Exp $
+ * $Id: ffs_balloc.c,v 1.6 1995/03/19 14:29:13 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -150,7 +150,7 @@ ffs_balloc(ip, bn, size, cred, bpp, flags)
 			bp = getblk(vp, bn, nsize, 0, 0);
 			bp->b_blkno = fsbtodb(fs, newb);
 			if (flags & B_CLRBUF)
-				clrbuf(bp);
+				vfs_bio_clrbuf(bp);
 		}
 		ip->i_db[bn] = dbtofsb(fs, bp->b_blkno);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
@@ -182,7 +182,7 @@ ffs_balloc(ip, bn, size, cred, bpp, flags)
 		nb = newb;
 		bp = getblk(vp, indirs[1].in_lbn, fs->fs_bsize, 0, 0);
 		bp->b_blkno = fsbtodb(fs, newb);
-		clrbuf(bp);
+		vfs_bio_clrbuf(bp);
 		/*
 		 * Write synchronously so that indirect blocks
 		 * never point at garbage.
@@ -225,7 +225,7 @@ ffs_balloc(ip, bn, size, cred, bpp, flags)
 		nb = newb;
 		nbp = getblk(vp, indirs[i].in_lbn, fs->fs_bsize, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
-		clrbuf(nbp);
+		vfs_bio_clrbuf(nbp);
 		/*
 		 * Write synchronously so that indirect blocks
 		 * never point at garbage.
@@ -262,7 +262,7 @@ ffs_balloc(ip, bn, size, cred, bpp, flags)
 		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
 		if (flags & B_CLRBUF)
-			clrbuf(nbp);
+			vfs_bio_clrbuf(nbp);
 		bap[indirs[i].in_off] = nb;
 		/*
 		 * If required, write synchronously, otherwise use

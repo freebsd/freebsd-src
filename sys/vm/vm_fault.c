@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.20 1995/03/01 23:29:55 davidg Exp $
+ * $Id: vm_fault.c,v 1.21 1995/03/27 02:41:00 davidg Exp $
  */
 
 /*
@@ -93,6 +93,10 @@ int vm_fault_additional_pages __P((vm_object_t, vm_offset_t, vm_page_t, int, int
 #define VM_FAULT_READ (VM_FAULT_READ_AHEAD+VM_FAULT_READ_BEHIND+1)
 extern int swap_pager_full;
 extern int vm_pageout_proc_limit;
+
+struct vnode *vnode_pager_lock __P((vm_object_t object));
+void vnode_pager_unlock __P((struct vnode *));
+
 
 /*
  *	vm_fault:
@@ -137,6 +141,7 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 	vm_page_t marray[VM_FAULT_READ];
 	int spl;
 	int hardfault = 0;
+	struct vnode *vp = NULL;
 
 	cnt.v_vm_faults++;	/* needs lock XXX */
 /*
@@ -173,6 +178,7 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 		vm_object_unlock(first_object);		\
 	}						\
 	UNLOCK_MAP;					\
+	if (vp != NULL) vnode_pager_unlock(vp);		\
 }
 
 #define	UNLOCK_AND_DEALLOCATE	{			\
@@ -192,6 +198,9 @@ RetryFault:;
 	    &first_offset, &prot, &wired, &su)) != KERN_SUCCESS) {
 		return (result);
 	}
+
+	vp = (struct vnode *) vnode_pager_lock(first_object);
+
 	lookup_still_valid = TRUE;
 
 	if (wired)
@@ -271,6 +280,7 @@ RetryFault:;
 				vm_object_deallocate(first_object);
 				goto RetryFault;
 			}
+
 			if ((m->flags & PG_CACHE) &&
 			    (cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_reserved) {
 				UNLOCK_AND_DEALLOCATE;
@@ -364,8 +374,13 @@ readrest:
 				 * if moved.
 				 */
 				m = vm_page_lookup(object, offset);
-				m->valid = VM_PAGE_BITS_ALL;
+				if( !m) {
+					UNLOCK_AND_DEALLOCATE;
+					goto RetryFault;
+				}
+					
 				pmap_clear_modify(VM_PAGE_TO_PHYS(m));
+				m->valid = VM_PAGE_BITS_ALL;
 				hardfault++;
 				break;
 			}
@@ -808,6 +823,7 @@ RetryCopy:
 
 	if (prot & VM_PROT_WRITE) {
 		m->flags |= PG_WRITEABLE;
+		m->object->flags |= OBJ_WRITEABLE;
 		/*
 		 * If the fault is a write, we know that this page is being
 		 * written NOW. This will save on the pmap_is_modified() calls
@@ -817,11 +833,12 @@ RetryCopy:
 			m->dirty = VM_PAGE_BITS_ALL;
 		}
 	}
+
 	m->flags |= PG_MAPPED;
 
 	pmap_enter(map->pmap, vaddr, VM_PAGE_TO_PHYS(m), prot, wired);
 #if 0
-	if( ((prot & VM_PROT_WRITE) == 0) && change_wiring == 0 && wired == 0)
+	if (change_wiring == 0 && wired == 0)
 		pmap_prefault(map->pmap, vaddr, entry, first_object);
 #endif
 
