@@ -1273,6 +1273,7 @@ vm_page_unwire(m, activate)
 				vm_page_queues[PQ_ACTIVE].lcnt++;
 				cnt.v_active_count++;
 			} else {
+				vm_page_flag_clear(m, PG_WINATCFLS);
 				TAILQ_INSERT_TAIL(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
 				m->queue = PQ_INACTIVE;
 				vm_page_queues[PQ_INACTIVE].lcnt++;
@@ -1311,6 +1312,7 @@ _vm_page_deactivate(vm_page_t m, int athead)
 	if (m->wire_count == 0 && (m->flags & PG_UNMANAGED) == 0) {
 		if ((m->queue - m->pc) == PQ_CACHE)
 			cnt.v_reactivated++;
+		vm_page_flag_clear(m, PG_WINATCFLS);
 		vm_page_unqueue(m);
 		if (athead)
 			TAILQ_INSERT_HEAD(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
