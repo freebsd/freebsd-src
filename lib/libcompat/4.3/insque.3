@@ -50,6 +50,12 @@ struct qelem {
 .Fn insque "(caddr_t) struct qelem *elem" "(caddr_t) struct qelem *pred"
 .Fn remque "(caddr_t) struct qelem *elem"
 .Sh DESCRIPTION
+.Bf -symbolic
+The insque and remque functions are considered obsolete.
+.br
+They are available from the compatibility library, libcompat.
+.Ef
+.Pp
 The
 .Fn insque
 and 

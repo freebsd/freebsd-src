@@ -29,7 +29,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: stty.c,v 1.1 1994/05/21 05:20:41 cgd Exp $";
+static char rcsid[] = "$Id: stty.c,v 1.1.1.1 1994/05/27 10:33:22 rgrimes Exp $";
 #endif /* not lint */
 
 #include <sgtty.h>
@@ -39,6 +39,9 @@ static char rcsid[] = "$Id: stty.c,v 1.1 1994/05/21 05:20:41 cgd Exp $";
  * This was defined in ioctl_compat.h as:
  *	#define	stty(fd, tty)	ioctl(fd, TIOCSETP, tty)
  */
+
+#undef stty
+
 int
 stty(fd, tty)
 	int fd;

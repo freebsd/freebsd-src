@@ -11,16 +11,18 @@ NOPIC=
 	${.CURDIR}/regexp
 
 # compat 4.1 sources
-# XXX MISSING:	getpw.c tell.c vlimit.c vtimes.c
-SRCS=	ftime.c gtty.c stty.c
+# XXX MISSING:	tell.c vlimit.c vtimes.c
+SRCS=	ascftime.c cftime.c ftime.c getpw.c gtty.c stty.c
 
 .if (${MACHINE} == "vax")
 SRCS+=	reset.s
 .endif
 
 MAN3+=	4.1/ftime.3 4.1/getpw.3 4.1/stty.3 4.1/vlimit.3 4.1/vtimes.3
+MAN3+=	4.1/cftime.3
 
 MLINKS+=stty.3 gtty.3
+MLINKS+=cftime.3 ascftime.3
 
 # compat 4.3 sources
 # XXX MISSING:	ecvt.c gcvt.c sibuf.c sobuf.c strout.c
@@ -50,6 +52,7 @@ MLINKS+=re_comp.3 re_exec.3
 
 # compat 4.4 sources
 SRCS+=	cuserid.c
+MAN3+=	4.4/cuserid.3
 
 # regexp sources
 SRCS+=	regerror.c regexp.c regsub.c
