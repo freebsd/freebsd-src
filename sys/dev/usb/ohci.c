@@ -1125,10 +1125,12 @@ ohci_process_done(sc, done)
 		usb_untimeout(ohci_timeout, xfer, xfer->timo_handle);
 		if (xfer->status == USBD_CANCELLED ||
 		    xfer->status == USBD_TIMEOUT) {
-			DPRINTF(("ohci_process_done: cancel/timeout %p\n",
+			DPRINTF(("ohci_process_done: cancel/timeout, xfer=%p\n",
 				 xfer));
 			/* Handled by abort routine. */
 		} else if (cc == OHCI_CC_NO_ERROR) {
+			DPRINTF(("ohci_process_done: no error, xfer=%p\n",
+				 xfer));
 			len = std->len;
 			if (std->td.td_cbp != 0)
 				len -= LE(std->td.td_be) -
@@ -1151,14 +1153,15 @@ ohci_process_done(sc, done)
 			struct ohci_pipe *opipe = 
 				(struct ohci_pipe *)xfer->pipe;
 
-			DPRINTF(("ohci_process_done: error cc=%d (%s)\n",
+			DPRINTF(("ohci_process_done: err cc=%d (%s), xfer=%p\n",
 			  OHCI_TD_GET_CC(LE(std->td.td_flags)),
-			  ohci_cc_strs[OHCI_TD_GET_CC(LE(std->td.td_flags))]));
+			  ohci_cc_strs[OHCI_TD_GET_CC(LE(std->td.td_flags))],
+			  xfer));
 
 			/* remove TDs */
 			for (p = std; p->xfer == xfer; p = n) {
 				n = p->nexttd;
-				ohci_hash_rem_td(sc, p);
+				ohci_hash_rem_td(sc, p);                        
 				ohci_free_std(sc, p);
 			}
 
@@ -1170,6 +1173,7 @@ ohci_process_done(sc, done)
 				xfer->status = USBD_STALLED;
 			else
 				xfer->status = USBD_IOERROR;
+
 			usb_transfer_complete(xfer);
 		}
 	}
@@ -1457,7 +1461,7 @@ ohci_device_request(xfer)
 	splx(s);
 
 #ifdef OHCI_DEBUG
-	if (ohcidebug > 5) {
+	if (ohcidebug > 25) {
 		usb_delay_ms(&sc->sc_bus, 5);
 		DPRINTF(("ohci_device_request: status=%x\n",
 			 OREAD4(sc, OHCI_COMMAND_STATUS)));
@@ -1555,6 +1559,9 @@ ohci_hash_find_td(sc, a)
 	int h = HASH(a);
 	ohci_soft_td_t *std;
 
+	/* if these are present they should be masked out at an earlier
+	 * stage.
+	 */
 	KASSERT(a&LE(TAILMASK) == 0, ("%s: 0x%b has lower bits set\n",
 				      USBDEVNAME(sc->sc_bus.bdev),
 				      (int) a, "\20\1HALT\2TOGGLE"));
@@ -1613,15 +1620,16 @@ void
 ohci_dump_ed(sed)
 	ohci_soft_ed_t *sed;
 {
-	DPRINTF(("ED(%p) at %08lx: addr=%d endpt=%d maxp=%d %b\ntailp=0x%08lx "
-		 "headp=%b nexted=0x%08lx\n",
+	DPRINTF(("ED(%p) at %08lx: addr=%d endpt=%d maxp=%d %b\n"
+		 "tailp=0x%8b headp=0x%8b nexted=0x%08lx\n",
 		 sed, (u_long)sed->physaddr, 
 		 OHCI_ED_GET_FA(LE(sed->ed.ed_flags)),
 		 OHCI_ED_GET_EN(LE(sed->ed.ed_flags)),
 		 OHCI_ED_GET_MAXP(LE(sed->ed.ed_flags)),
 		 (int)LE(sed->ed.ed_flags),
 		 "\20\14OUT\15IN\16LOWSPEED\17SKIP\20ISO",
-		 (u_long)LE(sed->ed.ed_tailp),
+		 (int)(uintptr_t)LE(sed->ed.ed_tailp),
+		 "\20\1BIT1\2BIT2",
 		 (int)(uintptr_t)LE(sed->ed.ed_headp),
 		 "\20\1HALT\2CARRY",
 		 (u_long)LE(sed->ed.ed_nexted)));
@@ -1798,8 +1806,11 @@ ohci_abort_xfer(xfer, status)
 	usb_untimeout(ohci_timeout, xfer, xfer->timo_handle);
 
 	sed = opipe->sed;
-	DPRINTFN(1,("ohci_abort_xfer: stop ed=%p\n", sed));
 	sed->ed.ed_flags |= LE(OHCI_ED_SKIP); /* force hardware skip */
+#ifdef OHCI_DEBUG
+	DPRINTFN(1,("ohci_abort_xfer: stop ed=%p\n", sed));
+	ohci_dump_ed(sed);
+#endif
 
 #if 1
 	if (xfer->device->bus->intr_context) {
