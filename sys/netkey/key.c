@@ -334,8 +334,8 @@ do { \
 	(idx)->prefs = (ps);                                                 \
 	(idx)->prefd = (pd);                                                 \
 	(idx)->ul_proto = (ulp);                                             \
-	bcopy((s), &(idx)->src, ((struct sockaddr *)(s))->sa_len);           \
-	bcopy((d), &(idx)->dst, ((struct sockaddr *)(d))->sa_len);           \
+	bcopy((s), &(idx)->src, ((const struct sockaddr *)(s))->sa_len);     \
+	bcopy((d), &(idx)->dst, ((const struct sockaddr *)(d))->sa_len);     \
 } while (0)
 
 /*
@@ -348,8 +348,8 @@ do { \
 	(idx)->proto = (p);                                                  \
 	(idx)->mode = (m);                                                   \
 	(idx)->reqid = (r);                                                  \
-	bcopy((s), &(idx)->src, ((struct sockaddr *)(s))->sa_len);           \
-	bcopy((d), &(idx)->dst, ((struct sockaddr *)(d))->sa_len);           \
+	bcopy((s), &(idx)->src, ((const struct sockaddr *)(s))->sa_len);     \
+	bcopy((d), &(idx)->dst, ((const struct sockaddr *)(d))->sa_len);     \
 } while (0)
 
 /* key statistics */
@@ -7139,7 +7139,7 @@ key_validate_ext(ext, len)
 	const struct sadb_ext *ext;
 	int len;
 {
-	struct sockaddr *sa;
+	const struct sockaddr *sa;
 	enum { NONE, ADDR } checktype = NONE;
 	int baselen;
 	const int sal = offsetof(struct sockaddr, sa_len) + sizeof(sa->sa_len);
@@ -7166,7 +7166,7 @@ key_validate_ext(ext, len)
 		break;
 	case SADB_EXT_IDENTITY_SRC:
 	case SADB_EXT_IDENTITY_DST:
-		if (((struct sadb_ident *)ext)->sadb_ident_type ==
+		if (((const struct sadb_ident *)ext)->sadb_ident_type ==
 		    SADB_X_IDENTTYPE_ADDR) {
 			baselen = PFKEY_ALIGN8(sizeof(struct sadb_ident));
 			checktype = ADDR;
@@ -7182,7 +7182,7 @@ key_validate_ext(ext, len)
 	case NONE:
 		break;
 	case ADDR:
-		sa = (struct sockaddr *)((caddr_t)ext + baselen);
+		sa = (struct sockaddr *)((uintptr_t)ext + baselen);
 		if (len < baselen + sal)
 			return EINVAL;
 		if (baselen + PFKEY_ALIGN8(sa->sa_len) != len)
