@@ -45,6 +45,14 @@ A sketch of the filesystem hierarchy.
 root directory of the filesystem
 .It Li /bin/
 user utilities fundamental to both single-user and multi-user environments
+.It Li /boot/
+programs and configuration files used during operating system bootstrap
+.Pp
+.Bl -tag -width defaults/ -compact
+.It Li defaults/
+default bootstrapping configuration files; see
+.Xr loader.conf 5
+.El
 .It Li /dev/
 block and character device files
 .Pp
