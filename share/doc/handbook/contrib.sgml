@@ -32,6 +32,7 @@ groups of people:
 	<item>&a.rich;
 	<item>&a.gpalmer;
 	<item>&a.jdp;
+	<item>&a.guido;
 	<item>&a.sos;
 	<item>&a.peter;
 	<item>&a.wollman;
@@ -105,7 +106,6 @@ groups of people:
         <item>&a.brian; 
         <item>&a.karl;
         <item>&a.pst;
-        <item>&a.guido;
         <item>&a.swallace;
         <item>&a.nate;
 	<item>&a.yokota;
@@ -142,7 +142,7 @@ groups of people:
         <tag/Networking/ &a.wollman 
         <tag/Postmaster/ &a.jmb; 
         <tag/Release Coordinator/ &a.jkh 
-	<tag/Security Officers/ &a.pst; and &a.guido
+	<tag/Security Officer/ &a.guido
         <tag/Source Repository Manager/ &a.peter 
         <tag/Ports Manager/ &a.asami 
         <tag/XFree86 Project, Inc. Liaison/ &a.rich 
