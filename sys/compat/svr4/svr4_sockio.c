@@ -101,13 +101,12 @@ svr4_sock_ioctl(fp, p, retval, fd, cmd, data)
 			 * entry per physical interface?
 			 */
 
-			for (ifp = ifnet.tqh_first;
-			     ifp != 0; ifp = ifp->if_link.tqe_next)
-				if ((ifa = ifp->if_addrhead.tqh_first) == NULL)
+			TAILQ_FOREACH(ifp, &ifnet, if_link)
+				if (TAILQ_FIRST(&ifp->if_addrhead) == NULL)
 					ifnum++;
 				else
-					for (;ifa != NULL;
-					    ifa = ifa->ifa_link.tqe_next)
+					TAILQ_FOREACH(ifa, &ifp->if_addrhead,
+					    ifa_link)
 						ifnum++;
 
 
