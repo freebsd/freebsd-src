@@ -330,7 +330,7 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
 
     /* we need a passwd entry to set these */
     if (pwd == NULL)
-	flags &= ~(LOGIN_SETGROUP | LOGIN_SETLOGIN);
+	flags &= ~(LOGIN_SETGROUP | LOGIN_SETLOGIN | LOGIN_SETMAC);
 
     /* Set the process priority */
     if (flags & LOGIN_SETPRIORITY) {
