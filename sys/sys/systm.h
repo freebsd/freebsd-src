@@ -323,9 +323,8 @@ void	wakeup_one(void *chan) __nonnull(1);
 
 int major(dev_t x);
 int minor(dev_t x);
-dev_t makedev(int x, int y);
 udev_t dev2udev(dev_t x);
-dev_t udev2dev(udev_t x, int b);
+dev_t udev2dev(udev_t x);
 int uminor(udev_t dev);
 int umajor(udev_t dev);
 udev_t makeudev(int x, int y);

@@ -212,8 +212,7 @@ venus_open(void *mdp, CodaFid *fid, int flag,
 
     error = coda_call(mdp, Isize, &Osize, (char *)inp);
     if (!error) {
-/* 5/11	*dev =  udev2dev(outp->dev, 2); */
-	*dev =  udev2dev(outp->dev, 0);
+	*dev =  udev2dev(outp->dev);
 	*inode = outp->inode;
     }
 

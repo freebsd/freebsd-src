@@ -259,7 +259,7 @@ struct _mididev_info {
 #define MIDIUNIT(x)        ((MIDIMINOR(x) & 0x000000f0) >> 4)
 #define MIDIDEV(x)         (MIDIMINOR(x) & 0x0000000f)
 #define MIDIMKMINOR(u, d)  (((u) & 0x0f) << 4 | ((d) & 0x0f))
-#define MIDIMKDEV(m, u, d) (makedev((m), MIDIMKMINOR((u), (d))))
+#define MIDIMKDEV(m, u, d) (udev2dev(makeudev((m), MIDIMKMINOR((u), (d)))))
 
 /*
  * see if the device is configured
