@@ -75,7 +75,7 @@
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
-#include <i386/isa/if_edreg.h>
+#include <dev/ed/if_edreg.h>
 
 /*
  * ed_softc: per line info and status
@@ -150,7 +150,7 @@ static int ed_probe_Novell	__P((struct isa_device *));
 static int ed_probe_Novell_generic __P((struct ed_softc *, int, int, int));
 static int ed_probe_HP_pclanp	__P((struct isa_device *));
 
-#include "pci.h"
+#define NPCI 0
 #if NPCI > 0
 void *ed_attach_NE2000_pci	__P((int, int));
 #endif
