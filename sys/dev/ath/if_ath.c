@@ -122,6 +122,7 @@ static void	ath_key_update_end(struct ieee80211com *);
 static void	ath_mode_init(struct ath_softc *);
 static void	ath_setslottime(struct ath_softc *);
 static void	ath_updateslot(struct ifnet *);
+static int	ath_beaconq_setup(struct ath_hal *);
 static int	ath_beacon_alloc(struct ath_softc *, struct ieee80211_node *);
 static void	ath_beacon_setup(struct ath_softc *, struct ath_buf *);
 static void	ath_beacon_proc(void *, int);
@@ -379,7 +380,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 *
 	 * XXX PS-Poll
 	 */
-	sc->sc_bhalq = ath_hal_setuptxqueue(ah, HAL_TX_QUEUE_BEACON, NULL);
+	sc->sc_bhalq = ath_beaconq_setup(ah);
 	if (sc->sc_bhalq == (u_int) -1) {
 		if_printf(ifp, "unable to setup a beacon xmit queue!\n");
 		error = EIO;
@@ -1686,6 +1687,22 @@ ath_updateslot(struct ifnet *ifp)
 		sc->sc_updateslot = UPDATE;
 	else
 		ath_setslottime(sc);
+}
+
+/*
+ * Setup a h/w transmit queue for beacons.
+ */
+static int
+ath_beaconq_setup(struct ath_hal *ah)
+{
+	HAL_TXQ_INFO qi;
+
+	memset(&qi, 0, sizeof(qi));
+	qi.tqi_aifs = HAL_TXQ_USEDEFAULT;
+	qi.tqi_cwmin = HAL_TXQ_USEDEFAULT;
+	qi.tqi_cwmax = HAL_TXQ_USEDEFAULT;
+	/* NB: don't enable any interrupts */
+	return ath_hal_setuptxqueue(ah, HAL_TX_QUEUE_BEACON, &qi);
 }
 
 /*
