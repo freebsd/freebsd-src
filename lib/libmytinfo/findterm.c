@@ -47,7 +47,7 @@ int len; {
 		c = getc(f);
 	}
 
-	while(isspace(*(buf-1))) {
+	while(i > 0 && isspace(*(buf-1))) {
 		buf--;
 		i--;
 	}
