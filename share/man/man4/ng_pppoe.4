@@ -164,6 +164,26 @@ This node shuts down upon receipt of a
 control message, when all session have been disconnected or when the
 .Dv ethernet
 hook is disconnected.
+.Sh SYSCTL VARIABLES
+The variable
+.Va net.graph.nonstandard_pppoe
+controls certain aspects of
+.Nm
+operation.
+Its default value of \-1 corresponds to standard mode
+and should suit nearly all purposes.
+A value of 1 will turn on compatibility with some particularly
+broken PPPoE implementations using nonstandard "ethertypes"
+in PPPoE packets.
+When in this mode, your PPPoE node will be unable to communicate
+with standard nodes.
+A value of 0 is deprecated.
+It was intended to turn on autodetection of the proper mode.
+.Bf -emphasis
+It will make your entire PPPoE network vulnerable
+to a denial-of-service attack,
+therefore its use is strongly discouraged.
+.Ef
 .Sh EXAMPLES
 The following code uses
 .Dv libnetgraph
