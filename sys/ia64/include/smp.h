@@ -22,10 +22,10 @@ extern volatile u_int		checkstate_probed_cpus;
 extern volatile u_int		checkstate_need_ast;
 extern volatile u_int		resched_cpus;
 
-void	ipi_selected(u_int cpus, u_int ipi);
-void	ipi_all(u_int ipi);
-void	ipi_all_but_self(u_int ipi);
-void	ipi_self(u_int ipi);
+void	ipi_all(u_int64_t ipi);
+void	ipi_all_but_self(u_int64_t ipi);
+void	ipi_selected(u_int cpus, u_int64_t ipi);
+void	ipi_self(u_int64_t ipi);
 void	smp_init_secondary(void);
 
 #endif /* !LOCORE */
