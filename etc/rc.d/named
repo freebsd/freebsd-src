@@ -71,7 +71,8 @@ named_precmd()
 	fi
 
 	# Create an rndc.key file for the user if none exists
-	if [ ! -f "${named_chrootdir}/etc/namedb/rndc.key" ]; then
+	if [ ! -f "${named_chrootdir}/etc/namedb/rndc.key" -a \
+	    ! -f "${named_chrootdir}/etc/namedb/rndc.conf" ]; then
 		rndc-confgen -a -b256 ${confgen_chroot}
 		chown root:bind "${named_chrootdir}/etc/namedb/rndc.key"
 		chmod 0640 "${named_chrootdir}/etc/namedb/rndc.key"
