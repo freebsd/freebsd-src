@@ -140,7 +140,6 @@ struct mobip_h {
 #define MOB_H_SBIT	0x0080
 
 #define	GRE_TTL	30
-extern int ip_gre_ttl;
 
 /* 
  * ioctls needed to manipulate the interface 
@@ -157,9 +156,6 @@ extern int ip_gre_ttl;
 LIST_HEAD(gre_softc_head, gre_softc);
 extern struct gre_softc_head gre_softc_list;
 
-int	gre_ioctl __P((struct ifnet *, u_long, caddr_t));
-int	gre_output __P((struct ifnet *, struct mbuf *, struct sockaddr *,
-	    struct rtentry *rt));
 u_short	gre_in_cksum(u_short *p, u_int len);
 #endif /* _KERNEL */
 
