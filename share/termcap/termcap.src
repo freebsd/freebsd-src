@@ -2171,6 +2171,7 @@ vt200|vt220|dec-vt220|vt200-js|vt220-js|dec vt200 series with jump scroll:\
 	:ce=\E[K:cl=\E[H\E[J:cd=\E[J:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
 	:so=\E[7m:se=\E[27m:us=\E[4m:ue=\E[24m:\
 	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:\
+	:K1=\EOw:K2=\EOy:K3=\EOu:K4=\EOq:K5=\EOs:kP=\E[5~:kN=\E[6~:\
 	:is=\E>\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h\E[1;24r\E[24;1H:\
 	:rs=\E>\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h:\
 	:tc=vt100:
