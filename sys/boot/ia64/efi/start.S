@@ -82,7 +82,7 @@ ENTRY(_start, 2)
 	;;
 	mov	out0=loc2
 	mov	out1=in1
-	;; 
+	;;
 	br.call.sptk.few rp=_reloc	// relocate image
 	
 	cmp.ne	p6,p0=EFI_SUCCESS,r8	// did it work?
@@ -116,156 +116,186 @@ _start_plabel:
 	.short	(10 << 12) + 8
 	.previous
 
-	// in0:	image base
-	// in1:	system table
-	//
-	// This assumes that the pltrel section immediately follows
-	// the rela section.
+// in0:	image base
+// in1:	system table
+//
+// XXX Assumes PLT relocations are of type Elf_Rela
+//
+// r2 = address of fptr_storage
+// r3 = address of fptr_storage_end
+// r4 = address of first free fptr
+//
+// r15 = r_offset
+// r16 = r_info		-OR-	d_tag
+// r17 = r_addend	-OR-	d_val (=d_ptr)
+// r18 = address of .rela dynamic section
+// r19 = size of .rela section
+// r20 = size of .rela element (Elf_Rela)
+// r21 = address of first PLT relocation
+// r22 = size of PLT relocations
+// r23 = relocation type
+// r24 = address of symbol
+// r28 = R_IA64_IPLTLSB
+// f8 = address of symbol table
+// f9 = size of symtab element
+
 STATIC_ENTRY(_reloc, 2)
-	alloc	loc0=ar.pfs,2,2,2,0
+	alloc	loc0=ar.pfs,2,2,0,0
+	;;
 	mov	loc1=rp
-	;; 
-	movl	r15=@gprel(_DYNAMIC)	// find _DYNAMIC etc.
-	movl	r2=@gprel(fptr_storage)
-	movl	r3=@gprel(fptr_storage_end)
+	movl	r29=@gprel(_DYNAMIC)	// find _DYNAMIC etc.
 	;;
-	add	r15=r15,gp		// relocate _DYNAMIC etc.
-	add	r2=r2,gp
-	add	r3=r3,gp
+	add	r15=r29,gp
+	movl	r29=@gprel(fptr_storage)
+	;;
+	add	r2=r29,gp
+	movl	r29=@gprel(fptr_storage_end)
+	;;
+	add	r3=r29,gp
+	mov	r4=r2
 	mov	r19=0
+	mov	r22=0
+	mov	r20=24
+	mov	r28=R_IA64_IPLTLSB
 	;;
-1:	ld8	r16=[r15],8		// read r15->d_tag
+1:
+	ld8	r16=[r15],8		// read r15->d_tag
 	;;
 	ld8	r17=[r15],8		// and r15->d_val
 	;;
 	cmp.eq	p6,p0=DT_NULL,r16	// done?
 (p6)	br.cond.dpnt.few 2f
-	;; 
-	cmp.eq	p6,p0=DT_RELA,r16
-	;; 
-(p6)	add	r18=r17,in0		// found rela section
-	;; 
-	cmp.eq	p6,p0=DT_RELASZ,r16
-	;; 
-(p6)	add	r19=r17,r19		// found rela size
-	;; 
-	cmp.eq	p6,p0=DT_PLTRELSZ,r16
-	;; 
-(p6)	add	r19=r17,r19		// found pltrel size
-	;; 
-	cmp.eq	p6,p0=DT_SYMTAB,r16
-	;; 
-(p6)	add	r20=r17,in0		// found symbol table
-	;; 
-(p6)	setf.sig f8=r20
-	;; 
-	cmp.eq	p6,p0=DT_SYMENT,r16
-	;; 
-(p6)	setf.sig f9=r17			// found symbol entry size
-	;; 
-	cmp.eq	p6,p0=DT_RELAENT,r16
-	;; 
-(p6)	mov	r22=r17			// found rela entry size
 	;;
-	br.sptk.few 1b
-	
-2:	
-	ld8	r15=[r18],8		// read r_offset
-	;; 
+	cmp.eq	p6,p0=DT_RELA,r16	// rela section?
+	;;
+(p6)	add	r18=r17,in0
+	cmp.eq	p6,p0=DT_RELASZ,r16	// rela section size?
+	;;
+(p6)	mov	r19=r17
+	cmp.eq	p6,p0=DT_RELAENT,r16	// rela entry size?
+	;;
+(p6)	mov	r20=r17
+	cmp.eq	p6,p0=DT_JMPREL,r16	// PLT relocs?
+	;;
+(p6)	add	r21=r17,in0
+	cmp.eq	p6,p0=DT_PLTRELSZ,r16	// PLT relocs size?
+	;;
+(p6)	mov	r22=r17
+	cmp.eq	p6,p0=DT_SYMTAB,r16	// symbol table?
+	;;
+(p6)	add	r29=r17,in0
+	;;
+(p6)	setf.sig f8=r29
+	cmp.eq	p6,p0=DT_SYMENT,r16	// symbol entry size?
+	;;
+(p6)	setf.sig f9=r17
+	br.dptk	1b
+
+2:
+	cmp.lt	p6,p0=0,r19
+(p6)	br.cond.dptk	3f
+	;;
+	mov	r19=r22
+	mov	r18=r21
+	mov	r21=0
+	mov	r22=0
+	;;
+	cmp.lt	p6,p0=0,r19
+(p6)	br.cond.dptk	3f
+	;;
+	mov	r8=EFI_SUCCESS
+	br.dptk	9f
+3:
+	ld8	r29=[r18],8		// read r_offset
+	;;
 	ld8	r16=[r18],8		// read r_info
-	add	r15=r15,in0		// relocate r_offset
+	add	r15=r29,in0		// relocate r_offset
 	;;
 	ld8	r17=[r18],8		// read r_addend
-	sub	r19=r19,r22		// update relasz
-
+	sub	r19=r19,r20		// update relasz
 	extr.u	r23=r16,0,32		// ELF64_R_TYPE(r16)
 	;;
 	cmp.eq	p6,p0=R_IA64_NONE,r23
-(p6)	br.cond.dpnt.few 3f
-	;;
-	cmp.eq	p6,p0=R_IA64_DIR64LSB,r23
-	;;
-(p6)	br.cond.dptk.few 4f
-	;;
-	cmp.eq	p6,p0=R_IA64_FPTR64LSB,r23
-	;;
-(p6)	br.cond.dptk.few 5f
+(p6)	br.cond.dpnt.few 2b
 	;;
 	cmp.eq	p6,p0=R_IA64_REL64LSB,r23
-	;;
 (p6)	br.cond.dptk.few 4f
 	;;
-	mov	r24=R_IA64_IPLTLSB
-	;; 
-	cmp.eq	p6,p0=r24,r23
+	extr.u	r29=r16,32,32		// ELF64_R_SYM(r16)
 	;;
-(p6)	br.cond.dptk.few 5f
-	;;
-
-3:	cmp.ltu	p6,p0=0,r19		// more?
-(p6)	br.cond.dptk.few 2b		// loop
-	
-	mov	r8=EFI_SUCCESS		// success return value
-	;;
-	br.cond.sptk.few 9f		// done
-
-4:					// DIR64LSB or REL64LSB
-	ld8	r16=[r15]		// read value
-	;;
-	add	r16=r16,in0		// relocate it
-	;;
-	st8	[r15]=r16		// and store it back
-	br.cond.sptk.few 3b
-
-5:					// FPTR64LSB or IPLTLSB
-	extr.u	r24=r16,32,32		// ELF64_R_SYM(r16)
-	;; 
-	setf.sig f10=r24		// so we can multiply
+	setf.sig f10=r29		// so we can multiply
 	;;
 	xma.lu	f10=f10,f9,f8		// f10=symtab + r_sym*syment
 	;;
-	getf.sig r16=f10
+	getf.sig r29=f10
 	;;
-	mov	r24=R_IA64_IPLTLSB
-	;; 
-	cmp.ne	p6,p0=r24,r23		// IPLTLSB doesn't need an @fptr
-(p6)	br.cond.sptk.few 6f
+	add	r29=8,r29		// address of st_value
 	;;
-	add	r16=8,r16		// address of st_value
+	ld8	r29=[r29]		// read symbol value
 	;;
-	ld8	r16=[r16]		// read symbol value
-	;; 
-	add	r16=r16,in0		// relocate symbol value
+	add	r24=r29,in0		// relocate symbol value
 	;;
-	st8	[r15]=r16,8		// update plt target
+	cmp.eq	p6,p0=R_IA64_DIR64LSB,r23
+(p6)	br.cond.dptk.few 5f
 	;;
-	st8	[r15]=gp		// and gp
-	br.cond.sptk.few 3b
-	;; 
-6:	
-	mov	r8=EFI_BUFFER_TOO_SMALL	// failure return value
+	cmp.eq	p6,p0=R_IA64_FPTR64LSB,r23
+(p6)	br.cond.dptk.few 6f
 	;;
-	cmp.geu	p6,p0=r2,r3		// space left?
-(p6)	br.cond.dpnt.few 9f		// bail out
+	cmp.ne	p6,p0=r28,r23		// IPLTLSB
+(p6)	br.cond.dptk.few 2b
 
-	st8	[r15]=r2		// install fptr
-	add	r16=8,r16		// address of st_value
+	// IPLTLSB
+	add	r29=r24,r17		// S + A
 	;;
-	ld8	r16=[r16]		// read symbol value
+	st8	[r15]=r29,8		// fdesc:FP
 	;;
-	add	r16=r16,in0		// relocate symbol value
+	st8	[r15]=gp		// fdesc:GP
+	br.cond.sptk.few 2b
+
+	// REL64LSB
+4:
+	add	r29=in0,r17		// BD + A
 	;;
-	st8	[r2]=r16,8		// write fptr address
+	st8	[r15]=r29		// word64
+	br.cond.sptk.few 2b
+
+	// DIR64LSB
+5:
+	add	r29=r24,r17		// S + A
 	;;
-	st8	[r2]=gp,8		// write fptr gp
-	br.cond.sptk.few 3b
+	st8	[r15]=r29		// word64
+	br.cond.sptk.few 2b
+
+6:
+	mov	r29=r2			// FPTR64LSB
+	;;
+7:
+	cmp.geu	p6,p0=r29,r4		// end of fptrs?
+(p6)	br.cond.dpnt.few 8f		// can't find existing fptr
+	ld8	r17=[r29]		// read function from fptr
+	;;
+	cmp.eq	p6,p0=r24,r17		// same function?
+	;;
+(p6)	st8	[r15]=r29		// reuse fptr
+(p6)	br.cond.sptk.few 2b		// done
+	add	r29=16,r29		// next fptr
+	br.sptk.few 7b
+8:
+	mov	r8=EFI_BUFFER_TOO_SMALL	// failure return value
+	cmp.geu	p6,p0=r4,r3		// space left?
+(p6)	br.cond.dpnt.few 9f		// bail out
+	st8	[r15]=r4		// install fptr
+	;;
+	st8	[r4]=r24,8		// write fptr address
+	;;
+	st8	[r4]=gp,8		// write fptr gp
+	br.cond.sptk.few 2b
 
 9:
 	mov	ar.pfs=loc0
 	mov	rp=loc1
 	;;
 	br.ret.sptk.few rp
-
 END(_reloc)
 
 	// in0:	system table
@@ -314,7 +344,7 @@ ENTRY(_puts, 2)
 	mov	out0=in0
 	;;
 1:	ld1	out1=[in1],1
-	;; 
+	;;
 	cmp.eq	p6,p0=r0,out1
 (p6)	br.cond.dpnt.few 9f
 	;;
