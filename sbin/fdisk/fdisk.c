@@ -164,14 +164,17 @@ struct part_type
 	,{0x01, "Primary DOS with 12 bit FAT"}
 	,{0x02, "XENIX / filesystem"}
 	,{0x03, "XENIX /usr filesystem"}
-	,{0x04, "Primary DOS with 16 bit FAT"}
+	,{0x04, "Primary DOS with 16 bit FAT (<= 32MB)"}
 	,{0x05, "Extended DOS"}
 	,{0x06, "Primary 'big' DOS (> 32MB)"}
 	,{0x07, "OS/2 HPFS, QNX or Advanced UNIX"}
 	,{0x08, "AIX filesystem"}
 	,{0x09, "AIX boot partition or Coherent"}
 	,{0x0A, "OS/2 Boot Manager or OPUS"}
-	,{0x0B, "Primary DOS or Windows 95 with 32 bit FAT"}
+	,{0x0B, "DOS or Windows 95 with 32 bit FAT"}
+	,{0x0C, "DOS or Windows 95 with 32 bit FAT, LBA"}
+	,{0x0E, "Primary 'big' DOS (> 32MB, LBA)"}
+	,{0x0F, "Extended DOS, LBA"}
 	,{0x10, "OPUS"}
 	,{0x40, "VENIX 286"}
 	,{0x50, "DM"}
