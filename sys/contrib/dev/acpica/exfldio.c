@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: amfldio - Aml Field I/O
- *              $Revision: 32 $
+ *              $Revision: 33 $
  *
  *****************************************************************************/
 
@@ -9,8 +9,8 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, Intel Corp.  All rights
- * reserved.
+ * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * All rights reserved.
  *
  * 2. License
  *
@@ -193,7 +193,7 @@ AcpiAmlReadFieldData (
 
     DEBUG_PRINT (TRACE_OPREGION,
         ("AmlReadFieldData: Region %s(%X) at %08lx width %X\n",
-        AcpiCmGetRegionName (RgnDesc->Region.SpaceId), 
+        AcpiCmGetRegionName (RgnDesc->Region.SpaceId),
         RgnDesc->Region.SpaceId, Address,
         FieldBitWidth));
 
@@ -207,7 +207,7 @@ AcpiAmlReadFieldData (
     {
         DEBUG_PRINT (ACPI_ERROR,
             ("AmlReadFieldData: **** Region %s(%X) not implemented\n",
-            AcpiCmGetRegionName (RgnDesc->Region.SpaceId), 
+            AcpiCmGetRegionName (RgnDesc->Region.SpaceId),
             RgnDesc->Region.SpaceId));
     }
 
@@ -215,7 +215,7 @@ AcpiAmlReadFieldData (
     {
         DEBUG_PRINT (ACPI_ERROR,
             ("AmlReadFieldData: **** Region %s(%X) has no handler\n",
-            AcpiCmGetRegionName (RgnDesc->Region.SpaceId), 
+            AcpiCmGetRegionName (RgnDesc->Region.SpaceId),
             RgnDesc->Region.SpaceId));
     }
 
@@ -487,7 +487,7 @@ AcpiAmlWriteFieldData (
 
     DEBUG_PRINT (TRACE_OPREGION,
         ("AmlWriteField: Store %lx in Region %s(%X) at %p width %X\n",
-        Value, AcpiCmGetRegionName (RgnDesc->Region.SpaceId), 
+        Value, AcpiCmGetRegionName (RgnDesc->Region.SpaceId),
         RgnDesc->Region.SpaceId, Address,
         FieldBitWidth));
 

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: amutils - interpreter/scanner utilities
- *              $Revision: 64 $
+ *              $Revision: 66 $
  *
  *****************************************************************************/
 
@@ -10,8 +10,8 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, Intel Corp.  All rights
- * reserved.
+ * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * All rights reserved.
  *
  * 2. License
  *
@@ -264,7 +264,7 @@ AcpiAmlTruncateFor32bitTable (
          * We are running a method that exists in a 32-bit ACPI table.
          * Truncate the value to 32 bits by zeroing out the upper 32-bit field
          */
-        ObjDesc->Number.Value &= (UINT64) ACPI_UINT32_MAX;
+        ObjDesc->Number.Value &= (ACPI_INTEGER) ACPI_UINT32_MAX;
     }
 }
 

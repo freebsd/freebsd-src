@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: amcreate - Named object creation
- *              $Revision: 51 $
+ *              $Revision: 52 $
  *
  *****************************************************************************/
 
@@ -9,8 +9,8 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, Intel Corp.  All rights
- * reserved.
+ * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * All rights reserved.
  *
  * 2. License
  *
@@ -531,8 +531,8 @@ AcpiAmlExecCreateRegion (
     FUNCTION_TRACE ("AmlExecCreateRegion");
 
 
-    /* 
-     * Space ID must be one of the predefined IDs, or in the user-defined 
+    /*
+     * Space ID must be one of the predefined IDs, or in the user-defined
      * range
      */
     if ((RegionSpace >= NUM_REGION_TYPES) &&

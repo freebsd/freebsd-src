@@ -3,7 +3,7 @@
  *
  * Module Name: hwregs - Read/write access functions for the various ACPI
  *                       control and status registers.
- *              $Revision: 84 $
+ *              $Revision: 86 $
  *
  ******************************************************************************/
 
@@ -11,8 +11,8 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, Intel Corp.  All rights
- * reserved.
+ * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * All rights reserved.
  *
  * 2. License
  *
@@ -186,7 +186,7 @@ AcpiHwClearAcpiStatus (void)
 
     DEBUG_PRINT (TRACE_IO, ("About to write %04X to %04X\n",
                     ALL_FIXED_STS_BITS,
-                    (UINT16) AcpiGbl_FADT->XPm1aEvtBlk.Address));
+                    (UINT16) ACPI_GET_ADDRESS (AcpiGbl_FADT->XPm1aEvtBlk.Address)));
 
 
     AcpiCmAcquireMutex (ACPI_MTX_HARDWARE);
@@ -194,9 +194,9 @@ AcpiHwClearAcpiStatus (void)
     AcpiHwRegisterWrite (ACPI_MTX_DO_NOT_LOCK, PM1_STS, ALL_FIXED_STS_BITS);
 
 
-    if (AcpiGbl_FADT->XPm1bEvtBlk.Address)
+    if (ACPI_VALID_ADDRESS (AcpiGbl_FADT->XPm1bEvtBlk.Address))
     {
-        AcpiOsOut16 ((ACPI_IO_ADDRESS) AcpiGbl_FADT->XPm1bEvtBlk.Address,
+        AcpiOsOut16 ((ACPI_IO_ADDRESS) ACPI_GET_ADDRESS (AcpiGbl_FADT->XPm1bEvtBlk.Address),
                         (UINT16) ALL_FIXED_STS_BITS);
     }
 
@@ -208,7 +208,7 @@ AcpiHwClearAcpiStatus (void)
 
         for (Index = 0; Index < GpeLength; Index++)
         {
-            AcpiOsOut8 ((ACPI_IO_ADDRESS) (AcpiGbl_FADT->XGpe0Blk.Address + Index),
+            AcpiOsOut8 ((ACPI_IO_ADDRESS) (ACPI_GET_ADDRESS (AcpiGbl_FADT->XGpe0Blk.Address) + Index),
                             (UINT8) 0xff);
         }
     }
@@ -219,7 +219,7 @@ AcpiHwClearAcpiStatus (void)
 
         for (Index = 0; Index < GpeLength; Index++)
         {
-            AcpiOsOut8 ((ACPI_IO_ADDRESS) (AcpiGbl_FADT->XGpe1Blk.Address + Index),
+            AcpiOsOut8 ((ACPI_IO_ADDRESS) (ACPI_GET_ADDRESS (AcpiGbl_FADT->XGpe1Blk.Address) + Index),
                             (UINT8) 0xff);
         }
     }
@@ -574,7 +574,7 @@ AcpiHwRegisterBitAccess (
         RegisterValue = AcpiHwRegisterRead (ACPI_MTX_DO_NOT_LOCK, PM2_CONTROL);
 
         DEBUG_PRINT (TRACE_IO, ("PM2 control: Read %X from %p\n",
-                        RegisterValue, AcpiGbl_FADT->XPm2CntBlk.Address));
+                        RegisterValue, ACPI_GET_ADDRESS (AcpiGbl_FADT->XPm2CntBlk.Address)));
 
         if (ReadWrite == ACPI_WRITE)
         {
@@ -599,7 +599,7 @@ AcpiHwRegisterBitAccess (
         RegisterValue = AcpiHwRegisterRead (ACPI_MTX_DO_NOT_LOCK,
                                             PM_TIMER);
         DEBUG_PRINT (TRACE_IO, ("PM_TIMER: Read %X from %p\n",
-                        RegisterValue, AcpiGbl_FADT->XPmTmrBlk.Address));
+                        RegisterValue, ACPI_GET_ADDRESS (AcpiGbl_FADT->XPmTmrBlk.Address)));
 
         break;
 
@@ -980,7 +980,7 @@ AcpiHwLowLevelRead (
      * a non-zero address within
      */
     if ((!Reg) ||
-        (!Reg->Address))
+        (!ACPI_VALID_ADDRESS (Reg->Address)))
     {
         return 0;
     }
@@ -995,7 +995,7 @@ AcpiHwLowLevelRead (
     {
     case ADDRESS_SPACE_SYSTEM_MEMORY:
 
-        MemAddress = (ACPI_PHYSICAL_ADDRESS) Reg->Address + Offset;
+        MemAddress = (ACPI_PHYSICAL_ADDRESS) (ACPI_GET_ADDRESS (Reg->Address) + Offset);
 
         switch (Width)
         {
@@ -1014,7 +1014,7 @@ AcpiHwLowLevelRead (
 
     case ADDRESS_SPACE_SYSTEM_IO:
 
-        IoAddress = (ACPI_IO_ADDRESS) Reg->Address + Offset;
+        IoAddress = (ACPI_IO_ADDRESS) (ACPI_GET_ADDRESS (Reg->Address) + Offset);
 
         switch (Width)
         {
@@ -1033,8 +1033,8 @@ AcpiHwLowLevelRead (
 
     case ADDRESS_SPACE_PCI_CONFIG:
 
-        PciDevFunc  = ACPI_PCI_DEVFUN   (Reg->Address);
-        PciRegister = ACPI_PCI_REGISTER (Reg->Address) + Offset;
+        PciDevFunc  = ACPI_PCI_DEVFUN   (ACPI_GET_ADDRESS (Reg->Address));
+        PciRegister = ACPI_PCI_REGISTER (ACPI_GET_ADDRESS (Reg->Address)) + Offset;
 
         switch (Width)
         {
@@ -1089,7 +1089,7 @@ AcpiHwLowLevelWrite (
      * a non-zero address within
      */
     if ((!Reg) ||
-        (!Reg->Address))
+        (!ACPI_VALID_ADDRESS (Reg->Address)))
     {
         return;
     }
@@ -1104,7 +1104,7 @@ AcpiHwLowLevelWrite (
     {
     case ADDRESS_SPACE_SYSTEM_MEMORY:
 
-        MemAddress = (ACPI_PHYSICAL_ADDRESS) Reg->Address + Offset;
+        MemAddress = (ACPI_PHYSICAL_ADDRESS) (ACPI_GET_ADDRESS (Reg->Address) + Offset);
 
         switch (Width)
         {
@@ -1123,7 +1123,7 @@ AcpiHwLowLevelWrite (
 
     case ADDRESS_SPACE_SYSTEM_IO:
 
-        IoAddress = (ACPI_IO_ADDRESS) Reg->Address + Offset;
+        IoAddress = (ACPI_IO_ADDRESS) (ACPI_GET_ADDRESS (Reg->Address) + Offset);
 
         switch (Width)
         {
@@ -1142,8 +1142,8 @@ AcpiHwLowLevelWrite (
 
     case ADDRESS_SPACE_PCI_CONFIG:
 
-        PciDevFunc  = ACPI_PCI_DEVFUN   (Reg->Address);
-        PciRegister = ACPI_PCI_REGISTER (Reg->Address) + Offset;
+        PciDevFunc  = ACPI_PCI_DEVFUN   (ACPI_GET_ADDRESS (Reg->Address));
+        PciRegister = ACPI_PCI_REGISTER (ACPI_GET_ADDRESS (Reg->Address)) + Offset;
 
         switch (Width)
         {

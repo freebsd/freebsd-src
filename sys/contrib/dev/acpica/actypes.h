@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actypes.h - Common data types for the entire ACPI subsystem
- *       $Revision: 155 $
+ *       $Revision: 159 $
  *
  *****************************************************************************/
 
@@ -9,8 +9,8 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, Intel Corp.  All rights
- * reserved.
+ * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * All rights reserved.
  *
  * 2. License
  *
@@ -176,12 +176,19 @@ typedef long                            INT32;
 typedef int                             INT16;
 typedef unsigned long                   UINT32;
 
+typedef struct 
+{
+    UINT32                                  Lo;
+    UINT32                                  Hi;
+
+} UINT64;
+
 typedef UINT16                          NATIVE_UINT;
 typedef INT16                           NATIVE_INT;
 
 typedef UINT32                          ACPI_TBLPTR;
 typedef UINT32                          ACPI_IO_ADDRESS;
-typedef UINT32                          ACPI_PHYSICAL_ADDRESS;
+typedef void                            *ACPI_PHYSICAL_ADDRESS;
 
 #define ALIGNED_ADDRESS_BOUNDARY        0x00000002
 #define _HW_ALIGNMENT_SUPPORT
@@ -288,19 +295,23 @@ typedef void*                           ACPI_HANDLE;    /* Actually a ptr to an 
  */
 #ifdef ACPI_NO_INTEGER64_SUPPORT
 
-/* 32-bit Integers */
+/* 32-bit integers only, no 64-bit support */
 
 typedef UINT32                          ACPI_INTEGER;
-#define ACPI_INTEGER_MAX                ACPI_UINT32_MAX;
+#define ACPI_INTEGER_MAX                ACPI_UINT32_MAX
 #define ACPI_INTEGER_BIT_SIZE           32
+#define ACPI_MAX_BCD_VALUE              99999999
+#define ACPI_MAX_BCD_DIGITS             8
 
 #else
 
-/* 64-bit Integers */
+/* 64-bit integers */
 
 typedef UINT64                          ACPI_INTEGER;
-#define ACPI_INTEGER_MAX                ACPI_UINT64_MAX;
+#define ACPI_INTEGER_MAX                ACPI_UINT64_MAX
 #define ACPI_INTEGER_BIT_SIZE           64
+#define ACPI_MAX_BCD_VALUE              9999999999999999
+#define ACPI_MAX_BCD_DIGITS             16
 
 #endif
 
@@ -767,7 +778,7 @@ typedef struct
 
 typedef struct
 {
-    UINT64                      MappedPhysicalAddress;
+    ACPI_PHYSICAL_ADDRESS       MappedPhysicalAddress;
     UINT8                       *MappedLogicalAddress;
     UINT32                      MappedLength;
 } MEM_HANDLER_CONTEXT;
