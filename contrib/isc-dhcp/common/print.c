@@ -42,7 +42,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: print.c,v 1.16.2.1 1998/06/25 21:11:31 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: print.c,v 1.16.2.2 1998/11/24 22:39:35 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -76,26 +76,26 @@ void print_lease (lease)
 	struct tm *t;
 	char tbuf [32];
 
-	debug ("  Lease %s",
+	debug ("      Lease %s",
 	       piaddr (lease -> ip_addr));
 	
 	t = gmtime (&lease -> starts);
 	strftime (tbuf, sizeof tbuf, "%D %H:%M:%S", t);
-	debug ("  start %s", tbuf);
+	debug ("        start %s", tbuf);
 	
 	t = gmtime (&lease -> ends);
 	strftime (tbuf, sizeof tbuf, "%D %H:%M:%S", t);
-	debug ("  end %s", tbuf);
+	debug ("        end %s", tbuf);
 	
 	t = gmtime (&lease -> timestamp);
 	strftime (tbuf, sizeof tbuf, "%D %H:%M:%S", t);
-	debug ("  stamp %s", tbuf);
+	debug ("        stamp %s", tbuf);
 	
-	debug ("    hardware addr = %s",
+	debug ("        hardware addr = %s",
 	       print_hw_addr (lease -> hardware_addr.htype,
 			       lease -> hardware_addr.hlen,
 			       lease -> hardware_addr.haddr));
-	debug ("  host %s  ",
+	debug ("        host %s  ",
 	       lease -> host ? lease -> host -> name : "<none>");
 }	
 

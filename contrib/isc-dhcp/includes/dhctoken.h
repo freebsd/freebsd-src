@@ -3,8 +3,8 @@
    Tokens for config file lexer and parser. */
 
 /*
- * Copyright (c) 1995, 1996, 1997 The Internet Software Consortium.
- * All rights reserved.
+ * Copyright (c) 1995, 1996, 1997, 1998, 1999
+ * The Internet Software Consortium.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -124,6 +124,10 @@
 #define HOSTNAME	328
 #define CLIENT_HOSTNAME	329
 #define REJECT		330
+#define FDDI		331
+#define USE_LEASE_ADDR_FOR_DEFAULT_ROUTE 332
+#define AUTHORITATIVE	333
+#define TOKEN_NOT	334
 
 #define is_identifier(x)	((x) >= FIRST_TOKEN &&	\
 				 (x) != STRING &&	\

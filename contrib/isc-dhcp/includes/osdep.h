@@ -51,6 +51,9 @@
     !defined (USE_BPF) && \
     !defined (USE_BPF_SEND) && \
     !defined (USE_BPF_RECEIVE) && \
+    !defined (USE_LPF) && \
+    !defined (USE_LPF_SEND) && \
+    !defined (USE_LPF_RECEIVE) && \
     !defined (USE_NIT) && \
     !defined (USE_NIT_SEND) && \
     !defined (USE_NIT_RECEIVE) && \
@@ -141,6 +144,11 @@
 #  define USE_BPF_RECEIVE
 #endif
 
+#ifdef USE_LPF
+#  define USE_LPF_SEND
+#  define USE_LPF_RECEIVE
+#endif
+
 #ifdef USE_NIT
 #  define USE_NIT_SEND
 #  define USE_NIT_RECEIVE
@@ -165,7 +173,7 @@
    fallback. */
 
 #if defined (USE_BPF_SEND) || defined (USE_NIT_SEND) || \
-    defined (USE_DLPI_SEND) || defined (USE_UPF_SEND)
+    defined (USE_DLPI_SEND) || defined (USE_UPF_SEND) || defined (USE_LPF_SEND)
 #  define USE_SOCKET_FALLBACK
 #  define USE_FALLBACK
 #endif
@@ -178,7 +186,7 @@
 
 #if defined (USE_RAW_SEND) || defined (USE_BPF_SEND) || \
 		defined (USE_NIT_SEND) || defined (USE_UPF_SEND) || \
-		defined (USE_DLPI_SEND)
+		defined (USE_DLPI_SEND) || defined (USE_LPF_SEND)
 #  define PACKET_ASSEMBLY
 #endif
 
@@ -190,7 +198,7 @@
 
 #if defined (USE_RAW_RECEIVE) || defined (USE_BPF_SEND) || \
 		defined (USE_NIT_RECEIVE) || defined (USE_UPF_RECEIVE) || \
-		defined (USE_DLPI_RECEIVE)
+		defined (USE_DLPI_RECEIVE) || defined (USE_LPF_RECEIVE)
 #  define PACKET_DECODING
 #endif
 

@@ -1,10 +1,11 @@
-/* upf.c
+/* lpf.c
 
-   Ultrix PacketFilter interface code.
+   Linux packet filter code, contributed by Brian Murrel at Interlinx
+   Support Services in Vancouver, B.C. */
 
 /*
- * Copyright (c) 1995, 1996, 1997 The Internet Software Consortium.
- * All rights reserved.
+ * Copyright (c) 1995, 1996, 1998, 1999
+ * The Internet Software Consortium.    All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -42,15 +43,17 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: upf.c,v 1.3.2.1 1998/12/20 18:29:48 mellon Exp $ Copyright (c) 1995, 1996 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: lpf.c,v 1.1.2.4 1999/02/09 04:51:05 mellon Exp $ Copyright (c) 1995, 1996, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
-#if defined (USE_UPF_SEND) || defined (USE_UPF_RECEIVE)
+#if defined (USE_LPF_SEND) || defined (USE_LPF_RECEIVE)
 #include <sys/ioctl.h>
 #include <sys/uio.h>
 
-#include <net/pfilt.h>
+#include <asm/types.h>
+#include <linux/filter.h>
+#include <linux/if_ether.h>
 #include <netinet/in_systm.h>
 #include "includes/netinet/ip.h"
 #include "includes/netinet/udp.h"
@@ -59,14 +62,14 @@ static char copyright[] =
 /* Reinitializes the specified interface after an address change.   This
    is not required for packet-filter APIs. */
 
-#ifdef USE_UPF_SEND
+#ifdef USE_LPF_SEND
 void if_reinitialize_send (info)
 	struct interface_info *info;
 {
 }
 #endif
 
-#ifdef USE_UPF_RECEIVE
+#ifdef USE_LPF_RECEIVE
 void if_reinitialize_receive (info)
 	struct interface_info *info;
 {
@@ -77,73 +80,56 @@ void if_reinitialize_receive (info)
    Opens a packet filter for each interface and adds it to the select
    mask. */
 
-int if_register_upf (info)
+int if_register_lpf (info)
 	struct interface_info *info;
 {
 	int sock;
 	char filename[50];
 	int b;
-	struct endevp param;
+	struct sockaddr sa;
 
-	/* Open a UPF device */
-	for (b = 0; 1; b++) {
-#ifndef NO_SNPRINTF
-		snprintf(filename, sizeof(filename), "/dev/pf/pfilt%d", b);
-#else
-		sprintf(filename, "/dev/pf/pfilt%d", b);
-#endif
-		sock = open (filename, O_RDWR, 0);
-		if (sock < 0) {
-			if (errno == EBUSY) {
-				continue;
-			} else {
-				error ("Can't find free upf: %m");
-			}
-		} else {
-			break;
-		}
+	/* Make an LPF socket. */
+	if ((sock = socket(PF_PACKET, SOCK_PACKET, htons(ETH_P_ALL))) < 0) {
+		if (errno == ENOPROTOOPT || errno == EPROTONOSUPPORT ||
+		    errno == ESOCKTNOSUPPORT || errno == EPFNOSUPPORT ||
+		    errno == EAFNOSUPPORT)
+			error ("socket: %m - make sure %s %s!",
+			       "CONFIG_PACKET and CONFIG_FILTER are defined",
+			       "in your kernel configuration");
+		error("Open a socket for LPF: %m");
 	}
 
-	/* Set the UPF device to point at this interface. */
-	if (ioctl (sock, EIOCSETIF, info -> ifp) < 0)
-		error ("Can't attach interface %s to upf device %s: %m",
-		       info -> name, filename);
-
-	/* Get the hardware address. */
-	if (ioctl (sock, EIOCDEVP, &param) < 0)
-		error ("Can't get interface %s hardware address: %m",
-		       info -> name);
-
-	/* We only know how to do ethernet. */
-	if (param.end_dev_type != ENDT_10MB)	
-		error ("Invalid device type on network interface %s: %d",
-		       info -> name, param.end_dev_type);
-
-	if (param.end_addr_len != 6)
-		error ("Invalid hardware address length on %s: %d",
-		       info -> name, param.end_addr_len);
-
-	info -> hw_address.hlen = 6;
-	info -> hw_address.htype = ARPHRD_ETHER;
-	memcpy (&info -> hw_address.haddr [0], param.end_addr, 6);
+	/* Bind to the interface name */
+	memset (&sa, 0, sizeof sa);
+	sa.sa_family = AF_PACKET;
+	strncpy (sa.sa_data, (const char *)info -> ifp, sizeof sa.sa_data);
+	if (bind (sock, &sa, sizeof sa)) {
+		if (errno == ENOPROTOOPT || errno == EPROTONOSUPPORT ||
+		    errno == ESOCKTNOSUPPORT || errno == EPFNOSUPPORT ||
+		    errno == EAFNOSUPPORT)
+			error ("socket: %m - make sure %s %s!",
+			       "CONFIG_PACKET and CONFIG_FILTER are defined",
+			       "in your kernel configuration");
+		error("Bind socket to interface: %m");
+	}
 
 	return sock;
 }
-#endif /* USE_UPF_SEND || USE_UPF_RECEIVE */
+#endif /* USE_LPF_SEND || USE_LPF_RECEIVE */
 
-#ifdef USE_UPF_SEND
+#ifdef USE_LPF_SEND
 void if_register_send (info)
 	struct interface_info *info;
 {
-	/* If we're using the upf API for sending and receiving,
+	/* If we're using the lpf API for sending and receiving,
 	   we don't need to register this interface twice. */
-#ifndef USE_UPF_RECEIVE
-	info -> wfdesc = if_register_upf (info, interface);
+#ifndef USE_LPF_RECEIVE
+	info -> wfdesc = if_register_lpf (info, interface);
 #else
 	info -> wfdesc = info -> rfdesc;
 #endif
-        if (!quiet_interface_discovery)
-		note ("Sending on   UPF/%s/%s/%s",
+	if (!quiet_interface_discovery)
+		note ("Sending on   LPF/%s/%s/%s",
 		      info -> name,
 		      print_hw_addr (info -> hw_address.htype,
 				     info -> hw_address.hlen,
@@ -151,64 +137,44 @@ void if_register_send (info)
 		      (info -> shared_network ?
 		       info -> shared_network -> name : "unattached"));
 }
-#endif /* USE_UPF_SEND */
+#endif /* USE_LPF_SEND */
 
-#ifdef USE_UPF_RECEIVE
-/* Packet filter program...
-   XXX Changes to the filter program may require changes to the constant
-   offsets used in if_register_send to patch the UPF program! XXX */
-
+#ifdef USE_LPF_RECEIVE
+/* Defined in bpf.c.   We can't extern these in dhcpd.h without pulling
+   in bpf includes... */
+extern struct sock_filter dhcp_bpf_filter [];
+extern int dhcp_bpf_filter_len;
 
 void if_register_receive (info)
 	struct interface_info *info;
 {
-	int flag = 1;
-	u_int32_t addr;
-	struct enfilter pf;
-	u_int32_t bits;
+	struct sock_fprog p;
 
-	/* Open a UPF device and hang it on this interface... */
-	info -> rfdesc = if_register_upf (info);
+	/* Open a LPF device and hang it on this interface... */
+	info -> rfdesc = if_register_lpf (info);
 
-	/* Allow the copyall flag to be set... */
-	if (ioctl(info -> rfdesc, EIOCALLOWCOPYALL, &flag) < 0)
-		error ("Can't set ALLOWCOPYALL: %m");
+	/* Set up the bpf filter program structure.    This is defined in
+	   bpf.c */
+	p.len = dhcp_bpf_filter_len;
+	p.filter = dhcp_bpf_filter;
 
-	/* Clear all the packet filter mode bits first... */
-	flag = (ENHOLDSIG | ENBATCH | ENTSTAMP | ENPROMISC |
-		ENNONEXCL | ENCOPYALL);
-	if (ioctl (info -> rfdesc, EIOCMBIC, &flag) < 0)
-		error ("Can't clear pfilt bits: %m");
+        /* Patch the server port into the LPF  program...
+	   XXX changes to filter program may require changes
+	   to the insn number(s) used below! XXX */
+	dhcp_bpf_filter [8].k = ntohs (local_port);
 
-	/* Set the ENBATCH and ENCOPYALL bits... */
-	bits = ENBATCH | ENCOPYALL;
-	if (ioctl (info -> rfdesc, EIOCMBIS, &bits) < 0)
-		error ("Can't set ENBATCH|ENCOPYALL: %m");
-
-	/* Set up the UPF filter program. */
-	/* XXX Unlike the BPF filter program, this one won't work if the
-	   XXX IP packet is fragmented or if there are options on the IP
-	   XXX header. */
-	pf.enf_Priority = 0;
-	pf.enf_FilterLen = 0;
-
-	pf.enf_Filter [pf.enf_FilterLen++] = ENF_PUSHWORD + 6;
-	pf.enf_Filter [pf.enf_FilterLen++] = ENF_PUSHLIT + ENF_CAND;
-	pf.enf_Filter [pf.enf_FilterLen++] = htons (ETHERTYPE_IP);
-	pf.enf_Filter [pf.enf_FilterLen++] = ENF_PUSHLIT;
-	pf.enf_Filter [pf.enf_FilterLen++] = htons (IPPROTO_UDP);
-	pf.enf_Filter [pf.enf_FilterLen++] = ENF_PUSHWORD + 11;
-	pf.enf_Filter [pf.enf_FilterLen++] = ENF_PUSHLIT + ENF_AND;
-	pf.enf_Filter [pf.enf_FilterLen++] = htons (0xFF);
-	pf.enf_Filter [pf.enf_FilterLen++] = ENF_CAND;
-	pf.enf_Filter [pf.enf_FilterLen++] = ENF_PUSHWORD + 18;
-	pf.enf_Filter [pf.enf_FilterLen++] = ENF_PUSHLIT + ENF_CAND;
-	pf.enf_Filter [pf.enf_FilterLen++] = local_port;
-
-	if (ioctl (info -> rfdesc, EIOCSETF, &pf) < 0)
+	if (setsockopt (info -> rfdesc, SOL_SOCKET, SO_ATTACH_FILTER, &p,
+			sizeof p) < 0) {
+		if (errno == ENOPROTOOPT || errno == EPROTONOSUPPORT ||
+		    errno == ESOCKTNOSUPPORT || errno == EPFNOSUPPORT ||
+		    errno == EAFNOSUPPORT)
+			error ("socket: %m - make sure %s %s!",
+			       "CONFIG_PACKET and CONFIG_FILTER are defined",
+			       "in your kernel configuration");
 		error ("Can't install packet filter program: %m");
-        if (!quiet_interface_discovery)
-		note ("Listening on UPF/%s/%s/%s",
+	}
+	if (!quiet_interface_discovery)
+		note ("Listening on LPF/%s/%s/%s",
 		      info -> name,
 		      print_hw_addr (info -> hw_address.htype,
 				     info -> hw_address.hlen,
@@ -216,9 +182,9 @@ void if_register_receive (info)
 		      (info -> shared_network ?
 		       info -> shared_network -> name : "unattached"));
 }
-#endif /* USE_UPF_RECEIVE */
+#endif /* USE_LPF_RECEIVE */
 
-#ifdef USE_UPF_SEND
+#ifdef USE_LPF_SEND
 ssize_t send_packet (interface, packet, raw, len, from, to, hto)
 	struct interface_info *interface;
 	struct packet *packet;
@@ -229,8 +195,8 @@ ssize_t send_packet (interface, packet, raw, len, from, to, hto)
 	struct hardware *hto;
 {
 	int bufp = 0;
-	unsigned char buf [256];
-	struct iovec iov [2];
+	unsigned char buf [1500];
+	struct sockaddr sa;
 
 	if (!strcmp (interface -> name, "fallback"))
 		return send_fallback (interface, packet, raw,
@@ -241,18 +207,21 @@ ssize_t send_packet (interface, packet, raw, len, from, to, hto)
 	assemble_udp_ip_header (interface, buf, &bufp, from.s_addr,
 				to -> sin_addr.s_addr, to -> sin_port,
 				(unsigned char *)raw, len);
+	memcpy (buf + bufp, raw, len);
 
-	/* Fire it off */
-	iov [0].iov_base = (char *)buf;
-	iov [0].iov_len = bufp;
-	iov [1].iov_base = (char *)raw;
-	iov [1].iov_len = len;
+	/* For some reason, SOCK_PACKET sockets can't be connected,
+	   so we have to do a sentdo every time. */
+	memset (&sa, 0, sizeof sa);
+	sa.sa_family = AF_PACKET;
+	strncpy (sa.sa_data,
+		 (const char *)interface -> ifp, sizeof sa.sa_data);
 
-	return writev(interface -> wfdesc, iov, 2);
+	return sendto (interface -> wfdesc, buf, bufp + len, 0,
+		       &sa, sizeof sa);
 }
-#endif /* USE_UPF_SEND */
+#endif /* USE_LPF_SEND */
 
-#ifdef USE_UPF_RECEIVE
+#ifdef USE_LPF_RECEIVE
 ssize_t receive_packet (interface, buf, len, from, hfrom)
 	struct interface_info *interface;
 	unsigned char *buf;
@@ -263,14 +232,14 @@ ssize_t receive_packet (interface, buf, len, from, hfrom)
 	int nread;
 	int length = 0;
 	int offset = 0;
-	unsigned char ibuf [1500 + sizeof (struct enstamp)];
+	unsigned char ibuf [1500];
 	int bufix = 0;
 
 	length = read (interface -> rfdesc, ibuf, sizeof ibuf);
 	if (length <= 0)
 		return length;
 
-	bufix = sizeof (struct enstamp);
+	bufix = 0;
 	/* Decode the physical header... */
 	offset = decode_hw_header (interface, ibuf, bufix, hfrom);
 

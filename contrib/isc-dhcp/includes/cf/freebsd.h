@@ -3,7 +3,8 @@
    System dependencies for FreeBSD... */
 
 /*
- * Copyright (c) 1996 The Internet Software Consortium.  All rights reserved.
+ * Copyright (c) 1996, 1998 The Internet Software Consortium.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -53,7 +54,10 @@ extern int h_errno;
 
 #include <net/if.h>
 #include <net/if_dl.h>
-#define INADDR_LOOPBACK	((u_int32_t)0x7f000001)
+#include <net/if_arp.h>
+#if !defined (INADDR_LOOPBACK)
+# define INADDR_LOOPBACK ((u_int32_t)0x7f000001)
+#endif
 
 /* Varargs stuff... */
 #include <stdarg.h>
