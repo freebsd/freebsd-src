@@ -284,8 +284,9 @@ npx_probe(dev)
 	u_short control;
 	u_short status;
 
-	save_idt_npxtrap = idt[16];
-	setidt(16, probetrap, SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+	save_idt_npxtrap = idt[IDT_MF];
+	setidt(IDT_MF, probetrap, SDT_SYS386TGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
 	ioport_rid = 0;
 	ioport_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &ioport_rid,
 	    IO_NPX, IO_NPX, IO_NPXSIZE, RF_ACTIVE);
@@ -411,7 +412,7 @@ npx_probe(dev)
 				 * Bad, we are stuck with IRQ13.
 				 */
 				npx_irq13 = 1;
-				idt[16] = save_idt_npxtrap;
+				idt[IDT_MF] = save_idt_npxtrap;
 				return (0);
 			}
 			/*
@@ -426,7 +427,7 @@ npx_probe(dev)
 	 */
 	/* FALLTHROUGH */
 no_irq13:
-	idt[16] = save_idt_npxtrap;
+	idt[IDT_MF] = save_idt_npxtrap;
 	bus_teardown_intr(dev, irq_res, irq_cookie);
 
 	/*
