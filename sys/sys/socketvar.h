@@ -371,8 +371,6 @@ void	soisdisconnected __P((struct socket *so));
 void	soisdisconnecting __P((struct socket *so));
 int	solisten __P((struct socket *so, int backlog, struct proc *p));
 struct socket *
-	sodropablereq __P((struct socket *head));
-struct socket *
 	sonewconn __P((struct socket *head, int connstatus));
 struct socket *
 	sonewconn3 __P((struct socket *head, int connstatus, struct proc *p));
