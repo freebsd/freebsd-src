@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7770.c,v 1.34 1996/10/28 06:06:42 gibbs Exp $
+ *	$Id: aic7770.c,v 1.35 1996/11/11 05:21:27 gibbs Exp $
  */
 
 #if defined(__FreeBSD__)
@@ -396,9 +396,8 @@ ahc_eisa_attach(parent, self, aux)
 	/*
 	 * See if we have a Rev E or higher aic7770. Anything below a
 	 * Rev E will have a R/O autoflush disable configuration bit.
-	 * The Rev E. cards allow 8 bit entries in the QOUTFIFO to support
-	 * "paging" SCBs so you can have more than 4 commands active at
-	 * once.
+	 * The Rev E. cards have some changes to support Adaptec's SCB
+	 * paging scheme, but I don't know what that is yet.
 	 */
 	{
 		char *id_string;
@@ -417,8 +416,6 @@ ahc_eisa_attach(parent, self, aux)
 			sblkctl &= ~AUTOFLUSHDIS;
 			ahc_outb(ahc, SBLKCTL, sblkctl);
 
-			/* Allow paging on this adapter */
-			ahc->flags |= AHC_PAGESCBS;
 		} else
 			id_string = "aic7770 <= Rev C, ";
 
