@@ -22,9 +22,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$FreeBSD$
+.\" $FreeBSD$
 .\"
-.Dd "July 11, 1997"
+.Dd July 15, 2002
 .Dt IF_NAMETOINDEX 3
 .Os
 .Sh NAME
@@ -35,11 +35,11 @@
 .Nd provide mappings between interface names and indexes
 .Sh SYNOPSIS
 .In net/if.h
-.Ft unsigned int
+.Ft "unsigned int"
 .Fn if_nametoindex "const char *ifname"
-.Ft char *
+.Ft "char *"
 .Fn if_indextoname "unsigned int ifindex" "char *ifname"
-.Ft struct if_nameindex *
+.Ft "struct if_nameindex *"
 .Fn if_nameindex "void"
 .Ft void
 .Fn if_freenameindex "struct if_nameindex *ptr"
@@ -47,31 +47,35 @@
 The
 .Fn if_nametoindex
 function maps the interface name specified in
-.Ar ifname
+.Fa ifname
 to its corresponding index.
 If the specified interface does not exist, it returns 0.
 .Pp
 The
 .Fn if_indextoname
 function maps the interface index specified in
-.Ar ifindex
+.Fa ifindex
 to it corresponding name, which is copied into the
 buffer pointed to by
-.Ar ifname ,
-which must be of at least IFNAMSIZ bytes.
+.Fa ifname ,
+which must be of at least
+.Dv IFNAMSIZ
+bytes.
 This pointer is also the return value of the function.
 If there is no interface corresponding to the specified
-index, NULL is returned.
+index,
+.Dv NULL
+is returned.
 .Pp
 The
 .Fn if_nameindex
 function returns an array of
-.Nm if_nameindex
+.Vt if_nameindex
 structures, one structure per interface, as
 defined in the include file
 .Aq Pa net/if.h .
 The
-.Nm if_nameindex
+.Vt if_nameindex
 structure contains at least the following entries:
 .Bd -literal
     unsigned int   if_index;  /* 1, 2, ... */
@@ -79,11 +83,14 @@ structure contains at least the following entries:
 .Ed
 .Pp
 The end of the array of structures is indicated by a structure with an
-.Nm if_index
+.Va if_index
 of 0 and an
-.Nm if_name
-of NULL.
-A NULL pointer is returned upon an error.
+.Va if_name
+of
+.Dv NULL .
+A
+.Dv NULL
+pointer is returned upon an error.
 .Pp
 The
 .Fn if_freenameindex
@@ -105,18 +112,24 @@ occurs while retrieving the list of interfaces via
 Upon successful completion,
 .Fn if_indextoname
 returns
-.Ar ifname .
-If the interface is not found, a NULL pointer is returned and
+.Fa ifname .
+If the interface is not found, a
+.Dv NULL
+pointer is returned and
 .Va errno
 is set to
 .Er ENXIO .
-A NULL pointer is also returned if an error
+A
+.Dv NULL
+pointer is also returned if an error
 occurs while retrieving the list of interfaces via
 .Xr getifaddrs 3 .
 .Pp
 The
 .Fn if_nameindex
-returns a NULL pointer if an error
+returns a
+.Dv NULL
+pointer if an error
 occurs while retrieving the list of interfaces via
 .Xr getifaddrs 3 ,
 or if sufficient memory cannot be allocated.
@@ -130,6 +143,8 @@ The
 .Fn if_nameindex ,
 and
 .Fn if_freenameindex
-functions conform to RFC 2553.
+functions conform to
+.%T "RFC 2553" .
 .Sh HISTORY
-The implementation first appeared in BSDI BSD/OS.
+The implementation first appeared in BSDi
+.Bsx .
