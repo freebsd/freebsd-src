@@ -235,4 +235,4 @@ Kresolve sequence dnsmx canon
   the file.  This is unavoidable as sendmail must verify the file is safe
   to open before opening it.  A file can not be locked until it is open.
 
-$Revision: 8.55 $, Last updated $Date: 2002/03/05 00:45:54 $
+$Revision: 1.1.1.8 $, Last updated $Date: 2002/04/10 03:04:47 $

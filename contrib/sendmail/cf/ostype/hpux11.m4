@@ -13,7 +13,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: hpux11.m4,v 8.1 1999/11/19 05:22:59 gshapiro Exp $')
+VERSIONID(`$Id: hpux11.m4,v 1.1.1.1 2000/08/12 21:55:39 gshapiro Exp $')
 
 ifdef(`LOCAL_MAILER_PATH',, `define(`LOCAL_MAILER_PATH', /usr/bin/rmail)')dnl
 _DEFIFNOT(`LOCAL_MAILER_FLAGS', `m9')dnl

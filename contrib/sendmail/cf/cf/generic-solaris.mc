@@ -22,7 +22,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`$Id: generic-solaris.mc,v 8.13 2001/06/27 21:46:30 gshapiro Exp $')
+VERSIONID(`$Id: generic-solaris.mc,v 1.1.1.1 2002/02/17 21:56:43 gshapiro Exp $')
 OSTYPE(solaris2)dnl
 DOMAIN(generic)dnl
 MAILER(local)dnl

@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_IDSTR(id, "@(#)$Id: t-float.c,v 1.18 2001/09/11 04:04:49 gshapiro Exp $")
+SM_IDSTR(id, "@(#)$Id: t-float.c,v 1.1.1.1 2002/02/17 21:56:43 gshapiro Exp $")
 
 #include <sm/limits.h>
 #include <sm/io.h>

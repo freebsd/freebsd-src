@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: heap.c,v 1.50 2001/09/11 04:04:48 gshapiro Exp $")
+SM_RCSID("@(#)$Id: heap.c,v 1.1.1.1 2002/02/17 21:56:43 gshapiro Exp $")
 
 /*
 **  debugging memory allocation package

@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: map.c,v 8.641 2002/03/26 22:56:36 gshapiro Exp $")
+SM_RCSID("@(#)$Id: map.c,v 1.1.1.12 2002/04/10 03:04:50 gshapiro Exp $")
 
 #if LDAPMAP
 # include <sm/ldap.h>

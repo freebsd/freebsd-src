@@ -12,7 +12,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: clock.c,v 1.35 2002/03/22 18:34:38 gshapiro Exp $")
+SM_RCSID("@(#)$Id: clock.c,v 1.1.1.2 2002/04/10 03:04:55 gshapiro Exp $")
 #include <unistd.h>
 #include <time.h>
 #include <errno.h>

@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: loose_relay_check.m4,v 8.6 1999/02/07 07:26:10 gshapiro Exp $')
+VERSIONID(`$Id: loose_relay_check.m4,v 1.1.1.3 2000/08/12 21:55:37 gshapiro Exp $')
 divert(-1)
 
 define(`_LOOSE_RELAY_CHECK_', 1)

@@ -13,7 +13,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: smrsh.m4,v 8.14 1999/11/18 05:06:23 ca Exp $')
+VERSIONID(`$Id: smrsh.m4,v 1.1.1.3 2000/08/12 21:55:37 gshapiro Exp $')
 divert(-1)
 
 ifdef(`_MAILER_local_',

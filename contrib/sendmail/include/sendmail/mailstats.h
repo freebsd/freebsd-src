@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: mailstats.h,v 8.18 2001/11/21 13:39:10 gshapiro Exp $
+ *	$Id: mailstats.h,v 1.1.1.2 2002/02/17 21:56:43 gshapiro Exp $
  */
 
 #if _FFR_QUARANTINE

@@ -13,7 +13,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: nouucp.m4,v 8.13 1999/11/24 18:37:07 ca Exp $')
+VERSIONID(`$Id: nouucp.m4,v 1.1.1.3 2000/08/12 21:55:37 gshapiro Exp $')
 divert(-1)
 
 ifelse(defn(`_ARG_'), `', 

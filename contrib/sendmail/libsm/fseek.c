@@ -13,7 +13,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: fseek.c,v 1.45 2001/09/11 04:04:48 gshapiro Exp $")
+SM_RCSID("@(#)$Id: fseek.c,v 1.1.1.1 2002/02/17 21:56:43 gshapiro Exp $")
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
