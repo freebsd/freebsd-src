@@ -48,7 +48,7 @@
  * $Id: vinumconfig.c,v 1.30 2000/05/01 09:45:50 grog Exp grog $
  * $FreeBSD$
  */
-
+ 
 #define STATIC static
 
 #include <dev/vinum/vinumhdr.h>
