@@ -109,7 +109,11 @@
   <sect1 id="security">
     <title>Security Advisories</title>
 
-    <para>No active security advisories.</para>
+    <para>Remotely exploitable vulnerabilities in
+      <application>CVS</application> could allow an attacker to
+      execute arbitrary comands on a CVS server.  More details can be
+      found in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:01.cvs.asc">FreeBSD-SA-03:01</ulink>.</para>
 
   </sect1>
 
