@@ -47,6 +47,7 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/time.h>
+#include <sys/disklabel.h>
 
 #include <ufs/ffs/fs.h>
 
