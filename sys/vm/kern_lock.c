@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: kern_lock.c,v 1.2 1994/08/02 07:55:08 davidg Exp $
+ * $Id: kern_lock.c,v 1.3 1995/01/09 16:05:30 davidg Exp $
  */
 
 /*
@@ -71,10 +71,11 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 
-#include <vm/vm.h>
-
 /* XXX */
 #include <sys/proc.h>
+
+#include <vm/vm.h>
+
 typedef int *thread_t;
 
 #define	current_thread()	((thread_t)&curproc->p_thread)
