@@ -201,7 +201,7 @@ struct archive {
 /* Utility function to format a USTAR header into a buffer. */
 int
 __archive_write_format_header_ustar(struct archive *, char buff[512],
-    struct archive_entry *);
+    struct archive_entry *, int tartype);
 
 #define	ARCHIVE_STATE_ANY	0xFFFFU
 #define	ARCHIVE_STATE_NEW	1U
@@ -230,18 +230,5 @@ int	__archive_read_register_compression(struct archive *a,
 	    int (*init)(struct archive *, const void *,	size_t));
 
 #define err_combine(a,b)	((a) < (b) ? (a) : (b))
-
-
-/*
- * Private ACL handling:  parse and generate ACL strings.
- * These are private because they handle a lot of very weird formats
- * that clients should not be messing with.  Clients should only
- * deal with their platform-native formats.  Because of the need to
- * support many formats cleanly, new arguments are likely to get added
- * on a regular basis.  Clients who try to use this interface are
- * likely to be surprised when it changes.
- */
-int		 __archive_entry_acl_parse_w(struct archive_entry *,
-		     const wchar_t *, int type);
 
 #endif

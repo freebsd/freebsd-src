@@ -29,9 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/stat.h>
 #include <sys/types.h>
-#ifdef HAVE_DMALLOC
-#include <dmalloc.h>
-#endif
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -118,9 +115,6 @@ struct archive_entry {
 	 * without marking the type of the underlying object.
 	 */
 	struct stat ae_stat;
-
-	/* I'm not happy with having this format-particular data here. */
-	int ae_tartype;
 
 	/*
 	 * Use aes here so that we get transparent mbs<->wcs conversions.
@@ -283,7 +277,6 @@ archive_entry_clear(struct archive_entry *entry)
 	aes_clean(&entry->ae_uname);
 	archive_entry_acl_clear(entry);
 	memset(entry, 0, sizeof(*entry));
-	entry->ae_tartype = -1;
 	return entry;
 }
 
@@ -298,7 +291,6 @@ archive_entry_clone(struct archive_entry *entry)
 		return (NULL);
 	memset(entry2, 0, sizeof(*entry2));
 	entry2->ae_stat = entry->ae_stat;
-	entry2->ae_tartype = entry->ae_tartype;
 
 	aes_copy(&entry2->ae_fflags ,&entry->ae_fflags);
 	aes_copy(&entry2->ae_gname ,&entry->ae_gname);
@@ -326,7 +318,6 @@ archive_entry_new(void)
 	if(entry == NULL)
 		return (NULL);
 	memset(entry, 0, sizeof(*entry));
-	entry->ae_tartype = -1;
 	return (entry);
 }
 
@@ -415,12 +406,6 @@ archive_entry_symlink(struct archive_entry *entry)
 	return (aes_get_mbs(&entry->ae_symlink));
 }
 
-int
-archive_entry_tartype(struct archive_entry *entry)
-{
-	return (entry->ae_tartype);
-}
-
 const char *
 archive_entry_uname(struct archive_entry *entry)
 {
@@ -501,6 +486,16 @@ archive_entry_copy_hardlink_w(struct archive_entry *entry, const wchar_t *target
 	aes_copy_wcs(&entry->ae_hardlink, target);
 }
 
+/* Set symlink if symlink is already set, else set hardlink. */
+void
+archive_entry_set_link(struct archive_entry *entry, const char *target)
+{
+	if (entry->ae_symlink.aes_mbs != NULL ||
+	    entry->ae_symlink.aes_wcs != NULL)
+		aes_set_mbs(&entry->ae_symlink, target);
+	aes_set_mbs(&entry->ae_hardlink, target);
+}
+
 void
 archive_entry_set_mode(struct archive_entry *entry, mode_t m)
 {
@@ -535,12 +530,6 @@ void
 archive_entry_copy_symlink_w(struct archive_entry *entry, const wchar_t *linkname)
 {
 	aes_copy_wcs(&entry->ae_symlink, linkname);
-}
-
-void
-archive_entry_set_tartype(struct archive_entry *entry, char t)
-{
-	entry->ae_tartype = t;
 }
 
 void
@@ -1121,15 +1110,16 @@ __archive_entry_acl_parse_w(struct archive_entry *entry,
 				namebuff =
 				    malloc(namebuff_length * sizeof(wchar_t));
 			}
-			wmemcpy(namebuff, start, end-start);
+			wmemcpy(namebuff, name_start, name_end - name_start);
 			archive_entry_acl_add_entry_w(entry, type,
 			    permset, tag, id, namebuff);
 		}
 	}
+	if (namebuff != NULL)
+		free(namebuff);
 	return (ARCHIVE_OK);
 
 fail:
-	fprintf(stderr, "ACL error\n");
 	if (namebuff != NULL)
 		free(namebuff);
 	return (ARCHIVE_WARN);

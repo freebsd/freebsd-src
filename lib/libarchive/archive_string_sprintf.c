@@ -34,9 +34,6 @@ __FBSDID("$FreeBSD$");
  * the core code, so it cannot easily be omitted.)
  */
 
-#ifdef HAVE_DMALLOC
-#include <dmalloc.h>
-#endif
 #include <err.h>
 #include <stdio.h>
 

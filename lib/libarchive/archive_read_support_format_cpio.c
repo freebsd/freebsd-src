@@ -29,9 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/stat.h>
 
-#ifdef HAVE_DMALLOC
-#include <dmalloc.h>
-#endif
 #include <err.h>
 #include <errno.h>
 /* #include <stdint.h> */ /* See archive_platform.h */
