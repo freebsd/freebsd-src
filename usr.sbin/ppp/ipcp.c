@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.55 1998/06/15 19:05:44 brian Exp $
+ * $Id: ipcp.c,v 1.56 1998/06/15 19:06:12 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -459,7 +459,7 @@ ipcp_SetIPaddress(struct bundle *bundle, struct in_addr myaddr,
 
   s = ID0socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {
-    log_Printf(LogERROR, "SetIpDevice: socket(): %s\n", strerror(errno));
+    log_Printf(LogERROR, "SetIPaddress: socket(): %s\n", strerror(errno));
     return (-1);
   }
 
@@ -499,7 +499,7 @@ ipcp_SetIPaddress(struct bundle *bundle, struct in_addr myaddr,
 
   if (ID0ioctl(s, SIOCAIFADDR, &ifra) < 0) {
     if (!silent)
-      log_Printf(LogERROR, "SetIpDevice: ioctl(SIOCAIFADDR): %s\n",
+      log_Printf(LogERROR, "SetIPaddress: ioctl(SIOCAIFADDR): %s\n",
 		strerror(errno));
     close(s);
     return (-1);
@@ -693,7 +693,7 @@ int
 ipcp_InterfaceUp(struct ipcp *ipcp)
 {
   if (ipcp_SetIPaddress(ipcp->fsm.bundle, ipcp->my_ip, ipcp->peer_ip, 0) < 0) {
-    log_Printf(LogERROR, "IpcpLayerUp: unable to set ip address\n");
+    log_Printf(LogERROR, "ipcp_InterfaceUp: unable to set ip address\n");
     return 0;
   }
 

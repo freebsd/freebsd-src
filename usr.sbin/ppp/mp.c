@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.7 1998/06/15 19:06:22 brian Exp $
+ *	$Id: mp.c,v 1.8 1998/06/15 19:06:53 brian Exp $
  */
 
 #include <sys/types.h>
@@ -906,7 +906,7 @@ static void
 mpserver_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   /* We never want to write here ! */
-  log_Printf(LogERROR, "mpserver_Write: Internal error: Bad call !\n");
+  log_Printf(LogALERT, "mpserver_Write: Internal error: Bad call !\n");
 }
 
 void
@@ -929,7 +929,7 @@ mpserver_Open(struct mpserver *s, struct peerid *peer)
   mode_t mask;
 
   if (s->fd != -1) {
-    log_Printf(LogERROR, "Internal error !  mpserver already open\n");
+    log_Printf(LogALERT, "Internal error !  mpserver already open\n");
     mpserver_Close(s);
   }
 

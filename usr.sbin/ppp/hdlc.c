@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.31 1998/05/21 21:45:28 brian Exp $
+ * $Id: hdlc.c,v 1.32 1998/06/15 19:06:09 brian Exp $
  *
  *	TODO:
  */
@@ -431,7 +431,7 @@ hdlc_DecodePacket(struct bundle *bundle, u_short proto, struct mbuf * bp,
       if (p)
         mp_Input(&bundle->ncp.mp, bp, p);
       else {
-        log_Printf(LogERROR, "DecodePacket: MP inside MP ?!\n");
+        log_Printf(LogWARN, "DecodePacket: Can't do MP inside MP !\n");
         mbuf_Free(bp);
       }
       break;

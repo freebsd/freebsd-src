@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.42 1998/06/14 01:21:24 brian Exp $
+ * $Id: ip.c,v 1.43 1998/06/15 19:06:45 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -388,7 +388,7 @@ ip_Input(struct bundle *bundle, struct mbuf * bp)
   nb = 0;
   for (wp = bp; wp; wp = wp->next) {	/* Copy to contiguous region */
     if (sizeof tun.data - (cp - tun.data) < wp->cnt) {
-      log_Printf(LogERROR, "ip_Input: Packet too large (%d) - dropped\n",
+      log_Printf(LogWARN, "ip_Input: Packet too large (%d) - dropped\n",
                 mbuf_Length(bp));
       mbuf_Free(bp);
       return;
@@ -409,7 +409,7 @@ ip_Input(struct bundle *bundle, struct mbuf * bp)
     nb = ntohs(((struct ip *) tun.data)->ip_len);
 
     if (nb > MAX_MRU) {
-      log_Printf(LogERROR, "ip_Input: Problem with IP header length\n");
+      log_Printf(LogWARN, "ip_Input: Problem with IP header length\n");
       mbuf_Free(bp);
       return;
     }
