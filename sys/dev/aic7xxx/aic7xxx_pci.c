@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx_pci.c#10 $
+ * $Id: //depot/src/aic7xxx/aic7xxx_pci.c#12 $
  *
  * $FreeBSD$
  */
@@ -184,12 +184,13 @@ ahc_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 static ahc_device_setup_t ahc_aic7850_setup;
 static ahc_device_setup_t ahc_aic7855_setup;
 static ahc_device_setup_t ahc_aic7860_setup;
+static ahc_device_setup_t ahc_apa1480_setup;
 static ahc_device_setup_t ahc_aic7870_setup;
 static ahc_device_setup_t ahc_aha394X_setup;
 static ahc_device_setup_t ahc_aha494X_setup;
 static ahc_device_setup_t ahc_aha398X_setup;
 static ahc_device_setup_t ahc_aic7880_setup;
-static ahc_device_setup_t ahc_2940Pro_setup;
+static ahc_device_setup_t ahc_aha2940Pro_setup;
 static ahc_device_setup_t ahc_aha394XU_setup;
 static ahc_device_setup_t ahc_aha398XU_setup;
 static ahc_device_setup_t ahc_aic7890_setup;
@@ -197,6 +198,7 @@ static ahc_device_setup_t ahc_aic7892_setup;
 static ahc_device_setup_t ahc_aic7895_setup;
 static ahc_device_setup_t ahc_aic7896_setup;
 static ahc_device_setup_t ahc_aic7899_setup;
+static ahc_device_setup_t ahc_aha29160C_setup;
 static ahc_device_setup_t ahc_raid_setup;
 static ahc_device_setup_t ahc_aha394XX_setup;
 static ahc_device_setup_t ahc_aha494XX_setup;
@@ -222,7 +224,7 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 		ID_AHA_1480A & ID_DEV_VENDOR_MASK,
 		ID_DEV_VENDOR_MASK,
 		"Adaptec 1480A Ultra SCSI adapter",
-		ahc_aic7860_setup
+		ahc_apa1480_setup
 	},
 	{
 		ID_AHA_2940AU_0 & ID_DEV_VENDOR_MASK,
@@ -330,7 +332,7 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 		ID_AHA_2940U_PRO & ID_DEV_VENDOR_MASK,
 		ID_DEV_VENDOR_MASK,
 		"Adaptec 2940 Pro Ultra SCSI adapter",
-		ahc_2940Pro_setup
+		ahc_aha2940Pro_setup
 	},
 	{
 		ID_AHA_2940U_CN & ID_DEV_VENDOR_MASK,
@@ -398,7 +400,7 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 		ID_AHA_29160C,
 		ID_ALL_MASK,
 		"Adaptec 29160C Ultra160 SCSI adapter",
-		ahc_aic7892_setup
+		ahc_aha29160C_setup
 	},
 	{
 		ID_AHA_29160B,
@@ -1317,6 +1319,7 @@ configure_termination(struct ahc_softc *ahc,
 		int enableSEC_high;
 		int enablePRI_low;
 		int enablePRI_high;
+		int sum;
 
 		enableSEC_low = 0;
 		enableSEC_high = 0;
@@ -1361,21 +1364,22 @@ configure_termination(struct ahc_softc *ahc,
 		if ((ahc->features & AHC_WIDE) == 0)
 			internal68_present = 0;
 
-		if (bootverbose) {
-			if ((ahc->features & AHC_ULTRA2) == 0) {
-				printf("%s: internal 50 cable %s present, "
-				       "internal 68 cable %s present\n",
-				       ahc_name(ahc),
-				       internal50_present ? "is":"not",
-				       internal68_present ? "is":"not");
+		if (bootverbose
+		 && (ahc->features & AHC_ULTRA2) == 0) {
+			printf("%s: internal 50 cable %s present",
+			       ahc_name(ahc),
+			       internal50_present ? "is":"not");
 
-				printf("%s: external cable %s present\n",
-				       ahc_name(ahc),
-				       externalcable_present ? "is":"not");
-			}
+			if ((ahc->features & AHC_WIDE) != 0)
+				printf(", internal 68 cable %s present",
+				       internal68_present ? "is":"not");
+			printf("\n%s: external cable %s present\n",
+			       ahc_name(ahc),
+			       externalcable_present ? "is":"not");
+		}
+		if (bootverbose)
 			printf("%s: BIOS eeprom %s present\n",
 			       ahc_name(ahc), eeprom_present ? "is" : "not");
-		}
 
 		if ((ahc->flags & AHC_INT50_SPEEDFLEX) != 0) {
 			/*
@@ -1397,9 +1401,9 @@ configure_termination(struct ahc_softc *ahc,
 		 * Primary High Term Enable = BRDDAT4 (7890)
 		 */
 		if ((ahc->features & AHC_ULTRA2) == 0
-		    && (internal50_present != 0)
-		    && (internal68_present != 0)
-		    && (externalcable_present != 0)) {
+		 && (internal50_present != 0)
+		 && (internal68_present != 0)
+		 && (externalcable_present != 0)) {
 			printf("%s: Illegal cable configuration!!. "
 			       "Only two connectors on the "
 			       "adapter may be used at a "
@@ -1423,10 +1427,9 @@ configure_termination(struct ahc_softc *ahc,
 			}
 		}
 
-		if (((internal50_present ? 1 : 0)
-		   + (internal68_present ? 1 : 0)
-		   + (externalcable_present ? 1 : 0)) <= 1
-		 || (enableSEC_low != 0)) {
+		sum = internal50_present + internal68_present
+		    + externalcable_present;
+		if (sum < 2 || (enableSEC_low != 0)) {
 			if ((ahc->features & AHC_ULTRA2) != 0)
 				brddat |= BRDDAT5;
 			else
@@ -1477,7 +1480,8 @@ configure_termination(struct ahc_softc *ahc,
 								    : "");
 		}
 
-		if ((adapter_control & CFWSTERM) != 0) {
+		if ((adapter_control & CFWSTERM) != 0
+		 && (ahc->features & AHC_WIDE) != 0) {
 			brddat |= BRDDAT6;
 			if (bootverbose)
 				printf("%s: %sHigh byte termination Enabled\n",
@@ -1492,7 +1496,8 @@ configure_termination(struct ahc_softc *ahc,
 		 */
 		ahc_outb(ahc, SXFRCTL1, *sxfrctl1);
 
-		write_brdctl(ahc, brddat);
+		if ((ahc->features & AHC_WIDE) != 0)
+			write_brdctl(ahc, brddat);
 	}
 	SEEPROM_OUTB(sd, sd->sd_MS); /* Clear CS */
 }
@@ -1541,8 +1546,8 @@ aic787X_cable_detect(struct ahc_softc *ahc, int *internal50_present,
 	 * BRDDAT7 is INT68.
 	 */
 	brdctl = read_brdctl(ahc);
-	*internal50_present = !(brdctl & BRDDAT6);
-	*internal68_present = !(brdctl & BRDDAT7);
+	*internal50_present = (brdctl & BRDDAT6) ? 0 : 1;
+	*internal68_present = (brdctl & BRDDAT7) ? 0 : 1;
 
 	/*
 	 * Set the rom bank to 1 and determine
@@ -1556,8 +1561,8 @@ aic787X_cable_detect(struct ahc_softc *ahc, int *internal50_present,
 	 * BRDDAT7 is EPROMPS.
 	 */
 	brdctl = read_brdctl(ahc);
-	*externalcable_present = !(brdctl & BRDDAT6);
-	*eeprom_present = brdctl & BRDDAT7;
+	*externalcable_present = (brdctl & BRDDAT6) ? 0 : 1;
+	*eeprom_present = (brdctl & BRDDAT7) ? 1 : 0;
 }
 
 static void
@@ -1569,10 +1574,10 @@ aic785X_cable_detect(struct ahc_softc *ahc, int *internal50_present,
 	ahc_outb(ahc, BRDCTL, BRDRW|BRDCS);
 	ahc_outb(ahc, BRDCTL, 0);
 	brdctl = ahc_inb(ahc, BRDCTL);
-	*internal50_present = !(brdctl & BRDDAT5);
-	*externalcable_present = !(brdctl & BRDDAT6);
+	*internal50_present = (brdctl & BRDDAT5) ? 0 : 1;
+	*externalcable_present = (brdctl & BRDDAT6) ? 0 : 1;
 
-	*eeprom_present = (ahc_inb(ahc, SPIOCAP) & EEPROM) != 0;
+	*eeprom_present = (ahc_inb(ahc, SPIOCAP) & EEPROM) ? 1 : 0;
 }
 	
 static int
@@ -1625,16 +1630,16 @@ write_brdctl(struct ahc_softc *ahc, uint8_t value)
 		brdctl = BRDSTB|BRDCS;
 	}
 	ahc_outb(ahc, BRDCTL, brdctl);
-	ahc_delay(20);
+	ahc_flush_device_writes(ahc);
 	brdctl |= value;
 	ahc_outb(ahc, BRDCTL, brdctl);
-	ahc_delay(20);
+	ahc_flush_device_writes(ahc);
 	if ((ahc->features & AHC_ULTRA2) != 0)
 		brdctl |= BRDSTB_ULTRA2;
 	else
 		brdctl &= ~BRDSTB;
 	ahc_outb(ahc, BRDCTL, brdctl);
-	ahc_delay(20);
+	ahc_flush_device_writes(ahc);
 	if ((ahc->features & AHC_ULTRA2) != 0)
 		brdctl = 0;
 	else
@@ -1659,7 +1664,7 @@ read_brdctl(ahc)
 		brdctl = BRDRW|BRDCS;
 	}
 	ahc_outb(ahc, BRDCTL, brdctl);
-	ahc_delay(20);
+	ahc_flush_device_writes(ahc);
 	value = ahc_inb(ahc, BRDCTL);
 	ahc_outb(ahc, BRDCTL, 0);
 	return (value);
@@ -1762,6 +1767,18 @@ ahc_aic7860_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
 }
 
 static int
+ahc_apa1480_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
+{
+	int error;
+
+	error = ahc_aic7860_setup(pci, probe_config);
+	if (error != 0)
+		return (error);
+	probe_config->features |= AHC_REMOVABLE;
+	return (0);
+}
+
+static int
 ahc_aic7870_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
 {
 	probe_config->channel = 'A';
@@ -1824,7 +1841,7 @@ ahc_aic7880_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
 }
 
 static int
-ahc_2940Pro_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
+ahc_aha2940Pro_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
 {
 	int error;
 
@@ -1953,6 +1970,18 @@ ahc_aic7899_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
 	probe_config->features = AHC_AIC7899_FE;
 	probe_config->flags |= AHC_NEWEEPROM_FMT;
 	probe_config->bugs |= AHC_SCBCHAN_UPLOAD_BUG;
+	return (0);
+}
+
+static int
+ahc_aha29160C_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
+{
+	int error;
+
+	error = ahc_aic7899_setup(pci, probe_config);
+	if (error != 0)
+		return (error);
+	probe_config->features |= AHC_REMOVABLE;
 	return (0);
 }
 
