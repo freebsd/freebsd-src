@@ -280,7 +280,7 @@ static struct ng_type ng_bridge_typestruct = {
 	ng_bridge_disconnect,
 	ng_bridge_cmdlist,
 };
-NETGRAPH_INIT(ether, &ng_bridge_typestruct);
+NETGRAPH_INIT(bridge, &ng_bridge_typestruct);
 
 /* Depend on ng_ether so we can use the Ethernet parse type */
 MODULE_DEPEND(ng_bridge, ng_ether, 1, 1, 1);
