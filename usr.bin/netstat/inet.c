@@ -100,16 +100,25 @@ protopr(off, name)
 	prev = (struct inpcb *)off;
 
 	for (next = head.lh_first; next != NULL; next = inpcb.inp_list.le_next) {
-		kread((u_long)next, (char *)&inpcb, sizeof (inpcb));
+		if (kread((u_long)next, (char *)&inpcb, sizeof (inpcb))) {
+			printf("???\n");
+			break;
+		}
 		if (!aflag &&
 		  inet_lnaof(inpcb.inp_laddr) == INADDR_ANY) {
 			prev = next;
 			continue;
 		}
-		kread((u_long)inpcb.inp_socket, (char *)&sockb, sizeof (sockb));
+		if (kread((u_long)inpcb.inp_socket, (char *)&sockb, sizeof (sockb))) {
+			printf("???\n");
+			break;
+		};
 		if (istcp) {
-			kread((u_long)inpcb.inp_ppcb,
-			    (char *)&tcpcb, sizeof (tcpcb));
+			if (kread((u_long)inpcb.inp_ppcb,
+			    (char *)&tcpcb, sizeof (tcpcb))) {
+				printf("???\n");
+				break;
+			};
 		}
 		if (first) {
 			printf("Active Internet connections");
@@ -227,7 +236,6 @@ tcp_stats(off, name)
 	p(tcps_keepdrops, "\t\t%d connection%s dropped by keepalive\n");
 	p(tcps_predack, "\t%d correct ACK header prediction%s\n");
 	p(tcps_preddat, "\t%d correct data packet header prediction%s\n");
-	p3(tcps_pcbcachemiss, "\t%d PCB cache miss%s\n");
 #undef p
 #undef p2
 #undef p3
