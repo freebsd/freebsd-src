@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.22 1996/03/02 01:49:51 dyson Exp $
+ * $Id: ufs_disksubr.c,v 1.23 1996/04/19 19:34:19 bde Exp $
  */
 
 #include <sys/param.h>
@@ -161,77 +161,6 @@ insert:
 	TAILQ_INSERT_AFTER(ap, bq, bp, b_act);
 }
 
-void
-disksort(ap, bp)
-	register struct buf *ap, *bp;
-{
-	register struct buf *bq;
-
-	/* If the queue is empty, then it's easy. */
-	if (ap->b_actf == NULL) {
-		bp->b_actf = NULL;
-		ap->b_actf = bp;
-		return;
-	}
-
-	/*
-	 * If we lie after the first (currently active) request, then we
-	 * must locate the second request list and add ourselves to it.
-	 */
-	bq = ap->b_actf;
-	if (bp->b_pblkno < bq->b_pblkno) {
-		while (bq->b_actf) {
-			/*
-			 * Check for an ``inversion'' in the normally ascending
-			 * cylinder numbers, indicating the start of the second
-			 * request list.
-			 */
-			if (bq->b_actf->b_pblkno < bq->b_pblkno) {
-				/*
-				 * Search the second request list for the first
-				 * request at a larger cylinder number.  We go
-				 * before that; if there is no such request, we
-				 * go at end.
-				 */
-				do {
-					if (bp->b_pblkno < bq->b_actf->b_pblkno)
-						goto insert;
-					bq = bq->b_actf;
-				} while (bq->b_actf);
-				goto insert;		/* after last */
-			}
-			bq = bq->b_actf;
-		}
-		/*
-		 * No inversions... we will go after the last, and
-		 * be the first request in the second request list.
-		 */
-		goto insert;
-	}
-	/*
-	 * Request is at/after the current request...
-	 * sort in the first request list.
-	 */
-	while (bq->b_actf) {
-		/*
-		 * We want to go after the current request if there is an
-		 * inversion after it (i.e. it is the end of the first
-		 * request list), or if the next request is a larger cylinder
-		 * than our request.
-		 */
-		if (bq->b_actf->b_pblkno < bq->b_pblkno ||
-		    bp->b_pblkno < bq->b_actf->b_pblkno)
-			goto insert;
-		bq = bq->b_actf;
-	}
-	/*
-	 * Neither a second list nor a larger request... we go at the end of
-	 * the first list, which is the same as the end of the whole schebang.
-	 */
-insert:
-	bp->b_actf = bq->b_actf;
-	bq->b_actf = bp;
-}
 
 /*
  * Attempt to read a disk label from a device using the indicated strategy
