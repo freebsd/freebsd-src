@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id$
+ * $Id: network.c,v 1.29 1997/02/22 14:12:12 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -188,6 +188,7 @@ startPPP(Device *devp)
 
     /* These are needed to make ppp work */
     Mkdir("/var/log");
+    Mkdir("/var/run");
     Mkdir("/var/spool/lock");
     Mkdir("/etc/ppp");
 
