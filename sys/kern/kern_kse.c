@@ -1626,8 +1626,34 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		/* NOTREACHED */
 	}
 
+	KASSERT(TD_CAN_UNBIND(td) == 0, ("can unbind"));
+
+	if (p->p_numthreads > max_threads_per_proc) {
+		max_threads_hits++;
+		PROC_LOCK(p);
+		while (p->p_numthreads > max_threads_per_proc) {
+			if (P_SHOULDSTOP(p))
+				break;
+			upcalls = 0;
+			mtx_lock_spin(&sched_lock);
+			FOREACH_KSEGRP_IN_PROC(p, kg2) {
+				if (kg2->kg_numupcalls == 0)
+					upcalls++;
+				else
+					upcalls += kg2->kg_numupcalls;
+			}
+			mtx_unlock_spin(&sched_lock);
+			if (upcalls >= max_threads_per_proc)
+				break;
+			p->p_maxthrwaits++;
+			msleep(&p->p_numthreads, &p->p_mtx, PPAUSE|PCATCH,
+			    "maxthreads", NULL);
+			p->p_maxthrwaits--;
+		}
+		PROC_UNLOCK(p);
+	}
+
 	if (td->td_flags & TDF_UPCALLING) {
-		KASSERT(TD_CAN_UNBIND(td) == 0, ("upcall thread can unbind"));
 		ku = td->td_upcall;
 		/* 
 		 * There is no more work to do and we are going to ride
@@ -1684,31 +1710,6 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	}
 
 out:
-	if (p->p_numthreads > max_threads_per_proc) {
-		max_threads_hits++;
-		PROC_LOCK(p);
-		while (p->p_numthreads > max_threads_per_proc) {
-			if (P_SHOULDSTOP(p))
-				break;
-			upcalls = 0;
-			mtx_lock_spin(&sched_lock);
-			FOREACH_KSEGRP_IN_PROC(p, kg2) {
-				if (kg2->kg_numupcalls == 0)
-					upcalls++;
-				else
-					upcalls += kg2->kg_numupcalls;
-			}
-			mtx_unlock_spin(&sched_lock);
-			if (upcalls >= max_threads_per_proc)
-				break;
-			p->p_maxthrwaits++;
-			msleep(&p->p_numthreads, &p->p_mtx, PPAUSE|PCATCH,
-			    "maxthreads", NULL);
-			p->p_maxthrwaits--;
-		}
-		PROC_UNLOCK(p);
-	}
-
 	if (error) {
 		/*
 		 * Things are going to be so screwed we should just kill
