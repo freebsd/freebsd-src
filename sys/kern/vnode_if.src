@@ -574,14 +574,6 @@ vop_destroyvobject {
 };
 
 #
-#% getvobject	vp	L L L
-#
-vop_getvobject {
-	IN struct vnode *vp;
-	OUT struct vm_object **objpp;
-};
-
-#
 #% setlabel	vp	L L L
 #
 vop_setlabel {
