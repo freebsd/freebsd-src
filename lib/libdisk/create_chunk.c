@@ -295,6 +295,8 @@ MakeDev(struct chunk *c1, const char *path)
 	cmaj = 131, p += 4;
     else if (!strncmp(p, "amrd", 4))
 	cmaj = 133, p += 4;
+    else if (!strncmp(p, "twed", 4))
+	cmaj = 147, p += 4;
     else if (!strncmp(p, "da", 2))	/* CAM support */
 	cmaj = 13, p += 2;
     else {
