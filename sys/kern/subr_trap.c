@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.15 1994/01/17 09:32:32 davidg Exp $
+ *	$Id: trap.c,v 1.16 1994/02/01 23:07:35 davidg Exp $
  */
 
 /*
@@ -83,6 +83,8 @@ u_short	read_gs		__P((void));
 void	write_gs	__P((/* promoted u_short */ int gs));
 
 #endif	/* __GNUC__ */
+
+extern int grow(struct proc *,int);
 
 struct	sysent sysent[];
 int	nsysent;
@@ -250,34 +252,26 @@ skiptoswitch:
 		i = SIGFPE;
 		break;
 
-	case T_PAGEFLT:			/* allow page faults in kernel mode */
-#if 0
-		/* XXX - check only applies to 386's and 486's with WP off */
-		if (code & PGEX_P) goto we_re_toast;
-#endif
-
 	pfault:
-		/* fall into */
+	case T_PAGEFLT:			/* allow page faults in kernel mode */
 	case T_PAGEFLT|T_USER:		/* page fault */
 	    {
-		register vm_offset_t va;
-		register struct vmspace *vm;
-		register vm_map_t map;
-		int rv=0;
+		vm_offset_t va;
+		struct vmspace *vm;
+		vm_map_t map = 0;
+		int rv = 0, oldflags;
 		vm_prot_t ftype;
+		unsigned nss, v;
 		extern vm_map_t kernel_map;
-		unsigned nss,v;
-		int oldflags;
 
 		va = trunc_page((vm_offset_t)eva);
+
 		/*
-		 * It is only a kernel address space fault iff:
-		 * 	1. (type & T_USER) == 0  and
-		 * 	2. pcb_onfault not set or
-		 *	3. pcb_onfault set but supervisor space fault
-		 * The last can occur during an exec() copyin where the
-		 * argument space is lazy-allocated.
+		 * Don't allow user-mode faults in kernel address space
 		 */
+		if ((type == (T_PAGEFLT|T_USER)) && (va >= KERNBASE)) {
+			goto nogo;
+		}
 
 		if ((p == 0) || (type == T_PAGEFLT && va >= KERNBASE)) {
 			vm = 0;
@@ -292,111 +286,62 @@ skiptoswitch:
 		else
 			ftype = VM_PROT_READ;
 
-/*
- * keep swapout from messing with us during this
- * critical time.
- */
 		oldflags = p->p_flag;
 		if (map != kernel_map) {
-				p->p_flag |= SLOCK;
-		}
-		/*
-		 * XXX: rude hack to make stack limits "work"
-		 */
+			vm_offset_t pa;
+			vm_offset_t v = (vm_offset_t) vtopte(va);
 
-		nss = 0;
-		if (map != kernel_map && (caddr_t)va >= vm->vm_maxsaddr
-			&& (caddr_t)va < (caddr_t)USRSTACK) {
-			caddr_t v;
-			nss = roundup(USRSTACK - (unsigned)va, PAGE_SIZE);
-			if (nss > p->p_rlimit[RLIMIT_STACK].rlim_cur) {
-				rv = KERN_FAILURE;
-				p->p_flag &= ~SLOCK;
-				p->p_flag |= (oldflags & SLOCK);
-				goto nogo;
-			}
+			/*
+			 * Keep swapout from messing with us during this
+			 *	critical time.
+			 */
+			p->p_flag |= SLOCK;
 
-			if (vm->vm_ssize && roundup(vm->vm_ssize << PGSHIFT,
-			    DFLSSIZ) < nss) {
-				int grow_amount;
-				/*
-				 * If necessary, grow the VM that the stack occupies
-				 * to allow for the rlimit. This allows us to not have
-				 * to allocate all of the VM up-front in execve (which
-				 * is expensive).
-				 * Grow the VM by the amount requested rounded up to
-				 * the nearest DFLSSIZ to provide for some hysteresis.
-				 */
-				grow_amount = roundup((nss - (vm->vm_ssize << PGSHIFT)), DFLSSIZ);
-				v = (char *)USRSTACK - roundup(vm->vm_ssize << PGSHIFT,
-				    DFLSSIZ) - grow_amount;
-				/*
-				 * If there isn't enough room to extend by DFLSSIZ, then
-				 * just extend to the maximum size
-				 */
-				if (v < vm->vm_maxsaddr) {
-					v = vm->vm_maxsaddr;
-					grow_amount = MAXSSIZ - (vm->vm_ssize << PGSHIFT);
-				}
-				if (vm_allocate(&vm->vm_map, (vm_offset_t *)&v,
-						grow_amount, FALSE) !=
-				    KERN_SUCCESS) {
+			/*
+			 * Grow the stack if necessary
+			 */
+			if ((caddr_t)va > vm->vm_maxsaddr
+			    && (caddr_t)va < (caddr_t)USRSTACK) {
+				if (!grow(p, va)) {
+					rv = KERN_FAILURE;
 					p->p_flag &= ~SLOCK;
 					p->p_flag |= (oldflags & SLOCK);
 					goto nogo;
 				}
 			}
-		}
 
+			/*
+			 * Check if page table is mapped, if not,
+			 *	fault it first
+			 */
 
-		/* check if page table is mapped, if not, fault it first */
-#define pde_v(v) (PTD[((v)>>PD_SHIFT)&1023].pd_v)
-		{
+			/* Fault the pte only if needed: */
+			*(volatile char *)v += 0;	
 
-			if (map != kernel_map) {
-				vm_offset_t pa;
-				vm_offset_t v = (vm_offset_t) vtopte(va);
+			/* Get the physical address: */
+			pa = pmap_extract(vm_map_pmap(map), v);
 
-				/* Fault the pte only if needed: */
-				*(volatile char *)v += 0;	
+			/* And wire the pte page at system vm level: */
+			vm_page_wire(PHYS_TO_VM_PAGE(pa));
 
-				/* Get the physical address: */
-				pa = pmap_extract(vm_map_pmap(map), v);
+			/* Fault in the user page: */
+			rv = vm_fault(map, va, ftype, FALSE);
 
-				/* And wire the pte page at system vm level: */
-				vm_page_wire(PHYS_TO_VM_PAGE(pa));
+			/* Unwire the pte page: */
+			vm_page_unwire(PHYS_TO_VM_PAGE(pa));
 
-				/* Fault in the user page: */
-				rv = vm_fault(map, va, ftype, FALSE);
-
-				/* Unwire the pte page: */
-				vm_page_unwire(PHYS_TO_VM_PAGE(pa));
-
-			} else {
-				/*
-				 * Since we know that kernel virtual address addresses
-				 * always have pte pages mapped, we just have to fault
-				 * the page.
-				 */
-				rv = vm_fault(map, va, ftype, FALSE);
-			}
-
-		}
-		if (map != kernel_map) {
 			p->p_flag &= ~SLOCK;
 			p->p_flag |= (oldflags & SLOCK);
-		}
-		if (rv == KERN_SUCCESS) {
+		} else {
 			/*
-			 * XXX: continuation of rude stack hack
+			 * Since we know that kernel virtual address addresses
+			 * always have pte pages mapped, we just have to fault
+			 * the page.
 			 */
-			nss = nss >> PGSHIFT;
-			if (vm && nss > vm->vm_ssize) {
-				vm->vm_ssize = nss;
-			}
- 			/* 
- 			 * va could be a page table address, if the fault
-			 */
+			rv = vm_fault(map, va, ftype, FALSE);
+		}
+
+		if (rv == KERN_SUCCESS) {
 			if (type == T_PAGEFLT)
 				return;
 			goto out;
@@ -562,7 +507,7 @@ int trapwrite(addr)
 {
 	unsigned nss;
 	struct proc *p;
-	vm_offset_t va;
+	vm_offset_t va, v;
 	struct vmspace *vm;
 	int oldflags;
 	int rv;
@@ -573,10 +518,7 @@ int trapwrite(addr)
 	 */
 	if (va >= VM_MAXUSER_ADDRESS)
 		return (1);
-	/*
-	 * XXX: rude stack hack adapted from trap().
-	 */
-	nss = 0;
+
 	p = curproc;
 	vm = p->p_vmspace;
 
@@ -585,80 +527,40 @@ int trapwrite(addr)
 
 	if ((caddr_t)va >= vm->vm_maxsaddr
 	    && (caddr_t)va < (caddr_t)USRSTACK) {
-		nss = roundup(((unsigned)USRSTACK - (unsigned)va), PAGE_SIZE);
-		if (nss > p->p_rlimit[RLIMIT_STACK].rlim_cur) {
+		if (!grow(p, va)) {
 			p->p_flag &= ~SLOCK;
 			p->p_flag |= (oldflags & SLOCK);
 			return (1);
 		}
-	
-		if (vm->vm_ssize && roundup(vm->vm_ssize << PGSHIFT,
-			DFLSSIZ) < nss) {
-			caddr_t v;
-			int grow_amount;
-			/*
-			 * If necessary, grow the VM that the stack occupies
-			 * to allow for the rlimit. This allows us to not have
-			 * to allocate all of the VM up-front in execve (which
-			 * is expensive).
-			 * Grow the VM by the amount requested rounded up to
-			 * the nearest DFLSSIZ to provide for some hysteresis.
-			 */
-			grow_amount = roundup((nss - (vm->vm_ssize << PGSHIFT)), DFLSSIZ);
-			v = (char *)USRSTACK - roundup(vm->vm_ssize << PGSHIFT, DFLSSIZ) -
-				grow_amount;
-			/*
-			 * If there isn't enough room to extend by DFLSSIZ, then
-			 * just extend to the maximum size
-			 */
-			if (v < vm->vm_maxsaddr) {
-				v = vm->vm_maxsaddr;
-				grow_amount = MAXSSIZ - (vm->vm_ssize << PGSHIFT);
-			}
-			if (vm_allocate(&vm->vm_map, (vm_offset_t *)&v,
-					grow_amount, FALSE)
-			    != KERN_SUCCESS) {
-				p->p_flag &= ~SLOCK;
-				p->p_flag |= (oldflags & SLOCK);
-				return(1);
-			}
-				printf("new stack growth: %lx, %d\n", v, grow_amount);
-		}
 	}
 
+	v = trunc_page(vtopte(va));
 
-	{
-		vm_offset_t v;
-		v = trunc_page(vtopte(va));
-		/*
-		 * wire the pte page
-		 */
-		if (va < USRSTACK) {
-			vm_map_pageable(&vm->vm_map, v, round_page(v+1), FALSE);
-		}
-		/*
-		 * fault the data page
-		 */
-		rv = vm_fault(&vm->vm_map, va, VM_PROT_READ|VM_PROT_WRITE, FALSE);
-		/*
-		 * unwire the pte page
-		 */
-		if (va < USRSTACK) {
-			vm_map_pageable(&vm->vm_map, v, round_page(v+1), TRUE);
-		}
+	/*
+	 * wire the pte page
+	 */
+	if (va < USRSTACK) {
+		vm_map_pageable(&vm->vm_map, v, round_page(v+1), FALSE);
 	}
+
+	/*
+	 * fault the data page
+	 */
+	rv = vm_fault(&vm->vm_map, va, VM_PROT_READ|VM_PROT_WRITE, FALSE);
+
+	/*
+	 * unwire the pte page
+	 */
+	if (va < USRSTACK) {
+		vm_map_pageable(&vm->vm_map, v, round_page(v+1), TRUE);
+	}
+
 	p->p_flag &= ~SLOCK;
 	p->p_flag |= (oldflags & SLOCK);
 
 	if (rv != KERN_SUCCESS)
 		return 1;
-	/*
-	 * XXX: continuation of rude stack hack
-	 */
-	nss >>= PGSHIFT;
-	if (nss > vm->vm_ssize) {
-		vm->vm_ssize = nss;
-	}
+
 	return (0);
 }
 
