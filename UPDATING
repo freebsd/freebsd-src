@@ -8,6 +8,13 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20030213:
+	sendmail 8.12.7 has been imported.  It has one important
+	change for IPv6 users.  The default submit.mc now uses
+	'[127.0.0.1]' instead of 'localhost' meaning only IPv4 is
+	used to connect to the MTA.  Users on IPv6-only machines
+	will need to edit /etc/mail/submit.mc appropriately.
+
 20021110:
 	The definitions of the standard file streams (stdin, stdout, and
 	stderr) have changed so that they are no longer compile-time 

@@ -7,7 +7,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: mfapi.h,v 8.44 2002/06/04 05:06:40 gshapiro Exp $
+ *	$Id: mfapi.h,v 8.44.2.3 2002/12/19 02:10:09 ca Exp $
  */
 
 /*
@@ -18,6 +18,7 @@
 # define _LIBMILTER_MFAPI_H	1
 
 # include <sys/types.h>
+
 # include <sys/socket.h>
 # include "libmilter/mfdef.h"
 
@@ -441,4 +442,4 @@ LIBMILTER_API int smfi_setpriv __P((SMFICTX *, void *));
 LIBMILTER_API void *smfi_getpriv __P((SMFICTX *));
 
 
-#endif /* !_LIBMILTER_MFAPI_H */
+#endif /* ! _LIBMILTER_MFAPI_H */

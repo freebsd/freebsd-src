@@ -13,7 +13,42 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: envelope.c,v 8.282 2002/05/10 15:41:11 ca Exp $")
+SM_RCSID("@(#)$Id: envelope.c,v 8.282.2.2 2002/12/04 15:44:08 ca Exp $")
+
+/*
+**  CLRSESSENVELOPE -- clear session oriented data in an envelope
+**
+**	Parameters:
+**		e -- the envelope to clear.
+**
+**	Returns:
+**		none.
+*/
+
+void
+clrsessenvelope(e)
+	ENVELOPE *e;
+{
+#if SASL
+	macdefine(&e->e_macro, A_PERM, macid("{auth_type}"), "");
+	macdefine(&e->e_macro, A_PERM, macid("{auth_authen}"), "");
+	macdefine(&e->e_macro, A_PERM, macid("{auth_author}"), "");
+	macdefine(&e->e_macro, A_PERM, macid("{auth_ssf}"), "");
+#endif /* SASL */
+#if STARTTLS
+	macdefine(&e->e_macro, A_PERM, macid("{cert_issuer}"), "");
+	macdefine(&e->e_macro, A_PERM, macid("{cert_subject}"), "");
+	macdefine(&e->e_macro, A_PERM, macid("{cipher_bits}"), "");
+	macdefine(&e->e_macro, A_PERM, macid("{cipher}"), "");
+	macdefine(&e->e_macro, A_PERM, macid("{tls_version}"), "");
+	macdefine(&e->e_macro, A_PERM, macid("{verify}"), "");
+# if _FFR_TLS_1
+	macdefine(&e->e_macro, A_PERM, macid("{alg_bits}"), "");
+	macdefine(&e->e_macro, A_PERM, macid("{cn_issuer}"), "");
+	macdefine(&e->e_macro, A_PERM, macid("{cn_subject}"), "");
+# endif /* _FFR_TLS_1 */
+#endif /* STARTTLS */
+}
 
 /*
 **  NEWENVELOPE -- fill in a new envelope
@@ -923,6 +958,9 @@ setsender(from, e, delimptr, delimchar, internal)
 	if (tTd(45, 1))
 		sm_dprintf("setsender(%s)\n", from == NULL ? "" : from);
 
+	/* may be set from earlier calls */
+	macdefine(&e->e_macro, A_PERM, 'x', "");
+
 	/*
 	**  Figure out the real user executing us.
 	**	Username can return errno != 0 on non-errors.
@@ -1077,7 +1115,7 @@ setsender(from, e, delimptr, delimchar, internal)
 			e->e_from.q_home = NULL;
 		}
 		if (FullName != NULL && !internal)
-			macdefine(&e->e_macro, A_PERM, 'x', FullName);
+			macdefine(&e->e_macro, A_TEMP, 'x', FullName);
 	}
 	else if (!internal && OpMode != MD_DAEMON && OpMode != MD_SMTP)
 	{

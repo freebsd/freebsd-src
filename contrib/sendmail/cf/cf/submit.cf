@@ -24,15 +24,15 @@
 ######################################################################
 ######################################################################
 
-#####  $Id: cfhead.m4,v 8.108 2002/06/13 18:53:24 ca Exp $  #####
+#####  $Id: cfhead.m4,v 8.108.2.1 2002/08/27 20:19:08 gshapiro Exp $  #####
 #####  $Id: cf.m4,v 8.32 1999/02/07 07:26:14 gshapiro Exp $  #####
-#####  $Id: submit.mc,v 8.6 2002/03/26 03:30:58 ca Exp $  #####
+#####  $Id: submit.mc,v 8.6.2.4 2002/12/29 03:54:34 ca Exp $  #####
 #####  $Id: msp.m4,v 1.32 2002/03/26 22:02:03 ca Exp $  #####
 
 #####  $Id: no_default_msa.m4,v 8.2 2001/02/14 05:03:22 gshapiro Exp $  #####
 
 
-#####  $Id: proto.m4,v 8.649.2.5 2002/08/15 02:39:01 ca Exp $  #####
+#####  $Id: proto.m4,v 8.649.2.13 2002/12/04 00:12:18 ca Exp $  #####
 
 # level 10 config file format
 V10/Berkeley
@@ -106,11 +106,11 @@ Kdequote dequote
 DnMAILER-DAEMON
 
 
-D{MTAHost}[localhost]
+D{MTAHost}[127.0.0.1]
 
 
 # Configuration version number
-DZ8.12.6/Submit
+DZ8.12.7/Submit
 
 
 ###############
@@ -398,7 +398,7 @@ O UnixFromLine=From $g $d
 O OperatorChars=.:%@!^/[]+
 
 # shall I avoid calling initgroups(3) because of high NIS costs?
-#O DontInitGroups=False
+O DontInitGroups=True
 
 # are group-writable :include: and .forward files (un)trustworthy?
 # True (the default) means they are not trustworthy.
@@ -480,9 +480,9 @@ O PidFile=/var/spool/clientmqueue/sm-client.pid
 
 
 # CA directory
-#O CACERTPath
+#O CACertPath
 # CA file
-#O CACERTFile
+#O CACertFile
 # Server Cert
 #O ServerCertFile
 # Server private key
@@ -1010,7 +1010,7 @@ R<? $* <$->> $* < @ $+ >
 R<?> $*			$: $&{daemon_flags} $| <?> $1
 R$* u $* $| <?> $*	$: <OKR> $3
 R$* $| $*		$: $2
-R<?> $*			$: < ? $&{client_name} > $1
+R<?> $*			$: < ? $&{client_addr} > $1
 R<?> $*			$@ <OKR>			...local unqualed ok
 R<? $+> $*		$#error $@ 5.5.4 $: "553 Domain name required for sender address " $&f
 							...remote is not
@@ -1098,6 +1098,8 @@ SRelay_ok
 R$*			$: $&{client_addr}
 R$@			$@ RELAY		originated locally
 R0			$@ RELAY		originated locally
+R127.0.0.1		$@ RELAY		originated locally
+RIPv6:::1		$@ RELAY		originated locally
 R$=R $*			$@ RELAY		relayable IP address
 R$*			$: [ $1 ]		put brackets around it...
 R$=w			$@ RELAY		... and see if it is local
@@ -1109,7 +1111,6 @@ R<TEMP>			$#TEMP $@ 4.7.1 $: "450 Relaying temporarily denied. Cannot resolve PT
 R<FORGED>		$#error $@ 5.7.1 $: "550 Relaying denied. IP name possibly forged " $&{client_name}
 R<FAIL>			$#error $@ 5.7.1 $: "550 Relaying denied. IP name lookup failed " $&{client_name}
 R$*			$: <@> $&{client_name}
-R<@>			$@ RELAY
 # pass to name server to make hostname canonical
 R<@> $* $=P 		$:<?>  $1 $2
 R<@> $+			$:<?>  $[ $1 $]

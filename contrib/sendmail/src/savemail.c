@@ -15,7 +15,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: savemail.c,v 8.299 2002/05/24 20:50:17 gshapiro Exp $")
+SM_RCSID("@(#)$Id: savemail.c,v 8.299.2.1 2002/10/23 15:08:47 ca Exp $")
 
 static void	errbody __P((MCI *, ENVELOPE *, char *));
 static bool	pruneroute __P((char *));
@@ -547,25 +547,7 @@ returntosender(msg, returnq, flags, e)
 	macdefine(&ee->e_macro, A_PERM, 'r', "");
 	macdefine(&ee->e_macro, A_PERM, 's', "localhost");
 	macdefine(&ee->e_macro, A_PERM, '_', "localhost");
-#if SASL
-	macdefine(&ee->e_macro, A_PERM, macid("{auth_type}"), "");
-	macdefine(&ee->e_macro, A_PERM, macid("{auth_authen}"), "");
-	macdefine(&ee->e_macro, A_PERM, macid("{auth_author}"), "");
-	macdefine(&ee->e_macro, A_PERM, macid("{auth_ssf}"), "");
-#endif /* SASL */
-#if STARTTLS
-	macdefine(&ee->e_macro, A_PERM, macid("{cert_issuer}"), "");
-	macdefine(&ee->e_macro, A_PERM, macid("{cert_subject}"), "");
-	macdefine(&ee->e_macro, A_PERM, macid("{cipher_bits}"), "");
-	macdefine(&ee->e_macro, A_PERM, macid("{cipher}"), "");
-	macdefine(&ee->e_macro, A_PERM, macid("{tls_version}"), "");
-	macdefine(&ee->e_macro, A_PERM, macid("{verify}"), "");
-# if _FFR_TLS_1
-	macdefine(&ee->e_macro, A_PERM, macid("{alg_bits}"), "");
-	macdefine(&ee->e_macro, A_PERM, macid("{cn_issuer}"), "");
-	macdefine(&ee->e_macro, A_PERM, macid("{cn_subject}"), "");
-# endif /* _FFR_TLS_1 */
-#endif /* STARTTLS */
+	clrsessenvelope(ee);
 
 	ee->e_puthdr = putheader;
 	ee->e_putbody = errbody;

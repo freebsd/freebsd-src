@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: queue.c,v 8.863.2.6 2002/08/16 16:27:37 gshapiro Exp $")
+SM_RCSID("@(#)$Id: queue.c,v 8.863.2.22 2002/12/19 18:00:39 ca Exp $")
 
 #include <dirent.h>
 
@@ -27,8 +27,10 @@ SM_RCSID("@(#)$Id: queue.c,v 8.863.2.6 2002/08/16 16:27:37 gshapiro Exp $")
 
 /*
 **  Historical notes:
-**	QF_VERSION==4 was sendmail 8.10/8.11 without _FFR_QUEUEDELAY
-**	QF_VERSION==5 was sendmail 8.10/8.11 with    _FFR_QUEUEDELAY
+**     QF_VERSION == 4 was sendmail 8.10/8.11 without _FFR_QUEUEDELAY
+**     QF_VERSION == 5 was sendmail 8.10/8.11 with    _FFR_QUEUEDELAY
+**     QF_VERSION == 6 is  sendmail 8.12      without _FFR_QUEUEDELAY
+**     QF_VERSION == 7 is  sendmail 8.12      with    _FFR_QUEUEDELAY
 */
 
 #if _FFR_QUEUEDELAY
@@ -134,6 +136,7 @@ static int	workcmpf1();
 static int	workcmpf2();
 static int	workcmpf3();
 static int	workcmpf4();
+static int	randi = 3;	/* index for workcmpf5() */
 static int	workcmpf5();
 static int	workcmpf6();
 #if _FFR_RHS
@@ -198,6 +201,7 @@ static void	*Pshm;		/* pointer to shared memory */
 static FILESYS	*PtrFileSys;	/* pointer to queue file system array */
 int		ShmId = SM_SHM_NO_ID;	/* shared memory id */
 static QUEUE_SHM_T	*QShm;		/* pointer to shared queue data */
+static size_t shms;
 
 # define SHM_OFF_PID(p)	(((char *) (p)) + sizeof(int))
 # define SHM_OFF_TAG(p)	(((char *) (p)) + sizeof(pid_t) + sizeof(int))
@@ -255,6 +259,7 @@ hash_q(p, h)
 	return h;
 }
 
+
 #else /* SM_CONF_SHM */
 # define FILE_SYS(i)	FileSys[i]
 #endif /* SM_CONF_SHM */
@@ -264,6 +269,7 @@ hash_q(p, h)
 #define FILE_SYS_AVAIL(i)	FILE_SYS(i).fs_avail
 #define FILE_SYS_BLKSIZE(i)	FILE_SYS(i).fs_blksize
 #define FILE_SYS_DEV(i)	FILE_SYS(i).fs_dev
+
 
 /*
 **  Current qf file field assignments:
@@ -1200,7 +1206,7 @@ restart_work_group(wgrp)
 	{
 		/* avoid overflow; increment here */
 		WorkGrp[wgrp].wg_restartcnt++;
-		(void) run_work_group(wgrp, true, false, true, true);
+		(void) run_work_group(wgrp, RWG_FORK|RWG_PERSISTENT|RWG_RUNALL);
 	}
 	else
 	{
@@ -1438,6 +1444,8 @@ runqueue(forkflag, verbose, persistent, runall)
 
 	for (i = 0; i < NumWorkGroups && !NoMoreRunners; i++)
 	{
+		int rwgflags = RWG_NONE;
+
 		/*
 		**  If MaxQueueChildren active then test whether the start
 		**  of the next queue group's additional queue runners (maximum)
@@ -1477,8 +1485,15 @@ runqueue(forkflag, verbose, persistent, runall)
 		*/
 
 		CurRunners += WorkGrp[curnum].wg_maxact;
-		ret = run_work_group(curnum, forkflag, verbose, persistent,
-				     runall);
+		if (forkflag)
+			rwgflags |= RWG_FORK;
+		if (verbose)
+			rwgflags |= RWG_VERBOSE;
+		if (persistent)
+			rwgflags |= RWG_PERSISTENT;
+		if (runall)
+			rwgflags |= RWG_RUNALL;
+		ret = run_work_group(curnum, rwgflags);
 
 		/*
 		**  Failure means a message was printed for ETRN
@@ -1676,7 +1691,7 @@ runner_work(e, sequenceno, didfork, skip, njobs)
 					  w->w_name + 2);
 
 			(void) dowork(w->w_qgrp, w->w_qdir, w->w_name + 2,
-				      false, false, e);
+				      ForkQueueRuns , false, e);
 			errno = 0;
 		}
 		sm_free(w->w_name); /* XXX */
@@ -1711,12 +1726,7 @@ runner_work(e, sequenceno, didfork, skip, njobs)
 **
 **	Parameters:
 **		wgrp -- work group to process.
-**		forkflag -- true if the queue scanning should be done in
-**			a child process.  We double-fork so it is not our
-**			child and we don't have to clean up after it.
-**		verbose -- if true, print out status information.
-**		persistent -- persistent queue runner?
-**		runall -- true: run all of the queue groups in this work group
+**		flags -- RWG_* flags
 **
 **	Returns:
 **		true if the queue run successfully began.
@@ -1729,12 +1739,9 @@ runner_work(e, sequenceno, didfork, skip, njobs)
 #define MIN_SLEEP_TIME	5
 
 bool
-run_work_group(wgrp, forkflag, verbose, persistent, runall)
+run_work_group(wgrp, flags)
 	int wgrp;
-	bool forkflag;
-	bool verbose;
-	bool persistent;
-	bool runall;
+	int flags;
 {
 	register ENVELOPE *e;
 	int njobs, qdir;
@@ -1758,11 +1765,12 @@ run_work_group(wgrp, forkflag, verbose, persistent, runall)
 	sm_getla();	/* get load average */
 	current_la_time = curtime();
 
-	if (!persistent && shouldqueue(WkRecipFact, current_la_time))
+	if (!bitset(RWG_PERSISTENT, flags) &&
+	    shouldqueue(WkRecipFact, current_la_time))
 	{
 		char *msg = "Skipping queue run -- load average too high";
 
-		if (verbose)
+		if (bitset(RWG_VERBOSE, flags))
 			message("458 %s\n", msg);
 		if (LogLevel > 8)
 			sm_syslog(LOG_INFO, NOQID, "runqueue: %s", msg);
@@ -1773,12 +1781,14 @@ run_work_group(wgrp, forkflag, verbose, persistent, runall)
 	**  See if we already have too many children.
 	*/
 
-	if (forkflag && WorkGrp[wgrp].wg_lowqintvl > 0 && !persistent &&
+	if (bitset(RWG_FORK, flags) &&
+	    WorkGrp[wgrp].wg_lowqintvl > 0 &&
+	    !bitset(RWG_PERSISTENT, flags) &&
 	    MaxChildren > 0 && CurChildren >= MaxChildren)
 	{
 		char *msg = "Skipping queue run -- too many children";
 
-		if (verbose)
+		if (bitset(RWG_VERBOSE, flags))
 			message("458 %s (%d)\n", msg, CurChildren);
 		if (LogLevel > 8)
 			sm_syslog(LOG_INFO, NOQID, "runqueue: %s (%d)",
@@ -1790,7 +1800,7 @@ run_work_group(wgrp, forkflag, verbose, persistent, runall)
 	**  See if we want to go off and do other useful work.
 	*/
 
-	if (forkflag)
+	if (bitset(RWG_FORK, flags))
 	{
 		pid_t pid;
 
@@ -1803,7 +1813,7 @@ run_work_group(wgrp, forkflag, verbose, persistent, runall)
 			const char *msg = "Skipping queue run -- fork() failed";
 			const char *err = sm_errstring(errno);
 
-			if (verbose)
+			if (bitset(RWG_VERBOSE, flags))
 				message("458 %s: %s\n", msg, err);
 			if (LogLevel > 8)
 				sm_syslog(LOG_INFO, NOQID, "runqueue: %s: %s",
@@ -1819,7 +1829,7 @@ run_work_group(wgrp, forkflag, verbose, persistent, runall)
 			/* wgrp only used when queue runners are persistent */
 			proc_list_add(pid, "Queue runner", PROC_QUEUE,
 				      WorkGrp[wgrp].wg_maxact,
-				      persistent ? wgrp : -1);
+				      bitset(RWG_PERSISTENT, flags) ? wgrp : -1);
 			(void) sm_releasesignal(SIGALRM);
 			(void) sm_releasesignal(SIGCHLD);
 			return true;
@@ -1876,7 +1886,7 @@ run_work_group(wgrp, forkflag, verbose, persistent, runall)
 	e->e_parent = NULL;
 
 	/* make sure we have disconnected from parent */
-	if (forkflag)
+	if (bitset(RWG_FORK, flags))
 	{
 		disconnect(1, e);
 		QuickAbort = false;
@@ -1908,7 +1918,7 @@ run_work_group(wgrp, forkflag, verbose, persistent, runall)
 
 	/*
 	**  Run a queue group if:
-	**  runall is set or the bit for this group is set.
+	**  RWG_RUNALL bit is set or the bit for this group is set.
 	*/
 
 	now = curtime();
@@ -1922,14 +1932,14 @@ run_work_group(wgrp, forkflag, verbose, persistent, runall)
 		qgrp = WorkGrp[wgrp].wg_qgs[WorkGrp[wgrp].wg_curqgrp]->qg_index;
 		WorkGrp[wgrp].wg_curqgrp++; /* advance */
 		WorkGrp[wgrp].wg_curqgrp %= WorkGrp[wgrp].wg_numqgrp; /* wrap */
-		if (runall ||
+		if (bitset(RWG_RUNALL, flags) ||
 		    (Queue[qgrp]->qg_nextrun <= now &&
 		     Queue[qgrp]->qg_nextrun != (time_t) -1))
 			break;
 		if (endgrp == WorkGrp[wgrp].wg_curqgrp)
 		{
 			e->e_id = NULL;
-			if (forkflag)
+			if (bitset(RWG_FORK, flags))
 				finis(true, true, ExitStat);
 			return true; /* we're done */
 		}
@@ -1958,7 +1968,7 @@ run_work_group(wgrp, forkflag, verbose, persistent, runall)
 		sm_syslog(LOG_DEBUG, NOQID,
 			  "runqueue %s, pid=%d, forkflag=%d",
 			  qid_printqueue(qgrp, qdir), (int) CurrentPid,
-			  forkflag);
+			  bitset(RWG_FORK, flags));
 
 	/*
 	**  Start making passes through the queue.
@@ -2015,24 +2025,6 @@ run_work_group(wgrp, forkflag, verbose, persistent, runall)
 			maxrunners = njobs;
 		for (loop = 0; loop < maxrunners; loop++)
 		{
-#if _FFR_NONSTOP_PERSISTENCE
-			/*
-			**  Require a free "slot" before processing
-			**  this queue runner.
-			*/
-
-			while (MaxQueueChildren > 0 &&
-			       CurChildren > MaxQueueChildren)
-			{
-				int status;
-				pid_t ret;
-
-				while ((ret = sm_wait(&status)) <= 0)
-					continue;
-				proc_list_drop(ret, status, NULL);
-			}
-#endif /* _FFR_NONSTOP_PERSISTENCE */
-
 			/*
 			**  Since the delivery may happen in a child and the
 			**  parent does not wait, the parent may close the
@@ -2116,7 +2108,6 @@ run_work_group(wgrp, forkflag, verbose, persistent, runall)
 
 		sm_releasesignal(SIGCHLD);
 
-#if !_FFR_NONSTOP_PERSISTENCE
 		/*
 		**  Wait until all of the runners have completed before
 		**  seeing if there is another queue group in the
@@ -2135,9 +2126,8 @@ run_work_group(wgrp, forkflag, verbose, persistent, runall)
 				continue;
 			proc_list_drop(ret, status, NULL);
 		}
-#endif /* !_FFR_NONSTOP_PERSISTENCE */
 	}
-	else
+	else if (Queue[qgrp]->qg_maxqrun > 0 || bitset(RWG_FORCE, flags))
 	{
 		/*
 		**  When current process will not fork children to do the work,
@@ -2162,7 +2152,7 @@ run_work_group(wgrp, forkflag, verbose, persistent, runall)
 	}
 
 	/* No more queues in work group to process. Now check persistent. */
-	if (persistent)
+	if (bitset(RWG_PERSISTENT, flags))
 	{
 		sequenceno = 1;
 		sm_setproctitle(true, CurEnv, "running queue: %s",
@@ -2244,7 +2234,7 @@ run_work_group(wgrp, forkflag, verbose, persistent, runall)
 
 	/* exit without the usual cleanup */
 	e->e_id = NULL;
-	if (forkflag)
+	if (bitset(RWG_FORK, flags))
 		finis(true, true, ExitStat);
 	/* NOTREACHED */
 	return true;
@@ -2918,12 +2908,14 @@ sortq(max)
 	else if (QueueSortOrder == QSO_RANDOM)
 	{
 		/*
-		**  Sort randomly.
-		**	workcmpf5() returns a random 1 or -1.
-		**	As long as nobody does a verification pass over the
-		**	sorted list, we should be golden.
+		**  Sort randomly.  To avoid problems with an instable sort,
+		**  use a random index into the queue file name to start
+		**  comparison.
 		*/
 
+		randi = get_rand_mod(MAXQFNAME);
+		if (randi < 2)
+			randi = 3;
 		qsort((char *) WorkList, wc, sizeof *WorkList, workcmpf5);
 	}
 	else if (QueueSortOrder == QSO_BYMODTIME)
@@ -3226,7 +3218,9 @@ workcmpf5(a, b)
 	register WORK *a;
 	register WORK *b;
 {
-	return (get_rand_mod(2)) ? 1 : -1;
+	if (strlen(a->w_name) < randi || strlen(b->w_name) < randi)
+		return -1;
+	return a->w_name[randi] - b->w_name[randi];
 }
 /*
 **  WORKCMPF6 -- simple modification-time-only compare function.
@@ -3452,6 +3446,7 @@ dowork(qgrp, qdir, id, forkflag, requeueflag, e)
 			**  handler for child process.
 			*/
 
+
 			/* Reset global flags */
 			RestartRequest = NULL;
 			RestartWorkGroup = false;
@@ -3637,6 +3632,7 @@ doworklist(el, forkflag, requeueflag)
 			**  Initialize exception stack and default exception
 			**  handler for child process.
 			*/
+
 
 			/* Reset global flags */
 			RestartRequest = NULL;
@@ -6476,7 +6472,7 @@ write_key_file(keypath, key)
 	sff = SFF_NOLINK|SFF_ROOTOK|SFF_REGONLY|SFF_CREAT;
 	if (TrustedUid != 0 && RealUid == TrustedUid)
 		sff |= SFF_OPENASROOT;
-	keyf = safefopen(keypath, O_WRONLY|O_TRUNC, 0644, sff);
+	keyf = safefopen(keypath, O_WRONLY|O_TRUNC, FileMode, sff);
 	if (keyf == NULL)
 	{
 		sm_syslog(LOG_ERR, NOQID, "unable to write %s: %s",
@@ -6486,7 +6482,7 @@ write_key_file(keypath, key)
 	{
 		ok = sm_io_fprintf(keyf, SM_TIME_DEFAULT, "%ld\n", key) !=
 		     SM_IO_EOF;
-		ok = ok && (sm_io_close(keyf, SM_TIME_DEFAULT) != SM_IO_EOF);
+		ok = (sm_io_close(keyf, SM_TIME_DEFAULT) != SM_IO_EOF) && ok;
 	}
 	return ok;
 }
@@ -6514,9 +6510,9 @@ read_key_file(keypath, key)
 	if (keypath == NULL || *keypath == '\0')
 		return key;
 	sff = SFF_NOLINK|SFF_ROOTOK|SFF_REGONLY;
-	if (TrustedUid != 0 && RealUid == TrustedUid)
+	if (RealUid == 0 || (TrustedUid != 0 && RealUid == TrustedUid))
 		sff |= SFF_OPENASROOT;
-	keyf = safefopen(keypath, O_RDONLY, 0644, sff);
+	keyf = safefopen(keypath, O_RDONLY, FileMode, sff);
 	if (keyf == NULL)
 	{
 		sm_syslog(LOG_ERR, NOQID, "unable to read %s: %s",
@@ -6577,7 +6573,6 @@ init_shm(qn, owner, hash)
 	{
 		int count;
 		int save_errno;
-		size_t shms;
 
 		count = 0;
 		shms = SM_T_SIZE + qn * sizeof(QUEUE_SHM_T);
@@ -8012,6 +8007,8 @@ split_within_queue(e)
 			e->e_sibling = firstsibling;
 			for (i = 0; i < nrcpt - 1; ++i)
 				addrs[i]->q_next = addrs[i + 1];
+			if (lsplits != NULL)
+				sm_free(lsplits);
 			return SM_SPLIT_FAIL;
 		}
 
@@ -8054,12 +8051,15 @@ split_within_queue(e)
 			break;
 		i += maxrcpt;
 	}
-	if (LogLevel > SPLIT_LOG_LEVEL && lsplits != NULL && nsplit > 0)
+	if (LogLevel > SPLIT_LOG_LEVEL && lsplits != NULL)
 	{
-		sm_syslog(LOG_NOTICE, e->e_id,
-			  "split: maxrcpts=%d, rcpts=%d, count=%d, id%s=%s",
-			  maxrcpt, nrcpt - ndead, nsplit,
-			  nsplit > 1 ? "s" : "", lsplits);
+		if (nsplit > 0)
+		{
+			sm_syslog(LOG_NOTICE, e->e_id,
+				  "split: maxrcpts=%d, rcpts=%d, count=%d, id%s=%s",
+				  maxrcpt, nrcpt - ndead, nsplit,
+				  nsplit > 1 ? "s" : "", lsplits);
+		}
 		sm_free(lsplits);
 	}
 	return SM_SPLIT_NEW(nsplit);
