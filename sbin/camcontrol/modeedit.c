@@ -641,7 +641,7 @@ modepage_read(FILE *file)
 	char *line;			/* Pointer to static fgetln buffer. */
 	char *name;			/* Name portion of the line buffer. */
 	char *value;			/* Value portion of line buffer.    */
-	int length;			/* Length of static fgetln buffer.  */
+	size_t length;			/* Length of static fgetln buffer.  */
 
 #define	ABORT_READ(message, param) do {					\
 	warnx(message, param);						\
