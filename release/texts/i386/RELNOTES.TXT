@@ -60,6 +60,10 @@ to tag files and directories with attribute data.  Extended attributes
 were added to support the TrustedBSD Project, in particular ACLs,
 capability data, and mandatory access control labels.
 
+Support for Intel's Wired for Management 2.0 (PXE) was added to
+the FreeBSD boot loader.  Due to API differences, the older PXE
+versions are not supported.  This allow network booting using DHCP.
+
 
 1.2. SECURITY FIXES
 -------------------
