@@ -334,7 +334,7 @@ iso88025_output(ifp, m, dst, rt0)
 		if (m == 0)
 			senderr(ENOBUFS);
 		l = mtod(m, struct llc *);
-		l->llc_snap.control = LLC_UI;
+		l->llc_control = LLC_UI;
 		l->llc_dsap = l->llc_ssap = LLC_SNAP_LSAP;
 		l->llc_snap.org_code[0] =
 			l->llc_snap.org_code[1] =
