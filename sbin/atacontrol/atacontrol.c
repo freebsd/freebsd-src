@@ -272,6 +272,17 @@ main(int argc, char **argv)
 	else if (!strcmp(argv[1], "cap") && argc == 4) {
 		ata_cap_print(fd, iocmd.channel, atoi(argv[3]));
 	}
+	else if (!strcmp(argv[1], "enclosure") && argc == 4) {
+		iocmd.device = atoi(argv[3]);
+		iocmd.cmd = ATAENCSTAT;
+		if (ioctl(fd, IOCATA, &iocmd) < 0)
+			err(1, "ioctl(ATAENCSTAT)");
+		printf("fan RPM: %d temp: %.1f 5V: %.2f 12V: %.2f\n",
+			iocmd.u.enclosure.fan,
+			(double)iocmd.u.enclosure.temp / 10,
+			(double)iocmd.u.enclosure.v05 / 1000,
+			(double)iocmd.u.enclosure.v12 / 1000);
+	}
 	else if (!strcmp(argv[1], "detach") && argc == 3) {
 		iocmd.cmd = ATADETACH;
 		if (ioctl(fd, IOCATA, &iocmd) < 0)
