@@ -1,25 +1,33 @@
 <html>
-<! $Id$ >
+<! $Id: UCI.html,v 1.1 1998/11/01 19:52:47 abial Exp $ >
 <body>
 <h1><center>		Unified Configuration Interface Project
 </center></h1>
 
-<p> Here's a preliminary attempt to organize all (well, most)
-configuration tasks and parameters of PicoBSD system in hierarchy
-of categories. </p>
-
-<p> This forms a sort of framework, basing on which one can implement
-consistent configuration file(s), and configuration utilities. </p>
-
-<p> However, the idea behind this project is to completely replace currently
+<p>The idea behind this project is to completely replace currently
 used configuration approach, which is based on several shell scripts, and to
 provide ability to change system behaviour basing on set of well-defined
-parameters' hierarchy. This approach makes it relatively easy to write
-consistent user interfaces, either command-line or with GUI front-ends.</p>
+parameters' hierarchy. One of the goals is also to provide an object
+oriented model of the OS management and structure, instead of currently
+used (inconsistent) procedural model of system/service startup/shutdown.</p>
 
-<p>(BTW. this effort is called UCIP for short, which is pronounced
-"You See IP" and relates to intuitive way you can configure your IP
-services with this approach.. :-))</p>
+<p>This project involves such issues as:
+<ul>
+<li>
+providing consistent view of the system and its functional subsystems as
+a set of interrelated objects equipped with certain properties.
+</li>
+<li>
+providing global approach to user interface, either command-line or with GUI
+front-ends.
+</li>
+<li>
+managing system resources and subsystems. This includes managing
+static and dynamic interdependencies between subsystems, ability to
+upgrade/downgrade specific subsystems on-the-fly.
+</li>
+</ul>
+</p>
 
 <p><i><b>This is work in progress</b> - I'm aware that many pieces
 are either completely missing or misplaced. Please send any comments and
@@ -35,13 +43,13 @@ design and/or implementation.</i></p>
 
 <ul>
 <li>
-<p>Let's first introduce distinction between the following terms:
+<p>Let's first introduce the following terms:
 <ul>
 <li>
 <b>management base</b> - the actual structure holding configuration and
 information data according to defined structure. This structure will most
 probably have a form of tree (possibly with cross-branch links or some other
-mechanism representing mutual dependencies) - the way it's stored is also
+mechanism representing mutual dependencies) - the way it's stored is
 something which needs to be discussed.
 </li>
 <li>
@@ -50,11 +58,19 @@ management base in such a way that it can be viewed and modified by
 legitimate users.
 </li>
 <li>
-<b>configuration agent</b> - an entity performing actual configuration
+<b>system monitor</b> - an entity performing actual configuration and monitoring
 tasks, from one side dealing with management base, and from the other
-dealing with the system resources, and from yet another dealing either
-directly with the user (thus acting as a user interface),
+dealing with the system resources and subsystems, and from yet another dealing
+either directly with the user (thus acting as a user interface),
 or passing requests to other entity which acts as user interface.
+</li>
+<li>
+<b>subsystem</b> - a package containing programs, configuration data, as well
+as installing/deinstalling/start/stop stubs, which form together one logical
+entity performing specific services on behalf of the system. Each subsystem
+is viewed as an object with specific properties, dependencies, which is able
+to generate events, service general requests common to all such subsystems,
+and provide specific services to other subsystems.
 </li>
 </ul>
 </li>
@@ -85,10 +101,10 @@ The next point presents one possible approach to this dilemma.</p>
 <li>
 <p>The term "object" used in the following discussion represents a functional
 subsystem, such as system service, usually performed by some specific
-process (or, a set of global system parameters, in which case the configuration
-agent is the service itself). </p>
+process (or, a set of global system parameters, in which case the system
+monitor agent is the service itself). </p>
 
-<p>Each object stored in management base can be characterized by
+<p>Each object represented in management base can be characterized by
 following properties:
 <ul>
 <li>
@@ -107,7 +123,10 @@ FSM definition, describing state transitions in reaction to received events,
 list of events it can generate and accept,
 </li>
 <li>
-list of dependencies on other objects' states,
+list of dependencies on other objects' states and services,
+</li>
+<li>
+list of requests it can handle,
 </li>
 <li>
 list of parameters it can accept and/or provide, with their valid ranges.
@@ -118,7 +137,9 @@ list of parameters it can accept and/or provide, with their valid ranges.
 <p>A few words on system startup: the system startup routines should ensure
 that dependencies can be unwound into linear, ordered list. If it's not
 possible, they should detect possible deadlocks at runtime, and act as an
-arbiter between conflicting parties (or signal an error).</p>
+arbiter between conflicting parties (or signal an error). In case of
+unsatisfied dependency on some missing subsystem, the system monitor will
+act appropriately as described below (in paragraph on request handling).</p>
 
 <p>The <b>set of symbolic states</b> may consist of the following states,
 depicting object's current internal state (as described by its FSM):
@@ -126,7 +147,8 @@ depicting object's current internal state (as described by its FSM):
 <center><table border>
 <tr><th>Name</th><th>Meaning</th></tr>
 <tr>
-<td>INIT</td><td>the subsystem is initializing itself</td>
+<td>INIT</td><td>the subsystem is initializing itself, possibly loading
+necessary data and binaries from permanent storage.</td>
 </tr>
 <tr>
 <td>CHECK</td><td>performing consistency check on newly supplied parameter values</td>
@@ -140,7 +162,8 @@ to INIT which is related to its own initialization)</td>
 </tr>
 <tr>
 <td>STOP</td><td>stop (shutdown) tasks (when the object intends to stop
-performing its function)</td>
+performing its function). This can involve unloading data and binaries from
+main memory.</td>
 </tr>
 <tr>
 <td>RUN</td><td>primary (work) phase</td>
@@ -210,6 +233,20 @@ used set of parameters</td>
 <td>CHECK_REQ</td><td>perform self-consistency check</td>
 </tr>
 <tr>
+<td>UPGRADE_REQ</td><td>upgrade the subsystem - this possibly involves
+downloading necessary pieces via network to permanent storage area. The
+upgrade process should be transactional, and should save the older version
+of the subsystem in case the DOWNGRADE_REQ should be issued.</td>
+</tr>
+<tr>
+<td>DOWNGRADE_REQ</td><td>downgrade the subsystem - restore the previous
+version of the subsystem from the copy on permanent storage.</td>
+</tr>
+<tr>
+<td>UNINSTALL_REQ</td><td>uninstall the subsystem completely - possibly
+freeing the space on permanent storage.</td>
+</tr>
+<tr>
 <td>(other...)</td><td>(other...)</td>
 </tr>
 </table></center>
@@ -229,17 +266,41 @@ the following:</p>
 </tr>
 <tr>
 <td>EV_CHANGE</td><td>change notification (includes the name of changed
-parameter)</td>
+parameter, and/or FSM state change)</td>
+</tr>
+<tr>
+<td>EV_DEP</td><td>signal the dependency on another subsystem - ask for
+existence of the service. Probably there should be two types of the dependency:
+a soft one (where the subsystem can still function even if the dependency is
+unresolved) and a hard one (when the existence and proper functioning of the
+other subsystem is mandatory for its function).</td>
 </tr>
 <tr>
 <td>(other...)</td><td>(other...)</td>
 </tr>
 </table></center>
 
+<p>One of event attributes can be a flag which says that this particular event
+is a directed, or broadcast message. In case of directed message, it should
+be forwarded only to interested parties. Broadcast message is sent to all
+subsystems.</p>
 
-<p>Ideally, the configuration agent will be equipped with routines to
-serialize this data into human-readable form, so that it's easily stored,
-backed up, and repaired in case of inconsistencies.</p>
+<p>System monitor agent will process these events and route them to
+appropriate subsystems which are registered with it. Generally, if some
+subsystem is dependent on some other, it will want to also receive all events
+generated by the other subsystem.</p>
+
+<p>In case the subsystem
+is missing, and the system monitor received events signalling that some other
+subsystem is depending on it, the system monitor should arrange either for
+installing necessary pieces from some media (be it permanent storage, or the
+network), or to send an EV_NACK to the requesting subsystem. It's the
+responsibility of the requesting subsystem to deal with such case
+appropriately to the type of dependency (i.e. either "hard" or "soft").
+
+<p>Ideally, the system monitor agent will be equipped with routines to
+serialize the management data into human-readable form, so that it's easily
+stored, backed up, and repaired in case of inconsistencies.</p>
 </li>
 <li>
 <p>Actual user interface is still quite another story: I've seen UIs which
@@ -265,7 +326,10 @@ protocols, such as SNMP or LDAP.</p>
 <p>Most known to me (if not all) implementations of agents for these
 protocols are (contrary to their name) quite heavy-weight - so their use
 should be either optional, or replaced with some other light-weight
-protocol and a proxy agent running on other machine.</p>
+protocol and a proxy agent running on other machine. One example of
+such proxy agent is existing UCD-SNMP implementation which in
+significant part follows the sysctl(3) tree, merely exporting it as
+a part of the MIB trees.</p>
 
 <p>It's worthwhile to consider also use of other protocols such as
 DHCP (and BOOTP), Service Location Protocol (SLP - RFC2165) for easy
@@ -273,7 +337,7 @@ integration with LAN resources, easy initial configuration, and peer
 discovery.</p>
 </li>
 <li>
-<p>All operations performed by configuration agent should be transactional,
+<p>All operations performed by system monitor agent should be transactional,
 i.e. it should be possible to commit a set of changes as one logical entity,
 and be sure that either it's applied in whole, or not at all. This includes
 also ability to abort processing in the middle.</p>
@@ -286,7 +350,7 @@ data that are to be applied after the transaction ends successfuly.</p>
 allowed credentials, and basing on this either committed or aborted.</p>
 </li>
 <li>
-<p>A few notes on possible implementation of configuration agent:</p>
+<p>A few notes on possible implementation of system monitor:</p>
 <ul>
 <li>
 let's assume that all configuration information is read on startup
@@ -306,44 +370,48 @@ is relinked with special stub which fakes to the program necessary config
 files and events (such as signals to reread configuration).
 <p>This probably means also that some libc routines would have to be replaced,
 because they assume reading configuration from certain disk files.</p>
+
+<p>Since each such subsystem needs to implement some common actions such as
+installing, deinstalling, start/stop etc, we could use already present
+system of packages (with some minor modifications) to easily achieve
+part of the goals (i.e. install/deinstall/upgrade/downgrade/stop/start).</p>
 </li>
 <li>
 each subsystem performing some task requests its initial config data
-from config agent, at the same time registering with it to receive
+from system monitor, at the same time registering with it to receive
 configuration events, such as request to re-read data, to provide currently
 used config data, return status, react for signals, restarts, etc...
 </li>
 <li>
-configuration agent acts as meeting point for all producers and consumers
+system monitor acts as a meeting point for all producers and consumers
 of events and config data. It needs to maintain a table of registered
 subsystems, set of events they provide, set of events they want to receive,
-etc.. Basing on this table, it  passes appropriate information to
+etc.. Basing on this table, it  routes appropriate information to
 appropriate parties.
 </li>
 <li>
-user interface is then just one of clients of config agent, albeit possessing
+user interface is then just one of clients of system monitor, albeit possessing
 special privileges.
 </li>
 <li>
-one of important tasks of configuration agent, in case given
+one of important tasks of system monitor, in case given
 object (subsystem) registers with it to be notified about certain events, is
 to ensure that such type of event can be possibly generated. This is to
 prevent subsystems from waiting for events coming from other non-existent
-subsystems.
+subsystems. See the discussion above on satisfying dependencies.
 </li>
 </ul>
 <i><p>NOTE: this is one possible approach - a centralized one. It's worth to
 consider other approach, distributed, in which case each object (subsystem)
 sends and listens to the data at a meeting point specific to each other
-object. This eliminates (or drastically minimizes) the role of configuration
-agent which is a single point of failure in centralized case.</p></i>
+object. This eliminates (or drastically minimizes) the role of system
+monitor which is a single point of failure in centralized case.</p></i>
 </li>
 </ul>
 
 <hr>
 
-<p>Here is my initial proposal, which perhaps can be used as a model for
-user interface hierarchy, if not for the management base itself.</p>
+<p>Here is my initial proposal for the User Interface hierarchy:</p>
 
 <ul>
 <li>
@@ -385,15 +453,43 @@ System configuration.
 		</ol>
 	</li>
 	<li>
-	Loadable modules <br>
-	<small>Optional hardware, services and protocol modules management.
-	</small>
+	Subsystems <br>
 		<ol>
 		<li>
-		(Enumeration of available loadable modules)
+		Module management <br>
+		<small>Optional hardware drivers and protocol modules
+		management.</small>
 			<ol>
 			<li>
-			Load / unload / status
+			(Enumeration of available loadable modules)
+				<ol>
+				<li>
+				Load / unload / status
+				</li>
+				</ol>
+			</li>
+		</li>
+		<li>
+		Package management<br>
+		<small>Management of basic and optional system services.</small>
+			<ol>
+			<li>
+			(Enumeration of locally available packages)
+				<ol>
+				<li>
+				Start / Stop / Status / Configure
+				</li>
+				</ol>
+			</li>
+		</li>
+		<li>
+		Default source of service packages<br>
+		<small>Where to automatically get the missing packages from.
+		</small>
+			<ol>
+			<li>
+			(Enumeration of available media) <br>
+			(local and remote disks, ftp, http)
 			</li>
 			</ol>
 		</li>
@@ -409,7 +505,14 @@ System configuration.
 		processes.</small>
 		</li>
 		<li>
+		Space consumption<br>
+		<small>(Things like minimal free space on permanent storage..)
+		</small>
+		</li>
+		<li>
 		Task priorities
+		<small>This includes not only currently running tasks, but all
+		which can possibly be started.</small>
 			<ol>
 			<li>
 			List / Modify
