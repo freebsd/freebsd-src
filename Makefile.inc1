@@ -698,8 +698,7 @@ _fortran= gnu/usr.bin/cc/f771
 
 .if exists(${.CURDIR}/kerberos5) && exists(${.CURDIR}/crypto) && \
     !defined(NOCRYPT) && !defined(NO_OPENSSL) && !defined(NO_KERBEROS)
-_libkrb5= kerberos5/lib/libroken kerberos5/lib/libvers \
-    kerberos5/lib/libasn1 kerberos5/lib/libhdb kerberos5/lib/libsl
+_kerberos5_tools= kerberos5/tools
 .endif
 
 .if exists(${.CURDIR}/rescue) && !defined(NO_RESCUE)
@@ -713,7 +712,6 @@ build-tools:
     ${_rescue} \
     gnu/usr.bin/cc/cc_tools \
     ${_fortran} \
-    ${_libkrb5} \
     lib/libncurses \
     ${_share} \
     ${_aicasm} \
@@ -724,6 +722,14 @@ build-tools:
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
 		${MAKE} DIRPRFX=${_tool}/ build-tools
+.endfor
+.for _tool in \
+    ${_kerberos5_tools}
+	@${ECHODIR} "===> ${_tool}"; \
+		cd ${.CURDIR}/${_tool}; \
+		${MAKE} DIRPRFX=${_tool}/ obj; \
+		${MAKE} DIRPRFX=${_tool}/ depend; \
+		${MAKE} DIRPRFX=${_tool}/ all
 .endfor
 
 #

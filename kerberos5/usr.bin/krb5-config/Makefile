@@ -19,7 +19,6 @@ krb5-config: krb5-config.in
 		-e "s,@LIBS\@,-lcom_err,g"		\
 		-e "s,@INCLUDE_des@,,g"			\
 		${.ALLSRC} > ${.TARGET}
-	chmod +x ${.TARGET}
 
 .include <bsd.prog.mk>
 

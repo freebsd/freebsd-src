@@ -10,16 +10,13 @@ SRCS=	\
 	der_copy.c				\
 	timegm.c				\
 	asn1_err.c				\
-	${.OBJDIR}/asn1_err.h			\
-	${.OBJDIR}/krb5_asn1.h			\
-	${.OBJDIR}/roken.h			\
-	${GEN:S/.x/.c/g}
+	asn1_err.h				\
+	krb5_asn1.h				\
+	${GEN:S/.x$/.c/}
 
-CFLAGS+=-I${KRB5DIR}/include			\
-	-I${KRB5DIR}/lib/asn1			\
+CFLAGS+=-I${KRB5DIR}/lib/asn1			\
 	-I${KRB5DIR}/lib/roken			\
-	-I${INCLUDEOBJDIR}			\
-	-I${.OBJDIR}
+	-I.
 
 GEN=						\
 	asn1_APOptions.x			\
@@ -74,73 +71,22 @@ GEN=						\
 	asn1_TransitedEncoding.x		\
 	asn1_UNSIGNED.x
 
-INCS=	${.OBJDIR}/krb5_asn1.h ${.OBJDIR}/asn1_err.h 
+INCS=	krb5_asn1.h asn1_err.h 
+
+CLEANFILES= ${GEN} ${GEN:S/.x$/.c/} krb5_asn1.h asn1_files
+
+.ORDER: ${GEN} krb5_asn1.h
+${GEN} krb5_asn1.h: k5.asn1 ../../tools/asn1_compile/asn1_compile
+	../../tools/asn1_compile/asn1_compile ${.ALLSRC:M*.asn1} krb5_asn1
+
+../../tools/asn1_compile/asn1_compile:
+	cd ${.CURDIR}/../../tools/asn1_compile && ${MAKE}
+
+.for I in ${GEN}
+${I:R}.c: ${I}
+	cat ${.ALLSRC} > ${.TARGET}
+.endfor
 
 .include <bsd.lib.mk>
 
 .PATH:		${KRB5DIR}/lib/asn1
-.PATH:		${KRB5DIR}/lib/vers
-.PATH:		${KRB5DIR}/lib/roken
-
-beforedepend all: ${.OBJDIR}/roken.h
-
-.for I in ${GEN}
-${I:S/.x/.c/}:	${I}
-	cmp -s ${.OODATE} ${.TARGET} 2> /dev/null || cp ${.OODATE} ${.TARGET}
-.endfor
-
-CLEANFILES+=	${GEN:S/.x/.c/g} krb5_asn1.h asn1_files
-
-${GEN} ${.OBJDIR}/krb5_asn1.h:		asn1_compile k5.asn1
-	./asn1_compile ${KRB5DIR}/lib/asn1/k5.asn1 krb5_asn1
-
-build-tools:	make-print-version make-roken asn1_compile
-
-asn1_compile:					\
-	gen.c					\
-	gen_copy.c				\
-	gen_decode.c				\
-	gen_encode.c				\
-	gen_free.c				\
-	gen_glue.c				\
-	gen_length.c				\
-	hash.c					\
-	emalloc.c				\
-	main.c					\
-	symbol.c				\
-	getarg.c				\
-	warnerr.c				\
-	${.OBJDIR}/lex.o			\
-	${.OBJDIR}/parse.o			\
-	${.OBJDIR}/print_version.o		\
-	get_window_size.c			\
-	strupr.c
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.OODATE} ${LDADD}
-
-.ORDER: ${.OBJDIR}/roken.h ${.OBJDIR}/parse.c ${.OBJDIR}/parse.h ${.OBJDIR}/lex.c
-
-${.OBJDIR}/parse.o:	${.OBJDIR}/parse.c ${.OBJDIR}/roken.h
-
-${.OBJDIR}/lex.o:	${.OBJDIR}/lex.c ${.OBJDIR}/parse.h ${.OBJDIR}/roken.h
-
-${.OBJDIR}/parse.h ${.OBJDIR}/parse.c:	parse.y
-	${YACC}	-d ${.OODATE}
-	cp y.tab.c parse.c
-	cp y.tab.h parse.h
-
-${.OBJDIR}/lex.c:	lex.l
-	${LEX} -t ${LFLAGS} ${.OODATE} > ${.TARGET}
-
-${.OBJDIR}/print_version.o: ${.OBJDIR}/print_version.h print_version.c \
-				${.OBJDIR}/roken.h
-	${CC} ${CFLAGS} -c -o ${.TARGET} ${KRB5DIR}/lib/vers/print_version.c
-
-${.OBJDIR}/print_version.h: make-print-version
-	./make-print-version print_version.h
-
-make-print-version: make-print-version.c
-	${CC} ${CFLAGS} -static -o ${.TARGET} ${.OODATE}
-
-CLEANFILES+=	${GEN} asn1_compile lex.o parse.o parse.c parse.h \
-		hdb_asn1.h make-print-version print_version.h print_version.o \
-		y.tab.c y.tab.h
