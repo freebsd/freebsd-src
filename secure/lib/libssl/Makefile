@@ -28,10 +28,6 @@ CRYPTOHDRS= asn1/asn1.h asn1/asn1_mac.h bio/bio.h bf/blowfish.h bn/bn.h \
 	sha/sha.h stack/stack.h tmdiff.h txt_db/txt_db.h x509/x509.h \
 	x509/x509_vfy.h x509v3/x509v3.h
 
-.if defined(RSAREF) && ${RSAREF} == YES
-CRYPTOHDRS+=	../rsaref/rsaref.h
-.endif
-
 beforedepend:	headers ${.OBJDIR}/openssl/opensslconf.h
 
 DPADD+=	${.OBJDIR}/openssl/opensslconf.h
