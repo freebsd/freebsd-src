@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.24 1998/02/17 19:28:25 brian Exp $
+ * $Id: command.c,v 1.131.2.25 1998/02/17 19:28:42 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -421,14 +421,17 @@ ShowLogLevel(struct cmdargs const *arg)
 static int
 ShowEscape(struct cmdargs const *arg)
 {
-  int code, bit;
+  if (arg->cx->physical->async.cfg.EscMap[32]) {
+    int code, bit;
+    char *sep = "";
 
-  if (EscMap[32]) {
     for (code = 0; code < 32; code++)
-      if (EscMap[code])
+      if (arg->cx->physical->async.cfg.EscMap[code])
 	for (bit = 0; bit < 8; bit++)
-	  if (EscMap[code] & (1 << bit))
-	    prompt_Printf(&prompt, " 0x%02x", (code << 3) + bit);
+	  if (arg->cx->physical->async.cfg.EscMap[code] & (1 << bit)) {
+	    prompt_Printf(&prompt, "%s0x%02x", sep, (code << 3) + bit);
+            sep = ", ";
+          }
     prompt_Printf(&prompt, "\n");
   }
   return 0;
@@ -577,7 +580,7 @@ static struct cmdtab const ShowCommands[] = {
   "Show compression stats", "show compress"},
   {"dfilter", NULL, ShowDfilter, LOCAL_AUTH,
   "Show Demand filters", "show dfilteroption .."},
-  {"escape", NULL, ShowEscape, LOCAL_AUTH,
+  {"escape", NULL, ShowEscape, LOCAL_AUTH | LOCAL_CX,
   "Show escape characters", "show escape"},
   {"hdlc", NULL, ReportHdlcStatus, LOCAL_AUTH,
   "Show HDLC errors", "show hdlc"},
@@ -1098,13 +1101,13 @@ SetEscape(struct cmdargs const *arg)
   char const *const *argv = arg->argv;
 
   for (code = 0; code < 33; code++)
-    EscMap[code] = 0;
+    arg->cx->physical->async.cfg.EscMap[code] = 0;
 
   while (argc-- > 0) {
     sscanf(*argv++, "%x", &code);
     code &= 0xff;
-    EscMap[code >> 3] |= (1 << (code & 7));
-    EscMap[32] = 1;
+    arg->cx->physical->async.cfg.EscMap[code >> 3] |= (1 << (code & 7));
+    arg->cx->physical->async.cfg.EscMap[32] = 1;
   }
   return 0;
 }

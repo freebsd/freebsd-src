@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.8 1998/02/09 19:20:47 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.9 1998/02/10 03:23:19 brian Exp $
  *
  *	TODO:
  */
@@ -100,8 +100,6 @@ static u_short const fcstab[256] = {
    /* f0 */ 0xf78f, 0xe606, 0xd49d, 0xc514, 0xb1ab, 0xa022, 0x92b9, 0x8330,
    /* f8 */ 0x7bc7, 0x6a4e, 0x58d5, 0x495c, 0x3de3, 0x2c6a, 0x1ef1, 0x0f78
 };
-
-u_char EscMap[33];
 
 void
 HdlcInit()

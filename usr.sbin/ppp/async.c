@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: async.c,v 1.15.2.5 1998/02/08 11:04:40 brian Exp $
+ * $Id: async.c,v 1.15.2.6 1998/02/09 19:20:31 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -77,7 +77,7 @@ HdlcPutByte(struct async *async, u_char **cp, u_char c, int proto)
     *wp++ = HDLC_ESC;
     c ^= HDLC_XOR;
   }
-  if (EscMap[32] && EscMap[c >> 3] & (1 << (c & 7))) {
+  if (async->cfg.EscMap[32] && async->cfg.EscMap[c >> 3] & (1 << (c & 7))) {
     *wp++ = HDLC_ESC;
     c ^= HDLC_XOR;
   }

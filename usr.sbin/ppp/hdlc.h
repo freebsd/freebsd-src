@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.h,v 1.14.2.3 1998/02/02 19:32:07 brian Exp $
+ * $Id: hdlc.h,v 1.14.2.4 1998/02/09 19:20:49 brian Exp $
  *
  *	TODO:
  */
@@ -55,8 +55,6 @@
 #define	PRI_FAST	1	/* Fast (interractive) */
 #define	PRI_LINK	1	/* Urgent (LQR packets) */
 #define	PRI_MAX		1
-
-extern u_char EscMap[33];
 
 struct physical;
 struct link;
