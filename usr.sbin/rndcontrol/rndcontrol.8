@@ -30,61 +30,67 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: rndcontrol.8,v 1.6 1997/02/22 16:12:47 peter Exp $
 .\"
 .Dd October 20, 1995
 .Dt RNDCONTROL 8
 .Os FreeBSD 2
 .Sh NAME
-.Nm \&rndcontrol 
-.Nd a utility for manipulating the /dev/random device.
+.Nm rndcontrol 
+.Nd a utility for manipulating the /dev/random device
 .Sh SYNOPSIS
-.Nm \&rndcontrol
+.Nm rndcontrol
 .Op Fl q
 .Op Fl s Ar irq_no
 .Op Fl c Ar irq_no
 .Sh DESCRIPTION
 The
-.Nm rndcontrol
+.Nm
 command is used to set which interrupts are used to help randomise
 the ``pool of entropy'' maintained by the kernel. The 
-.Em /dev/random
+.Pa /dev/random
 and
-.Em /dev/urandom
+.Pa /dev/urandom
 devices are the user interface to this source of randomness.
 Any changes take effect immediately.
 .Sh OPTIONS
-.TP
 The following command line options are supported:
 .Bl -tag -width indent 
 .It Fl q
-Turns off all output except errors.
+Turn off all output except errors.
 .It Fl s  Ar n
-Allows IRQ
-.Em n
+Allow IRQ
+.Ar n
 to be used as a source of randomness. This option may be repeated for
 more than one IRQ.
 .It Fl c  Ar n
-Stops IRQ
-.Em n
+Stop IRQ
+.Ar n
 from being used as a source of randomness. This option may be repeated for
 more than one IRQ.
+.El
 .Pp
 The default is to have no IRQ's being used.
 .Pp
 .Sh FILES
-.Bl -tag -width indent -compact
-.It Pa /dev/random  - Secure random device
-.It Pa /dev/urandom - Random device
+.Bl -tag -width /dev/urandom -compact
+.It Pa /dev/random
+secure random device
+.It Pa /dev/urandom
+random device
 .El
 .Sh BUGS
 Sure to be some.
 .Sh "SEE ALSO"
 .Xr random 4 
 .Sh AUTHOR
-Theodore Ts'o wrote the core code. Mark Murray ported this code to
-FreeBSD and wrote the support routines and constructed the man pages.
+.An Theodore Ts'o
+wrote the core code.
+.An Mark Murray
+ported this code to
+.Bx Free
+and wrote the support routines and constructed the man pages.
 .Sh HISTORY
-.Nm rndcontrol
+.Nm Rndcontrol
 first appeared in
 .Fx 2.1.5 .
