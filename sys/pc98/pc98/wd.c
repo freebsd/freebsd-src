@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.9.2.15 1998/05/04 00:59:32 kato Exp $
+ *	$Id: wd.c,v 1.9.2.16 1998/05/06 20:12:33 gibbs Exp $
  */
 
 /* TODO:
@@ -387,7 +387,7 @@ reset_ok:
 
 	/* printf("Error : %x\n", du->dk_error); */
 	if(du->dk_error != 0x01 && du->dk_error != 0) {
-		if(du->dk_error & 0x80) { /* drive 1 failure */ 
+		if(du->dk_error & 0x80) { /* drive 1 failure */
 
 			/* first set the DRV bit */
 			u_int sdh;
@@ -1242,8 +1242,13 @@ outt:
 
 			/* see if more to transfer */
 			if (du->dk_bc > 0 && (du->dk_flags & DKFL_ERROR) == 0) {
-				wdtab[unit].b_active = 0;
-				wdstart(unit);
+				if( (du->dk_flags & DKFL_SINGLE) ||
+					((bp->b_flags & B_READ) == 0)) {
+					wdtab[unit].b_active = 0;
+					wdstart(unit);
+				} else {
+					du->dk_timeout = 1 + 3;
+				}
 				return;	/* next chunk is started */
 			} else if ((du->dk_flags & (DKFL_SINGLE | DKFL_ERROR))
 				   == DKFL_ERROR) {
@@ -1800,11 +1805,11 @@ again:
 		 * Do this twice: may get a false WDCS_READY the first time.
 		 */
 		inb(du->dk_port + wd_status);
-			if ((inb(du->dk_port + wd_status) & (WDCS_BUSY | WDCS_READY))
-			    != WDCS_READY
-			    || wdcommand(du, 0, 0, 0, 0, WDCC_RESTORE | WD_STEP) != 0
-			    || wdwait(du, WDCS_READY | WDCS_SEEKCMPLT, TIMEOUT) != 0)
-				return (1);
+		if ((inb(du->dk_port + wd_status) & (WDCS_BUSY | WDCS_READY))
+		    != WDCS_READY
+		    || wdcommand(du, 0, 0, 0, 0, WDCC_RESTORE | WD_STEP) != 0
+		    || wdwait(du, WDCS_READY | WDCS_SEEKCMPLT, TIMEOUT) != 0)
+			return (1);
 		}
 		if (du->dk_unit == bootinfo.bi_n_bios_used) {
 			du->dk_dd.d_secsize = DEV_BSIZE;
@@ -2038,7 +2043,6 @@ wdioctl(dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 	default:
 		return (ENOTTY);
 	}
-	return (error);
 }
 
 #ifdef B_FORMAT
@@ -2326,7 +2330,7 @@ wdreset(struct disk *du)
 	outb(0x432,(du->dk_unit)%2);
 #endif
 	wdc = du->dk_port;
-  	(void)wdwait(du, 0, TIMEOUT);
+	(void)wdwait(du, 0, TIMEOUT);
 #ifdef PC98
 	if (old_epson_note) {
 		epson_outb(wdc + wd_ctlr, WDCTL_IDS | WDCTL_RST);
@@ -2346,12 +2350,12 @@ wdreset(struct disk *du)
 #ifdef ATAPI
 		if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT, TIMEOUT) != 0)
 			err = 1;                /* no IDE drive found */
-			du->dk_error = inb(wdc + wd_error);
+		du->dk_error = inb(wdc + wd_error);
 		if (du->dk_error != 0x01)
 			err = 1;                /* the drive is incompatible */
 #else
-	if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT, TIMEOUT) != 0
-	    || (du->dk_error = inb(wdc + wd_error)) != 0x01)
+		if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT, TIMEOUT) != 0
+		    || (du->dk_error = inb(wdc + wd_error)) != 0x01)
 			return (1);
 #endif
 		outb(wdc + wd_ctlr, WDCTL_4BIT);
@@ -2471,7 +2475,7 @@ wdwait(struct disk *du, u_char bits_wanted, int timeout)
 
 /*
  * This delay is really too long, but does not impact the performance
- * as much when using the NSECS_MULTI option.  Shorter delays have
+ * as much when using the multi-sector option.  Shorter delays have
  * caused I/O errors on some drives and system configs.  This should
  * probably be fixed if we develop a better short term delay mechanism.
  */
