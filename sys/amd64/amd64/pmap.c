@@ -757,6 +757,39 @@ pmap_invalidate_all(pmap_t pmap)
 #endif /* !I386_CPU */
 
 /*
+ * Are we current address space or kernel?
+ */
+static __inline int
+pmap_is_current(pmap_t pmap)
+{
+	return (pmap == kernel_pmap ||
+	    (pmap->pm_pdir[PTDPTDI] & PG_FRAME) == (PTDpde[0] & PG_FRAME));
+}
+
+/*
+ * Are we alternate address space?
+ */
+static __inline int
+pmap_is_alternate(pmap_t pmap)
+{
+	return ((pmap->pm_pdir[PTDPTDI] & PG_FRAME) ==
+	    (APTDpde[0] & PG_FRAME));
+}
+
+/*
+ * Map in a pmap's pagetables as alternate address space.
+ */
+static __inline void
+pmap_set_alternate(pmap_t pmap)
+{
+
+	if (!pmap_is_alternate(pmap)) {
+		APTDpde[0] = pmap->pm_pdir[PTDPTDI];
+		pmap_invalidate_all(kernel_pmap);	/* XXX Bandaid */
+	}
+}
+
+/*
  * Return an address which is the base of the Virtual mapping of
  * all the PTEs for the given pmap. Note this doesn't say that
  * all the PTEs will be present or that the pages there are valid.
@@ -767,19 +800,10 @@ static pt_entry_t *
 get_ptbase(pmap)
 	pmap_t pmap;
 {
-	pd_entry_t frame;
 
-	/* are we current address space or kernel? */
-	if (pmap == kernel_pmap)
+	if (pmap_is_current(pmap))
 		return PTmap;
-	frame = pmap->pm_pdir[PTDPTDI] & PG_FRAME;
-	if (frame == (PTDpde & PG_FRAME))
-		return PTmap;
-	/* otherwise, we are alternate address space */
-	if (frame != (APTDpde & PG_FRAME)) {
-		APTDpde = (pd_entry_t) (frame | PG_RW | PG_V);
-		pmap_invalidate_all(kernel_pmap);	/* XXX Bandaid */
-	}
+	pmap_set_alternate(pmap);
 	return APTmap;
 }
 
@@ -799,10 +823,9 @@ pmap_pte_quick(pmap, va)
 	pd_entry_t pde, newpf;
 	pde = pmap->pm_pdir[va >> PDRSHIFT];
 	if (pde != 0) {
-		pd_entry_t frame = pmap->pm_pdir[PTDPTDI] & PG_FRAME;
 		unsigned index = i386_btop(va);
 		/* are we current address space or kernel? */
-		if (pmap == kernel_pmap || frame == (PTDpde & PG_FRAME))
+		if (pmap_is_current(pmap))
 			return PTmap + index;
 		newpf = pde & PG_FRAME;
 		if (((*PMAP1) & PG_FRAME) != newpf) {
@@ -1191,8 +1214,7 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m)
 		 */
 		pmap->pm_pdir[m->pindex] = 0;
 		--pmap->pm_stats.resident_count;
-		if ((pmap->pm_pdir[PTDPTDI] & PG_FRAME) ==
-		    (PTDpde & PG_FRAME)) {
+		if (pmap_is_current(pmap)) {
 			/*
 			 * Do an invltlb to make the invalidated mapping
 			 * take effect immediately.
@@ -1423,8 +1445,7 @@ _pmap_allocpte(pmap, ptepindex)
 	 * do it with the routine that maps the page explicitly.
 	 */
 	if ((m->flags & PG_ZERO) == 0) {
-		if ((pmap->pm_pdir[PTDPTDI] & PG_FRAME) ==
-		    (PTDpde & PG_FRAME)) {
+		if (pmap_is_current(pmap)) {
 			pteva = VM_MAXUSER_ADDRESS + i386_ptob(ptepindex);
 			bzero((caddr_t) pteva, PAGE_SIZE);
 		} else {
@@ -2611,17 +2632,14 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 	vm_offset_t addr;
 	vm_offset_t end_addr = src_addr + len;
 	vm_offset_t pdnxt;
-	pd_entry_t src_frame, dst_frame;
 	vm_page_t m;
 
 	if (dst_addr != src_addr)
 		return;
 
-	src_frame = src_pmap->pm_pdir[PTDPTDI] & PG_FRAME;
-	if (src_frame != (PTDpde & PG_FRAME))
+	if (!pmap_is_current(src_pmap))
 		return;
 
-	dst_frame = dst_pmap->pm_pdir[PTDPTDI] & PG_FRAME;
 	for (addr = src_addr; addr < end_addr; addr = pdnxt) {
 		pt_entry_t *src_pte, *dst_pte;
 		vm_page_t dstmpte, srcmpte;
@@ -2667,10 +2685,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 		 * Have to recheck this before every avtopte() call below
 		 * in case we have blocked and something else used APTDpde.
 		 */
-		if (dst_frame != (APTDpde & PG_FRAME)) {
-			APTDpde = dst_frame | PG_RW | PG_V;
-			pmap_invalidate_all(kernel_pmap); /* XXX Bandaid */
-		}
+		pmap_set_alternate(dst_pmap);
 		src_pte = vtopte(addr);
 		dst_pte = avtopte(addr);
 		while (addr < pdnxt) {
