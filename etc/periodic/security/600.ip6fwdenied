@@ -27,9 +27,6 @@
 # $FreeBSD$
 #
 
-# Show IPv6 denied packets
-#
-
 # If there is a global system configuration file, suck it in.
 #
 if [ -r /etc/defaults/periodic.conf ]
@@ -38,30 +35,17 @@ then
     source_periodic_confs
 fi
 
-LOG="${daily_status_security_logdir}"
+. /etc/periodic/security/security.functions
+
 rc=0
 
 case "$daily_status_security_ip6fwdenied_enable" in
     [Yy][Ee][Ss])
 	TMP=`mktemp ${TMPDIR:-/tmp}/security.XXXXXXXXXX`
 	if ip6fw -a l 2>/dev/null | egrep "deny|reset|unreach" > ${TMP}; then
-	    if [ ! -f ${LOG}/ip6fw.today ]; then
-		rc=1
-		echo ""
-		echo "No ${LOG}/ip6fw.today"
-		cp ${TMP} ${LOG}/ip6fw.today || rc=3
-	    fi
-
-	    if ! cmp ${LOG}/ip6fw.today ${TMP} >/dev/null; then
-		[ $rc -lt 1 ] && rc=1
-		echo ""
-		echo "${host} IPv6 denied packets:"
-		diff -b ${LOG}/ip6fw.today ${TMP} |
-		    egrep "^>"
-		mv ${LOG}/ip6fw.today ${LOG}/ip6fw.yesterday || rc=3
-		mv ${TMP} ${LOG}/ip6fw.today || rc=3
-	    fi
+	  check_diff new_only ip6fw ${TMP} "${host} ip6fw denied packets:"
 	fi
+	rc=$?
 	rm -f ${TMP};;
     *)	rc=0;;
 esac

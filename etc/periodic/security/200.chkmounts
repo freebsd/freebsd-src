@@ -38,13 +38,13 @@ then
     source_periodic_confs
 fi
 
-LOG="${daily_status_security_logdir}"
+. /etc/periodic/security/security.functions
+
 ignore="${daily_status_security_chkmounts_ignore}"
 rc=0
 
 case "$daily_status_security_chkmounts_enable" in
     [Yy][Ee][Ss])
-	TMP=`mktemp ${TMPDIR:-/tmp}/security.XXXXXXXXXX`
 	case "$daily_status_security_noamd" in
 	    [Yy][Ee][Ss])
 		ignore="${ignore}|^amd:"
@@ -54,23 +54,9 @@ case "$daily_status_security_chkmounts_enable" in
 		ignore="${ignore}|^mfs:"
 	esac
 	[ -n "$ignore" ] && cmd="egrep -v ${ignore#|}" || cmd=cat
-	if mount -p | ${cmd} > ${TMP}; then
-	    if [ ! -f ${LOG}/mount.today ]; then
-		rc=1
-		echo ""
-		echo "No ${LOG}/mount.today"
-		cp ${TMP} ${LOG}/mount.today || rc=3
-	    fi
-	    if ! cmp ${LOG}/mount.today ${TMP} >/dev/null 2>&1; then
-		[ $rc -lt 1 ] && rc=1
-		echo ""
-		echo "${host} changes in mounted filesystems:"
-		diff -b ${LOG}/mount.today ${TMP}
-		mv ${LOG}/mount.today ${LOG}/mount.yesterday || rc=3
-		mv ${TMP} ${LOG}/mount.today || rc=3
-	    fi
-	fi
-	rm -f ${TMP};;
+	mount -p | ${cmd} |
+	  check_diff mount - "${host} changes in mounted filesystems:"
+	rc=$?;;
     *)	rc=0;;
 esac
 
