@@ -15,19 +15,28 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.h,v 1.2.6.2 1997/08/25 00:34:24 brian Exp $
+ * $Id: command.h,v 1.2.6.3 1997/09/22 00:50:36 brian Exp $
  *
  *	TODO:
  */
 
+struct cmdtab;
+
+struct cmdargs {
+  struct cmdtab const *cmd;
+  int argc;
+  char const *const *argv;
+  const void *data;
+};
+
 struct cmdtab {
-  char *name;
-  char *alias;
-  int (*func) ();
+  const char *name;
+  const char *alias;
+  int (*func) (struct cmdargs const *);
   u_char lauth;
-  char *helpmes;
-  char *syntax;
-  void *args;
+  const char *helpmes;
+  const char *syntax;
+  const void *args;
 };
 
 #define	VAR_AUTHKEY	0
@@ -38,5 +47,16 @@ struct cmdtab {
 #define	VAR_ACCMAP	5
 #define	VAR_PHONE	6
 #define	VAR_HANGUP	7
+#ifdef HAVE_DES
+#define	VAR_ENC		8
+#endif
 
-extern int SetVariable(struct cmdtab const *, int, char **, int var_param);
+extern struct in_addr ifnetmask;
+extern int aft_cmd;
+
+extern int SetVariable(struct cmdargs const *);
+extern void Prompt(void);
+extern int IsInteractive(int);
+extern void InterpretCommand(char *, int, int *, char ***);
+extern void RunCommand(int, char const *const *, const char *label);
+extern void DecodeCommand(char *, int, const char *label);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.5.2.4 1997/08/31 23:01:56 brian Exp $
+ * $Id: arp.c,v 1.5.2.5 1997/09/10 02:23:27 brian Exp $
  *
  */
 
@@ -25,43 +25,63 @@
  * TODO:
  */
 
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/uio.h>
-#include <sys/socket.h>
+#include <sys/param.h>
 #include <sys/time.h>
-#include <sys/errno.h>
-#include <unistd.h>
-#include <string.h>
-
+#include <sys/socket.h>
 #include <net/if.h>
 #include <net/route.h>
 #include <net/if_dl.h>
 #include <netinet/in.h>
-#include <stdio.h>
-#include <fcntl.h>
-#ifdef __bsdi__
-#include <kvm.h>
-#endif
 #include <net/if_types.h>
-#include <netinet/in_var.h>
-#if RTM_VERSION >= 3
 #include <netinet/if_ether.h>
-#endif
+#include <arpa/inet.h>
+
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/errno.h>
+#include <sys/ioctl.h>
+#include <sys/sysctl.h>
+#include <sys/uio.h>
+#include <unistd.h>
+
+#include "command.h"
+#include "mbuf.h"
 #include "log.h"
+#include "id.h"
+#include "route.h"
+#include "arp.h"
+
+#ifdef DEBUG
+/*
+ * To test the proxy arp stuff, just
+ * 
+ * cc -o arp-test -DDEBUG arp.c
+ *
+ */
+#define LogIsKept(x) 1
+#define LogPrintf fprintf
+#undef LogDEBUG
+#define LogDEBUG stderr
+#undef LogERROR
+#define LogERROR stderr
+#undef LogPHASE
+#define LogPHASE stdout
+#define ID0socket socket
+#define ID0ioctl ioctl
+#endif
 
 static int rtm_seq;
 
-static int get_ether_addr(int, u_long, struct sockaddr_dl *);
+static int get_ether_addr(int, struct in_addr, struct sockaddr_dl *);
 
-#define BCOPY(s, d, l)		memcpy(d, s, l)
-#define BZERO(s, n)		memset(s, 0, n)
 /*
  * SET_SA_FAMILY - set the sa_family field of a struct sockaddr,
  * if it exists.
  */
 #define SET_SA_FAMILY(addr, family)		\
-    BZERO((char *) &(addr), sizeof(addr));	\
+    memset((char *) &(addr), '\0', sizeof(addr));	\
     addr.sa_family = (family); 			\
     addr.sa_len = sizeof(addr);
 
@@ -76,12 +96,12 @@ static struct {
   struct sockaddr_inarp dst;
   struct sockaddr_dl hwa;
   char extra[128];
-}      arpmsg;
+} arpmsg;
 
 static int arpmsg_valid;
 
 int
-sifproxyarp(int unit, u_long hisaddr)
+sifproxyarp(int unit, struct in_addr hisaddr)
 {
   int routes;
 
@@ -89,12 +109,13 @@ sifproxyarp(int unit, u_long hisaddr)
    * Get the hardware address of an interface on the same subnet as our local
    * address.
    */
-  memset(&arpmsg, 0, sizeof(arpmsg));
+  memset(&arpmsg, 0, sizeof arpmsg);
   if (!get_ether_addr(unit, hisaddr, &arpmsg.hwa)) {
     LogPrintf(LogERROR, "Cannot determine ethernet address for proxy ARP\n");
     return 0;
   }
-  if ((routes = socket(PF_ROUTE, SOCK_RAW, AF_INET)) < 0) {
+  routes = ID0socket(PF_ROUTE, SOCK_RAW, AF_INET);
+  if (routes < 0) {
     LogPrintf(LogERROR, "sifproxyarp: opening routing socket: %s\n",
 	      strerror(errno));
     return 0;
@@ -107,7 +128,7 @@ sifproxyarp(int unit, u_long hisaddr)
   arpmsg.hdr.rtm_inits = RTV_EXPIRE;
   arpmsg.dst.sin_len = sizeof(struct sockaddr_inarp);
   arpmsg.dst.sin_family = AF_INET;
-  arpmsg.dst.sin_addr.s_addr = hisaddr;
+  arpmsg.dst.sin_addr.s_addr = hisaddr.s_addr;
   arpmsg.dst.sin_other = SIN_PROXY;
 
   arpmsg.hdr.rtm_msglen = (char *) &arpmsg.hwa - (char *) &arpmsg
@@ -126,7 +147,7 @@ sifproxyarp(int unit, u_long hisaddr)
  * cifproxyarp - Delete the proxy ARP entry for the peer.
  */
 int
-cifproxyarp(int unit, u_long hisaddr)
+cifproxyarp(int unit, struct in_addr hisaddr)
 {
   int routes;
 
@@ -137,7 +158,8 @@ cifproxyarp(int unit, u_long hisaddr)
   arpmsg.hdr.rtm_type = RTM_DELETE;
   arpmsg.hdr.rtm_seq = ++rtm_seq;
 
-  if ((routes = socket(PF_ROUTE, SOCK_RAW, AF_INET)) < 0) {
+  routes = ID0socket(PF_ROUTE, SOCK_RAW, AF_INET);
+  if (routes < 0) {
     LogPrintf(LogERROR, "sifproxyarp: opening routing socket: %s\n",
 	      strerror(errno));
     return 0;
@@ -157,7 +179,7 @@ cifproxyarp(int unit, u_long hisaddr)
  * sifproxyarp - Make a proxy ARP entry for the peer.
  */
 int
-sifproxyarp(int unit, u_long hisaddr)
+sifproxyarp(int unit, struct in_addr hisaddr)
 {
   struct arpreq arpreq;
   struct {
@@ -165,7 +187,7 @@ sifproxyarp(int unit, u_long hisaddr)
     char space[128];
   }      dls;
 
-  BZERO(&arpreq, sizeof(arpreq));
+  memset(&arpreq, '\0', sizeof arpreq);
 
   /*
    * Get the hardware address of an interface on the same subnet as our local
@@ -177,11 +199,11 @@ sifproxyarp(int unit, u_long hisaddr)
   }
   arpreq.arp_ha.sa_len = sizeof(struct sockaddr);
   arpreq.arp_ha.sa_family = AF_UNSPEC;
-  BCOPY(LLADDR(&dls.sdl), arpreq.arp_ha.sa_data, dls.sdl.sdl_alen);
+  memcpy(arpreq.arp_ha.sa_data, LLADDR(&dls.sdl), dls.sdl.sdl_alen);
   SET_SA_FAMILY(arpreq.arp_pa, AF_INET);
-  ((struct sockaddr_in *) & arpreq.arp_pa)->sin_addr.s_addr = hisaddr;
+  ((struct sockaddr_in *) & arpreq.arp_pa)->sin_addr.s_addr = hisaddr.s_addr;
   arpreq.arp_flags = ATF_PERM | ATF_PUBL;
-  if (ioctl(unit, SIOCSARP, (caddr_t) & arpreq) < 0) {
+  if (ID0ioctl(unit, SIOCSARP, (caddr_t) & arpreq) < 0) {
     LogPrintf(LogERROR, "sifproxyarp: ioctl(SIOCSARP): %s\n", strerror(errno));
     return 0;
   }
@@ -192,14 +214,14 @@ sifproxyarp(int unit, u_long hisaddr)
  * cifproxyarp - Delete the proxy ARP entry for the peer.
  */
 int
-cifproxyarp(int unit, u_long hisaddr)
+cifproxyarp(int unit, struct in_addr hisaddr)
 {
   struct arpreq arpreq;
 
-  BZERO(&arpreq, sizeof(arpreq));
+  memset(&arpreq, '\0', sizeof arpreq);
   SET_SA_FAMILY(arpreq.arp_pa, AF_INET);
-  ((struct sockaddr_in *) & arpreq.arp_pa)->sin_addr.s_addr = hisaddr;
-  if (ioctl(unit, SIOCDARP, (caddr_t) & arpreq) < 0) {
+  ((struct sockaddr_in *) & arpreq.arp_pa)->sin_addr.s_addr = hisaddr.s_addr;
+  if (ID0ioctl(unit, SIOCDARP, (caddr_t) & arpreq) < 0) {
     LogPrintf(LogERROR, "cifproxyarp: ioctl(SIOCDARP): %s\n", strerror(errno));
     return 0;
   }
@@ -213,197 +235,121 @@ cifproxyarp(int unit, u_long hisaddr)
  * get_ether_addr - get the hardware address of an interface on the
  * the same subnet as ipaddr.
  */
-#define MAX_IFS		32
 
-int
-get_ether_addr(int s, u_long ipaddr, struct sockaddr_dl * hwaddr)
+static int
+get_ether_addr(int s, struct in_addr ipaddr, struct sockaddr_dl *hwaddr)
 {
-  struct ifreq *ifr, *ifend, *ifp;
-  u_long ina, mask;
-  struct sockaddr_dl *dla;
-  struct ifreq ifreq;
-  struct ifconf ifc;
-  struct ifreq ifs[MAX_IFS];
-
-  ifc.ifc_len = sizeof(ifs);
-  ifc.ifc_req = ifs;
-  if (ioctl(s, SIOCGIFCONF, &ifc) < 0) {
-    LogPrintf(LogERROR, "get_ether_addr: ioctl(SIOCGIFCONF): %s\n",
-	      strerror(errno));
-    return 0;
-  }
-
-  /*
-   * Scan through looking for an interface with an Internet address on the
-   * same subnet as `ipaddr'.
-   */
-  ifend = (struct ifreq *) (ifc.ifc_buf + ifc.ifc_len);
-  for (ifr = ifc.ifc_req; ifr < ifend;) {
-    if (ifr->ifr_addr.sa_family == AF_INET) {
-      ina = ((struct sockaddr_in *) & ifr->ifr_addr)->sin_addr.s_addr;
-      strncpy(ifreq.ifr_name, ifr->ifr_name, sizeof(ifreq.ifr_name));
-      ifreq.ifr_name[sizeof(ifreq.ifr_name) - 1] = '\0';
-
-      /*
-       * Check that the interface is up, and not point-to-point or loopback.
-       */
-      if (ioctl(s, SIOCGIFFLAGS, &ifreq) < 0)
-	continue;
-      if ((ifreq.ifr_flags &
-      (IFF_UP | IFF_BROADCAST | IFF_POINTOPOINT | IFF_LOOPBACK | IFF_NOARP))
-	  != (IFF_UP | IFF_BROADCAST))
-	goto nextif;
-
-      /*
-       * Get its netmask and check that it's on the right subnet.
-       */
-      if (ioctl(s, SIOCGIFNETMASK, &ifreq) < 0)
-	continue;
-      mask = ((struct sockaddr_in *) & ifreq.ifr_addr)->sin_addr.s_addr;
-      if ((ipaddr & mask) != (ina & mask))
-	goto nextif;
-
-      break;
-    }
-nextif:
-    ifr = (struct ifreq *) ((char *) &ifr->ifr_addr + ifr->ifr_addr.sa_len);
-  }
-
-  if (ifr >= ifend)
-    return 0;
-  LogPrintf(LogPHASE, "Found interface %s for proxy arp\n", ifr->ifr_name);
-
-  /*
-   * Now scan through again looking for a link-level address for this
-   * interface.
-   */
-  ifp = ifr;
-  for (ifr = ifc.ifc_req; ifr < ifend;) {
-    if (strcmp(ifp->ifr_name, ifr->ifr_name) == 0
-	&& ifr->ifr_addr.sa_family == AF_LINK) {
-
-      /*
-       * Found the link-level address - copy it out
-       */
-      dla = (struct sockaddr_dl *) & ifr->ifr_addr;
-#ifdef __bsdi__
-      if (dla->sdl_alen == 0)
-	kmemgetether(ifr->ifr_name, dla);
-#endif
-      BCOPY(dla, hwaddr, dla->sdl_len);
-      return 1;
-    }
-    ifr = (struct ifreq *) ((char *) &ifr->ifr_addr + ifr->ifr_addr.sa_len);
-  }
-
-  return 0;
-}
-
-#ifdef __bsdi__
-#include <nlist.h>
-
-struct nlist nl[] = {
-#define N_IFNET		0
-  {"_ifnet"},
-  "",
-};
-
-
-kvm_t *kvmd;
-
-/*
- * Read kernel memory, return 0 on success.
- */
-int
-kread(u_long addr, char *buf, int size)
-{
-  if (kvm_read(kvmd, addr, buf, size) != size) {
-    /* XXX this duplicates kvm_read's error printout */
-    LogPrintf(LogERROR, "kvm_read %s\n", kvm_geterr(kvmd));
-    return -1;
-  }
-  return 0;
-}
-
-void
-kmemgetether(char *ifname, struct sockaddr_dl * dlo)
-{
-  struct ifnet ifnet;
-  int n;
-  u_long addr, ifaddraddr, ifnetfound, ifaddrfound;
-  char name[16 + 32];
+  int mib[6], sa_len, skip, b;
+  size_t needed;
+  char *buf, *ptr, *end;
+  struct if_msghdr *ifm;
+  struct ifa_msghdr *ifam;
   struct sockaddr *sa;
-  char *cp;
-  struct sockaddr_dl *sdl;
-  union {
-    struct ifaddr ifa;
-    struct in_ifaddr in;
-  }     ifaddr;
-  struct arpcom ac;
+  struct sockaddr_dl *dl;
+  struct sockaddr_in *ifa, *mask;
 
-  kvmd = kvm_open(NULL, NULL, NULL, O_RDONLY, NULL);
-  if (kvmd) {
-    n = kvm_nlist(kvmd, nl);
-    if (n >= 0) {
-      addr = nl[N_IFNET].n_value;
-      kread(addr, (char *) &addr, sizeof(addr));
-      ifaddraddr = ifnetfound = 0;
-      while (addr || ifaddraddr) {
-	ifnetfound = addr;
-	if (ifaddraddr == 0) {
-	  if (kread(addr, (char *) &ifnet, sizeof(ifnet)) ||
-	      kread((u_long) ifnet.if_name, name, 16))
-	    return;
-	  name[15] = 0;
-	  addr = (u_long) ifnet.if_next;
-	  cp = (char *) index(name, '\0');
-	  cp += sprintf(cp, "%d", ifnet.if_unit);
-	  *cp = '\0';
-	  ifaddraddr = (u_long) ifnet.if_addrlist;
-	}
-	ifaddrfound = ifaddraddr;
-	if (ifaddraddr) {
-	  if (kread(ifaddraddr, (char *) &ifaddr, sizeof ifaddr)) {
-	    ifaddraddr = 0;
-	    continue;
-	  }
-#define CP(x) ((char *)(x))
-	  cp = (CP(ifaddr.ifa.ifa_addr) - CP(ifaddraddr)) + CP(&ifaddr);
-	  sa = (struct sockaddr *) cp;
-	  if (sa->sa_family == AF_LINK && strcmp(ifname, name) == 0) {
-	    sdl = (struct sockaddr_dl *) sa;
-	    cp = (char *) LLADDR(sdl);
-	    n = sdl->sdl_alen;
-	    if (ifnet.if_type == IFT_ETHER) {
-	      if (n == 0) {
-		kread(ifnetfound, (char *) &ac, sizeof(ac));
-		cp = (char *) LLADDR(sdl);
-		bcopy((char *) ac.ac_enaddr, cp, 6);
-		sdl->sdl_alen = 6;
-	      }
-	      bcopy(sdl, dlo, sizeof(*sdl));
-	      return;
-	    }
-	  }
-	  ifaddraddr = (u_long) ifaddr.ifa.ifa_next;
-	}
+  mib[0] = CTL_NET;
+  mib[1] = PF_ROUTE;
+  mib[2] = 0;
+  mib[3] = 0;
+  mib[4] = NET_RT_IFLIST;
+  mib[5] = 0;
+
+  if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
+    LogPrintf(LogERROR, "get_ether_addr: sysctl: estimate: %s\n",
+              strerror(errno));
+    return 0;
+  }
+
+  if ((buf = malloc(needed)) == NULL)
+    return 0;
+
+  if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0) {
+    free(buf);
+    return 0;
+  }
+  end = buf + needed;
+
+  ptr = buf;
+  while (ptr < end) {
+    ifm = (struct if_msghdr *)ptr;		/* On if_msghdr */
+    if (ifm->ifm_type != RTM_IFINFO)
+      break;
+    dl = (struct sockaddr_dl *)(ifm + 1);	/* Single _dl at end */
+    skip = (ifm->ifm_flags & (IFF_UP | IFF_BROADCAST | IFF_POINTOPOINT |
+            IFF_NOARP | IFF_LOOPBACK)) != (IFF_UP | IFF_BROADCAST);
+    ptr += ifm->ifm_msglen;			/* First ifa_msghdr */
+    while (ptr < end) {
+      ifam = (struct ifa_msghdr *)ptr;	/* Next ifa_msghdr (alias) */
+      if (ifam->ifam_type != RTM_NEWADDR)	/* finished ? */
+        break;
+      sa = (struct sockaddr *)(ifam+1);	/* pile of sa's at end */
+      ptr += ifam->ifam_msglen;
+      if (skip || (ifam->ifam_addrs & (RTA_NETMASK|RTA_IFA)) !=
+          (RTA_NETMASK|RTA_IFA))
+        continue;
+      /* Found a candidate.  Do the addresses match ? */
+      if (LogIsKept(LogDEBUG) &&
+          ptr == (char *)ifm + ifm->ifm_msglen + ifam->ifam_msglen)
+        LogPrintf(LogDEBUG, "%.*s interface is a candidate for proxy\n",
+                  dl->sdl_nlen, dl->sdl_data);
+      b = 1;
+      ifa = mask = NULL;
+      while (b < (RTA_NETMASK|RTA_IFA) && sa < (struct sockaddr *)ptr) {
+        switch (b) {
+        case RTA_IFA:
+          ifa = (struct sockaddr_in *)sa;
+          break;
+        case RTA_NETMASK:
+          /*
+           * Careful here !  this sockaddr doesn't have sa_family set to 
+           * AF_INET, and is only 8 bytes big !  I have no idea why !
+           */
+          mask = (struct sockaddr_in *)sa;
+          break;
+        }
+        if (ifam->ifam_addrs & b) {
+#define ALN sizeof(ifa->sin_addr.s_addr)
+          sa_len = sa->sa_len > 0 ? ((sa->sa_len-1)|(ALN-1))+1 : ALN;
+          sa = (struct sockaddr *)((char *)sa + sa_len);
+        }
+        b <<= 1;
+      }
+      if (LogIsKept(LogDEBUG)) {
+        char a[16];
+        strncpy(a, inet_ntoa(mask->sin_addr), sizeof a - 1);
+        a[sizeof a - 1] = '\0';
+        LogPrintf(LogDEBUG, "Check addr %s, mask %s\n",
+                  inet_ntoa(ifa->sin_addr), a);
+      }
+      if (ifa->sin_family == AF_INET &&
+          (ifa->sin_addr.s_addr & mask->sin_addr.s_addr) ==
+          (ipaddr.s_addr & mask->sin_addr.s_addr)) {
+        LogPrintf(LogPHASE, "Found interface %.*s for proxy arp\n",
+                  dl->sdl_alen, dl->sdl_data);
+        memcpy(hwaddr, dl, dl->sdl_len);
+        free(buf);
+        return 1;
       }
     }
   }
-}
+  free(buf);
 
-#endif
+  return 0;
+}
 
 #ifdef DEBUG
-main()
+int
+main(int argc, char **argv)
 {
-  u_long ipaddr;
-  int s;
+  struct in_addr ipaddr;
+  int s, f;
 
   s = socket(AF_INET, SOCK_DGRAM, 0);
-  ipaddr = inet_addr("192.168.1.32");
-  sifproxyarp(s, ipaddr);
+  for (f = 1; f < argc; f++) {
+    if (inet_aton(argv[f], &ipaddr))
+      sifproxyarp(s, ipaddr);
+  }
   close(s);
 }
-
 #endif

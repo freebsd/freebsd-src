@@ -17,35 +17,51 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.c,v 1.9.2.14 1997/09/21 13:11:24 brian Exp $
+ * $Id: vars.c,v 1.9.2.15 1997/09/23 00:01:27 brian Exp $
  *
  */
-#include "fsm.h"
+#include <sys/param.h>
+#include <netinet/in.h>
+
+#include <stdio.h>
+#include <string.h>
+
 #include "command.h"
+#include "mbuf.h"
+#include "log.h"
+#include "defs.h"
+#include "timer.h"
+#include "fsm.h"
 #include "hdlc.h"
 #include "termios.h"
 #include "loadalias.h"
 #include "vars.h"
 #include "auth.h"
-#include "defs.h"
 
-char VarVersion[] = "PPP Version 1.2";
-char VarLocalVersion[] = "$Date: 1997/09/21 13:11:24 $";
+char VarVersion[] = "PPP Version 1.65";
+char VarLocalVersion[] = "$Date: 1998/01/21 02:15:31 $";
+int Utmp = 0;
+int ipKeepAlive = 0;
+int reconnectState = RECON_UNKNOWN;
+int reconnectCount = 0;
 
 /*
  * Order of conf option is important. See vars.h.
  */
 struct confdesc pppConfs[] = {
-  {"vjcomp", CONF_ENABLE, CONF_ACCEPT},
-  {"lqr", CONF_DISABLE, CONF_ACCEPT},
-  {"chap", CONF_DISABLE, CONF_ACCEPT},
-  {"pap", CONF_DISABLE, CONF_ACCEPT},
   {"acfcomp", CONF_ENABLE, CONF_ACCEPT},
-  {"protocomp", CONF_ENABLE, CONF_ACCEPT},
+  {"chap", CONF_DISABLE, CONF_ACCEPT},
+  {"deflate", CONF_ENABLE, CONF_ACCEPT},
+  {"lqr", CONF_DISABLE, CONF_ACCEPT},
+  {"pap", CONF_DISABLE, CONF_ACCEPT},
+  {"pppd-deflate", CONF_DISABLE, CONF_DENY},
   {"pred1", CONF_ENABLE, CONF_ACCEPT},
-  {"proxy", CONF_DISABLE, CONF_NONE},
+  {"protocomp", CONF_ENABLE, CONF_ACCEPT},
+  {"vjcomp", CONF_ENABLE, CONF_ACCEPT},
   {"msext", CONF_DISABLE, CONF_NONE},
   {"passwdauth", CONF_DISABLE, CONF_NONE},
+  {"proxy", CONF_DISABLE, CONF_NONE},
+  {"throughput", CONF_DISABLE, CONF_NONE},
   {"utmp", CONF_ENABLE, CONF_NONE},
   {NULL},
 };
@@ -53,12 +69,12 @@ struct confdesc pppConfs[] = {
 struct pppvars pppVars = {
   DEF_MRU, DEF_MTU, 0, MODEM_SPEED, CS8, MODEM_CTSRTS, 180, 30, 3,
   RECONNECT_TIMER, RECONNECT_TRIES, REDIAL_PERIOD,
-  NEXT_REDIAL_PERIOD, 1, 1, MODEM_DEV, BASE_MODEM_DEV,
-  OPEN_ACTIVE, LOCAL_NO_AUTH, 0
+  NEXT_REDIAL_PERIOD, 1, 1, MODEM_DEV, "", BASE_MODEM_DEV,
+  1, LOCAL_NO_AUTH, 0
 };
 
 int
-DisplayCommand()
+DisplayCommand(struct cmdargs const *arg)
 {
   struct confdesc *vp;
 
@@ -79,18 +95,19 @@ DisplayCommand()
 }
 
 static int
-ConfigCommand(struct cmdtab * list, int argc, char **argv, int mine, int val)
+ConfigCommand(struct cmdargs const *arg, int mine, int val)
 {
   struct confdesc *vp;
   int err;
+  int narg = 0;
 
-  if (argc < 1)
+  if (arg->argc < 1)
     return -1;
 
   err = 0;
   do {
     for (vp = pppConfs; vp->name; vp++)
-      if (strcasecmp(vp->name, *argv) == 0) {
+      if (strcasecmp(vp->name, arg->argv[narg]) == 0) {
 	if (mine) {
           if (vp->myside == CONF_NONE) {
             LogPrintf(LogWARN, "Config: %s cannot be enabled or disabled\n",
@@ -109,66 +126,67 @@ ConfigCommand(struct cmdtab * list, int argc, char **argv, int mine, int val)
 	break;
       }
     if (!vp->name) {
-      LogPrintf(LogWARN, "Config: %s: No such key word\n", *argv);
+      LogPrintf(LogWARN, "Config: %s: No such key word\n", arg->argv[narg]);
       err++;
     }
-    argc--;
-    argv++;
-  } while (argc > 0);
+  } while (++narg < arg->argc);
 
   return err;
 }
 
 int
-EnableCommand(struct cmdtab * list, int argc, char **argv)
+EnableCommand(struct cmdargs const *arg)
 {
-  return ConfigCommand(list, argc, argv, 1, CONF_ENABLE);
+  return ConfigCommand(arg, 1, CONF_ENABLE);
 }
 
 int
-DisableCommand(struct cmdtab * list, int argc, char **argv)
+DisableCommand(struct cmdargs const *arg)
 {
-  return ConfigCommand(list, argc, argv, 1, CONF_DISABLE);
+  return ConfigCommand(arg, 1, CONF_DISABLE);
 }
 
 int
-AcceptCommand(struct cmdtab * list, int argc, char **argv)
+AcceptCommand(struct cmdargs const *arg)
 {
-  return ConfigCommand(list, argc, argv, 0, CONF_ACCEPT);
+  return ConfigCommand(arg, 0, CONF_ACCEPT);
 }
 
 int
-DenyCommand(struct cmdtab * list, int argc, char **argv)
+DenyCommand(struct cmdargs const *arg)
 {
-  return ConfigCommand(list, argc, argv, 0, CONF_DENY);
+  return ConfigCommand(arg, 0, CONF_DENY);
 }
 
 int
-LocalAuthCommand(struct cmdtab * list, int argc, char **argv)
+LocalAuthCommand(struct cmdargs const *arg)
 {
-  char *pass;
-  if (argc == 0)
+  const char *pass;
+  if (arg->argc == 0)
     pass = "";
-  else if (argc > 1)
+  else if (arg->argc > 1)
     return -1;
   else
-    pass = *argv;
+    pass = *arg->argv;
 
-  switch (LocalAuthValidate(SECRETFILE, VarShortHost, pass)) {
-  case INVALID:
-    pppVars.lauth = LOCAL_NO_AUTH;
-    break;
-  case VALID:
-    pppVars.lauth = LOCAL_AUTH;
-    break;
-  case NOT_FOUND:
-    pppVars.lauth = LOCAL_AUTH;
-    LogPrintf(LogWARN, "WARNING: No Entry for this system\n");
-    break;
-  default:
-    pppVars.lauth = LOCAL_NO_AUTH;
-    LogPrintf(LogERROR, "LocalAuthCommand: Ooops?\n");
-    return 1;
-  }
+  if (VarHaveLocalAuthKey)
+    VarLocalAuth = strcmp(VarLocalAuthKey, pass) ? LOCAL_NO_AUTH : LOCAL_AUTH;
+  else
+    switch (LocalAuthValidate(SECRETFILE, VarShortHost, pass)) {
+    case INVALID:
+      VarLocalAuth = LOCAL_NO_AUTH;
+      break;
+    case VALID:
+      VarLocalAuth = LOCAL_AUTH;
+      break;
+    case NOT_FOUND:
+      VarLocalAuth = LOCAL_AUTH;
+      LogPrintf(LogWARN, "WARNING: No Entry for this system\n");
+      break;
+    default:
+      VarLocalAuth = LOCAL_NO_AUTH;
+      LogPrintf(LogERROR, "LocalAuthCommand: Ooops?\n");
+      return 1;
+    }
   return 0;
 }

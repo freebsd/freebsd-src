@@ -15,48 +15,37 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.4.2.9 1997/09/10 02:23:28 brian Exp $
+ * $Id: defs.h,v 1.4.2.10 1997/10/24 23:15:38 brian Exp $
  *
  *	TODO:
  */
 
-#ifndef _DEFS_H_
-#define	_DEFS_H_
-
-#include <sys/types.h>
-#include <machine/endian.h>
-#include <unistd.h>
-#include <signal.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <termios.h>
-#include "mbuf.h"
-#include "log.h"
-
 /*
- *  Check follwiing definitions for your machine envirinment
+ *  Check following definitions for your machine environment
  */
 #ifdef __FreeBSD__
-#define	MODEM_DEV	"/dev/cuaa1"	/* name of tty device */
-#define	BASE_MODEM_DEV	"cuaa1"	/* name of base tty device */
+# define  MODEM_DEV		"/dev/cuaa1"	/* name of tty device */
+# define  BASE_MODEM_DEV	"cuaa1"		/* name of base tty device */
 #else
-#ifdef __OpenBSD__
-#define	MODEM_DEV	"/dev/cua01"	/* name of tty device */
-#define	BASE_MODEM_DEV	"cua01"	/* name of base tty device */
-#else
-#define	MODEM_DEV	"/dev/tty01"	/* name of tty device */
-#define	BASE_MODEM_DEV	"tty01"	/* name of base tty device */
+# ifdef __OpenBSD__
+#  define MODEM_DEV		"/dev/cua01"	/* name of tty device */
+#  define BASE_MODEM_DEV	"cua01"		/* name of base tty device */
+# else
+#  define MODEM_DEV		"/dev/tty01"	/* name of tty device */
+#  define BASE_MODEM_DEV	"tty01"		/* name of base tty device */
+# endif
 #endif
-#endif
+
 #define MODEM_SPEED	B38400	/* tty speed */
 #define	SERVER_PORT	3000	/* Base server port no. */
-
-#define	MODEM_CTSRTS	TRUE	/* Default (true): use CTS/RTS signals */
+#define	MODEM_CTSRTS	1	/* Default (true): use CTS/RTS signals */
 #define	RECONNECT_TIMER	3	/* Default timer for carrier loss */
 #define	RECONNECT_TRIES	0	/* Default retries on carrier loss */
 #define	REDIAL_PERIOD	30	/* Default Hold time to redial */
 #define	NEXT_REDIAL_PERIOD 3	/* Default Hold time to next number redial */
+#define SCRIPT_LEN 512		/* Size of login scripts */
+#define LINE_LEN SCRIPT_LEN 	/* Size of login scripts */
+#define MAXARGS 40		/* How many args per config line */
 
 #define	CONFFILE 	"ppp.conf"
 #define	LINKUPFILE 	"ppp.linkup"
@@ -74,6 +63,8 @@
 #define	MODE_ALIAS	32	/* Packet aliasing (masquerading) */
 #define MODE_BACKGROUND 64	/* Background mode. */
 
+#define MODE_DAEMON (2|4|8|16|64)
+#define MODE_OUTGOING_DAEMON (2|8|16|64)
 
 #define	EX_SIG		-1
 #define	EX_NORMAL	0
@@ -90,24 +81,15 @@
 #define EX_NODIAL	12
 #define EX_NOLOGIN	13
 
-int mode;
-int BGFiledes[2];
+extern int mode;
+extern int BGFiledes[2];
+extern int modem;
+extern int tun_in;
+extern int tun_out;
+extern int netfd;
 
-int modem;
-int tun_in, tun_out;
-int netfd;
-char *dstsystem;
-
-#ifndef TRUE
-#define	TRUE 	(1)
-#endif
-#ifndef FALSE
-#define	FALSE 	(0)
-#endif
-
-#ifdef SIGALRM
-u_int nointr_sleep(u_int sec);
-void nointr_usleep(u_int usec);
-#endif
-
-#endif				/* _DEFS_H_ */
+extern void SetLabel(const char *);
+extern const char *GetLabel(void);
+extern void randinit(void);
+extern int GetShortHost(void);
+extern void DropClient(int);

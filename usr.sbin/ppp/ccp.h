@@ -15,13 +15,10 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.h,v 1.6 1997/06/09 03:27:14 brian Exp $
+ * $Id: ccp.h,v 1.3.2.2 1997/08/25 00:34:21 brian Exp $
  *
  *	TODO:
  */
-
-#ifndef _CCP_H_
-#define	_CCP_H_
 
 #define	CCP_MAXCODE	CODE_RESETACK
 
@@ -35,25 +32,61 @@
 #define	TY_GAND		19	/* Gandalf FZA */
 #define	TY_V42BIS	20	/* V.42bis compression */
 #define	TY_BSD		21	/* BSD LZW Compress */
+#define	TY_PPPD_DEFLATE	24	/* Deflate (gzip) - (mis) numbered by pppd */
+#define	TY_DEFLATE	26	/* Deflate (gzip) - rfc 1979 */
 
 struct ccpstate {
-  u_long his_proto;		/* peer's compression protocol */
-  u_long want_proto;		/* my compression protocol */
+  int his_proto;		/* peer's compression protocol */
+  int my_proto;			/* our compression protocol */
 
-  u_long his_reject;		/* Request codes rejected by peer */
-  u_long my_reject;		/* Request codes I have rejected */
+  int reset_sent;		/* If != -1, ignore compressed 'till ack */
+  int last_reset;		/* We can receive more (dups) w/ this id */
 
-  u_long orgout, compout;
-  u_long orgin, compin;
+  u_int32_t his_reject;		/* Request codes rejected by peer */
+  u_int32_t my_reject;		/* Request codes I have rejected */
+
+  int out_init;			/* Init called for out algorithm */
+  int in_init;			/* Init called for in algorithm */
+
+  u_long uncompout, compout;
+  u_long uncompin, compin;
 };
 
 extern struct ccpstate CcpInfo;
 
-void CcpRecvResetReq(struct fsm *);
-void CcpSendResetReq(struct fsm *);
-void CcpInput(struct mbuf *);
-void CcpUp(void);
-void CcpOpen(void);
-void CcpInit(void);
+struct ccp_algorithm {
+  int id;
+  int Conf;					/* A Conf value from vars.h */
+  const char *(*Disp)(struct lcp_opt *);
+  struct {
+    void (*Get)(struct lcp_opt *);
+    int (*Set)(struct lcp_opt *);
+    int (*Init)(void);
+    void (*Term)(void);
+    void (*Reset)(void);
+    struct mbuf *(*Read)(u_short *, struct mbuf *);
+    void (*DictSetup)(u_short, struct mbuf *);
+  } i;
+  struct {
+    void (*Get)(struct lcp_opt *);
+    int (*Set)(struct lcp_opt *);
+    int (*Init)(void);
+    void (*Term)(void);
+    void (*Reset)(void);
+    int (*Write)(int, u_short, struct mbuf *);
+  } o;
+};
 
-#endif
+extern struct fsm CcpFsm;
+
+extern void CcpRecvResetReq(struct fsm *);
+extern void CcpSendResetReq(struct fsm *);
+extern void CcpInput(struct mbuf *);
+extern void CcpUp(void);
+extern void CcpOpen(void);
+extern void CcpInit(void);
+extern int ReportCcpStatus(struct cmdargs const *);
+extern void CcpResetInput(u_char);
+extern int CcpOutput(int, u_short, struct mbuf *);
+extern struct mbuf *CompdInput(u_short *, struct mbuf *);
+extern void CcpDictSetup(u_short, struct mbuf *);

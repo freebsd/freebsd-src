@@ -15,42 +15,39 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.h,v 1.6 1997/06/09 03:27:27 brian Exp $
+ * $Id: lqr.h,v 1.3.2.2 1997/08/25 00:34:31 brian Exp $
  *
  *	TODO:
  */
-
-#ifndef _LQR_H_
-#define	_LQR_H_
 
 /*
  *  Structure of LQR packet defined in RFC1333
  */
 struct lqrdata {
-  u_long MagicNumber;
-  u_long LastOutLQRs;
-  u_long LastOutPackets;
-  u_long LastOutOctets;
-  u_long PeerInLQRs;
-  u_long PeerInPackets;
-  u_long PeerInDiscards;
-  u_long PeerInErrors;
-  u_long PeerInOctets;
-  u_long PeerOutLQRs;
-  u_long PeerOutPackets;
-  u_long PeerOutOctets;
+  u_int32_t MagicNumber;
+  u_int32_t LastOutLQRs;
+  u_int32_t LastOutPackets;
+  u_int32_t LastOutOctets;
+  u_int32_t PeerInLQRs;
+  u_int32_t PeerInPackets;
+  u_int32_t PeerInDiscards;
+  u_int32_t PeerInErrors;
+  u_int32_t PeerInOctets;
+  u_int32_t PeerOutLQRs;
+  u_int32_t PeerOutPackets;
+  u_int32_t PeerOutOctets;
 };
 
 struct lqrsave {
-  u_long SaveInLQRs;
-  u_long SaveInPackets;
-  u_long SaveInDiscards;
-  u_long SaveInErrors;
-  u_long SaveInOctets;
+  u_int32_t SaveInLQRs;
+  u_int32_t SaveInPackets;
+  u_int32_t SaveInDiscards;
+  u_int32_t SaveInErrors;
+  u_int32_t SaveInOctets;
 };
 
-struct lqrdata MyLqrData, HisLqrData;
-struct lqrsave HisLqrSave;
+extern struct lqrdata MyLqrData, HisLqrData;
+extern struct lqrsave HisLqrSave;
 
 /*
  *  We support LQR and ECHO as LQM method
@@ -58,11 +55,10 @@ struct lqrsave HisLqrSave;
 #define	LQM_LQR	  1
 #define	LQM_ECHO  2
 
-extern void LqrDump(char *, struct lqrdata *);
+extern void LqrDump(const char *, const struct lqrdata *);
 extern void LqrChangeOrder(struct lqrdata *, struct lqrdata *);
 extern void StartLqm(void);
 extern void StopLqr(int);
 extern void StopLqrTimer(void);
 extern void RecvEchoLqr(struct mbuf *);
-
-#endif
+extern void LqrInput(struct mbuf *);

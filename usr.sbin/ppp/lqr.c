@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.7.2.7 1997/08/25 00:34:31 brian Exp $
+ * $Id: lqr.c,v 1.7.2.8 1997/08/31 23:02:30 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -25,6 +25,16 @@
  *	o LQM policy
  *	o Allow user to configure LQM method and interval.
  */
+#include <sys/param.h>
+#include <netinet/in.h>
+
+#include <stdio.h>
+
+#include "command.h"
+#include "mbuf.h"
+#include "log.h"
+#include "defs.h"
+#include "timer.h"
 #include "fsm.h"
 #include "lcpproto.h"
 #include "lqr.h"
@@ -32,27 +42,29 @@
 #include "lcp.h"
 #include "loadalias.h"
 #include "vars.h"
-#include "main.h"
 
-struct pppTimer LqrTimer;
+struct lqrdata MyLqrData, HisLqrData;
+struct lqrsave HisLqrSave;
+
+static struct pppTimer LqrTimer;
 
 static u_long lastpeerin = (u_long) - 1;
 
 static int lqmmethod;
-static int echoseq;
-static int gotseq;
+static u_int32_t echoseq;
+static u_int32_t gotseq;
 static int lqrsendcnt;
 
 struct echolqr {
-  u_long magic;
-  u_long signature;
-  u_long sequence;
+  u_int32_t magic;
+  u_int32_t signature;
+  u_int32_t sequence;
 };
 
 #define	SIGNATURE  0x594e4f54
 
 static void
-SendEchoReq()
+SendEchoReq(void)
 {
   struct fsm *fp = &LcpFsm;
   struct echolqr *lqr, lqrdata;
@@ -72,7 +84,7 @@ void
 RecvEchoLqr(struct mbuf * bp)
 {
   struct echolqr *lqr;
-  u_long seq;
+  u_int32_t seq;
 
   if (plength(bp) == sizeof(struct echolqr)) {
     lqr = (struct echolqr *) MBUF_CTOP(bp);
@@ -97,7 +109,7 @@ LqrChangeOrder(struct lqrdata * src, struct lqrdata * dst)
 }
 
 static void
-SendLqrReport()
+SendLqrReport(void *v)
 {
   struct mbuf *bp;
 
@@ -172,7 +184,7 @@ LqrInput(struct mbuf * bp)
      */
     if (LqrTimer.load == 0 || lastpeerin == HisLqrData.PeerInLQRs) {
       lqmmethod |= LQM_LQR;
-      SendLqrReport();
+      SendLqrReport(0);
     }
     lastpeerin = HisLqrData.PeerInLQRs;
   }
@@ -208,7 +220,7 @@ StartLqm()
     LqrTimer.state = TIMER_STOPPED;
     LqrTimer.load = period * SECTICKS / 100;
     LqrTimer.func = SendLqrReport;
-    SendLqrReport();
+    SendLqrReport(0);
     StartTimer(&LqrTimer);
     LogPrintf(LogLQM, "Will send LQR every %d.%d secs\n",
 	      period / 100, period % 100);
@@ -234,13 +246,13 @@ StopLqr(int method)
     LogPrintf(LogLQM, "Stop sending LCP ECHO.\n");
   lqmmethod &= ~method;
   if (lqmmethod)
-    SendLqrReport();
+    SendLqrReport(0);
   else
     StopTimer(&LqrTimer);
 }
 
 void
-LqrDump(char *message, struct lqrdata * lqr)
+LqrDump(const char *message, const struct lqrdata * lqr)
 {
   if (LogIsKept(LogLQM)) {
     LogPrintf(LogLQM, "%s:\n", message);

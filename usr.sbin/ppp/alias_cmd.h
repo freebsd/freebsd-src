@@ -1,5 +1,9 @@
-extern int
-    AliasRedirectPort(struct cmdtab *, int, char **, void *);
+/*-
+ * The code in this file was written by Eivind Eklund <perhaps@yes.no>,
+ * who places it in the public domain without restriction.
+ *
+ *	$Id$
+ */
 
-extern int
-    AliasRedirectAddr(struct cmdtab *, int, char **, void *);
+extern int AliasRedirectPort(struct cmdargs const *);
+extern int AliasRedirectAddr(struct cmdargs const *);
