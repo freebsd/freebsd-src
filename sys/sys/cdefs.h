@@ -192,22 +192,30 @@
 #endif	/* __ELF__ */
 #endif	/* __GNUC__ */
 
-#if defined(__GNUC__) && defined(__ELF__)
+#ifdef __GNUC__
+#ifdef __ELF__
 #define	__IDSTRING(name,string)	__asm__(".ident\t\"" string "\"")
 #else
+#define	__IDSTRING(name,string)	__asm__(".data\n\t.asciz\t\"" string "\"\n\t.previous")
+#endif
+#else
+/*
+ * This doesn't work in header files. But it may be better than nothing.
+ * The alternative is: #define __IDSTRING(name,string) /* nothing */
+ */
 #define	__IDSTRING(name,string)	static const char name[] __unused = string
 #endif
 
 #ifndef	__RCSID
-#define	__RCSID(s)	__IDSTRING(rcsid,s)
+#define	__RCSID(s)	__IDSTRING(__CONCAT(__rcsid_,__LINE__),s)
 #endif
 
 #ifndef	__RCSID_SOURCE
-#define	__RCSID_SOURCE(s)	__IDSTRING(rcsid_source,s)
+#define	__RCSID_SOURCE(s)	__IDSTRING(__CONCAT(__rcsid_source_,__LINE__),s)
 #endif
 
 #ifndef	__COPYRIGHT
-#define	__COPYRIGHT(s)	__IDSTRING(copyright,s)
+#define	__COPYRIGHT(s)	__IDSTRING(__CONCAT(__copyright_,__LINE__),s)
 #endif
 
 #ifndef	__DECONST
