@@ -360,6 +360,10 @@ ip_input(struct mbuf *m)
 	u_int32_t divert_info = 0;		/* packet divert/tee info */
 	struct ip_fw_args args;
 	struct route cro;			/* copy of cached route */
+	int srcrt = 0;				/* forward by ``src routing'' */
+#ifdef PFIL_HOOKS
+	struct in_addr odst;			/* original dst address */
+#endif
 #ifdef FAST_IPSEC
 	struct m_tag *mtag;
 	struct tdb_ident *tdbi;
@@ -516,13 +520,19 @@ iphack:
 #ifdef PFIL_HOOKS
 	/*
 	 * Run through list of hooks for input packets.
+	 *
+	 * NB: Beware of the destination address changing (e.g.
+	 *     by NAT rewriting).  When this happens, tell
+	 *     ip_forward to do the right thing.
 	 */
+	odst = ip->ip_dst;
 	if (pfil_run_hooks(&inet_pfil_hook, &m, m->m_pkthdr.rcvif,
 	    PFIL_IN) != 0)
 		return;
 	if (m == NULL)			/* consumed by filter */
 		return;
 	ip = mtod(m, struct ip *);
+	srcrt = (odst.s_addr != ip->ip_dst.s_addr);
 #endif /* PFIL_HOOKS */
 
 	if (fw_enable && IPFW_LOADED) {
@@ -759,7 +769,7 @@ pass:
 		}
 #endif /* FAST_IPSEC */
 		RTCACHE_GET(&cro);
-		ip_forward(m, &cro, 0, args.next_hop);
+		ip_forward(m, &cro, srcrt, args.next_hop);
 	}
 	return;
 
