@@ -11,9 +11,7 @@ sed	-e '/pty/d' \
 	-e '/ppp/d' \
 	-e '/gzip/d' \
 	-e '/splash/d' \
-	-e '/gif/d' \
-	-e '/faith/d' \
-	-e '/INET6/d' \
+	-e '/IPv6/d' \
 	-e '/PROCFS/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSVMSG/d' \
@@ -33,9 +31,7 @@ sed	-e '/pty/d' \
 	-e '/ppp/d' \
 	-e '/gzip/d' \
 	-e '/splash/d' \
-	-e '/gif/d' \
-	-e '/faith/d' \
-	-e '/INET6/d' \
+	-e '/IPv6/d' \
 	-e '/PROCFS/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSV/d' \
