@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.175 1996/03/02 18:24:00 peter Exp $
+ *	$Id: machdep.c,v 1.176 1996/03/02 19:37:39 peter Exp $
  */
 
 #include "npx.h"
@@ -1038,6 +1038,19 @@ setregs(p, entry, stack)
 {
 	int *regs = p->p_md.md_regs;
 
+#ifdef USER_LDT
+	struct pcb *pcb = &p->p_addr->u_pcb;
+
+	/* was i386_user_cleanup() in NetBSD */
+	if (pcb->pcb_ldt) {
+		if (pcb == curpcb)
+			lldt(GSEL(GUSERLDT_SEL, SEL_KPL));
+		kmem_free(kernel_map, (vm_offset_t)pcb->pcb_ldt,
+			pcb->pcb_ldt_len * sizeof(union descriptor));
+		pcb->pcb_ldt_len = (int)pcb->pcb_ldt = 0;
+ 	}
+#endif
+  
 	bzero(regs, sizeof(struct trapframe));
 	regs[tEIP] = entry;
 	regs[tESP] = stack;
