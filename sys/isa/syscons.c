@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.151 1996/06/17 17:21:35 wpaul Exp $
+ *  $Id: syscons.c,v 1.152 1996/06/21 07:19:17 sos Exp $
  */
 
 #include "sc.h"
@@ -1389,6 +1389,7 @@ static void
 scrn_timer()
 {
     static int cursor_blinkrate;
+    static ushort *last_mouse_pos = NULL;
     scr_stat *scp = cur_console;
 
     /* should we just return ? */
@@ -1405,10 +1406,13 @@ scrn_timer()
 	    scp->status &= ~CURSOR_SHOWN;
 	    scp->start = scp->xsize * scp->ysize;
 	    scp->end = 0;
+    	    last_mouse_pos = NULL;
 	}
 	/* update "pseudo" mouse arrow */
-	if (scp->status & MOUSE_ENABLED)
+	if (scp->mouse_pos != last_mouse_pos && (scp->status & MOUSE_ENABLED)) {
+	    last_mouse_pos = scp->mouse_pos;
 	    draw_mouse_image(scp);
+	}
 
 	/* update cursor image */
 	if (scp->status & CURSOR_ENABLED)
