@@ -888,8 +888,6 @@ ParseDoDependency (line)
 			break;
 		    case NotParallel:
 		    {
-			extern int  maxJobs;
-
 			maxJobs = 1;
 			break;
 		    }
