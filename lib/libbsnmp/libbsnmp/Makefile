@@ -6,6 +6,7 @@ CONTRIB= ${.CURDIR}/../../../contrib/bsnmp/lib
 .PATH: ${CONTRIB}
 
 LIB	= bsnmp
+SHLIBDIR ?= /lib
 
 CFLAGS+= -I${CONTRIB}
 
