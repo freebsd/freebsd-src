@@ -26,7 +26,7 @@
 #
 # makewhatis -- update the whatis database in the man directories.
 #
-# $Id$
+# $Id: makewhatis.perl,v 1.13 1997/02/22 15:47:03 peter Exp $
 
 
 sub usage {
@@ -343,6 +343,7 @@ sub manual {
 	    while(<F>) {
 		last if /^\.SH[ \t]/;
 		chop;
+		s/^\.IX\s.*//;            # delete perlpod garbage
 		s/^\.[A-Z]+[ ]+[0-9]+$//; # delete commands
 		s/^\.[A-Za-z]+[ \t]*//;	  # delete commands
 		s/^\.\\".*$//;            #" delete comments
