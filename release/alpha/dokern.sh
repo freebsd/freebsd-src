@@ -2,14 +2,14 @@
 
 # From the kernel config file on stdin (usually GENERIC), pare out items as
 # determined by whether or not the kernel is being prepared to contain
-# an MFS ($1 = YES) or will have the floppy image all to itself ($1 = NO).
+# an MFS ($1 = YES) or will have the floppy image all to itself ($1 = NO or
+# not specified).
 
 if [ $# -lt 1 ]; then
-	echo "usage: $0 YES|NO"
-	exit 1
+	MFS=NO
+else
+	MFS=$1
 fi
-
-MFS=$1
 
 if [ "$MFS" = "YES" ]; then
 	sed	-e '/pty/d' \
@@ -32,7 +32,7 @@ if [ "$MFS" = "YES" ]; then
 		-e '/MATH_EMULATE/d' \
 		-e 's/GENERIC/BOOTMFS/g' \
 		-e '/maxusers/s/32/4/'
-elif [ "$MFS" = "NO" ]; then		# can be much bigger
+else
 	sed	-e '/pty/d' \
 		-e '/pass0/d' \
 		-e '/apm0/d' \
