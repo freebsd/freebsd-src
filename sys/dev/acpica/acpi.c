@@ -33,9 +33,7 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
-#include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/mutex.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/ioccom.h>
@@ -96,7 +94,9 @@ static const char* sleep_state_names[] = {
 /* this has to be static, as the softc is gone when we need it */
 static int acpi_off_state = ACPI_STATE_S5;
 
+#if __FreeBSD_version >= 500000
 struct mtx	acpi_mutex;
+#endif
 
 static int	acpi_modevent(struct module *mod, int event, void *junk);
 static void	acpi_identify(driver_t *driver, device_t parent);
@@ -230,8 +230,10 @@ acpi_identify(driver_t *driver, device_t parent)
     if (device_find_child(parent, "acpi", 0) != NULL)
 	return_VOID;
 
+#if __FreeBSD_version >= 500000
     /* initialise the ACPI mutex */
     mtx_init(&acpi_mutex, "ACPI global lock", NULL, MTX_DEF);
+#endif
 
     /*
      * Start up the ACPI CA subsystem.
@@ -281,6 +283,7 @@ acpi_probe(device_t dev)
     char		buf[20];
     ACPI_STATUS		status;
     int			error;
+    ACPI_LOCK_DECL;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -315,6 +318,7 @@ acpi_attach(device_t dev)
 #ifdef ACPI_DEBUGGER
     char		*debugpoint;
 #endif
+    ACPI_LOCK_DECL;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
     ACPI_LOCK;
@@ -692,6 +696,7 @@ acpi_isa_get_logicalid(device_t dev)
     ACPI_DEVICE_INFO	devinfo;
     ACPI_STATUS		error;
     u_int32_t		pnpid;
+    ACPI_LOCK_DECL;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -1439,6 +1444,7 @@ acpi_Disable(struct acpi_softc *sc)
 static void
 acpi_system_eventhandler_sleep(void *arg, int state)
 {
+    ACPI_LOCK_DECL;
     ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, state);
 
     ACPI_LOCK;
@@ -1451,6 +1457,7 @@ acpi_system_eventhandler_sleep(void *arg, int state)
 static void
 acpi_system_eventhandler_wakeup(void *arg, int state)
 {
+    ACPI_LOCK_DECL;
     ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, state);
 
     /* Well, what to do? :-) */
@@ -1803,6 +1810,7 @@ acpiioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, d_thread_t *td)
     struct acpi_softc		*sc;
     struct acpi_ioctl_hook	*hp;
     int				error, xerror, state;
+    ACPI_LOCK_DECL;
 
     ACPI_LOCK;
 
