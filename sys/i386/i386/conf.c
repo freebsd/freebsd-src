@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.78 1995/03/27 19:39:58 ache Exp $
+ *	$Id: conf.c,v 1.79 1995/03/28 07:54:54 bde Exp $
  */
 
 #include <sys/param.h>
@@ -260,6 +260,23 @@ d_psize_t matcdsize;
 #define       matcdsize       (d_psize_t *)0
 #endif
 
+#include "ata.h"
+#if (NATA > 0)
+d_open_t	ataopen;
+d_close_t	ataclose;
+d_strategy_t	atastrategy;
+d_ioctl_t	ataioctl;
+d_psize_t	atasize;
+#define atadump	nxdump
+#else
+#define	ataopen		nxopen
+#define	ataclose	nxclose
+#define	atastrategy	nxstrategy
+#define	ataioctl	nxioctl
+#define	atasize		zerosize
+#define	atadump		nxdump
+#endif
+
 #include "ch.h"
 #if NCH > 0
 d_open_t	chopen;
@@ -368,7 +385,9 @@ struct bdevsw	bdevsw[] =
 	{ scdopen,	scdclose,	scdstrategy,	scdioctl,	/*16*/
 	  scddump,	scdsize,	0 },
 	{ matcdopen,	matcdclose,	matcdstrategy,	matcdioctl,	/*17*/
-	  matcddump,	matcdsize,	0 }
+	  matcddump,	matcdsize,	0 },
+	{ ataopen,	ataclose,	atastrategy,	ataioctl,	/*18*/
+	  atadump,	atasize,	0 }
 /*
  * If you need a bdev major number for a driver that you intend to donate
  * back to the group or release publically, please contact the FreeBSD team
