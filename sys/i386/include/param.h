@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.5 1993/10/12 07:13:12 rgrimes Exp $
+ *	$Id: param.h,v 1.6 1993/10/12 12:08:16 rgrimes Exp $
  */
 
 /*
@@ -52,15 +52,22 @@
 #define ALIGNBYTES	(sizeof(int) - 1)
 #define ALIGN(p)	(((u_int)(p) + ALIGNBYTES) &~ ALIGNBYTES)
 
+/* XXX PGSHIFT and PG_SHIFT are two names for the same thing */
 #define PGSHIFT		12		/* LOG2(NBPG) */
 #define NBPG		(1 << PGSHIFT)	/* bytes/page */
 #define PGOFSET		(NBPG-1)	/* byte offset into page */
 #define NPTEPG		(NBPG/(sizeof (struct pte)))
 
+/* XXX PDRSHIFT and PD_SHIFT are two names for the same thing */
 #define PDRSHIFT	22		/* LOG2(NBPDR) */
 #define NBPDR		(1 << PDRSHIFT)	/* bytes/page dir */
 #define PDROFSET	(NBPDR-1)	/* byte offset into page dir */
 
+/*
+ * XXX This should really be KPTDPTDI << PDRSHIFT, but since KPTDPTDI is
+ * defined in pmap.h which is included after this we can't do that
+ * (YET!)
+ */
 #define KERNBASE	0xFE000000	/* start of kernel virtual */
 #define BTOPKERNBASE	((u_long)KERNBASE >> PGSHIFT)
 
@@ -106,12 +113,6 @@
 #endif	/* GATEWAY */
 #endif	/* NMBCLUSTERS */
 
-/*
- * Size of kernel malloc arena in CLBYTES-sized logical pages
- */ 
-#ifndef NKMEMCLUSTERS
-#define NKMEMCLUSTERS	(3072*1024/CLBYTES)
-#endif
 /*
  * Some macros for units conversion
  */
