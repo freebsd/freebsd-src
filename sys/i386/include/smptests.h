@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smptests.h,v 1.22 1997/08/21 04:48:45 smp Exp smp $
+ *	$Id: smptests.h,v 1.24 1997/08/29 07:23:37 smp Exp smp $
  */
 
 #ifndef _MACHINE_SMPTESTS_H_
@@ -31,6 +31,20 @@
 
 /*
  * Various 'tests in progress' and configuration parameters.
+ */
+
+
+/*
+ * Put FAST_INTR() ISRs at an APIC priority above the regular INTs.
+ * Allow the mp_lock() routines to handle FAST interrupts while spinning.
+ */
+#define FAST_HI
+
+
+/*
+ * Regular INTerrupts without the giant lock, NOT READY YET!!!
+ *
+#define INTR_SIMPLELOCK
  */
 
 
