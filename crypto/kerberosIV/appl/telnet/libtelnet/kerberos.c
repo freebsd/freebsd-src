@@ -66,6 +66,7 @@ RCSID("$Id: kerberos.c,v 1.46 1999/09/16 20:41:33 assar Exp $");
 #include <arpa/telnet.h>
 #endif
 #include <stdio.h>
+#define OPENSSL_DES_LIBDES_COMPATIBILITY
 #include <openssl/des.h>	/* BSD wont include this in krb.h, so we do it here */
 #include <krb.h>
 #include <pwd.h>
