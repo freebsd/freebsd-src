@@ -45,9 +45,6 @@
 #include	<sys/malloc.h>
 #include	<sys/devconf.h>
 #include	<sys/errno.h>
-#ifdef DEVFS
-#include	<sys/devfsext.h>
-#endif /* DEVFS */
 
 #include	<machine/clock.h>
 #include	<machine/qcam.h>
@@ -57,15 +54,7 @@
 #include	<i386/isa/isa.h>
 #include	<i386/isa/isa_device.h>
 
-/* working off of nostrategy is very ugly, but we need to determine if we're
-   running in a kernel that has eliminated the cdevsw table (yea!) */
-
-#if defined(__FreeBSD__) && defined(nostrategy)
-#define	STATIC_CDEVSW	static
-#define	PRIVATE_CDEVSW
-#else
 #define	STATIC_CDEVSW
-#endif
 
 int	qcam_debug = 1;
 
@@ -105,11 +94,6 @@ qcam_registerdev (struct isa_device *id)
 
 	kdc->kdc_unit = id->id_unit;
 	kdc->kdc_parentdata = id;
-
-#ifndef	ACTUALLY_LKM_NOT_KERNEL		/* there's a bug in dev_attach
-					   when running from an LKM */
-	dev_attach(kdc);
-#endif
 }
 
 static int
@@ -163,13 +147,11 @@ qcam_attach (struct isa_device *devp)
 	printf("qcam%d: %sdirectional parallel port\n",
 	       qs->unit, qs->flags & QC_BIDIR_HW ? "bi" : "uni");
 
-#ifdef DEVFS
-	qs->devfs_token = 
-		devfs_add_devswf(&qcam_cdevsw, qs->unit, DV_CHR, 0, 0, 0600, 
-				 "qcam%d", qs->unit);
-#endif
 	return 1;
 }
+
+struct isa_driver	qcamdriver =
+			{qcam_probe, qcam_attach, "qcam"};
 
 STATIC_CDEVSW int
 qcam_open (dev_t dev, int flags, int fmt, struct proc *p)
@@ -260,103 +242,4 @@ qcam_ioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 }
 
-#ifdef	__FreeBSD__
-struct isa_driver	qcamdriver =
-			{qcam_probe, qcam_attach, "qcam"};
-
-#ifdef	PRIVATE_CDEVSW		/* new configuration system? */
-
-#define CDEV_MAJOR 73
-
-static struct cdevsw qcam_cdevsw = 
-	{ qcam_open,	qcam_close,	qcam_read,	nowrite,
-	  qcam_ioctl,	nostop,		nullreset,	nodevtotty,
-	  noselect,	nommap,		nostrategy,	"qcam",
-	  NULL,		-1  };
-
-/*
- * Initialize the dynamic cdevsw hooks.
- */
-static void
-qcam_drvinit (void *unused)
-{
-	static int qcam_devsw_installed = 0;
-	dev_t dev;
-
-	if (!qcam_devsw_installed) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&qcam_cdevsw, NULL);
-		qcam_devsw_installed++;
-    	}
-}
-
-SYSINIT(qcamdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,qcam_drvinit,NULL)
-
-#endif	/* new configuration system */
-
-#ifdef QCAM_MODULE
-
-#include <sys/exec.h>
-#include <sys/sysent.h>
-#include <sys/sysproto.h>
-#include <sys/lkm.h>
-
-static struct isa_device qcam_mod_dev =
-	{0, &qcamdriver, IO_LPT1, 0, -1, (caddr_t) 0, 0, 0, 0, 0, 0, 0, 0,
-	 0, 1, 0, 0};
-
-MOD_DEV(qcam, LM_DT_CHAR, CDEV_MAJOR, &qcam_cdevsw);
-
-static int 
-qcam_load (struct lkm_table *lkmtp, int cmd)
-{
-	if (qcam_probe(&qcam_mod_dev)) {
-	 	qcam_attach(&qcam_mod_dev);
-
-		qcam_drvinit(NULL); /* XXX this shouldn't NEED to be here
-				     * the LKM code should be doing this
-				     * for us! */
-
-	 	uprintf("qcam: driver loaded\n");
-		return 0;
-	} else {
-		uprintf("qcam: probe failed\n");
-		return 1;
-	}
-}
-
-static int
-qcam_unload (struct lkm_table *lkmtp, int cmd)
-{
-	struct qcam_softc *qs;
-	int i;
-
-	for (i = 0; i < NQCAM; i++) {
-		qs = &qcam_softc[i];
-		if (qs->flags & QC_OPEN) {
-			uprintf("qcam%d: cannot unload, device busy", qs->unit);
-			return 1;
-		}
-	}
-
-	uprintf("qcam: driver unloaded\n");
-	return 0;
-}
-
-static int
-qcam_stat (struct lkm_table *lkmtp, int cmd)
-{
-	return 0;
-}
-
-int
-qcam_mod (struct lkm_table *lkmtp, int cmd, int ver)
-{
-#define _module qcam_module
-	DISPATCH(lkmtp, cmd, ver,
-		 qcam_load, qcam_unload, qcam_stat);
-}
-
-#endif /* QCAM_MODULE */
-#endif /* FreeBSD */
 #endif /* NQCAM */
