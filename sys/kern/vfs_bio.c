@@ -88,7 +88,7 @@ static int bufspace, maxbufspace, vmiospace,
 	bufmallocspace, maxbufmallocspace, hibufspace;
 static int maxbdrun;
 static int needsbuffer;
-static int numdirtybuffers, lodirtybuffers, hidirtybuffers;
+static int numdirtybuffers, hidirtybuffers;
 static int numfreebuffers, lofreebuffers, hifreebuffers;
 static int getnewbufcalls;
 static int getnewbufrestarts;
@@ -96,8 +96,6 @@ static int kvafreespace;
 
 SYSCTL_INT(_vfs, OID_AUTO, numdirtybuffers, CTLFLAG_RD,
 	&numdirtybuffers, 0, "");
-SYSCTL_INT(_vfs, OID_AUTO, lodirtybuffers, CTLFLAG_RW,
-	&lodirtybuffers, 0, "");
 SYSCTL_INT(_vfs, OID_AUTO, hidirtybuffers, CTLFLAG_RW,
 	&hidirtybuffers, 0, "");
 SYSCTL_INT(_vfs, OID_AUTO, numfreebuffers, CTLFLAG_RD,
@@ -275,6 +273,16 @@ bd_wakeup(int dirtybuflevel)
 	}
 }
 
+/*
+ * bd_speedup - speedup the buffer cache flushing code
+ */
+
+static __inline__
+void
+bd_speedup(void)
+{
+	bd_wakeup(1);
+}
 
 /*
  * Initialize buffer headers and related structures. 
@@ -353,7 +361,6 @@ bufinit(void)
  * Reduce the chance of a deadlock occuring by limiting the number
  * of delayed-write dirty buffers we allow to stack up.
  */
-	lodirtybuffers = nbuf / 7 + 10;
 	hidirtybuffers = nbuf / 4 + 20;
 	numdirtybuffers = 0;
 /*
@@ -365,13 +372,8 @@ bufinit(void)
  * the buffer cache.
  */
 	while (hidirtybuffers * BKVASIZE > 3 * hibufspace / 4) {
-		lodirtybuffers >>= 1;
 		hidirtybuffers >>= 1;
 		buf_maxio >>= 1;
-	}
-	if (lodirtybuffers < 2) {
-		lodirtybuffers = 2;
-		hidirtybuffers = 4;
 	}
 
 	/*
@@ -799,9 +801,9 @@ bowrite(struct buf * bp)
 void
 bwillwrite(void)
 {
-	int twenty = (hidirtybuffers - lodirtybuffers) / 5;
+	int slop = hidirtybuffers / 10;
 
-	if (numdirtybuffers > hidirtybuffers + twenty) {
+	if (numdirtybuffers > hidirtybuffers + slop) {
 		int s;
 
 		s = splbio();
@@ -1571,9 +1573,8 @@ restart:
 			flags = VFS_BIO_NEED_ANY;
 		}
 
-		/* XXX */
+		bd_speedup();	/* heeeelp */
 
-		(void) speedup_syncer();
 		needsbuffer |= flags;
 		while (needsbuffer & flags) {
 			if (tsleep(&needsbuffer, (PRIBIO + 4) | slpflag,
@@ -1652,6 +1653,7 @@ waitfreebuffers(int slpflag, int slptimeo)
 static struct proc *bufdaemonproc;
 static int bd_interval;
 static int bd_flushto;
+static int bd_flushinc;
 
 static struct kproc_desc buf_kp = {
 	"bufdaemon",
@@ -1672,6 +1674,7 @@ buf_daemon()
 
 	bd_interval = 5 * hz;	/* dynamically adjusted */
 	bd_flushto = hidirtybuffers;	/* dynamically adjusted */
+	bd_flushinc = 1;
 
 	while (TRUE) {
 		bd_request = 0;
@@ -1694,44 +1697,38 @@ buf_daemon()
 			}
 		}
 
-		/*
-		 * If nobody is requesting anything we sleep
-		 */
-		if (bd_request == 0)
-			tsleep(&bd_request, PVM, "psleep", bd_interval);
-
-		/*
-		 * We calculate how much to add or subtract from bd_flushto
-		 * and bd_interval based on how far off we are from the 
-		 * optimal number of dirty buffers, which is 20% below the
-		 * hidirtybuffers mark.  We cannot use hidirtybuffers straight
-		 * because being right on the mark will cause getnewbuf()
-		 * to oscillate our wakeup.
-		 *
-		 * The larger the error in either direction, the more we adjust
-		 * bd_flushto and bd_interval.  The time interval is adjusted
-		 * by 2 seconds per whole-buffer-range of error.  This is an
-		 * exponential convergence algorithm, with large errors
-		 * producing large changes and small errors producing small
-		 * changes.
-		 */
-
-		{
-			int brange = hidirtybuffers - lodirtybuffers;
-			int middb = hidirtybuffers - brange / 5;
-			int deltabuf = middb - numdirtybuffers;
-
-			bd_flushto += deltabuf / 20;
-			bd_interval += deltabuf * (2 * hz) / (brange * 1);
+		if (bd_request || 
+		    tsleep(&bd_request, PVM, "psleep", bd_interval) == 0) {
+			/*
+			 * Another request is pending or we were woken up
+			 * without timing out.  Flush more.
+			 */
+			--bd_flushto;
+			if (bd_flushto >= numdirtybuffers - 5) {
+				bd_flushto = numdirtybuffers - 10;
+				bd_flushinc = 1;
+			}
+			if (bd_flushto < 2)
+				bd_flushto = 2;
+		} else {
+			/*
+			 * We slept and timed out, we can slow down.
+			 */
+			bd_flushto += bd_flushinc;
+			if (bd_flushto > hidirtybuffers)
+				bd_flushto = hidirtybuffers;
+			++bd_flushinc;
+			if (bd_flushinc > hidirtybuffers / 20 + 1)
+				bd_flushinc = hidirtybuffers / 20 + 1;
 		}
-		if (bd_flushto < lodirtybuffers)
-			bd_flushto = lodirtybuffers;
-		if (bd_flushto > hidirtybuffers)
-			bd_flushto = hidirtybuffers;
+
+		/*
+		 * Set the interval on a linear scale based on hidirtybuffers
+		 * with a maximum frequency of 1/10 second.
+		 */
+		bd_interval = bd_flushto * 5 * hz / hidirtybuffers;
 		if (bd_interval < hz / 10)
 			bd_interval = hz / 10;
-		if (bd_interval > 5 * hz)
-			bd_interval = 5 * hz;
 	}
 }
 
