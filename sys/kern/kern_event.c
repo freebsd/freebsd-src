@@ -281,7 +281,7 @@ filt_proc(struct knote *kn, long hint)
 	 */
 	if (event == NOTE_EXIT) {
 		kn->kn_status |= KN_DETACHED;
-		kn->kn_flags |= (EV_EOF | EV_ONESHOT); 
+		kn->kn_flags |= (EV_EOF | EV_ONESHOT);
 		return (1);
 	}
 
@@ -333,7 +333,7 @@ filt_timerexpire(void *knx)
 
 /*
  * data contains amount of time to sleep, in milliseconds
- */ 
+ */
 static int
 filt_timerattach(struct knote *kn)
 {
@@ -620,7 +620,7 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct thread *td)
 		} else {
 			/*
 			 * The user may change some filter values after the
-			 * initial EV_ADD, but doing so will not reset any 
+			 * initial EV_ADD, but doing so will not reset any
 			 * filter which has already been triggered.
 			 */
 			kn->kn_sfflags = kev->fflags;
@@ -686,7 +686,7 @@ kqueue_scan(struct file *fp, int maxevents, struct kevent *ulistp,
 		}
 		if (tsp->tv_sec == 0 && tsp->tv_nsec == 0)
 			timeout = -1;
-		else 
+		else
 			timeout = atv.tv_sec > 24 * 60 * 60 ?
 			    24 * 60 * 60 * hz : tvtohz(&atv);
 		getmicrouptime(&rtv);
@@ -713,7 +713,7 @@ start:
 	kevp = kq->kq_kev;
 	s = splhigh();
 	if (kq->kq_count == 0) {
-		if (timeout < 0) { 
+		if (timeout < 0) {
 			error = EWOULDBLOCK;
 		} else {
 			kq->kq_state |= KQ_SLEEP;
@@ -730,10 +730,10 @@ start:
 		goto done;
 	}
 
-	TAILQ_INSERT_TAIL(&kq->kq_head, &marker, kn_tqe); 
+	TAILQ_INSERT_TAIL(&kq->kq_head, &marker, kn_tqe);
 	while (count) {
 		kn = TAILQ_FIRST(&kq->kq_head);
-		TAILQ_REMOVE(&kq->kq_head, kn, kn_tqe); 
+		TAILQ_REMOVE(&kq->kq_head, kn, kn_tqe);
 		if (kn == &marker) {
 			splx(s);
 			if (count == maxevents)
@@ -767,7 +767,7 @@ start:
 			kn->kn_status &= ~(KN_QUEUED | KN_ACTIVE);
 			kq->kq_count--;
 		} else {
-			TAILQ_INSERT_TAIL(&kq->kq_head, kn, kn_tqe); 
+			TAILQ_INSERT_TAIL(&kq->kq_head, kn, kn_tqe);
 		}
 		count--;
 		if (nkev == KQ_NEVENTS) {
@@ -782,7 +782,7 @@ start:
 				break;
 		}
 	}
-	TAILQ_REMOVE(&kq->kq_head, &marker, kn_tqe); 
+	TAILQ_REMOVE(&kq->kq_head, &marker, kn_tqe);
 	splx(s);
 done:
 	if (nkev != 0)
@@ -1115,7 +1115,7 @@ knote_enqueue(struct knote *kn)
 
 	KASSERT((kn->kn_status & KN_QUEUED) == 0, ("knote already queued"));
 
-	TAILQ_INSERT_TAIL(&kq->kq_head, kn, kn_tqe); 
+	TAILQ_INSERT_TAIL(&kq->kq_head, kn, kn_tqe);
 	kn->kn_status |= KN_QUEUED;
 	kq->kq_count++;
 	splx(s);
@@ -1130,7 +1130,7 @@ knote_dequeue(struct knote *kn)
 
 	KASSERT(kn->kn_status & KN_QUEUED, ("knote not queued"));
 
-	TAILQ_REMOVE(&kq->kq_head, kn, kn_tqe); 
+	TAILQ_REMOVE(&kq->kq_head, kn, kn_tqe);
 	kn->kn_status &= ~KN_QUEUED;
 	kq->kq_count--;
 	splx(s);
