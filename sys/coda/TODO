@@ -1,0 +1,12 @@
+Near term:
+	Existing VOP_LOCKS's should proabably be 
+	 vn_lock since that is what they were in -stable.
+	Fix bug in executing/mapping new files.
+
+Medium term:
+	Add missing VFS methods.
+	Do performance profile.
+	Tune hash algorithm used in cfs_namecache.
+
+Eventually:
+	Use standard queue macros.
