@@ -102,5 +102,5 @@ machine:
 
 CLEANFILES+=	machine
 
-.include <bsd.kern.mk>
+.include "${.CURDIR}/../../../conf/kern.mk"
 .include <bsd.prog.mk>
