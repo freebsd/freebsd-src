@@ -87,6 +87,24 @@ as defined by
 .In sys/stat.h
 and into which information is placed concerning the file.
 .Pp
+The fields of
+.Vt "struct stat"
+related to the file system are as follows:
+.Bl -tag -width ".Va st_nlink"
+.It Va st_dev
+The numeric ID of the device containing the file.
+.It Va st_ino
+The file's inode number.
+.It Va st_nlink
+The number of hard links to the file.
+.El
+.Pp
+The
+.Va st_dev
+and
+.Va st_ino
+fields together identify the file uniquely within the system.
+.Pp
 The time-related fields of
 .Vt "struct stat"
 are as follows:
@@ -151,12 +169,26 @@ The size-related fields of the
 .Vt "struct stat"
 are as follows:
 .Bl -tag -width ".Va st_blksize"
+.It Va st_size
+The file size in bytes.
 .It Va st_blksize
 The optimal I/O block size for the file.
 .It Va st_blocks
 The actual number of blocks allocated for the file in 512-byte units.
 As short symbolic links are stored in the inode, this number may
 be zero.
+.El
+.Pp
+The access-related fields of
+.Vt "struct stat"
+are as follows:
+.Bl -tag -width ".Va st_mode"
+.It Va st_uid
+The user ID of the file's owner.
+.It Va st_gid
+The group ID of the file.
+.It Va st_mode
+Status of the file (see below).
 .El
 .Pp
 The status information word
