@@ -459,7 +459,7 @@ if [ "${vibackup}" != '/var/tmp/vi.recover/vi.*' ]; then
 			# Delete any recovery files that are zero length,
 			# corrupted, or that have no corresponding backup file.
 			# Else send mail to the user.
-			recfile=`awk '/^X-vi-recover-path:/{print $2}' < ${i}`
+			recfile=`awk '/^X-vi-recover-path:/{print $2}' < "${i}"`
 			if [ -n "${recfile}" -a -s "${recfile}" ]; then
 				sendmail -t < "${i}"
 			else
