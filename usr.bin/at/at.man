@@ -3,7 +3,7 @@
 .Dt "AT" 1
 .Os FreeBSD 2.1
 .Sh NAME
-.Nm at, batch, atq, atrm
+.Nm at , batch , atq , atrm
 .Nd queue, examine or delete jobs for later execution
 .Sh SYNOPSIS
 .Nm at
@@ -12,7 +12,6 @@
 .Op Fl f Ar file
 .Op Fl mldbv
 .Ar time
-.Pp
 .Nm at
 .Op Fl V
 .Fl c Ar job Op Ar job ...
@@ -64,15 +63,15 @@ or
 to run a job at a specific time of day.
 (If that time is already past, the next day is assumed.)
 You may also specify
-.Nm midnight ,
-.Nm noon ,
+.Em midnight ,
+.Em noon ,
 or
-.Nm teatime
+.Em teatime
 (4pm)
 and you can have a time-of-day suffixed with
-.Nm AM
+.Em AM
 or
-.Nm PM
+.Em PM
 for running in the morning or the evening.
 You can also say what day the job will be run,
 by giving a date in the form
@@ -88,22 +87,22 @@ or
 The specification of a date must follow the specification of
 the time of day.
 You can also give times like
-.Op Nm now
-.Nm + Ar count \%time-units ,
+.Op Em now
+.Em + Ar count \%time-units ,
 where the time-units can be
-.Nm minutes ,
-.Nm hours ,
-.Nm days ,
-.Nm weeks ,
-.Nm months
+.Em minutes ,
+.Em hours ,
+.Em days ,
+.Em weeks ,
+.Em months
 or
-.Nm years
+.Em years
 and you can tell
-.Nm at
+.Nm
 to run the job today by suffixing the time with
-.Nm today
+.Em today
 and to run the job tomorrow by suffixing the time with
-.Nm tomorrow.
+.Em tomorrow .
 .Pp
 For example, to run a job at 4pm three days from now, you would do
 .Nm at 4pm + 3 days ,
@@ -113,7 +112,7 @@ and to run a job at 1am tomorrow, you would do
 .Nm at 1am tomorrow.
 .Pp
 For both
-.Nm at
+.Nm
 and
 .Nm batch ,
 commands are read from standard input or the file specified
@@ -121,16 +120,16 @@ with the
 .Fl f
 option and executed.
 The working directory, the environment (except for the variables
-.Nm TERM ,
-.Nm TERMCAP ,
-.Nm DISPLAY
+.Ev TERM ,
+.Ev TERMCAP ,
+.Ev DISPLAY
 and
-.Nm _ )
+.Em _ )
 and the
 .Ar umask
 are retained from the time of invocation.
 An
-.Nm at
+.Nm
 or
 .Nm batch
 command invoked from a 
@@ -140,7 +139,7 @@ The user will be mailed standard error and standard output from his
 commands, if any. Mail will be sent using the command
 .Xr sendmail 8 .
 If
-.Nm at
+.Nm
 is executed from a 
 .Xr su 1
 shell, the owner of the login shell will receive the mail.
@@ -154,7 +153,7 @@ and
 If the file
 .Pa _PERM_PATH/at.allow
 exists, only usernames mentioned in it are allowed to use
-.Nm at .
+.Nm Ns .
 .Pp
 If
 .Pa _PERM_PATH/at.allow
@@ -162,10 +161,10 @@ does not exist,
 .Pa _PERM_PATH/at.deny
 is checked, every username not mentioned in it is then allowed
 to use
-.Nm at .
+.Nm Ns .
 .Pp
 If neither exists, only the superuser is allowed use of
-.Nm at .
+.Nm Ns .
 This is the default configuration.
 .Pp
 An empty 
@@ -174,24 +173,24 @@ means that every user is allowed use these commands.
 .Sh OPTIONS
 .Bl -tag -width indent
 .It Fl V
-prints the version number to standard error.
+Print the version number to standard error.
 .It Fl q Ar queue
-uses the specified queue.
+Use the specified queue.
 A queue designation consists of a single letter; valid queue designations
 range from
-.Nm a
+.Ar a
 to 
-.Nm z .
+.Ar z .
 and
-.Nm A
+.Ar A
 to
-.Nm Z .
+.Ar Z .
 The
-.Nm _DEFAULT_AT_QUEUE
+.Ar _DEFAULT_AT_QUEUE
 queue is the default for
-.Nm at
+.Nm
 and the
-.Nm _DEFAULT_BATCH_QUEUE
+.Ar _DEFAULT_BATCH_QUEUE
 queue for
 .Nm batch .
 Queues with higher letters run with increased niceness.
@@ -204,39 +203,39 @@ is given a specific queue, it will only show jobs pending in that queue.
 Send mail to the user when the job has completed even if there was no
 output.
 .It Fl f Ar file
-Reads the job from
+Read the job from
 .Ar file
 rather than standard input.
 .It Fl l
 Is an alias for
-.Nm atq.
+.Nm atq .
 .It Fl d
 Is an alias for
-.Nm atrm.
+.Nm atrm .
 .It Fl b
 Is an alias for
-.Nm batch.
+.Nm batch .
 .It Fl v
 For
 .Nm atq ,
 shows completed but not yet deleted jobs in the queue; otherwise
 shows the time the job will be executed.
 .It Fl c
-Cats the jobs listed on the command line to standard output.
+Cat the jobs listed on the command line to standard output.
 .Sh FILES
 .Bl -tag -width _ATJOB_DIR/_LOCKFILE -compact
 .It Pa _ATJOB_DIR
-Directory containing job files
+directory containing job files
 .It Pa _ATSPOOL_DIR
-Directory containing output spool files
+directory containing output spool files
 .It Pa /var/run/utmp
-Login records
+login records
 .It Pa _PERM_PATH/at.allow
-Allow permission control
+allow permission control
 .It Pa _PERM_PATH/at.deny
-Deny permission control
+deny permission control
 .It Pa _ATJOB_DIR/_LOCKFILE
-Job-creation lock file.
+job-creation lock file
 .El
 .Sh SEE ALSO
 .Xr nice 1 ,
@@ -246,15 +245,14 @@ Job-creation lock file.
 .Xr cron 8 ,
 .Xr sendmail 8
 .Sh BUGS
-.Pp
 If the file
 .Pa /var/run/utmp
 is not available or corrupted, or if the user is not logged on at the
 time 
-.Nm at
+.Nm
 is invoked, the mail is sent to the userid found
 in the environment variable
-.Nm LOGNAME .
+.Ev LOGNAME .
 If that is undefined or empty, the current userid is assumed.
 .Pp
 .Nm At
@@ -264,7 +262,7 @@ as presently implemented are not suitable when users are competing for
 resources.
 If this is the case for your site, you might want to consider another
 batch system, such as
-.Nm nqs .
+.Em nqs .
 .Sh AUTHORS
 At was mostly written by
 .An Thomas Koenig Aq ig25@rz.uni-karlsruhe.de .
