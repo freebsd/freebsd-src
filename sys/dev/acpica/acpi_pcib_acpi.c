@@ -305,16 +305,16 @@ acpi_pcib_acpi_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
     /*
-     * If no memory preference is given, use upper 2GB slot most
+     * If no memory preference is given, use upper 32MB slot most
      * bioses use for their memory window.  Typically other bridges
      * before us get in the way to assert their preferences on memory.
      * Hardcoding like this sucks, so a more MD/MI way needs to be
      * found to do it.  This is typically only used on older laptops
-     * that don't have pci busses behind pci bridge, so assuming < 2GB
+     * that don't have pci busses behind pci bridge, so assuming > 32MB
      * is liekly OK.
      */
     if (type == SYS_RES_MEMORY && start == 0UL && end == ~0UL)
-	start = 0x80000000;
+	start = 0xfe000000;
     return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
 	count, flags));
 }
