@@ -22,7 +22,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: tcplex.l,v 1.26 92/02/14 15:16:35 mccanne Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/tcplex.l,v 1.1.1.1 1993/06/12 14:42:05 rgrimes Exp $ (LBL)";
 #endif
 
 /*
@@ -136,11 +136,9 @@ lex_init(buf)
 {
 	in_buffer = buf;
 }
-#ifndef FLEX_SCANNER
 int 
 yywrap()
 /* so we don't need -ll */
 {
 	return 1;
 }				
-#endif
