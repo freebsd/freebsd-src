@@ -2,16 +2,11 @@
 /* config.h.in.  Generated from configure.in by autoheader.  */
 /* $FreeBSD$ */
 
-#define ULONG_CONST(a) a ## UL
-
 /* Is adjtime() accurate? */
 /* #undef ADJTIME_IS_ACCURATE */
 
 /* CHU audio/decoder? */
 /* #undef AUDIO_CHU */
-
-/* Autokey? */
-#define AUTOKEY 
 
 /* Declare char *sys_errlist array */
 /* #undef CHAR_SYS_ERRLIST */
@@ -50,7 +45,7 @@
 /* #undef CLOCK_DCF7000 */
 
 /* Dumb generic hh:mm:ss local clock? */
-#define CLOCK_DUMBCLOCK 1
+#define CLOCK_DUMBCLOCK	1 
 
 /* Forum Graphic GPS datating station driver? */
 /* #undef CLOCK_FG */
@@ -160,7 +155,7 @@
 /* TrueTime 560 IRIG-B decoder? */
 /* #undef CLOCK_TT560 */
 
-/* Ultralink M320 WWVB receiver */
+/* Ultralink M320 WWVB receiver? */
 /* #undef CLOCK_ULINK */
 
 /* USNO modem service */
@@ -286,9 +281,6 @@
 /* What is the fallback value for HZ? */
 #define DEFAULT_HZ 100
 
-/* Use DES? */
-/* #undef DES */
-
 /* synch TODR hourly? */
 /* #undef DOSYNCTODR */
 
@@ -302,13 +294,16 @@
 #define HAVE_ARPA_NAMESER_H 1
 
 /* Do we have audio support? */
-/* #undef HAVE_AUDIO */
+#define HAVE_AUDIO	1 
 
 /* Define to 1 if you have the <bstring.h> header file. */
 /* #undef HAVE_BSTRING_H */
 
 /* Do we have the CIOGETEV ioctl (SunOS, Linux)? */
 /* #undef HAVE_CIOGETEV */
+
+/* [Use], [/dev/clockctl?] */
+/* #undef HAVE_CLOCKCTL */
 
 /* Define to 1 if you have the `clock_gettime' function. */
 #define HAVE_CLOCK_GETTIME 1
@@ -321,6 +316,12 @@
 
 /* Define to 1 if you have the <errno.h> header file. */
 #define HAVE_ERRNO_H 1
+
+/* Define to 1 if you have the `EVP_md2' function. */
+/* #undef HAVE_EVP_MD2 */
+
+/* Define to 1 if you have the `EVP_mdc2' function. */
+/* #undef HAVE_EVP_MDC2 */
 
 /* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1
@@ -352,11 +353,14 @@
 /* Define to 1 if you have the <ieeefp.h> header file. */
 #define HAVE_IEEEFP_H 1
 
+/* ISC: Use iflist_sysctl? */
+#define HAVE_IFLIST_SYSCTL 1
+
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
 
 /* Define to 1 if you have the `isfinite' function. */
-/* #undef HAVE_ISFINITE */
+#define HAVE_ISFINITE 1
 
 /* Define to 1 if you have the `kvm_open' function. */
 #define HAVE_KVM_OPEN 1
@@ -370,6 +374,9 @@
 /* Do we have the curses library? */
 /* #undef HAVE_LIBCURSES */
 
+/* Do we have the edit library? */
+/* #undef HAVE_LIBEDIT */
+
 /* Define to 1 if you have the `elf' library (-lelf). */
 /* #undef HAVE_LIBELF */
 
@@ -381,6 +388,12 @@
 
 /* Define to 1 if you have the `ld' library (-lld). */
 /* #undef HAVE_LIBLD */
+
+/* Define to 1 if you have the `md' library (-lmd). */
+#define HAVE_LIBMD 1
+
+/* Define to 1 if you have the `md5' library (-lmd5). */
+/* #undef HAVE_LIBMD5 */
 
 /* Define to 1 if you have the `mld' library (-lmld). */
 /* #undef HAVE_LIBMLD */
@@ -412,6 +425,12 @@
 /* Define to 1 if you have the <math.h> header file. */
 #define HAVE_MATH_H 1
 
+/* Define to 1 if you have the `MD5Init' function. */
+#define HAVE_MD5INIT 1
+
+/* Define to 1 if you have the <md5.h> header file. */
+#define HAVE_MD5_H 1
+
 /* Define to 1 if you have the `memcpy' function. */
 #define HAVE_MEMCPY 1
 
@@ -434,7 +453,7 @@
 #define HAVE_MKTIME 1
 
 /* Define to 1 if you have the `mlockall' function. */
-/* #undef HAVE_MLOCKALL */
+#define HAVE_MLOCKALL 1
 
 /* Define to 1 if you have the `mrand48' function. */
 #define HAVE_MRAND48 1
@@ -460,8 +479,11 @@
 /* Define to 1 if you have the <netinfo/ni.h> header file. */
 /* #undef HAVE_NETINFO_NI_H */
 
+/* Define to 1 if you have the <net/if6.h> header file. */
+/* #undef HAVE_NET_IF6_H */
+
 /* Define to 1 if you have the <net/if.h> header file. */
-#define HAVE_NET_IF_H 1
+/* #undef HAVE_NET_IF_H */
 
 /* Define to 1 if you have the `nice' function. */
 #define HAVE_NICE 1
@@ -535,6 +557,9 @@
 /* Define to 1 if you have the `setpriority' function. */
 #define HAVE_SETPRIORITY 1
 
+/* Define to 1 if you have the `setrlimit' function. */
+#define HAVE_SETRLIMIT 1
+
 /* Define to 1 if you have the `setsid' function. */
 #define HAVE_SETSID 1
 
@@ -567,6 +592,9 @@
 
 /* Define to 1 if you have the `srand48' function. */
 #define HAVE_SRAND48 1
+
+/* Does struct sockaddr_storage have ss_family? */
+#define HAVE_SS_FAMILY_IN_SS 1
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #define HAVE_STDINT_H 1
@@ -625,6 +653,9 @@
 /* Define to 1 if you have the <sys/clkdefs.h> header file. */
 /* #undef HAVE_SYS_CLKDEFS_H */
 
+/* Define to 1 if you have the <sys/clockctl.h> header file. */
+/* #undef HAVE_SYS_CLOCKCTL_H */
+
 /* Define to 1 if you have the <sys/file.h> header file. */
 #define HAVE_SYS_FILE_H 1
 
@@ -633,6 +664,9 @@
 
 /* Define to 1 if you have the <sys/ioctl.h> header file. */
 #define HAVE_SYS_IOCTL_H 1
+
+/* Define to 1 if you have the <sys/ipc.h> header file. */
+#define HAVE_SYS_IPC_H 1
 
 /* Define to 1 if you have the <sys/lock.h> header file. */
 /* #undef HAVE_SYS_LOCK_H */
@@ -667,6 +701,9 @@
 /* Define to 1 if you have the <sys/select.h> header file. */
 #define HAVE_SYS_SELECT_H 1
 
+/* Define to 1 if you have the <sys/shm.h> header file. */
+#define HAVE_SYS_SHM_H 1
+
 /* Define to 1 if you have the <sys/signal.h> header file. */
 #define HAVE_SYS_SIGNAL_H 1
 
@@ -693,6 +730,9 @@
 
 /* Define to 1 if you have the <sys/syssgi.h> header file. */
 /* #undef HAVE_SYS_SYSSGI_H */
+
+/* Define to 1 if you have the <sys/systune.h> header file. */
+/* #undef HAVE_SYS_SYSTUNE_H */
 
 /* Define to 1 if you have the <sys/termios.h> header file. */
 #define HAVE_SYS_TERMIOS_H 1
@@ -754,6 +794,12 @@
 /* Do we have the TIO serial stuff? */
 /* #undef HAVE_TIO_SERIAL_STUFF */
 
+/* Does u_int64_t exist */
+#define HAVE_TYPE_U_INT64_T 1
+
+/* Does u_int8_t exist */
+#define HAVE_TYPE_U_INT8_T 1
+
 /* Define to 1 if you have the `umask' function. */
 #define HAVE_UMASK 1
 
@@ -790,6 +836,33 @@
 /* Define to 1 if you have the `__ntp_gettime' function. */
 /* #undef HAVE___NTP_GETTIME */
 
+/* Does struct sockaddr_storage have __ss_family? */
+/* #undef HAVE___SS_FAMILY_IN_SS */
+
+/* Should we use the IRIG sawtooth filter? */
+/* #undef IRIG_SUCKS */
+
+/* ISC: have struct if_laddrconf? */
+/* #undef ISC_PLATFORM_HAVEIF_LADDRCONF */
+
+/* ISC: have struct if_laddrreq? */
+/* #undef ISC_PLATFORM_HAVEIF_LADDRREQ */
+
+/* ISC: Have struct in6_pktinfo? */
+#define ISC_PLATFORM_HAVEIN6PKTINFO 
+
+/* ISC: Have IPv6? */
+#define ISC_PLATFORM_HAVEIPV6 
+
+/* ISC: struct sockaddr as sa_len? */
+#define ISC_PLATFORM_HAVESALEN 
+
+/* ISC: Need in6addr_any? */
+/* #undef ISC_PLATFORM_NEEDIN6ADDRANY */
+
+/* ISC: provide inet_ntop() */
+/* #undef ISC_PLATFORM_NEEDNTOP */
+
 /* Does the kernel have an FLL bug? */
 /* #undef KERNEL_FLL_BUG */
 
@@ -807,6 +880,9 @@
 
 /* What is the name of TICK in the kernel? */
 #define K_TICK_NAME "_tick"
+
+/* Should we align with the NIST lockclock scheme? */
+/* #undef LOCKCLOCK */
 
 /* Does the kernel support multicasting IP? */
 #define MCAST 1
@@ -845,7 +921,7 @@
 #define NO_PARENB_IGNPAR 1
 
 /* Default location of crypto key info */
-#define NTP_KEYSDIR "/usr/local/etc"
+#define NTP_KEYSDIR "/etc/ntp"
 
 /* Do we have ntp_{adj,get}time in libc? */
 #define NTP_SYSCALLS_LIBC 1
@@ -857,7 +933,7 @@
 #define ONCORE_SHMEM_STATUS 1
 
 /* Use OpenSSL? */
-/* #undef OPENSSL */
+#define OPENSSL 
 
 /* Should we open the broadcast socket? */
 #define OPEN_BCAST_SOCKET 1
@@ -901,9 +977,6 @@
 /* Define if compiler has function prototypes */
 #define PROTOTYPES 1
 
-/* Public key? */
-/* #undef PUBKEY */
-
 /* Does qsort expect to work on "void *" stuff? */
 #define QSORT_USES_VOID_P 1
 
@@ -919,17 +992,14 @@
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
 
-/* Use RSAREF? */
-/* #undef RSAREF */
-
 /* Do we want the SCO clock hacks? */
 /* #undef SCO5_CLOCK */
 
-/* The size of an `int', as computed by sizeof. */
+/* The size of a `int', as computed by sizeof. */
 #define SIZEOF_INT 4
 
 /* The size of a `long', as computed by sizeof. */
-#if defined(__alpha__) || defined(__ia64__) || defined(__sparc64__)
+#if defined(__alpha__) || defined(__ia64__) || defined(__sparc64__) || defined(__amd64__)
 #define SIZEOF_LONG 8
 #else
 #define SIZEOF_LONG 4
@@ -943,6 +1013,9 @@
 
 /* Slew always? */
 /* #undef SLEWALWAYS */
+
+/* *s*printf() functions are char* */
+/* #undef SPRINTF_CHAR */
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
@@ -958,11 +1031,14 @@
 #define STR_SYSTEM "alpha-undermydesk-freebsd"
 #elif defined(__sparc64__)
 #define STR_SYSTEM "sparc64-undermydesk-freebsd"
+#elif defined(__amd64__)
+#define STR_SYSTEM "amd64-undermydesk-freebsd"
 #elif defined(__ia64__)
 #define STR_SYSTEM "ia64-undermydesk-freebsd"
 #else
 #define STR_SYSTEM "i386-undermydesk-freebsd"
 #endif
+
 
 /* Buggy syscall() (Solaris2.4)? */
 /* #undef SYSCALL_BUG */
@@ -994,6 +1070,9 @@
 /* use UDP Wildcard Delivery? */
 #define UDP_WILDCARD_DELIVERY 1
 
+/* How do we create unsigned long constants? */
+#define ULONG_CONST(a) a ## UL
+
 /* Must we have a CTTY for fsetown? */
 #define USE_FSETOWNCTTY 1
 
@@ -1004,11 +1083,22 @@
 /* #undef USE_UDP_SIGPOLL */
 
 /* Version number of package */
-#define VERSION "4.1.1b"
+#define VERSION "4.2.0"
+
+/* ISC: Want IPv6? */
+#define WANT_IPV6 
 
 /* Define to 1 if your processor stores words with the most significant byte
    first (like Motorola and SPARC, unlike Intel and VAX). */
-/* #undef WORDS_BIGENDIAN */
+#if defined(__sparc64__)
+#define WORDS_BIGENDIAN	1
+#endif 
+
+/* Handle ss_family */
+#if !defined(HAVE_SS_FAMILY_IN_SS) && defined(HAVE___SS_FAMILY_IN_SS)
+# define ss_family __ss_family
+# define ss_len __ss_len
+#endif /* !defined(HAVE_SS_FAMILY_IN_SS) && defined(HAVE_SA_FAMILY_IN_SS) */
 
 /* Define to 1 if on AIX 3.
    System headers sometimes define this.
@@ -1056,3 +1146,6 @@
 
 /* Does the compiler like "volatile"? */
 /* #undef volatile */
+
+/* XXX EAI_NODATA is deprecated but still used in 4.2.0, work around that */
+#define EAI_NODATA EAI_NONAME

@@ -3,13 +3,13 @@
 .PATH: ${.CURDIR}/../../../contrib/ntp/util \
        ${.CURDIR}/../../../contrib/ntp/ntpd
 
-PROG=	ntp-genkeys
+PROG=	ntp-keygen
 NOMAN=	yes
-SRCS=	ntp-genkeys.c ntp_config.c
+SRCS=	ntp-keygen.c
 
 CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
 
-DPADD=	${LIBNTP}
-LDADD=	${LIBNTP}
+DPADD=	${LIBNTP} ${LIBMD} ${LIBCRYPTO}
+LDADD=	${LIBNTP} -lmd -lcrypto
 
 .include <bsd.prog.mk>
