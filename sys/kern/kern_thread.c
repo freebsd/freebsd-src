@@ -1043,7 +1043,7 @@ thread_sleep_check(struct thread *td)
 
 	p = td->td_proc;
 	mtx_assert(&sched_lock, MA_OWNED);
-	if (p->p_flag & P_SA || p->p_numthreads > 1) {
+	if (p->p_flag & P_HADTHREADS) {
 		if ((p->p_flag & P_SINGLE_EXIT) && p->p_singlethread != td)
 			return (EINTR);
 		if (td->td_flags & TDF_INTERRUPT)
