@@ -62,29 +62,29 @@
 .Ft int
 .Fn md_next_record "struct mdchain *mdp"
 .Ft int
-.Fn md_get_uint8 "struct mdchain *mdp" "u_int8_t x"
+.Fn md_get_uint8 "struct mdchain *mdp" "u_int8_t *x"
 .Ft int
-.Fn md_get_uint16 "struct mdchain *mdp" "u_int16_t x"
+.Fn md_get_uint16 "struct mdchain *mdp" "u_int16_t *x"
 .Ft int
-.Fn md_get_uint16be "struct mdchain *mdp" "u_int16_t x"
+.Fn md_get_uint16be "struct mdchain *mdp" "u_int16_t *x"
 .Ft int
-.Fn md_get_uint16le "struct mdchain *mdp" "u_int16_t x"
+.Fn md_get_uint16le "struct mdchain *mdp" "u_int16_t *x"
 .Ft int
-.Fn md_get_uint32 "struct mdchain *mdp" "u_int32_t x"
+.Fn md_get_uint32 "struct mdchain *mdp" "u_int32_t *x"
 .Ft int
-.Fn md_get_uint32be "struct mdchain *mdp" "u_int32_t x"
+.Fn md_get_uint32be "struct mdchain *mdp" "u_int32_t *x"
 .Ft int
-.Fn md_get_uint32le "struct mdchain *mdp" "u_int32_t x"
+.Fn md_get_uint32le "struct mdchain *mdp" "u_int32_t *x"
 .Ft int
-.Fn md_get_int64 "struct mdchain *mdp" "int64_t x"
+.Fn md_get_int64 "struct mdchain *mdp" "int64_t *x"
 .Ft int
-.Fn md_get_int64be "struct mdchain *mdp" "int64_t x"
+.Fn md_get_int64be "struct mdchain *mdp" "int64_t *x"
 .Ft int
-.Fn md_get_int64le "struct mdchain *mdp" "int64_t x"
+.Fn md_get_int64le "struct mdchain *mdp" "int64_t *x"
 .Ft int
 .Fn md_get_mem "struct mdchain *mdp" "caddr_t target" "int size" "int type"
 .Ft int
-.Fn md_get_mbuf "struct mdchain *mdp" "struct mbuf *m"
+.Fn md_get_mbuf "struct mdchain *mdp" "int size" "struct mbuf **m"
 .Ft int
 .Fn md_get_uio "struct mdchain *mdp" "struct uio *uiop" "int size"
 .Sh DESCRIPTION
