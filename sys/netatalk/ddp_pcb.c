@@ -441,7 +441,7 @@ at_pcbdetach( struct socket *so, struct ddpcb *ddp)
 {
     soisdisconnected( so );
     so->so_pcb = 0;
-    sofree( so );
+    sotryfree(so);
 
     /* remove ddp from ddp_ports list */
     if ( ddp->ddp_lsat.sat_port != ATADDR_ANYPORT &&

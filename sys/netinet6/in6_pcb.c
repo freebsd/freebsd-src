@@ -606,7 +606,7 @@ in6_pcbdetach(inp)
 	inp->inp_gencnt = ++ipi->ipi_gencnt;
 	in_pcbremlists(inp);
 	sotoinpcb(so) = 0;
-	sofree(so);
+	sotryfree(so);
 
 	if (inp->in6p_options)
 		m_freem(inp->in6p_options);

@@ -563,7 +563,7 @@ in_pcbdetach(inp)
 	inp->inp_gencnt = ++ipi->ipi_gencnt;
 	in_pcbremlists(inp);
 	so->so_pcb = 0;
-	sofree(so);
+	sotryfree(so);
 	if (inp->inp_options)
 		(void)m_free(inp->inp_options);
 	if (rt) {

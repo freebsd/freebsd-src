@@ -935,7 +935,7 @@ unp_drop(unp, errno)
 		if (unp->unp_addr)
 			FREE(unp->unp_addr, M_SONAME);
 		zfree(unp_zone, unp);
-		sofree(so);
+		sotryfree(so);
 	}
 }
 

@@ -139,7 +139,7 @@ socket(td, uap)
 			fdrop(fp, td);
 		}
 	} else {
-		fp->f_data = (caddr_t)so;
+		fp->f_data = (caddr_t)so;	/* already has ref count */
 		fp->f_flag = FREAD|FWRITE;
 		fp->f_ops = &socketops;
 		fp->f_type = DTYPE_SOCKET;
@@ -164,22 +164,19 @@ bind(td, uap)
 		int	namelen;
 	} */ *uap;
 {
-	struct file *fp;
 	struct sockaddr *sa;
+	struct socket *sp;
 	int error;
 
 	mtx_lock(&Giant);
-	error = holdsock(td->td_proc->p_fd, uap->s, &fp);
-	if (error)
+	if ((error = fgetsock(td, uap->s, &sp, NULL)) != 0)
 		goto done2;
-	error = getsockaddr(&sa, uap->name, uap->namelen);
-	if (error) {
-		fdrop(fp, td);
-		goto done2;
-	}
-	error = sobind((struct socket *)fp->f_data, sa, td);
+	if ((error = getsockaddr(&sa, uap->name, uap->namelen)) != 0)
+		goto done1;
+	error = sobind(sp, sa, td);
 	FREE(sa, M_SONAME);
-	fdrop(fp, td);
+done1:
+	fputsock(sp);
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -197,14 +194,13 @@ listen(td, uap)
 		int	backlog;
 	} */ *uap;
 {
-	struct file *fp;
+	struct socket *sp;
 	int error;
 
 	mtx_lock(&Giant);
-	error = holdsock(td->td_proc->p_fd, uap->s, &fp);
-	if (error == 0) {
-		error = solisten((struct socket *)fp->f_data, uap->backlog, td);
-		fdrop(fp, td);
+	if ((error = fgetsock(td, uap->s, &sp, NULL)) == 0) {
+		error = solisten(sp, uap->backlog, td);
+		fputsock(sp);
 	}
 	mtx_unlock(&Giant);
 	return(error);
@@ -225,13 +221,12 @@ accept1(td, uap, compat)
 	int compat;
 {
 	struct filedesc *fdp;
-	struct file *lfp = NULL;
 	struct file *nfp = NULL;
 	struct sockaddr *sa;
 	int namelen, error, s;
 	struct socket *head, *so;
 	int fd;
-	short fflag;		/* type must match fp->f_flag */
+	u_int fflag;
 
 	mtx_lock(&Giant);
 	fdp = td->td_proc->p_fd;
@@ -241,11 +236,10 @@ accept1(td, uap, compat)
 		if(error)
 			goto done2;
 	}
-	error = holdsock(fdp, uap->s, &lfp);
+	error = fgetsock(td, uap->s, &head, &fflag);
 	if (error)
 		goto done2;
 	s = splnet();
-	head = (struct socket *)lfp->f_data;
 	if ((head->so_options & SO_ACCEPTCONN) == 0) {
 		splx(s);
 		error = EINVAL;
@@ -286,7 +280,6 @@ accept1(td, uap, compat)
 	TAILQ_REMOVE(&head->so_comp, so, so_list);
 	head->so_qlen--;
 
-	fflag = lfp->f_flag;
 	error = falloc(td, &nfp, &fd);
 	if (error) {
 		/*
@@ -312,7 +305,8 @@ accept1(td, uap, compat)
 	if (head->so_sigio != NULL)
 		fsetown(fgetown(head->so_sigio), &so->so_sigio);
 
-	nfp->f_data = (caddr_t)so;
+	soref(so);			/* file descriptor reference */
+	nfp->f_data = (caddr_t)so;	/* nfp has ref count from falloc */
 	nfp->f_flag = fflag;
 	nfp->f_ops = &socketops;
 	nfp->f_type = DTYPE_SOCKET;
@@ -375,7 +369,7 @@ noconnection:
 done:
 	if (nfp != NULL)
 		fdrop(nfp, td);
-	fdrop(lfp, td);
+	fputsock(head);
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -420,35 +414,31 @@ connect(td, uap)
 		int	namelen;
 	} */ *uap;
 {
-	struct file *fp;
-	register struct socket *so;
+	struct socket *so;
 	struct sockaddr *sa;
 	int error, s;
 
 	mtx_lock(&Giant);
-	error = holdsock(td->td_proc->p_fd, uap->s, &fp);
-	if (error)
+	if ((error = fgetsock(td, uap->s, &so, NULL)) != 0)
 		goto done2;
-	so = (struct socket *)fp->f_data;
 	if ((so->so_state & SS_NBIO) && (so->so_state & SS_ISCONNECTING)) {
 		error = EALREADY;
-		goto done;
+		goto done1;
 	}
 	error = getsockaddr(&sa, uap->name, uap->namelen);
 	if (error)
-		goto done;
+		goto done1;
 	error = soconnect(so, sa, td);
 	if (error)
 		goto bad;
 	if ((so->so_state & SS_NBIO) && (so->so_state & SS_ISCONNECTING)) {
 		FREE(sa, M_SONAME);
 		error = EINPROGRESS;
-		goto done;
+		goto done1;
 	}
 	s = splnet();
 	while ((so->so_state & SS_ISCONNECTING) && so->so_error == 0) {
-		error = tsleep((caddr_t)&so->so_timeo, PSOCK | PCATCH,
-		    "connec", 0);
+		error = tsleep((caddr_t)&so->so_timeo, PSOCK | PCATCH, "connec", 0);
 		if (error)
 			break;
 	}
@@ -462,8 +452,8 @@ bad:
 	FREE(sa, M_SONAME);
 	if (error == ERESTART)
 		error = EINTR;
-done:
-	fdrop(fp, td);
+done1:
+	fputsock(so);
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -499,12 +489,12 @@ socketpair(td, uap)
 		goto free2;
 	fhold(fp1);
 	sv[0] = fd;
-	fp1->f_data = (caddr_t)so1;
+	fp1->f_data = (caddr_t)so1;	/* so1 already has ref count */
 	error = falloc(td, &fp2, &fd);
 	if (error)
 		goto free3;
 	fhold(fp2);
-	fp2->f_data = (caddr_t)so2;
+	fp2->f_data = (caddr_t)so2;	/* so2 already has ref count */
 	sv[1] = fd;
 	error = soconnect2(so1, so2);
 	if (error)
@@ -552,12 +542,11 @@ sendit(td, s, mp, flags)
 	register struct msghdr *mp;
 	int flags;
 {
-	struct file *fp;
 	struct uio auio;
 	register struct iovec *iov;
 	register int i;
 	struct mbuf *control;
-	struct sockaddr *to;
+	struct sockaddr *to = NULL;
 	int len, error;
 	struct socket *so;
 #ifdef KTRACE
@@ -565,8 +554,7 @@ sendit(td, s, mp, flags)
 	struct uio ktruio;
 #endif
 
-	error = holdsock(td->td_proc->p_fd, s, &fp);
-	if (error)
+	if ((error = fgetsock(td, s, &so, NULL)) != 0)
 		return (error);
 	auio.uio_iov = mp->msg_iov;
 	auio.uio_iovcnt = mp->msg_iovlen;
@@ -578,18 +566,14 @@ sendit(td, s, mp, flags)
 	iov = mp->msg_iov;
 	for (i = 0; i < mp->msg_iovlen; i++, iov++) {
 		if ((auio.uio_resid += iov->iov_len) < 0) {
-			fdrop(fp, td);
-			return (EINVAL);
+			error = EINVAL;
+			goto bad;
 		}
 	}
 	if (mp->msg_name) {
 		error = getsockaddr(&to, mp->msg_name, mp->msg_namelen);
-		if (error) {
-			fdrop(fp, td);
-			return (error);
-		}
-	} else {
-		to = 0;
+		if (error)
+			goto bad;
 	}
 	if (mp->msg_control) {
 		if (mp->msg_controllen < sizeof(struct cmsghdr)
@@ -633,7 +617,6 @@ sendit(td, s, mp, flags)
 	}
 #endif
 	len = auio.uio_resid;
-	so = (struct socket *)fp->f_data;
 	error = so->so_proto->pr_usrreqs->pru_sosend(so, to, &auio, 0, control,
 						     flags, td);
 	if (error) {
@@ -659,7 +642,7 @@ sendit(td, s, mp, flags)
 	}
 #endif
 bad:
-	fdrop(fp, td);
+	fputsock(so);
 	if (to)
 		FREE(to, M_SONAME);
 	return (error);
@@ -834,7 +817,6 @@ recvit(td, s, mp, namelenp)
 	register struct msghdr *mp;
 	caddr_t namelenp;
 {
-	struct file *fp;
 	struct uio auio;
 	register struct iovec *iov;
 	register int i;
@@ -848,8 +830,7 @@ recvit(td, s, mp, namelenp)
 	struct uio ktruio;
 #endif
 
-	error = holdsock(td->td_proc->p_fd, s, &fp);
-	if (error)
+	if ((error = fgetsock(td, s, &so, NULL)) != 0)
 		return (error);
 	auio.uio_iov = mp->msg_iov;
 	auio.uio_iovcnt = mp->msg_iovlen;
@@ -861,7 +842,7 @@ recvit(td, s, mp, namelenp)
 	iov = mp->msg_iov;
 	for (i = 0; i < mp->msg_iovlen; i++, iov++) {
 		if ((auio.uio_resid += iov->iov_len) < 0) {
-			fdrop(fp, td);
+			fputsock(so);
 			return (EINVAL);
 		}
 	}
@@ -875,7 +856,6 @@ recvit(td, s, mp, namelenp)
 	}
 #endif
 	len = auio.uio_resid;
-	so = (struct socket *)fp->f_data;
 	error = so->so_proto->pr_usrreqs->pru_soreceive(so, &fromsa, &auio,
 	    (struct mbuf **)0, mp->msg_control ? &control : (struct mbuf **)0,
 	    &mp->msg_flags);
@@ -975,7 +955,7 @@ recvit(td, s, mp, namelenp)
 		mp->msg_controllen = ctlbuf - (caddr_t)mp->msg_control;
 	}
 out:
-	fdrop(fp, td);
+	fputsock(so);
 	if (fromsa)
 		FREE(fromsa, M_SONAME);
 	if (control)
@@ -1196,14 +1176,13 @@ shutdown(td, uap)
 		int	how;
 	} */ *uap;
 {
-	struct file *fp;
+	struct socket *so;
 	int error;
 
 	mtx_lock(&Giant);
-	error = holdsock(td->td_proc->p_fd, uap->s, &fp);
-	if (error == 0) {
-		error = soshutdown((struct socket *)fp->f_data, uap->how);
-		fdrop(fp, td);
+	if ((error = fgetsock(td, uap->s, &so, NULL)) == 0) {
+		error = soshutdown(so, uap->how);
+		fputsock(so);
 	}
 	mtx_unlock(&Giant);
 	return(error);
@@ -1224,7 +1203,7 @@ setsockopt(td, uap)
 		int	valsize;
 	} */ *uap;
 {
-	struct file *fp;
+	struct socket *so;
 	struct sockopt sopt;
 	int error;
 
@@ -1234,16 +1213,15 @@ setsockopt(td, uap)
 		return (EINVAL);
 
 	mtx_lock(&Giant);
-	error = holdsock(td->td_proc->p_fd, uap->s, &fp);
-	if (error == 0) {
+	if ((error = fgetsock(td, uap->s, &so, NULL)) == 0) {
 		sopt.sopt_dir = SOPT_SET;
 		sopt.sopt_level = uap->level;
 		sopt.sopt_name = uap->name;
 		sopt.sopt_val = uap->val;
 		sopt.sopt_valsize = uap->valsize;
 		sopt.sopt_td = td;
-		error = sosetopt((struct socket *)fp->f_data, &sopt);
-		fdrop(fp, td);
+		error = sosetopt(so, &sopt);
+		fputsock(so);
 	}
 	mtx_unlock(&Giant);
 	return(error);
@@ -1265,24 +1243,20 @@ getsockopt(td, uap)
 	} */ *uap;
 {
 	int	valsize, error;
-	struct	file *fp;
+	struct  socket *so;
 	struct	sockopt sopt;
 
 	mtx_lock(&Giant);
-	error = holdsock(td->td_proc->p_fd, uap->s, &fp);
-	if (error)
+	if ((error = fgetsock(td, uap->s, &so, NULL)) != 0)
 		goto done2;
 	if (uap->val) {
 		error = copyin((caddr_t)uap->avalsize, (caddr_t)&valsize,
 		    sizeof (valsize));
-		if (error) {
-			fdrop(fp, td);
-			goto done2;
-		}
+		if (error)
+			goto done1;
 		if (valsize < 0) {
-			fdrop(fp, td);
 			error = EINVAL;
-			goto done2;
+			goto done1;
 		}
 	} else {
 		valsize = 0;
@@ -1295,13 +1269,14 @@ getsockopt(td, uap)
 	sopt.sopt_valsize = (size_t)valsize; /* checked non-negative above */
 	sopt.sopt_td = td;
 
-	error = sogetopt((struct socket *)fp->f_data, &sopt);
+	error = sogetopt(so, &sopt);
 	if (error == 0) {
 		valsize = sopt.sopt_valsize;
 		error = copyout((caddr_t)&valsize,
 				(caddr_t)uap->avalsize, sizeof (valsize));
 	}
-	fdrop(fp, td);
+done1:
+	fputsock(so);
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -1323,21 +1298,16 @@ getsockname1(td, uap, compat)
 	} */ *uap;
 	int compat;
 {
-	struct file *fp;
-	register struct socket *so;
+	struct socket *so;
 	struct sockaddr *sa;
 	int len, error;
 
 	mtx_lock(&Giant);
-	error = holdsock(td->td_proc->p_fd, uap->fdes, &fp);
-	if (error)
+	if ((error = fgetsock(td, uap->fdes, &so, NULL)) != 0)
 		goto done2;
 	error = copyin((caddr_t)uap->alen, (caddr_t)&len, sizeof (len));
-	if (error) {
-		fdrop(fp, td);
-		goto done2;
-	}
-	so = (struct socket *)fp->f_data;
+	if (error)
+		goto done1;
 	sa = 0;
 	error = (*so->so_proto->pr_usrreqs->pru_sockaddr)(so, &sa);
 	if (error)
@@ -1360,7 +1330,8 @@ gotnothing:
 bad:
 	if (sa)
 		FREE(sa, M_SONAME);
-	fdrop(fp, td);
+done1:
+	fputsock(so);
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -1408,26 +1379,20 @@ getpeername1(td, uap, compat)
 	} */ *uap;
 	int compat;
 {
-	struct file *fp;
-	register struct socket *so;
+	struct socket *so;
 	struct sockaddr *sa;
 	int len, error;
 
 	mtx_lock(&Giant);
-	error = holdsock(td->td_proc->p_fd, uap->fdes, &fp);
-	if (error)
+	if ((error = fgetsock(td, uap->fdes, &so, NULL)) != 0)
 		goto done2;
-	so = (struct socket *)fp->f_data;
 	if ((so->so_state & (SS_ISCONNECTED|SS_ISCONFIRMING)) == 0) {
-		fdrop(fp, td);
 		error = ENOTCONN;
-		goto done2;
+		goto done1;
 	}
 	error = copyin((caddr_t)uap->alen, (caddr_t)&len, sizeof (len));
-	if (error) {
-		fdrop(fp, td);
-		goto done2;
-	}
+	if (error)
+		goto done1;
 	sa = 0;
 	error = (*so->so_proto->pr_usrreqs->pru_peeraddr)(so, &sa);
 	if (error)
@@ -1450,7 +1415,8 @@ gotnothing:
 bad:
 	if (sa)
 		FREE(sa, M_SONAME);
-	fdrop(fp, td);
+done1:
+	fputsock(so);
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -1547,33 +1513,6 @@ getsockaddr(namp, uaddr, len)
 		*namp = sa;
 	}
 	return error;
-}
-
-/*
- * holdsock() - load the struct file pointer associated
- * with a socket into *fpp.  If an error occurs, non-zero
- * will be returned and *fpp will be set to NULL.
- */
-int
-holdsock(fdp, fdes, fpp)
-	struct filedesc *fdp;
-	int fdes;
-	struct file **fpp;
-{
-	register struct file *fp = NULL;
-	int error = 0;
-
-	if ((unsigned)fdes >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[fdes]) == NULL) {
-		error = EBADF;
-	} else if (fp->f_type != DTYPE_SOCKET) {
-		error = ENOTSOCK;
-		fp = NULL;
-	} else {
-		fhold(fp);
-	}
-	*fpp = fp;
-	return(error);
 }
 
 /*
@@ -1678,10 +1617,9 @@ sf_buf_free(caddr_t addr, void *args)
 int
 sendfile(struct thread *td, struct sendfile_args *uap)
 {
-	struct file *fp = NULL;
 	struct vnode *vp;
 	struct vm_object *obj;
-	struct socket *so;
+	struct socket *so = NULL;
 	struct mbuf *m;
 	struct sf_buf *sf;
 	struct vm_page *pg;
@@ -1701,10 +1639,8 @@ sendfile(struct thread *td, struct sendfile_args *uap)
 		error = EINVAL;
 		goto done;
 	}
-	error = holdsock(td->td_proc->p_fd, uap->s, &fp);
-	if (error)
+	if ((error = fgetsock(td, uap->s, &so, NULL)) != 0)
 		goto done;
-	so = (struct socket *)fp->f_data;
 	if (so->so_type != SOCK_STREAM) {
 		error = EINVAL;
 		goto done;
@@ -1988,8 +1924,9 @@ done:
 	}
 	if (vp)
 		vrele(vp);
-	if (fp)
-		fdrop(fp, td);
+	if (so)
+		fputsock(so);
 	mtx_unlock(&Giant);
 	return (error);
 }
+
