@@ -1627,7 +1627,8 @@
 	  (PCMCIA, PCI, and ISA adapters are all supported)</para>
         </listitem>
         <listitem>
-	  <para>Cisco Systems Aironet 340, 341, and 342</para>
+	  <para>Cisco Systems Aironet 340 and 350 series
+	  (PCMCIA, PCI, and ISA adapters are all supported)</para>
         </listitem>
       </itemizedlist>
     </para>
