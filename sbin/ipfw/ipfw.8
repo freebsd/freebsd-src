@@ -1153,7 +1153,7 @@ which generated them.
 .Pp
 The set number of rules can be changed with the command
 .Bd -ragged -offset indent
-.Nm  
+.Nm
 .Cm set move
 .Brq Cm rule Ar rule-number | old-set
 .Cm to Ar new-set
@@ -1506,7 +1506,7 @@ version of
 is probably not as straightforward as you would think.
 I recommend the following command line:
 .Bd -literal -offset indent
-kldload /modules/ipfw.ko && \e
+kldload ipfw && \e
 ipfw add 32000 allow ip from any to any
 .Ed
 .Pp
