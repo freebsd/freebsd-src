@@ -383,6 +383,7 @@ configRC_conf(void)
     char *cp;
     static int did_marker = 0;
 
+    configTtys();
     write_header = !file_readable("/etc/rc.conf");
     rcSite = fopen("/etc/rc.conf", "a");
     if (!rcSite)
