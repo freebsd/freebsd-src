@@ -53,7 +53,6 @@
 #include "sprite.h"
 
 struct GNode;
-struct LstNode;
 
 #define	TMPPAT	"/tmp/makeXXXXXXXXXX"
 
