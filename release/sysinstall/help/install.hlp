@@ -1,9 +1,12 @@
                 QUICK INSTALLATION GUIDE FOR FREEBSD 2.2
 
 This manual documents the process of installing FreeBSD on your
-machine.  Please also see the Hardware Guide for hardware-specific
-installation instructions (how to configure your hardware, what sorts
-of things to watch out for, etc) before starting a new installation.
+machine.  Please also see the Hardware Guide (HARDWARE.TXT, or
+the "Hardware" selection in the Documentation submenu of the boot
+floppy) for hardware-specific installation instructions if you're
+not sure how to configure your hardware or don't know what sorts
+of things one should watch out for with PC UNIXes in general or
+FreeBSD in particular.
 
 
 Table of Contents:
