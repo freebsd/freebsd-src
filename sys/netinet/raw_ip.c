@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$FreeBSD$
+ *	$Id$
  */
 
 #include <sys/param.h>
@@ -312,6 +312,68 @@ rip_ctloutput(op, so, level, optname, m)
 		return (error);
 	}
 	return (ip_ctloutput(op, so, level, optname, m));
+}
+
+/*
+ * This function exists solely to receive the PRC_IFDOWN messages which
+ * are sent by if_down().  It looks for an ifaddr whose ifa_addr is sa,
+ * and calls in_ifadown() to remove all routes corresponding to that address.
+ * It also receives the PRC_IFUP messages from if_up() and reinstalls the
+ * interface routes.
+ */
+void
+rip_ctlinput(cmd, sa, vip)
+	int cmd;
+	struct sockaddr *sa;
+	void *vip;
+{
+	struct in_ifaddr *ia;
+	struct ifnet *ifp;
+	int err;
+	int flags;
+
+	switch(cmd) {
+	case PRC_IFDOWN:
+		for (ia = in_ifaddrhead.tqh_first; ia;
+		     ia = ia->ia_link.tqe_next) {
+			if (ia->ia_ifa.ifa_addr == sa
+			    && (ia->ia_flags & IFA_ROUTE)) {
+				/*
+				 * in_ifscrub kills the interface route.
+				 */
+				in_ifscrub(ia->ia_ifp, ia);
+				/*
+				 * in_ifadown gets rid of all the rest of
+				 * the routes.  This is not quite the right
+				 * thing to do, but at least if we are running
+				 * a routing process they will come back.
+				 */
+				in_ifadown(&ia->ia_ifa);
+				break;
+			}
+		}
+		break;
+
+	case PRC_IFUP:
+		for (ia = in_ifaddrhead.tqh_first; ia;
+		     ia = ia->ia_link.tqe_next) {
+			if (ia->ia_ifa.ifa_addr == sa)
+				break;
+		}
+		if (ia == 0 || (ia->ia_flags & IFA_ROUTE))
+			return;
+		flags = RTF_UP;
+		ifp = ia->ia_ifa.ifa_ifp;
+
+		if ((ifp->if_flags & IFF_LOOPBACK)
+		    || (ifp->if_flags & IFF_POINTOPOINT))
+			flags |= RTF_HOST;
+
+		err = rtinit(&ia->ia_ifa, RTM_ADD, flags);
+		if (err == 0)
+			ia->ia_flags |= IFA_ROUTE;
+		break;
+	}
 }
 
 static u_long	rip_sendspace = RIPSNDQ; /* XXX sysctl ? */

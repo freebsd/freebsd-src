@@ -219,6 +219,8 @@ void	in_delmulti __P((struct in_multi *));
 int	in_control __P((struct socket *, u_long, caddr_t, struct ifnet *));
 void	in_rtqdrain __P((void));
 void	ip_input __P((struct mbuf *));
+int	in_ifadown __P((struct ifaddr *ifa));
+void	in_ifscrub __P((struct ifnet *, struct in_ifaddr *));
 
 #endif /* KERNEL */
 
