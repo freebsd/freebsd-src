@@ -23,11 +23,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.6 1998/09/16 08:21:12 dfr Exp $
+ *	$Id: ipl_funcs.c,v 1.7 1998/09/19 09:29:40 dfr Exp $
  */
 
 #include <sys/types.h>
 #include <sys/systm.h>
+#include <sys/interrupt.h>
 #include <machine/ipl.h>
 #include <machine/cpu.h>
 #include <net/netisr.h>
@@ -38,17 +39,28 @@ unsigned int bio_imask;		/* XXX */
 unsigned int cam_imask;		/* XXX */
 unsigned int net_imask;		/* XXX */
 
+static void swi_net(void);
+extern void swi_camnet(void);
+extern void swi_cambio(void);
+
 void	(*netisrs[32]) __P((void));
+swihand_t *ihandlers[32] = {	/* software interrupts */
+	swi_null,	swi_net,	swi_camnet,	swi_cambio,
+	swi_null,	softclock,	swi_null,	swi_null,
+	swi_null,	swi_null,	swi_null,	swi_null,
+	swi_null,	swi_null,	swi_null,	swi_null,
+	swi_null,	swi_null,	swi_null,	swi_null,
+	swi_null,	swi_null,	swi_null,	swi_null,
+	swi_null,	swi_null,	swi_null,	swi_null,
+	swi_null,	swi_null,	swi_null,	swi_null,
+};
+
 u_int32_t netisr;
 u_int32_t ipending;
 u_int32_t idelayed;
 
 #define getcpl()	(alpha_pal_rdps() & ALPHA_PSL_IPL_MASK)
 
-static void swi_tty(void);
-static void swi_net(void);
-extern void swi_camnet(void);
-extern void swi_cambio(void);
 
 static void atomic_setbit(u_int32_t* p, u_int32_t bit)
 {
@@ -84,12 +96,17 @@ static u_int32_t atomic_readandclear(u_int32_t* p)
     return v;
 }
 
-static void
-swi_tty()
+void
+swi_null()
 {
-#if NSIO > 0
-    siopoll();
-#endif
+    /* No interrupt registered, do nothing */
+}
+
+void
+swi_generic()
+{
+    /* Just a placeholder, we call swi_dispatcher directly */
+    panic("swi_generic() called");
 }
 
 static void
@@ -109,22 +126,21 @@ void
 do_sir()
 {
     u_int32_t pend;
+    int i;
 
     splsoft();
     while (pend = atomic_readandclear(&ipending)) {
-	if (pend & (1 << SWI_TTY))
-	    swi_tty();
-	if (pend & (1 << SWI_NET))
-	    swi_net();
-	if (pend & (1 << SWI_CAMNET))
-	    swi_camnet();
-	if (pend & (1 << SWI_CAMBIO))
-	    swi_cambio();
-	if (pend & (1 << SWI_CLOCK))
-	    softclock();
+	for (i = 0; pend && i < 32; i++) {
+	    if (pend & (1 << i)) {
+		if (ihandlers[i] == swi_generic)
+		    swi_dispatcher(i);
+		else
+		    ihandlers[i]();
+		pend &= ~(1 << i);
+	    }
+	}
     }
 }
-
 
 #define GENSET(name, ptr, bit)			\
 						\
@@ -202,4 +218,3 @@ splx(int s)
     else
 	spl0();
 }
-
