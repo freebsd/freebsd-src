@@ -77,7 +77,6 @@
 
 #include	<sys/kernel.h>
 #include	<sys/module.h>
-#include	<sys/select.h>
 
 static	int	stgprobe(device_t devi);
 static	int	stgattach(device_t devi);
