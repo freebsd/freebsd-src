@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.148 1996/11/08 08:10:57 tg Exp $ -->
+<!-- $Id: contrib.sgml,v 1.149 1996/11/08 21:56:21 guido Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -290,6 +290,7 @@
 	  <item>Nobuhiro Yasutomi &lt;nobu@psrc.isac.co.jp&gt;
 	  <item>Nobuyuki Koganemaru &lt;kogane@kces.koganemaru.co.jp&gt;
 	  <item>Noritaka Ishizumi &lt;graphite@taurus.bekkoame.or.jp&gt;
+	  <item>Oly &lt;oly@world.std.com&gt;
 	  <item>Paul Kranenburg &lt;pk@cs.few.eur.nl&gt;
 	  <item>Paul Mackerras &lt;paulus@cs.anu.edu.au&gt;
 	  <item>Peter Stubbs &lt;PETERS@staidan.qld.edu.au&gt;
