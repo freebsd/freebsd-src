@@ -102,13 +102,15 @@ ffs_rawread_sync(struct vnode *vp, struct thread *td)
 	int spl;
 	int error;
 	int upgraded;
+	struct bufobj *bo;
 
 	GIANT_REQUIRED;
 	/* Check for dirty mmap, pending writes and dirty buffers */
 	spl = splbio();
 	VI_LOCK(vp);
-	if (vp->v_numoutput > 0 ||
-	    !TAILQ_EMPTY(&vp->v_dirtyblkhd) ||
+	bo = &vp->v_bufobj;
+	if (bo->bo_numoutput > 0 ||
+	    bo->bo_dirty.bv_cnt > 0) ||
 	    (vp->v_iflag & VI_OBJDIRTY) != 0) {
 		splx(spl);
 		VI_UNLOCK(vp);
@@ -136,19 +138,17 @@ ffs_rawread_sync(struct vnode *vp, struct thread *td)
 
 		/* Wait for pending writes to complete */
 		spl = splbio();
-		while (vp->v_numoutput) {
-			error = bufobj_wwait(&vp->v_bufobj, 0, 0);
-			if (error != 0) {
-				/* XXX: can't happen with a zero timeout ??? */
-				splx(spl);
-				VI_UNLOCK(vp);
-				if (upgraded != 0)
-					VOP_LOCK(vp, LK_DOWNGRADE, td);
-				return (error);
-			}
+		error = bufobj_wwait(&vp->v_bufobj, 0, 0);
+		if (error != 0) {
+			/* XXX: can't happen with a zero timeout ??? */
+			splx(spl);
+			VI_UNLOCK(vp);
+			if (upgraded != 0)
+				VOP_LOCK(vp, LK_DOWNGRADE, td);
+			return (error);
 		}
 		/* Flush dirty buffers */
-		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
+		if (bo->bo_dirty.bv_cnt > 0)) {
 			splx(spl);
 			VI_UNLOCK(vp);
 			if ((error = VOP_FSYNC(vp, NOCRED, MNT_WAIT, td)) != 0) {
@@ -158,8 +158,8 @@ ffs_rawread_sync(struct vnode *vp, struct thread *td)
 			}
 			VI_LOCK(vp);
 			spl = splbio();
-			if (vp->v_numoutput > 0 ||
-			    !TAILQ_EMPTY(&vp->v_dirtyblkhd))
+			if (bo->bo_numoutput > 0 ||
+			    bo->bo_dirty.bv_cnt > 0))
 				panic("ffs_rawread_sync: dirty bufs");
 		}
 		splx(spl);
