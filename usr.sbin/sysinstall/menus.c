@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.69 1996/06/16 23:17:33 jkh Exp $
+ * $Id: menus.c,v 1.70 1996/06/17 19:31:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -202,9 +202,9 @@ checkTrue(dialogMenuItem *item)
 DMenu MenuIndex = {
     DMENU_NORMAL_TYPE,
     "Glossary of functions",
-    "This menu contains an alphabetized index of all top level functions in\n"
-    "this program (sysinstall).    Invoke an option by pressing [ENTER].\n"
-    "Exit the installation by selecting Cancel [TAB-ENTER].",
+    "This menu contains an alphabetized index of the top level functions in\n"
+    "this program (sysinstall).  Invoke an option by pressing [ENTER].\n"
+    "Leave the index page by selecting Cancel [TAB-ENTER].",
     "Use PageUp or PageDown to move through this menu faster!",
     NULL,
     { { "Add User",	"Add users to the system.", NULL, dmenuSystemCommand, NULL, "adduser -config_create ; adduser -s" },
@@ -295,7 +295,7 @@ DMenu MenuInitial = {
       { "7 Fixit",	"Go into repair mode with CDROM or floppy",		NULL, dmenuSubmenu, NULL, &MenuFixit },
       { "8 Upgrade",	"Upgrade an existing 2.0.5 system",			NULL, installUpgrade },
       { "9 Configure",	"Do post-install configuration of FreeBSD",		NULL, dmenuSubmenu, NULL, &MenuConfigure },
-      { "0 Index",	"Glossary list of all possible operations.",		NULL, dmenuSubmenu, NULL, &MenuIndex },
+      { "0 Index",	"Glossary of functions.",		NULL, dmenuSubmenu, NULL, &MenuIndex },
       { NULL } },
 };
 
