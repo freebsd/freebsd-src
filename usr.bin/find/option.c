@@ -112,6 +112,7 @@ static OPTION const options[] = {
 	{ "-newermt",	c_newer,	f_newer,	F_TIME2_T },
 	{ "-nogroup",	c_nogroup,	f_nogroup,	0 },
 	{ "-nouser",	c_nouser,	f_nouser,	0 },
+	{ "-not",	c_simple,	f_not,		0 },
 	{ "-o",		c_simple,	f_or,		0 },
 	{ "-ok",	c_exec,		f_exec,		F_NEEDOK },
 	{ "-okdir",	c_exec,		f_exec,		F_NEEDOK | F_EXECDIR },
