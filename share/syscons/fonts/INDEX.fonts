@@ -254,6 +254,18 @@ iso04-8x14.fnt:es:ISO-8859-4 bАltico, 8x14
 iso04-8x8.fnt:en:ISO-8859-4 Baltic, 8x8
 iso04-8x8.fnt:es:ISO-8859-4 bАltico, 8x8
 
+iso05-8x8.fnt:en:ISO-8859-5 Cyrillic, 8x8
+iso05-8x8.fnt:ru:ISO-8859-5 кириллица, 8x8
+iso05-8x8.fnt:uk:ISO-8859-5 кирилиця, 8x8
+
+iso05-8x14.fnt:en:ISO-8859-5 Cyrillic, 8x14
+iso05-8x14.fnt:ru:ISO-8859-5 кириллица, 8x14
+iso05-8x14.fnt:uk:ISO-8859-5 кирилиця, 8x14
+
+iso05-8x16.fnt:en:ISO-8859-5 Cyrillic, 8x16
+iso05-8x16.fnt:ru:ISO-8859-5 кириллица, 8x16
+iso05-8x16.fnt:uk:ISO-8859-5 кирилиця, 8x16
+
 iso07-8x16.fnt:en:ISO-8859-7 Greek, 8x16
 iso07-8x16.fnt:el:ISO-8859-7 еККГМИЙч, 8x16
 
