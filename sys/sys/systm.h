@@ -104,10 +104,9 @@ void	*phashinit __P((int count, struct malloc_type *type, u_long *nentries));
 void	cpu_boot __P((int));
 void	cpu_rootconf __P((void));
 void	tablefull __P((const char *));
-int	addlog __P((const char *, ...)) __printflike(1, 2);
 int	kvprintf __P((char const *, void (*)(int, void*), void *, int,
 		      _BSD_VA_LIST_)) __printflike(1, 0);
-int	log __P((int, const char *, ...)) __printflike(2, 3);
+void	log __P((int, const char *, ...)) __printflike(2, 3);
 void	logwakeup __P((void));
 int	printf __P((const char *, ...)) __printflike(1, 2);
 int	snprintf __P((char *, size_t, const char *, ...)) __printflike(3, 4);

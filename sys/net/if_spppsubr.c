@@ -1050,7 +1050,7 @@ sppp_cisco_input(struct sppp *sp, struct mbuf *m)
 	switch (ntohl (h->type)) {
 	default:
 		if (debug)
-			addlog(SPP_FMT "cisco unknown packet type: 0x%lx\n",
+			log(-1, SPP_FMT "cisco unknown packet type: 0x%lx\n",
 			       SPP_ARGS(ifp), (u_long)ntohl (h->type));
 		break;
 	case CISCO_ADDR_REPLY:
@@ -1194,7 +1194,7 @@ sppp_cp_send(struct sppp *sp, u_short proto, u_char type,
 		    sppp_cp_type_name (lh->type), lh->ident,
 		    ntohs (lh->len));
 		sppp_print_bytes ((u_char*) (lh+1), len);
-		addlog(">\n");
+		log(-1, ">\n");
 	}
 	if (! IF_HANDOFF_ADJ(&sp->pp_cpq, m, ifp, 3))
 		ifp->if_oerrors++;
@@ -1227,7 +1227,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 		    sppp_state_name(sp->state[cp->protoidx]),
 		    sppp_cp_type_name (h->type), h->ident, ntohs (h->len));
 		sppp_print_bytes ((u_char*) (h+1), len-4);
-		addlog(">\n");
+		log(-1, ">\n");
 	}
 	if (len > ntohs (h->len))
 		len = ntohs (h->len);
@@ -1236,7 +1236,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 	case CONF_REQ:
 		if (len < 4) {
 			if (debug)
-				addlog(SPP_FMT "%s invalid conf-req length %d\n",
+				log(-1, SPP_FMT "%s invalid conf-req length %d\n",
 				       SPP_ARGS(ifp), cp->name,
 				       len);
 			++ifp->if_ierrors;
@@ -1291,7 +1291,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 	case CONF_ACK:
 		if (h->ident != sp->confid[cp->protoidx]) {
 			if (debug)
-				addlog(SPP_FMT "%s id mismatch 0x%x != 0x%x\n",
+				log(-1, SPP_FMT "%s id mismatch 0x%x != 0x%x\n",
 				       SPP_ARGS(ifp), cp->name,
 				       h->ident, sp->confid[cp->protoidx]);
 			++ifp->if_ierrors;
@@ -1336,7 +1336,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 	case CONF_REJ:
 		if (h->ident != sp->confid[cp->protoidx]) {
 			if (debug)
-				addlog(SPP_FMT "%s id mismatch 0x%x != 0x%x\n",
+				log(-1, SPP_FMT "%s id mismatch 0x%x != 0x%x\n",
 				       SPP_ARGS(ifp), cp->name,
 				       h->ident, sp->confid[cp->protoidx]);
 			++ifp->if_ierrors;
@@ -1477,14 +1477,14 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 			goto illegal;
 		if (sp->state[cp->protoidx] != STATE_OPENED) {
 			if (debug)
-				addlog(SPP_FMT "lcp echo req but lcp closed\n",
+				log(-1, SPP_FMT "lcp echo req but lcp closed\n",
 				       SPP_ARGS(ifp));
 			++ifp->if_ierrors;
 			break;
 		}
 		if (len < 8) {
 			if (debug)
-				addlog(SPP_FMT "invalid lcp echo request "
+				log(-1, SPP_FMT "invalid lcp echo request "
 				       "packet length: %d bytes\n",
 				       SPP_ARGS(ifp), len);
 			break;
@@ -1504,7 +1504,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 		}
 		*(long*)(h+1) = htonl (sp->lcp.magic);
 		if (debug)
-			addlog(SPP_FMT "got lcp echo req, sending echo rep\n",
+			log(-1, SPP_FMT "got lcp echo req, sending echo rep\n",
 			       SPP_ARGS(ifp));
 		sppp_cp_send (sp, PPP_LCP, ECHO_REPLY, h->ident, len-4, h+1);
 		break;
@@ -1517,13 +1517,13 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 		}
 		if (len < 8) {
 			if (debug)
-				addlog(SPP_FMT "lcp invalid echo reply "
+				log(-1, SPP_FMT "lcp invalid echo reply "
 				       "packet length: %d bytes\n",
 				       SPP_ARGS(ifp), len);
 			break;
 		}
 		if (debug)
-			addlog(SPP_FMT "lcp got echo rep\n",
+			log(-1, SPP_FMT "lcp got echo rep\n",
 			       SPP_ARGS(ifp));
 		if (!(sp->lcp.opts & (1 << LCP_OPT_MAGIC)) ||
 		    ntohl (*(long*)(h+1)) != sp->lcp.magic)
@@ -1533,7 +1533,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 		/* Unknown packet type -- send Code-Reject packet. */
 	  illegal:
 		if (debug)
-			addlog(SPP_FMT "%s send code-rej for 0x%x\n",
+			log(-1, SPP_FMT "%s send code-rej for 0x%x\n",
 			       SPP_ARGS(ifp), cp->name, h->type);
 		sppp_cp_send(sp, cp->proto, CODE_REJ, ++sp->pp_seq,
 			     m->m_pkthdr.len, h);
@@ -1811,11 +1811,11 @@ sppp_lcp_up(struct sppp *sp)
 		ifp->if_flags |= IFF_RUNNING;
 		if (sp->state[IDX_LCP] == STATE_INITIAL) {
 			if (debug)
-				addlog("(incoming call)\n");
+				log(-1, "(incoming call)\n");
 			sp->pp_flags |= PP_CALLIN;
 			lcp.Open(sp);
 		} else if (debug)
-			addlog("\n");
+			log(-1, "\n");
 	}
 
 	sppp_up_event(&lcp, sp);
@@ -1907,7 +1907,7 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 	p = (void*) (h+1);
 	for (rlen=0; len>1 && p[1]; len-=p[1], p+=p[1]) {
 		if (debug)
-			addlog(" %s ", sppp_lcp_opt_name(*p));
+			log(-1, " %s ", sppp_lcp_opt_name(*p));
 		switch (*p) {
 		case LCP_OPT_MAGIC:
 			/* Magic number. */
@@ -1917,31 +1917,31 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 			if (len >= 6 || p[1] == 6)
 				continue;
 			if (debug)
-				addlog("[invalid] ");
+				log(-1, "[invalid] ");
 			break;
 		case LCP_OPT_MRU:
 			/* Maximum receive unit. */
 			if (len >= 4 && p[1] == 4)
 				continue;
 			if (debug)
-				addlog("[invalid] ");
+				log(-1, "[invalid] ");
 			break;
 		case LCP_OPT_AUTH_PROTO:
 			if (len < 4) {
 				if (debug)
-					addlog("[invalid] ");
+					log(-1, "[invalid] ");
 				break;
 			}
 			authproto = (p[2] << 8) + p[3];
 			if (authproto == PPP_CHAP && p[1] != 5) {
 				if (debug)
-					addlog("[invalid chap len] ");
+					log(-1, "[invalid chap len] ");
 				break;
 			}
 			if (sp->myauth.proto == 0) {
 				/* we are not configured to do auth */
 				if (debug)
-					addlog("[not configured] ");
+					log(-1, "[not configured] ");
 				break;
 			}
 			/*
@@ -1954,7 +1954,7 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 		default:
 			/* Others not supported. */
 			if (debug)
-				addlog("[rej] ");
+				log(-1, "[rej] ");
 			break;
 		}
 		/* Add the option to rejected list. */
@@ -1964,11 +1964,11 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 	}
 	if (rlen) {
 		if (debug)
-			addlog(" send conf-rej\n");
+			log(-1, " send conf-rej\n");
 		sppp_cp_send (sp, PPP_LCP, CONF_REJ, h->ident, rlen, buf);
 		return 0;
 	} else if (debug)
-		addlog("\n");
+		log(-1, "\n");
 
 	/*
 	 * pass 2: check for option values that are unacceptable and
@@ -1982,7 +1982,7 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 	len = origlen;
 	for (rlen=0; len>1 && p[1]; len-=p[1], p+=p[1]) {
 		if (debug)
-			addlog(" %s ", sppp_lcp_opt_name(*p));
+			log(-1, " %s ", sppp_lcp_opt_name(*p));
 		switch (*p) {
 		case LCP_OPT_MAGIC:
 			/* Magic number -- extract. */
@@ -1990,7 +1990,7 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 				(u_long)p[3] << 16 | p[4] << 8 | p[5];
 			if (nmagic != sp->lcp.magic) {
 				if (debug)
-					addlog("0x%lx ", nmagic);
+					log(-1, "0x%lx ", nmagic);
 				continue;
 			}
 			/*
@@ -2008,7 +2008,7 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 					lcp.Up(sp);
 				}
 			} else if (debug)
-				addlog("[glitch] ");
+				log(-1, "[glitch] ");
 			++sp->pp_loopcnt;
 			/*
 			 * We negate our magic here, and NAK it.  If
@@ -2027,11 +2027,11 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 			/* Async control character map -- check to be zero. */
 			if (! p[2] && ! p[3] && ! p[4] && ! p[5]) {
 				if (debug)
-					addlog("[empty] ");
+					log(-1, "[empty] ");
 				continue;
 			}
 			if (debug)
-				addlog("[non-empty] ");
+				log(-1, "[non-empty] ");
 			/* suggest a zero one */
 			p[2] = p[3] = p[4] = p[5] = 0;
 			break;
@@ -2043,7 +2043,7 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 			 */
 			sp->lcp.their_mru = p[2] * 256 + p[3];
 			if (debug)
-				addlog("%lu ", sp->lcp.their_mru);
+				log(-1, "%lu ", sp->lcp.their_mru);
 			continue;
 
 		case LCP_OPT_AUTH_PROTO:
@@ -2051,7 +2051,7 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 			if (sp->myauth.proto != authproto) {
 				/* not agreed, nak */
 				if (debug)
-					addlog("[mine %s != his %s] ",
+					log(-1, "[mine %s != his %s] ",
 					       sppp_proto_name(sp->hisauth.proto),
 					       sppp_proto_name(authproto));
 				p[2] = sp->myauth.proto >> 8;
@@ -2060,7 +2060,7 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 			}
 			if (authproto == PPP_CHAP && p[4] != CHAP_MD5) {
 				if (debug)
-					addlog("[chap not MD5] ");
+					log(-1, "[chap not MD5] ");
 				p[4] = CHAP_MD5;
 				break;
 			}
@@ -2074,19 +2074,19 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 	if (rlen) {
 		if (++sp->fail_counter[IDX_LCP] >= sp->lcp.max_failure) {
 			if (debug)
-				addlog(" max_failure (%d) exceeded, "
+				log(-1, " max_failure (%d) exceeded, "
 				       "send conf-rej\n",
 				       sp->lcp.max_failure);
 			sppp_cp_send(sp, PPP_LCP, CONF_REJ, h->ident, rlen, buf);
 		} else {
 			if (debug)
-				addlog(" send conf-nak\n");
+				log(-1, " send conf-nak\n");
 			sppp_cp_send (sp, PPP_LCP, CONF_NAK, h->ident, rlen, buf);
 		}
 		return 0;
 	} else {
 		if (debug)
-			addlog(" send conf-ack\n");
+			log(-1, " send conf-ack\n");
 		sp->fail_counter[IDX_LCP] = 0;
 		sp->pp_loopcnt = 0;
 		sppp_cp_send (sp, PPP_LCP, CONF_ACK,
@@ -2119,7 +2119,7 @@ sppp_lcp_RCN_rej(struct sppp *sp, struct lcp_header *h, int len)
 	p = (void*) (h+1);
 	for (; len > 1 && p[1]; len -= p[1], p += p[1]) {
 		if (debug)
-			addlog(" %s ", sppp_lcp_opt_name(*p));
+			log(-1, " %s ", sppp_lcp_opt_name(*p));
 		switch (*p) {
 		case LCP_OPT_MAGIC:
 			/* Magic number -- can't use it, use 0 */
@@ -2143,19 +2143,19 @@ sppp_lcp_RCN_rej(struct sppp *sp, struct lcp_header *h, int len)
 			if ((sp->pp_flags & PP_CALLIN) == 0 &&
 			    (sp->hisauth.flags & AUTHFLAG_NOCALLOUT) != 0) {
 				if (debug)
-					addlog("[don't insist on auth "
+					log(-1, "[don't insist on auth "
 					       "for callout]");
 				sp->lcp.opts &= ~(1 << LCP_OPT_AUTH_PROTO);
 				break;
 			}
 			if (debug)
-				addlog("[access denied]\n");
+				log(-1, "[access denied]\n");
 			lcp.Close(sp);
 			break;
 		}
 	}
 	if (debug)
-		addlog("\n");
+		log(-1, "\n");
 	free (buf, M_TEMP);
 	return;
 }
@@ -2183,7 +2183,7 @@ sppp_lcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 	p = (void*) (h+1);
 	for (; len > 1 && p[1]; len -= p[1], p += p[1]) {
 		if (debug)
-			addlog(" %s ", sppp_lcp_opt_name(*p));
+			log(-1, " %s ", sppp_lcp_opt_name(*p));
 		switch (*p) {
 		case LCP_OPT_MAGIC:
 			/* Magic number -- renegotiate */
@@ -2198,7 +2198,7 @@ sppp_lcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 				 */
 				if (magic == ~sp->lcp.magic) {
 					if (debug)
-						addlog("magic glitch ");
+						log(-1, "magic glitch ");
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
 					sp->lcp.magic = random();
 #else
@@ -2207,7 +2207,7 @@ sppp_lcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 				} else {
 					sp->lcp.magic = magic;
 					if (debug)
-						addlog("%lu ", magic);
+						log(-1, "%lu ", magic);
 				}
 			}
 			break;
@@ -2220,7 +2220,7 @@ sppp_lcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 			if (len >= 4 && p[1] == 4) {
 				u_int mru = p[2] * 256 + p[3];
 				if (debug)
-					addlog("%d ", mru);
+					log(-1, "%d ", mru);
 				if (mru < PP_MTU || mru > PP_MAX_MRU)
 					mru = PP_MTU;
 				sp->lcp.mru = mru;
@@ -2233,13 +2233,13 @@ sppp_lcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 			 * deny.
 			 */
 			if (debug)
-				addlog("[access denied]\n");
+				log(-1, "[access denied]\n");
 			lcp.Close(sp);
 			break;
 		}
 	}
 	if (debug)
-		addlog("\n");
+		log(-1, "\n");
 	free (buf, M_TEMP);
 	return;
 }
@@ -2556,7 +2556,7 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 	p = (void*) (h+1);
 	for (rlen=0; len>1 && p[1]; len-=p[1], p+=p[1]) {
 		if (debug)
-			addlog(" %s ", sppp_ipcp_opt_name(*p));
+			log(-1, " %s ", sppp_ipcp_opt_name(*p));
 		switch (*p) {
 		case IPCP_OPT_ADDRESS:
 			if (len >= 6 && p[1] == 6) {
@@ -2564,12 +2564,12 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 				continue;
 			}
 			if (debug)
-				addlog("[invalid] ");
+				log(-1, "[invalid] ");
 			break;
 		default:
 			/* Others not supported. */
 			if (debug)
-				addlog("[rej] ");
+				log(-1, "[rej] ");
 			break;
 		}
 		/* Add the option to rejected list. */
@@ -2579,11 +2579,11 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 	}
 	if (rlen) {
 		if (debug)
-			addlog(" send conf-rej\n");
+			log(-1, " send conf-rej\n");
 		sppp_cp_send (sp, PPP_IPCP, CONF_REJ, h->ident, rlen, buf);
 		return 0;
 	} else if (debug)
-		addlog("\n");
+		log(-1, "\n");
 
 	/* pass 2: parse option values */
 	sppp_get_ip_addrs(sp, 0, &hisaddr, 0);
@@ -2594,7 +2594,7 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 	len = origlen;
 	for (rlen=0; len>1 && p[1]; len-=p[1], p+=p[1]) {
 		if (debug)
-			addlog(" %s ", sppp_ipcp_opt_name(*p));
+			log(-1, " %s ", sppp_ipcp_opt_name(*p));
 		switch (*p) {
 		case IPCP_OPT_ADDRESS:
 			/* This is the address he wants in his end */
@@ -2610,7 +2610,7 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 				 * it.
 				 */
 				if (debug)
-					addlog("%s [ack] ",
+					log(-1, "%s [ack] ",
 						sppp_dotted_quad(hisaddr));
 				/* record that we've seen it already */
 				sp->ipcp.flags |= IPCP_HISADDR_SEEN;
@@ -2626,9 +2626,9 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 			 */
 			if (debug) {
 				if (desiredaddr == 0)
-					addlog("[addr requested] ");
+					log(-1, "[addr requested] ");
 				else
-					addlog("%s [not agreed] ",
+					log(-1, "%s [not agreed] ",
 						sppp_dotted_quad(desiredaddr));
 
 			}
@@ -2663,16 +2663,16 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 		buf[5] = hisaddr;
 		rlen = 6;
 		if (debug)
-			addlog("still need hisaddr ");
+			log(-1, "still need hisaddr ");
 	}
 
 	if (rlen) {
 		if (debug)
-			addlog(" send conf-nak\n");
+			log(-1, " send conf-nak\n");
 		sppp_cp_send (sp, PPP_IPCP, CONF_NAK, h->ident, rlen, buf);
 	} else {
 		if (debug)
-			addlog(" send conf-ack\n");
+			log(-1, " send conf-ack\n");
 		sppp_cp_send (sp, PPP_IPCP, CONF_ACK,
 			      h->ident, origlen, h+1);
 	}
@@ -2704,7 +2704,7 @@ sppp_ipcp_RCN_rej(struct sppp *sp, struct lcp_header *h, int len)
 	p = (void*) (h+1);
 	for (; len > 1 && p[1]; len -= p[1], p += p[1]) {
 		if (debug)
-			addlog(" %s ", sppp_ipcp_opt_name(*p));
+			log(-1, " %s ", sppp_ipcp_opt_name(*p));
 		switch (*p) {
 		case IPCP_OPT_ADDRESS:
 			/*
@@ -2717,7 +2717,7 @@ sppp_ipcp_RCN_rej(struct sppp *sp, struct lcp_header *h, int len)
 		}
 	}
 	if (debug)
-		addlog("\n");
+		log(-1, "\n");
 	free (buf, M_TEMP);
 	return;
 }
@@ -2746,7 +2746,7 @@ sppp_ipcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 	p = (void*) (h+1);
 	for (; len > 1 && p[1]; len -= p[1], p += p[1]) {
 		if (debug)
-			addlog(" %s ", sppp_ipcp_opt_name(*p));
+			log(-1, " %s ", sppp_ipcp_opt_name(*p));
 		switch (*p) {
 		case IPCP_OPT_ADDRESS:
 			/*
@@ -2759,7 +2759,7 @@ sppp_ipcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 					p[4] << 8 | p[5];
 				sp->ipcp.opts |= (1 << IPCP_OPT_ADDRESS);
 				if (debug)
-					addlog("[wantaddr %s] ",
+					log(-1, "[wantaddr %s] ",
 					       sppp_dotted_quad(wantaddr));
 				/*
 				 * When doing dynamic address assignment,
@@ -2772,7 +2772,7 @@ sppp_ipcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 				if (sp->ipcp.flags & IPCP_MYADDR_DYN) {
 					sppp_set_ip_addr(sp, wantaddr);
 					if (debug)
-						addlog("[agree] ");
+						log(-1, "[agree] ");
 					sp->ipcp.flags |= IPCP_MYADDR_SEEN;
 				}
 			}
@@ -2780,7 +2780,7 @@ sppp_ipcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 		}
 	}
 	if (debug)
-		addlog("\n");
+		log(-1, "\n");
 	free (buf, M_TEMP);
 	return;
 }
@@ -2961,7 +2961,7 @@ sppp_chap_input(struct sppp *sp, struct mbuf *m)
 				    sppp_auth_type_name(PPP_CHAP, h->type),
 				    h->ident, ntohs(h->len));
 				sppp_print_bytes((u_char*) (h+1), len-4);
-				addlog(">\n");
+				log(-1, ">\n");
 			}
 			break;
 		}
@@ -2973,9 +2973,9 @@ sppp_chap_input(struct sppp *sp, struct mbuf *m)
 			    sppp_auth_type_name(PPP_CHAP, h->type), h->ident,
 			    ntohs(h->len));
 			sppp_print_string((char*) name, name_len);
-			addlog(" value-size=%d value=", value_len);
+			log(-1, " value-size=%d value=", value_len);
 			sppp_print_bytes(value, value_len);
-			addlog(">\n");
+			log(-1, ">\n");
 		}
 
 		/* Compute reply value. */
@@ -3000,10 +3000,10 @@ sppp_chap_input(struct sppp *sp, struct mbuf *m)
 			log(LOG_DEBUG, SPP_FMT "chap success",
 			    SPP_ARGS(ifp));
 			if (len > 4) {
-				addlog(": ");
+				log(-1, ": ");
 				sppp_print_string((char*)(h + 1), len - 4);
 			}
-			addlog("\n");
+			log(-1, "\n");
 		}
 		x = splimp();
 		sp->pp_flags &= ~PP_NEEDAUTH;
@@ -3027,10 +3027,10 @@ sppp_chap_input(struct sppp *sp, struct mbuf *m)
 			log(LOG_INFO, SPP_FMT "chap failure",
 			    SPP_ARGS(ifp));
 			if (len > 4) {
-				addlog(": ");
+				log(-1, ": ");
 				sppp_print_string((char*)(h + 1), len - 4);
 			}
-			addlog("\n");
+			log(-1, "\n");
 		} else
 			log(LOG_INFO, SPP_FMT "chap failure\n",
 			    SPP_ARGS(ifp));
@@ -3052,7 +3052,7 @@ sppp_chap_input(struct sppp *sp, struct mbuf *m)
 				    sppp_auth_type_name(PPP_CHAP, h->type),
 				    h->ident, ntohs(h->len));
 				sppp_print_bytes((u_char*)(h+1), len-4);
-				addlog(">\n");
+				log(-1, ">\n");
 			}
 			break;
 		}
@@ -3070,10 +3070,10 @@ sppp_chap_input(struct sppp *sp, struct mbuf *m)
 			log(LOG_INFO, SPP_FMT "chap response, his name ",
 			    SPP_ARGS(ifp));
 			sppp_print_string(name, name_len);
-			addlog(" != expected ");
+			log(-1, " != expected ");
 			sppp_print_string(sp->hisauth.name,
 					  sppp_strnlen(sp->hisauth.name, AUTHNAMELEN));
-			addlog("\n");
+			log(-1, "\n");
 		}    
 		if (debug) {
 			log(LOG_DEBUG, SPP_FMT "chap input(%s) "
@@ -3083,9 +3083,9 @@ sppp_chap_input(struct sppp *sp, struct mbuf *m)
 			    sppp_auth_type_name(PPP_CHAP, h->type),
 			    h->ident, ntohs (h->len));
 			sppp_print_string((char*)name, name_len);
-			addlog(" value-size=%d value=", value_len);
+			log(-1, " value-size=%d value=", value_len);
 			sppp_print_bytes(value, value_len);
-			addlog(">\n");
+			log(-1, ">\n");
 		}
 		if (value_len != AUTHKEYLEN) {
 			if (debug)
@@ -3137,7 +3137,7 @@ sppp_chap_input(struct sppp *sp, struct mbuf *m)
 			    sppp_state_name(sp->state[IDX_CHAP]),
 			    h->type, h->ident, ntohs(h->len));
 			sppp_print_bytes((u_char*)(h+1), len-4);
-			addlog(">\n");
+			log(-1, ">\n");
 		}
 		break;
 
@@ -3244,9 +3244,9 @@ sppp_chap_tlu(struct sppp *sp)
 		    SPP_ARGS(ifp),
 		    sp->pp_phase == PHASE_NETWORK? "reconfirmed": "tlu");
 		if ((sp->hisauth.flags & AUTHFLAG_NORECHALLENGE) == 0)
-			addlog("next re-challenge in %d seconds\n", i);
+			log(-1, "next re-challenge in %d seconds\n", i);
 		else
-			addlog("re-challenging supressed\n");
+			log(-1, "re-challenging supressed\n");
 	}
 
 	x = splimp();
@@ -3368,7 +3368,7 @@ sppp_pap_input(struct sppp *sp, struct mbuf *m)
 				    sppp_auth_type_name(PPP_PAP, h->type),
 				    h->ident, ntohs(h->len));
 				sppp_print_bytes((u_char*)(h+1), len-4);
-				addlog(">\n");
+				log(-1, ">\n");
 			}
 			break;
 		}
@@ -3380,9 +3380,9 @@ sppp_pap_input(struct sppp *sp, struct mbuf *m)
 			    sppp_auth_type_name(PPP_PAP, h->type),
 			    h->ident, ntohs(h->len));
 			sppp_print_string((char*)name, name_len);
-			addlog(" passwd=");
+			log(-1, " passwd=");
 			sppp_print_string((char*)passwd, passwd_len);
-			addlog(">\n");
+			log(-1, ">\n");
 		}
 		if (name_len > AUTHNAMELEN ||
 		    passwd_len > AUTHKEYLEN ||
@@ -3420,10 +3420,10 @@ sppp_pap_input(struct sppp *sp, struct mbuf *m)
 			    SPP_ARGS(ifp));
 			name_len = *((char *)h);
 			if (len > 5 && name_len) {
-				addlog(": ");
+				log(-1, ": ");
 				sppp_print_string((char*)(h+1), name_len);
 			}
-			addlog("\n");
+			log(-1, "\n");
 		}
 		x = splimp();
 		sp->pp_flags &= ~PP_NEEDAUTH;
@@ -3449,10 +3449,10 @@ sppp_pap_input(struct sppp *sp, struct mbuf *m)
 			    SPP_ARGS(ifp));
 			name_len = *((char *)h);
 			if (len > 5 && name_len) {
-				addlog(": ");
+				log(-1, ": ");
 				sppp_print_string((char*)(h+1), name_len);
 			}
-			addlog("\n");
+			log(-1, "\n");
 		} else
 			log(LOG_INFO, SPP_FMT "pap failure\n",
 			    SPP_ARGS(ifp));
@@ -3467,7 +3467,7 @@ sppp_pap_input(struct sppp *sp, struct mbuf *m)
 			    SPP_ARGS(ifp),
 			    h->type, h->ident, ntohs(h->len));
 			sppp_print_bytes((u_char*)(h+1), len-4);
-			addlog(">\n");
+			log(-1, ">\n");
 		}
 		break;
 
@@ -3696,7 +3696,7 @@ sppp_auth_send(const struct cp *cp, struct sppp *sp,
 		    sppp_auth_type_name(cp->proto, lh->type),
 		    lh->ident, ntohs(lh->len));
 		sppp_print_bytes((u_char*) (lh+1), len);
-		addlog(">\n");
+		log(-1, ">\n");
 	}
 	if (! IF_HANDOFF_ADJ(&sp->pp_cpq, m, ifp, 3))
 		ifp->if_oerrors++;
@@ -4149,7 +4149,7 @@ static void
 sppp_print_bytes(const u_char *p, u_short len)
 {
 	if (len)
-		addlog(" %*D", len, p, "-");
+		log(-1, " %*D", len, p, "-");
 }
 
 static void
@@ -4163,9 +4163,9 @@ sppp_print_string(const char *p, u_short len)
 		 * Print only ASCII chars directly.  RFC 1994 recommends
 		 * using only them, but we don't rely on it.  */
 		if (c < ' ' || c > '~')
-			addlog("\\x%x", c);
+			log(-1, "\\x%x", c);
 		else
-			addlog("%c", c);
+			log(-1, "%c", c);
 	}
 }
 
