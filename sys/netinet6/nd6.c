@@ -30,14 +30,6 @@
  * SUCH DAMAGE.
  */
 
-/*
- * XXX
- * KAME 970409 note:
- * BSD/OS version heavily modifies this code, related to llinfo.
- * Since we don't have BSD/OS version of net/route.c in our hand,
- * I left the code mostly as it was in 970310.  -- itojun
- */
-
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_mac.h"
@@ -275,6 +267,7 @@ nd6_option_init(opt, icmp6len, ndopts)
 	int icmp6len;
 	union nd_opts *ndopts;
 {
+
 	bzero(ndopts, sizeof(*ndopts));
 	ndopts->nd_opts_search = (struct nd_opt_hdr *)opt;
 	ndopts->nd_opts_last
@@ -432,10 +425,10 @@ nd6_timer(ignored_arg)
 	struct ifnet *ifp;
 	struct in6_ifaddr *ia6, *nia6;
 	struct in6_addrlifetime *lt6;
-	
+
 	s = splnet();
 	callout_reset(&nd6_timer_ch, nd6_prune * hz,
-		      nd6_timer, NULL);
+	    nd6_timer, NULL);
 
 	ln = llinfo_nd6.ln_next;
 	while (ln && ln != &llinfo_nd6) {
@@ -540,7 +533,7 @@ nd6_timer(ignored_arg)
 		}
 		ln = next;
 	}
-	
+
 	/* expire default router list */
 	dr = TAILQ_FIRST(&nd_defrouter);
 	while (dr) {
@@ -576,7 +569,7 @@ nd6_timer(ignored_arg)
 			 * addresses.  Although we may have to restart the
 			 * loop (see below), it must be after purging the
 			 * address.  Otherwise, we'd see an infinite loop of
-			 * regeneration. 
+			 * regeneration.
 			 */
 			if (ip6_use_tempaddr &&
 			    (ia6->ia6_flags & IN6_IFF_TEMPORARY) != 0) {
@@ -612,7 +605,7 @@ nd6_timer(ignored_arg)
 					 * would not cause disaster (because
 					 * it's not a deletion, but an
 					 * addition,) we'd rather restart the
-					 * loop just for safety.  Or does this 
+					 * loop just for safety.  Or does this
 					 * significantly reduce performance??
 					 */
 					goto addrloop;
@@ -662,8 +655,7 @@ regen_tmpaddr(ia6)
 
 	ifp = ia6->ia_ifa.ifa_ifp;
 	for (ifa = ifp->if_addrlist.tqh_first; ifa;
-	     ifa = ifa->ifa_list.tqe_next)
-	{
+	     ifa = ifa->ifa_list.tqe_next) {
 		struct in6_ifaddr *it6;
 
 		if (ifa->ifa_addr->sa_family != AF_INET6)
@@ -836,7 +828,7 @@ nd6_lookup(addr6, create, ifp)
 			 * be covered by our own prefix.
 			 */
 			struct ifaddr *ifa =
-				ifaof_ifpforaddr((struct sockaddr *)&sin6, ifp);
+			    ifaof_ifpforaddr((struct sockaddr *)&sin6, ifp);
 			if (ifa == NULL)
 				return (NULL);
 
@@ -847,21 +839,19 @@ nd6_lookup(addr6, create, ifp)
 			 * called in rtrequest via ifa->ifa_rtrequest.
 			 */
 			if ((e = rtrequest(RTM_ADD, (struct sockaddr *)&sin6,
-					   ifa->ifa_addr,
-					   (struct sockaddr *)&all1_sa,
-					   (ifa->ifa_flags |
-					    RTF_HOST | RTF_LLINFO) &
-					   ~RTF_CLONING,
-					   &rt)) != 0)
+			    ifa->ifa_addr, (struct sockaddr *)&all1_sa,
+			    (ifa->ifa_flags | RTF_HOST | RTF_LLINFO) &
+			    ~RTF_CLONING, &rt)) != 0) {
 				log(LOG_ERR,
 				    "nd6_lookup: failed to add route for a "
 				    "neighbor(%s), errno=%d\n",
 				    ip6_sprintf(addr6), e);
+			}
 			if (rt == NULL)
 				return (NULL);
 			if (rt->rt_llinfo) {
 				struct llinfo_nd6 *ln =
-					(struct llinfo_nd6 *)rt->rt_llinfo;
+				    (struct llinfo_nd6 *)rt->rt_llinfo;
 				ln->ln_state = ND6_LLINFO_NOSTATE;
 			}
 		} else
@@ -878,14 +868,16 @@ nd6_lookup(addr6, create, ifp)
 	 *      it might be the loopback interface if the entry is for our
 	 *      own address on a non-loopback interface. Instead, we should
 	 *      use rt->rt_ifa->ifa_ifp, which would specify the REAL
-	 *      interface.
+	 *	interface.
 	 */
 	if ((rt->rt_flags & RTF_GATEWAY) || (rt->rt_flags & RTF_LLINFO) == 0 ||
 	    rt->rt_gateway->sa_family != AF_LINK || rt->rt_llinfo == NULL ||
 	    (ifp && rt->rt_ifa->ifa_ifp != ifp)) {
 		if (create) {
-			log(LOG_DEBUG, "nd6_lookup: failed to lookup %s (if = %s)\n",
-			    ip6_sprintf(addr6), ifp ? if_name(ifp) : "unspec");
+			log(LOG_DEBUG,
+			    "nd6_lookup: failed to lookup %s (if = %s)\n",
+			    ip6_sprintf(addr6),
+			    ifp ? if_name(ifp) : "unspec");
 			/* xxx more logs... kazu */
 		}
 		return (NULL);
@@ -921,10 +913,8 @@ nd6_is_addr_neighbor(addr, ifp)
 	 * If the address matches one of our addresses,
 	 * it should be a neighbor.
 	 */
-	for (ifa = ifp->if_addrlist.tqh_first;
-	     ifa;
-	     ifa = ifa->ifa_list.tqe_next)
-	{
+	for (ifa = ifp->if_addrlist.tqh_first; ifa;
+	     ifa = ifa->ifa_list.tqe_next) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			next: continue;
 
@@ -961,7 +951,7 @@ nd6_free(rt)
 	struct nd_defrouter *dr;
 
 	/*
-	 * we used to have pfctlinput(PRC_HOSTDEAD) here. 
+	 * we used to have pfctlinput(PRC_HOSTDEAD) here.
 	 * even though it is not harmful, it was not really necessary.
 	 */
 
@@ -969,7 +959,7 @@ nd6_free(rt)
 		int s;
 		s = splnet();
 		dr = defrouter_lookup(&((struct sockaddr_in6 *)rt_key(rt))->sin6_addr,
-				      rt->rt_ifp);
+		    rt->rt_ifp);
 
 		if (ln->ln_router || dr) {
 			/*
@@ -1035,7 +1025,7 @@ nd6_free(rt)
 	 * cached routes.
 	 */
 	rtrequest(RTM_DELETE, rt_key(rt), (struct sockaddr *)0,
-		  rt_mask(rt), 0, (struct rtentry **)0);
+	    rt_mask(rt), 0, (struct rtentry **)0);
 
 	return (next);
 }
@@ -1106,7 +1096,7 @@ nd6_rtrequest(req, rt, info)
 
 	RT_LOCK_ASSERT(rt);
 
-	if ((rt->rt_flags & RTF_GATEWAY))
+	if ((rt->rt_flags & RTF_GATEWAY) != 0)
 		return;
 
 	if (nd6_need_cache(ifp) == 0 && (rt->rt_flags & RTF_HOST) == 0) {
@@ -1164,17 +1154,11 @@ nd6_rtrequest(req, rt, info)
 			SDL(gate)->sdl_index = ifp->if_index;
 			if (ln)
 				ln->ln_expire = time_second;
-#if 1
 			if (ln && ln->ln_expire == 0) {
 				/* kludge for desktops */
-#if 0
-				printf("nd6_rtequest: time.tv_sec is zero; "
-				       "treat it as 1\n");
-#endif
 				ln->ln_expire = 1;
 			}
-#endif
-			if ((rt->rt_flags & RTF_CLONING))
+			if ((rt->rt_flags & RTF_CLONING) != 0)
 				break;
 		}
 		/*
@@ -1265,7 +1249,7 @@ nd6_rtrequest(req, rt, info)
 		 * to the interface.
 		 */
 		ifa = (struct ifaddr *)in6ifa_ifpwithaddr(rt->rt_ifp,
-					  &SIN6(rt_key(rt))->sin6_addr);
+		    &SIN6(rt_key(rt))->sin6_addr);
 		if (ifa) {
 			caddr_t macp = nd6_ifptomac(ifp);
 			ln->ln_expire = 0;
@@ -1511,7 +1495,7 @@ nd6_ioctl(cmd, data, ifp)
 		/* xxx sumikawa: flush prefix list */
 		break;
 	case SIOCSPFXFLUSH_IN6:
-	    {
+	{
 		/* flush all the prefix advertised by routers */
 		struct nd_prefix *pr, *next;
 
@@ -1539,9 +1523,9 @@ nd6_ioctl(cmd, data, ifp)
 		}
 		splx(s);
 		break;
-	    }
+	}
 	case SIOCSRTRFLUSH_IN6:
-	    {
+	{
 		/* flush all the default routers */
 		struct nd_defrouter *dr, *next;
 
@@ -1559,9 +1543,9 @@ nd6_ioctl(cmd, data, ifp)
 		}
 		splx(s);
 		break;
-	    }
+	}
 	case SIOCGNBRINFO_IN6:
-	    {
+	{
 		struct llinfo_nd6 *ln;
 		struct in6_addr nb_addr = nbi->addr; /* make local for safety */
 
@@ -1589,22 +1573,21 @@ nd6_ioctl(cmd, data, ifp)
 		nbi->isrouter = ln->ln_router;
 		nbi->expire = ln->ln_expire;
 		splx(s);
-		
+
 		break;
-	    }
+	}
 	case SIOCGDEFIFACE_IN6:	/* XXX: should be implemented as a sysctl? */
 		ndif->ifindex = nd6_defifindex;
 		break;
 	case SIOCSDEFIFACE_IN6:	/* XXX: should be implemented as a sysctl? */
 		return (nd6_setdefaultiface(ndif->ifindex));
-		break;
 	}
 	return (error);
 }
 
 /*
  * Create neighbor cache entry and cache link-layer address,
- * on reception of inbound ND6 packets. (RS/RA/NS/redirect)
+ * on reception of inbound ND6 packets.  (RS/RA/NS/redirect)
  */
 struct rtentry *
 nd6_cache_lladdr(ifp, from, lladdr, lladdrlen, type, code)
@@ -1706,8 +1689,8 @@ fail:
 	}
 
 	if (!is_newentry) {
-		if ((!olladdr && lladdr)		/* (3) */
-		 || (olladdr && lladdr && llchange)) {	/* (5) */
+		if ((!olladdr && lladdr) ||		/* (3) */
+		    (olladdr && lladdr && llchange)) {	/* (5) */
 			do_update = 1;
 			newstate = ND6_LLINFO_STALE;
 		} else					/* (1-2,4) */
@@ -1741,8 +1724,7 @@ fail:
 				 * set the 2nd argument as the 1st one.
 				 */
 				nd6_output(ifp, ifp, ln->ln_hold,
-					   (struct sockaddr_in6 *)rt_key(rt),
-					   rt);
+				    (struct sockaddr_in6 *)rt_key(rt), rt);
 				ln->ln_hold = NULL;
 			}
 		} else if (ln->ln_state == ND6_LLINFO_INCOMPLETE) {
@@ -1791,8 +1773,8 @@ fail:
 	case ND_REDIRECT:
 		/*
 		 * If the icmp is a redirect to a better router, always set the
-		 * is_router flag. Otherwise, if the entry is newly created,
-		 * clear the flag. [RFC 2461, sec 8.3]
+		 * is_router flag.  Otherwise, if the entry is newly created,
+		 * clear the flag.  [RFC 2461, sec 8.3]
 		 */
 		if (code == ND_REDIRECT_ROUTER)
 			ln->ln_router = 1;
@@ -1809,8 +1791,8 @@ fail:
 		/*
 		 * Mark an entry with lladdr as a router.
 		 */
-		if ((!is_newentry && (olladdr || lladdr))	/* (2-5) */
-		 || (is_newentry && lladdr)) {			/* (7) */
+		if ((!is_newentry && (olladdr || lladdr)) ||	/* (2-5) */
+		    (is_newentry && lladdr)) {			/* (7) */
 			ln->ln_router = 1;
 		}
 		break;
@@ -1899,7 +1881,7 @@ nd6_output(ifp, origifp, m0, dst, rt0)
 				if (rt->rt_ifp != ifp) {
 					/* XXX: loop care? */
 					return nd6_output(ifp, origifp, m0,
-							  dst, rt);
+					    dst, rt);
 				}
 			} else
 				senderr(EHOSTUNREACH);
@@ -1933,7 +1915,8 @@ nd6_output(ifp, origifp, m0, dst, rt0)
 				goto lookup;
 			if (((rt = rt->rt_gwroute)->rt_flags & RTF_UP) == 0) {
 				rtfree(rt); rt = rt0;
-			lookup: rt->rt_gwroute = rtalloc1(rt->rt_gateway, 1, 0UL);
+			lookup:
+				rt->rt_gwroute = rtalloc1(rt->rt_gateway, 1, 0UL);
 				if ((rt = rt->rt_gwroute) == 0)
 					senderr(EHOSTUNREACH);
 				RT_UNLOCK(rt);
@@ -2026,7 +2009,7 @@ nd6_output(ifp, origifp, m0, dst, rt0)
 		}
 	}
 	return (0);
-	
+
   sendpkt:
 
 #ifdef MAC
@@ -2034,7 +2017,7 @@ nd6_output(ifp, origifp, m0, dst, rt0)
 #endif
 	if ((ifp->if_flags & IFF_LOOPBACK) != 0) {
 		return ((*ifp->if_output)(origifp, m, (struct sockaddr *)dst,
-					 rt));
+		    rt));
 	}
 	return ((*ifp->if_output)(ifp, m, (struct sockaddr *)dst, rt));
 
@@ -2042,7 +2025,7 @@ nd6_output(ifp, origifp, m0, dst, rt0)
 	if (m)
 		m_freem(m);
 	return (error);
-}	
+}
 #undef senderr
 
 int
@@ -2160,8 +2143,7 @@ nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS)
 		return EPERM;
 	error = 0;
 
-	for (dr = TAILQ_FIRST(&nd_defrouter);
-	     dr;
+	for (dr = TAILQ_FIRST(&nd_defrouter); dr;
 	     dr = TAILQ_NEXT(dr, dr_entry)) {
 		d = (struct in6_defrouter *)buf;
 		de = (struct in6_defrouter *)(buf + sizeof(buf));
@@ -2187,7 +2169,8 @@ nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS)
 		if (error)
 			break;
 	}
-	return error;
+
+	return (error);
 }
 
 static int
@@ -2231,11 +2214,9 @@ nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 			p->flags = pr->ndpr_stateflags;
 			p->origin = PR_ORIG_RA;
 			advrtrs = 0;
-			for (pfr = pr->ndpr_advrtrs.lh_first;
-			     pfr;
+			for (pfr = pr->ndpr_advrtrs.lh_first; pfr;
 			     pfr = pfr->pfr_next) {
-				if ((void *)&sin6[advrtrs + 1] >
-				    (void *)pe) {
+				if ((void *)&sin6[advrtrs + 1] > (void *)pe) {
 					advrtrs++;
 					continue;
 				}
@@ -2243,8 +2224,7 @@ nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 				bzero(s6, sizeof(*s6));
 				s6->sin6_family = AF_INET6;
 				s6->sin6_len = sizeof(*sin6);
-				if (in6_recoverscope(s6,
-				    &pfr->router->rtaddr,
+				if (in6_recoverscope(s6, &pfr->router->rtaddr,
 				    pfr->router->ifp) != 0)
 					log(LOG_ERR,
 					    "scope error in "
@@ -2253,7 +2233,7 @@ nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 				advrtrs++;
 			}
 			p->advrtrs = advrtrs;
-		} else 
+		} else
 			panic("buffer too short");
 
 		advance = sizeof(*p) + sizeof(*sin6) * advrtrs;
@@ -2261,5 +2241,6 @@ nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 		if (error)
 			break;
 	}
-	return error;
+
+	return (error);
 }
