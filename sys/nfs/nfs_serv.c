@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.41 1997/05/10 16:12:03 dfr Exp $
+ * $Id: nfs_serv.c,v 1.42 1997/05/10 16:59:36 dfr Exp $
  */
 
 /*
@@ -861,7 +861,10 @@ nfsrv_write(nfsd, slp, procp, mrq)
 			return (0);
 		nfsm_build(tl, u_long *, 4 * NFSX_UNSIGNED);
 		*tl++ = txdr_unsigned(retlen);
-		if (stable == NFSV3WRITE_UNSTABLE)
+		/*
+		 * If nfs_async is set, then pretend the write was FILESYNC.
+		 */
+		if (stable == NFSV3WRITE_UNSTABLE && !nfs_async)
 			*tl++ = txdr_unsigned(stable);
 		else
 			*tl++ = txdr_unsigned(NFSV3WRITE_FILESYNC);
