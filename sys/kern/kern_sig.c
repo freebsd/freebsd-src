@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.10 1995/03/16 18:12:35 bde Exp $
+ * $Id: kern_sig.c,v 1.11 1995/05/30 08:05:40 rgrimes Exp $
  */
 
 #define	SIGPROP		/* include signal properties table */
@@ -109,6 +109,8 @@ sigaction(p, uap, retval)
 			sa->sa_flags |= SA_ONSTACK;
 		if ((ps->ps_sigintr & bit) == 0)
 			sa->sa_flags |= SA_RESTART;
+		if ((ps->ps_nodefer & bit) != 0)
+			sa->sa_flags |= SA_NODEFER;
 		if (p->p_flag & P_NOCLDSTOP)
 			sa->sa_flags |= SA_NOCLDSTOP;
 		if ((error = copyout((caddr_t)sa, (caddr_t)uap->osa,
@@ -148,6 +150,10 @@ setsigvec(p, signum, sa)
 		ps->ps_sigonstack |= bit;
 	else
 		ps->ps_sigonstack &= ~bit;
+	if (sa->sa_flags & SA_NODEFER)
+		ps->ps_nodefer |= bit;
+	else
+		ps->ps_nodefer &= ~bit;
 #ifdef COMPAT_SUNOS
 	if (sa->sa_flags & SA_USERTRAMP)
 		ps->ps_usertramp |= bit;
@@ -654,7 +660,9 @@ trapsignal(p, signum, code)
 				p->p_sigmask, code);
 #endif
 		sendsig(ps->ps_sigact[signum], signum, p->p_sigmask, code);
-		p->p_sigmask |= ps->ps_catchmask[signum] | mask;
+		p->p_sigmask |= ps->ps_catchmask[signum];
+		p->p_sigmask |= ps->ps_catchmask[signum] |
+			(mask & ~ps->ps_nodefer);
 	} else {
 		ps->ps_code = code;	/* XXX for core dump/debugger */
 		psignal(p, signum);
@@ -1088,7 +1096,8 @@ postsig(signum)
 			ps->ps_flags &= ~SAS_OLDMASK;
 		} else
 			returnmask = p->p_sigmask;
-		p->p_sigmask |= ps->ps_catchmask[signum] | mask;
+		p->p_sigmask |= ps->ps_catchmask[signum] |
+			(mask & ~ps->ps_nodefer);
 		(void) spl0();
 		p->p_stats->p_ru.ru_nsignals++;
 		if (ps->ps_sig != signum) {
