@@ -45,6 +45,7 @@ gets(char *cp, size_t size, int visible)
 		switch (c) {
 		case '\n':
 		case '\r':
+			printf("%c", c);
 			*lp = '\0';
 			return;
 		case '\b':
