@@ -227,6 +227,11 @@ setup_dev(struct atapi_xpt_softc *scp, struct ata_device *atp)
 		     2 * device_get_unit(atp->channel->dev) +
 		     (atp->unit == ATA_MASTER) ? 0 : 1);
 	atp->softc = (void *)scp;
+	if (atapi_dma && atp->channel->dma &&
+	    (atp->param->config & ATA_DRQ_MASK) != ATA_DRQ_INTR)
+	    atp->setmode(atp, ATA_DMA_MAX);
+	else
+	    atp->setmode(atp, ATA_PIO_MAX);
     }
 }
 
@@ -403,10 +408,10 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 
 	switch (ccb_h->flags & CAM_DIR_MASK) {
 	case CAM_DIR_IN:
-	     request_flags |= ATA_R_READ;
+	     request_flags |= ATA_R_READ|ATA_R_DMA;
 	     break;
 	case CAM_DIR_OUT:
-	     request_flags |= ATA_R_WRITE;
+	     request_flags |= ATA_R_WRITE|ATA_R_DMA;
 	     break;
 	case CAM_DIR_NONE:
 	     request_flags |= ATA_R_CONTROL;
@@ -414,7 +419,9 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	default:
 	     ata_prtdev(dev, "unknown IO operation\n");
 	     goto action_invalid;
-	 }
+	}
+	if (dev->mode < ATA_DMA)
+	    request_flags &= ~ATA_R_DMA;
 
 	if ((hcb = allocate_hcb(softc, unit, bus, ccb)) == NULL) {
 	    printf("cannot allocate ATAPI/CAM hcb\n");
