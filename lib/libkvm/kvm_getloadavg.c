@@ -41,11 +41,8 @@ static char sccsid[] = "@(#)kvm_getloadavg.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <sys/proc.h>
 #include <sys/sysctl.h>
-#include <vm/vm_param.h>
+#include <sys/user.h>
 
 #include <stdlib.h>
 #include <fcntl.h>
