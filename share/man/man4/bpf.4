@@ -29,7 +29,7 @@
 .Nm bpf
 .Nd Berkeley Packet Filter
 .Sh SYNOPSIS
-.Cd pseudo-device bpf
+.Cd device bpf
 .Sh DESCRIPTION
 The Berkeley Packet Filter
 provides a raw interface to data link layers in a protocol
@@ -64,23 +64,23 @@ Associated with each open instance of a
 file is a user-settable packet filter.
 Whenever a packet is received by an interface,
 all file descriptors listening on that interface apply their filter.
-Each descriptor that accepts the packet receives its own copy. 
+Each descriptor that accepts the packet receives its own copy.
 .Pp
 Reads from these files return the next group of packets
-that have matched the filter. 
+that have matched the filter.
 To improve performance, the buffer passed to read must be
 the same size as the buffers used internally by
 .Nm .
 This size is returned by the
 .Dv BIOCGBLEN
-ioctl (see below), and 
+ioctl (see below), and
 can be set with
 .Dv BIOCSBLEN .
 Note that an individual packet larger than this size is necessarily
 truncated.
 .Pp
 The packet filter will support any link level protocol that has fixed length
-headers.  Currently, only Ethernet, 
+headers.  Currently, only Ethernet,
 .Tn SLIP ,
 and
 .Tn PPP
@@ -97,7 +97,7 @@ file descriptor.  The writes are unbuffered, meaning only one
 packet can be processed per write.
 Currently, only writes to Ethernets and
 .Tn SLIP
-links are supported.  
+links are supported.
 .Sh IOCTLS
 The
 .Xr ioctl 2
@@ -109,10 +109,10 @@ these includes:
 	#include <sys/types.h>
 	#include <sys/time.h>
 	#include <sys/ioctl.h>
-	#include <net/bpf.h> 
+	#include <net/bpf.h>
 .Ed
 .Pp
-Additionally, 
+Additionally,
 .Dv BIOCGETIF
 and
 .Dv BIOCSETIF
@@ -146,7 +146,7 @@ with
 .Dv BIOCSETIF .
 If the requested buffer size cannot be accommodated, the closest
 allowable size will be set and returned in the argument.
-A read call will result in 
+A read call will result in
 .Er EIO
 if it is passed a buffer that is not this size.
 .It Dv BIOCGDLT
@@ -164,7 +164,7 @@ All packets, not just those destined for the local host, are processed.
 Since more than one file can be listening on a given interface,
 a listener that opened its interface non-promiscuously may receive
 packets promiscuously.  This problem can be remedied with an
-appropriate filter. 
+appropriate filter.
 .It Dv BIOCFLUSH
 Flushes the buffer of incoming packets,
 and resets the statistics that are returned by BIOCGSTATS.
@@ -185,7 +185,7 @@ The device is indicated by name using the
 field of the
 .Li ifreq
 structure.
-Additionally, performs the actions of 
+Additionally, performs the actions of
 .Dv BIOCFLUSH .
 .It Dv BIOCSRTIMEOUT
 .It Dv BIOCGRTIMEOUT
@@ -212,7 +212,7 @@ The fields are:
 .It Li bs_recv
 the number of packets received by the descriptor since opened or reset
 (including any buffered since the last read call);
-and 
+and
 .It Li bs_drop
 the number of packets which were accepted by the filter but dropped by the
 kernel because of buffer overflows
@@ -229,7 +229,7 @@ becomes full or a timeout occurs.
 This is useful for programs like
 .Xr rarpd 8
 which must respond to messages in real time.
-The default for a new file is off. 
+The default for a new file is off.
 .It Dv BIOCSETF
 .Pq Li "struct bpf_program"
 Sets the filter program used by the kernel to discard uninteresting
@@ -238,13 +238,13 @@ the following structure:
 .Bd -literal
 struct bpf_program {
 	int bf_len;
-	struct bpf_insn *bf_insns; 
+	struct bpf_insn *bf_insns;
 };
 .Ed
 .Pp
 The filter program is pointed to by the
 .Li bf_insns
-field while its length in units of 
+field while its length in units of
 .Sq Li struct bpf_insn
 is given by the
 .Li bf_len
@@ -331,14 +331,14 @@ header, which may not be equal to
 .Fn sizeof "struct bpf_hdr" .
 .El
 .Pp
-The 
+The
 .Li bh_hdrlen
 field exists to account for
 padding between the header and the link level protocol.
 The purpose here is to guarantee proper alignment of the packet
-data structures, which is required on alignment sensitive 
+data structures, which is required on alignment sensitive
 architectures and improves performance on many other architectures.
-The packet filter insures that the 
+The packet filter insures that the
 .Li bpf_hdr
 and the network layer
 header will be word aligned.  Suitable precautions
@@ -367,16 +367,16 @@ will advance it to the next packet:
 .Dl p = (char *)p + BPF_WORDALIGN(p->bh_hdrlen + p->bh_caplen)
 .Pp
 For the alignment mechanisms to work properly, the
-buffer passed to 
+buffer passed to
 .Xr read 2
-must itself be word aligned.  
+must itself be word aligned.
 The
 .Xr malloc 3
 function
 will always return an aligned buffer.
 .Sh FILTER MACHINE
 A filter program is an array of instructions, with all branches forwardly
-directed, terminated by a 
+directed, terminated by a
 .Em return
 instruction.
 Each instruction performs some action on the pseudo-machine state,
@@ -393,18 +393,18 @@ struct bpf_insn {
 };
 .Ed
 .Pp
-The 
+The
 .Li k
-field is used in different ways by different instructions, 
+field is used in different ways by different instructions,
 and the
 .Li jt
-and 
+and
 .Li jf
 fields are used as offsets
 by the branch instructions.
 The opcodes are encoded in a semi-hierarchical fashion.
-There are eight classes of instructions: 
-.Dv BPF_LD , 
+There are eight classes of instructions:
+.Dv BPF_LD ,
 .Dv BPF_LDX ,
 .Dv BPF_ST ,
 .Dv BPF_STX ,
@@ -413,7 +413,7 @@ There are eight classes of instructions:
 .Dv BPF_RET ,
 and
 .Dv BPF_MISC .
-Various other mode and 
+Various other mode and
 operator bits are or'd into the class to give the actual instructions.
 The classes and modes are defined in
 .Aq Pa net/bpf.h .
@@ -429,7 +429,7 @@ in the packet,
 interpreted as a word (n=4),
 unsigned halfword (n=2), or unsigned byte (n=1).
 M[i] gives the i'th word in the scratch memory store, which is only
-addressed in word units.  The memory store is indexed from 0 to 
+addressed in word units.  The memory store is indexed from 0 to
 .Dv BPF_MEMWORDS
 - 1.
 .Li k ,
@@ -456,7 +456,7 @@ the packet length
 .Pq Dv BPF_LEN ,
 or a word in the scratch memory store
 .Pq Dv BPF_MEM .
-For 
+For
 .Dv BPF_IND
 and
 .Dv BPF_ABS ,
@@ -466,7 +466,7 @@ halfword
 .Pq Dv BPF_H ,
 or byte
 .Pq Dv BPF_B .
-The semantics of all the recognized 
+The semantics of all the recognized
 .Dv BPF_LD
 instructions follow.
 .Pp
@@ -526,7 +526,7 @@ M[k] <- X
 .It Dv BPF_ALU
 The alu instructions perform operations between the accumulator and
 index register or constant, and store the result back in the accumulator.
-For binary operations, a source mode is required 
+For binary operations, a source mode is required
 .Po
 .Dv BPF_K
 or
@@ -581,7 +581,7 @@ Jump offsets are encoded in 8 bits so the longest jump is 256 instructions.
 However, the jump always
 .Pq Dv BPF_JA
 opcode uses the 32 bit
-.Li k 
+.Li k
 field as the offset, allowing arbitrarily distant destinations.
 All conditionals use unsigned comparison conventions.
 .Pp
@@ -636,10 +636,10 @@ A <- X
 .Pp
 The
 .Nm
-interface provides the following macros to facilitate 
+interface provides the following macros to facilitate
 array initializers:
 .Fn BPF_STMT opcode operand
-and 
+and
 .Fn BPF_JUMP opcode operand true_offset false_offset .
 .Pp
 .Sh EXAMPLES
@@ -651,7 +651,7 @@ struct bpf_insn insns[] = {
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, ETHERTYPE_REVARP, 0, 3),
 	BPF_STMT(BPF_LD+BPF_H+BPF_ABS, 20),
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, REVARP_REQUEST, 0, 1),
-	BPF_STMT(BPF_RET+BPF_K, sizeof(struct ether_arp) + 
+	BPF_STMT(BPF_RET+BPF_K, sizeof(struct ether_arp) +
 		 sizeof(struct ether_header)),
 	BPF_STMT(BPF_RET+BPF_K, 0),
 };
@@ -676,7 +676,7 @@ struct bpf_insn insns[] = {
 .Ed
 .Pp
 Finally, this filter returns only TCP finger packets.  We must parse
-the IP header to reach the TCP header.  The 
+the IP header to reach the TCP header.  The
 .Dv BPF_JSET
 instruction
 checks that the IP fragment offset is 0 so we are sure
@@ -714,15 +714,15 @@ struct bpf_insn insns[] = {
 the packet filter device
 .El
 .Sh BUGS
-The read buffer must be of a fixed size (returned by the 
+The read buffer must be of a fixed size (returned by the
 .Dv BIOCGBLEN
 ioctl).
 .Pp
 A file that does not request promiscuous mode may receive promiscuously
 received packets as a side effect of another file requesting this
 mode on the same hardware interface.  This could be fixed in the kernel
-with additional processing overhead.  However, we favor the model where 
-all files must assume that the interface is promiscuous, and if 
+with additional processing overhead.  However, we favor the model where
+all files must assume that the interface is promiscuous, and if
 so desired, must utilize a filter to reject foreign packets.
 .Pp
 Data link protocols with variable length headers are not currently supported.
@@ -730,7 +730,7 @@ Data link protocols with variable length headers are not currently supported.
 .Pp
 The Enet packet filter was created in 1980 by Mike Accetta and
 Rick Rashid at Carnegie-Mellon University.  Jeffrey Mogul, at
-Stanford, ported the code to BSD and continued its development from 
+Stanford, ported the code to BSD and continued its development from
 1983 on.  Since then, it has evolved into the Ultrix Packet Filter
 at
 .Tn DEC ,

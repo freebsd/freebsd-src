@@ -29,7 +29,7 @@ grep -v GENERIC < GENERIC >>${UPPER}
 cat >>${UPPER} <<DONE
 # trust me, you'll need this
 options	DDB		
-pseudo-device	${1}	4	# might as well allow 4 of them 
+device	${1}	4	# might as well allow 4 of them 
 DONE
 
 cat >../../dev/${1}.c <<DONE

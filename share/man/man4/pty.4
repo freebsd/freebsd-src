@@ -39,7 +39,7 @@
 .Nm pty
 .Nd pseudo terminal driver
 .Sh SYNOPSIS
-.Cd "pseudo-device pty"
+.Cd "device pty"
 .Sh DESCRIPTION
 The
 .Nm
@@ -53,7 +53,7 @@ device.  The slave device provides to a process
 an interface identical
 to that described in
 .Xr tty 4 .
-However, whereas all other devices which provide the 
+However, whereas all other devices which provide the
 interface described in
 .Xr tty 4
 have a hardware device of some sort behind them, the slave
@@ -64,7 +64,7 @@ given to the slave device as input and anything written
 on the slave device is presented as input on the master
 device.
 .Pp
-The following 
+The following
 .Xr ioctl 2
 calls apply only to pseudo terminals:
 .Bl -tag -width TIOCREMOTE
@@ -80,12 +80,12 @@ or by typing
 .Ql ^S ) .
 Takes no parameter.
 .It Dv TIOCPKT
-Enable/disable 
+Enable/disable
 .Em packet
 mode.  Packet mode is enabled by specifying (by reference)
 a nonzero parameter and disabled by specifying (by reference)
 a zero parameter.  When applied to the master side of a pseudo
-terminal, each subsequent 
+terminal, each subsequent
 .Xr read 2
 from the terminal will return data written on the slave part of
 the pseudo terminal preceded by a zero byte (symbolically
@@ -105,11 +105,11 @@ whenever output to the terminal is stopped a la
 .It Dv TIOCPKT_START
 whenever output to the terminal is restarted.
 .It Dv TIOCPKT_DOSTOP
-whenever 
+whenever
 .Em t_stopc
 is
 .Ql ^S
-and 
+and
 .Em t_startc
 is
 .Ql ^Q .
@@ -147,7 +147,7 @@ This mode is enabled from the master side of a pseudo terminal
 by specifying (by reference)
 a nonzero parameter and disabled by specifying (by reference)
 a zero parameter.
-Each subsequent 
+Each subsequent
 .Xr read 2
 from the master side will return data written on the slave part of
 the pseudo terminal preceded by a zero byte,
