@@ -530,7 +530,7 @@ void
 usage()
 {
 
-	(void)fprintf(stderr, "usage: col [-bfx] [-l nline]\n");
+	(void)fprintf(stderr, "usage: col [-bfhx] [-l nline]\n");
 	exit(1);
 }
 
