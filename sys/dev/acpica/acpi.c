@@ -765,6 +765,92 @@ acpi_AllocBuffer(int size)
     return(buf);
 }
 
+static ACPI_STATUS __inline
+acpi_wakeup(UINT8 state)
+{
+	UINT16			Count;
+	ACPI_STATUS		Status;
+	ACPI_OBJECT_LIST	Arg_list;
+	ACPI_OBJECT		Arg;
+	ACPI_OBJECT		Objects[3]; /* package plus 2 number objects */
+	ACPI_BUFFER		ReturnBuffer;
+
+	FUNCTION_TRACE_U32(__FUNCTION__, state);
+
+	/* wait for the WAK_STS bit */
+	Count = 0;
+	while (!(AcpiHwRegisterBitAccess(ACPI_READ, ACPI_MTX_LOCK, WAK_STS))) {
+		AcpiOsSleepUsec(1000);
+		/*
+		 * Some BIOSes don't set WAK_STS at all,
+		 * give up waiting for wakeup if we time out.
+		 */
+		if (Count > 1000) {
+			break;	/* giving up */
+		}
+		Count++;
+	}
+
+	/*
+	 * Evaluate the _WAK method
+	 */
+	MEMSET(&Arg_list, 0, sizeof(Arg_list));
+	Arg_list.Count = 1;
+	Arg_list.Pointer = &Arg;
+
+	MEMSET(&Arg, 0, sizeof(Arg));
+	Arg.Type = ACPI_TYPE_INTEGER;
+	Arg.Integer.Value = state;
+
+	/* Set up _WAK result code buffer */
+	MEMSET(Objects, 0, sizeof(Objects));
+	ReturnBuffer.Length = sizeof(Objects);
+	ReturnBuffer.Pointer = Objects;
+
+	AcpiEvaluateObject (NULL, "\\_WAK", &Arg_list, &ReturnBuffer);
+
+	Status = AE_OK;
+	/* Check result code for _WAK */
+	if (Objects[0].Type != ACPI_TYPE_PACKAGE ||
+	    Objects[1].Type != ACPI_TYPE_INTEGER  ||
+	    Objects[2].Type != ACPI_TYPE_INTEGER) {
+		/*
+		 * In many BIOSes, _WAK doesn't return a result code.
+		 * We don't need to worry about it too much :-).
+		 */
+		DEBUG_PRINT (ACPI_INFO,
+		    ("acpi_wakeup: _WAK result code is corrupted, "
+		     "but should be OK.\n"));
+	} else {
+		/* evaluate status code */
+		switch (Objects[1].Integer.Value) {
+		case 0x00000001:
+			DEBUG_PRINT (ACPI_ERROR,
+			    ("acpi_wakeup: Wake was signaled "
+			     "but failed due to lack of power.\n"));
+			Status = AE_ERROR;
+			break;
+
+		case 0x00000002:
+			DEBUG_PRINT (ACPI_ERROR,
+			    ("acpi_wakeup: Wake was signaled "
+			     "but failed due to thermal condition.\n"));
+			Status = AE_ERROR;
+			break;
+		}
+		/* evaluate PSS code */
+		if (Objects[2].Integer.Value == 0) {
+			DEBUG_PRINT (ACPI_ERROR,
+			    ("acpi_wakeup: The targeted S-state "
+			     "was not entered because of too much current "
+			     "being drawn from the power supply.\n"));
+			Status = AE_ERROR;
+		}
+	}
+
+	return_ACPI_STATUS(Status);
+}
+
 /*
  * Set the system sleep state
  *
@@ -804,7 +890,9 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	status = AcpiEnterSleepState((UINT8)state);
 	if (status != AE_OK) {
 	    device_printf(sc->acpi_dev, "AcpiEnterSleepState failed - %s\n", acpi_strerror(status));
+	    break;
 	}
+	acpi_wakeup((UINT8)state);
 	DEVICE_RESUME(root_bus);
 	sc->acpi_sstate = ACPI_STATE_S0;
 	acpi_enable_fixed_events(sc);
