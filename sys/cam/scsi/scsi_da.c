@@ -146,21 +146,6 @@ static const char microp[] = "MICROP";
 
 static struct da_quirk_entry da_quirk_table[] =
 {
-#ifdef DA_OLD_QUIRKS
-	/*
-	 * Logitec USB/Firewire LHD-P30FU
-	 */
-	{
-		/* USB part */
-		{T_DIRECT, SIP_MEDIA_FIXED, "HITACHI_", "DK23DA*", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE
-	},
-	{
-		/* Firewire part */
-		{T_DIRECT, SIP_MEDIA_FIXED, "LSILogic", "SYM13FW*", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE
-	},
-#endif /* DA_OLD_QUIRKS */
 	{
 		/*
 		 * Fujitsu M2513A MO drives.
@@ -296,24 +281,6 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
-		 * Maxtor 3000LE USB Drive
-		 */
-		{T_DIRECT, SIP_MEDIA_FIXED, "MAXTOR*", "K040H2*", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE
-	},
-	{
-		/*
-		 * LaCie USB drive, among others
-		 */
-		{T_DIRECT, SIP_MEDIA_FIXED, "Maxtor*", "D080H4*", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE
-	},
-	{
-		{T_OPTICAL, SIP_MEDIA_REMOVABLE, "FUJITSU", "MCF3064AP", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE
-	},
-	{
-		/*
 		 * Microtech USB CameraMate
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "eUSB    Compact*",
@@ -335,13 +302,6 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "OLYMPUS", "C-*", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
-	},
-	{
-		/*
-		 * Olympus digital cameras (D-370)
-		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "OLYMPUS", "D-*", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE
 	},
 	{
 		/*
@@ -367,53 +327,10 @@ static struct da_quirk_entry da_quirk_table[] =
  	},
 	{
 		/*
-		 * Nikon Coolpix E775/E995 Cameras 
-		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "NIKON", "NIKON DSC E*", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE
-	},
-	{
-		/*
-		 * Nikon Coolpix E885 Camera
-		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Nikon", "Digital Camera", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE
-	},
-	{
-		/*
-		 * SimpleTech FlashLink UCF-100
-		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "OEI-USB", "CompactFlash", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE
-	},
-	{
-		/*
-		 * Minolta Dimage 2330
-		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "MINOLTA", "DIMAGE 2330*", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE
-	},
-	{
-		/*
 		 * Minolta Dimage E203
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "MINOLTA", "DiMAGE E203", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
-	},
-	{
-		/*
-		 * DIVA USB Mp3 Player.
-		 * PR: kern/33638
-		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "DIVA USB", "Media Reader","*"},
-		/*quirks*/ DA_Q_NO_6_BYTE
-	},
-	{
-		/*
-		 * Daisy Technology PhotoClip USB Camera
-		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Digital", "World   DMC","*"},
-		/*quirks*/ DA_Q_NO_6_BYTE
 	},
 	{
 		/*
@@ -433,78 +350,11 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
-		 * HP 315 Digital Camera
-		 * PR: kern/41010
-		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "HP", "USB CAMERA", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE
-	},
-	{
-		/*
-		 * Fujitsu-Siemens Memorybird pen drive
-		 * PR: kern/34712
-		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Fujitsu", "Memorybird", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE
-	},
-	{
-		/*
 		 * Sony USB Key-Storage
 		 * PR: kern/46386
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Sony", "Storage Media", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
-	},
-	{
-		/*
-		 * Lexar Media Jumpdrive
-		 * PR: kern/47006
-		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "LEXAR", "DIGITAL FILM", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE
-	},
-	{
-		/*
-		 * Pentax USB Optio 230 camera
-		 * PR: kern/46369
-		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE,
-		 "PENTAX", "DIGITAL_CAMERA", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE
-	},
-	{
-		/*
-		 * Casio QV-R3 USB camera (uses Pentax chip as above)
-		 * PR: kern/46545
-		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE,
-		 "CASIO", "DIGITAL_CAMERA", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE
-	},
-	{
-		/*
-		 * M-Systems DiskOnKey USB flash key
-		 * PR: kern/47793
-		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "M-Sys", "DiskOnKey", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE
-	},
-	{
-		/*
-		 * SanDisk ImageMate (I, II, ...) compact flash
-		 * PR: kern/47877
-		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "SanDisk", "ImageMate*", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE
-	},
-	{
-		/*
-		 * Feiya "slider" dual-slot flash reader. The vendor field
-		 * is blank so this may match other devices.
-		 * PR: kern/50020
-		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "", "USB CARD READER", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE
 	},
 	{
 		/*
@@ -514,14 +364,6 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "MITSUMI", "USB FDD", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
-	{
-		/*
-		 * OTi USB Flash Key
-		 * PR: kern/51825
-		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "OTi", "Flash Disk", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE
-	}
 #endif /* DA_OLD_QUIRKS */
 };
 
