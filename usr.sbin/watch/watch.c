@@ -23,6 +23,8 @@ static const char rcsid[] =
 #include <sys/filio.h>
 #include <sys/snoop.h>
 #include <sys/stat.h>
+#include <sys/linker.h>
+#include <sys/module.h>
 
 #include <err.h>
 #include <locale.h>
@@ -324,6 +326,10 @@ main(ac, av)
 		default:
 			usage();
 		}
+
+	if (modfind("snp") == -1)
+		if (kldload("snp") == -1 || modfind("snp") == -1)
+			warn("snp module not available");
 
 	signal(SIGINT, cleanup);
 
