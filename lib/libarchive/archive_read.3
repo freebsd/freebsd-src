@@ -178,6 +178,11 @@ Note that restoring of atime is not currently supported.
 .It Cm ARCHIVE_EXTRACT_NO_OVERWRITE
 Existing files on disk will not be overwritten.
 By default, existing files are unlinked before the new entry is written.
+.It Cm ARCHIVE_EXTRACT_UNLINK
+Existing files on disk will be unlinked and recreated from scratch.
+By default, existing files are truncated and rewritten, but
+the file is not recreated.
+In particular, the default behavior does not break existing hard links.
 .El
 .It Fn archive_read_finish
 Complete the archive, invoke the close callback, and release

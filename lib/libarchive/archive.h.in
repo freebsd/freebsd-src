@@ -190,6 +190,7 @@ ssize_t		 archive_read_data_into_fd(struct archive *, int fd);
 #define	ARCHIVE_EXTRACT_PERM	(2) /* Default: restore perm only for reg file*/
 #define	ARCHIVE_EXTRACT_TIME	(4) /* Default: mod time not restored */
 #define	ARCHIVE_EXTRACT_NO_OVERWRITE (8) /* Default: Replace files on disk */
+#define	ARCHIVE_EXTRACT_UNLINK	(16) /* Default: don't unlink existing files */
 
 int		 archive_read_extract(struct archive *, struct archive_entry *,
 		     int flags);
