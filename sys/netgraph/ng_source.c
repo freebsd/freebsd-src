@@ -619,7 +619,7 @@ ng_source_intr(node_p node, hook_p hook, void *arg1, int arg2)
 	}
 
 	if (sc->output_ifp != NULL) {
-		ifq = &sc->output_ifp->if_snd;
+		ifq = (struct ifqueue *)&sc->output_ifp->if_snd;
 		packets = ifq->ifq_maxlen - ifq->ifq_len;
 	} else
 		packets = sc->snd_queue.ifq_len;
