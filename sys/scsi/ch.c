@@ -2,7 +2,7 @@
  * Written by grefen@?????
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.10 1994/10/21 01:19:20 wollman Exp $
+ *      $Id: ch.c,v 1.11 1994/10/23 21:27:53 wollman Exp $
  */
 
 #include	<sys/types.h>
@@ -34,7 +34,6 @@ u_int32 ch_xfer_block_wait[NCH];
 #define	CHRETRIES	2
 
 #define MODE(z)		(  (minor(z) & 0x0F) )
-#define UNIT(z)		(  (minor(z) >> 4) )
 
 #define ESUCCESS 0
 
@@ -140,6 +139,7 @@ chattach(sc_link)
 	ch_data[unit].sc_link = sc_link;
 	sc_link->device = &ch_switch;
 	sc_link->dev_unit = unit;
+	sc_link->dev = CHSETUNIT(scsi_dev_lookup(chopen), unit);
 
 	/*
 	 * Use the subdriver to request information regarding
@@ -172,7 +172,7 @@ chopen(dev)
 	u_int32 unit, mode;
 	struct scsi_link *sc_link;
 
-	unit = UNIT(dev);
+	unit = CHUNIT(dev);
 	mode = MODE(dev);
 
 	/*
@@ -237,7 +237,7 @@ chclose(dev)
 	unsigned char unit, mode;
 	struct scsi_link *sc_link;
 
-	unit = UNIT(dev);
+	unit = CHUNIT(dev);
 	mode = MODE(dev);
 	sc_link = ch_data[unit].sc_link;
 
@@ -272,7 +272,7 @@ chioctl(dev, cmd, arg, mode)
 	 * Find the device that the user is talking about
 	 */
 	flags = 0;		/* give error messages, act on errors etc. */
-	unit = UNIT(dev);
+	unit = CHUNIT(dev);
 	sc_link = ch_data[unit].sc_link;
 
 	switch ((int)cmd) {
@@ -312,7 +312,7 @@ chioctl(dev, cmd, arg, mode)
 			}
 		}
 	default:
-		return scsi_do_ioctl(sc_link, cmd, arg, mode);
+		return scsi_do_ioctl(dev, sc_link, cmd, arg, mode);
 	}
 	return (ret ? ESUCCESS : EIO);
 }

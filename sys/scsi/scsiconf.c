@@ -14,15 +14,17 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: scsiconf.c,v 1.16 1994/11/27 23:30:48 ats Exp $
+ *      $Id: scsiconf.c,v 1.17 1994/12/18 18:48:39 phk Exp $
  */
 
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/stat.h>
 
 #include <sys/malloc.h>
 #include <sys/devconf.h>
+#include <sys/conf.h>
 
 #include "st.h"
 #include "sd.h"
@@ -550,6 +552,18 @@ scsi_probe_bus(int bus, int targ, int lun)
 	return 0;
 }
 
+/* Return the scsi_link for this device, if any.
+ */
+struct scsi_link *
+scsi_link_get(bus, targ, lun)
+	int bus;
+	int targ;
+	int lun;
+{
+	struct scsibus_data *scsi = scbus_data[bus];
+	return (scsi) ? scsi->sc_link[targ][lun] : 0;
+}
+
 /*
  * given a target and lu, check if there is a predefined device for
  * that address
@@ -604,7 +618,7 @@ scsi_probedev(sc_link, maybe_more)
 	struct scsidevs *bestmatch = (struct scsidevs *) 0;
 	char   *dtype = (char *) 0, *desc;
 	char   *qtype;
-	static struct scsi_inquiry_data inqbuf;
+	struct scsi_inquiry_data *inqbuf;
 	u_int32 len, qualifier, type;
 	boolean remov;
 	char    manu[32];
@@ -612,7 +626,9 @@ scsi_probedev(sc_link, maybe_more)
 	char    version[32];
 	int	z;
 
-	bzero(&inqbuf, sizeof(inqbuf));
+ 	inqbuf = &sc_link->inqbuf;
+ 
+ 	bzero(inqbuf, sizeof(*inqbuf));
 	/*
 	 * Ask the device what it is
 	 */
@@ -644,16 +660,16 @@ scsi_probedev(sc_link, maybe_more)
 #endif /*SCSI_2_DEF */
 
 	/* Now go ask the device all about itself */
-	if (scsi_inquire(sc_link, &inqbuf, SCSI_NOSLEEP | SCSI_NOMASK) != 0) {
+	if (scsi_inquire(sc_link, inqbuf, SCSI_NOSLEEP | SCSI_NOMASK) != 0) {
 		return (struct scsidevs *) 0;
 	}
 
 	/*
 	 * note what BASIC type of device it is
 	 */
-	type = inqbuf.device & SID_TYPE;
-	qualifier = inqbuf.device & SID_QUAL;
-	remov = inqbuf.dev_qual2 & SID_REMOVABLE;
+	type = inqbuf->device & SID_TYPE;
+	qualifier = inqbuf->device & SID_QUAL;
+	remov = inqbuf->dev_qual2 & SID_REMOVABLE;
 
 	/*
 	 * Any device qualifier that has the top bit set (qualifier&4 != 0)
@@ -735,17 +751,17 @@ scsi_probedev(sc_link, maybe_more)
 	 * Then if it's advanced enough, more detailed
 	 * information
 	 */
-	if ((inqbuf.version & SID_ANSII) > 0) {
-		if ((len = inqbuf.additional_length
-			+ ((char *) inqbuf.unused
-			    - (char *) &inqbuf))
+	if ((inqbuf->version & SID_ANSII) > 0) {
+		if ((len = inqbuf->additional_length
+			+ ((char *) inqbuf->unused
+			    - (char *) inqbuf))
 		    > (sizeof(struct scsi_inquiry_data) - 1))
 			        len = sizeof(struct scsi_inquiry_data) - 1;
-		desc = inqbuf.vendor;
-		desc[len - (desc - (char *) &inqbuf)] = 0;
-		strncpy(manu, inqbuf.vendor, 8);
-		strncpy(model, inqbuf.product, 16);
-		strncpy(version, inqbuf.revision, 4);
+		desc = inqbuf->vendor;
+		desc[len - (desc - (char *) inqbuf)] = 0;
+		strncpy(manu, inqbuf->vendor, 8);
+		strncpy(model, inqbuf->product, 16);
+		strncpy(version, inqbuf->revision, 4);
 		for(z = 0; z < 4; z++) {
 			if (version[z]<' ') version[z]='?';
 		}
@@ -770,7 +786,7 @@ scsi_probedev(sc_link, maybe_more)
 	    ,type
 	    ,dtype
 	    ,remov ? "removable" : "fixed"
-	    ,inqbuf.version & SID_ANSII
+	    ,inqbuf->version & SID_ANSII
 	    );
 	printf("%s%d targ %d lun %d: <%s%s%s>\n"
 	    ,scsi_adapter->name
@@ -801,6 +817,26 @@ scsi_probedev(sc_link, maybe_more)
 		*maybe_more = 1;
 	}
 	return (bestmatch);
+}
+
+/* Try to find the major number for a device during attach.
+ */
+dev_t
+scsi_dev_lookup(d_open)
+	int (*d_open)();
+{
+	int i;
+
+	dev_t d = NODEV;
+
+	for (i = 0; i < nchrdev; i++)
+		if (cdevsw[i].d_open == d_open)
+		{
+			d = makedev(i, 0);
+			break;
+		}
+
+	return d;
 }
 
 #ifdef NEW_SCSICONF

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.31 1994/12/16 06:03:22 phk Exp $
+ *      $Id: cd.c,v 1.32 1994/12/24 09:48:32 bde Exp $
  */
 
 #define SPLCD splbio
@@ -63,10 +63,8 @@ int32   cdstrats, cdqueues;
 #define	CDOUTSTANDING	2
 #define	CDRETRIES	1
 
-#define	UNITSHIFT	3
 #define PARTITION(z)	(minor(z) & 0x07)
 #define RAW_PART        2
-#define UNIT(z)		(  (minor(z) >> UNITSHIFT) )
 
 errval  cdstrategy();
 
@@ -159,6 +157,7 @@ cd_registerdev(int unit)
 }
 
 
+errval cdopen();
 /*
  * The routine called by the low level scsi routine when it discovers
  * A device suitable for this driver
@@ -226,6 +225,7 @@ cdattach(sc_link)
 	cd->sc_link = sc_link;
 	sc_link->device = &cd_switch;
 	sc_link->dev_unit = unit;
+ 	sc_link->dev = CDSETUNIT(scsi_dev_lookup(cdopen), unit);
 
 	if (cd->sc_link->adapter->adapter_info) {
 		cd->ad_info = ((*(cd->sc_link->adapter->adapter_info)) (sc_link->adapter_unit));
@@ -268,7 +268,7 @@ cdopen(dev)
 	struct cd_data *cd;
 	struct scsi_link *sc_link;
 
-	unit = UNIT(dev);
+	unit = CDUNIT(dev);
 	part = PARTITION(dev);
 
 	/*
@@ -357,7 +357,7 @@ cdopen(dev)
 	cd->openparts |= (1 << part);
 	SC_DEBUG(sc_link, SDEV_DB3, ("open complete\n"));
 	sc_link->flags |= SDEV_MEDIA_LOADED;
-	return (0);
+	return 0;
       bad:
 
 	/*
@@ -383,7 +383,7 @@ cdclose(dev)
 	struct cd_data *cd;
 	struct scsi_link *sc_link;
 
-	unit = UNIT(dev);
+	unit = CDUNIT(dev);
 	part = PARTITION(dev);
 	cd = cd_driver.cd_data[unit];
 	sc_link = cd->sc_link;
@@ -413,7 +413,7 @@ void
 cdminphys(bp)
 	struct buf *bp;
 {
-	(*(cd_driver.cd_data[UNIT(bp->b_dev)]->sc_link->adapter->scsi_minphys)) (bp);
+	(*(cd_driver.cd_data[CDUNIT(bp->b_dev)]->sc_link->adapter->scsi_minphys)) (bp);
 }
 
 /*
@@ -427,7 +427,7 @@ cdstrategy(bp)
 {
 	struct buf *dp;
 	u_int32 opri;
-	u_int32 unit = UNIT((bp->b_dev));
+	u_int32 unit = CDUNIT((bp->b_dev));
 	struct cd_data *cd = cd_driver.cd_data[unit];
 
 	cdstrats++;
@@ -629,7 +629,7 @@ cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 	/*
 	 * Find the device that the user is talking about
 	 */
-	unit = UNIT(dev);
+	unit = CDUNIT(dev);
 	part = PARTITION(dev);
 	cd = cd_driver.cd_data[unit];
 	SC_DEBUG(cd->sc_link, SDEV_DB2, ("cdioctl 0x%x ", cmd));
@@ -949,8 +949,8 @@ cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 		return (cd_reset(unit));
 		break;
 	default:
-		if(part == RAW_PART)
-			error = scsi_do_ioctl(cd->sc_link,cmd,addr,flag);
+		if(part == RAW_PART || SCSI_SUPER(dev))
+			error = scsi_do_ioctl(dev, cd->sc_link,cmd,addr,flag);
 		else
 			error = ENOTTY;
 		break;
