@@ -1543,10 +1543,10 @@ aio_suspend(struct proc *p, struct aio_suspend_args *uap)
 				}
 			}
 		}
-		splx(s);
 
 		ki->kaio_flags |= KAIO_WAKEUP;
 		error = tsleep(p, PRIBIO | PCATCH, "aiospn", timo);
+		splx(s);
 
 		if (error == ERESTART || error == EINTR) {
 			zfree(aiol_zone, ijoblist);
