@@ -241,7 +241,7 @@ getent(cap, len, db_array, fd, name, depth, nfield)
 		 */
 
 		if (fd >= 0) {
-			(void)lseek(fd, (off_t)0, L_SET);
+			(void)lseek(fd, (off_t)0, SEEK_SET);
 			myfd = 0;
 		} else {
 			(void)snprintf(pbuf, sizeof(pbuf), "%s.db", *db_p);
