@@ -125,10 +125,10 @@ do {									\
 	
 
 eventhandler_tag eventhandler_register(struct eventhandler_list *list, 
-	    char *name, void *func, void *arg, int priority);
+	    const char *name, void *func, void *arg, int priority);
 void	eventhandler_deregister(struct eventhandler_list *list,
 	    eventhandler_tag tag);
-struct eventhandler_list *eventhandler_find_list(char *name);
+struct eventhandler_list *eventhandler_find_list(const char *name);
 void	eventhandler_prune_list(struct eventhandler_list *list);
 
 /*
