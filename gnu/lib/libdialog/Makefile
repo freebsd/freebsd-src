@@ -1,5 +1,5 @@
 # Makefile for libdialog
-# $Id: Makefile,v 1.2 1994/10/09 00:46:16 pst Exp $
+# $Id: Makefile,v 1.1.1.1 1994/10/11 23:30:50 ache Exp $
 
 LIB=    dialog
 SRCS=   kernel.c rc.c checklist.c inputbox.c menubox.c msgbox.c \
@@ -7,7 +7,7 @@ SRCS=   kernel.c rc.c checklist.c inputbox.c menubox.c msgbox.c \
 
 CFLAGS+= -Wall -Wstrict-prototypes -DHAVE_NCURSES -DLOCALE
 
-SHARED_LDADD+= -lncurses -lmytinfo
+LDADD+= -lncurses -lmytinfo
 
 beforeinstall:
 	-cd ${.CURDIR}; cmp -s dialog.h ${DESTDIR}/usr/include/dialog.h || \
