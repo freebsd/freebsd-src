@@ -38,232 +38,420 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/fcntl.h>
+#include <sys/jail.h>
+#include <sys/kernel.h>
+#include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/sysproto.h>
-#include <sys/kernel.h>
-#include <sys/proc.h>
-#include <sys/fcntl.h>
+#include <sys/malloc.h>
 #include <sys/namei.h>
+#include <sys/proc.h>
+#include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/ktrace.h>
-#include <sys/malloc.h>
+#include <sys/sema.h>
 #include <sys/sx.h>
+#include <sys/sysctl.h>
 #include <sys/syslog.h>
-#include <sys/jail.h>
+#include <sys/sysproto.h>
 
 static MALLOC_DEFINE(M_KTRACE, "KTRACE", "KTRACE");
 
 #ifdef KTRACE
-static struct ktr_header *ktrgetheader(int type);
-static void ktrwrite(struct vnode *, struct ktr_header *, struct uio *);
-static int ktrcanset(struct thread *, struct proc *);
-static int ktrsetchildren(struct thread *, struct proc *, int, int, struct vnode *);
-static int ktrops(struct thread *, struct proc *, int, int, struct vnode *);
 
+#ifndef KTRACE_REQUEST_POOL
+#define	KTRACE_REQUEST_POOL	100
+#endif
 
-static struct ktr_header *
-ktrgetheader(type)
-	int type;
+struct ktr_request {
+	struct	ktr_header ktr_header;
+	struct	ucred *ktr_cred;
+	struct	vnode *ktr_vp;
+	union {
+		struct	ktr_syscall ktr_syscall;
+		struct	ktr_sysret ktr_sysret;
+		struct	ktr_genio ktr_genio;
+		struct	ktr_psig ktr_psig;
+		struct	ktr_csw ktr_csw;
+	} ktr_data;
+	int	ktr_synchronous;
+	STAILQ_ENTRY(ktr_request) ktr_list;
+};
+
+static int data_lengths[] = {
+	0,					/* none */
+	offsetof(struct ktr_syscall, ktr_args),	/* KTR_SYSCALL */
+	sizeof(struct ktr_sysret),		/* KTR_SYSRET */
+	0,					/* KTR_NAMEI */
+	sizeof(struct ktr_genio),		/* KTR_GENIO */
+	sizeof(struct ktr_psig),		/* KTR_PSIG */
+	sizeof(struct ktr_csw),			/* KTR_CSW */
+	0					/* KTR_USER */
+};
+
+static STAILQ_HEAD(, ktr_request) ktr_todo;
+static STAILQ_HEAD(, ktr_request) ktr_free;
+
+static uint ktr_requestpool = KTRACE_REQUEST_POOL;
+TUNABLE_INT("kern.ktrace_request_pool", &ktr_requestpool);
+
+static int print_message = 1;
+struct mtx ktrace_mtx;
+static struct sema ktrace_sema;
+
+static void ktrace_init(void *dummy);
+static int sysctl_kern_ktrace_request_pool(SYSCTL_HANDLER_ARGS);
+static uint ktrace_resize_pool(uint newsize);
+static struct ktr_request *ktr_getrequest(int type);
+static void ktr_submitrequest(struct ktr_request *req);
+static void ktr_freerequest(struct ktr_request *req);
+static void ktr_loop(void *dummy);
+static void ktr_writerequest(struct ktr_request *req);
+static int ktrcanset(struct thread *,struct proc *);
+static int ktrsetchildren(struct thread *,struct proc *,int,int,struct vnode *);
+static int ktrops(struct thread *,struct proc *,int,int,struct vnode *);
+
+static void
+ktrace_init(void *dummy)
 {
-	register struct ktr_header *kth;
-	struct proc *p = curproc;	/* XXX */
+	struct ktr_request *req;
+	int i;
 
-	MALLOC(kth, struct ktr_header *, sizeof (struct ktr_header),
-		M_KTRACE, M_WAITOK);
-	kth->ktr_type = type;
-	microtime(&kth->ktr_time);
-	kth->ktr_pid = p->p_pid;
-	bcopy(p->p_comm, kth->ktr_comm, MAXCOMLEN + 1);
-	return (kth);
+	mtx_init(&ktrace_mtx, "ktrace", NULL, MTX_DEF | MTX_QUIET);
+	sema_init(&ktrace_sema, 0, "ktrace");
+	STAILQ_INIT(&ktr_todo);
+	STAILQ_INIT(&ktr_free);
+	for (i = 0; i < ktr_requestpool; i++) {
+		req = malloc(sizeof(struct ktr_request), M_KTRACE, M_WAITOK);
+		STAILQ_INSERT_HEAD(&ktr_free, req, ktr_list);
+	}
+	kthread_create(ktr_loop, NULL, NULL, RFHIGHPID, "ktrace");
+}
+SYSINIT(ktrace_init, SI_SUB_KTRACE, SI_ORDER_ANY, ktrace_init, NULL);
+
+static int
+sysctl_kern_ktrace_request_pool(SYSCTL_HANDLER_ARGS)
+{
+	struct thread *td;
+	uint newsize, oldsize, wantsize;
+	int error;
+
+	/* Handle easy read-only case first to avoid warnings from GCC. */
+	if (!req->newptr) {
+		mtx_lock(&ktrace_mtx);
+		oldsize = ktr_requestpool;
+		mtx_unlock(&ktrace_mtx);
+		return (SYSCTL_OUT(req, &oldsize, sizeof(uint)));
+	}
+
+	error = SYSCTL_IN(req, &wantsize, sizeof(uint));
+	if (error)
+		return (error);
+	td = curthread;
+	td->td_inktrace = 1;
+	mtx_lock(&ktrace_mtx);
+	oldsize = ktr_requestpool;
+	newsize = ktrace_resize_pool(wantsize);
+	mtx_unlock(&ktrace_mtx);
+	td->td_inktrace = 0;
+	error = SYSCTL_OUT(req, &oldsize, sizeof(uint));
+	if (error)
+		return (error);
+	if (newsize != wantsize)
+		return (ENOSPC);
+	return (0);
+}
+SYSCTL_PROC(_kern, OID_AUTO, ktrace_request_pool, CTLTYPE_UINT|CTLFLAG_RW,
+    &ktr_requestpool, 0, sysctl_kern_ktrace_request_pool, "IU", "");
+
+static uint
+ktrace_resize_pool(uint newsize)
+{
+	struct ktr_request *req;
+
+	mtx_assert(&ktrace_mtx, MA_OWNED);
+	print_message = 1;
+	if (newsize == ktr_requestpool)
+		return (newsize);
+	if (newsize < ktr_requestpool)
+		/* Shrink pool down to newsize if possible. */
+		while (ktr_requestpool > newsize) {
+			req = STAILQ_FIRST(&ktr_free);
+			if (req == NULL)
+				return (ktr_requestpool);
+			STAILQ_REMOVE_HEAD(&ktr_free, ktr_list);
+			ktr_requestpool--;
+			mtx_unlock(&ktrace_mtx);
+			free(req, M_KTRACE);
+			mtx_lock(&ktrace_mtx);
+		}
+	else
+		/* Grow pool up to newsize. */
+		while (ktr_requestpool < newsize) {
+			mtx_unlock(&ktrace_mtx);
+			req = malloc(sizeof(struct ktr_request), M_KTRACE,
+			    M_WAITOK);
+			mtx_lock(&ktrace_mtx);
+			STAILQ_INSERT_HEAD(&ktr_free, req, ktr_list);
+			ktr_requestpool++;
+		}
+	return (ktr_requestpool);
+}
+
+static struct ktr_request *
+ktr_getrequest(int type)
+{
+	struct ktr_request *req;
+	struct thread *td = curthread;
+	struct proc *p = td->td_proc;
+	int pm;
+
+	td->td_inktrace = 1;
+	mtx_lock(&ktrace_mtx);
+	if (!KTRCHECK(td, type)) {
+		mtx_unlock(&ktrace_mtx);
+		td->td_inktrace = 0;
+		return (NULL);
+	}
+	req = STAILQ_FIRST(&ktr_free);
+	if (req != NULL) {
+		STAILQ_REMOVE_HEAD(&ktr_free, ktr_list);
+		req->ktr_header.ktr_type = type;
+		KASSERT(p->p_tracep != NULL, ("ktrace: no trace vnode"));
+		req->ktr_vp = p->p_tracep;
+		VREF(p->p_tracep);
+		mtx_unlock(&ktrace_mtx);
+		microtime(&req->ktr_header.ktr_time);
+		req->ktr_header.ktr_pid = p->p_pid;
+		bcopy(p->p_comm, req->ktr_header.ktr_comm, MAXCOMLEN + 1);
+		req->ktr_cred = crhold(td->td_ucred);
+		req->ktr_header.ktr_buffer = NULL;
+		req->ktr_header.ktr_len = 0;
+		req->ktr_synchronous = 0;
+	} else {
+		pm = print_message;
+		print_message = 0;
+		mtx_unlock(&ktrace_mtx);
+		if (pm)
+			printf("Out of ktrace request objects.\n");
+		td->td_inktrace = 0;
+	}
+	return (req);
+}
+
+static void
+ktr_submitrequest(struct ktr_request *req)
+{
+
+	mtx_lock(&ktrace_mtx);
+	STAILQ_INSERT_TAIL(&ktr_todo, req, ktr_list);
+	sema_post(&ktrace_sema);
+	if (req->ktr_synchronous) {
+		/*
+		 * For a synchronous request, we wait for the ktrace thread
+		 * to get to our item in the todo list and wake us up.  Then
+		 * we write the request out ourselves and wake the ktrace
+		 * thread back up.
+		 */
+		msleep(req, &ktrace_mtx, curthread->td_priority, "ktrsync", 0);
+		mtx_unlock(&ktrace_mtx);
+		ktr_writerequest(req);
+		mtx_lock(&ktrace_mtx);
+		wakeup(req);
+	}
+	mtx_unlock(&ktrace_mtx);
+	curthread->td_inktrace = 0;
+}
+
+static void
+ktr_freerequest(struct ktr_request *req)
+{
+
+	crfree(req->ktr_cred);
+	mtx_lock(&Giant);
+	vrele(req->ktr_vp);
+	mtx_unlock(&Giant);
+	mtx_lock(&ktrace_mtx);
+	STAILQ_INSERT_HEAD(&ktr_free, req, ktr_list);
+	mtx_unlock(&ktrace_mtx);
+}
+
+static void
+ktr_loop(void *dummy)
+{
+	struct ktr_request *req;
+	struct thread *td;
+	struct ucred *cred;
+
+	/* Only cache these values once. */
+	td = curthread;
+	cred = td->td_ucred;
+	for (;;) {
+		sema_wait(&ktrace_sema);
+		mtx_lock(&ktrace_mtx);
+		req = STAILQ_FIRST(&ktr_todo);
+		STAILQ_REMOVE_HEAD(&ktr_todo, ktr_list);
+		KASSERT(req != NULL, ("got a NULL request"));
+		if (req->ktr_synchronous) {
+			wakeup(req);
+			msleep(req, &ktrace_mtx, curthread->td_priority,
+			    "ktrwait", 0);
+			mtx_unlock(&ktrace_mtx);
+		} else {
+			mtx_unlock(&ktrace_mtx);
+			/*
+			 * It is not enough just to pass the cached cred
+			 * to the VOP's in ktr_writerequest().  Some VFS
+			 * operations use curthread->td_ucred, so we need
+			 * to modify our thread's credentials as well.
+			 * Evil.
+			 */
+			td->td_ucred = req->ktr_cred;
+			ktr_writerequest(req);
+			td->td_ucred = cred;
+		}
+		ktr_freerequest(req);
+	}
 }
 
 /*
  * MPSAFE
  */
 void
-ktrsyscall(vp, code, narg, args)
-	struct vnode *vp;
+ktrsyscall(code, narg, args)
 	int code, narg;
 	register_t args[];
 {
-	struct	ktr_header *kth;
-	struct	ktr_syscall *ktp;
-	register int len = offsetof(struct ktr_syscall, ktr_args) +
-	    (narg * sizeof(register_t));
-	struct proc *p = curproc;	/* XXX */
-	register_t *argp;
-	int i;
+	struct ktr_request *req;
+	struct ktr_syscall *ktp;
+	size_t buflen;
 
-	mtx_lock(&Giant);
-	p->p_traceflag |= KTRFAC_ACTIVE;
-	kth = ktrgetheader(KTR_SYSCALL);
-	MALLOC(ktp, struct ktr_syscall *, len, M_KTRACE, M_WAITOK);
+	req = ktr_getrequest(KTR_SYSCALL);
+	if (req == NULL)
+		return;
+	ktp = &req->ktr_data.ktr_syscall;
 	ktp->ktr_code = code;
 	ktp->ktr_narg = narg;
-	argp = &ktp->ktr_args[0];
-	for (i = 0; i < narg; i++)
-		*argp++ = args[i];
-	kth->ktr_buffer = (caddr_t)ktp;
-	kth->ktr_len = len;
-	ktrwrite(vp, kth, NULL);
-	FREE(ktp, M_KTRACE);
-	FREE(kth, M_KTRACE);
-	p->p_traceflag &= ~KTRFAC_ACTIVE;
-	mtx_unlock(&Giant);
+	buflen = sizeof(register_t) * narg;
+	if (buflen > 0) {
+		req->ktr_header.ktr_buffer = malloc(buflen, M_KTRACE, M_WAITOK);
+		bcopy(args, req->ktr_header.ktr_buffer, buflen);
+		req->ktr_header.ktr_len = buflen;
+	}
+	ktr_submitrequest(req);
 }
 
 /*
  * MPSAFE
  */
 void
-ktrsysret(vp, code, error, retval)
-	struct vnode *vp;
+ktrsysret(code, error, retval)
 	int code, error;
 	register_t retval;
 {
-	struct ktr_header *kth;
-	struct ktr_sysret ktp;
-	struct proc *p = curproc;	/* XXX */
+	struct ktr_request *req;
+	struct ktr_sysret *ktp;
 
-	mtx_lock(&Giant);
-	p->p_traceflag |= KTRFAC_ACTIVE;
-	kth = ktrgetheader(KTR_SYSRET);
-	ktp.ktr_code = code;
-	ktp.ktr_error = error;
-	ktp.ktr_retval = retval;		/* what about val2 ? */
-
-	kth->ktr_buffer = (caddr_t)&ktp;
-	kth->ktr_len = sizeof(struct ktr_sysret);
-
-	ktrwrite(vp, kth, NULL);
-	FREE(kth, M_KTRACE);
-	p->p_traceflag &= ~KTRFAC_ACTIVE;
-	mtx_unlock(&Giant);
+	req = ktr_getrequest(KTR_SYSRET);
+	if (req == NULL)
+		return;
+	ktp = &req->ktr_data.ktr_sysret;
+	ktp->ktr_code = code;
+	ktp->ktr_error = error;
+	ktp->ktr_retval = retval;		/* what about val2 ? */
+	ktr_submitrequest(req);
 }
 
 void
-ktrnamei(vp, path)
-	struct vnode *vp;
+ktrnamei(path)
 	char *path;
 {
-	struct ktr_header *kth;
-	struct proc *p = curproc;	/* XXX */
+	struct ktr_request *req;
+	int namelen;
 
-	/*
-	 * don't let p_tracep get ripped out from under us
-	 */
-	if (vp)
-		VREF(vp);
-	p->p_traceflag |= KTRFAC_ACTIVE;
-	kth = ktrgetheader(KTR_NAMEI);
-	kth->ktr_len = strlen(path);
-	kth->ktr_buffer = path;
-
-	ktrwrite(vp, kth, NULL);
-	if (vp)
-		vrele(vp);
-	FREE(kth, M_KTRACE);
-	p->p_traceflag &= ~KTRFAC_ACTIVE;
+	req = ktr_getrequest(KTR_NAMEI);
+	if (req == NULL)
+		return;
+	namelen = strlen(path);
+	if (namelen > 0) {
+		req->ktr_header.ktr_len = namelen;
+		req->ktr_header.ktr_buffer = malloc(namelen, M_KTRACE,
+		    M_WAITOK);
+		bcopy(path, req->ktr_header.ktr_buffer, namelen);
+	}
+	ktr_submitrequest(req);
 }
 
+/*
+ * Since the uio may not stay valid, we can not hand off this request to
+ * the thread and need to process it synchronously.  However, we wish to
+ * keep the relative order of records in a trace file correct, so we
+ * do put this request on the queue (if it isn't empty) and then block.
+ * The ktrace thread waks us back up when it is time for this event to
+ * be posted and blocks until we have completed writing out the event
+ * and woken it back up.
+ */
 void
-ktrgenio(vp, fd, rw, uio, error)
-	struct vnode *vp;
+ktrgenio(fd, rw, uio, error)
 	int fd;
 	enum uio_rw rw;
 	struct uio *uio;
 	int error;
 {
-	struct ktr_header *kth;
-	struct ktr_genio ktg;
-	struct proc *p = curproc;	/* XXX */
+	struct ktr_request *req;
+	struct ktr_genio *ktg;
 
 	if (error)
 		return;
-
-	mtx_lock(&Giant);
-	/*
-	 * don't let p_tracep get ripped out from under us
-	 */
-	if (vp)
-		VREF(vp);
-	p->p_traceflag |= KTRFAC_ACTIVE;
-	kth = ktrgetheader(KTR_GENIO);
-	ktg.ktr_fd = fd;
-	ktg.ktr_rw = rw;
-	kth->ktr_buffer = (caddr_t)&ktg;
-	kth->ktr_len = sizeof(struct ktr_genio);
+	req = ktr_getrequest(KTR_GENIO);
+	if (req == NULL)
+		return;
+	ktg = &req->ktr_data.ktr_genio;
+	ktg->ktr_fd = fd;
+	ktg->ktr_rw = rw;
+	req->ktr_header.ktr_buffer = uio;
 	uio->uio_offset = 0;
 	uio->uio_rw = UIO_WRITE;
-
-	ktrwrite(vp, kth, uio);
-	if (vp)
-		vrele(vp);
-	FREE(kth, M_KTRACE);
-	p->p_traceflag &= ~KTRFAC_ACTIVE;
-	mtx_unlock(&Giant);
+	req->ktr_synchronous = 1;
+	ktr_submitrequest(req);
 }
 
 void
-ktrpsig(vp, sig, action, mask, code)
-	struct vnode *vp;
+ktrpsig(sig, action, mask, code)
 	int sig;
 	sig_t action;
 	sigset_t *mask;
 	int code;
 {
-	struct ktr_header *kth;
-	struct ktr_psig	kp;
-	struct proc *p = curproc;	/* XXX */
+	struct ktr_request *req;
+	struct ktr_psig	*kp;
 
-	/*
-	 * don't let vp get ripped out from under us
-	 */
-	if (vp)
-		VREF(vp);
-	p->p_traceflag |= KTRFAC_ACTIVE;
-	kth = ktrgetheader(KTR_PSIG);
-	kp.signo = (char)sig;
-	kp.action = action;
-	kp.mask = *mask;
-	kp.code = code;
-	kth->ktr_buffer = (caddr_t)&kp;
-	kth->ktr_len = sizeof (struct ktr_psig);
-
-	ktrwrite(vp, kth, NULL);
-	if (vp)
-		vrele(vp);
-	FREE(kth, M_KTRACE);
-	p->p_traceflag &= ~KTRFAC_ACTIVE;
+	req = ktr_getrequest(KTR_PSIG);
+	if (req == NULL)
+		return;
+	kp = &req->ktr_data.ktr_psig;
+	kp->signo = (char)sig;
+	kp->action = action;
+	kp->mask = *mask;
+	kp->code = code;
+	ktr_submitrequest(req);
 }
 
 void
-ktrcsw(vp, out, user)
-	struct vnode *vp;
+ktrcsw(out, user)
 	int out, user;
 {
-	struct ktr_header *kth;
-	struct	ktr_csw kc;
-	struct proc *p = curproc;	/* XXX */
+	struct ktr_request *req;
+	struct ktr_csw *kc;
 
-	/*
-	 * don't let vp get ripped out from under us
-	 */
-	if (vp)
-		VREF(vp);
-	p->p_traceflag |= KTRFAC_ACTIVE;
-	kth = ktrgetheader(KTR_CSW);
-	kc.out = out;
-	kc.user = user;
-	kth->ktr_buffer = (caddr_t)&kc;
-	kth->ktr_len = sizeof (struct ktr_csw);
-
-	ktrwrite(vp, kth, NULL);
-	if (vp)
-		vrele(vp);
-	FREE(kth, M_KTRACE);
-	p->p_traceflag &= ~KTRFAC_ACTIVE;
+	req = ktr_getrequest(KTR_CSW);
+	if (req == NULL)
+		return;
+	kc = &req->ktr_data.ktr_csw;
+	kc->out = out;
+	kc->user = user;
+	ktr_submitrequest(req);
 }
 #endif
 
@@ -287,7 +475,6 @@ ktrace(td, uap)
 	register struct ktrace_args *uap;
 {
 #ifdef KTRACE
-	struct proc *curp = td->td_proc;
 	register struct vnode *vp = NULL;
 	register struct proc *p;
 	struct pgrp *pg;
@@ -298,7 +485,7 @@ ktrace(td, uap)
 	int flags, error = 0;
 	struct nameidata nd;
 
-	curp->p_traceflag |= KTRFAC_ACTIVE;
+	td->td_inktrace = 1;
 	if (ops != KTROP_CLEAR) {
 		/*
 		 * an operation which requires a file argument.
@@ -307,7 +494,7 @@ ktrace(td, uap)
 		flags = FREAD | FWRITE | O_NOFOLLOW;
 		error = vn_open(&nd, &flags, 0);
 		if (error) {
-			curp->p_traceflag &= ~KTRFAC_ACTIVE;
+			td->td_inktrace = 0;
 			return (error);
 		}
 		NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -315,7 +502,7 @@ ktrace(td, uap)
 		VOP_UNLOCK(vp, 0, td);
 		if (vp->v_type != VREG) {
 			(void) vn_close(vp, FREAD|FWRITE, td->td_ucred, td);
-			curp->p_traceflag &= ~KTRFAC_ACTIVE;
+			td->td_inktrace = 0;
 			return (EACCES);
 		}
 	}
@@ -327,9 +514,11 @@ ktrace(td, uap)
 		LIST_FOREACH(p, &allproc, p_list) {
 			PROC_LOCK(p);
 			if (p->p_tracep == vp) {
-				if (ktrcanset(td, p) && p->p_tracep == vp) {
+				if (ktrcanset(td, p)) {
+					mtx_lock(&ktrace_mtx);
 					p->p_tracep = NULL;
 					p->p_traceflag = 0;
+					mtx_unlock(&ktrace_mtx);
 					PROC_UNLOCK(p);
 					(void) vn_close(vp, FREAD|FWRITE,
 						td->td_ucred, td);
@@ -396,7 +585,7 @@ ktrace(td, uap)
 done:
 	if (vp != NULL)
 		(void) vn_close(vp, FWRITE, td->td_ucred, td);
-	curp->p_traceflag &= ~KTRFAC_ACTIVE;
+	td->td_inktrace = 0;
 	return (error);
 #else
 	return ENOSYS;
@@ -414,31 +603,23 @@ utrace(td, uap)
 {
 
 #ifdef KTRACE
-	struct ktr_header *kth;
-	struct proc *p = curproc;	/* XXX */
-	struct vnode *vp;
+	struct ktr_request *req;
 	register caddr_t cp;
 
-	if (!KTRPOINT(p, KTR_USER))
-		return (0);
 	if (uap->len > KTR_USER_MAXLEN)
 		return (EINVAL);
-	p->p_traceflag |= KTRFAC_ACTIVE;
-	if ((vp = p->p_tracep) != NULL)
-		VREF(vp);
-	kth = ktrgetheader(KTR_USER);
+	req = ktr_getrequest(KTR_USER);
+	if (req == NULL)
+		return (0);
 	MALLOC(cp, caddr_t, uap->len, M_KTRACE, M_WAITOK);
 	if (!copyin(uap->addr, cp, uap->len)) {
-		kth->ktr_buffer = cp;
-		kth->ktr_len = uap->len;
-		ktrwrite(vp, kth, NULL);
+		req->ktr_header.ktr_buffer = cp;
+		req->ktr_header.ktr_len = uap->len;
+		ktr_submitrequest(req);
+	} else {
+		ktr_freerequest(req);
+		td->td_inktrace = 0;
 	}
-	if (vp)
-		vrele(vp);
-	FREE(kth, M_KTRACE);
-	FREE(cp, M_KTRACE);
-	p->p_traceflag &= ~KTRFAC_ACTIVE;
-
 	return (0);
 #else
 	return (ENOSYS);
@@ -453,23 +634,22 @@ ktrops(td, p, ops, facs, vp)
 	int ops, facs;
 	struct vnode *vp;
 {
-	struct vnode *vtmp = NULL, *newvp = NULL;
+	struct vnode *tracevp = NULL;
 
 	PROC_LOCK(p);
 	if (!ktrcanset(td, p)) {
 		PROC_UNLOCK(p);
 		return (0);
 	}
+	mtx_lock(&ktrace_mtx);
 	if (ops == KTROP_SET) {
 		if (p->p_tracep != vp) {
-			struct vnode *vtmp;
-
 			/*
 			 * if trace file already in use, relinquish below
 			 */
-			newvp = vp;
-			vtmp = p->p_tracep;
-			p->p_tracep = NULL;
+			tracevp = p->p_tracep;
+			VREF(vp);
+			p->p_tracep = vp;
 		}
 		p->p_traceflag |= facs;
 		if (td->td_ucred->cr_uid == 0)
@@ -477,33 +657,17 @@ ktrops(td, p, ops, facs, vp)
 	} else {
 		/* KTROP_CLEAR */
 		if (((p->p_traceflag &= ~facs) & KTRFAC_MASK) == 0) {
-			struct vnode *vtmp;
-
 			/* no more tracing */
 			p->p_traceflag = 0;
-			vtmp = p->p_tracep;
+			tracevp = p->p_tracep;
 			p->p_tracep = NULL;
 		}
 	}
+	mtx_unlock(&ktrace_mtx);
 	PROC_UNLOCK(p);
+	if (tracevp != NULL)
+		vrele(tracevp);
 
-	/* Release old trace file if requested. */
-	if (vtmp != NULL)
-		vrele(vtmp);
-
-	/* Setup new trace file if requested. */
-	/*
-	 * XXX: Doing this before the PROC_UNLOCK above would result in
-	 * fewer lock operations but would break old behavior where the
-	 * above vrele() would not be traced when changing trace files.
-	 */
-	if (newvp != NULL) {
-		VREF(newvp);
-		PROC_LOCK(p);
-		p->p_tracep = newvp;
-		PROC_UNLOCK(p);
-	}
-			
 	return (1);
 }
 
@@ -544,20 +708,32 @@ ktrsetchildren(td, top, ops, facs, vp)
 }
 
 static void
-ktrwrite(vp, kth, uio)
-	struct vnode *vp;
-	register struct ktr_header *kth;
-	struct uio *uio;
+ktr_writerequest(struct ktr_request *req)
 {
+	struct ktr_header *kth;
+	struct vnode *vp;
+	struct uio *uio = NULL;
+	struct proc *p;
+	struct thread *td;
+	struct ucred *cred;
 	struct uio auio;
-	struct iovec aiov[2];
-	struct thread *td = curthread;	/* XXX */
-	struct proc *p = td->td_proc;	/* XXX */
+	struct iovec aiov[3];
 	struct mount *mp;
+	int datalen, buflen, vrele_count;
 	int error;
 
+	vp = req->ktr_vp;
+	/*
+	 * If vp is NULL, the vp has been cleared out from under this
+	 * request, so just drop it.
+	 */
 	if (vp == NULL)
 		return;
+	kth = &req->ktr_header;
+	datalen = data_lengths[kth->ktr_type];
+	buflen = kth->ktr_len;
+	cred = req->ktr_cred;
+	td = curthread;
 	auio.uio_iov = &aiov[0];
 	auio.uio_offset = 0;
 	auio.uio_segflg = UIO_SYSSPACE;
@@ -566,42 +742,85 @@ ktrwrite(vp, kth, uio)
 	aiov[0].iov_len = sizeof(struct ktr_header);
 	auio.uio_resid = sizeof(struct ktr_header);
 	auio.uio_iovcnt = 1;
-	auio.uio_td = curthread;
-	if (kth->ktr_len > 0) {
+	auio.uio_td = td;
+	if (datalen != 0) {
+		aiov[1].iov_base = (caddr_t)&req->ktr_data;
+		aiov[1].iov_len = datalen;
+		auio.uio_resid += datalen;
 		auio.uio_iovcnt++;
-		aiov[1].iov_base = kth->ktr_buffer;
-		aiov[1].iov_len = kth->ktr_len;
-		auio.uio_resid += kth->ktr_len;
-		if (uio != NULL)
-			kth->ktr_len += uio->uio_resid;
+		kth->ktr_len += datalen;
 	}
+	if (buflen != 0) {
+		KASSERT(kth->ktr_buffer != NULL, ("ktrace: nothing to write"));
+		aiov[auio.uio_iovcnt].iov_base = kth->ktr_buffer;
+		aiov[auio.uio_iovcnt].iov_len = buflen;
+		auio.uio_resid += buflen;
+		auio.uio_iovcnt++;
+	} else
+		uio = kth->ktr_buffer;
+	KASSERT((uio == NULL) ^ (kth->ktr_type == KTR_GENIO),
+	    ("ktrace: uio and genio mismatch"));
+	if (uio != NULL)
+		kth->ktr_len += uio->uio_resid;
+	mtx_lock(&Giant);
 	vn_start_write(vp, &mp, V_WAIT);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	(void)VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
-	error = VOP_WRITE(vp, &auio, IO_UNIT | IO_APPEND, td->td_ucred);
+	(void)VOP_LEASE(vp, td, cred, LEASE_WRITE);
+	error = VOP_WRITE(vp, &auio, IO_UNIT | IO_APPEND, cred);
 	if (error == 0 && uio != NULL) {
-		(void)VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
-		error = VOP_WRITE(vp, uio, IO_UNIT | IO_APPEND, td->td_ucred);
+		(void)VOP_LEASE(vp, td, cred, LEASE_WRITE);
+		error = VOP_WRITE(vp, uio, IO_UNIT | IO_APPEND, cred);
 	}
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
+	mtx_unlock(&Giant);
+	if (buflen != 0)
+		free(kth->ktr_buffer, M_KTRACE);
 	if (!error)
 		return;
 	/*
-	 * If error encountered, give up tracing on this vnode.  XXX what
-	 * happens to the loop if vrele() blocks?
+	 * If error encountered, give up tracing on this vnode.  We defer
+	 * all the vrele()'s on the vnode until after we are finished walking
+	 * the various lists to avoid needlessly holding locks.
 	 */
 	log(LOG_NOTICE, "ktrace write failed, errno %d, tracing stopped\n",
 	    error);
+	vrele_count = 0;
+	/*
+	 * First, clear this vnode from being used by any processes in the
+	 * system.
+	 * XXX - If one process gets an EPERM writing to the vnode, should
+	 * we really do this?  Other processes might have suitable
+	 * credentials for the operation.
+	 */
 	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, &allproc, p_list) {
+		PROC_LOCK(p);
 		if (p->p_tracep == vp) {
+			mtx_lock(&ktrace_mtx);
 			p->p_tracep = NULL;
 			p->p_traceflag = 0;
-			vrele(vp);
+			mtx_unlock(&ktrace_mtx);
+			vrele_count++;
 		}
+		PROC_UNLOCK(p);
 	}
 	sx_sunlock(&allproc_lock);
+	/*
+	 * Second, clear this vnode from any pending requests.
+	 */
+	mtx_lock(&ktrace_mtx);
+	STAILQ_FOREACH(req, &ktr_todo, ktr_list) {
+		if (req->ktr_vp == vp) {
+			req->ktr_vp = NULL;
+			vrele_count++;
+		}
+	}
+	mtx_unlock(&ktrace_mtx);
+	mtx_lock(&Giant);
+	while (vrele_count-- > 0)
+		vrele(vp);
+	mtx_unlock(&Giant);
 }
 
 /*
