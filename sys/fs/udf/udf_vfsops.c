@@ -72,20 +72,20 @@
  */
 #include <sys/types.h>
 #include <sys/param.h>
-#include <sys/namei.h>
-#include <sys/vnode.h>
-#include <sys/mount.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/fcntl.h>
+#include <sys/uio.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
-#include <sys/malloc.h>
-#include <sys/kernel.h>
-#include <sys/mount.h>
 #include <sys/conf.h>
-#include <sys/queue.h>
 #include <sys/dirent.h>
+#include <sys/fcntl.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/mount.h>
+#include <sys/namei.h>
+#include <sys/proc.h>
+#include <sys/queue.h>
+#include <sys/vnode.h>
 
 #include <vm/uma.h>
 
