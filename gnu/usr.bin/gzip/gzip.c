@@ -45,7 +45,7 @@ static char  *license_msg[] = {
  */
 
 #ifdef RCSID
-static char rcsid[] = "$Id: gzip.c,v 1.7 1997/03/15 22:43:58 guido Exp $";
+static char rcsid[] = "$Id: gzip.c,v 1.9 1999/05/28 13:23:16 kris Exp $";
 #endif
 
 #include <ctype.h>
@@ -521,7 +521,13 @@ int main (argc, argv)
             if (*optarg == '.') optarg++;
 #endif
             z_len = strlen(optarg);
-            strcpy(z_suffix, optarg);
+            if (z_len > sizeof(z_suffix)-1) {
+                fprintf(stderr, "%s: -S suffix too long\n", progname);
+                usage();
+                do_exit(ERROR);
+            }
+            strncpy(z_suffix, optarg, sizeof z_suffix-1);
+            z_suffix[sizeof z_suffix-1] = '\0';
             break;
 	case 't':
 	    test = decompress = to_stdout = 1;

@@ -48,7 +48,7 @@ match, thus speeding up the whole process. If compression ratio is more
 important than speed, zip attempts a complete second search even if
 the first match is already long enough.
 
-The lazy match evaluation is no performed for the fastest compression
+The lazy match evaluation is not performed for the fastest compression
 modes (speed options -1 to -3). For these fast modes, new strings
 are inserted in the hash table only when no match was found, or
 when the match is not too long. This degrades the compression ratio

@@ -4,8 +4,9 @@
 #
 # This can be useful for files with names truncated after a file transfer.
 # 12345678901234 is renamed to 12345678901.gz
+#
+# $Id: zforce,v 1.3 1999/05/28 13:23:20 kris Exp $
 
-PATH="/usr/local/bin:$PATH"; export PATH
 x=`basename $0`
 if test $# = 0; then
   echo "force a '.gz' extension on all gzip files"

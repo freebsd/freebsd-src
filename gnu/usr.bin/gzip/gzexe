@@ -11,6 +11,8 @@
 # WARNING: the first line of this file must be either : or #!/bin/sh
 # The : is required for some old versions of csh.
 # On Ultrix, /bin/sh is too buggy, change the first line to: #!/bin/sh5
+#
+# $Id: gzexe,v 1.6 1999/05/28 13:23:14 kris Exp $
 
 x=`basename $0`
 if test $# = 0; then
@@ -20,7 +22,7 @@ if test $# = 0; then
   exit 1
 fi
 
-tmp=gz$$
+tmp=`/usr/bin/mktemp gzXXXXXXXXXX` || exit 1
 trap "rm -f $tmp; exit 1" 1 2 3 5 10 13 15
 
 decomp=0
@@ -31,12 +33,14 @@ if test "x$1" = "x-d"; then
   shift
 fi
 
-echo hi > zfoo1$$
-echo hi > zfoo2$$
-if test -z "`(${CPMOD-cpmod} zfoo1$$ zfoo2$$) 2>&1`"; then
+zfoo1=`/usr/bin/mktemp zfoo1XXXXXXXXXX` || exit 1
+zfoo2=`/usr/bin/mktemp zfoo2XXXXXXXXXX` || exit 1
+echo hi > $zfoo1
+echo hi > $zfoo2
+if test -z "`(${CPMOD-cpmod} $zfoo1 $zfoo2) 2>&1`"; then
   cpmod=${CPMOD-cpmod}
 fi
-rm -f zfoo[12]$$
+rm -f $zfoo1 $zfoo2
 
 tail=""
 IFS="${IFS= 	}"; saveifs="$IFS"; IFS="${IFS}:"
@@ -74,7 +78,7 @@ for i do
     continue
   fi
   case "`basename $i`" in
-  sh | gzip | tail | chmod | ln | sleep | rm)
+  sh | gzip | tail | chmod | ln | sleep | rm | mktemp)
 	echo "${x}: $i would depend on itself"; continue ;;
   esac
   if test -z "$cpmod"; then
@@ -89,21 +93,25 @@ for i do
   if test $decomp -eq 0; then
     sed 1q $0 > $tmp
     sed "s|^if tail|if $tail|" >> $tmp <<'EOF'
-skip=18
-if tail +$skip $0 | gzip -cd > /tmp/gztmp$$; then
-  chmod 700 /tmp/gztmp$$
+skip=22
+gztmp=`/usr/bin/mktemp /tmp/gztmpXXXXXXXXXX` || exit 1
+if tail +$skip $0 | gzip -cd > $gztmp; then
+  chmod 700 $gztmp
   prog="`echo $0 | sed 's|^.*/||'`"
-  if /bin/ln /tmp/gztmp$$ "/tmp/$prog" 2>/dev/null; then
-    trap '/bin/rm -f /tmp/gztmp$$ "/tmp/$prog"; exit $res' 0
-    (/bin/sleep 5; /bin/rm -f /tmp/gztmp$$ "/tmp/$prog") 2>/dev/null &
+  progtmp=`/usr/bin/mktemp /tmp/${prog}XXXXXXXXXX` || exit 1
+  if /bin/ln $gztmp $progtmp 2>/dev/null; then
+    trap '/bin/rm -f $gztmp $progtmp; exit $res' 0
+    (/bin/sleep 5; /bin/rm -f $gztmp $progtmp) 2>/dev/null &
     /tmp/"$prog" ${1+"$@"}; res=$?
   else
-    trap '/bin/rm -f /tmp/gztmp$$; exit $res' 0
-    (/bin/sleep 5; /bin/rm -f /tmp/gztmp$$) 2>/dev/null &
-    /tmp/gztmp$$ ${1+"$@"}; res=$?
+    trap '/bin/rm -f $gztmp exit $res' 0
+    (/bin/sleep 5; /bin/rm -f $gztmp) 2>/dev/null &
+    $gztmp ${1+"$@"}; res=$?
   fi
 else
-  echo Cannot decompress $0; exit 1
+  echo Cannot decompress $0
+  rm -f $gztmp
+  exit 1
 fi; exit $res
 EOF
     gzip -cv9 "$i" >> $tmp || {
