@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.3 1993/10/16 13:46:21 rgrimes Exp $
+ *    $Id: spkr.c,v 1.4 1993/11/09 02:32:30 ache Exp $
  */
 
 #include "speaker.h"
@@ -12,16 +12,13 @@
 #if NSPEAKER > 0
 
 #include "param.h"
+#include "systm.h"
 #include "kernel.h"
 #include "errno.h"
 #include "buf.h"
 #include "uio.h"
-#include "machine/speaker.h"
 
-#ifdef HZ
-#undef HZ
-#endif
-#define HZ hz
+#include "machine/speaker.h"
 
 /**************** MACHINE DEPENDENT PART STARTS HERE *************************
  *
@@ -62,22 +59,18 @@
  */
 #define TIMER_CLK	1193180L	/* corresponds to 18.2 MHz tick rate */
 
-static int endtone()
-/* turn off the speaker, ending current tone */
-{
-    wakeup((caddr_t)endtone);
-    outb(PPI, inb(PPI) & ~PPI_SPKR);
-}
+#define SPKRPRI PSOCK
+static char endtone, endrest;
 
-static void tone(hz, ticks)
-/* emit tone of frequency hz for given number of ticks */
-unsigned int hz, ticks;
+static int tone(thz, ticks)
+/* emit tone of frequency thz for given number of ticks */
+unsigned int thz, ticks;
 {
-    unsigned int divisor = TIMER_CLK / hz;
-    int sps;
+    unsigned int divisor = TIMER_CLK / thz;
+    int sps, error;
 
 #ifdef DEBUG
-    (void) printf("tone: hz=%d ticks=%d\n", hz, ticks);
+    (void) printf("tone: thz=%d ticks=%d\n", thz, ticks);
 #endif /* DEBUG */
 
     /* set timer to generate clicks at given frequency in Hertz */
@@ -95,20 +88,21 @@ unsigned int hz, ticks;
      * This is so other processes can execute while the tone is being
      * emitted.
      */
-    timeout((caddr_t)endtone, (caddr_t)NULL, ticks);
-    (void) sleep((caddr_t)endtone, PZERO - 1);
+    while ((error = tsleep((caddr_t)&endtone,
+		SPKRPRI | PCATCH, "spkrtone", ticks)) == ERESTART)
+		;
+    outb(PPI, inb(PPI) & ~PPI_SPKR);
+
+    if (error == EWOULDBLOCK)
+	error = 0;
+    return error;
 }
 
-static int endrest()
-/* end a rest */
-{
-    wakeup((caddr_t)endrest);
-}
-
-static void rest(ticks)
+static int rest(ticks)
 /* rest for given number of ticks */
 int	ticks;
 {
+    int error;
     /*
      * Set timeout to endrest function, then give up the timeslice.
      * This is so other processes can execute while the rest is being
@@ -117,8 +111,12 @@ int	ticks;
 #ifdef DEBUG
     (void) printf("rest: %d\n", ticks);
 #endif /* DEBUG */
-    timeout((caddr_t)endrest, (caddr_t)NULL, ticks);
-    (void) sleep((caddr_t)endrest, PZERO - 1);
+    while ((error = tsleep((caddr_t)&endrest,
+		SPKRPRI | PCATCH, "spkrrest", ticks)) == ERESTART)
+		;
+    if (error == EWOULDBLOCK)
+	error = 0;
+    return error;
 }
 
 /**************** PLAY STRING INTERPRETER BEGINS HERE **********************
@@ -187,18 +185,19 @@ static int pitchtab[] =
 static void playinit()
 {
     octave = DFLT_OCTAVE;
-    whole = (HZ * SECS_PER_MIN * WHOLE_NOTE) / DFLT_TEMPO;
+    whole = (hz * SECS_PER_MIN * WHOLE_NOTE) / DFLT_TEMPO;
     fill = NORMAL;
     value = DFLT_VALUE;
     octtrack = FALSE;
     octprefix = TRUE;	/* act as though there was an initial O(n) */
 }
 
-static void playtone(pitch, value, sustain)
+static int playtone(pitch, value, sustain)
 /* play tone of proper duration for current rhythm signature */
 int	pitch, value, sustain;
 {
     register int	sound, silence, snum = 1, sdenom = 1;
+    int error;
 
     /* this weirdness avoids floating-point arithmetic */
     for (; sustain; sustain--)
@@ -209,7 +208,7 @@ int	pitch, value, sustain;
     }
 
     if (pitch == -1)
-	rest(whole * snum / (value * sdenom));
+	error = rest(whole * snum / (value * sdenom));
     else
     {
 	sound = (whole * snum) / (value * sdenom)
@@ -221,10 +220,12 @@ int	pitch, value, sustain;
 			pitch, sound, silence);
 #endif /* DEBUG */
 
-	tone(pitchtab[pitch], sound);
+	error = tone(pitchtab[pitch], sound);
+	if (error) return error;
 	if (fill != LEGATO)
-	    rest(silence);
+	    error = rest(silence);
     }
+    return error;
 }
 
 static int abs(n)
@@ -236,12 +237,13 @@ int n;
 	return(n);
 }
 
-static void playstring(cp, slen)
+static int playstring(cp, slen)
 /* interpret and play an item from a notation string */
 char	*cp;
 size_t	slen;
 {
     int		pitch, oldfill, lastpitch = OCTAVE_NOTES * DFLT_OCTAVE;
+    int error;
 
 #define GETNUM(cp, v)	for(v=0; isdigit(cp[1]) && slen > 0; ) \
 				{v = v * 10 + (*++cp - '0'); slen--;}
@@ -319,9 +321,10 @@ size_t	slen;
 	    }
 
 	    /* time to emit the actual tone */
-	    playtone(pitch, timeval, sustain);
+	    error = playtone(pitch, timeval, sustain);
 
 	    fill = oldfill;
+	    if (error) return error;
 	    break;
 
 	case 'O':
@@ -372,8 +375,9 @@ size_t	slen;
 		++cp;
 		slen--;
 	    }
-	    playtone(pitch - 1, value, sustain);
+	    error = playtone(pitch - 1, value, sustain);
 	    fill = oldfill;
+	    if (error) return error;
 	    break;
 
 	case 'L':
@@ -393,14 +397,15 @@ size_t	slen;
 		slen--;
 		sustain++;
 	    }
-	    playtone(-1, timeval, sustain);
+	    error = playtone(-1, timeval, sustain);
+	    if (error) return error;
 	    break;
 
 	case 'T':
 	    GETNUM(cp, tempo);
 	    if (tempo < MIN_TEMPO || tempo > MAX_TEMPO)
 		tempo = DFLT_TEMPO;
-	    whole = (HZ * SECS_PER_MIN * WHOLE_NOTE) / tempo;
+	    whole = (hz * SECS_PER_MIN * WHOLE_NOTE) / tempo;
 	    break;
 
 	case 'M':
@@ -425,6 +430,7 @@ size_t	slen;
 	    break;
 	}
     }
+    return 0;
 }
 
 /******************* UNIX DRIVER HOOKS BEGIN HERE **************************
@@ -481,7 +487,7 @@ struct uio	*uio;
 	n = uio->uio_resid;
 	cp = spkr_inbuf->b_un.b_addr;
 	if (!(error = uiomove(cp, n, uio)))
-		playstring(cp, n);
+		error = playstring(cp, n);
 	return(error);
     }
 }
@@ -497,7 +503,8 @@ dev_t	dev;
 	return(ENXIO);
     else
     {
-	endtone();
+	wakeup((caddr_t)&endtone);
+	wakeup((caddr_t)&endrest);
 	brelse(spkr_inbuf);
 	spkr_active = FALSE;
 	return(0);
@@ -520,10 +527,9 @@ caddr_t	cmdarg;
 	tone_t	*tp = (tone_t *)cmdarg;
 
 	if (tp->frequency == 0)
-	    rest(tp->duration);
+	    return rest(tp->duration);
 	else
-	    tone(tp->frequency, tp->duration);
-	return(0);
+	    return tone(tp->frequency, tp->duration);
     }
     else if (cmd == SPKRTUNE)
     {
@@ -538,9 +544,11 @@ caddr_t	cmdarg;
 	    if (ttp.duration == 0)
 		    break;
 	    if (ttp.frequency == 0)
-		rest(ttp.duration);
+		error = rest(ttp.duration);
 	    else
-		tone(ttp.frequency, ttp.duration);
+		error = tone(ttp.frequency, ttp.duration);
+	    if (error)
+		    return(error);
 	}
 	return(0);
     }
