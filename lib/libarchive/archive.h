@@ -29,6 +29,7 @@
 #ifndef ARCHIVE_H_INCLUDED
 #define	ARCHIVE_H_INCLUDED
 
+#include <sys/types.h>  /* Linux requires this for off_t */
 #include <inttypes.h>  /* For int64_t */
 #include <unistd.h>  /* For ssize_t and size_t */
 
