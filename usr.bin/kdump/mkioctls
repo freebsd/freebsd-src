@@ -22,7 +22,6 @@ BEGIN {
 	print "#include <sys/device.h>"
 	print "#include <sys/devicestat.h>"
 	print "#include <sys/disklabel.h>"
-	print "#include <sys/disk.h>"
 	print "#include <sys/dkbad.h>"
 	print "#include <sys/socket.h>"
 	print "#include <sys/time.h>"
