@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.544 1999/01/24 01:22:37 grog Exp $
+#	$Id: LINT,v 1.545 1999/01/25 03:51:51 peter Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1643,8 +1643,10 @@ options		POWERFAIL_NMI	# make it beep instead of panicing
 # Supported interfaces:
 # iicsmb I2C to SMB bridge with any iicbus interface
 # bktr	brooktree848 I2C hardware interface
+# intpm	Intel PIIX4 Power Management Unit
 #
 controller smbus0
+controller intpm0
 
 device smb0	at smbus?
 
@@ -1947,6 +1949,7 @@ options		SI_DEBUG
 options		SIMPLELOCK_DEBUG
 options		SPX_HACK
 options		VFS_BIO_DEBUG
+options		ENABLE_ALART
 
 # The 'dpt' driver provides support for DPT controllers (http://www.dpt.com/).
 # These have hardware RAID-{0,1,5} support, and do multi-initiator I/O.
