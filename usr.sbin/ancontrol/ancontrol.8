@@ -50,6 +50,12 @@
 .Nm
 .Fl i Ar iface Fl C
 .Nm
+.Fl i Ar iface Fl Q
+.Nm
+.Fl i Ar iface Fl Z
+.Nm
+.Fl i Ar iface Fl R
+.Nm
 .Fl i Ar iface Fl t Cm 0 Ns - Ns Cm 4
 .Nm
 .Fl i Ar iface Fl s Cm 0 Ns - Ns Cm 3
@@ -190,6 +196,27 @@ Display current NIC configuration.
 This shows the current operation mode,
 receive mode, MAC address, power save settings, various timing settings,
 channel selection, diversity, transmit power and transmit speed.
+.It Fl i Ar iface Fl Q
+Display the cached signal strength information maintained by the
+.Xr an 4
+driver.
+The driver retains information about signal strength and
+noise level for packets received from different hosts.
+The signal strength and noise level values are displayed in units of dBms by
+default.
+The
+.Va machdep.an_cache_mode
+.Xr sysctl 8
+variable can be set to
+.Cm raw , dbm
+or
+.Cm per .
+.It Fl i Ar iface Fl Z
+Clear the signal strength cache maintained internally by the
+.Xr an 4
+driver.
+.It Fl i Ar iface Fl R
+Display RSSI map that converts from the RSSI index to percent and dBm.
 .It Fl i Ar iface Fl t Cm 0 Ns - Ns Cm 4
 Select transmit speed.
 The available settings are as follows:
