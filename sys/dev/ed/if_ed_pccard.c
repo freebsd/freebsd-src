@@ -77,7 +77,6 @@ static int	ed_pccard_probe(device_t);
 static int	ed_pccard_attach(device_t);
 static int	ed_pccard_detach(device_t);
 
-static int	ed_pccard_dl100xx(device_t dev);
 static int	ed_pccard_ax88190(device_t dev);
 
 static void	ax88190_geteprom(struct ed_softc *);
