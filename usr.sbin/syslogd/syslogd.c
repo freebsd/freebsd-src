@@ -99,7 +99,6 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <regex.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
@@ -112,6 +111,12 @@ static const char rcsid[] =
 
 #define SYSLOG_NAMES
 #include <sys/syslog.h>
+
+#ifdef NI_WITHSCOPEID
+static const int withscopeid = NI_WITHSCOPEID;
+#else
+static const int withscopeid = 0;
+#endif
 
 const char	*ConfFile = _PATH_LOGCONF;
 const char	*PidFile = _PATH_LOGPID;
@@ -158,7 +163,8 @@ struct filed {
 		char	f_uname[MAXUNAMES][UT_NAMESIZE+1];
 		struct {
 			char	f_hname[MAXHOSTNAMELEN+1];
-			struct sockaddr_in	f_addr;
+			struct addrinfo *f_addr;
+
 		} f_forw;		/* forwarding address */
 		char	f_fname[MAXPATHLEN];
 		struct {
@@ -208,8 +214,8 @@ struct allowedpeer {
 	u_short port;
 	union {
 		struct {
-			struct in_addr addr;
-			struct in_addr mask;
+			struct sockaddr_storage addr;
+			struct sockaddr_storage mask;
 		} numeric;
 		char *name;
 	} u;
@@ -253,13 +259,18 @@ int	Debug;			/* debug flag */
 int	resolve = 1;		/* resolve hostname */
 char	LocalHostName[MAXHOSTNAMELEN+1];	/* our hostname */
 char	*LocalDomain;		/* our local domain name */
-int	finet = -1;		/* Internet datagram socket */
+int	*finet = NULL;		/* Internet datagram socket */
 int	fklog = -1;		/* /dev/klog */
-int	LogPort;		/* port number for INET connections */
 int	Initialized = 0;	/* set when we have initialized ourselves */
 int	MarkInterval = 20 * 60;	/* interval between marks in seconds */
 int	MarkSeq = 0;		/* mark sequence number */
 int	SecureMode = 0;		/* when true, receive only unix domain socks */
+#ifdef INET6
+int	family = PF_UNSPEC;	/* protocol family (IPv4, IPv6 or both) */
+#else
+int	family = PF_INET;	/* protocol family (IPv4 only) */
+#endif
+int	send_to_all = 0;	/* send message to all IPv4/IPv6 addresses */
 
 char	bootfile[MAXLINE+1];	/* booted kernel file */
 
@@ -273,13 +284,14 @@ int	KeepKernFac = 0;	/* Keep remotely logged kernel facility */
 
 int	allowaddr __P((char *));
 void	cfline __P((char *, struct filed *, char *, char *));
-char   *cvthname __P((struct sockaddr_in *));
+char   *cvthname __P((struct sockaddr *));
 void	deadq_enter __P((pid_t, const char *));
 int	deadq_remove __P((pid_t));
 int	decode __P((const char *, CODE *));
 void	die __P((int));
 void	domark __P((int));
 void	fprintlog __P((struct filed *, int, char *));
+int*	socksetup __P((int));
 void	init __P((int));
 void	logerror __P((const char *));
 void	logmsg __P((int, char *, char *, int));
@@ -291,7 +303,8 @@ void	readklog __P((void));
 void	reapchild __P((int));
 char   *ttymsg __P((struct iovec *, int, char *, int));
 static void	usage __P((void));
-int	validate __P((struct sockaddr_in *, const char *));
+int	validate __P((struct sockaddr *, const char *));
+static void	unmapped __P((struct sockaddr *));
 void	wallmsg __P((struct filed *, struct iovec *));
 int	waitdaemon __P((int, int, int));
 void	timedout __P((int));
@@ -303,7 +316,7 @@ main(argc, argv)
 {
 	int ch, i, l;
 	struct sockaddr_un sunx, fromunix;
-	struct sockaddr_in sin, frominet;
+	struct sockaddr_storage frominet;
 	FILE *fp;
 	char *p, *hname, line[MAXLINE + 1];
 	struct timeval tv, *tvp;
@@ -312,8 +325,19 @@ main(argc, argv)
 	pid_t ppid = 1;
 	socklen_t len;
 
-	while ((ch = getopt(argc, argv, "a:df:kl:m:np:suv")) != -1)
+	while ((ch = getopt(argc, argv, "46Aa:df:kl:m:np:suv")) != -1)
 		switch (ch) {
+		case '4':
+			family = PF_INET;
+			break;
+#ifdef INET6
+		case '6':
+			family = PF_INET6;
+			break;
+#endif
+		case 'A':
+			send_to_all++;
+			break;
 		case 'a':		/* allow specific network addresses only */
 			if (allowaddr(optarg) == -1)
 				usage();
@@ -420,32 +444,20 @@ main(argc, argv)
 		}
 	}
 	if (SecureMode <= 1)
-		finet = socket(AF_INET, SOCK_DGRAM, 0);
-	if (finet >= 0) {
-		struct servent *sp;
+		finet = socksetup(family);
 
-		sp = getservbyname("syslog", "udp");
-		if (sp == NULL) {
-			errno = 0;
-			logerror("syslog/udp: unknown service");
-			die(0);
-		}
-		memset(&sin, 0, sizeof(sin));
-		sin.sin_family = AF_INET;
-		sin.sin_port = LogPort = sp->s_port;
-
-		if (bind(finet, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
-			logerror("bind");
-			if (!Debug)
-				die(0);
-		}
-	}
-	if (finet >= 0 && SecureMode) {
-		if (shutdown(finet, SHUT_RD) < 0) {
-			logerror("shutdown");
-			if (!Debug)
-				die(0);
-		}
+	if (finet) {
+		if (SecureMode) {
+			for (i = 0; i < *finet; i++) {
+				if (shutdown(finet[i+1], SHUT_RD) < 0) {
+					logerror("shutdown");
+					if (!Debug)
+						die(0);
+				}
+			}
+		} else
+			dprintf("listening on inet and/or inet6 socket\n");
+		dprintf("sending on inet and/or inet6 socket\n");
 	}
 
 	if ((fklog = open(_PATH_KLOG, O_RDONLY, 0)) >= 0)
@@ -485,10 +497,12 @@ main(argc, argv)
 			if (fklog > nfds)
 				nfds = fklog;
 		}
-		if (finet != -1 && !SecureMode) {
-			FD_SET(finet, &readfds);
-			if (finet > nfds)
-				nfds = finet;
+		if (finet && !SecureMode) {
+			for (i = 0; i < *finet; i++) {
+				FD_SET(finet[i+1], &readfds);
+				if (finet[i+1] > nfds)
+					nfds = finet[i+1];
+			}
 		}
 		for (i = 0; i < nfunix; i++) {
 			if (funix[i] != -1) {
@@ -517,20 +531,23 @@ main(argc, argv)
 		/*dprintf("got a message (%d, %#x)\n", nfds, readfds);*/
 		if (fklog != -1 && FD_ISSET(fklog, &readfds))
 			readklog();
-		if (finet != -1 && FD_ISSET(finet, &readfds)) {
-			len = sizeof(frominet);
-			l = recvfrom(finet, line, MAXLINE, 0,
-			    (struct sockaddr *)&frominet, &len);
-			if (l > 0) {
-				line[l] = '\0';
-				if (resolve)
-					hname = cvthname(&frominet);
-				else
-					hname = inet_ntoa(frominet.sin_addr);
-				if (validate(&frominet, hname))
-					printline(hname, line);
-			} else if (l < 0 && errno != EINTR)
-				logerror("recvfrom inet");
+		if (finet && !SecureMode) {
+			for (i = 0; i < *finet; i++) {
+				if (FD_ISSET(finet[i+1], &readfds)) {
+					len = sizeof(frominet);
+					l = recvfrom(finet[i+1], line, MAXLINE,
+					     0, (struct sockaddr *)&frominet,
+					     &len);
+					if (l > 0) {
+						line[l] = '\0';
+						hname = cvthname((struct sockaddr *)&frominet);
+						unmapped((struct sockaddr *)&frominet);
+						if (validate((struct sockaddr *)&frominet, hname))
+							printline(hname, line);
+					} else if (l < 0 && errno != EINTR)
+						logerror("recvfrom inet");
+				}
+			}
 		}
 		for (i = 0; i < nfunix; i++) {
 			if (funix[i] != -1 && FD_ISSET(funix[i], &readfds)) {
@@ -548,11 +565,37 @@ main(argc, argv)
 }
 
 static void
+unmapped(sa)
+	struct sockaddr *sa;
+{
+	struct sockaddr_in6 *sin6;
+	struct sockaddr_in sin;
+
+	if (sa->sa_family != AF_INET6)
+		return;
+	if (sa->sa_len != sizeof(struct sockaddr_in6) ||
+	    sizeof(sin) > sa->sa_len)
+		return;
+	sin6 = (struct sockaddr_in6 *)sa;
+	if (!IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr))
+		return;
+
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_len = sizeof(struct sockaddr_in);
+	memcpy(&sin.sin_addr, &sin6->sin6_addr.s6_addr[12],
+	       sizeof(sin.sin_addr));
+	sin.sin_port = sin6->sin6_port;
+
+	memcpy(sa, &sin, sin.sin_len);
+}
+
+static void
 usage()
 {
 
 	fprintf(stderr, "%s\n%s\n%s\n",
-		"usage: syslogd [-dnsuv] [-a allowed_peer] [-f config_file]",
+		"usage: syslogd [-46Adnsuv] [-a allowed_peer] [-f config_file]",
 		"               [-m mark_interval] [-p log_socket]",
 		"               [-l log_socket]");
 	exit(1);
@@ -844,7 +887,8 @@ fprintlog(f, flags, msg)
 {
 	struct iovec iov[7];
 	struct iovec *v;
-	int l;
+	struct addrinfo *r;
+	int i, l, lsent = 0;
 	char line[MAXLINE + 1], repbuf[80], greetings[200];
 	char *msgret;
 
@@ -950,15 +994,33 @@ fprintlog(f, flags, msg)
 			     f->f_prevpri, iov[0].iov_base, iov[5].iov_base);
 		if (l > MAXLINE)
 			l = MAXLINE;
-		if ((finet >= 0) &&
-		     (sendto(finet, line, l, 0,
-			     (struct sockaddr *)&f->f_un.f_forw.f_addr,
-			     sizeof(f->f_un.f_forw.f_addr)) != l)) {
-			int e = errno;
-			(void)close(f->f_file);
-			f->f_type = F_UNUSED;
-			errno = e;
-			logerror("sendto");
+
+		if (finet) {
+			for (r = f->f_un.f_forw.f_addr; r; r = r->ai_next) {
+				for (i = 0; i < *finet; i++) {
+#if 0 
+					/*
+					 * should we check AF first, or just
+					 * trial and error? FWD
+					 */
+					if (r->ai_family ==
+					    address_family_of(finet[i+1])) 
+#endif
+					lsent = sendto(finet[i+1], line, l, 0,
+					    r->ai_addr, r->ai_addrlen);
+					if (lsent == l) 
+						break;
+				}
+				if (lsent == l && !send_to_all) 
+					break;
+			}
+			if (lsent != l) {
+				int e = errno;
+				(void)close(f->f_file);
+				errno = e;
+				f->f_type = F_UNUSED;
+				logerror("sendto");
+			}
 		}
 		break;
 
@@ -1124,33 +1186,41 @@ reapchild(signo)
  */
 char *
 cvthname(f)
-	struct sockaddr_in *f;
+	struct sockaddr *f;
 {
-	struct hostent *hp;
+	int error;
 	sigset_t omask, nmask;
 	char *p;
+	static char hname[NI_MAXHOST], ip[NI_MAXHOST];
 
-	dprintf("cvthname(%s)\n", inet_ntoa(f->sin_addr));
+	error = getnameinfo((struct sockaddr *)f,
+			    ((struct sockaddr *)f)->sa_len,
+			    ip, sizeof ip, NULL, 0,
+			    NI_NUMERICHOST | withscopeid);
+	dprintf("cvthname(%s)\n", ip);
 
-	if (f->sin_family != AF_INET) {
-		dprintf("Malformed from address\n");
+	if (error) {
+		dprintf("Malformed from address %s\n", gai_strerror(error));
 		return ("???");
 	}
+	if (!resolve)
+		return (ip);
+
 	sigemptyset(&nmask);
 	sigaddset(&nmask, SIGHUP);
 	sigprocmask(SIG_BLOCK, &nmask, &omask);
-	hp = gethostbyaddr((char *)&f->sin_addr,
-	    sizeof(struct in_addr), f->sin_family);
+	error = getnameinfo((struct sockaddr *)f,
+			    ((struct sockaddr *)f)->sa_len,
+			    hname, sizeof hname, NULL, 0,
+			    NI_NAMEREQD | withscopeid);
 	sigprocmask(SIG_SETMASK, &omask, NULL);
-	if (hp == 0) {
-		dprintf("Host name for your address (%s) unknown\n",
-			inet_ntoa(f->sin_addr));
-		return (inet_ntoa(f->sin_addr));
+	if (error) {
+		dprintf("Host name for your address (%s) unknown\n", ip);
+		return (ip);
 	}
-	if ((p = strchr(hp->h_name, '.')) &&
-	    strcasecmp(p + 1, LocalDomain) == 0)
+	if ((p = strchr(hname, '.')) && strcasecmp(p + 1, LocalDomain) == 0)
 		*p = '\0';
-	return (hp->h_name);
+	return (hname);
 }
 
 void
@@ -1434,8 +1504,8 @@ cfline(line, f, prog, host)
 	char *prog;
 	char *host;
 {
-	struct hostent *hp;
-	int i, pri;
+	struct addrinfo hints, *res;
+	int error, i, pri;
 	char *bp, *p, *q;
 	char buf[MAXLINE], ebuf[100];
 
@@ -1558,18 +1628,17 @@ cfline(line, f, prog, host)
 	case '@':
 		(void)strncpy(f->f_un.f_forw.f_hname, ++p,
 			sizeof(f->f_un.f_forw.f_hname)-1);
-		f->f_un.f_forw.f_hname[sizeof(f->f_un.f_forw.f_hname)-1] = '\0';	  
-		hp = gethostbyname(f->f_un.f_forw.f_hname);
-		if (hp == NULL) {
-
-			logerror(hstrerror(h_errno));
+		f->f_un.f_forw.f_hname[sizeof(f->f_un.f_forw.f_hname)-1] = '\0';
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = family;
+		hints.ai_socktype = SOCK_DGRAM;
+		error = getaddrinfo(f->f_un.f_forw.f_hname, "syslog", &hints,
+				    &res);
+		if (error) {
+			logerror(gai_strerror(error));
 			break;
 		}
-		memset(&f->f_un.f_forw.f_addr, 0,
-			 sizeof(f->f_un.f_forw.f_addr));
-		f->f_un.f_forw.f_addr.sin_family = AF_INET;
-		f->f_un.f_forw.f_addr.sin_port = LogPort;
-		memmove(&f->f_un.f_forw.f_addr.sin_addr, hp->h_addr, hp->h_length);
+		f->f_un.f_forw.f_addr = res;
 		f->f_type = F_FORW;
 		break;
 
@@ -1741,76 +1810,136 @@ allowaddr(s)
 	char *cp1, *cp2;
 	struct allowedpeer ap;
 	struct servent *se;
-	regex_t re;
-	int i;
+	int masklen = -1;
+	struct addrinfo hints, *res;
+	struct in_addr *addrp, *maskp;
+	u_int32_t *mask6p;
+	char ip[NI_MAXHOST];
 
-	if ((cp1 = strrchr(s, ':'))) {
+#ifdef INET6
+	if (*s != '[' || (cp1 = strchr(s + 1, ']')) == NULL)
+#endif
+		cp1 = s;
+	if ((cp1 = strrchr(cp1, ':'))) {
 		/* service/port provided */
 		*cp1++ = '\0';
 		if (strlen(cp1) == 1 && *cp1 == '*')
 			/* any port allowed */
-			ap.port = htons(0);
+			ap.port = 0;
 		else if ((se = getservbyname(cp1, "udp")))
-			ap.port = se->s_port;
+			ap.port = ntohs(se->s_port);
 		else {
-			ap.port = htons((int)strtol(cp1, &cp2, 0));
+			ap.port = strtol(cp1, &cp2, 0);
 			if (*cp2 != '\0')
 				return -1; /* port not numeric */
 		}
 	} else {
 		if ((se = getservbyname("syslog", "udp")))
-			ap.port = se->s_port;
+			ap.port = ntohs(se->s_port);
 		else
 			/* sanity, should not happen */
-			ap.port = htons(514);
+			ap.port = 514;
 	}
 
-	/* the regexp's are ugly, but the cleanest way */
-
-	if (regcomp(&re, "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+(/[0-9]+)?$",
-		    REG_EXTENDED))
-		/* if RE compilation fails, that's an internal error */
-		abort();
-	if (regexec(&re, s, 0, 0, 0) == 0) {
-		/* arg `s' is numeric */
-		ap.isnumeric = 1;
-		if ((cp1 = strchr(s, '/')) != NULL) {
-			*cp1++ = '\0';
-			i = atoi(cp1);
-			if (i < 0 || i > 32)
-				return -1;
-			/* convert masklen to netmask */
-			ap.a_mask.s_addr = htonl(~((1 << (32 - i)) - 1));
-		}
-		if (ascii2addr(AF_INET, s, &ap.a_addr) == -1)
+	if ((cp1 = strchr(s, '/')) != NULL &&
+	    strspn(cp1 + 1, "0123456789") == strlen(cp1 + 1)) {
+		*cp1 = '\0';
+		if ((masklen = atoi(cp1 + 1)) < 0)
 			return -1;
-		if (cp1 == NULL) {
-			/* use default netmask */
-			if (IN_CLASSA(ntohl(ap.a_addr.s_addr)))
-				ap.a_mask.s_addr = htonl(IN_CLASSA_NET);
-			else if (IN_CLASSB(ntohl(ap.a_addr.s_addr)))
-				ap.a_mask.s_addr = htonl(IN_CLASSB_NET);
-			else
-				ap.a_mask.s_addr = htonl(IN_CLASSC_NET);
+	}
+#ifdef INET6
+	if (*s == '[') {
+		cp2 = s + strlen(s) - 1;
+		if (*cp2 == ']') {
+			++s;
+			*cp2 = '\0';
+		} else
+			cp2 = NULL;
+	} else
+		cp2 = NULL;
+#endif
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_flags = AI_PASSIVE | AI_NUMERICHOST;
+	if (getaddrinfo(s, NULL, &hints, &res) == 0) {
+		ap.isnumeric = 1;
+		memcpy(&ap.a_addr, res->ai_addr, res->ai_addrlen);
+		memset(&ap.a_mask, 0, sizeof(ap.a_mask));
+		ap.a_mask.ss_family = res->ai_family;
+		if (res->ai_family == AF_INET) {
+			ap.a_mask.ss_len = sizeof(struct sockaddr_in);
+			maskp = &((struct sockaddr_in *)&ap.a_mask)->sin_addr;
+			if (masklen < 0) {
+				/* use default netmask */
+				addrp = &((struct sockaddr_in *)&ap.a_addr)->sin_addr;
+				if (IN_CLASSA(ntohl(addrp->s_addr)))
+					maskp->s_addr = htonl(IN_CLASSA_NET);
+				else if (IN_CLASSB(ntohl(addrp->s_addr)))
+					maskp->s_addr = htonl(IN_CLASSB_NET);
+				else
+					maskp->s_addr = htonl(IN_CLASSC_NET);
+			} else if (masklen <= 32) {
+				/* convert masklen to netmask */
+				maskp->s_addr = htonl(~((1 << (32 - masklen)) - 1));
+			} else {
+				freeaddrinfo(res);
+				return -1;
+			}
 		}
+#ifdef INET6
+		else if (res->ai_family == AF_INET6 && masklen <= 128) {
+			ap.a_mask.ss_len = sizeof(struct sockaddr_in6);
+			if (masklen < 0)
+				masklen = 128;
+			mask6p = (u_int32_t *)&((struct sockaddr_in6 *)&ap.a_mask)->sin6_addr;
+			/* convert masklen to netmask */
+			while (masklen > 0) {
+				if (masklen < 32) {
+					*mask6p = htonl(~(0xffffffff >> masklen));
+					break;
+				}
+				*mask6p++ = 0xffffffff;
+				masklen -= 32;
+			}
+		}
+#endif
+		else {
+			freeaddrinfo(res);
+			return -1;
+		}
+		freeaddrinfo(res);
 	} else {
 		/* arg `s' is domain name */
 		ap.isnumeric = 0;
 		ap.a_name = s;
+		if (cp1)
+			*cp1 = '/';
+#ifdef INET6
+		if (cp2) {
+			*cp2 = ']';
+			--s;
+		}
+#endif
 	}
-	regfree(&re);
 
 	if (Debug) {
 		printf("allowaddr: rule %d: ", NumAllowed);
 		if (ap.isnumeric) {
 			printf("numeric, ");
-			printf("addr = %s, ",
-			       addr2ascii(AF_INET, &ap.a_addr, sizeof(struct in_addr), 0));
-			printf("mask = %s; ",
-			       addr2ascii(AF_INET, &ap.a_mask, sizeof(struct in_addr), 0));
+			getnameinfo((struct sockaddr *)&ap.a_addr,
+				    ((struct sockaddr *)&ap.a_addr)->sa_len,
+				    ip, sizeof ip, NULL, 0,
+				    NI_NUMERICHOST | withscopeid);
+			printf("addr = %s, ", ip);
+			getnameinfo((struct sockaddr *)&ap.a_mask,
+				    ((struct sockaddr *)&ap.a_mask)->sa_len,
+				    ip, sizeof ip, NULL, 0,
+				    NI_NUMERICHOST | withscopeid);
+			printf("mask = %s; ", ip);
 		} else
 			printf("domainname = %s; ", ap.a_name);
-		printf("port = %d\n", ntohs(ap.port));
+		printf("port = %d\n", ap.port);
 	}
 
 	if ((AllowedPeers = realloc(AllowedPeers,
@@ -1827,41 +1956,91 @@ allowaddr(s)
  * Validate that the remote peer has permission to log to us.
  */
 int
-validate(sin, hname)
-	struct sockaddr_in *sin;
+validate(sa, hname)
+	struct sockaddr *sa;
 	const char *hname;
 {
-	int i;
+	int i, j, reject;
 	size_t l1, l2;
-	char *cp, name[MAXHOSTNAMELEN];
+	char *cp, name[NI_MAXHOST], ip[NI_MAXHOST], port[NI_MAXSERV];
 	struct allowedpeer *ap;
+	struct sockaddr_in *sin, *a4p = NULL, *m4p = NULL;
+	struct sockaddr_in6 *sin6, *a6p = NULL, *m6p = NULL;
+	struct addrinfo hints, *res;
+	u_short sport;
 
 	if (NumAllowed == 0)
 		/* traditional behaviour, allow everything */
 		return 1;
 
 	strlcpy(name, hname, sizeof name);
-	if (strchr(name, '.') == NULL) {
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_flags = AI_PASSIVE | AI_NUMERICHOST;
+	if (getaddrinfo(name, NULL, &hints, &res) == 0)
+		freeaddrinfo(res);
+	else if (strchr(name, '.') == NULL) {
 		strlcat(name, ".", sizeof name);
 		strlcat(name, LocalDomain, sizeof name);
 	}
-	dprintf("validate: dgram from IP %s, port %d, name %s;\n",
-		addr2ascii(AF_INET, &sin->sin_addr, sizeof(struct in_addr), 0),
-		ntohs(sin->sin_port), name);
+	if (getnameinfo(sa, sa->sa_len, ip, sizeof ip, port, sizeof port,
+			NI_NUMERICHOST | withscopeid | NI_NUMERICSERV) != 0)
+		return 0;	/* for safety, should not occur */
+	dprintf("validate: dgram from IP %s, port %s, name %s;\n",
+		ip, port, name);
+	sport = atoi(port);
 
 	/* now, walk down the list */
 	for (i = 0, ap = AllowedPeers; i < NumAllowed; i++, ap++) {
-		if (ntohs(ap->port) != 0 && ap->port != sin->sin_port) {
+		if (ap->port != 0 && ap->port != sport) {
 			dprintf("rejected in rule %d due to port mismatch.\n", i);
 			continue;
 		}
 
 		if (ap->isnumeric) {
-			if ((sin->sin_addr.s_addr & ap->a_mask.s_addr)
-			    != ap->a_addr.s_addr) {
-				dprintf("rejected in rule %d due to IP mismatch.\n", i);
+			if (ap->a_addr.ss_family != sa->sa_family) {
+				dprintf("rejected in rule %d due to address family mismatch.\n", i);
 				continue;
 			}
+			if (ap->a_addr.ss_family == AF_INET) {
+				sin = (struct sockaddr_in *)sa;
+				a4p = (struct sockaddr_in *)&ap->a_addr;
+				m4p = (struct sockaddr_in *)&ap->a_mask;
+				if ((sin->sin_addr.s_addr & m4p->sin_addr.s_addr)
+				    != a4p->sin_addr.s_addr) {
+					dprintf("rejected in rule %d due to IP mismatch.\n", i);
+					continue;
+				}
+			}
+#ifdef INET6
+			else if (ap->a_addr.ss_family == AF_INET6) {
+				sin6 = (struct sockaddr_in6 *)sa;
+				a6p = (struct sockaddr_in6 *)&ap->a_addr;
+				m6p = (struct sockaddr_in6 *)&ap->a_mask;
+#ifdef NI_WITHSCOPEID
+				if (a6p->sin6_scope_id != 0 &&
+				    sin6->sin6_scope_id != a6p->sin6_scope_id) {
+					dprintf("rejected in rule %d due to scope mismatch.\n", i);
+					continue;
+				}
+#endif
+				reject = 0;
+				for (j = 0; j < 16; j += 4) {
+					if ((*(u_int32_t *)&sin6->sin6_addr.s6_addr[i] & *(u_int32_t *)&m6p->sin6_addr.s6_addr[i])
+					    != *(u_int32_t *)&a6p->sin6_addr.s6_addr[i]) {
+						++reject;
+						break;
+					}
+				}
+				if (reject) {
+					dprintf("rejected in rule %d due to IP mismatch.\n", i);
+					continue;
+				}
+			}
+#endif
+			else
+				continue;
 		} else {
 			cp = ap->a_name;
 			l1 = strlen(name);
@@ -2043,4 +2222,72 @@ log_deadchild(pid, status, name)
 		       "Logging subprocess %d (%s) exited %s %d.",
 		       pid, name, reason, code);
 	logerror(buf);
+}
+
+int *
+socksetup(af)
+	int af;
+{
+	struct addrinfo hints, *res, *r;
+	int error, maxs, *s, *socks;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_flags = AI_PASSIVE;
+	hints.ai_family = af;
+	hints.ai_socktype = SOCK_DGRAM;
+	error = getaddrinfo(NULL, "syslog", &hints, &res);
+	if (error) {
+		logerror(gai_strerror(error));
+		errno = 0;
+		die(0);
+	}
+
+	/* Count max number of sockets we may open */
+	for (maxs = 0, r = res; r; r = r->ai_next, maxs++);
+	socks = malloc((maxs+1) * sizeof(int));
+	if (!socks) {
+		logerror("couldn't allocate memory for sockets");
+		die(0);
+	}
+
+	*socks = 0;   /* num of sockets counter at start of array */
+	s = socks + 1;
+	for (r = res; r; r = r->ai_next) {
+		*s = socket(r->ai_family, r->ai_socktype, r->ai_protocol);
+		if (*s < 0) {
+			logerror("socket");
+			continue;
+		}
+#ifdef IPV6_BINDV6ONLY
+		if (r->ai_family == AF_INET6) {
+			int on = 1;
+			if (setsockopt(*s, IPPROTO_IPV6, IPV6_BINDV6ONLY,
+				       (char *)&on, sizeof (on)) < 0) {
+				logerror("setsockopt");
+				close(*s);
+				continue;
+			}
+		}
+#endif
+		if (bind(*s, r->ai_addr, r->ai_addrlen) < 0) {
+			close(*s);
+			logerror("bind");
+			continue;
+		}
+
+		(*socks)++;
+		s++;
+	}
+
+	if (*socks == 0) {
+		free(socks);
+		if (Debug)
+			return(NULL);
+		else
+			die(0);
+	}
+	if (res)
+		freeaddrinfo(res);
+
+	return(socks);
 }
