@@ -1,4 +1,4 @@
-<!-- $Id: ports.sgml,v 1.4 1995/06/30 17:37:45 jfieber Exp $ -->
+<!-- $Id: ports.sgml,v 1.5 1995/07/07 22:25:52 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>The Ports collection<label id="ports"></heading>
@@ -32,7 +32,7 @@ those shell scripts, Makefiles and source code ``diffs'' that are
 necessary to configure and compile the program under FreeBSD.  This
 keeps the entire system down to a manageable size, with the current
 system having over 300 ports in the master source tree and yet taking
-up no more than a few tens of megabytes.
+up less than ten megabytes.
 
 
 <sect1><heading>How does the system compile with no source code?</heading>
@@ -50,14 +50,20 @@ name="Compiling ports using an Internet connection">.
 
 <sect1><heading>Compiling ports from CDROM<label id="ports:cd"></heading>
 
-<p>The ports collection is easy to use from CDROM, and all you need do
-is create a "link tree" to it using the ``lndir'' command that comes
-with the <em>XFree86</em> distribution.  Find a location with some
-free space and create a directory there, then invoking the lndir
-command with the full pathname of the ``ports'' directory on the CDROM
-as an argument (this might be, for example, something like: ``lndir
-/cdrom/ports'').  Then you can build ports directly off the CDROM by
+<p>The ports collection is easy to use from CDROM, and all you need to
+do is to create a "link tree" to it using the <tt>lndir(1)</tt> command that
+comes with the <em>XFree86</em> distribution.  Find a location with
+some free space and create a directory there, and make a symbolic link
+from <tt>/usr/ports</tt> to that directory.  Then invoke the <tt>lndir(1)</tt> command with
+the full pathname of the ``ports'' directory on the CDROM as an
+argument (this might be, for example, something like: <tt>lndir
+/cdrom/ports</tt>).  Then you can build ports directly off the CDROM by
 building them in the link tree you've created.
+
+Note that there are some ports for which we can't provide the original
+source in the CDROM due to licensing limitations.  In that case,
+you'll need to look at the next section (<ref id="ports:inet"
+name="Compiling ports using an Internet connection">).
 
 <sect1><heading>Compiling ports using an Internet connection<label id="ports:inet"></heading>
 
@@ -69,15 +75,16 @@ your ports collection source tree up to date, updating the central
 mind heavy usage of your telephone.  If you don't want heavy network
 usage when you compile your ports tree, you can pre-fetch the
 necessary tarballs beforehand and put them into /usr/ports/distfiles
-(or wherever DISTDIR points) by hand.  A good way to see what files a
-port is going to need is to cd to that port's directory and do a
-``make -n fetch'' to see what it does.
+by hand.  A good way to see what files a port is going to need is to
+cd to that ports' directory and do a <tt>make fetch-list</tt> to see what
+it does.  The output of <tt>make fetch-list</tt> can also be used as a
+shell script to fetch the ports' tarballs at a well-connected machine.
 
     You can also chose to get the source files either from the master
 FTP site as defined in the relevant Makefile (in the MASTER_SITES
 line), or some FreeBSD mirror site also carrying a set of distfiles,
 as does the master FTP site on ftp.FreeBSD.org (aka ftp.cdrom.com) in
-the directory /pub/FreeBSD/ports/distfiles.  Note that the files in
+the directory <tt>/pub/FreeBSD/distfiles</tt>.  Note that the files in
 that directory are not guarenteed to be kept up to date - this is a
 volunteer project!  We can't make any guarantees about the mirror
 sites either - they are obviously under independant control and don't
@@ -92,8 +99,8 @@ going to the top of the tree and typing ``make fetch''.
 <p>Oh. You can do one of four (4) things :
 <enum>
 
-<item> Fix it yourself. Technical details can be found in the GUIDELINES file,
-   available from URL ftp://ftp.FreeBSD.org/pub/FreeBSD/ports/GUIDELINES
+<item> Fix it yourself. Technical details can be found in
+  <ref id="porting" name="Porting applications">.
 
 <item> Gripe. This is done by e-mail *ONLY*! The people at Walnut Creek are
    in no way responsible for the functionality (or lack thereof) of the
@@ -112,7 +119,7 @@ going to the top of the tree and typing ``make fetch''.
    bug!
 
 <item> Forget it. This is the easiest for most - very few of the programs in
-   ports can be classed as `essential'!
+   ports can be classified as `essential'!
 
 <item> Grab the pre-compiled package from a ftp server. The ``master'' package
    collection is in:
@@ -121,7 +128,8 @@ going to the top of the tree and typing ``make fetch''.
    though check your local mirror first, please!
 
    These are more likely to work (on the whole) than trying to compile from
-   source, and a lot faster!
+   source, and a lot faster!  Use the <tt>pkg_add(1)</tt> or <tt>pkg_manage(1)</tt> program to 
+   install them to your system.
 </enum>
 
 <sect1><heading>I've ported a program and I want to make a port out of it. What now?</heading>
@@ -133,8 +141,8 @@ going to the top of the tree and typing ``make fetch''.
 
 <sect1><heading>I've got a good port, what now?</heading>
 
-<p>   Upload the fixed version to freefall.cdrom.com /pub/incoming or
-ftp.FreeBSD.org /pub/FreeBSD/incoming and send e-mail to
+<p>Upload the fixed version to <tt>ftp://freefall.cdrom.com/pub/incoming</tt> or
+<tt>ftp://ftp.FreeBSD.org/pub/FreeBSD/incoming</tt> and send e-mail to
 ports@FreeBSD.org with the filename and details.  Someone on the
 all-volunteer `ports committee' will (hopefully) look it over and
 commit it to the ports collection if they like the looks of it.
@@ -165,7 +173,7 @@ the weirdness can be explained properly in there (most of the current
 weirdness is due to the lack of assumptions about anything, which is
 necessary due to the generic nature of these files). Also check that
 you have an up-to-date copy, as the file can change from minute to
-minute.  A reasonably up-to-date copy can be found in:
+minute.  The most up-to-date copy can be found in:
 
   <url url="ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/src/share/mk">
 
