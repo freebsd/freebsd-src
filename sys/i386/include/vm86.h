@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.h,v 1.5 1998/03/23 19:52:57 jlemon Exp $
+ *	$Id: vm86.h,v 1.6 1998/06/08 09:47:35 bde Exp $
  */
 
 #ifndef _MACHINE_VM86_H_
@@ -74,10 +74,16 @@ struct vm86frame {
 #define vmf_al		eax.r_b.r_l
 #define vmf_ax		eax.r_w.r_x
 #define vmf_eax		eax.r_ex
+#define vmf_bh		ebx.r_b.r_h
+#define vmf_bl		ebx.r_b.r_l
 #define vmf_bx		ebx.r_w.r_x
 #define vmf_ebx		ebx.r_ex
+#define vmf_ch		ecx.r_b.r_h
+#define vmf_cl		ecx.r_b.r_l
 #define vmf_cx		ecx.r_w.r_x
 #define vmf_ecx		ecx.r_ex
+#define vmf_dh		edx.r_b.r_h
+#define vmf_dl		edx.r_b.r_l
 #define vmf_dx		edx.r_w.r_x
 #define vmf_edx		edx.r_ex
 #define vmf_si		esi.r_w.r_x
