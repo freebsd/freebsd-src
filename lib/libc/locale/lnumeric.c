@@ -56,7 +56,7 @@ __numeric_load_locale(const char *name) {
 	ret = __part_load_locale(name, &_numeric_using_locale,
 		numeric_locale_buf, "LC_NUMERIC", LCNUMERIC_SIZE,
 		(const char **)&_numeric_locale);
-	if (!ret)
+	if (!ret && _numeric_using_locale)
 		_numeric_locale.grouping =
 			__fix_locale_grouping_str(_numeric_locale.grouping);
 	return ret;
