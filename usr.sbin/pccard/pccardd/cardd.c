@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: cardd.c,v 1.31 1998/04/20 15:24:28 nate Exp $";
+	"$Id: cardd.c,v 1.32 1998/04/20 16:24:03 nate Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -279,11 +279,14 @@ assign_driver(struct card *cp)
 
 	for (conf = cp->config; conf; conf = conf->next)
 		if (conf->inuse == 0 && conf->driver->card == cp &&
-		    conf->driver->config == conf) {
+		    conf->driver->config == conf &&
+		    conf->driver->inuse == 0) {
 #ifdef	DEBUG
 			logmsg("Found existing driver (%s) for %s\n",
 			    conf->driver->name, cp->manuf);
 #endif
+			conf->driver->inuse = 1;
+			conf->inuse = 1;
 			return (conf);
 		}
 	/*
