@@ -1,4 +1,4 @@
-/*	$OpenBSD: pf_ioctl.c,v 1.81.2.1 2004/03/28 01:34:15 brad Exp $ */
+/*	$OpenBSD: pf_ioctl.c,v 1.81.2.2 2004/04/30 23:28:58 brad Exp $ */
 
 /*
  * Copyright (c) 2001 Daniel Hartmeier
@@ -73,7 +73,7 @@ void			 pfattach(int);
 int			 pfopen(dev_t, int, int, struct proc *);
 int			 pfclose(dev_t, int, int, struct proc *);
 struct pf_pool		*pf_get_pool(char *, char *, u_int32_t,
-			    u_int8_t, u_int8_t, u_int8_t, u_int8_t, u_int8_t);
+			    u_int8_t, u_int32_t, u_int8_t, u_int8_t, u_int8_t);
 int			 pf_get_ruleset_number(u_int8_t);
 void			 pf_init_ruleset(struct pf_ruleset *);
 void			 pf_mv_pool(struct pf_palist *, struct pf_palist *);
@@ -170,7 +170,7 @@ pfclose(dev_t dev, int flags, int fmt, struct proc *p)
 
 struct pf_pool *
 pf_get_pool(char *anchorname, char *rulesetname, u_int32_t ticket,
-    u_int8_t rule_action, u_int8_t rule_number, u_int8_t r_last,
+    u_int8_t rule_action, u_int32_t rule_number, u_int8_t r_last,
     u_int8_t active, u_int8_t check_ticket)
 {
 	struct pf_ruleset	*ruleset;
