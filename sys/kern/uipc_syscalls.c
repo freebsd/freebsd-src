@@ -1672,8 +1672,6 @@ sf_buf_free(void *addr, void *args)
 	struct sf_buf *sf;
 	struct vm_page *m;
 
-	GIANT_REQUIRED;
-
 	sf = dtosf(addr);
 	pmap_qremove((vm_offset_t)addr, 1);
 	m = sf->m;
