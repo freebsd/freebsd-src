@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.69 1998/01/12 15:38:51 kato Exp $
+ *	$Id: machdep.c,v 1.70 1998/01/24 03:15:37 kato Exp $
  */
 
 #include "apm.h"
@@ -315,7 +315,7 @@ again:
 		if( physmem > 1024)
 			nbuf += min((physmem - 1024) / 8, 2048);
 	}
-	nswbuf = max(min(nbuf/4, 128), 16);
+	nswbuf = max(min(nbuf/4, 64), 16);
 
 	valloc(swbuf, struct buf, nswbuf);
 	valloc(buf, struct buf, nbuf);
