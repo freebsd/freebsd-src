@@ -276,6 +276,7 @@ void	siginit(struct proc *p);
 void	signotify(struct thread *td);
 void	tdsignal(struct thread *td, int sig, sigtarget_t target);
 void	trapsignal(struct thread *td, int sig, u_long code);
+void	ptracestop(struct thread *td, int sig);
 
 /*
  * Machine-dependent functions:
