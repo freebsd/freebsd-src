@@ -241,6 +241,12 @@
       <para>The MTU feedback in IPv6 has been disabled when the sender writes
 	data that must be fragmented.</para>
 
+      <para>The Common Address Redundancy Protocol (CARP) has
+	been implemented.  CARP comes from OpenBSD and allows
+	multiple hosts to share an IP address, providing
+	high availability and load balancing.
+	For more information, see the &man.carp.4; manual page.</para>
+
       <para>The &man.ipfw.4; system can work with
 	<varname>debug.mpsafenet</varname>=<literal>1</literal>
 	(this tunable is <literal>1</literal> by default)
