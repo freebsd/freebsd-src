@@ -116,6 +116,12 @@ static struct aue_type aue_devs[] = {
 	    "ADMtek AN986 Pegasus 10/100BaseTX" },
 	{ USB_VENDOR_MELCO, USB_PRODUCT_MELCO_LUATX,
 	    "ADMtek AN986 Pegasus 10/100BaseTX" },
+	{ USB_VENDOR_DLINK, USB_PRODUCT_DLINK_DSB650TX,
+	    "ADMtek AN986 Pegasus 10/100BaseTX" },
+	{ USB_VENDOR_DLINK, USB_PRODUCT_DLINK_DSB650TX_PNA,
+	    "ADMtek AN986 Pegasus 10/100BaseTX" },
+	{ USB_VENDOR_SMC, USB_PRODUCT_SMC_2202USB,
+	    "ADMtek AN986 Pegasus 10/100BaseTX" },
 	{ 0, 0, NULL }
 };
 
