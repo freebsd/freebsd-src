@@ -1,4 +1,4 @@
-.\"	$Id: su.4,v 1.10 1997/02/22 13:24:44 peter Exp $
+.\"	$Id: su.4,v 1.5.2.3 1997/02/28 03:26:40 mpp Exp $
 .\" Copyright (c) 1996
 .\"	Julian Elischer <julian@freebsd.org>.  All rights reserved.
 .\"
@@ -31,7 +31,7 @@
 .Nm su
 .Nd scsi user-level driver
 .Sh SYNOPSIS
-.Cd "device-driver su"
+.Cd "pseudo-device su"
 .Sh DESCRIPTION
 The
 .Nm su
@@ -43,9 +43,8 @@ and the next three bits being TARGET. Remaining bits are the bus number.
 A scsi adapter must also be separately configured into the system
 before this driver makes sense.
 .Pp
-.Sh THE SU DEVICE IS NOT COMPLETED YET
 .Sh KERNEL CONFIGURATION
-There are no configuration parameters for the su option. It'e either there
+There are no configuration parameters for the su option. It's either there
 or it's not.
 
 .Pp
@@ -74,6 +73,7 @@ devices.
 .Xr cd 4 ,
 .Xr scsi 4 ,
 .Xr sd 4 ,
+.Xr ssc 4 ,
 .Xr st 4 ,
 .Xr uk 4
 .Sh HISTORY

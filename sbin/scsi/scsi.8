@@ -39,7 +39,7 @@
 .\" SUCH DAMAGE.
 .\" 
 .\"
-.\"	$Id: scsi.8,v 1.6.2.3 1997/08/24 08:51:37 joerg Exp $
+.\"	$Id: scsi.8,v 1.6.2.4 1997/09/14 19:48:25 jkh Exp $
 .\"
 .Dd October 11, 1993
 .Dt SCSI 8
@@ -85,6 +85,24 @@ The
 .Nm scsi
 program is used to send commands to a scsi device. It is also
 a sample usage of the user level SCSI commands.
+.Pp
+The
+.Fl f
+option must be specified, and
+.Ar device
+must be the name of a functional SCSI device.  If the device is a
+disk device, it should be the
+.Sq whole slice ,
+ie.
+.Pa /dev/sd0
+or
+.Pa /dev/sd0s1c .
+Use the
+.Fl p
+option with the
+.Sq super scsi
+device to reprobe a bus where there are currently no valid devices
+attached.
 .Pp
 The
 .Fl d
@@ -140,12 +158,14 @@ by your
 environment variable.  To store changes permanently, 
 edit page control 3 using the
 .Fl P
-flag.
+option.
 .Pp
 The
 .Fl p
-option can be used against the "super scsi" device
-.Pa /dev/scsi/super
+option can be used against the
+.Sq super scsi
+device
+.Pa /dev/ssc
 to probe all devices with a given SCSI lun on a given SCSI bus.
 The bus can be selected with the
 .Fl b
@@ -153,23 +173,11 @@ option and the default is 0.
 The lun can be selected with the
 .Fl l
 option and the default is 0.
-See
-.Xr scsi 4
-for a description of the "super scsi" device.
 .Pp
 The
 .Fl r
-option can be used in 
-.Tn FreeBSD 
-1.1 to reprobe a specific SCSI device at a given
-Bus, Target and Lun.
-This is not needed in
-.Fx 2.1 ,
-since opening a fixed SCSI device
-has the side effect of reprobing it, and probing with the bus with the
-.Fl p
-option should bring on line any newly found devices.
-See
+option can be used to reprobe all SCSI devices on the bus that the
+given SCSI device resides.  See
 .Xr scsi 4
 for a description of fixed scsi devices.
 .Pp
@@ -236,16 +244,15 @@ bytes of data input should be written to the standard output.
 To verify that the device type for the disk
 .Pa /dev/rsd0c
 is 0 (direct access device):
-.Bd -literal
-root# scsi -f /dev/rsd0c -c "12 0 0 0 40 0" -i 64 "*b3 b5"
-0
+.Bd -literal -offset indent
+root# scsi -f /dev/rsd0c -c "12 0 0 0 40 0" -i 64 "*b3 b5" 0
 .Ed
 .Pp
 To do an inquiry to
 .Pa /dev/rsd2c :
-.Bd -literal
-root# scsi -f /dev/rsd2c -c "12 0 0 0 v 0" 0x40 -i 64 "s8 z8 z16 z4"
-FUJITSU M2654S-512 010P
+.Bd -literal -offset indent
+root# scsi -f /dev/rsd2c -c "12 0 0 0 v 0" 0x40 -i 64 \e
+"s8 z8 z16 z4" FUJITSU M2654S-512 010P
 .Ed
 .Pp
 To edit mode page 1 (the Read-Write Error Recovery Page)
@@ -253,8 +260,13 @@ on
 .Pa /dev/rsd2c ,
 and store it permanently on the
 drive:
-.Bd -literal
+.Bd -literal -offset indent
 root# scsi -f /dev/rsd2c -m 1 -e -P 3
+.Ed
+.Pp
+To simply re-probe the first scsi bus:
+.Bd -literal -offset indent
+root# scsi -f /dev/ssc -p
 .Ed
 .Pp
 .Sh ENVIRONMENT
@@ -280,7 +292,8 @@ The
 variable determines the editor to use for the mode editor.
 .Sh SEE ALSO
 .Xr scsi 3 ,
-.Xr scsi 4
+.Xr scsi 4 ,
+.Xr ssc 4
 .Sh BUGS
 .Pp
 Some devices respond to an inquiry for all LUNS.  This will cause them

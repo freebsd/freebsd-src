@@ -74,6 +74,7 @@
 #	lpt*	stock lp
 #
 # SCSI devices (other than CD-ROM, tape and disk):
+#	ssc	The ``super scsi'' device
 #	uk*	"unknown" device (supports ioctl calls only)
 #	worm*	WORM driver
 #	pt*	Processor Type (HP scanner, as one example)
@@ -104,7 +105,7 @@
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #
-#	$Id: MAKEDEV,v 1.127.2.10 1997/04/15 18:07:06 jkh Exp $
+#	$Id: MAKEDEV,v 1.127.2.11 1997/09/09 10:47:51 markm Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -470,6 +471,11 @@ ccd*)
 		;;
 	esac
 	umask 77
+	;;
+
+ssc*)
+	rm -f ssc
+	mknod ssc c 49 0
 	;;
 
 uk*)
