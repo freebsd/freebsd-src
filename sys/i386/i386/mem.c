@@ -50,6 +50,7 @@
 #include <sys/buf.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
+#include <sys/filio.h>
 #include <sys/ioccom.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -463,9 +464,10 @@ random_ioctl(dev, cmd, data, flags, p)
 	/*
 	 * We're the random or urandom device.  The only ioctls are for
 	 * selecting and inspecting which interrupts are used in the muck
-	 * gathering business.
+	 * gathering business and the fcntl() stuff.
 	 */
-	if (cmd != MEM_SETIRQ && cmd != MEM_CLEARIRQ && cmd != MEM_RETURNIRQ)
+	if (cmd != MEM_SETIRQ && cmd != MEM_CLEARIRQ && cmd != MEM_RETURNIRQ
+		&& cmd != FIONBIO && cmd != FIOASYNC)
 		return (ENOTTY);
 
 	/*
@@ -488,6 +490,10 @@ random_ioctl(dev, cmd, data, flags, p)
 	interrupt_mask = 1 << intr;
 	sc = &random_softc[intr];
 	switch (cmd) {
+	/* Really handled in upper layer */
+	case FIOASYNC:
+	case FIONBIO:
+		break;
 	case MEM_SETIRQ:
 		if (interrupt_allowed & interrupt_mask)
 			break;
