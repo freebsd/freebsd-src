@@ -70,7 +70,6 @@ int	lineno;			/* Current input line */
 int	mark;			/* Last place we saw a head line */
 int	center;
 
-char	*malloc();		/* for lint . . . */
 char	*headnames[] = {"To", "Subject", "Cc", 0};
 
 /*
