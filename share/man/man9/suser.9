@@ -33,13 +33,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 15, 1996
+.Dd April 2, 2002
 .Dt SUSER 9
 .Os
 .Sh NAME
 .Nm suser ,
 .Nm suser_cred
-.Nd check if process has superuser privilege
+.Nd check if credentials have superuser privilege
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/systm.h
@@ -49,44 +49,46 @@
 .Fn suser_cred "struct ucred *cred" "int flag"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn suser
 and
-.Nm suser_cred
+.Fn suser_cred
 functions check if the credentials given include superuser powers.
 .Pp
 The
-.Nm
+.Fn suser
 function is the most common, and should be used unless special
 circumstances dictate otherwise.
 .Pp
 The
-.Nm suser_cred
+.Fn suser_cred
 function should be used when the credentials to be checked are
 not the thread's own, when there is no thread, or when superuser
 powers should be extended to imprisoned roots.
 .Pp
-By default a process does not command superuser powers if it has
+By default, a process does not command superuser powers if it has
 been imprisoned by the
 .Xr jail 2
 system call.
 There are cases however where this is appropriate, and this can
-be done by setting the
+be done by passing
 .Dv PRISON_ROOT
-bit in the flags argument to the
-.Nm suser_cred
+in the
+.Fa flag
+argument to the
+.Fn suser_cred
 function.
 It is important to review carefully in each case that
 this does not weaken the prison.
-Generally only where the action is protected by the
+Generally, only where the action is protected by
 .Xr chroot 2
-implicit in
+implicit in the
 .Xr jail 2
 call should such powers be granted.
 .Pp
 The
-.Nm
+.Fn suser
 and
-.Nm suser_cred
+.Fn suser_cred
 functions note the fact that superuser powers have been used in the
 process structure of the process specified.
 Because part of their function is to notice
@@ -95,16 +97,16 @@ the functions should only be called after other permission
 possibilities have been exhausted.
 .Sh RETURN VALUES
 The
-.Nm
+.Fn suser
 and
-.Nm suser_cred
+.Fn suser_cred
 functions return 0 if the user has superuser powers and
 .Er EPERM
 otherwise.
 This is the
 .Em reverse logic
 of some other implementations of
-.Nm
+.Fn suser
 in which a TRUE response indicates superuser powers.
 .Sh SEE ALSO
 .Xr chroot 2 ,
