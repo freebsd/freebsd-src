@@ -4,7 +4,6 @@
    source tree so it can be configured appropriately without using
    the GNU configure/build mechanism. */
 
-#undef  FREEBSD_NATIVE
 #define FREEBSD_NATIVE 1
 
 #undef SYSTEM_INCLUDE_DIR		/* We don't need one for now. */
@@ -29,17 +28,17 @@
    libraries: MD_EXEC_PREFIX:MD_STARTFILE_PREFIX:STANDARD_STARTFILE_PREFIX
 */
 #undef  TOOLDIR_BASE_PREFIX		/* Old??  This is not documented. */
-#undef  MD_EXEC_PREFIX			/* We don't want one. */
 #define STANDARD_EXEC_PREFIX		PREFIX"/libexec/"
+#undef  MD_EXEC_PREFIX			/* We don't want one. */
 
 /* Under FreeBSD, the normal location of the various *crt*.o files is the
    /usr/lib directory.  */
 
-#undef  MD_STARTFILE_PREFIX		/* We don't need one for now. */
 #define STANDARD_STARTFILE_PREFIX	PREFIX"/lib/"
 #ifdef CROSS_COMPILE
 #define CROSS_STARTFILE_PREFIX		PREFIX"/lib/"
 #endif
+#undef  MD_STARTFILE_PREFIX		/* We don't need one for now. */
 
 /* For the native system compiler, we actually build libgcc in a profiled
    version.  So we should use it with -pg.  */
