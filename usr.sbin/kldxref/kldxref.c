@@ -350,7 +350,7 @@ usage(void)
 {
 
 	fprintf(stderr, "%s\n",
-	    "usage: kldxref [-Rdv] [-f hintfile] path [path..]"
+	    "usage: kldxref [-Rdv] [-f hintsfile] path ..."
 	);
 	exit(1);
 }
