@@ -8,7 +8,7 @@ PROG=	collect2
 SRCS=	collect2.c cplus-dem.c tlink.c underscore.c
 BINDIR=	/usr/libexec
 NOMAN=
-NOSHARED?=yes
+NOSHARED=yes
 
 DPADD+=	${LIBCC_INT}
 LDADD+=	${LIBCC_INT}
