@@ -116,5 +116,5 @@ typedef struct {
 	outw(MMCR(WLSOFTC(unit)->base), \
 	     (u_short)(((u_short)(val) << 8) | ((cmd) << 1) | 1))
 
-#endif	_IF_WL_H
+#endif	/* _IF_WL_H */
 
