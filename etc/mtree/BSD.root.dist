@@ -59,6 +59,10 @@
         ssl
         ..
     ..
+    lib
+    ..
+    libexec
+    ..
     mnt
     ..
     proc            mode=0555
