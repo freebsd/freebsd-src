@@ -50,16 +50,20 @@ static const char rcsid[] =
  "$FreeBSD$";
 #endif /* not lint */
 
-#include <stdio.h>
+#include <sys/time.h>
+
 #include <ctype.h>
+#include <fcntl.h>
 #include <locale.h>
+#include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
 
 #ifdef SPEAKER
 #include <machine/speaker.h>
-#include <fcntl.h>
 #endif
 
 struct morsetab {
@@ -194,19 +198,34 @@ static const struct morsetab koi8rtab[] = {
 };
 
 void            show(const char *), play(const char *), morse(char);
+void		ttyout(const char *);
+void		sighandler(int);
 
-static int      pflag, sflag;
+#define GETOPTOPTS "d:ef:sw:"
+#define USAGE \
+"usage: morse [-s] [-e] [-d device] [-w speed] [-f frequency] [string ...]\n"
+
+static int      pflag, sflag, eflag;
 static int      wpm = 20;	/* words per minute */
 #define FREQUENCY 600
 static int      freq = FREQUENCY;
+static char	*device;	/* for tty-controlled generator */
 
-#ifdef SPEAKER
 #define DASH_LEN 3
 #define CHAR_SPACE 3
 #define WORD_SPACE (7 - CHAR_SPACE - 1)
 static float    dot_clock;
-int             spkr;
+int             spkr, line;
+struct termios	otty, ntty;
+int		olflags;
+
+#ifdef SPEAKER
 tone_t          sound;
+#undef GETOPTOPTS
+#define GETOPTOPTS "d:ef:psw:"
+#undef USAGE
+#define USAGE \
+"usage: morse [-s] [-p] [-e] [-d device] [-w speed] [-f frequency] [string ...]\n"
 #endif
 
 static const struct morsetab *hightab = iso8859tab;
@@ -214,17 +233,26 @@ static const struct morsetab *hightab = iso8859tab;
 int
 main(int argc, char **argv)
 {
-	int    ch;
+	int    ch, lflags;
 	char  *p;
 
-	while ((ch = getopt(argc, argv, "spw:f:")) != -1)
+	while ((ch = getopt(argc, argv, GETOPTOPTS)) != -1)
 		switch ((char) ch) {
+		case 'd':
+			device = optarg;
+			break;
+		case 'e':
+			eflag = 1;
+			setvbuf(stdout, 0, _IONBF, 0);
+			break;
 		case 'f':
 			freq = atoi(optarg);
 			break;
+#ifdef SPEAKER
 		case 'p':
 			pflag = 1;
 			break;
+#endif
 		case 's':
 			sflag = 1;
 			break;
@@ -233,18 +261,18 @@ main(int argc, char **argv)
 			break;
 		case '?':
 		default:
-			fputs("usage: morse [-s] [-p] [-w speed] [-f frequency] [string ...]\n", stderr);
+			fputs(USAGE, stderr);
 			exit(1);
 		}
-	if (pflag && sflag) {
-		fputs("morse: only one of -p and -s allowed\n", stderr);
+	if ((pflag || device) && sflag) {
+		fputs("morse: only one of -p, -d and -s allowed\n", stderr);
 		exit(1);
 	}
-	if (pflag && ((wpm < 1) || (wpm > 60))) {
+	if ((pflag || device) && ((wpm < 1) || (wpm > 60))) {
 		fputs("morse: insane speed\n", stderr);
 		exit(1);
 	}
-	if (pflag && (freq == 0))
+	if ((pflag || device) && (freq == 0))
 		freq = FREQUENCY;
 
 #ifdef SPEAKER
@@ -253,13 +281,40 @@ main(int argc, char **argv)
 			perror(SPEAKER);
 			exit(1);
 		}
+	} else
+#endif
+	if (device) {
+		if ((line = open(device, O_WRONLY | O_NONBLOCK)) == -1) {
+			perror("open tty line");
+			exit(1);
+		}
+		if (tcgetattr(line, &otty) == -1) {
+			perror("tcgetattr() failed");
+			exit(1);
+		}
+		ntty = otty;
+		ntty.c_cflag |= CLOCAL;
+		tcsetattr(line, TCSANOW, &ntty);
+		lflags = fcntl(line, F_GETFL);
+		lflags &= ~O_NONBLOCK;
+		fcntl(line, F_SETFL, &lflags);
+		ioctl(line, TIOCMGET, &lflags);
+		lflags &= ~TIOCM_RTS;
+		olflags = lflags;
+		ioctl(line, TIOCMSET, &lflags);
+		(void)signal(SIGHUP, sighandler);
+		(void)signal(SIGINT, sighandler);
+		(void)signal(SIGQUIT, sighandler);
+		(void)signal(SIGTERM, sighandler);
+	}
+	if (pflag || device) {
 		dot_clock = wpm / 2.4;		/* dots/sec */
 		dot_clock = 1 / dot_clock;	/* duration of a dot */
 		dot_clock = dot_clock / 2;	/* dot_clock runs at twice */
 						/* the dot rate */
 		dot_clock = dot_clock * 100;	/* scale for ioctl */
 	}
-#endif
+
 	argc -= optind;
 	argv += optind;
 
@@ -275,14 +330,23 @@ main(int argc, char **argv)
 	if (*argv) {
 		do {
 			for (p = *argv; *p; ++p) {
+				if (eflag)
+					putchar(*p);
 				morse(*p);
 			}
+			if (eflag)
+				putchar(' ');
 			morse(' ');
 		} while (*++argv);
 	} else {
-		while ((ch = getchar()) != EOF)
+		while ((ch = getchar()) != EOF) {
+			if (eflag)
+				putchar(ch);
 			morse(ch);
+		}
 	}
+	if (device)
+		tcsetattr(line, TCSANOW, &otty);
 	exit(0);
 }
 
@@ -299,6 +363,9 @@ morse(char c)
 		if (pflag) {
 			play(" ");
 			return;
+		} else if (device) {
+			ttyout(" ");
+			return;
 		} else {
 			show("");
 			return;
@@ -310,6 +377,8 @@ morse(char c)
 		if (m->inchar == c) {
 			if (pflag) {
 				play(m->morse);
+			} else if (device) {
+				ttyout(m->morse);
 			} else
 				show(m->morse);
 		}
@@ -367,4 +436,57 @@ play(const char *s)
 	sound.duration = dot_clock * CHAR_SPACE;
 	ioctl(spkr, SPKRTONE, &sound);
 #endif
+}
+
+void
+ttyout(const char *s)
+{
+	const char *c;
+	int duration, on, lflags;
+
+	for (c = s; *c != '\0'; c++) {
+		switch (*c) {
+		case '.':
+			on = 1;
+			duration = dot_clock;
+			break;
+		case '-':
+			on = 1;
+			duration = dot_clock * DASH_LEN;
+			break;
+		case ' ':
+			on = 0;
+			duration = dot_clock * WORD_SPACE;
+			break;
+		default:
+			on = 0;
+			duration = 0;
+		}
+		if (on) {
+			ioctl(line, TIOCMGET, &lflags);
+			lflags |= TIOCM_RTS;
+			ioctl(line, TIOCMSET, &lflags);
+		}
+		duration *= 10000;
+		if (duration)
+			usleep(duration);
+		ioctl(line, TIOCMGET, &lflags);
+		lflags &= ~TIOCM_RTS;
+		ioctl(line, TIOCMSET, &lflags);
+		duration = dot_clock * 10000;
+		usleep(duration);
+	}
+	duration = dot_clock * CHAR_SPACE * 10000;
+	usleep(duration);
+}
+
+void
+sighandler(int signo)
+{
+
+	ioctl(line, TIOCMSET, &olflags);
+	tcsetattr(line, TCSANOW, &otty);
+
+	signal(signo, SIG_DFL);
+	(void)kill(getpid(), signo);
 }
