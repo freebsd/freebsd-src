@@ -66,6 +66,10 @@ __FBSDID("$FreeBSD$");
 
 #include <rpc/types.h>
 #include <rpc/xdr.h>
+#include <rpc/auth.h>
+#include <rpc/svc.h>
+#include <rpc/clnt.h>
+#include <sys/stddef.h>
 #include "un-namespace.h"
 
 static bool_t	xdrrec_getlong(XDR *, long *);
@@ -91,7 +95,7 @@ static const struct  xdr_ops xdrrec_ops = {
 
 /*
  * A record is composed of one or more record fragments.
- * A record fragment is a two-byte header followed by zero to
+ * A record fragment is a four-byte header followed by zero to
  * 2**32-1 bytes.  The header is treated as a long unsigned and is
  * encode/decoded to the network via htonl/ntohl.  The low order 31 bits
  * are a byte count of the fragment.  The highest order bit is a boolean:
@@ -106,7 +110,6 @@ static const struct  xdr_ops xdrrec_ops = {
 
 typedef struct rec_strm {
 	char *tcp_handle;
-	char *the_buffer;
 	/*
 	 * out-goung bits
 	 */
@@ -128,6 +131,15 @@ typedef struct rec_strm {
 	bool_t last_frag;
 	u_int sendsize;
 	u_int recvsize;
+
+	bool_t nonblock;
+	bool_t in_haveheader;
+	u_int32_t in_header;
+	char *in_hdrp;
+	int in_hdrlen;
+	int in_reclen;
+	int in_received;
+	int in_maxrec;
 } RECSTREAM;
 
 static u_int	fix_buf_size(u_int);
@@ -136,6 +148,7 @@ static bool_t	fill_input_buf(RECSTREAM *);
 static bool_t	get_input_bytes(RECSTREAM *, char *, int);
 static bool_t	set_input_fragment(RECSTREAM *);
 static bool_t	skip_input_bytes(RECSTREAM *, long);
+static bool_t	realloc_stream(RECSTREAM *, int);
 
 
 /*
@@ -168,20 +181,21 @@ xdrrec_create(xdrs, sendsize, recvsize, tcp_handle, readit, writeit)
 		 */
 		return;
 	}
-	/*
-	 * adjust sizes and allocate buffer quad byte aligned
-	 */
 	rstrm->sendsize = sendsize = fix_buf_size(sendsize);
-	rstrm->recvsize = recvsize = fix_buf_size(recvsize);
-	rstrm->the_buffer = mem_alloc(sendsize + recvsize + BYTES_PER_XDR_UNIT);
-	if (rstrm->the_buffer == NULL) {
+	rstrm->out_base = mem_alloc(rstrm->sendsize);
+	if (rstrm->out_base == NULL) {
 		warnx("xdrrec_create: out of memory");
+		mem_free(rstrm, sizeof(RECSTREAM));
 		return;
 	}
-	for (rstrm->out_base = rstrm->the_buffer;
-		(u_long)rstrm->out_base % BYTES_PER_XDR_UNIT != 0;
-		rstrm->out_base++);
-	rstrm->in_base = rstrm->out_base + sendsize;
+	rstrm->recvsize = recvsize = fix_buf_size(recvsize);
+	rstrm->in_base = mem_alloc(recvsize);
+	if (rstrm->in_base == NULL) {
+		warnx("xdrrec_create: out of memory");
+		mem_free(rstrm->out_base, sendsize);
+		mem_free(rstrm, sizeof(RECSTREAM));
+		return;
+	}
 	/*
 	 * now the rest ...
 	 */
@@ -200,6 +214,12 @@ xdrrec_create(xdrs, sendsize, recvsize, tcp_handle, readit, writeit)
 	rstrm->in_finger = (rstrm->in_boundry += recvsize);
 	rstrm->fbtbc = 0;
 	rstrm->last_frag = TRUE;
+	rstrm->in_haveheader = FALSE;
+	rstrm->in_hdrlen = 0;
+	rstrm->in_hdrp = (char *)(void *)&rstrm->in_header;
+	rstrm->nonblock = FALSE;
+	rstrm->in_reclen = 0;
+	rstrm->in_received = 0;
 }
 
 
@@ -413,8 +433,8 @@ xdrrec_destroy(xdrs)
 {
 	RECSTREAM *rstrm = (RECSTREAM *)xdrs->x_private;
 
-	mem_free(rstrm->the_buffer,
-		rstrm->sendsize + rstrm->recvsize + BYTES_PER_XDR_UNIT);
+	mem_free(rstrm->out_base, rstrm->sendsize);
+	mem_free(rstrm->in_base, rstrm->recvsize);
 	mem_free(rstrm, sizeof(RECSTREAM));
 }
 
@@ -432,6 +452,20 @@ xdrrec_skiprecord(xdrs)
 	XDR *xdrs;
 {
 	RECSTREAM *rstrm = (RECSTREAM *)(xdrs->x_private);
+	enum xprt_stat xstat;
+
+	if (rstrm->nonblock) {
+		if (__xdrrec_getrec(xdrs, &xstat, FALSE)) {
+			rstrm->fbtbc = 0;
+			return TRUE;
+		}
+		if (rstrm->in_finger == rstrm->in_boundry &&
+		    xstat == XPRT_MOREREQS) {
+			rstrm->fbtbc = 0;
+			return TRUE;
+		}
+		return FALSE;
+	}
 
 	while (rstrm->fbtbc > 0 || (! rstrm->last_frag)) {
 		if (! skip_input_bytes(rstrm, rstrm->fbtbc))
@@ -454,6 +488,15 @@ xdrrec_eof(xdrs)
 	XDR *xdrs;
 {
 	RECSTREAM *rstrm = (RECSTREAM *)(xdrs->x_private);
+	enum xprt_stat xstat;
+
+	if (rstrm->nonblock) {
+		if (__xdrrec_getrec(xdrs, &xstat, FALSE))
+			return FALSE;
+		if (!rstrm->in_haveheader && xstat == XPRT_IDLE)
+			return TRUE;
+		return FALSE;
+	}
 
 	while (rstrm->fbtbc > 0 || (! rstrm->last_frag)) {
 		if (! skip_input_bytes(rstrm, rstrm->fbtbc))
@@ -495,6 +538,99 @@ xdrrec_endofrecord(xdrs, sendnow)
 	return (TRUE);
 }
 
+/*
+ * Fill the stream buffer with a record for a non-blocking connection.
+ * Return true if a record is available in the buffer, false if not.
+ */
+bool_t
+__xdrrec_getrec(xdrs, statp, expectdata)
+	XDR *xdrs;
+	enum xprt_stat *statp;
+	bool_t expectdata;
+{
+	RECSTREAM *rstrm = (RECSTREAM *)(xdrs->x_private);
+	ssize_t n;
+	int fraglen;
+
+	if (!rstrm->in_haveheader) {
+		n = rstrm->readit(rstrm->tcp_handle, rstrm->in_hdrp,
+		    (int)sizeof (rstrm->in_header) - rstrm->in_hdrlen);
+		if (n == 0) {
+			*statp = expectdata ? XPRT_DIED : XPRT_IDLE;
+			return FALSE;
+		}
+		if (n < 0) {
+			*statp = XPRT_DIED;
+			return FALSE;
+		}
+		rstrm->in_hdrp += n;
+		rstrm->in_hdrlen += n;
+		if (rstrm->in_hdrlen < sizeof (rstrm->in_header)) {
+			*statp = XPRT_MOREREQS;
+			return FALSE;
+		}
+		rstrm->in_header = ntohl(rstrm->in_header);
+		fraglen = (int)(rstrm->in_header & ~LAST_FRAG);
+		if (fraglen == 0 || fraglen > rstrm->in_maxrec ||
+		    (rstrm->in_reclen + fraglen) > rstrm->in_maxrec) {
+			*statp = XPRT_DIED;
+			return FALSE;
+		}
+		rstrm->in_reclen += fraglen;
+		if (rstrm->in_reclen > rstrm->recvsize)
+			realloc_stream(rstrm, rstrm->in_reclen);
+		if (rstrm->in_header & LAST_FRAG) {
+			rstrm->in_header &= ~LAST_FRAG;
+			rstrm->last_frag = TRUE;
+		}
+	}
+
+	n =  rstrm->readit(rstrm->tcp_handle,
+	    rstrm->in_base + rstrm->in_received,
+	    (rstrm->in_reclen - rstrm->in_received));
+
+	if (n < 0) {
+		*statp = XPRT_DIED;
+		return FALSE;
+	}
+
+	if (n == 0) {
+		*statp = expectdata ? XPRT_DIED : XPRT_IDLE;
+		return FALSE;
+	}
+
+	rstrm->in_received += n;
+
+	if (rstrm->in_received == rstrm->in_reclen) {
+		rstrm->in_haveheader = FALSE;
+		rstrm->in_hdrp = (char *)(void *)&rstrm->in_header;
+		rstrm->in_hdrlen = 0;
+		if (rstrm->last_frag) {
+			rstrm->fbtbc = rstrm->in_reclen;
+			rstrm->in_boundry = rstrm->in_base + rstrm->in_reclen;
+			rstrm->in_finger = rstrm->in_base;
+			*statp = XPRT_MOREREQS;
+			return TRUE;
+		}
+	}
+
+	*statp = XPRT_MOREREQS;
+	return FALSE;
+}
+
+bool_t
+__xdrrec_setnonblock(xdrs, maxrec)
+	XDR *xdrs;
+	int maxrec;
+{
+	RECSTREAM *rstrm = (RECSTREAM *)(xdrs->x_private);
+
+	rstrm->nonblock = TRUE;
+	if (maxrec == 0)
+		maxrec = rstrm->recvsize;
+	rstrm->in_maxrec = maxrec;
+	return TRUE;
+}
 
 /*
  * Internal useful routines
@@ -526,6 +662,9 @@ fill_input_buf(rstrm)
 	char *where;
 	u_int32_t i;
 	int len;
+
+	if (rstrm->nonblock)
+		return FALSE;
 
 	where = rstrm->in_base;
 	i = (u_int32_t)((u_long)rstrm->in_boundry % BYTES_PER_XDR_UNIT);
@@ -618,4 +757,30 @@ fix_buf_size(s)
 	if (s < 100)
 		s = 4000;
 	return (RNDUP(s));
+}
+
+/*
+ * Reallocate the input buffer for a non-block stream.
+ */
+static bool_t
+realloc_stream(rstrm, size)
+	RECSTREAM *rstrm;
+	int size;
+{
+	ptrdiff_t diff;
+	char *buf;
+
+	if (size > rstrm->recvsize) {
+		buf = realloc(rstrm->in_base, (size_t)size);
+		if (buf == NULL)
+			return FALSE;
+		diff = buf - rstrm->in_base;
+		rstrm->in_finger += diff;
+		rstrm->in_base = buf;
+		rstrm->in_boundry = buf + size;
+		rstrm->recvsize = size;
+		rstrm->in_size = size;
+	}
+
+	return TRUE;
 }
