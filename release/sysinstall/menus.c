@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.95 1996/11/09 16:47:05 joerg Exp $
+ * $Id: menus.c,v 1.96 1996/11/09 18:12:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -784,7 +784,7 @@ DMenu MenuXF86SelectCore = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_HTML },
       { "lib",		"Data files needed at runtime [750K]",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_LIB },
-      { "lk90",		"Server link kit for PC98 machines [8.8M]",
+      { "lk98",		"Server link kit for PC98 machines [8.8M]",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_LKIT98 },
       { "lkit",		"Server link kit for all other machines [8.8M]",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_LKIT },
@@ -844,8 +844,8 @@ DMenu MenuXF86SelectServer = {
     "X Server selection.",
     "Please check off the types of X servers you wish to install.\n"
     "If you are unsure as to which server will work for your graphics card,\n"
-    "it is recommended that try the SVGA or VGA16 servers (the VGA16 and\n"
-    "Mono servers are particularly well-suited to most LCD displays).",
+    "it is recommended that try the SVGA or VGA16 servers or, for PC98\n"
+    "machines, the 9EGC or 9840 servers.",
     "Press F1 to read the XFree86 release notes for FreeBSD",
     "XF86",
     { { "SVGA",		"Standard VGA or Super VGA card [2.8M]",
