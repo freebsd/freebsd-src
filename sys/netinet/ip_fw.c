@@ -353,6 +353,73 @@ ipopts_match(struct ip *ip, struct ip_fw *f)
 		return 0;
 }
 
+static int
+tcpopts_match(struct tcphdr *tcp, struct ip_fw *f)
+{
+	register u_char *cp;
+	int opt, optlen, cnt;
+	u_char	opts, nopts, nopts_sve;
+
+	cp = (u_char *)(tcp + 1);
+	cnt = (tcp->th_off << 2) - sizeof (struct tcphdr);
+	opts = f->fw_tcpopt;
+	nopts = nopts_sve = f->fw_tcpnopt;
+
+	for (; cnt > 0; cnt -= optlen, cp += optlen) {
+		opt = cp[0];
+		if (opt == TCPOPT_EOL)
+			break;
+		if (opt == TCPOPT_NOP)
+			optlen = 1;
+		else {
+			optlen = cp[1];
+			if (optlen <= 0)
+				break;
+		}
+
+
+		switch (opt) {
+
+		default:
+			break;
+
+		case TCPOPT_MAXSEG:
+			opts &= ~IP_FW_TCPOPT_MSS;
+			nopts &= ~IP_FW_TCPOPT_MSS;
+			break;
+
+		case TCPOPT_WINDOW:
+			opts &= ~IP_FW_TCPOPT_WINDOW;
+			nopts &= ~IP_FW_TCPOPT_WINDOW;
+			break;
+
+		case TCPOPT_SACK_PERMITTED:
+		case TCPOPT_SACK:
+			opts &= ~IP_FW_TCPOPT_SACK;
+			nopts &= ~IP_FW_TCPOPT_SACK;
+			break;
+
+		case TCPOPT_TIMESTAMP:
+			opts &= ~IP_FW_TCPOPT_TS;
+			nopts &= ~IP_FW_TCPOPT_TS;
+			break;
+
+		case TCPOPT_CC:
+		case TCPOPT_CCNEW:
+		case TCPOPT_CCECHO:
+			opts &= ~IP_FW_TCPOPT_CC;
+			nopts &= ~IP_FW_TCPOPT_CC;
+			break;
+		}
+		if (opts == nopts)
+			break;
+	}
+	if (opts == 0 && nopts == nopts_sve)
+		return 1;
+	else
+		return 0;
+}
+
 static __inline int
 iface_match(struct ifnet *ifp, union ip_fw_if *ifu, int byname)
 {
@@ -1143,6 +1210,9 @@ again:
 				break;
 			}
 			tcp = (struct tcphdr *) ((u_int32_t *)ip + ip->ip_hl);
+
+			if (f->fw_tcpopt != f->fw_tcpnopt && !tcpopts_match(tcp, f))
+				continue;
 			if (f->fw_tcpf != f->fw_tcpnf && !tcpflg_match(tcp, f))
 				continue;
 			goto check_ports;
