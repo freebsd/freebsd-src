@@ -4821,7 +4821,7 @@ isp_setdfltparm(struct ispsoftc *isp, int channel)
 		sdp->isp_devparam[tgt].goal_offset =
 		    sdp->isp_devparam[tgt].nvrm_offset = off;
 		sdp->isp_devparam[tgt].goal_period =
-		    sdp->isp_devparam[tgt].goal_period = per;
+		    sdp->isp_devparam[tgt].nvrm_period = per;
 
 		isp_prt(isp, ISP_LOGDEBUG0,
 		    "Generated Defaults bus%d tgt%d flags %x off %x per %x",
