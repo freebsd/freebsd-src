@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:26  rpd
- *	$Id: boot2.S,v 1.5 1994/08/30 01:38:03 bde Exp $
+ *	$Id: boot2.S,v 1.6 1995/01/25 21:37:40 bde Exp $
  */
 
 #include	"asm.h"
@@ -47,6 +47,7 @@
 
 /*
  * boot2() -- second stage boot
+ * SP points to default string if found
  */
 
 ENTRY(boot2)
@@ -57,6 +58,9 @@ ENTRY(boot2)
 	mov	%ax, %es
 	data32
 	shll	$4, %eax
+	addr32
+	data32
+	movl	%esp, EXT(dflt_name)
 
 	/* fix up GDT entries for bootstrap */
 #define FIXUP(gdt_index) \

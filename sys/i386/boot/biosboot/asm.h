@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.7  92/02/29  15:33:41  rpd
- *	$Id: asm.h,v 1.3 1993/10/16 19:11:29 rgrimes Exp $
+ *	$Id: asm.h,v 1.4 1995/05/30 07:58:25 rgrimes Exp $
  */
 
 #define S_ARG0	 4(%esp)
@@ -142,3 +142,10 @@
 
 #define	Entry(x)	.globl EXT(x); .align ALIGN; LEXT(x)
 #define	DATA(x)		.globl EXT(x); .align ALIGN; LEXT(x)
+
+/* note, this calls the 'message' in boot1 */
+#define DEBUGMSG(msg) 		\
+	data32			;\
+	mov	$(msg), %esi	;\
+	data32			;\
+	call	EXT(message)
