@@ -106,6 +106,7 @@ struct buf {
 	struct lock b_lock;		/* Buffer lock */
 	int	b_error;		/* Errno value. */
 	long	b_bufsize;		/* Allocated buffer size. */
+	long	b_runningbufspace;	/* when I/O is running, pipelining */
 	long	b_bcount;		/* Valid bytes in buffer. */
 	long	b_resid;		/* Remaining I/O. */
 	dev_t	b_dev;			/* Device associated with buffer. */
@@ -450,6 +451,7 @@ bufq_first(struct buf_queue_head *head)
 
 #ifdef _KERNEL
 extern int	nbuf;			/* The number of buffer headers */
+extern int	runningbufspace;
 extern int      buf_maxio;              /* nominal maximum I/O for buffer */
 extern struct	buf *buf;		/* The buffer headers. */
 extern char	*buffers;		/* The buffer contents. */
