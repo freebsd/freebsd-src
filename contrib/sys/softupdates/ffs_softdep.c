@@ -53,7 +53,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ffs_softdep.c	9.38 (McKusick) 5/13/99
- *	$Id: ffs_softdep.c,v 1.27 1999/05/09 19:39:54 mckusick Exp $
+ *	$Id: ffs_softdep.c,v 1.28 1999/05/14 01:26:46 mckusick Exp $
  */
 
 /*
@@ -261,11 +261,12 @@ acquire_lock(lk)
 	struct lockit *lk;
 {
 
-	if (lk->lkt_held != -1)
+	if (lk->lkt_held != -1) {
 		if (lk->lkt_held == CURPROC->p_pid)
 			panic("softdep_lock: locking against myself");
 		else
 			panic("softdep_lock: lock held by %d", lk->lkt_held);
+	}
 	lk->lkt_spl = splbio();
 	lk->lkt_held = CURPROC->p_pid;
 	lockcnt++;
@@ -287,12 +288,13 @@ acquire_lock_interlocked(lk)
 	struct lockit *lk;
 {
 
-	if (lk->lkt_held != -1)
+	if (lk->lkt_held != -1) {
 		if (lk->lkt_held == CURPROC->p_pid)
 			panic("softdep_lock_interlocked: locking against self");
 		else
 			panic("softdep_lock_interlocked: lock held by %d",
 			    lk->lkt_held);
+	}
 	lk->lkt_held = CURPROC->p_pid;
 	lockcnt++;
 }
@@ -1719,7 +1721,8 @@ deallocate_dependencies(bp, inodedep)
 			 * visible, so they can simply be tossed.
 			 */
 			for (i = 0; i < DAHASHSZ; i++)
-				while (dap=LIST_FIRST(&pagedep->pd_diraddhd[i]))
+				while ((dap =
+				    LIST_FIRST(&pagedep->pd_diraddhd[i])))
 					free_diradd(dap);
 			while ((dap = LIST_FIRST(&pagedep->pd_pendinghd)) != 0)
 				free_diradd(dap);
@@ -2934,20 +2937,22 @@ softdep_disk_write_complete(bp)
 				newblk->nb_bmsafemap = NULL;
 				LIST_REMOVE(newblk, nb_deps);
 			}
-			while (adp = LIST_FIRST(&bmsafemap->sm_allocdirecthd)) {
+			while ((adp =
+			   LIST_FIRST(&bmsafemap->sm_allocdirecthd))) {
 				adp->ad_state |= DEPCOMPLETE;
 				adp->ad_buf = NULL;
 				LIST_REMOVE(adp, ad_deps);
 				handle_allocdirect_partdone(adp);
 			}
-			while (aip = LIST_FIRST(&bmsafemap->sm_allocindirhd)) {
+			while ((aip =
+			    LIST_FIRST(&bmsafemap->sm_allocindirhd))) {
 				aip->ai_state |= DEPCOMPLETE;
 				aip->ai_buf = NULL;
 				LIST_REMOVE(aip, ai_deps);
 				handle_allocindir_partdone(aip);
 			}
 			while ((inodedep =
-			       LIST_FIRST(&bmsafemap->sm_inodedephd)) != NULL) {
+			     LIST_FIRST(&bmsafemap->sm_inodedephd)) != NULL) {
 				inodedep->id_state |= DEPCOMPLETE;
 				LIST_REMOVE(inodedep, id_deps);
 				inodedep->id_buf = NULL;
@@ -3857,8 +3862,9 @@ loop:
 			for (i = 0; i < DAHASHSZ; i++) {
 				if (LIST_FIRST(&pagedep->pd_diraddhd[i]) == 0)
 					continue;
-				if (error = flush_pagedep_deps(vp,
-				   pagedep->pd_mnt, &pagedep->pd_diraddhd[i])) {
+				if ((error =
+				    flush_pagedep_deps(vp, pagedep->pd_mnt,
+						&pagedep->pd_diraddhd[i]))) {
 					FREE_LOCK(&lk);
 					bawrite(bp);
 					return (error);
@@ -4152,7 +4158,8 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 			 * level in the filesystem. Instead, we push the blocks
 			 * and wait for them to clear.
 			 */
-			if (error = VOP_FSYNC(vp, p->p_ucred, MNT_NOWAIT, p)) {
+			if ((error =
+			    VOP_FSYNC(vp, p->p_ucred, MNT_NOWAIT, p))) {
 				vput(vp);
 				break;
 			}
