@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: init_smp.c,v 1.4 1997/05/03 18:24:25 fsmp Exp $
+ * $Id: init_smp.c,v 1.5 1997/05/04 02:08:09 peter Exp $
  */
 
 #include "opt_smp.h"
@@ -203,8 +203,7 @@ void *dummy;
 		printf("SMP: All idle procs online.\n");
 
 #if defined(SMP_AUTOSTART)
-#error WARNING: this code is broken, remove this line at your own risk!
-		printf("SMP: Starting 1st AP!\n");
+		printf("SMP: *** AUTO *** starting 1st AP!\n");
 		smp_cpus = 1;
 		smp_active = mp_ncpus;	/* XXX */
 		boot_unlock();
