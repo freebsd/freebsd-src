@@ -176,6 +176,47 @@ malloc_last_fail(void)
 }
 
 /*
+ * Add this to the informational malloc_type bucket.
+ */
+static void
+malloc_type_zone_allocated(struct malloc_type *ksp, unsigned long size,
+    int zindx)
+{
+	mtx_lock(&ksp->ks_mtx);
+	ksp->ks_calls++;
+	if (zindx != -1)
+		ksp->ks_size |= 1 << zindx;
+	if (size != 0) {
+		ksp->ks_memuse += size;
+		ksp->ks_inuse++;
+		if (ksp->ks_memuse > ksp->ks_maxused)
+			ksp->ks_maxused = ksp->ks_memuse;
+	}
+	mtx_unlock(&ksp->ks_mtx);
+}
+
+void
+malloc_type_allocated(struct malloc_type *ksp, unsigned long size)
+{
+	malloc_type_zone_allocated(ksp, size, -1);
+}
+
+/*
+ * Remove this allocation from the informational malloc_type bucket.
+ */
+void
+malloc_type_freed(struct malloc_type *ksp, unsigned long size)
+{
+	mtx_lock(&ksp->ks_mtx);
+	KASSERT(size <= ksp->ks_memuse,
+		("malloc(9)/free(9) confusion.\n%s",
+		 "Probably freeing with wrong type, but maybe not here."));
+	ksp->ks_memuse -= size;
+	ksp->ks_inuse--;
+	mtx_unlock(&ksp->ks_mtx);
+}
+
+/*
  *	malloc:
  *
  *	Allocate a block of memory.
@@ -196,7 +237,6 @@ malloc(size, type, flags)
 #ifdef DIAGNOSTIC
 	unsigned long osize = size;
 #endif
-	register struct malloc_type *ksp = type;
 
 #ifdef INVARIANTS
 	/*
@@ -242,29 +282,16 @@ malloc(size, type, flags)
 		krequests[size >> KMEM_ZSHIFT]++;
 #endif
 		va = uma_zalloc(zone, flags);
-		mtx_lock(&ksp->ks_mtx);
-		if (va == NULL) 
-			goto out;
-
-		ksp->ks_size |= 1 << indx;
-		size = keg->uk_size;
+		if (va != NULL)
+			size = keg->uk_size;
+		malloc_type_zone_allocated(type, va == NULL ? 0 : size, indx);
 	} else {
 		size = roundup(size, PAGE_SIZE);
 		zone = NULL;
 		keg = NULL;
 		va = uma_large_malloc(size, flags);
-		mtx_lock(&ksp->ks_mtx);
-		if (va == NULL)
-			goto out;
+		malloc_type_allocated(type, va == NULL ? 0 : size);
 	}
-	ksp->ks_memuse += size;
-	ksp->ks_inuse++;
-out:
-	ksp->ks_calls++;
-	if (ksp->ks_memuse > ksp->ks_maxused)
-		ksp->ks_maxused = ksp->ks_memuse;
-
-	mtx_unlock(&ksp->ks_mtx);
 	if (flags & M_WAITOK)
 		KASSERT(va != NULL, ("malloc(M_WAITOK) returned NULL"));
 	else if (va == NULL)
@@ -289,7 +316,6 @@ free(addr, type)
 	void *addr;
 	struct malloc_type *type;
 {
-	register struct malloc_type *ksp = type;
 	uma_slab_t slab;
 	u_long size;
 
@@ -297,7 +323,7 @@ free(addr, type)
 	if (addr == NULL)
 		return;
 
-	KASSERT(ksp->ks_memuse > 0,
+	KASSERT(type->ks_memuse > 0,
 		("malloc(9)/free(9) confusion.\n%s",
 		 "Probably freeing with wrong type, but maybe not here."));
 	size = 0;
@@ -334,13 +360,7 @@ free(addr, type)
 		size = slab->us_size;
 		uma_large_free(slab);
 	}
-	mtx_lock(&ksp->ks_mtx);
-	KASSERT(size <= ksp->ks_memuse,
-		("malloc(9)/free(9) confusion.\n%s",
-		 "Probably freeing with wrong type, but maybe not here."));
-	ksp->ks_memuse -= size;
-	ksp->ks_inuse--;
-	mtx_unlock(&ksp->ks_mtx);
+	malloc_type_freed(type, size);
 }
 
 /*
