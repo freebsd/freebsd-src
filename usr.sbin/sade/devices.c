@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.3 1995/05/04 19:48:09 jkh Exp $
+ * $Id: devices.c,v 1.2 1995/05/04 03:51:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -102,10 +102,11 @@ print_chunks(struct disk *d)
 {
     int row;
     int i;
+    int b_attr = ColorDisplay ? A_BOLD : A_UNDERLINE;
 
     attrset(A_NORMAL);
     mvaddstr(0, 0, "Disk name:\t");
-    attrset(A_BOLD); addstr(d->name); attrset(A_NORMAL);
+    attrset(b_attr); addstr(d->name); attrset(A_NORMAL);
     attrset(A_REVERSE); mvaddstr(0, 55, "Master Partition Editor"); attrset(A_NORMAL);
     mvprintw(1, 0,
 	     "BIOS Geometry:\t%lu cyls/%lu heads/%lu sectors",
@@ -115,7 +116,7 @@ print_chunks(struct disk *d)
 	     "Subtype", "Flags");
     for (i = 0, row = CHUNK_START_ROW; chunk_info[i]; i++, row++) {
 	if (i == current_chunk)
-	    attrset(A_BOLD);
+	    attrset(b_attr);
 	mvprintw(row, 2, "%10lu %10lu %10lu %8s %8d %8s %8d %6lx",
 		 chunk_info[i]->offset, chunk_info[i]->size,
 		 chunk_info[i]->end, chunk_info[i]->name,
@@ -129,13 +130,15 @@ print_chunks(struct disk *d)
 static void
 print_command_summary()
 {
+    int b_attr = ColorDisplay ? A_BOLD : A_UNDERLINE;
+
     mvprintw(14, 0, "The following commands are supported (in upper or lower case):");
     mvprintw(16, 0, "A = Use Entire Disk        B = Scan For Bad Blocks");
     mvprintw(17, 0, "C = Create New Partition   D = Delete Partition");
     mvprintw(18, 0, "G = Set BIOS Geometry      U = Undo All Changes");
     mvprintw(19, 0, "W = `Wizard' Mode          ESC = Proceed to next screen");
     mvprintw(21, 0, "The currently selected partition is displayed in ");
-    attrset(A_BOLD); addstr("bold"); attrset(A_NORMAL);
+    attrset(b_attr); addstr(ColorDisplay ? "bold" : "underline"); attrset(A_NORMAL);
     move(0, 0);
 }
 
@@ -212,8 +215,7 @@ device_slice_disk(struct disk *d)
 	    if (chunk_info[current_chunk]->type != unused)
 		msg = "Partition in use, delete it first or move to an unused one.";
 	    else {
-		char *val;
-		char tmp[20];
+		char *val, tmp[20];
 		int size;
 
 		snprintf(tmp, 20, "%d", chunk_info[current_chunk]->size);
@@ -223,7 +225,8 @@ device_slice_disk(struct disk *d)
 				 size,
 				 freebsd,
 				 3,
-				 chunk_info[current_chunk]->flags);
+				 (chunk_info[current_chunk]->flags &
+				  CHUNK_ALIGN));
 		    record_chunks(d);
 		}
 	    }
