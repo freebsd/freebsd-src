@@ -55,6 +55,8 @@
 #include <sys/aio.h> /* for aio_swake proto */
 #include <sys/event.h>
 
+int	maxsockets;
+
 void (*aio_swake)(struct socket *, struct sockbuf *);
 
 /*
@@ -1002,5 +1004,17 @@ SYSCTL_INT(_kern, KERN_DUMMY, dummy, CTLFLAG_RW, &dummy, 0, "");
 
 SYSCTL_INT(_kern_ipc, KIPC_MAXSOCKBUF, maxsockbuf, CTLFLAG_RW, 
     &sb_max, 0, "Maximum socket buffer size");
+SYSCTL_INT(_kern_ipc, OID_AUTO, maxsockets, CTLFLAG_RD, 
+    &maxsockets, 0, "Maximum number of sockets avaliable");
 SYSCTL_INT(_kern_ipc, KIPC_SOCKBUF_WASTE, sockbuf_waste_factor, CTLFLAG_RW,
     &sb_efficiency, 0, "");
+
+/*
+ * Initialise maxsockets 
+ */
+static void init_maxsockets(void *ignored)
+{
+	TUNABLE_INT_FETCH("kern.ipc.maxsockets", &maxsockets);
+	maxsockets = imax(maxsockets, imax(maxfiles, nmbclusters));
+}
+SYSINIT(param, SI_SUB_TUNABLES, SI_ORDER_ANY, init_maxsockets, NULL);
