@@ -17,8 +17,8 @@ telnet		markm	please ensure that a security-aware person
 			sanity-checks your work.
 secure/*	markm	please ensure that a security-aware person
 			sanity-checks your work.
-kerberos5/*	markm	please ensure that a security-aware person
-			sanity-checks your work.
+kerberos5	nectar  Pre-commit review requested.
+heimdal		nectar	Pre-commit review requested.
 cdboot		jhb	Pre-commit review requested.
 pxeboot		jhb	Pre-commit review requested.
 witness		jhb	Pre-commit review requested.
