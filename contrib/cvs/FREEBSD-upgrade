@@ -14,12 +14,19 @@ tools/pcl-cvs/*.ps
 tools/pcl-cvs/*.aux
 tools/pcl-cvs/texinfo.tex
 cvsnt.mak
+cvs.spec
+build.com
+src/build_src.com
+lib/build_lib.com
+README.VMS
+
 
 The following non-freebsd-specific directories were deleted:
 macintosh
 os2
 windows-NT
 contrib/elib	(this has a .tar.Z in it)
+zlib
 
 CVS has RCS Id, Name and Header tags. It needs to be imported with -ko.
 
