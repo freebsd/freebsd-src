@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_sk.c,v 1.1 1999/07/09 04:29:50 wpaul Exp $
+ *	$Id: if_sk.c,v 1.2 1999/07/09 17:36:23 wpaul Exp $
  */
 
 /*
@@ -99,7 +99,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_sk.c,v 1.1 1999/07/09 04:29:50 wpaul Exp $";
+	"$Id: if_sk.c,v 1.2 1999/07/09 17:36:23 wpaul Exp $";
 #endif
 
 static struct sk_type sk_devs[] = {
@@ -117,7 +117,7 @@ static void sk_intr_xmac	__P((struct sk_if_softc *));
 static void sk_rxeof		__P((struct sk_if_softc *));
 static void sk_txeof		__P((struct sk_if_softc *));
 static int sk_encap		__P((struct sk_if_softc *, struct mbuf *,
-					u_int32_t *, u_int32_t *));
+					u_int32_t *));
 static void sk_start		__P((struct ifnet *));
 static int sk_ioctl		__P((struct ifnet *, u_long, caddr_t));
 static void sk_init		__P((void *));
@@ -1236,7 +1236,7 @@ sk_attach(config_id, unit)
 	switch(sk_win_read_1(sc, SK_EPROM0)) {
 	case SK_RAMSIZE_512K_64:
 		sc->sk_ramsize = 0x80000;
-		sc->sk_rboff = SK_RBOFF_80000;
+		sc->sk_rboff = SK_RBOFF_0;
 		break;
 	case SK_RAMSIZE_1024K_64:
 		sc->sk_ramsize = 0x100000;
@@ -1294,11 +1294,10 @@ fail:
 	return;
 }
 
-static int sk_encap(sc_if, m_head, txidx, curidx)
+static int sk_encap(sc_if, m_head, txidx)
         struct sk_if_softc	*sc_if;
         struct mbuf		*m_head;
         u_int32_t		*txidx;
-        u_int32_t		*curidx;
 {
 	struct sk_tx_desc	*f = NULL;
 	struct mbuf		*m;
@@ -1333,13 +1332,13 @@ static int sk_encap(sc_if, m_head, txidx, curidx)
 	if (m != NULL)
 		return(ENOBUFS);
 
-	sc_if->sk_rdata->sk_tx_ring[cur].sk_ctl |= SK_TXCTL_LASTFRAG;
+	sc_if->sk_rdata->sk_tx_ring[cur].sk_ctl |=
+		SK_TXCTL_LASTFRAG|SK_TXCTL_EOF_INTR;
 	sc_if->sk_cdata.sk_tx_chain[cur].sk_mbuf = m_head;
 	sc_if->sk_rdata->sk_tx_ring[*txidx].sk_ctl |= SK_TXCTL_OWN;
 	sc_if->sk_cdata.sk_tx_cnt += cnt;
 
 	*txidx = frag;
-	*curidx = cur;
 
 	return(0);
 }
@@ -1350,7 +1349,7 @@ static void sk_start(ifp)
         struct sk_softc		*sc;
         struct sk_if_softc	*sc_if;
         struct mbuf		*m_head = NULL;
-        u_int32_t		idx = 0, cur = 0;
+        u_int32_t		idx;
 
 	sc_if = ifp->if_softc;
 	sc = sc_if->sk_softc;
@@ -1367,7 +1366,7 @@ static void sk_start(ifp)
 		 * don't have room, set the OACTIVE flag and wait
 		 * for the NIC to drain the ring.
 		 */
-		if (sk_encap(sc_if, m_head, &idx, &cur)) {
+		if (sk_encap(sc_if, m_head, &idx)) {
 			IF_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_flags |= IFF_OACTIVE;
 			break;
@@ -1385,7 +1384,6 @@ static void sk_start(ifp)
 
 	/* Transmit */
 	sc_if->sk_cdata.sk_tx_prod = idx;
-	sc_if->sk_rdata->sk_tx_ring[cur].sk_ctl |= SK_TXCTL_EOF_INTR;
 	CSR_WRITE_4(sc, sc_if->sk_tx_bmu, SK_TXBMU_TX_START);
 
 	/* Set a timeout in case the chip goes out to lunch. */
