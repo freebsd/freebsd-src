@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amq_subr.c,v 1.2 1998/09/04 04:42:28 obrien Exp $
+ * $Id: amq_subr.c,v 1.3 1999/01/13 20:03:54 obrien Exp $
  *
  */
 /*
@@ -204,11 +204,24 @@ ok_security(struct svc_req *rqstp)
 int *
 amqproc_mount_1_svc(voidp argp, struct svc_req *rqstp)
 {
-  static int rc;
-  char *s = *(amq_string *) argp;
+  static int rc = EINVAL;
+  char s[AMQ_STRLEN];
   char *cp;
+  char dq[20];
+  struct sockaddr_in *sin;
 
-  plog(XLOG_INFO, "amq requested mount of %s", s);
+  if ((sin = amu_svc_getcaller(rqstp->rq_xprt)) == NULL) {
+    plog(XLOG_ERROR, "amu_svc_getcaller returned NULL");
+    return &rc;
+  }
+
+  strncpy(s, *(amq_string *) argp, AMQ_STRLEN-1);
+  s[AMQ_STRLEN-1] = '\0';	/* null terminate, to be sure */
+  plog(XLOG_ERROR,
+       "amq requested mount of %s from %s.%d",
+       s, inet_dquad(dq, sin->sin_addr.s_addr),
+       ntohs(sin->sin_port));
+
   /*
    * Minimalist security check.
    */
