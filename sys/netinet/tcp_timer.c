@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.c	8.1 (Berkeley) 6/10/93
- * $Id: tcp_timer.c,v 1.7.4.1 1995/07/29 23:16:52 davidg Exp $
+ * $Id: tcp_timer.c,v 1.7.4.2 1996/04/15 03:49:53 davidg Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -275,12 +275,17 @@ tcp_timers(tp, timer)
 		 * (no responses to probes) reaches the maximum
 		 * backoff that we would use if retransmitting.
 		 */
-		if (tp->t_rxtshift == TCP_MAXRXTSHIFT &&
-		    (tp->t_idle >= tcp_maxpersistidle ||
-		    tp->t_idle >= TCP_REXMTVAL(tp) * tcp_totbackoff)) {
-		        tcpstat.tcps_persistdrop++;
-		        tp = tcp_drop(tp, ETIMEDOUT);
-		        break;
+		if (tp->t_rxtshift == TCP_MAXRXTSHIFT) {
+			u_long maxidle = TCP_REXMTVAL(tp);
+			if (maxidle < tp->t_rttmin)
+				maxidle = tp->t_rttmin;
+			maxidle *= tcp_totbackoff;
+			if (tp->t_idle >= tcp_maxpersistidle ||
+			    tp->t_idle >= maxidle) {
+				tcpstat.tcps_persistdrop++;
+				tp = tcp_drop(tp, ETIMEDOUT);
+				break;
+			}
 		}
 		tcp_setpersist(tp);
 		tp->t_force = 1;
