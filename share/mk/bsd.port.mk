@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.227.2.31 1998/01/31 21:00:38 obrien Exp $
+#	$Id: bsd.port.mk,v 1.227.2.32 1998/02/04 10:37:30 asami Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -826,7 +826,7 @@ build:
 	@${IGNORECMD}
 install:
 	@${IGNORECMD}
-deinstall:
+reinstall:
 	@${IGNORECMD}
 package:
 	@${IGNORECMD}
@@ -1189,6 +1189,7 @@ _PORT_USE: .USE
 .if make(real-install)
 .if !defined(NO_MTREE)
 	@if [ `id -u` = 0 ]; then \
+		${MKDIR} ${PREFIX}; \
 		if [ ! -f ${MTREE_FILE} ]; then \
 			${ECHO_MSG} "Error: mtree file \"${MTREE_FILE}\" is missing."; \
 			${ECHO_MSG} "Copy it from a suitable location (e.g., /usr/src/etc/mtree) and try again."; \
