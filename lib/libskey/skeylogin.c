@@ -100,7 +100,7 @@ char *name;
 	int found;
 	int len;
 	long recstart;
-	char *cp;
+	char *cp, *p;
 	struct stat statbuf;
 
 	/* See if the _PATH_SKEYFILE exists, and create it if not */
@@ -127,14 +127,23 @@ char *name;
 		rip(mp->buf);
 		if(mp->buf[0] == '#')
 			continue;	/* Comment */
-		if((mp->logname = strtok(mp->buf," \t")) == NULL)
+		p = mp->buf;
+		while ((cp = strsep(&p, " \t")) != NULL && *cp == '\0')
+			;
+		if((mp->logname = cp) == NULL)
 			continue;
-		if((cp = strtok(NULL," \t")) == NULL)
+		while ((cp = strsep(&p, " \t")) != NULL && *cp == '\0')
+			;
+		if(cp == NULL)
 			continue;
 		mp->n = atoi(cp);
-		if((mp->seed = strtok(NULL," \t")) == NULL)
+		while ((cp = strsep(&p, " \t")) != NULL && *cp == '\0')
+			;
+		if((mp->seed = cp) == NULL)
 			continue;
-		if((mp->val = strtok(NULL," \t")) == NULL)
+		while ((cp = strsep(&p, " \t")) != NULL && *cp == '\0')
+			;
+		if((mp->val = cp) == NULL)
 			continue;
 		if(strlen(mp->logname) == len
 		 && strncmp(mp->logname,name,len) == 0){
@@ -173,7 +182,7 @@ long microsec;
 	char tbuf[27],buf[60];
 	char me[80];
 	int rval;
-	char *cp;
+	char *cp, *p;
 
 	time(&now);
 	tm = localtime(&now);
@@ -215,10 +224,18 @@ long microsec;
 		return -1;
 	}
 	rip(mp->buf);
-	mp->logname = strtok(mp->buf," \t");
-	cp = strtok(NULL," \t") ;
-	mp->seed = strtok(NULL," \t");
-	mp->val = strtok(NULL," \t");
+	p = mp->buf;
+	while ((cp = strsep(&p, " \t")) != NULL && *cp == '\0')
+		;
+	mp->logname = cp;
+	while ((cp = strsep(&p, " \t")) != NULL && *cp == '\0')
+		;
+	while ((cp = strsep(&p, " \t")) != NULL && *cp == '\0')
+		;
+	mp->seed = cp;
+	while ((cp = strsep(&p, " \t")) != NULL && *cp == '\0')
+		;
+	mp->val = cp;
 	/* And convert file value to hex for comparison */
 	atob8(filekey,mp->val);
 
