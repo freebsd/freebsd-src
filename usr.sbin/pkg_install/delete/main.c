@@ -41,6 +41,7 @@ main(int argc, char **argv)
 {
     int ch, error;
     char **pkgs, **start;
+    char *pkgs_split;
 
     pkgs = start = argv;
     while ((ch = getopt(argc, argv, Options)) != -1)
@@ -81,9 +82,29 @@ main(int argc, char **argv)
     argv += optind;
 
     /* Get all the remaining package names, if any */
-    /* Get all the remaining package names, if any */
     while (*argv)
-	*pkgs++ = *argv++;
+    {
+        if( (pkgs_split = rindex(*argv, (int) '/')) != NULL )
+        {
+            while( !isalpha(*(pkgs_split+1)) )
+            {
+                *pkgs_split = '\0';
+                pkgs_split = rindex(*argv, (int) '/');
+            }
+            if(pkgs_split != NULL)
+            {
+                pkgs_split++;
+                *pkgs = pkgs_split;
+                pkgs++;
+            }
+        }
+        else
+        {
+            *pkgs = *argv;
+            pkgs++;
+        }
+        argv++;
+    }
 
     /* If no packages, yelp */
     if (pkgs == start)
