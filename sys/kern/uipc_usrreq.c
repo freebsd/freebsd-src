@@ -420,6 +420,8 @@ uipc_sockaddr(struct socket *so, struct sockaddr **nam)
 		return EINVAL;
 	if (unp->unp_addr)
 		*nam = dup_sockaddr((struct sockaddr *)unp->unp_addr, 1);
+	else
+		*nam = dup_sockaddr((struct sockaddr *)&sun_noname, 1);
 	return 0;
 }
 
