@@ -14,7 +14,7 @@ ROKENDIR=	${.CURDIR}/../../lib/libroken
 CFLAGS+=-Wall -I${INCLUDEDIR} -I${INCLUDEOBJDIR} -DHAVE_CONFIG_H
 
 .if defined(MAKE_KERBEROS4) && \
-	(${MAKE_KERBEROS4} == "yes" || ${MAKE_KERBEROS4} == "yes")
+	(${MAKE_KERBEROS4} == "YES" || ${MAKE_KERBEROS4} == "yes")
 CFLAGS+=-DKRB5_KRB4_COMPAT -DKRB4
 .endif
 
