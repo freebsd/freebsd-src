@@ -1,4 +1,4 @@
-/*	$NetBSD: pcmciavar.h,v 1.9 1998/12/29 09:00:28 marc Exp $	*/
+/*	$NetBSD: pcmciavar.h,v 1.12 2000/02/08 12:51:31 enami Exp $	*/
 /* $FreeBSD$ */
 
 /*
@@ -200,6 +200,24 @@ struct pccard_tuple {
 	bus_space_handle_t memh;
 };
 
+struct pccard_product {
+	const char	*pp_name;		/* NULL if end of table */
+#define PCCARD_VENDOR_ANY ((u_int32_t) -1)
+	u_int32_t	pp_vendor;
+#define PCCARD_PRODUCT_ANY ((u_int32_t) -1)
+	u_int32_t	pp_product;
+	int		pp_expfunc;
+	const char	*pp_vendor_str;		/* NULL to not match */
+	const char	*pp_product_str;	/* NULL to not match */
+};
+
+typedef int (*pccard_product_match_fn) (device_t dev,
+    const struct pccard_product *ent, int vpfmatch);
+
+const struct pccard_product
+	*pccard_product_lookup(device_t dev, const struct pccard_product *tab,
+	    size_t ent_size, pccard_product_match_fn matchfn);
+
 void	pccard_read_cis(struct pccard_softc *);
 void	pccard_check_cis_quirks(device_t);
 void	pccard_print_cis(device_t);
@@ -276,15 +294,29 @@ int pccard_compat_attach(device_t dev);
 /* ivar interface */
 enum {
 	PCCARD_IVAR_ETHADDR,	/* read ethernet address from CIS tupple */
+	PCCARD_IVAR_VENDOR,
+	PCCARD_IVAR_PRODUCT,
+	PCCARD_IVAR_FUNCTION_NUMBER,
+	PCCARD_IVAR_VENDOR_STR,	/* CIS string for "Manufacturer" */
+	PCCARD_IVAR_PRODUCT_STR,/* CIS strnig for "Product" */
+	PCCARD_IVAR_CIS3_STR	/* Some cards need this */
 };
 
-/* read ethernet address from CIS tupple */
-__inline static int
-pccard_get_ether(device_t dev, u_char *enaddr)
-{
-	return BUS_READ_IVAR(device_get_parent(dev), dev, 
-	    PCCARD_IVAR_ETHADDR, (uintptr_t *)enaddr);
+#define PCCARD_ACCESSOR(A, B, T)					\
+__inline static int							\
+pccard_get_ ## A(device_t dev, T *t)					\
+{									\
+	return BUS_READ_IVAR(device_get_parent(dev), dev, 		\
+	    PCCARD_IVAR_ ## B, (uintptr_t *) t);			\
 }
+
+PCCARD_ACCESSOR(ether,		ETHADDR,		u_int8_t)
+PCCARD_ACCESSOR(vendor,		VENDOR,			u_int32_t)
+PCCARD_ACCESSOR(product,	PRODUCT,		u_int32_t)
+PCCARD_ACCESSOR(function_number,FUNCTION_NUMBER,	u_int32_t)
+PCCARD_ACCESSOR(vendor_str,	VENDOR_STR,		char *)
+PCCARD_ACCESSOR(product_str,	PRODUCT_STR,		char *)
+PCCARD_ACCESSOR(cis3_str,	CIS3_STR,		char *)
 
 enum {
 	PCCARD_A_MEM_ATTR = 0x1
