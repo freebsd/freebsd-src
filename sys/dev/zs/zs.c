@@ -468,7 +468,7 @@ zsttyopen(struct cdev *dev, int flags, int mode, struct thread *td)
 		sc->sc_preg[1] |= ZSWR1_RIE | ZSWR1_SIE;
 		sc->sc_iput = sc->sc_iget = sc->sc_ibuf;
 
-		ttyconsolemode(t, 0);
+		ttyconsolemode(tp, 0);
 		/* Make sure zstty_param() will do something. */
 		tp->t_ospeed = 0;
 		(void)zstty_param(sc, tp, &t);
