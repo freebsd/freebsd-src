@@ -79,7 +79,7 @@ main(int argc, char *argv[])
 
     for (i = 1; i < argc; ++i) {
 	if (argv[i][0] == '-') {
-	    if (strcmp(argv[i], "-lang") == 0) {
+	    if ((strcmp(argv[i], "-lang") == 0) && (argc < i)) {
 		++i;
 		if (strcmp(argv[i], "C") == 0) lang = MCLangC;
 		else if (strcmp(argv[i], "C++") == 0) lang = MCLangCPlusPlus;
