@@ -53,7 +53,26 @@
 #define	MCOUNT_DECL(s)
 #define	MCOUNT_ENTER(s)
 #define	MCOUNT_EXIT(s)
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#define	MCOUNT_OVERHEAD(label)						\
+	__asm __volatile("pushl %0; call __mcount; popl %%ecx"		\
+			 :						\
+			 : "i" (profil)					\
+			 : "ax", "dx", "cx", "memory")
+#define	MEXITCOUNT_OVERHEAD()						\
+	__asm __volatile("call .mexitcount; 1:"				\
+			 : :						\
+			 : "ax", "dx", "cx", "memory")
+#define	MEXITCOUNT_OVERHEAD_GETLABEL(labelp)				\
+	__asm __volatile("movl $1b,%0" : "=rm" (labelp))
+#elif defined(lint)
+#define	MCOUNT_OVERHEAD(label)
+#define	MEXITCOUNT_OVERHEAD()
+#define	MEXITCOUNT_OVERHEAD_GETLABEL()
 #else
+#error
+#endif /* !(__GNUC__ || __INTEL_COMPILER) */
+#else /* !GUPROF */
 #define	MCOUNT_DECL(s)	u_long s;
 #ifdef SMP
 extern int	mcount_lock;
