@@ -1,3 +1,15 @@
+/*
+ * This software is provided free of charge, with no 
+ * warranty of any kind, either expressed or implied.
+ * Use at your own risk.
+ * 
+ * You may copy, modify and distribute this software freely.
+ *
+ * Ari Suutari <suutari@iki.fi>
+ *
+ * $Id: icmp.c,v 1.4 1997/12/30 00:38:56 alex Exp $
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
