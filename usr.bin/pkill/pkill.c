@@ -69,9 +69,6 @@ __FBSDID("$FreeBSD$");
 #define	STATUS_ERROR	3
 
 #if defined(__FreeBSD__)
-# if __FreeBSD_version < 300000
-#  define	NEED_KMEM
-# endif
 # if __FreeBSD_version > 502000
 #  define	IS_KERNPROC(xPtr)	(xPtr->ki_flag & P_KTHREAD)
 # endif
@@ -171,15 +168,10 @@ main(int argc, char **argv)
 		}
 	}
 
-#if defined(NEED_KMEM)
-	execf = coref = swapf = NULL;
-#else
-	execf = coref = swapf = _PATH_DEVNULL;
-#endif
-
 	criteria = 0;
 	debug_opt = 0;
 	drop_privs = 0;
+	execf = coref = swapf = _PATH_DEVNULL;
 
 	while ((ch = getopt(argc, argv, "DG:M:N:P:U:d:fg:lns:t:u:vx")) != -1)
 		switch (ch) {
