@@ -287,7 +287,11 @@ EXTRAS+= cdrom.1
 .if defined(MAKE_ISOS)
 EXTRAS+= iso.1
 .endif
-.if ${TARGET} != "pc98"
+.if ${TARGET} == "i386" && defined(EMUL_BOOT)
+BOOTABLE="-eb"
+.elif ${TARGET} == "pc98"
+BOOTABLE=
+.else
 BOOTABLE="-b"
 .endif
 .endif
@@ -899,7 +903,7 @@ cdrom.1:
 	@echo 'mfsroot_name="/boot/mfsroot"' >> ${CD_DISC2}/boot/loader.conf
 	@cp -Rp ${CD_DISC2}/boot ${CD_DISC1}
 .endif
-.if ${TARGET} == "i386" && !defined(NO_FLOPPIES)
+.if ${TARGET} == "i386" && defined(EMUL_BOOT) && !defined(NO_FLOPPIES)
 	# In case bootable ISO with floppy emulation is desired.
 	@mkdir -p ${CD_DISC2}/floppies
 	@cp ${CD_DISC1}/floppies/boot.flp ${CD_DISC2}/floppies
