@@ -301,18 +301,20 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 	PICKUP_GIANT();
 	g_waitidle();
 	if (error == ENOIOCTL) {
-		i = IOCGROUP(cmd);
-		printf("IOCTL(0x%lx) \"%s\"", cmd, gp->name);
-		if (i > ' ' && i <= '~')
-			printf(" '%c'", (int)IOCGROUP(cmd));
-		else
-			printf(" 0x%lx", IOCGROUP(cmd));
-		printf("/%ld ", cmd & 0xff);
-		if (cmd & IOC_IN)
-			printf("I");
-		if (cmd & IOC_OUT)
-			printf("O");
-		printf("(%ld) = ENOIOCTL\n", IOCPARM_LEN(cmd));
+		if (g_debugflags & G_T_TOPOLOGY) {
+			i = IOCGROUP(cmd);
+			printf("IOCTL(0x%lx) \"%s\"", cmd, gp->name);
+			if (i > ' ' && i <= '~')
+				printf(" '%c'", (int)IOCGROUP(cmd));
+			else
+				printf(" 0x%lx", IOCGROUP(cmd));
+			printf("/%ld ", cmd & 0xff);
+			if (cmd & IOC_IN)
+				printf("I");
+			if (cmd & IOC_OUT)
+				printf("O");
+			printf("(%ld) = ENOIOCTL\n", IOCPARM_LEN(cmd));
+		}
 		error = ENOTTY;
 	}
 	return (error);
