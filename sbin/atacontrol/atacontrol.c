@@ -100,7 +100,7 @@ void
 param_print(struct ata_params *parm)
 {
 	printf("<%.40s/%.8s> ATA/ATAPI rev %d\n",
-		parm->model, parm->revision, version(parm->versmajor)); 
+		parm->model, parm->revision, version(parm->version_major)); 
 }
 
 int
