@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.28 1998/05/05 23:30:09 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.29 1998/05/08 18:49:59 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -569,10 +569,10 @@ configuration by using the
 .Dq set server
 command in
 .Pa /etc/ppp/ppp.conf ,
-.Pq for example, Dq set server 3000 mypasswd
+.Pq for example, Dq set server +3000 mypasswd
 and connecting to the diagnostic port as follows:
 .Bd -literal -offset indent
-# pppctl 3000
+# pppctl 3000	(assuming tun0 - see the ``set server'' description)
 Password:
 PPP ON awfulhak> show who
 tcp (127.0.0.1:1028) *
@@ -1605,17 +1605,11 @@ mode.
 These signals tell
 .Nm
 to exit.
-.It USR1
-This signal, when not in interactive mode, tells
-.Nm
-to close any existing server socket and open an Internet socket using
-port 3000 plus the current tunnel device number.  This can only be
-achieved if a suitable local password is specified in
-.Pa /etc/ppp/ppp.secret .
 .It USR2
 This signal, tells
 .Nm
-to close any existing server socket.
+to close any existing server socket, dropping all existing diagnostic
+connections.
 .El
 .Pp
 .Sh PPP COMMAND LIST
@@ -2234,9 +2228,7 @@ command).
 .Ar Pass
 is specified on the
 .Dq set server
-command line (see
-.Dq set server
-below).  The value of
+command line.  The value of
 .Ar pass
 is not logged when
 .Ar command
@@ -2780,10 +2772,22 @@ for umask details.  Refer to
 .Xr services 5
 for details of how to translate TCP port names.
 .Pp
-You must also specify the password that must be used by the client when
-connecting to this socket.
-If a password is specified as the empty string,
-no password is required of connecting clients.
+You must also specify the password that must be entered by the client
+(using the
+.Dq passwd
+command above) when connecting to this socket.  If the password is
+specified as an empty string, no password is required for connecting clients.
+.Pp
+When specifying a unix domain socket, the first
+.Dq %d
+sequence found in the socket name will be replaced with the current
+interface unit number.  This is useful when you wish to use the same
+profile for more than one connection.
+.Pp
+In a similar manner TCP sockets may be prefixed with the
+.Dq +
+character, in which case the current interface unit number is added to
+the port number.
 .Pp
 When using
 .Nm

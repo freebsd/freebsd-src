@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.56 1998/05/06 18:50:09 brian Exp $
+ * $Id: main.c,v 1.121.2.57 1998/05/08 01:15:11 brian Exp $
  *
  *	TODO:
  */
@@ -146,20 +146,6 @@ TerminalStop(int signo)
   signal(SIGCONT, TerminalCont);
   raise(SIGSTOP);
 }
-
-#if 0 /* What's our passwd :-O */
-static void
-SetUpServer(int signo)
-{
-  int res;
-
-  VarHaveLocalAuthKey = 0;
-  LocalAuthInit();
-  if ((res = ServerTcpOpen(SERVER_PORT + SignalBundle->unit)) != 0)
-    log_Printf(LogERROR, "SIGUSR1: Failed %d to open port %d\n",
-	      res, SERVER_PORT + SignalBundle->unit);
-}
-#endif
 
 static void
 BringDownServer(int signo)
@@ -362,9 +348,6 @@ main(int argc, char **argv)
   if (mode == PHYS_MANUAL)
     sig_signal(SIGTSTP, TerminalStop);
 
-#if 0 /* What's our passwd :-O */
-  sig_signal(SIGUSR1, SetUpServer);
-#endif
   sig_signal(SIGUSR2, BringDownServer);
 
   if (label) {

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.79 1998/05/06 23:50:06 brian Exp $
+ * $Id: command.c,v 1.131.2.80 1998/05/08 18:49:53 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -123,7 +123,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/05/06 23:50:06 $";
+const char VersionDate[] = "$Date: 1998/05/08 18:49:53 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -926,6 +926,7 @@ SetServer(struct cmdargs const *arg)
 
     if (*port == '/') {
       mode_t imask;
+      char *ptr, name[LINE_LEN + 12];
 
       if (mask != NULL) {
 	unsigned m;
@@ -936,13 +937,24 @@ SetServer(struct cmdargs const *arg)
           return -1;
       } else
         imask = (mode_t)-1;
+
+      ptr = strstr(port, "%d");
+      if (ptr) {
+        snprintf(name, sizeof name, "%.*s%d%s",
+                 ptr - port, port, arg->bundle->unit, ptr + 2);
+        port = name;
+      }
       res = server_LocalOpen(arg->bundle, port, imask);
     } else {
-      int iport;
+      int iport, add = 0;
 
       if (mask != NULL)
         return -1;
 
+      if (*port == '+') {
+        port++;
+        add = 1;
+      }
       if (strspn(port, "0123456789") != strlen(port)) {
         struct servent *s;
 
@@ -953,7 +965,13 @@ SetServer(struct cmdargs const *arg)
 	  iport = ntohs(s->s_port);
       } else
         iport = atoi(port);
-      res = iport ? server_TcpOpen(arg->bundle, iport) : -1;
+
+      if (iport) {
+        if (add)
+          iport += arg->bundle->unit;
+        res = server_TcpOpen(arg->bundle, iport);
+      } else
+        res = -1;
     }
   }
 
