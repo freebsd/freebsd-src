@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.21.2.1 1996/12/30 21:18:32 joerg Exp $
+ * $Id: asc.c,v 1.21.2.2 1997/04/14 16:41:21 jkh Exp $
  */
 
 #include "asc.h"
@@ -911,12 +911,7 @@ ascselect(dev_t dev, int rw, struct proc *p)
 	scu->flags |= SEL_COLL;
     }
 #else
-    
-    if (scu->selp.si_pid && (p1=pfind(scu->selp.si_pid))
-	    && p1->p_wchan == (caddr_t)&selwait)
-	scu->selp.si_flags = SI_COLL;
-    else
-	scu->selp.si_pid = p->p_pid;
+    selrecord(p, &(scu->selp) );
 #endif
     splx(sps);
     return 0;
