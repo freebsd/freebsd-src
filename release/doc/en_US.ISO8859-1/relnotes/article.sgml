@@ -743,6 +743,9 @@
 	&man.ifconfig.8;.  This feature requires a wireless 
 	adapter based on the Prism II chipset.</para>
 
+      <para>The xe driver can now be built as a
+	module. &merged;</para>
+
       <para>The &man.xl.4; driver now supports the 3Com 3C556 and
 	3C556B MiniPCI adapters used on some laptops. &merged;</para>
 
@@ -843,6 +846,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para>&man.ipfw.4; now filters correctly in the presence of ECN
 	bits in TCP segments. &merged;</para>
+
+      <para>A new ng_eiface netgraph module has been added, which
+	appears as an Ethernet interface but delivers its Ethernet
+	frames to a Netgraph hook. &merged;</para>
 
       <para>A new &man.ng.etf.4; netgraph node allows Ethernet type
 	packets to be filtered to different hooks depending on
@@ -2428,10 +2435,45 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       than a single <filename>/etc/pam.conf</filename> file.
       <filename>/etc/pam.d/README</filename> has more details.</para>
 
-    <para>A number of new <application>PAM</application>
-      modules have been added.</para>
+    <para>A &man.pam.ftp.8; module has been added to allow
+      authentication of anonymous FTP users.</para>
 
-<!-- XXX List new PAM modules -->
+    <para>A &man.pam.lastlog.8; module has been added to record
+      sessions in the &man.utmp.5;, &man.wtmp.5;, and &man.lastlog.5;
+      databases.</para>
+
+    <para>A &man.pam.login.access.8; module has been added, to allow
+      checking against <filename>/etc/login.access</filename>.</para>
+
+    <para>The &man.pam.nologin.8; module, which can disallow logins
+      using &man.nologin.5;, has been added.</para>
+
+    <para>The &man.pam.opie.8; and &man.pam.opieaccess.8; modules have
+      been added to control authentication via &man.opie.4;.</para>
+
+    <para>A &man.pam.passwdqc.8; module has been added, to check the
+      quality of passwords submitted during password changes.</para>
+
+    <para>A &man.pam.rhosts.8; module has been added to support
+      &man.rhosts.5; authentication.</para>
+
+    <para>The &man.pam.rootok.8; module, which can be used to
+      authenticate only the superuser, has been added.</para>
+
+    <para>A &man.pam.securetty.8; module has been added to check the
+      <quote>security</quote> of a TTY, as listed in &man.ttys.5;.</para>
+
+    <para>A &man.pam.self.8; module, which allows self-authentication
+      of a user, has been added.</para>
+
+    <para>A &man.pam.ssh.8; module has been added to allow the use of
+      SSH passphrases and keypairs for authentication.  This module
+      also handles session management by invoking
+      &man.ssh-agent.1;. &merged;</para>
+
+    <para>A &man.pam.wheel.8; module has been added to permit
+      authentication to members of a group, which defaults to
+      <groupname>wheel</groupname>.</para>
 
     <para>&man.passwd.1; and &man.pw.8; now select the password hash
       algorithm at run time.  See the <literal>passwd_format</literal>
@@ -2440,7 +2482,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.patch.1; now accepts a <option>-i</option> command-line
       flag to read a patch from a file, rather than standard
-      input. &merged</para>
+      input. &merged;</para>
 
     <para>&man.pax.1; has received a number of enhancements, including
       &man.cpio.1; functionality, &man.tar.1; compatibility
