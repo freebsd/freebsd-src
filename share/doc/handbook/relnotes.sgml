@@ -1,4 +1,4 @@
-<!-- $Id: relnotes.sgml,v 1.15 1996/10/23 03:15:10 jfieber Exp $ -->
+<!-- $Id: relnotes.sgml,v 1.16 1996/11/23 12:33:34 andreas Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -46,7 +46,7 @@
 	  the disk space demands made by the older 1.0 ports
 	  collection.  To compile a port, you simply change to the
 	  directory of the program you wish to install, type ``make
-	  all'' followed by ``make install'' after successfull
+	  all'' followed by ``make install'' after successful
 	  compilation and let the system do the rest.  The full
 	  original distribution for each port you build is retrieved
 	  dynamically off of CDROM or a local ftp site, so you need
