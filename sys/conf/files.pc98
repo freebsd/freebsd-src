@@ -347,7 +347,6 @@ pc98/pc98/olpt.c		optional	olpt
 pc98/pc98/pc98gdc.c		optional	gdc
 pc98/pc98/pc98kbd.c		optional	pckbd
 pc98/pc98/pc98_machdep.c	standard
-pc98/pc98/pcaudio.c		optional	pca
 pc98/pc98/pmc.c			optional	pmc
 pc98/pc98/ppc.c			optional	ppc
 pc98/pc98/scgdcrndr.c		optional	sc gdc

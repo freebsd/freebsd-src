@@ -37,7 +37,6 @@
 21	*psm		PS/2 Mouse
 22	*fd		(/dev/stdin etc)
 23	*bpf		Berkeley Packet Filter
-24	*pca		PC speaker (/dev/pcaudio)
 26	*spkr		PC speaker (/dev/spkr)
 27	*mse		Microsoft bus-mouse
 28	*sio		16450/16550 serial
