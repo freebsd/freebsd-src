@@ -144,36 +144,29 @@ ibcs2_wait(td, uap)
 	struct thread *td;
 	struct ibcs2_wait_args *uap;
 {
-	int error, status;
-	struct wait_args w4;
+	int error, options, status;
+	int *statusp;
+	pid_t pid;
         struct trapframe *tf = td->td_frame;
 	
-	w4.rusage = NULL;
-        if ((tf->tf_eflags & (PSL_Z|PSL_PF|PSL_N|PSL_V))
+	if ((tf->tf_eflags & (PSL_Z|PSL_PF|PSL_N|PSL_V))
             == (PSL_Z|PSL_PF|PSL_N|PSL_V)) {
 		/* waitpid */
-		w4.pid = uap->a1;
-		w4.status = (int *)uap->a2;
-		w4.options = uap->a3;
+		pid = uap->a1;
+		statusp = (int *)uap->a2;
+		options = uap->a3;
 	} else {
 		/* wait */
-		w4.pid = WAIT_ANY;
-		w4.status = (int *)uap->a1;
-		w4.options = 0;
+		pid = WAIT_ANY;
+		statusp = (int *)uap->a1;
+		options = 0;
 	}
-	if ((error = wait4(td, &w4)) != 0)
+	error = kern_wait(td, pid, &status, options, NULL);
+	if (error)
 		return error;
-	if (w4.status)	{	/* this is real iBCS brain-damage */
-		error = copyin((caddr_t)w4.status, (caddr_t)&status,
-			       sizeof(w4.status));
-		if(error)
-		  return error;
-
+	if (statusp) {
 		/*
-		 * Convert status/signal result. We must validate the
-		 * signal number stored in the exit status in case
-		 * the user changed it between wait4()'s copyout()
-		 * and our copyin().
+		 * Convert status/signal result.
 		 */
 		if (WIFSTOPPED(status)) {
 			if (WSTOPSIG(status) <= 0 ||
@@ -191,8 +184,7 @@ ibcs2_wait(td, uap)
 
 		/* record result/status */
 		td->td_retval[1] = status;
-		return copyout((caddr_t)&status, (caddr_t)w4.status,
-			       sizeof(w4.status));
+		return copyout(&status, statusp, sizeof(status));
 	}
 
 	return 0;

@@ -96,7 +96,11 @@
 #define	WAIT_MYPGRP	0	/* any process in my process group */
 #endif /* __BSD_VISIBLE */
 
-#ifndef _KERNEL
+#ifdef _KERNEL
+int	kern_wait(struct thread *td, pid_t pid, int *status, int options,
+	    struct rusage *rusage);
+
+#else
 #include <sys/types.h>
 
 __BEGIN_DECLS
