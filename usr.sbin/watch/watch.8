@@ -54,6 +54,7 @@ would be displayed,
 .Nm
 will exit.  The reconnect flags are unaffected by
 this option.
+When this flag is used, <control-X> is passed through to the terminal.
 .It Fl W
 Allow write access to observed tty.
 .It Ar tty
@@ -72,7 +73,8 @@ Exit
 .It Sy "<control-W>"
 Clear screen.
 .It Sy "<control-X>"
-Change attached tty.
+Change attached tty, unless this feature is disabled, in which case
+control-X is passed to the terminal as with other control characters.
 .El
 .Sh RESTRICTIONS
 Only the superuser can run
