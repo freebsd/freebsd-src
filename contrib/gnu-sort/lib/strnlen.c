@@ -1,6 +1,6 @@
-/* Which POSIX version to conform to, for utilities.
-
-   Copyright (C) 2002, 2003, 2004 Free Software Foundation, Inc.
+/* Find the length of STRING, but scan at most MAXLEN characters.
+   Copyright (C) 1996, 1997, 1998, 2000-2003 Free Software Foundation, Inc.
+   This file is part of the GNU C Library.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,44 +16,33 @@
    with this program; if not, write to the Free Software Foundation,
    Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-/* Written by Paul Eggert.  */
-
 #if HAVE_CONFIG_H
 # include <config.h>
 #endif
+#undef strnlen
 
-#include "posixver.h"
+#include <string.h>
 
-#include <limits.h>
-#include <stdlib.h>
+#undef __strnlen
+#undef strnlen
 
-#if HAVE_UNISTD_H
-# include <unistd.h>
-#endif
-#ifndef _POSIX2_VERSION
-# define _POSIX2_VERSION 0
+#ifndef _LIBC
+# define strnlen rpl_strnlen
 #endif
 
-#ifndef DEFAULT_POSIX2_VERSION
-# define DEFAULT_POSIX2_VERSION _POSIX2_VERSION
+#ifndef weak_alias
+# define __strnlen strnlen
 #endif
 
-/* The POSIX version that utilities should conform to.  The default is
-   specified by the system.  */
+/* Find the length of STRING, but scan at most MAXLEN characters.
+   If no '\0' terminator is found in that many characters, return MAXLEN.  */
 
-int
-posix2_version (void)
+size_t
+__strnlen (const char *string, size_t maxlen)
 {
-  long int v = DEFAULT_POSIX2_VERSION;
-  char const *s = getenv ("_POSIX2_VERSION");
-
-  if (s && *s)
-    {
-      char *e;
-      long int i = strtol (s, &e, 10);
-      if (! *e)
-	v = i;
-    }
-
-  return v < INT_MIN ? INT_MIN : v < INT_MAX ? v : INT_MAX;
+  const char *end = memchr (string, '\0', maxlen);
+  return end ? (size_t) (end - string) : maxlen;
 }
+#ifdef weak_alias
+weak_alias (__strnlen, strnlen)
+#endif
