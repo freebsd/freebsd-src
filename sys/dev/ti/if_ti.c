@@ -2311,7 +2311,8 @@ ti_detach(dev)
 	struct ifnet		*ifp;
 
 	sc = device_get_softc(dev);
-	destroy_dev(sc->dev);
+	if (sc->dev)
+		destroy_dev(sc->dev);
 	KASSERT(mtx_initialized(&sc->ti_mtx), ("ti mutex not initialized"));
 	TI_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
