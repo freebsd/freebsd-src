@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.36 1998/06/07 17:09:53 dfr Exp $
+ *  dgb.c $Id: dgb.c,v 1.37 1998/08/12 16:16:10 bde Exp $
  *
  *  Digiboard driver.
  *
@@ -559,38 +559,7 @@ dgbattach(dev)
 
 	if(sc->type==PCXEVE) {
 		t=(((u_long)sc->pmem>>8) & 0xFFE0) | 0x10 /* enable windowing */;
-
 		/* IRQ isn't used */
-#if 0
-		switch(dev->id_irq) {
-		case IRQ3:
-			t|=0x1;
-			break;
-		case IRQ5:
-			t|=2;
-			break;
-		case IRQ7:
-			t|=3;
-			break;
-		case IRQ10:
-			t|=4;
-			break;
-		case IRQ11:
-			t|=5;
-			break;
-		case IRQ12:
-			t|=6;
-			break;
-		case IRQ15:
-			t|=7;
-			break;
-		default:
-			printf("dgb%d: wrong IRQ mask 0x%x\n",dev->id_unit,dev->id_irq);
-			sc->status=DISABLED;
-			return 0;
-		}
-#endif
-
 		outb(sc->port+2,t & 0xFF);
 		outb(sc->port+3,t>>8);
 	} else if(sc->type==PCXE) {
@@ -1396,7 +1365,6 @@ dgbpoll(unit_c)
 					}
 
 					if(size) {
-						/*if (0) {*/
 						if (tp->t_state & TS_CAN_BYPASS_L_RINT) {
 							DPRINT1(DB_RXDATA,"!");
 							towin(sc,port->rxwin);
@@ -1583,7 +1551,7 @@ dgbioctl(dev, cmd, data, flag, p)
 	int tiocm_xxx;
 
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
-	int		oldcmd;
+	u_long		oldcmd;
 	struct termios	term;
 #endif
 
