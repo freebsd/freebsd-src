@@ -1,3 +1,304 @@
+Wed Jun 30 16:14:36 1999  Arnold D. Robbins  <arnold@gnu.org>
+
+	* Release 3.0.4: Release tar file made.  This time for sure.
+
+Wed Jun 30 16:10:11 1999  Arnold D. Robbins  <arnold@gnu.org>
+
+	* awk.h: add include of <assert.h>, and comment about config.h
+	  having to be included before any system headers.  Otherwise,
+	  with egcs-2.91.66 and later on Linux systems, and possibly
+	  others, things break badly, due to the LFS macros.
+	* awk.y, builtin.c, eval.c, field.c, io.c: removed include
+	  of assert.h
+
+Wed Jun  9 11:39:19 1999  Paul Eggert  <eggert@twinsun.com>
+
+	Port the large-file code to AIX, HP-UX, and IRIX.
+	Add cross-compilation support for large files.
+
+	* config.guess, config.sub: New files.
+
+	* configure.in (AC_CANONICAL_HOST):
+	  Add; GAWK_AC_SYS_LARGEFILE needs this.
+	  (GAWK_AC_SYS_LARGEFILE): Renamed from GAWK_AC_LARGE_FILES.
+
+	* aclocal.m4 (GAWK_AC_SYS_LARGEFILE): Renamed from GAWK_AC_LARGE_FILES.
+	  Add support for AIX and HP-UX.
+	  (GAWK_AC_SYS_LARGEFILE_FLAGS, GAWK_AC_SYS_LARGEFILE_SPACE_APPEND,
+	  GAWK_AC_SYS_LARGEFILE_MACRO_VALUE): New macros.
+
+	* acconfig.h (_FILE_OFFSET_BITS, _LARGEFILE_SOURCE, _LARGE_FILES):
+	  New macros.
+
+	* Makefile.in (MISC): add config.guess and config.sub so they get
+	  included in the distribution.
+
+Wed Jun  9 11:29:29 1999  Paul Eggert  <eggert@twinsun.com>
+
+	* io.c (iop_alloc): Don't mmap files whose sizes don't fit in `int'.
+	  [ This isn't really needed, as HAVE_MMAP is #undef'ed at the top,
+	  but it's there in case people want to take their life in their hands. ]
+
+Sun Jun  6 11:28:07 1999  Arnold D. Robbins  <arnold@gnu.org>
+
+	* BETA Release 3.0.46: Release tar file made.
+
+Wed Jun  2 14:36:24 1999  Arnold D. Robbins  <arnold@gnu.org>
+
+	* PORTS: Updated with a more recent list of systems
+	  that gawk compiles and tests ok on.
+
+Tue Jun  1 14:24:59 1999  Arnold D. Robbins  <arnold@gnu.org>
+
+	* BETA Release 3.0.45: Release tar file made.
+
+Tue May 25 16:32:37 1999  Arnold D. Robbins  <arnold@gnu.org>
+
+	* builtin.c (format_tree): more smarts for weird cases, such as
+	  zero precisions and zero values used with the `#' flag.
+	  Thanks to Andreas Schwab (schwab@gnu.org) for pointing these out.
+
+Wed May 19 14:02:54 1999  Arnold D. Robbins  <arnold@gnu.org>
+
+	* io.c (do_close): move test for `close(FILENAME)' to after
+	  loop through all open redirections. Fixes problems in obscure
+	  cases with redirections in END rules.
+
+Sun May 16 14:08:39 1999  Arnold D. Robbins  <arnold@gnu.org>
+
+	* awk.y (yylex): fix group of characters including ',' to
+	  set want_assign = FALSE.  Fixes bizarre parsing problems in
+	  function call lists, for example.
+	* io.c (get_a_record): repair logic for single-leading-newline
+	  case.
+
+Tue May 11 16:48:11 1999  Arnold D. Robbins  <arnold@gnu.org>
+
+	* aclocal.m4 (GAWK_AC_AIX_TWEAK): new macro.
+	* configure.in: call it
+	* Makefile.in: (awklib/all): pass CFLAGS on to sub-make so
+	  that password programs will get AIX magic defines. Avoids
+	  having to tweak program code for those in doc/gawk.texi.
+
+Mon May  3 16:56:23 1999  Arnold D. Robbins  <arnold@gnu.org>
+
+	* array.c (do_delete): don't free_temp(subs) until after all
+	  references to it are finished.
+
+Mon May  3 13:41:16 1999  Arnold D. Robbins  <arnold@gnu.org>
+
+	* BETA Release 3.0.44: Release tar file made.
+
+Sun May  2 18:25:43 1999  Arnold D. Robbins  <arnold@gnu.org>
+
+	* io.c (get_a_record): Do a really good job of stripping newlines
+	  from the front of records when RS = "" and there's only one
+	  newline at the front of the file, which the regex didn't catch.
+
+Wed Apr 28 12:27:49 1999  Arnold D. Robbins  <arnold@gnu.org>
+
+	* configure.in: more HP stuff: fix the manual alloca code so that
+	  gawk will compile and link on HP systems. See the comments.
+
+Sun Apr 25 13:39:16 1999  Arnold D. Robbins  <arnold@gnu.org>
+
+	* Makefile.in (gawk): add $(CFLAGS) to linking step.
+	* configure.in: correctly do AC_FUNC_GETPRGP on HP systems too.
+
+Tue Apr 13 20:21:00 1999  Arnold D. Robbins  <arnold@gnu.org>
+
+	* BETA Release 3.0.43: Release tar file made.
+
+Tue Apr 13 19:02:20 1999  Arnold D. Robbins  <arnold@gnu.org>
+
+	* io.c (useropen, pidopen): add casts to int on arguments to
+	  silence gcc warnings.
+	* regex.c (regcomp,regexec,regfree): add ifdef for APPLE.
+
+Thu Feb  4 10:38:02 1999  Arnold D. Robbins  <arnold@gnu.org>
+
+	* custom.h: hacks for BeOS. Not documented in the manual right now.
+	* configure.in: hacks for BeOS.  Check for HP-UX and define C_ALLOCA
+	  if not using gcc.  I wish they'd just fix bison already.
+
+Sun Dec 20 16:57:38 1998  Arnold D. Robbins  <arnold@gnu.org>
+
+	* BETA Release 3.0.42: Release tar file made.
+
+Sun Nov 15 21:05:39 1998  Arnold D. Robbins  <arnold@gnu.org>
+
+	* io.c (gawk_popen): Add WIN32 to list of systems that use
+	  the non-real-pipe version. From the PC gawk guys.
+
+Wed Nov  4 11:32:24 1998  Arnold D. Robbins  <arnold@gnu.org>
+
+	* BETA Release 3.0.41: Release tar file made.
+
+Tue Nov  3 16:24:35 1998  Arnold D. Robbins  <arnold@gnu.org>
+
+	* eval.c (r_get_lhs): Fix the cases for the special variables,
+	  don't unref their current value if it's the same as the internal
+	  copy; perhaps the current one is used in a concatenation or some
+	  other expression somewhere higher up in the call chain.  Ouch.
+	  See test/getnr2tm.awk.
+
+Sun Nov  1 15:24:52 1998  Arnold D. Robbins  <arnold@gnu.org>
+
+	* builtin.c (format_tree): improve handling of zero-fill
+	  when a precision is present. See test/zeroflag.awk.
+
+Wed Oct 28 20:40:17 1998  Arnold D. Robbins  <arnold@gnu.org>
+
+	* eval.c (r_tree_eval): Case for Node_concat. Get lengthes
+	  separately, in case one expression has a side effect that
+	  that changes another. Ugly, but it keeps gawk from core
+	  dumping. See test/nasty.awk.
+
+Sun Oct 18 21:27:24 1998  Arnold D. Robbins  <arnold@gnu.org>
+
+	* awk.y (append_right): bug fix, if `list' or `new' are NULL,
+	  return `list', so that things don't break too badly.
+	* regex.c (re_compile_fastmap): remove unused variable `num_regs'.
+
+Thu Oct  8 19:36:57 1998  Arnold D. Robbins  <arnold@gnu.org>
+
+	* BETA Release 3.0.40: Release tar file made.
+
+Mon Jul 27 10:14:33 1998  Arnold D. Robbins  <arnold@gnu.org>
+
+	* node.c (parse_escape): Remove assignment with side effects
+	  from ISXDIGIT test. Thanks to "Mihai T. LAZARESCU"
+	  <mihai@ccmserv.polito.it> for pointing this out.
+
+Mon Apr 27 11:31:32 1998  Arnold D. Robbins  <arnold@gnu.org>
+
+	* main.c (usage): fix the email address for the bug list.
+	  (copyleft): update the copyright year.
+
+Mon Mar 23 21:22:32 1998  Arnold D. Robbins  <arnold@gnu.org>
+
+	* eval.c (r_get_lhs): make sure that values of type
+	  Node_param_list don't have the FUNC flag set. This means
+	  we don't allow the use of a function name as a variable or
+	  array from within the function.
+
+Sun Mar 22 19:12:32 1998  Paul Eggert  <eggert@twinsun.com>
+
+	* aclocal.m4 (GAWK_AC_LARGE_FILES): new macro that checks for
+	  large file support, and updates CPPFLAGS, LDFLAGS, LIBS as
+	  needed.
+	* configure.in: call GAWK_AC_LARGE_FILES.
+	* Makefile.in (CPPFLAGS, LDFLAGS): Let autoconf configure.
+	(COMPFLAGS): Add $(CPPFLAGS).
+
+Mon Mar 16 14:06:41 1998  Arnold D. Robbins  <arnold@gnu.org>
+
+	* field.c (using_FIELDWIDTHS): new macro.
+	  (using_fieldwidths): use new macro.
+	  (do_split): in case for FS_DFLT, also check that
+	  we're not using FIELDWIDTHS. Otherwise, split() would use
+	  FIELDWIDTHS, not current value of FS. Oops.
+
+Sun Nov 16 20:08:59 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* builtin.c (sub_common): fix for count of matches in gsub
+	  from Geert.Debyser@esat.kuleuven.ac.be.
+
+Wed Oct 15 03:38:12 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* field.c (set_FS): Use `sc_parsefield' if the value of FS is not
+	  alphabetic OR if not ignoring case. Bug fix if IGNORECASE
+	  is true and FS happens to be '^'. Sheesh, talk about obscure.
+	  (rebuild_record): Add more smarts to the code that sets up the
+	  fields. Thanks to Alan J. Broder (ajb@dtmr.com).
+
+Sun Oct  5 11:56:52 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* configure.in: if ISC add -D_SYSV3 to CFLAGS, per email from
+	  Mario Vanoni (vanonim@dial.eunet.ch).
+
+Fri Sep 26 00:57:49 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* awk.y (append_right): return if either list is NULL. Prevents
+	  syntax errors from causing core dumps.
+
+Wed Sep 17 15:34:15 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* field.c (rebuild_record): set things up so that all fields point
+	  into the new record and release any changed fields without
+	  causing memory leaks.  Avoids problems when fields are extended
+	  with the value of $0 or other fields and then $0 is assigned to.
+
+Mon Sep 15 16:12:55 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* builtin.c (do_print): when testing for NUMBER, make sure
+	  it's not a string too. Thanks to Michael Brennan for
+	  clarifying the semantics.
+
+Sun Sep 14 19:55:12 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* node.c (format_val): always format values ourselves: avoids
+	  problems if OFMT is bizarre, like %s.
+
+Sun Sep 14 00:08:53 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* io.c (get_a_record): replace all occurrences of the test
+	  `grRS == FALSE' with `RS_is_null' which makes ` RS = "\0" '
+ 	  actually work, is clearer code, and actually makes use of
+	  the `RS_is_null' variable!
+
+Sun Aug 17 07:15:12 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* field.c (set_FS): Change logic to always set parse_field, even
+	  if FS hasn't changed. Thanks to Igor Sheyn for catching this.
+
+Wed Aug  6 21:04:37 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* io.c (VMS et al gawk_popen): use pclose, not fclose, if
+	  iop_alloc fails.
+
+Wed Jul 30 19:53:52 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* awk.y [variable]: fix case for subscript if $3 == NULL.
+
+Sun Jul 27 22:47:30 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* awk.y (get_src_buf): don't close file if it's stdin.
+
+Sun Jul 27 22:47:15 1997  Pat Rankin  <rankin@eql.caltech.edu>
+
+	* io.c (#if VMS: vmsrtl_fileno): new routine.
+	  (#if VMS: fileno): new macro substituted for stdio one.
+
+Thu Jul 17 20:05:59 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* builtin.c (do_print): When OFMT != CONVFMT, create a new
+	  temporary node with just the numeric value valid and format it,
+	  and use that for printing. Avoids memory corruption.
+
+Wed Jul 16 10:01:16 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* regex.c: When SYNTAX_TABLE is defined, but not emacs, then
+	  CHAR_SET_SIZE is not defined, though used in regcomp.  It should
+	  be taken out of #ifdef SYNTAX_TABLE. Fix from bug group, from
+	  Akim Demaille, demaille@inf.enst.fr.
+	* awk.h (isnondecimal): make test a little smarter.
+	  builtin.c (nondec2awknum): add bailout for decimal numbers, e.g.
+	  `00.1'. Fix from Larry Schwimmer <rosebud@cyclone.Stanford.EDU>.
+
+Thu Jun 19 19:00:40 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* eval.c (interpret): case Node_K_next, Node_K_nextfile: fatal
+	  error if called from BEGIN or END.
+	  (Fixed completely Mon May  3 13:31:42 1999.)
+
+Mon Jun  9 22:40:04 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* builtin.c (nondec2awknum): Allow `f' and `F' in hexadecimal numbers.
+	  Gotta get more sleep...
+	* array.c (assoc_lookup): Fix from Tom Karzes (karzes@equator.com)
+	  for memory leak when forcing type to Node_var_array.
+
 Thu May 15 12:49:08 1997  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
 
 	* Release 3.0.3: Release tar file made.
