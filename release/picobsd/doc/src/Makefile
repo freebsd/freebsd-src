@@ -7,7 +7,7 @@
 DATE!="date"
 
 DOCS= 	bugs.html faq.html hardware.html how2build.html \
-	intrinsics.html intro.html TODO.html
+	intrinsics.html intro.html TODO.html installflp.html
 
 all: ../../Version
 	for i in ${DOCS}; \
