@@ -1603,18 +1603,7 @@ ccdlookup(path, p, vpp)
 		return (EBUSY);
 	}
 
-	if ((error = VOP_GETATTR(vp, &va, p->p_ucred, p)) != 0) {
-#ifdef DEBUG
-		if (ccddebug & CCDB_FOLLOW|CCDB_INIT)
-			printf("ccdlookup: getattr error = %d\n", error);
-#endif
-		VOP_UNLOCK(vp, 0, p);
-		(void)vn_close(vp, FREAD|FWRITE, p->p_ucred, p);
-		return (error);
-	}
-
-	/* XXX: eventually we should handle VREG, too. */
-	if (va.va_type != VBLK) {
+	if (!vn_isdisk(vp)) {
 		VOP_UNLOCK(vp, 0, p);
 		(void)vn_close(vp, FREAD|FWRITE, p->p_ucred, p);
 		return (ENOTBLK);
