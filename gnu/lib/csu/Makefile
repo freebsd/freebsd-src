@@ -35,24 +35,25 @@ BEGINSRC?=	crtstuff.c
 ENDSRC?=	crtstuff.c
 
 all: ${OBJS} ${SOBJS} ${TGTOBJS}
+${OBJS} ${SOBJS}: tconfig.h
 
 CLEANFILES=	${OBJS} ${SOBJS} ${TGTOBJS}
 
 crtbegin.o:	${BEGINSRC}
 	${CC} ${CFLAGS} -g0 -DCRT_BEGIN \
-		-c -o ${.TARGET} ${.ALLSRC}
+		-c -o ${.TARGET} ${.ALLSRC:N*.h}
 
 crtbegin.So:	${BEGINSRC}
 	${CC} ${CFLAGS} -g0 -DCRT_BEGIN ${CRTS_CFLAGS} \
-		-c -o ${.TARGET} ${.ALLSRC}
+		-c -o ${.TARGET} ${.ALLSRC:N*.h}
 
 crtend.o:	${ENDSRC}
 	${CC} ${CFLAGS} -g0 -DCRT_END \
-		-c -o ${.TARGET} ${.ALLSRC}
+		-c -o ${.TARGET} ${.ALLSRC:N*.h}
 
 crtend.So:	${ENDSRC}
 	${CC} ${CFLAGS} -g0 -DCRT_END ${CRTS_CFLAGS} \
-		-c -o ${.TARGET} ${.ALLSRC}
+		-c -o ${.TARGET} ${.ALLSRC:N*.h}
 
 CLEANFILES+=	tconfig.h
 tconfig.h: ${CCDIR}/cc_tools/Makefile
