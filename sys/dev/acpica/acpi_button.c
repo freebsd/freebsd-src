@@ -132,7 +132,6 @@ acpi_button_attach(device_t dev)
 
     /* Install the appropriate new handler. */
     if (sc->fixed) {
-	AcpiEnableEvent(event, 0);
 	AcpiClearEvent(event);
 	status = AcpiInstallFixedEventHandler(event,
 			acpi_button_fixed_handler, sc);
@@ -152,16 +151,10 @@ acpi_button_attach(device_t dev)
      * we have found one in the AML.  Some systems define buttons both ways
      * but only deliver events to the AML object.
      */
-    if (event == ACPI_EVENT_POWER_BUTTON && AcpiGbl_FADT->PwrButton == 0) {
-	AcpiDisableEvent(event, 0);
-	AcpiClearEvent(event);
+    if (event == ACPI_EVENT_POWER_BUTTON && AcpiGbl_FADT->PwrButton == 0)
 	AcpiRemoveFixedEventHandler(event, acpi_event_power_button_sleep);
-    }
-    if (event == ACPI_EVENT_SLEEP_BUTTON && AcpiGbl_FADT->SleepButton == 0) {
-	AcpiDisableEvent(event, 0);
-	AcpiClearEvent(event);
+    if (event == ACPI_EVENT_SLEEP_BUTTON && AcpiGbl_FADT->SleepButton == 0)
 	AcpiRemoveFixedEventHandler(event, acpi_event_sleep_button_sleep);
-    }
 
     return_VALUE (0);
 }
