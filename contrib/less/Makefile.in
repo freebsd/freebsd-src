@@ -96,7 +96,7 @@ Makefile: ${srcdir}/Makefile.in config.status
 config.status: ${srcdir}/configure
 	./config.status --recheck
 
-${srcdir}/configure: ${srcdir}/configure.in
+${srcdir}/configure: ${srcdir}/configure.ac
 	cd ${srcdir}; autoheader; autoconf
 
 clean:

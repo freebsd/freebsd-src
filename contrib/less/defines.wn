@@ -151,6 +151,12 @@
  */
 #define	HAVE_SHELL	0
 
+/*
+ * Default shell metacharacters and meta-escape character.
+ */
+#define	DEF_METACHARS	"; *?\t\n'\"()<>|&"
+#define	DEF_METAESCAPE	""
+
 /* 
  * HAVE_DUP is 1 if your system has the dup() call.
  */

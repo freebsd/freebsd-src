@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2000  Mark Nudelman
+ * Copyright (C) 1984-2002  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -21,7 +21,7 @@
 #include "less.h"
 #include "option.h"
 
-static struct option *pendopt;
+static struct loption *pendopt;
 public int plusoption = FALSE;
 
 static char *propt();
@@ -39,7 +39,7 @@ extern char *every_first_cmd;
 scan_option(s)
 	char *s;
 {
-	register struct option *o;
+	register struct loption *o;
 	register int optc;
 	char *optname;
 	char *printopt;
@@ -116,8 +116,7 @@ scan_option(s)
 			 * EVERY input file.
 			 */
 			plusoption = TRUE;
-			str = s;
-			s = optstring(s, propt('+'), NULL);
+			s = optstring(s, &str, propt('+'), NULL);
 			if (*str == '+')
 				every_first_cmd = save(++str);
 			else
@@ -225,8 +224,9 @@ scan_option(s)
 			 * All processing of STRING options is done by 
 			 * the handling function.
 			 */
-			str = s;
-			s = optstring(s, printopt, o->odesc[1]);
+			while (*s == ' ')
+				s++;
+			s = optstring(s, &str, printopt, o->odesc[1]);
 			break;
 		case NUMBER:
 			if (*s == '\0')
@@ -260,7 +260,7 @@ toggle_option(c, s, how_toggle)
 	char *s;
 	int how_toggle;
 {
-	register struct option *o;
+	register struct loption *o;
 	register int num;
 	int no_prompt;
 	int err;
@@ -382,7 +382,7 @@ toggle_option(c, s, how_toggle)
 			switch (how_toggle)
 			{
 			case OPT_TOGGLE:
-				num = getnum(&s, '\0', &err);
+				num = getnum(&s, NULL, &err);
 				if (!err)
 					*(o->ovar) = num;
 				break;
@@ -480,7 +480,7 @@ propt(c)
 single_char_option(c)
 	int c;
 {
-	register struct option *o;
+	register struct loption *o;
 
 	o = findopt(c);
 	if (o == NULL)
@@ -496,7 +496,7 @@ single_char_option(c)
 opt_prompt(c)
 	int c;
 {
-	register struct option *o;
+	register struct loption *o;
 
 	o = findopt(c);
 	if (o == NULL || (o->otype & (STRING|NUMBER)) == 0)
@@ -544,20 +544,22 @@ nopendopt()
  * Return a pointer to the remainder of the string, if any.
  */
 	static char *
-optstring(s, printopt, validchars)
+optstring(s, p_str, printopt, validchars)
 	char *s;
+	char **p_str;
 	char *printopt;
 	char *validchars;
 {
 	register char *p;
-	PARG parg;
 
 	if (*s == '\0')
 	{
 		nostring(printopt);
 		quit(QUIT_ERROR);
 	}
+	*p_str = s;
 	for (p = s;  *p != '\0';  p++)
+	{
 		if (*p == END_OPTION_STRING ||
 		    (validchars != NULL && strchr(validchars, *p) == NULL))
 		{
@@ -565,15 +567,19 @@ optstring(s, printopt, validchars)
 			{
 			case END_OPTION_STRING:
 			case ' ':  case '\t':  case '-':
+				/* Replace the char with a null to terminate string. */
+				*p++ = '\0';
 				break;
 			default:
-				parg.p_string = p;
-				error("Option string needs delimiter before %s", &parg);
+				/* Cannot replace char; make a copy of the string. */
+				*p_str = (char *) ecalloc(p-s+1, sizeof(char));
+				strncpy(*p_str, s, p-s);
+				(*p_str)[p-s] = '\0';
 				break;
 			}
-			*p = '\0';
-			return (p+1);
+			break;
 		}
+	}
 	return (p);
 }
 
@@ -607,8 +613,11 @@ getnum(sp, printopt, errp)
 			*errp = TRUE;
 			return (-1);
 		}
-		parg.p_string = printopt;
-		error("Number is required after %s", &parg);
+		if (printopt != NULL)
+		{
+			parg.p_string = printopt;
+			error("Number is required after %s", &parg);
+		}
 		quit(QUIT_ERROR);
 	}
 

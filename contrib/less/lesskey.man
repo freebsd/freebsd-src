@@ -61,7 +61,7 @@ CCOOMMMMAANNDD SSEECCTTIIOONN
 
 
 
-                     Version 371: 26 Dec 2001                   1
+                     Version 381: 17 Jan 2003                   1
 
 
 
@@ -127,7 +127,7 @@ LESSKEY(1)                                             LESSKEY(1)
 
 
 
-                     Version 371: 26 Dec 2001                   2
+                     Version 381: 17 Jan 2003                   2
 
 
 
@@ -193,7 +193,7 @@ EEXXAAMMPPLLEE
 
 
 
-                     Version 371: 26 Dec 2001                   3
+                     Version 381: 17 Jan 2003                   3
 
 
 
@@ -259,7 +259,7 @@ LESSKEY(1)                                             LESSKEY(1)
 
 
 
-                     Version 371: 26 Dec 2001                   4
+                     Version 381: 17 Jan 2003                   4
 
 
 
@@ -325,7 +325,7 @@ EEXXAAMMPPLLEE
 
 
 
-                     Version 371: 26 Dec 2001                   5
+                     Version 381: 17 Jan 2003                   5
 
 
 
@@ -391,7 +391,7 @@ EEXXAAMMPPLLEE
 
 
 
-                     Version 371: 26 Dec 2001                   6
+                     Version 381: 17 Jan 2003                   6
 
 
 
@@ -414,7 +414,7 @@ WWAARRNNIINNGGSS
        It  is not possible to specify special keys, such as upar­
        row, in a keyboard-independent manner.  The  only  way  to
        specify  such keys is to specify the escape sequence which
-       a particular keyboard sends when such a keys is pressed.
+       a particular keyboard sends when such a key is pressed.
 
        On MS-DOS and OS/2 systems, certain keys send  a  sequence
        of  characters which start with a NUL character (0).  This
@@ -457,6 +457,6 @@ AAUUTTHHOORR
 
 
 
-                     Version 371: 26 Dec 2001                   7
+                     Version 381: 17 Jan 2003                   7
 
 

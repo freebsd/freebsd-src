@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2000  Mark Nudelman
+ * Copyright (C) 1984-2002  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -52,8 +52,8 @@ jump_forw()
  * Jump to line n in the file.
  */
 	public void
-jump_back(n)
-	int n;
+jump_back(linenum)
+	LINENUM linenum;
 {
 	POSITION pos;
 	PARG parg;
@@ -64,20 +64,20 @@ jump_back(n)
 	 * If we can't seek, but we're trying to go to line number 1,
 	 * use ch_beg_seek() to get as close as we can.
 	 */
-	pos = find_pos(n);
+	pos = find_pos(linenum);
 	if (pos != NULL_POSITION && ch_seek(pos) == 0)
 	{
 		if (show_attn)
 			set_attnpos(pos);
 		jump_loc(pos, jump_sline);
-	} else if (n <= 1 && ch_beg_seek() == 0)
+	} else if (linenum <= 1 && ch_beg_seek() == 0)
 	{
 		jump_loc(ch_tell(), jump_sline);
 		error("Cannot seek to beginning of file", NULL_PARG);
 	} else
 	{
-		parg.p_int = n;
-		error("Cannot seek to line number %d", &parg);
+		parg.p_linenum = linenum;
+		error("Cannot seek to line number %n", &parg);
 	}
 }
 

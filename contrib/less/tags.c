@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2000  Mark Nudelman
+ * Copyright (C) 1984-2002  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -68,7 +68,7 @@ static struct taglist taglist = { TAG_END, TAG_END };
 struct tag {
 	struct tag *next, *prev; /* List links */
 	char *tag_file;		/* Source file containing the tag */
-	int tag_linenum;	/* Appropriate line number in source file */
+	LINENUM tag_linenum;	/* Appropriate line number in source file */
 	char *tag_pattern;	/* Pattern used to find the tag */
 	char tag_endline;	/* True if the pattern includes '$' */
 };
@@ -113,7 +113,7 @@ cleantags()
 maketagent(name, file, linenum, pattern, endline)
 	char *name;
 	char *file;
-	int linenum;
+	LINENUM linenum;
 	char *pattern;
 	int endline;
 {
@@ -217,7 +217,7 @@ tagsearch()
 nexttag(n)
 	int n;
 {
-	char *tagfile;
+	char *tagfile = (char *) NULL;
 
 	while (n-- > 0)
 		tagfile = nextgtag();
@@ -231,7 +231,7 @@ nexttag(n)
 prevtag(n)
 	int n;
 {
-	char *tagfile;
+	char *tagfile = (char *) NULL;
 
 	while (n-- > 0)
 		tagfile = prevgtag();
@@ -271,7 +271,7 @@ findctag(tag)
 	char *p;
 	register FILE *f;
 	register int taglen;
-	register int taglinenum;
+	LINENUM taglinenum;
 	char *tagfile;
 	char *tagpattern;
 	int tagendline;
@@ -280,7 +280,7 @@ findctag(tag)
 	char tline[TAGLINE_SIZE];
 	struct tag *tp;
 
-	p = unquote_file(tags);
+	p = shell_unquote(tags);
 	f = fopen(p, "r");
 	free(p);
 	if (f == NULL)
@@ -335,6 +335,7 @@ findctag(tag)
 		/*
 		 * First see if it is a line number. 
 		 */
+		tagendline = 0;
 		taglinenum = getnum(&p, 0, &err);
 		if (err)
 		{
@@ -396,7 +397,7 @@ edit_tagfile()
 ctagsearch()
 {
 	POSITION pos, linepos;
-	int linenum;
+	LINENUM linenum;
 	int len;
 	char *line;
 
@@ -499,6 +500,7 @@ findgtag(tag, type)
 #else
 		char command[512];
 		char *flag;
+		char *qtag;
 		char *cmd = lgetenv("LESSGLOBALTAGS");
 
 		if (cmd == NULL || *cmd == '\0')
@@ -523,9 +525,12 @@ findgtag(tag, type)
 		}
 
 		/* Get our data from global(1). */
-		tag = esc_metachars(tag);
-		sprintf(command, "%s -x%s %s", cmd, flag, tag);
-		free(tag);
+		qtag = shell_quote(tag);
+		if (qtag == NULL)
+			qtag = tag;
+		sprintf(command, "%s -x%s %s", cmd, flag, qtag);
+		if (qtag != tag)
+			free(qtag);
 		fp = popen(command, "r");
 #endif
 	}
@@ -563,7 +568,7 @@ findgtag(tag, type)
 			}
 
 			/* Make new entry and add to list. */
-			tp = maketagent(name, file, atoi(line), NULL, 0);
+			tp = maketagent(name, file, (LINENUM) atoi(line), NULL, 0);
 			TAG_INS(tp);
 			total++;
 		}

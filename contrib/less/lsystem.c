@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2000  Mark Nudelman
+ * Copyright (C) 1984-2002  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -130,17 +130,12 @@ lsystem(cmd, donemsg)
 			p = save(shell);
 		else
 		{
-			char *esccmd;
-			if ((esccmd = esc_metachars(cmd)) == NULL)
-			{
-				p = (char *) ecalloc(strlen(shell) +
-					strlen(cmd) + 7, sizeof(char));
-				sprintf(p, "%s -c \"%s\"", shell, cmd);
-			} else
+			char *esccmd = shell_quote(cmd);
+			if (esccmd != NULL)
 			{
 				p = (char *) ecalloc(strlen(shell) +
 					strlen(esccmd) + 5, sizeof(char));
-				sprintf(p, "%s -c %s", shell, esccmd);
+				sprintf(p, "%s %s %s", shell, shell_coption(), esccmd);
 				free(esccmd);
 			}
 		}
@@ -152,7 +147,6 @@ lsystem(cmd, donemsg)
 		else
 			p = save(cmd);
 	}
-
 	system(p);
 	free(p);
 #else

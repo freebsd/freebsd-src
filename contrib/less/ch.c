@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2000  Mark Nudelman
+ * Copyright (C) 1984-2002  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -93,10 +93,10 @@ struct filestate {
 
 static struct filestate *thisfile;
 static int ch_ungotchar = -1;
+static int maxbufs = -1;
 
 extern int autobuf;
 extern int sigs;
-extern int cbufs;
 extern int secure;
 extern constant char helpdata[];
 extern constant int size_helpdata;
@@ -162,7 +162,7 @@ fch_get()
 		 * 2. We haven't allocated the max buffers for this file yet.
 		 */
 		if ((autobuf && !(ch_flags & CH_CANSEEK)) ||
-		    (cbufs == -1 || ch_nbufs < cbufs))
+		    (maxbufs < 0 || ch_nbufs < maxbufs))
 			if (ch_addbuf())
 				/*
 				 * Allocation failed: turn off autobuf.
@@ -561,32 +561,21 @@ ch_back_get()
 }
 
 /*
- * Allocate buffers.
- * Caller wants us to have a total of at least want_nbufs buffers.
+ * Set max amount of buffer space.
+ * bufspace is in units of 1024 bytes.  -1 mean no limit.
  */
-	public int
-ch_nbuf(want_nbufs)
-	int want_nbufs;
+	public void
+ch_setbufspace(bufspace)
+	int bufspace;
 {
-	PARG parg;
-
-	while (ch_nbufs < want_nbufs)
+	if (bufspace < 0)
+		maxbufs = -1;
+	else
 	{
-		if (ch_addbuf())
-		{
-			/*
-			 * Cannot allocate enough buffers.
-			 * If we don't have ANY, then quit.
-			 * Otherwise, just report the error and return.
-			 */
-			parg.p_int = want_nbufs - ch_nbufs;
-			error("Cannot allocate %d buffers", &parg);
-			if (ch_nbufs == 0)
-				quit(QUIT_ERROR);
-			break;
-		}
+		maxbufs = ((bufspace * 1024) + LBUFSIZE-1) / LBUFSIZE;
+		if (maxbufs < 1)
+			maxbufs = 1;
 	}
-	return (ch_nbufs);
 }
 
 /*
