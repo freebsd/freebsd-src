@@ -576,7 +576,7 @@ ng_ppp_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 		break;
 	case HOOK_INDEX_BYPASS:
 		if (m->m_pkthdr.len < 4) {
-			NG_FREE_META(meta);
+			NG_FREE_DATA(m, meta);
 			return (EINVAL);
 		}
 		if (m->m_len < 4 && (m = m_pullup(m, 4)) == NULL) {
@@ -587,8 +587,10 @@ ng_ppp_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 		proto = ntohs(mtod(m, u_int16_t *)[1]);
 		m_adj(m, 4);
 		if (linkNum >= NG_PPP_MAX_LINKS
-		    && linkNum != NG_PPP_BUNDLE_LINKNUM)
+		    && linkNum != NG_PPP_BUNDLE_LINKNUM) {
+			NG_FREE_DATA(m, meta);
 			return (EINVAL);
+		}
 		break;
 
 	/* Incoming data */
@@ -789,15 +791,17 @@ ng_ppp_input(node_p node, int bypass, int linkNum, struct mbuf *m, meta_p meta)
 		break;
 	}
 
-	/* For unknown/inactive protocols, forward out the bypass hook */
 bypass:
+	/* For unknown/inactive protocols, forward out the bypass hook */
 	if (outHook == NULL) {
 		u_int16_t hdr[2];
 
 		hdr[0] = htons(linkNum);
 		hdr[1] = htons((u_int16_t)proto);
-		if ((m = ng_ppp_prepend(m, &hdr, 4)) == NULL)
+		if ((m = ng_ppp_prepend(m, &hdr, 4)) == NULL) {
+			NG_FREE_META(meta);
 			return (ENOBUFS);
+		}
 		outHook = priv->hooks[HOOK_INDEX_BYPASS];
 	}
 
@@ -823,8 +827,10 @@ ng_ppp_output(node_p node, int bypass,
 
 	/* Check link status (if real) */
 	if (linkNum != NG_PPP_BUNDLE_LINKNUM) {
-		if (!bypass && !priv->conf.links[linkNum].enableLink)
+		if (!bypass && !priv->conf.links[linkNum].enableLink) {
+			NG_FREE_DATA(m, meta);
 			return (ENXIO);
+		}
 		if (priv->links[linkNum] == NULL) {
 			NG_FREE_DATA(m, meta);
 			return (ENETDOWN);
