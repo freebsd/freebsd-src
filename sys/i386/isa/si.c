@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.61 1997/09/21 21:41:37 gibbs Exp $
+ *	$Id: si.c,v 1.62 1997/12/06 13:22:56 bde Exp $
  */
 
 #ifndef lint
@@ -38,6 +38,8 @@ static const char si_copyright1[] =  "@(#) (C) Specialix International, 1990,199
                   si_copyright2[] =  "@(#) (C) Andy Rutter 1993",
                   si_copyright3[] =  "@(#) (C) Peter Wemm 1995";
 #endif	/* not lint */
+
+#include "opt_compat.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -36,12 +36,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.36 1997/10/17 23:52:56 davidg Exp $
+ * $Id: kern_prot.c,v 1.37 1997/11/06 19:29:12 phk Exp $
  */
 
 /*
  * System calls related to processes and protection
  */
+
+#include "opt_compat.h"
 
 #include <sys/param.h>
 #include <sys/acct.h>

@@ -31,8 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- *	$Id: if.c,v 1.55 1997/10/12 20:25:09 phk Exp $
+ *	$Id: if.c,v 1.56 1997/10/28 15:58:30 bde Exp $
  */
+
+#include "opt_compat.h"
 
 #include <sys/param.h>
 #include <sys/malloc.h>
