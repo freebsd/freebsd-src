@@ -38,7 +38,7 @@
 .In sys/queue.h
 .In vm/uma.h
 .Ft void *
-.Fn uma_zalloc "uma_zone_t zone, int wait"
+.Fn uma_zalloc "uma_zone_t zone, int flags"
 .Ft void
 .Fn uma_zfree "uma_zone_t zone" "void *item"
 .Ft void
@@ -81,13 +81,9 @@ To allocate an item from a zone, simply call
 .Fn uma_zalloc
 with a pointer to that zone
 and set the
-.Fa wait
-argument to
-.Dv M_WAITOK
-or
-.Dv M_NOWAIT
-depending on whether or not to block while allocating memory for this zone,
-should we run out.
+.Fa flags
+argument to selected flags as documented in
+.Xr malloc 9 .
 It will return a pointer to an item if successful,
 or
 .Dv NULL
