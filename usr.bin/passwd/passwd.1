@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)passwd.1	8.1 (Berkeley) 6/6/93
-.\"	$Id: passwd.1,v 1.11 1998/11/30 22:41:58 billf Exp $
+.\"	$Id$
 .\"
 .Dd June 6, 1993
 .Dt PASSWD 1
@@ -173,14 +173,6 @@ Do not automatically override the password authentication checks for the
 super-user on the NIS master server; assume 'old' mode instead. This
 flag is of limited practical use but is useful for testing.
 .El
-.Sh PASSWORD HASH FORMATS
-.Pp
-The type of password hash which is stored is configured through the file
-.Pa /etc/auth.conf
-using the variable auth_default.  Furthermore, passwd can only support
-hash formats which are supported by your
-.Xr crypt 3
-library.
 .Sh FILES
 .Bl -tag -width /etc/master.passwd -compact
 .It Pa /etc/master.passwd
@@ -199,8 +191,6 @@ configure authentication services
 .Xr kerberos 1 ,
 .Xr kinit 1 ,
 .Xr login 1 ,
-.Xr crypt 3 ,
-.Xr auth.conf 5 ,
 .Xr login.conf 5 ,
 .Xr passwd 5 ,
 .Xr kpasswdd 8 ,
