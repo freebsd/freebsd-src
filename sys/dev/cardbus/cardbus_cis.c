@@ -52,8 +52,6 @@
 
 #include "card_if.h"
 
-__FBSDID("$FreeBSD$");
-
 extern int cardbus_cis_debug;
 
 #define	DPRINTF(a) if (cardbus_cis_debug) printf a
