@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2000 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -7,7 +7,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: milter.h,v 8.24.16.6 2000/06/08 22:13:39 gshapiro Exp $
+ *	$Id: milter.h,v 8.24.16.8 2000/09/17 17:04:24 gshapiro Exp $
  */
 
 /*
@@ -74,8 +74,8 @@
 
 /* socket and thread portability */
 # include <pthread.h>
-typedef pthread_t sthread_t;
-typedef int	socket_t;
+typedef pthread_t	sthread_t;
+typedef int		socket_t;
 
 # define MAX_MACROS_ENTRIES	4	/* max size of macro pointer array */
 
