@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.111 1995/02/04 22:56:28 phk Exp $
+# $Id: bsd.port.mk,v 1.112 1995/02/06 08:52:19 hsu Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -607,7 +607,6 @@ checksum: fetch
 				OK="false"; \
 			elif [ "$$CKSUM" != "$$CKSUM2" ]; then \
 				echo ">> Checksum mismatch for $$file"; \
-				exit 1; \
 			fi; \
 			done; \
 			if [ "$$OK" = "" ]; then \
