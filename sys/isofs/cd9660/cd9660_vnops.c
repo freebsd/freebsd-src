@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.3 (Berkeley) 1/23/94
- * $Id: cd9660_vnops.c,v 1.19 1995/11/09 08:13:37 bde Exp $
+ * $Id: cd9660_vnops.c,v 1.20 1995/11/12 10:16:53 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -131,6 +131,43 @@ cd9660_mknod(ndp, vap, cred, p)
 #endif
 }
 #endif
+
+/*
+ * Setattr call. Only allowed for block and character special devices.
+ */
+int
+cd9660_setattr(ap)
+	struct vop_setattr_args /* {
+		struct vnodeop_desc *a_desc;
+		struct vnode *a_vp;
+		struct vattr *a_vap;
+		struct ucred *a_cred;
+		struct proc *a_p;
+	} */ *ap;
+{
+	struct vnode *vp = ap->a_vp;
+	struct vattr *vap = ap->a_vap;
+
+  	if (vap->va_flags != VNOVAL || vap->va_uid != (uid_t)VNOVAL ||
+	    vap->va_gid != (gid_t)VNOVAL || vap->va_atime.ts_sec != VNOVAL ||
+	    vap->va_mtime.ts_sec != VNOVAL || vap->va_mode != (mode_t)VNOVAL)
+		return (EROFS);
+	if (vap->va_size != VNOVAL) {
+ 		switch (vp->v_type) {
+ 		case VDIR:
+ 			return (EISDIR);
+		case VLNK:
+		case VREG:
+			return (EROFS);
+ 		case VCHR:
+ 		case VBLK:
+ 		case VSOCK:
+ 		case VFIFO:
+			return (0);
+		}
+	}
+	return (EOPNOTSUPP);
+}
 
 /*
  * Open called.
@@ -910,8 +947,6 @@ cd9660_enotsupp()
 #define cd9660_create \
 	((int (*) __P((struct  vop_create_args *)))cd9660_enotsupp)
 #define cd9660_mknod ((int (*) __P((struct  vop_mknod_args *)))cd9660_enotsupp)
-#define cd9660_setattr \
-	((int (*) __P((struct  vop_setattr_args *)))cd9660_enotsupp)
 #define cd9660_write ((int (*) __P((struct  vop_write_args *)))cd9660_enotsupp)
 #define cd9660_fsync ((int (*) __P((struct  vop_fsync_args *)))nullop)
 #define cd9660_remove \
