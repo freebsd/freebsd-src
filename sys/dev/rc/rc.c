@@ -551,13 +551,7 @@ register struct tty *tp;
 #ifdef RCDEBUG
 	printrcflags(rc, "rcstart");
 #endif
-	if (tp->t_outq.c_cc <= tp->t_lowat) {
-		if (tp->t_state & TS_ASLEEP) {
-			tp->t_state &= ~TS_ASLEEP;
-			wakeup((caddr_t)&tp->t_outq);
-		}
-		selwakeup(&tp->t_wsel);
-	}
+	ttwwakeup(tp);
 #ifdef RCDEBUG
 	printf("rcstart: outq = %d obuf = %d\n",
 		tp->t_outq.c_cc, rc->rc_obufend - rc->rc_optr);

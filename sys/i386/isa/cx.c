@@ -542,6 +542,9 @@ void cxoproc (struct tty *tp)
 	if (tp->t_state & (TS_SO_OCOMPLETE | TS_SO_OLOWAT) || tp->t_wsel)
 		ttwwakeup (tp);
 #else /* FreeBSD 2.x and BSDI */
+#ifndef TS_ASLEEP /* FreeBSD some time after 2.0.5 */
+	ttwwakeup(tp);
+#else
 	if (RB_LEN (tp->t_out) <= tp->t_lowat) {
 		if (tp->t_state & TS_ASLEEP) {
 			tp->t_state &= ~TS_ASLEEP;
@@ -549,6 +552,7 @@ void cxoproc (struct tty *tp)
 		}
 		selwakeup(&tp->t_wsel);
 	}
+#endif
 #endif
 	/*
 	 * Enable TXMPTY interrupt,
