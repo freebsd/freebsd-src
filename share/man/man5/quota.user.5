@@ -25,17 +25,17 @@
 .\"
 .Dd February 22, 2001
 .Dt QUOTA.USER 5
-.Fx
+.Os
 .Sh NAME
-.Nm quota.user
-.Nm quota.group
+.Nm quota.user , quota.group
 .Nd per-filesystem quota database
 .Sh DESCRIPTION
-Each filesystem with active quotas should contain a 
+Each filesystem with active quotas should contain a
 .Pa quota.user
 and
 .Pa quota.group
-file in the filesystem root.  These files are created by
+file in the filesystem root.
+These files are created by
 .Xr quotacheck 8 ,
 and should be edited with
 .Xr edquota 8 .
@@ -44,6 +44,6 @@ and should be edited with
 .Xr fstab 5 ,
 .Xr edquota 8 ,
 .Xr quotacheck 8 ,
-.Xr quotaon 8 ,
 .Xr quotaoff 8 ,
+.Xr quotaon 8 ,
 .Xr repquota 8
