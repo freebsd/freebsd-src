@@ -1584,7 +1584,7 @@ cs423x_attach(u_long csn, u_long vend_id, char *name,
     }
     dev->id_drq = d.drq[0] ; /* primary dma */
     dev->id_irq = (1 << d.irq[0] ) ;
-    dev->id_intr = pcmintr ;
+    dev->id_ointr = pcmintr ;
     dev->id_flags = DV_F_DUAL_DMA | (d.drq[1] ) ;
 
     tmp_d.synth_base = d.port[1]; /* XXX check this for yamaha */
@@ -1687,7 +1687,7 @@ opti931_attach(u_long csn, u_long vend_id, char *name,
     }
     dev->id_drq = d.drq[0] ; /* primary dma */
     dev->id_irq = (1 << d.irq[0] ) ;
-    dev->id_intr = pcmintr ;
+    dev->id_ointr = pcmintr ;
     pcmattach(dev);
 }
 
@@ -1752,7 +1752,7 @@ opti925_attach(u_long csn, u_long vend_id, char *name,
 
     dev->id_drq = d.drq[0] ; /* primary dma */
     dev->id_irq = (1 << d.irq[0] ) ;
-    dev->id_intr = pcmintr ;
+    dev->id_ointr = pcmintr ;
     dev->id_flags = DV_F_DUAL_DMA | d.drq[1] ;
     tmp_d.audio_fmt |= AFMT_FULLDUPLEX ;
 
@@ -1815,7 +1815,7 @@ guspnp_attach(u_long csn, u_long vend_id, char *name,
     dev->id_iobase = d.port[2] - 4 ; /* room for 4 mss registers */
     dev->id_drq = d.drq[1] ; /* XXX PLAY dma */
     dev->id_irq = (1 << d.irq[0] ) ;
-    dev->id_intr = pcmintr ;
+    dev->id_ointr = pcmintr ;
     dev->id_flags = DV_F_DUAL_DMA | d.drq[0]  ; /* REC dma */
 
     tmp_d.io_base = d.port[2] - 4;
