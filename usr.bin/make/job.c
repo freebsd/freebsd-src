@@ -163,6 +163,13 @@ static int     	  numCommands; 	    /* The number of commands actually printed
 #define JOB_STOPPED	3   	/* The job is stopped */
 
 /*
+ * tfile is used to build temp file names to store shell commands to
+ * execute. 
+ */
+static char     tfile[sizeof(TMPPAT)];
+
+
+/*
  * Descriptions for various shells.
  */
 static Shell    shells[] = {
@@ -981,13 +988,11 @@ JobFinish(job, status)
 	aborting = ABORT_ERROR;
     }
 
-    if ((aborting == ABORT_ERROR) && Job_Empty()) {
+    if ((aborting == ABORT_ERROR) && Job_Empty())
 	/*
 	 * If we are aborting and the job table is now empty, we finish.
 	 */
-	(void) eunlink(job->tfile);
 	Finish(errors);
-    }
 }
 
 /*-
@@ -1690,12 +1695,6 @@ JobStart(gn, flags, previous)
     }
     job->flags |= flags;
 
-    (void) strcpy(job->tfile, TMPPAT);
-    if ((tfd = mkstemp(job->tfile)) == -1)
-	Punt("cannot create temp file: %s", strerror(errno));
-    else
-	(void) close(tfd);
-
     /*
      * Check the commands now so any attributes from .DEFAULT have a chance
      * to migrate to the node
@@ -1721,9 +1720,14 @@ JobStart(gn, flags, previous)
 	    DieHorribly();
 	}
 
-	job->cmdFILE = fopen(job->tfile, "w+");
+	(void) strcpy(tfile, TMPPAT);
+	if ((tfd = mkstemp(tfile)) == -1)
+	    Punt("Cannot create temp file: %s", strerror(errno));
+	job->cmdFILE = fdopen(tfd, "w+");
+	eunlink(tfile);
 	if (job->cmdFILE == NULL) {
-	    Punt("Could not open %s", job->tfile);
+	    close(tfd);
+	    Punt("Could not open %s", tfile);
 	}
 	(void) fcntl(FILENO(job->cmdFILE), F_SETFD, 1);
 	/*
@@ -1829,7 +1833,6 @@ JobStart(gn, flags, previous)
 	 * Unlink and close the command file if we opened one
 	 */
 	if (job->cmdFILE != stdout) {
-	    (void) eunlink(job->tfile);
 	    if (job->cmdFILE != NULL)
 		(void) fclose(job->cmdFILE);
 	} else {
@@ -1858,7 +1861,6 @@ JobStart(gn, flags, previous)
 	}
     } else {
 	(void) fflush(job->cmdFILE);
-	(void) eunlink(job->tfile);
     }
 
     /*
@@ -2782,7 +2784,7 @@ JobInterrupt(runINTERRUPT, signo)
     int	    signo;		/* signal received */
 {
     LstNode 	  ln;		/* element in job table */
-    Job           *job;	    	/* job descriptor in that element */
+    Job           *job = NULL;	/* job descriptor in that element */
     GNode         *interrupt;	/* the node describing the .INTERRUPT target */
 
     aborting = ABORT_INTERRUPT;
@@ -2906,7 +2908,6 @@ JobInterrupt(runINTERRUPT, signo)
 	    }
 	}
     }
-    (void) eunlink(job->tfile);
 }
 
 /*
@@ -2917,10 +2918,6 @@ JobInterrupt(runINTERRUPT, signo)
  *
  * Results:
  *	Number of errors reported.
- *
- * Side Effects:
- *	The process' temporary file (tfile) is removed if it still
- *	existed.
  *-----------------------------------------------------------------------
  */
 int
@@ -3015,7 +3012,6 @@ Job_AbortAll()
 	    KILL(job->pid, SIGINT);
 	    KILL(job->pid, SIGKILL);
 #endif /* RMT_WANTS_SIGNALS */
-	    (void) eunlink(job->tfile);
 	}
     }
 

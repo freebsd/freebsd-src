@@ -51,6 +51,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <err.h>
 
 #if !defined(MAKE_BOOTSTRAP) && defined(BSD4_4)
 # include <sys/cdefs.h>
@@ -370,6 +371,8 @@ extern int debug;
 #endif /* __STDC__ */
 
 #define	DEBUG(module)	(debug & CONCAT(DEBUG_,module))
+#define ISDOT(c) ((c)[0] == '.' && (((c)[1] == '\0') || ((c)[1] == '/')))
+#define ISDOTDOT(c) ((c)[0] == '.' && ISDOT(&((c)[1])))
 
 /*
  * Since there are so many, all functions that return non-integer values are

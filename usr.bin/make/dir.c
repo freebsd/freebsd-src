@@ -225,6 +225,8 @@ Dir_Init ()
      */
     Dir_AddDir (openDirectories, ".");
     dot = (Path *) Lst_DeQueue (openDirectories);
+    if (dot == (Path *) NULL)
+	err(1, "cannot open current directory");
 
     /*
      * We always need to have dot around, so we increment its reference count
@@ -1057,12 +1059,6 @@ Dir_AddDir (path, name)
 	    p->refCount = 1;
 	    Hash_InitTable (&p->files, -1);
 
-	    /*
-	     * Skip the first two entries -- these will *always* be . and ..
-	     */
-	    (void)readdir(d);
-	    (void)readdir(d);
-
 	    while ((dp = readdir (d)) != (struct dirent *) NULL) {
 #if defined(sun) && defined(d_ino) /* d_ino is a sunos4 #define for d_fileno */
 		/*
@@ -1074,6 +1070,17 @@ Dir_AddDir (path, name)
 		    continue;
 		}
 #endif /* sun && d_ino */
+
+		/* Skip the '.' and '..' entries by checking for them
+		 * specifically instead of assuming readdir() reuturns them in
+		 * that order when first going through a directory.  This is
+		 * needed for XFS over NFS filesystems since SGI does not
+		 * guarantee that these are * the first two entries returned
+		 * from readdir().
+		 */
+		if (ISDOT(dp->d_name) || ISDOTDOT(dp->d_name))
+			continue;
+
 		(void)Hash_CreateEntry(&p->files, dp->d_name, (Boolean *)NULL);
 	    }
 	    (void) closedir (d);
