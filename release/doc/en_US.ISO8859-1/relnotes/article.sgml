@@ -941,7 +941,7 @@
     variable.&merged;</para>
 
     <para>The new <varname>net.inet.ip.maxfragpackets</varname> 
-    and <varname>net.inet.ip.maxfragpackets</varname> sysctl
+    and <varname>net.inet.ip6.maxfragpackets</varname> sysctl
     variables limit the amount of memory that can be consumed by IPv4
     and IPv6 packet fragments, which defends against some denial of service
     attacks. &merged;</para>
@@ -1819,7 +1819,7 @@
         <para>&man.pim6dd.8; and &man.pim6sd.8; have been removed due to
         restrictive licensing conditions.  These programs are available
         in the ports collection as <filename>net/pim6dd</filename> and
-        <filename>net/pim6dd</filename>. &merged;</para>
+        <filename>net/pim6sd</filename>. &merged;</para>
 
 	<para>&man.route6d.8; now supports a <option>-n</option> flag
 	to avoid updating the kernel forwarding table. &merged;</para>
