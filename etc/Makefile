@@ -20,7 +20,7 @@ BIN1=   aliases amd.map apmd.conf auth.conf \
 	${.CURDIR}/../usr.bin/mail/misc/mail.rc \
 	${.CURDIR}/../usr.bin/locate/locate/locate.rc
 
-.if exists(${.CURDIR}../crypto) && !defined(NO_OPENSSH)
+.if exists(${.CURDIR}/../crypto) && !defined(NO_OPENSSH)
 BIN1+=	${.CURDIR}/../crypto/openssh/ssh_config \
 	${.CURDIR}/../crypto/openssh/sshd_config
 .endif
