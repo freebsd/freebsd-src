@@ -163,8 +163,8 @@ typedef	__size_t	size_t;
 
 __BEGIN_DECLS
 /*
- * XXX not yet implemented: mlockall(), munlockall(),
- * posix_mem_offset(), posix_typed_mem_get_info(), posix_typed_mem_open().
+ * XXX not yet implemented: posix_mem_offset(), posix_typed_mem_get_info(),
+ * posix_typed_mem_open().
  */
 #if __BSD_VISIBLE
 int	madvise(void *, size_t, int);
