@@ -437,6 +437,11 @@ config(vnp)
 	}
 
 	/*
+	 * Close the device now, as we may want to mount it.
+	 */
+	fclose(f);
+
+	/*
 	 * Enable special functions on the device
 	 */
 	if (flags & VN_ENABLE) {
@@ -461,7 +466,6 @@ config(vnp)
 		}
 	}
 /* done: */
-	fclose(f);
 	fflush(stdout);
 	return(rv < 0);
 }
