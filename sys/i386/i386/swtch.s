@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.5 1994/04/02 07:00:30 davidg Exp $
+ *	$Id: swtch.s,v 1.7 1994/05/25 08:55:08 rgrimes Exp $
  */
 
 #include "npx.h"	/* for NNPX */
@@ -206,8 +206,6 @@ ENTRY(cpu_switch)
 1:
 #endif	/* NNPX > 0 */
 
-	movl	_CMAP2,%eax			/* save temporary map PTE */
-	movl	%eax,PCB_CMAP2(%ecx)		/* in our context */
 	movl	$0,_curproc			/*  out of process */
 
 #	movw	_cpl,%ax
@@ -274,9 +272,6 @@ sw1a:
 	movl	PCB_EDI(%edx),%edi
 	movl	PCB_EIP(%edx),%eax
 	movl	%eax,(%esp)
-
-	movl	PCB_CMAP2(%edx),%eax		/* get temporary map */
-	movl	%eax,_CMAP2			/* reload temporary map PTE */
 
 	movl	%ecx,_curproc			/* into next process */
 	movl	%edx,_curpcb

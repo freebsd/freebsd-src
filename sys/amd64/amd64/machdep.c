@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.41 1994/03/30 02:31:11 davidg Exp $
+ *	$Id: machdep.c,v 1.44 1994/06/04 11:01:15 davidg Exp $
  */
 
 #include "npx.h"
@@ -1063,6 +1063,8 @@ init386(first)
 	struct region_descriptor r_gdt, r_idt;
 	int	pagesinbase, pagesinext;
 	int	target_page;
+	extern struct pte *CMAP1;
+	extern caddr_t CADDR1;
 
 	proc0.p_addr = proc0paddr;
 
@@ -1234,8 +1236,6 @@ init386(first)
 	printf("Testing memory (%dMB)...", ptoa(Maxmem)/1024/1024);
 
 	for (target_page = Maxmem - 1; target_page >= atop(first); target_page--) {
-		extern struct pte *CMAP1;
-		extern caddr_t CADDR1;
 
 		/*
 		 * map page into kernel: valid, read/write, non-cacheable
@@ -1284,6 +1284,9 @@ init386(first)
 		}
 	}
 	printf("done.\n");
+
+	*(int *)CMAP1 = 0;
+	tlbflush();
 
 	avail_end = (Maxmem << PAGE_SHIFT)
 		    - i386_round_page(sizeof(struct msgbuf));
