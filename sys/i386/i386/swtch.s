@@ -171,13 +171,6 @@ sw1:
 
 sw1b:
 	movl	%eax,%ecx
-
-#ifdef	INVARIANTS
-	cmpb	$TDS_RUNQ,TD_STATE(%ecx)
-	jne	badsw2
-#endif
-
-	movl	$TDS_RUNNING,TD_STATE(%ecx)
 	movl	TD_PCB(%ecx),%edx
 
 #if defined(SWTCH_OPTIM_STATS)
@@ -316,13 +309,6 @@ cpu_switch_load_gs:
 	ret
 
 #ifdef INVARIANTS
-badsw2:
-	pushal
-	pushl	$sw0_2
-	call	panic
-
-sw0_2:	.asciz	"cpu_switch: not TDS_RUNQ"
-
 badsw3:
 	pushal
 	pushl	$sw0_3

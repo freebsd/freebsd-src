@@ -155,11 +155,10 @@ choosethread(void)
 	} else {
 		/* Pretend the idle thread was on the run queue. */
 		td = PCPU_GET(idlethread);
-		/* Simulate that it was on the run queue */
-		td->td_state = TDS_RUNQ;
 		td->td_kse->ke_state = KES_UNQUEUED; 
 		CTR1(KTR_RUNQ, "choosethread: td=%p (idle)", td);
 	}
+	td->td_state = TDS_RUNNING;
 	return (td);
 }
 
