@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.157 1997/08/07 03:52:50 dyson Exp $
+ *	$Id: pmap.c,v 1.158 1997/08/07 05:15:48 dyson Exp $
  */
 
 /*
@@ -254,9 +254,11 @@ pmap_pte(pmap, va)
 vm_offset_t
 pmap_kmem_choose(vm_offset_t addr) {
 	vm_offset_t newaddr = addr;
+#ifndef DISABLE_PSE
 	if (cpu_feature & CPUID_PSE) {
 		newaddr = (addr + (NBPDR - 1)) & ~(NBPDR - 1);
 	}
+#endif
 	return newaddr;
 }
 
@@ -1853,10 +1855,7 @@ pmap_remove_all(pa)
  *	specified range of this map as requested.
  */
 void
-pmap_protect(pmap, sva, eva, prot)
-	register pmap_t pmap;
-	vm_offset_t sva, eva;
-	vm_prot_t prot;
+pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
 	register unsigned *ptbase;
 	vm_offset_t pdnxt;
@@ -1949,12 +1948,8 @@ pmap_protect(pmap, sva, eva, prot)
  *	insert this page into the given map NOW.
  */
 void
-pmap_enter(pmap, va, pa, prot, wired)
-	register pmap_t pmap;
-	vm_offset_t va;
-	register vm_offset_t pa;
-	vm_prot_t prot;
-	boolean_t wired;
+pmap_enter(pmap_t pmap, vm_offset_t va, vm_offset_t pa, vm_prot_t prot,
+	   boolean_t wired)
 {
 	register unsigned *pte;
 	vm_offset_t opa;
@@ -2896,9 +2891,7 @@ pmap_changebit(pa, bit, setem)
  *      Lower the permission for all mappings to a given page.
  */
 void
-pmap_page_protect(phys, prot)
-	vm_offset_t phys;
-	vm_prot_t prot;
+pmap_page_protect(vm_offset_t phys, vm_prot_t prot)
 {
 	if ((prot & VM_PROT_WRITE) == 0) {
 		if (prot & (VM_PROT_READ | VM_PROT_EXECUTE)) {
@@ -3041,8 +3034,7 @@ i386_protection_init()
  * Map a set of physical memory pages into the kernel virtual
  * address space. Return a pointer to where it is mapped. This
  * routine is intended to be used for mapping device memory,
- * NOT real memory. The non-cacheable bits are set on each
- * mapped page.
+ * NOT real memory.
  */
 void *
 pmap_mapdev(pa, size)
