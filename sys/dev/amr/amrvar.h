@@ -250,7 +250,6 @@ extern int		amr_cam_command(struct amr_softc *sc, struct amr_command **acp);
 struct amrd_softc 
 {
     device_t		amrd_dev;
-    dev_t		amrd_dev_t;
     struct amr_softc	*amrd_controller;
     struct amr_logdrive	*amrd_drive;
     struct disk		amrd_disk;
