@@ -89,7 +89,10 @@ SYSCTL_INT(_debug, OID_AUTO, bpf_maxbufsize, CTLFLAG_RW,
 	&bpf_maxbufsize, 0, "");
 
 /*
- *  bpf_iflist is the list of interfaces; each corresponds to an ifnet
+ * bpf_iflist is a list of BPF interface structures, each corresponding to a
+ * specific DLT.  The same network interface might have several BPF interface
+ * structures registered by different layers in the stack (i.e., 802.11
+ * frames, ethernet frames, etc).
  */
 static LIST_HEAD(, bpf_if)	bpf_iflist;
 static struct mtx	bpf_mtx;		/* bpf global lock */
