@@ -87,7 +87,7 @@ static struct m3_card_type {
 };
 
 #define M3_BUFSIZE 4096
-#define M3_PCHANS 4 /* create /dev/dsp0.[0-N] to use more than one */
+#define M3_PCHANS 1 /* create /dev/dsp0.[0-N] to use more than one */
 #define M3_RCHANS 1
 #define M3_MAXADDR ((1 << 27) - 1)
 
