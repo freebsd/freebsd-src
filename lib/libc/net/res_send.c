@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_send.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_send.c,v 1.5 1995/08/20 20:03:06 peter Exp $";
+static char rcsid[] = "$Id: res_send.c,v 1.6 1995/08/21 09:15:40 bde Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 	/* change this to "0"
@@ -102,38 +102,38 @@ static int vc = 0;	/* is the socket a virtual ciruit? */
 			fprintf args;\
 			__fp_nquery(query, size, stdout);\
 		} else {}
-static void
-Aerror(file, string, error, address)
-    FILE *file;
-    char *string;
-    int error;
-    struct sockaddr_in address;
-{
-    int save = errno;
+    static void
+    Aerror(file, string, error, address)
+	FILE *file;
+	char *string;
+	int error;
+	struct sockaddr_in address;
+    {
+	int save = errno;
 
-    if (_res.options & RES_DEBUG) {
+	if (_res.options & RES_DEBUG) {
 		fprintf(file, "res_send: %s ([%s].%u): %s\n",
-		    string,
-		    inet_ntoa(address.sin_addr),
+			string,
+			inet_ntoa(address.sin_addr),
 			ntohs(address.sin_port),
-		    strerror(error));
+			strerror(error));
+	}
+	errno = save;
     }
-    errno = save;
-}
-static void
-Perror(file, string, error)
-    FILE *file;
-    char *string;
-    int error;
-{
-    int save = errno;
+    static void
+    Perror(file, string, error)
+	FILE *file;
+	char *string;
+	int error;
+    {
+	int save = errno;
 
-    if (_res.options & RES_DEBUG) {
-	    fprintf(file, "res_send: %s: %s\n",
-		    string, strerror(error));
+	if (_res.options & RES_DEBUG) {
+		fprintf(file, "res_send: %s: %s\n",
+			string, strerror(error));
+	}
+	errno = save;
     }
-    errno = save;
-}
 #endif
 
 static res_send_qhook Qhook = NULL;
@@ -214,7 +214,7 @@ res_nameinquery(name, type, class, buf, eom)
 		if (n < 0)
 			return (-1);
 		cp += n;
-		ttype = _getshort(cp);	cp += INT16SZ;
+		ttype = _getshort(cp); cp += INT16SZ;
 		tclass = _getshort(cp); cp += INT16SZ;
 		if (ttype == type &&
 		    tclass == class &&
@@ -263,20 +263,20 @@ res_queriesmatch(buf1, eom1, buf2, eom2)
 
 int
 res_send(buf, buflen, ans, anssiz)
-	const u_char	*buf;
-	int		buflen;
-	u_char		*ans;
-	int		anssiz;
+	const u_char *buf;
+	int buflen;
+	u_char *ans;
+	int anssiz;
 {
-	HEADER		*hp = (HEADER *) buf;
-	HEADER		*anhp = (HEADER *) ans;
+	HEADER *hp = (HEADER *) buf;
+	HEADER *anhp = (HEADER *) ans;
 	int gotsomewhere, connreset, terrno, try, v_circuit, resplen, ns;
-	register int	n;
-	u_int		badns;	/* XXX NSMAX can't exceed #/bits in this var */
+	register int n;
+	u_int badns;	/* XXX NSMAX can't exceed #/bits in this var */
 
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
 		/* errno should have been set by res_init() in this case. */
-			return (-1);
+		return (-1);
 	}
 	DprintQ((_res.options & RES_DEBUG) || (_res.pfcode & RES_PRF_QUERY),
 		(stdout, ";; res_send()\n"), buf, buflen);
@@ -293,7 +293,7 @@ res_send(buf, buflen, ans, anssiz)
 	    for (ns = 0; ns < _res.nscount; ns++) {
 		struct sockaddr_in *nsap = &_res.nsaddr_list[ns];
     same_ns:
-		if (badns & (1<<ns)) {
+		if (badns & (1 << ns)) {
 			_res_close();
 			goto next_ns;
 		}
@@ -330,13 +330,13 @@ res_send(buf, buflen, ans, anssiz)
 
 		Dprint(_res.options & RES_DEBUG,
 		       (stdout, ";; Querying server (# %d) address = %s\n",
-			ns+1, inet_ntoa(nsap->sin_addr)));
+			ns + 1, inet_ntoa(nsap->sin_addr)));
 
 		if (v_circuit) {
-			int		truncated;
-			struct iovec	iov[2];
-			u_short		len;
-			u_char		*cp;
+			int truncated;
+			struct iovec iov[2];
+			u_short len;
+			u_char *cp;
 
 			/*
 			 * Use virtual circuit;
@@ -360,7 +360,7 @@ res_send(buf, buflen, ans, anssiz)
 					terrno = errno;
 					Aerror(stderr, "connect/vc",
 					       errno, *nsap);
-					badns |= (1<<ns);
+					badns |= (1 << ns);
 					_res_close();
 					goto next_ns;
 				}
@@ -377,7 +377,7 @@ res_send(buf, buflen, ans, anssiz)
 			if (writev(s, iov, 2) != (INT16SZ + buflen)) {
 				terrno = errno;
 				Perror(stderr, "write failed", errno);
-				badns |= (1<<ns);
+				badns |= (1 << ns);
 				_res_close();
 				goto next_ns;
 			}
@@ -456,10 +456,10 @@ res_send(buf, buflen, ans, anssiz)
 			/*
 			 * Use datagrams.
 			 */
-			struct timeval	timeout;
-			fd_set		dsmask;
+			struct timeval timeout;
+			fd_set dsmask;
 			struct sockaddr_in from;
-			int		fromlen;
+			int fromlen;
 
 			if ((s < 0) || vc) {
 				if (vc)
@@ -499,7 +499,7 @@ res_send(buf, buflen, ans, anssiz)
 						Aerror(stderr,
 						       "connect(dg)",
 						       errno, *nsap);
-						badns |= (1<<ns);
+						badns |= (1 << ns);
 						_res_close();
 						goto next_ns;
 					}
@@ -507,7 +507,7 @@ res_send(buf, buflen, ans, anssiz)
 				}
 				if (send(s, (char*)buf, buflen, 0) != buflen) {
 					Perror(stderr, "send", errno);
-					badns |= (1<<ns);
+					badns |= (1 << ns);
 					_res_close();
 					goto next_ns;
 				}
@@ -534,7 +534,7 @@ res_send(buf, buflen, ans, anssiz)
 					   sizeof(struct sockaddr))
 				    != buflen) {
 					Aerror(stderr, "sendto", errno, *nsap);
-					badns |= (1<<ns);
+					badns |= (1 << ns);
 					_res_close();
 					goto next_ns;
 				}
@@ -608,7 +608,7 @@ res_send(buf, buflen, ans, anssiz)
 #endif
 			if (!(_res.options & RES_INSECURE2) &&
 			    !res_queriesmatch(buf, buf + buflen,
-					   ans, ans + anssiz)) {
+					      ans, ans + anssiz)) {
 				/*
 				 * response contains wrong query? ignore it.
 				 * XXX - potential security hazard could
@@ -626,11 +626,11 @@ res_send(buf, buflen, ans, anssiz)
 				DprintQ(_res.options & RES_DEBUG,
 					(stdout, "server rejected query:\n"),
 					ans, resplen);
-				badns |= (1<<ns);
+				badns |= (1 << ns);
 				_res_close();
 				/* don't retry if called from dig */
 				if (!_res.pfcode)
-				goto next_ns;
+					goto next_ns;
 			}
 			if (!(_res.options & RES_IGNTC) && anhp->tc) {
 				/*
@@ -644,9 +644,13 @@ res_send(buf, buflen, ans, anssiz)
 				goto same_ns;
 			}
 		} /*if vc/dg*/
+		Dprint((_res.options & RES_DEBUG) ||
+		       ((_res.pfcode & RES_PRF_REPLY) &&
+			(_res.pfcode & RES_PRF_HEAD1)),
+		       (stdout, ";; got answer:\n"));
 		DprintQ((_res.options & RES_DEBUG) ||
 			(_res.pfcode & RES_PRF_REPLY),
-			(stdout, ";; got answer:\n"),
+			(stdout, ""),
 			ans, resplen);
 		/*
 		 * If using virtual circuits, we assume that the first server
