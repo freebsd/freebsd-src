@@ -59,6 +59,7 @@ static struct event_tailq_head g_events = TAILQ_HEAD_INITIALIZER(g_events);
 static u_int g_pending_events;
 static TAILQ_HEAD(,g_provider) g_doorstep = TAILQ_HEAD_INITIALIZER(g_doorstep);
 static struct mtx g_eventlock;
+static int g_wither_work;
 
 #define G_N_EVENTREFS		20
 
@@ -194,9 +195,18 @@ one_event(void)
 void
 g_run_events()
 {
+	int i;
 
 	while (one_event())
 		;
+	g_topology_lock();
+	i = g_wither_work;
+	while (i) {
+		i = g_wither_washer();
+		g_wither_work = i & 1;
+		i &= 2;
+	}
+	g_topology_unlock();
 }
 
 void
@@ -286,6 +296,12 @@ g_post_event(g_event_t *func, void *arg, int flag, ...)
 	return (i);
 }
 
+void
+g_do_wither() {
+
+	g_wither_work = 1;
+	wakeup(&g_wait_event);
+}
 
 /*
  * XXX: It might actually be useful to call this function with topology held.
