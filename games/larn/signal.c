@@ -1,5 +1,8 @@
+/* $FreeBSD$ */
+
 #include <signal.h>
 #include "header.h"			/* "Larn is copyrighted 1986 by Noah Morgan.\n" */
+
 #define BIT(a) (1<<((a)-1))
 extern char savefilename[],wizard,predostuff,nosignal;
 static s2choose()	/* text to be displayed if ^C during intro screen */
@@ -43,7 +46,7 @@ tstop() /* control Y	*/
 	if (predostuff==1) s2choose(); else drawscreen();
 	showplayer();	lflush();
 	}
-#endif SIGTSTP
+#endif /* SIGTSTP */
 
 /*
  *	subroutine to issue the needed signal traps  called from main()
@@ -70,7 +73,7 @@ sigsetup()
 	signal(SIGPIPE, sigpipe);		signal(SIGTERM, sigterm);
 #ifdef SIGTSTP
 	signal(SIGTSTP,tstop);		signal(SIGSTOP,tstop);
-#endif SIGTSTP
+#endif /* SIGTSTP */
 	}
 
 #ifdef BSD	/* for BSD UNIX? */
@@ -105,7 +108,7 @@ static char *signame[NSIG] = { "",
 "SIGPROF", /*	27	 profiling time alarm */
 "","","","" };
 
-#else BSD	/* for system V? */
+#else /* BSD */	/* for system V? */
 
 static char *signame[NSIG] = { "",
 "SIGHUP",  /*	1	 hangup */
@@ -129,7 +132,7 @@ static char *signame[NSIG] = { "",
 "SIGPWR",  /*	19	 power fail */
 "","","","","","","","","","","","" };
 
-#endif BSD
+#endif /* BSD */
 
 /*
  *	routine to process a fatal error signal

@@ -535,7 +535,7 @@ invalid:
 		logg.killed=c[MONSTKILLED];
 #endif
 		lwrite((char*)&logg,sizeof(struct log_fmt));	 lwclose();
-#endif NOLOG
+#endif /* NOLOG */
 
 /*	now for the scoreboard maintenance -- not for a suspended game 	*/
 		if (x != 257)
@@ -650,5 +650,5 @@ addone:
 	lcreat((char*)0);	/* re-open terminal channel */
 	return(high);
 	}
-#endif UIDSCORE
+#endif /* UIDSCORE */
 
