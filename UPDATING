@@ -15,8 +15,7 @@ the common items quick how-tos, followed by entries for versions of
 		1. ISO_* -> ISO*
 		2. ru_SU* -> ru_RU*
 		3. DIS_* -> ISO*-15
-		4. *.EUC -> *.euc??
-		5. *.ASCII -> *.US-ASCII
+		4. *.ASCII -> *.US-ASCII
 
 20011202:
 	A security hole in OpenSSH involving `UseLogin yes' has been
