@@ -1,5 +1,7 @@
 /*
  * mjs copyright
+ *
+ * $FreeBSD$
  */
 
 #include <stand.h>
@@ -21,8 +23,9 @@ time(time_t *t)
 {
     static time_t	lasttime, now;
     int			hr, min, sec;
+    
 #ifdef PC98
-    unsigned char bios_time[6];
+    unsigned char	bios_time[6];
 #endif
 
     v86.ctl = 0;
