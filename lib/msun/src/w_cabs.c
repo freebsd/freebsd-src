@@ -5,23 +5,24 @@
  * Placed into the Public Domain, 1994.
  */
 
-#include <math.h>
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
 
-struct complex {
-	double x;
-	double y;
-};
+#include <complex.h>
+#include <math.h>
 
 double
 cabs(z)
-	struct complex z;
+	double complex z;
 {
-	return hypot(z.x, z.y);
+	return hypot(creal(z), cimag(z));
 }
 
 double
 z_abs(z)
-	struct complex *z;
+	double complex *z;
 {
-	return hypot(z->x, z->y);
+	return hypot(creal(*z), cimag(*z));
 }

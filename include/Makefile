@@ -8,7 +8,8 @@
 
 CLEANFILES= osreldate.h version vers.c
 SUBDIR= rpcsvc rpc
-FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
+FILES=	a.out.h ar.h assert.h bitstring.h complex.h ctype.h db.h \
+	dirent.h disktab.h \
 	dlfcn.h elf.h elf-hints.h err.h fnmatch.h fstab.h \
 	fts.h glob.h grp.h strhash.h \
 	hesiod.h histedit.h ieeefp.h ifaddrs.h iso646.h langinfo.h \
