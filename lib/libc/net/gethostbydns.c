@@ -60,7 +60,6 @@ static char fromrcsid[] = "From: Id: gethnamaddr.c,v 8.23 1998/04/07 04:59:46 vi
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "namespace.h"
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
@@ -79,7 +78,6 @@ __FBSDID("$FreeBSD$");
 #include <syslog.h>
 #include <stdarg.h>
 #include <nsswitch.h>
-#include "un-namespace.h"
 
 #include "res_config.h"
 
@@ -676,7 +674,7 @@ _dns_gethostbyaddr(void *rval, void *cb_data, va_list ap)
 				       uaddr[n] & 0xf,
 				       (uaddr[n] >> 4) & 0xf));
 		}
-		_strlcat(qbuf, "ip6.arpa", sizeof(qbuf));
+		strlcat(qbuf, "ip6.arpa", sizeof(qbuf));
 		break;
 	default:
 		abort();
@@ -688,7 +686,7 @@ _dns_gethostbyaddr(void *rval, void *cb_data, va_list ap)
 	n = res_query(qbuf, C_IN, T_PTR, (u_char *)buf->buf, sizeof buf->buf);
 	if (n < 0 && af == AF_INET6) {
 		*qp = '\0';
-		_strlcat(qbuf, "ip6.int", sizeof(qbuf));
+		strlcat(qbuf, "ip6.int", sizeof(qbuf));
 		n = res_query(qbuf, C_IN, T_PTR, (u_char *)buf->buf,
 			      sizeof buf->buf);
 	}
