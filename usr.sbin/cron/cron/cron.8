@@ -27,10 +27,7 @@
 .Nm
 .Op Fl s
 .Op Fl o
-.Oo
-.Fl x
-.Ar debugflag Ns Op , Ns Ar ...
-.Oc
+.Op Fl x Ar debugflag Ns Op , Ns Ar ...
 .Sh DESCRIPTION
 .Nm Cron
 should be started from
@@ -120,6 +117,30 @@ If both options
 and
 .Fl s
 are specified, the option specified last wins.
+.It Fl x Ar debugflag Ns Op , Ns Ar ...
+Enable writing of debugging information to standard output.
+One or more of the following comma separated
+.Ar debugflag
+identifiers must be specified:
+.Pp
+.Bl -tag -width ".Cm proc" -compact
+.It Cm bit
+currently not used
+.It Cm ext
+make the other debug flags more verbose
+.It Cm load
+be verbose when loading crontab files
+.It Cm misc
+be verbose about miscellaneous one-off events
+.It Cm pars
+be verbose about parsing individual crontab lines
+.It Cm proc
+be verbose about the state of the process, including all of its offspring
+.It Cm sch
+be verbose when iterating through the scheduling algorithms
+.It Cm test
+trace through the execution, but do not perform any actions
+.El
 .El
 .Sh SEE ALSO
 .Xr crontab 1 ,
