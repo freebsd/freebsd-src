@@ -29,22 +29,16 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd June 27, 2002
+.Dd March 13, 2003
 .Dt SETFMAC 8
 .Os
 .Sh NAME
-.Nm setfmac ,
-.Nm setfsmac
+.Nm setfmac
 .Nd set MAC label for a file system object
 .Sh SYNOPSIS
 .Nm setfmac
 .Op Fl hR
 .Ar label
-.Ar
-.Nm setfsmac
-.Op Fl ehvx
-.Op Fl f Ar specfile
-.Op Fl s Ar specfile
 .Ar
 .Sh DESCRIPTION
 The
@@ -59,61 +53,6 @@ just the files themselves.
 If the file is a symbolic link, change the label of the link rather
 than the file that the link points to.
 .El
-.Pp
-The
-.Nm setfsmac
-utility accepts a list of specification files as input and sets the MAC
-labels on the specified file system hierarchies.
-Path names specified will be visited in order as given on the command line,
-and each tree will be traversed in pre-order.
-(Generally, it will not be very useful to use relative, instead of absolute,
-paths.)
-The labels that match a file will be combined and set in a single
-transaction.
-.Pp
-The following options are available:
-.Bl -tag -width indent
-.It Fl e
-Treat any file systems encountered which do not support MAC labelling as
-errors, instead of warning and skipping past them.
-.It Fl f Ar specfile
-Add the specifications in
-.Ar specfile
-as a set of which at most one will be applied to each file traversed per
-.Fl f Ar specfile
-given.
-.It Fl h
-If the file is a symbolic link, change the label of the link rather
-than the file that the link points to.
-.It Fl s Ar specfile
-Add the specification in
-.Ar specfile ,
-but assume that the specification format is that used in the port
-of
-.Tn SELinux
-to
-.Fx ,
-.Tn SEBSD .
-At most one of the specifications will be applied to each file traversed per
-.Fl f Ar specfile
-given.
-The prefix
-.Dq Li sebsd/
-will automatically be prepended to the labels in this file, and labels
-matching
-.Dq Li <<none>>
-will be explicitly not relabeled.
-This permits SEBSD to re-use existing
-.Tn SELinux
-policy specification files
-unmodified.
-.It Fl v
-Increase the degree of verbosity.
-When given, information detailing the labelling operation is printed while
-in progress.
-.It Fl x
-Do not cross recurse into new file systems when traversing them.
-.El
 .Sh SEE ALSO
 .Xr mac 3 ,
 .Xr mac_set_file 3 ,
@@ -121,4 +60,5 @@ Do not cross recurse into new file systems when traversing them.
 .Xr mac 4 ,
 .Xr re_format 7 ,
 .Xr getfmac 8 ,
+.Xr setfsmac 8 ,
 .Xr mac 9
