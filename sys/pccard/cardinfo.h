@@ -133,6 +133,8 @@ struct io_desc {
 /*
  *	Device descriptor for allocation of driver.
  */
+#define DEV_MISC_LEN	36
+#define DEV_MAX_CIS_LEN	40
 struct dev_desc {
 	char		name[16];	/* Driver name */
 	int		unit;		/* Driver unit number */
@@ -142,7 +144,9 @@ struct dev_desc {
 	int		iosize;		/* Length of I/O ports */
 	int		irqmask;	/* Interrupt number(s) to allocate */
 	int		flags;		/* Device flags */
-	uint8_t		misc[116];	/* For any random info */
+	uint8_t		misc[DEV_MISC_LEN]; /* For any random info */
+	uint8_t		manufstr[DEV_MAX_CIS_LEN];
+	uint8_t		versstr[DEV_MAX_CIS_LEN];
 	uint32_t	manufacturer;	/* Manufacturer ID */
 	uint32_t	product;	/* Product ID */
 	uint32_t	prodext;	/* Product ID (extended) */
