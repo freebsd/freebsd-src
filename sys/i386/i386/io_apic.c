@@ -200,6 +200,7 @@ ioapic_disable_source(struct intsrc *isrc)
 static void
 ioapic_eoi_source(struct intsrc *isrc)
 {
+
 	TODO;
 	/* lapic_eoi(); */
 }
@@ -242,6 +243,7 @@ ioapic_program_destination(struct ioapic_intsrc *intpin)
 static void
 ioapic_assign_cluster(struct ioapic_intsrc *intpin)
 {
+
 	/*
 	 * Assign this intpin to a logical APIC cluster in a
 	 * round-robin fashion.  We don't actually use the logical
