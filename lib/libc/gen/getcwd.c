@@ -89,13 +89,15 @@ getcwd(pt, size)
 			return (NULL);
 		ept = pt + ptsize;
 	}
-	if (!__getcwd(pt, ept-pt)) {
-		bpt = pt;
-		ept = pt + strlen(pt) - 1;
-		while (bpt < ept) {
-			c = *bpt;
-			*bpt++ = *ept;
-			*ept-- = c;
+	if (!__getcwd(pt, ept - pt)) {
+		if (*pt != '/') {
+			bpt = pt;
+			ept = pt + strlen(pt) - 1;
+			while (bpt < ept) {
+				c = *bpt;
+				*bpt++ = *ept;
+				*ept-- = c;
+			}
 		}
 		return (pt);
 	}
