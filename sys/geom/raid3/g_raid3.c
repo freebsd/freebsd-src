@@ -2765,7 +2765,7 @@ g_raid3_destroy(struct g_raid3_softc *sc, boolean_t force)
 	pp = sc->sc_provider;
 	if (pp != NULL && (pp->acr != 0 || pp->acw != 0 || pp->ace != 0)) {
 		if (force) {
-			G_RAID3_DEBUG(0, "Device %s is still open, so it "
+			G_RAID3_DEBUG(1, "Device %s is still open, so it "
 			    "can't be definitely removed.", pp->name);
 		} else {
 			G_RAID3_DEBUG(1,
