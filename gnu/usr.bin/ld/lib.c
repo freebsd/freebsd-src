@@ -78,11 +78,11 @@ decode_library_subfile(desc, library_entry, subfile_offset, length_loc)
 {
 	int             bytes_read;
 	register int    namelen;
-	int             member_length;
+	int             member_length, content_length;
 	register char  *name;
 	struct ar_hdr   hdr1;
 	register struct file_entry *subentry;
-
+	int starting_offset;
 	lseek(desc, subfile_offset, 0);
 
 	bytes_read = read(desc, &hdr1, sizeof hdr1);
@@ -104,22 +104,44 @@ decode_library_subfile(desc, library_entry, subfile_offset, length_loc)
 	     && hdr1.ar_name[namelen] != '/';
 	     namelen++);
 
-	name = (char *) xmalloc(namelen + 1);
-	strncpy(name, hdr1.ar_name, namelen);
-	name[namelen] = 0;
-
+	starting_offset = subfile_offset + sizeof hdr1;	
+	content_length = member_length;
+#ifdef AR_EFMT1
+	/*
+	 * BSD 4.4 extended AR format: #1/<namelen>, with name as the
+	 * first <namelen> bytes of the file
+	 */
+	if ((hdr1.ar_name[0]=='#') &&
+	    (hdr1.ar_name[1]=='1') &&
+	    (hdr1.ar_name[2]=='/') && 
+	    (isdigit(hdr1.ar_name[3])))
+	{
+	    namelen = atoi (&hdr1.ar_name[3]);
+	    name = (char *) xmalloc(namelen + 1);
+	    read (desc, name, namelen);
+	    name[namelen] = 0;
+	    content_length -= namelen;
+	    starting_offset += namelen;
+	} else 
+#endif
+	{
+	    name = (char *) xmalloc(namelen + 1);
+	    strncpy(name, hdr1.ar_name, namelen);
+	    name[namelen] = 0;
+	}
+	
 	subentry->filename = name;
 	subentry->local_sym_name = name;
 	subentry->symbols = 0;
 	subentry->strings = 0;
 	subentry->subfiles = 0;
-	subentry->starting_offset = subfile_offset + sizeof hdr1;
+	subentry->starting_offset = starting_offset;
 	subentry->superfile = library_entry;
 	subentry->library_flag = 0;
 	subentry->header_read_flag = 0;
 	subentry->just_syms_flag = 0;
 	subentry->chain = 0;
-	subentry->total_size = member_length;
+	subentry->total_size = content_length;
 
 	(*length_loc) = member_length;
 
