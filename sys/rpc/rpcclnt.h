@@ -92,7 +92,7 @@
 #endif
 
 /* from nfs/nfs.h */
-#define RPC_TICKINTVL     5
+#define RPC_TICKINTVL     10
 
 
 /* from nfs/nfsproto.h */
