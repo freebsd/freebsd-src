@@ -71,7 +71,13 @@
 #define	_BSD_CT_RUNE_T_	int			/* arg type for ctype funcs */
 #define	_BSD_OFF_T_	long			/* file offset */
 #define	_BSD_PID_T_	int			/* process [group] */
-#define	_BSD_VA_LIST_	__builtin_va_list	/* va_list */
+
+#if defined __GNUC__
+#define	_BSD_VA_LIST_	__builtin_va_list	/* internally known to gcc */
+typedef _BSD_VA_LIST_ __gnuc_va_list;		/* compatibility w/GNU headers*/
+#else
+#error Must add va_list support for this non-GCC compiler.
+#endif /*__GNUC__*/
 
 /*
  * The rune type above is declared to be an ``int'' instead of the more natural
