@@ -651,7 +651,7 @@ do_wait(struct thread *td, struct umtx *umtx, long id, struct timespec *abstime)
 				error = umtxq_sleep(td, &uq.uq_key,
 					    td->td_priority | PCATCH,
 					    "ucond", timo);
-			if (!(td->td_flags & TDF_UMTXQ))
+			if (error != ETIMEDOUT || !(td->td_flags & TDF_UMTXQ))
 				break;
 			umtxq_unlock(&uq.uq_key);
 		}
