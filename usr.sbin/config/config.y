@@ -84,7 +84,7 @@ int	maxusers;
 
 #define ns(s)	strdup(s)
 
-static void yyerror(char *s);
+static void yyerror(const char *s);
 
 static char *
 devopt(char *dev)
@@ -283,7 +283,7 @@ Device_spec:
 %%
 
 static void
-yyerror(char *s)
+yyerror(const char *s)
 {
 
 	errx(1, "line %d: %s", yyline + 1, s);

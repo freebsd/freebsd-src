@@ -306,7 +306,7 @@ begin:
  * prepend the path to a filename
  */
 char *
-path(char *file)
+path(const char *file)
 {
 	char *cp = NULL;
 
@@ -452,16 +452,15 @@ cleanheaders(char *p)
 }
 
 void
-remember(char *file)
+remember(const char *file)
 {
 	char *s;
 	struct hdr_list *hl;
 
 	if ((s = strrchr(file, '/')) != NULL)
-		s++;
+		s = ns(s + 1);
 	else
-		s = file;
-	s = ns(s);
+		s = ns(file);
 
 	if (index(s, '_') && strncmp(s, "opt_", 4) != 0) {
 		free(s);

@@ -131,9 +131,9 @@ extern int	hintmode;
 
 char	*get_word(FILE *);
 char	*get_quoted_word(FILE *);
-char	*path(char *);
+char	*path(const char *);
 char	*raisestr(char *);
-void	remember(char *);
+void	remember(const char *);
 void	moveifchanged(const char *, const char *);
 void	newbus_ioconf(void);
 int	yyparse(void);

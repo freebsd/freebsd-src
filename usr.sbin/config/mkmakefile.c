@@ -77,7 +77,7 @@ static void do_rules(FILE *);
 static void do_xxfiles(char *, FILE *);
 static void do_objs(FILE *);
 static void do_before_depend(FILE *);
-static int opteq(char *, char *);
+static int opteq(const char *, const char *);
 static void read_files(void);
 
 /*
@@ -281,7 +281,7 @@ read_files(void)
 	struct device *dp;
 	struct device *save_dp;
 	struct opt *op;
-	char *wd, *this, *needs, *special, *depends, *clean, *warn;
+	char *wd, *this, *needs, *special, *depends, *clean, *warning;
 	char fname[MAXPATHLEN];
 	int ddwarned = 0;
 	int nreqs, first = 1, configdep, isdup, std, filetype,
@@ -364,7 +364,7 @@ next:
 	special = 0;
 	depends = 0;
 	clean = 0;
-	warn = 0;
+	warning = 0;
 	configdep = 0;
 	needs = 0;
 	std = mandatory = 0;
@@ -451,7 +451,7 @@ nextparam:
 				fname, this);
 			exit(1);
 		}
-		warn = ns(wd);
+		warning = ns(wd);
 		goto nextparam;
 	}
 	nreqs++;
@@ -519,7 +519,7 @@ invis:
 	tp->f_special = special;
 	tp->f_depends = depends;
 	tp->f_clean = clean;
-	tp->f_warn = warn;
+	tp->f_warn = warning;
 	goto next;
 
 doneparam:
@@ -559,14 +559,14 @@ doneparam:
 	tp->f_special = special;
 	tp->f_depends = depends;
 	tp->f_clean = clean;
-	tp->f_warn = warn;
+	tp->f_warn = warning;
 	if (pf && pf->f_type == INVISIBLE)
 		pf->f_flags |= ISDUP;		/* mark as duplicate */
 	goto next;
 }
 
 static int
-opteq(char *cp, char *dp)
+opteq(const char *cp, const char *dp)
 {
 	char c, d;
 
@@ -725,7 +725,7 @@ do_rules(FILE *f)
 		tp = tail(np);
 		special = ftp->f_special;
 		if (special == 0) {
-			char *ftype = NULL;
+			const char *ftype = NULL;
 			static char cmd[128];
 
 			switch (ftp->f_type) {
