@@ -1,4 +1,4 @@
-/*	$Id: ppp_deflate.c,v 1.8 1998/03/22 06:51:57 peter Exp $	*/
+/*	$Id: ppp_deflate.c,v 1.9 1998/03/25 14:28:28 peter Exp $	*/
 
 /*
  * ppp_deflate.c - interface the zlib procedures for Deflate compression
@@ -97,9 +97,9 @@ struct compressor ppp_deflate = {
     z_incomp,			/* incomp */
     z_comp_stats,		/* decomp_stat */
 };
-#ifdef CI_BADDEFLATE
-struct compressor ppp_baddeflate = {
-    CI_BADDEFLATE,		/* compress_proto */
+
+struct compressor ppp_deflate_draft = {
+    CI_DEFLATE_DRAFT,		/* compress_proto */
     z_comp_alloc,		/* comp_alloc */
     z_comp_free,		/* comp_free */
     z_comp_init,		/* comp_init */
@@ -114,9 +114,6 @@ struct compressor ppp_baddeflate = {
     z_incomp,			/* incomp */
     z_comp_stats,		/* decomp_stat */
 };
-#else
-#define CI_BADDEFLATE CI_DEFLATE	/* reduce #ifdef's, let gcc optimize */
-#endif
 
 /*
  * Space allocation and freeing routines for use by zlib routines.
@@ -152,7 +149,7 @@ z_comp_alloc(options, opt_len)
     int w_size;
 
     if (opt_len != CILEN_DEFLATE
-	|| (options[0] != CI_DEFLATE && options[0] != CI_BADDEFLATE) 
+	|| (options[0] != CI_DEFLATE && options[0] != CI_DEFLATE_DRAFT)
 	|| options[1] != CILEN_DEFLATE
 	|| DEFLATE_METHOD(options[2]) != DEFLATE_METHOD_VAL
 	|| options[3] != DEFLATE_CHK_SEQUENCE)
@@ -199,7 +196,7 @@ z_comp_init(arg, options, opt_len, unit, hdrlen, debug)
     struct deflate_state *state = (struct deflate_state *) arg;
 
     if (opt_len < CILEN_DEFLATE
-	|| (options[0] != CI_DEFLATE && options[0] != CI_BADDEFLATE)
+	|| (options[0] != CI_DEFLATE && options[0] != CI_DEFLATE_DRAFT)
 	|| options[1] != CILEN_DEFLATE
 	|| DEFLATE_METHOD(options[2]) != DEFLATE_METHOD_VAL
 	|| DEFLATE_SIZE(options[2]) != state->w_size
@@ -385,7 +382,7 @@ z_decomp_alloc(options, opt_len)
     int w_size;
 
     if (opt_len != CILEN_DEFLATE
-	|| (options[0] != CI_DEFLATE && options[0] != CI_BADDEFLATE)
+	|| (options[0] != CI_DEFLATE && options[0] != CI_DEFLATE_DRAFT)
 	|| options[1] != CILEN_DEFLATE
 	|| DEFLATE_METHOD(options[2]) != DEFLATE_METHOD_VAL
 	|| options[3] != DEFLATE_CHK_SEQUENCE)
@@ -431,7 +428,7 @@ z_decomp_init(arg, options, opt_len, unit, hdrlen, mru, debug)
     struct deflate_state *state = (struct deflate_state *) arg;
 
     if (opt_len < CILEN_DEFLATE
-	|| (options[0] != CI_DEFLATE && options[0] != CI_BADDEFLATE)
+	|| (options[0] != CI_DEFLATE && options[0] != CI_DEFLATE_DRAFT)
 	|| options[1] != CILEN_DEFLATE
 	|| DEFLATE_METHOD(options[2]) != DEFLATE_METHOD_VAL
 	|| DEFLATE_SIZE(options[2]) != state->w_size
