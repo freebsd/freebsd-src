@@ -65,7 +65,7 @@ TGTS=	all all-man buildkernel buildworld checkdpadd clean \
 	hierarchy install installcheck installkernel installkernel.debug\
 	reinstallkernel reinstallkernel.debug installmost installworld \
 	libraries lint maninstall \
-	mk most obj objlink regress rerelease tags update
+	most obj objlink regress rerelease tags update
 
 BITGTS=	files includes
 BITGTS:=${BITGTS} ${BITGTS:S/^/build/} ${BITGTS:S/^/install/}
