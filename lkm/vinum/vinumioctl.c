@@ -35,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumioctl.c,v 1.1 1998/08/14 08:46:10 grog Exp grog $
+ * $Id: vinumioctl.c,v 1.3 1998/09/29 05:26:37 grog Exp grog $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
@@ -45,6 +45,7 @@
 #include "sys/sysproto.h"				    /* for sync(2) */
 #ifdef DEBUG
 #include <sys/reboot.h>
+#include "request.h"
 #endif
 
 jmp_buf command_fail;					    /* return on a failed command */
@@ -97,17 +98,21 @@ vinumioctl(dev_t dev,
 	if (error)					    /* bombed out */
 	    return 0;					    /* the reply will contain meaningful info */
 	switch (cmd) {
-	    /* XXX #ifdef DEBUG */
+#ifdef DEBUG
 	case VINUM_DEBUG:
-	    boothowto |= RB_GDB;			    /* serial debug line */
 	    if (((struct debuginfo *) data)->changeit)	    /* change debug settings */
 		debug = (((struct debuginfo *) data)->param);
-	    else
+	    else {
+		if (debug & DEBUG_REMOTEGDB)
+		    boothowto |= RB_GDB;		    /* serial debug line */
+		else
+		    boothowto &= ~RB_GDB;		    /* local ddb */
 		Debugger("vinum debug");
+	    }
 	    ioctl_reply = (struct _ioctl_reply *) data;	    /* reinstate the address to reply to */
 	    ioctl_reply->error = 0;
 	    return 0;
-	    /* XXX #endif */
+#endif
 
 	case VINUM_CREATE:				    /* create a vinum object */
 	    error = lock_config();			    /* get the config for us alone */
@@ -221,6 +226,9 @@ vinumioctl(dev_t dev,
 
 	case VINUM_MALLOCINFO:
 	    return vinum_mallocinfo(data);
+
+	case VINUM_RQINFO:
+	    return vinum_rqinfo(data);
 
 	case VINUM_LABEL:				    /* label a volume */
 	    ioctl_reply->error = write_volume_label(*(int *) data); /* index of the volume to label */

@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumext.h,v 1.14 1998/08/11 00:03:57 grog Exp grog $
+ * $Id: vinumext.h,v 1.15 1998/09/29 05:17:56 grog Exp grog $
  */
 
 /* vinumext.h: external definitions */
@@ -136,9 +136,12 @@ int launch_requests(struct request *rq, int reviveok);
 /* XXX Do we need this? */
 int vinumpart(dev_t);
 
-/* Memory allocation */
+#ifdef DEBUG
+/* Memory allocation and request tracing */
 void vinum_meminfo(caddr_t data);
 int vinum_mallocinfo(caddr_t data);
+int vinum_rqinfo(caddr_t data);
+#endif
 
 void expand_table(void **, int, int);
 
@@ -199,16 +202,3 @@ int lockrange(struct plex *plex, off_t first, off_t last);
 void unlockrange(struct plex *plex, off_t first, off_t last);
 int lock_config(void);
 void unlock_config(void);
-
-#ifdef DEBUG
-#define expandrq(prq) \
-{  \
-  expand_table ((void **) &prq->rqe, \
-		prq->requests * sizeof (struct rqelement), \
-		(prq->requests + RQELTS) * sizeof (struct rqelement) ); \
-  bzero (&prq->rqe [prq->requests], RQELTS * sizeof (struct rqelement)); \
-  prq->rqcount += RQELTS; \
-  }
-#else
-void expandrq(struct plexrq *);
-#endif
