@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.117 1995/05/30 08:03:13 rgrimes Exp $
+ *  $Id: syscons.c,v 1.117.4.1 1995/08/08 12:28:59 jkh Exp $
  */
 
 #include "sc.h"
@@ -1081,20 +1081,6 @@ set_mouse_pos:
 }
 
 void
-scxint(dev_t dev)
-{
-    struct tty *tp = scdevtotty(dev);
-
-    if (!tp)
-	return;
-    tp->t_state &= ~TS_BUSY;
-    if (tp->t_line)
-	(*linesw[tp->t_line].l_start)(tp);
-    else
-	scstart(tp);
-}
-
-void
 scstart(struct tty *tp)
 {
     struct clist *rbp;
@@ -1102,18 +1088,19 @@ scstart(struct tty *tp)
     u_char buf[PCBURST];
     scr_stat *scp = get_scr_stat(tp->t_dev);
 
+    /* XXX who repeats the call when the above flags are cleared? */
     if (scp->status & SLKED || blink_in_progress)
 	return;
     s = spltty();
-    if (!(tp->t_state & (TS_TIMEOUT|TS_BUSY|TS_TTSTOP))) {
+    if (!(tp->t_state & (TS_TIMEOUT | TS_BUSY | TS_TTSTOP))) {
 	tp->t_state |= TS_BUSY;
-	splx(s);
 	rbp = &tp->t_outq;
 	while (rbp->c_cc) {
 	    len = q_to_b(rbp, buf, PCBURST);
+	    splx(s);
 	    ansi_put(scp, buf, len);
+	    s = spltty();
 	}
-	s = spltty();
 	tp->t_state &= ~TS_BUSY;
 	if (rbp->c_cc <= tp->t_lowat) {
 	    if (tp->t_state & TS_ASLEEP) {
@@ -1158,12 +1145,8 @@ pccnputc(dev_t dev, int c)
     current_default = &kernel_default;
     if (scp->scr_buf == Crtat)
 	draw_cursor(scp, FALSE);
-    if (c == '\n')
-	ansi_put(scp, "\r\n", 2);
-    else {
-	buf[0] = c;
-	ansi_put(scp, buf, 1);
-    }
+    buf[0] = c;
+    ansi_put(scp, buf, 1);
     kernel_console = scp->term;
     current_default = &user_default;
     scp->term = save;
@@ -1864,7 +1847,15 @@ outloop:
  	u_short cur_attr = scp->term.cur_attr;
  	u_short *cursor_pos = scp->cursor_pos;
 	do {
-	    *cursor_pos++ = (scr_map[*ptr++] | cur_attr);
+	    /*
+	     * gcc-2.6.3 generates poor (un)sign extension code.  Casting the
+	     * pointers in the following to volatile should have no effect,
+	     * but in fact speeds up this inner loop from 26 to 18 cycles
+	     * (+ cache misses) on i486's.
+	     */
+#define	UCVP(ucp)	((u_char volatile *)(ucp))
+	    *cursor_pos++ = UCVP(scr_map)[*UCVP(ptr)] | cur_attr;
+	    ptr++;
 	    cnt--;
 	} while (cnt && PRINTABLE(*ptr));
 	len -= (cursor_pos - scp->cursor_pos);
