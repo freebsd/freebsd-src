@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.36 1996/06/14 14:33:57 jkh Exp $
+ * $Id: msg.c,v 1.37 1996/07/10 11:38:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -82,9 +82,7 @@ msgInfo(char *fmt, ...)
     /* NULL is a special convention meaning "erase the old stuff" */
     if (!fmt) {
 	move(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0);
-	attrset(A_NORMAL);
 	clrtoeol();
-	attrset(attrs);
 	return;
     }
     errstr = (char *)alloca(FILENAME_MAX);
