@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pbio/pbioio.h>		/* pbio IOCTL definitions */
 #include <sys/uio.h>
 #include <sys/fcntl.h>
+#include <isa/isavar.h>
 
 /* Function prototypes (these should all be static) */
 static	d_open_t	pbioopen;
@@ -168,6 +169,8 @@ pbioprobe(device_t dev)
 	unsigned char val;
 #endif
 
+	if (isa_get_logicalid(dev))		/* skip PnP probes */
+		return (ENXIO);
 	rid = 0;
 	scp->res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 	    0, ~0, IO_PBIOSIZE, RF_ACTIVE);
