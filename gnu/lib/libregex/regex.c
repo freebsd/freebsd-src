@@ -125,10 +125,6 @@ init_syntax_once ()
 
 #endif /* not emacs */
 
-#ifdef __FreeBSD__
-#include <locale.h>
-#endif
-
 /* Get the interface, including the syntax bits.  */
 #include "regex.h"
 
@@ -1116,6 +1112,23 @@ typedef struct
 static boolean group_in_compile_stack _RE_ARGS((compile_stack_type
 						compile_stack,
 						regnum_t regnum));
+
+#ifdef __FreeBSD__
+static int collate_range_cmp (a, b)
+	int a, b;
+{
+	int r;
+	static char s[2][2];
+
+	if ((unsigned char)a == (unsigned char)b)
+		return 0;
+	s[0][0] = a;
+	s[1][0] = b;
+	if ((r = strcoll(s[0], s[1])) == 0)
+		r = (unsigned char)a - (unsigned char)b;
+	return r;
+}
+#endif
 
 /* `regex_compile' compiles PATTERN (of length SIZE) according to SYNTAX.
    Returns one of error codes defined in `regex.h', or zero for success.
