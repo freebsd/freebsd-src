@@ -281,6 +281,45 @@ jail.set_hostname_allowed=0
 .Pp
 In a future version of FreeBSD, the mechanisms for managing jails will be
 more refined.
+.Sh SYSCTL MIB ENTRIES
+Certain aspects of the jail containments environment may be modified from
+the host environment using
+.Xr sysctl 8
+MIB variables.
+Currently, these variables affect all jails on the system, although in
+the future this functionality may be finer grained.
+.Pp
+.Ss jail.set_hostname_allowed
+This MIB entry determines whether or not processes within a jail are
+allowed to change their hostname via
+.Xr hostname 1
+or
+.Xr sethostname 3 .
+In the current jail implementation, the ability to set the hostname from
+within the jail can impact management tools relying on the accuracy of jail
+information in /proc.
+As such, this should be disabled in environments where privileged access to
+jails is given out to untrusted parties.
+.Ss jail.socket_unixiproute_only
+The jail functionality binds an IPv4 address to each jail, and limits
+access to other network addresses in the IPv4 space that may be available
+in the host environment.
+However, jail is not currently able to limit access to other network
+protocol stacks that have not had jail functionality added to them.
+As such, by default, processes within jails may only access protocols
+in the following domains: PF_LOCAL, PF_INET, and PF_ROUTE, permitting
+them access to UNIX domain sockets, IPv4 addresses, and routing sockets.
+To enable access to other domains, this MIB variable may be set to
+0.
+.Ss jail.sysvipc_allowed
+This MIB entry determines whether or not processes within a jail have access
+to System V IPC primitives.
+In the current jail implementation, System V primitives share a single
+namespace across the host and jail environments, meaning that processes
+within a jail would be able to communicate with (and potentially interfere
+with) processes outside of the jail, and in other jails.
+As such, this functionality is disabled by default, but can be enabled
+by setting this MIB entry to 1.
 .Sh SEE ALSO
 .Xr newaliases 1 ,
 .Xr ps 1 ,
