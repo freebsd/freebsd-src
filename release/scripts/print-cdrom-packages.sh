@@ -72,7 +72,7 @@ CDROM_SET_1="${CDROM_SET_1} devel/pcre"
 if [ "X${PKG_ARCH}" = "Xalpha" ]; then
 CDROM_SET_1="${CDROM_SET_1} emulators/osf1_base"
 elif [ "X${PKG_ARCH}" = "Xi386" ]; then
-CDROM_SET_1="${CDROM_SET_1} emulators/linux_base"
+CDROM_SET_1="${CDROM_SET_1} emulators/linux_base-8"
 fi
 CDROM_SET_1="${CDROM_SET_1} mail/exim"
 CDROM_SET_1="${CDROM_SET_1} mail/postfix"
