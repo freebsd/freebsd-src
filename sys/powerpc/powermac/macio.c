@@ -117,9 +117,11 @@ static struct macio_pci_dev {
         u_int32_t  mpd_devid;
 	char    *mpd_desc;
 } macio_pci_devlist[] = {
-	{ 0x0025106b, "Pangea I/O Controller" },
+	{ 0x0017106b, "Paddington I/O Controller" },
 	{ 0x0022106b, "KeyLargo I/O Controller" },
-        { 0, NULL }
+	{ 0x0025106b, "Pangea I/O Controller" },
+	{ 0x003e106b, "Intrepid I/O Controller" },
+	{ 0, NULL }
 };
 
 /*
