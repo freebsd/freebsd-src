@@ -146,7 +146,7 @@ static struct ng_type typestruct = {
 	ngether_connect,
 	ngether_rcvdata,
 	ngether_rcvdata,
-	ngether_disconnect 
+	ngether_disconnect
 };
 
 #define AC2NG(AC) ((node_p)((AC)->ac_ng))
@@ -970,8 +970,8 @@ ngether_constructor(node_p *nodep)
 
 /*
  * Give our ok for a hook to be added...
- * 
- * Allow one hook at a time (rawdata). 
+ *
+ * Allow one hook at a time (rawdata).
  * It can eiteh rdivert everything or only unclaimed packets.
  */
 static	int
@@ -1008,10 +1008,10 @@ ngether_rcvmsg(node_p node,
 
 	ifp = node->private;
 	switch (msg->header.typecookie) {
-	    case	NGM_ETHER_COOKIE: 
+	    case	NGM_ETHER_COOKIE:
 		error = EINVAL;
 		break;
-	    case	NGM_GENERIC_COOKIE: 
+	    case	NGM_GENERIC_COOKIE:
 		switch(msg->header.cmd) {
 		    case NGM_TEXT_STATUS: {
 			    char	*arg;
@@ -1019,10 +1019,10 @@ ngether_rcvmsg(node_p node,
 			    int resplen = sizeof(struct ng_mesg) + 512;
 			    MALLOC(*resp, struct ng_mesg *, resplen,
 					M_NETGRAPH, M_NOWAIT);
-			    if (*resp == NULL) { 
+			    if (*resp == NULL) {
 				error = ENOMEM;
 				break;
-			    }       
+			    }
 			    bzero(*resp, resplen);
 			    arg = (*resp)->data;
 
@@ -1129,10 +1129,10 @@ bad:
  * pass an mbuf out to the connected hook
  * More complicated than just an m_prepend, as it tries to save later nodes
  * from needing to do lots of m_pullups.
- */	     
+ */	
 static void
 ngether_send(struct arpcom *ac, struct ether_header *eh, struct mbuf *m)
-{       
+{
 	int room;
 	node_p node = AC2NG(ac);
 	struct ether_header *eh2;
@@ -1144,15 +1144,15 @@ ngether_send(struct arpcom *ac, struct ether_header *eh, struct mbuf *m)
 		eh2 = mtod(m, struct ether_header *) - 1;
 		if ( eh == eh2) {
 			/*
-			 * This is the case so just move the markers back to 
+			 * This is the case so just move the markers back to
 			 * re-include it. We lucked out.
 			 * This allows us to avoid a yucky m_pullup
 			 * in later nodes if it works.
-			 */ 
-			m->m_len += sizeof(*eh); 
+			 */
+			m->m_len += sizeof(*eh);
 			m->m_data -= sizeof(*eh);
 			m->m_pkthdr.len += sizeof(*eh);
-		} else { 
+		} else {
 			/*
 			 * Alternatively there may be room even though
 			 * it is stored somewhere else. If so, copy it in.
@@ -1164,7 +1164,7 @@ ngether_send(struct arpcom *ac, struct ether_header *eh, struct mbuf *m)
 			 * that fall into these cases. So we are not optimising
 			 * contorted cases.
 			 */
-	      
+	
 			if (m->m_flags & M_EXT) {
 				room = (mtod(m, caddr_t) - m->m_ext.ext_buf);
 				if (room > m->m_ext.ext_size) /* garbage */
@@ -1172,14 +1172,14 @@ ngether_send(struct arpcom *ac, struct ether_header *eh, struct mbuf *m)
 			} else {
 				room = (mtod(m, caddr_t) - m->m_pktdat);
 			}
-			if (room > sizeof (*eh)) {  
+			if (room > sizeof (*eh)) {
 				/* we have room, just copy it and adjust */
 				m->m_len += sizeof(*eh);
 				m->m_data -= sizeof(*eh);
 				m->m_pkthdr.len += sizeof(*eh);
 			} else {
 				/*
-				 * Doing anything more is likely to get more 
+				 * Doing anything more is likely to get more
 				 * expensive than it's worth..
 				 * it's probable that everything else is in one
 				 * big lump. The next node will do an m_pullup()
@@ -1224,7 +1224,7 @@ ngether_connect(hook_p hook)
 /*
  * notify on hook disconnection (destruction)
  *
- * For this type, removal of the last lins no effect. The interface can run 
+ * For this type, removal of the last lins no effect. The interface can run
  * independently.
  * Since we have no per-hook information, this is rather simple.
  */
