@@ -34,6 +34,11 @@
  *
  */
 
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
+
 #include "sysinstall.h"
 
 /* Miscellaneous work routines for menus */
@@ -195,8 +200,8 @@ DMenu MenuIndex = {
     DMENU_NORMAL_TYPE,
     "Glossary of functions",
     "This menu contains an alphabetized index of the top level functions in\n"
-    "this program (sysinstall).  Invoke an option by pressing [ENTER].\n"
-    "Leave the index page by selecting Cancel [TAB-ENTER].",
+    "this program (sysinstall).  Invoke an option by pressing [ENTER] or\n"
+    "[SPACE].  To exit, use [TAB] to move to the Cancel button.",
     "Use PageUp or PageDown to move through this menu faster!",
     NULL,
     { { " Anon FTP",		"Configure anonymous FTP logins.",	dmenuVarCheck, configAnonFTP, NULL, "anon_ftp" },
@@ -284,7 +289,7 @@ DMenu MenuInitial = {
     "Welcome to the FreeBSD installation and configuration tool.  Please\n" /* prompt */
     "select one of the options below by using the arrow keys or typing the\n"
     "first character of the option name you're interested in.  Invoke an\n"
-    "option by pressing [ENTER] or [TAB-ENTER] to exit the installation.", 
+    "option with [ENTER] or [SPACE].  To exit, use [TAB] to move to Exit.", 
     "Press F1 for Installation Guide",			/* help line */
     "INSTALL",						/* help file */
     { { "Select" },
@@ -722,8 +727,8 @@ DMenu MenuDistributions = {
     "type of system in question.  If you would prefer to pick and choose the\n"
     "list of distributions yourself, simply select \"Custom\".  You can also\n"
     "pick a canned distribution set and then fine-tune it with the Custom item.\n\n"
-    "Choose an item by pressing [SPACE]. When you are finished, choose the Exit\n"
-    "item or press [ENTER].",
+    "Choose an item by pressing [SPACE] or [ENTER].  When finished, choose the\n"
+    "Exit item or move to the Exit button with [TAB].",
     "Press F1 for more information on these options.",
     "distributions",
     { { "X Exit", "Exit this menu (returning to previous)",
@@ -824,7 +829,7 @@ DMenu MenuSrcDistributions = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
     "Select the sub-components of src you wish to install.",
     "Please check off those portions of the FreeBSD source tree\n"
-    "you wish to install (remember to use SPACE, not ENTER!).",
+    "you wish to install.",
     NULL,
     NULL,
     { { "X Exit", "Exit this menu (returning to previous)",
@@ -1129,7 +1134,7 @@ DMenu MenuDiskDevices = {
     "on a drive other than the first one or have multiple operating\n"
     "systems on your machine, you will have the option to install a boot\n"
     "manager later.  To select a drive, use the arrow keys to move to it\n"
-    "and press [SPACE].  To de-select it, press [SPACE] again.\n\n"
+    "and press [SPACE] or [ENTER].  To de-select it, press it again.\n\n"
     "Select OK or Cancel to leave this menu.",
     "Press F1 for important information regarding disk geometry!",
     "drives",
@@ -1259,8 +1264,8 @@ DMenu MenuStartup = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
     "Startup Services Menu",
     "This menu allows you to configure various aspects of your system's\n"
-    "startup configuration.  Remember to use SPACE to select items!  The\n"
-    "RETURN key will leave this menu (as with all checkbox menus).",
+    "startup configuration.  Use [SPACE] or [ENTER] to select items, and\n",
+    "[TAB] to move to the buttons.  Select Exit to leave this menu.",
     NULL,
     NULL,
     { { "X Exit",	"Exit this menu (returning to previous)",
