@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.147 1999/01/21 19:41:37 imp Exp $
+#	$Id: BSD.usr.dist,v 1.148 1999/01/26 23:05:38 dillon Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -391,6 +391,8 @@
                 sort
                 ..
             ..
+	    svr4
+	    ..
             worm
             ..
         ..
