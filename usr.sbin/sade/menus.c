@@ -2229,6 +2229,8 @@ DMenu MenuSecurity = {
     NULL,
     { { "X Exit",      "Exit this menu (returning to previous)",
 	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
+      { " Securelevel",	"Configure securelevels for the system",
+	NULL, configSecurelevel },
 #if 0
       { " LOMAC",         "Use Low Watermark Mandatory Access Control at boot",
 	dmenuVarCheck,  dmenuToggleVariable, NULL, "lomac_enable=YES" },
@@ -2236,6 +2238,28 @@ DMenu MenuSecurity = {
       { " NFS port",	"Require that the NFS clients used reserved ports",
 	dmenuVarCheck,  dmenuToggleVariable, NULL, "nfs_reserved_port_only=YES" },
       { NULL } },
+};
+
+DMenu MenuSecurelevel = {
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    "Securelevel Configuration Menu",
+    "This menu allows you to select the securelevel your system runs with.\n"
+    "When operating at a securelevel, certain root privileges are disabled,\n"
+    "which may increase resistance to exploits and protect system integrity.\n"
+    "In secure mode system flags may not be overriden by the root user,\n"
+    "access to direct kernel memory is limited, and kernel modules may not\n"
+    "be changed.  In highly secure mode, mounted file systems may not be\n"
+    "modified on-disk, tampering with the system clock is prohibited.  In\n"
+    "network secure mode configuration changes to firwalling are prohibited.\n",
+    "Select a securelevel to operate at - F1 for help",
+    "securelevel",
+    { { "X Exit",      "Exit this menu (returning to previous)",
+	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
+      { "Disabled", "Disable securelevels", NULL, configSecurelevelDisabled, },
+      { "Secure", "Secure mode", NULL, configSecurelevelSecure },
+      { "Highly Secure", "Highly secure mode", NULL, configSecurelevelHighlySecure }, 
+      { "Network Secure", "Network secure mode", NULL, configSecurelevelNetworkSecure },
+      { NULL } }
 };
 
 DMenu MenuFixit = {
