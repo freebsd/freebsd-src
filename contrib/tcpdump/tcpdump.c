@@ -27,6 +27,8 @@ static const char rcsid[] =
     "@(#) $Header: tcpdump.c,v 1.129 97/06/13 13:10:11 leres Exp $ (LBL)";
 #endif
 
+/* $FreeBSD$ */
+
 /*
  * tcpdump - monitor tcp/ip traffic on an ethernet.
  *
@@ -66,6 +68,7 @@ int Sflag;			/* print raw TCP sequence numbers */
 int tflag = 1;			/* print packet arrival time */
 int vflag;			/* verbose */
 int xflag;			/* print packet in hex */
+int Xflag;			/* print packet in emacs-hexl style */
 
 int packettype;
 
@@ -149,7 +152,7 @@ main(int argc, char **argv)
 
 	opterr = 0;
 	while (
-	    (op = getopt(argc, argv, "ac:defF:i:lnNOpqr:s:StT:vw:xY")) != EOF)
+	    (op = getopt(argc, argv, "ac:defF:i:lnNOpqr:s:StT:vw:xXY")) != EOF)
 		switch (op) {
 
 		case 'a':
@@ -261,6 +264,11 @@ main(int argc, char **argv)
 #endif
 		case 'x':
 			++xflag;
+			break;
+
+		case 'X':
+			++Xflag;
+			if (xflag == 0) ++xflag;
 			break;
 
 		default:
@@ -381,6 +389,55 @@ cleanup(int signo)
 	exit(0);
 }
 
+/* dump the buffer in `emacs-hexl' style */
+void
+default_print_hexl(const u_char *cp, unsigned int length, unsigned int offset)
+{
+	unsigned int i, j, jm;
+	int c;
+	char ln[128];
+
+	printf("\n");
+	for (i = 0; i < length; i += 0x10) {
+		snprintf(ln, 
+			 sizeof(ln),
+			 "  %04x: ", (unsigned int)(i + offset));
+		jm = length - i;
+		jm = jm > 16 ? 16 : jm;
+
+		for (j = 0; j < jm; j++) {
+			if ((j % 2) == 1)
+				snprintf(ln + strlen(ln),
+					 sizeof(ln) - strlen(ln),
+					 "%02x ", (unsigned int)cp[i+j]);
+			else
+				snprintf(ln + strlen(ln), 
+					 sizeof(ln) - strlen(ln),
+					 "%02x", (unsigned int)cp[i+j]);
+		}
+		for (; j < 16; j++) {
+			if ((j % 2) == 1)
+				snprintf(ln + strlen(ln), 
+					 sizeof(ln) - strlen(ln),
+					 "   ");
+			else
+				snprintf(ln + strlen(ln), 
+					 sizeof(ln) - strlen(ln),
+					 "  ");
+		}
+
+		snprintf(ln + strlen(ln), sizeof(ln) - strlen(ln), " ");
+		for (j = 0; j < jm; j++) {
+			c = cp[i+j];
+			c = isprint(c) ? c : '.';
+			snprintf(ln + strlen(ln), 
+				 sizeof(ln) - strlen(ln), 
+				 "%c", c);
+		}
+		printf("%s\n", ln);
+	}
+}
+
 /* Like default_print() but data need not be aligned */
 void
 default_print_unaligned(register const u_char *cp, register u_int length)
@@ -388,18 +445,24 @@ default_print_unaligned(register const u_char *cp, register u_int length)
 	register u_int i, s;
 	register int nshorts;
 
-	nshorts = (u_int) length / sizeof(u_short);
-	i = 0;
-	while (--nshorts >= 0) {
-		if ((i++ % 8) == 0)
-			(void)printf("\n\t\t\t");
-		s = *cp++;
-		(void)printf(" %02x%02x", s, *cp++);
-	}
-	if (length & 1) {
-		if ((i % 8) == 0)
-			(void)printf("\n\t\t\t");
-		(void)printf(" %02x", *cp);
+	if (Xflag) {
+		/* dump the buffer in `emacs-hexl' style */
+		default_print_hexl(cp, length, 0);
+	} else {
+		/* dump the buffer in old tcpdump style */
+		nshorts = (u_int) length / sizeof(u_short);
+		i = 0;
+		while (--nshorts >= 0) {
+			if ((i++ % 8) == 0)
+				(void)printf("\n\t\t\t");
+			s = *cp++;
+			(void)printf(" %02x%02x", s, *cp++);
+		}
+		if (length & 1) {
+			if ((i % 8) == 0)
+				(void)printf("\n\t\t\t");
+			(void)printf(" %02x", *cp);
+		}
 	}
 }
 
@@ -415,22 +478,28 @@ default_print(register const u_char *bp, register u_int length)
 	register u_int i;
 	register int nshorts;
 
-	if ((long)bp & 1) {
-		default_print_unaligned(bp, length);
-		return;
-	}
-	sp = (u_short *)bp;
-	nshorts = (u_int) length / sizeof(u_short);
-	i = 0;
-	while (--nshorts >= 0) {
-		if ((i++ % 8) == 0)
-			(void)printf("\n\t\t\t");
-		(void)printf(" %04x", ntohs(*sp++));
-	}
-	if (length & 1) {
-		if ((i % 8) == 0)
-			(void)printf("\n\t\t\t");
-		(void)printf(" %02x", *(u_char *)sp);
+	if (Xflag) {
+		/* dump the buffer in `emacs-hexl' style */
+		default_print_hexl(bp, length, 0);
+	} else {
+		/* dump the buffer in old tcpdump style */
+		if ((long)bp & 1) {
+			default_print_unaligned(bp, length);
+			return;
+		}
+		sp = (u_short *)bp;
+		nshorts = (u_int) length / sizeof(u_short);
+		i = 0;
+		while (--nshorts >= 0) {
+			if ((i++ % 8) == 0)
+				(void)printf("\n\t\t\t");
+			(void)printf(" %04x", ntohs(*sp++));
+		}
+		if (length & 1) {
+			if ((i % 8) == 0)
+				(void)printf("\n\t\t\t");
+			(void)printf(" %02x", *(u_char *)sp);
+		}
 	}
 }
 
@@ -443,7 +512,7 @@ usage(void)
 	(void)fprintf(stderr, "%s version %s\n", program_name, version);
 	(void)fprintf(stderr, "libpcap version %s\n", pcap_version);
 	(void)fprintf(stderr,
-"Usage: %s [-adeflnNOpqStvx] [-c count] [ -F file ]\n", program_name);
+"Usage: %s [-adeflnNOpqStvxX] [-c count] [ -F file ]\n", program_name);
 	(void)fprintf(stderr,
 "\t\t[ -i interface ] [ -r file ] [ -s snaplen ]\n");
 	(void)fprintf(stderr,
