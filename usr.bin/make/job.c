@@ -2186,10 +2186,10 @@ Shell_Init(void)
 	 * default one... Both the absolute path and the last component
 	 * must be set. The last component is taken from the 'name' field
 	 * of the default shell description pointed-to by commandShell.
-	 * All default shells are located in _PATH_DEFSHELLDIR.
+	 * All default shells are located in PATH_DEFSHELLDIR.
 	 */
 	shellName = commandShell->name;
-	shellPath = str_concat(_PATH_DEFSHELLDIR, shellName, STR_ADDSLASH);
+	shellPath = str_concat(PATH_DEFSHELLDIR, shellName, STR_ADDSLASH);
     }
 }
 
