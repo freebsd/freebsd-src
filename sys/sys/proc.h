@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.8 (Berkeley) 1/21/94
- * $Id: proc.h,v 1.10 1994/10/02 08:34:47 davidg Exp $
+ * $Id: proc.h,v 1.11 1994/10/02 17:24:52 phk Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -271,7 +271,14 @@ void	unsleep __P((struct proc *));
 void	wakeup __P((void *chan));
 __dead void cpu_exit __P((struct proc *));
 __dead void exit1 __P((struct proc *, int));
-
+void	fixjobc __P((struct proc *, struct pgrp *, int));
+int	acct_process __P((struct proc *));
+int	leavepgrp __P((struct proc *));
+int	enterpgrp __P((struct proc *, pid_t, int));
+int	trace_req __P((struct proc *));
+void	cpu_wait __P((struct proc *));
+int	cpu_coredump __P((struct proc *, struct vnode *, struct ucred *));
+int	inferior __P((struct proc *));
 #endif	/* KERNEL */
 
 #endif	/* !_SYS_PROC_H_ */

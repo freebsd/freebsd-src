@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)resourcevar.h	8.3 (Berkeley) 2/22/94
- * $Id: resourcevar.h,v 1.3 1994/10/02 17:24:53 phk Exp $
+ * $Id: resourcevar.h,v 1.4 1994/10/08 22:22:58 phk Exp $
  */
 
 #ifndef	_SYS_RESOURCEVAR_H_
@@ -89,5 +89,8 @@ int	 addupc __P((int, struct uprof *, int));
 struct plimit
 	*limcopy __P((struct plimit *lim));
 void	calcru __P((struct proc *p,struct timeval *up,struct timeval *sp,struct timeval *ip));
+void	ruadd __P((struct rusage *, struct rusage *));
+int	fuswintr __P((caddr_t));
+int	suswintr __P((caddr_t, int));
 #endif
 #endif	/* !_SYS_RESOURCEVAR_H_ */
