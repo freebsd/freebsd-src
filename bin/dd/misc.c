@@ -104,5 +104,6 @@ terminate(sig)
 	int sig;
 {
 
+	summary();
 	_exit(sig == 0 ? 0 : 1);
 }
