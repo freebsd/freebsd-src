@@ -154,7 +154,12 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 				continue;
 			g_hexdump(buf+512 + i * 32, 32);
 			start = v * fwsect * fwhead * sectorsize;
-			length = (1 + u - v) * fwsect * fwhead * sectorsize;
+			length = (off_t)(1 + u - v) * fwsect *
+			     fwhead * sectorsize;
+			printf("S %d H %d L %d b %d/%d/%d e %d/%d/%d\n",
+				fwsect, fwhead, sectorsize,
+				buf[512+8], buf[512+9], v,
+				buf[512+12], buf[512+13], u);
 			npart++;
 			g_topology_lock();
 			pp2 = g_slice_addslice(gp, i,
