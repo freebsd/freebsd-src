@@ -46,7 +46,7 @@
 /*
  * Null Layer
  *
- * (See mount_null(8) for more information.)
+ * (See mount_nullfs(8) for more information.)
  *
  * The null layer duplicates a portion of the file system
  * name space under a new name.  In this respect, it is
@@ -69,8 +69,8 @@
  *
  * INSTANTIATING NEW NULL LAYERS
  *
- * New null layers are created with mount_null(8).
- * Mount_null(8) takes two arguments, the pathname
+ * New null layers are created with mount_nullfs(8).
+ * Mount_nullfs(8) takes two arguments, the pathname
  * of the lower vfs (target-pn) and the pathname where the null
  * layer will appear in the namespace (alias-pn).  After
  * the null layer is put into place, the contents
@@ -127,7 +127,7 @@
  * vnode before returning it to the caller.
  *
  * For example, imagine mounting a null layer with
- * "mount_null /usr/include /dev/layer/null".
+ * "mount_nullfs /usr/include /dev/layer/null".
  * Changing directory to /dev/layer/null will assign
  * the root null-node (which was created when the null layer was mounted).
  * Now consider opening "sys".  A vop_lookup would be
