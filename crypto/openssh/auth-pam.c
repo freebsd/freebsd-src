@@ -266,7 +266,7 @@ void do_pam_setcred(void)
 	debug("PAM establishing creds");
 	pam_retval = pam_setcred(pamh, PAM_ESTABLISH_CRED);
 	if (pam_retval != PAM_SUCCESS) {
-		fatal("PAM setcred failed[%d]: %.200s", 
+		debug("PAM setcred failed[%d]: %.200s", 
 			pam_retval, PAM_STRERROR(pamh, pam_retval));
 	}
 }
