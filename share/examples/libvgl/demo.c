@@ -30,12 +30,12 @@
 
 #include <sys/types.h>
 #include <machine/console.h>
-#include "vgl.h"
+#include <vgl.h>
 
 int
 main(int argc, char **argv)
 {
-  int x, y, xsize, ysize, i,j;
+  int y, xsize, ysize, i,j;
   VGLBitmap *tmp;
 
   // set graphics mode, here 320x240 256 colors
