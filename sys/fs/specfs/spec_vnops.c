@@ -203,8 +203,7 @@ spec_open(ap)
 		VOP_UNLOCK(vp, 0, p);
 		error = (*dsw->d_open)(dev, ap->a_mode, S_IFCHR, p);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-		return (error);
-		/* NOT REACHED */
+		break;
 	case VBLK:
 		dsw = devsw(dev);
 		if ( (dsw == NULL) || (dsw->d_open == NULL))
@@ -225,12 +224,21 @@ spec_open(ap)
 		error = vfs_mountedon(vp);
 		if (error)
 			return (error);
-		return ((*dsw->d_open)(dev, ap->a_mode, S_IFBLK, p));
-		/* NOT REACHED */
+		error = (*dsw->d_open)(dev, ap->a_mode, S_IFBLK, p);
+		break;
 	default:
 		break;
 	}
-	return (0);
+
+	if (vn_isdisk(vp)) {
+		if (!dev->si_bsize_phys)
+			dev->si_bsize_phys = DEV_BSIZE;
+		if (dev->si_bsize_best < dev->si_bsize_phys)
+			dev->si_bsize_best = BLKDEV_IOSIZE;
+		if (!dev->si_bsize_max)
+			dev->si_bsize_max = MAXBSIZE;
+	}
+	return (error);
 }
 
 /*
