@@ -1005,8 +1005,8 @@ srioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct sr_softc *sc = ifp->if_softc;
 
 #if BUGGY > 0
-	printf("sr%d: srioctl(ifp=%08x, cmd=%08x, data=%08x)\n",
-	       ifp->if_unit, ifp, cmd, data);
+	if_printf(ifp, "srioctl(ifp=%08x, cmd=%08x, data=%08x)\n",
+	       ifp, cmd, data);
 #endif
 
 	was_up = ifp->if_flags & IFF_RUNNING;
@@ -1014,8 +1014,8 @@ srioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	error = sppp_ioctl(ifp, cmd, data);
 
 #if BUGGY > 1
-	printf("sr%d: ioctl: ifsppp.pp_flags = %08x, if_flags %08x.\n",
-	      ifp->if_unit, ((struct sppp *)ifp)->pp_flags, ifp->if_flags);
+	if_printf(ifp, "ioctl: ifsppp.pp_flags = %08x, if_flags %08x.\n",
+	      ((struct sppp *)ifp)->pp_flags, ifp->if_flags);
 #endif
 
 	if (error)
