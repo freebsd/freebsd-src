@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $Id: 120.clean-kvmdb,v 1.1.1.1 1997/08/16 17:04:02 pst Exp $
+# $Id: 120.clean-kvmdb,v 1.2 1998/01/01 09:04:47 bde Exp $
 #
 
 if [ -d /var/db ] ; then
@@ -11,5 +11,5 @@ if [ -d /var/db ] ; then
     kernel=kvm_`basename ${kernel}`.db
 
     find /var/db -name "kvm_*.db" -a ! -name ${kernel} -a \
-	-atime +7 -exec rm -f -- {} \;
+	-atime +7 -delete
 fi
