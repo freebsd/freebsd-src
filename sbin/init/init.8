@@ -33,6 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)init.8	8.3 (Berkeley) 4/18/94
+.\"	$Id$
 .\"
 .Dd April 18, 1994
 .Dt INIT 8
@@ -237,7 +238,7 @@ for deadlocked processes) and reboot the machine if sent the interrupt
 signal, i.e.
 .Dq Li "kill \-INT 1".
 This is useful for shutting the machine down cleanly from inside the kernel
-or from X when the machines appears to be hung.
+or from X when the machine appears to be hung.
 .Pp
 The role of
 .Nm init
@@ -280,15 +281,15 @@ The terminal initialization information file.
 System startup commands.
 .El
 .Sh SEE ALSO
-.Xr login 1 ,
 .Xr kill 1 ,
+.Xr login 1 ,
 .Xr sh 1 ,
 .Xr ttys 5 ,
 .Xr crash 8 ,
 .Xr getty 8 ,
+.Xr halt 8 ,
 .Xr rc 8 ,
 .Xr reboot 8 ,
-.Xr halt 8 ,
 .Xr shutdown 8
 .Sh HISTORY
 A
