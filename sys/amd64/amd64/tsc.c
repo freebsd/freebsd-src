@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.110 1998/02/13 06:33:16 bde Exp $
+ *	$Id: clock.c,v 1.111 1998/02/20 16:35:37 phk Exp $
  */
 
 /*
@@ -1070,6 +1070,7 @@ i8254_get_timecount(void)
 
 	i8254_lastcount = count;
 	count += i8254_offset;
+	CLOCK_UNLOCK();
 	write_eflags(ef);
 	return (count);
 }
