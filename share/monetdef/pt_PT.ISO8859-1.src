@@ -4,9 +4,9 @@
 # WARNING: empty lines are essential too
 #
 # int_curr_symbol (last character always SPACE)
-PTE 
+EUR 
 # currency_symbol
-Esc
+Eu
 # mon_decimal_point (possibly incorrect for pt_PT)
 .
 # mon_thousands_sep
