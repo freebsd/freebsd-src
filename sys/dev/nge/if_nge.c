@@ -791,7 +791,7 @@ nge_reset(sc)
 }
 
 /*
- * Probe for an NatSemi chip. Check the PCI vendor and device
+ * Probe for a NatSemi chip. Check the PCI vendor and device
  * IDs against our list and return a device name if we find a match.
  */
 static int

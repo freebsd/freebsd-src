@@ -325,7 +325,7 @@ spans_find_vpvc(spp, vpi, vci, dir)
  *
  * Arguments:
  *	spp	pointer to SPANS protocol instance
- *	p	pointer to an spans_atm_conn structure
+ *	p	pointer to a spans_atm_conn structure
  *
  * Returns:
  *	0	there is no such VCCB

@@ -1031,7 +1031,7 @@ SuffAddLevel (Lst l, Src *targ)
  *	Free all src structures in list that don't have a reference count
  *
  * Results:
- *	Ture if an src was removed
+ *	True if a src was removed
  *
  * Side Effects:
  *	The memory is free'd.

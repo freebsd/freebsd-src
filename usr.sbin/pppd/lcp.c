@@ -342,7 +342,7 @@ lcp_extcode(f, code, id, inp, len)
 
     
 /*
- * lcp_rprotrej - Receive an Protocol-Reject.
+ * lcp_rprotrej - Receive a Protocol-Reject.
  *
  * Figure out which protocol is rejected and inform it.
  */

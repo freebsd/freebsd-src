@@ -84,7 +84,7 @@ static int dad_ignore_ns = 0;	/* ignore NS in DAD - specwise incorrect*/
 static int dad_maxtry = 15;	/* max # of *tries* to transmit DAD packet */
 
 /*
- * Input an Neighbor Solicitation Message.
+ * Input a Neighbor Solicitation Message.
  *
  * Based on RFC 2461
  * Based on RFC 2462 (duplicated address detection)
@@ -323,7 +323,7 @@ nd6_ns_input(m, off, icmp6len)
 }
 
 /*
- * Output an Neighbor Solicitation Message. Caller specifies:
+ * Output a Neighbor Solicitation Message. Caller specifies:
  *	- ICMP6 header source IP6 address
  *	- ND6 header target IP6 address
  *	- ND6 header source datalink address

@@ -1386,7 +1386,7 @@ bootpc_compose_query(struct bootpc_ifcontext *ifctx,
 	*vendp = TAG_END;
 
 	ifctx->call.secs = 0;
-	ifctx->call.flags = htons(0x8000); /* We need an broadcast answer */
+	ifctx->call.flags = htons(0x8000); /* We need a broadcast answer */
 }
 
 static int

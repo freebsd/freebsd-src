@@ -364,7 +364,7 @@ smb_smb_flush(struct smbnode *np, struct smb_cred *scred)
 	int error;
 
 	if (np->n_opencount <= 0 || !SMBTOV(np) || SMBTOV(np)->v_type != VREG)
-		return 0; /* not an regular open file */
+		return 0; /* not a regular open file */
 	error = smb_rq_init(rqp, SSTOCP(ssp), SMB_COM_FLUSH, scred);
 	if (error)
 		return (error);

@@ -1754,7 +1754,7 @@ amr_describe_controller(struct amr_softc *sc)
 	/* this looks like we have an HP NetRaid version of the MegaRaid */
 
     	if(ae->ae_signature == AMR_SIG_438) {
-    		/* the AMI 438 is an NetRaid 3si in HP-land */
+    		/* the AMI 438 is a NetRaid 3si in HP-land */
     		prod = "HP NetRaid 3si";
     	}
     	

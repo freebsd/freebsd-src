@@ -312,7 +312,7 @@ It looks ugly, but at least for me it works. The two sleeps are necessary
 since I have to wait for ppp negotiation to complete (I don't get a message
 from isdnd for that). If I'm lucky I have my connection after 3 seconds,
 but 8 seconds should suffice for worst case (the first HUP without a sleep
-sometimes even succeeded on an slow 486/33 with 8MB RAM, more HUPs don't hurt).
+sometimes even succeeded on a slow 486/33 with 8MB RAM, more HUPs don't hurt).
 
 I'm really interested in some more elegant method.
 
@@ -1070,7 +1070,7 @@ A: i just found out what i did wrong ...
    isdn_fsdev="NO"
    isdn_flags=""
 
-   had to do that if i want to run isdnd as an daemon service, 'cause the
+   had to do that if i want to run isdnd as a daemon service, 'cause the
    defaults in /etc/defaults/rc.conf are:
 
    isdn_fsdev="/dev/ttyv4"         # Output device for fullscreen mode (or NO for daemon mode).

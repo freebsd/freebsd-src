@@ -821,7 +821,7 @@ static struct SYM_FWA_SCR SYM_FWA_SCR = {
 		HADDR_1 (ccb_head.status),
 	/*
 	 *  If QUIRK_AUTOSAVE is set,
-	 *  do an "save pointer" operation.
+	 *  do a "save pointer" operation.
 	 */
 	SCR_FROM_REG (QU_REG),
 		0,

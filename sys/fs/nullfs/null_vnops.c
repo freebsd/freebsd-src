@@ -157,7 +157,7 @@
  * is appropriate in different situations.  In both cases,
  * it is the responsibility of the aliasing layer to make
  * the operation arguments "correct" for the lower layer
- * by mapping an vnode arguments to the lower layer.
+ * by mapping a vnode arguments to the lower layer.
  *
  * The first approach is to call the aliasing layer's bypass routine.
  * This method is most suitable when you wish to invoke the operation

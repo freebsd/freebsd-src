@@ -1164,7 +1164,7 @@ r_identify(void)
         cur_proto[1] = rodent.mode.syncmask[1];	/* header bit pattern */
     }
 
-    /* maybe this is an PnP mouse... */
+    /* maybe this is a PnP mouse... */
     if (rodent.mode.protocol == MOUSE_PROTO_UNKNOWN) {
 
         if (rodent.flags & NoPnP)

@@ -297,7 +297,7 @@ cleanstr(const unsigned char *s, int l)
 
 
 /*
- * return result as an pseudo-english word
+ * return result as a pseudo-english word
  */
 
 static const char *
