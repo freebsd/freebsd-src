@@ -324,6 +324,32 @@ enum alias_tcp_state {
 	ALIAS_TCP_STATE_DISCONNECTED
 };
 
+#if defined(_NETINET_IP_H_)
+static __inline void *
+ip_next(struct ip *iphdr)
+{
+	char *p = (char *)iphdr;
+	return (&p[iphdr->ip_hl * 4]);
+}
+#endif
+
+#if defined(_NETINET_TCP_H_)
+static __inline void *
+tcp_next(struct tcphdr *tcphdr)
+{
+	char *p = (char *)tcphdr;
+	return (&p[tcphdr->th_off * 4]);
+}
+#endif
+
+#if defined(_NETINET_UDP_H_)
+static __inline void *
+udp_next(struct udphdr *udphdr)
+{
+	return ((void *)(udphdr + 1));
+}
+#endif
+
 /*lint -restore */
 
 #endif				/* !_ALIAS_LOCAL_H_ */

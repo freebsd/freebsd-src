@@ -1908,7 +1908,7 @@ packet size was altered is searched.
 	int delta, ack_diff_min;
 	u_long ack;
 
-	tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
+	tc = ip_next(pip);
 	ack = tc->th_ack;
 
 	delta = 0;
@@ -1952,7 +1952,7 @@ packet size was altered is searched.
 	int delta, seq_diff_min;
 	u_long seq;
 
-	tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
+	tc = ip_next(pip);
 	seq = tc->th_seq;
 
 	delta = 0;
@@ -1996,7 +1996,7 @@ been altered, then this list will begin to overwrite itself.
 	int hlen, tlen, dlen;
 	int i;
 
-	tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
+	tc = ip_next(pip);
 
 	hlen = (pip->ip_hl + tc->th_off) << 2;
 	tlen = ntohs(pip->ip_len);
