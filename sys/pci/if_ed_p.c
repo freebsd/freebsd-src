@@ -17,7 +17,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: if_ed_p.c,v 1.5 1996/10/15 19:22:40 bde Exp $
+ *	$Id: if_ed_p.c,v 1.5.2.1 1996/12/21 01:56:48 se Exp $
  */
 
 #include "pci.h"
@@ -32,9 +32,18 @@
 
 #include "ed.h"
 
-#define PCI_DEVICE_ID_RealTek_8029	0x802910ec
-#define PCI_DEVICE_ID_ProLAN_NE2000	0x09401050
-#define PCI_DEVICE_ID_Compex_NE2000	0x140111f6
+static struct _pcsid
+{
+	pcidi_t		type;
+	char	*desc;
+} pci_ids[] =
+{
+	{ 0x802910ec,	"NE2000 PCI Ethernet (RealTek 8029)"	},
+	{ 0x09401050,	"NE2000 PCI Ethernet (ProLAN)"		},
+	{ 0x140111f6,	"NE2000 PCI Ethernet (Compex)"		},
+	{ 0x30008e2e,	"NE2000 PCI Ethernet (KTI)"		},
+	{ 0x00000000,	NULL					}
+};
 
 extern void *ed_attach_NE2000_pci __P((int, int));
 
@@ -56,15 +65,11 @@ DATA_SET (pcidevice_set, ed_pci_driver);
 static char*
 ed_pci_probe (pcici_t tag, pcidi_t type)
 {
-	switch(type) {
-	case PCI_DEVICE_ID_RealTek_8029:
-		return ("NE2000 PCI Ethernet (RealTek 8029)");
-	case PCI_DEVICE_ID_ProLAN_NE2000:
-		return ("NE2000 PCI Ethernet (ProLAN)");
-	case PCI_DEVICE_ID_Compex_NE2000:
-		return ("NE2000 PCI Ethernet (Compex)");
-	}
-	return (0);
+	struct _pcsid	*ep =pci_ids;
+
+	while (ep->type && ep->type != type)
+		++ep;
+	return (ep->desc);
 }
 
 void edintr_sc (void*);
