@@ -39,7 +39,7 @@ static volatile int print_tci = 1;
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.74 1998/07/02 21:35:02 phk Exp $
+ * $Id: kern_clock.c,v 1.75 1998/07/04 19:12:21 phk Exp $
  */
 
 #include <sys/param.h>
@@ -766,8 +766,9 @@ sync_other_counter(void)
 static void
 tco_forward(void)
 {
-	struct timecounter *tc;
+	struct timecounter *tc, *tco;
 
+	tco = timecounter;
 	tc = sync_other_counter();
 	/*
 	 * We may be inducing a tiny error here, the tc_poll_pps() may
@@ -778,8 +779,8 @@ tco_forward(void)
 	 * going to be only a few weenieseconds (as Dave Mills would
 	 * say), so lets just not talk more about it, OK ?
 	 */
-	if (tc->tc_poll_pps) 
-		tc->tc_poll_pps(tc);
+	if (tco->tc_poll_pps) 
+		tco->tc_poll_pps(tco);
 	if (timedelta != 0) {
 		tc->tc_offset_nano += (u_int64_t)(tickdelta * 1000) << 32;
 		timedelta -= tickdelta;
