@@ -9,7 +9,10 @@ SRCS	+= vnode_if.h opt_noblockrandom.h
 CFLAGS	+= -I${.CURDIR}/../..
 NOMAN	= yes
 
-NOBLOCKRANDOM=	yes
+# Uncomment the below macro to make a /dev/random that will not block at
+# boot time. Useful for personal workstations and the like where reboot
+# speed is paramount.
+#NOBLOCKRANDOM=	yes
 .if defined(NOBLOCKRANDOM)
 RANDOM_OPTS=     "\#define NOBLOCKRANDOM"
 .endif
