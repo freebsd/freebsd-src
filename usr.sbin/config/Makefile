@@ -8,5 +8,8 @@ MAN8=	config.8
 DPADD=	${LIBL}
 LDADD=	-ll
 CLEANFILES+= config.c lang.c lex.yy.c y.tab.[ch]
+.if defined(CONFIG_NO_CLOBBER_EVER)
+CFLAGS+=-DNO_CLOBBER_EVER
+.endif
 
 .include <bsd.prog.mk>
