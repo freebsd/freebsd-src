@@ -1,7 +1,9 @@
-#	$Id$
+#	$Id: Makefile,v 1.23 1997/02/22 15:07:10 peter Exp $
 
 LIB=	md
+.if ${BINFORMAT} != elf
 NOPIC=	true
+.endif
 SRCS=	md2c.c md4c.c md5c.c md2hl.c md4hl.c md5hl.c
 MAN3+=  md2.3 md4.3 md5.3
 MLINKS+=md2.3 MD2Init.3 md2.3 MD2Update.3 md2.3 MD2Final.3
