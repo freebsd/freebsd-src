@@ -661,7 +661,7 @@ release.9:
 .endif
 	-test -f ${.CURDIR}/install.cfg && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
 	@mkdir -p ${RD}/mfsfd/boot
-.if ${TARGET} != "ia64"
+.if ${TARGET_ARCH} != "ia64"
 	@cp ${RD}/trees/base/boot/boot* ${RD}/mfsfd/boot
 .endif
 .if ${TARGET} == "i386"
@@ -1012,7 +1012,7 @@ doMFSKERN:
 	@mkdir -p ${RD}/image.${FSIMAGE}/boot
 .if ${TARGET} == "i386"
 	@kgzip -vo ${RD}/image.${FSIMAGE}/boot/loader ${RD}/trees/base/boot/loader
-.elif ${TARGET} == "ia64"
+.elif ${TARGET_ARCH} == "ia64"
 	@cp ${RD}/trees/base/boot/loader.efi ${RD}/image.${FSIMAGE}/boot
 .else
 	@cp ${RD}/trees/base/boot/loader ${RD}/image.${FSIMAGE}/boot
