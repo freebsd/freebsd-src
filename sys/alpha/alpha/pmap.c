@@ -330,7 +330,6 @@ static pv_entry_t get_pv_entry(void);
 static void	alpha_protection_init(void);
 static void	pmap_changebit(vm_page_t m, int bit, boolean_t setem);
 
-static void	pmap_remove_all(vm_page_t m);
 static vm_page_t pmap_enter_quick(pmap_t pmap, vm_offset_t va,
 				      vm_page_t m, vm_page_t mpte);
 static int pmap_remove_pte(pmap_t pmap, pt_entry_t* ptq, vm_offset_t sva);
@@ -1933,7 +1932,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
  *		pmap_remove (slow...)
  */
 
-static void
+void
 pmap_remove_all(vm_page_t m)
 {
 	register pv_entry_t pv;
