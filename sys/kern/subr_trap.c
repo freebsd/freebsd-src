@@ -150,7 +150,6 @@ ast(framep)
 		 * If another AST is triggered while we are handling the
 		 * AST's saved in sflag, the astpending flag will be set and
 		 * we will loop again.
-		 * XXXKSE  Can't do it atomically in KSE
 		 */
 		mtx_lock_spin(&sched_lock);
 		sticks = ke->ke_sticks;
