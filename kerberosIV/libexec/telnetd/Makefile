@@ -6,17 +6,18 @@
 PROG=		telnetd
 MAN=		telnetd.8
 
-CFLAGS+=	-DLINEMODE -DUSE_TERMIO -DDIAGNOSTICS -DOLD_ENVIRON \
+CFLAGS=		-DLINEMODE -DUSE_TERMIO -DDIAGNOSTICS -DOLD_ENVIRON \
 		-DENV_HACK -DAUTHENTICATION -DENCRYPTION \
 		-I${TELNETDIR} -DINET6
+CFLAGS+=	-DKRB4
 
 SRCS=		global.c slc.c state.c sys_term.c telnetd.c \
 		termstat.c utility.c authenc.c
 
-DPADD=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET} ${LIBCRYPTO} ${LIBKRB} \
-		${LIBCRYPT} ${LIBCOM_ERR} ${LIBMP} ${LIBPAM}
-LDADD=		-lutil -ltermcap ${LIBTELNET} -lcrypto \
-		-L${KRBOBJDIR} -lkrb -lcrypt -lcom_err -lmp ${MINUSLPAM}
+DPADD=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET} ${LIBMP} ${LIBCRYPTO} \
+		${LIBKRB} ${LIBCRYPT} ${LIBCOM_ERR} ${LIBPAM}
+LDADD=		-lutil -ltermcap ${LIBTELNET} -lmp -lcrypto \
+		-L${KRBOBJDIR} -lkrb -lcrypt -lcom_err ${MINUSLPAM}
 
 .include <bsd.prog.mk>
 
