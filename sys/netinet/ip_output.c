@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- * $Id: ip_output.c,v 1.15 1995/03/20 18:31:51 wollman Exp $
+ * $Id: ip_output.c,v 1.16 1995/04/09 01:29:22 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -259,7 +259,7 @@ ip_output(m0, opt, ro, flags, imo)
 		 * loop back a copy if this host actually belongs to the
 		 * destination group on the loopback interface.
 		 */
-		if (ip->ip_ttl == 0 || ifp == &loif) {
+		if (ip->ip_ttl == 0 || ifp->if_flags & IFF_LOOPBACK) {
 			m_freem(m);
 			goto done;
 		}
@@ -1124,7 +1124,8 @@ ip_freemoptions(imo)
  * Routine called from ip_output() to loop back a copy of an IP multicast
  * packet to the input queue of a specified interface.  Note that this
  * calls the output routine of the loopback "driver", but with an interface
- * pointer that might NOT be &loif -- easier than replicating that code here.
+ * pointer that might NOT be a loopback interface -- evil, but easier than
+ * replicating that code here.
  */
 static void
 ip_mloopback(ifp, m, dst)

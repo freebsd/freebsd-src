@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso.c	8.2 (Berkeley) 11/15/93
- * $Id$
+ * $Id: iso.c,v 1.2 1994/08/02 07:50:26 davidg Exp $
  */
 
 /***********************************************************
@@ -61,7 +61,7 @@ SOFTWARE.
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
 /*
- * $Header: /home/ncvs/src/sys/netiso/iso.c,v 1.1.1.1 1994/05/24 10:07:13 rgrimes Exp $ 
+ * $Header: /home/ncvs/src/sys/netiso/iso.c,v 1.2 1994/08/02 07:50:26 davidg Exp $ 
  * $Source: /home/ncvs/src/sys/netiso/iso.c,v $ 
  *
  * iso.c: miscellaneous routines to support the iso address family
@@ -93,7 +93,6 @@ SOFTWARE.
 #ifdef ISO
 
 int	iso_interfaces = 0;		/* number of external interfaces */
-extern	struct ifnet loif;	/* loopback interface */
 int	ether_output();
 void	llc_rtrequest();
 
@@ -480,7 +479,7 @@ iso_control(so, cmd, data, ifp)
 			ia->ia_ifa.ifa_netmask
 					= (struct sockaddr *)&ia->ia_sockmask;
 			ia->ia_ifp = ifp;
-			if (ifp != &loif)
+			if (!(ifp->if_flags & IFF_LOOPBACK))
 				iso_interfaces++;
 		}
 		break;
