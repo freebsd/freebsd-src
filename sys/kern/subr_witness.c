@@ -86,9 +86,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_witness.h"
-#ifdef __i386__
-#include "opt_swtch.h"
-#endif
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -301,7 +298,7 @@ static struct witness_order_list_entry order_lists[] = {
 #if defined(__i386__) && defined(APIC_IO)
 	{ "tlb", &lock_class_mtx_spin },
 #endif
-#if defined(__i386__) && defined(LAZY_SWITCH)
+#ifdef __i386__
 	{ "lazypmap", &lock_class_mtx_spin },
 #endif
 #ifdef __sparc64__
