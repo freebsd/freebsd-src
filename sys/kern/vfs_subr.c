@@ -2882,27 +2882,16 @@ static int
 sysctl_vfs_conflist(SYSCTL_HANDLER_ARGS)
 {
 	struct vfsconf *vfsp;
-	struct xvfsconf *xvfsp;
-	int cnt, error, i;
+	struct xvfsconf xvfsp;
+	int error;
 
-	cnt = 0;
-	for (vfsp = vfsconf; vfsp != NULL; vfsp = vfsp->vfc_next)
-		cnt++;
-	xvfsp = malloc(sizeof(struct xvfsconf) * cnt, M_TEMP, M_WAITOK);
-	/*
-	 * Handle the race that we will have here when struct vfsconf
-	 * will be locked down by using both cnt and checking vfc_next
-	 * against NULL to determine the end of the loop.  The race will
-	 * happen because we will have to unlock before calling malloc().
-	 * We are protected by Giant for now.
-	 */
-	i = 0;
-	for (vfsp = vfsconf; vfsp != NULL && i < cnt; vfsp = vfsp->vfc_next) {
-		vfsconf2x(vfsp, xvfsp + i);
-		i++;
+	error = 0;
+	TAILQ_FOREACH(vfsp, &vfsconf, vfc_list) {
+		vfsconf2x(vfsp, &xvfsp);
+		error = SYSCTL_OUT(req, &xvfsp, sizeof xvfsp);
+		if (error)
+			break;
 	}
-	error = SYSCTL_OUT(req, xvfsp, sizeof(struct xvfsconf) * i);
-	free(xvfsp, M_TEMP);
 	return (error);
 }
 
@@ -2937,7 +2926,7 @@ vfs_sysctl(SYSCTL_HANDLER_ARGS)
 	case VFS_CONF:
 		if (namelen != 3)
 			return (ENOTDIR);	/* overloaded */
-		for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next)
+		TAILQ_FOREACH(vfsp, &vfsconf, vfc_list)
 			if (vfsp->vfc_typenum == name[2])
 				break;
 		if (vfsp == NULL)
@@ -2960,7 +2949,7 @@ sysctl_ovfs_conf(SYSCTL_HANDLER_ARGS)
 	struct vfsconf *vfsp;
 	struct ovfsconf ovfs;
 
-	for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next) {
+	TAILQ_FOREACH(vfsp, &vfsconf, vfc_list) {
 		ovfs.vfc_vfsops = vfsp->vfc_vfsops;	/* XXX used as flag */
 		strcpy(ovfs.vfc_name, vfsp->vfc_name);
 		ovfs.vfc_index = vfsp->vfc_typenum;

@@ -105,6 +105,8 @@ static int	vfs_mount_alloc(struct vnode *dvp, struct vfsconf *vfsp,
 		    const char *fspath, struct thread *td, struct mount **mpp);
 static int	vfs_mountroot_ask(void);
 static int	vfs_mountroot_try(char *mountfrom);
+static int	vfs_donmount(struct thread *td, int fsflags,
+		    struct uio *fsoptions);
 
 static int	usermount = 0;
 SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0,
@@ -400,16 +402,13 @@ nmount(td, uap)
 		}
 		iov++;
 	}
-	error = vfs_nmount(td, uap->flags, auio);
+	error = vfs_donmount(td, uap->flags, auio);
 	free(auio, M_IOV);
 	return (error);
 }
 
 int
-kernel_mount(iovp, iovcnt, flags)
-	struct iovec *iovp;
-	unsigned int iovcnt;
-	int flags;
+kernel_mount(struct iovec *iovp, u_int iovcnt, int flags)
 {
 	struct uio auio;
 	int error;
@@ -425,7 +424,7 @@ kernel_mount(iovp, iovcnt, flags)
 	auio.uio_iovcnt = iovcnt;
 	auio.uio_segflg = UIO_SYSSPACE;
 
-	error = vfs_nmount(curthread, flags, &auio);
+	error = vfs_donmount(curthread, flags, &auio);
 	return (error);
 }
 
@@ -435,7 +434,7 @@ kernel_vmount(int flags, ...)
 	struct iovec *iovp;
 	struct uio auio;
 	va_list ap;
-	unsigned int iovcnt, iovlen, len;
+	u_int iovcnt, iovlen, len;
 	const char *cp;
 	char *buf, *pos;
 	size_t n;
@@ -468,7 +467,7 @@ kernel_vmount(int flags, ...)
 	auio.uio_iovcnt = iovcnt;
 	auio.uio_segflg = UIO_SYSSPACE;
 
-	error = vfs_nmount(curthread, flags, &auio);
+	error = vfs_donmount(curthread, flags, &auio);
 	FREE(iovp, M_MOUNT);
 	FREE(buf, M_MOUNT);
 	return (error);
@@ -532,8 +531,8 @@ vfs_mount_destroy(struct mount *mp, struct thread *td)
 	free(mp, M_MOUNT);
 }
 
-int
-vfs_nmount(struct thread *td, int fsflags, struct uio *fsoptions)
+static int
+vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 {
 	struct vfsoptlist *optlist;
 	char *fstype, *fspath;
@@ -746,88 +745,83 @@ vfs_domount(
 			mp->mnt_optnew = fsdata;
 			vfs_mergeopts(mp->mnt_optnew, mp->mnt_opt);
 		}
-		goto update;
-	}
-	/*
-	 * If the user is not root, ensure that they own the directory
-	 * onto which we are attempting to mount.
-	 */
-	error = VOP_GETATTR(vp, &va, td->td_ucred, td);
-	if (error) {
-		vput(vp);
-		return (error);
-	}
-	if (va.va_uid != td->td_ucred->cr_uid) {
-		if ((error = suser(td)) != 0) {
-			vput(vp);
-			return (error);
-		}
-	}
-	if ((error = vinvalbuf(vp, V_SAVE, td->td_ucred, td, 0, 0)) != 0) {
-		vput(vp);
-		return (error);
-	}
-	if (vp->v_type != VDIR) {
-		vput(vp);
-		return (ENOTDIR);
-	}
-	for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next)
-		if (strcmp(vfsp->vfc_name, fstype) == 0)
-			break;
-	if (vfsp == NULL) {
-		/* Only load modules for root (very important!). */
-		if ((error = suser(td)) != 0) {
-			vput(vp);
-			return (error);
-		}
-		error = securelevel_gt(td->td_ucred, 0);
+	} else {
+		/*
+		 * If the user is not root, ensure that they own the directory
+		 * onto which we are attempting to mount.
+		 */
+		error = VOP_GETATTR(vp, &va, td->td_ucred, td);
 		if (error) {
 			vput(vp);
 			return (error);
 		}
-		error = linker_load_module(NULL, fstype, NULL, NULL, &lf);
-		if (error || lf == NULL) {
+		if (va.va_uid != td->td_ucred->cr_uid) {
+			if ((error = suser(td)) != 0) {
+				vput(vp);
+				return (error);
+			}
+		}
+		if ((error = vinvalbuf(vp, V_SAVE, td->td_ucred, td, 0, 0)) != 0) {
 			vput(vp);
-			if (lf == NULL)
-				error = ENODEV;
 			return (error);
 		}
-		lf->userrefs++;
-		/* Look up again to see if the VFS was loaded. */
-		for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next)
-			if (strcmp(vfsp->vfc_name, fstype) == 0)
-				break;
-		if (vfsp == NULL) {
-			lf->userrefs--;
-			linker_file_unload(lf, LINKER_UNLOAD_FORCE);
+		if (vp->v_type != VDIR) {
 			vput(vp);
-			return (ENODEV);
+			return (ENOTDIR);
 		}
-	}
-	VI_LOCK(vp);
-	if ((vp->v_iflag & VI_MOUNT) != 0 ||
-	    vp->v_mountedhere != NULL) {
+		vfsp = vfs_byname(fstype);
+		if (vfsp == NULL) {
+			/* Only load modules for root (very important!). */
+			if ((error = suser(td)) != 0) {
+				vput(vp);
+				return (error);
+			}
+			error = securelevel_gt(td->td_ucred, 0);
+			if (error) {
+				vput(vp);
+				return (error);
+			}
+			error = linker_load_module(NULL, fstype, NULL, NULL, &lf);
+			if (error || lf == NULL) {
+				vput(vp);
+				if (lf == NULL)
+					error = ENODEV;
+				return (error);
+			}
+			lf->userrefs++;
+			/* Look up again to see if the VFS was loaded. */
+			vfsp = vfs_byname(fstype);
+			if (vfsp == NULL) {
+				lf->userrefs--;
+				linker_file_unload(lf, LINKER_UNLOAD_FORCE);
+				vput(vp);
+				return (ENODEV);
+			}
+		}
+		VI_LOCK(vp);
+		if ((vp->v_iflag & VI_MOUNT) != 0 ||
+		    vp->v_mountedhere != NULL) {
+			VI_UNLOCK(vp);
+			vput(vp);
+			return (EBUSY);
+		}
+		vp->v_iflag |= VI_MOUNT;
 		VI_UNLOCK(vp);
-		vput(vp);
-		return (EBUSY);
-	}
-	vp->v_iflag |= VI_MOUNT;
-	VI_UNLOCK(vp);
 
-	/*
-	 * Allocate and initialize the filesystem.
-	 */
-	error = vfs_mount_alloc(vp, vfsp, fspath, td, &mp);
-	if (error) {
-		vput(vp);
-		return (error);
-	}
-	VOP_UNLOCK(vp, 0, td);
+		/*
+		 * Allocate and initialize the filesystem.
+		 */
+		error = vfs_mount_alloc(vp, vfsp, fspath, td, &mp);
+		if (error) {
+			vput(vp);
+			return (error);
+		}
+		VOP_UNLOCK(vp, 0, td);
 
-	/* XXXMAC: pass to vfs_mount_alloc? */
-	if (compat == 0)
-		mp->mnt_optnew = fsdata;
-update:
+		/* XXXMAC: pass to vfs_mount_alloc? */
+		if (compat == 0)
+			mp->mnt_optnew = fsdata;
+	}
 	/*
 	 * Check if the fs implements the type VFS_[N]MOUNT()
 	 * function we are looking for.
@@ -1182,9 +1176,7 @@ vfs_rootmountalloc(fstypename, devname, mpp)
 
 	if (fstypename == NULL)
 		return (ENODEV);
-	for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next)
-		if (!strcmp(vfsp->vfc_name, fstypename))
-			break;
+	vfsp = vfs_byname(fstypename);
 	if (vfsp == NULL)
 		return (ENODEV);
 	error = vfs_mount_alloc(NULLVP, vfsp, "/", td, &mp);
@@ -1450,10 +1442,8 @@ getdiskbyname(char *name)
 	if (!bcmp(cp, "/dev/", 5))
 		cp += 5;
 
-	for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next)
-		if (!strcmp(vfsp->vfc_name, "devfs"))
-			break;
 	do {
+		vfsp = vfs_byname("devfs");
 		if (vfsp == NULL)
 			break;
 		error = vfs_mount_alloc(NULLVP, vfsp, "/dev", td, &mp);

@@ -518,13 +518,8 @@ iconv_vfs_refcount(const char *fsname)
 {
 	struct vfsconf *vfsp;
 
-	for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next) {
-		if (!strcmp(vfsp->vfc_name, fsname)) {
-			if (vfsp->vfc_refcount > 0)
-				return (EBUSY);
-			else
-				return (0);
-		}
-	}
+	vfsp = vfs_byname(fsname);
+	if (vfsp != NULL && vfsp->vfc_refcount > 0)
+		return (EBUSY);
 	return (0);
 }
