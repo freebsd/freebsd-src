@@ -977,6 +977,7 @@
 	8026	TSB43AB21 1394a-2000 OHCI PHY/link-layer Controller
 	8027	PCI4451 OHCI-Lynx IEEE-1394 FireWire Adapter
 	8400	802.11b+ 22Mbps Wireless Adapter
+	9066	TNETW1130 802.11g+ 54/108 Mbps Wireless Adapter
 	A001	TDC1570 64-Bit PCI ATM Interface
 	A100	TDC1561 32-Bit PCI ATM Interface
 	A102	TNETA1575 HyperSAR Plus w/PCI Host interface & UTOPIA Interface
