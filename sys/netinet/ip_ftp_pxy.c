@@ -262,7 +262,7 @@ int dlen;
 		ip->ip_len = slen;
 		ip->ip_src = swip;
 	}
-	return inc;
+	return APR_INC(inc);
 }
 
 
@@ -702,7 +702,7 @@ int rv;
 	t->ftps_seq = ntohl(tcp->th_ack);
 	f->ftps_rptr = rptr;
 	f->ftps_wptr = wptr;
-	return inc;
+	return APR_INC(inc);
 }
 
 
