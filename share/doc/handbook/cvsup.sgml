@@ -1,4 +1,4 @@
-<!-- $Id: cvsup.sgml,v 1.12 1997/03/18 01:38:47 jdp Exp $ -->
+<!-- $Id: cvsup.sgml,v 1.13 1997/03/19 03:22:28 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>CVSup<label id="cvsup"></heading>
@@ -207,6 +207,8 @@ different tomorrow than it means today.
 <p>Here are the revision tags that users might be interested in:
 
 <descrip>
+  <tag/tag=RELENG_2_2_1_RELEASE/
+  FreeBSD-2.2.1.
   <tag/tag=RELENG_2_2_0_RELEASE/
   FreeBSD-2.2.0.
   <tag/tag=RELENG_2_1_7_RELEASE/
