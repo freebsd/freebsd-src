@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: simple.c,v 1.8 1997/08/15 12:32:59 sos Exp $
+ *  $Id: simple.c,v 1.1 1997/08/17 21:09:35 sos Exp $
  */
 
 #include <signal.h>
@@ -94,7 +94,7 @@ VGLGetXY(VGLBitmap *object, int x, int y)
       break;
     case VIDBUF8X:
       outb(0x3ce, 0x04); outb(0x3cf, x & 0x3);
-      return object->Bitmap[(unsigned)(object->Xsize/4*y)+(x/4)];
+      return object->Bitmap[(unsigned)(object->Xsize/2*y)+(x/4)];
       break;
     case VIDBUF4:
       return (object->Bitmap[((y*object->Xsize/8)+x/8)]&(0x80>>(x%8))) ? 1 : 0;
