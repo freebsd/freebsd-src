@@ -146,12 +146,12 @@ struct td_sched *thread0_sched = &td_sched;
  *
  * SLP_RUN_MAX:	Maximum amount of sleep time + run time we'll accumulate
  *		before throttling back.
- * SLP_RUN_THROTTLE:	Divisor for reducing slp/run time.
+ * SLP_RUN_THROTTLE:	Divisor for reducing slp/run time at fork time.
  * INTERACT_MAX:	Maximum interactivity value.  Smaller is better.
  * INTERACT_THRESH:	Threshhold for placement on the current runq.
  */
 #define	SCHED_SLP_RUN_MAX	((hz * 2) << 10)
-#define	SCHED_SLP_RUN_THROTTLE	(2)
+#define	SCHED_SLP_RUN_THROTTLE	(100)
 #define	SCHED_INTERACT_MAX	(100)
 #define	SCHED_INTERACT_HALF	(SCHED_INTERACT_MAX / 2)
 #define	SCHED_INTERACT_THRESH	(20)
@@ -891,8 +891,8 @@ sched_fork_ksegrp(struct ksegrp *kg, struct ksegrp *child)
 	PROC_LOCK_ASSERT(child->kg_proc, MA_OWNED);
 	/* XXX Need something better here */
 
-	child->kg_slptime = kg->kg_slptime;
-	child->kg_runtime = kg->kg_runtime;
+	child->kg_slptime = kg->kg_slptime / SCHED_SLP_RUN_THROTTLE;
+	child->kg_runtime = kg->kg_runtime / SCHED_SLP_RUN_THROTTLE;
 	kg->kg_runtime += tickincr << 10;
 	sched_interact_update(kg);
 
