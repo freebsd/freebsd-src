@@ -9,7 +9,8 @@
 # which CVS "tag" name should be used when checking out the sources to build
 # the release (default is HEAD).
 #
-# Please note: the vn driver must also be compiled into your kernel,
+# Please note: the md(4) driver must be compiled into your kernel
+# or available as a kld(4)-style kernel module,
 # otherwise the target 'release.8' and possibly others will fail.
 #
 # Set these, release builder!
