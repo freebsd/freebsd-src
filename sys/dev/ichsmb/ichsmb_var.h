@@ -64,6 +64,7 @@ struct ichsmb_softc {
 	int			block_index;	/* index for block read/write */
 	u_char			block_write;	/* 0=read, 1=write */
 	u_char			block_data[32];	/* block read/write data */
+	struct mtx		mutex;		/* device mutex */
 };
 typedef struct ichsmb_softc *sc_p;
 
