@@ -101,10 +101,10 @@ struct handle
  */
 
 static char io_header[] =
-  "  PID %-*.*s   READ  WRITE  FAULT  TOTAL COMMAND";
+  "  PID %-*.*s   READ  WRITE  FAULT  TOTAL PERCENT COMMAND";
 
 #define io_Proc_format \
-	"%5d %-*.*s %6d %6d %6d %6d %.*s"
+	"%5d %-*.*s %6d %6d %6d %6d %6.2f%% %.*s"
 
 static char smp_header[] =
   "  PID %-*.*s PRI NICE   SIZE    RES STATE  C   TIME   WCPU    CPU COMMAND";
@@ -193,6 +193,11 @@ static struct kinfo_proc *previous_procs;
 static struct kinfo_proc **previous_pref;
 static int previous_proc_count = 0;
 static int previous_proc_count_max = 0;
+
+/* total number of io operations */
+static long total_inblock;
+static long total_oublock;
+static long total_majflt;
 
 /* these are for getting the memory statistics */
 
@@ -432,7 +437,9 @@ get_old_proc(struct kinfo_proc *pp)
 }
 
 long
-get_io_total(struct kinfo_proc *pp)
+get_io_stats(pp, inp, oup, flp)
+	struct kinfo_proc *pp;
+	long *inp, *oup, *flp;
 {
 	const struct kinfo_proc *oldp;
 	static struct kinfo_proc dummy;
@@ -444,11 +451,22 @@ get_io_total(struct kinfo_proc *pp)
 		oldp = &dummy;
 	}
 
+	*inp = RU(pp)->ru_inblock - RU(oldp)->ru_inblock;
+	*oup = RU(pp)->ru_oublock - RU(oldp)->ru_oublock;
+	*flp = RU(pp)->ru_majflt - RU(oldp)->ru_majflt;
 	ret =
 	    (RU(pp)->ru_inblock - RU(oldp)->ru_inblock) +
 	    (RU(pp)->ru_oublock - RU(oldp)->ru_oublock) +
 	    (RU(pp)->ru_majflt - RU(oldp)->ru_majflt);
 	return (ret);
+}
+
+long
+get_io_total(struct kinfo_proc *pp)
+{
+	long dummy;
+
+	return (get_io_stats(pp, &dummy, &dummy, &dummy));
 }
 
 static struct handle handle;
@@ -461,6 +479,8 @@ get_process_info(si, sel, compare)
 {
     int i;
     int total_procs;
+    long p_io;
+    long p_inblock, p_oublock, p_majflt;
     int active_procs;
     struct kinfo_proc **prefp;
     struct kinfo_proc *pp;
@@ -517,6 +537,9 @@ get_process_info(si, sel, compare)
     /* count up process states and get pointers to interesting procs */
     total_procs = 0;
     active_procs = 0;
+    total_inblock = 0;
+    total_oublock = 0;
+    total_majflt = 0;
     memset((char *)process_states, 0, sizeof(process_states));
     prefp = pref;
     for (pp = pbase, i = 0; i < nproc; pp++, i++)
@@ -527,16 +550,21 @@ get_process_info(si, sel, compare)
 	 *  status field.  Processes with P_SYSTEM set are system
 	 *  processes---these get ignored unless show_sysprocs is set.
 	 */
+	
 	if (pp->ki_stat != 0 &&
 	    (show_self != pp->ki_pid) &&
 	    (show_system || ((pp->ki_flag & P_SYSTEM) == 0)))
 	{
+	    p_io = get_io_stats(pp, &p_inblock, &p_oublock, &p_majflt);
+	    total_inblock += p_inblock;
+	    total_oublock += p_oublock;
+	    total_majflt += p_majflt;
 	    total_procs++;
 	    process_states[(unsigned char) pp->ki_stat]++;
 	    if ((pp->ki_stat != SZOMB) &&
 		(displaymode == DISP_CPU &&
 		 (show_idle || (pp->ki_pctcpu != 0) || pp->ki_stat == SRUN)) ||
-		(show_idle || (displaymode == DISP_IO && get_io_total(pp))) &&
+		(show_idle || (displaymode == DISP_IO && p_io != 0)) &&
 		(!show_uid || pp->ki_ruid == (uid_t)sel->uid))
 	    {
 		/*
@@ -589,6 +617,7 @@ format_next_process(handle, get_userid)
     char status[16];
     int state;
     struct rusage ru, *rup;
+    long p_tot, s_tot;
 
     /* find and remember the next proc structure */
     hp = (struct handle *)handle;
@@ -661,6 +690,8 @@ format_next_process(handle, get_userid)
 	    } else {
 		   rup = RU(pp);
 	    }
+	    p_tot = rup->ru_inblock + rup->ru_oublock + rup->ru_majflt;
+	    s_tot = total_inblock + total_oublock + total_majflt;
 
 	    sprintf(fmt, io_Proc_format,
 		pp->ki_pid,
@@ -669,7 +700,8 @@ format_next_process(handle, get_userid)
 		(int)rup->ru_inblock,
 		(int)rup->ru_oublock,
 		(int)rup->ru_majflt,
-		(int)(rup->ru_inblock + rup->ru_oublock + rup->ru_majflt),
+		(int)p_tot,
+		p_tot == 0 ? 0.0 : ((float)(p_tot * 100))/(float)s_tot,
 		screen_width > cmdlengthdelta ?
 		screen_width - cmdlengthdelta : 0,
 		printable(pp->ki_comm));
