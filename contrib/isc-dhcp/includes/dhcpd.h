@@ -425,6 +425,11 @@ struct lease_state {
 #define SV_UPDATE_STATIC_LEASES		43
 #define SV_LOG_FACILITY			44
 #define SV_DO_FORWARD_UPDATES		45
+#define SV_PING_TIMEOUT         46
+
+#if !defined (DEFAULT_PING_TIMEOUT)
+# define DEFAULT_PING_TIMEOUT 1
+#endif
 
 #if !defined (DEFAULT_DEFAULT_LEASE_TIME)
 # define DEFAULT_DEFAULT_LEASE_TIME 43200
