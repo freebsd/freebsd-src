@@ -805,6 +805,38 @@ ast*)
 	umask 77
 	;;
 
+acd*t*)
+	umask $disk_umask
+	units=`expr $i : '...\(.*\)t'`;
+	tracks=`expr $i : '.*t\(.*\)'`;
+	name=acd;
+	chr=117;
+	if [ -z "${units}" -o "${units}" -le 0 ]; then
+		units=1
+	fi
+	if [ -z "${tracks}" -o "${tracks}" -le 0 ]; then
+		tracks=100
+	fi
+	if [ "${units}" -le 31 -a "${tracks}" -le 169 ]; then
+		i=0
+		while [ $i -le $units ]; do
+			dname=$name$i
+			rm -rf ${dname}t*
+			j=1
+			while [ $j -le ${tracks} ]; do
+				mknod ${dname}t$j c $chr \
+					$((($i * 8) + (65536 * $j))) \
+					root:operator
+				j=$(($j + 1))
+			done
+			i=$(($i + 1))
+		done
+	else
+		echo "$i is invalid -- can't have more than 32 cd devices or 169 tracks"
+	fi
+	umask 77
+	;;
+
 acd*|cd*|mcd*|scd*)
 	umask $disk_umask
 	case $i in
