@@ -268,7 +268,7 @@ __initdb()
 #endif
 		return(1);
 	}
-	if (!warned)
+	if (!warned++)
 		syslog(LOG_ERR, "%s: %m", p);
 	return(0);
 }
