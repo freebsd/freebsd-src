@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.24 1995/11/18 08:39:28 bde Exp $
+ * $Id: if_ze.c,v 1.25 1995/12/05 02:01:16 davidg Exp $
  */
 
 #include "ze.h"
@@ -151,22 +151,22 @@ struct	ze_softc {
 
 static int ze_check_cis __P((unsigned char *scratch));
 static int ze_find_adapter __P((unsigned char *scratch, int reconfig));
-extern int ze_probe __P((struct isa_device *isa_dev));
-extern void ze_setup __P((struct ze_softc *sc));
+static int ze_probe __P((struct isa_device *isa_dev));
+static void ze_setup __P((struct ze_softc *sc));
 static int ze_suspend __P((void *visa_dev));
 static int ze_resume __P((void *visa_dev));
-extern int ze_attach __P((struct isa_device *isa_dev));
-extern void ze_reset __P((int unit));
-extern void ze_stop __P((int unit));
-extern void ze_watchdog __P((struct ifnet *ifp));
-extern void ze_init __P((int unit));
+static int ze_attach __P((struct isa_device *isa_dev));
+static void ze_reset __P((int unit));
+static void ze_stop __P((int unit));
+static void ze_watchdog __P((struct ifnet *ifp));
+static void ze_init __P((int unit));
 static inline void ze_xmit __P((struct ifnet *ifp));
-extern void ze_start __P((struct ifnet *ifp));
+static void ze_start __P((struct ifnet *ifp));
 static inline void ze_rint __P((int unit));
-extern int ze_ioctl __P((struct ifnet *ifp, int command, caddr_t data));
-extern void ze_get_packet __P((struct ze_softc *sc, char *buf, int len));
+static int ze_ioctl __P((struct ifnet *ifp, int command, caddr_t data));
+static void ze_get_packet __P((struct ze_softc *sc, char *buf, int len));
 static inline char *ze_ring_copy __P((struct ze_softc *sc, char *src, char *dst, int amount));
-extern struct mbuf *ze_ring_to_mbuf __P((struct ze_softc *sc, char *src, struct mbuf *dst, int total_len));
+static struct mbuf *ze_ring_to_mbuf __P((struct ze_softc *sc, char *src, struct mbuf *dst, int total_len));
 
 struct isa_driver zedriver = {
 	ze_probe,
@@ -345,7 +345,7 @@ ze_find_adapter (unsigned char *scratch, int reconfig)
  *	or # of i/o addresses used (if found)
 	pcic(
  */
-int
+static int
 ze_probe(isa_dev)
 	struct isa_device *isa_dev;
 {
@@ -435,7 +435,7 @@ ze_probe(isa_dev)
 }
 
 
-void
+static void
 ze_setup(struct ze_softc *sc)
 {
 	int re_init_flag = 0,tmp,slot = sc->slot;
@@ -577,7 +577,7 @@ ze_resume(visa_dev)
  * Install interface into kernel networking data structures
  */
 
-int
+static int
 ze_attach(isa_dev)
 	struct isa_device *isa_dev;
 {
@@ -692,7 +692,7 @@ ze_attach(isa_dev)
 /*
  * Reset interface.
  */
-void
+static void
 ze_reset(unit)
 	int unit;
 {
@@ -712,7 +712,7 @@ ze_reset(unit)
 /*
  * Take interface offline.
  */
-void
+static void
 ze_stop(unit)
 	int unit;
 {
@@ -738,7 +738,7 @@ ze_stop(unit)
  * Device timeout/watchdog routine. Entered if the device neglects to
  *	generate an interrupt after a transmit has been started on it.
  */
-void
+static void
 ze_watchdog(ifp)
 	struct ifnet *ifp;
 {
@@ -777,7 +777,7 @@ ze_watchdog(ifp)
 /*
  * Initialize device.
  */
-void
+static void
 ze_init(unit)
 	int unit;
 {
@@ -980,7 +980,7 @@ ze_xmit(ifp)
  *  2) that the IFF_OACTIVE flag is checked before this code is called
  *     (i.e. that the output part of the interface is idle)
  */
-void
+static void
 ze_start(ifp)
 	struct ifnet *ifp;
 {
@@ -1337,7 +1337,7 @@ zeintr(unit)
  * Process an ioctl request. This code needs some work - it looks
  *	pretty ugly.
  */
-int
+static int
 ze_ioctl(ifp, command, data)
 	register struct ifnet *ifp;
 	int command;
@@ -1489,7 +1489,7 @@ ze_ioctl(ifp, command, data)
  * Retreive packet from shared memory and send to the next level up via
  *	ether_input(). If there is a BPF listener, give a copy to BPF, too.
  */
-void
+static void
 ze_get_packet(sc, buf, len)
 	struct ze_softc *sc;
 	char *buf;
@@ -1611,7 +1611,7 @@ ze_ring_copy(sc,src,dst,amount)
  * dst = pointer to last mbuf in mbuf chain to copy to
  * amount = amount of data to copy
  */
-struct mbuf *
+static struct mbuf *
 ze_ring_to_mbuf(sc,src,dst,total_len)
 	struct ze_softc *sc;
 	char *src;
