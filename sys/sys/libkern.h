@@ -89,6 +89,7 @@ char	*strcpy __P((char *, const char *));
 size_t	 strlen __P((const char *));
 int	 strncmp __P((const char *, const char *, size_t));
 char	*strncpy __P((char *, const char *, size_t));
+int	 strvalid __P((const char *, size_t));
 
 
 static __inline int
