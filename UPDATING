@@ -105,8 +105,6 @@ COMMON ITEMS:
 	<see notes below>				[2]
 	make buildworld
 	<follow directions to build/install a kernel>
-	cd /usr/src/sys/modules
-	make install
 	cd /usr/src/sbin/mknod
 	make install
 	<follow rebuild disk /dev entries above>	[1]
