@@ -1181,7 +1181,7 @@ fyl2xp1(void)
 
 
 static void
-fscale(void)
+emu_fscale(void)
 {
 	FPU_REG *st1_ptr = &st(1);
 	char    st1_tag = st1_ptr->tag;
@@ -1344,7 +1344,7 @@ trig_a(void)
 
 static FUNC trig_table_b[] =
 {
-	fprem, fyl2xp1, fsqrt_, fsincos, frndint_, fscale, fsin, fcos
+	fprem, fyl2xp1, fsqrt_, fsincos, frndint_, emu_fscale, fsin, fcos
 };
 
 void
