@@ -50,6 +50,7 @@ static int	twa_execute_scsi(struct twa_request *tr, union ccb *ccb);
 static void	twa_action(struct cam_sim *sim, union ccb *ccb);
 static void	twa_poll(struct cam_sim *sim);
 static void	twa_async(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg);
+static void	twa_timeout(void *arg);
 static void	twa_bus_scan_cb(struct cam_periph *periph, union ccb *ccb);
 
 
@@ -304,6 +305,9 @@ twa_execute_scsi(struct twa_request *tr, union ccb *ccb)
 	}
 
 	tr->tr_cmd_pkt_type |= TWA_CMD_PKT_TYPE_9K;
+
+	twa_set_timer(tr);
+
 	/* twa_setup_data_dmamap will fill in the SGL, and submit the I/O. */
 	error = twa_map_request(tr);
 	return(error);
@@ -405,9 +409,9 @@ twa_action(struct cam_sim *sim, union ccb *ccb)
 		twa_dbg_dprint(3, sc, "XPT_PATH_INQ request");
 
 		path_inq->version_num = 1;
-		path_inq->hba_inquiry = 0;
+		path_inq->hba_inquiry = PI_WIDE_16;
 		path_inq->target_sprt = 0;
-		path_inq->hba_misc = 0;
+		path_inq->hba_misc |= PIM_NOBUSRESET;
 		path_inq->hba_eng_cnt = 0;
 		path_inq->max_target = TWA_MAX_UNITS;
 		path_inq->max_lun = 0;
@@ -478,6 +482,28 @@ twa_async(void *callback_arg, u_int32_t code,
 
 	twa_dbg_dprint(3, sc, "sc = %p, code = %x, path = %p, arg = %p",
 				sc, code, path, arg);
+}
+
+
+
+/*
+ * Function name:	twa_timeout
+ * Description:		Driver entry point for being alerted on a request
+ *			timing out.
+ *
+ * Input:		arg	-- ptr to timed out request
+ * Output:		None
+ * Return value:	None
+ */
+static void
+twa_timeout(void *arg)
+{
+	struct twa_request	*tr = (struct twa_request *)arg;
+	struct twa_softc	*sc = (struct twa_softc *)(tr->tr_sc);
+
+	twa_printf(sc, "Request timed out!  tr = %p\n", tr);
+
+	twa_reset(sc);
 }
 
 
@@ -555,6 +581,8 @@ twa_scsi_complete(struct twa_request *tr)
 	u_int16_t			error;
 	u_int8_t			*cdb;
 
+	twa_unset_timer(tr);
+
 	if (tr->tr_error) {
 		if (tr->tr_error == EBUSY)
 			ccb->ccb_h.status |= CAM_REQUEUE_REQ;
@@ -591,20 +619,27 @@ twa_scsi_complete(struct twa_request *tr)
 					cdb[0], cdb[1], cdb[2], cdb[3], cdb[4], cdb[5], cdb[6], cdb[7],
 					cdb[8], cdb[9], cdb[10], cdb[11], cdb[12], cdb[13], cdb[14], cdb[15]);
 
-				cmd_hdr->err_specific_desc[sizeof(cmd_hdr->err_specific_desc) - 1] = '\0';
 				/* 
 				 * Print the error. Firmware doesn't yet support
 				 * the 'Mode Sense' cmd.  Don't print if the cmd
 				 * is 'Mode Sense', and the error is 'Invalid field
 				 * in CDB'.
 				 */
-				if (! ((cdb[0] == 0x1A) && (error == 0x10D)))
+				if (! ((cdb[0] == 0x1A) && (error == 0x10D))) {
+					u_int8_t *error_str =
+					&(cmd_hdr->err_desc[strlen(cmd_hdr->err_desc) + 1]);
+
+					if (error_str[0] == '\0')
+						error_str =
+						twa_find_msg_string(twa_error_table, error);
+
 					twa_printf(sc, "SCSI cmd = 0x%x: ERROR: (0x%02X: 0x%04X): %s: %s\n",
 						cdb[0],
 						TWA_MESSAGE_SOURCE_CONTROLLER_ERROR,
 						error,
-						twa_find_msg_string(twa_error_table, error),
-						cmd_hdr->err_specific_desc);
+						error_str,
+						cmd_hdr->err_desc);
+				}
 			}
 
 			bcopy(cmd_hdr->sense_data, &(ccb->csio.sense_data),
@@ -647,19 +682,29 @@ twa_drain_busy_queue(struct twa_softc *sc)
 		twa_unmap_request(tr);
 		if ((tr->tr_cmd_pkt_type & TWA_CMD_PKT_TYPE_INTERNAL) ||
 			(tr->tr_cmd_pkt_type & TWA_CMD_PKT_TYPE_IOCTL)) {
-			/* It's an internal/ioctl request.  Simply free it. */
-			if (tr->tr_data)
-				free(tr->tr_data, M_DEVBUF);
+			/*
+			 * It's an internal/ioctl request.  The callback/
+			 * originator should do the clean-up (except unmapping).
+			 */
+			tr->tr_error = EIO;
+			if (tr->tr_flags & TWA_CMD_SLEEP_ON_REQUEST) {
+				tr->tr_flags &= ~TWA_CMD_SLEEP_ON_REQUEST;
+				wakeup_one(tr);/* let the caller know */
+			}
+			else
+				if (tr->tr_callback)
+					tr->tr_callback(tr);
 		} else {
 			if ((ccb = tr->tr_private)) {
+				twa_unset_timer(tr);
 				/* It's a SCSI request.  Complete it. */
-				ccb->ccb_h.status = CAM_SCSI_BUS_RESET |
-							CAM_RELEASE_SIMQ;
+				ccb->ccb_h.status = CAM_SCSI_BUS_RESET;
+				twa_allow_new_requests(sc, ccb);
 				ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 				xpt_done(ccb);
 			}
+			twa_release_request(tr);
 		}
-		twa_release_request(tr);
 	}
 }
 
@@ -700,4 +745,48 @@ twa_disallow_new_requests(struct twa_softc *sc)
 {
 	xpt_freeze_simq(sc->twa_sim, 1);
 	sc->twa_state |= TWA_STATE_SIMQ_FROZEN;
+}
+
+
+
+/*
+ * Function name:	twa_set_timer
+ * Description:		Set a timer to time a given request.
+ *
+ * Input:		tr	-- ptr to request pkt
+ * Output:		None
+ * Return value:	None
+ */
+void
+twa_set_timer(struct twa_request *tr)
+{
+	union ccb	*ccb = (union ccb *)(tr->tr_private);
+
+	/* Set the timer only if external (CAM) request. */
+	if (ccb) {
+		tr->tr_flags |= TWA_CMD_TIMER_SET;
+		ccb->ccb_h.timeout_ch = timeout(twa_timeout, tr,
+			(ccb->ccb_h.timeout * hz) / 1000);
+	}
+}
+
+
+
+/*
+ * Function name:	twa_unset_timer
+ * Description:		Unset a previously set timer.
+ *
+ * Input:		tr	-- ptr to request pkt
+ * Output:		None
+ * Return value:	None
+ */
+void
+twa_unset_timer(struct twa_request *tr)
+{
+	union ccb	*ccb = (union ccb *)(tr->tr_private);
+
+	if (tr->tr_flags & TWA_CMD_TIMER_SET) {
+		untimeout(twa_timeout, tr, ccb->ccb_h.timeout_ch);
+		tr->tr_flags &= ~TWA_CMD_TIMER_SET;
+	}
 }
