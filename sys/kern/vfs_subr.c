@@ -532,7 +532,7 @@ vnlru_proc(void)
 	struct mount *mp, *nmp;
 	int done;
 	struct proc *p = vnlruproc;
-	struct thread *td = FIRST_THREAD_IN_PROC(p);	/* XXXKSE */
+	struct thread *td = FIRST_THREAD_IN_PROC(p);
 
 	mtx_lock(&Giant);
 
@@ -1487,7 +1487,7 @@ sched_sync(void)
 	struct vnode *vp;
 	struct mount *mp;
 	long starttime;
-	struct thread *td = FIRST_THREAD_IN_PROC(updateproc);  /* XXXKSE */
+	struct thread *td = FIRST_THREAD_IN_PROC(updateproc);
 
 	mtx_lock(&Giant);
 
@@ -1591,7 +1591,6 @@ sched_sync(void)
  * Request the syncer daemon to speed up its work.
  * We never push it to speed up more than half of its
  * normal turn time, otherwise it could take over the cpu.
- * XXXKSE  only one update?
  */
 int
 speedup_syncer()
