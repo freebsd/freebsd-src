@@ -400,8 +400,10 @@ macio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct  resource *rv;
 	struct  rman *rm;
 	bus_space_tag_t tagval;
+	struct	macio_devinfo *dinfo;
 
 	sc = device_get_softc(bus);
+	dinfo = device_get_ivars(child);
 
 	needactivate = flags & RF_ACTIVE;
 	flags &= ~RF_ACTIVE;
@@ -415,8 +417,8 @@ macio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			tagval |= 4;
 		break;
 	case SYS_RES_IRQ:
-		return (bus_alloc_resource(bus, type, rid, start, end, count,
-					   flags));
+		return (resource_list_alloc(&dinfo->mdi_resources, bus, child,
+		    type, rid, start, end, count, flags));
 		break;
 	default:
 		device_printf(bus, "unknown resource request from %s\n",
