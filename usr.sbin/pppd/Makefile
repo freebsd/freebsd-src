@@ -1,7 +1,6 @@
-#	$Id: Makefile,v 1.2 1995/10/31 21:20:42 peter Exp $
+#	$Id: Makefile,v 1.3 1996/03/01 19:29:34 phk Exp $
 
-BINDIR?= /usr/sbin
-CFLAGS+= -I.. -DHAVE_PATHS_H
+CFLAGS+= -DHAVE_PATHS_H
 
 PROG=	pppd
 SRCS=	main.c magic.c fsm.c lcp.c ipcp.c upap.c chap.c ccp.c \
