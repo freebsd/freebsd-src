@@ -6,7 +6,12 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: pps.c,v 1.5 1998/06/07 19:44:22 phk Exp $
+ * $Id: pps.c,v 1.6 1998/06/08 02:43:12 bde Exp $
+ *
+ * This driver implements a draft-mogul-pps-api-02.txt PPS source.
+ *
+ * The input pin is pin#10 
+ * The echo output pin is pin#14
  *
  */
 
@@ -39,7 +44,8 @@ static int ppscap =
 	PPS_CAPTUREASSERT |
 	PPS_HARDPPSONASSERT | 
 	PPS_OFFSETASSERT | 
-	PPS_ECHOASSERT;
+	PPS_ECHOASSERT |
+	PPS_TSFMT_TSPEC;
 
 static int npps;
 
@@ -152,10 +158,12 @@ ppsintr(int unit)
 		return;
 	if (sc->ppsparam.mode & PPS_ECHOASSERT) 
 		ppb_wctr(&sc->pps_dev, IRQENABLE | AUTOFEED);
-	timespecadd(&tc, &sc->ppsparam.assert_offset);
-	if (tc.tv_nsec < 0) {
-		tc.tv_sec--;
-		tc.tv_nsec += 1000000000;
+	if (sc->ppsparam.mode & PPS_OFFSETASSERT) {
+		timespecadd(&tc, &sc->ppsparam.assert_offset);
+		if (tc.tv_nsec < 0) {
+			tc.tv_sec--;
+			tc.tv_nsec += 1000000000;
+		}
 	}
 	sc->ppsinfo.assert_timestamp = tc;
 	sc->ppsinfo.assert_sequence++;
@@ -196,6 +204,7 @@ ppsioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 	case PPS_IOC_FETCH:
 		pi = (pps_info_t *)data;
 		*pi = sc->ppsinfo;
+		pi->current_mode = sc->ppsparam.mode;
 		return (0);
 	case PPS_IOC_WAIT:
 		return (EOPNOTSUPP);
