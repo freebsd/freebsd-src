@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.71 1998/04/01 21:07:35 tegge Exp $
+ *	$Id: mp_machdep.c,v 1.72 1998/04/06 08:25:30 phk Exp $
  */
 
 #include "opt_smp.h"
@@ -66,6 +66,7 @@
 #include <machine/tss.h>
 #include <machine/specialreg.h>
 #include <machine/cputypes.h>
+#include <machine/globaldata.h>
 
 #include <i386/i386/cons.h>	/* cngetc() */
 
@@ -1651,7 +1652,7 @@ start_all_aps(u_int boot_addr)
 	u_long  mpbioswarmvec;
 	pd_entry_t *newptd;
 	pt_entry_t *newpt;
-	int *newpp;
+	struct globaldata *gd;
 	char *stack;
 	pd_entry_t	*myPTD;
 
@@ -1704,10 +1705,10 @@ start_all_aps(u_int boot_addr)
 		newptd[PTDPTDI] = (pd_entry_t)(PG_V | PG_RW | vtophys(newptd));
 
 		/* allocate a new private data page */
-		newpp = (int *)kmem_alloc(kernel_map, PAGE_SIZE);
+		gd = (struct globaldata *)kmem_alloc(kernel_map, PAGE_SIZE);
 
 		/* wire it into the private page table page */
-		newpt[0] = (pt_entry_t)(PG_V | PG_RW | vtophys(newpp));
+		newpt[0] = (pt_entry_t)(PG_V | PG_RW | vtophys(gd));
 
 		/* wire the ptp into itself for access */
 		newpt[1] = (pt_entry_t)(PG_V | PG_RW | vtophys(newpt));
@@ -1729,19 +1730,12 @@ start_all_aps(u_int boot_addr)
 		newpt[5 + UPAGES] = 0;		/* *prv_CMAP3 */
 
 		/* prime data page for it to use */
-		newpp[0] = x;			/* cpuid */
-		newpp[1] = 0;			/* curproc */
-		newpp[2] = 0;			/* curpcb */
-		newpp[3] = 0;			/* npxproc */
-		newpp[4] = 0;			/* runtime.tv_sec */
-		newpp[5] = 0;			/* runtime.tv_usec */
-		newpp[6] = x << 24;		/* cpu_lockid */
-		newpp[7] = 0;			/* other_cpus */
-		newpp[8] = (int)myPTD;		/* my_idlePTD */
-		newpp[9] = 0;			/* ss_tpr */
-		newpp[10] = (int)&newpt[3 + UPAGES];	/* prv_CMAP1 */
-		newpp[11] = (int)&newpt[4 + UPAGES];	/* prv_CMAP2 */
-		newpp[12] = (int)&newpt[5 + UPAGES];	/* prv_CMAP3 */
+		gd->cpuid = x;
+		gd->cpu_lockid = x << 24;
+		gd->my_idlePTD = myPTD;
+		gd->prv_CMAP1 = &newpt[3 + UPAGES];
+		gd->prv_CMAP2 = &newpt[4 + UPAGES];
+		gd->prv_CMAP3 = &newpt[5 + UPAGES];
 
 		/* setup a vector to our boot code */
 		*((volatile u_short *) WARMBOOT_OFF) = WARMBOOT_TARGET;
