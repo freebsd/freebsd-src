@@ -1,0 +1,10 @@
+bc 1.0.4
+	originals can be found at: ftp://prep.ai.mit.edu/pub/gnu/
+	removed no subdirectories
+	andreas@FreeBSD.ORG
+
+	Imported with the commands:
+
+	tar xvzf bc-1.0.4.tar.gz
+	cd bc-1.0.4
+	cvs import src/contrib/bc BC bc1_0_4
