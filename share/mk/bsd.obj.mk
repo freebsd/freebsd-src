@@ -114,7 +114,7 @@ cleanobj:
 .else
 	@cd ${.CURDIR} && ${MAKE} clean cleandepend
 .endif
-	@if [ -h ${.CURDIR}/obj ]; then rm -f ${.CURDIR}/obj; fi
+	@if [ -L ${.CURDIR}/obj ]; then rm -f ${.CURDIR}/obj; fi
 
 .if !target(clean)
 clean:
