@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.63.2.3 1999/02/25 14:02:36 kato Exp $
+#	$Id: GENERIC98,v 1.63.2.4 1999/04/01 14:47:01 kato Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -45,10 +45,6 @@ options		UCONSOLE		#Allow users to grab the console
 options		FAILSAFE		#Be conservative
 options		USERCONFIG		#boot -c editor
 options		VISUAL_USERCONFIG	#visual boot -c editor
-
-options		SYSVSHM			
-options		SYSVSEM
-options		SYSVMSG
 
 options		COM_MULTIPORT
 
@@ -178,22 +174,26 @@ device		sio1	at isa? port 0x238 tty irq 5 flags 0x12000000
 device		lpt0	at isa? port IO_LPT  tty
 device		mse0	at isa? port IO_MSE tty irq 13
 
+#
+# The following Ethernet NICs are all PCI devices.
+#
+device ax0		# ASIX AX88140A
+device de0		# DEC/Intel DC21x4x (``Tulip'')
+device fxp0		# Intel EtherExpress PRO/100B (82557, 82558)
+device mx0		# Macronix 98713/98715/98725 (``PMAC'')
+device pn0		# Lite-On 82c168/82c169 (``PNIC'')
+device rl0		# RealTek 8129/8139
+device tl0		# Texas Instruments ThunderLAN
+device tx0		# SMC 9432TX (83c170 ``EPIC'')
+device vr0		# VIA Rhine, Rhine II
+device vx0		# 3Com 3c590, 3c595 (``Vortex'')
+device wb0		# Winbond W89C840F
+device xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
+
 # Order is important here due to intrusive probes, do *not* alphabetize
 # this list of network interfaces until the probes have been fixed.
 # Right now it appears that the ie0 must be probed before ep0. See
 # revision 1.20 of this file.
-device ax0
-device de0
-device fxp0
-device mx0
-device pn0
-device rl0
-device tl0
-device tx0
-device vr0
-device vx0
-device wb0
-device xl0
 
 #
 # DP8390 NIC
@@ -251,6 +251,12 @@ pseudo-device	gzip		# Exec gzipped a.out's
 # This adds 4 KB bloat to your kernel, and slightly increases
 # the costs of each syscall.
 options		KTRACE		#kernel tracing
+
+# This provides support for System V shared memory and message queues.
+#
+options		SYSVSHM
+options		SYSVMSG
+options		SYSVSEM
 
 #  The `bpfilter' pseudo-device enables the Berkeley Packet Filter.  Be
 #  aware of the legal and administrative consequences of enabling this
