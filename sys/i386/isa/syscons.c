@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.247 1998/01/24 02:54:26 eivind Exp $
+ *  $Id: syscons.c,v 1.248 1998/02/11 14:56:02 yokota Exp $
  */
 
 #include "sc.h"
@@ -240,11 +240,13 @@ static char *get_mode_param(scr_stat *scp, u_char mode);
 static u_int scgetc(u_int flags);
 #define SCGETC_CN	1
 #define SCGETC_NONBLOCK	2
+static void sccnupdate(scr_stat *scp);
 static scr_stat *get_scr_stat(dev_t dev);
 static scr_stat *alloc_scp(void);
 static void init_scp(scr_stat *scp);
 static int get_scr_num(void);
 static timeout_t scrn_timer;
+static void scrn_update(scr_stat *scp, int show_cursor);
 static void stop_scrn_saver(void (*saver)(int));
 static void clear_screen(scr_stat *scp);
 static int switch_scr(scr_stat *scp, u_int next_scr);
@@ -2109,17 +2111,9 @@ sccnputc(dev_t dev, int c)
     kernel_console = scp->term;
     current_default = &user_default;
     scp->term = save;
-    s = splclock();
-    if (scp == cur_console && !(scp->status & UNKNOWN_MODE)) {
-	if (/* timer not running && */ (scp->start <= scp->end)) {
-	    sc_bcopy(scp->scr_buf + scp->start, Crtat + scp->start,
-		   (1 + scp->end - scp->start) * sizeof(u_short));
-	    scp->start = scp->xsize * scp->ysize;
-	    scp->end = 0;
-	}
-    	scp->cursor_oldpos = scp->cursor_pos;
-	draw_cursor_image(scp);
-    }
+
+    s = spltty();	/* block scintr and scrn_timer */
+    sccnupdate(scp);
     splx(s);
 }
 
@@ -2130,16 +2124,12 @@ sccngetc(dev_t dev)
     int c;
 
     /* 
-     * Stop the screen saver if necessary.
+     * Stop the screen saver and update the screen if necessary.
      * What if we have been running in the screen saver code... XXX
      */
-    if (scrn_blanked > 0)
-        stop_scrn_saver(current_saver);
+    sccnupdate(cur_console);
 
     c = scgetc(SCGETC_CN);
-
-    /* make sure the screen saver won't be activated soon */
-    scrn_time_stamp = mono_time.tv_sec;
     splx(s);
     return(c);
 }
@@ -2147,16 +2137,25 @@ sccngetc(dev_t dev)
 int
 sccncheckc(dev_t dev)
 {
-    int c, s;
+    int s = spltty();	/* block scintr and scrn_timer while we poll */
+    int c;
 
-    s = spltty();
-    if (scrn_blanked > 0)
-        stop_scrn_saver(current_saver);
+    sccnupdate(cur_console);
     c = scgetc(SCGETC_CN | SCGETC_NONBLOCK);
-    if (c != NOKEY)
-        scrn_time_stamp = mono_time.tv_sec;
     splx(s);
     return(c == NOKEY ? -1 : c);	/* c == -1 can't happen */
+}
+
+static void
+sccnupdate(scr_stat *scp)
+{
+    if (scp == cur_console) {
+	if (scrn_blanked > 0)
+            stop_scrn_saver(current_saver);
+	if (!(scp->status & UNKNOWN_MODE) && scrn_blanked <= 0 
+	    && !blink_in_progress && !switch_in_progress)
+	    scrn_update(scp, TRUE);
+    }
 }
 
 static scr_stat
@@ -2224,67 +2223,9 @@ scrn_timer(void *arg)
 	if (scrn_blanked > 0)
             stop_scrn_saver(current_saver);
 
-    if (scrn_blanked <= 0) {
-	/* update screen image */
-	if (scp->start <= scp->end) {
-	    sc_bcopy(scp->scr_buf + scp->start, Crtat + scp->start,
-		   (1 + scp->end - scp->start) * sizeof(u_short));
-	}
-
-	/* update "pseudo" mouse pointer image */
-	if ((scp->status & MOUSE_VISIBLE) && crtc_vga) {
-	    /* did mouse move since last time ? */
-	    if (scp->status & MOUSE_MOVED) {
-		/* do we need to remove old mouse pointer image ? */
-		if (scp->mouse_cut_start != NULL ||
-		    (scp->mouse_pos-scp->scr_buf) <= scp->start ||
-		    (scp->mouse_pos+scp->xsize+1-scp->scr_buf) >= scp->end) {
-		    remove_mouse_image(scp);
-		}
-		scp->status &= ~MOUSE_MOVED;
-		draw_mouse_image(scp);
-	    }
-	    else {
-		/* mouse didn't move, has it been overwritten ? */
-		if ((scp->mouse_pos+scp->xsize+1-scp->scr_buf) >= scp->start &&
-		    (scp->mouse_pos - scp->scr_buf) <= scp->end) {
-		    draw_mouse_image(scp);
-		}
-	    }
-	}
-	
-	/* update cursor image */
-	if (scp->status & CURSOR_ENABLED) {
-	    /* did cursor move since last time ? */
-	    if (scp->cursor_pos != scp->cursor_oldpos) {
-		/* do we need to remove old cursor image ? */
-		if ((scp->cursor_oldpos - scp->scr_buf) < scp->start ||
-		    ((scp->cursor_oldpos - scp->scr_buf) > scp->end)) {
-		    remove_cursor_image(scp);
-		}
-    		scp->cursor_oldpos = scp->cursor_pos;
-		draw_cursor_image(scp);
-	    }
-	    else {
-		/* cursor didn't move, has it been overwritten ? */
-		if (scp->cursor_pos - scp->scr_buf >= scp->start &&
-		    scp->cursor_pos - scp->scr_buf <= scp->end) {
-		    	draw_cursor_image(scp);
-		} else {
-		    /* if its a blinking cursor, we may have to update it */
-		    if (flags & BLINK_CURSOR)
-			draw_cursor_image(scp);
-		}
-	    }
-	    blinkrate++;
-	}
-
-	if (scp->mouse_cut_start != NULL)
-	    draw_cutmarking(scp);
-
-	scp->end = 0;
-	scp->start = scp->xsize*scp->ysize;
-    }
+    scp = cur_console;
+    if (scrn_blanked <= 0)
+	scrn_update(scp, TRUE);
 
     /* should we activate the screen saver? */
     if ((scrn_blank_time != 0) 
@@ -2293,6 +2234,77 @@ scrn_timer(void *arg)
 
     timeout(scrn_timer, NULL, hz / 25);
     splx(s);
+}
+
+static void 
+scrn_update(scr_stat *scp, int show_cursor)
+{
+    /* update screen image */
+    if (scp->start <= scp->end) {
+        sc_bcopy(scp->scr_buf + scp->start, Crtat + scp->start,
+    	    (1 + scp->end - scp->start) * sizeof(u_short));
+    }
+
+    /* we are not to show the cursor and the mouse pointer... */
+    if (!show_cursor) {
+        scp->end = 0;
+        scp->start = scp->xsize*scp->ysize;
+	return;
+    }
+
+    /* update "pseudo" mouse pointer image */
+    if ((scp->status & MOUSE_VISIBLE) && (crtc_type == KD_VGA))  {
+        /* did mouse move since last time ? */
+        if (scp->status & MOUSE_MOVED) {
+            /* do we need to remove old mouse pointer image ? */
+            if (scp->mouse_cut_start != NULL ||
+                (scp->mouse_pos-scp->scr_buf) <= scp->start ||
+                (scp->mouse_pos+scp->xsize + 1 - scp->scr_buf) >= scp->end) {
+                remove_mouse_image(scp);
+            }
+            scp->status &= ~MOUSE_MOVED;
+            draw_mouse_image(scp);
+        }
+        else {
+            /* mouse didn't move, has it been overwritten ? */
+            if ((scp->mouse_pos+scp->xsize + 1 - scp->scr_buf) >= scp->start &&
+                (scp->mouse_pos - scp->scr_buf) <= scp->end) {
+                draw_mouse_image(scp);
+            }
+        }
+    }
+	
+    /* update cursor image */
+    if (scp->status & CURSOR_ENABLED) {
+        /* did cursor move since last time ? */
+        if (scp->cursor_pos != scp->cursor_oldpos) {
+            /* do we need to remove old cursor image ? */
+            if ((scp->cursor_oldpos - scp->scr_buf) < scp->start ||
+                ((scp->cursor_oldpos - scp->scr_buf) > scp->end)) {
+                remove_cursor_image(scp);
+            }
+            scp->cursor_oldpos = scp->cursor_pos;
+            draw_cursor_image(scp);
+        }
+        else {
+            /* cursor didn't move, has it been overwritten ? */
+            if (scp->cursor_pos - scp->scr_buf >= scp->start &&
+                scp->cursor_pos - scp->scr_buf <= scp->end) {
+                draw_cursor_image(scp);
+            } else {
+                /* if its a blinking cursor, we may have to update it */
+                if (flags & BLINK_CURSOR)
+                    draw_cursor_image(scp);
+            }
+        }
+        blinkrate++;
+    }
+
+    if (scp->mouse_cut_start != NULL)
+        draw_cutmarking(scp);
+
+    scp->end = 0;
+    scp->start = scp->xsize*scp->ysize;
 }
 
 int
