@@ -84,7 +84,7 @@ ufs_inactive(ap)
 	if (ip->i_nlink <= 0) {
 #ifdef QUOTA
 		if (!getinoquota(ip))
-			(void)chkiq(ip, -1, NOCRED, 0);
+			(void)chkiq(ip, -1, NOCRED, FORCE);
 #endif
 		error = UFS_TRUNCATE(vp, (off_t)0, 0, NOCRED, p);
 		ip->i_rdev = 0;
