@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: boot0cfg.c,v 1.3 1999/02/26 14:57:17 rnordier Exp $";
+	"$Id: boot0cfg.c,v 1.4 1999/06/19 21:44:43 rnordier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -130,7 +130,7 @@ main(int argc, char *argv[])
     if (argc != 1)
         usage();
     disk = mkrdev(*argv);
-    up = B_flag || d_arg != -1 || o_flag || t_arg != -1;
+    up = B_flag || d_arg != -1 || m_arg != -1 || o_flag || t_arg != -1;
     if ((fd = open(disk, up ? O_RDWR : O_RDONLY)) == -1)
         err(1, "%s", disk);
     if ((n = read(fd, buf, MBRSIZE)) == -1)
