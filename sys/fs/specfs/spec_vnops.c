@@ -53,18 +53,18 @@
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 
-static int	spec_advlock __P((struct vop_advlock_args *));  
+static int	spec_advlock __P((struct vop_advlock_args *));
 static int	spec_bmap __P((struct vop_bmap_args *));
 static int	spec_close __P((struct vop_close_args *));
 static int	spec_freeblks __P((struct vop_freeblks_args *));
 static int	spec_fsync __P((struct  vop_fsync_args *));
 static int	spec_getpages __P((struct vop_getpages_args *));
 static int	spec_ioctl __P((struct vop_ioctl_args *));
+static int	spec_kqfilter __P((struct vop_kqfilter_args *));
 static int	spec_open __P((struct vop_open_args *));
 static int	spec_poll __P((struct vop_poll_args *));
-static int	spec_kqfilter __P((struct vop_kqfilter_args *));
 static int	spec_print __P((struct vop_print_args *));
-static int	spec_read __P((struct vop_read_args *));  
+static int	spec_read __P((struct vop_read_args *));
 static int	spec_strategy __P((struct vop_strategy_args *));
 static int	spec_write __P((struct vop_write_args *));
 
@@ -81,6 +81,7 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_getpages_desc,		(vop_t *) spec_getpages },
 	{ &vop_getwritemount_desc, 	(vop_t *) vop_stdgetwritemount },
 	{ &vop_ioctl_desc,		(vop_t *) spec_ioctl },
+	{ &vop_kqfilter_desc,		(vop_t *) spec_kqfilter },
 	{ &vop_lease_desc,		(vop_t *) vop_null },
 	{ &vop_link_desc,		(vop_t *) vop_panic },
 	{ &vop_mkdir_desc,		(vop_t *) vop_panic },
@@ -88,7 +89,6 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_open_desc,		(vop_t *) spec_open },
 	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
 	{ &vop_poll_desc,		(vop_t *) spec_poll },
-	{ &vop_kqfilter_desc,		(vop_t *) spec_kqfilter },
 	{ &vop_print_desc,		(vop_t *) spec_print },
 	{ &vop_read_desc,		(vop_t *) spec_read },
 	{ &vop_readdir_desc,		(vop_t *) vop_panic },
@@ -141,57 +141,54 @@ spec_open(ap)
 	struct cdevsw *dsw;
 	const char *cp;
 
-	if (vp->v_type == VBLK) 
-		return ENXIO;
-	/*
-	 * Don't allow open if fs is mounted -nodev.
-	 */
+	if (vp->v_type == VBLK)
+		return (ENXIO);
+
+	/* Don't allow open if fs is mounted -nodev. */
 	if (vp->v_mount && (vp->v_mount->mnt_flag & MNT_NODEV))
 		return (ENXIO);
 
 	dsw = devsw(dev);
-	if ( (dsw == NULL) || (dsw->d_open == NULL))
-		return ENXIO;
+	if (dsw == NULL || dsw->d_open == NULL)
+		return (ENXIO);
 
-	/* Make this field valid before any I/O in ->d_open */
-	if (!dev->si_iosize_max)
+	/* Make this field valid before any I/O in d_open. */
+	if (dev->si_iosize_max == 0)
 		dev->si_iosize_max = DFLTPHYS;
 
 	/*
 	 * XXX: Disks get special billing here, but it is mostly wrong.
-	 * XXX: diskpartitions can overlap and the real checks should
+	 * XXX: Disk partitions can overlap and the real checks should
 	 * XXX: take this into account, and consequently they need to
-	 * XXX: live in the diskslicing code.  Some checks do.
+	 * XXX: live in the disk slice code.  Some checks do.
 	 */
-	if (vn_isdisk(vp, NULL) && ap->a_cred != FSCRED && 
+	if (vn_isdisk(vp, NULL) && ap->a_cred != FSCRED &&
 	    (ap->a_mode & FWRITE)) {
 		/*
-		 * Never allow opens for write if the device is mounted R/W
+		 * Never allow opens for write if the disk is mounted R/W.
 		 */
 		if (vp->v_rdev->si_mountpoint != NULL &&
 		    !(vp->v_rdev->si_mountpoint->mnt_flag & MNT_RDONLY))
-				return (EBUSY);
+			return (EBUSY);
 
 		/*
 		 * When running in secure mode, do not allow opens
-		 * for writing if the device is mounted
+		 * for writing if the disk is mounted.
 		 */
-		if (vfs_mountedon(vp)) {
-			error = securelevel_ge(td->td_proc->p_ucred, 1);
-			if (error)
-				return (error);
-		}
+		error = securelevel_ge(td->td_proc->p_ucred, 1);
+		if (error && vfs_mountedon(vp))
+			return (error);
 
 		/*
 		 * When running in very secure mode, do not allow
-		 * opens for writing of any devices.
+		 * opens for writing of any disks.
 		 */
 		error = securelevel_ge(td->td_proc->p_ucred, 2);
 		if (error)
 			return (error);
 	}
 
-	/* XXX: Special casing of ttys for deadfs.  Probably redundant */
+	/* XXX: Special casing of ttys for deadfs.  Probably redundant. */
 	if (dsw->d_flags & D_TTY)
 		vp->v_flag |= VISTTY;
 
@@ -222,7 +219,7 @@ spec_open(ap)
 		if (*cp == '#' && (dsw->d_flags & D_NAGGED) == 0) {
 			printf("WARNING: driver %s should register devices with make_dev() (dev_t = \"%s\")\n",
 			    dsw->d_name, cp);
-			dsw->d_flags |= D_NAGGED;	
+			dsw->d_flags |= D_NAGGED;
 		}
 	}
 	return (error);
@@ -257,10 +254,10 @@ spec_read(ap)
 		return (0);
 
 	VOP_UNLOCK(vp, 0, td);
-	error = (*devsw(dev)->d_read) (dev, uio, ap->a_ioflag);
+	error = (*devsw(dev)->d_read)(dev, uio, ap->a_ioflag);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (uio->uio_resid != resid || (error == 0 && resid != 0))
-		getnanotime(&dev->si_atime);
+		vfs_timestamp(&dev->si_atime);
 	return (error);
 }
 
@@ -293,7 +290,7 @@ spec_write(ap)
 	error = (*devsw(dev)->d_write) (dev, uio, ap->a_ioflag);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (uio->uio_resid != resid || (error == 0 && resid != 0)) {
-		getnanotime(&dev->si_ctime);
+		vfs_timestamp(&dev->si_ctime);
 		dev->si_mtime = dev->si_ctime;
 	}
 	return (error);
@@ -317,7 +314,7 @@ spec_ioctl(ap)
 	dev_t dev;
 
 	dev = ap->a_vp->v_rdev;
-	return ((*devsw(dev)->d_ioctl)(dev, ap->a_command, 
+	return ((*devsw(dev)->d_ioctl)(dev, ap->a_command,
 	    ap->a_data, ap->a_fflag, ap->a_td));
 }
 
@@ -377,7 +374,7 @@ spec_fsync(ap)
 
 loop1:
 	/*
-	 * MARK/SCAN initialization to avoid infinite loops
+	 * MARK/SCAN initialization to avoid infinite loops.
 	 */
 	s = splbio();
         TAILQ_FOREACH(bp, &vp->v_dirtyblkhd, b_vnbufs) {
@@ -390,7 +387,7 @@ loop1:
 	 */
 loop2:
 	s = splbio();
-	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
+	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp != NULL; bp = nbp) {
 		nbp = TAILQ_NEXT(bp, b_vnbufs);
 		if ((bp->b_flags & B_SCANNED) != 0)
 			continue;
@@ -420,7 +417,8 @@ loop2:
 	if (ap->a_waitfor == MNT_WAIT) {
 		while (vp->v_numoutput) {
 			vp->v_flag |= VBWAIT;
-			(void) tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1, "spfsyn", 0);
+			(void)tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1,
+			    "spfsyn", 0);
 		}
 		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
 			if (--maxretry != 0) {
@@ -451,7 +449,7 @@ spec_strategy(ap)
 
 	bp = ap->a_bp;
 	vp = ap->a_vp;
-	if ((bp->b_iocmd == BIO_WRITE)) {
+	if (bp->b_iocmd == BIO_WRITE) {
 		if ((bp->b_flags & B_VALIDSUSPWRT) == 0 &&
 		    bp->b_vp != NULL && bp->b_vp->v_mount != NULL &&
 		    (bp->b_vp->v_mount->mnt_kern_flag & MNTK_SUSPENDED) != 0)
@@ -485,11 +483,11 @@ spec_strategy(ap)
 				mp->mnt_stat.f_syncreads++;
 		}
 	}
-	KASSERT(devsw(bp->b_dev) != NULL, 
-	   ("No devsw on dev %s responsible for buffer %p\n", 
+	KASSERT(devsw(bp->b_dev) != NULL,
+	   ("No devsw on dev %s responsible for buffer %p\n",
 	   devtoname(bp->b_dev), bp));
-	KASSERT(devsw(bp->b_dev)->d_strategy != NULL, 
-	   ("No strategy on dev %s responsible for buffer %p\n", 
+	KASSERT(devsw(bp->b_dev)->d_strategy != NULL,
+	   ("No strategy on dev %s responsible for buffer %p\n",
 	   devtoname(bp->b_dev), bp));
 	DEV_STRATEGY(bp, 0);
 	return (0);
@@ -598,9 +596,9 @@ spec_close(ap)
 	 * vnodes descends to one, we are on last close.
 	 */
 	if (vp->v_flag & VXLOCK) {
-		/* Forced close */
+		/* Forced close. */
 	} else if (devsw(dev)->d_flags & D_TRACKCLOSE) {
-		/* Keep device updated on status */
+		/* Keep device updated on status. */
 	} else if (vcount(vp) > 1) {
 		return (0);
 	}
@@ -670,7 +668,7 @@ spec_getpages(ap)
 	pcount = round_page(ap->a_count) / PAGE_SIZE;
 
 	/*
-	 * Calculate the offset of the transfer and do sanity check.
+	 * Calculate the offset of the transfer and do a sanity check.
 	 * FreeBSD currently only supports an 8 TB range due to b_blkno
 	 * being in DEV_BSIZE ( usually 512 ) byte chunks on call to
 	 * VOP_STRATEGY.  XXX
@@ -811,7 +809,7 @@ spec_getpages(ap)
 			 * entire page presentable by zeroing invalid sections.
 			 */
 			if (m->valid != VM_PAGE_BITS_ALL)
-			    vm_page_zero_invalid(m, FALSE);
+				vm_page_zero_invalid(m, FALSE);
 		}
 	}
 	if (!gotreqpage) {
