@@ -96,6 +96,7 @@ typedef struct elf_file {
 #endif
 } *elf_file_t;
 
+static int	link_elf_link_common_finish(linker_file_t);
 static int	link_elf_link_preload(linker_class_t cls,
 				      const char*, linker_file_t*);
 static int	link_elf_link_preload_finish(linker_file_t);
@@ -165,29 +166,33 @@ link_elf_add_gdb(struct link_map *l)
 {
     struct link_map *prev;
 
-    /*
-     * Scan to the end of the list.
-     */
-    for (prev = r_debug.r_map; prev->l_next != NULL; prev = prev->l_next)
-	;
+    l->l_next = NULL;
 
-    /* Link in the new entry. */
-    l->l_prev = prev;
-    l->l_next = prev->l_next;
-    prev->l_next = l;
+    if (r_debug.r_map == NULL) {
+	/* Add first. */
+	l->l_prev = NULL;
+	r_debug.r_map = l;
+    } else {
+	/* Append to list. */
+	for (prev = r_debug.r_map; prev->l_next != NULL; prev = prev->l_next)
+	    ;
+	l->l_prev = prev;
+	prev->l_next = l;
+    }
 }
 
 static void
 link_elf_delete_gdb(struct link_map *l)
 {
     if (l->l_prev == NULL) {
+	/* Remove first. */
 	if ((r_debug.r_map = l->l_next) != NULL)
 	    l->l_next->l_prev = NULL;
-	return;
+    } else {
+	/* Remove any but first. */
+	if ((l->l_prev->l_next = l->l_next) != NULL)
+	    l->l_next->l_prev = l->l_prev;
     }
-
-    if ((l->l_prev->l_next = l->l_next) != NULL)
-	l->l_next->l_prev = l->l_prev;
 }
 #endif /* DDB */
 
@@ -206,6 +211,32 @@ link_elf_error(const char *s)
     printf("kldload: %s\n", s);
 }
 
+/*
+ * Actions performed after linking/loading both the preloaded kernel and any
+ * modules; whether preloaded or dynamicly loaded.
+ */
+static int
+link_elf_link_common_finish(linker_file_t lf)
+{
+#ifdef DDB
+    elf_file_t ef = (elf_file_t)lf;
+    char *newfilename;
+#endif
+
+#ifdef DDB
+    GDB_STATE(RT_ADD);
+    ef->gdb.l_addr = lf->address;
+    newfilename = malloc(strlen(lf->filename) + 1, M_LINKER, M_WAITOK);
+    strcpy(newfilename, lf->filename);
+    ef->gdb.l_name = newfilename;
+    ef->gdb.l_ld = ef->dynamic;
+    link_elf_add_gdb(&ef->gdb);
+    GDB_STATE(RT_CONSISTENT);
+#endif
+
+    return (0);
+}
+
 static void
 link_elf_init(void* arg)
 {
@@ -213,9 +244,6 @@ link_elf_init(void* arg)
     caddr_t	modptr, baseptr, sizeptr;
     elf_file_t	ef;
     char	*modname;
-#ifdef DDB
-    char *newfilename;
-#endif
 
     linker_add_class(&link_elf_class);
 
@@ -229,7 +257,7 @@ link_elf_init(void* arg)
     linker_kernel_file = linker_make_file(modname, &link_elf_class);
     if (linker_kernel_file == NULL)
 	panic("link_elf_init: Can't create linker structures for kernel");
-    
+
     ef = (elf_file_t) linker_kernel_file;
     ef->preloaded = 1;
     ef->address = 0;
@@ -255,20 +283,12 @@ link_elf_init(void* arg)
     (void)link_elf_preload_parse_symbols(ef);
 
 #ifdef DDB
-    ef->gdb.l_addr = linker_kernel_file->address;
-    newfilename = malloc(strlen(modname) + 1, M_LINKER, M_WAITOK);
-    strcpy(newfilename, modname);
-    ef->gdb.l_name = newfilename;
-    ef->gdb.l_ld = dp;
-    ef->gdb.l_prev = 0;
-    ef->gdb.l_next = 0;
-
-    r_debug.r_map = &ef->gdb;
+    r_debug.r_map = NULL;
     r_debug.r_brk = r_debug_state;
     r_debug.r_state = RT_CONSISTENT;
-
-    r_debug_state(NULL, NULL);	/* say hello to gdb! */
 #endif
+
+    (void)link_elf_link_common_finish(linker_kernel_file);
 }
 
 SYSINIT(link_elf, SI_SUB_KLD, SI_ORDER_SECOND, link_elf_init, 0);
@@ -469,9 +489,6 @@ link_elf_link_preload_finish(linker_file_t lf)
 {
     elf_file_t		ef;
     int error;
-#ifdef DDB
-    char *newfilename;
-#endif
 
     ef = (elf_file_t) lf;
 #if 0	/* this will be more trouble than it's worth for now */
@@ -489,22 +506,12 @@ link_elf_link_preload_finish(linker_file_t lf)
 	return error;
     (void)link_elf_preload_parse_symbols(ef);
 
-#ifdef DDB
-    GDB_STATE(RT_ADD);
-    ef->gdb.l_addr = lf->address;
-    newfilename = malloc(strlen(lf->filename) + 1, M_LINKER, M_WAITOK);
-    strcpy(newfilename, lf->filename);
-    ef->gdb.l_name = newfilename;
-    ef->gdb.l_ld = ef->dynamic;
-    link_elf_add_gdb(&ef->gdb);
-    GDB_STATE(RT_CONSISTENT);
-#endif
-
-    return (0);
+    return (link_elf_link_common_finish(lf));
 }
 
 static int
-link_elf_load_file(linker_class_t cls, const char* filename, linker_file_t* result)
+link_elf_load_file(linker_class_t cls, const char* filename,
+	linker_file_t* result)
 {
     struct nameidata nd;
     struct thread* td = curthread;	/* XXX */
@@ -531,9 +538,6 @@ link_elf_load_file(linker_class_t cls, const char* filename, linker_file_t* resu
     int symstrindex;
     int symcnt;
     int strcnt;
-#ifdef DDB
-    char *newfilename;
-#endif
 
     GIANT_REQUIRED;
 
@@ -799,16 +803,9 @@ link_elf_load_file(linker_class_t cls, const char* filename, linker_file_t* resu
     ef->ddbstrcnt = strcnt;
     ef->ddbstrtab = ef->strbase;
 
-#ifdef DDB
-    GDB_STATE(RT_ADD);
-    ef->gdb.l_addr = lf->address;
-    newfilename = malloc(strlen(filename) + 1, M_LINKER, M_WAITOK);
-    strcpy(newfilename, filename);
-    ef->gdb.l_name = (const char *)newfilename;
-    ef->gdb.l_ld = ef->dynamic;
-    link_elf_add_gdb(&ef->gdb);
-    GDB_STATE(RT_CONSISTENT);
-#endif
+    error = link_elf_link_common_finish(lf);
+    if (error)
+	goto out;
 
 nosyms:
 
@@ -845,6 +842,7 @@ link_elf_unload_file(linker_file_t file)
 	link_elf_unload_preload(file);
 	return;
     }
+
 #ifdef SPARSE_MAPPING
     if (ef->object) {
 	vm_map_remove(kernel_map, (vm_offset_t) ef->address,
