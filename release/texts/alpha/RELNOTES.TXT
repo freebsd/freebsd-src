@@ -148,9 +148,10 @@ The ahc(4) driver has been updated.  [MERGED]
 
 ACPI support has been merged in from the FreeBSD-ACPI project.
 
-devfs, which allows entries in the /dev directory to be built
-automatically and supports more flexible attachment of devices, 
-has been largely reworked.
+devfs(5), which allows entries in the /dev directory to be built
+automatically and supports more flexible attachment of devices, has
+been largely reworked.  devfs(5) is configured into the GENERIC
+kernel.
 
 Write combining for crashdumps has been implemented.  This feature
 is useful when write caching is disabled on both SCSI and IDE disks,
@@ -675,6 +676,8 @@ build a bogus kernel without a human to read the errors. [MERGED]
 
 pkg_create(1) and pkg_install(1) can now work with packages that have
 been compressed using bzip2(1).
+
+libc is now thread-safe by default; libc_r contains only thread functions.
 
 
 2. Supported Configurations
