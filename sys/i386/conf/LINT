@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.584 1999/04/19 10:18:34 brian Exp $
+#	$Id: LINT,v 1.585 1999/04/19 11:53:36 peter Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -241,12 +241,6 @@ options		GPL_MATH_EMULATE	#Support for x87 emulation via
 # still relies on the 4.3 emulation.
 #
 options		"COMPAT_43"
-
-#
-# Statically compile in the i386 a.out LKM compatability support.
-# Also available as an KLD module.
-#
-options 	LKM
 
 #
 # Allow user-mode programs to manipulate their local descriptor tables.
@@ -1133,7 +1127,7 @@ options		FDC_DEBUG
 #card "Y-E DATA" "External FDD"
 #        config 0x4 "fdc0" 10
 # to your pccard.conf file.
-options		FDC_YE
+options		FDC_YE		#XXX newbus broken
 # This option is undocumented on purpose.
 options		FDC_PRINT_BOGUS_CHIPTYPE
 #
