@@ -46,10 +46,6 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <sys/wait.h>
 
-#include <ufs/ufs/ufsmount.h>
-#include <ufs/ufs/dinode.h>
-#include <ufs/ffs/fs.h>
-
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -62,7 +58,6 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <libufs.h>
 
 #include "extern.h"
 #include "mntopts.h"
@@ -515,15 +510,9 @@ prmount(sfp)
 	int flags, i;
 	struct opt *o;
 	struct passwd *pw;
-	struct uufsd disk;
 
 	(void)printf("%s on %s (%s", sfp->f_mntfromname, sfp->f_mntonname,
 	    sfp->f_fstypename);
-
-	if (strncmp(sfp->f_fstypename, "ufs", 3) == 0) {
-		ufs_disk_fillout(&disk, sfp->f_mntonname);
-		printf("%s", (disk.d_ufs == 2) ? "2" : "");
-	}
 
 	flags = sfp->f_flags & MNT_VISFLAGMASK;
 	for (o = optnames; flags && o->o_opt; o++)
