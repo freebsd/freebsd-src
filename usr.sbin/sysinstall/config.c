@@ -44,6 +44,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <sys/mount.h>
+#include <time.h>
 
 static Chunk *chunk_list[MAX_CHUNKS];
 static int nchunks;
@@ -378,6 +379,8 @@ configRC_conf(void)
     FILE *rcSite;
     Variable *v;
     int write_header;
+    time_t t_loc;
+    char *cp;
     static int did_marker = 0;
 
     write_header = !file_readable("/etc/rc.conf");
@@ -388,6 +391,8 @@ configRC_conf(void)
 	fprintf(rcSite, "# This file now contains just the overrides from /etc/defaults/rc.conf\n");
 	fprintf(rcSite, "# please make all changes to this file.\n\n");
 	fprintf(rcSite, "# Enable network daemons for user convenience.\n");
+	if ((t_loc = time(NULL)) != -1 && (cp = ctime(&t_loc)))
+	    fprintf(rcSite, "# Created: %s", cp);
     }
 
     /* Now do variable substitutions */
@@ -402,6 +407,10 @@ configRC_conf(void)
 	}
     }
     fclose(rcSite);
+    /* Tidy up the resulting file if it's late enough in the installation
+	for sort and uniq to be available */
+    if (file_readable("/usr/bin/sort") && file_readable("/usr/bin/uniq"))
+	(void)vsystem("sort /etc/rc.conf | uniq > /etc/rc.conf.new && mv /etc/rc.conf.new /etc/rc.conf");
 }
 
 int
