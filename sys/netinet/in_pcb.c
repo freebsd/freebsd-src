@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.28 1997/03/03 09:23:33 davidg Exp $
+ *	$Id: in_pcb.c,v 1.29 1997/03/24 11:24:50 bde Exp $
  */
 
 #include <sys/param.h>
@@ -688,8 +688,9 @@ in_pcblookuphash(pcbinfo, faddr, fport_arg, laddr, lport_arg, wildcard)
 	head = &pcbinfo->hashbase[INP_PCBHASH(faddr.s_addr, lport, fport, pcbinfo->hashmask)];
 	for (inp = head->lh_first; inp != NULL; inp = inp->inp_hash.le_next) {
 		if (inp->inp_faddr.s_addr == faddr.s_addr &&
-		    inp->inp_fport == fport && inp->inp_lport == lport &&
-		    inp->inp_laddr.s_addr == laddr.s_addr)
+		    inp->inp_laddr.s_addr == laddr.s_addr &&
+		    inp->inp_fport == fport &&
+		    inp->inp_lport == lport)
 			goto found;
 	}
 	if (wildcard) {

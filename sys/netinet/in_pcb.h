@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id: in_pcb.h,v 1.18 1997/02/22 09:41:29 peter Exp $
+ * $Id: in_pcb.h,v 1.19 1997/03/03 09:23:34 davidg Exp $
  */
 
 #ifndef _NETINET_IN_PCB_H_
@@ -51,18 +51,24 @@ LIST_HEAD(inpcbhead, inpcb);
 struct inpcb {
 	LIST_ENTRY(inpcb) inp_list;		/* list for all PCBs of this proto */
 	LIST_ENTRY(inpcb) inp_hash;		/* hash list */
-	struct	inpcbinfo *inp_pcbinfo;
+	struct	inpcbinfo *inp_pcbinfo;	/* PCB list info */
 	struct	in_addr inp_faddr;	/* foreign host table entry */
-	u_short	inp_fport;		/* foreign port */
 	struct	in_addr inp_laddr;	/* local host table entry */
+	u_short	inp_fport;		/* foreign port */
 	u_short	inp_lport;		/* local port */
-	struct	socket *inp_socket;	/* back pointer to socket */
 	caddr_t	inp_ppcb;		/* pointer to per-protocol pcb */
+	struct	socket *inp_socket;	/* back pointer to socket */
+	struct	mbuf *inp_options;	/* IP options */
 	struct	route inp_route;	/* placeholder for routing entry */
 	int	inp_flags;		/* generic IP/datagram flags */
-	struct	ip inp_ip;		/* header prototype; should have more */
-	struct	mbuf *inp_options;	/* IP options */
+	u_char	inp_ip_tos;		/* type of service proto */
+	u_char	inp_ip_ttl;		/* time to live proto */
+	u_char	inp_ip_p;		/* protocol proto */
+	u_char	pad[1];			/* alignment */
 	struct	ip_moptions *inp_moptions; /* IP multicast options */
+#if 0 /* Someday, perhaps... */
+	struct	ip inp_ip;		/* header prototype; should have more */
+#endif
 };
 
 struct inpcbinfo {
