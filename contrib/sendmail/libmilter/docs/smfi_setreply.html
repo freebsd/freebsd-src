@@ -1,6 +1,9 @@
 <html>
 <head><title>smfi_setreply</title></head>
 <body>
+<!--
+$Id: smfi_setreply.html,v 1.14 2003/11/16 05:04:01 ca Exp $
+-->
 <h1>smfi_setreply</h1>
 
 <table border="0" cellspacing=4 cellpadding=4>
@@ -91,6 +94,14 @@ and
 for the message, the custom reply is not used.
 <li>Similarly, if the reply code (rcode) given is a '5XX' code but
 SMFI_TEMPFAIL is used for the message, the custom reply is not used.
+<BR>
+Note: in neither of the last two cases an error is returned to the milter,
+libmilter silently ignores the reply code.
+<li>
+If the milter returns SMFI_TEMPFAIL
+and sets the reply code to '421',
+then the SMTP server will terminate the SMTP session with a 421
+error code.
 </ul>
 </td>
 </tr>

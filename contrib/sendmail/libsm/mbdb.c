@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: mbdb.c,v 1.38.2.1 2002/11/20 22:59:06 gshapiro Exp $")
+SM_RCSID("@(#)$Id: mbdb.c,v 1.40 2003/12/10 03:19:07 gshapiro Exp $")
 
 #include <sys/param.h>
 
@@ -441,13 +441,13 @@ mbdb_ldap_initialize(arg)
 {
 	sm_ldap_clear(&LDAPLMAP);
 	LDAPLMAP.ldap_base = MBDB_DEFAULT_LDAP_BASEDN;
-	LDAPLMAP.ldap_target = MBDB_DEFAULT_LDAP_SERVER;
+	LDAPLMAP.ldap_host = MBDB_DEFAULT_LDAP_SERVER;
 	LDAPLMAP.ldap_filter = MBDB_LDAP_FILTER;
 
 	/* Only want one match */
 	LDAPLMAP.ldap_sizelimit = 1;
 
-	/* interpolate new ldap_base and ldap_target from arg if given */
+	/* interpolate new ldap_base and ldap_host from arg if given */
 	if (arg != NULL && *arg != '\0')
 	{
 		char *new;
@@ -463,7 +463,7 @@ mbdb_ldap_initialize(arg)
 		if (sep != NULL)
 		{
 			*sep++ = '\0';
-			LDAPLMAP.ldap_target = sep;
+			LDAPLMAP.ldap_host = sep;
 		}
 		LDAPLMAP.ldap_base = new;
 	}

@@ -1,6 +1,9 @@
 <html>
 <head><title>smfi_addheader</title></head>
 <body>
+<!--
+$Id: smfi_addheader.html,v 1.15 2004/05/04 17:55:50 ca Exp $
+-->
 <h1>smfi_addheader</h1>
 
 <table border="0" cellspacing=4 cellpadding=4>
@@ -69,7 +72,7 @@ Otherwise, it returns MI_SUCCESS.
 To change a header's current value, use <a
 href="smfi_chgheader.html">smfi_chgheader</a>.
     <li>A filter which calls smfi_addheader must have set the SMFIF_ADDHDRS flag in the smfiDesc_str passed to <a href="smfi_register.html">smfi_register</a>.
-    <li>For smfi_chgheader, filter order is important.  <b>Later filters will see the header changes made by earlier ones.</b>
+    <li>For smfi_addheader, filter order is important.  <b>Later filters will see the header changes made by earlier ones.</b>
     <li>Neither the name nor the value of the header is checked for
     standards compliance.  However, each line of the header must be under
     2048 characters and should be under 998 characters.  If longer headers

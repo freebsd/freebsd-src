@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -18,14 +18,14 @@
 
 #ifndef lint
 SM_UNUSED(static char copyright[]) =
-"@(#) Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.\n\
+"@(#) Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.\n\
 	All rights reserved.\n\
      Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.\n\
      Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* ! lint */
 
-SM_RCSID("@(#)$Id: main.c,v 8.887.2.29 2003/11/07 00:09:31 ca Exp $")
+SM_RCSID("@(#)$Id: main.c,v 8.939 2004/06/17 16:39:21 ca Exp $")
 
 
 #if NETINET || NETINET6
@@ -175,15 +175,14 @@ main(argc, argv, envp)
 	char *sysloglabel = NULL;	/* label for syslog */
 	char *conffile = NULL;		/* name of .cf file */
 	char *queuegroup = NULL;	/* queue group to process */
-#if _FFR_QUARANTINE
 	char *quarantining = NULL;	/* quarantine queue items? */
-#endif /* _FFR_QUARANTINE */
 	bool extraprivs;
 	bool forged, negate;
 	bool queuepersistent = false;	/* queue runner process runs forever */
 	bool foregroundqueue = false;	/* queue run in foreground */
 	bool save_val;			/* to save some bool var. */
 	int cftype;			/* which cf file to use? */
+	SM_FILE_T *smdebug;
 	static time_t starttime = 0;	/* when was process started */
 	struct stat traf_st;		/* for TrafficLog FIFO check */
 	char buf[MAXLINE];
@@ -268,14 +267,9 @@ main(argc, argv, envp)
 	if (errno != 0)
 		fill_errno = errno;
 
-	i = DtableSize;
-	while (--i > 0)
-	{
-		if (i != STDIN_FILENO && i != STDOUT_FILENO &&
-		    i != STDERR_FILENO)
-			(void) close(i);
-	}
+	sm_closefrom(STDERR_FILENO + 1, DtableSize);
 	errno = 0;
+	smdebug = NULL;
 
 #if LOG
 # ifndef SM_LOG_STR
@@ -371,27 +365,15 @@ main(argc, argv, envp)
 	else if (strcmp(p, "purgestat") == 0)
 		OpMode = MD_PURGESTAT;
 
-#if _FFR_QUARANTINE
-# if defined(__osf__) || defined(_AIX3)
-#  define OPTIONS	"A:B:b:C:cd:e:F:f:Gh:IiL:M:mN:nO:o:p:q:R:r:sTtV:vX:xQ:"
-# endif /* defined(__osf__) || defined(_AIX3) */
-# if defined(sony_news)
-#  define OPTIONS	"A:B:b:C:cd:E:e:F:f:Gh:IiJ:L:M:mN:nO:o:p:q:R:r:sTtV:vX:Q:"
-# endif /* defined(sony_news) */
-# ifndef OPTIONS
-#  define OPTIONS	"A:B:b:C:cd:e:F:f:Gh:IiL:M:mN:nO:o:p:q:R:r:sTtV:vX:Q:"
-# endif /* ! OPTIONS */
-#else /* _FFR_QUARANTINE */
-# if defined(__osf__) || defined(_AIX3)
-#  define OPTIONS	"A:B:b:C:cd:e:F:f:Gh:IiL:M:mN:nO:o:p:q:R:r:sTtV:vX:x"
-# endif /* defined(__osf__) || defined(_AIX3) */
-# if defined(sony_news)
-#  define OPTIONS	"A:B:b:C:cd:E:e:F:f:Gh:IiJ:L:M:mN:nO:o:p:q:R:r:sTtV:vX:"
-# endif /* defined(sony_news) */
-# ifndef OPTIONS
-#  define OPTIONS	"A:B:b:C:cd:e:F:f:Gh:IiL:M:mN:nO:o:p:q:R:r:sTtV:vX:"
-# endif /* ! OPTIONS */
-#endif /* _FFR_QUARANTINE */
+#if defined(__osf__) || defined(_AIX3)
+# define OPTIONS	"A:B:b:C:cD:d:e:F:f:Gh:IiL:M:mN:nO:o:p:Q:q:R:r:sTtV:vX:x"
+#endif /* defined(__osf__) || defined(_AIX3) */
+#if defined(sony_news)
+# define OPTIONS	"A:B:b:C:cD:d:E:e:F:f:Gh:IiJ:L:M:mN:nO:o:p:Q:q:R:r:sTtV:vX:"
+#endif /* defined(sony_news) */
+#ifndef OPTIONS
+# define OPTIONS	"A:B:b:C:cD:d:e:F:f:Gh:IiL:M:mN:nO:o:p:Q:q:R:r:sTtV:vX:"
+#endif /* ! OPTIONS */
 
 	/* Set to 0 to allow -b; need to check optarg before using it! */
 	opterr = 0;
@@ -431,10 +413,31 @@ main(argc, argv, envp)
 			}
 			break;
 
+		  case 'D':
+			if (debug)
+			{
+				errno = 0;
+				syserr("-D file must be before -d");
+				ExitStat = EX_USAGE;
+				break;
+			}
+			dp = drop_privileges(true);
+			setstat(dp);
+			smdebug = sm_io_open(SmFtStdio, SM_TIME_DEFAULT,
+					    optarg, SM_IO_APPEND, NULL);
+			if (smdebug == NULL)
+			{
+				syserr("cannot open %s", optarg);
+				ExitStat = EX_CANTCREAT;
+				break;
+			}
+			sm_debug_setfile(smdebug);
+			break;
+
 		  case 'd':
 			debug = true;
 			tTflag(optarg);
-			(void) sm_io_setvbuf(smioout, SM_TIME_DEFAULT,
+			(void) sm_io_setvbuf(sm_debug_file(), SM_TIME_DEFAULT,
 					     (char *) NULL, SM_IO_NBF,
 					     SM_IO_BUFSIZ);
 			break;
@@ -451,16 +454,14 @@ main(argc, argv, envp)
 						     (char) j);
 				return EX_USAGE;
 			}
-			j = SM_MIN(strlen(optarg), 24) + 1;
+			j = SM_MIN(strlen(optarg), 32) + 1;
 			sysloglabel = xalloc(j);
 			(void) sm_strlcpy(sysloglabel, optarg, j);
 			SyslogPrefixLen = PIDLEN + (MAXQFNAME - 3) +
 					  SL_FUDGE + j;
 			break;
 
-#if _FFR_QUARANTINE
 		  case 'Q':
-#endif /* _FFR_QUARANTINE */
 		  case 'q':
 			/* just check if it is there */
 			queuerun = true;
@@ -474,6 +475,7 @@ main(argc, argv, envp)
 	{
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 				     "WARNING: Can not use -d with -q.  Disabling debugging.\n");
+		sm_debug_close();
 		sm_debug_setfile(NULL);
 		(void) memset(tTdvect, '\0', sizeof tTdvect);
 	}
@@ -667,8 +669,6 @@ main(argc, argv, envp)
 	else
 		_res.options &= ~RES_DEBUG;
 # ifdef RES_NOALIASES
-	if (bitset(RES_NOALIASES, _res.options))
-		ResNoAliases = true;
 	_res.options |= RES_NOALIASES;
 # endif /* RES_NOALIASES */
 	TimeOuts.res_retry[RES_TO_DEFAULT] = _res.retry;
@@ -701,23 +701,8 @@ main(argc, argv, envp)
 		setclass('w', jbuf);
 
 		p = strchr(jbuf, '.');
-		if (p != NULL)
-		{
-			if (p[1] != '\0')
-			{
-				macdefine(&BlankEnvelope.e_macro, A_TEMP, 'm',
-					  &p[1]);
-			}
-			while (p != NULL && strchr(&p[1], '.') != NULL)
-			{
-				*p = '\0';
-				if (tTd(0, 4))
-					sm_dprintf("\ta.k.a.: %s\n", jbuf);
-				setclass('w', jbuf);
-				*p++ = '.';
-				p = strchr(p, '.');
-			}
-		}
+		if (p != NULL && p[1] != '\0')
+			macdefine(&BlankEnvelope.e_macro, A_TEMP, 'm', &p[1]);
 
 		if (uname(&utsname) >= 0)
 			p = utsname.nodename;
@@ -806,9 +791,7 @@ main(argc, argv, envp)
 	QueueLimitRecipient = (QUEUE_CHAR *) NULL;
 	QueueLimitSender = (QUEUE_CHAR *) NULL;
 	QueueLimitId = (QUEUE_CHAR *) NULL;
-#if _FFR_QUARANTINE
 	QueueLimitQuarantine = (QUEUE_CHAR *) NULL;
-#endif /* _FFR_QUARANTINE */
 
 	/*
 	**  Crack argv.
@@ -842,6 +825,7 @@ main(argc, argv, envp)
 			safecf = false;
 			break;
 
+		  case 'D':
 		  case 'd':	/* debugging */
 			/* already done */
 			break;
@@ -957,7 +941,6 @@ main(argc, argv, envp)
 			}
 			break;
 
-#if _FFR_QUARANTINE
 		  case 'Q':	/* change quarantining on queued items */
 			/* sanity check */
 			if (OpMode != MD_DELIVER &&
@@ -975,7 +958,6 @@ main(argc, argv, envp)
 
 			quarantining = newstr(optarg);
 			break;
-#endif /* _FFR_QUARANTINE */
 
 		  case 'q':	/* run queue files at intervals */
 			/* sanity check */
@@ -1049,7 +1031,6 @@ main(argc, argv, envp)
 				foregroundqueue  = true;
 				break;
 
-#if _FFR_QUARANTINE
 			  case 'Q': /* Limit by quarantine message */
 				if (optarg[1] != '\0')
 				{
@@ -1065,7 +1046,6 @@ main(argc, argv, envp)
 			  case 'L': /* act on lost items */
 				QueueMode = QM_LOST;
 				break;
-#endif /* _FFR_QUARANTINE */
 
 			  case 'p': /* Persistent queue */
 				queuepersistent = true;
@@ -1308,8 +1288,8 @@ main(argc, argv, envp)
 	}
 
 #if NAMED_BIND
-	if (FallBackMX != NULL)
-		(void) getfallbackmxrr(FallBackMX);
+	if (FallbackMX != NULL)
+		(void) getfallbackmxrr(FallbackMX);
 #endif /* NAMED_BIND */
 
 	if (SuperSafe == SAFE_INTERACTIVE && CurEnv->e_sendmode != SM_DELIVER)
@@ -1418,13 +1398,13 @@ main(argc, argv, envp)
 	{
 		sm_dprintf("\n============ SYSTEM IDENTITY (after readcf) ============");
 		sm_dprintf("\n      (short domain name) $w = ");
-		xputs(macvalue('w', &BlankEnvelope));
+		xputs(sm_debug_file(), macvalue('w', &BlankEnvelope));
 		sm_dprintf("\n  (canonical domain name) $j = ");
-		xputs(macvalue('j', &BlankEnvelope));
+		xputs(sm_debug_file(), macvalue('j', &BlankEnvelope));
 		sm_dprintf("\n         (subdomain name) $m = ");
-		xputs(macvalue('m', &BlankEnvelope));
+		xputs(sm_debug_file(), macvalue('m', &BlankEnvelope));
 		sm_dprintf("\n              (node name) $k = ");
-		xputs(macvalue('k', &BlankEnvelope));
+		xputs(sm_debug_file(), macvalue('k', &BlankEnvelope));
 		sm_dprintf("\n========================================================\n\n");
 	}
 
@@ -1459,10 +1439,6 @@ main(argc, argv, envp)
 	if (DefaultNotify == 0)
 		DefaultNotify = QPINGONFAILURE|QPINGONDELAY;
 
-	/* be sure we don't pick up bogus HOSTALIASES environment variable */
-	if (OpMode == MD_QUEUERUN && RealUid != 0)
-		(void) unsetenv("HOSTALIASES");
-
 	/* check for sane configuration level */
 	if (ConfigLevel > MAXCONFIGLEVEL)
 	{
@@ -1495,14 +1471,14 @@ main(argc, argv, envp)
 		switch (OpMode)
 		{
 		  case MD_QUEUERUN:
-#if _FFR_QUARANTINE
 			if (quarantining != NULL)
 				action = "quarantine jobs";
 			else
-#endif /* _FFR_QUARANTINE */
-			/* Normal users can do a single queue run */
-			if (QueueIntvl == 0)
-				break;
+			{
+				/* Normal users can do a single queue run */
+				if (QueueIntvl == 0)
+					break;
+			}
 
 			/* but not persistent queue runners */
 			if (action == NULL)
@@ -1757,7 +1733,7 @@ main(argc, argv, envp)
 	else
 		PSTRSET(MyHostName, jbuf);
 	if (strchr(MyHostName, '.') == NULL)
-		message("WARNING: local host name (%s) is not qualified; fix $j in config file",
+		message("WARNING: local host name (%s) is not qualified; see cf/README: WHO AM I?",
 			MyHostName);
 
 	/* make certain that this name is part of the $=w class */
@@ -1917,9 +1893,7 @@ main(argc, argv, envp)
 	if (OpMode == MD_DAEMON || OpMode == MD_SMTP)
 	{
 		milter_config(InputFilterList, InputFilters, MAXFILTERS);
-# if _FFR_MILTER_PERDAEMON
 		setup_daemon_milters();
-# endif /* _FFR_MILTER_PERDAEMON */
 	}
 #endif /* MILTER */
 
@@ -1991,7 +1965,6 @@ main(argc, argv, envp)
 		/* NOTREACHED */
 		break;
 
-#if _FFR_QUARANTINE
 	  case MD_QUEUERUN:
 		/* only handle quarantining here */
 		if (quarantining == NULL)
@@ -2009,7 +1982,6 @@ main(argc, argv, envp)
 		quarantine_queue(quarantining, qgrp);
 		finis(false, true, EX_OK);
 		break;
-#endif /* _FFR_QUARANTINE */
 
 	  case MD_HOSTSTAT:
 		(void) sm_signal(SIGPIPE, sigpipe);
@@ -2056,7 +2028,7 @@ main(argc, argv, envp)
 		for (i = 0; i < MAXMAILERS; i++)
 		{
 			if (Mailer[i] != NULL)
-				printmailer(Mailer[i]);
+				printmailer(sm_debug_file(), Mailer[i]);
 		}
 	}
 
@@ -2286,7 +2258,7 @@ main(argc, argv, envp)
 	if (OpMode == MD_SMTP)
 	{
 		proc_list_add(CurrentPid, "Sendmail SMTP Agent",
-			      PROC_DAEMON, 0, -1);
+			      PROC_DAEMON, 0, -1, NULL);
 
 		/* clean up background delivery children */
 		(void) sm_signal(SIGCHLD, reapchild);
@@ -2385,6 +2357,13 @@ main(argc, argv, envp)
 
 			if (OpMode != MD_DAEMON && queuepersistent)
 			{
+				/*
+				**  Write the pid to file
+				**  XXX Overwrites sendmail.pid
+				*/
+
+				log_sendmail_pid(&MainEnvelope);
+
 				/* set the title to make it easier to find */
 				sm_setproctitle(true, CurEnv, "Queue control");
 				(void) sm_signal(SIGCHLD, SIG_DFL);
@@ -2488,7 +2467,9 @@ main(argc, argv, envp)
 				for (;;)
 				{
 					(void) pause();
+
 					CHECK_RESTART;
+
 					if (doqueuerun())
 						(void) runqueue(true, false,
 								false, false);
@@ -2554,6 +2535,8 @@ main(argc, argv, envp)
 		else
 			macdefine(&BlankEnvelope.e_macro, A_PERM,
 				  macid("{client_name}"), RealHostName);
+		macdefine(&BlankEnvelope.e_macro, A_PERM,
+			  macid("{client_ptr}"), RealHostName);
 		macdefine(&BlankEnvelope.e_macro, A_TEMP,
 			  macid("{client_addr}"), anynet_ntoa(&RealHostAddr));
 		sm_getla();
@@ -2584,8 +2567,9 @@ main(argc, argv, envp)
 			/* validate the connection */
 			HoldErrs = true;
 			nullserver = validate_connection(&RealHostAddr,
-							 RealHostName,
-							 &MainEnvelope);
+						macvalue(macid("{client_name}"),
+							&MainEnvelope),
+						&MainEnvelope);
 			HoldErrs = false;
 		}
 		else if (p_flags == NULL)
@@ -2785,11 +2769,9 @@ main(argc, argv, envp)
 		sm_dprintf("From person = \"%s\"\n",
 			   MainEnvelope.e_from.q_paddr);
 
-#if _FFR_QUARANTINE
 	/* Check if quarantining stats should be updated */
 	if (MainEnvelope.e_quarmsg != NULL)
 		markstats(&MainEnvelope, NULL, STATS_QUARANTINE);
-#endif /* _FFR_QUARANTINE */
 
 	/*
 	**  Actually send everything.
@@ -2813,7 +2795,7 @@ main(argc, argv, envp)
 		if (tTd(1, 5))
 		{
 			sm_dprintf("main[%d]: QS_SENDER ", i);
-			printaddr(&e->e_from, false);
+			printaddr(sm_debug_file(), &e->e_from, false);
 		}
 		e->e_to = NULL;
 		sm_getla();
@@ -2881,6 +2863,7 @@ finis(drop, cleanup, exitstat)
 	bool cleanup;
 	volatile int exitstat;
 {
+	char pidpath[MAXPATHLEN];
 
 	/* Still want to process new timeouts added below */
 	sm_clear_events();
@@ -2952,6 +2935,16 @@ finis(drop, cleanup, exitstat)
 #if SM_CONF_SHM
 		cleanup_shm(DaemonPid == getpid());
 #endif /* SM_CONF_SHM */
+
+		/* close locked pid file */
+		close_sendmail_pid();
+
+		if (DaemonPid == getpid() || PidFilePid == getpid())
+		{
+			/* blow away the pid file */
+			expand(PidFile, pidpath, sizeof pidpath, CurEnv);
+			(void) unlink(pidpath);
+		}
 
 		/* reset uid for process accounting */
 		endpwent();
@@ -3309,7 +3302,6 @@ obsolete(argv)
 		if (ap[0] != '-' || ap[1] == '-')
 			return;
 
-#if _FFR_QUARANTINE
 		/* Don't allow users to use "-Q." or "-Q ." */
 		if ((ap[1] == 'Q' && ap[2] == '.') ||
 		    (ap[1] == 'Q' && argv[1] != NULL &&
@@ -3319,7 +3311,6 @@ obsolete(argv)
 					     "Can not use -Q.\n");
 			exit(EX_USAGE);
 		}
-#endif /* _FFR_QUARANTINE */
 
 		/* skip over options that do have a value */
 		op = strchr(OPTIONS, ap[1]);
@@ -3347,11 +3338,9 @@ obsolete(argv)
 		if (ap[1] == 'q' && ap[2] == '\0')
 			*argv = "-q0";
 
-#if _FFR_QUARANTINE
 		/* If -Q doesn't have an argument, disable quarantining */
 		if (ap[1] == 'Q' && ap[2] == '\0')
 			*argv = "-Q.";
-#endif /* _FFR_QUARANTINE */
 
 		/* if -d doesn't have an argument, use 0-99.1 */
 		if (ap[1] == 'd' && ap[2] == '\0')
@@ -3531,7 +3520,7 @@ dumpstate(when)
 	sm_syslog(LOG_DEBUG, CurEnv->e_id, "--- open file descriptors: ---");
 	printopenfds(true);
 	sm_syslog(LOG_DEBUG, CurEnv->e_id, "--- connection cache: ---");
-	mci_dump_all(true);
+	mci_dump_all(smioout, true);
 	rs = strtorwset("debug_dumpstate", NULL, ST_FIND);
 	if (rs > 0)
 	{
@@ -3999,7 +3988,7 @@ testmodeline(line, e)
 				s = rw->r_lhs;
 				while (*s != NULL)
 				{
-					xputs(*s++);
+					xputs(smioout, *s++);
 					(void) sm_io_putc(smioout,
 							  SM_TIME_DEFAULT, ' ');
 				}
@@ -4010,7 +3999,7 @@ testmodeline(line, e)
 				s = rw->r_rhs;
 				while (*s != NULL)
 				{
-					xputs(*s++);
+					xputs(smioout, *s++);
 					(void) sm_io_putc(smioout,
 							  SM_TIME_DEFAULT, ' ');
 				}
@@ -4023,7 +4012,7 @@ testmodeline(line, e)
 			for (i = 0; i < MAXMAILERS; i++)
 			{
 				if (Mailer[i] != NULL)
-					printmailer(Mailer[i]);
+					printmailer(smioout, Mailer[i]);
 			}
 			break;
 
@@ -4075,7 +4064,7 @@ testmodeline(line, e)
 					     "Undefined\n");
 		else
 		{
-			xputs(p);
+			xputs(smioout, p);
 			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 					     "\n");
 		}
@@ -4292,7 +4281,7 @@ testmodeline(line, e)
 			q = crackaddr(p, e);
 			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 					     "Cracked address = ");
-			xputs(q);
+			xputs(smioout, q);
 			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 					     "\nParsing %s %s address\n",
 					     bitset(RF_HEADERADDR, tryflags) ?
@@ -4344,8 +4333,8 @@ testmodeline(line, e)
 		register char **pvp;
 		char pvpbuf[PSBUFSIZE];
 
-		pvp = prescan(++p, ',', pvpbuf, sizeof pvpbuf,
-			      &delimptr, ConfigLevel >= 9 ? TokTypeNoC : NULL);
+		pvp = prescan(++p, ',', pvpbuf, sizeof pvpbuf, &delimptr,
+			      ConfigLevel >= 9 ? TokTypeNoC : NULL, false);
 		if (pvp == NULL)
 			continue;
 		p = q;
