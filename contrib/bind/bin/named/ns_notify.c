@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_notify.c,v 8.4 1999/10/15 19:49:04 vixie Exp $";
+static const char rcsid[] = "$Id: ns_notify.c,v 8.10 2000/04/21 06:54:09 vixie Exp $";
 #endif /* not lint */
 
 /*
- * Copyright (c) 1994-1999 by Internet Software Consortium.
+ * Copyright (c) 1994-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -78,6 +78,7 @@ static void		notify_timer(evContext, void *,
 /* Local. */
 
 static LIST(struct notify) pending_notifies;
+static LIST(struct notify) loading_notifies;
 
 /* Public. */
 
@@ -96,6 +97,13 @@ ns_notify(const char *dname, ns_class class, ns_type type) {
 	if (zp == NULL) {
 		ns_warning(ns_log_notify,
 			   "no zone found for notify (\"%s\" %s %s)",
+			   (dname && *dname) ? dname : ".",
+			   p_class(class), p_type(type));
+		return;
+	}
+	if (ns_samename(dname, zp->z_origin) != 1) {
+		ns_warning(ns_log_notify,
+			   "notify not called with top of zone (\"%s\" %s %s)",
 			   (dname && *dname) ? dname : ".",
 			   p_class(class), p_type(type));
 		return;
@@ -123,6 +131,11 @@ ns_notify(const char *dname, ns_class class, ns_type type) {
 	ni->type = type;
 	evInitID(&ni->timer);
 
+	if (loading != 0) {
+		APPEND(loading_notifies, ni, link);
+		return;
+	}
+
 	/* Delay notification for from five seconds up to fifteen minutes. */
 	max_delay = MIN(nzones/5, 895);
 	max_delay = MAX(max_delay, 25);
@@ -146,6 +159,19 @@ ns_notify(const char *dname, ns_class class, ns_type type) {
 		 ni, zp, delay);
 }
 
+void
+notify_afterload() {
+	struct notify *ni;
+
+	INSIST(loading == 0);
+	while ((ni = HEAD(loading_notifies)) != NULL) {
+		UNLINK(loading_notifies, ni, link);
+		ns_notify(ni->name, ni->class, ni->type);
+		freestr(ni->name);
+		memput(ni, sizeof *ni);
+	}
+}
+
 /*
  * ns_unnotify()
  *	call this when all pending notifies are now considered junque.
@@ -161,6 +187,25 @@ ns_unnotify(void) {
 	}
 }
 
+/*
+ * ns_stopnotify(const char *dname, ns_class class)
+ *	stop notifies for this particular zone.
+ */
+void
+ns_stopnotify(const char *dname, ns_class class) {
+	struct notify *ni;
+
+	ni = HEAD(pending_notifies);
+	while (ni != NULL &&
+	       (ni->class != class || ns_samename(ni->name, dname) != 1))
+		ni = NEXT(ni, link);
+
+	if (ni != NULL) {
+		UNLINK(pending_notifies, ni, link);
+		free_notify(ni);
+	}
+}
+
 /* Private. */
 
 /*
@@ -171,6 +216,7 @@ ns_unnotify(void) {
 static void
 sysnotify(const char *dname, ns_class class, ns_type type) {
 	const char *zname, *fname;
+	u_int32_t zserial;
 	int nns, na, i;
 	struct zoneinfo *zp;
 	struct in_addr *also_addr;
@@ -198,10 +244,9 @@ sysnotify(const char *dname, ns_class class, ns_type type) {
 		return;
 	}
 	zname = zp->z_origin;
+	zserial = zp->z_serial;
 	nns = na = 0;
-	if (zp->z_type == z_master)
-		sysnotify_slaves(dname, zname, class, type,
-				 zp - zones, &nns, &na);
+	sysnotify_slaves(dname, zname, class, type, zp - zones, &nns, &na);
 
 	/*
 	 * Handle any global or zone-specific also-notify clauses
@@ -239,8 +284,8 @@ sysnotify(const char *dname, ns_class class, ns_type type) {
 
 	if (nns != 0 || na != 0)
 		ns_info(ns_log_notify,
-			"Sent NOTIFY for \"%s %s %s\" (%s); %d NS, %d A",
-			dname, p_class(class), p_type(type), zname, nns, na);
+			"Sent NOTIFY for \"%s %s %s %u\" (%s); %d NS, %d A",
+			dname, p_class(class), p_type(type), zserial, zname, nns, na);
 }
 
 static void
@@ -328,7 +373,7 @@ sysnotify_ns(const char *dname, const char *aname,
 				nss[nsc++] = ina;
 		} /*next A*/
 	if (nsc == 0) {
-		if (!is_us) {
+		if (!is_us && !NS_OPTION_P(OPTION_NOFETCHGLUE)) {
 			struct qinfo *qp;
 
 			qp = sysquery(aname, class, ns_t_a, 0, 0, ns_port,
@@ -349,7 +394,7 @@ free_notify(struct notify *ni) {
 
 	INSIST(!LINKED(ni, link));
 	zp = find_auth_zone(ni->name, ni->class);
-	if (zp != NULL) {
+	if (zp != NULL && ns_samename(ni->name, zp->z_origin) == 1) {
 		INSIST((zp->z_flags & Z_NOTIFY) != 0);
 		zp->z_flags &= ~Z_NOTIFY;
 	}

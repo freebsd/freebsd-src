@@ -1,6 +1,6 @@
 /*
  *	from ns.h	4.33 (Berkeley) 8/23/90
- *	$Id: ns_glob.h,v 8.51 1999/10/15 21:53:32 vixie Exp $
+ *	$Id: ns_glob.h,v 8.54 2000/04/21 06:54:07 vixie Exp $
  */
 
 /*
@@ -57,7 +57,7 @@
  */
 
 /*
- * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -156,16 +156,16 @@ DECL	u_char			*dnptrs[40];
 DECL	u_char			**dnptrs_end
 				INIT(dnptrs + sizeof dnptrs / sizeof(u_char*));
 
+	/* data about all forwarders */
+DECL    struct fwddata          **fwddata;
+	/* how many forwarders are there in fwddata? */
+DECL	int			fwddata_count;
+
 	/* number of names in addinfo */
 DECL	int			addcount;
 
 	/* name of cache file */
 DECL	const char		*cache_file;
-
-#ifdef SLAVE_FORWARD
-	/* retry time when a slave */
-DECL	int			slave_retry	INIT(4);
-#endif
 
 #ifdef BIND_UPDATE
 DECL	const char *		LogSignature	INIT(";BIND LOG V8\n");

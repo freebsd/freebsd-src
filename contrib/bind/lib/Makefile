@@ -15,7 +15,7 @@
 
 # $Id: Makefile,v 8.22 1999/06/08 01:42:57 vixie Exp $
 
-SUBDIRS = resolv irs isc bsd inet nameser dst
+SUBDIRS = resolv irs isc bsd inet nameser dst cylink dnssafe
 
 # these are only appropriate for BSD 4.4 or derivatives, and are used in
 # development.  normal builds will be done in the top level directory and

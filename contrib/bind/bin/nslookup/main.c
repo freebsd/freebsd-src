@@ -78,7 +78,7 @@ char copyright[] =
 
 #ifndef lint
 static const char sccsid[] = "@(#)main.c	5.42 (Berkeley) 3/3/91";
-static const char rcsid[] = "$Id: main.c,v 8.13 1999/10/13 16:39:19 vixie Exp $";
+static const char rcsid[] = "$Id: main.c,v 8.14 2000/03/30 23:25:34 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -172,7 +172,7 @@ jmp_buf		env;
 
 
 /*
- * Browser command for help and view.
+ * Browser command for help.
  */
 char		*pager;
 
