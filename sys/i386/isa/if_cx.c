@@ -28,14 +28,11 @@
 #include <sys/sockio.h>
 #include <sys/socket.h>
 #include <sys/conf.h>
-#include <sys/errno.h>
 
 #include <net/if.h>
-#include <net/if_types.h>
 
 #if NBPFILTER > 0
 #include <net/bpf.h>
-#include <net/bpfdesc.h>
 #endif
 
 #include <i386/isa/isa_device.h>

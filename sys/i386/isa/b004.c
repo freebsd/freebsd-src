@@ -50,7 +50,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
 #include <sys/uio.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>

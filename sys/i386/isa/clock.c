@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.91 1997/07/19 02:28:29 fsmp Exp $
+ *	$Id: clock.c,v 1.92 1997/07/19 03:59:28 fsmp Exp $
  */
 
 /*
@@ -71,7 +71,6 @@
 
 #include <i386/isa/icu.h>
 #include <i386/isa/isa.h>
-#include <i386/isa/intr_machdep.h>
 #include <i386/isa/rtc.h>
 #include <i386/isa/timerreg.h>
 

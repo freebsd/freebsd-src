@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kbdio.c,v 1.9 1997/03/06 22:34:10 joerg Exp $
+ * $Id: kbdio.c,v 1.10 1997/03/07 10:22:55 yokota Exp $
  */
 
 #include "sc.h"
@@ -38,12 +38,6 @@
 #include <sys/systm.h>
 #include <sys/syslog.h>
 #include <machine/clock.h>
-#ifdef PC98
-#include <pc98/pc98/pc98.h>
-#else
-#include <i386/isa/isa.h>
-#endif
-#include <i386/isa/isa_device.h>
 #include <i386/isa/kbdio.h>
 
 /* 

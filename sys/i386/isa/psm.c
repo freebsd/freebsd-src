@@ -19,7 +19,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.39 1997/05/27 11:55:41 yokota Exp $
+ * $Id: psm.c,v 1.40 1997/06/30 12:52:57 yokota Exp $
  */
 
 /*
@@ -63,7 +63,6 @@
 
 #if NPSM > 0
 
-#include <limits.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -80,7 +79,6 @@
 #include <i386/include/clock.h>
 #include <i386/include/apm_bios.h>
 
-#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/kbdio.h>
 

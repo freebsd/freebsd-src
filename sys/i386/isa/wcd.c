@@ -34,8 +34,6 @@
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 
-#include <machine/cpufunc.h>
-
 #include <i386/isa/atapi.h>
 
 static	d_open_t	wcdropen;

@@ -60,7 +60,7 @@
  *               that category, with the possible exception of scanners and
  *               some of the older MO drives.
  *
- * $Id: seagate.c,v 1.22 1997/03/24 11:24:02 bde Exp $
+ * $Id: seagate.c,v 1.23 1997/05/25 04:13:27 peter Exp $
  */
 
 /*
@@ -112,14 +112,9 @@
 #include "sea.h"
 #if NSEA > 0
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/errno.h>
-#include <sys/malloc.h>
-#include <sys/buf.h>
-#include <sys/proc.h>
 
 #include <machine/clock.h>
 
@@ -129,7 +124,6 @@
 
 #include <i386/isa/isa_device.h>
 
-#include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 
 #include "ioconf.h"

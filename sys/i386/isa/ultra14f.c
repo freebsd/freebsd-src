@@ -22,30 +22,24 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.53 1997/03/23 06:33:30 bde Exp $
+ *      $Id: ultra14f.c,v 1.54 1997/03/24 11:24:10 bde Exp $
  */
-
-#include <sys/types.h>
 
 #ifdef	KERNEL			/* don't laugh.. this compiles to a program too.. look */
 #include "uha.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
-#include <sys/proc.h>
 
 #include <machine/clock.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 
 #include <i386/isa/isa_device.h>
 #endif /*KERNEL */
-#include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 #include <scsi/scsi_debug.h>
 

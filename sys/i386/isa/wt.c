@@ -20,7 +20,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.38 1997/02/22 09:37:28 peter Exp $
+ * $Id: wt.c,v 1.39 1997/03/24 11:24:14 bde Exp $
  *
  */
 
@@ -67,15 +67,12 @@
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/mtio.h>
-#include <sys/proc.h>
 #include <sys/conf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
-#include <vm/vm_param.h>
 
 #include <machine/clock.h>
-#include <machine/wtio.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/wtreg.h>

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: istallion.c,v 1.10 1997/03/23 03:34:49 bde Exp $
+ * $Id: istallion.c,v 1.11 1997/03/24 11:23:52 bde Exp $
  */
 
 /*****************************************************************************/
@@ -49,11 +49,8 @@
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/uio.h>
-#include <sys/syslog.h>
-#include <machine/cpu.h>
 #include <machine/clock.h>
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <i386/isa/isa_device.h>
 #include <machine/cdk.h>

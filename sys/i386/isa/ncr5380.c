@@ -36,14 +36,9 @@
 #include "nca.h"
 #if NNCA > 0
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/errno.h>
-#include <sys/malloc.h>
-#include <sys/buf.h>
-#include <sys/proc.h>
 
 #include <machine/clock.h>
 
@@ -51,7 +46,6 @@
 #include <i386/isa/ic/ncr5380.h>
 #include <i386/isa/ic/ncr53400.h>
 
-#include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 
 #include "ioconf.h"
