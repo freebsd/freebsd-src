@@ -30,6 +30,9 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * Winbond fast ethernet PCI NIC driver
  *
@@ -41,7 +44,6 @@
  * Electrical Engineering Department
  * Columbia University, New York City
  */
-
 /*
  * The Winbond W89C840F chip is a bus master; in some ways it resembles
  * a DEC 'tulip' chip, only not as complicated. Unfortunately, it has
@@ -80,9 +82,6 @@
  * I have no idea what he's on about: transmit performance with all
  * three of my test boards seems fine.
  */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include "opt_bdg.h"
 

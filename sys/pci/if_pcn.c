@@ -31,6 +31,9 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * AMD Am79c972 fast ethernet PCI NIC driver. Datatheets are available
  * from http://www.amd.com.
@@ -48,9 +51,6 @@
  * allows the receive handler to pass packets to the upper protocol
  * layers without copying on both the x86 and alpha platforms).
  */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

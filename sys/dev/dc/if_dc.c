@@ -30,6 +30,9 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * DEC "tulip" clone ethernet driver. Supports the DEC/Intel 21143
  * series chips and several workalikes including the following:
@@ -60,7 +63,6 @@
  * Electrical Engineering Department
  * Columbia University, New York City
  */
-
 /*
  * The Intel 21143 is the successor to the DEC 21140. It is basically
  * the same as the 21140 but with a few new features. The 21143 supports
@@ -88,9 +90,6 @@
  * the cards I've seen use an MII transceiver, probably because the
  * AX88140A doesn't support internal NWAY.
  */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/endian.h>
