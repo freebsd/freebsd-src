@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  *  	@(#) src/sys/cfs/coda_vfsops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_vfsops.c,v 1.11 1999/01/17 20:25:17 peter Exp $
+ *  $Id: coda_vfsops.c,v 1.12 1999/05/08 06:39:04 phk Exp $
  * 
  */
 
@@ -47,6 +47,15 @@
 /*
  * HISTORY
  * $Log: coda_vfsops.c,v $
+ * Revision 1.12  1999/05/08 06:39:04  phk
+ * I got tired of seeing all the cdevsw[major(foo)] all over the place.
+ *
+ * Made a new (inline) function devsw(dev_t dev) and substituted it.
+ *
+ * Changed to the BDEV variant to this format as well: bdevsw(dev_t dev)
+ *
+ * DEVFS will eventually benefit from this change too.
+ *
  * Revision 1.11  1999/01/17 20:25:17  peter
  * Clean up the KLD/LKM goop a bit.
  *
@@ -745,7 +754,7 @@ struct mount *devtomp(dev)
     
     for (mp = mountlist.cqh_first; mp != (void*)&mountlist; mp = nmp) {
 	nmp = mp->mnt_list.cqe_next;
-	if (((VFSTOUFS(mp))->um_dev == (dev_t) dev)) {
+	if (((VFSTOUFS(mp))->um_dev == dev)) {
 	    /* mount corresponds to UFS and the device matches one we want */
 	    return(mp); 
 	}
