@@ -66,7 +66,7 @@ void	doreti_iret_fault(void) __asm(__STRING(doreti_iret_fault));
 void	enable_sse(void);
 void	fillw(int /*u_short*/ pat, void *base, size_t cnt);
 void	fpstate_drop(struct thread *td);
-int	is_physical_memory(vm_offset_t addr);
+int	is_physical_memory(vm_paddr_t addr);
 int	isa_nmi(int cd);
 void	pagecopy(void *from, void *to);
 void	pagezero(void *addr);
