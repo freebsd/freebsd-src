@@ -11,7 +11,7 @@ int     pwok;
 {
     static char buf[128];
     struct skey skey;
-    char   *pass;
+    char   *pass = "";
     char   *username = pwd ? pwd->pw_name : "nope";
     int     sflag;
 
@@ -20,8 +20,11 @@ int     pwok;
     if (!sflag)
 	printf("%s\n", buf);
 
-    if (!pwok)
+    if (!pwok) {
 	printf("(s/key required)\n");
+	if (sflag)
+	    return (pass);
+    }
 
     pass = getpass(prompt);
 
