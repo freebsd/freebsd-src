@@ -38,7 +38,7 @@
 #
 # NOMLINKS	If you do not want install manual page links. [not set]
 #
-# MANFILTER	command to pipe the raw man page though before compressing
+# MANFILTER	command to pipe the raw man page through before compressing
 #		or installing.  Can be used to do sed substitution.
 #
 # MANBUILDCAT	create preformatted manual pages in addition to normal
