@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.30 1998/08/07 18:42:49 brian Exp $
+ * $Id: lqr.c,v 1.31 1999/01/28 01:56:33 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -171,7 +171,7 @@ lqr_Input(struct physical *physical, struct mbuf *bp)
               len, (long)sizeof(struct lqrdata));
   else if (!IsAccepted(physical->link.lcp.cfg.lqr) &&
            !(physical->hdlc.lqm.method & LQM_LQR)) {
-    bp->offset -= 2;
+    bp->offset -= 2;	/* XXX: We have a bit too much knowledge here ! */
     bp->cnt += 2;
     lcp_SendProtoRej(physical->hdlc.lqm.owner, MBUF_CTOP(bp), bp->cnt);
   } else {
@@ -179,6 +179,7 @@ lqr_Input(struct physical *physical, struct mbuf *bp)
     struct lcp *lcp;
     u_int32_t lastLQR;
 
+    bp = mbuf_Contiguous(bp);
     lqr = (struct lqrdata *)MBUF_CTOP(bp);
     lcp = physical->hdlc.lqm.owner;
     if (ntohl(lqr->MagicNumber) != physical->hdlc.lqm.owner->his_magic)
