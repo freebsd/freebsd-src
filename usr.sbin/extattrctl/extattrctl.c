@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999, 2000 Robert N. M. Watson
+ * Copyright (c) 1999, 2000, 2001 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ * $FreeBSD$
  */
 /*
  * TrustedBSD Project - extended attribute support for UFS-like file systems
@@ -37,7 +37,9 @@
 
 #include <ufs/ufs/extattr.h>
 
+#include <errno.h>
 #include <fcntl.h>
+#include <libutil.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -55,8 +57,8 @@ usage(void)
 	    "  extattrctl start [path]\n"
 	    "  extattrctl stop [path]\n"
 	    "  extattrctl initattr [-f] [-p path] [attrsize] [attrfile]\n"
-	    "  extattrctl enable [path] [attrname] [attrfile]\n"
-	    "  extattrctl disable [path] [attrname]\n");
+	    "  extattrctl enable [path] [namespace] [attrname] [attrfile]\n"
+	    "  extattrctl disable [path] [namespace] [attrname]\n");
 	exit(-1);
 }
 
@@ -157,7 +159,7 @@ initattr(int argc, char *argv[])
 int
 main(int argc, char *argv[])
 {
-	int	error = 0;
+	int	error = 0, namespace;
 
 	if (argc < 2)
 		usage();
@@ -165,34 +167,60 @@ main(int argc, char *argv[])
 	if (!strcmp(argv[1], "start")) {
 		if (argc != 3)
 			usage();
-		error = extattrctl(argv[2], UFS_EXTATTR_CMD_START, 0, 0);
-		if (error)
+		error = extattrctl(argv[2], UFS_EXTATTR_CMD_START, NULL, 0,
+		    NULL);
+		if (error) {
 			perror("extattrctl start");
+			return (-1);
+		}
+		return (0);
 	} else if (!strcmp(argv[1], "stop")) {
 		if (argc != 3)
 			usage();
-		error = extattrctl(argv[2], UFS_EXTATTR_CMD_STOP, 0, 0);
-		if (error)
+		error = extattrctl(argv[2], UFS_EXTATTR_CMD_STOP, NULL, 0,
+		   NULL);
+		if (error) {
 			perror("extattrctl stop");
+			return (-1);
+		}
+		return (0);
 	} else if (!strcmp(argv[1], "enable")) {
+		if (argc != 6)
+			usage();
+		error = extattr_string_to_namespace(argv[3], &namespace);
+		if (error) {
+			perror("extattrctl enable");
+			return (-1);
+		}
+		error = extattrctl(argv[2], UFS_EXTATTR_CMD_ENABLE, argv[4],
+		    namespace, argv[5]);
+		if (error) {
+			perror("extattrctl enable");
+			return (-1);
+		}
+		return (0);
+	} else if (!strcmp(argv[1], "disable")) {
 		if (argc != 5)
 			usage();
-		error = extattrctl(argv[2], UFS_EXTATTR_CMD_ENABLE, argv[3],
-		    argv[4]);
-		if (error)
-			perror("extattrctl enable");
-	} else if (!strcmp(argv[1], "disable")) {
-		if (argc != 4)
-			usage();
-		error = extattrctl(argv[2], UFS_EXTATTR_CMD_DISABLE, argv[3],
-		    NULL);
-		if (error)
+		error = extattr_string_to_namespace(argv[3], &namespace);
+		if (error) {
 			perror("extattrctl disable");
+			return (-1);
+		}
+		error = extattrctl(argv[2], UFS_EXTATTR_CMD_DISABLE, NULL,
+		    namespace, argv[5]);
+		if (error) {
+			perror("extattrctl disable");
+			return (-1);
+		}
+		return (0);
 	} else if (!strcmp(argv[1], "initattr")) {
 		argc -= 2;
 		argv += 2;
 		error = initattr(argc, argv);
+		if (error)
+			return (-1);
+		return (0);
 	} else
 		usage();
-	return(error);
 }
