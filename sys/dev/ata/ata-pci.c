@@ -371,7 +371,7 @@ ata_pci_attach(device_t dev)
 	return 0;
     }
 
-#ifdef ATA_ENABLE_BUSMASTER
+#ifdef __sparc64__
     if (!(cmd & PCIM_CMD_BUSMASTEREN)) {
 	pci_write_config(dev, PCIR_COMMAND, cmd | PCIM_CMD_BUSMASTEREN, 2);
 	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
