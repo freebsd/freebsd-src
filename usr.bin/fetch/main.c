@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.16 1996/08/21 01:27:25 jkh Exp $ */
+/* $Id: main.c,v 1.17 1996/08/22 21:30:51 jkh Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -94,10 +94,10 @@ die(int sig)
     int e = errno;
     
     rm();
-    if (errno)
+    if (!sig)
 	fprintf (stderr, "%s: %s\n", progname, sys_errlist[e]);
     else
-	fprintf (stderr, "%s: Interrupted by signal\n", progname);
+	fprintf (stderr, "%s: Interrupted by signal %d\n", progname, sig);
     exit(1);
 }
 
@@ -537,11 +537,10 @@ ftperr (FILE* ftp, char *fmt, ...)
     if (fmt)
 	vfprintf(stderr, fmt, ap);
     if(ftp) {
-	switch (ftpErrno(ftp)) {
-	case 421: fprintf (stderr, "Service not available\n"); break;
-	case 450: fprintf (stderr, "File not available\n"); break;
-	case 550: fprintf (stderr, "No such file or directory\n"); break;
-	}
+	const char *str = ftpErrString(ftpErrno(ftp));
+
+	if (str)
+	    fprintf(stderr, "%s\n", str);
     }
     rm ();
     exit (1);
