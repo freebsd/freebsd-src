@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: df.c,v 1.8 1996/01/14 18:55:09 bde Exp $
+ *	$Id: df.c,v 1.8.2.1 1996/12/13 17:15:11 joerg Exp $
  */
 
 #ifndef lint
@@ -129,7 +129,7 @@ main(argc, argv)
 	iflag = nflag = tflag = 0;
 	fsmask = MT_NONE;
 
-	while ((ch = getopt(argc, argv, "iknt:")) != EOF)
+	while ((ch = getopt(argc, argv, "iknt:")) != -1)
 		switch (ch) {
 		case 'i':
 			iflag = 1;

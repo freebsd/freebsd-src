@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ls.c,v 1.9 1995/10/26 10:56:38 ache Exp $
+ *	$Id: ls.c,v 1.10 1996/08/27 21:51:48 adam Exp $
  */
 
 #ifndef lint
@@ -131,7 +131,7 @@ main(argc, argv)
 		f_listdot = 1;
 
 	fts_options = FTS_PHYSICAL;
-	while ((ch = getopt(argc, argv, "1ACFLRTacdfgikloqrstu")) != EOF) {
+	while ((ch = getopt(argc, argv, "1ACFLRTacdfgikloqrstu")) != -1) {
 		switch (ch) {
 		/*
 		 * The -1, -C and -l options all override each other so shell
