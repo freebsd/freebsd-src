@@ -1614,8 +1614,9 @@ DMenu MenuSysconsScrnmap = {
     { { "1 None",                 "No screenmap, don't touch font", dmenuVarCheck, dmenuSetVariable, NULL, "scrnmap=NO" },
       { "2 ISO 8859-1 to IBM437", "W-Europe ISO 8859-1 to IBM 437 screenmap", dmenuVarCheck, dmenuSetVariable, NULL, "scrnmap=iso-8859-1_to_cp437" },
       { "3 ISO 8859-7 to IBM437", "Greek ISO 8859-7 to IBM 437 screenmap", dmenuVarCheck, dmenuSetVariable, NULL, "scrnmap=iso-8859-7_to_cp437" },
-      { "4 KOI8-R to IBM866",     "Russian KOI8-R to IBM 866 screenmap", dmenuVarCheck, dmenuSetVariable, NULL, "scrnmap=koi8-r2cp866" },
-      { "5 KOI8-U to IBM866u",    "Ukrainian KOI8-U to IBM 866u screenmap", dmenuVarCheck, dmenuSetVariable, NULL, "scrnmap=koi8-u2cp866u" },
+      { "4 US-ASCII to IBM437",   "US-ASCII to IBM 437 screenmap", dmenuVarCheck, dmenuSetVariable, NULL, "scrnmap=us-ascii_to_cp437" },
+      { "5 KOI8-R to IBM866",     "Russian KOI8-R to IBM 866 screenmap", dmenuVarCheck, dmenuSetVariable, NULL, "scrnmap=koi8-r2cp866" },
+      { "6 KOI8-U to IBM866u",    "Ukrainian KOI8-U to IBM 866u screenmap", dmenuVarCheck, dmenuSetVariable, NULL, "scrnmap=koi8-u2cp866u" },
       { NULL } },
 };
 
