@@ -630,7 +630,7 @@ static int
 pack_vector(vector)
 int vector;
 {
-    int i, j, k, l;
+    int i, j, k;
     int t;
     int loc;
     int ok;
