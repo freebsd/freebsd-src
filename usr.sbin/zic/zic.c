@@ -1423,6 +1423,17 @@ const char * const	name;
 	fullname = erealloc(fullname,
 		(int) (strlen(directory) + 1 + strlen(name) + 1));
 	(void) sprintf(fullname, "%s/%s", directory, name);
+
+	/*
+	 * Remove old file, if any, to snap links.
+	 */
+	if (!itsdir(fullname) && remove(fullname) != 0 && errno != ENOENT) {
+		const char *e = strerror(errno);
+		(void) fprintf(stderr, _("%s: Can't remove %s: %s\n"),
+			progname, fullname, e);
+		(void) exit(EXIT_FAILURE);
+	}
+
 	if ((fp = fopen(fullname, "wb")) == NULL) {
 		if (mkdirs(fullname) != 0)
 			(void) exit(EXIT_FAILURE);
