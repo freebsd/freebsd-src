@@ -34,6 +34,5 @@ static void disp_input(struct form *, int);
 static void field_menu(struct form *);
 static void field_input(struct form *);
 static void field_action(struct form *);
-static int print_string(WINDOW *, int, int, int, char *);
-static void print_status(char *);
+static int print_string(WINDOW *, int, int, int, int, char *);
 static int next_field(struct form *form, int);
