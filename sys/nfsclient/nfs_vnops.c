@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
+#include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 
@@ -2815,6 +2816,10 @@ loop:
 	s = splbio();
 	VI_LOCK(vp);
 	TAILQ_FOREACH_SAFE(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs, nbp) {
+		if (nfs_sigintr(nmp, NULL, td)) {
+ 			error = EINTR;
+ 			goto done;
+ 		}
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL)) {
 			if (waitfor != MNT_WAIT || passone)
 				continue;
@@ -2827,9 +2832,6 @@ loop:
 				panic("nfs_fsync: inconsistent lock");
 			if (error == ENOLCK)
 				goto loop;
-			error = nfs_sigintr(nmp, NULL, td);
-			if (error)
-				goto done;
 			if (slpflag == PCATCH) {
 				slpflag = 0;
 				slptimeo = 2 * hz;
@@ -2883,6 +2885,8 @@ loop:
 		error = np->n_error;
 		np->n_flag &= ~NWRITEERR;
 	}
+  	if (commit && vp->v_bufobj.bo_dirty.bv_cnt == 0)
+  		np->n_flag &= ~NMODIFIED;
 done:
 	if (bvec != NULL && bvec != bvec_on_stack)
 		free(bvec, M_TEMP);
