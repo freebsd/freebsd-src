@@ -668,14 +668,6 @@ twed_strategy(twe_bio *bp)
 	return;
     }
 
-    /* do-nothing operation? */
-    if (TWE_BIO_LENGTH(bp) == 0) {
-	TWE_BIO_RESID(bp) = 0;
-	TWE_BIO_DONE(bp);
-	TWED_BIO_OUT;
-	return;
-    }
-
     /* perform accounting */
     TWE_BIO_STATS_START(bp);
 

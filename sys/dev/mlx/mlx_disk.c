@@ -179,10 +179,6 @@ mlxd_strategy(struct bio *bp)
 	goto bad;
     }
 
-    /* do-nothing operation */
-    if (bp->bio_bcount == 0)
-	goto done;
-
     devstat_start_transaction(&sc->mlxd_stats);
     mlx_submit_buf(sc->mlxd_controller, bp);
     return;

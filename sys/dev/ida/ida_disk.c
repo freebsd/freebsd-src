@@ -169,12 +169,6 @@ idad_strategy(struct bio *bp)
 		goto bad;
 	}
 
-	/*
-	 * If it's a null transfer, return immediately
-	 */
-	if (bp->bio_bcount == 0)
-		goto done;
-
 	bp->bio_driver1 = drv;
 	s = splbio();
 	devstat_start_transaction(&drv->stats);

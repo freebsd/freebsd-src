@@ -165,10 +165,6 @@ amrd_strategy(struct bio *bio)
 	goto bad;
     }
 
-    /* do-nothing operation */
-    if (bio->bio_bcount == 0)
-	goto done;
-
     devstat_start_transaction(&sc->amrd_stats);
     amr_submit_bio(sc->amrd_controller, bio);
     return;

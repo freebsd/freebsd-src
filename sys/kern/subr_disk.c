@@ -309,6 +309,12 @@ diskstrategy(struct bio *bp)
 		return;
 	}
 
+	if (bp->bio_bcount == 0) {
+		bp->bio_resid = 0;
+		biodone(bp);
+		return;
+	}
+
 	KASSERT(dp->d_devsw != NULL, ("NULL devsw"));
 	KASSERT(dp->d_devsw->d_strategy != NULL, ("NULL d_strategy"));
 	dp->d_devsw->d_strategy(bp);
