@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.34 1996/05/02 10:43:05 phk Exp $
+ *	$Id: mem.c,v 1.35 1996/07/14 06:05:53 dyson Exp $
  */
 
 /*
@@ -99,6 +99,7 @@ static void *io_devfs_token;
 static void *perfmon_devfs_token;
 #endif
 
+static caddr_t	zbuf;
 
 static void memdevfs_init __P((void));
 
@@ -135,7 +136,6 @@ memdevfs_init()
 #endif /* DEVFS */
 
 extern        char *ptvmmap;            /* poor name! */
-caddr_t zbuf;
 
 static int
 mmclose(dev, flags, fmt, p)
@@ -155,12 +155,6 @@ mmclose(dev, flags, fmt, p)
 		fp = (struct trapframe *)curproc->p_md.md_regs;
 		fp->tf_eflags &= ~PSL_IOPL;
 		break;
-
-	case 12:
-		if (zbuf) {
-			free(zbuf, M_TEMP);
-			zbuf = NULL;
-		}
 	default:
 		break;
 	}
@@ -187,7 +181,6 @@ mmopen(dev, flags, fmt, p)
 		fp = (struct trapframe *)curproc->p_md.md_regs;
 		fp->tf_eflags |= PSL_IOPL;
 		break;
-			
 	default:
 		break;
 	}
