@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_trace.c,v 1.20 1997/03/01 05:44:09 ache Exp $
+ *	$Id: db_trace.c,v 1.21 1997/04/26 11:45:04 peter Exp $
  */
 
 #include <sys/param.h>
@@ -199,8 +199,6 @@ db_nextframe(fp, ip)
 			db_printf(
 		    "--- trap %#n, eip = %#n, esp = %#n, ebp = %#n ---\n",
 			    tf->tf_trapno, eip, esp, ebp);
-			db_printf("--- curproc = 0x%x, pid = %d ---\n",
-			    curproc, curproc ? curproc->p_pid : 0);
 		}
 		break;
 	case SYSCALL:
@@ -210,8 +208,6 @@ db_nextframe(fp, ip)
 			db_printf(
 		    "--- syscall %#n, eip = %#n, esp = %#n, ebp = %#n ---\n",
 			    tf->tf_eax, eip, esp, ebp);
-			db_printf("--- curproc = 0x%x, pid = %d ---\n",
-			    curproc, curproc ? curproc->p_pid : 0);
 		}
 		break;
 	case INTERRUPT:
@@ -222,8 +218,6 @@ db_nextframe(fp, ip)
 			db_printf(
 		    "--- interrupt, eip = %#n, esp = %#n, ebp = %#n ---\n",
 			    eip, esp, ebp);
-			db_printf("--- curproc = 0x%x, pid = %d ---\n",
-			    curproc, curproc ? curproc->p_pid : 0);
 		}
 		break;
 	default:
