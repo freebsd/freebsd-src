@@ -164,6 +164,10 @@ static struct cd_quirk_entry cd_quirk_table[] =
 		  "*"}, /* quirks */ CD_Q_CHANGER
 	},
 	{
+		{ T_CDROM, SIP_MEDIA_REMOVABLE, "NAKAMICH", "MJ-*", "*"},
+		 /* quirks */ CD_Q_CHANGER
+	},
+	{
 		{ T_CDROM, SIP_MEDIA_REMOVABLE, "CHINON", "CD-ROM CDS-535","*"},
 		/* quirks */ CD_Q_BCD_TRACKS
 	}
