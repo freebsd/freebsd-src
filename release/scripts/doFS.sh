@@ -64,8 +64,8 @@ do
 	umount ${MNT}
 	vnconfig -u /dev/r${VNDEVICE} 2>/dev/null || true
 
-	echo ">>> Filesystem is ${FSSIZE} K, $4 left"
-	echo ">>>     ${FSINODE} bytes/inode, $7 left"
+	echo "*** Filesystem is ${FSSIZE} K, $4 left"
+	echo "***     ${FSINODE} bytes/inode, $7 left"
 	if [ "${do_size}" ]; then
 		echo ${FSSIZE} > ${FSIMG}.size
 	fi
