@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.109 1999/04/03 12:01:38 brian Exp $
+ * $Id: modem.c,v 1.110 1999/04/21 08:03:35 brian Exp $
  *
  *  TODO:
  */
@@ -40,7 +40,7 @@
 #include <sys/uio.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#ifdef __OpenBSD__
+#if defined(__OpenBSD__) || defined(__NetBSD__)
 #include <sys/ioctl.h>
 #include <util.h>
 #else
