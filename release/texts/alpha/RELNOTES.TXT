@@ -266,9 +266,6 @@ option; the ability to build .cf files from .mc files; generalized map
 rebuilding; rebuilding the aliases file; and the ability to stop, start,
 and restart sendmail.
 
-pkg_create(1) and pkg_install(1) can now work with packages that have
-been compressed using bzip2(1).
-
 pkg_info(1) can now accept a -g flag for verifying an installed
 package against its recorded checksums (to see if it's been modified
 post-installation).  Naturally, this mechanism is only as secure as
