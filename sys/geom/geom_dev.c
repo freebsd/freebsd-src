@@ -202,6 +202,7 @@ g_dev_open(dev_t dev, int flags, int fmt, struct thread *td)
 	g_topology_unlock();
 	PICKUP_GIANT();
 	g_waitidle();
+	dev->si_bsize_phys = cp->provider->sectorsize;
 	return(error);
 }
 
