@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx_reg.h,v 1.1 1995/11/05 04:37:25 gibbs Exp $
+ *	$Id: aic7xxx_reg.h,v 1.2 1996/01/03 06:25:32 gibbs Exp $
  */
 
 /*
@@ -354,6 +354,16 @@
 #define		ACE		0x08	/* Support for external processors */
 /*   RSVD			0x06 */
 #define		ENABLE		0x01
+
+/*
+ * On the aic78X0 chips, Board Control is replaced by the DSCommand
+ * register (p. 4-64)
+ */
+#define	DSCOMMAND		0x084
+#define		CACHETHEN	0x80	/* Cache Threshold enable */
+#define		DPARCKEN	0x40	/* Data Parity Check Enable */
+#define		MPARCKEN	0x20	/* Memory Parity Check Enable */
+#define		EXTREQLCK	0x10	/* External Request Lock */
 
 /*
  * Bus On/Off Time (p. 3-44)
