@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.77.2.1 1999/08/24 15:44:34 iwasaki Exp $
+ *	$Id: apm.c,v 1.77.2.2 1999/08/24 15:50:53 iwasaki Exp $
  */
 
 #include "opt_devfs.h"
@@ -59,6 +59,7 @@
 static int apm_display __P((int newstate));
 static int apm_int __P((u_long *eax, u_long *ebx, u_long *ecx, u_long *edx));
 static void apm_resume __P((void));
+static int apm_check_function_supported __P((u_int version, u_int func));
 
 #define APM_NEVENTS 16
 #define APM_NPMEV   13
@@ -67,7 +68,7 @@ int	apm_evindex;
 
 /* static data */
 struct apm_softc {
-	int	initialized, active;
+	int	initialized, active, bios_busy;
 	int	always_halt_cpu, slow_idle_cpu;
 	int	disabled, disengaged;
 	u_int	minorversion, majorversion;
@@ -161,6 +162,34 @@ struct addr48 {
 
 static int apm_errno;
 
+/*
+ * return  0 if the function successfull,
+ * return  1 if the function unsuccessfull,
+ * return -1 if the function unsupported.
+ */
+static int
+apm_do_int(struct apm_bios_arg *apap)
+{
+	struct apm_softc *sc = &apm_softc;
+	int errno = 0;
+	u_long apm_func = apap->eax & 0x00ff;
+
+	if (!apm_check_function_supported(sc->intversion, apm_func)) {
+#ifdef APM_DEBUG
+		printf("apm_bioscall: function 0x%x is not supported in v%d.%d\n
+",
+			apm_func, sc->majorversion, sc->minorversion);
+
+#endif
+		return (-1);
+	}
+
+	sc->bios_busy = 1;
+	errno = apm_bios_call(apap);
+	sc->bios_busy = 0;
+	return errno;
+}
+
 static int
 apm_int(u_long *eax, u_long *ebx, u_long *ecx, u_long *edx)
 {
@@ -171,7 +200,9 @@ apm_int(u_long *eax, u_long *ebx, u_long *ecx, u_long *edx)
 	apa.ebx = *ebx;
 	apa.ecx = *ecx;
 	apa.edx = *edx;
-	cf = apm_bios_call(&apa);
+	apa.esi = 0;	/* clear register */
+	apa.edi = 0;	/* clear register */
+	cf = apm_do_int(&apa);
 	*eax = apa.eax;
 	*ebx = apa.ebx;
 	*ecx = apa.ecx;
@@ -180,6 +211,34 @@ apm_int(u_long *eax, u_long *ebx, u_long *ecx, u_long *edx)
 	return cf;
 }
 
+
+/* check whether APM function is supported (1)  or not (0). */
+static int
+apm_check_function_supported(u_int version, u_int func)
+{
+	/* except driver version */
+	if (func == APM_DRVVERSION) {
+		return (1);
+	}
+
+	switch (version) {
+	case INTVERSION(1, 0):
+		if (func > APM_GETPMEVENT) {
+			return (0); /* not supported */
+		}
+		break;
+	case INTVERSION(1, 1):
+		if (func > APM_ENGAGEDISENGAGEPM &&
+		    func < APM_OEMFUNC) {
+			return (0); /* not supported */
+		}
+		break;
+	case INTVERSION(1, 2):
+		break;
+	}
+
+	return (1); /* supported */
+}
 
 /* enable/disable power management */
 static int
@@ -200,6 +259,7 @@ apm_enable_disable_pm(int enable)
 	return apm_int(&eax, &ebx, &ecx, &edx);
 }
 
+/* register driver version (APM 1.1 or later) */ 
 static void
 apm_driver_version(int version)
 {
@@ -210,8 +270,17 @@ apm_driver_version(int version)
 	ebx  = 0x0;
 	ecx  = version;
 	edx = 0;
-	if(!apm_int(&eax, &ebx, &ecx, &edx)) 
-		apm_version = eax & 0xffff;
+	if (!apm_int(&eax, &ebx, &ecx, &edx)) {
+		/*
+		 * Some old BIOSes don't return
+		 * the connection version in %ax.
+		 */
+		if (eax == ((APM_BIOS << 8) | APM_DRVVERSION)) {
+			apm_version = version;
+		} else {
+			apm_version = eax & 0xffff;
+		}
+	}
 }
 
 /* engage/disengage power management (APM 1.1 or later) */
@@ -656,7 +725,8 @@ apm_timeout(void *dummy)
 	if (apm_op_inprog)
 		apm_lastreq_notify();
 
-	apm_processevent();
+	if (!sc->bios_busy) 
+		apm_processevent();
 
 	if (sc->active == 1)
 		/* Run slightly more oftan than 1 Hz */
@@ -1113,6 +1183,7 @@ apmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 {
 	struct apm_softc *sc = &apm_softc;
 	int error = 0;
+	int ret;
 	int newstate;
 
 	if (!sc->initialized)
@@ -1173,8 +1244,23 @@ apmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 			error = ENXIO;
 		break;
 	case APMIO_BIOS:
-		if (apm_bios_call((struct apm_bios_arg*)addr) == 0)
+		if ((ret = apm_do_int((struct apm_bios_arg*)addr))) {
+			/*
+			 * Return code 1 means bios call was unsuccessful.
+			 * Error code is stored in %ah.
+			 * Return code -1 means bios call was unsupported
+			 * in the APM BIOS version.
+			 */
+			if (ret == -1) {
+				error = EINVAL;
+			}
+		} else {
+			/*
+			 * Return code 0 means bios call was successful.
+			 * We need only %al and can discard %ah.
+			 */
 			((struct apm_bios_arg*)addr)->eax &= 0xff;
+		}
 		break;
 	default:
 		error = EINVAL;
