@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
-.\"	$Id: sh.1,v 1.22 1998/12/02 23:20:11 billf Exp $
+.\"	$Id: sh.1,v 1.27 1999/04/03 11:41:46 cracauer Exp $
 .\"
 .Dd May 5, 1995
 .Dt SH 1
@@ -43,7 +43,7 @@
 .Nd command interpreter (shell)
 .Sh SYNOPSIS
 .Nm
-.Op Fl /+abCEefIimnpsuVvx
+.Op Fl /+abCEefIimnpsTuVvx
 .Op Fl /+o Ar longname
 .Op Fl c Ar string
 .Op Ar arg ...
@@ -150,7 +150,6 @@ words on the command line to be treated as arguments.
 .Bl -tag -width Ds
 .It Fl a Li allexport
 Export all variables assigned to.
-.Pq UNIMPLEMENTED
 .It Fl b Li notify
 Enable asynchronous notification of background job
 completion.
@@ -202,12 +201,24 @@ after
 and ignores the contents of the
 .Ev ENV
 variable.
+
 .It Fl s Li stdin
 Read commands from standard input (set automatically
 if no file arguments are present).  This option has
 no effect when set after the shell has already started
 running (i.e. with
 .Xr set 1 Ns ).
+.It Fl T Li asynctraps
+When waiting for a child, execute traps immediately. If this option is
+not set, traps are executed after the child exits, as specified in
+.St -p1003.2
+This nonstandard option is useful to put guarding shells around childs
+that block signals. The surrounding shell may kill the child or it may
+just return control to the tty and leave the child alone, like this:
+.Bd -literal -offset indent
+sh -T -c "trap 'exit 1' 2 ; some-blocking-program"
+.Ed
+.Pp
 .It Fl u Li nounset
 Write a message to standard error when attempting
 to expand a variable that is not set, and if the
@@ -244,7 +255,7 @@ The following is a list of valid operators:
 &  &&  (  )  ;  ;; | ||
 .No \en
 .It No Redirection operators:
-<  >  >|  <<  >>  <&  >&  <<-  <>
+<  >  >|  <<  >>  <&  >&  <<-
 .El
 .Ss Quoting
 Quoting is used to remove the special meaning of certain characters
@@ -366,8 +377,6 @@ close stdin (or n)
 duplicate stdout (or n1) to n2.
 .It [n]>&-
 close stdout (or n)
-.It [n]<> file
-open file for reading and writing on stdin (or n)
 .El
 .Pp
 The following redirection is often called a ``here-document''.
