@@ -31,10 +31,14 @@
 #ifndef _LIBGEOM_H_
 #define _LIBGEOM_H_
 
+#include <sys/cdefs.h>
+
 #include <sys/queue.h>
 #include <sys/time.h>
 
 #include <geom/geom_ctl.h>
+
+__BEGIN_DECLS
 
 void geom_stats_close(void);
 void geom_stats_resync(void);
@@ -62,64 +66,64 @@ struct gprovider;
 LIST_HEAD(gconf, gconfig);
 
 struct gident {
-	void			*id;
-	void			*ptr;
+	void			*lg_id;
+	void			*lg_ptr;
 	enum {	ISCLASS,
 		ISGEOM,
 		ISPROVIDER,
-		ISCONSUMER }	what;
+		ISCONSUMER }	lg_what;
 };
 
 struct gmesh {
-	LIST_HEAD(, gclass)	class;
-	struct gident		*ident;
+	LIST_HEAD(, gclass)	lg_class;
+	struct gident		*lg_ident;
 };
 
 struct gconfig {
-	LIST_ENTRY(gconfig)	config;
-	char			*name;
-	char			*val;
+	LIST_ENTRY(gconfig)	lg_config;
+	char			*lg_name;
+	char			*lg_val;
 };
 
 struct gclass {
-	void			*id;
-	char			*name;
-	LIST_ENTRY(gclass)	class;
-	LIST_HEAD(, ggeom)	geom;
-	struct gconf		config;
+	void			*lg_id;
+	char			*lg_name;
+	LIST_ENTRY(gclass)	lg_class;
+	LIST_HEAD(, ggeom)	lg_geom;
+	struct gconf		lg_config;
 };
 
 struct ggeom {
-	void			*id;
-	struct gclass		*class;
-	char			*name;
-	u_int			rank;
-	LIST_ENTRY(ggeom)	geom;
-	LIST_HEAD(, gconsumer)	consumer;
-	LIST_HEAD(, gprovider)	provider;
-	struct gconf		config;
+	void			*lg_id;
+	struct gclass		*lg_class;
+	char			*lg_name;
+	u_int			lg_rank;
+	LIST_ENTRY(ggeom)	lg_geom;
+	LIST_HEAD(, gconsumer)	lg_consumer;
+	LIST_HEAD(, gprovider)	lg_provider;
+	struct gconf		lg_config;
 };
 
 struct gconsumer {
-	void			*id;
-	struct ggeom		*geom;
-	LIST_ENTRY(gconsumer)	consumer;
-	struct gprovider	*provider;
-	LIST_ENTRY(gconsumer)	consumers;
-	char			*mode;
-	struct gconf		config;
+	void			*lg_id;
+	struct ggeom		*lg_geom;
+	LIST_ENTRY(gconsumer)	lg_consumer;
+	struct gprovider	*lg_provider;
+	LIST_ENTRY(gconsumer)	lg_consumers;
+	char			*lg_mode;
+	struct gconf		lg_config;
 };
 
 struct gprovider {
-	void			*id;
-	char			*name;
-	struct ggeom		*geom;
-	LIST_ENTRY(gprovider)	provider;
-	LIST_HEAD(, gconsumer)	consumers;
-	char			*mode;
-	off_t			mediasize;
-	u_int			sectorsize;
-	struct gconf		config;
+	void			*lg_id;
+	char			*lg_name;
+	struct ggeom		*lg_geom;
+	LIST_ENTRY(gprovider)	lg_provider;
+	LIST_HEAD(, gconsumer)	lg_consumers;
+	char			*lg_mode;
+	off_t			lg_mediasize;
+	u_int			lg_sectorsize;
+	struct gconf		lg_config;
 };
 
 struct gident * geom_lookupid(struct gmesh *gmp, const void *id);
@@ -139,5 +143,7 @@ struct gctl_req *gctl_get_handle(void);
 const char *gctl_issue(struct gctl_req *req);
 void gctl_ro_param(struct gctl_req *req, const char *name, int len, const void* val);
 void gctl_rw_param(struct gctl_req *req, const char *name, int len, void* val);
+
+__END_DECLS
 
 #endif /* _LIBGEOM_H_ */
