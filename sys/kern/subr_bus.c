@@ -1926,6 +1926,17 @@ bus_generic_deactivate_resource(device_t dev, device_t child, int type,
 }
 
 int
+bus_generic_config_intr(device_t dev, int irq, enum intr_trigger trig,
+    enum intr_polarity pol)
+{
+
+	/* Propagate up the bus hierarchy until someone handles it. */
+	if (dev->parent)
+		return (BUS_CONFIG_INTR(dev->parent, irq, trig, pol));
+	return (EINVAL);
+}
+
+int
 bus_generic_rl_get_resource (device_t dev, device_t child, int type, int rid,
     u_long *startp, u_long *countp)
 {

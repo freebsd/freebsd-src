@@ -110,6 +110,18 @@ enum intr_type {
 	INTR_ENTROPY = 1024		/* this interrupt provides entropy */
 };
 
+enum intr_trigger {
+	INTR_TRIGGER_CONFORM = 0,
+	INTR_TRIGGER_EDGE = 1,
+	INTR_TRIGGER_LEVEL = 2
+};
+
+enum intr_polarity {
+	INTR_POLARITY_CONFORM = 0,
+	INTR_POLARITY_HIGH = 1,
+	INTR_POLARITY_LOW = 2
+};
+
 typedef int (*devop_t)(void);
 
 struct driver {
@@ -219,6 +231,8 @@ struct resource *
 				   u_long count, u_int flags);
 int	bus_generic_attach(device_t dev);
 int	bus_generic_child_present(device_t dev, device_t child);
+int	bus_generic_config_intr(device_t, int, enum intr_trigger,
+				enum intr_polarity);
 int	bus_generic_deactivate_resource(device_t dev, device_t child, int type,
 					int rid, struct resource *r);
 int	bus_generic_detach(device_t dev);
