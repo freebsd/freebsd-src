@@ -53,6 +53,7 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <err.h>
 #include <errno.h>
 #include <locale.h>
 #include <paths.h>
@@ -272,6 +273,8 @@ main(argc, argv)
 		archive();
 		break;
 	case APPND:
+		if (gzip_program != NULL)
+			err(1, "can not gzip while appending");
 		append();
 		break;
 	case COPY:

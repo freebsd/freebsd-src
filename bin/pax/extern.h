@@ -48,6 +48,7 @@
  * ar_io.c
  */
 extern char *arcname;
+extern const char *gzip_program;
 int ar_open __P((char *));
 void ar_close __P((void));
 void ar_drain __P((void));

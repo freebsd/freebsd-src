@@ -44,7 +44,7 @@
 .Nd read and write file archives and copy directory hierarchies
 .Sh SYNOPSIS
 .Nm
-.Op Fl cdnv
+.Op Fl cdnvz
 .Bk -words
 .Op Fl f Ar archive
 .Ek
@@ -71,7 +71,7 @@
 .Op Ar pattern ...\&
 .Nm
 .Fl r
-.Op Fl cdiknuvDYZ
+.Op Fl cdiknuvzDYZ
 .Bk -words
 .Op Fl f Ar archive
 .Ek
@@ -107,7 +107,7 @@
 .Op Ar pattern ...\&
 .Nm
 .Fl w
-.Op Fl dituvHLPX
+.Op Fl dituvzHLPX
 .Bk -words
 .Op Fl b Ar blocksize
 .Ek
@@ -756,6 +756,12 @@ as the result of any specific archive format restrictions.
 The individual archive formats may impose additional restrictions on use.
 Typical archive format restrictions include (but are not limited to):
 file pathname length, file size, link pathname length and the type of the file.
+.It Fl z
+Use
+.Xr gzip 1
+to compress (decompress) the archive while writing (reading).
+Incompatible with
+.Fl a .
 .It Fl B Ar bytes
 Limit the number of bytes written to a single archive volume to
 .Ar bytes .
@@ -1100,6 +1106,7 @@ utility is a superset of the
 .St -p1003.2
 standard.
 The options
+.Fl z ,
 .Fl B ,
 .Fl D ,
 .Fl E ,
