@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2002 Mark Santcroos <marks@ripe.net>
+ * Copyright (c) 2004 Gleb Smirnoff <glebius@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
