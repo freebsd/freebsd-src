@@ -875,6 +875,9 @@ pmap_new_thread(struct thread *td)
 			  PAGE_SIZE,
 			  256*1024*1024);
 
+	if (ks == NULL)
+		panic("pmap_new_thread: could not contigmalloc %d pages\n",
+		    KSTACK_PAGES);
 	td->td_md.md_kstackvirt = ks;
 	td->td_kstack = IA64_PHYS_TO_RR7(ia64_tpa((u_int64_t)ks));
 }
