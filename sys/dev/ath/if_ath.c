@@ -160,18 +160,33 @@ SYSCTL_INT(_hw_ath, OID_AUTO, regdomain, CTLFLAG_RD, &ath_regdomain,
 int	ath_debug = 0;
 SYSCTL_INT(_hw_ath, OID_AUTO, debug, CTLFLAG_RW, &ath_debug,
 	    0, "control debugging printfs");
-#define	IFF_DUMPPKTS(_ifp) \
-	(ath_debug || \
+#define	IFF_DUMPPKTS(_ifp, _m) \
+	((ath_debug & _m) || \
 	    ((_ifp)->if_flags & (IFF_DEBUG|IFF_LINK2)) == (IFF_DEBUG|IFF_LINK2))
 static	void ath_printrxbuf(struct ath_buf *bf, int);
 static	void ath_printtxbuf(struct ath_buf *bf, int);
-#define	DPRINTF(X)	if (ath_debug) printf X
-#define	DPRINTF2(X)	if (ath_debug > 1) printf X
+enum {
+	ATH_DEBUG_XMIT		= 0x00000001,	/* basic xmit operation */
+	ATH_DEBUG_XMIT_DESC	= 0x00000002,	/* xmit descriptors */
+	ATH_DEBUG_RECV		= 0x00000004,	/* basic recv operation */
+	ATH_DEBUG_RECV_DESC	= 0x00000008,	/* recv descriptors */
+	ATH_DEBUG_RATE		= 0x00000010,	/* rate control */
+	ATH_DEBUG_RESET		= 0x00000020,	/* reset processing */
+	ATH_DEBUG_MODE		= 0x00000040,	/* mode init/setup */
+	ATH_DEBUG_BEACON 	= 0x00000080,	/* beacon handling */
+	ATH_DEBUG_WATCHDOG 	= 0x00000100,	/* watchdog timeout */
+	ATH_DEBUG_INTR		= 0x00001000,	/* ISR */
+	ATH_DEBUG_TX_PROC	= 0x00002000,	/* tx ISR proc */
+	ATH_DEBUG_RX_PROC	= 0x00004000,	/* rx ISR proc */
+	ATH_DEBUG_BEACON_PROC	= 0x00008000,	/* beacon ISR proc */
+	ATH_DEBUG_CALIBRATE	= 0x00010000,	/* periodic calibration */
+	ATH_DEBUG_ANY		= 0xffffffff
+};
+#define	DPRINTF(_m,X)	if (ath_debug & _m) printf X
 #else
-#define	IFF_DUMPPKTS(_ifp) \
+#define	IFF_DUMPPKTS(_ifp, _m) \
 	(((_ifp)->if_flags & (IFF_DEBUG|IFF_LINK2)) == (IFF_DEBUG|IFF_LINK2))
-#define	DPRINTF(X)
-#define	DPRINTF2(X)
+#define	DPRINTF(_m, X)
 #endif
 
 int
@@ -183,7 +198,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	HAL_STATUS status;
 	int error = 0;
 
-	DPRINTF(("ath_attach: devid 0x%x\n", devid));
+	DPRINTF(ATH_DEBUG_ANY, ("%s: devid 0x%x\n", __func__, devid));
 
 	/* set these up early for if_printf use */
 	if_initname(ifp, device_get_name(sc->sc_dev),
@@ -346,7 +361,7 @@ ath_detach(struct ath_softc *sc)
 {
 	struct ifnet *ifp = &sc->sc_ic.ic_if;
 
-	DPRINTF(("ath_detach: if_flags %x\n", ifp->if_flags));
+	DPRINTF(ATH_DEBUG_ANY, ("%s: if_flags %x\n", __func__, ifp->if_flags));
 
 	ath_stop(ifp);
 	bpfdetach(ifp);
@@ -365,7 +380,7 @@ ath_suspend(struct ath_softc *sc)
 {
 	struct ifnet *ifp = &sc->sc_ic.ic_if;
 
-	DPRINTF(("ath_suspend: if_flags %x\n", ifp->if_flags));
+	DPRINTF(ATH_DEBUG_ANY, ("%s: if_flags %x\n", __func__, ifp->if_flags));
 
 	ath_stop(ifp);
 }
@@ -375,7 +390,7 @@ ath_resume(struct ath_softc *sc)
 {
 	struct ifnet *ifp = &sc->sc_ic.ic_if;
 
-	DPRINTF(("ath_resume: if_flags %x\n", ifp->if_flags));
+	DPRINTF(ATH_DEBUG_ANY, ("%s: if_flags %x\n", __func__, ifp->if_flags));
 
 	if (ifp->if_flags & IFF_UP) {
 		ath_init(ifp);
@@ -389,7 +404,7 @@ ath_shutdown(struct ath_softc *sc)
 {
 	struct ifnet *ifp = &sc->sc_ic.ic_if;
 
-	DPRINTF(("ath_shutdown: if_flags %x\n", ifp->if_flags));
+	DPRINTF(ATH_DEBUG_ANY, ("%s: if_flags %x\n", __func__, ifp->if_flags));
 
 	ath_stop(ifp);
 }
@@ -408,17 +423,18 @@ ath_intr(void *arg)
 		 * The hardware is not ready/present, don't touch anything.
 		 * Note this can happen early on if the IRQ is shared.
 		 */
-		DPRINTF(("ath_intr: invalid; ignored\n"));
+		DPRINTF(ATH_DEBUG_ANY, ("%s: invalid; ignored\n", __func__));
 		return;
 	}
 	if ((ifp->if_flags & (IFF_RUNNING|IFF_UP)) != (IFF_RUNNING|IFF_UP)) {
-		DPRINTF(("ath_intr: if_flags 0x%x\n", ifp->if_flags));
+		DPRINTF(ATH_DEBUG_ANY, ("%s: if_flags 0x%x\n",
+			__func__, ifp->if_flags));
 		ath_hal_getisr(ah, &status);	/* clear ISR */
 		ath_hal_intrset(ah, 0);		/* disable further intr's */
 		return;
 	}
 	ath_hal_getisr(ah, &status);		/* NB: clears ISR too */
-	DPRINTF2(("ath_intr: status 0x%x\n", status));
+	DPRINTF(ATH_DEBUG_INTR, ("%s: status 0x%x\n", __func__, status));
 #ifdef AR_DEBUG
 	if (ath_debug &&
 	    (status & (HAL_INT_FATAL|HAL_INT_RXORN|HAL_INT_BMISS))) {
@@ -487,7 +503,7 @@ ath_bmiss_proc(void *arg, int pending)
 	struct ath_softc *sc = arg;
 	struct ieee80211com *ic = &sc->sc_ic;
 
-	DPRINTF(("ath_bmiss_proc: pending %u\n", pending));
+	DPRINTF(ATH_DEBUG_ANY, ("%s: pending %u\n", __func__, pending));
 	KASSERT(ic->ic_opmode == IEEE80211_M_STA,
 		("unexpect operating mode %u", ic->ic_opmode));
 	if (ic->ic_state == IEEE80211_S_RUN) {
@@ -526,7 +542,8 @@ ath_init(void *arg)
 	HAL_STATUS status;
 	HAL_CHANNEL hchan;
 
-	DPRINTF(("ath_init: if_flags 0x%x\n", ifp->if_flags));
+	DPRINTF(ATH_DEBUG_ANY, ("%s: if_flags 0x%x\n",
+		__func__, ifp->if_flags));
 
 	ATH_LOCK(sc);
 	/*
@@ -600,8 +617,8 @@ ath_stop(struct ifnet *ifp)
 	struct ath_softc *sc = ifp->if_softc;
 	struct ath_hal *ah = sc->sc_ah;
 
-	DPRINTF(("ath_stop: invalid %u if_flags 0x%x\n",
-		sc->sc_invalid, ifp->if_flags));
+	DPRINTF(ATH_DEBUG_ANY, ("%s: invalid %u if_flags 0x%x\n",
+		__func__, sc->sc_invalid, ifp->if_flags));
 
 	ATH_LOCK(sc);
 	if (ifp->if_flags & IFF_RUNNING) {
@@ -700,7 +717,8 @@ ath_start(struct ifnet *ifp)
 			TAILQ_REMOVE(&sc->sc_txbuf, bf, bf_list);
 		ATH_TXBUF_UNLOCK(sc);
 		if (bf == NULL) {
-			DPRINTF(("ath_start: out of xmit buffers\n"));
+			DPRINTF(ATH_DEBUG_ANY, ("%s: out of xmit buffers\n",
+				__func__));
 			sc->sc_stats.ast_tx_qstop++;
 			ifp->if_flags |= IFF_OACTIVE;
 			break;
@@ -715,8 +733,9 @@ ath_start(struct ifnet *ifp)
 			 * No data frames go out unless we're associated.
 			 */
 			if (ic->ic_state != IEEE80211_S_RUN) {
-				DPRINTF(("ath_start: ignore data packet, "
-					"state %u\n", ic->ic_state));
+				DPRINTF(ATH_DEBUG_ANY,
+					("%s: ignore data packet, state %u\n",
+					__func__, ic->ic_state));
 				sc->sc_stats.ast_tx_discard++;
 				ATH_TXBUF_LOCK(sc);
 				TAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
@@ -737,7 +756,9 @@ ath_start(struct ifnet *ifp)
 			 */
 			m = ieee80211_encap(ifp, m, &ni);
 			if (m == NULL) {
-				DPRINTF(("ath_start: encapsulation failure\n"));
+				DPRINTF(ATH_DEBUG_ANY,
+					("%s: encapsulation failure\n",
+					__func__));
 				sc->sc_stats.ast_tx_encap++;
 				goto bad;
 			}
@@ -818,7 +839,7 @@ ath_watchdog(struct ifnet *ifp)
 		if (--sc->sc_tx_timer == 0) {
 			if_printf(ifp, "device timeout\n");
 #ifdef AR_DEBUG
-			if (ath_debug)
+			if (ath_debug & ATH_DEBUG_WATCHDOG)
 				ath_hal_dumpstate(sc->sc_ah);
 #endif /* AR_DEBUG */
 			ath_init(ifp);		/* XXX ath_reset??? */
@@ -1013,8 +1034,8 @@ ath_mode_init(struct ath_softc *sc)
 		mfilt[0] = mfilt[1] = ~0;
 	}
 	ath_hal_setmcastfilter(ah, mfilt[0], mfilt[1]);
-	DPRINTF(("ath_mode_init: RX filter 0x%x, MC filter %08x:%08x\n",
-		rfilt, mfilt[0], mfilt[1]));
+	DPRINTF(ATH_DEBUG_MODE, ("%s: RX filter 0x%x, MC filter %08x:%08x\n",
+		__func__, rfilt, mfilt[0], mfilt[1]));
 }
 
 static void
@@ -1067,8 +1088,9 @@ ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_node *ni)
 	else
 		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
-		DPRINTF(("ath_beacon_alloc: cannot get mbuf/cluster; size %u\n",
-			pktlen));
+		DPRINTF(ATH_DEBUG_BEACON,
+			("%s: cannot get mbuf/cluster; size %u\n",
+			__func__, pktlen));
 		sc->sc_stats.ast_be_nombuf++;
 		return ENOMEM;
 	}
@@ -1138,7 +1160,7 @@ ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_node *ni)
 		("beacon bigger than expected, len %u calculated %u",
 		m->m_pkthdr.len, pktlen));
 
-	DPRINTF2(("ath_beacon_alloc: m %p len %u\n", m, m->m_len));
+	DPRINTF(ATH_DEBUG_BEACON, ("%s: m %p len %u\n", __func__, m, m->m_len));
 	error = bus_dmamap_load_mbuf(sc->sc_dmat, bf->bf_dmamap, m,
 				     ath_mbuf_load_cb, bf,
 				     BUS_DMA_NOWAIT);
@@ -1147,8 +1169,7 @@ ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_node *ni)
 		return error;
 	}
 	KASSERT(bf->bf_nseg == 1,
-		("ath_beacon_alloc: multi-segment packet; nseg %u",
-		bf->bf_nseg));
+		("%s: multi-segment packet; nseg %u", __func__, bf->bf_nseg));
 	bf->bf_m = m;
 
 	/* setup descriptors */
@@ -1197,16 +1218,16 @@ ath_beacon_proc(void *arg, int pending)
 	struct ath_buf *bf = sc->sc_bcbuf;
 	struct ath_hal *ah = sc->sc_ah;
 
-	DPRINTF2(("%s: pending %u\n", __func__, pending));
+	DPRINTF(ATH_DEBUG_BEACON_PROC, ("%s: pending %u\n", __func__, pending));
 	if (ic->ic_opmode == IEEE80211_M_STA ||
 	    bf == NULL || bf->bf_m == NULL) {
-		DPRINTF(("%s: ic_flags=%x bf=%p bf_m=%p\n",
+		DPRINTF(ATH_DEBUG_ANY, ("%s: ic_flags=%x bf=%p bf_m=%p\n",
 			__func__, ic->ic_flags, bf, bf ? bf->bf_m : NULL));
 		return;
 	}
 	/* TODO: update beacon to reflect PS poll state */
 	if (!ath_hal_stoptxdma(ah, sc->sc_bhalq)) {
-		DPRINTF(("%s: beacon queue %u did not stop?",
+		DPRINTF(ATH_DEBUG_ANY, ("%s: beacon queue %u did not stop?\n",
 			__func__, sc->sc_bhalq));
 		return;			/* busy, XXX is this right? */
 	}
@@ -1214,7 +1235,8 @@ ath_beacon_proc(void *arg, int pending)
 
 	ath_hal_puttxbuf(ah, sc->sc_bhalq, bf->bf_daddr);
 	ath_hal_txstart(ah, sc->sc_bhalq);
-	DPRINTF2(("%s: TXDP%u = %p (%p)\n", __func__,
+	DPRINTF(ATH_DEBUG_BEACON_PROC,
+		("%s: TXDP%u = %p (%p)\n", __func__,
 		sc->sc_bhalq, (caddr_t)bf->bf_daddr, bf->bf_desc));
 }
 
@@ -1256,7 +1278,7 @@ ath_beacon_config(struct ath_softc *sc)
 
 	nexttbtt = (LE_READ_4(ni->ni_tstamp + 4) << 22) |
 	    (LE_READ_4(ni->ni_tstamp) >> 10);
-	DPRINTF(("%s: nexttbtt=%u\n", __func__, nexttbtt));
+	DPRINTF(ATH_DEBUG_BEACON, ("%s: nexttbtt=%u\n", __func__, nexttbtt));
 	nexttbtt += ni->ni_intval;
 	if (ic->ic_opmode == IEEE80211_M_STA) {
 		HAL_BEACON_STATE bs;
@@ -1296,7 +1318,8 @@ ath_beacon_config(struct ath_softc *sc)
 		if (bs.bs_sleepduration > bs.bs_dtimperiod)
 			bs.bs_sleepduration = roundup(bs.bs_sleepduration, bs.bs_dtimperiod);
 
-		DPRINTF(("%s: intval %u nexttbtt %u dtim %u nextdtim %u bmiss %u sleep %u\n"
+		DPRINTF(ATH_DEBUG_BEACON, 
+			("%s: intval %u nexttbtt %u dtim %u nextdtim %u bmiss %u sleep %u\n"
 			, __func__
 			, bs.bs_intval
 			, bs.bs_nexttbtt
@@ -1316,7 +1339,7 @@ ath_beacon_config(struct ath_softc *sc)
 		sc->sc_imask |= HAL_INT_BMISS;
 		ath_hal_intrset(ah, sc->sc_imask);
 	} else {
-		DPRINTF(("%s: intval %u nexttbtt %u\n",
+		DPRINTF(ATH_DEBUG_BEACON, ("%s: intval %u nexttbtt %u\n",
 			__func__, ni->ni_intval, nexttbtt));
 		ath_hal_intrset(ah, 0);
 		ath_hal_beaconinit(ah, ic->ic_opmode,
@@ -1361,9 +1384,9 @@ ath_desc_alloc(struct ath_softc *sc)
 		goto fail1;
 
 	ds = sc->sc_desc;
-	DPRINTF(("ath_desc_alloc: DMA map: %p (%d) -> %p (%lu)\n",
-	    ds, sc->sc_desc_len,
-	    (caddr_t) sc->sc_desc_paddr, /*XXX*/ (u_long) sc->sc_desc_len));
+	DPRINTF(ATH_DEBUG_ANY, ("%s: DMA map: %p (%d) -> %p (%lu)\n",
+	    __func__, ds, sc->sc_desc_len, (caddr_t) sc->sc_desc_paddr,
+	    /*XXX*/ (u_long) sc->sc_desc_len));
 
 	/* allocate buffers */
 	bsize = sizeof(struct ath_buf) * (ATH_TXBUF + ATH_RXBUF + 1);
@@ -1542,7 +1565,8 @@ ath_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
 		 */
 		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 		if (m == NULL) {
-			DPRINTF(("ath_rxbuf_init: no mbuf/cluster\n"));
+			DPRINTF(ATH_DEBUG_ANY,
+				("%s: no mbuf/cluster\n", __func__));
 			sc->sc_stats.ast_rx_nombuf++;
 			return ENOMEM;
 		}
@@ -1553,8 +1577,9 @@ ath_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
 					     ath_mbuf_load_cb, bf,
 					     BUS_DMA_NOWAIT);
 		if (error != 0) {
-			DPRINTF(("ath_rxbuf_init: bus_dmamap_load_mbuf failed;"
-				" error %d\n", error));
+			DPRINTF(ATH_DEBUG_ANY,
+				("%s: bus_dmamap_load_mbuf failed; error %d\n",
+				__func__, error));
 			sc->sc_stats.ast_rx_busdma++;
 			return error;
 		}
@@ -1614,7 +1639,7 @@ ath_rx_proc(void *arg, int npending)
 	u_int phyerr;
 	HAL_STATUS status;
 
-	DPRINTF2(("ath_rx_proc: pending %u\n", npending));
+	DPRINTF(ATH_DEBUG_RX_PROC, ("%s: pending %u\n", __func__, npending));
 	do {
 		bf = TAILQ_FIRST(&sc->sc_rxbuf);
 		if (bf == NULL) {		/* NB: shouldn't happen */
@@ -1646,7 +1671,7 @@ ath_rx_proc(void *arg, int npending)
 		status = ath_hal_rxprocdesc(ah, ds,
 				bf->bf_daddr, PA2DESC(sc, ds->ds_link));
 #ifdef AR_DEBUG
-		if (ath_debug > 1)
+		if (ath_debug & ATH_DEBUG_RECV_DESC)
 			ath_printrxbuf(bf, status == HAL_OK); 
 #endif
 		if (status == HAL_EINPROGRESS)
@@ -1678,7 +1703,8 @@ ath_rx_proc(void *arg, int npending)
 
 		len = ds->ds_rxstat.rs_datalen;
 		if (len < IEEE80211_MIN_LEN) {
-			DPRINTF(("ath_rx_proc: short packet %d\n", len));
+			DPRINTF(ATH_DEBUG_RECV, ("%s: short packet %d\n",
+				__func__, len));
 			sc->sc_stats.ast_rx_tooshort++;
 			goto rx_next;
 		}
@@ -1898,7 +1924,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 		m_freem(m0);
 		return EIO;
 	}
-	DPRINTF2(("ath_tx_start: m %p len %u\n", m0, pktlen));
+	DPRINTF(ATH_DEBUG_XMIT, ("%s: m %p len %u\n", __func__, m0, pktlen));
 	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_PREWRITE);
 	bf->bf_m = m0;
 	bf->bf_node = ni;			/* NB: held reference */
@@ -2084,9 +2110,10 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 			, i == 0		/* first segment */
 			, i == bf->bf_nseg - 1	/* last segment */
 		);
-		DPRINTF2(("ath_tx_start: %d: %08x %08x %08x %08x %08x %08x\n",
-		    i, ds->ds_link, ds->ds_data, ds->ds_ctl0, ds->ds_ctl1,
-		    ds->ds_hw[0], ds->ds_hw[1]));
+		DPRINTF(ATH_DEBUG_XMIT,
+			("%s: %d: %08x %08x %08x %08x %08x %08x\n",
+			__func__, i, ds->ds_link, ds->ds_data,
+			ds->ds_ctl0, ds->ds_ctl1, ds->ds_hw[0], ds->ds_hw[1]));
 	}
 
 	/*
@@ -2097,11 +2124,11 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	TAILQ_INSERT_TAIL(&sc->sc_txq, bf, bf_list);
 	if (sc->sc_txlink == NULL) {
 		ath_hal_puttxbuf(ah, sc->sc_txhalq, bf->bf_daddr);
-		DPRINTF2(("ath_tx_start: TXDP0 = %p (%p)\n",
+		DPRINTF(ATH_DEBUG_XMIT, ("%s: TXDP0 = %p (%p)\n", __func__,
 		    (caddr_t)bf->bf_daddr, bf->bf_desc));
 	} else {
 		*sc->sc_txlink = bf->bf_daddr;
-		DPRINTF2(("ath_tx_start: link(%p)=%p (%p)\n",
+		DPRINTF(ATH_DEBUG_XMIT, ("%s: link(%p)=%p (%p)\n", __func__,
 		    sc->sc_txlink, (caddr_t)bf->bf_daddr, bf->bf_desc));
 	}
 	sc->sc_txlink = &bf->bf_desc[bf->bf_nseg - 1].ds_link;
@@ -2125,8 +2152,9 @@ ath_tx_proc(void *arg, int npending)
 	int sr, lr;
 	HAL_STATUS status;
 
-	DPRINTF2(("ath_tx_proc: pending %u tx queue %p, link %p\n",
-		npending, (caddr_t) ath_hal_gettxbuf(sc->sc_ah, sc->sc_txhalq),
+	DPRINTF(ATH_DEBUG_TX_PROC, ("%s: pending %u tx queue %p, link %p\n",
+		__func__, npending,
+		(caddr_t) ath_hal_gettxbuf(sc->sc_ah, sc->sc_txhalq),
 		sc->sc_txlink));
 	for (;;) {
 		ATH_TXQ_LOCK(sc);
@@ -2140,7 +2168,7 @@ ath_tx_proc(void *arg, int npending)
 		ds = &bf->bf_desc[bf->bf_nseg - 1];
 		status = ath_hal_txprocdesc(ah, ds);
 #ifdef AR_DEBUG
-		if (ath_debug > 1)
+		if (ath_debug & ATH_DEBUG_XMIT_DESC)
 			ath_printtxbuf(bf, status == HAL_OK);
 #endif
 		if (status == HAL_EINPROGRESS) {
@@ -2214,11 +2242,13 @@ ath_draintxq(struct ath_softc *sc)
 	if (!sc->sc_invalid) {
 		/* don't touch the hardware if marked invalid */
 		(void) ath_hal_stoptxdma(ah, sc->sc_txhalq);
-		DPRINTF(("ath_draintxq: tx queue %p, link %p\n",
+		DPRINTF(ATH_DEBUG_RESET,
+		    ("%s: tx queue %p, link %p\n", __func__,
 		    (caddr_t) ath_hal_gettxbuf(ah, sc->sc_txhalq),
 		    sc->sc_txlink));
 		(void) ath_hal_stoptxdma(ah, sc->sc_bhalq);
-		DPRINTF(("ath_draintxq: beacon queue %p\n",
+		DPRINTF(ATH_DEBUG_RESET,
+		    ("%s: beacon queue %p\n", __func__,
 		    (caddr_t) ath_hal_gettxbuf(ah, sc->sc_bhalq)));
 	}
 	for (;;) {
@@ -2232,7 +2262,7 @@ ath_draintxq(struct ath_softc *sc)
 		TAILQ_REMOVE(&sc->sc_txq, bf, bf_list);
 		ATH_TXQ_UNLOCK(sc);
 #ifdef AR_DEBUG
-		if (ath_debug)
+		if (ath_debug & ATH_DEBUG_RESET)
 			ath_printtxbuf(bf,
 				ath_hal_txprocdesc(ah, bf->bf_desc) == HAL_OK);
 #endif /* AR_DEBUG */
@@ -2264,11 +2294,11 @@ ath_stoprecv(struct ath_softc *sc)
 	ath_hal_stopdmarecv(ah);	/* disable DMA engine */
 	DELAY(3000);			/* long enough for 1 frame */
 #ifdef AR_DEBUG
-	if (ath_debug) {
+	if (ath_debug & ATH_DEBUG_RESET) {
 		struct ath_buf *bf;
 
-		DPRINTF(("ath_stoprecv: rx queue %p, link %p\n",
-		    (caddr_t) ath_hal_getrxbuf(ah), sc->sc_rxlink));
+		printf("%s: rx queue %p, link %p\n", __func__,
+			(caddr_t) ath_hal_getrxbuf(ah), sc->sc_rxlink);
 		TAILQ_FOREACH(bf, &sc->sc_rxbuf, bf_list) {
 			struct ath_desc *ds = bf->bf_desc;
 			if (ath_hal_rxprocdesc(ah, ds, bf->bf_daddr,
@@ -2294,8 +2324,9 @@ ath_startrecv(struct ath_softc *sc)
 	TAILQ_FOREACH(bf, &sc->sc_rxbuf, bf_list) {
 		int error = ath_rxbuf_init(sc, bf);
 		if (error != 0) {
-			DPRINTF(("ath_startrecv: ath_rxbuf_init failed %d\n",
-				error));
+			DPRINTF(ATH_DEBUG_RECV,
+				("%s: ath_rxbuf_init failed %d\n",
+				__func__, error));
 			return error;
 		}
 	}
@@ -2320,7 +2351,7 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 	struct ath_hal *ah = sc->sc_ah;
 	struct ieee80211com *ic = &sc->sc_ic;
 
-	DPRINTF(("ath_chan_set: %u (%u MHz) -> %u (%u MHz)\n",
+	DPRINTF(ATH_DEBUG_ANY, ("%s: %u (%u MHz) -> %u (%u MHz)\n", __func__,
 	    ieee80211_chan2ieee(ic, ic->ic_ibss_chan),
 		ic->ic_ibss_chan->ic_freq,
 	    ieee80211_chan2ieee(ic, chan), chan->ic_freq));
@@ -2419,7 +2450,8 @@ ath_calibrate(void *arg)
 	hchan.channel = c->ic_freq;
 	hchan.channelFlags = ath_chan2flags(ic, c);
 
-	DPRINTF(("%s: channel %u/%x\n", __func__, c->ic_freq, c->ic_flags));
+	DPRINTF(ATH_DEBUG_CALIBRATE,
+		("%s: channel %u/%x\n", __func__, c->ic_freq, c->ic_flags));
 
 	if (ath_hal_getrfgain(ah) == HAL_RFGAIN_NEED_CHANGE) {
 		/*
@@ -2430,7 +2462,8 @@ ath_calibrate(void *arg)
 		ath_reset(sc);
 	}
 	if (!ath_hal_calibrate(ah, &hchan)) {
-		DPRINTF(("%s: calibration of channel %u failed\n",
+		DPRINTF(ATH_DEBUG_ANY,
+			("%s: calibration of channel %u failed\n",
 			__func__, c->ic_freq));
 		sc->sc_stats.ast_per_calfail++;
 	}
@@ -2455,7 +2488,7 @@ ath_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 	    HAL_LED_RUN, 	/* IEEE80211_S_RUN */
 	};
 
-	DPRINTF(("%s: %s -> %s\n", __func__,
+	DPRINTF(ATH_DEBUG_ANY, ("%s: %s -> %s\n", __func__,
 		ieee80211_state_name[ic->ic_state],
 		ieee80211_state_name[nstate]));
 
@@ -2482,7 +2515,7 @@ ath_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		bssid = ni->ni_bssid;
 	}
 	ath_hal_setrxfilter(ah, rfilt);
-	DPRINTF(("%s: RX filter 0x%x bssid %s\n",
+	DPRINTF(ATH_DEBUG_ANY, ("%s: RX filter 0x%x bssid %s\n",
 		 __func__, rfilt, ether_sprintf(bssid)));
 
 	if (nstate == IEEE80211_S_RUN && ic->ic_opmode == IEEE80211_M_STA)
@@ -2496,7 +2529,7 @@ ath_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 	}
 
 	if (nstate == IEEE80211_S_RUN) {
-		DPRINTF(("%s(RUN): ic_flags=0x%08x iv=%d bssid=%s "
+		DPRINTF(ATH_DEBUG_ANY, ("%s(RUN): ic_flags=0x%08x iv=%d bssid=%s "
 			"capinfo=0x%04x chan=%d\n"
 			 , __func__
 			 , ic->ic_flags
@@ -2637,14 +2670,16 @@ ath_rate_setup(struct ath_softc *sc, u_int mode)
 		sc->sc_rates[mode] = ath_hal_getratetable(ah, HAL_MODE_TURBO);
 		break;
 	default:
-		DPRINTF(("%s: invalid mode %u\n", __func__, mode));
+		DPRINTF(ATH_DEBUG_ANY,
+			("%s: invalid mode %u\n", __func__, mode));
 		return 0;
 	}
 	rt = sc->sc_rates[mode];
 	if (rt == NULL)
 		return 0;
 	if (rt->rateCount > IEEE80211_RATE_MAXSIZE) {
-		DPRINTF(("%s: rate table too small (%u > %u)\n",
+		DPRINTF(ATH_DEBUG_ANY,
+			("%s: rate table too small (%u > %u)\n",
 			__func__, rt->rateCount, IEEE80211_RATE_MAXSIZE));
 		maxrates = IEEE80211_RATE_MAXSIZE;
 	} else
@@ -2772,7 +2807,8 @@ ath_rate_ctl(void *arg, struct ieee80211_node *ni)
 	}
 
 	if (ni->ni_txrate != orate) {
-		DPRINTF(("%s: %dM -> %dM (%d ok, %d err, %d retr)\n",
+		DPRINTF(ATH_DEBUG_RATE,
+		    ("%s: %dM -> %dM (%d ok, %d err, %d retr)\n",
 		    __func__,
 		    (rs->rs_rates[orate] & IEEE80211_RATE_VAL) / 2,
 		    (rs->rs_rates[ni->ni_txrate] & IEEE80211_RATE_VAL) / 2,
