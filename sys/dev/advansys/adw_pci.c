@@ -57,8 +57,8 @@
 #include <dev/advansys/adwlib.h>
 #include <dev/advansys/adwmcode.h>
 
-#define ADW_PCI_IOBASE	PCI_MAP_REG_START	/* I/O Address */
-#define ADW_PCI_MEMBASE	PCI_MAP_REG_START + 4	/* Mem I/O Address */
+#define ADW_PCI_IOBASE	PCIR_MAPS		/* I/O Address */
+#define ADW_PCI_MEMBASE	PCIR_MAPS + 4		/* Mem I/O Address */
 
 #define	PCI_ID_ADVANSYS_3550		0x230010CD00000000ull
 #define	PCI_ID_ADVANSYS_38C0800_REV1	0x250010CD00000000ull
@@ -218,7 +218,7 @@ adw_pci_attach(device_t dev)
 					  &regs_id, 0, ~0, 1, RF_ACTIVE);
 	}
 #endif
-	if (regs == NULL && (command & PCI_COMMAND_IO_ENABLE) != 0) {
+	if (regs == NULL && (command & PCIM_CMD_PORTEN) != 0) {
 		regs_type = SYS_RES_IOPORT;
 		regs_id = ADW_PCI_IOBASE;
 		regs = bus_alloc_resource(dev, regs_type,
