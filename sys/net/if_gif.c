@@ -419,23 +419,23 @@ gif_output(ifp, m, dst, rt)
 }
 
 void
-gif_input(m, af, gifp)
+gif_input(m, af, ifp)
 	struct mbuf *m;
 	int af;
-	struct ifnet *gifp;
+	struct ifnet *ifp;
 {
 	int s, isr;
 	struct ifqueue *ifq = 0;
 
-	if (gifp == NULL) {
+	if (ifp == NULL) {
 		/* just in case */
 		m_freem(m);
 		return;
 	}
 
-	m->m_pkthdr.rcvif = gifp;
+	m->m_pkthdr.rcvif = ifp;
 	
-	if (gifp->if_bpf) {
+	if (ifp->if_bpf) {
 		/*
 		 * We need to prepend the address family as
 		 * a four byte field.  Cons up a dummy header
@@ -450,7 +450,7 @@ gif_input(m, af, gifp)
 		m0.m_len = 4;
 		m0.m_data = (char *)&af1;
 		
-		bpf_mtap(gifp, &m0);
+		bpf_mtap(ifp, &m0);
 	}
 
 	/*
@@ -489,8 +489,8 @@ gif_input(m, af, gifp)
 		splx(s);
 		return;
 	}
-	gifp->if_ipackets++;
-	gifp->if_ibytes += m->m_pkthdr.len;
+	ifp->if_ipackets++;
+	ifp->if_ibytes += m->m_pkthdr.len;
 	IF_ENQUEUE(ifq, m);
 	/* we need schednetisr since the address family may change */
 	schednetisr(isr);
