@@ -1,4 +1,4 @@
-#	$Id: BSD.var.dist,v 1.24 1995/11/19 16:50:34 ache Exp $
+#	$Id: BSD.var.dist,v 1.25 1996/08/25 21:37:08 pst Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -51,6 +51,8 @@
         mqueue          uname=root
         ..
         output          uname=bin
+	    lpd		    uname=root gname=daemon
+	    ..
         ..
 /set type=dir uname=uucp gname=uucp mode=0775
         uucp
