@@ -45,6 +45,7 @@ MINIMALDOCPORTS= \
 	ports/graphics/scr2png \
 	ports/graphics/tiff \
 	ports/lang/perl5 \
+	ports/lang/perl5.8 \
 	ports/print/freetype2 \
 	ports/print/ghostscript-gnu \
 	ports/print/ghostscript-gnu-nox11 \
