@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sap_input.c,v 1.4 1997/02/22 16:00:59 peter Exp $
+ *	$Id: sap_input.c,v 1.5 1997/07/06 07:38:31 jhay Exp $
  */
 
 /*
@@ -36,6 +36,7 @@
  */
 #include "defs.h"
 
+int dognreply = 1;
 
 /*
  * Process a newly received packet.
@@ -78,6 +79,8 @@ sap_input(from, size)
 	case SAP_REQ_NEAR:
 		if (ftrace)
 			fprintf(ftrace, "Received a sap REQ_NEAR packet.\n");
+		if (!dognreply)
+			return;
 		sap = sap_nearestserver(n->ServType, ifp);
 		if (sap == NULL)
 			return;
