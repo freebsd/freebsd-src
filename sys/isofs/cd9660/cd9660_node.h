@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.h	8.6 (Berkeley) 5/14/95
- * $Id: cd9660_node.h,v 1.14 1997/10/16 10:47:39 phk Exp $
+ * $Id: cd9660_node.h,v 1.15 1997/10/17 12:36:10 phk Exp $
  */
 
 /*
@@ -104,7 +104,6 @@ int cd9660_lookup __P((struct vop_cachedlookup_args *));
 int cd9660_inactive __P((struct vop_inactive_args *));
 int cd9660_reclaim __P((struct vop_reclaim_args *));
 int cd9660_bmap __P((struct vop_bmap_args *));
-int cd9660_pathconf __P((struct vop_pathconf_args *));
 int cd9660_blkatoff __P((struct vnode *vp, off_t offset, char **res, struct buf **bpp));
 
 void cd9660_defattr __P((struct iso_directory_record *,
@@ -113,6 +112,5 @@ void cd9660_deftstamp __P((struct iso_directory_record *,
 			struct iso_node *, struct buf *, enum ISO_FTYPE));
 struct vnode *cd9660_ihashget __P((dev_t, ino_t));
 void cd9660_ihashins __P((struct iso_node *));
-void cd9660_ihashrem __P((struct iso_node *));
 int cd9660_tstamp_conv7 __P((u_char *, struct timespec *, enum ISO_FTYPE));
 int cd9660_tstamp_conv17 __P((u_char *, struct timespec *));
