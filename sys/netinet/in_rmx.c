@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: in_rmx.c,v 1.33 1998/03/27 14:30:18 peter Exp $
+ *	$Id: in_rmx.c,v 1.34 1998/03/30 09:52:46 phk Exp $
  */
 
 /*
@@ -312,8 +312,8 @@ in_rtqtimo(void *rock)
 	}
 
 	atv.tv_usec = 0;
-	atv.tv_sec = arg.nextstop;
-	timeout(in_rtqtimo, rock, hzto(&atv));
+	atv.tv_sec = arg.nextstop - time_second;
+	timeout(in_rtqtimo, rock, tvtohz(&atv));
 }
 
 void
