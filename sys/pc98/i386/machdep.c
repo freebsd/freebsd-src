@@ -1044,6 +1044,7 @@ cpu_boot(int howto)
 int
 cpu_est_clockrate(int cpu_id, uint64_t *rate)
 {
+	register_t reg;
 	uint64_t tsc1, tsc2;
 
 	if (pcpu_find(cpu_id) == NULL || rate == NULL)
@@ -1065,9 +1066,11 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 #endif
 
 	/* Calibrate by measuring a short delay. */
+	reg = intr_disable();
 	tsc1 = rdtsc();
 	DELAY(1000);
 	tsc2 = rdtsc();
+	intr_restore(reg);
 
 #ifdef SMP
 	mtx_lock_spin(&sched_lock);
@@ -1075,8 +1078,13 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 	mtx_unlock_spin(&sched_lock);
 #endif
 
-	tsc_freq = (tsc2 - tsc1) * 1000;
-	*rate = tsc_freq;
+	/*
+	 * Calculate the difference in readings, convert to Mhz, and
+	 * subtract 0.5% of the total.  Empirical testing has shown that
+	 * overhead in DELAY() works out to approximately this value.
+	 */
+	tsc2 -= tsc1;
+	*rate = tsc2 * 1000 - tsc2 * 5;
 	return (0);
 }
 
