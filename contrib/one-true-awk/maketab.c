@@ -36,8 +36,8 @@ THIS SOFTWARE.
 
 struct xx
 {	int token;
-	char *name;
-	char *pname;
+	const char *name;
+	const char *pname;
 } proc[] = {
 	{ PROGRAM, "program", NULL },
 	{ BOR, "boolop", " || " },
@@ -107,12 +107,12 @@ struct xx
 };
 
 #define SIZE	(LASTTOKEN - FIRSTTOKEN + 1)
-char *table[SIZE];
+const char *table[SIZE];
 char *names[SIZE];
 
 int main(int argc, char *argv[])
 {
-	struct xx *p;
+	const struct xx *p;
 	int i, n, tok;
 	char c;
 	FILE *fp;

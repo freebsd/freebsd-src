@@ -30,6 +30,8 @@ typedef	unsigned char uschar;
 
 #define	xfree(a)	{ if ((a) != NULL) { free((char *) a); a = NULL; } }
 
+#define	NN(p)	((p) ? (p) : "(null)")	/* guaranteed non-null for dprintf 
+*/
 #define	DEBUG
 #ifdef	DEBUG
 			/* uses have to be doubly parenthesized */
