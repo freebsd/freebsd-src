@@ -1,4 +1,4 @@
-#	$Id: BSD.var.dist,v 1.26.2.2 1997/05/03 20:16:25 jkh Exp $
+#	$Id: BSD.var.dist,v 1.26.2.3 1997/08/20 12:07:21 peter Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -23,13 +23,13 @@
     ..
     db              uname=bin gname=bin mode=0755
     ..
-/set type=dir uname=games gname=bin mode=0755
-    games
-        hackdir
+/set type=dir uname=root gname=bin mode=0755
+    games                gname=games mode=0775
+        hackdir          gname=games mode=0775
         ..
-        larn
+        larn             gname=games mode=0775
         ..
-        phantasia
+        phantasia        gname=games mode=0775
         ..
     ..
     log             uname=bin
