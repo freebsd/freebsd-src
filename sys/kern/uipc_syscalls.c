@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.38 1998/04/11 20:31:46 phk Exp $
+ * $Id: uipc_syscalls.c,v 1.39 1998/04/14 06:24:43 phk Exp $
  */
 
 #include "opt_compat.h"
@@ -162,6 +162,7 @@ accept1(p, uap, compat)
 	struct sockaddr *sa;
 	int namelen, error, s;
 	struct socket *head, *so;
+	int fd;
 	short fflag;		/* type must match fp->f_flag */
 
 	if (uap->name) {
@@ -214,7 +215,7 @@ accept1(p, uap, compat)
 	head->so_qlen--;
 
 	fflag = fp->f_flag;
-	error = falloc(p, &fp, p->p_retval);
+	error = falloc(p, &fp, &fd);
 	if (error) {
 		/*
 		 * Probably ran out of file descriptors. Put the
@@ -227,7 +228,8 @@ accept1(p, uap, compat)
 		wakeup_one(&head->so_timeo);
 		splx(s);
 		return (error);
-	}
+	} else
+		p->p_retval[0] = fd;
 
 	so->so_state &= ~SS_COMP;
 	so->so_head = NULL;
