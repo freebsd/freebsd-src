@@ -55,10 +55,6 @@
 #define UDESCSUB_AC_PROCESSING	7
 #define UDESCSUB_AC_EXTENSION	8
 
-#if defined(__FreeBSD__) && (__FreeBSD_version <= 500014)
-#define UPACKED __attribute__ ((packed))
-#endif
-
 /* The first fields are identical to usb_endpoint_descriptor_t */
 typedef struct {
 	uByte		bLength;
