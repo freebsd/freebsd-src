@@ -38,6 +38,10 @@
 .Op Fl d Ar device
 .Op Fl f Ar fillbyte
 .Op Fl o Ar file
+.Nm
+.Op Fl d Ar device
+.Fl I Ar numsects
+.Op Fl t Ar trackno
 .Sh DESCRIPTION
 The
 .Nm
@@ -113,6 +117,34 @@ the number base.
 Specify the output file to be
 .Ar file .
 By default, the data will be written to standard output.
+.It Fl I Ar numsects
+Read
+.Ar numsects
+sector ID fields, and write out their contents to standard output.
+Each sector ID field contains recorded values for the cylinder number
+.Pq Ql C ,
+the head number
+.Pq Ql H ,
+the record number (sector number starting with 1)
+.Pq Ql R ,
+and the
+.Em sector shift value
+.Po
+0 = 128 bytes, 1 = 256 bytes, 2 = 512 bytes, 3 = 1024 bytes
+.Pc
+.Pq Ql N .
+The
+.Fl I
+option is mutually exclusive with all other options except
+.Fl d Ar device
+and
+.Fl t Ar trackno .
+.It Fl t Ar trackno
+Specify the track number (cylinder number * number of heads + head
+number) to read the sector ID fields from; only allowed together with
+the
+.Fl I Ar numsects
+option.
 .El
 .Sh FILES
 .Bl -tag -width /dev/fd0
