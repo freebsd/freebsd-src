@@ -606,7 +606,7 @@ parse_iodone(parseio)
  * convert a struct clock to UTC since Jan, 1st 1970 0:00 (the UNIX EPOCH)
  */
 #define dysize(x)	(((x) % 4) ? 365 : \
-                                    (((x) % 100) ? : 366 \
+                                    (((x) % 100) ? 366 : \
                                                     (((x) % 400) ? 365 : 366)))
 
 time_t
