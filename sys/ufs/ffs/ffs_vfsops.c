@@ -610,9 +610,9 @@ ffs_mountfs(devvp, mp, td)
 	 * XXX: start to avoid getting trashed later on.
 	 */
 #ifdef notyet
-	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, td);
+	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, td, -1);
 #else
-	error = VOP_OPEN(devvp, FREAD|FWRITE, FSCRED, td);
+	error = VOP_OPEN(devvp, FREAD|FWRITE, FSCRED, td, -1);
 #endif
 	VOP_UNLOCK(devvp, 0, td);
 	if (error)

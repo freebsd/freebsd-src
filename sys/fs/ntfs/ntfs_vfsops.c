@@ -299,7 +299,7 @@ ntfs_mountfs(devvp, mp, argsp, td)
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, td);
+	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, td, -1);
 	VOP_UNLOCK(devvp, 0, td);
 	if (error)
 		return (error);
