@@ -289,7 +289,7 @@ makeudev(int x, int y)
 }
 
 dev_t
-make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, char *fmt, ...)
+make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, const char *fmt, ...)
 {
 	dev_t	dev;
 	va_list ap;
