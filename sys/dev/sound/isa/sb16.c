@@ -892,7 +892,10 @@ static driver_t sbsbc_driver = {
 	sizeof(snddev_info),
 };
 
-DRIVER_MODULE(sbsbc, sbc, sbsbc_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(snd_sb, sbc, sbsbc_driver, pcm_devclass, 0, 0);
+MODULE_DEPEND(snd_sb, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_VERSION(snd_sb, 1);
+
 
 
 

@@ -33,6 +33,8 @@ static int 	status_isopen = 0;
 static int 	status_init(char *buf, int size);
 static int 	status_read(struct uio *buf);
 
+MODULE_VERSION(snd_pcm, PCM_MODVER);
+
 static d_open_t sndopen;
 static d_close_t sndclose;
 static d_ioctl_t sndioctl;
