@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.20 1995/10/16 18:21:20 wollman Exp $
+ *	$Id: tcp_subr.c,v 1.21 1995/11/09 20:23:05 phk Exp $
  */
 
 #include <sys/param.h>
@@ -67,20 +67,24 @@
 #include <netinet/tcp_debug.h>
 #endif
 
-/* patchable/settable parameters for tcp */
 int 	tcp_mssdflt = TCP_MSS;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_MSSDFLT, mssdflt,
 	CTLFLAG_RW, &tcp_mssdflt , 0, "");
-int 	tcp_rttdflt = TCPTV_SRTTDFLT / PR_SLOWHZ;
+
+static int 	tcp_rttdflt = TCPTV_SRTTDFLT / PR_SLOWHZ;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_RTTDFLT, rttdflt,
 	CTLFLAG_RW, &tcp_rttdflt , 0, "");
-int	tcp_do_rfc1323 = 1;
+
+static int	tcp_do_rfc1323 = 1;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1323, rfc1323,
 	CTLFLAG_RW, &tcp_do_rfc1323 , 0, "");
-int	tcp_do_rfc1644 = 1;
+
+static int	tcp_do_rfc1644 = 1;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1644, rfc1644,
 	CTLFLAG_RW, &tcp_do_rfc1644 , 0, "");
-static	void tcp_cleartaocache(void);
+
+static void	tcp_cleartaocache(void);
+static void	tcp_notify __P((struct inpcb *, int));
 
 /*
  * Target size of TCP PCB hash table. Will be rounded down to a prime
@@ -410,7 +414,7 @@ tcp_drain()
  * store error as soft error, but wake up user
  * (for now, won't do anything until can select for soft error).
  */
-void
+static void
 tcp_notify(inp, error)
 	struct inpcb *inp;
 	int error;

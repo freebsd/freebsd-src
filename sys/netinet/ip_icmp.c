@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_icmp.c,v 1.9 1995/08/29 17:49:04 wollman Exp $
+ * $Id: ip_icmp.c,v 1.10 1995/09/18 15:51:35 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -64,10 +64,19 @@
  */
 
 struct	icmpstat icmpstat;
-int	icmpmaskrepl = 0;
+SYSCTL_STRUCT(_net_inet_icmp, ICMPCTL_STATS, stats, CTLFLAG_RD,
+	&icmpstat, icmpstat, "");
+
+static int	icmpmaskrepl = 0;
+SYSCTL_INT(_net_inet_icmp, ICMPCTL_MASKREPL, maskrepl, CTLFLAG_RW,
+	&icmpmaskrepl, 0, "");
+
 #ifdef ICMPPRINTFS
 int	icmpprintfs = 0;
 #endif
+
+static void	icmp_reflect __P((struct mbuf *));
+static void	icmp_send __P((struct mbuf *, struct mbuf *));
 
 extern	struct protosw inetsw[];
 
@@ -171,7 +180,6 @@ freeit:
 static struct sockaddr_in icmpsrc = { sizeof (struct sockaddr_in), AF_INET };
 static struct sockaddr_in icmpdst = { sizeof (struct sockaddr_in), AF_INET };
 static struct sockaddr_in icmpgw = { sizeof (struct sockaddr_in), AF_INET };
-struct sockaddr_in icmpmask = { 8, 0 };
 
 /*
  * Process a received ICMP message.
@@ -464,7 +472,7 @@ freeit:
 /*
  * Reflect the ip packet back to the source
  */
-void
+static void
 icmp_reflect(m)
 	struct mbuf *m;
 {
@@ -589,7 +597,7 @@ done:
  * Send an icmp packet back to the ip level,
  * after supplying a checksum.
  */
-void
+static void
 icmp_send(m, opts)
 	register struct mbuf *m;
 	struct mbuf *opts;
@@ -626,31 +634,6 @@ iptime()
 	microtime(&atv);
 	t = (atv.tv_sec % (24*60*60)) * 1000 + atv.tv_usec / 1000;
 	return (htonl(t));
-}
-
-int
-icmp_sysctl(name, namelen, oldp, oldlenp, newp, newlen)
-	int *name;
-	u_int namelen;
-	void *oldp;
-	size_t *oldlenp;
-	void *newp;
-	size_t newlen;
-{
-	/* All sysctl names at this level are terminal. */
-	if (namelen != 1)
-		return (ENOTDIR); /* XXX overloaded */
-
-	switch (name[0]) {
-	case ICMPCTL_MASKREPL:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, &icmpmaskrepl));
-	case ICMPCTL_STATS:
-		return (sysctl_rdstruct(oldp, oldlenp, newp, &icmpstat,
-					sizeof icmpstat));
-	default:
-		return (ENOPROTOOPT);
-	}
-	/* NOTREACHED */
 }
 
 #ifdef MTUDISC
