@@ -34,15 +34,15 @@
 
 #include "dev_table.h"
 
-u_int	snd1mask;
-u_int	snd2mask;
-u_int	snd3mask;
-u_int	snd4mask;
-u_int	snd5mask;
-u_int	snd6mask;
-u_int	snd7mask;
-u_int	snd8mask;
-u_int	snd9mask;
+u_int	snd1_imask;
+u_int	snd2_imask;
+u_int	snd3_imask;
+u_int	snd4_imask;
+u_int	snd5_imask;
+u_int	snd6_imask;
+u_int	snd7_imask;
+u_int	snd8_imask;
+u_int	snd9_imask;
 
 #define FIX_RETURN(ret) {if ((ret)<0) return -(ret); else return 0;}
 

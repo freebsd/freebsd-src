@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.40 1994/03/23 09:15:03 davidg Exp $
+ *	$Id: machdep.c,v 1.41 1994/03/30 02:31:11 davidg Exp $
  */
 
 #include "npx.h"
@@ -58,7 +58,6 @@
 #include "malloc.h"
 #include "mbuf.h"
 #include "msgbuf.h"
-#include "net/netisr.h"
 
 #ifdef SYSVSHM
 #include "sys/shm.h"
@@ -130,12 +129,9 @@ int _udatasel, _ucodesel;
 /*
  * Machine-dependent startup code
  */
-int boothowto = 0, Maxmem = 0, maxmem = 0, badpages = 0, physmem = 0;
+int boothowto = 0, Maxmem = 0, badpages = 0, physmem = 0;
 long dumplo;
 extern int bootdev;
-#ifdef SMALL
-extern int forcemaxmem;
-#endif
 int biosmem;
 
 vm_offset_t	phys_avail[6];
@@ -272,6 +268,7 @@ again:
 			panic("startup: no room for tables");
 		goto again;
 	}
+
 	/*
 	 * End of second pass, addresses have been assigned
 	 */
@@ -528,7 +525,7 @@ sendsig(catcher, sig, mask, code)
  * Return to previous pc and psl as specified by
  * context left by sendsig. Check carefully to
  * make sure that the user has not modified the
- * psl to gain improper priviledges or to cause
+ * psl to gain improper privileges or to cause
  * a machine fault.
  */
 struct sigreturn_args {
@@ -734,7 +731,7 @@ boot(arghowto)
 #endif
 die:
 	printf("Rebooting...\n");
-	DELAY (100000);	/* wait 100ms for printf's to complete */
+	DELAY(1000000);	/* wait 1 sec for printf's to complete and be read */
 	cpu_reset();
 	for(;;) ;
 	/* NOTREACHED */
@@ -996,7 +993,7 @@ setidt(idx, func, typ, dpl)
 	ip->gd_hioffset = ((int)func)>>16 ;
 }
 
-#define	IDTVEC(name)	__CONCAT(X, name)
+#define	IDTVEC(name)	__CONCAT(X,name)
 typedef void idtvec_t();
 
 extern idtvec_t
@@ -1039,8 +1036,9 @@ init386(first)
 	 * the address space
 	 */
 	gdt_segs[GCODE_SEL].ssd_limit = i386_btop(i386_round_page(&etext)) - 1;
-	gdt_segs[GDATA_SEL].ssd_limit = 0xffffffffUL;	/* XXX constant? */
+	gdt_segs[GDATA_SEL].ssd_limit = i386_btop(0) - 1;
 	for (x=0; x < NGDT; x++) ssdtosd(gdt_segs+x, gdt+x);
+
 	/* make ldt memory segments */
 	/*
 	 * The data segment limit must not cover the user area because we
@@ -1242,9 +1240,9 @@ init386(first)
 		}
 	}
 	printf("done.\n");
-		
-	maxmem = Maxmem - 1;	/* highest page of usable memory */
-	avail_end = (maxmem << PAGE_SHIFT) - i386_round_page(sizeof(struct msgbuf));
+
+	avail_end = (Maxmem << PAGE_SHIFT)
+		    - i386_round_page(sizeof(struct msgbuf));
 
 	/*
 	 * Initialize pointers to the two chunks of memory; for use
@@ -1308,15 +1306,6 @@ test_page(address, pattern)
 			return (1);
 	}
 	return(0);
-}
-
-/*aston() {
-	schednetisr(NETISR_AST);
-}*/
-
-void
-setsoftclock() {
-	schednetisr(NETISR_SCLK);
 }
 
 /*
