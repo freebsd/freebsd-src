@@ -228,6 +228,10 @@ ITEMS:'
 	be made and installed and booted with before a make world can
 	be done.
 
+	***************************************************************
+		RECOMPILE AND REINSTALL KERNEL BEFORE MAKEWORLD
+	***************************************************************
+
 19990919:
 	New jail syscall format requires recompilation of jail(8) with
 	fresh headers installed (or a make world will do it for you).
@@ -596,6 +600,7 @@ COMMON ITEMS:
 		config YOUR_KERNEL_HERE
 		cd ../../compile/YOUR_KERNEL_HERE
 		make depend && make
+		make install
 
 	To rebuild disk /dev entries
 	----------------------------
@@ -615,7 +620,20 @@ COMMON ITEMS:
 
 	To update from 3.x to 4.0 stable
 	--------------------------------
-	make world
+	cd /usr/src
+	make buildworld
+	cd sbin/mknod
+	make install
+	<follow directions to build/install a kernel>
+	<follow rebuild disk /dev entries above>	[*]
+	reboot
+	<in single user>
+	cd /usr/src
+	make -k installworld
+	make installworld
+
+	[*] You may need to switch from wd to ad ala 19991210
+
 
 FORMAT:
 
@@ -624,7 +642,7 @@ breakages in tracking -current.  Not all things will be listed here,
 and it only starts on November 18, 1998.  If you have an earlier
 version of FreeBSD, you are on your own to get to November 18, 1998.
 
-Please filter your entries through Warner (imp@village.org) so that
-the style, formatting, etc of this file can be maintained.
+Please filter your entries through Warner Losh (imp@village.org) so
+that the style, formatting, etc of this file can be maintained.
 
 $FreeBSD$
