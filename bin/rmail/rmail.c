@@ -30,17 +30,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rmail.c,v 1.11 1997/06/06 06:46:27 charnier Exp $
+ *	from: @(#)rmail.c	8.1 (Berkeley) 5/31/93
  */
 
 #ifndef lint
-static char const copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
-static char const sccsid[] = "@(#)rmail.c	8.1 (Berkeley) 5/31/93";
+static const char rcsid[] =
+	"$Id: rmail.c,v 1.12 1997/06/30 11:03:31 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -72,6 +70,8 @@ static char const sccsid[] = "@(#)rmail.c	8.1 (Berkeley) 5/31/93";
 #include <sys/wait.h>
 
 #include <ctype.h>
+#include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
 #include <stdio.h>
@@ -87,8 +87,6 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	extern char *optarg;
-	extern int errno, optind;
 	FILE *fp;
 	struct stat sb;
 	size_t fplen, fptlen, len;
