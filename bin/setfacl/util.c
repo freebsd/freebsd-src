@@ -38,10 +38,9 @@ zmalloc(size_t size)
 {
 	void *ptr;
 
-	ptr = malloc(size);
+	ptr = calloc(1, size);
 	if (!ptr)
 		err(EX_OSERR, "malloc() failed");
-	bzero(ptr, size);
 
 	return ptr;
 }
