@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.40 1998/12/08 08:18:59 kato Exp $
+ *	$Id: npx.c,v 1.41 1998/12/17 08:41:34 kato Exp $
  */
 
 #include "npx.h"
@@ -59,9 +59,7 @@
 #include <machine/cputypes.h>
 #include <machine/frame.h>
 #include <machine/ipl.h>
-#ifndef SMP
 #include <machine/md_var.h>
-#endif
 #include <machine/pcb.h>
 #include <machine/psl.h>
 #ifndef SMP
@@ -91,15 +89,6 @@
 #define	NPX_DISABLE_I586_OPTIMIZED_COPYIO	(1 << 2)
 
 /* XXX - should be in header file. */
-extern void (*bcopy_vector) __P((const void *from, void *to, size_t len));
-extern void (*ovbcopy_vector) __P((const void *from, void *to, size_t len));
-extern int (*copyin_vector) __P((const void *udaddr, void *kaddr, size_t len));
-extern int (*copyout_vector) __P((const void *kaddr, void *udaddr, size_t len));
-
-void	i586_bcopy __P((const void *from, void *to, size_t len));
-void	i586_bzero __P((void *buf, size_t len));
-int	i586_copyin __P((const void *udaddr, void *kaddr, size_t len));
-int	i586_copyout __P((const void *kaddr, void *udaddr, size_t len));
 ointhand2_t	npxintr;
 
 #ifdef	__GNUC__
