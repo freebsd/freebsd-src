@@ -123,6 +123,7 @@ TARGETHDRS=	io/basic_file_stdio.h io/c_io_stdio.h \
 		locale/generic/c++locale_internal.h \
 		locale/generic/codecvt_specializations.h \
 		locale/generic/messages_members.h \
+		locale/generic/time_members.h \
 		os/bsd/freebsd/bits/ctype_base.h \
 		os/bsd/freebsd/bits/ctype_inline.h \
 		os/bsd/freebsd/bits/ctype_noninline.h \
