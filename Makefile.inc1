@@ -720,7 +720,6 @@ includes:
 	cd ${.CURDIR}/lib/libstand;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libtacplus;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcom_err;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libss;		${MAKE} -B hdrs beforeinstall
 	cd ${.CURDIR}/lib/libutil;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libvgl;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libwrap;		${MAKE} beforeinstall
@@ -746,7 +745,6 @@ includes:
 #	  libtacplus libutil libz libssh
 # libradius: libmd
 # libreadline: libncurses
-# libss: libcom_err
 # libstc++: libm
 # libtacplus: libmd
 #
