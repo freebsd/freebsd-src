@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.31 1996/08/03 10:11:05 jkh Exp $
+ * $Id: installUpgrade.c,v 1.32 1996/09/18 18:40:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -183,7 +183,7 @@ installUpgrade(dialogMenuItem *self)
 
     dialog_clear_norefresh();
     if (msgYesNo("Given all that scary stuff you just read, are you sure you want to\n"
-		 "risk it all and proceed with this upgrade?"))
+		 "risk it all and proceed with this upgrade?") != 0)
 	return DITEM_FAILURE | DITEM_RESTORE;
 
     if (!Dists) {
@@ -202,7 +202,7 @@ installUpgrade(dialogMenuItem *self)
 	if (msgYesNo("You didn't select the bin distribution as one of the distributons to load.\n"
 		     "This one is pretty vital to a successful 2.1 upgrade.  Are you SURE you don't\n"
 		     "want to select the bin distribution?  Chose _No_ to bring up the Distributions\n"
-		     "menu.")) {
+		     "menu.") != 0) {
 	    if (!dmenuOpenSimple(&MenuDistributions, FALSE))
 		return DITEM_FAILURE | DITEM_RECREATE;
 	    dialog_clear_norefresh();
@@ -282,7 +282,7 @@ installUpgrade(dialogMenuItem *self)
 		saved_etc = NULL;
 		if (msgYesNo("Directory was not specified, was invalid or user selected Cancel.\n\n"
 			     "Doing an upgrade without first backing up your /etc directory is a very\n"
-			     "bad idea!  Do you want to go back and specify the save directory again?"))
+			     "bad idea!  Do you want to go back and specify the save directory again?") != 0)
 		    break;
 	    }
 	}
@@ -291,7 +291,7 @@ installUpgrade(dialogMenuItem *self)
 	    msgNotify("Preserving /etc directory..");
 	    if (vsystem("tar -cf - -C /etc . | tar -xpf - -C %s", saved_etc))
 		if (msgYesNo("Unable to backup your /etc into %s.\n"
-			     "Do you want to continue anyway?"))
+			     "Do you want to continue anyway?") != 0)
 		    return DITEM_FAILURE | DITEM_RECREATE;
 	}
 	if (file_readable("/kernel")) {

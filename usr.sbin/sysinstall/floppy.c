@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.14 1996/07/08 08:54:25 jkh Exp $
+ * $Id: floppy.c,v 1.15 1996/09/15 23:55:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -106,7 +106,7 @@ getRootFloppy(void)
 	fd = open(floppyDev->devname, O_RDONLY);
 	if (isDebug())
 	    msgDebug("getRootFloppy on %s yields fd of %d\n", floppyDev->devname, fd);
-	if (fd == -1 && msgYesNo("Couldn't open the floppy - do you want to try again?"))
+	if (fd == -1 && msgYesNo("Couldn't open the floppy - do you want to try again?") != 0)
 	    break;
     }
     return fd;
