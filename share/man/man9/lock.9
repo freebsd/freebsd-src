@@ -61,7 +61,7 @@ The function
 determines the status of a lock.
 .Pp
 The following values are defined:
-.Bl -tag -width "LK_XXXXXXXXXXXX" -compact
+.Bl -tag -width ".Dv LK_EXCLUPGRADE"
 .It Dv LK_SHARED
 get one of many possible shared locks.
 If a thread holding an exclusive lock requests a shared lock,
@@ -72,9 +72,11 @@ grant a pending upgrade if it exists, then grant an exclusive
 lock.
 Only one exclusive lock may exist at a time, except that
 a thread holding an exclusive lock may get additional exclusive
-locks if it explicitly sets the LK_CANRECURSE flag in the lock
-request, or if the LK_CANRECUSE flag was set when the lock was
-initialized.
+locks if it explicitly sets the
+.Dv LK_CANRECURSE
+flag in the lock request, or if the
+.Dv LK_CANRECURSE
+flag was set when the lock was initialized.
 .It Dv LK_UPGRADE
 the thread must hold a shared lock that it wants to
 have upgraded to an exclusive lock.
@@ -102,20 +104,25 @@ decommissioned.
 This feature is used before freeing a lock that is part of a
 piece of memory that is about to be freed.
 .It Dv LK_EXCLOTHER
-return for lockstatus().
+return for
+.Fn lockstatus .
 Used when another thread holds the lock exclusively.
 .El
 .Sh RETURN VALUES
 Successfully obtained locks return 0.
 Locks will always succeed unless one of the following is true:
-LK_FORCEUPGRADE is requested and some other thread has already
+.Dv LK_FORCEUPGRADE
+is requested and some other thread has already
 requested a lock upgrade; returns
 .Er EBUSY .
-LK_WAIT is set and a sleep would be required; returns
+.Dv LK_WAIT
+is set and a sleep would be required; returns
 .Er EBUSY .
-LK_SLEEPFAIL is set and a sleep was done; returns
+.Dv LK_SLEEPFAIL
+is set and a sleep was done; returns
 .Er ENOLCK .
-PCATCH is set in lock priority and a signal arrives; returns
+.Dv PCATCH
+is set in lock priority and a signal arrives; returns
 either
 .Er EINTR
 or
@@ -125,5 +132,8 @@ Non-null lock timeout and timeout expires; returns
 .Er EWOULDBLOCK .
 A failed lock attempt always returns a non-zero error value.
 No lock is held after an error return (in particular, a failed
-LK_UPGRADE or LK_FORCEUPGRADE will have released its shared
+.Dv LK_UPGRADE
+or
+.Dv LK_FORCEUPGRADE
+will have released its shared
 access lock).
