@@ -236,7 +236,7 @@ i80321_pci_write_config(device_t dev, int bus, int slot, int func, int reg,
 	struct i80321_pci_softc *sc = device_get_softc(dev);
 	uint32_t addr;
 
-	if (i80321_pci_conf_setup(sc, bus, slot, func, reg, &addr))
+	if (i80321_pci_conf_setup(sc, bus, slot, func, reg & ~3, &addr))
 		return;
 
 
@@ -244,10 +244,12 @@ i80321_pci_write_config(device_t dev, int bus, int slot, int func, int reg,
 	    addr);
 	switch (bytes) {
 	case 1:
-		bus_space_write_1(sc->sc_st, sc->sc_atu_sh, ATU_OCCDR, data);
+		bus_space_write_1(sc->sc_st, sc->sc_atu_sh, ATU_OCCDR +
+		    (reg & 3), data);
 		break;
 	case 2:
-		bus_space_write_2(sc->sc_st, sc->sc_atu_sh, ATU_OCCDR, data);
+		bus_space_write_2(sc->sc_st, sc->sc_atu_sh, ATU_OCCDR +
+		    (reg & 3), data);
 		break;
 	case 4:
 		bus_space_write_4(sc->sc_st, sc->sc_atu_sh, ATU_OCCDR, data);
@@ -266,7 +268,6 @@ i80321_pci_route_interrupt(device_t pcib, device_t dev, int pin)
 	int func;
 	uint32_t busno;
 	struct i80321_pci_softc *sc = device_get_softc(pcib);
-
 	bus = pci_get_bus(dev);
 	device = pci_get_slot(dev);
 	func = pci_get_function(dev);
@@ -293,6 +294,10 @@ i80321_pci_route_interrupt(device_t pcib, device_t dev, int pin)
 		goto no_mapping;
 		/* IQ80321 PCI */
 	case 4: /* i82544 Gig-E */
+	case 8: /*
+		 * Apparently you can set the device for the ethernet adapter
+		 * to 8 with a jumper, so handle that as well
+		 */
 		if (pin == 1)
 			return (ICU_INT_XINT(0));
 		goto no_mapping;
@@ -362,7 +367,10 @@ i80321_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	case SYS_RES_MEMORY:
 		rm = &sc->sc_mem_rman;
 		bt = sc->sc_pcimem;
-		bh = sc->sc_mem;
+		bh = (start >= 0x80000000 && start < 0x84000000) ? 0x80000000 :
+		    sc->sc_mem;
+		start &= (0x1000000 - 1);
+		end &= (0x1000000 - 1);
 		break;
 	case SYS_RES_IOPORT:
 		rm = &sc->sc_io_rman;
