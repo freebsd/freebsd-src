@@ -25,7 +25,7 @@
 #include <config.h>
 #endif
 
-RCSID("$Id: k5dfspag.c,v 1.5 2002/01/23 01:49:34 assar Exp $");
+RCSID("$Id: k5dfspag.c,v 1.6 2002/08/12 15:11:58 joda Exp $");
 
 #include <krb5.h>
 
@@ -104,7 +104,7 @@ typedef krb5_sigtype sigtype;
 
 #elif defined(_AIX)
 #ifndef DPAGAIX
-#define DPAGAIX LIBEXECDIR ## "/dpagaix"
+#define DPAGAIX LIBEXECDIR "/dpagaix"
 #endif
 int *load();
 static int (*dpagaix)(int, int, int, int, int, int) = 0;
@@ -124,7 +124,7 @@ static int (*dpagaix)(int, int, int, int, int, int) = 0;
 #endif  /* WAIT_USES_INT */
 
 #ifndef K5DCECON
-#define K5DCECON LIBEXECDIR ## "/k5dcecon"
+#define K5DCECON LIBEXECDIR "/k5dcecon"
 #endif
 
 /* 

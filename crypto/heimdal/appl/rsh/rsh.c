@@ -32,7 +32,7 @@
  */
 
 #include "rsh_locl.h"
-RCSID("$Id: rsh.c,v 1.65 2002/02/18 20:02:06 joda Exp $");
+RCSID("$Id: rsh.c,v 1.68 2002/09/04 21:40:04 joda Exp $");
 
 enum auth_method auth_method;
 #if defined(KRB4) || defined(KRB5)
@@ -67,6 +67,8 @@ static const char *user;
 static int do_version;
 static int do_help;
 static int do_errsock = 1;
+static char *protocol_version_str;
+static int protocol_version = 2;
 
 /*
  *
@@ -79,6 +81,11 @@ loop (int s, int errsock)
 {
     fd_set real_readset;
     int count = 1;
+
+#ifdef KRB5
+    if(auth_method == AUTH_KRB5 && protocol_version == 2)
+	init_ivecs(1);
+#endif
 
     if (s >= FD_SETSIZE || errsock >= FD_SETSIZE)
 	errx (1, "fd too large");
@@ -106,7 +113,7 @@ loop (int s, int errsock)
 		err (1, "select");
 	}
 	if (FD_ISSET(s, &readset)) {
-	    ret = do_read (s, buf, sizeof(buf));
+	    ret = do_read (s, buf, sizeof(buf), ivec_in[0]);
 	    if (ret < 0)
 		err (1, "read");
 	    else if (ret == 0) {
@@ -118,7 +125,7 @@ loop (int s, int errsock)
 		net_write (STDOUT_FILENO, buf, ret);
 	}
 	if (errsock != -1 && FD_ISSET(errsock, &readset)) {
-	    ret = do_read (errsock, buf, sizeof(buf));
+	    ret = do_read (errsock, buf, sizeof(buf), ivec_in[1]);
 	    if (ret < 0)
 		err (1, "read");
 	    else if (ret == 0) {
@@ -138,7 +145,7 @@ loop (int s, int errsock)
 		FD_CLR(STDIN_FILENO, &real_readset);
 		shutdown (s, SHUT_WR);
 	    } else
-		do_write (s, buf, ret);
+		do_write (s, buf, ret, ivec_out[0]);
 	}
     }
 }
@@ -166,7 +173,7 @@ send_krb4_auth(int s,
 			   getpid(), &msg, &cred, schedule,
 			   (struct sockaddr_in *)thisaddr,
 			   (struct sockaddr_in *)thataddr,
-			   KCMD_VERSION);
+			   KCMD_OLD_VERSION);
     if (status != KSUCCESS) {
 	warnx("%s: %s", hostname, krb_get_err_text(status));
 	return 1;
@@ -267,6 +274,8 @@ krb5_forward_cred (krb5_auth_context auth_context,
     return 0;
 }
 
+static int sendauth_version_error;
+
 static int
 send_krb5_auth(int s,
 	       struct sockaddr *thisaddr,
@@ -282,6 +291,8 @@ send_krb5_auth(int s,
     int status;
     size_t len;
     krb5_auth_context auth_context = NULL;
+    const char *protocol_string = NULL;
+    krb5_flags ap_opts;
 
     status = krb5_sname_to_principal(context,
 				     hostname,
@@ -300,25 +311,53 @@ send_krb5_auth(int s,
 				  cmd,
 				  remote_user);
 
+    ap_opts = 0;
+
+    if(do_encrypt)
+	ap_opts |= AP_OPTS_MUTUAL_REQUIRED;
+
+    switch(protocol_version) {
+    case 2:
+	ap_opts |= AP_OPTS_USE_SUBKEY;
+	protocol_string = KCMD_NEW_VERSION;
+	break;
+    case 1:
+	protocol_string = KCMD_OLD_VERSION;
+	key_usage = KRB5_KU_OTHER_ENCRYPTED;
+	break;
+    default:
+	abort();
+    }
+	
     status = krb5_sendauth (context,
 			    &auth_context,
 			    &s,
-			    KCMD_VERSION,
+			    protocol_string,
 			    NULL,
 			    server,
-			    do_encrypt ? AP_OPTS_MUTUAL_REQUIRED : 0,
+			    ap_opts,
 			    &cksum_data,
 			    NULL,
 			    NULL,
 			    NULL,
 			    NULL,
 			    NULL);
+
+    krb5_free_principal(context, server);
+    krb5_data_free(&cksum_data);
+
     if (status) {
-	warnx("%s: %s", hostname, krb5_get_err_text(context, status));
+	if(status == KRB5_SENDAUTH_REJECTED && 
+	   protocol_version == 2 && protocol_version_str == NULL)
+	    sendauth_version_error = 1;
+	else
+	    krb5_warn(context, status, "%s", hostname);
 	return 1;
     }
 
-    status = krb5_auth_con_getkey (context, auth_context, &keyblock);
+    status = krb5_auth_con_getlocalsubkey (context, auth_context, &keyblock);
+    if(keyblock == NULL)
+	status = krb5_auth_con_getkey (context, auth_context, &keyblock);
     if (status) {
 	warnx ("krb5_auth_con_getkey: %s", krb5_get_err_text(context, status));
 	return 1;
@@ -552,7 +591,7 @@ proto (int s, int errsock,
 		       (void *)&one, sizeof(one)) < 0)
 	    warn("setsockopt stderr");
     }
-
+    
     return loop (s, errsock2);
 }
 
@@ -777,6 +816,8 @@ struct getargs args[] = {
       "port" },
     { "user",	'l', arg_string,	&user,		"Run as this user", "login" },
     { "stderr", 'e', arg_negative_flag, &do_errsock,	"Don't open stderr"},
+    { "protocol", 'P', arg_string,      &protocol_version_str, 
+      "Protocol version", "protocol" },
     { "version", 0,  arg_flag,		&do_version,	NULL },
     { "help",	 0,  arg_flag,		&do_help,	NULL }
 };
@@ -840,7 +881,24 @@ main(int argc, char **argv)
 	print_version (NULL);
 	return 0;
     }
-	
+
+    if(protocol_version_str != NULL) {
+	if(strcasecmp(protocol_version_str, "N") == 0)
+	    protocol_version = 2;
+	else if(strcasecmp(protocol_version_str, "O") == 0)
+	    protocol_version = 1;
+	else {
+	    char *end;
+	    int v;
+	    v = strtol(protocol_version_str, &end, 0);
+	    if(*end != '\0' || (v != 1 && v != 2)) {
+		errx(1, "unknown protocol version \"%s\"", 
+		     protocol_version_str);
+	    }
+	    protocol_version = v;
+	}
+    }
+
 #ifdef KRB5
     status = krb5_init_context (&context);
     if (status) {
@@ -978,9 +1036,15 @@ main(int argc, char **argv)
 	    errx (1, "getaddrinfo: %s", gai_strerror(error));
 
 	auth_method = AUTH_KRB5;
+      again:
 	ret = doit (host, ai, user, local_user, cmd, cmd_len,
 		    do_errsock,
 		    send_krb5_auth);
+	if(ret != 0 && sendauth_version_error && 
+	   protocol_version == 2) {
+	    protocol_version = 1;
+	    goto again;
+	}
 	freeaddrinfo(ai);
     }
 #endif
@@ -1035,5 +1099,6 @@ main(int argc, char **argv)
 			   cmd, cmd_len);
 	freeaddrinfo(ai);
     }
+    free(cmd);
     return ret;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: wrap.c,v 1.19 2001/06/18 02:53:52 assar Exp $");
+RCSID("$Id: wrap.c,v 1.20 2002/09/03 17:33:36 joda Exp $");
 
 OM_uint32
 gss_krb5_get_localkey(const gss_ctx_id_t context_handle,
@@ -330,7 +330,7 @@ wrap_des3
 	  4);
 
 
-  ret = krb5_crypto_init(gssapi_krb5_context, key, ETYPE_DES3_CBC_NONE_IVEC,
+  ret = krb5_crypto_init(gssapi_krb5_context, key, ETYPE_DES3_CBC_NONE,
 			 &crypto);
   if (ret) {
       free (output_message_buffer->value);

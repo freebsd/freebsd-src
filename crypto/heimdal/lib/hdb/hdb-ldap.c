@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2001, PADL Software Pty Ltd.
+ * Copyright (c) 1999-2001, PADL Software Pty Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 
 #include "hdb_locl.h"
 
-RCSID("$Id: hdb-ldap.c,v 1.9 2001/08/31 18:19:49 joda Exp $");
+RCSID("$Id: hdb-ldap.c,v 1.10 2002/09/04 18:42:22 joda Exp $");
 
 #ifdef OPENLDAP
 
@@ -451,29 +451,10 @@ LDAP_entry2mods(krb5_context context, HDB * db, hdb_entry * ent,
     for (i = 0; i < ent->keys.len; i++) {
 	unsigned char *buf;
 	size_t len;
-	Key new;
 
-	ret = copy_Key(&ent->keys.val[i], &new);
-	if (ret != 0) {
+	ASN1_MALLOC_ENCODE(Key, buf, len, &ent->keys.val[i], &len, ret);
+	if (ret != 0)
 	    goto out;
-	}
-
-	len = length_Key(&new);
-	buf = malloc(len);
-	if (buf == NULL) {
-	    krb5_set_error_string(context, "malloc: out of memory");
-	    ret = ENOMEM;
-	    free_Key(&new);
-	    goto out;
-	}
-
-	ret = encode_Key(buf + len - 1, len, &new, &len);
-	if (ret != 0) {
-	    free(buf);
-	    free_Key(&new);
-	    goto out;
-	}
-	free_Key(&new);
 
 	/* addmod_len _owns_ the key, doesn't need to copy it */
 	ret = LDAP_addmod_len(&mods, LDAP_MOD_ADD, "krb5Key", buf, len);

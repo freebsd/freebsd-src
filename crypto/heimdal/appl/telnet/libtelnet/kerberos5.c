@@ -53,7 +53,7 @@
 
 #include <config.h>
 
-RCSID("$Id: kerberos5.c,v 1.50 2002/08/28 20:55:53 joda Exp $");
+RCSID("$Id: kerberos5.c,v 1.51 2002/09/02 15:33:20 joda Exp $");
 
 #ifdef	KRB5
 
@@ -206,6 +206,8 @@ kerberos5_send(char *name, Authenticator *ap)
 	ap_opts = AP_OPTS_MUTUAL_REQUIRED;
     else
 	ap_opts = 0;
+
+    ap_opts |= AP_OPTS_USE_SUBKEY;
     
     ret = krb5_auth_con_init (context, &auth_context);
     if (ret) {

@@ -1,3 +1,45 @@
+2002-09-10  Johan Danielsson  <joda@pdc.kth.se>
+
+	* roken.awk: include config.h before stdio.h (breaks with
+	_FILE_OFFSET_BITS on solaris otherwise)
+
+2002-09-09  Johan Danielsson  <joda@pdc.kth.se>
+
+	* resolve.c: fix res_nsearch call, but don't use it for now, AIX5
+	has a broken version that trashes memory
+
+	* roken-common.h: fix typo in previous
+
+	* roken-common.h: change IRIX == 4 to IRIX4
+
+2002-09-04  Assar Westerlund  <assar@kth.se>
+
+	* getifaddrs.c: remove some warnings from the linux-portion
+
+	* getnameinfo_verified.c (getnameinfo_verified): handle the case
+	of forward but no backward DNS information, and also describe the
+	desired behaviour.  from Love <lha@stacken.kth.se>
+
+2002-09-04  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rtbl.c (rtbl_destroy): free whole table
+
+	* resolve.c: use res_nsearch if we have it (from Larry Greenfield)
+
+2002-09-03  Assar Westerlund  <assar@kth.se>
+
+	* getifaddrs.c: add Linux AF_NETLINK getifaddrs from Hideaki
+	YOSHIFUJI of the Usagi project
+	
+	* parse_reply-test.c: make this build and return 77 if there is no
+	mmap
+
+	* Makefile.am (parse_reply-test): add
+	* parse_reply-test.c: add a test case for parse_reply reading past
+	the given buffer
+	* resolve.c (parse_reply): update the arguments to more reasonable
+	types.  allow parse_reply-test to call it
+
 2002-08-28  Johan Danielsson  <joda@pdc.kth.se>
 
 	* resolve.c (dns_srv_order): do alignment tricks with the random()

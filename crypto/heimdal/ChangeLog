@@ -1,3 +1,171 @@
+2002-09-16  Jacques Vidrine  <nectar@kth.se>
+
+	* lib/krb5/kuserok.c, lib/krb5/prompter_posix.c: use strcspn
+	to convert the newline to NUL in fgets results.
+
+2002-09-13  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kuser/kinit.1: remove unneeded Ns
+
+	* lib/krb5/krb5_appdefault.3: remove extra "application"
+
+	* fix-export: remove autom4ate.cache
+
+2002-09-10  Johan Danielsson  <joda@pdc.kth.se>
+
+	* include/make_crypto.c: don't use function macros if possible
+
+	* lib/krb5/krb5_locl.h: get limits.h for UINT_MAX
+
+	* include/Makefile.am: use make_crypto to create crypto-headers.h
+
+	* include/make_crypto.c: crypto header generation tool
+
+	* configure.in: move crypto test to just after testing for krb4,
+	and move roken tests to after both, this speeds up various failure
+	cases with krb4
+
+	* lib/krb5/config_file.c: don't use NULL when we mean 0
+
+	* configure.in: we don't set package_libdir anymore, so no point
+	in testing for it
+
+	* tools/Makefile.am: subst INCLUDE_des
+
+	* tools/krb5-config.in: add INCLUDE_des to cflags
+
+	* configure.in: use AC_CONFIG_SRCDIR
+
+	* fix-export: remove some unneeded stuff
+
+	* kuser/kinit.c (do_524init): free principals
+
+2002-09-09  Jacques Vidrine  <nectar@kth.se>
+
+	* kdc/kerberos5.c (get_pa_etype_info, fix_transited_encoding),
+	kdc/kaserver.c (krb5_ret_xdr_data),
+	lib/krb5/transited.c (krb5_domain_x500_decode): Validate some
+	counts: Check that they are non-negative, and that they are small
+	enough to avoid integer overflow when used in memory allocation
+	calculations.  Potential problem areas pointed out by 
+	Sebastian Krahmer <krahmer@suse.de>.
+
+	* lib/krb5/keytab_keyfile.c (akf_add_entry): Use O_EXCL when
+	creating a new keyfile.
+
+2002-09-09  Johan Danielsson  <joda@pdc.kth.se>
+
+	* configure.in: don't try to build pam module
+
+2002-09-05  Johan Danielsson  <joda@pdc.kth.se>
+
+	* appl/kf/kf.c: fix warning string
+
+	* lib/krb5/log.c (krb5_vlog_msg): delay message formating till we
+	know we need it
+
+2002-09-04  Assar Westerlund  <assar@kth.se>
+
+	* kdc/kerberos5.c (encode_reply): correct error logging
+
+2002-09-04  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/sendauth.c: close ccache if we opened it
+
+	* appl/kf/kf.c: handle new protocol
+
+	* appl/kf/kfd.c: use krb5_err instead of sysloging directly,
+	handle the new protocol, and bail out if an old client tries to
+	connect
+
+	* appl/kf/kf_locl.h: we need a protocol version string
+
+	* lib/hdb/hdb-ldap.c: use ASN1_MALLOC_ENCODE
+
+	* kdc/kerberos5.c: use ASN1_MALLOC_ENCODE
+
+	* kdc/hprop.c: set AP_OPTS_USE_SUBKEY
+
+	* lib/hdb/common.c: use ASN1_MALLOC_ENCODE
+
+	* lib/asn1/gen.c: add convenience macro that allocates a buffer
+	and encoded into that
+
+	* lib/krb5/get_cred.c (init_tgs_req): use
+	in_creds->session.keytype literally instead of trying to convert
+	to a list of enctypes (it should already be an enctype)
+	
+	* lib/krb5/get_cred.c (init_tgs_req): init ret
+
+2002-09-03  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/asn1/k5.asn1: remove ETYPE_DES3_CBC_NONE_IVEC
+
+	* lib/krb5/krb5.h: remove ENCTYPE_DES3_CBC_NONE_IVEC
+
+	* lib/krb5/crypto.c: get rid of DES3_CBC_encrypt_ivec, just use
+	zero ivec in DES3_CBC_encrypt if passed ivec is NULL
+
+	* lib/krb5/Makefile.am: back out 1.144, since it will re-create
+	krb5-protos.h at build-time, which requires perl, which is bad
+
+	* lib/krb5/get_for_creds.c (krb5_get_forwarded_creds): don't
+	blindly use the local subkey
+
+	* lib/krb5/crypto.c: add function krb5_crypto_getblocksize that
+	extracts the required blocksize from a crypto context
+
+	* lib/krb5/build_auth.c: just get the length of the encoded
+	authenticator instead of trying to grow a buffer
+
+2002-09-03  Assar Westerlund  <assar@kth.se>
+
+	* configure.in: add --disable-mmap option, and tests for
+	sys/mman.h and mmap
+
+2002-09-03  Jacques Vidrine  <nectar@kth.se>
+
+	* lib/krb5/changepw.c: verify lengths in response
+
+	* lib/asn1/der_get.c (decode_integer, decode_unsigned): check for
+	truncated integers
+
+2002-09-02  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/mk_req_ext.c: generate a local subkey if
+	AP_OPTS_USE_SUBKEY is set
+
+	* lib/krb5/build_auth.c: we don't have enough information about
+	whether to generate a local subkey here, so don't try to
+
+	* lib/krb5/auth_context.c: new function
+	krb5_auth_con_generatelocalsubkey
+
+	* lib/krb5/get_in_tkt.c: only set kdc_sec_offset if looking at an
+	initial ticket
+
+	* lib/krb5/context.c (init_context_from_config_file): simplify
+	initialisation of srv_lookup
+
+	* lib/krb5/changepw.c (send_request): set AP_OPTS_USE_SUBKEY
+
+	* lib/krb5/krb5.h: add AP_OPTS_USE_SUBKEY
+
+2002-08-30  Assar Westerlund  <assar@kth.se>
+
+	* lib/krb5/name-45-test.c: also test krb5_524_conv_principal
+	* lib/krb5/Makefile.am (TESTS): add name-45-test
+	* lib/krb5/name-45-test.c: add testcases for
+	krb5_425_conv_principal
+
+2002-08-29  Assar Westerlund  <assar@kth.se>
+
+	* lib/krb5/parse-name-test.c: also test unparse_short functions
+	* lib/asn1/asn1_print.c: use com_err/error_message API
+	* lib/krb5/Makefile.am: add parse-name-test
+	* lib/krb5/parse-name-test.c: add a program for testing parsing
+	and unparsing principal names
+
 2002-08-28  Assar Westerlund  <assar@kth.se>
 
 	* kdc/config.c: add missing ifdef DAEMON

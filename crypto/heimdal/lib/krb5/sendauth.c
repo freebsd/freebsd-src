@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: sendauth.c,v 1.18 2001/05/14 06:14:51 assar Exp $");
+RCSID("$Id: sendauth.c,v 1.19 2002/09/04 21:34:43 joda Exp $");
 
 /*
  * The format seems to be:
@@ -86,6 +86,7 @@ krb5_sendauth(krb5_context context,
     krb5_principal this_client = NULL;
     krb5_creds *creds;
     ssize_t sret;
+    krb5_boolean my_ccache = FALSE;
 
     len = strlen(version) + 1;
     net_len = htonl(len);
@@ -125,12 +126,16 @@ krb5_sendauth(krb5_context context,
 	    ret = krb5_cc_default (context, &ccache);
 	    if (ret)
 		return ret;
+	    my_ccache = TRUE;
 	}
 
 	if (client == NULL) {
 	    ret = krb5_cc_get_principal (context, ccache, &this_client);
-	    if (ret)
+	    if (ret) {
+		if(my_ccache)
+		    krb5_cc_close(context, ccache);
 		return ret;
+	    }
 	    client = this_client;
 	}
 	memset(&this_cred, 0, sizeof(this_cred));
@@ -142,11 +147,16 @@ krb5_sendauth(krb5_context context,
     }
     if (in_creds->ticket.length == 0) {
 	ret = krb5_get_credentials (context, 0, ccache, in_creds, &creds);
-	if (ret)
+	if (ret) {
+	    if(my_ccache)
+		krb5_cc_close(context, ccache);
 	    return ret;
+	}
     } else {
 	creds = in_creds;
     }
+    if(my_ccache)
+	krb5_cc_close(context, ccache);
     ret = krb5_mk_req_extended (context,
 				auth_context,
 				ap_req_options,
