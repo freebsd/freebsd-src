@@ -89,6 +89,7 @@ static int     unp_attach(struct socket *);
 static void    unp_detach(struct unpcb *);
 static int     unp_bind(struct unpcb *,struct sockaddr *, struct thread *);
 static int     unp_connect(struct socket *,struct sockaddr *, struct thread *);
+static int     unp_connect2(struct socket *so, struct socket *so2);
 static void    unp_disconnect(struct unpcb *);
 static void    unp_shutdown(struct unpcb *);
 static void    unp_drop(struct unpcb *, int);
@@ -167,7 +168,7 @@ uipc_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	return (unp_connect(so, nam, curthread));
 }
 
-static int
+int
 uipc_connect2(struct socket *so1, struct socket *so2)
 {
 	struct unpcb *unp = sotounpcb(so1);
@@ -765,7 +766,7 @@ bad:
 	return (error);
 }
 
-int
+static int
 unp_connect2(so, so2)
 	register struct socket *so;
 	register struct socket *so2;
