@@ -96,8 +96,11 @@ power_profile_set_state(int state)
 	if (state != power_profile_state) {
 		power_profile_state = state;
 		changed = 1;
-		printf("system power profile changed to '%s'\n",
-		       (state == POWER_PROFILE_PERFORMANCE) ? "performance" : "economy");
+		if (bootverbose) {
+			printf("system power profile changed to '%s'\n",
+				(state == POWER_PROFILE_PERFORMANCE) ?
+				"performance" : "economy");
+		}
 	} else {
 		changed = 0;
 	}
