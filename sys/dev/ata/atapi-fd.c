@@ -213,11 +213,12 @@ afdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     struct afd_softc *fdp = dev->si_drv1;
     struct disklabel *label;
 
-    fdp->atp->flags &= ~ATAPI_F_MEDIA_CHANGED;
+    atapi_wait_ready(fdp->atp, 10);
     afd_prevent_allow(fdp, 1);
     if (afd_sense(fdp))
 	printf("afd%d: sense media type failed\n", fdp->lun);
 
+    fdp->atp->flags &= ~ATAPI_F_MEDIA_CHANGED;
     label = &fdp->disk.d_label;
     bzero(label, sizeof *label);
     label->d_secsize = fdp->cap.sector_size;
