@@ -97,7 +97,6 @@ vm_pgmoveco(vm_map_t mapa, vm_object_t srcobj, vm_offset_t kaddr,
 		do
 			vm_page_lock_queues();
 		while (vm_page_sleep_if_busy(user_pg, 1, "vm_pgmoveco"));
-		vm_page_busy(user_pg);
 		pmap_remove_all(user_pg);
 		vm_page_free(user_pg);
 	} else
@@ -114,7 +113,6 @@ vm_pgmoveco(vm_map_t mapa, vm_object_t srcobj, vm_offset_t kaddr,
 			panic("vm_pgmoveco: renaming busy page");
 	}
 	kpindex = kern_pg->pindex;
-	vm_page_busy(kern_pg);
 	vm_page_rename(kern_pg, uobject, upindex);
 	vm_page_flag_clear(kern_pg, PG_BUSY);
 	kern_pg->valid = VM_PAGE_BITS_ALL;
