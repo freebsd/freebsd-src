@@ -613,6 +613,10 @@ device		stf			#6to4 IPv6 over IPv4 encapsulation
 # packets without touching the ttl).  This can be useful to hide firewalls
 # from traceroute and similar tools.
 #
+# PFIL_HOOKS enables an abtraction layer which is meant to be used in
+# network code where filtering is required.  See the pfil(9) man page.
+# This option is a subset of the IPFILTER option.
+#
 # TCPDEBUG enables code which keeps traces of the TCP state machine
 # for sockets with the SO_DEBUG option set, which can then be examined
 # using the trpt(8) utility.
@@ -632,6 +636,7 @@ options 	IPFILTER		#ipfilter support
 options 	IPFILTER_LOG		#ipfilter logging
 options 	IPFILTER_DEFAULT_BLOCK	#block all packets by default
 options 	IPSTEALTH		#support for stealth forwarding
+options 	PFIL_HOOKS
 options 	TCPDEBUG
 
 # RANDOM_IP_ID causes the ID field in IP packets to be randomized
@@ -3052,8 +3057,6 @@ options 	METEOR_TEST_VIDEO
 options 	NDEVFSINO=1025
 options 	NDEVFSOVERFLOW=32769
 options 	NETGRAPH_BRIDGE
-# PFIL_HOOKS has no effect here since it is a subset of IPFILTER.
-options 	PFIL_HOOKS
 # SIMOS is broken since it is alpha-only but not ifdefed.
 ##options 	SIMOS
 options 	VESA_DEBUG
