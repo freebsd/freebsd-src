@@ -53,6 +53,36 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 
+#define	PROC_REG_ACTION(name, action, type)				\
+int									\
+proc_##name##_##type##s(struct thread *td, struct type *regs)		\
+{									\
+	int error;							\
+									\
+	mtx_lock_spin(&sched_lock);					\
+	error = (action##_##type##s(td, regs));				\
+	mtx_unlock_spin(&sched_lock);					\
+	return (error);							\
+}
+
+PROC_REG_ACTION(read, fill, reg);
+PROC_REG_ACTION(write, set, reg);
+PROC_REG_ACTION(read, fill, dbreg);
+PROC_REG_ACTION(write, set, dbreg);
+PROC_REG_ACTION(read, fill, fpreg);
+PROC_REG_ACTION(write, set, fpreg);
+
+int
+proc_sstep(struct thread *td)
+{
+	int error;
+
+	mtx_lock_spin(&sched_lock);
+	error = ptrace_single_step(td);
+	mtx_unlock_spin(&sched_lock);
+	return (error);
+}
+
 int
 proc_rwmem(struct proc *p, struct uio *uio)
 {
@@ -495,7 +525,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		error = copyin(uap->addr, &r.reg, sizeof r.reg);
 		if (error == 0) {
 			PHOLD(p);
-			error = procfs_write_regs(&p->p_thread, &r.reg);
+			error = proc_write_regs(&p->p_thread, &r.reg);
 			PRELE(p);
 		}
 		return (error);
@@ -504,7 +534,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 #ifdef PT_GETREGS
 	case PT_GETREGS:
 		PHOLD(p);
-		error = procfs_read_regs(&p->p_thread, &r.reg);
+		error = proc_read_regs(&p->p_thread, &r.reg);
 		PRELE(p);
 		if (error == 0)
 			error = copyout(&r.reg, uap->addr, sizeof r.reg);
@@ -516,7 +546,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		error = copyin(uap->addr, &r.fpreg, sizeof r.fpreg);
 		if (error == 0) {
 			PHOLD(p);
-			error = procfs_write_fpregs(&p->p_thread, &r.fpreg);
+			error = proc_write_fpregs(&p->p_thread, &r.fpreg);
 			PRELE(p);
 		}
 		return (error);
@@ -525,7 +555,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 #ifdef PT_GETFPREGS
 	case PT_GETFPREGS:
 		PHOLD(p);
-		error = procfs_read_fpregs(&p->p_thread, &r.fpreg);
+		error = proc_read_fpregs(&p->p_thread, &r.fpreg);
 		PRELE(p);
 		if (error == 0)
 			error = copyout(&r.fpreg, uap->addr, sizeof r.fpreg);
@@ -537,7 +567,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		error = copyin(uap->addr, &r.dbreg, sizeof r.dbreg);
 		if (error == 0) {
 			PHOLD(p);
-			error = procfs_write_dbregs(&p->p_thread, &r.dbreg);
+			error = proc_write_dbregs(&p->p_thread, &r.dbreg);
 			PRELE(p);
 		}
 		return (error);
@@ -546,7 +576,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 #ifdef PT_GETDBREGS
 	case PT_GETDBREGS:
 		PHOLD(p);
-		error = procfs_read_dbregs(&p->p_thread, &r.dbreg);
+		error = proc_read_dbregs(&p->p_thread, &r.dbreg);
 		PRELE(p);
 		if (error == 0)
 			error = copyout(&r.dbreg, uap->addr, sizeof r.dbreg);

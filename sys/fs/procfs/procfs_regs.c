@@ -82,14 +82,14 @@ procfs_doregs(curp, p, pfs, uio)
 	if (kl < 0)
 		error = EINVAL;
 	else
-		error = procfs_read_regs(&p->p_thread, &r); /* XXXKSE */
+		error = proc_read_regs(&p->p_thread, &r); /* XXXKSE */
 	if (error == 0)
 		error = uiomove(kv, kl, uio);
 	if (error == 0 && uio->uio_rw == UIO_WRITE) {
 		if (p->p_stat != SSTOP)
 			error = EBUSY;
 		else
-			error = procfs_write_regs(&p->p_thread, &r); /* XXXKSE */
+			error = proc_write_regs(&p->p_thread, &r); /* XXXKSE */
 	}
 	PRELE(p);
 

@@ -48,7 +48,6 @@ ia64/ia64/pal_stub.s		optional	ski
 ia64/ia64/perfmon.c		optional	perfmon	profiling-routine
 ia64/ia64/perfmon.c		optional	perfmon
 ia64/ia64/pmap.c		standard
-ia64/ia64/procfs_machdep.c	standard
 ia64/ia64/sal.c			standard
 ia64/ia64/sapic.c		standard
 ia64/ia64/setjmp.s		standard

@@ -202,7 +202,6 @@ i386/i386/nexus.c		standard
 i386/i386/perfmon.c		optional	perfmon
 i386/i386/perfmon.c		optional	perfmon	profiling-routine
 i386/i386/pmap.c		standard
-i386/i386/procfs_machdep.c	standard
 i386/i386/support.s		standard
 i386/i386/swtch.s		standard
 i386/i386/sys_machdep.c		standard

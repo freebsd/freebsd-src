@@ -67,13 +67,13 @@ int	ptrace_single_step(struct thread *_td);
 struct reg;
 struct fpreg;
 struct dbreg;
-int	procfs_read_regs(struct thread *_td, struct reg *_reg);
-int	procfs_write_regs(struct thread *_td, struct reg *_reg);
-int	procfs_read_fpregs(struct thread *_td, struct fpreg *_fpreg);
-int	procfs_write_fpregs(struct thread *_td, struct fpreg *_fpreg);
-int	procfs_read_dbregs(struct thread *_td, struct dbreg *_dbreg);
-int	procfs_write_dbregs(struct thread *_td, struct dbreg *_dbreg);
-int	procfs_sstep(struct thread *_td);
+int	proc_read_regs(struct thread *_td, struct reg *_reg);
+int	proc_write_regs(struct thread *_td, struct reg *_reg);
+int	proc_read_fpregs(struct thread *_td, struct fpreg *_fpreg);
+int	proc_write_fpregs(struct thread *_td, struct fpreg *_fpreg);
+int	proc_read_dbregs(struct thread *_td, struct dbreg *_dbreg);
+int	proc_write_dbregs(struct thread *_td, struct dbreg *_dbreg);
+int	proc_sstep(struct thread *_td);
 int	proc_rwmem(struct proc *_p, struct uio *_uio);
 #else /* !_KERNEL */
 
