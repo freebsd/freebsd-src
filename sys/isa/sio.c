@@ -1353,7 +1353,7 @@ determined_type: ;
 					     com->irqres, INTR_TYPE_TTY,
 					     siointr, com, &com->cookie);
 			if (ret == 0)
-				device_printf(dev, "unable to activate interrupt in fast mode - using normal mode");
+				device_printf(dev, "unable to activate interrupt in fast mode - using normal mode\n");
 		}
 		if (ret)
 			device_printf(dev, "could not activate interrupt\n");
