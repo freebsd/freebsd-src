@@ -477,7 +477,7 @@ release.8: write_mfs_in_kernel
 	echo "domain          53/udp          nameserver" >> ${RD}/mfsfd/stand/etc/services
 	echo "cmd             514/tcp    shell" >> ${RD}/mfsfd/stand/etc/services
 	gzip -9c ${.CURDIR}/../COPYRIGHT > ${RD}/mfsfd/stand/help/COPYRIGHT.hlp.gz
-	for i in README.TXT RELNOTES.TXT UPGRADE.TXT HARDWARE.TXT; do \
+	for i in README.TXT RELNOTES.TXT INSTALL.TXT UPGRADE.TXT HARDWARE.TXT; do \
 	   gzip -9c ${.CURDIR}/texts/$${i} > ${RD}/mfsfd/stand/help/$${i}.gz; done
 	-test -f ${.CURDIR}/install.cfg && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
 	@mkdir -p ${RD}/mfsfd/boot
@@ -544,10 +544,10 @@ ftp.1:
 	@for i in ${DIST_DOCS}; do \
 	  if [ -f ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} ]; then \
 	     cp ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} ${FD}; \
-          else \
+	  else \
 	     cp ${.CURDIR}/texts/$${i} ${FD}; \
 	  fi; \
-        done
+	done
 	@echo "CD_VERSION = ${BUILDNAME}" > ${FD}/cdrom.inf
 .if !defined(NOPORTS)
 	@tar --exclude CVS -cBf - -C ${CD_DISC1} ports | tar -xBf - -C ${FD}
