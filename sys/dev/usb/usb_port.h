@@ -52,6 +52,8 @@
 
 #include "opt_usbverbose.h"
 
+/*#define USB_USE_SOFTINTR */
+
 #ifdef USB_DEBUG
 #define UHID_DEBUG 1
 #define OHCI_DEBUG 1
