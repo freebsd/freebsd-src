@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.17 1994/10/31 17:20:14 joerg Exp $
+ *	$Id: cons.c,v 1.18 1994/12/18 19:35:09 joerg Exp $
  */
 
 
@@ -67,7 +67,7 @@ int siocnprobe(), siocninit(), siocngetc(), siocncheckc(), siocnputc();
 #endif
 
 struct	consdev constab[] = {
-#if NSC > 0
+#if NSC > 0 || NVT > 0
 	{ pccnprobe,	pccninit,	pccngetc,	pccncheckc,	pccnputc },
 #endif
 #if NSIO > 0
