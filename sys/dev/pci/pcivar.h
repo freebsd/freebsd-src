@@ -330,7 +330,9 @@ extern struct cdevsw pcicdev;
 /*
  * List of all PCI devices, generation count for the list.
  */
-STAILQ_HEAD(devlist, pci_devinfo)	pci_devq;
-u_int32_t				pci_generation;
+STAILQ_HEAD(devlist, pci_devinfo);
+
+extern struct devlist	pci_devq;
+extern u_int32_t	pci_generation;
 
 #endif /* _PCIVAR_H_ */
