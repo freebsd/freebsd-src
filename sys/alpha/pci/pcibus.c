@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcibus.c,v 1.14 1999/05/20 15:33:24 gallatin Exp $
+ * $Id: pcibus.c,v 1.15 1999/07/01 20:23:01 peter Exp $
  *
  */
 
@@ -41,6 +41,7 @@
 #include <machine/chipset.h>
 #include <machine/cpuconf.h>
 #include <machine/resource.h>
+#include <machine/md_var.h>
 #include <alpha/pci/pcibus.h>
 #include <alpha/isa/isavar.h>
 
