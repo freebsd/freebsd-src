@@ -46,25 +46,11 @@ PICFLAG=-fpic
 .endif
 .endif
 
-.c.ln:
-	${LINT} ${LINTOBJFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC} || \
-	    touch ${.TARGET}
-
-.cc.ln .C.ln .cpp.ln .cxx.ln:
-	${LINT} ${LINTOBJFLAGS} ${CXXFLAGS:M-[DIU]*} ${.IMPSRC} || \
-	    touch ${.TARGET}
-
-.c.o:
-	${CC} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-
 .c.po:
 	${CC} -pg ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .c.So:
 	${CC} ${PICFLAG} -DPIC ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-
-.cc.o .C.o .cpp.o .cxx.o:
-	${CXX} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .cc.po .C.po .cpp.po .cxx.po:
 	${CXX} -pg ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
@@ -72,17 +58,11 @@ PICFLAG=-fpic
 .cc.So .C.So .cpp.So .cxx.So:
 	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
-.f.o:
-	${FC} ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC} 
-
 .f.po:
 	${FC} -pg ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC} 
 
 .f.So:
 	${FC} ${PICFLAG} -DPIC ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
-
-.m.o:
-	${OBJC} ${OBJCFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .m.po:
 	${OBJC} ${OBJCFLAGS} -pg -c ${.IMPSRC} -o ${.TARGET}
