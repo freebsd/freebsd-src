@@ -107,8 +107,6 @@ u_int sf_buf_alloc_want;
 #define COMPAT_OLDSOCK
 #endif
 
-extern	struct fileops socketops;
-
 /*
  * MPSAFE
  */

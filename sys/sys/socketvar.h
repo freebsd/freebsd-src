@@ -338,30 +338,10 @@ extern u_long	sb_max;
 extern struct uma_zone *socket_zone;
 extern so_gen_t so_gencnt;
 
-struct file;
-struct filedesc;
-struct knote;
 struct mbuf;
 struct sockaddr;
-struct stat;
 struct ucred;
 struct uio;
-
-/*
- * File operations on sockets.
- */
-int	soo_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
-	    int flags, struct thread *td);
-int	soo_write(struct file *fp, struct uio *uio,
-	    struct ucred *active_cred, int flags, struct thread *td);
-int	soo_close(struct file *fp, struct thread *td);
-int	soo_ioctl(struct file *fp, u_long cmd, void *data,
-	    struct ucred *active_cred, struct thread *td);
-int	soo_poll(struct file *fp, int events, struct ucred *active_cred,
-	    struct thread *td);
-int	soo_stat(struct file *fp, struct stat *ub, struct ucred *active_cred,
-	    struct thread *td);
-int	soo_kqfilter(struct file *fp, struct knote *kn);
 
 /*
  * From uipc_socket and friends
