@@ -320,6 +320,7 @@
 
 #define SINDEX			0x065
 #define DINDEX			0x066
+#define ALLONES			0x069
 #define ALLZEROS		0x06a
 #define NONE			0x06a
 #define SINDIR			0x06c
@@ -412,7 +413,6 @@
 #define			REJECT_MSG	0x61	/* Reject message received */
 #define			BAD_STATUS	0x71	/* Bad status from target */
 #define			RESIDUAL	0x81	/* Residual byte count != 0 */
-#define			ABORT_TAG	0x91	/* Sent an ABORT_TAG message */
 #define			AWAITING_MSG	0xa1	/*
 						 * Kernel requested to specify
                                                  * a message to this target
@@ -527,6 +527,7 @@
 #define		MK_MESSAGE      0x80
 #define		DISCENB         0x40
 #define		TAG_ENB		0x20
+#define		TRACE_SCB	0x10
 #define		ABORT_SCB	0x08
 #define		DISCONNECTED	0x04
 #define		SCB_TAG_TYPE	0x03
