@@ -278,7 +278,7 @@ nfs3_access_otw(struct vnode *vp, int wmode, struct thread *td,
 	mb = mreq;
 	bpos = mtod(mb, caddr_t);
 	nfsm_fhtom(vp, v3);
-	nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);
+	tl = nfsm_build(u_int32_t *, NFSX_UNSIGNED);
 	*tl = txdr_unsigned(wmode);
 	nfsm_request(vp, NFSPROC_ACCESS, td, cred);
 	nfsm_postop_attr(vp, attrflag);
@@ -694,10 +694,10 @@ nfs_setattrrpc(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 	nfsm_fhtom(vp, v3);
 	if (v3) {
 		nfsm_v3attrbuild(vap, TRUE);
-		nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);
+		tl = nfsm_build(u_int32_t *, NFSX_UNSIGNED);
 		*tl = nfs_false;
 	} else {
-		nfsm_build(sp, struct nfsv2_sattr *, NFSX_V2SATTR);
+		sp = nfsm_build(struct nfsv2_sattr *, NFSX_V2SATTR);
 		if (vap->va_mode == (mode_t)VNOVAL)
 			sp->sa_mode = nfs_xdrneg1;
 		else
@@ -1024,7 +1024,7 @@ nfs_readrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 		mb = mreq;
 		bpos = mtod(mb, caddr_t);
 		nfsm_fhtom(vp, v3);
-		nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED * 3);
+		tl = nfsm_build(u_int32_t *, NFSX_UNSIGNED * 3);
 		if (v3) {
 			txdr_hyper(uiop->uio_offset, tl);
 			*(tl + 2) = txdr_unsigned(len);
@@ -1090,7 +1090,7 @@ nfs_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 		bpos = mtod(mb, caddr_t);
 		nfsm_fhtom(vp, v3);
 		if (v3) {
-			nfsm_build(tl, u_int32_t *, 5 * NFSX_UNSIGNED);
+			tl = nfsm_build(u_int32_t *, 5 * NFSX_UNSIGNED);
 			txdr_hyper(uiop->uio_offset, tl);
 			tl += 2;
 			*tl++ = txdr_unsigned(len);
@@ -1099,7 +1099,7 @@ nfs_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 		} else {
 			u_int32_t x;
 
-			nfsm_build(tl, u_int32_t *, 4 * NFSX_UNSIGNED);
+			tl = nfsm_build(u_int32_t *, 4 * NFSX_UNSIGNED);
 			/* Set both "begin" and "current" to non-garbage. */
 			x = txdr_unsigned((u_int32_t)uiop->uio_offset);
 			*tl++ = x;	/* "begin offset" */
@@ -1207,16 +1207,16 @@ nfs_mknodrpc(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 	nfsm_fhtom(dvp, v3);
 	nfsm_strtom(cnp->cn_nameptr, cnp->cn_namelen, NFS_MAXNAMLEN);
 	if (v3) {
-		nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);
+		tl = nfsm_build(u_int32_t *, NFSX_UNSIGNED);
 		*tl++ = vtonfsv3_type(vap->va_type);
 		nfsm_v3attrbuild(vap, FALSE);
 		if (vap->va_type == VCHR || vap->va_type == VBLK) {
-			nfsm_build(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
+			tl = nfsm_build(u_int32_t *, 2 * NFSX_UNSIGNED);
 			*tl++ = txdr_unsigned(umajor(vap->va_rdev));
 			*tl = txdr_unsigned(uminor(vap->va_rdev));
 		}
 	} else {
-		nfsm_build(sp, struct nfsv2_sattr *, NFSX_V2SATTR);
+		sp = nfsm_build(struct nfsv2_sattr *, NFSX_V2SATTR);
 		sp->sa_mode = vtonfsv2_mode(vap->va_type, vap->va_mode);
 		sp->sa_uid = nfs_xdrneg1;
 		sp->sa_gid = nfs_xdrneg1;
@@ -1308,10 +1308,10 @@ again:
 	nfsm_fhtom(dvp, v3);
 	nfsm_strtom(cnp->cn_nameptr, cnp->cn_namelen, NFS_MAXNAMLEN);
 	if (v3) {
-		nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);
+		tl = nfsm_build(u_int32_t *, NFSX_UNSIGNED);
 		if (fmode & O_EXCL) {
 			*tl = txdr_unsigned(NFSV3CREATE_EXCLUSIVE);
-			nfsm_build(tl, u_int32_t *, NFSX_V3CREATEVERF);
+			tl = nfsm_build(u_int32_t *, NFSX_V3CREATEVERF);
 #ifdef INET
 			if (!TAILQ_EMPTY(&in_ifaddrhead))
 				*tl++ = IA_SIN(TAILQ_FIRST(&in_ifaddrhead))->sin_addr.s_addr;
@@ -1324,7 +1324,7 @@ again:
 			nfsm_v3attrbuild(vap, FALSE);
 		}
 	} else {
-		nfsm_build(sp, struct nfsv2_sattr *, NFSX_V2SATTR);
+		sp = nfsm_build(struct nfsv2_sattr *, NFSX_V2SATTR);
 		sp->sa_mode = vtonfsv2_mode(vap->va_type, vap->va_mode);
 		sp->sa_uid = nfs_xdrneg1;
 		sp->sa_gid = nfs_xdrneg1;
@@ -1702,7 +1702,7 @@ nfs_symlink(struct vop_symlink_args *ap)
 	}
 	nfsm_strtom(ap->a_target, slen, NFS_MAXPATHLEN);
 	if (!v3) {
-		nfsm_build(sp, struct nfsv2_sattr *, NFSX_V2SATTR);
+		sp = nfsm_build(struct nfsv2_sattr *, NFSX_V2SATTR);
 		sp->sa_mode = vtonfsv2_mode(VLNK, vap->va_mode);
 		sp->sa_uid = nfs_xdrneg1;
 		sp->sa_gid = nfs_xdrneg1;
@@ -1800,7 +1800,7 @@ nfs_mkdir(struct vop_mkdir_args *ap)
 	if (v3) {
 		nfsm_v3attrbuild(vap, FALSE);
 	} else {
-		nfsm_build(sp, struct nfsv2_sattr *, NFSX_V2SATTR);
+		sp = nfsm_build(struct nfsv2_sattr *, NFSX_V2SATTR);
 		sp->sa_mode = vtonfsv2_mode(VDIR, vap->va_mode);
 		sp->sa_uid = nfs_xdrneg1;
 		sp->sa_gid = nfs_xdrneg1;
@@ -1971,13 +1971,13 @@ nfs_readdirrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 		bpos = mtod(mb, caddr_t);
 		nfsm_fhtom(vp, v3);
 		if (v3) {
-			nfsm_build(tl, u_int32_t *, 5 * NFSX_UNSIGNED);
+			tl = nfsm_build(u_int32_t *, 5 * NFSX_UNSIGNED);
 			*tl++ = cookie.nfsuquad[0];
 			*tl++ = cookie.nfsuquad[1];
 			*tl++ = dnp->n_cookieverf.nfsuquad[0];
 			*tl++ = dnp->n_cookieverf.nfsuquad[1];
 		} else {
-			nfsm_build(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
+			tl = nfsm_build(u_int32_t *, 2 * NFSX_UNSIGNED);
 			*tl++ = cookie.nfsuquad[0];
 		}
 		*tl = txdr_unsigned(nmp->nm_readdirsize);
@@ -2162,7 +2162,7 @@ nfs_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 		mb = mreq;
 		bpos = mtod(mb, caddr_t);
 		nfsm_fhtom(vp, 1);
- 		nfsm_build(tl, u_int32_t *, 6 * NFSX_UNSIGNED);
+ 		tl = nfsm_build(u_int32_t *, 6 * NFSX_UNSIGNED);
 		*tl++ = cookie.nfsuquad[0];
 		*tl++ = cookie.nfsuquad[1];
 		*tl++ = dnp->n_cookieverf.nfsuquad[0];
@@ -2493,7 +2493,7 @@ nfs_commit(struct vnode *vp, u_quad_t offset, int cnt, struct ucred *cred,
 	mb = mreq;
 	bpos = mtod(mb, caddr_t);
 	nfsm_fhtom(vp, 1);
-	nfsm_build(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
+	tl = nfsm_build(u_int32_t *, 3 * NFSX_UNSIGNED);
 	txdr_hyper(offset, tl);
 	tl += 2;
 	*tl = txdr_unsigned(cnt);

@@ -245,10 +245,11 @@ nfs_adv(struct mbuf **mdp, caddr_t *dposp, int offs, int left)
 	return (0);
 }
 
-void
-nfsm_build_xx(void **a, int s, struct mbuf **mb, caddr_t *bpos)
+void *
+nfsm_build_xx(int s, struct mbuf **mb, caddr_t *bpos)
 {
 	struct mbuf *mb2;
+	void *ret;
 
 	if (s > M_TRAILINGSPACE(*mb)) {
 		MGET(mb2, M_TRYWAIT, MT_DATA);
@@ -259,9 +260,10 @@ nfsm_build_xx(void **a, int s, struct mbuf **mb, caddr_t *bpos)
 		(*mb)->m_len = 0;
 		*bpos = mtod(*mb, caddr_t);
 	}
-	*a = *bpos;
+	ret = *bpos;
 	(*mb)->m_len += s;
 	*bpos += s;
+	return ret;
 }
 
 int

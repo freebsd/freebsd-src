@@ -219,7 +219,7 @@ nfsrv3_access(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	vp = NULL;
 	nfsm_reply(NFSX_POSTOPATTR(1) + NFSX_UNSIGNED);
 	nfsm_srvpostop_attr(getret, vap);
-	nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);
+	tl = nfsm_build(u_int32_t *, NFSX_UNSIGNED);
 	*tl = txdr_unsigned(nfsmode);
 nfsmout:
 	if (vp)
@@ -266,7 +266,8 @@ nfsrv_getattr(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = 0;
 		goto nfsmout;
 	}
-	nfsm_build(fp, struct nfs_fattr *, NFSX_FATTR(nfsd->nd_flag & ND_NFSV3));
+	fp = nfsm_build(struct nfs_fattr *,
+	    NFSX_FATTR(nfsd->nd_flag & ND_NFSV3));
 	nfsm_srvfillattr(vap, fp);
 	/* fall through */
 
@@ -420,7 +421,7 @@ out:
 		goto nfsmout;
 	} else {
 		/* v2 non-error case (see nfsm_reply). */
-		nfsm_build(fp, struct nfs_fattr *, NFSX_V2FATTR);
+		fp = nfsm_build(struct nfs_fattr *, NFSX_V2FATTR);
 		nfsm_srvfillattr(vap, fp);
 	}
 	/* fall through */
@@ -607,7 +608,7 @@ nfsrv_lookup(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		nfsm_srvpostop_attr(0, vap);
 		nfsm_srvpostop_attr(dirattr_ret, &dirattr);
 	} else {
-		nfsm_build(fp, struct nfs_fattr *, NFSX_V2FATTR);
+		fp = nfsm_build(struct nfs_fattr *, NFSX_V2FATTR);
 		nfsm_srvfillattr(vap, fp);
 	}
 
@@ -716,7 +717,7 @@ out:
 		tlen = nfsm_rndup(len);
 		nfsm_adj(mp3, NFS_MAXPATHLEN-tlen, tlen-len);
 	}
-	nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);
+	tl = nfsm_build(u_int32_t *, NFSX_UNSIGNED);
 	*tl = txdr_unsigned(len);
 	mb->m_next = mp3;
 	mp3 = NULL;
@@ -878,12 +879,12 @@ nfsrv_read(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 
 	nfsm_reply(NFSX_POSTOPORFATTR(v3) + 3 * NFSX_UNSIGNED+nfsm_rndup(cnt));
 	if (v3) {
-		nfsm_build(tl, u_int32_t *, NFSX_V3FATTR + 4 * NFSX_UNSIGNED);
+		tl = nfsm_build(u_int32_t *, NFSX_V3FATTR + 4 * NFSX_UNSIGNED);
 		*tl++ = nfs_true;
 		fp = (struct nfs_fattr *)tl;
 		tl += (NFSX_V3FATTR / sizeof (u_int32_t));
 	} else {
-		nfsm_build(tl, u_int32_t *, NFSX_V2FATTR + NFSX_UNSIGNED);
+		tl = nfsm_build(u_int32_t *, NFSX_V2FATTR + NFSX_UNSIGNED);
 		fp = (struct nfs_fattr *)tl;
 		tl += (NFSX_V2FATTR / sizeof (u_int32_t));
 	}
@@ -1158,7 +1159,7 @@ ereply:
 			error = 0;
 			goto nfsmout;
 		}
-		nfsm_build(tl, u_int32_t *, 4 * NFSX_UNSIGNED);
+		tl = nfsm_build(u_int32_t *, 4 * NFSX_UNSIGNED);
 		*tl++ = txdr_unsigned(retlen);
 		/*
 		 * If nfs_async is set, then pretend the write was FILESYNC.
@@ -1178,7 +1179,7 @@ ereply:
 		*tl = txdr_unsigned(nfsver.tv_usec);
 	} else {
 		/* v2, non-error case (see nfsm_reply). */
-		nfsm_build(fp, struct nfs_fattr *, NFSX_V2FATTR);
+		fp = nfsm_build(struct nfs_fattr *, NFSX_V2FATTR);
 		nfsm_srvfillattr(vap, fp);
 	}
 nfsmout:
@@ -1455,7 +1456,7 @@ loop1:
 			    NFSX_WRITEVERF(v3));
 			if (v3) {
 			    nfsm_srvwcc_data(forat_ret, &forat, aftat_ret, &va);
-			    nfsm_build(tl, u_int32_t *, 4 * NFSX_UNSIGNED);
+			    tl = nfsm_build(u_int32_t *, 4 * NFSX_UNSIGNED);
 			    *tl++ = txdr_unsigned(nfsd->nd_len);
 			    *tl++ = txdr_unsigned(swp->nd_stable);
 			    /*
@@ -1468,7 +1469,7 @@ loop1:
 			    *tl++ = txdr_unsigned(nfsver.tv_sec);
 			    *tl = txdr_unsigned(nfsver.tv_usec);
 			} else {
-			    nfsm_build(fp, struct nfs_fattr *, NFSX_V2FATTR);
+			    fp = nfsm_build(struct nfs_fattr *, NFSX_V2FATTR);
 			    nfsm_srvfillattr(&va, fp);
 			}
 		    }
@@ -1828,7 +1829,7 @@ ereply:
 	} else {
 		/* v2 non-error case (see nfsm_reply). */
 		nfsm_srvfhtom(fhp, v3);
-		nfsm_build(fp, struct nfs_fattr *, NFSX_V2FATTR);
+		fp = nfsm_build(struct nfs_fattr *, NFSX_V2FATTR);
 		nfsm_srvfillattr(vap, fp);
 	}
 	goto nfsmout;
@@ -2793,7 +2794,7 @@ out:
 	} else {
 		/* v2, non-error case (see nfsm_reply) */
 		nfsm_srvfhtom(fhp, v3);
-		nfsm_build(fp, struct nfs_fattr *, NFSX_V2FATTR);
+		fp = nfsm_build(struct nfs_fattr *, NFSX_V2FATTR);
 		nfsm_srvfillattr(vap, fp);
 	}
 	error = 0;
@@ -3115,11 +3116,11 @@ again:
 				2 * NFSX_UNSIGNED);
 			if (v3) {
 				nfsm_srvpostop_attr(getret, &at);
-				nfsm_build(tl, u_int32_t *, 4 * NFSX_UNSIGNED);
+				tl = nfsm_build(u_int32_t *, 4 * NFSX_UNSIGNED);
 				txdr_hyper(at.va_filerev, tl);
 				tl += 2;
 			} else
-				nfsm_build(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
+				tl = nfsm_build(u_int32_t *, 2 * NFSX_UNSIGNED);
 			*tl++ = nfs_false;
 			*tl = nfs_true;
 			FREE((caddr_t)rbuf, M_TEMP);
@@ -3162,7 +3163,7 @@ again:
 	nfsm_reply(NFSX_POSTOPATTR(v3) + NFSX_COOKIEVERF(v3) + siz);
 	if (v3) {
 		nfsm_srvpostop_attr(getret, &at);
-		nfsm_build(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
+		tl = nfsm_build(u_int32_t *, 2 * NFSX_UNSIGNED);
 		txdr_hyper(at.va_filerev, tl);
 	}
 	mp = mb;
@@ -3387,7 +3388,7 @@ again:
 			nfsm_reply(NFSX_V3POSTOPATTR + NFSX_V3COOKIEVERF +
 				2 * NFSX_UNSIGNED);
 			nfsm_srvpostop_attr(getret, &at);
-			nfsm_build(tl, u_int32_t *, 4 * NFSX_UNSIGNED);
+			tl = nfsm_build(u_int32_t *, 4 * NFSX_UNSIGNED);
 			txdr_hyper(at.va_filerev, tl);
 			tl += 2;
 			*tl++ = nfs_false;
@@ -3446,10 +3447,11 @@ again:
 	vput(nvp);
 	nvp = NULL;
 
-	dirlen = len = NFSX_V3POSTOPATTR + NFSX_V3COOKIEVERF + 2 * NFSX_UNSIGNED;
+	dirlen = len = NFSX_V3POSTOPATTR + NFSX_V3COOKIEVERF +
+	    2 * NFSX_UNSIGNED;
 	nfsm_reply(cnt);
 	nfsm_srvpostop_attr(getret, &at);
-	nfsm_build(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
+	tl = nfsm_build(u_int32_t *, 2 * NFSX_UNSIGNED);
 	txdr_hyper(at.va_filerev, tl);
 	mp = mb;
 	bp = bpos;
@@ -3719,7 +3721,7 @@ ereply:
 	nfsm_reply(NFSX_V3WCCDATA + NFSX_V3WRITEVERF);
 	nfsm_srvwcc_data(for_ret, &bfor, aft_ret, &aft);
 	if (!error) {
-		nfsm_build(tl, u_int32_t *, NFSX_V3WRITEVERF);
+		tl = nfsm_build(u_int32_t *, NFSX_V3WRITEVERF);
 		if (nfsver.tv_sec == 0)
 			nfsver = boottime;
 		*tl++ = txdr_unsigned(nfsver.tv_sec);
@@ -3782,7 +3784,7 @@ nfsrv_statfs(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = 0;
 		goto nfsmout;
 	}
-	nfsm_build(sfp, struct nfs_statfs *, NFSX_STATFS(v3));
+	sfp = nfsm_build(struct nfs_statfs *, NFSX_STATFS(v3));
 	if (v3) {
 		tval = (u_quad_t)sf->f_blocks;
 		tval *= (u_quad_t)sf->f_bsize;
@@ -3859,7 +3861,7 @@ nfsrv_fsinfo(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	vp = NULL;
 	nfsm_reply(NFSX_V3POSTOPATTR + NFSX_V3FSINFO);
 	nfsm_srvpostop_attr(getret, &at);
-	nfsm_build(sip, struct nfsv3_fsinfo *, NFSX_V3FSINFO);
+	sip = nfsm_build(struct nfsv3_fsinfo *, NFSX_V3FSINFO);
 
 	/*
 	 * XXX
@@ -3940,7 +3942,7 @@ nfsrv_pathconf(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = 0;
 		goto nfsmout;
 	}
-	nfsm_build(pc, struct nfsv3_pathconf *, NFSX_V3PATHCONF);
+	pc = nfsm_build(struct nfsv3_pathconf *, NFSX_V3PATHCONF);
 
 	pc->pc_linkmax = txdr_unsigned(linkmax);
 	pc->pc_namemax = txdr_unsigned(namemax);
