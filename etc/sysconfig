@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.53 1996/11/05 20:10:37 jhay Exp $
+#	$Id: sysconfig,v 1.54 1996/12/10 02:23:27 adam Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -52,7 +52,7 @@ saver=NO
 # Use 'vidcontrol -m on' command to activate it on particular screen
 mousedtype=NO
 
-############## Next block activated only if mousetype != NO ################
+############## Next block activated only if mousedtype != NO ################
 
 # Set to your mouse port (required)
 # Use real device here, because /dev/mouse usually linked with /dev/sysmouse
