@@ -270,9 +270,9 @@
       for more details.</para>
 
     <para>The security and performance of the
-      <quote>syncookies</quote> feature has been improved to increase
-      the resistance of a &os; host to SYN flood denial-of-service
-      attacks.  More details are given in security advisory <ulink
+      <quote>syncookies</quote> feature has been improved to decrease
+      the chance of an attacker being able to spoof connections.
+      More details are given in security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:03.syncookies.asc">FreeBSD-SA-03:03</ulink>.</para>
 
     <para>A remotely-exploitable buffer overflow vulnerability in
