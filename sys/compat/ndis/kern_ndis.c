@@ -1001,6 +1001,9 @@ ndis_set_info(arg, oid, buf, buflen)
 	    rval == NDIS_STATUS_NOT_ACCEPTED)
 		return(ENOTSUP);
 
+	if (rval != NDIS_STATUS_SUCCESS)
+		return(ENODEV);
+
 	return(0);
 }
 
@@ -1361,6 +1364,9 @@ ndis_get_info(arg, oid, buf, buflen)
 	if (rval == NDIS_STATUS_NOT_SUPPORTED ||
 	    rval == NDIS_STATUS_NOT_ACCEPTED)
 		return(ENOTSUP);
+
+	if (rval != NDIS_STATUS_SUCCESS)
+		return(ENODEV);
 
 	return(0);
 }
