@@ -310,6 +310,7 @@ vinumioctl(dev_t dev,
 
 	default:
 	    /* FALLTHROUGH */
+	    break;
 	}
 
     case VINUM_DRIVE_TYPE:
