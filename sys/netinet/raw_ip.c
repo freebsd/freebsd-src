@@ -118,10 +118,10 @@ void (*ip_rsvp_force_done)(struct socket *);
  */
 
 /*
- * Initialize raw connection block queue.
+ * Initialize raw connection block q.
  */
 void
-rip_init(void)
+rip_init()
 {
 	INP_INFO_LOCK_INIT(&ripcbinfo, "rip");
 	LIST_INIT(&ripcb);
@@ -138,22 +138,19 @@ rip_init(void)
 	uma_zone_set_max(ripcbinfo.ipi_zone, maxsockets);
 }
 
-/*
- * XXX ripsrc is modified in rip_input, so we must be fix this
- * when we want to make this code smp-friendly.
- */
 static struct	sockaddr_in ripsrc = { sizeof(ripsrc), AF_INET };
-
 /*
  * Setup generic address and protocol structures
  * for raw_input routine, then pass them along with
  * mbuf chain.
  */
 void
-rip_input(struct mbuf *m, int off)
+rip_input(m, off)
+	struct mbuf *m;
+	int off;
 {
-	struct ip *ip = mtod(m, struct ip *);
-	struct inpcb *inp;
+	register struct ip *ip = mtod(m, struct ip *);
+	register struct inpcb *inp;
 	struct inpcb *last = 0;
 	struct mbuf *opts = 0;
 	int proto = ip->ip_p;
@@ -166,14 +163,14 @@ rip_input(struct mbuf *m, int off)
 #endif
 		if (inp->inp_ip_p && inp->inp_ip_p != proto)
 			continue;
-		if (inp->inp_laddr.s_addr != INADDR_ANY &&
-		    inp->inp_laddr.s_addr != ip->ip_dst.s_addr)
+		if (inp->inp_laddr.s_addr &&
+                  inp->inp_laddr.s_addr != ip->ip_dst.s_addr)
 			continue;
-		if (inp->inp_faddr.s_addr != INADDR_ANY &&
-		    inp->inp_faddr.s_addr != ip->ip_src.s_addr)
+		if (inp->inp_faddr.s_addr &&
+                  inp->inp_faddr.s_addr != ip->ip_src.s_addr)
 			continue;
 		if (last) {
-			struct mbuf *n = m_copypacket(m, M_DONTWAIT);
+			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
 			int policyfail = 0;
 
 			if (n != NULL) {
@@ -268,10 +265,13 @@ rip_input(struct mbuf *m, int off)
  * Tack on options user may have setup with control call.
  */
 int
-rip_output(struct mbuf *m, struct socket *so, u_long dst)
+rip_output(m, so, dst)
+	struct mbuf *m;
+	struct socket *so;
+	u_long dst;
 {
-	struct ip *ip;
-	struct inpcb *inp = sotoinpcb(so);
+	register struct ip *ip;
+	register struct inpcb *inp = sotoinpcb(so);
 	int flags = (so->so_options & SO_DONTROUTE) | IP_ALLOWBROADCAST;
 
 #ifdef MAC
@@ -330,7 +330,9 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
  * Raw IP socket option processing.
  */
 int
-rip_ctloutput(struct socket *so, struct sockopt *sopt)
+rip_ctloutput(so, sopt)
+	struct socket *so;
+	struct sockopt *sopt;
 {
 	struct	inpcb *inp = sotoinpcb(so);
 	int	error, optval;
@@ -458,7 +460,10 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
  * interface routes.
  */
 void
-rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
+rip_ctlinput(cmd, sa, vip)
+	int cmd;
+	struct sockaddr *sa;
+	void *vip;
 {
 	struct in_ifaddr *ia;
 	struct ifnet *ifp;
@@ -516,8 +521,7 @@ SYSCTL_INT(_net_inet_raw, OID_AUTO, maxdgram, CTLFLAG_RW,
 SYSCTL_INT(_net_inet_raw, OID_AUTO, recvspace, CTLFLAG_RW,
     &rip_recvspace, 0, "Maximum incoming raw IP datagram size");
 SYSCTL_INT(_net_inet_raw, OID_AUTO, olddiverterror, CTLFLAG_RW,
-    &rip_olddiverterror, 0,
-    "Return an error when creating an 'old' DIVERT socket");
+    &rip_olddiverterror, 0, "Return an error when creating an 'old' DIVERT socket");
 
 static int
 rip_attach(struct socket *so, int proto, struct thread *td)
@@ -536,9 +540,7 @@ rip_attach(struct socket *so, int proto, struct thread *td)
 
 	/* To be removed before 5.2 */
 	if (rip_olddiverterror && proto == IPPROTO_OLD_DIVERT) {
-		printf("Old IPDIVERT program needs to be recompiled, "
-			"or new IP proto 254 user needs "
-			"sysctl net.inet.raw.olddiverterror=0\n");
+		printf("Old IPDIVERT program needs to be recompiled, or new IP proto 254 user needs sysctl net.inet.raw.olddiverterror=0\n");
 		return EPROTONOSUPPORT;
 	}
 
@@ -601,7 +603,7 @@ rip_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 
 	if (TAILQ_EMPTY(&ifnet) || ((addr->sin_family != AF_INET) &&
 				    (addr->sin_family != AF_IMPLINK)) ||
-	    (addr->sin_addr.s_addr != INADDR_ANY &&
+	    (addr->sin_addr.s_addr &&
 	     ifa_ifwithaddr((struct sockaddr *)addr) == 0))
 		return EADDRNOTAVAIL;
 	inp->inp_laddr = addr->sin_addr;
@@ -638,7 +640,7 @@ rip_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	 struct mbuf *control, struct thread *td)
 {
 	struct inpcb *inp = sotoinpcb(so);
-	u_long dst;
+	register u_long dst;
 
 	if (so->so_state & SS_ISCONNECTED) {
 		if (nam) {
