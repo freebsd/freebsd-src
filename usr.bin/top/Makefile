@@ -17,8 +17,8 @@ CFLAGS+= -D"Table_size=${TOP_TABLE_SIZE}"
 SRCS=	commands.c display.c machine.c screen.c top.c \
 	username.c utils.c version.c
 
-DPADD=  ${LIBCURSES} ${LIBTERMCAP} ${LIBM} ${LIBKVM}
-LDADD=  -lcurses -ltermcap -lm -lkvm
+DPADD=  ${LIBTERMCAP} ${LIBM} ${LIBKVM}
+LDADD=  -ltermcap -lm -lkvm
 BINGRP= kmem
 BINMODE=2555
 
