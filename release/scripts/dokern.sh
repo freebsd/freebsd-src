@@ -29,6 +29,7 @@ sed	-e '/	pci/d' \
 	-e '/	wx/d' \
 	-e '/	miibus/d' \
 	-e '/	dc/d' \
+	-e '/	pcn/d' \
 	-e '/	rl/d' \
 	-e '/	sf/d' \
 	-e '/	sis/d' \
