@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_pass.c,v 1.7 1999/05/06 20:16:05 ken Exp $
+ *      $Id: scsi_pass.c,v 1.8 1999/05/07 07:03:00 phk Exp $
  */
 
 #include <sys/param.h>
@@ -819,7 +819,7 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 				  (ccb->ccb_h.flags & CAM_PASS_ERR_RECOVER) ?
 				  passerror : NULL,
 				  /* cam_flags */ 0,
-				  /* sense_flags */SF_RETRY_UA,
+				  /* sense_flags */SF_RETRY_UA | SF_RETRY_SELTO,
 				  &softc->device_stats);
 
 	if (need_unmap != 0)

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_cd.c,v 1.18 1999/05/06 20:16:03 ken Exp $
+ *      $Id: scsi_cd.c,v 1.19 1999/05/07 07:02:57 phk Exp $
  */
 /*
  * Portions of this driver taken from the original FreeBSD cd driver.
@@ -270,10 +270,10 @@ static struct extend_array *cdperiphs;
 static int num_changers;
 
 #ifndef CHANGER_MIN_BUSY_SECONDS
-#define CHANGER_MIN_BUSY_SECONDS	2
+#define CHANGER_MIN_BUSY_SECONDS	5
 #endif
 #ifndef CHANGER_MAX_BUSY_SECONDS
-#define CHANGER_MAX_BUSY_SECONDS	10
+#define CHANGER_MAX_BUSY_SECONDS	15
 #endif
 
 static int changer_min_busy_seconds = CHANGER_MIN_BUSY_SECONDS;
@@ -1583,7 +1583,10 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 				sf = SF_RETRY_UA;
 			else
 				sf = 0;
-			
+
+			/* Retry selection timeouts */
+			sf |= SF_RETRY_SELTO;
+
 			if ((error = cderror(done_ccb, 0, sf)) == ERESTART) {
 				/*
 				 * A retry was scheuled, so
@@ -1688,7 +1691,8 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 			 * Retry any UNIT ATTENTION type errors.  They
 			 * are expected at boot.
 			 */
-			error = cderror(done_ccb, 0, SF_RETRY_UA|SF_NO_PRINT);
+			error = cderror(done_ccb, 0, SF_RETRY_UA |
+					SF_NO_PRINT | SF_RETRY_SELTO);
 			if (error == ERESTART) {
 				/*
 				 * A retry was scheuled, so
@@ -2512,7 +2516,7 @@ cdprevent(struct cam_periph *periph, int action)
 		     /* timeout */60000);
 	
 	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-				  /*sense_flags*/SF_RETRY_UA|SF_NO_PRINT);
+			/*sense_flags*/SF_RETRY_UA|SF_NO_PRINT|SF_RETRY_SELTO);
 
 	xpt_release_ccb(ccb);
 
@@ -2556,7 +2560,7 @@ cdsize(dev_t dev, u_int32_t *size)
 			   /* timeout */20000);
 
 	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-				  /*sense_flags*/SF_RETRY_UA|SF_NO_PRINT);
+			 /*sense_flags*/SF_RETRY_UA|SF_NO_PRINT|SF_RETRY_SELTO);
 
 	xpt_release_ccb(ccb);
 
@@ -2633,7 +2637,7 @@ cdreadtoc(struct cam_periph *periph, u_int32_t mode, u_int32_t start,
 	scsi_cmd->op_code = READ_TOC;
 
 	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-				  /*sense_flags*/SF_RETRY_UA);
+			 /*sense_flags*/SF_RETRY_UA|SF_RETRY_SELTO);
 
 	xpt_release_ccb(ccb);
 
@@ -2680,7 +2684,7 @@ cdreadsubchannel(struct cam_periph *periph, u_int32_t mode,
 	scsi_cmd->control = 0;
 
 	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-				  /*sense_flags*/SF_RETRY_UA);
+			 /*sense_flags*/SF_RETRY_UA|SF_RETRY_SELTO);
 
 	xpt_release_ccb(ccb);
 
@@ -2720,7 +2724,7 @@ cdgetmode(struct cam_periph *periph, struct cd_mode_data *data, u_int32_t page)
 	scsi_cmd->opcode = MODE_SENSE;
 
 	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-				  /*sense_flags*/SF_RETRY_UA);
+			 /*sense_flags*/SF_RETRY_UA|SF_RETRY_SELTO);
 
 	xpt_release_ccb(ccb);
 
@@ -2767,7 +2771,7 @@ cdsetmode(struct cam_periph *periph, struct cd_mode_data *data)
 	data->header.medium_type = 0;
 
 	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-				  /*sense_flags*/SF_RETRY_UA);
+			 /*sense_flags*/SF_RETRY_UA | SF_RETRY_SELTO);
 
 	xpt_release_ccb(ccb);
 
@@ -2823,7 +2827,7 @@ cdplay(struct cam_periph *periph, u_int32_t blk, u_int32_t len)
 		      /*timeout*/50 * 1000);
 
 	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-			 /*sense_flags*/SF_RETRY_UA);
+			 /*sense_flags*/SF_RETRY_UA | SF_RETRY_SELTO);
 
 	xpt_release_ccb(ccb);
 
@@ -2868,7 +2872,7 @@ cdplaymsf(struct cam_periph *periph, u_int32_t startm, u_int32_t starts,
         scsi_cmd->end_f = endf; 
 
 	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-				  /*sense_flags*/SF_RETRY_UA);
+			 /*sense_flags*/SF_RETRY_UA | SF_RETRY_SELTO);
 	
 	xpt_release_ccb(ccb);
 
@@ -2912,7 +2916,7 @@ cdplaytracks(struct cam_periph *periph, u_int32_t strack, u_int32_t sindex,
         scsi_cmd->end_index = eindex;
 
 	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-				  /*sense_flags*/SF_RETRY_UA);
+			 /*sense_flags*/SF_RETRY_UA | SF_RETRY_SELTO);
 
 	xpt_release_ccb(ccb);
 
@@ -2951,7 +2955,7 @@ cdpause(struct cam_periph *periph, u_int32_t go)
 	scsi_cmd->resume = go;
 
 	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-				  /*sense_flags*/SF_RETRY_UA);
+			 /*sense_flags*/SF_RETRY_UA |SF_RETRY_SELTO);
 
 	xpt_release_ccb(ccb);
 
@@ -2979,7 +2983,7 @@ cdstartunit(struct cam_periph *periph)
 			/* timeout */ 50000);
 
 	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-				  /*sense_flags*/SF_RETRY_UA);
+			 /*sense_flags*/SF_RETRY_UA | SF_RETRY_SELTO);
 
 	xpt_release_ccb(ccb);
 
@@ -3007,7 +3011,7 @@ cdstopunit(struct cam_periph *periph, u_int32_t eject)
 			/* timeout */ 50000);
 
 	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-				  /*sense_flags*/SF_RETRY_UA);
+			 /*sense_flags*/SF_RETRY_UA | SF_RETRY_SELTO);
 
 	xpt_release_ccb(ccb);
 

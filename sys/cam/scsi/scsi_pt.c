@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_pt.c,v 1.5 1999/02/10 00:03:15 ken Exp $
+ *      $Id: scsi_pt.c,v 1.6 1999/05/07 07:03:01 phk Exp $
  */
 
 #include <sys/param.h>
@@ -605,6 +605,8 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 				sf = SF_RETRY_UA;
 			else
 				sf = 0;
+
+			sf |= SF_RETRY_SELTO;
 
 			if ((error = pterror(done_ccb, 0, sf)) == ERESTART) {
 				/*

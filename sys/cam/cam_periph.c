@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_periph.c,v 1.11 1999/04/06 03:05:36 peter Exp $
+ *      $Id: cam_periph.c,v 1.12 1999/04/19 21:26:07 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -1505,7 +1505,23 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		xpt_async(AC_LOST_DEVICE, newpath, NULL);
 		xpt_free_path(newpath);
 #endif
-		error = ENXIO;
+		if ((sense_flags & SF_RETRY_SELTO) != 0) {
+			retry = ccb->ccb_h.retry_count > 0;
+			if (retry) {
+				ccb->ccb_h.retry_count--;
+				error = ERESTART;
+				/*
+				 * Wait half a second to give the device
+				 * time to recover before we try again.
+				 */
+				relsim_flags = RELSIM_RELEASE_AFTER_TIMEOUT;
+				timeout = 500;
+			} else {
+				error = ENXIO;
+			}
+		} else {
+			error = ENXIO;
+		}
 		break;
 	}
 	case CAM_REQ_INVALID:
