@@ -36,8 +36,6 @@
 #ifndef _AHAREG_H_
 #define _AHAREG_H_
 
-#include "aha.h"
-
 #include <sys/queue.h>
 #include <cam/scsi/scsi_all.h>
 
@@ -425,10 +423,6 @@ int			aha_probe(struct aha_softc *);
 
 #define aha_outb(aha, port, value)			\
 	bus_space_write_1((aha)->tag, (aha)->bsh, port, value)
-
-/* XXX BAD */
-#define EXTRA_AHA 4
-#define NAHATOT (NAHA + EXTRA_AHA)
 
 #define ADP0100_PNP		0x00019004	/* ADP0100 */
 #define AHA1540_PNP		0x40159004	/* ADP1540 */
