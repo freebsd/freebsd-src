@@ -53,14 +53,15 @@ __numeric_load_locale(const char *name)
 {
 	int ret;
 
-	__nlocale_changed = 1;
 	ret = __part_load_locale(name, &_numeric_using_locale,
 		_numeric_locale_buf, "LC_NUMERIC",
 		LCNUMERIC_SIZE, LCNUMERIC_SIZE,
 		(const char **)&_numeric_locale);
-	if (ret == 0 && _numeric_using_locale)
+	if (ret != _LDP_ERROR)
+		__nlocale_changed = 1;
+	if (ret == _LDP_LOADED)
 		_numeric_locale.grouping =
-			__fix_locale_grouping_str(_numeric_locale.grouping);
+		    __fix_locale_grouping_str(_numeric_locale.grouping);
 	return (ret);
 }
 
