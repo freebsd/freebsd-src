@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs.h	8.3 (Berkeley) 9/23/93
+ * $Id$
  */
 
 #define	LFS_LABELPAD	8192		/* LFS label size */

@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cltp_var.h	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 #define UD_TPDU_type	0x40	/* packet type */

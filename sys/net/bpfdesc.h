@@ -37,7 +37,7 @@
  *
  *      @(#)bpfdesc.h	8.1 (Berkeley) 6/10/93
  *
- * @(#) $Header: bpfdesc.h,v 1.9 91/10/27 21:22:38 mccanne Exp $ (LBL)
+ * $Id$
  */
 
 #include <sys/select.h>

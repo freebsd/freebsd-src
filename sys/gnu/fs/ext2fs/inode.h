@@ -36,6 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)inode.h	8.4 (Berkeley) 1/21/94
+ * $Id$
  */
 
 #include <ufs/ufs/dinode.h>

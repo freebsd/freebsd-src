@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_stat.h	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 /***********************************************************
@@ -62,8 +63,8 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: tp_stat.h,v 5.4 88/11/18 17:28:38 nhall Exp $
- * $Source: /usr/argo/sys/netiso/RCS/tp_stat.h,v $
+ * $Header: /home/ncvs/src/sys/netiso/tp_stat.h,v 1.1.1.1 1994/05/24 10:06:47 rgrimes Exp $
+ * $Source: /home/ncvs/src/sys/netiso/tp_stat.h,v $
  *
  * Here are the data structures in which the global
  * statistics(counters) are gathered.

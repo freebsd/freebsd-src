@@ -34,6 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.6 (Berkeley) 2/10/94
+ * $Id$
  */
 
 /*

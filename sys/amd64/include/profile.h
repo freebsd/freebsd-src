@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)profile.h	8.1 (Berkeley) 6/11/93
+ * $Id$
  */
 
 #define	_MCOUNT_DECL static inline void _mcount

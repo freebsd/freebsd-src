@@ -34,6 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)utsname.h	8.1 (Berkeley) 1/4/94
+ * $Id$
  */
 
 #ifndef	_SYS_UTSNAME_H

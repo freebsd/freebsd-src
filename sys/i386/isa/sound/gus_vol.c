@@ -2,6 +2,7 @@
  * gus_vol.c - Compute volume for GUS.
  *
  * Greg Lee 1993.
+ * $Id$
  */
 #include "sound_config.h"
 #ifndef EXCLUDE_GUS

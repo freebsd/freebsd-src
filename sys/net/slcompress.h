@@ -2,8 +2,6 @@
 /*
  * Definitions for tcp compression routines.
  *
- * $Header: slcompress.h,v 1.10 89/12/31 08:53:02 van Exp $
- *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -37,6 +35,7 @@
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
+ * $Id$
  */
 
 #define MAX_STATES 16		/* must be > 2 and < 256 */

@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp.h	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 typedef	u_long	tcp_seq;

@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tuba_table.h	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 struct tuba_cache {

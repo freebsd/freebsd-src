@@ -1,3 +1,6 @@
+/*
+ * $Id$
+ */
 	char patch_names[][9] =
 	  {
 		/*   0 */	"acpiano",

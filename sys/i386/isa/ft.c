@@ -17,7 +17,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ft.c - QIC-40/80 floppy tape driver
- *  $Id: ft.c,v 1.4 1994/02/14 22:24:28 nate Exp $
+ *  $Id: ft.c,v 1.6 1994/05/25 08:58:47 rgrimes Exp $
  *
  *
  *  01/26/94 v0.3b - Jim Babb
@@ -51,6 +51,8 @@
  *
  *  06/03/93 v0.1 Alpha release
  *  Hopefully the last re-write.  Many bugs fixed, many remain.
+ *
+ * $Id$
  */
 
 #include "ft.h"

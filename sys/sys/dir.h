@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dir.h	8.2 (Berkeley) 1/4/94
+ * $Id$
  */
 
 /*

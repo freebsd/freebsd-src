@@ -36,6 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_rrip.h	8.1 (Berkeley) 1/21/94
+ * $Id$
  */
 
 typedef struct {

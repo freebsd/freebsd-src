@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufsmount.h	8.2 (Berkeley) 1/12/94
+ * $Id$
  */
 
 struct buf;

@@ -1,3 +1,6 @@
+/*
+ * $Id$
+ */
 #include <stdio.h>
 #include <machine/soundcard.h>
 #include <unistd.h>

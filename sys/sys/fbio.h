@@ -36,7 +36,7 @@
  *
  *	@(#)fbio.h	8.2 (Berkeley) 10/30/93
  *
- * from: $Header: fbio.h,v 1.6 93/10/31 06:01:56 torek Exp $ (LBL)
+ * $Id$
  */
 
 /*

@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo.h	8.2 (Berkeley) 2/2/94
+ * $Id$
  */
 
 #ifdef FIFO

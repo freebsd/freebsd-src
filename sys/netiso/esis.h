@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)esis.h	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 /***********************************************************
@@ -60,8 +61,8 @@ SOFTWARE.
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
 /*
- *	$Header: esis.h,v 4.7 88/09/15 11:24:18 hagens Exp $
- *	$Source: /usr/argo/sys/netiso/RCS/esis.h,v $
+ *	$Header: /home/ncvs/src/sys/netiso/esis.h,v 1.1.1.1 1994/05/24 10:07:15 rgrimes Exp $
+ *	$Source: /home/ncvs/src/sys/netiso/esis.h,v $
  */
 
 #ifndef BYTE_ORDER

@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp_output.c	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 /***********************************************************
@@ -59,8 +60,8 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /var/src/sys/netiso/RCS/clnp_output.c,v 5.0 89/02/08 12:00:15 hagens Exp $ */
-/* $Source: /var/src/sys/netiso/RCS/clnp_output.c,v $ */
+/* $Header: /home/ncvs/src/sys/netiso/clnp_output.c,v 1.1.1.1 1994/05/24 10:07:22 rgrimes Exp $ */
+/* $Source: /home/ncvs/src/sys/netiso/clnp_output.c,v $ */
 
 #include <sys/param.h>
 #include <sys/mbuf.h>

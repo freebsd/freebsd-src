@@ -1,4 +1,7 @@
 /*
+ * $Id$
+ */
+/*
  * CAUTION!	This program is just an incompletely implemented version
  *		of the patch manager daemon for GUS. Using this program
  *		with the driver version 1.99.9 will hang your system

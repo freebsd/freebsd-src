@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)queue.h	8.4 (Berkeley) 1/4/94
+ * $Id$
  */
 
 #ifndef	_SYS_QUEUE_H_

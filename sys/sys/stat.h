@@ -36,6 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stat.h	8.6 (Berkeley) 3/8/94
+ * $Id$
  */
 
 #ifndef _SYS_STAT_H_

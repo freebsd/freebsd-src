@@ -10,6 +10,8 @@
  * University of Guelph makes no representations about the suitability of
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
+ *
+ * $Id$
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and

@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_iso.c	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 /***********************************************************
@@ -61,8 +62,8 @@ SOFTWARE.
  */
 /* 
  * ARGO TP
- * $Header: /var/src/sys/netiso/RCS/tp_iso.c,v 5.1 89/02/09 16:20:51 hagens Exp $
- * $Source: /var/src/sys/netiso/RCS/tp_iso.c,v $
+ * $Header: /home/ncvs/src/sys/netiso/tp_iso.c,v 1.1.1.1 1994/05/24 10:06:52 rgrimes Exp $
+ * $Source: /home/ncvs/src/sys/netiso/tp_iso.c,v $
  *
  * Here is where you find the iso-dependent code.  We've tried
  * keep all net-level and (primarily) address-family-dependent stuff

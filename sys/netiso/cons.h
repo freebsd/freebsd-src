@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cons.h	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 /***********************************************************
@@ -60,8 +61,8 @@ SOFTWARE.
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
 /*
- * $Header: cons.h,v 4.4 88/09/09 19:01:28 nhall Exp $
- * $Source: /usr/argo/sys/netiso/RCS/cons.h,v $
+ * $Header: /home/ncvs/src/sys/netiso/cons.h,v 1.1.1.1 1994/05/24 10:07:18 rgrimes Exp $
+ * $Source: /home/ncvs/src/sys/netiso/cons.h,v $
  *
  * interface between TP and CONS
  */

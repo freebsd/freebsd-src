@@ -3,6 +3,8 @@
  * the copyright notice and this permission notice appear in all copies
  * of the software, derivative works or modified versions, and any
  * portions thereof.
+ *
+ * $Id$
  */
 /* 3COM Etherlink 3C501 Register Definitions */
 

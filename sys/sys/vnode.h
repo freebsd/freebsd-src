@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
+ * $Id$
  */
 
 #include <sys/queue.h>

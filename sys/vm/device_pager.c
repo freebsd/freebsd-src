@@ -36,6 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
+ * $Id$
  */
 
 /*

@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_clnp.h	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 /***********************************************************
@@ -62,8 +63,8 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: tp_clnp.h,v 5.1 88/10/12 12:16:36 root Exp $
- * $Source: /usr/argo/sys/netiso/RCS/tp_clnp.h,v $
+ * $Header: /home/ncvs/src/sys/netiso/tp_clnp.h,v 1.1.1.1 1994/05/24 10:07:00 rgrimes Exp $
+ * $Source: /home/ncvs/src/sys/netiso/tp_clnp.h,v $
  *
  * AF_ISO net-dependent structures and include files
  *
