@@ -544,12 +544,6 @@ pcn_attach(dev)
 	 */
 	pci_enable_busmaster(dev);
 
-	/* Retreive the chip ID */
-	command = pcn_chip_id(dev);
-	sc->pcn_type = (command >>= 12) & PART_MASK;
-	device_printf(dev, "Chip ID %04x (%s)\n",
-		sc->pcn_type, pcn_chipid_name(sc->pcn_type));
-
 	rid = PCN_RID;
 	sc->pcn_res = bus_alloc_resource(dev, PCN_RES, &rid,
 	    0, ~0, 1, RF_ACTIVE);
