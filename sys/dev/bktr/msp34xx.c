@@ -706,6 +706,7 @@ static void msp3400c_thread(void *data)
 	
 	dprintk("msp3400: thread started\n");
 	
+	mtx_lock(&Giant);
 	for (;;) {
 		if (msp->rmmod)
 			goto done;
@@ -896,6 +897,7 @@ done:
 
 	msp->kthread = NULL;
 	wakeup(&msp->kthread);
+	mtx_unlock(&Giant);
 
 	kthread_exit(0);
 }
@@ -940,6 +942,7 @@ static void msp3410d_thread(void *data)
     
 	dprintk("msp3410: thread started\n");
 		
+	mtx_lock(&Giant);
 	for (;;) {
 		if (msp->rmmod)
 			goto done;
@@ -1121,6 +1124,7 @@ done:
 
 	msp->kthread = NULL;
 	wakeup(&msp->kthread);
+	mtx_unlock(&Giant);
 
 	kthread_exit(0);
 }
@@ -1217,12 +1221,14 @@ int msp_detach(bktr_ptr_t client)
 	if (msp->kthread) 
 	{
 		/* XXX mutex lock required */
+		mtx_lock(&Giant);
 		msp->rmmod = 1;
 		msp->watch_stereo = 0;
 		wakeup(msp->kthread);
 
 		while (msp->kthread)
 			tsleep(&msp->kthread, PRIBIO, "wait for kthread", hz/10);
+		mtx_unlock(&Giant);
 	}
 
 	if (client->msp3400c_info != NULL) {
