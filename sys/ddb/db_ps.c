@@ -145,6 +145,7 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 static void
 dumpthread(volatile struct proc *p, volatile struct thread *td)
 {
+
 	if (p->p_flag & P_SA) 
 		db_printf( "   thread %p ksegrp %p ", td, td->td_ksegrp);
 	if (TD_ON_SLEEPQ(td)) {
