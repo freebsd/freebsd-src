@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: xrpu.c,v 1.12 1999/05/31 11:29:04 phk Exp $
+ * $Id: xrpu.c,v 1.13 1999/06/22 10:31:30 phk Exp $
  *
  * A very simple device driver for PCI cards based on Xilinx 6200 series
  * FPGA/RPU devices.  Current Functionality is to allow you to open and
@@ -100,24 +100,26 @@ void
 xrpu_poll_pps(struct timecounter *tc)
 {               
         struct softc *sc = tc->tc_priv;
-	int i;
+	int i, j;
         unsigned count1, ppscount; 
                 
 	for (i = 0; i < XRPU_MAX_PPS; i++) {
 		if (sc->assert[i]) {
 			ppscount = *(sc->assert[i]) & tc->tc_counter_mask;
+			j = 0;
 			do {
 				count1 = ppscount;
 				ppscount =  *(sc->assert[i]) & tc->tc_counter_mask;
-			} while (ppscount != count1);
+			} while (ppscount != count1 && ++j < 5);
 			pps_event(&sc->pps[i], tc, ppscount, PPS_CAPTUREASSERT);
 		}
 		if (sc->clear[i]) {
+			j = 0;
 			ppscount = *(sc->clear[i]) & tc->tc_counter_mask;
 			do {
 				count1 = ppscount;
 				ppscount =  *(sc->clear[i]) & tc->tc_counter_mask;
-			} while (ppscount != count1);
+			} while (ppscount != count1 && ++j < 5);
 			pps_event(&sc->pps[i], tc, ppscount, PPS_CAPTURECLEAR);
 		}
 	}
