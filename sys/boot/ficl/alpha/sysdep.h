@@ -248,11 +248,7 @@ typedef struct
 ** machine. 3 would be appropriate for a 64 bit machine.
 */
 #if !defined FICL_ALIGN
-#if defined __i386__
-#define FICL_ALIGN 2
-#elif defined __alpha__
 #define FICL_ALIGN 4
-#endif
 #define FICL_ALIGN_ADD ((1 << FICL_ALIGN) - 1)
 #endif
 
