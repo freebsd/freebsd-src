@@ -426,6 +426,8 @@ ciss_detach(device_t dev)
     /* flush adapter cache */
     ciss_flush_adapter(sc);
 
+    destroy_dev(sc->ciss_dev_t);
+
     /* release all resources */
     ciss_free(sc);
 
