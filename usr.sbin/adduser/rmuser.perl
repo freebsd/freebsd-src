@@ -317,11 +317,22 @@ sub update_passwd_file {
 	print STDERR "\n${whoami}: Warning: couldn't set mode of $new_passwd_file to 0600 ($!)\n\tcontinuing, but please check mode of /etc/master.passwd!\n";
     $skipped = 0;
     while (<MASTER_PW>) {
-	if (not /^\Q$login_name:/o) {
-	    print NEW_PW;
-	} else {
+	if (/^\Q$login_name:/o) {
 	    print STDERR "Dropped entry for $login_name\n" if $debug;
 	    $skipped = 1;
+	} else {
+	    print NEW_PW;
+	    # The other perl password tools assume all lowercase entries.
+	    # Add a warning to help unsuspecting admins who might be
+	    # using the wrong tool for the job, or might otherwise
+	    # be unwittingly holding a loaded foot-shooting device.
+	    if (/^\Q$login_name:/io) {
+		my $name = $_;
+		$name =~ s#\:.*\n##;
+		print STDERR "\n\n\tThere is also an entry for $name in your",
+		    "password file.\n\tThis can cause problems in some ",
+		    "situations.\n\n";
+	    }
 	}
     }
     close(NEW_PW);
