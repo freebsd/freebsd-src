@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sem.c,v 1.3 1995/05/30 00:06:37 rgrimes Exp $
+ *	$Id: sem.c,v 1.3.6.1 1997/08/24 21:41:38 jkh Exp $
  */
 
 #ifndef lint
@@ -70,9 +70,9 @@ execute(t, wanttty, pipein, pipeout)
     int     pid = 0;
     int     pv[2];
 
-    static sigset_t csigmask;
+    static int csigmask;
 
-    static sigset_t ocsigmask;
+    static int ocsigmask;
     static int onosigchld = 0;
     static int nosigchld = 0;
 
@@ -226,7 +226,7 @@ execute(t, wanttty, pipein, pipeout)
 	    else {
 		int     ochild, osetintr, ohaderr, odidfds;
 		int     oSHIN, oSHOUT, oSHERR, oOLDSTD, otpgrp;
-		sigset_t omask;
+		int	omask;
 
 		/*
 		 * Prepare for the vfork by saving everything that the child

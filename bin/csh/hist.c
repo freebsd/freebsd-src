@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: hist.c,v 1.2 1994/09/24 02:54:06 davidg Exp $
+ *	$Id: hist.c,v 1.2.8.1 1997/08/24 21:41:34 jkh Exp $
  */
 
 #ifndef lint
@@ -127,7 +127,7 @@ dohist(v, t)
     if (getn(value(STRhistory)) == 0)
 	return;
     if (setintr)
-	(void) sigsetmask(sigblock((sigset_t) 0) & ~sigmask(SIGINT));
+	(void) sigsetmask(sigblock(0) & ~sigmask(SIGINT));
     while (*++v && **v == '-') {
 	Char   *vp = *v;
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	$Id: extern.h,v 1.2 1994/09/24 02:55:52 davidg Exp $
  */
 
 int	 acccmp __P((const FTSENT *, const FTSENT *));
@@ -49,3 +49,5 @@ void	 printcol __P((DISPLAY *));
 void	 printlong __P((DISPLAY *));
 void	 printscol __P((DISPLAY *));
 void	 usage __P((void));
+int	 len_octal __P((char *, int));
+int	 prn_octal __P((char *));

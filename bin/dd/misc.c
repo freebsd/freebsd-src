@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: misc.c,v 1.2.8.3 1998/02/11 02:24:41 asami Exp $
+ *	$Id: misc.c,v 1.2.8.4 1998/02/15 11:04:30 jkh Exp $
  */
 
 #ifndef lint
@@ -100,9 +100,10 @@ summaryx(notused)
 
 /* ARGSUSED */
 void
-terminate(notused)
-	int notused;
+terminate(sig)
+	int sig;
 {
 
-	exit(0);
+	/* XXX exit() shouldn't call exit() from a signal handler. */
+	exit(sig == 0 ? 0 : 1);
 }

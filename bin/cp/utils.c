@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: utils.c,v 1.9.2.1 1997/08/24 10:34:49 jkh Exp $
+ *	$Id: utils.c,v 1.9.2.2 1998/02/15 10:53:17 jkh Exp $
  */
 
 #ifndef lint
@@ -207,7 +207,7 @@ copy_link(p, exists)
 	int len;
 	char link[MAXPATHLEN];
 
-	if ((len = readlink(p->fts_path, link, sizeof(link))) == -1) {
+	if ((len = readlink(p->fts_path, link, sizeof(link) - 1)) == -1) {
 		warn("readlink: %s", p->fts_path);
 		return (1);
 	}
@@ -262,7 +262,9 @@ setfile(fs, fd)
 	int fd;
 {
 	static struct timeval tv[2];
+	struct stat ts;
 	int rval;
+	int gotstat;
 
 	rval = 0;
 	fs->st_mode &= S_ISUID | S_ISGID | S_ISVTX |
@@ -274,30 +276,42 @@ setfile(fs, fd)
 		warn("utimes: %s", to.p_path);
 		rval = 1;
 	}
+	if (fd ? fstat(fd, &ts) : stat(to.p_path, &ts))
+		gotstat = 0;
+	else {
+		gotstat = 1;
+		ts.st_mode &= S_ISUID | S_ISGID | S_ISVTX |
+			      S_IRWXU | S_IRWXG | S_IRWXO;
+	}
 	/*
 	 * Changing the ownership probably won't succeed, unless we're root
 	 * or POSIX_CHOWN_RESTRICTED is not set.  Set uid/gid before setting
 	 * the mode; current BSD behavior is to remove all setuid bits on
 	 * chown.  If chown fails, lose setuid/setgid bits.
 	 */
-	if (fd ? fchown(fd, fs->st_uid, fs->st_gid) :
-	    chown(to.p_path, fs->st_uid, fs->st_gid)) {
-		if (errno != EPERM) {
+	if (!gotstat || fs->st_uid != ts.st_uid || fs->st_gid != ts.st_gid)
+		if (fd ? fchown(fd, fs->st_uid, fs->st_gid) :
+		    chown(to.p_path, fs->st_uid, fs->st_gid)) {
+			if (errno != EPERM) {
+				warn("chown: %s", to.p_path);
+				rval = 1;
+			}
+			fs->st_mode &= ~(S_ISUID | S_ISGID);
+		}
+
+	if (!gotstat || fs->st_mode != ts.st_mode)
+		if (fd ? fchmod(fd, fs->st_mode) : chmod(to.p_path, fs->st_mode)) {
 			warn("chown: %s", to.p_path);
 			rval = 1;
 		}
-		fs->st_mode &= ~(S_ISUID | S_ISGID);
-	}
-	if (fd ? fchmod(fd, fs->st_mode) : chmod(to.p_path, fs->st_mode)) {
-		warn("chown: %s", to.p_path);
-		rval = 1;
-	}
 
-	if (fd ?
-	    fchflags(fd, fs->st_flags) : chflags(to.p_path, fs->st_flags)) {
-		warn("chflags: %s", to.p_path);
-		rval = 1;
-	}
+	if (!gotstat || fs->st_flags != ts.st_flags)
+		if (fd ?
+		    fchflags(fd, fs->st_flags) : chflags(to.p_path, fs->st_flags)) {
+			warn("chflags: %s", to.p_path);
+			rval = 1;
+		}
+
 	return (rval);
 }
 

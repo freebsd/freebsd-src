@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: csh.c,v 1.6.2.1 1997/08/24 21:41:29 jkh Exp $
+ *	$Id: csh.c,v 1.6.2.2 1998/01/31 17:06:13 joerg Exp $
  */
 
 #ifndef lint
@@ -525,7 +525,7 @@ notty:
 	{
 	    int     osetintr = setintr;
 	    sig_t   oparintr = parintr;
-	    sigset_t omask = sigblock(sigmask(SIGINT));
+	    int omask = sigblock(sigmask(SIGINT));
 
 	    setintr = 0;
 	    parintr = SIG_IGN;	/* Disable onintr */
@@ -696,7 +696,7 @@ srcunit(unit, onlyown, hflg)
     bool    otell = cantell;
 
     struct Bin saveB;
-    volatile sigset_t omask;
+    volatile int omask;
     jmp_buf oldexit;
 
     /* The (few) real local variables */
@@ -932,9 +932,9 @@ pintr1(wantnl)
     bool    wantnl;
 {
     Char **v;
-    sigset_t omask;
+    int omask;
 
-    omask = sigblock((sigset_t) 0);
+    omask = sigblock(0);
     if (setintr) {
 	(void) sigsetmask(omask & ~sigmask(SIGINT));
 	if (pjobs) {
@@ -1004,7 +1004,7 @@ process(catch)
 	 * Interruptible during interactive reads
 	 */
 	if (setintr)
-	    (void) sigsetmask(sigblock((sigset_t) 0) & ~sigmask(SIGINT));
+	    (void) sigsetmask(sigblock(0) & ~sigmask(SIGINT));
 
 	/*
 	 * For the sake of reset()

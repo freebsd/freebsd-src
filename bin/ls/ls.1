@@ -13,7 +13,7 @@
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
 .\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
+.\"    must display the following acknowledgment:
 .\"	This product includes software developed by the University of
 .\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ls.1	8.6 (Berkeley) 4/18/94
-.\"	$Id: ls.1,v 1.5.2.4 1997/09/19 06:18:11 charnier Exp $
+.\"	$Id: ls.1,v 1.5.2.5 1997/12/25 09:35:55 hoek Exp $
 .\"
 .Dd April 18, 1994
 .Dt LS 1
@@ -43,20 +43,20 @@
 .Nd list directory contents
 .Sh SYNOPSIS
 .Nm ls
-.Op Fl ACFLRTacdfgikloqrstu1
+.Op Fl ABCFHLPRTWabcdfgikloqrstu1
 .Op Ar file ...
 .Sh DESCRIPTION
 For each operand that names a
 .Ar file
 of a type other than
 directory,
-.Nm ls
+.Nm
 displays its name as well as any requested,
 associated information.
 For each operand that names a
 .Ar file
 of type directory,
-.Nm ls
+.Nm
 displays the names of files contained
 within that directory, as well as any requested, associated
 information.
@@ -76,6 +76,9 @@ List all entries except for
 and
 .Ql \&.. .
 Always set for the super-user.
+.It Fl B
+Force printing of non-graphic characters in file names as \\xxx,
+where xxx is the numeric value of the character in octal.
 .It Fl C
 Force multi-column output; this is the default when output is to a terminal.
 .It Fl F
@@ -84,24 +87,47 @@ that is a directory, an asterisk (*) after each that is
 executable,
 an at sign (@) after each symbolic link,
 an equals sign (=) after each socket,
+a percent sign (%) after each whiteout,
 and a vertical bar (|) after each that is a
-.Tn FIFO . 
+.Tn FIFO .
+.It Fl H
+Symbolic links on the command line are followed.  This option is assumed if
+none of the
+.Fl F ,
+.Fl d ,
+or
+.Fl l
+options are specified.
 .It Fl L
 If argument is a symbolic link, list the file or directory the link references
-rather than the link itself.
+rather than the link itself. This option cancels the
+.Fl P
+option.
+.It Fl P
+If argument is a symbolic link, list the link itself rather than the
+object the link references.  This option cancels the
+.Fl H
+and
+.Fl L
+options.
 .It Fl R
 Recursively list subdirectories encountered.
 .It Fl T
 Display complete time information for the file, including
 month, day, hour, minute, second, and year.
+.It Fl W
+Display whiteouts when scanning directories.
 .It Fl a
 Include directory entries whose names begin with a
 dot (.).
+.It Fl b
+As 
+.Fl B ,
+but use C escape codes whenever possible.
 .It Fl c
 Use time when file status was last changed for sorting or printing.
 .It Fl d
-Directories are listed as plain files (not searched recursively) and
-symbolic links in the argument list are not indirected through.
+Directories are listed as plain files (not searched recursively).
 .It Fl f
 Output is not sorted.
 .It Fl g
@@ -114,8 +140,10 @@ format output.
 .It Fl i
 For each file, print the file's file serial number (inode number).
 .It Fl k
-If the 's' option is specified, print the file size allocation in kilobytes,
-not blocks.
+If the 
+.Fl s
+option is specified, print the file size allocation in kilobytes,
+not blocks.  This option overrides the environment variable BLOCKSIZE.
 .It Fl l
 (The lowercase letter ``ell.'')  List in long format. (See below.)
 If the output is to a terminal, a total sum for all the file
@@ -134,7 +162,8 @@ lexicographical order or the oldest entries first.
 Display the number of file system blocks actually used by each file, in units
 of 512 bytes, where partial units are rounded up to the next integer value.
 If the output is to a terminal, a total sum for all the file
-sizes is output on a line before the listing.
+sizes is output on a line before the listing.  The environment variable
+BLOCKSIZE overrides the unit size of 512 bytes.
 .It Fl t
 Sort by time modified (most recently modified
 first) before sorting the operands by lexicographical
@@ -162,14 +191,30 @@ options all override each other; the last one specified determines
 the format used.
 .Pp
 The
-.Fl c ,
+.Fl c
 and
 .Fl u
 options override each other; the last one specified determines
 the file time used.
 .Pp
+The
+.Fl B ,
+.Fl b
+and
+.Fl q
+options all override each other; the last one specified determines
+the format used for non-printable characters.
+.Pp
+The
+.Fl H,
+.Fl L
+and
+.Fl P
+options all override each other (either partially or fully); they
+are applied in the order specified.
+.Pp
 By default,
-.Nm ls
+.Nm
 lists one entry per line to standard
 output; the exceptions are to terminals or when the
 .Fl C
@@ -198,6 +243,10 @@ number of 512-byte blocks used by the files in the directory is displayed
 on a line by itself immediately before the information for the files in the
 directory.
 .Pp
+If the modification time of the file is more than 6 months
+in the past or future, then the year of the last modification
+is displayed in place of the hour and minute fields.
+.Pp
 If the owner or group names are not a known user or group name
 the numeric ID's are displayed.
 .Pp
@@ -207,7 +256,9 @@ in the size field. If the file is a symbolic link the pathname of the
 linked-to file is preceded by
 .Dq \-> .
 .Pp
-The file mode printed under the -l option consists of the
+The file mode printed under the
+.Fl l
+option consists of the
 entry type, owner permissions, and group permissions.
 The entry type character describes the type of file, as
 follows:
@@ -292,11 +343,11 @@ or
 .El
 .Pp
 The
-.Nm ls
+.Nm
 utility exits 0 on success, and >0 if an error occurs.
-.Sh ENVIRONMENT VARIABLES
+.Sh ENVIRONMENT
 The following environment variables affect the execution of
-.Nm ls :
+.Nm Ns :
 .Bl -tag -width BLOCKSIZE
 .It Ev BLOCKSIZE
 If the environment variable
@@ -311,7 +362,7 @@ decimal integer, it is used as the
 column position width for displaying
 multiple-text-column output.
 The
-.Nm ls
+.Nm
 utility calculates how
 many pathname text columns to display
 based on the width provided.
@@ -334,12 +385,16 @@ specification.
 .Xr sticky 8
 .Sh HISTORY
 An
-.Nm ls
+.Nm
 command appeared in
 .At v1 .
 .Sh STANDARDS
 The
-.Nm ls
+.Nm
 function is expected to be a superset of the
 .St -p1003.2
 specification.
+.Sh BUGS
+To maintain backward compatibility, the relationships between the many
+options is quite complex.
+

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: func.c,v 1.5 1996/08/11 23:10:38 ache Exp $
+ *	$Id: func.c,v 1.5.2.1 1997/08/24 21:41:33 jkh Exp $
  */
 
 #ifndef lint
@@ -507,7 +507,7 @@ preread()
 {
     whyles->w_end.type = I_SEEK;
     if (setintr)
-	(void) sigsetmask(sigblock((sigset_t) 0) & ~sigmask(SIGINT));
+	(void) sigsetmask(sigblock(0) & ~sigmask(SIGINT));
 
     search(T_BREAK, 0, NULL);		/* read the expression in */
     if (setintr)
@@ -565,7 +565,7 @@ dorepeat(v, kp)
     struct command *kp;
 {
     int i;
-    sigset_t omask = 0;
+    int omask = 0;
 
     i = getn(v[1]);
     if (setintr)
@@ -907,7 +907,7 @@ xecho(sep, v)
     int     nonl = 0;
 
     if (setintr)
-	(void) sigsetmask(sigblock((sigset_t) 0) & ~sigmask(SIGINT));
+	(void) sigsetmask(sigblock(0) & ~sigmask(SIGINT));
     v++;
     if (*v == 0)
 	return;
@@ -955,7 +955,7 @@ dosetenv(v, t)
 	Char **ep;
 
 	if (setintr)
-	    (void) sigsetmask(sigblock((sigset_t) 0) & ~sigmask(SIGINT));
+	    (void) sigsetmask(sigblock(0) & ~sigmask(SIGINT));
 	for (ep = STR_environ; *ep; ep++)
 	    (void) fprintf(cshout, "%s\n", vis_str(*ep));
 	return;

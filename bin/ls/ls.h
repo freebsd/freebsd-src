@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -34,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ls.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	$Id: ls.h,v 1.2 1994/09/24 02:55:55 davidg Exp $
  */
 
 #define NO_PRINT	1
@@ -45,6 +46,8 @@ extern int f_accesstime;	/* use time of last access */
 extern int f_flags;		/* show flags associated with a file */
 extern int f_inode;		/* print inode */
 extern int f_longform;		/* long listing format */
+extern int f_octal;		/* print unprintables in octal */
+extern int f_octal_escape;	/* like f_octal but use C escapes if possible */
 extern int f_sectime;		/* print the real time for all files */
 extern int f_size;		/* list size in short listing */
 extern int f_statustime;	/* use time of last mode change */
