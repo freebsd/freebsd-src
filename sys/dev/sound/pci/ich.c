@@ -652,6 +652,10 @@ ich_pci_probe(device_t dev)
 		device_set_desc(dev, "Nvidia nForce3");
 		return 0;
 
+	case 0x00ea10de:
+		device_set_desc(dev, "Nvidia nForce3 250");
+		return 0;
+
 	case 0x74451022:
 		device_set_desc(dev, "AMD-768");
 		return 0;
