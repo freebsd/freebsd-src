@@ -147,6 +147,7 @@ static const char microp[] = "MICROP";
 
 static struct da_quirk_entry da_quirk_table[] =
 {
+	/* SPI, FC devices */
 	{
 		/*
 		 * Fujitsu M2513A MO drives.
@@ -227,9 +228,8 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_FIXED, quantum, "VIKING 2*", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
 	},
-
 #ifdef DA_OLD_QUIRKS
-	/* Below a list of quirks for USB devices supported by umass. */
+	/* USB floppy devices supported by umass(4) */
 	{
 		/*
 		 * This USB floppy drive uses the UFI command set. This
@@ -245,6 +245,24 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "MATSHITA", "FDD CF-VFDU*","*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
+	{
+		/*
+		 * The vendor, product and version strings coming from the
+		 * controller are null terminated instead of being padded with
+		 * spaces. The trailing wildcard character '*' is required.
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "SMSC*", "USB FDC*","*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * SmartDisk (Mitsumi) USB floppy drive
+		 * PR: kern/50226
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "MITSUMI", "USB FDD", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	/* USB mass storage devices supported by umass(4) */
 	{
 		/*
 		 * Sony Memory Stick adapter MSAC-US1 and
@@ -284,15 +302,6 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "eUSB    Compact*",
 		 "Compact Flash*", "*"},
-		/*quirks*/ DA_Q_NO_SYNC_CACHE
-	},
-	{
-		/*
-		 * The vendor, product and version strings coming from the
-		 * controller are null terminated instead of being padded with
-		 * spaces. The trailing wildcard character '*' is required.
-		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "SMSC*", "USB FDC*","*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 	{
@@ -353,14 +362,6 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * PR: kern/46386
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Sony", "Storage Media", "*"},
-		/*quirks*/ DA_Q_NO_SYNC_CACHE
-	},
-	{
-		/*
-		 * SmartDisk (Mitsumi) USB floppy drive
-		 * PR: kern/50226
-		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "MITSUMI", "USB FDD", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 #endif /* DA_OLD_QUIRKS */
