@@ -27,6 +27,8 @@
  * Only minor changes done to interface with the timecounters over in
  * sys/kern/kern_clock.c.   Some of the comments below may be (even more)
  * confusing and/or plain wrong in that context.
+ *
+ * $FreeBSD$
  */
 
 #include "opt_ntp.h"
@@ -398,7 +400,7 @@ void
 ntp_update_second(struct timecounter *tcp)
 {
 	u_int32_t *newsec;
-	l_fp ftemp, time_adj;		/* 32/64-bit temporaries */
+	l_fp time_adj;		/* 32/64-bit temporaries */
 
 	newsec = &tcp->tc_offset_sec;
 	/*
@@ -477,18 +479,18 @@ ntp_update_second(struct timecounter *tcp)
 	 * value is in effect scaled by the clock frequency,
 	 * since the adjustment is added at each tick interrupt.
 	 */
-	ftemp = time_offset;
+	time_adj = time_offset;
 #ifdef PPS_SYNC
-	if (time_status & STA_PPSTIME && time_status &
-	    STA_PPSSIGNAL)
-		L_RSHIFT(ftemp, PPS_FAVG);
-	else
-		L_RSHIFT(ftemp, SHIFT_PLL + time_constant);
+	if (time_status & STA_PPSTIME && time_status & STA_PPSSIGNAL) {
+		L_RSHIFT(time_adj, pps_shift);
+	} else {
+		L_RSHIFT(time_adj, SHIFT_PLL + time_constant);
+		L_SUB(time_offset, time_adj);
+	}
 #else
-		L_RSHIFT(ftemp, SHIFT_PLL + time_constant);
+	L_RSHIFT(time_adj, SHIFT_PLL + time_constant);
+	L_SUB(time_offset, time_adj);
 #endif /* PPS_SYNC */
-	time_adj = ftemp;
-	L_SUB(time_offset, ftemp);
 	L_ADD(time_adj, time_freq);
 	tcp->tc_adjustment = time_adj;
 #ifdef PPS_SYNC
@@ -728,10 +730,7 @@ hardpps(tsp, nsec)
 		time_status |= STA_PPSJITTER;
 		pps_jitcnt++;
 	} else if (time_status & STA_PPSTIME) {
-		L_LINT(ftemp, v_nsec);
-		L_SUB(ftemp, time_offset);
-		L_RSHIFT(ftemp, pps_shift);
-		L_SUB(time_offset, ftemp);
+		L_LINT(time_offset, -v_nsec);
 	}
 	pps_jitter += (u_nsec - pps_jitter) >> PPS_FAVG;
 	u_sec = pps_tf[0].tv_sec - pps_lastsec;
@@ -788,7 +787,11 @@ hardpps(tsp, nsec)
 	} else {
 		pps_intcnt++;
 	}
-	if (pps_intcnt >= 4) {
+	if (pps_shift > pps_shiftmax) {
+		/* If we lowered pps_shiftmax */
+		pps_shift = pps_shiftmax;
+		pps_intcnt = 0;
+	} else if (pps_intcnt >= 4) {
 		pps_intcnt = 4;
 		if (pps_shift < pps_shiftmax) {
 			pps_shift++;
