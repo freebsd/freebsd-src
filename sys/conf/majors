@@ -1,6 +1,6 @@
 # $FreeBSD$
 #
-# Major numbers are nos assigned in RELENG_4.  This file is left to
+# Major numbers are now assigned in RELENG_4.  This file is left to
 # rot in peace in current.
 #
 # This list is semi-obsoleted by DEVFS, but for now it still contains
