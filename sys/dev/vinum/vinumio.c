@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.7.2.3 1999/01/29 01:13:41 grog Exp $
+ * $Id: vinumio.c,v 1.7.2.4 1999/02/11 05:31:02 grog Exp $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
@@ -505,12 +505,13 @@ read_drive_label(struct drive *drive, int verbose)
  * read configuration information from the drive and
  * incorporate the data into the configuration.
  *
- * Return 
+ * Return drive number.
  */
 struct drive *
 check_drive(char *drivename)
 {
     int driveno;
+    int i;
     struct drive *drive;
 
     driveno = find_drive_by_dev(drivename, 1);		    /* entry doesn't exist, create it */
@@ -520,6 +521,19 @@ check_drive(char *drivename)
 	if (drive->lasterror == 0)
 	    drive->lasterror = ENODEV;
 	set_drive_state(drive->driveno, drive_down, setstate_force);
+    }
+    for (i = 0; i < vinum_conf.drives_allocated; i++) {	    /* see if the name already exists */
+	if ((i != driveno)				    /* not this drive */
+	&&(DRIVE[i].state != drive_unallocated)		    /* and it's allocated */
+	&&(strcmp(DRIVE[i].label.name,
+		    DRIVE[driveno].label.name) == 0)) {	    /* and it has the same name */
+	    /*
+	     * set an error, but don't take the drive down:
+	     * that would cause unneeded error messages.
+	     */
+	    drive->lasterror = EEXIST;
+	    break;
+	}
     }
     return drive;
 }
@@ -883,7 +897,7 @@ vinum_scandisk(char *drivename[], int drives)
     char *eptr;						    /* end pointer into config information */
     char *config_line;					    /* copy the config line to */
     volatile int status;
-    struct drive **volatile drivelist;
+    int *volatile drivelist;				    /* list of drive indices */
 #define DRIVENAMELEN 64
 #define DRIVEPARTS   35					    /* max partitions per drive, excluding c */
     char partname[DRIVENAMELEN];			    /* for creating partition names */
@@ -895,9 +909,8 @@ vinum_scandisk(char *drivename[], int drives)
     firstdrive = vinum_conf.drives_used;		    /* the first drive */
     firsttime = vinum_conf.drives_used == 0;		    /* are we a virgin? */
 
-
     /* allocate a drive pointer list */
-    drivelist = (struct drive **) Malloc(drives * DRIVEPARTS * sizeof(struct drive *));
+    drivelist = (int *) Malloc(drives * DRIVEPARTS * sizeof(int));
     CHECKALLOC(drivelist, "Can't allocate memory");
 
     /* Open all drives and find which was modified most recently */
@@ -919,7 +932,7 @@ vinum_scandisk(char *drivename[], int drives)
 		    printf("vinum: already read config from %s\n", /* say so */
 			drive->label.name);
 		else {
-		    drivelist[gooddrives] = drive;	    /* keep a pointer to the drive */
+		    drivelist[gooddrives] = drive->driveno; /* keep the drive index */
 		    drive->flags &= ~VF_NEWBORN;	    /* which is no longer newly born */
 		    gooddrives++;
 		}
@@ -936,13 +949,13 @@ vinum_scandisk(char *drivename[], int drives)
      * and merge the config info with what we
      * have already 
      */
-    qsort(drivelist, gooddrives, sizeof(struct drive *), drivecmp);
+    qsort(drivelist, gooddrives, sizeof(int), drivecmp);
     config_text = (char *) Malloc(MAXCONFIG * 2);	    /* allocate buffers */
     CHECKALLOC(config_text, "Can't allocate memory");
     config_line = (char *) Malloc(MAXCONFIGLINE * 2);	    /* allocate buffers */
     CHECKALLOC(config_line, "Can't allocate memory");
     for (driveno = 0; driveno < gooddrives; driveno++) {    /* now include the config */
-	drive = drivelist[driveno];
+	drive = &DRIVE[drivelist[driveno]];		    /* point to the drive */
 
 	if (firsttime && (driveno == 0))		    /* we've never configured before, */
 	    printf("vinum: reading configuration from %s\n", drive->devicename);
@@ -976,10 +989,10 @@ vinum_scandisk(char *drivename[], int drives)
 		    parse_status = parse_config(config_line, &keyword_set, 1); /* parse the config line */
 		    if (parse_status < 0) {		    /* error in config */
 			/*
-			 * This config should have been parsed in user
-			 * space.  If we run into problems here, something
-			 * serious is afoot.  Complain and let the user
-			 * snarf the config to see what's wrong 
+			   * This config should have been parsed in user
+			   * space.  If we run into problems here, something
+			   * serious is afoot.  Complain and let the user
+			   * snarf the config to see what's wrong 
 			 */
 			printf("vinum: Config error on drive %s, aborting integration\n", nd.ni_dirp);
 			Free(config_text);
@@ -1011,8 +1024,8 @@ vinum_scandisk(char *drivename[], int drives)
 int 
 drivecmp(const void *va, const void *vb)
 {
-    const struct drive *a = *(const struct drive **) va;
-    const struct drive *b = *(const struct drive **) vb;
+    const struct drive *a = &DRIVE[*(const int *) va];
+    const struct drive *b = &DRIVE[*(const int *) vb];
 
     if ((a->label.last_update.tv_sec == b->label.last_update.tv_sec)
 	&& (a->label.last_update.tv_usec == b->label.last_update.tv_usec))
