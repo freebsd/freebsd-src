@@ -7,7 +7,7 @@
 # To included legacy CSRG sccsid strings, add -DLIBC_SCCS and -DSYSLIBC_SCCS
 # (for system call stubs) to CFLAGS below.  -DSYSLIBC_SCCS affects just the
 # system call stubs.
-LIB=pthread
+LIB=kse
 SHLIB_MAJOR= 1
 CFLAGS+=-DPTHREAD_KERNEL
 CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/thread \
@@ -20,17 +20,12 @@ CFLAGS+=-I${.CURDIR}/sys
 CFLAGS+=-D_LOCK_DEBUG
 #CFLAGS+= -g
 
-#.if ${MACHINE_ARCH} == "i386"
-#CFLAGS+=-DGS_HACK
-#.endif
-
 # enable extra internal consistancy checks
 CFLAGS+=-D_PTHREADS_INVARIANTS -Wall
 
 AINC=	-I${.CURDIR}/../libc/${MACHINE_ARCH} -I${.CURDIR}/thread
 PRECIOUSLIB=	yes
 
-#.include "${.CURDIR}/man/Makefile.inc"
 .include "${.CURDIR}/thread/Makefile.inc"
 .include "${.CURDIR}/sys/Makefile.inc"
 
