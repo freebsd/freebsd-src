@@ -609,7 +609,7 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 	 * interrupts disabled here.
 	 * XXX we may need to hold schedlock to get a coherent pm_active
 	 */
-	if (pmap->pm_active == -1 || pmap->pm_active == all_cpus) {
+	if (pmap == kernel_pmap || pmap->pm_active == all_cpus) {
 		invlpg(va);
 		smp_invlpg(va);
 	} else {
@@ -636,7 +636,7 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	 * interrupts disabled here.
 	 * XXX we may need to hold schedlock to get a coherent pm_active
 	 */
-	if (pmap->pm_active == -1 || pmap->pm_active == all_cpus) {
+	if (pmap == kernel_pmap || pmap->pm_active == all_cpus) {
 		for (addr = sva; addr < eva; addr += PAGE_SIZE)
 			invlpg(addr);
 		smp_invlpg_range(sva, eva);
@@ -665,7 +665,7 @@ pmap_invalidate_all(pmap_t pmap)
 	 * interrupts disabled here.
 	 * XXX we may need to hold schedlock to get a coherent pm_active
 	 */
-	if (pmap->pm_active == -1 || pmap->pm_active == all_cpus) {
+	if (pmap == kernel_pmap || pmap->pm_active == all_cpus) {
 		invltlb();
 		smp_invltlb();
 	} else {
