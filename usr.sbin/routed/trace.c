@@ -31,11 +31,9 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
+#if !defined(lint) && !defined(sgi)
 static char sccsid[] = "@(#)trace.c	8.1 (Berkeley) 6/5/93";
 #endif /* not lint */
-
-#ident "$Revision: 1.1.3.1 $"
 
 #define	RIPCMDS
 #include "defs.h"
@@ -54,11 +52,13 @@ static char sccsid[] = "@(#)trace.c	8.1 (Berkeley) 6/5/93";
 
 u_int	tracelevel, new_tracelevel;
 FILE	*ftrace = stdout;		/* output trace file */
-char	*tracelevel_msg = "";
+static char *tracelevel_pat = "%s\n";
 
 char savetracename[MAXPATHLEN+1];
 
 
+/* convert IP address to a string, but not into a single buffer
+ */
 char *
 naddr_ntoa(naddr a)
 {
@@ -110,42 +110,43 @@ lastlog(void)
 
 	if (last.tv_sec != now.tv_sec
 	    || last.tv_usec != now.tv_usec) {
-		(void)fprintf(ftrace, "--- %s ---\n", ts(now.tv_sec));
+		(void)fprintf(ftrace, "-- %s --\n", ts(now.tv_sec));
 		last = now;
 	}
 }
 
 
 static void
-tmsg(char *msg1, char* msg2)
+tmsg(char *p, ...)
 {
+	va_list args;
+
 	if (ftrace != 0) {
 		lastlog();
-		(void)fprintf(ftrace, "%s%s\n", msg1,msg2);
+		va_start(args, p);
+		vfprintf(ftrace, p, args);
+		fflush(ftrace);
 	}
 }
 
 
 static void
-trace_close(char *msg1, char *msg2)
+trace_close(void)
 {
 	int fd;
+
 
 	fflush(stdout);
 	fflush(stderr);
 
-	if (ftrace != 0) {
-		tmsg(msg1,msg2);
-		fflush(ftrace);
-
-		if (savetracename[0] != '\0') {
-			fd = open(_PATH_DEVNULL, O_RDWR);
-			(void)dup2(fd, STDOUT_FILENO);
-			(void)dup2(fd, STDERR_FILENO);
-			(void)close(fd);
-			fclose(ftrace);
-			ftrace = 0;
-		}
+	if (ftrace != 0
+	    && savetracename[0] != '\0') {
+		fd = open(_PATH_DEVNULL, O_RDWR);
+		(void)dup2(fd, STDOUT_FILENO);
+		(void)dup2(fd, STDERR_FILENO);
+		(void)close(fd);
+		fclose(ftrace);
+		ftrace = 0;
 	}
 }
 
@@ -162,9 +163,18 @@ trace_flush(void)
 
 
 void
-trace_off(char *msg1, char *msg2)
+trace_off(char *p, ...)
 {
-	trace_close(msg1, msg2);
+	va_list args;
+
+
+	if (ftrace != 0) {
+		lastlog();
+		va_start(args, p);
+		vfprintf(ftrace, p, args);
+		fflush(ftrace);
+	}
+	trace_close();
 
 	new_tracelevel = tracelevel = 0;
 }
@@ -178,26 +188,48 @@ trace_on(char *filename,
 	FILE *n_ftrace;
 
 
-	if (stat(filename, &stbuf) >= 0 &&
-	    (stbuf.st_mode & S_IFMT) != S_IFREG) {
-		msglog("wrong type (%#x) of trace file \"%s\"",
-		       stbuf.st_mode, filename);
-		return;
+	/* Given a null filename when tracing is already on, increase the
+	 * debugging level and re-open the file in case it has been unlinked.
+	 */
+	if (filename[0] == '\0') {
+		if (tracelevel != 0) {
+			new_tracelevel++;
+			tracelevel_pat = "trace command: %s\n";
+		} else if (savetracename[0] == '\0') {
+			msglog("missing trace file name");
+			return;
+		}
+		filename = savetracename;
+
+	} else if (stat(filename, &stbuf) >= 0) {
+		if (!trusted) {
+			msglog("trace file \"%s\" already exists");
+			return;
+		}
+		if ((stbuf.st_mode & S_IFMT) != S_IFREG) {
+			msglog("wrong type (%#x) of trace file \"%s\"",
+			       stbuf.st_mode, filename);
+			return;
+		}
+
+		if (!trusted
+		    && strcmp(filename, savetracename)
+		    && strncmp(filename, _PATH_TRACE, sizeof(_PATH_TRACE)-1)) {
+			msglog("wrong directory for trace file: \"%s\"",
+			       filename);
+			return;
+		}
 	}
-	if (!trusted
-	    && strcmp(filename, savetracename)
-	    && strncmp(filename, _PATH_TRACE, sizeof(_PATH_TRACE)-1)) {
-		msglog("wrong directory for trace file %s", filename);
-		return;
-	}
+
 	n_ftrace = fopen(filename, "a");
 	if (n_ftrace == 0) {
-		msglog("failed to open trace file \"%s\": %s",
+		msglog("failed to open trace file \"%s\" %s",
 		       filename, strerror(errno));
 		return;
 	}
 
-	trace_close("switch to trace file ", filename);
+	tmsg("switch to trace file %s\n", filename);
+	trace_close();
 	if (filename != savetracename)
 		strncpy(savetracename, filename, sizeof(savetracename)-1);
 	ftrace = n_ftrace;
@@ -207,12 +239,9 @@ trace_on(char *filename,
 	dup2(fileno(ftrace), STDOUT_FILENO);
 	dup2(fileno(ftrace), STDERR_FILENO);
 
-	if (new_tracelevel == 0) {
-		tracelevel_msg = "trace command: ";
+	if (new_tracelevel == 0)
 		new_tracelevel = 1;
-	} else {
-		tmsg("trace command","");
-	}
+	set_tracelevel();
 }
 
 
@@ -221,7 +250,7 @@ void
 sigtrace_on(int s)
 {
 	new_tracelevel++;
-	tracelevel_msg = "SIGUSR1: ";
+	tracelevel_pat = "SIGUSR1: %s\n";
 }
 
 
@@ -230,7 +259,7 @@ void
 sigtrace_off(int s)
 {
 	new_tracelevel--;
-	tracelevel_msg = "SIGUSR2: ";
+	tracelevel_pat = "SIGUSR2: %s\n";
 }
 
 
@@ -255,14 +284,19 @@ set_tracelevel(void)
 	};
 
 
-	if (new_tracelevel > MAX_TRACELEVEL)
+	if (new_tracelevel > MAX_TRACELEVEL) {
 		new_tracelevel = MAX_TRACELEVEL;
+		if (new_tracelevel == tracelevel) {
+			tmsg(tracelevel_pat, on_msgs[tracelevel-1]);
+			return;
+		}
+	}
 	while (new_tracelevel != tracelevel) {
 		if (new_tracelevel < tracelevel) {
 			if (--tracelevel == 0)
-				trace_off(tracelevel_msg, off_msgs[0]);
+				trace_off(tracelevel_pat, off_msgs[0]);
 			else
-				tmsg(tracelevel_msg, off_msgs[tracelevel]);
+				tmsg(tracelevel_pat, off_msgs[tracelevel]);
 		} else {
 			if (ftrace == 0) {
 				if (savetracename[0] != '\0')
@@ -270,9 +304,10 @@ set_tracelevel(void)
 				else
 					ftrace = stdout;
 			}
-			tmsg(tracelevel_msg, on_msgs[tracelevel++]);
+			tmsg(tracelevel_pat, on_msgs[tracelevel++]);
 		}
 	}
+	tracelevel_pat = "%s\n";
 }
 
 
@@ -312,98 +347,124 @@ addrname(naddr	addr,			/* in network byte order */
  */
 struct bits {
 	int	bits_mask;
+	int	bits_clear;
 	char	*bits_name;
 };
 
 static struct bits if_bits[] = {
-	{ IFF_UP,		"" },
-	{ IFF_BROADCAST,	"" },
-	{ IFF_LOOPBACK,		"LOOPBACK" },
-	{ IFF_POINTOPOINT,	"PT-TO-PT" },
-	{ IFF_RUNNING,		"" },
-	{ IFF_MULTICAST,	"" },
-	{ -1,			""},
-	{ 0 }
+	{ IFF_LOOPBACK,		0,		"LOOPBACK" },
+	{ IFF_POINTOPOINT,	0,		"PT-TO-PT" },
+	{ 0,			0,		0}
 };
 
 static struct bits is_bits[] = {
-	{ IS_SUBNET,		"" },
-	{ IS_REMOTE,		"REMOTE" },
-	{ IS_PASSIVE,		"PASSIVE" },
-	{ IS_EXTERNAL,		"EXTERNAL" },
-	{ IS_CHECKED,		"" },
-	{ IS_ALL_HOSTS,		"" },
-	{ IS_ALL_ROUTERS,	"" },
-	{ IS_RIP_QUERIED,	"" },
-	{ IS_BROKE,		"BROKE" },
-	{ IS_ACTIVE,		"ACTIVE" },
-	{ IS_QUIET,		"QUIET" },
-	{ IS_NEED_NET_SUB,	"" },
-	{ IS_NO_AG,		"NO_AG" },
-	{ IS_NO_SUPER_AG,	"NO_SUPER_AG" },
+	{ IS_SUBNET,		0,		"" },
+	{ IS_REMOTE,		0,		"REMOTE" },
+	{ IS_PASSIVE,		(IS_NO_RDISC
+				 | IS_BCAST_RDISC
+				 | IS_NO_RIP
+				 | IS_NO_SUPER_AG
+				 | IS_PM_RDISC
+				 | IS_NO_AG),	"PASSIVE" },
+	{ IS_EXTERNAL,		0,		"EXTERNAL" },
+	{ IS_CHECKED,		0,		"" },
+	{ IS_ALL_HOSTS,		0,		"" },
+	{ IS_ALL_ROUTERS,	0,		"" },
+	{ IS_RIP_QUERIED,	0,		"" },
+	{ IS_BROKE,		IS_SICK,	"BROKEN" },
+	{ IS_SICK,		0,		"SICK" },
+	{ IS_ACTIVE,		0,		"ACTIVE" },
+	{ IS_NEED_NET_SYN,	0,		"" },
+	{ IS_NO_AG,		IS_NO_SUPER_AG,	"NO_AG" },
+	{ IS_NO_SUPER_AG,	0,		"NO_SUPER_AG" },
 	{ (IS_NO_RIPV1_IN
 	   | IS_NO_RIPV2_IN
 	   | IS_NO_RIPV1_OUT
-	   | IS_NO_RIPV2_OUT),	"NO_RIP" },
-	{ IS_NO_RIPV1_IN,	"NO_RIPV1_IN" },
-	{ IS_NO_RIPV2_IN,	"NO_RIPV2_IN" },
-	{ IS_NO_RIPV1_OUT,	"NO_RIPV1_OUT" },
-	{ IS_NO_RIPV2_OUT,	"NO_RIPV2_OUT" },
+	   | IS_NO_RIPV2_OUT),	0,		"NO_RIP" },
+	{ (IS_NO_RIPV1_IN
+	   | IS_NO_RIPV1_OUT),	0,		"RIPV2" },
+	{ IS_NO_RIPV1_IN,	0,		"NO_RIPV1_IN" },
+	{ IS_NO_RIPV2_IN,	0,		"NO_RIPV2_IN" },
+	{ IS_NO_RIPV1_OUT,	0,		"NO_RIPV1_OUT" },
+	{ IS_NO_RIPV2_OUT,	0,		"NO_RIPV2_OUT" },
 	{ (IS_NO_ADV_IN
 	   | IS_NO_SOL_OUT
-	   | IS_NO_ADV_OUT),	"NO_RDISC" },
-	{ IS_NO_SOL_OUT,	"NO_SOLICIT" },
-	{ IS_SOL_OUT,		"SEND_SOLICIT" },
-	{ IS_NO_ADV_OUT,	"NO_RDISC_ADV" },
-	{ IS_ADV_OUT,		"RDISC_ADV" },
-	{ IS_BCAST_RDISC,	"BCAST_RDISC" },
-	{ 0 }
+	   | IS_NO_ADV_OUT),	IS_BCAST_RDISC,	"NO_RDISC" },
+	{ IS_NO_SOL_OUT,	0,		"NO_SOLICIT" },
+	{ IS_SOL_OUT,		0,		"SEND_SOLICIT" },
+	{ IS_NO_ADV_OUT,	IS_BCAST_RDISC,	"NO_RDISC_ADV" },
+	{ IS_ADV_OUT,		0,		"RDISC_ADV" },
+	{ IS_BCAST_RDISC,	0,		"BCAST_RDISC" },
+	{ IS_PM_RDISC,		0,		"PM_RDISC" },
+	{ 0,			0,		"%#x"}
 };
 
 static struct bits rs_bits[] = {
-	{ RS_IF,	"IF" },
-	{ RS_NET_SUB,	"NET_SUB" },
-	{ RS_NET_HOST,	"NET_HOST" },
-	{ RS_NET_INT,	"NET_INT" },
-	{ RS_SUBNET,	"" },
-	{ RS_LOCAL,	"LOCAL" },
-	{ RS_MHOME,	"MHOME" },
-	{ RS_GW,	"GW" },
-	{ RS_STATIC,	"STATIC" },
-	{ RS_RDISC,	"RDISC" },
-	{ 0 }
+	{ RS_IF,		0,		"IF" },
+	{ RS_NET_INT,		RS_NET_SYN,	"NET_INT" },
+	{ RS_NET_SYN,		0,		"NET_SYN" },
+	{ RS_SUBNET,		0,		"" },
+	{ RS_LOCAL,		0,		"LOCAL" },
+	{ RS_MHOME,		0,		"MHOME" },
+	{ RS_STATIC,		0,		"STATIC" },
+	{ RS_RDISC,		0,		"RDISC" },
+	{ 0,			0,		"%#x"}
 };
 
 
 static void
 trace_bits(struct bits *tbl,
-	   u_int field)
+	   u_int field,
+	   int force)
 {
-	int first = 1;
 	int b;
+	char c;
 
+	if (force) {
+		(void)putc('<', ftrace);
+		c = 0;
+	} else {
+		c = '<';
+	}
 
-	while (field != 0) {
-		b = tbl->bits_mask;
-		if (b == 0)
-			break;
-		if ((b & field) == b
-		    && tbl->bits_name[0] != '\0') {
-			(void)fprintf(ftrace, first ? "<%s" : "|%s",
-				      tbl->bits_name);
-			first = 0;
+	while (field != 0
+	       && (b = tbl->bits_mask) != 0) {
+		if ((b & field) == b) {
+			if (tbl->bits_name[0] != '\0') {
+				if (c)
+					(void)putc(c, ftrace);
+				(void)fprintf(ftrace, "%s", tbl->bits_name);
+				c = '|';
+			}
+			if (0 == (field &= ~(b | tbl->bits_clear)))
+				break;
 		}
-		field &= ~b;
 		tbl++;
 	}
-	if (field != 0) {
-		(void)fputc(first ? '<' : '|', ftrace);
-		(void)fprintf(ftrace, "%#x", field);
-		first = 0;
+	if (field != 0 && tbl->bits_name != 0) {
+		if (c)
+			(void)putc(c, ftrace);
+		(void)fprintf(ftrace, tbl->bits_name, field);
+		c = '|';
 	}
 
-	if (!first)
+	if (c || force)
 		(void)fputs("> ", ftrace);
+}
+
+
+static char *
+trace_pair(naddr dst,
+	   naddr mask,
+	   char *gate)
+{
+	static char buf[3*4+3+1+2+3	/* "xxx.xxx.xxx.xxx/xx-->" */
+			+3*4+3+1];	/* "xxx.xxx.xxx.xxx" */
+	int i;
+
+	i = sprintf(buf, "%-16s-->", addrname(dst, mask, 0));
+	(void)sprintf(&buf[i], "%-*s", 15+20-MAX(20,i), gate);
+	return buf;
 }
 
 
@@ -411,7 +472,7 @@ void
 trace_if(char *act,
 	  struct interface *ifp)
 {
-	if (ftrace == 0)
+	if (!TRACEACTIONS || ftrace == 0)
 		return;
 
 	lastlog();
@@ -422,8 +483,8 @@ trace_if(char *act,
 		       ? naddr_ntoa(ifp->int_dstaddr)
 		       : addrname(htonl(ifp->int_net), ifp->int_mask, 0)));
 	(void)fprintf(ftrace, "metric=%d ", ifp->int_metric);
-	trace_bits(if_bits, ifp->int_if_flags);
-	trace_bits(is_bits, ifp->int_state);
+	trace_bits(if_bits, ifp->int_if_flags, 0);
+	trace_bits(is_bits, ifp->int_state, 0);
 	(void)fputc('\n',ftrace);
 }
 
@@ -438,7 +499,7 @@ trace_upslot(struct rt_entry *rt,
 	     u_short	tag,
 	     time_t	new_time)
 {
-	if (ftrace == 0)
+	if (!TRACEACTIONS || ftrace == 0)
 		return;
 	if (rts->rts_gate == gate
 	    && rts->rts_router == router
@@ -448,11 +509,10 @@ trace_upslot(struct rt_entry *rt,
 
 	lastlog();
 	if (rts->rts_gate != RIP_DEFAULT) {
-		(void)fprintf(ftrace, "Chg #%d %-16s--> ",
+		(void)fprintf(ftrace, "Chg #%d %-35s ",
 			      rts - rt->rt_spares,
-			      addrname(rt->rt_dst, rt->rt_mask, 0));
-		(void)fprintf(ftrace, "%-15s ",
-			      naddr_ntoa(rts->rts_gate));
+			      trace_pair(rt->rt_dst, rt->rt_mask,
+					 naddr_ntoa(rts->rts_gate)));
 		if (rts->rts_gate != rts->rts_gate)
 			(void)fprintf(ftrace, "router=%s ",
 				      naddr_ntoa(rts->rts_gate));
@@ -464,9 +524,8 @@ trace_upslot(struct rt_entry *rt,
 				      rts->rts_ifp->int_name);
 		(void)fprintf(ftrace, "%s\n", ts(rts->rts_time));
 
-		(void)fprintf(ftrace, "       %-16s--> ",
-			      addrname(rt->rt_dst, rt->rt_mask, 0));
-		(void)fprintf(ftrace, "%-15s ",
+		(void)fprintf(ftrace, "       %19s%-16s ",
+			      "",
 			      gate != rts->rts_gate ? naddr_ntoa(gate) : "");
 		if (gate != router)
 			(void)fprintf(ftrace,"router=%s ",naddr_ntoa(router));
@@ -480,10 +539,10 @@ trace_upslot(struct rt_entry *rt,
 			      new_time != rts->rts_time ? ts(new_time) : "");
 
 	} else {
-		(void)fprintf(ftrace, "Add #%d %-16s--> ",
+		(void)fprintf(ftrace, "Add #%d %-35s ",
 			      rts - rt->rt_spares,
-			      addrname(rt->rt_dst, rt->rt_mask, 0));
-		(void)fprintf(ftrace, "%-15s ", naddr_ntoa(gate));
+			      trace_pair(rt->rt_dst, rt->rt_mask,
+					 naddr_ntoa(gate)));
 		if (gate != router)
 			(void)fprintf(ftrace, "router=%s ", naddr_ntoa(gate));
 		if (tag != 0)
@@ -496,12 +555,30 @@ trace_upslot(struct rt_entry *rt,
 }
 
 
+/* display a message if tracing actions
+ */
 void
-trace_msg(char *p, ...)
+trace_act(char *p, ...)
 {
 	va_list args;
 
 	if (!TRACEACTIONS || ftrace == 0)
+		return;
+
+	lastlog();
+	va_start(args, p);
+	vfprintf(ftrace, p, args);
+}
+
+
+/* display a message if tracing packets
+ */
+void
+trace_pkt(char *p, ...)
+{
+	va_list args;
+
+	if (!TRACEPACKETS || ftrace == 0)
 		return;
 
 	lastlog();
@@ -532,25 +609,25 @@ trace_change(struct rt_entry *rt,
 		return;
 
 	lastlog();
-	(void)fprintf(ftrace, "%s %-16s--> %-15s metric=%-2d ",
+	(void)fprintf(ftrace, "%s %-35s metric=%-2d ",
 		      label,
-		      addrname(rt->rt_dst, rt->rt_mask, 0),
-		      naddr_ntoa(rt->rt_gate), rt->rt_metric);
+		      trace_pair(rt->rt_dst, rt->rt_mask,
+				 naddr_ntoa(rt->rt_gate)),
+		      rt->rt_metric);
 	if (rt->rt_router != rt->rt_gate)
 		(void)fprintf(ftrace, "router=%s ",
 			      naddr_ntoa(rt->rt_router));
 	if (rt->rt_tag != 0)
 		(void)fprintf(ftrace, "tag=%#x ", rt->rt_tag);
-	trace_bits(rs_bits, rt->rt_state);
+	trace_bits(rs_bits, rt->rt_state, rt->rt_state != state);
 	(void)fprintf(ftrace, "%s ",
-		      rt->rt_ifp == 0 ? "-" : rt->rt_ifp->int_name);
+		      rt->rt_ifp == 0 ? "?" : rt->rt_ifp->int_name);
 	(void)fprintf(ftrace, "%s\n",
 		      AGE_RT(rt, rt->rt_ifp) ? ts(rt->rt_time) : "");
 
-	(void)fprintf(ftrace, "%*s %-16s--> %-15s ",
-		      strlen(label), "",
-		      addrname(rt->rt_dst, rt->rt_mask, 0),
-		      (rt->rt_gate != gate) ? naddr_ntoa(gate) : "");
+	(void)fprintf(ftrace, "%*s %19s%-16s ",
+		      strlen(label), "", "",
+		      rt->rt_gate != gate ? naddr_ntoa(gate) : "");
 	if (rt->rt_metric != metric)
 		(void)fprintf(ftrace, "metric=%-2d ", metric);
 	if (router != gate)
@@ -558,13 +635,10 @@ trace_change(struct rt_entry *rt,
 	if (rt->rt_tag != tag)
 		(void)fprintf(ftrace, "tag=%#x ", tag);
 	if (rt->rt_state != state)
-		trace_bits(rs_bits, state);
+		trace_bits(rs_bits, state, 1);
 	if (rt->rt_ifp != ifp)
 		(void)fprintf(ftrace, "%s ",
-			      ifp != 0 ? ifp->int_name : "-");
-	if (rt->rt_hold_down > now.tv_sec)
-		(void)fprintf(ftrace, "hold-down=%d ",
-			      rt->rt_hold_down - now.tv_sec);
+			      ifp != 0 ? ifp->int_name : "?");
 	(void)fprintf(ftrace, "%s\n",
 		      ((rt->rt_time == new_time || !AGE_RT(rt, ifp))
 		       ? "" : ts(new_time)));
@@ -580,16 +654,17 @@ trace_add_del(char * action, struct rt_entry *rt)
 		return;
 
 	lastlog();
-	(void)fprintf(ftrace, "%s    %-16s--> %-15s metric=%-2d ",
+	(void)fprintf(ftrace, "%s    %-35s metric=%-2d ",
 		      action,
-		      addrname(rt->rt_dst, rt->rt_mask, 0),
-		      naddr_ntoa(rt->rt_gate), rt->rt_metric);
+		      trace_pair(rt->rt_dst, rt->rt_mask,
+				 naddr_ntoa(rt->rt_gate)),
+		      rt->rt_metric);
 	if (rt->rt_router != rt->rt_gate)
 		(void)fprintf(ftrace, "router=%s ",
 			      naddr_ntoa(rt->rt_router));
 	if (rt->rt_tag != 0)
 		(void)fprintf(ftrace, "tag=%#x ", rt->rt_tag);
-	trace_bits(rs_bits, state);
+	trace_bits(rs_bits, state, 0);
 	if (rt->rt_ifp != 0)
 		(void)fprintf(ftrace, "%s ", rt->rt_ifp->int_name);
 	(void)fprintf(ftrace, "%s\n", ts(rt->rt_time));
@@ -607,7 +682,7 @@ trace_rip(char *dir1, char *dir2,
 	struct netauth *a;
 	int i;
 
-	if (ftrace == 0)
+	if (!TRACEPACKETS || ftrace == 0)
 		return;
 
 	lastlog();

@@ -31,9 +31,9 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
+#if !defined(lint) && !defined(sgi)
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rdisc.c,v 1.2 1996/06/15 17:10:27 wollman Exp $";
 #endif /* not lint */
 
 #include "defs.h"
@@ -88,8 +88,8 @@ struct dr {				/* accumulated advertisements */
 } *cur_drp, drs[MAX_ADS];
 
 /* adjust preference by interface metric without driving it to infinity */
-#define PREF(p, ifp) ((p) < (ifp)->int_metric ? ((p) != 0 ? 1 : 0) \
-		      : (p) - ((ifp)->int_metric-1))
+#define PREF(p, ifp) ((p) <= (ifp)->int_metric ? ((p) != 0 ? 1 : 0) \
+		      : (p) - ((ifp)->int_metric))
 
 static void rdisc_sort(void);
 
@@ -108,7 +108,7 @@ trace_rdisc(char	*act,
 	n_long *wp, *lim;
 
 
-	if (ftrace == 0)
+	if (!TRACEPACKETS || ftrace == 0)
 		return;
 
 	lastlog();
@@ -118,7 +118,7 @@ trace_rdisc(char	*act,
 			      " from %s to %s via %s life=%d\n",
 			      act, naddr_ntoa(from), naddr_ntoa(to),
 			      ifp ? ifp->int_name : "?",
-			      p->ad.icmp_ad_life);
+			      ntohs(p->ad.icmp_ad_life));
 		if (!TRACECONTENTS)
 			return;
 
@@ -132,7 +132,7 @@ trace_rdisc(char	*act,
 		(void)fputc('\n',ftrace);
 
 	} else {
-		trace_msg("%s Router Solic. from %s to %s via %s"
+		trace_act("%s Router Solic. from %s to %s via %s"
 			  " value=%#x\n",
 			  act, naddr_ntoa(from), naddr_ntoa(to),
 			  ifp ? ifp->int_name : "?",
@@ -172,7 +172,7 @@ set_rdisc_mg(struct interface *ifp,
 			if (setsockopt(rdisc_sock, IPPROTO_IP,
 				       IP_DROP_MEMBERSHIP,
 				       &m, sizeof(m)) < 0)
-				DBGERR(1,"IP_DROP_MEMBERSHIP ALLHOSTS");
+				LOGERR("IP_DROP_MEMBERSHIP ALLHOSTS");
 			ifp->int_state &= ~IS_ALL_HOSTS;
 		}
 
@@ -180,9 +180,11 @@ set_rdisc_mg(struct interface *ifp,
 		/* start listening to advertisements */
 		m.imr_multiaddr.s_addr = htonl(INADDR_ALLHOSTS_GROUP);
 		if (setsockopt(rdisc_sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-			       &m, sizeof(m)) < 0)
-			DBGERR(1,"IP_ADD_MEMBERSHIP ALLHOSTS");
-		ifp->int_state |= IS_ALL_HOSTS;
+			       &m, sizeof(m)) < 0) {
+			LOGERR("IP_ADD_MEMBERSHIP ALLHOSTS");
+		} else {
+			ifp->int_state |= IS_ALL_HOSTS;
+		}
 	}
 
 	if (!supplier
@@ -194,7 +196,7 @@ set_rdisc_mg(struct interface *ifp,
 			if (setsockopt(rdisc_sock, IPPROTO_IP,
 				       IP_DROP_MEMBERSHIP,
 				       &m, sizeof(m)) < 0)
-				DBGERR(1,"IP_DROP_MEMBERSHIP ALLROUTERS");
+				LOGERR("IP_DROP_MEMBERSHIP ALLROUTERS");
 			ifp->int_state &= ~IS_ALL_ROUTERS;
 		}
 
@@ -202,9 +204,11 @@ set_rdisc_mg(struct interface *ifp,
 		/* start hearing solicitations */
 		m.imr_multiaddr.s_addr=htonl(INADDR_ALLROUTERS_GROUP);
 		if (setsockopt(rdisc_sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-			       &m, sizeof(m)) < 0)
-			DBGERR(1,"IP_ADD_MEMBERSHIP ALLROUTERS");
-		ifp->int_state |= IS_ALL_ROUTERS;
+			       &m, sizeof(m)) < 0) {
+			LOGERR("IP_ADD_MEMBERSHIP ALLROUTERS");
+		} else {
+			ifp->int_state |= IS_ALL_ROUTERS;
+		}
 	}
 }
 
@@ -220,7 +224,7 @@ set_supplier(void)
 	if (supplier_set)
 		return;
 
-	trace_msg("start suppying routes\n");
+	trace_act("start suppying routes\n");
 
 	/* Forget discovered routes.
 	 */
@@ -247,6 +251,9 @@ set_supplier(void)
 		ifp->int_rdisc_timer.tv_sec = now.tv_sec+MIN_WAITTIME;
 		set_rdisc_mg(ifp, 1);
 	}
+
+	/* get rid of any redirects */
+	del_redirects(0,0);
 }
 
 
@@ -259,8 +266,13 @@ rdisc_age(naddr bad_gate)
 	struct dr *drp;
 
 
+	/* If only adverising, then do only that. */
 	if (supplier) {
-		/* If only adverising, then do only that. */
+		/* if switching from client to server, get rid of old
+		 * default routes.
+		 */
+		if (cur_drp != 0)
+			rdisc_sort();
 		rdisc_adv();
 		return;
 	}
@@ -286,7 +298,7 @@ rdisc_age(naddr bad_gate)
 				sec = (now.tv_sec - drp->dr_life
 				       + SUPPLY_INTERVAL);
 				if (drp->dr_ts > sec) {
-					trace_msg("age 0.0.0.0 --> %s"
+					trace_act("age 0.0.0.0 --> %s"
 						  " via %s\n",
 						  naddr_ntoa(drp->dr_gate),
 						  drp->dr_ifp->int_name);
@@ -308,10 +320,11 @@ rdisc_age(naddr bad_gate)
 }
 
 
-/* zap all routes discovered via an interface that has gone bad
+/* Zap all routes discovered via an interface that has gone bad
+ *	This should only be called when !(ifp->int_state & IS_ALIAS)
  */
 void
-ifbad_rdisc(struct interface *ifp)
+if_bad_rdisc(struct interface *ifp)
 {
 	struct dr *drp;
 
@@ -329,7 +342,7 @@ ifbad_rdisc(struct interface *ifp)
 /* mark an interface ok for router discovering.
  */
 void
-ifok_rdisc(struct interface *ifp)
+if_ok_rdisc(struct interface *ifp)
 {
 	set_rdisc_mg(ifp, 1);
 
@@ -372,7 +385,8 @@ del_rdisc(struct dr *drp)
 	 */
 	if (i == 0
 	    && ifp->int_rdisc_cnt >= MAX_SOLICITATIONS) {
-		trace_msg("re-solicit routers via %s\n", ifp->int_name);
+		trace_act("discovered route is bad"
+			  "--re-solicit routers via %s\n", ifp->int_name);
 		ifp->int_rdisc_cnt = 0;
 		ifp->int_rdisc_timer.tv_sec = 0;
 		rdisc_sol();
@@ -389,10 +403,11 @@ rdisc_sort(void)
 	struct dr *drp, *new_drp;
 	struct rt_entry *rt;
 	struct interface *ifp;
-	time_t sec;
+	u_int new_st;
+	n_long new_pref;
 
 
-	/* find the best discovered route
+	/* Find the best discovered route.
 	 */
 	new_drp = 0;
 	for (drp = drs; drp < &drs[MAX_ADS]; drp++) {
@@ -400,33 +415,14 @@ rdisc_sort(void)
 			continue;
 		ifp = drp->dr_ifp;
 
-		/* Get rid of expired discovered routes.
-		 * Routes received over PPP links do not die until
-		 * the link has been active long enough to be certain
-		 * we should have heard from the router.
+		/* Get rid of expired discovered routers.
 		 */
 		if (drp->dr_ts + drp->dr_life <= now.tv_sec) {
-			if (drp->dr_recv_pref == 0
-			    || !ppp_noage
-			    || !(ifp->int_if_flags & IFF_POINTOPOINT)
-			    || !(ifp->int_state & IS_QUIET)
-			    || (ifp->int_quiet_time
-				+ (sec = MIN(MaxMaxAdvertiseInterval,
-					     drp->dr_life)) <= now.tv_sec)) {
-				del_rdisc(drp);
-				continue;
-			}
-
-			/* If the PPP link is quiet, keep checking
-			 * in case the link becomes active.
-			 * After the link is active, the timer on the
-			 * discovered route might force its deletion.
-			 */
-			sec += now.tv_sec+1;
-		} else {
-			sec = drp->dr_ts+drp->dr_life+1;
+			del_rdisc(drp);
+			continue;
 		}
-		LIM_SEC(rdisc_timer, sec);
+
+		LIM_SEC(rdisc_timer, drp->dr_ts+drp->dr_life+1);
 
 		/* Update preference with possibly changed interface
 		 * metric.
@@ -436,14 +432,21 @@ rdisc_sort(void)
 		/* Prefer the current route to prevent thrashing.
 		 * Prefer shorter lifetimes to speed the detection of
 		 * bad routers.
+		 * Avoid sick interfaces.
 		 */
 		if (new_drp == 0
-		    || new_drp->dr_pref < drp->dr_pref
-		    || (new_drp->dr_pref == drp->dr_pref
-			&& (drp == cur_drp
-			    || (new_drp != cur_drp
-				&& new_drp->dr_life > drp->dr_life))))
-			new_drp = drp;
+		    || (!((new_st ^ drp->dr_ifp->int_state) & IS_SICK)
+			&& (new_pref < drp->dr_pref
+			    || (new_pref == drp->dr_pref
+				&& (drp == cur_drp
+				    || (new_drp != cur_drp
+					&& new_drp->dr_life > drp->dr_life)))))
+		    || ((new_st & IS_SICK)
+			&& !(drp->dr_ifp->int_state & IS_SICK))) {
+			    new_drp = drp;
+			    new_st = drp->dr_ifp->int_state;
+			    new_pref = drp->dr_pref;
+		}
 	}
 
 	/* switch to a better default route
@@ -454,12 +457,12 @@ rdisc_sort(void)
 		/* Stop using discovered routes if they are all bad
 		 */
 		if (new_drp == 0) {
-			trace_msg("turn off Router Discovery\n");
+			trace_act("turn off Router Discovery client\n");
 			rdisc_ok = 0;
 
 			if (rt != 0
 			    && (rt->rt_state & RS_RDISC)) {
-				rtchange(rt, rt->rt_state,
+				rtchange(rt, rt->rt_state & ~RS_RDISC,
 					 rt->rt_gate, rt->rt_router,
 					 HOPCNT_INFINITY, 0, rt->rt_ifp,
 					 now.tv_sec - GARBAGE_TIME, 0);
@@ -471,16 +474,15 @@ rdisc_sort(void)
 
 		} else {
 			if (cur_drp == 0) {
-				trace_msg("turn on Router Discovery using"
-					  " %s via %s\n",
+				trace_act("turn on Router Discovery client"
+					  " using %s via %s\n",
 					  naddr_ntoa(new_drp->dr_gate),
 					  new_drp->dr_ifp->int_name);
 
 				rdisc_ok = 1;
-				rip_off();
 
 			} else {
-				trace_msg("switch Router Discovery from"
+				trace_act("switch Router Discovery from"
 					  " %s via %s to %s via %s\n",
 					  naddr_ntoa(cur_drp->dr_gate),
 					  cur_drp->dr_ifp->int_name,
@@ -498,6 +500,12 @@ rdisc_sort(void)
 				      new_drp->dr_gate, new_drp->dr_gate,
 				      0, 0, RS_RDISC, new_drp->dr_ifp);
 			}
+
+			/* Now turn off RIP and delete RIP routes,
+			 * which might otherwise include the default
+			 * we just modified.
+			 */
+			rip_off();
 		}
 
 		cur_drp = new_drp;
@@ -511,14 +519,13 @@ static void
 parse_ad(naddr from,
 	 naddr gate,
 	 n_long pref,
-	 int life,
+	 u_short life,
 	 struct interface *ifp)
 {
 	static naddr bad_gate;
 	struct dr *drp, *new_drp;
 
 
-	NTOHL(gate);
 	if (gate == RIP_DEFAULT
 	    || !check_dst(gate)) {
 		if (bad_gate != from) {
@@ -533,55 +540,79 @@ parse_ad(naddr from,
 	/* ignore pointers to ourself and routes via unreachable networks
 	 */
 	if (ifwithaddr(gate, 1, 0) != 0) {
-		if (TRACEPACKETS)
-			trace_msg("discard our own packet\n");
+		trace_pkt("\tdiscard our own Router Discovery Ad\n");
 		return;
 	}
 	if (!on_net(gate, ifp->int_net, ifp->int_mask)) {
-		if (TRACEPACKETS)
-			trace_msg("discard packet from unreachable net\n");
+		trace_pkt("\tdiscard Router Discovery Ad"
+			  " from unreachable net\n");
 		return;
 	}
 
 	/* Convert preference to an unsigned value
-	 * and bias it by the metric of the interface.
+	 * and later bias it by the metric of the interface.
 	 */
 	pref = ntohl(pref) ^ MIN_PreferenceLevel;
+	
+	if (pref == 0 || life == 0) {
+		pref = 0;
+		life = 0;
+	}
 
-	for (new_drp = drs, drp = drs; drp < &drs[MAX_ADS]; drp++) {
-		if (drp->dr_ts == 0) {
-			new_drp = drp;
-			continue;
-		}
-
+	for (new_drp = 0, drp = drs; drp < &drs[MAX_ADS]; drp++) {
+		/* accept new info for a familiar entry
+		 */
 		if (drp->dr_gate == gate) {
-			/* Zap an entry we are being told is kaput */
-			if (pref == 0 || life == 0) {
-				drp->dr_recv_pref = 0;
-				drp->dr_life = 0;
-				return;
-			}
 			new_drp = drp;
 			break;
 		}
 
-		/* look for least valueable entry */
-		if (new_drp->dr_pref > drp->dr_pref)
-			new_drp = drp;
+		if (life == 0)
+			continue;	/* do not worry about dead ads */
+
+		if (drp->dr_ts == 0) {
+			new_drp = drp;	/* use unused entry */
+
+		} else if (new_drp == 0) {
+			/* look for an entry worse than the new one to
+			 * reuse.
+			 */
+			if ((!(ifp->int_state & IS_SICK)
+			     && (drp->dr_ifp->int_state & IS_SICK))
+			    || (pref > drp->dr_pref
+				&& !((ifp->int_state ^ drp->dr_ifp->int_state)
+				     & IS_SICK)))
+				new_drp = drp;
+
+		} else if (new_drp->dr_ts != 0) {
+			/* look for the least valueable entry to reuse
+			 */
+			if ((!(new_drp->dr_ifp->int_state & IS_SICK)
+			     && (drp->dr_ifp->int_state & IS_SICK))
+			    || (new_drp->dr_pref > drp->dr_pref
+				&& !((new_drp->dr_ifp->int_state
+				      ^ drp->dr_ifp->int_state)
+				     & IS_SICK)))
+				new_drp = drp;
+		}
 	}
 
-	/* ignore zap of an entry we do not know about. */
-	if (pref == 0 || life == 0)
+	/* forget it if all of the current entries are better */
+	if (new_drp == 0)
 		return;
 
 	new_drp->dr_ifp = ifp;
 	new_drp->dr_gate = gate;
 	new_drp->dr_ts = now.tv_sec;
-	new_drp->dr_life = ntohl(life);
+	new_drp->dr_life = ntohs(life);
 	new_drp->dr_recv_pref = pref;
+	/* bias functional preference by metric of the interface */
 	new_drp->dr_pref = PREF(pref,ifp);
 
-	ifp->int_rdisc_cnt = MAX_SOLICITATIONS;
+	/* after hearing a good advertisement, stop asking
+	 */
+	if (!(ifp->int_state & IS_SICK))
+		ifp->int_rdisc_cnt = MAX_SOLICITATIONS;
 }
 
 
@@ -637,13 +668,19 @@ send_rdisc(union ad_u *p,
 			msg = "Send pt-to-pt";
 			sin.sin_addr.s_addr = ifp->int_dstaddr;
 		} else {
-			msg = "Broadcast";
+			msg = "Send broadcast";
 			sin.sin_addr.s_addr = ifp->int_brdaddr;
 		}
 		break;
 
 	case 2:				/* multicast */
-		msg = "Multicast";
+		msg = "Send multicast";
+		if (ifp->int_state & IS_DUP) {
+			trace_act("abort multicast output via %s"
+				  " with duplicate address\n",
+				  ifp->int_name);
+			return;
+		}
 		if (rdisc_sock_mcast != ifp) {
 			/* select the right interface. */
 #ifdef MCAST_PPP_BUG
@@ -659,11 +696,12 @@ send_rdisc(union ad_u *p,
 			} else
 #endif
 			tgt_mcast = ifp->int_addr;
-			if (setsockopt(rdisc_sock,
-				       IPPROTO_IP, IP_MULTICAST_IF,
-				       &tgt_mcast, sizeof(tgt_mcast))) {
-				DBGERR(1,"setsockopt(rdisc_sock,"
+			if (0 > setsockopt(rdisc_sock,
+					   IPPROTO_IP, IP_MULTICAST_IF,
+					   &tgt_mcast, sizeof(tgt_mcast))) {
+				LOGERR("setsockopt(rdisc_sock,"
 				       "IP_MULTICAST_IF)");
+				rdisc_sock_mcast = 0;
 				return;
 			}
 			rdisc_sock_mcast = ifp;
@@ -672,19 +710,19 @@ send_rdisc(union ad_u *p,
 		break;
 	}
 
-	if (TRACEPACKETS)
-		trace_rdisc(msg, ifp->int_addr, sin.sin_addr.s_addr, ifp,
-			    p, p_size);
+	trace_rdisc(msg, ifp->int_addr, sin.sin_addr.s_addr, ifp,
+		    p, p_size);
 
 	if (0 > sendto(rdisc_sock, p, p_size, flags,
 		       (struct sockaddr *)&sin, sizeof(sin))) {
-		msglog("sendto(%s%s%s): %s",
-		       ifp != 0 ? ifp->int_name : "",
-		       ifp != 0 ? ", " : "",
-		       inet_ntoa(sin.sin_addr),
-		       strerror(errno));
+		if (ifp == 0 || !(ifp->int_state & IS_BROKE))
+			msglog("sendto(%s%s%s): %s",
+			       ifp != 0 ? ifp->int_name : "",
+			       ifp != 0 ? ", " : "",
+			       inet_ntoa(sin.sin_addr),
+			       strerror(errno));
 		if (ifp != 0)
-			ifbad(ifp, 0);
+			if_sick(ifp);
 	}
 }
 
@@ -706,9 +744,7 @@ send_adv(struct interface *ifp,
 	u.ad.icmp_ad_num = 1;
 	u.ad.icmp_ad_asize = sizeof(u.ad.icmp_ad_info[0])/4;
 
-	u.ad.icmp_ad_life = stopint ? 0 : htonl(ifp->int_rdisc_int*3);
-
-	u.ad.icmp_ad_life = stopint ? 0 : htonl(ifp->int_rdisc_int*3);
+	u.ad.icmp_ad_life = stopint ? 0 : htons(ifp->int_rdisc_int*3);
 	pref = ifp->int_rdisc_pref ^ MIN_PreferenceLevel;
 	pref = PREF(pref, ifp) ^ MIN_PreferenceLevel;
 	u.ad.icmp_ad_info[0].icmp_ad_pref = htonl(pref);
@@ -740,8 +776,8 @@ rdisc_adv(void)
 
 		if (!timercmp(&ifp->int_rdisc_timer, &now, >)
 		    || stopint) {
-			send_adv(ifp, INADDR_ALLHOSTS_GROUP,
-				 (ifp->int_if_flags&IS_BCAST_RDISC) ? 1 : 2);
+			send_adv(ifp, htonl(INADDR_ALLHOSTS_GROUP),
+				 (ifp->int_state&IS_BCAST_RDISC) ? 1 : 2);
 			ifp->int_rdisc_cnt++;
 
 			intvl_random(&ifp->int_rdisc_timer,
@@ -788,8 +824,7 @@ rdisc_sol(void)
 						   sizeof(u.so));
 			send_rdisc(&u, sizeof(u.so), ifp,
 				   htonl(INADDR_ALLROUTERS_GROUP),
-				   ((ifp->int_if_flags & IS_BCAST_RDISC)
-				    ? 1 : 2));
+				   ((ifp->int_state&IS_BCAST_RDISC) ? 1 : 2));
 
 			if (++ifp->int_rdisc_cnt >= MAX_SOLICITATIONS)
 				continue;
@@ -832,21 +867,19 @@ ck_icmp(char	*act,
 	}
 
 	if (p->icmp.icmp_code != 0) {
-		if (TRACEPACKETS)
-			msglog("unrecognized ICMP Router"
-			       " %s code=%d from %s to %s\n",
-			       type, p->icmp.icmp_code,
-			       naddr_ntoa(from), naddr_ntoa(to));
+		trace_pkt("unrecognized ICMP Router"
+			  " %s code=%d from %s to %s\n",
+			  type, p->icmp.icmp_code,
+			  naddr_ntoa(from), naddr_ntoa(to));
 		return 0;
 	}
 
-	if (TRACEPACKETS)
-		trace_rdisc(act, from, to, ifp, p, len);
+	trace_rdisc(act, from, to, ifp, p, len);
 
-	if (ifp == 0 && TRACEPACKETS)
-		msglog("unknown interface for router-discovery %s"
-		       " from %s to %s",
-		       type, naddr_ntoa(from), naddr_ntoa(to));
+	if (ifp == 0)
+		trace_pkt("unknown interface for router-discovery %s"
+			  " from %s to %s",
+			  type, naddr_ntoa(from), naddr_ntoa(to));
 
 	return ifp;
 }
@@ -896,7 +929,7 @@ read_d(void)
 		if (ifp == 0)
 			continue;
 		if (ifwithaddr(from.sin_addr.s_addr, 0, 0)) {
-			trace_msg("\tdiscard our own packet\n");
+			trace_pkt("\tdiscard our own Router Discovery msg\n");
 			continue;
 		}
 
@@ -913,8 +946,7 @@ read_d(void)
 				continue;
 			}
 			if (p->ad.icmp_ad_num == 0) {
-				if (TRACEPACKETS)
-					trace_msg("\tempty?\n");
+				trace_pkt("\tempty?\n");
 				continue;
 			}
 			if (cc != (sizeof(p->ad) - sizeof(p->ad.icmp_ad_info)
@@ -937,7 +969,7 @@ read_d(void)
 			for (n = 0; n < p->ad.icmp_ad_num; n++) {
 				parse_ad(from.sin_addr.s_addr,
 					 wp[0], wp[1],
-					 p->ad.icmp_ad_life,
+					 ntohs(p->ad.icmp_ad_life),
 					 ifp);
 				wp += p->ad.icmp_ad_asize;
 			}
