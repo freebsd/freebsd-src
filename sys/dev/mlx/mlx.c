@@ -72,7 +72,7 @@ static struct cdevsw mlx_cdevsw = {
 		/* dump */	nodump,
 		/* psize */ 	nopsize,
 		/* flags */	0,
-		/* bmaj */	254	/* XXX magic no-bdev */
+		/* bmaj */	-1
 };
 
 static int	cdev_registered = 0;
@@ -84,6 +84,10 @@ devclass_t	mlx_devclass;
 static int			mlx_v3_tryqueue(struct mlx_softc *sc, struct mlx_command *mc);
 static int			mlx_v3_findcomplete(struct mlx_softc *sc, u_int8_t *slot, u_int16_t *status);
 static void			mlx_v3_intaction(struct mlx_softc *sc, int action);
+
+static int			mlx_v4_tryqueue(struct mlx_softc *sc, struct mlx_command *mc);
+static int			mlx_v4_findcomplete(struct mlx_softc *sc, u_int8_t *slot, u_int16_t *status);
+static void			mlx_v4_intaction(struct mlx_softc *sc, int action);
 
 /*
  * Status monitoring
@@ -287,6 +291,11 @@ mlx_attach(struct mlx_softc *sc)
 	sc->mlx_findcomplete	= mlx_v3_findcomplete;
 	sc->mlx_intaction	= mlx_v3_intaction;
 	break;
+    case MLX_IFTYPE_4:
+	sc->mlx_tryqueue	= mlx_v4_tryqueue;
+	sc->mlx_findcomplete	= mlx_v4_findcomplete;
+	sc->mlx_intaction	= mlx_v4_intaction;
+	break;
     default:
 	device_printf(sc->mlx_dev, "attaching unsupported interface version %d\n", sc->mlx_iftype);
 	return(ENXIO);		/* should never happen */
@@ -380,9 +389,17 @@ mlx_attach(struct mlx_softc *sc)
      */
     switch(sc->mlx_iftype) {
     case MLX_IFTYPE_3:
+	/* XXX certify 3.52? */
 	if (sc->mlx_fwminor != 51) {
 	    device_printf(sc->mlx_dev, " *** WARNING *** This firmware revision is NOT SUPPORTED\n");
 	    device_printf(sc->mlx_dev, " *** WARNING *** Use revision 3.51 only\n");
+	}
+	break;
+    case MLX_IFTYPE_4:
+	/* XXX certify firmware versions? */
+	if (sc->mlx_fwminor != 6) {
+	    device_printf(sc->mlx_dev, " *** WARNING *** This firmware revision is NOT SUPPORTED\n");
+	    device_printf(sc->mlx_dev, " *** WARNING *** Use revision 4.6 only\n");
 	}
 	break;
     default:
@@ -450,7 +467,7 @@ mlx_startup(struct mlx_softc *sc)
     	if (dr->ms_disk == 0) {
 	    /* pick up drive information */
 	    dr->ms_size = mes[i].sd_size;
-	    dr->ms_raidlevel = mes[i].sd_raidlevel;
+	    dr->ms_raidlevel = mes[i].sd_raidlevel & 0xf;
 	    dr->ms_state = mes[i].sd_state;
 
 	    /* generate geometry information */
@@ -618,9 +635,6 @@ mlx_intr(void *arg)
     int			worked;
 
     debug("called");
-
-    /* ack the interrupt */
-    sc->mlx_intaction(sc, MLX_INTACTION_ACKNOWLEDGE);
 
     /* spin collecting finished commands */
     worked = 0;
@@ -937,7 +951,7 @@ mlx_periodic(void *data)
     } else if (MLX_PERIODIC_ISBUSY(sc)) {
 
 	/* time to perform a periodic status poll? XXX tuneable interval? */
-	if (time_second > (sc->mlx_lastpoll + 5)) {
+	if (time_second > (sc->mlx_lastpoll + 10)) {
 	    sc->mlx_lastpoll = time_second;
 
 	    /* for caution's sake */
@@ -1602,7 +1616,7 @@ mlx_startio(struct mlx_softc *sc)
 	mlx_mapcmd(mc);
 	
 	/* build a suitable I/O command (assumes 512-byte rounded transfers) */
-	mlxd = (struct mlxd_softc *)bp->b_driver1;
+	mlxd = (struct mlxd_softc *)bp->b_dev->si_drv1;
 	driveno = mlxd->mlxd_drive - &sc->mlx_sysdrive[0];
 	blkcount = bp->b_bcount / MLX_BLKSIZE;
 
@@ -1639,7 +1653,7 @@ mlx_completeio(struct mlx_command *mc)
 {
     struct mlx_softc	*sc = mc->mc_sc;
     struct buf		*bp = (struct buf *)mc->mc_private;
-    struct mlxd_softc	*mlxd = (struct mlxd_softc *)bp->b_driver1;
+    struct mlxd_softc	*mlxd = (struct mlxd_softc *)bp->b_dev->si_drv1;
     
     if (mc->mc_status != MLX_STATUS_OK) {	/* could be more verbose here? */
 	bp->b_error = EIO;
@@ -1649,6 +1663,7 @@ mlx_completeio(struct mlx_command *mc)
 	case MLX_STATUS_RDWROFFLINE:		/* system drive has gone offline */
 	    device_printf(mlxd->mlxd_dev, "drive offline\n");
 	    device_printf(sc->mlx_dev, "drive offline\n");
+	    /* should signal this with a return code */
 	    mlxd->mlxd_drive->ms_state = MLX_SYSD_OFFLINE;
 	    break;
 
@@ -2113,7 +2128,7 @@ mlx_v3_tryqueue(struct mlx_softc *sc, struct mlx_command *mc)
 	    MLX_V3_PUT_MAILBOX(sc, i, mc->mc_mailbox[i]);
 	
 	/* post command */
-	MLX_V3_PUT_IDBR(sc, MLX_V3_GET_IDBR(sc) | MLX_V3_IDB_FULL);
+	MLX_V3_PUT_IDBR(sc, MLX_V3_IDB_FULL);
 	return(1);
     }
     return(0);
@@ -2137,8 +2152,8 @@ mlx_v3_findcomplete(struct mlx_softc *sc, u_int8_t *slot, u_int16_t *status)
 	*status = MLX_V3_GET_STATUS(sc);		/* get status */
 
 	/* acknowledge completion */
-	MLX_V3_PUT_ODBR(sc, MLX_V3_GET_ODBR(sc) | MLX_V3_ODB_SAVAIL);
-	MLX_V3_PUT_IDBR(sc, MLX_V3_GET_IDBR(sc) | MLX_V3_IDB_SACK);
+	MLX_V3_PUT_ODBR(sc, MLX_V3_ODB_SAVAIL);
+	MLX_V3_PUT_IDBR(sc, MLX_V3_IDB_SACK);
 	return(1);
     }
     return(0);
@@ -2161,6 +2176,86 @@ mlx_v3_intaction(struct mlx_softc *sc, int action)
 	break;
     case MLX_INTACTION_ENABLE:
 	MLX_V3_PUT_IER(sc, 1);
+	sc->mlx_state |= MLX_STATE_INTEN;
+	break;
+    }
+}
+
+
+/********************************************************************************
+ ********************************************************************************
+                                                Type 4 interface accessor methods
+ ********************************************************************************
+ ********************************************************************************/
+
+/********************************************************************************
+ * Try to give (mc) to the controller.  Returns 1 if successful, 0 on failure
+ * (the controller is not ready to take a command).
+ *
+ * Must be called at splbio or in a fashion that prevents reentry.
+ */
+static int
+mlx_v4_tryqueue(struct mlx_softc *sc, struct mlx_command *mc)
+{
+    int		i;
+    
+    debug("called");
+
+    /* ready for our command? */
+    if (!(MLX_V4_GET_IDBR(sc) & MLX_V4_IDB_FULL)) {
+	/* copy mailbox data to window */
+	for (i = 0; i < 13; i++)
+	    MLX_V4_PUT_MAILBOX(sc, i, mc->mc_mailbox[i]);
+	
+	/* post command */
+	MLX_V4_PUT_IDBR(sc, MLX_V4_IDB_HWMBOX_CMD);
+	return(1);
+    }
+    return(0);
+}
+
+/********************************************************************************
+ * See if a command has been completed, if so acknowledge its completion
+ * and recover the slot number and status code.
+ *
+ * Must be called at splbio or in a fashion that prevents reentry.
+ */
+static int
+mlx_v4_findcomplete(struct mlx_softc *sc, u_int8_t *slot, u_int16_t *status)
+{
+
+    debug("called");
+
+    /* status available? */
+    if (MLX_V4_GET_ODBR(sc) & MLX_V4_ODB_HWSAVAIL) {
+	*slot = MLX_V4_GET_STATUS_IDENT(sc);		/* get command identifier */
+	*status = MLX_V4_GET_STATUS(sc);		/* get status */
+
+	/* acknowledge completion */
+	MLX_V4_PUT_ODBR(sc, MLX_V4_ODB_HWMBOX_ACK);
+	MLX_V4_PUT_IDBR(sc, MLX_V4_IDB_SACK);
+	return(1);
+    }
+    return(0);
+}
+
+/********************************************************************************
+ * Enable/disable interrupts as requested.
+ *
+ * Must be called at splbio or in a fashion that prevents reentry.
+ */
+static void
+mlx_v4_intaction(struct mlx_softc *sc, int action)
+{
+    debug("called");
+
+    switch(action) {
+    case MLX_INTACTION_DISABLE:
+	MLX_V4_PUT_IER(sc, MLX_V4_IER_MASK | MLX_V4_IER_DISINT);
+	sc->mlx_state &= ~MLX_STATE_INTEN;
+	break;
+    case MLX_INTACTION_ENABLE:
+	MLX_V4_PUT_IER(sc, MLX_V4_IER_MASK & ~MLX_V4_IER_DISINT);
 	sc->mlx_state |= MLX_STATE_INTEN;
 	break;
     }
@@ -2257,6 +2352,9 @@ mlx_name_controller(u_int32_t hwid)
 	break;
     case 0x10:
 	submodel = "PG";
+	break;
+    case 0x11:
+	submodel = "PJ";
 	break;
     default:
 	sprintf(smbuf, " model 0x%x", hwid & 0xff);
