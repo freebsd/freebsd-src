@@ -78,6 +78,10 @@ A) Re-commit everything on freefall (you *did* use a test repo for
 
    We've modified some configuration defaults in sshd:
 
+      - Protocol defaults to "2".
+
+      - PasswordAuthentication defaults to "no" when PAM is enabled.
+
       - For protocol version 2, we don't load RSA host keys by
         default.  If both RSA and DSA keys are present, we prefer DSA
         to RSA.
