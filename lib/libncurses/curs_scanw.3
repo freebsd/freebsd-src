@@ -1,8 +1,7 @@
-.TH curs_scanw 3X ""
+.TH curs_scanw 3 ""
 .SH NAME
-\fBcurs_scanw\fR: \fBscanw\fR, \fBwscanw\fR, \fBmvscanw\fR,
-\fBmvwscanw\fR, \fBvwscanw\fR - convert formatted input from a
-\fBncurses\fR widow
+\fBscanw\fR, \fBwscanw\fR, \fBmvscanw\fR,
+\fBmvwscanw\fR, \fBvwscanw\fR - convert formatted input from a \fBncurses\fR widow
 .SH SYNOPSIS
 \fB#include <ncurses.h>\fR
 
@@ -18,7 +17,7 @@
 \fBint vwscanw(WINDOW *win, char *fmt, va_list varglist);\fR
 .SH DESCRIPTION
 The \fBscanw\fR, \fBwscanw\fR and \fBmvscanw\fR routines are analogous to
-\fBscanf\fR [see \fBscanf\fR(3S)].  The effect of these routines is as though
+\fBscanf\fR [see \fBscanf\fR(3)].  The effect of these routines is as though
 \fBwgetstr\fR were called on the window, and the resulting line used as input
 for \fBsscanf\fR(3).  Fields which do not map to a variable in the \fIfmt\fR
 field are lost.
@@ -35,7 +34,7 @@ Applications may use the return value from the \fBscanw\fR, \fBwscanw\fR,
 \fBmvscanw\fR and \fBmvwscanw\fR routines to determine the number of fields
 which were mapped in the call.
 .SH SEE ALSO
-\fBncurses\fR(3X), \fBcurs_getstr\fR, \fBcurs_printw\fR, \fBscanf\fR(3S)
+\fBncurses\fR(3), \fBcurs_getstr\fR(3), \fBcurs_printw\fR(3), \fBscanf\fR(3)
 .\"#
 .\"# The following sets edit modes for GNU EMACS
 .\"# Local Variables:
