@@ -62,7 +62,7 @@
  * Change it for NETGRAPH_DEBUG version so we cannot mix debug and non debug
  * modules.
  */
-#define _NG_ABI_VERSION 7
+#define _NG_ABI_VERSION 8
 #ifdef	NETGRAPH_DEBUG /*----------------------------------------------*/
 #define NG_ABI_VERSION	(_NG_ABI_VERSION + 0x10000)
 #else	/* NETGRAPH_DEBUG */ /*----------------------------------------------*/
@@ -83,6 +83,7 @@ typedef struct ng_hook *hook_p;
 
 /* node method definitions */
 typedef	int	ng_constructor_t(node_p node);
+typedef	int	ng_close_t(node_p node);
 typedef	int	ng_shutdown_t(node_p node);
 typedef	int	ng_newhook_t(node_p node, hook_p hook, const char *name);
 typedef	hook_p	ng_findhook_t(node_p node, const char *name);
@@ -1052,6 +1053,7 @@ struct ng_type {
 	modeventhand_t	mod_event;	/* Module event handler (optional) */
 	ng_constructor_t *constructor;	/* Node constructor */
 	ng_rcvmsg_t	*rcvmsg;	/* control messages come here */
+	ng_close_t	*close;		/* warn about forthcoming shutdown */
 	ng_shutdown_t	*shutdown;	/* reset, and free resources */
 	ng_newhook_t	*newhook;	/* first notification of new hook */
 	ng_findhook_t	*findhook;	/* only if you have lots of hooks */
@@ -1112,6 +1114,7 @@ SYSCTL_DECL(_net_graph);
 int	ng_address_ID(node_p here, item_p item, ng_ID_t ID, ng_ID_t retaddr);
 int	ng_address_hook(node_p here, item_p item, hook_p hook, ng_ID_t retaddr);
 int	ng_address_path(node_p here, item_p item, char *address, ng_ID_t raddr);
+int	ng_bypass(hook_p hook1, hook_p hook2);
 meta_p	ng_copy_meta(meta_p meta);
 hook_p	ng_findhook(node_p node, const char *name);
 int	ng_make_node_common(struct ng_type *typep, node_p *nodep);

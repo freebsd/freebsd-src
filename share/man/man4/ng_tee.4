@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_tee.8,v 1.4 1999/01/25 23:46:27 archie Exp $
 .\"
-.Dd January 19, 1999
+.Dd May 28, 2004
 .Dt NG_TEE 4
 .Os
 .Sh NAME
@@ -108,9 +108,19 @@ Get statistics, returned as a
 Clear statistics.
 .El
 .Sh SHUTDOWN
-This node shuts down upon receipt of a
+This node shuts down upon receipt of an
 .Dv NGM_SHUTDOWN
 control message, or when all hooks have been disconnected.
+If both
+.Dv right
+and
+.Dv left
+hooks are present, node removes itself from the chain gently,
+connecting
+.Dv right
+and
+.Dv left
+together.
 .Sh SEE ALSO
 .Xr tee 1 ,
 .Xr netgraph 4 ,

@@ -199,7 +199,6 @@ static int	ng_mkpeer(node_p node, const char *name,
 						const char *name2, char *type);
 
 /* imported , these used to be externally visible, some may go back */
-int	ng_bypass(hook_p hook1, hook_p hook2);
 void	ng_destroy_hook(hook_p hook);
 node_p	ng_name2noderef(node_p node, const char *name);
 int	ng_path2noderef(node_p here, const char *path,
@@ -693,6 +692,10 @@ ng_rmnode(node_p node, hook_p dummy1, void *dummy2, int dummy3)
 	 * creation
 	 */
 	node->nd_flags |= NG_INVALID|NG_CLOSING;
+
+	/* If node has its pre-shutdown method, then call it first*/
+	if (node->nd_type && node->nd_type->close)
+		(*node->nd_type->close)(node);
 
 	/* Notify all remaining connected nodes to disconnect */
 	while ((hook = LIST_FIRST(&node->nd_hooks)) != NULL)
