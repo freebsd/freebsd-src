@@ -37,6 +37,7 @@
 #ifndef _SYS_SIGNALVAR_H_
 #define	_SYS_SIGNALVAR_H_
 
+#include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <sys/signal.h>
