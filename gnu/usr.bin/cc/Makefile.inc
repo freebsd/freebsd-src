@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.inc,v 1.19 1997/02/22 15:44:48 peter Exp $
+# $Id: Makefile.inc,v 1.20 1997/03/28 04:45:30 jdp Exp $
 #
 
 # Sometimes this is .include'd several times...
@@ -10,22 +10,26 @@ GCCDIR=		${.CURDIR}/../../../../contrib/gcc
 BISON?=		bison
 
 # Machine description.
-MD_FILE=	${GCCDIR}/config/i386/i386.md
-OUT_FILE=	i386.c
-OUT_OBJ=	i386
-.PATH:		${GCCDIR}/config/i386
+MD_FILE=	${GCCDIR}/config/${MACHINE}/${MACHINE}.md
+OUT_FILE=	${MACHINE}.c
+OUT_OBJ=	${MACHINE}
+.PATH:		${GCCDIR}/config/${MACHINE}
 
+.if ${MACHINE} == "alpha"
+BINFORMAT=	elf
+.else
 # Pick aout for now. the elf config is not binary compatable.
 BINFORMAT?=	aout
 #BINFORMAT?=	elf
+.endif
 
 .if ${BINFORMAT} == aout
 CFLAGS+=	-DFREEBSD_AOUT
-target=		i386-unknown-freebsd
+target=		${MACHINE}-unknown-freebsd
 .endif
 .if ${BINFORMAT} == elf
 CFLAGS+=	-DFREEBSD_ELF
-target=		i386-unknown-freebsdelf
+target=		${MACHINE}-unknown-freebsdelf
 .endif
 
 version!=	sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/' < ${GCCDIR}/version.c
