@@ -148,7 +148,7 @@ struct protox {
 					/* statistics printing routine */
 	void	(*pr_istats)(char *);	/* per/if statistics printing routine */
 	const char	*pr_name;		/* well-known name */
-	u_long	pr_usesysctl;		/* true if we use sysctl, not kvm */
+	u_long	pr_usesysctl;		/* non-zero if we use sysctl, not kvm */
 } protox[] = {
 	{ -1,		-1,		1,	protopr,
 	  tcp_stats,	NULL,		"tcp",	IPPROTO_TCP },
@@ -163,15 +163,15 @@ struct protox {
 	{ -1,		-1,		1,	protopr,
 	  igmp_stats,	NULL,		"igmp",	IPPROTO_IGMP },
 #ifdef IPSEC
-	{ -1,		N_IPSECSTAT,	1,	0,
+	{ -1,		N_IPSECSTAT,	1,	NULL,
 	  ipsec_stats,	NULL,		"ipsec",	0},
 #endif
-	{ -1,		-1,		1,	0,
+	{ -1,		-1,		1,	NULL,
 	  bdg_stats,	NULL,		"bdg",	1 /* bridging... */ },
 	{ -1,		-1,		1,	protopr,
 	  pim_stats,	NULL,		"pim",	IPPROTO_PIM },
-	{ -1,		-1,		0,	0,
-	  0,		NULL,		0,	0 }
+	{ -1,		-1,		0,	NULL,
+	  NULL,		NULL,		NULL,	0 }
 };
 
 #ifdef INET6
@@ -185,36 +185,36 @@ struct protox ip6protox[] = {
 	{ -1,		N_ICMP6STAT,	1,	protopr,
 	  icmp6_stats,	icmp6_ifstats,	"icmp6",IPPROTO_ICMPV6 },
 #ifdef IPSEC
-	{ -1,		N_IPSEC6STAT,	1,	0,
+	{ -1,		N_IPSEC6STAT,	1,	NULL,
 	  ipsec_stats,	NULL,		"ipsec6",0 },
 #endif
 #ifdef notyet
-	{ -1,		N_PIM6STAT,	1,	0,
+	{ -1,		N_PIM6STAT,	1,	NULL,
 	  pim6_stats,	NULL,		"pim6",	0 },
 #endif
-	{ -1,		-1,		1,	0,
+	{ -1,		-1,		1,	NULL,
 	  rip6_stats,	NULL,		"rip6",	0 },
-	{ -1,		-1,		1,	0,
+	{ -1,		-1,		1,	NULL,
 	  bdg_stats,	NULL,		"bdg",	1 /* bridging... */ },
-	{ -1,		-1,		0,	0,
-	  0,		NULL,		0,	0 }
+	{ -1,		-1,		0,	NULL,
+	  NULL,		NULL,		NULL,	0 }
 };
 #endif /*INET6*/
 
 #ifdef IPSEC
 struct protox pfkeyprotox[] = {
-	{ -1,		N_PFKEYSTAT,	1,	0,
+	{ -1,		N_PFKEYSTAT,	1,	NULL,
 	  pfkey_stats,	NULL,		"pfkey", 0 },
-	{ -1,		-1,		0,	0,
-	  0,		NULL,		0,	0 }
+	{ -1,		-1,		0,	NULL,
+	  NULL,		NULL,		NULL,	0 }
 };
 #endif
 
 struct protox atalkprotox[] = {
 	{ N_DDPCB,	N_DDPSTAT,	1,	atalkprotopr,
 	  ddp_stats,	NULL,		"ddp",	0 },
-	{ -1,		-1,		0,	0,
-	  0,		NULL,		0,	0 }
+	{ -1,		-1,		0,	NULL,
+	  NULL,		NULL,		NULL,	0 }
 };
 
 struct protox netgraphprotox[] = {
@@ -222,8 +222,8 @@ struct protox netgraphprotox[] = {
 	  NULL,		NULL,		"ctrl",	0 },
 	{ N_NGSOCKS,	-1,		1,	netgraphprotopr,
 	  NULL,		NULL,		"data",	0 },
-	{ -1,		0,		0,	0,
-	  0,		NULL,		0,	0 }
+	{ -1,		-1,		0,	NULL,
+	  NULL,		NULL,		NULL,	0 }
 };
 
 struct protox ipxprotox[] = {
@@ -231,8 +231,8 @@ struct protox ipxprotox[] = {
 	  ipx_stats,	NULL,		"ipx",	0 },
 	{ N_IPX,	N_SPXSTAT,	1,	ipxprotopr,
 	  spx_stats,	NULL,		"spx",	0 },
-	{ -1,		-1,		0,	0,
-	  0,		NULL,		0,	0 }
+	{ -1,		-1,		0,	NULL,
+	  NULL,		NULL,		0,	0 }
 };
 
 struct protox *protoprotox[] = {
