@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 1997-2000 Nicolas Souchu
  * Copyright (c) 2001 Alcove - Nicolas Souchu
  * All rights reserved.
  *
