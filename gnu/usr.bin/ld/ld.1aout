@@ -27,7 +27,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: ld.1,v 1.15 1997/02/22 15:46:19 peter Exp $
 .\"
 .Dd October 14, 1993
 .Dt LD 1
@@ -37,7 +37,7 @@
 .Nd link editor
 .Sh SYNOPSIS
 .Nm ld
-.Op Fl MNnrSstXxz
+.Op Fl fMNnrSstXxz
 .Bk -words
 .Op Fl A Ar symbol-file
 .Op Fl assert Ar keyword
@@ -131,6 +131,9 @@ calls will be re-directed through the Procedure Linkage Table (see
 .Xr link 5)
 .It Fl e Ar entry-symbol
 Specifies the entry symbol for an executable.
+.It Fl f
+List the resolved paths of all the object files and libraries on the
+standard output, and exit.
 .It Fl L Ns Ar path
 Add
 .Ar path
