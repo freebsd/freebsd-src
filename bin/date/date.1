@@ -189,7 +189,7 @@ the clock goes back at 02:00 to 01:00, using
 will be necessary to reach October 20, 2:30.
 .Pp
 When the date is adjusted to a specific value that doesn't actually exist
-.Pq for example March 26, 1:30 BST 2000 ,
+.Pq for example March 26, 1:30 BST 2000 in the Europe/London timezone ,
 the date will be silently adjusted forwards in units of one hour until it
 reaches a valid time.
 When the date is adjusted to a specific value that occurs twice
@@ -254,14 +254,14 @@ DATE: 1987-11-21
 TIME: 13:36:16
 .Ed
 .Pp
-The command:
+In the Europe/London timezone, the command:
 .Bd -literal -offset indent
 date -v1m -v+1y
 .Ed
 .Pp
 will display:
 .Bd -literal -offset indent
-Sun Jan  4 03:15:24 GMT 1998
+Sun Jan  4 04:15:24 GMT 1998
 .Ed
 .Pp
 where it is currently Mon Aug  4 04:15:24 BST 1997.
