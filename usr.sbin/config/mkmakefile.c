@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkmakefile.c,v 1.40 1999/04/19 13:53:07 peter Exp $";
+	"$Id: mkmakefile.c,v 1.41 1999/04/24 18:59:19 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -73,7 +73,6 @@ static const char rcsid[] =
 static struct file_list *fcur;
 
 static char *tail __P((char *));
-static void do_swapspec __P((FILE *, char *));
 static void do_clean __P((FILE *));
 static void do_load __P((FILE *));
 static void do_rules __P((FILE *));
@@ -178,9 +177,6 @@ makefile()
 		}
 	}
 	fprintf(ofp, "\n");
-	if (loadaddress != -1) {
-		fprintf(ofp, "LOAD_ADDRESS=%X\n", loadaddress);
-	}
 	for (op = mkopt; op; op = op->op_next)
 		fprintf(ofp, "%s=%s\n", op->op_name, op->op_value);
 	if (debugging)
@@ -569,7 +565,7 @@ do_objs(fp)
 		for (fl = conf_list; fl; fl = fl->f_next) {
 			if (fl->f_type != SWAPSPEC)
 				continue;
-			(void) snprintf(swapname, sizeof(swapname), "swap%s.c", fl->f_fn);
+			(void) snprintf(swapname, sizeof(swapname), "swapkernel.c");
 			if (eq(sp, swapname))
 				goto cont;
 		}
@@ -618,16 +614,12 @@ do_cfiles(fp)
 		}
 	for (fl = conf_list; fl; fl = fl->f_next)
 		if (fl->f_type == SYSTEMSPEC) {
-			(void) snprintf(swapname, sizeof(swapname), "swap%s.c", fl->f_fn);
+			(void) snprintf(swapname, sizeof(swapname), "swapkernel.c");
 			if ((len = 3 + strlen(swapname)) + lpos > 72) {
 				lpos = 8;
 				fputs("\\\n\t", fp);
 			}
-			if (eq(fl->f_fn, "generic"))
-				fprintf(fp, "$S/%s/%s/%s ",
-				    machinename, machinename, swapname);
-			else
-				fprintf(fp, "%s ", swapname);
+			fprintf(fp, "%s ", swapname);
 			lpos += len + 1;
 		}
 	if (lpos != 8)
@@ -823,31 +815,16 @@ do_systemspec(f, fl, first)
 {
 
 	fprintf(f, "KERNEL=\t%s\n", fl->f_needs);
-	fprintf(f, "${FULLKERNEL}: ${SYSTEM_DEP} swap%s.o", fl->f_fn);
+	fprintf(f, "${FULLKERNEL}: ${SYSTEM_DEP}");
 	if (first)
 		fprintf(f, " vers.o");
 	fprintf(f, "\n\t${SYSTEM_LD_HEAD}\n");
-	fprintf(f, "\t${SYSTEM_LD} swap%s.o\n", fl->f_fn);
+	fprintf(f, "\t${SYSTEM_LD}\n", fl->f_fn);
 	fprintf(f, "\t${SYSTEM_LD_TAIL}\n\n");
-	do_swapspec(f, fl->f_fn);
 	for (fl = fl->f_next; fl; fl = fl->f_next)
 		if (fl->f_type != SWAPSPEC)
 			break;
 	return (fl);
-}
-
-static void
-do_swapspec(f, name)
-	FILE *f;
-	register char *name;
-{
-
-	if (!eq(name, "generic"))
-		fprintf(f, "swap%s.o: swap%s.c\n", name, name);
-	else
-		fprintf(f, "swapgeneric.o: $S/%s/%s/swapgeneric.c\n",
-			machinename, machinename);
-	fprintf(f, "\t${NORMAL_C}\n\n");
 }
 
 char *

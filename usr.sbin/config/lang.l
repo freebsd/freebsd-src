@@ -52,13 +52,11 @@ struct kt {
 	int kt_val;
 } key_words[] = {
 	{ "and",	AND },
-	{ "args",	ARGS },
 	{ "at",		AT },
 	{ "bio",	BIO },		/* XXX going away */
 	{ "bus",	BUS },
 	{ "cam",	CAM },		/* XXX going away */
 	{ "conflicts",	CONFLICTS },
-	{ "config",	CONFIG },
 	{ "controller",	CONTROLLER },
 	{ "cpu",	CPU },
 	{ "device",	DEVICE },
@@ -66,7 +64,6 @@ struct kt {
 	{ "disk",	DISK },
 	{ "drive",	DRIVE },
 	{ "drq",	DRQ },
-	{ "dumps",	DUMPS },
 	{ "flags",	FLAGS },
 	{ "ident",	IDENT },
 	{ "iomem",	IOMEM },
@@ -80,16 +77,13 @@ struct kt {
 	{ "minor",	MINOR },
 	{ "net",	NET },		/* XXX going away */
 	{ "nexus",	NEXUS },
-	{ "on",		ON },
 	{ "options",	OPTIONS },
 	{ "port",	PORT },
 	{ "priority",	PRIORITY },
 	{ "pseudo-device",PSEUDO_DEVICE },
-	{ "root",	ROOT },
 	{ "sequential",	SEQUENTIAL },
 	{ "size",	SIZE },
 	{ "slave",	SLAVE },
-	{ "swap",	SWAP },
 	{ "tape",	DEVICE },
 	{ "target",	TARGET },
 	{ "tty",	TTY },		/* XXX going away */
@@ -128,7 +122,7 @@ ID	[A-Za-z_][-A-Za-z_0-9]*
 			if ((i = kw_lookup(yytext)) == -1)
 				REJECT;
 			if (i == CONTROLLER || i == DEVICE || i == DISK ||
-			    i == PSEUDO_DEVICE || i == AT || i == ON)
+			    i == PSEUDO_DEVICE || i == AT)
 				BEGIN NONUM;
 			tprintf("(%s) ", yytext);
 			return i;
