@@ -554,7 +554,7 @@ ata_getparam(struct ata_device *atadev, u_int8_t command)
 	    while (retries-- > 0) {
 		request->device = atadev;
 		request->timeout = 5;
-		request->retries = -1;
+		request->retries = 0;
 		request->u.ata.command = command;
 		request->flags = (ATA_R_READ | ATA_R_IMMEDIATE);
 		request->data = (caddr_t)atadev->param;
