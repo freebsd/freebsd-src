@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
 int	gv_init_plex(struct gv_plex *);
 int	gv_init_sd(struct gv_sd *);
 void	gv_init_td(void *);
+void	gv_rebuild_plex(struct gv_plex *);
+void	gv_rebuild_td(void *);
 void	gv_start_plex(struct gv_plex *);
 void	gv_start_vol(struct gv_volume *);
 void	gv_sync(struct gv_volume *);
@@ -117,8 +119,12 @@ gv_start_plex(struct gv_plex *p)
 	v = p->vol_sc;
 	if ((v != NULL) && (v->plexcount > 1))
 		gv_sync(v);
-	else if (p->org == GV_PLEX_RAID5)
-		gv_init_plex(p);
+	else if (p->org == GV_PLEX_RAID5) {
+		if (p->state == GV_PLEX_DEGRADED)
+			gv_rebuild_plex(p);
+		else
+			gv_init_plex(p);
+	}
 
 	return;
 }
@@ -142,7 +148,9 @@ gv_start_vol(struct gv_volume *v)
 			case GV_PLEX_DOWN:
 				gv_init_plex(p);
 				break;
-			case GV_PLEX_DEGRADED:  /* XXX not yet */
+			case GV_PLEX_DEGRADED:
+				gv_rebuild_plex(p);
+				break;
 			default:
 				return;
 			}
@@ -191,6 +199,22 @@ gv_sync(struct gv_volume *v)
 	}
 }
 
+void
+gv_rebuild_plex(struct gv_plex *p)
+{
+	struct gv_sync_args *sync;
+
+	if ((p->flags & GV_PLEX_SYNCING) || gv_is_open(p->geom))
+		return;
+
+	sync = g_malloc(sizeof(*sync), M_WAITOK | M_ZERO);
+	sync->to = p;
+	sync->syncsize = GV_DFLT_SYNCSIZE;
+
+	kthread_create(gv_rebuild_td, sync, NULL, 0, 0, "gv_rebuild %s",
+	    p->name);
+}
+
 int
 gv_init_plex(struct gv_plex *p)
 {
@@ -223,6 +247,94 @@ gv_init_sd(struct gv_sd *s)
 	kthread_create(gv_init_td, s, NULL, 0, 0, "init_sd %s", s->name);
 
 	return (0);
+}
+
+/* This thread is responsible for rebuilding a degraded RAID5 plex. */
+void
+gv_rebuild_td(void *arg)
+{
+	struct bio *bp;
+	struct gv_plex *p;
+	struct g_consumer *cp;
+	struct gv_sync_args *sync;
+	u_char *buf;
+	off_t i;
+	int error;
+
+	buf = NULL;
+	bp = NULL;
+
+	sync = arg;
+	p = sync->to;
+	p->synced = 0;
+	p->flags |= GV_PLEX_SYNCING;
+	cp = p->consumer;
+
+	g_topology_lock();
+	error = g_access(cp, 1, 1, 0);
+	if (error) {
+		g_topology_unlock();
+		printf("GEOM_VINUM: rebuild of %s failed to access consumer: "
+		    "%d\n", p->name, error);
+		kthread_exit(error);
+	}
+	g_topology_unlock();
+
+	buf = g_malloc(sync->syncsize, M_WAITOK);
+
+	printf("GEOM_VINUM: rebuild of %s started\n", p->name);
+	i = 0;
+	for (i = 0; i < p->size; i += (p->stripesize * (p->sdcount - 1))) {
+/*
+		if (i + sync->syncsize > p->size)
+			sync->syncsize = p->size - i;
+*/
+		bp = g_new_bio();
+		if (bp == NULL) {
+			printf("GEOM_VINUM: rebuild of %s failed creating bio: "
+			    "out of memory\n", p->name);
+			break;
+		}
+		bp->bio_cmd = BIO_WRITE;
+		bp->bio_done = NULL;
+		bp->bio_data = buf;
+		bp->bio_cflags |= GV_BIO_REBUILD;
+		bp->bio_offset = i;
+		bp->bio_length = p->stripesize;
+
+		/* Schedule it down ... */
+		g_io_request(bp, cp);
+
+		/* ... and wait for the result. */
+		error = biowait(bp, "gwrite");
+		if (error) {
+			printf("GEOM_VINUM: rebuild of %s failed at offset %jd "
+			    "errno: %d\n", p->name, i, error);
+			break;
+		}
+		g_destroy_bio(bp);
+		bp = NULL;
+	}
+
+	if (bp != NULL)
+		g_destroy_bio(bp);
+	if (buf != NULL)
+		g_free(buf);
+
+	g_topology_lock();
+	g_access(cp, -1, -1, 0);
+	gv_save_config_all(p->vinumconf);
+	g_topology_unlock();
+
+	p->flags &= ~GV_PLEX_SYNCING;
+	p->synced = 0;
+
+	/* Successful initialization. */
+	if (!error)
+		printf("GEOM_VINUM: rebuild of %s finished\n", p->name);
+
+	g_free(sync);
+	kthread_exit(error);
 }
 
 void

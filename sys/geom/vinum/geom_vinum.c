@@ -289,6 +289,14 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 	for (i = 0; i < *drives; i++) {
 		snprintf(buf, sizeof(buf), "drive%d", i);
 		d2 = gctl_get_paraml(req, buf, sizeof(*d2));
+
+		d = gv_find_drive(sc, d2->name);
+		if (d != NULL) {
+			gctl_error(req, "drive '%s' is already known",
+			    d->name);
+			continue;
+		}
+
 		d = g_malloc(sizeof(*d), M_WAITOK | M_ZERO);
 		bcopy(d2, d, sizeof(*d));
 

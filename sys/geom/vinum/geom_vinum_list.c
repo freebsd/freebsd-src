@@ -365,9 +365,15 @@ gv_lsi(struct gv_sd *s, struct sbuf *sb, int flags)
 		    (intmax_t)s->size, (intmax_t)s->size / MEGABYTE);
 		sbuf_printf(sb, "\t\tState: %s\n", gv_sdstate(s->state));
 
-		if (s->state == GV_SD_INITIALIZING) {
-			sbuf_printf(sb, "\t\tInitialized: %16jd bytes "
-			    "(%d%%)\n", (intmax_t)s->initialized,
+		if (s->state == GV_SD_INITIALIZING ||
+		    s->state == GV_SD_REVIVING) {
+			if (s->state == GV_SD_INITIALIZING)
+				sbuf_printf(sb, "\t\tInitialized: ");
+			else
+				sbuf_printf(sb, "\t\tRevived: ");
+				
+			sbuf_printf(sb, "%16jd bytes (%d%%)\n",
+			    (intmax_t)s->initialized,
 			    (int)((s->initialized * 100) / s->size));
 		}
 
@@ -377,20 +383,20 @@ gv_lsi(struct gv_sd *s, struct sbuf *sb, int flags)
 			    gv_roughlength(s->plex_offset, 1));
 		}
 
-		if (s->state == GV_SD_REVIVING) {
-			/* XXX */
-		}
-
 		sbuf_printf(sb, "\t\tDrive %s (%s) at offset %jd (%s)\n",
 		    s->drive,
 		    s->drive_sc == NULL ? "*missing*" : s->drive_sc->name,
 		    (intmax_t)s->drive_offset,
 		    gv_roughlength(s->drive_offset, 1));
 	} else {
-		/* XXX reviving and initializing... */
 		sbuf_printf(sb, "S %-21s State: ", s->name);
-		if (s->state == GV_SD_INITIALIZING) {
-			sbuf_printf(sb, "I %d%%\t",
+		if (s->state == GV_SD_INITIALIZING ||
+		    s->state == GV_SD_REVIVING) {
+			if (s->state == GV_SD_INITIALIZING)
+				sbuf_printf(sb, "I ");
+			else
+				sbuf_printf(sb, "R ");
+			sbuf_printf(sb, "%d%%\t",
 			    (int)((s->initialized * 100) / s->size));
 		} else {
 			sbuf_printf(sb, "%s\t", gv_sdstate(s->state));
