@@ -41,7 +41,7 @@
 .Nm ccd
 .Nd Concatenated Disk driver
 .Sh SYNOPSIS
-.Cd "device ccd 4"
+.Cd "device ccd"
 .Sh DESCRIPTION
 The
 .Nm
@@ -65,7 +65,7 @@ as shown as
 In order to compile in support for the ccd, you must add a line similar
 to the following to your kernel configuration file:
 .Bd -unfilled -offset indent
-device	ccd	4	# concatenated disk devices
+device	ccd		# concatenated disk devices
 .Ed
 .Pp
 The count argument is how many
@@ -180,7 +180,7 @@ Changing the interleave or other parameters for a
 .Nm
 disk usually destroys whatever data previously existed on that disk.
 .Sh FILES
-/dev/{,r}ccd* - ccd device special files.
+/dev/ccd* - ccd device special files.
 .Sh HISTORY
 The concatenated disk driver was originally written at the University of
 Utah.
