@@ -46,7 +46,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: moused.c,v 1.12 1997/12/15 02:57:45 yokota Exp $";
+	"$Id: moused.c,v 1.13 1997/12/23 08:04:38 yokota Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -220,6 +220,8 @@ static symtab_t pnpprod[] = {
     { "LGI8050",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_MOUSEMANPLUS },
     /* Logitech FirstMouse+ */
     { "LGI8051",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_MOUSEMANPLUS },
+    /* Logitech serial */
+    { "LGI8001",	MOUSE_PROTO_LOGIMOUSEMAN, MOUSE_MODEL_GENERIC },
 
     /* MS bus */
     { "PNP0F00",	MOUSE_PROTO_BUS,	MOUSE_MODEL_GENERIC },
