@@ -37,7 +37,10 @@
  * $FreeBSD$
  */
 
+#include <stddef.h>
+
 #include <sys/param.h>
+#include <sys/assym.h>
 #include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/errno.h>
@@ -63,110 +66,92 @@
 #include <nfs/nfs.h>
 #include <nfs/nfsdiskless.h>
 
-int	main __P((void));
-int	printf __P((const char *, ...));
+ASSYM(P_ADDR, offsetof(struct proc, p_addr));
+ASSYM(P_MD_FLAGS, offsetof(struct proc, p_md.md_flags));
+ASSYM(P_MD_PCBPADDR, offsetof(struct proc, p_md.md_pcbpaddr));
+ASSYM(P_MD_HAE, offsetof(struct proc, p_md.md_hae));
+ASSYM(MDP_HAEUSED, MDP_HAEUSED);
 
-#define BIG(val)	((val) > 999LL || (val) < -999LL)
+ASSYM(CHIPSET_WRITE_HAE, offsetof(struct alpha_chipset, write_hae));
 
-#define P(name, val) \
-	printf(BIG(val) ? "#define\t%s 0x%llx\n" : "#define\t%s %lld\n", name, val)
+ASSYM(VM_MAXUSER_ADDRESS, VM_MAXUSER_ADDRESS);
+ASSYM(PTLEV1I, PTLEV1I);
+ASSYM(PTESIZE, PTESIZE);
 
-#define OFF(name, type, elem)	P(#name, (long long) &((type*)0)->elem)
-#define CONST2(name, val)	P(#name, (long long) val)
-#define CONST1(name)		P(#name, (long long) name)
+ASSYM(U_PCB_ONFAULT, offsetof(struct user, u_pcb.pcb_onfault));
+ASSYM(U_PCB_HWPCB_KSP, offsetof(struct user, u_pcb.pcb_hw.apcb_ksp));
+ASSYM(U_PCB_CONTEXT, offsetof(struct user, u_pcb.pcb_context));
 
-int
-main()
-{
-	OFF(P_ADDR,		struct proc,	p_addr);
-	OFF(P_MD_FLAGS,		struct proc,	p_md.md_flags);
-	OFF(P_MD_PCBPADDR,	struct proc,	p_md.md_pcbpaddr);
-	OFF(P_MD_HAE,		struct proc,	p_md.md_hae);
-	CONST1(MDP_HAEUSED);
+ASSYM(PCB_HW, offsetof(struct pcb, pcb_hw));
 
-	OFF(CHIPSET_WRITE_HAE,	struct alpha_chipset, write_hae);
+ASSYM(FPREG_FPR_REGS, offsetof(struct fpreg, fpr_regs));
+ASSYM(FPREG_FPR_CR, offsetof(struct fpreg, fpr_cr));
 
-	CONST1(VM_MAXUSER_ADDRESS);
-	CONST1(PTLEV1I);
-	CONST1(PTESIZE);
+ASSYM(EFAULT, EFAULT);
+ASSYM(ENAMETOOLONG, ENAMETOOLONG);
 
-	OFF(U_PCB_ONFAULT,	struct user,	u_pcb.pcb_onfault);
-	OFF(U_PCB_HWPCB_KSP,	struct user,	u_pcb.pcb_hw.apcb_ksp);
-	OFF(U_PCB_CONTEXT,	struct user,	u_pcb.pcb_context);
+/* Register offsets, for stack frames. */
+ASSYM(FRAME_V0, FRAME_V0);
+ASSYM(FRAME_T0, FRAME_T0);
+ASSYM(FRAME_T1, FRAME_T1);
+ASSYM(FRAME_T2, FRAME_T2);
+ASSYM(FRAME_T3, FRAME_T3);
+ASSYM(FRAME_T4, FRAME_T4);
+ASSYM(FRAME_T5, FRAME_T5);
+ASSYM(FRAME_T6, FRAME_T6);
+ASSYM(FRAME_T7, FRAME_T7);
+ASSYM(FRAME_S0, FRAME_S0);
+ASSYM(FRAME_S1, FRAME_S1);
+ASSYM(FRAME_S2, FRAME_S2);
+ASSYM(FRAME_S3, FRAME_S3);
+ASSYM(FRAME_S4, FRAME_S4);
+ASSYM(FRAME_S5, FRAME_S5);
+ASSYM(FRAME_S6, FRAME_S6);
+ASSYM(FRAME_A3, FRAME_A3);
+ASSYM(FRAME_A4, FRAME_A4);
+ASSYM(FRAME_A5, FRAME_A5);
+ASSYM(FRAME_T8, FRAME_T8);
+ASSYM(FRAME_T9, FRAME_T9);
+ASSYM(FRAME_T10, FRAME_T10);
+ASSYM(FRAME_T11, FRAME_T11);
+ASSYM(FRAME_RA, FRAME_RA);
+ASSYM(FRAME_T12, FRAME_T12);
+ASSYM(FRAME_AT, FRAME_AT);
+ASSYM(FRAME_SP, FRAME_SP);
 
-	OFF(PCB_HW,		struct pcb,	pcb_hw);
+ASSYM(FRAME_SW_SIZE, FRAME_SW_SIZE);
 
-	OFF(FPREG_FPR_REGS,	struct fpreg,	fpr_regs);
-	OFF(FPREG_FPR_CR,	struct fpreg,	fpr_cr);
+ASSYM(FRAME_PS, FRAME_PS);
+ASSYM(FRAME_PC, FRAME_PC);
+ASSYM(FRAME_GP, FRAME_GP);
+ASSYM(FRAME_A0, FRAME_A0);
+ASSYM(FRAME_A1, FRAME_A1);
+ASSYM(FRAME_A2, FRAME_A2);
 
-	CONST1(EFAULT);
-	CONST1(ENAMETOOLONG);
+ASSYM(FRAME_SIZE, FRAME_SIZE);
 
-	/* Register offsets, for stack frames. */
-	CONST1(FRAME_V0),
-	CONST1(FRAME_T0),
-	CONST1(FRAME_T1),
-	CONST1(FRAME_T2),
-	CONST1(FRAME_T3),
-	CONST1(FRAME_T4),
-	CONST1(FRAME_T5),
-	CONST1(FRAME_T6),
-	CONST1(FRAME_T7),
-	CONST1(FRAME_S0),
-	CONST1(FRAME_S1),
-	CONST1(FRAME_S2),
-	CONST1(FRAME_S3),
-	CONST1(FRAME_S4),
-	CONST1(FRAME_S5),
-	CONST1(FRAME_S6),
-	CONST1(FRAME_A3),
-	CONST1(FRAME_A4),
-	CONST1(FRAME_A5),
-	CONST1(FRAME_T8),
-	CONST1(FRAME_T9),
-	CONST1(FRAME_T10),
-	CONST1(FRAME_T11),
-	CONST1(FRAME_RA),
-	CONST1(FRAME_T12),
-	CONST1(FRAME_AT),
-	CONST1(FRAME_SP),
+/* bits of the PS register */
+ASSYM(ALPHA_PSL_USERMODE, ALPHA_PSL_USERMODE);
+ASSYM(ALPHA_PSL_IPL_MASK, ALPHA_PSL_IPL_MASK);
+ASSYM(ALPHA_PSL_IPL_0, ALPHA_PSL_IPL_0);
+ASSYM(ALPHA_PSL_IPL_SOFT, ALPHA_PSL_IPL_SOFT);
+ASSYM(ALPHA_PSL_IPL_HIGH, ALPHA_PSL_IPL_HIGH);
 
-	CONST1(FRAME_SW_SIZE),
+/* pte bits */
+ASSYM(ALPHA_L1SHIFT, ALPHA_L1SHIFT);
+ASSYM(ALPHA_L2SHIFT, ALPHA_L2SHIFT);
+ASSYM(ALPHA_L3SHIFT, ALPHA_L3SHIFT);
+ASSYM(ALPHA_K1SEG_BASE, ALPHA_K1SEG_BASE);
+ASSYM(ALPHA_PTE_VALID, ALPHA_PTE_VALID);
+ASSYM(ALPHA_PTE_ASM, ALPHA_PTE_ASM);
+ASSYM(ALPHA_PTE_KR, ALPHA_PTE_KR);
+ASSYM(ALPHA_PTE_KW, ALPHA_PTE_KW);
 
-	CONST1(FRAME_PS),
-	CONST1(FRAME_PC),
-	CONST1(FRAME_GP),
-	CONST1(FRAME_A0),
-	CONST1(FRAME_A1),
-	CONST1(FRAME_A2),
+/* Kernel entries */
+ASSYM(ALPHA_KENTRY_ARITH, ALPHA_KENTRY_ARITH);
+ASSYM(ALPHA_KENTRY_MM, ALPHA_KENTRY_MM);
 
-	CONST1(FRAME_SIZE),
+ASSYM(ALPHA_KENTRY_IF, ALPHA_KENTRY_IF);
+ASSYM(ALPHA_KENTRY_UNA, ALPHA_KENTRY_UNA);
 
-	/* bits of the PS register */
-	CONST1(ALPHA_PSL_USERMODE);
-	CONST1(ALPHA_PSL_IPL_MASK);
-	CONST1(ALPHA_PSL_IPL_0);
-	CONST1(ALPHA_PSL_IPL_SOFT);
-	CONST1(ALPHA_PSL_IPL_HIGH);
-
-	/* pte bits */
-	CONST1(ALPHA_L1SHIFT);
-	CONST1(ALPHA_L2SHIFT);
-	CONST1(ALPHA_L3SHIFT);
-	CONST1(ALPHA_K1SEG_BASE);
-	CONST1(ALPHA_PTE_VALID);
-	CONST1(ALPHA_PTE_ASM);
-	CONST1(ALPHA_PTE_KR);
-	CONST1(ALPHA_PTE_KW);
-
-	/* Kernel entries */
-	CONST1(ALPHA_KENTRY_ARITH);
-	CONST1(ALPHA_KENTRY_MM);
-
-	CONST1(ALPHA_KENTRY_IF);
-	CONST1(ALPHA_KENTRY_UNA);
-
-	CONST1(VPTBASE);
-
-	return (0);
-}
+ASSYM(VPTBASE, VPTBASE);
