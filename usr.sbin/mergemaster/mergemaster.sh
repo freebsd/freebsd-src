@@ -5,7 +5,7 @@
 # Compare files created by /usr/src/etc/Makefile (or the directory
 # the user specifies) with the currently installed copies.
 
-# Copyright 1998-2003 Douglas Barton
+# Copyright 1998-2004 Douglas Barton
 # DougB@FreeBSD.org
 
 # $FreeBSD$
@@ -671,7 +671,7 @@ do_install_and_rm () {
 find_mode () {
   local OCTAL
   OCTAL=$(( ~$(echo "obase=10; ibase=8; ${CONFIRMED_UMASK}" | bc) & 4095 &
-    $(echo "obase=10; ibase=8; $(stat -f "%OMp%OLp" ${1})" | bc) )) 
+    $(echo "obase=10; ibase=8; $(stat -f "%OMp%OLp" ${1})" | bc) ))
   printf "%04o\n" ${OCTAL}
 }
 
@@ -780,6 +780,55 @@ mm_install () {
 echo ''
 echo "*** Beginning comparison"
 echo ''
+
+# It is very possible that a previous run would have deleted files in
+# ${TEMPROOT}/etc/rc.d, thus creating a lot of false positives.
+case "${RERUN}" in
+'')
+  echo "   *** Checking ${DESTDIR}/etc/rc.d for stale files"
+  echo ''
+  cd "${DESTDIR}/etc/rc.d" &&
+  for file in *; do
+    if [ ! -e "${TEMPROOT}/etc/rc.d/${file}" ]; then
+      STALE_RC_FILES="${STALE_RC_FILES} ${file}"
+    fi
+  done
+  case "${STALE_RC_FILES}" in
+  '')
+    echo '   *** No stale files found'
+    ;;
+  *)
+    echo "   *** The following files exist in ${DESTDIR}/etc/rc.d but not in"
+    echo "       ${TEMPROOT}/etc/rc.d/:"
+    echo ''
+    echo "${STALE_RC_FILES}"
+    echo ''
+    echo '       The presence of stale files in this directory can cause the'
+    echo '       dreaded unpredictable results, and therefore it is highly'
+    echo '       recommended that you delete them.'
+    case "${AUTO_RUN}" in
+    '')
+      echo ''
+      echo -n '   *** Delete them now? [y]'
+      read DELETE_STALE_RC_FILES
+      case "${DELETE_STALE_RC_FILES}" in
+      [nN])
+        echo '      *** Files will not be deleted'
+        ;;
+      *)
+        echo '      *** Deleting ... '
+        rm ${STALE_RC_FILES}
+        echo '                       done.'
+        ;;
+      esac
+      sleep 2
+      ;;
+    esac
+    ;;
+  esac
+  echo ''
+  ;;
+esac
 
 cd "${TEMPROOT}"
 
