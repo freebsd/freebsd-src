@@ -44,12 +44,14 @@ asynchronous I/O server
 .Nm
 .Op Fl n Ar num_servers
 .Sh DESCRIPTION
-.Nm Nfsiod
-runs on an
+The
+.Nm
+utility is a kernel process which runs on an
 .Tn NFS
 client machine to service asynchronous I/O requests to its server.
 It improves performance but is not required for correct operation.
 .Pp
+This program controls the maximum number of processes that the kernel runs.
 Unless otherwise specified, a single server is started.
 .Pp
 The options are as follows:
@@ -68,21 +70,21 @@ detects that the running kernel does not include
 support, it will attempt to load a loadable kernel module containing
 .Tn NFS
 code, using
-.Xr kldload 8
+.Xr kldload 2
 by way of
 .Xr vfsload 3 .
 If this fails, or no
 .Tn NFS
 KLD was available,
-The
 .Nm
-utility exits with an error.
+exits with an error.
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh SEE ALSO
 .Xr nfsstat 1 ,
+.Xr kldload 2 ,
 .Xr nfssvc 2 ,
-.Xr kldload 8 ,
+.Xr vfsload 3 ,
 .Xr mountd 8 ,
 .Xr nfsd 8 ,
 .Xr portmap 8
