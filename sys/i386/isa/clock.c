@@ -122,7 +122,7 @@ static	int	(*i8254_pending)(struct intsrc *);
 static	int	i8254_ticked;
 static	int	using_lapic_timer;
 static	u_char	rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
-static	u_char	rtc_statusb = RTCSB_24HR | RTCSB_PINTR;
+static	u_char	rtc_statusb = RTCSB_24HR;
 
 /* Values for timerX_state: */
 #define	RELEASED	0
@@ -779,37 +779,41 @@ cpu_initclocks()
 #ifdef DEV_APIC
 	using_lapic_timer = lapic_setup_clock();
 #endif
-	if (statclock_disable || using_lapic_timer) {
-		/*
-		 * The stat interrupt mask is different without the
-		 * statistics clock.  Also, don't set the interrupt
-		 * flag which would normally cause the RTC to generate
-		 * interrupts.
-		 */
-		rtc_statusb = RTCSB_24HR;
-	} else {
-	        /* Setting stathz to nonzero early helps avoid races. */
-		stathz = RTC_NOPROFRATE;
-		profhz = RTC_PROFRATE;
-        }
-
-	/* Finish initializing 8254 timer 0. */
-	intr_add_handler("clk", 0, (driver_intr_t *)clkintr, NULL,
-	    INTR_TYPE_CLK | INTR_FAST, NULL);
-	i8254_intsrc = intr_lookup_source(0);
-	if (i8254_intsrc != NULL)
-		i8254_pending = i8254_intsrc->is_pic->pic_source_pending;
+	/*
+	 * If we aren't using the local APIC timer to drive the kernel
+	 * clocks, setup the interrupt handler for the 8254 timer 0 so
+	 * that it can drive hardclock().
+	 */
+	if (!using_lapic_timer) {
+		intr_add_handler("clk", 0, (driver_intr_t *)clkintr, NULL,
+		    INTR_TYPE_CLK | INTR_FAST, NULL);
+		i8254_intsrc = intr_lookup_source(0);
+		if (i8254_intsrc != NULL)
+			i8254_pending =
+			    i8254_intsrc->is_pic->pic_source_pending;
+	}
 
 	/* Initialize RTC. */
 	writertc(RTC_STATUSA, rtc_statusa);
 	writertc(RTC_STATUSB, RTCSB_24HR);
 
-	/* Don't bother enabling the statistics clock. */
+	/*
+	 * If the separate statistics clock hasn't been explicility disabled
+	 * and we aren't already using the local APIC timer to drive the
+	 * kernel clocks, then setup the RTC to periodically interrupt to
+	 * drive statclock() and profclock().
+	 */
 	if (!statclock_disable && !using_lapic_timer) {
 		diag = rtcin(RTC_DIAG);
 		if (diag != 0)
 			printf("RTC BIOS diagnostic error %b\n", diag, RTCDG_BITS);
 
+	        /* Setting stathz to nonzero early helps avoid races. */
+		stathz = RTC_NOPROFRATE;
+		profhz = RTC_PROFRATE;
+
+		/* Enable periodic interrupts from the RTC. */
+		rtc_statusb |= RTCSB_PINTR;
 		intr_add_handler("rtc", 8, (driver_intr_t *)rtcintr, NULL,
 		    INTR_TYPE_CLK | INTR_FAST, NULL);
 
