@@ -52,8 +52,14 @@ static struct cdevsw snp_cdevsw = {
 };
 
 static struct linesw snpdisc = {
-	ttyopen,	snplclose,	ttread,		snplwrite,
-	l_nullioctl,	ttyinput,	ttstart,	ttymodem
+	.l_open =	ttyopen,
+	.l_close =	snplclose,
+	.l_read =	ttread,
+	.l_write =	snplwrite,
+	.l_ioctl =	l_nullioctl,
+	.l_rint =	ttyinput,
+	.l_start =	ttstart,
+	.l_modem =	ttymodem
 };
 
 /*
