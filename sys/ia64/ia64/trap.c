@@ -519,58 +519,43 @@ trap(int vector, int imm, struct trapframe *framep)
 	case IA64_VEC_INST_ACCESS_RIGHTS:
 	case IA64_VEC_DATA_ACCESS_RIGHTS:
 	{
-		vm_offset_t va = framep->tf_cr_ifa;
-		struct vmspace *vm = NULL;
+		vm_offset_t va;
+		struct vmspace *vm;
 		vm_map_t map;
-		vm_prot_t ftype = 0;
+		vm_prot_t ftype;
 		int rv;
 
+		rv = 0; 
+		va = framep->tf_cr_ifa;
+
 		/*
-		 * If it was caused by fuswintr or suswintr,
-		 * just punt.  Note that we check the faulting
-		 * address against the address accessed by
-		 * [fs]uswintr, in case another fault happens
-		 * when they are running.
+		 * If it was caused by fuswintr or suswintr, just punt. Note
+		 * that we check the faulting address against the address
+		 * accessed by [fs]uswintr, in case another fault happens when
+		 * they are running.
 		 */
-		if (!user &&
-		    td != NULL &&
-		    td->td_pcb->pcb_onfault == (unsigned long)fswintrberr &&
-		    td->td_pcb->pcb_accessaddr == va) {
+		if (!user && td != NULL && td->td_pcb->pcb_accessaddr == va &&
+		    td->td_pcb->pcb_onfault == (unsigned long)fswintrberr) {
 			framep->tf_cr_iip = td->td_pcb->pcb_onfault;
 			framep->tf_cr_ipsr &= ~IA64_PSR_RI;
 			td->td_pcb->pcb_onfault = 0;
 			goto out;
 		}
 
-		/*
-		 * It is only a kernel address space fault iff:
-		 *	1. !user and
-		 *	2. pcb_onfault not set or
-		 *	3. pcb_onfault set but kernel space data fault
-		 * The last can occur during an exec() copyin where the
-		 * argument space is lazy-allocated.
-		 *
-		 * For the purposes of the Linux emulator, we allow
-		 * kernel accesses to a small region of the
-		 * user stack which the emulator uses to
-		 * translate syscall arguments.
-		 */
-		if (!user 
-		    && ((va >= VM_MIN_KERNEL_ADDRESS) 
-			|| (td == NULL) 
-			|| (td->td_pcb->pcb_onfault == 0))) {
-			if (va >= trunc_page(PS_STRINGS
-					     - szsigcode
-					     - SPARE_USRSPACE)
-			    && va < round_page(PS_STRINGS
-					       - szsigcode)) {
-				vm = p->p_vmspace;
-				map = &vm->vm_map;
-			} else {
-				map = kernel_map;
-			}
+		va = trunc_page((vm_offset_t)va);
+
+		if (va >= VM_MIN_KERNEL_ADDRESS) {
+			/*
+			 * Don't allow user-mode faults for kernel virtual
+			 * addresses
+			 */
+			if (user)
+				goto no_fault_in;
+			map = kernel_map;
 		} else {
-			vm = p->p_vmspace;
+			vm = (p != NULL) ? p->p_vmspace : NULL;
+			if (vm == NULL)
+				goto no_fault_in;
 			map = &vm->vm_map;
 		}
 
@@ -580,51 +565,47 @@ trap(int vector, int imm, struct trapframe *framep)
 			ftype = VM_PROT_WRITE;
 		else
 			ftype = VM_PROT_READ;
-	
-		va = trunc_page((vm_offset_t)va);
 
 		if (map != kernel_map) {
 			/*
-			 * Keep swapout from messing with us
-			 * during this critical time.
+			 * Keep swapout from messing with us during this
+			 * critical time.
 			 */
 			PROC_LOCK(p);
 			++p->p_lock;
 			PROC_UNLOCK(p);
 
 			/* Fault in the user page: */
-			rv = vm_fault(map, va, ftype,
-				      (ftype & VM_PROT_WRITE)
-				      ? VM_FAULT_DIRTY
-				      : VM_FAULT_NORMAL);
+			rv = vm_fault(map, va, ftype, (ftype & VM_PROT_WRITE)
+			    ? VM_FAULT_DIRTY : VM_FAULT_NORMAL);
 
 			PROC_LOCK(p);
 			--p->p_lock;
 			PROC_UNLOCK(p);
 		} else {
 			/*
-			 * Don't have to worry about process
-			 * locking or stacks in the kernel.
+			 * Don't have to worry about process locking or
+			 * stacks in the kernel.
 			 */
 			rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 		}
+
 		if (rv == KERN_SUCCESS)
 			goto out;
 
+	no_fault_in:
 		if (!user) {
-			/* Check for copyin/copyout fault */
-			if (td != NULL &&
-			    td->td_pcb->pcb_onfault != 0) {
-				framep->tf_cr_iip =
-					td->td_pcb->pcb_onfault;
+			/* Check for copyin/copyout fault. */
+			if (td != NULL && td->td_pcb->pcb_onfault != 0) {
+				framep->tf_cr_iip = td->td_pcb->pcb_onfault;
 				framep->tf_cr_ipsr &= ~IA64_PSR_RI;
 				td->td_pcb->pcb_onfault = 0;
 				goto out;
 			}
 			goto dopanic;
 		}
-		ucode = va;
-		i = SIGSEGV;
+		ucode = va;	
+		i = (rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV;
 		break;
 	}
 
