@@ -140,7 +140,7 @@ at_control( int cmd, caddr_t data, struct ifnet *ifp, struct proc *p )
 	 */
 	if ( aa == (struct at_ifaddr *) 0 ) {
 	    aa0 = malloc(sizeof(struct at_ifaddr), M_IFADDR, M_WAITOK);
-	    bzero(aa0, sizeof(struct ifaddr));
+	    bzero(aa0, sizeof(struct at_ifaddr));
 	    if (( aa = at_ifaddr ) != NULL ) {
 		/*
 		 * Don't let the loopback be first, since the first
