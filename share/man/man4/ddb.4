@@ -522,6 +522,18 @@ indirection.  It may be followed by a
 .Sq Li :
 and modifiers as described above.
 .El
+.Sh HINTS
+On machines with an ISA expansion bus, a simple NMI generation card can be
+constructed by connecting a push button between the A01 and B01 (CHCHK# and
+GND) card fingers.
+Momentarily shorting these two fingers together may cause the bridge chipset to
+generate an NMI, which causes the kernel to pass control to
+.Nm .
+Some bridge chipsets do not generate a NMI on CHCHK#, so your mileage may vary.
+The NMI allows one to break into the debugger on a wedged machine to
+diagnose problems.
+Other bus' bridge chipsets may be able to generate NMI using bus specific
+methods.
 .Sh SEE ALSO
 .Xr gdb 1
 .Sh HISTORY
