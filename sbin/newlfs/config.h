@@ -84,7 +84,7 @@
  * determining the rotationally optimal layout for disk blocks
  * within a file; the default of fs_rotdelay is 4ms.
  */
-#define ROTDELAY	4
+#define ROTDELAY	0
 
 /*
  * MAXCONTIG sets the default for the maximum number of blocks
@@ -115,7 +115,7 @@
  * rotational positions that we distinguish.  With NRPOS of 8 the resolution
  * of our summary information is 2ms for a typical 3600 rpm drive.
  */
-#define	NRPOS		8	/* number distinct rotational positions */
+#define	NRPOS		1	/* number distinct rotational positions */
 
 /*
  * The following constants set the default block and segment size for a log
@@ -129,6 +129,6 @@
 #define	DFL_LFSSEG_MASK		0xFFFFF
 
 #define	LFS_MINBLOCKSIZE	1024
-#define	DFL_LFSBLOCK		4096
-#define	DFL_LFSBLOCK_SHIFT	12
-#define	DFL_LFSBLOCK_MASK	0xFFF
+#define	DFL_LFSBLOCK		8192
+#define	DFL_LFSBLOCK_SHIFT	13
+#define	DFL_LFSBLOCK_MASK	0x1FFF
