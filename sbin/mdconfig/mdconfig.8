@@ -52,6 +52,7 @@
 .Fl a
 .Fl t Ar type 
 .Op Fl o Ar [no]option
+.Op Fl b Ar baseaddress
 .Op Fl s Ar size
 .Op Fl f Ar file
 .Op Fl u Ar unit
@@ -80,8 +81,8 @@ Storage for this type of memory disk is allocated with
 .Xr malloc 9 .
 This limits the size to the malloc bucket limit in the kernel.
 .It Ar preload
-This type represents memory disks which were instantiated by objects loaded
-by the bootloader.  They can not be created on the fly.
+This type represents memory disks which are backed by memory outside the kernels normal address space.
+These can be instantiated automatically by objects loaded by the bootloader or configured on the fly.
 .It Ar vnode
 A file specified with 
 .Fl f Ar file
@@ -89,6 +90,8 @@ becomes the backingstore for this memory disk.
 .It Ar swap
 swapspace is used to back this memory disk.
 .El
+.It Fl b Ar baseaddress
+Starting address in kernel virtual space of the memory to be used for a ``preload'' type disk.
 .It Fl f Ar file
 Filename to use for the vnode type memory disk.
 .It Fl s Ar size
@@ -108,7 +111,13 @@ Automatically allocate the next free unit number for this disk.
 The basename of the disk is printed on stdout.
 .It Ar [no]compress
 Enable/Disable compression features to reduce memory usage.
+.It Ar [no]readonly
+Enable/Disable readonly mode.
 .El
+.It Fl u Ar unit
+Force the
+.Xr md(4)
+device to use a specific unit number.
 .El
 .Sh EXAMPLES
 .Pp
@@ -138,6 +147,12 @@ To create and mount a 128MByte swap backed filesystem on
 .Dl newfs -f 4096 /dev/md10c
 .Dl tunefs -n enable /dev/md10c
 .Dl mount /dev/md10c /tmp
+.Pp
+It is practically impossible to give a universal example of the ``preload'' type of disk,
+it is mainly useful in the embedded systems market, but to give a feel for how it works:
+On most standard PC architecture machines this will create a disk backed by the BIOS ROM:
+.Pp
+.Dl mdconfig -a -t preload -s 128k -b 0xc00fe000
 .Sh SEE ALSO
 .Xr md 4 ,
 .Xr disklabel 8 ,

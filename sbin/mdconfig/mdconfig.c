@@ -44,7 +44,7 @@ main(int argc, char **argv)
 	int cmdline = 0;
 
 	for (;;) {
-		ch = getopt(argc, argv, "adf:o:s:t:u:");
+		ch = getopt(argc, argv, "ab:df:o:s:t:u:");
 		if (ch == -1)
 			break;
 		switch (ch) {
