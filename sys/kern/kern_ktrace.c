@@ -48,7 +48,6 @@
 #include <sys/ktrace.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
-#include <sys/sysent.h>
 
 static MALLOC_DEFINE(M_KTRACE, "KTRACE", "KTRACE");
 
@@ -360,7 +359,7 @@ utrace(curp, uap)
 
 	if (!KTRPOINT(p, KTR_USER))
 		return (0);
-	if (SCARG(uap, len) > KTR_USER_MAXLEN)
+	if (uap->len > KTR_USER_MAXLEN)
 		return (EINVAL);
 	p->p_traceflag |= KTRFAC_ACTIVE;
 	kth = ktrgetheader(KTR_USER);
