@@ -264,11 +264,21 @@ thr_suspend(struct thread *td, struct thr_suspend_args *uap)
 	if ((td->td_flags & TDF_THRWAKEUP) == 0)
 		error = msleep((void *)td, &td->td_proc->p_mtx,
 		    td->td_priority | PCATCH, "lthr", hz);
-	mtx_lock_spin(&sched_lock);
-	td->td_flags &= ~TDF_THRWAKEUP;
-	mtx_unlock_spin(&sched_lock);
+	if (td->td_flags & TDF_THRWAKEUP) {
+		mtx_lock_spin(&sched_lock);
+		td->td_flags &= ~TDF_THRWAKEUP;
+		mtx_unlock_spin(&sched_lock);
+		PROC_UNLOCK(td->td_proc);
+		return (0);
+	}
 	PROC_UNLOCK(td->td_proc);
-	return (error == EWOULDBLOCK ? ETIMEDOUT : error);
+	if (error == EWOULDBLOCK)
+		error = ETIMEDOUT;
+	else if (error == ERESTART) {
+		if (hz != 0)
+			error = EINTR;
+	}
+	return (error);
 }
 
 int
@@ -289,7 +299,7 @@ thr_wake(struct thread *td, struct thr_wake_args *uap)
 	mtx_lock_spin(&sched_lock);
 	ttd->td_flags |= TDF_THRWAKEUP;
 	mtx_unlock_spin(&sched_lock);
-	wakeup_one((void *)ttd);
+	wakeup((void *)ttd);
 	PROC_UNLOCK(td->td_proc);
 	return (0);
 }
