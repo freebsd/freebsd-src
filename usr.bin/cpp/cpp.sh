@@ -35,14 +35,15 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	@(#)cpp.sh	8.1 (Berkeley) 6/6/93
+#	From: @(#)cpp.sh	8.1 (Berkeley) 6/6/93
+#	$Id$
 #
 # Transitional front end to CCCP to make it behave like (Reiser) CCP:
 #	specifies -traditional
 #	doesn't search gcc-include
 #
 PATH=/usr/bin:/bin
-CPP=/usr/libexec/gcc2/cpp
+CPP=/usr/libexec/gcpp
 ALST="-traditional -D__GNUC__ -$ "
 NSI=no
 OPTS=""
