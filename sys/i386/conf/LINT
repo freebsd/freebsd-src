@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.568 1999/03/16 13:34:01 sos Exp $
+#	$Id: LINT,v 1.569 1999/03/16 16:27:46 eivind Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1650,9 +1650,19 @@ controller	isp0
 #				  else it will use I/O space mappings. Of
 #				  course, this can fail if the PCI implement-
 #				  ation doesn't support what you want.
+#
+#	SCSI_ISP_FABRIC		  enable loading of Fabric f/w flavor (2100).
+#	SCSI_ISP_SCCLUN		  enable loading of expanded lun f/w (2100).
+#
+#	ISP_DISABLE_1020_SUPPORT	Disable support for 1020/1040 cards
+#	ISP_DISABLE_1080_SUPPORT	Disable support for 1080/1240 cards
+#	ISP_DISABLE_2100_SUPPORT	Disable support for 2100 cards
+#	(these really just to save code space)
+#	(use of all three will cause the driver to not compile)
 options	SCSI_ISP_NO_FWLOAD_MASK="0x12"	# disable FW load for isp1 and isp4
 options SCSI_ISP_NO_NVRAM_MASK="0x1"	# disable NVRAM for isp0
 options SCSI_ISP_PREFER_MEM_MAP="0"	# prefer I/O mapping
+options	ISP_DISABLE_1080_SUPPORT="1"	# Disable support for Qlogic 1080
 
 device		ax0
 device		de0
