@@ -69,6 +69,7 @@ static        char sccsid[] = "@(#)getnetconfig.c	1.12 91/12/19 SMI";
 #define NC_NOMEM	ENOMEM
 #define NC_NOTINIT	EINVAL	    /* setnetconfig was not called first */
 #define NC_BADFILE	EBADF	    /* format for netconfig file is bad */
+#define NC_NOTFOUND	ENOPROTOOPT /* specified netid was not found */
 
 /*
  * semantics as strings (should be in netconfig.h)
@@ -94,7 +95,8 @@ static const char * const _nc_errors[] = {
     "Netconfig database not found",
     "Not enough memory",
     "Not initialized",
-    "Netconfig database has invalid format"
+    "Netconfig database has invalid format",
+    "Netid not found in netconfig database"
 };
 
 struct netconfig_info {
@@ -134,31 +136,37 @@ static struct netconfig_info	ni = { 0, 0, NULL, NULL};
 static int *
 __nc_error()
 {
-	extern pthread_mutex_t nc_lock;
+	static pthread_mutex_t nc_lock = PTHREAD_MUTEX_INITIALIZER;
 	static thread_key_t nc_key = 0;
-	static thread_key_t rce_key = 0;
-	int *nc_addr = NULL;
 	static int nc_error = 0;
+	int error, *nc_addr;
 
-	if ((nc_addr = (int *)thr_getspecific(nc_key)) != 0) {
+	/*
+	 * Use the static `nc_error' if we are the main thread
+	 * (including non-threaded programs), or if an allocation
+	 * fails.
+	 */
+	if (thr_main())
+		return (&nc_error);
+	if (nc_key == 0) {
+		error = 0;
 		mutex_lock(&nc_lock);
-		if (thr_keycreate(&rce_key, free) != 0) {
-			mutex_unlock(&nc_lock);
-			return nc_addr;
-		}
+		if (nc_key == 0)
+			error = thr_keycreate(&nc_key, free);
 		mutex_unlock(&nc_lock);
+		if (error)
+			return (&nc_error);
 	}
-	if (nc_addr == NULL) {
+	if ((nc_addr = (int *)thr_getspecific(nc_key)) == NULL) {
 		nc_addr = (int *)malloc(sizeof (int));
 		if (thr_setspecific(nc_key, (void *) nc_addr) != 0) {
 			if (nc_addr)
 				free(nc_addr);
-			return &nc_error;
+			return (&nc_error);
 		}
 		*nc_addr = 0;
-		return nc_addr;
 	}
-	return nc_addr;
+	return (nc_addr);
 }
 
 #define nc_error        (*(__nc_error()))
@@ -404,6 +412,7 @@ getnetconfigent(netid)
     struct netconfig *ncp = NULL;   /* returned value */
     struct netconfig_list *list;	/* pointer to cache list */
 
+    nc_error = NC_NOTFOUND;	/* default error. */
     if (netid == NULL || strlen(netid) == 0) {
 	return (NULL);
     }
@@ -429,11 +438,13 @@ getnetconfigent(netid)
 
 
     if ((file = fopen(NETCONFIG, "r")) == NULL) {
+	nc_error = NC_NONETCONFIG;
 	return (NULL);
     }
 
     if ((linep = malloc(MAXNETCONFIGLINE)) == NULL) {
 	fclose(file);
+	nc_error = NC_NOMEM;
 	return (NULL);
     }
     do {
@@ -610,6 +621,9 @@ nc_sperror()
     case NC_BADFILE:
 	message = _nc_errors[3];
 	break;
+    case NC_NOTFOUND:
+	message = _nc_errors[4];
+	break;
     default:
 	message = "Unknown network selection error";
     }
@@ -624,7 +638,7 @@ void
 nc_perror(s)
 	const char *s;
 {
-    fprintf(stderr, "%s: %s", s, nc_sperror());
+    fprintf(stderr, "%s: %s\n", s, nc_sperror());
 }
 
 /*
