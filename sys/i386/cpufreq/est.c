@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/cpu.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/smp.h>
 #include <sys/systm.h>
@@ -52,6 +53,7 @@ typedef struct {
 	uint16_t	freq;
 	uint16_t	volts;
 	uint16_t	id16;
+	int		power;
 } freq_info;
 
 /* Identifying characteristics of a processor and supported frequencies. */
@@ -59,12 +61,13 @@ typedef struct {
 	const char	*vendor;
 	uint32_t	id32;
 	uint32_t	bus_clk;
-	const freq_info	*freqtab;
+	freq_info	*freqtab;
 } cpu_info;
 
 struct est_softc {
-	device_t dev;
-	const freq_info *freq_list;
+	device_t	dev;
+	int		acpi_settings;
+	freq_info	*freq_list;
 };
 
 /* Convert MHz and mV into IDs for passing to the MSR. */
@@ -75,7 +78,7 @@ struct est_softc {
 
 /* Format for storing IDs in our table. */
 #define FREQ_INFO(MHz, mV, bus_clk)			\
-	{ MHz, mV, ID16(MHz, mV, bus_clk) }
+	{ MHz, mV, ID16(MHz, mV, bus_clk), CPUFREQ_VAL_UNKNOWN }
 #define INTEL(tab, zhi, vhi, zlo, vlo, bus_clk)		\
 	{ GenuineIntel, ID32(zhi, vhi, zlo, vlo, bus_clk), bus_clk, tab }
 
@@ -95,13 +98,13 @@ CTASSERT(EST_MAX_SETTINGS <= MAX_SETTINGS);
  * Frequency (MHz) and voltage (mV) settings.  Data from the
  * Intel Pentium M Processor Datasheet (Order Number 252612), Table 5.
  *
- * XXX New Dothan processors have multiple VID# with different
- * settings for each VID#.  Since we can't uniquely identify this info
+ * Dothan processors have multiple VID#s with different settings for
+ * each VID#.  Since we can't uniquely identify this info
  * without undisclosed methods from Intel, we can't support newer
  * processors with this table method.  If ACPI Px states are supported,
- * we can get info from them.
+ * we get info from them.
  */
-const freq_info PM17_130[] = {
+static freq_info PM17_130[] = {
 	/* 130nm 1.70GHz Pentium M */
 	FREQ_INFO(1700, 1484, INTEL_BUS_CLK),
 	FREQ_INFO(1400, 1308, INTEL_BUS_CLK),
@@ -111,7 +114,7 @@ const freq_info PM17_130[] = {
 	FREQ_INFO( 600,  956, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM16_130[] = {
+static freq_info PM16_130[] = {
 	/* 130nm 1.60GHz Pentium M */
 	FREQ_INFO(1600, 1484, INTEL_BUS_CLK),
 	FREQ_INFO(1400, 1420, INTEL_BUS_CLK),
@@ -121,7 +124,7 @@ const freq_info PM16_130[] = {
 	FREQ_INFO( 600,  956, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM15_130[] = {
+static freq_info PM15_130[] = {
 	/* 130nm 1.50GHz Pentium M */
 	FREQ_INFO(1500, 1484, INTEL_BUS_CLK),
 	FREQ_INFO(1400, 1452, INTEL_BUS_CLK),
@@ -131,7 +134,7 @@ const freq_info PM15_130[] = {
 	FREQ_INFO( 600,  956, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM14_130[] = {
+static freq_info PM14_130[] = {
 	/* 130nm 1.40GHz Pentium M */
 	FREQ_INFO(1400, 1484, INTEL_BUS_CLK),
 	FREQ_INFO(1200, 1436, INTEL_BUS_CLK),
@@ -140,7 +143,7 @@ const freq_info PM14_130[] = {
 	FREQ_INFO( 600,  956, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM13_130[] = {
+static freq_info PM13_130[] = {
 	/* 130nm 1.30GHz Pentium M */
 	FREQ_INFO(1300, 1388, INTEL_BUS_CLK),
 	FREQ_INFO(1200, 1356, INTEL_BUS_CLK),
@@ -149,7 +152,7 @@ const freq_info PM13_130[] = {
 	FREQ_INFO( 600,  956, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM13_LV_130[] = {
+static freq_info PM13_LV_130[] = {
 	/* 130nm 1.30GHz Low Voltage Pentium M */
 	FREQ_INFO(1300, 1180, INTEL_BUS_CLK),
 	FREQ_INFO(1200, 1164, INTEL_BUS_CLK),
@@ -160,7 +163,7 @@ const freq_info PM13_LV_130[] = {
 	FREQ_INFO( 600,  956, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM12_LV_130[] = {
+static freq_info PM12_LV_130[] = {
 	/* 130 nm 1.20GHz Low Voltage Pentium M */
 	FREQ_INFO(1200, 1180, INTEL_BUS_CLK),
 	FREQ_INFO(1100, 1164, INTEL_BUS_CLK),
@@ -170,7 +173,7 @@ const freq_info PM12_LV_130[] = {
 	FREQ_INFO( 600,  956, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM11_LV_130[] = {
+static freq_info PM11_LV_130[] = {
 	/* 130 nm 1.10GHz Low Voltage Pentium M */
 	FREQ_INFO(1100, 1180, INTEL_BUS_CLK),
 	FREQ_INFO(1000, 1164, INTEL_BUS_CLK),
@@ -179,7 +182,7 @@ const freq_info PM11_LV_130[] = {
 	FREQ_INFO( 600,  956, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM11_ULV_130[] = {
+static freq_info PM11_ULV_130[] = {
 	/* 130 nm 1.10GHz Ultra Low Voltage Pentium M */
 	FREQ_INFO(1100, 1004, INTEL_BUS_CLK),
 	FREQ_INFO(1000,  988, INTEL_BUS_CLK),
@@ -188,7 +191,7 @@ const freq_info PM11_ULV_130[] = {
 	FREQ_INFO( 600,  844, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM10_ULV_130[] = {
+static freq_info PM10_ULV_130[] = {
 	/* 130 nm 1.00GHz Ultra Low Voltage Pentium M */
 	FREQ_INFO(1000, 1004, INTEL_BUS_CLK),
 	FREQ_INFO( 900,  988, INTEL_BUS_CLK),
@@ -201,7 +204,7 @@ const freq_info PM10_ULV_130[] = {
  * Data from "Intel Pentium M Processor on 90nm Process with
  * 2-MB L2 Cache Datasheet", Order Number 302189, Table 5.
  */
-const freq_info PM_765A_90[] = {
+static freq_info PM_765A_90[] = {
 	/* 90 nm 2.10GHz Pentium M, VID #A */
 	FREQ_INFO(2100, 1340, INTEL_BUS_CLK),
 	FREQ_INFO(1800, 1276, INTEL_BUS_CLK),
@@ -213,7 +216,7 @@ const freq_info PM_765A_90[] = {
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM_765B_90[] = {
+static freq_info PM_765B_90[] = {
 	/* 90 nm 2.10GHz Pentium M, VID #B */
 	FREQ_INFO(2100, 1324, INTEL_BUS_CLK),
 	FREQ_INFO(1800, 1260, INTEL_BUS_CLK),
@@ -225,7 +228,7 @@ const freq_info PM_765B_90[] = {
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM_765C_90[] = {
+static freq_info PM_765C_90[] = {
 	/* 90 nm 2.10GHz Pentium M, VID #C */
 	FREQ_INFO(2100, 1308, INTEL_BUS_CLK),
 	FREQ_INFO(1800, 1244, INTEL_BUS_CLK),
@@ -237,7 +240,7 @@ const freq_info PM_765C_90[] = {
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM_765E_90[] = {
+static freq_info PM_765E_90[] = {
 	/* 90 nm 2.10GHz Pentium M, VID #E */
 	FREQ_INFO(2100, 1356, INTEL_BUS_CLK),
 	FREQ_INFO(1800, 1292, INTEL_BUS_CLK),
@@ -249,7 +252,7 @@ const freq_info PM_765E_90[] = {
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM_755A_90[] = {
+static freq_info PM_755A_90[] = {
 	/* 90 nm 2.00GHz Pentium M, VID #A */
 	FREQ_INFO(2000, 1340, INTEL_BUS_CLK),
 	FREQ_INFO(1800, 1292, INTEL_BUS_CLK),
@@ -261,7 +264,7 @@ const freq_info PM_755A_90[] = {
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM_755B_90[] = {
+static freq_info PM_755B_90[] = {
 	/* 90 nm 2.00GHz Pentium M, VID #B */
 	FREQ_INFO(2000, 1324, INTEL_BUS_CLK),
 	FREQ_INFO(1800, 1276, INTEL_BUS_CLK),
@@ -273,7 +276,7 @@ const freq_info PM_755B_90[] = {
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM_755C_90[] = {
+static freq_info PM_755C_90[] = {
 	/* 90 nm 2.00GHz Pentium M, VID #C */
 	FREQ_INFO(2000, 1308, INTEL_BUS_CLK),
 	FREQ_INFO(1800, 1276, INTEL_BUS_CLK),
@@ -285,7 +288,7 @@ const freq_info PM_755C_90[] = {
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM_755D_90[] = {
+static freq_info PM_755D_90[] = {
 	/* 90 nm 2.00GHz Pentium M, VID #D */
 	FREQ_INFO(2000, 1276, INTEL_BUS_CLK),
 	FREQ_INFO(1800, 1244, INTEL_BUS_CLK),
@@ -297,7 +300,7 @@ const freq_info PM_755D_90[] = {
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM_745A_90[] = {
+static freq_info PM_745A_90[] = {
 	/* 90 nm 1.80GHz Pentium M, VID #A */
 	FREQ_INFO(1800, 1340, INTEL_BUS_CLK),
 	FREQ_INFO(1600, 1292, INTEL_BUS_CLK),
@@ -308,7 +311,7 @@ const freq_info PM_745A_90[] = {
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM_745B_90[] = {
+static freq_info PM_745B_90[] = {
 	/* 90 nm 1.80GHz Pentium M, VID #B */
 	FREQ_INFO(1800, 1324, INTEL_BUS_CLK),
 	FREQ_INFO(1600, 1276, INTEL_BUS_CLK),
@@ -319,7 +322,7 @@ const freq_info PM_745B_90[] = {
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM_745C_90[] = {
+static freq_info PM_745C_90[] = {
 	/* 90 nm 1.80GHz Pentium M, VID #C */
 	FREQ_INFO(1800, 1308, INTEL_BUS_CLK),
 	FREQ_INFO(1600, 1260, INTEL_BUS_CLK),
@@ -330,7 +333,7 @@ const freq_info PM_745C_90[] = {
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM_745D_90[] = {
+static freq_info PM_745D_90[] = {
 	/* 90 nm 1.80GHz Pentium M, VID #D */
 	FREQ_INFO(1800, 1276, INTEL_BUS_CLK),
 	FREQ_INFO(1600, 1228, INTEL_BUS_CLK),
@@ -341,7 +344,7 @@ const freq_info PM_745D_90[] = {
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM_735A_90[] = {
+static freq_info PM_735A_90[] = {
 	/* 90 nm 1.70GHz Pentium M, VID #A */
 	FREQ_INFO(1700, 1340, INTEL_BUS_CLK),
 	FREQ_INFO(1400, 1244, INTEL_BUS_CLK),
@@ -351,7 +354,7 @@ const freq_info PM_735A_90[] = {
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM_735B_90[] = {
+static freq_info PM_735B_90[] = {
 	/* 90 nm 1.70GHz Pentium M, VID #B */
 	FREQ_INFO(1700, 1324, INTEL_BUS_CLK),
 	FREQ_INFO(1400, 1244, INTEL_BUS_CLK),
@@ -361,7 +364,7 @@ const freq_info PM_735B_90[] = {
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM_735C_90[] = {
+static freq_info PM_735C_90[] = {
 	/* 90 nm 1.70GHz Pentium M, VID #C */
 	FREQ_INFO(1700, 1308, INTEL_BUS_CLK),
 	FREQ_INFO(1400, 1228, INTEL_BUS_CLK),
@@ -371,7 +374,7 @@ const freq_info PM_735C_90[] = {
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM_735D_90[] = {
+static freq_info PM_735D_90[] = {
 	/* 90 nm 1.70GHz Pentium M, VID #D */
 	FREQ_INFO(1700, 1276, INTEL_BUS_CLK),
 	FREQ_INFO(1400, 1212, INTEL_BUS_CLK),
@@ -381,7 +384,7 @@ const freq_info PM_735D_90[] = {
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM_725A_90[] = {
+static freq_info PM_725A_90[] = {
 	/* 90 nm 1.60GHz Pentium M, VID #A */
 	FREQ_INFO(1600, 1340, INTEL_BUS_CLK),
 	FREQ_INFO(1400, 1276, INTEL_BUS_CLK),
@@ -391,7 +394,7 @@ const freq_info PM_725A_90[] = {
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM_725B_90[] = {
+static freq_info PM_725B_90[] = {
 	/* 90 nm 1.60GHz Pentium M, VID #B */
 	FREQ_INFO(1600, 1324, INTEL_BUS_CLK),
 	FREQ_INFO(1400, 1260, INTEL_BUS_CLK),
@@ -401,7 +404,7 @@ const freq_info PM_725B_90[] = {
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM_725C_90[] = {
+static freq_info PM_725C_90[] = {
 	/* 90 nm 1.60GHz Pentium M, VID #C */
 	FREQ_INFO(1600, 1308, INTEL_BUS_CLK),
 	FREQ_INFO(1400, 1244, INTEL_BUS_CLK),
@@ -411,7 +414,7 @@ const freq_info PM_725C_90[] = {
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM_725D_90[] = {
+static freq_info PM_725D_90[] = {
 	/* 90 nm 1.60GHz Pentium M, VID #D */
 	FREQ_INFO(1600, 1276, INTEL_BUS_CLK),
 	FREQ_INFO(1400, 1228, INTEL_BUS_CLK),
@@ -421,7 +424,7 @@ const freq_info PM_725D_90[] = {
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM_715A_90[] = {
+static freq_info PM_715A_90[] = {
 	/* 90 nm 1.50GHz Pentium M, VID #A */
 	FREQ_INFO(1500, 1340, INTEL_BUS_CLK),
 	FREQ_INFO(1200, 1228, INTEL_BUS_CLK),
@@ -430,7 +433,7 @@ const freq_info PM_715A_90[] = {
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM_715B_90[] = {
+static freq_info PM_715B_90[] = {
 	/* 90 nm 1.50GHz Pentium M, VID #B */
 	FREQ_INFO(1500, 1324, INTEL_BUS_CLK),
 	FREQ_INFO(1200, 1212, INTEL_BUS_CLK),
@@ -439,7 +442,7 @@ const freq_info PM_715B_90[] = {
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM_715C_90[] = {
+static freq_info PM_715C_90[] = {
 	/* 90 nm 1.50GHz Pentium M, VID #C */
 	FREQ_INFO(1500, 1308, INTEL_BUS_CLK),
 	FREQ_INFO(1200, 1212, INTEL_BUS_CLK),
@@ -448,7 +451,7 @@ const freq_info PM_715C_90[] = {
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM_715D_90[] = {
+static freq_info PM_715D_90[] = {
 	/* 90 nm 1.50GHz Pentium M, VID #D */
 	FREQ_INFO(1500, 1276, INTEL_BUS_CLK),
 	FREQ_INFO(1200, 1180, INTEL_BUS_CLK),
@@ -457,7 +460,7 @@ const freq_info PM_715D_90[] = {
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM_738_90[] = {
+static freq_info PM_738_90[] = {
 	/* 90 nm 1.40GHz Low Voltage Pentium M */
 	FREQ_INFO(1400, 1116, INTEL_BUS_CLK),
 	FREQ_INFO(1300, 1116, INTEL_BUS_CLK),
@@ -469,7 +472,7 @@ const freq_info PM_738_90[] = {
 	FREQ_INFO( 600,  988, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM_733_90[] = {
+static freq_info PM_733_90[] = {
 	/* 90 nm 1.10GHz Ultra Low Voltage Pentium M */
 	FREQ_INFO(1100,  940, INTEL_BUS_CLK),
 	FREQ_INFO(1000,  924, INTEL_BUS_CLK),
@@ -478,7 +481,7 @@ const freq_info PM_733_90[] = {
 	FREQ_INFO( 600,  812, INTEL_BUS_CLK),
 	FREQ_INFO(   0,    0, 1),
 };
-const freq_info PM_723_90[] = {
+static freq_info PM_723_90[] = {
 	/* 90 nm 1.00GHz Ultra Low Voltage Pentium M */
 	FREQ_INFO(1000,  940, INTEL_BUS_CLK),
 	FREQ_INFO( 900,  908, INTEL_BUS_CLK),
@@ -487,7 +490,7 @@ const freq_info PM_723_90[] = {
 	FREQ_INFO(   0,    0, 1),
 };
 
-const cpu_info ESTprocs[] = {
+static cpu_info ESTprocs[] = {
 	INTEL(PM17_130,		1700, 1484, 600, 956, INTEL_BUS_CLK),
 	INTEL(PM16_130,		1600, 1484, 600, 956, INTEL_BUS_CLK),
 	INTEL(PM15_130,		1500, 1484, 600, 956, INTEL_BUS_CLK),
@@ -532,9 +535,11 @@ static void	est_identify(driver_t *driver, device_t parent);
 static int	est_probe(device_t parent);
 static int	est_attach(device_t parent);
 static int	est_detach(device_t parent);
-static int	est_find_cpu(const char *vendor, uint64_t msr, uint32_t bus_clk,
-		    const freq_info **freqs);
-static const freq_info *est_get_current(const freq_info *freq_list);
+static int	est_get_info(device_t dev);
+static int	est_acpi_info(device_t dev, freq_info **freqs);
+static int	est_table_info(device_t dev, uint64_t msr, uint32_t bus_clk,
+		    freq_info **freqs);
+static freq_info *est_get_current(freq_info *freq_list);
 static int	est_settings(device_t dev, struct cf_setting *sets, int *count);
 static int	est_set(device_t dev, const struct cf_setting *set);
 static int	est_get(device_t dev, struct cf_setting *set);
@@ -593,7 +598,6 @@ est_identify(driver_t *driver, device_t parent)
 static int
 est_probe(device_t dev)
 {
-	const freq_info *f;
 	device_t perf_dev;
 	uint64_t msr;
 	int error, type;
@@ -616,6 +620,8 @@ est_probe(device_t dev)
 	msr = rdmsr(MSR_MISC_ENABLE);
 	if ((msr & MSR_SS_ENABLE) == 0) {
 		wrmsr(MSR_MISC_ENABLE, msr | MSR_SS_ENABLE);
+		if (bootverbose)
+			device_printf(dev, "enabling SpeedStep\n");
 
 		/* Check if the enable failed. */
 		msr = rdmsr(MSR_MISC_ENABLE);
@@ -623,17 +629,6 @@ est_probe(device_t dev)
 			device_printf(dev, "failed to enable SpeedStep\n");
 			return (ENXIO);
 		}
-	}
-
-	/* Identify the exact CPU model */
-	msr = rdmsr(MSR_PERF_STATUS);
-	if (est_find_cpu(cpu_vendor, msr, INTEL_BUS_CLK, &f) != 0) {
-		printf(
-	"CPU claims to support Enhanced Speedstep, but is not recognized.\n"
-	"Please update driver or contact the maintainer.\n"
-	"cpu_vendor = %s msr = %0jx, bus_clk = %x\n",
-		    cpu_vendor, msr, INTEL_BUS_CLK);
-		return (ENXIO);
 	}
 
 	device_set_desc(dev, "Enhanced SpeedStep Frequency Control");
@@ -644,34 +639,126 @@ static int
 est_attach(device_t dev)
 {
 	struct est_softc *sc;
-	uint64_t msr;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-	msr = rdmsr(MSR_PERF_STATUS);
-	est_find_cpu(cpu_vendor, msr, INTEL_BUS_CLK, &sc->freq_list);
-	cpufreq_register(dev);
 
+	/* Check CPU for supported settings. */
+	if (est_get_info(dev))
+		return (ENXIO);
+
+	cpufreq_register(dev);
 	return (0);
 }
 
 static int
 est_detach(device_t dev)
 {
+	struct est_softc *sc;
+
+	sc = device_get_softc(dev);
+	if (sc->acpi_settings)
+		free(sc->freq_list, M_DEVBUF);
 	return (ENXIO);
 }
 
+/*
+ * Probe for supported CPU settings.  First, check our static table of
+ * settings.  If no match, try using the ones offered by acpi_perf
+ * (i.e., _PSS).  We use ACPI second because some systems (IBM R/T40
+ * series) export both legacy SMM IO-based access and direct MSR access
+ * but the direct access specifies invalid values for _PSS.
+ */
 static int
-est_find_cpu(const char *vendor, uint64_t msr, uint32_t bus_clk,
-    const freq_info **freqs)
+est_get_info(device_t dev)
 {
-	const cpu_info *p;
+	struct est_softc *sc;
+	uint64_t msr;
+	int error;
+
+	sc = device_get_softc(dev);
+	msr = rdmsr(MSR_PERF_STATUS);
+	error = est_table_info(dev, msr, INTEL_BUS_CLK, &sc->freq_list);
+	if (error)
+		error = est_acpi_info(dev, &sc->freq_list);
+
+	if (error) {
+		printf(
+	"est: CPU supports Enhanced Speedstep, but is not recognized.\n"
+	"est: Please update driver or contact the maintainer.\n"
+	"est: cpu_vendor %s, msr %0jx, bus_clk, %x\n",
+		    cpu_vendor, msr, INTEL_BUS_CLK);
+		return (ENXIO);
+	}
+
+	return (0);
+}
+
+static int
+est_acpi_info(device_t dev, freq_info **freqs)
+{
+	struct est_softc *sc;
+	struct cf_setting *sets;
+	freq_info *table;
+	device_t perf_dev;
+	int count, error, i;
+
+	perf_dev = device_find_child(device_get_parent(dev), "acpi_perf", -1);
+	if (perf_dev == NULL || !device_is_attached(perf_dev))
+		return (ENXIO);
+
+	/* Fetch settings from acpi_perf. */
+	sc = device_get_softc(dev);
+	table = NULL;
+	sets = malloc(MAX_SETTINGS * sizeof(*sets), M_TEMP, M_NOWAIT);
+	if (sets == NULL)
+		return (ENOMEM);
+	error = CPUFREQ_DRV_SETTINGS(perf_dev, sets, &count);
+	if (error)
+		goto out;
+
+	/* Parse settings into our local table format. */
+	table = malloc(count * sizeof(freq_info), M_DEVBUF, M_NOWAIT);
+	if (table == NULL) {
+		error = ENOMEM;
+		goto out;
+	}
+	for (i = 0; i < count; i++) {
+		/*
+		 * XXX Figure out validity checks for id16.  At least some
+		 * systems support both SMM access via SystemIO and the
+		 * direct MSR access but only report the SystemIO values
+		 * via _PSS.  However, since we don't know what should be
+		 * valid for this processor, it's hard to know what to check.
+		 */
+		table[i].freq = sets[i].freq;
+		table[i].volts = sets[i].volts;
+		table[i].id16 = sets[i].spec[0];
+		table[i].power = sets[i].power;
+	}
+
+	sc->acpi_settings = TRUE;
+	*freqs = table;
+	error = 0;
+
+out:
+	if (sets)
+		free(sets, M_TEMP);
+	if (error && table)
+		free(table, M_DEVBUF);
+	return (error);
+}
+
+static int
+est_table_info(device_t dev, uint64_t msr, uint32_t bus_clk, freq_info **freqs)
+{
+	cpu_info *p;
 	uint32_t id;
 
 	/* Find a table which matches (vendor, id, bus_clk). */
 	id = msr >> 32;
 	for (p = ESTprocs; p->id32 != 0; p++) {
-		if (strcmp(p->vendor, vendor) == 0 && p->id32 == id &&
+		if (strcmp(p->vendor, cpu_vendor) == 0 && p->id32 == id &&
 		    p->bus_clk == bus_clk)
 			break;
 	}
@@ -679,17 +766,19 @@ est_find_cpu(const char *vendor, uint64_t msr, uint32_t bus_clk,
 		return (EOPNOTSUPP);
 
 	/* Make sure the current setpoint is valid. */
-	if (est_get_current(p->freqtab) == NULL)
+	if (est_get_current(p->freqtab) == NULL) {
+		device_printf(dev, "current setting not found in table\n");
 		return (EOPNOTSUPP);
+	}
 
 	*freqs = p->freqtab;
 	return (0);
 }
 
-static const freq_info *
-est_get_current(const freq_info *freq_list)
+static freq_info *
+est_get_current(freq_info *freq_list)
 {
-	const freq_info *f;
+	freq_info *f;
 	int i;
 	uint16_t id16;
 
@@ -713,7 +802,7 @@ static int
 est_settings(device_t dev, struct cf_setting *sets, int *count)
 {
 	struct est_softc *sc;
-	const freq_info *f;
+	freq_info *f;
 	int i;
 
 	sc = device_get_softc(dev);
@@ -724,7 +813,7 @@ est_settings(device_t dev, struct cf_setting *sets, int *count)
 	for (f = sc->freq_list; f->freq != 0; f++, i++) {
 		sets[i].freq = f->freq;
 		sets[i].volts = f->volts;
-		sets[i].power = CPUFREQ_VAL_UNKNOWN;
+		sets[i].power = f->power;
 		sets[i].lat = EST_TRANS_LAT;
 		sets[i].dev = dev;
 	}
@@ -737,7 +826,7 @@ static int
 est_set(device_t dev, const struct cf_setting *set)
 {
 	struct est_softc *sc;
-	const freq_info *f;
+	freq_info *f;
 	uint64_t msr;
 
 	/* Find the setting matching the requested one. */
@@ -764,7 +853,7 @@ static int
 est_get(device_t dev, struct cf_setting *set)
 {
 	struct est_softc *sc;
-	const freq_info *f;
+	freq_info *f;
 
 	sc = device_get_softc(dev);
 	f = est_get_current(sc->freq_list);
@@ -773,7 +862,7 @@ est_get(device_t dev, struct cf_setting *set)
 
 	set->freq = f->freq;
 	set->volts = f->volts;
-	set->power = CPUFREQ_VAL_UNKNOWN;
+	set->power = f->power;
 	set->lat = EST_TRANS_LAT;
 	set->dev = dev;
 	return (0);
