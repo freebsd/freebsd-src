@@ -54,9 +54,7 @@
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_fw.h>
-#ifdef DUMMYNET
 #include <netinet/ip_dummynet.h>
-#endif
 #include <netinet/tcp.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
@@ -235,6 +233,8 @@ static int	ip_fw_chk (struct ip **pip, int hlen,
 			struct ip_fw **flow_id,
 			struct sockaddr_in **next_hop);
 static int	ip_fw_ctl (struct sockopt *sopt);
+
+ip_dn_ruledel_t *ip_dn_ruledel_ptr = NULL;
 
 static char err_prefix[] = "ip_fw_ctl:";
 
@@ -562,7 +562,6 @@ ipfw_report(struct ip_fw *f, struct ip *ip, int offset, int ip_len,
 		    snprintf(SNPARGS(action2, 0), "SkipTo %d",
 			f->fw_skipto_rule);
 		    break;
-#ifdef DUMMYNET
 	    case IP_FW_F_PIPE:
 		    snprintf(SNPARGS(action2, 0), "Pipe %d",
 			f->fw_skipto_rule);
@@ -571,7 +570,6 @@ ipfw_report(struct ip_fw *f, struct ip *ip, int offset, int ip_len,
 		    snprintf(SNPARGS(action2, 0), "Queue %d",
 			f->fw_skipto_rule);
 		    break;
-#endif
 #ifdef IPFIREWALL_FORWARD
 	    case IP_FW_F_FWD:
 		    if (f->fw_fwd_ip.sin_port)
@@ -1518,12 +1516,10 @@ got_match:
 			if (!f)
 			    goto dropit;
 			goto again ;
-#ifdef DUMMYNET
 		case IP_FW_F_PIPE:
 		case IP_FW_F_QUEUE:
 			*flow_id = f;
 			return(f->fw_pipe_nr | IP_FW_PORT_DYNT_FLAG);
-#endif
 #ifdef IPFIREWALL_FORWARD
 		case IP_FW_F_FWD:
 			/* Change the next-hop address for this packet.
@@ -1704,9 +1700,8 @@ free_chain(struct ip_fw *fcp)
     DELETE_DYN_CHAIN(fcp);
     LIST_REMOVE(fcp, next);
     static_count--;
-#ifdef DUMMYNET
-    dn_rule_delete(fcp) ;
-#endif
+    if (ip_dn_ruledel_ptr != NULL)
+	ip_dn_ruledel_ptr(fcp) ;
     flush_rule_ptrs(); /* more efficient to do outside the loop */
     free(fcp, M_IPFW);
     return n;
@@ -1903,21 +1898,17 @@ check_ipfw_struct(struct ip_fw *frwl)
 			return (EINVAL);
 		}
 		break;
-#if defined(IPDIVERT) || defined(DUMMYNET)
 #ifdef IPDIVERT
 	case IP_FW_F_DIVERT:		/* Diverting to port zero is invalid */
 	case IP_FW_F_TEE:
 #endif
-#ifdef DUMMYNET
 	case IP_FW_F_PIPE:              /* pipe 0 is invalid */
 	case IP_FW_F_QUEUE:             /* queue 0 is invalid */
-#endif
 		if (frwl->fw_divert_port == 0) {
 			dprintf(("%s 0 is an invalid argument\n", err_prefix));
 			return (EINVAL);
 		}
 		break;
-#endif /* IPDIVERT || DUMMYNET */
 	case IP_FW_F_DENY:
 	case IP_FW_F_ACCEPT:
 	case IP_FW_F_COUNT:
@@ -2181,3 +2172,4 @@ static moduledata_t ipfwmod = {
 	0
 };
 DECLARE_MODULE(ipfw, ipfwmod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+MODULE_VERSION(ipfw, 1);

@@ -87,18 +87,19 @@
 #include <netinet/ip.h>
 #include <netinet/if_ether.h> /* for struct arpcom */
 
+#if !defined(KLD_MODULE)
 #include "opt_ipfw.h" 
 #include "opt_ipdn.h" 
+#endif
 
-#if defined(IPFIREWALL)
 #include <net/route.h>
 #include <netinet/ip_fw.h>
-#if defined(DUMMYNET)
 #include <netinet/ip_dummynet.h>
-#endif
-#endif
-
 #include <net/bridge.h>
+
+static struct ifnet *bridge_in(struct ifnet *, struct ether_header *);
+static struct mbuf *bdg_forward(struct mbuf *, struct ether_header *const, struct ifnet *);
+static void bdgtakeifaces(void);
 
 /*
  * For debugging, you can use the following macros.
@@ -123,18 +124,14 @@ static void parse_bdg_cfg(void);
 static int bdg_initialized = 0;
 
 static int bdg_ipfw = 0 ;
-int do_bridge = 0;
 bdg_hash_table *bdg_table = NULL ;
 
 /*
  * System initialization
  */
 
-SYSINIT(interfaces, SI_SUB_PROTO_IF, SI_ORDER_FIRST, bdginit, NULL)
-
 static struct bdg_stats bdg_stats ;
-struct bdg_softc *ifp2sc = NULL ;
-/* XXX make it static of size BDG_MAX_PORTS */
+static struct callout_handle bdg_timeout_h ;
 
 #define	IFP_CHK(ifp, x) \
 	if (ifp2sc[ifp->if_index].magic != 0xDEADBEEF) { x ; }
@@ -337,7 +334,6 @@ SYSCTL_INT(_net_link_ether, OID_AUTO, bridge_ipfw_collisions,
 SYSCTL_PROC(_net_link_ether, OID_AUTO, bridge_refresh, CTLTYPE_INT|CTLFLAG_WR,
 	    NULL, 0, &sysctl_refresh, "I", "iface refresh");
 
-#if 1 /* diagnostic vars */
 
 SY(_net_link_ether, verbose, "Be verbose");
 SY(_net_link_ether, bdg_split_pkts, "Packets split in bdg_forward");
@@ -352,7 +348,6 @@ SY(_net_link_ether, bdg_predict, "Correctly predicted header location");
 SY(_net_link_ether, bdg_fw_avg, "Cycle counter avg");
 SY(_net_link_ether, bdg_fw_ticks, "Cycle counter item");
 SY(_net_link_ether, bdg_fw_count, "Cycle counter count");
-#endif
 
 SYSCTL_STRUCT(_net_link_ether, PF_BDG, bdgstats,
         CTLFLAG_RD, &bdg_stats , bdg_stats, "bridge statistics");
@@ -408,7 +403,7 @@ bdg_timeout(void *dummy)
 	    bdg_loops = 0 ;
 	}
     }
-    timeout(bdg_timeout, (void *)0, 2*hz );
+    bdg_timeout_h = timeout(bdg_timeout, NULL, 2*hz );
 }
 
 /*
@@ -442,7 +437,7 @@ bdginit(void *dummy)
     do_bridge=0;
 }
     
-void
+static void
 bdgtakeifaces(void)
 {
     int i ;
@@ -457,7 +452,7 @@ bdgtakeifaces(void)
     bdg_ports = 0 ;
     *bridge_cfg = '\0';
 
-    printf("BRIDGE 010131, have %d interfaces\n", if_index);
+    printf("BRIDGE 011004, have %d interfaces\n", if_index);
     for (i = 0 , ifp = TAILQ_FIRST(&ifnet) ; i < if_index ;
 		i++, ifp = TAILQ_NEXT(ifp, if_link))
 	if (ifp->if_type == IFT_ETHER) { /* ethernet ? */
@@ -503,7 +498,7 @@ bdgtakeifaces(void)
  * to fetch more of the packet, or simply drop it completely.
  */
 
-struct ifnet *
+static struct ifnet *
 bridge_in(struct ifnet *ifp, struct ether_header *eh)
 {
     int index;
@@ -607,7 +602,7 @@ bridge_in(struct ifnet *ifp, struct ether_header *eh)
  *
  * XXX be careful about eh, it can be a pointer into *m
  */
-struct mbuf *
+static struct mbuf *
 bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 {
     struct ifnet *src = m0->m_pkthdr.rcvif; /* could be NULL in output */
@@ -615,9 +610,7 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
     int shared = bdg_copy ; /* someone else is using the mbuf */
     int once = 0;      /* loop only once */
     struct ifnet *real_dst = dst ; /* real dst from ether_output */
-#ifdef IPFIREWALL
     struct ip_fw *rule = NULL ; /* did we match a firewall rule ? */
-#endif
 
     /*
      * XXX eh is usually a pointer within the mbuf (some ethernet drivers
@@ -628,7 +621,6 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 
     DEB(quad_t ticks; ticks = rdtsc();)
 
-#if defined(IPFIREWALL) && defined(DUMMYNET)
     if (m0->m_type == MT_DUMMYNET) {
 	/* extract info from dummynet header */
 	rule = (struct ip_fw *)(m0->m_data) ;
@@ -636,7 +628,6 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 	src = m0->m_pkthdr.rcvif;
 	shared = 0 ; /* For sure this is our own mbuf. */
     } else
-#endif
     bdg_thru++; /* only count once */
 
     if (src == NULL) /* packet from ether_output */
@@ -663,7 +654,6 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
     if ( (u_int)(ifp) <= (u_int)BDG_FORWARD )
 	panic("bdg_forward: bad dst");
 
-#ifdef IPFIREWALL
     /*
      * Do filtering in a very similar way to what is done in ip_output.
      * Only if firewall is loaded, enabled, and the packet is not
@@ -721,8 +711,7 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 
 	if (i == 0) /* a PASS rule.  */
 	    goto forward ;
-#ifdef DUMMYNET
-	if (i & IP_FW_PORT_DYNT_FLAG) {
+	if (do_bridge && ip_dn_io_ptr != NULL && (i & IP_FW_PORT_DYNT_FLAG)) {
 	    /*
 	     * Pass the pkt to dummynet, which consumes it.
 	     * If shared, make a copy and keep the original.
@@ -752,10 +741,9 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 		    return m0 ;
 		bcopy(&save_eh, mtod(m, struct ether_header *), ETHER_HDR_LEN);
 	    }
-	    dummynet_io((i & 0xffff),DN_TO_BDG_FWD,m,real_dst,NULL,0,rule,0);
+	    ip_dn_io_ptr((i & 0xffff),DN_TO_BDG_FWD,m,real_dst,NULL,0,rule,0);
 	    return m0 ;
 	}
-#endif
 	/*
 	 * XXX add divert/forward actions...
 	 */
@@ -765,7 +753,6 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 	return m0 ;
     }
 forward:
-#endif /* IPFIREWALL */
     /*
      * Again, bring up the headers in case of shared bufs to avoid
      * corruptions in the future.
@@ -841,3 +828,44 @@ forward:
 	if (bdg_fw_count != 0) bdg_fw_avg = bdg_fw_ticks/bdg_fw_count; )
     return m0 ;
 }
+
+static int
+bridge_modevent(module_t mod, int type, void *unused)
+{
+	int s;
+
+	s = splimp();
+	switch (type) {
+	case MOD_LOAD:
+    		bridge_in_ptr = bridge_in;
+    		bdg_forward_ptr = bdg_forward;
+    		bdgtakeifaces_ptr = bdgtakeifaces;
+		bdginit(NULL);
+		break;
+	case MOD_UNLOAD:
+		s = splimp();
+		do_bridge = 0;
+		bridge_in_ptr = NULL;
+		bdg_forward_ptr = NULL;
+		bdgtakeifaces_ptr = NULL;
+		untimeout(bdg_timeout, NULL, bdg_timeout_h);
+		if (bdg_table != NULL)
+			free(bdg_table, M_IFADDR);
+		if (ifp2sc != NULL)
+			free(ifp2sc, M_IFADDR);
+		break;
+	default:
+		break;
+	}
+	splx(s);
+	return 0;
+}
+
+static moduledata_t bridge_mod = {
+	"bridge",
+	bridge_modevent,
+	0
+};
+
+DECLARE_MODULE(bridge, bridge_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+MODULE_VERSION(bridge, 1);
