@@ -1,0 +1,72 @@
+$FreeBSD$
+
+This is the README for pam_krb5, a PAM module which support Kerberos 5
+authentication.
+
+This software is Copyright (c) 1999-2000 Frank Cusack.
+All Rights Reserved.
+
+See the COPYRIGHT file, included with this distribution, for copyright
+and redistribution information.
+
+Author:
+Frank Cusack
+<fcusack@fcusack.com>
+
+
+I. Kerberos notes
+
+This PAM module requires the MIT 1.1+ release of Kerberos, or the Cygnus
+CNS distribution. It has not been tested against heimdal or any other
+Kerberos distributions.
+
+Unlike other PAM Kerberos 5 modules out there, this one does not
+use any private Kerberos interfaces. Thus, you need only the
+header files and libraries that are part of the Kerberos distribution.
+
+
+II. OS notes
+
+This software has been tested against Solaris 2.6. It should compile
+against Linux (distributions?) with minimal (if any) changes. Reports
+of OS [in]compatibilities are welcomed.
+
+dtlogin on Solaris doesn't support xrealm logins (probably a good thing).
+
+III. PAM notes/open issues
+
+auth module:
+When is pam_sm_setcred() ever called with flags other than PAM_ESTABLISH_CRED
+or PAM_DELETE_CRED?
+
+acct module:
+I believe this to be complete.
+
+session module:
+This is complete (both functions just return success).
+
+passwd module:
+When is pam_sm_chauthtok() ever called with flags other than
+PAM_UPDATE_AUTHTOK?
+
+
+IV. Usage
+
+Simply change /etc/pam.conf to include this module. Make sure to include
+the acct category whenever you use the auth category, or .k5login will
+not get checked.
+
+You probably want to make this module "sufficient", before your unix
+(or other) module(s).
+
+
+V. Acknowledgements
+
+Thanks to Naomaru Itoi <itoi@eecs.umich.edu>,
+Curtis King <curtis.king@cul.ca>, and Derrick Brashear <shadow@dementia.org>,
+all of whom have written and made available Kerberos 4/5 modules.
+Although no code in this module is directly from these author's modules,
+(except the get_user_info() routine in support.c; derived from whichever
+of these authors originally wrote the first module the other 2 copied from),
+it was extremely helpful to look over their code which aided in my design.
+

@@ -1,4 +1,4 @@
-# Copyright 1998 Juniper Networks, Inc.
+# Copyright 2001 FreeBSD, Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -24,22 +24,21 @@
 #
 #	$FreeBSD$
 
-SUBDIR+=	pam_cleartext_pass_ok
-SUBDIR+=	pam_deny
-.if defined(MAKE_KERBEROS4) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
-SUBDIR+=	pam_kerberosIV
-.endif
-.if defined(MAKE_KERBEROS5) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
-SUBDIR+=	pam_krb5
-.endif
-SUBDIR+=	pam_nologin
-SUBDIR+=	pam_opie
-SUBDIR+=	pam_permit
-SUBDIR+=	pam_radius
-SUBDIR+=	pam_rootok
-SUBDIR+=	pam_skey
-SUBDIR+=	pam_tacplus
-SUBDIR+=	pam_unix
-SUBDIR+=	pam_wheel
+PAMDIR=		${.CURDIR}/../../../../contrib/libpam
 
-.include <bsd.subdir.mk>
+LIB=		pam_krb5
+SHLIB_NAME=	pam_krb5.so
+SRCS=		pam_krb5_auth.c pam_krb5_pass.c pam_krb5_acct.c \
+		pam_krb5_sess.c support.c compat_heimdal.c
+CFLAGS+=	-Wall
+CFLAGS+=	-I${PAMDIR}/libpam/include
+CFLAGS+=	-I${.CURDIR}/../../libpam
+DPADD+=		${LIBKRB5} ${LIBGSSAPI} ${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} \
+		${LIBCOM_ERR}
+LDADD+=		-lkrb5 -lgssapi -lasn1 -lroken -lcrypto -lcrypt -lcom_err \
+		-L${.OBJDIR}/../../../../kerberos5/lib/libroken
+INTERNALLIB=	yes
+INTERNALSTATICLIB=yes
+MAN=		pam_krb5.8
+
+.include <bsd.lib.mk>
