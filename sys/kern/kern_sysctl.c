@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.34 1995/11/10 09:58:53 phk Exp $
+ * $Id: kern_sysctl.c,v 1.35 1995/11/10 16:22:41 phk Exp $
  */
 
 /*
@@ -170,13 +170,16 @@ SYSCTL_PROC(_kern, KERN_HOSTNAME, hostname, CTLTYPE_STRING|CTLFLAG_RW,
 	&hostname, sizeof(hostname), sysctl_kern_hostname, "");
 
 static int
-sysctl_order_cmp(void *a, void *b)
+sysctl_order_cmp(const void *a, const void *b)
 {
-	struct sysctl_oid **pa,**pb;
-	pa = (struct sysctl_oid**) a;
-	pb = (struct sysctl_oid**) b;
-	if (!*pa) return 1;
-	if (!*pb) return -1;
+	const struct sysctl_oid **pa, **pb;
+
+	pa = (const struct sysctl_oid **)a;
+	pb = (const struct sysctl_oid **)b;
+	if (*pa == NULL)
+		return (1);
+	if (*pb == NULL)
+		return (-1);
 	return ((*pa)->oid_number - (*pb)->oid_number);
 }
 
@@ -621,7 +624,7 @@ int securelevel = -1;
 /*
  * kernel related system variables.
  */
-int
+static int
 kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 	int *name;
 	u_int namelen;
