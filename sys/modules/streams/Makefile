@@ -4,7 +4,7 @@ MAINTAINER=	newton@atdot.dotat.org
 .PATH: ${.CURDIR}/../../dev/streams
 
 KMOD=	streams
-SRCS=	streams.c opt_streams.h
+SRCS=	streams.c
 
 EXPORT_SYMS=	svr4_str_initialized	\
 		svr4_stream_get		\
