@@ -483,11 +483,18 @@ dounmount(mp, flags, p)
 	int async_flag;
 
 	simple_lock(&mountlist_slock);
+	if (mp->mnt_kern_flag & MNTK_UNMOUNT) {
+		simple_unlock(&mountlist_slock);
+		return (EBUSY);
+	}
 	mp->mnt_kern_flag |= MNTK_UNMOUNT;
+	/* Allow filesystems to detect that a forced unmount is in progress. */
+	if (flags & MNT_FORCE)
+		mp->mnt_kern_flag |= MNTK_UNMOUNTF;
 	error = lockmgr(&mp->mnt_lock, LK_DRAIN | LK_INTERLOCK |
 	    ((flags & MNT_FORCE) ? 0 : LK_NOWAIT), &mountlist_slock, p);
 	if (error) {
-		mp->mnt_kern_flag &= ~MNTK_UNMOUNT;
+		mp->mnt_kern_flag &= ~(MNTK_UNMOUNT | MNTK_UNMOUNTF);
 		if (mp->mnt_kern_flag & MNTK_MWAIT)
 			wakeup((caddr_t)mp);
 		return (error);
@@ -510,7 +517,7 @@ dounmount(mp, flags, p)
 	if (error) {
 		if ((mp->mnt_flag & MNT_RDONLY) == 0 && mp->mnt_syncer == NULL)
 			(void) vfs_allocate_syncvnode(mp);
-		mp->mnt_kern_flag &= ~MNTK_UNMOUNT;
+		mp->mnt_kern_flag &= ~(MNTK_UNMOUNT | MNTK_UNMOUNTF);
 		mp->mnt_flag |= async_flag;
 		lockmgr(&mp->mnt_lock, LK_RELEASE | LK_INTERLOCK | LK_REENABLE,
 		    &mountlist_slock, p);

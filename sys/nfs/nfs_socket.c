@@ -959,8 +959,8 @@ nfs_request(vp, mrest, procnum, procp, cred, mrp, mdp, dposp)
 	char *auth_str, *verf_str;
 	NFSKERBKEY_T key;		/* save session key */
 
-	/* Reject requests while attempting to unmount. */
-	if (vp->v_mount->mnt_kern_flag & MNTK_UNMOUNT) {
+	/* Reject requests while attempting a forced unmount. */
+	if (vp->v_mount->mnt_kern_flag & MNTK_UNMOUNTF) {
 		m_freem(mrest);
 		return (ESTALE);
 	}
@@ -1575,8 +1575,8 @@ nfs_sigintr(nmp, rep, p)
 
 	if (rep && (rep->r_flags & R_SOFTTERM))
 		return (EINTR);
-	/* Terminate all requests while attempting to unmount. */
-	if (nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNT)
+	/* Terminate all requests while attempting a forced unmount. */
+	if (nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF)
 		return (EINTR);
 	if (!(nmp->nm_flag & NFSMNT_INT))
 		return (0);
