@@ -137,7 +137,7 @@ pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
      * attempts to read them and translate to our private vector numbers.
      */
     if ((reg == PCIR_INTLINE) && (bytes == 1)) {
-	int	pin, line, airq;
+	int	pin, line;
 
 	pin = pci_do_cfgregread(bus, slot, func, PCIR_INTPIN, 1);
 	line = pci_do_cfgregread(bus, slot, func, PCIR_INTLINE, 1);
