@@ -61,7 +61,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Id: mrinfo.c,v 1.7 1994/08/24 23:54:04 thyagara Exp $";
+    "@(#) $Id: mrinfo.c,v 1.2 1994/09/08 02:51:20 wollman Exp $";
 /*  original rcsid:
     "@(#) Header: mrinfo.c,v 1.6 93/04/08 15:14:16 van Exp (LBL)";
 */
@@ -277,7 +277,7 @@ host_addr(name)
 }
 
 
-main(argc, argv)
+int main(argc, argv)
 	int     argc;
 	char   *argv[];
 {
@@ -389,6 +389,8 @@ usage:		fprintf(stderr,
 			continue;
 		}
 		ip = (struct ip *) recv_buf;
+		if (ip->ip_p == 0)
+			continue;	/* Request to install cache entry */
 		src = ip->ip_src.s_addr;
 		if (src != target_addr) {
 			fprintf(stderr, "mrinfo: got reply from %s",
@@ -417,6 +419,21 @@ usage:		fprintf(stderr,
 		}
 		if (igmp->igmp_type != IGMP_DVMRP)
 			continue;
+
+		switch (igmp->igmp_code) {
+		case DVMRP_NEIGHBORS:
+		case DVMRP_NEIGHBORS2:
+			if (src != target_addr) {
+				fprintf(stderr, "mrinfo: got reply from %s",
+					inet_fmt(src, s1));
+				fprintf(stderr, " instead of %s\n",
+					inet_fmt(target_addr, s1));
+				continue;
+			}
+			break;
+		default:
+			continue;	/* ignore all other DVMRP messages */
+		}
 
 		switch (igmp->igmp_code) {
 

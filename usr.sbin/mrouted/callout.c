@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: callout.c,v 1.1 1994/08/24 23:52:49 thyagara Exp $
+ * $Id: callout.c,v 1.2 1994/09/08 02:51:11 wollman Exp $
  */
 
 #include "defs.h"
@@ -29,7 +29,9 @@ struct timeout_q {
 };
 
 
-callout_init()
+static void print_Q();
+
+void callout_init() 
 {
     Q = (struct timeout_q *) 0;
 }
@@ -38,7 +40,7 @@ callout_init()
 /*
  * signal handler for SIGALARM that is called once every second
  */
-age_callout_queue()
+void age_callout_queue()
 {
     struct timeout_q *ptr;
     
@@ -82,7 +84,7 @@ int timer_setTimer(delay, action, data)
     struct     timeout_q  *ptr, *node, *prev;
     
     if (in_callout)
-	return;
+	return -1;
 
     in_callout = 1;
     
@@ -189,11 +191,11 @@ void timer_clearTimer( id)
 /*
  * debugging utility
  */
-print_Q()
+static void print_Q()
 {
+#ifdef IGMP_DEBUG
     struct timeout_q  *ptr;
     
-#ifdef IGMP_DEBUG
     for(ptr = Q; ptr; ptr = ptr->next)
 	log(LOG_DEBUG,0,"(%d,%d) ", ptr->id, ptr->time);
 #endif IGMP_DEBUG
