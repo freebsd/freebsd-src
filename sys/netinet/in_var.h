@@ -38,6 +38,7 @@
 #define _NETINET_IN_VAR_H_
 
 #include <sys/queue.h>
+#include <sys/fnv_hash.h>
 
 /*
  * Interface address, Internet version.  One of these structures
@@ -55,7 +56,8 @@ struct in_ifaddr {
 	u_long	ia_subnet;		/* subnet number, including net */
 	u_long	ia_subnetmask;		/* mask of subnet part */
 	struct	in_addr ia_netbroadcast; /* to recognize net broadcasts */
-	TAILQ_ENTRY(in_ifaddr) ia_link;	/* tailq macro glue */
+	LIST_ENTRY(in_ifaddr) ia_hash;	/* entry in bucket of inet addresses */
+	TAILQ_ENTRY(in_ifaddr) ia_link;	/* list of internet addresses */
 	struct	sockaddr_in ia_addr;	/* reserve space for interface name */
 	struct	sockaddr_in ia_dstaddr; /* reserve space for broadcast addr */
 #define	ia_broadaddr	ia_dstaddr
@@ -81,10 +83,23 @@ struct	in_aliasreq {
 
 
 #ifdef	_KERNEL
-extern	TAILQ_HEAD(in_ifaddrhead, in_ifaddr) in_ifaddrhead;
 extern	struct	ifqueue	ipintrq;		/* ip packet input queue */
 extern	struct	in_addr zeroin_addr;
 extern	u_char	inetctlerrmap[];
+
+/* 
+ * Hash table for IP addresses.
+ */
+extern	LIST_HEAD(in_ifaddrhashhead, in_ifaddr) *in_ifaddrhashtbl;
+extern	TAILQ_HEAD(in_ifaddrhead, in_ifaddr) in_ifaddrhead;
+extern	u_long in_ifaddrhmask;			/* mask for hash table */
+
+#define INADDR_NHASH_LOG2       9
+#define INADDR_NHASH		(1 << INADDR_NHASH_LOG2)
+#define INADDR_HASHVAL(x)	fnv_32_buf((&(x)), sizeof(x), FNV1_32_INIT)
+#define INADDR_HASH(x) \
+	(&in_ifaddrhashtbl[INADDR_HASHVAL(x) & in_ifaddrhmask])
+
 
 /*
  * Macro for finding the interface (ifnet structure) corresponding to one
@@ -96,7 +111,7 @@ extern	u_char	inetctlerrmap[];
 { \
 	struct in_ifaddr *ia; \
 \
-	TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) \
+	LIST_FOREACH(ia, INADDR_HASH((addr).s_addr), ia_hash) \
 		if (IA_SIN(ia)->sin_addr.s_addr == (addr).s_addr) \
 			break; \
 	(ifp) = (ia == NULL) ? NULL : ia->ia_ifp; \
