@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)su.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: su.c,v 1.14.2.5 1997/09/28 17:00:06 markm Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -74,17 +74,25 @@ static const char rcsid[] =
 
 #ifdef KERBEROS
 #include <des.h>
-#include <krb.h>
+#include <kerberosIV/krb.h>
 #include <netdb.h>
 
+#ifdef LOGIN_CAP
+#define	ARGSTR	"-Kflmc:"
+#else
 #define	ARGSTR	"-Kflm"
+#endif
 
 static int kerberos(char *username, char *user, int uid, char *pword);
 static int koktologin(char *name, char *toname);
 
 int use_kerberos = 1;
 #else /* !KERBEROS */
+#ifdef LOGIN_CAP
+#define	ARGSTR	"-flmc:"
+#else
 #define	ARGSTR	"-flm"
+#endif
 #endif /* KERBEROS */
 
 char   *ontty __P((void));
@@ -109,6 +117,7 @@ main(argc, argv)
 	enum { UNSET, YES, NO } iscsh = UNSET;
 #ifdef LOGIN_CAP
 	login_cap_t *lc;
+	char *class=NULL;
 	int setwhat;
 #ifdef LOGIN_CAP_AUTH
 	char *style, *approvep, *auth_method = NULL;
@@ -144,6 +153,11 @@ main(argc, argv)
 			asme = 1;
 			asthem = 0;
 			break;
+#ifdef LOGIN_CAP
+		case 'c':
+			class = optarg;
+			break;
+#endif
 		case '?':
 		default:
 			usage();
@@ -211,7 +225,15 @@ main(argc, argv)
 		errx(1, "unknown login: %s", user);
 	}
 #ifdef LOGIN_CAP
-	lc = login_getpwclass(pwd);
+	if (class==NULL) {
+		lc = login_getpwclass(pwd);
+	} else {
+		if (ruid)
+			errx(1, "only root may use -c");
+		lc = login_getclass(class);
+		if (lc == NULL)
+			errx(1, "unknown class: %s", class);
+	}
 #endif
 
 #ifdef WHEELSU
@@ -350,9 +372,9 @@ main(argc, argv)
 	setwhat = LOGIN_SETUSER|LOGIN_SETGROUP|LOGIN_SETRESOURCES|LOGIN_SETPRIORITY;
 	/*
 	 * Don't touch resource/priority settings if -m has been
-	 * used or -l hasn't, and we're not su'ing to root.
+	 * used or -l and -c hasn't, and we're not su'ing to root.
 	 */
-        if ((asme || !asthem) && pwd->pw_uid)
+        if ((asme || (!asthem && class == NULL)) && pwd->pw_uid)
 		setwhat &= ~(LOGIN_SETPRIORITY|LOGIN_SETRESOURCES);
 	if (setusercontext(lc, pwd, pwd->pw_uid, setwhat) < 0)
 		err(1, "setusercontext");
