@@ -61,13 +61,11 @@ pselect(int count, fd_set *rfds, fd_set *wfds, fd_set *efds,
 			return rv;
 	}
 
-	errno = 0;
 	rv = select(count, rfds, wfds, efds, tvp);
 	if (mask != 0) {
 		sverrno = errno;
 		sigprocmask(SIG_SETMASK, &omask, (sigset_t *)0);
-		if (sverrno)
-			errno = sverrno;
+		errno = sverrno;
 	}
 
 	return rv;
