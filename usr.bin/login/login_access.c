@@ -5,6 +5,7 @@
   * non-networked logins. Diagnostics are reported through syslog(3).
   *
   * Author: Wietse Venema, Eindhoven University of Technology, The Netherlands.
+  * $FreeBSD$
   */
 
 #ifdef LOGIN_ACCESS
@@ -22,6 +23,7 @@ static const char sccsid[] = "%Z% %M% %I% %E% %U%";
 #include <unistd.h>
 #include <stdlib.h>
 
+#include "login.h"
 #include "pathnames.h"
 
  /* Delimiters for fields and for lists of users, ttys or hosts. */
@@ -34,10 +36,11 @@ static char sep[] = ", \t";		/* list-element separator */
 #define YES             1
 #define NO              0
 
-static int list_match();
-static int user_match();
-static int from_match();
-static int string_match();
+static int list_match __P((char *, char *, int (*)(char *, char *)));
+static int user_match __P((char *, char *));
+static int from_match __P((char *, char *));
+static int string_match __P((char *, char *));
+static int netgroup_match __P((char *, char *, char *));
 
 /* login_access - match username/group and host/tty with access control file */
 
@@ -106,7 +109,7 @@ char   *from;
 static int list_match(list, item, match_fn)
 char   *list;
 char   *item;
-int   (*match_fn) ();
+int   (*match_fn) __P((char *, char *));
 {
     char   *tok;
     int     match = NO;
@@ -138,20 +141,12 @@ int   (*match_fn) ();
 /* netgroup_match - match group against machine or user */
 
 static int netgroup_match(group, machine, user)
-gid_t   group;
-char   *machine;
-char   *user;
+char   *group __unused;
+char   *machine __unused;
+char   *user __unused;
 {
-#ifdef NIS
-    static char *mydomain = 0;
-
-    if (mydomain == 0)
-	yp_get_default_domain(&mydomain);
-    return (innetgr(group, machine, user, mydomain));
-#else
     syslog(LOG_ERR, "NIS netgroup support not configured");
     return 0;
-#endif
 }
 
 /* user_match - match a username against one token */
