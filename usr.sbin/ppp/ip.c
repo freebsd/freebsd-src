@@ -339,9 +339,18 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
       loglen += strlen(logbuf + loglen);
     }
     break;
+
   case IPPROTO_UDP:
+    uh = (struct udphdr *) ptop;
+    if (pip->ip_tos == IPTOS_LOWDELAY)
+      pri++;
+
+    if ((ntohs(pip->ip_off) & IP_OFFMASK) == 0 &&
+        ipcp_IsUrgentUdpPort(&bundle->ncp.ipcp, ntohs(uh->uh_sport),
+                          ntohs(uh->uh_dport)))
+      pri++;
+
     if (logit && loglen < sizeof logbuf) {
-      uh = (struct udphdr *) ptop;
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
 	   "UDP: %s:%d ---> ", inet_ntoa(pip->ip_src), ntohs(uh->uh_sport));
       loglen += strlen(logbuf + loglen);
@@ -350,6 +359,7 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
       loglen += strlen(logbuf + loglen);
     }
     break;
+
 #ifdef IPPROTO_OSPFIGP
   case IPPROTO_OSPFIGP:
     if (logit && loglen < sizeof logbuf) {
@@ -362,6 +372,7 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
     }
     break;
 #endif
+
   case IPPROTO_IPIP:
     if (logit && loglen < sizeof logbuf) {
       uh = (struct udphdr *) ptop;
@@ -373,6 +384,7 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
       loglen += strlen(logbuf + loglen);
     }
     break;
+
   case IPPROTO_IGMP:
     if (logit && loglen < sizeof logbuf) {
       uh = (struct udphdr *) ptop;
@@ -384,13 +396,15 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
       loglen += strlen(logbuf + loglen);
     }
     break;
+
   case IPPROTO_TCP:
     th = (struct tcphdr *) ptop;
     if (pip->ip_tos == IPTOS_LOWDELAY)
       pri++;
-    else if ((ntohs(pip->ip_off) & IP_OFFMASK) == 0 &&
-             ipcp_IsUrgentPort(&bundle->ncp.ipcp, ntohs(th->th_sport),
-                               ntohs(th->th_dport)))
+
+    if ((ntohs(pip->ip_off) & IP_OFFMASK) == 0 &&
+        ipcp_IsUrgentTcpPort(&bundle->ncp.ipcp, ntohs(th->th_sport),
+                          ntohs(th->th_dport)))
       pri++;
 
     if (logit && loglen < sizeof logbuf) {
