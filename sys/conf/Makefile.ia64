@@ -20,8 +20,10 @@ CWARNFLAGS=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 		-ansi
 CC=		ia64-unknown-linux-gcc -D__FreeBSD__ -U__linux__
 LD=		ia64-unknown-linux-ld
+NM=		ia64-unknown-linux-nm
 SIZE=		ia64-unknown-linux-size
 OBJCOPY=	ia64-unknown-linux-objcopy
+OBJDUMP=	ia64-unknown-linux-objdump
 MACHINE_ARCH=	ia64
 
 # Which version of config(8) is required.
@@ -184,13 +186,13 @@ setdef1.o: setdef1.c setdefs.h
 	${NORMAL_C}
 
 setdef0.c setdef1.c setdefs.h: Makefile ${OBJS}
-	@gensetdefs ${OBJS}
+	@OBJDUMP=${OBJDUMP} perl5 $S/kern/gensetdefs.pl ${OBJS}
 
 # this rule stops ./assym.s in .depend from causing problems
 ./assym.s: assym.s
 
-assym.s: $S/$M/$M/genassym.sh genassym.o
-	sh $S/$M/$M/genassym.sh genassym.o > ${.TARGET}
+assym.s: $S/kern/genassym.sh genassym.o
+	NM=${NM} sh $S/kern/genassym.sh genassym.o > ${.TARGET}
 
 genassym.o: $S/$M/$M/genassym.c
 	${CC} -c ${CFLAGS} $S/$M/$M/genassym.c

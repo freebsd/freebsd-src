@@ -22,7 +22,7 @@ case $# in
 *)	usage;;
 esac
 
-nm "$1" | awk '
+${NM:='nm'} "$1" | awk '
 / C .*sign$/ {
 	sign = substr($1, length($1) - 3, 4)
 	sub("^0*", "", sign)
