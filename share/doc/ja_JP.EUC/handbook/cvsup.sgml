@@ -1,11 +1,11 @@
-<!-- $Id: cvsup.sgml,v 1.9 1997/02/22 17:59:36 hanai Exp $ -->
+<!-- $Id: cvsup.sgml,v 1.10 1997/02/25 08:04:56 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.9 -->
+<!-- Original revision: 1.10 -->
 
 <sect><heading>CVSup<label id="cvsup"></heading>
 
 <p><em>原作: &a.jdp;</em>.
-<p><em>訳: &a.iwasaki;.<newline>22 February 1997.</em>
+<p><em>訳: &a.iwasaki;.<newline>27 February 1997.</em>
 
 <sect1><heading>CVSup の紹介<label id="cvsup:intro"></heading>
 
@@ -420,58 +420,108 @@ cvsup が GUI を使わないようにする必要があります.
   FreeBSD の ports コレクションです. 
     <p>
     <descrip>
-    <tag><tt>ports-archivers release=cvs</tt></tag><p>
-    <tag><tt>ports-astro release=cvs</tt></tag><p>
-    <tag><tt>ports-audio release=cvs</tt></tag><p>
-    <tag><tt>ports-base release=cvs</tt></tag><p>
-    <tag><tt>ports-benchmarks release=cvs</tt></tag><p>
-    <tag><tt>ports-cad release=cvs</tt></tag><p>
-    <tag><tt>ports-chinese release=cvs</tt></tag><p>
-    <tag><tt>ports-comms release=cvs</tt></tag><p>
-    <tag><tt>ports-databases release=cvs</tt></tag><p>
-    <tag><tt>ports-devel release=cvs</tt></tag><p>
-    <tag><tt>ports-editors release=cvs</tt></tag><p>
-    <tag><tt>ports-emulators release=cvs</tt></tag><p>
-    <tag><tt>ports-games release=cvs</tt></tag><p>
-    <tag><tt>ports-graphics release=cvs</tt></tag><p>
-    <tag><tt>ports-japanese release=cvs</tt></tag><p>
-    <tag><tt>ports-lang release=cvs</tt></tag><p>
-    <tag><tt>ports-mail release=cvs</tt></tag><p>
-    <tag><tt>ports-math release=cvs</tt></tag><p>
-    <tag><tt>ports-mbone release=cvs</tt></tag><p>
-    <tag><tt>ports-misc release=cvs</tt></tag><p>
-    <tag><tt>ports-net release=cvs</tt></tag><p>
-    <tag><tt>ports-news release=cvs</tt></tag><p>
-    <tag><tt>ports-plan9 release=cvs</tt></tag><p>
-    <tag><tt>ports-print release=cvs</tt></tag><p>
-    <tag><tt>ports-russian release=cvs</tt></tag><p>
-    <tag><tt>ports-security release=cvs</tt></tag><p>
-    <tag><tt>ports-shells release=cvs</tt></tag><p>
-    <tag><tt>ports-sysutils release=cvs</tt></tag><p>
-    <tag><tt>ports-vietnamese release=cvs</tt></tag><p>
-    <tag><tt>ports-www release=cvs</tt></tag><p>
-    <tag><tt>ports-x11 release=cvs</tt></tag><p>
+    <tag><tt>ports-archivers release=cvs</tt></tag>
+    アーカイビングのツール.
+    <tag><tt>ports-astro release=cvs</tt></tag>
+    天文学関連の ports.
+    <tag><tt>ports-audio release=cvs</tt></tag>
+    サウンドサポート.
+    <tag><tt>ports-base release=cvs</tt></tag>
+    <tt>/usr/ports</tt> のトップにあるその他のファイル.
+    <tag><tt>ports-benchmarks release=cvs</tt></tag>
+    ベンチマークプログラム.
+    <tag><tt>ports-cad release=cvs</tt></tag>
+    CAD ツール.
+    <tag><tt>ports-chinese release=cvs</tt></tag>
+    中国語サポート.
+    <tag><tt>ports-comms release=cvs</tt></tag>
+    通信ソフトウェア.
+    <tag><tt>ports-databases release=cvs</tt></tag>
+    データベース.
+    <tag><tt>ports-devel release=cvs</tt></tag>
+    開発ユーティリティ.
+    <tag><tt>ports-editors release=cvs</tt></tag>
+    エディタ.
+    <tag><tt>ports-emulators release=cvs</tt></tag>
+    他の OS のエミュレータ.
+    <tag><tt>ports-games release=cvs</tt></tag>
+    ゲーム.
+    <tag><tt>ports-graphics release=cvs</tt></tag>
+    グラフィックユーティリティ.
+    <tag><tt>ports-japanese release=cvs</tt></tag>
+    日本語サポート.
+    <tag><tt>ports-lang release=cvs</tt></tag>
+    プログラミング言語.
+    <tag><tt>ports-mail release=cvs</tt></tag>
+    メールソフトウェア.
+    <tag><tt>ports-math release=cvs</tt></tag>
+    数値計算ソフトウェア.
+    <tag><tt>ports-mbone release=cvs</tt></tag>
+    MBone アプリケーション.
+    <tag><tt>ports-misc release=cvs</tt></tag>
+    色々なユーティリティ.
+    <tag><tt>ports-net release=cvs</tt></tag>
+    ネットワーキングソフトウェア.
+    <tag><tt>ports-news release=cvs</tt></tag>
+    USENET ニュースのソフトウェア.
+    <tag><tt>ports-plan9 release=cvs</tt></tag>
+    Plan9 からの色々なプログラム.
+    <tag><tt>ports-print release=cvs</tt></tag>
+    印刷ソフトウェア.
+    <tag><tt>ports-russian release=cvs</tt></tag>
+    ロシア語サポート.
+    <tag><tt>ports-security release=cvs</tt></tag>
+    セキュリティユーティリティ.
+    <tag><tt>ports-shells release=cvs</tt></tag>
+    コマンドラインシェル.
+    <tag><tt>ports-sysutils release=cvs</tt></tag>
+    システムユーティリティ.
+    <tag><tt>ports-vietnamese release=cvs</tt></tag>
+    ベトナム語サポート.
+    <tag><tt>ports-www release=cvs</tt></tag>
+    World Wide Web 関連のソフトウェア.
+    <tag><tt>ports-x11 release=cvs</tt></tag>
+    X11 のソフトウェア.
     </descrip>
   <tag><tt>src-all release=cvs</tt></tag>
   メインの FreeBSD ソース群であり, 輸出規制された暗号化コードは含まれていません. 
     <p>
     <descrip>
-    <tag><tt>src-base/cvs</tt></tag><p>
-    <tag><tt>src-bin/cvs</tt></tag><p>
-    <tag><tt>src-contrib/cvs</tt></tag><p>
-    <tag><tt>src-etc/cvs</tt></tag><p>
-    <tag><tt>src-games/cvs</tt></tag><p>
-    <tag><tt>src-gnu/cvs</tt></tag><p>
-    <tag><tt>src-include/cvs</tt></tag><p>
-    <tag><tt>src-lib/cvs</tt></tag><p>
-    <tag><tt>src-libexec/cvs</tt></tag><p>
-    <tag><tt>src-release/cvs</tt></tag><p>
-    <tag><tt>src-sbin/cvs</tt></tag><p>
-    <tag><tt>src-share/cvs</tt></tag><p>
-    <tag><tt>src-sys/cvs</tt></tag><p>
-    <tag><tt>src-tools/cvs</tt></tag><p>
-    <tag><tt>src-usrbin/cvs</tt></tag><p>
-    <tag><tt>src-usrsbin/cvs</tt></tag><p>
+    <tag><tt>src-base release=cvs</tt></tag>
+    <tt>/usr/src</tt> のトップにあるその他のファイル.
+    <tag><tt>src-bin release=cvs</tt></tag>
+    シングルユーザモードで必要なユーザユーティリティ
+    (<tt>/usr/src/bin</tt>).
+    <tag><tt>src-contrib release=cvs</tt></tag>
+    FreeBSD プロジェクト外部からのユーティリティおよびライブラリ, 
+    比較的無修正 (<tt>/usr/src/contrib</tt>).
+    <tag><tt>src-etc release=cvs</tt></tag>
+    システムコンフィグレーションファイル (<tt>/usr/src/etc</tt>).
+    <tag><tt>src-games release=cvs</tt></tag>
+    ゲーム(<tt>/usr/src/games</tt>).
+    <tag><tt>src-gnu release=cvs</tt></tag>
+    GNU Public License 下にあるユーティリティ (<tt>/usr/src/gnu</tt>).
+    <tag><tt>src-include release=cvs</tt></tag>
+    ヘッダファイル (<tt>/usr/src/include</tt>).
+    <tag><tt>src-lib release=cvs</tt></tag>
+    ライブラリ (<tt>/usr/src/lib</tt>).
+    <tag><tt>src-libexec release=cvs</tt></tag>
+    システムプログラムであり, 通常は他のプログラムから実行される
+    (<tt>/usr/src/libexec</tt>).
+    <tag><tt>src-release release=cvs</tt></tag>
+    FreeBSD の release を構築するために必要なファイル (<tt>/usr/src/release</tt>).
+    <tag><tt>src-sbin release=cvs</tt></tag>
+    シングルユーザモード用のシステムユーティリティ(<tt>/usr/src/sbin</tt>).
+    <tag><tt>src-share release=cvs</tt></tag>
+    多様なシステム間で共有可能なファイル (<tt>/usr/src/share</tt>).
+    <tag><tt>src-sys release=cvs</tt></tag>
+    カーネル (<tt>/usr/src/sys</tt>).
+    <tag><tt>src-tools release=cvs</tt></tag>
+    FreeBSD の保守用の色々なツール (<tt>/usr/src/tools</tt>).
+    <tag><tt>src-usrbin release=cvs</tt></tag>
+    ユーザユーティリティ (<tt>/usr/src/usr.bin</tt>).
+    <tag><tt>src-usrsbin release=cvs</tt></tag>
+    システムユーティリティ (<tt>/usr/src/usr.sbin</tt>).
     </descrip>
   <tag><tt>www release=cvs</tt></tag>
   World Wide Web のデータ用のソースです. 
@@ -480,11 +530,13 @@ cvsup が GUI を使わないようにする必要があります.
 輸出規制された暗号化コードです. 
 <p>
   <descrip>
-  <tag><tt>src-eBones release=cvs</tt></tag><p>
-  <tag><tt>src-secure release=cvs</tt></tag><p>
+  <tag><tt>src-eBones release=cvs</tt></tag>
+  Kerberos および DES (<tt>/usr/src/eBones</tt>).
+  <tag><tt>src-secure release=cvs</tt></tag>
+  DES (<tt>/usr/src/secure</tt>).
   </descrip>
 <tag><tt>distrib release=self</tt></tag>
-CVSup サーバ自身のコンフィグレーションファイルです. 
+CVSup サーバ自身のコンフィグレーションファイルです. CVSup ミラーサイトが使用します. 
 <tag><tt>gnats release=current</tt></tag>
 GNATS バグトラッキングデータベースです. 
 <tag><tt>src-sys release=lite2</tt></tag>
@@ -492,7 +544,7 @@ lite2 kernel のマージ用の CVS リポジトリです.
 <tag><tt>src-sys release=smp</tt></tag>
 SMP プロジェクト用の CVS リポジトリです. 
 <tag><tt>www release=current</tt></tag>
-インストールされた World Wide Web のデータです. 
+インストールされた World Wide Web のデータです. WWW ミラーサイトが使用します. 
 </descrip>
 
 <sect1><heading>CVSup のアナウンス, 質問およびバグ報告</heading>
