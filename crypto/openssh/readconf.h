@@ -11,7 +11,7 @@
  * called by a name other than "ssh" or "Secure Shell".
  */
 
-/* RCSID("$OpenBSD: readconf.h,v 1.21 2000/09/07 20:27:53 deraadt Exp $"); */
+/* RCSID("$OpenBSD: readconf.h,v 1.22 2000/10/11 20:14:39 markus Exp $"); */
 /* $FreeBSD$ */
 
 #ifndef READCONF_H
@@ -54,6 +54,8 @@ typedef struct {
 #endif
 	int     password_authentication;	/* Try password
 						 * authentication. */
+	int     kbd_interactive_authentication; /* Try keyboard-interactive auth. */
+	char	*kbd_interactive_devices; /* Keyboard-interactive auth devices. */
 	int     fallback_to_rsh;/* Use rsh if cannot connect with ssh. */
 	int     use_rsh;	/* Always use rsh (don\'t try ssh). */
 	int     batch_mode;	/* Batch mode: do not ask for passwords. */

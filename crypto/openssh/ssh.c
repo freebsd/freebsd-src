@@ -39,7 +39,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh.c,v 1.65 2000/09/07 20:40:30 markus Exp $");
+RCSID("$OpenBSD: ssh.c,v 1.69 2000/10/27 07:32:19 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include <openssl/evp.h>
@@ -148,6 +148,7 @@ usage()
 	fprintf(stderr, "  -t          Tty; allocate a tty even if command is given.\n");
 	fprintf(stderr, "  -T          Do not allocate a tty.\n");
 	fprintf(stderr, "  -v          Verbose; display verbose debugging messages.\n");
+	fprintf(stderr, "              Multiple -v increases verbosity.\n");
 	fprintf(stderr, "  -V          Display version number only.\n");
 	fprintf(stderr, "  -P          Don't allocate a privileged port.\n");
 	fprintf(stderr, "  -q          Quiet; don't display any warning messages.\n");
@@ -366,6 +367,16 @@ main(int ac, char **av)
 			tty_flag = 1;
 			break;
 		case 'v':
+			if (0 == debug_flag) {
+				debug_flag = 1;
+				options.log_level = SYSLOG_LEVEL_DEBUG1;
+			} else if (options.log_level < SYSLOG_LEVEL_DEBUG3) {
+				options.log_level++;
+				break;
+			} else {
+				fatal("Too high debugging level.\n");
+			}
+			/* fallthrough */
 		case 'V':
 			fprintf(stderr, "SSH Version %s, protocol versions %d.%d/%d.%d.\n",
 			    SSH_VERSION,
@@ -374,8 +385,6 @@ main(int ac, char **av)
 			fprintf(stderr, "Compiled with SSL (0x%8.8lx).\n", SSLeay());
 			if (opt == 'V')
 				exit(0);
-			debug_flag = 1;
-			options.log_level = SYSLOG_LEVEL_DEBUG;
 			break;
 		case 'q':
 			options.log_level = SYSLOG_LEVEL_QUIET;
@@ -400,11 +409,12 @@ main(int ac, char **av)
 				options.cipher = SSH_CIPHER_ILLEGAL;
 			} else {
 				/* SSH1 only */
-				options.cipher = cipher_number(optarg);
-				if (options.cipher == -1) {
+				Cipher *c = cipher_by_name(optarg);
+				if (c == NULL || c->number < 0) {
 					fprintf(stderr, "Unknown cipher type '%s'\n", optarg);
 					exit(1);
 				}
+				options.cipher = c->number;
 			}
 			break;
 		case 'p':
@@ -557,22 +567,6 @@ main(int ac, char **av)
 	if (options.hostname != NULL)
 		host = options.hostname;
 
-	/* Find canonic host name. */
-	if (strchr(host, '.') == 0) {
-		struct addrinfo hints;
-		struct addrinfo *ai = NULL;
-		int errgai;
-		memset(&hints, 0, sizeof(hints));
-		hints.ai_family = IPv4or6;
-		hints.ai_flags = AI_CANONNAME;
-		hints.ai_socktype = SOCK_STREAM;
-		errgai = getaddrinfo(host, NULL, &hints, &ai);
-		if (errgai == 0) {
-			if (ai->ai_canonname != NULL)
-				host = xstrdup(ai->ai_canonname);
-			freeaddrinfo(ai);
-		}
-	}
 	/* Disable rhosts authentication if not running as root. */
 	if (original_effective_uid != 0 || !options.use_privileged_port) {
 		options.rhosts_authentication = 0;
@@ -604,7 +598,7 @@ main(int ac, char **av)
 	 * if rhosts_{rsa_}authentication is enabled.
 	 */
 
-	ok = ssh_connect(host, &hostaddr, options.port,
+	ok = ssh_connect(&host, &hostaddr, options.port,
 			 options.connection_attempts,
 			 !options.rhosts_authentication &&
 			 !options.rhosts_rsa_authentication,
@@ -993,6 +987,14 @@ ssh_session2(void)
 	if (in < 0 || out < 0 || err < 0)
 		fatal("dup() in/out/err failed");
 
+	/* enable nonblocking unless tty */
+	if (!isatty(in))
+		set_nonblock(in);
+	if (!isatty(out))
+		set_nonblock(out);
+	if (!isatty(err))
+		set_nonblock(err);
+
 	/* should be pre-session */
 	init_local_fwd();
 	
@@ -1010,7 +1012,7 @@ ssh_session2(void)
 	id = channel_new(
 	    "session", SSH_CHANNEL_OPENING, in, out, err,
 	    window, packetmax, CHAN_EXTENDED_WRITE,
-	    xstrdup("client-session"));
+	    xstrdup("client-session"), /*nonblock*/0);
 
 	channel_open(id);
 	channel_register_callback(id, SSH2_MSG_CHANNEL_OPEN_CONFIRMATION, client_init, (void *)0);

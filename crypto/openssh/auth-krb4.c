@@ -28,7 +28,7 @@
 #include "ssh.h"
 #include "servconf.h"
 
-RCSID("$OpenBSD: auth-krb4.c,v 1.18 2000/09/07 20:27:49 deraadt Exp $");
+RCSID("$OpenBSD: auth-krb4.c,v 1.19 2000/10/03 18:03:02 markus Exp $");
 RCSID("$FreeBSD$");
 
 #ifdef KRB4
@@ -281,6 +281,8 @@ auth_krb4_tgt(struct passwd *pw, const char *string)
 {
 	CREDENTIALS creds;
 
+	if (pw == NULL)
+		goto auth_kerberos_tgt_failure;
 	if (!radix_to_creds(string, &creds)) {
 		log("Protocol error decoding Kerberos V4 tgt");
 		packet_send_debug("Protocol error decoding Kerberos V4 tgt");
@@ -335,8 +337,16 @@ int
 auth_afs_token(struct passwd *pw, const char *token_string)
 {
 	CREDENTIALS creds;
-	uid_t uid = pw->pw_uid;
+	uid_t uid;
 
+	if (pw == NULL) {
+		/* XXX fake protocol error */
+		packet_send_debug("Protocol error decoding AFS token");
+		packet_start(SSH_SMSG_FAILURE);
+		packet_send();
+		packet_write_wait();
+		return 0;
+	}
 	if (!radix_to_creds(token_string, &creds)) {
 		log("Protocol error decoding AFS token");
 		packet_send_debug("Protocol error decoding AFS token");
@@ -350,6 +360,8 @@ auth_afs_token(struct passwd *pw, const char *token_string)
 
 	if (strncmp(creds.pname, "AFS ID ", 7) == 0)
 		uid = atoi(creds.pname + 7);
+	else
+		uid = pw->pw_uid;
 
 	if (kafs_settoken(creds.realm, uid, &creds)) {
 		log("AFS token (%s@%s) rejected for %s", creds.pname, creds.realm,

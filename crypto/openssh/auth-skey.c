@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth-skey.c,v 1.8 2000/09/07 20:27:49 deraadt Exp $");
+RCSID("$OpenBSD: auth-skey.c,v 1.9 2000/10/19 16:41:13 deraadt Exp $");
 RCSID("$FreeBSD$");
 
 #include <sys/sysctl.h>
@@ -47,7 +47,7 @@ auth_skey_password(struct passwd * pw, const char *password)
 			skeyinfo = skey_fake_keyinfo(pw->pw_name);
 		}
 		if (skeyinfo != NULL)
-			packet_send_debug(skeyinfo);
+			packet_send_debug("%s", skeyinfo);
 		/* Try again. */
 		return 0;
 	} else if (opie_haskey(pw->pw_name) == 0 &&
