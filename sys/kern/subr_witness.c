@@ -1120,6 +1120,7 @@ witness_levelall (void)
 		}
 		witness_leveldescendents(w, 0);
 	skip:
+		;	/* silence GCC 3.x */
 	}
 }
 
