@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
-.\"	$Id: ls.1,v 1.27 1999/04/27 23:33:52 hoek Exp $
+.\"	$Id: ls.1,v 1.28 1999/05/08 10:20:27 kris Exp $
 .\"
 .Dd July 29, 1994
 .Dt LS 1
@@ -148,6 +148,11 @@ not blocks.  This option overrides the environment variable BLOCKSIZE.
 (The lowercase letter ``ell.'')  List in long format. (See below.)
 If the output is to a terminal, a total sum for all the file
 sizes is output on a line before the long listing.
+.It Fl n
+Display user and group IDs numerically rather than converting to a user
+or group name in a long
+.Pq Fl l
+output.
 .It Fl o
 Include the file flags in a long
 .Pq Fl l
@@ -247,7 +252,10 @@ If the modification time of the file is more than 6 months
 in the past or future, then the year of the last modification
 is displayed in place of the hour and minute fields.
 .Pp
-If the owner or group names are not a known user or group name
+If the owner or group names are not a known user or group name,
+or the
+.Fl n
+option is given,
 the numeric ID's are displayed.
 .Pp
 If the file is a character special or block special file,
