@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$KAME: keysock.h,v 1.9 2002/03/21 14:00:14 itojun Exp $	*/
 
-/*
+/*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *

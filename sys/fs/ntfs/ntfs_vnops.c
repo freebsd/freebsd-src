@@ -1,6 +1,6 @@
 /*	$NetBSD: ntfs_vnops.c,v 1.23 1999/10/31 19:45:27 jdolecek Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *

@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$KAME: ipcomp_output.c,v 1.25 2002/06/09 14:44:00 itojun Exp $	*/
 
-/*
+/*-
  * Copyright (C) 1999 WIDE Project.
  * All rights reserved.
  *

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1994 Jan-Simon Pendry
  * Copyright (c) 1994
  *	The Regents of the University of California.  All rights reserved.

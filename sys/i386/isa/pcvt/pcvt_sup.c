@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1999, 2000 Hellmuth Michaelis
  *
  * Copyright (c) 1992, 1995 Hellmuth Michaelis and Joerg Wunsch.

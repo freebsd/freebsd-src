@@ -1,6 +1,8 @@
 /*
  * ubtbcmfw.c
- *
+ */
+
+/*-
  * Copyright (c) 2003 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *

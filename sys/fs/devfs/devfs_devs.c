@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2000,2004
  *	Poul-Henning Kamp.  All rights reserved.
  *

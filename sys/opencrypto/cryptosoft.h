@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$OpenBSD: cryptosoft.h,v 1.10 2002/04/22 23:10:09 deraadt Exp $	*/
 
-/*
+/*-
  * The author of this code is Angelos D. Keromytis (angelos@cis.upenn.edu)
  *
  * This code was written by Angelos D. Keromytis in Athens, Greece, in

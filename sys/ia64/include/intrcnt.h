@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 /* $NetBSD: intrcnt.h,v 1.17 1998/11/19 01:48:04 ross Exp $ */
 
-/*
+/*-
  * Copyright (c) 1995, 1996 Carnegie-Mellon University.
  * All rights reserved.
  *

@@ -27,7 +27,9 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
- *
+ */
+
+/*
  * This is a GEOM module for handling path selection for multi-path
  * storage devices.  It is named "fox" because it, like they, prefer
  * to have multiple exits to choose from.

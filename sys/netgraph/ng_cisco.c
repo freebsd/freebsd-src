@@ -1,7 +1,8 @@
-
 /*
  * ng_cisco.c
- *
+ */
+
+/*-
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
  * 

@@ -1,6 +1,6 @@
 /*	$NetBSD: krpc_subr.c,v 1.12.4.1 1996/06/07 00:52:26 cgd Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1995 Gordon Ross, Adam Glass
  * Copyright (c) 1992 Regents of the University of California.
  * All rights reserved.

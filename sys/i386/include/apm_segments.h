@@ -1,4 +1,4 @@
-/*
+/*-
  * LP (Laptop Package)
  *
  * Copyright (C) 1994 by HOSOKAWA Tatsumi <hosokawa@mt.cs.keio.ac.jp>

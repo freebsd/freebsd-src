@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2002 Mark Santcroos <marks@ripe.net>
  * Copyright (c) 2004 Gleb Smirnoff <glebius@FreeBSD.org>
  *

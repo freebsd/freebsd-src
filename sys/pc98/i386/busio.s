@@ -2,7 +2,7 @@
 /*	$NecBSD: busio.s,v 1.16.4.1 1999/08/16 09:06:08 kmatsuda Exp $	*/
 /*	$NetBSD$	*/
 
-/*
+/*-
  * [NetBSD for NEC PC-98 series]
  *  Copyright (c) 1996, 1997, 1998
  *	NetBSD/pc98 porting staff. All rights reserved.

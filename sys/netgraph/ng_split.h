@@ -1,4 +1,4 @@
-/*
+/*-
  *
  * Copyright (c) 1999-2000, Vitaly V Belekhov
  * All rights reserved.

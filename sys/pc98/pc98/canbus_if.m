@@ -1,4 +1,4 @@
-#
+#-
 # Copyright (c) 2002 KIYOHARA Takashi <kiyohara@kk.iij4u.or.jp>
 # All rights reserved.
 #

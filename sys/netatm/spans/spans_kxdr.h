@@ -1,7 +1,7 @@
 /*	$NetBSD: types.h,v 1.13 2000/06/13 01:02:44 thorpej Exp $	*/
 /*	$NetBSD: xdr.h,v 1.19 2000/07/17 05:00:45 matt Exp $	*/
 
-/*
+/*-
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
  * media and as a part of the software program in whole or part.  Users

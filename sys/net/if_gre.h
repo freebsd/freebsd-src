@@ -1,7 +1,7 @@
 /*	$NetBSD: if_gre.h,v 1.13 2003/11/10 08:51:52 wiz Exp $ */
 /*	 $FreeBSD$ */
 
-/*
+/*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved
  *

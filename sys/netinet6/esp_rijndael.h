@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$KAME: esp_rijndael.h,v 1.2 2003/01/20 00:55:27 itojun Exp $	*/
 
-/*
+/*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *

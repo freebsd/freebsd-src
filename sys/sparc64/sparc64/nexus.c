@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright 1998 Massachusetts Institute of Technology
  * Copyright 2001 by Thomas Moestl <tmm@FreeBSD.org>.
  * All rights reserved.

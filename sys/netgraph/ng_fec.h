@@ -1,6 +1,8 @@
 /*
  * ng_fec.h
- *
+ */
+
+/*-
  * Copyright (c) 2000 Berkeley Software Design, Inc.
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Bill Paul <wpaul@osd.bsdi.com>.  All rights reserved.
@@ -34,7 +36,7 @@
  *
  * $FreeBSD$
  */
-/*
+/*-
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
  * 

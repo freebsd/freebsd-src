@@ -1,4 +1,4 @@
-/*
+/*-
  * Implementation of SVID semaphores
  *
  * Author:  Daniel Boulet

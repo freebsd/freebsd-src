@@ -1,4 +1,4 @@
-/*
+/*-
  * Ioctl interface to Cronyx serial drivers.
  *
  * Copyright (C) 1997-2002 Cronyx Engineering.

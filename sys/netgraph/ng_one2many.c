@@ -1,7 +1,8 @@
-
 /*
  * ng_one2many.c
- *
+ */
+
+/*-
  * Copyright (c) 2000 Whistle Communications, Inc.
  * All rights reserved.
  * 

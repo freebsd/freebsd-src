@@ -1,5 +1,5 @@
 /*	$OpenBSD: yukonreg.h,v 1.2 2003/08/12 05:23:06 nate Exp $ */
-/*
+/*-
  * Copyright (c) 2003 Nathan L. Binkert <binkertn@umich.edu>
  *
  * Permission to use, copy, modify, and distribute this software for any

@@ -1,6 +1,8 @@
 /*
  * ng_btsocket_rfcomm.h
- *
+ */
+
+/*-
  * Copyright (c) 2001-2003 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *

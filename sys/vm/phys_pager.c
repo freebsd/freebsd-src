@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2000 Peter Wemm
  *
  * Redistribution and use in source and binary forms, with or without

@@ -1,5 +1,5 @@
 /*      $OpenBSD: cast.c,v 1.2 2000/06/06 06:49:47 deraadt Exp $       */
-/*
+/*-
  *	CAST-128 in C
  *	Written by Steve Reid <sreid@sea-to-sky.net>
  *	100% Public Domain - no warranty

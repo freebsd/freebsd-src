@@ -1,7 +1,8 @@
-/*
+/*-
  * Copyright (c) 1997, Stefan Esser <se@freebsd.org>
  * Copyright (c) 2000, Michael Smith <msmith@freebsd.org>
  * Copyright (c) 2000, BSDi
+ * Copyright (c) 2004, Scott Long <scottl@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

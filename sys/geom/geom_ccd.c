@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2003 Poul-Henning Kamp.
  * Copyright (c) 1995 Jason R. Thorpe.
  * Copyright (c) 1990, 1993

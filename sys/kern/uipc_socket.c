@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2004 The FreeBSD Foundation
  * Copyright (c) 2004 Robert Watson
  * Copyright (c) 1982, 1986, 1988, 1990, 1993

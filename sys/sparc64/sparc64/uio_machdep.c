@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2004 Alan L. Cox <alc@cs.rice.edu>
  * Copyright (c) 1982, 1986, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.

@@ -9,7 +9,8 @@
 #include <fs/udf/osta.h>
 
 /*****************************************************************************/
-/***********************************************************************
+/*-
+ **********************************************************************
  * OSTA compliant Unicode compression, uncompression routines.
  * Copyright 1995 Micro Design International, Inc.
  * Written by Jason M. Rinn.
@@ -253,7 +254,8 @@ main()
 
 /*****************************************************************************/
 #ifdef NEEDS_ISPRINT
-/***********************************************************************
+/*-
+ **********************************************************************
  * OSTA UDF compliant file name translation routine for OS/2,
  * Windows 95, Windows NT, Macintosh and UNIX.
  * Copyright 1995 Micro Design International, Inc.

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1991 Regents of the University of California.
  * All rights reserved.
  *
@@ -32,7 +32,7 @@
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
  */
 
-/*
+/*-
  * Copyright (c) 1987, 1990 Carnegie-Mellon University.
  * All rights reserved.
  *

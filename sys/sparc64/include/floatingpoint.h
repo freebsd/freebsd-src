@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2002 David O'Brien <obrien@FreeBSD.org>.
  * All rights reserved.
  *

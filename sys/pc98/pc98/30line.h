@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1994, 1995, 1996.  FreeBSD(98) porting team.
  * All rights reserved.
  *

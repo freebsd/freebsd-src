@@ -15,9 +15,13 @@ Some Address
 jhay@mikom.csir.co.za
 
 --- Copyright Information ---
+/*-
 
 Copyright (c) 1984, 1985, 1986, 1987, 1993
 The Regents of the University of California.  All rights reserved.
 
+Modifications Copyright (c) 2004, Robert N. M. Watson
 Modifications Copyright (c) 1995, Mike Mitchell
 Modifications Copyright (c) 1995, John Hay
+
+*/

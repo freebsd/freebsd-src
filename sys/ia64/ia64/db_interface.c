@@ -1,4 +1,4 @@
-/* 
+/*-
  * Mach Operating System
  * Copyright (c) 1992,1991,1990 Carnegie Mellon University
  * All Rights Reserved.

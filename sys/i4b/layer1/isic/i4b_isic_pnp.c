@@ -1,4 +1,4 @@
-/*
+/*-
  *   Copyright (c) 1998 Eivind Eklund. All rights reserved.
  *
  *   Copyright (c) 1998, 1999 German Tischler. All rights reserved.
@@ -31,8 +31,9 @@
  *   LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  *   OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  *   SUCH DAMAGE.
- *
- *---------------------------------------------------------------------------
+ */
+
+/*---------------------------------------------------------------------------
  *
  *	i4b_isic_pnp.c - i4b pnp support
  *	--------------------------------

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2001 Alexander Kabaev
  * All rights reserved.
  *

@@ -1,4 +1,4 @@
-/*-
+/*--
  * Copyright (c) 1997, Duke University
  * All rights reserved.
  *

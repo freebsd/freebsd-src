@@ -1,6 +1,8 @@
 /*
  * ng_btsocket_l2cap.h
- *
+ */
+
+/*-
  * Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *

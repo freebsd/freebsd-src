@@ -1,7 +1,9 @@
 
 /*
  * ng_vjc.c
- *
+ */
+
+/*-
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
  * 

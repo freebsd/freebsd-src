@@ -1,6 +1,7 @@
 /*
  * if_pppvar.h - private structures and declarations for PPP.
- *
+ */
+/*-
  * Copyright (c) 1994 The Australian National University.
  * All rights reserved.
  *

@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$KAME: ip6_mroute.c,v 1.58 2001/12/18 02:36:31 itojun Exp $	*/
 
-/*
+/*-
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
  *
@@ -32,7 +32,7 @@
 
 /*	BSDI ip_mroute.c,v 2.10 1996/11/14 00:29:52 jch Exp	*/
 
-/*
+/*-
  * Copyright (c) 1989 Stephen Deering
  * Copyright (c) 1992, 1993
  *      The Regents of the University of California.  All rights reserved.

@@ -16,7 +16,8 @@
 
 
 /* +++ zlib.h */
-/* zlib.h -- interface of the 'zlib' general purpose compression library
+/*-
+  zlib.h -- interface of the 'zlib' general purpose compression library
   version 1.0.4, Jul 24th, 1996.
 
   Copyright (C) 1995-1996 Jean-loup Gailly and Mark Adler
@@ -39,8 +40,8 @@
 
   Jean-loup Gailly        Mark Adler
   gzip@prep.ai.mit.edu    madler@alumni.caltech.edu
-
-
+*/
+/*
   The data format used by the zlib library is described by RFCs (Request for
   Comments) 1950 to 1952 in the files ftp://ds.internic.net/rfc/rfc1950.txt
   (zlib format), rfc1951.txt (deflate format) and rfc1952.txt (gzip format).

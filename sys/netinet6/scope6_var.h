@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$KAME: scope6_var.h,v 1.4 2000/05/18 15:03:27 jinmei Exp $	*/
 
-/*
+/*-
  * Copyright (C) 2000 WIDE Project.
  * All rights reserved.
  *

@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$KAME: dest6.c,v 1.59 2003/07/11 13:21:16 t-momose Exp $	*/
 
-/*
+/*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *

@@ -1,10 +1,10 @@
-/*
+/*-
  *  modified for Lites 1.1
  *
  *  Aug 1995, Godmar Back (gback@cs.utah.edu)
  *  University of Utah, Department of Computer Science
  */
-/*
+/*-
  * Copyright (c) 1982, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *

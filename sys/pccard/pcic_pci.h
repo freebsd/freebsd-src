@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2001 M. Warner Losh. All rights reserved.
  * Copyright (c) 1997 Ted Faber. All rights reserved.
  *

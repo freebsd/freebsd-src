@@ -74,7 +74,7 @@ struct mtx dont_sleep_in_callout;
 
 static struct callout *nextsoftcheck;	/* Next callout to be checked. */
 
-/*-
+/**
  * Locked by callout_lock:
  *   curr_callout    - If a callout is in progress, it is curr_callout.
  *                     If curr_callout is non-NULL, threads waiting on
@@ -91,7 +91,7 @@ static struct callout *curr_callout;
 static int wakeup_ctr;
 static int wakeup_needed;
 
-/*-
+/**
  * Locked by callout_wait_lock:
  *   callout_wait    - If wakeup_needed is set, callout_wait will be
  *                     triggered after the current callout finishes.

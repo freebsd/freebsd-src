@@ -1,5 +1,5 @@
 /*	$NetBSD$	*/
-/*
+/*-
  * [NetBSD for NEC PC98 series]
  *  Copyright (c) 1994, 1995, 1996 NetBSD/pc98 porting staff.
  *  All rights reserved.

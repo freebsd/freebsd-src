@@ -1,4 +1,4 @@
-/*
+/*-
  *   Copyright (c) 1999, 2000 Udo Schweigert. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
@@ -27,8 +27,9 @@
  *   LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  *   OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  *   SUCH DAMAGE.
- *
- *---------------------------------------------------------------------------
+ */
+
+/*---------------------------------------------------------------------------
  *
  *	i4b_ifpnp_avm.c: AVM Fritz!Card PnP hardware driver
  *	---------------------------------------------------

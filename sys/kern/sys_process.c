@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1994, Sean Eric Fagan
  * All rights reserved.
  *

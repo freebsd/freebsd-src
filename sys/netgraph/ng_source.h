@@ -1,6 +1,8 @@
 /*
  * ng_source.h
- *
+ */
+
+/*-
  * Copyright 2002 Sandvine Inc.
  * All rights reserved.
  *

@@ -30,7 +30,9 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
- *
+ */
+
+/*
  * This souce file contains routines which operates on the lock sectors, both
  * for the kernel and the userland program gbde(1).
  *

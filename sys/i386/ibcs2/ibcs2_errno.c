@@ -1,4 +1,4 @@
-/*
+/*-
  * ibcs2_errno.c
  * Copyright (c) 1995 Scott Bartram
  * All rights reserved.

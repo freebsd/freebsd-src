@@ -1,7 +1,9 @@
 
 /*
  * ng_ether.c
- *
+ */
+
+/*-
  * Copyright (c) 1996-2000 Whistle Communications, Inc.
  * All rights reserved.
  * 

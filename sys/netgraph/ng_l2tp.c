@@ -1,5 +1,4 @@
-
-/*
+/*-
  * Copyright (c) 2001-2002 Packet Design, LLC.
  * All rights reserved.
  * 

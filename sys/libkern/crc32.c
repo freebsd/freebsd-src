@@ -1,7 +1,9 @@
 /*-
  *  COPYRIGHT (C) 1986 Gary S. Brown.  You may use this program, or
  *  code or tables extracted from it, as desired without restriction.
- *
+ */
+
+/*
  *  First, the polynomial itself and its table of feedback terms.  The
  *  polynomial is
  *  X^32+X^26+X^23+X^22+X^16+X^12+X^11+X^10+X^8+X^7+X^5+X^4+X^2+X^1+X^0

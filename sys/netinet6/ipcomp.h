@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$KAME: ipcomp.h,v 1.11 2001/09/04 08:43:19 itojun Exp $	*/
 
-/*
+/*-
  * Copyright (C) 1999 WIDE Project.
  * All rights reserved.
  *

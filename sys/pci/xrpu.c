@@ -1,11 +1,13 @@
-/*
+/*-
  * ----------------------------------------------------------------------------
  * "THE BEER-WARE LICENSE" (Revision 42):
  * <phk@FreeBSD.org> wrote this file.  As long as you retain this notice you
  * can do whatever you want with this stuff. If we meet some day, and you think
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
- *
+ */
+
+/*
  * A very simple device driver for PCI cards based on Xilinx 6200 series
  * FPGA/RPU devices.  Current Functionality is to allow you to open and
  * mmap the entire thing into your program.

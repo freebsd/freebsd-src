@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1999, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,8 +21,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *---------------------------------------------------------------------------
+ */
+
+/*---------------------------------------------------------------------------
  *
  *	isic - I4B driver for ELSA MicroLink ISDN/PCC-16 and ELSA PCFpro
  *	================================================================

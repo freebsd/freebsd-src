@@ -1,6 +1,6 @@
 /*	$KAME: esp_aesctr.c,v 1.2 2003/07/20 00:29:37 itojun Exp $	*/
 
-/*
+/*-
  * Copyright (C) 1995, 1996, 1997, 1998 and 2003 WIDE Project.
  * All rights reserved.
  *

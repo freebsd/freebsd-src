@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  * Copyright (c) 2001 Gary Jennejohn. All rights reserved.
  *
@@ -22,8 +22,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *---------------------------------------------------------------------------
+ */
+
+/*---------------------------------------------------------------------------
  *
  *	i4b_ifpi2_isac.c - i4b Fritz PCI Version 2 ISACSX handler
  *	--------------------------------------------

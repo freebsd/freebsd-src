@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$KAME: ip6_fw.c,v 1.21 2001/01/24 01:25:32 itojun Exp $	*/
 
-/*
+/*-
  * Copyright (C) 1998, 1999, 2000 and 2001 WIDE Project.
  * All rights reserved.
  *
@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  */
 
-/*
+/*-
  * Copyright (c) 1993 Daniel Boulet
  * Copyright (c) 1994 Ugen J.S.Antsilevich
  * Copyright (c) 1996 Alex Nash

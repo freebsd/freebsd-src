@@ -1,6 +1,8 @@
 /*
  * ng_sppp.h Netgraph to Sppp module.
- *
+ */
+
+/*-
  * Copyright (C) 2002-2004 Cronyx Engineering.
  * Copyright (C) 2002-2004 Roman Kurakin <rik@cronyx.ru>
  *

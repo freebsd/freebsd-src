@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1994, 1995 Scott Bartram
  * Copyright (c) 1994 Arne H Juul
  * All rights reserved.

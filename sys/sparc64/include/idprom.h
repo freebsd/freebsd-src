@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1993 Adam Glass
  * All rights reserved.
  *

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1995, 1996
  *	Matt Thomas <matt@3am-software.com>.  All rights reserved.
  * Copyright (c) 1982, 1989, 1993

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1996, by Peter Wemm and Steve Passe
  * All rights reserved.
  *

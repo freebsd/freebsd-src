@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) KATO Takenori, 1996, 1997.
  *
  * All rights reserved.  Unpublished rights reserved under the copyright

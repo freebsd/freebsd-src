@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$KAME: in6_pcb.c,v 1.31 2001/05/21 05:45:10 jinmei Exp $	*/
   
-/*
+/*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *
@@ -31,7 +31,7 @@
  *
  */
 
-/*
+/*-
  * Copyright (c) 1982, 1986, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *

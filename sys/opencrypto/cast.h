@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*      $OpenBSD: cast.h,v 1.2 2002/03/14 01:26:51 millert Exp $       */
 
-/*
+/*-
  *	CAST-128 in C
  *	Written by Steve Reid <sreid@sea-to-sky.net>
  *	100% Public Domain - no warranty

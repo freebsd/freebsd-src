@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 /*	$NetBSD: byte_swap_2.S,v 1.2 1996/10/17 03:08:08 cgd Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1996 Carnegie-Mellon University.
  * All rights reserved.
  *

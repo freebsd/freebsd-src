@@ -1,6 +1,6 @@
 /*      $OpenBSD: criov.c,v 1.9 2002/01/29 15:48:29 jason Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1999 Theo de Raadt
  *
  * Redistribution and use in source and binary forms, with or without

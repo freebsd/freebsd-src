@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1995, Jack F. Vogel
  * All rights reserved.
  *

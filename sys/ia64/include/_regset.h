@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2002, 2003 Marcel Moolenaar
  * All rights reserved.
  *

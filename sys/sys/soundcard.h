@@ -1,6 +1,8 @@
 /*
  * soundcard.h
- *
+ */
+
+/*-
  * Copyright by Hannu Savolainen 1993
  * Modified for the new FreeBSD sound driver by Luigi Rizzo, 1997
  *

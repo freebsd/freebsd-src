@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1985, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -159,6 +159,7 @@ struct in_multi {
 #ifdef _KERNEL
 
 #ifdef SYSCTL_DECL
+SYSCTL_DECL(_net_inet);
 SYSCTL_DECL(_net_inet_ip);
 SYSCTL_DECL(_net_inet_raw);
 #endif

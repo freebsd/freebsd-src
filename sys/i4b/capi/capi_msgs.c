@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2001 Cubical Solutions Ltd. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,8 +21,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * capi/capi_msgs.c	The CAPI i4b message handlers.
+ */
+
+/* capi/capi_msgs.c	The CAPI i4b message handlers.
  */
 
 #include <sys/cdefs.h>

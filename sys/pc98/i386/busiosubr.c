@@ -2,7 +2,7 @@
 /*	$NecBSD: busiosubr.c,v 1.30.4.4 1999/08/28 02:25:35 honda Exp $	*/
 /*	$NetBSD$	*/
 
-/*
+/*-
  * [NetBSD for NEC PC-98 series]
  *  Copyright (c) 1996, 1997, 1998
  *	NetBSD/pc98 porting staff. All rights reserved.

@@ -1,5 +1,5 @@
 /*	$NetBSD: sysv_ipc.c,v 1.7 1994/06/29 06:33:11 cgd Exp $	*/
-/*
+/*-
  * Copyright (c) 1994 Herb Peyerl <hpeyerl@novatel.ca>
  * All rights reserved.
  *

@@ -1,5 +1,5 @@
 /*	$NetBSD: natm_proto.c,v 1.3 1996/09/18 00:56:41 chuck Exp $	*/
-/*
+/*-
  *
  * Copyright (c) 1996 Charles D. Cranor and Washington University.
  * All rights reserved.

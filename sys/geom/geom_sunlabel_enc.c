@@ -24,8 +24,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * Functions to encode or decode struct sun_disklabel into a bytestream
+ */
+/* Functions to encode or decode struct sun_disklabel into a bytestream
  * of correct endianess and packing.
  *
  * NB!  This file must be usable both in kernel and userland.

@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$KAME: esp.h,v 1.19 2001/09/04 08:43:19 itojun Exp $	*/
 
-/*
+/*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *

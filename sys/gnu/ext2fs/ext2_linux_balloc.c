@@ -1,4 +1,4 @@
-/*
+/*-
  *  modified for Lites 1.1
  *
  *  Aug 1995, Godmar Back (gback@cs.utah.edu)
@@ -6,7 +6,7 @@
  *
  * $FreeBSD$
  */
-/*
+/*-
  *  linux/fs/ext2/balloc.c
  *
  * Copyright (C) 1992, 1993, 1994, 1995

@@ -2,7 +2,7 @@
 /*	$NecBSD: busio.h,v 3.25.4.2.2.1 2000/06/12 03:53:08 honda Exp $	*/
 /*	$NetBSD: bus.h,v 1.12 1997/10/01 08:25:15 fvdl Exp $	*/
 
-/*
+/*-
  * [NetBSD for NEC PC-98 series]
  *  Copyright (c) 1997, 1998
  *	NetBSD/pc98 porting staff. All rights reserved.

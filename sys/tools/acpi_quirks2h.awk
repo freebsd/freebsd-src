@@ -1,5 +1,6 @@
 #!/usr/bin/awk -f
-#
+
+#-
 # $FreeBSD$
 #
 # Copyright (c) 2004 Mark Santcroos <marks@ripe.net>

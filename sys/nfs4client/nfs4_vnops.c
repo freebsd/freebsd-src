@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 /* $Id: nfs_vnops.c,v 1.45 2003/11/05 14:59:02 rees Exp $ */
 
-/*
+/*-
  * copyright (c) 2003
  * the regents of the university of michigan
  * all rights reserved

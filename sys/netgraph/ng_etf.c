@@ -1,6 +1,8 @@
 /*-
  * ng_etf.c  Ethertype filter
- *
+ */
+
+/*-
  * Copyright (c) 2001, FreeBSD Incorporated 
  * All rights reserved.
  *

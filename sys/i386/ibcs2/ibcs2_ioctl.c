@@ -1,6 +1,6 @@
 /*	$NetBSD: ibcs2_ioctl.c,v 1.6 1995/03/14 15:12:28 scottb Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1994, 1995 Scott Bartram
  * All rights reserved.
  *

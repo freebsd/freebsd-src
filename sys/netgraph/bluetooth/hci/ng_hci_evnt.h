@@ -1,6 +1,8 @@
 /*
  * ng_hci_evnt.h
- *
+ */
+
+/*-
  * Copyright (c) Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *

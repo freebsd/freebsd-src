@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1999 Ari Suutari. All rights reserved.
  *
  * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
@@ -23,8 +23,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *---------------------------------------------------------------------------
+ */
+
+/*---------------------------------------------------------------------------
  *
  *	isic - I4B Siemens ISDN Chipset Driver for Asuscom ISDNlink 128K PnP
  *	=====================================================================

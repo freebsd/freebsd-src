@@ -1,7 +1,9 @@
 
 /*
  * ng_tee.h
- *
+ */
+
+/*-
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
  * 

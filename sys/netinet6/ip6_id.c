@@ -2,7 +2,7 @@
 /*	$OpenBSD: ip_id.c,v 1.6 2002/03/15 18:19:52 millert Exp $	*/
 /* $FreeBSD$ */
 
-/*
+/*-
  * Copyright (C) 2003 WIDE Project.
  * All rights reserved.
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/*
+/*-
  * Copyright 1998 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
  *

@@ -1,7 +1,8 @@
-
 /*
  * ng_ppp.c
- *
+ */
+
+/*-
  * Copyright (c) 1996-2000 Whistle Communications, Inc.
  * All rights reserved.
  * 

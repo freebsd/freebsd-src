@@ -4,7 +4,8 @@
  *	structures and card information, not
  *	driver/process communication.
  *-------------------------------------------------------------------------
- *
+ */
+/*-
  * Copyright (c) 1995 Andrew McRae.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

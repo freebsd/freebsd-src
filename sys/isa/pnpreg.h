@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1996, Sujal M. Patel
  * All rights reserved.
  *

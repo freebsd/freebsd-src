@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (C) 1999-2000 by Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *

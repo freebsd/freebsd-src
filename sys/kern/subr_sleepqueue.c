@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2004 John Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
  *

@@ -1,4 +1,5 @@
-/*
+/*-
+ * Copyright (c) 2004, David Xu <davidxu@freebsd.org>
  * Copyright (c) 2002, Jeffrey Roberson <jeff@freebsd.org>
  * All rights reserved.
  *

@@ -1,7 +1,8 @@
-
 /*
  * ng_parse.h
- *
+ */
+
+/*-
  * Copyright (c) 1999 Whistle Communications, Inc.
  * All rights reserved.
  * 

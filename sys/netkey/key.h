@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$KAME: key.h,v 1.32 2003/09/07 05:25:20 itojun Exp $	*/
 
-/*
+/*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *

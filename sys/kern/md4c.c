@@ -1,7 +1,8 @@
 /* MD4C.C - RSA Data Security, Inc., MD4 message-digest algorithm
  */
 
-/* Copyright (C) 1990-2, RSA Data Security, Inc. All rights reserved.
+/*-
+   Copyright (C) 1990-2, RSA Data Security, Inc. All rights reserved.
 
    License to copy and use this software is granted provided that it
    is identified as the "RSA Data Security, Inc. MD4 Message-Digest

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1992, 2000 Hellmuth Michaelis
  * Copyright (c) 1992, 1995 Joerg Wunsch.
  * Copyright (c) 1992, 1993 Brian Dunford-Shore and Holger Veit.

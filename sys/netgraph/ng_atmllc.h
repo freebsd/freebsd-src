@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2003-2004 Benno Rice <benno@FreeBSD.org>
  * All Rights Reserved.
  *

@@ -1,6 +1,6 @@
 /* $OpenBSD: deflate.c,v 1.3 2001/08/20 02:45:22 hugh Exp $ */
 
-/*
+/*-
  * Copyright (c) 2001 Jean-Jacques Bernard-Gundol (jj@wabbitt.org)
  *
  * Redistribution and use in source and binary forms, with or without

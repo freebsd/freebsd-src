@@ -1,13 +1,13 @@
-/*
+/*-
  * ----------------------------------------------------------------------------
  * "THE BEER-WARE LICENSE" (Revision 42):
  * <phk@FreeBSD.org> wrote this file.  As long as you retain this notice you
  * can do whatever you want with this stuff. If we meet some day, and you think
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
- *
- * $Id: if_mn.c,v 1.38 2003/06/11 06:24:36 obrien Exp $
- *
+ */
+
+/*
  * Driver for Siemens reference design card "Easy321-R1".
  *
  * This card contains a FALC54 E1/T1 framer and a MUNICH32X 32-channel HDLC

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1999, Boris Popov
  * All rights reserved.
  *

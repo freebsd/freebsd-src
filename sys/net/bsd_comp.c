@@ -1,4 +1,5 @@
-/* Because this code is derived from the 4.3BSD compress source:
+/*-
+ * Because this code is derived from the 4.3BSD compress source:
  *
  *
  * Copyright (c) 1985, 1986 The Regents of the University of California.

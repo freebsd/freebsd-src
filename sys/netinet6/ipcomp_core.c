@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$KAME: ipcomp_core.c,v 1.25 2001/07/26 06:53:17 jinmei Exp $	*/
 
-/*
+/*-
  * Copyright (C) 1999 WIDE Project.
  * All rights reserved.
  *

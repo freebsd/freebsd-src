@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$KAME: esp_core.c,v 1.50 2000/11/02 12:27:38 itojun Exp $	*/
 
-/*
+/*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *

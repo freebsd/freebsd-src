@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2001-2003
  *	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
  * 	All rights reserved.
@@ -25,7 +25,9 @@
  * SUCH DAMAGE.
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
- *
+ */
+
+/*
  * Netgraph module to connect NATM interfaces to netgraph.
  */
 

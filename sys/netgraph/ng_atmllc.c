@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2003-2004 Benno Rice <benno@eloquent.com.au>
  * All Rights Reserved.
  *

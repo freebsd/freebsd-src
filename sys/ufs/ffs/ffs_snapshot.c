@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright 2000 Marshall Kirk McKusick. All Rights Reserved.
  *
  * Further information about snapshots can be obtained from:

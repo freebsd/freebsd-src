@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$OpenBSD: skipjack.h,v 1.3 2002/03/14 01:26:51 millert Exp $	*/
 
-/* 
+/*-
  * Further optimized test implementation of SKIPJACK algorithm 
  * Mark Tillotson <markt@chaos.org.uk>, 25 June 98
  * Optimizations suit RISC (lots of registers) machine best.

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2002 Alfred Perlstein <alfred@FreeBSD.org>
  * All rights reserved.
  *

@@ -1,6 +1,6 @@
 /*	$NetBSD: if_llc.h,v 1.12 1999/11/19 20:41:19 thorpej Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *

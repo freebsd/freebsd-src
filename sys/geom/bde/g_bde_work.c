@@ -30,7 +30,9 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
- *
+ */
+
+/*
  * This source file contains the state-engine which makes things happen in the
  * right order.
  *

@@ -1,6 +1,8 @@
 /*
  * ng_l2cap_llpi.h
- *
+ */
+
+/*-
  * Copyright (c) Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *

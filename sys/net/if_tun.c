@@ -1,6 +1,6 @@
 /*	$NetBSD: if_tun.c,v 1.14 1994/06/29 06:36:25 cgd Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1988, Julian Onions <jpo@cs.nott.ac.uk>
  * Nottingham University 1987.
  *

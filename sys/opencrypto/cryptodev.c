@@ -1,6 +1,6 @@
 /*	$OpenBSD: cryptodev.c,v 1.52 2002/06/19 07:22:46 deraadt Exp $	*/
 
-/*
+/*-
  * Copyright (c) 2001 Theo de Raadt
  *
  * Redistribution and use in source and binary forms, with or without

@@ -1,4 +1,4 @@
-/*
+/*-
  * Fowler / Noll / Vo Hash (FNV Hash)
  * http://www.isthe.com/chongo/tech/comp/fnv/
  *

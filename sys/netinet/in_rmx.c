@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright 1994, 1995 Massachusetts Institute of Technology
  *
  * Permission to use, copy, modify, and distribute this software and

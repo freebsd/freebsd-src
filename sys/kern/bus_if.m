@@ -1,5 +1,4 @@
-
-#
+#-
 # Copyright (c) 1998-2004 Doug Rabson
 # All rights reserved.
 #

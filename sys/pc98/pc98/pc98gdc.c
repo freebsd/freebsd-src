@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1999 FreeBSD(98) port team.
  * All rights reserved.
  * 

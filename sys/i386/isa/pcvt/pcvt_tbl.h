@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1992, 2000 Hellmuth Michaelis.
  *
  * All rights reserved.

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1990,1991 Regents of The University of Michigan.
  * All Rights Reserved.
  *
@@ -19,6 +19,8 @@
  *	Ann Arbor, Michigan
  *	+1-313-763-0525
  *	netatalk@itd.umich.edu
+ *
+ * $FreeBSD$
  */
 #ifndef _NETATALK_DDP_H_
 #define _NETATALK_DDP_H_ 1

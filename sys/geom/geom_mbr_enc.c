@@ -22,8 +22,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * Functions to encode or decode struct dos_partition into a bytestream
+ */
+
+/* Functions to encode or decode struct dos_partition into a bytestream
  * of correct endianess and packing.  These functions do no validation
  * or sanity checking, they only pack/unpack the fields correctly.
  *

@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 /* $Id: rpcclnt.c,v 1.9 2003/11/05 14:59:03 rees Exp $ */
 
-/*
+/*-
  * copyright (c) 2003
  * the regents of the university of michigan
  * all rights reserved
@@ -25,7 +25,7 @@
  * advised of the possibility of such damages.
  */
 
-/*
+/*-
  * Copyright (c) 1989, 1991, 1993, 1995 The Regents of the University of
  * California.  All rights reserved.
  * 

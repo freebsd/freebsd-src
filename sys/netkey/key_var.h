@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$KAME: key_var.h,v 1.12 2001/11/06 03:48:29 itojun Exp $	*/
 
-/*
+/*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *

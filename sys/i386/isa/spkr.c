@@ -1,4 +1,4 @@
-/*
+/*-
  * spkr.c -- device driver for console speaker
  *
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993

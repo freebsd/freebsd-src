@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1998, 1999 Eduardo E. Horvath
  * Copyright (c) 1999 Matthew R. Green
  * All rights reserved.

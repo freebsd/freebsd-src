@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1994 by Chris Provenzano, proven@mit.edu
  * All rights reserved.
  *

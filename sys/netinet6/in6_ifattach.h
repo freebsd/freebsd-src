@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$KAME: in6_ifattach.h,v 1.14 2001/02/08 12:48:39 jinmei Exp $	*/
 
-/*
+/*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *

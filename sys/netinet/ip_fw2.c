@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2002 Luigi Rizzo, Universita` di Pisa
  *
  * Redistribution and use in source and binary forms, with or without

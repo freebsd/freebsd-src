@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1991, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.

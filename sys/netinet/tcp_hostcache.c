@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2002 Andre Oppermann, Internet Business Solutions AG
  * All rights reserved.
  *

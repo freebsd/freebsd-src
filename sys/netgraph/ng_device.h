@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2002 Mark Santcroos <marks@ripe.net>
  *
  * Redistribution and use in source and binary forms, with or without

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1999 Matthew R. Green
  * All rights reserved.
  *

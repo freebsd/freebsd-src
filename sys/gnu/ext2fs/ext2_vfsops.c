@@ -1,10 +1,10 @@
-/*
+/*-
  *  modified for EXT2FS support in Lites 1.1
  *
  *  Aug 1995, Godmar Back (gback@cs.utah.edu)
  *  University of Utah, Department of Computer Science
  */
-/*	
+/*-
  * Copyright (c) 1989, 1991, 1993, 1994	
  *	The Regents of the University of California.  All rights reserved.
  *

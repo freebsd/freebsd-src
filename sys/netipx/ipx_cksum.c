@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1995, Mike Mitchell
  * Copyright (c) 1982, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.

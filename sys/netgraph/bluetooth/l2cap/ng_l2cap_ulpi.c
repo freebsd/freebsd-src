@@ -1,6 +1,8 @@
 /*
  * ng_l2cap_ulpi.c
- *
+ */
+
+/*-
  * Copyright (c) Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *

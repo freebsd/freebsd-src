@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1996 Jason R. Thorpe <thorpej@and.com>
  * All rights reserved.
  *

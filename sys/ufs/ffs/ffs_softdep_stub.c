@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright 1998 Marshall Kirk McKusick. All Rights Reserved.
  *
  * The soft updates code is derived from the appendix of a University

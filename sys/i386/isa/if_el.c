@@ -1,4 +1,5 @@
-/* Copyright (c) 1994, Matthew E. Kimmel.  Permission is hereby granted
+/*-
+ * Copyright (c) 1994, Matthew E. Kimmel.  Permission is hereby granted
  * to use, copy, modify and distribute this software provided that both
  * the copyright notice and this permission notice appear in all copies
  * of the software, derivative works or modified versions, and any

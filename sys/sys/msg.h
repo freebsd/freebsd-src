@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 /*	$NetBSD: msg.h,v 1.4 1994/06/29 06:44:43 cgd Exp $	*/
 
-/*
+/*-
  * SVID compatible msg.h file
  *
  * Author:  Daniel Boulet

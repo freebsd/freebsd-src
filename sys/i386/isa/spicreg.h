@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2000  Nick Sayer
  * All rights reserved.
  *

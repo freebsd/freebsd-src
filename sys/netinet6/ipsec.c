@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$KAME: ipsec.c,v 1.207 2004/01/13 03:30:42 itojun Exp $	*/
 
-/*
+/*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *

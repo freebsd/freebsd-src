@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 /* From: NetBSD: cpu.h,v 1.18 1997/09/23 23:17:49 mjacob Exp */
 
-/*
+/*-
  * Copyright (c) 1988 University of Utah.
  * Copyright (c) 1982, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.

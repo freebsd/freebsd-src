@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1995 Terrence R. Lambert
  * All rights reserved.
  *

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2004 Lukas Ertl
  * Copyright (c) 1997, 1998, 1999
  *      Nan Yang Computer Services Limited.  All rights reserved.

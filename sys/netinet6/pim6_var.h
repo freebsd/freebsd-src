@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$KAME: pim6_var.h,v 1.8 2000/06/06 08:07:43 jinmei Exp $	*/
 
-/*
+/*-
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
  *

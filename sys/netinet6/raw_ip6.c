@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *
@@ -29,7 +29,7 @@
  * $FreeBSD$
  */
 
-/*
+/*-
  * Copyright (c) 1982, 1986, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *

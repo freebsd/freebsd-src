@@ -2,7 +2,7 @@
 /*	$OpenBSD: nfsmount.h,v 1.11 2002/03/14 01:27:13 millert Exp $	*/
 /*	$NetBSD: nfsmount.h,v 1.10 1996/02/18 11:54:03 fvdl Exp $	*/
 
-/*
+/*-
  * copyright (c) 2003
  * the regents of the university of michigan
  * all rights reserved
@@ -26,7 +26,7 @@
  * advised of the possibility of such damages.
  */
 
-/*
+/*-
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *

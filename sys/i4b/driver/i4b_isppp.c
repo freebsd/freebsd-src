@@ -1,4 +1,4 @@
-/*
+/*-
  *   Copyright (c) 1997 Joerg Wunsch. All rights reserved.
  *
  *   Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
@@ -24,8 +24,9 @@
  *   LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  *   OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  *   SUCH DAMAGE.
- *
- *---------------------------------------------------------------------------
+ */
+
+/*---------------------------------------------------------------------------
  *
  *	i4b_isppp.c - isdn4bsd kernel SyncPPP driver
  *	--------------------------------------------

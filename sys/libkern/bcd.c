@@ -1,4 +1,4 @@
-/*
+/*-
  * Some data-tables that are often used.
  * Cannot be copyrighted.
  */

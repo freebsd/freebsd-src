@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$KAME: ah_input.c,v 1.67 2002/01/07 11:39:56 kjc Exp $	*/
 
-/*
+/*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *

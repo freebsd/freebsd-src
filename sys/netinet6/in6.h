@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$KAME: in6.h,v 1.89 2001/05/27 13:28:35 itojun Exp $	*/
 
-/*
+/*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *
@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  */
 
-/*
+/*-
  * Copyright (c) 1982, 1986, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *

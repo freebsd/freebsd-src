@@ -1,4 +1,4 @@
-/*
+/*-
  *   Copyright (c) 2001 Hellmuth Michaelis. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
@@ -21,8 +21,9 @@
  *   LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  *   OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  *   SUCH DAMAGE.
- *
- *---------------------------------------------------------------------------
+ */
+
+/*---------------------------------------------------------------------------
  *
  *	Eicon Diehl DIVA 2.0 or 2.02 (ISA PnP) support for isic driver
  *	--------------------------------------------------------------

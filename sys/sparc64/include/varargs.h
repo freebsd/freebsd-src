@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2002 David E. O'Brien.  All rights reserved.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.

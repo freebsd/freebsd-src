@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1996-1999 Eduardo Horvath
  *
  * Redistribution and use in source and binary forms, with or without

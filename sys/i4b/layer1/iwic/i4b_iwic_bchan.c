@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1999, 2000 Dave Boyce. All rights reserved.
  * Copyright (c) 2000, 2001 Hellmuth Michaelis. All rights reserved. 
  *
@@ -22,8 +22,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *---------------------------------------------------------------------------
+ */
+
+/*---------------------------------------------------------------------------
  *
  *      i4b_iwic - isdn4bsd Winbond W6692 driver
  *      ----------------------------------------

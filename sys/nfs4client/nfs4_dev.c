@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 /* $Id: nfs4_dev.c,v 1.10 2003/11/05 14:58:59 rees Exp $ */
 
-/*
+/*-
  * copyright (c) 2003
  * the regents of the university of michigan
  * all rights reserved

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1996 John S. Dyson
  * All rights reserved.
  *

@@ -1,6 +1,8 @@
 /*
  * ng_h4.c
- *
+ */
+
+/*-
  * Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -24,7 +26,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
+ */
+
+/*
  * $Id: ng_h4.c,v 1.5 2003/05/10 05:51:25 max Exp $
  * $FreeBSD$
  * 
