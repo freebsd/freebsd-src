@@ -261,7 +261,7 @@ pdq_ifioctl(
 #if defined(INET)
 		case AF_INET: {
 		    pdq_ifinit(sc);
-		    arp_ifinit(&sc->sc_ac, ifa);
+		    arp_ifinit(&sc->sc_ac.ac_if, ifa);
 		    break;
 		}
 #endif /* INET */
