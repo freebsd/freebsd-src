@@ -31,29 +31,22 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.43 1997/09/02 01:18:46 bde Exp $
+ *	$Id: route.c,v 1.44 1997/09/16 11:43:46 bde Exp $
  */
 
 #include "opt_mrouting.h"
 
 #include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
-#include <sys/socketvar.h>
 #include <sys/domain.h>
-#include <sys/protosw.h>
 
 #include <net/if.h>
 #include <net/route.h>
-#include <net/raw_cb.h>
 
 #include <netinet/in.h>
-#include <netinet/in_var.h>
 #include <netinet/ip_mroute.h>
 
 #define	SA(p) ((struct sockaddr *)(p))

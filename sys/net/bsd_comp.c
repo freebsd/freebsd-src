@@ -40,19 +40,14 @@
 /*
  * This version is for use with mbufs on BSD-derived systems.
  *
- * $Id: bsd_comp.c,v 1.8 1997/08/19 17:07:07 peter Exp $
+ * $Id: bsd_comp.c,v 1.9 1997/09/02 01:18:31 bde Exp $
  */
 
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/socket.h>
-#include <net/if.h>
-#include <net/if_types.h>
 #include <net/ppp_defs.h>
-#include <net/if_ppp.h>
 
 #define PACKETPTR	struct mbuf *
 #include <net/ppp_comp.h>

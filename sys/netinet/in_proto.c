@@ -31,23 +31,17 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- *	$Id: in_proto.c,v 1.41 1997/09/16 11:43:55 bde Exp $
+ *	$Id: in_proto.c,v 1.42 1997/09/16 18:36:04 joerg Exp $
  */
 
-#include "opt_tcpdebug.h"
-
 #include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
-#include <sys/socketvar.h>
 #include <sys/domain.h>
-#include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
-#include <net/radix.h>
 #include <net/route.h>
 
 #include <netinet/in.h>
@@ -55,17 +49,10 @@
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
-#include <netinet/in_pcb.h>
 #include <netinet/igmp_var.h>
 #include <netinet/tcp.h>
-#include <netinet/tcp_fsm.h>
-#include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
-#include <netinet/tcpip.h>
-#ifdef TCPDEBUG
-#include <netinet/tcp_debug.h>
-#endif
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 /*
@@ -73,7 +60,6 @@
  */
 
 #ifdef IPXIP
-#include <netipx/ipx.h>
 #include <netipx/ipx_ip.h>
 #endif
 

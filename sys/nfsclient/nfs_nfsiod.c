@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_syscalls.c,v 1.28 1997/10/11 18:31:35 phk Exp $
+ * $Id: nfs_syscalls.c,v 1.29 1997/10/12 20:25:47 phk Exp $
  */
 
 #include <sys/param.h>
@@ -44,12 +44,10 @@
 #include <sys/sysctl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
-#include <sys/stat.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
-#include <sys/uio.h>
 #include <sys/buf.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -57,7 +55,6 @@
 #include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/namei.h>
-#include <sys/syslog.h>
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>

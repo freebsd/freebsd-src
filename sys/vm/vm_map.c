@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.93 1997/10/12 20:26:30 phk Exp $
+ * $Id: vm_map.c,v 1.94 1997/10/24 23:41:00 dyson Exp $
  */
 
 /*
@@ -74,10 +74,6 @@
 #include <sys/proc.h>
 #include <sys/vmmeter.h>
 #include <sys/mman.h>
-
-#ifdef SMP
-#include <machine/smp.h>
-#endif
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
