@@ -46,7 +46,7 @@
  * in Germany will I accept domestic beer.  This code may or may not work
  * and I certainly make no claims as to its fitness for *any* purpose.
  * 
- * $Id: kern_threads.c,v 1.11 1999/01/27 10:14:05 bde Exp $
+ * $Id: kern_threads.c,v 1.12 1999/01/27 21:49:56 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -79,7 +79,7 @@ thr_sleep(struct proc *p, struct thr_sleep_args *uap) {
 		/*
 		 * Get timespec struct
 		 */
-		if ((error = copyin((caddr_t) uap->timeout, (caddr_t) &ts, sizeof ts)) != 0) {
+		if ((error = copyin((c_caddr_t) uap->timeout, (caddr_t) &ts, sizeof ts)) != 0) {
 			p->p_wakeup = 0;
 			return error;
 		}

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.294 1999/01/26 09:58:37 yokota Exp $
+ *	$Id: syscons.c,v 1.295 1999/01/28 01:59:48 dillon Exp $
  */
 
 #include "sc.h"
@@ -172,7 +172,9 @@ static  long		scrn_time_stamp;
 static	int		saver_mode = CONS_LKM_SAVER; /* LKM/user saver */
 static	int		run_scrn_saver = FALSE;	/* should run the saver? */
 static	int		scrn_idle = FALSE;	/* about to run the saver */
+#if NSPLASH > 0
 static	int		scrn_saver_failed;
+#endif
 	u_char      	scr_map[256];
 	u_char      	scr_rmap[256];
 static	int		initial_video_mode;	/* initial video mode # */

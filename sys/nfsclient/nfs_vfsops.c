@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.79 1998/12/04 22:54:54 archie Exp $
+ * $Id: nfs_vfsops.c,v 1.80 1999/01/28 00:57:51 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -142,8 +142,8 @@ VFS_SET(nfs_vfsops, nfs, VFCF_NETWORK);
  * server for a diskless/dataless machine. It is initialized below just
  * to ensure that it is allocated to initialized data (.data not .bss).
  */
-struct nfs_diskless nfs_diskless = { { 0 } };
-struct nfsv3_diskless nfsv3_diskless = { { 0 } };
+struct nfs_diskless nfs_diskless = { { { 0 } } };
+struct nfsv3_diskless nfsv3_diskless = { { { 0 } } };
 int nfs_diskless_valid = 0;
 
 SYSCTL_INT(_vfs_nfs, OID_AUTO, diskless_valid, CTLFLAG_RD, 
