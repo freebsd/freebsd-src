@@ -816,6 +816,28 @@ ich_pci_detach(device_t dev)
 	return 0;
 }
 
+static void
+ich_pci_codec_reset(struct sc_info *sc)
+{
+	int i;
+	uint32_t control;
+
+	control = ich_rd(sc, ICH_REG_GLOB_CNT, 4); 
+	control &= ~(ICH_GLOB_CTL_SHUT);
+	control |= (control & ICH_GLOB_CTL_COLD) ?
+		    ICH_GLOB_CTL_WARM : ICH_GLOB_CTL_COLD;
+	ich_wr(sc, ICH_REG_GLOB_CNT, control, 4);
+
+	for (i = 500000; i; i--) {
+	     	if (ich_rd(sc, ICH_REG_GLOB_STA, 4) & ICH_GLOB_STA_PCR)
+			break;		/*		or ICH_SCR? */
+		DELAY(1);
+	}
+
+	if (i <= 0)
+		printf("%s: time out\n", __func__);
+}
+
 static int
 ich_pci_suspend(device_t dev)
 {
@@ -840,12 +862,20 @@ ich_pci_resume(device_t dev)
 
 	sc = pcm_getdevinfo(dev);
 
+	if (sc->regtype == SYS_RES_IOPORT)
+		pci_enable_io(dev, SYS_RES_IOPORT);
+	else
+		pci_enable_io(dev, SYS_RES_MEMORY);
+	pci_enable_busmaster(dev);
+
 	/* Reinit audio device */
     	if (ich_init(sc) == -1) {
 		device_printf(dev, "unable to reinitialize the card\n");
 		return ENXIO;
 	}
 	/* Reinit mixer */
+	ich_pci_codec_reset(sc);
+	ac97_setextmode(sc->codec, sc->hasvra | sc->hasvrm);
     	if (mixer_reinit(dev) == -1) {
 		device_printf(dev, "unable to reinitialize the mixer\n");
 		return ENXIO;
