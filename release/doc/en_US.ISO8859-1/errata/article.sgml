@@ -144,6 +144,16 @@
       can be found in security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:02.shmat.asc">FreeBSD-SA-04:02</ulink>.</para>
 
+    <para>(4 Mar 2004) It is possible for a remote attacker to conduct
+      a low-bandwidth denial-of-service attack against a machine
+      providing TCP-based services, filling up the target's memory
+      buffers and potentially leading to a system crash.  This
+      vulnerability has been addressed on the &os; &release.prev;
+      security fix branch.  Security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:04.tcp.asc">FreeBSD-SA-04:04</ulink>
+      contains more details, as well as information on patching
+      existing systems.</para>
+
 ]]>
 
   </sect1>
