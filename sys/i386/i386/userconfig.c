@@ -38,7 +38,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.13 1994/11/13 00:57:06 jkh Exp $
+ *      $Id: userconfig.c,v 1.14 1994/11/13 01:55:33 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -80,48 +80,52 @@ static struct isa_device *search_devtable(struct isa_device *, char *, int);
 static void cngets(char *, int);
 static Cmd *parse_cmd(char *);
 static int parse_args(char *, CmdParm *);
-long strtol(const char *, char **, int);
 int strncmp(const char *, const char *, size_t);
+unsigned long strtoul(const char *, char **, int);
 
 static int list_devices(CmdParm *);
 static int set_device_ioaddr(CmdParm *);
 static int set_device_irq(CmdParm *);
 static int set_device_drq(CmdParm *);
 static int set_device_mem(CmdParm *);
+static int set_device_flags(CmdParm *);
 static int set_device_enable(CmdParm *);
 static int set_device_disable(CmdParm *);
 static int quitfunc(CmdParm *);
 static int helpfunc(CmdParm *);
 
-CmdParm addr_parms[] = {
+static int lineno;
+
+static CmdParm addr_parms[] = {
     { PARM_DEVSPEC, {} },
     { PARM_ADDR, {} },
     { -1, {} },
 };
 
-CmdParm int_parms[] = {
+static CmdParm int_parms[] = {
     { PARM_DEVSPEC, {} },
     { PARM_INT, {} },
     { -1, {} },
 };
 
-CmdParm dev_parms[] = {
+static CmdParm dev_parms[] = {
     { PARM_DEVSPEC, {} },
     { -1, {} },
 };
 
-Cmd CmdList[] = {
-    { "?", 	helpfunc, 		NULL },		/* ""		*/
+static Cmd CmdList[] = {
+    { "?", 	helpfunc, 		NULL },		/* ? (help)	*/
     { "di",	set_device_disable,	dev_parms },	/* disable dev	*/
     { "dr",	set_device_drq,		int_parms },	/* drq dev #	*/
     { "en",	set_device_enable,	dev_parms },	/* enable dev	*/
-    { "ex", 	quitfunc, 		NULL },		/* ""		*/
+    { "ex", 	quitfunc, 		NULL },		/* exit (quit)	*/
+    { "f",	set_device_flags,	int_parms },	/* flags dev mask */
     { "h", 	helpfunc, 		NULL },		/* help		*/
-    { "io",	set_device_ioaddr,	addr_parms },	/* io dev addr	*/
+    { "io",	set_device_mem,		addr_parms },	/* iomem dev addr */
     { "ir",	set_device_irq,		int_parms },	/* irq dev #	*/
-    { "l",	list_devices,		NULL },		/* ls		*/
-    { "m",	set_device_mem,		addr_parms },	/* mem dev addr	*/
-    { "q", 	quitfunc, 		NULL },		/* ""		*/
+    { "l",	list_devices,		NULL },		/* ls, list	*/
+    { "p",	set_device_ioaddr,	int_parms },	/* port dev addr */
+    { "q", 	quitfunc, 		NULL },		/* quit		*/
     { NULL,	NULL,			NULL },
 };
 
@@ -137,7 +141,7 @@ userconfig(void)
     while (1) {
 	printf("config> ");
 	cngets(input, 80);
-	if (input[0] == NULL)
+	if (input[0] == '\0')
 	    continue;
 	cmd = parse_cmd(input);
 	if (!cmd) {
@@ -194,9 +198,9 @@ parse_args(char *cmd, CmdParm *parms)
 	    while (*cmd && !(*cmd == ' ' || *cmd == '\t' ||
 	      (*cmd >= '0' && *cmd <= '9')))
 		devname[i++] = *(cmd++);
-	    devname[i] = NULL;
+	    devname[i] = '\0';
 	    if (*cmd >= '0' && *cmd <= '9') {
-		unit = strtol(cmd, &ptr, 10);
+		unit = strtoul(cmd, &ptr, 10);
 		if (cmd == ptr) {
 		    printf("Invalid device number\n");
 		    /* XXX should print invalid token here and elsewhere. */
@@ -213,7 +217,7 @@ parse_args(char *cmd, CmdParm *parms)
 	    continue;
 	}
 	if (parms->type == PARM_INT) {
-	    parms->parm.iparm = strtol(cmd, &ptr, 10);
+	    parms->parm.iparm = strtoul(cmd, &ptr, 0);
 	    if (cmd == ptr) {
 	        printf("Invalid numeric argument\n");
 		return 1;
@@ -223,7 +227,7 @@ parse_args(char *cmd, CmdParm *parms)
 	    continue;
 	}
 	if (parms->type == PARM_ADDR) {
-	    parms->parm.aparm = (void *)strtol(cmd, &ptr, 16);
+	    parms->parm.aparm = (void *)strtoul(cmd, &ptr, 0);
 	    if (cmd == ptr) {
 	        printf("Invalid address argument\n");
 	        return 1;
@@ -239,7 +243,7 @@ parse_args(char *cmd, CmdParm *parms)
 static int
 list_devices(CmdParm *parms)
 {
-    printf("Device	IOaddr	IRQ	DRQ	MemAddr	Flags	Enabled\n");
+    lineno = 0;
     lsdevtab(&isa_devtab_bio[0]);
     lsdevtab(&isa_devtab_tty[0]);
     lsdevtab(&isa_devtab_net[0]);
@@ -250,21 +254,31 @@ list_devices(CmdParm *parms)
 static int
 set_device_ioaddr(CmdParm *parms)
 {
-    parms[0].parm.dparm->id_iobase = (int) parms[1].parm.aparm;
+    parms[0].parm.dparm->id_iobase = parms[1].parm.iparm;
     return 0;
 }
 
 static int
 set_device_irq(CmdParm *parms)
 {
-    parms[0].parm.dparm->id_irq = 1 << parms[1].parm.iparm;
+    unsigned irq;
+
+    irq = parms[1].parm.iparm;
+    parms[0].parm.dparm->id_irq = (irq < 16 ? 1 << irq : 0);
     return 0;
 }
 
 static int
 set_device_drq(CmdParm *parms)
 {
-    parms[0].parm.dparm->id_drq = parms[1].parm.iparm;
+    unsigned drq;
+
+    /*
+     * The bounds checking is just to ensure that the value can be printed
+     * in 5 characters.  32768 gets converted to -32768 and doesn't fit.
+     */
+    drq = parms[1].parm.iparm;
+    parms[0].parm.dparm->id_drq = (drq < 32768 ? drq : -1);
     return 0;
 }
 
@@ -272,6 +286,13 @@ static int
 set_device_mem(CmdParm *parms)
 {
     parms[0].parm.dparm->id_maddr = parms[1].parm.aparm;
+    return 0;
+}
+
+static int
+set_device_flags(CmdParm *parms)
+{
+    parms[0].parm.dparm->id_flags = parms[1].parm.iparm;
     return 0;
 }
 
@@ -301,35 +322,61 @@ helpfunc(CmdParm *parms)
     printf("Command\t\t\tDescription\n");
     printf("-------\t\t\t-----------\n");
     printf("ls\t\t\tList currently configured devices\n");
-    printf("io <devname> <addr>\tSet device io address\n");
-    printf("irq <devname> <irq>\tSet device IRQ\n");
-    printf("drq <devname> <drq>\tSet device DRQ\n");
-    printf("mem <devname> <addr>\tSet device memory address\n");
+    printf("port <devname> <addr>\tSet device port (i/o address)\n");
+    printf("irq <devname> <number>\tSet device irq\n");
+    printf("drq <devname> <number>\tSet device drq\n");
+    printf("iomem <devname> <addr>\tSet device maddr (memory address)\n");
+    printf("flags <devname> <mask>\tSet device flags\n");
     printf("enable <devname>\tEnable device\n");
     printf("disable <devname>\tDisable device (will not be probed)\n");
     printf("quit\t\t\tExit this configuration utility\n");
     printf("help\t\t\tThis message\n\n");
-    printf("Commands may also be abbreviated to a unique number of characters\n");
+    printf("Commands may be abbreviated to a unique prefix\n");
     return 0;
 }
 
 static void
 lsdevtab(struct isa_device *dt)
 {
-    int i;
-    int lineno = 0;
+    for (; dt->id_id != 0; dt++) {
+	int i;
+	char line[80];
 
-    for (i = 0; dt->id_id != 0; dt++) {
-	if (lineno++ > 22) {
-		lineno = 0;
+	if (lineno >= 23) {
 		printf("<More> ");
 		(void)cngetc();
 		printf("\n");
+		lineno = 0;
 	}
-	printf("%s%d	0x%x	%d	%d	0x%x	0x%x	%s\n",
- 	       dt->id_driver->name, dt->id_unit, dt->id_iobase,
-	       ffs(dt->id_irq) - 1, dt->id_drq, dt->id_maddr,
-	       dt->id_flags, dt->id_enabled ? "Yes" : "No");
+	if (lineno == 0) {
+		printf(
+"Device   port       irq   drq   iomem      unit  flags      enabled\n");
+		++lineno;
+	}
+	/*
+	 * printf() doesn't support %#, %- or even field widths for strings,
+	 * so formatting is not straightforward.
+	 */
+	bzero(line, sizeof line);
+	sprintf(line, "%s%d", dt->id_driver->name, dt->id_unit);
+	/* Missing: id_id (don't need it). */
+	/* Missing: id_driver (useful if we could show it by name). */
+	sprintf(line + 9, "0x%x", dt->id_iobase);
+	sprintf(line + 20, "%d", ffs(dt->id_irq) - 1);
+	sprintf(line + 26, "%d", dt->id_drq);
+	sprintf(line + 32, "0x%x", dt->id_maddr);
+	/* Missing: id_msize (0 at start, useful if we can get here later). */
+	/* Missing: id_intr (useful if we could show it by name). */
+	/* Display only: id_unit. */
+	sprintf(line + 43, "%d", dt->id_unit);
+	sprintf(line + 49, "0x%x", dt->id_flags);
+	/* Missing: id_scsiid, id_alive, id_ri_flags, id_reconfig (0 now...) */
+	sprintf(line + 60, "%s", dt->id_enabled ? "Yes" : "No");
+	for (i = 0; i < 60; ++i)
+		if (line[i] == '\0')
+			line[i] = ' ';
+	printf("%s\n", line);
+	++lineno;
     }
 }
 
@@ -371,7 +418,7 @@ cngets(char *input, int maxin)
 	if ((c == '\010' || c == '\177')) {
 	    	if (nchars) {
 			printf("\010 \010");
-			*--input = NULL, --nchars;
+			*--input = '\0', --nchars;
 		}
 		continue;
 	}
@@ -379,13 +426,13 @@ cngets(char *input, int maxin)
 	else if ((c == '\025' || c == '\030')) {
 		while (nchars) {
 			printf("\010 \010");
-			*--input = NULL, --nchars;
+			*--input = '\0', --nchars;
 		}
 		continue;
 	}
 	printf("%c", c);
 	if ((++nchars == maxin) || (c == '\n')) {
-	    *input = NULL;
+	    *input = '\0';
 	    break;
 	}
 	*input++ = (u_char)c;
@@ -408,86 +455,83 @@ strncmp(const char *s1, const char *s2, size_t n)
 }
 
 /*
- * Convert a string to a long integer.
+ * Kludges to get the library sources of strtoul.c to work in our
+ * environment.  isdigit() and isspace() could be used above too.
+ */
+#define	isalpha(c)	(((c) >= 'A' && (c) <= 'Z') \
+			 || ((c) >= 'a' && (c) <= 'z'))		/* unsafe */
+#define	isdigit(c)	((unsigned)((c) - '0') <= '9' - '0')
+#define	isspace(c)	((c) == ' ' || (c) == '\t')		/* unsafe */
+#define	isupper(c)	((unsigned)((c) - 'A') <= 'Z' - 'A')
+
+static int errno;
+
+/*
+ * The following should be identical with the library sources for strtoul.c.
+ */
+
+/*
+ * Convert a string to an unsigned long integer.
  *
  * Ignores `locale' stuff.  Assumes that the upper and lower case
  * alphabets and digits are each contiguous.
- *
- * Slightly lobotomized for inclusion here.
  */
-long
-strtol(const char *nptr, char **endptr, int base)
+unsigned long
+strtoul(nptr, endptr, base)
+	const char *nptr;
+	char **endptr;
+	register int base;
 {
-    register const char *s = nptr;
-    register unsigned long acc;
-    register int c;
-    register unsigned long cutoff;
-    register int neg = 0, any, cutlim;
+	register const char *s = nptr;
+	register unsigned long acc;
+	register int c;
+	register unsigned long cutoff;
+	register int neg = 0, any, cutlim;
 
-    /*
-     * Skip white space and pick up leading +/- sign if any.
-     * If base is 0, allow 0x for hex and 0 for octal, else
-     * assume decimal; if base is already 16, allow 0x.
-     */
-    do {
-	c = *s++;
-    } while (c == ' ' || c == '\t');
-    if (c == '-') {
-	neg = 1;
-	c = *s++;
-    } else if (c == '+')
-	c = *s++;
-    if ((base == 0 || base == 16) &&
-	c == '0' && (*s == 'x' || *s == 'X')) {
-	c = s[1];
-	s += 2;
-	base = 16;
-    }
-    if (base == 0)
-	base = c == '0' ? 8 : 10;
-
-    /*
-     * Compute the cutoff value between legal numbers and illegal
-     * numbers.  That is the largest legal value, divided by the
-     * base.  An input number that is greater than this value, if
-     * followed by a legal input character, is too big.  One that
-     * is equal to this value may be valid or not; the limit
-     * between valid and invalid numbers is then based on the last
-     * digit.  For instance, if the range for longs is
-     * [-2147483648..2147483647] and the input base is 10,
-     * cutoff will be set to 214748364 and cutlim to either
-     * 7 (neg==0) or 8 (neg==1), meaning that if we have accumulated
-     * a value > 214748364, or equal but the next digit is > 7 (or 8),
-     * the number is too big, and we will return a range error.
-     *
-     * Set any if any `digits' consumed; make it negative to indicate
-     * overflow.
-     */
-    cutoff = neg ? -(unsigned long)LONG_MIN : LONG_MAX;
-    cutlim = cutoff % (unsigned long)base;
-    cutoff /= (unsigned long)base;
-    for (acc = 0, any = 0;; c = *s++) {
-	if (c >= '0' && c <= '9')
-	    c -= '0';
-	else if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))
-	    c -= (c >= 'A' && c <= 'Z') ? 'A' - 10 : 'a' - 10;
-	else
-	    break;
-	if (c >= base)
-	    break;
-	if (any < 0 || acc > cutoff || acc == cutoff && c > cutlim)
-	    any = -1;
-	else {
-	    any = 1;
-	    acc *= base;
-	    acc += c;
+	/*
+	 * See strtol for comments as to the logic used.
+	 */
+	do {
+		c = *s++;
+	} while (isspace(c));
+	if (c == '-') {
+		neg = 1;
+		c = *s++;
+	} else if (c == '+')
+		c = *s++;
+	if ((base == 0 || base == 16) &&
+	    c == '0' && (*s == 'x' || *s == 'X')) {
+		c = s[1];
+		s += 2;
+		base = 16;
 	}
-    }
-    if (any < 0) {
-	acc = neg ? LONG_MIN : LONG_MAX;
-    } else if (neg)
-	acc = -acc;
-    if (endptr != NULL)
-	*endptr = (char *)(any ? s - 1 : nptr);
-    return (acc);
+	if (base == 0)
+		base = c == '0' ? 8 : 10;
+	cutoff = (unsigned long)ULONG_MAX / (unsigned long)base;
+	cutlim = (unsigned long)ULONG_MAX % (unsigned long)base;
+	for (acc = 0, any = 0;; c = *s++) {
+		if (isdigit(c))
+			c -= '0';
+		else if (isalpha(c))
+			c -= isupper(c) ? 'A' - 10 : 'a' - 10;
+		else
+			break;
+		if (c >= base)
+			break;
+		if (any < 0 || acc > cutoff || acc == cutoff && c > cutlim)
+			any = -1;
+		else {
+			any = 1;
+			acc *= base;
+			acc += c;
+		}
+	}
+	if (any < 0) {
+		acc = ULONG_MAX;
+		errno = ERANGE;
+	} else if (neg)
+		acc = -acc;
+	if (endptr != 0)
+		*endptr = (char *)(any ? s - 1 : nptr);
+	return (acc);
 }
