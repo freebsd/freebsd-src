@@ -1,5 +1,3 @@
-/*	$NetBSD: utils.c,v 1.6 1995/11/14 08:41:47 thorpej Exp $	*/
-
 /*
  * Copyright (c) 1988, 1992 The University of Utah and the Center
  *	for Software Science (CSS).
@@ -41,17 +39,18 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)utils.c	8.1 (Berkeley) 6/4/93
+ *	$Id$
  *
  * From: Utah Hdr: utils.c 3.1 92/07/06
  * Author: Jeff Forys, University of Utah CSS
  */
 
 #ifndef lint
-/*static char sccsid[] = "@(#)utils.c	8.1 (Berkeley) 6/4/93";*/
-static char rcsid[] = "$NetBSD: utils.c,v 1.6 1995/11/14 08:41:47 thorpej Exp $";
+static const char sccsid[] = "@(#)utils.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/time.h>
 
 #include <fcntl.h>
 #include <signal.h>

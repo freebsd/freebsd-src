@@ -1,5 +1,3 @@
-/*	$NetBSD: rmpproto.c,v 1.7 1996/02/01 21:27:46 mycroft Exp $	*/
-
 /*
  * Copyright (c) 1988, 1992 The University of Utah and the Center
  *	for Software Science (CSS).
@@ -41,14 +39,14 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)rmpproto.c	8.1 (Berkeley) 6/4/93
+ *	$Id$
  *
  * From: Utah Hdr: rmpproto.c 3.1 92/07/06
  * Author: Jeff Forys, University of Utah CSS
  */
 
 #ifndef lint
-/*static char sccsid[] = "@(#)rmpproto.c	8.1 (Berkeley) 6/4/93";*/
-static char rcsid[] = "$NetBSD: rmpproto.c,v 1.7 1996/02/01 21:27:46 mycroft Exp $";
+static const char sccsid[] = "@(#)rmpproto.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint */
 
 #include <sys/param.h>
