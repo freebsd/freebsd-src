@@ -314,12 +314,12 @@ swaponvp(td, vp, dev, nblks)
 	if (error)
 		return (error);
 
-	error = VOP_IOCTL(vp, DIOCGMEDIASIZE, (caddr_t)&mediasize,
-	    FREAD, td->td_ucred, td);
-	if (error == 0)
-            nblks = mediasize / DEV_BSIZE;
-	else
-	    nblks = 0;
+	if (nblks == 0) {
+		error = VOP_IOCTL(vp, DIOCGMEDIASIZE, (caddr_t)&mediasize,
+		    FREAD, td->td_ucred, td);
+		if (error == 0)
+		    nblks = mediasize / DEV_BSIZE;
+	}
 	/*
 	 * XXX: We should also check that the sectorsize makes sense
 	 * XXX: it should be a power of two, no larger than the page size.
