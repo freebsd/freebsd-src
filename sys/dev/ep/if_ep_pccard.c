@@ -231,7 +231,6 @@ ep_pccard_detach(device_t dev)
 	sc->gone = 1;
 	bus_teardown_intr(dev, sc->irq, sc->ep_intrhand);
 	ep_free(dev);
-	device_printf(dev, "unload\n");
 	return (0);
 }
 
