@@ -17,7 +17,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ft.c - QIC-40/80 floppy tape driver
- *  $Id:$
+ *  $Id: ft.c,v 1.4 1994/02/14 22:24:28 nate Exp $
  *
  *
  *  01/26/94 v0.3b - Jim Babb
@@ -1212,7 +1212,7 @@ int ftintr_wait(ftu_t ftu, int cmd, int ticks)
   }
 
   if (ticks) timeout(ft_timeout, (caddr_t)ftu, ticks);
-  sleep((caddr_t)&ftsem.intr_wait, FTPRI);
+  tsleep((caddr_t)&ftsem.intr_wait, FTPRI, "ftwait", 0);
 
 intrdone:
   if (ft->sts_wait == FTSTS_TIMEOUT) {	/* timeout */
@@ -1289,7 +1289,7 @@ int tape_state(ftu_t ftu, int all, int mask, int seconds)
 	}
 	if (seconds) {
 		timeout(state_timeout, (caddr_t)ftu, hz/4);
-		sleep((caddr_t)&ftsem.long_delay, FTPRI);
+		tsleep((caddr_t)&ftsem.long_delay, FTPRI, "ftstate", 0);
 	}
   }
   DPRT(("ft%d: tape_state failed on mask=$%02x maxtries=%d\n",
@@ -1441,9 +1441,11 @@ void tape_inactive(ftu_t ftu)
 
   if (ft->curseg->reqtype == FTIO_RDAHEAD) {
 	ft->curseg->reqcan = 1;	/* XXX cancel rdahead */
-	while (ft->active) sleep((caddr_t)&ftsem.iosts_change, FTPRI);
+	while (ft->active) 
+	  tsleep((caddr_t)&ftsem.iosts_change, FTPRI, "ftinact", 0);
   }
-  while (ft->active) sleep((caddr_t)&ftsem.iosts_change, FTPRI);
+  while (ft->active) 
+    tsleep((caddr_t)&ftsem.iosts_change, FTPRI, "ftinact", 0);
 }
 
 /*
@@ -1726,7 +1728,8 @@ int ftclose(dev_t dev, int flags)
 
   /* Wait for any remaining I/O activity to complete. */
   if (ft->curseg->reqtype == FTIO_RDAHEAD) ft->curseg->reqcan = 1;
-  while (ft->active) sleep((caddr_t)&ftsem.iosts_change, FTPRI);
+  while (ft->active) 
+    tsleep((caddr_t)&ftsem.iosts_change, FTPRI, "ftclose", 0);
 
   ft->mode = FTM_PRIMARY;
   tape_cmd(ftu, QC_PRIMARY);
@@ -1768,7 +1771,8 @@ int ftreq_rw(ftu_t ftu, int cmd, QIC_Segment *sr, struct proc *p)
   }
 
   if (ftg == NULL || ft->newcart) {
-	while (ft->active) sleep((caddr_t)&ftsem.iosts_change, FTPRI);
+	while (ft->active) 
+	  tsleep((caddr_t)&ftsem.iosts_change, FTPRI, "ftrw", 0);
 	tape_state(ftu, 0, QS_READY, 90);
 	if (ftgetgeom(ftu) < 0) {
 		return(ENXIO);
@@ -1802,7 +1806,8 @@ int ftreq_rw(ftu_t ftu, int cmd, QIC_Segment *sr, struct proc *p)
 	}
 
 	/* Wait until we're ready. */
-	while (ft->active) sleep((caddr_t)&ftsem.iosts_change, FTPRI);
+	while (ft->active) 
+	  tsleep((caddr_t)&ftsem.iosts_change, FTPRI, "ftrw", 0);
 
 	/* Set up a new read request. */
 	sp = ft->curseg;
@@ -1822,7 +1827,7 @@ int ftreq_rw(ftu_t ftu, int cmd, QIC_Segment *sr, struct proc *p)
 	timeout(ft_timeout, (caddr_t)ftu, 1);
 
 rdwait:
-	sleep((caddr_t)&ftsem.buff_avail, FTPRI);
+	tsleep((caddr_t)&ftsem.buff_avail, FTPRI, "ftrw", 0);
 	bad = sp->reqbad;
 	sr->sg_crcmap = sp->reqcrc & ~bad;
 
@@ -1837,12 +1842,12 @@ rdwait:
 	if (ft->curseg->reqtype == FTIO_RDAHEAD) {
 		ft->curseg->reqcan = 1;	/* XXX cancel rdahead */
 		while (ft->active)
-			sleep((caddr_t)&ftsem.iosts_change, FTPRI);
+		  tsleep((caddr_t)&ftsem.iosts_change, FTPRI, "ftrw", 0);
 	}
 
 	/* Sleep until a buffer becomes available. */
 	while (ft->bufseg->reqtype != FTIO_READY)
-		sleep((caddr_t)&ftsem.buff_avail, FTPRI);
+	  tsleep((caddr_t)&ftsem.buff_avail, FTPRI, "ftrwbuf", 0);
 	sp = (ft->curseg->reqtype == FTIO_READY) ? ft->curseg : ft->bufseg;
 
 	/* Copy in segment and expand bad blocks. */
