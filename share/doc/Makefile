@@ -1,10 +1,9 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/5/93
 # $FreeBSD$
 
-SUBDIR=	psd smm usd papers IPv6
+SUBDIR=	IPv6 papers psd smm usd
 
-# Default output formats are ascii for troff documents, and 
-# ascii and html for sgml documents.  
+# Default output format for troff documents is ascii.
 # To generate postscript versions of troff documents, use:
 #  make PRINTERDEVICE=ps
 
