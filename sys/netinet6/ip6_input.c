@@ -65,6 +65,7 @@
  */
 
 #include "opt_ipsec.h"
+#include "opt_ip6fw.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
