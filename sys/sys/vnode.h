@@ -664,7 +664,6 @@ int	vn_rdwr_inchunks(enum uio_rw rw, struct vnode *vp, caddr_t base,
 int	vn_stat(struct vnode *vp, struct stat *sb, struct ucred *active_cred,
 	    struct ucred *file_cred, struct thread *td);
 int	vn_start_write(struct vnode *vp, struct mount **mpp, int flags);
-struct cdev *vn_todev(struct vnode *vp);
 int	vn_write_suspend_wait(struct vnode *vp, struct mount *mp,
 	    int flags);
 int	vn_writechk(struct vnode *vp);
