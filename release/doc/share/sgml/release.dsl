@@ -8,13 +8,13 @@
   <style-specification use="docbook">
     <style-specification-body>
 
-; The architecture we're building for.  We really need to pull this out of a 
-; entity somewhere, so it can be defined without needing to munge the
-; stylesheet.  Or do we?
-(define for-arch "alpha")
+; The architecture we're building for.  We need to define this as a
+; procedure, because we may not be able to evaluate it until we are
+; at a point in formatting where (current-node) is defined.
 
 (default
-  (let* ((arch (attribute-string (normalize "arch"))))
+  (let* ((arch (attribute-string (normalize "arch")))
+	 (for-arch (entity-text "arch")))
     (if (or (equal? arch #f)
 	    (equal? arch ""))
 	(next-match)

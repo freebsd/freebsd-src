@@ -6,7 +6,6 @@ DOC?= article
 FORMATS?= html
 INSTALL_COMPRESSED?= gz
 INSTALL_ONLY_COMPRESSED?=
-EXTRA_CATALOGS+= ${RELN_ROOT}/share/sgml/catalog
 
 # SGML content
 SRCS+=	article.sgml
