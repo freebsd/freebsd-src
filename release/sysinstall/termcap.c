@@ -9,6 +9,8 @@
  * circumstances is the author responsible for the proper functioning of this
  * software, nor does the author assume any responsibility for damages
  * incurred with its use.
+ *
+ * $FreeBSD$
  */
 
 #include "sysinstall.h"
@@ -29,10 +31,10 @@ prompt_term(char **termp, char **termcapp)
 	const char *term, *termcap;
     } lookup[] = { { "ansi", termcap_ansi },
 		   { "vt100", termcap_vt100 },
-		   { "cons25w", termcap_cons25w },
 		   { "cons25", termcap_cons25 },
 		   { "cons25-m", termcap_cons25_m },
-		   { "xterm", termcap_xterm } };
+		   { "xterm", termcap_xterm },
+		   { "cons25w", termcap_cons25w } }; /* must be last */
 
     if (RunningAsInit) {
 	while (1) {
