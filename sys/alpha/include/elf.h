@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: elf.h,v 1.5 1998/09/14 20:30:08 jdp Exp $
+ *      $Id: elf.h,v 1.6 1999/02/07 23:49:51 jdp Exp $
  */
 
 #ifndef _MACHINE_ELF_H_
@@ -140,7 +140,7 @@ __ElfType(Auxinfo);
 /*
  * On the Alpha we load the dynamic linker where a userland call
  * to mmap(0, ...) would put it.  The rationale behind this
- * calculation is that it leaves room for the heap can grow to
+ * calculation is that it leaves room for the heap to grow to
  * its maximum allowed size.
  */
 #define ELF_RTLD_ADDR(vmspace) \
