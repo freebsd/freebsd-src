@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.4 1994/08/06 09:15:37 davidg Exp $
+ * $Id: vm_fault.c,v 1.5 1994/10/05 09:48:42 davidg Exp $
  */
 
 /*
@@ -330,7 +330,7 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 					psignal(curproc, SIGKILL);
 					curproc->p_estcpu = 0;
 					curproc->p_nice = PRIO_MIN;
-					setpriority(curproc);
+					resetpriority(curproc);
 				}
 			}
 
