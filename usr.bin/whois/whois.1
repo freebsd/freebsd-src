@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)whois.1	8.1 (Berkeley) 6/6/93
-.\"	$Id: whois.1,v 1.4 1998/02/19 19:07:49 wollman Exp $
+.\"	$Id: whois.1,v 1.5 1999/02/01 19:22:27 wollman Exp $
 .\"
 .Dd February 1, 1999
 .Dt WHOIS 1
@@ -40,7 +40,7 @@
 .Nd Internet domain name and network number directory service
 .Sh SYNOPSIS
 .Nm whois
-.Op Fl adgpr
+.Op Fl adgprR
 .Op Fl h Ar host
 .Ar name ...
 .Sh DESCRIPTION
@@ -80,6 +80,12 @@ Use the R\(aaeseaux IP Europ\(aaeens
 .Pq Tn RIPE
 database.  It contains network numbers and domain contact information
 for Europe.
+.It Fl R
+Use the Russia Network Information Center
+.Pq Tn RIPN
+database.  It contains network numbers and domain contact information
+for subdomains of
+.Tn \&.RU .
 .El
 .Pp
 The operands specified to
