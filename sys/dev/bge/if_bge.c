@@ -1613,14 +1613,22 @@ bge_attach(dev)
 
 	/*
 	 * Figure out what sort of media we have by checking the
-	 * hardware config word in the EEPROM. Note: on some BCM5700
-	 * cards, this value appears to be unset. If that's the
-	 * case, we have to rely on identifying the NIC by its PCI
-	 * subsystem ID, as we do below for the SysKonnect SK-9D41.
+	 * hardware config word in the first 32k of NIC internal memory,
+	 * or fall back to examining the EEPROM if necessary.
+	 * Note: on some BCM5700 cards, this value appears to be unset.
+	 * If that's the case, we have to rely on identifying the NIC
+	 * by its PCI subsystem ID, as we do below for the SysKonnect
+	 * SK-9D41.
 	 */
-	bge_read_eeprom(sc, (caddr_t)&hwcfg,
-		    BGE_EE_HWCFG_OFFSET, sizeof(hwcfg));
-	if ((ntohl(hwcfg) & BGE_HWCFG_MEDIA) == BGE_MEDIA_FIBER)
+	if (bge_readmem_ind(sc, BGE_SOFTWARE_GENCOMM_SIG) == BGE_MAGIC_NUMBER)
+		hwcfg = bge_readmem_ind(sc, BGE_SOFTWARE_GENCOMM_NICCFG);
+	else {
+		bge_read_eeprom(sc, (caddr_t)&hwcfg,
+				BGE_EE_HWCFG_OFFSET, sizeof(hwcfg));
+		hwcfg = ntohl(hwcfg);
+	}
+
+	if ((hwcfg & BGE_HWCFG_MEDIA) == BGE_MEDIA_FIBER)
 		sc->bge_tbi = 1;
 
 	/* The SysKonnect SK-9D41 is a 1000baseSX card. */
