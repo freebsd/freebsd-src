@@ -159,8 +159,6 @@ struct mlx_softc
     void		(* mlx_intaction)(struct mlx_softc *sc, int action);
 #define MLX_INTACTION_DISABLE		0
 #define MLX_INTACTION_ENABLE		1
-#define MLX_INTACTION_ACKNOWLEDGE	2
-
 };
 
 /*
@@ -203,31 +201,6 @@ extern int	mlx_submit_buf(struct mlx_softc *sc, struct buf *bp);
 extern int	mlx_submit_ioctl(struct mlx_softc *sc, struct mlx_sysdrive *drive, u_long cmd, 
 				 caddr_t addr, int32_t flag, struct proc *p);
 extern void	mlxd_intr(void *data);
-
-/*
- * Accessor defines for the V3 interface.
- */
-#define MLX_V3_MAILBOX		0x00
-#define	MLX_V3_STATUS_IDENT	0x0d
-#define MLX_V3_STATUS		0x0e
-#define MLX_V3_IDBR		0x40
-#define MLX_V3_ODBR		0x41
-#define MLX_V3_IER		0x43
-
-#define MLX_V3_PUT_MAILBOX(sc, idx, val) bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V3_MAILBOX + idx, val)
-#define MLX_V3_GET_STATUS_IDENT(sc)	 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V3_STATUS_IDENT)
-#define MLX_V3_GET_STATUS(sc)		 bus_space_read_2 (sc->mlx_btag, sc->mlx_bhandle, MLX_V3_STATUS)
-#define MLX_V3_GET_IDBR(sc)		 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V3_IDBR)
-#define MLX_V3_PUT_IDBR(sc, val)	 bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V3_IDBR, val)
-#define MLX_V3_GET_ODBR(sc)		 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V3_ODBR)
-#define MLX_V3_PUT_ODBR(sc, val)	 bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V3_ODBR, val)
-#define MLX_V3_PUT_IER(sc, val)		 bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V3_IER, val)
-
-#define MLX_V3_IDB_FULL		(1<<0)		/* mailbox is full */
-#define MLX_V3_IDB_SACK		(1<<1)		/* acknowledge status read */
-#define MLX_V3_IDB_RESET	(1<<3)		/* request soft reset */
-
-#define MLX_V3_ODB_SAVAIL	(1<<0)		/* status is available */
 
 /*
  * Inlines to build various command structures
