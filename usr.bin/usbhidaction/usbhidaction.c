@@ -204,7 +204,7 @@ main(int argc, char **argv)
 			if (cmd->value != val && cmd->anyvalue == 0)
 				goto next;
 			if ((cmd->debounce == 0) ||
-			    (cmd->debounce && ((cmd->lastseen == -1) ||
+			    ((cmd->debounce == 1) && ((cmd->lastseen == -1) ||
 					       (cmd->lastseen != val)))) {
 				docmd(cmd, val, dev, argc, argv);
 				goto next;
@@ -415,6 +415,8 @@ parse_conf(const char *conf, report_desc_t repd, int reportid, int ignore)
 
 	foundhid:
 		hid_end_parse(d);
+		cmd->lastseen = -1;
+		cmd->lastused = -1;
 		cmd->item = h;
 		cmd->name = strdup(name);
 		cmd->action = strdup(action);
