@@ -110,7 +110,7 @@ _fseeko(fp, offset, whence, ltest)
 	int ltest;
 {
 	register fpos_t (*seekfn) __P((void *, fpos_t, int));
-	fpos_t target, curoff;
+	fpos_t target, curoff, ret;
 	size_t n;
 	struct stat st;
 	int havepos;
@@ -295,7 +295,8 @@ abspos:
 	 * do it.  Allow the seek function to change fp->_bf._base.
 	 */
 dumb:
-	if (__sflush(fp) || _sseek(fp, (fpos_t)offset, whence) == POS_ERR)
+	if (__sflush(fp) ||
+	    (ret = _sseek(fp, (fpos_t)offset, whence)) == POS_ERR)
 		return (-1);
 	/* success: clear EOF indicator and discard ungetc() data */
 	if (HASUB(fp))
@@ -304,7 +305,7 @@ dumb:
 	fp->_r = 0;
 	/* fp->_w = 0; */	/* unnecessary (I think...) */
 	fp->_flags &= ~__SEOF;
-	if (ltest && fp->_offset > LONG_MAX) {
+	if (ltest && ret > LONG_MAX) {
 		fp->_flags |= __SERR;
 		errno = EOVERFLOW;
 		return (-1);
