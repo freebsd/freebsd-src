@@ -37,6 +37,7 @@ NLSMODE?=       ${NOBINMODE}
 NLSOWN?=        ${SHAREOWN}
 
 NLS?=
+NLSLINKS=
 
 .MAIN:		all
 
@@ -62,6 +63,10 @@ ${file}:
 	cat ${NLSSRCDIR_${file}}/${NLSSRCFILES_${file}} > ${.TARGET}
 CLEANFILES+= ${file}
 .endif
+
+.if defined(NLSLINKS_${file:C/.msg//g}) && !empty(NLSLINKS_${file:C/.msg//g})
+NLSLINKS+= ${file:C/.msg//g}
+.endif
 .endfor
 
 #
@@ -85,6 +90,16 @@ nlsinstall::	${_F}
 .PRECIOUS:	${_F}					# keep if install fails
 .endfor
 
+links-nls:
+.if defined(NLSLINKS) && !empty(NLSLINKS)
+.for src in ${NLSLINKS}
+.for dst in ${NLSLINKS_${src}}
+	ln -fs ../${src}/${NLSNAME}.cat \
+		${DESTDIR}${NLSDIR}/${dst}/${NLSNAME}.cat
+.endfor
+.endfor
+.endif
+
 #
 
 .if !defined(NO_NLS) && !empty(NLS)
@@ -93,8 +108,14 @@ all-nls: ${NLSALL}
 all-nls:
 .endif
 
+.if !defined(NO_NLS) && !empty(NLS)
+realinstall:	beforeinstall nlsinstall links-nls
+.else
+realinstall:	beforeinstall
+.endif
+
 all:		all-nls _SUBDIR
-install:	beforeinstall nlsinstall afterinstall
+install:	realinstall afterinstall
 
 .if !target(distribute)
 distribute:
