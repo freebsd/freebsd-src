@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.15 1994/10/06 20:52:00 pst Exp $
+#	$Id: netstart,v 1.16 1994/11/02 23:50:54 phk Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 defaultrouter=NO
@@ -14,6 +14,7 @@ amdflags="NO"
 nfs_client=NO
 nfs_server=NO
 name_server=NO
+savecore=NO
 #kerberos_server=YES
 #gated=YES
 
