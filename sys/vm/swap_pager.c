@@ -888,6 +888,7 @@ swap_pager_strategy(vm_object_t object, struct bio *bp)
 	bp->bio_error = 0;
 	bp->bio_flags &= ~BIO_ERROR;
 	bp->bio_resid = bp->bio_bcount;
+	*(u_int *) &bp->bio_driver1 = 0;
 
 	start = bp->bio_pblkno;
 	count = howmany(bp->bio_bcount, PAGE_SIZE);
@@ -2029,7 +2030,7 @@ vm_pager_chain_iodone(struct buf *nbp)
 	u_int *count;
 
 	bp = nbp->b_caller1;
-	count = (u_int *)&(bp->bio_caller1);
+	count = (u_int *)&(bp->bio_driver1);
 	if (bp != NULL) {
 		if (nbp->b_ioflags & BIO_ERROR) {
 			bp->bio_flags |= BIO_ERROR;
@@ -2068,7 +2069,7 @@ getchainbuf(struct bio *bp, struct vnode *vp, int flags)
 
 	GIANT_REQUIRED;
 	nbp = getpbuf(NULL);
-	count = (u_int *)&(bp->bio_caller1);
+	count = (u_int *)&(bp->bio_driver1);
 
 	nbp->b_caller1 = bp;
 	++(*count);
@@ -2110,7 +2111,7 @@ waitchainbuf(struct bio *bp, int limit, int done)
 	u_int *count;
 
 	GIANT_REQUIRED;
-	count = (u_int *)&(bp->bio_caller1);
+	count = (u_int *)&(bp->bio_driver1);
 	s = splbio();
 	while (*count > limit) {
 		bp->bio_flags |= BIO_FLAG1;
