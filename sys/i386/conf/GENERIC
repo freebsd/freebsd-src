@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.66 1996/04/18 04:02:30 nate Exp $
+#	$Id: GENERIC,v 1.67 1996/04/22 19:40:24 nate Exp $
 #
 
 machine		"i386"
@@ -44,7 +44,8 @@ controller	wdc1	at isa? port "IO_WD2" bio irq 15 vector wdintr
 disk		wd2	at wdc1 drive 0
 disk		wd3	at wdc1 drive 1
 
-options		ATAPI	#Enable ATAPI support for IDE bus
+options		ATAPI		#Enable ATAPI support for IDE bus
+options		ATAPI_STATIC	#Don't do it as an LKM
 device		wcd0	#IDE CD-ROM
 
 # A single entry for any of these controllers (ncr, ahb, ahc) is sufficient
