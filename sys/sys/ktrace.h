@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ktrace.h	8.1 (Berkeley) 6/2/93
- * $Id: ktrace.h,v 1.12 1997/02/22 09:45:26 peter Exp $
+ * $Id: ktrace.h,v 1.13 1999/05/13 09:09:37 bde Exp $
  */
 
 #ifndef _SYS_KTRACE_H_
@@ -79,8 +79,9 @@ struct ktr_syscall {
 	short	ktr_code;		/* syscall number */
 	short	ktr_narg;		/* number of arguments */
 	/*
-	 * followed by ktr_narg ints
+	 * followed by ktr_narg register_t
 	 */
+	register_t	ktr_args[1];
 };
 
 /*
@@ -91,7 +92,7 @@ struct ktr_sysret {
 	short	ktr_code;
 	short	ktr_eosys;
 	int	ktr_error;
-	int	ktr_retval;
+	register_t	ktr_retval;
 };
 
 /*
@@ -160,8 +161,8 @@ void	ktrnamei __P((struct vnode *,char *));
 void	ktrcsw __P((struct vnode *,int,int));
 void	ktrpsig __P((struct vnode *,int, sig_t, int, int));
 void	ktrgenio __P((struct vnode *,int, enum uio_rw,struct iovec *,int,int));
-void	ktrsyscall __P((struct vnode *, int, int narg, int args[]));
-void	ktrsysret __P((struct vnode *, int, int, int));
+void	ktrsyscall __P((struct vnode *, int, int narg, register_t args[]));
+void	ktrsysret __P((struct vnode *, int, int, register_t));
 
 #else	/* KERNEL */
 
