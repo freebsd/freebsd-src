@@ -371,10 +371,13 @@ ssize_t	 write(int, const void *, size_t);
 /* 1003.2-1992 */
 #if __POSIX_VISIBLE >= 199209 || __XSI_VISIBLE
 size_t	 confstr(int, char *, size_t);
+#ifndef _GETOPT_DECLARED
+#define	_GETOPT_DECLARED
 int	 getopt(int, char * const [], const char *);
 
 extern char *optarg;			/* getopt(3) external variables */
 extern int optind, opterr, optopt;
+#endif /* _GETOPT_DECLARED */
 #endif
 
 /* ISO/IEC 9945-1: 1996 */
