@@ -45,8 +45,13 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+
 #include <ctype.h>
 #include <err.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -57,6 +62,7 @@ static const char rcsid[] =
 
 int	decode __P((char *, CODE *));
 int	pencode __P((char *));
+static void	logmessage __P((int, char *, char *));
 static void	usage __P((void));
 
 /*
@@ -71,17 +77,21 @@ main(argc, argv)
 	char *argv[];
 {
 	int ch, logflags, pri;
-	char *tag, buf[1024];
+	char *tag, *host, buf[1024];
 
 	tag = NULL;
+	host = NULL;
 	pri = LOG_NOTICE;
 	logflags = 0;
 	unsetenv("TZ");
-	while ((ch = getopt(argc, argv, "f:ip:st:")) != -1)
+	while ((ch = getopt(argc, argv, "f:h:ip:st:")) != -1)
 		switch((char)ch) {
 		case 'f':		/* file to log */
 			if (freopen(optarg, "r", stdin) == NULL)
 				err(1, "%s", optarg);
+			break;
+		case 'h':		/* hostname to deliver to */
+			host = optarg;
 			break;
 		case 'i':		/* log process id also */
 			logflags |= LOG_PID;
@@ -114,11 +124,11 @@ main(argc, argv)
 		for (p = buf, endp = buf + sizeof(buf) - 2; *argv;) {
 			len = strlen(*argv);
 			if (p + len > endp && p > buf) {
-				syslog(pri, "%s", buf);
+				logmessage(pri, host, buf);
 				p = buf;
 			}
 			if (len > sizeof(buf) - 1)
-				syslog(pri, "%s", *argv++);
+				logmessage(pri, host, *argv++);
 			else {
 				if (p != buf)
 					*p++ = ' ';
@@ -127,11 +137,59 @@ main(argc, argv)
 			}
 		}
 		if (p != buf)
-			syslog(pri, "%s", buf);
+			logmessage(pri, host, buf);
 	} else
 		while (fgets(buf, sizeof(buf), stdin) != NULL)
-			syslog(pri, "%s", buf);
+			logmessage(pri, host, buf);
 	exit(0);
+}
+
+/*
+ *  Send the message to syslog, either on the local host, or on a remote host
+ */
+void 
+logmessage(int pri, char *host, char *buf)
+{
+	static int sock = -1;
+	static struct sockaddr_in sin;
+	char *line;
+	int len;
+
+	if (host == NULL) {
+		syslog(pri, "%s", buf);
+		return;
+	}
+
+	if (sock == -1) {	/* set up socket stuff */
+		struct servent *sp;
+		struct hostent *hp = NULL;
+
+		sin.sin_family = AF_INET;
+
+		if ((sp = getservbyname("syslog", "udp")) == NULL)
+			warnx ("syslog/udp: unknown service");	/* not fatal */
+		sin.sin_port = (sp == NULL ? htons(514) : sp->s_port);
+
+		/* resolve hostname */
+		if (!(inet_aton(host, &sin.sin_addr)) &&
+		    (hp = gethostbyname(host)) == NULL)
+			errx(1, "unknown host: %s", host);
+		if (hp != NULL)
+			memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
+
+		sock = socket(PF_INET, SOCK_DGRAM, 0);
+		if (sock < 0)
+			errx(1, "socket");
+	}
+
+	if ((len = asprintf(&line, "<%d>%s", pri, buf)) == -1)
+		errx(1, "asprintf");
+
+	if (sendto(sock, line, len, 0, (struct sockaddr *)&sin, sizeof(sin))
+	    < len)
+		warnx ("sendmsg");
+
+	free(line);
 }
 
 /*
@@ -182,7 +240,8 @@ decode(name, codetab)
 static void
 usage()
 {
-	(void)fprintf(stderr,
-	    "usage: logger [-is] [-f file] [-p pri] [-t tag] [message ...]\n");
+	(void)fprintf(stderr, "usage: %s\n",
+	    "logger [-is] [-f file] [-h host] [-p pri] [-t tag] [message ...]"
+	    );
 	exit(1);
 }
