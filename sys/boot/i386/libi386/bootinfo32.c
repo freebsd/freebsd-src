@@ -100,6 +100,9 @@ bi_getboothowto(char *kargs)
 		case 'h':
 		    howto |= RB_SERIAL;
 		    break;
+		case 'p':
+		    howto |= RB_PAUSE;
+		    break;
 		case 'r':
 		    howto |= RB_DFLTROOT;
 		    break;
