@@ -17,6 +17,9 @@
  * Modification history
  *
  * $Log:	if_ed.c,v $
+ * Revision 1.18  93/07/27  03:41:36  davidg
+ * removed unnecessary variable assignment in ed_reset()
+ * 
  * Revision 1.17  93/07/26  18:40:57  davidg
  * Added include of systm.h to pick up inlined min/max/bcmp if you have
  * them in cpufunc.h. Modified wait loop in reset to look a little better.
@@ -798,7 +801,7 @@ ed_reset(unit)
 	ed_stop(unit);
 	ed_init(unit);
 
-	s = splx(s);
+	(void) splx(s);
 }
  
 /*

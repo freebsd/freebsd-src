@@ -43,7 +43,7 @@
  * 08 Apr 93	Bruce Evans		Several VM system fixes
  * 		Paul Kranenburg		Add counter for vmstat
  */
-static char rcsid[] = "$Header: /usr/bill/working/sys/i386/i386/RCS/trap.c,v 1.2 92/01/21 14:22:13 william Exp $";
+static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/i386/trap.c,v 1.1.1.1 1993/06/12 14:58:05 rgrimes Exp $";
 
 /*
  * 386 Trap and System call handleing
@@ -70,6 +70,21 @@ static char rcsid[] = "$Header: /usr/bill/working/sys/i386/i386/RCS/trap.c,v 1.2
 
 #include "machine/trap.h"
 
+#ifdef	__GNUC__
+
+/*
+ * The "r" contraint could be "rm" except for fatal bugs in gas.  As usual,
+ * we omit the size from the mov instruction to avoid nonfatal bugs in gas.
+ */
+#define	read_gs()	({ u_short gs; __asm("mov %%gs,%0" : "=r" (gs)); gs; })
+#define	write_gs(gs)	__asm("mov %0,%%gs" : : "r" ((u_short) gs))
+
+#else	/* not __GNUC__ */
+
+u_short	read_gs		__P((void));
+void	write_gs	__P((/* promoted u_short */ int gs));
+
+#endif	/* __GNUC__ */
 
 struct	sysent sysent[];
 int	nsysent;
@@ -112,9 +127,25 @@ trap(frame)
 			frame.tf_trapno, frame.tf_err, frame.tf_eip,
 			frame.tf_cs, rcr2(), frame.tf_esp);*/
 if(curpcb == 0 || curproc == 0) goto we_re_toast;
-	if (curpcb->pcb_onfault && frame.tf_trapno != 0xc) {
+	if (curpcb->pcb_onfault && frame.tf_trapno != T_PAGEFLT) {
+		extern int _udatasel;
+
+		if (read_gs() != (u_short) _udatasel)
+			/*
+			 * Some user has corrupted %gs but we depend on it in
+			 * copyout() etc.  Fix it up and retry.
+			 *
+			 * (We don't preserve %fs or %gs, so users can change
+			 * them to either _ucodesel, _udatasel or a not-present
+			 * selector, possibly ORed with 0 to 3, making them
+			 * volatile for other users.  Not preserving them saves
+			 * time and doesn't lose functionality or open security
+			 * holes.)
+			 */
+			write_gs(_udatasel);
+		else
 copyfault:
-		frame.tf_eip = (int)curpcb->pcb_onfault;
+			frame.tf_eip = (int)curpcb->pcb_onfault;
 		return;
 	}
 
@@ -396,18 +427,49 @@ out:
 }
 
 /*
- * Compensate for 386 brain damage (missing URKR)
+ * Compensate for 386 brain damage (missing URKR).
+ * This is a little simpler than the pagefault handler in trap() because
+ * it the page tables have already been faulted in and high addresses
+ * are thrown out early for other reasons.
  */
-int trapwrite(unsigned addr) {
-	int rv;
+int trapwrite(addr)
+	unsigned addr;
+{
+	unsigned nss;
+	struct proc *p;
 	vm_offset_t va;
+	struct vmspace *vm;
 
 	va = trunc_page((vm_offset_t)addr);
-	if (va > VM_MAXUSER_ADDRESS) return(1);
-	rv = vm_fault(&curproc->p_vmspace->vm_map, va,
-		VM_PROT_READ | VM_PROT_WRITE, FALSE);
-	if (rv == KERN_SUCCESS) return(0);
-	else return(1);
+	/*
+	 * XXX - MAX is END.  Changed > to >= for temp. fix.
+	 */
+	if (va >= VM_MAXUSER_ADDRESS)
+		return (1);
+	/*
+	 * XXX: rude stack hack adapted from trap().
+	 */
+	nss = 0;
+	p = curproc;
+	vm = p->p_vmspace;
+	if ((caddr_t)va >= vm->vm_maxsaddr && dostacklimits) {
+		nss = clrnd(btoc((unsigned)vm->vm_maxsaddr + MAXSSIZ
+				 - (unsigned)va));
+		if (nss > btoc(p->p_rlimit[RLIMIT_STACK].rlim_cur))
+			return (1);
+	}
+
+	if (vm_fault(&vm->vm_map, va, VM_PROT_READ | VM_PROT_WRITE, FALSE)
+	    != KERN_SUCCESS)
+		return (1);
+
+	/*
+	 * XXX: continuation of rude stack hack
+	 */
+	if (nss > vm->vm_ssize)
+		vm->vm_ssize = nss;
+
+	return (0);
 }
 
 /*
