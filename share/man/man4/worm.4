@@ -85,9 +85,12 @@ requirements when writing data, the driver distinguishes two different
 operation modes.  When opening a file descriptor for a device belonging
 to the
 .Nm
-driver without write access, the driver does not enforce the tight
-timing that is needed to write data to the CD-R, but it allows for
-sending
+driver with
+.Dv O_NONBLOCK
+being set
+.Pq see Xr open 2 ,
+the driver does not enforce the tight timing that is needed to write
+data to the CD-R, but it allows for sending
 .Xr ioctl 2
 commands to adjust parameters.  Any number of ioctls can be performed
 on the device as long as the required sequence of actions is being
@@ -111,6 +114,11 @@ on the file descriptor that has been used to write the data.
 After this happened, things are no longer time-critical.  Any number of
 further tracks can be written to the device.  Finally, the session must
 be fixated by another ioctl.
+.Pp
+Opening a read-only file descriptor on a
+.Nm worm
+device can be used in order to read a normal CD-ROM medium.  No special
+preparations are required in this case.
 .Sh IOCTLS
 The following 
 .Xr ioctl 2
@@ -209,7 +217,8 @@ have a lot of patience and CD-R's.
 The driver should include all the functionality of the
 .Xr cd 4
 driver.  No strategy for implementing this kind of interaction has
-been designed yet.
+been designed yet, altough it's now finally possible to at least
+read CD-ROM media through it.
 .Pp
 The first
 .Em Unit Attention
@@ -229,6 +238,8 @@ device for ioctl's and to write a CD-R
 .It Pa /dev/rworm[0-9].ctl
 the control device, as being used by
 .Xr scsi 8
+.It Pa /dev/worm[0-9]
+the buffered devices that can be used to mount a CD-ROM.
 .El
 .Sh DIAGNOSTICS
 See above.
