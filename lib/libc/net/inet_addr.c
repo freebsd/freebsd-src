@@ -135,13 +135,16 @@ inet_aton(cp, addr)
 			c++;
 			break;
 
-		case '\0' :
+		case '\0':
 			gotend = 1;
 			break;
 
 		default:
-			/* Invalid character, so fail */
-			return (0);
+			if (isspace(*c)) {
+				gotend = 1;
+				break;
+			} else
+				return (0);	/* Invalid character, so fail */
 		}
 
 	}
