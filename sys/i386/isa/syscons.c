@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.96 1995/01/28 22:16:03 sos Exp $
+ *	$Id: syscons.c,v 1.97 1995/01/30 21:36:28 sos Exp $
  */
 
 #include "sc.h"
@@ -97,7 +97,8 @@
 #define CURSOR_ENABLED 	0x00200
 #define CURSOR_SHOWN 	0x00400
 #define MOUSE_ENABLED	0x00800
-#define UPDATE_NEEDED	0x01000
+#define UPDATE_MOUSE	0x01000
+#define UPDATE_SCREEN	0x02000
 
 /* configuration flags */
 #define VISUAL_BELL	0x00001
@@ -166,12 +167,14 @@ typedef struct scr_stat {
 	term_stat 	term;			/* terminal emulation stuff */
 	int	 	status;			/* status (bitfield) */
 	u_short 	*cursor_pos;		/* cursor buffer position */
+	u_short		cursor_saveunder;	/* saved chars under cursor */
 	char		cursor_start;		/* cursor start line # */
 	char		cursor_end;		/* cursor end line # */
 	u_short		*mouse_pos;		/* mouse buffer position */
-	u_short		mouse_xpos;		/* mouse x coordinate */
-	u_short		mouse_ypos;		/* mouse y coordinate */
-	u_short		mouse_saveunder[4];	/* saved chars under cursor */
+	u_short		*mouse_oldpos;		/* mouse old buffer position */
+	u_short		mouse_saveunder[4];	/* saved chars under mouse */
+	short		mouse_xpos;		/* mouse x coordinate */
+	short		mouse_ypos;		/* mouse y coordinate */
 	u_char		mouse_cursor[128];	/* mouse cursor bitmap store */
 	u_short		bell_duration;
 	u_short		bell_pitch;
@@ -181,10 +184,11 @@ typedef struct scr_stat {
 	pid_t 		pid;			/* pid of controlling proc */
 	struct proc 	*proc;			/* proc* of controlling proc */
 	struct vt_mode 	smode;			/* switch mode */
-	u_short		*history;
-	u_short		*history_head;
-	u_short		*history_pos;
-	int		history_size;
+	u_short		*history;		/* circular history buffer */
+	u_short		*history_head;		/* current head position */
+	u_short		*history_pos;		/* position shown on screen */
+	u_short		*history_save;		/* save area index */
+	int		history_size;		/* size of history buffer */
 } scr_stat;
 
 typedef struct default_attr {
@@ -225,7 +229,7 @@ static  u_char		kbd_reply = 0;
 static	int	 	delayed_next_scr;
 static	int		configuration = 0;	/* current setup */
 static	long		scrn_blank_time = 0;	/* screen saver timeout value */
-static	int		scrn_blanked = 0;	/* screen saver active flag */
+static	int		scrn_blanked = FALSE;	/* screen saver active flag */
 static	int		scrn_saver = 0;		/* screen saver routine */
 static	long 		scrn_time_stamp;
 static  u_char		scr_map[256];
@@ -271,8 +275,7 @@ static int switch_scr(scr_stat *scp, u_int next_scr);
 static void exchange_scr(void);
 static inline void move_crsr(scr_stat *scp, int x, int y);
 static void scan_esc(scr_stat *scp, u_char c);
-static inline void undraw_cursor(scr_stat *scp);
-static inline void draw_cursor(scr_stat *scp);
+static inline void draw_cursor(scr_stat *scp, int show);
 static void ansi_put(scr_stat *scp, u_char *buf, int len);
 static u_char *get_fstr(u_int c, u_int *len);
 static void update_leds(int which);
@@ -287,7 +290,6 @@ static void set_vgaregs(char *modetable);
 static void set_font_mode();
 static void set_normal_mode();
 static void copy_font(int operation, int font_type, char* font_image);
-static void undraw_mouse_image(scr_stat *scp);
 static void draw_mouse_image(scr_stat *scp);
 static void save_palette(void);
 static void load_palette(void);
@@ -435,7 +437,7 @@ scattach(struct isa_device *dev)
 			MAXCONS, configuration);
 
 	scp->scr_buf = (u_short *)malloc(scp->xsize*scp->ysize*sizeof(u_short),
-				 	 M_DEVBUF, M_NOWAIT);
+					 M_DEVBUF, M_NOWAIT);
 	/* copy screen to buffer */
 	bcopyw(Crtat, scp->scr_buf, scp->xsize * scp->ysize * sizeof(u_short));
 	scp->cursor_pos = scp->scr_buf + scp->xpos + scp->ypos * scp->xsize;
@@ -599,7 +601,7 @@ scintr(int unit)
 	scrn_time_stamp = time.tv_sec;
 	if (scrn_blanked) {
 		SCRN_SAVER(FALSE);
-		cur_console->status |= (CURSOR_ENABLED | UPDATE_NEEDED);
+		cur_console->status |= UPDATE_SCREEN;
 	}
 
 	c = scgetc(1);
@@ -756,64 +758,64 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		case FONT_16:
 			fontsize = 16; break;
 		}
-
 		switch (mouse->operation) {
 		case MOUSE_SHOW:
 			if (!(scp->status & MOUSE_ENABLED)) {
-				draw_mouse_image(scp);
-				scp->status |= MOUSE_ENABLED;
+				scp->mouse_oldpos = 
+					Crtat + (scp->mouse_pos - scp->scr_buf);
+				scp->status |= (UPDATE_MOUSE | MOUSE_ENABLED);
 			}
 			else
 				return EINVAL;
 			break;
+
 		case MOUSE_HIDE:
 			if (scp->status & MOUSE_ENABLED) {
-				undraw_mouse_image(scp);
 				scp->status &= ~MOUSE_ENABLED;
+				scp->status |= UPDATE_MOUSE;
 			}
 			else
 				return EINVAL;
 			break;
+
 		case MOUSE_MOVEABS:
-			if (scp->status & MOUSE_ENABLED)
-				undraw_mouse_image(scp);
 			scp->mouse_xpos = mouse->x;
-	 		scp->mouse_ypos = mouse->y;
-			scp->mouse_pos = scp->scr_buf + 
-				(scp->mouse_ypos/fontsize)*scp->xsize + 
-				scp->mouse_xpos/8;
-			if (scp->mouse_pos > 
-			    scp->scr_buf + (scp->xsize * scp->ysize))
-				scp->mouse_pos = scp->scr_buf + 
-					(scp->xsize * scp->ysize);
-			else if (scp->mouse_pos < 0)
-				scp->mouse_pos = 0;
-			if (scp->status & MOUSE_ENABLED)
-				draw_mouse_image(scp);
-			break;
+			scp->mouse_ypos = mouse->y;
+			goto set_mouse_pos;
+
 		case MOUSE_MOVEREL:
-			if (scp->status & MOUSE_ENABLED)
-				undraw_mouse_image(scp);
 			scp->mouse_xpos += mouse->x;
-	 		scp->mouse_ypos += mouse->y;
+			scp->mouse_ypos += mouse->y;
+set_mouse_pos:
+			if (scp->mouse_xpos < 0)
+				scp->mouse_xpos = 0;
+			if (scp->mouse_ypos < 0)
+				scp->mouse_ypos = 0;
+			if (scp->mouse_xpos >= scp->xsize*8)
+				scp->mouse_xpos = (scp->xsize*8)-1;
+			if (scp->mouse_ypos >= scp->ysize*fontsize)
+				scp->mouse_ypos = (scp->ysize*fontsize)-1;
 			scp->mouse_pos = scp->scr_buf + 
 				(scp->mouse_ypos/fontsize)*scp->xsize + 
 				scp->mouse_xpos/8;
-			if (scp->mouse_pos > 
-			    scp->scr_buf + (scp->xsize * scp->ysize))
-				scp->mouse_pos = scp->scr_buf + 
-					(scp->xsize * scp->ysize);
-			else if (scp->mouse_pos < 0)
-				scp->mouse_pos = 0;
 			if (scp->status & MOUSE_ENABLED)
-				draw_mouse_image(scp);
+				scp->status |= UPDATE_MOUSE;
 			break;
+
 		case MOUSE_GETPOS:
 			mouse->x = scp->mouse_xpos;
 			mouse->y = scp->mouse_ypos;
-			break;
+			return 0;
+
 		default:
 			return EINVAL;
+		}
+		/* make screensaver happy */
+		if (scp == cur_console) {
+			scrn_time_stamp = time.tv_sec;
+			if (scrn_blanked)
+				scp->status |= UPDATE_SCREEN;
+				SCRN_SAVER(FALSE);
 		}
 		return 0;
 	}
@@ -844,19 +846,19 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		*(int*)data = 0x200;	/* version 2.0 */
 		return 0;
 
-        case SW_VGA_C40x25: case SW_VGA_C80x25:	/* VGA TEXT MODES */
-        case SW_VGA_M80x25:
-        case SW_VGA_C80x30: case SW_VGA_M80x30:
-        case SW_VGA_C80x50: case SW_VGA_M80x50:
-        case SW_VGA_C80x60: case SW_VGA_M80x60:
-        case SW_B40x25:     case SW_C40x25:
-        case SW_B80x25:     case SW_C80x25:
-        case SW_ENH_B40x25: case SW_ENH_C40x25: 
-        case SW_ENH_B80x25: case SW_ENH_C80x25:
-        case SW_ENH_B80x43: case SW_ENH_C80x43:
+	case SW_VGA_C40x25: case SW_VGA_C80x25:	/* VGA TEXT MODES */
+	case SW_VGA_M80x25:
+	case SW_VGA_C80x30: case SW_VGA_M80x30:
+	case SW_VGA_C80x50: case SW_VGA_M80x50:
+	case SW_VGA_C80x60: case SW_VGA_M80x60:
+	case SW_B40x25:     case SW_C40x25:
+	case SW_B80x25:     case SW_C80x25:
+	case SW_ENH_B40x25: case SW_ENH_C40x25: 
+	case SW_ENH_B80x25: case SW_ENH_C80x25:
+	case SW_ENH_B80x43: case SW_ENH_C80x43:
 
-        	if (!crtc_vga || video_mode_ptr == NULL)
-        		return ENXIO;
+		if (!crtc_vga || video_mode_ptr == NULL)
+			return ENXIO;
 		switch (cmd & 0xff) {
 		case M_VGA_C80x60: case M_VGA_M80x60:
 			if (!(fonts_loaded & FONT_8))
@@ -870,7 +872,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			scp->xsize = 80;
 			scp->ysize = 50;
 			break;
-        	case M_ENH_B80x43: case M_ENH_C80x43:
+		case M_ENH_B80x43: case M_ENH_C80x43:
 			if (!(fonts_loaded & FONT_8))
 				return EINVAL;
 			scp->xsize = 80;
@@ -884,43 +886,43 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			if ((cmd & 0xff) > M_VGA_CG320)
 				return EINVAL;
 			else 
-            		    scp->xsize = *(video_mode_ptr+((cmd&0xff)*64));
-            		    scp->ysize = *(video_mode_ptr+((cmd&0xff)*64)+1)+1;
+			    scp->xsize = *(video_mode_ptr+((cmd&0xff)*64));
+			    scp->ysize = *(video_mode_ptr+((cmd&0xff)*64)+1)+1;
 			break;
 		}
 		scp->mode = cmd & 0xff;
-            	scp->status &= ~UNKNOWN_MODE;	/* text mode */
+		scp->status &= ~UNKNOWN_MODE;	/* text mode */
 		free(scp->scr_buf, M_DEVBUF); 
 		scp->scr_buf = (u_short *)malloc(scp->xsize * scp->ysize * 
 				sizeof(u_short), M_DEVBUF, M_NOWAIT);
 		if (scp == cur_console)
-            		set_mode(scp);
+			set_mode(scp);
 		else
 			scp->scr_buf = scp->scr_buf;
-            	clear_screen(scp);
+		clear_screen(scp);
 		if (tp->t_winsize.ws_col != scp->xsize 
 		    || tp->t_winsize.ws_row != scp->ysize) {
 			tp->t_winsize.ws_col = scp->xsize;
 			tp->t_winsize.ws_row = scp->ysize;
 			pgsignal(tp->t_pgrp, SIGWINCH, 1);
 		}
-            	return 0; 
+		return 0; 
 
-        /* GRAPHICS MODES */
-        case SW_BG320:      case SW_CG320:      case SW_BG640:
-        case SW_CG320_D:    case SW_CG640_E:
-        case SW_CG640x350:  case SW_ENH_CG640:
-        case SW_BG640x480:  case SW_CG640x480:  case SW_VGA_CG320:
+	/* GRAPHICS MODES */
+	case SW_BG320:      case SW_CG320:      case SW_BG640:
+	case SW_CG320_D:    case SW_CG640_E:
+	case SW_CG640x350:  case SW_ENH_CG640:
+	case SW_BG640x480:  case SW_CG640x480:  case SW_VGA_CG320:
 
-        	if (!crtc_vga || video_mode_ptr == NULL)
-        		return ENXIO;
-	    	scp->mode = cmd & 0xFF;
-            	scp->status |= UNKNOWN_MODE;	/* graphics mode */
-            	scp->xsize = (*(video_mode_ptr + (scp->mode*64))) * 8;
-            	scp->ysize = (*(video_mode_ptr + (scp->mode*64) + 1) + 1)
-		    	   * (*(video_mode_ptr + (scp->mode*64) + 2));
-            	set_mode(scp);
-            	/* clear_graphics();*/
+		if (!crtc_vga || video_mode_ptr == NULL)
+			return ENXIO;
+		scp->mode = cmd & 0xFF;
+		scp->status |= UNKNOWN_MODE;	/* graphics mode */
+		scp->xsize = (*(video_mode_ptr + (scp->mode*64))) * 8;
+		scp->ysize = (*(video_mode_ptr + (scp->mode*64) + 1) + 1)
+			   * (*(video_mode_ptr + (scp->mode*64) + 2));
+		set_mode(scp);
+		/* clear_graphics();*/
 
 		if (tp->t_winsize.ws_xpixel != scp->xsize 
 		    || tp->t_winsize.ws_ypixel != scp->ysize) {
@@ -928,7 +930,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			tp->t_winsize.ws_ypixel = scp->ysize;
 			pgsignal(tp->t_pgrp, SIGWINCH, 1);
 		}
-            	return 0;
+		return 0;
 
 	case VT_SETMODE:	/* set screen switcher mode */
 		bcopy(data, &scp->smode, sizeof(struct vt_mode));
@@ -981,14 +983,14 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		/* NOT REACHED */
 
 	case VT_OPENQRY:	/* return free virtual console */
- 		for (i = 0; i < MAXCONS; i++) {
+		for (i = 0; i < MAXCONS; i++) {
 			tp = VIRTUAL_TTY(i);
- 			if (!(tp->t_state & TS_ISOPEN)) {
- 				*data = i + 1;
- 				return 0;
- 			}
+			if (!(tp->t_state & TS_ISOPEN)) {
+				*data = i + 1;
+				return 0;
+			}
 		} 
- 		return EINVAL;
+		return EINVAL;
 
 	case VT_ACTIVATE:	/* switch to screen *data */
 		return switch_scr(scp, (*data) - 1);
@@ -1013,16 +1015,16 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		return 0;
 
 	case KDENABIO:		/* allow io operations */
-	 	fp = (struct trapframe *)p->p_md.md_regs;
-	 	fp->tf_eflags |= PSL_IOPL;
+		fp = (struct trapframe *)p->p_md.md_regs;
+		fp->tf_eflags |= PSL_IOPL;
 		return 0; 
 
 	case KDDISABIO:		/* disallow io operations (default) */
-	 	fp = (struct trapframe *)p->p_md.md_regs;
-	 	fp->tf_eflags &= ~PSL_IOPL;
-	 	return 0;
+		fp = (struct trapframe *)p->p_md.md_regs;
+		fp->tf_eflags &= ~PSL_IOPL;
+		return 0;
 
-        case KDSETMODE:		/* set current mode of this (virtual) console */
+	case KDSETMODE:		/* set current mode of this (virtual) console */
 		switch (*data) {
 		case KD_TEXT:	/* switch to TEXT (known) mode */
 				/* restore fonts & palette ! */
@@ -1040,7 +1042,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		case KD_TEXT1:	/* switch to TEXT (known) mode */
 				/* no restore fonts & palette */
 			scp->status &= ~UNKNOWN_MODE;
-        		if (crtc_vga && video_mode_ptr)
+			if (crtc_vga && video_mode_ptr)
 				set_mode(scp);
 			clear_screen(scp);
 			return 0;
@@ -1110,7 +1112,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 	case KDMKTONE:		/* sound the bell */
 		if (*(int*)data) {
-  			do_bell(scp, (*(int*)data)&0xffff,
+			do_bell(scp, (*(int*)data)&0xffff,
 				(((*(int*)data)>>16)&0xffff)*hz/1000);
 		}
 		else
@@ -1159,7 +1161,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 	case GETFKEY:		/* get functionkey string */
 		if (*(u_short*)data < n_fkey_tab) {
-		 	fkeyarg_t *ptr = (fkeyarg_t*)data;
+			fkeyarg_t *ptr = (fkeyarg_t*)data;
 			bcopy(&fkey_tab[ptr->keynum].str,
 			      ptr->keydef,
 			      fkey_tab[ptr->keynum].len);
@@ -1171,7 +1173,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 	case SETFKEY:		/* set functionkey string */
 		if (*(u_short*)data < n_fkey_tab) {
-		 	fkeyarg_t *ptr = (fkeyarg_t*)data;
+			fkeyarg_t *ptr = (fkeyarg_t*)data;
 			bcopy(ptr->keydef, 
 			      &fkey_tab[ptr->keynum].str, 
 			      min(ptr->flen, MAXFK));
@@ -1297,7 +1299,7 @@ scstart(struct tty *tp)
 			len = q_to_b(rbp, buf, PCBURST);
 			ansi_put(scp, buf, len);
 		}
-		scp->status |= (CURSOR_ENABLED | UPDATE_NEEDED);
+		scp->status |= (CURSOR_ENABLED | UPDATE_SCREEN);
 		s = spltty();
 		tp->t_state &= ~TS_BUSY;
 		if (rbp->c_cc <= tp->t_lowat) {
@@ -1369,16 +1371,16 @@ fade_saver(int blank)
 	if (blank) {
 		scrn_blanked = 1;
 		if (count < 64) {
-  			outb(PIXMASK, 0xFF);		/* no pixelmask */
-  			outb(PALWADR, 0x00);
-    			outb(PALDATA, 0);
-    			outb(PALDATA, 0);
-    			outb(PALDATA, 0);
-  			for (i = 3; i < 768; i++) {
-  				if (palette[i] - count > 15)
-    					outb(PALDATA, palette[i]-count);
+			outb(PIXMASK, 0xFF);		/* no pixelmask */
+			outb(PALWADR, 0x00);
+			outb(PALDATA, 0);
+			outb(PALDATA, 0);
+			outb(PALDATA, 0);
+			for (i = 3; i < 768; i++) {
+				if (palette[i] - count > 15)
+					outb(PALDATA, palette[i]-count);
 				else
-    					outb(PALDATA, 15);
+					outb(PALDATA, 15);
 			}
 			inb(crtc_addr+6);		/* reset flip/flop */
 			outb(ATC, 0x20);		/* enable palette */
@@ -1397,11 +1399,11 @@ blank_saver(int blank)
 	u_char val;
 	if (blank) {
 		scrn_blanked = 1;
-  		outb(TSIDX, 0x01); val = inb(TSREG); 
+		outb(TSIDX, 0x01); val = inb(TSREG); 
 		outb(TSIDX, 0x01); outb(TSREG, val | 0x20);
 	}
 	else {
-  		outb(TSIDX, 0x01); val = inb(TSREG); 
+		outb(TSIDX, 0x01); val = inb(TSREG); 
 		outb(TSIDX, 0x01); outb(TSREG, val & 0xDF);
 		scrn_blanked = 0;
 	}
@@ -1413,16 +1415,16 @@ green_saver(int blank)
 	u_char val;
 	if (blank) {
 		scrn_blanked = 1;
-  		outb(TSIDX, 0x01); val = inb(TSREG); 
+		outb(TSIDX, 0x01); val = inb(TSREG); 
 		outb(TSIDX, 0x01); outb(TSREG, val | 0x20);
 		outb(crtc_addr, 0x17); val = inb(crtc_addr + 1);
 		outb(crtc_addr + 1, val & ~0x80);
 	}
 	else {
-  		outb(TSIDX, 0x01); val = inb(TSREG); 
+		outb(TSIDX, 0x01); val = inb(TSREG); 
 		outb(TSIDX, 0x01); outb(TSREG, val & 0xDF);
-                outb(crtc_addr, 0x17); val = inb(crtc_addr + 1);
-                outb(crtc_addr + 1, val | 0x80);
+		outb(crtc_addr, 0x17); val = inb(crtc_addr + 1);
+		outb(crtc_addr + 1, val | 0x80);
 		scrn_blanked = 0;
 	}
 }
@@ -1449,19 +1451,19 @@ star_saver(int blank)
 			fillw((FG_LIGHTGREY|BG_BLACK)<<8|scr_map[0x20], Crtat, 
 			      scp->xsize * scp->ysize);
 			set_border(0);
- 			for(i=0; i<NUM_STARS; i++) {
-  				stars[i][0] = 
+			for(i=0; i<NUM_STARS; i++) {
+				stars[i][0] = 
 					random() % (scp->xsize*scp->ysize);
-  				stars[i][1] = 0;
- 			}
+				stars[i][1] = 0;
+			}
 		}
-   		cell = random() % NUM_STARS;
+		cell = random() % NUM_STARS;
 		*((u_short*)(Crtat + stars[cell][0])) = 
 			scr_map[pattern[stars[cell][1]]] | 
-			        colors[random()%sizeof(colors)] << 8;
+				colors[random()%sizeof(colors)] << 8;
 		if ((stars[cell][1]+=(random()%4)) >= sizeof(pattern)-1) {
-    			stars[cell][0] = random() % (scp->xsize*scp->ysize);
-   			stars[cell][1] = 0;
+			stars[cell][0] = random() % (scp->xsize*scp->ysize);
+			stars[cell][1] = 0;
 		}
 	}
 	else {
@@ -1530,34 +1532,39 @@ snake_saver(int blank)
 static void 
 scrn_timer()
 {
-	static int cursor_blinkrate;
-	scr_stat *scp = cur_console;
+    static int cursor_blinkrate;
+    scr_stat *scp = cur_console;
 
-	if (scp->status & UNKNOWN_MODE) {
-		timeout((timeout_func_t)scrn_timer, 0, hz/10);
-		return;
+    /* should we just return ? */
+    if ((scp->status & UNKNOWN_MODE) || blink_in_progress) {
+	timeout((timeout_func_t)scrn_timer, 0, hz/10);
+	return;
+    }
+	
+    if (!scrn_blanked) {
+	/* update entire screen image */
+	if (scp->status & UPDATE_SCREEN) {
+	    bcopyw(scp->scr_buf, Crtat, scp->xsize*scp->ysize*sizeof(u_short));
+	    scp->status &= ~CURSOR_SHOWN;
 	}
-	/* update physical screen */
-	if (scp->status & UPDATE_NEEDED) {
-		bcopyw(scp->scr_buf, Crtat, 
-	       	       scp->xsize*scp->ysize*sizeof(u_short));
-		if (!(configuration&BLINK_CURSOR) && scp->status&CURSOR_ENABLED)
-			draw_cursor(scp);
-		scp->status &= ~UPDATE_NEEDED;
+	/* update "pseudo" mouse */
+	if ((scp->status & MOUSE_ENABLED) && 
+	    ((scp->status & UPDATE_MOUSE) || (scp->status & UPDATE_SCREEN)))
+	    draw_mouse_image(scp);
+	/* update cursor image */
+	if (scp->status & CURSOR_ENABLED) {
+	    if ((configuration & BLINK_CURSOR) && (cursor_blinkrate++ & 0x04))
+		draw_cursor(scp, FALSE);
+	    else	
+		draw_cursor(scp, TRUE);
 	}
-	if ((configuration & BLINK_CURSOR) && (scp->status & CURSOR_ENABLED)) {
-		if (cursor_blinkrate++ & 0x04)
-			draw_cursor(scp);
-	    	else	
-			undraw_cursor(scp);
-	}
-	if (scrn_blank_time && (time.tv_sec>scrn_time_stamp+scrn_blank_time)) {
-		scp->status &= ~CURSOR_ENABLED;
-		SCRN_SAVER(TRUE);
-	}
-	timeout((timeout_func_t)scrn_timer, 0, hz/25);
+	scp->status &= ~UPDATE_SCREEN;
+    }
+    if (scrn_blank_time && (time.tv_sec>scrn_time_stamp+scrn_blank_time))
+	SCRN_SAVER(TRUE);
+    timeout((timeout_func_t)scrn_timer, 0, hz/25);
 }
-
+	
 static void 
 clear_screen(scr_stat *scp)
 {
@@ -1573,9 +1580,9 @@ switch_scr(scr_stat *scp, u_int next_scr)
 	    (cur_console->proc != pfind(cur_console->pid)))
 		switch_in_progress = FALSE;
 
-    	if (next_scr >= MAXCONS || switch_in_progress
+	if (next_scr >= MAXCONS || switch_in_progress
 	    || (cur_console->smode.mode == VT_AUTO 
-	       	&& cur_console->status & UNKNOWN_MODE)) {
+		&& cur_console->status & UNKNOWN_MODE)) {
 		do_bell(scp, BELL_PITCH, BELL_DURATION);
 		return EINVAL;
 	}
@@ -1631,7 +1638,7 @@ exchange_scr(void)
 	move_crsr(old_scp, old_scp->xpos, old_scp->ypos);
 	cur_console = new_scp;
 	if (old_scp->mode != new_scp->mode || (old_scp->status & UNKNOWN_MODE)){
-        	if (crtc_vga && video_mode_ptr)
+		if (crtc_vga && video_mode_ptr)
 			set_mode(new_scp);
 	}
 	move_crsr(new_scp, new_scp->xpos, new_scp->ypos);
@@ -1648,7 +1655,7 @@ exchange_scr(void)
 		shfts = ctls = alts = agrs = metas = 0;
 	update_leds(new_scp->status);
 	delayed_next_scr = FALSE;
-	new_scp->status |= UPDATE_NEEDED;
+	new_scp->status |= UPDATE_SCREEN;
 }
 
 static inline void 
@@ -1706,13 +1713,13 @@ scan_esc(scr_stat *scp, u_char c)
 		if (c >= '0' && c <= '9') {
 		    if (scp->term.num_param < MAX_ESC_PAR) {
 			if (scp->term.last_param != scp->term.num_param) {
-		    	    scp->term.last_param = scp->term.num_param;
-		    	    scp->term.param[scp->term.num_param] = 0;
+			    scp->term.last_param = scp->term.num_param;
+			    scp->term.param[scp->term.num_param] = 0;
 			}
 			else
-		    	    scp->term.param[scp->term.num_param] *= 10;
-		    	scp->term.param[scp->term.num_param] += c - '0';
-		    	return;
+			    scp->term.param[scp->term.num_param] *= 10;
+			scp->term.param[scp->term.num_param] += c - '0';
+			return;
 		    }
 		}
 		scp->term.num_param = scp->term.last_param + 1;
@@ -1895,7 +1902,7 @@ scan_esc(scr_stat *scp, u_char c)
 			if (n > scp->xsize - scp->xpos)
 				n = scp->xsize - scp->xpos;
 			fillw(scp->term.cur_attr | scr_map[0x20], 
-                              scp->scr_buf + scp->xpos + 
+			      scp->scr_buf + scp->xpos + 
 			      ((scp->xsize*scp->ypos) * sizeof(u_short)), n);
 			break;
 
@@ -2102,29 +2109,30 @@ scan_esc(scr_stat *scp, u_char c)
 }
 
 static inline void 
-undraw_cursor(scr_stat *scp)
+draw_cursor(scr_stat *scp, int show)
 {
-	if (scp->status & CURSOR_SHOWN)
-		*(Crtat+(scp->cursor_pos - scp->scr_buf)) = *scp->cursor_pos;
-	scp->status &= ~CURSOR_SHOWN;
-}
+	if (show && !(scp->status & CURSOR_SHOWN)) {
+	    u_short cursor_image = 
+		*(Crtat + (cur_console->cursor_pos - cur_console->scr_buf));
 
-static inline void 
-draw_cursor(scr_stat *scp)
-{
-	u_short cursor_image = *scp->cursor_pos;
-
-	if ((cursor_image & 0x7000) == 0x7000) {
-		cursor_image &= 0x8fff;
-		if(!(cursor_image & 0x0700))
-			cursor_image |= 0x0700;
-	} else {
-		cursor_image |= 0x7000;
-		if ((cursor_image & 0x0f00) == 0x0700)
-			cursor_image &= 0xf8ff;
+		scp->cursor_saveunder = cursor_image;
+		if ((cursor_image & 0x7000) == 0x7000) {
+			cursor_image &= 0x8fff;
+			if(!(cursor_image & 0x0700))
+				cursor_image |= 0x0700;
+		} else {
+			cursor_image |= 0x7000;
+			if ((cursor_image & 0x0f00) == 0x0700)
+				cursor_image &= 0xf8ff;
+		}
+		*(Crtat + (cur_console->cursor_pos - cur_console->scr_buf)) =
+			cursor_image;
+		scp->status |= CURSOR_SHOWN;
 	}
-	*(Crtat+(cur_console->cursor_pos-cur_console->scr_buf)) = cursor_image;
-	scp->status |= CURSOR_SHOWN;
+	if (!show && (scp->status & CURSOR_SHOWN)) {
+		*(Crtat+(scp->cursor_pos-scp->scr_buf)) = scp->cursor_saveunder;
+		scp->status &= ~CURSOR_SHOWN;
+	}
 }
 
 static void 
@@ -2191,8 +2199,15 @@ outloop:
 			scp->xpos = 0;
 			break;
 		case '\t':	/* non-destructive tab */
-			scp->cursor_pos += (8 - scp->xpos % 8);
-			scp->xpos += (8 - scp->xpos % 8);
+			{
+				int i = 8 - scp->xpos % 8u;
+
+				scp->cursor_pos += i;
+				if ((scp->xpos += i) >= scp->xsize) {
+					scp->xpos = 0;
+					scp->ypos++;
+				}
+			}
 			break;
 		}
 		ptr++; len--;
@@ -2209,10 +2224,10 @@ outloop:
 			scp->history_head = scp->history;
 	    }
 	    bcopyw(scp->scr_buf + scp->xsize, scp->scr_buf,
-	    	   scp->xsize * (scp->ysize - 1) * sizeof(u_short));
+		   scp->xsize * (scp->ysize - 1) * sizeof(u_short));
 	    fillw(scp->term.cur_attr | scr_map[0x20],
-	    	  scp->scr_buf + scp->xsize * (scp->ysize - 1), 
-	    	  scp->xsize);
+		  scp->scr_buf + scp->xsize * (scp->ysize - 1), 
+		  scp->xsize);
 	    scp->cursor_pos -= scp->xsize;
 	    scp->ypos--;
 	}
@@ -2317,7 +2332,7 @@ static scr_stat
 		(u_short *)malloc(scp->history_size*sizeof(u_short),
 				  M_DEVBUF, M_NOWAIT);
 	bzero(scp->history_head, scp->history_size*sizeof(u_short));
-        if (crtc_vga && video_mode_ptr)
+	if (crtc_vga && video_mode_ptr)
 		set_mode(scp);
 	clear_screen(scp);
 	return scp;
@@ -2360,7 +2375,7 @@ scput(u_char c)
 	current_default = &kernel_default;
 	scp->status &= ~CURSOR_ENABLED;
 	ansi_put(scp, &c, 1);
-	scp->status |= (CURSOR_ENABLED | UPDATE_NEEDED);
+	scp->status |= (CURSOR_ENABLED | UPDATE_SCREEN);
 	kernel_console = scp->term;
 	current_default = &user_default;
 	scp->term = save;
@@ -2386,7 +2401,7 @@ static void
 update_leds(int which)
 {
 	int s;
-  	static u_char xlate_leds[8] = { 0, 4, 2, 6, 1, 5, 3, 7 };
+	static u_char xlate_leds[8] = { 0, 4, 2, 6, 1, 5, 3, 7 };
 
 	/* replace CAPS led with ALTGR led for ALTGR keyboards */
 	if (key_map.n_keys > ALTGR_OFFSET) {
@@ -2406,11 +2421,13 @@ history_to_screen(scr_stat *scp)
 {
 	int i;
 
+	scp->status &= ~UPDATE_SCREEN;
 	for (i=0; i<scp->ysize; i++)
 		bcopyw(scp->history + (((scp->history_pos - scp->history) + 
 		       scp->history_size-((i+1)*scp->xsize))%scp->history_size),
-		       Crtat + (scp->xsize * (scp->ysize-1 - i)),
+		       scp->scr_buf + (scp->xsize * (scp->ysize-1 - i)),
 		       scp->xsize * sizeof(u_short));
+	scp->status |= UPDATE_SCREEN;
 }
 
 static int
@@ -2418,12 +2435,12 @@ history_up_line(scr_stat *scp)
 {
 	if (WRAPHIST(scp, scp->history_pos, -(scp->xsize*scp->ysize)) !=
 	    scp->history_head) {
-	        scp->history_pos = WRAPHIST(scp, scp->history_pos, -scp->xsize);
+		scp->history_pos = WRAPHIST(scp, scp->history_pos, -scp->xsize);
 		history_to_screen(scp);
 		return 0;
 	}
 	else
-	    	return -1;
+		return -1;
 }
 
 static int
@@ -2435,7 +2452,7 @@ history_down_line(scr_stat *scp)
 		return 0;
 	}
 	else
-	    	return -1;
+		return -1;
 }
 
 /*
@@ -2451,7 +2468,6 @@ scgetc(int noblock)
 	struct key_t *key;
 	static u_char esc_flag = 0, compose = 0;
 	static u_int chr = 0;
-	static u_short *saved_history_head;
 
 next_code:
 	kbd_wait();
@@ -2549,15 +2565,15 @@ next_code:
 			break;
 
 		/* the following 3 are only used on the MS "Natural" keyboard */
- 		case 0x5b:	/* left Window key */
- 			keycode = 0x69;
- 			break;
- 		case 0x5c:	/* right Window key */
- 			keycode = 0x6a;
- 			break;
- 		case 0x5d:	/* menu key */
- 			keycode = 0x6b;
- 			break;
+		case 0x5b:	/* left Window key */
+			keycode = 0x69;
+			break;
+		case 0x5c:	/* right Window key */
+			keycode = 0x6a;
+			break;
+		case 0x5d:	/* menu key */
+			keycode = 0x6b;
+			break;
 		default:	/* ignore everything else */
 			goto next_code;
 		}
@@ -2582,19 +2598,18 @@ next_code:
 
 		cur_console->status &= ~CURSOR_ENABLED;
 		if (!(cur_console->status & BUFFER_SAVED)) {
-		    cur_console->status &= ~UPDATE_NEEDED;
 		    cur_console->status |= BUFFER_SAVED;
-		    saved_history_head = cur_console->history_head;
-		    /* copy scp->ysize line into history */
-	    	    for (i=0; i<cur_console->ysize; i++) {
-	    	        bcopyw(cur_console->scr_buf + (cur_console->xsize * i), 
+		    cur_console->history_save = cur_console->history_head;
+		    /* copy screen into top of history buffer */
+		    for (i=0; i<cur_console->ysize; i++) {
+			bcopyw(cur_console->scr_buf + (cur_console->xsize * i), 
 			       cur_console->history_head,
-		       	       cur_console->xsize * sizeof(u_short));
+			       cur_console->xsize * sizeof(u_short));
 
-		        cur_console->history_head += cur_console->xsize;
-		        if (cur_console->history_head + cur_console->xsize >
-		    	    cur_console->history + cur_console->history_size)
-			        cur_console->history_head=cur_console->history;
+			cur_console->history_head += cur_console->xsize;
+			if (cur_console->history_head + cur_console->xsize >
+			    cur_console->history + cur_console->history_size)
+				cur_console->history_head=cur_console->history;
 		    }
 		    cur_console->history_pos = cur_console->history_head;
 		    history_to_screen(cur_console);
@@ -2614,26 +2629,26 @@ next_code:
 
 		case 0x48:	/* up arrow key */
 		    if (history_up_line(cur_console))
-		    	do_bell(cur_console, BELL_PITCH, BELL_DURATION);
+			do_bell(cur_console, BELL_PITCH, BELL_DURATION);
 		    goto next_code;
 
 		case 0x50:	/* down arrow key */
 		    if (history_down_line(cur_console))
-		    	do_bell(cur_console, BELL_PITCH, BELL_DURATION);
+			do_bell(cur_console, BELL_PITCH, BELL_DURATION);
 		    goto next_code;
 
 		case 0x49:	/* page up key */
 		    for (i=0; i<cur_console->ysize; i++)
-		        if (history_up_line(cur_console)) {
-		    	    do_bell(cur_console, BELL_PITCH, BELL_DURATION);
+			if (history_up_line(cur_console)) {
+			    do_bell(cur_console, BELL_PITCH, BELL_DURATION);
 			    break;
 		    }
 		    goto next_code;
 
 		case 0x51:	/* page down key */
 		    for (i=0; i<cur_console->ysize; i++)
-		        if (history_down_line(cur_console)) {
-		    	    do_bell(cur_console, BELL_PITCH, BELL_DURATION);
+			if (history_down_line(cur_console)) {
+			    do_bell(cur_console, BELL_PITCH, BELL_DURATION);
 			    break;
 		    }
 		    goto next_code;
@@ -2763,33 +2778,35 @@ next_code:
 				    if (cur_console->status & SLKED) {
 					cur_console->status &= ~SLKED;
 					if (cur_console->status & BUFFER_SAVED){
-					    bcopyw(cur_console->scr_buf, Crtat,
-					    	   cur_console->xsize *
-					    	     cur_console->ysize *
-						     sizeof(u_short));
+					    int i;
+		    for (i=0; i<cur_console->ysize; i++) {
+			bcopyw(cur_console->history_save+(cur_console->xsize*i),
+			       cur_console->scr_buf + (cur_console->xsize * i), 
+			       cur_console->xsize * sizeof(u_short));
+		    }
 					    cur_console->status&=~BUFFER_SAVED;
 					    cur_console->history_head =
-						saved_history_head;
+						cur_console->history_save;
 					    cur_console->status |= 
-						(CURSOR_ENABLED|UPDATE_NEEDED);
+						(CURSOR_ENABLED|UPDATE_SCREEN);
 					}
 					scstart(VIRTUAL_TTY(get_scr_num()));
 				    } 
 				    else 
-				        cur_console->status |= SLKED;
+					cur_console->status |= SLKED;
 				    update_leds(cur_console->status);
 				}
 				break;
- 			case ALK:
+			case ALK:
 				if (!alkcnt) {
 					alkcnt++;
- 					if (cur_console->status & ALKED)
- 						cur_console->status &= ~ALKED;
- 					else
- 						cur_console->status |= ALKED;
+					if (cur_console->status & ALKED)
+						cur_console->status &= ~ALKED;
+					else
+						cur_console->status |= ALKED;
 					update_leds(cur_console->status);
 				}
-  				break;
+				break;
 
 			/* NON-LOCKING KEYS */
 			case NOP:
@@ -2803,7 +2820,7 @@ next_code:
 			case DBG:
 #ifdef DDB			/* try to switch to console 0 */
 				if (cur_console->smode.mode == VT_AUTO &&
-		    		    console[0]->smode.mode == VT_AUTO)
+				    console[0]->smode.mode == VT_AUTO)
 					switch_scr(cur_console, 0); 
 				Debugger("manual escape to debugger");
 				return(NOKEY);
@@ -2854,7 +2871,7 @@ next_code:
 		else {
 			if (metas)
 				action |= MKEY;
- 			return(action);
+			return(action);
 		}
 	}
 	goto next_code;
@@ -2936,11 +2953,11 @@ special_80x60:	special_modetable[2]  = 0x08;
 		special_modetable[19] = 0x47;
 		goto special_480l;
 
-       	case M_VGA_M80x30:
+	case M_VGA_M80x30:
 		bcopyw(video_mode_ptr+(64*M_VGA_M80x25),&special_modetable, 64);
 		goto special_80x30;
 
-       	case M_VGA_C80x30:
+	case M_VGA_C80x30:
 		bcopyw(video_mode_ptr+(64*M_VGA_C80x25),&special_modetable, 64);
 special_80x30:	special_modetable[19] = 0x4f;
 special_480l:	special_modetable[16] = 0x08;
@@ -2952,7 +2969,7 @@ special_480l:	special_modetable[16] = 0x08;
 		modetable = special_modetable;
 		goto setup_mode;
 
-       	case M_ENH_B80x43:
+	case M_ENH_B80x43:
 		bcopyw(video_mode_ptr+(64*M_ENH_B80x25),&special_modetable, 64);
 		goto special_80x43;
 
@@ -2965,19 +2982,19 @@ special_80x43:	special_modetable[28] = 87;
 		bcopyw(video_mode_ptr+(64*M_VGA_M80x25),&special_modetable, 64);
 		goto special_80x50;
 
-       	case M_VGA_C80x50:
+	case M_VGA_C80x50:
 		bcopyw(video_mode_ptr+(64*M_VGA_C80x25),&special_modetable, 64);
 special_80x50: 	special_modetable[2] = 8;
 		special_modetable[19] = 7;
 		modetable = special_modetable;
 		goto setup_mode;
 
-       	case M_VGA_C40x25: case M_VGA_C80x25:	/* VGA TEXT MODES */
+	case M_VGA_C40x25: case M_VGA_C80x25:	/* VGA TEXT MODES */
 	case M_VGA_M80x25: 
-       	case M_B40x25:     case M_C40x25:	
-       	case M_B80x25:     case M_C80x25:
-       	case M_ENH_B40x25: case M_ENH_C40x25: 
-       	case M_ENH_B80x25: case M_ENH_C80x25:
+	case M_B40x25:     case M_C40x25:	
+	case M_B80x25:     case M_C80x25:
+	case M_ENH_B40x25: case M_ENH_C40x25: 
+	case M_ENH_B80x25: case M_ENH_C80x25:
 
 		modetable = video_mode_ptr + (scp->mode * 64);
 setup_mode:
@@ -2985,21 +3002,21 @@ setup_mode:
 		font_size = *(modetable + 2);
 
 		/* set font type (size) */
- 		switch (font_size) {
- 		case 0x10:
- 	    		outb(TSIDX, 0x03); outb(TSREG, 0x00);	/* font 0 */
+		switch (font_size) {
+		case 0x10:
+			outb(TSIDX, 0x03); outb(TSREG, 0x00);	/* font 0 */
 			scp->font = FONT_16;
- 			break;
- 		case 0x0E:
- 	    		outb(TSIDX, 0x03); outb(TSREG, 0x05);	/* font 1 */
+			break;
+		case 0x0E:
+			outb(TSIDX, 0x03); outb(TSREG, 0x05);	/* font 1 */
 			scp->font = FONT_14;
- 			break;
- 		default:
- 		case 0x08:
- 	    		outb(TSIDX, 0x03); outb(TSREG, 0x0A);	/* font 2 */
+			break;
+		default:
+		case 0x08:
+			outb(TSIDX, 0x03); outb(TSREG, 0x0A);	/* font 2 */
 			scp->font = FONT_8;
- 			break;
- 		}
+			break;
+		}
 		break;
 
 	case M_BG320:      case M_CG320:      case M_BG640:
@@ -3007,7 +3024,7 @@ setup_mode:
 	case M_CG640x350:  case M_ENH_CG640:
 	case M_BG640x480:  case M_CG640x480:  case M_VGA_CG320:
  
- 		set_vgaregs(video_mode_ptr + (scp->mode * 64));
+		set_vgaregs(video_mode_ptr + (scp->mode * 64));
 		break;
 
 	default:
@@ -3025,8 +3042,8 @@ set_border(int color)
 {
 	inb(crtc_addr+6); 				/* reset flip-flop */
 	outb(ATC, 0x11); outb(ATC, color); 
- 	inb(crtc_addr+6); 				/* reset flip-flop */
- 	outb(ATC, 0x20);				/* enable Palette */
+	inb(crtc_addr+6); 				/* reset flip-flop */
+	outb(ATC, 0x20);				/* enable Palette */
 }
 
 static void
@@ -3121,7 +3138,7 @@ set_normal_mode()
 static void 
 copy_font(int operation, int font_type, char* font_image)
 {
-  	int ch, line, segment, fontsize;
+	int ch, line, segment, fontsize;
 	u_char val;
 
 	switch (font_type) {
@@ -3139,10 +3156,10 @@ copy_font(int operation, int font_type, char* font_image)
 		fontsize = 16;
 		break;
 	}
- 	outb(TSIDX, 0x01); val = inb(TSREG); 		/* disable screen */
+	outb(TSIDX, 0x01); val = inb(TSREG); 		/* disable screen */
 	outb(TSIDX, 0x01); outb(TSREG, val | 0x20);
 	set_font_mode();
-    	for (ch=0; ch < 256; ch++) 
+	for (ch=0; ch < 256; ch++) 
 	    for (line=0; line < fontsize; line++) 
 		if (operation)
 		    *(char *)pa_to_va(VIDEOMEM+(segment)+(ch*32)+line) =
@@ -3152,17 +3169,6 @@ copy_font(int operation, int font_type, char* font_image)
 		    *(char *)pa_to_va(VIDEOMEM+(segment)+(ch*32)+line);
 	set_normal_mode();
 	outb(TSIDX, 0x01); outb(TSREG, val & 0xDF);	/* enable screen */
-}
-
-static void
-undraw_mouse_image(scr_stat *scp)
-{
-	u_short *crt_pos = Crtat + (scp->mouse_pos - scp->scr_buf);
-
-	*(crt_pos) = *(scp->mouse_pos);
-	*(crt_pos+1) = *(scp->mouse_pos+1);
-	*(crt_pos+scp->xsize) = *(scp->mouse_pos+scp->xsize);
-	*(crt_pos+scp->xsize+1) = *(scp->mouse_pos+scp->xsize+1);
 }
 
 static void
@@ -3198,18 +3204,13 @@ draw_mouse_image(scr_stat *scp)
 		break;
 	}
 
-	scp->mouse_saveunder[0] = *(crt_pos);
-	scp->mouse_saveunder[1] = *(crt_pos+1);
-	scp->mouse_saveunder[2] = *(crt_pos+scp->xsize);
-	scp->mouse_saveunder[3] = *(crt_pos+scp->xsize+1);
-
-	bcopyw(font_buffer+((scp->mouse_saveunder[0] & 0xff)*font_size),
+	bcopyw(font_buffer+((*(scp->mouse_pos) & 0xff)*font_size),
 	       &scp->mouse_cursor[0], font_size);
-	bcopyw(font_buffer+((scp->mouse_saveunder[1] & 0xff)*font_size),
+	bcopyw(font_buffer+((*(scp->mouse_pos+1) & 0xff)*font_size),
 	       &scp->mouse_cursor[32], font_size);
-	bcopyw(font_buffer+((scp->mouse_saveunder[2] & 0xff)*font_size),
+	bcopyw(font_buffer+((*(scp->mouse_pos+scp->xsize) & 0xff)*font_size),
 	       &scp->mouse_cursor[64], font_size);
-	bcopyw(font_buffer+((scp->mouse_saveunder[3] & 0xff)*font_size),
+	bcopyw(font_buffer+((*(scp->mouse_pos+scp->xsize+1) & 0xff)*font_size),
 	       &scp->mouse_cursor[96], font_size);
 
 	for (i=0; i<font_size; i++) {
@@ -3230,12 +3231,38 @@ draw_mouse_image(scr_stat *scp)
 		scp->mouse_cursor[i+64] = (buffer[i+font_size] & 0xff00) >> 8;
 		scp->mouse_cursor[i+96] = buffer[i+font_size] & 0xff;
 	}
-
+	/*
+	 * if we didn't update entire screen, restore old mouse position
+	 * and check if we overwrote the cursor location..
+	 */
+	if ((scp->status & UPDATE_MOUSE) && !(scp->status & UPDATE_SCREEN)) {
+	    u_short *ptr = scp->scr_buf + (scp->mouse_oldpos - Crtat);
+	    if (crt_pos != scp->mouse_oldpos) {
+		*(scp->mouse_oldpos) = scp->mouse_saveunder[0];
+		*(scp->mouse_oldpos+1) = scp->mouse_saveunder[1];
+		*(scp->mouse_oldpos+scp->xsize) = scp->mouse_saveunder[2];
+		*(scp->mouse_oldpos+scp->xsize+1) = scp->mouse_saveunder[3];
+	    }
+	    scp->mouse_saveunder[0] = *(scp->mouse_pos);
+	    scp->mouse_saveunder[1] = *(scp->mouse_pos+1);
+	    scp->mouse_saveunder[2] = *(scp->mouse_pos+scp->xsize);
+	    scp->mouse_saveunder[3] = *(scp->mouse_pos+scp->xsize+1);
+	    if ((scp->cursor_pos == (ptr)) ||
+		(scp->cursor_pos == (ptr+1)) ||
+		(scp->cursor_pos == (ptr+scp->xsize)) ||
+		(scp->cursor_pos == (ptr+scp->xsize+1)) ||
+		(scp->cursor_pos == (scp->mouse_pos)) ||
+		(scp->cursor_pos == (scp->mouse_pos+1)) ||
+		(scp->cursor_pos == (scp->mouse_pos+scp->xsize)) ||
+		(scp->cursor_pos == (scp->mouse_pos+scp->xsize+1)))
+		    scp->status &= ~CURSOR_SHOWN;
+	}
+	scp->mouse_oldpos = crt_pos;
 	while (!(inb(crtc_addr+6) & 0x08)) /* wait for vertical retrace */ ;
-	*(crt_pos) = (scp->mouse_saveunder[0]&0xff00)|0xc0;
-	*(crt_pos+1) = (scp->mouse_saveunder[1]&0xff00)|0xc1;
-	*(crt_pos+scp->xsize) = (scp->mouse_saveunder[2]&0xff00)|0xc2;
-	*(crt_pos+scp->xsize+1) = (scp->mouse_saveunder[3]&0xff00)|0xc3;
+	*(crt_pos) = *(scp->mouse_pos)&0xff00|0xc0;
+	*(crt_pos+1) = *(scp->mouse_pos+1)&0xff00|0xc1;
+	*(crt_pos+scp->xsize) = *(scp->mouse_pos+scp->xsize)&0xff00|0xc2;
+	*(crt_pos+scp->xsize+1) = *(scp->mouse_pos+scp->xsize+1)&0xff00|0xc3;
 	set_font_mode();
 	bcopy(scp->mouse_cursor,
 	      (char *)pa_to_va(address) + 0xc0 * 32, 128);
@@ -3247,9 +3274,9 @@ save_palette(void)
 {
 	int i;
 
-  	outb(PALRADR, 0x00);	
-  	for (i=0x00; i<0x300; i++)            
-    		palette[i] = inb(PALDATA);
+	outb(PALRADR, 0x00);	
+	for (i=0x00; i<0x300; i++)            
+		palette[i] = inb(PALDATA);
 	inb(crtc_addr+6);			/* reset flip/flop */
 }
 
@@ -3258,10 +3285,10 @@ load_palette(void)
 {
 	int i;
 
-  	outb(PIXMASK, 0xFF);			/* no pixelmask */
-  	outb(PALWADR, 0x00);	
-  	for (i=0x00; i<0x300; i++)            
-    		 outb(PALDATA, palette[i]);
+	outb(PIXMASK, 0xFF);			/* no pixelmask */
+	outb(PALWADR, 0x00);	
+	for (i=0x00; i<0x300; i++)            
+		 outb(PALDATA, palette[i]);
 	inb(crtc_addr+6);			/* reset flip/flop */
 	outb(ATC, 0x20);			/* enable palette */
 }
@@ -3273,7 +3300,6 @@ do_bell(scr_stat *scp, int pitch, int duration)
 		if (configuration & VISUAL_BELL) {
 			if (blink_in_progress)
 				return;
-			scp->status &= ~CURSOR_ENABLED;
 			blink_in_progress = 4;
 			timeout((timeout_func_t)blink_screen, scp, hz/10);
 		}	
@@ -3296,7 +3322,7 @@ blink_screen(scr_stat *scp)
 		timeout((timeout_func_t)blink_screen, scp, hz/10);
 	}
 	else {
-		scp->status |= (CURSOR_ENABLED | UPDATE_NEEDED);
+		scp->status |= UPDATE_SCREEN;
 		blink_in_progress = FALSE;
 	}
 }
