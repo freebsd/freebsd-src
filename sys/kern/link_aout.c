@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_aout.c,v 1.1 1997/05/07 16:05:32 dfr Exp $
+ *	$Id: link_aout.c,v 1.2 1997/08/02 14:31:35 bde Exp $
  */
 
 #include <sys/param.h>
@@ -97,7 +97,7 @@ link_aout_init(void* arg)
 
 SYSINIT(link_aout, SI_SUB_KMEM, SI_ORDER_THIRD, link_aout_init, 0);
 
-int
+static int
 link_aout_load_file(const char* filename, linker_file_t* result)
 {
     struct nameidata nd;
@@ -180,7 +180,7 @@ out:
     return error;
 }
 
-void
+static void
 link_aout_unload(linker_file_t file)
 {
     aout_file_t af = file->priv;
