@@ -60,7 +60,11 @@
     <sect3>
       <title>Network Interface Support</title>
 
-      <para>The dgm driver has been updated from &os; -CURRENT).</para>
+      <para>The dgm driver has been updated from &os; -CURRENT.</para>
+
+      <para>The &man.an.4; driver now supports <quote>monitor</quote>
+      mode, settable via the <option>-M</option> option to
+      &man.ancontrol.8;.</para>
     </sect3>
 
     <sect3>
@@ -123,6 +127,8 @@
 
     <para>&man.netstat.1; now has a <option>-S</option> flag to print
     address numerically but port names symbolically.</para>
+
+    <para>&man.nl.1;, a line numbering filter program, has been added.</para>
 
     <sect3>
       <title>Contributed Software</title>
