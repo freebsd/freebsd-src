@@ -193,20 +193,25 @@ time_t	tschedule = 0;
 void
 timeest()
 {
+	double percent;
 	time_t	tnow;
-	int deltat;
+	int deltat, hours, mins;
 
 	(void) time(&tnow);
+	deltat = (blockswritten == 0) ? 0 : tstart_writing - tnow +
+	    (double)(tnow - tstart_writing) / blockswritten * tapesize;
+	percent = (blockswritten * 100.0) / tapesize;
+	hours = deltat / 3600;
+	mins = (deltat % 3600) / 60;
+
+	setproctitle("%s: pass %d: %3.2f%% done, finished in %d:%02d",
+	    disk, passno, percent, hours, mins);
 	if (tnow >= tschedule) {
 		tschedule = tnow + 300;
 		if (blockswritten < 500)
 			return;
-		deltat = tstart_writing - tnow +
-			(1.0 * (tnow - tstart_writing))
-			/ blockswritten * tapesize;
-		msg("%3.2f%% done, finished in %d:%02d\n",
-			(blockswritten * 100.0) / tapesize,
-			deltat / 3600, (deltat % 3600) / 60);
+		msg("%3.2f%% done, finished in %d:%02d\n", percent, hours,
+		    mins);
 	}
 }
 
