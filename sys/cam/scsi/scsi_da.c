@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.11 1998/10/13 23:34:54 ken Exp $
+ *      $Id: scsi_da.c,v 1.12 1998/10/22 22:16:56 ken Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -75,7 +75,8 @@ typedef enum {
 
 typedef enum {
 	DA_Q_NONE		= 0x00,
-	DA_Q_NO_SYNC_CACHE	= 0x01
+	DA_Q_NO_SYNC_CACHE	= 0x01,
+	DA_Q_NO_6_BYTE		= 0x02
 } da_quirks;
 
 typedef enum {
@@ -107,6 +108,7 @@ struct da_softc {
 	da_state state;
 	da_flags flags;	
 	da_quirks quirks;
+	int	 minimum_cmd_size;
 	int	 ordered_tag_count;
 	struct	 disk_params params;
 	struct	 diskslices *dk_slices;	/* virtual drives */
@@ -146,6 +148,23 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
 		{T_DIRECT, SIP_MEDIA_FIXED, "NEC", "D3847*", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * Doesn't work correctly with 6 byte reads/writes.
+		 * Returns illegal request, and points to byte 9 of the
+		 * 6-byte CDB.
+		 * Reported by:  Adam McDougall <bsdx@spawnet.com>
+		 */
+		{T_DIRECT, SIP_MEDIA_FIXED, "QUANTUM", "VIKING 4*", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE
+	},
+	{
+		/*
+		 * See above.
+		 */
+		{T_DIRECT, SIP_MEDIA_FIXED, "QUANTUM", "VIKING 2*", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE
 	}
 };
 
@@ -648,7 +667,7 @@ dadump(dev_t dev)
 				MSG_ORDERED_Q_TAG,
 				/*read*/FALSE,
 				/*byte2*/0,
-				/*minimum_cmd_size*/ 6,
+				/*minimum_cmd_size*/ softc->minimum_cmd_size,
 				blknum,
 				blkcnt,
 				/*data_ptr*/CADDR1,
@@ -977,6 +996,11 @@ daregister(struct cam_periph *periph, void *arg)
 	else
 		softc->quirks = DA_Q_NONE;
 
+	if (softc->quirks & DA_Q_NO_6_BYTE)
+		softc->minimum_cmd_size = 10;
+	else
+		softc->minimum_cmd_size = 6;
+
 	/*
 	 * Block our timeout handler while we
 	 * add this softc to the dev list.
@@ -1076,7 +1100,7 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 					tag_code,
 					bp->b_flags & B_READ,
 					/*byte2*/0,
-					/*minimum_cmd_size*/ 6,
+					softc->minimum_cmd_size,
 					bp->b_pblkno,
 					bp->b_bcount / softc->params.secsize,
 					bp->b_data,
