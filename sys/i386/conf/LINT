@@ -1259,6 +1259,7 @@ device		aacp	# SCSI Passthrough interface (optional, CAM required)
 #
 device		ida		# Compaq Smart RAID
 device		mlx		# Mylex DAC960
+device		pst		# Promise Supertrak SX6000
 device		amr		# AMI MegaRAID
 
 #

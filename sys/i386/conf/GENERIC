@@ -133,6 +133,7 @@ device		aac		# Adaptec FSA RAID, Dell PERC2/PERC3
 device		ida		# Compaq Smart RAID
 device		amr		# AMI MegaRAID
 device		mlx		# Mylex DAC960 family
+device		pst		# Promise Supertrak SX6000
 device		twe		# 3ware Escalade
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
