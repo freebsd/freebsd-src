@@ -178,6 +178,7 @@ arp_rtrequest(req, rt, info)
 		 * restore cloning bit.
 		 */
 		if ((rt->rt_flags & RTF_HOST) == 0 &&
+		    rt_mask(rt) != NULL &&
 		    SIN(rt_mask(rt))->sin_addr.s_addr != 0xffffffff)
 			rt->rt_flags |= RTF_CLONING;
 		if (rt->rt_flags & RTF_CLONING) {
