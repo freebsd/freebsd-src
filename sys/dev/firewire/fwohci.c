@@ -292,12 +292,11 @@ fwohci_set_bus_manager(struct firewire_comm *fc, u_int node)
  	for (i = 0; !(OREAD(sc, OHCI_CSR_CONT) & (1<<31)) && (i < 1000); i++)
 		DELAY(100);
 	bm = OREAD(sc, OHCI_CSR_DATA);
-	if((bm & 0x3f) == 0x3f){
-		printf("fw_set_bus_manager: %d->%d (loop=%d)\n", bm, node, i);
+	if((bm & 0x3f) == 0x3f)
 		bm = node;
-	}else{
-		printf("fw_set_bus_manager: %d-X%d (loop=%d)\n", bm, node, i);
-	}
+	if (bootverbose)
+		device_printf(sc->fc.dev,
+			"fw_set_bus_manager: %d->%d (loop=%d)\n", bm, node, i);
 
 	return(bm);
 }
@@ -471,13 +470,15 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 
 /* FLUSH FIFO and reset Transmitter/Reciever */
 	OWRITE(sc, OHCI_HCCCTL, OHCI_HCC_RESET);
-	device_printf(dev, "resetting OHCI...");
+	if (bootverbose)
+		device_printf(dev, "resetting OHCI...");
 	i = 0;
 	while(OREAD(sc, OHCI_HCCCTL) & OHCI_HCC_RESET) {
 		if (i++ > 100) break;
 		DELAY(1000);
 	}
-	printf("done (%d)\n", i);
+	if (bootverbose)
+		printf("done (%d)\n", i);
 	OWRITE(sc, OHCI_HCCCTL, OHCI_HCC_LPS);
 	/* XXX wait for SCLK. */
 	DELAY(100000);
@@ -487,7 +488,8 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 	/* XXX  */
 	if (((reg & 0x0000f000) >> 12) < 10)
 		reg2 = (reg2 & 0xffff0fff) | (10 << 12);
-	device_printf(dev, "BUS_OPT 0x%x -> 0x%x\n", reg, reg2);
+	if (bootverbose)
+		device_printf(dev, "BUS_OPT 0x%x -> 0x%x\n", reg, reg2);
 	OWRITE(sc,  OHCI_BUS_OPT, reg2);
 
 	OWRITE(sc, OHCI_CROMHDR, sc->fc.config_rom[0]);
@@ -544,7 +546,9 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 #else	/* XXX force to enable 1394a */
 		if (e1394a) {
 #endif
-			device_printf(dev, "Enable 1394a Enhancements\n");
+			if (bootverbose)
+				device_printf(dev,
+					"Enable 1394a Enhancements\n");
 			/* enable EAA EMC */
 			reg2 |= 0x03;
 			/* set aPhyEnhanceEnable */
@@ -781,7 +785,7 @@ txloop:
 	if(db_tr != dbch->bottom){
 		goto txloop;
 	} else {
-		printf("fwohci_start: lack of db_trq\n");
+		device_printf(sc->fc.dev, "fwohci_start: lack of db_trq\n");
 		dbch->flags |= FWOHCI_DBCH_FULL;
 	}
 kick:
@@ -791,7 +795,8 @@ kick:
 	if(dbch->xferq.flag & FWXFERQ_RUNNING) {
 		OWRITE(sc, OHCI_DMACTL(off), OHCI_CNTL_DMA_WAKE);
 	} else {
-		printf("start AT DMA status=%x\n",
+		if (bootverbose)
+			device_printf(sc->fc.dev, "start AT DMA status=%x\n",
 					OREAD(sc, OHCI_DMACTL(off)));
 		OWRITE(sc, OHCI_DMACMD(off), vtophys(dbch->top->db) | fsegment);
 		OWRITE(sc, OHCI_DMACTL(off), OHCI_CNTL_DMA_RUN);
@@ -1720,7 +1725,8 @@ fwohci_set_intr(struct firewire_comm *fc, int enable)
 	struct fwohci_softc *sc;
 
 	sc = (struct fwohci_softc *)fc;
-	printf("fwochi_set_intr: %d\n", enable);
+	if (bootverbose)
+		device_printf(sc->fc.dev, "fwochi_set_intr: %d\n", enable);
 	if (enable) {
 		sc->intmask |= OHCI_INT_EN;
 		OWRITE(sc, FWOHCI_INTMASK, OHCI_INT_EN);
