@@ -423,6 +423,15 @@ struct pthread_specific_elem {
 	int		seqno;
 };
 
+struct rwlock_held {
+	LIST_ENTRY(rwlock_held)	rh_link;
+	struct pthread_rwlock	*rh_rwlock;
+	int rh_rdcount;
+	int rh_wrcount;
+};
+
+LIST_HEAD(rwlock_listhead, rwlock_held);
+
 /*
  * Thread structure.
  */
@@ -561,6 +570,13 @@ struct pthread {
 	 * Queue of currently owned mutexes.
 	 */
 	TAILQ_HEAD(, pthread_mutex)	mutexq;
+
+	/*
+	 * List of read-write locks owned for reading _OR_ writing.
+	 * This is accessed only by the current thread, so there's
+	 * no need for mutual exclusion.
+	 */
+	struct rwlock_listhead		*rwlockList;
 
 	void				*ret;
 	struct pthread_specific_elem	*specific;
