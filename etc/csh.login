@@ -1,2 +1,4 @@
 # System-wide .login file for csh(1).
-setenv BLOCKSIZE	K
+# Uncomment this to give you the default 4.2 behavior, where disk 
+# information is shown in K-Blocks
+# setenv BLOCKSIZE	K
