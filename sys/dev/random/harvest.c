@@ -34,6 +34,7 @@
 #include <sys/mutex.h>
 #include <sys/poll.h>
 #include <sys/selinfo.h>
+#include <sys/sysctl.h>
 #include <sys/random.h>
 
 #include <machine/cpu.h>
