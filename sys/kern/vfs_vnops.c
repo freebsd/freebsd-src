@@ -562,8 +562,7 @@ vn_stat(vp, sb, td)
 	/*
 	 * Zero the spare stat fields
 	 */
-	sb->st_lspare = 0;
-	sb->st_qspare = 0;
+	bzero(sb, sizeof sb);
 
 	/*
 	 * Copy from vattr table
