@@ -37,10 +37,11 @@
 #include <unistd.h>
 
 #include <dev/acpica/acpiio.h>
-
 #include <contrib/dev/acpica/acpi.h>
 
-#define ACPIDEV	"/dev/acpi"
+#define ACPIDEV		"/dev/acpi"
+#define RC_SUSPEND_PATH	"/etc/rc.suspend"
+#define RC_RESUME_PATH	"/etc/rc.resume"
 
 static int	acpifd;
 
@@ -68,7 +69,26 @@ acpi_enable_disable(int enable)
 static int
 acpi_sleep(int sleep_type)
 {
-	if (ioctl(acpifd, ACPIIO_SETSLPSTATE, &sleep_type) == -1)
+	char cmd[64];
+	int ret;
+
+	/* Run the suspend rc script, if available. */
+	if (access(RC_SUSPEND_PATH, X_OK) == 0) {
+		snprintf(cmd, sizeof(cmd), "%s acpi %d", RC_SUSPEND_PATH,
+		    sleep_type);
+		system(cmd);
+	}
+
+	ret = ioctl(acpifd, ACPIIO_SETSLPSTATE, &sleep_type);
+
+	/* Run the resume rc script, if available. */
+	if (access(RC_RESUME_PATH, X_OK) == 0) {
+		snprintf(cmd, sizeof(cmd), "%s acpi %d", RC_RESUME_PATH,
+		    sleep_type);
+		system(cmd);
+	}
+
+	if (ret != 0)
 		err(EX_IOERR, "sleep type (%d) failed", sleep_type);
 
 	return (0);
