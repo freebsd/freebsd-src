@@ -1238,29 +1238,20 @@ g_mirror_register_request(struct bio *bp)
 				return;
 			}
 			bioq_insert_tail(&queue, cbp);
-		}
-		LIST_FOREACH(disk, &sc->sc_disks, d_next) {
-			switch (disk->d_state) {
-			case G_MIRROR_DISK_STATE_ACTIVE:
-				break;
-			case G_MIRROR_DISK_STATE_SYNCHRONIZING:
-				if (bp->bio_offset >= disk->d_sync.ds_offset)
-					continue;
-				break;
-			default:
-				continue;
-			}
-			cbp = bioq_first(&queue);
-			KASSERT(cbp != NULL, ("NULL cbp! (device %s).",
-			    sc->sc_name));
-			bioq_remove(&queue, cbp);
-			cp = disk->d_consumer;
 			cbp->bio_done = g_mirror_done;
+			cp = disk->d_consumer;
+			cbp->bio_caller1 = cp;
 			cbp->bio_to = cp->provider;
-			G_MIRROR_LOGREQ(3, cbp, "Sending request.");
 			KASSERT(cp->acw > 0 && cp->ace > 0,
 			    ("Consumer %s not opened (r%dw%de%d).",
 			    cp->provider->name, cp->acr, cp->acw, cp->ace));
+		}
+		for (cbp = bioq_first(&queue); cbp != NULL;
+		    cbp = bioq_first(&queue)) {
+			bioq_remove(&queue, cbp);
+			G_MIRROR_LOGREQ(3, cbp, "Sending request.");
+			cp = cbp->bio_caller1;
+			cbp->bio_caller1 = NULL;
 			g_io_request(cbp, cp);
 		}
 		/*
