@@ -1102,7 +1102,7 @@ header_gnutar(struct archive *a, struct tar *tar, struct archive_entry *entry,
 	/* Grab GNU-specific fields. */
 	/* TODO: FILL THIS IN!!! */
 	st->st_atime = tar_atol(header->atime, sizeof(header->atime));
-	st->st_ctime = tar_atol(header->atime, sizeof(header->ctime));
+	st->st_ctime = tar_atol(header->ctime, sizeof(header->ctime));
 
 	/* XXX TODO: Recognize and skip extra GNU header blocks. */
 
