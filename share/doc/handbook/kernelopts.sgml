@@ -1,4 +1,4 @@
-<!-- $Id: kernelopts.sgml,v 1.2 1996/12/26 22:08:11 mpp Exp $ -->
+<!-- $Id: kernelopts.sgml,v 1.3 1996/12/31 21:54:16 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 <!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
 
@@ -116,7 +116,7 @@ id="kernelconfig" name="kernel configuration"> before reading here.
   rebuilt when one of the options has been changed in the config file.
 
   <p>Finally, find out which kernel files depend on the new option.
-  Unless you have just invented your option, and it dos not exist
+  Unless you have just invented your option, and it does not exist
   anywhere yet,
 
 <verb>
