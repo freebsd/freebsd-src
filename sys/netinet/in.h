@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.37 1998/08/23 03:07:14 wollman Exp $
+ * $Id: in.h,v 1.38 1998/12/14 18:09:13 luigi Exp $
  */
 
 #ifndef _NETINET_IN_H_
@@ -140,7 +140,8 @@
 #define	IPPROTO_ENCAP		98		/* encapsulation header */
 #define	IPPROTO_APES		99		/* any private encr. scheme */
 #define	IPPROTO_GMTP		100		/* GMTP*/
-/* 101-254: Unassigned */
+/* 101-254: Partly Unassigned */
+#define	IPPROTO_PGM		113		/* PGM */
 /* 255: Reserved */
 /* BSD Private, local use, namespace incursion */
 #define	IPPROTO_DIVERT		254		/* divert pseudo-protocol */

@@ -500,9 +500,7 @@ bdg_forward (struct mbuf **m0, struct ifnet *dst)
 	     * processing was already done, and we need to go down.
 	     */
 	    rule = (struct ip_fw_chain *)(m->m_data) ;
-	    (*m0) = m->m_next ;
-	    FREE(m, M_IPFW);
-	    m = *m0 ;
+	    (*m0) = m = m->m_next ;
 
 	    src = m->m_pkthdr.rcvif; /* could be NULL in output */
 	    eh = mtod(m, struct ether_header *); /* XXX */

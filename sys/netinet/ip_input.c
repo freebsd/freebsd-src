@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.111 1999/01/12 12:25:00 eivind Exp $
+ * $Id: ip_input.c,v 1.111.2.1 1999/03/12 01:17:14 julian Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -275,10 +275,8 @@ ip_input(struct mbuf *m)
          * rule.
          */
         if (m->m_type == MT_DUMMYNET) {
-            struct mbuf *m0 = m ;
             rule = (struct ip_fw_chain *)(m->m_data) ;
             m = m->m_next ;
-            free(m0, M_IPFW);
             ip = mtod(m, struct ip *);
             hlen = IP_VHL_HL(ip->ip_vhl) << 2;
             goto iphack ;
