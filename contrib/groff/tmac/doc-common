@@ -477,6 +477,7 @@
 .ds doc-operating-system-FreeBSD-5.2     5.2
 .ds doc-operating-system-FreeBSD-5.2.1   5.2.1
 .ds doc-operating-system-FreeBSD-5.3     5.3
+.ds doc-operating-system-FreeBSD-6.0     6.0
 .
 .de Os
 .  ie "\$1"" \
