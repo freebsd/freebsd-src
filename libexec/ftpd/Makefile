@@ -3,15 +3,19 @@
 
 PROG=	ftpd
 MAN=	ftpd.8
-SRCS=	ftpd.c ftpcmd.y logwtmp.c popen.c skey-stuff.c
+SRCS=	ftpd.c ftpcmd.y logwtmp.c popen.c
 
-CFLAGS+=-DSETPROCTITLE -DSKEY -DLOGIN_CAP -DVIRTUAL_HOSTING -Wall
+CFLAGS+=-DSETPROCTITLE -DLOGIN_CAP -DVIRTUAL_HOSTING -Wall
 CFLAGS+=-DINET6
 CFLAGS+=-I${.CURDIR}
 YFLAGS=
 
-LDADD=	-lskey -lmd -lcrypt -lutil
-DPADD=	${LIBSKEY} ${LIBMD} ${LIBCRYPT} ${LIBUTIL}
+LDADD=	-lmd -lcrypt -lutil
+DPADD=	${LIBMD} ${LIBCRYPT} ${LIBUTIL}
+
+# XXX Kluge! Conversation mechanism needs to be fixed.
+LDADD+=	-lopie
+DPADD+=	${LIBOPIE}
 
 LSDIR=	../../bin/ls
 .PATH:	${.CURDIR}/${LSDIR}
