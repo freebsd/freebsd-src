@@ -943,8 +943,9 @@ loop:
 		if (vp->v_mount != mp)
 			goto loop;
 		vnp = TAILQ_NEXT(vp, v_nmntvnodes);
-		mtx_unlock(&mntvnode_mtx);
+		/* XXX Not obeying XLOCK.  */
 		VI_LOCK(vp);
+		mtx_unlock(&mntvnode_mtx);
 		if (VOP_ISLOCKED(vp, NULL) || TAILQ_EMPTY(&vp->v_dirtyblkhd) ||
 		    waitfor == MNT_LAZY) {
 			VI_UNLOCK(vp);
