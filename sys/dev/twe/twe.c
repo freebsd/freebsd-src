@@ -431,16 +431,19 @@ twe_startio(struct twe_softc *sc)
 	if (tr == NULL)
 	    break;
 	
-	/* map the command so the controller can work with it */
+	/* try to map and submit the command to controller */
 	error = twe_map_request(tr);
-	if (error != 0) {
-	    if (error == EBUSY) {
-		twe_requeue_ready(tr);		/* try it again later */
-		break;				/* don't try anything more for now */
-	    }
 
-	    /* we don't support any other return from twe_start */
-	    twe_panic(sc, "twe_map_request returned nonsense");
+	if (error != 0) {
+	    tr->tr_status = TWE_CMD_ERROR;
+	    if (tr->tr_private != NULL) {
+		bp = (twe_bio *)(tr->tr_private);
+		TWE_BIO_SET_ERROR(bp, error);
+		tr->tr_private = NULL;
+		twed_intr(bp);
+	        twe_release_request(tr);
+	    } else if (tr->tr_flags & TWE_CMD_SLEEPER)
+		wakeup_one(tr); /* wakeup the sleeping owner */
 	}
     }
 }
@@ -529,7 +532,9 @@ twe_ioctl(struct twe_softc *sc, int ioctlcmd, void *addr)
 	}
 
 	/* run the command */
-	twe_wait_request(tr);
+	error = twe_wait_request(tr);
+	if (error)
+	    goto cmd_done;
 
 	/* copy the command out again */
 	bcopy(cmd, &tu->tu_command, sizeof(TWE_Command));
@@ -880,8 +885,6 @@ twe_init_connection(struct twe_softc *sc, int mode)
 
     /* submit the command */
     error = twe_immediate_request(tr);
-    /* XXX check command result? */
-    twe_unmap_request(tr);
     twe_release_request(tr);
 
     if (mode == TWE_INIT_MESSAGE_CREDITS)
@@ -910,7 +913,7 @@ twe_wait_request(struct twe_request *tr)
 	tsleep(tr, PRIBIO, "twewait", 0);
     splx(s);
     
-    return(0);
+    return(tr->tr_status != TWE_CMD_COMPLETE);
 }
 
 /********************************************************************************
@@ -921,13 +924,14 @@ twe_wait_request(struct twe_request *tr)
 static int
 twe_immediate_request(struct twe_request *tr)
 {
+    int		error;
 
     debug_called(4);
 
     tr->tr_flags |= TWE_CMD_IMMEDIATE;
     tr->tr_status = TWE_CMD_BUSY;
-    twe_map_request(tr);
-
+    if ((error = twe_map_request(tr)) != 0)
+	return(error);
     while (tr->tr_status == TWE_CMD_BUSY){
 	twe_done(tr->tr_sc);
     }
@@ -1174,8 +1178,6 @@ twe_complete(struct twe_softc *sc)
 	    debug(2, "command left for owner");
 	}
     }   
-
-    sc->twe_state &= ~TWE_STATE_FRZN;
 }
 
 /********************************************************************************
@@ -1842,7 +1844,7 @@ twe_panic(struct twe_softc *sc, char *reason)
 #endif
 }
 
-#ifdef TWE_DEBUG
+#if 0
 /********************************************************************************
  * Print a request/command in human-readable format.
  */
