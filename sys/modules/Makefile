@@ -132,7 +132,6 @@ SUBDIR=	${_3dfx} \
 	mac_test \
 	mcd \
 	md \
-	mem \
 	mii \
 	mlx \
 	${_mly} \
