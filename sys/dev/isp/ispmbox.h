@@ -160,6 +160,9 @@ typedef struct {
 #define	MBOX_LOOP_ID_USED		0x4008
 #define	MBOX_ALL_IDS_USED		0x4009
 #define	MBOX_NOT_LOGGED_IN		0x400A
+#define	MBLOGALL			0x000f
+#define	MBLOGNONE			0x0000
+#define	MBLOGMASK(x)			((x) & 0xf)
 
 /*
  * Asynchronous event status codes
