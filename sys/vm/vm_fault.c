@@ -111,11 +111,7 @@ struct faultstate {
 	vm_pindex_t first_pindex;
 	vm_map_t map;
 	vm_map_entry_t entry;
-	enum {
-		LSV_FALSE,	/* the lookup's lock has been dropped */
-		LSV_TRUE,	/* the lookup's lock is still valid */
-		LSV_UPGRADED	/* the lookup's lock is now exclusive */
-	} lookup_still_valid;
+	int lookup_still_valid;
 	struct vnode *vp;
 };
 
@@ -130,11 +126,9 @@ release_page(struct faultstate *fs)
 static __inline void
 unlock_map(struct faultstate *fs)
 {
-	if (fs->lookup_still_valid != LSV_FALSE) {
-		if (fs->lookup_still_valid == LSV_UPGRADED)
-			vm_map_lock_downgrade(fs->map);
+	if (fs->lookup_still_valid) {
 		vm_map_lookup_done(fs->map, fs->entry);
-		fs->lookup_still_valid = LSV_FALSE;
+		fs->lookup_still_valid = FALSE;
 	}
 }
 
@@ -288,7 +282,7 @@ RetryFault:;
 			fs.first_pindex, fs.first_pindex + 1);
 	}
 
-	fs.lookup_still_valid = LSV_TRUE;
+	fs.lookup_still_valid = TRUE;
 
 	if (wired)
 		fault_type = prot;
@@ -662,11 +656,11 @@ readrest:
 				/*
 				 * grab the lock if we need to
 				 */
-				(fs.lookup_still_valid != LSV_FALSE ||
-				 vm_map_try_lock(fs.map) == 0)
+				(fs.lookup_still_valid ||
+				 lockmgr(&fs.map->lock, LK_EXCLUSIVE|LK_NOWAIT, (void *)0, curthread) == 0)
 			    ) {
-				if (fs.lookup_still_valid == LSV_FALSE)
-					fs.lookup_still_valid = LSV_UPGRADED;
+				
+				fs.lookup_still_valid = 1;
 				/*
 				 * get rid of the unnecessary page
 				 */
@@ -721,7 +715,7 @@ readrest:
 	 * We must verify that the maps have not changed since our last
 	 * lookup.
 	 */
-	if (fs.lookup_still_valid == LSV_FALSE &&
+	if (!fs.lookup_still_valid &&
 		(fs.map->timestamp != map_generation)) {
 		vm_object_t retry_object;
 		vm_pindex_t retry_pindex;
@@ -770,7 +764,7 @@ readrest:
 			unlock_and_deallocate(&fs);
 			return (result);
 		}
-		fs.lookup_still_valid = LSV_TRUE;
+		fs.lookup_still_valid = TRUE;
 
 		if ((retry_object != fs.first_object) ||
 		    (retry_pindex != fs.first_pindex)) {
