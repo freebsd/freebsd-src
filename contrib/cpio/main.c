@@ -19,6 +19,8 @@
    David MacKenzie <djm@gnu.ai.mit.edu>,
    and John Oleynick <juo@klinzhai.rutgers.edu>.  */
 
+/* $FreeBSD$ */
+
 #include <stdio.h>
 #include <getopt.h>
 #include <sys/types.h>
@@ -498,7 +500,7 @@ initialize_buffers ()
   bzero (zeros_512, 512);
 }
 
-void
+int
 main (argc, argv)
      int argc;
      char *argv[];

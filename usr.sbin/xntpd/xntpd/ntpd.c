@@ -1,5 +1,7 @@
 /*
  * ntpd.c - main program for the fixed point NTP daemon
+ *
+ * $FreeBSD$
  */
 #include <stdio.h>
 #include <errno.h>
@@ -95,7 +97,7 @@ static	RETSIGTYPE	lessdebug	P((int));
  * Main program.  Initialize us, disconnect us from the tty if necessary,
  * and loop waiting for I/O and/or timer expiries.
  */
-void
+int
 main(argc, argv)
 	int argc;
 	char *argv[];

@@ -46,7 +46,12 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)caesar.c    8.1 (Berkeley) 5/31/93";
+#else
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
 #endif /* not lint */
 
 #include <errno.h>
@@ -75,7 +80,8 @@ double stdf[26] = {
 
 void printit();
 
-void main(argc, argv)
+int
+main(argc, argv)
 	int argc;
 	char **argv;
 {

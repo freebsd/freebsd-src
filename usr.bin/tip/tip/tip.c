@@ -97,7 +97,7 @@ void daemon_uid __P((void));
 void user_uid __P((void));
 int speed __P((int));
 
-void
+int
 main(argc, argv)
 	char *argv[];
 {

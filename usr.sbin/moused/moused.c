@@ -423,7 +423,7 @@ static void	mremote_clientchg(int add);
 
 static int kidspad(u_char rxc, mousestatus_t *act);
 
-void
+int
 main(int argc, char *argv[])
 {
     int c;

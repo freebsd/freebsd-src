@@ -41,7 +41,12 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)strfile.c   8.1 (Berkeley) 5/31/93";
+#else
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
 #endif /* not lint */
 
 # include	<sys/param.h>
@@ -134,7 +139,7 @@ int cmp_str();
  *	CHUNKSIZE blocks; if the latter, we just write each pointer,
  *	and then seek back to the beginning to write in the table.
  */
-void main(ac, av)
+int main(ac, av)
 int	ac;
 char	**av;
 {
