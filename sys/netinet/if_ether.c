@@ -430,9 +430,9 @@ arpresolve(ac, rt, m, dst, desten, rt0)
 static void
 arpintr()
 {
-	register struct mbuf *m;
+	register struct mbuf *m, *m0;
 	register struct arphdr *ar;
-	int s;
+	int s, ml;
 
 	while (arpintrq.ifq_head) {
 		s = splimp();
@@ -440,21 +440,44 @@ arpintr()
 		splx(s);
 		if (m == 0 || (m->m_flags & M_PKTHDR) == 0)
 			panic("arpintr");
-		if (m->m_len >= sizeof(struct arphdr) &&
-		    (ar = mtod(m, struct arphdr *)) &&
-		    (ntohs(ar->ar_hrd) == ARPHRD_ETHER ||
-                     ntohs(ar->ar_hrd) == ARPHRD_IEEE802) &&
-		    m->m_len >=
-		      sizeof(struct arphdr) + 2 * ar->ar_hln + 2 * ar->ar_pln)
+	
+                if (m->m_len < sizeof(struct arphdr) &&
+                    (m = m_pullup(m, sizeof(struct arphdr)) == NULL)) {
+			log(LOG_ERR, "arp: runt packet -- m_pullup failed.");
+			continue;
+		}
+		ar = mtod(m, struct arphdr *);
 
-			    switch (ntohs(ar->ar_pro)) {
+		if (ntohs(ar->ar_hrd) != ARPHRD_ETHER
+		    && ntohs(ar->ar_hrd) != ARPHRD_IEEE802) {
+			log(LOG_ERR,
+			    "arp: unknown hardware address format (%2D)",
+			    (unsigned char *)&ar->ar_hrd, "");
+			m_freem(m);
+			continue;
+		}
 
+		m0 = m;
+		ml = 0;
+		while (m0 != NULL) {	
+			ml += m0->m_len;	/* wanna implement m_size?? */
+			m0 = m0->m_next;	
+		}
+
+		if (ml < sizeof(struct arphdr) + 2 * ar->ar_hln
+		    + 2 * ar->ar_pln) {
+			log(LOG_ERR, "arp: runt packet.");
+			m_freem(m);
+			continue;
+		}
+
+		switch (ntohs(ar->ar_pro)) {
 #ifdef INET
-			    case ETHERTYPE_IP:
-				    in_arpinput(m);
-				    continue;
+			case ETHERTYPE_IP:
+				in_arpinput(m);
+				continue;
 #endif
-			    }
+		}
 		m_freem(m);
 	}
 }
