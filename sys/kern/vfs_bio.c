@@ -3108,11 +3108,7 @@ dev_strategy(struct buf *bp)
 	KASSERT(dev->si_refcount > 0,
 	    ("dev_strategy on un-referenced struct cdev *(%s)",
 	    devtoname(dev)));
-	dev_lock();
-	csw = devsw(dev);
-	if (csw != NULL)
-		dev->si_threadcount++;
-	dev_unlock();
+	csw = dev_refthread(dev);
 	if (csw == NULL) {
 		bp->b_error = ENXIO;
 		bp->b_ioflags = BIO_ERROR;
@@ -3122,9 +3118,7 @@ dev_strategy(struct buf *bp)
 		return;
 	}
 	(*csw->d_strategy)(&bp->b_io);
-	dev_lock();
-	dev->si_threadcount--;
-	dev_unlock();
+	dev_relthread(dev);
 }
 
 /*
