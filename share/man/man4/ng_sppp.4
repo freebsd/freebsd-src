@@ -22,79 +22,88 @@
 .In netgraph/ng_sppp.h
 .Sh DESCRIPTION
 An
-.Nm ng_sppp
+.Nm sppp
 node is a
 .Xr netgraph 4
 interface to the original
 .Xr sppp 4
 network module for synchronous lines.
-Currently
+Currently,
 .Xr sppp 4
-supports PPP and Cisco HDLC protocol.
+supports PPP and Cisco HDLC protocols.
 An
-.Nm ng_sppp
-node could be considered as an alternative kernel mode ppp
+.Nm sppp
+node could be considered as an alternative kernel mode PPP
 implementation to
-.Xr mpd ports +
-.Xr ng_ppp 4
+.Pa net/mpd
+port +
+.Xr ng_ppp 4 ,
 and as an alternative to
 .Xr ng_cisco 4
 node.
-While having less features than mpd +
+While having less features than
+.Pa net/mpd
++
 .Xr ng_ppp 4 ,
-it is significantly easier to use in the majority of simple configurations
-and allows the administrator to not install the mpd port.
+it is significantly easier to use in the majority of simple configurations,
+and allows the administrator to not install the
+.Pa net/mpd
+port.
 With
-.Nm ng_sppp
-you don't need any other nodes, not even an
+.Nm sppp
+you do not need any other nodes, not even an
 .Xr ng_iface 4
 node.
 When an
-.Nm ng_sppp
+.Nm sppp
 node is created, a new interface appears which is accessible via
 .Xr ifconfig 8 .
-.Nm ng_sppp
-node interfaces are named
-.Dv sppp0 ,
-.Dv sppp1 ,
+Network interfaces corresponding to
+.Nm sppp
+nodes are named
+.Li sppp0 , sppp1 ,
 etc.
-When a node is shutdown, the corresponding interface is removed
+When a node is shut down, the corresponding interface is removed,
 and the interface name becomes available for reuse by future
-.Nm ng_sppp
+.Nm sppp
 nodes.
 New nodes always take the first unused interface.
 The node itself is assigned the same name as its interface, unless the name
 already exists, in which case the node remains unnamed.
 The
-.Nm ng_sppp
-node allows drivers written to the old sppp interface to be rewritten using the
+.Nm sppp
+node allows drivers written to the old
+.Xr sppp 4
+interface to be rewritten using the
 newer more powerful
 .Xr netgraph 4
-interface and still behave in a compatible manner without supporting both
+interface, and still behave in a compatible manner without supporting both
 network modules.
 .Pp
 An
-.Nm ng_sppp
-node has a single hook named downstream.
+.Nm sppp
+node has a single hook named
+.Va downstream .
 Usually it is connected directly to
 a device driver hook.
 .Pp
-.Nm ng_sppp
-nodes support the Berkeley Packet Filter (BPF).
+The
+.Nm sppp
+nodes support the Berkeley Packet Filter,
+.Xr bpf 4 .
 .Sh HOOKS
 This node type supports the following hooks:
-.Pp
-.Bl -tag -width abcdefghijklmnop
-.It Dv downstream
+.Bl -tag -width ".Va downstream"
+.It Va downstream
 The connection to the synchronous line.
 .El
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
-.Bl -tag -width foo
+.Bl -tag -width indent
 .It Dv NGM_IFACE_GET_IFNAME
 Returns the name of the interface corresponding to this node in a
-.Dv "struct ng_iface_ifname" :
-.Bd -literal -offset 4n
+.Vt "struct ng_iface_ifname" :
+.Bd -literal -offset indent
 struct ng_iface_ifname {
   char  ngif_name[NG_SPPP_IFACE_NAME_MAX + 1];
 };
@@ -106,29 +115,38 @@ This node shuts down upon receipt of a
 control message.
 The associated interface is removed and becomes available
 for use by future
-.Nm ng_sppp
+.Nm sppp
 nodes.
 .Pp
 Unlike most other node types and like
 .Xr ng_iface 4
 does, an
-.Nm ng_sppp
+.Nm sppp
 node does
 .Em not
-go away when all hooks have been disconnected; rather, and explicit
+go away when all hooks have been disconnected; rather, an explicit
 .Dv NGM_SHUTDOWN
 control message is required.
 .Sh EXAMPLES
-For example, if you have
-.Xr cx 4 device, you could run PPP over it with just one command:
+For example, if you have the
+.Xr cx 4
+device, you could run PPP over it with just one command:
 .Pp
-ngctl mkpeer cx0: sppp rawdata downstream
+.Dl "ngctl mkpeer cx0: sppp rawdata downstream"
 .Pp
-Now you have sppp0 interface (if this is a first sppp node) which can be
-managed via
-.Xr ifconfig 4 as a usual network interface,
+Now you have the
+.Li sppp0
+interface (if this was the first
+.Nm sppp
+node) which can be
+accessed via
+.Xr ifconfig 8
+as a normal network interface,
 or via
-.Xr spppcontrol 8 as a sppp interface.
+.Xr spppcontrol 8
+as an
+.Xr sppp 4
+interface.
 .Sh SEE ALSO
 .Xr bpf 4 ,
 .Xr cx 4 ,
@@ -146,10 +164,11 @@ For complex networking topologies you may want to look at
 port.
 .Sh HISTORY
 The
-.Nm ng_sppp
+.Nm sppp
 node type was implemented for
 .Fx 5.0 .
 It was included to the system since
 .Fx 5.3 .
-.Sh AUTHOR
-.An Copyright (C) 2003-2004 Roman Kurakin Aq rik@cronyx.ru
+.Sh AUTHORS
+Copyright (C) 2003-2004
+.An Roman Kurakin Aq rik@cronyx.ru .
