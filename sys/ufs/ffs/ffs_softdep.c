@@ -52,7 +52,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)ffs_softdep.c	9.57 (McKusick) 3/17/00
+ *	from: @(#)ffs_softdep.c	9.58 (McKusick) 6/18/00
  * $FreeBSD$
  */
 
@@ -1912,7 +1912,8 @@ check_inode_unwritten(inodedep)
 	inodedep->id_state |= ALLCOMPLETE;
 	LIST_REMOVE(inodedep, id_deps);
 	inodedep->id_buf = NULL;
-	WORKLIST_REMOVE(&inodedep->id_list);
+	if (inodedep->id_state & ONWORKLIST)
+		WORKLIST_REMOVE(&inodedep->id_list);
 	if (inodedep->id_savedino != NULL) {
 		FREE(inodedep->id_savedino, M_INODEDEP);
 		inodedep->id_savedino = NULL;
