@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.38 1998/09/04 15:31:48 wpaul Exp $
+ *	$Id: if_xl.c,v 1.5.2.5 1998/09/04 16:24:10 wpaul Exp $
  */
 
 /*
@@ -136,7 +136,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_xl.c,v 1.38 1998/09/04 15:31:48 wpaul Exp $";
+	"$Id: if_xl.c,v 1.5.2.5 1998/09/04 16:24:10 wpaul Exp $";
 #endif
 
 /*
@@ -1884,7 +1884,8 @@ static void xl_txeoc(sc)
 						sc->xl_unit, txstat);
 			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_RESET);
 			xl_wait(sc);
-			CSR_WRITE_4(sc, XL_DOWNLIST_PTR,
+			if (sc->xl_cdata.xl_tx_head != NULL)
+				CSR_WRITE_4(sc, XL_DOWNLIST_PTR,
 				vtophys(sc->xl_cdata.xl_tx_head->xl_ptr));
 			/*
 			 * Remember to set this for the
