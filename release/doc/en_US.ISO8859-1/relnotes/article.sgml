@@ -731,14 +731,14 @@
       0.9.7a to 0.9.7c. &merged;</para>
 
     <para><application>sendmail</application> has been updated to
-      version 8.12.10.</para>
+      version 8.12.10. &merged;</para>
 
     <para><application>texinfo</application> has been updated from 4.5
       to 4.6. &merged;</para>
 
     <para>The timezone database has been updated
       from the <filename>tzdata2003a</filename> release
-      to the <filename>tzdata2003d</filename> release.</para>
+      to the <filename>tzdata2003d</filename> release. &merged;</para>
   </sect2>
 
   <sect2 id="ports">
