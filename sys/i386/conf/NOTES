@@ -181,8 +181,8 @@ options 	CPU_DIRECT_MAPPED_CACHE
 options 	CPU_DISABLE_5X86_LSSER
 options 	CPU_ELAN
 options 	CPU_SOEKRIS
-options 	ELAN_XTAL=32768000
-options 	ELAN_PPS
+#options 	ELAN_XTAL=32768000
+#options 	ELAN_PPS
 options 	CPU_ENABLE_SSE
 #options 	CPU_DISABLE_SSE
 options 	CPU_FASTER_5X86_FPU
@@ -506,7 +506,7 @@ hint.ar.0.at="isa"
 hint.ar.0.port="0x300"
 hint.ar.0.irq="10"
 hint.ar.0.maddr="0xd0000"
-device		cx	1
+device		cx
 hint.cx.0.at="isa"
 hint.cx.0.port="0x240"
 hint.cx.0.irq="15"
@@ -702,7 +702,7 @@ device		gsc	1
 hint.gsc.0.at="isa"
 hint.gsc.0.port="0x270"
 hint.gsc.0.drq="3"
-device		dgb	1   
+device		dgb	  1
 options		NDGBPORTS=17
 hint.dgb.0.at="isa"
 hint.dgb.0.port="0x220"
