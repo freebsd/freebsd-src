@@ -775,12 +775,26 @@ pmap_qenter(va, m, count)
 	vm_page_t *m;
 	int count;
 {
-	int i;
+	vm_offset_t end_va;
 
-	for (i = 0; i < count; i++) {
-		vm_offset_t tva = va + i * PAGE_SIZE;
-		pmap_kenter(tva, VM_PAGE_TO_PHYS(m[i]));
+	end_va = va + count * PAGE_SIZE;
+		
+	while (va < end_va) {
+		unsigned *pte;
+
+		pte = (unsigned *)vtopte(va);
+		*pte = VM_PAGE_TO_PHYS(*m) | PG_RW | PG_V | pgeflag;
+#ifdef SMP
+		cpu_invlpg((void *)va);
+#else
+		invltlb_1pg(va);
+#endif
+		va += PAGE_SIZE;
+		m++;
 	}
+#ifdef SMP
+	smp_invltlb();
+#endif
 }
 
 /*
