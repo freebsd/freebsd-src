@@ -65,6 +65,8 @@ struct clist {
 	char	*c_cl;		/* Pointer to the last cblock. */
 };
 
+struct tty;
+
 typedef void t_oproc_t(struct tty *);
 typedef void t_stop_t(struct tty *, int);
 typedef int t_param_t(struct tty *, struct termios *);
