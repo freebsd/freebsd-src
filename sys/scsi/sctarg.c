@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: sctarg.c,v 1.3 1995/05/30 08:13:49 rgrimes Exp $
+ *      $Id: sctarg.c,v 1.4 1995/07/13 16:08:57 bde Exp $
  */
 
 /*
@@ -56,7 +56,7 @@
 #define OPEN 0x01
 
 struct scsi_data {
-	struct buf *buf_queue;		/* the queue of pending IO operations */
+	struct buf_queue_head buf_queue;
 	int flags;					/* Already open */
 };
 
@@ -189,10 +189,12 @@ sctargstart(unit, unused_flags)
 			wakeup((caddr_t)sc_link);
 			return;
 		}
-		if ((bp = sctarg->buf_queue) == NULL) {
-			return;	/* no work to bother with */
+
+		bp = sctarg->buf_queue.tqh_first;
+		if (bp == NULL) {	/* yes, an assign */
+			return;
 		}
-		sctarg->buf_queue = bp->b_actf;
+		TAILQ_REMOVE( &pt->buf_queue, bp, b_act);
 
 		/*
 		 *  Fill out the scsi command
@@ -253,12 +255,7 @@ sctarg_strategy(struct buf *bp, struct scsi_link *sc_link)
 	/*
 	 * Place it at the end of the queue of activities for this device.
 	 */
-	dp = &(sctarg->buf_queue);
-	while (*dp) {
-		dp = &((*dp)->b_actf);
-	}
-	*dp = bp;
-	bp->b_actf = NULL;
+	TAILQ_INSERT_TAIL( &sctarg->buf_queue, bp, b_act);
 
 	/*
 	 * Tell the device to get going on the transfer if it's

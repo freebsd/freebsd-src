@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.42 1995/10/21 23:13:06 phk Exp $
+ *      $Id: cd.c,v 1.43 1995/11/15 03:27:14 asami Exp $
  */
 
 #define SPLCD splbio
@@ -83,7 +83,7 @@ struct scsi_data {
 #define CDOPEN	0x01
 	u_int32 openparts;	/* one bit for each open partition */
 	u_int32 xfer_block_wait;
-	struct buf buf_queue;
+	struct buf_queue_head buf_queue;
 	int dkunit;
 };
 
@@ -180,6 +180,7 @@ cdattach(struct scsi_link *sc_link)
 	unit = sc_link->dev_unit;
 	dp = &(cd->params);
 
+	TAILQ_INIT(&cd->buf_queue);
 	if (sc_link->opennings > CDOUTSTANDING)
 		sc_link->opennings = CDOUTSTANDING;
 	/*
@@ -359,7 +360,6 @@ cd_close(dev_t dev, int flag, int fmt, struct proc *p,
 void
 cd_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
-	struct buf *dp;
 	u_int32 opri;
 	u_int32 unit = CDUNIT((bp->b_dev));
 	struct scsi_data *cd = sc_link->sd;
@@ -396,7 +396,6 @@ cd_strategy(struct buf *bp, struct scsi_link *sc_link)
 		bp->b_resid = 0;
 	}
 	opri = SPLCD();
-	dp = &cd->buf_queue;
 
 	/*
 	 * Use a bounce buffer if necessary
@@ -409,7 +408,7 @@ cd_strategy(struct buf *bp, struct scsi_link *sc_link)
 	/*
 	 * Place it in the queue of disk activities for this disk
 	 */
-	disksort(dp, bp);
+	TAILQ_INSERT_TAIL(&cd->buf_queue, bp, b_act);
 
 	/*
 	 * Tell the device to get going on the transfer if it's
@@ -453,7 +452,6 @@ cdstart(unit, flags)
 	u_int32 flags;
 {
 	register struct buf *bp = 0;
-	register struct buf *dp;
 	struct scsi_rw_big cmd;
 	u_int32 blkno, nblk;
 	struct partition *p;
@@ -471,12 +469,13 @@ cdstart(unit, flags)
 	if (sc_link->flags & SDEV_WAITING) {	/* is room, but a special waits */
 		return;		/* give the special that's waiting a chance to run */
 	}
-	dp = &cd->buf_queue;
-	if ((bp = dp->b_actf) != NULL) {	/* yes, an assign */
-		dp->b_actf = bp->b_actf;
-	} else {
+
+	bp = cd->buf_queue.tqh_first;
+	if (bp == NULL) {	/* yes, an assign */
 		return;
 	}
+	TAILQ_REMOVE( &cd->buf_queue, bp, b_act);
+
 	/*
 	 * Should reject all queued entries if SDEV_MEDIA_LOADED is not true.
 	 */

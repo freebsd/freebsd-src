@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.41 1995/10/21 23:13:10 phk Exp $
+ * $Id: st.c,v 1.42 1995/11/04 13:25:23 bde Exp $
  */
 
 /*
@@ -218,7 +218,7 @@ struct scsi_data {
 					 * additional sense data needed
 					 * for mode sense/select.
 					 */
-	struct buf *buf_queue;		/* the queue of pending IO operations */
+	struct buf_queue_head buf_queue;
 	struct scsi_xfer scsi_xfer;	/* scsi xfer struct for this drive */
 	u_int32 xfer_block_wait;	/* is a process waiting? */
 };
@@ -328,6 +328,7 @@ stattach(struct scsi_link *sc_link)
 
 	unit = sc_link->dev_unit;
 
+	TAILQ_INIT(&st->buf_queue);
 	/*
 	 * Check if the drive is a known criminal and take
 	 * Any steps needed to bring it into line
@@ -362,7 +363,6 @@ stattach(struct scsi_link *sc_link)
 	/*
 	 * Set up the buf queue for this device
 	 */
-	st->buf_queue = 0;
 	st->flags |= ST_INITIALIZED;
 	st_registerdev(unit);
 
@@ -899,7 +899,6 @@ done:
 void
 st_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
-	struct buf **dp;
 	unsigned char unit;	/* XXX Everywhere else unit is "u_int32". Please int? */
 	u_int32 opri;
 	struct scsi_data *st;
@@ -962,12 +961,7 @@ st_strategy(struct buf *bp, struct scsi_link *sc_link)
 	 * at the end (a bit silly because we only have on user..
 	 * (but it could fork() ))
 	 */
-	dp = &(st->buf_queue);
-	while (*dp) {
-		dp = &((*dp)->b_actf);
-	}
-	*dp = bp;
-	bp->b_actf = NULL;
+	TAILQ_INSERT_TAIL(&st->buf_queue, bp, b_act);
 
 	/*
 	 * Tell the device to get going on the transfer if it's
@@ -1025,10 +1019,12 @@ ststart(unit, flags)
 			wakeup((caddr_t)sc_link);
 			return;
 		}
-		if ((bp = st->buf_queue) == NULL) {
-			return;	/* no work to bother with */
+
+		bp = st->buf_queue.tqh_first;
+		if (bp == NULL) {	/* yes, an assign */
+			return;
 		}
-		st->buf_queue = bp->b_actf;
+		TAILQ_REMOVE( &st->buf_queue, bp, b_act);
 
 		/*
 		 * if the device has been unmounted by the user

@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pt.c,v 1.4 1995/05/03 18:09:09 dufault Exp $
+ *      $Id: pt.c,v 1.5 1995/05/30 08:13:23 rgrimes Exp $
  */
 
 /*
@@ -54,7 +54,7 @@
 #include <scsi/scsiconf.h>
 
 struct scsi_data {
-	struct buf *buf_queue;		/* the queue of pending IO operations */
+	struct buf_queue_head buf_queue;
 };
 
 void ptstart(u_int32 unit, u_int32 flags);
@@ -131,10 +131,12 @@ ptstart(unit, flags)
 			wakeup((caddr_t)sc_link);
 			return;
 		}
-		if ((bp = pt->buf_queue) == NULL) {
-			return;	/* no work to bother with */
+
+		bp = pt->buf_queue.tqh_first;
+		if (bp == NULL) {	/* yes, an assign */
+			return;
 		}
-		pt->buf_queue = bp->b_actf;
+		TAILQ_REMOVE( &pt->buf_queue, bp, b_act);
 
 		/*
 		 *  Fill out the scsi command
@@ -196,12 +198,7 @@ pt_strategy(struct buf *bp, struct scsi_link *sc_link)
 	 * at the end (a bit silly because we only have one user..
 	 * (but it could fork() ))
 	 */
-	dp = &(pt->buf_queue);
-	while (*dp) {
-		dp = &((*dp)->b_actf);
-	}
-	*dp = bp;
-	bp->b_actf = NULL;
+	TAILQ_INSERT_TAIL( &pt->buf_queue, bp, b_act);
 
 	/*
 	 * Tell the device to get going on the transfer if it's
