@@ -37,7 +37,7 @@
 .\"
 .Dd January 19, 1999
 .Dt NG_VJC 8
-.Os FreeBSD 4.0
+.Os FreeBSD
 .Sh NAME
 .Nm ng_vjc
 .Nd Van Jacobsen compression netgraph node type
@@ -60,10 +60,14 @@ nodes represent the compressed side of the node. Packets received on the
 .Dv ip
 will be compressed or passed through as appropriate. Packets received
 on the other three hooks will be uncompressed as appropriate.
-This node also supports ``always pass through'' mode in either direction.
+This node also supports
+.Dq always pass through
+mode in either direction.
 .Pp
 Van Jacobsen compression only applies to TCP packets.
-Only ``normal'' (i.e., common case) TCP packets are actually compressed.
+Only
+.Dq normal
+(i.e., common case) TCP packets are actually compressed.
 These are output on the
 .Dv vjcomp
 hook. Other TCP packets are run through the state machine but not
@@ -138,7 +142,9 @@ and
 hooks.
 When a node is first created,
 both compression and decompression are disabled and the node is
-therefore operating in bi-directional ``pass through'' mode.
+therefore operating in bi-directional
+.Dq pass through
+mode.
 .Pp
 When enabling compression,
 .Dv maxChannel
@@ -155,7 +161,7 @@ message is immediately sent whenever this occurs.
 This command returns the node's current state described by the
 .Dv "struct slcompress"
 structure, which is defined in
-.Dv "net/slcompress.h" .
+.Pa net/slcompress.h .
 .It Dv NGM_VJC_CLR_STATS
 Clears the node statistics counters. Statistics are also cleared whenever the
 .Dv enableComp
@@ -185,9 +191,9 @@ both enabled.  This of course resets the node state.  This restriction
 may be lifted in a later version.
 .Pp
 When built as a loadable kernel module, this module includes the file
-.Dv "net/slcompress.c" .
+.Pa net/slcompress.c .
 Although loading the module should fail if
-.Dv "net/slcompress.c"
+.Pa net/slcompress.c
 already exists in the kernel, currently it does not, and the duplicate
 copies of the file do not interfere.
 However, this may change in the future.
@@ -206,5 +212,10 @@ However, this may change in the future.
 .%T "The PPP Internet Control Protocol (IPCP)"
 .%O RFC 1332
 .Re
-.Sh AUTHOR
-Archie Cobbs <archie@whistle.com>
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Archie Cobbs Aq archie@whistle.com
