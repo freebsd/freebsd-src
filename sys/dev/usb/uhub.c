@@ -1,4 +1,4 @@
-/*	$NetBSD: uhub.c,v 1.34 1999/11/18 23:32:29 augustss Exp $	*/
+/*	$NetBSD: uhub.c,v 1.47 2000/09/24 02:08:38 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -119,7 +119,7 @@ Static device_method_t uhubroot_methods[] = {
 	DEVMETHOD(device_attach, uhub_attach),
 	/* detach is not allowed for a root hub */
 	DEVMETHOD(device_suspend, bus_generic_suspend),
-	DEVMETHOD(device_resume, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
 	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 	{0,0}
 };
