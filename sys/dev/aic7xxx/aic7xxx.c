@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.7 1998/10/09 17:41:39 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.8 1998/10/15 18:21:47 gibbs Exp $
  */
 /*
  * A few notes on features of the driver.
@@ -1727,10 +1727,32 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 	u_int	scb_index;
 	u_int	status;
 	struct	scb *scb;
+	char	cur_channel;
+	char	intr_channel;
+
+	if ((ahc->features & AHC_TWIN) != 0
+	 && ((ahc_inb(ahc, SBLKCTL) & SELBUSB) != 0))
+		cur_channel = 'B';
+	else
+		cur_channel = 'A';
+	intr_channel = cur_channel;
+
+	status = ahc_inb(ahc, SSTAT1);
+	if (status == 0) {
+		if ((ahc->features & AHC_TWIN) != 0) {
+			/* Try the other channel */
+		 	ahc_outb(ahc, SBLKCTL, ahc_inb(ahc, SBLKCTL) ^ SELBUSB);
+			status = ahc_inb(ahc, SSTAT1);
+		 	ahc_outb(ahc, SBLKCTL, ahc_inb(ahc, SBLKCTL) ^ SELBUSB);
+			intr_channel = (cur_channel == 'A') ? 'B' : 'A';
+		}
+		if (status == 0) {
+			printf("%s: Spurious SCSI interrupt\n", ahc_name(ahc));
+			return;
+		}
+	}
 
 	scb_index = ahc_inb(ahc, SCB_TAG);
-	status = ahc_inb(ahc, SSTAT1);
-
 	if (scb_index < ahc->scb_data->numscbs) {
 		scb = ahc->scb_data->scbarray[scb_index];
 		if ((scb->flags & SCB_ACTIVE) == 0)
@@ -1739,14 +1761,9 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 		scb = NULL;
 
 	if ((status & SCSIRSTI) != 0) {
-		char channel;
-		channel = 'A';
-		if ((ahc->features & AHC_TWIN) != 0
-		 && ((ahc_inb(ahc, SBLKCTL) & SELBUSB) != 0))
-			channel = 'B';
 		printf("%s: Someone reset channel %c\n",
-			ahc_name(ahc), channel);
-		ahc_reset_channel(ahc, channel, /* Initiate Reset */FALSE);
+			ahc_name(ahc), intr_channel);
+		ahc_reset_channel(ahc, intr_channel, /* Initiate Reset */FALSE);
 	} else if ((status & BUSFREE) != 0 && (status & SELTO) == 0) {
 		/*
 		 * First look at what phase we were last in.
@@ -2135,7 +2152,6 @@ ahc_parse_msg(struct ahc_softc *ahc, struct scb *scb,
 		}
 		case MSG_EXT_WDTR:
 		{
-			struct	ccb_trans_settings neg;
 			u_int	bus_width;
 
 			if (ahc->msg_buf[1] != MSG_EXT_WDTR_LEN) {
@@ -2257,8 +2273,6 @@ ahc_handle_devreset(struct ahc_softc *ahc, int target, char channel,
 	struct ahc_devinfo devinfo;
 	struct cam_path *path;
 	path_id_t path_id;
-	u_int16_t targ_mask;
-	int scratch_offset = target;
 	int found;
 	int error;
 
@@ -3830,7 +3844,6 @@ ahc_check_patch(struct ahc_softc *ahc, struct patch **start_patch,
 {
 	struct	patch *cur_patch;
 	struct	patch *last_patch;
-	int	patch_index;
 	int	num_patches;
 
 	num_patches = sizeof(patches)/sizeof(struct patch);
@@ -3840,7 +3853,6 @@ ahc_check_patch(struct ahc_softc *ahc, struct patch **start_patch,
 	while (cur_patch < last_patch && start_instr == cur_patch->begin) {
 
 		if (cur_patch->patch_func(ahc) == 0) {
-			int skip;
 
 			/* Start rejecting code */
 			*skip_addr = start_instr + cur_patch->skip_instr;
@@ -3868,7 +3880,6 @@ ahc_download_instr(struct ahc_softc *ahc, int instrptr, u_int8_t *dconsts)
 	union	ins_formats instr;
 	struct	ins_format1 *fmt1_ins;
 	struct	ins_format3 *fmt3_ins;
-	int	fmt3;
 	u_int	opcode;
 
 	/* Structure copy */
@@ -4799,9 +4810,6 @@ ahc_dump_targcmd(struct target_cmd *cmd)
 {
 	u_int8_t *byte;
 	u_int8_t *last_byte;
-	int	  initiator;
-	int	  target;
-	int	  lun;
 	int i;
 
 	byte = &cmd->icl;
