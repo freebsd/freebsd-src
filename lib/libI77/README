@@ -32,6 +32,9 @@ number of characters transmitted -- then insert the line
 
 at the end of fmt.h .  This is necessary with
 at least some versions of Sun and DEC software.
+In particular, if you get a warning about an improper
+pointer/integer combination in compiling wref.c, then
+you need to compile with -DUSE_STRLEN .
 
 If your system's fopen does not like the ANSI binary
 reading and writing modes "rb" and "wb", then you should
@@ -117,7 +120,7 @@ To check for transmission errors, issue the command
 This assumes you have the xsum program whose source, xsum.c,
 is distributed as part of "all from f2c/src".  If you do not
 have xsum, you can obtain xsum.c by sending the following E-mail
-message to netlib@research.att.com
+message to netlib@netlib.bell-labs.com
 	send xsum.c from f2c/src
 
 The makefile assumes you have installed f2c.h in a standard
@@ -133,6 +136,10 @@ means WRITE(6... .  Moreover, an OPEN(n,... statement that does
 not specify a file name (and does not specify STATUS='SCRATCH')
 assumes FILE='fort.n' .  You can change this by editing open.c
 and endfile.c suitably.
+
+Unless you adjust the "#define MXUNIT" line in fio.h, Fortran units
+0, 1, ..., 99 are available, i.e., the highest allowed unit number
+is MXUNIT - 1.
 
 Lines protected from compilation by #ifdef Allow_TYQUAD
 are for a possible extension to 64-bit integers in which
@@ -188,3 +195,31 @@ formatted writes of floating-point numbers of absolute value < 1 have
 a zero before the decimal point.  By default, libI77 omits such
 superfluous zeros, but you can cause them to appear by compiling
 lwrite.c, wref.c, and wrtfmt.c with -DWANT_LEAD_0 .
+
+If your system lacks a ranlib command, you don't need it.
+Either comment out the makefile's ranlib invocation, or install
+a harmless "ranlib" command somewhere in your PATH, such as the
+one-line shell script
+
+	exit 0
+
+or (on some systems)
+
+	exec /usr/bin/ar lts $1 >/dev/null
+
+Most of the routines in libI77 are support routines for Fortran
+I/O.  There are a few exceptions, summarized below -- I/O related
+functions and subroutines that appear to your program as ordinary
+external Fortran routines.
+
+1.	CALL FLUSH flushes all buffers.
+
+2.	FTELL(i) is an INTEGER function that returns the current
+	offset of Fortran unit i (or -1 if unit i is not open).
+
+3.	CALL FSEEK(i, offset, whence, *errlab) attemps to move
+	Fortran unit i to the specified offset: absolute offset
+	if whence = 0; relative to the current offset if whence = 1;
+	relative to the end of the file if whence = 2.  It branches
+	to label errlab if unit i is not open or if the call
+	otherwise fails.

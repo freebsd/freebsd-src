@@ -2,87 +2,84 @@
 #include "fio.h"
 #include "fmt.h"
 
-extern int f__cursor;
-int f__hiwater;
-icilist *f__svic;
-char *f__icptr;
+extern icilist *f__svic;
+extern char *f__icptr;
 
-int
+ static int
 mv_cur(Void)	/* shouldn't use fseek because it insists on calling fflush */
 		/* instead we know too much about stdio */
 {
+	int cursor = f__cursor;
+	f__cursor = 0;
 	if(f__external == 0) {
-		if(f__cursor < 0) {
+		if(cursor < 0) {
 			if(f__hiwater < f__recpos)
 				f__hiwater = f__recpos;
-			f__recpos += f__cursor;
-			f__icptr += f__cursor;
-			f__cursor = 0;
+			f__recpos += cursor;
+			f__icptr += cursor;
 			if(f__recpos < 0)
 				err(f__elist->cierr, 110, "left off");
 		}
-		else if(f__cursor > 0) {
-			if(f__recpos + f__cursor >= f__svic->icirlen)
+		else if(cursor > 0) {
+			if(f__recpos + cursor >= f__svic->icirlen)
 				err(f__elist->cierr, 110, "recend");
 			if(f__hiwater <= f__recpos)
-				for(; f__cursor > 0; f__cursor--)
+				for(; cursor > 0; cursor--)
 					(*f__putn)(' ');
-			else if(f__hiwater <= f__recpos + f__cursor) {
-				f__cursor -= f__hiwater - f__recpos;
+			else if(f__hiwater <= f__recpos + cursor) {
+				cursor -= f__hiwater - f__recpos;
 				f__icptr += f__hiwater - f__recpos;
 				f__recpos = f__hiwater;
-				for(; f__cursor > 0; f__cursor--)
+				for(; cursor > 0; cursor--)
 					(*f__putn)(' ');
 			}
 			else {
-				f__icptr += f__cursor;
-				f__recpos += f__cursor;
+				f__icptr += cursor;
+				f__recpos += cursor;
 			}
-			f__cursor = 0;
 		}
 		return(0);
 	}
-	if(f__cursor > 0) {
+	if(cursor > 0) {
 		if(f__hiwater <= f__recpos)
-			for(;f__cursor>0;f__cursor--) (*f__putn)(' ');
-		else if(f__hiwater <= f__recpos + f__cursor) {
+			for(;cursor>0;cursor--) (*f__putn)(' ');
+		else if(f__hiwater <= f__recpos + cursor) {
 #ifndef NON_UNIX_STDIO
 			if(f__cf->_ptr + f__hiwater - f__recpos < buf_end(f__cf))
 				f__cf->_ptr += f__hiwater - f__recpos;
 			else
 #endif
 				(void) fseek(f__cf, (long) (f__hiwater - f__recpos), SEEK_CUR);
-			f__cursor -= f__hiwater - f__recpos;
+			cursor -= f__hiwater - f__recpos;
 			f__recpos = f__hiwater;
-			for(; f__cursor > 0; f__cursor--)
+			for(; cursor > 0; cursor--)
 				(*f__putn)(' ');
 		}
 		else {
 #ifndef NON_UNIX_STDIO
-			if(f__cf->_ptr + f__cursor < buf_end(f__cf))
-				f__cf->_ptr += f__cursor;
+			if(f__cf->_ptr + cursor < buf_end(f__cf))
+				f__cf->_ptr += cursor;
 			else
 #endif
-				(void) fseek(f__cf, (long)f__cursor, SEEK_CUR);
-			f__recpos += f__cursor;
+				(void) fseek(f__cf, (long)cursor, SEEK_CUR);
+			f__recpos += cursor;
 		}
 	}
-	if(f__cursor<0)
+	if(cursor<0)
 	{
-		if(f__cursor+f__recpos<0) err(f__elist->cierr,110,"left off");
+		if(cursor+f__recpos<0) err(f__elist->cierr,110,"left off");
 #ifndef NON_UNIX_STDIO
-		if(f__cf->_ptr + f__cursor >= f__cf->_base)
-			f__cf->_ptr += f__cursor;
+		if(f__cf->_ptr + cursor >= f__cf->_base)
+			f__cf->_ptr += cursor;
 		else
 #endif
 		if(f__curunit && f__curunit->useek)
-			(void) fseek(f__cf,(long)f__cursor,SEEK_CUR);
+			(void) fseek(f__cf,(long)cursor,SEEK_CUR);
 		else
 			err(f__elist->cierr,106,"fmt");
 		if(f__hiwater < f__recpos)
 			f__hiwater = f__recpos;
-		f__recpos += f__cursor;
-		f__cursor=0;
+		f__recpos += cursor;
 	}
 	return(0);
 }
@@ -95,7 +92,7 @@ wrt_Z(Uint *n, int w, int minlen, ftnlen len)
 #endif
 {
 	register char *s, *se;
-	register i, w1;
+	register int i, w1;
 	static int one = 1;
 	static char hex[] = "0123456789ABCDEF";
 	s = (char *)n;
@@ -214,7 +211,10 @@ wrt_AP(s) char *s;
 wrt_AP(char *s)
 #endif
 {	char quote;
-	if(f__cursor && mv_cur()) return(mv_cur());
+	int i;
+
+	if(f__cursor && (i = mv_cur()))
+		return i;
 	quote = *s++;
 	for(;*s;s++)
 	{	if(*s!=quote) (*f__putn)(*s);
@@ -230,14 +230,17 @@ wrt_H(a,s) char *s;
 wrt_H(int a, char *s)
 #endif
 {
-	if(f__cursor && mv_cur()) return(mv_cur());
+	int i;
+
+	if(f__cursor && (i = mv_cur()))
+		return i;
 	while(a--) (*f__putn)(*s++);
 	return(1);
 }
 #ifdef KR_headers
-int wrt_L(n,len, sz) Uint *n; ftnlen sz;
+wrt_L(n,len, sz) Uint *n; ftnlen sz;
 #else
-int wrt_L(Uint *n, int len, ftnlen sz)
+wrt_L(Uint *n, int len, ftnlen sz)
 #endif
 {	int i;
 	long x;
@@ -309,12 +312,15 @@ wrt_G(ufloat *p, int w, int d, int e, ftnlen len)
 	return(wrt_E(p,w,d,e,len));
 }
 #ifdef KR_headers
-int w_ed(p,ptr,len) struct syl *p; char *ptr; ftnlen len;
+w_ed(p,ptr,len) struct syl *p; char *ptr; ftnlen len;
 #else
-int w_ed(struct syl *p, char *ptr, ftnlen len)
+w_ed(struct syl *p, char *ptr, ftnlen len)
 #endif
 {
-	if(f__cursor && mv_cur()) return(mv_cur());
+	int i;
+
+	if(f__cursor && (i = mv_cur()))
+		return i;
 	switch(p->op)
 	{
 	default:
@@ -352,9 +358,9 @@ int w_ed(struct syl *p, char *ptr, ftnlen len)
 	}
 }
 #ifdef KR_headers
-int w_ned(p) struct syl *p;
+w_ned(p) struct syl *p;
 #else
-int w_ned(struct syl *p)
+w_ned(struct syl *p)
 #endif
 {
 	switch(p->op)
