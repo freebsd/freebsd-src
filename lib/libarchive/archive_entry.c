@@ -1058,11 +1058,13 @@ __archive_entry_acl_parse_w(struct archive_entry *entry,
 		if (sep != L':')
 			goto fail;
 
-		if (prefix_w(start, end, L"default")) {
+		/*
+		 * Solaris extension:  "defaultuser::rwx" is the
+		 * default ACL corresponding to "user::rwx", etc.
+		 */
+		if (end-start > 7  && wmemcmp(start, L"default", 7) == 0) {
 			type = ARCHIVE_ENTRY_ACL_TYPE_DEFAULT;
-			next_field_w(&text, &start, &end, &sep);
-			if (sep != L':')
-				goto fail;
+			start += 7;
 		} else
 			type = default_type;
 
