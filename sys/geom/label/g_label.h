@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,12 @@
 #define	G_LABEL_CLASS_NAME	"LABEL"
 
 #define	G_LABEL_MAGIC		"GEOM::LABEL"
-#define	G_LABEL_VERSION		1
+/*
+ * Version history:
+ * 1 - Initial version number.
+ * 2 - Added md_provsize field to metadata.
+ */
+#define	G_LABEL_VERSION		2
 #define	G_LABEL_DIR		"label"
 
 #ifdef _KERNEL
@@ -68,6 +73,7 @@ struct g_label_metadata {
 	char		md_magic[16];	/* Magic value. */
 	uint32_t	md_version;	/* Version number. */
 	char		md_label[16];	/* Label. */
+	uint64_t	md_provsize;	/* Provider's size. */
 };
 static __inline void
 label_metadata_encode(const struct g_label_metadata *md, u_char *data)
@@ -76,6 +82,7 @@ label_metadata_encode(const struct g_label_metadata *md, u_char *data)
 	bcopy(md->md_magic, data, sizeof(md->md_magic));
 	le32enc(data + 16, md->md_version);
 	bcopy(md->md_label, data + 20, sizeof(md->md_label));
+	le64enc(data + 36, md->md_provsize);
 }
 static __inline void
 label_metadata_decode(const u_char *data, struct g_label_metadata *md)
@@ -84,5 +91,6 @@ label_metadata_decode(const u_char *data, struct g_label_metadata *md)
 	bcopy(data, md->md_magic, sizeof(md->md_magic));
 	md->md_version = le32dec(data + 16);
 	bcopy(data + 20, md->md_label, sizeof(md->md_label));
+	md->md_provsize = le64dec(data + 36);
 }
 #endif	/* _G_LABEL_H_ */

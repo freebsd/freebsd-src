@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -179,6 +179,13 @@ concat_label(struct gctl_req *req)
 			if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
 				name += strlen(_PATH_DEV);
 			strlcpy(md.md_provider, name, sizeof(md.md_provider));
+		}
+		md.md_provsize = g_get_mediasize(name);
+		if (md.md_provsize == 0) {
+			fprintf(stderr, "Can't get mediasize of %s: %s.\n",
+			    name, strerror(errno));
+			gctl_error(req, "Not fully done.");
+			continue;
 		}
 		concat_metadata_encode(&md, sector);
 		error = g_metadata_store(name, sector, sizeof(sector));

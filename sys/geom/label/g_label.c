@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -238,6 +238,20 @@ g_label_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 			    pp->name);
 			break;
 		}
+
+		/*
+		 * Backward compatibility:
+		 */
+		/*
+		 * There was no md_provsize field in earlier versions of
+		 * metadata.
+		 */
+		if (md.md_version < 2)
+			md.md_provsize = pp->mediasize;
+
+		if (md.md_provsize != pp->mediasize)
+			break;
+
 		g_label_create(NULL, mp, pp, md.md_label, G_LABEL_DIR,
 		    pp->mediasize - pp->sectorsize);
 	} while (0);

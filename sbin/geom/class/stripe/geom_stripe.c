@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -210,14 +210,16 @@ stripe_label(struct gctl_req *req)
 		snprintf(param, sizeof(param), "arg%u", i);
 		name = gctl_get_asciiparam(req, param);
 
-		msize = g_get_mediasize(name) - g_get_sectorsize(name);
-		if (compsize < msize) {
+		msize = g_get_mediasize(name);
+		ssize = g_get_sectorsize(name);
+		if (compsize < msize - ssize) {
 			fprintf(stderr,
 			    "warning: %s: only %jd bytes from %jd bytes used.\n",
-			    name, (intmax_t)compsize, (intmax_t)msize);
+			    name, (intmax_t)compsize, (intmax_t)(msize - ssize));
 		}
 
 		md.md_no = i - 1;
+		md.md_provsize = msize;
 		if (!*hardcode)
 			bzero(md.md_provider, sizeof(md.md_provider));
 		else {

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -268,6 +268,8 @@ mirror_label(struct gctl_req *req)
 
 		md.md_did = arc4random();
 		md.md_priority = i - 1;
+		md.md_provsize = g_get_mediasize(str);
+		assert(md.md_provsize != 0);
 		if (!*hardcode)
 			bzero(md.md_provider, sizeof(md.md_provider));
 		else {
