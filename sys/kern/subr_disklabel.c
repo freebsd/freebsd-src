@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id$
+ * $Id: ufs_disksubr.c,v 1.30 1997/02/22 09:47:45 peter Exp $
  */
 
 #include <sys/param.h>
@@ -160,7 +160,7 @@ insert:
  * Attempt to read a disk label from a device using the indicated strategy
  * routine.  The label must be partly set up before this: secpercyl, secsize
  * and anything required in the strategy routine (e.g., dummy bounds for the
- * partition containing the label) must be * filled in before calling us.
+ * partition containing the label) must be filled in before calling us.
  * Returns NULL on success and an error string on failure.
  */
 char *
@@ -184,7 +184,7 @@ readdisklabel(dev, strat, lp)
 		msg = "I/O error";
 	else for (dlp = (struct disklabel *)bp->b_data;
 	    dlp <= (struct disklabel *)((char *)bp->b_data +
-	    DEV_BSIZE - sizeof(*dlp));
+	    lp->d_secsize - sizeof(*dlp));
 	    dlp = (struct disklabel *)((char *)dlp + sizeof(long))) {
 		if (dlp->d_magic != DISKMAGIC || dlp->d_magic2 != DISKMAGIC) {
 			if (msg == NULL)
