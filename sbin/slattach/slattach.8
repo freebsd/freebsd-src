@@ -31,7 +31,7 @@
 .\"
 .\"     @(#)slattach.8	6.4 (Berkeley) 3/16/91
 .\"
-.\"	$Header: /home/ncvs/src/sbin/slattach/slattach.8,v 1.3 1994/08/23 08:28:31 rich Exp $
+.\"	$Header: /home/ncvs/src/sbin/slattach/slattach.8,v 1.4 1995/03/12 15:04:16 joerg Exp $
 .\"
 .Dd April 4, 1993
 .Dt SLATTACH 8
@@ -41,17 +41,20 @@
 .Nd attach serial lines as network interfaces
 .Sh SYNOPSIS
 .Nm Slattach
-.Op \-a
-.Op \-c
-.Op \-e exit-command
-.Op \-f
-.Op \-h
-.Op \-l
-.Op \-n
-.Op \-r redial-command
-.Op \-s baudrate
-.Op \-u unit-command
-.Op \-z
+.Op Fl a
+.Op Fl c
+.Op Fl e Ar exit-command
+.Op Fl f
+.Op Fl h
+.Op Fl l
+.Op Fl n
+.Op Fl r Ar redial-command
+.Op Fl s Ar baudrate
+.Op Fl u Ar unit-command
+.Op Fl z
+.Op Fl K Ar keepalive
+.Op Fl O Ar outfill
+.Op Fl U Ar unit
 .Ar ttyname 
 .Sh DESCRIPTION
 .Nm Slattach
@@ -60,35 +63,35 @@ and to define the network source and destination addresses.
 The following operands are supported by
 .Nm slattach :
 .Bl -tag -width Ar
-.It Ar \-a
+.It Fl a
 Autoenable the VJ header compression option, if the other end of the link
 is capable of VJ header compression then it will be used otherwise normal
 headers will be used.
-.It Ar \-c
+.It Fl c
 Enables the VJ header compression option.  Note that both ends of the link
 must be able to use VJ header compression for this to work.
-.It Ar \-e exit-command
+.It Fl e Ar exit-command
 Specifies a command to be invoked within a shell (sh -c exit-command)
 before slattach exits.
-.It Ar \-f
+.It Fl f
 Disables the invocation of daemon() to run slattach in the background.
-.It Ar \-h
+.It Fl h
 Turn on cts/rts style flow control on the slip port, by default no flow
 control is done.
-.It Ar \-l
+.It Fl l
 disable modem control (CLOCAL) and ignore carrier detect on the slip
 port.  By default the redial-command is invoked upon carrier drop and
 slattach aborts if no redial-command is specified.
-.It Ar \-n
+.It Fl n
 Throw away ICMP packets.  The slip interface will ignore ICMP packets
 to prevent slow lines being saturated by ICMP responses.
-.It Ar \-r redial-command
+.It Fl r Ar redial-command
 Specifies a command to be invoked within a shell (sh -c
 redial-command) whenever carrier is lost on the line.
-.It Ar \-s baudrate
+.It Fl s Ar baudrate
 Specifies the speed of the connection. If not specified, the
 default of 9600 is used.
-.It Ar \-u unit-command
+.It Fl u Ar unit-command
 When the line is switched to slip discipline, run
 .Ql sh \-c unit-command <last> <current> 
 where <last> and <current> are the slip unit numbers when the line was
@@ -98,9 +101,23 @@ using more than one slip line.  Slattach will abort if the unit number
 changes and
 .Ql \-u unit-command
 was not specified.
-.It Ar \-z
+.It Fl z
 forces redial
 redial-cmd upon startup irrespective of carrier.
+.It Fl K Ar keepalive
+Set SLIP "keep alive" timeout in seconds. If FRAME_END not received in this
+timeout, reconnect occurse. Active "out fill" timeout expected from other
+side.
+Default value is no timeout.
+.It Fl O Ar outfill
+Set SLIP "out fill" timeout in seconds. It cause at least one FRAME_END
+will be sended during this timeout.
+Needed for "keep alive" timeout on other side.
+Default value is no timeout.
+.It Fl U Ar unit
+Set SLIP unit number directly. Use with caution, no check for two
+interfaces with same number made.
+Default is dynamic assignment.
 .It Ar ttyname
 Specifies the name of the tty device.
 .Ar Ttyname
@@ -179,6 +196,8 @@ This file contains the numerical process ID of the
 process and can be examined by scripts in oder to send a signal to
 .Nm slattch .
 .Sh SEE ALSO
+.Xr startslip 1 ,
+.Xr sliplogin 8 ,
 .Xr netstat 1 ,
 .Xr netintro 4 ,
 .Xr ifconfig 8 ,
