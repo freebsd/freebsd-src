@@ -109,7 +109,13 @@ static driver_t cpufreq_driver = {
 static devclass_t cpufreq_dc;
 DRIVER_MODULE(cpufreq, cpu, cpufreq_driver, cpufreq_dc, 0, 0);
 
-static eventhandler_tag cf_ev_tag;
+static eventhandler_tag	cf_ev_tag;
+
+static int		cf_lowest_freq;
+TUNABLE_INT("debug.cpufreq.lowest", &cf_lowest_freq);
+SYSCTL_NODE(_debug, OID_AUTO, cpufreq, CTLFLAG_RD, NULL, "cpufreq debugging");
+SYSCTL_INT(_debug_cpufreq, OID_AUTO, lowest, CTLFLAG_RW, &cf_lowest_freq, 1,
+    "Don't provide levels below this frequency.");
 
 static int
 cpufreq_attach(device_t dev)
@@ -205,6 +211,10 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 			return (ENXIO);
 	} else if (priority < sc->curr_priority)
 		return (EPERM);
+
+	/* Reject levels that are below our specified threshold. */
+	if (level->total_set.freq <= cf_lowest_freq)
+		return (EINVAL);
 
 	/* If already at this level, just return. */
 	if (CPUFREQ_CMP(sc->curr_level.total_set.freq, level->total_set.freq))
@@ -474,6 +484,12 @@ cf_levels_method(device_t dev, struct cf_level *levels, int *count)
 	/* Finally, output the list of levels. */
 	i = 0;
 	TAILQ_FOREACH(lev, &sc->all_levels, link) {
+		/* Skip levels that have a frequency that is too low. */
+		if (lev->total_set.freq <= cf_lowest_freq) {
+			sc->all_count--;
+			continue;
+		}
+
 		levels[i] = *lev;
 		i++;
 	}
