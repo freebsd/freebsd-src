@@ -337,7 +337,8 @@ static DEVCLASS_INFO devclass_names[] = {
 static DEV_INFO device_info[] = {
 /*---Name-----   ---Description---------------------------------------------- */
 #ifdef PC98
-{"bs",          "PC-9801-55 SCSI Interface",        0, CLS_STORAGE},
+{"bs",		"PC-9801-55 SCSI Interface",		0,		CLS_STORAGE},
+{"ct",		"WD33C93 SCSI Interface",		0,		CLS_STORAGE},
 #endif
 {"adv",         "AdvanSys SCSI narrow controller",	0,		CLS_STORAGE},
 {"bt",          "Buslogic SCSI controller",		0,		CLS_STORAGE},

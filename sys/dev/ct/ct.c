@@ -72,8 +72,8 @@
 #endif /* __NetBSD__ */
 
 #ifdef __FreeBSD__
+#include <machine/clock.h>
 #include <machine/bus.h>
-
 #include <machine/dvcfg.h>
 #include <machine/physio_proc.h>
 

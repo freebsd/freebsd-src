@@ -152,7 +152,7 @@
 #define	BUS_IOR(offs) (BUS_IO_DELAY, inb(bsc->sc_iobase + (offs)))
 #define	BUS_IOW(offs, val) (BUS_IO_DELAY, outb(bsc->sc_iobase + (offs), (val)))
 
-#include <i386/isa/ic/wd33c93.h>
+#include <dev/ic/wd33c93reg.h>
 #include <i386/isa/ccbque.h>
 
 #include <cam/scsi/scsi_dvcfg.h>
