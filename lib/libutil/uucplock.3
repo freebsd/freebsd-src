@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
-.\" $Id: uucplock.3,v 1.2 1997/03/31 22:47:53 brian Exp $
+.\" $Id: uucplock.3,v 1.3 1997/04/01 17:44:31 mpp Exp $
 .\" "
 .Dd March 30, 1997
 .Os
@@ -113,11 +113,8 @@ If a value of
 .Dv UU_LOCK_OK
 is passed to
 .Fn uu_lockerr ,
-a
-.Dv NULL
-pointer is returned.  If a value of
-.Dv UU_LOCK_INUSE
-is passed, an empty string is returned.  Otherwise, a string specifying
+an empty string returned.
+Otherwise, a string specifying
 the reason for failure is returned.
 .Fn uu_lockerr
 uses the current value of
