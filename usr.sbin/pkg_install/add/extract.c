@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: extract.c,v 1.11 1997/02/22 16:09:16 peter Exp $";
+static const char *rcsid = "$Id: extract.c,v 1.12 1997/02/25 07:22:23 jkh Exp $";
 #endif
 
 /*
@@ -145,6 +145,8 @@ extract_plist(char *home, Package *pkg)
 	    break;
 
 	case PLIST_CMD:
+	    if (last_file == NULL)
+		barf("No last file specified for '%s' command.", p->name);
 	    format_cmd(cmd, p->name, Directory, last_file);
 	    PUSHOUT(Directory);
 	    if (Verbose)
