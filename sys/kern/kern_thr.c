@@ -53,7 +53,7 @@ static int thr_scope_sys = 0;
 SYSCTL_INT(_kern_threads, OID_AUTO, thr_scope_sys, CTLFLAG_RW,
 	&thr_scope_sys, 0, "sys or proc scope scheduling");
 
-static int thr_concurency = 0;
+static int thr_concurrency = 0;
 SYSCTL_INT(_kern_threads, OID_AUTO, thr_concurrency, CTLFLAG_RW,
 	&thr_concurrency, 0, "a concurrency value if not default");
 
