@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.276 1997/02/22 14:10:21 peter Exp $
+#	$Id: Makefile,v 1.277 1997/02/23 15:51:47 joerg Exp $
 #
 # How to roll a release:
 #
@@ -14,10 +14,10 @@
 # otherwise the target 'release.8' and possibly others will fail.
 #
 # SET THIS !!!
-#BUILDNAME=2.2-960501-SNAP
+#BUILDNAME=3.0-970302-SNAP
 #CHROOTDIR=/junk/release
 # If this is a RELEASE, then set
-#RELEASETAG=RELENG_2_1_0
+#RELEASETAG=RELENG_2_2
 
 # Things which without too much trouble can be considered variables
 
@@ -53,9 +53,9 @@ BOOTINODE=		100000
 # Things which will get you into trouble if you change them
 DISTRIBUTIONS=		bin ${EXTRA_DISTS}
 MTREEFILES=		${.CURDIR}/../etc/mtree
-RD=			${RELEASEDIR}/stage
-FD=			${RELEASEDIR}/ftp
-CD=			${RELEASEDIR}/cdrom
+RD=			/R/stage
+FD=			/R/ftp
+CD=			/R/cdrom
 
 .if !defined(WHICH_CRUNCH)
 WHICH_CRUNCH=	boot fixit
@@ -124,8 +124,6 @@ rerelease release:
 	echo "set -ex"				>> ${CHROOTDIR}/mk
 	echo "CFLAGS='-O2 -pipe'"		>> ${CHROOTDIR}/mk
 	echo "export CFLAGS"			>> ${CHROOTDIR}/mk
-	echo "RELEASEDIR=/R"			>> ${CHROOTDIR}/mk
-	echo "export RELEASEDIR"		>> ${CHROOTDIR}/mk
 	echo "cd /usr/src"			>> ${CHROOTDIR}/mk
 .if make(release)
 	echo "make world"			>> ${CHROOTDIR}/mk
@@ -151,12 +149,11 @@ whap:
 clean:
 	rm -rf boot_crunch release.[0-9] release.1[0]
 
-# Clean out ${RELEASEDIR} and make the directory structure.
+# Clean out /R and make the directory structure.
 release.1:
-	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
-	-mkdir ${RELEASEDIR}
-	chflags -R noschg ${RELEASEDIR}/.
-	rm -rf ${RELEASEDIR}/*
+	-mkdir /R
+	chflags -R noschg /R/.
+	rm -rf /R/*
 	mkdir ${RD}
 	mkdir ${RD}/floppies
 	mkdir ${RD}/trees
@@ -178,22 +175,6 @@ release.1:
 
 # Install the system into the various distributions.
 release.2:
-	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
-	cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/bin
-	cd ${.CURDIR}/.. && make distribute DISTDIR=${RD}/trees
-.if exists(${.CURDIR}/../eBones)
-	cd ${.CURDIR}/../eBones && ( \
-		make bootstrap &&\
-		make obj all help-distribute DISTDIR=${RD}/trees &&\
-		make kprog \
-	)
-.endif
-	chflags -R noschg ${RD}/trees
-	touch release.2
-
-# Make and install the generic kernel(s).
-release.3:
-	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 .for kernel in ${KERNELS}
 	rm -f ${RD}/kernels/${kernel}
 	rm -rf ${.CURDIR}/../sys/compile/${kernel}
@@ -209,7 +190,6 @@ release.3:
 # NB: the "RELEASE_BUILD_FIXIT" magic prevents vi from including the
 # Tcl and Perl APIs.  See also /usr/src/usr.bin/vi/Makefile.
 release.4:
-	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	cd ${.CURDIR}/sysinstall && make depend all
 	rm -rf ${RD}/crunch
 	mkdir -p ${RD}/crunch
@@ -230,7 +210,6 @@ release.4:
 # --==## Fix up the distributions. ##==--
 #
 release.5:
-	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	# Handle some grief caused by the munition braindeadness.
 	for i in sbin/init bin/ed ; do \
 		( cd ${.CURDIR}/../$$i; \
@@ -311,7 +290,6 @@ release.5:
 # --==## Make binary dists ##==--
 #
 release.6:
-	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	rm -rf ${RD}/dists
 	mkdir -p ${RD}/dists
 	@for i in ${DISTRIBUTIONS} ; \
@@ -332,7 +310,6 @@ release.6:
 # --==## Make source dists ##==--
 #
 release.7:
-	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	@cd ${.CURDIR} && $(MAKE) doTARBALL SD=/usr/src \
 		TD=src TN=sbase ARG="[A-Z]*"
 	@for i in `cd /usr/src && echo [a-z]*` ; do \
@@ -375,7 +352,6 @@ release.7:
 #
 
 release.8: write_mfs_in_kernel dumpnlist
-	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	rm -rf ${RD}/mfsfd
 	mkdir ${RD}/mfsfd
 	cd ${RD}/mfsfd && \
@@ -414,11 +390,11 @@ release.8: write_mfs_in_kernel dumpnlist
 # --==## Create a fixit floppy ##==--
 #
 release.9:
-	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	rm -rf ${RD}/fixitfd
 	mkdir ${RD}/fixitfd
 	cd ${RD}/fixitfd && \
-		mkdir dev stand bin sbin etc mnt mnt1 mnt2 mnt3 mnt4 tmp
+		mkdir -p dev stand bin sbin etc mnt mnt1 mnt2 mnt3 mnt4 tmp \
+		usr/share/misc
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=fixit \
 		DIR=${RD}/fixitfd/stand ZIP=false
 	( cd ${RD}/fixitfd/dev && \
@@ -427,6 +403,8 @@ release.9:
 		sh MAKEDEV all )
 	cp ${RD}/trees/bin/etc/spwd.db ${RD}/trees/bin/etc/group \
 		${RD}/trees/bin/etc/protocols ${RD}/fixitfd/etc
+	cp ${RD}/trees/bin/usr/share/misc/scsi_modes \
+		${RD}/fixitfd/usr/share/misc
 	cp ${.CURDIR}/fixit.profile ${RD}/fixitfd/.profile
 	cp ${.CURDIR}/fixit.services ${RD}/fixitfd/etc/services
 	cp ${.CURDIR}/tar.sh ${RD}/fixitfd/stand/tar
@@ -537,11 +515,6 @@ write_mfs_in_kernel:	${.CURDIR}/write_mfs_in_kernel.c
 dumpnlist:	${.CURDIR}/dumpnlist.c
 	${CC} ${CFLAGS} -o dumpnlist ${.CURDIR}/dumpnlist.c
 
-ckRELEASEDIR:
-.if !defined(RELEASEDIR)
-	@echo "To make a release RELEASEDIR must be defined" && false
-.endif
-
 installCRUNCH:
 .if !defined(CRUNCH)
 	@echo "CRUNCH undefined in installCRUNCH" && exit 1
@@ -569,7 +542,6 @@ installCRUNCH:
 # may want to reuse it (release.8 presently)
 #
 doKERNEL:
-	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	rm -f ${RD}/kernels/${KERNEL}
 	cd ${.CURDIR}/../sys/i386/conf && config -n ${KERNEL}
 	cd ${.CURDIR}/../sys/compile/${KERNEL} && \
@@ -581,7 +553,6 @@ doKERNEL:
 # --==## Put a filesystem into a BOOTMFS kernel ##==--
 #
 doMFSKERN:
-	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	@rm -f ${RD}/kernels/BOOTMFS.${FSIMAGE}
 	@rm -f /sys/compile/BOOTMFS/mfs_vfsops.o
 	@cd ${.CURDIR}/../sys/i386/conf && \
