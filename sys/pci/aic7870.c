@@ -2,7 +2,7 @@
  * Product specific probe and attach routines for:
  *      3940, 2940, aic7870, and aic7850 SCSI controllers
  *
- * Copyright (c) 1995 Justin T. Gibbs
+ * Copyright (c) 1995, 1996 Justin T. Gibbs
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7870.c,v 1.23 1996/01/09 16:14:53 gibbs Exp $
+ *	$Id: aic7870.c,v 1.24 1996/01/23 21:46:54 se Exp $
  */
 
 #include <pci.h>
