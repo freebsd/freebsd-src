@@ -123,6 +123,8 @@
 #define	NL_TEXTMAX		2048
 #endif
 
+#define	MB_LEN_MAX		6	/* 31-bit UTF-8 */
+
 #include <machine/limits.h>
 
 #if __POSIX_VISIBLE
