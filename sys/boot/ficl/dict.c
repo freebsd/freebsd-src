@@ -29,6 +29,11 @@
 #include <string.h>
 #include "ficl.h"
 
+/* Dictionary on-demand resizing control variables */
+unsigned int dictThreshold;
+unsigned int dictIncrease;
+
+
 static char *dictCopyName(FICL_DICT *pDict, STRINGINFO si);
 
 /**************************************************************************
@@ -347,12 +352,14 @@ FICL_DICT  *dictCreateHashed(unsigned nCells, unsigned nHash)
     FICL_DICT *pDict;
     size_t nAlloc;
 
-    nAlloc =  sizeof (FICL_DICT) + nCells      * sizeof (CELL)
-            + sizeof (FICL_HASH) + (nHash - 1) * sizeof (FICL_WORD *);
+    nAlloc =  sizeof (FICL_HASH) + nCells      * sizeof (CELL)
+                                 + (nHash - 1) * sizeof (FICL_WORD *);
 
-    pDict = ficlMalloc(nAlloc);
+    pDict = ficlMalloc(sizeof (FICL_DICT));
     assert(pDict);
     memset(pDict, 0, sizeof (FICL_DICT));
+    pDict->dict = ficlMalloc(nAlloc);
+    assert(pDict->dict);
     pDict->size = nCells;
     dictEmpty(pDict, nHash);
     return pDict;
@@ -701,4 +708,19 @@ void hashReset(FICL_HASH *pHash)
     return;
 }
 
+/**************************************************************************
+                    d i c t C h e c k T h r e s h o l d
+** Verify if an increase in the dictionary size is warranted, and do it if
+** so.
+**************************************************************************/
+
+void dictCheckThreshold(FICL_DICT* dp)
+{
+    if( dictCellsAvail(dp) < dictThreshold ) {
+        dp->dict = ficlMalloc( dictIncrease * sizeof (CELL) );
+        assert(dp->dict);
+        dp->here = dp->dict;
+        dp->size = dictIncrease;
+    }
+}
 

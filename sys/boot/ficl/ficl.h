@@ -666,7 +666,7 @@ typedef struct ficl_dict
     FICL_HASH *pSearch[FICL_DEFAULT_VOCS];
     int        nLists;
     unsigned   size;    /* Number of cells in dict (total)*/
-    CELL       dict[1]; /* Base of dictionary memory      */
+    CELL       *dict;   /* Base of dictionary memory      */
 } FICL_DICT;
 
 void       *alignPtr(void *ptr);
@@ -827,6 +827,12 @@ void       ficlCompileSoftCore(FICL_VM *pVM);
 */
 void       constantParen(FICL_VM *pVM);
 void       twoConstParen(FICL_VM *pVM);
+
+/*
+** Dictionary on-demand resizing
+*/
+extern unsigned int dictThreshold;
+extern unsigned int dictIncrease;
 
 /*
 ** So we can more easily debug...
