@@ -504,7 +504,7 @@ ppb_request_bus(device_t bus, device_t dev, int how)
 /*
  * ppb_release_bus()
  *
- * Release the device allocated with ppb_request_dev()
+ * Release the device allocated with ppb_request_bus()
  */
 int
 ppb_release_bus(device_t bus, device_t dev)
