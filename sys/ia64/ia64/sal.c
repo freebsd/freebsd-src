@@ -40,6 +40,7 @@ static sal_entry_t	fake_sal;
 
 extern u_int64_t	ia64_pal_entry;
 sal_entry_t		*ia64_sal_entry = fake_sal;
+u_int64_t		ia64_sal_wakeup;
 
 static struct ia64_sal_result
 fake_sal(u_int64_t a1, u_int64_t a2, u_int64_t a3, u_int64_t a4,
@@ -69,9 +70,11 @@ ia64_sal_init(struct sal_system_table *saltab)
 
 	p = (u_int8_t *) (saltab + 1);
 	for (i = 0; i < saltab->sal_entry_count; i++) {
-		if (*p == 0) {
+		switch (*p) {
+		case 0: {
 			struct sal_entrypoint_descriptor *dp;
-			dp = (struct sal_entrypoint_descriptor *) p;
+
+			dp = (struct sal_entrypoint_descriptor*)p;
 			ia64_pal_entry = IA64_PHYS_TO_RR7(dp->sale_pal_proc);
 			if (bootverbose)
 				printf("PAL Proc at 0x%lx\n", ia64_pal_entry);
@@ -79,11 +82,28 @@ ia64_sal_init(struct sal_system_table *saltab)
 			sal_fdesc.gp = IA64_PHYS_TO_RR7(dp->sale_sal_gp);
 			if (bootverbose)
 				printf("SAL Proc at 0x%lx, GP at 0x%lx\n",
-				       sal_fdesc.func, sal_fdesc.gp);
+				    sal_fdesc.func, sal_fdesc.gp);
 			ia64_sal_entry = (sal_entry_t *) &sal_fdesc;
-			return;
+			break;
+		}
+#ifdef SMP
+		case 5: {
+			struct sal_ap_wakeup_descriptor *dp;
+
+			dp = (struct sal_ap_wakeup_descriptor*)p;
+			KASSERT(dp->sale_mechanism == 0,
+			    ("Unsupported AP wake-up mechanism"));
+			ia64_sal_wakeup = dp->sale_vector;
+			if (bootverbose)
+				printf("SMP: AP wake-up vector: 0x%lx\n",
+				    ia64_sal_wakeup);
+			/*
+			 * Register OS_BOOT_RENDEZ using SAL_SET_VECTORS
+			 */
+			break;
+		}
+#endif
 		}
 		p += sizes[*p];
 	}
 }
-
