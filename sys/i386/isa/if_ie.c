@@ -10,6 +10,10 @@
  * 3Com 3C507 support:
  * Copyright (c) 1993, 1994, Charles M. Hannum
  *
+ * EtherExpress 16 support:
+ * Copyright (c) 1993, 1994, 1995, Rodney W. Grimes
+ * Copyright (c) 1997, Aaron C. Smith
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,10 +27,10 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *	This product includes software developed by the University of
- *	Vermont and State Agricultural College and Garrett A. Wollman,
- *	by William F. Jolitz, by the University of California,
- *	Berkeley, by Larwence Berkeley Laboratory, by Charles M. Hannum,
- *	and their contributors.
+ *	Vermont and State Agricultural College and Garrett A. Wollman, by
+ *	William F. Jolitz, by the University of California, Berkeley,
+ *	Lawrence Berkeley Laboratory, and their contributors, by
+ *	Charles M. Hannum, by Rodney W. Grimes, and by Aaron C. Smith.
  * 4. Neither the names of the Universities nor the names of the authors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -43,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.35 1996/06/25 20:30:13 bde Exp $
+ *	$Id: if_ie.c,v 1.36 1996/09/06 23:07:36 phk Exp $
  */
 
 /*
@@ -53,23 +57,21 @@
  * Written by GAW with reference to the Clarkson Packet Driver code for this
  * chip written by Russ Nelson and others.
  *
- * BPF support code stolen directly from hpdev/if_le.c, supplied with
- * tcpdump.
+ * Intel EtherExpress 16 support from if_ix.c, written by Rodney W. Grimes. 
  */
 
 /*
  * The i82586 is a very versatile chip, found in many implementations.
  * Programming this chip is mostly the same, but certain details differ
  * from card to card.  This driver is written so that different cards
- * can be automatically detected at run-time.  Currently, only the
- * AT&T EN100/StarLAN 10 series are supported.
+ * can be automatically detected at run-time.
  */
 
 /*
 Mode of operation:
 
 We run the 82586 in a standard Ethernet mode.  We keep NFRAMES received
-frame descriptors around for the receiver to use, and NBUFFS associated
+frame descriptors around for the receiver to use, and NRXBUF associated
 receive buffer descriptors, both in a circular list.  Whenever a frame is
 received, we rotate both lists as necessary.  (The 586 treats both lists
 as a simple queue.)  We also keep a transmit command around so that packets
@@ -87,20 +89,20 @@ what precisely caused it.  ANY OTHER command-sending routines should
 run at splimp(), and should post an acknowledgement to every interrupt
 they generate.
 
-The 82586 has a 24-bit address space internally, and the adaptor's
-memory is located at the top of this region.  However, the value we are
-given in configuration is normally the *bottom* of the adaptor RAM.  So,
-we must go through a few gyrations to come up with a kernel virtual address
-which represents the actual beginning of the 586 address space.  First,
-we autosize the RAM by running through several possible sizes and trying
-to initialize the adapter under the assumption that the selected size
-is correct.  Then, knowing the correct RAM size, we set up our pointers
-in ie_softc[unit].  `iomem' represents the computed base of the 586
-address space.  `iomembot' represents the actual configured base
-of adapter RAM.  Finally, `iosize' represents the calculated size
-of 586 RAM.  Then, when laying out commands, we use the interval
-[iomembot, iomembot + iosize); to make 24-pointers, we subtract
-iomem, and to make 16-pointers, we subtract iomem and and with 0xffff.
+The 82586 has a 24-bit address space internally, and the adaptor's memory
+is located at the top of this region.  However, the value we are given in
+configuration is normally the *bottom* of the adaptor RAM.  So, we must go
+through a few gyrations to come up with a kernel virtual address which
+represents the actual beginning of the 586 address space.  First, we
+autosize the RAM by running through several possible sizes and trying to
+initialize the adapter under the assumption that the selected size is
+correct.  Then, knowing the correct RAM size, we set up our pointers in
+ie_softc[unit].  `iomem' represents the computed base of the 586 address
+space.  `iomembot' represents the actual configured base of adapter RAM.
+Finally, `iosize' represents the calculated size of 586 RAM.  Then, when
+laying out commands, we use the interval [iomembot, iomembot + iosize); to
+make 24-pointers, we subtract iomem, and to make 16-pointers, we subtract
+iomem and and with 0xffff.
 
 */
 
@@ -148,8 +150,10 @@ iomem, and to make 16-pointers, we subtract iomem and and with 0xffff.
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/ic/i82586.h>
+#include <i386/isa/icu.h>
 #include <i386/isa/if_iereg.h>
 #include <i386/isa/if_ie507.h>
+#include <i386/isa/if_iee16.h>
 #include <i386/isa/elink.h>
 
 #include <vm/vm.h>
@@ -159,38 +163,57 @@ iomem, and to make 16-pointers, we subtract iomem and and with 0xffff.
 #include <net/bpfdesc.h>
 #endif
 
-static int check_ie_present __P((int unit, caddr_t where, unsigned size));
-
-static struct mbuf *last_not_for_us;
-
 #ifdef DEBUG
-#define IED_RINT 1
-#define IED_TINT 2
-#define IED_RNR 4
-#define IED_CNA 8
-#define IED_READFRAME 16
+#define IED_RINT        0x01
+#define IED_TINT        0x02
+#define IED_RNR         0x04
+#define IED_CNA         0x08
+#define IED_READFRAME   0x10
 int ie_debug = IED_RNR;
 #endif
 
-#ifndef ETHERMINLEN
-#define ETHERMINLEN 60
+#if 0
+/* these values are defined in net/ethernet.h -acs */
+#define ETHER_MIN_LEN   60
+#define ETHER_MAX_LEN   1512
+#define ETHER_ADDR_LEN  6
 #endif
 
-#define IE_BUF_LEN 1512		/* length of transmit buffer */
+#define IE_BUF_LEN      ETHER_MAX_LEN    /* length of transmit buffer */
 
 /* Forward declaration */
 struct ie_softc;
 
+static struct mbuf *last_not_for_us;
+
 static int ieprobe(struct isa_device *dvp);
 static int ieattach(struct isa_device *dvp);
+static int sl_probe(struct isa_device *dvp);
+static int el_probe(struct isa_device *dvp);
+static int ni_probe(struct isa_device *dvp);
+static int ee16_probe(struct isa_device *dvp);
+
+static int  check_ie_present __P((int unit, caddr_t where, unsigned size));
 static void ieinit(int unit);
 static void ie_stop __P((int unit));
-static int ieioctl(struct ifnet *ifp, int command, caddr_t data);
+static int  ieioctl(struct ifnet *ifp, int command, caddr_t data);
 static void iestart(struct ifnet *ifp);
+
 static void el_reset_586(int unit);
 static void el_chan_attn(int unit);
+
 static void sl_reset_586(int unit);
 static void sl_chan_attn(int unit);
+
+static void ee16_reset_586(int unit);
+static void ee16_chan_attn(int unit);
+static void ee16_interrupt_enable __P((struct ie_softc *ie));
+static void ee16_eeprom_outbits __P((struct ie_softc *ie, int edata, int cnt));
+static void ee16_eeprom_clock __P((struct ie_softc *ie, int state));
+static u_short ee16_read_eeprom __P((struct ie_softc *ie, int location));
+static int ee16_eeprom_inbits __P((struct ie_softc *ie));
+static void ee16_shutdown(int howto, void *sc);
+
 static void iereset(int unit);
 static void ie_readframe(int unit, struct ie_softc *ie, int bufno);
 static void ie_drop_packet_buffer(int unit, struct ie_softc *ie);
@@ -229,6 +252,7 @@ enum ie_hardware {
   IE_SLFIBER,
   IE_3C507,
   IE_NI5210,
+  IE_EE16,
   IE_UNKNOWN
 };
 
@@ -238,6 +262,7 @@ static const char *ie_hardware_names[] = {
   "StarLAN Fiber",
   "3C507",
   "NI5210",
+  "EtherExpress 16",
   "Unknown"
 };
 
@@ -251,12 +276,12 @@ sizeof(transmit buffer desc) == 8
 -----
 1946
 
-NBUFFS * sizeof(rbd) == NBUFFS*(2+2+4+2+2) == NBUFFS*12
-NBUFFS * IE_RBUF_SIZE == NBUFFS*256
+NRXBUF * sizeof(rbd) == NRXBUF*(2+2+4+2+2) == NRXBUF*12
+NRXBUF * IE_RBUF_SIZE == NRXBUF*256
 
-NBUFFS should be (16384 - 1946) / (256 + 12) == 14438 / 268 == 53
+NRXBUF should be (16384 - 1946) / (256 + 12) == 14438 / 268 == 53
 
-With NBUFFS == 48, this leaves us 1574 bytes for another command or
+With NRXBUF == 48, this leaves us 1574 bytes for another command or
 more buffers.  Another transmit command would be 18+8+1512 == 1538
 ---just barely fits!
 
@@ -265,9 +290,12 @@ With a larger memory, it would be possible to roughly double the number of
 both transmit and receive buffers.
 */
 
-#define NFRAMES 16		/* number of frames to allow for receive */
-#define NBUFFS 48		/* number of buffers to allocate */
-#define IE_RBUF_SIZE 256	/* size of each buffer, MUST BE POWER OF TWO */
+#define NFRAMES         16	        /* number of receive frames */
+#define NRXBUF          48	        /* number of buffers to allocate */
+#define IE_RBUF_SIZE    256	        /* size of each buffer, 
+					        MUST BE POWER OF TWO */
+#define NTXBUF          2               /* number of transmit commands */
+#define IE_TBUF_SIZE    ETHER_MAX_LEN   /* size of transmit buffer */
 
 /*
  * Ethernet status, per interface.
@@ -279,9 +307,9 @@ static struct ie_softc {
   enum ie_hardware hard_type;
   int hard_vers;
 
-  u_short port;
-  caddr_t iomem;
-  caddr_t iomembot;
+  u_short port;         /* i/o base address for this interface */
+  caddr_t iomem;        /* memory size */
+  caddr_t iomembot;     /* memory base address */
   unsigned iosize;
   int bus_use;		/* 0 means 16bit, 1 means 8 bit adapter */
 
@@ -290,42 +318,44 @@ static struct ie_softc {
   volatile struct ie_int_sys_conf_ptr *iscp;
   volatile struct ie_sys_ctl_block *scb;
   volatile struct ie_recv_frame_desc *rframes[NFRAMES];
-  volatile struct ie_recv_buf_desc *rbuffs[NBUFFS];
-  volatile char *cbuffs[NBUFFS];
+  volatile struct ie_recv_buf_desc *rbuffs[NRXBUF];
+  volatile char *cbuffs[NRXBUF];
   int rfhead, rftail, rbhead, rbtail;
 
-  volatile struct ie_xmit_cmd *xmit_cmds[2];
-  volatile struct ie_xmit_buf *xmit_buffs[2];
+  volatile struct ie_xmit_cmd *xmit_cmds[NTXBUF];
+  volatile struct ie_xmit_buf *xmit_buffs[NTXBUF];
+  u_char *xmit_cbuffs[NTXBUF];
   int xmit_count;
-  u_char *xmit_cbuffs[2];
 
   struct ie_en_addr mcast_addrs[MAXMCAST + 1];
   int mcast_count;
+
+  u_short irq_encoded;	/* encoded interrupt on IEE16 */
+
 } ie_softc[NIE];
 
 #define MK_24(base, ptr) ((caddr_t)((u_long)ptr - (u_long)base))
 #define MK_16(base, ptr) ((u_short)(u_long)MK_24(base, ptr))
 
 #define PORT ie_softc[unit].port
-#define MEM ie_softc[unit].iomem
+#define MEM  ie_softc[unit].iomem
 
-static int sl_probe(struct isa_device *);
-static int el_probe(struct isa_device *);
-static int ni_probe(struct isa_device *);
-
-/* This routine written by Charles Martin Hannum. */
-int ieprobe(dvp)
-     struct isa_device *dvp;
+int
+ieprobe(dvp)
+	struct isa_device *dvp;
 {
   int ret;
 
   ret = sl_probe(dvp);
-  if(!ret) ret = el_probe(dvp);
-  if(!ret) ret = ni_probe(dvp);
-  return(ret);
+  if (!ret) ret = el_probe(dvp);
+  if (!ret) ret = ni_probe(dvp);
+  if (!ret) ret = ee16_probe(dvp);
+
+  return (ret);
 }
 
-static int sl_probe(dvp)
+static int
+sl_probe(dvp)
 	struct isa_device *dvp;
 {
   int unit = dvp->id_unit;
@@ -390,8 +420,9 @@ static int sl_probe(dvp)
   return 1;
 }
 
-/* This routine written by Charles Martin Hannum. */
-static int el_probe(dvp)
+
+static int
+el_probe(dvp)
 	struct isa_device *dvp;
 {
   struct ie_softc *sc = &ie_softc[dvp->id_unit];
@@ -538,6 +569,237 @@ static int ni_probe(dvp)
 }
 
 
+static void
+ee16_shutdown(howto, sc)
+	int howto;
+	void *sc;
+{
+	struct ie_softc *ie = (struct ie_softc *)sc;
+	int unit = ie - &ie_softc[0];
+
+	ee16_reset_586(unit);
+	outb(PORT + IEE16_ECTRL, IEE16_RESET_ASIC);
+	outb(PORT + IEE16_ECTRL, 0);
+}
+
+
+/* Taken almost exactly from Rod's if_ix.c. */
+
+int
+ee16_probe(dvp)
+	struct isa_device *dvp;
+{
+	struct ie_softc *sc = &ie_softc[dvp->id_unit];
+
+	int i;
+	int unit = dvp->id_unit;
+	u_short board_id, id_var1, id_var2, checksum = 0;
+	u_short eaddrtemp, irq;
+        u_short pg, adjust, decode, edecode;
+	u_char	bart_config;
+	u_long  bd_maddr;
+
+	short	irq_translate[] = {0, IRQ9, IRQ3, IRQ4, IRQ5, IRQ10, IRQ11, 0};
+	char	irq_encode[] = { 0, 0, 0, 2, 3, 4, 0, 0,
+			       	0, 1, 5, 6, 0, 0, 0, 0 };
+
+	/* Need this for part of the probe. */
+	sc->ie_reset_586 = ee16_reset_586;
+	sc->ie_chan_attn = ee16_chan_attn;
+
+	/* unsure if this is necessary */
+	sc->bus_use = 0;
+
+	/* reset any ee16 at the current iobase */
+	outb(dvp->id_iobase + IEE16_ECTRL, IEE16_RESET_ASIC);
+	outb(dvp->id_iobase + IEE16_ECTRL, 0);
+	DELAY(240);
+
+	/* now look for ee16. */
+	board_id = id_var1 = id_var2 = 0;
+	for (i=0; i<4 ; i++) {
+		id_var1 = inb(dvp->id_iobase + IEE16_ID_PORT);
+		id_var2 = ((id_var1 & 0x03) << 2);
+		board_id |= (( id_var1 >> 4)  << id_var2);
+	}
+
+	if (board_id != IEE16_ID) {
+		printf("ie%d: unknown board_id: %x\n", unit, board_id);
+		return 0;		
+	}
+
+	/* need sc->port for ee16_read_eeprom */
+	sc->port = dvp->id_iobase;
+	sc->hard_type = IE_EE16;
+
+	/*
+	 * The shared RAM location on the EE16 is encoded into bits
+	 * 3-7 of EEPROM location 6.  We zero the upper byte, and 
+	 * shift the 5 bits right 3.  The resulting number tells us
+	 * the RAM location.  Because the EE16 supports either 16k or 32k
+	 * of shared RAM, we only worry about the 32k locations. 
+	 *
+	 * NOTE: if a 64k EE16 exists, it should be added to this switch.
+	 *       then the ia->ia_msize would need to be set per case statement.
+	 *
+	 *	value	msize	location
+	 *	=====	=====	========
+	 *	0x03	0x8000	0xCC000
+	 *	0x06	0x8000	0xD0000
+	 *	0x0C	0x8000	0xD4000
+	 *	0x18	0x8000	0xD8000
+	 *
+	 */ 
+
+	bd_maddr = 0;
+	i = (ee16_read_eeprom(sc, 6) & 0x00ff ) >> 3;
+	switch(i) {
+	case 0x03:
+		bd_maddr = 0xCC000;
+		break;
+	case 0x06:
+		bd_maddr = 0xD0000;
+		break;
+	case 0x0c:
+		bd_maddr = 0xD4000;
+		break;
+	case 0x18:
+		bd_maddr = 0xD8000;
+		break;
+	default:
+		bd_maddr = 0 ;
+		break;
+	}
+	dvp->id_msize = 0x8000;
+	if (kvtop(dvp->id_maddr) != bd_maddr) {
+		printf("ie%d: kernel configured maddr %lx doesn't match board configured maddr %x\n", 
+		       unit, kvtop(dvp->id_maddr), bd_maddr);
+	}
+
+
+	sc->iomembot = dvp->id_maddr;
+	sc->iomem = 0; /* XXX some probes set this and some don't */
+	sc->iosize = dvp->id_msize;
+
+	/* need to put the 586 in RESET while we access the eeprom. */
+	outb( PORT + IEE16_ECTRL, IEE16_RESET_586);  
+
+	/* read the eeprom and checksum it, should == IEE16_ID */
+	for(i = 0; i < 0x40; i++)
+		checksum += ee16_read_eeprom(sc, i);
+
+	if (checksum != IEE16_ID) {
+		printf("ie%d: invalid eeprom checksum: %x\n", unit, checksum);
+		return 0;	
+	}
+
+	/*
+	 * Size and test the memory on the board.  The size of the memory
+	 * can be one of 16k, 32k, 48k or 64k.  It can be located in the
+	 * address range 0xC0000 to 0xEFFFF on 16k boundaries. 
+	 *
+	 * If the size does not match the passed in memory allocation size
+	 * issue a warning, but continue with the minimum of the two sizes.
+	 */
+
+	switch (dvp->id_msize) {
+	case 65536:
+	case 32768: /* XXX Only support 32k and 64k right now */
+		break;
+	case 16384:
+	case 49512:
+	default:
+		printf("ie%d: mapped memory size %d not supported\n", unit,
+			dvp->id_msize);
+		return 0;
+		break; /* NOTREACHED */
+	}
+
+	if ((kvtop(dvp->id_maddr) < 0xC0000) ||
+	    (kvtop(dvp->id_maddr) + sc->iosize > 0xF0000)) {
+		printf("ie%d: mapped memory location %x out of range\n", unit,
+			dvp->id_maddr);
+		return 0;
+	}
+
+	pg = (kvtop(dvp->id_maddr) & 0x3C000) >> 14;
+	adjust = IEE16_MCTRL_FMCS16 | (pg & 0x3) << 2;
+	decode = ((1 << (sc->iosize / 16384)) - 1) << pg;
+	edecode = ((~decode >> 4) & 0xF0) | (decode >> 8);
+
+	/* ZZZ This should be checked against eeprom location 6, low byte */
+	outb(PORT + IEE16_MEMDEC, decode & 0xFF);
+	/* ZZZ This should be checked against eeprom location 1, low byte */
+	outb(PORT + IEE16_MCTRL, adjust);
+	/* ZZZ Now if I could find this one I would have it made */
+	outb(PORT + IEE16_MPCTRL, (~decode & 0xFF));
+	/* ZZZ I think this is location 6, high byte */
+	outb(PORT + IEE16_MECTRL, edecode); /*XXX disable Exxx */
+
+	(void)kvtop(dvp->id_maddr);
+
+	/*
+	 * first prime the stupid bart DRAM controller so that it
+	 * works, then zero out all of memory.
+	 */
+	bzero(sc->iomembot, 32);
+	bzero(sc->iomembot, sc->iosize);
+
+	/*
+	 * Get the encoded interrupt number from the EEPROM, check it
+	 * against the passed in IRQ.  Issue a warning if they do not
+	 * match.  Always use the passed in IRQ, not the one in the EEPROM.
+	 */
+	irq = ee16_read_eeprom(sc, IEE16_EEPROM_CONFIG1);
+	irq = (irq & IEE16_EEPROM_IRQ) >> IEE16_EEPROM_IRQ_SHIFT;
+	irq = irq_translate[irq];
+	if (dvp->id_irq > 0) {
+		if (irq != dvp->id_irq) {
+			printf("ie%d: WARNING: board configured at irq %d, using %d\n", 
+			       dvp->id_unit, irq);
+			irq = dvp->id_unit;
+		}
+	} else {
+		dvp->id_irq = irq;
+	}
+	sc->irq_encoded = irq_encode[ffs(irq) - 1];
+
+	/*
+	 * Get the hardware ethernet address from the EEPROM and
+	 * save it in the softc for use by the 586 setup code.
+	 */
+	eaddrtemp = ee16_read_eeprom(sc, IEE16_EEPROM_ENET_HIGH);
+	sc->arpcom.ac_enaddr[1] = eaddrtemp & 0xFF;
+	sc->arpcom.ac_enaddr[0] = eaddrtemp >> 8;
+	eaddrtemp = ee16_read_eeprom(sc, IEE16_EEPROM_ENET_MID);
+	sc->arpcom.ac_enaddr[3] = eaddrtemp & 0xFF;
+	sc->arpcom.ac_enaddr[2] = eaddrtemp >> 8;
+	eaddrtemp = ee16_read_eeprom(sc, IEE16_EEPROM_ENET_LOW);
+	sc->arpcom.ac_enaddr[5] = eaddrtemp & 0xFF;
+	sc->arpcom.ac_enaddr[4] = eaddrtemp >> 8;
+
+	/* disable the board interrupts */
+	outb(PORT + IEE16_IRQ, sc->irq_encoded);
+
+	/* enable loopback to keep bad packets off the wire */
+	if(sc->hard_type == IE_EE16) {
+		bart_config = inb(PORT + IEE16_CONFIG);
+		bart_config |= IEE16_BART_LOOPBACK;
+		bart_config |= IEE16_BART_MCS16_TEST; /*inb doesn't get bit! */
+		outb(PORT + IEE16_CONFIG, bart_config);
+		bart_config = inb(PORT + IEE16_CONFIG);
+	}
+
+	/* take the board out of reset state */
+	outb(PORT + IEE16_ECTRL, 0);
+	DELAY(100);
+
+	if (!check_ie_present(unit, dvp->id_maddr, sc->iosize))
+		return 0;
+
+	return 16;		/* return the number of I/O ports */
+}
+
 /*
  * Taken almost exactly from Bill's if_is.c, then modified beyond recognition.
  */
@@ -553,7 +815,7 @@ ieattach(dvp)
   ifp->if_unit = unit;
   ifp->if_name = iedriver.name;
   ifp->if_mtu = ETHERMTU;
-  printf(" <%s R%d> ethernet address %6D\n",
+  printf("ie%d: <%s R%d> address %6D\n", unit,
 	 ie_hardware_names[ie->hard_type],
 	 ie->hard_vers + 1,
 	 ie->arpcom.ac_enaddr, ":");
@@ -565,6 +827,9 @@ ieattach(dvp)
   ifp->if_type = IFT_ETHER;
   ifp->if_addrlen = 6;
   ifp->if_hdrlen = 14;
+
+  if (ie->hard_type == IE_EE16)
+	  at_shutdown(ee16_shutdown, ie, SHUTDOWN_POST_SYNC);
 
 #if NBPFILTER > 0
   bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
@@ -578,21 +843,22 @@ ieattach(dvp)
 /*
  * What to do upon receipt of an interrupt.
  */
-void ieintr(unit)
-     int unit;
+void
+ieintr(unit)
+	int unit;
 {
   register struct ie_softc *ie = &ie_softc[unit];
   register u_short status;
 
-  status = ie->scb->ie_status;
+  /* Clear the interrupt latch on the 3C507. */
+  if (ie->hard_type == IE_3C507 && (inb(PORT + IE507_CTRL) & EL_CTRL_INTL))
+	  outb(PORT + IE507_ICTRL, 1);
 
-  /* This if statement written by Charles Martin Hannum. */
-  if ((status & IE_ST_WHENCE) == 0) {
-    /* Clear the interrupt latch on the 3C507. */
-    if (ie->hard_type == IE_3C507 &&
-	(inb(PORT + IE507_CTRL) & EL_CTRL_INTL))
-      outb(PORT + IE507_ICTRL, 1);
-  }
+   /* disable interrupts on the EE16. */
+  if (ie->hard_type == IE_EE16)
+	  outb(PORT + IEE16_IRQ, ie->irq_encoded);
+
+  status = ie->scb->ie_status;
 
 loop:
   if(status & (IE_ST_RECV | IE_ST_RNR)) {
@@ -632,25 +898,30 @@ loop:
      && (ie_debug & IED_CNA))
     printf("ie%d: cna\n", unit);
 #endif
-
+  
   /* Don't ack interrupts which we didn't receive */
   ie_ack(ie->scb, IE_ST_WHENCE & status, unit, ie->ie_chan_attn);
 
-  if((status = ie->scb->ie_status) & IE_ST_WHENCE)
-    goto loop;
+  if ((status = ie->scb->ie_status) & IE_ST_WHENCE)
+	goto loop;
 
-  /* This comment and if statement written by Charles Martin Hannum. */
   /* Clear the interrupt latch on the 3C507. */
   if (ie->hard_type == IE_3C507)
-    outb(PORT + IE507_ICTRL, 1);
+	  outb(PORT + IE507_ICTRL, 1);
+
+  /* enable interrupts on the EE16. */
+  if (ie->hard_type == IE_EE16)
+	outb(PORT + IEE16_IRQ, ie->irq_encoded | IEE16_IRQ_ENABLE);
+
 }
 
 /*
  * Process a received-frame interrupt.
  */
-static int ierint(unit, ie)
-     int unit;
-     struct ie_softc *ie;
+static int
+ierint(unit, ie)
+	int unit;
+	struct ie_softc *ie;
 {
   int i, status;
   static int timesthru = 1024;
@@ -662,8 +933,9 @@ static int ierint(unit, ie)
     if((status & IE_FD_COMPLETE) && (status & IE_FD_OK)) {
       ie->arpcom.ac_if.if_ipackets++;
       if(!--timesthru) {
-	ie->arpcom.ac_if.if_ierrors += ie->scb->ie_err_crc + ie->scb->ie_err_align +
-	  ie->scb->ie_err_resource + ie->scb->ie_err_overrun;
+	ie->arpcom.ac_if.if_ierrors += 
+		ie->scb->ie_err_crc + ie->scb->ie_err_align +
+		ie->scb->ie_err_resource + ie->scb->ie_err_overrun;
 	ie->scb->ie_err_crc = 0;
 	ie->scb->ie_err_align = 0;
 	ie->scb->ie_err_resource = 0;
@@ -918,7 +1190,7 @@ static inline int ie_packet_len(int unit, struct ie_softc *ie) {
     i = ie->rbuffs[head]->ie_rbd_actual & IE_RBD_LAST;
 
     acc += ie_buflen(ie, head);
-    head = (head + 1) % NBUFFS;
+    head = (head + 1) % NRXBUF;
   } while(!i);
 
   return acc;
@@ -1086,9 +1358,9 @@ nextbuf:
       offset = 0;
       ie->rbuffs[head]->ie_rbd_actual = 0;
       ie->rbuffs[head]->ie_rbd_length |= IE_RBD_LAST;
-      ie->rbhead = head = (head + 1) % NBUFFS;
+      ie->rbhead = head = (head + 1) % NRXBUF;
       ie->rbuffs[ie->rbtail]->ie_rbd_length &= ~IE_RBD_LAST;
-      ie->rbtail = (ie->rbtail + 1) % NBUFFS;
+      ie->rbtail = (ie->rbtail + 1) % NRXBUF;
   }
 
   /*
@@ -1223,9 +1495,9 @@ static void ie_drop_packet_buffer(int unit, struct ie_softc *ie) {
 
     ie->rbuffs[ie->rbhead]->ie_rbd_length |= IE_RBD_LAST;
     ie->rbuffs[ie->rbhead]->ie_rbd_actual = 0;
-    ie->rbhead = (ie->rbhead + 1) % NBUFFS;
+    ie->rbhead = (ie->rbhead + 1) % NRXBUF;
     ie->rbuffs[ie->rbtail]->ie_rbd_length &= ~IE_RBD_LAST;
-    ie->rbtail = (ie->rbtail + 1) % NBUFFS;
+    ie->rbtail = (ie->rbtail + 1) % NRXBUF;
   } while(!i);
 }
 
@@ -1264,7 +1536,7 @@ iestart(ifp)
     }
 
     m_freem(m0);
-    len = max(len, ETHERMINLEN);
+    len = max(len, ETHER_MIN_LEN);
 
 #if NBPFILTER > 0
     /*
@@ -1288,7 +1560,7 @@ iestart(ifp)
     *bptr = MK_16(ie->iomem, ie->xmit_cmds[ie->xmit_count]);
     bptr = &ie->xmit_cmds[ie->xmit_count]->com.ie_cmd_link;
     ie->xmit_count++;
-  } while(ie->xmit_count < 2);
+  } while (ie->xmit_count < NTXBUF);
 
   /*
    * If we queued up anything for transmission, send it.
@@ -1433,6 +1705,16 @@ void sl_reset_586(unit)
   outb(PORT + IEATT_RESET, 0);
 }
 
+void
+ee16_reset_586(unit)
+	int unit;
+{
+	outb(PORT + IEE16_ECTRL, IEE16_RESET_586);
+	DELAY(100);
+	outb(PORT + IEE16_ECTRL, 0);
+	DELAY(100);
+}
+
 void el_chan_attn(unit)
      int unit;
 {
@@ -1443,6 +1725,105 @@ void sl_chan_attn(unit)
      int unit;
 {
   outb(PORT + IEATT_ATTN, 0);
+}
+
+void
+ee16_chan_attn(unit)
+	int unit;
+{
+	outb(PORT + IEE16_ATTN, 0);
+}
+
+u_short
+ee16_read_eeprom(sc, location)
+	struct ie_softc *sc;
+	int location;
+{
+	int ectrl, edata;
+
+	ectrl = inb(sc->port + IEE16_ECTRL);
+	ectrl &= IEE16_ECTRL_MASK;
+	ectrl |= IEE16_ECTRL_EECS;
+	outb(sc->port + IEE16_ECTRL, ectrl);
+
+	ee16_eeprom_outbits(sc, IEE16_EEPROM_READ, IEE16_EEPROM_OPSIZE1);
+	ee16_eeprom_outbits(sc, location, IEE16_EEPROM_ADDR_SIZE);
+	edata = ee16_eeprom_inbits(sc);
+	ectrl = inb(sc->port + IEE16_ECTRL);
+	ectrl &= ~(IEE16_RESET_ASIC | IEE16_ECTRL_EEDI | IEE16_ECTRL_EECS);
+	outb(sc->port + IEE16_ECTRL, ectrl);
+	ee16_eeprom_clock(sc, 1);
+	ee16_eeprom_clock(sc, 0);
+	return edata;
+}
+
+void
+ee16_eeprom_outbits(sc, edata, count)
+	struct ie_softc *sc;
+	int edata, count;
+{
+	int ectrl, i;
+
+	ectrl = inb(sc->port + IEE16_ECTRL);
+	ectrl &= ~IEE16_RESET_ASIC;
+	for (i = count - 1; i >= 0; i--) {
+		ectrl &= ~IEE16_ECTRL_EEDI;
+		if (edata & (1 << i)) {
+			ectrl |= IEE16_ECTRL_EEDI;
+		}
+		outb(sc->port + IEE16_ECTRL, ectrl);
+		DELAY(1);	/* eeprom data must be setup for 0.4 uSec */
+		ee16_eeprom_clock(sc, 1);
+		ee16_eeprom_clock(sc, 0);
+	}
+	ectrl &= ~IEE16_ECTRL_EEDI;
+	outb(sc->port + IEE16_ECTRL, ectrl);
+	DELAY(1);		/* eeprom data must be held for 0.4 uSec */
+}
+
+int
+ee16_eeprom_inbits(sc)
+	struct ie_softc *sc;
+{
+	int ectrl, edata, i;
+
+	ectrl = inb(sc->port + IEE16_ECTRL);
+	ectrl &= ~IEE16_RESET_ASIC;
+	for (edata = 0, i = 0; i < 16; i++) {
+		edata = edata << 1;
+		ee16_eeprom_clock(sc, 1);
+		ectrl = inb(sc->port + IEE16_ECTRL);
+		if (ectrl & IEE16_ECTRL_EEDO) {
+			edata |= 1;
+		}
+		ee16_eeprom_clock(sc, 0);
+	}
+	return (edata);
+}
+
+void
+ee16_eeprom_clock(sc, state)
+	struct ie_softc *sc;
+	int state;
+{
+	int ectrl;
+
+	ectrl = inb(sc->port + IEE16_ECTRL);
+	ectrl &= ~(IEE16_RESET_ASIC | IEE16_ECTRL_EESK);
+	if (state) {
+		ectrl |= IEE16_ECTRL_EESK;
+	}
+	outb(sc->port + IEE16_ECTRL, ectrl);
+	DELAY(9);		/* EESK must be stable for 8.38 uSec */
+}
+
+static inline void
+ee16_interrupt_enable(sc)
+	struct ie_softc *sc;
+{
+	DELAY(100);
+	outb(sc->port + IEE16_IRQ, sc->irq_encoded | IEE16_IRQ_ENABLE);
+	DELAY(100);
 }
 
 void sl_read_ether(unit, addr)
@@ -1651,7 +2032,7 @@ static caddr_t setup_rfa(caddr_t ptr, struct ie_softc *ie) {
    */
   rbd = (void *)ptr;
 
-  for(i = 0; i < NBUFFS; i++) {
+  for(i = 0; i < NRXBUF; i++) {
     ie->rbuffs[i] = rbd;
     bzero((char *)rbd, sizeof *rbd); /* ignore cast-qual */
     ptr = (caddr_t)Align(ptr + sizeof *rbd);
@@ -1663,19 +2044,19 @@ static caddr_t setup_rfa(caddr_t ptr, struct ie_softc *ie) {
   }
 
   /* Now link them together */
-  for(i = 0; i < NBUFFS; i++) {
-    ie->rbuffs[i]->ie_rbd_next = MK_16(MEM, ie->rbuffs[(i + 1) % NBUFFS]);
+  for(i = 0; i < NRXBUF; i++) {
+    ie->rbuffs[i]->ie_rbd_next = MK_16(MEM, ie->rbuffs[(i + 1) % NRXBUF]);
   }
 
   /* Tag EOF on the last one */
-  ie->rbuffs[NBUFFS - 1]->ie_rbd_length |= IE_RBD_LAST;
+  ie->rbuffs[NRXBUF - 1]->ie_rbd_length |= IE_RBD_LAST;
 
   /* We use the head and tail pointers on receive to keep track of
    * the order in which RFDs and RBDs are used. */
   ie->rfhead = 0;
   ie->rftail = NFRAMES - 1;
   ie->rbhead = 0;
-  ie->rbtail = NBUFFS - 1;
+  ie->rbtail = NRXBUF - 1;
 
   ie->scb->ie_recv_list = MK_16(MEM, ie->rframes[0]);
   ie->rframes[0]->ie_fd_buf_desc = MK_16(MEM, ie->rbuffs[0]);
@@ -1780,6 +2161,21 @@ ieinit(unit)
    */
   ie_ack(ie->scb, IE_ST_WHENCE, unit, ie->ie_chan_attn);
 
+  /* take the ee16 out of loopback */
+  {
+	  u_char	bart_config;
+	  
+	  if(ie->hard_type == IE_EE16) {
+		  bart_config = inb(PORT + IEE16_CONFIG);
+		  bart_config &= ~IEE16_BART_LOOPBACK;
+		  /* inb doesn't get bit! */
+		  bart_config |= IEE16_BART_MCS16_TEST; 
+		  outb(PORT + IEE16_CONFIG, bart_config);
+		  ee16_interrupt_enable(ie); 
+		  ee16_chan_attn(unit);
+	  }
+  }
+
   /*
    * Set up the RFA.
    */
@@ -1819,7 +2215,7 @@ ieinit(unit)
    */
   ie->xmit_cmds[0]->ie_xmit_status = IE_STAT_COMPL;
 
-  ie->arpcom.ac_if.if_flags |= IFF_RUNNING; /* tell higher levels that we are here */
+  ie->arpcom.ac_if.if_flags |= IFF_RUNNING; /* tell higher levels we're here */
   start_receiver(unit);
   return;
 }
