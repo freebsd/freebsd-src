@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_tunvar.h,v 1.3 1998/11/11 10:56:05 truckman Exp $
+ *	$Id: if_tunvar.h,v 1.4 1999/03/24 21:20:12 des Exp $
  */
 
 #ifndef _NET_IF_TUNVAR_H_
@@ -42,6 +42,7 @@ struct tun_softc {
 
 #define TUN_READY       (TUN_OPEN | TUN_INITED)
 
+	pid_t	tun_pid;		/* PID of process to open */
 	struct	ifnet tun_if;		/* the interface */
 	struct  sigio *tun_sigio;	/* information for async I/O */
 	struct	selinfo	tun_rsel;	/* read select */
