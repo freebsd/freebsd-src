@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkmakefile.c,v 1.38 1999/04/17 14:41:40 peter Exp $";
+	"$Id: mkmakefile.c,v 1.39 1999/04/18 13:36:29 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -782,14 +782,14 @@ do_load(f)
 	register struct file_list *fl;
 	register int first;
 
-	for (first = 1, fl = conf_list; fl; first = 0)
-		fl = fl->f_type == SYSTEMSPEC ?
-			do_systemspec(f, fl, first) : fl->f_next;
-	fputs("all:", f);
+	fputs("\nall:", f);
 	for (fl = conf_list; fl; fl = fl->f_next)
 		if (fl->f_type == SYSTEMSPEC)
 			fprintf(f, " %s", fl->f_needs);
-	putc('\n', f);
+	fputs("\n\n", f);
+	for (first = 1, fl = conf_list; fl; first = 0)
+		fl = fl->f_type == SYSTEMSPEC ?
+			do_systemspec(f, fl, first) : fl->f_next;
 }
 
 static void
