@@ -346,6 +346,11 @@ version.)
 
 bridge(4) and dummynet(4) have received some enhancements and bugfixes.
 
+ipfw(8) has a new feature that allows for packet matching on
+interfaces with dynamically-changing IP addressess.
+
+The isp(4) driver has been updated. [MERGED]
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -431,6 +436,11 @@ FreeBSD-SA-01:13). [MERGED]
 
 To fix a remotely-exploitable buffer overflow, BIND has been updated
 to 8.2.3 (see security advisory FreeBSD-SA-01:18). [MERGED]
+
+OpenSSH now has code to prevent (instead of just mitigating through
+connection limits) an attack that can lead to guessing the server key
+(not host key) by regenerating the server key when an RSA failure is
+detected (see security advisory FreeBSD-SA-01:24). [MERGED]
 
 
 1.3. USERLAND CHANGES
@@ -818,6 +828,17 @@ flag. [MERGED]
 The rfork_thread(3) library call has been added as a helper function
 to rfork(2).  Using this function should avoid the need to implement
 complex stack swap code. [MERGED]
+
+Significant additions have been made to internationalization support;
+FreeBSD now has complete locale support the for LC_MONETARY,
+LC_NUMERIC, and LC_MESSAGES categories.  A number of applications have
+been updated to take advantage of this support.
+
+A compat4x distribution has been added for compatability with FreeBSD
+4-STABLE.
+
+The compat3x distribution has been updated to include libraries
+present in FreeBSD 3.5.1-RELEASE. [MERGED]
 
 
 2. Supported Configurations
