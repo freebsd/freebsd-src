@@ -70,9 +70,6 @@ struct atm_ncm		*atm_netconv_head = NULL;
 Atm_endpoint		*atm_endpoints[ENDPT_MAX+1] = {NULL};
 struct sp_info		*atm_pool_head = NULL;
 struct stackq_entry	*atm_stackq_head = NULL, *atm_stackq_tail;
-#ifdef sgi
-int			atm_intr_index;
-#endif
 struct atm_sock_stat	atm_sock_stat = { { 0 } };
 int			atm_init = 0;
 int			atm_debug = 0;
@@ -137,9 +134,6 @@ atm_initialize()
 	mtx_init(&atm_intrq.ifq_mtx, "atm_inq", NULL, MTX_DEF);
 	atmintrq_present = 1;
 
-#ifdef sgi
-	atm_intr_index = register_isr(atm_intr);
-#endif
 	register_netisr(NETISR_ATM, atm_intr);
 
 	/*
