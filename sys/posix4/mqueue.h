@@ -1,8 +1,3 @@
-#ifndef _MQUEUE_H_
-#define _MQUEUE_H_
-
-/* mqueue.h: POSIX 1003.1b Message Queues */
-
 /*-
  * Copyright (c) 1996, 1997
  *	HD Associates, Inc.  All rights reserved.
@@ -37,6 +32,11 @@
  * $FreeBSD$
  */
 
+/* mqueue.h: POSIX 1003.1b Message Queues */
+
+#ifndef _MQUEUE_H_
+#define	_MQUEUE_H_
+
 #include <sys/_posix.h>
 
 #ifdef _P1003_1B_INCLUDE_MAYBES
@@ -48,13 +48,13 @@
 struct sigevent;
 #endif
 
-typedef int mqd_t;		/* message queue descriptors */
+typedef	int		mqd_t;	/* message queue descriptors */
 
 struct mq_attr {
-	long mq_flags;		/* message queue flags */
-	long mq_maxmsg;		/* maximum number of messages */
-	long mq_msgsize;	/* maximum message size */
-	long mq_curmsgs;	/* number of messages currently queued */
+	long	mq_flags;	/* message queue flags */
+	long	mq_maxmsg;	/* maximum number of messages */
+	long	mq_msgsize;	/* maximum message size */
+	long	mq_curmsgs;	/* number of messages currently queued */
 };
 
 #ifndef _KERNEL
@@ -62,16 +62,16 @@ struct mq_attr {
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-mqd_t mq_open(const char *, int oflag, ...);
-int mq_close(mqd_t);
-int mq_unlink(const char *);
-int mq_send(mqd_t, const char *, size_t, unsigned int);
-ssize_t mq_receive(mqd_t, char *, size_t, unsigned int *);
-int mq_notify(mqd_t, const struct sigevent *);
-int mq_setattr(mqd_t, const struct mq_attr *, struct mq_attr *);
-int mq_getattr(mqd_t, struct mq_attr *);
+int	 mq_close(mqd_t);
+int	 mq_getattr(mqd_t, struct mq_attr *);
+int	 mq_notify(mqd_t, const struct sigevent *);
+mqd_t	 mq_open(const char *, int oflag, ...);
+ssize_t	 mq_receive(mqd_t, char *, size_t, unsigned int *);
+int	 mq_send(mqd_t, const char *, size_t, unsigned int);
+int	 mq_setattr(mqd_t, const struct mq_attr *, struct mq_attr *);
+int	 mq_unlink(const char *);
 __END_DECLS
 
 #endif
 
-#endif /* _MQUEUE_H_ */
+#endif /* !_MQUEUE_H_ */
