@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.326 1997/04/07 01:26:34 bde Exp $
+#	$Id: LINT,v 1.327 1997/04/14 00:35:23 gibbs Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -59,6 +59,67 @@ options         INCLUDE_CONFIG_FILE     # Include this file in kernel
 #    dump device here is not recommended.  Use dumpon(8).
 #
 config		kernel	root on wd0 dumps on wd0
+
+
+#####################################################################
+# SMP OPTIONS:
+#
+# SMP enables building of a Symmetric MultiProcessor Kernel.
+# APIC_IO enables the use of the IO APIC for Symmetric I/O.
+# SMP_INVLTLB enables code to send inter-CPU TLB invalidation messages.
+# NCPU sets the number of CPUs, defaults to 2.
+# NBUS sets the number of busses, defaults to 4.
+# NAPIC sets the number of IO APICs on the motherboard, defaults to 1.
+# NINTR sets the total number of INTs provided by the motherboard.
+#
+# SMP_PRIVPAGES		# BROKEN, DO NOT use! (architecture problem)
+# SMP_AUTOSTART		# BROKEN, DO NOT use! (bug or race somewhere)
+#
+# SMP_TIMER_NC is for motherboards that claim 8254 connectivity to the IO APIC,
+#  when in fact it is NOT connected.
+#
+# Notes:
+#
+#  An SMP kernel will ONLY run on an Intel MP spec. qualified motherboard.
+#
+#  Be sure to disable 'cpu "I386_CPU"' && 'cpu "I486_CPU"' for SMP kernels.
+#
+#  Check the 'Rogue SMP hardware' section to see if additional options
+#   are required by your hardware.
+#
+
+# Mandatory:
+options		SMP			# Symmetric MultiProcessor Kernel
+
+# Recommended:
+options		APIC_IO			# Symmetric (APIC) I/O
+options		SMP_INVLTLB		# invalidate TLB IPIs
+
+# Optional, these are the defaults:
+#options		NCPU=2			# number of CPUs
+#options		NBUS=4			# number of busses
+#options		NAPIC=1			# number of IO APICs
+#options		NINTR=24		# number of INTs
+
+# Currently unusable:
+#options		SMP_PRIVPAGES		# BROKEN: architecture problem
+#options		SMP_AUTOSTART		# BROKEN: bug or race somewhere
+
+#
+# Rogue SMP hardware:
+#
+
+# Tyan Tomcat II:
+#options                SMP_TIMER_NC            # 8254 NOT connected to APIC
+
+# SuperMicro P6DNE:
+#options                SMP_TIMER_NC            # 8254 NOT connected to APIC
+
+# Bridged PCI cards:
+#
+# The MP tables of most of the current generation MP motherboards
+#  do NOT properly support bridged PCI cards.  To use one of these
+#  cards you should refer to ???
 
 
 #####################################################################

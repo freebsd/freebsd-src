@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.34 1997/04/07 07:16:02 peter Exp $
+ * $Id: proc.h,v 1.35 1997/04/07 09:35:15 peter Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -48,6 +48,11 @@
 #include <sys/time.h>			/* For structs itimerval, timeval. */
 #include <sys/queue.h>
 #include <sys/param.h>
+
+#ifdef KERNEL
+#include "opt_smp.h"
+#include <machine/smp.h>
+#endif
 
 /*
  * One structure allocated per session.
@@ -138,7 +143,9 @@ struct	proc {
 	struct	vnode *p_textvp;	/* Vnode of executable. */
 
 	char	p_lock;			/* Process lock (prevent swap) count. */
-	char	p_pad2[3];		/* alignment */
+	char	p_oncpu;		/* Which cpu we are on */
+	char	p_lastcpu;		/* Last cpu we were on */
+	char	p_pad2;			/* alignment */
 
 	char    *p_selbits;             /* For select(), bits */
 	u_int   p_selbits_size;         /* For select(), fd_set size (bytes) */
@@ -218,6 +225,7 @@ struct	proc {
 
 #define	P_SWAPPING	0x40000	/* Process is being swapped. */
 #define	P_SWAPINREQ	0x80000	/* Swapin request due to wakeup */
+#define	P_IDLEPROC	0x100000 /* Process is an idle-eater, don't count */
 
 /*
  * MOVE TO ucred.h?
@@ -265,7 +273,12 @@ extern u_long pidhash;
 extern LIST_HEAD(pgrphashhead, pgrp) *pgrphashtbl;
 extern u_long pgrphash;
 
+#ifdef SMP
+#define	curproc	(SMPcurproc[cpunumber()])
+#else /* !SMP */
 extern struct proc *curproc;		/* Current running proc. */
+#endif /* SMP */
+
 extern struct proc proc0;		/* Process slot for swapper. */
 extern int nprocs, maxproc;		/* Current and max number of procs. */
 extern int maxprocperuid;		/* Max procs per uid. */
@@ -280,6 +293,8 @@ extern struct prochd qs[];
 extern struct prochd rtqs[];
 extern struct prochd idqs[];
 extern int	whichqs;	/* Bit mask summary of non-empty Q's. */
+extern int	whichrtqs;	/* Bit mask summary of non-empty Q's. */
+extern int	whichidqs;	/* Bit mask summary of non-empty Q's. */
 struct	prochd {
 	struct	proc *ph_link;		/* Linked list of running processes. */
 	struct	proc *ph_rlink;

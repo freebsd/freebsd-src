@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_meter.c	8.4 (Berkeley) 1/4/94
- * $Id$
+ * $Id: vm_meter.c,v 1.20 1997/02/22 09:48:25 peter Exp $
  */
 
 #include <sys/param.h>
@@ -79,6 +79,8 @@ loadav(struct loadavg *avg)
 	register struct proc *p;
 
 	for (nrun = 0, p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
+		if (p->p_flag & P_IDLEPROC)
+			continue;
 		switch (p->p_stat) {
 		case SSLEEP:
 			if (p->p_priority > PZERO || p->p_slptime != 0)

@@ -39,15 +39,19 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.27 1997/04/06 11:14:12 dufault Exp $
+ * $Id: kernel.h,v 1.28 1997/04/22 06:55:47 jdp Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
 #define _SYS_KERNEL_H_
 
+#ifdef KERNEL
+
+#include "opt_smp.h"
+#include <machine/smp.h>
+
 /* Global variables for the kernel. */
 
-#ifdef KERNEL
 /* 1.1 */
 extern long hostid;
 extern char hostname[MAXHOSTNAMELEN];
@@ -59,7 +63,12 @@ extern char kernelname[MAXPATHLEN];
 /* 1.2 */
 extern volatile struct timeval mono_time;
 extern struct timeval boottime;
+#ifdef SMP
+#define runtime (SMPruntime[cpunumber()])
+#else /* !SMP */
 extern struct timeval runtime;
+#endif /* SMP */
+
 extern struct timeval time;		/* nonvolatile at ipl >= splclock() */
 extern struct timezone tz;			/* XXX */
 
@@ -168,6 +177,8 @@ enum sysinit_sub_id {
 	SI_SUB_KTHREAD_PAGE	= 0xe4000000,	/* pageout daemon*/
 	SI_SUB_KTHREAD_VM	= 0xe8000000,	/* vm daemon*/
 	SI_SUB_KTHREAD_UPDATE	= 0xec000000,	/* update daemon*/
+	SI_SUB_KTHREAD_IDLE	= 0xee000000,	/* idle procs*/
+	SI_SUB_SMP		= 0xf0000000,	/* idle procs*/
 	SI_SUB_RUN_SCHEDULER	= 0xffffffff	/* scheduler: no return*/
 };
 

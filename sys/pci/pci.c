@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.68 1997/03/25 19:12:08 se Exp $
+**  $Id: pci.c,v 1.69 1997/04/23 19:43:20 se Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -46,6 +46,8 @@
 **========================================================
 */
 
+#include "opt_smp.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -69,9 +71,6 @@
 #include <pci/pcireg.h>
 #include <pci/pcibus.h>
 #include <pci/pci_ioctl.h>
-
-#define PCI_MAX_IRQ	(16)
-
 
 /*========================================================
 **
@@ -403,6 +402,10 @@ static void pci_attach (int bus, int dev, int func,
 	u_char	reg;
 	u_char	pciint;
 	int	irq;
+#if defined(APIC_IO)
+	u_char	airq = 0xff;
+	u_char	rirq = 0xff;
+#endif /* APIC_IO */
 	pcici_t	tag = pcibus->pb_tag (bus, dev, func);
 
 	/*
@@ -437,13 +440,32 @@ static void pci_attach (int bus, int dev, int func,
 		**	and we cannot bind the pci interrupt.
 		*/
 
+#if defined(APIC_IO)
+		if (irq && (irq != 0xff)) {
+			airq = get_pci_apic_irq (bus, dev, pciint);
+			if (airq != 0xff) {	/* APIC IRQ exists */
+				rirq = irq;	/* 're-directed' IRQ */
+				irq = airq;	/* use APIC IRQ */
+			}
+			printf ("%d", irq);
+		}
+#else
 		if (irq && (irq != 0xff))
 			printf ("%d", irq);
+#endif /* APIC_IO */
 		else
 			printf ("??");
 	};
 
 	printf (" on pci%d:%d:%d\n", bus, dev, func);
+
+#if defined(APIC_IO)
+	if (airq != 0xff) {			/* APIC IRQ exists */
+		data = PCI_INTERRUPT_LINE_INSERT(data, airq);
+		pci_conf_write (tag, PCI_INTERRUPT_REG, data);
+		undirect_pci_irq (rirq);	/* free for ISA card */
+	}
+#endif /* APIC_IO */
 
 	/*
 	**	Read the current mapping,

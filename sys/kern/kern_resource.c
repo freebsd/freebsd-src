@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id$
+ * $Id: kern_resource.c,v 1.24 1997/02/22 09:39:09 peter Exp $
  */
 
 #include "opt_rlimit.h"
@@ -498,7 +498,7 @@ calcru(p, up, sp, ip)
 
 	sec = p->p_rtime.tv_sec;
 	usec = p->p_rtime.tv_usec;
-	if (p == curproc) {
+	if (p == curproc) { /* XXX what if it's running on another cpu?? */
 		/*
 		 * Adjust for the current time slice.  This is actually fairly
 		 * important since the error here is on the order of a time
@@ -510,8 +510,10 @@ calcru(p, up, sp, ip)
 	}
 	totusec = (quad_t)sec * 1000000 + usec;
 	if (totusec < 0) {
+#ifndef SMP	/* sigh, microtime and fork/exit madness here */
 		/* XXX no %qd in kernel.  Truncate. */
 		printf("calcru: negative time: %ld usec\n", (long)totusec);
+#endif
 		totusec = 0;
 	}
 	u = totusec;

@@ -36,10 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.29 1997/02/22 09:39:12 peter Exp $
+ * $Id: kern_synch.c,v 1.30 1997/02/27 18:03:48 bde Exp $
  */
 
 #include "opt_ktrace.h"
+#include "opt_smp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -176,7 +177,7 @@ schedcpu(arg)
 {
 	register fixpt_t loadfac = loadfactor(averunnable.ldavg[0]);
 	register struct proc *p;
-	register int s;
+	register int s, i, j;
 	register unsigned int newcpu;
 
 	wakeup((caddr_t)&lbolt);
@@ -215,7 +216,16 @@ schedcpu(arg)
 		resetpriority(p);
 		if (p->p_priority >= PUSER) {
 #define	PPQ	(128 / NQS)		/* priorities per queue */
+#ifdef SMP
+			for (j = i = 0; i < NCPU; i++) {
+				if (p == SMPcurproc[i])
+					j++;
+			}
+			if (!j &&
+
+#else
 			if ((p != curproc) &&
+#endif
 			    p->p_stat == SRUN &&
 			    (p->p_flag & P_INMEM) &&
 			    (p->p_priority / PPQ) != (p->p_usrpri / PPQ)) {
@@ -226,6 +236,7 @@ schedcpu(arg)
 				p->p_priority = p->p_usrpri;
 		}
 		splx(s);
+	not_mine:
 	}
 	vmmeter();
 	timeout(schedcpu, (void *)0, hz);
@@ -567,6 +578,10 @@ mi_switch()
 		u -= 1000000;
 		s++;
 	}
+#ifdef SMP
+	if (s < 0)
+		s = u = 0;
+#endif
 	p->p_rtime.tv_usec = u;
 	p->p_rtime.tv_sec = s;
 

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)segments.h	7.1 (Berkeley) 5/9/91
- *	$Id$
+ *	$Id: segments.h,v 1.13 1997/02/22 09:35:09 peter Exp $
  */
 
 #ifndef _MACHINE_SEGMENTS_H_
@@ -234,7 +234,7 @@ struct region_descriptor {
 #ifdef KERNEL
 extern int	currentldt;
 extern int	_default_ldt;
-extern union descriptor gdt[NGDT];
+extern union descriptor gdt[];
 extern struct soft_segment_descriptor gdt_segs[];
 extern struct gate_descriptor idt[NIDT];
 extern union descriptor ldt[NLDT];

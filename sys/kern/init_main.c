@@ -39,10 +39,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.59 1997/03/22 06:52:55 bde Exp $
+ * $Id: init_main.c,v 1.60 1997/04/07 07:15:59 peter Exp $
  */
 
 #include "opt_rlimit.h"
+#include "opt_smp.h"
 #include "opt_devfs.h"
 
 #include <sys/param.h>
@@ -62,6 +63,9 @@
 #include <sys/vmmeter.h>
 
 #include <machine/cpu.h>
+#if defined(SMP)
+#include <machine/smp.h>
+#endif /* SMP */
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -76,6 +80,7 @@ extern struct linker_set	sysinit_set;	/* XXX */
 
 extern void __main __P((void));
 extern void main __P((void *framep));
+extern void secondary_main __P((void));
 
 /* Components of the first process -- never freed. */
 static struct session session0;
@@ -85,7 +90,9 @@ static struct pcred cred0;
 static struct filedesc0 filedesc0;
 static struct plimit limit0;
 static struct vmspace vmspace0;
+#ifndef SMP	/* per-cpu on smp */
 struct	proc *curproc = &proc0;
+#endif
 struct	proc *initproc;
 
 int cmask = CMASK;
@@ -98,7 +105,13 @@ struct	timeval boottime;
 SYSCTL_STRUCT(_kern, KERN_BOOTTIME, boottime,
 	CTLFLAG_RW, &boottime, timeval, "");
 
+/*
+ * for SMP, the runtime variable has to be per-cpu, so we use the
+ * extern declaration in sys/kernel.h
+ */
+#ifndef SMP
 struct	timeval runtime;
+#endif
 
 /*
  * Promiscuous argument pass for start_init()
@@ -198,6 +211,7 @@ main(framep)
 		}
 	}
 
+	panic("Shouldn't get here!");
 	/* NOTREACHED*/
 }
 
@@ -215,6 +229,11 @@ kproc_start(udata)
 {
 	struct kproc_desc	*kp = udata;
 	struct proc		*p = curproc;
+
+#ifdef DIAGNOSTIC
+	printf("Start pid=%d <%s>\n",p->p_pid, kp->arg0);
+#endif
+
 
 	/* save a global descriptor, if desired*/
 	if( kp->global_procpp != NULL)

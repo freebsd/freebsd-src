@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.40 1997/02/22 09:36:37 peter Exp $
+ * $Id: if_ze.c,v 1.41 1997/03/24 11:32:55 bde Exp $
  */
 
 /* XXX - Don't mix different PCCARD support code */
@@ -64,6 +64,7 @@
 #include "ze.h"
 #if	NZE > 0
 #include "bpfilter.h"
+#include "opt_smp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -115,6 +116,11 @@
 #if NAPM > 0
 #include <machine/apm_bios.h>
 #endif /* NAPM > 0 */
+
+#if defined(APIC_IO)
+#include <machine/smp.h>
+#include <machine/mpapic.h>
+#endif /* APIC_IO */
 
 
 /*****************************************************************************
@@ -727,7 +733,11 @@ ze_watchdog(ifp)
 #if 1
     struct ze_softc *sc = (struct ze_softc *)ifp;
     u_char isr, imr;
+#if defined(APIC_IO)
+    u_int imask;
+#else
     u_short imask;
+#endif /* APIC_IO */
 
     if(!(ifp->if_flags & IFF_UP))
 	return;
@@ -745,7 +755,11 @@ ze_watchdog(ifp)
     /* read interrupt mask register */
     imr = inb (sc->nic_addr + ED_P2_IMR) & 0xff;
 
+#if defined(APIC_IO)
+    imask = INTRGET();
+#else
     imask = inb(IO_ICU2) << 8 | inb(IO_ICU1);
+#endif /* APIC_IO */
 
     log (LOG_ERR, "ze%d: device timeout, isr=%02x, imr=%02x, imask=%04x\n",
 	 ifp->if_unit, isr, imr, imask);
