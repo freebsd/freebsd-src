@@ -93,7 +93,7 @@ vendor HWN			0x0261	Home Wireless Networks
 vendor ARTEM			0x0268	ARtem
 vendor SYMBOL			0x026c	Symbol
 vendor BUFFALO			0x026f	BUFFALO (Melco Corporation)
-vendor LINKSYS2			0x0274  The Linksys Group
+vendor BROMAX			0x0274  Bromax communications, Inc
 vendor IODATA2			0x028a	I-O DATA
 vendor ASUS			0x02aa	ASUS
 vendor SIEMENS			0x02ac	Siemens
@@ -179,6 +179,11 @@ product	BONDWELL B236		0x0000 Game Card Joystick
 
 /* BreezeCOM */
 product BREEZECOM BREEZENET	0x0102 BreezeCOM BreezeNET
+
+/* Bromax Communications, Inc (Linksys OEM) */
+product BROMAX IWN		0x1612 Instant Wireless Network PC Card
+product BROMAX IWN3		0x1613 Instant Wireless Network PC Card, Versin 3
+product BROMAX WCF11		0x3301 Instant Wireless Network CF Card
 
 /* BUFFALO */
 product	BUFFALO	LPC3_CLX	0x0301	BUFFALO LPC3-CLX Ethernet Adapter
@@ -285,9 +290,6 @@ product LINKSYS TRUST_COMBO_ECARD 0x021b Trust (Linksys) Combo EthernetCard
 product LINKSYS ETHERFAST	0x0230 Linksys Etherfast 10/100 Ethernet
 product LINKSYS ECARD_1		0x0265 Linksys EthernetCard or D-Link DE-650
 product LINKSYS COMBO_ECARD	0xc1ab Linksys Combo EthernetCard
-product LINKSYS2 IWN		0x1612 Instant Wireless Network PC Card
-product LINKSYS2 IWN3		0x1613 Instant Wireless Network PC Card, Versin 3
-product LINKSYS2 WCF11		0x3301 Instant Wireless Network CF Card
 
 /* Lucent WaveLAN/IEEE */
 product LUCENT WAVELAN_IEEE	0x0002 WaveLAN/IEEE
