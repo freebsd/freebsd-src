@@ -1592,7 +1592,7 @@ swp_pager_async_iodone(bp)
 			 * valid bits here, it is up to the caller.
 			 */
 
-			pmap_clear_modify(VM_PAGE_TO_PHYS(m));
+			pmap_clear_modify(m);
 			m->valid = VM_PAGE_BITS_ALL;
 			vm_page_undirty(m);
 			vm_page_flag_clear(m, PG_ZERO);
@@ -1618,7 +1618,7 @@ swp_pager_async_iodone(bp)
 			 * busy count and possibly wakes waiter's up ).
 			 */
 			vm_page_protect(m, VM_PROT_READ);
-			pmap_clear_modify(VM_PAGE_TO_PHYS(m));
+			pmap_clear_modify(m);
 			vm_page_undirty(m);
 			vm_page_io_finish(m);
 		}

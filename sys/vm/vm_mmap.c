@@ -799,10 +799,10 @@ RestartScan:
 				if (m) {
 					mincoreinfo = MINCORE_INCORE;
 					if (m->dirty ||
-						pmap_is_modified(VM_PAGE_TO_PHYS(m)))
+						pmap_is_modified(m))
 						mincoreinfo |= MINCORE_MODIFIED_OTHER;
 					if ((m->flags & PG_REFERENCED) ||
-						pmap_ts_referenced(VM_PAGE_TO_PHYS(m))) {
+						pmap_ts_referenced(m)) {
 						vm_page_flag_set(m, PG_REFERENCED);
 						mincoreinfo |= MINCORE_REFERENCED_OTHER;
 					}
@@ -1086,7 +1086,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	/*
 	 * Force device mappings to be shared.
 	 */
-	if (type == OBJT_DEVICE) {
+	if (type == OBJT_DEVICE || type == OBJT_PHYS) {
 		flags &= ~(MAP_PRIVATE|MAP_COPY);
 		flags |= MAP_SHARED;
 	}
