@@ -31,7 +31,7 @@ XSRCS=	annotate.c ax-general.c ax-gdb.c bcache.c blockframe.c		\
 	symmisc.c symtab.c target.c thread.c top.c tracepoint.c \
 	typeprint.c utils.c valarith.c valops.c valprint.c values.c	\
 	serial.c ser-unix.c ser-tcp.c
-XSRCS+=	arch-utils.c cp-abi.c completer.c doublest.c event-loop.c	\
+XSRCS+=	arch-utils.c cp-abi.c gnu-v2-abi.c gnu-v3-abi.c completer.c doublest.c event-loop.c	\
 	event-top.c frame.c gdb-events.c inf-loop.c linespec.c		\
 	memattr.c regcache.c signals.c solib-svr4.c solib-legacy.c	\
 	ui-file.c ui-out.c wrapper.c cli-out.c \
