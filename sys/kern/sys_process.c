@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.35 1998/02/04 22:32:36 eivind Exp $
+ *	$Id: sys_process.c,v 1.36 1998/02/06 12:13:27 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -407,6 +407,11 @@ ptrace(curp, uap)
 
 	case PT_READ_U:
 		if ((u_int)uap->addr > (UPAGES * PAGE_SIZE - sizeof(int))) {
+			return EFAULT;
+		}
+		if (ptrace_read_u_check(p,(vm_offset_t) uap->addr,
+					sizeof(int)) &&
+		    !procfs_kmemaccess(curp)) {
 			return EFAULT;
 		}
 		error = 0;

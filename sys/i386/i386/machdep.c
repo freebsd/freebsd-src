@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.293 1998/03/23 19:52:32 jlemon Exp $
+ *	$Id: machdep.c,v 1.294 1998/04/06 15:46:17 peter Exp $
  */
 
 #include "apm.h"
@@ -121,11 +121,9 @@
 #include <i386/isa/intr_machdep.h>
 #include <i386/isa/rtc.h>
 #include <machine/random.h>
+#include <sys/ptrace.h>
 
 extern void init386 __P((int first));
-extern int ptrace_set_pc __P((struct proc *p, unsigned int addr));
-extern int ptrace_single_step __P((struct proc *p));
-extern int ptrace_write_u __P((struct proc *p, vm_offset_t off, int data));
 extern void dblfault_handler __P((void));
 
 extern void printcpuinfo(void);	/* XXX header file */
@@ -1608,6 +1606,28 @@ ptrace_single_step(p)
 {
 	p->p_md.md_regs->tf_eflags |= PSL_T;
 	return (0);
+}
+
+int ptrace_read_u_check(p, addr, len)
+	struct proc *p;
+	vm_offset_t addr;
+	size_t len;
+{
+	vm_offset_t gap;
+
+	if ((vm_offset_t) (addr + len) < addr)
+		return EPERM;
+	if ((vm_offset_t) (addr + len) <= sizeof(struct user))
+		return 0;
+
+	gap = (char *) p->p_md.md_regs - (char *) p->p_addr;
+	
+	if ((vm_offset_t) addr < gap)
+		return EPERM;
+	if ((vm_offset_t) (addr + len) <= 
+	    (vm_offset_t) (gap + sizeof(struct trapframe)))
+		return 0;
+	return EPERM;
 }
 
 int ptrace_write_u(p, off, data)
