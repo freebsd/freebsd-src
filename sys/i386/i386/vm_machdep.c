@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.17 1994/03/30 02:47:13 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.18 1994/04/05 03:23:09 davidg Exp $
  */
 
 #include "npx.h"
@@ -442,6 +442,31 @@ vm_bounce_init()
 }
 
 
+static void
+cldiskvamerge( kvanew, orig1, orig1cnt, orig2, orig2cnt)
+	vm_offset_t kvanew;
+	vm_offset_t orig1, orig1cnt;
+	vm_offset_t orig2, orig2cnt;
+{
+	int i;
+	vm_offset_t pa;
+/*
+ * enter the transfer physical addresses into the new kva
+ */
+	for(i=0;i<orig1cnt;i++) {
+		vm_offset_t pa;
+		pa = pmap_kextract((caddr_t) orig1 + i * PAGE_SIZE);
+		pmap_kenter(kvanew + i * PAGE_SIZE, pa);
+	}
+
+	for(i=0;i<orig2cnt;i++) {
+		vm_offset_t pa;
+		pa = pmap_kextract((caddr_t) orig2 + i * PAGE_SIZE);
+		pmap_kenter(kvanew + (i + orig1cnt) * PAGE_SIZE, pa);
+	}
+	pmap_update();
+}
+
 void
 cldisksort(struct buf *dp, struct buf *bp, vm_offset_t maxio)
 {
@@ -449,10 +474,6 @@ cldisksort(struct buf *dp, struct buf *bp, vm_offset_t maxio)
 	int i, trycount=0;
 	vm_offset_t orig1pages, orig2pages;
 	vm_offset_t orig1begin, orig2begin;
-	vm_offset_t orig1end, orig2end;
-	vm_offset_t origpages, newpages;
-	vm_offset_t origbegin, newbegin;
-	vm_offset_t origend, newend;
 	vm_offset_t kvanew, kvaorig;
 
 	/*
@@ -524,8 +545,8 @@ insert:
 	 * we currently only cluster I/O transfers that are at page-aligned
 	 * kvas and transfers that are multiples of page lengths.
 	 */
-	if(((bp->b_bcount & (PAGE_SIZE-1)) == 0) &&
-		(((vm_offset_t) bp->b_un.b_addr & (PAGE_SIZE-1)) == 0)) {
+	if(((bp->b_bcount & PAGE_MASK) == 0) &&
+		(((vm_offset_t) bp->b_un.b_addr & PAGE_MASK) == 0)) {
 		/*
 		 * merge with previous?
 		 * conditions:
@@ -540,28 +561,26 @@ insert:
 		if( (ap->b_blkno + (ap->b_bcount / DEV_BSIZE) == bp->b_blkno) &&
 			(dp->b_actf != ap) &&
 			((ap->b_flags & ~B_CLUSTER) == bp->b_flags) &&
-			((ap->b_bcount & (PAGE_SIZE-1)) == 0) &&
-			(((vm_offset_t) ap->b_un.b_addr & (PAGE_SIZE-1)) == 0) &&
+			((ap->b_bcount & PAGE_MASK) == 0) &&
+			(((vm_offset_t) ap->b_un.b_addr & PAGE_MASK) == 0) &&
 			(ap->b_bcount + bp->b_bcount < maxio)) {
 
+			orig1begin = (vm_offset_t) ap->b_un.b_addr;
+			orig1pages = ap->b_bcount / PAGE_SIZE;
+
+			orig2begin = (vm_offset_t) bp->b_un.b_addr;
+			orig2pages = bp->b_bcount / PAGE_SIZE;
+			/*
+			 * see if we can allocate a kva, if we cannot, the don't
+			 * cluster.
+			 */
+			kvanew = vm_bounce_kva( PAGE_SIZE * (orig1pages + orig2pages), 0);
+			if( !kvanew) {
+				goto nocluster;
+			}
+
+
 			if( (ap->b_flags & B_CLUSTER) == 0) {
-
-				orig1begin = (vm_offset_t) ap->b_un.b_addr;
-				orig1end = (vm_offset_t) ap->b_un.b_addr + ap->b_bcount;
-				orig1pages = ap->b_bcount / PAGE_SIZE;
-
-				orig2begin = (vm_offset_t) bp->b_un.b_addr;
-				orig2end = (vm_offset_t) bp->b_un.b_addr + bp->b_bcount;
-				orig2pages = bp->b_bcount / PAGE_SIZE;
-
-				/*
-				 * see if we can allocate a kva, if we cannot, the don't
-				 * cluster.
-				 */
-				kvanew = vm_bounce_kva( PAGE_SIZE * (orig1pages + orig2pages), 0);
-				if( !kvanew) {
-					goto nocluster;
-				}
 
 				/*
 				 * get a physical buf pointer
@@ -572,20 +591,7 @@ insert:
 					goto nocluster;
 				}
 
-				/*
-				 * enter the transfer physical addresses into the new kva
-				 */
-				for(i=0;i<orig1pages;i++) {
-					vm_offset_t pa;
-					pa = pmap_kextract((caddr_t) orig1begin + i * PAGE_SIZE);
-					pmap_kenter(kvanew + i * PAGE_SIZE, pa);
-				}
-
-				for(i=0;i<orig2pages;i++) {
-					vm_offset_t pa;
-					pa = pmap_kextract((caddr_t) orig2begin + i * PAGE_SIZE);
-					pmap_kenter(kvanew + (i + orig1pages) * PAGE_SIZE, pa);
-				}
+				cldiskvamerge( kvanew, orig1begin, orig1pages, orig2begin, orig2pages);
 
 				/*
 				 * build the new bp to be handed off to the device
@@ -624,44 +630,12 @@ insert:
 			} else {
 				vm_offset_t addr;
 
-				origbegin = (vm_offset_t) ap->b_un.b_addr;
-				origend = (vm_offset_t) ap->b_un.b_addr + ap->b_bcount;
-				origpages = ap->b_bcount/PAGE_SIZE;
-
-				newbegin = (vm_offset_t) bp->b_un.b_addr;
-				newend = (vm_offset_t) bp->b_un.b_addr + bp->b_bcount;
-				newpages = bp->b_bcount/PAGE_SIZE;
-
-				/*
-				 * see if we can allocate a kva, if we cannot, the don't
-				 * cluster.
-				 */
-				kvanew = vm_bounce_kva( PAGE_SIZE * (newpages + origpages), 0);
-				if( !kvanew) {
-					goto nocluster;
-				}
-
-			
-				/*
-				 * enter the transfer physical addresses into the new kva
-				 */
-				for(i=0; i<origpages; i++) {
-					vm_offset_t pa;
-					pa = pmap_kextract(origbegin + i * PAGE_SIZE);
-					pmap_kenter(kvanew + i * PAGE_SIZE, pa);
-				}
-
+				cldiskvamerge( kvanew, orig1begin, orig1pages, orig2begin, orig2pages);
 				/*
 				 * free the old kva
 				 */
-				vm_bounce_kva_free( origbegin, ap->b_bufsize, 0);
+				vm_bounce_kva_free( orig1begin, ap->b_bufsize, 0);
 
-				for(i=0; i<newpages; i++) {
-					vm_offset_t pa;
-					pa = pmap_kextract(newbegin + i * PAGE_SIZE);
-					pmap_kenter(kvanew + (i + origpages) * PAGE_SIZE, pa);
-				}
-				
 				ap->b_un.b_addr = (caddr_t) kvanew;
 
 				ap->b_clusterl->av_forw = bp;
@@ -672,7 +646,6 @@ insert:
 				ap->b_bcount += bp->b_bcount;
 				ap->b_bufsize = ap->b_bcount;
 			}
-			pmap_update();
 			return;
 		/*
 		 * merge with next?
@@ -686,32 +659,31 @@ insert:
 		} else if( ap->av_forw &&
 			(bp->b_blkno + (bp->b_bcount / DEV_BSIZE) == ap->av_forw->b_blkno) &&
 			(bp->b_flags == (ap->av_forw->b_flags & ~B_CLUSTER)) &&
-			((ap->av_forw->b_bcount & (PAGE_SIZE-1)) == 0) &&
-			(((vm_offset_t) ap->av_forw->b_un.b_addr & (PAGE_SIZE-1)) == 0) &&
+			((ap->av_forw->b_bcount & PAGE_MASK) == 0) &&
+			(((vm_offset_t) ap->av_forw->b_un.b_addr & PAGE_MASK) == 0) &&
 			(ap->av_forw->b_bcount + bp->b_bcount < maxio)) {
+
+			orig1begin = (vm_offset_t) bp->b_un.b_addr;
+			orig1pages = bp->b_bcount / PAGE_SIZE;
+
+			orig2begin = (vm_offset_t) ap->av_forw->b_un.b_addr;
+			orig2pages = ap->av_forw->b_bcount / PAGE_SIZE;
+
+			/*
+			 * see if we can allocate a kva, if we cannot, the don't
+			 * cluster.
+			 */
+			kvanew = vm_bounce_kva( PAGE_SIZE * (orig1pages + orig2pages), 0);
+			if( !kvanew) {
+				goto nocluster;
+			}
+			
 
 			/*
 			 * if next isn't a cluster we need to create one
 			 */
 			if( (ap->av_forw->b_flags & B_CLUSTER) == 0) {
 
-				orig1begin = (vm_offset_t) bp->b_un.b_addr;
-				orig1end = (vm_offset_t) bp->b_un.b_addr + bp->b_bcount;
-				orig1pages = bp->b_bcount / PAGE_SIZE;
-
-				orig2begin = (vm_offset_t) ap->av_forw->b_un.b_addr;
-				orig2end = (vm_offset_t) ap->av_forw->b_un.b_addr + ap->av_forw->b_bcount;
-				orig2pages = ap->av_forw->b_bcount / PAGE_SIZE;
-
-				/*
-				 * see if we can allocate a kva, if we cannot, the don't
-				 * cluster.
-				 */
-				kvanew = vm_bounce_kva( PAGE_SIZE * (orig1pages + orig2pages), 0);
-				if( !kvanew) {
-					goto nocluster;
-				}
-			
 				/*
 				 * get a physical buf pointer
 				 */
@@ -721,20 +693,11 @@ insert:
 					goto nocluster;
 				}
 
+				cldiskvamerge( kvanew, orig1begin, orig1pages, orig2begin, orig2pages);
+
+				pmap_update();
+
 				ap = ap->av_forw;
-
-				for(i=0;i<orig1pages;i++) {
-					vm_offset_t pa;
-					pa = pmap_kextract((caddr_t) orig1begin + i * PAGE_SIZE);
-					pmap_kenter(kvanew + i * PAGE_SIZE, pa);
-				}
-
-				for(i=0;i<orig2pages;i++) {
-					vm_offset_t pa;
-					pa = pmap_kextract((caddr_t) orig2begin + i * PAGE_SIZE);
-					pmap_kenter(kvanew + (i + orig1pages) * PAGE_SIZE, pa);
-				}
-
 				*newbp = *ap;
 				newbp->b_flags |= B_CLUSTER;
 				newbp->b_un.b_addr = (caddr_t) kvanew;
@@ -762,38 +725,9 @@ insert:
 			} else {
 				vm_offset_t addr;
 
-				newbegin = (vm_offset_t) bp->b_un.b_addr;
-				newend = (vm_offset_t) bp->b_un.b_addr + bp->b_bcount;
-				newpages = bp->b_bcount/PAGE_SIZE;
-
-				origbegin = (vm_offset_t) ap->av_forw->b_un.b_addr;
-				origend = (vm_offset_t) ap->av_forw->b_un.b_addr + ap->av_forw->b_bcount;
-				origpages = ap->av_forw->b_bcount/PAGE_SIZE;
-
-				/*
-				 * see if we can allocate a kva, if we cannot, the don't
-				 * cluster.
-				 */
-				kvanew = vm_bounce_kva( PAGE_SIZE * (newpages + origpages), 0);
-				if( !kvanew) {
-					goto nocluster;
-				}
-
+				cldiskvamerge( kvanew, orig1begin, orig1pages, orig2begin, orig2pages);
 				ap = ap->av_forw;
-
-				for(i=0; i<newpages; i++) {
-					vm_offset_t pa;
-					pa = pmap_kextract(newbegin + i * PAGE_SIZE);
-					pmap_kenter(kvanew + i * PAGE_SIZE, pa);
-				}
-
-				for(i=0; i<origpages; i++) {
-					vm_offset_t pa;
-					pa = pmap_kextract(origbegin + i * PAGE_SIZE);
-					pmap_kenter(kvanew + (i + newpages) * PAGE_SIZE, pa);
-				}
-
-				vm_bounce_kva_free( origbegin, ap->b_bufsize, 0);
+				vm_bounce_kva_free( orig2begin, ap->b_bufsize, 0);
 
 				ap->b_un.b_addr = (caddr_t) kvanew;
 				bp->av_forw = ap->b_clusterf;
@@ -806,7 +740,6 @@ insert:
 				ap->b_bufsize = ap->b_bcount;
 
 			}
-			pmap_update();
 			return;
 		}
 	}
