@@ -32,7 +32,7 @@ extern int allow_black_holes;
 #ifdef SYSV
 #define JITTERED_VALUE(x) ((x)/2 + (lrand48() % (x)))
 #else
-#define JITTERED_VALUE(x) ((x)/2 + (random() % (x)))
+#define JITTERED_VALUE(x) ((x)/2 + (arc4random() % (x)))
 #endif
 #define	CACHE_LIFETIME(x)	JITTERED_VALUE(x) /* XXX */
 

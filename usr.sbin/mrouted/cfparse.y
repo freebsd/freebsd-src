@@ -658,7 +658,7 @@ static void
 fatal(char *fmt, ...)
 {
 	va_list ap;
-	char buf[200];
+	char buf[MAXHOSTNAMELEN + 100];
 
 	va_start(ap, fmt);
 #else
@@ -669,11 +669,11 @@ char *fmt;
 va_dcl
 {
 	va_list ap;
-	char buf[200];
+	char buf[MAXHOSTNAMELEN + 100];
 
 	va_start(ap);
 #endif
-	vsprintf(buf, fmt, ap);
+	vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 
 	log(LOG_ERR,0,"%s: %s near line %d", configfilename, buf, lineno);
@@ -699,7 +699,7 @@ va_dcl
 
 	va_start(ap);
 #endif
-	vsprintf(buf, fmt, ap);
+	vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 
 	log(LOG_WARNING,0,"%s: %s near line %d", configfilename, buf, lineno);
