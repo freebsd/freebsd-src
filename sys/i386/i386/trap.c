@@ -291,7 +291,13 @@ restart:
 			break;
 
 		case T_ARITHTRAP:	/* arithmetic trap */
+#ifdef DEV_NPX
+			ucode = npxtrap();
+			if (ucode == -1)
+				return;
+#else
 			ucode = code;
+#endif
 			i = SIGFPE;
 			break;
 
@@ -1255,6 +1261,9 @@ ast(framep)
 {
 	struct proc *p = CURPROC;
 	u_quad_t sticks;
+#if defined(DEV_NPX) && !defined(SMP)
+	int ucode;
+#endif
 
 	KASSERT(TRAPF_USERMODE(framep), ("ast in kernel mode"));
 
@@ -1290,6 +1299,19 @@ ast(framep)
 		PROC_UNLOCK(p);
 		mtx_lock_spin(&sched_lock);
 	}
+#if defined(DEV_NPX) && !defined(SMP)
+	if (PCPU_GET(curpcb)->pcb_flags & PCB_NPXTRAP) {
+		PCPU_GET(curpcb)->pcb_flags &= ~PCB_NPXTRAP;
+		mtx_unlock_spin(&sched_lock);
+		ucode = npxtrap();
+		if (ucode != -1) {
+			if (!mtx_owned(&Giant))
+				mtx_lock(&Giant);
+			trapsignal(p, SIGFPE, ucode);
+		}
+		mtx_lock_spin(&sched_lock);
+	}
+#endif
 	if (p->p_sflag & PS_PROFPEND) {
 		p->p_sflag &= ~PS_PROFPEND;
 		mtx_unlock_spin(&sched_lock);

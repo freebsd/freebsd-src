@@ -148,40 +148,8 @@ IDTVEC(mchk)
 	pushl $0; TRAP(T_MCHK)
 IDTVEC(rsvd)
 	pushl $0; TRAP(T_RESERVED)
-
 IDTVEC(fpu)
-#ifdef DEV_NPX
-	/*
-	 * Handle like an interrupt (except for accounting) so that we can
-	 * call npx_intr to clear the error.  It would be better to handle
-	 * npx interrupts as traps.  Nested interrupts would probably have
-	 * to be converted to ASTs.
-	 */
-	pushl	$0			/* dummy error code */
-	pushl	$0			/* dummy trap type */
-	pushal
-	pushl	%ds
-	pushl	%es			/* now stack frame is a trap frame */
-	pushl	%fs
-	mov	$KDSEL,%ax
-	mov	%ax,%ds
-	mov	%ax,%es
-	mov	$KPSEL,%ax
-	mov	%ax,%fs
-	FAKE_MCOUNT(13*4(%esp))
-
-	MPLOCKED incl cnt+V_TRAP
-	pushl	$0			/* dummy unit to finish intr frame */
-
-	call	npx_intr
-
-	addl	$4,%esp
-	MEXITCOUNT
-	jmp	doreti
-#else	/* DEV_NPX */
 	pushl $0; TRAP(T_ARITHTRAP)
-#endif	/* DEV_NPX */
-
 IDTVEC(align)
 	TRAP(T_ALIGNFLT)
 
