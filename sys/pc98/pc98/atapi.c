@@ -114,7 +114,6 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 
-#include <machine/clock.h>
 
 #include <pc98/pc98/atapi.h>
 

@@ -77,7 +77,6 @@
 #include <dev/usb/ohcivar.h>
 
 #if defined(__FreeBSD__)
-#include <machine/clock.h>
 
 #define delay(d)                DELAY(d)
 #endif

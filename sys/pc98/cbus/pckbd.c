@@ -222,7 +222,6 @@ pckbd_timeout(void *arg)
 
 #include <machine/limits.h>
 #include <machine/console.h>
-#include <machine/clock.h>
 
 #define PC98KBD_DEFAULT	0
 

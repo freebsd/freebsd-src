@@ -125,7 +125,6 @@
 
 #include <net/bpf.h>
 
-#include <machine/clock.h>
 #include <machine/md_var.h>
 
 #include <dev/an/if_aironet_ieee.h>

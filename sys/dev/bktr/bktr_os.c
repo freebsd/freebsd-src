@@ -95,7 +95,6 @@
 #endif
 
 
-#include <machine/clock.h>      /* for DELAY */
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 

@@ -56,7 +56,6 @@
 #include <sys/malloc.h>
 #include <sys/socket.h>
 
-#include <machine/clock.h>		/* for DELAY */
 
 #include <net/if.h>
 

@@ -61,7 +61,6 @@
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 
-#include <machine/clock.h>
 
 #include <isa/isavar.h>
 #include <isa/pnpvar.h>

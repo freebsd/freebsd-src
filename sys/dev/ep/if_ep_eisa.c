@@ -38,7 +38,6 @@
 #include <net/if_arp.h>
 #include <net/if_media.h> 
 
-#include <machine/clock.h>
 
 #include <dev/eisa/eisaconf.h>
 

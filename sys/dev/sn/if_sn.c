@@ -117,7 +117,6 @@
 #include <net/bpf.h>
 #include <net/bpfdesc.h>
 
-#include <machine/clock.h>
 
 #include <dev/sn/if_snreg.h>
 #include <dev/sn/if_snvar.h>

@@ -47,7 +47,6 @@
 #include <net/if.h> 
 #include <net/if_arp.h>
 
-#include <machine/clock.h>
 
 #include <dev/sn/if_snvar.h>
 #include <dev/pccard/pccardvar.h>

@@ -90,7 +90,6 @@
 
 #include <net/bpf.h>
 
-#include <machine/clock.h>
 #include <machine/md_var.h>
 
 #include <i386/isa/isa_device.h>

@@ -63,7 +63,6 @@
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #ifdef INET6
-#include <machine/clock.h> /* XXX: temporal workaround for fxp issue */
 #include <netinet6/in6_var.h>
 #include <netinet6/in6_ifattach.h>
 #endif

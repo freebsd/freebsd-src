@@ -40,7 +40,6 @@
 
 #include <net/bpf.h>
 
-#include <machine/clock.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/if_elreg.h>

@@ -76,7 +76,6 @@
 
 #include <net/bpf.h>
 
-#include <machine/clock.h>
 
 #include <dev/vx/if_vxreg.h>
 

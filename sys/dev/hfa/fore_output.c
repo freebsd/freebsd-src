@@ -41,7 +41,6 @@
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <machine/clock.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <net/if.h>

@@ -63,7 +63,6 @@
 #include <net/bridge.h>
 #endif
 
-#include <machine/clock.h>
 #include <machine/md_var.h>
 
 #include <dev/ed/if_edreg.h>

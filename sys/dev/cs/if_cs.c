@@ -62,7 +62,6 @@
 
 #include <isa/isavar.h>
 
-#include <machine/clock.h>
 
 #include <dev/cs/if_csreg.h>
 

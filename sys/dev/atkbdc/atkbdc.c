@@ -44,7 +44,6 @@
 #include <machine/resource.h>
 #include <sys/rman.h>
 
-#include <machine/clock.h>
 
 #include <dev/kbd/atkbdcreg.h>
 

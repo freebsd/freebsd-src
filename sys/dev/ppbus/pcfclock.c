@@ -39,7 +39,6 @@
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/clock.h>      /* for DELAY */
 
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/ppb_msq.h>

@@ -45,7 +45,6 @@
 #include <pc98/pc98/pc98_machdep.h>	/* geometry translation */
 #endif
 
-#include <machine/clock.h>
 #include <sys/ipl.h>
 
 #include <cam/cam.h>

@@ -55,7 +55,6 @@ static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #include <sys/disklabel.h>
 #include <sys/bus.h>
 
-#include <machine/clock.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/mcdreg.h>

@@ -31,7 +31,6 @@
 #include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/module.h>
-#include <machine/clock.h>
 
 #include <sys/bus.h>
 #include <machine/bus.h>

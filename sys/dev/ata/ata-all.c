@@ -58,7 +58,6 @@
 #endif
 #include <isa/isavar.h>
 #include <isa/isareg.h>
-#include <machine/clock.h>
 #ifdef __alpha__
 #include <machine/md_var.h>
 #endif

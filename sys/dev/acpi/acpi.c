@@ -38,7 +38,6 @@
 #include <sys/reboot.h>
 #include <sys/sysctl.h>
 
-#include <machine/clock.h>
 #include <sys/kthread.h>
 
 #include <machine/bus.h>

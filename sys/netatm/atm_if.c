@@ -44,7 +44,6 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/syslog.h>
-#include <machine/clock.h>
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>

@@ -35,7 +35,6 @@
 #include <sys/uio.h>
 #include <sys/fcntl.h>
 
-#include <machine/clock.h>
 
 #include <dev/smbus/smbconf.h>
 #include <dev/smbus/smbus.h>

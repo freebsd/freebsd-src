@@ -36,7 +36,6 @@
 #include <isa/isavar.h>
 #include <isa/pnpreg.h>
 #include <isa/pnpvar.h>
-#include <machine/clock.h>
 #include <machine/bus.h>
 
 typedef struct _pnp_id {
