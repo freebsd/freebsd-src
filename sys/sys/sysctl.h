@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.17 1994/10/10 00:58:34 phk Exp $
+ * $Id: sysctl.h,v 1.18 1994/10/16 03:53:00 wollman Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -343,7 +343,7 @@ extern struct ctldebug debug15, debug16, debug17, debug18, debug19;
 /*
  * Internal sysctl function calling convention:
  *
- *	(*sysctlfn)(name, namelen, oldval, oldlenp, newval, newlen);
+ *	(*sysctlfn)(name, namelen, oldval, oldlenp, newval, newlen, p);
  *
  * The name parameter points at the next component of the name to be
  * interpreted.  The namelen parameter is the number of integers in
@@ -351,6 +351,15 @@ extern struct ctldebug debug15, debug16, debug17, debug18, debug19;
  */
 typedef int (sysctlfn)
     __P((int *, u_int, void *, size_t *, void *, size_t, struct proc *));
+
+sysctlfn cpu_sysctl;
+sysctlfn dev_sysctl;
+sysctlfn fs_sysctl;
+sysctlfn hw_sysctl;
+sysctlfn kern_sysctl;
+sysctlfn net_sysctl;
+sysctlfn ntp_sysctl;
+sysctlfn vm_sysctl;
 
 int sysctl_int __P((void *, size_t *, void *, size_t, int *));
 int sysctl_rdint __P((void *, size_t *, void *, int));
@@ -364,8 +373,6 @@ int	sysctl_vnode __P((char *, size_t*));
 int	sysctl_file __P((char *, size_t*));
 int	sysctl_doproc __P((int *, u_int, char *, size_t*));
 
-sysctlfn	dev_sysctl;
-
 #else	/* !KERNEL */
 #include <sys/cdefs.h>
 
@@ -373,4 +380,5 @@ __BEGIN_DECLS
 int	sysctl __P((int *, u_int, void *, size_t *, void *, size_t));
 __END_DECLS
 #endif	/* KERNEL */
+
 #endif	/* !_SYS_SYSCTL_H_ */
