@@ -243,8 +243,8 @@ get_adapter_name(intf)
 	/*
 	 * Initialize
 	 */
-	UM_ZERO(&air, sizeof(air));
-	UM_ZERO(name, sizeof(name));
+	bzero(&air, sizeof(air));
+	bzero(name, sizeof(name));
 
 	/*
 	 * Get configuration information from the kernel
@@ -263,7 +263,7 @@ get_adapter_name(intf)
 	strcat(name, " ");
 	strcat(name, get_adapter(cfg->acp_device));
 
-	UM_FREE(cfg);
+	free(cfg);
 
 	return(name);
 }
@@ -294,7 +294,7 @@ format_mac_addr(addr)
 	/*
 	 * Clear the returned string
 	 */
-	UM_ZERO(str, sizeof(str));
+	bzero(str, sizeof(str));
 
 	/*
 	 * Format the address

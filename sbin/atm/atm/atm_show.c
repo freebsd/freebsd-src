@@ -101,7 +101,7 @@ show_arp(argc, argv, cmdp)
 	/*
 	 * Get IP address of specified host name
 	 */
-	UM_ZERO(&host_addr, sizeof(host_addr));
+	bzero(&host_addr, sizeof(host_addr));
 	host_addr.sa.sa_family = AF_INET;
 	if (argc) {
 		sin = get_ip_addr(argv[0]);
@@ -118,7 +118,7 @@ show_arp(argc, argv, cmdp)
 	/*
 	 * Get ARP information from the kernel
 	 */
-	UM_ZERO(&air, sizeof(air));
+	bzero(&air, sizeof(air));
 	buf_len = sizeof(struct air_arp_rsp) * 10;
 	air.air_opcode = AIOCS_INF_ARP;
 	air.air_arp_addr = host_addr.sa;
@@ -162,7 +162,7 @@ show_arp(argc, argv, cmdp)
 	/*
 	 * Release the information from the kernel
 	 */
-	UM_FREE(arp_info_base);
+	free(arp_info_base);
 }
 
 
@@ -194,7 +194,7 @@ show_arpserv(argc, argv, cmdp)
 	/*
 	 * Validate interface name
 	 */
-	UM_ZERO(air.air_int_intf, sizeof(air.air_int_intf));
+	bzero(air.air_int_intf, sizeof(air.air_int_intf));
 	if (argc) {
 		if (strlen(argv[0]) > IFNAMSIZ - 1) {
 			fprintf(stderr, "%s: Illegal interface name\n",
@@ -242,7 +242,7 @@ show_arpserv(argc, argv, cmdp)
 				asrv_info->asp_nprefix *
 				sizeof(struct in_addr) * 2;
 	}
-	UM_FREE(asrv_info_base);
+	free(asrv_info_base);
 }
 
 
@@ -274,7 +274,7 @@ show_config(argc, argv, cmdp)
 	/*
 	 * Validate interface name
 	 */
-	UM_ZERO(air.air_cfg_intf, sizeof(air.air_cfg_intf));
+	bzero(air.air_cfg_intf, sizeof(air.air_cfg_intf));
 	if (argc) {
 		if (strlen(argv[0]) > IFNAMSIZ - 1) {
 			fprintf(stderr, "%s: Illegal interface name\n",
@@ -317,7 +317,7 @@ show_config(argc, argv, cmdp)
 			buf_len -= sizeof(struct air_cfg_rsp)) {
 		print_cfg_info(cfg_info);
 	}
-	UM_FREE(cfg_info_base);
+	free(cfg_info_base);
 }
 
 
@@ -349,7 +349,7 @@ show_intf(argc, argv, cmdp)
 	/*
 	 * Validate interface name
 	 */
-	UM_ZERO(&air, sizeof(air));
+	bzero(&air, sizeof(air));
 	if (argc) {
 		if (strlen(argv[0]) > IFNAMSIZ - 1) {
 			fprintf(stderr, "%s: Illegal interface name\n",
@@ -392,7 +392,7 @@ show_intf(argc, argv, cmdp)
 			buf_len -= sizeof(struct air_int_rsp)) {
 		print_intf_info(int_info);
 	}
-	UM_FREE(int_info_base);
+	free(int_info_base);
 }
 
 
@@ -431,7 +431,7 @@ show_ip_vcc(argc, argv, cmdp)
 	 * First parameter can be a netif name, an IP host name, or
 	 * an IP address.  Figure out which it is.
 	 */
-	UM_ZERO(&host_addr, sizeof(host_addr));
+	bzero(&host_addr, sizeof(host_addr));
 	host_addr.sa.sa_family = AF_INET;
 	if (argc) {
 		rc = verify_nif_name(argv[0]);
@@ -519,7 +519,7 @@ show_ip_vcc(argc, argv, cmdp)
 	/*
 	 * Release the information from the kernel
 	 */
-	UM_FREE(ip_info_base);
+	free(ip_info_base);
 
 }
 
@@ -552,7 +552,7 @@ show_netif(argc, argv, cmdp)
 	/*
 	 * Validate network interface name
 	 */
-	UM_ZERO(air.air_int_intf, sizeof(air.air_int_intf));
+	bzero(air.air_int_intf, sizeof(air.air_int_intf));
 	if (argc) {
 		if (strlen(argv[0]) > IFNAMSIZ - 1) {
 			fprintf(stderr, "%s: Illegal interface name\n", prog);
@@ -594,7 +594,7 @@ show_netif(argc, argv, cmdp)
 			buf_len -= sizeof(struct air_netif_rsp)) {
 		print_netif_info(int_info);
 	}
-	UM_FREE(int_info_base);
+	free(int_info_base);
 }
 
 
@@ -628,7 +628,7 @@ show_intf_stats(argc, argv, cmdp)
 	/*
 	 * Validate interface name
 	 */
-	UM_ZERO(intf, sizeof(intf));
+	bzero(intf, sizeof(intf));
 	if (argc) {
 		if (strlen(argv[0]) > IFNAMSIZ - 1) {
 			fprintf(stderr, "%s: Illegal interface name\n",
@@ -686,7 +686,7 @@ show_intf_stats(argc, argv, cmdp)
 			break;
 		}
 
-		UM_FREE(cfg_info);
+		free(cfg_info);
 	} else {
 		/*
 		 * Get generic interface statistics
@@ -723,7 +723,7 @@ show_intf_stats(argc, argv, cmdp)
 				buf_len-=sizeof(struct air_phy_stat_rsp)) {
 			print_intf_stats(pstat_info);
 		}
-		UM_FREE((caddr_t)pstat_info_base);
+		free((caddr_t)pstat_info_base);
 	}
 }
 
@@ -836,7 +836,7 @@ show_vcc_stats(argc, argv, cmdp)
 			continue;
 		print_vcc_stats(vcc_info);
 	}
-	UM_FREE(vcc_info_base);
+	free(vcc_info_base);
 }
 
 
@@ -959,7 +959,7 @@ show_vcc(argc, argv, cmdp)
 			continue;
 		print_vcc_info(vcc_info);
 	}
-	UM_FREE(vcc_info_base);
+	free(vcc_info_base);
 }
 
 
@@ -1019,7 +1019,7 @@ show_version(argc, argv, cmdp)
 			buf_len -= sizeof(struct air_version_rsp)) {
 		print_version_info(ver_info);
 	}
-	UM_FREE(ver_info_base);
+	free(ver_info_base);
 }
 
 

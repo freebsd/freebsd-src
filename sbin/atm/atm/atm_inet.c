@@ -108,7 +108,7 @@ ip_pvcadd(argc, argv, cmdp, app, intp)
 	/*
 	 * Validate and set network interface
 	 */
-	UM_ZERO(app->aar_pvc_intf, sizeof(app->aar_pvc_intf));
+	bzero(app->aar_pvc_intf, sizeof(app->aar_pvc_intf));
 	netif_pref_len = strlen(intp->anp_nif_pref);
 	cp = &argv[0][netif_pref_len];
 	netif_no = atoi(cp);
@@ -139,7 +139,7 @@ ip_pvcadd(argc, argv, cmdp, app, intp)
 	/*
 	 * Set PVC destination address
 	 */
-	UM_ZERO(&app->aar_pvc_dst, sizeof(struct sockaddr));
+	bzero(&app->aar_pvc_dst, sizeof(struct sockaddr));
 	if (strcasecmp(argv[0], "dynamic") == 0 ||
 			strcasecmp(argv[0], "dyn") == 0) {
 
