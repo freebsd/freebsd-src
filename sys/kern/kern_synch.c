@@ -118,7 +118,6 @@ sleepinit(void)
  * entered before msleep returns.  If priority includes the PDROP
  * flag the mutex is not entered before returning.
  */
-
 int
 msleep(ident, mtx, priority, wmesg, timo)
 	void *ident;
@@ -148,8 +147,8 @@ msleep(ident, mtx, priority, wmesg, timo)
 	if (cold) {
 		/*
 		 * During autoconfiguration, just return;
-		 * don't run any other procs or panic below,
-		 * in case this is the idle process and already asleep.
+		 * don't run any other threads or panic below,
+		 * in case this is the idle thread and already asleep.
 		 * XXX: this used to do "s = splhigh(); splx(safepri);
 		 * splx(s);" to give interrupts a chance, but there is
 		 * no way to give interrupts a chance now.
@@ -199,8 +198,8 @@ msleep(ident, mtx, priority, wmesg, timo)
 		}
 	}
 	mtx_unlock_spin(&sched_lock);
-	CTR5(KTR_PROC, "msleep: thread %p (pid %d, %s) on %s (%p)",
-	    td, p->p_pid, p->p_comm, wmesg, ident);
+	CTR5(KTR_PROC, "msleep: thread %p (pid %ld, %s) on %s (%p)",
+	    (void *)td, (long)p->p_pid, p->p_comm, wmesg, ident);
 
 	DROP_GIANT();
 	if (mtx != NULL) {
@@ -233,9 +232,9 @@ msleep(ident, mtx, priority, wmesg, timo)
 		sig = 0;
 
 	/*
-	 * Adjust this threads priority.
+	 * Adjust this thread's priority.
 	 *
-	 * XXX: Do we need to save priority in td_base_pri?
+	 * XXX: do we need to save priority in td_base_pri?
 	 */
 	mtx_lock_spin(&sched_lock);
 	sched_prio(td, priority & PRIMASK);
@@ -251,10 +250,6 @@ msleep(ident, mtx, priority, wmesg, timo)
 		sleepq_wait(ident);
 		rval = 0;
 	}
-
-	/*
-	 * We're awake from voluntary sleep.
-	 */
 	if (rval == 0 && catch)
 		rval = sleepq_calc_signal_retval(sig);
 #ifdef KTRACE
@@ -270,7 +265,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 }
 
 /*
- * Make all processes sleeping on the specified identifier runnable.
+ * Make all threads sleeping on the specified identifier runnable.
  */
 void
 wakeup(ident)
@@ -281,8 +276,8 @@ wakeup(ident)
 }
 
 /*
- * Make a process sleeping on the specified identifier runnable.
- * May wake more than one process if a target process is currently
+ * Make a thread sleeping on the specified identifier runnable.
+ * May wake more than one thread if a target thread is currently
  * swapped out.
  */
 void
@@ -294,7 +289,7 @@ wakeup_one(ident)
 }
 
 /*
- * The machine independent parts of mi_switch().
+ * The machine independent parts of context switching.
  */
 void
 mi_switch(int flags)
@@ -357,14 +352,14 @@ mi_switch(int flags)
 	cnt.v_swtch++;
 	PCPU_SET(switchtime, new_switchtime);
 	PCPU_SET(switchticks, ticks);
-	CTR3(KTR_PROC, "mi_switch: old thread %p (pid %d, %s)", td, p->p_pid,
-	    p->p_comm);
+	CTR3(KTR_PROC, "mi_switch: old thread %p (pid %ld, %s)",
+	    (void *)td, (long)p->p_pid, p->p_comm);
 	if (td->td_proc->p_flag & P_SA)
 		thread_switchout(td);
 	sched_switch(td);
 
-	CTR3(KTR_PROC, "mi_switch: new thread %p (pid %d, %s)", td, p->p_pid,
-	    p->p_comm);
+	CTR3(KTR_PROC, "mi_switch: new thread %p (pid %ld, %s)",
+	    (void *)td, (long)p->p_pid, p->p_comm);
 
 	/* 
 	 * If the last thread was exiting, finish cleaning it up.

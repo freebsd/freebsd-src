@@ -303,8 +303,8 @@ sleepq_catch_signals(void *wchan)
 	mtx_assert(&sc->sc_lock, MA_OWNED);
 	MPASS(td->td_sleepqueue == NULL);
 	MPASS(wchan != NULL);
-	CTR3(KTR_PROC, "sleepq catching signals: thread %p (pid %d, %s)", td,
-	    p->p_pid, p->p_comm);
+	CTR3(KTR_PROC, "sleepq catching signals: thread %p (pid %ld, %s)",
+	    (void *)td, (long)p->p_pid, p->p_comm);
 
 	/* Mark thread as being in an interruptible sleep. */
 	mtx_lock_spin(&sched_lock);
@@ -373,8 +373,8 @@ sleepq_switch(void *wchan)
 	TD_SET_SLEEPING(td);
 	mi_switch(SW_VOL);
 	KASSERT(TD_IS_RUNNING(td), ("running but not TDS_RUNNING"));
-	CTR3(KTR_PROC, "sleepq resume: thread %p (pid %d, %s)", td,
-	    td->td_proc->p_pid, td->td_proc->p_comm);
+	CTR3(KTR_PROC, "sleepq resume: thread %p (pid %ld, %s)",
+	    (void *)td, (long)td->td_proc->p_pid, (void *)td->td_proc->p_comm);
 }
 
 /*
@@ -430,7 +430,6 @@ sleepq_check_signals(void)
 	/* We are no longer in an interruptible sleep. */
 	td->td_flags &= ~TDF_SINTR;
 
-	/* If we were interrupted, return td_intrval. */
 	if (td->td_flags & TDF_INTERRUPT)
 		return (td->td_intrval);
 	return (0);
@@ -584,8 +583,8 @@ sleepq_resume_thread(struct thread *td, int pri)
 	 * do it.  However, we can't assert that it is set.
 	 */
 	mtx_lock_spin(&sched_lock);
-	CTR3(KTR_PROC, "sleepq_wakeup: thread %p (pid %d, %s)", td,
-	    td->td_proc->p_pid, td->td_proc->p_comm);
+	CTR3(KTR_PROC, "sleepq_wakeup: thread %p (pid %ld, %s)",
+	    (void *)td, (long)td->td_proc->p_pid, td->td_proc->p_comm);
 	TD_CLR_SLEEPING(td);
 
 	/* Adjust priority if requested. */
@@ -676,9 +675,9 @@ sleepq_timeout(void *arg)
 	struct thread *td;
 	void *wchan;
 
-	td = (struct thread *)arg;
-	CTR3(KTR_PROC, "sleepq_timeout: thread %p (pid %d, %s)",
-	    td, td->td_proc->p_pid, td->td_proc->p_comm);
+	td = arg;
+	CTR3(KTR_PROC, "sleepq_timeout: thread %p (pid %ld, %s)",
+	    (void *)td, (long)td->td_proc->p_pid, (void *)td->td_proc->p_comm);
 
 	/*
 	 * First, see if the thread is asleep and get the wait channel if
@@ -768,8 +767,8 @@ sleepq_remove(struct thread *td, void *wchan)
 }
 
 /*
- * Abort a thread as if an interrupt had occured.  Only abort
- * interruptable waits (unfortunately it isn't safe to abort others).
+ * Abort a thread as if an interrupt had occurred.  Only abort
+ * interruptible waits (unfortunately it isn't safe to abort others).
  *
  * XXX: What in the world does the comment below mean?
  * Also, whatever the signal code does...
@@ -790,8 +789,8 @@ sleepq_abort(struct thread *td)
 	if (td->td_flags & TDF_TIMEOUT)
 		return;
 
-	CTR3(KTR_PROC, "sleepq_abort: thread %p (pid %d, %s)", td,
-	    td->td_proc->p_pid, td->td_proc->p_comm);
+	CTR3(KTR_PROC, "sleepq_abort: thread %p (pid %ld, %s)",
+	    (void *)td, (long)td->td_proc->p_pid, (void *)td->td_proc->p_comm);
 	wchan = td->td_wchan;
 	mtx_unlock_spin(&sched_lock);
 	sleepq_remove(td, wchan);
