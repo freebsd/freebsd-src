@@ -427,7 +427,7 @@ done:
 void
 pccard_print_cis(device_t dev)
 {
-	struct pccard_softc *sc = (struct pccard_softc *) device_get_softc(dev);
+	struct pccard_softc *sc = PCCARD_SOFTC(dev);
 	struct pccard_card *card = &sc->card;
 	struct pccard_function *pf;
 	struct pccard_config_entry *cfe;
