@@ -7,6 +7,6 @@ MAN=	mount_udf.8
 MOUNT=	${.CURDIR}/../mount
 CFLAGS+= -I${MOUNT} -I${.CURDIR}/../../sys -Wall
 .PATH:	${MOUNT}
-WARNS= 0
+WARNS= 1
 
 .include <bsd.prog.mk>
