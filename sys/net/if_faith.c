@@ -292,6 +292,7 @@ faithioctl(ifp, cmd, data)
 	return (error);
 }
 
+#ifdef INET6
 /*
  * XXX could be slow
  * XXX could be layer violation to call sys/net from sys/netinet6
@@ -321,4 +322,5 @@ faithprefix(in6)
 		RTFREE(rt);
 	return ret;
 }
+#endif
 #endif /* NFAITH > 0 */
