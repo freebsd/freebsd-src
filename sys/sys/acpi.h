@@ -163,6 +163,14 @@ struct FACS {
 /* Processor Register Block (4.7.3.5 Table 4-14, 4-15, 4-16) */
 /* Not yet */
 
+/* Sleep state constants */
+#define ACPI_S_STATE_S0			0
+#define ACPI_S_STATE_S1			1
+#define ACPI_S_STATE_S2			2
+#define ACPI_S_STATE_S3			3
+#define ACPI_S_STATE_S4			4
+#define ACPI_S_STATE_S5			5
+
 #define ACPIIO_ENABLE		_IO('P', 1)
 #define ACPIIO_DISABLE		_IO('P', 2)
 #define ACPIIO_SETSLPSTATE	_IOW('P', 3, int)
