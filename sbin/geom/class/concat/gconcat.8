@@ -35,35 +35,35 @@
 .Cm create
 .Op Fl v
 .Ar name
-.Ar dev1
-.Ar dev2
-.Op Ar dev3 Op Ar ...
+.Ar prov
+.Ar prov
+.Op Ar prov Op Ar ...
 .Nm
 .Cm destroy
 .Op Fl fv
 .Ar name
-.Op Ar name2 Op Ar ...
+.Op Ar name Op Ar ...
 .Nm
 .Cm label
-.Op Fl v
+.Op Fl hv
 .Ar name
-.Ar dev1
-.Ar dev2
-.Op Ar dev3 Op Ar ...
+.Ar prov
+.Ar prov
+.Op Ar prov Op Ar ...
 .Nm
 .Cm stop
 .Op Fl fv
 .Ar name
-.Op Ar name2 Op Ar ...
+.Op Ar name Op Ar ...
 .Nm
 .Cm clear
 .Op Fl v
-.Ar dev1
-.Op Ar dev2 Op Ar ...
+.Ar prov
+.Op Ar prov Op Ar ...
 .Nm
 .Cm dump
-.Ar dev1
-.Op Ar dev2 Op Ar ...
+.Ar prov
+.Op Ar prov Op Ar ...
 .Nm
 .Cm list
 .Op Ar name Op Ar ...
@@ -140,6 +140,8 @@ Additional options:
 .Bl -tag -width indent
 .It Fl f
 Force the removal of the specified concatenated device.
+.It Fl h
+Hardcode providers' names in metadata.
 .It Fl v
 Be more verbose.
 .El

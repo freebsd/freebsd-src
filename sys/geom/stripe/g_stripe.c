@@ -898,6 +898,15 @@ g_stripe_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		    pp->name);
 		return (NULL);
 	}
+	/*
+	 * Backward compatibility:
+	 * There was no md_provider field in earlier versions of metadata.
+	 */
+	if (md.md_version < 2)
+		bzero(md.md_provider, sizeof(md.md_provider));
+
+	if (md.md_provider[0] != '\0' && strcmp(md.md_provider, pp->name) != 0)
+		return (NULL);
 
 	/*
 	 * Let's check if device already exists.
@@ -988,6 +997,7 @@ g_stripe_ctl_create(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 	md.md_stripesize = *stripesize;
+	bzero(md.md_provider, sizeof(md.md_provider));
 
 	/* Check all providers are valid */
 	for (no = 1; no < *nargs; no++) {
