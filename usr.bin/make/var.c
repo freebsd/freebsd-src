@@ -946,29 +946,35 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 	/* build up expanded variable name in this buffer */
 	Buffer	*buf = Buf_Init(MAKE_BSIZE);
 
-	startc = str[1];
-	endc = (startc == OPEN_PAREN) ? CLOSE_PAREN : CLOSE_BRACE;
-
 	/*
 	 * Skip to the end character or a colon, whichever comes first,
 	 * replacing embedded variables as we go.
 	 */
-	for (tstr = str + 2; *tstr != '\0' && *tstr != endc && *tstr != ':'; tstr++)
+	startc = str[1];
+	endc = (startc == OPEN_PAREN) ? CLOSE_PAREN : CLOSE_BRACE;
+
+	tstr = str + 2;
+	while (*tstr != '\0' && *tstr != endc && *tstr != ':') {
 	    if (*tstr == '$') {
 		size_t	rlen;
 		Boolean	rfree;
-		char	*rval = Var_Parse(tstr, ctxt, err, &rlen, &rfree);
+		char	*rval;
 
+		rval = Var_Parse(tstr, ctxt, err, &rlen, &rfree);
 		if (rval == var_Error) {
 			Fatal("Error expanding embedded variable.");
-		} else if (rval != NULL) {
+		}
+		if (rval != NULL) {
 			Buf_Append(buf, rval);
 			if (rfree)
 				free(rval);
 		}
 		tstr += rlen - 1;
-	    } else
+	    } else {
 		Buf_AddByte(buf, (Byte)*tstr);
+	    }
+	    tstr++;
+	}
 
 	if (*tstr == '\0') {
 	    /*
