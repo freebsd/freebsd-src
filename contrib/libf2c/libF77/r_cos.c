@@ -1,13 +1,9 @@
 #include "f2c.h"
 
-#ifdef KR_headers
-double cos();
-double r_cos(x) real *x;
-#else
 #undef abs
 #include <math.h>
-double r_cos(real *x)
-#endif
+double
+r_cos (real * x)
 {
-return( cos(*x) );
+  return (cos (*x));
 }

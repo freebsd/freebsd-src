@@ -27,26 +27,18 @@ Boston, MA 02111-1307, USA.  */
 #include <sys/stat.h>
 #include "f2c.h"
 
-#ifdef KR_headers
-void g_char ();
+void g_char (const char *a, ftnlen alen, char *b);
 
-integer G77_stat_0 (name, statb, Lname)
-     char *name;
-     integer statb[13];
-     ftnlen Lname;
-#else
-void g_char(const char *a, ftnlen alen, char *b);
-
-integer G77_stat_0 (const char *name, integer statb[13], const ftnlen Lname)
-#endif
+integer
+G77_stat_0 (const char *name, integer statb[13], const ftnlen Lname)
 {
   char *buff;
-  char *bp, *blast;
   int err;
   struct stat buf;
 
-  buff = malloc (Lname+1);
-  if (buff == NULL) return -1;
+  buff = malloc (Lname + 1);
+  if (buff == NULL)
+    return -1;
   g_char (name, Lname, buff);
   err = stat (buff, &buf);
   free (buff);
