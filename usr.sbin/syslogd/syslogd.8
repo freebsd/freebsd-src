@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)syslogd.8	8.1 (Berkeley) 6/6/93
-.\"	$Id: syslogd.8,v 1.8 1997/02/22 16:14:00 peter Exp $
+.\"	$Id: syslogd.8,v 1.6.2.1 1997/03/06 08:00:27 mpp Exp $
 .\"
 .Dd October 12, 1995
 .Dt SYSLOGD 8
@@ -60,8 +60,7 @@ Specify the pathname of an alternate configuration file;
 the default is
 .Pa /etc/syslog.conf .
 .It Fl s
-Operate in secure mode.  Do not open a UDP socket to listen for log message
-from remote machines.
+Operate in secure mode.  Do not listen for log message from remote machines.
 .It Fl m
 Select the number of minutes between ``mark'' messages;
 the default is 20 minutes.
