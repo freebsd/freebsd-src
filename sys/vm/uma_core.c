@@ -22,9 +22,6 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
- *
  */
 
 /*
@@ -48,13 +45,15 @@
  *	- Investigate cache size adjustments
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /* I should really use ktr.. */
 /*
 #define UMA_DEBUG 1
 #define UMA_DEBUG_ALLOC 1
 #define UMA_DEBUG_ALLOC_1 1
 */
-
 
 #include "opt_param.h"
 #include <sys/param.h>
