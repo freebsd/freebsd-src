@@ -1178,7 +1178,7 @@ int SSL_get_ex_data_X509_STORE_CTX_idx(void );
 #define SSL_CTX_get_read_ahead(ctx) \
 	SSL_CTX_ctrl(ctx,SSL_CTRL_GET_READ_AHEAD,0,NULL)
 #define SSL_CTX_set_read_ahead(ctx,m) \
-	SSL_CTX_ctrl(ctx,SSL_CTRL_SET_READ_AHEAD,0,NULL)
+	SSL_CTX_ctrl(ctx,SSL_CTRL_SET_READ_AHEAD,m,NULL)
 
      /* NB: the keylength is only applicable when is_export is true */
 #ifndef NO_RSA
@@ -1238,7 +1238,9 @@ int SSL_COMP_add_compression_method(int id,char *cm);
 #define SSL_F_SSL2_ACCEPT				 122
 #define SSL_F_SSL2_CONNECT				 123
 #define SSL_F_SSL2_ENC_INIT				 124
+#define SSL_F_SSL2_PEEK					 234
 #define SSL_F_SSL2_READ					 125
+#define SSL_F_SSL2_READ_INTERNAL			 236
 #define SSL_F_SSL2_SET_CERTIFICATE			 126
 #define SSL_F_SSL2_WRITE				 127
 #define SSL_F_SSL3_ACCEPT				 128
@@ -1263,6 +1265,7 @@ int SSL_COMP_add_compression_method(int id,char *cm);
 #define SSL_F_SSL3_GET_SERVER_DONE			 145
 #define SSL_F_SSL3_GET_SERVER_HELLO			 146
 #define SSL_F_SSL3_OUTPUT_CERT_CHAIN			 147
+#define SSL_F_SSL3_PEEK					 235
 #define SSL_F_SSL3_READ_BYTES				 148
 #define SSL_F_SSL3_READ_N				 149
 #define SSL_F_SSL3_SEND_CERTIFICATE_REQUEST		 150
