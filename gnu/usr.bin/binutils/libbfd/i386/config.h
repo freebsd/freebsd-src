@@ -28,9 +28,6 @@
 /* Define to `long' if <sys/types.h> doesn't define.  */
 /* #undef off_t */
 
-/* Define if you need to in order for stat and other things to work.  */
-/* #undef _POSIX_SOURCE */
-
 /* Define to `unsigned' if <sys/types.h> doesn't define.  */
 /* #undef size_t */
 
@@ -179,7 +176,7 @@
 #define PACKAGE "bfd"
 
 /* Version number of package */
-/* #define VERSION "000427" */
+/* #define VERSION "2.11" */
 
 /* Define if you have the stpcpy function */
 /* #undef HAVE_STPCPY */
@@ -214,20 +211,41 @@
 /* Define if <sys/procfs.h> has prstatus_t. */
 #define HAVE_PRSTATUS_T 1
 
+/* Define if <sys/procfs.h> has prstatus32_t. */
+/* #undef HAVE_PRSTATUS32_T */
+
 /* Define if <sys/procfs.h> has prstatus_t.pr_who. */
 /* #undef HAVE_PRSTATUS_T_PR_WHO */
+
+/* Define if <sys/procfs.h> has prstatus32_t.pr_who. */
+/* #undef HAVE_PRSTATUS32_T_PR_WHO */
 
 /* Define if <sys/procfs.h> has pstatus_t. */
 /* #undef HAVE_PSTATUS_T */
 
+/* Define if <sys/procfs.h> has pxstatus_t. */
+/* #undef HAVE_PXSTATUS_T */
+
+/* Define if <sys/procfs.h> has pstatus32_t. */
+/* #undef HAVE_PSTATUS32_T */
+
 /* Define if <sys/procfs.h> has prpsinfo_t. */
 #define HAVE_PRPSINFO_T 1
+
+/* Define if <sys/procfs.h> has prpsinfo32_t. */
+/* #undef HAVE_PRPSINFO32_T */
 
 /* Define if <sys/procfs.h> has psinfo_t. */
 /* #undef HAVE_PSINFO_T */
 
+/* Define if <sys/procfs.h> has psinfo32_t. */
+/* #undef HAVE_PSINFO32_T */
+
 /* Define if <sys/procfs.h> has lwpstatus_t. */
 /* #undef HAVE_LWPSTATUS_T */
+
+/* Define if <sys/procfs.h> has lwpxstatus_t. */
+/* #undef HAVE_LWPXSTATUS_T */
 
 /* Define if <sys/procfs.h> has lwpstatus_t.pr_context. */
 /* #undef HAVE_LWPSTATUS_T_PR_CONTEXT */
