@@ -265,6 +265,7 @@ pccnbk_wrap_old_driver(struct pccard_device *drv)
 	drv->driver = driver;
 }
 
+#if 0
 static driver_t pccnbk_driver = {
 	"pccnbk",
 	pccnbk_methods,
@@ -272,3 +273,4 @@ static driver_t pccnbk_driver = {
 };
 
 DRIVER_MODULE(pccnbk, pccard, pccnbk_driver, pccnbk_devclass, 0, 0);
+#endif
