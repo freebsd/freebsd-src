@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modload.c,v 1.18 1997/03/29 03:32:29 imp Exp $
+ *	$Id: modload.c,v 1.19 1997/06/29 20:38:38 bde Exp $
  */
 
 #include <stdio.h>
@@ -150,6 +150,8 @@ cleanup()
 
 	if (fileopen & MOD_OPEN)
 		close(modfd);
+
+	fileopen = 0;
 }
 
 int
@@ -375,6 +377,9 @@ main(argc, argv)
 	fileopen &= ~PART_RESRV;	/* loaded */
 	if(!quiet) printf("Module loaded as ID %d\n", resrv.slot);
 
+	if (dounlink && unlink(out))
+	    err(17, "unlink(%s)", out);
+
 	if (post) {
 	    struct lmc_stat sbuf;
 	    char id[16], type[16], offset[16];
@@ -387,14 +392,12 @@ main(argc, argv)
 	    sprintf(offset, "%d", sbuf.offset);
 	    /* XXX the modload docs say that drivers can install bdevsw &
 	       cdevsw, but the interface only supports one at a time.  sigh. */
+
+	    /* Free resources before calling post-install program */
+	    cleanup();
+
 	    execl(post, post, id, type, offset, 0);
 	    err(16, "can't exec '%s'", post);
-	}
-
-	if(dounlink) {
-		if(unlink(out)) {
-			err(17, "unlink(%s)", out);
-		}
 	}
 
 	return 0;
