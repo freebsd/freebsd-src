@@ -8,6 +8,9 @@ SRCS+=	alpha-fbsd.c
 SRCS+=	i386-fbsd.c i386-linux.c linux_syscalls.h
 .endif
 
+WARNS?=	1
+NO_WERROR=yes
+
 CFLAGS+= -I${.CURDIR} -I.
 CLEANFILES+=i386l-syscalls.master syscalls.master linux_syscalls.h \
 	syscalls.h ioctl.c

@@ -53,18 +53,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-extern int setup_and_wait(char **);
-extern int start_tracing(int, int);
-#ifdef __alpha__
-extern void alpha_syscall_entry(int, int);
-extern void alpha_syscall_exit(int, int);
-#endif
-#ifdef __i386__
-extern void i386_syscall_entry(int, int);
-extern void i386_syscall_exit(int, int);
-extern void i386_linux_syscall_entry(int, int);
-extern void i386_linux_syscall_exit(int, int);
-#endif
+#include "extern.h"
 
 /*
  * These should really be parameterized -- I don't like having globals,
@@ -75,7 +64,6 @@ int pid = 0;
 int nosigs = 0;
 FILE *outfile;
 int Procfd;
-char progtype[50];	/* OS and type of executable */
 
 static inline void
 usage(void)
@@ -91,7 +79,7 @@ usage(void)
  * work correctly.
  */
 struct ex_types {
-  char *type;
+  const char *type;
   void (*enter_syscall)(int, int);
   void (*exit_syscall)(int, int);
 } ex_types[] = {
@@ -113,28 +101,28 @@ struct ex_types {
  */
 
 static struct ex_types *
-set_etype() {
+set_etype(void) {
   struct ex_types *funcs;
   char etype[24];
-  char progtype[32];
+  char progt[32];
   int fd;
 
   sprintf(etype, "/proc/%d/etype", pid);
   if ((fd = open(etype, O_RDONLY)) == -1) {
-    strcpy(progtype, "FreeBSD a.out");
+    strcpy(progt, "FreeBSD a.out");
   } else {
-    int len = read(fd, progtype, sizeof(progtype));
-    progtype[len-1] = '\0';
+    int len = read(fd, progt, sizeof(progt));
+    progt[len-1] = '\0';
     close(fd);
   }
 
   for (funcs = ex_types; funcs->type; funcs++)
-    if (!strcmp(funcs->type, progtype))
+    if (!strcmp(funcs->type, progt))
       break;
 
   if (funcs == NULL) {
     warn("Execution type %s is not supported -- using FreeBSD a.out\n",
-      progtype);
+      progt);
     funcs = &ex_types[0];
   }
   return funcs;
@@ -191,7 +179,6 @@ main(int ac, char **av) {
     signal(SIGTERM, SIG_IGN);
     signal(SIGQUIT, SIG_IGN);
   } else {
-    extern void restore_proc(int);
     signal(SIGINT, restore_proc);
     signal(SIGTERM, restore_proc);
     signal(SIGQUIT, restore_proc);
