@@ -196,6 +196,18 @@ gctl_copyin(struct gctl_req *req)
 }
 
 static void
+gctl_free(struct gctl_req *req)
+{
+	int i;
+
+	for (i = 0; i < req->narg; i++) {
+		if (req->arg[i].nlen == 0 && req->arg[i].name != NULL)
+			g_free(req->arg[i].name);
+	}
+	g_free(req->arg);
+}
+
+static void
 gctl_dump(struct gctl_req *req)
 {
 	u_int i;
@@ -306,6 +318,7 @@ gctl_get_class(struct gctl_req *req)
 			return (cp);
 		}
 	}
+	g_free(p);
 	gctl_error(req, "Class not found");
 	return (NULL);
 }
@@ -337,6 +350,7 @@ gctl_get_geom(struct gctl_req *req, struct g_class *mpr)
 		}
 	}
 	gctl_error(req, "Geom not found");
+	g_free(p);
 	return (NULL);
 }
 
@@ -368,6 +382,7 @@ gctl_get_provider(struct gctl_req *req)
 		}
 	}
 	gctl_error(req, "Provider not found");
+	g_free(p);
 	return (NULL);
 }
 
@@ -501,6 +516,7 @@ g_ctl_ioctl_ctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *t
 		error = gctl_error(req, "XXX: TBD");
 		break;
 	}
+	gctl_free(req);
 	g_topology_unlock();
 	return (error);
 }
