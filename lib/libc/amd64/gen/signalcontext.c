@@ -76,6 +76,8 @@ __signalcontext(ucontext_t *ucp, int sig, __sighandler_t *func)
 	 * Setup the ucontext of the signal handler.
 	 */
 	bzero(&ucp->uc_mcontext, sizeof(ucp->uc_mcontext));
+	ucp->uc_mcontext.mc_fpformat = _MC_FPFMT_NODEV;
+	ucp->uc_mcontext.mc_ownedfp = _MC_FPOWNED_NONE;
 	ucp->uc_link = sig_uc;
 	sigdelset(&ucp->uc_sigmask, sig);
 
