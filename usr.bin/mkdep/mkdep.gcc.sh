@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)mkdep.gcc.sh	8.1 (Berkeley) 6/6/93
-#
+#	$Id$
 
 PATH=/bin:/usr/bin; export PATH
 
@@ -69,16 +69,18 @@ esac
 
 TMP=/tmp/mkdep$$
 trap 'rm -f $TMP ; exit 1' 1 2 3 13 15
+trap 'rm -f $TMP' 0
 
 # For C sources, mkdep must use exactly the same cpp and predefined flags
 # as the compiler would.  This is easily arranged by letting the compiler
 # pick the cpp.  mkdep must be told the cpp to use for exceptional cases.
 MKDEP_CPP=${MKDEP_CPP-"cc -E"}
 
-if $MKDEP_CPP -M $@ > $TMP; then :
+echo "# $@" > $TMP	# store arguments for debugging
+
+if $MKDEP_CPP -M "$@" >> $TMP; then :
 else
 	echo 'mkdep: compile failed.'
-	rm -f $TMP
 	exit 1
 fi
 
@@ -95,5 +97,4 @@ case x$pflag in
 	;;
 esac
 
-rm -f $TMP
-exit 0
+exit $?
