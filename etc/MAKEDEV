@@ -85,7 +85,7 @@
 #	isdn*	ISDN devices
 #   labpc*  National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.87 1995/04/28 07:53:43 bde Exp $
+#	$Id: MAKEDEV,v 1.88 1995/04/30 07:56:45 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -906,7 +906,7 @@ labpc*)
 		name=labpcdio
 		unit=`expr $i : 'labpcdio\(.*\)'`
 		all="0 1 2 3"
-		offset=128
+		offset=8
 		;;
 	*)
 		echo "Don't understand that labpc name"
@@ -918,11 +918,13 @@ labpc*)
 	fi
 	case $unit in
 		0|1|2|3|4|5|6|7)
+				rm -f $name$unit
 				mknod $name$unit c 66 `expr $offset + $unit `
 		;;
 		all)
 			for i in $all
 			do
+				rm -f $name$i
 				mknod $name$i c 66 `expr $offset + $i `
 			done
 			;;
