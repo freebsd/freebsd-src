@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.84 1998/07/15 06:19:33 bde Exp $
+ *	$Id: kern_exec.c,v 1.85 1998/08/24 08:39:38 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -370,7 +370,7 @@ exec_map_first_page(imgp)
 					break;
 				if (ma[i]->valid)
 					break;
-				PAGE_SET_FLAG(ma[i], PG_BUSY);
+				vm_page_busy(ma[i]);
 			} else {
 				ma[i] = vm_page_alloc(object, i, VM_ALLOC_NORMAL);
 				if (ma[i] == NULL)
@@ -393,7 +393,7 @@ exec_map_first_page(imgp)
 	}
 
 	vm_page_wire(ma[0]);
-	PAGE_WAKEUP(ma[0]);
+	vm_page_wakeup(ma[0]);
 	splx(s);
 
 	pmap_kenter((vm_offset_t) imgp->image_header, VM_PAGE_TO_PHYS(ma[0]));

@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.124 1998/08/06 08:33:19 dfr Exp $
+ * $Id: vm_pageout.c,v 1.125 1998/08/24 08:39:38 dfr Exp $
  */
 
 /*
@@ -362,7 +362,7 @@ vm_pageout_flush(mc, count, flags)
 	int i;
 
 	for (i = 0; i < count; i++) {
-		PAGE_BUSY(mc[i]);
+		vm_page_io_start(mc[i]);
 		vm_page_protect(mc[i], VM_PROT_READ);
 	}
 
@@ -413,7 +413,7 @@ vm_pageout_flush(mc, count, flags)
 		 */
 		if (pageout_status[i] != VM_PAGER_PEND) {
 			vm_object_pip_wakeup(object);
-			PAGE_BWAKEUP(mt);
+			vm_page_io_finish(mt);
 		}
 	}
 	return numpagedout;
@@ -476,7 +476,7 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 
 			actcount = pmap_ts_referenced(VM_PAGE_TO_PHYS(p));
 			if (actcount) {
-				PAGE_SET_FLAG(p, PG_REFERENCED);
+				vm_page_flag_set(p, PG_REFERENCED);
 			} else if (p->flags & PG_REFERENCED) {
 				actcount = 1;
 			}
@@ -485,7 +485,7 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 				(p->flags & PG_REFERENCED)) {
 				vm_page_activate(p);
 				p->act_count += actcount;
-				PAGE_CLEAR_FLAG(p, PG_REFERENCED);
+				vm_page_flag_clear(p, PG_REFERENCED);
 			} else if (p->queue == PQ_ACTIVE) {
 				if ((p->flags & PG_REFERENCED) == 0) {
 					p->act_count -= min(p->act_count, ACT_DECLINE);
@@ -500,7 +500,7 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 					}
 				} else {
 					vm_page_activate(p);
-					PAGE_CLEAR_FLAG(p, PG_REFERENCED);
+					vm_page_flag_clear(p, PG_REFERENCED);
 					if (p->act_count < (ACT_MAX - ACT_ADVANCE))
 						p->act_count += ACT_ADVANCE;
 					s = splvm();
@@ -599,7 +599,7 @@ vm_pageout_page_free(vm_page_t m) {
 			vbusy(vp);
 	}
 
-	PAGE_SET_FLAG(m, PG_BUSY);
+	vm_page_busy(m);
 	vm_page_protect(m, VM_PROT_NONE);
 	vm_page_free(m);
 	vm_object_deallocate(object);
@@ -683,7 +683,7 @@ rescan0:
 		 * If the object is not being used, we ignore previous references.
 		 */
 		if (m->object->ref_count == 0) {
-			PAGE_CLEAR_FLAG(m, PG_REFERENCED);
+			vm_page_flag_clear(m, PG_REFERENCED);
 			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
 
 		/*
@@ -708,7 +708,7 @@ rescan0:
 		 * inactive queue again.
 		 */
 		if ((m->flags & PG_REFERENCED) != 0) {
-			PAGE_CLEAR_FLAG(m, PG_REFERENCED);
+			vm_page_flag_clear(m, PG_REFERENCED);
 			actcount = pmap_ts_referenced(VM_PAGE_TO_PHYS(m));
 			vm_page_activate(m);
 			m->act_count += (actcount + ACT_ADVANCE + 1);
@@ -906,7 +906,7 @@ rescan0:
 		/*
 		 * Since we have "tested" this bit, we need to clear it now.
 		 */
-		PAGE_CLEAR_FLAG(m, PG_REFERENCED);
+		vm_page_flag_clear(m, PG_REFERENCED);
 
 		/*
 		 * Only if an object is currently being used, do we use the
@@ -1095,7 +1095,7 @@ vm_pageout_page_stats()
 
 		actcount = 0;
 		if (m->flags & PG_REFERENCED) {
-			PAGE_CLEAR_FLAG(m, PG_REFERENCED);
+			vm_page_flag_clear(m, PG_REFERENCED);
 			actcount += 1;
 		}
 

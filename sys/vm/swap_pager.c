@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.99 1998/08/13 08:05:13 dfr Exp $
+ * $Id: swap_pager.c,v 1.100 1998/08/24 08:39:37 dfr Exp $
  */
 
 /*
@@ -1104,7 +1104,7 @@ swap_pager_getpages(object, m, count, reqpage)
 	if (rv == VM_PAGER_OK) {
 		for (i = 0; i < count; i++) {
 			m[i]->dirty = 0;
-			PAGE_CLEAR_FLAG(m[i], PG_ZERO);
+			vm_page_flag_clear(m[i], PG_ZERO);
 			if (i != reqpage) {
 				/*
 				 * whether or not to leave the page
@@ -1123,7 +1123,7 @@ swap_pager_getpages(object, m, count, reqpage)
 				 * is ok to use
 				 */
 				m[i]->valid = VM_PAGE_BITS_ALL;
-				PAGE_WAKEUP(m[i]);
+				vm_page_wakeup(m[i]);
 			}
 		}
 
@@ -1587,7 +1587,7 @@ swap_pager_finish(spc)
 			printf("swap_pager_finish: I/O error, clean of page %lx failed\n",
 			    (u_long) VM_PAGE_TO_PHYS(ma[i]));
 			ma[i]->dirty = VM_PAGE_BITS_ALL;
-			PAGE_BWAKEUP(ma[i]);
+			vm_page_io_finish(ma[i]);
 		}
 
 		vm_object_pip_subtract(object, spc->spc_count);
@@ -1658,7 +1658,7 @@ swap_pager_iodone(bp)
 			/*
 			 * we wakeup any processes that are waiting on these pages.
 			 */
-			PAGE_BWAKEUP(ma[i]);
+			vm_page_io_finish(ma[i]);
 		}
 	}
 
