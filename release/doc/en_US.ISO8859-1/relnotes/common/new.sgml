@@ -98,7 +98,11 @@
   <sect2>
     <title>Security Fixes</title>
 
-    <para></para>
+    <para>A vulnerability in the &man.fts.3; routines (used by
+    applications for recursively traversing a filesystem) could
+    allow a program to operate on files outside the intended directory
+    hierarchy.  This bug has been fixed (see security advisory
+    FreeBSD-SA-01:40).</para>
 
   </sect2>
   <sect2>
