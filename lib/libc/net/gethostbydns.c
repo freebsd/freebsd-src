@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: gethostbydns.c,v 1.9 1996/07/12 18:54:33 jkh Exp $";
+static char rcsid[] = "$Id: gethostbydns.c,v 1.10 1996/08/29 20:07:50 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -321,12 +321,11 @@ gethostanswer(answer, anslen, qname, qtype)
 				cp += n;
 				continue;	/* XXX - had_error++ ? */
 			}
-			if (haveanswer) {
-				if (n != host.h_length) {
-					cp += n;
-					continue;
-				}
-			} else {
+			if (n != host.h_length) {
+				cp += n;
+				continue;
+			}
+			if (!haveanswer) {
 				register int nn;
 
 				host.h_name = bp;
