@@ -3,8 +3,8 @@
 
 PROG=	canfield
 MAN6=	canfield.6
-DPADD=	${LIBCURSES} ${LIBTERMCAP} ${LIBCOMPAT}
-LDADD=	-lcurses -ltermcap -lcompat
+DPADD=	${LIBCURSES} ${LIBCOMPAT}
+LDADD=	-lcurses -lcompat
 HIDEGAME=hidegame
 MLINKS=	canfield.6 cfscores.6
 
