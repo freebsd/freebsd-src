@@ -491,19 +491,15 @@ nwfs_remove(ap)
 	struct nwmount *nmp = VTONWFS(vp);
 	int error;
 
-	if (vp->v_type == VDIR || np->opened || vp->v_usecount != 1) {
-		error = EPERM;
-	} else if (!ncp_conn_valid(NWFSTOCONN(nmp))) {
-		error = EIO;
-	} else {
-		cache_purge(vp);
-		error = ncp_DeleteNSEntry(nmp, VTONW(dvp)->n_fid.f_id,
-		    cnp->cn_namelen,cnp->cn_nameptr,cnp->cn_proc,cnp->cn_cred);
-		if (error == 0)
-			np->n_flag |= NSHOULDFREE;
-		else if (error == 0x899c)
-			error = EACCES;
-	}
+	if (vp->v_type == VDIR || np->opened || vp->v_usecount != 1)
+		return EPERM;
+	cache_purge(vp);
+	error = ncp_DeleteNSEntry(nmp, VTONW(dvp)->n_fid.f_id,
+	    cnp->cn_namelen,cnp->cn_nameptr,cnp->cn_proc,cnp->cn_cred);
+	if (error == 0)
+		np->n_flag |= NSHOULDFREE;
+	else if (error == 0x899c)
+		error = EACCES;
 	return (error);
 }
 
