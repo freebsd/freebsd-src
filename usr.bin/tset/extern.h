@@ -36,7 +36,7 @@
 #include <termcap.h>
 
 extern struct termios mode, oldmode;
-extern int columns, isreset, lines;
+extern int Columns, isreset, Lines;
 extern int erasechar, intrchar, killchar;
 
 void	 add_mapping __P((char *, char *));

@@ -66,7 +66,7 @@ int	erasechar;		/* new erase character */
 int	intrchar;		/* new interrupt character */
 int	isreset;		/* invoked as reset */
 int	killchar;		/* new kill character */
-int	lines, columns;		/* window size */
+int	Lines, Columns;		/* window size */
 speed_t	Ospeed;
 
 int
@@ -161,16 +161,16 @@ main(argc, argv)
 	ttype = get_termcap_entry(*argv, &tcapbuf);
 
 	if (!noset) {
-		columns = tgetnum("co");
-		lines = tgetnum("li");
+		Columns = tgetnum("co");
+		Lines = tgetnum("li");
 
 #ifdef TIOCGWINSZ
 		/* Set window size */
 		(void)ioctl(STDERR_FILENO, TIOCGWINSZ, &win);
 		if (win.ws_row == 0 && win.ws_col == 0 &&
-		    lines > 0 && columns > 0) {
-			win.ws_row = lines;
-			win.ws_col = columns;
+		    Lines > 0 && Columns > 0) {
+			win.ws_row = Lines;
+			win.ws_col = Columns;
 			(void)ioctl(STDERR_FILENO, TIOCSWINSZ, &win);
 		}
 #endif
@@ -203,7 +203,8 @@ main(argc, argv)
 
 	if (Sflag) {
 		(void)printf("%s ", ttype);
-		wrtermcap(tcapbuf);
+		if (strlen(tcapbuf) > 0)
+			wrtermcap(tcapbuf);
 	}
 
 	if (sflag) {
@@ -213,15 +214,22 @@ main(argc, argv)
 		 */
 		if ((p = getenv("SHELL")) &&
 		    !strcmp(p + strlen(p) - 3, "csh")) {
-			p = "set noglob;\nsetenv TERM %s;\nsetenv TERMCAP '";
-			t = "';\nunset noglob;\n";
+			printf("set noglob;\nsetenv TERM %s;\n", ttype);
+			if (strlen(tcapbuf) > 0) {
+				printf("setenv TERMCAP '");
+				wrtermcap(tcapbuf);
+				printf("';\n");
+			}
+			printf("unset noglob;\n");
 		} else {
-			p = "TERM=%s;\nTERMCAP='";
-			t = "';\nexport TERMCAP TERM;\n";
+			printf("TERM=%s;\n", ttype);
+			if (strlen(tcapbuf) > 0) {
+				printf("TERMCAP='");
+				wrtermcap(tcapbuf);
+				printf("';\nexport TERMCAP;\n");
+			}
+			printf("export TERM;\n");
 		}
-		(void)printf(p, ttype);
-		wrtermcap(tcapbuf);
-		(void)printf(t);
 	}
 
 	exit(0);
