@@ -25,11 +25,14 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
 .\" $FreeBSD$
-.Dd October 28, 1999
+.Dd November 7, 1999
 .Dt VGL 3
 .Os FreeBSD 3.0
 .Sh NAME
+.Nm VGLBitmapAllocateBits ,
 .Nm VGLBitmapCopy ,
+.Nm VGLBitmapCreate ,
+.Nm VGLBitmapDestroy ,
 .Nm VGLBitmapPutChar ,
 .Nm VGLBitmapString ,
 .Nm VGLBlankDisplay ,
@@ -42,14 +45,19 @@
 .Nm VGLFilledEllipse ,
 .Nm VGLInit ,
 .Nm VGLLine ,
+.Nm VGLKeyboardInit ,
+.Nm VGLKeyboardEnd ,
+.Nm VGLKeyboardGetCh ,
 .Nm VGLMouseInit ,
 .Nm VGLMouseMode ,
 .Nm VGLMouseSetImage ,
 .Nm VGLMouseSetStdImage ,
 .Nm VGLMouseStatus ,
+.Nm VGLPanScreen ,
 .Nm VGLSetBorder ,
 .Nm VGLSetPalette ,
 .Nm VGLSetPaletteIndex ,
+.Nm VGLSetVScreenSize ,
 .Nm VGLTextSetFontFile
 .Nd Video Graphics Library functions (libvgl)
 .Sh SYNOPSIS
@@ -62,6 +70,12 @@
 .Fn VGLCheckSwitch "void"
 .Ft int 
 .Fn VGLTextSetFontFile "char *filename"
+.Ft int
+.Fn VGLKeyboardInit "int code"
+.Ft void
+.Fn VGLKeyboardEnd "void"
+.Ft int
+.Fn VGLKeyboardGetCh "void"
 .Ft int 
 .Fn VGLMouseInit "int mode"
 .Ft void 
@@ -82,6 +96,12 @@
 .Fn VGLEllipse "VGLBitmap *object" "int xc" "int yc" "int a" "int b" "byte color"
 .Ft void 
 .Fn VGLFilledEllipse "VGLBitmap *object" "int xc" "int yc" "int a" "int b" "byte color"
+.Ft VGLBitmap *
+.Fn VGLBitmapCreate "int type" "int xsize" "int ysize" "byte *bits"
+.Ft void
+.Fn VGLBitmapDestroy "VGLBitmap *object"
+.Ft int
+.Fn VGLBitmapAllocateBits "VGLBitmap *object"
 .Ft int 
 .Fn VGLBitmapCopy "VGLBitmap *src" "int srcx" "int srcy" "VGLBitmap *dst" "int dstx" "int dsty" "int width" "int hight"
 .Ft void 
@@ -96,6 +116,10 @@
 .Fn VGLSetPaletteIndex "byte color" "byte red" "byte green" "byte blue"
 .Ft void 
 .Fn VGLSetBorder "byte color"
+.Ft int
+.Fn VGLSetVScreenSize "VGLBitmap *object" "int vxsize" "int vysize"
+.Ft int
+.Fn VGLPanSreen "VGLBitmap *object" "int x" "int y"
 .Ft void 
 .Fn VGLBlankDisplay "int blank"
 .Sh DESCRIPTION
@@ -135,6 +159,34 @@ the system to switch screens.
 instruct the char/string functions to use the font in file
 .Em filename
 instead of the builtin font.
+.Pp
+.Fn VGLKeyboardInit
+set up the keyboard in the ``raw'' I/O mode and
+specify the key code to be used.
+.Em code
+must be
+.Em VGL_XLATEKEYS ,
+.Em VGL_CODEKEYS ,
+or
+.Em VGL_RAWKEYS .
+When 
+.Em VGL_XLATEKEYS
+is specified, the keyboard translate the raw keyboard scan code into
+a character code.
+If
+.Em VGL_RAWKEYS
+is used, the raw keyboard scan code is read as is.
+.Em VGL_CODEKEYS
+is the intermediate key code; each key is assigned a unique code whereas
+more than one raw scan code may be generated when a key is pressed.
+.Pp
+.Fn VGLKeyboardEnd
+when you have finished using the keyboard, call this function.
+.Pp
+.Fn VGLKeyboardGetCh
+read one byte from the keyboard.  As the keyboard I/O is in the ``raw''
+input mode, the function will not block even if there is no input data,
+and returns 0.
 .Pp
 .Fn VGLMouseInit 
 initialize the mouse. The optional on-screen mouse pointer is shown if the
@@ -204,6 +256,26 @@ pixels wide, and
 pixels high in color
 .Em color .
 .Pp
+.Fn VGLBitmapCreate
+create a bitmap object and initialize it with the specified 
+values and bit data. 
+.Em type
+must be
+.Em MEMBUF
+for the in-memory bitmap.
+.Em bits
+may be NULL so that bitmap data may be associated later.
+.Pp
+There also is a macro, 
+.Fn VGLBITMAP_INITIALIZER "type" "xsize" "ysize" "bits"
+to initialize a statically declared bitmap object.
+.Pp
+.Fn VGLBitmapDestroy
+free the bitmap data and the bitmap object.
+.Pp
+.Fn VGLBitmapAllocateBits
+allocate a bit data buffer for the specified object.
+.Pp
 .Fn VGLBitmapCopy
 copy a rectangle of pixels from bitmap
 .Em src
@@ -263,6 +335,39 @@ to the specified RGB value.
 .Fn VGLSetBorder
 set the border color to color
 .Em color .
+.Pp
+.Fn VGLSetVScreenSize
+change the virtual screen size of the display.  Note that this
+function must be called when our vty is in the foreground.  
+And
+.Em object
+must be
+.Em VGLDisplay .
+Passing a in-memory bitmap to this function results in error.
+.Pp
+The desired virtual screen width may not be achievable because
+of the video card hardware.  In such case the video driver (and
+underlaying video BIOS) may choose the next largest values.
+Always examine 
+.Em object->VXsize 
+and 
+.Em VYsize 
+after calling this function, in order to see how the virtual screen 
+is actually set up.
+.Pp
+In order to set up the largest possible virtual screen, you may
+call this function with arbitrary large values.
+.Pp
+.Dl VGLSetVScreenSize(10000, 10000);
+.Pp
+.Fn VGLPanSreen
+change the origin of the displayed screen in the virtual screen.
+Note that this function must be called when our vty is in the 
+foreground.  
+.Em object
+must be
+.Em VGLDisplay .
+Passing a in-memory bitmap to this function results in error.
 .Pp
 .Fn VGLBlankDisplay
 blank the display if the argment
