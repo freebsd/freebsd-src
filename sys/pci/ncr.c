@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.61 1996/01/23 21:47:12 se Exp $
+**  $Id: ncr.c,v 1.62 1996/01/31 19:24:34 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1249,7 +1249,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.61 1996/01/23 21:47:12 se Exp $\n";
+	"\n$Id: ncr.c,v 1.62 1996/01/31 19:24:34 se Exp $\n";
 
 static u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -3481,6 +3481,12 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	np->lasttime=0;
 
 	/*
+	**  use SIMPLE TAG messages by default
+	*/
+
+	np->order = M_SIMPLE_TAG;
+
+	/*
 	**  Done.
 	*/
 
@@ -3541,10 +3547,8 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 	tcb_p tp = &np->target[xp->sc_link->target];
 
 	int	i, oldspl, segments, flags = xp->flags;
-	u_char	ptr, nego, idmsg;
+	u_char	qidx, nego, idmsg, *msgptr;
 	u_long  msglen, msglen2;
-
-
 
 	/*---------------------------------------------
 	**
@@ -3752,25 +3756,16 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 	*/
 
 	idmsg = M_IDENTIFY | xp->sc_link->lun;
-#ifndef NCR_NO_DISCONNECT
-	/*---------------------------------------------------------------------
-	** Some users have problems with this driver.
-	** I assume that the current problems relate to a conflict between
-	** a disconnect and an immediately following reconnect operation.
-	** With this option one can prevent the driver from using disconnects.
-	** Without disconnects the performance will be severely degraded.
-	** But it may help to trace down the core problem.
-	**---------------------------------------------------------------------
-	*/
-	if ((cp!=&np->ccb) && (np->disc))
-		idmsg |= 0x40;
-#endif
 
-	cp -> scsi_smsg [0] = idmsg;
-	msglen=1;
+	msgptr = cp->scsi_smsg;
+	msglen = 0;
+	msgptr[msglen++] = idmsg;
 
 	if (cp->tag) {
+	    char tag;
 
+	    tag = np->order;
+	    if (tag == 0) {
 		/*
 		**	Ordered write ops, unordered read ops.
 		*/
@@ -3778,31 +3773,23 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 		case 0x08:  /* READ_SMALL (6) */
 		case 0x28:  /* READ_BIG  (10) */
 		case 0xa8:  /* READ_HUGE (12) */
-			cp -> scsi_smsg [msglen] = M_SIMPLE_TAG;
-			break;
+		    tag = M_SIMPLE_TAG;
+		    break;
 		default:
-			cp -> scsi_smsg [msglen] = M_ORDERED_TAG;
+		    tag = M_ORDERED_TAG;
 		}
-
-		/*
-		**	can be overwritten by ncrcontrol
-		*/
-		switch (np->order) {
-		case M_SIMPLE_TAG:
-		case M_ORDERED_TAG:
-			cp -> scsi_smsg [msglen] = np->order;
-		};
-		msglen++;
-		cp -> scsi_smsg [msglen++] = cp -> tag;
+	    }
+	    msgptr[msglen++] = tag;
+	    msgptr[msglen++] = cp -> tag;
 	}
 
 	switch (nego) {
 	case NS_SYNC:
-		cp -> scsi_smsg [msglen++] = M_EXTENDED;
-		cp -> scsi_smsg [msglen++] = 3;
-		cp -> scsi_smsg [msglen++] = M_X_SYNC_REQ;
-		cp -> scsi_smsg [msglen++] = tp->minsync;
-		cp -> scsi_smsg [msglen++] = tp->maxoffs;
+		msgptr[msglen++] = M_EXTENDED;
+		msgptr[msglen++] = 3;
+		msgptr[msglen++] = M_X_SYNC_REQ;
+		msgptr[msglen++] = tp->minsync;
+		msgptr[msglen++] = tp->maxoffs;
 		if (DEBUG_FLAGS & DEBUG_NEGO) {
 			PRINT_ADDR(cp->xfer);
 			printf ("sync msgout: ");
@@ -3811,10 +3798,10 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 		};
 		break;
 	case NS_WIDE:
-		cp -> scsi_smsg [msglen++] = M_EXTENDED;
-		cp -> scsi_smsg [msglen++] = 2;
-		cp -> scsi_smsg [msglen++] = M_X_WIDE_REQ;
-		cp -> scsi_smsg [msglen++] = tp->usrwide;
+		msgptr[msglen++] = M_EXTENDED;
+		msgptr[msglen++] = 2;
+		msgptr[msglen++] = M_X_WIDE_REQ;
+		msgptr[msglen++] = tp->usrwide;
 		if (DEBUG_FLAGS & DEBUG_NEGO) {
 			PRINT_ADDR(cp->xfer);
 			printf ("wide msgout: ");
@@ -3956,11 +3943,11 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 	**	insert into start queue.
 	*/
 
-	ptr = np->squeueput + 1;
-	if (ptr >= MAX_START) ptr=0;
-	np->squeue [ptr	  ] = NCB_SCRIPT_PHYS (np, idle);
+	qidx = np->squeueput + 1;
+	if (qidx >= MAX_START) qidx=0;
+	np->squeue [qidx	 ] = NCB_SCRIPT_PHYS (np, idle);
 	np->squeue [np->squeueput] = CCB_PHYS (cp, phys);
-	np->squeueput = ptr;
+	np->squeueput = qidx;
 
 	if(DEBUG_FLAGS & DEBUG_QUEUE)
 		printf ("%s: queuepos=%d tryoffset=%d.\n", ncr_name (np),
