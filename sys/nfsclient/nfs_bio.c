@@ -424,7 +424,7 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		/*
 		 * Start the read ahead(s), as required.
 		 */
-		if (nfs_numasync > 0 && nmp->nm_readahead > 0) {
+		if (nmp->nm_readahead > 0) {
 		    for (nra = 0; nra < nmp->nm_readahead && nra < seqcount &&
 			(off_t)(lbn + 1 + nra) * biosize < np->n_size; nra++) {
 			rabn = lbn + 1 + nra;
@@ -609,7 +609,7 @@ again:
 		 * (You need the current block first, so that you have the
 		 *  directory offset cookie of the next block.)
 		 */
-		if (nfs_numasync > 0 && nmp->nm_readahead > 0 &&
+		if (nmp->nm_readahead > 0 &&
 		    (bp->b_flags & B_INVAL) == 0 &&
 		    (np->n_direofoffset == 0 ||
 		    (lbn + 1) * NFS_DIRBLKSIZ < np->n_direofoffset) &&
@@ -1117,18 +1117,11 @@ int
 nfs_asyncio(struct buf *bp, struct ucred *cred, struct thread *td)
 {
 	struct nfsmount *nmp;
-	int i;
+	int iod;
 	int gotiod;
 	int slpflag = 0;
 	int slptimeo = 0;
 	int error;
-
-	/*
-	 * If no async daemons then return EIO to force caller to run the rpc
-	 * synchronously.
-	 */
-	if (nfs_numasync == 0)
-		return (EIO);
 
 	nmp = VFSTONFS(bp->b_vp->v_mount);
 
@@ -1150,22 +1143,20 @@ again:
 	/*
 	 * Find a free iod to process this request.
 	 */
-	for (i = 0; i < NFS_MAXASYNCDAEMON; i++)
-		if (nfs_iodwant[i]) {
-			/*
-			 * Found one, so wake it up and tell it which
-			 * mount to process.
-			 */
-			NFS_DPF(ASYNCIO,
-				("nfs_asyncio: waking iod %d for mount %p\n",
-				 i, nmp));
-			nfs_iodwant[i] = (struct proc *)0;
-			nfs_iodmount[i] = nmp;
-			nmp->nm_bufqiods++;
-			wakeup((caddr_t)&nfs_iodwant[i]);
+	for (iod = 0; iod < NFS_MAXASYNCDAEMON; iod++)
+		if (nfs_iodwant[iod]) {
 			gotiod = TRUE;
 			break;
 		}
+
+	/*
+	 * Try to create one if none are free.
+	 */
+	if (!gotiod) {
+		iod = nfs_nfsiodnew();
+		if (iod != -1)
+			gotiod = TRUE;
+	}
 
 	/*
 	 * If none are free, we may already have an iod working on this mount
@@ -1185,6 +1176,17 @@ again:
 	 * the buffer.
 	 */
 	if (gotiod) {
+		/*
+		 * Found one, so wake it up and tell it which
+		 * mount to process.
+		 */
+		NFS_DPF(ASYNCIO, ("nfs_asyncio: waking iod %d for mount %p\n",
+		    iod, nmp));
+		nfs_iodwant[iod] = (struct proc *)0;
+		nfs_iodmount[iod] = nmp;
+		nmp->nm_bufqiods++;
+		wakeup((caddr_t)&nfs_iodwant[iod]);
+
 		/*
 		 * Ensure that the queue never grows too large.  We still want
 		 * to asynchronize so we block rather then return EIO.
