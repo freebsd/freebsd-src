@@ -745,7 +745,7 @@ ses_type(void *buf, int buflen)
 		/*
 		 * PassThrough Device.
 		 */
-		return (SES_SES_PASSTHRU);
+		return (SES_SES_PASSTHROUGH);
 	}
 #endif
 
