@@ -457,6 +457,8 @@
             ..
             zh_CN.eucCN
             ..
+            zh_CN.GB18030
+            ..
             zh_TW.Big5
             ..
         ..

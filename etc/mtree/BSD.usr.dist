@@ -607,6 +607,8 @@
             ..
             zh_CN.eucCN
             ..
+            zh_CN.GB18030
+            ..
             zh_TW.Big5
             ..
         ..
@@ -920,6 +922,8 @@
             uk_UA.KOI8-U
             ..
             zh_CN.eucCN
+            ..
+            zh_CN.GB18030
             ..
             zh_TW.Big5
             ..
