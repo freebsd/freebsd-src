@@ -47,7 +47,6 @@ SUBDIR=	IPXrouted \
 	mrouted \
 	mtest \
 	mtree \
-	ndp \
 	newsyslog \
 	ngctl \
 	ntp \
