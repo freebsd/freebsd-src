@@ -117,9 +117,9 @@ getsock(struct filedesc *fdp, int fd, struct file **fpp)
 	if (fdp == NULL)
 		error = EBADF;
 	else {
-		FILEDESC_LOCK(fdp);
+		FILEDESC_LOCK_FAST(fdp);
 		fp = fget_locked(fdp, fd);
-		if(fp == NULL)
+		if (fp == NULL)
 			error = EBADF;
 		else if (fp->f_type != DTYPE_SOCKET) {
 			fp = NULL;
@@ -128,7 +128,7 @@ getsock(struct filedesc *fdp, int fd, struct file **fpp)
 			fhold(fp);
 			error = 0;
 		}
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_UNLOCK_FAST(fdp);
 	}
 	*fpp = fp;
 	return (error);
@@ -170,12 +170,12 @@ socket(td, uap)
 	if (error) {
 		fdclose(fdp, fp, fd, td);
 	} else {
-		FILEDESC_LOCK(fdp);
+		FILEDESC_LOCK_FAST(fdp);
 		fp->f_data = so;	/* already has ref count */
 		fp->f_flag = FREAD|FWRITE;
 		fp->f_ops = &socketops;
 		fp->f_type = DTYPE_SOCKET;
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_UNLOCK_FAST(fdp);
 		td->td_retval[0] = fd;
 	}
 	fdrop(fp, td);

@@ -211,15 +211,15 @@ svr4_fil_ioctl(fp, td, retval, fd, cmd, data)
 
 	switch (cmd) {
 	case SVR4_FIOCLEX:
-		FILEDESC_LOCK(fdp);
+		FILEDESC_LOCK_FAST(fdp);
 		fdp->fd_ofileflags[fd] |= UF_EXCLOSE;
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_UNLOCK_FAST(fdp);
 		return 0;
 
 	case SVR4_FIONCLEX:
-		FILEDESC_LOCK(fdp);
+		FILEDESC_LOCK_FAST(fdp);
 		fdp->fd_ofileflags[fd] &= ~UF_EXCLOSE;
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_UNLOCK_FAST(fdp);
 		return 0;
 
 	case SVR4_FIOGETOWN:
