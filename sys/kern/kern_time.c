@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.62 1999/04/07 16:36:56 nsayer Exp $
+ * $Id: kern_time.c,v 1.63 1999/04/07 17:32:21 mjacob Exp $
  */
 
 #include <sys/param.h>
@@ -79,7 +79,7 @@ settime(tv)
 	struct timeval *tv;
 {
 	struct timeval delta, tv1, tv2;
-	static struct timeval maxtime;
+	static struct timeval maxtime, laststep;
 	struct timespec ts;
 	int s;
 
@@ -94,11 +94,15 @@ settime(tv)
 	 * time we have yet seen. The worst a miscreant can do in
 	 * this circumstance is "freeze" time. He couldn't go
 	 * back to the past.
+	 *
+	 * We similarly do not allow the clock to be stepped more
+	 * than one second, nor more than once per second. This allows
+	 * a miscreant to make the clock march double-time, but no worse.
 	 */
 	if (securelevel > 1) {
 		if (delta.tv_sec < 0 || delta.tv_usec < 0) {
 			/*
-			 * Initialize maxtime if we've not seen it before.
+			 * Update maxtime to latest time we've seen.
 			 */
 			if (tv1.tv_sec > maxtime.tv_sec)
 				maxtime = tv1;
@@ -109,14 +113,15 @@ settime(tv)
 				printf("Time adjustment clamped to -1 second\n");
 			}
 		} else {
-			/*
-			 * XXX
-			 * We have to figure out how to be secure
-			 * in this case. Allowing arbitrary
-			 * positive increases allows a miscreant
-			 * to simply wrap time around the end
-			 * of time.
-			 */
+			if (tv1.tv_sec == laststep.tv_sec) {
+				splx(s);
+				return (EPERM);
+			}
+			if (delta.tv_sec > 1) {
+				tv->tv_sec = tv1.tv_sec + 1;
+				printf("Time adjustment clamped to +1 second\n");
+			}
+			laststep = *tv;
 		}
 	}
 
