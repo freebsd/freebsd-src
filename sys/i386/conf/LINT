@@ -574,19 +574,12 @@ options 	TCPDEBUG
 options                ACCEPT_FILTER_DATA
 options                ACCEPT_FILTER_HTTP
 
-# The following options add sysctl variables for controlling how certain
-# TCP packets are handled.
 #
 # TCP_DROP_SYNFIN adds support for ignoring TCP packets with SYN+FIN. This
 # prevents nmap et al. from identifying the TCP/IP stack, but breaks support
 # for RFC1644 extensions and is not recommended for web servers.
 #
-# TCP_RESTRICT_RST adds support for blocking the emission of TCP RST packets.
-# This is useful on systems which are exposed to SYN floods (e.g. IRC servers)
-# or any system which one does not want to be easily portscannable.
-#
 options 	TCP_DROP_SYNFIN		#drop TCP packets with SYN+FIN
-options 	TCP_RESTRICT_RST	#restrict emission of TCP RST
 
 # ICMP_BANDLIM enables icmp error response bandwidth limiting.   You
 # typically want this option as it will help protect the machine from

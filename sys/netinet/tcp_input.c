@@ -132,12 +132,6 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, drop_synfin, CTLFLAG_RW,
     &drop_synfin, 0, "Drop TCP packets with SYN+FIN set");
 #endif
 
-#ifdef TCP_RESTRICT_RST
-static int restrict_rst = 0;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, restrict_rst, CTLFLAG_RW,
-    &restrict_rst, 0, "Restrict RST emission");
-#endif
-
 struct inpcbhead tcb;
 #define	tcb6	tcb  /* for KAME src sync over BSD*'s */
 struct inpcbinfo tcbinfo;
@@ -2313,14 +2307,8 @@ dropwithreset:
 	/* IPv6 anycast check is done at tcp6_input() */
 
 	/* 
-	 * Perform bandwidth limiting (and RST blocking
-	 * if kernel is so configured.)
+	 * Perform bandwidth limiting.
 	 */
-#ifdef TCP_RESTRICT_RST
-	if (restrict_rst)
-		goto drop;
-#endif
-
 #ifdef ICMP_BANDLIM
 	if (badport_bandlim(rstreason) < 0)
 		goto drop;

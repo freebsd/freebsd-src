@@ -267,7 +267,6 @@ SLIP_IFF_OPTS		opt_slip.h
 TCP_COMPAT_42		opt_compat.h
 TCPDEBUG
 TCP_DROP_SYNFIN		opt_tcp_input.h
-TCP_RESTRICT_RST	opt_tcp_input.h
 XBONEHACK
 
 # Netgraph(4). Use option NETGRAPH to enable the base netgraph code.
