@@ -2,6 +2,8 @@
 #
 # Doing a make install builds /usr/share/sendmail/
 
+MAINTAINER=	gshapiro@FreeBSD.org
+
 SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 CFDIR=	cf
 CFDIRS!=	(cd ${SENDMAIL_DIR}; find -L ${CFDIR} \( -name CVS -prune \) -o -type d -print)
