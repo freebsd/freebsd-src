@@ -143,7 +143,7 @@ static void
 g_do_event(struct g_event *ep)
 {
 	struct g_class *mp;
-	struct g_consumer *cp, *cp2;
+	struct g_consumer *cp;
 	struct g_provider *pp;
 	int i;
 
@@ -170,24 +170,6 @@ g_do_event(struct g_event *ep)
 				mp->taste(mp, pp, 0);
 				g_topology_assert();
 			}
-		}
-		break;
-	case EV_SPOILED:
-		pp = ep->ref[0];
-		g_trace(G_T_TOPOLOGY, "EV_SPOILED(%p(%s),%p)",
-		    pp, pp->name, ep->ref[1]);
-		cp = LIST_FIRST(&pp->consumers);
-		while (cp != NULL) {
-			cp2 = LIST_NEXT(cp, consumers);
-			if (cp->spoiled) {
-				g_trace(G_T_TOPOLOGY, "spoiling %p (%s) (%p)",
-				    cp, cp->geom->name, cp->geom->spoiled);
-				if (cp->geom->spoiled != NULL)
-					cp->geom->spoiled(cp);
-				else
-					cp->spoiled = 0;
-			}
-			cp = cp2;
 		}
 		break;
 	case EV_LAST:
