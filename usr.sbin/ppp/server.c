@@ -46,6 +46,7 @@
 #include "id.h"
 #include "prompt.h"
 #include "ncpaddr.h"
+#include "probe.h"
 
 static int
 server_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
@@ -308,9 +309,8 @@ enum server_stat
 server_TcpOpen(struct bundle *bundle, u_short port)
 {
   struct sockaddr_storage ss;
-#ifdef NOINET6
   struct sockaddr_in *sin = (struct sockaddr_in *)&ss;
-#else
+#ifndef NOINET6
   struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&ss;
 #endif
   int s, sz;
@@ -322,20 +322,24 @@ server_TcpOpen(struct bundle *bundle, u_short port)
     return SERVER_INVALID;
 
   memset(&ss, '\0', sizeof ss);
-#ifdef NOINET6
-  sin->sin_family = AF_INET;
-  sin->sin_port = htons(port);
-  sin->sin_len = sizeof ss;
-  sin->sin_addr.s_addr = INADDR_ANY;
-  sz = sizeof *sin;
-  s = socket(PF_INET, SOCK_STREAM, 0);
-#else
-  sin6->sin6_family = AF_INET6;
-  sin6->sin6_port = htons(port);
-  sin6->sin6_len = sizeof ss;
-  sz = sizeof *sin6;
-  s = socket(PF_INET6, SOCK_STREAM, 0);
+#ifndef NOINET6
+  if (probe.ipv6_available) {
+    sin6->sin6_family = AF_INET6;
+    sin6->sin6_port = htons(port);
+    sin6->sin6_len = sizeof ss;
+    sz = sizeof *sin6;
+    s = socket(PF_INET6, SOCK_STREAM, 0);
+  } else
 #endif
+  {
+    sin->sin_family = AF_INET;
+    sin->sin_port = htons(port);
+    sin->sin_len = sizeof ss;
+    sin->sin_addr.s_addr = INADDR_ANY;
+    sz = sizeof *sin;
+    s = socket(PF_INET, SOCK_STREAM, 0);
+  }
+
   if (s < 0) {
     log_Printf(LogERROR, "Tcp: socket: %s\n", strerror(errno));
     goto failed;
