@@ -3077,7 +3077,7 @@
     </para>
 
     <para arch="i386,ia64,pc98">USB 2.0 controllers using the EHCI
-      interface (ehci driver)</para>
+      interface (&man.ehci.4; driver)</para>
 
     <para arch="i386,pc98,alpha">Hubs
       <itemizedlist>
