@@ -153,6 +153,9 @@ tcp_canceltimers(tp)
 	callout_stop(tp->tt_rexmt);
 }
 
+int	tcp_syn_backoff[TCP_MAXRXTSHIFT + 1] =
+    { 1, 1, 1, 1, 1, 2, 4, 8, 16, 32, 64, 64, 64 };
+
 int	tcp_backoff[TCP_MAXRXTSHIFT + 1] =
     { 1, 2, 4, 8, 16, 32, 64, 64, 64, 64, 64, 64, 64 };
 
@@ -393,7 +396,10 @@ tcp_timer_rexmt(xtp)
 		tp->t_badrxtwin = ticks + (tp->t_srtt >> (TCP_RTT_SHIFT + 1));
 	}
 	tcpstat.tcps_rexmttimeo++;
-	rexmt = TCP_REXMTVAL(tp) * tcp_backoff[tp->t_rxtshift];
+	if (tp->t_state == TCPS_SYN_SENT)
+		rexmt = TCP_REXMTVAL(tp) * tcp_syn_backoff[tp->t_rxtshift];
+	else
+		rexmt = TCP_REXMTVAL(tp) * tcp_backoff[tp->t_rxtshift];
 	TCPT_RANGESET(tp->t_rxtcur, rexmt,
 		      tp->t_rttmin, TCPTV_REXMTMAX);
 	/*
