@@ -80,7 +80,18 @@ struct	ether_addr {
 #define	ETHERMTU	(ETHER_MAX_LEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
 #define	ETHERMIN	(ETHER_MIN_LEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
 
-#ifndef _KERNEL
+#ifdef _KERNEL
+
+extern	void (*ng_ether_input_p)(struct ifnet *ifp,
+		struct mbuf **mp, struct ether_header *eh);
+extern	void (*ng_ether_input_orphan_p)(struct ifnet *ifp,
+		struct mbuf *m, struct ether_header *eh);
+extern	int  (*ng_ether_output_p)(struct ifnet *ifp, struct mbuf **mp);
+extern	void (*ng_ether_attach_p)(struct ifnet *ifp);
+extern	void (*ng_ether_detach_p)(struct ifnet *ifp);
+
+#else /* _KERNEL */
+
 #include <sys/cdefs.h>
 
 /*
@@ -93,6 +104,7 @@ int	ether_line __P((char *, struct ether_addr *, char *));
 char 	*ether_ntoa __P((struct ether_addr *));
 int	ether_ntohost __P((char *, struct ether_addr *));
 __END_DECLS
-#endif
+
+#endif /* !_KERNEL */
 
 #endif /* !_NET_ETHERNET_H_ */

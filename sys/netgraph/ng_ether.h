@@ -45,18 +45,18 @@
 
 /* Node type name and magic cookie */
 #define NG_ETHER_NODE_TYPE	"ether"
-#define NGM_ETHER_COOKIE	917786904
+#define NGM_ETHER_COOKIE	917786905
 
 /* Hook names */
-#define NG_ETHER_HOOK_ORPHAN	"orphans"
-#define NG_ETHER_HOOK_DIVERT	"divert"
+#define NG_ETHER_HOOK_LOWER	"lower"		/* connection to raw device */
+#define NG_ETHER_HOOK_UPPER	"upper"		/* connection to upper layers */
+#define NG_ETHER_HOOK_DIVERT	"divert"	/* alias for lower */
+#define NG_ETHER_HOOK_ORPHAN	"orphans"	/* like lower, unknowns only */
 
-/* For adding/removing Ethernet multicast addresses */
+/* Netgraph control messages */
 enum {
-	NGM_ETHER_ADD_MULTICAST = 1,	/* supply struct ether_addr */
-	NGM_ETHER_DEL_MULTICAST,	/* supply struct ether_addr */
-	NGM_ETHER_GET_MULTICAST,	/* returns array of struct ether_addr */
-	NGM_ETHER_CLR_MULTICAST,	/* clears all multicast addresses */
+	NGM_ETHER_GET_IFNAME = 1,	/* get the interface name */
+	NGM_ETHER_GET_IFINDEX,		/* get the interface global index # */
 };
 
 #endif /* _NETGRAPH_NG_ETHER_H_ */
