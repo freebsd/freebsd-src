@@ -21,6 +21,12 @@ paper.txt: ${SRCS}
 apndx.txt: ${APNDX}
 	${TBL} ${APNDX} | ${ROFF} - > ${.TARGET}
 
+paper.ascii.gz: paper.txt apndx.txt
+	cat paper.txt apndx.txt | gzip -c > ${.TARGET}
+
+paper.ps.gz: paper.ps
+	gzip -f paper.ps
+
 clean:
 	rm -f paper.* apndx.* *.spell errs Errs make.out
 
