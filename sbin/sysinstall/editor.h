@@ -16,4 +16,3 @@ struct field {
 
 int disp_fields(WINDOW *, struct field *, int);
 int change_field(struct field, int);
-int edit_line(WINDOW *, int, int, char *, int, int);
