@@ -27,8 +27,7 @@
 .\" * Other names and brands may be claimed as the property of others.
 .\"
 .\" $FreeBSD$
-.\"
-.Dd April 5, 2002
+.Dd July 26, 2002
 .Dt EM 4
 .Os
 .Sh NAME
@@ -40,10 +39,10 @@
 The
 .Nm
 driver provides support for PCI gigabit Ethernet adapters based on
-the Intel 82540, 82542, 82543 and 82544 Ethernet controller chip.
+the Intel 82540, 82542, 82543, 82544, and 82546 Ethernet controller chips.
 The driver supports Transmit/Receive checksum offload
-and Jumbo Frames only on 82540, 82543 and 82544-based adapters.
-For a list of supported adapters, see the
+and Jumbo Frames only on 82540, 82543, 82544 and 82546-based adapters.
+For a list of supported adapters, see the 
 .Pa README
 included with the driver.
 .Pp
@@ -58,6 +57,8 @@ Selecting an MTU larger than 1500 bytes with the
 utility configures the adapter to receive and transmit Jumbo Frames.
 The maximum MTU size for Jumbo Frames is 16114.
 .Pp
+This driver version supports VLANs. For information on enabling VLANs, see the
+.Pa README.
 The
 .Nm
 driver supports the following media types:
@@ -134,6 +135,7 @@ If an issue is identified with the released source code on the supported kernel
 with a supported adapter, email the specific information related to the
 issue to
 .Aq freebsdnic@mailbox.intel.com .
+.El
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr gx 4 ,
