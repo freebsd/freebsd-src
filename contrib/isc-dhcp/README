@@ -1,7 +1,48 @@
 		     Internet Software Consortium
 	   Dynamic Host Configuration Protocol Distribution
-		   Version 2, Beta 1, Patchlevel 18
-			    March 5, 1998
+		   Version 2, Beta 1, Patchlevel 27
+			    April 23, 1999
+
+Documentation for this software includes this README file, the
+RELNOTES file, and the manual pages, which are in the server, common,
+client and relay subdirectories.  Internet standards relating to the
+DHCP protocol are stored in the doc subdirectory.  You will have the
+best luck reading the manual pages if you build this software and then
+install it, although you can read them directly out of the
+distribution if you need to.
+
+DHCP server documentation is in the dhcpd man page.  Information about
+the DHCP server lease database is in the dhcpd.leases man page.
+Server configuration documentation is in the dhcpd.conf man page as
+well as the dhcp-options man page.   A sample DHCP server
+configuration is in the file server/dhcpd.conf.
+
+DHCP Client documentation is in the dhclient man page.  DHCP client
+configuration documentation is in the dhclient.conf man page and the
+dhcp-options man page.  The DHCP client configuration script is
+documented in the dhclient-script man page.   The format of the DHCP
+client lease database is documented in the dhclient.leases man page.
+
+DHCP relay agent documentation is in the dhcrelay man page.
+
+To read installed manual pages, use the man command.  Type "man page"
+where page is the name of the manual page.
+
+If you want to read manual pages that aren't installed, you can type
+``nroff -man page |more'' where page is the filename of the
+unformatted manual page.  The filename of an unformatted manual page
+is the name of the manual page, followed by '.', followed by some
+number - 5 for documentation about files, and 8 for documentation
+about programs.
+
+If you do not have the nroff command, you can type ``more catpage''
+where catpage is the filename of the catted man page.  Catted man
+pages names are the name of the manual page followed by ".cat"
+followed by 5 or 8, as with unformatted manual pages.
+
+Please note that until you install the manual pages, the pathnames of
+files to which they refer will not be correct for your operating
+system.
 
 This is the first Beta release of Version 2 of the Internet Software
 Consortium DHCP Distribution.  In version 2.0, this distribution
@@ -12,14 +53,12 @@ running a production environment should probably still use version
 November of 1996.
 
 In this release, the server and relay agent currently work well on
-NetBSD, Linux, FreeBSD, BSD/OS, Ultrix, Digital Alpha OSF/1, and SunOS
-4.1.4.  They can also be run usefully on Solaris as long as only one
-broadcast network interface is configured.  They also runs on QNX as
-long as only one broadcast network interface is configured and a host
-route is added from that interface to the 255.255.255.255 broadcast
-address.  If you are running a Linux 2.0.30 or previous kernel, the
-DHCP daemons will only be able to operate on machines with a single
-network interface.
+NetBSD, Linux after kernel version 2.0.30, FreeBSD, BSD/OS, Ultrix,
+Digital Alpha OSF/1, Solaris and SunOS 4.1.4.  They run on AIX, HPUX,
+IRIX and Linux 2.0.30 and earlier kernels but support only a single
+broadcast network interface.  They also runs on QNX as long as only
+one broadcast network interface is configured and a host route is
+added from that interface to the 255.255.255.255 broadcast address.
 
 The DHCP client currently only knows how to configure the network on
 NetBSD, FreeBSD, BSD/os, Linux, Solaris and NextStep.  The client
@@ -47,9 +86,12 @@ information.   On Digital Unix, type ``man pfilt''.
 To build the DHCP Distribution, unpack the compressed tar file using
 the tar utility and the gzip command - type something like:
 
-	zcat dhcp-2.0b1pl18.tar.gz |tar xvf -
+	zcat dhcp-2.0b1pl27.tar.gz |tar xvf -
 
-Now, cd to the dhcp-2.0b1pl18 subdirectory that you've just created and
+On BSD/OS, you have to type gzcat, not zcat, and you may run into
+similar problems on other operating systems.
+
+Now, cd to the dhcp-2.0b1pl27 subdirectory that you've just created and
 configure the source tree by typing:
 
 		./configure
@@ -103,16 +145,21 @@ make sure it's pointing to correct linux source directory.
 		    LINUX: PROTOCOL NOT CONFIGURED
 
 One additional Linux 2.1/2.2 issue: if you get the following message,
-it's because your kernel doesn't have the linux packetfilter
-configured:
+it's because your kernel doesn't have the linux packetfilter or raw
+packet socket configured:
 
-   Can't install packet filter program: Protocol not available
-   exiting.
+ Set CONFIG_PACKET=y and CONFIG_FILTER=y in your kernel configuration
 
 If this happens, you need to edit your linux kernel .config file, set
-CONFIG_FILTER=y, and rebuild your kernel.   If the preceding sentence
-made no sense to you, ask your Linux vendor/guru for help - please
-don't ask us.
+CONFIG_FILTER=y and CONFIG_PACKET=y, and rebuild your kernel.   If the
+preceding sentence made no sense to you, ask your Linux vendor/guru
+for help - please don't ask us.
+
+If you set CONFIG_PACKET=m or CONFIG_FILTER=m, then you must tell the
+kernel module loader to load the appropriate modules.  If this doesn't
+make sense to you, don't use CONFIG_whatever=m - use CONFIG_whatever=y.  
+Don't ask for help with this on the DHCP mailing list - it's a Linux
+kernel issue.
 
 			   LINUX: BROADCAST
 
@@ -275,9 +322,74 @@ mailing list.
 If you are going to use dhcpd, you should probably subscribe to the
 dhcp-server and dhcp-announce mailing lists.  If you will be using
 dhclient, you should subscribe to the dhcp-client mailing list.
+
+If you need help, you should ask on the dhcp-server or dhcp-client
+mailing list (or both) - whichever is appropriate to your
+application.   This includes reporting bugs.   Please do not report
+bugs in old software releases - fetch the latest release and see if
+the bug is still in that copy of the software, and if it's not, _then_
+report it.   It's okay to report bugs in the latest patchlevel of a
+major version that's not the most recent major version, though - for
+example, if you're running 2.0, you don't have to upgrade to 3.0
+before you can report bugs.
+
+PLEASE READ THIS README FILE CAREFULLY BEFORE REPORTING BUGS!
+
+When you report bugs, please provide us complete information.   A list
+of information we need follows.   Please read it carefully, and put
+all the information you can into your initial bug report, so that we
+don't have to ask you any questions in order to figure out your
+problem.
+
+	- The specific operating system name and version of the
+          machine on which the DHCP server or client is running.
+	- The specific operating system name and version of the
+          machine on which the client is running, if you are having
+          trouble getting a client working with the server.
+	- If you're running Linux, the version number we care about is
+          the kernel version and maybe the library version, not the
+          distribution version - e.g., while we don't mind knowing
+          that you're running Redhat version mumble.foo, we must know
+          what kernel version you're running, and it helps if you can
+          tell us what version of the C library you're running,
+          although if you don't know that off the top of your head it
+          may be hard for you to figure it out, so don't go crazy
+          trying.
+	- The specific version of the DHCP distribution you're
+          running, for example 2.0b1pl19, not 2.0.
+	- Please explain the problem carefully, thinking through what
+          you're saying to ensure that you don't assume we know
+          something about your situation that we don't know.
+	- Include your dhcpd.conf and dhcpd.leases file if they're not
+          huge (if they are huge, we may need them anyway, but don't
+          send them until you're asked).
+	- Include a log of your server or client running until it
+          encounters the problem - for example, if you are having
+          trouble getting some client to get an address, restart the
+          server with the -d flag and then restart the client, and
+          send us what the server prints.   Likewise, with the client,
+          include the output of the client as it fails to get an
+          address or otherwise does the wrong thing.   Do not leave
+          out parts of the output that you think aren't interesting.
+	- If the client or server is dumping core, please run the
+          debugger and get a stack trace, and include that in your
+          bug report.   For example, if your debugger is gdb, do the
+          following:
+
+		gdb dhcpd dhcpd.core
+		(gdb) where
+		      [...]
+		(gdb) quit
+
+	  This assumes that it's the dhcp server you're debugging, and
+	  that the core file is in dhcpd.core.
+
 PLEASE DO NOT send queries about non-isc clients to the dhcp-client
 mailing list.   If you're asking about them on an ISC mailing list,
 it's probably because you're using the ISC DHCP server, so ask there.
+If you are having problems with a client whose executable is called
+dhcpcd, this is _not_ the ISC DHCP client, and we probably can't help
+you with it.
 
 Please see http://www.fugue.com/dhcp/lists for details on how to
 subscribe.  If you don't have WorldWide Web access, you can send mail
@@ -307,4 +419,4 @@ most users.
 
 Vendor tags and User tags are not currently supported.
 
-
+These two omissions are fixed in the 3.0 release.

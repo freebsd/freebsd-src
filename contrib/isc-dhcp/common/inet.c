@@ -40,6 +40,11 @@
  * Enterprises, see ``http://www.vix.com''.
  */
 
+#ifndef lint
+static char copyright[] =
+"$Id: inet.c,v 1.5.2.2 1999/04/24 16:48:10 mellon Exp $ Copyright (c) 1995, 1996, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n";
+#endif /* not lint */
+
 #include "dhcpd.h"
 
 /* Return just the network number of an internet address... */
@@ -114,7 +119,7 @@ struct iaddr broadcast_addr (subnet, mask)
 	struct iaddr subnet;
 	struct iaddr mask;
 {
-	int i, j, k;
+	int i;
 	struct iaddr rv;
 
 	if (subnet.len != mask.len) {
