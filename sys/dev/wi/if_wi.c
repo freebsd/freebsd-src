@@ -961,6 +961,7 @@ wi_start(struct ifnet *ifp)
 			if (k == NULL) {
 				if (ni != NULL)
 					ieee80211_free_node(ni);
+				m_freem(m0);
 				continue;
 			}
 			frmhdr.wi_tx_ctl |= htole16(WI_TXCNTL_NOCRYPT);

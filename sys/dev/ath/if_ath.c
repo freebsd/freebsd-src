@@ -2940,6 +2940,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 			 * 802.11 layer counts failures and provides
 			 * debugging/diagnostics.
 			 */
+			m_freem(m0);
 			return EIO;
 		}
 		/*
