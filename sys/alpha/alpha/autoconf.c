@@ -204,7 +204,7 @@ configure(void *dummy)
 void
 cpu_rootconf()
 {
-#if defined(NFS) && defined(NFS_ROOT)
+#if defined(NFSCLIENT) && defined(NFS_ROOT)
 	int	order = 0;
 #if !defined(BOOTP_NFSROOT)
 	if (nfs_diskless_valid)
