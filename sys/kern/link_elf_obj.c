@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_elf.c,v 1.4 1998/10/12 09:13:47 peter Exp $
+ *	$Id: link_elf.c,v 1.5 1998/10/13 09:27:00 peter Exp $
  */
 
 #include <sys/param.h>
@@ -146,6 +146,7 @@ link_elf_init(void* arg)
 	ef = malloc(sizeof(struct elf_file), M_LINKER, M_NOWAIT);
 	if (ef == NULL)
 	    panic("link_elf_init: Can't create linker structures for kernel");
+	bzero(ef, sizeof(*ef));
 
 	ef->address = 0;
 #ifdef SPARSE_MAPPING
@@ -358,6 +359,7 @@ link_elf_load_module(const char *filename, linker_file_t *result)
     ef = malloc(sizeof(struct elf_file), M_LINKER, M_WAITOK);
     if (ef == NULL)
 	return (ENOMEM);
+    bzero(ef, sizeof(*ef));
     ef->modptr = modptr;
     ef->address = *(caddr_t *)baseptr;
 #ifdef SPARSE_MAPPING
@@ -546,6 +548,7 @@ link_elf_load_file(const char* filename, linker_file_t* result)
     mapsize = base_vlimit - base_vaddr;
 
     ef = malloc(sizeof(struct elf_file), M_LINKER, M_WAITOK);
+    bzero(ef, sizeof(*ef));
 #ifdef SPARSE_MAPPING
     ef->object = vm_object_allocate(OBJT_DEFAULT, mapsize >> PAGE_SHIFT);
     if (ef->object == NULL) {
@@ -641,6 +644,7 @@ link_elf_load_file(const char* filename, linker_file_t* result)
 	error = ENOMEM;
 	goto out;
     }
+    bzero(shdr, nbytes);
     error = vn_rdwr(UIO_READ, nd.ni_vp,
 		    (caddr_t)shdr, nbytes, u.hdr.e_shoff,
 		    UIO_SYSSPACE, IO_NODELOCKED, p->p_ucred, &resid, p);
@@ -739,7 +743,6 @@ load_dependancies(linker_file_t lf)
     elf_file_t ef = lf->priv;
     linker_file_t lfdep;
     char* name;
-    char* filename = 0;
     const Elf_Dyn *dp;
     int error = 0;
 
@@ -764,8 +767,6 @@ load_dependancies(linker_file_t lf)
     }
 
 out:
-    if (filename)
-	free(filename, M_TEMP);
     return error;
 }
 
@@ -775,8 +776,8 @@ symbol_name(elf_file_t ef, const Elf_Rela *rela)
     const Elf_Sym *ref;
 
     if (ELF_R_SYM(rela->r_info)) {
-	ref = ef->ddbsymtab + ELF_R_SYM(rela->r_info);
-	return ef->ddbstrtab + ref->st_name;
+	ref = ef->symtab + ELF_R_SYM(rela->r_info);
+	return ef->strtab + ref->st_name;
     } else
 	return NULL;
 }
