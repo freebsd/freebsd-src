@@ -14,6 +14,7 @@ global:
 	__pthread_cond_wait;
 	__pthread_mutex_lock;
 	__pthread_mutex_trylock;
+	__pthread_mutex_timedlock;
 	__read;
 	__readv;
 	__select;
@@ -26,6 +27,13 @@ global:
 	_nanosleep;
 	_pause;
 	_pselect;
+	_pthread_barrier_destroy;
+	_pthread_barrier_init;
+	_pthread_barrier_wait;
+	_pthread_barrierattr_destroy;
+	_pthread_barrierattr_getpshared;
+	_pthread_barrierattr_init;
+	_pthread_barrierattr_setpshared;
 	_pthread_attr_default;
 	_pthread_attr_destroy;
 	_pthread_attr_get_np;
@@ -80,6 +88,7 @@ global:
 	_pthread_mutex_init;
 	_pthread_mutex_lock;
 	_pthread_mutex_setprioceiling;
+	_pthread_mutex_timedlock;
 	_pthread_mutex_trylock;
 	_pthread_mutex_unlock;
 	_pthread_mutexattr_default;
@@ -162,6 +171,13 @@ global:
 	pause;
 	poll;
 	pselect;
+	pthread_barrier_destroy;
+	pthread_barrier_init;
+	pthread_barrier_wait;
+	pthread_barrierattr_destroy;
+	pthread_barrierattr_getpshared;
+	pthread_barrierattr_init;
+	pthread_barrierattr_setpshared;
 	pthread_attr_destroy;
 	pthread_attr_get_np;
 	pthread_attr_getdetachstate;
@@ -214,6 +230,7 @@ global:
 	pthread_mutex_init;
 	pthread_mutex_lock;
 	pthread_mutex_setprioceiling;
+	pthread_mutex_timedlock;
 	pthread_mutex_trylock;
 	pthread_mutex_unlock;
 	pthread_mutexattr_destroy;
