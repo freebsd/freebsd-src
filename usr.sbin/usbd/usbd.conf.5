@@ -135,7 +135,7 @@ A sample entry to rescan the SCSI bus on connection of a
       product 0x0001
       vendor  0x059b
       release 0x0100
-      attach "/usr/bin/camcontrol rescan bus 0"
+      attach "/usr/bin/camcontrol rescan 0"
 .Ed
 .Pp
 To start up moused for a newly attached mouse:
@@ -145,7 +145,7 @@ To start up moused for a newly attached mouse:
       attach "/usr/sbin/moused -p /dev/${DEVNAME} -I /var/run/moused.${DEVNAME}.pid"
 .Ed
 .Sh FILES
-.Bl -tag -width /etc/pccard.conf -compact
+.Bl -tag -width /etc/usbd.conf -compact
 .It Pa /etc/usbd.conf
 The
 .Nm usbd
