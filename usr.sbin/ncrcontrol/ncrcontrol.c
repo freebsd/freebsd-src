@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id$
+**  $Id: ncrcontrol.c,v 1.16 1997/02/22 16:08:15 peter Exp $
 **
 **  Utility for NCR 53C810 device driver.
 **
@@ -352,7 +352,22 @@ void printc (u_char*p, int l)
 **================================================================
 */
 
-do_info(void)
+static double syncmhz(int negoval)
+{
+	switch (negoval) {
+	case 0:
+		return 0.0;
+	case 10:
+		return 40.0;
+	case 11:
+		return 33.0;
+	case 12:
+		return 20.0;
+	}
+	return 250.0 / negoval;
+}
+
+void do_info(void)
 {
 	int t,l,i,d,f,fl;
 	struct tcb * tip;
@@ -389,7 +404,7 @@ do_info(void)
 				if (tip->period==0xffff) {
 					printf ("asyn");
 				} else if (tip->period) {
-					printf ("%4.1f", 1000.0 / tip->period);
+					printf ("%4.1f", 10000.0 / tip->period);
 				} else {
 					printf ("   ?");
 				}
@@ -399,7 +414,7 @@ do_info(void)
 				if (tip->minsync==255) {
 					printf ("asyn");
 				} else if (tip->minsync) {
-					printf ("%4.1f", 250.0 / tip->minsync);
+					printf ("%4.1f", syncmhz(tip->minsync));
 				} else {
 					printf ("   ?");
 				}
@@ -1344,7 +1359,7 @@ static void dump_ncr (void)
 	printf    ("      script: @ %x (p=%x)\n", ncr.script, ncr.p_script);
 
 	printf ("hostscsiaddr: %d\n", ncr.myaddr);
-	printf ("    ns_sync : %d ns\n", ncr.ns_sync);
+	printf ("     minsync: %d\n", ncr.minsync);
 	printf ("      scntl3: 0x%02x\n", ncr.rv_scntl3);
 	printf ("\n");
 
@@ -1405,7 +1420,7 @@ static void dump_ncr (void)
 	};
 
 	if (strchr (debug_opt, 'c')) {
-		dump_ccb  (&ncr.ccb, ncr_base + offsetof (struct ncb, ccb));
+		dump_ccb  (ncr.ccb, ncr_base + offsetof (struct ncb, ccb));
 	};
 
 	if (strchr (debug_opt, 'm')) {
