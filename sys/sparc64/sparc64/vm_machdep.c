@@ -119,29 +119,13 @@ cpu_thread_setup(struct thread *td)
 }
 
 void
-cpu_save_upcall(struct thread *td, struct kse *newkse)
-{
-}
-
-void
 cpu_set_upcall(struct thread *td, void *pcb)
 {
 }
 
 void
-cpu_set_args(struct thread *td, struct kse *ke)
+cpu_set_upcall_kse(struct thread *td, struct kse *ke)
 {
-}
-
-void
-cpu_free_kse_mdstorage(struct kse *ke)
-{
-}
-
-int
-cpu_export_context(struct thread *td)
-{
-	return (0);
 }
 
 /*
