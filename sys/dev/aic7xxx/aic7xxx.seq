@@ -39,7 +39,7 @@
  *
  *-M************************************************************************/
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.47 1996/11/05 07:51:29 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.48 1996/11/11 05:16:36 gibbs Exp $"
 
 #if defined(__NetBSD__)
 #include "../../../../dev/ic/aic7xxxreg.h"
@@ -508,6 +508,8 @@ p_command:
  * and store it into the SCB.
  */
 p_status:
+	call	assert
+
 	mvi	SCB_TARGET_STATUS	call inb_first
 	jmp	mesgin_done
 
@@ -539,8 +541,9 @@ p_mesgout_loop:
 	cmp	DINDEX,1	jne p_mesgout_outb	/* last byte? */
 	mvi	CLRSINT1,CLRATNO			/* drop ATN */
 p_mesgout_outb:
+	test	SSTAT0, SPIORDY jz p_mesgout_outb
 	dec	DINDEX
-	or	CLRSINT1, CLRREQINIT
+	mvi	CLRSINT1, CLRREQINIT
 	mov	SCSIDATL,SINDIR
 	
 p_mesgout4:
@@ -658,10 +661,12 @@ complete:
 	mov	A, QFULLCNT
 complete_poll:
 	cmp	QOUTQCNT, A	je complete_poll
+	mvi	SEQCTL,0x50			/* PAUSEDIS|FASTMODE */
 	inc	QOUTQCNT
 complete_post:
 	/* Post the SCB and issue an interrupt */
 	mov	QOUTFIFO,SCB_TAG
+	mvi	SEQCTL,0x10			/* FASTMODE */
 	mvi	INTSTAT,CMDCMPLT
 
 dma_next_scb:
@@ -839,12 +844,10 @@ mesgin_reject:
 
 /*
  * Bus free phase.  It might be useful to interrupt the device
- * driver if we aren't expecting this.  For now, make sure that
- * ATN isn't being asserted and look for a new command.
+ * driver if we aren't expecting this.
  */
 p_busfree:
-	mvi	CLRSINT1,CLRATNO
-	clr	LASTPHASE
+	mvi	LASTPHASE, P_BUSFREE
 
 /*
  * if this is an immediate command, perform a psuedo command complete to
@@ -901,16 +904,15 @@ mk_mesg1:
  */
 
 inb_next:
-	or	CLRSINT1, CLRREQINIT
-	mov	NONE,SCSIDATL			/*dummy read from latch to ACK*/
+	call	inb_last	/* ACK */
 inb_next_wait:
-	test	SSTAT1,REQINIT	jz inb_next_wait /* wait for next byte */
-inb_first:
+	test	SSTAT1, REQINIT jz inb_next_wait
 	test	SSTAT1,PHASEMIS	jnz mesgin_phasemis
+inb_first:
 	mov	DINDEX,SINDEX
 	mov	DINDIR,SCSIBUSL	ret		/*read byte directly from bus*/
 inb_last:
-	or	CLRSINT1, CLRREQINIT
+	mvi	CLRSINT1, CLRREQINIT
 	mov	NONE,SCSIDATL ret		/*dummy read from latch to ACK*/
 
 mesgin_phasemis:
