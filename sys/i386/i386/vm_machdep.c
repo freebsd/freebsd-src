@@ -345,7 +345,7 @@ void
 vmapbuf(bp)
 	register struct buf *bp;
 {
-	register caddr_t addr, v, kva;
+	register caddr_t addr, kva;
 	vm_offset_t pa;
 	int pidx;
 	struct vm_page *m;
@@ -355,11 +355,9 @@ vmapbuf(bp)
 	if ((bp->b_flags & B_PHYS) == 0)
 		panic("vmapbuf");
 
-	for (v = bp->b_saveaddr,
-		     addr = (caddr_t)trunc_page((vm_offset_t)bp->b_data),
-		     pidx = 0;
+	for (addr = (caddr_t)trunc_page((vm_offset_t)bp->b_data), pidx = 0;
 	     addr < bp->b_data + bp->b_bufsize;
-	     addr += PAGE_SIZE, v += PAGE_SIZE, pidx++) {
+	     addr += PAGE_SIZE, pidx++) {
 		/*
 		 * Do the vm_fault if needed; do the copy-on-write thing
 		 * when reading stuff off device into memory.
