@@ -64,6 +64,8 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <termios.h>
+#include <limits.h>
+#include <dirent.h>
 
 #ifdef READLINE_LIBRARY
 #  include "readline.h"
@@ -81,6 +83,7 @@
 #endif
 
 #ifndef HAVE_MEMMOVE
+#ifndef memmove
 #  if __GNUC__ > 1
 #    define memmove(d, s, n)	__builtin_memcpy(d, s, n)
 #  else
@@ -89,8 +92,19 @@
 #else
 #  define memmove(d, s, n)	memcpy(d, s, n)
 #endif
+#endif
 
-#define APPLICATION_NAME "Fep"
+#define APPLICATION_NAME "Rlfe"
+
+#ifndef errno
+extern int errno;
+#endif
+
+extern int optind;
+extern char *optarg;
+
+static char *progname;
+static char *progversion;
 
 static int in_from_inferior_fd;
 static int out_to_inferior_fd;
@@ -110,13 +124,15 @@ char echo_suppress_buffer[ECHO_SUPPRESS_MAX];
 int echo_suppress_start = 0;
 int echo_suppress_limit = 0;
 
-#define DEBUG
+/* #define DEBUG */
+
+static FILE *logfile = NULL;
 
 #ifdef DEBUG
-FILE *logfile = NULL;
-#define DPRINT0(FMT) (fprintf(logfile, FMT), fflush(logfile))
-#define DPRINT1(FMT, V1) (fprintf(logfile, FMT, V1), fflush(logfile))
-#define DPRINT2(FMT, V1, V2) (fprintf(logfile, FMT, V1, V2), fflush(logfile))
+FILE *debugfile = NULL;
+#define DPRINT0(FMT) (fprintf(debugfile, FMT), fflush(debugfile))
+#define DPRINT1(FMT, V1) (fprintf(debugfile, FMT, V1), fflush(debugfile))
+#define DPRINT2(FMT, V1, V2) (fprintf(debugfile, FMT, V1, V2), fflush(debugfile))
 #else
 #define DPRINT0(FMT) /* Do nothing */
 #define DPRINT1(FMT, V1) /* Do nothing */
@@ -124,6 +140,10 @@ FILE *logfile = NULL;
 #endif
 
 struct termios orig_term;
+
+static int rlfe_directory_completion_hook __P((char **));
+static int rlfe_directory_rewrite_hook __P((char **));
+static char *rlfe_filename_completion_function __P((const char *, int));
 
 /* Pid of child process. */
 static pid_t child = -1;
@@ -370,13 +390,20 @@ my_rl_getc (FILE *dummy)
   return ch;
 }
 
+static void
+usage()
+{
+  fprintf (stderr, "%s: usage: %s [-l filename] [-a] [-n appname] [-hv] [command [arguments...]]\n",
+		   progname, progname);
+}
+
 int
 main(int argc, char** argv)
 {
   char *path;
-  int i;
+  int i, append;
   int master;
-  char *name;
+  char *name, *logfname, *appname;
   int in_from_tty_fd;
   struct sigaction act;
   struct winsize ws;
@@ -387,12 +414,58 @@ main(int argc, char** argv)
   char *prompt = empty_string;
   int ioctl_err = 0;
 
+  if ((progname = strrchr (argv[0], '/')) == 0)
+    progname = argv[0];
+  else
+    progname++;
+  progversion = RL_LIBRARY_VERSION;
+
+  append = 0;
+  appname = APPLICATION_NAME;
+  logfname = (char *)NULL;
+
+  while ((i = getopt (argc, argv, "ahl:n:v")) != EOF)
+    {
+      switch (i)
+	{
+	case 'l':
+	  logfname = optarg;
+	  break;
+	case 'n':
+	  appname = optarg;
+	  break;
+	case 'a':
+	  append = 1;
+	  break;
+	case 'h':
+	  usage ();
+	  exit (0);
+	case 'v':
+	  fprintf (stderr, "%s version %s\n", progname, progversion);
+	  exit (0);
+	default:
+	  usage ();
+	  exit (2);
+	}
+    }
+
+  argc -= optind;
+  argv += optind;
+
+  if (logfname)
+    {
+      logfile = fopen (logfname, append ? "a" : "w");
+      if (logfile == 0)
+	fprintf (stderr, "%s: warning: could not open log file %s: %s\n",
+			 progname, logfname, strerror (errno));
+    }
+    
+  rl_readline_name = appname;
+  
 #ifdef DEBUG
-  logfile = fopen("LOG", "w");
+  debugfile = fopen("LOG", "w");
 #endif
 
-  rl_readline_name = APPLICATION_NAME;
-  
   if ((master = get_master_pty(&name)) < 0)
     {
       perror("ptypair: could not open master pty");
@@ -486,10 +559,10 @@ main(int argc, char** argv)
       /* now start the shell */
       {
 	static char* command_args[] = { COMMAND_ARGS, NULL };
-	if (argc <= 1)
+	if (argc < 1)
 	  execvp(COMMAND, command_args);
 	else
-	  execvp(argv[1], &argv[1]);
+	  execvp(argv[0], &argv[0]);
       }
 
       /* should never be reached */
@@ -534,6 +607,13 @@ main(int argc, char** argv)
   rl_prep_term_function = null_prep_terminal; 
   rl_deprep_term_function = null_deprep_terminal; 
   rl_callback_handler_install (prompt, line_handler);
+
+#if 1
+  rl_directory_completion_hook = rlfe_directory_completion_hook;
+  rl_completion_entry_function = rlfe_filename_completion_function;
+#else
+  rl_directory_rewrite_hook = rlfe_directory_rewrite_hook;
+#endif
 
   in_from_tty_fd = STDIN_FILENO;
   FD_ZERO (&in_set);
@@ -644,6 +724,47 @@ main(int argc, char** argv)
 	    }
 	  old_count = buf_count;
 
+	  /* Do some minimal carriage return translation and backspace
+	     processing before logging the input line. */
+	  if (logfile)
+	    {
+#ifndef __GNUC__
+	      char *b;
+#else
+	      char b[count + 1];
+#endif
+	      int i, j;
+
+#ifndef __GNUC__
+	      b = malloc (count + 1);
+	      if (b) {
+#endif
+	      for (i = 0; i < count; i++)
+	        b[i] = buf[buf_count + i];
+	      b[i] = '\0';
+	      for (i = j = 0; i <= count; i++)
+		{
+		  if (b[i] == '\r')
+		    {
+		      if (b[i+1] != '\n')
+		        b[j++] = '\n';
+		    }
+		  else if (b[i] == '\b')
+		    {
+		      if (i)
+			j--;
+		    }
+		  else
+		    b[j++] = b[i];
+		}
+	      fprintf (logfile, "%s", b);
+
+#ifndef __GNUC__
+	      free (b);
+	      }
+#endif
+	    }
+
           /* Look for any pending echo that we need to suppress. */
 	  while (echo_suppress_start < echo_suppress_limit
 		 && count > 0
@@ -682,4 +803,240 @@ main(int argc, char** argv)
 	  DPRINT2("-> i: %d, buf_count: %d\n", i, buf_count);
 	}
     }
+}
+
+/*
+ *
+ * FILENAME COMPLETION FOR RLFE
+ *
+ */
+
+#ifndef PATH_MAX
+#  define PATH_MAX 1024
+#endif
+
+#define DIRSEP		'/'
+#define ISDIRSEP(x)	((x) == '/')
+#define PATHSEP(x)	(ISDIRSEP(x) || (x) == 0)
+
+#define DOT_OR_DOTDOT(x) \
+	((x)[0] == '.' && (PATHSEP((x)[1]) || \
+			  ((x)[1] == '.' && PATHSEP((x)[2]))))
+
+#define FREE(x)		if (x) free(x)
+
+#define STRDUP(s, x)	do { \
+			  s = strdup (x);\
+			  if (s == 0) \
+			    return ((char *)NULL); \
+			} while (0)
+
+static int
+get_inferior_cwd (path, psize)
+     char *path;
+     size_t psize;
+{
+  int n;
+  static char procfsbuf[PATH_MAX] = { '\0' };
+
+  if (procfsbuf[0] == '\0')
+    sprintf (procfsbuf, "/proc/%d/cwd", (int)child);
+  n = readlink (procfsbuf, path, psize);
+  if (n < 0)
+    return n;
+  if (n > psize)
+    return -1;
+  path[n] = '\0';
+  return n;
+}
+
+static int
+rlfe_directory_rewrite_hook (dirnamep)
+     char **dirnamep;
+{
+  char *ldirname, cwd[PATH_MAX], *retdir, *ld;
+  int n, ldlen;
+
+  ldirname = *dirnamep;
+
+  if (*ldirname == '/')
+    return 0;
+
+  n = get_inferior_cwd (cwd, sizeof(cwd) - 1);
+  if (n < 0)
+    return 0;
+  if (n == 0)	/* current directory */
+    {
+      cwd[0] = '.';
+      cwd[1] = '\0';
+      n = 1;
+    }
+
+  /* Minimally canonicalize ldirname by removing leading `./' */
+  for (ld = ldirname; *ld; )
+    {
+      if (ISDIRSEP (ld[0]))
+	ld++;
+      else if (ld[0] == '.' && PATHSEP(ld[1]))
+	ld++;
+      else
+	break;
+    }
+  ldlen = (ld && *ld) ? strlen (ld) : 0;
+
+  retdir = (char *)malloc (n + ldlen + 3);
+  if (retdir == 0)
+    return 0;
+  if (ldlen)
+    sprintf (retdir, "%s/%s", cwd, ld);
+  else
+    strcpy (retdir, cwd);
+  free (ldirname);
+
+  *dirnamep = retdir;
+
+  DPRINT1("rl_directory_rewrite_hook returns %s\n", retdir);
+  return 1;
+}
+
+/* Translate *DIRNAMEP to be relative to the inferior's CWD.  Leave a trailing
+   slash on the result. */
+static int
+rlfe_directory_completion_hook (dirnamep)
+     char **dirnamep;
+{
+  char *ldirname, *retdir;
+  int n, ldlen;
+
+  ldirname = *dirnamep;
+
+  if (*ldirname == '/')
+    return 0;
+
+  n = rlfe_directory_rewrite_hook (dirnamep);
+  if (n == 0)
+    return 0;
+
+  ldirname = *dirnamep;
+  ldlen = (ldirname && *ldirname) ? strlen (ldirname) : 0;
+
+  if (ldlen == 0 || ldirname[ldlen - 1] != '/')
+    {
+      retdir = (char *)malloc (ldlen + 3);
+      if (retdir == 0)
+	return 0;
+      if (ldlen)
+	strcpy (retdir, ldirname);
+      else
+	retdir[ldlen++] = '.';
+      retdir[ldlen] = '/';
+      retdir[ldlen+1] = '\0';
+      free (ldirname);
+
+      *dirnamep = retdir;
+    }
+
+  DPRINT1("rl_directory_completion_hook returns %s\n", retdir);
+  return 1;
+}
+
+static char *
+rlfe_filename_completion_function (text, state)
+     const char *text;
+     int state;
+{
+  static DIR *directory;
+  static char *filename = (char *)NULL;
+  static char *dirname = (char *)NULL, *ud = (char *)NULL;
+  static int flen, udlen;
+  char *temp;
+  struct dirent *dentry;
+
+  if (state == 0)
+    {
+      if (directory)
+	{
+	  closedir (directory);
+	  directory = 0;
+	}
+      FREE (dirname);
+      FREE (filename);
+      FREE (ud);
+
+      if (text && *text)
+        STRDUP (filename, text);
+      else
+	{
+	  filename = malloc(1); 
+	  if (filename == 0)
+	    return ((char *)NULL);
+	  filename[0] = '\0';
+	}
+      dirname = (text && *text) ? strdup (text) : strdup (".");
+      if (dirname == 0)
+        return ((char *)NULL);
+
+      temp = strrchr (dirname, '/');
+      if (temp)
+	{
+	  strcpy (filename, ++temp);
+	  *temp = '\0';
+	}
+      else
+	{
+	  dirname[0] = '.';
+	  dirname[1] = '\0';
+	}
+
+      STRDUP (ud, dirname);
+      udlen = strlen (ud);
+
+      rlfe_directory_completion_hook (&dirname);
+
+      directory = opendir (dirname);
+      flen = strlen (filename);
+
+      rl_filename_completion_desired = 1;
+    }
+
+  dentry = 0;
+  while (directory && (dentry = readdir (directory)))
+    {
+      if (flen == 0)
+	{
+          if (DOT_OR_DOTDOT(dentry->d_name) == 0)
+            break;
+	}
+      else
+	{
+	  if ((dentry->d_name[0] == filename[0]) &&
+	      (strlen (dentry->d_name) >= flen) &&
+	      (strncmp (filename, dentry->d_name, flen) == 0))
+	    break;
+	}
+    }
+
+  if (dentry == 0)
+    {
+      if (directory)
+	{
+	  closedir (directory);
+	  directory = 0;
+	}
+      FREE (dirname);
+      FREE (filename);
+      FREE (ud);
+      dirname = filename = ud = 0;
+      return ((char *)NULL);
+    }
+
+  if (ud == 0 || (ud[0] == '.' && ud[1] == '\0'))
+    temp = strdup (dentry->d_name);
+  else
+    {
+      temp = malloc (1 + udlen + strlen (dentry->d_name));
+      strcpy (temp, ud);
+      strcpy (temp + udlen, dentry->d_name);
+    }
+  return (temp);
 }

@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111 USA.
+RL_LIBRARY_VERSION = @LIBVERSION@
 
 SHELL = @MAKE_SHELL@
 RM = rm -f
@@ -28,7 +29,7 @@ BUILD_DIR = .
 DEFS = @DEFS@
 CC = @CC@
 CFLAGS = @CFLAGS@
-LOCAL_CFLAGS = @LOCAL_CFLAGS@ -DREADLINE_LIBRARY
+LOCAL_CFLAGS = @LOCAL_CFLAGS@ -DREADLINE_LIBRARY -DRL_LIBRARY_VERSION='"$(RL_LIBRARY_VERSION)"'
 CPPFLAGS = @CPPFLAGS@
 
 INCLUDES = -I$(srcdir) -I$(top_srcdir) -I..
@@ -45,10 +46,11 @@ TERMCAP_LIB = @TERMCAP_LIB@
 	${RM} $@
 	$(CC) $(CCFLAGS) -c $<
 
-EXECUTABLES = fileman rltest rl rlversion
-OBJECTS = fileman.o rltest.o rl.o rlversion.o
+EXECUTABLES = fileman rltest rl rlversion histexamp
+OBJECTS = fileman.o rltest.o rl.o rlversion.o histexamp.o
 
 all: $(EXECUTABLES)
+everything: all rlfe
 
 rl: rl.o
 	$(CC) $(LDFLAGS) -o $@ rl.o -lreadline $(TERMCAP_LIB)
@@ -62,9 +64,13 @@ rltest: rltest.o
 rlversion: rlversion.o $(READLINE_LIB)
 	$(CC) $(LDFLAGS) -o $@ rlversion.o -lreadline $(TERMCAP_LIB)
 
+histexamp: histexamp.o $(HISTORY_LIB)
+	$(CC) $(LDFLAGS) -o $@ histexamp.o -lhistory $(TERMCAP_LIB)
+
 clean mostlyclean:
 	$(RM) $(OBJECTS)
 	$(RM) $(EXECUTABLES) *.exe
+	$(RM) rlfe.o rlfe
 
 distclean maintainer-clean: clean
 	$(RM) Makefile
@@ -73,6 +79,13 @@ fileman.o: fileman.c
 rltest.o: rltest.c
 rl.o: rl.c
 rlversion.o: rlversion.c
+histexamp.o: histexamp.c
+
+fileman.o: $(top_srcdir)/readline.h
+rltest.o: $(top_srcdir)/readline.h
+rl.o: $(top_srcdir)/readline.h
+rlversion.o: $(top_srcdir)/readline.h
+histexamp.o: $(top_srcdir)/history.h
 
 # Stuff for Per Bothner's `rlfe' program
  
