@@ -43,4 +43,4 @@ __FBSDID("$FreeBSD$");
 #include "SYS.h"
 
 SYSCALL(reboot)
-	iret
+	iretq
