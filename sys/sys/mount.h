@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
- *	$Id: mount.h,v 1.34.2.1 1997/08/17 13:33:43 joerg Exp $
+ *	$Id: mount.h,v 1.34.2.2 1998/02/21 19:22:14 jkh Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -125,8 +125,8 @@ struct statfs {
 	"devfs",	/* 16 MOUNT_DEVFS */ \
 	"ext2fs",	/* 17 MOUNT_EXT2FS */ \
 	"tfs",		/* 18 MOUNT_TFS */ \
-	"cfs",		/* 19 MOUNT_TFS */ \
-	0,		/* 19 MOUNT_SPARE */ \
+	"cfs",		/* 19 MOUNT_CFS */ \
+	0,		/* 20 MOUNT_SPARE */ \
 }
 
 /*
