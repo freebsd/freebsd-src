@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: plist.c,v 1.17.2.2 1997/06/30 03:15:22 jkh Exp $";
+static const char *rcsid = "$Id: plist.c,v 1.17.2.3 1997/07/01 06:14:15 jkh Exp $";
 #endif
 
 /*
@@ -410,10 +410,8 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 		if (Verbose)
 		    printf("Delete file %s\n", tmp);
 		if (!Fake) {
-		    if (delete_hierarchy(tmp, ign_err, nukedirs)) {
-			whinge("Unable to completely remove file '%s'", tmp);
+		    if (delete_hierarchy(tmp, ign_err, nukedirs))
 			fail = FAIL;
-		    }
 		    if (preserve && name) {
 			char tmp2[FILENAME_MAX];
 			    
