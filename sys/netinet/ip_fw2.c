@@ -3421,8 +3421,8 @@ ipfw_destroy(void)
 
 	ip_fw_chk_ptr = NULL;
 	ip_fw_ctl_ptr = NULL;
+	callout_drain(&ipfw_timeout);
 	IPFW_LOCK(&layer3_chain);
-	callout_stop(&ipfw_timeout);
 	layer3_chain.reap = NULL;
 	free_chain(&layer3_chain, 1 /* kill default rule */);
 	reap = layer3_chain.reap, layer3_chain.reap = NULL;
