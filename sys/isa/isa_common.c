@@ -423,8 +423,9 @@ isa_assign_resources(device_t child)
 	struct isa_device *idev = DEVTOISA(child);
 	struct isa_config_entry *ice;
 	struct isa_config *cfg;
-	char *reason = "Empty ISA id_configs";
-
+	const char *reason;
+	
+	reason = "Empty ISA id_configs";
 	cfg = malloc(sizeof(struct isa_config), M_TEMP, M_NOWAIT|M_ZERO);
 	if (cfg == NULL)
 		return(0);
