@@ -29,8 +29,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-int	main(int, char **);
-
 int 
 main(argc, argv)
 	int	argc;

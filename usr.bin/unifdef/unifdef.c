@@ -222,7 +222,6 @@ int             findsym(const char *);
 void            flushline(bool);
 int             getline(char *, int, FILE *, bool);
 Linetype        ifeval(const char **);
-int             main(int, char **);
 const char     *skipcomment(const char *);
 const char     *skipquote(const char *, Quote_state);
 const char     *skipsym(const char *);

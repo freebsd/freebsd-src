@@ -154,7 +154,6 @@ jmp_buf	tstpbuf;
 void	ask(const char *);
 void	gfrsub(FILE *);
 int	linecnt(FILE *);
-int	main(int, char *[]);
 int	next(char *);
 char	*nxtfld(unsigned char *);
 void	onsusp(int);
