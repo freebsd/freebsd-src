@@ -97,11 +97,10 @@ ad_attach(struct ata_softc *scp, int device)
     int secsperint;
 
 
-    if (!(adp = malloc(sizeof(struct ad_softc), M_AD, M_NOWAIT))) {
+    if (!(adp = malloc(sizeof(struct ad_softc), M_AD, M_NOWAIT | M_ZERO))) {
 	ata_printf(scp, device, "failed to allocate driver storage\n");
 	return;
     }
-    bzero(adp, sizeof(struct ad_softc));
     scp->dev_softc[ATA_DEV(device)] = adp;
     adp->controller = scp;
     adp->unit = device;
@@ -351,13 +350,12 @@ ad_start(struct ad_softc *adp)
 	    return;
     }
 
-    if (!(request = malloc(sizeof(struct ad_request), M_AD, M_NOWAIT))) {
+    if (!(request = malloc(sizeof(struct ad_request), M_AD, M_NOWAIT|M_ZERO))) {
 	printf("ad%d: out of memory in start\n", adp->lun);
 	return;
     }
 
     /* setup request */
-    bzero(request, sizeof(struct ad_request));
     request->device = adp;
     request->bp = bp;
     request->blockaddr = bp->bio_pblkno;
