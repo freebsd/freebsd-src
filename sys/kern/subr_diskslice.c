@@ -158,7 +158,7 @@ if (labelsect != 0) Debugger("");
 	bp->b_pblkno = blkno + sp->ds_offset;
 
 	if (lp == NULL)
-		bp->b_cylinder = 0;	/* XXX all 0 would be better */
+		bp->b_cylinder = 0;	/* XXX always 0 would be better */
 	else
 		bp->b_cylinder = bp->b_pblkno / lp->d_secpercyl;
 	return (1);
@@ -188,6 +188,28 @@ dsclose(dev, mode, ssp)
 		break;
 	}
 	sp->ds_openmask = sp->ds_bopenmask | sp->ds_copenmask;
+}
+
+void
+dsgone(sspp)
+	struct diskslices **sspp;
+{
+	int	slice;
+	struct diskslice *sp;
+	struct diskslices *ssp;
+
+	for (slice = 0, ssp = *sspp; slice < ssp->dss_nslices; slice++) {
+		sp = &ssp->dss_slices[slice];
+		if (sp->ds_bad != NULL) {
+			free(sp->ds_bad, M_DEVBUF);
+			sp->ds_bad = NULL;
+		}
+		if (sp->ds_label != NULL) {
+			free(sp->ds_label, M_DEVBUF);
+			sp->ds_label = NULL;
+		}
+	}
+	*sspp = NULL;
 }
 
 /*
@@ -276,7 +298,7 @@ dsioctl(dev, cmd, data, flags, ssp, strat, setgeom)
 		 */
 		old_wlabel = sp->ds_wlabel;
 		sp->ds_wlabel = TRUE;
-		error = writedisklabel(dev, strat, sp->ds_label);
+		error = correct_writedisklabel(dev, strat, sp->ds_label);
 		sp->ds_wlabel = old_wlabel;
 		return (error);
 
@@ -328,19 +350,8 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom)
 				need_init = FALSE;
 				break;
 			}
-		if (need_init)
-			for (slice = 0, ssp = *sspp; slice < ssp->dss_nslices;
-			     slice++) {
-				sp = &ssp->dss_slices[slice];
-				if (sp->ds_bad != NULL) {
-					free(sp->ds_bad, M_DEVBUF);
-					sp->ds_bad = NULL;
-				}
-				if (sp->ds_label != NULL) {
-					free(sp->ds_label, M_DEVBUF);
-					sp->ds_label = NULL;
-				}
-			}
+			if (need_init)
+				dsgone(sspp);
 	}
 	if (need_init) {
 		printf("dsinit\n");
@@ -361,7 +372,7 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom)
 	sp = &ssp->dss_slices[slice];
 	part = dkpart(dev);
 	unit = dkunit(dev);
-	if (/* slice != WHOLE_DISK_SLICE && */ sp->ds_label == NULL) {
+	if (slice != WHOLE_DISK_SLICE && sp->ds_label == NULL) {
 		struct disklabel *lp1;
 
 		lp1 = malloc(sizeof *lp1, M_DEVBUF, M_WAITOK);
