@@ -286,10 +286,14 @@ trap(frame)
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 			if (i == -2) {
 				/*
-				 * f00f hack workaround has triggered, treat
-				 * as illegal instruction not page fault.
+				 * The f00f hack workaround has triggered, so
+				 * treat the fault as an illegal instruction 
+				 * (T_PRIVINFLT) instead of a page fault.
 				 */
-				ucode = T_PRIVINFLT;
+				type = frame.tf_trapno = T_PRIVINFLT;
+
+				/* Proceed as in that case. */
+				ucode = type;
 				i = SIGILL;
 				break;
 			}
