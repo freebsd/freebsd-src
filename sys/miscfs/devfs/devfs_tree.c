@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.3 1995/09/06 23:15:53 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.4 1995/09/07 06:01:33 julian Exp $
  */
 
 #include "param.h"
@@ -876,24 +876,48 @@ void *dev_add(char *path,
 		major = get_cdev_major_num(funct);
 		by.Cdev.cdevsw = cdevsw + major;
 		by.Cdev.dev = makedev(major, minor);
-		if( dev_add_name(name, dnp, NULL, DEV_CDEV,
-				&by,&new_dev))
-			return 0;
+		if( dev_add_name(name, dnp, NULL, DEV_CDEV, &by,&new_dev))
+			return NULL;
 		break;
 	case	DV_BLK:
 		major = get_bdev_major_num(funct);
 		by.Bdev.bdevsw = bdevsw + major;
 		by.Bdev.dev = makedev(major, minor);
-		if( dev_add_name(name, dnp, NULL, DEV_BDEV,
-				&by, &new_dev))
-			return 0;
+		if( dev_add_name(name, dnp, NULL, DEV_BDEV, &by, &new_dev))
+			return NULL;
 		break;
 	default:
-		return(0);
+		return NULL;
 	}
 	new_dev->dnp->gid = gid;
 	new_dev->dnp->uid = uid;
 	new_dev->dnp->mode |= perms;
+	return new_dev;
+}
+
+
+/***********************************************************************\
+* Add the named device entry into the given directory, and make it 	*
+*  a link to the already created device given as an arg..		*
+\***********************************************************************/
+void *dev_link(char *path, char *name, void *original)
+{
+	devnm_p	new_dev;
+	devnm_p	orig = (devnm_p) original;
+	dn_p	dnp;	/* devnode for parent directory */
+	int	retval;
+	int major ;
+	union	typeinfo by;
+
+	DBPRINT(("dev_add\n"));
+	retval = dev_finddir(path,NULL,1,&dnp);
+	if (retval) return 0;
+	/*
+	 *  The DEV_CDEV below is not used other than it must NOT be DEV_DIR
+	 * the correctness of original shuold be checked..
+	 */
+	if( dev_add_name(name, dnp, orig, DEV_CDEV, NULL,&new_dev))
+		return NULL;
 	return new_dev;
 }
 
