@@ -84,8 +84,8 @@ static const char rcsid[] =
 #include <security/pam_appl.h>
 #include <sys/wait.h>
 
-static int export_pam_environment __P((void));
-static int ok_to_export __P((const char *));
+static int export_pam_environment(void);
+static int ok_to_export(const char *);
 
 static pam_handle_t *pamh;
 static char **environ_pam;
@@ -126,19 +126,17 @@ union sockunion {
 #define su_family	su_si.si_family
 #define su_port		su_si.si_port
 
-void	 doit __P((union sockunion *));
-static void	 rshd_errx __P((int, const char *, ...)) __printf0like(2, 3);
-void	 getstr __P((char *, int, char *));
-int	 local_domain __P((char *));
-char	*topdomain __P((char *));
-void	 usage __P((void));
+void	 doit(union sockunion *);
+static void	 rshd_errx(int, const char *, ...) __printf0like(2, 3);
+void	 getstr(char *, int, char *);
+int	 local_domain(char *);
+char	*topdomain(char *);
+void	 usage(void);
 
 #define	OPTIONS	"alnDL"
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	extern int __check_rhosts_file;
 	struct linger linger;
@@ -214,8 +212,9 @@ main(argc, argv)
  * You must use auth methods that don't require one, like pam_rhosts.
  */
 
-int null_conv(int num_msg, const struct pam_message **msg,
-              struct pam_response **resp, void *appdata_ptr)
+static int
+null_conv(int num_msg __unused, const struct pam_message **msg __unused,
+          struct pam_response **resp __unused, void *appdata_ptr __unused)
 {
 	syslog(LOG_ERR, "PAM conversation is not supported");
 	return PAM_CONV_ERR;
@@ -231,8 +230,7 @@ char	*envinit[] =
 char	**environ;
 
 void
-doit(fromp)
-	union sockunion *fromp;
+doit(union sockunion *fromp)
 {
 	extern char *__rcmd_errstr;	/* syslog hook from libc/net/rcmd.c. */
 	struct passwd *pwd;
@@ -733,9 +731,7 @@ rshd_errx(int errcode, const char *fmt, ...)
 }
 
 void
-getstr(buf, cnt, err)
-	char *buf, *err;
-	int cnt;
+getstr(char *buf, int cnt, char *err)
 {
 	char c;
 
@@ -757,8 +753,7 @@ getstr(buf, cnt, err)
  * interpreted as such.
  */
 int
-local_domain(h)
-	char *h;
+local_domain(char *h)
 {
 	char localhost[MAXHOSTNAMELEN];
 	char *p1, *p2;
@@ -774,8 +769,7 @@ local_domain(h)
 }
 
 char *
-topdomain(h)
-	char *h;
+topdomain(char *h)
 {
 	char *p, *maybe = NULL;
 	int dots = 0;
@@ -792,7 +786,7 @@ topdomain(h)
 
 #ifdef USE_PAM
 static int
-export_pam_environment()
+export_pam_environment(void)
 {
 	char	**pp;
 
@@ -812,8 +806,7 @@ export_pam_environment()
  *   Solaris pam_putenv(3) man page.
  */
 static int
-ok_to_export(s)
-	const char *s;
+ok_to_export(const char *s)
 {
 	static const char *noexport[] = {
 		"SHELL", "HOME", "LOGNAME", "MAIL", "CDPATH",
@@ -836,7 +829,7 @@ ok_to_export(s)
 #endif /* USE_PAM */
 
 void
-usage()
+usage(void)
 {
 
 	syslog(LOG_ERR, "usage: rshd [-%s]", OPTIONS);
