@@ -40,12 +40,6 @@ CFLAGS+=	-I${.CURDIR}/../cc_tools
 # correctly.
 CFLAGS+=	-I${GCCDIR} -I${GCCDIR}/config
 
-.if exists(${.OBJDIR}/../cc_fbsd)
-LIBCC_FBSD=	${.OBJDIR}/../cc_fbsd/libcc_fbsd.a
-.else
-LIBCC_FBSD=	${.CURDIR}/../cc_fbsd/libcc_fbsd.a
-.endif
-
 .if exists(${.OBJDIR}/../cc_int)
 LIBCC_INT=	${.OBJDIR}/../cc_int/libcc_int.a
 .else
