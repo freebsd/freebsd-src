@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.screen.c,v 3.49 2002/03/08 17:36:45 christos Exp $ */
+/* $Header: /src/pub/tcsh/ed.screen.c,v 3.50 2003/02/08 20:03:25 christos Exp $ */
 /*
  * ed.screen.c: Editor/termcap-curses interface
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: ed.screen.c,v 3.49 2002/03/08 17:36:45 christos Exp $")
+RCSID("$Id: ed.screen.c,v 3.50 2003/02/08 20:03:25 christos Exp $")
 
 #include "ed.h"
 #include "tc.h"
@@ -1112,7 +1112,6 @@ MoveToLine(where)		/* move to line <where> (first line == 0) */
 
     del = where - CursorV;
 
-#ifndef WINNT_NATIVE
     if (del > 0) {
 	while (del > 0) {
 	    if ((T_Margin & MARGIN_AUTO) && Display[CursorV][0] != '\0') {
@@ -1144,9 +1143,6 @@ MoveToLine(where)		/* move to line <where> (first line == 0) */
 		    (void) tputs(Str(T_up), 1, PUTPURE);
 	}
     }
-#else /* WINNT_NATIVE */
-    NT_MoveToLineOrChar(del, 1);
-#endif /* !WINNT_NATIVE */
     CursorV = where;		/* now where is here */
 }
 
@@ -1154,11 +1150,9 @@ void
 MoveToChar(where)		/* move to character position (where) */
     int     where;
 {				/* as efficiently as possible */
-#ifndef WINNT_NATIVE
     int     del;
 
 mc_again:
-#endif /* WINNT_NATIVE */
     if (where == CursorH)
 	return;
 
@@ -1176,7 +1170,6 @@ mc_again:
 	return;
     }
 
-#ifndef WINNT_NATIVE
     del = where - CursorH;
 
     if ((del < -4 || del > 4) && GoodStr(T_ch))
@@ -1228,9 +1221,6 @@ mc_again:
 	    }
 	}
     }
-#else /* WINNT_NATIVE */
-    NT_MoveToLineOrChar(where, 0);
-#endif /* !WINNT_NATIVE */
     CursorH = where;		/* now where is here */
 }
 
@@ -1259,18 +1249,8 @@ so_write(cp, n)
 	    xprintf("so: litnum %d, litptr %x\r\n",
 		    *cp & CHAR, litptr[*cp & CHAR]);
 #endif /* DEBUG_LITERAL */
-#if defined(WINNT_NATIVE) && !defined(COLOR_LS_F)
-	    {
-		char buf[256], *ptr = &buf[0];
-		for (d = litptr[*cp++ & CHAR]; *d & LITERAL; d++)
-		    *ptr++ = (*d & CHAR);
-		flush();
-		set_cons_attr(buf);
-	    }
-#else /* !WINNT_NATIVE || COLOR_LS_F */
 	    for (d = litptr[*cp++ & CHAR]; *d & LITERAL; d++)
 		(void) putraw(*d & CHAR);
-#endif /* WINNT_NATIVE && !COLOR_LS_F */
 	    (void) putraw(*d);
 
 	}
@@ -1447,11 +1427,7 @@ SoundBeep()
 	/* what termcap says we should use */
 	(void) tputs(Str(T_bl), 1, PUTPURE);
     else
-#ifndef WINNT_NATIVE
 	(void) putraw(CTL_ESC('\007'));	/* an ASCII bell; ^G */
-#else /* WINNT_NATIVE */
-	MessageBeep(MB_ICONQUESTION);
-#endif /* !WINNT_NATIVE */
 }
 
 void
@@ -1653,9 +1629,6 @@ ChangeSize(lins, cols)
     Val(T_co) = (cols < 2) ? 80 : cols;
     Val(T_li) = (lins < 1) ? 24 : lins;
 
-#ifdef WINNT_NATIVE
-      nt_set_size(lins,cols);
-#endif /* WINNT_NATIVE */
 #ifdef KNOWsize
     /*
      * We want to affect the environment only when we have a valid

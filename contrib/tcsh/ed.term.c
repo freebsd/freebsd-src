@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.term.c,v 1.28 2002/07/06 22:28:13 christos Exp $ */
+/* $Header: /src/pub/tcsh/ed.term.c,v 1.29 2003/05/26 07:11:06 christos Exp $ */
 /*
  * ed.term.c: Low level terminal interface
  */
@@ -33,7 +33,7 @@
 #include "sh.h"
 #ifndef WINNT_NATIVE
 
-RCSID("$Id: ed.term.c,v 1.28 2002/07/06 22:28:13 christos Exp $")
+RCSID("$Id: ed.term.c,v 1.29 2003/05/26 07:11:06 christos Exp $")
 
 #include "ed.h"
 
@@ -553,7 +553,7 @@ static struct tcshmodes {
 
 #if defined(EAGAIN) && defined(EWOULDBLOCK) && (EWOULDBLOCK != EAGAIN)
 # define OKERROR(e) (((e) == EAGAIN) || ((e) == EWOULDBLOCK) || ((e) == EINTR))
-#elif defined(EGAIN)
+#elif defined(EAGAIN)
 # define OKERROR(e) (((e) == EAGAIN) || ((e) == EINTR))
 #elif defined(EWOULDBLOCK)
 # define OKERROR(e) (((e) == EWOULDBLOCK) || ((e) == EINTR))

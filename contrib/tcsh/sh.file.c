@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.file.c,v 3.22 2002/07/01 20:53:00 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.file.c,v 3.23 2003/02/08 20:03:26 christos Exp $ */
 /*
  * sh.file.c: File completion for csh. This file is not used in tcsh.
  */
@@ -33,7 +33,7 @@
 #include "sh.h"
 #include "ed.h"
 
-RCSID("$Id: sh.file.c,v 3.22 2002/07/01 20:53:00 christos Exp $")
+RCSID("$Id: sh.file.c,v 3.23 2003/02/08 20:03:26 christos Exp $")
 
 #if defined(FILEC) && defined(TIOCSTI)
 
@@ -72,7 +72,7 @@ static	void	 beep			__P((void));
 static	void 	 print_recognized_stuff	__P((Char *));
 static	void	 extract_dir_and_name	__P((Char *, Char *, Char *));
 static	Char	*getitem		__P((DIR *, int));
-static	void	 free_items		__P((Char **));
+static	void	 free_items		__P((Char **, size_t));
 static	int	 tsearch		__P((Char *, COMMAND, int));
 static	int	 compare		__P((const ptr_t, const ptr_t));
 static	int	 recognize		__P((Char *, Char *, int, int));
@@ -544,30 +544,29 @@ getitem(dir_fd, looking_for_lognames)
 }
 
 static void
-free_items(items)
+free_items(items, numitems)
     Char **items;
+    size_t numitems;
 {
-    int i;
+    size_t i;
 
-    for (i = 0; items[i]; i++)
+    for (i = 0; i < numitems; i++)
 	xfree((ptr_t) items[i]);
     xfree((ptr_t) items);
 }
 
 #ifdef BSDSIGS
-# define FREE_ITEMS(items) { \
+# define FREE_ITEMS(items, numitems) { \
 	sigmask_t omask;\
 \
 	omask = sigblock(sigmask(SIGINT));\
-	free_items(items);\
-	items = NULL;\
+	free_items(items, numitems);\
 	(void) sigsetmask(omask);\
 }
 #else
-# define FREE_ITEMS(items) { \
+# define FREE_ITEMS(items, numitems) { \
 	(void) sighold(SIGINT);\
-	free_items(items);\
-	items = NULL;\
+	free_items(items, numitems);\
 	(void) sigrelse(SIGINT);\
 }
 #endif /* BSDSIGS */
@@ -581,18 +580,14 @@ tsearch(word, command, max_word_length)
     int     max_word_length;
     COMMAND command;
 {
-    static Char **items = NULL;
     DIR *dir_fd;
     int numitems = 0, ignoring = TRUE, nignored = 0;
     int name_length, looking_for_lognames;
     Char    tilded_dir[MAXPATHLEN + 1], dir[MAXPATHLEN + 1];
     Char    name[MAXNAMLEN + 1], extended_name[MAXNAMLEN + 1];
     Char   *item;
-
-#define MAXITEMS 1024
-
-    if (items != NULL)
-	FREE_ITEMS(items);
+    Char **items = NULL;
+    size_t maxitems = 0;
 
     looking_for_lognames = (*word == '~') && (Strchr(word, '/') == NULL);
     if (looking_for_lognames) {
@@ -622,25 +617,14 @@ again:				/* search for matches */
 	    !looking_for_lognames)
 	    continue;
 	if (command == LIST) {
-	    if (numitems >= MAXITEMS) {
-		xprintf(CGETS(14, 1, "\nYikes!! Too many %s!!\n"),
-			looking_for_lognames ?
-			CGETS(14, 2, "names in password file") :
-			CGETS(14, 3, "files"));
-		break;
+	    if (numitems >= maxitems) {
+		maxitems += 1024;
+		if (items == NULL)
+			items = (Char **) xmalloc(sizeof(*items) * maxitems);
+		else
+			items = (Char **) xrealloc((ptr_t) items,
+			    sizeof(*items) * maxitems);
 	    }
-	    /*
-	     * From Beto Appleton (beto@aixwiz.austin.ibm.com)
-	     *	typing "./control-d" will cause the csh to core-dump.
-	     *	the problem can be reproduce as following:
-	     *	 1. set ignoreeof
-	     *	 2. set filec
-	     *	 3. create a directory with 1050 files
-	     *	 4. typing "./control-d" will cause the csh to core-dump
-	     * Solution: Add + 1 to MAXITEMS
-	     */
-	    if (items == NULL)
-		items = (Char **) xcalloc(sizeof(items[0]), MAXITEMS + 1);
 	    items[numitems] = (Char *) xmalloc((size_t) (Strlen(item) + 1) *
 					       sizeof(Char));
 	    copyn(items[numitems], item, MAXNAMLEN);
@@ -690,7 +674,7 @@ again:				/* search for matches */
 	print_by_column(looking_for_lognames ? NULL : tilded_dir,
 			items, numitems);
 	if (items != NULL)
-	    FREE_ITEMS(items);
+	    FREE_ITEMS(items, numitems);
     }
     return (0);
 }

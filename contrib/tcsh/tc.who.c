@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.who.c,v 3.35 2002/07/01 21:12:04 christos Exp $ */
+/* $Header: /src/pub/tcsh/tc.who.c,v 3.37 2002/11/21 20:02:01 christos Exp $ */
 /*
  * tc.who.c: Watch logins and logouts...
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.who.c,v 3.35 2002/07/01 21:12:04 christos Exp $")
+RCSID("$Id: tc.who.c,v 3.37 2002/11/21 20:02:01 christos Exp $")
 
 #include "tc.h"
 
@@ -52,6 +52,8 @@ RCSID("$Id: tc.who.c,v 3.35 2002/07/01 21:12:04 christos Exp $")
 # ifndef _PATH_UTMP
 #  if defined(__UTMPX_FILE) && !defined(UTMPX_FILE)
 #   define _PATH_UTMP __UTMPX_FILE
+#  elif defined(_PATH_UTMPX)
+#   define _PATH_UTMP _PATH_UTMPX
 #  else
 #   define _PATH_UTMP UTMPX_FILE
 #  endif /* __UTMPX_FILE && !UTMPX_FILE */
@@ -261,7 +263,7 @@ watch_login(force)
 	return;
     }
     stlast = sta.st_mtime;
-    if ((utmpfd = open(_PATH_UTMP, O_RDONLY)) < 0) {
+    if ((utmpfd = open(_PATH_UTMP, O_RDONLY|O_LARGEFILE)) < 0) {
 	if (!force)
 	    xprintf(CGETS(26, 2,
 			  "%s cannot be opened.  Please \"unset watch\".\n"),
