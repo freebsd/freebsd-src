@@ -1120,6 +1120,7 @@ dev/sound/isa/sb8.c	optional pcm isa
 dev/sound/isa/sbc.c	optional pcm isa
 dev/sound/isa/sbc.c	optional sbc isa
 #
+dev/sound/pci/als4000.c	optional pcm pci
 dev/sound/pci/cmi.c	optional pcm pci
 dev/sound/pci/cs4281.c	optional pcm pci
 dev/sound/pci/csa.c	optional csa pci
