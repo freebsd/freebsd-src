@@ -34,12 +34,12 @@
  * Priority propagation will not generally raise the priority of lock holders,
  * so should not be relied upon in combination with sx locks.
  *
- * The witness code can not detect lock cycles.
+ * The witness code can not detect lock cycles (yet).
  *
+ * XXX: When witness is made to function with sx locks, it will need to
+ * XXX: be taught to deal with these situations, as they are more involved:
  *   slock --> xlock (deadlock)
  *   slock --> slock (slock recursion, not fatal)
- *   xlock --> xlock (deadlock)
- *   xlock --> slock (deadlock)
  */
 
 #include <sys/param.h>
@@ -58,7 +58,9 @@ sx_init(struct sx *sx, const char *description)
 	cv_init(&sx->sx_shrd_cv, description);
 	sx->sx_shrd_wcnt = 0;
 	cv_init(&sx->sx_excl_cv, description);
+	sx->sx_descr = description;
 	sx->sx_excl_wcnt = 0;
+	sx->sx_xholder = NULL;
 }
 
 void
@@ -66,7 +68,7 @@ sx_destroy(struct sx *sx)
 {
 
 	KASSERT((sx->sx_cnt == 0 && sx->sx_shrd_wcnt == 0 && sx->sx_excl_wcnt ==
-	    0), ("%s: holders or waiters\n", __FUNCTION__));
+	    0), ("%s (%s): holders or waiters\n", __FUNCTION__, sx->sx_descr));
 
 	mtx_destroy(&sx->sx_lock);
 	cv_destroy(&sx->sx_shrd_cv);
@@ -78,6 +80,9 @@ sx_slock(struct sx *sx)
 {
 
 	mtx_lock(&sx->sx_lock);
+	KASSERT(sx->sx_xholder != curproc,
+	    ("%s (%s): trying to get slock while xlock is held\n", __FUNCTION__,
+	    sx->sx_descr));
 
 	/*
 	 * Loop in case we lose the race for lock acquisition.
@@ -100,6 +105,16 @@ sx_xlock(struct sx *sx)
 
 	mtx_lock(&sx->sx_lock);
 
+	/*
+	 * With sx locks, we're absolutely not permitted to recurse on
+	 * xlocks, as it is fatal (deadlock). Normally, recursion is handled
+	 * by WITNESS, but as it is not semantically correct to hold the
+	 * xlock while in here, we consider it API abuse and put it under
+	 * INVARIANTS.
+	 */
+	KASSERT(sx->sx_xholder != curproc,
+	    ("%s (%s): xlock already held", __FUNCTION__, sx->sx_descr));
+
 	/* Loop in case we lose the race for lock acquisition. */
 	while (sx->sx_cnt != 0) {
 		sx->sx_excl_wcnt++;
@@ -107,8 +122,11 @@ sx_xlock(struct sx *sx)
 		sx->sx_excl_wcnt--;
 	}
 
+	MPASS(sx->sx_cnt == 0);
+
 	/* Acquire an exclusive lock. */
 	sx->sx_cnt--;
+	sx->sx_xholder = curproc;
 
 	mtx_unlock(&sx->sx_lock);
 }
@@ -118,7 +136,7 @@ sx_sunlock(struct sx *sx)
 {
 
 	mtx_lock(&sx->sx_lock);
-	KASSERT((sx->sx_cnt > 0), ("%s: lacking slock\n", __FUNCTION__));
+	SX_ASSERT_SLOCKED(sx);
 
 	/* Release. */
 	sx->sx_cnt--;
@@ -143,10 +161,12 @@ sx_xunlock(struct sx *sx)
 {
 
 	mtx_lock(&sx->sx_lock);
-	KASSERT((sx->sx_cnt == -1), ("%s: lacking xlock\n", __FUNCTION__));
+	SX_ASSERT_XLOCKED(sx);
+	MPASS(sx->sx_cnt == -1);
 
 	/* Release. */
 	sx->sx_cnt++;
+	sx->sx_xholder = NULL;
 
 	/*
 	 * Wake up waiters if there are any.  Give precedence to slock waiters.
