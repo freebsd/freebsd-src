@@ -2926,7 +2926,7 @@ static cn_checkc_t siocncheckc;
 static cn_getc_t siocngetc;
 static cn_putc_t siocnputc;
 
-#ifdef __i386__
+#ifndef __alpha__
 CONS_DRIVER(sio, siocnprobe, siocninit, NULL, siocngetc, siocncheckc,
 	    siocnputc, NULL);
 #endif
