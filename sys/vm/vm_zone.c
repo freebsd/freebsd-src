@@ -411,14 +411,14 @@ _zget(vm_zone_t z)
 		 * map.
 		 */
 		mtx_unlock(&z->zmtx);
-		item = (void *)kmem_alloc(kernel_map, nbytes);
-		if (item != NULL) {
-			atomic_add_int(&zone_kern_pages, z->zalloc);
-		} else {
-			item = (void *)kmem_malloc(kmem_map, nbytes,
-			    M_WAITOK);
+		if (lockstatus(&kernel_map->lock, NULL)) {
+			item = (void *) kmem_malloc(kmem_map, nbytes, M_WAITOK);
 			if (item != NULL)
 				atomic_add_int(&zone_kmem_pages, z->zalloc);
+		} else {
+			item = (void *) kmem_alloc(kernel_map, nbytes);
+			if (item != NULL)
+				atomic_add_int(&zone_kern_pages, z->zalloc);
 		}
 		if (item != NULL) {
 			bzero(item, nbytes);
