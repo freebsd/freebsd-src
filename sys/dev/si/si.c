@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.56 1997/03/23 03:35:01 bde Exp $
+ *	$Id: si.c,v 1.57 1997/03/24 12:02:48 bde Exp $
  */
 
 #ifndef lint
@@ -98,7 +98,7 @@ static int si_modem __P((struct si_port *, enum si_mctl, int));
 static void si_write_enable __P((struct si_port *, int));
 static int si_Sioctl __P((dev_t, int, caddr_t, int, struct proc *));
 static void si_start __P((struct tty *));
-static void si_lstart __P((struct si_port *));
+static timeout_t si_lstart;
 static void si_disc_optim __P((struct tty *tp, struct termios *t,
 					struct si_port *pp));
 static void sihardclose __P((struct si_port *pp));
@@ -914,7 +914,7 @@ siclose(dev, flag, mode, p)
 	/* ok. we are now still on the right track.. nuke the hardware */
 
 	if (pp->sp_state & SS_LSTART) {
-		untimeout((timeout_func_t)si_lstart, (caddr_t)pp);
+		untimeout(si_lstart, (caddr_t)pp);
 		pp->sp_state &= ~SS_LSTART;
 	}
 
@@ -2118,12 +2118,12 @@ si_start(tp)
 		}
 
 		if ((pp->sp_state & (SS_LSTART|SS_INLSTART)) == SS_LSTART) {
-			untimeout((timeout_func_t)si_lstart, (caddr_t)pp);
+			untimeout(si_lstart, (caddr_t)pp);
 		} else {
 			pp->sp_state |= SS_LSTART;
 		}
 		DPRINT((pp, DBG_START, "arming lstart, time=%d\n", time));
-		timeout((timeout_func_t)si_lstart, (caddr_t)pp, time);
+		timeout(si_lstart, (caddr_t)pp, time);
 	}
 
 out:
@@ -2138,9 +2138,9 @@ out:
  * time for protocols like ppp.
  */
 static void
-si_lstart(pp)
-	register struct si_port *pp;
+si_lstart(void *arg)
 {
+	register struct si_port *pp = arg;
 	register struct tty *tp;
 	int oldspl;
 
