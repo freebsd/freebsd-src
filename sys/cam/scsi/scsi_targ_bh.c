@@ -186,14 +186,21 @@ targbhasync(void *callback_arg, u_int32_t code,
 	    struct cam_path *path, void *arg)
 {
 	struct cam_path *new_path;
+	struct ccb_pathinq *cpi;
+	path_id_t bus_path_id;
 	cam_status status;
 
+	cpi = (struct ccb_pathinq *)arg;
+	if (code == AC_PATH_REGISTERED)
+		bus_path_id = cpi->ccb_h.path_id;
+	else
+		bus_path_id = xpt_path_path_id(path);
 	/*
 	 * Allocate a peripheral instance for
 	 * this target instance.
 	 */
 	status = xpt_create_path(&new_path, NULL,
-				 xpt_path_path_id(path),
+				 bus_path_id,
 				 CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
 	if (status != CAM_REQ_CMP) {
 		printf("targbhasync: Unable to create path "
@@ -204,10 +211,6 @@ targbhasync(void *callback_arg, u_int32_t code,
 	switch (code) {
 	case AC_PATH_REGISTERED:
 	{
-		struct ccb_pathinq *cpi;
- 
-		cpi = (struct ccb_pathinq *)arg;
-
 		/* Only attach to controllers that support target mode */
 		if ((cpi->target_sprt & PIT_PROCESSOR) == 0)
 			break;
@@ -222,7 +225,10 @@ targbhasync(void *callback_arg, u_int32_t code,
 	}
 	case AC_PATH_DEREGISTERED:
 	{
-		cam_periph_invalidate(cam_periph_find(new_path, "targbh"));
+		struct cam_periph *periph;
+
+		if ((periph = cam_periph_find(new_path, "targbh")) != NULL)
+			cam_periph_invalidate(periph);
 		break;
 	}
 	default:
