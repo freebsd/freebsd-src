@@ -13,7 +13,7 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the acknowledgement as bellow:
  *
- *    This product includes software developed by K. Kobayashi and H. SHimokawa
+ *    This product includes software developed by K. Kobayashi and H. Shimokawa
  *
  * 4. The name of the author may not be used to endorse or promote products
  *    derived from this software without specific prior written permission.
@@ -33,9 +33,7 @@
  * $FreeBSD$
  *
  */
-extern int nxfer;
-#define DEBUG_PACKET 
-#undef DEBUG_PACKET 
+
 #define ATRQ_CH 0
 #define ATRS_CH 1
 #define ARRQ_CH 2
@@ -62,7 +60,6 @@ extern int nxfer;
 #include <machine/resource.h>
 #include <sys/rman.h>
 
-#ifdef __FreeBSD__
 #include <machine/cpufunc.h>            /* for rdtsc proto for clock.h below */
 #include <machine/clock.h>
 #include <pci/pcivar.h>
@@ -78,11 +75,8 @@ extern int nxfer;
 #include <dev/firewire/fwohcivar.h>
 #include <dev/firewire/firewire_phy.h>
 
-#define OHCI_DEBUG
 #undef OHCI_DEBUG
-/*
-#define OHCI_DEBUG
-*/
+
 static char dbcode[16][0x10]={"OUTM", "OUTL","INPM","INPL",
 		"STOR","LOAD","NOP ","STOP",};
 static char dbkey[8][0x10]={"ST0", "ST1","ST2","ST3",
@@ -127,10 +121,6 @@ static struct tcode_info tinfo[] = {
 
 #define OWRITE(sc, r, x) bus_space_write_4((sc)->bst, (sc)->bsh, (r), (x))
 #define OREAD(sc, r) bus_space_read_4((sc)->bst, (sc)->bsh, (r))
-
-#endif  /* __FreeBSD__ */
-
-#define senderr(e) { error = (e); goto bad;}
 
 static void fwohci_ibr __P((struct firewire_comm *));
 static void fwohci_db_init __P((struct fwohci_dbch *));
@@ -1481,8 +1471,6 @@ fwohci_intr_body(struct fwohci_softc *sc, u_int32_t stat, int count)
 	u_int i;
 	struct firewire_comm *fc = (struct firewire_comm *)sc;
 
-#define OHCI_DEBUG
-#undef OHCI_DEBUG
 #ifdef OHCI_DEBUG
 	if(stat & OREAD(sc, FWOHCI_INTMASK))
 		device_printf(fc->dev, "INTERRUPT < %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s> 0x%08x, 0x%08x\n",
