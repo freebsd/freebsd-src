@@ -56,6 +56,8 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
+#include <wctype.h>
 
 #define	MAXLINELEN	(LINE_MAX + 1)
 
@@ -63,20 +65,22 @@ int cflag, dflag, uflag;
 int numchars, numfields, repeats;
 
 FILE	*file(const char *, const char *);
-char	*getline(char *, size_t, FILE *);
-void	 show(FILE *, char *);
-char	*skip(char *);
+wchar_t	*getline(wchar_t *, size_t, FILE *);
+void	 show(FILE *, wchar_t *);
+wchar_t	*skip(wchar_t *);
 void	 obsolete(char *[]);
 static void	 usage(void);
-int      stricoll(char *, char*);
+int      wcsicoll(wchar_t *, wchar_t *);
 
 int
 main (int argc, char *argv[])
 {
-	char *t1, *t2;
+	wchar_t *t1, *t2;
 	FILE *ifp, *ofp;
 	int ch;
-	char *prevline, *thisline, *p;
+	wchar_t *prevline, *thisline;
+	char *p;
+	const char *ifn;
 	int iflag = 0, comp;
 
 	(void) setlocale(LC_ALL, "");
@@ -125,19 +129,23 @@ main (int argc, char *argv[])
 		usage();
 
 	ifp = stdin;
+	ifn = "stdin";
 	ofp = stdout;
 	if (argc > 0 && strcmp(argv[0], "-") != 0)
-		ifp = file(argv[0], "r");
+		ifp = file(ifn = argv[0], "r");
 	if (argc > 1)
 		ofp = file(argv[1], "w");
 
-	prevline = malloc(MAXLINELEN);
-	thisline = malloc(MAXLINELEN);
+	prevline = malloc(MAXLINELEN * sizeof(*prevline));
+	thisline = malloc(MAXLINELEN * sizeof(*thisline));
 	if (prevline == NULL || thisline == NULL)
 		err(1, "malloc");
 
-	if (getline(prevline, MAXLINELEN, ifp) == NULL)
+	if (getline(prevline, MAXLINELEN, ifp) == NULL) {
+		if (ferror(ifp))
+			err(1, "%s", ifp == stdin ? "stdin" : argv[0]);
 		exit(0);
+	}
 	if (!cflag && uflag && dflag)
 		show(ofp, prevline);
 
@@ -153,9 +161,9 @@ main (int argc, char *argv[])
 
 		/* If different, print; set previous to new value. */
 		if (iflag)
-			comp = stricoll(t1, t2);
+			comp = wcsicoll(t1, t2);
 		else
-			comp = strcoll(t1, t2);
+			comp = wcscoll(t1, t2);
 
 		if (comp) {
 			if (cflag || !dflag || !uflag)
@@ -169,24 +177,26 @@ main (int argc, char *argv[])
 		} else
 			++repeats;
 	}
+	if (ferror(ifp))
+		err(1, "%s", ifp == stdin ? "stdin" : argv[0]);
 	if (cflag || !dflag || !uflag)
 		show(ofp, prevline);
 	exit(0);
 }
 
-char *
-getline(char *buf, size_t buflen, FILE *fp)
+wchar_t *
+getline(wchar_t *buf, size_t buflen, FILE *fp)
 {
 	size_t bufpos;
-	int ch;
+	wint_t ch;
 
 	bufpos = 0;
-	while (bufpos + 2 != buflen && (ch = getc(fp)) != EOF && ch != '\n')
+	while (bufpos + 2 != buflen && (ch = getwc(fp)) != WEOF && ch != '\n')
 		buf[bufpos++] = ch;
 	if (bufpos + 1 != buflen)
 		buf[bufpos] = '\0';
-	while (ch != EOF && ch != '\n')
-		ch = getc(fp);
+	while (ch != WEOF && ch != '\n')
+		ch = getwc(fp);
 
 	return (bufpos != 0 || ch == '\n' ? buf : NULL);
 }
@@ -197,24 +207,24 @@ getline(char *buf, size_t buflen, FILE *fp)
  *	of the line.
  */
 void
-show(FILE *ofp, char *str)
+show(FILE *ofp, wchar_t *str)
 {
 
 	if (cflag && *str)
-		(void)fprintf(ofp, "%4d %s\n", repeats + 1, str);
+		(void)fprintf(ofp, "%4d %ls\n", repeats + 1, str);
 	if ((dflag && repeats) || (uflag && !repeats))
-		(void)fprintf(ofp, "%s\n", str);
+		(void)fprintf(ofp, "%ls\n", str);
 }
 
-char *
-skip(char *str)
+wchar_t *
+skip(wchar_t *str)
 {
 	int nchars, nfields;
 
 	for (nfields = 0; *str != '\0' && nfields++ != numfields; ) {
-		while (isblank((unsigned char)*str))
+		while (iswblank(*str))
 			str++;
-		while (*str != '\0' && !isblank((unsigned char)*str))
+		while (*str != '\0' && !iswblank(*str))
 			str++;
 	}
 	for (nchars = numchars; nchars-- && *str; ++str);
@@ -269,15 +279,15 @@ usage(void)
 }
 
 int
-stricoll(char *s1, char *s2)
+wcsicoll(wchar_t *s1, wchar_t *s2)
 {
-	char *p, line1[MAXLINELEN], line2[MAXLINELEN];
+	wchar_t *p, line1[MAXLINELEN], line2[MAXLINELEN];
 
 	for (p = line1; *s1; s1++)
-		*p++ = tolower((unsigned char)*s1);
+		*p++ = towlower(*s1);
 	*p = '\0';
 	for (p = line2; *s2; s2++)
-		*p++ = tolower((unsigned char)*s2);
+		*p++ = towlower(*s2);
 	*p = '\0';
-	return strcoll(line1, line2);
+	return (wcscoll(line1, line2));
 }
