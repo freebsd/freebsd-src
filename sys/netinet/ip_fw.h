@@ -258,7 +258,8 @@ struct ipfw_dyn_rule {
 #define	IP_FW_IF_IPTOS	0x00000800	/* ip type of service */
 #define	IP_FW_IF_IPTTL	0x00001000	/* ip time to live */
 #define	IP_FW_IF_IPVER	0x00002000	/* ip version */
-#define	IP_FW_IF_IPMSK	0x00003f00	/* mask of all ip values */
+#define	IP_FW_IF_IPPRE	0x00004000	/* ip precedence */
+#define	IP_FW_IF_IPMSK	0x00007f00	/* mask of all ip values */
 #define	IP_FW_IF_MSK	0x0000ffff	/* All possible bits mask */
 
 /*
