@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.5 1995/09/25 00:52:07 jkh Exp $
+ * $Id: install.c,v 1.71.2.6 1995/09/25 01:20:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -223,7 +223,7 @@ installFixit(char *str)
     if (child = fork())
 	(void)waitpid(child, &waitstatus, 0);
     else {
-	setenv("PATH", "/bin:/sbin:/usr/bin:/usr/sbin:/stand:/mnt", 1);
+	setenv("PATH", "/bin:/sbin:/usr/bin:/usr/sbin:/stand:/mnt/stand", 1);
 	execlp("sh", "-sh", 0);
 	return -1;
     }
@@ -231,6 +231,7 @@ installFixit(char *str)
     dialog_clear();
     dialog_update();
     unmount("/mnt", MNT_FORCE);
+    msgConfirm("Please remove the fixit disk and press return");
     return TRUE;
 }
 
