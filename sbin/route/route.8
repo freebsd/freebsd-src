@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)route.8	8.3 (Berkeley) 3/19/94
-.\"	$Id: route.8,v 1.11 1997/06/18 06:30:34 charnier Exp $
+.\"	$Id: route.8,v 1.12 1998/07/28 06:25:33 charnier Exp $
 .\"
 .Dd March 19, 1994
 .Dt ROUTE 8
@@ -149,8 +149,11 @@ and
 force the destination to be interpreted as a network or a host, respectively.
 Otherwise, if the 
 .Ar destination
-has a ``local address part'' of
-INADDR_ANY ,
+has a
+.Dq local address part
+of
+INADDR_ANY
+.Pq Li 0.0.0.0 ,
 or if the
 .Ar destination
 is the symbolic name of a network, then the route is
@@ -171,6 +174,14 @@ and
 .Fl net Li 128.32.130
 is interpreted as
 .Li 128.32.130.0 .
+.Pp
+A
+.Ar destination
+of
+.Ar default
+is a synonym for
+.Fl net Li 0.0.0.0 ,
+which is the default route.
 .Pp
 If the destination is directly reachable
 via an interface requiring
@@ -297,7 +308,7 @@ If the gateway address used was not the primary address of the gateway
 (the first one returned by
 .Xr gethostbyname 3 ) ,
 the gateway address is printed numerically as well as symbolically.
-.It Sy "delete [ host &| network ] %s: gateway %s flags %x" 
+.It Sy "delete [ host \&| network ] %s: gateway %s flags %x" 
 As above, but when deleting an entry.
 .It Sy "%s %s done"
 When the 
