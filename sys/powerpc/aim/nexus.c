@@ -12,7 +12,7 @@
  * no representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied
  * warranty.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
  * ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -89,9 +89,9 @@ static MALLOC_DEFINE(M_NEXUS, "nexus", "nexus device information");
 struct nexus_devinfo {
 	phandle_t	ndi_node;
 	/* Some common properties. */
-	char     	*ndi_name;
-	char     	*ndi_device_type;
-	char     	*ndi_compatible;
+	const char     	*ndi_name;
+	const char     	*ndi_device_type;
+	const char     	*ndi_compatible;
 };
 
 struct nexus_softc {
@@ -179,7 +179,7 @@ nexus_probe(device_t dev)
 	 * Allow devices to identify
 	 */
 	bus_generic_probe(dev);
-	
+
 	/*
 	 * Now walk the OFW tree to locate top-level devices
 	 */
@@ -219,17 +219,17 @@ nexus_add_child(device_t dev, int order, const char *name, int unit)
 	struct nexus_devinfo *dinfo;
 
 	child = device_add_child_ordered(dev, order, name, unit);
-	if (child == NULL) 
+	if (child == NULL)
 		return (NULL);
-        
+
 	dinfo = malloc(sizeof(struct nexus_devinfo), M_NEXUS, M_NOWAIT|M_ZERO);
 	if (dinfo == NULL)
 		return (NULL);
 
 	dinfo->ndi_node = -1;
 	dinfo->ndi_name = name;
-	device_set_ivars(child, dinfo);		
-	
+	device_set_ivars(child, dinfo);
+
         return (child);
 }
 
