@@ -276,12 +276,10 @@ systemChangeScreenmap(const u_char newmap[])
 	dialog_clear();
     }
 }
-
-#if 0
-/* Execute a command that is crunched into the same binary */
 int
 vsystem(char *fmt, ...)
 {
+#ifdef CRUNCHED_BINARY
     va_list args;
     union wait pstat;
     pid_t pid;
@@ -329,12 +327,7 @@ vsystem(char *fmt, ...)
     msgDebug("Command `%s' returns status of %d\n", cmd, i);
     free(cmd);
     return i;
-}
-#else
-/* Execute a system command, with varargs */
-int
-vsystem(char *fmt, ...)
-{
+#else /* Not crunched */
     va_list args;
     union wait pstat;
     pid_t pid;
@@ -377,5 +370,5 @@ vsystem(char *fmt, ...)
     msgDebug("Command `%s' returns status of %d\n", cmd, i);
     free(cmd);
     return i;
-}
 #endif
+}
