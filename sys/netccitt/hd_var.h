@@ -36,8 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)hd_var.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: hd_var.h,v 1.2 1994/08/02 07:47:10 davidg Exp $
  */
+
+#ifndef _NETCCITT_HD_VAR_H_
+#define _NETCCITT_HD_VAR_H_
 
 /*
  *
@@ -105,4 +108,6 @@ struct	ifqueue hdintrq;	/* hdlc packet input queue */
 int	hd_t1;			/* timer T1 value */
 int	hd_t3;			/* RR send timer */
 int	hd_n2;			/* frame retransmission limit */
+#endif
+
 #endif

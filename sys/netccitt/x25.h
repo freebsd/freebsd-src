@@ -38,8 +38,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)x25.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: x25.h,v 1.2 1994/08/02 07:47:50 davidg Exp $
  */
+
+#ifndef _NETCCITT_X25_H_
+#define _NETCCITT_X25_H_
 
 #ifdef KERNEL
 #define PRC_IFUP	3
@@ -155,4 +158,6 @@ struct ifreq_x25 {
 };
 #define	SIOCSIFCONF_X25	_IOW('i', 12, struct ifreq_x25)	/* set ifnet config */
 #define	SIOCGIFCONF_X25	_IOWR('i',13, struct ifreq_x25)	/* get ifnet config */
+#endif
+
 #endif

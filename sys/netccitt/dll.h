@@ -33,8 +33,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)dll.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: dll.h,v 1.2 1994/08/02 07:46:56 davidg Exp $
  */
+
+#ifndef _NETCCITT_DLL_H_
+#define _NETCCITT_DLL_H_
 
 /* 
  * We define the additional PRC_* codes in here
@@ -82,3 +85,5 @@ struct dll_ctlinfo {
 #define dlcti_pcb  CTLIun.CTLI_DOWN.dctli_down_pcb
 #define dlcti_rt   CTLIun.CTLI_DOWN.dctli_down_rt
 #define dlcti_conf CTLIun.CTLI_DOWN.dctli_down_llconf
+
+#endif
