@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.51 1997/02/22 09:46:01 peter Exp $
+ * $Id: sysctl.h,v 1.52 1997/02/24 20:32:10 wollman Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -398,6 +398,7 @@ int	sysctl_doprof __P((int *, u_int, void *, size_t *, void *, size_t));
 
 __BEGIN_DECLS
 int	sysctl __P((int *, u_int, void *, size_t *, void *, size_t));
+int	sysctlbyname __P((char *, void *, size_t *, void *, size_t));
 __END_DECLS
 #endif	/* KERNEL */
 
