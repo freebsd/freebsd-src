@@ -12,6 +12,7 @@ SUBDIR=	apply \
 	banner \
 	basename \
 	biff \
+	brandelf \
 	c89 \
 	calendar \
 	cap_mkdb \
@@ -210,7 +211,6 @@ SUBDIR+=dig \
 .if ${MACHINE_ARCH} == "i386"
 # Things that don't compile on alpha or are aout specific:
 SUBDIR+=ar \
-	brandelf \
 	doscmd \
 	gcore \
 	gprof4 \
