@@ -444,7 +444,7 @@ struct cmsgcred {
 	(((char *)(cmsg) + _ALIGN((cmsg)->cmsg_len) + \
 	  _ALIGN(sizeof(struct cmsghdr)) > \
 	    (char *)(mhdr)->msg_control + (mhdr)->msg_controllen) ? \
-	    (struct cmsghdr *)NULL : \
+	    (struct cmsghdr *)0 : \
 	    (struct cmsghdr *)((char *)(cmsg) + _ALIGN((cmsg)->cmsg_len)))
 
 #define	CMSG_FIRSTHDR(mhdr)	((struct cmsghdr *)(mhdr)->msg_control)
