@@ -520,6 +520,10 @@ Static int umass_scsi_transform	(struct umass_softc *sc,
 				unsigned char *cmd, int cmdlen,
 		     		unsigned char **rcmd, int *rcmdlen);
 
+/* Translator helper functions */
+Static int umass_scsi_6_to_10   (unsigned char *cmd, int cmdlen,
+		    		unsigned char **rcmd, int *rcmdlen);
+
 /* UFI specific functions */
 #define UFI_COMMAND_LENGTH	12	/* UFI commands are always 12b */
 Static int umass_ufi_transform	(struct umass_softc *sc,
@@ -581,8 +585,6 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 
 	dd = usbd_get_device_descriptor(udev);
 
-#if 0
-	/* XXX ATAPI support is untested. Don't use it for the moment */
 	if (UGETW(dd->idVendor) == USB_VENDOR_SHUTTLE
 	    && UGETW(dd->idProduct) == USB_PRODUCT_SHUTTLE_EUSB) {
 		sc->drive = SHUTTLE_EUSB;
@@ -621,7 +623,6 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 		sc->quirks |= NO_TEST_UNIT_READY | NO_START_STOP;
 		return(UMATCH_VENDOR_PRODUCT);
 	}
-#endif
 
 	if (UGETW(dd->idVendor) == USB_VENDOR_YEDATA
 	    && UGETW(dd->idProduct) == USB_PRODUCT_YEDATA_FLASHBUSTERU) {
@@ -699,11 +700,8 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 		break;
 	case USUBCLASS_SFF8020I:
 	case USUBCLASS_SFF8070I:
-#if 0
-		/* XXX ATAPI support is untested. Don't use it for the moment */
 		sc->proto |= PROTO_ATAPI;
 		break;
-#endif
 	default:
 		DPRINTF(UDMASS_GEN, ("%s: Unsupported command protocol %d\n",
 			USBDEVNAME(sc->sc_dev), id->bInterfaceSubClass));
@@ -739,11 +737,11 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 	if (UGETW(dd->idVendor) == USB_VENDOR_SCANLOGIC
 	    && UGETW(dd->idProduct) == 0x0002) {
 		/* ScanLogic SL11R IDE adapter claims to support
-		 * SCSI, but really needs UFI.
+		 * SCSI, but really needs ATAPI.
 		 * Note also that these devices need firmware > 0.71
 		 */
 		sc->proto &= ~PROTO_SCSI;
-		sc->proto |= PROTO_UFI;
+		sc->proto |= PROTO_ATAPI;
 	}
 
 	return(UMATCH_DEVCLASS_DEVSUBCLASS_DEVPROTO);
@@ -2704,6 +2702,80 @@ umass_rbc_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 }
 
 /*
+ * Translator helper functions
+ */
+
+Static int
+umass_scsi_6_to_10(unsigned char *cmd, int cmdlen, unsigned char **rcmd,
+		   int *rcmdlen)
+{
+
+	/*
+	 * This function translates 6 byte commands to 10 byte commands.
+	 * For read/write, the format is:
+	 *
+	 * 6 byte:
+	 * -------------------------
+	 * | 0 | 1 | 2 | 3 | 4 | 5 |
+	 * -------------------------
+	 *  OP |  ADDRESS  |LEN|CTRL
+	 *
+	 * 10 byte:
+	 * -----------------------------------------
+	 * | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
+	 * -----------------------------------------
+	 *  OP |B2 |    ADDRESS    |RSV|  LEN  |CTRL
+	 *
+	 * For mode sense/select, the format is:
+	 *
+	 * 6 byte:
+	 * -------------------------
+	 * | 0 | 1 | 2 | 3 | 4 | 5 |
+	 * -------------------------
+	 *  OP |B2 |PAG|UNU|LEN|CTRL
+	 *
+	 * 10 byte:
+	 * -----------------------------------------
+	 * | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
+	 * -----------------------------------------
+	 *  OP |B2 |PAG|     UNUSED    |  LEN  |CTRL
+	 *
+	 * with the exception that mode select does not have a page field.
+	 */
+	switch (cmd[0]) {
+	case READ_6:
+		(*rcmd)[0] = READ_10;
+		break;
+	case WRITE_6:
+		(*rcmd)[0] = WRITE_10;
+		break;
+	case MODE_SENSE_6:
+		(*rcmd)[0] = MODE_SENSE_10;
+		break;
+	case MODE_SELECT_6:
+		(*rcmd)[0] = MODE_SELECT_6;
+		break;
+	default:
+		return (0);
+	}
+
+	switch (cmd[0]) {
+	case READ_6:
+	case WRITE_6:
+		memcpy(&(*rcmd)[3], &cmd[1], 3);
+		break;
+	case MODE_SENSE_6:
+		(*rcmd)[2] = cmd[2];
+	case MODE_SELECT_6:
+		(*rcmd)[1] = cmd[1];
+		break;
+	}
+	(*rcmd)[8] = cmd[4];
+	(*rcmd)[9] = cmd[5];
+	return (1);
+}
+
+/*
  * UFI specific functions
  */
 
@@ -2719,6 +2791,8 @@ umass_ufi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 	*rcmdlen = UFI_COMMAND_LENGTH;
 	memset(*rcmd, 0, UFI_COMMAND_LENGTH);
 
+	if (umass_scsi_6_to_10(cmd, cmdlen, rcmd, rcmdlen))
+		return (1);
 	switch (cmd[0]) {
 	/* Commands of which the format has been verified. They should work.
 	 * Copy the command into the (zeroed out) destination buffer.
@@ -2749,30 +2823,19 @@ umass_ufi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 	case POSITION_TO_ELEMENT:	/* SEEK_10 */
 	case MODE_SELECT_10:
 	case MODE_SENSE_10:
+	case READ_12:
+	case WRITE_12:
 		memcpy(*rcmd, cmd, cmdlen);
 		return 1;
 
-	/* Other UFI commands: FORMAT_UNIT, MODE_SELECT, READ_FORMAT_CAPACITY,
+	/* Other UFI commands: FORMAT_UNIT, READ_FORMAT_CAPACITY,
 	 * VERIFY, WRITE_AND_VERIFY.
 	 * These should be checked whether they somehow can be made to fit.
 	 */
 
-	/* These commands are known _not_ to work. They should be converted
-	 * The 6 byte commands can be switched off with a CAM quirk. See
-	 * the entry for the Y-E data drive.
-	 */
-	case READ_6:
-	case WRITE_6:
-	case MODE_SENSE_6:
-	case MODE_SELECT_6:
-	case READ_12:
-	case WRITE_12:
 	default:
-		printf("%s: Unsupported UFI command 0x%02x",
+		printf("%s: Unsupported UFI command 0x%02x\n",
 			USBDEVNAME(sc->sc_dev), cmd[0]);
-		if (cmdlen == 6)
-			printf(", 6 byte command should have been converted");
-		printf("\n");
 		return 0;	/* failure */
 	}
 }
@@ -2792,6 +2855,8 @@ umass_atapi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 	*rcmdlen = ATAPI_COMMAND_LENGTH;
 	memset(*rcmd, 0, ATAPI_COMMAND_LENGTH);
 
+	if (umass_scsi_6_to_10(cmd, cmdlen, rcmd, rcmdlen))
+		return (1);
 	switch (cmd[0]) {
 	/* Commands of which the format has been verified. They should work.
 	 * Copy the command into the (zeroed out) destination buffer.
@@ -2819,22 +2884,11 @@ umass_atapi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 		memcpy(*rcmd, cmd, cmdlen);
 		return 1;
 
-	/* These commands are known _not_ to work. They should be converted
-	 * The 6 byte commands can be switched off with a CAM quirk. See
-	 * the entry for the Y-E data drive.
-	 */
-	case READ_6:
-	case WRITE_6:
-	case MODE_SENSE_6:
-	case MODE_SELECT_6:
 	case READ_12:
 	case WRITE_12:
 	default:
-		printf("%s: Unsupported ATAPI command 0x%02x",
+		printf("%s: Unsupported ATAPI command 0x%02x\n",
 			USBDEVNAME(sc->sc_dev), cmd[0]);
-		if (cmdlen == 6)
-			printf(", 6 byte command should have been converted");
-		printf("\n");
 		return 0;	/* failure */
 	}
 }
