@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.77 1999/08/23 20:59:17 phk Exp $
+ * $Id: conf.h,v 1.78 1999/08/25 22:50:12 julian Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -53,7 +53,7 @@ struct specinfo {
 
 	udev_t		si_udev;
 	SLIST_ENTRY(specinfo)	si_hash;
-	struct vnode	*si_hlist;
+	SLIST_HEAD(, vnode) si_hlist;
 	char		si_name[SPECNAMELEN + 1];
 	void		*si_drv1, *si_drv2;
 	struct cdevsw	*si_devsw;

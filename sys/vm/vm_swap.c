@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.82 1999/08/23 20:59:21 phk Exp $
+ * $Id: vm_swap.c,v 1.83 1999/08/24 05:58:35 green Exp $
  */
 
 #include "opt_swap.h"
@@ -349,11 +349,7 @@ swaponvp(p, vp, dev, nblks)
 			panic("Cannot get vnode for swapdev");
 		vp1 = nvp;
 		vp1->v_type = VBLK;
-		if ((nvp = checkalias(vp1, makeudev(BDEV_MAJOR, 0),
-		    (struct mount *) 0))) {
-			vput(vp1);
-			vp1 = nvp;
-		}
+		addaliasu(vp1, makeudev(BDEV_MAJOR, 0));
 		swapdev_vp = vp1;
 	}
 	return (0);

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_tree.c,v 1.61 1999/08/25 04:55:18 julian Exp $
+ *	$Id: devfs_tree.c,v 1.62 1999/08/25 22:50:11 julian Exp $
  */
 
 
@@ -982,23 +982,11 @@ DBPRINT(("(New vnode)"));
 			break;
 		case	DEV_BDEV:
 			vn_p->v_type = VBLK;
-			if ((nvp = checkalias2(vn_p,
-			   dnp->by.dev.dev,
-			  (struct mount *)0)) != NULL)
-			{
-				vput(vn_p);
-				vn_p = nvp;
-			}
+			addalias(vn_p, dnp->by.dev.dev);
 			break;
 		case	DEV_CDEV:
 			vn_p->v_type = VCHR;
-			if ((nvp = checkalias2(vn_p,
-			   dnp->by.dev.dev,
-			  (struct mount *)0)) != NULL)
-			{
-				vput(vn_p);
-				vn_p = nvp;
-			}
+			addalias(vn_p, dnp->by.dev.dev);
 			break;
 		case	DEV_DDEV:
 			break;
