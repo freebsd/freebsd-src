@@ -43,8 +43,15 @@ stage2()
     /* Sort in mountpoint order */
     memset(fidx, 0, sizeof fidx);
 
+    for (i = 0; i < no_mounts; i++) {
+	Debug("%d %s %s %s %s",i,
+		mounts[i]->fs_spec,
+		mounts[i]->fs_file,
+		mounts[i]->fs_vfstype,
+		mounts[i]->fs_mntops);
+    }
     for (j = 1; j;)
-	for (j = 0, i = 0; i < no_mounts; i++) {
+	for (j = 0, i = 0; i < (no_mounts-1); i++) {
 	    if (strcmp(mounts[i]->fs_file, mounts[i+1]->fs_file) > 0) {
 		fp = mounts[i];
 		mounts[i] = mounts[i+1];
@@ -52,7 +59,7 @@ stage2()
 		j++;
 	    }
 	}
-
+    Debug("sorted by mountpoint");
     for (j = 0; j < no_mounts; j++) {
 	if (strcmp(mounts[j]->fs_vfstype, "ufs")) 
 	    continue;
@@ -67,12 +74,17 @@ stage2()
 	    Fatal("Exec(/stand/newfs) failed, code=%d.",i);
 	}
 
-    for (j = 0; fidx[j]; j++) {
-	strcpy(dbuf, "/mnt");
+    for (j = 0; j < no_mounts; j++) {
+	if (!strcmp(mounts[j]->fs_vfstype, "swap"))
+	    break;
 	p = mounts[j]->fs_spec;
 	q = mounts[j]->fs_file;
-	if (strcmp(q, "/"))
+	strcpy(dbuf, "/mnt");
+	if (strcmp(q, "/")) {
+	    if (*q != '/')
+	        strcat(dbuf, "/");
 	    strcat(dbuf, q);
+	}
 	Mkdir(dbuf);
 	if (strcmp(mounts[j]->fs_vfstype, "ufs"))
 	    continue;
