@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.16 1994/11/01 17:32:46 ache Exp $
+#       $Id: Makefile,v 1.17 1994/12/06 03:15:02 ache Exp $
 
 
 CFLAGS+= -I${.CURDIR} -DVOID_SIGHANDLER -DHAVE_CONFIG_H
@@ -11,6 +11,8 @@ HEADERS= history.h readline.h keymaps.h chardefs.h tilde.h
 MAN3=   readline.3
 DPADD+= $(LIBTERMCAP)
 LDADD+= -ltermcap
+
+SUBDIR+= doc
 
 beforeinstall:
 	@-if [ ! -d ${DESTDIR}/usr/include/readline ]; then \
