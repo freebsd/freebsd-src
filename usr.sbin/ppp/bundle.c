@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.50 1998/04/16 23:06:53 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.51 1998/04/17 22:04:18 brian Exp $
  */
 
 #include <sys/types.h>
@@ -871,8 +871,6 @@ bundle_ShowStatus(struct cmdargs const *arg)
                 optval(arg->bundle, OPT_IDCHECK));
   prompt_Printf(arg->prompt, " Loopback:   %s\n",
                 optval(arg->bundle, OPT_LOOPBACK));
-  prompt_Printf(arg->prompt, " MS Ext:     %s\n",
-                optval(arg->bundle, OPT_MSEXT));
   prompt_Printf(arg->prompt, " PasswdAuth: %s\n",
                 optval(arg->bundle, OPT_PASSWDAUTH));
   prompt_Printf(arg->prompt, " Proxy:      %s\n",

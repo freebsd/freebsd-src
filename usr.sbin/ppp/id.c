@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: id.c,v 1.6.4.3 1998/04/06 09:12:28 brian Exp $
+ *	$Id: id.c,v 1.6.4.4 1998/04/07 00:53:45 brian Exp $
  */
 
 #include <sys/types.h>
@@ -31,6 +31,7 @@
 
 #include <sys/ioctl.h>
 #include <fcntl.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <sysexits.h>
@@ -128,14 +129,17 @@ ID0fopen(const char *path, const char *mode)
 }
 
 int
-ID0open(const char *path, int flags)
+ID0open(const char *path, int flags, ...)
 {
   int ret;
+  va_list ap;
 
+  va_start(ap, flags);
   ID0set0();
-  ret = open(path, flags);
+  ret = open(path, flags, va_arg(ap, int));
   LogPrintf(LogID0, "%d = open(\"%s\", %d)\n", ret, path, flags);
   ID0setuser();
+  va_end(ap);
   return ret;
 }
 

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.61 1998/04/16 00:25:53 brian Exp $
+ * $Id: command.c,v 1.131.2.62 1998/04/16 18:30:50 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -101,6 +101,8 @@
 #define	VAR_PAPRETRY	17
 #define	VAR_CCPRETRY	18
 #define	VAR_IPCPRETRY	19
+#define	VAR_DNS		20
+#define	VAR_NBNS	21
 
 /* ``accept|deny|disable|enable'' masks */
 #define NEG_HISMASK (1)
@@ -116,6 +118,7 @@
 #define NEG_PRED1	46
 #define NEG_PROTOCOMP	47
 #define NEG_VJCOMP	48
+#define NEG_DNS		49
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -497,7 +500,7 @@ static int
 ShowVersion(struct cmdargs const *arg)
 {
   static char VarVersion[] = "PPP Version 2.0-beta";
-  static char VarLocalVersion[] = "$Date: 1998/04/16 00:25:53 $";
+  static char VarLocalVersion[] = "$Date: 1998/04/16 18:30:50 $";
 
   prompt_Printf(arg->prompt, "%s - %s \n", VarVersion, VarLocalVersion);
   return 0;
@@ -512,26 +515,6 @@ ShowProtocolStats(struct cmdargs const *arg)
   link_ReportProtocolStatus(l, arg->prompt);
   return 0;
 }
-
-
-#ifndef NOMSEXT
-static int
-ShowMSExt(struct cmdargs const *arg)
-{
-  prompt_Printf(arg->prompt, " MS PPP extention values \n");
-  prompt_Printf(arg->prompt, "   Primary NS     : %s\n",
-                inet_ntoa(arg->bundle->ncp.ipcp.cfg.ns_entries[0]));
-  prompt_Printf(arg->prompt, "   Secondary NS   : %s\n",
-                inet_ntoa(arg->bundle->ncp.ipcp.cfg.ns_entries[1]));
-  prompt_Printf(arg->prompt, "   Primary NBNS   : %s\n",
-                inet_ntoa(arg->bundle->ncp.ipcp.cfg.nbns_entries[0]));
-  prompt_Printf(arg->prompt, "   Secondary NBNS : %s\n",
-                inet_ntoa(arg->bundle->ncp.ipcp.cfg.nbns_entries[1]));
-
-  return 0;
-}
-
-#endif
 
 static struct cmdtab const ShowCommands[] = {
   {"bundle", NULL, bundle_ShowStatus, LOCAL_AUTH,
@@ -558,10 +541,6 @@ static struct cmdtab const ShowCommands[] = {
   "Show memory map", "show mem"},
   {"modem", NULL, modem_ShowStatus, LOCAL_AUTH | LOCAL_CX,
   "Show modem setups", "show modem"},
-#ifndef NOMSEXT
-  {"msext", NULL, ShowMSExt, LOCAL_AUTH,
-  "Show MS PPP extentions", "show msext"},
-#endif
   {"proto", NULL, ShowProtocolStats, LOCAL_AUTH | LOCAL_CX_OPT,
   "Show protocol summary", "show proto"},
   {"route", NULL, ShowRoute, LOCAL_AUTH,
@@ -1030,54 +1009,6 @@ SetInterfaceAddr(struct cmdargs const *arg)
   return 0;
 }
 
-#ifndef NOMSEXT
-
-static void
-SetMSEXT(struct ipcp *ipcp, struct in_addr * pri_addr,
-	 struct in_addr * sec_addr, int argc, char const *const *argv)
-{
-  int dummyint;
-  struct in_addr dummyaddr;
-
-  pri_addr->s_addr = sec_addr->s_addr = 0L;
-
-  if (argc > 0) {
-    ParseAddr(ipcp, argc, argv++, pri_addr, &dummyaddr, &dummyint);
-    if (--argc > 0)
-      ParseAddr(ipcp, argc, argv++, sec_addr, &dummyaddr, &dummyint);
-    else
-      sec_addr->s_addr = pri_addr->s_addr;
-  }
-
-  /*
-   * if the primary/secondary ns entries are 0.0.0.0 we should set them to
-   * either the localhost's ip, or the values in /etc/resolv.conf ??
-   * 
-   * up to you if you want to implement this...
-   */
-
-}
-
-static int
-SetNS(struct cmdargs const *arg)
-{
-  SetMSEXT(&arg->bundle->ncp.ipcp, &arg->bundle->ncp.ipcp.cfg.ns_entries[0],
-           &arg->bundle->ncp.ipcp.cfg.ns_entries[1], arg->argc - arg->argn,
-           arg->argv + arg->argn);
-  return 0;
-}
-
-static int
-SetNBNS(struct cmdargs const *arg)
-{
-  SetMSEXT(&arg->bundle->ncp.ipcp, &arg->bundle->ncp.ipcp.cfg.nbns_entries[0],
-           &arg->bundle->ncp.ipcp.cfg.nbns_entries[1], arg->argc - arg->argn,
-           arg->argv + arg->argn);
-  return 0;
-}
-
-#endif				/* MS_EXT */
-
 static int
 SetVariable(struct cmdargs const *arg)
 {
@@ -1087,6 +1018,8 @@ SetVariable(struct cmdargs const *arg)
   struct datalink *cx = arg->cx;	/* AUTH_CX uses this */
   const char *err = NULL;
   struct link *l = ChooseLink(arg);	/* AUTH_CX_OPT uses this */
+  int dummyint;
+  struct in_addr dummyaddr, *addr;
 
   if (arg->argc > arg->argn)
     argp = arg->argv[arg->argn];
@@ -1268,6 +1201,28 @@ SetVariable(struct cmdargs const *arg)
     } else
       arg->bundle->ncp.ipcp.cfg.fsmretry = ulong_val;
     break;
+  case VAR_NBNS:
+  case VAR_DNS:
+    if (param == VAR_DNS)
+      addr = arg->bundle->ncp.ipcp.cfg.ns.dns;
+    else
+      addr = arg->bundle->ncp.ipcp.cfg.ns.nbns;
+
+    addr[0].s_addr = addr[1].s_addr = INADDR_ANY;
+
+    if (arg->argc > arg->argn) {
+      ParseAddr(&arg->bundle->ncp.ipcp, 1, arg->argv + arg->argn,
+                addr, &dummyaddr, &dummyint);
+      if (arg->argc > arg->argn+1)
+        ParseAddr(&arg->bundle->ncp.ipcp, 1, arg->argv + arg->argn + 1,
+                  addr + 1, &dummyaddr, &dummyint);
+
+      if (addr[1].s_addr == INADDR_ANY)
+        addr[1].s_addr = addr[0].s_addr;
+      if (addr[0].s_addr == INADDR_ANY)
+        addr[0].s_addr = addr[1].s_addr;
+    }
+    break;
   }
 
   return err ? 1 : 0;
@@ -1309,6 +1264,8 @@ static struct cmdtab const SetCommands[] = {
   (const void *) VAR_DEVICE},
   {"dial", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "Set dialing script", "set dial chat-script", (const void *) VAR_DIAL},
+  {"dns", NULL, SetVariable, LOCAL_AUTH, "Set Domain Name Server",
+  "set dns pri-addr [sec-addr]", (const void *)VAR_DNS},
   {"encrypt", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "Select CHAP encryption type", "set encrypt MSChap|MD5",
   (const void *)VAR_ENC},
@@ -1336,12 +1293,8 @@ static struct cmdtab const SetCommands[] = {
   "Set MRU value", "set mru value", (const void *)VAR_MRU},
   {"mtu", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
   "Set MTU value", "set mtu value", (const void *)VAR_MTU},
-#ifndef NOMSEXT
-  {"nbns", NULL, SetNBNS, LOCAL_AUTH,
-  "Set NetBIOS NameServer", "set nbns pri-addr [sec-addr]"},
-  {"ns", NULL, SetNS, LOCAL_AUTH,
-  "Set NameServer", "set ns pri-addr [sec-addr]"},
-#endif
+  {"nbns", NULL, SetVariable, LOCAL_AUTH, "Set NetBIOS Name Server",
+  "set nbns pri-addr [sec-addr]", (const void *)VAR_NBNS},
   {"openmode", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "Set open mode",
   "set openmode active|passive [secs]", (const void *)VAR_OPENMODE},
   {"papretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
@@ -1691,6 +1644,10 @@ NegotiateSet(struct cmdargs const *arg)
       l->ccp.cfg.neg[CCP_NEG_DEFLATE] &= keep;
       l->ccp.cfg.neg[CCP_NEG_DEFLATE] |= add;
       break;
+    case NEG_DNS:
+      arg->bundle->ncp.ipcp.cfg.ns.dns_neg &= keep;
+      arg->bundle->ncp.ipcp.cfg.ns.dns_neg |= add;
+      break;
     case NEG_LQR:
       cx->physical->link.lcp.cfg.lqr &= keep;
       cx->physical->link.lcp.cfg.lqr |= add;
@@ -1721,12 +1678,10 @@ NegotiateSet(struct cmdargs const *arg)
 }
 
 static struct cmdtab const NegotiateCommands[] = {
-  {"idcheck", NULL, OptSet, LOCAL_AUTH, "Check reply FSM ids",
+  {"idcheck", NULL, OptSet, LOCAL_AUTH, "Check FSM reply ids",
   "disable|enable", (const void *)OPT_IDCHECK},
   {"loopback", NULL, OptSet, LOCAL_AUTH, "Loop packets for local iface",
   "disable|enable", (const void *)OPT_LOOPBACK},
-  {"msext", NULL, OptSet, LOCAL_AUTH, "Send NS & NBNS values",
-  "disable|enable", (const void *)OPT_MSEXT},
   {"passwdauth", NULL, OptSet, LOCAL_AUTH, "Use passwd file",
   "disable|enable", (const void *)OPT_PASSWDAUTH},
   {"proxy", NULL, OptSet, LOCAL_AUTH, "Create proxy ARP entry",
@@ -1736,7 +1691,7 @@ static struct cmdtab const NegotiateCommands[] = {
   {"utmp", NULL, OptSet, LOCAL_AUTH, "Log connections in utmp",
   "disable|enable", (const void *)OPT_UTMP},
 
-#define OPT_MAX 7	/* accept/deny allowed below and not above */
+#define OPT_MAX 6	/* accept/deny allowed below and not above */
 
   {"acfcomp", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX,
   "Address & Control field compression", "accept|deny|disable|enable",
@@ -1747,15 +1702,17 @@ static struct cmdtab const NegotiateCommands[] = {
   {"deflate", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX_OPT,
   "Deflate compression", "accept|deny|disable|enable",
   (const void *)NEG_DEFLATE},
+  {"deflate24", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX_OPT,
+  "Deflate (type 24) compression", "accept|deny|disable|enable",
+  (const void *)NEG_PPPDDEFLATE},
+  {"dns", NULL, NegotiateSet, LOCAL_AUTH,
+  "DNS specification", "accept|deny|disable|enable", (const void *)NEG_DNS},
   {"lqr", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX,
   "Link Quality Reports", "accept|deny|disable|enable",
   (const void *)NEG_LQR},
   {"pap", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX,
   "Password Authentication protocol", "accept|deny|disable|enable",
   (const void *)NEG_PAP},
-  {"deflate24", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Deflate (type 24) compression", "accept|deny|disable|enable",
-  (const void *)NEG_PPPDDEFLATE},
   {"pred1", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX_OPT,
   "Predictor 1 compression", "accept|deny|disable|enable",
   (const void *)NEG_PRED1},
@@ -1789,8 +1746,8 @@ NegotiateCommand(struct cmdargs const *arg)
                0 : OPT_MAX), 2, 1, argv, arg->prompt, arg->cx);
     }
   } else if (arg->prompt)
-    prompt_Printf(arg->prompt, "Use `%s ?' to get a list or `%s ? <var>' for"
-	    " syntax help.\n", arg->argv[arg->argn], arg->argv[arg->argn] );
+    prompt_Printf(arg->prompt, "Use `%s ?' to get a list.\n",
+	    arg->argv[arg->argn-1]);
   else
     LogPrintf(LogWARN, "%s command must have arguments\n",
               arg->argv[arg->argn] );

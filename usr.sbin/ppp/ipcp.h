@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.18.2.21 1998/04/10 13:19:09 brian Exp $
+ * $Id: ipcp.h,v 1.18.2.22 1998/04/16 00:26:05 brian Exp $
  *
  *	TODO:
  */
@@ -32,6 +32,7 @@
 #define TY_PRIMARY_NBNS		130
 #define TY_SECONDARY_DNS	131
 #define TY_SECONDARY_NBNS	132
+#define TY_ADJUST_NS		119 /* subtract from NS val for REJECT bit */
 
 struct in_range {
   struct in_addr ipaddr;
@@ -57,10 +58,12 @@ struct ipcp {
     struct in_addr   TriggerAddress;	/* Address to suggest in REQ */
     unsigned HaveTriggerAddress : 1;	/* Trigger address specified */
 
-#ifndef NOMSEXT
-    struct in_addr ns_entries[2];	/* DNS addresses offered */
-    struct in_addr nbns_entries[2];	/* NetBIOS NS addresses offered */
-#endif
+    struct {
+      struct in_addr dns[2];		/* DNS addresses offered */
+      unsigned dns_neg : 2;		/* dns negotiation */
+      struct in_addr nbns[2];		/* NetBIOS NS addresses offered */
+    } ns;
+
     u_int fsmretry;			/* FSM retry frequency */
   } cfg;
 

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.36 1998/04/14 23:17:07 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.37 1998/04/16 00:26:00 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -32,6 +32,8 @@
 #include <net/if.h>
 #include <sys/sockio.h>
 
+#include <fcntl.h>
+#include <resolv.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -70,6 +72,8 @@
 
 #undef REJECTED
 #define	REJECTED(p, x)	((p)->peer_reject & (1<<(x)))
+#define issep(ch) ((ch) == ' ' || (ch) == '\t')
+#define isip(ch) (((ch) >= '0' && (ch) <= '9') || (ch) == '.')
 
 struct compreq {
   u_short proto;
@@ -135,6 +139,118 @@ ipcp_AddOutOctets(struct ipcp *ipcp, int n)
   throughput_addout(&ipcp->throughput, n);
 }
 
+static void
+getdns(struct ipcp *ipcp, struct in_addr addr[2])
+{
+  FILE *fp;
+
+  addr[0].s_addr = addr[1].s_addr = INADDR_ANY;
+  if ((fp = fopen(_PATH_RESCONF, "r")) != NULL) {
+    char buf[LINE_LEN], *cp, *end;
+    int n;
+
+    n = 0;
+    buf[sizeof buf - 1] = '\0';
+    while (fgets(buf, sizeof buf - 1, fp)) {
+      if (!strncmp(buf, "nameserver", 10) && issep(buf[10])) {
+        for (cp = buf + 11; issep(*cp); cp++)
+          ;
+        for (end = cp; isip(*end); end++)
+          ;
+        *end = '\0';
+        if (inet_aton(cp, addr+n) && ++n == 2)
+          break;
+      }
+    }
+    if (n == 1)
+      addr[1] = addr[0];
+    fclose(fp);
+  }
+}
+
+static int
+setdns(struct ipcp *ipcp, struct in_addr addr[2])
+{
+  FILE *fp;
+  char wbuf[LINE_LEN + 54];
+  int wlen;
+
+  if (addr[0].s_addr == INADDR_ANY || addr[1].s_addr == INADDR_ANY) {
+    struct in_addr old[2];
+
+    getdns(ipcp, old);
+    if (addr[0].s_addr == INADDR_ANY)
+      addr[0] = old[0];
+    if (addr[1].s_addr == INADDR_ANY)
+      addr[1] = old[1];
+  }
+
+  if (addr[0].s_addr == INADDR_ANY && addr[1].s_addr == INADDR_ANY) {
+    LogPrintf(LogWARN, "%s not modified: All nameservers NAKd\n",
+              _PATH_RESCONF);
+    return 0;
+  }
+
+  wlen = 0;
+  if ((fp = fopen(_PATH_RESCONF, "r")) != NULL) {
+    char buf[LINE_LEN];
+    int len;
+
+    buf[sizeof buf - 1] = '\0';
+    while (fgets(buf, sizeof buf - 1, fp)) {
+      if (strncmp(buf, "nameserver", 10) || !issep(buf[10])) {
+        len = strlen(buf);
+        if (len > sizeof wbuf - wlen) {
+          LogPrintf(LogWARN, "%s: Can only cope with max file size %d\n",
+                    _PATH_RESCONF, LINE_LEN);
+          fclose(fp);
+          return 0;
+        }
+        memcpy(wbuf + wlen, buf, len);
+        wlen += len;
+      }
+    }
+    fclose(fp);
+  }
+
+  if (addr[0].s_addr != INADDR_ANY) {
+    snprintf(wbuf + wlen, sizeof wbuf - wlen, "nameserver %s\n",
+             inet_ntoa(addr[0]));
+    LogPrintf(LogIPCP, "Primary nameserver set to %s", wbuf + wlen + 11);
+    wlen += strlen(wbuf + wlen);
+  }
+
+  if (addr[1].s_addr != INADDR_ANY && addr[1].s_addr != addr[0].s_addr) {
+    snprintf(wbuf + wlen, sizeof wbuf - wlen, "nameserver %s\n",
+             inet_ntoa(addr[1]));
+    LogPrintf(LogIPCP, "Secondary nameserver set to %s", wbuf + wlen + 11);
+    wlen += strlen(wbuf + wlen);
+  }
+
+  if (wlen) {
+    int fd;
+
+    if ((fd = ID0open(_PATH_RESCONF, O_WRONLY|O_CREAT, 0644)) != -1) {
+      if (write(fd, wbuf, wlen) != wlen) {
+        LogPrintf(LogERROR, "setdns: write(): %s\n", strerror(errno));
+        close(fd);
+        return 0;
+      }
+      if (ftruncate(fd, wlen) == -1) {
+        LogPrintf(LogERROR, "setdns: truncate(): %s\n", strerror(errno));
+        close(fd);
+        return 0;
+      }
+      close(fd);
+    } else {
+      LogPrintf(LogERROR, "setdns: open(): %s\n", strerror(errno));
+      return 0;
+    }
+  }
+
+  return 1;
+}
+
 int
 ReportIpcpStatus(struct cmdargs const *arg)
 {
@@ -151,15 +267,23 @@ ReportIpcpStatus(struct cmdargs const *arg)
 
   prompt_Printf(arg->prompt, "\nDefaults:\n");
   prompt_Printf(arg->prompt, " My Address:      %s/%d\n",
-	  inet_ntoa(arg->bundle->ncp.ipcp.cfg.my_range.ipaddr),
-          arg->bundle->ncp.ipcp.cfg.my_range.width);
+	        inet_ntoa(arg->bundle->ncp.ipcp.cfg.my_range.ipaddr),
+                arg->bundle->ncp.ipcp.cfg.my_range.width);
   if (iplist_isvalid(&arg->bundle->ncp.ipcp.cfg.peer_list))
     prompt_Printf(arg->prompt, " His Address:     %s\n",
-            arg->bundle->ncp.ipcp.cfg.peer_list.src);
+                  arg->bundle->ncp.ipcp.cfg.peer_list.src);
   else
     prompt_Printf(arg->prompt, " His Address:     %s/%d\n",
-	  inet_ntoa(arg->bundle->ncp.ipcp.cfg.peer_range.ipaddr),
-          arg->bundle->ncp.ipcp.cfg.peer_range.width);
+	          inet_ntoa(arg->bundle->ncp.ipcp.cfg.peer_range.ipaddr),
+                  arg->bundle->ncp.ipcp.cfg.peer_range.width);
+  prompt_Printf(arg->prompt, " DNS:             %s, ",
+                inet_ntoa(arg->bundle->ncp.ipcp.cfg.ns.dns[0]));
+  prompt_Printf(arg->prompt, "%s\n",
+                inet_ntoa(arg->bundle->ncp.ipcp.cfg.ns.dns[1]));
+  prompt_Printf(arg->prompt, " NetBIOS NS:      %s, ",
+	        inet_ntoa(arg->bundle->ncp.ipcp.cfg.ns.nbns[0]));
+  prompt_Printf(arg->prompt, "%s\n",
+                inet_ntoa(arg->bundle->ncp.ipcp.cfg.ns.nbns[1]));
 
   prompt_Printf(arg->prompt, "\nNegotiation:\n");
   if (arg->bundle->ncp.ipcp.cfg.HaveTriggerAddress)
@@ -168,11 +292,13 @@ ReportIpcpStatus(struct cmdargs const *arg)
   else
     prompt_Printf(arg->prompt, " Trigger Address: MYADDR\n");
 
-  prompt_Printf(arg->prompt, " VJ compression:  %s (%d slots %s slot compression)\n",
+  prompt_Printf(arg->prompt, " DNS:             %s\n",
+                command_ShowNegval(arg->bundle->ncp.ipcp.cfg.ns.dns_neg));
+  prompt_Printf(arg->prompt, " VJ compression:  %s (%d slots %s slot "
+                "compression)\n",
                 command_ShowNegval(arg->bundle->ncp.ipcp.cfg.vj.neg),
                 arg->bundle->ncp.ipcp.cfg.vj.slots,
-          arg->bundle->ncp.ipcp.cfg.vj.slotcomp ? "with" : "without"
-);
+                arg->bundle->ncp.ipcp.cfg.vj.slotcomp ? "with" : "without");
 
   prompt_Printf(arg->prompt, "\n");
   throughput_disp(&arg->bundle->ncp.ipcp.throughput, arg->prompt);
@@ -233,12 +359,11 @@ ipcp_Init(struct ipcp *ipcp, struct bundle *bundle, struct link *l,
   iplist_setsrc(&ipcp->cfg.peer_list, "");
   ipcp->cfg.HaveTriggerAddress = 0;
 
-#ifndef NOMSEXT
-  ipcp->cfg.ns_entries[0].s_addr = INADDR_ANY;
-  ipcp->cfg.ns_entries[1].s_addr = INADDR_ANY;
-  ipcp->cfg.nbns_entries[0].s_addr = INADDR_ANY;
-  ipcp->cfg.nbns_entries[1].s_addr = INADDR_ANY;
-#endif
+  ipcp->cfg.ns.dns[0].s_addr = INADDR_ANY;
+  ipcp->cfg.ns.dns[1].s_addr = INADDR_ANY;
+  ipcp->cfg.ns.dns_neg = 0;
+  ipcp->cfg.ns.nbns[0].s_addr = INADDR_ANY;
+  ipcp->cfg.ns.nbns[1].s_addr = INADDR_ANY;
 
   ipcp->cfg.fsmretry = DEF_FSMRETRY;
   ipcp->cfg.vj.neg = NEG_ENABLED|NEG_ACCEPTED;
@@ -424,7 +549,7 @@ IpcpSendConfigReq(struct fsm *fp)
   /* Send config REQ please */
   struct physical *p = link2physical(fp->link);
   struct ipcp *ipcp = fsm2ipcp(fp);
-  u_char buff[12];
+  u_char buff[24];
   struct lcp_opt *o;
 
   o = (struct lcp_opt *)buff;
@@ -442,6 +567,17 @@ IpcpSendConfigReq(struct fsm *fp)
       *(u_long *)o->data = htonl(ipcp->my_compproto);
       INC_LCP_OPT(TY_COMPPROTO, 6, o);
     }
+
+  if (IsEnabled(ipcp->cfg.ns.dns_neg) &&
+      !REJECTED(ipcp, TY_PRIMARY_DNS - TY_ADJUST_NS) &&
+      !REJECTED(ipcp, TY_SECONDARY_DNS - TY_ADJUST_NS)) {
+    struct in_addr dns[2];
+    getdns(ipcp, dns);
+    *(u_int32_t *)o->data = dns[0].s_addr;
+    INC_LCP_OPT(TY_PRIMARY_DNS, 6, o);
+    *(u_int32_t *)o->data = dns[1].s_addr;
+    INC_LCP_OPT(TY_SECONDARY_DNS, 6, o);
+  }
 
   FsmOutput(fp, CODE_CONFIGREQ, fp->reqid, buff, (u_char *)o - buff);
 }
@@ -608,8 +744,13 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
   int type, length;
   u_long *lp, compproto;
   struct compreq *pcomp;
-  struct in_addr ipaddr, dstipaddr, dnsstuff, ms_info_req;
+  struct in_addr ipaddr, dstipaddr, have_ip, dns[2], dnsnak[2];
   char tbuff[100], tbuff2[100];
+  int gotdns, gotdnsnak;
+
+  gotdns = 0;
+  gotdnsnak = 0;
+  dnsnak[0].s_addr = dnsnak[1].s_addr = INADDR_ANY;
 
   while (plen >= sizeof(struct fsmconfig)) {
     type = *cp;
@@ -785,85 +926,84 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
       }
       break;
 
-      /*
-       * MS extensions for MS's PPP
-       */
-
-#ifndef NOMSEXT
-    case TY_PRIMARY_DNS:	/* MS PPP DNS negotiation hack */
+    case TY_PRIMARY_DNS:	/* DNS negotiation (rfc1877) */
     case TY_SECONDARY_DNS:
+      ipaddr.s_addr = *(u_int32_t *)(cp + 2);
+      LogPrintf(LogIPCP, "%s %s\n", tbuff, inet_ntoa(ipaddr));
+
       switch (mode_type) {
       case MODE_REQ:
-        if (Enabled(ipcp->fsm.bundle, OPT_MSEXT)) {
-	  LogPrintf(LogIPCP, "MS NS req - rejected - msext disabled\n");
-	  ipcp->my_reject |= (1 << type);
+        if (!IsAccepted(ipcp->cfg.ns.dns_neg)) {
+          ipcp->my_reject |= (1 << (type - TY_ADJUST_NS));
 	  memcpy(dec->rejend, cp, length);
 	  dec->rejend += length;
 	  break;
         }
-	lp = (u_long *) (cp + 2);
-	dnsstuff.s_addr = *lp;
-	ms_info_req.s_addr = ipcp->cfg.ns_entries
-          [(type - TY_PRIMARY_DNS) ? 1 : 0].s_addr;
-	if (dnsstuff.s_addr != ms_info_req.s_addr) {
+        if (!gotdns) {
+          dns[0] = ipcp->cfg.ns.dns[0];
+          dns[1] = ipcp->cfg.ns.dns[1];
+          if (dns[0].s_addr == INADDR_ANY && dns[1].s_addr == INADDR_ANY)
+            getdns(ipcp, dns);
+          gotdns = 1;
+        }
+        have_ip = dns[type == TY_PRIMARY_DNS ? 0 : 1];
 
+	if (ipaddr.s_addr != have_ip.s_addr) {
 	  /*
-	   * So the client has got the DNS stuff wrong (first request) so
+	   * The client has got the DNS stuff wrong (first request) so
 	   * we'll tell 'em how it is
 	   */
 	  memcpy(dec->nakend, cp, 2);	/* copy first two (type/length) */
-	  LogPrintf(LogIPCP, "MS NS req %d:%s->%s - nak\n",
-		    type, inet_ntoa(dnsstuff), inet_ntoa(ms_info_req));
-	  memcpy(dec->nakend+2, &ms_info_req, length);
+	  memcpy(dec->nakend + 2, &have_ip.s_addr, length - 2);
 	  dec->nakend += length;
-	  break;
-	}
-
-	/*
-	 * Otherwise they have it right (this time) so we send a ack packet
-	 * back confirming it... end of story
-	 */
-	LogPrintf(LogIPCP, "MS NS req %d:%s ok - ack\n",
-		  type, inet_ntoa(ms_info_req));
-	memcpy(dec->ackend, cp, length);
-	dec->ackend += length;
+	} else {
+	  /*
+	   * Otherwise they have it right (this time) so we send a ack packet
+	   * back confirming it... end of story
+	   */
+	  memcpy(dec->ackend, cp, length);
+	  dec->ackend += length;
+        }
 	break;
       case MODE_NAK:		/* what does this mean?? */
-	LogPrintf(LogIPCP, "MS NS req %d - NAK??\n", type);
+        if (IsEnabled(ipcp->cfg.ns.dns_neg)) {
+          gotdnsnak = 1;
+          dnsnak[type == TY_PRIMARY_DNS ? 0 : 1].s_addr =
+            *(u_int32_t *)(cp + 2);
+	}
 	break;
-      case MODE_REJ:		/* confused?? me to :) */
-	LogPrintf(LogIPCP, "MS NS req %d - REJ??\n", type);
+      case MODE_REJ:		/* Can't do much, stop asking */
+        ipcp->peer_reject |= (1 << (type - TY_ADJUST_NS));
 	break;
       }
       break;
 
-    case TY_PRIMARY_NBNS:	/* MS PPP NetBIOS nameserver hack */
+    case TY_PRIMARY_NBNS:	/* M$ NetBIOS nameserver hack (rfc1877) */
     case TY_SECONDARY_NBNS:
+      ipaddr.s_addr = *(u_int32_t *)(cp + 2);
+      LogPrintf(LogIPCP, "%s %s\n", tbuff, inet_ntoa(ipaddr));
+
       switch (mode_type) {
       case MODE_REQ:
-        if (!Enabled(ipcp->fsm.bundle, OPT_MSEXT)) {
-	  LogPrintf(LogIPCP, "MS NBNS req - rejected - msext disabled\n");
-	  ipcp->my_reject |= (1 << type);
+	have_ip.s_addr =
+          ipcp->cfg.ns.nbns[type == TY_PRIMARY_NBNS ? 0 : 1].s_addr;
+
+        if (have_ip.s_addr == INADDR_ANY) {
+	  LogPrintf(LogIPCP, "NBNS REQ - rejected - nbns not set\n");
+          ipcp->my_reject |= (1 << (type - TY_ADJUST_NS));
 	  memcpy(dec->rejend, cp, length);
 	  dec->rejend += length;
 	  break;
         }
-	lp = (u_long *) (cp + 2);
-	dnsstuff.s_addr = *lp;
-	ms_info_req.s_addr = ipcp->cfg.nbns_entries
-          [(type - TY_PRIMARY_NBNS) ? 1 : 0].s_addr;
-	if (dnsstuff.s_addr != ms_info_req.s_addr) {
+
+	if (ipaddr.s_addr != have_ip.s_addr) {
 	  memcpy(dec->nakend, cp, 2);
-	  memcpy(dec->nakend+2, &ms_info_req.s_addr, length);
-	  LogPrintf(LogIPCP, "MS NBNS req %d:%s->%s - nak\n",
-		    type, inet_ntoa(dnsstuff), inet_ntoa(ms_info_req));
+	  memcpy(dec->nakend+2, &have_ip.s_addr, length);
 	  dec->nakend += length;
-	  break;
-	}
-	LogPrintf(LogIPCP, "MS NBNS req %d:%s ok - ack\n",
-		  type, inet_ntoa(ms_info_req));
-	memcpy(dec->ackend, cp, length);
-	dec->ackend += length;
+	} else {
+	  memcpy(dec->ackend, cp, length);
+	  dec->ackend += length;
+        }
 	break;
       case MODE_NAK:
 	LogPrintf(LogIPCP, "MS NBNS req %d - NAK??\n", type);
@@ -873,8 +1013,6 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
 	break;
       }
       break;
-
-#endif
 
     default:
       if (mode_type != MODE_NOP) {
@@ -887,6 +1025,12 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
     plen -= length;
     cp += length;
   }
+
+  if (gotdnsnak)
+    if (!setdns(ipcp, dnsnak)) {
+      ipcp->peer_reject |= (1 << (TY_PRIMARY_DNS - TY_ADJUST_NS));
+      ipcp->peer_reject |= (1 << (TY_SECONDARY_DNS - TY_ADJUST_NS));
+    }
 
   if (mode_type != MODE_NOP)
     if (dec->rejend != dec->rej) {
