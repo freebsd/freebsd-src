@@ -78,7 +78,7 @@ void	acquire_line();		/* get tty device as controling terminal */
 int	fd = -1;
 char	*dev = (char *)0;	/* path name of the tty (e.g. /dev/tty01) */
 char    *dvname;                /* basename of dev */
-int     locked = 0;             /* uucp lock */
+int     locked = 0;             /* uucp lock active */
 int	flow_control = 0;	/* non-zero to enable hardware flow control. */
 int	modem_control =	HUPCL;	/* !CLOCAL+HUPCL iff we	watch carrier. */
 int	comstate;		/* TIOCMGET current state of serial driver */
@@ -90,6 +90,7 @@ int	foreground = 0;		/* act as demon if zero, else don't fork. */
 int     keepal = 0;             /* keepalive timeout */
 int     outfill = 0;            /* outfill timeout */
 int     sl_unit = -1;           /* unit number */
+int     uucp_lock = 0;          /* do uucp locking */
 int	exiting = 0;		/* allready running exit_handler */
 
 struct	termios tty;		/* tty configuration/state */
@@ -102,7 +103,7 @@ char	*exit_cmd = 0;		/* command to exec before exiting. */
 
 static char usage_str[] = "\
 usage: %s [-acfhlnz] [-e command] [-r command] [-s speed] [-u command] \\\n\
-	  [-K timeout] [-O timeout] [-S unit] device\n\
+	  [-L] [-K timeout] [-O timeout] [-S unit] device\n\
   -a      -- autoenable VJ compression\n\
   -c      -- enable VJ compression\n\
   -e ECMD -- run ECMD before exiting\n\
@@ -114,6 +115,7 @@ usage: %s [-acfhlnz] [-e command] [-r command] [-s speed] [-u command] \\\n\
   -s #    -- set baud rate (default 9600)\n\
   -u UCMD -- run 'UCMD <old sl#> <new sl#>' before switch to slip discipline\n\
   -z      -- run RCMD upon startup irrespective of carrier\n\
+  -L      -- do uucp-style device locking\n\
   -K #    -- set SLIP \"keep alive\" timeout (default 0)\n\
   -O #    -- set SLIP \"out fill\" timeout (default 0)\n\
   -S #    -- set SLIP unit number (default is dynamic)\n\
@@ -125,7 +127,7 @@ int main(int argc, char **argv)
 	extern char *optarg;
 	extern int optind;
 
-	while ((option = getopt(argc, argv, "ace:fhlnr:s:u:zK:O:S:")) != EOF) {
+	while ((option = getopt(argc, argv, "ace:fhlnr:s:u:zLK:O:S:")) != EOF) {
 		switch (option) {
 		case 'a':
 			slflags |= IFF_LINK2;
@@ -161,6 +163,9 @@ int main(int argc, char **argv)
 			break;
 		case 'z':
 			redial_on_startup = 1;
+			break;
+		case 'L':
+			uucp_lock = 1;
 			break;
 		case 'K':
 			keepal = atoi(optarg);
@@ -281,12 +286,14 @@ void acquire_line()
 	if ((int)signal(SIGHUP,sighup_handler) < 0) /* Re-enable HUP signal */
 		syslog(LOG_NOTICE,"cannot install SIGHUP handler: %m");
 
-	/* unlock not needed here, always re-lock with new pid */
-	if (uu_lock(dvname)) {
-		syslog(LOG_ERR, "can't lock %s", dev);
-		exit_handler(1);
+	if (uucp_lock) {
+		/* unlock not needed here, always re-lock with new pid */
+		if (uu_lock(dvname)) {
+			syslog(LOG_ERR, "can't lock %s", dev);
+			exit_handler(1);
+		}
+		locked = 1;
 	}
-	locked = 1;
 
 	if ((fd = open(dev, O_RDWR | O_NONBLOCK, 0)) < 0) {
 		syslog(LOG_ERR, "open(%s) %m", dev);
@@ -440,16 +447,21 @@ again:
 		setup_line(CLOCAL);
 		syslog(LOG_NOTICE,"SIGHUP on %s (sl%d); running %s",
 		       dev,unit,redial_cmd);
-		uu_unlock(dvname);      /* for redial */
-		locked = 0;
+		if (locked) {
+			if (uucp_lock)
+				uu_unlock(dvname);      /* for redial */
+			locked = 0;
+		}
 		if (system(redial_cmd))
 			goto again;
-		if (uu_lock(dvname)) {
-			syslog(LOG_ERR, "can't relock %s after %s, aborting",
-				dev, redial_cmd);
-			exit_handler(1);
+		if (uucp_lock) {
+			if (uu_lock(dvname)) {
+				syslog(LOG_ERR, "can't relock %s after %s, aborting",
+					dev, redial_cmd);
+				exit_handler(1);
+			}
+			locked = 1;
 		}
-		locked = 1;
 		/* Now check again for carrier (dial command is done): */
 		if (!(modem_control & CLOCAL)) {
 			tty.c_cflag &= ~CLOCAL;
@@ -538,7 +550,7 @@ void exit_handler(int ret)
 	 */
 	if (fd != -1)
 		close(fd);
-	if (locked)
+	if (uucp_lock && locked)
 		uu_unlock(dvname);
 
 	/* Remove the PID file */
