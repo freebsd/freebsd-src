@@ -751,13 +751,7 @@ kseq_transfer(struct kseq *kseq, struct kse *ke, int class)
 	 * some CPUs may idle.  Too low and there will be excess migration
 	 * and context swiches.
 	 */
-	/*
-	 * XXX This ksg_transferable might work better if we were checking
-	 * against a global group load.  As it is now, this prevents us from
-	 * transfering a thread from a group that is potentially bogged down
-	 * with non transferable load.
-	 */
-	if (ksg->ksg_transferable > ksg->ksg_cpus && kseq_idle) {
+	if (ksg->ksg_load > (ksg->ksg_cpus * 2) && kseq_idle) {
 		/*
 		 * Multiple cpus could find this bit simultaneously
 		 * but the race shouldn't be terrible.
