@@ -840,7 +840,7 @@ _files_ghbyaddr(const void *addr, int addrlen, int af, int *errp)
 static struct hostent *
 _nis_ghbyname(const char *name, int af, int *errp)
 {
-	struct hostent *hp;
+	struct hostent *hp = NULL;
 
 	if (af == AF_INET) {
 		hp = _gethostbynisname(name, af);
