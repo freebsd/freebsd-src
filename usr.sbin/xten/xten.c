@@ -31,7 +31,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: xten.c,v 1.3 1997/10/27 12:27:21 charnier Exp $";
+	"$Id: xten.c,v 1.1.1.1.8.1 1997/11/18 07:30:08 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -172,7 +172,7 @@ char *tab[];
 	int i;
 
 	for(i = 0; tab[i] != NULL; i++) {
-	  if(strcmp(s, tab[i]) == 0) return(i);
+	  if(strcasecmp(s, tab[i]) == 0) return(i);
 	}
 	return(-1);
 }
