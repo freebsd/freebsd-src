@@ -1810,7 +1810,10 @@ retry:
 			if (pbits != obits) {
 				if (!atomic_cmpset_long(pte, obits, pbits))
 					goto retry;
-				anychanged = 1;
+				if (obits & PG_G)
+					pmap_invalidate_page(pmap, sva);
+				else
+					anychanged = 1;
 			}
 		}
 	}
