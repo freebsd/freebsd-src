@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)mroute.c	8.1 (Berkeley) 6/6/93
+ *	@(#)mroute.c	8.2 (Berkeley) 4/28/95
  */
 
 /*
@@ -219,4 +219,6 @@ mrt_stats(mrpaddr, mstaddr)
 	  mrtstat.mrts_bad_tunnel, plural(mrtstat.mrts_bad_tunnel));
 	printf(" %10u datagram%s with no room for tunnel options\n",
 	  mrtstat.mrts_cant_tunnel, plural(mrtstat.mrts_cant_tunnel));
+	printf(" %10u datagram%s arrived on the wrong interface\n",
+	  mrtstat.mrts_wrong_if, plural(mrtstat.mrts_wrong_if));
 }
