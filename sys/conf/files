@@ -903,7 +903,7 @@ net/if_atmsubr.c	optional atm
 net/if_disc.c		optional disc
 net/if_ef.c		optional ef
 net/if_ethersubr.c	optional ether
-net/if_faith.c		count faith
+net/if_faith.c		optional faith
 net/if_fddisubr.c	optional fddi
 net/if_gif.c		optional gif
 net/if_iso88025subr.c	optional token
