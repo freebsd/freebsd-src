@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.31 1996/06/25 20:30:30 bde Exp $
+ * $Id: if_ze.c,v 1.32 1996/07/12 04:11:23 bde Exp $
  */
 
 #include "ze.h"
@@ -172,11 +172,6 @@ struct isa_driver zedriver = {
 	ze_attach,
 	"ze"
 };
-
-#define	ETHER_MIN_LEN	64
-#define ETHER_MAX_LEN	1518
-#define	ETHER_ADDR_LEN	6
-#define	ETHER_HDR_SIZE	14
 
 static unsigned char enet_addr[6];
 static unsigned char card_info[256];

@@ -389,19 +389,19 @@ udp_transmit(destip, srcsock, destsock, len, buf)
 			printf("%I is not in my arp table!\n");
 			return(0);
 		}
-		for (i = 0; i<ETHER_ADDR_SIZE; i++)
+		for (i = 0; i<ETHER_ADDR_LEN; i++)
 			if (arptable[arpentry].node[i]) break;
-		if (i == ETHER_ADDR_SIZE) {	/* Need to do arp request */
+		if (i == ETHER_ADDR_LEN) {	/* Need to do arp request */
 			arpreq.hwtype = htons(1);
 			arpreq.protocol = htons(IP);
-			arpreq.hwlen = ETHER_ADDR_SIZE;
+			arpreq.hwlen = ETHER_ADDR_LEN;
 			arpreq.protolen = 4;
 			arpreq.opcode = htons(ARP_REQUEST);
 			bcopy(arptable[ARP_CLIENT].node, arpreq.shwaddr,
-				ETHER_ADDR_SIZE);
+				ETHER_ADDR_LEN);
 			convert_ipaddr(arpreq.sipaddr,
 				&arptable[ARP_CLIENT].ipaddr);
-			bzero(arpreq.thwaddr, ETHER_ADDR_SIZE);
+			bzero(arpreq.thwaddr, ETHER_ADDR_LEN);
 			convert_ipaddr(arpreq.tipaddr, &destip);
 			while (retry--) {
 				eth_transmit(broadcast, ARP, sizeof(arpreq),
@@ -438,7 +438,7 @@ tftp(name)
 		if (!udp_transmit(arptable[ARP_SERVER].ipaddr, isocket, osocket,
 			len, &tp)) return(0);
 		if (await_reply(AWAIT_TFTP, isocket, NULL)) {
-			tr = (struct tftp_t *)&packet[ETHER_HDR_SIZE];
+			tr = (struct tftp_t *)&packet[ETHER_HDR_LEN];
 			if (tr->opcode == ntohs(TFTP_ERROR)) {
 				printf("TFTP error %d (%s)\r\n",
 					ntohs(tr->u.err.errcode),
@@ -476,9 +476,9 @@ bootp()
 	bzero(&bp, sizeof(struct bootp_t));
 	bp.bp_op = BOOTP_REQUEST;
 	bp.bp_htype = 1;
-	bp.bp_hlen = ETHER_ADDR_SIZE;
+	bp.bp_hlen = ETHER_ADDR_LEN;
 	bp.bp_xid = starttime = currticks();
-	bcopy(arptable[ARP_CLIENT].node, bp.bp_hwaddr, ETHER_ADDR_SIZE);
+	bcopy(arptable[ARP_CLIENT].node, bp.bp_hwaddr, ETHER_ADDR_LEN);
 	while(retry--) {
 		udp_transmit(IP_BROADCAST, 0, BOOTP_SERVER,
 			sizeof(struct bootp_t), &bp);
@@ -504,7 +504,7 @@ await_reply(type, ival, ptr)
 	struct	bootp_t *bootpreply;
 	struct	rpc_t *rpc;
 
-	int	protohdrlen = ETHER_HDR_SIZE + sizeof(struct iphdr) +
+	int	protohdrlen = ETHER_HDR_LEN + sizeof(struct iphdr) +
 				sizeof(struct udphdr);
 	time = currticks() + TIMEOUT;
 	while(time > currticks()) {
@@ -512,16 +512,16 @@ await_reply(type, ival, ptr)
 		if (eth_poll()) {	/* We have something! */
 					/* Check for ARP - No IP hdr */
 			if ((type == AWAIT_ARP) &&
-			   (packetlen >= ETHER_HDR_SIZE +
+			   (packetlen >= ETHER_HDR_LEN +
 				sizeof(struct arprequest)) &&
 			   (((packet[12] << 8) | packet[13]) == ARP)) {
 				arpreply = (struct arprequest *)
-					&packet[ETHER_HDR_SIZE];
+					&packet[ETHER_HDR_LEN];
 				if ((arpreply->opcode == ntohs(ARP_REPLY)) &&
 				   bcompare(arpreply->sipaddr, ptr, 4)) {
 					bcopy(arpreply->shwaddr,
 						arptable[ival].node,
-						ETHER_ADDR_SIZE);
+						ETHER_ADDR_LEN);
 					return(1);
 				}
 				continue;
@@ -530,17 +530,17 @@ await_reply(type, ival, ptr)
 					/* Anything else has IP header */
 			if ((packetlen < protohdrlen) ||
 			   (((packet[12] << 8) | packet[13]) != IP)) continue;
-			ip = (struct iphdr *)&packet[ETHER_HDR_SIZE];
+			ip = (struct iphdr *)&packet[ETHER_HDR_LEN];
 			if ((ip->verhdrlen != 0x45) ||
 				ipchksum(ip, sizeof(struct iphdr)) ||
 				(ip->protocol != IP_UDP)) continue;
-			udp = (struct udphdr *)&packet[ETHER_HDR_SIZE +
+			udp = (struct udphdr *)&packet[ETHER_HDR_LEN +
 				sizeof(struct iphdr)];
 
 					/* BOOTP ? */
-			bootpreply = (struct bootp_t *)&packet[ETHER_HDR_SIZE];
+			bootpreply = (struct bootp_t *)&packet[ETHER_HDR_LEN];
 			if ((type == AWAIT_BOOTP) &&
-			   (packetlen >= (ETHER_HDR_SIZE +
+			   (packetlen >= (ETHER_HDR_LEN +
 			     sizeof(struct bootp_t))) &&
 			   (ntohs(udp->dest) == BOOTP_CLIENT) &&
 			   (bootpreply->bp_op == BOOTP_REPLY)) {
@@ -550,11 +550,11 @@ await_reply(type, ival, ptr)
 				convert_ipaddr(&arptable[ARP_SERVER].ipaddr,
 					bootpreply->bp_siaddr);
 				bzero(arptable[ARP_SERVER].node,
-					ETHER_ADDR_SIZE);  /* Kill arp */
+					ETHER_ADDR_LEN);  /* Kill arp */
 				convert_ipaddr(&arptable[ARP_GATEWAY].ipaddr,
 					bootpreply->bp_giaddr);
 				bzero(arptable[ARP_GATEWAY].node,
-					ETHER_ADDR_SIZE);  /* Kill arp */
+					ETHER_ADDR_LEN);  /* Kill arp */
 				if (bootpreply->bp_file[0]) {
 					bcopy(bootpreply->bp_file,
 						kernel_buf, 128);
@@ -569,7 +569,7 @@ await_reply(type, ival, ptr)
 				(ntohs(udp->dest) == ival)) return(1);
 
 					/* RPC */
-			rpc = (struct rpc_t *)&packet[ETHER_HDR_SIZE];
+			rpc = (struct rpc_t *)&packet[ETHER_HDR_LEN];
 			if ((type == AWAIT_RPC) &&
 			   (ntohs(udp->dest) == RPC_SOCKET) &&
 			   (ntohl(rpc->u.reply.id) == ival) &&

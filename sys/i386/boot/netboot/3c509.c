@@ -18,7 +18,7 @@ Author: Martin Renters.
 
 3c509 support added by Serge Babkin (babkin@hq.icb.chel.su)
 
-$Id: 3c509.c,v 1.1 1995/04/12 20:14:56 martin Exp $
+$Id: 3c509.c,v 1.2 1995/05/30 07:58:52 rgrimes Exp $
 
 ***************************************************************************/
 
@@ -48,7 +48,7 @@ static get_e();
 /**************************************************************************
 The following two variables are used externally
 ***************************************************************************/
-char packet[ETH_MAX_PACKET];
+char packet[ETHER_MAX_LEN];
 int  packetlen;
 
 /*********************** Name of driver *********************************/
@@ -480,7 +480,7 @@ eth_poll()
 		struct arprequest *arpreq;
 		unsigned long reqip;
 
-		arpreq = (struct arprequest *)&packet[ETHER_HDR_SIZE];
+		arpreq = (struct arprequest *)&packet[ETHER_HDR_LEN];
 
 #ifdef EDEBUG
 		printf("(ARP %I->%I)",ntohl(*(int*)arpreq->sipaddr),
@@ -502,7 +502,7 @@ eth_poll()
 	} else if(type==IP) {
 		struct iphdr *iph;
 
-		iph = (struct iphdr *)&packet[ETHER_HDR_SIZE];
+		iph = (struct iphdr *)&packet[ETHER_HDR_LEN];
 #ifdef EDEBUG
 		printf("(IP %I-%d->%I)",ntohl(*(int*)iph->src),
 		    ntohs(iph->protocol),ntohl(*(int*)iph->dest));

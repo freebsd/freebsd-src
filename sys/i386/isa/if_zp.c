@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.22 1996/06/25 20:30:34 bde Exp $
+ *	$Id: if_zp.c,v 1.23 1996/07/12 04:11:24 bde Exp $
  */
 /*-
  * TODO:
@@ -154,11 +154,6 @@
 #if NAPM > 0
 #include <machine/apm_bios.h>
 #endif				/* NAPM > 0 */
-
-#define ETHER_MIN_LEN	64
-#define ETHER_MAX_LEN	1518
-#define ETHER_ADDR_LEN	6
-
 
 
 /*****************************************************************************
