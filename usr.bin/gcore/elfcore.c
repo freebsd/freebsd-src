@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: elfcore.c,v 1.1 1998/10/19 19:42:18 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -142,7 +142,8 @@ elf_coredump(int fd, pid_t pid)
 				err(1, "read from %s", memname);
 			if (ngot < nwant)
 				errx(1, "short read from %s:"
-				    " wanted %d, got %d\n", nwant, ngot);
+				    " wanted %d, got %d\n", memname,
+				    nwant, ngot);
 			ngot = write(fd, buf, nwant);
 			if (ngot == -1)
 				err(1, "write of segment %d failed", i);
