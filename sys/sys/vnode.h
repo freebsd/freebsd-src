@@ -52,6 +52,7 @@
 #include <sys/selinfo.h>
 #include <sys/uio.h>
 #include <sys/acl.h>
+#include <sys/ktr.h>
 
 /*
  * The vnode is the focus of all file activity in UNIX.  There is a
