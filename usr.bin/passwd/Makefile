@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
-# $Id: Makefile,v 1.16 1995/08/17 11:26:42 bde Exp $
+# $Id: Makefile,v 1.17 1995/09/03 11:40:37 markm Exp $
 
 PROG=	passwd
 SRCS=	local_passwd.c yp_passwd.c passwd.c pw_copy.c pw_util.c pw_yp.c
@@ -21,11 +21,11 @@ MLINKS=passwd.1 yppasswd.1
 SRCS+=	kpasswd.c
 .PATH:	${.CURDIR}/../../usr.bin/chpass ${.CURDIR}/../../usr.sbin/vipw \
 	${.CURDIR}/../../usr.bin/rlogin ${.CURDIR}/../../usr.bin/passwd \
-	${.CURDIR}/../../eBones/passwd
+	${.CURDIR}/../../eBones/usr.bin/passwd
 
 CFLAGS+=	-DKERBEROS \
 		-I${.CURDIR}/../../eBones/include \
-		-I${.CURDIR}/../../eBones/libkadm
+		-I${.CURDIR}/../../eBones/lib/libkadm
 # XXX not defined: ${LIBKADM}, ${LIBCOM_ERR}
 DPADD=	${LIBKADM} ${LIBKRB} ${LIBDES} ${LIBCRYPT} ${LIBRPCSVC} ${LIBCOM_ERR}
 LDADD=	-lkadm -lkrb -ldes -lcrypt -lrpcsvc -lcom_err
