@@ -24,7 +24,7 @@ LDFLAGS =
 HMISSING =
 SRCMISSING = split.c
 OBJMISSING = split.o
-H = cclass.h cname.h regex2.h utils.h $(HMISSING)
+H = cname.h regex2.h utils.h $(HMISSING)
 REGSRC = regcomp.c regerror.c regexec.c regfree.c engine.c
 SRC = $(REGSRC) debug.c main.c $(SRCMISSING)
 
@@ -39,7 +39,7 @@ JUNKLINT =possible pointer alignment|null effect
 
 .SUFFIXES:	.ih .h
 .c.ih:
-	./mkh $(MKHFLAGS) -p $< >$@
+	sh mkh $(MKHFLAGS) -p $< >$@
 
 default:	r
 
@@ -50,12 +50,12 @@ o:	$(OBJPRODN)
 
 REGEXHSRC = regex2.h reg*.c
 h:	$(REGEXHSRC)
-	./mkh $(MKHFLAGS) -i _REGEX_H_ $(REGEXHSRC) >regex.tmp
+	sh mkh $(MKHFLAGS) -i _REGEX_H_ $(REGEXHSRC) >regex.tmp
 	cmp -s regex.tmp regex.h 2>/dev/null || cp regex.tmp regex.h
 	rm -f regex.tmp
 
 regcomp.o regexec.o regfree.o debug.o:	utils.h regex.h regex2.h
-regcomp.o:	cclass.h cname.h regcomp.ih
+regcomp.o:	cname.h regcomp.ih
 regexec.o:	engine.c engine.ih
 regerror.o:	regerror.ih
 regerror.o:	utils.h
@@ -83,42 +83,14 @@ t:	./re tests
 	-time ./re -el <tests
 	-time ./re -cs -el <tests
 
-e:	echeck re tests
-	./re -d <tests | awk -f echeck
-
 l:	$(LINTC)
 	lint $(LINTFLAGS) -h $(LINTC) 2>&1 | egrep -v '$(JUNKLINT)' | tee lint
-
-fullprint:
-	ti README WHATSNEW notes todo | hplist
-	ti *.h | hplist
-	hplist *.c
-	hplist regex.3 regex.7
-
-print:
-	ti README WHATSNEW notes todo | hplist
-	ti *.h | hplist
-	hplist reg*.c engine.c
 
 clean:	tidy
 	rm -f *.o *.s *.ih re
 
 tidy:
-	rm -f junk* core dtr regex.tmp lint
+	rm -f junk* core regex.tmp lint
 
 spotless:	clean
-	rm -f mkh regex.h
-
-mkh:	/usr/henry/bin/mkh
-	cp $? $@
-
-DTRH = cclass.h cname.h regex2.h utils.h limits.h stdlib.h
-DTR = README WHATSNEW Makefile Makefile.44bsd mkh regex.3 regex.7 tests $(DTRH) $(SRC)
-dtr:	$(DTR)
-	makedtr $(DTR) >$@
-
-cio:	$(DTR)
-	cio $(DTR)
-
-rdf:	$(DTR)
-	rcsdiff -c $(DTR) 2>&1 | p
+	rm -f regex.h
