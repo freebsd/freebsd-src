@@ -33,7 +33,7 @@
  * A FreeBSD host can implement multiple logical bridges, called
  * "clusters". Each cluster is made of a set of interfaces, and
  * identified by a "cluster-id" which is a number in the range 1..2^16-1.
- * 
+ *
  * Bridging is enabled by the sysctl variable
  *	net.link.ether.bridge
  * the grouping of interfaces into clusters is done with
@@ -515,7 +515,7 @@ sysctl_refresh(SYSCTL_HANDLER_ARGS)
 {
     if (req->newptr)
 	reconfigure_bridge();
-    
+
     return 0;
 }
 
