@@ -92,6 +92,8 @@ contrib/smbfs	bp	Open for in-tree committs. In case of functional
 			changes pre-commit review requested.
 contrib/pf	mlaier	Pre-commit review requested.
 binutils	obrien	Insists on BU blocked from unapproved commits
+geom_concat	pjd	Pre-commit review requested.
+geom_gate	pjd	Pre-commit review requested.
 
 
 Following are the entries from the Makefiles, and a few other sources.
