@@ -123,7 +123,8 @@ fhc_attach(device_t dev)
 			continue;
 		cdev = device_add_child(dev, NULL, -1);
 		if (cdev != NULL) {
-			fdi = malloc(sizeof(*fdi), M_DEVBUF, M_ZERO);
+			fdi = malloc(sizeof(*fdi), M_DEVBUF,
+			    M_WAITOK | M_ZERO);
 			fdi->fdi_name = name;
 			fdi->fdi_node = child;
 			OF_getprop_alloc(child, "device_type", 1,
