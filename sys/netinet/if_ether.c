@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.52 1999/01/19 23:17:03 fenner Exp $
+ * $Id: if_ether.c,v 1.53 1999/02/16 10:49:51 dfr Exp $
  */
 
 /*
@@ -55,6 +55,7 @@
 
 #include <net/if.h>
 #include <net/if_dl.h>
+#include <net/if_types.h>
 #include <net/route.h>
 #include <net/netisr.h>
 
@@ -297,7 +298,10 @@ arprequest(ac, sip, tip, enaddr)
 	bzero((caddr_t)ea, sizeof (*ea));
 	(void)memcpy(eh->ether_dhost, etherbroadcastaddr, sizeof(eh->ether_dhost));
 	eh->ether_type = htons(ETHERTYPE_ARP);	/* if_output will not swap */
-	ea->arp_hrd = htons(ARPHRD_ETHER);
+        if (ac->ac_if.if_type == IFT_ETHER)
+	        ea->arp_hrd = htons(ARPHRD_ETHER);
+        if (ac->ac_if.if_type == IFT_ISO88025)
+                ea->arp_hrd = htons(ARPHRD_IEEE802);
 	ea->arp_pro = htons(ETHERTYPE_IP);
 	ea->arp_hln = sizeof(ea->arp_sha);	/* hardware address length */
 	ea->arp_pln = sizeof(ea->arp_spa);	/* protocol address length */
@@ -410,7 +414,8 @@ arpintr()
 			panic("arpintr");
 		if (m->m_len >= sizeof(struct arphdr) &&
 		    (ar = mtod(m, struct arphdr *)) &&
-		    ntohs(ar->ar_hrd) == ARPHRD_ETHER &&
+		    (ntohs(ar->ar_hrd) == ARPHRD_ETHER || 
+                     ntohs(ar->ar_hrd) == ARPHRD_IEEE802) &&
 		    m->m_len >=
 		      sizeof(struct arphdr) + 2 * ar->ar_hln + 2 * ar->ar_pln)
 
