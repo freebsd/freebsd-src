@@ -1,6 +1,6 @@
-static char     _if_iiid[] = "@(#)$Id: if_ii.c,v 1.2 1995/02/15 06:28:26 jkh Exp $";
+static char     _if_iiid[] = "@(#)$Id: if_ii.c,v 1.3 1995/05/30 07:58:00 rgrimes Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.2 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.3 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,9 @@ static char     _if_iiid[] = "@(#)$Id: if_ii.c,v 1.2 1995/02/15 06:28:26 jkh Exp
  *
  *******************************************************************************
  * $Log: if_ii.c,v $
+ * Revision 1.3  1995/05/30  07:58:00  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.2  1995/02/15  06:28:26  jkh
  * Fix up include paths, nuke some warnings.
  *
@@ -62,7 +65,10 @@ static char     _if_iiid[] = "@(#)$Id: if_ii.c,v 1.2 1995/02/15 06:28:26 jkh Exp
 static struct ifnet ii_if[NII];
 static int      applnr[NII];
 static int      next_if = 0;
-int             iioutput(), ii_ioctl();
+
+extern int	ii_ioctl __P((struct ifnet *ifp, int cmd, caddr_t data));
+extern int	iioutput __P((struct ifnet *ifp, struct mbuf *m,
+			      struct sockaddr *dst, struct rtentry *rtp));
 
 int
 iiattach(int ap)
@@ -90,7 +96,8 @@ iiattach(int ap)
 }
 
 int
-iioutput(struct ifnet * ifp, struct mbuf * m, struct sockaddr * dst)
+iioutput(struct ifnet * ifp, struct mbuf * m, struct sockaddr * dst,
+	 struct rtentry * rtp)
 {
 	int             s, isr;
 	register struct ifqueue *ifq = 0;
@@ -121,7 +128,7 @@ iioutput(struct ifnet * ifp, struct mbuf * m, struct sockaddr * dst)
 }
 
 int
-ii_input(int no, int len, char *buf)
+ii_input(int no, int len, char *buf, int dir)
 {
 	int             error = 0;
 	struct mbuf    *m;
