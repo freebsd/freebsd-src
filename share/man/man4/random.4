@@ -1,0 +1,138 @@
+.\" Copyright (c) 2001	Mark R V Murray.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 10, 2001
+.Dt RANDOM 4
+.Os
+.Sh NAME
+.Nm random
+.Nd the entropy device
+.Sh DESCRIPTION
+The
+.Nm
+device accepts and reads data as any ordinary (and willing) file,
+but throws away any data written to it,
+and returns an endless supply of random bytes when read.
+.Pp
+The only purpose of writing data to
+.Nm
+is to perturb the internal state.
+This perturbation of the internal state
+is the only userland method of introducing
+extra entropy into the device.
+If the writer has superuser privilege,
+then closing the device after writing
+will make the internal generator reseed itself.
+This can be used for extra security,
+as it immediately introduces any/all new entropy
+into the PRNG.
+The
+.Nm
+device can be controlled with
+.Xr sysctl 8 .
+.Pp
+To see the devices' current settings, use the command line:
+.Pp
+.Dl sysctl kern.random
+.Pp
+which results in someting like:
+.Pp
+.Bd -literal -offset indent
+kern.random.sys.seeded: 1
+kern.random.sys.harvest_ethernet: 0
+kern.random.sys.harvest_point_to_point: 0
+kern.random.sys.harvest_interrupt: 0
+kern.random.yarrow.gengateinterval: 10
+kern.random.yarrow.bins: 10
+kern.random.yarrow.fastthresh: 100
+kern.random.yarrow.slowthresh: 160
+kern.random.yarrow.slowoverthresh: 2
+.Ed
+.Pp
+All settings are read/write.
+.Pp
+The
+.Li kern.random.sys.seeded
+variable indicates whether or not the
+.Nm
+device is in an acceptably secure state
+as a result of reseeding.
+If set to 0, the device will block (on read) until the next reseed
+(which can be from an explicit write,
+or as a result of entropy harvesting).
+A reseed will set the value to 1 (non-blocking).
+.Pp
+The
+.Li kern.random.sys.harvest_ethernet
+variable is used to select LAN traffic as an entropy source.
+A zero (0) value means that LAN traffic
+is not considered as an entropy source.
+Set the variable to one (1)
+if you wish to use LAN traffic for entropy harvesting.
+.Pp
+The
+.Li kern.random.sys.harvest_point_to_point
+variable is used to select serial line traffic as an entropy source.
+(Serial line traffic includes PPP, SLIP and all tun0 traffic.)
+A zero (0) value means such traffic
+is not considered as an entropy source.
+Set the variable to one (1)
+if you wish to use it for entropy harvesting.
+.Pp
+The
+.Li kern.random.sys.interrupt
+variable is used to select hardware interrupts
+as an entropy source.
+A zero (0) value means interrupts
+are not considered as an entropy source.
+Set the variable to one (1)
+if you wish to use them for entropy harvesting.
+Currently,
+only hard disk controllers
+are considered as interrupt entropy sources.
+.Pp
+The other variables are explained in the paper describing the
+.Em Yarrow
+algorithm at
+.Li http://www.counterpane.com/yarrow.html .
+.Sh FILES
+.Bl -tag -width /dev/random
+.It Pa /dev/random
+.El
+.Sh HISTORY
+A
+.Nm
+device appeared in
+.Fx 2.2 .
+The early version was taken from Theodore Ts'o's entropy driver for Linux.
+The current implementation,
+introduced in
+.Fx 5.0 ,
+is a complete rewrite by
+.An Mark Murray ,
+and is an implementation of the
+.Em Yarrow
+algorithm by Bruce Schneier,
+.Em et al .
