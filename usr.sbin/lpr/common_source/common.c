@@ -255,7 +255,7 @@ status_file_name(const struct printer *pp, char *buf, size_t len)
 
 /*
  * Routine to change operational state of a print queue.  The operational
- *Êstate is indicated by the access bits on the lock file for the queue.
+ * state is indicated by the access bits on the lock file for the queue.
  * At present, this is only called from various routines in lpc/cmds.c.
  *
  *  XXX - Note that this works by changing access-bits on the
