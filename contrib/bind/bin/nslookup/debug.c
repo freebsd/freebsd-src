@@ -80,6 +80,7 @@ static char rcsid[] = "$Id: debug.c,v 8.11 1998/03/19 19:30:54 halley Exp $";
 #include <netdb.h>
 #include <resolv.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "port_after.h"
 
