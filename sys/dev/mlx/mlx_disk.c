@@ -281,7 +281,7 @@ mlxd_attach(device_t dev)
     disks_registered++;
 
     /* set maximum I/O size */
-    dsk->si_iosize_max = sc->mlxd_controller->mlx_maxiosize * MLX_BLKSIZE;
+    dsk->si_iosize_max = sc->mlxd_controller->mlx_enq2->me_maxblk * MLX_BLKSIZE;
 
     return (0);
 }
