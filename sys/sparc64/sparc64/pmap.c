@@ -96,6 +96,7 @@
 #include <machine/instr.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
+#include <machine/ofw_mem.h>
 #include <machine/smp.h>
 #include <machine/tlb.h>
 #include <machine/tte.h>
@@ -106,17 +107,6 @@
 #ifndef	PMAP_SHPGPERPROC
 #define	PMAP_SHPGPERPROC	200
 #endif
-
-struct mem_region {
-	vm_offset_t mr_start;
-	vm_offset_t mr_size;
-};
-
-struct ofw_map {
-	vm_offset_t om_start;
-	vm_offset_t om_size;
-	u_long	om_tte;
-};
 
 /*
  * Virtual and physical address of message buffer.
@@ -136,7 +126,9 @@ int pmap_pagedaemon_waken;
  * Map of physical memory reagions.
  */
 vm_offset_t phys_avail[128];
-static struct mem_region mra[128];
+static struct ofw_mem_region mra[128];
+struct ofw_mem_region sparc64_memreg[128];
+int sparc64_nmemreg;
 static struct ofw_map translations[128];
 static int translations_size;
 
@@ -148,6 +140,8 @@ vm_offset_t virtual_end;
 vm_offset_t kernel_vm_end;
 
 vm_offset_t vm_max_kernel_address;
+
+static vm_offset_t crashdumpmap;
 
 /*
  * Kernel pmap.
@@ -235,8 +229,8 @@ static int om_cmp(const void *a, const void *b);
 static int
 mr_cmp(const void *a, const void *b)
 {
-	const struct mem_region *mra;
-	const struct mem_region *mrb;
+	const struct ofw_mem_region *mra;
+	const struct ofw_mem_region *mrb;
 
 	mra = a;
 	mrb = b;
@@ -315,6 +309,19 @@ pmap_bootstrap(vm_offset_t ekva)
 	vm_max_kernel_address = VM_MIN_KERNEL_ADDRESS + virtsz;
 	tsb_kernel_size = virtsz >> (PAGE_SHIFT - TTE_SHIFT);
 	tsb_kernel_mask = (tsb_kernel_size >> TTE_SHIFT) - 1;
+
+	/*
+	 * Get the available physical memory ranges from /memory/reg. These
+	 * are only used for kernel dumps, but it may not be wise to do prom
+	 * calls in that situation.
+	 */
+	if ((sz = OF_getproplen(pmem, "reg")) == -1)
+		panic("pmap_bootstrap: getproplen /memory/reg");
+	if (sizeof(sparc64_memreg) < sz)
+		panic("pmap_bootstrap: sparc64_memreg too small");
+	if (OF_getprop(pmem, "reg", sparc64_memreg, sz) == -1)
+		panic("pmap_bootstrap: getprop /memory/reg");
+	sparc64_nmemreg = sz / sizeof(*sparc64_memreg);
 
 	/*
 	 * Set the start and end of kva.  The kernel is loaded at the first
@@ -458,6 +465,12 @@ pmap_bootstrap(vm_offset_t ekva)
 	 */
 	msgbufp = (struct msgbuf *)virtual_avail;
 	virtual_avail += round_page(MSGBUF_SIZE);
+
+	/*
+	 * Allocate virtual address space to map pages during a kernel dump.
+	 */
+	crashdumpmap = virtual_avail;
+	virtual_avail += MAXDUMPPGS * PAGE_SIZE;
 
 	/*
 	 * Initialize the kernel pmap (which is statically allocated).
@@ -813,13 +826,21 @@ pmap_kenter_flags(vm_offset_t va, vm_offset_t pa, u_long flags)
 
 /*
  * Make a temporary mapping for a physical address.  This is only intended
- * to be used for panic dumps.
+ * to be used for panic dumps. Caching issues can be ignored completely here,
+ * because pages mapped this way are only read.
  */
 void *
 pmap_kenter_temporary(vm_offset_t pa, int i)
 {
+	struct tte *tp;
+	vm_offset_t va;
 
-	panic("pmap_kenter_temporary");
+	va = crashdumpmap + i * PAGE_SIZE;
+	tlb_page_demap(kernel_pmap, va);
+	tp = tsb_kvtotte(va);
+	tp->tte_vpn = TV_VPN(va, TS_8K);
+	tp->tte_data = TD_V | TD_8K | TD_PA(pa) | TD_REF | TD_CP | TD_CV | TD_P;
+	return ((void *)crashdumpmap);
 }
 
 /*

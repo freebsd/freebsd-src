@@ -572,7 +572,7 @@ set_dumper(struct dumperinfo *di)
 	return (0);
 }
 
-#if defined(__powerpc__) || defined(__sparc64__)
+#if defined(__powerpc__)
 void
 dumpsys(struct dumperinfo *di __unused)
 {
