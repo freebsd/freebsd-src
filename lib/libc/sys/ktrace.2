@@ -147,6 +147,11 @@ to the trace file.
 .It Va kern.ktrace.request_pool
 bounds the number of trace events being logged at a time.
 .El
+.Pp
+Sysctl tunables that control process debuggability (as determined by
+.Xr p_candebug 9 )
+also affect the operation of
+.Fn ktrace .
 .Sh RETURN VALUES
 .Rv -std ktrace
 .Sh ERRORS
@@ -186,7 +191,8 @@ field.
 .Xr kdump 1 ,
 .Xr ktrace 1 ,
 .Xr utrace 2 ,
-.Xr sysctl 8
+.Xr sysctl 8 ,
+.Xr p_candebug 9
 .Sh HISTORY
 The
 .Fn ktrace
