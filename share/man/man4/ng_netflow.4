@@ -29,18 +29,18 @@
 .Dt NG_NETFLOW 4
 .Sh NAME
 .Nm ng_netflow
-.Nd Cisco's Netflow implementation
+.Nd Cisco's NetFlow implementation
 .Sh DESCRIPTION
 The
 .Nm
-node implements Cisco's Netflow export protocol on a router running
+node implements Cisco's NetFlow export protocol on a router running
 .Fx .
 The
 .Nm
 node listens for incoming traffic and identifies unique flows in it.
 Flows are distinguished by endpoint IP addresses, TCP/UDP port numbers,
 ToS and input interface.
-Expired flows are exported out of the node in Netflow version 5 UDP datagrams.
+Expired flows are exported out of the node in NetFlow version 5 UDP datagrams.
 Expiration reason can be one of the following:
 .Bl -dash
 .It
@@ -53,7 +53,7 @@ Inactive timeout.
 A flow was inactive for the specified period of time.
 .El
 .Pp
-Export information is stored in Netflow version 5 datagrams.
+Export information is stored in NetFlow version 5 datagrams.
 .Sh HOOKS
 This node type supports up to
 .Dv NG_NETFLOW_MAXIFACES
@@ -95,7 +95,7 @@ This messsage type uses
 as an argument:
 .Bd -literal -offset 4n
 struct ng_netflow_setdlt {
-	uint16_t iface;		/* which iface to operate */
+	uint16_t iface;		/* which iface to operate on */
 	uint8_t  dlt;		/* DLT_XXX from bpf.h */
 };
 .Ed
@@ -124,7 +124,7 @@ This message requires
 as an argument:
 .Bd -literal -offset 4n
 struct ng_netflow_setifindex {
-	u_int16_t iface;	/* which iface to operate */
+	u_int16_t iface;	/* which iface to operate on */
 	u_int16_t index;	/* new index */
 };
 .Ed
@@ -134,7 +134,7 @@ The requested
 hook must already be connected, otherwise the message
 send operation will return an error.
 .It Dv NGM_NETFLOW_SETTIMEOUTS
-Sets values in seconds for Netflow active/inactive timeouts.
+Sets values in seconds for NetFlow active/inactive timeouts.
 This message requires
 .Vt "struct ng_netflow_settimeouts"
 as an argument:
@@ -189,7 +189,7 @@ flow collecting is enabled.
 SEQ
 .Ed
 .Pp
-This is a more complicated example of a router with 2 Netflow-enabled
+This is a more complicated example of a router with 2 NetFlow-enabled
 interfaces
 .Li fxp0
 and
