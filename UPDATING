@@ -8,6 +8,15 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20050203:
+	ppp(8) no longer reverts to sending ECHO requests if LQR is
+	enabled but fails negotiation.  To enable the old behaviour,
+	add ``enable echo'' to your config.
+	Additionally, when RADIUS is enabled, ppp now sends both
+	NAS-IP-Address and NAS-Identifier by default.  This behaviour
+	can be modified with the ``enable/disable
+	NAS-IP-Address/NAS-Identifier'' command.
+
 20041126:
 	The numbers of arguments for ng_timeout() and ng_untimeout()
 	have changed. If netgraph.ko is rebuilt or if netgraph is
