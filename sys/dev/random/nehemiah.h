@@ -26,34 +26,4 @@
  * $FreeBSD$
  */
 
-/* This contains Yarrow-specific declarations.
- * See http://www.counterpane.com/yarrow.html
- */
-
-#define TIMEBIN		16	/* max value for Pt/t */
-
-#define FAST		0
-#define SLOW		1
-
-/* This is the beastie that needs protecting. It contains all of the
- * state that we are excited about.
- * Exactly one will be instantiated.
- */
-struct random_state {
-	u_int64_t counter[4];	/* C - 256 bits */
-	struct yarrowkey key;	/* K */
-	u_int gengateinterval;	/* Pg */
-	u_int bins;		/* Pt/t */
-	u_int outputblocks;	/* count output blocks for gates */
-	u_int slowoverthresh;	/* slow pool overthreshhold reseed count */
-	struct pool {
-		struct source {
-			u_int bits;	/* estimated bits of entropy */
-			u_int frac;	/* fractional bits of entropy
-					   (given as 1024/n) */
-		} source[ENTROPYSOURCE];
-		u_int thresh;	/* pool reseed threshhold */
-		struct yarrowhash hash;	/* accumulated entropy */
-	} pool[2];		/* pool[0] is fast, pool[1] is slow */
-	u_int which;		/* toggle - sets the current insertion pool */
-};
+extern struct random_systat random_nehemiah;
