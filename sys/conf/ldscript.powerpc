@@ -52,9 +52,8 @@ SECTIONS
   .rodata1   : { *(.rodata1) }
   .sdata2    : { *(.sdata2)  }
   .sbss2     : { *(.sbss2)   }
-  /* Adjust the address for the data segment.  We want to adjust up to
-     the same address within the page on the next page up.  */
-  . = .;
+  /* Adjust the address for the data segment to the next page up. */
+  . = ((. + 0x1000) & ~(0x1000 - 1));
   .data    :
   {
     *(.data)
