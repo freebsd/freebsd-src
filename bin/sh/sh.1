@@ -1406,7 +1406,11 @@ If
 is given
 it is used as the exit status of the shell;
 otherwise the exit status of the preceding command is used.
-.It Ic export Ar name ...
+.It Xo
+.Ic export
+.Op Fl p
+.Op Ar name ...
+.Xc
 The specified names are exported so that they will
 appear in the environment of subsequent commands.
 The only way to un-export a variable is to
@@ -1420,6 +1424,11 @@ export name=value
 .Pp
 With no arguments the export command lists the names
 of all exported variables.
+If the
+.Fl p
+option is specified, the exported variables are printed as
+.Dq Ic export Ar name Ns = Ns Ar value
+lines, suitable for re-input to the shell.
 .It Ic fc Oo Fl e Ar editor Oc Op Ar first Op Ar last
 .It Ic fc Fl l Oo Fl nr Oc Op Ar first Op Ar last
 .It Ic fc Fl s Oo Ar old Ns = Ns Ar new Oc Op Ar first
@@ -1662,7 +1671,11 @@ is assumed.
 The
 .Fl e
 option exists only for backward compatibility with older scripts.
-.It Ic readonly Ar name ...
+.It Xo
+.Ic readonly
+.Op Fl p
+.Op Ar name ...
+.Xc
 Each specified
 .Ar name
 is marked as read only,
@@ -1677,6 +1690,11 @@ readonly name=value
 With no arguments the
 .Ic readonly
 command lists the names of all read only variables.
+If the
+.Fl p
+option is specified, the read-only variables are printed as
+.Dq Ic readonly Ar name Ns = Ns Ar value
+lines, suitable for re-input to the shell.
 .It Ic set Oo Fl /+abCEefIimnpTuVvx Oc Oo Fl /+o Ar longname Oc Oo
 .Fl c Ar string Oc Op Fl - Ar arg ...
 The
