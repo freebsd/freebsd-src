@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.93 1999/04/02 13:57:21 phk Exp $
+ * $Id: kern_clock.c,v 1.94 1999/04/25 08:59:59 phk Exp $
  */
 
 #include "opt_ntp.h"
@@ -550,7 +550,7 @@ microtime(struct timeval *tv)
 {
 	struct timecounter *tc;
 
-	tc = (struct timecounter *)timecounter;
+	tc = timecounter;
 	tv->tv_sec = tc->tc_offset_sec;
 	tv->tv_usec = tc->tc_offset_micro;
 	tv->tv_usec += ((u_int64_t)tco_delta(tc) * tc->tc_scale_micro) >> 32;
@@ -569,7 +569,7 @@ nanotime(struct timespec *ts)
 	u_int64_t delta;
 	struct timecounter *tc;
 
-	tc = (struct timecounter *)timecounter;
+	tc = timecounter;
 	ts->tv_sec = tc->tc_offset_sec;
 	count = tco_delta(tc);
 	delta = tc->tc_offset_nano;
@@ -618,7 +618,7 @@ microuptime(struct timeval *tv)
 {
 	struct timecounter *tc;
 
-	tc = (struct timecounter *)timecounter;
+	tc = timecounter;
 	tv->tv_sec = tc->tc_offset_sec;
 	tv->tv_usec = tc->tc_offset_micro;
 	tv->tv_usec += ((u_int64_t)tco_delta(tc) * tc->tc_scale_micro) >> 32;
@@ -635,7 +635,7 @@ nanouptime(struct timespec *ts)
 	u_int64_t delta;
 	struct timecounter *tc;
 
-	tc = (struct timecounter *)timecounter;
+	tc = timecounter;
 	ts->tv_sec = tc->tc_offset_sec;
 	count = tco_delta(tc);
 	delta = tc->tc_offset_nano;
