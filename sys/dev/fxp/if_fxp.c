@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 2001 Jonathan Lemon <jlemon@freebsd.org>
  * Copyright (c) 1995, David Greenman
+ * Copyright (c) 2001 Jonathan Lemon <jlemon@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -432,12 +432,35 @@ fxp_attach(device_t dev)
 	fxp_autosize_eeprom(sc);
 
 	/*
-	 * Determine in whether we must use the 503 serial interface.
+	 * Determine whether we must use the 503 serial interface.
 	 */
 	fxp_read_eeprom(sc, &data, 6, 1);
 	if ((data & FXP_PHY_DEVICE_MASK) != 0 &&
 	    (data & FXP_PHY_SERIAL_ONLY))
 		sc->flags &= FXP_FLAG_SERIAL_MEDIA;
+
+	/*
+	 * Find out the basic controller type; we currently only
+	 * differentiate between a 82557 and greater.
+	 */
+	fxp_read_eeprom(sc, &data, 5, 1);
+	if ((data >> 8) == 1)
+	    sc->chip = FXP_CHIP_82557;
+
+	/*
+	 * If we are not a 82557 chip, we can enable extended features.
+	 */
+	if (sc->chip != FXP_CHIP_82557) {
+		/*
+		 * If there is a valid cacheline size (8 or 16 dwords),
+		 * then turn on MWI.
+		 */
+		if (pci_read_config(dev, PCIR_CACHELNSZ, 1) != 0)
+			sc->flags |= FXP_FLAG_MWI_ENABLE;
+
+		/* turn on the extended TxCB feature */
+		sc->flags |= FXP_FLAG_EXT_TXCB;
+	}
 
 	/*
 	 * Read MAC address.
@@ -517,10 +540,9 @@ static void
 fxp_release(struct fxp_softc *sc)
 {
 
-	if (sc->miibus) {
-		bus_generic_detach(sc->dev);
+	bus_generic_detach(sc->dev);
+	if (sc->miibus)
 		device_delete_child(sc->dev, sc->miibus);
-	}
 
 	if (sc->cbl_base)
 		free(sc->cbl_base, M_DEVBUF);
@@ -838,8 +860,9 @@ tbdinit:
 			struct mbuf *mn;
 
 			/*
-			 * We ran out of segments. We have to recopy this mbuf
-			 * chain first. Bail out if we can't get the new buffers.
+			 * We ran out of segments. We have to recopy this
+			 * mbuf chain first. Bail out if we can't get the
+			 * new buffers.
 			 */
 			MGETHDR(mn, M_DONTWAIT, MT_DATA);
 			if (mn == NULL) {
@@ -867,13 +890,15 @@ tbdinit:
 		txp->cb_status = 0;
 		if (sc->tx_queued != FXP_CXINT_THRESH - 1) {
 			txp->cb_command =
-			    FXP_CB_COMMAND_XMIT | FXP_CB_COMMAND_SF | FXP_CB_COMMAND_S;
+			    FXP_CB_COMMAND_XMIT | FXP_CB_COMMAND_SF |
+			    FXP_CB_COMMAND_S;
 		} else {
 			txp->cb_command =
-			    FXP_CB_COMMAND_XMIT | FXP_CB_COMMAND_SF | FXP_CB_COMMAND_S | FXP_CB_COMMAND_I;
+			    FXP_CB_COMMAND_XMIT | FXP_CB_COMMAND_SF |
+			    FXP_CB_COMMAND_S | FXP_CB_COMMAND_I;
 			/*
-			 * Set a 5 second timer just in case we don't hear from the
-			 * card again.
+			 * Set a 5 second timer just in case we don't hear
+			 * from the card again.
 			 */
 			ifp->if_timer = 5;
 		}
@@ -1328,19 +1353,6 @@ fxp_init(void *xsc)
 	cbp->crc16_en =		0;	/* (don't) enable crc-16 algorithm */
 	cbp->crscdt =		sc->flags & FXP_FLAG_SERIAL_MEDIA ? 1 : 0;
 
-	/*
-	 * we may want to move all FC stuff to a separate section.
-	 * the values here are 82557 compatible.
-	 */
-	cbp->fc_delay_lsb =	0;
-	cbp->fc_delay_msb =	0x40;
-	cbp->pri_fc_thresh =	0x03;
-	cbp->tx_fc_dis =	0;	/* (don't) disable transmit FC */
-	cbp->rx_fc_restop =	0;	/* (don't) enable FC stop frame */
-	cbp->rx_fc_restart =	0;	/* (don't) enable FC start frame */
-	cbp->fc_filter =	0;	/* (do) pass FC frames to host */
-	cbp->pri_fc_loc =	1;	/* location of priority in FC frame */
-
 	cbp->stripping =	!prm;	/* truncate rx packet to byte count */
 	cbp->padding =		1;	/* (do) pad short tx packets */
 	cbp->rcv_crc_xfer =	0;	/* (don't) xfer CRC to host */
@@ -1352,6 +1364,30 @@ fxp_init(void *xsc)
 	cbp->fdx_pin_en =	1;	/* (enable) FDX# pin */
 	cbp->multi_ia =		0;	/* (don't) accept multiple IAs */
 	cbp->mc_all =		sc->flags & FXP_FLAG_ALL_MCAST ? 1 : 0;
+
+	if (sc->chip == FXP_CHIP_82557) {
+		/*
+		 * The 82557 has no hardware flow control, the values
+		 * below are the defaults for the chip.
+		 */
+		cbp->fc_delay_lsb =	0;
+		cbp->fc_delay_msb =	0x40;
+		cbp->pri_fc_thresh =	3;
+		cbp->tx_fc_dis =	0;
+		cbp->rx_fc_restop =	0;
+		cbp->rx_fc_restart =	0;
+		cbp->fc_filter =	0;
+		cbp->pri_fc_loc =	1;
+	} else {
+		cbp->fc_delay_lsb =	0x1f;
+		cbp->fc_delay_msb =	0x01;
+		cbp->pri_fc_thresh =	3;
+		cbp->tx_fc_dis =	0;	/* enable transmit FC */
+		cbp->rx_fc_restop =	1;	/* enable FC restop frames */
+		cbp->rx_fc_restart =	1;	/* enable FC restart frames */
+		cbp->fc_filter =	!prm;	/* drop FC frames to host */
+		cbp->pri_fc_loc =	1;	/* FC pri location (byte31) */
+	}
 
 	/*
 	 * Start the config command/DMA.
@@ -1391,8 +1427,12 @@ fxp_init(void *xsc)
 	for (i = 0; i < FXP_NTXCB; i++) {
 		txp[i].cb_status = FXP_CB_STATUS_C | FXP_CB_STATUS_OK;
 		txp[i].cb_command = FXP_CB_COMMAND_NOP;
-		txp[i].link_addr = vtophys(&txp[(i + 1) & FXP_TXCB_MASK].cb_status);
-		txp[i].tbd_array_addr = vtophys(&txp[i].tbd[0]);
+		txp[i].link_addr =
+		    vtophys(&txp[(i + 1) & FXP_TXCB_MASK].cb_status);
+		if (sc->flags & FXP_FLAG_EXT_TXCB)
+			txp[i].tbd_array_addr = vtophys(&txp[i].tbd[2]);
+		else
+			txp[i].tbd_array_addr = vtophys(&txp[i].tbd[0]);
 		txp[i].next = &txp[(i + 1) & FXP_TXCB_MASK];
 	}
 	/*
