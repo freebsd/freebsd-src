@@ -8,6 +8,8 @@
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
+ * Copyright (c) 2001 
+ *      Murray Stokely.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -171,8 +173,8 @@ variable_get_value(char *var, char *prompt, int dirty)
     return cp;
 }
 
-/* Check if value passed in data (in the form "variable=value") is equal to value of 
-   variable stored in env */
+/* Check if value passed in data (in the form "variable=value") is
+   equal to value of variable stored in env */
 int
 variable_check(char *data)
 {
@@ -226,4 +228,69 @@ dump_variables(dialogMenuItem *unused)
     fclose(fp);
 
     return DITEM_SUCCESS;
+}
+
+/* Free all of the variables, useful to really start over as when the
+   user selects "restart" from the interrupt menu. */
+void
+free_variables(void)
+{
+    Variable *vp;
+
+    /* Free the variables from our list, if we have one.. */
+    if (!VarHead)
+	return;
+    else if (!VarHead->next) {
+	unsetenv(VarHead->name);
+	safe_free(VarHead->name);
+	safe_free(VarHead->value);
+	free(VarHead);
+	VarHead = NULL;
+    }
+    else {
+	for (vp = VarHead; vp; ) {
+	    Variable *save = vp;
+	    unsetenv(vp->name);
+	    safe_free(vp->name);
+	    safe_free(vp->value);
+	    vp = vp->next;
+	    safe_free(save);
+	}
+	VarHead = NULL;
+    }
+}
+
+/*
+ * Persistent variables.  The variables modified by these functions
+ * are not cleared between invocations of sysinstall.  This is useful
+ * to allow the user to completely restart sysinstall, without having
+ * it load all of the modules again from the installation media which
+ * are still in memory.
+ */
+
+void
+pvariable_set(char *var)
+{
+    char tmp[1024];
+
+    if (!var)
+	msgFatal("NULL variable name & value passed.");
+    else if (!*var)
+	msgDebug("Warning:  Zero length name & value passed to variable_set()\n");
+    /* Add a trivial namespace to whatever name the caller chooses. */
+    SAFE_STRCPY(tmp, "SYSINSTALL_PVAR");
+    if (index(var, '=') == NULL)
+	msgFatal("Invalid variable format: %s", var);
+    strlcat(tmp, var, 1024); 
+    putenv(tmp);
+}
+
+char *
+pvariable_get(char *var)
+{
+    char tmp[1024];
+
+    SAFE_STRCPY(tmp, "SYSINSTALL_PVAR");
+    strlcat(tmp, var, 1024);
+    return getenv(tmp);
 }
