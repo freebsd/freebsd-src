@@ -569,12 +569,13 @@ struct proc {
 	u_int		p_swtime;	/* (j) Time swapped in or out. */
 	struct itimerval p_realtimer;	/* (h?/k?) Alarm timer. */
 	struct bintime	p_runtime;	/* (j) Real time. */
+	int		p_profthreads;	/* (c) Num threads in addupc_task */
 	int		p_traceflag;	/* (o) Kernel trace points. */
 	struct vnode	*p_tracep;	/* (c + o) Trace to vnode. */
 	sigset_t	p_siglist;	/* (c) Sigs arrived, not delivered. */
 	struct vnode	*p_textvp;	/* (b) Vnode of executable. */
 	char		p_lock;		/* (c) Proclock (prevent swap) count. */
-	struct klist p_klist;		/* (c) Knotes attached to this proc. */
+	struct klist	p_klist;	/* (c) Knotes attached to this proc. */
 	struct sigiolst	p_sigiolst;	/* (c) List of sigio sources. */
 	int		p_sigparent;	/* (c) Signal to parent on exit. */
 	sigset_t	p_oldsigmask;	/* (c) Saved mask from pre sigpause. */
@@ -669,6 +670,7 @@ struct proc {
 #define	PS_INMEM	0x00001	/* Loaded into memory. */
 #define	PS_XCPU		0x00002 /* Exceeded CPU limit. */
 #define	PS_PROFIL	0x00004	/* Has started profiling. */
+#define	PS_STOPPROF	0x00008	/* Has thread in requesting to stop prof */
 #define	PS_ALRMPEND	0x00020	/* Pending SIGVTALRM needs to be posted. */
 #define	PS_PROFPEND	0x00040	/* Pending SIGPROF needs to be posted. */
 #define	PS_SWAPINREQ	0x00100	/* Swapin request due to wakeup. */

@@ -313,6 +313,10 @@ startprofclock(p)
 	 * cover psdiv, etc. as well.
 	 */
 	mtx_lock_spin(&sched_lock);
+	if (p->p_sflag & PS_STOPPROF) {
+		mtx_unlock_spin(&sched_lock);
+		return;
+	}
 	if ((p->p_sflag & PS_PROFIL) == 0) {
 		p->p_sflag |= PS_PROFIL;
 		if (++profprocs == 1)
@@ -329,9 +333,18 @@ stopprofclock(p)
 	register struct proc *p;
 {
 
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+retry:
 	mtx_lock_spin(&sched_lock);
 	if (p->p_sflag & PS_PROFIL) {
-		p->p_sflag &= ~PS_PROFIL;
+		if (p->p_profthreads) {
+			p->p_sflag |= PS_STOPPROF;
+			mtx_unlock_spin(&sched_lock);
+			msleep(&p->p_profthreads, &p->p_mtx, PPAUSE,
+			       "stopprof", NULL);
+			goto retry;
+		}
+		p->p_sflag &= ~(PS_PROFIL|PS_STOPPROF);
 		if (--profprocs == 0)
 			cpu_stopprofclock();
 	}
@@ -400,7 +413,7 @@ statclock(frame)
 		}
 	}
 
-	sched_clock(ke->ke_thread);
+	sched_clock(td);
 
 	/* Update resource usage integrals and maximums. */
 	if ((pstats = p->p_stats) != NULL &&
@@ -430,9 +443,12 @@ profclock(frame)
 		/*
 		 * Came from user mode; CPU was in user state.
 		 * If this process is being profiled, record the tick.
+		 * if there is no related user location yet, don't
+		 * bother trying to count it.
 		 */
 		td = curthread;
-		if (td->td_proc->p_sflag & PS_PROFIL)
+		if ((td->td_proc->p_sflag & PS_PROFIL) &&
+		    !(td->td_flags & TDF_UPCALLING))
 			addupc_intr(td->td_kse, CLKF_PC(frame), 1);
 	}
 #ifdef GPROF
