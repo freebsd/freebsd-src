@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.2 1994/09/27 20:42:44 phk Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.3 1994/10/06 21:06:51 davidg Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.9 1994/08/21 18:44:00 ws Exp $	*/
 
 /*-
@@ -174,7 +174,7 @@ deget(pmp, dirclust, diroffset, direntptr, depp)
 	struct buf *bp;
 
 #ifdef MSDOSFS_DEBUG
-	printf("deget(pmp %08x, dirclust %d, diroffset %x, direntptr %x, depp %08x)\n",
+	printf("deget(pmp %p, dirclust %ld, diroffset %x, direntptr %p, depp %p)\n",
 	       pmp, dirclust, diroffset, direntptr, depp);
 #endif
 
@@ -322,7 +322,7 @@ deupdat(dep, tp, waitfor)
 	struct vnode *vp = DETOV(dep);
 
 #ifdef MSDOSFS_DEBUG
-	printf("deupdat(): dep %08x\n", dep);
+	printf("deupdat(): dep %p\n", dep);
 #endif
 
 	/*
@@ -609,7 +609,7 @@ msdosfs_reclaim(ap)
 	extern int prtactive;
 	
 #ifdef MSDOSFS_DEBUG
-	printf("msdosfs_reclaim(): dep %08x, file %s, refcnt %d\n",
+	printf("msdosfs_reclaim(): dep %p, file %s, refcnt %ld\n",
 	    dep, dep->de_Name, dep->de_refcnt);
 #endif
 
@@ -651,7 +651,7 @@ msdosfs_inactive(ap)
 	struct timespec ts;
 	
 #ifdef MSDOSFS_DEBUG
-	printf("msdosfs_inactive(): dep %08x, de_Name[0] %x\n", dep, dep->de_Name[0]);
+	printf("msdosfs_inactive(): dep %p, de_Name[0] %x\n", dep, dep->de_Name[0]);
 #endif
 
 	if (prtactive && vp->v_usecount != 0)
@@ -673,7 +673,7 @@ msdosfs_inactive(ap)
 	 * as empty.  (This may not be necessary for the dos filesystem.)
 	 */
 #ifdef MSDOSFS_DEBUG
-	printf("msdosfs_inactive(): dep %08x, refcnt %d, mntflag %x, MNT_RDONLY %x\n",
+	printf("msdosfs_inactive(): dep %p, refcnt %ld, mntflag %x, MNT_RDONLY %x\n",
 	       dep, dep->de_refcnt, vp->v_mount->mnt_flag, MNT_RDONLY);
 #endif
 	VOP_LOCK(vp);
