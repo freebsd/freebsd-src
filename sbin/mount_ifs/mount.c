@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mount.c	8.25 (Berkeley) 5/8/95";
 #else
 static const char rcsid[] =
-	"$Id: mount.c,v 1.25 1998/04/08 18:31:18 wosch Exp $";
+	"$Id: mount.c,v 1.26 1998/05/17 21:57:17 dt Exp $";
 #endif
 #endif /* not lint */
 
@@ -497,9 +497,8 @@ prmount(sfp)
 		else
 			(void)printf("%d", sfp->f_owner);
 	}
-	if ((sfp->f_syncwrites != 0 || sfp->f_asyncwrites != 0) &&
-	    (sfp->f_flags & MNT_RDONLY) == 0)
-		(void)printf("%swrites: sync %d async %d",
+	if (sfp->f_syncwrites != 0 || sfp->f_asyncwrites != 0)
+		(void)printf("%swrites: sync %ld async %ld",
 		    !f++ ? " (" : ", ", sfp->f_syncwrites, sfp->f_asyncwrites);
 	(void)printf("%s\n", f ? ")" : "");
 }
