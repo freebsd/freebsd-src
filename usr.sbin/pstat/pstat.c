@@ -862,9 +862,6 @@ ttyprt(tp, line)
 	case NTTYDISC:
 		(void)printf("ntty\n");
 		break;
-	case TABLDISC:
-		(void)printf("tab\n");
-		break;
 	case SLIPDISC:
 		(void)printf("slip\n");
 		break;
