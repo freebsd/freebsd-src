@@ -26,13 +26,8 @@
 #if !defined (_RLDEFS_H)
 #define _RLDEFS_H
 
-#if defined (__GNUC__)
-#  undef alloca
-#  define alloca __builtin_alloca
-#else
-#  if defined (sparc) || defined (HAVE_ALLOCA_H)
-#    include <alloca.h>
-#  endif
+#if !defined (PRAGMA_ALLOCA)
+#  include "memalloc.h"
 #endif
 
 #define NEW_TTY_DRIVER
@@ -75,11 +70,11 @@
 
 /* System V.3 machines have the old 4.1 BSD `reliable' signal interface. */
 #if !defined (HAVE_BSD_SIGNALS) && !defined (HAVE_POSIX_SIGNALS)
-#  if defined (USGr3)
+#  if defined (USGr3) && !defined (XENIX_22)
 #    if !defined (HAVE_USG_SIGHOLD)
 #      define HAVE_USG_SIGHOLD
 #    endif /* !HAVE_USG_SIGHOLD */
-#  endif /* USGr3 */
+#  endif /* USGr3 && !XENIX_22 */
 #endif /* !HAVE_BSD_SIGNALS && !HAVE_POSIX_SIGNALS */
 
 /* Other (BSD) machines use sgtty. */
@@ -125,7 +120,9 @@
 #endif /* !HAVE_DIRENT_H */
 
 #if defined (USG) && defined (TIOCGWINSZ) && !defined (Linux)
-#  include <sys/stream.h>
+#  if defined (HAVE_SYS_STREAM_H)
+#    include <sys/stream.h>
+#  endif /* HAVE_SYS_STREAM_H */
 #  if defined (HAVE_SYS_PTEM_H)
 #    include <sys/ptem.h>
 #  endif /* HAVE_SYS_PTEM_H */
@@ -137,7 +134,7 @@
 /* Posix macro to check file in statbuf for directory-ness.
    This requires that <sys/stat.h> be included before this test. */
 #if defined (S_IFDIR) && !defined (S_ISDIR)
-#define S_ISDIR(m) (((m)&S_IFMT) == S_IFDIR)
+#  define S_ISDIR(m) (((m)&S_IFMT) == S_IFDIR)
 #endif
 
 /* Decide which flavor of the header file describing the C library
@@ -163,14 +160,31 @@ extern char *strchr (), *strrchr ();
 #  include <varargs.h>
 #endif /* HAVE_VARARGS_H */
 
-/* This definition is needed by readline.c, rltty.c, and signals.c. */
-/* If on, then readline handles signals in a way that doesn't screw. */
-#define HANDLE_SIGNALS
-
 #if !defined (emacs_mode)
 #  define no_mode -1
 #  define vi_mode 0
 #  define emacs_mode 1
 #endif
+
+/* If you cast map[key].function to type (Keymap) on a Cray,
+   the compiler takes the value of map[key].function and
+   divides it by 4 to convert between pointer types (pointers
+   to functions and pointers to structs are different sizes).
+   This is not what is wanted. */
+#if defined (CRAY)
+#  define FUNCTION_TO_KEYMAP(map, key)	(Keymap)((int)map[key].function)
+#  define KEYMAP_TO_FUNCTION(data)	(Function *)((int)(data))
+#else
+#  define FUNCTION_TO_KEYMAP(map, key)	(Keymap)(map[key].function)
+#  define KEYMAP_TO_FUNCTION(data)	(Function *)(data)
+#endif
+
+/* Possible values for _rl_bell_preference. */
+#define NO_BELL 0
+#define AUDIBLE_BELL 1
+#define VISIBLE_BELL 2
+
+/* CONFIGURATION SECTION */
+#include "rlconf.h"
 
 #endif /* !_RLDEFS_H */

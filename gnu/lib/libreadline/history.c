@@ -24,12 +24,6 @@
    don't have to know what data types are used, just what functions
    you can call.  I think I have done that. */
 
-#if defined (STATIC_MALLOC)
-static char *xmalloc (), *xrealloc ();
-#else
-extern char *xmalloc (), *xrealloc ();
-#endif /* STATIC_MALLOC */
-
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/file.h>
@@ -55,21 +49,19 @@ extern char *xmalloc (), *xrealloc ();
 extern int errno;
 #endif /* !errno */
 
-#if defined (__GNUC__)
-#  undef alloca
-#  define alloca __builtin_alloca
-#else
-#  if defined (sparc) || defined (HAVE_ALLOCA_H)
-#    include <alloca.h>
-#  else
-extern char *alloca ();
-#  endif /* sparc || HAVE_ALLOCA_H */
-#endif /* !__GNU_C__ */
-
+#include "memalloc.h"
 #include "history.h"
 
+#if defined (STATIC_MALLOC)
+static char *xmalloc (), *xrealloc ();
+#else
+extern char *xmalloc (), *xrealloc ();
+#endif /* STATIC_MALLOC */
+
+#define STREQ(a, b)	(((a)[0] == (b)[0]) && (strcmp ((a), (b)) == 0))
+#define STREQN(a, b, n)	(((a)[0] == (b)[0]) && (strncmp ((a), (b), (n)) == 0))
+
 #ifndef savestring
-extern char *xmalloc ();
 #  ifndef strcpy
 extern char *strcpy ();
 #  endif
@@ -84,6 +76,10 @@ extern char *strcpy ();
 #define digit(c)  ((c) >= '0' && (c) <= '9')
 #endif
 
+#ifndef digit_value
+#define digit_value(c) ((c) - '0')
+#endif
+
 #ifndef member
 #  ifndef strchr
 extern char *strchr ();
@@ -91,9 +87,24 @@ extern char *strchr ();
 #define member(c, s) ((c) ? ((char *)strchr ((s), (c)) != (char *)NULL) : 0)
 #endif
 
+/* Possible history errors passed to hist_error. */
+#define EVENT_NOT_FOUND 0
+#define BAD_WORD_SPEC	1
+#define SUBST_FAILED	2
+#define BAD_MODIFIER	3
+
 static char error_pointer;
 
+static char *subst_lhs;
+static char *subst_rhs;
+static int subst_lhs_len = 0;
+static int subst_rhs_len = 0;
+
 static char *get_history_word_specifier ();
+
+#if defined (SHELL)
+extern char *single_quote ();
+#endif
 
 /* **************************************************************** */
 /*								    */
@@ -209,7 +220,7 @@ add_history (string)
 
       /* If the history is stifled, and history_length is zero,
 	 and it equals max_input_history, we don't save items. */
-      if (!history_length)
+      if (history_length == 0)
 	return;
 
       /* If there is something in the slot, then remove it. */
@@ -219,6 +230,7 @@ add_history (string)
 	  free (the_history[0]);
 	}
 
+      /* Copy the rest of the entries, moving down one slot. */
       for (i = 0; i < history_length; i++)
 	the_history[i] = the_history[i + 1];
 
@@ -229,9 +241,8 @@ add_history (string)
     {
       if (!history_size)
 	{
-	  the_history = (HIST_ENTRY **)
-	    xmalloc ((history_size = DEFAULT_HISTORY_GROW_SIZE)
-		     * sizeof (HIST_ENTRY *));
+	  history_size = DEFAULT_HISTORY_GROW_SIZE;
+	  the_history = (HIST_ENTRY **)xmalloc (history_size * sizeof (HIST_ENTRY *));
 	  history_length = 1;
 
 	}
@@ -239,10 +250,9 @@ add_history (string)
 	{
 	  if (history_length == (history_size - 1))
 	    {
+	      history_size += DEFAULT_HISTORY_GROW_SIZE;
 	      the_history = (HIST_ENTRY **)
-		xrealloc (the_history,
-			  ((history_size += DEFAULT_HISTORY_GROW_SIZE)
-			   * sizeof (HIST_ENTRY *)));
+		xrealloc (the_history, history_size * sizeof (HIST_ENTRY *));
 	    }
 	  history_length++;
 	}
@@ -306,11 +316,13 @@ history_search_internal (string, direction, anchored)
      char *string;
      int direction, anchored;
 {
-  register int i = history_offset;
-  register int reverse = (direction < 0);
+  register int i, reverse;
   register char *line;
-  register int index;
-  int string_len = strlen (string);
+  register int line_index;
+  int string_len;
+
+  i = history_offset;
+  reverse = (direction < 0);
 
   /* Take care of trivial cases first. */
 
@@ -320,69 +332,71 @@ history_search_internal (string, direction, anchored)
   if (reverse && (i == history_length))
     i--;
 
+#define NEXT_LINE() do { if (reverse) i--; else i++; } while (0)
+
+  string_len = strlen (string);
   while (1)
     {
       /* Search each line in the history list for STRING. */
 
       /* At limit for direction? */
-      if ((reverse && i < 0) ||
-	  (!reverse && i == history_length))
+      if ((reverse && i < 0) || (!reverse && i == history_length))
 	return (-1);
 
       line = the_history[i]->line;
-      index = strlen (line);
+      line_index = strlen (line);
 
       /* If STRING is longer than line, no match. */
-      if (string_len > index)
-	goto next_line;
+      if (string_len > line_index)
+	{
+	  NEXT_LINE ();
+	  continue;
+	}
 
       /* Handle anchored searches first. */
       if (anchored == ANCHORED_SEARCH)
 	{
-	  if (strncmp (string, line, string_len) == 0)
+	  if (STREQN (string, line, string_len))
 	    {
 	      history_offset = i;
 	      return (0);
 	    }
 
-	  goto next_line;
+	  NEXT_LINE ();
+	  continue;
 	}
 
       /* Do substring search. */
       if (reverse)
 	{
-	  index -= string_len;
+	  line_index -= string_len;
 
-	  while (index >= 0)
+	  while (line_index >= 0)
 	    {
-	      if (strncmp (string, line + index, string_len) == 0)
+	      if (STREQN (string, line + line_index, string_len))
 		{
 		  history_offset = i;
-		  return (index);
+		  return (line_index);
 		}
-	      index--;
+	      line_index--;
 	    }
 	}
       else
 	{
-	  register int limit = index - string_len + 1;
-	  index = 0;
+	  register int limit = line_index - string_len + 1;
+	  line_index = 0;
 
-	  while (index < limit)
+	  while (line_index < limit)
 	    {
-	      if (strncmp (string, line + index, string_len) == 0)
+	      if (STREQN (string, line + line_index, string_len))
 		{
 		  history_offset = i;
-		  return (index);
+		  return (line_index);
 		}
-	      index++;
+	      line_index++;
 	    }
 	}
-    next_line:
-      if (reverse)
-	i--;
-      else
-	i++;
+      NEXT_LINE ();
     }
 }
 
@@ -488,15 +502,20 @@ history_filename (filename)
   if (!return_val)
     {
       char *home;
+      int home_len;
 
       home = getenv ("HOME");
 
       if (!home)
 	home = ".";
 
-      return_val = (char *)xmalloc (2 + strlen (home) + strlen (".history"));
+      home_len = strlen (home);
+      /* strlen(".history") == 8 */
+      return_val = xmalloc (2 + home_len + 8);
 
-      sprintf (return_val, "%s/.history", home);
+      strcpy (return_val, home);
+      return_val[home_len] = '/';
+      strcpy (return_val + home_len + 1, ".history");
     }
 
   return (return_val);
@@ -530,15 +549,14 @@ read_history_range (filename, from, to)
   input = history_filename (filename);
   file = open (input, O_RDONLY, 0666);
 
-  if ((file < 0) ||
-      (stat (input, &finfo) == -1))
+  if ((file < 0) || (fstat (file, &finfo) == -1))
     goto error_and_exit;
 
-  buffer = (char *)xmalloc ((int)finfo.st_size + 1);
+  buffer = xmalloc ((int)finfo.st_size + 1);
 
   if (read (file, buffer, finfo.st_size) != finfo.st_size)
-  error_and_exit:
     {
+  error_and_exit:
       if (file >= 0)
 	close (file);
 
@@ -612,15 +630,12 @@ history_truncate_file (fname, lines)
   struct stat finfo;
 
   filename = history_filename (fname);
-  if (stat (filename, &finfo) == -1)
-    goto truncate_exit;
-
   file = open (filename, O_RDONLY, 0666);
 
-  if (file == -1)
+  if (file == -1 || fstat (file, &finfo) == -1)
     goto truncate_exit;
 
-  buffer = (char *)xmalloc ((int)finfo.st_size + 1);
+  buffer = xmalloc ((int)finfo.st_size + 1);
   chars_read = read (file, buffer, finfo.st_size);
   close (file);
 
@@ -635,26 +650,25 @@ history_truncate_file (fname, lines)
 	lines--;
     }
 
-  /* If there are fewer lines in the file than we want to truncate to,
-     then we are all done. */
-  if (!i)
-    goto truncate_exit;
-
-  /* Otherwise, write from the start of this line until the end of the
-     buffer. */
-  for (--i; i; i--)
+  /* If this is the first line, then the file contains exactly the
+     number of lines we want to truncate to, so we don't need to do
+     anything.  It's the first line if we don't find a newline between
+     the current value of i and 0.  Otherwise, write from the start of
+     this line until the end of the buffer. */
+  for ( ; i; i--)
     if (buffer[i] == '\n')
       {
 	i++;
 	break;
       }
 
-  file = open (filename, O_WRONLY | O_TRUNC | O_CREAT, 0666);
-  if (file == -1)
-    goto truncate_exit;
-
-  write (file, buffer + i, finfo.st_size - i);
-  close (file);
+  /* Write only if there are more lines in the file than we want to
+     truncate to. */
+  if (i && ((file = open (filename, O_WRONLY, 0666)) != -1))
+    {
+      write (file, buffer + i, finfo.st_size - i);
+      close (file);
+    }
 
  truncate_exit:
   if (buffer)
@@ -679,10 +693,7 @@ history_do_write (filename, nelements, overwrite)
   char *output = history_filename (filename);
   int file, mode;
 
-  if (overwrite)
-    mode = O_WRONLY | O_CREAT | O_TRUNC;
-  else
-    mode = O_WRONLY | O_APPEND;
+  mode = overwrite ? O_WRONLY | O_CREAT | O_TRUNC : O_WRONLY | O_APPEND;
 
   if ((file = open (output, mode, 0666)) == -1)
     {
@@ -707,7 +718,7 @@ history_do_write (filename, nelements, overwrite)
       buffer_size += 1 + strlen (the_history[i]->line);
 
     /* Allocate the buffer, and fill it. */
-    buffer = (char *)xmalloc (buffer_size);
+    buffer = xmalloc (buffer_size);
 
     for (i = history_length - nelements; i < history_length; i++)
       {
@@ -869,8 +880,11 @@ get_history_event (string, caller_index, delimiting_quote)
      int delimiting_quote;
 {
   register int i = *caller_index;
-  int which, sign = 1;
+  register char c;
   HIST_ENTRY *entry;
+  int which, sign = 1;
+  int local_index, search_mode, substring_okay = 0;
+  char *temp;
 
   /* The event can be specified in a number of ways.
 
@@ -889,13 +903,16 @@ get_history_event (string, caller_index, delimiting_quote)
   /* Move on to the specification. */
   i++;
 
+#define RETURN_ENTRY(e, w) \
+	return ((e = history_get (w)) ? e->line : (char *)NULL)
+
   /* Handle !! case. */
   if (string[i] == history_expansion_char)
     {
       i++;
       which = history_base + (history_length - 1);
       *caller_index = i;
-      goto get_which;
+      RETURN_ENTRY (entry, which);
     }
 
   /* Hack case of numeric line specification. */
@@ -907,98 +924,84 @@ get_history_event (string, caller_index, delimiting_quote)
 
   if (digit (string[i]))
     {
-      int start = i;
-
-      /* Get the extent of the digits. */
-      for (; digit (string[i]); i++);
-
-      /* Get the digit value. */
-      sscanf (string + start, "%d", &which);
+      /* Get the extent of the digits and compute the value. */
+      for (which = 0; digit (string[i]); i++)
+	which = (which * 10) + digit_value (string[i]);
 
       *caller_index = i;
 
       if (sign < 0)
 	which = (history_length + history_base) - which;
 
-    get_which:
-      if (entry = history_get (which))
-	return (entry->line);
-
-      return ((char *)NULL);
+      RETURN_ENTRY (entry, which);
     }
 
   /* This must be something to search for.  If the spec begins with
      a '?', then the string may be anywhere on the line.  Otherwise,
      the string must be found at the start of a line. */
-  {
-    int local_index;
-    char *temp;
-    int substring_okay = 0;
-
-    if (string[i] == '?')
-      {
-	substring_okay++;
-	i++;
-      }
-
-    for (local_index = i; string[i]; i++)
-      if (whitespace (string[i]) ||
-	  string[i] == '\n' ||
-	  string[i] == ':' ||
-	  (substring_okay && string[i] == '?') ||
-#if defined (SHELL)
-	  member (string[i], ";&()|<>") ||
-#endif /* SHELL */
-	  string[i] == delimiting_quote)
-	break;
-
-    temp = (char *)alloca (1 + (i - local_index));
-    strncpy (temp, &string[local_index], (i - local_index));
-    temp[i - local_index] = '\0';
-
-    if (string[i] == '?')
+  if (string[i] == '?')
+    {
+      substring_okay++;
       i++;
+    }
 
-    *caller_index = i;
+  /* Only a closing `?' or a newline delimit a substring search string. */
+  for (local_index = i; c = string[i]; i++)
+    if ((!substring_okay && (whitespace (c) || c == ':' ||
+#if defined (SHELL)
+	  member (c, ";&()|<>") ||
+#endif /* SHELL */
+	  string[i] == delimiting_quote)) ||
+	string[i] == '\n' ||
+	(substring_okay && string[i] == '?'))
+      break;
 
-  search_again:
+  temp = xmalloc (1 + (i - local_index));
+  strncpy (temp, &string[local_index], (i - local_index));
+  temp[i - local_index] = '\0';
 
-    local_index = history_search_internal
-      (temp, -1, substring_okay ? NON_ANCHORED_SEARCH : ANCHORED_SEARCH);
+  if (substring_okay && string[i] == '?')
+    i++;
 
-    if (local_index < 0)
-    search_lost:
-      {
-	history_offset = history_length;
-	return ((char *)NULL);
-      }
+  *caller_index = i;
 
-    if (local_index == 0 || substring_okay)
-      {
-	entry = current_history ();
-	history_offset = history_length;
+#define FAIL_SEARCH() \
+  do { history_offset = history_length; free (temp) ; return (char *)NULL; } while (0)
+
+  search_mode = substring_okay ? NON_ANCHORED_SEARCH : ANCHORED_SEARCH;
+  while (1)
+    {
+      local_index = history_search_internal (temp, -1, search_mode);
+
+      if (local_index < 0)
+	FAIL_SEARCH ();
+
+      if (local_index == 0 || substring_okay)
+	{
+	  entry = current_history ();
+	  history_offset = history_length;
 	
-	/* If this was a substring search, then remember the string that
-	   we matched for word substitution. */
-	if (substring_okay)
-	  {
-	    if (search_string)
-	      free (search_string);
-	    search_string = savestring (temp);
-	  }
+	  /* If this was a substring search, then remember the
+	     string that we matched for word substitution. */
+	  if (substring_okay)
+	    {
+	      if (search_string)
+		free (search_string);
+	      search_string = temp;
+	    }
+	  else
+	    free (temp);
+	  return (entry->line);
+	}
 
-	return (entry->line);
-      }
-
-    if (history_offset)
-      history_offset--;
-    else
-      goto search_lost;
-    
-    goto search_again;
-  }
+      if (history_offset)
+	history_offset--;
+      else
+	FAIL_SEARCH ();
+    }
+#undef FAIL_SEARCH
+#undef RETURN_ENTRY
 }
-
 #if defined (SHELL)
 /* Function for extracting single-quoted strings.  Used for inhibiting
    history expansion within single quotes. */
@@ -1019,43 +1022,535 @@ rl_string_extract_single_quoted (string, sindex)
 
   *sindex = i;
 }
+
+static char *
+quote_breaks (s)
+     char *s;
+{
+  register char *p, *r;
+  char *ret;
+  int len = 3;
+
+  for (p = s; p && *p; p++, len++)
+    {
+      if (*p == '\'')
+	len += 3;
+      else if (whitespace (*p) || *p == '\n')
+	len += 2;
+    }
+
+  r = ret = xmalloc (len);
+  *r++ = '\'';
+  for (p = s; p && *p; )
+    {
+      if (*p == '\'')
+	{
+	  *r++ = '\'';
+	  *r++ = '\\';
+	  *r++ = '\'';
+	  *r++ = '\'';
+	  p++;
+	}
+      else if (whitespace (*p) || *p == '\n')
+	{
+	  *r++ = '\'';
+	  *r++ = *p++;
+	  *r++ = '\'';
+	}
+      else
+	*r++ = *p++;
+    }
+  *r++ = '\'';
+  *r = '\0';
+  return ret;
+}
 #endif /* SHELL */
+
+static char *
+hist_error (ret, s, start, current, errtype)
+      char *ret, *s;
+      int start, current, errtype;
+{
+  char *temp, *emsg;
+  int ll;
+
+  ll = 1 + (current - start);
+  temp = xmalloc (1 + ll);
+  strncpy (temp, s + start, ll);
+  temp[ll] = 0;
+
+  switch (errtype)
+    {
+    case EVENT_NOT_FOUND:
+      emsg = "event not found";
+      break;
+    case BAD_WORD_SPEC:
+      emsg = "bad word specifier";
+      break;
+    case SUBST_FAILED:
+      emsg = "substitution failed";
+      break;
+    case BAD_MODIFIER:
+      emsg = "unrecognized history modifier";
+      break;
+    default:
+      emsg = "unknown expansion error";
+      break;
+    }
+
+  sprintf (ret, "%s: %s", temp, emsg);
+  free (temp);
+  return ret;
+}
+
+/* Get a history substitution string from STR starting at *IPTR
+   and return it.  The length is returned in LENPTR.
+
+   A backslash can quote the delimiter.  If the string is the
+   empty string, the previous pattern is used.  If there is
+   no previous pattern for the lhs, the last history search
+   string is used.
+
+   If IS_RHS is 1, we ignore empty strings and set the pattern
+   to "" anyway.  subst_lhs is not changed if the lhs is empty;
+   subst_rhs is allowed to be set to the empty string. */
+
+static char *
+get_subst_pattern (str, iptr, delimiter, is_rhs, lenptr)
+     char *str;
+     int *iptr, delimiter, is_rhs, *lenptr;
+{
+  register int si, i, j, k;
+  char *s = (char *) NULL;
+
+  i = *iptr;
+
+  for (si = i; str[si] && str[si] != delimiter; si++)
+    if (str[si] == '\\' && str[si + 1] == delimiter)
+      si++;
+
+  if (si > i || is_rhs)
+    {
+      s = xmalloc (si - i + 1);
+      for (j = 0, k = i; k < si; j++, k++)
+	{
+	  /* Remove a backslash quoting the search string delimiter. */
+	  if (str[k] == '\\' && str[k + 1] == delimiter)
+	    k++;
+	  s[j] = str[k];
+	}
+      s[j] = '\0';
+      if (lenptr)
+        *lenptr = j;
+    }
+
+  i = si;
+  if (str[i])
+    i++;
+  *iptr = i;
+
+  return s;
+}
+
+static void
+postproc_subst_rhs ()
+{
+  char *new;
+  int i, j, new_size;
+
+  new = xmalloc (new_size = subst_rhs_len + subst_lhs_len);
+  for (i = j = 0; i < subst_rhs_len; i++)
+    {
+      if (subst_rhs[i] == '&')
+	{
+	  if (j + subst_lhs_len >= new_size)
+	    new = xrealloc (new, (new_size = new_size * 2 + subst_lhs_len));
+	  strcpy (new + j, subst_lhs);
+	  j += subst_lhs_len;
+	}
+      else
+	{
+	  /* a single backslash protects the `&' from lhs interpolation */
+	  if (subst_rhs[i] == '\\' && subst_rhs[i + 1] == '&')
+	    i++;
+	  if (j >= new_size)
+	    new = xrealloc (new, new_size *= 2);
+	  new[j++] = subst_rhs[i];
+	}
+    }
+  new[j] = '\0';
+  free (subst_rhs);
+  subst_rhs = new;
+  subst_rhs_len = j;
+}
+
+/* Expand the bulk of a history specifier starting at STRING[START].
+   Returns 0 if everything is OK, -1 if an error occurred, and 1
+   if the `p' modifier was supplied and the caller should just print
+   the returned string.  Returns the new index into string in
+   *END_INDEX_PTR, and the expanded specifier in *RET_STRING. */
+static int
+history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
+     char *string;
+     int start, *end_index_ptr;
+     char **ret_string;
+     char *current_line;	/* for !# */
+{
+  int i, n, starting_index;
+  int substitute_globally, want_quotes, print_only;
+  char *event, *temp, *result, *tstr, *t, c, *word_spec;
+  int result_len;
+
+  result = xmalloc (result_len = 128);
+
+  i = start;
+
+  /* If it is followed by something that starts a word specifier,
+     then !! is implied as the event specifier. */
+
+  if (member (string[i + 1], ":$*%^"))
+    {
+      char fake_s[3];
+      int fake_i = 0;
+      i++;
+      fake_s[0] = fake_s[1] = history_expansion_char;
+      fake_s[2] = '\0';
+      event = get_history_event (fake_s, &fake_i, 0);
+    }
+  else if (string[i + 1] == '#')
+    {
+      i += 2;
+      event = current_line;
+    }
+  else
+    {
+      int quoted_search_delimiter = 0;
+
+      /* If the character before this `!' is a double or single
+	 quote, then this expansion takes place inside of the
+	 quoted string.  If we have to search for some text ("!foo"),
+	 allow the delimiter to end the search string. */
+      if (i && (string[i - 1] == '\'' || string[i - 1] == '"'))
+	quoted_search_delimiter = string[i - 1];
+      event = get_history_event (string, &i, quoted_search_delimiter);
+    }
+	  
+  if (!event)
+    {
+      hist_error (result, string, start, i, EVENT_NOT_FOUND);
+      *ret_string = result;
+      return (-1);
+    }
+
+  /* If a word specifier is found, then do what that requires. */
+  starting_index = i;
+  word_spec = get_history_word_specifier (string, event, &i);
+
+  /* There is no such thing as a `malformed word specifier'.  However,
+     it is possible for a specifier that has no match.  In that case,
+     we complain. */
+  if (word_spec == (char *)&error_pointer)
+    {
+      hist_error (result, string, starting_index, i, BAD_WORD_SPEC);
+      *ret_string = result;
+      return (-1);
+    }
+
+  /* If no word specifier, than the thing of interest was the event. */
+  if (!word_spec)
+    temp = savestring (event);
+  else
+    {
+      temp = savestring (word_spec);
+      free (word_spec);
+    }
+
+  /* Perhaps there are other modifiers involved.  Do what they say. */
+  want_quotes = substitute_globally = print_only = 0;
+  starting_index = i;
+
+  while (string[i] == ':')
+    {
+      c = string[i + 1];
+
+      if (c == 'g')
+	{
+	  substitute_globally = 1;
+	  i++;
+	  c = string[i + 1];
+	}
+
+      switch (c)
+	{
+	default:
+	  hist_error (result, string, i+1, i+2, BAD_MODIFIER);
+	  *ret_string = result;
+	  free (temp);
+	  return -1;
+
+#if defined (SHELL)
+	case 'q':
+	  want_quotes = 'q';
+	  break;
+
+	case 'x':
+	  want_quotes = 'x';
+	  break;
+#endif /* SHELL */
+
+	  /* :p means make this the last executed line.  So we
+	     return an error state after adding this line to the
+	     history. */
+	case 'p':
+	  print_only++;
+	  break;
+
+	  /* :t discards all but the last part of the pathname. */
+	case 't':
+	  tstr = strrchr (temp, '/');
+	  if (tstr)
+	    {
+	      tstr++;
+	      t = savestring (tstr);
+	      free (temp);
+	      temp = t;
+	    }
+	  break;
+
+	  /* :h discards the last part of a pathname. */
+	case 'h':
+	  tstr = strrchr (temp, '/');
+	  if (tstr)
+	    *tstr = '\0';
+	  break;
+
+	  /* :r discards the suffix. */
+	case 'r':
+	  tstr = strrchr (temp, '.');
+	  if (tstr)
+	    *tstr = '\0';
+	  break;
+
+	  /* :e discards everything but the suffix. */
+	case 'e':
+	  tstr = strrchr (temp, '.');
+	  if (tstr)
+	    {
+	      t = savestring (tstr);
+	      free (temp);
+	      temp = t;
+	    }
+	  break;
+
+	/* :s/this/that substitutes `that' for the first
+	   occurrence of `this'.  :gs/this/that substitutes `that'
+	   for each occurrence of `this'.  :& repeats the last
+	   substitution.  :g& repeats the last substitution
+	   globally. */
+
+	case '&':
+	case 's':
+	  {
+	    char *new_event, *t;
+	    int delimiter, failed, si, l_temp;
+
+	    if (c == 's')
+	      {
+		if (i + 2 < (int)strlen (string))
+		  delimiter = string[i + 2];
+		else
+		  break;	/* no search delimiter */
+
+		i += 3;
+
+		t = get_subst_pattern (string, &i, delimiter, 0, &subst_lhs_len);
+		/* An empty substitution lhs with no previous substitution
+		   uses the last search string as the lhs. */
+		if (t)
+		  {
+		    if (subst_lhs)
+		      free (subst_lhs);
+		    subst_lhs = t;
+		  }
+		else if (!subst_lhs)
+		  {
+		    if (search_string && *search_string)
+		      {
+			subst_lhs = savestring (search_string);
+			subst_lhs_len = strlen (subst_lhs);
+		      }
+		    else
+		      {
+		        subst_lhs = (char *) NULL;
+		        subst_lhs_len = 0;
+		      }
+		  }
+
+		/* If there is no lhs, the substitution can't succeed. */
+		if (subst_lhs_len == 0)
+		  {
+		    hist_error (result, string, starting_index, i, SUBST_FAILED);
+		    *ret_string = result;
+		    free (temp);
+		    return -1;
+		  }
+
+		if (subst_rhs)
+		  free (subst_rhs);
+		subst_rhs = get_subst_pattern (string, &i, delimiter, 1, &subst_rhs_len);
+
+		/* If `&' appears in the rhs, it's supposed to be replaced
+		   with the lhs. */
+		if (member ('&', subst_rhs))
+		  postproc_subst_rhs ();
+	      }
+	    else
+	      i += 2;
+
+	    l_temp = strlen (temp);
+	    /* Ignore impossible cases. */
+	    if (subst_lhs_len > l_temp)
+	      {
+		hist_error (result, string, starting_index, i, SUBST_FAILED);
+		*ret_string = result;
+		free (temp);
+		return (-1);
+	      }
+
+	    /* Find the first occurrence of THIS in TEMP. */
+	    si = 0;
+	    for (failed = 1; (si + subst_lhs_len) <= l_temp; si++)
+	      if (STREQN (temp+si, subst_lhs, subst_lhs_len))
+		{
+		  int len = subst_rhs_len - subst_lhs_len + l_temp;
+		  new_event = xmalloc (1 + len);
+		  strncpy (new_event, temp, si);
+		  strncpy (new_event + si, subst_rhs, subst_rhs_len);
+		  strncpy (new_event + si + subst_rhs_len,
+			   temp + si + subst_lhs_len,
+			   l_temp - (si + subst_lhs_len));
+		  new_event[len] = '\0';
+		  free (temp);
+		  temp = new_event;
+
+		  failed = 0;
+
+		  if (substitute_globally)
+		    {
+		      si += subst_rhs_len;
+		      l_temp = strlen (temp);
+		      substitute_globally++;
+		      continue;
+		    }
+		  else
+		    break;
+		}
+
+	    if (substitute_globally > 1)
+	      {
+		substitute_globally = 0;
+		continue;	/* don't want to increment i */
+	      }
+
+	    if (failed == 0)
+	      continue;		/* don't want to increment i */
+
+	    hist_error (result, string, starting_index, i, SUBST_FAILED);
+	    *ret_string = result;
+	    free (temp);
+	    return (-1);
+	  }
+	}
+      i += 2;
+    }
+  /* Done with modfiers. */
+  /* Believe it or not, we have to back the pointer up by one. */
+  --i;
+
+#if defined (SHELL)
+  if (want_quotes)
+    {
+      char *x;
+
+      if (want_quotes == 'q')
+	x = single_quote (temp);
+      else if (want_quotes == 'x')
+	x = quote_breaks (temp);
+      else
+	x = savestring (temp);
+
+      free (temp);
+      temp = x;
+    }
+#endif /* SHELL */
+
+  n = strlen (temp);
+  if (n > result_len)
+    result = xrealloc (result, n + 1);
+  strcpy (result, temp);
+  free (temp);
+
+  *end_index_ptr = i;
+  *ret_string = result;
+  return (print_only);
+}
 
 /* Expand the string STRING, placing the result into OUTPUT, a pointer
    to a string.  Returns:
 
+  -1) If there was an error in expansion.
    0) If no expansions took place (or, if the only change in
       the text was the de-slashifying of the history expansion
       character)
    1) If expansions did take place
-  -1) If there was an error in expansion.
+   2) If the `p' modifier was given and the caller should print the result
 
   If an error ocurred in expansion, then OUTPUT contains a descriptive
   error message. */
+
+#define ADD_STRING(s) \
+	do \
+	  { \
+	    int sl = strlen (s); \
+	    j += sl; \
+	    while (j >= result_len) \
+	      result = xrealloc (result, result_len += 128); \
+	    strcpy (result + j - sl, s); \
+	  } \
+	while (0)
+
+#define ADD_CHAR(c) \
+	do \
+	  { \
+	    if (j >= result_len) \
+	      result = xrealloc (result, result_len += 64); \
+	    result[j++] = c; \
+	    result[j] = '\0'; \
+	  } \
+	while (0)
+
 int
-history_expand (string, output)
-     char *string;
+history_expand (hstring, output)
+     char *hstring;
      char **output;
 {
-  register int j, l = strlen (string);
-  int i, word_spec_error = 0;
-  int cc, modified = 0;
-  char *word_spec, *event;
-  int starting_index, only_printing = 0, substitute_globally = 0;
+  register int j;
+  int i, r, l, passc, cc, modified, eindex, only_printing;
+  char *string;
 
   /* The output string, and its length. */
-  int len = 0;
-  char *result = (char *)NULL;
+  int result_len;
+  char *result;
 
-  /* Used in add_string; */
-  char *temp, tt[2], tbl[3];
+  /* Used when adding the string. */
+  char *temp;
 
   /* Prepare the buffer for printing error messages. */
-  result = (char *)xmalloc (len = 256);
+  result = xmalloc (result_len = 256);
+  result[0] = '\0';
 
-  result[0] = tt[1] = tbl[2] = '\0';
-  tbl[0] = '\\';
-  tbl[1] = history_expansion_char;
+  only_printing = modified = 0;
+  l = strlen (hstring);
 
   /* Grovel the string.  Only backslash can quote the history escape
      character.  We also handle arg specifiers. */
@@ -1066,377 +1561,177 @@ history_expand (string, output)
   /* The quick substitution character is a history expansion all right.  That
      is to say, "^this^that^" is equivalent to "!!:s^this^that^", and in fact,
      that is the substitution that we do. */
-  if (string[0] == history_subst_char)
+  if (hstring[0] == history_subst_char)
     {
-      char *format_string = (char *)alloca (10 + strlen (string));
+      string = xmalloc (l + 5);
 
-      sprintf (format_string, "%c%c:s%s",
-	       history_expansion_char, history_expansion_char,
-	       string);
-      string = format_string;
+      string[0] = string[1] = history_expansion_char;
+      string[2] = ':';
+      string[3] = 's';
+      strcpy (string + 4, hstring);
       l += 4;
-      goto grovel;
     }
-
-  /* If not quick substitution, still maybe have to do expansion. */
-
-  /* `!' followed by one of the characters in history_no_expand_chars
-     is NOT an expansion. */
-  for (i = 0; string[i]; i++)
+  else
     {
-      if (string[i] == history_expansion_char)
+      string = hstring;
+      /* If not quick substitution, still maybe have to do expansion. */
+
+      /* `!' followed by one of the characters in history_no_expand_chars
+	 is NOT an expansion. */
+      for (i = 0; string[i]; i++)
 	{
-	  if (!string[i + 1] || member (string[i + 1], history_no_expand_chars))
-	    continue;
+	  cc = string[i + 1];
+          if (string[i] == history_expansion_char)
+	    {
+	      if (!cc || member (cc, history_no_expand_chars))
+		continue;
 #if defined (SHELL)
-        /* The shell uses ! as a pattern negation character in globbing [...]
-	   expressions, so let those pass without expansion. */
-	  else if (i > 0 && (string[i - 1] == '[') && member (']', string + i))
-	    continue;
+	      /* The shell uses ! as a pattern negation character
+	         in globbing [...] expressions, so let those pass
+	         without expansion. */
+	      else if (i > 0 && (string[i - 1] == '[') &&
+		       member (']', string + i + 1))
+		continue;
 #endif /* SHELL */
-	  else
-	    goto grovel;
-	}
+	      else
+		break;
+	    }
 #if defined (SHELL)
-      else if (string[i] == '\'')
-	{
-	  /* If this is bash, single quotes inhibit history expansion. */
-	  i++;
-	  rl_string_extract_single_quoted (string, &i);
-	}
-      else if (string[i] == '\\')
-	{
-	  /* If this is bash, allow backslashes to quote single quotes and
-	     the history expansion character. */
-	  if (string[i + 1] == '\'' || (string[i + 1] == history_expansion_char))
-	    i++;
-	}
+	  else if (string[i] == '\'')
+	    {
+	      /* If this is bash, single quotes inhibit history expansion. */
+	      i++;
+	      rl_string_extract_single_quoted (string, &i);
+	    }
+	  else if (string[i] == '\\')
+	    {
+	      /* If this is bash, allow backslashes to quote single
+		 quotes and
+		 the history expansion character. */
+	      if (cc == '\'' || cc == history_expansion_char)
+		i++;
+	    }
 #endif /* SHELL */
-    }
+	}
 	  
+      if (string[i] != history_expansion_char)
+	{
+	  free (result);
+	  *output = savestring (string);
+	  return (0);
+	}
+    }
 
-  free (result);
-  *output = savestring (string);
-  return (0);
-
- grovel:
-
-  for (i = j = 0; i < l; i++)
+  /* Extract and perform the substitution. */
+  for (passc = i = j = 0; i < l; i++)
     {
-      int passc = 0;
       int tchar = string[i];
+
+      if (passc)
+	{
+	  passc = 0;
+	  ADD_CHAR (tchar);
+	  continue;
+	}
 
       if (tchar == history_expansion_char)
 	tchar = -3;
 
-      if (passc)
-        {
-          passc = 0;
-          goto add_char;
-        }
-
       switch (tchar)
 	{
+	default:
+	  ADD_CHAR (string[i]);
+	  break;
+
 	case '\\':
-	  if (string[i + 1] == history_expansion_char)
-	    {
-	      i++;
-	      temp = tbl;
-	      goto do_add;
-	    }
-	  else
-	    {
-	      passc++;
-	      goto add_char;
-	    }
+	  passc++;
+	  ADD_CHAR (tchar);
+	  break;
 
 #if defined (SHELL)
 	case '\'':
 	  {
 	    /* If this is bash, single quotes inhibit history expansion. */
-	    int quote = i, slen;
+	    int quote, slen;
 
-	    ++i;
+	    quote = i++;
 	    rl_string_extract_single_quoted (string, &i);
 
 	    slen = i - quote + 2;
-	    temp = (char *)alloca (slen);
+	    temp = xmalloc (slen);
 	    strncpy (temp, string + quote, slen);
 	    temp[slen - 1] = '\0';
-	    goto do_add;
+	    ADD_STRING (temp);
+	    free (temp);
+	    break;
 	  }
 #endif /* SHELL */
 
-	  /* case history_expansion_char: */
-	case -3:
-	  starting_index = i + 1;
+	case -3:		/* history_expansion_char */
 	  cc = string[i + 1];
 
 	  /* If the history_expansion_char is followed by one of the
 	     characters in history_no_expand_chars, then it is not a
 	     candidate for expansion of any kind. */
 	  if (member (cc, history_no_expand_chars))
-	    goto add_char;
+	    {
+	      ADD_CHAR (string[i]);
+	      break;
+	    }
 
+#ifdef NO_BANG_HASH_MODIFIERS
 	  /* There is something that is listed as a `word specifier' in csh
 	     documentation which means `the expanded text to this point'.
-	     That is not a word specifier, it is an event specifier. */
-
+	     That is not a word specifier, it is an event specifier.  If we
+	     don't want to allow modifiers with `!#', just stick the current
+	     output line in again. */
 	  if (cc == '#')
-	    goto hack_pound_sign;
-
-	  /* If it is followed by something that starts a word specifier,
-	     then !! is implied as the event specifier. */
-
-	  if (member (cc, ":$*%^"))
 	    {
-	      char fake_s[3];
-	      int fake_i = 0;
-	      i++;
-	      fake_s[0] = fake_s[1] = history_expansion_char;
-	      fake_s[2] = '\0';
-	      event = get_history_event (fake_s, &fake_i, 0);
-	    }
-	  else
-	    {
-	      int quoted_search_delimiter = 0;
-
-	      /* If the character before this `!' is a double or single
-		 quote, then this expansion takes place inside of the
-		 quoted string.  If we have to search for some text ("!foo"),
-		 allow the delimiter to end the search string. */
-	      if (i && (string[i - 1] == '\'' || string[i - 1] == '"'))
-		quoted_search_delimiter = string[i - 1];
-
-	      event = get_history_event (string, &i, quoted_search_delimiter);
-	    }
-	  
-	  if (!event)
-	  event_not_found:
-	    {
-	    int ll = 1 + (i - starting_index);
-
-	    temp = (char *)alloca (1 + ll);
-	    strncpy (temp, string + starting_index, ll);
-	    temp[ll - 1] = 0;
-	    sprintf (result, "%s: %s.", temp,
-		     word_spec_error ? "Bad word specifier" : "Event not found");
-	    *output = result;
-	    return (-1);
-	  }
-
-	  /* If a word specifier is found, then do what that requires. */
-	  starting_index = i;
-
-	  word_spec = get_history_word_specifier (string, event, &i);
-
-	  /* There is no such thing as a `malformed word specifier'.  However,
-	     it is possible for a specifier that has no match.  In that case,
-	     we complain. */
-	  if (word_spec == (char *)&error_pointer)
-	    {
-	      word_spec_error++;
-	      goto event_not_found;
-	    }
-
-	  /* If no word specifier, than the thing of interest was the event. */
-	  if (!word_spec)
-	    temp = event;
-	  else
-	    {
-	      temp = (char *)alloca (1 + strlen (word_spec));
-	      strcpy (temp, word_spec);
-	      free (word_spec);
-	    }
-
-	  /* Perhaps there are other modifiers involved.  Do what they say. */
-
-	hack_specials:
-
-	  if (string[i] == ':')
-	    {
-	      char *tstr;
-
-	      switch (string[i + 1])
+	      if (result)
 		{
-		  /* :p means make this the last executed line.  So we
-		     return an error state after adding this line to the
-		     history. */
-		case 'p':
-		  only_printing++;
-		  goto next_special;
-
-		  /* :t discards all but the last part of the pathname. */
-		case 't':
-		  tstr = strrchr (temp, '/');
-		  if (tstr)
-		    temp = ++tstr;
-		  goto next_special;
-
-		  /* :h discards the last part of a pathname. */
-		case 'h':
-		  tstr = strrchr (temp, '/');
-		  if (tstr)
-		    *tstr = '\0';
-		  goto next_special;
-
-		  /* :r discards the suffix. */
-		case 'r':
-		  tstr = strrchr (temp, '.');
-		  if (tstr)
-		    *tstr = '\0';
-		  goto next_special;
-
-		  /* :e discards everything but the suffix. */
-		case 'e':
-		  tstr = strrchr (temp, '.');
-		  if (tstr)
-		    temp = tstr;
-		  goto next_special;
-
-		  /* :s/this/that substitutes `this' for `that'. */
-		  /* :gs/this/that substitutes `this' for `that' globally. */
-		case 'g':
-#ifdef NOTYET
-		  /* :g/this/that is equivalent to :gs/this/that */
-		  substitute_globally = 1;
-		  if (string[i + 2] == 's')
-		    i++;
-#else
-		  if (string[i + 2] == 's')
-		    {
-		      i++;
-		      substitute_globally = 1;
-		      goto substitute;
-		    }
-#endif
-		  else
-		    
-		case 's':
-		  substitute:
-		  {
-		    char *this, *that, *new_event;
-		    int delimiter = 0;
-		    int si, l_this, l_that, l_temp = strlen (temp);
-
-		    if (i + 2 < (int)strlen (string))
-		      delimiter = string[i + 2];
-
-		    if (!delimiter)
-		      break;
-
-		    i += 3;
-
-		    /* Get THIS. */
-		    for (si = i; string[si] && string[si] != delimiter; si++);
-		    l_this = (si - i);
-		    this = (char *)alloca (1 + l_this);
-		    strncpy (this, string + i, l_this);
-		    this[l_this] = '\0';
-
-		    i = si;
-		    if (string[si])
-		      i++;
-
-		    /* Get THAT. */
-		    for (si = i; string[si] && string[si] != delimiter; si++);
-		    l_that = (si - i);
-		    that = (char *)alloca (1 + l_that);
-		    strncpy (that, string + i, l_that);
-		    that[l_that] = '\0';
-
-		    i = si;
-		    if (string[si]) i++;
-
-		    /* Ignore impossible cases. */
-		    if (l_this > l_temp)
-		      goto cant_substitute;
-
-		    /* Find the first occurrence of THIS in TEMP. */
-		    si = 0;
-		    for (; (si + l_this) <= l_temp; si++)
-		      if (strncmp (temp + si, this, l_this) == 0)
-			{
-			  new_event =
-			    (char *)alloca (1 + (l_that - l_this) + l_temp);
-			  strncpy (new_event, temp, si);
-			  strncpy (new_event + si, that, l_that);
-			  strncpy (new_event + si + l_that,
-				   temp + si + l_this,
-				   l_temp - (si + l_this));
-			  new_event[(l_that - l_this) + l_temp] = '\0';
-			  temp = new_event;
-
-			  if (substitute_globally)
-			    {
-			      si += l_that;
-			      l_temp = strlen (temp);
-			      substitute_globally++;
-			      continue;
-			    }
-
-			  goto hack_specials;
-			}
-
-		  cant_substitute:
-
-		    if (substitute_globally > 1)
-		      {
-			substitute_globally = 0;
-			goto hack_specials;
-		      }
-
-		    goto event_not_found;
-		  }
-
-		  /* :# is the line so far.  Note that we have to
-		     alloca () it since RESULT could be realloc ()'ed
-		     below in add_string. */
-		case '#':
-		hack_pound_sign:
-		  if (result)
-		    {
-		      temp = (char *)alloca (1 + strlen (result));
-		      strcpy (temp, result);
-		    }
-		  else
-		    temp = "";
-
-		next_special:
-		  i += 2;
-		  goto hack_specials;
+		  temp = xmalloc (1 + strlen (result));
+		  strcpy (temp, result);
+		  ADD_STRING (temp);
+		  free (temp);
 		}
-
+	      i++;
+	      break;
 	    }
-	  /* Believe it or not, we have to back the pointer up by one. */
-	  --i;
-	  goto add_string;
+#endif
 
-	  /* A regular character.  Just add it to the output string. */
-	default:
-	add_char:
-	  tt[0] = string[i];
-	  temp = tt;
-	  goto do_add;
-
-	add_string:
-	  modified++;
-
-	do_add:
-	  j += strlen (temp);
-	  while (j > (len - 1))
-	    result = (char *)xrealloc (result, (len += 256));
-
-	  strcpy (result + (j - strlen (temp)), temp);
+	  r = history_expand_internal (string, i, &eindex, &temp, result);
+	  if (r < 0)
+	    {
+	      *output = temp;
+	      free (result);
+	      if (string != hstring)
+		free (string);
+	      return -1;
+	    }
+	  else
+	    {
+	      if (temp)
+		{
+		  modified++;
+		  if (*temp)
+		    ADD_STRING (temp);
+		  free (temp);
+		}
+	      only_printing = r == 1;
+	      i = eindex;
+	    }
+	  break;
 	}
     }
 
   *output = result;
+  if (string != hstring)
+    free (string);
 
   if (only_printing)
     {
       add_history (result);
-      return (-1);
+      return (2);
     }
 
   return (modified != 0);
@@ -1455,15 +1750,19 @@ get_history_word_specifier (spec, from, caller_index)
   register int i = *caller_index;
   int first, last;
   int expecting_word_spec = 0;
-  char *history_arg_extract ();
+  char *result;
 
   /* The range of words to return doesn't exist yet. */
   first = last = 0;
+  result = (char *)NULL;
 
   /* If we found a colon, then this *must* be a word specification.  If
      it isn't, then it is an error. */
   if (spec[i] == ':')
-    i++, expecting_word_spec++;
+    {
+      i++;
+      expecting_word_spec++;
+    }
 
   /* Handle special cases first. */
 
@@ -1471,24 +1770,15 @@ get_history_word_specifier (spec, from, caller_index)
   if (spec[i] == '%')
     {
       *caller_index = i + 1;
-      if (search_string)
-	return (savestring (search_string));
-      else
-	return (savestring (""));
+      return (search_string ? savestring (search_string) : savestring (""));
     }
 
   /* `*' matches all of the arguments, but not the command. */
   if (spec[i] == '*')
     {
-      char *star_result;
-
       *caller_index = i + 1;
-      star_result = history_arg_extract (1, '$', from);
-
-      if (!star_result)
-	star_result = savestring ("");
-
-      return (star_result);
+      result = history_arg_extract (1, '$', from);
+      return (result ? result : savestring (""));
     }
 
   /* `$' is last arg. */
@@ -1499,68 +1789,55 @@ get_history_word_specifier (spec, from, caller_index)
     }
 
   /* Try to get FIRST and LAST figured out. */
-  if (spec[i] == '-' || spec[i] == '^')
-    {
-      first = 1;
-      goto get_last;
-    }
 
-  if (digit (spec[i]) && expecting_word_spec)
+  if (spec[i] == '-' || spec[i] == '^')
+    first = 1;
+  else if (digit (spec[i]) && expecting_word_spec)
     {
-      sscanf (spec + i, "%d", &first);
-      for (; digit (spec[i]); i++);
+      for (first = 0; digit (spec[i]); i++)
+	first = (first * 10) + digit_value (spec[i]);
     }
   else
-    return ((char *)NULL);
+    return ((char *)NULL);	/* no valid `first' for word specifier */
 
- get_last:
-  if (spec[i] == '^')
+  if (spec[i] == '^' || spec[i] == '*')
+    {
+      last = (spec[i] == '^') ? 1 : '$';	/* x* abbreviates x-$ */
+      i++;
+    }
+  else if (spec[i] != '-')
+    last = first;
+  else
     {
       i++;
-      last = 1;
-      goto get_args;
+
+      if (digit (spec[i]))
+	{
+	  for (last = 0; digit (spec[i]); i++)
+	    last = (last * 10) + digit_value (spec[i]);
+	}
+      else if (spec[i] == '$')
+	{
+	  i++;
+	  last = '$';
+	}
+      else if (!spec[i] || spec[i] == ':')  /* could be modifier separator */
+	last = -1;		/* x- abbreviates x-$ omitting word `$' */
     }
 
-  if (spec[i] != '-')
-    {
-      last = first;
-      goto get_args;
-    }
+  *caller_index = i;
 
-  i++;
+  if (last >= first || last == '$' || last < 0)
+    result = history_arg_extract (first, last, from);
 
-  if (digit (spec[i]))
-    {
-      sscanf (spec + i, "%d", &last);
-      for (; digit (spec[i]); i++);
-    }
-  else
-    if (spec[i] == '$')
-      {
-	i++;
-	last = '$';
-      }
-
- get_args:
-  {
-    char *result = (char *)NULL;
-
-    *caller_index = i;
-
-    if (last >= first)
-      result = history_arg_extract (first, last, from);
-
-    if (result)
-      return (result);
-    else
-      return ((char *)&error_pointer);
-  }
+  return (result ? result : (char *)&error_pointer);
 }
 
 /* Extract the args specified, starting at FIRST, and ending at LAST.
    The args are taken from STRING.  If either FIRST or LAST is < 0,
    then make that arg count from the right (subtract from the number of
-   tokens, so that FIRST = -1 means the next to last token on the line). */
+   tokens, so that FIRST = -1 means the next to last token on the line).
+   If LAST is `$' the last arg from STRING is used. */
 char *
 history_arg_extract (first, last, string)
      int first, last;
@@ -1569,13 +1846,16 @@ history_arg_extract (first, last, string)
   register int i, len;
   char *result = (char *)NULL;
   int size = 0, offset = 0;
+  char **list;
 
-  char **history_tokenize (), **list;
-
-  if (!(list = history_tokenize (string)))
+  /* XXX - think about making history_tokenize return a struct array,
+     each struct in array being a string and a length to avoid the
+     calls to strlen below. */
+  if ((list = history_tokenize (string)) == NULL)
     return ((char *)NULL);
 
-  for (len = 0; list[len]; len++);
+  for (len = 0; list[len]; len++)
+    ;
 
   if (last < 0)
     last = len + last - 1;
@@ -1595,27 +1875,24 @@ history_arg_extract (first, last, string)
     result = ((char *)NULL);
   else
     {
+      for (size = 0, i = first; i < last; i++)
+	size += strlen (list[i]) + 1;
+      result = xmalloc (size + 1);
+
       for (i = first; i < last; i++)
 	{
-	  int l = strlen (list[i]);
-
-	  if (!result)
-	    result = (char *)xmalloc ((size = (2 + l)));
-	  else
-	    result = (char *)xrealloc (result, (size += (2 + l)));
 	  strcpy (result + offset, list[i]);
-	  offset += l;
+	  offset += strlen (list[i]);
 	  if (i + 1 < last)
 	    {
-	      strcpy (result + offset, " ");
-	      offset++;
+      	      result[offset++] = ' ';
+	      result[offset] = 0;
 	    }
 	}
     }
 
   for (i = 0; i < len; i++)
     free (list[i]);
-
   free (list);
 
   return (result);
@@ -1637,113 +1914,94 @@ history_tokenize (string)
 
   /* Get a token, and stuff it into RESULT.  The tokens are split
      exactly where the shell would split them. */
- get_token:
-
-  /* Skip leading whitespace. */
-  for (; string[i] && whitespace(string[i]); i++);
-
-  start = i;
-
-  if (!string[i] || string[i] == history_comment_char)
-    return (result);
-
-  if (member (string[i], "()\n"))
+  while (string[i])
     {
-      i++;
-      goto got_token;
-    }
+      int delimiter = 0;
 
-  if (member (string[i], "<>;&|$"))
-    {
-      int peek = string[i + 1];
+      /* Skip leading whitespace. */
+      for (; string[i] && whitespace (string[i]); i++)
+	;
+      if (!string[i] || string[i] == history_comment_char)
+	return (result);
 
-      if (peek == string[i] && peek != '$')
-	{
-	  if (peek == '<' && string[i + 2] == '-')
-	    i++;
-	  i += 2;
-	  goto got_token;
-	}
-      else
-	{
-	  if ((peek == '&' &&
-	       (string[i] == '>' || string[i] == '<')) ||
-	      ((peek == '>') && (string[i] == '&')) ||
-	      ((peek == '(') && (string[i] == '$')))
-	    {
-	      i += 2;
-	      goto got_token;
-	    }
-	}
-      if (string[i] != '$')
+      start = i;
+      
+      if (member (string[i], "()\n"))
 	{
 	  i++;
 	  goto got_token;
 	}
-    }
 
-  /* Get word from string + i; */
-  {
-    int delimiter = 0;
+      if (member (string[i], "<>;&|$"))
+	{
+	  int peek = string[i + 1];
 
-    if (member (string[i], "\"'`"))
-      delimiter = string[i++];
-
-    for (;string[i]; i++)
-      {
-	if (string[i] == '\\')
-	  {
-	    if (string[i + 1] == '\n')
-	      {
+	  if (peek == string[i] && peek != '$')
+	    {
+	      if (peek == '<' && string[i + 2] == '-')
 		i++;
-		continue;
-	      }
-	    else
-	      {
-		if (delimiter != '\'')
-		  if ((delimiter != '"') ||
-		      (member (string[i], slashify_in_quotes)))
-		    {
-		      i++;
-		      continue;
-		    }
-	      }
-	  }
+	      i += 2;
+	      goto got_token;
+	    }
+	  else
+	    {
+	      if ((peek == '&' && (string[i] == '>' || string[i] == '<')) ||
+		  ((peek == '>') && (string[i] == '&')) ||
+		  ((peek == '(') && (string[i] == '$')))
+		{
+		  i += 2;
+		  goto got_token;
+		}
+	    }
+	  if (string[i] != '$')
+	    {
+	      i++;
+	      goto got_token;
+	    }
+	}
 
-	if (delimiter && string[i] == delimiter)
-	  {
-	    delimiter = 0;
-	    continue;
-	  }
+      /* Get word from string + i; */
 
-	if (!delimiter && (member (string[i], " \t\n;&()|<>")))
-	  goto got_token;
+      if (member (string[i], "\"'`"))
+	delimiter = string[i++];
 
-	if (!delimiter && member (string[i], "\"'`"))
-	  {
+      for (; string[i]; i++)
+	{
+	  if (string[i] == '\\' && string[i + 1] == '\n')
+	    {
+	      i++;
+	      continue;
+	    }
+
+	  if (string[i] == '\\' && delimiter != '\'' &&
+	      (delimiter != '"' || member (string[i], slashify_in_quotes)))
+	    {
+	      i++;
+	      continue;
+	    }
+
+	  if (delimiter && string[i] == delimiter)
+	    {
+	      delimiter = 0;
+	      continue;
+	    }
+
+	  if (!delimiter && (member (string[i], " \t\n;&()|<>")))
+	    break;
+
+	  if (!delimiter && member (string[i], "\"'`"))
 	    delimiter = string[i];
-	    continue;
-	  }
-      }
+	}
     got_token:
 
-    len = i - start;
-    if (result_index + 2 >= size)
-      {
-	if (!size)
-	  result = (char **)xmalloc ((size = 10) * (sizeof (char *)));
-	else
-	  result =
-	    (char **)xrealloc (result, ((size += 10) * (sizeof (char *))));
-      }
-    result[result_index] = (char *)xmalloc (1 + len);
-    strncpy (result[result_index], string + start, len);
-    result[result_index][len] = '\0';
-    result_index++;
-    result[result_index] = (char *)NULL;
-  }
-  if (string[i])
-    goto get_token;
+      len = i - start;
+      if (result_index + 2 >= size)
+	result = (char **)xrealloc (result, ((size += 10) * sizeof (char *)));
+      result[result_index] = xmalloc (1 + len);
+      strncpy (result[result_index], string + start, len);
+      result[result_index][len] = '\0';
+      result[++result_index] = (char *)NULL;
+    }
 
   return (result);
 }

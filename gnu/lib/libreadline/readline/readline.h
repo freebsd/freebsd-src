@@ -24,6 +24,7 @@
 #define _READLINE_H_
 
 #include <readline/keymaps.h>
+#include <readline/tilde.h>
 
 /* The functions for manipulating the text of the line within readline.
 Most of these functions are bound to keys by default. */
@@ -38,13 +39,29 @@ extern int
   rl_forward_word (), rl_tab_insert (), rl_yank_pop (), rl_yank_nth_arg (),
   rl_backward_kill_word (), rl_backward_kill_line (), rl_transpose_words (),
   rl_complete (), rl_possible_completions (), rl_insert_completions (),
-  rl_do_lowercase_version (),
+  rl_do_lowercase_version (), rl_kill_full_line (),
   rl_digit_argument (), rl_universal_argument (), rl_abort (),
   rl_undo_command (), rl_revert_line (), rl_beginning_of_history (),
   rl_end_of_history (), rl_forward_search_history (), rl_insert (),
   rl_upcase_word (), rl_downcase_word (), rl_capitalize_word (),
   rl_restart_output (), rl_re_read_init_file (), rl_dump_functions (),
-  rl_delete_horizontal_space ();
+  rl_delete_horizontal_space (), rl_history_search_forward (),
+  rl_history_search_backward ();
+
+/* `Public' utility functions. */
+extern int rl_insert_text (), rl_delete_text (), rl_kill_text ();
+extern int rl_complete_internal ();
+extern int rl_expand_prompt ();
+extern int rl_initialize ();
+extern int rl_set_signals (), rl_clear_signals ();
+extern int rl_init_argument (), rl_digit_argument ();
+extern int rl_read_key (), rl_getc (), rl_stuff_char ();
+extern int maybe_save_line (), maybe_unsave_line (), maybe_replace_line ();
+extern int rl_modifying ();
+
+extern int rl_begin_undo_group (), rl_end_undo_group ();
+extern void rl_add_undo (), free_undo_list ();
+extern int rl_do_undo ();
 
 extern int rl_insert_close ();
 
@@ -57,6 +74,7 @@ extern int
   rl_noninc_forward_search_again (), rl_noninc_reverse_search_again ();
 
 /* Things for vi mode. */
+extern int rl_vi_check (), rl_vi_textmod_command ();
 extern int
   rl_vi_redo (), rl_vi_tilde_expand (),
   rl_vi_movement_mode (), rl_vi_insertion_mode (), rl_vi_arg_digit (),
@@ -73,8 +91,8 @@ extern int
   rl_vi_complete (), rl_vi_fetch_history ();
 
 /* Keyboard macro commands. */
-extern int
-rl_start_kbd_macro (), rl_end_kbd_macro (), rl_call_last_kbd_macro ();
+extern int rl_start_kbd_macro (), rl_end_kbd_macro ();
+extern int rl_call_last_kbd_macro ();
 
 extern int rl_arrow_keys(), rl_refresh_line ();
 
@@ -137,10 +155,10 @@ extern char *rl_basic_word_break_characters;
    rl_basic_word_break_characters.  */
 extern char *rl_completer_word_break_characters;
 
-/* List of characters which are used to quote a substring of the command
-   line, upon which completion is to be performed for the entire substring.
-   Within quoted substrings, rl_completer_word_break_characters are treated
-   as normal characters, unless they also appear in this list. */
+/* List of characters which can be used to quote a substring of the line.
+   Completion occurs on the entire substring, and within the substring   
+   rl_completer_word_break_characters are treated as any other character,
+   unless they also appear within this list. */
 extern char *rl_completer_quote_characters;
 
 /* List of characters that are word break characters, but should be left
@@ -177,7 +195,10 @@ extern Function *rl_startup_hook;
 /* If non-zero, then this is the address of a function to call when
    completing on a directory name.  The function is called with
    the address of a string (the current directory name) as an arg. */
-extern Function *rl_symbolic_link_hook;
+extern Function *rl_directory_completion_hook;
+
+/* Backwards compatibility with previous versions of readline. */
+#define rl_symbolic_link_hook rl_directory_completion_hook
 
 /* The address of a function to call periodically while Readline is
    awaiting character input, or NULL, for no event handling. */
@@ -187,28 +208,9 @@ extern Function *rl_event_hook;
    with an asterisk. */
 extern int rl_show_star;
 
-
-/* **************************************************************** */
-/*                                                                  */
-/*             Tilde Variables That Can be Externally Set           */
-/*                                                                  */
-/* **************************************************************** */
-
-/* If non-null, this contains the address of a function to call if the
-   standard meaning for expanding a tilde fails.  The function is called
-   with the text (sans tilde, as in "foo"), and returns a malloc()'ed string
-   which is the expansion, or a NULL pointer if there is no expansion. */
-extern Function *tilde_expansion_failure_hook;
-
-/* When non-null, this is a NULL terminated array of strings which
-   are duplicates for a tilde prefix.  Bash uses this to expand
-   `=~' and `:~'. */
-extern char **tilde_additional_prefixes;
-
-/* When non-null, this is a NULL terminated array of strings which match
-   the end of a username, instead of just "/".  Bash sets this to
-   `/' and `:'. */
-extern char **tilde_additional_suffixes;
+/* Non-zero means to suppress normal filename completion after the
+   user-specified completion function has been called. */
+extern int rl_attempted_completion_over;
 
 /* **************************************************************** */
 /*								    */
@@ -219,14 +221,47 @@ extern char **tilde_additional_suffixes;
 /* Read a line of input.  Prompt with PROMPT.  A NULL PROMPT means none. */
 extern char *readline ();
 
+/* These functions are from complete.c. */
 /* Return an array of strings which are the result of repeatadly calling
    FUNC with TEXT. */
 extern char **completion_matches ();
+extern char *username_completion_function ();
+extern char *filename_completion_function ();
 
+/* These functions are from bind.c. */
 /* rl_add_defun (char *name, Function *function, int key)
    Add NAME to the list of named functions.  Make FUNCTION
    be the function that gets called.
    If KEY is not -1, then bind it. */
 extern int rl_add_defun ();
+extern int rl_bind_key (), rl_bind_key_in_map ();
+extern int rl_unbind_key (), rl_unbind_key_in_map ();
+extern int rl_set_key ();
+extern int rl_macro_bind (), rl_generic_bind (), rl_variable_bind ();
+extern int rl_translate_keyseq ();
+extern Function *rl_named_function (), *rl_function_of_keyseq ();
+extern int rl_parse_and_bind ();
+extern Keymap rl_get_keymap (), rl_get_keymap_by_name ();
+extern void rl_set_keymap ();
+extern char **rl_invoking_keyseqs (), **rl_invoking_keyseqs_in_map ();
+extern void rl_function_dumper ();
+extern int rl_read_init_file ();
+
+/* Functions in funmap.c */
+extern void rl_list_funmap_names ();
+extern void rl_initialize_funmap ();
+
+/* Functions in display.c */
+extern void rl_redisplay ();
+extern int rl_message (), rl_clear_message ();
+extern int rl_reset_line_state ();
+extern int rl_character_len ();
+extern int rl_show_char ();
+extern int crlf (), rl_on_new_line ();
+extern int rl_forced_update_display ();
+
+/* Definitions available for use by readline clients. */
+#define RL_PROMPT_START_IGNORE	'\001'
+#define RL_PROMPT_END_IGNORE	'\002'
 
 #endif /* _READLINE_H_ */

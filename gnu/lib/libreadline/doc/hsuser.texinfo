@@ -2,7 +2,7 @@
 This file documents the user interface to the GNU History library.
 
 Copyright (C) 1988, 1991 Free Software Foundation, Inc.
-Authored by Brian Fox.
+Authored by Brian Fox and Chet Ramey.
 
 Permission is granted to make and distribute verbatim copies of this manual
 provided the copyright notice and this permission notice are preserved on
@@ -48,8 +48,8 @@ information on using the GNU History Library in your own programs,
 @cindex expansion
 
 The History library provides a history expansion feature that is similar
-to the history expansion in Csh.  The following text describes the sytax
-that you use to manipulate the history information.
+to the history expansion in @code{csh}.  The following text describes
+the syntax used to manipulate the history information.
 
 History expansion takes place in two parts.  The first is to determine
 which line from the previous history should be used during substitution.
@@ -57,13 +57,13 @@ The second is to select portions of that line for inclusion into the
 current one.  The line selected from the previous history is called the
 @dfn{event}, and the portions of that line that are acted upon are
 called @dfn{words}.  The line is broken into words in the same fashion
-that the Bash shell does, so that several English (or Unix) words
+that Bash does, so that several English (or Unix) words
 surrounded by quotes are considered as one word.
 
 @menu
 * Event Designators::	How to specify which history line to use.
 * Word Designators::	Specifying which words are of interest.
-* Modifiers::		Modifying the results of susbstitution.
+* Modifiers::		Modifying the results of substitution.
 @end menu
 
 @node Event Designators
@@ -76,8 +76,8 @@ history list.
 @table @asis
 
 @item @code{!}
-Start a history subsititution, except when followed by a space, tab, or
-the end of the line... @key{=} or @key{(}.
+Start a history substitution, except when followed by a space, tab,
+the end of the line, @key{=} or @key{(}.
 
 @item @code{!!}
 Refer to the previous command.  This is a synonym for @code{!-1}.
@@ -94,6 +94,14 @@ Refer to the most recent command starting with @var{string}.
 @item @code{!?string}[@code{?}]
 Refer to the most recent command containing @var{string}.
 
+@item @code{!#}
+The entire command line typed so far.
+
+@item @code{^string1^string2^}
+Quick Substitution.  Repeat the last command, replacing @var{string1}
+with @var{string2}.  Equivalent to
+@code{!!:s/string1/string2/}.
+
 @end table
 
 @node Word Designators
@@ -107,13 +115,13 @@ with the first word being denoted by a 0 (zero).
 @table @code
 
 @item 0 (zero)
-The zero'th word.  For many applications, this is the command word.
+The @code{0}th word.  For many applications, this is the command word.
 
 @item n
-The @var{n}'th word.
+The @var{n}th word.
 
 @item ^
-The first argument.  that is, word 1.
+The first argument;  that is, word 1.
 
 @item $
 The last argument.
@@ -122,12 +130,18 @@ The last argument.
 The word matched by the most recent @code{?string?} search.
 
 @item x-y
-A range of words; @code{-@var{y}} Abbreviates @code{0-@var{y}}.
+A range of words; @code{-@var{y}} abbreviates @code{0-@var{y}}.
 
 @item *
-All of the words, excepting the zero'th.  This is a synonym for @code{1-$}.
-It is not an error to use @key{*} if there is just one word in the event.
-The empty string is returned in that case.
+All of the words, except the @code{0}th.  This is a synonym for @code{1-$}.
+It is not an error to use @key{*} if there is just one word in the event;
+the empty string is returned in that case.
+
+@item x*
+Abbreviates @code{x-$}
+
+@item x-
+Abbreviates @code{x-$} like @code{x*}, but omits the last word.
 
 @end table
 
@@ -139,11 +153,6 @@ of the following modifiers, each preceded by a @key{:}.
 
 @table @code
 
-@item #
-The entire command line typed so far.  This means the current command,
-not the previous command, so it really isn't a word designator, and doesn't
-belong in this section.
-
 @item h
 Remove a trailing pathname component, leaving only the head.
 
@@ -151,11 +160,38 @@ Remove a trailing pathname component, leaving only the head.
 Remove a trailing suffix of the form @samp{.}@var{suffix}, leaving the basename.
 
 @item e
-Remove all but the suffix.
+Remove all but the trailing suffix.
 
 @item t
 Remove all leading  pathname  components, leaving the tail.
 
 @item p
 Print the new command but do not execute it.
+
+@ifset BashFeatures
+@item q
+Quote the substituted words, escaping further substitutions.
+
+@item x
+Quote the substituted words as with @code{q},         
+but break into words at spaces, tabs, and newlines.
+@end ifset
+
+@item s/old/new/
+Substitute @var{new} for the first occurrence of @var{old} in the
+event line.  Any delimiter may be used in place of @key{/}.
+The delimiter may be quoted in @var{old} and @var{new}
+with a single backslash.  If @key{&} appears in @var{new},
+it is replaced by @var{old}.  A single backslash will quote
+the @key{&}.  The final delimiter is optional if it is the last
+character on the input line.
+
+@item &
+Repeat the previous substitution.
+
+@item g
+Cause changes to be applied over the entire event line.  Used in
+conjunction with @code{s}, as in @code{gs/old/new/}, or with
+@code{&}.
+
 @end table

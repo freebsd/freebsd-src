@@ -1,17 +1,18 @@
-#       $Id: Makefile,v 1.6 1994/05/11 15:49:41 ache Exp $
+#       $Id: Makefile,v 1.7 1994/05/11 16:30:27 ache Exp $
 
 SHLIB_MAJOR=1
 SHLIB_MINOR=0
 
 CFLAGS+= -I${.CURDIR} -I${.CURDIR}/readline -DVOID_SIGHANDLER \
 	 -DHAVE_UNISTD_H -DHAVE_STRING_H -DHAVE_STDLIB_H -DHAVE_VARARGS_H \
-	 -DVISIBLE_STATS -DVI_MODE -DPAREN_MATCHING \
+	 -DFreeBSD \
 	 -Dstricmp=strcasecmp -Dstrnicmp=strncasecmp
 
 LIB=    readline
 SRCS+=  readline.c funmap.c keymaps.c vi_mode.c parens.c \
 	   rltty.c complete.c bind.c isearch.c display.c signals.c \
 	   history.c search.c tilde.c xmalloc.c
+HEADERS= history.h readline.h keymaps.h chardefs.h tilde.h
 NOMAN=	noman
 
 beforeinstall:
@@ -22,6 +23,6 @@ beforeinstall:
 	fi
 	cd ${.CURDIR}/readline; \
 	install -c -o ${BINOWN} -g ${BINGRP} -m 444 \
-	history.h readline.h keymaps.h chardefs.h ${DESTDIR}/usr/include/readline
+		${HEADERS} ${DESTDIR}/usr/include/readline
 
 .include <bsd.lib.mk>
