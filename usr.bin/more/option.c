@@ -37,7 +37,7 @@
 static char sccsid[] = "@(#)option.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: option.c,v 1.3 1997/07/29 06:42:33 charnier Exp $";
+	"$Id: option.c,v 1.4 1998/07/25 05:56:49 hoek Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -54,7 +54,6 @@ int tabstop = 8;		/* Tab settings */
 int tagoption;
 
 char *firstsearch;
-extern int sc_height;
 
 static void usage __P((void));
 
