@@ -921,7 +921,7 @@ logmsg(int pri, const char *msg, const char *from, int flags)
 	/* extract program name */
 	for (i = 0; i < NAME_MAX; i++) {
 		if (!isprint(msg[i]) || msg[i] == ':' || msg[i] == '[' ||
-		    msg[i] == '/')
+		    msg[i] == '/' || isspace(msg[i]))
 			break;
 		prog[i] = msg[i];
 	}
@@ -1608,7 +1608,7 @@ init(int signo)
 				continue;
 			}
 			for (i = 0; i < NAME_MAX; i++) {
-				if (!isprint(p[i]))
+				if (!isprint(p[i]) || isspace(p[i]))
 					break;
 				prog[i] = p[i];
 			}
