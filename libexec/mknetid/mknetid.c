@@ -35,23 +35,27 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: mknetid.c,v 1.1.1.1 1996/06/25 20:26:38 wpaul Exp $
+ *	$Id: mknetid.c,v 1.2 1996/06/27 05:42:01 wpaul Exp $
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <grp.h>
-#include <pwd.h>
-#include <netdb.h>
-#include <err.h>
+#include <sys/types.h>
+
 #include <rpc/rpc.h>
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
+
+#include <err.h>
+#include <grp.h>
+#include <pwd.h>
+#include <netdb.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "hash.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: mknetid.c,v 1.1.1.1 1996/06/25 20:26:38 wpaul Exp $";
+static const char rcsid[] = "$Id: mknetid.c,v 1.2 1996/06/27 05:42:01 wpaul Exp $";
 #endif
 
 #define LINSIZ 1024
