@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsmount.h	8.1 (Berkeley) 6/10/93
- * $Id: nfsmount.h,v 1.2 1994/08/02 07:52:21 davidg Exp $
+ * $Id: nfsmount.h,v 1.3 1994/08/21 06:50:10 paul Exp $
  */
 
 #ifndef _NFS_NFSMOUNT_H_
@@ -67,8 +67,7 @@ struct	nfsmount {
 	int	nm_wsize;		/* Max size of write rpc */
 	int	nm_readahead;		/* Num. of blocks to readahead */
 	int	nm_leaseterm;		/* Term (sec) for NQNFS lease */
-	struct nfsnode *nm_tnext;	/* Head of lease timer queue */
-	struct nfsnode *nm_tprev;
+	CIRCLEQ_HEAD(, nfsnode) nm_timerhead; /* Head of lease timer queue */
 	struct vnode *nm_inprog;	/* Vnode in prog by nqnfs_clientd() */
 	uid_t	nm_authuid;		/* Uid for authenticator */
 	int	nm_authtype;		/* Authenticator type */
