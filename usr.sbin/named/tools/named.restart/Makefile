@@ -8,13 +8,13 @@ INDOT=
 
 beforeinstall:	named.restart
 	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
-	    ${.CURDIR}/named.restart ${DESTDIR}${BINDIR}
+	    named.restart ${DESTDIR}${BINDIR}
 
 named.restart: named.restart.sh Makefile
 	sed -e "s|%PIDDIR%|${PIDDIR}|" \
 	    -e "s|%INDOT%|${INDOT}|" \
 	    -e "s|%DESTSBIN%|${BINDIR}|" \
-	    < named.restart.sh > named.restart
+	    < ${.CURDIR}/named.restart.sh > named.restart
 
 .include "${.CURDIR}/../../../Makefile.inc"
 .include <bsd.prog.mk>
