@@ -98,11 +98,46 @@ openssl/${h:T}: ${h}
 	${INSTALL} -C -m 444 ${h} openssl
 .endfor
 
+MANDIR=	${SHAREDIR}/openssl/man/man
+
+.if defined(LIB)
+_docs=	${LIB}
+_skip=	des_modes
+_sec=	3
+.else
+_docs=	apps
+_skip=	config
+_sec=	1
+.endif
+
 man-update:
-	for i in `( cd ${LCRYPTO_DOC}/${LIB}${PROG} ; ls *.pod )` ; do \
-		cp ${LCRYPTO_DOC}/${LIB}/$$i . ;\
-		pod2man --section=3 --release="0.9.7" --center="OpenSSL" \
-			$$i > ${.CURDIR}/man/$${i%%.pod}.3 ;\
-		rm $$i ;\
-		echo $${i%%.pod} ;\
+.for manpage in ${MAN}
+	@(sec=${manpage:E}; \
+	pod=${manpage:R}.pod; \
+	cp ${LCRYPTO_DOC}/${_docs}/$$pod .; \
+	pod2man --section=$$sec --release="0.9.7" --center="OpenSSL" \
+	  $$pod > ${.CURDIR}/man/${manpage}; \
+	rm $$pod; \
+	${ECHO} ${manpage})
+.endfor
+
+man-makefile-update:
+	rm -f ${.CURDIR}/Makefile.man
+	echo '# $$FreeBSD$$' >> ${.CURDIR}/Makefile.man
+	echo '# DO NOT EDIT: generated from man-makefile-update target' >> \
+	    ${.CURDIR}/Makefile.man
+	for i in ${LCRYPTO_DOC}/${_docs}/*.pod; do \
+		fn=`basename $$i .pod`; \
+		if [ "$$fn" != "${_skip}" ]; then \
+		${ECHO} "MAN+= $$fn.${_sec}" >> ${.CURDIR}/Makefile.man; \
+		fi; \
+	done
+	for i in ${LCRYPTO_DOC}/${_docs}/*.pod; do \
+		fn=`basename $$i .pod`; \
+		if [ "$$fn" != "${_skip}" ]; then \
+		perl ${LCRYPTO_SRC}/util/extract-names.pl < $$i | \
+		  awk "/^$$fn\$$/ { next; } \
+		  { print \"MLINKS+= $$fn.${_sec} \" \$$1 \".${_sec}\" }" >> \
+		  ${.CURDIR}/Makefile.man; \
+		fi; \
 	done
