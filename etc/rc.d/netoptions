@@ -352,6 +352,17 @@ network_pass1() {
 	esac
 	echo '.'
 
+	case ${ipsec_enable} in
+	[Yy][Ee][Ss])
+		if [ -f ${ipsec_file} ]; then
+		    echo ' ipsec: enabled'
+		    setkey -f ${ipsec_file}
+		else
+		    echo ' ipsec: file not found'
+		fi
+		;;
+	esac
+
 	echo -n 'routing daemons:'
 	case ${router_enable} in
 	[Yy][Ee][Ss])
