@@ -137,9 +137,15 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 
 		if (buf[0x1fe] != 0x55 || buf[0x1ff] != 0xaa)
 			break;
+#if 0
+/*
+ * XXX: Some sources indicate this is a magic sequence, but appearantly
+ * XXX: it is not universal.  Documentation would be wonderfule to have.
+ */
 		if (buf[4] != 'I' || buf[5] != 'P' ||
 		    buf[6] != 'L' || buf[7] != '1')
 			break;
+#endif
 
 		for (i = 0; i < 16; i++) {
 			v = g_dec_le2(buf + 512 + 10 + i * 32);
