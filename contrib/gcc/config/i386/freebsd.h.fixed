@@ -477,7 +477,7 @@ do {									\
 #endif /* FREEBSD_NATIVE */
 
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Dunix -Di386 -D__FreeBSD__=3 -D__FreeBSD_cc_version=310001 -Asystem(unix) -Asystem(FreeBSD) -Acpu(i386) -Amachine(i386)"
+#define CPP_PREDEFINES "-Dunix -Di386 -D__FreeBSD__=3 -D__FreeBSD_cc_version=320001 -Asystem(unix) -Asystem(FreeBSD) -Acpu(i386) -Amachine(i386)"
 
 #undef CPP_SPEC
 #if TARGET_CPU_DEFAULT == 2
