@@ -575,10 +575,8 @@ struct ed_ring	{
 #define ED_VENDOR_WD_SMC	0x00		/* Western Digital/SMC */
 #define ED_VENDOR_3COM		0x01		/* 3Com */
 #define ED_VENDOR_NOVELL	0x02		/* Novell */
-#define ED_VENDOR_PCCARD	0x03		/* PCMCIA/PCCARD */
-#define ED_VENDOR_HP		0x04		/* Hewlett Packard */
-#define ED_VENDOR_LINKSYS	0x05		/* Linksys (Dlink) */
-#define ED_VENDOR_SIC		0x06		/* Allied-Telesis SIC */
+#define ED_VENDOR_HP		0x03		/* Hewlett Packard */
+#define ED_VENDOR_SIC		0x04		/* Allied-Telesis SIC */
 
 /*
  * Compile-time config flags
@@ -1116,6 +1114,7 @@ struct ed_ring	{
 #define ED_CHIP_TYPE_DP8390	0x00
 #define ED_CHIP_TYPE_WD790	0x01
 #define ED_CHIP_TYPE_AX88190	0x02
+#define ED_CHIP_TYPE_DL100XX	0x03
 
 /*
  * AX88190 IOBASE registers.
