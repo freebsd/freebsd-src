@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vfsops.c,v 1.31 1998/08/16 01:21:51 bde Exp $
+ *	$Id: devfs_vfsops.c,v 1.32 1998/09/07 13:17:00 bde Exp $
  *
  */
 
@@ -116,15 +116,17 @@ DBPRINT(("mount "));
 		return (ENOMEM);
 	bzero(devfs_mp_p,sizeof(*devfs_mp_p));
 	devfs_mp_p->mount = mp;
-	mp->mnt_data = (void *)devfs_mp_p;
 
 	/*-
 	 *  Fill out some fields
 	 */
 	mp->mnt_data = (qaddr_t)devfs_mp_p;
-	mp->mnt_stat.f_type = mp->mnt_vfc->vfc_typenum;
+	if (mp->mnt_vfc == NULL)
+		mp->mnt_stat.f_type = -1;	/* doing hidden mountpoint */
+	else
+		mp->mnt_stat.f_type = mp->mnt_vfc->vfc_typenum;
 	mp->mnt_stat.f_fsid.val[0] = (intptr_t)(void *)devfs_mp_p;
-	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
+	mp->mnt_stat.f_fsid.val[1] = mp->mnt_stat.f_type;
 	mp->mnt_flag |= MNT_LOCAL;
 
 	if(error = dev_dup_plane(devfs_mp_p))
