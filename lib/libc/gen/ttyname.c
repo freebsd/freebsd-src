@@ -40,6 +40,8 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/ioctl.h>
+#include <sys/filio.h>
 #include <fcntl.h>
 #include <dirent.h>
 #include <stdlib.h>
@@ -52,33 +54,21 @@ __FBSDID("$FreeBSD$");
 
 #include "libc_private.h"
 
-static char buf[sizeof(_PATH_DEV) + MAXNAMLEN];
-static char *ttyname_threaded(int fd);
-static char *ttyname_unthreaded(int fd);
+static char ttyname_buf[sizeof(_PATH_DEV) + MAXNAMLEN];
 
 static pthread_mutex_t	ttyname_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_key_t	ttyname_key;
 static int		ttyname_init = 0;
 
 char *
-ttyname(int fd)
-{
-	char           *ret;
-
-	if (__isthreaded == 0)
-		ret = ttyname_unthreaded(fd);
-	else
-		ret = ttyname_threaded(fd);
-	return (ret);
-}
-
-char *
 ttyname_r(int fd, char *buf, size_t len)
 {
 	struct stat	sb;
 	char		*rval;
+	struct fiodgname_arg fgn;
 
 	rval = NULL;
+	*buf = '\0';
 
 	/* Must be a terminal. */
 	if (!isatty(fd))
@@ -91,15 +81,22 @@ ttyname_r(int fd, char *buf, size_t len)
 		return (rval);
 
 	strcpy(buf, _PATH_DEV);
+	fgn.len = len - strlen(buf);
+	fgn.buf = buf + strlen(buf);
+	if (!_ioctl(fd, FIODGNAME, &fgn))
+		return(buf);
 	devname_r(sb.st_rdev, S_IFCHR,
 	    buf + strlen(buf), sizeof(buf) - strlen(buf));
 	return (buf);
 }
 
-static char *
-ttyname_threaded(int fd)
+char *
+ttyname(int fd)
 {
 	char	*buf;
+
+	if (__isthreaded == 0)
+		return (ttyname_r(fd, ttyname_buf, sizeof ttyname_buf));
 
 	if (ttyname_init == 0) {
 		_pthread_mutex_lock(&ttyname_lock);
@@ -127,21 +124,3 @@ ttyname_threaded(int fd)
 	return (ttyname_r(fd, buf, sizeof(_PATH_DEV) + MAXNAMLEN));
 }
 
-static char *
-ttyname_unthreaded(int fd)
-{
-	struct stat	sb;
-	struct termios	ttyb;
-
-	/* Must be a terminal. */
-	if (tcgetattr(fd, &ttyb) < 0)
-		return (NULL);
-	/* Must be a character device. */
-	if (_fstat(fd, &sb) || !S_ISCHR(sb.st_mode))
-		return (NULL);
-
-	strcpy(buf, _PATH_DEV);
-	devname_r(sb.st_rdev, S_IFCHR,
-	    buf + strlen(buf), sizeof(buf) - strlen(buf));
-	return (buf);
-}
