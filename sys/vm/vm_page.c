@@ -1542,6 +1542,7 @@ vm_page_grab(vm_object_t object, vm_pindex_t pindex, int allocflags)
 	GIANT_REQUIRED;
 retrylookup:
 	if ((m = vm_page_lookup(object, pindex)) != NULL) {
+		vm_page_lock_queues();
 		if (m->busy || (m->flags & PG_BUSY)) {
 			generation = object->generation;
 
@@ -1549,16 +1550,17 @@ retrylookup:
 			while ((object->generation == generation) &&
 					(m->busy || (m->flags & PG_BUSY))) {
 				vm_page_flag_set(m, PG_WANTED | PG_REFERENCED);
-				tsleep(m, PVM, "pgrbwt", 0);
+				msleep(m, &vm_page_queue_mtx, PVM, "pgrbwt", 0);
 				if ((allocflags & VM_ALLOC_RETRY) == 0) {
+					vm_page_unlock_queues();
 					splx(s);
 					return NULL;
 				}
 			}
+			vm_page_unlock_queues();
 			splx(s);
 			goto retrylookup;
 		} else {
-			vm_page_lock_queues();
 			if (allocflags & VM_ALLOC_WIRED)
 				vm_page_wire(m);
 			vm_page_busy(m);
