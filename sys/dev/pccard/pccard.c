@@ -583,7 +583,7 @@ pccard_function_enable(struct pccard_function *pf)
 		    &pf->ccr_rid, 0, ~0, 1 << 10, RF_ACTIVE);
 		if (!pf->ccr_res)
 			goto bad;
-		DEVPRINTF((dev, "ccr_res == %lx-%lx, base=%lx\n",
+		DEVPRINTF((dev, "ccr_res == %lx-%lx, base=%x\n",
 		    rman_get_start(pf->ccr_res), rman_get_end(pf->ccr_res),
 		    pf->ccr_base));
 		CARD_SET_RES_FLAGS(device_get_parent(dev), dev, SYS_RES_MEMORY,
