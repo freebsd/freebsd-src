@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.14 1997/10/07 06:40:16 bde Exp $
 #
 # Makefile for NETBOOT
 #
@@ -31,6 +31,7 @@ SRCS=	start2.S main.c misc.c bootmenu.c rpc.c
 
 BINDIR=		/usr/mdec
 BINMODE=	555
+
 #CFLAGS=		-O2 -DNFS -DROMSIZE=${ROMSIZE} -DRELOC=${RELOCADDR} -DASK_BOOT
 CFLAGS=		-O2 -DNFS -DROMSIZE=${ROMSIZE} -DRELOC=${RELOCADDR} # -DASK_BOOT
 CFLAGS += -DPCI -DPCI_VENDOR=${PCI_VENDOR} -DPCI_DEVICE=${PCI_DEVICE}
@@ -38,12 +39,18 @@ CFLAGS += -DPCI_CLASS=${PCI_CLASS} -DASK_BOOT
 #NS8390=		-DINCLUDE_WD -DWD_DEFAULT_MEM=0xD0000
 NS8390=	-DINCLUDE_NE
 #NS8390+=	-DINCLUDE_3COM -D_3COM_BASE=0x300
-CLEANFILES+=	netboot.com
+CLEANFILES+=	machine netboot.com
 CLEANFILES+=	makerom start2.ro 3c509.o ns8390.o
 LDFLAGS+=	-N -T ${RELOCADDR} -e _start -nostdlib
 NOSHARED=	YES
 MAN8=	netboot.8
 STRIP=
+
+.if exists(${.CURDIR}/../../../../include)
+CFLAGS+= -nostdinc
+CFLAGS+= -I${.OBJDIR} -I${.CURDIR}/../../../
+CFLAGS+= -I${.CURDIR}/../../../../include
+.endif
 
 ROMSIZE=16384
 RELOCADDR=0x90000
@@ -85,5 +92,11 @@ nb3c509.com:	start2.o ${SRCS:N*.h:R:S/$/.o/g} 3c509.o
 	dd ibs=32 skip=1 if=${.TARGET}.tmp of=${.TARGET}
 	rm -f ${.TARGET}.tmp
 
+pre-compile:
+.if !exists(${.OBJDIR}/machine)
+	ln -s ${.CURDIR}/../../include ${.OBJDIR}/machine
+.endif
+
+all:	pre-compile ${PROG}
 
 .include <bsd.prog.mk>
