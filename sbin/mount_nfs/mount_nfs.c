@@ -400,10 +400,12 @@ main(argc, argv)
 			 * is found.
 			 */
 			if (ncd.ncd_authuid != last_ruid) {
-				krb_set_tkt_string("");
+				char buf[512];
+				(void)sprintf(buf, "%s%d",
+					      TKT_ROOT, ncd.ncd_authuid);
+				krb_set_tkt_string(buf);
 				last_ruid = ncd.ncd_authuid;
 			}
-			setreuid(ncd.ncd_authuid, 0);
 			if (krb_mk_req(&kt, "rcmd", inst, realm, 0) ==
 			    KSUCCESS &&
 			    kt.length <= (RPCAUTH_MAXSIZ - 2 * NFSX_UNSIGNED)) {
@@ -412,7 +414,6 @@ main(argc, argv)
 				ncd.ncd_authstr = (char *)kt.dat;
 				nfssvc_flag = NFSSVC_MNTD | NFSSVC_GOTAUTH;
 			}
-			setreuid(0, 0);
 #endif /* KERBEROS */
 		}
 	}

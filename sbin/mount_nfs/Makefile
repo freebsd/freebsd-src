@@ -8,4 +8,12 @@ MOUNT=	${.CURDIR}/../mount
 CFLAGS+= -DNFS -I${MOUNT}
 .PATH:	${MOUNT}
 
+.if exists(${DESTDIR}/usr/lib/libkrb.a) && (defined(MAKE_KERBEROS) \
+	|| defined(MAKE_EBONES))
+CFLAGS+=-DKERBEROS
+DPADD=	${LIBKRB} ${LIBDES}
+LDADD=	-lkrb -ldes
+DISTRIBUTION=	krb
+.endif
+
 .include <bsd.prog.mk>
