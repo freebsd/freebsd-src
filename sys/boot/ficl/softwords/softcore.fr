@@ -121,8 +121,5 @@ decimal 32 constant bl
 wordlist constant hidden
 : hide   hidden dup >search ficl-set-current ;
 
-\ init - hook for extra startup behavior
-: init ( --  ) s" /boot/boot.4th" fexists if s" /boot/boot.4th" fload then ;
-
 \ ** E N D   S O F T C O R E . F R
 
