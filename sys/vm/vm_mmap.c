@@ -107,6 +107,9 @@ vmmapentry_rsrc_init(dummy)
     max_proc_mmap /= 100;
 }
 
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 sbrk(p, uap)
@@ -125,6 +128,9 @@ struct sstk_args {
 };
 #endif
 
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 sstk(p, uap)
@@ -186,6 +192,9 @@ struct mmap_args {
 };
 #endif
 
+/*
+ * MPSAFE
+ */
 int
 mmap(p, uap)
 	struct proc *p;
@@ -285,12 +294,12 @@ mmap(p, uap)
 		 */
 		if (((unsigned) uap->fd) >= fdp->fd_nfiles ||
 		    (fp = fdp->fd_ofiles[uap->fd]) == NULL) {
-			mtx_unlock(&Giant);
-			return (EBADF);
+			error = EBADF;
+			goto done2;
 		}
 		if (fp->f_type != DTYPE_VNODE) {
-			mtx_unlock(&Giant);
-			return (EINVAL);
+			error = EINVAL;
+			goto done2;
 		}
 
 		/*
@@ -429,6 +438,7 @@ mmap(p, uap)
 done:
 	if (fp)
 		fdrop(fp, p);
+done2:
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -494,6 +504,9 @@ struct msync_args {
 	int flags;
 };
 #endif
+/*
+ * MPSAFE
+ */
 int
 msync(p, uap)
 	struct proc *p;
@@ -537,8 +550,8 @@ msync(p, uap)
 		rv = vm_map_lookup_entry(map, addr, &entry);
 		vm_map_unlock_read(map);
 		if (rv == FALSE) {
-			mtx_unlock(&Giant);
-			return (EINVAL);
+			rv = -1;
+			goto done2;
 		}
 		addr = entry->start;
 		size = entry->end - entry->start;
@@ -550,11 +563,12 @@ msync(p, uap)
 	rv = vm_map_clean(map, addr, addr + size, (flags & MS_ASYNC) == 0,
 	    (flags & MS_INVALIDATE) != 0);
 
+done2:
 	mtx_unlock(&Giant);
 
 	switch (rv) {
 	case KERN_SUCCESS:
-		break;
+		return(0);
 	case KERN_INVALID_ADDRESS:
 		return (EINVAL);	/* Sun returns ENOMEM? */
 	case KERN_FAILURE:
@@ -562,8 +576,6 @@ msync(p, uap)
 	default:
 		return (EINVAL);
 	}
-
-	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -572,6 +584,9 @@ struct munmap_args {
 	size_t len;
 };
 #endif
+/*
+ * MPSAFE
+ */
 int
 munmap(p, uap)
 	struct proc *p;
@@ -639,6 +654,9 @@ struct mprotect_args {
 	int prot;
 };
 #endif
+/*
+ * MPSAFE
+ */
 int
 mprotect(p, uap)
 	struct proc *p;
@@ -684,6 +702,9 @@ struct minherit_args {
 	int inherit;
 };
 #endif
+/*
+ * MPSAFE
+ */
 int
 minherit(p, uap)
 	struct proc *p;
@@ -727,6 +748,9 @@ struct madvise_args {
 };
 #endif
 
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 madvise(p, uap)
@@ -776,6 +800,9 @@ struct mincore_args {
 };
 #endif
 
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 mincore(p, uap)
@@ -787,7 +814,7 @@ mincore(p, uap)
 	pmap_t pmap;
 	vm_map_t map;
 	char *vec;
-	int error;
+	int error = 0;
 	int vecindex, lastvecindex;
 	vm_map_entry_t current;
 	vm_map_entry_t entry;
@@ -904,8 +931,8 @@ RestartScan:
 			while ((lastvecindex + 1) < vecindex) {
 				error = subyte( vec + lastvecindex, 0);
 				if (error) {
-					mtx_unlock(&Giant);
-					return (EFAULT);
+					error = EFAULT;
+					goto done2;
 				}
 				++lastvecindex;
 			}
@@ -915,8 +942,8 @@ RestartScan:
 			 */
 			error = subyte( vec + vecindex, mincoreinfo);
 			if (error) {
-				mtx_unlock(&Giant);
-				return (EFAULT);
+				error = EFAULT;
+				goto done2;
 			}
 
 			/*
@@ -945,8 +972,8 @@ RestartScan:
 	while ((lastvecindex + 1) < vecindex) {
 		error = subyte( vec + lastvecindex, 0);
 		if (error) {
-			mtx_unlock(&Giant);
-			return (EFAULT);
+			error = EFAULT;
+			goto done2;
 		}
 		++lastvecindex;
 	}
@@ -959,9 +986,9 @@ RestartScan:
 	if (timestamp != map->timestamp)
 		goto RestartScan;
 	vm_map_unlock_read(map);
+done2:
 	mtx_unlock(&Giant);
-
-	return (0);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -970,6 +997,9 @@ struct mlock_args {
 	size_t len;
 };
 #endif
+/*
+ * MPSAFE
+ */
 int
 mlock(p, uap)
 	struct proc *p;
@@ -1017,6 +1047,9 @@ struct mlockall_args {
 };
 #endif
 
+/*
+ * MPSAFE
+ */
 int
 mlockall(p, uap)
 	struct proc *p;
@@ -1033,6 +1066,9 @@ struct mlockall_args {
 };
 #endif
 
+/*
+ * MPSAFE
+ */
 int
 munlockall(p, uap)
 	struct proc *p;
@@ -1049,6 +1085,9 @@ struct munlock_args {
 	size_t len;
 };
 #endif
+/*
+ * MPSAFE
+ */
 int
 munlock(p, uap)
 	struct proc *p;
@@ -1084,9 +1123,12 @@ munlock(p, uap)
 }
 
 /*
- * Internal version of mmap.
- * Currently used by mmap, exec, and sys5 shared memory.
- * Handle is either a vnode pointer or NULL for MAP_ANON.
+ * vm_mmap()
+ *
+ * MPSAFE
+ *
+ * Internal version of mmap.  Currently used by mmap, exec, and sys5
+ * shared memory.  Handle is either a vnode pointer or NULL for MAP_ANON.
  */
 int
 vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
@@ -1213,18 +1255,17 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		rv = vm_map_find(map, object, foff, addr, size, fitit,
 				 prot, maxprot, docow);
 
-	if (rv != KERN_SUCCESS)
+	if (rv != KERN_SUCCESS) {
 		/*
 		 * Lose the object reference. Will destroy the
 		 * object if it's an unnamed anonymous mapping
 		 * or named anonymous without other references.
 		 */
 		vm_object_deallocate(object);
-
-	/*
-	 * Shared memory is also shared with children.
-	 */
-	else if (flags & MAP_SHARED) {
+	} else if (flags & MAP_SHARED) {
+		/*
+		 * Shared memory is also shared with children.
+		 */
 		rv = vm_map_inherit(map, *addr, *addr + size, VM_INHERIT_SHARE);
 		if (rv != KERN_SUCCESS)
 			(void) vm_map_remove(map, *addr, *addr + size);
