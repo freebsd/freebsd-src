@@ -34,7 +34,8 @@ static const char rcsid[] =
 #else
 #include <locale.h>
 
-static void error(const char *, ...) __attribute__((__noreturn__));
+static void error(const char *, ...) __attribute__((__noreturn__))
+	__printflike(1, 2);
 
 static void
 error(const char *msg, ...)
