@@ -28,8 +28,6 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -84,6 +82,9 @@
 #include <machine/md_var.h>
 #include <machine/bus_pio.h>
 #include <sys/rman.h>
+
+#include <pci/pcireg.h>
+#include <pci/pcivar.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -148,13 +149,16 @@ void wi_cache_store __P((struct wi_softc *, struct ether_header *,
 	struct mbuf *, unsigned short));
 #endif
 
+static int wi_generic_attach	__P((device_t));
 static int wi_pccard_match	__P((device_t));
 static int wi_pccard_probe	__P((device_t));
+static int wi_pci_probe		__P((device_t));
 static int wi_pccard_attach	__P((device_t));
+static int wi_pci_attach	__P((device_t));
 static int wi_pccard_detach	__P((device_t));
 static void wi_shutdown		__P((device_t));
 
-static int wi_alloc		__P((device_t));
+static int wi_alloc		__P((device_t, int));
 static void wi_free		__P((device_t));
 
 static device_method_t wi_pccard_methods[] = {
@@ -172,21 +176,41 @@ static device_method_t wi_pccard_methods[] = {
 	{ 0, 0 }
 };
 
+static device_method_t wi_pci_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		wi_pci_probe),
+	DEVMETHOD(device_attach,	wi_pci_attach),
+	DEVMETHOD(device_detach,	wi_pccard_detach),
+	DEVMETHOD(device_shutdown,	wi_shutdown),
+
+	{ 0, 0 }
+};
+
 static driver_t wi_pccard_driver = {
 	"wi",
 	wi_pccard_methods,
 	sizeof(struct wi_softc)
 };
 
+static driver_t wi_pci_driver = {
+	"wi",
+	wi_pci_methods,
+	sizeof(struct wi_softc)
+};
+
 static devclass_t wi_pccard_devclass;
+static devclass_t wi_pci_devclass;
 
 DRIVER_MODULE(if_wi, pccard, wi_pccard_driver, wi_pccard_devclass, 0, 0);
+DRIVER_MODULE(if_wi, pci, wi_pci_driver, wi_pci_devclass, 0, 0);
 
 static const struct pccard_product wi_pccard_products[] = {
 	{ PCCARD_STR_LUCENT_WAVELAN_IEEE,	PCCARD_VENDOR_LUCENT,
 	  PCCARD_PRODUCT_LUCENT_WAVELAN_IEEE,	0, 
 	  PCCARD_CIS_LUCENT_WAVELAN_IEEE },
 };
+
+static char wi_device_desc[] = "WaveLAN/IEEE 802.11";
 
 static int wi_pccard_match(dev)
 	device_t	dev;
@@ -210,11 +234,10 @@ static int wi_pccard_probe(dev)
 	sc = device_get_softc(dev);
 	sc->wi_gone = 0;
 
-	error = wi_alloc(dev);
+	error = wi_alloc(dev, 0);
 	if (error)
 		return (error);
 
-	device_set_desc(dev, "WaveLAN/IEEE 802.11");
 	wi_free(dev);
 
 	/* Make sure interrupts are disabled. */
@@ -222,6 +245,22 @@ static int wi_pccard_probe(dev)
 	CSR_WRITE_2(sc, WI_EVENT_ACK, 0xFFFF);
 
 	return (0);
+}
+
+static int
+wi_pci_probe(dev)
+	device_t	dev;
+{
+	struct wi_softc		*sc;
+
+	sc = device_get_softc(dev);
+	if ((pci_get_vendor(dev) == WI_PCI_VENDOR_Eumitcom) &&
+		(pci_get_device(dev) == WI_PCI_DEVICE_PRISM2STA)) {
+			sc->wi_prism2 = 1;
+			device_set_desc(dev, "PRISM2STA PCI WaveLAN/IEEE 802.11");
+			return (0);
+	}
+	return(ENXIO);
 }
 
 static int wi_pccard_detach(dev)
@@ -257,14 +296,10 @@ static int wi_pccard_detach(dev)
 static int wi_pccard_attach(device_t dev)
 {
 	struct wi_softc		*sc;
-	struct wi_ltv_macaddr	mac;
-	struct wi_ltv_gen	gen;
-	struct ifnet		*ifp;
 	int			error;
 	u_int32_t		flags;
 
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
 
 	/*
 	 *	XXX: quick hack to support Prism II chip.
@@ -289,11 +324,91 @@ static int wi_pccard_attach(device_t dev)
 		}
 	}
 
-	error = wi_alloc(dev);
+	error = wi_alloc(dev, 0);
 	if (error) {
 		device_printf(dev, "wi_alloc() failed! (%d)\n", error);
 		return (error);
 	}
+	return (wi_generic_attach(dev));
+}
+
+static int
+wi_pci_attach(device_t dev)
+{
+	struct wi_softc		*sc;
+	u_int32_t		command, wanted;
+	u_int16_t		reg;
+	int			error;
+
+	sc = device_get_softc(dev);
+
+	command = pci_read_config(dev, PCIR_COMMAND, 4);
+	wanted = PCIM_CMD_PORTEN|PCIM_CMD_MEMEN;
+	command |= wanted;
+	pci_write_config(dev, PCIR_COMMAND, command, 4);
+	command = pci_read_config(dev, PCIR_COMMAND, 4);
+	if ((command & wanted) != wanted) {
+		device_printf(dev, "wi_pci_attach() failed to enable pci!\n");
+		return (ENXIO);
+	}
+
+	error = wi_alloc(dev, WI_PCI_IORES);
+	if (error)
+		return (error);
+
+	device_set_desc(dev, wi_device_desc);
+
+	/* Make sure interrupts are disabled. */
+	CSR_WRITE_2(sc, WI_INT_EN, 0);
+	CSR_WRITE_2(sc, WI_EVENT_ACK, 0xFFFF);
+
+	sc->mem_rid = 0x18;
+	sc->mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->mem_rid,
+				0, ~0, 1, RF_ACTIVE);
+	if (sc->mem == NULL) {
+		device_printf(dev, "couldn't allocate memory\n");
+		wi_free(dev);
+		return (ENXIO);
+	}
+	sc->wi_bmemtag = rman_get_bustag(sc->mem);
+	sc->wi_bmemhandle = rman_get_bushandle(sc->mem);
+
+	/*
+	 * From Linux driver:
+	 * Write COR to enable PC card
+	 * (FOR GREAT JUSTICE)
+	 */
+	CSM_WRITE_1(sc, WI_COR_OFFSET, WI_COR_VALUE); 
+	reg = CSM_READ_1(sc, WI_COR_OFFSET);
+
+	CSR_WRITE_2(sc, WI_HFA384x_SWSUPPORT0_OFF, WI_PRISM2STA_MAGIC);
+	reg = CSR_READ_2(sc, WI_HFA384x_SWSUPPORT0_OFF);
+	if (reg != WI_PRISM2STA_MAGIC) {
+		device_printf(dev,
+			"CSR_READ_2(WI_HFA384x_SWSUPPORT0_OFF) wanted %d, got %d\n",
+			WI_PRISM2STA_MAGIC, reg);
+		wi_free(dev);
+		return (ENXIO);
+	}
+
+	error = wi_generic_attach(dev);
+	if (error != 0)
+		return (error);
+
+	return (0);
+}
+
+static int
+wi_generic_attach(device_t dev)
+{
+	struct wi_softc		*sc;
+	struct wi_ltv_macaddr	mac;
+	struct wi_ltv_gen	gen;
+	struct ifnet		*ifp;
+	int			error;
+
+	sc = device_get_softc(dev);
+	ifp = &sc->arpcom.ac_if;
 
 	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
 			       wi_intr, sc, &sc->wi_intrhand);
@@ -1541,14 +1656,15 @@ static void wi_watchdog(ifp)
 	return;
 }
 
-static int wi_alloc(dev)
+static int
+wi_alloc(dev, io_rid)
 	device_t		dev;
+	int				io_rid;
 {
 	struct wi_softc		*sc = device_get_softc(dev);
-	int			rid;
 
-	rid = 0;
-	sc->iobase = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+	sc->iobase_rid = io_rid;
+	sc->iobase = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->iobase_rid,
 				0, ~0, (1 << 6),
 				rman_make_alignment_flags(1 << 6) | RF_ACTIVE);
 	if (!sc->iobase) {
@@ -1556,8 +1672,8 @@ static int wi_alloc(dev)
 		return (ENXIO);
 	}
 
-	rid = 0;
-	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
+	sc->irq_rid = 0;
+	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irq_rid,
 				     0, ~0, 1, RF_ACTIVE);
 	if (!sc->irq) {
 		device_printf(dev, "No irq?!\n");
@@ -1582,6 +1698,8 @@ static void wi_free(dev)
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->iobase);
 	if (sc->irq != NULL)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
+	if (sc->mem != NULL)
+		bus_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid, sc->mem);
 
 	return;
 }
