@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.43 1999/04/01 13:41:40 kato Exp $
+ *	$Id: npx.c,v 1.44 1999/04/18 14:42:17 kato Exp $
  */
 
 #include "npx.h"
@@ -164,6 +164,7 @@ inthand_t probeintr;
 __asm("								\n\
 	.text							\n\
 	.p2align 2,0x90						\n\
+	.type	" __XSTRING(CNAME(probeintr)) ",@function	\n\
 " __XSTRING(CNAME(probeintr)) ":				\n\
 	ss							\n\
 	incl	" __XSTRING(CNAME(npx_intrs_while_probing)) "	\n\
@@ -190,6 +191,7 @@ inthand_t probetrap;
 __asm("								\n\
 	.text							\n\
 	.p2align 2,0x90						\n\
+	.type	" __XSTRING(CNAME(probetrap)) ",@function	\n\
 " __XSTRING(CNAME(probetrap)) ":				\n\
 	ss							\n\
 	incl	" __XSTRING(CNAME(npx_traps_while_probing)) "	\n\
@@ -209,8 +211,7 @@ static int
 npx_probe(dev)
 	device_t dev;
 {
-/*#ifdef SMP*/
-#if 1
+#ifdef SMP
 
 	return npx_probe1(dev);
 
@@ -319,8 +320,7 @@ npx_probe1(dev)
 	 */
 	fninit();
 
-/*#ifdef SMP*/
-#if 1
+#ifdef SMP
 	/*
 	 * Exception 16 MUST work for SMP.
 	 */
@@ -422,7 +422,8 @@ npx_probe1(dev)
 				if (r == 0)
 					panic("npx: can't get IRQ");
 				BUS_SETUP_INTR(device_get_parent(dev),
-					       dev, r, npx_intr, 0, &intr);
+					       dev, r, INTR_TYPE_MISC,
+					       npx_intr, 0, &intr);
 				if (intr == 0)
 					panic("npx: can't create intr");
 
@@ -449,7 +450,9 @@ int
 npx_attach(dev)
 	device_t dev;
 {
+#ifdef I586_CPU
 	int flags;
+#endif
 
 	device_print_prettyname(dev);
 	if (npx_irq13) {
@@ -798,7 +801,6 @@ static device_method_t npx_methods[] = {
 static driver_t npx_driver = {
 	"npx",
 	npx_methods,
-	DRIVER_TYPE_MISC,
 	1,			/* no softc */
 };
 
