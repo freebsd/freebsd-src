@@ -20,7 +20,7 @@ CFLAGS+=-DMAKE_VERSION=\"5200408120\"
 CFLAGS+=-D__FBSDID=__RCSID
 .endif
 
-# XXX: kernel currently broken
+# There is no obvious performance improvement currently.
 # CFLAGS+=-DUSE_KQUEUE
 
 main.o: ${MAKEFILE}
