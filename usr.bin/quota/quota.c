@@ -105,6 +105,7 @@ static int callaurpc(char *host, int prognum, int versnum, int procnum,
 	xdrproc_t inproc, char *in, xdrproc_t outproc, char *out);
 static int alldigits(char *s);
 
+int	lflag;
 int	qflag;
 int	vflag;
 
@@ -116,10 +117,13 @@ main(int argc, char *argv[])
 	int i, gflag = 0, uflag = 0;
 	char ch;
 
-	while ((ch = getopt(argc, argv, "gquv")) != -1) {
+	while ((ch = getopt(argc, argv, "glquv")) != -1) {
 		switch(ch) {
 		case 'g':
 			gflag++;
+			break;
+		case 'l':
+			lflag++;
 			break;
 		case 'q':
 			qflag++;
@@ -180,9 +184,9 @@ usage(void)
 {
 
 	fprintf(stderr, "%s\n%s\n%s\n",
-	    "usage: quota [-gu] [-v | -q]",
-	    "       quota [-u] [-v | -q] user ...",
-	    "       quota -g [-v | -q] group ...");
+	    "usage: quota [-glu] [-v | -q]",
+	    "       quota [-lu] [-v | -q] user ...",
+	    "       quota -g [-l] [-v | -q] group ...");
 	exit(1);
 }
 
@@ -461,6 +465,8 @@ getprivs(long id, int quotatype)
 				errx(2, "out of memory");
 		}
 		if (strcmp(fst[i].f_fstypename, "nfs") == 0) {
+			if (lflag)
+				continue;
 			if (getnfsquota(&fst[i], qup, id, quotatype)
 			    == 0)
 				continue;

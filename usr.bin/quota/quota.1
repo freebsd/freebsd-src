@@ -35,7 +35,7 @@
 .\"	from: @(#)quota.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd August 8, 2002
 .Dt QUOTA 1
 .Os
 .Sh NAME
@@ -43,14 +43,15 @@
 .Nd display disk usage and limits
 .Sh SYNOPSIS
 .Nm
-.Op Fl gu
+.Op Fl glu
 .Op Fl v | Fl q
 .Nm
-.Op Fl u
+.Op Fl lu
 .Op Fl v | Fl q
 .Ar user ...
 .Nm
 .Fl g
+.Op Fl l
 .Op Fl v | Fl q
 .Ar group ...
 .Sh DESCRIPTION
@@ -64,6 +65,10 @@ The following options are available:
 .It Fl g
 Print group quotas for the group
 of which the user is a member.
+.It Fl l
+Do not report quotas on
+.Tn NFS
+filesystems.
 .It Fl q
 Print a more terse message,
 containing only information
@@ -120,6 +125,14 @@ If
 .Nm
 exits with a non-zero status, one or more filesystems
 are over quota.
+.Pp
+If the
+.Fl l
+flag is specified,
+.Nm
+will not check
+.Tn NFS
+filesystems.
 .Sh FILES
 .Bl -tag -width quota.group -compact
 .It Pa quota.user
