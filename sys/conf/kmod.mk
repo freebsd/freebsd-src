@@ -9,8 +9,6 @@
 #
 # CLEANFILES	Additional files to remove for the clean and cleandir targets.
 #
-# DISTRIBUTION  Name of distribution. [bin]
-#
 # KMOD          The name of the kernel module to build.
 #
 # KMODDIR	Base path for kernel modules (see kld(4)). [/modules]
@@ -20,13 +18,6 @@
 # KMODGRP	KLD group. [${BINGRP}]
 #
 # KMODMODE	KLD mode. [${BINMODE}]
-#
-# LINKS		The list of KLD links; should be full pathnames, the
-#               linked-to file coming first, followed by the linked
-#               file.  The files are hard-linked.  For example, to link
-#               /modules/master and /modules/meister, use:
-#
-#			LINKS=  /modules/master /modules/meister
 #
 # KMODLOAD	Command to load a kernel module [/sbin/kldload]
 #
@@ -41,26 +32,15 @@
 #
 # KMODDEPS	List of modules which this one is dependant on
 #
-# SUBDIR        A list of subdirectories that should be built as well.
-#               Each of the targets will execute the same target in the
-#               subdirectories.
-#
-# SYMLINKS	Same as LINKS, except it creates symlinks and the
-#		linked-to pathname may be relative.
-#
-# DESTDIR, DISTDIR are set by other Makefiles (e.g. bsd.own.mk)
+# DESTDIR	Change the tree where the module gets installed. [not set]
 #
 # MFILES	Optionally a list of interfaces used by the module.
 #		This file contains a default list of interfaces.
 #
 # +++ targets +++
 #
-#       distribute:
-#               This is a variant of install, which will
-#               put the stuff into the right "distribution".
-#
 # 	install:
-#               install the program and its manual pages; if the Makefile
+#               install the kernel module and its manual pages; if the Makefile
 #               does not itself define the target install, the targets
 #               beforeinstall and afterinstall may also be used to cause
 #               actions immediately before and after the install target
@@ -155,17 +135,16 @@ ${KMOD}.kld: ${OBJS}
 	${LD} ${LDFLAGS} -r -o ${.TARGET} ${OBJS}
 
 .if !defined(NOMAN)
-.if 0
-MAN?=	${KMOD}.4
-.endif
 .include <bsd.man.mk>
-.else
 .endif
 
 _ILINKS=@ machine
 
 .MAIN: all
-all: objwarn ${PROG} all-man
+all: objwarn ${PROG}
+.if !defined(NOMAN)
+all: _manpages
+.endif
 
 beforedepend: ${_ILINKS}
 # Ensure that the links exist without depending on it when it exists which
@@ -200,60 +179,28 @@ ${_ILINKS}:
 CLEANFILES+= ${PROG} ${KMOD}.kld ${OBJS} ${_ILINKS} symb.tmp tmp.o
 
 .if !target(install)
-.if !target(beforeinstall)
-beforeinstall:
-.endif
-.if !target(afterinstall)
-afterinstall:
-.endif
 
 _INSTALLFLAGS:=	${INSTALLFLAGS}
 .for ie in ${INSTALLFLAGS_EDIT}
 _INSTALLFLAGS:=	${_INSTALLFLAGS${ie}}
 .endfor
 
-realinstall:
+.if !target(realinstall)
+realinstall: _kmodinstall
+.ORDER: beforeinstall _kmodinstall
+_kmodinstall:
 	${INSTALL} ${COPY} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
-	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${KMODDIR}/
-.if defined(LINKS) && !empty(LINKS)
-	@set ${LINKS}; \
-	while test $$# -ge 2; do \
-		l=${DESTDIR}$$1; \
-		shift; \
-		t=${DESTDIR}$$1; \
-		shift; \
-		${ECHO} $$t -\> $$l; \
-		ln -f $$l $$t; \
-	done; true
-.endif
-.if defined(SYMLINKS) && !empty(SYMLINKS)
-	@set ${SYMLINKS}; \
-	while test $$# -ge 2; do \
-		l=$$1; \
-		shift; \
-		t=${DESTDIR}$$1; \
-		shift; \
-		${ECHO} $$t -\> $$l; \
-		ln -fs $$l $$t; \
-	done; true
-.endif
+	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${KMODDIR}
+.endif !target(realinstall)
 
-install: afterinstall
+.include <bsd.links.mk>
+
 .if !defined(NOMAN)
-afterinstall: realinstall maninstall
-.else
-afterinstall: realinstall
-.endif
-realinstall: beforeinstall
+realinstall: _maninstall
+.ORDER: beforeinstall _maninstall
 .endif
 
-DISTRIBUTION?=	bin
-.if !target(distribute)
-distribute:
-.for dist in ${DISTRIBUTION}
-	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${dist} SHARED=copies
-.endfor
-.endif
+.endif !target(install)
 
 .if !target(load)
 load:	${PROG}
@@ -317,5 +264,4 @@ ${OBJS}: ${SRCS:M*.h}
 .endif
 
 .include <bsd.obj.mk>
-
 .include <bsd.kern.mk>
