@@ -199,7 +199,8 @@ main(argc, argv, envp)
 		case 'n':
 			nfsdcnt = atoi(optarg);
 			if (nfsdcnt < 1 || nfsdcnt > MAXNFSDCNT) {
-				warnx("nfsd count %d; reset to %d", DEFNFSDCNT);
+				warnx("nfsd count %d; reset to %d", nfsdcnt,
+				    DEFNFSDCNT);
 				nfsdcnt = DEFNFSDCNT;
 			}
 			break;
@@ -243,7 +244,8 @@ main(argc, argv, envp)
 	if (argc == 1) {
 		nfsdcnt = atoi(argv[0]);
 		if (nfsdcnt < 1 || nfsdcnt > MAXNFSDCNT) {
-			warnx("nfsd count %d; reset to %d", DEFNFSDCNT);
+			warnx("nfsd count %d; reset to %d", nfsdcnt,
+			    DEFNFSDCNT);
 			nfsdcnt = DEFNFSDCNT;
 		}
 	}
