@@ -98,27 +98,6 @@ static void psycho_iommu_init(struct psycho_softc *, int);
 static ofw_pci_binit_t psycho_binit;
 
 /*
- * bus space and bus dma support for UltraSPARC `psycho'.  note that most
- * of the bus dma support is provided by the iommu dvma controller.
- */
-static int psycho_dmamap_create(bus_dma_tag_t, bus_dma_tag_t, int,
-    bus_dmamap_t *);
-static int psycho_dmamap_destroy(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t);
-static int psycho_dmamap_load(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
-    void *, bus_size_t, bus_dmamap_callback_t *, void *, int);
-static int psycho_dmamap_load_mbuf(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
-    struct mbuf *, bus_dmamap_callback2_t *, void *, int);
-static int psycho_dmamap_load_uio(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
-    struct uio *, bus_dmamap_callback2_t *, void *, int);
-static void psycho_dmamap_unload(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t);
-static void psycho_dmamap_sync(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
-    bus_dmasync_op_t);
-static int psycho_dmamem_alloc(bus_dma_tag_t, bus_dma_tag_t, void **, int,
-    bus_dmamap_t *);
-static void psycho_dmamem_free(bus_dma_tag_t, bus_dma_tag_t, void *,
-    bus_dmamap_t);
-
-/*
  * autoconfiguration
  */
 static int psycho_probe(device_t);
@@ -492,33 +471,12 @@ psycho_attach(device_t dev)
 			panic("psycho_attach: range %d missing", n);
 	}
 
-	/* allocate our tags */
-	sc->sc_memt = psycho_alloc_bus_tag(sc, PCI_MEMORY_BUS_SPACE);
-	sc->sc_iot = psycho_alloc_bus_tag(sc, PCI_IO_BUS_SPACE);
-	sc->sc_cfgt = psycho_alloc_bus_tag(sc, PCI_CONFIG_BUS_SPACE);
-	if (bus_dma_tag_create(sc->sc_dmatag, 8, 1, 0, 0x3ffffffff, NULL, NULL,
-	    0x3ffffffff, 0xff, 0xffffffff, 0, &sc->sc_dmat) != 0)
-		panic("psycho_attach: bus_dma_tag_create failed");
-	/* Customize the tag */
-	sc->sc_dmat->dt_cookie = sc;
-	sc->sc_dmat->dt_dmamap_create = psycho_dmamap_create;
-	sc->sc_dmat->dt_dmamap_destroy = psycho_dmamap_destroy;
-	sc->sc_dmat->dt_dmamap_load = psycho_dmamap_load;
-	sc->sc_dmat->dt_dmamap_load_mbuf = psycho_dmamap_load_mbuf;
-	sc->sc_dmat->dt_dmamap_load_uio = psycho_dmamap_load_uio;
-	sc->sc_dmat->dt_dmamap_unload = psycho_dmamap_unload;
-	sc->sc_dmat->dt_dmamap_sync = psycho_dmamap_sync;
-	sc->sc_dmat->dt_dmamem_alloc = psycho_dmamem_alloc;
-	sc->sc_dmat->dt_dmamem_free = psycho_dmamem_free;
-	/* XXX: register as root dma tag (kluge). */
-	sparc64_root_dma_tag = sc->sc_dmat;
-
 	/* Register the softc, this is needed for paired psychos. */
 	SLIST_INSERT_HEAD(&psycho_softcs, sc, sc_link);
 
 	/*
-	 * And finally, if we're a sabre or the first of a pair of psycho's to
-	 * arrive here, start up the IOMMU and get a config space tag.
+	 * If we're a sabre or the first of a pair of psycho's to arrive here,
+	 * start up the IOMMU.
 	 */
 	if (osc == NULL) {
 		/*
@@ -584,6 +542,27 @@ psycho_attach(device_t dev)
 			sc->sc_is->is_sb[1] = sc->sc_pcictl + PCR_STRBUF;
 		iommu_reset(sc->sc_is);
 	}
+
+	/* Allocate our tags. */
+	sc->sc_memt = psycho_alloc_bus_tag(sc, PCI_MEMORY_BUS_SPACE);
+	sc->sc_iot = psycho_alloc_bus_tag(sc, PCI_IO_BUS_SPACE);
+	sc->sc_cfgt = psycho_alloc_bus_tag(sc, PCI_CONFIG_BUS_SPACE);
+	if (bus_dma_tag_create(sc->sc_dmatag, 8, 1, 0, 0x3ffffffff, NULL, NULL,
+	    0x3ffffffff, 0xff, 0xffffffff, 0, &sc->sc_dmat) != 0)
+		panic("psycho_attach: bus_dma_tag_create failed");
+	/* Customize the tag. */
+	sc->sc_dmat->dt_cookie = sc->sc_is;
+	sc->sc_dmat->dt_dmamap_create = iommu_dvmamap_create;
+	sc->sc_dmat->dt_dmamap_destroy = iommu_dvmamap_destroy;
+	sc->sc_dmat->dt_dmamap_load = iommu_dvmamap_load;
+	sc->sc_dmat->dt_dmamap_load_mbuf = iommu_dvmamap_load_mbuf;
+	sc->sc_dmat->dt_dmamap_load_uio = iommu_dvmamap_load_uio;
+	sc->sc_dmat->dt_dmamap_unload = iommu_dvmamap_unload;
+	sc->sc_dmat->dt_dmamap_sync = iommu_dvmamap_sync;
+	sc->sc_dmat->dt_dmamem_alloc = iommu_dvmamem_alloc;
+	sc->sc_dmat->dt_dmamem_free = iommu_dvmamem_free;
+	/* XXX: register as root dma tag (kludge). */
+	sparc64_root_dma_tag = sc->sc_dmat;
 
 	/*
 	 * Enable all interrupts, clear all interrupt states, and install an
@@ -1344,104 +1323,4 @@ psycho_alloc_bus_tag(struct psycho_softc *sc, int type)
 	bt->bst_parent = sc->sc_bustag;
 	bt->bst_type = type;
 	return (bt);
-}
-
-/*
- * hooks into the iommu dvma calls.
- */
-static int
-psycho_dmamem_alloc(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void **vaddr,
-    int flags, bus_dmamap_t *mapp)
-{
-	struct psycho_softc *sc;
-
-	sc = (struct psycho_softc *)pdmat->dt_cookie;
-	return (iommu_dvmamem_alloc(pdmat, ddmat, sc->sc_is, vaddr, flags,
-	    mapp));
-}
-
-static void
-psycho_dmamem_free(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void *vaddr,
-    bus_dmamap_t map)
-{
-	struct psycho_softc *sc;
-
-	sc = (struct psycho_softc *)pdmat->dt_cookie;
-	iommu_dvmamem_free(pdmat, ddmat, sc->sc_is, vaddr, map);
-}
-
-static int
-psycho_dmamap_create(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, int flags,
-    bus_dmamap_t *mapp)
-{
-	struct psycho_softc *sc;
-
-	sc = (struct psycho_softc *)pdmat->dt_cookie;
-	return (iommu_dvmamap_create(pdmat, ddmat, sc->sc_is, flags, mapp));
-
-}
-
-static int
-psycho_dmamap_destroy(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
-    bus_dmamap_t map)
-{
-	struct psycho_softc *sc;
-
-	sc = (struct psycho_softc *)pdmat->dt_cookie;
-	return (iommu_dvmamap_destroy(pdmat, ddmat, sc->sc_is, map));
-}
-
-static int
-psycho_dmamap_load(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map,
-    void *buf, bus_size_t buflen, bus_dmamap_callback_t *callback,
-    void *callback_arg, int flags)
-{
-	struct psycho_softc *sc;
-
-	sc = (struct psycho_softc *)pdmat->dt_cookie;
-	return (iommu_dvmamap_load(pdmat, ddmat, sc->sc_is, map, buf, buflen,
-	    callback, callback_arg, flags));
-}
-
-static int
-psycho_dmamap_load_mbuf(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
-    bus_dmamap_t map, struct mbuf *m, bus_dmamap_callback2_t *callback,
-    void *callback_arg, int flags)
-{
-	struct psycho_softc *sc;
-
-	sc = (struct psycho_softc *)pdmat->dt_cookie;
-	return (iommu_dvmamap_load_mbuf(pdmat, ddmat, sc->sc_is, map, m,
-	    callback, callback_arg, flags));
-}
-
-static int
-psycho_dmamap_load_uio(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
-    bus_dmamap_t map, struct uio *uio, bus_dmamap_callback2_t *callback,
-    void *callback_arg, int flags)
-{
-	struct psycho_softc *sc;
-
-	sc = (struct psycho_softc *)pdmat->dt_cookie;
-	return (iommu_dvmamap_load_uio(pdmat, ddmat, sc->sc_is, map, uio,
-	    callback, callback_arg, flags));
-}
-
-static void
-psycho_dmamap_unload(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map)
-{
-	struct psycho_softc *sc;
-
-	sc = (struct psycho_softc *)pdmat->dt_cookie;
-	iommu_dvmamap_unload(pdmat, ddmat, sc->sc_is, map);
-}
-
-static void
-psycho_dmamap_sync(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map,
-    bus_dmasync_op_t op)
-{
-	struct psycho_softc *sc;
-
-	sc = (struct psycho_softc *)pdmat->dt_cookie;
-	iommu_dvmamap_sync(pdmat, ddmat, sc->sc_is, map, op);
 }

@@ -668,9 +668,10 @@ iommu_dvma_vallocseg(bus_dma_tag_t dt, struct iommu_state *is, bus_dmamap_t map,
 }
 
 int
-iommu_dvmamem_alloc(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
-    void **vaddr, int flags, bus_dmamap_t *mapp)
+iommu_dvmamem_alloc(bus_dma_tag_t pt, bus_dma_tag_t dt, void **vaddr,
+    int flags, bus_dmamap_t *mapp)
 {
+	struct iommu_state *is = pt->dt_cookie;
 	int error;
 
 	/*
@@ -695,9 +696,10 @@ iommu_dvmamem_alloc(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 }
 
 void
-iommu_dvmamem_free(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
-    void *vaddr, bus_dmamap_t map)
+iommu_dvmamem_free(bus_dma_tag_t pt, bus_dma_tag_t dt, void *vaddr,
+    bus_dmamap_t map)
 {
+	struct iommu_state *is = pt->dt_cookie;
 
 	iommu_dvma_vfree(is, map);
 	sparc64_dmamem_free_map(dt, map);
@@ -705,9 +707,10 @@ iommu_dvmamem_free(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 }
 
 int
-iommu_dvmamap_create(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
-    int flags, bus_dmamap_t *mapp)
+iommu_dvmamap_create(bus_dma_tag_t pt, bus_dma_tag_t dt, int flags,
+    bus_dmamap_t *mapp)
 {
+	struct iommu_state *is = pt->dt_cookie;
 	bus_size_t totsz, presz, currsz;
 	int error, i, maxpre;
 
@@ -749,9 +752,9 @@ iommu_dvmamap_create(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 }
 
 int
-iommu_dvmamap_destroy(bus_dma_tag_t pt, bus_dma_tag_t dt,
-    struct iommu_state *is, bus_dmamap_t map)
+iommu_dvmamap_destroy(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t map)
 {
+	struct iommu_state *is = pt->dt_cookie;
 
 	iommu_dvma_vfree(is, map);
 	return (sparc64_dmamap_destroy(pt->dt_parent, dt, map));
@@ -840,10 +843,11 @@ iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
 }
 
 int
-iommu_dvmamap_load(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
-    bus_dmamap_t map, void *buf, bus_size_t buflen, bus_dmamap_callback_t *cb,
-    void *cba, int flags)
+iommu_dvmamap_load(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t map,
+    void *buf, bus_size_t buflen, bus_dmamap_callback_t *cb, void *cba,
+    int flags)
 {
+	struct iommu_state *is = pt->dt_cookie;
 #ifdef __GNUC__
 	bus_dma_segment_t sgs[dt->dt_nsegments];
 #else
@@ -875,10 +879,10 @@ iommu_dvmamap_load(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 }
 
 int
-iommu_dvmamap_load_mbuf(bus_dma_tag_t pt, bus_dma_tag_t dt,
-    struct iommu_state *is, bus_dmamap_t map, struct mbuf *m0,
-    bus_dmamap_callback2_t *cb, void *cba, int flags)
+iommu_dvmamap_load_mbuf(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t map,
+    struct mbuf *m0, bus_dmamap_callback2_t *cb, void *cba, int flags)
 {
+	struct iommu_state *is = pt->dt_cookie;
 #ifdef __GNUC__
 	bus_dma_segment_t sgs[dt->dt_nsegments];
 #else
@@ -920,10 +924,10 @@ iommu_dvmamap_load_mbuf(bus_dma_tag_t pt, bus_dma_tag_t dt,
 }
 
 int
-iommu_dvmamap_load_uio(bus_dma_tag_t pt, bus_dma_tag_t dt,
-    struct iommu_state *is, bus_dmamap_t map, struct uio *uio,
-    bus_dmamap_callback2_t *cb, void *cba, int flags)
+iommu_dvmamap_load_uio(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t map,
+    struct uio *uio, bus_dmamap_callback2_t *cb,  void *cba, int flags)
 {
+	struct iommu_state *is = pt->dt_cookie;
 #ifdef __GNUC__
 	bus_dma_segment_t sgs[dt->dt_nsegments];
 #else
@@ -979,9 +983,9 @@ iommu_dvmamap_load_uio(bus_dma_tag_t pt, bus_dma_tag_t dt,
 }
 
 void
-iommu_dvmamap_unload(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
-    bus_dmamap_t map)
+iommu_dvmamap_unload(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t map)
 {
+	struct iommu_state *is = pt->dt_cookie;
 
 	if (map->dm_loaded == 0)
 		return;
@@ -991,9 +995,10 @@ iommu_dvmamap_unload(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 }
 
 void
-iommu_dvmamap_sync(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
-    bus_dmamap_t map, bus_dmasync_op_t op)
+iommu_dvmamap_sync(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t map,
+    bus_dmasync_op_t op)
 {
+	struct iommu_state *is = pt->dt_cookie;
 	struct bus_dmamap_res *r;
 	vm_offset_t va;
 	vm_size_t len;
