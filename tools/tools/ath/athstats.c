@@ -257,15 +257,11 @@ ifnetsetup(const char *interface, u_long off)
 		return;
 	firstifnet = (u_long)TAILQ_FIRST(&ifnethead);
 	for (off = firstifnet; off;) {
-		char name[16], tname[16];
+		char name[IFNAMSIZ];
 
 		if (kread(off, (char *)&ifnet, sizeof ifnet))
 			break;
-		if (kread((u_long)ifnet.if_name, tname, sizeof(tname)))
-			break;
-		tname[sizeof(tname) - 1] = '\0';
-		snprintf(name, sizeof(name), "%s%d", tname, ifnet.if_unit);
-		if (interface && strcmp(name, interface) == 0)
+		if (interface && strcmp(ifnet.if_xname, interface) == 0)
 			return off;
 		off = (u_long)TAILQ_NEXT(&ifnet, if_link);
 	}
