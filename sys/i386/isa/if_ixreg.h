@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ixreg.h,v 1.2 1995/02/26 19:40:07 rgrimes Exp $
+ *	$Id: if_ixreg.h,v 1.3 1995/02/26 20:13:15 rgrimes Exp $
  */
 
 /*
@@ -143,7 +143,7 @@
 #define	RFA_SIZE	(SCP_ADDR - RFA_START)
 #define	RB_SIZE		(ETHER_MAX_LENGTH)	/* size of receive buffer */
 
-typedef volatile struct /* System Configuration Pointer */
+typedef struct /* System Configuration Pointer */
 	{
 	u_short	unused1;	/* should be zeros for 82596 compatibility */
 	u_short	sysbus;		/* width of the 82586 data bus 0=16, 1=8 */
@@ -152,8 +152,9 @@ typedef volatile struct /* System Configuration Pointer */
 	u_long	iscp;		/* iscp address (24bit 586, 32bit 596) */
 	}	scp_t;
 
-typedef volatile struct /* Intermediate System Configuration Pointer */
+typedef struct /* Intermediate System Configuration Pointer */
 	{
+	volatile
 	u_short	busy;		/* Set to 1 by host before its first CA,
 				   cleared by 82586 after reading */
 #define	ISCP_BUSY	0x01	/* 82586 is busy reading the iscp */
@@ -161,8 +162,9 @@ typedef volatile struct /* Intermediate System Configuration Pointer */
 	u_long	scb_base;	/* scb base address (24bit 586, 32bit 596) */
 	}	iscp_t;
 
-typedef volatile struct /* System Control Block */
+typedef struct /* System Control Block */
 	{
+	volatile
 	u_short	status;		/* status bits */
 #define	SCB_RUS_MASK	0x0070	/* receive unit status mask */
 #define	SCB_RUS_IDLE	0x0000	/* receive unit status idle */
@@ -202,14 +204,19 @@ typedef volatile struct /* System Control Block */
 				   with its I (interrupt) bit set */
 	u_short	cbl_offset;	/* first command block on the cbl */
 	u_short	rfa_offset;	/* receive frame area */
+	volatile
 	u_short	crc_errors;	/* frame was aligned, but bad crc */
+	volatile
 	u_short	aln_errors;	/* frame was not aligned, and had bad crc */
+	volatile
 	u_short	rsc_errors;	/* did not have resources to receive */
+	volatile
 	u_short	ovr_errors;	/* system bus was not availiable to receive */
 	}	scb_t;
 
-typedef volatile struct /* command block - nop (also the common part of cb's */
+typedef struct /* command block - nop (also the common part of cb's */
 	{
+	volatile
 	u_short	status;		/* status bits */
 #define	CB_COLLISIONS	0x000F	/* the number of collisions that occured */
 #define	CB_BIT4		0x0010	/* reserved by intel */
@@ -247,18 +254,18 @@ typedef	struct /* command block - individual address setup command */
 				/* ethernet hardware address */
 	}	cb_ias_t;
 
-typedef	volatile struct /* command block - configure command */
+typedef	struct /* command block - configure command */
 	{
 	cb_t	common;		/* common part of all command blocks */
 	u_char	byte[12];	/* ZZZ this is ugly, but it works */
 	}	cb_configure_t;
 
-typedef	volatile struct /* command block - multicast address setup command */
+typedef	struct /* command block - multicast address setup command */
 	{
 	cb_t	common;		/* common part of all command blocks */
 	}	cb_mcas_t;
 
-typedef	volatile struct /* command block - transmit command */
+typedef	struct /* command block - transmit command */
 	{
 	cb_t	common;		/* common part of all command blocks */
 	u_short	tbd_offset;	/* transmit buffer descriptor offset */
@@ -269,31 +276,33 @@ typedef	volatile struct /* command block - transmit command */
 				 * code for the special cb's */
 	}	cb_transmit_t;
 	
-typedef	volatile struct /* command block - tdr command */
+typedef	struct /* command block - tdr command */
 	{
 	cb_t	common;		/* common part of all command blocks */
 	}	cb_tdr_t;
 
-typedef	volatile struct /* command block - dump command */
+typedef	struct /* command block - dump command */
 	{
 	cb_t	common;		/* common part of all command blocks */
 	}	cb_dump_t;
 
-typedef	volatile struct /* command block - diagnose command */
+typedef	struct /* command block - diagnose command */
 	{
 	cb_t	common;		/* common part of all command blocks */
 	}	cb_diagnose_t;
 
-typedef volatile struct /* Transmit Buffer Descriptor */
+typedef struct /* Transmit Buffer Descriptor */
 	{
+	volatile
 	u_short	act_count;	/* size of buffer actual count of valid bytes */
 #define	TBD_STAT_EOF	0x8000	/* end of frame */
 	u_short	next;		/* pointer to the next tbd */
 	u_long	buffer;		/* transmit buffer address (24bit 586, 32bit 596) */
 	}	tbd_t;
 
-typedef	volatile struct /* Receive Frame Descriptor */
+typedef	struct /* Receive Frame Descriptor */
 	{
+	volatile
 	u_short	status;		/* status bits */
 #define	RFD_BUSY	0x4000	/* frame is being received */
 #define	RFD_COMPLETE	0x8000	/* this frame is complete */
@@ -307,8 +316,9 @@ typedef	volatile struct /* Receive Frame Descriptor */
 	u_short	length;		/* ethernet length field */
 	}	rfd_t;
 
-typedef	volatile struct /* Receive Buffer Descriptor */
+typedef	struct /* Receive Buffer Descriptor */
 	{
+	volatile
 	u_short	act_count;	/* Actual Count (size) and status bits */
 #define	RBD_STAT_SIZE	0x3FFF	/* size mask */
 #define	RBD_STAT_VALID	0x4000	/* act_count field is valid */
