@@ -1237,6 +1237,7 @@ ogetkerninfo(struct proc *p, struct getkerninfo_args *uap)
 {
 	int error, name[6];
 	size_t size;
+	u_int needed = 0;
 
 	switch (uap->op & 0xff00) {
 
@@ -1300,16 +1301,15 @@ ogetkerninfo(struct proc *p, struct getkerninfo_args *uap)
 		 * this is pretty crude, but it's just enough for uname()
 		 * from BSDI's 1.x libc to work.
 		 *
-		 * In particular, it doesn't return the same results when
-		 * the supplied buffer is too small.  BSDI's version apparently
-		 * will return the amount copied, and set the *size to how
-		 * much was needed.  The emulation framework here isn't capable
-		 * of that, so we just set both to the amount copied.
-		 * BSDI's 2.x product apparently fails with ENOMEM in this
-		 * scenario.
+		 * *size gives the size of the buffer before the call, and
+		 * the amount of data copied after a successful call.
+		 * If successful, the return value is the amount of data
+		 * available, which can be larger than *size.
+		 *
+		 * BSDI's 2.x product apparently fails with ENOMEM if *size
+		 * is too small.
 		 */
 
-		u_int needed;
 		u_int left;
 		char *s;
 
@@ -1332,13 +1332,15 @@ ogetkerninfo(struct proc *p, struct getkerninfo_args *uap)
 
 		needed = sizeof(bsdi_si) + (s - bsdi_strings);
 
-		if (uap->where == NULL) {
+		if ((uap->where == NULL) || (uap->size == NULL)) {
 			/* process is asking how much buffer to supply.. */
 			size = needed;
 			error = 0;
 			break;
 		}
 
+		if ((error = copyin(uap->size, &size, sizeof(size))) != 0)
+			break;
 
 		/* if too much buffer supplied, trim it down */
 		if (size > needed)
@@ -1364,7 +1366,7 @@ ogetkerninfo(struct proc *p, struct getkerninfo_args *uap)
 	}
 	if (error)
 		return (error);
-	p->p_retval[0] = size;
+	p->p_retval[0] = needed ? needed : size;
 	if (uap->size)
 		error = copyout((caddr_t)&size, (caddr_t)uap->size,
 		    sizeof(size));
