@@ -116,6 +116,8 @@ static Option Options[] = {
       OPT_IS_VAR,	NULL,			VAR_NO_CONFIRM,		varCheck	},
 { "DHCP",		"Attempt automatic DHCP configuration of interfaces",
       OPT_IS_VAR,	NULL,			VAR_TRY_DHCP,		varCheck	},
+{ "IPv6",		"Attempt IPv6 configuration of interfaces",
+      OPT_IS_VAR,	NULL,			VAR_TRY_RTSOL,		varCheck	},
 { "FTP username",	"Username and password to use instead of anonymous",
       OPT_IS_FUNC,	mediaSetFTPUserPass,	VAR_FTP_USER,		varCheck	},
 { "Editor",		"Which text editor to use during installation",

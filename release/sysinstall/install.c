@@ -1077,6 +1077,7 @@ installVarDefaults(dialogMenuItem *self)
     variable_set2(VAR_INSTALL_ROOT,		"/", 0);
     variable_set2(VAR_INSTALL_CFG,		"install.cfg", 0);
     variable_set2(VAR_TRY_DHCP,			"NO", 0);	/* For now */
+    variable_set2(VAR_TRY_RTSOL,		"NO", 0);	/* For now */
     cp = getenv("EDITOR");
     if (!cp)
 	cp = "/usr/bin/ee";
