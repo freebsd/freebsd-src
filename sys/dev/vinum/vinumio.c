@@ -94,8 +94,11 @@ open_drive(struct drive *drive, struct thread *td, int verbose)
     } else if (bcmp(dname, "idad", 4) == 0) {
 	devmajor = 109;
 	dname += 2;
+    } else if (bcmp(dname, "twed", 4) == 0) {               /* 3ware raid */
+      devmajor = 147;
+      dname += 2;
     } else
-	return ENODEV;
+      return ENODEV;
     dname += 2;						    /* point past */
 
     /*
