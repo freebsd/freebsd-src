@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: os-solaris2.h,v 1.18 97/10/01 01:10:22 leres Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/tcpdump/lbl/os-solaris2.h,v 1.18.1.1 1999/10/07 23:47:13 mcr Exp $ (LBL)
  */
 
 /* Prototypes missing in SunOS 5 */

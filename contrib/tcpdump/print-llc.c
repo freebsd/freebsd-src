@@ -24,7 +24,11 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-llc.c,v 1.24 97/01/01 20:56:48 leres Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-llc.c,v 1.27 1999/12/22 06:27:21 itojun Exp $";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/param.h>
@@ -79,10 +83,15 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 		ipx_print(p, length);
 		return (1);
 	}
-#ifdef notyet
-	else if (p[0] == 0xf0 && p[1] == 0xf0)
-		netbios_print(p, length);
-#endif
+	if (llc.ssap == 0xf0 && llc.dsap == 0xf0) {
+		/*
+		 * we don't actually have a full netbeui parser yet, but the
+		 * smb parser can handle many smb-in-netbeui packets, which
+		 * is very useful, so we call that
+		 */
+		netbeui_print(p + 2, p + min(caplen, length));
+		return (1);
+	}
 	if (llc.ssap == LLCSAP_ISONS && llc.dsap == LLCSAP_ISONS
 	    && llc.llcui == LLC_UI) {
 		isoclns_print(p + 3, length - 3, caplen - 3, esrc, edst);
@@ -92,9 +101,9 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 	if (llc.ssap == LLCSAP_SNAP && llc.dsap == LLCSAP_SNAP
 	    && llc.llcui == LLC_UI) {
 		if (caplen < sizeof(llc)) {
-		    (void)printf("[|llc-snap]");
-		    default_print((u_char *)p, caplen);
-		    return (0);
+			(void)printf("[|llc-snap]");
+			default_print((u_char *)p, caplen);
+			return (0);
 		}
 		if (vflag)
 			(void)printf("snap %s ", protoid_string(llc.llcpi));
@@ -136,11 +145,11 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 		char f;
 		m = tok2str(cmd2str, "%02x", LLC_U_CMD(llc.llcu));
 		switch ((llc.ssap & LLC_GSAP) | (llc.llcu & LLC_U_POLL)) {
-		    case 0:			f = 'C'; break;
-		    case LLC_GSAP:		f = 'R'; break;
-		    case LLC_U_POLL:		f = 'P'; break;
-		    case LLC_GSAP|LLC_U_POLL:	f = 'F'; break;
-		    default:			f = '?'; break;
+			case 0:			f = 'C'; break;
+			case LLC_GSAP:		f = 'R'; break;
+			case LLC_U_POLL:	f = 'P'; break;
+			case LLC_GSAP|LLC_U_POLL: f = 'F'; break;
+			default:		f = '?'; break;
 		}
 
 		printf("%s/%c", m, f);
@@ -150,22 +159,31 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 		caplen -= 3;
 
 		if ((llc.llcu & ~LLC_U_POLL) == LLC_XID) {
-		    if (*p == LLC_XID_FI) {
-			printf(": %02x %02x", p[1], p[2]);
-			p += 3;
-			length -= 3;
-			caplen -= 3;
-		    }
+			if (*p == LLC_XID_FI) {
+				printf(": %02x %02x", p[1], p[2]);
+				p += 3;
+				length -= 3;
+				caplen -= 3;
+			}
 		}
+
+		if (!strcmp(m,"ui") && f=='C') {
+			/*
+			 * we don't have a proper ipx decoder yet, but there
+			 * is a partial one in the smb code
+			 */
+			ipx_netbios_print(p,p+min(caplen,length));
+		}
+
 	} else {
 		char f;
 		llc.llcis = ntohs(llc.llcis);
 		switch ((llc.ssap & LLC_GSAP) | (llc.llcu & LLC_U_POLL)) {
-		    case 0:			f = 'C'; break;
-		    case LLC_GSAP:		f = 'R'; break;
-		    case LLC_U_POLL:		f = 'P'; break;
-		    case LLC_GSAP|LLC_U_POLL:	f = 'F'; break;
-		    default:			f = '?'; break;
+			case 0:			f = 'C'; break;
+			case LLC_GSAP:		f = 'R'; break;
+			case LLC_U_POLL:	f = 'P'; break;
+			case LLC_GSAP|LLC_U_POLL: f = 'F'; break;
+			default:		f = '?'; break;
 		}
 
 		if ((llc.llcu & LLC_S_FMT) == LLC_S_FMT) {
@@ -185,8 +203,5 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 		caplen -= 4;
 	}
 	(void)printf(" len=%d", length);
-	if (caplen > 0) {
-		default_print_unaligned(p, caplen);
-	}
 	return(1);
 }

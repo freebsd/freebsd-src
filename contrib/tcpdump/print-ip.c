@@ -21,7 +21,11 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-ip.c,v 1.66 97/05/28 12:51:43 leres Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ip.c,v 1.79 1999/12/22 06:27:21 itojun Exp $ (LBL)";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/param.h>
@@ -35,7 +39,6 @@ static const char rcsid[] =
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 #include <netinet/tcp.h>
-#include <netinet/tcpip.h>
 
 #ifdef HAVE_MALLOC_H
 #include <malloc.h>
@@ -67,21 +70,11 @@ struct tr_query {
 	u_int  tr_src;			/* traceroute source */
 	u_int  tr_dst;			/* traceroute destination */
 	u_int  tr_raddr;		/* traceroute response address */
-#ifdef WORDS_BIGENDIAN
-	struct {
-		u_int   ttl : 8;	/* traceroute response ttl */
-		u_int   qid : 24;	/* traceroute query id */
-	} q;
-#else
-	struct {
-		u_int	qid : 24;	/* traceroute query id */
-		u_int	ttl : 8;	/* traceroute response ttl */
-	} q;
-#endif
+ 	u_int  tr_rttlqid;		/* response ttl and qid */
 };
 
-#define tr_rttl q.ttl
-#define tr_qid  q.qid
+#define TR_GETTTL(x)		(int)(((x) >> 24) & 0xff)
+#define TR_GETQID(x)		((x) & 0x00ffffff)
 
 /*
  * Traceroute response format.  A traceroute response has a tr_query at the
@@ -126,22 +119,24 @@ static void print_mtrace(register const u_char *bp, register u_int len)
 {
 	register struct tr_query *tr = (struct tr_query *)(bp + 8);
 
-	printf("mtrace %d: %s to %s reply-to %s", tr->tr_qid,
+	printf("mtrace %lu: %s to %s reply-to %s",
+		(u_long)TR_GETQID(ntohl(tr->tr_rttlqid)),
 		ipaddr_string(&tr->tr_src), ipaddr_string(&tr->tr_dst),
 		ipaddr_string(&tr->tr_raddr));
 	if (IN_CLASSD(ntohl(tr->tr_raddr)))
-		printf(" with-ttl %d", tr->tr_rttl);
+		printf(" with-ttl %d", TR_GETTTL(ntohl(tr->tr_rttlqid)));
 }
 
 static void print_mresp(register const u_char *bp, register u_int len)
 {
 	register struct tr_query *tr = (struct tr_query *)(bp + 8);
 
-	printf("mresp %d: %s to %s reply-to %s", tr->tr_qid,
+	printf("mresp %lu: %s to %s reply-to %s",
+		(u_long)TR_GETQID(ntohl(tr->tr_rttlqid)),
 		ipaddr_string(&tr->tr_src), ipaddr_string(&tr->tr_dst),
 		ipaddr_string(&tr->tr_raddr));
 	if (IN_CLASSD(ntohl(tr->tr_raddr)))
-		printf(" with-ttl %d", tr->tr_rttl);
+		printf(" with-ttl %d", TR_GETTTL(ntohl(tr->tr_rttlqid)));
 }
 
 static void
@@ -155,22 +150,27 @@ igmp_print(register const u_char *bp, register u_int len,
 		ipaddr_string(&ip->ip_src),
 		ipaddr_string(&ip->ip_dst));
 
+	if (qflag) {
+		(void)printf("igmp");
+		return;
+	}
+
 	TCHECK2(bp[0], 8);
 	switch (bp[0]) {
 	case 0x11:
 		(void)printf("igmp query");
-		if (*(int *)&bp[4])
+		if (EXTRACT_32BITS(&bp[4]))
 			(void)printf(" [gaddr %s]", ipaddr_string(&bp[4]));
 		if (len != 8)
 			(void)printf(" [len %d]", len);
 		break;
 	case 0x12:
-		(void)printf("igmp report %s", ipaddr_string(&bp[4]));
+		(void)printf("igmp v1 report %s", ipaddr_string(&bp[4]));
 		if (len != 8)
 			(void)printf(" [len %d]", len);
 		break;
 	case 0x16:
-		(void)printf("igmp nreport %s", ipaddr_string(&bp[4]));
+		(void)printf("igmp v2 report %s", ipaddr_string(&bp[4]));
 		break;
 	case 0x17:
 		(void)printf("igmp leave %s", ipaddr_string(&bp[4]));
@@ -183,8 +183,8 @@ igmp_print(register const u_char *bp, register u_int len,
 			dvmrp_print(bp, len);
 		break;
 	case 0x14:
-		(void)printf("igmp pim");
-		pim_print(bp, len);
+		(void)printf("igmp pimv1");
+		pimv1_print(bp, len);
   		break;
 	case 0x1e:
 		print_mresp(bp, len);
@@ -193,27 +193,13 @@ igmp_print(register const u_char *bp, register u_int len,
 		print_mtrace(bp, len);
 		break;
 	default:
-		(void)printf("igmp-%d", bp[0] & 0xf);
+		(void)printf("igmp-%d", bp[0]);
 		break;
 	}
-	if ((bp[0] >> 4) != 1)
-		(void)printf(" [v%d]", bp[0] >> 4);
 
-	TCHECK2(bp[0], len);
-	if (vflag) {
+	if (vflag && TTEST2(bp[0], len)) {
 		/* Check the IGMP checksum */
-		u_int32_t sum = 0;
-		int count;
-		const u_short *sp = (u_short *)bp;
-		
-		for (count = len / 2; --count >= 0; )
-			sum += *sp++;
-		if (len & 1)
-			sum += ntohs(*(u_char *) sp << 8);
-		while (sum >> 16)
-			sum = (sum & 0xffff) + (sum >> 16);
-		sum = 0xffff & ~sum;
-		if (sum != 0)
+		if (in_cksum((const u_short*)bp, len, 0))
 			printf(" bad igmp cksum %x!", EXTRACT_16BITS(&bp[2]));
 	}
 	return;
@@ -244,6 +230,62 @@ ip_printroute(const char *type, register const u_char *cp, u_int length)
 		type = " ";
 	}
 	printf("%s}", ptr == len? "#" : "");
+}
+
+static void
+ip_printts(register const u_char *cp, u_int length)
+{
+	register u_int ptr = cp[2] - 1;
+	register u_int len = 0;
+	int hoplen;
+	char *type;
+
+	printf(" TS{");
+	hoplen = ((cp[3]&0xF) != IPOPT_TS_TSONLY) ? 8 : 4;
+	if ((length - 4) & (hoplen-1))
+		printf("[bad length %d]", length);
+	if (ptr < 4 || ((ptr - 4) & (hoplen-1)) || ptr > length + 1)
+		printf("[bad ptr %d]", cp[2]);
+	switch (cp[3]&0xF) {
+	case IPOPT_TS_TSONLY:
+		printf("TSONLY");
+		break;
+	case IPOPT_TS_TSANDADDR:
+		printf("TS+ADDR");
+		break;
+	/*
+	 * prespecified should really be 3, but some ones might send 2
+	 * instead, and the IPOPT_TS_PRESPEC constant can apparently
+	 * have both values, so we have to hard-code it here.
+	 */
+
+	case 2:
+		printf("PRESPEC2.0");
+		break;
+	case 3:			/* IPOPT_TS_PRESPEC */
+		printf("PRESPEC");
+		break;
+	default:	
+		printf("[bad ts type %d]", cp[3]&0xF);
+		goto done;
+	}
+
+	type = " ";
+	for (len = 4; len < length; len += hoplen) {
+		if (ptr == len)
+			type = " ^ ";
+		printf("%s%d@%s", type, EXTRACT_32BITS(&cp[len+hoplen-4]),
+		       hoplen!=8 ? "" : ipaddr_string(&cp[len]));
+		type = " ";
+	}
+
+done:
+	printf("%s", ptr == len ? " ^ " : "");
+
+	if (cp[3]>>4)
+		printf(" [%d hops not recorded]} ", cp[3]>>4);
+	else
+		printf("}");
 }
 
 /*
@@ -279,15 +321,17 @@ ip_optprint(register const u_char *cp, u_int length)
 			break;
 
 		case IPOPT_TS:
-			printf(" TS{%d}", len);
+			ip_printts(cp, len);
 			break;
 
+#ifndef IPOPT_SECURITY
+#define IPOPT_SECURITY 130
+#endif /* IPOPT_SECURITY */
 		case IPOPT_SECURITY:
 			printf(" SECURITY{%d}", len);
 			break;
 
 		case IPOPT_RR:
-			printf(" RR{%d}=", len);
 			ip_printroute("RR", cp, len);
 			break;
 
@@ -298,6 +342,17 @@ ip_optprint(register const u_char *cp, u_int length)
 		case IPOPT_LSRR:
 			ip_printroute("LSRR", cp, len);
 			break;
+
+#ifndef IPOPT_RA
+#define IPOPT_RA 148		/* router alert */
+#endif
+		case IPOPT_RA:
+			printf(" RA");
+			if (len != 4)
+				printf("{%d}", len);
+			else if (cp[2] || cp[3])
+				printf("%d.%d", cp[2], cp[3]);
+ 			break;
 
 		default:
 			printf(" IPOPT-%d{%d}", cp[0], len);
@@ -310,23 +365,34 @@ ip_optprint(register const u_char *cp, u_int length)
  * compute an IP header checksum.
  * don't modifiy the packet.
  */
-static int
-in_cksum(const struct ip *ip)
+u_short
+in_cksum(const u_short *addr, register int len, u_short csum)
 {
-	register const u_short *sp = (u_short *)ip;
-	register u_int32_t sum = 0;
-	register int count;
+	int nleft = len;
+	const u_short *w = addr;
+	u_short answer;
+	int sum = csum;
+
+ 	/*
+	 *  Our algorithm is simple, using a 32 bit accumulator (sum),
+	 *  we add sequential 16 bit words to it, and at the end, fold
+	 *  back all the carry bits from the top 16 bits into the lower
+	 *  16 bits.
+ 	 */
+	while (nleft > 1)  {
+		sum += *w++;
+		nleft -= 2;
+	}
+	if (nleft == 1)
+		sum += htons(*(u_char *)w<<8);
 
 	/*
-	 * No need for endian conversions.
+	 * add back carry outs from top 16 bits to low 16 bits
 	 */
-	for (count = ip->ip_hl * 2; --count >= 0; )
-		sum += *sp++;
-	while (sum > 0xffff)
-		sum = (sum & 0xffff) + (sum >> 16);
-	sum = ~sum & 0xffff;
-
-	return (sum);
+	sum = (sum >> 16) + (sum & 0xffff);	/* add hi 16 to low 16 */
+	sum += (sum >> 16);			/* add carry */
+	answer = ~sum;				/* truncate to 16 bits */
+	return (answer);
 }
 
 /*
@@ -336,8 +402,10 @@ void
 ip_print(register const u_char *bp, register u_int length)
 {
 	register const struct ip *ip;
-	register u_int hlen, len, off;
+	register u_int hlen, len, len0, off;
 	register const u_char *cp;
+	u_char nh;
+	int advance;
 
 	ip = (const struct ip *)bp;
 #ifdef LBL_ALIGN
@@ -381,6 +449,7 @@ ip_print(register const u_char *bp, register u_int length)
 		(void)printf("truncated-ip - %d bytes missing!",
 			len - length);
 	len -= hlen;
+	len0 = len;
 
 	/*
 	 * If this is fragment zero, hand it to the next higher
@@ -389,7 +458,54 @@ ip_print(register const u_char *bp, register u_int length)
 	off = ntohs(ip->ip_off);
 	if ((off & 0x1fff) == 0) {
 		cp = (const u_char *)ip + hlen;
-		switch (ip->ip_p) {
+		nh = ip->ip_p;
+
+		if (nh != IPPROTO_TCP && nh != IPPROTO_UDP) {
+			(void)printf("%s > %s: ", ipaddr_string(&ip->ip_src),
+				ipaddr_string(&ip->ip_dst));
+		}
+again:
+		switch (nh) {
+
+#ifndef IPPROTO_AH
+#define IPPROTO_AH	51
+#endif
+		case IPPROTO_AH:
+			nh = *cp;
+			advance = ah_print(cp, (const u_char *)ip);
+			cp += advance;
+			len -= advance;
+			goto again;
+
+#ifndef IPPROTO_ESP
+#define IPPROTO_ESP	50
+#endif
+		case IPPROTO_ESP:
+		    {
+			int enh;
+			advance = esp_print(cp, (const u_char *)ip, &enh);
+			cp += advance;
+			len -= advance;
+			if (enh < 0)
+				break;
+			nh = enh & 0xff;
+			goto again;
+		    }
+
+#ifndef IPPROTO_IPCOMP
+#define IPPROTO_IPCOMP	108
+#endif
+		case IPPROTO_IPCOMP:
+		    {
+			int enh;
+			advance = ipcomp_print(cp, (const u_char *)ip, &enh);
+			cp += advance;
+			len -= advance;
+			if (enh < 0)
+				break;
+			nh = enh & 0xff;
+			goto again;
+		    }
 
 		case IPPROTO_TCP:
 			tcp_print(cp, len, (const u_char *)ip);
@@ -400,7 +516,7 @@ ip_print(register const u_char *bp, register u_int length)
 			break;
 
 		case IPPROTO_ICMP:
-			icmp_print(cp, (const u_char *)ip);
+			icmp_print(cp, len, (const u_char *)ip);
 			break;
 
 #ifndef IPPROTO_IGRP
@@ -411,8 +527,10 @@ ip_print(register const u_char *bp, register u_int length)
 			break;
 
 		case IPPROTO_ND:
+#if 0
 			(void)printf("%s > %s:", ipaddr_string(&ip->ip_src),
 				ipaddr_string(&ip->ip_dst));
+#endif
 			(void)printf(" nd %d", len);
 			break;
 
@@ -436,16 +554,39 @@ ip_print(register const u_char *bp, register u_int length)
 
 		case 4:
 			/* DVMRP multicast tunnel (ip-in-ip encapsulation) */
+#if 0
 			if (vflag)
 				(void)printf("%s > %s: ",
 					     ipaddr_string(&ip->ip_src),
 					     ipaddr_string(&ip->ip_dst));
+#endif
 			ip_print(cp, len);
 			if (! vflag) {
 				printf(" (ipip)");
 				return;
 			}
 			break;
+
+#ifdef INET6
+#ifndef IP6PROTO_ENCAP
+#define IP6PROTO_ENCAP 41
+#endif
+		case IP6PROTO_ENCAP:
+			/* ip6-in-ip encapsulation */
+#if 0
+			if (vflag)
+				(void)printf("%s > %s: ",
+					     ipaddr_string(&ip->ip_src),
+					     ipaddr_string(&ip->ip_dst));
+#endif
+			ip6_print(cp, len);
+			if (! vflag) {
+				printf(" (encap)");
+				return;
+			}
+			break;
+#endif /*INET6*/
+
 
 #ifndef IPPROTO_GRE
 #define IPPROTO_GRE 47
@@ -463,18 +604,49 @@ ip_print(register const u_char *bp, register u_int length)
   			}
   			break;
 
+#ifndef IPPROTO_MOBILE
+#define IPPROTO_MOBILE 55
+#endif
+		case IPPROTO_MOBILE:
+			if (vflag)
+				(void)printf("mobile %s > %s: ",
+					     ipaddr_string(&ip->ip_src),
+					     ipaddr_string(&ip->ip_dst));
+			mobile_print(cp, len);
+			if (! vflag) {
+				printf(" (mobile encap)");
+				return;
+			}
+			break;
+
+#ifndef IPPROTO_PIM
+#define IPPROTO_PIM	103
+#endif
+		case IPPROTO_PIM:
+			pim_print(cp, len);
+			break;
+
 		default:
+#if 0
 			(void)printf("%s > %s:", ipaddr_string(&ip->ip_src),
 				ipaddr_string(&ip->ip_dst));
-			(void)printf(" ip-proto-%d %d", ip->ip_p, len);
+#endif
+			(void)printf(" ip-proto-%d %d", nh, len);
 			break;
 		}
 	}
+
+ 	/* Ultra quiet now means that all this stuff should be suppressed */
+ 	/* res 3-Nov-98 */
+ 	if (qflag > 1) return;
+
+
 	/*
 	 * for fragmented datagrams, print id:size@offset.  On all
 	 * but the last stick a "+".  For unfragmented datagrams, note
 	 * the don't fragment flag.
 	 */
+	len = len0;	/* get the original length */
 	if (off & 0x3fff) {
 		/*
 		 * if this isn't the first frag, we're missing the
@@ -483,14 +655,30 @@ ip_print(register const u_char *bp, register u_int length)
 		if (off & 0x1fff)
 			(void)printf("%s > %s:", ipaddr_string(&ip->ip_src),
 				      ipaddr_string(&ip->ip_dst));
-		(void)printf(" (frag %d:%d@%d%s)", ntohs(ip->ip_id), len,
+#ifndef IP_MF
+#define IP_MF 0x2000
+#endif /* IP_MF */
+#ifndef IP_DF
+#define IP_DF 0x4000
+#endif /* IP_DF */
+		(void)printf(" (frag %d:%u@%d%s)", ntohs(ip->ip_id), len,
 			(off & 0x1fff) * 8,
 			(off & IP_MF)? "+" : "");
+
 	} else if (off & IP_DF)
 		(void)printf(" (DF)");
 
-	if (ip->ip_tos)
-		(void)printf(" [tos 0x%x]", (int)ip->ip_tos);
+	if (ip->ip_tos) {
+		(void)printf(" [tos 0x%x", (int)ip->ip_tos);
+		/* ECN bits */
+		if (ip->ip_tos&0x02) {
+			(void)printf(",ECT");
+			if (ip->ip_tos&0x01)
+				(void)printf(",CE");
+		}
+		(void)printf("] ");
+	}
+
 	if (ip->ip_ttl <= 1)
 		(void)printf(" [ttl %d]", (int)ip->ip_ttl);
 
@@ -508,7 +696,7 @@ ip_print(register const u_char *bp, register u_int length)
 			sep = ", ";
 		}
 		if ((u_char *)ip + hlen <= snapend) {
-			sum = in_cksum(ip);
+			sum = in_cksum((const u_short *)ip, hlen, 0);
 			if (sum != 0) {
 				(void)printf("%sbad cksum %x!", sep,
 					     ntohs(ip->ip_sum));

@@ -20,7 +20,11 @@
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-ether.c,v 1.44 97/05/26 17:18:13 leres Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ether.c,v 1.48 1999/11/21 09:36:51 fenner Exp $ (LBL)";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/param.h>
@@ -41,10 +45,13 @@ struct rtentry;
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 #include <netinet/tcp.h>
-#include <netinet/tcpip.h>
 
 #include <stdio.h>
 #include <pcap.h>
+
+#ifdef INET6
+#include <netinet/ip6.h>
+#endif
 
 #include "interface.h"
 #include "addrtoname.h"
@@ -72,10 +79,12 @@ ether_print(register const u_char *bp, u_int length)
 			     length);
 }
 
+static u_short extracted_ethertype;
+
 /*
  * This is the top level routine of the printer.  'p' is the points
- * to the ether header of the packet, 'tvp' is the timestamp,
- * 'length' is the length of the packet off the wire, and 'caplen'
+ * to the ether header of the packet, 'h->tv' is the timestamp,
+ * 'h->length' is the length of the packet off the wire, and 'h->caplen'
  * is the number of bytes actually captured.
  */
 void
@@ -85,7 +94,6 @@ ether_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 	u_int length = h->len;
 	struct ether_header *ep;
 	u_short ether_type;
-	extern u_short extracted_ethertype;
 
 	ts_print(&h->ts);
 
@@ -152,12 +160,11 @@ ether_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
  * that might want to know what it is.
  */
 
-u_short	extracted_ethertype;
-
 int
 ether_encap_print(u_short ethertype, const u_char *p,
     u_int length, u_int caplen)
 {
+ recurse:
 	extracted_ethertype = ethertype;
 
 	switch (ethertype) {
@@ -165,6 +172,12 @@ ether_encap_print(u_short ethertype, const u_char *p,
 	case ETHERTYPE_IP:
 		ip_print(p, length);
 		return (1);
+
+#ifdef INET6
+	case ETHERTYPE_IPV6:
+		ip6_print(p, length);
+		return (1);
+#endif /*INET6*/
 
 	case ETHERTYPE_ARP:
 	case ETHERTYPE_REVARP:
@@ -185,6 +198,38 @@ ether_encap_print(u_short ethertype, const u_char *p,
 		aarp_print(p, length);
 		return (1);
 
+	case ETHERTYPE_8021Q:
+		printf("802.1Q vlan#%d P%d%s",
+		       ntohs(*(unsigned short*)p)&0xFFF,
+		       ntohs(*(unsigned short*)p)>>13,
+		       (ntohs(*(unsigned short*)p)&0x1000) ? " CFI" : "");
+		ethertype = ntohs(*(unsigned short*)(p+2));
+		p += 4;
+		length -= 4;
+		caplen -= 4;
+		if (ethertype > ETHERMTU) 
+			goto recurse;
+
+		extracted_ethertype = 0;
+
+		if (llc_print(p, length, caplen, p-18, p-12) == 0) {
+			/* ether_type not known, print raw packet */
+			if (!eflag)
+				ether_print(p-18, length+4);
+			if (extracted_ethertype) {
+				printf("(LLC %s) ",
+			       etherproto_string(htons(extracted_ethertype)));
+			}
+			if (!xflag && !qflag)
+				default_print(p-18, caplen+4);
+		}
+		return (1);
+
+	case ETHERTYPE_PPPOED:
+	case ETHERTYPE_PPPOES:
+		pppoe_print(p, length);
+ 		return (1);
+ 
 	case ETHERTYPE_LAT:
 	case ETHERTYPE_SCA:
 	case ETHERTYPE_MOPRC:
