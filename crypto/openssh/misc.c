@@ -152,9 +152,15 @@ pwcopy(struct passwd *pw)
 	copy->pw_gecos = xstrdup(pw->pw_gecos);
 	copy->pw_uid = pw->pw_uid;
 	copy->pw_gid = pw->pw_gid;
+#ifdef HAVE_PW_EXPIRE_IN_PASSWD
 	copy->pw_expire = pw->pw_expire;
+#endif
+#ifdef HAVE_PW_CHANGE_IN_PASSWD
 	copy->pw_change = pw->pw_change;
+#endif
+#ifdef HAVE_PW_CLASS_IN_PASSWD
 	copy->pw_class = xstrdup(pw->pw_class);
+#endif
 	copy->pw_dir = xstrdup(pw->pw_dir);
 	copy->pw_shell = xstrdup(pw->pw_shell);
 	return copy;
@@ -316,4 +322,30 @@ addargs(arglist *args, char *fmt, ...)
 	args->list = xrealloc(args->list, args->nalloc * sizeof(char *));
 	args->list[args->num++] = xstrdup(buf);
 	args->list[args->num] = NULL;
+}
+
+mysig_t
+mysignal(int sig, mysig_t act)
+{
+#ifdef HAVE_SIGACTION
+	struct sigaction sa, osa;
+
+	if (sigaction(sig, NULL, &osa) == -1)
+		return (mysig_t) -1;
+	if (osa.sa_handler != act) {
+		memset(&sa, 0, sizeof(sa));
+		sigemptyset(&sa.sa_mask);
+		sa.sa_flags = 0;
+#if defined(SA_INTERRUPT)
+		if (sig == SIGALRM)
+			sa.sa_flags |= SA_INTERRUPT;
+#endif
+		sa.sa_handler = act;
+		if (sigaction(sig, &sa, NULL) == -1)
+			return (mysig_t) -1;
+	}
+	return (osa.sa_handler);
+#else
+	return (signal(sig, act));
+#endif
 }

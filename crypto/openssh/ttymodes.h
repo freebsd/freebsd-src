@@ -156,7 +156,9 @@ TTYMODE(OPOST,	c_oflag, 70)
 #if defined(OLCUC)
 TTYMODE(OLCUC,	c_oflag, 71)
 #endif
+#ifdef ONLCR
 TTYMODE(ONLCR,	c_oflag, 72)
+#endif
 #ifdef OCRNL
 TTYMODE(OCRNL,	c_oflag, 73)
 #endif

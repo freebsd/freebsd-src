@@ -58,6 +58,12 @@ RCSID("$OpenBSD: session.c,v 1.138 2002/06/20 23:05:55 markus Exp $");
 #include "session.h"
 #include "monitor_wrap.h"
 
+#ifdef HAVE_CYGWIN
+#include <windows.h>
+#include <sys/cygwin.h>
+#define is_winnt       (GetVersion() < 0x80000000)
+#endif
+
 /* func */
 
 Session *session_new(void);
@@ -69,6 +75,9 @@ void	do_exec_pty(Session *, const char *);
 void	do_exec_no_pty(Session *, const char *);
 void	do_exec(Session *, const char *);
 void	do_login(Session *, const char *);
+#ifdef LOGIN_NEEDS_UTMPX
+static void	do_pre_login(Session *s);
+#endif
 void	do_child(Session *, const char *);
 void	do_motd(void);
 int	check_quietlogin(Session *, const char *);
@@ -93,6 +102,10 @@ const char *original_command = NULL;
 /* data */
 #define MAX_SESSIONS 10
 Session	sessions[MAX_SESSIONS];
+
+#ifdef WITH_AIXAUTHENTICATE
+char *aixloginmsg;
+#endif /* WITH_AIXAUTHENTICATE */
 
 #ifdef HAVE_LOGIN_CAP
 login_cap_t *lc;
@@ -197,6 +210,14 @@ do_authenticated(Authctxt *authctxt)
 		close(startup_pipe);
 		startup_pipe = -1;
 	}
+#ifdef WITH_AIXAUTHENTICATE
+	/* We don't have a pty yet, so just label the line as "ssh" */
+	if (loginsuccess(authctxt->user,
+	    get_canonical_hostname(options.verify_reverse_mapping),
+	    "ssh", &aixloginmsg) < 0)
+		aixloginmsg = NULL;
+#endif /* WITH_AIXAUTHENTICATE */
+
 	/* setup the channel layer */
 	if (!no_port_forwarding_flag && options.allow_tcp_forwarding)
 		channel_permit_all_opens();
@@ -439,6 +460,14 @@ do_exec_no_pty(Session *s, const char *command)
 
 	session_proctitle(s);
 
+#if defined(USE_PAM)
+	do_pam_session(s->pw->pw_name, NULL);
+	do_pam_setcred(1);
+	if (is_pam_password_change_required())
+		packet_disconnect("Password change required but no "
+		    "TTY available");
+#endif /* USE_PAM */
+
 	/* Fork the child. */
 	if ((pid = fork()) == 0) {
 		/* Child.  Reinitialize the log since the pid has changed. */
@@ -492,6 +521,10 @@ do_exec_no_pty(Session *s, const char *command)
 		do_child(s, command);
 		/* NOTREACHED */
 	}
+#ifdef HAVE_CYGWIN
+	if (is_winnt)
+		cygwin_set_impersonation_token(INVALID_HANDLE_VALUE);
+#endif
 	if (pid < 0)
 		packet_disconnect("fork failed: %.100s", strerror(errno));
 	s->pid = pid;
@@ -545,6 +578,11 @@ do_exec_pty(Session *s, const char *command)
 	ptyfd = s->ptyfd;
 	ttyfd = s->ttyfd;
 
+#if defined(USE_PAM)
+	do_pam_session(s->pw->pw_name, s->tty);
+	do_pam_setcred(1);
+#endif
+
 	/* Fork the child. */
 	if ((pid = fork()) == 0) {
 
@@ -568,13 +606,23 @@ do_exec_pty(Session *s, const char *command)
 		close(ttyfd);
 
 		/* record login, etc. similar to login(1) */
+#ifndef HAVE_OSF_SIA
 		if (!(options.use_login && command == NULL))
 			do_login(s, command);
+# ifdef LOGIN_NEEDS_UTMPX
+		else
+			do_pre_login(s);
+# endif
+#endif
 
 		/* Do common processing for the child, such as execing the command. */
 		do_child(s, command);
 		/* NOTREACHED */
 	}
+#ifdef HAVE_CYGWIN
+	if (is_winnt)
+		cygwin_set_impersonation_token(INVALID_HANDLE_VALUE);
+#endif
 	if (pid < 0)
 		packet_disconnect("fork failed: %.100s", strerror(errno));
 	s->pid = pid;
@@ -606,6 +654,34 @@ do_exec_pty(Session *s, const char *command)
 		/* server_loop _has_ closed ptyfd and fdout. */
 	}
 }
+
+#ifdef LOGIN_NEEDS_UTMPX
+static void
+do_pre_login(Session *s)
+{
+	socklen_t fromlen;
+	struct sockaddr_storage from;
+	pid_t pid = getpid();
+
+	/*
+	 * Get IP address of client. If the connection is not a socket, let
+	 * the address be 0.0.0.0.
+	 */
+	memset(&from, 0, sizeof(from));
+	if (packet_connection_is_on_socket()) {
+		fromlen = sizeof(from);
+		if (getpeername(packet_get_connection_in(),
+		    (struct sockaddr *) & from, &fromlen) < 0) {
+			debug("getpeername: %.100s", strerror(errno));
+			fatal_cleanup();
+		}
+	}
+
+	record_utmp_only(pid, s->tty, s->pw->pw_name,
+	    get_remote_name_or_ip(utmp_len, options.verify_reverse_mapping),
+	    (struct sockaddr *)&from);
+}
+#endif
 
 /*
  * This is called to fork and execute a command.  If another command is
@@ -660,8 +736,28 @@ do_login(Session *s, const char *command)
 		    options.verify_reverse_mapping),
 		    (struct sockaddr *)&from);
 
+#ifdef USE_PAM
+	/*
+	 * If password change is needed, do it now.
+	 * This needs to occur before the ~/.hushlogin check.
+	 */
+	if (is_pam_password_change_required()) {
+		print_pam_messages();
+		do_pam_chauthtok();
+	}
+#endif
+
 	if (check_quietlogin(s, command))
 		return;
+
+#ifdef USE_PAM
+	if (!is_pam_password_change_required())
+		print_pam_messages();
+#endif /* USE_PAM */
+#ifdef WITH_AIXAUTHENTICATE
+	if (aixloginmsg && *aixloginmsg)
+		printf("%s\n", aixloginmsg);
+#endif /* WITH_AIXAUTHENTICATE */
 
 	if (options.print_lastlog && s->last_login_time != 0) {
 		time_string = ctime(&s->last_login_time);
@@ -806,6 +902,29 @@ read_environment_file(char ***env, u_int *envsize,
 	fclose(f);
 }
 
+void copy_environment(char **source, char ***env, u_int *envsize)
+{
+	char *var_name, *var_val;
+	int i;
+
+	if (source == NULL)
+		return;
+
+	for(i = 0; source[i] != NULL; i++) {
+		var_name = xstrdup(source[i]);
+		if ((var_val = strstr(var_name, "=")) == NULL) {
+			xfree(var_name);
+			continue;
+		}
+		*var_val++ = '\0';
+
+		debug3("Copy environment: %s=%s", var_name, var_val);
+		child_set_env(env, envsize, var_name, var_val);
+		
+		xfree(var_name);
+	}
+}
+
 static char **
 do_setup_env(Session *s, const char *shell)
 {
@@ -819,6 +938,14 @@ do_setup_env(Session *s, const char *shell)
 	env = xmalloc(envsize * sizeof(char *));
 	env[0] = NULL;
 
+#ifdef HAVE_CYGWIN
+	/*
+	 * The Windows environment contains some setting which are
+	 * important for a running system. They must not be dropped.
+	 */
+	copy_environment(environ, &env, &envsize);
+#endif
+
 	if (!options.use_login) {
 		/* Set basic environment. */
 		child_set_env(&env, &envsize, "USER", pw->pw_name);
@@ -827,9 +954,22 @@ do_setup_env(Session *s, const char *shell)
 #ifdef HAVE_LOGIN_CAP
 		(void) setusercontext(lc, pw, pw->pw_uid, LOGIN_SETPATH);
 		child_set_env(&env, &envsize, "PATH", getenv("PATH"));
-#else
+#else /* HAVE_LOGIN_CAP */
+# ifndef HAVE_CYGWIN
+		/*
+		 * There's no standard path on Windows. The path contains
+		 * important components pointing to the system directories,
+		 * needed for loading shared libraries. So the path better
+		 * remains intact here.
+		 */
+#  ifdef SUPERUSER_PATH
+		child_set_env(&env, &envsize, "PATH", 
+		    s->pw->pw_uid == 0 ? SUPERUSER_PATH : _PATH_STDPATH);
+#  else 
 		child_set_env(&env, &envsize, "PATH", _PATH_STDPATH);
-#endif
+#  endif /* SUPERUSER_PATH */
+# endif /* HAVE_CYGWIN */
+#endif /* HAVE_LOGIN_CAP */
 
 		snprintf(buf, sizeof buf, "%.200s/%.50s",
 			 _PATH_MAILDIR, pw->pw_name);
@@ -872,6 +1012,18 @@ do_setup_env(Session *s, const char *shell)
 	if (original_command)
 		child_set_env(&env, &envsize, "SSH_ORIGINAL_COMMAND",
 		    original_command);
+
+#ifdef _AIX
+	{
+		char *cp;
+
+		if ((cp = getenv("AUTHSTATE")) != NULL)
+			child_set_env(&env, &envsize, "AUTHSTATE", cp);
+		if ((cp = getenv("KRB5CCNAME")) != NULL)
+			child_set_env(&env, &envsize, "KRB5CCNAME", cp);
+		read_environment_file(&env, &envsize, "/etc/environment");
+	}
+#endif
 #ifdef KRB4
 	if (s->authctxt->krb4_ticket_file)
 		child_set_env(&env, &envsize, "KRBTKFILE",
@@ -882,6 +1034,11 @@ do_setup_env(Session *s, const char *shell)
 		child_set_env(&env, &envsize, "KRB5CCNAME",
 		    s->authctxt->krb5_ticket_file);
 #endif
+#ifdef USE_PAM
+	/* Pull in any environment variables that may have been set by PAM. */
+	copy_environment(fetch_pam_environment(), &env, &envsize);
+#endif /* USE_PAM */
+
 	if (auth_sock_name != NULL)
 		child_set_env(&env, &envsize, SSH_AUTHSOCKET_ENV_NAME,
 		    auth_sock_name);
@@ -995,7 +1152,14 @@ do_nologin(struct passwd *pw)
 void
 do_setusercontext(struct passwd *pw)
 {
+#ifdef HAVE_CYGWIN
+	if (is_winnt) {
+#else /* HAVE_CYGWIN */
 	if (getuid() == 0 || geteuid() == 0) {
+#endif /* HAVE_CYGWIN */
+#ifdef HAVE_SETPCRED
+		setpcred(pw->pw_name);
+#endif /* HAVE_SETPCRED */
 #ifdef HAVE_LOGIN_CAP
 		if (setusercontext(lc, pw, pw->pw_uid,
 		    (LOGIN_SETALL & ~LOGIN_SETPATH)) < 0) {
@@ -1003,6 +1167,12 @@ do_setusercontext(struct passwd *pw)
 			exit(1);
 		}
 #else
+# if defined(HAVE_GETLUID) && defined(HAVE_SETLUID)
+		/* Sets login uid for accounting */
+		if (getluid() == -1 && setluid(pw->pw_uid) == -1)
+			error("setluid: %s", strerror(errno));
+# endif /* defined(HAVE_GETLUID) && defined(HAVE_SETLUID) */
+
 		if (setlogin(pw->pw_name) < 0)
 			error("setlogin failed: %s", strerror(errno));
 		if (setgid(pw->pw_gid) < 0) {
@@ -1015,7 +1185,17 @@ do_setusercontext(struct passwd *pw)
 			exit(1);
 		}
 		endgrent();
-
+# ifdef USE_PAM
+		/*
+		 * PAM credentials may take the form of supplementary groups. 
+		 * These will have been wiped by the above initgroups() call.
+		 * Reestablish them here.
+		 */
+		do_pam_setcred(0);
+# endif /* USE_PAM */
+# if defined(WITH_IRIX_PROJECT) || defined(WITH_IRIX_JOBS) || defined(WITH_IRIX_ARRAY)
+		irix_setusercontext(pw);
+#  endif /* defined(WITH_IRIX_PROJECT) || defined(WITH_IRIX_JOBS) || defined(WITH_IRIX_ARRAY) */
 		/* Permanently switch to the desired uid. */
 		permanently_set_uid(pw);
 #endif
@@ -1029,8 +1209,15 @@ launch_login(struct passwd *pw, const char *hostname)
 {
 	/* Launch login(1). */
 
-	execl("/usr/bin/login", "login", "-h", hostname,
+	execl(LOGIN_PROGRAM, "login", "-h", hostname,
+#ifdef xxxLOGIN_NEEDS_TERM
+		    (s->term ? s->term : "unknown"),
+#endif /* LOGIN_NEEDS_TERM */
+#ifdef LOGIN_NO_ENDOPT
+	    "-p", "-f", pw->pw_name, (char *)NULL);
+#else
 	    "-p", "-f", "--", pw->pw_name, (char *)NULL);
+#endif
 
 	/* Login couldn't be executed, die. */
 
@@ -1065,8 +1252,17 @@ do_child(Session *s, const char *command)
 	 * switch, so we let login(1) to this for us.
 	 */
 	if (!options.use_login) {
+#ifdef HAVE_OSF_SIA
+		session_setup_sia(pw->pw_name, s->ttyfd == -1 ? NULL : s->tty);
+		if (!check_quietlogin(s, command))
+			do_motd();
+#else /* HAVE_OSF_SIA */
 		do_nologin(pw);
+# ifdef _AIX
+		aix_usrinfo(pw, s->tty, s->ttyfd);
+# endif /* _AIX */
 		do_setusercontext(pw);
+#endif /* HAVE_OSF_SIA */
 	}
 
 	/*
@@ -1565,7 +1761,7 @@ session_pty_cleanup2(void *session)
 
 	/* Record that the user has logged out. */
 	if (s->pid != 0)
-		record_logout(s->pid, s->tty);
+		record_logout(s->pid, s->tty, s->pw->pw_name);
 
 	/* Release the pseudo-tty. */
 	if (getuid() == 0)
@@ -1607,7 +1803,11 @@ session_exit_message(Session *s, int status)
 	} else if (WIFSIGNALED(status)) {
 		channel_request_start(s->chanid, "exit-signal", 0);
 		packet_put_int(WTERMSIG(status));
+#ifdef WCOREDUMP
 		packet_put_char(WCOREDUMP(status));
+#else /* WCOREDUMP */
+		packet_put_char(0);
+#endif /* WCOREDUMP */
 		packet_put_cstring("");
 		packet_put_cstring("");
 		packet_send();
@@ -1793,8 +1993,23 @@ session_setup_x11fwd(Session *s)
 		s->display = xstrdup(display);
 		s->auth_display = xstrdup(auth_display);
 	} else {
+#ifdef IPADDR_IN_DISPLAY
+		struct hostent *he;
+		struct in_addr my_addr;
+
+		he = gethostbyname(hostname);
+		if (he == NULL) {
+			error("Can't get IP address for X11 DISPLAY.");
+			packet_send_debug("Can't get IP address for X11 DISPLAY.");
+			return 0;
+		}
+		memcpy(&my_addr, he->h_addr_list[0], sizeof(struct in_addr));
+		snprintf(display, sizeof display, "%.50s:%d.%d", inet_ntoa(my_addr),
+		    s->display_number, s->screen);
+#else
 		snprintf(display, sizeof display, "%.400s:%d.%d", hostname,
 		    s->display_number, s->screen);
+#endif
 		s->display = xstrdup(display);
 		s->auth_display = xstrdup(display);
 	}

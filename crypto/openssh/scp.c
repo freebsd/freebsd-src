@@ -83,6 +83,12 @@ RCSID("$OpenBSD: scp.c,v 1.91 2002/06/19 00:27:55 deraadt Exp $");
 #include "log.h"
 #include "misc.h"
 
+#ifdef HAVE___PROGNAME
+extern char *__progname;
+#else
+char *__progname;
+#endif
+
 /* For progressmeter() -- number of seconds before xfer considered "stalled" */
 #define STALLTIME	5
 /* alarm() interval for updating progress meter */
@@ -218,6 +224,8 @@ main(argc, argv)
 	extern char *optarg;
 	extern int optind;
 
+	__progname = get_progname(argv[0]);
+
 	args.list = NULL;
 	addargs(&args, "ssh");		/* overwritten with ssh_program */
 	addargs(&args, "-x");
@@ -273,6 +281,9 @@ main(argc, argv)
 		case 't':	/* "to" */
 			iamremote = 1;
 			tflag = 1;
+#ifdef HAVE_CYGWIN
+			setmode(0, O_BINARY);
+#endif
 			break;
 		default:
 			usage();
@@ -524,9 +535,16 @@ syserr:			run_err("%s: %s", name, strerror(errno));
 				goto next;
 		}
 #define	FILEMODEMASK	(S_ISUID|S_ISGID|S_IRWXU|S_IRWXG|S_IRWXO)
+#ifdef HAVE_LONG_LONG_INT
 		snprintf(buf, sizeof buf, "C%04o %lld %s\n",
 		    (u_int) (stb.st_mode & FILEMODEMASK),
 		    (long long)stb.st_size, last);
+#else
+		/* XXX: Handle integer overflow? */
+		snprintf(buf, sizeof buf, "C%04o %lu %s\n",
+		    (u_int) (stb.st_mode & FILEMODEMASK),
+		    (u_long) stb.st_size, last);
+#endif
 		if (verbose_mode) {
 			fprintf(stderr, "Sending file modes: %s", buf);
 			fflush(stderr);
@@ -854,12 +872,20 @@ bad:			run_err("%s: %s", np, strerror(errno));
 		}
 		if (pflag) {
 			if (exists || omode != mode)
+#ifdef HAVE_FCHMOD
 				if (fchmod(ofd, omode))
+#else /* HAVE_FCHMOD */
+				if (chmod(np, omode))
+#endif /* HAVE_FCHMOD */
 					run_err("%s: set mode: %s",
 					    np, strerror(errno));
 		} else {
 			if (!exists && omode != mode)
+#ifdef HAVE_FCHMOD
 				if (fchmod(ofd, omode & ~mask))
+#else /* HAVE_FCHMOD */
+				if (chmod(np, omode & ~mask))
+#endif /* HAVE_FCHMOD */
 					run_err("%s: set mode: %s",
 					    np, strerror(errno));
 		}
@@ -1003,6 +1029,7 @@ allocbuf(bp, fd, blksize)
 	int fd, blksize;
 {
 	size_t size;
+#ifdef HAVE_STRUCT_STAT_ST_BLKSIZE
 	struct stat stb;
 
 	if (fstat(fd, &stb) < 0) {
@@ -1014,6 +1041,9 @@ allocbuf(bp, fd, blksize)
 	else
 		size = blksize + (stb.st_blksize - blksize % stb.st_blksize) %
 		    stb.st_blksize;
+#else /* HAVE_STRUCT_STAT_ST_BLKSIZE */
+	size = blksize;
+#endif /* HAVE_STRUCT_STAT_ST_BLKSIZE */
 	if (bp->cnt >= size)
 		return (bp);
 	if (bp->buf == NULL)
@@ -1057,8 +1087,13 @@ foregroundproc(void)
 	if (pgrp == -1)
 		pgrp = getpgrp();
 
+#ifdef HAVE_TCGETPGRP
+	return ((ctty_pgrp = tcgetpgrp(STDOUT_FILENO)) != -1 &&
+		ctty_pgrp == pgrp);
+#else
 	return ((ioctl(STDOUT_FILENO, TIOCGPGRP, &ctty_pgrp) != -1 &&
 		 ctty_pgrp == pgrp));
+#endif
 }
 
 void
@@ -1112,8 +1147,8 @@ progressmeter(int flag)
 		i++;
 		abbrevsize >>= 10;
 	}
-	snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), " %5llu %c%c ",
-	    (unsigned long long) abbrevsize, prefixes[i],
+	snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), " %5lu %c%c ",
+	    (unsigned long) abbrevsize, prefixes[i],
 	    prefixes[i] == ' ' ? ' ' : 'B');
 
 	timersub(&now, &lastupdate, &wait);
@@ -1158,7 +1193,7 @@ progressmeter(int flag)
 	atomicio(write, fileno(stdout), buf, strlen(buf));
 
 	if (flag == -1) {
-		signal(SIGALRM, updateprogressmeter);
+		mysignal(SIGALRM, updateprogressmeter);
 		alarm(PROGRESSTIME);
 	} else if (flag == 1) {
 		alarm(0);

@@ -50,6 +50,12 @@ RCSID("$OpenBSD: ssh-add.c,v 1.61 2002/06/19 00:27:55 deraadt Exp $");
 #include "readpass.h"
 #include "misc.h"
 
+#ifdef HAVE___PROGNAME
+extern char *__progname;
+#else
+char *__progname;
+#endif
+
 /* argv0 */
 extern char *__progname;
 
@@ -300,6 +306,10 @@ main(int argc, char **argv)
 	AuthenticationConnection *ac = NULL;
 	char *sc_reader_id = NULL;
 	int i, ch, deleting = 0, ret = 0;
+
+	__progname = get_progname(argv[0]);
+	init_rng();
+	seed_rng();
 
 	SSLeay_add_all_algorithms();
 

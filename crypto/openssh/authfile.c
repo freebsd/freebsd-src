@@ -484,6 +484,9 @@ key_perm_ok(int fd, const char *filename)
 	 * permissions of the file. if the key owned by a different user,
 	 * then we don't care.
 	 */
+#ifdef HAVE_CYGWIN
+	if (check_ntsec(filename))
+#endif
 	if ((st.st_uid == getuid()) && (st.st_mode & 077) != 0) {
 		error("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
 		error("@         WARNING: UNPROTECTED PRIVATE KEY FILE!          @");

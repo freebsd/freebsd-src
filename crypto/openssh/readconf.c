@@ -199,9 +199,11 @@ add_local_forward(Options *options, u_short port, const char *host,
 		  u_short host_port)
 {
 	Forward *fwd;
+#ifndef HAVE_CYGWIN
 	extern uid_t original_real_uid;
 	if (port < IPPORT_RESERVED && original_real_uid != 0)
 		fatal("Privileged ports can only be forwarded by root.");
+#endif
 	if (options->num_local_forwards >= SSH_MAX_FORWARDS_PER_DIRECTION)
 		fatal("Too many local forwards (max %d).", SSH_MAX_FORWARDS_PER_DIRECTION);
 	fwd = &options->local_forwards[options->num_local_forwards++];

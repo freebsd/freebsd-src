@@ -39,6 +39,12 @@ RCSID("$OpenBSD: sftp.c,v 1.29 2002/04/02 17:37:48 markus Exp $");
 #include "sftp-client.h"
 #include "sftp-int.h"
 
+#ifdef HAVE___PROGNAME
+extern char *__progname;
+#else
+char *__progname;
+#endif
+
 FILE* infile;
 size_t copy_buffer_len = 32768;
 size_t num_requests = 16;
@@ -110,6 +116,7 @@ main(int argc, char **argv)
 	extern int optind;
 	extern char *optarg;
 
+	__progname = get_progname(argv[0]);
 	args.list = NULL;
 	addargs(&args, "ssh");		/* overwritten with ssh_program */
 	addargs(&args, "-oFallBackToRsh no");
@@ -229,6 +236,11 @@ main(int argc, char **argv)
 	}
 
 	interactive_loop(in, out, file1, file2);
+
+#if !defined(USE_PIPES)
+	shutdown(in, SHUT_RDWR);
+	shutdown(out, SHUT_RDWR);
+#endif
 
 	close(in);
 	close(out);

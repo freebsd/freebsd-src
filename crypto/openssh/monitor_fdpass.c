@@ -34,14 +34,21 @@ RCSID("$OpenBSD: monitor_fdpass.c,v 1.3 2002/06/04 23:05:49 markus Exp $");
 void
 mm_send_fd(int socket, int fd)
 {
+#if defined(HAVE_SENDMSG) && (defined(HAVE_ACCRIGHTS_IN_MSGHDR) || defined(HAVE_CONTROL_IN_MSGHDR))
 	struct msghdr msg;
-	char tmp[CMSG_SPACE(sizeof(int))];
-	struct cmsghdr *cmsg;
 	struct iovec vec;
 	char ch = '\0';
 	int n;
+#ifndef HAVE_ACCRIGHTS_IN_MSGHDR
+	char tmp[CMSG_SPACE(sizeof(int))];
+	struct cmsghdr *cmsg;
+#endif
 
 	memset(&msg, 0, sizeof(msg));
+#ifdef HAVE_ACCRIGHTS_IN_MSGHDR
+	msg.msg_accrights = (caddr_t)&fd;
+	msg.msg_accrightslen = sizeof(fd);
+#else
 	msg.msg_control = (caddr_t)tmp;
 	msg.msg_controllen = CMSG_LEN(sizeof(int));
 	cmsg = CMSG_FIRSTHDR(&msg);
@@ -49,6 +56,7 @@ mm_send_fd(int socket, int fd)
 	cmsg->cmsg_level = SOL_SOCKET;
 	cmsg->cmsg_type = SCM_RIGHTS;
 	*(int *)CMSG_DATA(cmsg) = fd;
+#endif
 
 	vec.iov_base = &ch;
 	vec.iov_len = 1;
@@ -61,25 +69,37 @@ mm_send_fd(int socket, int fd)
 	if (n != 1)
 		fatal("%s: sendmsg: expected sent 1 got %d",
 		    __func__, n);
+#else
+	fatal("%s: UsePrivilegeSeparation=yes not supported",
+	    __func__);
+#endif
 }
 
 int
 mm_receive_fd(int socket)
 {
+#if defined(HAVE_RECVMSG) && (defined(HAVE_ACCRIGHTS_IN_MSGHDR) || defined(HAVE_CONTROL_IN_MSGHDR))
 	struct msghdr msg;
-	char tmp[CMSG_SPACE(sizeof(int))];
-	struct cmsghdr *cmsg;
 	struct iovec vec;
 	char ch;
 	int fd, n;
+#ifndef HAVE_ACCRIGHTS_IN_MSGHDR
+	char tmp[CMSG_SPACE(sizeof(int))];
+	struct cmsghdr *cmsg;
+#endif
 
 	memset(&msg, 0, sizeof(msg));
 	vec.iov_base = &ch;
 	vec.iov_len = 1;
 	msg.msg_iov = &vec;
 	msg.msg_iovlen = 1;
+#ifdef HAVE_ACCRIGHTS_IN_MSGHDR
+	msg.msg_accrights = (caddr_t)&fd;
+	msg.msg_accrightslen = sizeof(fd);
+#else
 	msg.msg_control = tmp;
 	msg.msg_controllen = sizeof(tmp);
+#endif
 
 	if ((n = recvmsg(socket, &msg, 0)) == -1)
 		fatal("%s: recvmsg: %s", __func__, strerror(errno));
@@ -87,10 +107,19 @@ mm_receive_fd(int socket)
 		fatal("%s: recvmsg: expected received 1 got %d",
 		    __func__, n);
 
+#ifdef HAVE_ACCRIGHTS_IN_MSGHDR
+	if (msg.msg_accrightslen != sizeof(fd))
+		fatal("%s: no fd", __func__);
+#else
 	cmsg = CMSG_FIRSTHDR(&msg);
 	if (cmsg->cmsg_type != SCM_RIGHTS)
 		fatal("%s: expected type %d got %d", __func__,
 		    SCM_RIGHTS, cmsg->cmsg_type);
 	fd = (*(int *)CMSG_DATA(cmsg));
+#endif
 	return fd;
+#else
+	fatal("%s: UsePrivilegeSeparation=yes not supported",
+	    __func__);
+#endif
 }

@@ -48,6 +48,9 @@ userauth_passwd(Authctxt *authctxt)
 	password = packet_get_string(&len);
 	packet_check_eom();
 	if (authctxt->valid &&
+#ifdef HAVE_CYGWIN
+	    check_nt_auth(1, authctxt->pw) &&
+#endif
 	    PRIVSEP(auth_password(authctxt, password)) == 1)
 		authenticated = 1;
 	memset(password, 0, len);

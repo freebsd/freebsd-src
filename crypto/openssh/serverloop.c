@@ -143,7 +143,7 @@ sigchld_handler(int sig)
 	int save_errno = errno;
 	debug("Received SIGCHLD.");
 	child_terminated = 1;
-	signal(SIGCHLD, sigchld_handler);
+	mysignal(SIGCHLD, sigchld_handler);
 	notify_parent();
 	errno = save_errno;
 }
@@ -496,7 +496,7 @@ server_loop(pid_t pid, int fdin_arg, int fdout_arg, int fderr_arg)
 
 	/* Initialize the SIGCHLD kludge. */
 	child_terminated = 0;
-	signal(SIGCHLD, sigchld_handler);
+	mysignal(SIGCHLD, sigchld_handler);
 
 	/* Initialize our global variables. */
 	fdin = fdin_arg;
@@ -668,7 +668,7 @@ server_loop(pid_t pid, int fdin_arg, int fdout_arg, int fderr_arg)
 	channel_free_all();
 
 	/* We no longer want our SIGCHLD handler to be called. */
-	signal(SIGCHLD, SIG_DFL);
+	mysignal(SIGCHLD, SIG_DFL);
 
 	while ((wait_pid = waitpid(-1, &wait_status, 0)) < 0)
 		if (errno != EINTR)
@@ -740,7 +740,7 @@ server_loop2(Authctxt *authctxt)
 
 	debug("Entering interactive session for SSH2.");
 
-	signal(SIGCHLD, sigchld_handler);
+	mysignal(SIGCHLD, sigchld_handler);
 	child_terminated = 0;
 	connection_in = packet_get_connection_in();
 	connection_out = packet_get_connection_out();
