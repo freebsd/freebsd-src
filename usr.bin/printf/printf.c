@@ -67,6 +67,10 @@ static const char rcsid[] =
 #define	warnx3(a, b, c)		warnx(a, b, c)
 #endif
 
+#ifndef BUILTIN
+#include <locale.h>
+#endif
+
 #define PF(f, func) { \
 	char *b = NULL; \
 	if (fieldwidth) \
@@ -109,6 +113,9 @@ main(argc, argv)
 	int ch, end, fieldwidth, precision;
 	char convch, nextch, *format, *fmt, *start;
 
+#ifndef BUILTIN
+	(void) setlocale(LC_NUMERIC, "");
+#endif
 	while ((ch = getopt(argc, argv, "")) != -1)
 		switch (ch) {
 		case '?':
