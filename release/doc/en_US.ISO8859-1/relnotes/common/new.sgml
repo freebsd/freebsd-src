@@ -170,7 +170,7 @@
       <literal>NODEVFS</literal> option has been removed from the set of
       possible kernel configuration options.</para>
 
-    <para arch="i386,ia64,pc98">An ehci driver has been added; it supports
+    <para arch="i386,ia64,pc98">An &man.ehci.4; driver has been added; it supports
       the USB Enhanced Host Controller Interface used by USB 2.0
       controllers.</para>
 
