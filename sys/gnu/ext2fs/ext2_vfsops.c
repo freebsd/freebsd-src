@@ -909,13 +909,13 @@ loop:
 			goto loop;
 		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 		mtx_unlock(&mntvnode_mtx);
-		mtx_lock(&vp->v_interlock);
+		VI_LOCK(vp);
 		ip = VTOI(vp);
 		if (vp->v_type == VNON ||
 		    ((ip->i_flag &
 		    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0 &&
 		    (TAILQ_EMPTY(&vp->v_dirtyblkhd) || waitfor == MNT_LAZY))) {
-			mtx_unlock(&vp->v_interlock);
+			VI_UNLOCK(vp);
 			mtx_lock(&mntvnode_mtx);
 			continue;
 		}

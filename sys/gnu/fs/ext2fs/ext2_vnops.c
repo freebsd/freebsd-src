@@ -342,12 +342,12 @@ ext2_close(ap)
 	struct vnode *vp = ap->a_vp;
 	struct mount *mp;
 
-	mtx_lock(&vp->v_interlock);
+	VI_LOCK(vp);
 	if (vp->v_usecount > 1) {
 		ext2_itimes(vp);
-		mtx_unlock(&vp->v_interlock);
+		VI_UNLOCK(vp);
 	} else {
-		mtx_unlock(&vp->v_interlock);
+		VI_UNLOCK(vp);
 		/*
 		 * If we are closing the last reference to an unlinked
 		 * file, then it will be freed by the inactive routine.
@@ -698,11 +698,15 @@ ext2_fsync(ap)
 	ext2_discard_prealloc(VTOI(vp));
 
 loop:
+	VI_LOCK(vp);
 	s = splbio();
 	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 		nbp = TAILQ_NEXT(bp, b_vnbufs);
-		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT))
+		VI_UNLOCK(vp);
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
+			VI_LOCK(vp);
 			continue;
+		}
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("ext2_fsync: not dirty");
 		bremfree(bp);
@@ -718,13 +722,11 @@ loop:
 		goto loop;
 	}
 	if (ap->a_waitfor == MNT_WAIT) {
-		VI_LOCK(vp);
 		while (vp->v_numoutput) {
 			vp->v_iflag |= VI_BWAIT;
 			msleep(&vp->v_numoutput, VI_MTX(vp), 
 			    PRIBIO + 1, "e2fsyn", 0);
 		}
-		VI_UNLOCK(vp);
 #if DIAGNOSTIC
 		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
 			vprint("ext2_fsync: dirty", vp);
@@ -732,6 +734,7 @@ loop:
 		}
 #endif
 	}
+	VI_UNLOCK(vp);
 	splx(s);
 	return (ext2_update(ap->a_vp, ap->a_waitfor == MNT_WAIT));
 }
@@ -1628,10 +1631,10 @@ ext2spec_close(ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-	mtx_lock(&vp->v_interlock);
+	VI_LOCK(vp);
 	if (vp->v_usecount > 1)
 		ext2_itimes(vp);
-	mtx_unlock(&vp->v_interlock);
+	VI_UNLOCK(vp);
 	return (VOCALL(spec_vnodeop_p, VOFFSET(vop_close), ap));
 }
 
@@ -1702,10 +1705,10 @@ ext2fifo_close(ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-	mtx_lock(&vp->v_interlock);
+	VI_LOCK(vp);
 	if (vp->v_usecount > 1)
 		ext2_itimes(vp);
-	mtx_unlock(&vp->v_interlock);
+	VI_UNLOCK(vp);
 	return (VOCALL(fifo_vnodeop_p, VOFFSET(vop_close), ap));
 }
 
