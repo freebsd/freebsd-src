@@ -1,4 +1,5 @@
-/* $FreeBSD$ */
+/* $Id: $ */
+/* isp_freebsd.c 1.13 */
 /*
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
  *
@@ -195,8 +196,13 @@ isp_action(sim, ccb)
 		} else {
 			if (ccb->ccb_h.target_id > (MAX_FC_TARG-1)) {
 				ccb->ccb_h.status = CAM_PATH_INVALID;
+#ifdef	SCCLUN
 			} else if (ccb->ccb_h.target_lun > 15) {
 				ccb->ccb_h.status = CAM_PATH_INVALID;
+#else
+			} else if (ccb->ccb_h.target_lun > 65535) {
+				ccb->ccb_h.status = CAM_PATH_INVALID;
+#endif
 			}
 		}
 		if (ccb->ccb_h.status == CAM_PATH_INVALID) {
@@ -478,22 +484,20 @@ isp_action(sim, ccb)
 			cpi->max_target = MAX_FC_TARG-1;
 			cpi->initiator_id =
 			    ((fcparam *)isp->isp_param)->isp_loopid;
-			/*
-			 * XXX: actually, this is not right if we have
-			 * XXX: 1.14 F/W and the second level lun addressing
-			 * XXX: in place. It's also probably not right
-			 * XXX: even for 1.13 f/w.
-			 */
+#ifdef	SCCLUN
+			cpi->max_lun = 65535;
+#else
 			cpi->max_lun = 15;
+#endif
 		} else {
 			cpi->initiator_id =
 			    ((sdparam *)isp->isp_param)->isp_initiator_id;
 			cpi->max_target =  MAX_TARGETS-1;
 			if (isp->isp_fwrev >= ISP_FW_REV(7, 55)) {
+#if	0
 				/*
 				 * Too much breakage.
 				 */
-#if	0
 				cpi->max_lun = 31;
 #else
 				cpi->max_lun = 7;
@@ -518,6 +522,45 @@ isp_action(sim, ccb)
 		break;
 	}
 }
+
+#define	ISPDDB	(CAM_DEBUG_INFO|CAM_DEBUG_TRACE|CAM_DEBUG_CDB)
+void
+isp_done(sccb)
+	struct ccb_scsiio *sccb;
+{
+	struct ispsoftc *isp = XS_ISP(sccb);
+
+	if (XS_NOERR(sccb))
+		XS_SETERR(sccb, CAM_REQ_CMP);
+	sccb->ccb_h.status &= ~CAM_STATUS_MASK;
+	sccb->ccb_h.status |= sccb->ccb_h.spriv_field0;
+	if ((sccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP &&
+	    (sccb->scsi_status != SCSI_STATUS_OK)) {
+		sccb->ccb_h.status &= ~CAM_STATUS_MASK;
+		sccb->ccb_h.status |= CAM_SCSI_STATUS_ERROR;
+	}
+	if ((sccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		if ((sccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
+			IDPRINTF(3, ("%s: freeze devq %d.%d ccbstat 0x%x\n",
+			    isp->isp_name, sccb->ccb_h.target_id,
+			    sccb->ccb_h.target_lun, sccb->ccb_h.status));
+			xpt_freeze_devq(sccb->ccb_h.path, 1);
+			sccb->ccb_h.status |= CAM_DEV_QFRZN;
+		}
+	}
+	if (isp->isp_osinfo.simqfrozen) {
+		sccb->ccb_h.status |= CAM_RELEASE_SIMQ;
+		isp->isp_osinfo.simqfrozen = 0;
+	}
+	sccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+	if (CAM_DEBUGGED(sccb->ccb_h.path, ISPDDB) &&
+	    (sccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		xpt_print_path(sccb->ccb_h.path);
+		printf("cam completion status 0x%x\n", sccb->ccb_h.status);
+	}
+	xpt_done((union ccb *) sccb);
+}
+
 #else
 
 static void ispminphys __P((struct buf *));
