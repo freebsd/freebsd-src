@@ -65,12 +65,12 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	extern int optind;
 	double denom;
 	int ch, random_exit, selected, unbuffer_output;
 	char *ep;
 
 	random_exit = unbuffer_output = 0;
+	denom = 0;
 	while ((ch = getopt(argc, argv, "er")) != -1)
 		switch (ch) {
 		case 'e':
