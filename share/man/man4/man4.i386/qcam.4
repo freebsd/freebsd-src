@@ -1,5 +1,5 @@
 .\"
-.\"	$Id: qcam.4,v 1.6 1997/03/07 02:49:55 jmg Exp $
+.\"	$Id: qcam.4,v 1.4.4.2 1997/03/07 03:08:24 mpp Exp $
 .\"
 .Dd Feburary 1, 1996
 .Dt QCAM 4 i386
@@ -8,11 +8,11 @@
 .Nm qcam
 .Nd Connectix QuickCam(TM) parallel port camera driver
 .Sh SYNOPSIS
-.Cd device qcam0 at isa? at "IO_LPT1" conflicts
+.Cd device qcam0 at isa? at "IO_LPT1" conflicts flags 0x0001
 .Sh DESCRIPTION
 The
 .Nm qcam
-driver provides support for a Connectix
+driver provides support for a black and white Connectix
 .Tn QuickCam
 camera.  It allows one to utilize all known modes, and may support
 as many cameras as there are parallel ports available.
@@ -24,12 +24,21 @@ of a camera.
 .Sh KERNEL CONFIGURATION
 The
 .Nm
-driver can share the same port with the lpt driver, however it is
-reccommended that the lpt driver be configured for polled operation
-if this sharing is to be done.
-The auto-detection code for the camera is reported to
-be flakey at times.  Until this is resolved, it may be bypassed by
-by adding "flags 1" to your kernel configuration.
+driver can share the same port with the lpt driver, however you should
+configure the lpt driver for polled operation using the
+.Xr lptcontrol 8
+program if you would like to be able to swap the
+.Tn QuickCam
+and printer without rebooting.  The
+.Nm
+driver itself does not rely on and will not conflict with the lpt
+driver.
+
+The auto-detection code for the camera is notoriously flakey at
+times.  Until this is resolved, it may be overridden to force the
+driver to always believe a
+.Nm qcam
+is attached by adding "flags 0x1" to your kernel configuration line.
 .Sh IOCTLS
 The following 
 .Xr ioctl 2
@@ -63,6 +72,7 @@ accessed as a read-only character device
 None.
 .Sh SEE ALSO
 .Xr qcamcontrol 1
+.Xr lptcontrol 8
 .br
 The QuickCam reverse engineering project, http://www.crynwr.com/qcpc/
 .Sh HISTORY
@@ -74,13 +84,19 @@ driver is new to
 The driver spin-waits in the kernel, which means on large transfers,
 the system will be chewing down a lot of time.  Doing full motion video
 at 320x240 is not reccomended until this is fixed.
-
+.Pp
 The driver's auto-detection code for finding a camera on a parallel port
 is not reliable on all hardware.  See the note above for bypass information.
+.Pp
+The driver does not support Color
+.Tn QuickCam
+devices.
 .Sh AUTHOR
 The
 .Nm
-driver was written by Paul Traina borrowing heavily
+driver was written by 
+.An Paul Traina
+borrowing heavily
 from code written by Thomas Davis, Scott Laird, Paul Chinn, and additional
 work done by Russel Nelson.
 .Sh TRADEMARK
