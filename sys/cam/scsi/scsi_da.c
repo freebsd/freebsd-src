@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.19.2.7 1999/07/06 01:42:44 mjacob Exp $
+ *      $Id: scsi_da.c,v 1.19.2.8 1999/07/07 18:15:13 mjacob Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -1333,6 +1333,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		} else {
 			int	error;
 
+			announce_buf[0] = '\0';
+
 			/*
 			 * Retry any UNIT ATTENTION type errors.  They
 			 * are expected at boot.
@@ -1414,7 +1416,6 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 					 * Free up resources.
 					 */
 					cam_periph_invalidate(periph);
-					announce_buf[0] = '\0';
 				} 
 			}
 		}
