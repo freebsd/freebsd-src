@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_fbsd.cr,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_fbsd.c,v 1.8 1998/11/03 08:55:05 peter Exp $
+ *  $Id: coda_fbsd.c,v 1.9 1998/11/15 15:33:49 bde Exp $
  * 
  */
 
@@ -180,7 +180,7 @@ printf("coda_getp: Internally Opening %p\n", vp);
 		return (error);
 	}
 	if (vp->v_type == VREG) {
-	    error = vfs_object_create(vp, p, cred, 1);
+	    error = vfs_object_create(vp, p, cred);
 	    if (error != 0) {
 		printf("coda_getpage: vfs_object_create() returns %d\n", error);
 		vput(vp);
