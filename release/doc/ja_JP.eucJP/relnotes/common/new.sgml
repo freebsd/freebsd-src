@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.174
+    Original revision: 1.22.2.176
 -->
 
 <articleinfo>
@@ -107,29 +107,9 @@
     <para arch="i386">&man.amdpm.4; ドライバが追加されました.
       これは AMD 756 チップセットのシステム監視機能へのアクセスを提供します.</para>
 
-    <para arch="i386">CDROM 用のブートストラップユーティリティ
-      <filename>cdboot</filename> が新しく追加されました.
-      これは El Torito bootable CDROM 規格を完全に実装していない BIOS
-      でも, CDROM からの起動を可能にするためのものです.
-      また, この起動ローダは <quote>エミュレーションなし</quote>
-      のモードで起動に対応しているため, 起動可能 CDROM
-      にエミュレーションモード用のフロッピディスクイメージを入れる必要は
-      なくなっています.</para>
-
     <para arch="i386">新しいカーネルオプション
       <varname>KVA_SPACE</varname> が追加されました.
       これは, カーネルの仮想アドレス空間の大きさを再設定できるようにするためのものです.</para>
-
-    <para arch="i386">&man.loader.8; に新しく
-      <application>bzip2</application>
-      で圧縮されたカーネルやモジュールをロードする機能が追加されました
-      (ただしこれはオプション機能であり, コンパイル時に有効化する必要があります.
-      また, 標準では無効になっています).</para>
-
-    <para arch="i386">&os; 起動ローダに新しく
-      <option>-p</option> オプションが追加されました.
-      これはカーネル起動時におけるデバイス認識の際に,
-      メッセージが一行出力されるたびにカーネルを一時停止させるものです.</para>
 
     <para>&os; の Linux バイナリ互換機能が
       <port>emulators/linux_base-7</port> (RedHat 7.X エミュレーション) 
@@ -216,6 +196,39 @@
         &os; が EV5 Alpha プロセッサベースの
         Alphaserver 2100 および 2100A マシンで動作するようになりました.
         EV4 Alpha プロセッサを搭載したマシンはすでに対応済みです.</para>
+    </sect3>
+
+    <sect3>
+      <title>起動ローダ関連</title>
+
+      <para arch="i386">CDROM 用のブートストラップユーティリティ
+        <filename>cdboot</filename> が新しく追加されました.
+        これは El Torito bootable CDROM 規格を完全に実装していない BIOS
+        でも, CDROM からの起動を可能にするためのものです.
+        また, この起動ローダは <quote>エミュレーションなし</quote>
+        のモードで起動に対応しているため, 起動可能 CDROM
+        にエミュレーションモード用のフロッピディスクイメージを入れる必要は
+        なくなっています.</para>
+      
+      <para arch="i386">&man.loader.8; に新しく
+        <application>bzip2</application>
+        で圧縮されたカーネルやモジュールをロードする機能が追加されました
+        (ただしこれは標準では無効になっているオプション機能であり,
+        有効化はコンパイル時に行なう必要があります).</para>
+      
+<!-- Above this line, order boot loader changes by manpage/variable name-->
+      
+      <para arch="i386">&os; 起動ローダが 16K
+        のディスクブロック長を持つファイルシステムからの起動に対応しました
+        (従来はこれが 8K までに制限されていました).</para>
+      
+      <para arch="alpha">&os; 起動ローダが 8K
+        より大きいブロック長を持つファイルシステムからの起動に対応しました.</para>
+      
+      <para arch="i386">&os; 起動ローダに新しく
+        <option>-p</option> オプションが追加されました.
+        これはカーネル起動時におけるデバイス認識の際に,
+        メッセージが一行出力されるたびにカーネルを一時停止させるものです.</para>
     </sect3>
     
     <sect3>
@@ -688,18 +701,6 @@
       (ただしルートファイルシステムを除く) において,
       標準で Soft Updates が有効化されるようになりました.</para>
 
-    <para arch="alpha">&man.sysinstall.8;
-      で作成されるファイルシステムは &man.newfs.8; の標準値を使わず,
-      従来の標準値であるブロック長 8192 バイト,
-      フラグメント長 1024 バイトを使うようになっています.
-      &man.newfs.8; の標準パラメータは &os; &release.current;
-      で変更 (この文書の<link linkend="newfs-block-frag-sizes">関連項目</link>を参照のこと)
-      されたのですが, &arch; の起動コードは, ルートファイルシステムが 8192
-      バイトのブロック長が 8192 バイトであることを仮定しています.
-      この変更により,
-      新規インストール時にもルートファイルシステムのパラメータが
-      正しく設定されるようになっています.</para>
-    
     <para>&man.sysinstall.8; が更新され,
       パーティションの自動分割 (<quote>auto</quote>) モードにおいて,
       各パーティションの大きさがより適切に設定されるようになりました.
