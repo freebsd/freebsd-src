@@ -37,8 +37,16 @@
 .Nm
 .Op Fl f Ar device
 .Op Fl s
-.Oo Ar dev
-.Op Oo +|- Ns Oc Ns Ar lvol Ns Op : Ns Oo +|- Oc Ns Ar rvol Oc
+.Oo
+.Ar dev
+.Sm off
+.Oo
+.Op Cm + | -
+.Ar lvol
+.Op : Oo Cm + | - Oc Ar rvol
+.Oc
+.Oc
+.Sm on
 .Ar ...
 .Nm
 .Op Fl f Ar device
@@ -49,12 +57,12 @@
 .Op Fl f Ar device
 .Op Fl s
 .Sm off
-.Eo \&{
+.Bro
 .Cm ^ | + | - | =
+.Brc
+.Cm rec
 .Sm on
-.Ec \&} Ns Cm rec
-.Ar rdev
-.Ar ...
+.Ar rdev ...
 .Sh DESCRIPTION
 The
 .Nm
@@ -93,9 +101,9 @@ arguments may be from 0 - 100.  Omitting
 and including only the channel settings will change the main volume level.
 .Pp
 If the left or right channel settings are prefixed with
-.Sq +
+.Cm +
 or
-.Sq -
+.Cm - ,
 the value following will be used as a relative adjustment, modifying the
 current settings by the amount specified.
 .Pp
