@@ -6,8 +6,6 @@ FILES=	README ftpd gdm imap kde login other passwd pop3 \
 FILESDIR=	/etc/pam.d
 FILESMODE=	644
 FILESMODE_README=	444
-
-afterinstall:
-	ln -fs ftpd ${DESTDIR}${FILESDIR}/ftp
+LINKS=	${FILESDIR}/ftpd ${FILESDIR}/ftp
 
 .include <bsd.prog.mk>
