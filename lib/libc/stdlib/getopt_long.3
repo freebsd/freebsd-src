@@ -133,7 +133,7 @@ field should be one of:
 no argument to the option is expect
 .It Dv required_argument
 an argument to the option is required
-.It Li optional_argument
+.It Dv optional_argument
 an argument to the option may be presented.
 .El
 .Pp
@@ -190,7 +190,7 @@ the single-character option is returned.
 If the
 .Fa flag
 field in
-.Li struct option
+.Vt "struct option"
 is
 .Dv NULL ,
 .Fn getopt_long
@@ -451,7 +451,7 @@ to current positions) are the same, though.
 (We do fewer variable swaps.)
 .El
 .Sh ENVIRONMENT
-.Bl -tag -width POSIXLY_CORRECT
+.Bl -tag -width ".Ev POSIXLY_CORRECT"
 .It Ev POSIXLY_CORRECT
 If set, option processing stops when the first non-option is found and
 a leading
@@ -459,7 +459,7 @@ a leading
 or
 .Ql +
 in the
-.Ar optstring
+.Fa optstring
 is ignored.
 .El
 .Sh SEE ALSO
@@ -494,9 +494,9 @@ in
 .Fx 5.2 .
 .Sh BUGS
 The
-.Ar argv
+.Fa argv
 argument is not really
-.Dv const
+.Vt const
 as its elements may be permuted (unless
 .Ev POSIXLY_CORRECT
 is set).
