@@ -33,6 +33,7 @@ extern char *bootblocks;
 extern struct mbr *mbr;
 extern char boot1[];
 extern char boot2[];
+extern char **avail_disknames;
 
 int
 enable_label(int fd)
@@ -129,11 +130,10 @@ build_bootblocks(struct disklabel *label)
 
 	dialog_clear();
 
-	/* Copy DOS partition area into bootblocks */
+	/* Copy MBR partition area into bootblocks */
 
 	bcopy(mbr->dospart, &bootblocks[DOSPARTOFF],
-	      sizeof(struct dos_partition) * 4);
-
+	      sizeof(struct dos_partition) * NDOSPART);
 
 	/* Write the disklabel into the bootblocks */
 
@@ -162,6 +162,7 @@ default_disklabel(struct disklabel *label, int avail_sects, int offset)
 {
 
 	int nsects;
+	int cylfill;
 
 	/* Fill in default label entries */
 	label->d_magic = DISKMAGIC;
@@ -189,8 +190,15 @@ default_disklabel(struct disklabel *label, int avail_sects, int offset)
 	label->d_partitions[3].p_fstype = FS_UNUSED;
 	label->d_partitions[3].p_frag = DEFFRAG;
 
+	/* Round offset to a cylinder */
+	cylfill = offset / label->d_secpercyl;
+	cylfill++;
+	cylfill *= label->d_secpercyl;
+	cylfill = cylfill - offset;
+
 	/* Default root */
 	nsects = Mb_to_cylbdry(DEFROOTSIZE, label);
+	nsects += cylfill;
 
 	label->d_partitions[0].p_size = nsects;
 	label->d_partitions[0].p_offset = offset;
@@ -226,6 +234,15 @@ default_disklabel(struct disklabel *label, int avail_sects, int offset)
 		customise_label()
 #endif
 
+	sprintf(scratch, "%sa", avail_disknames[inst_disk]);
+	devicename[0] = StrAlloc(scratch);
+	mountpoint[0] = StrAlloc("/");
+	sprintf(scratch, "%sb", avail_disknames[inst_disk]);
+	devicename[1] = StrAlloc(scratch);
+	mountpoint[1] = StrAlloc("swap");
+	sprintf(scratch, "%se", avail_disknames[inst_disk]);
+	devicename[2] = StrAlloc(scratch);
+	mountpoint[2] = StrAlloc("/usr");
 }
 
 int

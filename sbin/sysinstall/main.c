@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: main.c,v 1.5 1994/10/20 19:30:50 ache Exp $
+ * $Id: main.c,v 1.6 1994/10/21 02:14:50 phk Exp $
  *
  */
 
@@ -96,23 +96,6 @@ main(int argc, char **argv)
 	if (getenv("STAGE0") || !access("/this_is_boot_flp",R_OK)) {
 		stage0();
 		stage1();
-
-		/* 
-		 * XXX This is how stage one should output:
-		 */
-		devicename[0] = StrAlloc("wd0a");
-		mountpoint[0] = StrAlloc("/");
-
-		devicename[1] = StrAlloc("wd0e");
-		mountpoint[1] = StrAlloc("/usr");
-
-		devicename[2] = StrAlloc("wd0b");
-		mountpoint[2] = StrAlloc("swap");
-		/*
-		 * XXX sort it by mountpoint, so that safe seq of mounting
-		 * is guaranteed
-		 */
-		
 		stage2();
 		reboot(RB_AUTOBOOT);
 	} else if (getenv("STAGE3") || !access("/this_is_hd",R_OK)) {

@@ -97,7 +97,7 @@ show_mbr(struct mbr *mbr)
 	window = newwin(LINES, COLS, 0, 0);
 	keypad(window, TRUE);
 
-	draw_box(window, 0, 0, LINES - 1, COLS - 1,
+	draw_box(window, 1, 1, LINES - 2, COLS - 2,
 				COLOR_PAIR(COLOR_YELLOW), COLOR_PAIR(COLOR_BLUE));
 
 	for (i=0; i<NDOSPART/2; i++) {
@@ -128,6 +128,7 @@ show_mbr(struct mbr *mbr)
 		key = wgetch(window);
 
 	delwin(window);
+	refresh();
 	dialog_clear();
 }
 
