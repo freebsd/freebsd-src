@@ -2,7 +2,7 @@
 
 PROG=	mount_cd9660
 SRCS=	mount_cd9660.c getmntopts.c
-MAN8=	mount_cd9660.0
+MAN8=	mount_cd9660.8
 
 MOUNT=	${.CURDIR}/../mount
 CFLAGS+= -I${MOUNT}

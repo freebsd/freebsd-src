@@ -2,6 +2,6 @@
 
 PROG=	nfsiod
 CFLAGS+=-DNFS
-MAN8=	nfsiod.0
+MAN8=	nfsiod.8
 
 .include <bsd.prog.mk>

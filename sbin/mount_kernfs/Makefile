@@ -2,7 +2,7 @@
 
 PROG=	mount_kernfs
 SRCS=	mount_kernfs.c getmntopts.c
-MAN8=	mount_kernfs.0
+MAN8=	mount_kernfs.8
 
 MOUNT=	${.CURDIR}/../mount
 CFLAGS+= -I${MOUNT}

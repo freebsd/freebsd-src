@@ -2,7 +2,7 @@
 
 PROG=	mount_union
 SRCS=	mount_union.c getmntopts.c
-MAN8=	mount_union.0
+MAN8=	mount_union.8
 
 MOUNT=	${.CURDIR}/../mount
 CFLAGS+= -I/sys -I${MOUNT}
