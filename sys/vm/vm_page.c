@@ -552,6 +552,28 @@ vm_page_sleep_busy(vm_page_t m, int also_m_busy, const char *msg)
 	}
 	return (FALSE);
 }
+
+/*
+ *	vm_page_sleep_if_busy:
+ *
+ *	Sleep and release the page queues lock if PG_BUSY is set or,
+ *	if also_m_busy is TRUE, busy is non-zero.  Returns TRUE if the
+ *	thread slept and the page queues lock was released.
+ *	Otherwise, retains the page queues lock and returns FALSE.
+ */
+int
+vm_page_sleep_if_busy(vm_page_t m, int also_m_busy, const char *msg)
+{
+
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	if ((m->flags & PG_BUSY) || (also_m_busy && m->busy)) {
+		vm_page_flag_set(m, PG_WANTED | PG_REFERENCED);
+		msleep(m, &vm_page_queue_mtx, PDROP | PVM, msg, 0);
+		return (TRUE);
+	}
+	return (FALSE);
+}
+
 /*
  *	vm_page_dirty:
  *
