@@ -51,15 +51,18 @@ static const char rcsid[] =
 #endif
 #endif /* not lint */
 
+#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <ufs/ufs/ufsmount.h>
+#include <ufs/ffs/fs.h>
 
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <fstab.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -94,7 +97,7 @@ unsigned long long *valp;
 
 typedef enum { NONE, KILO, MEGA, GIGA, TERA, PETA, UNIT_MAX } unit_t;
 
-int unitp [] = { NONE, KILO, MEGA, GIGA, TERA, PETA };
+unit_t unitp [] = { NONE, KILO, MEGA, GIGA, TERA, PETA };
 
 int	  bread(off_t, void *, int);
 int	  checkvfsname(const char *, char **);
@@ -420,10 +423,6 @@ prtstat(struct statfs *sfsp, int maxwidth)
  * This code constitutes the pre-system call Berkeley df code for extracting
  * information from filesystem superblocks.
  */
-#include <ufs/ufs/dinode.h>
-#include <ufs/ffs/fs.h>
-#include <errno.h>
-#include <fstab.h>
 
 union {
 	struct fs iu_fs;
