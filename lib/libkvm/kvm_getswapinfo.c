@@ -14,7 +14,7 @@ static const char copyright[] =
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: kvm_getswapinfo.c,v 1.2 1999/01/22 10:57:03 dillon Exp $";
+	"$Id: kvm_getswapinfo.c,v 1.3 1999/01/25 04:07:07 dillon Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -57,8 +57,10 @@ static int unswdev;
 static int dmmax;
 static int type;
 
-static void getswapinfo_old(kvm_t *kd, kvm_swap_t swap_ary, int swap_max, int flags);
-static void getswapinfo_radix(kvm_t *kd, kvm_swap_t swap_ary, int swap_max, int flags);
+static void getswapinfo_old(kvm_t *kd, struct kvm_swap *swap_ary, int swap_max,
+			    int flags);
+static void getswapinfo_radix(kvm_t *kd, struct kvm_swap *swap_ary,
+			      int swap_max, int flags);
 
 #define	SVAR(var) __STRING(var)	/* to force expansion */
 #define	KGET(idx, var)							\
@@ -241,7 +243,7 @@ scanradix(
 	kvm_t *kd,
 	int dmmax, 
 	int nswdev,
-	kvm_swap_t swap_ary,
+	struct kvm_swap *swap_ary,
 	int swap_max,
 	int tab,
 	int flags
@@ -398,7 +400,7 @@ scanradix(
 }
 
 static void
-getswapinfo_radix(kvm_t *kd, kvm_swap_t swap_ary, int swap_max, int flags)
+getswapinfo_radix(kvm_t *kd, struct kvm_swap *swap_ary, int swap_max, int flags)
 {
 	struct blist *swapblist = NULL;
 	struct blist blcopy = { 0 };
@@ -432,7 +434,7 @@ getswapinfo_radix(kvm_t *kd, kvm_swap_t swap_ary, int swap_max, int flags)
 }
 
 static void
-getswapinfo_old(kvm_t *kd, kvm_swap_t swap_ary, int swap_max, int flags)
+getswapinfo_old(kvm_t *kd, struct kvm_swap *swap_ary, int swap_max, int flags)
 {
 	struct rlist *swapptr;
 	struct rlisthdr swaplist;
