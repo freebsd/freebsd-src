@@ -150,60 +150,60 @@ Indicates that the conversion will be one of
 or
 .Cm n
 and the next pointer is a pointer to a
-.Em char
+.Vt char
 (rather than
-.Em int ) .
+.Vt int ) .
 .It Cm h
 Indicates that the conversion will be one of
 .Cm dioux
 or
 .Cm n
 and the next pointer is a pointer to a
-.Em short  int
+.Vt "short int"
 (rather than
-.Em int ) .
+.Vt int ) .
 .It Cm l No (ell)
 Indicates that the conversion will be one of
 .Cm dioux
 or
 .Cm n
 and the next pointer is a pointer to a
-.Em long  int
+.Vt "long int"
 (rather than
-.Em int ) ,
+.Vt int ) ,
 that the conversion will be one of
 .Cm aefg
 and the next pointer is a pointer to
-.Em double
+.Vt double
 (rather than
-.Em float ) ,
+.Vt float ) ,
 or that the conversion will be one of
 .Cm c
 or
 .Cm s
 and the next pointer is a pointer to an array of
-.Em wchar_t
+.Vt wchar_t
 (rather than
-.Em char ) .
+.Vt char ) .
 .It Cm ll No (ell ell)
 Indicates that the conversion will be one of
 .Cm dioux
 or
 .Cm n
 and the next pointer is a pointer to a
-.Em long long int
+.Vt "long long int"
 (rather than
-.Em int ) .
+.Vt int ) .
 .It Cm L
 Indicates that the conversion will be one of
 .Cm aef
 or
 .Cm g
 and the next pointer is a pointer to
-.Em long double .
+.Vt "long double" .
 (This type is not implemented; although the argument is
 required to be a pointer to
-.Em long double ,
+.Vt "long double" ,
 no additional precision is used in the conversion.)
 .It Cm j
 Indicates that the conversion will be one of
@@ -211,27 +211,27 @@ Indicates that the conversion will be one of
 or
 .Cm n
 and the next pointer is a pointer to a
-.Em intmax_t
+.Vt intmax_t
 (rather than
-.Em int ) .
+.Vt int ) .
 .It Cm t
 Indicates that the conversion will be one of
 .Cm dioux
 or
 .Cm n
 and the next pointer is a pointer to a
-.Em ptrdiff_t
+.Vt ptrdiff_t
 (rather than
-.Em int ) .
+.Vt int ) .
 .It Cm z
 Indicates that the conversion will be one of
 .Cm dioux
 or
 .Cm n
 and the next pointer is a pointer to a
-.Em size_t
+.Vt size_t
 (rather than
-.Em int ) .
+.Vt int ) .
 .It Cm q
 (deprecated.)
 Indicates that the conversion will be one of
@@ -239,9 +239,9 @@ Indicates that the conversion will be one of
 or
 .Cm n
 and the next pointer is a pointer to a
-.Em long long int
+.Vt "long long int"
 (rather than
-.Em int ) .
+.Vt int ) .
 .El
 .Pp
 In addition to these flags,
@@ -251,7 +251,9 @@ between the
 .Cm %
 and the conversion.
 If no width is given,
-a default of `infinity' is used (with one exception, below);
+a default of
+.Dq infinity
+is used (with one exception, below);
 otherwise at most this many characters are scanned
 in processing the conversion.
 Before conversion begins,
@@ -261,18 +263,23 @@ this white space is not counted against the field width.
 The following conversions are available:
 .Bl -tag -width XXXX
 .It Cm %
-Matches a literal `%'.
-That is, `%\&%' in the format string
-matches a single input `%' character.
+Matches a literal
+.Ql % .
+That is,
+.Dq Li %%
+in the format string
+matches a single input
+.Ql %
+character.
 No conversion is done, and assignment does not occur.
 .It Cm d
 Matches an optionally signed decimal integer;
 the next pointer must be a pointer to
-.Em int .
+.Vt int .
 .It Cm i
 Matches an optionally signed integer;
 the next pointer must be a pointer to
-.Em int .
+.Vt int .
 The integer is read in base 16 if it begins
 with
 .Ql 0x
@@ -285,19 +292,19 @@ Only characters that correspond to the base are used.
 .It Cm o
 Matches an octal integer;
 the next pointer must be a pointer to
-.Em unsigned int .
+.Vt "unsigned int" .
 .It Cm u
 Matches an optionally signed decimal integer;
 the next pointer must be a pointer to
-.Em unsigned int .
+.Vt "unsigned int" .
 .It Cm x , X
 Matches an optionally signed hexadecimal integer;
 the next pointer must be a pointer to
-.Em unsigned int .
+.Vt "unsigned int" .
 .It Cm e , E , f , F , g , G
 Matches an optionally signed floating-point number;
 the next pointer must be a pointer to
-.Em float .
+.Vt float .
 .It Cm a , A
 Matches a hexadecimal number represented in the style
 .Sm off
@@ -320,7 +327,7 @@ and is represented in decimal.
 .It Cm s
 Matches a sequence of non-white-space characters;
 the next pointer must be a pointer to
-.Em char ,
+.Vt char ,
 and the array must be large enough to accept all the sequence and the
 terminating
 .Dv NUL
@@ -336,7 +343,7 @@ Matches a sequence of
 count
 characters (default 1);
 the next pointer must be a pointer to
-.Em char ,
+.Vt char ,
 and there must be enough room for all the characters
 (no terminating
 .Dv NUL
@@ -350,7 +357,7 @@ The same as
 Matches a nonempty sequence of characters from the specified set
 of accepted characters;
 the next pointer must be a pointer to
-.Em char ,
+.Vt char ,
 and there must be enough room for all the characters in the string,
 plus a terminating
 .Dv NUL
@@ -383,8 +390,8 @@ To include a hyphen,
 make it the last character before the final close bracket.
 For instance,
 .Ql [^]0-9-]
-means the set `everything except close bracket, zero through nine,
-and hyphen'.
+means the set
+.Dq "everything except close bracket, zero through nine, and hyphen" .
 The string ends with the appearance of a character not in the
 (or, with a circumflex, in) set
 or when the field width runs out.
@@ -394,13 +401,13 @@ Matches a pointer value (as printed by
 in
 .Xr printf 3 ) ;
 the next pointer must be a pointer to
-.Em void .
+.Vt void .
 .It Cm n
 Nothing is expected;
 instead, the number of characters consumed thus far from the input
 is stored through the next pointer,
 which must be a pointer to
-.Em int .
+.Vt int .
 This is
 .Em not
 a conversion, although it can be suppressed with the
@@ -412,8 +419,9 @@ The decimal point
 character is defined in the program's locale (category
 .Dv LC_NUMERIC ) .
 .Pp
-For backwards compatibility,
-a `conversion' of
+For backwards compatibility, a
+.Dq conversion
+of
 .Ql %\e0
 causes an immediate return of
 .Dv EOF .
@@ -460,13 +468,15 @@ and
 .Cm \&%X
 as their lowercase equivalents with an
 .Cm l
-modifier.  In addition,
+modifier.
+In addition,
 .Nm
 treated an unknown conversion character as
 .Cm \&%d
 or
 .Cm \&%D ,
-depending on its case.  This functionality has been removed.
+depending on its case.
+This functionality has been removed.
 .Pp
 Numerical strings are truncated to 512 characters; for example,
 .Cm %f
