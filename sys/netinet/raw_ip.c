@@ -556,6 +556,21 @@ rip_attach(struct socket *so, int proto, struct thread *td)
 	return 0;
 }
 
+static void
+rip_pcbdetach(struct socket *so, struct inpcb *inp)
+{
+	INP_INFO_WLOCK_ASSERT(&ripcbinfo);
+	INP_LOCK_ASSERT(inp);
+
+	if (so == ip_mrouter && ip_mrouter_done)
+		ip_mrouter_done();
+	if (ip_rsvp_force_done)
+		ip_rsvp_force_done(so);
+	if (so == ip_rsvpd)
+		ip_rsvp_done();
+	in_pcbdetach(inp);
+}
+
 static int
 rip_detach(struct socket *so)
 {
@@ -569,13 +584,7 @@ rip_detach(struct socket *so)
 		return EINVAL;
 	}
 	INP_LOCK(inp);
-	if (so == ip_mrouter && ip_mrouter_done)
-		ip_mrouter_done();
-	if (ip_rsvp_force_done)
-		ip_rsvp_force_done(so);
-	if (so == ip_rsvpd)
-		ip_rsvp_done();
-	in_pcbdetach(inp);
+	rip_pcbdetach(so, inp);
 	INP_INFO_WUNLOCK(&ripcbinfo);
 	return 0;
 }
@@ -583,9 +592,19 @@ rip_detach(struct socket *so)
 static int
 rip_abort(struct socket *so)
 {
+	struct inpcb *inp;
+
+	INP_INFO_WLOCK(&ripcbinfo);
+	inp = sotoinpcb(so);
+	if (inp == 0) {
+		INP_INFO_WUNLOCK(&ripcbinfo);
+		return EINVAL;	/* ??? possible? panic instead? */
+	}
+	INP_LOCK(inp);
 	soisdisconnected(so);
 	if (so->so_state & SS_NOFDREF)
-		return rip_detach(so);
+		rip_pcbdetach(so, inp);
+	INP_INFO_WUNLOCK(&ripcbinfo);
 	return 0;
 }
 
@@ -600,43 +619,73 @@ rip_disconnect(struct socket *so)
 static int
 rip_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	struct inpcb *inp = sotoinpcb(so);
 	struct sockaddr_in *addr = (struct sockaddr_in *)nam;
+	struct inpcb *inp;
 
 	if (nam->sa_len != sizeof(*addr))
 		return EINVAL;
 
-	if (TAILQ_EMPTY(&ifnet) || ((addr->sin_family != AF_INET) &&
-				    (addr->sin_family != AF_IMPLINK)) ||
+	if (TAILQ_EMPTY(&ifnet) ||
+	    (addr->sin_family != AF_INET && addr->sin_family != AF_IMPLINK) ||
 	    (addr->sin_addr.s_addr &&
 	     ifa_ifwithaddr((struct sockaddr *)addr) == 0))
 		return EADDRNOTAVAIL;
+
+	INP_INFO_WLOCK(&ripcbinfo);
+	inp = sotoinpcb(so);
+	if (inp == 0) {
+		INP_INFO_WUNLOCK(&ripcbinfo);
+		return EINVAL;
+	}
+	INP_LOCK(inp);
 	inp->inp_laddr = addr->sin_addr;
+	INP_UNLOCK(inp);
+	INP_INFO_WUNLOCK(&ripcbinfo);
 	return 0;
 }
 
 static int
 rip_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	struct inpcb *inp = sotoinpcb(so);
 	struct sockaddr_in *addr = (struct sockaddr_in *)nam;
+	struct inpcb *inp;
 
 	if (nam->sa_len != sizeof(*addr))
 		return EINVAL;
 	if (TAILQ_EMPTY(&ifnet))
 		return EADDRNOTAVAIL;
-	if ((addr->sin_family != AF_INET) &&
-	    (addr->sin_family != AF_IMPLINK))
+	if (addr->sin_family != AF_INET && addr->sin_family != AF_IMPLINK)
 		return EAFNOSUPPORT;
+
+	INP_INFO_WLOCK(&ripcbinfo);
+	inp = sotoinpcb(so);
+	if (inp == 0) {
+		INP_INFO_WUNLOCK(&ripcbinfo);
+		return EINVAL;
+	}
+	INP_LOCK(inp);
 	inp->inp_faddr = addr->sin_addr;
 	soisconnected(so);
+	INP_UNLOCK(inp);
+	INP_INFO_WUNLOCK(&ripcbinfo);
 	return 0;
 }
 
 static int
 rip_shutdown(struct socket *so)
 {
+	struct inpcb *inp;
+
+	INP_INFO_RLOCK(&ripcbinfo);
+	inp = sotoinpcb(so);
+	if (inp == 0) {
+		INP_INFO_RUNLOCK(&ripcbinfo);
+		return EINVAL;
+	}
+	INP_LOCK(inp);
+	INP_INFO_RUNLOCK(&ripcbinfo);
 	socantsendmore(so);
+	INP_UNLOCK(inp);
 	return 0;
 }
 
@@ -644,23 +693,32 @@ static int
 rip_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	 struct mbuf *control, struct thread *td)
 {
-	struct inpcb *inp = sotoinpcb(so);
-	register u_long dst;
+	struct inpcb *inp;
+	u_long dst;
+	int ret;
 
+	INP_INFO_WLOCK(&ripcbinfo);
+	inp = sotoinpcb(so);
 	if (so->so_state & SS_ISCONNECTED) {
 		if (nam) {
+			INP_INFO_WUNLOCK(&ripcbinfo);
 			m_freem(m);
 			return EISCONN;
 		}
 		dst = inp->inp_faddr.s_addr;
 	} else {
 		if (nam == NULL) {
+			INP_INFO_WUNLOCK(&ripcbinfo);
 			m_freem(m);
 			return ENOTCONN;
 		}
 		dst = ((struct sockaddr_in *)nam)->sin_addr.s_addr;
 	}
-	return rip_output(m, so, dst);
+	INP_LOCK(inp);
+	ret = rip_output(m, so, dst);
+	INP_UNLOCK(inp);
+	INP_INFO_WUNLOCK(&ripcbinfo);
+	return ret;
 }
 
 static int
