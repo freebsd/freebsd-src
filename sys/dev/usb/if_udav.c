@@ -1538,6 +1538,28 @@ udav_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	switch (cmd) {
 #if defined(__FreeBSD__)
+	case SIOCSIFFLAGS:
+		if (ifp->if_flags & IFF_UP) {
+			if (ifp->if_flags & IFF_RUNNING &&
+			    ifp->if_flags & IFF_PROMISC) {
+				UDAV_SETBIT(sc, UDAV_RCR,
+					    UDAV_RCR_ALL|UDAV_RCR_PRMSC);
+			} else if (ifp->if_flags & IFF_RUNNING &&
+				   !(ifp->if_flags & IFF_PROMISC)) {
+				if (ifp->if_flags & IFF_ALLMULTI)
+					UDAV_CLRBIT(sc, UDAV_RCR,
+ 						    UDAV_RCR_PRMSC);
+ 				else
+ 					UDAV_CLRBIT(sc, UDAV_RCR,
+ 						    UDAV_RCR_ALL|UDAV_RCR_PRMSC);
+ 			} else if (!(ifp->if_flags & IFF_RUNNING))
+ 				udav_init(sc);
+ 		} else {
+ 			if (ifp->if_flags & IFF_RUNNING)
+ 				udav_stop(ifp, 1);
+ 		}
+ 		error = 0;
+ 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		udav_setmulti(sc);
@@ -1552,10 +1574,12 @@ udav_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	default:
 		error = ether_ioctl(ifp, cmd, data);
+#if defined(__NetBSD__)
 		if (error == ENETRESET) {
 			udav_setmulti(sc);
 			error = 0;
 		}
+#endif
 		break;
 	}
 
