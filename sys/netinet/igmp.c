@@ -130,7 +130,6 @@ find_rti(struct ifnet *ifp)
 {
 	struct router_info *rti;
 
-	rti = SLIST_FIRST(&router_info_head);
 	IGMP_PRINTF("[igmp.c, _find_rti] --> entering \n");
 	SLIST_FOREACH(rti, &router_info_head, rti_list) {
 		if (rti->rti_ifp == ifp) {
