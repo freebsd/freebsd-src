@@ -40,7 +40,7 @@
  */
 
 
-#ident "$Id: dpt.h,v 1.4 1998/08/05 00:54:37 eivind Exp $"
+#ident "$Id: dpt.h,v 1.2 1998/09/15 08:33:31 gibbs Exp $"
 
 #ifndef _DPT_H
 #define _DPT_H
@@ -100,7 +100,7 @@ typedef void *physaddr;
  * them in fixed increments, we need to put a practical limit on
  * these. A passed parameter (from kernel boot or lkm) would help
  */
-#define DPT_MAX_SEGS		      	 	1024
+#define DPT_MAX_SEGS		      	 	32
 
 /* Debug levels */
 
@@ -898,9 +898,10 @@ typedef struct dpt_ccb {
 	dccb_state	 state;
 	union		 ccb *ccb;
 	struct		 scsi_sense_data sense_data;
+	u_int8_t	 tag;
 	u_int8_t	 retries;
-	u_int8_t	 status;	/* status of this queueslot */
-	u_int8_t	*cmd;	/* address of cmd */
+	u_int8_t	 status; /* status of this queueslot */
+	u_int8_t	*cmd;	 /* address of cmd */
 
 	u_int32_t	 transaction_id;
 	u_int32_t	 result;
