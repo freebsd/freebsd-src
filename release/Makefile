@@ -241,7 +241,8 @@ MAKEREADMES=	make readmes PORTSDIR=${CHROOTDIR}/usr/ports
 MAKEREADMES=	true
 .endif
 
-TMAKE!=		cd ${.CURDIR}/..; ${MAKE} -f Makefile.inc1 -V TMAKE
+TMAKE!=		echo MAKEFLAGS=\"-m ${.CURDIR}/../share/mk\"; \
+		cd ${.CURDIR}/..; ${MAKE} -f Makefile.inc1 -V TMAKE
 WMAKEENV!=	echo MAKEFLAGS=\"-m ${.CURDIR}/../share/mk\"; \
 		cd ${.CURDIR}/..; ${CROSSMAKE} -f Makefile.inc1 -V WMAKEENV
 WMAKE=		${WMAKEENV} ${MAKE}
@@ -466,13 +467,13 @@ release.3:
 release.4:
 .for kernel in ${KERNELS}
 	cd ${.CURDIR}/..; \
-	${CROSSMAKE} ${KERNEL_FLAGS} -DNO_WERROR -DNO_MODULES \
+	${CROSSMAKE} ${KERNEL_FLAGS} -DNO_MODULES \
 	    KERNCONF=${kernel} INSTKERNNAME=${kernel} kernel \
 	    DESTDIR=${RD}/trees/base
 .endfor
 	# Install a standard boot kernel+modules.
 	cd ${.CURDIR}/..; \
-	${CROSSMAKE} ${KERNEL_FLAGS} -DNO_WERROR \
+	${CROSSMAKE} ${KERNEL_FLAGS} \
 	    kernel \
 	    DESTDIR=${RD}/trees/base; \
 	cd ${.CURDIR}/..; \
@@ -937,7 +938,7 @@ doMFSKERN:
 .endif
 	cd ${.CURDIR}/..; \
 	KERNEL_KO=BOOTMFS KODIR= \
-	    ${CROSSMAKE} ${KERNEL_FLAGS} -DNO_WERROR -DNO_MODULES -DNO_KERNELCLEAN \
+	    ${CROSSMAKE} ${KERNEL_FLAGS} -DNO_MODULES -DNO_KERNELCLEAN \
 	    KERNCONF=BOOTMFS buildkernel reinstallkernel \
 	    DESTDIR=${RD}/kernels
 	[ -r ${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS.hints ] && \
