@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.7 2001/01/20 01:41:25 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.8 2001/01/20 01:48:55 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.107 2000/12/20 06:05:13; haya Exp $ */
 
@@ -402,7 +402,7 @@
 
 /* RATOC System Inc. Products */
 #define	PCCARD_CIS_RATOC_REX_R280	{ NULL, NULL, NULL, NULL }
-#define	PCCARD_PRODUCT_RATOC_REX_R280	0x1
+#define	PCCARD_PRODUCT_RATOC_REX_R280	0x0001
 #define	PCCARD_STR_RATOC_REX_R280	"RATOC REX-R280"
 
 /* Lucent WaveLAN/IEEE */
