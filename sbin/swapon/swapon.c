@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id$
  */
 
 #ifndef lint
@@ -46,8 +48,10 @@ static char sccsid[] = "@(#)swapon.c	8.1 (Berkeley) 6/5/93";
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
+#include <err.h>
 
-void	usage __P((void));
+static void usage __P((void));
 int	add __P((char *name, int ignoreebusy));
 
 int
@@ -100,13 +104,10 @@ add(char *name, int ignoreebusy)
 		switch (errno) {
 		case EBUSY:
 			if (!ignoreebusy)
-				fprintf(stderr,
-				    "swapon: %s: device already in use\n",
-				     name);
+				warnx("%s: device already in use", name);
 			break;
 		default:
-			fprintf(stderr, "swapon: %s: ", name);
-			perror((char *)NULL);
+			warn("%s", name);
 			break;
 		}
 		return(1);
@@ -114,7 +115,7 @@ add(char *name, int ignoreebusy)
 	return(0);
 }
 
-void
+static void
 usage()
 {
 	fprintf(stderr, "usage: swapon [-a] [special_file ...]\n");
