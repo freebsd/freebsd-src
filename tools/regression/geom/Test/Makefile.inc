@@ -8,6 +8,7 @@ CFLAGS +=	-I/usr/src/sys -I../..
 CFLAGS +=	-DKERNELSIM -pthread
 LDADD +=	-L../../GLib -lG 
 LDADD +=	-lbsdxml
+LDADD +=	-lmd
 DPADD +=	../../GLib/libG.a
 CLEANFILES +=	_* *.core
 WARNS=		5
