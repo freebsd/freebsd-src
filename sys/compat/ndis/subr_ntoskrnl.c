@@ -69,8 +69,10 @@ __stdcall static uint8_t ntoskrnl_unicode_equal(ndis_unicode_string *,
 	ndis_unicode_string *, uint8_t);
 __stdcall static void ntoskrnl_unicode_copy(ndis_unicode_string *,
 	ndis_unicode_string *);
-__stdcall static uint32_t ntoskrnl_unicode_to_ansi(ndis_ansi_string *,
+__stdcall static ndis_status ntoskrnl_unicode_to_ansi(ndis_ansi_string *,
 	ndis_unicode_string *, uint8_t);
+__stdcall static ndis_status ntoskrnl_ansi_to_unicode(ndis_unicode_string *,
+	ndis_ansi_string *, uint8_t);
 __stdcall static void *ntoskrnl_iobuildsynchfsdreq(uint32_t, void *,
 	void *, uint32_t, uint32_t *, void *, void *);
 __stdcall static uint32_t ntoskrnl_iofcalldriver(void *, void *);
@@ -119,8 +121,15 @@ __stdcall static uint32_t
 __stdcall static void ntoskrnl_freemdl(ndis_buffer *);
 __stdcall static void *ntoskrnl_mmaplockedpages(ndis_buffer *, uint8_t);
 __stdcall static void ntoskrnl_init_lock(kspin_lock *);
-__stdcall static void dummy(void);
 __stdcall static size_t ntoskrnl_memcmp(const void *, const void *, size_t);
+__stdcall static void ntoskrnl_init_ansi_string(ndis_ansi_string *, char *);
+__stdcall static void ntoskrnl_init_unicode_string(ndis_unicode_string *,
+	uint16_t *);
+__stdcall static void ntoskrnl_free_unicode_string(ndis_unicode_string *);
+__stdcall static void ntoskrnl_free_ansi_string(ndis_ansi_string *);
+__stdcall static ndis_status ntoskrnl_unicode_to_int(ndis_unicode_string *,
+	uint32_t, uint32_t *);
+__stdcall static void dummy(void);
 
 static struct mtx *ntoskrnl_interlock;
 extern struct mtx_pool *ndis_mtxpool;
@@ -177,7 +186,7 @@ ntoskrnl_unicode_copy(dest, src)
 	return;
 }
 
-__stdcall static uint32_t
+__stdcall static ndis_status
 ntoskrnl_unicode_to_ansi(dest, src, allocate)
 	ndis_ansi_string	*dest;
 	ndis_unicode_string	*src;
@@ -185,8 +194,12 @@ ntoskrnl_unicode_to_ansi(dest, src, allocate)
 {
 	char			*astr = NULL;
 
-	if (allocate) {
-		ndis_unicode_to_ascii(src->nus_buf, src->nus_len, &astr);
+	if (dest == NULL || src == NULL)
+		return(NDIS_STATUS_FAILURE);
+
+	if (allocate == TRUE) {
+		if (ndis_unicode_to_ascii(src->nus_buf, src->nus_len, &astr))
+			return(NDIS_STATUS_FAILURE);
 		dest->nas_buf = astr;
 		dest->nas_len = dest->nas_maxlen = strlen(astr);
 	} else {
@@ -195,6 +208,31 @@ ntoskrnl_unicode_to_ansi(dest, src, allocate)
 			dest->nas_len = dest->nas_maxlen;
 		ndis_unicode_to_ascii(src->nus_buf, dest->nas_len * 2,
 		    &dest->nas_buf);
+	}
+	return (NDIS_STATUS_SUCCESS);
+}
+
+__stdcall static ndis_status
+ntoskrnl_ansi_to_unicode(dest, src, allocate)
+	ndis_unicode_string	*dest;
+	ndis_ansi_string	*src;
+	uint8_t			allocate;
+{
+	uint16_t		*ustr = NULL;
+
+	if (dest == NULL || src == NULL)
+		return(NDIS_STATUS_FAILURE);
+
+	if (allocate == TRUE) {
+		if (ndis_ascii_to_unicode(src->nas_buf, &ustr))
+			return(NDIS_STATUS_FAILURE);
+		dest->nus_buf = ustr;
+		dest->nus_len = dest->nus_maxlen = strlen(src->nas_buf) * 2;
+	} else {
+		dest->nus_len = src->nas_len * 2; /* XXX */
+		if (dest->nus_maxlen < dest->nus_len)
+			dest->nus_len = dest->nus_maxlen;
+		ndis_ascii_to_unicode(src->nas_buf, &dest->nus_buf);
 	}
 	return (NDIS_STATUS_SUCCESS);
 }
@@ -615,8 +653,7 @@ ntoskrnl_mmaplockedpages(buf, accessmode)
  * and KefReleaseSpinLockFromDpcLevel() appear to be analagous
  * to splnet()/splx() in their use. We can't create a new mutex
  * lock here because there is no complimentary KeFreeSpinLock()
- * function. For now, what we do is initialize the lock with
- * a pointer to the ntoskrnl interlock mutex.
+ * function. Instead, we grab a mutex from the mutex pool.
  */
 __stdcall static void
 ntoskrnl_init_lock(lock)
@@ -647,6 +684,128 @@ ntoskrnl_memcmp(s1, s2, len)
 }
 
 __stdcall static void
+ntoskrnl_init_ansi_string(dst, src)
+	ndis_ansi_string	*dst;
+	char			*src;
+{
+	ndis_ansi_string	*a;
+
+	a = dst;
+	if (a == NULL)
+		return;
+	if (src == NULL) {
+		a->nas_len = a->nas_maxlen = 0;
+		a->nas_buf = NULL;
+	} else {
+		a->nas_buf = src;
+		a->nas_len = a->nas_maxlen = strlen(src);
+	}
+
+	return;
+}
+
+__stdcall static void
+ntoskrnl_init_unicode_string(dst, src)
+	ndis_unicode_string	*dst;
+	uint16_t		*src;
+{
+	ndis_unicode_string	*u;
+	int			i;
+
+	u = dst;
+	if (u == NULL)
+		return;
+	if (src == NULL) {
+		u->nus_len = u->nus_maxlen = 0;
+		u->nus_buf = NULL;
+	} else {
+		i = 0;
+		while(src[i] != 0)
+			i++;
+		u->nus_buf = src;
+		u->nus_len = u->nus_maxlen = i * 2;
+	}
+
+	return;
+}
+
+__stdcall ndis_status
+ntoskrnl_unicode_to_int(ustr, base, val)
+	ndis_unicode_string	*ustr;
+	uint32_t		base;
+	uint32_t		*val;
+{
+	uint16_t		*uchr;
+	int			len, neg = 0;
+	char			abuf[64];
+	char			*astr;
+
+	uchr = ustr->nus_buf;
+	len = ustr->nus_len;
+	bzero(abuf, sizeof(abuf));
+
+	if ((char)((*uchr) & 0xFF) == '-') {
+		neg = 1;
+		uchr++;
+		len -= 2;
+	} else if ((char)((*uchr) & 0xFF) == '+') {
+		neg = 0;
+		uchr++;
+		len -= 2;
+	}
+
+	if (base == 0) {
+		if ((char)((*uchr) & 0xFF) == 'b') {
+			base = 2;
+			uchr++;
+			len -= 2;
+		} else if ((char)((*uchr) & 0xFF) == 'o') {
+			base = 8;
+			uchr++;
+			len -= 2;
+		} else if ((char)((*uchr) & 0xFF) == 'x') {
+			base = 16;
+			uchr++;
+			len -= 2;
+		} else
+			base = 10;
+	}
+
+	astr = abuf;
+	if (neg) {
+		strcpy(astr, "-");
+		astr++;
+	}
+
+	ndis_unicode_to_ascii(uchr, len, &astr);
+	*val = strtoul(abuf, NULL, base);
+
+	return(NDIS_STATUS_SUCCESS);
+}
+
+__stdcall static void
+ntoskrnl_free_unicode_string(ustr)
+	ndis_unicode_string	*ustr;
+{
+	if (ustr->nus_buf == NULL)
+		return;
+	free(ustr->nus_buf, M_DEVBUF);
+	ustr->nus_buf = NULL;
+	return;
+}
+
+__stdcall static void
+ntoskrnl_free_ansi_string(astr)
+	ndis_ansi_string	*astr;
+{
+	if (astr->nas_buf == NULL)
+		return;
+	free(astr->nas_buf, M_DEVBUF);
+	astr->nas_buf = NULL;
+	return;
+}
+
+__stdcall static void
 dummy()
 {
 	printf ("ntoskrnl dummy called...\n");
@@ -659,6 +818,12 @@ image_patch_table ntoskrnl_functbl[] = {
 	{ "RtlEqualUnicodeString",	(FUNC)ntoskrnl_unicode_equal },
 	{ "RtlCopyUnicodeString",	(FUNC)ntoskrnl_unicode_copy },
 	{ "RtlUnicodeStringToAnsiString", (FUNC)ntoskrnl_unicode_to_ansi },
+	{ "RtlAnsiStringToUnicodeString", (FUNC)ntoskrnl_ansi_to_unicode },
+	{ "RtlInitAnsiString",		(FUNC)ntoskrnl_init_ansi_string },
+	{ "RtlInitUnicodeString",	(FUNC)ntoskrnl_init_unicode_string },
+	{ "RtlFreeAnsiString",		(FUNC)ntoskrnl_free_ansi_string },
+	{ "RtlFreeUnicodeString",	(FUNC)ntoskrnl_free_unicode_string },
+	{ "RtlUnicodeStringToInteger",	(FUNC)ntoskrnl_unicode_to_int },
 	{ "sprintf",			(FUNC)sprintf },
 	{ "DbgPrint",			(FUNC)printf },
 	{ "strncmp",			(FUNC)strncmp },
