@@ -206,6 +206,8 @@ ip_output(struct mbuf *m0, struct mbuf *opt, struct route *ro,
 	KASSERT(ro != NULL, ("ip_output: no route, proto %d",
 	    mtod(m, struct ip *)->ip_p));
 #endif
+	if (inp != NULL)
+		INP_LOCK_ASSERT(inp);
 
 	if (args.rule != NULL) {	/* dummynet already saw us */
 		ip = mtod(m, struct ip *);
