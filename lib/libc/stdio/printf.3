@@ -114,8 +114,7 @@ string that specifies how subsequent arguments
 .Xr stdarg 3 )
 are converted for output.
 .Pp
-These functions return
-the number of characters printed
+These functions return the number of characters printed
 (not including the trailing
 .Ql \e0
 used to end output to strings),
@@ -151,17 +150,16 @@ to be a NULL pointer.
 .Fn Snprintf
 and
 .Fn vsnprintf
-will write at most
-.Fa size Ns \-1
-of the characters printed into the output string
-(the
-.Fa size Ns 'th
-character then gets the terminating
-.Ql \e0 ) ;
-if the return value is greater than or equal to the
-.Fa size
-argument, the string was too short
-and some of the printed characters were discarded.
+return the number of characters
+that would have been written had
+.Fa size 
+been sufficiently large, not counting the terminating
+.Ql \e0
+character, or a negative value if an encoding error occurred.
+Thus, the null-terminated output has been completely written if and only if
+the returned value is nonnegative and less than
+.Fa size .
+The output is always null-terminated.
 .Pp
 .Fn Sprintf
 and
@@ -623,7 +621,15 @@ and
 .Fn vsprintf
 functions
 conform to
-.St -isoC .
+.St -ansiC 
+and
+.St -isoC-99 .
+The
+.Fn snprintf
+and
+.Fn vsnprintf
+functions conform to
+.St -isoC-99 .
 .Sh HISTORY
 The functions
 .Fn asprintf
@@ -674,7 +680,15 @@ this is often hard to assure.
 For safety, programmers should use the
 .Fn snprintf
 interface instead.
-Unfortunately, this interface is not portable.
+Unfortunately, this interface was only defined in
+.St -isoC-99 .
+.Pp
+.Cm %n
+can be used to write arbitrary data to the stack.
+Programmers are therefore strongly advised to never pass untrusted strings
+as the
+.Fa format
+argument.
 .Pp
 Never pass a string with user-supplied data as a format without using
 .Ql %s .
