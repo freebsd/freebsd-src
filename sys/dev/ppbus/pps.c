@@ -32,7 +32,7 @@
 
 #define PPS_NAME	"pps"		/* our official name */
 
-#define PRVERBOSE(arg...)	if (bootverbose) printf(##arg);
+#define PRVERBOSE(fmt, arg...)	if (bootverbose) printf(fmt, ##arg);
 
 struct pps_data {
 	struct	ppb_device pps_dev;	
