@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_ioctl.h - messages kernel <--> userland
  *	-------------------------------------------
  *
- *	$Id: i4b_ioctl.h,v 1.150 1999/12/13 21:25:28 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:12:16 1999]
+ *      last edit-date: [Sat Jul 21 12:24:56 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -47,9 +45,9 @@
 /*---------------------------------------------------------------------------*
  *	version and release number for isdn4bsd package
  *---------------------------------------------------------------------------*/
-#define	VERSION		0		/* version number	*/
-#define	REL		90		/* release number	*/
-#define STEP		1 		/* release step		*/
+#define	VERSION		1		/* version number	*/
+#define	REL		0		/* release number	*/
+#define STEP		1		/* release step		*/
 
 /*---------------------------------------------------------------------------*
  * date/time format in i4b log messages
@@ -84,7 +82,24 @@
 #define CTRL_DAIC	2		/* Diehl active controller cards*/
 #define CTRL_TINADD	3		/* Stollmann Tina-dd active card*/
 #define CTRL_AVMB1	4		/* AVM B1 active card		*/
-#define	CTRL_NUMTYPES	5		/* number of controller types	*/
+#define CTRL_CAPI       5               /* cards seen via the CAPI layer*/
+#define	CTRL_NUMTYPES	6		/* number of controller types	*/
+
+/*---------------------------------------------------------------------------*
+ *	CTRL_PASSIVE: driver types
+ *---------------------------------------------------------------------------*/
+#define MAXL1UNITS      8		/* max number of units	*/
+
+#define L1DRVR_ISIC     0		/* isic - driver	*/
+#define L1DRVR_IWIC     1		/* iwic - driver	*/
+#define L1DRVR_IFPI     2		/* ifpi - driver	*/
+#define L1DRVR_IHFC     3		/* ihfc - driver	*/
+#define L1DRVR_IFPNP    4		/* ifpnp - driver	*/
+#define L1DRVR_ICCHP	5		/* icchp - driver	*/
+#define L1DRVR_ITJC     6		/* itjc - driver	*/
+
+/* MAXL1DRVR MUST be updated when more passive drivers are added !!! */
+#define MAXL1DRVR       (L1DRVR_ITJC + 1)
 
 /*---------------------------------------------------------------------------*
  *	card types for CTRL_PASSIVE 
@@ -114,16 +129,23 @@
 #define CARD_TYPEP_AVM_PNP	21	/* AVM FRITZ!CARD PnP		*/
 #define CARD_TYPEP_SIE_ISURF2 	22	/* Siemens I-Surf 2 PnP		*/
 #define CARD_TYPEP_ASUSCOMIPAC	23	/* Asuscom ISDNlink 128 K PnP	*/
+#define CARD_TYPEP_WINB6692	24	/* Winbond W6692 based		*/
+#define CARD_TYPEP_16_3C	25	/* Teles S0/16.3c PnP (HFC-S/SP	*/
+#define CARD_TYPEP_ACERP10	26	/* Acer ISDN P10 (HFC-S)	*/
+#define CARD_TYPEP_TELEINT_NO_1	27	/* TELEINT ISDN SPEED No. 1 (HFC-1) */
+#define CARD_TYPEP_CCD_HFCS_PCI	28	/* Cologne Chip HFC-S PCI based	*/
+#define	CARD_TYPEP_NETJET_S	29	/* Traverse NetJet-S (Tiger300) */
+#define	CARD_TYPEP_DIVA_ISA	30	/* Eicon DIVA ISA PnP 2.0 or 2.02 */
+
 /*
  * in case you add support for more cards, please update:
  *
- *	isdnd:		support.c, name_of_controller()
- *	diehl/diehlctl:	main.c, listall()
+ *	isdnd:		controller.c, name_of_controller()
  *
  * and adjust CARD_TYPEP_MAX below.
  */
 
-#define CARD_TYPEP_MAX		23	/* max type */
+#define CARD_TYPEP_MAX		30	/* max type */
 
 /*---------------------------------------------------------------------------*
  *	card types for CTRL_DAIC
@@ -133,6 +155,14 @@
 #define	CARD_TYPEA_DAIC_SX	2
 #define	CARD_TYPEA_DAIC_SCOM	3
 #define	CARD_TYPEA_DAIC_QUAD	4
+
+/*---------------------------------------------------------------------------*
+ *	card types for CTRL_CAPI
+ *---------------------------------------------------------------------------*/
+#define CARD_TYPEC_CAPI_UNK	0
+#define	CARD_TYPEC_AVM_T1_PCI	1
+#define CARD_TYPEC_AVM_B1_PCI	2
+#define CARD_TYPEC_AVM_B1_ISA	3
 
 /*---------------------------------------------------------------------------*
  *	max length of some strings
@@ -162,6 +192,7 @@
 #define BDRV_IPR	2       /* IP over raw HDLC interface driver    */
 #define BDRV_ISPPP	3       /* sync Kernel PPP interface driver     */
 #define BDRV_IBC	4       /* BSD/OS point to point driver		*/
+#define BDRV_ING	5       /* NetGraph ing driver			*/
 
 /*---------------------------------------------------------------------------*
  * B channel protocol
@@ -311,6 +342,12 @@ typedef struct {
 #define  SCR_USR_PASS 2		/* screening user provided, verified & passed */
 #define  SCR_USR_FAIL 3		/* screening user provided, verified & failed */
 #define  SCR_NET      4		/* screening network provided		*/
+	int		prs_ind;/* presentation indicator		*/
+#define  PRS_NONE     0		/* no presentation indicator transmitted*/
+#define  PRS_ALLOWED  1		/* presentation allowed			*/
+#define  PRS_RESTRICT 2		/* presentation restricted		*/
+#define  PRS_NNINTERW 3		/* number not available due to interworking */
+#define  PRS_RESERVED 4		/* reserved				*/
 	char		display[DISPLAY_MAX];	/* content of display IE*/
 } msg_connect_ind_t;
 
@@ -564,6 +601,7 @@ typedef struct {
 	int	ctrl_type;	/* controller type passive/active	*/
 	int	card_type;	/* brand / version			*/
 	int	tei;		/* tei controller probably has		*/
+        int     nbch;           /* number of b channels provided        */
 } msg_ctrl_info_req_t;
 	
 #define	I4B_CTRL_INFO_REQ	_IOWR('4', 4, msg_ctrl_info_req_t)

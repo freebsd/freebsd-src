@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	layer3_subr.c - subroutines for IE decoding
  *	-------------------------------------------
  *
- *	$Id: layer3_subr.c,v 1.6 1999/12/13 21:25:25 hm Exp $
+ *	$Id: layer3_subr.c,v 1.8 2000/02/21 15:17:17 hm Exp $
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:51:00 1999]
+ *      last edit-date: [Mon Feb 21 15:45:16 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -609,155 +609,157 @@ f_bc(char *pbuf, unsigned char *buf, int off)
 	if(!len)
 		goto exit;
 	
-			sprintf((pbuf+strlen(pbuf)), "\n          layer1=");
+	switch(buf[i] & 0x1f)
+	{
+		case 0x01:
+			strcpy(buffer, "V.110/X.30");
+			break;
+		case 0x02:
+			strcpy(buffer, "G.711 u-Law");
+			break;
+		case 0x03:
+			strcpy(buffer, "G.711 a-Law");
+			break;
+		case 0x04:
+			strcpy(buffer, "G.721 ADPCM/I.460");
+			break;
+		case 0x05:
+			strcpy(buffer, "H.221/H.242");
+			break;
+		case 0x07:
+			strcpy(buffer, "non-CCITT rate adaption");
+			break;
+		case 0x08:
+			strcpy(buffer, "V.120");
+			break;
+		case 0x09:
+			strcpy(buffer, "X.31");
+			break;
+		default:
+			sprintf((pbuf+strlen(pbuf)), "reserved (0x%02x)", buf[i] & 0x1f);
+			break;
+	}
+	sprintline(3, (pbuf+strlen(pbuf)), off+i, buf[i], 0x1f, "Layer 1 Protocol = %s", buffer);
 	
-			switch(buf[i] & 0x1f)
-			{
-				case 0x01:
-					sprintf((pbuf+strlen(pbuf)), "V.110");
-					break;
-				case 0x02:
-					sprintf((pbuf+strlen(pbuf)), "G.711 u-law");
-					break;
-				case 0x03:
-					sprintf((pbuf+strlen(pbuf)), "G.711 A-law");
-					break;
-				case 0x04:
-					sprintf((pbuf+strlen(pbuf)), "G.721");
-					break;
-				case 0x05:
-					sprintf((pbuf+strlen(pbuf)), "H.221/H.242");
-					break;
-				case 0x07:
-					sprintf((pbuf+strlen(pbuf)), "Non-Std");
-					break;
-				case 0x08:
-					sprintf((pbuf+strlen(pbuf)), "V.120");
-					break;
-				case 0x09:
-					sprintf((pbuf+strlen(pbuf)), "X.31");
-					break;
-				default:
-					sprintf((pbuf+strlen(pbuf)), "reserved (0x%02x)", buf[i] & 0x0f);
-					break;
-			}
-			i++;
-			len--;
+	i++;
+	len--;
 	
-		if(!len)
-			goto exit;
+	if(!len)
+		goto exit;
+
+/* work to do ahead !!! */
 
 	if(!(buf[i-1] & 0x80))
-		{
-			sprintf((pbuf+strlen(pbuf)), "\n          user rate=0x%02x ", buf[i] & 0x1f);
-	
-			if(buf[i] & 0x40)
-				sprintf((pbuf+strlen(pbuf)), "(async,");
-			else
-				sprintf((pbuf+strlen(pbuf)), "(sync,");		
-	
-			if(buf[i] & 0x20)
-				sprintf((pbuf+strlen(pbuf)), "in-band neg. possible)");
-			else
-				sprintf((pbuf+strlen(pbuf)), "in-band neg not possible)");
-			
-			i++;
-			len--;
-		}
-	
-		if(!len)
-			goto exit;
+	{
+		sprintf((pbuf+strlen(pbuf)), "\n          user rate=0x%02x ", buf[i] & 0x1f);
 
-	if(!(buf[i-1] & 0x80))
-		{
-			sprintf((pbuf+strlen(pbuf)), "\n          clk/flow=0x%02x", buf[i] & 0x1f);
-	
-			sprintf((pbuf+strlen(pbuf)), "\n          intermediate rate=");
-			
-			switch((buf[i] & 0x60) >> 5)
-			{
-				case 0:
-					sprintf((pbuf+strlen(pbuf)), "not used");
-					break;
-				case 1:
-					sprintf((pbuf+strlen(pbuf)), "8 kbit/s");
-					break;
-				case 2:
-					sprintf((pbuf+strlen(pbuf)), "16 kbit/s");
-					break;
-				case 3:
-					sprintf((pbuf+strlen(pbuf)), "32 kbit/s");
-					break;
-			}
-			i++;
-			len--;
-		}
-	
-		if(!len)
-			goto exit;
+		if(buf[i] & 0x40)
+			sprintf((pbuf+strlen(pbuf)), "(async,");
+		else
+			sprintf((pbuf+strlen(pbuf)), "(sync,");		
 
-	if(!(buf[i-1] & 0x80))
-		{
-			sprintf((pbuf+strlen(pbuf)), "\n          hdr/mfrm/etc.=0x%02x", buf[i]);
-			i++;
-			len--;
-		}
-	
-		if(!len)
-			goto exit;
-
-	if(!(buf[i-1] & 0x80))
-		{
-			sprintf((pbuf+strlen(pbuf)), "\n          stop/data/parity=0x%02x", buf[i]);
-			i++;
-			len--;
-		}
-	
-		if(!len)
-			goto exit;
-
-	if(!(buf[i-1] & 0x80))
-		{
-			sprintf((pbuf+strlen(pbuf)), "\n          modemtype=0x%02x", buf[i]);
-			i++;
-			len--;
-		}
+		if(buf[i] & 0x20)
+			sprintf((pbuf+strlen(pbuf)), "in-band neg. possible)");
+		else
+			sprintf((pbuf+strlen(pbuf)), "in-band neg not possible)");
+		
+		i++;
+		len--;
+	}
 
 	if(!len)
 		goto exit;
 
-		switch(buf[i] & 0x7f)
+	if(!(buf[i-1] & 0x80))
+	{
+		sprintf((pbuf+strlen(pbuf)), "\n          clk/flow=0x%02x", buf[i] & 0x1f);
+
+		sprintf((pbuf+strlen(pbuf)), "\n          intermediate rate=");
+		
+		switch((buf[i] & 0x60) >> 5)
 		{
-			case 0x42:
-				sprintf((pbuf+strlen(pbuf)), "\n          layer2=Q.921/I.441");
+			case 0:
+				sprintf((pbuf+strlen(pbuf)), "not used");
 				break;
-			case 0x46:
-				sprintf((pbuf+strlen(pbuf)), "\n          layer2=X.25 link");
+			case 1:
+				sprintf((pbuf+strlen(pbuf)), "8 kbit/s");
 				break;
-			default:
-				sprintf((pbuf+strlen(pbuf)), "\n          layer2=0x%02x",(buf[i] & 0x7f));
+			case 2:
+				sprintf((pbuf+strlen(pbuf)), "16 kbit/s");
+				break;
+			case 3:
+				sprintf((pbuf+strlen(pbuf)), "32 kbit/s");
 				break;
 		}
 		i++;
 		len--;
+	}
+
+	if(!len)
+		goto exit;
+
+	if(!(buf[i-1] & 0x80))
+	{
+		sprintf((pbuf+strlen(pbuf)), "\n          hdr/mfrm/etc.=0x%02x", buf[i]);
+		i++;
+		len--;
+	}
+
+	if(!len)
+		goto exit;
+
+	if(!(buf[i-1] & 0x80))
+	{
+		sprintf((pbuf+strlen(pbuf)), "\n          stop/data/parity=0x%02x", buf[i]);
+		i++;
+		len--;
+	}
+
+	if(!len)
+		goto exit;
+
+	if(!(buf[i-1] & 0x80))
+	{
+		sprintf((pbuf+strlen(pbuf)), "\n          modemtype=0x%02x", buf[i]);
+		i++;
+		len--;
+	}
+
+	if(!len)
+		goto exit;
+
+	switch(buf[i] & 0x7f)
+	{
+		case 0x42:
+			sprintf((pbuf+strlen(pbuf)), "\n          layer2=Q.921/I.441");
+			break;
+		case 0x46:
+			sprintf((pbuf+strlen(pbuf)), "\n          layer2=X.25 link");
+			break;
+		default:
+			sprintf((pbuf+strlen(pbuf)), "\n          layer2=0x%02x",(buf[i] & 0x7f));
+			break;
+	}
+	i++;
+	len--;
 
 	if(!len)
 		goto exit;
 	
-		switch(buf[i] & 0x7f)
-		{
-			case 0x62:
-				sprintf((pbuf+strlen(pbuf)), "\n          layer3=Q.921/I.441");
-				break;
-			case 0x66:
-				sprintf((pbuf+strlen(pbuf)), "\n          layer3=X.25 packet");
-				break;
-			default:
-				sprintf((pbuf+strlen(pbuf)), "\n          layer3=0x%02x",(buf[i] & 0x7f));
-				break;
-		}
-		i++;
-		len--;
+	switch(buf[i] & 0x7f)
+	{
+		case 0x62:
+			sprintf((pbuf+strlen(pbuf)), "\n          layer3=Q.921/I.441");
+			break;
+		case 0x66:
+			sprintf((pbuf+strlen(pbuf)), "\n          layer3=X.25 packet");
+			break;
+		default:
+			sprintf((pbuf+strlen(pbuf)), "\n          layer3=0x%02x",(buf[i] & 0x7f));
+			break;
+	}
+	i++;
+	len--;
 
 exit:	
 
@@ -1040,6 +1042,79 @@ f_hlc(char *pbuf, unsigned char *buf, int off)
 	}
 	sprintline(3, (pbuf+strlen(pbuf)), off+i, buf[i], 0x7f, "Ext. characteristics = %s", buffer);
 	i++;
+	return(i);
+}
+
+/*---------------------------------------------------------------------------*
+ *	user-user
+ *---------------------------------------------------------------------------*/
+int
+f_uu(char *pbuf, unsigned char *buf, int off)
+{
+	int j;
+	int len;
+	int i = 0;
+	int pd;
+	char buffer[256];
+	
+	i++;	/* index -> length */
+	len = buf[i];
+
+	i++;	/* index -> PD */
+	pd = buf[i];
+
+	switch(pd)
+	{
+		case 0:
+			strcpy(buffer, "user-specific");
+			break;
+		case 1:
+			strcpy(buffer, "OSI high layer");
+			break;
+		case 2:
+			strcpy(buffer, "X.244");
+			break;
+		case 3:
+			strcpy(buffer, "reserved for sys mgmt");
+			break;
+		case 4:
+			strcpy(buffer, "IA5 characters");
+			break;
+		case 5:
+			strcpy(buffer, "X.208/X.209");
+			break;
+		case 7:
+			strcpy(buffer, "V.120");
+			break;
+		case 8:
+			strcpy(buffer, "Q.931/I.451");
+			break;
+		default:
+			if(pd >= 0x10 && pd <= 0x3f)
+				sprintf(buffer, "reserved incl X.31 (0x%2x)", pd);
+			else if (pd >= 0x40 && pd <= 0x4f)
+				sprintf(buffer, "national use (0x%2x)", pd);
+			else if (pd >= 0x50 && pd <= 0xfe)
+				sprintf(buffer, "reserved incl X.31 (0x%2x)", pd);
+			else
+				sprintf(buffer, "reserved (0x%2x)", pd);
+			break;
+	}
+	sprintline(3, (pbuf+strlen(pbuf)), off+i, buf[i], 0xff, "protocol = %s", buffer);
+
+	i++;
+	len--;
+	
+	for(j = 0; j < len; j++)
+	{
+		if(isprint(buf[i+j]))
+			sprintline(3, (pbuf+strlen(pbuf)), off+i+j, buf[i+j], 0xff, "user information = %c", buf[i+j]);
+		else
+			sprintline(3, (pbuf+strlen(pbuf)), off+i+j, buf[i+j], 0xff, "user information = 0x%2x", buf[i+j]);
+	}		
+
+	i += j;
+
 	return(i);
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b daemon - timer/timing support routines
  *	------------------------------------------
  *
- *	$Id: timer.c,v 1.19 1999/12/13 21:25:25 hm Exp $ 
+ *	$Id: timer.c,v 1.21 2000/05/03 09:32:38 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:49:13 1999]
+ *      last edit-date: [Tue May  2 15:58:31 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -142,6 +142,28 @@ handle_recovery(void)
 	{
 		cep = &cfg_entry_tab[i];	/* ptr to config entry */
 	
+		if(cep->budget_callbackperiod && cep->budget_callbackncalls)
+		{
+			if(cep->budget_callbackperiod_time <= now)
+			{
+				DBGL(DL_BDGT, (log(LL_DBG, "%s: new cback-budget-period (%d s, %d left)",
+					cep->name, cep->budget_callbackperiod, cep->budget_callbackncalls_cnt)));
+				cep->budget_callbackperiod_time = now + cep->budget_callbackperiod;
+				cep->budget_callbackncalls_cnt = cep->budget_callbackncalls;
+			}
+		}
+
+		if(cep->budget_calloutperiod && cep->budget_calloutncalls)
+		{
+			if(cep->budget_calloutperiod_time <= now)
+			{
+				DBGL(DL_BDGT, (log(LL_DBG, "%s: new cout-budget-period (%d s, %d left)",
+					cep->name, cep->budget_calloutperiod, cep->budget_calloutncalls_cnt)));
+				cep->budget_calloutperiod_time = now + cep->budget_calloutperiod;
+				cep->budget_calloutncalls_cnt = cep->budget_calloutncalls;
+			}
+		}
+
 		switch(cep->cdid)
 		{
 			case CDID_UNUSED:		/* entry unused */

@@ -27,7 +27,7 @@
  *	i4b daemon - logging routines
  *	-----------------------------
  *
- *	$Id: log.c,v 1.23 1999/12/13 21:25:25 hm Exp $ 
+ *	$Id: log.c,v 1.25 2000/10/09 12:53:29 hm Exp $ 
  *
  * $FreeBSD$
  *
@@ -174,7 +174,7 @@ log(int what, const char *fmt, ...)
 #warning "FreeBSD ncurses is buggy: write to last column = auto newline!"
 		     COLS-((strlen(dp))+(strlen(logtab[what].text))+3), buffer);
 #else
-		     COLS-((strlen(dp))+(strlen(logtab[what].text))+2), buffer);
+		     (int)(COLS-((strlen(dp))+(strlen(logtab[what].text))+2)), buffer);
 #endif
 		wrefresh(lower_w);
 	}

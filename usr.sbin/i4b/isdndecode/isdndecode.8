@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1998, 1999 Hellmuth Michaelis. All rights reserved.
+.\" Copyright (c) 1998, 2000 Hellmuth Michaelis. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,13 +22,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: isdndecode.8,v 1.7 1999/12/13 22:11:55 hm Exp $
+.\"	$Id: isdndecode.8,v 1.9 2000/02/21 15:17:17 hm Exp $
 .\"
-.\"	last edit-date: [Mon Dec 13 23:03:21 1999]
+.\"	last edit-date: [Mon Feb 21 16:15:09 2000]
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 17, 1998
+.Dd February 21, 2000
 .Dt ISDNDECODE 8
 .Os
 .Sh NAME
@@ -46,6 +46,7 @@
 .Op Fl o
 .Op Fl p Ar filename
 .Op Fl u Ar number
+.Op Fl x
 .Op Fl B
 .Op Fl P
 .Op Fl R Ar unit
@@ -72,11 +73,9 @@ Run
 in analyzer mode by using two passive cards and a custom cable which can
 be build as described in the file
 .Em cable.txt
-in the isdn4bsd source distribution.
-One card acts as a receiver for the
+in the isdn4bsd source distribution. One card acts as a receiver for the
 transmitting direction on the S0 bus while the other card acts as a receiver
-for the receiving direction on the S0 bus.
-Complete traffic monitoring is
+for the receiving direction on the S0 bus. Complete traffic monitoring is
 possible using this setup.
 .It Fl b
 switch B channel tracing on (default off).
@@ -104,6 +103,8 @@ is isdntracebin<n> where n is the number of the unit to decode).
 Use
 .Ar number
 as the unit number of the controller card to decode (default 0).
+.It Fl x
+Decode Layer 3 packets with an unknown protocol discriminator.
 .It Fl B
 Write undecoded binary decode data to a file for later or remote
 analyzing (default off).
@@ -124,8 +125,7 @@ When the USR1 signal is sent to a
 process, the currently used logfiles are reopened, so that logfile
 rotation becomes possible.
 .Pp
-The decode output should be obvious.
-It is very handy to have the following
+The decode output should be obvious. It is very handy to have the following
 standard texts available when tracing ISDN protocols:
 .Pp
 .Bl -tag -width Ds -compact -offset indent

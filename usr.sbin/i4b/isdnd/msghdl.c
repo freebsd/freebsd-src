@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b daemon - message from kernel handling routines
  *	--------------------------------------------------
  *
- *	$Id: msghdl.c,v 1.71 1999/12/13 21:25:25 hm Exp $ 
+ *	$Id: msghdl.c,v 1.78 2000/09/21 11:29:51 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:47:54 1999]
+ *      last edit-date: [Thu Sep 21 11:11:48 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -66,10 +66,17 @@ msg_connect_ind(msg_connect_ind_t *mp)
 #define SRC (aliasing == 0 ? mp->src_telno : src_tela)
 #define DST (aliasing == 0 ? mp->dst_telno : dst_tela)
 
+	if(aliasing)
+	{
+		src_tela = get_alias(mp->src_telno);
+		dst_tela = get_alias(mp->dst_telno);
+	}
+
 	if((cep = find_matching_entry_incoming(mp)) == NULL)
 	{
 		/* log message generated in find_matching_entry_incoming() */
 		sendm_connect_resp(NULL, mp->header.cdid, SETUP_RESP_DNTCRE, 0);
+		handle_scrprs(mp->header.cdid, mp->scr_ind, mp->prs_ind, SRC);
 		return;
 	}
 
@@ -103,17 +110,12 @@ msg_connect_ind(msg_connect_ind_t *mp)
 		}
 	}
 
-	if(aliasing)
-	{
-		src_tela = get_alias(mp->src_telno);
-		dst_tela = get_alias(mp->dst_telno);
-	}
-
 	if(cep->inout == DIR_OUTONLY)
 	{
 		log(LL_CHD, "%05d %s incoming call from %s to %s not allowed by configuration!",
 			mp->header.cdid, cep->name, SRC, DST);
 		sendm_connect_resp(NULL, mp->header.cdid, SETUP_RESP_DNTCRE, 0);
+		handle_scrprs(mp->header.cdid, mp->scr_ind, mp->prs_ind, SRC);
 		return;
 	}
 
@@ -176,6 +178,7 @@ msg_connect_ind(msg_connect_ind_t *mp)
 			break;
 
 		case REACT_CALLBACK:
+		
 #ifdef NOTDEF
 /*XXX reserve channel ??? */	decr_free_channels(mp->controller);
 #endif
@@ -184,15 +187,42 @@ msg_connect_ind(msg_connect_ind_t *mp)
 				log(LL_CHD, "%05d %s reserved: incoming call from %s to %s",
 					mp->header.cdid, cep->name, SRC, DST);
 				sendm_connect_resp(cep, mp->header.cdid, SETUP_RESP_REJECT,
+#if 0
 					(CAUSET_I4B << 8) | CAUSE_I4B_NORMAL);
+#else
+					(CAUSET_I4B << 8) | CAUSE_I4B_REJECT);
+#endif					
 				/* no state change */
 			}
 			else
 			{
+				sendm_connect_resp(cep, mp->header.cdid, SETUP_RESP_REJECT,
+#if 0
+					(CAUSET_I4B << 8) | CAUSE_I4B_NORMAL);
+#else
+					(CAUSET_I4B << 8) | CAUSE_I4B_REJECT);
+#endif					
+				if(cep->budget_callbackperiod && cep->budget_callbackncalls)
+				{
+					cep->budget_callback_req++;
+					cep->budget_calltype = 0;
+					if(cep->budget_callbackncalls_cnt == 0)
+					{
+						log(LL_CHD, "%05d %s no budget: call from %s to %s",
+							mp->header.cdid, cep->name, SRC, DST);
+						cep->cdid = CDID_UNUSED;
+						cep->budget_callback_rej++;
+						break;
+					}
+					else
+					{
+						cep->budget_calltype = BUDGET_TYPE_CBACK;
+					}
+				}
+
 				log(LL_CHD, "%05d %s callback: incoming call from %s to %s",
 					mp->header.cdid, cep->name, SRC, DST);
-				sendm_connect_resp(cep, mp->header.cdid, SETUP_RESP_REJECT,
-					(CAUSET_I4B << 8) | CAUSE_I4B_NORMAL);
+
 				cep->last_release_time = time(NULL);
 				cep->cdid = CDID_RESERVED;
 				next_state(cep, EV_CBRQ);
@@ -204,6 +234,7 @@ msg_connect_ind(msg_connect_ind_t *mp)
 			sendm_connect_resp(NULL, mp->header.cdid, SETUP_RESP_DNTCRE, 0);
 			break;
 	}
+	handle_scrprs(mp->header.cdid, mp->scr_ind, mp->prs_ind, SRC);
 #undef SRC
 #undef DST
 }
@@ -250,6 +281,29 @@ msg_connect_active_ind(msg_connect_active_ind_t *mp)
 			cep->cdid, cep->name,
 			cep->isdncontrollerused, cep->isdnchannelused,
 			bdrivername(cep->usrdevicename), cep->usrdeviceunit);
+
+		if(cep->budget_calltype)
+		{
+			if(cep->budget_calltype == BUDGET_TYPE_CBACK)
+			{
+				cep->budget_callback_done++;
+				cep->budget_callbackncalls_cnt--;
+				DBGL(DL_BDGT, (log(LL_DBG, "%s: new cback-budget = %d",
+					cep->name, cep->budget_callbackncalls_cnt)));
+				if(cep->budget_callbacks_file != NULL)
+					upd_callstat_file(cep->budget_callbacks_file, cep->budget_callbacksfile_rotate);
+			}
+			else if(cep->budget_calltype == BUDGET_TYPE_COUT)
+			{
+				cep->budget_callout_done++;
+				cep->budget_calloutncalls_cnt--;
+				DBGL(DL_BDGT, (log(LL_DBG, "%s: new cout-budget = %d",
+					cep->name, cep->budget_calloutncalls_cnt)));
+				if(cep->budget_callouts_file != NULL)
+					upd_callstat_file(cep->budget_callouts_file, cep->budget_calloutsfile_rotate);
+			}
+			cep->budget_calltype = 0;
+		}
 	}
 	else
 	{
@@ -735,7 +789,25 @@ msg_dialout(msg_dialout_ind_t *mp)
 		dialresponse(cep, DSTAT_INONLY);
 		return;
 	}
-	
+
+	if(cep->budget_calloutperiod && cep->budget_calloutncalls)
+	{
+		cep->budget_calltype = 0;
+		cep->budget_callout_req++;
+		
+		if(cep->budget_calloutncalls_cnt == 0)
+		{
+			log(LL_CHD, "%05d %s no budget for calling out", 0, cep->name);
+			cep->budget_callout_rej++;
+			dialresponse(cep, DSTAT_TFAIL);
+			return;
+		}
+		else
+		{
+			cep->budget_calltype = BUDGET_TYPE_COUT;
+		}
+	}
+
 	if((cep->cdid = get_cdid()) == 0)
 	{
 		DBGL(DL_DRVR, (log(LL_DBG, "msg_dialout: get_cdid() returned 0!")));
@@ -770,6 +842,24 @@ msg_dialoutnumber(msg_dialoutnumber_ind_t *mp)
 		return;
 	}
 	
+	if(cep->budget_calloutperiod && cep->budget_calloutncalls)
+	{
+		cep->budget_calltype = 0;
+		cep->budget_callout_req++;
+		
+		if(cep->budget_calloutncalls_cnt == 0)
+		{
+			log(LL_CHD, "%05d %s no budget for calling out", 0, cep->name);
+			cep->budget_callout_rej++;
+			dialresponse(cep, DSTAT_TFAIL);
+			return;
+		}
+		else
+		{
+			cep->budget_calltype = BUDGET_TYPE_COUT;
+		}
+	}
+
 	if((cep->cdid = get_cdid()) == 0)
 	{
 		DBGL(DL_DRVR, (log(LL_DBG, "msg_dialoutnumber: get_cdid() returned 0!")));
@@ -922,6 +1012,9 @@ strapp(char *buf, const char *txt)
 	return buf;
 }
 
+/*---------------------------------------------------------------------------*
+ *    handle incoming MSG_PACKET_IND message
+ *---------------------------------------------------------------------------*/
 static char *
 ipapp(char *buf, unsigned long a )
 {
@@ -935,6 +1028,9 @@ ipapp(char *buf, unsigned long a )
 	return buf;
 }
 
+/*---------------------------------------------------------------------------*
+ *    handle incoming MSG_PACKET_IND message
+ *---------------------------------------------------------------------------*/
 void
 msg_packet_ind(msg_packet_ind_t *mp)
 {
@@ -1093,7 +1189,7 @@ sendm_connect_req(cfg_entry_t *cep)
  *	send message "connect response" to kernel
  *---------------------------------------------------------------------------*/
 int
-sendm_connect_resp(cfg_entry_t *cep, int cdid, int response, int cause)
+sendm_connect_resp(cfg_entry_t *cep, int cdid, int response, cause_t cause)
 {
 	msg_connect_resp_t mcr;
 	int ret;
@@ -1105,6 +1201,7 @@ sendm_connect_resp(cfg_entry_t *cep, int cdid, int response, int cause)
 	if(response == SETUP_RESP_REJECT)
 	{
 		mcr.cause = cause;
+		DBGL(DL_DRVR, (log(LL_DBG, "sendm_connect_resp: reject, cause=0x%x", cause)));
 	}
 	else if(response == SETUP_RESP_ACCEPT)
 	{
@@ -1118,6 +1215,8 @@ sendm_connect_resp(cfg_entry_t *cep, int cdid, int response, int cause)
 		mcr.driver_unit = cep->usrdeviceunit;
 
 		mcr.max_idle_time = cep->idle_time_in;
+
+		DBGL(DL_DRVR, (log(LL_DBG, "sendm_connect_resp: accept")));
 	}
 	
 	if((ret = ioctl(isdnfd, I4B_CONNECT_RESP, &mcr)) < 0)
@@ -1125,9 +1224,6 @@ sendm_connect_resp(cfg_entry_t *cep, int cdid, int response, int cause)
 		log(LL_ERR, "sendm_connect_resp: ioctl I4B_CONNECT_RESP failed: %s", strerror(errno));
 		error_exit(1, "sendm_connect_resp: ioctl I4B_CONNECT_RESP failed: %s", strerror(errno));
 	}
-
-	DBGL(DL_DRVR, (log(LL_DBG, "sendm_connect_resp: sent CONNECT_RESP")));
-
 	return(ret);
 }
 
@@ -1135,7 +1231,7 @@ sendm_connect_resp(cfg_entry_t *cep, int cdid, int response, int cause)
  *	send message "disconnect request" to kernel
  *---------------------------------------------------------------------------*/
 int
-sendm_disconnect_req(cfg_entry_t *cep, int cause)
+sendm_disconnect_req(cfg_entry_t *cep, cause_t cause)
 {
 	msg_discon_req_t mcr;
 	int ret = 0;

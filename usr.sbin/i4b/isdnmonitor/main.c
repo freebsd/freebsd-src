@@ -33,7 +33,7 @@
  *	i4b daemon - network monitor client
  *	-----------------------------------
  *
- *	$Id: main.c,v 1.34 1999/12/13 21:25:26 hm Exp $
+ *	$Id: main.c,v 1.35 2000/08/24 11:48:57 hm Exp $
  *
  * $FreeBSD$
  *
@@ -527,7 +527,7 @@ print_logevent(time_t tstamp, int prio, char * what, char * msg)
 				COLS-((strlen(buf))+(strlen(what))+3), msg);
 #else
 	                wprintw(lower_w, "%s %s %-.*s\n", buf, what,
-				COLS-((strlen(buf))+(strlen(what))+2), msg);
+				(int)(COLS-((strlen(buf))+(strlen(what))+2)), msg);
 #endif
 			wrefresh(lower_w);
                 }

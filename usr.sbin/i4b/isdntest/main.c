@@ -27,11 +27,11 @@
  *	main.c - i4b selftest utility
  *	-----------------------------
  *
- *	$Id: main.c,v 1.15 1999/12/13 21:25:26 hm Exp $ 
+ *	$Id: main.c,v 1.16 2000/03/13 16:18:38 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:55:19 1999]
+ *      last edit-date: [Mon Mar 13 17:19:26 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -459,6 +459,7 @@ handle_connect_active_ind(unsigned char *ptr)
 				fprintf(stderr, "\n");
 			}
 			cleanup();
+			exit(0);
 		}
 	}
 }
@@ -548,7 +549,8 @@ void cleanup(void)
 
 	while((out_cdid != CDID_UNUSED) || (in_cdid != CDID_UNUSED))
 	{
-		fprintf(stderr, "isdntest: cleanup, out_cdid %d, in_cdid %d\n", out_cdid, in_cdid);
+		if(debug_level)
+			fprintf(stderr, "isdntest: cleanup, out_cdid %d, in_cdid %d\n", out_cdid, in_cdid);
 
 		if((len = read(isdnfd, buf, 1024 - 1)) > 0)
 		{
@@ -567,7 +569,8 @@ void cleanup(void)
 					break;
 					
 				default:
-					fprintf(stderr, "isdntest: unknown message 0x%x = %c\n", buf[0], buf[0]);
+					if(debug_level)				
+						fprintf(stderr, "isdntest: unknown message 0x%x = %c\n", buf[0], buf[0]);
 					break;
 			}
 		}
@@ -576,7 +579,8 @@ void cleanup(void)
 			fprintf(stderr, "isdntest: read error, errno = %d, length = %d", errno, len);
 		}
 	}
-	fprintf(stderr, "isdntest: exit cleanup, out_cdid %d, in_cdid %d\n", out_cdid, in_cdid);
+	if(debug_level)	
+		fprintf(stderr, "isdntest: exit cleanup, out_cdid %d, in_cdid %d\n", out_cdid, in_cdid);
 }
 
 /*---------------------------------------------------------------------------*
