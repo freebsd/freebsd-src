@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.20 1997/11/25 09:51:46 kato Exp $
+ *	$Id: syscons.h,v 1.21 1998/01/12 15:34:18 kato Exp $
  */
 
 #ifndef _PC98_PC98_SYSCONS_H_
@@ -48,7 +48,7 @@
 				}
 #define mark_all(scp)		{\
 				    scp->start = 0;\
-				    scp->end = scp->xsize * scp->ysize;\
+				    scp->end = scp->xsize * scp->ysize - 1;\
 				}
 
 /* status flags */
