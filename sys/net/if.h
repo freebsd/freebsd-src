@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.25 1995/12/09 20:47:09 phk Exp $
+ * $Id: if.h,v 1.26 1996/01/26 09:29:17 phk Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -117,13 +117,12 @@ struct	ifqueue {
 	int	ifq_drops;
 };
 
-#define IF_NPRIVATE 4
-
 /*
  * Structure describing information about an interface
  * which may be of interest to management entities.
  */
 struct ifnet {
+	void	*if_softc;		/* pointer to driver state */
 	char	*if_name;		/* name, e.g. ``en'' or ``lo'' */
 	struct	ifnet *if_next;		/* all struct ifnets are chained */
 	struct	ifaddr *if_addrlist;	/* linked list of addresses per if */
@@ -133,6 +132,8 @@ struct ifnet {
 	short	if_unit;		/* sub-unit for lower level driver */
 	short	if_timer;		/* time 'til if_watchdog called */
 	short	if_flags;		/* up/down, broadcast, etc. */
+	u_char	if_recvquota, if_sendquota; /* quotas for send, receive */
+	u_char	if_ipending;		/* interrupts pending */
 	struct	if_data if_data;
 /* procedure handles */
 	int	(*if_output)		/* output routine (enqueue) */
@@ -146,8 +147,16 @@ struct ifnet {
 		__P((struct ifnet *, int, caddr_t));
 	void	(*if_watchdog)		/* timer routine */
 		__P((struct ifnet *));
+	void	(*if_poll_recv)		/* polled receive routine */
+		__P((struct ifnet *, int *));
+	void	(*if_poll_xmit)		/* polled transmit routine */
+		__P((struct ifnet *, int *));
+	void	(*if_poll_intren)	/* polled interrupt reenable routine */
+		__P((struct ifnet *));
+	void	(*if_poll_slowinput)	/* input routine for slow devices */
+		__P((struct ifnet *, struct mbuf *));
 	struct	ifqueue if_snd;		/* output queue */
-	void 	*if_private[IF_NPRIVATE]; /* opaque data for various clients */
+	struct	ifqueue *if_poll_slowq;	/* input queue for slow devices */
 };
 #define	if_mtu		if_data.ifi_mtu
 #define	if_type		if_data.ifi_type
@@ -202,6 +211,12 @@ struct ifnet {
 #define IFP_10BASE2	1
 #define IFP_10BASET	2
 /* etc. */
+
+/*
+ * Bit values in if_ipending
+ */
+#define	IFI_RECV	1	/* I want to receive */
+#define	IFI_XMIT	2	/* I want to transmit */
 
 /*
  * Output queues (ifp->if_snd) and internetwork datagram level (pup level 1)
