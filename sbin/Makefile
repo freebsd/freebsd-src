@@ -9,10 +9,8 @@ SUBDIR= adjkerntz badsect clri disklabel dmesg dump dumpfs dumplfs \
 	nologin ping quotacheck reboot restore route savecore shutdown \
 	slattach startslip swapon sysinstall tunefs umount
 
-.if	make(clean) || make(cleandir)
-SUBDIR+=comcontrol fdisk ft mount_msdos
-.elif	${MACHINE} == "i386"
-SUBDIR+=comcontrol fdisk ft mount_msdos
+.if exists(${.CURDIR}/${MACHINE})
+SUBDIR+= ${MACHINE}
 .endif
 
 .include <bsd.subdir.mk>
