@@ -584,7 +584,7 @@ dc_eeprom_getword(struct dc_softc *sc, int addr, u_int16_t *dest)
  * Read a sequence of words from the EEPROM.
  */
 static void
-dc_read_eeprom(struct dc_softc *sc, caddr_t dest, int off, int cnt, int swap)
+dc_read_eeprom(struct dc_softc *sc, caddr_t dest, int off, int cnt, int be)
 {
 	int i;
 	u_int16_t word = 0, *ptr;
@@ -597,10 +597,10 @@ dc_read_eeprom(struct dc_softc *sc, caddr_t dest, int off, int cnt, int swap)
 		else
 			dc_eeprom_getword(sc, off + i, &word);
 		ptr = (u_int16_t *)(dest + (i * 2));
-		if (swap)
-			*ptr = ntohs(word);
+		if (be)
+			*ptr = be16toh(word);
 		else
-			*ptr = word;
+			*ptr = le16toh(word);
 	}
 }
 
