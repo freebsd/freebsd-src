@@ -32,7 +32,7 @@
 .\" USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 .\" DAMAGE.
 .\"
-.\" $Id: wormcontrol.8,v 1.10 1997/10/27 12:25:37 charnier Exp $
+.\" $Id: wormcontrol.8,v 1.11 1998/03/23 08:30:03 charnier Exp $
 .\"
 .\" arrgh, hilit19 needs this" :-(
 .Dd January 27, 1996
@@ -127,6 +127,11 @@ stands for
 which means that the next session on the CD-R will be opened and can
 be recorded in the future.  Otherwise, the CD-R will be closed and
 remains unchangeable.
+.It blank 
+Blank a CD-RW disk.
+.It nextwriteable
+Sets the next writeable location on the drive, used when writing 
+more than one track ie CD-DA (audio) disks.
 .El
 .Sh DIAGNOSTICS
 Error codes for the underlying
