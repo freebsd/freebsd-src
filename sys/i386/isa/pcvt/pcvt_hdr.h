@@ -32,7 +32,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_hdr.h, 3.20, Last Edit-Date: [Thu Jan 26 09:54:00 1995]
+ * @(#)pcvt_hdr.h, 3.20, Last Edit-Date: [Sun Feb 26 13:12:33 1995]
  *
  */
 
@@ -54,10 +54,14 @@
  *	-hm	some adjustments for NetBSD 1.0
  *	-hm	patch from Joerg fixing FreeBSD 2.0 support
  *	-hm	patch from Onno/John for NetBSD-current
+ *	-hm	applying patch from Joerg fixing Crtat bug
+ *	-hm	removed PCVT_FAKE_SYSCONS10
+ *	-hm	added pcstop (patch from Onno)
+ *	-hm	multiple X server bugfixes from Lon Willett
  *
  *---------------------------------------------------------------------------*/
 
-#define	PCVT_REL "3.20-b19"	/* driver attach announcement	*/
+#define	PCVT_REL "3.20-b22"	/* driver attach announcement	*/
 				/* see also: pcvt_ioctl.h	*/
 
 #include "param.h"
@@ -192,16 +196,6 @@ in the config file"
 #if PCVT_PRETTYSCRNS && !PCVT_SCREENSAVER
 #undef PCVT_SCREENSAVER
 #define PCVT_SCREENSAVER 1
-#endif
-
-/* PCVT_FAKE_SYSCONS10 meaningless without PCVT_USL_VT_COMPAT */
-#if PCVT_FAKE_SYSCONS10 && !PCVT_USL_VT_COMPAT
-#undef PCVT_FAKE_SYSCONS10
-#define PCVT_FAKE_SYSCONS10 0
-#endif
-
-#if PCVT_FAKE_SYSCONS10
-# warning "options PCVT_FAKE_SYSCONS10 will be removed in the next release"
 #endif
 
 /* get the inline inb/outb back again ... */
@@ -761,26 +755,21 @@ typedef struct video_state {
 	u_char	bell_on;		/* flag, bell enabled */
 	u_char	sevenbit;		/* flag, data path 7 bits wide */
 	u_char	dis_fnc;		/* flag, display functions enable */
-	u_char	transparent;		/* flag, make path temp transparent
-					 * for ctrls */
+	u_char	transparent;		/* flag, mk path tmp trnsprnt for ctls*/
 	u_char	scrr_beg;		/* scrolling region, begin */
 	u_char	scrr_len;		/* scrolling region, length */
 	u_char	scrr_end;		/* scrolling region, end */
-	u_char	screen_rows;		/* screen size, length (minus status
-					 * lines) */
+	u_char	screen_rows;		/* screen size, length - status lines */
 	u_char	screen_rowsize; 	/* screen size, length */
 	u_char	vga_charset;		/* VGA character set value */
-	u_char	lastchar;		/* flag, vt100 behaviour of last char
-					 * on line */
-	u_char	lastrow;		/* save row, vt100 behaviour of last
-					 * char on line */
+	u_char	lastchar;		/* flag, vt100 behaviour of last char */
+	u_char	lastrow;		/* save row, --------- " -----------  */
 	u_char	*report_chars;		/* ptr, status reports from terminal */
-	u_char	report_count;		/* count, -"- */
+	u_char	report_count;		/* count, ----------- " ------------ */
 	u_char	state;			/* escape sequence state machine */
 	u_char	m_awm;			/* flag, vt100 mode, auto wrap */
 	u_char	m_om;			/* flag, vt100 mode, origin mode */
-	u_char	sc_flag;		/* flag, vt100 mode, saved parms
-					 * valid */
+	u_char	sc_flag;		/* flag, vt100 mode,saved parms valid */
 	u_char	sc_row;			/* saved row */
 	u_char	sc_col;			/* saved col */
 	u_short sc_cur_offset;		/* saved cursor addr offset */
@@ -797,8 +786,7 @@ typedef struct video_state {
 	u_char	sc_sel;			/* selective erase state */
 	u_char	ufkl[8][17];		/* user fkey-labels */
 	u_char	sfkl[8][17];		/* system fkey-labels */
-	u_char	labels_on;		/* display fkey labels and status
-					 * line on/off */
+	u_char	labels_on;		/* display fkey labels etc. on/off */
 	u_char	which_fkl;		/* which fkey labels are active */
 	char	tab_stops[MAXTAB]; 	/* table of active tab stops */
 	u_char	parmi;			/* parameter index */
@@ -838,8 +826,7 @@ typedef struct video_state {
 	u_short *GR;			/* ptr to current GR conversion table*/
 	u_short *G0;			/* ptr to current G0 conversion table*/
 	u_short *G1;			/* ptr to current G1 conversion table*/
-	u_char force24;			/* force 24 lines in DEC 25 and HP 28
-					 * lines */
+	u_char force24;			/* force 24 lines in DEC 25 and HP 28*/
 	u_short *G2;			/* ptr to current G2 conversion table*/
 	u_short *G3;			/* ptr to current G3 conversion table*/
 	u_char	dld_id[DSCS_LENGTH+1];	/* soft character set id */
@@ -1175,35 +1162,36 @@ int	pcread ( Dev_t dev, struct uio *uio, int flag );
 int	pcwrite ( Dev_t dev, struct uio *uio, int flag );
 int	pcioctl ( Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p );
 int	pcmmap ( Dev_t dev, int offset, int nprot );
+#if PCVT_FREEBSD > 205
+struct tty *pcdevtotty ( Dev_t dev );
+#endif /* PCVT_FREEBSD > 205 */
 int	pcrint ( void );
 int	pcparam ( struct tty *tp, struct termios *t );
 int	pccnprobe ( struct consdev *cp );
 int	pccninit ( struct consdev *cp );
 int	pccnputc ( Dev_t dev, U_char c );
 int	pccngetc ( Dev_t dev );
+void	pcstart ( struct tty *tp );
+void	pcstop ( struct tty *tp, int flag );
 
-#if PCVT_NETBSD
-void	pcstart ( struct tty *tp );
-#else
-void	pcstart ( struct tty *tp );
 # if PCVT_FREEBSD < 200
 void	consinit ( void );
 # endif
-#endif /*  PCVT_NETBSD */
 
 #if PCVT_USL_VT_COMPAT
-void	switch_screen ( int n, int dontsave );
+void	switch_screen ( int n, int oldgrafx, int newgrafx );
 int	usl_vt_ioctl (Dev_t dev, int cmd, caddr_t data, int flag,
 		      struct proc *);
 int	vt_activate ( int newscreen );
 int	vgapage ( int n );
 void	get_usl_keymap( keymap_t *map );
+void	reset_usl_modes (struct video_state *vsx);
 #else
 void	vgapage ( int n );
 #endif /* PCVT_USL_VT_COMPAT */
 
 #if PCVT_EMU_MOUSE
-int mouse_ioctl ( Dev_t dev, int cmd, caddr_t data );
+int	mouse_ioctl ( Dev_t dev, int cmd, caddr_t data );
 #endif /*  PCVT_EMU_MOUSE */
 
 #if PCVT_SCREENSAVER
@@ -1240,6 +1228,8 @@ void	kbd_emulate_pc(int do_emulation);
 int	kbdioctl ( Dev_t dev, int cmd, caddr_t data, int flag );
 void	loadchar ( int fontset, int character, int char_scanlines,
 		   u_char *char_table );
+void	mda2egaorvga ( void );
+		   
 #if PCVT_NEEDPG
 int	pg ( char *p, int q, int r, int s, int t, int u, int v,
 	     int w, int x, int y, int z );

@@ -37,7 +37,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_sup.c, 3.20, Last Edit-Date: [Thu Jan  5 16:49:50 1995]
+ * @(#)pcvt_sup.c, 3.20, Last Edit-Date: [Sun Feb 19 19:59:38 1995]
  *
  */
 
@@ -55,6 +55,8 @@
  *	-hm	applying Lon Willet's patches for NetBSD
  *	-hm	NetBSD PR #400: patch to short-circuit TIOCSWINSZ
  *	-hm	getting PCVT_BURST reported correctly for FreeBSD 2.0
+ *	-hm	applying patch from Joerg fixing Crtat bug
+ *	-hm	moving ega/vga coldinit support code to mda2egaorvga()
  *
  *---------------------------------------------------------------------------*/
 
@@ -286,9 +288,14 @@ vgapcvtinfo(struct pcvtinfo *data)
 	data->pcburst	= 1;
 #endif
 
+#if PCVT_KBD_FIFO
 	data->kbd_fifo_sz = PCVT_KBD_FIFO_SZ;
+#else
+	data->kbd_fifo_sz = 0;
+#endif
 	
 	data->compile_opts = (0
+
 #if PCVT_VT220KEYB
 	| CONF_VT220KEYB
 #endif
@@ -348,9 +355,6 @@ vgapcvtinfo(struct pcvtinfo *data)
 #endif
 #if PCVT_USL_VT_COMPAT
 	| CONF_USL_VT_COMPAT
-#endif
-#if PCVT_FAKE_SYSCONS10
-	| CONF_FAKE_SYSCONS10
 #endif
 #if PCVT_INHIBIT_NUMLOCK
 	| CONF_INHIBIT_NUMLOCK
@@ -550,7 +554,7 @@ vgasetfontattr(struct vgafontattr *data)
 #if !PCVT_USL_VT_COMPAT
 	vgapage(current_video_screen);
 #else
-	switch_screen(current_video_screen, 0);
+	switch_screen(current_video_screen, 0, 0);
 #endif /* !PCVT_USL_VT_COMPAT */
 
 }
@@ -1585,16 +1589,13 @@ vga_move_charset(unsigned n, unsigned char *b, int save_it)
 
 #endif /* PCVT_BACKUP_FONTS */
 
+
+#if !PCVT_USL_VT_COMPAT
 /*---------------------------------------------------------------------------*
  *	switch to virtual screen n (0 ... PCVT_NSCREENS-1)
  *---------------------------------------------------------------------------*/
-#if !PCVT_USL_VT_COMPAT
 void
 vgapage(int n)
-#else
-void
-switch_screen(int n, int dontsave)
-#endif /* !PCVT_USL_VT_COMPAT */
 {
 
 #if !PCVT_KBD_FIFO
@@ -1610,21 +1611,12 @@ switch_screen(int n, int dontsave)
 	x = spltty();			/* protect us */
 #endif	/* !PCVT_KBD_FIFO */
 
-#if PCVT_USL_VT_COMPAT
-	if(!dontsave)
-	{
-#endif /* PCVT_USL_VT_COMPAT*/
-
 	/* video board memory -> kernel memory */
 
 	bcopy(vsp->Crtat, vsp->Memory, vsp->screen_rows * vsp->maxcol * CHR);
 
 	vsp->Crtat = vsp->Memory;	/* operate in memory now */
 
-#if PCVT_USL_VT_COMPAT
-	}
-#endif /*  PCVT_USL_VT_COMPAT */
-	
 	/* update global screen pointers/variables */
 
 	current_video_screen = n;	/* current screen no */
@@ -1635,7 +1627,7 @@ switch_screen(int n, int dontsave)
 	pcconsp = pccons[n];		/* current tty */
 #else
 	pcconsp = pc_tty[n];		/* current tty */
-#endif /* !PCVT_NETBSD */
+#endif
 
 	vsp = &vs[n];			/* current video state ptr */
 
@@ -1690,6 +1682,7 @@ switch_screen(int n, int dontsave)
 
 	update_hp(vsp);			/* update fkey labels, if present */
 }
+#endif /* !PCVT_USL_VT_COMPAT */
 
 /*---------------------------------------------------------------------------*
  *	test if it is a vga
@@ -2144,6 +2137,54 @@ sw_cursor(int onoff)
 		else
 			outb(addr_6845+1, CURSOR_ON_BIT);
 	}
+}
+
+/*---------------------------------------------------------------------------*
+ *	cold init support, if a mono monitor is attached to a
+ *	vga or ega, it comes up with a mda emulation. switch
+ *	board to generic ega/vga mode in this case.
+ *---------------------------------------------------------------------------*/
+void
+mda2egaorvga(void)
+{
+	/*
+	 * program sequencer to access
+	 * video ram
+	 */
+
+	/* synchronous reset */
+	outb(TS_INDEX, TS_SYNCRESET);
+	outb(TS_DATA, 0x01);
+
+	/* write to map 0 & 1 */
+	outb(TS_INDEX, TS_WRPLMASK);
+	outb(TS_DATA, 0x03);
+
+	/* odd-even addressing */
+	outb(TS_INDEX, TS_MEMMODE);
+	outb(TS_DATA, 0x03);
+
+	/* clear synchronous reset */
+	outb(TS_INDEX, TS_SYNCRESET);
+	outb(TS_DATA, 0x03);
+
+	/*
+	 * program graphics controller
+	 * to access character
+	 * generator
+	 */
+
+	/* select map 0 for cpu reads */
+	outb(GDC_INDEX, GDC_RDPLANESEL);
+	outb(GDC_DATA, 0x00);
+
+	/* enable odd-even addressing */
+	outb(GDC_INDEX, GDC_MODE);
+	outb(GDC_DATA, 0x10);
+
+	/* map starts at 0xb000 */
+	outb(GDC_INDEX, GDC_MISC);
+	outb(GDC_DATA, 0x0a);
 }
 
 #endif	/* NVT > 0 */
