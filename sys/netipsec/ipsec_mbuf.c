@@ -42,8 +42,6 @@
 
 #include <netipsec/ipsec.h>
 
-extern	struct mbuf *m_getptr(struct mbuf *, int, int *);
-
 /*
  * Create a writable copy of the mbuf chain.  While doing this
  * we compact the chain with a goal of producing a chain with

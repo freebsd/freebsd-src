@@ -582,6 +582,8 @@ extern	int		 nmbufs;
 extern	int		 nsfbufs;
 
 void		 m_adj(struct mbuf *, int);
+int		 m_apply(struct mbuf *, int, int,
+		    int (*)(void *, void *, unsigned int), void *);
 void		 m_cat(struct mbuf *, struct mbuf *);
 int		 m_clalloc(int, int);
 caddr_t		 m_clalloc_wait(void);
@@ -603,6 +605,7 @@ struct  mbuf	*m_getcl(int how, short type, int flags);
 struct	mbuf	*m_getclr(int, int);
 struct	mbuf	*m_gethdr(int, int);
 struct	mbuf	*m_getm(struct mbuf *, int, int, int);
+struct	mbuf	*m_getptr(struct mbuf *, int, int *);
 u_int		m_length(struct mbuf *, struct mbuf **);
 int		 m_mballoc(int, int);
 struct	mbuf	*m_mballoc_wait(int, int);
