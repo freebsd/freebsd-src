@@ -28,6 +28,9 @@
 #include "file.h"
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 #include <string.h>
 #include <ctype.h>
 #include <errno.h>
@@ -39,7 +42,7 @@
 #endif
 
 #ifndef	lint
-FILE_RCSID("@(#)$Id: apprentice.c,v 1.42 2001/07/22 21:04:15 christos Exp $")
+FILE_RCSID("@(#)$Id: apprentice.c,v 1.44 2001/08/01 14:03:19 christos Exp $")
 #endif	/* lint */
 
 #define	EATAB {while (isascii((unsigned char) *l) && \
@@ -330,7 +333,7 @@ parse(magicp, nmagicp, l, action)
 {
 	int i = 0;
 	struct magic *m;
-	char *t, *s;
+	char *t;
 
 #define ALLOC_INCR	200
 	if (*nmagicp + 1 >= maxmagic){

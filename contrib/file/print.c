@@ -41,7 +41,7 @@
 #include <time.h>
 
 #ifndef lint
-FILE_RCSID("@(#)$Id: print.c,v 1.33 2001/07/22 21:04:15 christos Exp $")
+FILE_RCSID("@(#)$Id: print.c,v 1.34 2001/08/07 16:01:26 christos Exp $")
 #endif  /* lint */
 
 #define SZOF(a)	(sizeof(a) / sizeof(a[0]))
@@ -234,10 +234,24 @@ fmttime(v, local)
 {
 	char *pp, *rt;
 	time_t t = (time_t)v;
+	struct tm *tm;
+
 	if (local) {
 		pp = ctime(&t);
 	} else {
-		struct tm *tm;
+#ifndef HAVE_DAYLIGHT
+		static int daylight = 0;
+#ifdef HAVE_TM_ISDST
+		static time_t now = (time_t)0;
+
+		if (now == (time_t)0) {
+			struct tm *tm1;
+			(void)time(&now);
+			tm1 = localtime(&now);
+			daylight = tm1->tm_isdst;
+		}
+#endif /* HAVE_TM_ISDST */
+#endif /* HAVE_DAYLIGHT */
 		if (daylight)
 			t += 3600;
 		tm = gmtime(&t);
