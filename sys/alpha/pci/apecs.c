@@ -85,11 +85,7 @@ static devclass_t	apecs_devclass;
 static device_t		apecs0;		/* XXX only one for now */
 
 struct apecs_softc {
-	vm_offset_t	dmem_base;	/* dense memory */
-	vm_offset_t	smem_base;	/* sparse memory */
-	vm_offset_t	io_base;	/* dense i/o */
-	vm_offset_t	cfg0_base;	/* dense pci0 config */
-	vm_offset_t	cfg1_base;	/* dense pci1 config */
+	int junk;
 };
 
 #define APECS_SOFTC(dev)	(struct apecs_softc*) device_get_softc(dev)
@@ -300,9 +296,8 @@ apecs_swiz_writel(u_int32_t pa, u_int32_t data)
 	type val = ~0;							\
 	int ipl = 0;							\
 	u_int32_t old_haxr2 = 0;					\
-	struct apecs_softc* sc = APECS_SOFTC(apecs0);			\
 	vm_offset_t off = APECS_SWIZ_CFGOFF(b, s, f, r);		\
-	vm_offset_t kv = SPARSE_##width##_ADDRESS(sc->cfg0_base, off);	\
+	vm_offset_t kv = SPARSE_##width##_ADDRESS(KV(APECS_PCI_CONF), off);	\
 	alpha_mb();							\
 	APECS_TYPE1_SETUP(b,ipl,old_haxr2);				\
 	if (!badaddr((caddr_t)kv, sizeof(type))) {			\
@@ -314,9 +309,8 @@ apecs_swiz_writel(u_int32_t pa, u_int32_t data)
 #define SWIZ_CFGWRITE(b, s, f, r, data, width, type)			\
 	int ipl = 0;							\
 	u_int32_t old_haxr2 = 0;					\
-	struct apecs_softc* sc = APECS_SOFTC(apecs0);			\
 	vm_offset_t off = APECS_SWIZ_CFGOFF(b, s, f, r);		\
-	vm_offset_t kv = SPARSE_##width##_ADDRESS(sc->cfg0_base, off);	\
+	vm_offset_t kv = SPARSE_##width##_ADDRESS(KV(APECS_PCI_CONF), off);	\
 	alpha_mb();							\
 	APECS_TYPE1_SETUP(b,ipl,old_haxr2);				\
 	if (!badaddr((caddr_t)kv, sizeof(type))) {			\
@@ -326,7 +320,6 @@ apecs_swiz_writel(u_int32_t pa, u_int32_t data)
         APECS_TYPE1_TEARDOWN(b,ipl,old_haxr2);				\
 	return;							
 
-#if 1
 static u_int8_t
 apecs_swiz_cfgreadb(u_int h, u_int b, u_int s, u_int f, u_int r)
 {
@@ -362,69 +355,6 @@ apecs_swiz_cfgwritel(u_int h, u_int b, u_int s, u_int f, u_int r, u_int32_t data
 {
 	SWIZ_CFGWRITE(b, s, f, r, data, LONG, u_int32_t);
 }
-
-#else
-static u_int8_t
-apecs_swiz_cfgreadb(u_int h, u_int b, u_int s, u_int f, u_int r)
-{
-	struct apecs_softc* sc = APECS_SOFTC(apecs0);
-	vm_offset_t off = APECS_SWIZ_CFGOFF(b, s, f, r);
-	alpha_mb();
-	if (badaddr((caddr_t)(sc->cfg0_base + SPARSE_BYTE_OFFSET(off)), 1)) return ~0;
-	return SPARSE_READ_BYTE(sc->cfg0_base, off);
-}
-
-static u_int16_t
-apecs_swiz_cfgreadw(u_int h, u_int b, u_int s, u_int f, u_int r)
-{
-	struct apecs_softc* sc = APECS_SOFTC(apecs0);
-	vm_offset_t off = APECS_SWIZ_CFGOFF(b, s, f, r);
-	alpha_mb();
-	if (badaddr((caddr_t)(sc->cfg0_base + SPARSE_WORD_OFFSET(off)), 2)) return ~0;
-	return SPARSE_READ_WORD(sc->cfg0_base, off);
-}
-
-static u_int32_t
-apecs_swiz_cfgreadl(u_int h, u_int b, u_int s, u_int f, u_int r)
-{
-	struct apecs_softc* sc = APECS_SOFTC(apecs0);
-	vm_offset_t off = APECS_SWIZ_CFGOFF(b, s, f, r);
-	alpha_mb();
-	if (badaddr((caddr_t)(sc->cfg0_base + SPARSE_LONG_OFFSET(off)), 4)) return ~0;
-	return SPARSE_READ_LONG(sc->cfg0_base, off);
-}
-
-static void
-apecs_swiz_cfgwriteb(u_int h, u_int b, u_int s, u_int f, u_int r, u_int8_t data)
-{
-	struct apecs_softc* sc = APECS_SOFTC(apecs0);
-	vm_offset_t off = APECS_SWIZ_CFGOFF(b, s, f, r);
-	if (badaddr((caddr_t)(sc->cfg0_base + SPARSE_BYTE_OFFSET(off)), 1)) return;
-	SPARSE_WRITE_BYTE(sc->cfg0_base, off, data);
-	alpha_wmb();
-}
-
-static void
-apecs_swiz_cfgwritew(u_int h, u_int b, u_int s, u_int f, u_int r, u_int16_t data)
-{
-	struct apecs_softc* sc = APECS_SOFTC(apecs0);
-	vm_offset_t off = APECS_SWIZ_CFGOFF(b, s, f, r);
-	if (badaddr((caddr_t)(sc->cfg0_base + SPARSE_WORD_OFFSET(off)), 2)) return;
-	SPARSE_WRITE_WORD(sc->cfg0_base, off, data);
-	alpha_wmb();
-}
-
-static void
-apecs_swiz_cfgwritel(u_int h, u_int b, u_int s, u_int f, u_int r, u_int32_t data)
-{
-	struct apecs_softc* sc = APECS_SOFTC(apecs0);
-	vm_offset_t off = APECS_SWIZ_CFGOFF(b, s, f, r);
-	if (badaddr((caddr_t)(sc->cfg0_base + SPARSE_LONG_OFFSET(off)), 4)) return;
-	SPARSE_WRITE_LONG(sc->cfg0_base, off, data);
-	alpha_wmb();
-}
-#endif
-
 
 static vm_offset_t
 apecs_cvt_dense(vm_offset_t addr)
@@ -582,15 +512,7 @@ apecs_probe(device_t dev)
 static int
 apecs_attach(device_t dev)
 {
-	struct apecs_softc* sc = APECS_SOFTC(dev);
 	apecs_init();
-
-	sc->dmem_base = APECS_PCI_DENSE;
-	sc->smem_base = APECS_PCI_SPARSE;
-	sc->io_base = APECS_PCI_SIO;
-	sc->cfg0_base = KV(APECS_PCI_CONF);
-	sc->cfg1_base = NULL;
-
 	set_iointr(alpha_dispatch_intr);
 
 	snprintf(chipset_type, sizeof(chipset_type), "apecs");
