@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.27 1997/11/22 03:37:44 brian Exp $
+ * $Id: route.c,v 1.28 1997/11/22 13:46:02 brian Exp $
  *
  */
 
@@ -147,7 +147,6 @@ static void
 p_sockaddr(struct sockaddr *phost, struct sockaddr *pmask, int width)
 {
   char buf[29];
-  const char *cp;
   struct sockaddr_in *ihost = (struct sockaddr_in *)phost;
   struct sockaddr_in *mask = (struct sockaddr_in *)pmask;
   struct sockaddr_dl *dl = (struct sockaddr_dl *)phost;
@@ -155,11 +154,11 @@ p_sockaddr(struct sockaddr *phost, struct sockaddr *pmask, int width)
   switch (phost->sa_family) {
   case AF_INET:
     if (!phost)
-      cp = "";
+      buf[0] = '\0';
     else if (ihost->sin_addr.s_addr == INADDR_ANY)
-      cp = "default";
+      strcpy(buf, "default");
     else if (!mask) 
-      cp = inet_ntoa(ihost->sin_addr);
+      strcpy(buf, inet_ntoa(ihost->sin_addr));
     else {
       u_int msk = ntohl(mask->sin_addr.s_addr);
       u_int tst;
@@ -185,36 +184,38 @@ p_sockaddr(struct sockaddr *phost, struct sockaddr *pmask, int width)
         sprintf(buf+strlen(buf),"&0x%08x", msk);
       else
         sprintf(buf+strlen(buf), "/%d", bits);
-      cp = buf;
     }
     break;
 
   case AF_LINK:
-    if (!dl)
-      cp = "";
-    else if (dl->sdl_nlen == 0 && dl->sdl_alen == 0 && dl->sdl_slen == 0) {
-      sprintf(buf, "link#%d", dl->sdl_index);
-      cp = buf;
-    } else if (dl->sdl_type == IFT_ETHER && dl->sdl_alen &&
-               dl->sdl_alen < sizeof(buf)/3) {
-      int f;
-      u_char *MAC;
+    if (dl->sdl_nlen)
+      snprintf(buf, sizeof buf, "%.*s", dl->sdl_nlen, dl->sdl_data);
+    else if (dl->sdl_alen)
+      if (dl->sdl_type == IFT_ETHER)
+        if (dl->sdl_alen < sizeof(buf)/3) {
+          int f;
+          u_char *MAC;
 
-      MAC = (u_char *)dl->sdl_data + dl->sdl_nlen;
-      for (f = 0; f < dl->sdl_alen; f++)
-        sprintf(buf+f*3, "%02x:", MAC[f]);
-      buf[f*3-1] = '\0';
-      cp = buf;
-    } else
-      cp = "???";
+          MAC = (u_char *)dl->sdl_data + dl->sdl_nlen;
+          for (f = 0; f < dl->sdl_alen; f++)
+            sprintf(buf+f*3, "%02x:", MAC[f]);
+          buf[f*3-1] = '\0';
+        } else
+          sprintf(buf, "??:??:??:??:??:??");
+      else
+        sprintf(buf, "<IFT type %d>", dl->sdl_type);
+    else if (dl->sdl_slen)
+      sprintf(buf, "<slen %d?>", dl->sdl_slen);
+    else
+      sprintf(buf, "link#%d", dl->sdl_index);
     break;
 
   default:
-    cp = "???";
+    sprintf(buf, "<AF type %d>", phost->sa_family);
     break;
   }
 
-  fprintf(VarTerm, "%-*s ", width-1, cp);
+  fprintf(VarTerm, "%-*s ", width-1, buf);
 }
 
 struct bits {
