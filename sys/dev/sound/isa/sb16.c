@@ -33,8 +33,6 @@
 
 #include <dev/sound/pcm/sound.h>
 
-#include "sbc.h"
-
 #define __SB_MIXER_C__	/* XXX warning... */
 #include  <dev/sound/isa/sb.h>
 #include  <dev/sound/chip.h>
