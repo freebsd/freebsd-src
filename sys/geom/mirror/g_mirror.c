@@ -757,6 +757,7 @@ g_mirror_bump_genid(struct g_mirror_softc *sc)
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
 		if (disk->d_state == G_MIRROR_DISK_STATE_ACTIVE ||
 		    disk->d_state == G_MIRROR_DISK_STATE_SYNCHRONIZING) {
+			disk->d_genid = sc->sc_genid;
 			g_mirror_update_metadata(disk);
 		}
 	}
