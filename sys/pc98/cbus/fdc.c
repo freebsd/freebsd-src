@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.22 1997/09/18 08:10:45 kato Exp $
+ *	$Id: fd.c,v 1.23 1997/09/22 12:23:47 kato Exp $
  *
  */
 
@@ -1657,7 +1657,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 	TRACE1("[%s]", fdstates[fdc->state]);
 	TRACE1("(0x%x)", fd->flags);
 	untimeout(fd_turnoff, (caddr_t)fdu, fd->toffhandle);
-	timeout(fd_turnoff, (caddr_t)fdu, 4 * hz);
+	fd->toffhandle = timeout(fd_turnoff, (caddr_t)fdu, 4 * hz);
 	switch (fdc->state)
 	{
 	case DEVIDLE:
