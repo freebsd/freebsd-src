@@ -248,6 +248,16 @@ list_cmd() {
 static void
 delete_cmd() {
 	char	n[MAX_FNAME];
+	int ch, first;
+
+	if (isatty(STDIN_FILENO)) {
+		(void)fprintf(stderr, "remove crontab for %s? ", User);
+		first = ch = getchar();
+		while (ch != '\n' && ch != EOF)
+			ch = getchar();
+		if (first != 'y' && first != 'Y')
+			return;
+	}
 
 	log_it(RealUser, Pid, "DELETE", User);
 	(void) sprintf(n, CRON_TAB(User));
