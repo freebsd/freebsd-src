@@ -19,6 +19,7 @@
  * Inc.; 675 Mass Ave. Cambridge, MA 02139, USA.
  */
 
+#include <sys/stat.h>
 #include <stdio.h>
 #include "decimal.h"  /* definitions for our decimal arithmetic package */
 
@@ -508,10 +509,16 @@ fetch()
 	}
       else if (file_count)
 	{
-	  open_file = fopen (*next_file++, "r");
+	  struct stat stat_buf;
 	  file_count--;
+	  if (stat(*next_file, &stat_buf) == 0) && !S_ISDIR(stat_buf.st_mode))
+	  {
+	  open_file = fopen (*next_file++, "r");
 	  if (!open_file)
 	    perror_with_name (*(next_file - 1));
+	  }
+	  else
+	     next_file++;
 	}
       else break;
     }
