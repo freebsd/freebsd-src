@@ -283,7 +283,8 @@ extern int rl_forced_update_display ();
 #define RL_PROMPT_END_IGNORE	'\002'
 
 #if !defined (savestring)
-extern char *savestring ();	/* XXX backwards compatibility */
+#define savestring rl_savestring        /* XXX backwards compatibility */
 #endif
+extern char *rl_savestring ();
 
 #endif /* _READLINE_H_ */
