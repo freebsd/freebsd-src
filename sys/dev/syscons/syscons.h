@@ -25,11 +25,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.43 1998/09/29 02:00:57 ache Exp $
+ *	$Id: syscons.h,v 1.44 1998/10/01 11:39:18 yokota Exp $
  */
 
-#ifndef _I386_ISA_SYSCONS_H_
-#define	_I386_ISA_SYSCONS_H_
+#ifndef _DEV_SYSCONS_SYSCONS_H_
+#define	_DEV_SYSCONS_SYSCONS_H_
 
 /* vm things */
 #define	ISMAPPED(pa, width) \
@@ -52,11 +52,7 @@
 				}
 
 /* status flags */
-#define LOCK_KEY_MASK	0x0000F
-#define LED_MASK	0x00007
 #define UNKNOWN_MODE	0x00010
-#define KBD_RAW_MODE	0x00020
-#define KBD_CODE_MODE	0x00040
 #define SWITCH_WAIT_REL	0x00080
 #define SWITCH_WAIT_ACQ	0x00100
 #define BUFFER_SAVED	0x00200
@@ -73,11 +69,15 @@
 #define VISUAL_BELL	0x00001
 #define BLINK_CURSOR	0x00002
 #define CHAR_CURSOR	0x00004
+/* these options are now obsolete; use corresponding options for kbd driver */
+#if 0
 #define DETECT_KBD	0x00008
 #define XT_KEYBD	0x00010
 #define KBD_NORESET	0x00020
+#endif
 #define QUIET_BELL	0x00040
 #define VESA800X600	0x00080
+#define AUTODETECT_KBD	0x00100
 
 /* attribute flags */
 #define NORMAL_ATTR             0x00
@@ -128,7 +128,8 @@ typedef struct term_stat {
 } term_stat;
 
 typedef struct scr_stat {
-	int		adp;			/* video adapter index */
+	int		ad;			/* video adapter index */
+	video_adapter_t	*adp;			/* video adapter structure */
 	u_short 	*scr_buf;		/* buffer when off screen */
 	int 		xpos;			/* current X position */
 	int 		ypos;			/* current Y position */
@@ -145,6 +146,7 @@ typedef struct scr_stat {
 	int		end;			/* modified area end */
 	term_stat 	term;			/* terminal emulation stuff */
 	int	 	status;			/* status (bitfield) */
+	int		kbd_mode;		/* keyboard I/O mode */
 	u_short 	*cursor_pos;		/* cursor buffer position */
 	u_short 	*cursor_oldpos;		/* cursor old buffer position */
 	u_short		cursor_saveunder;	/* saved chars under cursor */
@@ -164,7 +166,6 @@ typedef struct scr_stat {
 	u_short		bell_duration;
 	u_short		bell_pitch;
 	u_char		border;			/* border color */
-	int	 	initial_mode;		/* initial mode */
 	int	 	mode;			/* mode */
 	pid_t 		pid;			/* pid of controlling proc */
 	struct proc 	*proc;			/* proc* of controlling proc */
@@ -175,10 +176,8 @@ typedef struct scr_stat {
 	u_short		*history_save;		/* save area index */
 	int		history_size;		/* size of history buffer */
 	struct apmhook  r_hook;			/* reconfiguration support */
-#ifdef SC_SPLASH_SCREEN
 	int		splash_save_mode;	/* saved mode for splash screen */
 	int		splash_save_status;	/* saved status for splash screen */
-#endif
 } scr_stat;
 
 typedef struct default_attr {
@@ -211,13 +210,12 @@ scr_stat *sc_get_scr_stat(dev_t dev);
 
 void copy_font(scr_stat *scp, int operation, int font_size, u_char *font_image);
 void set_border(scr_stat *scp, int color);
-#define save_palette(scp, pal)	(*biosvidsw.save_palette)((scp)->adp, pal)
-#define load_palette(scp, pal)	(*biosvidsw.load_palette)((scp)->adp, pal)
-#define get_adapter(scp)	(*biosvidsw.adapter)((scp)->adp)
+#define save_palette(adp, pal)				\
+	(*vidsw[(adp)->va_index]->save_palette)((adp), (pal))
+#define load_palette(adp, pal)				\
+	(*vidsw[(adp)->va_index]->load_palette)((adp), (pal))
 
-int add_scrn_saver(void (*this)(int));
-int remove_scrn_saver(void (*this)(int));
-
+void sc_touch_scrn_saver(void);
 void sc_clear_screen(scr_stat *scp);
 void sc_move_mouse(scr_stat *scp, int x, int y);
 int sc_clean_up(scr_stat *scp);
@@ -235,11 +233,4 @@ int sc_set_pixel_mode(scr_stat *scp, struct tty *tp,
 int sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, 
 		 struct proc *p);
 
-#ifdef SC_SPLASH_SCREEN
-/* splash.c */
-void scsplash(int);
-int scsplash_load(scr_stat *scp);
-int scsplash_unload(scr_stat *scp);
-#endif
-
-#endif /* !_I386_ISA_SYSCONS_H_ */
+#endif /* !_DEV_SYSCONS_SYSCONS_H_ */

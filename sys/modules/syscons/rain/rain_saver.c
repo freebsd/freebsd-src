@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: rain_saver.c,v 1.1 1998/12/31 13:41:40 des Exp $
  */
 
 #include <sys/param.h>
@@ -34,7 +34,6 @@
 #include <sys/module.h>
 #include <sys/syslog.h>
 
-#include <machine/md_var.h>
 #include <machine/random.h>
 
 #include <saver.h>
@@ -45,11 +44,11 @@ static u_char *vid;
 #define SCRH 200
 #define MAX 63
 
-static u_char save_pal[768];
 static u_char rain_pal[768];
+static int blanked;
 
 static void
-rain_update(void)
+rain_update(video_adapter_t *adp)
 {
     int i, t;
 
@@ -57,28 +56,21 @@ rain_update(void)
     for (i = (MAX*3+2); i > 5; i -= 3)
 	rain_pal[i] = rain_pal[i-3];
     rain_pal[5] = t;
-    load_palette(cur_console, rain_pal);
+    load_palette(adp, rain_pal);
 }
 
-static void
-rain_saver(int blank)
+static int
+rain_saver(video_adapter_t *adp, int blank)
 {
-    scr_stat *scp = cur_console;
-    static int saved_mode;
     int i, j, k, pl;
 
     if (blank) {
 	/* switch to graphics mode */
-	if (scrn_blanked <= 0) {
+	if (blanked <= 0) {
 	    pl = splhigh();
-	    saved_mode = scp->mode;
-	    scp->mode = M_VGA_CG320;
-	    scp->status |= SAVER_RUNNING|GRAPHICS_MODE;
-	    save_palette(scp, save_pal);
-	    set_mode(scp);
-	    load_palette(scp, rain_pal);
-	    scrn_blanked++;
-	    vid = (u_char *)Crtat;
+	    set_video_mode(adp, M_VGA_CG320, rain_pal, 0);
+	    blanked++;
+	    vid = (u_char *)adp->va_window;
 	    splx(pl);
 	    bzero(vid, SCRW*SCRH);
 	    for (i = 0; i < SCRW; i += 2)
@@ -89,33 +81,22 @@ rain_saver(int blank)
 	}
 
 	/* update display */
-	rain_update();
+	rain_update(adp);
 	
     } else {
-	/* return to previous video mode */
-	if (scrn_blanked > 0) {
-	    if (saved_mode) {
-		pl = splhigh();
-		scrn_blanked = 0;
-		scp->mode = saved_mode;
-		scp->status &= ~(SAVER_RUNNING|GRAPHICS_MODE);
-		set_mode(scp);
-		load_palette(scp, save_pal);
-		saved_mode = 0;
-		splx(pl);
-	    }
-	}
+	blanked = 0;
     }
+    return 0;
 }
 
 static int
-rain_saver_load(void)
+rain_init(video_adapter_t *adp)
 {
     video_info_t info;
     int i;
 
     /* check that the console is capable of running in 320x200x256 */
-    if ((*biosvidsw.get_info)(cur_console->adp, M_VGA_CG320, &info)) {
+    if (get_mode_info(adp, M_VGA_CG320, &info)) {
         log(LOG_NOTICE, "rain_saver: the console does not support M_VGA_CG320\n");
 	return ENODEV;
     }
@@ -123,14 +104,20 @@ rain_saver_load(void)
     /* intialize the palette */
     for (i = 3; i < (MAX+1)*3; i += 3)
 	rain_pal[i+2] = rain_pal[i-1] + 4;
-	    
-    return add_scrn_saver(rain_saver);
+
+    blanked = 0;
+
+    return 0;
 }
 
 static int
-rain_saver_unload(void)
+rain_term(video_adapter_t *adp)
 {
-    return remove_scrn_saver(rain_saver);
+    return 0;
 }
 
-SAVER_MODULE(rain_saver);
+static scrn_saver_t rain_module = {
+    "rain_saver", rain_init, rain_term, rain_saver, NULL,
+};
+
+SAVER_MODULE(rain_saver, rain_module);

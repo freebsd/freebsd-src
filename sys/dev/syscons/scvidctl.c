@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: scvidctl.c,v 1.4 1998/09/29 02:00:56 ache Exp $
+ * $Id: $
  */
 
 #include "sc.h"
@@ -40,11 +40,36 @@
 #include <machine/apm_bios.h>
 #include <machine/console.h>
 
-#include <i386/isa/videoio.h>
-#include <i386/isa/syscons.h>
+#include <dev/fb/fbreg.h>
+#include <dev/syscons/syscons.h>
 
-/* video ioctl */
+/* for compatibility with previous versions */
+typedef struct old_video_adapter {
+    int			va_index;
+    int			va_type;
+    int			va_flags;
+#define V_ADP_COLOR	(1<<0)
+#define V_ADP_MODECHANGE (1<<1)
+#define V_ADP_STATESAVE	(1<<2)
+#define V_ADP_STATELOAD	(1<<3)
+#define V_ADP_FONT	(1<<4)
+#define V_ADP_PALETTE	(1<<5)
+#define V_ADP_BORDER	(1<<6)
+#define V_ADP_VESA	(1<<7)
+    int			va_crtc_addr;
+    u_int		va_window;	/* virtual address */
+    size_t		va_window_size;
+    size_t		va_window_gran;
+    u_int		va_buffer;	/* virtual address */
+    size_t		va_buffer_size;
+    int			va_initial_mode;
+    int			va_initial_bios_mode;
+    int			va_mode;
+} old_video_adapter_t;
 
+#define OLD_CONS_ADPINFO _IOWR('c', 101, old_video_adapter_t)
+
+/* variables */
 extern scr_stat *cur_console;
 extern int fonts_loaded;
 extern int sc_history_size;
@@ -54,15 +79,13 @@ int
 sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode, int xsize, int ysize,
 		 int fontsize)
 {
-    video_adapter_t *adp;
     video_info_t info;
     int error;
     int s;
     int i;
 
-    if ((*biosvidsw.get_info)(scp->adp, mode, &info))
+    if ((*vidsw[scp->ad]->get_info)(scp->adp, mode, &info))
 	return ENODEV;
-    adp = get_adapter(scp);
  
     /* adjust argument values */
     if (fontsize <= 0)
@@ -108,12 +131,14 @@ sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode, int xsize, int ysize,
     scp->font_size = fontsize;
     scp->xsize = xsize;
     scp->ysize = ysize;
+    scp->xoff = 0;
+    scp->yoff = 0;
     scp->xpixel = scp->xsize*8;
     scp->ypixel = scp->ysize*fontsize;
 
     /* allocate buffers */
     sc_alloc_scr_buffer(scp, TRUE, TRUE);
-    if (ISMOUSEAVAIL(adp->va_flags))
+    if (ISMOUSEAVAIL(scp->adp->va_flags))
 	sc_alloc_cut_buffer(scp, FALSE);
     sc_alloc_history_buffer(scp, sc_history_size, i, FALSE);
     splx(s);
@@ -137,14 +162,12 @@ sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode, int xsize, int ysize,
 int
 sc_set_graphics_mode(scr_stat *scp, struct tty *tp, int mode)
 {
-    video_adapter_t *adp;
     video_info_t info;
     int error;
     int s;
 
-    if ((*biosvidsw.get_info)(scp->adp, mode, &info))
+    if ((*vidsw[scp->ad]->get_info)(scp->adp, mode, &info))
 	return ENODEV;
-    adp = get_adapter(scp);
 
     /* stop screen saver, etc */
     s = spltty();
@@ -157,6 +180,8 @@ sc_set_graphics_mode(scr_stat *scp, struct tty *tp, int mode)
     scp->status |= (UNKNOWN_MODE | GRAPHICS_MODE);
     scp->status &= ~PIXEL_MODE;
     scp->mode = mode;
+    scp->xoff = 0;
+    scp->yoff = 0;
     scp->xpixel = info.vi_width;
     scp->ypixel = info.vi_height;
     scp->xsize = info.vi_width/8;
@@ -187,15 +212,13 @@ int
 sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize, 
 		  int fontsize)
 {
-    video_adapter_t *adp;
     video_info_t info;
     int error;
     int s;
     int i;
 
-    if ((*biosvidsw.get_info)(scp->adp, scp->mode, &info))
+    if ((*vidsw[scp->ad]->get_info)(scp->adp, scp->mode, &info))
 	return ENODEV;		/* this shouldn't happen */
-    adp = get_adapter(scp);
 
 #ifdef SC_VIDEO_DEBUG
     if (scp->scr_buf != NULL) {
@@ -230,7 +253,7 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
 	printf("set_pixel_mode(): mode:%x, col:%d, row:%d, font:%d\n",
 	       scp->mode, xsize, ysize, fontsize);
 	printf("set_pixel_mode(): window:%x, %dx%d, xoff:%d, yoff:%d\n",
-	       adp->va_window, info.vi_width, info.vi_height, 
+	       scp->adp->va_window, info.vi_width, info.vi_height, 
 	       (info.vi_width/8 - xsize)/2,
 	       (info.vi_height/fontsize - ysize)/2);
     }
@@ -274,7 +297,7 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
 
     /* allocate buffers */
     sc_alloc_scr_buffer(scp, TRUE, TRUE);
-    if (ISMOUSEAVAIL(adp->va_flags))
+    if (ISMOUSEAVAIL(scp->adp->va_flags))
 	sc_alloc_cut_buffer(scp, FALSE);
     sc_alloc_history_buffer(scp, sc_history_size, i, FALSE);
     splx(s);
@@ -304,7 +327,6 @@ int
 sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
     scr_stat *scp;
-    video_adapter_t *adp;
     int error;
     int s;
 
@@ -313,19 +335,66 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
     switch (cmd) {
 
     case CONS_CURRENT:  	/* get current adapter type */
-	adp = get_adapter(scp);
-	*(int *)data = adp->va_type;
+	if (scp->adp == NULL)
+	    return ENODEV;
+	*(int *)data = scp->adp->va_type;
 	return 0;
 
     case CONS_CURRENTADP:	/* get current adapter index */
-	*(int *)data = scp->adp;
+	*(int *)data = scp->ad;
+	return 0;
+
+    case OLD_CONS_ADPINFO:	/* adapter information */
+	if (scp->adp == NULL)
+	    return ENODEV;
+	((old_video_adapter_t *)data)->va_index = scp->adp->va_index;
+	((old_video_adapter_t *)data)->va_type = scp->adp->va_type;
+	((old_video_adapter_t *)data)->va_flags = scp->adp->va_flags;
+	((old_video_adapter_t *)data)->va_crtc_addr = scp->adp->va_crtc_addr;
+	((old_video_adapter_t *)data)->va_window = scp->adp->va_window;
+	((old_video_adapter_t *)data)->va_window_size
+	    = scp->adp->va_window_size;
+	((old_video_adapter_t *)data)->va_window_gran
+	    = scp->adp->va_window_gran;
+	((old_video_adapter_t *)data)->va_buffer = scp->adp->va_buffer;
+	((old_video_adapter_t *)data)->va_buffer_size
+	    = scp->adp->va_buffer_size;
+	((old_video_adapter_t *)data)->va_mode = scp->adp->va_mode;
+	((old_video_adapter_t *)data)->va_initial_mode
+	    = scp->adp->va_initial_mode;
+	((old_video_adapter_t *)data)->va_initial_bios_mode
+	    = scp->adp->va_initial_bios_mode;
 	return 0;
 
     case CONS_ADPINFO:		/* adapter information */
-	adp = (*biosvidsw.adapter)(((video_adapter_t *)data)->va_index);
-	if (adp == NULL)
+	if (scp->adp == NULL)
 	    return ENODEV;
-	bcopy(adp, data, sizeof(*adp));
+	((video_adapter_info_t *)data)->va_index = scp->adp->va_index;
+	((video_adapter_info_t *)data)->va_type = scp->adp->va_type;
+	bcopy(scp->adp->va_name, ((video_adapter_info_t *)data)->va_name,
+	      imin(strlen(scp->adp->va_name) + 1,
+		   sizeof(((video_adapter_info_t *)data)->va_name))); 
+	((video_adapter_info_t *)data)->va_unit = scp->adp->va_unit;
+	((video_adapter_info_t *)data)->va_flags = scp->adp->va_flags;
+	((video_adapter_info_t *)data)->va_io_base = scp->adp->va_io_base;
+	((video_adapter_info_t *)data)->va_io_size = scp->adp->va_io_size;
+	((video_adapter_info_t *)data)->va_crtc_addr = scp->adp->va_crtc_addr;
+	((video_adapter_info_t *)data)->va_mem_base = scp->adp->va_mem_base;
+	((video_adapter_info_t *)data)->va_mem_size = scp->adp->va_mem_size;
+	((video_adapter_info_t *)data)->va_window = scp->adp->va_window;
+	((video_adapter_info_t *)data)->va_window_size
+	    = scp->adp->va_window_size;
+	((video_adapter_info_t *)data)->va_window_gran
+	    = scp->adp->va_window_gran;
+	((video_adapter_info_t *)data)->va_buffer = scp->adp->va_buffer;
+	((video_adapter_info_t *)data)->va_buffer_size
+	    = scp->adp->va_buffer_size;
+	((video_adapter_info_t *)data)->va_mode = scp->adp->va_mode;
+	((video_adapter_info_t *)data)->va_mode_flags = scp->adp->va_mode_flags;
+	((video_adapter_info_t *)data)->va_initial_mode
+	    = scp->adp->va_initial_mode;
+	((video_adapter_info_t *)data)->va_initial_bios_mode
+	    = scp->adp->va_initial_bios_mode;
 	return 0;
 
     case CONS_GET:      	/* get current video mode */
@@ -333,16 +402,16 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case CONS_MODEINFO:		/* get mode information */
-	return ((*biosvidsw.get_info)(scp->adp, 
+	return ((*vidsw[scp->ad]->get_info)(scp->adp, 
 		    ((video_info_t *)data)->vi_mode, (video_info_t *)data) 
 		? ENODEV : 0);
 
     case CONS_FINDMODE:		/* find a matching video mode */
-	return ((*biosvidsw.query_mode)(scp->adp, (video_info_t *)data) 
+	return ((*vidsw[scp->ad]->query_mode)(scp->adp, (video_info_t *)data) 
 		? ENODEV : 0);
 
     case CONS_SETWINORG:
-	return ((*biosvidsw.set_win_org)(scp->adp, *(u_int *)data) 
+	return ((*vidsw[scp->ad]->set_win_org)(scp->adp, *(u_int *)data) 
 		   ? ENODEV : 0);
 
     /* generic text modes */
@@ -363,8 +432,13 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
     case SW_ENH_B80x25: case SW_ENH_C80x25:
     case SW_ENH_B80x43: case SW_ENH_C80x43:
     case SW_EGAMONO80x25:
-	adp = get_adapter(scp);
-	if (!(adp->va_flags & V_ADP_MODECHANGE))
+
+#ifdef PC98
+    /* PC98 TEXT MODES */
+    case SW_PC98_80x25:
+    case SW_PC98_80x30:
+#endif
+	if (!(scp->adp->va_flags & V_ADP_MODECHANGE))
  	    return ENODEV;
 	return sc_set_text_mode(scp, tp, cmd & 0xff, 0, 0, 0);
 
@@ -374,8 +448,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
     case SW_CG640x350: case SW_ENH_CG640:
     case SW_BG640x480: case SW_CG640x480: case SW_VGA_CG320:
     case SW_VGA_MODEX:
-	adp = get_adapter(scp);
-	if (!(adp->va_flags & V_ADP_MODECHANGE))
+	if (!(scp->adp->va_flags & V_ADP_MODECHANGE))
 	    return ENODEV;
 	return sc_set_graphics_mode(scp, tp, cmd & 0xff);
 
@@ -390,8 +463,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
 		return EINVAL;
 	    /* restore fonts & palette ! */
 #if 0
-	    adp = get_adapter(scp);
-	    if (ISFONTAVAIL(adp->va_flags) 
+	    if (ISFONTAVAIL(scp->adp->va_flags) 
 		&& !(scp->status & (GRAPHICS_MODE | PIXEL_MODE)))
 		/*
 		 * FONT KLUDGE
@@ -405,10 +477,10 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
 		    copy_font(scp, LOAD, 16, font_16);
 	    }
 #endif
-	    load_palette(scp, palette);
+	    load_palette(scp->adp, palette);
 
 	    /* move hardware cursor out of the way */
-	    (*biosvidsw.set_hw_cursor)(scp->adp, -1, -1);
+	    (*vidsw[scp->ad]->set_hw_cursor)(scp->adp, -1, -1);
 
 	    /* FALL THROUGH */
 
@@ -424,6 +496,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
 		splx(s);
 		return error;
 	    }
+#ifndef PC98
 	    scp->status |= UNKNOWN_MODE;
 	    splx(s);
 	    /* no restore fonts & palette */
@@ -431,6 +504,14 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
 		set_mode(scp);
 	    sc_clear_screen(scp);
 	    scp->status &= ~UNKNOWN_MODE;
+#else /* PC98 */
+	    scp->status &= ~UNKNOWN_MODE;
+	    /* no restore fonts & palette */
+	    if (scp == cur_console)
+		set_mode(scp);
+	    sc_clear_screen(scp);
+	    splx(s);
+#endif /* PC98 */
 	    return 0;
 
 	case KD_PIXEL:		/* pixel (raster) display */
@@ -448,7 +529,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    splx(s);
 	    if (scp == cur_console) {
 		set_mode(scp);
-		load_palette(scp, palette);
+		load_palette(scp->adp, palette);
 	    }
 	    sc_clear_screen(scp);
 	    scp->status &= ~UNKNOWN_MODE;
@@ -462,6 +543,10 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    }
 	    scp->status |= UNKNOWN_MODE;
 	    splx(s);
+#ifdef PC98
+	    if (scp == cur_console)
+		set_mode(scp);
+#endif
 	    return 0;
 
 	default:
@@ -486,7 +571,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
     case KDSBORDER:     	/* set border color of this (virtual) console */
 	scp->border = *data;
 	if (scp == cur_console)
-	    set_border(cur_console, scp->border);
+	    set_border(scp, scp->border);
 	return 0;
     }
 
