@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.7 1998/07/15 20:16:26 dfr Exp $
+ *	$Id: machdep.c,v 1.8 1998/07/22 08:20:57 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -185,7 +185,6 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 static MALLOC_DEFINE(M_MBUF, "mbuf", "mbuf");
 
 struct msgbuf *msgbufp=0;
-int msgbufmapped = 0;		/* set when safe to use msgbuf */
 
 int bootverbose = 0, Maxmem = 0;
 long dumplo;
@@ -864,17 +863,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 		phys_avail[i+1] -= sz;
 		msgbufp = (struct msgbuf*) ALPHA_PHYS_TO_K0SEG(phys_avail[i+1]);
 
-		cp = (char *)msgbufp;
-		msgbufp = (struct msgbuf *) (cp + sz - sizeof(*msgbufp));
-		if (msgbufp->msg_magic != MSG_MAGIC || msgbufp->msg_ptr != cp) {
-			bzero(cp, sz);
-			msgbufp->msg_magic = MSG_MAGIC;
-			msgbufp->msg_size = (char *)msgbufp - cp;
-			msgbufp->msg_ptr = cp;
-		}
-		msgbufmapped = 1;
-
-		/* initmsgbuf(msgbufaddr, sz); */
+		msgbufinit(msgbufp, MSGBUF_SIZE);
 
 		/* Remove the last segment if it now has no pages. */
 		if (phys_avail[i] == phys_avail[i+1])

@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.50 1998/03/12 09:14:18 bde Exp $
+ *	$Id: mem.c,v 1.1 1998/06/10 10:52:54 dfr Exp $
  */
 
 /*
@@ -199,14 +199,6 @@ mmrw(dev, uio, flags)
 		case 0:
 			v = uio->uio_offset;
 kmemphys:
-			if (v >= ALPHA_K0SEG_TO_PHYS((vm_offset_t)msgbufp)) {
-				if (msgbufmapped == 0) {
-					printf("Message Buf not Mapped\n");
-					error = EFAULT;
-					break;
-				}
-			}
-
 			/* Allow reads only in RAM. */
 			rw = (uio->uio_rw == UIO_READ) ? VM_PROT_READ : VM_PROT_WRITE;
 			if ((alpha_pa_access(v) & rw) != rw) {
