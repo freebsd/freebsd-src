@@ -4,7 +4,8 @@
 # machine-independent stdlib sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/stdlib ${.CURDIR}/../libc/stdlib
 
-MISRCS+=abort.c abs.c atexit.c atof.c atoi.c atol.c bsearch.c calloc.c div.c \
+MISRCS+=abort.c abs.c atexit.c atof.c atoi.c atol.c atoll.c \
+	bsearch.c calloc.c div.c \
 	exit.c getenv.c getopt.c getsubopt.c hcreate.c heapsort.c \
 	imaxabs.c imaxdiv.c labs.c ldiv.c llabs.c lldiv.c \
 	malloc.c merge.c putenv.c qsort.c radixsort.c rand.c random.c \
@@ -33,6 +34,7 @@ MAN+=	abort.3 abs.3 alloca.3 atexit.3 atof.3 atoi.3 atol.3 bsearch.3 \
 	malloc.3 memory.3 qsort.3 radixsort.3 rand.3 random.3 \
 	realpath.3 strfmon.3 strtod.3 strtol.3 strtoul.3 system.3 tsearch.3
 
+MLINKS+=atol.3 atoll.3
 MLINKS+=getenv.3 putenv.3 getenv.3 setenv.3 getenv.3 unsetenv.3
 MLINKS+=hcreate.3 hdestroy.3 hcreate.3 hsearch.3
 MLINKS+=qsort.3 heapsort.3 qsort.3 mergesort.3
