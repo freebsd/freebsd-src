@@ -39,9 +39,10 @@ to produce list of changes from 'vanilla' configuration. You can redirect this
 list to /kernel.config file with no changes - it already contains required
 keywords.
 
-Credits go to Jordan K. Hubbard for 95% of this code. The rest is mine :-)
+Credits (according to jkh) go to Eric L. Hernes for 95% of this code. The
+rest is mine :-)
 
 Andrzej Bialecki
 <abial@nask.pl>
 
-$Id: README,v 1.2 1998/08/11 06:53:21 abial Exp $
+$Id: README,v 1.1.1.1 1998/08/27 17:38:45 abial Exp $
