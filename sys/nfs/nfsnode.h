@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsnode.h	8.4 (Berkeley) 2/13/94
- * $Id: nfsnode.h,v 1.2 1994/08/02 07:52:22 davidg Exp $
+ * $Id: nfsnode.h,v 1.3 1994/08/08 17:30:55 davidg Exp $
  */
 
 /*
@@ -76,7 +76,6 @@ struct nfsnode {
 	time_t	n_expiry;		 /* Lease expiry time */
 	struct	nfsnode *n_tnext;	 /* Nqnfs timer chain */
 	struct	nfsnode *n_tprev;		
-	long	spare1;			/* To 8 byte boundary */
 	struct	sillyrename n_silly;	/* Silly rename struct */
 	struct	timeval n_atim;		/* Special file times */
 	struct	timeval n_mtim;
