@@ -209,11 +209,11 @@ usage()
 void
 finish()
 {
-	int die, e, pid;
-	union wait status;
+	pid_t pid;
+	int die, e, status;
 
 	die = e = 0;
-	while ((pid = wait3((int *)&status, WNOHANG, 0)) > 0)
+	while ((pid = wait3(&status, WNOHANG, 0)) > 0)
 	        if (pid == child) {
 			die = 1;
 			if (WIFEXITED(status))
