@@ -93,6 +93,8 @@ static const char *ohci_device_nec	 = "NEC uPD 9210 USB controller";
 static const char *ohci_device_usb0670	 = "CMD Tech 670 (USB0670) USB controller";
 #define PCI_OHCI_DEVICEID_USB0673	0x06731095
 static const char *ohci_device_usb0673	 = "CMD Tech 673 (USB0673) USB controller";
+#define PCI_OHCI_DEVICEID_SIS5571	0x70011039
+static const char *ohci_device_sis5571	 = "SiS 5571 USB controller";
 
 static const char *ohci_device_generic   = "OHCI (generic) USB controller";
 
@@ -116,6 +118,8 @@ ohci_pci_match(device_t self)
 		return (ohci_device_firelink);
 	case PCI_OHCI_DEVICEID_NEC:
 		return (ohci_device_nec);
+	case PCI_OHCI_DEVICEID_SIS5571:
+		return (ohci_device_sis5571);
 	default:
 		if (   pci_get_class(self)    == PCIC_SERIALBUS
 		    && pci_get_subclass(self) == PCIS_SERIALBUS_USB
@@ -142,7 +146,6 @@ ohci_pci_probe(device_t self)
 static int
 ohci_pci_attach(device_t self)
 {
-	device_t parent = device_get_parent(self);
 	ohci_softc_t *sc = device_get_softc(self);
 	int err;
 	int rid;
@@ -214,6 +217,10 @@ ohci_pci_attach(device_t self)
 		device_set_desc(sc->sc_bus.bdev, ohci_device_usb0673);
 		sprintf(sc->sc_vendor, "CMDTECH");
 		break;
+	case PCI_OHCI_DEVICEID_SIS5571:
+		device_set_desc(sc->sc_bus.bdev, ohci_device_sis5571);
+		sprintf(sc->sc_vendor, "SiS");
+		break;
 	default:
 		if (bootverbose)
 			device_printf(self, "(New OHCI DeviceId=0x%08x)\n",
@@ -222,7 +229,7 @@ ohci_pci_attach(device_t self)
 		sprintf(sc->sc_vendor, "(unknown)");
 	}
 
-	err = BUS_SETUP_INTR(parent, self, irq_res, INTR_TYPE_BIO,
+	err = bus_setup_intr(self, irq_res, INTR_TYPE_BIO,
 			     (driver_intr_t *) ohci_intr, sc, &ih);
 	if (err) {
 		device_printf(self, "could not setup irq, %d\n", err);
@@ -247,7 +254,7 @@ bad4:
 	bus_space_write_4(sc->iot, sc->ioh,
 			  OHCI_INTERRUPT_DISABLE, OHCI_ALL_INTRS);
 
-	err = BUS_TEARDOWN_INTR(parent, self, irq_res, ih);
+	err = bus_teardown_intr(self, irq_res, ih);
 	if (err)
 		/* XXX or should we panic? */
 		device_printf(self, "could not tear down irq, %d\n", err);
