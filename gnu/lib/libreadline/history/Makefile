@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.30 1998/04/28 07:16:24 ache Exp $
+#       $Id: Makefile,v 1.1 1999/05/28 04:26:11 ache Exp $
 
 SUBDIR= doc
 
@@ -6,5 +6,4 @@ LIB=    history
 
 SRCS= $(HISTSRC) xmalloc.c
 
-.include "../Makefile.inc"
 .include <bsd.lib.mk>
