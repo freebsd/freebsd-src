@@ -26,7 +26,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: fsdb.8,v 1.7 1997/04/15 09:02:43 joerg Exp $
+.\"	$Id: fsdb.8,v 1.8 1998/06/15 07:12:18 charnier Exp $
 .\"
 .Dd September 14, 1995
 .Dt FSDB 8
@@ -53,7 +53,7 @@ where
 is the currently selected i-number.  The initial selected inode is the
 root of the filesystem (i-number 2).
 The command processor uses the
-.Xr libedit 3
+.Xr editline 3
 library, so you can use command line editing to reduce typing if desired.
 When you exit the command loop, the file system superblock is marked
 dirty and any buffered blocks are written to the file system.
@@ -72,7 +72,7 @@ write to it.
 .El
 .Sh COMMANDS
 Besides the built-in 
-.Xr libedit 3
+.Xr editline 3
 commands,
 .Nm
 supports these commands:
@@ -208,7 +208,7 @@ field will be set to zero.
 Exit the program.
 .El
 .Sh SEE ALSO
-.Xr libedit 3 ,
+.Xr editline 3 ,
 .Xr fs 5 ,
 .Xr clri 8 ,
 .Xr fsck 8
@@ -221,10 +221,6 @@ You must specify modes as numbers rather than symbolic names.
 There are a bunch of other things that you might want to do which
 .Nm
 doesn't implement.
-.br
-The
-.Xr libedit 3
-reference page is not yet written.
 .Sh HISTORY
 .Nm Fsdb
 uses the source code for
