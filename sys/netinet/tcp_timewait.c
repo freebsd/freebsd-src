@@ -139,9 +139,20 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, pcbcount, CTLFLAG_RD,
  * as required by rfc1122 section 3.2.2.1
  */
  
-static int	icmp_admin_prohib_like_rst = 0;
+static int	icmp_admin_prohib_like_rst = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, icmp_admin_prohib_like_rst, CTLFLAG_RW,
-	&icmp_admin_prohib_like_rst, 0, "Treat ICMP administratively prohibited messages like TCP RST, rfc1122 section 3.2.2.1");
+	&icmp_admin_prohib_like_rst, 0, 
+	"Treat ICMP administratively prohibited messages like TCP RST, rfc1122 section 3.2.2.1");
+
+/*
+ * When icmp_admin_prohib_like_rst is enabled, only act on
+ * sessions in SYN-SENT state
+ */
+
+static int	icmp_like_rst_syn_sent_only = 1;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, icmp_like_rst_syn_sent_only, CTLFLAG_RW,
+	&icmp_like_rst_syn_sent_only, 0, 
+	"When icmp_admin_prohib_like_rst is enabled, only act on sessions in SYN-SENT state");
 
 static void	tcp_cleartaocache __P((void));
 static void	tcp_notify __P((struct inpcb *, int));
@@ -967,12 +978,23 @@ tcp_ctlinput(cmd, sa, vip)
 	register struct ip *ip = vip;
 	register struct tcphdr *th;
 	void (*notify) __P((struct inpcb *, int)) = tcp_notify;
+	tcp_seq tcp_sequence = 0;
+	int tcp_seq_check = 0;
 
 	if (cmd == PRC_QUENCH)
 		notify = tcp_quench;
-	else if ((icmp_admin_prohib_like_rst == 1) && (cmd == PRC_UNREACH_PORT) && (ip))
+	else if ((icmp_admin_prohib_like_rst == 1) && (cmd == PRC_UNREACH_PORT) && 
+			(ip) && ((IP_VHL_HL(ip->ip_vhl) << 2) == sizeof(struct ip))) {
+		/*
+		 * Only go here if the length of the IP header in the ICMP packet
+		 * is 20 bytes, that is it doesn't have options, if it does have
+		 * options, we will not have the first 8 bytes of the TCP header,
+		 * and thus we cannot match against TCP source/destination port
+		 * numbers and TCP sequence number.
+		 */
+		tcp_seq_check = 1;
 		notify = tcp_drop_syn_sent;
-	else if (cmd == PRC_MSGSIZE)
+	} else if (cmd == PRC_MSGSIZE)
 		notify = tcp_mtudisc;
 	else if (!PRC_IS_REDIRECT(cmd) &&
 		 ((unsigned)cmd > PRC_NCMDS || inetctlerrmap[cmd] == 0))
@@ -980,10 +1002,12 @@ tcp_ctlinput(cmd, sa, vip)
 	if (ip) {
 		th = (struct tcphdr *)((caddr_t)ip 
 				       + (IP_VHL_HL(ip->ip_vhl) << 2));
+		if (tcp_seq_check == 1)
+			tcp_sequence = ntohl(th->th_seq);
 		in_pcbnotify(&tcb, sa, th->th_dport, ip->ip_src, th->th_sport,
-			cmd, notify);
+			cmd, notify, tcp_sequence, tcp_seq_check);
 	} else
-		in_pcbnotify(&tcb, sa, 0, zeroin_addr, 0, cmd, notify);
+		in_pcbnotify(&tcb, sa, 0, zeroin_addr, 0, cmd, notify, 0, 0);
 }
 
 #ifdef INET6
@@ -1070,6 +1094,30 @@ tcp6_ctlinput(cmd, sa, d)
 #endif /* INET6 */
 
 /*
+ * Check if the supplied TCP sequence number is a sequence number
+ * for a sent but unacknowledged packet on the given TCP session.
+ */
+int
+tcp_seq_vs_sess(inp, tcp_sequence)
+	struct inpcb *inp;
+	tcp_seq tcp_sequence;
+{
+	struct tcpcb *tp = intotcpcb(inp);
+	/*
+	 * If the sequence number is less than that of the last 
+	 * unacknowledged packet, or greater than that of the 
+	 * last sent, the given sequence number is not that
+	 * of a sent but unacknowledged packet for this session.
+	 */
+	if (SEQ_LT(tcp_sequence, tp->snd_una) ||
+			SEQ_GT(tcp_sequence, tp->snd_max)) {
+		return(0);
+	} else {
+		return(1);
+	}
+}
+
+/*
  * When a source quench is received, close congestion window
  * to one segment.  We will gradually open it again as we proceed.
  */
@@ -1086,7 +1134,9 @@ tcp_quench(inp, errno)
 
 /*
  * When a ICMP unreachable is recieved, drop the
- * TCP connection, but only if in SYN_SENT
+ * TCP connection, depending on the sysctl
+ * icmp_like_rst_syn_sent_only, it only drops
+ * the session if it's in SYN-SENT state
  */
 void
 tcp_drop_syn_sent(inp, errno)
@@ -1094,8 +1144,9 @@ tcp_drop_syn_sent(inp, errno)
 	int errno;
 {
 	struct tcpcb *tp = intotcpcb(inp);
-	if((tp) && (tp->t_state == TCPS_SYN_SENT))
-			tcp_drop(tp, errno);
+	if((tp) && ((icmp_like_rst_syn_sent_only == 0) || 
+			(tp->t_state == TCPS_SYN_SENT)))
+		tcp_drop(tp, errno);
 }
 
 /*
