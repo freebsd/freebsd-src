@@ -643,7 +643,7 @@ makebootarea(char *boot, struct disklabel *dp, int f)
 	if ((tmpbuf = (char *)malloc((int)dp->d_secsize)) == 0)
 		err(4, "%s", xxboot);
 	memcpy((void *)tmpbuf, (void *)boot, (int)dp->d_secsize);
-#endif /* i386 */
+#endif /* __i386__ */
 	if (read(b, boot, (int)dp->d_secsize) < 0)
 		err(4, "%s", xxboot);
 	(void)close(b);
@@ -657,7 +657,7 @@ makebootarea(char *boot, struct disklabel *dp, int f)
 		       (void *)&tmpbuf[DOSPARTOFF],
 		       NDOSPART * sizeof(struct dos_partition));
 	free(tmpbuf);
-#endif /* i386 */
+#endif /* __i386__ */
 	b = open(bootxx, O_RDONLY);
 	if (b < 0)
 		err(4, "%s", bootxx);
