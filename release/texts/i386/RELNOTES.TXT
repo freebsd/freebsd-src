@@ -45,7 +45,7 @@ Table of contents:
 
 5. Reporting problems, making suggestions, submitting code
 
-6. Acknowledgements
+6. Acknowledgments
 
 
 1. What's new since the 4.0/5.0 branch
@@ -78,7 +78,7 @@ POSIX.1b Shared Memory Objects are now supported.  The implementation
 uses regular files, but automatically enables the MAP_NOSYNC flag
 when they are mmap(2)ed. [MERGED]
 
-Added support for PCI ethernet adapters based on the National Semiconductor
+Added support for PCI Ethernet adapters based on the National Semiconductor
 DP83815 chipset, including the NetGear FA312-TX.
 
 Due to a licensing change, softupdates have been integrated into the
@@ -106,7 +106,7 @@ The ata(4) driver now has support for ATA100 controllers.  In
 addition, it now supports the ServerWorks ROSB4 ATA33 chipset, the CMD
 648 ATA66 and CMD 649 ATA100 chipsets, and the Cyrix 5530. [MERGED]
 
-The ata(4) driver now has support for tagged queueing, which is
+The ata(4) driver now has support for tagged queuing, which is
 enabled by the ATA_ENABLE_TAGS option. [MERGED]
 
 The ata(4) driver now has support for ATA "pseudo" RAID controllers as
@@ -212,7 +212,7 @@ is useful when write caching is disabled on both SCSI and IDE disks,
 where large memory dumps could take up to an hour to complete. [MERGED]
 
 The bktr(4) driver has been updated to 2.15.  New tuner types have
-been added, and improvememts to the KLD module and to memory
+been added, and improvements to the KLD module and to memory
 allocation have been made. [MERGED]
 
 The bktr(4) driver has been updated to 2.17.  This fixes bugs in devfs
@@ -225,7 +225,7 @@ new Hauppauge Model 44xxx WinTV Cards (the ones with no audio mux).
 Extremely large swap areas (>67 GB) no longer panic the system.
 
 The snc(4) driver for the National Semiconductor DP8393X (SONIC)
-Ethernet controller.  Curently, this driver is only used on the PC-98
+Ethernet controller.  Currently, this driver is only used on the PC-98
 architecture. [MERGED]
 
 The ich(4) driver for the Intel 82801AA (ICH) SMBus controller and
@@ -266,7 +266,7 @@ some Sony laptops, has been added.
 A new netgraph node type ng_one2many(4) for multiplexing and
 demultiplexing packets over multiple links has been added.  [MERGED]
 
-Softupdates for FFS have received some bugfixes and enhancements.
+Softupdates for FFS have received some bug fixes and enhancements.
 
 A number of cleanups and enhancements have been applied to the PCI
 subsystem.  /usr/share/misc/pci_vendors now contains a vendor/device
@@ -280,7 +280,7 @@ sbuf(9).
 
 The el(4) driver can now be loaded as a module.
 
-The vinum(4) volume manager has received some bugfixes and enhancements.
+The vinum(4) volume manager has received some bug fixes and enhancements.
 
 ICMP ECHO and TSTAMP replies are now rate limited.  TCP RSTs generated
 due to packets sent to open and unopen ports are now limited by
@@ -392,7 +392,7 @@ The "nat deny_incoming" command in ppp(8) now works correctly (see
 security advisory FreeBSD-SA-00:70).  [MERGED]
 
 A vulnerability in csh(1)/tcsh(1) temporary files that could allow
-overwriting of arbitary user-writable files has been closed (see
+overwriting of arbitrary user-writable files has been closed (see
 security advisory FreeBSD-SA-00:76). [MERGED]
 
 The ssh(1) binary is no longer SUID root by default.
@@ -612,9 +612,9 @@ these new-style version numbers.  [MERGED]
 
 cvs(1) has been updated to 1.11. [MERGED]
 
-tcpdump(1) has received some updates and bugfixes. [MERGED]
+tcpdump(1) has received some updates and bug fixes. [MERGED]
 
-User-land ppp(8) has received a number of updates and bugfixes. [MERGED]
+User-land ppp(8) has received a number of updates and bug fixes. [MERGED]
 
 To improve performance and disk utilization, the "ports skeletons" in
 the FreeBSD Ports Collection have been restructured.  Installed ports
@@ -787,7 +787,7 @@ consistent fashion now.
 
 config(8) is now better about converting various warnings that should
 have been errors into actual fatal errors with an exit code.  This
-ensures that that 'make buildkernel' doesn't quitely ignore them and
+ensures that that 'make buildkernel' doesn't quietly ignore them and
 build a bogus kernel without a human to read the errors. [MERGED]
 
 pkg_create(1) and pkg_install(1) can now work with packages that have
@@ -1256,10 +1256,10 @@ DEC FDDI (DEFPA/DEFEA) NICs
         - Efficient Networks, Inc. ENI-155p ATM PCI Adapters
 
    o ATM Signalling Protocols
-        - The ATM Forum UNI 3.1 signalling protocol
-        - The ATM Forum UNI 3.0 signalling protocol
+        - The ATM Forum UNI 3.1 signaling protocol
+        - The ATM Forum UNI 3.0 signaling protocol
         - The ATM Forum ILMI address registration
-        - FORE Systems's proprietary SPANS signalling protocol
+        - FORE Systems' proprietary SPANS signaling protocol
         - Permanent Virtual Channels (PVCs)
 
    o IETF "Classical IP and ARP over ATM" model
@@ -1402,7 +1402,7 @@ FAX-Modem/PC-Card
 Melco IGM-PCM56K/IGM-PCM56KH
 Nokia Card Phone 2.0 (gsm900/dcs1800 HSCSD terminal)
 
-PHS Data Commuincation Card/PC-Card
+PHS Data Communication Card/PC-Card
 NTT DoCoMo P-in Comp@ct
 Panasonic KX-PH405
 SII MC-P200
@@ -1550,8 +1550,8 @@ special interest groups not mentioned here, so send mail to majordomo
 and ask about them!
 
 
-6. Acknowledgements
--------------------
+6. Acknowledgments
+------------------
 
 FreeBSD represents the cumulative work of many hundreds, if not
 thousands, of individuals from around the world who have worked very
