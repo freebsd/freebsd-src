@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.192.2.5 1995/06/05 17:04:50 jkh Exp $
+#	$Id: Makefile,v 1.192.2.6 1995/06/06 06:08:00 jkh Exp $
 #
 # How to roll a release:
 #
@@ -351,7 +351,7 @@ release.8: write_mfs_in_kernel
 	cp ${RD}/kernels/BOOTMFS ${RD}/bootfd/kernel
 	./write_mfs_in_kernel ${RD}/bootfd/kernel fs-image
 	kzip ${RD}/bootfd/kernel
-	mv ${RD}/bootfd/kernel ${RD}/kernel/MFSKERNEL
+	mv ${RD}/bootfd/kernel ${RD}/kernels/MFSKERNEL
 	mv ${RD}/bootfd/kernel.kz ${RD}/bootfd/kernel
 	ls -l ${RD}/bootfd/kernel
 	cd ${.CURDIR} && ${MAKE} doFLOPPY FLOPPY=boot
