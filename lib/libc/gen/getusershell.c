@@ -1,5 +1,3 @@
-/*	$NetBSD: getusershell.c,v 1.17 1999/01/25 01:09:34 lukem Exp $	*/
-
 /*
  * Copyright (c) 1985, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -33,11 +31,10 @@
  * SUCH DAMAGE.
  */
 
-#if 0
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)getusershell.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
-#endif
+/*	$NetBSD: getusershell.c,v 1.17 1999/01/25 01:09:34 lukem Exp $	*/
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -72,7 +69,7 @@ static const char *const okshells[] = { _PATH_BSHELL, _PATH_CSHELL, NULL };
 static const char *const *curshell;
 static StringList	 *sl;
 
-static const char *const *initshells __P((void));
+static const char *const *initshells(void);
 
 /*
  * Get a list of shells from "shells" nsswitch database
@@ -108,7 +105,7 @@ setusershell(void)
 }
 
 
-static int	_local_initshells __P((void *, void *, va_list));
+static int	_local_initshells(void *, void *, va_list);
 
 /*ARGSUSED*/
 static int
@@ -145,7 +142,7 @@ _local_initshells(rv, cb_data, ap)
 }
 
 #ifdef HESIOD
-static int	_dns_initshells __P((void *, void *, va_list));
+static int	_dns_initshells(void *, void *, va_list);
 
 /*ARGSUSED*/
 static int
@@ -189,7 +186,7 @@ _dns_initshells(rv, cb_data, ap)
 #endif /* HESIOD */
 
 #ifdef YP
-static int	_nis_initshells __P((void *, void *, va_list));
+static int	_nis_initshells(void *, void *, va_list);
 
 /*ARGSUSED*/
 static int

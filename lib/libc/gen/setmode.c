@@ -35,12 +35,10 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-#if 0
 static char sccsid[] = "@(#)setmode.c	8.2 (Berkeley) 3/25/94";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <sys/types.h>
@@ -71,10 +69,10 @@ typedef struct bitcmd {
 #define	CMD2_OBITS	0x08
 #define	CMD2_UBITS	0x10
 
-static BITCMD	*addcmd __P((BITCMD *, int, int, int, u_int));
-static void	 compress_mode __P((BITCMD *));
+static BITCMD	*addcmd(BITCMD *, int, int, int, u_int);
+static void	 compress_mode(BITCMD *);
 #ifdef SETMODE_DEBUG
-static void	 dumpmode __P((BITCMD *));
+static void	 dumpmode(BITCMD *);
 #endif
 
 /*
@@ -88,8 +86,8 @@ getmode(bbox, omode)
 	void *bbox;
 	mode_t omode;
 {
-	register BITCMD *set;
-	register mode_t clrval, newmode, value;
+	BITCMD *set;
+	mode_t clrval, newmode, value;
 
 	set = (BITCMD *)bbox;
 	newmode = omode;
@@ -155,7 +153,7 @@ common:			if (set->cmd2 & CMD2_CLR) {
 
 #define	ADDCMD(a, b, c, d)						\
 	if (set >= endset) {						\
-		register BITCMD *newset;				\
+		BITCMD *newset;						\
 		setlen += SET_LEN_INCR;					\
 		newset = realloc(saveset, sizeof(BITCMD) * setlen);	\
 		if (!saveset)						\
@@ -170,10 +168,10 @@ common:			if (set->cmd2 & CMD2_CLR) {
 
 void *
 setmode(p)
-	register char *p;
+	char *p;
 {
-	register int perm, who;
-	register char op;
+	int perm, who;
+	char op;
 	BITCMD *set, *saveset, *endset;
 	sigset_t sigset, sigoset;
 	mode_t mask;
@@ -341,8 +339,8 @@ apply:		if (!*p)
 static BITCMD *
 addcmd(set, op, who, oparg, mask)
 	BITCMD *set;
-	register int oparg, who;
-	register int op;
+	int oparg, who;
+	int op;
 	u_int mask;
 {
 	switch (op) {
@@ -388,7 +386,7 @@ addcmd(set, op, who, oparg, mask)
 #ifdef SETMODE_DEBUG
 static void
 dumpmode(set)
-	register BITCMD *set;
+	BITCMD *set;
 {
 	for (; set->cmd; ++set)
 		(void)printf("cmd: '%c' bits %04o%s%s%s%s%s%s\n",
@@ -409,10 +407,10 @@ dumpmode(set)
  */
 static void
 compress_mode(set)
-	register BITCMD *set;
+	BITCMD *set;
 {
-	register BITCMD *nset;
-	register int setbits, clrbits, Xbits, op;
+	BITCMD *nset;
+	int setbits, clrbits, Xbits, op;
 
 	for (nset = set;;) {
 		/* Copy over any 'u', 'g' and 'o' commands. */

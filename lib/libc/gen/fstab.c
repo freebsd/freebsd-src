@@ -32,13 +32,10 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-#if 0
 static char sccsid[] = "@(#)fstab.c	8.1 (Berkeley) 6/4/93";
-#else
-static char rcsid[] =
- "$FreeBSD$";
-#endif
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <sys/param.h>
@@ -58,9 +55,9 @@ static FILE *_fs_fp;
 static struct fstab _fs_fstab;
 static int LineNo = 0;
 
-static void error __P((int));
-static void fixfsfile __P((void));
-static int fstabscan __P((void));
+static void error(int);
+static void fixfsfile(void);
+static int fstabscan(void);
 
 static void
 fixfsfile()
@@ -201,7 +198,7 @@ getfsent()
 
 struct fstab *
 getfsspec(name)
-	register const char *name;
+	const char *name;
 {
 	if (setfsent())
 		while (fstabscan())
@@ -212,7 +209,7 @@ getfsspec(name)
 
 struct fstab *
 getfsfile(name)
-	register const char *name;
+	const char *name;
 {
 	if (setfsent())
 		while (fstabscan())

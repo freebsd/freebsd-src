@@ -9,6 +9,8 @@
  * This software is provided ``as is'', and comes with no warranties
  * of any kind. I shall in no event be liable for anything that happens
  * to anyone/anything when using this software.
+ *
+ * $FreeBSD$
  */
 
 #ifndef _RAND48_H_
@@ -17,7 +19,7 @@
 #include <math.h>
 #include <stdlib.h>
 
-void		_dorand48 __P((unsigned short[3]));
+void		_dorand48(unsigned short[3]);
 
 #define	RAND48_SEED_0	(0x330e)
 #define	RAND48_SEED_1	(0xabcd)

@@ -1,5 +1,3 @@
-/*	$NetBSD: getpwent.c,v 1.40.2.2 1999/04/27 22:09:45 perry Exp $	*/
-
 /*
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -34,12 +32,10 @@
  * SUCH DAMAGE.
  */
 
-#if 0
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)getpwent.c	8.2 (Berkeley) 4/27/95";
 #endif /* LIBC_SCCS and not lint */
-#endif
-
+/*	$NetBSD: getpwent.c,v 1.40.2.2 1999/04/27 22:09:45 perry Exp $	*/
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -68,9 +64,9 @@ __FBSDID("$FreeBSD$");
 #endif
 #include "un-namespace.h"
 
-extern void setnetgrent __P((char *));
-extern int getnetgrent __P((char **, char **, char **));
-extern int innetgr __P((const char *, const char *, const char *, const char *));
+extern void setnetgrent(char *);
+extern int getnetgrent(char **, char **, char **);
+extern int innetgr(const char *, const char *, const char *, const char *);
 
 #include "pw_scan.h"
 
@@ -88,8 +84,8 @@ static DB *_pw_db;			/* password database */
 static int _pw_keynum;			/* key counter. no more records if -1 */
 static int _pw_stayopen;		/* keep fd's open */
 
-static int __hashpw __P((DBT *));
-static int __initdb __P((void));
+static int __hashpw(DBT *);
+static int __initdb(void);
 
 static const ns_src compatsrc[] = {
 	{ NSSRC_COMPAT, NS_SUCCESS },
@@ -118,11 +114,11 @@ static char		 line[1024];
 static long		 prbuf[1024 / sizeof(long)];
 static DB		*__pwexclude = (DB *)NULL;
  
-static int	__pwexclude_add __P((const char *));
-static int	__pwexclude_is __P((const char *));
-static void	__pwproto_set __P((void));
-static int	__ypmaptype __P((void));
-static int	__pwparse __P((struct passwd *, char *));
+static int	__pwexclude_add(const char *);
+static int	__pwexclude_is(const char *);
+static void	__pwproto_set(void);
+static int	__ypmaptype(void);
+static int	__pwparse(struct passwd *, char *);
 
 	/* macros for deciding which YP maps to use. */
 #define PASSWD_BYNAME	(__ypmaptype() == YPMAP_MASTER \
@@ -358,7 +354,7 @@ __pwparse(pw, s)
  * local files implementation of getpw*()
  * varargs: type, [ uid (type == _PW_KEYBYUID) | name (type == _PW_KEYBYNAME) ]
  */
-static int	_local_getpw __P((void *, void *, va_list));
+static int	_local_getpw(void *, void *, va_list);
 
 /*ARGSUSED*/
 static int
@@ -420,7 +416,7 @@ _local_getpw(rv, cb_data, ap)
  * hesiod implementation of getpw*()
  * varargs: type, [ uid (type == _PW_KEYBYUID) | name (type == _PW_KEYBYNAME) ]
  */
-static int	_dns_getpw __P((void *, void *, va_list));
+static int	_dns_getpw(void *, void *, va_list);
 
 /*ARGSUSED*/
 static int
@@ -498,7 +494,7 @@ _dns_getpw(rv, cb_data, ap)
  * nis implementation of getpw*()
  * varargs: type, [ uid (type == _PW_KEYBYUID) | name (type == _PW_KEYBYNAME) ]
  */
-static int	_nis_getpw __P((void *, void *, va_list));
+static int	_nis_getpw(void *, void *, va_list);
 
 /*ARGSUSED*/
 static int
@@ -605,7 +601,7 @@ _nis_getpw(rv, cb_data, ap)
  * See if the compat token is in the database.  Only works if pwd_mkdb knows
  * about the token.
  */
-static int	__has_compatpw __P((void));
+static int	__has_compatpw(void);
 
 static int
 __has_compatpw()
@@ -634,7 +630,7 @@ __has_compatpw()
 /*
  * log an error if "files" or "compat" is specified in passwd_compat database
  */
-static int	_bad_getpw __P((void *, void *, va_list));
+static int	_bad_getpw(void *, void *, va_list);
 
 /*ARGSUSED*/
 static int
@@ -659,7 +655,7 @@ _bad_getpw(rv, cb_data, ap)
  * only Hesiod and NIS is supported - it doesn't make sense to lookup
  * compat names from 'files' or 'compat'.
  */
-static int	__getpwcompat __P((int, uid_t, const char *));
+static int	__getpwcompat(int, uid_t, const char *);
 
 static int
 __getpwcompat(type, uid, name)
@@ -701,7 +697,7 @@ __getpwcompat(type, uid, name)
  * varargs (ignored):
  *	type, [ uid (type == _PW_KEYBYUID) | name (type == _PW_KEYBYNAME) ]
  */
-static int	_compat_getpwent __P((void *, void *, va_list));
+static int	_compat_getpwent(void *, void *, va_list);
 
 /*ARGSUSED*/
 static int
@@ -832,7 +828,7 @@ again:
  * compat implementation of getpwnam() and getpwuid()
  * varargs: type, [ uid (type == _PW_KEYBYUID) | name (type == _PW_KEYBYNAME) ]
  */
-static int	_compat_getpw __P((void *, void *, va_list));
+static int	_compat_getpw(void *, void *, va_list);
 
 static int
 _compat_getpw(rv, cb_data, ap)

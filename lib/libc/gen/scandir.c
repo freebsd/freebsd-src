@@ -29,13 +29,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)scandir.c	8.3 (Berkeley) 1/2/94";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Scan the directory dirname calling select to make a list of selected
@@ -67,11 +67,11 @@ int
 scandir(dirname, namelist, select, dcomp)
 	const char *dirname;
 	struct dirent ***namelist;
-	int (*select) __P((struct dirent *));
-	int (*dcomp) __P((const void *, const void *));
+	int (*select)(struct dirent *);
+	int (*dcomp)(const void *, const void *);
 {
-	register struct dirent *d, *p, **names = NULL;
-	register size_t nitems = 0;
+	struct dirent *d, *p, **names = NULL;
+	size_t nitems = 0;
 	struct stat stb;
 	long arraysz;
 	DIR *dirp;
