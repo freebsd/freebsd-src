@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char serial_rcsid[] = "$Id: serial.c,v 1.6 1995/08/19 21:25:56 ache Exp $";
+const char serial_rcsid[] = "$Id: serial.c,v 1.5.4.1 1995/09/01 06:02:58 davidg Exp $";
 #endif
 
 #include "uudefs.h"
@@ -2371,7 +2371,7 @@ fsysdep_conn_read (qconn, zbuf, pclen, cmin, ctimeout, freport)
 	  else
 	    csleepchars = MAX_INPUT - 10;
 
-	  isleep = (int) (((long) csleepchars * 10000L) / q->ibaud);
+	  isleep = (int) (((long) csleepchars * 10000L) / (q->ibaud? q->ibaud: (long)1200));
 	  isleep -= 10;
 
 	  if (isleep > 10)
@@ -2773,8 +2773,8 @@ fsysdep_conn_io (qconn, zwrite, pcwrite, zread, pcread)
 	                        / baud bits/sec)
 			       * 10 bits/byte)
 	     */
-	  stime.tv_sec = (long) 10240 / q->ibaud;
-	  stime.tv_usec = ((((long) 1024000000 / q->ibaud) * (long) 10)
+	  stime.tv_sec = (long) 10240 / (q->ibaud? q->ibaud: (long)1200);
+	  stime.tv_usec = ((((long) 1024000000 / (q->ibaud? q->ibaud: (long)1200)) * (long) 10)
 			   % (long) 1000000);
 
 	  imask = 1 << q->o;
@@ -2846,7 +2846,7 @@ fsysdep_conn_io (qconn, zwrite, pcwrite, zread, pcread)
                  we don't need to use the catch stuff, since we know
                  that HAVE_RESTARTABLE_SYSCALLS is 0.  */
 	      usset_signal (SIGALRM, usalarm, TRUE, (boolean *) NULL);
-	      alarm ((int) ((long) 10240 / q->ibaud) + 1);
+	      alarm ((int) ((long) 10240 / (q->ibaud? q->ibaud: (long)1200)) + 1);
 
 	      /* There is a race condition here: on a severely loaded
                  system, we could get the alarm before we start the
