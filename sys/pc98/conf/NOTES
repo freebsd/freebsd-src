@@ -940,9 +940,6 @@ options 	VM_KMEM_SIZE
 options 	VM_KMEM_SIZE_MAX
 options 	VM_KMEM_SIZE_SCALE
 
-# Yet more undocumented options for linting.
-options 	COMPAT_SUNOS
-
 
 #####################################################################
 # Devices we don't want to deal with
