@@ -336,7 +336,8 @@ struct pthread_attr {
  */
 #define PTHREAD_STACK_DEFAULT			65536
 /* Size of red zone at the end of each stack. */
-#define PTHREAD_STACK_GUARD			4096
+#define PTHREAD_STACK_GUARD			PAGE_SIZE
+
 /*
  * Maximum size of initial thread's stack.  This perhaps deserves to be larger
  * than the stacks of other threads, since many applications are likely to run
@@ -466,6 +467,7 @@ struct pthread {
 #define	PTHREAD_MAGIC		((u_int32_t) 0xd09ba115)
 	u_int32_t		magic;
 	char			*name;
+	u_int64_t		uniqueid; /* for gdb */
 
 	/*
 	 * Lock for accesses to this thread structure.
