@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahc_pci.c,v 1.12 1999/05/14 17:38:07 gibbs Exp $
+ *	$Id: ahc_pci.c,v 1.13 1999/05/17 21:53:09 gibbs Exp $
  */
 
 #include <pci.h>
@@ -1541,6 +1541,7 @@ ahc_aic7890_setup(device_t dev, char *channel, ahc_chip *chip,
 	*channel = 'A';
 	*chip = AHC_AIC7890;
 	*features = AHC_AIC7890_FE;
+	*flags |= AHC_NEWEEPROM_FMT;
 	return (0);
 }
 
@@ -1553,6 +1554,7 @@ ahc_aic7895_setup(device_t dev, char *channel, ahc_chip *chip,
 	*channel = pci_get_function(dev) == 1 ? 'B' : 'A';
 	*chip = AHC_AIC7895;
 	*features = AHC_AIC7895_FE;
+	*flags |= AHC_NEWEEPROM_FMT;
 	devconfig = pci_read_config(dev, DEVCONFIG, /*bytes*/4);
 	devconfig &= ~SCBSIZE32;
 	pci_write_config(dev, DEVCONFIG, devconfig, /*bytes*/4);
@@ -1566,6 +1568,7 @@ ahc_aic7896_setup(device_t dev, char *channel, ahc_chip *chip,
 	*channel = pci_get_function(dev) == 1 ? 'B' : 'A';
 	*chip = AHC_AIC7896;
 	*features = AHC_AIC7896_FE;
+	*flags |= AHC_NEWEEPROM_FMT;
 	return (0);
 }
 
