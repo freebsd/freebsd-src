@@ -57,6 +57,7 @@ void attachobject(struct vinum_ioctl_msg *);
 void detachobject(struct vinum_ioctl_msg *);
 void renameobject(struct vinum_rename_msg *);
 void replaceobject(struct vinum_ioctl_msg *);
+void moveobject(struct vinum_ioctl_msg *);
 
 jmp_buf command_fail;					    /* return on a failed command */
 
@@ -308,6 +309,11 @@ vinumioctl(dev_t dev,
 
 	case VINUM_REBUILDPARITY:			    /* rebuild RAID-5 parity */
 	    parityops((struct vinum_ioctl_msg *) data, rebuildparity);
+	    return 0;
+
+	    /* move an object */
+	case VINUM_MOVE:
+	    moveobject((struct vinum_ioctl_msg *) data);
 	    return 0;
 
 	default:
@@ -854,6 +860,44 @@ replaceobject(struct vinum_ioctl_msg *msg)
     reply->error = ENODEV;				    /* until I know how to do this */
     strcpy(reply->msg, "replace not implemented yet");
 /*      save_config (); */
+}
+
+void
+moveobject(struct vinum_ioctl_msg *msg)
+{
+    struct _ioctl_reply *reply = (struct _ioctl_reply *) msg;
+    struct drive *drive;
+    struct sd *sd;
+
+    /* Check that our objects are valid (i.e. they exist) */
+    drive = validdrive(msg->index, (struct _ioctl_reply *) msg);
+    if (drive == NULL)
+	return;
+    sd = validsd(msg->otherobject, (struct _ioctl_reply *) msg);
+    if (sd == NULL)
+	return;
+    if (sd->driveno == msg->index)			    /* sd already belongs to drive */
+	return;
+
+    if (sd->state > sd_stale)
+	set_sd_state(sd->sdno, sd_stale, setstate_force);   /* make the subdisk stale */
+    else
+	sd->state = sd_empty;
+    if (sd->plexno >= 0)				    /* part of a plex, */
+	update_plex_state(sd->plexno);			    /* update its state */
+
+    /* Return the space on the old drive */
+    if ((sd->driveno >= 0)				    /* we have a drive, */
+    &&(sd->sectors > 0))				    /* and some space on it */
+	return_drive_space(sd->driveno,			    /* return the space */
+	    sd->driveoffset,
+	    sd->sectors);
+
+    /* Reassign the old subdisk */
+    sd->driveno = msg->index;
+    sd->driveoffset = -1;				    /* let the drive decide where to put us */
+    give_sd_to_drive(sd->sdno);
+    reply->error = 0;
 }
 
 /* Local Variables: */
