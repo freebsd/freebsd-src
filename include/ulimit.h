@@ -31,8 +31,17 @@
 
 #include <sys/cdefs.h>
 
-#define	UL_GETSIZE	1
-#define	UL_SETSIZE	2
+#define	UL_GETFSIZE	1
+#define	UL_SETFSIZE	2
+
+#if __BSD_VISIBLE
+/*
+ * The "F" was mistakenly omitted from the macro names in FreeBSD 5.0.
+ * Do not use these names; they will be removed before 6.0.
+ */
+#define	UL_GETSIZE	UL_GETFSIZE
+#define	UL_SETSIZE	UL_SETFSIZE
+#endif
 
 __BEGIN_DECLS
 long	ulimit(int, ...);

@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 8, 2002
+.Dd January 4, 2003
 .Dt ULIMIT 3
 .Os
 .Sh NAME
@@ -43,11 +43,11 @@ Currently this is limited to the maximum file size.
 The
 .Fa cmd
 argument is one of the following:
-.Bl -tag -width ".Dv UL_GETSIZE"
-.It Dv UL_GETSIZE
+.Bl -tag -width ".Dv UL_GETFSIZE"
+.It Dv UL_GETFSIZE
 will return the maximum file size in units of 512 blocks of
 the current process.
-.It Dv UL_SETSIZE
+.It Dv UL_SETFSIZE
 will attempt to set the maximum file size of the current
 process and its children with the second argument expressed as a long.
 .El
