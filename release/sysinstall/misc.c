@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.12.2.2 1995/10/18 00:12:29 jkh Exp $
+ * $Id: misc.c,v 1.12.2.3 1995/10/19 15:55:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -77,8 +77,22 @@ string_concat(char *one, char *two)
 {
     static char tmp[FILENAME_MAX];
 
+    /* Yes, we're deliberately cavalier about not checking for overflow */
     strcpy(tmp, one);
     strcat(tmp, two);
+    return tmp;
+}
+
+/* Concatenate three strings into static storage */
+char *
+string_concat3(char *one, char *two, char *three)
+{
+    static char tmp[FILENAME_MAX];
+
+    /* Yes, we're deliberately cavalier about not checking for overflow */
+    strcpy(tmp, one);
+    strcat(tmp, two);
+    strcat(tmp, three);
     return tmp;
 }
 
@@ -100,6 +114,19 @@ string_skipwhite(char *str)
     while (*str && isspace(*str))
 	++str;
     return str;
+}
+
+/* copy optionally and allow second arg to be null */
+char *
+string_copy(char *s1, char *s2)
+{
+    if (!s1)
+	return NULL;
+    if (!s2)
+	s1[0] = '\0';
+    else
+	strcpy(s1, s2);
+    return s1;
 }
 
 int

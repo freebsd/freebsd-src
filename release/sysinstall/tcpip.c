@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.30.2.6 1995/10/19 15:55:44 jkh Exp $
+ * $Id: tcpip.c,v 1.30.2.7 1995/10/20 07:02:51 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -171,6 +171,61 @@ verifySettings(void)
     return 0;
 }
 
+int
+tcpInstallDevice(char *str)
+{
+    Device **devs;
+    Device *dp = NULL;
+    
+    /* Clip garbage off the ends */
+    string_prune(str);
+    str = string_skipwhite(str);
+    if (!*str)
+	return RET_FAIL;
+    devs = deviceFind(str, DEVICE_TYPE_NETWORK);
+    if (devs && (dp = devs[0])) {
+	char temp[512], ifn[64];
+
+	if (!dp->private) {
+	    DevInfo *di;
+	    char *ipaddr, *netmask, *extras;
+
+	    di = dp->private = (DevInfo *)malloc(sizeof(DevInfo));
+
+	    if ((ipaddr = variable_get(string_concat3(dp->name, "_", VAR_IPADDR))) == NULL)
+		ipaddr = variable_get(VAR_IPADDR);
+
+	    if ((netmask = variable_get(string_concat3(dp->name, "_", VAR_NETMASK))) != NULL)
+	        netmask = variable_get(VAR_NETMASK);
+
+	    if ((extras = variable_get(string_concat3(dp->name, "_", VAR_EXTRAS))) != NULL)
+		extras = variable_get(VAR_EXTRAS);
+
+	    string_copy(di->ipaddr, ipaddr);
+	    string_copy(di->netmask, netmask);
+	    string_copy(di->extras, extras);
+
+	    if (ipaddr) {
+		char *ifaces;
+
+		sprintf(temp, "inet %s %s netmask %s", ipaddr, extras, netmask);
+		sprintf(ifn, "%s%s", VAR_IFCONFIG, dp->name);
+		variable_set2(ifn, temp);
+		ifaces = variable_get(VAR_INTERFACES);
+		if (!ifaces)
+		    variable_set2(VAR_INTERFACES, ifaces = "lo0");
+		/* Only add it if it's not there already */
+		if (!strstr(ifaces, dp->name)) {
+		    sprintf(ifn, "%s %s", dp->name, ifaces);
+		    variable_set2(VAR_INTERFACES, ifn);
+		}
+	    }
+	}
+	mediaDevice = dp;
+    }
+    return dp ? RET_SUCCESS : RET_FAIL;
+}
+    
 /* This is it - how to get TCP setup values */
 int
 tcpOpenDialog(Device *devp)
@@ -214,18 +269,24 @@ tcpOpenDialog(Device *devp)
     else { /* See if there are any defaults */
 	char *cp;
 
-	if ((cp = variable_get(VAR_IPADDR)) != NULL)
-	    strcpy(ipaddr, cp);
-	else
-	    ipaddr[0] = '\0';
-	if ((cp = variable_get(VAR_NETMASK)) != NULL)
-	    strcpy(netmask, cp);
-	else
-	    netmask[0] = '\0';
-	if ((cp = variable_get(VAR_EXTRAS)) != NULL)
-	    strcpy(extras, cp);
-	else
-	    extras[0] = '\0';
+	if (!ipaddr[0]) {
+	    if ((cp = variable_get(VAR_IPADDR)) != NULL)
+		strcpy(ipaddr, cp);
+	    else if ((cp = variable_get(string_concat3(devp->name, "_", VAR_IPADDR))) != NULL)
+		strcpy(ipaddr, cp);
+	}
+	if (!netmask[0]) {
+	    if ((cp = variable_get(VAR_NETMASK)) != NULL)
+		strcpy(netmask, cp);
+	    else if ((cp = variable_get(string_concat3(devp->name, "_", VAR_NETMASK))) != NULL)
+		strcpy(netmask, cp);
+	}
+	if (!extras[0]) {
+	    if ((cp = variable_get(VAR_EXTRAS)) != NULL)
+		strcpy(extras, cp);
+	    else if ((cp = variable_get(string_concat3(devp->name, "_", VAR_EXTRAS))) != NULL)
+		strcpy(extras, cp);
+	}
     }
     /* Look up values already recorded with the system, or blank the string variables ready to accept some new data */
     tmp = variable_get(VAR_HOSTNAME);
@@ -491,7 +552,6 @@ tcpDeviceSelect(void)
 	status = TRUE;
     }
     else {
-
 	menu = deviceCreateMenu(&MenuNetworkDevice, DEVICE_TYPE_NETWORK, netHook);
 	if (!menu)
 	    msgFatal("Unable to create network device menu!  Argh!");

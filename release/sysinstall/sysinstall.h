@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.25 1995/10/20 07:02:48 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.26 1995/10/20 14:25:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -510,8 +510,10 @@ extern Boolean	mediaVerify(void);
 extern Boolean	file_readable(char *fname);
 extern Boolean	file_executable(char *fname);
 extern char	*string_concat(char *p1, char *p2);
+extern char	*string_concat3(char *p1, char *p2, char *p3);
 extern char	*string_prune(char *str);
 extern char	*string_skipwhite(char *str);
+extern char	*string_copy(char *s1, char *s2);
 extern int	directoryExists(const char *dirname);
 extern char	*pathBaseName(const char *path);
 extern void	safe_free(void *ptr);
@@ -579,6 +581,7 @@ extern void	mediaShutdownTape(Device *dev);
 /* tcpip.c */
 extern int	tcpOpenDialog(Device *dev);
 extern int	tcpMenuSelect(char *str);
+extern int	tcpInstallDevice(char *str);
 extern Boolean	tcpDeviceSelect(void);
 
 /* termcap.c */
