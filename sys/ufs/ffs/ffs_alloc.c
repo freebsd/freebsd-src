@@ -1045,7 +1045,7 @@ ffs_blkpref_ufs1(ip, lbn, indx, bap)
 	if (indx % fs->fs_maxbpg == 0 || bap[indx - 1] == 0) {
 		if (lbn < NDADDR + NINDIR(fs)) {
 			cg = ino_to_cg(fs, ip->i_number);
-			return (fs->fs_fpg * cg + fs->fs_frag);
+			return (cgbase(fs, cg) + fs->fs_frag);
 		}
 		/*
 		 * Find a cylinder with greater than average number of
@@ -1061,12 +1061,12 @@ ffs_blkpref_ufs1(ip, lbn, indx, bap)
 		for (cg = startcg; cg < fs->fs_ncg; cg++)
 			if (fs->fs_cs(fs, cg).cs_nbfree >= avgbfree) {
 				fs->fs_cgrotor = cg;
-				return (fs->fs_fpg * cg + fs->fs_frag);
+				return (cgbase(fs, cg) + fs->fs_frag);
 			}
 		for (cg = 0; cg <= startcg; cg++)
 			if (fs->fs_cs(fs, cg).cs_nbfree >= avgbfree) {
 				fs->fs_cgrotor = cg;
-				return (fs->fs_fpg * cg + fs->fs_frag);
+				return (cgbase(fs, cg) + fs->fs_frag);
 			}
 		return (0);
 	}
@@ -1094,7 +1094,7 @@ ffs_blkpref_ufs2(ip, lbn, indx, bap)
 	if (indx % fs->fs_maxbpg == 0 || bap[indx - 1] == 0) {
 		if (lbn < NDADDR + NINDIR(fs)) {
 			cg = ino_to_cg(fs, ip->i_number);
-			return (fs->fs_fpg * cg + fs->fs_frag);
+			return (cgbase(fs, cg) + fs->fs_frag);
 		}
 		/*
 		 * Find a cylinder with greater than average number of
@@ -1110,12 +1110,12 @@ ffs_blkpref_ufs2(ip, lbn, indx, bap)
 		for (cg = startcg; cg < fs->fs_ncg; cg++)
 			if (fs->fs_cs(fs, cg).cs_nbfree >= avgbfree) {
 				fs->fs_cgrotor = cg;
-				return (fs->fs_fpg * cg + fs->fs_frag);
+				return (cgbase(fs, cg) + fs->fs_frag);
 			}
 		for (cg = 0; cg <= startcg; cg++)
 			if (fs->fs_cs(fs, cg).cs_nbfree >= avgbfree) {
 				fs->fs_cgrotor = cg;
-				return (fs->fs_fpg * cg + fs->fs_frag);
+				return (cgbase(fs, cg) + fs->fs_frag);
 			}
 		return (0);
 	}
@@ -1355,7 +1355,7 @@ ffs_alloccg(ip, cg, bpref, size)
 	cgp->cg_frsum[allocsiz]--;
 	if (frags != allocsiz)
 		cgp->cg_frsum[allocsiz - frags]++;
-	blkno = cg * fs->fs_fpg + bno;
+	blkno = cgbase(fs, cg) + bno;
 	if (DOINGSOFTDEP(ITOV(ip)))
 		softdep_setup_blkmapdep(bp, fs, blkno);
 	if (fs->fs_active != 0)
@@ -1416,7 +1416,7 @@ gotit:
 	fs->fs_cstotal.cs_nbfree--;
 	fs->fs_cs(fs, cgp->cg_cgx).cs_nbfree--;
 	fs->fs_fmod = 1;
-	blkno = cgp->cg_cgx * fs->fs_fpg + bno;
+	blkno = cgbase(fs, cgp->cg_cgx) + bno;
 	if (DOINGSOFTDEP(ITOV(ip)))
 		softdep_setup_blkmapdep(bp, fs, blkno);
 	return (blkno);
@@ -1520,7 +1520,7 @@ ffs_clusteralloc(ip, cg, bpref, len)
 	for (i = 1; i <= len; i++)
 		if (!ffs_isblock(fs, blksfree, got - run + i))
 			panic("ffs_clusteralloc: map mismatch");
-	bno = cg * fs->fs_fpg + blkstofrags(fs, got - run + 1);
+	bno = cgbase(fs, cg) + blkstofrags(fs, got - run + 1);
 	if (dtog(fs, bno) != cg)
 		panic("ffs_clusteralloc: allocated out of group");
 	len = blkstofrags(fs, len);
