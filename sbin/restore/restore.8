@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)restore.8	8.2 (Berkeley) 12/11/93
-.\"
+.\" "
 .Dd December 11, 1993
 .Dt RESTORE 8
 .Os BSD 4
@@ -246,7 +246,7 @@ The next argument to
 .Nm restore
 is used as the name of the archive instead
 of
-.Pa /dev/rmt? . 
+.Pa /dev/rst0 . 
 If the name of the file is of the form
 .Dq host:file ,
 .Nm restore
@@ -372,7 +372,7 @@ This message lists the number of blocks that were skipped over.
 .El
 .Sh FILES
 .Bl -tag -width "./restoresymtable" -compact
-.It Pa /dev/rmt?
+.It Pa /dev/rst0
 the default tape drive
 .It Pa /tmp/rstdir*
 file containing directories on the tape.
