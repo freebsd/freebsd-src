@@ -658,7 +658,7 @@ icmp_stats(u_long off __unused, const char *name, int af1 __unused)
 		}
 	p(icps_reflect, "\t%lu message response%s generated\n");
 	p2(icps_badaddr, "\t%lu invalid return address%s\n");
-	p(icps_badaddr, "\t%lu no return route%s\n");
+	p(icps_noroute, "\t%lu no return route%s\n");
 #undef p
 #undef p1a
 #undef p2
