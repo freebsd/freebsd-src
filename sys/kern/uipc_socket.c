@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- * $Id: uipc_socket.c,v 1.7 1995/02/06 02:22:12 davidg Exp $
+ * $Id: uipc_socket.c,v 1.8 1995/02/07 02:01:14 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -1029,7 +1029,7 @@ sogetopt(so, level, optname, mp)
 			m->m_len = sizeof(struct timeval);
 			mtod(m, struct timeval *)->tv_sec = val / hz;
 			mtod(m, struct timeval *)->tv_usec =
-			    (val % hz) / tick;
+			    (val % hz) * tick;
 			break;
 		    }
 
