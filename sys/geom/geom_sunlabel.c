@@ -147,6 +147,88 @@ g_sunlabel_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, stru
 	}
 }
 
+struct h0h0 {
+	struct g_geom *gp;
+	struct g_sunlabel_softc *ms;
+	u_char *label;
+	int error;
+};
+
+static void
+g_sunlabel_callconfig(void *arg, int flag)
+{
+	struct h0h0 *hp;
+
+	hp = arg;
+	hp->error = g_sunlabel_modify(hp->gp, hp->ms, hp->label);
+	if (!hp->error)
+		hp->error = g_write_data(LIST_FIRST(&hp->gp->consumer),
+		    0, hp->label, SUN_SIZE);
+	wakeup(hp);
+}
+
+/*
+ * NB! curthread is user process which GCTL'ed.
+ */
+static int
+g_sunlabel_config(struct gctl_req *req, struct g_geom *gp, const char *verb)
+{
+	u_char *label;
+	int error, i;
+	struct h0h0 h0h0;
+	struct g_slicer *gsp;
+	struct g_consumer *cp;
+
+	g_topology_assert();
+	cp = LIST_FIRST(&gp->consumer);
+	gsp = gp->softc;
+	if (!strcmp(verb, "write label")) {
+		label = gctl_get_paraml(req, "label", SUN_SIZE);
+		if (label == NULL)
+			return (EINVAL);
+		h0h0.gp = gp;
+		h0h0.ms = gsp->softc;
+		h0h0.label = label;
+		h0h0.error = -1;
+		/* XXX: Does this reference register with our selfdestruct code ? */
+		error = g_access_rel(cp, 1, 1, 1);
+		if (error)
+			return (error);
+		error = g_call_me(g_sunlabel_callconfig, &h0h0, gp, NULL);
+		if (!error) {
+			g_topology_unlock();
+			do 
+				tsleep(&h0h0, PRIBIO, "g_sunlabel_config", hz);
+			while (h0h0.error == -1);
+			g_topology_lock();
+			error = h0h0.error;
+		}
+		g_access_rel(cp, -1, -1, -1);
+		g_free(label);
+	} else if (!strcmp(verb, "write bootcode")) {
+		label = gctl_get_paraml(req, "bootcode", SUN_BOOTSIZE);
+		if (label == NULL)
+			return (EINVAL);
+		/* XXX: Does this reference register with our selfdestruct code ? */
+		error = g_access_rel(cp, 1, 1, 1);
+		if (error)
+			return (error);
+		for (i = 0; i < SUN_NPART; i++) {
+			if (gsp->slices[i].length <= SUN_BOOTSIZE)
+				continue;
+			g_write_data(cp,
+			    gsp->slices[i].offset + SUN_SIZE, label + SUN_SIZE,
+			    SUN_BOOTSIZE - SUN_SIZE);
+		}
+		g_access_rel(cp, -1, -1, -1);
+		g_free(label);
+	} else {
+		return (gctl_error(req, "Unknown verb parameter"));
+	}
+
+	return (error);
+}
+
 static struct g_geom *
 g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 {
@@ -201,6 +283,7 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 static struct g_class g_sunlabel_class = {
 	.name = SUNLABEL_CLASS_NAME,
 	.taste = g_sunlabel_taste,
+	.config_geom = g_sunlabel_config,
 	G_CLASS_INITIALIZER
 };
 
