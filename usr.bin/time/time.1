@@ -39,7 +39,7 @@
 .Nd time command execution
 .Sh SYNOPSIS
 .Nm
-.Op Fl al
+.Op Fl alp
 .Op Fl o Ar file
 .Ar command
 .Sh DESCRIPTION
@@ -60,10 +60,9 @@ finishes,
 writes to the standard error stream,
 (in seconds): 
 the total time elapsed,
-time consumed by system overhead,
-and the time used to execute the
+the time used to execute the
 .Ar command
-process.
+process and the time consumed by system overhead.
 .Pp
 Available options:
 .Bl -tag -width Ds
@@ -84,22 +83,44 @@ instead of stderr.  If
 exists and the
 .Fl a
 flag is not specified, the file will be overwritten.
+.It Fl p
+Makes
+.Nm
+output POSIX.2 compliant (each time is printed on its own line).
 .El
 .Pp
-The
-.Xr csh 1
-has its own and syntactically different builtin version of
+Most shells (including
+.Xr csh 1 )
+have their own and syntactically different builtin version of
 .Nm time .
 The command described here
 is available as
 .Pa /usr/bin/time
-to
-.Xr csh
-users.
+to users of those shells.
+.Sh DIAGNOSTICS
+If
+.Ar command
+could be timed successfully, its exit status is returned. In case
+.Ar command
+terminated abnormally, a warning message is output to stderr.
+If the 
+.Ar command
+was found but could not be run, the exit status is 126.
+If no
+.Ar command
+could be found at all, the exit status is 127.
+If
+.Nm
+encounters any other error, the exit status is between 1 and 125
+included.
 .Sh SEE ALSO
 .Xr csh 1 ,
 .Xr getrusage 2 ,
 .Xr wait 2
+.Sh STANDARDS
+The
+.Nm
+utility is expected to conform to ISO/IEC 9945-2:1993 (``POSIX'').
 .Sh HISTORY
 A
 .Nm

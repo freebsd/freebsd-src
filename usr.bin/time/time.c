@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)time.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: time.c,v 1.11 1998/08/24 10:16:59 cracauer Exp $";
+	"$Id: time.c,v 1.12 1998/10/13 14:52:32 des Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -55,6 +55,7 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <stdio.h>
+#include <errno.h>
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
@@ -71,15 +72,15 @@ main(argc, argv)
 	extern int optind;
 
 	register int pid;
-	int aflag, ch, lflag, status;
+	int aflag, ch, lflag, status, pflag;
 	struct timeval before, after;
 	struct rusage ru;
 	FILE *out = stderr;
 	char *ofn = NULL;
 	int exitonsig = 0; /* Die with same signal as child */
 
-	aflag = lflag = 0;
-	while ((ch = getopt(argc, argv, "alo:")) != -1)
+	aflag = lflag = pflag = 0;
+	while ((ch = getopt(argc, argv, "alo:p")) != -1)
 		switch((char)ch) {
 		case 'a':
 			aflag = 1;
@@ -89,6 +90,9 @@ main(argc, argv)
 			break;
 		case 'o':
 			ofn = optarg;
+			break;
+		case 'p':
+			pflag = 1;
 			break;
 		case '?':
 		default:
@@ -111,9 +115,13 @@ main(argc, argv)
 		err(1, "time");
 		/* NOTREACHED */
 	case 0:				/* child */
+		errno = 0;
 		execvp(*argv, argv);
 		warn("%s", *argv);
-		_exit(1);
+		if (errno == ENOENT)
+			_exit(127); /* POSIX: utility could not be found */
+		else
+			_exit(126); /* POSIX: utility could not be invoked */
 		/* NOTREACHED */
 	}
 	/* parent */
@@ -129,11 +137,24 @@ main(argc, argv)
 	after.tv_usec -= before.tv_usec;
 	if (after.tv_usec < 0)
 		after.tv_sec--, after.tv_usec += 1000000;
-	fprintf(out, "%9ld.%02ld real ", after.tv_sec, after.tv_usec/10000);
-	fprintf(out, "%9ld.%02ld user ",
-	    ru.ru_utime.tv_sec, ru.ru_utime.tv_usec/10000);
-	fprintf(out, "%9ld.%02ld sys\n",
-	    ru.ru_stime.tv_sec, ru.ru_stime.tv_usec/10000);
+	if (pflag) {
+		/* POSIX wants output that must look like
+		"real %f\nuser %f\nsys %f\n" and requires
+		at least two digits after the radix. */
+		fprintf(out, "real %ld.%02ld\n", 
+			after.tv_sec, after.tv_usec/10000);
+		fprintf(out, "user %ld.%02ld\n",
+			ru.ru_utime.tv_sec, ru.ru_utime.tv_usec/10000);
+		fprintf(out, "sys %ld.%02ld\n",
+			ru.ru_stime.tv_sec, ru.ru_stime.tv_usec/10000);
+	} else {
+		fprintf(out, "%9ld.%02ld real ",
+			after.tv_sec, after.tv_usec/10000);
+		fprintf(out, "%9ld.%02ld user ",
+			ru.ru_utime.tv_sec, ru.ru_utime.tv_usec/10000);
+		fprintf(out, "%9ld.%02ld sys\n",
+			ru.ru_stime.tv_sec, ru.ru_stime.tv_usec/10000);
+	}
 	if (lflag) {
 		int hz = getstathz();
 		u_long ticks;
@@ -189,7 +210,7 @@ main(argc, argv)
 static void
 usage()
 {
-	fprintf(stderr, "usage: time [-al] [-o file] command\n");
+	fprintf(stderr, "usage: time [-alp] [-o file] command\n");
 	exit(1);
 }
 
