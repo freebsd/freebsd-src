@@ -103,3 +103,10 @@ Version 2.2: July, 1997 (cjm)
       fragments which are never resolved after a timeout
       period.  Once a fragment is resolved, it becomes
       the users responsibility to free the memory.
+
+Version 2.3: August 11, 1997 (cjm)
+    - Problem associated with socket file descriptor
+      accumulation in alias_db.c corrected.  The sockets
+      had to be closed when a binding failed.  Problem 
+      identified by Gordon Burditt.
+

@@ -616,6 +616,7 @@ GetSocket(u_short port_net, int *sockfd, int link_type)
     }
     else
     {
+        close(sock);
         return(0);
     }
 }
