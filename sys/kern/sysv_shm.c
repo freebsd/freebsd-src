@@ -378,6 +378,7 @@ kern_shmat(td, shmid, shmaddr, shmflg)
 	rv = vm_map_find(&p->p_vmspace->vm_map, shm_handle->shm_object,
 		0, &attach_va, size, (flags & MAP_FIXED)?0:1, prot, prot, 0);
 	if (rv != KERN_SUCCESS) {
+		vm_object_deallocate(shm_handle->shm_object);
 		error = ENOMEM;
 		goto done2;
 	}
