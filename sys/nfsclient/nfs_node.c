@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_node.c	8.6 (Berkeley) 5/22/95
- * $Id: nfs_node.c,v 1.24 1998/02/09 06:10:33 eivind Exp $
+ * $Id: nfs_node.c,v 1.25 1998/05/13 06:10:13 peter Exp $
  */
 
 
@@ -212,7 +212,7 @@ nfs_inactive(ap)
 		 * recycled by getnewvnode while we do the I/O
 		 * associated with discarding the buffers.
 		 */
-		if (vget(ap->a_vp, 0))
+		if (vget(ap->a_vp, 0, p))
 			panic("nfs_inactive: lost vnode");
 		/*
 		 * Remove the silly file that was rename'd earlier
