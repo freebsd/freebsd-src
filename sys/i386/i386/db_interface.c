@@ -101,6 +101,24 @@ kdb_trap(int type, int code, struct i386_saved_state *regs)
 	ef = read_eflags();
 	disable_intr();
 
+#ifdef SMP
+#ifdef CPUSTOP_ON_DDBBREAK
+
+#if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
+	db_printf("\nCPU%d stopping CPUs: 0x%08x...", PCPU_GET(cpuid),
+	    PCPU_GET(other_cpus));
+#endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
+
+	/* We stop all CPUs except ourselves (obviously) */
+	stop_cpus(PCPU_GET(other_cpus));
+
+#if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
+	db_printf(" stopped.\n");
+#endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
+
+#endif /* CPUSTOP_ON_DDBBREAK */
+#endif /* SMP */
+
 	switch (type) {
 	    case T_BPTFLT:	/* breakpoint */
 	    case T_TRCTRAP:	/* debug exception */
@@ -145,24 +163,6 @@ kdb_trap(int type, int code, struct i386_saved_state *regs)
 	    ddb_regs.tf_ss = rss();
 	}
 
-#ifdef SMP
-#ifdef CPUSTOP_ON_DDBBREAK
-
-#if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
-	db_printf("\nCPU%d stopping CPUs: 0x%08x...", PCPU_GET(cpuid),
-	    PCPU_GET(other_cpus));
-#endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
-
-	/* We stop all CPUs except ourselves (obviously) */
-	stop_cpus(PCPU_GET(other_cpus));
-
-#if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
-	db_printf(" stopped.\n");
-#endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
-
-#endif /* CPUSTOP_ON_DDBBREAK */
-#endif /* SMP */
-
 	(void) setjmp(db_global_jmpbuf);
 	if (ddb_mode) {
 	    if (!db_active)
@@ -175,29 +175,6 @@ kdb_trap(int type, int code, struct i386_saved_state *regs)
 	    gdb_handle_exception(&ddb_regs, type, code);
 	}
 	db_active = 0;
-
-#ifdef SMP
-#ifdef CPUSTOP_ON_DDBBREAK
-
-#if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
-	db_printf("\nCPU%d restarting CPUs: 0x%08x...", PCPU_GET(cpuid),
-	    stopped_cpus);
-#endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
-
-	/* Restart all the CPUs we previously stopped */
-	if (stopped_cpus != PCPU_GET(other_cpus) && smp_started != 0) {
-		db_printf("whoa, other_cpus: 0x%08x, stopped_cpus: 0x%08x\n",
-			  PCPU_GET(other_cpus), stopped_cpus);
-		panic("stop_cpus() failed");
-	}
-	restart_cpus(stopped_cpus);
-
-#if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
-	db_printf(" restarted.\n");
-#endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
-
-#endif /* CPUSTOP_ON_DDBBREAK */
-#endif /* SMP */
 
 	regs->tf_eip    = ddb_regs.tf_eip;
 	regs->tf_eflags = ddb_regs.tf_eflags;
@@ -221,6 +198,29 @@ kdb_trap(int type, int code, struct i386_saved_state *regs)
 	regs->tf_fs     = ddb_regs.tf_fs & 0xffff;
 	regs->tf_cs     = ddb_regs.tf_cs & 0xffff;
 	regs->tf_ds     = ddb_regs.tf_ds & 0xffff;
+
+#ifdef SMP
+#ifdef CPUSTOP_ON_DDBBREAK
+
+#if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
+	db_printf("\nCPU%d restarting CPUs: 0x%08x...", PCPU_GET(cpuid),
+	    stopped_cpus);
+#endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
+
+	/* Restart all the CPUs we previously stopped */
+	if (stopped_cpus != PCPU_GET(other_cpus) && smp_started != 0) {
+		db_printf("whoa, other_cpus: 0x%08x, stopped_cpus: 0x%08x\n",
+			  PCPU_GET(other_cpus), stopped_cpus);
+		panic("stop_cpus() failed");
+	}
+	restart_cpus(stopped_cpus);
+
+#if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
+	db_printf(" restarted.\n");
+#endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
+
+#endif /* CPUSTOP_ON_DDBBREAK */
+#endif /* SMP */
 
 	write_eflags(ef);
 
