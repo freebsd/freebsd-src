@@ -82,12 +82,25 @@ LongJmp(jmp_buf buf, int retval)
 
     struct JmpBuf *jb = (struct JmpBuf *) buf;
 
-    if ((jb->jb_esp < 0xd0000000)
-	|| (jb->jb_ebp < 0xd0000000)
-	|| (jb->jb_eip < 0xe0000000))
+    if ((jb->jb_esp < 0xc0000000)
+	|| (jb->jb_ebp < 0xc0000000)
+	|| (jb->jb_eip < 0xc0000000))
 	panic("Invalid longjmp");
     longjmp(buf, retval);
 }
+
+/* find the base name of a path name */
+char *
+basename(char *file)
+{
+    char *f = rindex(file, '/');			    /* chop off dirname if present */
+
+    if (f == NULL)
+	return file;
+    else
+	return ++f;					    /* skip the / */
+}
+
 #else
 #define LongJmp longjmp					    /* just use the kernel function */
 #endif
@@ -145,12 +158,8 @@ MMalloc(int size, char *file, int line)
 		Debugger("Malloc overlap");
 	}
 	if (result) {
-	    char *f = rindex(file, '/');		    /* chop off dirname if present */
+	    char *f = basename(file);
 
-	    if (f == NULL)
-		f = file;
-	    else
-		f++;					    /* skip the / */
 	    i = malloccount++;
 	    total_malloced += size;
 	    microtime(&malloced[i].time);
@@ -223,7 +232,7 @@ int
 vinum_mallocinfo(caddr_t data)
 {
     struct mc *m = (struct mc *) data;
-    unsigned int ent = *(int *) data;			    /* 1st word is index */
+    unsigned int ent = m->seq;				    /* index of entry to return */
 
     if (ent >= malloccount)
 	return ENOENT;
