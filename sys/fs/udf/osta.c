@@ -17,7 +17,6 @@
  * following source code.
  */
 
-#include <stddef.h>
 /***********************************************************************
  * Takes an OSTA CS0 compressed unicode name, and converts
  * it to Unicode.
