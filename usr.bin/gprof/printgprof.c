@@ -99,8 +99,8 @@ flatprofheader()
     if ( bflag ) {
 	printblurb( _PATH_FLAT_BLURB );
     }
-    printf( "\ngranularity: each sample hit covers %d byte(s)" ,
-	    (long) scale * sizeof(UNIT) );
+    printf( "\ngranularity: each sample hit covers %g byte(s)" ,
+	    scale * sizeof(UNIT) );
     if ( totime > 0.0 ) {
 	printf( " for %.2f%% of %.2f seconds\n\n" ,
 		100.0/totime , totime / hz );
@@ -136,15 +136,15 @@ flatprofline( np )
 	    100 * np -> time / totime , actime / hz , np -> time / hz );
     if ( np -> ncall != 0 ) {
 	if (hz >= 10000000)
-	    printf( " %8d %8.0f %8.0f  " , np -> ncall ,
+	    printf( " %8ld %8.0f %8.0f  " , np -> ncall ,
 		1e9 * np -> time / hz / np -> ncall ,
 		1e9 * ( np -> time + np -> childtime ) / hz / np -> ncall );
 	else if (hz >= 10000)
-	    printf( " %8d %8.0f %8.0f  " , np -> ncall ,
+	    printf( " %8ld %8.0f %8.0f  " , np -> ncall ,
 		1e6 * np -> time / hz / np -> ncall ,
 		1e6 * ( np -> time + np -> childtime ) / hz / np -> ncall );
 	else
-	    printf( " %8d %8.2f %8.2f  " , np -> ncall ,
+	    printf( " %8ld %8.2f %8.2f  " , np -> ncall ,
 		1000 * np -> time / hz / np -> ncall ,
 		1000 * ( np -> time + np -> childtime ) / hz / np -> ncall );
     } else {
@@ -160,8 +160,8 @@ gprofheader()
     if ( bflag ) {
 	printblurb( _PATH_CALLG_BLURB );
     }
-    printf( "\ngranularity: each sample hit covers %d byte(s)" ,
-	    (long) scale * sizeof(UNIT) );
+    printf( "\ngranularity: each sample hit covers %g byte(s)" ,
+	    scale * sizeof(UNIT) );
     if ( printtime > 0.0 ) {
 	printf( " for %.2f%% of %.2f seconds\n\n" ,
 		100.0/printtime , printtime / hz );
@@ -194,9 +194,9 @@ gprofline( np )
 	    np -> propself / hz ,
 	    np -> propchild / hz );
     if ( ( np -> ncall + np -> selfcalls ) != 0 ) {
-	printf( " %7d" , np -> npropcall );
+	printf( " %7ld" , np -> npropcall );
 	if ( np -> selfcalls != 0 ) {
-	    printf( "+%-7d " , np -> selfcalls );
+	    printf( "+%-7ld " , np -> selfcalls );
 	} else {
 	    printf( " %7.7s " , "" );
 	}
@@ -314,7 +314,7 @@ printparents( childp )
 		/*
 		 *	selfcall or call among siblings
 		 */
-	    printf( "%6.6s %5.5s %7.7s %11.11s %7d %7.7s     " ,
+	    printf( "%6.6s %5.5s %7.7s %11.11s %7ld %7.7s     " ,
 		    "" , "" , "" , "" ,
 		    arcp -> arc_count , "" );
 	    printname( parentp );
@@ -323,7 +323,7 @@ printparents( childp )
 		/*
 		 *	regular parent of child
 		 */
-	    printf( "%6.6s %5.5s %7.2f %11.2f %7d/%-7d     " ,
+	    printf( "%6.6s %5.5s %7.2f %11.2f %7ld/%-7ld     " ,
 		    "" , "" ,
 		    arcp -> arc_time / hz , arcp -> arc_childtime / hz ,
 		    arcp -> arc_count , cycleheadp -> npropcall );
@@ -348,7 +348,7 @@ printchildren( parentp )
 		/*
 		 *	self call or call to sibling
 		 */
-	    printf( "%6.6s %5.5s %7.7s %11.11s %7d %7.7s     " ,
+	    printf( "%6.6s %5.5s %7.7s %11.11s %7ld %7.7s     " ,
 		    "" , "" , "" , "" , arcp -> arc_count , "" );
 	    printname( childp );
 	    printf( "\n" );
@@ -356,7 +356,7 @@ printchildren( parentp )
 		/*
 		 *	regular child of parent
 		 */
-	    printf( "%6.6s %5.5s %7.2f %11.2f %7d/%-7d     " ,
+	    printf( "%6.6s %5.5s %7.2f %11.2f %7ld/%-7ld     " ,
 		    "" , "" ,
 		    arcp -> arc_time / hz , arcp -> arc_childtime / hz ,
 		    arcp -> arc_count , childp -> cyclehead -> npropcall );
@@ -482,14 +482,14 @@ printcycle( cyclep )
     char	kirkbuffer[ BUFSIZ ];
 
     sprintf( kirkbuffer , "[%d]" , cyclep -> index );
-    printf( "%-6.6s %5.1f %7.2f %11.2f %7d" ,
+    printf( "%-6.6s %5.1f %7.2f %11.2f %7ld" ,
 	    kirkbuffer ,
 	    100 * ( cyclep -> propself + cyclep -> propchild ) / printtime ,
 	    cyclep -> propself / hz ,
 	    cyclep -> propchild / hz ,
 	    cyclep -> npropcall );
     if ( cyclep -> selfcalls != 0 ) {
-	printf( "+%-7d" , cyclep -> selfcalls );
+	printf( "+%-7ld" , cyclep -> selfcalls );
     } else {
 	printf( " %7.7s" , "" );
     }
@@ -507,11 +507,11 @@ printmembers( cyclep )
 
     sortmembers( cyclep );
     for ( memberp = cyclep -> cnext ; memberp ; memberp = memberp -> cnext ) {
-	printf( "%6.6s %5.5s %7.2f %11.2f %7d" ,
+	printf( "%6.6s %5.5s %7.2f %11.2f %7ld" ,
 		"" , "" , memberp -> propself / hz , memberp -> propchild / hz ,
 		memberp -> npropcall );
 	if ( memberp -> selfcalls != 0 ) {
-	    printf( "+%-7d" , memberp -> selfcalls );
+	    printf( "+%-7ld" , memberp -> selfcalls );
 	} else {
 	    printf( " %7.7s" , "" );
 	}
@@ -605,14 +605,14 @@ arccmp( thisp , thatp )
 	    printname( thisparentp );
 	    printf( " calls " );
 	    printname ( thischildp );
-	    printf( " %f + %f %d/%d\n" ,
+	    printf( " %f + %f %ld/%ld\n" ,
 		    thisp -> arc_time , thisp -> arc_childtime ,
 		    thisp -> arc_count , thischildp -> ncall );
 	    printf( "[arccmp] " );
 	    printname( thatparentp );
 	    printf( " calls " );
 	    printname( thatchildp );
-	    printf( " %f + %f %d/%d\n" ,
+	    printf( " %f + %f %ld/%ld\n" ,
 		    thatp -> arc_time , thatp -> arc_childtime ,
 		    thatp -> arc_count , thatchildp -> ncall );
 	    printf( "\n" );

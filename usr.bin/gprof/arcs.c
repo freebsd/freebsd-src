@@ -61,7 +61,7 @@ addarc( parentp , childp , count )
 
 #   ifdef DEBUG
 	if ( debug & TALLYDEBUG ) {
-	    printf( "[addarc] %d arcs from %s to %s\n" ,
+	    printf( "[addarc] %ld arcs from %s to %s\n" ,
 		    count , parentp -> name , childp -> name );
 	}
 #   endif DEBUG
@@ -72,7 +72,7 @@ addarc( parentp , childp , count )
 	     */
 #	ifdef DEBUG
 	    if ( debug & TALLYDEBUG ) {
-		printf( "[tally] hit %d += %d\n" ,
+		printf( "[tally] hit %ld += %ld\n" ,
 			arcp -> arc_count , count );
 	    }
 #	endif DEBUG
@@ -173,7 +173,7 @@ doarcs()
 	     */
 #	ifdef DEBUG
 	    if ( debug & BREAKCYCLE ) {
-		printf("[doarcs] pass %d, cycle(s) %d\n" , pass , ncycle );
+		printf("[doarcs] pass %ld, cycle(s) %d\n" , pass , ncycle );
 	    }
 #	endif DEBUG
 	if ( pass == 1 ) {
@@ -342,7 +342,7 @@ timepropagate( parentp )
 	    if ( debug & PROPDEBUG ) {
 		printf( "[dotime] child \t" );
 		printname( childp );
-		printf( " with %f %f %d/%d\n" ,
+		printf( " with %f %f %ld/%ld\n" ,
 			childp -> time , childp -> childtime ,
 			arcp -> arc_count , childp -> npropcall );
 		printf( "[dotime] parent\t" );
@@ -718,13 +718,13 @@ compresslist()
     maxarcp -> arc_childp -> npropcall -= maxarcp -> arc_count;
 #   ifdef DEBUG
 	if ( debug & BREAKCYCLE ) {
-	    printf( "%s delete %s arc: %s (%d) -> %s from %d cycle(s)\n" ,
+	    printf( "%s delete %s arc: %s (%ld) -> %s from %u cycle(s)\n" ,
 		"[compresslist]" , type , maxarcp -> arc_parentp -> name ,
 		maxarcp -> arc_count , maxarcp -> arc_childp -> name ,
 		maxarcp -> arc_cyclecnt );
 	}
 #   endif DEBUG
-    printf( "\t%s to %s with %d calls\n" , maxarcp -> arc_parentp -> name ,
+    printf( "\t%s to %s with %ld calls\n" , maxarcp -> arc_parentp -> name ,
 	maxarcp -> arc_childp -> name , maxarcp -> arc_count );
     prev = &cyclehead;
     for ( clp = cyclehead ; clp ; ) {
@@ -757,7 +757,7 @@ printsubcycle( clp )
     printf( "%s <cycle %d>\n" , (*arcpp) -> arc_parentp -> name ,
 	(*arcpp) -> arc_parentp -> cycleno ) ;
     for ( endlist = &clp -> list[ clp -> size ]; arcpp < endlist ; arcpp++ )
-	printf( "\t(%d) -> %s\n" , (*arcpp) -> arc_count ,
+	printf( "\t(%ld) -> %s\n" , (*arcpp) -> arc_count ,
 	    (*arcpp) -> arc_childp -> name ) ;
 }
 #endif DEBUG
