@@ -53,7 +53,6 @@ static const char rcsid[] =
 #include <sys/wait.h>
 #include <sys/linker.h>
 #include <sys/mount.h>
-#include <sys/time.h>
 #include <sys/sysctl.h>
 
 #include <err.h>
