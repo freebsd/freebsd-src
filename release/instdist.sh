@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.20 1994/11/21 05:36:00 jkh Exp $
+# $Id: instdist.sh,v 1.21 1994/11/21 06:15:30 jkh Exp $
 
 if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -79,7 +79,7 @@ storage."; then return 1; fi
 
 media_cd_tmpdir()
 {
-	if ! cd $tmp_dir; then
+	if ! cd $tmp_dir > /dev/ttyv1 2>&1; then
 		error "No such file or directory for ${tmp_dir}, sorry!  Please fix this and try again."
 		return 1
 	fi
@@ -195,7 +195,7 @@ media_install_set()
 {
 	case $media_type in
 	cdrom|nfs|ufs|doshd)
-		if ! cd ${media_device}/${media_distribution}; then
+		if ! cd ${media_device}/${media_distribution} > /dev/ttyv1 2>&1; then
 			error "Unable to cd to ${media_device}/${media_distribution} directory."
 		else
 			media_extract_dist
