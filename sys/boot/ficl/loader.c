@@ -56,11 +56,13 @@
  * 		.#	    ( value -- )
  */
 
-#ifndef TESTMAIN
 void
 ficlSetenv(FICL_VM *pVM)
 {
-	char	*namep, *valuep, *name, *value;
+#ifndef TESTMAIN
+	char	*name, *value;
+#endif
+	char	*namep, *valuep;
 	int	names, values;
 
 #if FICL_ROBUST > 1
@@ -71,6 +73,7 @@ ficlSetenv(FICL_VM *pVM)
 	values = stackPopINT(pVM->pStack);
 	valuep = (char*) stackPopPtr(pVM->pStack);
 
+#ifndef TESTMAIN
 	name = (char*) ficlMalloc(names+1);
 	if (!name)
 		vmThrowErr(pVM, "Error: out of memory");
@@ -85,6 +88,7 @@ ficlSetenv(FICL_VM *pVM)
 	setenv(name, value, 1);
 	ficlFree(name);
 	ficlFree(value);
+#endif
 
 	return;
 }
@@ -92,7 +96,10 @@ ficlSetenv(FICL_VM *pVM)
 void
 ficlSetenvq(FICL_VM *pVM)
 {
-	char	*namep, *valuep, *name, *value;
+#ifndef TESTMAIN
+	char	*name, *value;
+#endif
+	char	*namep, *valuep;
 	int	names, values, overwrite;
 
 #if FICL_ROBUST > 1
@@ -104,6 +111,7 @@ ficlSetenvq(FICL_VM *pVM)
 	values = stackPopINT(pVM->pStack);
 	valuep = (char*) stackPopPtr(pVM->pStack);
 
+#ifndef TESTMAIN
 	name = (char*) ficlMalloc(names+1);
 	if (!name)
 		vmThrowErr(pVM, "Error: out of memory");
@@ -118,6 +126,7 @@ ficlSetenvq(FICL_VM *pVM)
 	setenv(name, value, overwrite);
 	ficlFree(name);
 	ficlFree(value);
+#endif
 
 	return;
 }
@@ -125,7 +134,10 @@ ficlSetenvq(FICL_VM *pVM)
 void
 ficlGetenv(FICL_VM *pVM)
 {
-	char	*namep, *name, *value;
+#ifndef TESTMAIN
+	char	*name;
+#endif
+	char	*namep, *value;
 	int	names;
 
 #if FICL_ROBUST > 1
@@ -134,6 +146,7 @@ ficlGetenv(FICL_VM *pVM)
 	names = stackPopINT(pVM->pStack);
 	namep = (char*) stackPopPtr(pVM->pStack);
 
+#ifndef TESTMAIN
 	name = (char*) ficlMalloc(names+1);
 	if (!name)
 		vmThrowErr(pVM, "Error: out of memory");
@@ -147,6 +160,7 @@ ficlGetenv(FICL_VM *pVM)
 		stackPushPtr(pVM->pStack, value);
 		stackPushINT(pVM->pStack, strlen(value));
 	} else
+#endif
 		stackPushINT(pVM->pStack, -1);
 
 	return;
@@ -155,7 +169,10 @@ ficlGetenv(FICL_VM *pVM)
 void
 ficlUnsetenv(FICL_VM *pVM)
 {
-	char	*namep, *name;
+#ifndef TESTMAIN
+	char	*name;
+#endif
+	char	*namep;
 	int	names;
 
 #if FICL_ROBUST > 1
@@ -164,6 +181,7 @@ ficlUnsetenv(FICL_VM *pVM)
 	names = stackPopINT(pVM->pStack);
 	namep = (char*) stackPopPtr(pVM->pStack);
 
+#ifndef TESTMAIN
 	name = (char*) ficlMalloc(names+1);
 	if (!name)
 		vmThrowErr(pVM, "Error: out of memory");
@@ -172,6 +190,7 @@ ficlUnsetenv(FICL_VM *pVM)
 
 	unsetenv(name);
 	ficlFree(name);
+#endif
 
 	return;
 }
@@ -191,7 +210,9 @@ ficlCopyin(FICL_VM *pVM)
 	dest = stackPopINT(pVM->pStack);
 	src = stackPopPtr(pVM->pStack);
 
+#ifndef TESTMAIN
 	archsw.arch_copyin(src, dest, len);
+#endif
 
 	return;
 }
@@ -211,7 +232,9 @@ ficlCopyout(FICL_VM *pVM)
 	dest = stackPopPtr(pVM->pStack);
 	src = stackPopINT(pVM->pStack);
 
+#ifndef TESTMAIN
 	archsw.arch_copyout(src, dest, len);
+#endif
 
 	return;
 }
@@ -219,7 +242,10 @@ ficlCopyout(FICL_VM *pVM)
 void
 ficlFindfile(FICL_VM *pVM)
 {
-	char	*name, *type, *namep, *typep;
+#ifndef TESTMAIN
+	char	*name;
+#endif
+	char	*type, *namep, *typep;
 	struct	preloaded_file* fp;
 	int	names, types;
 
@@ -231,6 +257,7 @@ ficlFindfile(FICL_VM *pVM)
 	typep = (char*) stackPopPtr(pVM->pStack);
 	names = stackPopINT(pVM->pStack);
 	namep = (char*) stackPopPtr(pVM->pStack);
+#ifndef TESTMAIN
 	name = (char*) ficlMalloc(names+1);
 	if (!name)
 		vmThrowErr(pVM, "Error: out of memory");
@@ -243,11 +270,15 @@ ficlFindfile(FICL_VM *pVM)
 	type[types] = '\0';
 
 	fp = file_findfile(name, type);
+#else
+	fp = NULL;
+#endif
 	stackPushPtr(pVM->pStack, fp);
 
 	return;
 }
 
+#ifndef TESTMAIN
 #ifdef HAVE_PNP
 
 void
@@ -637,11 +668,6 @@ void ficlCompilePlatform(FICL_SYSTEM *pSys)
     dictAppendWord(dp, "dictthreshold", ficlDictThreshold, FW_DEFAULT);
     dictAppendWord(dp, "dictincrease", ficlDictIncrease, FW_DEFAULT);
 
-#ifndef TESTMAIN
-#ifdef __i386__
-    dictAppendWord(dp, "outb",      ficlOutb,       FW_DEFAULT);
-    dictAppendWord(dp, "inb",       ficlInb,        FW_DEFAULT);
-#endif
     dictAppendWord(dp, "setenv",    ficlSetenv,	    FW_DEFAULT);
     dictAppendWord(dp, "setenv?",   ficlSetenvq,    FW_DEFAULT);
     dictAppendWord(dp, "getenv",    ficlGetenv,	    FW_DEFAULT);
@@ -649,11 +675,16 @@ void ficlCompilePlatform(FICL_SYSTEM *pSys)
     dictAppendWord(dp, "copyin",    ficlCopyin,	    FW_DEFAULT);
     dictAppendWord(dp, "copyout",   ficlCopyout,    FW_DEFAULT);
     dictAppendWord(dp, "findfile",  ficlFindfile,   FW_DEFAULT);
+    dictAppendWord(dp, "ccall",	    ficlCcall,	    FW_DEFAULT);
+#ifndef TESTMAIN
+#ifdef __i386__
+    dictAppendWord(dp, "outb",      ficlOutb,       FW_DEFAULT);
+    dictAppendWord(dp, "inb",       ficlInb,        FW_DEFAULT);
+#endif
 #ifdef HAVE_PNP
     dictAppendWord(dp, "pnpdevices",ficlPnpdevices, FW_DEFAULT);
     dictAppendWord(dp, "pnphandlers",ficlPnphandlers, FW_DEFAULT);
 #endif
-    dictAppendWord(dp, "ccall",	    ficlCcall,	    FW_DEFAULT);
 #endif
 
 #if defined(PC98)
