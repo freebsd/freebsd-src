@@ -173,6 +173,7 @@ ata_pci_match(device_t dev)
     case 0x0d30105a:
     case 0x4d30105a:
     case 0x4d68105a:
+    case 0x6268105a:
 	return "Promise ATA100 controller";
 
     case 0x00041103:
@@ -280,6 +281,7 @@ ata_pci_attach(device_t dev)
     case 0x4d30105a:
     case 0x0d30105a:
     case 0x4d68105a:
+    case 0x6268105a:
 	ATA_OUTB(sc->bmio, 0x11, ATA_INB(sc->bmio, 0x11) | 0x0a);
 	/* FALLTHROUGH */
 
@@ -335,9 +337,9 @@ ata_pci_attach(device_t dev)
 
 	/* prepare for ATA-66 on the 82C686 and rev 0x12 and newer 82C596's */
 	if (ata_find_dev(dev, 0x06861106, 0) || 
-	    ata_find_dev(dev, 0x05961106, 0x12)) {
+	    ata_find_dev(dev, 0x05961106, 0x12))
 	    pci_write_config(dev, 0x50, 0x030b030b, 4);   
-	}
+
 	break;
 
     case 0x10001042:   /* RZ 100? known bad, no DMA */
@@ -403,6 +405,7 @@ ata_pci_intr(struct ata_softc *scp)
     case 0x4d30105a:	/* Promise Ultra/Fasttrak 100 */
     case 0x0d30105a:	/* Promise OEM ATA100 */
     case 0x4d68105a:	/* Promise TX2 ATA100 */
+    case 0x6268105a:	/* Promise TX2v2 ATA100 */
 	if (!(ATA_INL(scp->r_bmio, (scp->channel ? 0x14 : 0x1c)) &
 	      (scp->channel ? 0x00004000 : 0x00000400)))
 	    return 1;
@@ -514,8 +517,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	    int irq = (channel == 0 ? 14 : 15);
 
 	    return BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
-				      SYS_RES_IRQ, rid,
-				      irq, irq, 1, flags & ~RF_SHAREABLE);
+				      SYS_RES_IRQ, rid, irq, irq, 1, flags);
 #endif
 	}
 	else {

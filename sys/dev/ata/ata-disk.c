@@ -53,11 +53,12 @@
 
 /* device structures */
 static d_open_t		adopen;
+static d_close_t	adclose;
 static d_strategy_t	adstrategy;
 static d_dump_t		addump;
 static struct cdevsw ad_cdevsw = {
 	/* open */	adopen,
-	/* close */	nullclose,
+	/* close */	adclose,
 	/* read */	physread,
 	/* write */	physwrite,
 	/* ioctl */	noioctl,
@@ -103,7 +104,7 @@ SYSCTL_INT(_hw_ata, OID_AUTO, tags, CTLFLAG_RD, &ata_tags, 0,
 #define AD_PARAM	ATA_PARAM(adp->controller, adp->unit)
 
 /* experimental cache flush on BIO_ORDERED */
-#define ATA_FLUSHCACHE_ON 
+#undef ATA_FLUSHCACHE_ON 
 
 void
 ad_attach(struct ata_softc *scp, int device)
@@ -257,6 +258,18 @@ adopen(dev_t dev, int flags, int fmt, struct proc *p)
 
     if (adp->flags & AD_F_RAID_SUBDISK)
 	return EBUSY;
+    return 0;
+}
+
+static int
+adclose(dev_t dev, int flags, int fmt, struct proc *p)
+{
+    struct ad_softc *adp = dev->si_drv1;
+
+    if (ata_command(adp->controller, adp->unit, ATA_C_FLUSHCACHE,
+		    0, 0, 0, 0, 0, ATA_WAIT_READY))
+	ata_printf(adp->controller, adp->unit,
+		   "flushing cache on close failed\n");
     return 0;
 }
 
@@ -582,9 +595,10 @@ ad_interrupt(struct ad_request *request)
     struct ad_softc *adp = request->device;
     int dma_stat = 0;
 
+#ifdef ATA_FLUSHCACHE_ON 
     if (request->flags & ADR_F_FLUSHCACHE)
         goto finish;
-
+#endif
     /* finish DMA transfer */
     if (request->flags & ADR_F_DMA_USED)
 	dma_stat = ata_dmadone(adp->controller);
@@ -700,8 +714,8 @@ ad_interrupt(struct ad_request *request)
 	else
 	    return ATA_OP_CONTINUES;
     }
-#endif
 finish:
+#endif
     biofinish(request->bp, &adp->stats, 0);
     ad_free(request);
     adp->outstanding--;
@@ -856,6 +870,15 @@ ad_tagsupported(struct ad_softc *adp)
 		return 1;
 	    i++;
 	}
+	/* 
+	 * check IBM's new obscure way of naming drives 
+	 * we want "IC" (IBM CORP) and "AT" or "AV" (ATA interface)
+	 * but doesn't care about the other info (size, capacity etc)
+	 */
+	if (!strncmp(AD_PARAM->model, "IC", 2) &&
+	    (!strncmp(AD_PARAM->model + 8, "AT", 2) ||
+	     !strncmp(AD_PARAM->model + 8, "AV", 2)))
+		return 1;
     }
     return 0;
 }
