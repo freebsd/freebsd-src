@@ -180,7 +180,7 @@ extern struct __sFILE *__stderrp;
 
 #define	getwc(fp)	fgetwc(fp)
 #define	getwchar()	fgetwc(__stdinp)
-#define	putwc(wc, fp)	fputwc(x, fp)
+#define	putwc(wc, fp)	fputwc(wc, fp)
 #define	putwchar(wc)	fputwc(wc, __stdoutp)
 
 #if __ISO_C_VISIBLE >= 1999
