@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.101 1996/09/18 18:14:37 jkh Exp $
+#	$Id: Makefile,v 1.102 1996/09/19 16:36:24 peter Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -123,7 +123,7 @@ MK_FLAGS=	-DNOMAN -DNOPROFILE
 #
 world:
 	@echo "--------------------------------------------------------------"
-	@echo "make world started on `date`"
+	@echo "make world started on `LC_TIME= date`"
 	@echo "--------------------------------------------------------------"
 .if target(pre-world)
 	@echo "--------------------------------------------------------------"
@@ -216,7 +216,7 @@ world:
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo "make world completed on `date`"
+	@echo "make world completed on `LC_TIME= date`"
 	@echo "--------------------------------------------------------------"
 
 #
