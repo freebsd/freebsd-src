@@ -112,26 +112,17 @@ static	bool_t			fpu_cleanstate_ready;
  * Initialize floating point unit.
  */
 void
-fpuinit()
+fpuinit(void)
 {
 	register_t savecrit;
 	u_short control;
 
-	/*
-	 * fpusave() initializes the fpu and sets fpcurthread = NULL
-	 */
 	savecrit = intr_disable();
-	fpusave(&fpu_cleanstate);	/* XXX borrow for now */
+	PCPU_SET(fpcurthread, 0);
 	stop_emulating();
-	/* XXX fpusave() doesn't actually initialize the fpu in the SSE case. */
 	fninit();
 	control = __INITIAL_FPUCW__;
 	fldcw(&control);
-	start_emulating();
-	intr_restore(savecrit);
-
-	savecrit = intr_disable();
-	stop_emulating();
 	fxsave(&fpu_cleanstate);
 	start_emulating();
 	fpu_cleanstate_ready = 1;
@@ -147,8 +138,12 @@ fpuexit(struct thread *td)
 	register_t savecrit;
 
 	savecrit = intr_disable();
-	if (curthread == PCPU_GET(fpcurthread))
-		fpusave(&PCPU_GET(curpcb)->pcb_save);
+	if (curthread == PCPU_GET(fpcurthread)) {
+		stop_emulating();
+		fxsave(&PCPU_GET(curpcb)->pcb_save);
+		start_emulating();
+		PCPU_SET(fpcurthread, 0);
+	}
 	intr_restore(savecrit);
 }
 
@@ -422,39 +417,11 @@ fpudna()
 		control = __INITIAL_FPUCW__;
 		fldcw(&control);
 		pcb->pcb_flags |= PCB_FPUINITDONE;
-	} else {
-		/*
-		 * The following frstor may cause a trap when the state
-		 * being restored has a pending error.  The error will
-		 * appear to have been triggered by the current (fpu) user
-		 * instruction even when that instruction is a no-wait
-		 * instruction that should not trigger an error (e.g.,
-		 * instructions are broken the same as frstor, so our
-		 * treatment does not amplify the breakage.
-		 */
+	} else
 		fxrstor(&pcb->pcb_save);
-	}
 	intr_restore(s);
 
 	return (1);
-}
-
-/*
- * Wrapper for fnsave instruction.
- *
- * fpusave() must be called with interrupts disabled, so that it clears
- * fpcurthread atomically with saving the state.  We require callers to do the
- * disabling, since most callers need to disable interrupts anyway to call
- * fpusave() atomically with checking fpcurthread.
- */
-void
-fpusave(struct savefpu *addr)
-{
-
-	stop_emulating();
-	fxsave(addr);
-	start_emulating();
-	PCPU_SET(fpcurthread, NULL);
 }
 
 /*
