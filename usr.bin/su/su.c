@@ -331,7 +331,7 @@ main(int argc, char *argv[])
 			if (WIFSTOPPED(statusp)) {
 				kill(getpid(), SIGSTOP);
 				child_pgrp = getpgid(child_pid);
-				if (tcgetpgrp(1) == getpgrp()) {				{
+				if (tcgetpgrp(1) == getpgrp()) {
 					tcsetpgrp(1, child_pgrp);
 					kill(child_pid, SIGCONT);
 				}
