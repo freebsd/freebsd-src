@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: main.c,v 1.1.1.1 1998/08/21 03:17:42 msmith Exp $
  */
 
 
@@ -96,9 +96,9 @@ main(void)
 	    (devsw[i]->dv_init)();
 
     printf("\n");
-    printf(">> %s, Revision %s\n", bootprog_name, bootprog_rev);
-    printf(">> (%s, %s)\n", bootprog_maker, bootprog_date);
-    printf(">> Memory: %ld k\n", memsize() / 1024);
+    printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
+    printf("(%s, %s)\n", bootprog_maker, bootprog_date);
+    printf("Memory: %ld k\n", memsize() / 1024);
     
     /* We're booting from an SRM disk, try to spiff this */
     currdev.d_dev = devsw[0];				/* XXX presumes that biosdisk is first in devsw */
@@ -120,9 +120,22 @@ main(void)
     archsw.arch_getdev = alpha_getdev;
 
     /*
+     * SRM firmware takes *ages* to open the disk device.  We hold it
+     * open until the closeall() when we exec the kernel.  Note that
+     * we must close it eventually since otherwise the firmware leaves
+     * the ncr hardware in a broken state (at least it does on my EB164).
+     */
+    open("/", O_RDONLY);
+
+    /*
      * XXX should these be in the MI source?
      */
     source("/boot/boot.config");
+    printf("\n");
+    autoboot(10, NULL);		/* try to boot automatically */
+    printf("\nType '?' for a list of commands, 'help' for more detailed help.\n");
+    /* setenv("prompt", "$currdev>", 1); */
+
     interact();			/* doesn't return */
 }
 
