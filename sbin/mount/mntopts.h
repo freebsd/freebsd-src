@@ -58,6 +58,7 @@ struct mntopt {
 #define MOPT_SUIDDIR		{ "suiddir",	0, MNT_SUIDDIR, 0 }
 #define MOPT_SNAPSHOT		{ "snapshot",	0, MNT_SNAPSHOT, 0 }
 #define MOPT_MULTILABEL		{ "multilabel",	0, MNT_MULTILABEL, 0 }
+#define MOPT_ACLS		{ "acls",	0, MNT_ACLS, 0 }
 
 /* Control flags. */
 #define MOPT_FORCE		{ "force",	0, MNT_FORCE, 0 }
@@ -88,7 +89,8 @@ struct mntopt {
 	MOPT_UNION,							\
 	MOPT_NOCLUSTERR,						\
 	MOPT_NOCLUSTERW,						\
-	MOPT_MULTILABEL
+	MOPT_MULTILABEL,						\
+	MOPT_ACLS
 
 void getmntopts(const char *, const struct mntopt *, int *, int *);
 void rmslashes(char *, char *);
