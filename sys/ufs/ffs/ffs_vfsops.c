@@ -1099,6 +1099,7 @@ ffs_sync(mp, waitfor, cred, td)
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct fs *fs;
 	int error, count, wait, lockreq, allerror = 0;
+	struct bufobj *bo;
 
 	fs = ump->um_fs;
 	if (fs->fs_fmod != 0 && fs->fs_ronly != 0) {		/* XXX */
@@ -1132,7 +1133,7 @@ loop:
 		ip = VTOI(vp);
 		if (vp->v_type == VNON || ((ip->i_flag &
 		    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0 &&
-		    TAILQ_EMPTY(&vp->v_dirtyblkhd))) {
+		    vp->v_bufobj.bo_dirty.bv_cnt == 0)) {
 			VI_UNLOCK(vp);
 			continue;
 		}
@@ -1167,8 +1168,9 @@ loop:
 #endif
 	devvp = ump->um_devvp;
 	VI_LOCK(devvp);
+	bo = &devvp->v_bufobj;
 	if (waitfor != MNT_LAZY &&
-	    (devvp->v_numoutput > 0 || TAILQ_FIRST(&devvp->v_dirtyblkhd))) {
+	    (bo->bo_numoutput > 0 || bo->bo_dirty.bv_cnt > 0)) {
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK, td);
 		if ((error = VOP_FSYNC(devvp, cred, waitfor, td)) != 0)
 			allerror = error;

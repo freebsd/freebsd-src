@@ -952,13 +952,15 @@ vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
 	 * no race conditions occur from this.
 	 */
 	for (error = 0;;) {
-		if ((blist = TAILQ_FIRST(&vp->v_cleanblkhd)) != 0 &&
+		blist = TAILQ_FIRST(&vp->v_bufobj.bo_clean.bv_hd);
+		if (blist != NULL &&
 		    flushbuflist(blist, flags, vp, slpflag, slptimeo, &error)) {
 			if (error)
 				break;
 			continue;
 		}
-		if ((blist = TAILQ_FIRST(&vp->v_dirtyblkhd)) != 0 &&
+		blist = TAILQ_FIRST(&vp->v_bufobj.bo_dirty.bv_hd);
+		if (blist != NULL &&
 		    flushbuflist(blist, flags, vp, slpflag, slptimeo, &error)) {
 			if (error)
 				break;
@@ -985,7 +987,7 @@ vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
 			VM_OBJECT_UNLOCK(object);
 		}
 		VI_LOCK(vp);
-	} while (vp->v_numoutput > 0);
+	} while (bo->bo_numoutput > 0);
 	VI_UNLOCK(vp);
 
 	/*
@@ -1001,8 +1003,8 @@ vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
 #ifdef INVARIANTS
 	VI_LOCK(vp);
 	if ((flags & (V_ALT | V_NORMAL)) == 0 &&
-	    (!TAILQ_EMPTY(&vp->v_dirtyblkhd) ||
-	     !TAILQ_EMPTY(&vp->v_cleanblkhd)))
+	    (vp->v_bufobj.bo_dirty.bv_cnt > 0 ||
+	     vp->v_bufobj.bo_clean.bv_cnt > 0))
 		panic("vinvalbuf: flush failed");
 	VI_UNLOCK(vp);
 #endif
@@ -1398,7 +1400,7 @@ brelvp(struct buf *bp)
 	bo = bp->b_bufobj;
 	if (bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN))
 		buf_vlist_remove(bp);
-	if ((vp->v_iflag & VI_ONWORKLST) && TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
+	if ((vp->v_iflag & VI_ONWORKLST) && bo->bo_dirty.bv_cnt == 0) {
 		vp->v_iflag &= ~VI_ONWORKLST;
 		mtx_lock(&sync_mtx);
 		LIST_REMOVE(vp, v_synclist);

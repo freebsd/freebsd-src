@@ -197,10 +197,9 @@ ffs_fsync(ap)
 	s = splbio();
 	VI_LOCK(vp);
 loop:
-	TAILQ_FOREACH(bp, &vp->v_dirtyblkhd, b_bobufs)
+	TAILQ_FOREACH(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs)
 		bp->b_vflags &= ~BV_SCANNED;
-	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
-		nbp = TAILQ_NEXT(bp, b_bobufs);
+	TAILQ_FOREACH_SAFE(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs, nbp) {
 		/* 
 		 * Reasons to skip this buffer: it has already been considered
 		 * on this pass, this pass is the first time through on a
@@ -273,7 +272,7 @@ loop:
 		 * to start from a known point.
 		 */
 		VI_LOCK(vp);
-		nbp = TAILQ_FIRST(&vp->v_dirtyblkhd);
+		nbp = TAILQ_FIRST(&vp->v_bufobj.bo_dirty.bv_hd);
 	}
 	/*
 	 * If we were asked to do this synchronously, then go back for
@@ -298,7 +297,7 @@ loop:
 		s = splbio();
 
 		VI_LOCK(vp);
-		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
+		if (vp->v_bufobj.bo_dirty.bv_cnt > 0) {
 			/*
 			 * Block devices associated with filesystems may
 			 * have new I/O requests posted for them even if

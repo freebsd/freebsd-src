@@ -550,7 +550,7 @@ loop1:
 	 * MARK/SCAN initialization to avoid infinite loops.
 	 */
 	s = splbio();
-        TAILQ_FOREACH(bp, &vp->v_dirtyblkhd, b_bobufs) {
+        TAILQ_FOREACH(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs) {
                 bp->b_vflags &= ~BV_SCANNED;
 		bp->b_error = 0;
 	}
@@ -561,8 +561,7 @@ loop1:
 	 */
 loop2:
 	s = splbio();
-	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp != NULL; bp = nbp) {
-		nbp = TAILQ_NEXT(bp, b_bobufs);
+	TAILQ_FOREACH_SAFE(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs, nbp) {
 		if ((bp->b_vflags & BV_SCANNED) != 0)
 			continue;
 		bp->b_vflags |= BV_SCANNED;
@@ -724,7 +723,7 @@ loop:
 	MNT_VNODE_FOREACH(vp, mp, nvp) {
 
 		VI_LOCK(vp);
-		if (TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
+		if (vp->v_bufobj.bo_dirty.bv_cnt == 0) {
 			VI_UNLOCK(vp);
 			continue;
 		}
