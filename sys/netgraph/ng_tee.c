@@ -260,7 +260,7 @@ ngt_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 		meta_p meta2;
 
 		/* Copy packet */
-		m2 = m_copypacket(m, M_NOWAIT);
+		m2 = m_dup(m, M_NOWAIT);
 		if (m2 == NULL) {
 			NG_FREE_DATA(m, meta);
 			return (ENOBUFS);
