@@ -1012,7 +1012,6 @@ ngs_mod_event(module_t mod, int event, void *data)
 	return (error);
 }
 
-SYSCTL_NODE(_net, AF_NETGRAPH, graph, CTLFLAG_RW, 0, "netgraph Family");
 SYSCTL_INT(_net_graph, OID_AUTO, family, CTLFLAG_RD, 0, AF_NETGRAPH, "");
 SYSCTL_NODE(_net_graph, OID_AUTO, data, CTLFLAG_RW, 0, "DATA");
 SYSCTL_INT(_net_graph_data, OID_AUTO, proto, CTLFLAG_RD, 0, NG_DATA, "");

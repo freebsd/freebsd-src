@@ -297,6 +297,12 @@ DECLARE_MODULE(ng_##typename, ng_##typename##_mod, sub, order)
 /* Special malloc() type for netgraph structs and ctrl messages */
 MALLOC_DECLARE(M_NETGRAPH);
 
+/* declare the base of the netgraph sysctl hierarchy */
+/* but only if this file cares about sysctls */
+#ifdef	SYSCTL_DECL
+SYSCTL_DECL(_net_graph);
+#endif
+
 int	ng_bypass(hook_p hook1, hook_p hook2);
 void	ng_cutlinks(node_p node);
 int	ng_con_nodes(node_p node,
