@@ -166,13 +166,15 @@ extern __inline void
 translate_bytes(const void *table, void *buff, int n)
 {
     if (n > 0) {
-	__asm__("cld\n"
+	__asm __volatile(
+		"cld\n"
 		"1:\tlodsb\n\t"
 		"xlatb\n\t"
 		"stosb\n\t"
-		"loop 1b\n\t":
-		:"b"(table), "c"(n), "D"(buff), "S"(buff)
-		:"bx", "cx", "di", "si", "ax");
+		"loop 1b\n\t"
+		: "=b" (table), "=c" (n), "=D" (buff), "=S" (buff)
+		:  "0" (table),  "1" (n),  "2" (buff),  "3" (buff)
+		: "ax", "memory");
     }
 }
 
