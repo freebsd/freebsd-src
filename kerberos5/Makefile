@@ -2,6 +2,8 @@
 
 SUBDIR=	lib libexec usr.bin usr.sbin
 
+SDIR= ${.CURDIR}/..
+
 bootstrap: cleandir obj depend all install kprog
 
 help-distribute:	distribute
