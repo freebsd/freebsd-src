@@ -101,5 +101,7 @@ afterinstall:
 	ln -fs ../de_DE.ISO_8859-15/LC_COLLATE \
 	       ${LOCALEDIR}/${link}.ISO_8859-15/LC_COLLATE
 .endfor
+	ln -fs ../cs_CZ.ISO_8859-2/LC_COLLATE \
+	       ${LOCALEDIR}/sk_SK.ISO_8859-2/LC_COLLATE
 
 .include <bsd.prog.mk>
