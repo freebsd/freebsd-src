@@ -164,9 +164,9 @@ struct statics *statics;
 	ip = cpustate_columns;
 	while (*pp != NULL)
 	{
+	    *ip++ = cpustate_total_length;
 	    if ((i = strlen(*pp++)) > 0)
 	    {
-		*ip++ = cpustate_total_length;
 		cpustate_total_length += i + 8;
 	    }
 	}
@@ -279,7 +279,7 @@ time_t *tod;
 }
 
 static int ltotal = 0;
-static char procstates_buffer[128];
+static char procstates_buffer[MAX_COLS];
 
 /*
  *  *_procstates(total, brkdn, names) - print the process summary line
@@ -321,7 +321,7 @@ int total;
 int *brkdn;
 
 {
-    static char new[128];
+    static char new[MAX_COLS];
     register int i;
 
     /* update number of processes only if it has changed */
@@ -467,7 +467,7 @@ register int *states;
 		       ((double)value)/10.);
 
 		/* remember it for next time */
-		*lp = *states;
+		*lp = value;
 	    }
 	}
 
