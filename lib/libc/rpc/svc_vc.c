@@ -85,8 +85,8 @@ static bool_t svc_vc_reply __P((SVCXPRT *, struct rpc_msg *));
 static void svc_vc_rendezvous_ops __P((SVCXPRT *));
 static void svc_vc_ops __P((SVCXPRT *));
 static bool_t svc_vc_control __P((SVCXPRT *xprt, const u_int rq, void *in));
+static int __msgread_withcred(int, void *, size_t, struct cmessage *);
 static int __msgwrite(int, void *, size_t);
-static int __msgread(int, void *, size_t);
 
 struct cf_rendezvous { /* kept in xprt->xp_p1 for rendezvouser */
 	u_int sendsize;
@@ -99,12 +99,6 @@ struct cf_conn {  /* kept in xprt->xp_p1 for actual connection */
 	XDR xdrs;
 	char verf_body[MAX_AUTH_BYTES];
 };
-
-struct cmessage {
-	struct cmsghdr cmsg;
-	struct cmsgcred cmcred;
-};
- 
 
 /*
  * Usage:
@@ -421,17 +415,18 @@ read_vc(xprtp, buf, len)
 			if (errno == EINTR)
 				continue;
 			/*FALLTHROUGH*/
-			case 0:
-				goto fatal_err;
-			default:
-				break;
+		case 0:
+			goto fatal_err;
+
+		default:
+			break;
 		}
 	} while ((pollfd.revents & POLLIN) == 0);
 
 	sa = (struct sockaddr *)xprt->xp_rtaddr.buf;
 	if (sa->sa_family == AF_LOCAL) {
-		if ((len = __msgread(sock, buf, len)) > 0) {
-			cm = (struct cmessage *)xprt->xp_verf.oa_base;
+		cm = (struct cmessage *)xprt->xp_verf.oa_base;
+		if ((len = __msgread_withcred(sock, buf, len, cm)) > 0) {
 			cmp = &cm->cmsg;
 			sc = (struct sockcred *)(void *)CMSG_DATA(cmp);
 			xprt->xp_p2 = sc;
@@ -632,17 +627,17 @@ svc_vc_rendezvous_ops(xprt)
 	mutex_unlock(&ops_lock);
 }
 
-static int
-__msgread(sock, buf, cnt)
+int
+__msgread_withcred(sock, buf, cnt, cmp)
 	int sock;
 	void *buf;
 	size_t cnt;
+	struct cmessage *cmp;
 {
 	struct iovec iov[1];
 	struct msghdr msg;
-	struct cmessage cm;
  
-	bzero((char *)&cm, sizeof(cm));
+	bzero(cmp, sizeof(*cmp));
 	iov[0].iov_base = buf;
 	iov[0].iov_len = cnt;
  
@@ -650,13 +645,13 @@ __msgread(sock, buf, cnt)
 	msg.msg_iovlen = 1;
 	msg.msg_name = NULL;
 	msg.msg_namelen = 0;
-	msg.msg_control = (caddr_t)&cm;
+	msg.msg_control = cmp;
 	msg.msg_controllen = sizeof(struct cmessage);
 	msg.msg_flags = 0;
  
 	return(_recvmsg(sock, &msg, 0));
 }
- 
+
 static int
 __msgwrite(sock, buf, cnt)
 	int sock;
@@ -684,4 +679,20 @@ __msgwrite(sock, buf, cnt)
 	msg.msg_flags = 0;
 
 	return(_sendmsg(sock, &msg, 0));
+}
+
+/*
+ * Get the effective UID of the sending process. Used by rpcbind and keyserv
+ * (AF_LOCAL).
+ */
+int
+__rpc_get_local_uid(SVCXPRT *transp, uid_t *uid)
+{
+	struct cmsgcred *cmcred;
+ 
+	cmcred = __svc_getcallercreds(transp);
+	if (cmcred == NULL)
+		return(-1); 
+	*uid = cmcred->cmcred_euid;
+	return(0);
 }

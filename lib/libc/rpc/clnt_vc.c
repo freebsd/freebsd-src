@@ -110,12 +110,6 @@ struct ct_data {
 	XDR		ct_xdrs;	/* XDR stream */
 };
 
-struct cmessage {
-	struct cmsghdr cmsg;
-	struct cmsgcred cmcred;
-};
- 
-
 /*
  *      This machinery implements per-fd locks for MT-safety.  It is not
  *      sufficient to do per-CLIENT handle locks for MT-safety because a
@@ -785,6 +779,7 @@ time_not_ok(t)
 		t->tv_usec <= -1 || t->tv_usec > 1000000);
 }
 
+static int
 __msgread(sock, buf, cnt)
 	int sock;
 	void *buf;
@@ -808,7 +803,7 @@ __msgread(sock, buf, cnt)
  
 	return(_recvmsg(sock, &msg, 0));
 }
- 
+
 static int
 __msgwrite(sock, buf, cnt)
 	int sock;

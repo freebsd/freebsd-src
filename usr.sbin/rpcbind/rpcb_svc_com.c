@@ -1348,15 +1348,14 @@ find_service(rpcprog_t prog, rpcvers_t vers, char *netid)
 static char *
 getowner(SVCXPRT *transp, char *owner, size_t ownersize)
 {
-	struct cmsgcred *cmcred;
-
-	cmcred = __svc_getcallercreds(transp);
-	if (cmcred == NULL)
-		strlcpy(owner, "unknown", ownersize);
-	else if (cmcred->cmcred_uid == 0)
+	uid_t uid;
+ 
+	if (__rpc_get_local_uid(transp, &uid) < 0)
+                strlcpy(owner, "unknown", ownersize);
+	else if (uid == 0)
 		strlcpy(owner, "superuser", ownersize);
 	else
-		snprintf(owner, ownersize, "%d", cmcred->cmcred_uid);
+		snprintf(owner, ownersize, "%d", uid);  
 
 	return owner;
 }
