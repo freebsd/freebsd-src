@@ -64,7 +64,6 @@ struct pci_vendor_info
 
 TAILQ_HEAD(,pci_vendor_info)	pci_vendors;
 
-static void dobar(const char *);
 static void list_devs(int vendors);
 static void list_verbose(struct pci_conf *p);
 static char *guess_class(struct pci_conf *p);
@@ -91,27 +90,15 @@ int
 main(int argc, char **argv)
 {
 	int c;
-	int listmode, readmode, writemode, attachedmode, barmode, verbose;
+	int listmode, readmode, writemode, attachedmode, verbose;
 	int byte, isshort;
 
-	barmode = listmode = readmode = writemode = attachedmode = verbose = byte = isshort = 0;
+	listmode = readmode = writemode = attachedmode = verbose = byte = isshort = 0;
 
-	while ((c = getopt(argc, argv, "aBbhlrwv")) != -1) {
+	while ((c = getopt(argc, argv, "alrwbhv")) != -1) {
 		switch(c) {
 		case 'a':
 			attachedmode = 1;
-			break;
-
-		case 'B':
-			barmode = 1;
-			break;
-
-		case 'b':
-			byte = 1;
-			break;
-
-		case 'h':
-			isshort = 1;
 			break;
 
 		case 'l':
@@ -126,6 +113,14 @@ main(int argc, char **argv)
 			writemode = 1;
 			break;
 
+		case 'b':
+			byte = 1;
+			break;
+
+		case 'h':
+			isshort = 1;
+			break;
+
 		case 'v':
 			verbose = 1;
 			break;
@@ -138,8 +133,7 @@ main(int argc, char **argv)
 	if ((listmode && optind != argc)
 	    || (writemode && optind + 3 != argc)
 	    || (readmode && optind + 2 != argc)
-	    || (attachedmode && optind + 1 != argc)
-	    || (barmode && optind + 1 != argc))
+	    || (attachedmode && optind + 1 != argc))
 		usage();
 
 	if (listmode) {
@@ -153,7 +147,6 @@ main(int argc, char **argv)
 	} else if (writemode) {
 		writeit(argv[optind], argv[optind + 1], argv[optind + 2],
 		       byte ? 1 : isshort ? 2 : 4);
-	} else if (barmode) {
 	} else {
  		usage();
 	}
@@ -476,54 +469,6 @@ readone(int fd, struct pcisel *sel, long reg, int width)
 		err(1, "ioctl(PCIOCREAD)");
 
 	printf("%0*x", width*2, pi.pi_data);
-}
-
-static void
-dobar(const char *name)
-{
-#define NBAR 6
-	long rstart = 0x10;
-	long rend = 0x24;
-	long r;
-	char *end;
-	int i;
-	int fd;
-	uint32_t bars[NBAR];
-	struct pcisel sel;
-	struct pci_io pi;
-
-
-	fd = open(_PATH_DEVPCI, O_RDWR, 0);
-	if (fd < 0)
-		err(1, "%s", _PATH_DEVPCI);
-
-	/* 
-	 * Read in the bars
-	 */
-	sel = getsel(name);
-	for (i = 0, r = rstart; r <= rend; i++, r += 4) {	
-		pi.pi_sel = sel;
-		pi.pi_reg = r;
-		pi.pi_width = 4;
-		if (ioctl(fd, PCIOCREAD, &pi) < 0)
-			err(1, "ioctl(PCIOCREAD)");
-		bars[i++] = pi.pi_data;
-	}
-
-	/*
-	 * Print the bars
-	 */
-	for (i = 0; i < NBAR; i++) {
-		if (bars[i] == 0)
-			continue;
-		if (bars[i] & 1) {
-			/* I/O bar */
-		} else {
-			/* Memory bar */
-		}
-	}
-
-	close(fd);
 }
 
 static void
