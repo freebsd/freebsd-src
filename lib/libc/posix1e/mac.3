@@ -112,6 +112,17 @@ and may be used to convert
 a text-form MAC label
 into a working
 .Vt mac_t .
+.It Fn mac_prepare
+.It Fn mac_prepare_file_label
+.It Fn mac_prepare_ifnet_label
+.It Fn mac_prepare_process_label
+These functions are described in
+.Xr mac_prepare 3 ,
+and may be used to preallocate storage for MAC label retrieval.
+.Xr mac_prepare 3
+prepares a label based on caller-specified label names; the other calls
+rely on the default configuration specified in
+.Xr mac.conf 5 .
 .It Fn mac_to_text
 This function is described in
 .Xr mac_text 3 ,
