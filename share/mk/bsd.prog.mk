@@ -102,6 +102,7 @@ _INSTALLFLAGS:=	${_INSTALLFLAGS${ie}}
 
 .if !target(realinstall)
 realinstall: _proginstall
+.ORDER: beforeinstall _proginstall
 _proginstall:
 .if defined(PROG)
 .if defined(PROGNAME)
@@ -120,6 +121,7 @@ _proginstall:
 
 .if defined(SCRIPTS) && !empty(SCRIPTS)
 realinstall: _scriptsinstall
+.ORDER: beforeinstall _scriptsinstall
 
 SCRIPTSDIR?=	${BINDIR}
 SCRIPTSOWN?=	${BINOWN}
@@ -154,6 +156,7 @@ NLSNAME?=	${PROG}
 
 .if !defined(NOMAN)
 realinstall: _maninstall
+.ORDER: beforeinstall _maninstall
 .endif
 
 .endif

@@ -5,6 +5,7 @@
 .endif
 
 afterinstall: _installlinks
+.ORDER: realinstall _installlinks
 _installlinks:
 .if defined(LINKS) && !empty(LINKS)
 	@set ${LINKS}; \
