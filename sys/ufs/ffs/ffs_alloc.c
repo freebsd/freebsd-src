@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.18 (Berkeley) 5/26/95
- * $Id: ffs_alloc.c,v 1.50 1998/07/11 07:46:04 bde Exp $
+ * $Id: ffs_alloc.c,v 1.51 1998/08/17 19:09:36 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -1300,6 +1300,7 @@ ffs_blkfree(ip, bno, size)
 	int i, error, cg, blk, frags, bbase;
 
 	fs = ip->i_fs;
+	VOP_FREEBLKS(ip->i_devvp, fsbtodb(fs, bno), size);
 	if ((u_int)size > fs->fs_bsize || fragoff(fs, size) != 0 ||
 	    fragnum(fs, bno) + numfrags(fs, size) > fs->fs_frag) {
 		printf("dev=0x%lx, bno = %d, bsize = %d, size = %ld, fs = %s\n",

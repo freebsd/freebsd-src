@@ -31,7 +31,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.src	8.12 (Berkeley) 5/14/95
-# $Id: vnode_if.src,v 1.17 1998/05/07 04:58:26 msmith Exp $
+# $Id: vnode_if.src,v 1.18 1998/07/04 20:45:32 julian Exp $
 #
 
 #
@@ -464,6 +464,20 @@ vop_putpages {
 	IN int sync;
 	IN int *rtvals;
 	IN vm_ooffset_t offset;
+};
+
+#
+#% freeblks	vp	- - -
+#
+# This call is used by the filesystem to release blocks back to 
+# device-driver.  This is useful if the driver has a lengthy 
+# erase handling or similar.
+#
+
+vop_freeblks {
+	IN struct vnode *vp;
+	IN daddr_t addr;
+	IN daddr_t length;
 };
 
 #
