@@ -1,11 +1,10 @@
-#       $Id: Makefile,v 1.4 1997/02/22 12:48:08 peter Exp $
+#       $Id: Makefile,v 1.5 1998/01/08 23:50:23 eivind Exp $
 
 .PATH:  ${.CURDIR}/../../sys/net
 KMOD=   if_sl_mod
 SRCS=   if_sl.c slcompress.c bpfilter.h opt_inet.h sl.h
 NOMAN=
 PSEUDO_LKM=
-CFLAGS+= -I.
 
 NBPFILTER?=	0
 NSL?=		2
