@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.h,v 1.3 1995/11/21 12:54:54 bde Exp $
+**  $Id: pcibus.h,v 1.4 1996/01/30 22:59:55 mpp Exp $
 **
 **  Declarations for pci bus driver.
 **
@@ -79,7 +79,6 @@ struct pcibus {
 	pcici_t (*pb_ftag  )  (pcici_t tag, u_char func);
 	u_long	(*pb_read  )  (pcici_t tag, u_long reg);
 	void	(*pb_write )  (pcici_t tag, u_long reg, u_long data);
-	unsigned  pb_maxirq;
 	int	(*pb_iattach) (int irq, inthand2_t *func, int arg,
 			       unsigned *maskptr);
 	int	(*pb_idetach) (int irq, inthand2_t *func);
@@ -94,5 +93,7 @@ struct pcibus {
 */
 
 extern struct linker_set pcibus_set;
+
+int pci_register_lkm (struct pci_device *dvp, int if_revision);
 
 #endif

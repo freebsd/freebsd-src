@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.26 1996/06/18 01:22:28 bde Exp $
+**  $Id: pcibus.c,v 1.27 1996/10/30 22:38:55 asami Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -119,7 +119,6 @@ static struct pcibus i386pci = {
 	pcibus_ftag,
 	pcibus_read,
 	pcibus_write,
-	ICU_LEN,
 	pcibus_ihandler_attach,
 	pcibus_ihandler_detach,
 	pcibus_imask_include,
