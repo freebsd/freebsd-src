@@ -400,11 +400,14 @@ print_ci(cip, totalcip)
 		}
 	}
 
-	if (tflag)
+	if (tflag) {
 		if (!uflow)
-			printf("%8.2fre/cp ", cip->ci_etime / (double) (cip->ci_utime + cip->ci_stime));
+			printf("%8.2fre/cp ",
+			    cip->ci_etime /
+			    (double) (cip->ci_utime + cip->ci_stime));
 		else
 			printf("*ignore*      ");
+	}
 
 	if (Dflag)
 		printf("%10qutio ", cip->ci_io);
