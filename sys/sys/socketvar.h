@@ -38,7 +38,6 @@
 #define _SYS_SOCKETVAR_H_
 
 #include <sys/queue.h>			/* for TAILQ macros */
-#include <sys/sx.h>			/* SX locks */
 #include <sys/selinfo.h>		/* for struct selinfo */
 #include <vm/uma.h>
 
