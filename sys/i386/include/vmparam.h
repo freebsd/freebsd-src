@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vmparam.h	5.9 (Berkeley) 5/12/91
- *	$Id: vmparam.h,v 1.20 1996/04/30 12:02:12 phk Exp $
+ *	$Id: vmparam.h,v 1.21 1996/05/02 14:20:07 phk Exp $
  */
 
 
@@ -115,5 +115,8 @@
 
 /* virtual sizes (bytes) for various kernel submaps */
 #define VM_KMEM_SIZE		(32 * 1024 * 1024)
+
+/* read and exec are the same thing */
+#define VM_PROT_READ_IS_EXEC
 
 #endif /* _MACHINE_VMPARAM_H_ */

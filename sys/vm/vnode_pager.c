@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.64 1996/09/10 05:28:23 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.65 1996/10/17 02:49:35 dyson Exp $
  */
 
 /*
@@ -148,6 +148,8 @@ vnode_pager_alloc(handle, size, prot, offset)
 		else
 			object->flags = 0;
 
+		if (vp->v_usecount == 0)
+			panic("vnode_pager_alloc: no vnode reference");
 		/*
 		 * Hold a reference to the vnode and initialize object data.
 		 */

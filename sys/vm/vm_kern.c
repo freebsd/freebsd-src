@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.27 1996/07/02 02:08:02 dyson Exp $
+ * $Id: vm_kern.c,v 1.27.2.1 1997/01/17 19:28:38 davidg Exp $
  */
 
 /*
@@ -89,17 +89,17 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 
-vm_map_t buffer_map;
-vm_map_t kernel_map;
-vm_map_t kmem_map;
-vm_map_t mb_map;
-int mb_map_full;
-vm_map_t io_map;
-vm_map_t clean_map;
-vm_map_t phys_map;
-vm_map_t exec_map;
-vm_map_t exech_map;
-vm_map_t u_map;
+vm_map_t kernel_map=0;
+vm_map_t kmem_map=0;
+vm_map_t exec_map=0;
+vm_map_t exech_map=0;
+vm_map_t clean_map=0;
+vm_map_t u_map=0;
+vm_map_t buffer_map=0;
+vm_map_t mb_map=0;
+int mb_map_full=0;
+vm_map_t io_map=0;
+vm_map_t phys_map=0;
 
 /*
  *	kmem_alloc_pageable:
@@ -198,11 +198,6 @@ kmem_alloc(map, size)
 	 */
 
 	(void) vm_map_pageable(map, (vm_offset_t) addr, addr + size, FALSE);
-
-	/*
-	 * Try to coalesce the map
-	 */
-	vm_map_simplify(map, addr);
 
 	return (addr);
 }
@@ -362,6 +357,8 @@ retry:
 		panic("kmem_malloc: entry not found or misaligned");
 	entry->wired_count++;
 
+	vm_map_simplify_entry(map, entry);
+
 	/*
 	 * Loop thru pages, entering them in the pmap. (We cannot add them to
 	 * the wired count without wrapping the vm_page_queue_lock in
@@ -377,7 +374,6 @@ retry:
 	}
 	vm_map_unlock(map);
 
-	vm_map_simplify(map, addr);
 	return (addr);
 }
 

@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.53 1996/10/29 22:07:11 dyson Exp $
+ * $Id: vm_mmap.c,v 1.53.2.1 1996/12/22 23:21:26 joerg Exp $
  */
 
 /*
@@ -475,6 +475,10 @@ mprotect(p, uap, retval)
 	addr = (vm_offset_t) uap->addr;
 	size = uap->len;
 	prot = uap->prot & VM_PROT_ALL;
+#if defined(VM_PROT_READ_IS_EXEC)
+	if (prot & VM_PROT_READ)
+		prot |= VM_PROT_EXECUTE;
+#endif
 
 	pageoff = (addr & PAGE_MASK);
 	addr -= pageoff;
@@ -648,7 +652,7 @@ mincore(p, uap, retval)
 		/*
 		 * ignore submaps (for now) or null objects
 		 */
-		if (current->is_a_map || current->is_sub_map ||
+		if ((current->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) ||
 			current->object.vm_object == NULL)
 			continue;
 		
@@ -787,7 +791,7 @@ mlock(p, uap, retval)
 		return (error);
 #endif
 
-	error = vm_map_pageable(&p->p_vmspace->vm_map, addr, addr + size, FALSE);
+	error = vm_map_user_pageable(&p->p_vmspace->vm_map, addr, addr + size, FALSE);
 	return (error == KERN_SUCCESS ? 0 : ENOMEM);
 }
 
@@ -825,7 +829,7 @@ munlock(p, uap, retval)
 		return (error);
 #endif
 
-	error = vm_map_pageable(&p->p_vmspace->vm_map, addr, addr + size, TRUE);
+	error = vm_map_user_pageable(&p->p_vmspace->vm_map, addr, addr + size, TRUE);
 	return (error == KERN_SUCCESS ? 0 : ENOMEM);
 }
 
@@ -905,9 +909,14 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 			type = OBJT_VNODE;
 		}
 	}
-	object = vm_pager_allocate(type, handle, OFF_TO_IDX(objsize), prot, foff);
-	if (object == NULL)
-		return (type == OBJT_DEVICE ? EINVAL : ENOMEM);
+
+	if (handle == NULL) {
+		object = NULL;
+	} else {
+		object = vm_pager_allocate(type, handle, OFF_TO_IDX(objsize), prot, foff);
+		if (object == NULL)
+			return (type == OBJT_DEVICE ? EINVAL : ENOMEM);
+	}
 
 	/*
 	 * Force device mappings to be shared.
@@ -921,6 +930,14 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	if ((flags & (MAP_ANON|MAP_SHARED)) == 0) {
 		docow = MAP_COPY_ON_WRITE | MAP_COPY_NEEDED;
 	}
+
+#if defined(VM_PROT_READ_IS_EXEC)
+	if (prot & VM_PROT_READ)
+		prot |= VM_PROT_EXECUTE;
+
+	if (maxprot & VM_PROT_READ)
+		maxprot |= VM_PROT_EXECUTE;
+#endif
 
 	rv = vm_map_find(map, object, foff, addr, size, fitit,
 			prot, maxprot, docow);
@@ -939,7 +956,7 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	/*
 	 * "Pre-fault" resident pages.
 	 */
-	if ((type == OBJT_VNODE) && (map->pmap != NULL)) {
+	if ((type == OBJT_VNODE) && (map->pmap != NULL) && (object != NULL)) {
 		pmap_object_init_pt(map->pmap, *addr,
 			object, (vm_pindex_t) OFF_TO_IDX(foff), size, 1);
 	}
