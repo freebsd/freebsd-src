@@ -366,7 +366,6 @@ nsmb_dev_load(module_t mod, int cmd, void *arg)
 			smb_sm_done();
 			break;
 		}
-		cdevsw_add(&nsmb_cdevsw);
 		nsmb_dev_tag = EVENTHANDLER_REGISTER(dev_clone, nsmb_dev_clone, 0, 1000);
 		printf("netsmb_dev: loaded\n");
 		break;
@@ -375,7 +374,6 @@ nsmb_dev_load(module_t mod, int cmd, void *arg)
 		error = smb_sm_done();
 		error = 0;
 		EVENTHANDLER_DEREGISTER(dev_clone, nsmb_dev_tag);
-		cdevsw_remove(&nsmb_cdevsw);
 		printf("netsmb_dev: unloaded\n");
 		break;
 	    default:
