@@ -292,7 +292,7 @@ readfile(char *name)
 			last_card->next = genericp;
 			last_card = tail_gp;
 		}
-generic_done:
+generic_done:;
 	}
 
 	/* save the initial state of resource pool */
