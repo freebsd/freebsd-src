@@ -40,7 +40,7 @@
 #include <pci/pcireg.h>
 #include <pci/pcib_private.h>
 #include <isa/isavar.h>
-#include <machine/nexusvar.h>
+#include <machine/legacyvar.h>
 #include <machine/pci_cfgreg.h>
 #include <machine/segments.h>
 #include <machine/cputypes.h>
@@ -361,7 +361,7 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 					if (strcmp(device_get_name(devs[i]),
 					    "pcib") != 0)
 						continue;
-					if (nexus_get_pcibus(devs[i]) == busnum)
+					if (legacy_get_pcibus(devs[i]) == busnum)
 						s = NULL;
 				}
 				free(devs, M_TEMP);
@@ -376,7 +376,7 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 			child = BUS_ADD_CHILD(parent, 100,
 					      "pcib", busnum);
 			device_set_desc(child, s);
-			nexus_set_pcibus(child, busnum);
+			legacy_set_pcibus(child, busnum);
 
 			found = 1;
 			if (id == 0x12258086)
@@ -417,7 +417,7 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 			printf(
 	"nexus_pcib_identify: no bridge found, adding pcib0 anyway\n");
 		child = BUS_ADD_CHILD(parent, 100, "pcib", 0);
-		nexus_set_pcibus(child, 0);
+		legacy_set_pcibus(child, 0);
 	}
 }
 
@@ -456,7 +456,7 @@ nexus_pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 
 	switch (which) {
 	case  PCIB_IVAR_BUS:
-		*result = nexus_get_pcibus(dev);
+		*result = legacy_get_pcibus(dev);
 		return 0;
 	}
 	return ENOENT;
@@ -468,7 +468,7 @@ nexus_pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 
 	switch (which) {
 	case  PCIB_IVAR_BUS:
-		nexus_set_pcibus(dev, value);
+		legacy_set_pcibus(dev, value);
 		return 0;
 	}
 	return ENOENT;
@@ -510,7 +510,7 @@ static driver_t nexus_pcib_driver = {
 	1,
 };
 
-DRIVER_MODULE(pcib, nexus, nexus_pcib_driver, pcib_devclass, 0, 0);
+DRIVER_MODULE(pcib, legacy, nexus_pcib_driver, pcib_devclass, 0, 0);
 
 
 /*
