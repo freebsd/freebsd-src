@@ -46,8 +46,6 @@ i386_readin(int fd, vm_offset_t dest, size_t len)
 	vpbcopy(buf, dest, chunk);
     }
     free(buf);
-    if (resid != 0)
-	printf("i386_readin: %d bytes short\n", resid);
     return(len - resid);
 }
 

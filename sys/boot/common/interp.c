@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp.c,v 1.2 1998/09/01 00:41:24 msmith Exp $
+ *	$Id: interp.c,v 1.3 1998/09/03 02:10:07 msmith Exp $
  */
 /*
  * Simple commandline interpreter, toplevel and misc.
@@ -36,8 +36,6 @@
 #include "bootstrap.h"
 
 #define	MAXARGS	20			/* maximum number of arguments allowed */
-
-extern int	parse(int *argc, char ***argv, char *str);	/* interp_parse.c */
 
 static void	prompt(void);
 

@@ -23,14 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: module.c,v 1.2 1998/08/31 21:10:42 msmith Exp $
+ *	$Id: module.c,v 1.3 1998/09/03 02:10:08 msmith Exp $
  */
 
 /*
  * module function dispatcher, support, etc.
- *
- * XXX need a 'searchmodule' function that takes a name and
- *     traverses a search path.
  */
 
 #include <stand.h>
@@ -40,11 +37,14 @@
 
 static struct loaded_module	*mod_loadmodule(char *name, int argc, char *argv[]);
 static char			*mod_searchdep(struct loaded_module *mp);
+static char			*mod_searchfile(char *name);
 static char			*mod_searchmodule(char *name);
 static void			mod_append(struct loaded_module *mp);
 
-/* XXX load address should be tweaked by first module loaded (kernel) */
+/* load address should be tweaked by first module loaded (kernel) */
 static vm_offset_t	loadaddr = 0;
+
+static char		*default_searchpath ="/;/boot";
 
 struct loaded_module *loaded_modules = NULL;
 
@@ -231,9 +231,13 @@ mod_loadobj(char *type, char *name)
 	return(CMD_ERROR);
     }
 
-    /* Try to come up with a fully-qualified name if we don't have one */
-    if ((cp = mod_searchmodule(name)) != NULL)
-	name = cp;
+    /* locate the file on the load path */
+    cp = mod_searchfile(name);
+    if (cp == NULL) {
+	sprintf(command_errbuf, "can't find '%s'", name);
+	return(CMD_ERROR);
+    }
+    name = cp;
     
     if ((fd = open(name, O_RDONLY)) < 0) {
 	sprintf(command_errbuf, "can't open '%s': %s", name, strerror(errno));
@@ -282,9 +286,14 @@ mod_loadmodule(char *name, int argc, char *argv[])
     int				i, err;
     char			*cp;
 
-    /* Try to come up with a fully-qualified name if we don't have one */
-    if ((cp = mod_searchmodule(name)) != NULL)
-	name = cp;
+    /* locate the module on the search path */
+    cp = mod_searchmodule(name);
+    if (cp == NULL) {
+	sprintf(command_errbuf, "can't find '%s'", name);
+	return(NULL);
+    }
+    name = cp;
+
     err = 0;
     for (i = 0, mp = NULL; (module_formats[i] != NULL) && (mp == NULL); i++) {
 	if ((err = (module_formats[i]->l_load)(name, loadaddr, &mp)) != 0) {
@@ -422,7 +431,7 @@ mod_findmetadata(struct loaded_module *mp, int type)
 }
 
 /*
- * Attempt to locate a kernel module file for the module (name).
+ * Attempt to find the file (name) on the module searchpath.
  * If (name) is qualified in any way, we simply check it and
  * return it or NULL.  If it is not qualified, then we attempt
  * to construct a path using entries in the environment variable
@@ -432,10 +441,10 @@ mod_findmetadata(struct loaded_module *mp, int type)
  * it internally.
  */
 static char *
-mod_searchmodule(char *name)
+mod_searchfile(char *name)
 {
     static char		*result = NULL;
-    static char		*defpath = "/boot", *path;
+    char		*path;
     char		*cp, *sp;
     struct stat		sb;
 
@@ -458,7 +467,7 @@ mod_searchmodule(char *name)
      * Get the module path
      */
     if ((cp = getenv("module_path")) == NULL)
-	cp = defpath;
+	cp = default_searchpath;
     sp = path = strdup(cp);
     
     /*
@@ -467,9 +476,14 @@ mod_searchmodule(char *name)
     if (result != NULL)
 	free(result);
     while((cp = strsep(&path, ";")) != NULL) {
-	result = malloc(strlen(cp) + strlen(name) + 2);
-	sprintf(result, "%s/%s", cp, name);
-	if (stat(result, &sb) == 0)
+	result = malloc(strlen(cp) + strlen(name) + 5);
+	strcpy(result, cp);
+	if (cp[strlen(cp) - 1] != '/')
+	    strcat(result, "/");
+	strcat(result, name);
+/*	printf("search '%s'\n", result); */
+	if ((stat(result, &sb) == 0) && 
+	    S_ISREG(sb.st_mode))
 	    break;
 	free(result);
 	result = NULL;
@@ -479,6 +493,28 @@ mod_searchmodule(char *name)
 }
 
 /*
+ * Attempt to locate the file containing the module (name)
+ */
+static char *
+mod_searchmodule(char *name)
+{
+    char	*tn, *result;
+    
+    /* Look for (name).ko */
+    tn = malloc(strlen(name) + 3);
+    strcpy(tn, name);
+    strcat(tn, ".ko");
+    result = mod_searchfile(tn);
+    free(tn);
+    /* Look for just (name) (useful for finding kernels) */
+    if (result == NULL)
+	result = mod_searchfile(name);
+
+    return(result);
+}
+
+
+/*
  * Throw a module away
  */
 void
@@ -486,19 +522,37 @@ mod_discard(struct loaded_module *mp)
 {
     struct module_metadata	*md;
 
-    while (mp->m_metadata != NULL) {
-	md = mp->m_metadata;
-	mp->m_metadata = mp->m_metadata->md_next;
-	free(md);
-    }	
-    if (mp->m_name != NULL)
-	free(mp->m_name);
-    if (mp->m_type != NULL)
-	free(mp->m_type);
-    if (mp->m_args != NULL)
-	free(mp->m_args);
-    free(mp);
+    if (mp != NULL) {
+	while (mp->m_metadata != NULL) {
+	    md = mp->m_metadata;
+	    mp->m_metadata = mp->m_metadata->md_next;
+	    free(md);
+	}	
+	if (mp->m_name != NULL)
+	    free(mp->m_name);
+	if (mp->m_type != NULL)
+	    free(mp->m_type);
+	if (mp->m_args != NULL)
+	    free(mp->m_args);
+	free(mp);
+    }
 }
+
+/*
+ * Allocate a new module; must be used instead of malloc()
+ * to ensure safe initialisation.
+ */
+struct loaded_module *
+mod_allocmodule(void)
+{
+    struct loaded_module	*mp;
+    
+    if ((mp = malloc(sizeof(struct loaded_module))) != NULL) {
+	bzero(mp, sizeof(struct loaded_module));
+    }
+    return(mp);
+}
+
 
 /*
  * Add a module to the chain

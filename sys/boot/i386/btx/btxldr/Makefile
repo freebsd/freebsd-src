@@ -1,4 +1,4 @@
-#	$Id:$
+#	$Id: Makefile,v 1.1 1998/09/12 06:30:26 rnordier Exp $
 
 ORG=0x100000
 
@@ -18,3 +18,8 @@ btxldr.o: btxldr.s
 
 clean:
 	rm -f btxldr btxldr.out btxldr.o
+
+depend:
+
+install:
+
