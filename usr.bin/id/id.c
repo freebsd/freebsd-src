@@ -336,9 +336,9 @@ pline(pw)
 			err(1, "getpwuid");
 	}
 
-	(void)printf("%s:%s:%d:%d:%s:%d:%d:%s:%s:%s\n", pw->pw_name,
+	(void)printf("%s:%s:%d:%d:%s:%ld:%ld:%s:%s:%s\n", pw->pw_name,
 			pw->pw_passwd, pw->pw_uid, pw->pw_gid, pw->pw_class,
-			pw->pw_change, pw->pw_expire, pw->pw_gecos,
+			(long)pw->pw_change, (long)pw->pw_expire, pw->pw_gecos,
 			pw->pw_dir, pw->pw_shell);
 }
 
