@@ -75,9 +75,10 @@
  *	         prove 'interesting' to say the least :-)
  *             Added radiolist option
  *	     - Version 0.4 released.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #define __DIALOG_MAIN__
 

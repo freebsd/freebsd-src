@@ -4,9 +4,10 @@
  * small test-driver for new dialog functionality
  *
  * Copyright (c) 1998, Anatoly A. Orehovsky
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -21,10 +21,8 @@
  *
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <dialog.h>
 #include "dialog.priv.h"
