@@ -77,9 +77,6 @@ MALLOC_DEFINE(M_NFSRVDESC, "NFSV3 srvdesc", "NFS server socket descriptor");
 MALLOC_DEFINE(M_NFSD, "NFS daemon", "Nfs server daemon structure");
 
 
-/* Global defs. */
-struct nfsrvstats nfsrvstats;
-
 #define	TRUE	1
 #define	FALSE	0
 
