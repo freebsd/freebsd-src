@@ -59,6 +59,7 @@ int mp_ncpus;
 /* export this for libkvm consumers. */
 int mp_maxcpus = MAXCPU;
 
+struct cpu_top *smp_topology;
 volatile int smp_started;
 u_int all_cpus;
 u_int mp_maxid;
