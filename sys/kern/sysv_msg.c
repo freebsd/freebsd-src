@@ -1,4 +1,4 @@
-/*	$Id: sysv_msg.c,v 1.9 1995/10/21 19:49:57 bde Exp $ */
+/*	$Id: sysv_msg.c,v 1.10 1995/12/14 08:31:51 phk Exp $ */
 
 /*
  * Implementation of SVID messages
@@ -33,14 +33,16 @@ SYSINIT(sysv_msg, SI_SUB_SYSV_MSG, SI_ORDER_FIRST, msginit, NULL)
 #define MSG_DEBUG
 #undef MSG_DEBUG_OK
 
+#ifndef _SYS_SYSPROTO_H_
 struct msgctl_args;
-static int msgctl __P((struct proc *p, struct msgctl_args *uap, int *retval));
+int msgctl __P((struct proc *p, struct msgctl_args *uap, int *retval));
 struct msgget_args;
-static int msgget __P((struct proc *p, struct msgget_args *uap, int *retval));
+int msgget __P((struct proc *p, struct msgget_args *uap, int *retval));
 struct msgsnd_args;
-static int msgsnd __P((struct proc *p, struct msgsnd_args *uap, int *retval));
+int msgsnd __P((struct proc *p, struct msgsnd_args *uap, int *retval));
 struct msgrcv_args;
-static int msgrcv __P((struct proc *p, struct msgrcv_args *uap, int *retval));
+int msgrcv __P((struct proc *p, struct msgrcv_args *uap, int *retval));
+#endif
 static void msg_freehdr __P((struct msg *msghdr));
 
 /* XXX casting to (sy_call_t *) is bogus, as usual. */
@@ -161,13 +163,15 @@ msg_freehdr(msghdr)
 	free_msghdrs = msghdr;
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct msgctl_args {
 	int	msqid;
 	int	cmd;
-	struct	msqid_ds *user_msqptr;
+	struct	msqid_ds *buf;
 };
+#endif
 
-static int
+int
 msgctl(p, uap, retval)
 	struct proc *p;
 	register struct msgctl_args *uap;
@@ -175,7 +179,7 @@ msgctl(p, uap, retval)
 {
 	int msqid = uap->msqid;
 	int cmd = uap->cmd;
-	struct msqid_ds *user_msqptr = uap->user_msqptr;
+	struct msqid_ds *user_msqptr = uap->buf;
 	struct ucred *cred = p->p_ucred;
 	int rval, eval;
 	struct msqid_ds msqbuf;
@@ -296,12 +300,14 @@ msgctl(p, uap, retval)
 	return(eval);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct msgget_args {
 	key_t	key;
 	int	msgflg;
 };
+#endif
 
-static int
+int
 msgget(p, uap, retval)
 	struct proc *p;
 	register struct msgget_args *uap;
@@ -401,21 +407,23 @@ found:
 	return(0);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct msgsnd_args {
 	int	msqid;
-	void	*user_msgp;
+	void	*msgp;
 	size_t	msgsz;
 	int	msgflg;
 };
+#endif
 
-static int
+int
 msgsnd(p, uap, retval)
 	struct proc *p;
 	register struct msgsnd_args *uap;
 	int *retval;
 {
 	int msqid = uap->msqid;
-	void *user_msgp = uap->user_msgp;
+	void *user_msgp = uap->msgp;
 	size_t msgsz = uap->msgsz;
 	int msgflg = uap->msgflg;
 	int segs_needed, eval;
@@ -735,6 +743,7 @@ msgsnd(p, uap, retval)
 	return(0);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct msgrcv_args {
 	int	msqid;
 	void	*msgp;
@@ -742,8 +751,9 @@ struct msgrcv_args {
 	long	msgtyp;
 	int	msgflg;
 };
+#endif
 
-static int
+int
 msgrcv(p, uap, retval)
 	struct proc *p;
 	register struct msgrcv_args *uap;
