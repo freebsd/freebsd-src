@@ -133,10 +133,12 @@ lf_advlock(ap, head, size)
 	if (start < 0)
 		return (EINVAL);
 	if (fl->l_len < 0) {
-		start += fl->l_len;
-		if (start <= 0)
+		if (start == 0)
 			return (EINVAL);
 		end = start - 1;
+		start += fl->l_len;
+		if (start < 0)
+			return (EINVAL);
 	} else if (fl->l_len == 0)
 		end = -1;
 	else {
