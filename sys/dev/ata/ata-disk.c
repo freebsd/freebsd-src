@@ -192,9 +192,7 @@ ad_attach(struct ata_softc *scp, int device)
     }
 
     /* if this disk belongs to an ATA RAID dont print the probe */
-    if (adp->controller->flags & ATA_RAID && !ar_probe(adp))
-	return;
-    else
+    if (ar_probe(adp))
 	printf("ad%d: %luMB <%.40s> [%d/%d/%d] at ata%d-%s %s%s\n",
 	       adp->lun, adp->total_secs / ((1024L * 1024L) / DEV_BSIZE),
 	       AD_PARAM->model, adp->total_secs / (adp->heads * adp->sectors),
