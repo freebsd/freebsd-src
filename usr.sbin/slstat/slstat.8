@@ -29,9 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)slstat.8	6.8 (Berkeley) 6/20/91
+.\"	From: @(#)slstat.8	6.8 (Berkeley) 6/20/91
+.\"	$Id$
 .\"
-.Dd June 20, 1991
+.Dd October 11, 1996
 .Dt SLSTAT 8
 .Os BSD 4
 .Sh NAME
@@ -42,10 +43,10 @@
 .Op Fl i Ar interval
 .Op Fl vr
 .Op Ar unit
-.Op Ar system
-.Op Ar core
 .Sh DESCRIPTION
-.Nm Slstat
+The
+.Nm slstat
+utility
 reports certain kernel statistics kept about serial line internet
 protocol traffic.
 .Pp
@@ -63,20 +64,12 @@ Verbose display of extra fields of information.
 .It Fl r
 Display all values in rate per second that amount per interval.
 .It Ar unit
-Is a single digit specifying the slip interface. The default unit is
+Is a single digit specifying the
+.Tn SLIP
+interface, or an interface name. The default unit is
 .Sy 0
 for interface
 .Sy sl0 .
-.It Ar system
-Extract the name list from the specified
-.Ar system
-instead of the default,
-.Pa /kernel .
-.It Ar core
-Extract values associated with the name list from the specified
-.Ar core 
-instead of the default, 
-.Pa /dev/kmem .
 .El
 .Pp
 By default,
@@ -119,13 +112,6 @@ The command:
 .Dl slstat -i 5
 will print what the system is doing every five
 seconds.
-.Sh FILES
-.Bl -tag -width /dev/kmemxxxx -compact
-.It Pa /kernel
-default kernel namelist
-.It Pa /dev/kmem
-default memory file
-.El
 .Sh SEE ALSO
 .Xr fstat 1 ,
 .Xr netstat 1 ,
