@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.15 1996/09/25 16:29:15 sos Exp $
+ * $Id: malloc.c,v 1.16 1996/10/20 13:20:57 phk Exp $
  *
  */
 
@@ -82,7 +82,7 @@ struct pginfo {
     u_short		shift;	/* How far to shift for this size chunks */
     u_short		free;	/* How many free chunks */
     u_short		total;	/* How many chunk */
-    u_long		bits[1]; /* Which chunks are free */
+    u_int		bits[1]; /* Which chunks are free */
 };
 
 /*
@@ -98,10 +98,10 @@ struct pgfree {
 };
 
 /*
- * How many bits per u_long in the bitmap.
+ * How many bits per u_int in the bitmap.
  * Change only if not 8 bits/byte
  */
-#define	MALLOC_BITS	(8*sizeof(u_long))
+#define	MALLOC_BITS	(8*sizeof(u_int))
 
 /*
  * Magic values to put in the page_directory
@@ -189,6 +189,8 @@ static int malloc_utrace;
 
 #ifdef __FreeBSD__
 struct ut { void *p; size_t s; void *r; };
+
+void utrace __P((struct ut *, int));
 
 #define UTRACE(a, b, c) \
 	if (malloc_utrace) \
@@ -347,37 +349,6 @@ map_pages(int pages)
     return result;
 }
 
-/* Set a bit in the bitmap */
-static __inline__ void
-set_bit(struct pginfo *pi, int bit)
-{
-    pi->bits[bit/MALLOC_BITS] |= 1<<(bit%MALLOC_BITS);
-}
-
-/* Clear a bit in the bitmap */
-static __inline__ void
-clr_bit(struct pginfo *pi, int bit)
-{
-    pi->bits[bit/MALLOC_BITS] &= ~(1<<(bit%MALLOC_BITS));
-}
-
-/* Test a bit in the bitmap */
-static __inline__ int
-tst_bit(struct pginfo *pi, int bit)
-{
-    return pi->bits[bit/MALLOC_BITS] & (1<<(bit%MALLOC_BITS));
-}
-
-/* Find last bit */
-static __inline__ int
-fls(int size)
-{
-    int i = 1;
-    while (size >>= 1)
-	i++;
-    return i;
-}
-
 /*
  * Extend page directory
  */
@@ -455,7 +426,7 @@ malloc_init ()
 	    p = b;
 	} else if (i == 1) {
 	    p = getenv("MALLOC_OPTIONS");
-	} else if (i == 2) {
+	} else {
 	    p = malloc_options;
 	}
 	for (; p && *p; p++) {
@@ -663,12 +634,12 @@ malloc_make_chunks(int bits)
 	bp->bits[i / MALLOC_BITS] = ~0;
 
     for(; i < k; i++)
-	set_bit(bp, i);
+        bp->bits[i/MALLOC_BITS] |= 1<<(i%MALLOC_BITS);
 
     if (bp == bp->page) {
 	/* Mark the ones we stole for ourselves */
 	for(i=0;l > 0;i++) {
-	    clr_bit(bp, i);
+	    bp->bits[i/MALLOC_BITS] &= ~(1<<(i%MALLOC_BITS));
 	    bp->free--;
 	    bp->total--;
 	    l -= (1 << bits);
@@ -693,17 +664,21 @@ malloc_make_chunks(int bits)
 static void *
 malloc_bytes(size_t size)
 {
-    int j;
+    int i,j;
+    u_int u;
     struct  pginfo *bp;
     int k;
-    u_long *lp;
+    u_int *lp;
 
     /* Don't bother with anything less than this */
     if (size < malloc_minsize)
 	size = malloc_minsize;
 
     /* Find the right bucket */
-    j = fls((size)-1);
+    j = 1;
+    i = size-1;
+    while (i >>= 1)
+	j++;
 
     /* If it's empty, make a page more of that size chunks */
     if (!page_dir[j] && !malloc_make_chunks(j))
@@ -716,8 +691,13 @@ malloc_bytes(size_t size)
 	;
 
     /* Find that bit, and tweak it */
-    k = ffs(*lp) - 1;
-    *lp ^= 1<<k;
+    u = 1;
+    k = 0;
+    while (!(*lp & u)) {
+	u += u;
+	k++;
+    }
+    *lp ^= u;
 
     /* If there are no more free, remove from free-list */
     if (!--bp->free) {
@@ -730,9 +710,9 @@ malloc_bytes(size_t size)
     k <<= bp->shift;
 
     if (malloc_junk)
-	memset(bp->page + k, SOME_JUNK, bp->size);
+	memset((u_char*)bp->page + k, SOME_JUNK, bp->size);
 
-    return bp->page + k;
+    return (u_char *)bp->page + k;
 }
 
 /*
@@ -826,7 +806,7 @@ irealloc(void *ptr, size_t size)
 	i = ((u_long)ptr & malloc_pagemask) >> (*mp)->shift;
 
 	/* Verify that it isn't a free chunk already */
-	if (tst_bit(*mp, i)) {
+        if ((*mp)->bits[i/MALLOC_BITS] & (1<<(i%MALLOC_BITS))) {
 	    wrtwarning("chunk is already free.\n");
 	    return 0;
 	}
@@ -1007,7 +987,7 @@ free_bytes(void *ptr, int index, struct pginfo *info)
 	return;
     }
 
-    if (tst_bit(info, i)) {
+    if (info->bits[i/MALLOC_BITS] & (1<<(i%MALLOC_BITS))) {
 	wrtwarning("chunk is already free.\n");
 	return;
     }
@@ -1015,7 +995,7 @@ free_bytes(void *ptr, int index, struct pginfo *info)
     if (malloc_junk)
 	memset(ptr, SOME_JUNK, info->size);
 
-    set_bit(info, i);
+    info->bits[i/MALLOC_BITS] |= 1<<(i%MALLOC_BITS);
     info->free++;
 
     mp = page_dir + info->shift;
