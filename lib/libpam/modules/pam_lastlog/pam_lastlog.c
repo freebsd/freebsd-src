@@ -88,8 +88,10 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 	pam_err = pam_get_item(pamh, PAM_TTY, (const void **)&tty);
 	if (pam_err != PAM_SUCCESS)
 		goto err;
-	if (tty == NULL)
-		return (PAM_SERVICE_ERR);
+	if (tty == NULL) {
+		pam_err = PAM_SERVICE_ERR;
+		goto err;
+	}
 	if (strncmp(tty, _PATH_DEV, strlen(_PATH_DEV)) == 0)
 		tty += strlen(_PATH_DEV);
 	if (*tty == '\0')
