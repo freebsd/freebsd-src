@@ -37,7 +37,8 @@
 .Nm ed
 .Nd ethernet device driver
 .Sh SYNOPSIS
-.Cd "device ed"
+.Cd "device miibus"
+.Cd "device ed0 at isa? port 0x280 irq 5 iomem 0xd8000"
 .Sh DESCRIPTION
 The
 .Nm
