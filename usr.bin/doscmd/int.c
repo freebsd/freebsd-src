@@ -19,7 +19,7 @@
  *
  * Related functions:
  *   int isinhardint(int irql)
- *   void set_eoir(int irql, void(*eoir)(void*), void* arg);
+ *   void set_eoir(int irql, void (*eoir)(void *), void *arg);
  *
  */
 
@@ -29,8 +29,8 @@ struct IRQ {
     int pending;
     int busy;
     int within;
-    void (*eoir) (void* arg);
-    void* arg;
+    void (*eoir)(void *arg);
+    void *arg;
 };
 
 static unsigned char IM;
@@ -40,7 +40,7 @@ static struct IRQ Irqs[8];
 #define int_allowed(n) ((IM & 1 << (n)) == 0 && Irql > (n))
 
 void
-set_eoir(int irql, void(*eoir)(void*), void* arg)
+set_eoir(int irql, void (*eoir)(void *), void *arg)
 {
     Irqs [irql].eoir = eoir;
     Irqs [irql].arg = arg;
@@ -63,7 +63,7 @@ set_vip(void)
 	return;
     }
     
-    for (irql = 0; irql < 8; irql ++)
+    for (irql = 0; irql < 8; irql++)
 	if (int_allowed(irql) && (Irqs[irql].within || Irqs[irql].pending)) {
 	    R_EFLAGS |= PSL_VIP;
 	    return;
@@ -79,14 +79,14 @@ resume_interrupt(void)
     int irql;
     
     if (R_EFLAGS & PSL_VIF) {
-	for (irql = 0; irql < 8; irql ++)
+	for (irql = 0; irql < 8; irql++)
 	    if (Irqs[irql].within && int_allowed(irql)) {
 		Irqs[irql].within = 0;
 		if (Irqs[irql].eoir)
 		    Irqs[irql].eoir(Irqs[irql].arg);
 	    }
 	
-	for (irql = 0; irql < 8; irql ++)
+	for (irql = 0; irql < 8; irql++)
 	    if (Irqs[irql].pending && int_allowed(irql)) {
 		Irqs[irql].pending = 0;
 		hardint(irql);
@@ -135,7 +135,7 @@ hardint(int irql)
     if ((vec >> 16) == 0xf000 || *(u_char *)VECPTR(vec) == 0xcf)
 	return;
     
-    if (!int_allowed (irql)) {
+    if (!int_allowed(irql)) {
 	Irqs[irql].pending = 1;
 	return;
     }

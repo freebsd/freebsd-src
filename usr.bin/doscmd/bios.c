@@ -116,28 +116,26 @@ int15(regcontext_t *REGS)
 	R_AH = 0x86;
 	R_FLAGS |= PSL_C;	/* We don't support a cassette */
 	break;
-
-    case 0x04:	/* Set ABIOS table */
+    case 0x04:			/* Set ABIOS table */
 	R_FLAGS |= PSL_C;	/* We don't support it */
 	break;
-
-    case 0x4f:
-	/*
-	 * XXX - Check scan code in GET8L(sc->sc_eax).
-	 */
+    case 0x4f:			/* Keyboard intercept */
+	debug(D_TRAPS | 0x15, "BIOS: Keyboard intercept\n");
+	/* Don't translate scan code. */
 	break;
     case 0x88:
         get_raw_extmemory_info(REGS);
 	break;
-    case 0xc0:	/* get configuration */
-	debug (D_TRAPS|0x15, "Get configuration\n", R_DX);
+    case 0xc0:			/* Get configuration */
+	debug(D_TRAPS | 0x15, "BIOS: Get configuration\n");
 	PUTVEC(R_ES, R_BX, rom_config);
         R_AH = 0;
 	break;
-    case 0xc1:	/* get extended BIOS data area */
+    case 0xc1:			/* Get extended BIOS data area */
 	R_FLAGS |= PSL_C;
 	break;
-    case 0xc2:	/* Pointing device */
+    case 0xc2:			/* Pointing device */
+	debug(D_TRAPS | 0x15, "BIOS: Pointing device?\n");
 	R_FLAGS |= PSL_C;
 	R_AH = 5;	/* No pointer */
 	break;
@@ -158,55 +156,46 @@ bios_init(void)
     struct tm tm;
     u_long vec;
 
-    if (1 || !raw_kbd) {
-	strcpy((char *)BIOS_copyright,
-	       "Copyright (C) 1993 Krystal Technologies/BSDI");
+    strcpy((char *)BIOS_copyright,
+	   "Copyright (C) 1993 Krystal Technologies/BSDI");
 
-	*(u_short *)BIOS_reset = 0xffcd;
-	*(u_short *)BIOS_nmi = 0xffcd;
-	*(u_short *)BIOS_boot = 0xffcd;
-	*(u_short *)BIOS_comm_io = 0xffcd;
-	*(u_short *)BIOS_keyboard_io = 0xffcd;
-	*(u_short *)BIOS_keyboard_isr = 0xffcd;
-	*(u_short *)BIOS_fdisk_io = 0xffcd;
-	*(u_short *)BIOS_fdisk_isr = 0xffcd;
-	*(u_short *)BIOS_printer_io = 0xffcd;
-	*(u_short *)BIOS_video_io = 0xffcd;
-	*(u_short *)BIOS_cassette_io = 0xffcd;
-	*(u_short *)BIOS_time_of_day = 0xffcd;
-	*(u_short *)BIOS_timer_int = 0xffcd;
-	*(u_short *)BIOS_dummy_iret = 0xffcd;
-	*(u_short *)BIOS_print_screen = 0xffcd;
-	*(u_short *)BIOS_hard_reset = 0xffcd;
-	*(u_short *)BIOS_mem_size = 0xffcd;
-	*(u_short *)BIOS_equipment = 0xffcd;
-	*(u_short *)BIOS_vector = 0xffcd;
-	*(u_char *)0xffff2 = 0xcf;			/* IRET */
+    *(u_short *)BIOS_reset = 0xffcd;
+    *(u_short *)BIOS_nmi = 0xffcd;
+    *(u_short *)BIOS_boot = 0xffcd;
+    *(u_short *)BIOS_comm_io = 0xffcd;
+    *(u_short *)BIOS_keyboard_io = 0xffcd;
+    *(u_short *)BIOS_keyboard_isr = 0xffcd;
+    *(u_short *)BIOS_fdisk_io = 0xffcd;
+    *(u_short *)BIOS_fdisk_isr = 0xffcd;
+    *(u_short *)BIOS_printer_io = 0xffcd;
+    *(u_short *)BIOS_video_io = 0xffcd;
+    *(u_short *)BIOS_cassette_io = 0xffcd;
+    *(u_short *)BIOS_time_of_day = 0xffcd;
+    *(u_short *)BIOS_timer_int = 0xffcd;
+    *(u_short *)BIOS_dummy_iret = 0xffcd;
+    *(u_short *)BIOS_print_screen = 0xffcd;
+    *(u_short *)BIOS_hard_reset = 0xffcd;
+    *(u_short *)BIOS_mem_size = 0xffcd;
+    *(u_short *)BIOS_equipment = 0xffcd;
+    *(u_short *)BIOS_vector = 0xffcd;
+    *(u_char *)0xffff2 = 0xcf;			/* IRET */
 
-	/*
-	 *memcpy((u_char *)BIOS_video_parms, video_parms, sizeof(video_parms));
-	 */
-	memcpy((u_char *)BIOS_disk_parms, disk_params, sizeof(disk_params));
-	memcpy((u_char *)BIOS_comm_table, comm_table, sizeof(comm_table));
+    memcpy((u_char *)BIOS_disk_parms, disk_params, sizeof(disk_params));
+    memcpy((u_char *)BIOS_comm_table, comm_table, sizeof(comm_table));
 
-	*(u_short *)BIOS_video_font = 0xffcd;
+    *(u_short *)BIOS_video_font = 0xffcd;
 	
-	jtab = (u_char *)BIOS_date_stamp;
-	*jtab++ = '1';
-	*jtab++ = '0';
-	*jtab++ = '/';
-	*jtab++ = '3';
-	*jtab++ = '1';
-	*jtab++ = '/';
-	*jtab++ = '9';
-	*jtab++ = '3';
+    jtab = (u_char *)BIOS_date_stamp;
+    *jtab++ = '1';
+    *jtab++ = '0';
+    *jtab++ = '/';
+    *jtab++ = '3';
+    *jtab++ = '1';
+    *jtab++ = '/';
+    *jtab++ = '9';
+    *jtab++ = '3';
 
-#if 0	
-	*(u_char *)BIOS_hardware_id = 0xfe;           /* Identify as a PC/XT */
-	*(u_char *)BIOS_hardware_id = 0xff;           /* Identify as a PC */
-#endif
-	*(u_char *)BIOS_hardware_id = 0xfc;           /* Identify as a PC/AT */
-    }
+    *(u_char *)BIOS_hardware_id = 0xfc;           /* Identify as a PC/AT */
 
     /*
      * Interrupt revectors F000:0000 - F000:03ff

@@ -256,53 +256,68 @@ int10(regcontext_t *REGS)
 		break;
 	case 0x11:
 		switch (R_AL) {
-		case 0x00:
+		case 0x00:	/* Text-mode chargen: load user-specified
+                                   patterns */
 			debug(D_VIDEO, "Tried to load user defined font.\n");
 			break;
-		case 0x01:
+		case 0x01:	/* Text-mode chargen: load ROM monochrome
+                                   patterns */
 			debug(D_VIDEO, "Tried to load 8x14 font.\n");
 			break;
-		case 0x02:
+		case 0x02:	/* Text-mode chargen: load ROM 8x8 double-dot
+                                   patterns */
 			debug(D_VIDEO, "Tried to load 8x8 font.\n");
 			break;
-		case 0x03:
+		case 0x03:	/* Text-mode chargen: set block specifier */
 			debug(D_VIDEO, "Tried to activate character set\n");
 			break;
-		case 0x04:
+		case 0x04:	/* Text-mode chargen: load ROM 8x16 character
+                                   set */
 			debug(D_VIDEO, "Tried to load 8x16 font.\n");
 			break;
-		case 0x10:
+		case 0x10:	/* Text-mode chargen: load and activate
+                                   user-specified patterns */
 			debug(D_VIDEO,
 			    "Tried to load and activate user defined font\n");
 			break;
-		case 0x11:
+		case 0x11:	/* Text-mode chargen: load and activate ROM
+                                   monochrome patterns */
 			debug(D_VIDEO,
 			    "Tried to load and activate 8x14 font.\n");
 			break;
-		case 0x12:
+		case 0x12:	/* Text-mode chargen: load and activate ROM
+                                   8x8 double-dot patterns */
 			debug(D_VIDEO,
 			    "Tried to load and activate 8x8 font.\n");
 			break;
-		case 0x14:
+		case 0x14:	/* Text-mode chargen: load and activate ROM
+                                   8x16 character set */
 			debug(D_VIDEO,
 			    "Tried to load and activate 8x16 font.\n");
 			break;
-		case 0x20:
+		case 0x20:	/* Graph-mode chargen: set user 8x8 graphics
+                                   characters */
 			debug(D_VIDEO, "Load second half of 8x8 char set\n");
 			break;
-		case 0x21:
+		case 0x21:	/* Graph-mode chargen: set user graphics
+                                   characters */
 			debug(D_VIDEO, "Install user defined char set\n");
 			break;
-		case 0x22:
+		case 0x22:	/* Graph-mode chargen: set ROM 8x14 graphics
+                                   chars */
 			debug(D_VIDEO, "Install 8x14 char set\n");
 			break;
-		case 0x23:
+		case 0x23:	/* Graph-mode chargen: set ROM 8x8 double-dot
+                                   chars */
 			debug(D_VIDEO, "Install 8x8 char set\n");
 			break;
-		case 0x24:
+		case 0x24:	/* Graph-mode chargen: load 8x16 graphics
+                                   chars */
 			debug(D_VIDEO, "Install 8x16 char set\n");
 			break;
-		case 0x30:
+		case 0x30:	/* Get font information */
+			debug(D_VIDEO,
+			    "INT 10 11:30 Request font address %02x\n", R_BH);
 			R_CX = CharHeight;
 			R_DL = DpyRows;
 			switch(R_BH) {
@@ -320,9 +335,6 @@ int10(regcontext_t *REGS)
 			case 7:
 				R_ES = 0;
 				R_BP = 0;
-				debug(D_VIDEO,
-				    "INT 10 11:30 Request font address %02x",
-				    R_BH);
 				break;
 			default:
 				unknown_int4(0x10, 0x11, 0x30, R_BH, REGS);
@@ -334,7 +346,7 @@ int10(regcontext_t *REGS)
 			break;
 		}
 		break;
-	case 0x12: /* Load multiple DAC color register */
+	case 0x12:		/* Alternate function select */
 		if (!xmode)
 			goto unsupported;
 		switch (R_BL) {
@@ -406,8 +418,12 @@ int10(regcontext_t *REGS)
 		}
 		break;
 	case 0x1c:	/* Save/Restore video state */
-		debug(D_VIDEO, "Save/restore video state\n");
+		debug(D_VIDEO, "VGA: Save/restore video state\n");
 		R_AL = 0;
+		break;
+	case 0x30:	/* Locate 3270PC configuration table */
+		R_CX = 0;
+		R_DX = 0;
 		break;
 	case 0x4f:	/* get VESA information */
 		R_AH = 0x01;		/* no VESA support */
