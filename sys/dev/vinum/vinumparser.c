@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumparser.c,v 1.14 1999/01/18 03:30:07 grog Exp grog $
+ * $Id: vinumparser.c,v 1.15 1999/03/02 02:22:39 grog Exp grog $
  */
 
 /*
@@ -168,7 +168,8 @@ struct _keywords flag_keywords[] =
     flagkeypair(d),
     flagkeypair(v),
     flagkeypair(s),
-    flagkeypair(r)
+    flagkeypair(r),
+    flagkeypair(w)
 };
 struct keywordset flag_set = KEYWORDSET(flag_keywords);
 
