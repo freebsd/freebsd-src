@@ -45,7 +45,7 @@
 
 /* Node type name and magic cookie */
 #define NG_IFACE_NODE_TYPE		"iface"
-#define NGM_IFACE_COOKIE		858821772
+#define NGM_IFACE_COOKIE		858821773
 
 /* Interface base name */
 #define NG_IFACE_IFACE_NAME		"ng"
@@ -53,8 +53,11 @@
 
 /* My hook names */
 #define NG_IFACE_HOOK_INET		"inet"
+#define NG_IFACE_HOOK_INET6		"inet6"
 #define NG_IFACE_HOOK_ATALK		"atalk"	/* AppleTalk phase 2 */
 #define NG_IFACE_HOOK_IPX		"ipx"
+#define NG_IFACE_HOOK_ATM		"atm"
+#define NG_IFACE_HOOK_NATM		"natm"
 #define NG_IFACE_HOOK_NS		"ns"
 
 /* MTU bounds */
@@ -65,7 +68,8 @@
 /* Netgraph commands */
 enum {
 	NGM_IFACE_GET_IFNAME = 1,	/* returns struct ng_iface_ifname */
-	NGM_IFACE_GET_IFADDRS,		/* returns list of addresses */
+	NGM_IFACE_POINT2POINT,
+	NGM_IFACE_BROADCAST,
 };
 
 struct ng_iface_ifname {
