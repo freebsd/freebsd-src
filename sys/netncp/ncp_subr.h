@@ -113,8 +113,6 @@ int  ncp_init(void);
 int  ncp_done(void);
 int  ncp_chkintr(struct ncp_conn *conn, struct proc *p);
 char*ncp_str_dup(char *s);
-int  ncp_sysctlbyname(char *name, void *old, size_t *oldlenp,
-	void *new, size_t newlen, size_t *retval);
 
 /* ncp_crypt.c */
 void nw_keyhash(const u_char *key, const u_char *buf, int buflen, u_char *target);
