@@ -3,7 +3,6 @@
 
 CFLAGS+=  -Wall
 PROG=	find
-SRCS=	find.c function.c ls.c main.c misc.c operator.c option.c setflags.c
-.PATH:	${.CURDIR}/../../lib/libc/gen
+SRCS=	find.c function.c ls.c main.c misc.c operator.c option.c
 
 .include <bsd.prog.mk>

@@ -2,10 +2,9 @@
 # $FreeBSD$
 
 PROG=	mtree
-SRCS=	compare.c crc.c create.c excludes.c misc.c mtree.c spec.c verify.c \
-	setflags.c
+SRCS=	compare.c crc.c create.c excludes.c misc.c mtree.c spec.c verify.c
 MAN8=	mtree.8
-.PATH:	${.CURDIR}/../../usr.bin/cksum ${.CURDIR}/../../lib/libc/gen
+.PATH:	${.CURDIR}/../../usr.bin/cksum
 
 .if !defined(WORLD)
 DPADD+=	${LIBMD}

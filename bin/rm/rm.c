@@ -60,8 +60,6 @@ static const char rcsid[] =
 #include <sysexits.h>
 #include <unistd.h>
 
-char	*getflags __P((u_long, char *));
-
 int dflag, eval, fflag, iflag, Pflag, vflag, Wflag, stdin_ok;
 uid_t uid;
 
@@ -423,7 +421,7 @@ check(path, name, sp)
 	struct stat *sp;
 {
 	int ch, first;
-	char modep[15], flagsp[128];
+	char modep[15], *flagsp;
 
 	/* Check -i first. */
 	if (iflag)
@@ -441,15 +439,15 @@ check(path, name, sp)
 		    (!(sp->st_flags & (UF_APPEND|UF_IMMUTABLE)) || !uid)))
 			return (1);
 		strmode(sp->st_mode, modep);
-		strcpy(flagsp, getflags(sp->st_flags, NULL));
-		if (*flagsp)
-			strcat(flagsp, " ");
-		(void)fprintf(stderr, "override %s%s%s/%s %sfor %s? ",
+		if ((flagsp = fflagstostr(sp->st_flags)) == NULL)
+			err(1, NULL);
+		(void)fprintf(stderr, "override %s%s%s/%s %s%sfor %s? ",
 		    modep + 1, modep[9] == ' ' ? "" : " ",
 		    user_from_uid(sp->st_uid, 0),
 		    group_from_gid(sp->st_gid, 0),
-		    *flagsp ? flagsp : "",
+		    *flagsp ? flagsp : "", *flagsp ? " " : "", 
 		    path);
+		free(flagsp);
 	}
 	(void)fflush(stderr);
 
