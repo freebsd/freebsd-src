@@ -269,3 +269,5 @@ pseudo-device	gzip		# Exec gzipped a.out's
 # The `bpf' pseudo-device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
 pseudo-device	bpf		#Berkeley packet filter
+
+pseudo-device compat_atdisk
