@@ -1159,6 +1159,7 @@ FindLinkIn(struct in_addr  dst_addr,
 
     if (link_fully_specified != NULL)
     {
+        link_fully_specified->timestamp = timeStamp;
         return link_fully_specified;
     }
     else if (link_unknown_dst_port != NULL)
