@@ -29,9 +29,9 @@
   </sect2>
 
   <sect2>
-    <title>Common Installation Problems, Q&amp;A</title>
+    <title>Common Installation Problems for &arch.print; Architecture Users</title>
 
-    <qandaset>
+    <qandaset arch="i386">
       <qandaentry>
         <question>
           <para>I go to boot from the hard disk for the first time
@@ -63,14 +63,14 @@
           each configured as the master on their respective IDE
           busses, and wish to boot &os; from the second disk.  The
           BIOS sees these as disk 0 and disk 1, while &os; sees
-          them as <devicename>wd0</devicename> and
-          <devicename>wd2</devicename>.</para>
+          them as <devicename>ad0</devicename> and
+          <devicename>ad2</devicename>.</para>
 
           <para>&os; is on BIOS disk 1, of type
-          <literal>wd</literal> and the &os; disk number is 2, so
+          <literal>ad</literal> and the &os; disk number is 2, so
           you would say:</para>
 
-          <screen><userinput>1:wd(2,a)kernel</userinput></screen>
+          <screen><userinput>1:ad(2,a)kernel</userinput></screen>
 
           <para>Note that if you have a slave on the primary bus, the
           above is not necessary (and is effectively wrong).</para>
@@ -134,16 +134,6 @@
 	  </blockquote>
  	</answer>
       </qandaentry>
-    </qandaset>
-  </sect2>
-  <sect2>
-    <title>Known Hardware Problems, Q&amp;A</title>
-
-    <note>
-      <para>Please send hardware tips for this section to &a.jkh;.</para>
-    </note>
-
-    <qandaset>
       <qandaentry>
         <question>
 	  <para>The &man.mcd.4; driver keeps thinking that it has
@@ -157,54 +147,6 @@
           <devicename>mcd1</devicename> devices.  Generally speaking,
           you should only leave the devices that you will be using
           enabled in your kernel.</para>
-	</answer>
-      </qandaentry>
-      <qandaentry>
-        <question>
-	  <para>&os; claims to support the 3Com PCMCIA card, but my
-	  card isn't recognized when it's plugged into my
-	  laptop.</para>
-	</question>
-	<answer>
-	  <para>There are a couple of possible problems.  First of
-	  all, &os; does not support multi-function cards, so if
-	  you have a combo Ethernet/modem card (such as the 3C562), it
-	  won't work.  The default driver for the 3C589 card was
-	  written just like all of the other drivers in &os;, and
-	  depend on the card's own configuration data stored in NVRAM
-	  to work.  You must correctly configure &os;'s driver to
-	  match the IRQ, port, and IOMEM stored in NVRAM.</para>
-
-	  <para>Unfortunately, the only program capable of reading
-	  them is the 3COM supplied DOS program.  This program must be
-	  run on a absolutely clean system (no other drivers must be
-	  running), and the program will whine about CARD-Services not
-	  being found, but it will continue.  This is necessary to
-	  read the NVRAM values.  You want to know the IRQ, port, and
-	  IOMEM values (the latter is called the CIS tuple by 3COM).
-	  The first two can be set in the program, the third is
-	  un-settable, and can only be read.  Once you have these
-	  values, set them in UserConfig and your card will be
-	  recognized.</para>
-	</answer>
-      </qandaentry>
-      <qandaentry>
-        <question>
-	  <para>&os; finds my PCMCIA network card, but no packets
-	  appear to be sent even though it claims to be working.</para>
-	</question>
-	<answer>
-	  <para>Many PCMCIA cards have the ability to use either the
-	  10-Base2 (BNC) or 10-BaseT connectors for connecting to the
-	  network.  The driver is unable to <quote>auto-select</quote>
-	  the correct connector, so you must tell it which connector
-	  to use. In order to switch between the two connectors, the
-	  link flags must be set.  Depending on the model of the card,
-	  <option>-link0 link1</option> or <option>-link0
-	  -link1</option> will choose the correct network connector.
-	  You can set these in &man.sysinstall.8; by using the
-	  <literal>Extra options to ifconfig:</literal> field in the
-	  network setup screen.</para>
 	</answer>
       </qandaentry>
       <qandaentry>
@@ -243,84 +185,6 @@
           go into a special mode which works on the ThinkPads.  Change
           the atkbd0 'Flags' to 0x4 in UserConfig and it should work
           fine.  (Look in the Input Menu for 'Keyboard'.)</para>
-	</answer>
-      </qandaentry>
-      <qandaentry>
-        <question>
-	  <para>When I try to boot the install floppy, I see the
-          following message and nothing seems to be happening.  I
-          cannot enter anything from the keyboard either.</para>
-
-          <screen>Keyboard: no</screen>
-	</question>
-	<answer>
-          <para>Due to lack of space, full support for old XT/AT
-	  (84-key) keyboards is no longer available in the bootblocks.
-	  Some notebook computers may also have this type of keyboard.
-	  If you are still using this kind of hardware, you will see
-	  the above message appears when you boot from the CD-ROM or
-	  an install floppy.</para>
-
-          <para>As soon as you see this message, hit the space bar,
-	  and you will see the prompt:</para>
-
-<screen>>> FreeBSD/i386 BOOT
-Default: x:xx(x,x)/boot/loader 
-boot:</screen>
-
-          <para>Then enter <userinput>-Dh</userinput>, and things
-          should proceed normally.</para>
-	</answer>
-      </qandaentry>
-      <qandaentry>
-        <question>
-	  <para>I have a Matsushita/Panasonic CR-522, a
-	  Matsushita/Panasonic CR-523 or a TEAC CD55a drive, but it is
-	  not recognized even when the correct I/O port is set.</para>
-	</question>
-	<answer>
-	<para>These CD-ROM drives are currently not supported by
-	&os;.  The command sets for these drives are not compatible
-	with the double-speed CR-562 and CR-563 drives.</para>
-   
-        <para>The single-speed CR-522 and CR-523 drives can be
-	identified by their use of a CD-caddy. </para>
-	</answer>
-      </qandaentry>
-      <qandaentry>
-        <question>
-	  <para>I'm trying to install from a tape drive but all I get
-	  is something like this on the screen:</para>
-
-	  <screen>sa0(aha0:1:0) NOT READY csi 40,0,0,0</screen>
-	</question>
-	<answer>
-	  <para>There's a limitation in the current &man.sysinstall.8;
-          that the tape <emphasis>must</emphasis> be in the drive
-          while &man.sysinstall.8; is started or it won't be detected.
-          Try again with the tape in the drive the whole time.</para>
-	</answer>
-      </qandaentry>
-      <qandaentry>
-        <question>
-	  <para>I've installed &os; onto my system, but it hangs
-	  when booting from the hard drive with the message:</para>
-
-          <screen>Changing root to /dev/da0a</screen>
-        </question>
-	<answer>
-	  <para>his problem may occur in a system with a 3com 3c509
-          Ethernet adapter.  The &man.ep.4; device driver appears to
-          be sensitive to probes for other devices that also use
-          address 0x300.  Boot your &os; system by power cycling
-          the machine (turn off and on).  At the
-          <literal>Boot:</literal> prompt specify the
-          <option>-c</option>.  This will invoke UserConfig (see
-          <xref linkend="repairing"> above).
-	  Use the <literal>disable</literal>
-          command to disable the device probes for all devices at
-          address 0x300 except the ep0 driver.  On exit, your machine
-          should successfully boot &os;.</para>
 	</answer>
       </qandaentry>
       <qandaentry>
@@ -389,8 +253,7 @@ boot:</screen>
 	  broken.</para>
         </question>
 	<answer>
-	  <para>Yes, it is.  &os; does not support this controller
-          except through the legacy wdc driver.</para>
+	  <para>&os; does not support this controller.</para>
 	</answer>
       </qandaentry>
       <qandaentry>
@@ -412,24 +275,6 @@ boot:</screen>
       </qandaentry>
       <qandaentry>
         <question>
-	  <para>When I go to boot my Intel AL440LX
-          (<quote>Atlanta</quote>) -based system from the hard disk the
-          first time, it stops with a <literal>Read Error</literal>
-          message.</para>
-        </question>
-	<answer>
-	  <para>There appears to be a bug in the BIOS on at least some
-          of these boards, this bug results in the &os; bootloader
-          thinking that it is booting from a floppy disk.  This is
-          only a problem if you are not using the BootEasy boot
-          manager.  Slice the disk in <quote>compatible</quote>mode
-          and install BootEasy during the &os; installation to
-          avoid the bug, or upgrade the BIOS (see Intel's web site for
-          details).</para>
-	</answer>
-      </qandaentry>
-      <qandaentry>
-        <question>
 	  <para>When installing on an Dell Poweredge XE, Dell
           proprietary RAID controller DSA (Dell SCSI Array) isn't
           recognized.</para>
@@ -441,19 +286,6 @@ boot:</screen>
           340. Under emulation mode system will use DSA RAID disks,
           but you cannot use DSA-specific features such as watching
           RAID health.</para>
-	</answer>
-      </qandaentry>
-      <qandaentry>
-        <question>
-	  <para>My Ethernet adapter is detected as an AMD PCnet-FAST
-          (or similar) but it doesn't work.  (Eg. onboard Ethernet on
-          IBM Netfinity 5xxx or 7xxx)</para>
-        </question>
-	<answer>
-	  <para>The &man.lnc.4; driver is currently faulty, and will
-          often not work correctly with the PCnet-FAST and
-          PCnet-FAST+.  You need to install a different Ethernet
-          adapter.</para>
 	</answer>
       </qandaentry>
       <qandaentry>
