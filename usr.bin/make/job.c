@@ -421,27 +421,6 @@ JobPassSig(int signo)
 
 /*-
  *-----------------------------------------------------------------------
- * JobCmpPid  --
- *	Compare the pid of the job with the given pid and return 0 if they
- *	are equal. This function is called from Job_CatchChildren via
- *	Lst_Find to find the job descriptor of the finished job.
- *
- * Results:
- *	0 if the pid's match
- *
- * Side Effects:
- *	None
- *-----------------------------------------------------------------------
- */
-static int
-JobCmpPid(const void *job, const void *pid)
-{
-
-    return (*(const int *)pid - ((const Job *)job)->pid);
-}
-
-/*-
- *-----------------------------------------------------------------------
  * JobPrintCommand  --
  *	Put out another command for the given job. If the command starts
  *	with an @ or a - we process it specially. In the former case,
@@ -1920,11 +1899,17 @@ Job_CatchChildren(Boolean block)
 	    break;
 	DEBUGF(JOB, ("Process %d exited or stopped.\n", pid));
 
-	jnode = Lst_Find(&jobs, &pid, JobCmpPid);
+	LST_FOREACH(jnode, &jobs) {
+	    if (((const Job *)Lst_Datum(jnode))->pid == pid)
+		break;
+	}
 
 	if (jnode == NULL) {
 	    if (WIFSIGNALED(status) && (WTERMSIG(status) == SIGCONT)) {
-		jnode = Lst_Find(&stoppedJobs, &pid, JobCmpPid);
+		LST_FOREACH(jnode, &stoppedJobs) {
+		    if (((const Job *)Lst_Datum(jnode))->pid == pid)
+			break;
+		}
 		if (jnode == NULL) {
 		    Error("Resumed child (%d) not in table", pid);
 		    continue;
