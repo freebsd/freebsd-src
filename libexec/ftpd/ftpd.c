@@ -2028,7 +2028,6 @@ send_data(FILE *instr, FILE *outstr, size_t blksize, off_t filesize, int isreg)
 		filefd = fileno(instr);
 
 		if (isreg) {
-
 			char *msg = "Transfer complete.";
 			off_t offset;
 			int err;
