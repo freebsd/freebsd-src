@@ -1203,5 +1203,41 @@ const struct puc_device_description puc_devices[] = {
 	    },
 	},
 
+	/*
+	 * Boca Research Turbo Serial 654 (4 serial port) card.
+	 * Appears to be the same as Chase Research PLC PCI-FAST4
+	 * and Perle PCI-FAST4 Multi-Port serial cards.
+	 */
+	{   "Boca Research Turbo Serial 654",
+	{   0x10b5, 0x9050, 0x12e0, 0x0031  },
+	{   0xffff, 0xffff, 0xffff, 0xffff  },
+	{
+		{ PUC_PORT_TYPE_COM, 0x18, 0x00, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x18, 0x08, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x18, 0x10, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x18, 0x18, COM_FREQ * 4 },
+		},
+	},
+
+	/*
+	 * Boca Research Turbo Serial 658 (8 serial port) card.
+	 * Appears to be the same as Chase Research PLC PCI-FAST8
+	 * and Perle PCI-FAST8 Multi-Port serial cards.
+	 */
+	{   "Boca Research Turbo Serial 658",
+	{   0x10b5, 0x9050, 0x12e0, 0x0021  },
+	{   0xffff, 0xffff, 0xffff, 0xffff  },
+	{
+		{ PUC_PORT_TYPE_COM, 0x18, 0x00, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x18, 0x08, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x18, 0x10, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x18, 0x18, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x18, 0x20, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x18, 0x28, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x18, 0x30, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x18, 0x38, COM_FREQ * 4 },
+		},
+	},
+
 	{ 0 }
 };
