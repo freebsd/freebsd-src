@@ -336,6 +336,26 @@ gv_sd_to_plex(struct gv_plex *p, struct gv_sd *s, int check)
 }
 
 void
+gv_update_vol_size(struct gv_volume *v, off_t size)
+{
+	struct g_geom *gp;
+	struct g_provider *pp;
+
+	if (v == NULL)
+		return;
+
+	gp = v->geom;
+	if (gp == NULL)
+		return;
+
+	LIST_FOREACH(pp, &gp->provider, provider) {
+		pp->mediasize = size;
+	}
+
+	v->size = size;
+}
+
+void
 gv_update_plex_config(struct gv_plex *p)
 {
 	struct gv_sd *s, *s2;
