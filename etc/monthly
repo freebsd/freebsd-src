@@ -25,3 +25,4 @@ for i in kerberos.log lpd-errs wtmp; do
 	if [ -f $i ]; then mv -f $i $i.0; fi
 	>$i
 done
+echo ""
