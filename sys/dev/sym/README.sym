@@ -68,10 +68,11 @@ Status:
          FreeBSD 3.3 RELEASE
 
 Latest revision:
-   sym-0.10.0-19991111
+   sym-0.11.0-19991120
    Files to download:
       SYM-0.9.0-19991024.tar.gz
-      PATCH-SYM-0.10.0-19991111.tar.gz
+      PATCH-SYM-0.10.0-19991111.gz
+      PATCH-SYM-0.11.0-19991120.gz
 
 Supported SCSI features:
   - Initiator mode
@@ -101,8 +102,8 @@ Others:
     100% scalability.
 
 Notes:
-(1) Only supported by the LSI53C1010 and not yet 
-    tested due to lack of C1010 based controller.
+(1) FAST80-DT only supported by the LSI53C1010 
+    but not yet tested.
 (2) Not yet reported. May not work as expected.
    
 Files:
@@ -129,8 +130,9 @@ Installation:
          (patch -p0 <sym_sys_3.patch)
      Otherwise, leave here. ;)
   5) Change to /usr/src/sys/pci directory
-  6) Update to SYM-0.10.0-19991111
+  6) Update to SYM-0.11.0-19991120
      gzip -d <PATCH-SYM-0.10.0-19991111.gz | patch -p0
+     gzip -d <PATCH-SYM-0.11.0-19991120.gz | patch -p0
   7) Add sym0 to your kernel configuration as indicated in patched LINT file.
      Configure and make your kernel.
 
@@ -144,6 +146,7 @@ cd /usr/src/sys
 patch -p0 <pci/sym_sys.patch    # use sym_sys_3.patch if FreeBSD-3.X
 cd pci
 gzip -d </tmp/PATCH-SYM-0.10.0-19991111.gz | patch -p0
+gzip -d </tmp/PATCH-SYM-0.11.0-19991120.gz | patch -p0
 
 
 Warnings:
@@ -226,5 +229,14 @@ Change log:
   Switch driver status to BETA-RELEASE given that this driver has been rock 
   solid even if s small number of users seems to actually use it.
 
+* SYM-0.11.0-19991120  (diff file PATCH-SYM-0.11.0-19991120)
+  Rearrange a bit the initialisation code that deals with IO registers.
+  Fix a bug in MODIFY_DP/IGN_RESIDUE handling (May-be this code will 
+  never be used).
+  Fix a tiny problem in Wide nego. The driver didn't start the Sync nego 
+  after a Wide nego if synchronous parameters weren't also changed.
+  Apply fixes that should allow to successfully link the kernel on Alpha.
+  LSI53C1010 tested with Asynchronous, FAST5, FAST10, FAST20 and FAST40 
+  data transfers.
 
-November 11 1999.          "Gerard Roudier"<groudier@club-internet.fr>
+November 25 1999.          "Gerard Roudier"<groudier@club-internet.fr>
