@@ -59,49 +59,49 @@ clearSrc(dialogMenuItem *self)
 static int
 setX11Misc(dialogMenuItem *self)
 {
-    XF86Dists |= DIST_XF86_MISC_ALL;
-    Dists |= DIST_XF86;
+    XOrgDists |= DIST_XORG_MISC_ALL;
+    Dists |= DIST_XORG;
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
 static int
 clearX11Misc(dialogMenuItem *self)
 {
-    XF86Dists &= ~DIST_XF86_MISC_ALL;
-    if (!XF86ServerDists && !XF86FontDists)
-	Dists &= ~DIST_XF86;
+    XOrgDists &= ~DIST_XORG_MISC_ALL;
+    if (!XOrgDists)
+	Dists &= ~DIST_XORG;
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
 static int
 setX11Servers(dialogMenuItem *self)
 {
-    XF86Dists |= DIST_XF86_SERVER;
-    XF86ServerDists = DIST_XF86_SERVER_ALL;
+    XOrgDists |= DIST_XORG_SERVER_ALL;
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
 static int
 clearX11Servers(dialogMenuItem *self)
 {
-    XF86Dists &= ~DIST_XF86_SERVER;
-    XF86ServerDists = 0;
+    XOrgDists &= ~DIST_XORG_SERVER_ALL;
+    if (!XOrgDists)
+	Dists &= ~DIST_XORG;
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
 static int
 setX11Fonts(dialogMenuItem *self)
 {
-    XF86Dists |= DIST_XF86_FONTS;
-    XF86FontDists = DIST_XF86_FONTS_ALL;
+    XOrgDists |= DIST_XORG_FONTS_ALL;
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
 static int
 clearX11Fonts(dialogMenuItem *self)
 {
-    XF86Dists &= ~DIST_XF86_FONTS;
-    XF86FontDists = 0;
+    XOrgDists &= ~DIST_XORG_FONTS_ALL;
+    if (!XOrgDists)
+	Dists &= ~DIST_XORG;
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
@@ -122,7 +122,7 @@ checkDistDeveloper(dialogMenuItem *self)
 static int
 checkDistXDeveloper(dialogMenuItem *self)
 {
-    return IS_DEVELOPER(Dists, DIST_XF86) && _IS_SET(SrcDists, DIST_SRC_ALL);
+    return IS_DEVELOPER(Dists, DIST_XORG) && _IS_SET(SrcDists, DIST_SRC_ALL);
 }
 
 static int
@@ -134,7 +134,7 @@ checkDistKernDeveloper(dialogMenuItem *self)
 static int
 checkDistXKernDeveloper(dialogMenuItem *self)
 {
-    return IS_DEVELOPER(Dists, DIST_XF86) && _IS_SET(SrcDists, DIST_SRC_SYS);
+    return IS_DEVELOPER(Dists, DIST_XORG) && _IS_SET(SrcDists, DIST_SRC_SYS);
 }
 
 static int
@@ -146,7 +146,7 @@ checkDistUser(dialogMenuItem *self)
 static int
 checkDistXUser(dialogMenuItem *self)
 {
-    return IS_USER(Dists, DIST_XF86);
+    return IS_USER(Dists, DIST_XORG);
 }
 
 static int
@@ -160,9 +160,7 @@ checkDistEverything(dialogMenuItem *self)
 {
     return Dists == DIST_ALL &&
 	_IS_SET(SrcDists, DIST_SRC_ALL) &&
-	_IS_SET(XF86Dists, DIST_XF86_ALL) &&
-	_IS_SET(XF86ServerDists, DIST_XF86_SERVER_ALL) &&
-	_IS_SET(XF86FontDists, DIST_XF86_FONTS_ALL);
+	_IS_SET(XOrgDists, DIST_XORG_ALL);
 }
 
 static int
@@ -174,7 +172,12 @@ srcFlagCheck(dialogMenuItem *item)
 static int
 x11FlagCheck(dialogMenuItem *item)
 {
-    return Dists & DIST_XF86;
+    if (XOrgDists != 0)
+	Dists |= DIST_XORG;
+    else
+	Dists &= ~DIST_XORG;
+
+    return Dists & DIST_XORG;
 }
 
 static int
@@ -218,7 +221,7 @@ DMenu MenuIndex = {
       { " Dists, User",		"Select average user distribution.",	checkDistUser, distSetUser },
       { " Dists, X User",	"Select average X user distribution.",	checkDistXUser, distSetXUser },
       { " Distributions, Adding", "Installing additional distribution sets", NULL, distExtractAll },
-      { " Distributions, XFree86","XFree86 distribution menu.",		NULL, distSetXF86 },
+      { " Distributions, X.Org","X.Org distribution menu.",		NULL, distSetXOrg },
       { " Documentation",	"Installation instructions, README, etc.", NULL, dmenuSubmenu, NULL, &MenuDocumentation },
       { " Doc, README",		"The distribution README file.",	NULL, dmenuDisplayFile, NULL, "README" },
       { " Doc, Early Adopter's",		"Early Adopter's Guide to FreeBSD 5.0.",	NULL, dmenuDisplayFile, NULL, "EARLY" },
@@ -284,8 +287,8 @@ DMenu MenuIndex = {
       { " Upgrade",		"Upgrade an existing system.",		NULL, installUpgrade },
       { " Usage",		"Quick start - How to use this menu system.",	NULL, dmenuDisplayFile, NULL, "usage" },
       { " User Management",	"Add user and group information.",	NULL, dmenuSubmenu, NULL, &MenuUsermgmt },
-      { " XFree86, Fonts",	"XFree86 Font selection menu.",		NULL, dmenuSubmenu, NULL, &MenuXF86SelectFonts },
-      { " XFree86, Server",	"XFree86 Server selection menu.",	NULL, dmenuSubmenu, NULL, &MenuXF86SelectServer },
+      { " X.Org, Fonts",	"X.Org Font selection menu.",		NULL, dmenuSubmenu, NULL, &MenuXOrgSelectFonts },
+      { " X.Org, Server",	"X.Org Server selection menu.",	NULL, dmenuSubmenu, NULL, &MenuXOrgSelectServer },
       { NULL } },
 };
 
@@ -994,8 +997,8 @@ DMenu MenuSubDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_LOCAL},
       { " perl",	"The Perl distribution",
 	dmenuFlagCheck, dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_PERL },
-      { " XFree86",	"The XFree86 distribution",
-	x11FlagCheck,	distSetXF86 },
+      { " X.Org",	"The X.Org distribution",
+	x11FlagCheck,	distSetXOrg },
       { NULL } },
 };
 
@@ -1053,13 +1056,13 @@ DMenu MenuSrcDistributions = {
       { NULL } },
 };
 
-DMenu MenuXF86Config = {
+DMenu MenuXOrgConfig = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
-    "Please select the XFree86 configuration tool you want to use.",
-    "The first option, xf86cfg, is fully graphical.\n"
+    "Please select the X.Org configuration tool you want to use.",
+    "The first option, xorgcfg, is fully graphical.\n"
     "The second option provides a menu-based interface similar to\n"
     "what you are currently using. "
-    "The third option, xf86config, is\n"
+    "The third option, xorgconfig, is\n"
     "a more simplistic shell-script based tool and less friendly to\n"
     "new users, but it may work in situations where the other options\n"
     "do not.",
@@ -1067,12 +1070,12 @@ DMenu MenuXF86Config = {
     NULL,
     { { "X Exit", "Exit this menu (returning to previous)",
 	NULL, dmenuExit },
-      { "2 xf86cfg",	"Fully graphical XFree86 configuration tool.",
-	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=xf86cfg" },
-      { "3 xf86cfg -textmode",	"ncurses-based XFree86 configuration tool.",
-	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=xf86cfg -textmode" },
-      { "4 xf86config",	"Shell-script based XFree86 configuration tool.",
-	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=xf86config" },
+      { "2 xorgcfg",	"Fully graphical X.Org configuration tool.",
+	NULL, dmenuSetVariable, NULL, VAR_XORG_CONFIG "=xorgcfg" },
+      { "3 xorgcfg -textmode",	"ncurses-based X.Org configuration tool.",
+	NULL, dmenuSetVariable, NULL, VAR_XORG_CONFIG "=xorgcfg -textmode" },
+      { "4 xorgconfig",	"Shell-script based X.Org configuration tool.",
+	NULL, dmenuSetVariable, NULL, VAR_XORG_CONFIG "=xorgconfig" },
       { "D XDesktop",	"X already set up, just do desktop configuration.",
 	NULL, dmenuSubmenu, NULL, &MenuXDesktops },
       { NULL } },
@@ -1081,7 +1084,7 @@ DMenu MenuXF86Config = {
 DMenu MenuXDesktops = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Please select the default X desktop to use.",
-    "By default, XFree86 comes with a fairly vanilla desktop which\n"
+    "By default, X.Org comes with a fairly vanilla desktop which\n"
     "is based around the twm(1) window manager and does not offer\n"
     "much in the way of features.  It does have the advantage of\n"
     "being a standard part of X so you don't need to load anything\n"
@@ -1105,24 +1108,24 @@ DMenu MenuXDesktops = {
       { NULL } },
 };
 
-DMenu MenuXF86Select = {
+DMenu MenuXOrgSelect = {
     DMENU_NORMAL_TYPE,
-    "XFree86 Distribution",
-    "Please select the components you need from the XFree86\n"
+    "X.Org Distribution",
+    "Please select the components you need from the X.Org\n"
     "distribution sets.",
     NULL,
     NULL,
     { { "X Exit", "Exit this menu (returning to previous)", NULL, dmenuExit },
-      { "Basic",	"Basic component menu (required)",	NULL, dmenuSubmenu, NULL, &MenuXF86SelectCore },
-      { "Server",	"X server menu",			NULL, dmenuSubmenu, NULL, &MenuXF86SelectServer },
-      { "Fonts",	"Font set menu",			NULL, dmenuSubmenu, NULL, &MenuXF86SelectFonts },
+      { "Basic",	"Basic component menu (required)",	NULL, dmenuSubmenu, NULL, &MenuXOrgSelectCore },
+      { "Server",	"X server menu",			NULL, dmenuSubmenu, NULL, &MenuXOrgSelectServer },
+      { "Fonts",	"Font set menu",			NULL, dmenuSubmenu, NULL, &MenuXOrgSelectFonts },
       { NULL } },
 };
 
-DMenu MenuXF86SelectCore = {
+DMenu MenuXOrgSelectCore = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
-    "XFree86 base distribution types",
-    "Please check off the basic XFree86 components you wish to install.\n"
+    "X.Org base distribution types",
+    "Please check off the basic X.Org components you wish to install.\n"
     "Bin, lib, and set are recommended for a minimum installaion.",
     NULL,
     NULL,
@@ -1132,26 +1135,28 @@ DMenu MenuXF86SelectCore = {
 	NULL,		setX11Misc, NULL, NULL, ' ', ' ', ' ' },
       { "Reset",	"Reset all below",
 	NULL,		clearX11Misc, NULL, NULL, ' ', ' ', ' ' },
-      { " bin", 	"Client applications",
-	dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_CLIENTS },
       { " lib",         "Shared libraries and data files needed at runtime",
-	dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_LIB },
+	dmenuFlagCheck, dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_LIB },
+      { " bin", 	"Client applications",
+	dmenuFlagCheck, dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_CLIENTS },
       { " man",         "Manual pages",
-	dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_MAN },
+	dmenuFlagCheck, dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_MAN },
       { " doc",         "Documentation",
-	dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_DOC },
+	dmenuFlagCheck, dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_DOC },
       { " prog",        "Programming tools",
-	dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_PROG },
+	dmenuFlagCheck, dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_IMAKE },
       { NULL } },
 };
 
-DMenu MenuXF86SelectFonts = {
+DMenu MenuXOrgSelectFonts = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
-    "Font distribution selection.",
+    "X.Org Font distribution selection.",
     "Please check off the individual font distributions you wish to\n\
 install.  At the minimum, you should install the standard\n\
-75 DPI and misc fonts if you're also installing a server\n\
-(these are selected by default).",
+75 DPI and misc fonts if you're also installing an X server\n\
+(these are selected by default).  The TrueType set is also \n\
+highly recommended.  The font server is unnecessary in most\n\
+configurations.",
     NULL,
     NULL,
     { { "X Exit",	"Exit this menu (returning to previous)",
@@ -1160,24 +1165,26 @@ install.  At the minimum, you should install the standard\n\
 	NULL,		setX11Fonts, NULL, NULL, ' ', ' ', ' ' },
       { "Reset",	"Reset font selections",
 	NULL,		clearX11Fonts, NULL, NULL, ' ', ' ', ' ' },
-      { " fnts",	"Standard miscellaneous fonts",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86FontDists, '[', 'X', ']', DIST_XF86_FONTS_BITMAPS },
+      { " fmsc",	"Standard miscellaneous fonts",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_FONTS_MISC },
       { " f75",		"75 DPI fonts",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86FontDists, '[', 'X', ']', DIST_XF86_FONTS_75 },
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_FONTS_75 },
       { " f100",	"100 DPI fonts",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86FontDists, '[', 'X', ']', DIST_XF86_FONTS_100 },
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_FONTS_100 },
       { " fcyr",	"Cyrillic Fonts",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86FontDists, '[', 'X', ']', DIST_XF86_FONTS_CYR },
-      { " fscl",	"Speedo and Type scalable fonts",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86FontDists, '[', 'X', ']', DIST_XF86_FONTS_SCALE },
-      { " server",	"Font server",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86FontDists, '[', 'X', ']', DIST_XF86_FONTS_SERVER },
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_FONTS_CYR },
+      { " ft1",		"Type1 scalable fonts",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_FONTS_T1 },
+      { " ftt",		"TrueType scalable fonts",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_FONTS_TT },
+      { " fs",		"Font server",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_FONTSERVER },
       { NULL } },
 };
 
-DMenu MenuXF86SelectServer = {
+DMenu MenuXOrgSelectServer = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
-    "X Server selection.",
+    "X.Org X Server selection.",
     "Please check off the types of X servers you wish to install.\n",
     NULL,
     NULL,
@@ -1188,13 +1195,13 @@ DMenu MenuXF86SelectServer = {
       { "Reset",	"Reset all of the above",
 	NULL,		clearX11Servers, NULL, NULL, ' ', ' ', ' ' },
       { " srv",		"Standard Graphics Framebuffer",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_FB },
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_SERVER },
       { " nest",	"Nested X Server",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_NEST },
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_NESTSERVER },
       { " prt", 	"X Print Server",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_PRINT },
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_PRINTSERVER },
       { " vfb",		"Virtual Framebuffer",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_VFB },
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_VFBSERVER },
       { NULL } },
 };
 
@@ -1346,9 +1353,9 @@ DMenu MenuConfigure = {
 	NULL,	configEtcTtys, NULL, "ttys" },
       { " Options",	"View/Set various installation options",
 	NULL, optionsEditor },
-      { " XFree86",	"Configure XFree86 Server",
+      { " X.Org",	"Configure X.Org Server",
 	NULL, configXSetup },
-      { " Desktop",	"Configure XFree86 Desktop",
+      { " Desktop",	"Configure X Desktop",
 	NULL, configXDesktop },
       { " HTML Docs",	"Go to the HTML documentation menu (post-install)",
 	NULL, docBrowser },

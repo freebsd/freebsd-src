@@ -693,13 +693,13 @@ configXSetup(dialogMenuItem *self)
     setenv("XWINHOME", "/usr/X11R6", 1);
 tryagain:
     variable_unset(VAR_DESKSTYLE);
-    variable_unset(VAR_XF86_CONFIG);
+    variable_unset(VAR_XORG_CONFIG);
     dialog_clear_norefresh();
-    if (!dmenuOpenSimple(&MenuXF86Config, FALSE)) {
+    if (!dmenuOpenSimple(&MenuXOrgConfig, FALSE)) {
 	restorescr(w);
 	return DITEM_FAILURE;
     }
-    config = variable_get(VAR_XF86_CONFIG);
+    config = variable_get(VAR_XORG_CONFIG);
     style = variable_get(VAR_DESKSTYLE);
     if (!config) {
 	if (style)
@@ -751,8 +751,8 @@ tryagain:
 #endif
 	Mkdir("/etc/X11");	/* XXX:Remove this later after we are happy mtree will have created this for us. */
 	systemExecute(execcmd);
-	if (!file_readable("/etc/X11/XF86Config")) {
-	    if (!msgYesNo("The XFree86 configuration process seems to have\nfailed.  Would you like to try again?"))
+	if (!file_readable("/etc/X11/xorg.conf")) {
+	    if (!msgYesNo("The X.Org configuration process seems to have\nfailed.  Would you like to try again?"))
 		goto tryagain;
 	    else {
 		restorescr(w);
@@ -766,8 +766,8 @@ config_desktop:
     }
     else {
 	free(execfile);
-	msgConfirm("The XFree86 setup utility you chose does not appear to be installed!\n"
-		   "Please install this before attempting to configure XFree86.");
+	msgConfirm("The X.Org setup utility you chose does not appear to be installed!\n"
+		   "Please install this before attempting to configure X.Org.");
 	restorescr(w);
 	return DITEM_FAILURE;
     }
