@@ -39,8 +39,6 @@
 
 #define splmem splhigh
 
-#define KMEMSTATS
-
 /*
  * flags to malloc.
  */
@@ -147,55 +145,16 @@ struct kmembuckets {
 					: (MINBUCKET + 15))
 
 /*
- * Turn virtual addresses into kmem map indices
+ * Turn virtual addresses into kmemusage pointers.
  */
-#define kmemxtob(alloc)	(kmembase + (alloc) * PAGE_SIZE)
-#define btokmemx(addr)	(((caddr_t)(addr) - kmembase) / PAGE_SIZE)
 #define btokup(addr)	(&kmemusage[((caddr_t)(addr) - kmembase) >> PAGE_SHIFT])
 
 /*
- * Macro versions for the usual cases of malloc/free
+ * Deprecated macro versions of not-quite-malloc() and free().
  */
-#if defined(KMEMSTATS) || defined(DIAGNOSTIC)
 #define	MALLOC(space, cast, size, type, flags) \
-	(space) = (cast)malloc((u_long)(size), type, flags)
-#define FREE(addr, type) free((addr), type)
-
-#else /* do not collect statistics */
-#define	MALLOC(space, cast, size, type, flags) do { \
-	register struct kmembuckets *kbp = &bucket[BUCKETINDX(size)]; \
-	long s = splmem(); \
-	if (kbp->kb_next == NULL) { \
-		(space) = (cast)malloc((u_long)(size), type, flags); \
-	} else { \
-		(space) = (cast)kbp->kb_next; \
-		kbp->kb_next = *(caddr_t *)(space); \
-	} \
-	splx(s); \
-} while (0)
-
-#define	FREE(addr, type) do { \
-	register struct kmembuckets *kbp; \
-	register struct kmemusage *kup = btokup(addr); \
-	long s = splmem(); \
-	if (1 << kup->ku_indx > MAXALLOCSAVE) { \
-		free((addr), type); \
-	} else { \
-		kbp = &bucket[kup->ku_indx]; \
-		if (kbp->kb_next == NULL) \
-			kbp->kb_next = (caddr_t)(addr); \
-		else \
-			*(caddr_t *)(kbp->kb_last) = (caddr_t)(addr); \
-		*(caddr_t *)(addr) = NULL; \
-		kbp->kb_last = (caddr_t)(addr); \
-	} \
-	splx(s); \
-} while (0)
-
-extern struct kmemusage *kmemusage;
-extern char *kmembase;
-extern struct kmembuckets bucket[];
-#endif /* do not collect statistics */
+	(space) = (cast)malloc((u_long)(size), (type), (flags))
+#define	FREE(addr, type) free((addr), (type))
 
 /*
  * XXX this should be declared in <sys/uio.h>, but that tends to fail
