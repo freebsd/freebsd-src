@@ -78,7 +78,7 @@ returns the sign of \(*G(x).
 .Fn gamma x
 and
 .Fn gammaf x
-return \(*G(x), with no effect on
+return ln\||\(*G(x)|, with no effect on
 .Fa signgam .
 .Sh IDIOSYNCRASIES
 Do not use the expression
@@ -94,16 +94,16 @@ Only after
 or
 .Fn lgammaf
 has returned can signgam be correct.
-.Pp
-For arguments in its range,
-.Fn gamma
-and
-.Fn gammaf
-is preferred, as for positive arguments
-it is accurate to within one unit in the last place.
-Exponentiation of
-.Fn lgamma
-will lose up to 10 significant bits.
+.\.Pp
+.\For arguments in its range,
+.\.Fn gamma
+.\and
+.\.Fn gammaf
+.\is preferred, as for positive arguments
+.\it is accurate to within one unit in the last place.
+.\Exponentiation of
+.\.Fn lgamma
+.\will lose up to 10 significant bits.
 .Sh RETURN VALUES
 .Fn gamma ,
 .Fn gammaf ,
@@ -133,9 +133,21 @@ function appeared in
 The
 .Fn gamma
 function appeared in
-.Bx 4.4 .
-The name
+.Bx 4.4 
+as a function which computed  \(*G(x).
+In many older libraries the function
 .Fn gamma
-was originally dedicated to the
-.Fn lgamma
-function, so some old code may no longer be compatible.
+calculated the same value as
+.Fn lgamma .
+Now 
+.Fn gamma
+computes ln\||\(*G(x)|,
+but it uses a different algorithm,
+and it does not set 
+.Fa signgam .
+The
+.St -isoC-99
+standard specifies a function
+.Fn tgamma
+for computing \(*G(x).
+This function is currently unimplimented in this library.
