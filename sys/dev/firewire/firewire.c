@@ -1696,7 +1696,7 @@ fw_attach_dev(struct firewire_comm *fc)
 			printf("\n");
 		}
 	}
-	err = device_get_children(fc->dev, &devlistp, &devcnt);
+	err = device_get_children(fc->bdev, &devlistp, &devcnt);
 	if( err != 0 )
 		return;
 	for( i = 0 ; i < devcnt ; i++){
