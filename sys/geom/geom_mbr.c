@@ -331,9 +331,8 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 }
 
 static struct g_class g_mbr_class	= {
-	MBR_CLASS_NAME,
-	g_mbr_taste,
-	NULL,
+	.name = MBR_CLASS_NAME,
+	.taste = g_mbr_taste,
 	G_CLASS_INITIALIZER
 };
 

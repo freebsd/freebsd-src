@@ -342,9 +342,8 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 }
 
 static struct g_class g_pc98_class = {
-	PC98_CLASS_NAME,
-	g_pc98_taste,
-	NULL,
+	.name = PC98_CLASS_NAME,
+	.taste = g_pc98_taste,
 	G_CLASS_INITIALIZER
 };
 

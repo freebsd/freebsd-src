@@ -383,9 +383,8 @@ g_aes_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 }
 
 static struct g_class g_aes_class	= {
-	AES_CLASS_NAME,
-	g_aes_taste,
-	NULL,
+	.name = AES_CLASS_NAME,
+	.taste = g_aes_taste,
 	G_CLASS_INITIALIZER
 };
 

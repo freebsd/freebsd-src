@@ -60,9 +60,7 @@ static struct mtx g_disk_done_mtx;
 static g_access_t g_disk_access;
 
 struct g_class g_disk_class = {
-	"DISK",
-	NULL,
-	NULL,
+	.name = "DISK",
 	G_CLASS_INITIALIZER
 };
 
