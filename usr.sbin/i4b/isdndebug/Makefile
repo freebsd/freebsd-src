@@ -1,6 +1,7 @@
 # $FreeBSD$
-PROG	 =	isdndebug
-SRCS	 =	main.c
-MAN	 = 	isdndebug.8
+
+PROG=	isdndebug
+MAN= 	isdndebug.8
+SRCS=	main.c
 
 .include <bsd.prog.mk>

@@ -1,7 +1,8 @@
 # $FreeBSD$
-PROG	 =	isdntest
-SRCS	 =	main.c
-MAN	 =	isdntest.8
+
+PROG=	isdntest
+MAN=	isdntest.8
+SRCS=	main.c
 
 install:
 	@echo isdntest is not installed automatically
