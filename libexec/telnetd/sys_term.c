@@ -1782,7 +1782,6 @@ scrub_env()
 	for (cpp2 = cpp = environ; *cpp; cpp++) {
 #ifdef __FreeBSD__
 		if (strncmp(*cpp, "LD_LIBRARY_PATH=", 16) &&
-		    strncmp(*cpp, "LD_NOSTD_PATH=", 14) &&
 		    strncmp(*cpp, "LD_PRELOAD=", 11) &&
 #else
 		if (strncmp(*cpp, "LD_", 3) &&
