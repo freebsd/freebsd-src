@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.74.2.2 1997/09/28 16:03:37 mckay Exp $
+ *	$Id: isa.c,v 1.74.2.3 1997/10/12 16:07:42 jkh Exp $
  */
 
 /*
@@ -590,7 +590,7 @@ isa_dma_release(chan)
 	if (chan & ~VALID_DMA_MASK)
 		panic("isa_dma_release: channel out of range");
 
-	if (dma_inuse & (1 << chan) == 0)
+	if ((dma_inuse & (1 << chan)) == 0)
 		printf("isa_dma_release: channel %d not in use\n", chan);
 #endif
 
@@ -647,7 +647,7 @@ void isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 	    || (chan >= 4 && (nbytes > (1<<17) || (u_int)addr & 1)))
 		panic("isa_dmastart: impossible request");
 
-	if (dma_inuse & (1 << chan) == 0)
+	if ((dma_inuse & (1 << chan)) == 0)
 		printf("isa_dmastart: channel %d not acquired\n", chan);
 #endif
 
@@ -748,7 +748,7 @@ void isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
 	if (chan & ~VALID_DMA_MASK)
 		panic("isa_dmadone: channel out of range");
 
-	if (dma_inuse & (1 << chan) == 0)
+	if ((dma_inuse & (1 << chan)) == 0)
 		printf("isa_dmadone: channel %d not acquired\n", chan);
 #endif
 
