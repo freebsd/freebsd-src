@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cdefs.h	8.8 (Berkeley) 1/9/95
- * $Id: cdefs.h,v 1.15 1997/12/13 20:39:14 pst Exp $
+ * $Id: cdefs.h,v 1.16 1998/05/28 18:04:34 dt Exp $
  */
 
 #ifndef	_SYS_CDEFS_H_
@@ -52,9 +52,11 @@
 /*
  * The __CONCAT macro is used to concatenate parts of symbol names, e.g.
  * with "#define OLD(foo) __CONCAT(old,foo)", OLD(foo) produces oldfoo.
- * The __CONCAT macro is a bit tricky -- make sure you don't put spaces
- * in between its arguments.  __CONCAT can also concatenate double-quoted
- * strings produced by the __STRING macro, but this only works with ANSI C.
+ * The __CONCAT macro is a bit tricky to use if it must work in non-ANSI
+ * mode -- there must be no spaces between its arguments, and for nested
+ * __CONCAT's, all the __CONCAT's must be at the left.  __CONCAT can also
+ * concatenate double-quoted strings produced by the __STRING macro, but
+ * this only works with ANSI C.
  *
  * __XSTRING is like __STRING, but it expands any macros in its argument
  * first.  It is only available with ANSI C.
@@ -118,7 +120,6 @@
 #define __pure
 #define __pure2
 #define __unused
-#define	__attribute__(x)
 #endif
 #if __GNUC__ == 2 && __GNUC_MINOR__ < 5
 #define	__dead		__volatile
@@ -160,8 +161,7 @@
 #endif
 #endif
 
-#define	__IDSTRING(name,string) \
-	static const char name[] __attribute__((__unused__)) = string
+#define	__IDSTRING(name,string)	static const char name[] __unused = string
 
 #ifndef	__RCSID
 #define	__RCSID(s)	__IDSTRING(rcsid,s)
