@@ -427,37 +427,30 @@ main(int argc, char *argv[])
 static int
 opentty(const char *tty, int flags)
 {
-	int i, j = 0;
+	int i;
 	int failopenlogged = 0;
 
-	while (j < 10 && (i = open(tty, flags)) == -1)
+	while ((i = open(tty, flags)) == -1)
 	{
-		if (((j % 10) == 0) && (errno != ENXIO || !failopenlogged)) {
+		if (!failopenlogged) {
 			syslog(LOG_ERR, "open %s: %m", tty);
 			failopenlogged = 1;
 		}
-		j++;
 		sleep(60);
 	}
-	if (i == -1) {
-		syslog(LOG_ERR, "open %s: %m", tty);
-		return 0;
-	}
-	else {
-		if (login_tty(i) < 0) { 
-			if (daemon(0,0) < 0) {
-				syslog(LOG_ERR,"daemon: %m");
-				close(i);
-				return 0;
-			}
-			if (login_tty(i) < 0) {
-				syslog(LOG_ERR, "login_tty %s: %m", tty);
-				close(i);
-				return 0;
-			}
+	if (login_tty(i) < 0) { 
+		if (daemon(0,0) < 0) {
+			syslog(LOG_ERR,"daemon: %m");
+			close(i);
+			return 0;
 		}
-		return 1;
+		if (login_tty(i) < 0) {
+			syslog(LOG_ERR, "login_tty %s: %m", tty);
+			close(i);
+			return 0;
+		}
 	}
+	return 1;
 }
 
 static void
