@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.21 1996/01/28 09:56:04 joerg Exp $
+ *      $Id: worm.c,v 1.22 1996/01/28 23:33:23 joerg Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -144,7 +144,6 @@ static	d_open_t	wormopen;
 static	d_close_t	wormclose;
 static	d_ioctl_t	wormioctl;
 static	d_strategy_t	wormstrategy;
-void			worminit (void);
 
 #define CDEV_MAJOR 62
 static struct cdevsw worm_cdevsw = 
