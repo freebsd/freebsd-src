@@ -259,6 +259,8 @@ _pthread_testcancel(void)
 void
 _thr_enter_cancellation_point(struct pthread *thread)
 {
+	if (!_kse_isthreaded())
+		return;
 	/* Look for a cancellation before we block: */
 	THR_SCHED_LOCK(thread, thread);
 	testcancel(thread);
@@ -269,6 +271,8 @@ _thr_enter_cancellation_point(struct pthread *thread)
 void
 _thr_leave_cancellation_point(struct pthread *thread)
 {
+	if (!_kse_isthreaded())
+		return;
 	THR_SCHED_LOCK(thread, thread);
 	thread->cancelflags &= ~THR_AT_CANCEL_POINT;
 	/* Look for a cancellation after we unblock: */
