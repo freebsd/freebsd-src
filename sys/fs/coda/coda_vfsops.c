@@ -39,7 +39,7 @@
  */
 
 /*
- * This code was written for the Coda file system at Carnegie Mellon
+ * This code was written for the Coda filesystem at Carnegie Mellon
  * University.  Contributers include David Steere, James Kistler, and
  * M. Satyanarayanan.  
  */
@@ -371,7 +371,7 @@ coda_root(vfsp, vpp)
 }
 
 /*
- * Get file system statistics.
+ * Get filesystem statistics.
  */
 int
 coda_nb_statfs(vfsp, sbp, td)

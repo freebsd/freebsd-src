@@ -63,7 +63,7 @@ int nwfs_debuglevel = 0;
 static int nwfs_version = NWFS_VERSION;
 
 SYSCTL_DECL(_vfs_nwfs);
-SYSCTL_NODE(_vfs, OID_AUTO, nwfs, CTLFLAG_RW, 0, "Netware file system");
+SYSCTL_NODE(_vfs, OID_AUTO, nwfs, CTLFLAG_RW, 0, "Netware filesystem");
 SYSCTL_INT(_vfs_nwfs, OID_AUTO, version, CTLFLAG_RD, &nwfs_version, 0, "");
 SYSCTL_INT(_vfs_nwfs, OID_AUTO, debuglevel, CTLFLAG_RW, &nwfs_debuglevel, 0, "");
 
@@ -435,23 +435,23 @@ nwfs_statfs(mp, sbp, td)
 	if (error) return error;
 	secsize = 512;			/* XXX how to get real value ??? */
 	sbp->f_spare2=0;		/* placeholder */
-	/* fundamental file system block size */
+	/* fundamental filesystem block size */
 	sbp->f_bsize = vi.sectors_per_block*secsize;
 	/* optimal transfer block size */
 	sbp->f_iosize = NWFSTOCONN(nmp)->buffer_size;
-	/* total data blocks in file system */
+	/* total data blocks in filesystem */
 	sbp->f_blocks= vi.total_blocks;
 	/* free blocks in fs */
 	sbp->f_bfree = vi.free_blocks + vi.purgeable_blocks;
 	/* free blocks avail to non-superuser */
 	sbp->f_bavail= vi.free_blocks+vi.purgeable_blocks;
-	/* total file nodes in file system */
+	/* total file nodes in filesystem */
 	sbp->f_files = vi.total_dir_entries;
 	/* free file nodes in fs */
 	sbp->f_ffree = vi.available_dir_entries;
 	sbp->f_flags = 0;		/* copy of mount exported flags */
 	if (sbp != &mp->mnt_stat) {
-		sbp->f_fsid = mp->mnt_stat.f_fsid;	/* file system id */
+		sbp->f_fsid = mp->mnt_stat.f_fsid;	/* filesystem id */
 		sbp->f_owner = mp->mnt_stat.f_owner;	/* user that mounted the filesystem */
 		sbp->f_type = mp->mnt_vfc->vfc_typenum;	/* type of filesystem */
 		bcopy(mp->mnt_stat.f_mntonname, sbp->f_mntonname, MNAMELEN);

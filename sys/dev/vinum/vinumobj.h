@@ -66,7 +66,7 @@ enum objflags {
     VF_WLABEL = 0x20,					    /* label area is writable */
     VF_LABELLING = 0x40,				    /* unit is currently being labelled */
     VF_WANTED = 0x80,					    /* someone is waiting to obtain a lock */
-    VF_RAW = 0x100,					    /* raw volume (no file system) */
+    VF_RAW = 0x100,					    /* raw volume (no filesystem) */
     VF_LOADED = 0x200,					    /* module is loaded */
     VF_CONFIGURING = 0x400,				    /* somebody is changing the config */
     VF_WILL_CONFIGURE = 0x800,				    /* somebody wants to change the config */

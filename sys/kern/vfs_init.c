@@ -369,7 +369,7 @@ vfs_rm_vnodeops(const void *data)
 struct vattr va_null;
 
 /*
- * Initialize the vnode structures and initialize each file system type.
+ * Initialize the vnode structures and initialize each filesystem type.
  */
 /* ARGSUSED*/
 static void
@@ -380,7 +380,7 @@ vfsinit(void *dummy)
 }
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vfsinit, NULL)
 
-/* Register a new file system type in the global table */
+/* Register a new filesystem type in the global table */
 int
 vfs_register(struct vfsconf *vfc)
 {
@@ -426,7 +426,7 @@ vfs_register(struct vfsconf *vfc)
 }
 
 
-/* Remove registration of a file system type */
+/* Remove registration of a filesystem type */
 int
 vfs_unregister(struct vfsconf *vfc)
 {
@@ -463,7 +463,7 @@ vfs_unregister(struct vfsconf *vfc)
 }
 
 /*
- * Standard kernel module handling code for file system modules.
+ * Standard kernel module handling code for filesystem modules.
  * Referenced from VFS_SET().
  */
 int

@@ -302,7 +302,7 @@ encode_comp_t(s, us)
 }
 
 /*
- * Periodically check the file system to see if accounting
+ * Periodically check the filesystem to see if accounting
  * should be turned on or off.  Beware the case where the vnode
  * has been vgone()'d out from underneath us, e.g. when the file
  * system containing the accounting file has been forcibly unmounted.

@@ -1025,7 +1025,7 @@ checkdirs(olddp, newdp)
 }
 
 /*
- * Unmount a file system.
+ * Unmount a filesystem.
  *
  * Note: unmount takes a path to the vnode mounted on as argument,
  * not special file (as before).
@@ -1071,7 +1071,7 @@ unmount(td, uap)
 	}
 
 	/*
-	 * Don't allow unmounting the root file system.
+	 * Don't allow unmounting the root filesystem.
 	 */
 	if (mp->mnt_flag & MNT_ROOTFS) {
 		vput(vp);
@@ -1090,7 +1090,7 @@ unmount(td, uap)
 }
 
 /*
- * Do the actual file system unmount.
+ * Do the actual filesystem unmount.
  */
 int
 dounmount(mp, flags, td)
@@ -3810,7 +3810,7 @@ out:
 
 #ifdef COMPAT_43
 /*
- * Read a block of directory entries in a file system independent format.
+ * Read a block of directory entries in a filesystem independent format.
  */
 #ifndef _SYS_SYSPROTO_H_
 struct ogetdirentries_args {
@@ -3950,7 +3950,7 @@ unionread:
 #endif /* COMPAT_43 */
 
 /*
- * Read a block of directory entries in a file system independent format.
+ * Read a block of directory entries in a filesystem independent format.
  */
 #ifndef _SYS_SYSPROTO_H_
 struct getdirentries_args {

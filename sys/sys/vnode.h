@@ -165,7 +165,7 @@ struct vnode {
 /*
  * Vnode flags.
  */
-#define	VROOT		0x00001	/* root of its file system */
+#define	VROOT		0x00001	/* root of its filesystem */
 #define	VTEXT		0x00002	/* vnode is a pure text prototype */
 #define	VSYSTEM		0x00004	/* vnode being used by kernel */
 #define	VISTTY		0x00008	/* vnode represents a tty */
@@ -196,7 +196,7 @@ struct vattr {
 	short		va_nlink;	/* number of references to file */
 	uid_t		va_uid;		/* owner user id */
 	gid_t		va_gid;		/* owner group id */
-	udev_t		va_fsid;	/* file system id */
+	udev_t		va_fsid;	/* filesystem id */
 	long		va_fileid;	/* file id */
 	u_quad_t	va_size;	/* file size in bytes */
 	long		va_blocksize;	/* blocksize preferred for i/o */

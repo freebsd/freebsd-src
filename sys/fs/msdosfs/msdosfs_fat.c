@@ -128,9 +128,9 @@ fatblock(pmp, ofs, bnp, sizep, bop)
  * dep	  - address of denode representing the file of interest
  * findcn - file relative cluster whose filesystem relative cluster number
  *	    and/or block number are/is to be found
- * bnp	  - address of where to place the file system relative block number.
+ * bnp	  - address of where to place the filesystem relative block number.
  *	    If this pointer is null then don't return this quantity.
- * cnp	  - address of where to place the file system relative cluster number.
+ * cnp	  - address of where to place the filesystem relative cluster number.
  *	    If this pointer is null then don't return this quantity.
  *
  * NOTE: Either bnp or cnp must be non-null.

@@ -511,7 +511,7 @@ foundroot:
 	 * infrequently since we cannot avoid this race condition without
 	 * implementing a sophisticated deadlock detection algorithm.
 	 * Note also that this simple deadlock detection scheme will not
-	 * work if the file system has any hard links other than ".."
+	 * work if the filesystem has any hard links other than ".."
 	 * that point backwards in the directory structure.
 	 */
 	pdp = vdp;

@@ -240,11 +240,11 @@ static const char *dktypenames[] = {
 #define	FS_SYSV		4		/* System V */
 #define	FS_V71K		5		/* V7 with 1K blocks (4.1, 2.9) */
 #define	FS_V8		6		/* Eighth Edition, 4K blocks */
-#define	FS_BSDFFS	7		/* 4.2BSD fast file system */
-#define	FS_MSDOS	8		/* MSDOS file system */
-#define	FS_BSDLFS	9		/* 4.4BSD log-structured file system */
+#define	FS_BSDFFS	7		/* 4.2BSD fast filesystem */
+#define	FS_MSDOS	8		/* MSDOS filesystem */
+#define	FS_BSDLFS	9		/* 4.4BSD log-structured filesystem */
 #define	FS_OTHER	10		/* in use, but unknown/unsupported */
-#define	FS_HPFS		11		/* OS/2 high-performance file system */
+#define	FS_HPFS		11		/* OS/2 high-performance filesystem */
 #define	FS_ISO9660	12		/* ISO 9660, normally CD-ROM */
 #define	FS_BOOT		13		/* partition contains bootstrap */
 #define	FS_VINUM	14		/* Vinum drive */

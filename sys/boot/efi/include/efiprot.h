@@ -144,7 +144,7 @@ typedef struct _EFI_DISK_IO {
 
 
 //
-// Simple file system protocol
+// Simple filesystem protocol
 //
 
 #define SIMPLE_FILE_SYSTEM_PROTOCOL \

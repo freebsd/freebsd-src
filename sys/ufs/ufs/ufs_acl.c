@@ -242,7 +242,7 @@ ufs_getacl(ap)
 		    POSIX1E_ACL_ACCESS_EXTATTR_NAME, &len, (char *) ap->a_aclp,
 		    ap->a_td);
 		switch (error) {
-		/* XXX: If ufs_getacl() should work on file systems without
+		/* XXX: If ufs_getacl() should work on filesystems without
 		 * the EA configured, add case EOPNOTSUPP here. */
 		case ENOATTR:
 			/*
@@ -301,7 +301,7 @@ ufs_getacl(ap)
 		 * and an empty ACL, as required by POSIX.1e.
 		 */
 		switch (error) {
-		/* XXX: If ufs_getacl() should work on file systems without
+		/* XXX: If ufs_getacl() should work on filesystems without
 		 * the EA configured, add case EOPNOTSUPP here. */
 		case ENOATTR:
 			bzero(ap->a_aclp, sizeof(*ap->a_aclp));
@@ -434,7 +434,7 @@ ufs_setacl(ap)
 	}
 	/*
 	 * Map lack of attribute definition in UFS_EXTATTR into lack of
-	 * support for ACLs on the file system.
+	 * support for ACLs on the filesystem.
 	 */
 	if (error == ENOATTR)
 		return (EOPNOTSUPP);

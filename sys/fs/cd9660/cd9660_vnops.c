@@ -137,7 +137,7 @@ cd9660_access(ap)
 	/*
 	 * Disallow write attempts unless the file is a socket,
 	 * fifo, or a block or character device resident on the
-	 * file system.
+	 * filesystem.
 	 */
 	if (mode & VWRITE) {
 		switch (vp->v_type) {
