@@ -44,13 +44,60 @@ static char sccsid[] = "@(#)getnetgrent.c	8.1 (Berkeley) 6/4/93";
 #include <unistd.h>
 
 #ifdef YP
+/*
+ * Notes:
+ * We want to be able to use NIS netgroups properly while retaining
+ * the ability to use a local /etc/netgroup file. Unfortunately, you
+ * can't really do both at the same time - at least, not efficiently.
+ * NetBSD deals with this problem by creating a netgroup database
+ * using Berkeley DB (just like the password database) that allows
+ * for lookups using netgroup, netgroup.byuser or netgroup.byhost
+ * searches. This is a neat idea, but I don't have time to implement
+ * something like that now. (I think ultimately it would be nice
+ * if we DB-fied the group and netgroup stuff all in one shot, but
+ * for now I'm satisfied just to have something that works well
+ * without requiring massive code changes.)
+ * 
+ * Therefore, to still permit the use of the local file and maintain
+ * optimum NIS performance, we allow for the following conditions:
+ *
+ * - If /etc/netgroup does not exist and NIS is turned on, we use
+ *   NIS netgroups only.
+ *
+ * - If /etc/netgroup exists but is empty, we use NIS netgroups
+ *   only.
+ *
+ * - If /etc/netgroup exists and contains _only_ a '+', we use
+ *   NIS netgroups only.
+ *
+ * - If /etc/netgroup exists, contains locally defined netgroups
+ *   and a '+', we use a mixture of NIS and the local entries.
+ *   This method should return the same NIS data as just using
+ *   NIS alone, but it will be slower if the NIS netgroup database
+ *   is large (innetgr() in particular will suffer since extra
+ *   processing has to be done in order to determine memberships
+ *   using just the raw netgroup data).
+ *
+ * - If /etc/netgroup exists and contains only locally defined
+ *   netgroup entries, we use just those local entries and ignore
+ *   NIS (this is the original, pre-NIS behavior).
+ */
 #include <rpc/rpc.h>
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/param.h>
+#include <sys/errno.h>
+static char *_netgr_yp_domain;
+static int _use_only_yp;
 static int _netgr_yp_enabled;
+static int _yp_innetgr;
 #endif
 
+#ifndef _PATH_NETGROUP
 #define _PATH_NETGROUP "/etc/netgroup"
+#endif
 
 /*
  * Static Variables and functions used by setnetgrent(), getnetgrent() and
@@ -102,6 +149,11 @@ void
 setnetgrent(group)
 	char *group;
 {
+#ifdef YP
+	struct stat _yp_statp;
+	char _yp_plus;
+#endif
+
 	/* Sanity check */
 
 	if (group == NULL || !strlen(group))
@@ -110,7 +162,36 @@ setnetgrent(group)
 	if (grouphead.gr == (struct netgrp *)0 ||
 		strcmp(group, grouphead.grname)) {
 		endnetgrent();
+#ifdef YP
+		/*
+		 * IF /etc/netgroup doesn't exist or is empty,
+		 * use NIS exclusively.
+		 */
+		if (((stat(_PATH_NETGROUP, &_yp_statp) < 0) &&
+			errno == ENOENT) || _yp_statp.st_size == 0)
+			_use_only_yp = _netgr_yp_enabled = 1;
+		if ((netf = fopen(_PATH_NETGROUP,"r")) != NULL ||_use_only_yp){
+		/*
+		 * Icky: grab the first character of the netgroup file
+		 * and turn on NIS if it's a '+'. rewind the stream
+		 * afterwards so we don't goof up read_for_group() later.
+		 */
+			if (netf) {
+				fscanf(netf, "%c", &_yp_plus);
+				rewind(netf);
+				if (_yp_plus == '+')
+					_use_only_yp = _netgr_yp_enabled = 1;
+			}
+		/*
+		 * If we were called specifically for an innetgr()
+		 * lookup and we're in NIS-only mode, short-circuit
+		 * parse_netgroup() and cut directly to the chase.
+		 */
+			if (_use_only_yp && _yp_innetgr)
+				return;
+#else
 		if (netf = fopen(_PATH_NETGROUP, "r")) {
+#endif
 			if (parse_netgrp(group))
 				endnetgrent();
 			else {
@@ -118,7 +199,8 @@ setnetgrent(group)
 					malloc(strlen(group) + 1);
 				strcpy(grouphead.grname, group);
 			}
-			fclose(netf);
+			if (netf)
+				fclose(netf);
 		}
 	}
 	nextgrp = grouphead.gr;
@@ -131,6 +213,9 @@ int
 getnetgrent(hostp, userp, domp)
 	char **hostp, **userp, **domp;
 {
+#ifdef YP
+	_yp_innetgr = 0;
+#endif
 
 	if (nextgrp) {
 		*hostp = nextgrp->ng_str[NG_HOST];
@@ -182,6 +267,43 @@ endnetgrent()
 #endif
 }
 
+#ifdef YP
+static int _listmatch(list, group)
+char *list, *group;
+{
+	char *ptr = list;
+
+	while (ptr != NULL) {
+		if (!strncmp(ptr, group, strlen(group)) && 
+			(*(ptr+strlen(group)) == ',' ||
+			*(ptr+strlen(group)) == '\n'))
+			return(1);
+		ptr++;
+	}
+	return(0);
+}
+
+static int _buildkey(key, str, dom, rotation)
+char *key, *str, *dom;
+int *rotation;
+{
+	(*rotation)++;
+	if (*rotation > 4)
+		return(0);
+	switch(*rotation) {
+		case(1): sprintf((char *)key, "%s.%s", str, dom ? dom : "*");
+			 break;
+		case(2): sprintf((char *)key, "%s.*", str);
+			 break;
+		case(3): sprintf((char *)key, "*.%s", dom ? dom : "*");
+			 break;
+		case(4): sprintf((char *)key, "*.*");
+			 break;
+	}
+	return(1);
+}
+#endif
+
 /*
  * Search for a match in a netgroup.
  */
@@ -190,17 +312,60 @@ innetgr(group, host, user, dom)
 	char *group, *host, *user, *dom;
 {
 	char *hst, *usr, *dm;
-
+#ifdef YP
+	char *result;
+	int resultlen;
+#endif
 	/* Sanity check */
 	
 	if (group == NULL || !strlen(group))
 		return (0);
 
+#ifdef YP
+	_yp_innetgr = 1;
+#endif
 	setnetgrent(group);
+#ifdef YP
+	/*
+	 * If we're in NIS-only mode, do the search using
+	 * NIS 'reverse netgroup' lookups.
+	 */
+	if (_use_only_yp) {
+		char _key[MAXHOSTNAMELEN];
+		int rot = 0;
+
+		if(yp_get_default_domain(&_netgr_yp_domain))
+			return(0);
+		while(_buildkey(&_key, user ? user : host, dom, &rot)) {
+			if (yp_match(_netgr_yp_domain, user? "netgroup.byuser":
+			    "netgroup.byhost", _key, strlen(_key), &result,
+			    &resultlen))
+				free(result);
+			else {
+				if (_listmatch(result, group)) {
+					free(result);
+					return(1);
+				}
+			}
+		}
+		free(result);
+#ifdef CHARITABLE
+	}
+	/*
+	 * Couldn't match using NIS-exclusive mode -- try
+	 * standard mode.
+	 */
+	_yp_innetgr = 0;
+	setnetgrent(group);
+#else
+		return(0);
+	}
+#endif /* CHARITABLE */
+#endif /* YP */
 	while (getnetgrent(&hst, &usr, &dm))
-		if ((host == (char *)0 || !strcmp(host, hst)) &&
-		    (user == (char *)0 || !strcmp(user, usr)) &&
-		    (dom == (char *)0 || !strcmp(dom, dm))) {
+		if ((host == NULL || hst == NULL || !strcmp(host, hst)) &&
+		    (user == NULL || usr == NULL || !strcmp(user, usr)) &&
+		    ( dom == NULL ||  dm == NULL || !strcmp(dom, dm))) {
 			endnetgrent();
 			return (1);
 		}
@@ -262,13 +427,13 @@ parse_netgrp(group)
 			fields = 0;
 #endif
 			for (strpos = 0; strpos < 3; strpos++) {
-				if (spos = strsep(&gpos, ",")) {
+				if ((spos = strsep(&gpos, ","))) {
 #ifdef DEBUG
 					fields++;
 #endif
 					while (*spos == ' ' || *spos == '\t')
 						spos++;
-					if (epos = strpbrk(spos, " \t")) {
+					if ((epos = strpbrk(spos, " \t"))) {
 						*epos = '\0';
 						len = epos - spos;
 					} else
@@ -332,7 +497,6 @@ read_for_group(group)
 	struct linelist *lp;
 	char line[LINSIZ + 1];
 #ifdef YP
-	static char *_netgr_yp_domain;
 	char *result;
 	int resultlen;
 
@@ -344,7 +508,12 @@ read_for_group(group)
 			if (yp_match(_netgr_yp_domain, "netgroup", group,
 					strlen(group), &result, &resultlen)) {
 				free(result);
-				return ((struct linelist *)0);
+				if (_use_only_yp)
+					return ((struct linelist *)0);
+				else {
+					_netgr_yp_enabled = 0;
+					continue;
+				}
 			}
 			sprintf(line, "%s %s", group, result);
 			free(result);
@@ -354,10 +523,6 @@ read_for_group(group)
 #endif
 		pos = (char *)&line;
 #ifdef YP
-		/*
-		 * Once we default over to NIS, only
-		 * endnetgrent() can get us out again.
-		 */
 		if (*pos == '+') {
 			_netgr_yp_enabled = 1;
 			continue;
@@ -424,5 +589,15 @@ read_for_group(group)
 				return (lp);
 		}
 	}
+#ifdef YP
+	/*
+	 * Yucky. The recursive nature of this whole mess might require
+	 * us to make more than one pass through the netgroup file.
+	 * This might be best left outside the #ifdef YP, but YP is
+	 * defined by default anyway, so I'll leave it like this
+	 * until I know better.
+	 */
+	rewind(netf);
+#endif
 	return ((struct linelist *)0);
 }
