@@ -3,7 +3,6 @@
 PROG=	swapinfo
 SRCS=	swapinfo.c devname.c # getbsize.c
 .PATH:  ${.CURDIR}/../../bin/df
-CFLAGS=	-g
 
 DPADD=	${LIBMATH} ${LIBUTIL}
 LDADD=	-lm -lkvm
