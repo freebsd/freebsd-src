@@ -60,7 +60,7 @@ static MALLOC_DEFINE(M_ATAPCI, "ATA PCI", "ATA driver PCI");
 /* prototypes */
 static int ata_pci_allocate(device_t, struct ata_channel *);
 static void ata_pci_dmainit(struct ata_channel *);
-static void ata_pci_locknoop(struct ata_channel *, int);
+static int ata_pci_locknoop(struct ata_channel *, int);
 
 int
 ata_legacy(device_t dev)
@@ -467,9 +467,10 @@ ata_pci_dmainit(struct ata_channel *ch)
     }
 }
 
-static void
+static int
 ata_pci_locknoop(struct ata_channel *ch, int flags)
 {
+    return ch->unit;
 }
 
 static device_method_t ata_pci_methods[] = {
