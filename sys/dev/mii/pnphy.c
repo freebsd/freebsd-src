@@ -153,10 +153,7 @@ static int pnphy_attach(dev)
 	    BMSR_100TXFDX|BMSR_100TXHDX|BMSR_10TFDX|BMSR_10THDX;
 	sc->mii_capabilities &= ma->mii_capmask;
 	device_printf(dev, " ");
-	if ((sc->mii_capabilities & BMSR_MEDIAMASK) == 0)
-		printf("no media present");
-	else
-		mii_add_media(mii, sc->mii_capabilities, sc->mii_inst);
+	mii_add_media(mii, sc->mii_capabilities, sc->mii_inst);
 	printf("\n");
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, sc->mii_inst),
 	    BMCR_ISO);

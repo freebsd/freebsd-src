@@ -296,6 +296,11 @@ mii_add_media(mii, bmsr, instance)
 {
 	const char *sep = "";
 
+	if ((bmsr & BMSR_MEDIAMASK) == 0) {
+		printf("no media present");
+		return;
+	}
+
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
 #define	PRINT(s)	printf("%s%s", sep, s); sep = ", "
 
