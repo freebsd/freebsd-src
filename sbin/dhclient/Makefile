@@ -30,7 +30,7 @@ OBJS+=	dst/base64.o dst/dst_api.o dst/dst_support.o dst/hmac_link.o \
 OBJS+=	minires/ns_date.o minires/ns_name.o minires/ns_parse%FIXED.o \
 	minires/ns_samedomain.o minires/ns_sign.o minires/ns_verify.o \
 	minires/res_comp.o minires/res_findzonecut.o minires/res_init.o	\
-	minires/res_mkquery.o minires/res_mkupdate.o minires/res_query.o \
+	minires/res_mkquery.o minires/res_mkupdate.o minires/res_query%FIXED.o \
 	minires/res_send.o minires/res_sendsigned.o minires/res_update.o
 
 # omapi
