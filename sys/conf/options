@@ -253,6 +253,7 @@ ETHER_8022		opt_ef.h
 ETHER_SNAP		opt_ef.h
 MROUTING		opt_mrouting.h
 INET			opt_inet.h
+SOMAXCONN		opt_inet.h
 INET6			opt_inet6.h
 IPSEC			opt_ipsec.h
 IPSEC_ESP		opt_ipsec.h
