@@ -32,7 +32,7 @@ static char sccsid[] = "@(#)ld.c	6.10 (Berkeley) 5/22/91";
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- *	$Id: ld.c,v 1.24 1995/03/04 17:46:05 nate Exp $
+ *	$Id: ld.c,v 1.25 1995/03/06 08:00:23 phk Exp $
  */
    
 /* Define how to initialize system-dependent header fields.  */
@@ -545,16 +545,7 @@ decode_command(argc, argv)
 			p->filename = string;
 			p->local_sym_name = concat("-l", string, "");
 			p->flags |= E_SEARCH_DIRS;
-			/* 
-			 * XXX:  We don't want to link libgcc dynamic,
-			 * it was a big mistake, and now we have to get
-			 * people to stop doing it gracefully
-			 * When all libgcc.so's in the world have been
-			 * killed, this can go away.
-			 */
-			if (!strcmp(string,"gcc"))
-				;
-			else if (link_mode & DYNAMIC && !relocatable_output)
+			if (link_mode & DYNAMIC && !relocatable_output)
 				p->flags |= E_SEARCH_DYNAMIC;
 			p++;
 		}
