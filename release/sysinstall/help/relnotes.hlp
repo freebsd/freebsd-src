@@ -10,6 +10,11 @@ install than 2.1.5.
 For more information on our bleeding-edge development, please see
 http://www.freebsd.org/handbook/current.html.
 
+[ SPECIAL NOTE:  This release is actually 2.1.6.1, a 2.1.6 release which was
+ modified in the 11th hour to fix the sendmail 8.8.3 security bug and
+ implement a simpler fix to the SYN attack problem than the approach taken
+ in 2.2 - other, smaller, cosmetic changes were also made and the bsd.port.mk
+ file updated to support modern ports ]
 
 1. What's New since 2.1.0-RELEASE?
 ----------------------------------
@@ -527,5 +532,5 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.1.2.28 1996/11/15 17:54:18 jkh Exp $
+$Id: relnotes.hlp,v 1.1.2.29 1996/11/15 18:44:20 jkh Exp $
  LocalWords:  Adaptec
