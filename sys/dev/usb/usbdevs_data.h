@@ -44,7 +44,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-struct usb_knowndev usb_knowndevs[] = {
+const struct usb_knowndev usb_knowndevs[] = {
 	{
 	    USB_VENDOR_3COM, USB_PRODUCT_3COM_HOMECONN,
 	    0,
