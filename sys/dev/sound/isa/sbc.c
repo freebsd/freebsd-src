@@ -205,6 +205,7 @@ static struct isa_pnp_id sbc_ids[] = {
 	{0x01100000, "Avance Asound 110"},		/* @@@1001 */
 	{0x01200000, "Avance Logic ALS120"},		/* @@@2001 */
 
+	{0x02017316, "ESS ES1688"},			/* ESS1688 */
 	{0x68187316, "ESS ES1868"},			/* ESS1868 */
 	{0x69187316, "ESS ES1869"},			/* ESS1869 */
 	{0xacb0110e, "ESS ES1869 (Compaq OEM)"},	/* CPQb0ac */
