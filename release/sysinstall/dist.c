@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.14 1995/06/04 05:13:27 jkh Exp $
+ * $Id: dist.c,v 1.35.2.15 1995/06/04 05:20:24 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -267,9 +267,9 @@ distExtract(char *parent, Distribution *me)
         snprintf(buf, 512, "%s/%s.tgz", path, dist);
 
 	/* Set it as an "exploratory get" so that we don't loop unnecessarily on it */
-	mediaDevice.flags |= OPT_EXPLORATORY_GET;
+	mediaDevice->flags |= OPT_EXPLORATORY_GET;
 	fd = (*mediaDevice->get)(mediaDevice, buf);
-	mediaDevice.flags &= ~OPT_EXPLORATORY_GET;
+	mediaDevice->flags &= ~OPT_EXPLORATORY_GET;
 	if (fd >= 0) {
 	    msgNotify("Extracting %s into %s directory...", me[i].my_name, me[i].my_dir);
 	    status = mediaExtractDist(me[i].my_dir, fd);
@@ -315,7 +315,7 @@ distExtract(char *parent, Distribution *me)
 	    snprintf(buf, 512, "%s/%s", path, dist);
 	    if (numchunks)
 		strcat(buf,".aa");
-	    fd = (*mediaDevice->get)(buf);
+	    fd = (*mediaDevice->get)(mediaDevice, buf);
 	    if (fd < 0)
 		return FALSE;
 	    msgNotify("Extracting %s into %s directory...", me[i].my_name, me[i].my_dir);
