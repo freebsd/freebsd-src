@@ -1,7 +1,6 @@
 # $FreeBSD$
 
-MDASM+=	brk.S cerror.S exect.S fork.S pipe.S ptrace.S sbrk.S setlogin.S \
-	vfork.S
+MDASM+=	brk.S cerror.S exect.S pipe.S ptrace.S sbrk.S setlogin.S
 
 # Don't generate default code for these syscalls:
 NOASM=	__semctl.o break.o exit.o ftruncate.o getdomainname.o getlogin.o \
