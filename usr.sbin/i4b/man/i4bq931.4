@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+.\" Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,25 +22,21 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: i4bq931.4,v 1.8 1999/12/13 22:11:55 hm Exp $
-.\"
 .\" $FreeBSD$
 .\"
-.\"	last edit-date: [Mon Dec 13 23:12:33 1999]
+.\"	last edit-date: [Sun Jul 28 14:11:55 2002]
 .\"
-.Dd February 3, 1998
+.Dd July 28, 2002
 .Dt I4BQ931 4
 .Os
 .Sh NAME
 .Nm i4bq931
 .Nd isdn4bsd pseudo device driver handling the Q.931 protocol
-.Sh FreeBSD SYNOPSIS
-.Cd pseudo-device \&"i4bq931\&"
-.Sh NetBSD SYNOPSIS
-none
+.Sh SYNOPSIS
+.Cd device \&"i4bq931\&"
 .Sh DESCRIPTION
 .Nm
-is the ISDN D channel layer 2 handler.
+is the ISDN D channel layer 3 handler.
 .Sh STANDARDS
 ITU Recommendation Q.930 and Q.931
 .Sh SEE ALSO
@@ -49,4 +45,4 @@ ITU Recommendation Q.930 and Q.931
 The
 .Nm
 driver and this manpage were written by
-.An Hellmuth Michaelis Aq hm@kts.org .
+.An Hellmuth Michaelis Aq hm@freebsd.org .

@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2000 Hellmuth Michaelis. All rights reserved.
+.\" Copyright (c) 2000, 2002 Hellmuth Michaelis. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -24,46 +24,35 @@
 .\"
 .\" $FreeBSD$
 .\"
-.\"	last edit-date: [Fri Jan 12 09:54:31 2001]
+.\"	last edit-date: [Sun Jul 28 16:47:55 2002]
 .\"
-.Dd January 12, 2001
+.Dd July 28, 2002
 .Dt IHFC 4
 .Os
 .Sh NAME
 .Nm ihfc
-.Nd isdn4bsd Cologne Chip Designs HFC[-S][-SP] 2B[DS0] driver
+.Nd isdn4bsd ISA Cologne Chip HFC[-S][-SP] 2B[DS0] driver
 .Sh SYNOPSIS
-All PnP cards (AcerISDN P10, Teles 16.3c PnP),
-.Fx
-4.x/5.x:
 .Cd "device ihfc"
 .Pp
-Non-PnP cards (TELEINT ISDN SPEED No.1):
-.Pp
-.Fx
-4.x:
-.Cd "device ihfc0 at isa?"
-.Pp
-.Fx
-5.x:
-.Cd "device ihfc"
 NOTE:
+.Pp
+Something like:
 .Li hint.ihfc.0.at="isa"
 must be added to
 .Pa /boot/device.hints
-.Pp
-NOTE: The driver will automatically probe for io-base and irq.
+The driver will automatically probe for io-base and irq.
 .Sh DESCRIPTION
 The
 .Nm
 driver provides D-channel layer 1 supports as specified in ITU Recommendation
 I.430 and layer 1 support for the B-channel.
 .Pp
-The driver supports passive ISA ISDN cards based on the HFC[-S][-SP] 2B[DS0]
-chips from Cologne Chip Designs such as the Teles 16.3c and
-the AcerISDN P10.
+The driver supports some passive ISA ISDN cards based on the 
+HFC[-S][-SP] 2B[DS0] chips from Cologne Chip, currenly this are the 
+Teles 16.3c ISA PnP, the AcerISDN P10 ISA PnP and the TELEINT ISDN SPEED No.1.
 .Sh CAVEATS
-The driver is still in a somewhat experimental state.
+The driver is still in an experimental state.
 .Sh BUGS
 Always at least one left.
 .Sh STANDARDS

@@ -22,13 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
-.\"
 .\" $FreeBSD$
 .\"
-.\"	last edit-date: [Wed Dec 19 21:23:10 2001]
+.\"	last edit-date: [Sun Jul 28 16:38:22 2002]
 .\"
-.Dd December 19, 2001
+.Dd July 28, 2002
 .Dt IFPI2 4
 .Os
 .Sh NAME
@@ -39,11 +37,12 @@
 .Sh DESCRIPTION
 The
 .Nm
-driver provides D-channel layer 1 supports as specified in ITU Recommendation
+driver provides D-channel layer 1 support as specified in ITU Recommendation
 I.430 and layer 1 support for the B-channel.
 .Pp
-The driver supports version 2 passive PCI ISDN cards from AVM based on the proprietary
-B-channel controller and PCI interface chip from AVM, Berlin, Germany.
+The driver supports the version 2 passive PCI ISDN cards from AVM based on 
+the proprietary B-channel controller and PCI interface chip from AVM, Berlin,
+Germany.
 .Sh CAVEATS
 The driver is still in a somewhat experimental state.
 .Sh BUGS
@@ -51,6 +50,7 @@ Always at least one left.
 .Sh STANDARDS
 CCITT Recommendation I.430
 .Sh SEE ALSO
+.Xr ifpi 4 ,
 .Xr i4bq921 4 ,
 .Xr i4bq931 4
 .Sh AUTHORS
