@@ -26,11 +26,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypclnt.h,v 1.1 1993/09/14 17:42:54 jtc Exp $
+ *	$Id: ypclnt.h,v 1.4 1996/12/30 14:01:12 peter Exp $
  */
 
-#ifndef _YPCLNT_H_
-#define _YPCLNT_H_
+#ifndef _RPCSVC_YPCLNT_H_
+#define _RPCSVC_YPCLNT_H_
 
 #define YPERR_BADARGS	1		/* args to function are bad */
 #define YPERR_RPC	2		/* RPC failure */
@@ -56,12 +56,14 @@
 #define YPOP_INSERT	2		/* add, do not change */
 #define YPOP_DELETE	3		/* delete this entry */
 #define YPOP_STORE 	4		/* add, or change */
- 
+
 struct ypall_callback {
-	int (*foreach)();	/* return non-0 to stop getting called */
+	/* return non-0 to stop getting called */
+	int (*foreach) __P((u_long, char *, int, char *, int, void *));
 	char *data;		/* opaque pointer for use of callback fn */
 };
 
+__BEGIN_DECLS
 int	yp_bind		__P((char *dom));
 int	_yp_dobind	__P((char *dom, struct dom_binding **ypdb));
 void	yp_unbind	__P((char *dom));
@@ -80,7 +82,9 @@ int	yp_order	__P((char *indomain, char *inmap, int *outorder));
 int	yp_all		__P((char *indomain, char *inmap,
 			    struct ypall_callback *incallback));
 char *	yperr_string	__P((int incode));
+char *	ypbinderr_string __P((int incode));
 int	ypprot_err	__P((unsigned int incode));
+__END_DECLS
 
-#endif /* _YPCLNT_H_ */
+#endif /* _RPCSVC_YPCLNT_H_ */
 
