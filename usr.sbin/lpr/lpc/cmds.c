@@ -821,13 +821,17 @@ prstat()
 		return;
 	}
 	(void) close(fd);
-	putchar('\t');
+	/* print out the contents of the status file, if it exists */
 	(void) sprintf(line, "%s/%s", SD, ST);
 	fd = open(line, O_RDONLY);
 	if (fd >= 0) {
 		(void) flock(fd, LOCK_SH);
-		while ((i = read(fd, line, sizeof(line))) > 0)
-			(void) fwrite(line, 1, i, stdout);
+		(void) fstat(fd, &stbuf);
+		if (stbuf.st_size > 0) {
+			putchar('\t');
+			while ((i = read(fd, line, sizeof(line))) > 0)
+				(void) fwrite(line, 1, i, stdout);
+		}
 		(void) close(fd);	/* unlocks as well */
 	}
 }
