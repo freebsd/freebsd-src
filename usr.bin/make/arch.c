@@ -98,6 +98,7 @@ __FBSDID("$FreeBSD$");
 #include <utime.h>
 
 #include "arch.h"
+#include "buf.h"
 #include "config.h"
 #include "dir.h"
 #include "globals.h"
@@ -188,9 +189,12 @@ Arch_ParseArchive(char **linePtr, Lst *nodeLst, GNode *ctxt)
 
 	*cp++ = '\0';
 	if (subLibName) {
-		libName = Var_Subst(NULL, libName, ctxt, TRUE);
-	}
+		Buffer	*buf;
 
+		buf = Var_Subst(NULL, libName, ctxt, TRUE);
+		libName = Buf_GetAll(buf, NULL);
+		Buf_Destroy(buf, FALSE);
+	}
 
 	for (;;) {
 		/*
@@ -278,8 +282,7 @@ Arch_ParseArchive(char **linePtr, Lst *nodeLst, GNode *ctxt)
 			char	*sacrifice;
 			char	*oldMemName = memName;
 			size_t	sz;
-
-			memName = Var_Subst(NULL, memName, ctxt, TRUE);
+			Buffer	*buf1;
 
 			/*
 			 * Now form an archive spec and recurse to deal with
@@ -287,11 +290,15 @@ Arch_ParseArchive(char **linePtr, Lst *nodeLst, GNode *ctxt)
 			 * The results are just placed at the end of the
 			 * nodeLst we're returning.
 			 */
+			buf1 = Var_Subst(NULL, memName, ctxt, TRUE);
+			memName = Buf_GetAll(buf1, NULL);
 
 			sz = strlen(memName) + strlen(libName) + 3;
-			buf = sacrifice = emalloc(sz);
+			buf = emalloc(sz);
 
 			snprintf(buf, sz, "%s(%s)", libName, memName);
+
+			sacrifice = buf;
 
 			if (strchr(memName, '$') &&
 			    strcmp(memName, oldMemName) == 0) {
@@ -305,6 +312,7 @@ Arch_ParseArchive(char **linePtr, Lst *nodeLst, GNode *ctxt)
 
 				if (gn == NULL) {
 					free(buf);
+					Buf_Destroy(buf1, FALSE);
 					return (FAILURE);
 				}
 				gn->type |= OP_ARCHV;
@@ -316,12 +324,14 @@ Arch_ParseArchive(char **linePtr, Lst *nodeLst, GNode *ctxt)
 				 * return FAILURE ourselves.
 				 */
 				free(buf);
+				Buf_Destroy(buf1, FALSE);
 				return (FAILURE);
 			}
-			/*
-			 * Free buffer and continue with our work.
-			 */
+
+			/* Free buffer and continue with our work. */
 			free(buf);
+			Buf_Destroy(buf1, FALSE);
+
 		} else if (Dir_HasWildcards(memName)) {
 			Lst	members = Lst_Initializer(members);
 			char	*member;
