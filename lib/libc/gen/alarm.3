@@ -60,10 +60,14 @@ will supersede the prior call.
 The request
 .Fn alarm "0"
 voids the current
-alarm and the signal SIGALRM will not be delivered. The maximum number of
+alarm and the signal SIGALRM will not be delivered.
+.Pp
+Due to
+.Xr setitimer 2
+restriction the maximum number of
 .Ar seconds
-allowed
-is 2147483647.
+allowed is 100000000.
+.Sh RETURN VALUES
 .Pp
 The return value of 
 .Fn alarm
