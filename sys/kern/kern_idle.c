@@ -40,8 +40,6 @@ SYSINIT(idle_setup, SI_SUB_SCHED_IDLE, SI_ORDER_FIRST, idle_setup, NULL)
 
 static void idle_proc(void *dummy);
 
-EVENTHANDLER_FAST_DEFINE(idle_event, idle_eventhandler_t);
-
 /*
  * setup per-cpu idle process contexts
  */
@@ -102,8 +100,9 @@ idle_proc(void *dummy)
 			if (vm_page_zero_idle() != 0)
 				continue;
 
-			/* call out to any cpu-becoming-idle events */
-			EVENTHANDLER_FAST_INVOKE(idle_event, 0);
+#ifdef __i386__
+			cpu_idle();
+#endif
 		}
 
 		mtx_enter(&sched_lock, MTX_SPIN);
