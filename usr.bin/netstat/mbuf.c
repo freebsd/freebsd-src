@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mbuf.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mbuf.c,v 1.8 1997/08/17 09:12:43 peter Exp $";
+	"$Id: mbuf.c,v 1.9 1997/11/10 08:03:36 ache Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -100,16 +100,22 @@ mbpr(mbaddr)
 	register int totmem, totfree, totmbufs;
 	register int i;
 	register struct mbtypes *mp;
-	int name[3];
+	int name[3], nmbclusters, nmbclen;
 	size_t mbstatlen;
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_IPC;
 	name[2] = KIPC_MBSTAT;
 	mbstatlen = sizeof mbstat;
-
 	if (sysctl(name, 3, &mbstat, &mbstatlen, 0, 0) < 0) {
 		warn("sysctl: retrieving mbstat");
+		return;
+	}
+
+	name[2] = KIPC_NMBCLUSTERS;
+	nmbclen = sizeof(int);
+	if (sysctl(name, 3, &nmbclusters, &nmbclen, 0, 0) < 0) {
+		warn("sysctl: retrieving nmbclusters");
 		return;
 	}
 #undef MSIZE
@@ -138,8 +144,8 @@ mbpr(mbaddr)
 			printf("\t%u mbufs allocated to <mbuf type %d>\n",
 			    mbstat.m_mtypes[i], i);
 		}
-	printf("%lu/%lu mbuf clusters in use\n",
-		mbstat.m_clusters - mbstat.m_clfree, mbstat.m_clusters);
+	printf("%lu/%lu/%lu mbuf clusters in use (current/peak/max)\n",
+		mbstat.m_clusters - mbstat.m_clfree, mbstat.m_clusters, nmbclusters);
 	totmem = mbstat.m_mbufs * MSIZE + mbstat.m_clusters * MCLBYTES;
 	totfree = mbstat.m_clfree * MCLBYTES + 
 		MSIZE * (mbstat.m_mbufs - totmbufs);
