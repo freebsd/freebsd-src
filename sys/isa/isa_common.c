@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa_common.c,v 1.3 1999/05/30 11:02:09 dfr Exp $
+ *	$Id: isa_common.c,v 1.4 1999/07/29 01:02:56 mdodd Exp $
  */
 /*
  * Modifications for Intel architecture by Garrett A. Wollman.
@@ -164,10 +164,10 @@ isa_print_child(device_t bus, device_t dev)
 	if (SLIST_FIRST(rl) || idev->id_flags)
 		retval += printf(" at");
 	
-	retval += isa_print_resources(rl, "port", SYS_RES_IOPORT, "%#lx");
-	retval += isa_print_resources(rl, "iomem", SYS_RES_MEMORY, "%#lx");
-	retval += isa_print_resources(rl, "irq", SYS_RES_IRQ, "%ld");
-	retval += isa_print_resources(rl, "drq", SYS_RES_DRQ, "%ld");
+	isa_print_resources(rl, "port", SYS_RES_IOPORT, "%#lx");
+	isa_print_resources(rl, "iomem", SYS_RES_MEMORY, "%#lx");
+	isa_print_resources(rl, "irq", SYS_RES_IRQ, "%ld");
+	isa_print_resources(rl, "drq", SYS_RES_DRQ, "%ld");
 	if (idev->id_flags)
 		retval += printf(" flags %#x", idev->id_flags);
 
