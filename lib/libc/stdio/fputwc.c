@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <wchar.h>
@@ -43,15 +44,32 @@ fputwc(wchar_t wc, FILE *fp)
 	mbstate_t mbs;
 	size_t i, len;
 
-	ORIENTLOCK(fp, 1);
+	FLOCKFILE(fp);
+	ORIENT(fp, 1);
 
-	memset(&mbs, 0, sizeof(mbs));
-	if ((len = wcrtomb(buf, wc, &mbs)) == (size_t)-1)
-		return (WEOF);
+	if (MB_LEN_MAX == 1 && wc > 0 && wc <= UCHAR_MAX) {
+		/*
+		 * Assume single-byte locale with no special encoding.
+		 * A more careful test would be to check
+		 * _CurrentRuneLocale->encoding.
+		 */
+		*buf = (unsigned char)wc;
+		len = 1;
+	} else {
+		memset(&mbs, 0, sizeof(mbs));
+		if ((len = wcrtomb(buf, wc, &mbs)) == (size_t)-1) {
+			FUNLOCKFILE(fp);
+			return (WEOF);
+		}
+	}
 
 	for (i = 0; i < len; i++)
-		if (fputc((unsigned char)buf[i], fp) == EOF)
+		if (__sputc((unsigned char)buf[i], fp) == EOF) {
+			FUNLOCKFILE(fp);
 			return (WEOF);
+		}
+
+	FUNLOCKFILE(fp);
 
 	return ((wint_t)wc);
 }

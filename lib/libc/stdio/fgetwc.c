@@ -36,8 +36,30 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "local.h"
 
+static __inline wint_t	__fgetwc_nbf(FILE *);
+
 wint_t
 fgetwc(FILE *fp)
+{
+	wint_t wc;
+
+	FLOCKFILE(fp);
+	ORIENT(fp, 1);
+	if (MB_CUR_MAX == 1) {
+		/*
+		 * Assume we're using a single-byte locale. A safer test
+		 * might be to check _CurrentRuneLocale->encoding.
+		 */
+		wc = (wint_t)__sgetc(fp);
+	} else
+		wc = __fgetwc_nbf(fp);
+	FUNLOCKFILE(fp);
+
+	return (wc);
+}
+
+static __inline wint_t
+__fgetwc_nbf(FILE *fp)
 {
 	char buf[MB_LEN_MAX];
 	mbstate_t mbs;
@@ -45,11 +67,9 @@ fgetwc(FILE *fp)
 	int c;
 	wchar_t wc;
 
-	ORIENTLOCK(fp, 1);
-
 	n = 0;
 	while (n < MB_CUR_MAX) {
-		if ((c = fgetc(fp)) == EOF) {
+		if ((c = __sgetc(fp)) == EOF) {
 			if (n == 0)
 				return (WEOF);
 			break;
@@ -65,8 +85,10 @@ fgetwc(FILE *fp)
 			break;
 	}
 
+	FUNLOCKFILE(fp);
 	while (n-- != 0)
 		ungetc((unsigned char)buf[n], fp);
+	FLOCKFILE(fp);
 	errno = EILSEQ;
 	return (WEOF);
 }
