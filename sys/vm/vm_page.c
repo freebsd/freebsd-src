@@ -363,7 +363,8 @@ vm_page_hold(vm_page_t mem)
 void
 vm_page_unhold(vm_page_t mem)
 {
-	GIANT_REQUIRED;
+
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	--mem->hold_count;
 	KASSERT(mem->hold_count >= 0, ("vm_page_unhold: hold count < 0!!!"));
 	if (mem->hold_count == 0 && mem->queue == PQ_HOLD)
@@ -622,7 +623,7 @@ vm_page_remove(vm_page_t m)
 	vm_page_t root;
 
 	GIANT_REQUIRED;
-
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if (m->object == NULL)
 		return;
 
@@ -1061,6 +1062,7 @@ vm_page_free_toq(vm_page_t m)
 	vm_object_t object = m->object;
 
 	GIANT_REQUIRED;
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	s = splvm();
 	cnt.v_tfree++;
 
