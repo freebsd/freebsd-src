@@ -3,7 +3,7 @@
 MAN1=	pagesize.1
 
 install:
-	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${.CURDIR}/pagesize.sh ${DESTDIR}/${BINDIR}/pagesize
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	    ${.CURDIR}/pagesize.sh ${DESTDIR}${BINDIR}/pagesize
 
 .include <bsd.prog.mk>
