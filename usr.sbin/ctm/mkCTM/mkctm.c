@@ -546,6 +546,7 @@ main(int argc, char **argv)
 			logf = fopen(optarg, "w");
 			if (!logf)
 				err(1, "%s", optarg);
+			setlinebuf(logf);
 			break;
 		case 'q':
 			verbose--;
