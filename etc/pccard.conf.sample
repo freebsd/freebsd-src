@@ -939,6 +939,13 @@ card "National Semiconductor" "InfoMover NE4100"
 	remove	logger -t pccard:$device -s National Semiconductor InfoMover NE4100 removed
 	remove	/sbin/ifconfig $device delete
 
+card "IO DATA" "PCETTX"
+	config	0x20 "ed0" ?
+	insert	logger -t pccard:$device -s IO DATA PCETTX inserted
+	insert	/etc/pccard_ether $device
+	remove	logger -t pccard:$device -s IO DATA PCETTX removed
+	remove	/sbin/ifconfig $device delete
+
 # Melco Airconnect
 card "MELCO" "WLI-PCM-L11"
 	config	0x1 "wi0" ?
