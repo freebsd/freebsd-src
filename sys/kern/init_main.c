@@ -80,7 +80,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <sys/user.h>
 #include <sys/copyright.h>
 
 void mi_startup(void);				/* Should be elsewhere */
@@ -433,6 +432,8 @@ proc0_init(void *dummy __unused)
 	p->p_limit->pl_rlimit[RLIMIT_MEMLOCK].rlim_cur = i / 3;
 	p->p_cpulimit = RLIM_INFINITY;
 
+	p->p_stats = pstats_alloc();
+
 	/* Allocate a prototype map so we have something to fork. */
 	pmap_pinit0(vmspace_pmap(&vmspace0));
 	p->p_vmspace = &vmspace0;
@@ -440,12 +441,6 @@ proc0_init(void *dummy __unused)
 	vm_map_init(&vmspace0.vm_map, p->p_sysent->sv_minuser,
 	    p->p_sysent->sv_maxuser);
 	vmspace0.vm_map.pmap = vmspace_pmap(&vmspace0);
-
-	/*
-	 * We continue to place resource usage info
-	 * in the user struct so that it's pageable.
-	 */
-	p->p_stats = &p->p_uarea->u_stats;
 
 	/*
 	 * Charge root for one process.
