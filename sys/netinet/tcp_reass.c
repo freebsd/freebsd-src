@@ -125,6 +125,10 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, drop_synfin, CTLFLAG_RW,
     &drop_synfin, 0, "Drop TCP packets with SYN+FIN set");
 #endif
 
+static int tcp_do_rfc3042 = 0;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc3042, CTLFLAG_RW,
+    &tcp_do_rfc3042, 0, "Enable RFC 3042 (Limited Transmit)");
+
 struct inpcbhead tcb;
 #define	tcb6	tcb  /* for KAME src sync over BSD*'s */
 struct inpcbinfo tcbinfo;
@@ -1759,6 +1763,16 @@ trimthenstep6:
 						tp->t_maxseg * tp->t_dupacks;
 					if (SEQ_GT(onxt, tp->snd_nxt))
 						tp->snd_nxt = onxt;
+					goto drop;
+				} else if (tcp_do_rfc3042) {
+					u_long oldcwnd = tp->snd_cwnd;
+					KASSERT(tp->t_dupacks == 1 ||
+					    tp->t_dupacks == 2,
+					    ("dupacks not 1 or 2"));
+					tp->snd_cwnd += tp->t_dupacks *
+								tp->t_maxseg;
+					(void) tcp_output(tp);
+					tp->snd_cwnd = oldcwnd;
 					goto drop;
 				}
 			} else
