@@ -11,8 +11,6 @@ NOPROFILE=	YES
 NOPIC=		YES
 MAN=		libstand.3
 
-CFLAGS+=	-ffreestanding
-
 .if ${MACHINE_ARCH} == "alpha"
 CFLAGS+=	-mno-fp-regs
 .endif
