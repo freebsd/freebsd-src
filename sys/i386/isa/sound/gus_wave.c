@@ -28,7 +28,7 @@
  */
 
 #include "sound_config.h"
-#include "ultrasound.h"
+#include <machine/ultrasound.h>
 #include "gus_hw.h"
 
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_GUS)
