@@ -1588,16 +1588,19 @@
 	  <para>Billionton USB100, USB100LP, USB100EL, USBE100</para>
         </listitem>
         <listitem>
-	  <para>Corega Ether FEther USB-TX, FEther USB-TXS</para>
+	  <para>Corega Ether FEther USB-T, FEther USB-TX, FEther USB-TXS</para>
         </listitem>
         <listitem>
 	  <para>D-Link DSB-650, DSB-650TX, DSB-650TX-PNA</para>
         </listitem>
         <listitem>
+	  <para>Elecom LD-USBL/TX</para>
+        </listitem>
+        <listitem>
 	  <para>Elsa Microlink USB2Ethernet</para>
         </listitem>
         <listitem>
-	  <para>I/O Data USB ETTX</para>
+	  <para>I-O Data USB ETTX</para>
         </listitem>
         <listitem>
 	  <para>Kingston KNU101TX</para>
@@ -1606,7 +1609,10 @@
 	  <para>LinkSys USB10T, USB10TA, USB10TX, USB100TX, USB100H1</para>
         </listitem>
         <listitem>
-	  <para>Melco Inc. LUA-TX, LUA2-TX</para>
+	  <para>Melco LUA-TX, LUA2-TX</para>
+        </listitem>
+        <listitem>
+	  <para>Planex UE-200TX</para>
         </listitem>
         <listitem>
 	  <para>Siemens Speedstream</para>
@@ -2960,8 +2966,8 @@
         </listitem>
       </itemizedlist>
     </para>
-
   </sect2>
+
   <sect2>
     <title>Camera and Video Capture Devices</title>
     <para arch="i386,pc98">Brooktree Bt848/849/878/879-based frame grabbers (&man.bktr.4;
@@ -3141,6 +3147,9 @@
         <listitem>
 	  <para>Metricom Ricochet GS USB wireless modem</para>
 	</listitem>
+        <listitem>
+	  <para>Yamaha Broadband Wireless Router RTW65b</para>
+	</listitem>
       </itemizedlist>
     </para>
     <para arch="i386,pc98,alpha">Mice (&man.ums.4; driver)
@@ -3242,20 +3251,141 @@
     </para>
     <para arch="i386,pc98,alpha">Storage (&man.umass.4; driver)
       <itemizedlist>
+        <listitem>
+	  <para>ADTEC Stick Drive AD-UST32M, 64M, 128M, 256M</para>
+	</listitem>
+        <listitem>
+	  <para>Denno FireWire/USB2 Removable
+            2.5-inch HDD Case MIFU-25CB20</para>
+	</listitem>
+        <listitem>
+	  <para>FujiFilm Zip USB Drive ZDR100 USB A</para>
+	</listitem>
+        <listitem>
+	  <para>GREEN HOUSE USB Flash Memory <quote>PicoDrive</quote>
+            GH-UFD32M, 64M, 128M</para>
+	</listitem>
+        <listitem>
+	  <para>IBM 32MB USB Memory Key (P/N 22P5296)</para>
+	</listitem>
+        <listitem>
+	  <para>IBM ThinkPad USB Portable CD-ROM Drive (P/N 33L5151)</para>
+	</listitem>
+        <listitem>
+	  <para>I-O DATA USB x6 CD-RW Drive CDRW-i64/USB (CDROM only)</para>
+	</listitem>
+        <listitem>
+	  <para>I-O DATA USB CD/CD-R/CD-RW/DVD-R/DVD-RW/DVD-RAM/DVD-ROM Drive DVR-iUH2
+            (CDROM, DVD-RAM only)</para>
+	</listitem>
         <listitem arch="i386,pc98">
 	  <para>Iomega USB Zip 100Mb (primitive support still)</para>
+	</listitem>
+        <listitem>
+	  <para>Iomega Zip750 USB2.0 Drive</para>
+	</listitem>
+        <listitem>
+	  <para>Keian USB1.1/2.0 3.5-inch HDD Case KU350A</para>
+	</listitem>
+        <listitem>
+	  <para>Kurouto Shikou USB 2.5-inch HDD Case GAWAP2.5PS-USB2.0</para>
+	</listitem>
+        <listitem>
+	  <para>Logitec USB1.1/2.0 HDD Unit SHD-E60U2</para>
+	</listitem>
+        <listitem>
+	  <para>Logitec Mobile USB Memory LMC-256UD</para>
+	</listitem>
+        <listitem>
+	  <para>Logitec USB Double-Speed Floppy Drive LFD-31U2</para>
+	</listitem>
+        <listitem>
+	  <para>Logitec USB/IEEE1394 DVD-RAM/R/RW Unit LDR-N21FU2 (CDROM only)</para>
 	</listitem>
         <listitem>
 	  <para>Matshita CF-VFDU03 floppy drive</para>
 	</listitem>
         <listitem>
+	  <para>Melco USB2.0 MO Drive MO-CH640U2</para>
+	</listitem>
+        <listitem>
+	  <para>Melco USB/IEEE1394 Portable HD Drive HDP-i30P/CI, HDP-i40P/CI</para>
+	</listitem>
+        <listitem>
+	  <para>Melco USB Flash Disk <quote>PetitDrive</quote>,
+            RUF-32M, -64M, -128M, -256M</para>
+	</listitem>
+        <listitem>
+	  <para>Melco USB2.0 Flash Disk <quote>PetitDrive2</quote>,
+            RUF-256M/U2, -512M/U2</para>
+	</listitem>
+        <listitem>
+	  <para>Melco USB Flash Disk <quote>ClipDrive</quote>,
+            RUF-C32M, -C64M, -C128M, -C256M, -C512M</para>
+	</listitem>
+        <listitem>
 	  <para>Microtech USB-SCSI-HD 50 USB to SCSI cable</para>
+	</listitem>
+        <listitem>
+	  <para>NOVAC USB2.0 2.5/3.5-inch HDD Case NV-HD351U</para>
 	</listitem>
         <listitem>
 	  <para>Panasonic floppy drive</para>
 	</listitem>
         <listitem>
+	  <para>Panasonic USB2.0 Portable CD-RW Drive KXL-RW40AN (CDROM only)</para>
+	</listitem>
+        <listitem>
+	  <para>RATOC Systems USB2.0 Removable HDD Case U2-MDK1, U2-MDK1B</para>
+	</listitem>
+        <listitem>
+	  <para>Sony Portable CD-R/RW Drive CRX10U (CDROM only)</para>
+	</listitem>
+        <listitem>
+	  <para>TEAC Portable USB CD-ROM Unit CD-110PU/210PU</para>
+	</listitem>
+        <listitem>
 	  <para>Y-E Data floppy drive (720/1.44/2.88Mb)</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386,pc98">Audio Devices (uaudio driver)
+      <itemizedlist>
+        <listitem>
+	  <para>Audio-Technica USB Digital Headphone ATC-HA4USB</para>
+	</listitem>
+
+        <listitem>
+	  <para>Ergo Systems AUDIOTRAK OPTOPlay USB</para>
+	</listitem>
+
+        <listitem>
+	  <para>KENWOOD MD Personal Stereo System MDX-G7</para>
+	</listitem>
+
+        <listitem>
+	  <para>KENWOOD/SOTEC VH-7PC</para>
+	</listitem>
+
+        <listitem>
+	  <para>I-O DATA Analog to Digital USB Audio Adapter DAVOX</para>
+	</listitem>
+
+        <listitem>
+	  <para>ONKYO PC Speaker GX-R5U(W)</para>
+	</listitem>
+
+        <listitem>
+	  <para>ONKYO USB Digital Audio Processor SE-U55X(S)</para>
+	</listitem>
+
+        <listitem>
+	  <para>Roland UA-5 USB Audio Interface <quote>Audio Capture</quote></para>
+	</listitem>
+
+        <listitem>
+	  <para>Sony PC Active Speaker System SRS-T100PC</para>
 	</listitem>
       </itemizedlist>
     </para>
