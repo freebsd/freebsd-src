@@ -85,7 +85,7 @@ static struct cdevsw pts_cdevsw = {
 	.d_poll =	ttypoll,
 	.d_name =	"pts",
 	.d_maj =	CDEV_MAJOR_S,
-	.d_flags =	D_TTY | D_KQFILTER,
+	.d_flags =	D_TTY,
 	.d_kqfilter =	ttykqfilter,
 };
 
@@ -99,7 +99,7 @@ static struct cdevsw ptc_cdevsw = {
 	.d_poll =	ptcpoll,
 	.d_name =	"ptc",
 	.d_maj =	CDEV_MAJOR_C,
-	.d_flags =	D_TTY | D_KQFILTER,
+	.d_flags =	D_TTY,
 	.d_kqfilter =	ttykqfilter,
 };
 

@@ -113,7 +113,6 @@ static struct cdevsw targ_cdevsw = {
 	.d_poll =	targpoll,
 	.d_name =	"targ",
 	.d_maj =	TARG_CDEV_MAJOR,
-	.d_flags =	D_KQFILTER,
 	.d_kqfilter =	targkqfilter
 };
 

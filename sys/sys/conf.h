@@ -213,7 +213,6 @@ typedef int dumper_t(
 #define	D_NAGGED	0x00020000	/* nagged about missing make_dev() */
 #define	D_TRACKCLOSE	0x00080000	/* track all closes */
 #define D_MMAP_ANON	0x00100000	/* special treatment in vm_mmap.c */
-#define D_KQFILTER	0x00200000	/* has kqfilter entry */
 #define D_NOGIANT	0x00400000	/* Doesn't want Giant */
 
 /*

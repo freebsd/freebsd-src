@@ -650,7 +650,7 @@ static struct cdevsw stli_cdevsw = {
 	.d_poll =	ttypoll,
 	.d_name =	stli_drvname,
 	.d_maj =	CDEV_MAJOR,
-	.d_flags =	D_TTY | D_KQFILTER,
+	.d_flags =	D_TTY,
 	.d_kqfilter =	ttykqfilter,
 };
 

@@ -405,7 +405,7 @@ static struct cdevsw sio_cdevsw = {
 	.d_poll =	ttypoll,
 	.d_name =	driver_name,
 	.d_maj =	CDEV_MAJOR,
-	.d_flags =	D_TTY | D_KQFILTER,
+	.d_flags =	D_TTY,
 	.d_kqfilter =	ttykqfilter,
 };
 

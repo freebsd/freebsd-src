@@ -158,7 +158,7 @@ static struct cdevsw zstty_cdevsw = {
 	.d_poll =	ttypoll,
 	.d_name =	"zstty",
 	.d_maj =	MAJOR_AUTO,
-	.d_flags =	D_TTY | D_KQFILTER,
+	.d_flags =	D_TTY,
 	.d_kqfilter =	ttykqfilter,
 };
 

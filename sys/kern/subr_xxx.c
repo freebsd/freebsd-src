@@ -128,7 +128,7 @@ nokqfilter(dev, kn)
 	struct knote *kn;
 {
 
-	return (ENODEV);
+	return (1);
 }
 
 int

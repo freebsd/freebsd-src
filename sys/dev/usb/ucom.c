@@ -136,7 +136,7 @@ static struct cdevsw ucom_cdevsw = {
 	.d_poll =	ttypoll,
 	.d_name =	"ucom",
 	.d_maj =	UCOM_CDEV_MAJOR,
-	.d_flags =	D_TTY | D_KQFILTER,
+	.d_flags =	D_TTY,
 #if __FreeBSD_version < 500014
 	/* bmaj */	-1,
 #endif
