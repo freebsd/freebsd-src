@@ -1510,9 +1510,9 @@ spx_listen(so, td)
 	ipxp = sotoipxpcb(so);
 	cb = ipxtospxpcb(ipxp);
 
-	SOCK_LOCK(so);
 	IPX_LIST_LOCK();
 	IPX_LOCK(ipxp);
+	SOCK_LOCK(so);
 	error = solisten_proto_check(so);
 	if (error == 0 && ipxp->ipxp_lport == 0)
 		error = ipx_pcbbind(ipxp, NULL, td);
@@ -1520,9 +1520,9 @@ spx_listen(so, td)
 		cb->s_state = TCPS_LISTEN;
 		solisten_proto(so);
 	}
+	SOCK_UNLOCK(so);
 	IPX_UNLOCK(ipxp);
 	IPX_LIST_UNLOCK();
-	SOCK_UNLOCK(so);
 	return (error);
 }
 
