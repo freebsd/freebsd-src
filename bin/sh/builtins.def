@@ -73,7 +73,7 @@ jobscmd		jobs
 #linecmd		line
 localcmd	local
 #nlechocmd	nlecho
-printfcmd	printf
+#printfcmd	printf
 pwdcmd		pwd
 readcmd		read
 returncmd	return
