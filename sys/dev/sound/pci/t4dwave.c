@@ -340,7 +340,7 @@ tr_wrch(struct tr_chinfo *ch)
 		ch->cso &= 0x00ffffff;
 		ch->eso &= 0x00ffffff;
 		cr[0]=((ch->delta & 0xff)<<24) | (ch->cso);
-		cr[2]=((ch->delta>>16)<<24) | (ch->eso);
+		cr[2]=((ch->delta>>8)<<24) | (ch->eso);
 		cr[3]|=(ch->alpha<<20) | (ch->fms<<16) | (ch->fmc<<14);
 		break;
 	}
