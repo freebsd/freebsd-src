@@ -174,6 +174,15 @@ __ACPI_BUS_ACCESSOR(acpi, handle, ACPI, HANDLE, ACPI_HANDLE)
 __ACPI_BUS_ACCESSOR(acpi, magic, ACPI, MAGIC, int)
 __ACPI_BUS_ACCESSOR(acpi, private, ACPI, PRIVATE, void *)
 
+void acpi_fake_objhandler(ACPI_HANDLE h, UINT32 fn, void *data);
+static __inline device_t
+acpi_get_device(ACPI_HANDLE handle)
+{
+    void *dev = NULL;
+    AcpiGetData(handle, acpi_fake_objhandler, &dev);
+    return ((device_t)dev);
+}
+
 static __inline ACPI_OBJECT_TYPE
 acpi_get_type(device_t dev)
 {
