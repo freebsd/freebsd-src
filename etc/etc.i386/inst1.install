@@ -929,7 +929,9 @@ done <filelist | cpio -pdamu${cpioverbose} /mnt
 IFS=$OIFS
 
 cd /mnt
-echo "/dev/${drivename}a	/	ufs	rw 1 1" >etc/fstab
+echo "proc	/proc	procfs	rw 0 0" >etc/fstab
+echo "/dev/${drivename}b	none	swap	sw 0 0" >>etc/fstab
+echo "/dev/${drivename}a	/	ufs	rw 1 1" >>etc/fstab
 if [ "$ename" != "" ]; then
 	echo "/dev/${drivename}e	/$ename	ufs	rw 1 2" >>etc/fstab
 fi
