@@ -362,7 +362,11 @@ globtilde(pattern, patbuf, patbuf_len, pglob)
 		 * we're not running setuid or setgid) and then trying
 		 * the password file
 		 */
-		if (issetugid() != 0 || (h = getenv("HOME")) == NULL) {
+		if (
+#ifndef	__NETBSD_SYSCALLS
+		    issetugid() != 0 ||
+#endif
+		    (h = getenv("HOME")) == NULL) {
 			if (((h = getlogin()) != NULL &&
 			     (pwd = getpwnam(h)) != NULL) ||
 			    (pwd = getpwuid(getuid())) != NULL)
