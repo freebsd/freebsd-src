@@ -172,6 +172,9 @@ typedef	struct _entry {
 #define	DOM_STAR	0x01
 #define	DOW_STAR	0x02
 #define	WHEN_REBOOT	0x04
+#define	RUN_AT	0x08
+#define	NOT_UNTIL	0x10
+	time_t	lastrun;
 } entry;
 
 			/* the crontab database will be a list of the
