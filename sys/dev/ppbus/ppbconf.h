@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppbconf.h,v 1.11 1999/01/10 16:41:14 nsouch Exp $
+ *	$Id: ppbconf.h,v 1.12 1999/01/27 19:44:05 dillon Exp $
  *
  */
 #ifndef __PPBCONF_H
@@ -204,14 +204,16 @@ struct ppb_adapter {
 	u_char (*r_dtr)(int);
 	u_char (*r_str)(int);
 	u_char (*r_ctr)(int);
-	u_char (*r_epp)(int);
+	u_char (*r_epp_A)(int);
+	u_char (*r_epp_D)(int);
 	u_char (*r_ecr)(int);
 	u_char (*r_fifo)(int);
 
 	void (*w_dtr)(int, char);
 	void (*w_str)(int, char);
 	void (*w_ctr)(int, char);
-	void (*w_epp)(int, char);
+	void (*w_epp_A)(int, char);
+	void (*w_epp_D)(int, char);
 	void (*w_ecr)(int, char);
 	void (*w_fifo)(int, char);
 };
@@ -315,6 +317,8 @@ extern int ppb_write(struct ppb_device *, char *, int, int);
 
 #define ppb_get_mode(dev) ((dev)->mode)
 
+/* This set of function access only to the EPP _data_ registers
+ * in 8, 16 and 32 bit modes */
 #define ppb_outsb_epp(dev,buf,cnt)					    \
 			(*(dev)->ppb->ppb_link->adapter->outsb_epp)	    \
 			((dev)->ppb->ppb_link->adapter_unit, buf, cnt)
@@ -334,13 +338,17 @@ extern int ppb_write(struct ppb_device *, char *, int, int);
 			(*(dev)->ppb->ppb_link->adapter->insl_epp)	    \
 			((dev)->ppb->ppb_link->adapter_unit, buf, cnt)
 
-#define ppb_repp(dev) (*(dev)->ppb->ppb_link->adapter->r_epp)		    \
+#define ppb_repp_A(dev) (*(dev)->ppb->ppb_link->adapter->r_epp_A)	    \
+				((dev)->ppb->ppb_link->adapter_unit)
+#define ppb_repp_D(dev) (*(dev)->ppb->ppb_link->adapter->r_epp_D)	    \
 				((dev)->ppb->ppb_link->adapter_unit)
 #define ppb_recr(dev) (*(dev)->ppb->ppb_link->adapter->r_ecr)		    \
 				((dev)->ppb->ppb_link->adapter_unit)
 #define ppb_rfifo(dev) (*(dev)->ppb->ppb_link->adapter->r_fifo)		    \
 				((dev)->ppb->ppb_link->adapter_unit)
-#define ppb_wepp(dev,byte) (*(dev)->ppb->ppb_link->adapter->w_epp)	    \
+#define ppb_wepp_A(dev,byte) (*(dev)->ppb->ppb_link->adapter->w_epp_A)	    \
+				((dev)->ppb->ppb_link->adapter_unit, byte)
+#define ppb_wepp_D(dev,byte) (*(dev)->ppb->ppb_link->adapter->w_epp_D)	    \
 				((dev)->ppb->ppb_link->adapter_unit, byte)
 #define ppb_wecr(dev,byte) (*(dev)->ppb->ppb_link->adapter->w_ecr)	    \
 				((dev)->ppb->ppb_link->adapter_unit, byte)

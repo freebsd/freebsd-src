@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vpoio.c,v 1.4 1998/12/07 21:58:16 archie Exp $
+ *	$Id: vpoio.c,v 1.5 1999/01/10 12:04:55 nsouch Exp $
  *
  */
 
@@ -186,7 +186,7 @@ static struct ppb_microseq nibble_inbyte_submicroseq[] = {
 
 	  /* do a C call to format the received nibbles */
 	  MS_C_CALL(MS_UNKNOWN /* C hook */, MS_UNKNOWN /* param */),
-	  MS_DBRA(-6 /* loop */),
+	  MS_DBRA(-7 /* loop */),
 
 	  MS_CASS(H_AUTO | H_nSELIN | H_INIT | H_STROBE),
 	  MS_RET(0)
@@ -202,7 +202,7 @@ static struct ppb_microseq ps2_inbyte_submicroseq[] = {
 	  MS_RFETCH_P(1, MS_REG_DTR, MS_FETCH_ALL),
 	  MS_CASS(PCD | H_nAUTO | H_SELIN | H_INIT | H_nSTROBE),
 	  MS_CASS(PCD |  H_AUTO | H_SELIN | H_INIT | H_nSTROBE),
-	  MS_DBRA(-3 /* loop */),
+	  MS_DBRA(-4 /* loop */),
 
 	  MS_CASS(H_AUTO | H_nSELIN | H_INIT | H_STROBE),
 	  MS_RET(0)
@@ -218,7 +218,7 @@ static struct ppb_microseq spp_outbyte_submicroseq[] = {
 	  MS_CASS(H_nAUTO | H_nSELIN | H_INIT | H_STROBE),
 	  MS_CASS( H_AUTO | H_nSELIN | H_INIT | H_STROBE),
 	  MS_DELAY(VP0_PULSE),
-	  MS_DBRA(-4 /* loop */),
+	  MS_DBRA(-5 /* loop */),
 
 	  /* return from the put call */
 	  MS_RET(0)
@@ -229,9 +229,9 @@ static struct ppb_microseq epp17_outstr_body[] = {
 	  MS_CASS(H_AUTO | H_SELIN | H_INIT | H_STROBE),
 
 /* loop: */
-	  MS_RASSERT_P(1, MS_REG_EPP), 
-	  MS_BRSET(TIMEOUT, 4 /* error */),	/* EPP timeout? */
-	  MS_DBRA(-2 /* loop */),
+	  MS_RASSERT_P(1, MS_REG_EPP_D), 
+	  MS_BRSET(TIMEOUT, 3 /* error */),	/* EPP timeout? */
+	  MS_DBRA(-3 /* loop */),
 
 	  MS_CASS(H_AUTO | H_nSELIN | H_INIT | H_STROBE),
 	  MS_RET(0),
@@ -244,9 +244,9 @@ static struct ppb_microseq epp17_instr_body[] = {
 	  MS_CASS(PCD | H_AUTO | H_SELIN | H_INIT | H_STROBE),
 
 /* loop: */
-	  MS_RFETCH_P(1, MS_REG_EPP, MS_FETCH_ALL), 
-	  MS_BRSET(TIMEOUT, 4 /* error */),	/* EPP timeout? */
-	  MS_DBRA(-2 /* loop */),
+	  MS_RFETCH_P(1, MS_REG_EPP_D, MS_FETCH_ALL), 
+	  MS_BRSET(TIMEOUT, 3 /* error */),	/* EPP timeout? */
+	  MS_DBRA(-3 /* loop */),
 
 	  MS_CASS(PCD | H_AUTO | H_nSELIN | H_INIT | H_STROBE),
 	  MS_RET(0),
@@ -259,9 +259,9 @@ static struct ppb_microseq in_disk_mode[] = {
 	  MS_CASS( H_AUTO | H_nSELIN | H_INIT | H_STROBE),
 	  MS_CASS(H_nAUTO | H_nSELIN | H_INIT | H_STROBE),
 
-	  MS_BRCLEAR(H_FLT, 4 /* error */),
+	  MS_BRCLEAR(H_FLT, 3 /* error */),
 	  MS_CASS( H_AUTO | H_nSELIN | H_INIT | H_STROBE),
-	  MS_BRSET(H_FLT, 2 /* error */),
+	  MS_BRSET(H_FLT, 1 /* error */),
 
 	  MS_RET(1),
 /* error: */
@@ -510,8 +510,8 @@ vpoio_select(struct vpoio_data *vpo, int initiator, int target)
 
 		/* now, wait until the drive is ready */
 		MS_SET(VP0_SELTMO),
-/* loop: */	MS_BRSET(H_ACK, 3 /* ready */),
-		MS_DBRA(-1 /* loop */),
+/* loop: */	MS_BRSET(H_ACK, 2 /* ready */),
+		MS_DBRA(-2 /* loop */),
 /* error: */	MS_RET(1),
 /* ready: */	MS_RET(0)
 	};
