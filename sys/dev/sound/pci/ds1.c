@@ -110,7 +110,7 @@ struct sc_info {
 
 	bus_space_tag_t st;
 	bus_space_handle_t sh;
-	bus_dma_tag_t parent_dmat;
+	bus_dma_tag_t buffer_dmat, control_dmat;
 	bus_dmamap_t map;
 
 	struct resource *reg, *irq;
@@ -123,6 +123,7 @@ struct sc_info {
 	volatile struct pbank *pbank[2 * 64];
 	volatile struct rbank *rbank;
 	int pslotfree, currbank, pchn, rchn;
+	unsigned int bufsz;
 
 	struct sc_pchinfo pch[DS1_CHANS];
 	struct sc_rchinfo rch[2];
@@ -489,7 +490,7 @@ ds1pchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel 
 	ch->fmt = AFMT_U8;
 	ch->spd = 8000;
 	ch->run = 0;
-	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, DS1_BUFFSIZE) == -1)
+	if (sndbuf_alloc(ch->buffer, sc->buffer_dmat, sc->bufsz) == -1)
 		return NULL;
 	else {
 		ch->lsnum = sc->pslotfree;
@@ -619,7 +620,7 @@ ds1rchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel 
 	ch->dir = dir;
 	ch->fmt = AFMT_U8;
 	ch->spd = 8000;
-	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, 4096) == -1)
+	if (sndbuf_alloc(ch->buffer, sc->buffer_dmat, sc->bufsz) == -1)
 		return NULL;
 	else {
 		ch->slot = (ch->num == DS1_RECPRIMARY)? sc->rbank + 2: sc->rbank;
@@ -826,12 +827,14 @@ ds_init(struct sc_info *sc)
 	memsz += (64 + 1) * 4;
 
 	if (sc->regbase == NULL) {
-		if (bus_dmamem_alloc(sc->parent_dmat, &buf, BUS_DMA_NOWAIT, &sc->map))
+		if (bus_dma_tag_create(NULL, 2, 0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
+				       NULL, NULL, memsz, 1, 1, 0, &sc->control_dmat))
 			return -1;
-		if (bus_dmamap_load(sc->parent_dmat, sc->map, buf, memsz, ds_setmap, sc, 0)
-	    	|| !sc->ctrlbase) {
+		if (bus_dmamem_alloc(sc->control_dmat, &buf, BUS_DMA_NOWAIT, &sc->map))
+			return -1;
+		if (bus_dmamap_load(sc->control_dmat, sc->map, buf, memsz, ds_setmap, sc, 0) || !sc->ctrlbase) {
 			device_printf(sc->dev, "pcs=%d, rcs=%d, ecs=%d, ws=%d, memsz=%d\n",
-			      	pcs, rcs, ecs, ws, memsz);
+			      	      pcs, rcs, ecs, ws, memsz);
 			return -1;
 		}
 		sc->regbase = buf;
@@ -888,8 +891,8 @@ ds_uninit(struct sc_info *sc)
 	ds_wr(sc, YDSXGR_EFFCTRLBASE, 0x00000000, 4);
 	ds_wr(sc, YDSXGR_GLOBALCTRL, 0, 2);
 
-	bus_dmamap_unload(sc->parent_dmat, sc->map);
-	bus_dmamem_free(sc->parent_dmat, sc->regbase, sc->map);
+	bus_dmamap_unload(sc->control_dmat, sc->map);
+	bus_dmamem_free(sc->control_dmat, sc->regbase, sc->map);
 
 	return 0;
 }
@@ -958,12 +961,14 @@ ds_pci_attach(device_t dev)
 	sc->st = rman_get_bustag(sc->reg);
 	sc->sh = rman_get_bushandle(sc->reg);
 
+	sc->bufsz = pcm_getbuffersize(dev, 4096, DS1_BUFFSIZE, 65536);
+
 	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
 		/*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 		/*highaddr*/BUS_SPACE_MAXADDR,
 		/*filter*/NULL, /*filterarg*/NULL,
-		/*maxsize*/65536, /*nsegments*/1, /*maxsegz*/0x3ffff,
-		/*flags*/0, &sc->parent_dmat) != 0) {
+		/*maxsize*/sc->bufsz, /*nsegments*/1, /*maxsegz*/0x3ffff,
+		/*flags*/0, &sc->buffer_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto bad;
 	}
@@ -1009,8 +1014,10 @@ bad:
 		bus_teardown_intr(dev, sc->irq, sc->ih);
 	if (sc->irq)
 		bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
-	if (sc->parent_dmat)
-		bus_dma_tag_destroy(sc->parent_dmat);
+	if (sc->buffer_dmat)
+		bus_dma_tag_destroy(sc->buffer_dmat);
+	if (sc->control_dmat)
+		bus_dma_tag_destroy(sc->control_dmat);
 	if (sc->lock)
 		snd_mtxfree(sc->lock);
 	free(sc, M_DEVBUF);
@@ -1050,7 +1057,8 @@ ds_pci_detach(device_t dev)
 	bus_release_resource(dev, SYS_RES_MEMORY, sc->regid, sc->reg);
 	bus_teardown_intr(dev, sc->irq, sc->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
-	bus_dma_tag_destroy(sc->parent_dmat);
+	bus_dma_tag_destroy(sc->buffer_dmat);
+	bus_dma_tag_destroy(sc->control_dmat);
 	snd_mtxfree(sc->lock);
 	free(sc, M_DEVBUF);
        	return 0;
