@@ -714,13 +714,11 @@ outloop:
 	buffer = sc->mem_start + (sc->txb_new * ED_TXBUF_SIZE * ED_PAGE_SIZE);
 
 	if (sc->mem_shared) {
-
 		/*
 		 * Special case setup for 16 bit boards...
 		 */
 		if (sc->isa16bit) {
 			switch (sc->vendor) {
-
 				/*
 				 * For 16bit 3Com boards (which have 16k of
 				 * memory), we have the xmit buffers in a
@@ -738,14 +736,17 @@ outloop:
 				 */
 			case ED_VENDOR_WD_SMC:
 				ed_asic_outb(sc, ED_WD_LAAR,
-					     sc->wd_laar_proto | ED_WD_LAAR_M16EN);
-				if (sc->chip_type == ED_CHIP_TYPE_WD790) {
+				    sc->wd_laar_proto | ED_WD_LAAR_M16EN);
+				if (sc->chip_type == ED_CHIP_TYPE_WD790)
 					ed_asic_outb(sc, ED_WD_MSR, ED_WD_MSR_MENB);
-				}
 				break;
 			}
 		}
 		for (len = 0; m != 0; m = m->m_next) {
+			/* XXX 
+			 * I'm not sure that this bcopy does only 16bit 
+			 * access
+			 */
 			bcopy(mtod(m, caddr_t), buffer, m->m_len);
 			buffer += m->m_len;
 			len += m->m_len;
@@ -758,14 +759,13 @@ outloop:
 			switch (sc->vendor) {
 			case ED_VENDOR_3COM:
 				ed_asic_outb(sc, ED_3COM_GACFR,
-					     ED_3COM_GACFR_RSEL | ED_3COM_GACFR_MBS0);
+				    ED_3COM_GACFR_RSEL | ED_3COM_GACFR_MBS0);
 				break;
 			case ED_VENDOR_WD_SMC:
-				if (sc->chip_type == ED_CHIP_TYPE_WD790) {
+				if (sc->chip_type == ED_CHIP_TYPE_WD790)
 					ed_asic_outb(sc, ED_WD_MSR, 0x00);
-				}
 				ed_asic_outb(sc, ED_WD_LAAR,
-					     sc->wd_laar_proto & ~ED_WD_LAAR_M16EN);
+				    sc->wd_laar_proto & ~ED_WD_LAAR_M16EN);
 				break;
 			}
 		}
@@ -1287,6 +1287,9 @@ ed_ring_copy(struct ed_softc *sc, char *src, char *dst, u_short amount)
 	if (src + amount > sc->mem_end) {
 		tmp_amount = sc->mem_end - src;
 
+		/* XXX 
+		 * I'm not sure that this bcopy does only 16bit access
+		 */
 		/* copy amount up to end of NIC memory */
 		if (sc->mem_shared)
 			bcopy(src, dst, tmp_amount);
@@ -1785,6 +1788,8 @@ ed_clear_memory(device_t dev)
 
 	/*
 	 * Now zero memory and verify that it is clear
+	 * XXX restricted to 16-bit writes?  Do we need to
+	 * XXX enable 16-bit access?
 	 */
 	bzero(sc->mem_start, sc->mem_size);
 
