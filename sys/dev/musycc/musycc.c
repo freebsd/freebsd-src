@@ -148,6 +148,7 @@ struct mdesc {
 	u_int32_t	next;
 	/* Software only */
 	struct mbuf	*m;
+	struct mdesc	*snext;
 };
 
 #define NPORT	8
@@ -170,8 +171,8 @@ struct schan {
 	u_long		rx_drop;	/* mbuf allocation failures */
 	u_long		tx_limit;
 	u_long		tx_pending;
-	int		tx_next_md;	/* index to the next MD */
-	int		tx_last_md;	/* index to the last MD */
+	struct mdesc	*tx_next_md;	/* next MD */
+	struct mdesc	*tx_last_md;	/* last MD */
 	int		rx_last_md;	/* index to next MD */
 	int		nmd;		/* count of MD's. */
 
@@ -183,9 +184,14 @@ struct schan {
 	u_long		long_error;
 	u_long		abort_error;
 	u_long		short_error;
+	u_long		txn, rxn;
 
 	time_t		last_xmit;
 	time_t		last_txerr;
+
+	time_t		last_txdrop;
+	u_long		tx_drop;
+
 #if 0
 
 
@@ -400,7 +406,7 @@ init_ctrl(struct softc *sc)
 
 	sc->ram->grcd |= 0x00000020;	/* MSKCOFA */
 
-	sc->ram->grcd |= 0x00000400;	/* POLLTH=1 */
+	sc->ram->grcd |= 0x00000440;	/* POLLTH=1 */
 
 	sc->ram->mpd = 0;		/* Memory Protection NI [5-18] */
 
@@ -442,15 +448,21 @@ status_chans(struct softc *sc, char *s)
 		sprintf(s + strlen(s), " ts %08x", scp->ts);
 		sprintf(s + strlen(s), " RX %lus/%lus",
 		    time_second - scp->last_recv, time_second - scp->last_rxerr);
-		sprintf(s + strlen(s), " TX %lus/%lus",
-		    time_second - scp->last_xmit, time_second - scp->last_txerr);
+		sprintf(s + strlen(s), " TX %lus/%lus/%lus",
+		    time_second - scp->last_xmit, 
+		    time_second - scp->last_txerr,
+		    time_second - scp->last_txdrop);
+		sprintf(s + strlen(s), " TXdrop %lu Pend %lu", 
+		    scp->tx_drop,
+		    scp->tx_pending);
 		sprintf(s + strlen(s), " CRC %lu Dribble %lu Long %lu Short %lu Abort %lu",
 		    scp->crc_error,
 		    scp->dribble_error,
 		    scp->long_error,
 		    scp->short_error,
 		    scp->abort_error);
-		sprintf(s + strlen(s), "\n");
+		sprintf(s + strlen(s), "\n TX: %lu RX: %lu\n",
+		    scp->txn, scp->rxn);
 	}
 }
 
@@ -624,9 +636,7 @@ init_8370(struct softc *sc)
 static void
 musycc_intr0_tx_eom(struct softc *sc, int ch)
 {
-	u_int32_t status;
 	struct schan *sch;
-	struct mbuf *m;
 	struct mdesc *md;
 
 	sch = sc->chan[ch];
@@ -637,22 +647,19 @@ musycc_intr0_tx_eom(struct softc *sc, int ch)
 	if (sc->mdt[ch] == NULL)
 		return; 	/* XXX: can this happen ? */
 	for (;;) {
-		if (sch->tx_last_md == sch->tx_next_md)
+		md = sch->tx_last_md;
+		if (md->status == 0)
 			break;
-		md = &sc->mdt[ch][sch->tx_last_md];
-		status = md->status;
-		if (status & 0x80000000)
+		if (md->status & 0x80000000)
 			break;		/* Not our mdesc, done */
+		sch->tx_last_md = md->snext;
 		md->data = 0;
-		m = md->m;
-		if (m != NULL) {
-			sch->tx_pending -= m->m_pkthdr.len;
-			m_freem(m);
+		if (md->m != NULL) {
+			sch->tx_pending -= md->m->m_pkthdr.len;
+			m_freem(md->m);
 			md->m = NULL;
 		}
 		md->status = 0;
-		if (++sch->tx_last_md >= sch->nmd)
-			sch->tx_last_md = 0;
 	}
 }
 
@@ -774,7 +781,7 @@ musycc_intr0(void *arg)
 			ev = (u1 >> 20) & 0xf;
 			er = (u1 >> 16) & 0xf;
 			sc = &csc->serial[g];
-			if (debug & 2) {
+			if ((debug & 2) || er) {
 				printf("%08x %d", u1, g);
 				printf("/%s", u1 & 0x80000000 ? "T" : "R");
 				printf("/%02d", ch);
@@ -1081,8 +1088,8 @@ musycc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 	struct softc *sc;
 	struct csoftc *csc;
 	struct schan *sch;
-	struct mdesc *md;
-	u_int32_t ch, u, len;
+	struct mdesc *md, *md0;
+	u_int32_t ch, u, u0, len;
 	struct mbuf *m2;
 
 	sch = hook->private;
@@ -1105,41 +1112,73 @@ musycc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 		return (0);
 	} 
 	if (sch->tx_pending + m->m_pkthdr.len > sch->tx_limit * maxlatency) {
-		printf("pend %ld len %d lim %ld\n", sch->tx_pending, m->m_pkthdr.len, sch->tx_limit * maxlatency);
+		sch->tx_drop++;
+		sch->last_txdrop = time_second;
 		NG_FREE_DATA(m, meta);
 		return (0);
 	}
 
+	/* find out if we have enough txmd's */
 	m2 = m;
-	len = m->m_pkthdr.len;
-	while (len) {
-		if (m->m_len > 0) {	/* XXX: needed ? */
-			md = &sc->mdt[ch][sch->tx_next_md];
-			if ((md->status & 0x80000000) != 0x00000000) {
-				printf("Out of tx md\n");
-				sch->last_txerr = time_second;
-				break;
-			}
-
-			if (++sch->tx_next_md >= sch->nmd)
-				sch->tx_next_md = 0;
-
-			md->data = vtophys(m->m_data);
-			len -= m->m_len;
-			u = 0x80000000;	/* OWNER = MUSYCC */
-			if (len > 0) {
-				md->m = 0;
-			} else {
-				u |= 1 << 29;	/* EOM */
-				md->m = m2;
-				sch->tx_pending += m2->m_pkthdr.len;
-			}	
-			u |= m->m_len;
-			md->status = u;
-			sch->last_xmit = time_second;
+	md = sch->tx_next_md;
+	for (len = m2->m_pkthdr.len; len; m2 = m2->m_next) {
+		if (m2->m_len == 0)
+			continue;
+		if (md->status != 0) {
+			sch->tx_drop++;
+			sch->last_txdrop = time_second;
+			NG_FREE_DATA(m, meta);
+			return (0);
 		}
-		m = m->m_next;
+		len -= m2->m_len;
+		md = md->snext;
 	}
+
+	m2 = m;
+	md = md0 = sch->tx_next_md;
+	u0 = 0;
+	for (len = m->m_pkthdr.len; len > 0; m = m->m_next) {
+		if (m->m_len == 0)
+			continue;
+		if (md->status != 0) {
+			printf("Out of tx md(2)\n");
+			sch->last_txerr = time_second;
+			sch->tx_drop++;
+			sch->last_txdrop = time_second;
+			NG_FREE_DATA(m, meta);
+			break;
+		}
+
+		md->data = vtophys(m->m_data);
+		if (md == md0)
+			u = 0x00000000;	/* OWNER = CPU */
+		else
+			u = 0x80000000;	/* OWNER = MUSYCC */
+		u |= m->m_len;
+		len -= m->m_len;
+		if (len > 0) {
+			md->m = NULL;
+			if (md == md0)
+				u0 = u;
+			else
+				md->status = u;
+			md = md->snext;
+			continue;
+		}
+		u |= 0x20000000;	/* EOM */
+		md->m = m2;
+		sch->tx_pending += m2->m_pkthdr.len;
+		if (md == md0) {
+			u |= 0x80000000;	/* OWNER = MUSYCC */
+			md->status = u;
+		} else {
+			md->status = u;
+			md0->status = u0 | 0x80000000; /* OWNER = MUSYCC */
+		}
+		sch->last_xmit = time_second;
+		sch->tx_next_md = md->snext;
+	}
+	sch->txn++;
 	return (0);
 }
 
@@ -1219,21 +1258,23 @@ musycc_connect(hook_p hook)
 	 *  1 timeslot,  50 bytes packets -> 68msec
 	 * 31 timeslots, 50 bytes packets -> 14msec
 	 */
-	sch->nmd = nmd = 40 + nts * 4;
+	sch->nmd = nmd = 200 + nts * 4;
 	sch->rx_last_md = 0;
-	sch->tx_next_md = 0;
-	sch->tx_last_md = 0;
 	MALLOC(sc->mdt[ch], struct mdesc *, 
 	    sizeof(struct mdesc) * nmd, M_MUSYCC, M_WAITOK);
 	MALLOC(sc->mdr[ch], struct mdesc *, 
 	    sizeof(struct mdesc) * nmd, M_MUSYCC, M_WAITOK);
 	for (i = 0; i < nmd; i++) {
 		if (i == nmd - 1) {
-			sc->mdt[ch][i].next = vtophys(&sc->mdt[ch][0]);
-			sc->mdr[ch][i].next = vtophys(&sc->mdr[ch][0]);
+			sc->mdt[ch][i].snext = &sc->mdt[ch][0];
+			sc->mdt[ch][i].next = vtophys(sc->mdt[ch][i].snext);
+			sc->mdr[ch][i].snext = &sc->mdr[ch][0];
+			sc->mdr[ch][i].next = vtophys(sc->mdr[ch][i].snext);
 		} else {
-			sc->mdt[ch][i].next = vtophys(&sc->mdt[ch][i + 1]);
-			sc->mdr[ch][i].next = vtophys(&sc->mdr[ch][i + 1]);
+			sc->mdt[ch][i].snext = &sc->mdt[ch][i + 1];
+			sc->mdt[ch][i].next = vtophys(sc->mdt[ch][i].snext);
+			sc->mdr[ch][i].snext = &sc->mdr[ch][i + 1];
+			sc->mdr[ch][i].next = vtophys(sc->mdr[ch][i].snext);
 		}
 		sc->mdt[ch][i].status = 0;
 		sc->mdt[ch][i].m = NULL;
@@ -1255,6 +1296,7 @@ musycc_connect(hook_p hook)
 		sc->mdr[ch][i].data = vtophys(m->m_data);
 		sc->mdr[ch][i].status = 1600; /* MTU */
 	}
+	sch->tx_last_md = sch->tx_next_md = &sc->mdt[ch][0];
 
 	/* Configure it into the chip */
 	sc->ram->thp[ch] = vtophys(&sc->mdt[ch][0]);
