@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.34 1994/10/26 00:16:20 phk Exp $
+ *	$Id: isa.c,v 1.35 1994/11/01 17:26:29 ache Exp $
  */
 
 /*
@@ -404,6 +404,11 @@ config_isadev_c(isdp, mp, reconfig)
 #ifndef ALLOW_CONFLICT_MEMADDR
 	checkbits |= CC_MEMADDR;
 #endif
+	if (!isdp->id_enabled) {
+		printf("%s%d: disabled, not probed.\n",
+			dp->name, isdp->id_unit);
+		return;
+	}
 	if (!reconfig && haveseen_isadev(isdp, checkbits))
 		return;
 	if (!reconfig && isdp->id_maddr) {

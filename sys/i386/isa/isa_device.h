@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.15 1994/10/23 21:27:27 wollman Exp $
+ *	$Id: isa_device.h,v 1.16 1994/10/25 23:06:16 se Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -74,6 +74,7 @@ struct isa_device {
 #define	RI_FAST		1		/* fast interrupt handler */
 	u_int	id_ri_flags;	/* flags for register_intr() */
 	int	id_reconfig;	/* hot eject device support (such as PCMCIA) */
+	int	id_enabled;	/* is device enabled */
 };
 
 /*
