@@ -869,15 +869,20 @@ Adlib, SoundBlaster, SoundBlaster Pro, ProAudioSpectrum, Gravis UltraSound
 and Roland MPU-401 sound cards.
 (by Voxware)
 
-SoundBlaster(including ViBRA16)
 Advance Asound 100, 110 and Logic ALS120
-ESS ES1868, ES1869, ES1879 and ES1888
-MSS/WSS Compatible DSPs
-Gravis UltraSound MAX/PnP
-Trident 4DWave DX/NX
-ENSONIQ AudioPCI ES1370/1371
-NeoMagic 256AV/ZX
 Crystal Semiconductor CS461x/462x/428x
+ENSONIQ AudioPCI ES1370/1371
+ESS ES1868, ES1869, ES1879 and ES1888
+ESS Maestro-1, Maestro-2, and Maestro-2E
+ForteMedia fm801
+Gravis UltraSound MAX/PnP
+MSS/WSS Compatible DSPs
+NeoMagic 256AV/ZX
+OPTi 931/82C931
+SoundBlaster, Soundblaster Pro, Soundblaster AWE-32, Soundblaster AWE-64
+Trident 4DWave DX/NX
+VIA Technologies VT82C686A
+Yamaha DS1 and DS1e
 (by newpcm)
 
 Matrox Meteor Video frame grabber
