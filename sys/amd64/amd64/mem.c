@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.27 1995/12/21 19:22:49 julian Exp $
+ *	$Id: mem.c,v 1.28 1995/12/27 11:18:29 markm Exp $
  */
 
 /*
@@ -110,7 +110,7 @@ memdevfs_init()
     zero_devfs_token = devfs_add_devsw(
 		"/",	"zero",	&mem_cdevsw,    12,	DV_CHR, 0,  0, 0666);
     io_devfs_token = devfs_add_devsw(
-		"/",	"io",	&mem_cdevsw,    14,	DV_CHR, 0,  2, 0640);
+		"/",	"io",	&mem_cdevsw,    14,	DV_CHR, 0,  0, 0600);
 }
 #endif /* DEVFS */
 
