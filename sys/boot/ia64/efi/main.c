@@ -54,6 +54,7 @@ extern u_int64_t	ia64_pal_entry;
 
 EFI_GUID acpi = ACPI_TABLE_GUID;
 EFI_GUID acpi20 = ACPI_20_TABLE_GUID;
+EFI_GUID devid = DEVICE_PATH_PROTOCOL;
 EFI_GUID hcdp = HCDP_TABLE_GUID;
 EFI_GUID imgid = LOADED_IMAGE_PROTOCOL;
 EFI_GUID mps = MPS_TABLE_GUID;
@@ -101,8 +102,6 @@ EFI_STATUS
 main(int argc, CHAR16 *argv[])
 {
 	EFI_LOADED_IMAGE *img;
-	EFI_SIMPLE_NETWORK *net;
-	EFI_STATUS status;
 	int i;
 
 	/* 
@@ -129,7 +128,6 @@ main(int argc, CHAR16 *argv[])
 
 	efinet_init_driver();
 
-
 	/* Get our loaded image protocol interface structure. */
 	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
 
@@ -139,23 +137,16 @@ main(int argc, CHAR16 *argv[])
 	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
 	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
 
-	/*
-	 * XXX quick and dirty check to see if we're loaded from the
-	 * network. If so, we set the default device to 'net'. In all
-	 * other cases we set the default device to 'disk'. We presume
-	 * fixed positions in devsw for both net and disk.
-	 */
-	status = BS->HandleProtocol(img->DeviceHandle, &netid, (VOID**)&net);
-	if (status == EFI_SUCCESS && net != NULL) {
-		currdev.d_dev = devsw[1];	/* XXX net */
-		currdev.d_kind.netif.unit = 0;
-	} else {
-		currdev.d_dev = devsw[0];	/* XXX disk */
-		currdev.d_kind.efidisk.unit = 0;
+	i = efifs_get_unit(img->DeviceHandle);
+	if (i >= 0) {
+		currdev.d_dev = devsw[0];		/* XXX disk */
+		currdev.d_kind.efidisk.unit = i;
 		/* XXX should be able to detect this, default to autoprobe */
 		currdev.d_kind.efidisk.slice = -1;
-		/* default to 'a' */
 		currdev.d_kind.efidisk.partition = 0;
+	} else {
+		currdev.d_dev = devsw[1];		/* XXX net */
+		currdev.d_kind.netif.unit = 0;		/* XXX */
 	}
 	currdev.d_type = currdev.d_dev->dv_type;
 

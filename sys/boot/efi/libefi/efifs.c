@@ -291,7 +291,18 @@ struct fs_ops efi_fsops = {
 };
 
 static EFI_HANDLE *fs_handles;
-UINTN fs_handle_count;;
+UINTN fs_handle_count;
+
+int
+efifs_get_unit(EFI_HANDLE h)
+{
+	UINTN u;
+
+	u = 0;
+	while (u < fs_handle_count && fs_handles[u] != h)
+		u++;
+	return ((u < fs_handle_count) ? u : -1);
+}
 
 static int
 efifs_dev_init(void) 
