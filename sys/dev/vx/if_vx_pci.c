@@ -29,115 +29,150 @@
  * $FreeBSD$
  */
 
-#include "vx.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
 
+#include <machine/bus_pio.h>
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/bus.h>
+#include <sys/rman.h>
+
 #include <pci/pcivar.h>
+#include <pci/pcireg.h>
 
 #include <dev/vx/if_vxreg.h>
 
-#ifndef COMPAT_OLDPCI
-#error "The vx driver requires the old pci compatability shims."
-#endif
+static void vx_pci_shutdown(device_t);
+static int vx_pci_probe(device_t);
+static int vx_pci_attach(device_t);
 
-static void vx_pci_shutdown(void *, int);
-static const char *vx_pci_probe(pcici_t, pcidi_t);
-static void vx_pci_attach(pcici_t, int unit);
+static device_method_t vx_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		vx_pci_probe),
+	DEVMETHOD(device_attach,	vx_pci_attach),
+	DEVMETHOD(device_shutdown,	vx_pci_shutdown),
+
+	{ 0, 0 }
+};
+
+static driver_t vx_driver = {
+	"vx",
+	vx_methods,
+	sizeof(struct vx_softc)
+};
+
+static devclass_t vx_devclass;
+
+DRIVER_MODULE(if_vx, pci, vx_driver, vx_devclass, 0, 0);
 
 static void
 vx_pci_shutdown(
-	void *sc,
-	int howto)
+	device_t dev)
 {
+   struct vx_softc	*sc;
+
+   sc = device_get_softc(dev);
    vxstop(sc); 
-   vxfree(sc);
+   return;
 }
 
-static const char*
+static int
 vx_pci_probe(
-	pcici_t config_id,
-	pcidi_t device_id)
+	device_t dev)
 {
-   if(device_id == 0x590010b7ul)
-      return "3COM 3C590 Etherlink III PCI";
+   u_int32_t		device_id;
+
+   device_id = pci_read_config(dev, PCIR_DEVVENDOR, 4);
+
+   if(device_id == 0x590010b7ul) {
+      device_set_desc(dev, "3COM 3C590 Etherlink III PCI");
+      return(0);
+   }
    if(device_id == 0x595010b7ul || device_id == 0x595110b7ul ||
-	device_id == 0x595210b7ul)
-      return "3COM 3C595 Fast Etherlink III PCI";
+	device_id == 0x595210b7ul) {
+      device_set_desc(dev, "3COM 3C595 Etherlink III PCI");
+      return(0);
+   }
 	/*
 	 * The (Fast) Etherlink XL adapters are now supported by
 	 * the xl driver, which uses bus master DMA and is much
 	 * faster. (And which also supports the 3c905B.
 	 */
 #ifdef VORTEX_ETHERLINK_XL
-   if(device_id == 0x900010b7ul || device_id == 0x900110b7ul)
-      return "3COM 3C900 Etherlink XL PCI";
-   if(device_id == 0x905010b7ul || device_id == 0x905110b7ul)
-      return "3COM 3C905 Fast Etherlink XL PCI";
+   if(device_id == 0x900010b7ul || device_id == 0x900110b7ul) {
+      device_set_desc(dev, "3COM 3C900 Etherlink XL PCI");
+      return(0);
+   }
+   if(device_id == 0x905010b7ul || device_id == 0x905110b7ul) {
+      device_set_desc(dev, "3COM 3C905 Etherlink XL PCI");
+      return(0);
+   }
 #endif
-   return NULL;
+   return (ENXIO);
 }
 
-static void
+static int 
 vx_pci_attach(
-	pcici_t config_id,
-	int unit)
+	device_t dev)
 {
     struct vx_softc *sc;
+    int rid;
 
-    if (unit >= NVX) {
-       printf("vx%d: not configured; kernel is built for only %d device%s.\n",
-          unit, NVX, NVX == 1 ? "" : "s"); 
-       return;
-    }
+    sc = device_get_softc(dev);
 
-    if ((sc = vxalloc(unit)) == NULL) {
-	return;
-    }
+    rid = PCIR_MAPS;
+    sc->vx_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+	0, ~0, 1, RF_ACTIVE);
 
-    sc->vx_io_addr = pci_conf_read(config_id, 0x10) & 0xffffffe0;
+    if (sc->vx_res == NULL)
+	goto bad;
+
+    sc->vx_btag = rman_get_bustag(sc->vx_res);
+    sc->vx_bhandle = rman_get_bushandle(sc->vx_res);
+
+    rid = 0;
+    sc->vx_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	RF_SHAREABLE | RF_ACTIVE);
+
+    if (sc->vx_irq == NULL)
+	goto bad;
+
+    if (bus_setup_intr(dev, sc->vx_irq, INTR_TYPE_NET,
+	vxintr, sc, &sc->vx_intrhand))
+	goto bad;
 
     if (vxattach(sc) == 0) {
-	return;
+	goto bad;
     }
 
     /* defect check for 3C590 */
-    if ((pci_conf_read(config_id, 0) >> 16) == 0x5900) {
+    if ((pci_read_config(dev, PCIR_DEVVENDOR, 4) >> 16) == 0x5900) {
 	GO_WINDOW(0);
 	if (vxbusyeeprom(sc))
-	    return;
-	outw(BASE + VX_W0_EEPROM_COMMAND, EEPROM_CMD_RD | EEPROM_SOFT_INFO_2);
+	    goto bad;
+	CSR_WRITE_2(sc, VX_W0_EEPROM_COMMAND,
+	    EEPROM_CMD_RD | EEPROM_SOFT_INFO_2);
 	if (vxbusyeeprom(sc))
-	    return;
-	if (!(inw(BASE + VX_W0_EEPROM_DATA) & NO_RX_OVN_ANOMALY)) {
+	    goto bad;
+	if (!(CSR_READ_2(sc, VX_W0_EEPROM_DATA) & NO_RX_OVN_ANOMALY)) {
 	    printf("Warning! Defective early revision adapter!\n");
 	}
     }
 
-    /*
-     * Add shutdown hook so that DMA is disabled prior to reboot. Not
-     * doing do could allow DMA to corrupt kernel memory during the
-     * reboot before the driver initializes.
-     */
-    EVENTHANDLER_REGISTER(shutdown_post_sync, vx_pci_shutdown, sc,
-			  SHUTDOWN_PRI_DEFAULT);
+    return(0);
 
-    pci_map_int(config_id, vxintr, (void *) sc, &net_imask);
+bad:
+    if (sc->vx_intrhand != NULL)
+	bus_teardown_intr(dev, sc->vx_irq, sc->vx_intrhand);
+    if (sc->vx_res != NULL)
+	bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->vx_res);
+    if (sc->vx_irq != NULL)
+	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->vx_irq);
+    return(ENXIO);
 }
-
-static struct pci_device vxdevice = {
-    "vx",
-    vx_pci_probe,
-    vx_pci_attach,
-    &vx_count,
-    NULL
-};
-
-COMPAT_PCI_DRIVER (vx, vxdevice);
