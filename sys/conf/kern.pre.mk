@@ -57,10 +57,9 @@ CFLAGS+=	${CONF_CFLAGS}
 NORMAL_C= ${CC} -c ${CFLAGS} ${WERROR} ${PROF} ${.IMPSRC}
 NORMAL_S= ${CC} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
 PROFILE_C= ${CC} -c ${CFLAGS} ${WERROR} ${.IMPSRC}
-NORMAL_C_NOWERROR= ${CC} -c ${CFLAGS} ${PROF} ${.IMPSRC}
 
-NORMAL_M= ${AWK} -f $S/tools/makeobjops.awk $< -c ; \
-	  ${CC} -c ${CFLAGS} ${PROF} ${.PREFIX}.c
+NORMAL_M= ${AWK} -f $S/tools/makeobjops.awk ${.IMPSRC} -c ; \
+	  ${CC} -c ${CFLAGS} ${WERROR} ${PROF} ${.PREFIX}.c
 
 GEN_CFILES= $S/$M/$M/genassym.c
 SYSTEM_CFILES= vnode_if.c hints.c env.c config.c
