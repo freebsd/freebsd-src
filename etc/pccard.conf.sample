@@ -135,6 +135,14 @@ card "3Com" "3C574-TX Fast EtherLink PC Ca"
 	remove	echo 3Com Fast Etherlink 3C574TX removed
 	remove	/sbin/ifconfig ep0 delete
 
+# 3Com Megahertz 574B
+card "3Com" "Megahertz 574B"
+	config  0x1 "ep0" ? 0x1
+	insert  echo 3Com Megahertz 574B inserted
+	insert  /etc/pccard_ether ep0
+	remove  echo 3Com Megahertz 574B removed
+	remove  /sbin/ifconfig ep0 delete
+
 # LinkSys ethernet card
 card "E-CARD" "E-CARD" 
 	config  0x20 "ed0" ? 
