@@ -812,6 +812,26 @@ a colon
 .Pq Dq \&: .
 .It
 A command line must contain a space or tab in the first column.
+.It
+A string starting with the
+.Dq $
+character is substituted with the value of the environment variable by
+the same name.
+Likewise, a string starting with the
+.Dq ~
+character is substituted with the full path to the home directory of
+the user account by the same name, and the
+.Dq ~
+character by itself is substituted with the full path to the home directory
+of the current user.
+If you want to include a literal
+.Dq $
+or
+.Dq ~
+character in a command or argument, enclose them in double quotes, e.g.
+.Bd -literal -offset indent
+set password "pa$ss~word"
+.Ed
 .El
 .Pp
 The
