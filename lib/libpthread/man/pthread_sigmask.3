@@ -77,8 +77,9 @@ If successful,
 returns 0.
 Otherwise, an error is returned.
 .Sh ERRORS
+The
 .Fn pthread_sigmask
-will fail if:
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 .Fa how
@@ -91,6 +92,7 @@ is not one of the defined values.
 .Xr sigsuspend 2 ,
 .Xr sigsetops 3
 .Sh STANDARDS
+The
 .Fn pthread_sigmask
-conforms to
+function conforms to
 .St -p1003.1-96

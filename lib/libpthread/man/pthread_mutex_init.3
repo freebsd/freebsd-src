@@ -54,8 +54,9 @@ will return zero and put the new mutex id into
 .Fa mutex ,
 otherwise an error number will be returned to indicate the error.
 .Sh ERRORS
+The
 .Fn pthread_mutex_init
-will fail if:
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The value specified by
@@ -70,6 +71,7 @@ The process cannot allocate enough memory to create another mutex.
 .Xr pthread_mutex_trylock 3 ,
 .Xr pthread_mutex_unlock 3
 .Sh STANDARDS
+The
 .Fn pthread_mutex_init
-conforms to
+function conforms to
 .St -p1003.1-96 .
