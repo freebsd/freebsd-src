@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: auth.c,v 1.18 1997/08/22 12:03:52 peter Exp $";
+static char rcsid[] = "$Id: auth.c,v 1.19 1997/10/10 06:02:54 peter Exp $";
 #endif
 
 #include <stdio.h>
@@ -909,7 +909,9 @@ ppplogin(user, passwd, msg, msglen)
     if (strncmp(tty, "/dev/", 5) == 0)
 	tty += 5;
 
-    logwtmp(tty, user, remote_name);		/* Add wtmp login entry */
+    if (logout(tty))		/* Already entered (by login?) */
+        logwtmp(tty, "", "");
+
     logged_in = TRUE;
 
     memset((void *)&utmp, 0, sizeof(utmp));
@@ -917,7 +919,7 @@ ppplogin(user, passwd, msg, msglen)
     (void)strncpy(utmp.ut_name, user, sizeof(utmp.ut_name));
     (void)strncpy(utmp.ut_host, ":PPP", sizeof(utmp.ut_host));
     (void)strncpy(utmp.ut_line, tty, sizeof(utmp.ut_line));
-    login(&utmp);
+    login(&utmp);		/* This logs us in wtmp too */
 
     return (UPAP_AUTHACK);
 }
