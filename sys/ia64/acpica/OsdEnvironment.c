@@ -47,13 +47,13 @@ SYSCTL_ULONG(_machdep, OID_AUTO, acpi_root, CTLFLAG_RD, &ia64_acpi_root, 0,
 ACPI_STATUS
 AcpiOsInitialize(void)
 {
-	return(NULL);
+	return(AE_OK);
 }
 
 ACPI_STATUS
 AcpiOsTerminate(void)
 {
-	return(NULL);
+	return(AE_OK);
 }
 
 ACPI_STATUS
