@@ -100,7 +100,7 @@
  * STATUS FIFO addressing
  *   bit
  * -----------------------
- *  0- 1( 2): 0 (alingment)
+ *  0- 1( 2): 0 (alignment)
  *  2- 7( 6): target
  *  8-15( 8): lun
  * 16-31( 8): reserved
@@ -822,7 +822,7 @@ END_DEBUG
 	xpt_async(AC_BUS_RESET, sbp->path, /*arg*/ NULL);
 #endif
 
-	/* Gabage Collection */
+	/* Garbage Collection */
 	for(i = 0 ; i < SBP_NUM_TARGETS ; i ++){
 		target = &sbp->targets[i];
 		STAILQ_FOREACH(fwdev, &sbp->fd.fc->devices, link)
