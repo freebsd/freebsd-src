@@ -1,6 +1,6 @@
 #
 # hosts.allow access control file for "tcp wrapped" apps.
-# $Id: hosts.allow,v 1.2 1999/04/08 19:08:53 markm Exp $
+# $Id: hosts.allow,v 1.2.2.1 1999/05/05 20:47:42 obrien Exp $
 #
 # NOTE: The hosts.deny file is not longer used.  Instead, put both 'allow'
 #       and 'deny' rules in the hosts.allow file.
@@ -53,6 +53,6 @@ fingerd : ALL \
 
 # The rest of the daemons are protected. Backfinger and log by email.
 ALL : ALL \
-	: severity auth.info : spawn (/usr/bin/safe_finger -l @%h | \
+	: severity auth.info : spawn (/usr/bin/finger -l @%h | \
 	 /usr/bin/mail -s "tcpd\: %u@%h[%a] tried to use %d  (denied)" root) & \
 	: twist /bin/echo "You are not welcome to use %d from %h."
