@@ -104,12 +104,6 @@
 #define SWM_FREE	0x02	/* free, period			*/
 #define SWM_POP		0x04	/* pop out			*/
 
-/*
- * vm_swap_size is in page-sized chunks now.  It was DEV_BSIZE'd chunks
- * in the old system.
- */
-extern int vm_swap_size;	/* number of free swap blocks, in pages */
-
 int swap_pager_full;		/* swap space exhaustion (task killing) */
 static int swap_pager_almost_full; /* swap space exhaustion (w/ hysteresis)*/
 static int nsw_rcount;		/* free read buffers			*/
@@ -124,10 +118,6 @@ static int swhash_mask;
 static int swap_async_max = 4;	/* maximum in-progress async I/O's	*/
 static struct sx sw_alloc_sx;
 
-/* from vm_swap.c */
-extern struct vnode *swapdev_vp;
-extern struct swdevt *swdevt;
-extern int nswdev;
 
 SYSCTL_INT(_vm, OID_AUTO, swap_async_max,
         CTLFLAG_RW, &swap_async_max, 0, "Maximum running async swap ops");
@@ -185,8 +175,7 @@ static void waitchainbuf(struct bio *bp, int count, int done);
  * swap_*() routines are externally accessible.  swp_*() routines are
  * internal.
  */
-int dmmax;
-static int dmmax_mask;
+int dmmax, dmmax_mask;
 int nswap_lowat = 128;		/* in pages, swap_pager_almost_full warn */
 int nswap_hiwat = 512;		/* in pages, swap_pager_almost_full warn */
 
