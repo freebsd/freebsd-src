@@ -78,7 +78,7 @@ vendor STMICRO		0x0483	STMicroelectronics
 vendor COMPAQ		0x049f	Compaq Computers
 vendor ACERP		0x04a5	Acer Peripherals, Inc.
 vendor CANON		0x04a9	Canon, Inc.
-venodr VISIONEER	0x04a7  Visioneer
+vendor VISIONEER	0x04a7  Visioneer
 vendor IBM		0x04b3	IBM Corporation
 vendor CYPRESS		0x04b4	Cypress Semiconductor
 vendor EPSON		0x04b8	Seiko Epson Corp.
@@ -550,7 +550,7 @@ product MICROTEK 336CX		0x0094	Phantom 336CX - C3 scanner
 product MICROTEK 336CX2		0x00a0	Phantom 336CX - C3 scanner
 product MICROTEK C6		0x009a	Phantom C6 scanner
 product MICROTEK V6USL		0x00a3	ScanMaker V6USL
-product MICROTEK V6USL		0x80a3	ScanMaker V6USL
+product MICROTEK V6USL2		0x80a3	ScanMaker V6USL
 product MICROTEK V6UL		0x80ac	ScanMaker V6UL
 
 /* Midiman products */
