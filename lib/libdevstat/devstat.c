@@ -549,7 +549,7 @@ devstat_selectdevs(struct device_selection **dev_select, int *num_selected,
 	int selection_number = 0;
 	int changed = 0, found = 0;
 
-	if ((dev_select == NULL) || (devices == NULL) || (numdevs <= 0))
+	if ((dev_select == NULL) || (devices == NULL) || (numdevs < 0))
 		return(-1);
 
 	/*
