@@ -1,5 +1,4 @@
 .\"	$NetBSD: usb.3,v 1.13 2000/09/24 02:17:52 augustss Exp $
-.\"	$FreeBSD$
 .\"
 .\" Copyright (c) 1999 Lennart Augustsson <augustss@netbsd.org>
 .\" All rights reserved.
@@ -24,6 +23,8 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
 .\"
 .Dd May 11, 1999
 .Dt USBHID 3
@@ -64,9 +65,9 @@
 .Fn hid_report_size "report_desc_t d" "unsigned int id" "hid_kind_t k"
 .Ft int
 .Fn hid_locate "report_desc_t d" "unsigned int usage" "hid_kind_t k" "hid_item_t *h"
-.Ft const char *
+.Ft "const char *"
 .Fn hid_usage_page "int i"
-.Ft const char *
+.Ft "const char *"
 .Fn hid_usage_in_page "unsigned int u"
 .Ft int
 .Fn hid_parse_usage_page "const char *name"
@@ -82,48 +83,51 @@
 The
 .Nm
 library provides routines to extract data from USB Human Interface Devices.
-.Ss INTRODUCTION
-USB HID devices send and receive data layed out in a device dependent
-way.  The
+.Ss Introduction
+USB HID devices send and receive data layed out in a device dependent way.
+The
 .Nm
 library contains routines to extract the
-.Em report descriptor
+.Em "report descriptor"
 which contains the data layout information and then use this information.
 .Pp
 The routines can be divided into four parts: extraction of the descriptor,
 parsing of the descriptor, translating to/from symbolic names, and
 data manipulation.
-.Ss DESCRIPTOR FUNCTIONS
+.Ss Descriptor Functions
 A report descriptor can be obtained by calling
 .Fn hid_get_report_desc
 with a file descriptor obtained by opening a
 .Xr uhid 4
-device. Alternatively a data buffer containing the report descriptor can be
+device.
+Alternatively a data buffer containing the report descriptor can be
 passed into
 .Fn hid_use_report_desc .
-The data is copied into an internal structure. When the report descriptor
+The data is copied into an internal structure.
+When the report descriptor
 is no longer needed it should be freed by calling
 .Fn hid_dispose_report_desc .
 The type
-.Fa report_desc_t
+.Vt report_desc_t
 is opaque and should be used when calling the parsing functions.
 If
 .Fn hid_dispose_report_desc
 fails it will return
-.Fa NULL .
-.Ss DESCRIPTOR PARSING FUNCTIONS
+.Dv NULL .
+.Ss Descriptor Parsing Functions
 To parse the report descriptor the
 .Fn hid_start_parse
 function should be called with a report descriptor and a set that
-describes which items that are interesting.  The set is obtained
-by or-ing together values
+describes which items that are interesting.
+The set is obtained
+by OR-ing together values
 .Fa "(1 << k)"
 where
 .Fa k
 is an item of type
-.Fa hid_kind_t .
+.Vt hid_kind_t .
 The function returns
-.Fa NULL
+.Dv NULL
 if the initialization fails, otherwise an opaque value to be used
 in subsequent calls.
 After parsing the
@@ -140,24 +144,25 @@ The struct pointed to by
 .Fa h
 will be filled with the relevant data for the item.
 The definition of
-.Fa hid_item_t
+.Vt hid_item_t
 can be found in
-.Pa <libusbhid.h>
+.Aq Pa libusbhid.h
 and the meaning of the components in the USB HID documentation.
 .Pp
 Data should be read/written to the device in the size of
-the report.  The size of a report (of a certain kind) can be
+the report.
+The size of a report (of a certain kind) can be
 computed by the
 .Fn hid_report_size
 function.
 .Pp
 To locate a single item the
 .Fn hid_locate
-function can be used.  It should be given the usage code of
+function can be used.
+It should be given the usage code of
 the item and its kind and it will fill the item and return
 non-zero if the item was found.
-.Pp
-.Ss NAME TRANSLATION FUNCTIONS
+.Ss Name Translation Functions
 The function
 .Fn hid_usage_page
 will return the symbolic name of a usage page, and the function
@@ -173,16 +178,17 @@ are the inverses of
 .Fn hid_usage_page
 and
 .Fn hid_usage_in_page .
-They take a usage string and return the number of the usage, or -1
+They take a usage string and return the number of the usage, or \-1
 if it cannot be found.
 .Pp
 Before any of these functions can be called the usage table
 must be parsed, this is done by calling
 .Fn hid_init
-with the name of the table.  Passing
-.Fa NULL
+with the name of the table.
+Passing
+.Dv NULL
 to this function will cause it to use the default table.
-.Ss DATA EXTRACTION FUNCTIONS
+.Ss Data Extraction Functions
 Given the data obtained from a HID device and an item in the
 report descriptor the
 .Fn hid_get_data
@@ -193,15 +199,17 @@ can be used to put data into a report (which must be zeroed first).
 .Sh EXAMPLES
 Not yet.
 .Sh FILES
-.Pa /usr/share/misc/usb_hid_usages
+.Bl -tag -width ".Pa /usr/share/misc/usb_hid_usages"
+.It Pa /usr/share/misc/usb_hid_usages
 The default HID usage table.
+.El
 .Sh BUGS
 This man page is woefully incomplete.
 .Sh SEE ALSO
 The
 .Tn USB
 specifications can be found at
-.Dv http://www.usb.org/developers/docs.htm .
+.Pa http://www.usb.org/developers/docs.htm .
 .Pp
 .Xr uhid 4 ,
 .Xr usb 4
