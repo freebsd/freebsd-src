@@ -405,7 +405,10 @@ ah4_input(m, off)
 		}
 		ip = mtod(m, struct ip *);
 		/* ECN consideration. */
-		ip_ecn_egress(ip4_ipsec_ecn, &tos, &ip->ip_tos);
+		if (!ip_ecn_egress(ip4_ipsec_ecn, &tos, &ip->ip_tos)) {
+			ipsecstat.in_inval++;
+			goto fail;
+		}
 		if (!key_checktunnelsanity(sav, AF_INET,
 			    (caddr_t)&ip->ip_src, (caddr_t)&ip->ip_dst)) {
 			ipseclog((LOG_NOTICE, "ipsec tunnel address mismatch "
@@ -812,7 +815,10 @@ ah6_input(mp, offp, proto)
 		}
 		ip6 = mtod(m, struct ip6_hdr *);
 		/* ECN consideration. */
-		ip6_ecn_egress(ip6_ipsec_ecn, &flowinfo, &ip6->ip6_flow);
+		if (!ip6_ecn_egress(ip6_ipsec_ecn, &flowinfo, &ip6->ip6_flow)) {
+			ipsec6stat.in_inval++;
+			goto fail;
+		}
 		if (!key_checktunnelsanity(sav, AF_INET6,
 			    (caddr_t)&ip6->ip6_src, (caddr_t)&ip6->ip6_dst)) {
 			ipseclog((LOG_NOTICE, "ipsec tunnel address mismatch "
