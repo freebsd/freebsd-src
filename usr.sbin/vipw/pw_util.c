@@ -211,9 +211,16 @@ pw_error(name, err, eval)
 	char *name;
 	int err, eval;
 {
+#ifdef YP
+	extern int _use_yp;
+#endif /* YP */
 	if (err)
 		warn(name);
-
+#ifdef YP
+	if (_use_yp)
+		warnx("NIS information unchanged");
+	else
+#endif /* YP */
 	warnx("%s: unchanged", _PATH_MASTERPASSWD);
 	(void)unlink(tempname);
 	exit(eval);
