@@ -62,6 +62,7 @@ ENTRY(sigsetjmp)
 	testl	%esi,%esi
 	jz	2f
 	pushq	%rdi
+	movq	%rdi,%rcx
 	movq	$1,%rdi			/* SIG_BLOCK       */
 	movq	$0,%rsi			/* (sigset_t*)set  */
 	leaq	72(%rcx),%rdx		/* (sigset_t*)oset */
