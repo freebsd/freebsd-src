@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)swap.c	8.3 (Berkeley) 4/29/95";
 #endif
 static const char rcsid[] =
-	"$Id: swap.c,v 1.7 1998/10/08 09:56:10 obrien Exp $";
+	"$Id: swap.c,v 1.8 1999/01/22 10:53:13 dillon Exp $";
 #endif /* not lint */
 
 /*
@@ -128,6 +128,8 @@ labelswap()
 {
 	char *header, *p;
 	int row, i;
+
+	fetchswap();
 
 	row = 0;
 	wmove(wnd, row, 0); wclrtobot(wnd);
