@@ -22,6 +22,13 @@ ITEMS:'
 	that you are loading are up to date.
 
 20000315:
+	If you are upgrading from an older version of FreeBSD, you
+	need to update your boot blocks as well.  'disklabel -B ad0'
+	will do the trick.  This isn't critical until you remove your
+	wd device entries in /dev, at which point your system will not
+	boot.
+
+20000315:
 	4.0 RELEASE shipped.  Please see the 4.0 UPDATING file for how
 	to upgrade to 4.0 from 3.x.
 
