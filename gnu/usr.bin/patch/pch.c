@@ -174,7 +174,7 @@ there_is_another_patch()
 	say3("(Patch is indented %d space%s.)\n", p_indent, p_indent==1?"":"s");
     skip_to(p_start,p_sline);
     while (filearg[0] == Nullch) {
-	if (force || batch) {
+	if (force || batch || skip_rest_of_patch) {
 	    say1("No file to patch.  Skipping...\n");
 	    filearg[0] = savestr(bestguess);
 	    skip_rest_of_patch = TRUE;
