@@ -69,6 +69,7 @@ extern	struct pmap kernel_pmap_store;
 #ifdef _KERNEL
 
 void		pmap_bootstrap(vm_offset_t, vm_offset_t);
+void		pmap_deactivate(struct thread *);
 vm_offset_t	pmap_kextract(vm_offset_t);
 
 int		pmap_pte_spill(vm_offset_t);
