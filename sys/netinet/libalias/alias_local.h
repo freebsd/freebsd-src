@@ -96,6 +96,12 @@ struct alias_link *
 FindFragmentPtr(struct in_addr, u_short);
 
 struct alias_link *
+FindPptpIn(struct in_addr, struct in_addr);
+
+struct alias_link *
+FindPptpOut(struct in_addr, struct in_addr);
+
+struct alias_link *
 FindUdpTcpIn (struct in_addr, struct in_addr, u_short, u_short, u_char);
 
 struct alias_link *
@@ -169,7 +175,5 @@ enum alias_tcp_state {
     ALIAS_TCP_STATE_CONNECTED,
     ALIAS_TCP_STATE_DISCONNECTED
 };
-
-int GetPptpAlias (struct in_addr*);
 /*lint -restore */
 #endif /* defined(ALIAS_LOCAL_H) */
