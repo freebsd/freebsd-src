@@ -426,23 +426,30 @@ create_from_installed(const char *pkg, const char *suf)
     snprintf(log_dir, sizeof(log_dir), "%s/%s", LOG_DIR, InstalledPkg);
     if (!fexists(log_dir)) {
 	warnx("can't find package '%s' installed!", InstalledPkg);
-	return 1;
+	return FALSE;
     }
     getcwd(homedir, sizeof(homedir));
     if (chdir(log_dir) == FAIL) {
 	warnx("can't change directory to '%s'!", log_dir);
-	return 1;
+	return FALSE;
     }
     /* Suck in the contents list */
     plist.head = plist.tail = NULL;
     fp = fopen(CONTENTS_FNAME, "r");
     if (!fp) {
 	warnx("unable to open %s file", CONTENTS_FNAME);
-	return 1;
+	return FALSE;
     }
-    /* If we have a prefix, add it now */
     read_plist(&plist, fp);
     fclose(fp);
+
+    Install = isfile(INSTALL_FNAME) ? INSTALL_FNAME : NULL;
+    PostInstall = isfile(POST_INSTALL_FNAME) ? POST_INSTALL_FNAME : NULL;
+    DeInstall = isfile(DEINSTALL_FNAME) ? DEINSTALL_FNAME : NULL;
+    PostDeInstall = isfile(POST_DEINSTALL_FNAME) ? POST_DEINSTALL_FNAME : NULL;
+    Require = isfile(REQUIRE_FNAME) ? REQUIRE_FNAME : NULL;
+    Display = isfile(DISPLAY_FNAME) ? DISPLAY_FNAME : NULL;
+    Mtree =isfile(MTREE_FNAME) ?  MTREE_FNAME : NULL;
 
     make_dist(homedir, pkg, suf, &plist);
 
