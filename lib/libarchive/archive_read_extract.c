@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#ifdef LINUX
+#ifdef linux
 #include <ext2fs/ext2_fs.h>
 #include <sys/ioctl.h>
 #endif
@@ -827,7 +827,13 @@ set_ownership(struct archive *a, struct archive_entry *entry, int flags)
 	if (a->user_uid != 0  &&  a->user_uid != uid)
 		return (ARCHIVE_OK);
 
-	if (lchown(archive_entry_pathname(entry), uid, gid)) {
+#ifdef HAVE_LCHOWN
+	if (lchown(archive_entry_pathname(entry), uid, gid))
+#else
+	if (!S_ISLNK(archive_entry_mode(entry))
+	    && chown(archive_entry_pathname(entry), uid, gid) != 0)
+#endif
+	{
 		archive_set_error(a, errno,
 		    "Can't set user=%d/group=%d for %s", uid, gid,
 		    archive_entry_pathname(entry));
@@ -922,8 +928,8 @@ set_perm(struct archive *a, struct archive_entry *entry, int mode, int flags)
 			archive_set_error(a, errno, "Can't set permissions");
 			return (ARCHIVE_WARN);
 		}
-	} else {
 #ifdef HAVE_LCHMOD
+	} else {
 		/*
 		 * If lchmod() isn't supported, it's no big deal.
 		 * Permissions on symlinks are actually ignored on
@@ -1005,7 +1011,7 @@ set_fflags(struct archive *a, const char *name, mode_t mode,
 {
 	struct extract *extract;
 	int		 ret;
-#ifdef LINUX
+#ifdef linux
 	int		 fd;
 	int		 err;
 	unsigned long newflags, oldflags;
@@ -1034,9 +1040,9 @@ set_fflags(struct archive *a, const char *name, mode_t mode,
 		}
 		extract->pst = &extract->st;
 	}
-#endif
+#else
+#ifdef linux
 	/* Linux has flags too, but no chflags syscall */
-#ifdef LINUX
 	/*
 	 * Linux has no define for the flags that are only settable
 	 * by the root user...
@@ -1071,7 +1077,8 @@ set_fflags(struct archive *a, const char *name, mode_t mode,
 			ret = ARCHIVE_WARN;
 		}
 	}
-#endif
+#endif /* linux */
+#endif /* HAVE_CHFLAGS */
 
 	return (ret);
 }
