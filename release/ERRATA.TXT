@@ -19,3 +19,33 @@ Current active security advisories for 2.2.7:	None
 
 ---- System Update Information:
 
+o XFree86:  The XF86Setup utility sometimes fails with an XIO
+  error (visible on the 2nd VTY) rather than starting properly if you
+  run it during system installation time.  This is not a new bug and
+  has been seen in previous releases of FreeBSD, but it seems to happen
+  far more reliably with 2.2.7 now (for some as yet unknown reason).
+
+Fix: Should this happen to you, run /usr/X11R6/bin/XF86Setup by hand
+     after the system comes up off the hard disk for the first time.
+     For some reason, when not run off the boot floppy or CD, it works
+     perfectly (making this one somewhat more difficult to debug).
+
+
+o    Release notes state that Texas Instruments ThunderLAN PCI NICs are
+     supported in 2.2.7.
+
+Fix: This was an embarassing mis-merge from the 3.0 release notes and,
+     indeed, those cards are only supported in 3.0-current.  Please ignore
+     this section of the release notes and any other docs which claim that
+     the ThunderLAN NICs are supported in 2.2.7.
+ 
+
+o    rshd was broken during -Wall cleanup, as noted in PR#7500
+
+Fix: This was fixed in the 2.2-stable branch as of 1998/07/24 04:32:21
+     in revision 1.9.2.9 of /usr/src/libexec/rshd/rshd.c.  Obtain the
+     fixed version via CVSup (see instructions in handbook or simply 
+     ``pkg_add ftp://ftp.freebsd.org/pub/FreeBSD/CVSup/cvsupit.tgz''
+     and follow the instructions) or get it from FTP at:
+     ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-stable/src/libexec/rshd/rshd.c
+
