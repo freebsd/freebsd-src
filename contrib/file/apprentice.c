@@ -12,11 +12,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    This product includes software developed by Ian F. Darwin and others.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *  
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -50,7 +45,7 @@
 #endif
 
 #ifndef	lint
-FILE_RCSID("@(#)$Id: apprentice.c,v 1.78 2004/07/24 20:38:56 christos Exp $")
+FILE_RCSID("@(#)$Id: apprentice.c,v 1.82 2004/11/24 18:56:04 christos Exp $")
 #endif	/* lint */
 
 #define	EATAB {while (isascii((unsigned char) *l) && \
@@ -79,6 +74,9 @@ FILE_RCSID("@(#)$Id: apprentice.c,v 1.78 2004/07/24 20:38:56 christos Exp $")
 #define MAXPATHLEN	1024
 #endif
 
+#define IS_STRING(t) ((t) == FILE_STRING || (t) == FILE_PSTRING || \
+    (t) == FILE_BESTRING16 || (t) == FILE_LESTRING16)
+
 private int getvalue(struct magic_set *ms, struct magic *, char **);
 private int hextoint(int);
 private char *getstr(struct magic_set *, char *, char *, int, int *);
@@ -91,12 +89,12 @@ private void byteswap(struct magic *, uint32_t);
 private void bs1(struct magic *);
 private uint16_t swap2(uint16_t);
 private uint32_t swap4(uint32_t);
-private char *mkdbname(const char *, char *, size_t);
+private char *mkdbname(const char *, char *, size_t, int);
 private int apprentice_map(struct magic_set *, struct magic **, uint32_t *,
     const char *);
 private int apprentice_compile(struct magic_set *, struct magic **, uint32_t *,
     const char *);
-private int check_format(struct magic *);
+private int check_format(struct magic_set *, struct magic *);
 
 private size_t maxmagic = 0;
 private size_t magicsize = sizeof(struct magic);
@@ -166,7 +164,7 @@ apprentice_1(struct magic_set *ms, const char *fn, int action,
 #ifndef COMPILE_ONLY
 	if ((rv = apprentice_map(ms, &magic, &nmagic, fn)) == -1) {
 		if (ms->flags & MAGIC_CHECK)
-			file_magwarn("using regular magic file `%s'", fn);
+			file_magwarn(ms, "using regular magic file `%s'", fn);
 		rv = apprentice_file(ms, &magic, &nmagic, fn, action);
 		if (rv != 0)
 			return -1;
@@ -297,10 +295,9 @@ apprentice_file(struct magic_set *ms, struct magic **magicp, uint32_t *nmagicp,
 		"cont\toffset\ttype\topcode\tmask\tvalue\tdesc";
 	FILE *f;
 	char line[BUFSIZ+1];
-	int lineno;
 	int errs = 0;
 
-	f = fopen(fn, "r");
+	f = fopen(ms->file = fn, "r");
 	if (f == NULL) {
 		if (errno != ENOENT)
 			file_error(ms, errno, "cannot read magic file `%s'",
@@ -321,12 +318,14 @@ apprentice_file(struct magic_set *ms, struct magic **magicp, uint32_t *nmagicp,
 		(void)fprintf(stderr, "%s\n", hdr);
 
 	/* parse it */
-	for (lineno = 1; fgets(line, BUFSIZ, f) != NULL; lineno++) {
+	for (ms->line = 1; fgets(line, BUFSIZ, f) != NULL; ms->line++) {
+		size_t len;
 		if (line[0]=='#')	/* comment, do not parse */
 			continue;
-		if (strlen(line) <= (unsigned)1) /* null line, garbage, etc */
+		len = strlen(line);
+		if (len < 2) /* null line, garbage, etc */
 			continue;
-		line[strlen(line)-1] = '\0'; /* delete newline */
+		line[len - 1] = '\0'; /* delete newline */
 		if (parse(ms, magicp, nmagicp, line, action) != 0)
 			errs = 1;
 	}
@@ -374,12 +373,14 @@ file_signextend(struct magic_set *ms, struct magic *m, uint32_t v)
 			break;
 		case FILE_STRING:
 		case FILE_PSTRING:
+		case FILE_BESTRING16:
+		case FILE_LESTRING16:
 			break;
 		case FILE_REGEX:
 			break;
 		default:
 			if (ms->flags & MAGIC_CHECK)
-			    file_magwarn("cannot happen: m->type=%d\n",
+			    file_magwarn(ms, "cannot happen: m->type=%d\n",
 				    m->type);
 			return ~0U;
 		}
@@ -435,7 +436,7 @@ parse(struct magic_set *ms, struct magic **magicp, uint32_t *nmagicp, char *l,
 	m->offset = (uint32_t)strtoul(l, &t, 0);
         if (l == t)
 		if (ms->flags & MAGIC_CHECK)
-			file_magwarn("offset %s invalid", l);
+			file_magwarn(ms, "offset `%s' invalid", l);
         l = t;
 
 	if (m->flag & INDIR) {
@@ -469,8 +470,8 @@ parse(struct magic_set *ms, struct magic **magicp, uint32_t *nmagicp, char *l,
 				break;
 			default:
 				if (ms->flags & MAGIC_CHECK)
-					file_magwarn(
-					    "indirect offset type %c invalid",
+					file_magwarn(ms,
+					    "indirect offset type `%c' invalid",
 					    *l);
 				break;
 			}
@@ -520,7 +521,8 @@ parse(struct magic_set *ms, struct magic **magicp, uint32_t *nmagicp, char *l,
 			t = l;
 		if (*t++ != ')') 
 			if (ms->flags & MAGIC_CHECK)
-				file_magwarn("missing ')' in indirect offset");
+				file_magwarn(ms,
+				    "missing ')' in indirect offset");
 		l = t;
 	}
 
@@ -545,6 +547,8 @@ parse(struct magic_set *ms, struct magic **magicp, uint32_t *nmagicp, char *l,
 #define NBELDATE	7
 #define NLELDATE	7
 #define NREGEX		5
+#define NBESTRING16	10
+#define NLESTRING16	10
 
 	if (*l == 'u') {
 		++l;
@@ -602,23 +606,28 @@ parse(struct magic_set *ms, struct magic **magicp, uint32_t *nmagicp, char *l,
 		l += NLELDATE;
 	} else if (strncmp(l, "regex", NREGEX)==0) {
 		m->type = FILE_REGEX;
-		l += sizeof("regex");
+		l += NREGEX;
+	} else if (strncmp(l, "bestring16", NBESTRING16)==0) {
+		m->type = FILE_BESTRING16;
+		l += NBESTRING16;
+	} else if (strncmp(l, "lestring16", NLESTRING16)==0) {
+		m->type = FILE_LESTRING16;
+		l += NLESTRING16;
 	} else {
 		if (ms->flags & MAGIC_CHECK)
-			file_magwarn("type %s invalid", l);
+			file_magwarn(ms, "type `%s' invalid", l);
 		return -1;
 	}
 	/* New-style anding: "0 byte&0x80 =0x80 dynamically linked" */
 	/* New and improved: ~ & | ^ + - * / % -- exciting, isn't it? */
 	if (*l == '~') {
-		if (FILE_STRING != m->type && FILE_PSTRING != m->type)
+		if (!IS_STRING(m->type))
 			m->mask_op = FILE_OPINVERSE;
 		++l;
 	}
 	if ((t = strchr(fops,  *l)) != NULL) {
 		uint32_t op = (uint32_t)(t - fops);
-		if (op != FILE_OPDIVIDE ||
-		    (FILE_STRING != m->type && FILE_PSTRING != m->type)) {
+		if (op != FILE_OPDIVIDE || !IS_STRING(m->type)) {
 			++l;
 			m->mask_op |= op;
 			val = (uint32_t)strtoul(l, &l, 0);
@@ -640,8 +649,8 @@ parse(struct magic_set *ms, struct magic **magicp, uint32_t *nmagicp, char *l,
 					break;
 				default:
 					if (ms->flags & MAGIC_CHECK)
-						file_magwarn(
-						"string extension %c invalid",
+						file_magwarn(ms,
+						"string extension `%c' invalid",
 						*l);
 					return -1;
 				}
@@ -669,7 +678,7 @@ parse(struct magic_set *ms, struct magic **magicp, uint32_t *nmagicp, char *l,
 		}
 		break;
 	case '!':
-		if (m->type != FILE_STRING && m->type != FILE_PSTRING) {
+		if (!IS_STRING(m->type)) {
 			m->reln = *l;
 			++l;
 			break;
@@ -713,7 +722,7 @@ GetDesc:
 		/* NULLBODY */;
 
 	if (ms->flags & MAGIC_CHECK) {
-		if (!check_format(m))
+		if (!check_format(ms, m))
 			return -1;
 	}
 #ifndef COMPILE_ONLY
@@ -730,7 +739,7 @@ GetDesc:
  * the type of the magic.
  */
 private int
-check_format(struct magic *m)
+check_format(struct magic_set *ms, struct magic *m)
 {
 	static const char *formats[] = { FILE_FORMAT_STRING };
 	static const char *names[] = { FILE_FORMAT_NAME };
@@ -744,13 +753,13 @@ check_format(struct magic *m)
 		return 1;
 	}
 	if (m->type >= sizeof(formats)/sizeof(formats[0])) {
-		file_magwarn("Internal error inconsistency between m->type"
+		file_magwarn(ms, "Internal error inconsistency between m->type"
 		    " and format strings");
 		return 0;
 	}
 	if (formats[m->type] == NULL) {
-		file_magwarn("No format string for `%s' with description `%s'",
-		    m->desc, names[m->type]);
+		file_magwarn(ms, "No format string for `%s' with description "
+		    "`%s'", m->desc, names[m->type]);
 		return 0;
 	}
 	for (; *ptr; ptr++) {
@@ -763,12 +772,12 @@ check_format(struct magic *m)
 	}
 	if (*ptr == '\0') {
 		/* Missing format string; bad */
-		file_magwarn("Invalid format `%s' for type `%s'",
+		file_magwarn(ms, "Invalid format `%s' for type `%s'",
 			m->desc, names[m->type]);
 		return 0;
 	}
 	if (strchr(formats[m->type], *ptr) == NULL) {
-		file_magwarn("Printf format `%c' is not valid for type `%s'"
+		file_magwarn(ms, "Printf format `%c' is not valid for type `%s'"
 		    " in description `%s'",
 			*ptr, names[m->type], m->desc);
 		return 0;
@@ -787,13 +796,15 @@ getvalue(struct magic_set *ms, struct magic *m, char **p)
 	int slen;
 
 	switch (m->type) {
+	case FILE_BESTRING16:
+	case FILE_LESTRING16:
 	case FILE_STRING:
 	case FILE_PSTRING:
 	case FILE_REGEX:
 		*p = getstr(ms, *p, m->value.s, sizeof(m->value.s), &slen);
 		if (*p == NULL) {
 			if (ms->flags & MAGIC_CHECK)
-				file_magwarn("cannot get string from `%s'",
+				file_magwarn(ms, "cannot get string from `%s'",
 				    m->value.s);
 			return -1;
 		}
@@ -1025,7 +1036,7 @@ apprentice_map(struct magic_set *ms, struct magic **magicp, uint32_t *nmagicp,
 	uint32_t version;
 	int needsbyteswap;
 	char buf[MAXPATHLEN];
-	char *dbname = mkdbname(fn, buf, sizeof(buf));
+	char *dbname = mkdbname(fn, buf, sizeof(buf), 0);
 	void *mm = NULL;
 
 	if (dbname == NULL)
@@ -1116,7 +1127,7 @@ apprentice_compile(struct magic_set *ms, struct magic **magicp,
 {
 	int fd;
 	char buf[MAXPATHLEN];
-	char *dbname = mkdbname(fn, buf, sizeof(buf));
+	char *dbname = mkdbname(fn, buf, sizeof(buf), 1);
 
 	if (dbname == NULL) 
 		return -1;
@@ -1152,13 +1163,14 @@ private const char ext[] = ".mgc";
  * make a dbname
  */
 private char *
-mkdbname(const char *fn, char *buf, size_t bufsiz)
+mkdbname(const char *fn, char *buf, size_t bufsiz, int strip)
 {
-#ifdef notdef
-	const char *p;
-	if ((p = strrchr(fn, '/')) != NULL)
-		fn = ++p;
-#endif
+	if (strip) {
+		const char *p;
+		if ((p = strrchr(fn, '/')) != NULL)
+			fn = ++p;
+	}
+
 	(void)snprintf(buf, bufsiz, "%s%s", fn, ext);
 	return buf;
 }
@@ -1213,7 +1225,7 @@ bs1(struct magic *m)
 	m->cont_level = swap2(m->cont_level);
 	m->offset = swap4((uint32_t)m->offset);
 	m->in_offset = swap4((uint32_t)m->in_offset);
-	if (m->type != FILE_STRING)
+	if (IS_STRING(m->type))
 		m->value.l = swap4(m->value.l);
 	m->mask = swap4(m->mask);
 }

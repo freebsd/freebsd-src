@@ -67,11 +67,11 @@ Magdir/diff \
 Magdir/digital \
 Magdir/dolby \
 Magdir/dump \
-Magdir/dyadic \
 Magdir/editors \
 Magdir/elf \
 Magdir/encore \
 Magdir/epoc \
+Magdir/esri \
 Magdir/fcs \
 Magdir/filesystems \
 Magdir/flash \
@@ -169,6 +169,7 @@ Magdir/sinclair \
 Magdir/sketch \
 Magdir/smalltalk \
 Magdir/sniffer \
+Magdir/dyadic \
 Magdir/softquad \
 Magdir/spectrum \
 Magdir/sql \
@@ -189,6 +190,7 @@ Magdir/varied.out \
 Magdir/varied.script \
 Magdir/vax \
 Magdir/vicar \
+Magdir/virtutech \
 Magdir/visx \
 Magdir/vms \
 Magdir/vmware \
@@ -197,6 +199,7 @@ Magdir/vxl \
 Magdir/wordprocessors \
 Magdir/xdelta \
 Magdir/xenix \
+Magdir/xo65 \
 Magdir/xwindows \
 Magdir/zilog \
 Magdir/zyxel
