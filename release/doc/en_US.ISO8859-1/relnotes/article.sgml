@@ -2909,8 +2909,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       USB Human Interface Devices. &merged;</para>
 
     <para>&man.uuencode.1; and &man.uudecode.1; now accept a <option>-o</option> option to
-      set their output files.  They can also do base64 encoding and
-      decoding when given the <option>-m</option> flag. &merged;</para>
+      set their output files.  &man.uuencode.1; can now be made to do base64 encoding
+      when given the <option>-m</option> flag, while &man.uudecode.1;
+      can now automatically decode base64 files. &merged;</para>
 
     <para>&man.vidcontrol.1; now accepts a <option>-g</option>
       parameter to select custom text geometry in the
