@@ -1,4 +1,4 @@
-$Id: MIRROR.SITES,v 1.1.2.4 1995/11/03 06:21:47 jkh Exp $
+$Id: MIRROR.SITES,v 1.1.2.5 1995/11/19 19:37:38 jkh Exp $
 
 Obtaining FreeBSD
    
@@ -117,7 +117,7 @@ Obtaining FreeBSD
 
    Poland
 
-          + ftp://SunSITE.icm.edu.pl/pub/FreeBSD
+          + ftp://SunSITE.icm.edu.pl/pub/FreeBSD/ftp.freebsd.org
             Contact: w.sylwestrzak@icm.edu.pl
 
    Russia
