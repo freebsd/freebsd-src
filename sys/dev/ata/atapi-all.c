@@ -299,7 +299,7 @@ atapi_transfer(struct atapi_request *request)
 
     /* start ATAPI operation */
     if (ata_command(atp->controller, atp->unit, ATA_C_PACKET_CMD, 
-		    request->bytecount, 0,
+		    (request->bytecount << 8), 0,
 		    (request->flags & ATPR_F_DMA_USED) ? ATA_F_DMA : 0,
 		    ATA_IMMEDIATE))
 	ata_printf(atp->controller, atp->unit,
