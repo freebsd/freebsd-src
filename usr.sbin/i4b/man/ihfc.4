@@ -22,13 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: ihfc.4,v 1.2 2000/07/24 12:22:09 hm Exp $
-.\"
 .\" $FreeBSD$
 .\"
-.\"	last edit-date: [Tue Apr 25 15:03:14 2000]
+.\"	last edit-date: [Fri Jan 12 09:54:31 2001]
 .\"
-.Dd July 20, 2000
+.Dd January 12, 2001
 .Dt IHFC 4
 .Os
 .Sh NAME
@@ -38,11 +36,15 @@
 .Pp
 All PnP cards (AcerISDN P10, Teles 16.3c PnP):
 .Pp
-.Cd "device ihfc"
+.Cd "device ihfc                (FreeBSD 4.x/5.x)"
 .Pp
 Non-PnP cards (TELEINT ISDN SPEED No.1):
 .Pp
-.Cd "device ihfc0 at isa?"
+.Cd "device ihfc0 at isa?       (FreeBSD 4.x)"
+.Pp
+.Cd "device ihfc                (FreeBSD 5.x)"
+NOTE: hint.ihfc.0.at="isa" must be added to /boot/device.hints
+.Pp
 .Pp
 NOTE: The driver will automatically probe for io-base and irq.
 .Pp
