@@ -74,7 +74,6 @@
 #include <machine/vmparam.h>
 #include <machine/elf.h>
 #include <ddb/ddb.h>
-#include <alpha/alpha/db_instruction.h>
 #include <sys/vnode.h>
 #include <fs/procfs/procfs.h>
 #include <machine/sigframe.h>
