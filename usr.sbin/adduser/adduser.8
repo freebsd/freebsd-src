@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: adduser.8,v 1.10 1996/08/23 00:55:35 mpp Exp $
+.\" $Id: adduser.8,v 1.11 1996/08/27 20:04:33 wosch Exp $
 
 .Dd Jan, 9, 1995
 .Dt ADDUSER 8
@@ -42,9 +42,9 @@
 
 .Sh DESCRIPTION
 .Nm Adduser 
-is a simple program for adding new users. Adduser check
-passwd, group and shell database. It create passwd/group entry,
-HOME-directory, dotfiles and send new user a welcome message.
+is a simple program for adding new users. Adduser checks
+passwd, group and shell database. It creates passwd/group entry,
+HOME-directory, dotfiles and sends new user a welcome message.
 
 .Sh RESTRICTION
 .Bl -tag -width Ds -compact
@@ -53,7 +53,7 @@ Login name. Only lowercase characters or digits. Maximum length
 is 8 characters (see 
 .Xr setlogin 2
 BUGS section). 
-The reasons for this limit is "Historical". 
+The reasons for this limit are "Historical". 
 Given that people have traditionally wanted to break this
 limit for aesthetic reasons, it's never been of great importance to break
 such a basic fundamental parameter in UNIX.
@@ -71,24 +71,24 @@ not allowed.
 .It Sy shell
 Only valid shells from shell database or sliplogin and pppd
 .It Sy uid
-Automatically generated or your choice. Less than 32000.
+Automatically generated or your choice, less than 32000.
 .It Sy gid/login group
 Your choice or automatically generated. 
 .It Sy password
-If not empty password is encoded with crypt.
+If not empty, password is encoded with crypt.
 .El
 
-.Sh UNIQ GROUP
-Perhaps your missing what *can* be done with this scheme that falls apart
+.Sh UNIQUE GROUP
+Perhaps you're missing what *can* be done with this scheme that falls apart
 with most other schemes.  With each user in his/her own group the user can
-safely run with a umask of 002 and have files created in there home directory
+safely run with a umask of 002 and have files created in their home directory
 and not worry about others being able to read them.
 
 For a shared area you create a separate uid/gid (like cvs or ncvs on freefall),
 you place each person that should be able to access this area into that new
 group.
 
-This model of uid/gid administration allows far greater flexibility that lumping
+This model of uid/gid administration allows far greater flexibility than lumping
 users into groups and having to muck with the umask when working in a shared
 area.
 
@@ -119,15 +119,15 @@ Create new config and message file and exit.
 .It Sy -dotdir Ar directory
 Copy files from 
 .Ar directory 
-into the HOME-directory of new users.
+into the HOME-directory of new users,
 .Ql Pa dot.foo
 files renamed to 
-.Ql Pa .foo
+.Ql Pa .foo .
 Don't copy files if
 .Ar directory 
 equal with 
-.Ar no
-For security make a all files writable and readable for owner,
+.Ar no .
+For security make all files writable and readable for owner,
 don't allow group or world to write files and allow only owner
 to read/execute/write .rhost, .Xauthority, .kermrc, .netrc, Mail,
 prv, iscreen, term.
@@ -135,7 +135,7 @@ prv, iscreen, term.
 .It Sy -group Ar login_group
 Login group. 
 .Ar USER
-mean use username as login group.
+means use username as login group.
 
 .It Sy -help,-h,-?
 Print options and exit.
@@ -148,7 +148,7 @@ Send new users a welcome message.
 Don't send message if
 .Ar file 
 equal with
-.Ar no
+.Ar no .
 
 .It Sy -noconfig
 Do not read config file.
@@ -177,7 +177,7 @@ is a comment.
 .P
 .It Sy config file
 .Nm Adduser
-read and write this file. 
+reads and writes this file. 
 See /etc/adduser.conf for more details.
 .It Sy message file
 Eval variables in this file. See /etc/adduser.message for more
