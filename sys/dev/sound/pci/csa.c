@@ -1,4 +1,4 @@
-/*-
+/*
  * Copyright (c) 1999 Seigo Tanimura
  * All rights reserved.
  *
@@ -68,6 +68,8 @@ struct csa_softc {
 	void *midiintr_arg; /* midi intr arg */
 #endif /* notyet */
 	void *ih; /* cookie */
+
+	struct csa_bridgeinfo binfo; /* The state of this bridge. */
 };
 
 typedef struct csa_softc *sc_p;
@@ -80,8 +82,13 @@ static struct resource *csa_alloc_resource(device_t bus, device_t child, int typ
 					      u_long start, u_long end, u_long count, u_int flags);
 static int csa_release_resource(device_t bus, device_t child, int type, int rid,
 				   struct resource *r);
+static int csa_setup_intr(device_t bus, device_t child,
+			  struct resource *irq, int flags,
+			  driver_intr_t *intr, void *arg, void **cookiep);
+static int csa_teardown_intr(device_t bus, device_t child,
+			     struct resource *irq, void *cookie);
+static driver_intr_t csa_intr;
 static int csa_initialize(sc_p scp);
-static void csa_clearserialfifos(csa_res *resp);
 static void csa_resetdsp(csa_res *resp);
 static int csa_downloadimage(csa_res *resp);
 static int csa_transferimage(csa_res *resp, u_long *src, u_long dest, u_long len);
@@ -92,9 +99,7 @@ static devclass_t csa_devclass;
 static int
 csa_probe(device_t dev)
 {
-	device_t child;
 	char *s;
-	struct sndcard_func *func;
 
 	s = NULL;
 	switch (pci_get_devid(dev)) {
@@ -114,27 +119,6 @@ csa_probe(device_t dev)
 
 	if (s != NULL) {
 		device_set_desc(dev, s);
-
-		/* PCM Audio */
-		func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
-		if (func == NULL)
-			return (ENOMEM);
-		bzero(func, sizeof(*func));
-		func->func = SCF_PCM;
-		child = device_add_child(dev, "pcm", -1);
-		device_set_ivars(child, func);
-
-#if notyet
-		/* Midi Interface */
-		func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
-		if (func == NULL)
-			return (ENOMEM);
-		bzero(func, sizeof(*func));
-		func->func = SCF_MIDI;
-		child = device_add_child(dev, "midi", -1);
-		device_set_ivars(child, func);
-#endif /* notyet */
-
 		return (0);
 	}
 
@@ -147,6 +131,7 @@ csa_attach(device_t dev)
 	u_int32_t stcmd;
 	sc_p scp;
 	csa_res *resp;
+	struct sndcard_func *func;
 
 	scp = device_get_softc(dev);
 
@@ -160,10 +145,6 @@ csa_attach(device_t dev)
 		stcmd |= (PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
 		pci_write_config(dev, PCIR_COMMAND, 4, stcmd);
 	}
-	stcmd = pci_read_config(dev, PCIR_LATTIMER, 4);
-	if (stcmd < 32)
-		stcmd = 32;
-	pci_write_config(dev, PCIR_LATTIMER, 4, stcmd);
 
 	/* Allocate the resources. */
 	resp = &scp->res;
@@ -185,6 +166,16 @@ csa_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	/* Enable interrupt. */
+	if (bus_setup_intr(dev, resp->irq, INTR_TYPE_TTY, csa_intr, scp, &scp->ih)) {
+		bus_release_resource(dev, SYS_RES_MEMORY, resp->io_rid, resp->io);
+		bus_release_resource(dev, SYS_RES_MEMORY, resp->mem_rid, resp->mem);
+		bus_release_resource(dev, SYS_RES_IRQ, resp->irq_rid, resp->irq);
+		return (ENXIO);
+	}
+	if ((csa_readio(resp, BA0_HISR) & HISR_INTENA) == 0)
+		csa_writeio(resp, BA0_HICR, HICR_IEV | HICR_CHGM);
+
 	/* Initialize the chip. */
 	if (csa_initialize(scp)) {
 		bus_release_resource(dev, SYS_RES_MEMORY, resp->io_rid, resp->io);
@@ -203,6 +194,30 @@ csa_attach(device_t dev)
 		bus_release_resource(dev, SYS_RES_IRQ, resp->irq_rid, resp->irq);
 		return (ENXIO);
 	}
+
+	/* Attach the children. */
+
+	/* PCM Audio */
+	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
+	if (func == NULL)
+		return (ENOMEM);
+	bzero(func, sizeof(*func));
+	func->varinfo = &scp->binfo;
+	func->func = SCF_PCM;
+	scp->pcm = device_add_child(dev, "pcm", -1);
+	device_set_ivars(scp->pcm, func);
+
+#if notyet
+	/* Midi Interface */
+	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
+	if (func == NULL)
+		return (ENOMEM);
+	bzero(func, sizeof(*func));
+	func->varinfo = &scp->binfo;
+	func->func = SCF_MIDI;
+	scp->midi = device_add_child(dev, "midi", -1);
+	device_set_ivars(scp->midi, func);
+#endif /* notyet */
 
 	bus_generic_attach(dev);
 
@@ -250,6 +265,133 @@ csa_release_resource(device_t bus, device_t child, int type, int rid,
 			struct resource *r)
 {
 	return (0);
+}
+
+/*
+ * The following three functions deal with interrupt handling.
+ * An interrupt is primarily handled by the bridge driver.
+ * The bridge driver then determines the child devices to pass
+ * the interrupt. Certain information of the device can be read
+ * only once(eg the value of HISR). The bridge driver is responsible
+ * to pass such the information to the children.
+ */
+
+static int
+csa_setup_intr(device_t bus, device_t child,
+	       struct resource *irq, int flags,
+	       driver_intr_t *intr, void *arg, void **cookiep)
+{
+	sc_p scp;
+	csa_res *resp;
+	struct sndcard_func *func;
+
+	scp = device_get_softc(bus);
+	resp = &scp->res;
+
+	/*
+	 * Look at the function code of the child to determine
+	 * the appropriate hander for it.
+	 */
+	func = device_get_ivars(child);
+	if (func == NULL || irq != resp->irq)
+		return (EINVAL);
+
+	switch (func->func) {
+	case SCF_PCM:
+		scp->pcmintr = intr;
+		scp->pcmintr_arg = arg;
+		break;
+
+#if notyet
+	case SCF_MIDI:
+		scp->midiintr = intr;
+		scp->midiintr_arg = arg;
+		break;
+#endif /* notyet */
+
+	default:
+		return (EINVAL);
+	}
+	*cookiep = scp;
+	if ((csa_readio(resp, BA0_HISR) & HISR_INTENA) == 0)
+		csa_writeio(resp, BA0_HICR, HICR_IEV | HICR_CHGM);
+
+	return (0);
+}
+
+static int
+csa_teardown_intr(device_t bus, device_t child,
+		  struct resource *irq, void *cookie)
+{
+	sc_p scp;
+	csa_res *resp;
+	struct sndcard_func *func;
+
+	scp = device_get_softc(bus);
+	resp = &scp->res;
+
+	/*
+	 * Look at the function code of the child to determine
+	 * the appropriate hander for it.
+	 */
+	func = device_get_ivars(child);
+	if (func == NULL || irq != resp->irq || cookie != scp)
+		return (EINVAL);
+
+	switch (func->func) {
+	case SCF_PCM:
+		scp->pcmintr = NULL;
+		scp->pcmintr_arg = NULL;
+		break;
+
+#if notyet
+	case SCF_MIDI:
+		scp->midiintr = NULL;
+		scp->midiintr_arg = NULL;
+		break;
+#endif /* notyet */
+
+	default:
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
+/* The interrupt handler */
+static void
+csa_intr(void *arg)
+{
+	sc_p scp = arg;
+	csa_res *resp;
+	u_int32_t hisr;
+
+	resp = &scp->res;
+
+	/* Is this interrupt for us? */
+	hisr = csa_readio(resp, BA0_HISR);
+	if ((hisr & ~HISR_INTENA) == 0) {
+		/* Throw an eoi. */
+		csa_writeio(resp, BA0_HICR, HICR_IEV | HICR_CHGM);
+		return;
+	}
+
+	/*
+	 * Pass the value of HISR via struct csa_bridgeinfo.
+	 * The children get access through their ivars.
+	 */
+	scp->binfo.hisr = hisr;
+
+	/* Invoke the handlers of the children. */
+	if ((hisr & (HISR_VC0 | HISR_VC1)) != 0 && scp->pcmintr != NULL)
+		scp->pcmintr(scp->pcmintr_arg);
+#if notyet
+	if ((hisr & HISR_MIDI) != 0 && scp->midiintr != NULL)
+		scp->midiintr(scp->midiintr_arg);
+#endif /* notyet */
+
+	/* Throw an eoi. */
+	csa_writeio(resp, BA0_HICR, HICR_IEV | HICR_CHGM);
 }
 
 static int
@@ -448,7 +590,7 @@ csa_initialize(sc_p scp)
 	return (0);
 }
 
-static void
+void
 csa_clearserialfifos(csa_res *resp)
 {
 	int i, j, pwr;
@@ -776,8 +918,8 @@ static device_method_t csa_methods[] = {
 	DEVMETHOD(bus_release_resource,	csa_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_setup_intr,	csa_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	csa_teardown_intr),
 
 	{ 0, 0 }
 };
