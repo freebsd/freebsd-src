@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001,2002 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 2001,2002,2003 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,10 @@ struct iop_softc {
     struct i2o_status_get_reply	*status;
     int				lct_count;
     struct i2o_lct_entry	*lct;
+    int				ism;
     device_t			dev;
+    struct mtx			mtx;
+    int				outstanding;
     void			*handle;
     struct intr_config_hook	*iop_delayed_attach;
 };
@@ -121,6 +124,7 @@ struct i2o_sgl {
 #define I2O_EXEC_SYSTAB_SET				0xa3
 #define I2O_EXEC_IOP_RESET				0xbd
 #define I2O_EXEC_SYS_ENABLE				0xd1
+#define I2O_PRIVATE_MESSAGE				0xff
 
 /* basic message layout */
 struct i2o_basic_message {
@@ -498,7 +502,7 @@ struct i2o_get_param_operation {
 } __packed;
     
 struct i2o_get_param_reply {
-    u_int16_t		result_count;;
+    u_int16_t		result_count;
     u_int16_t		reserved;
     u_int16_t		block_size;
     u_int8_t		block_status;
@@ -578,6 +582,21 @@ struct i2o_util_config_dialog_message {
     u_int32_t		transaction_context;
     u_int32_t		page_number;
     struct i2o_sgl	sgl[2];
+} __packed;
+
+struct i2o_private_message {
+    u_int8_t		version_offset;
+    u_int8_t		message_flags;
+    u_int16_t		message_size;
+    u_int32_t		target_address:12;
+    u_int32_t		initiator_address:12;
+    u_int32_t		function:8;
+    u_int32_t		initiator_context;
+    u_int32_t		transaction_context;
+    u_int16_t		function_code;
+    u_int16_t		organization_id;
+    struct i2o_sgl	in_sgl;
+    struct i2o_sgl	out_sgl;
 } __packed;
 
 struct i2o_bsa_rw_block_message {
