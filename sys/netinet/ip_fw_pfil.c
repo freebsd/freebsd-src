@@ -73,7 +73,8 @@ ip_dn_ruledel_t	*ip_dn_ruledel_ptr = NULL;
 static int	ipfw_divert(struct mbuf **, int, int);
 
 int
-ipfw_check_in(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir)
+ipfw_check_in(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
+    struct inpcb *inp)
 {
 	struct ip_fw_args args;
 	struct m_tag *dn_tag;
@@ -102,6 +103,7 @@ ipfw_check_in(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir)
 
 again:
 	args.m = *m0;
+	args.inp = inp;
 	ipfw = ipfw_chk(&args);
 	*m0 = args.m;
 
@@ -156,7 +158,8 @@ pass:
 }
 
 int
-ipfw_check_out(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir)
+ipfw_check_out(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
+    struct inpcb *inp)
 {
 	struct ip_fw_args args;
 	struct m_tag *dn_tag;
@@ -186,6 +189,7 @@ ipfw_check_out(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir)
 again:
 	args.m = *m0;
 	args.oif = ifp;
+	args.inp = inp;
 	ipfw = ipfw_chk(&args);
 	*m0 = args.m;
 

@@ -1009,7 +1009,7 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
 	    ip->ip_len = ntohs(ip->ip_len);
 	    ip->ip_off = ntohs(ip->ip_off);
 
-	    if (pfil_run_hooks(&inet_pfil_hook, &m0, src, PFIL_IN) != 0) {
+	    if (pfil_run_hooks(&inet_pfil_hook, &m0, src, PFIL_IN, NULL) != 0) {
 		/* NB: hook should consume packet */
 		return NULL;
 	    }
