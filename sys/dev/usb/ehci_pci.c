@@ -60,13 +60,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/queue.h>
-#include <sys/lockmgr.h>
+/* #include <sys/lockmgr.h>*/
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
 
-#include <dev/pci/pcivar.h>
-#include <dev/pci/pcireg.h>
+#include <pci/pcivar.h>
+#include <pci/pcireg.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>

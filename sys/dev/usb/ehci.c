@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <machine/bus_pio.h>
 #include <machine/bus_memio.h>
-#include <sys/lockmgr.h>
+/* #include <sys/lockmgr.h> */
 #if defined(DIAGNOSTIC) && defined(__i386__) && defined(__FreeBSD__)
 #include <machine/cpu.h>
 #endif
@@ -436,7 +436,9 @@ ehci_init(ehci_softc_t *sc)
 
 	usb_callout_init(sc->sc_tmo_pcd);
 
+#if 0
 	lockinit(&sc->sc_doorbell_lock, PZERO, "ehcidb", 0, 0);
+#endif
 
 	/* Enable interrupts */
 	EOWRITE4(sc, EHCI_USBINTR, sc->sc_eintrs);
@@ -1380,7 +1382,9 @@ ehci_sync_hc(ehci_softc_t *sc)
 	}
 	DPRINTFN(2,("ehci_sync_hc: enter\n"));
 	/* get doorbell */
+#if 0
 	lockmgr(&sc->sc_doorbell_lock, LK_EXCLUSIVE, NULL, NULL);
+#endif
 	s = splhardusb();
 	/* ask for doorbell */
 	EOWRITE4(sc, EHCI_USBCMD, EOREAD4(sc, EHCI_USBCMD) | EHCI_CMD_IAAD);
@@ -1391,7 +1395,9 @@ ehci_sync_hc(ehci_softc_t *sc)
 		    EOREAD4(sc, EHCI_USBCMD), EOREAD4(sc, EHCI_USBSTS)));
 	splx(s);
 	/* release doorbell */
+#if 0
 	lockmgr(&sc->sc_doorbell_lock, LK_RELEASE, NULL, NULL);
+#endif
 #ifdef DIAGNOSTIC
 	if (error)
 		printf("ehci_sync_hc: tsleep() = %d\n", error);

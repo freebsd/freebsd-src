@@ -120,7 +120,9 @@ typedef struct ehci_softc {
 
 	SIMPLEQ_HEAD(, usbd_xfer) sc_free_xfers; /* free xfers */
 
+#if 0
 	struct lock sc_doorbell_lock;
+#endif
 
 	usb_callout_t sc_tmo_pcd;
 
