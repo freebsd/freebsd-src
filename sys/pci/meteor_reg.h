@@ -227,11 +227,9 @@ typedef struct meteor_softc {
 #define METEOR_ONLY_ODD_FIELDS	0x02000000
 #define METEOR_ONLY_FIELDS_MASK 0x03000000
 #define METEOR_YUV_422		0x04000000
-#define METEOR_YUV_411		0x08000000
-#define METEOR_YUV_811		0x10000000
-#define	METEOR_OUTPUT_FMT_MASK	0x1f0f0000
+#define	METEOR_OUTPUT_FMT_MASK	0x040f0000
+#define	METEOR_WANT_TS		0x08000000	/* time-stamp a frame */
 #define METEOR_RGB		0x20000000	/* meteor rgb unit */
-
     u_char	saa7196_i2c[NUM_SAA7196_I2C_REGS]; /* saa7196 register values */
     u_char	pcf_i2c[NUM_PCF8574_I2C_REGS];	/* PCF8574 register values */
     u_char	bt254_reg[NUM_BT254_REGS];	/* BT254 register values */
