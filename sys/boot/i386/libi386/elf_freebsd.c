@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: elf_freebsd.c,v 1.3 1998/10/02 20:53:17 msmith Exp $
+ *	$Id: elf_freebsd.c,v 1.4 1998/10/04 09:12:15 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -72,13 +72,14 @@ elf_exec(struct loaded_module *mp)
     entry = ehdr->e_entry & 0xffffff;
 
     ssym = esym = 0;
+#if 0 /* XXX something wrong with the symbol tables */
     if ((md = mod_findmetadata(mp, MODINFOMD_ELFSSYM)) != NULL)
 	ssym = *((vm_offset_t *)&(md->md_data));
     if ((md = mod_findmetadata(mp, MODINFOMD_ELFESYM)) != NULL)
 	esym = *((vm_offset_t *)&(md->md_data));
     if (ssym == 0 || esym == 0)
 	ssym = esym = 0;		/* sanity */
-
+#endif
     bi = (struct bootinfo *)PTOV(bootinfop);
     bi->bi_symtab = ssym;
     bi->bi_esymtab = esym;
