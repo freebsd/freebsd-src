@@ -340,6 +340,8 @@ pccard_do_product_lookup(device_t bus, device_t dev,
 	u_int32_t prod;
 	const char *vendorstr;
 	const char *prodstr;
+	const char *cis3str;
+	const char *cis4str;
 
 #ifdef DIAGNOSTIC
 	if (sizeof *ent > ent_size)
@@ -355,6 +357,10 @@ pccard_do_product_lookup(device_t bus, device_t dev,
 	if (pccard_get_vendor_str(dev, &vendorstr))
 		return (NULL);
 	if (pccard_get_product_str(dev, &prodstr))
+		return (NULL);
+	if (pccard_get_cis3_str(dev, &cis3str))
+		return (NULL);
+	if (pccard_get_cis4_str(dev, &cis4str))
 		return (NULL);
 	for (ent = tab; ent->pp_vendor != 0; ent =
 	    (const struct pccard_product *) ((const char *) ent + ent_size)) {
@@ -385,7 +391,14 @@ pccard_do_product_lookup(device_t bus, device_t dev,
 		    (prodstr == NULL ||
 		    strcmp(ent->pp_cis[1], prodstr) != 0))
 			matches = 0;
-		/* XXX need to match cis[2] and cis[3] also XXX */
+		if (matches && ent->pp_cis[2] &&
+		    (cis3str == NULL ||
+		    strcmp(ent->pp_cis[2], cis3str) != 0))
+			matches = 0;
+		if (matches && ent->pp_cis[3] &&
+		    (cis4str == NULL ||
+		    strcmp(ent->pp_cis[3], cis4str) != 0))
+			matches = 0;
 		if (matchfn != NULL)
 			matches = (*matchfn)(dev, ent, matches);
 		if (matches)
