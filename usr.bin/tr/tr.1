@@ -171,7 +171,9 @@ represents the range of specific coded values between the
 range endpoints, inclusive.
 .Pp
 .Bf Em
-See the COMPATIBILITY section below for an important note regarding
+See the
+.Sx COMPATIBILITY
+section below for an important note regarding
 differences in the way the current
 implementation interprets range expressions differently from
 previous implementations.
@@ -292,7 +294,7 @@ Translate the contents of file1 to upper-case.
 (This should be preferred over the traditional
 .Ux
 idiom of
-.Ql "tr a-z A-Z" ,
+.Dq Li "tr a-z A-Z" ,
 since it works correctly in all locales.)
 .Pp
 Strip out non-printable characters from file1.
@@ -312,11 +314,11 @@ implementations of
 .Nm
 did not order characters in range expressions according to the current
 locale's collation order, making it possible to convert unaccented Latin
-characters (esp. as found in English text) from upper to lower case using
+characters (esp.\& as found in English text) from upper to lower case using
 the traditional
 .Ux
 idiom of
-.Ql "tr A-Z a-z" .
+.Dq Li "tr A-Z a-z" .
 Since
 .Nm
 now obeys the locale's collation order, this idiom may not produce
@@ -325,13 +327,13 @@ upper case, or when the order of characters within the two cases differs.
 As noted in the
 .Sx EXAMPLES
 section above, the character class expressions
-.Ql "[:lower:]"
+.Dq Li [:lower:]
 and
-.Ql "[:upper:]"
+.Dq Li [:upper:]
 should be used instead of explicit character ranges like
-.Ql "a-z"
+.Dq Li a-z
 and
-.Ql "A-Z" .
+.Dq Li A-Z .
 .Pp
 System V has historically implemented character ranges using the syntax
 .Dq Li [c-c]
@@ -367,7 +369,7 @@ Additionally, any scripts that depended on the sequence
 to
 represent the three characters
 .Ql a ,
-.Ql \&-
+.Ql \-
 and
 .Ql z
 will have to be
