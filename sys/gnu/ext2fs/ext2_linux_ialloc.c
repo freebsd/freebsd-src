@@ -44,9 +44,7 @@
 #include <gnu/ext2fs/fs.h>
 #include <sys/stat.h>
 
-#ifdef  __alpha__
-#include <gnu/ext2fs/alpha-bitops.h>
-#elif __i386__
+#ifdef __i386__
 #include <gnu/ext2fs/i386-bitops.h>
 #else
 #include <gnu/ext2fs/ext2_bitops.h>
