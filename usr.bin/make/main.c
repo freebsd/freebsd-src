@@ -45,9 +45,10 @@ static const char copyright[] =
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
-#endif
+#else
 static const char rcsid[] =
-	"$Id: main.c,v 1.31 1999/07/31 20:40:23 hoek Exp $";
+	"$Id: main.c,v 1.32 1999/07/31 20:53:01 hoek Exp $";
+#endif
 #endif /* not lint */
 
 /*-
@@ -96,7 +97,7 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <stdio.h>
 #include <sysexits.h>
-#if __STDC__
+#ifdef __STDC__
 #include <stdarg.h>
 #else
 #include <varargs.h>
@@ -211,8 +212,9 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 
 			maxLocal = strtol(optarg, &endptr, 10);
 			if (maxLocal < 0 || *endptr != '\0') {
-				errx(EX_USAGE,
-				    "illegal argument to -L -- %s", optarg);
+				warnx("illegal number, -L argument -- %s",
+				    optarg);
+				usage();
 			}
 			Var_Append(MAKEFLAGS, "-L", VAR_GLOBAL);
 			Var_Append(MAKEFLAGS, optarg, VAR_GLOBAL);
@@ -306,8 +308,9 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 			forceJobs = TRUE;
 			maxJobs = strtol(optarg, &endptr, 10);
 			if (maxJobs <= 0 || *endptr != '\0') {
-				errx(EX_USAGE,
-				    "illegal argument to -j -- %s", optarg);
+				warnx("illegal number, -j argument -- %s",
+				    optarg);
+				usage();
 			}
 #ifndef REMOTE
 			maxLocal = maxJobs;
@@ -570,9 +573,10 @@ main(argc, argv)
 	 *	2. MAKEOBJDIR
 	 *	3. _PATH_OBJDIR.${MACHINE}
 	 *	4. _PATH_OBJDIR
-	 *	5. _PATH_OBJDIRPREFIX${MACHINE}
+	 *	5. _PATH_OBJDIRPREFIX`cwd`
 	 *
-	 * If all fails, use the current directory to build.
+	 * If one of the first two fails, use the current directory.
+	 * If the remaining three all fail, use the current directory.
 	 *
 	 * Once things are initted,
 	 * have to add the original directory to the search path,
@@ -759,8 +763,7 @@ main(argc, argv)
 	(void)ReadMakefile(".depend", NULL);
 
 	Var_Append("MFLAGS", Var_Value(MAKEFLAGS, VAR_GLOBAL, &p1), VAR_GLOBAL);
-	if (p1)
-	    free(p1);
+	efree(p1);
 
 	/* Install all the flags into the MAKE envariable. */
 	if (((p = Var_Value(MAKEFLAGS, VAR_GLOBAL, &p1)) != NULL) && *p)
@@ -769,8 +772,7 @@ main(argc, argv)
 #else
 		setenv("MAKE", p, 1);
 #endif
-	if (p1)
-	    free(p1);
+	efree(p1);
 
 	/*
 	 * For compatibility, look at the directories in the VPATH variable
@@ -1083,7 +1085,7 @@ bad:
  */
 /* VARARGS */
 void
-#if __STDC__
+#ifdef __STDC__
 Error(char *fmt, ...)
 #else
 Error(va_alist)
@@ -1091,7 +1093,7 @@ Error(va_alist)
 #endif
 {
 	va_list ap;
-#if __STDC__
+#ifdef __STDC__
 	va_start(ap, fmt);
 #else
 	char *fmt;
@@ -1118,7 +1120,7 @@ Error(va_alist)
  */
 /* VARARGS */
 void
-#if __STDC__
+#ifdef __STDC__
 Fatal(char *fmt, ...)
 #else
 Fatal(va_alist)
@@ -1126,7 +1128,7 @@ Fatal(va_alist)
 #endif
 {
 	va_list ap;
-#if __STDC__
+#ifdef __STDC__
 	va_start(ap, fmt);
 #else
 	char *fmt;
@@ -1160,7 +1162,7 @@ Fatal(va_alist)
  */
 /* VARARGS */
 void
-#if __STDC__
+#ifdef __STDC__
 Punt(char *fmt, ...)
 #else
 Punt(va_alist)

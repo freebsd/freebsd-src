@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)lstInt.h	8.1 (Berkeley) 6/6/93
- *	$Id$
+ *	$Id: lstInt.h,v 1.5 1997/02/22 19:27:40 peter Exp $
  */
 
 /*-
@@ -109,4 +109,4 @@ typedef struct	{
  */
 #define LstIsEmpty(l)	(((List)l)->firstPtr == NilListNode)
 
-#endif _LSTINT_H_
+#endif /* _LSTINT_H_ */

@@ -35,11 +35,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: job.c,v 1.11 1998/11/14 16:15:04 dg Exp $
+ *	$Id: job.c,v 1.12 1999/02/14 22:22:42 dt Exp $
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)job.c	8.2 (Berkeley) 3/19/94";
+#else
+static const char rcsid[] =
+	"$Id";
+#endif
 #endif /* not lint */
 
 #ifndef OLD_JOKE
@@ -1054,7 +1059,7 @@ Job_Touch(gn, silent)
 		 * modification time, then close the file.
 		 */
 		if (read(streamID, &c, 1) == 1) {
-		    (void) lseek(streamID, 0L, L_SET);
+		    (void) lseek(streamID, 0L, SEEK_SET);
 		    (void) write(streamID, &c, 1);
 		}
 
@@ -1107,8 +1112,7 @@ Job_CheckCommands(gn, abortProc)
 	     */
 	    Make_HandleUse(DEFAULT, gn);
 	    Var_Set(IMPSRC, Var_Value(TARGET, gn, &p1), gn);
-	    if (p1)
-		free(p1);
+	    efree(p1);
 	} else if (Dir_MTime(gn) == 0) {
 	    /*
 	     * The node wasn't the target of an operator we have no .DEFAULT
@@ -1228,7 +1232,7 @@ JobExec(job, argv)
 	if (dup2(FILENO(job->cmdFILE), 0) == -1)
 	    Punt("Cannot dup2: %s", strerror(errno));
 	(void) fcntl(0, F_SETFD, 0);
-	(void) lseek(0, 0, L_SET);
+	(void) lseek(0, 0, SEEK_SET);
 
 	if (usePipes) {
 	    /*
