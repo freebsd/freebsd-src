@@ -114,15 +114,17 @@ strtod
 		switch(s[1]) {
 		  case 'x':
 		  case 'X':
-			switch(i = gethex(&s, &fpi, &exp, &bb, sign)) {
+			switch((i = gethex(&s, &fpi, &exp, &bb, sign)) & STRTOG_Retmask) {
 			  case STRTOG_NoNumber:
 				s = s00;
 				sign = 0;
 			  case STRTOG_Zero:
 				break;
 			  default:
-				copybits(bits, fpi.nbits, bb);
-				Bfree(bb);
+				if (bb) {
+					copybits(bits, fpi.nbits, bb);
+					Bfree(bb);
+					}
 				ULtod(((U*)&rv)->L, bits, exp, i);
 			  }
 			goto ret;
