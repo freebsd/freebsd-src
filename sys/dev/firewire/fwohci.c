@@ -586,15 +586,15 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 	device_printf(dev, "OHCI version %x.%x (ROM=%d)\n",
 			(reg>>16) & 0xff, reg & 0xff, (reg>>24) & 1);
 
-/* XXX: Available Isochrounous DMA channel probe */
-	for( i = 0 ; i < 0x20 ; i ++ ){
-		OWRITE(sc,  OHCI_IRCTL(i), OHCI_CNTL_DMA_RUN);
-		reg = OREAD(sc, OHCI_IRCTL(i));
-		if(!(reg & OHCI_CNTL_DMA_RUN)) break;
-		OWRITE(sc,  OHCI_ITCTL(i), OHCI_CNTL_DMA_RUN);
-		reg = OREAD(sc, OHCI_ITCTL(i));
-		if(!(reg & OHCI_CNTL_DMA_RUN)) break;
-	}
+/* Available Isochrounous DMA channel probe */
+	OWRITE(sc, OHCI_IT_MASK, 0xffffffff);
+	OWRITE(sc, OHCI_IR_MASK, 0xffffffff);
+	reg = OREAD(sc, OHCI_IT_MASK) & OREAD(sc, OHCI_IR_MASK);
+	OWRITE(sc, OHCI_IT_MASKCLR, 0xffffffff);
+	OWRITE(sc, OHCI_IR_MASKCLR, 0xffffffff);
+	for (i = 0; i < 0x20; i++)
+		if ((reg & (1 << i)) == 0)
+			break;
 	sc->fc.nisodma = i;
 	device_printf(dev, "No. of Isochronous channel is %d.\n", i);
 
@@ -636,7 +636,7 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 
 	sc->fc.tcode = tinfo;
 
-	sc->cromptr = (u_int32_t *) malloc(CROMSIZE * 2, M_DEVBUF, M_NOWAIT);
+	sc->cromptr = (u_int32_t *) malloc(CROMSIZE * 2, M_FW, M_NOWAIT);
 
 	if(sc->cromptr == NULL){
 		device_printf(dev, "cromptr alloc failed.");
@@ -657,7 +657,7 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 
 /* SID recieve buffer must allign 2^11 */
 #define	OHCI_SIDSIZE	(1 << 11)
-	sc->fc.sid_buf = (u_int32_t *) malloc(OHCI_SIDSIZE, M_DEVBUF, M_NOWAIT);
+	sc->fc.sid_buf = (u_int32_t *) malloc(OHCI_SIDSIZE, M_FW, M_NOWAIT);
 	if (sc->fc.sid_buf == NULL) {
 		device_printf(dev, "sid_buf alloc failed.\n");
 		return ENOMEM;
@@ -718,8 +718,8 @@ fwohci_timeout(void *arg)
 	struct fwohci_softc *sc;
 
 	sc = (struct fwohci_softc *)arg;
-	sc->fc.timeouthandle = timeout(fwohci_timeout,
-				(void *)sc, FW_XFERTIMEOUT * hz * 10);
+	callout_reset(&sc->fc.timeout_callout, FW_XFERTIMEOUT * hz * 10,
+			(void *)fwohci_timeout, (void *)sc);
 }
 
 u_int32_t
@@ -735,9 +735,9 @@ fwohci_detach(struct fwohci_softc *sc, device_t dev)
 	int i;
 
 	if (sc->fc.sid_buf != NULL)
-		free((void *)(uintptr_t)sc->fc.sid_buf, M_DEVBUF);
+		free((void *)(uintptr_t)sc->fc.sid_buf, M_FW);
 	if (sc->cromptr != NULL)
-		free((void *)sc->cromptr, M_DEVBUF);
+		free((void *)sc->cromptr, M_FW);
 
 	fwohci_db_free(&sc->arrq);
 	fwohci_db_free(&sc->arrs);
@@ -1051,8 +1051,8 @@ fwohci_txd(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 					break;
 				}
 			}
-			dbch->xferq.queued --;
 		}
+		dbch->xferq.queued --;
 		tr->xfer = NULL;
 
 		packets ++;
@@ -1071,35 +1071,35 @@ out:
 static void
 fwohci_drain(struct firewire_comm *fc, struct fw_xfer *xfer, struct fwohci_dbch *dbch)
 {
-	int i, s;
+	int i, s, found=0;
 	struct fwohcidb_tr *tr;
 
 	if(xfer->state != FWXF_START) return;
 
 	s = splfw();
 	tr = dbch->bottom;
-	for( i = 0 ; i <= dbch->xferq.queued  ; i ++){
+	for (i = 0; i < dbch->xferq.queued; i ++) {
 		if(tr->xfer == xfer){
-			s = splfw();
 			tr->xfer = NULL;
+#if 0
 			dbch->xferq.queued --;
-#if 1
 			/* XXX */
 			if (tr == dbch->bottom)
 				dbch->bottom = STAILQ_NEXT(tr, link);
-#endif
 			if (dbch->flags & FWOHCI_DBCH_FULL) {
 				printf("fwohci_drain: make slot\n");
 				dbch->flags &= ~FWOHCI_DBCH_FULL;
 				fwohci_start((struct fwohci_softc *)fc, dbch);
 			}
-				
-			splx(s);
+#endif
+			found ++;
 			break;
 		}
 		tr = STAILQ_NEXT(tr, link);
 	}
 	splx(s);
+	if (!found)
+		device_printf(fc->dev, "fwochi_drain: xfer not found\n");
 	return;
 }
 
@@ -1117,7 +1117,7 @@ fwohci_db_free(struct fwohci_dbch *dbch)
 			idb < dbch->ndb;
 			db_tr = STAILQ_NEXT(db_tr, link), idb++){
 			if (db_tr->buf != NULL) {
-				free(db_tr->buf, M_DEVBUF);
+				free(db_tr->buf, M_FW);
 				db_tr->buf = NULL;
 			}
 		}
@@ -1125,8 +1125,8 @@ fwohci_db_free(struct fwohci_dbch *dbch)
 	dbch->ndb = 0;
 	db_tr = STAILQ_FIRST(&dbch->db_trq);
 	for (i = 0; i < dbch->npages; i++)
-		free(dbch->pages[i], M_DEVBUF);
-	free(db_tr, M_DEVBUF);
+		free(dbch->pages[i], M_FW);
+	free(db_tr, M_FW);
 	STAILQ_INIT(&dbch->db_trq);
 	dbch->flags &= ~FWOHCI_DBCH_INIT;
 }
@@ -1146,7 +1146,7 @@ fwohci_db_init(struct fwohci_dbch *dbch)
 	STAILQ_INIT(&dbch->db_trq);
 	db_tr = (struct fwohcidb_tr *)
 		malloc(sizeof(struct fwohcidb_tr) * dbch->ndb,
-		M_DEVBUF, M_NOWAIT | M_ZERO);
+		M_FW, M_NOWAIT | M_ZERO);
 	if(db_tr == NULL){
 		printf("fwohci_db_init: malloc(1) failed\n");
 		return;
@@ -1163,13 +1163,13 @@ fwohci_db_init(struct fwohci_dbch *dbch)
 		return;
 	}
 	for (i = 0; i < dbch->npages; i++) {
-		dbch->pages[i] = malloc(PAGE_SIZE, M_DEVBUF,
+		dbch->pages[i] = malloc(PAGE_SIZE, M_FW,
 						M_NOWAIT | M_ZERO);
 		if (dbch->pages[i] == NULL) {
 			printf("fwohci_db_init: malloc(2) failed\n");
 			for (j = 0; j < i; j ++)
-				free(dbch->pages[j], M_DEVBUF);
-			free(db_tr, M_DEVBUF);
+				free(dbch->pages[j], M_FW);
+			free(db_tr, M_FW);
 			return;
 		}
 	}
@@ -1231,7 +1231,7 @@ fwohci_irx_disable(struct firewire_comm *fc, int dmach)
 	/* XXX we cannot free buffers until the DMA really stops */
 	tsleep((void *)&dummy, FWPRI, "fwirxd", hz);
 	if(sc->ir[dmach].dummy != NULL){
-		free(sc->ir[dmach].dummy, M_DEVBUF);
+		free(sc->ir[dmach].dummy, M_FW);
 	}
 	sc->ir[dmach].dummy = NULL;
 	fwohci_db_free(&sc->ir[dmach]);
@@ -1594,7 +1594,7 @@ fwohci_irxbuf_enable(struct firewire_comm *fc, int dmach)
 		ir->queued = 0;
 		dbch->ndb = ir->bnpacket * ir->bnchunk;
 		dbch->dummy = malloc(sizeof(u_int32_t) * dbch->ndb, 
-			   	M_DEVBUF, M_NOWAIT);
+			   	M_FW, M_NOWAIT);
 		if (dbch->dummy == NULL) {
 			err = ENOMEM;
 			return err;
@@ -1676,7 +1676,7 @@ fwohci_irx_enable(struct firewire_comm *fc, int dmach)
 }
 
 int
-fwohci_shutdown(struct fwohci_softc *sc, device_t dev)
+fwohci_stop(struct fwohci_softc *sc, device_t dev)
 {
 	u_int i;
 
@@ -1786,7 +1786,7 @@ fwohci_intr_body(struct fwohci_softc *sc, u_int32_t stat, int count)
 #ifndef ACK_ALL
 		OWRITE(sc, FWOHCI_INTSTATCLR, OHCI_INT_PHY_BUS_R);
 #endif
-#if 1
+#if 0
 		/* pending all pre-bus_reset packets */
 		fwohci_txd(sc, &sc->atrq);
 		fwohci_txd(sc, &sc->atrs);
@@ -1891,10 +1891,17 @@ fwohci_intr_body(struct fwohci_softc *sc, u_int32_t stat, int count)
 			goto sidout;
 		}
 		plen -= 4; /* chop control info */
-		buf = malloc(OHCI_SIDSIZE, M_DEVBUF, M_NOWAIT);
+		buf = malloc(OHCI_SIDSIZE, M_FW, M_NOWAIT);
 		if(buf == NULL) goto sidout;
 		bcopy((void *)(uintptr_t)(volatile void *)(fc->sid_buf + 1),
 								buf, plen);
+#if 1
+		/* pending all pre-bus_reset packets */
+		fwohci_txd(sc, &sc->atrq);
+		fwohci_txd(sc, &sc->atrs);
+		fwohci_arcv(sc, &sc->arrs, -1);
+		fwohci_arcv(sc, &sc->arrq, -1);
+#endif
 		fw_sidrcv(fc, buf, plen, 0);
 	}
 sidout:
@@ -2419,7 +2426,7 @@ fwohci_add_rx_buf(struct fwohcidb_tr *db_tr, unsigned short size, int mode,
 	int dsiz[2];
 
 	if(buf == 0){
-		buf = malloc(size, M_DEVBUF, M_NOWAIT);
+		buf = malloc(size, M_FW, M_NOWAIT);
 		if(buf == NULL) return 0;
 		db_tr->buf = buf;
 		db_tr->dbcnt = 1;
@@ -2528,7 +2535,7 @@ device_printf(sc->fc.dev, "%04x %2x 0x%08x 0x%08x 0x%08x 0x%08x\n", len,
 				fw_rcv(&sc->fc, buf, plen - sizeof(u_int32_t), dmach, sizeof(u_int32_t), spd);
 				break;
 			default:
-				free(buf, M_DEVBUF);
+				free(buf, M_FW);
 				device_printf(sc->fc.dev, "Isochronous receive err %02x\n", stat);
 				break;
 		}
@@ -2697,10 +2704,10 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 				}
 				if(resCount > 0 || len > 0){
 					buf = malloc( dbch->xferq.psize,
-							M_DEVBUF, M_NOWAIT);
+							M_FW, M_NOWAIT);
 					if(buf == NULL){
 						printf("cannot malloc!\n");
-						free(db_tr->buf, M_DEVBUF);
+						free(db_tr->buf, M_FW);
 						goto out;
 					}
 					bcopy(ld, buf, plen);
@@ -2740,7 +2747,7 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 				stat &= 0x1f;
 				switch(stat){
 				case FWOHCIEV_ACKPEND:
-#if 0
+#if 1
 					printf("fwohci_arcv: ack pending..\n");
 #endif
 					/* fall through */
@@ -2750,7 +2757,7 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 					fw_rcv(&sc->fc, buf, plen - sizeof(struct fwohci_trailer), 0, 0, spd);
 					break;
 				case FWOHCIEV_BUSRST:
-					free(buf, M_DEVBUF);
+					free(buf, M_FW);
 					if (sc->fc.status != FWBUSRESET) 
 						printf("got BUSRST packet!?\n");
 					break;

@@ -450,7 +450,7 @@ fwe_as_output(struct fwe_softc *fwe, struct ifnet *ifp)
 		IF_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL)
 			break;
-		xfer = fw_xfer_alloc();
+		xfer = fw_xfer_alloc(M_FWXFER);
 		if (xfer == NULL) {
 			return;
 		}
@@ -500,7 +500,7 @@ static void
 fwe_free(void *buf, void *args)
 {
 	FWEDEBUG("fwe_free:\n");
-	free(buf, M_DEVBUF);
+	free(buf, M_FW);
 }
 
 #else
@@ -512,7 +512,7 @@ fwe_free(caddr_t buf, u_int size)
 	p = (int *)buf;
 	(*p) --;
 	if (*p < 1)
-		free(buf, M_DEVBUF);
+		free(buf, M_FW);
 }
 
 static void
