@@ -1846,8 +1846,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			va = i386_ptob(sindex);
 			
 			anyvalid++;
-			if (pmap_remove_pte(pmap,
-				ptbase + sindex, va))
+			if (pmap_remove_pte(pmap, ptbase + sindex, va))
 				break;
 		}
 	}
@@ -3235,7 +3234,6 @@ pmap_mapdev(pa, size)
 	vm_size_t size;
 {
 	vm_offset_t va, tmpva, offset;
-	pt_entry_t *pte;
 
 	offset = pa & PAGE_MASK;
 	size = roundup(offset + size, PAGE_SIZE);
@@ -3248,8 +3246,7 @@ pmap_mapdev(pa, size)
 
 	pa = pa & PG_FRAME;
 	for (tmpva = va; size > 0; ) {
-		pte = vtopte(tmpva);
-		*pte = pa | PG_RW | PG_V | pgeflag;
+		pmap_kenter(tmpva, pa);
 		size -= PAGE_SIZE;
 		tmpva += PAGE_SIZE;
 		pa += PAGE_SIZE;
