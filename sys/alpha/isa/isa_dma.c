@@ -35,7 +35,6 @@
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
  *	from: isa_dma.c,v 1.3 1999/05/09 23:56:00 peter Exp $
- * $FreeBSD$
  */
 
 /*
@@ -47,6 +46,9 @@
  * mode DMA count compution and reorganized DMA setup code in
  * isa_dmastart()
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
