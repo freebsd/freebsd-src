@@ -10,6 +10,10 @@ SRCS=	rc_parse.y rc_scan.l main.c rc_config.c log.c curses.c	\
 # compile debug support
 COPTS+=	-DDEBUG
 
+# avoid wacky merging of string constants from
+# source code with compile-time timestamp
+COPTS+= -fno-merge-constants
+
 # enable rtprio usage
 COPTS+=	-DUSE_RTPRIO
 
