@@ -34,7 +34,6 @@
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/sysctl.h>
-#include <sys/vnode.h>
 
 #include <security/mac_bsdextended/mac_bsdextended.h>
 
@@ -178,10 +177,10 @@ bsde_rule_to_string(struct mac_bsdextended_rule *rule, char *buf, size_t buflen)
 	left -= len;
 	cur += len;
 
-	anymode = (rule->mbr_mode & VALLPERM);
-	unknownmode = (rule->mbr_mode & ~VALLPERM);
+	anymode = (rule->mbr_mode & MBI_ALLPERM);
+	unknownmode = (rule->mbr_mode & ~MBI_ALLPERM);
 
-	if (rule->mbr_mode & VADMIN) {
+	if (rule->mbr_mode & MBI_ADMIN) {
 		len = snprintf(cur, left, "a");
 		if (len < 0 || len > left)
 			goto truncated;
@@ -189,7 +188,7 @@ bsde_rule_to_string(struct mac_bsdextended_rule *rule, char *buf, size_t buflen)
 		left -= len;
 		cur += len;
 	}
-	if (rule->mbr_mode & VREAD) {
+	if (rule->mbr_mode & MBI_READ) {
 		len = snprintf(cur, left, "r");
 		if (len < 0 || len > left)
 			goto truncated;
@@ -197,7 +196,7 @@ bsde_rule_to_string(struct mac_bsdextended_rule *rule, char *buf, size_t buflen)
 		left -= len;
 		cur += len;
 	}
-	if (rule->mbr_mode & VSTAT) {
+	if (rule->mbr_mode & MBI_STAT) {
 		len = snprintf(cur, left, "s");
 		if (len < 0 || len > left)
 			goto truncated;
@@ -205,7 +204,7 @@ bsde_rule_to_string(struct mac_bsdextended_rule *rule, char *buf, size_t buflen)
 		left -= len;
 		cur += len;
 	}
-	if (rule->mbr_mode & VWRITE) {
+	if (rule->mbr_mode & MBI_WRITE) {
 		len = snprintf(cur, left, "w");
 		if (len < 0 || len > left)
 			goto truncated;
@@ -213,7 +212,7 @@ bsde_rule_to_string(struct mac_bsdextended_rule *rule, char *buf, size_t buflen)
 		left -= len;
 		cur += len;
 	}
-	if (rule->mbr_mode & VEXEC) {
+	if (rule->mbr_mode & MBI_EXEC) {
 		len = snprintf(cur, left, "x");
 		if (len < 0 || len > left)
 			goto truncated;
@@ -425,19 +424,19 @@ bsde_parse_mode(int argc, char *argv[], mode_t *mode, size_t buflen,
 	for (i = 0; i < strlen(argv[0]); i++) {
 		switch (argv[0][i]) {
 		case 'a':
-			*mode |= VADMIN;
+			*mode |= MBI_ADMIN;
 			break;
 		case 'r':
-			*mode |= VREAD;
+			*mode |= MBI_READ;
 			break;
 		case 's':
-			*mode |= VSTAT;
+			*mode |= MBI_STAT;
 			break;
 		case 'w':
-			*mode |= VWRITE;
+			*mode |= MBI_WRITE;
 			break;
 		case 'x':
-			*mode |= VEXEC;
+			*mode |= MBI_EXEC;
 			break;
 		case 'n':
 			/* ignore */
