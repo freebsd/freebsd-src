@@ -74,7 +74,7 @@ Shorthand for "mode ascii"
 .It Cm binary
 Shorthand for "mode binary"
 .Pp
-.It Cm connect Ar host-name Op Ar port
+.It Cm connect Ar host Op Ar port
 Set the
 .Ar host
 (and optionally
@@ -97,19 +97,32 @@ or
 .Cm put
 commands.
 .Pp
-.It Cm get Ar filename
-.It Cm get Ar remotename localname
-.It Cm get Ar file1 file2 ...  fileN
-Get a file or set of files from the specified
-.Ar sources .
-.Ar Source
-can be in one of two forms:
-a filename on the remote host, if the host has already been specified,
-or a string of the form
-.Ar hosts Ns : Ns Ar filename
-to specify both a host and filename at the same time.
-If the latter form is used,
-the last hostname specified becomes the default for future transfers.
+.It Cm get Oo Ar host : Oc Ns Ar file Op Ar localname
+.It Cm get Xo
+.Oo Ar host1 : Oc Ns Ar file1
+.Oo Ar host2 : Oc Ns Ar file2 ...
+.Oo Ar hostN : Oc Ns Ar fileN
+.Xc
+Get one or more files from the remote host.
+When using the
+.Ar host
+argument, the
+.Ar host
+will be used as default host for future transfers.
+If
+.Ar localname
+is specified, the file is stored locally as
+.Ar localname ,
+otherwise the original filename is used.
+Note that it is not possible to download two files at a time, only
+one, three, or more than three files, at a time.
+.Pp
+To specify an IPv6 numeric address for a host, wrap it using square
+brackets like
+.Dq Li [3ffe:2900:e00c:ffee::1234] : Ns Ar file
+to disambiguate the
+colons used in the IPv6 address from the colon separating the host and
+the filename.
 .Pp
 .It Cm mode Ar transfer-mode
 Set the mode for transfers;
@@ -121,28 +134,24 @@ or
 The default is
 .Em ascii .
 .Pp
-.It Cm put Ar file
-.It Cm put Ar localfile remotefile
-.It Cm put Ar file1 file2 ... fileN remote-directory
-Put a file or set of files to the specified
-remote file or directory.
-The destination
-can be in one of two forms:
-a filename on the remote host, if the host has already been specified,
-or a string of the form
-.Ar hosts Ns : Ns Ar filename
-to specify both a host and filename at the same time.
-If the latter form is used,
-the hostname specified becomes the default for future transfers.
-If the remote-directory form is used, the remote host is
-assumed to be a
+.It Cm put Ar file Op Oo Ar host : Oc Ns Ar remotename
+.It Cm put Ar file1 file2 ... fileN Op Oo Ar host : Oc Ns Ar remote-directory
+Put a file or set of files to the remote host.
+When
+.Ar remotename
+is specified, the file is stored remotely as
+.Ar remotename ,
+otherwise the original filename is used.
+If the
+.Ar remote-directory
+argument is used, the remote host is assumed to be a
 .Ux
 machine.
-To specify IPv6 numeric addresses with
-.Ar hosts ,
-wrap them using square brackets like
-.Bo Ar hosts Bc Ns : Ns Ar filename ,
-to disambiguate the colon.
+To specify an IPv6 numeric address for a
+.Ar host ,
+see the example under the
+.Cm get
+command.
 .Pp
 .It Cm quit
 Exit
