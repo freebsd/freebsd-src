@@ -454,8 +454,9 @@ xxx_vfs_root_fdtab(dummy)
 		panic("cannot find root vnode");
 	fdp->fd_fd.fd_cdir = rootvnode;
 	VREF(fdp->fd_fd.fd_cdir);
-	VOP_UNLOCK(rootvnode, 0, &proc0);
 	fdp->fd_fd.fd_rdir = rootvnode;
+	VREF(fdp->fd_fd.fd_rdir);
+	VOP_UNLOCK(rootvnode, 0, &proc0);
 }
 SYSINIT(retrofit, SI_SUB_ROOT_FDTAB, SI_ORDER_FIRST, xxx_vfs_root_fdtab, NULL)
 
