@@ -597,7 +597,7 @@ bad:
 /*
  * allocate a new directory
  */
-int
+ino_t
 allocdir(parent, request, mode)
 	ino_t parent, request;
 	int mode;
