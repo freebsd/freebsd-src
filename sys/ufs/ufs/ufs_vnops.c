@@ -488,10 +488,12 @@ ufs_setattr(ap)
 		 * if securelevel > 0 and any existing system flags are set.
 		 */
 		if (!suser_xxx(cred, NULL, 0)) {
-			if ((ip->i_flags
-			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) &&
-			    securelevel > 0)
-				return (EPERM);
+			if (ip->i_flags
+			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) {
+				error = securelevel_gt(cred, 0);
+				if (error)
+					return (error);
+			}
 			/* Snapshot flag cannot be set or cleared */
 			if (((vap->va_flags & SF_SNAPSHOT) != 0 &&
 			     (ip->i_flags & SF_SNAPSHOT) == 0) ||
