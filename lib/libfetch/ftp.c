@@ -762,6 +762,8 @@ _ftp_connect(struct url *url, struct url *purl, char *flags)
     /* send user name and password */
     user = url->user;
     if (!user || !*user)
+	user = getenv("FTP_LOGIN");
+    if (!user || !*user)
 	user = FTP_ANONYMOUS_USER;
     if (purl && url->port == _fetch_default_port(url->scheme))
 	e = _ftp_cmd(cd, "USER %s@%s", user, url->host);
