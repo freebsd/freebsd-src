@@ -124,6 +124,12 @@ fls(int mask)
 	return (mask == 0 ? mask : (int)bsrl((u_int)mask) + 1);
 }
 
+static __inline void
+halt(void)
+{
+	__asm __volatile("hlt");
+}
+
 #if __GNUC__ < 2
 
 #define	inb(port)		inbv(port)
@@ -600,6 +606,7 @@ void	cpu_invlpg_range(u_int start, u_int end);
 void	disable_intr(void);
 void	do_cpuid(u_int ax, u_int *p);
 void	enable_intr(void);
+void	halt(void);
 u_char	inb(u_int port);
 u_int	inl(u_int port);
 void	insb(u_int port, void *addr, size_t cnt);
