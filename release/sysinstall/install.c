@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.53 1995/10/23 13:19:39 jkh Exp $
+ * $Id: install.c,v 1.71.2.54 1995/10/24 02:17:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -157,7 +157,6 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
 		   "an error if your root filesystem is big enough (or you later\n"
 		   "intend to mount your /usr filesystem over NFS), but it may otherwise\n"
 		   "cause you trouble if you're not exactly sure what you are doing!");
-	status = FALSE;
     }
     return status;
 }
