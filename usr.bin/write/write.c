@@ -256,7 +256,7 @@ do_write(char *tty, char *mytty, uid_t myuid)
 	time_t now;
 	char path[MAXPATHLEN], host[MAXHOSTNAMELEN], line[512];
 
-	/* Determine our login name before the we reopen() stdout */
+	/* Determine our login name before we reopen() stdout */
 	if ((login = getlogin()) == NULL) {
 		if ((pwd = getpwuid(myuid)))
 			login = pwd->pw_name;
