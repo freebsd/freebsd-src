@@ -76,6 +76,21 @@ static int	pcireg_cfgopen(void);
 static struct PIR_table	*pci_route_table;
 static int		pci_route_count;
 
+/*
+ * Some BIOS writers seem to want to ignore the spec and put
+ * 0 in the intline rather than 255 to indicate none.  Some use
+ * numbers in the range 128-254 to indicate something strange and
+ * apparently undocumented anywhere.  Assume these are completely bogus
+ * and map them to 255, which means "none".
+ */
+static __inline__ int 
+pci_i386_map_intline(int line)
+{
+    if (line == 0 || line >= 128)
+	return (255);
+    return (line);
+}
+
 int
 pci_pcibios_active(void)
 {
@@ -226,8 +241,7 @@ pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
     if (reg == PCIR_INTLINE && bytes == 1) {
 	line = pci_do_cfgregread(bus, slot, func, PCIR_INTLINE, 1);
 	pin = pci_do_cfgregread(bus, slot, func, PCIR_INTPIN, 1);
-	if (pin != 0 && (line == 0 || line >= 128))
-	    return (255);
+	return pci_i386_map_intline(line);
     }
 #endif /* APIC_IO */
     return(pci_do_cfgregread(bus, slot, func, reg, bytes));
@@ -407,15 +421,7 @@ pci_cfgintr_search(struct PIR_entry *pe, int bus, int device, int matchpin, int 
 	    if ((pci_get_bus(*childp) == bus) &&
 		(pci_get_slot(*childp) == device) &&
 		(pci_get_intpin(*childp) == matchpin)) {
-		irq = pci_get_irq(*childp);
-		/*
-		 * Some BIOS writers seem to want to ignore the spec and put
-		 * 0 in the intline rather than 255 to indicate none.  Once
-		 * we've found one that matches, we break because there can
-		 * be no others (which is why test looks a little odd).
-		 */
-		if (irq == 0)
-		    irq = 255;
+		irq = pci_i386_map_intline(pci_get_irq(*childp));
 		if (irq != 255)
 		    PRVERB(("pci_cfgintr_search: linked (%x) to configured irq %d at %d:%d:%d\n",
 		      pe->pe_intpin[pin - 1].link, irq,
