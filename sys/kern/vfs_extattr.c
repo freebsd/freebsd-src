@@ -652,9 +652,7 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 	if (error)
 		return (error);
 	fp = nfp;
-	FILEDESC_LOCK(fdp);
 	cmode = ((mode &~ fdp->fd_cmask) & ALLPERMS) &~ S_ISTXT;
-	FILEDESC_UNLOCK(fdp);
 	NDINIT(&nd, LOOKUP, FOLLOW, pathseg, path, td);
 	td->td_dupfd = -indx - 1;		/* XXX check for fdopen */
 	/*
