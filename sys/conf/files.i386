@@ -105,8 +105,6 @@ dev/ar/if_ar_isa.c		optional	ar isa
 dev/cm/if_cm_isa.c		optional	cm isa
 dev/ed/if_ed_isa.c		optional	ed isa
 dev/eisa/eisaconf.c		optional	eisa
-dev/em/if_em.c			optional	em
-dev/em/if_em_hw.c		optional	em
 dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	vga
 dev/fb/splash.c			optional	splash
