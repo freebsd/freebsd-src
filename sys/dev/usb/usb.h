@@ -387,6 +387,8 @@ typedef struct {
 #define   UPROTO_DATA_HOST_BASED	0xfd    /* Host based driver */
 #define   UPROTO_DATA_PUF		0xfe    /* see Prot. Unit Func. Desc.*/
 #define   UPROTO_DATA_VENDOR		0xff    /* Vendor specific */
+#define UCLASS_VENDOR_DA		0xfe	/* Doug Ambrisko */
+#define  USUBCLASS_DA			0xda	/* Doug Ambrisko */
 
 
 #define USB_HUB_MAX_DEPTH 5
@@ -538,6 +540,7 @@ struct usb_event {
 #define USB_GET_REPORT_DESC	_IOR ('U', 21, struct usb_ctl_report_desc)
 #define USB_SET_IMMED		_IOW ('U', 22, int)
 #define USB_GET_REPORT		_IOWR('U', 23, struct usb_ctl_report)
+#define USB_SET_REPORT		_IOW ('U', 24, struct usb_ctl_report)
 
 /* Generic USB device */
 #define USB_GET_CONFIG		_IOR ('U', 100, int)
