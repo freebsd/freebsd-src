@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip.h	8.2 (Berkeley) 6/1/94
- *	$Id: ip.h,v 1.6 1995/09/21 18:01:11 wollman Exp $
+ *	$Id: ip.h,v 1.7 1995/12/21 21:20:27 wollman Exp $
  */
 
 #ifndef _NETINET_IP_H_
@@ -119,6 +119,7 @@ struct ip {
 #define	IPOPT_LSRR		131		/* loose source route */
 #define	IPOPT_SATID		136		/* satnet id */
 #define	IPOPT_SSRR		137		/* strict source route */
+#define	IPOPT_RA		148		/* router alert */
 
 /*
  * Offsets to fields in options other than EOL and NOP.

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp_var.h	8.1 (Berkeley) 7/19/93
- * $Id: igmp_var.h,v 1.7 1995/11/14 20:33:54 phk Exp $
+ * $Id: igmp_var.h,v 1.8 1996/01/30 22:58:22 mpp Exp $
  */
 
 #ifndef _NETINET_IGMP_VAR_H_
@@ -47,7 +47,7 @@
  *
  * Written by Steve Deering, Stanford, May 1988.
  *
- * MULTICAST Revision: 3.3.1.1
+ * MULTICAST Revision: 3.5.1.3
  */
 
 struct igmpstat {
@@ -66,6 +66,26 @@ struct igmpstat {
 extern struct igmpstat igmpstat;
 
 #define IGMP_RANDOM_DELAY(X) (random() % (X) + 1)
+
+/*
+ * States for IGMPv2's leave processing
+ */
+#define IGMP_OTHERMEMBER			0
+#define IGMP_IREPORTEDLAST			1
+
+/*
+ * We must remember what version the subnet's querier is.
+ * We conveniently use the IGMP message type for the proper
+ * membership report to keep this state.
+ */
+#define IGMP_V1_ROUTER				IGMP_V1_MEMBERSHIP_REPORT
+#define IGMP_V2_ROUTER				IGMP_V2_MEMBERSHIP_REPORT
+
+/*
+ * Revert to new router if we haven't heard from an old router in
+ * this amount of time.
+ */
+#define IGMP_AGE_THRESHOLD			540
 
 void	igmp_init __P((void));
 void	igmp_input __P((struct mbuf *, int));
