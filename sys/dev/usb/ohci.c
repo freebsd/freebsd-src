@@ -6,7 +6,7 @@
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
- * by Lennart Augustsson (augustss@carlstedt.se) at
+ * by Lennart Augustsson (lennart@augustsson.net) at
  * Carlstedt Research & Technology.
  *
  * Redistribution and use in source and binary forms, with or without
