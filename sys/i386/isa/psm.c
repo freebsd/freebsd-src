@@ -19,7 +19,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.43 1997/10/19 10:44:29 yokota Exp $
+ * $Id: psm.c,v 1.44 1997/11/07 08:52:41 phk Exp $
  */
 
 /*
@@ -66,8 +66,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/fcntl.h>
-#include <sys/proc.h>
 #include <sys/conf.h>
 #include <sys/poll.h>
 #include <sys/syslog.h>
@@ -75,10 +73,11 @@
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif
+#include <sys/select.h>
 
-#include <i386/include/mouse.h>
-#include <i386/include/clock.h>
-#include <i386/include/apm_bios.h>
+#include <machine/apm_bios.h>
+#include <machine/clock.h>
+#include <machine/mouse.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/kbdio.h>
@@ -581,6 +580,8 @@ psmprobe(struct isa_device *dvp)
     psm_softc[unit] = NULL;
 
     sc =  malloc(sizeof *sc, M_DEVBUF, M_NOWAIT);
+    if (sc == NULL)
+	return (0);
     bzero(sc, sizeof *sc);
 
     sc->addr = dvp->id_iobase;
