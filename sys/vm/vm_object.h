@@ -172,8 +172,9 @@ extern struct vm_object kmem_object_store;
 #define	VM_OBJECT_LOCK(object)		mtx_lock(&(object)->mtx)
 #define	VM_OBJECT_LOCK_ASSERT(object, type) \
 					mtx_assert(&(object)->mtx, (type))
-#define	VM_OBJECT_LOCK_INIT(object)	mtx_init(&(object)->mtx, "vm object", \
-					    NULL, MTX_DEF | MTX_DUPOK)
+#define	VM_OBJECT_LOCK_INIT(object, type) \
+					mtx_init(&(object)->mtx, "vm object", \
+					    (type), MTX_DEF | MTX_DUPOK)
 #define	VM_OBJECT_LOCKED(object)	mtx_owned(&(object)->mtx)
 #define	VM_OBJECT_MTX(object)		(&(object)->mtx)
 #define	VM_OBJECT_TRYLOCK(object)	mtx_trylock(&(object)->mtx)

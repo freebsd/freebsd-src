@@ -219,6 +219,7 @@ SYSCTL_INT(_vm, OID_AUTO, swap_async_max,
 static struct mtx sw_alloc_mtx;	/* protect list manipulation */ 
 static struct pagerlst	swap_pager_object_list[NOBJLISTS];
 static uma_zone_t	swap_zone;
+static struct vm_object	swap_zone_obj;
 
 /*
  * pagerops for OBJT_SWAP - "swap pager".  Some ops are also global procedure
@@ -419,7 +420,7 @@ swap_pager_swap_init(void)
 	swap_zone = uma_zcreate("SWAPMETA", sizeof(struct swblock), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE | UMA_ZONE_VM);
 	do {
-		if (uma_zone_set_obj(swap_zone, NULL, n))
+		if (uma_zone_set_obj(swap_zone, &swap_zone_obj, n))
 			break;
 		/*
 		 * if the allocation failed, try a zone two thirds the
