@@ -339,6 +339,9 @@ ata_pci_match(device_t dev)
     case 0x6268105a:
 	return "Promise TX2 ATA100 controller";
 
+    case 0x4d69105a:
+	return "Promise TX2 ATA133 controller";
+
     case 0x00041103:
 	switch (pci_get_revid(dev)) {
 	case 0x00:
