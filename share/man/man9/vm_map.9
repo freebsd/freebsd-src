@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 19, 2003
+.Dd September 26, 2004
 .Dt VM_MAP 9
 .Os
 .Sh NAME
@@ -93,7 +93,7 @@ Used only by system maps.
 Set to TRUE to indicate that map is a system map; otherwise, it belongs
 to a user process.
 .It Va flags
-Map flags.
+Map flags, described below.
 .It Va root
 Root node of a binary search tree used for fast lookup of map entries.
 .It Va pmap
@@ -116,6 +116,12 @@ instead.
 The maximum
 .Va vm_offset_t
 in this map.
+.El
+.Pp
+There is one possible map flag:
+.Bl -tag -width ".Dv MAP_PREFAULT_MADVISE"
+.It Dv MAP_WIREFUTURE
+Wire all future pages in this map.
 .El
 .Pp
 The following flags can be passed to
