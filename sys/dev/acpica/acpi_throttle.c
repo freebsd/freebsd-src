@@ -60,6 +60,7 @@ struct acpi_throttle_softc {
 	uint32_t	 cpu_p_blk_len;	/* P_BLK length (must be 6). */
 	struct resource	*cpu_p_cnt;	/* Throttling control register */
 	int		 cpu_p_type;	/* Resource type for cpu_p_cnt. */
+	uint32_t	 cpu_thr_state;	/* Current throttle setting. */
 };
 
 #define THR_GET_REG(reg) 					\
@@ -87,7 +88,6 @@ struct acpi_throttle_softc {
 
 static uint32_t	cpu_duty_offset;	/* Offset in P_CNT of throttle val. */
 static uint32_t	cpu_duty_width;		/* Bit width of throttle value. */
-static uint32_t	cpu_throttle_state;	/* Current throttle setting. */
 static int	thr_rid;		/* Driver-wide resource id. */
 static int	thr_quirks;		/* Indicate any hardware bugs. */
 
@@ -127,19 +127,37 @@ DRIVER_MODULE(acpi_throttle, cpu, acpi_throttle_driver, acpi_throttle_devclass,
 static void
 acpi_throttle_identify(driver_t *driver, device_t parent)
 {
+	ACPI_BUFFER buf;
+	ACPI_HANDLE handle;
+	ACPI_OBJECT *obj;
 
 	/* Make sure we're not being doubly invoked. */
-	if (device_find_child(parent, "acpi_throttle", 0) != NULL)
+	if (device_find_child(parent, "acpi_throttle", -1) != NULL)
 		return;
 
 	/* Check for a valid duty width and parent CPU type. */
-	if (acpi_get_handle(parent) == NULL)
+	handle = acpi_get_handle(parent);
+	if (handle == NULL)
 		return;
 	if (AcpiGbl_FADT->DutyWidth == 0 ||
 	    acpi_get_type(parent) != ACPI_TYPE_PROCESSOR)
 		return;
-	if (BUS_ADD_CHILD(parent, 0, "acpi_throttle", 0) == NULL)
-		device_printf(parent, "acpi_throttle: add child failed\n");
+
+	/*
+	 * Add a child if there's a non-NULL P_BLK and correct length, or
+	 * if the _PTC method is present.
+	 */
+	buf.Pointer = NULL;
+	buf.Length = ACPI_ALLOCATE_BUFFER;
+	if (ACPI_FAILURE(AcpiEvaluateObject(handle, NULL, NULL, &buf)))
+		return;
+	obj = (ACPI_OBJECT *)buf.Pointer;
+	if ((obj->Processor.PblkAddress && obj->Processor.PblkLength >= 4) ||
+	    ACPI_SUCCESS(AcpiEvaluateObject(handle, "_PTC", NULL, NULL))) {
+		if (BUS_ADD_CHILD(parent, 0, "acpi_throttle", -1) == NULL)
+			device_printf(parent, "add throttle child failed\n");
+	}
+	AcpiOsFree(obj);
 }
 
 static int
@@ -155,8 +173,9 @@ acpi_throttle_attach(device_t dev)
 {
 	struct acpi_throttle_softc *sc;
 	ACPI_BUFFER buf;
-	ACPI_OBJECT*obj;
+	ACPI_OBJECT *obj;
 	ACPI_STATUS status;
+	int error;
 
 	sc = device_get_softc(dev);
 	sc->cpu_dev = dev;
@@ -179,7 +198,14 @@ acpi_throttle_attach(device_t dev)
 	if (device_get_unit(dev) == 0)
 		acpi_throttle_quirks(sc);
 
-	return (acpi_throttle_evaluate(sc));
+	/* Attempt to attach the actual throttling register. */
+	error = acpi_throttle_evaluate(sc);
+	if (error)
+		return (error);
+
+	/* Everything went ok, register with cpufreq(4). */
+	cpufreq_register(dev);
+	return (0);
 }
 
 static int
@@ -337,7 +363,7 @@ acpi_thr_set(device_t dev, const struct cf_setting *set)
 		return (EINVAL);
 
 	/* If we're at this setting, don't bother applying it again. */
-	if (speed == cpu_throttle_state)
+	if (speed == sc->cpu_thr_state)
 		return (0);
 
 	/* Get the current P_CNT value and disable throttling */
@@ -357,7 +383,7 @@ acpi_thr_set(device_t dev, const struct cf_setting *set)
 		p_cnt |= CPU_P_CNT_THT_EN;
 		THR_SET_REG(sc->cpu_p_cnt, p_cnt);
 	}
-	cpu_throttle_state = speed;
+	sc->cpu_thr_state = speed;
 
 	return (0);
 }
@@ -375,6 +401,7 @@ acpi_thr_get(device_t dev, struct cf_setting *set)
 	/* Get the current throttling setting from P_CNT. */
 	p_cnt = THR_GET_REG(sc->cpu_p_cnt);
 	clk_val = (p_cnt >> cpu_duty_offset) & (CPU_MAX_SPEED - 1);
+	sc->cpu_thr_state = clk_val;
 
 	memset(set, CPUFREQ_VAL_UNKNOWN, sizeof(*set));
 	set->freq = CPU_SPEED_PERCENT(clk_val);
