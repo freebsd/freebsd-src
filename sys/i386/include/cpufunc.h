@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.36 1995/05/14 22:25:11 davidg Exp $
+ *	$Id: cpufunc.h,v 1.37 1995/05/30 08:00:30 rgrimes Exp $
  */
 
 /*
@@ -63,13 +63,13 @@ bdb(void)
 static __inline void
 disable_intr(void)
 {
-	__asm __volatile("cli");
+	__asm __volatile("cli" : : : "memory");
 }
 
 static __inline void
 enable_intr(void)
 {
-	__asm __volatile("sti");
+	__asm __volatile("sti" : : : "memory");
 }
 
 #define	HAVE_INLINE_FFS
@@ -101,6 +101,12 @@ ffs(int mask)
 #else /* __GNUC >= 2 */
 
 /*
+ * The following complications are to get around gcc not having a
+ * constraint letter for the range 0..255.  We still put "d" in the
+ * constraint because "i" isn't a valid constraint when the port
+ * isn't constant.  This only matters for -O0 because otherwise
+ * the non-working version gets optimized away.
+ * 
  * Use an expression-statement instead of a conditional expression
  * because gcc-2.6.0 would promote the operands of the conditional
  * and produce poor code for "if ((inb(var) & const1) == const2)".
@@ -122,14 +128,14 @@ inbc(u_int port)
 {
 	u_char	data;
 
-	__asm __volatile("inb %1,%0" : "=a" (data) : "i" (port));
+	__asm __volatile("inb %1,%0" : "=a" (data) : "id" ((u_short)(port)));
 	return (data);
 }
 
 static __inline void
 outbc(u_int port, u_char data)
 {
-	__asm __volatile("outb %0,%1" : : "a" (data), "i" (port));
+	__asm __volatile("outb %0,%1" : : "a" (data), "id" ((u_short)(port)));
 }
 
 #endif /* __GNUC <= 2 */
@@ -262,7 +268,8 @@ pmap_update(void)
 	 * This should be implemented as load_cr3(rcr3()) when load_cr3()
 	 * is inlined.
 	 */
-	__asm __volatile("movl %%cr3, %0; movl %0, %%cr3" : "=r" (temp));
+	__asm __volatile("movl %%cr3, %0; movl %0, %%cr3" : "=r" (temp) :
+		: "memory");
 }
 
 static __inline u_long
