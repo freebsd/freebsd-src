@@ -272,8 +272,7 @@ tcpflg_match(struct tcphdr *tcp, struct ip_fw *f)
 	 * other flag requirements.
 	 */
 	if ((f->fw_ipflg & IP_FW_IF_TCPEST) &&
-	    ((tcp->th_flags & (IP_FW_TCPF_RST | IP_FW_TCPF_ACK |
-	    IP_FW_TCPF_SYN)) == IP_FW_TCPF_SYN))
+	    ((tcp->th_flags & (TH_RST | TH_ACK | TH_SYN)) == TH_SYN))
 		return 0;
 
 	flg_set = tcp->th_flags & f->fw_tcpf;

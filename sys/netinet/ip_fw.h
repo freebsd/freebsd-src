@@ -310,16 +310,6 @@ struct ipfw_dyn_rule {
 #define	IP_FW_TCPOPT_CC		0x10
 
 /*
- * Definitions for TCP flags.
- */
-#define	IP_FW_TCPF_FIN		TH_FIN
-#define	IP_FW_TCPF_SYN		TH_SYN
-#define	IP_FW_TCPF_RST		TH_RST
-#define	IP_FW_TCPF_PSH		TH_PUSH
-#define	IP_FW_TCPF_ACK		TH_ACK
-#define	IP_FW_TCPF_URG		TH_URG
-
-/*
  * Main firewall chains definitions and global var's definitions.
  */
 #ifdef _KERNEL
